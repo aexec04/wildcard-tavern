@@ -679,6 +679,88 @@ local function countRemainingInDeck(deckCounts)
 	return total
 end
 
+-- ----- Score popup: chips x mult animation on Play Hand -----
+-- LAYOUT FEATURE 7: Balatro's signature score-pop. Parented to `root` (not
+-- handFrame -- rebuildHand() destroys every Frame child of handFrame on
+-- every render(), which would destroy this the instant a hand is played)
+-- and centered on the full screen rather than the narrower play area, to
+-- avoid hand-crafting sidebar/deck-widget-aware centering math for a
+-- element that's only ever on screen for about a second.
+--
+-- Wrapped in do...end per the LOCAL VARIABLE BUDGET note above -- showScorePopup
+-- is called from playButton's click handler far below, so it's forward-declared
+-- and assigned inside the block (not `local function`) to survive past `end`.
+local showScorePopup
+do
+
+local scorePopup = Instance.new("Frame")
+scorePopup.Name = "ScorePopup"
+scorePopup.Size = UDim2.new(0, 240, 0, 90)
+scorePopup.AnchorPoint = Vector2.new(0.5, 1)
+scorePopup.Position = UDim2.new(0.5, 0, 1, -240)
+scorePopup.BackgroundTransparency = 1
+scorePopup.Visible = false
+scorePopup.ZIndex = 25
+scorePopup.Parent = root
+
+local scorePopupHandName = Instance.new("TextLabel")
+scorePopupHandName.Size = UDim2.new(1, 0, 0, 24)
+scorePopupHandName.BackgroundTransparency = 1
+scorePopupHandName.Font = Enum.Font.GothamBold
+scorePopupHandName.TextSize = 18
+scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
+scorePopupHandName.TextStrokeTransparency = 0.5
+scorePopupHandName.Text = ""
+scorePopupHandName.ZIndex = 25
+scorePopupHandName.Parent = scorePopup
+
+local scorePopupMath = Instance.new("TextLabel")
+scorePopupMath.Size = UDim2.new(1, 0, 0, 50)
+scorePopupMath.Position = UDim2.new(0, 0, 0, 26)
+scorePopupMath.BackgroundTransparency = 1
+scorePopupMath.Font = Enum.Font.GothamBold
+scorePopupMath.TextSize = 36
+scorePopupMath.TextColor3 = Color3.fromRGB(255, 255, 255)
+scorePopupMath.TextStrokeTransparency = 0.4
+scorePopupMath.Text = ""
+scorePopupMath.ZIndex = 25
+scorePopupMath.Parent = scorePopup
+
+local scorePopupScale = Instance.new("UIScale")
+scorePopupScale.Scale = 1
+scorePopupScale.Parent = scorePopup
+
+local scorePopupToken = 0
+
+-- preview: { name, chips, mult, score } from computeHandPreview(). Values
+-- are computed at the moment Play Hand is clicked, using the exact same
+-- scoring call RunState.playHand makes server-side, so this can never show
+-- a number that doesn't match what you actually get paid.
+showScorePopup = function(preview)
+	scorePopupToken = scorePopupToken + 1
+	local myToken = scorePopupToken
+
+	scorePopupHandName.Text = preview.name
+	scorePopupMath.Text = string.format("%d x %d", preview.chips, preview.mult)
+	scorePopup.Visible = true
+	scorePopupScale.Scale = 0.6
+	tweenTo(scorePopupScale, { Scale = 1.15 }, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+	task.delay(0.18, function()
+		if scorePopupToken == myToken then
+			tweenTo(scorePopupScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+	end)
+
+	task.delay(1.1, function()
+		if scorePopupToken == myToken then
+			scorePopup.Visible = false
+		end
+	end)
+end
+
+end -- do (Score popup)
+
 -- ----- Shop overlay -----
 
 local shopFrame = Instance.new("Frame")
@@ -2359,22 +2441,22 @@ local function refreshAllCardVisuals()
 	end
 end
 
--- LAYOUT FEATURE 6: recompute the chips x mult preview for whatever's
--- currently selected. Mirrors RunState.lua's playHand exactly: same
--- HandEvaluator.evaluate + Scoring.calculate calls, same context shape
+-- LAYOUT FEATURE 6 (and 7's score popup below): the one place that knows
+-- how to preview a hand's score. Mirrors RunState.lua's playHand exactly:
+-- same HandEvaluator.evaluate + Scoring.calculate calls, same context shape
 -- (handsRemaining is "if I played this NOW", i.e. one less than current,
 -- since that's what the real call would see). ownedPatrons has to be
 -- turned from the server's lightweight {id,name,description} payload back
 -- into real Patron instances via Patrons.getById, since only the real
 -- instances carry the .effect(...) function Scoring.calculate needs.
-local function refreshScorePreview()
+-- Returns nil if cardIndices doesn't resolve to a previewable hand.
+local function computeHandPreview(cardIndices)
 	if not latestState then
-		scorePreviewLabel.Text = "0  x  0"
-		return
+		return nil
 	end
 
 	local selectedCards = {}
-	for index in pairs(selected) do
+	for _, index in ipairs(cardIndices) do
 		local card = latestState.hand[index]
 		if card then
 			table.insert(selectedCards, card)
@@ -2382,14 +2464,12 @@ local function refreshScorePreview()
 	end
 
 	if #selectedCards == 0 then
-		scorePreviewLabel.Text = "Select cards..."
-		return
+		return nil
 	end
 
 	local ok, handResult = pcall(HandEvaluator.evaluate, selectedCards)
 	if not ok or not handResult then
-		scorePreviewLabel.Text = "Select cards..."
-		return
+		return nil
 	end
 
 	local ownedPatronInstances = {}
@@ -2411,11 +2491,30 @@ local function refreshScorePreview()
 	})
 
 	if not ok2 then
+		return nil
+	end
+
+	return { name = handResult.name, chips = chips, mult = mult, score = score }
+end
+
+local function refreshScorePreview()
+	if not latestState then
+		scorePreviewLabel.Text = "0  x  0"
+		return
+	end
+
+	local selectedIndices = {}
+	for index in pairs(selected) do
+		table.insert(selectedIndices, index)
+	end
+
+	local preview = computeHandPreview(selectedIndices)
+	if not preview then
 		scorePreviewLabel.Text = "Select cards..."
 		return
 	end
 
-	scorePreviewLabel.Text = string.format("%s\n%d x %d = %d", handResult.name, chips, mult, score)
+	scorePreviewLabel.Text = string.format("%s\n%d x %d = %d", preview.name, preview.chips, preview.mult, preview.score)
 end
 
 local function onCardClicked(index)
@@ -2724,6 +2823,14 @@ playButton.MouseButton1Click:Connect(function()
 		return
 	end
 	playSfx(SOUND_IDS.playHand)
+
+	-- LAYOUT FEATURE 7: pop the score BEFORE firing the remote, off the same
+	-- preview computation the sidebar already uses -- see computeHandPreview.
+	local preview = computeHandPreview(indices)
+	if preview then
+		showScorePopup(preview)
+	end
+
 	PlayHandRemote:FireServer(indices)
 end)
 
