@@ -186,8 +186,11 @@ end
 -- into the clip itself -- for a snappy UI button we only want the first
 -- one, so every generic click plays through this instead of calling
 -- playSfx(SOUND_IDS.uiClick, ...) directly.
+-- 0.15s cut it off too close to the sound's own startup latency, so on some
+-- clicks (e.g. the "not enough tips" error click) it ended up basically
+-- inaudible -- 0.25s gives it more room to actually be heard before the cut.
 local function playClickSfx(volume)
-	playSfx(SOUND_IDS.uiClick, volume, 0.15)
+	playSfx(SOUND_IDS.uiClick, volume, 0.25)
 end
 
 -- ===== Tween helper =====
@@ -553,6 +556,22 @@ messageLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 messageLabel.Text = ""
 messageLabel.Parent = root
 
+-- Every warning shown through this ("Not enough tips", "Select 1-5 cards...")
+-- used to just sit on screen forever once set. This clears it back to ""
+-- after a few seconds. The "MessageToken" attribute (not a new top-level
+-- local -- see LOCAL VARIABLE BUDGET above) guards against a newer message
+-- getting wiped early by an older message's stale clear-timer.
+local function showWarning(text)
+	messageLabel.Text = text
+	local myToken = (messageLabel:GetAttribute("MessageToken") or 0) + 1
+	messageLabel:SetAttribute("MessageToken", myToken)
+	task.delay(3, function()
+		if messageLabel:GetAttribute("MessageToken") == myToken then
+			messageLabel.Text = ""
+		end
+	end)
+end
+
 -- FEATURE 9: a banner announcing this round's Boss modifier, if any.
 local bossBanner = Instance.new("Frame")
 bossBanner.Name = "BossBanner"
@@ -629,8 +648,19 @@ playButton.LayoutOrder = 1
 -- further down). It never touches the server's actual hand array, so
 -- there's no risk of the visual order and the real card-selection indices
 -- (used by PlayHand/Discard) drifting apart.
+local handSortMode = nil -- nil (as dealt) | "rank" | "suit"
+
+-- Forward-declared for the same reason as the other refresh* functions --
+-- assigned further down once rebuildHand/latestState exist.
+local refreshHandSort
+
+-- Wrapped in do...end per the LOCAL VARIABLE BUDGET note up top -- nothing
+-- built in here needs to be reachable from outside except handSortMode and
+-- refreshHandSort, both already forward-declared above.
+do
+
 local sortFrame = Instance.new("Frame")
-sortFrame.Size = UDim2.new(0, 140, 1, 0)
+sortFrame.Size = UDim2.new(0, 195, 1, 0)
 sortFrame.BackgroundTransparency = 1
 sortFrame.LayoutOrder = 2
 sortFrame.Parent = actionFrame
@@ -639,33 +669,52 @@ local sortFrameLayout = Instance.new("UIListLayout")
 sortFrameLayout.FillDirection = Enum.FillDirection.Horizontal
 sortFrameLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 sortFrameLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-sortFrameLayout.Padding = UDim.new(0, 8)
+sortFrameLayout.Padding = UDim.new(0, 6)
 sortFrameLayout.Parent = sortFrame
 
-local function makeSortButton(text)
+-- User feedback: "make it more obvious that it's sorting buttons" -- a
+-- small "Sort:" caption to the left of the two buttons, so they don't read
+-- as two random unlabeled buttons.
+local sortCaptionLabel = Instance.new("TextLabel")
+sortCaptionLabel.Size = UDim2.new(0, 40, 1, 0)
+sortCaptionLabel.BackgroundTransparency = 1
+sortCaptionLabel.Font = Enum.Font.Gotham
+sortCaptionLabel.TextSize = 13
+sortCaptionLabel.TextColor3 = Color3.fromRGB(220, 210, 190)
+sortCaptionLabel.Text = "Sort:"
+sortCaptionLabel.LayoutOrder = 1
+sortCaptionLabel.Parent = sortFrame
+
+local SORT_BUTTON_DEFAULT_COLOR = Color3.fromRGB(60, 45, 32)
+local SORT_BUTTON_ACTIVE_COLOR = Color3.fromRGB(120, 90, 45)
+
+local function makeSortButton(text, order)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 60, 1, 0)
+	button.Size = UDim2.new(0, 65, 1, 0)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 13
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	button.BackgroundColor3 = SORT_BUTTON_DEFAULT_COLOR
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
+	button.LayoutOrder = order
 	button.Parent = sortFrame
 	polishButton(button, 8)
 	return button
 end
 
-local sortByRankButton = makeSortButton("Rank")
-local sortBySuitButton = makeSortButton("Suit")
+local sortByRankButton = makeSortButton("Rank", 2)
+local sortBySuitButton = makeSortButton("Suit", 3)
 
-local handSortMode = nil -- nil (as dealt) | "rank" | "suit"
-
--- Forward-declared for the same reason as the other refresh* functions --
--- assigned further down once rebuildHand/latestState exist.
-local refreshHandSort
+-- Highlights whichever sort mode is currently active, so the buttons also
+-- double as a status readout ("Rank" lit up = your hand is sorted by rank).
+local function refreshSortButtonHighlight()
+	sortByRankButton.BackgroundColor3 = (handSortMode == "rank") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
+	sortBySuitButton.BackgroundColor3 = (handSortMode == "suit") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
+end
 
 local function applyHandSortMode(mode)
 	handSortMode = mode
+	refreshSortButtonHighlight()
 	if refreshHandSort then
 		refreshHandSort()
 	end
@@ -679,6 +728,8 @@ sortBySuitButton.MouseButton1Click:Connect(function()
 	playClickSfx(0.35)
 	applyHandSortMode("suit")
 end)
+
+end -- do (Sort Hand buttons)
 
 local discardButton = makeActionButton("Discard")
 discardButton.LayoutOrder = 3
@@ -1942,7 +1993,7 @@ local function refreshThemesListImpl()
 			actionButton.Text = string.format("Buy (%d)", theme.price)
 			actionButton.MouseButton1Click:Connect(function()
 				if not latestState or latestState.tips < theme.price then
-					messageLabel.Text = "Not enough tips for that."
+					showWarning("Not enough tips for that.")
 					playClickSfx()
 					return
 				end
@@ -2762,7 +2813,7 @@ local function rebuildShop(shopOffers)
 
 		buyButton.MouseButton1Click:Connect(function()
 			if not latestState or latestState.tips < offer.price then
-				messageLabel.Text = "Not enough tips for that."
+				showWarning("Not enough tips for that.")
 				playClickSfx()
 				return
 			end
@@ -2903,7 +2954,7 @@ playButton.MouseButton1Click:Connect(function()
 	end
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
-		messageLabel.Text = "Select 1-5 cards first."
+		showWarning("Select 1-5 cards first.")
 		return
 	end
 	playSfx(SOUND_IDS.playHand)
@@ -2923,12 +2974,12 @@ discardButton.MouseButton1Click:Connect(function()
 		return
 	end
 	if latestState.discardsRemaining <= 0 then
-		messageLabel.Text = "No discards left this round."
+		showWarning("No discards left this round.")
 		return
 	end
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
-		messageLabel.Text = "Select 1-5 cards to discard."
+		showWarning("Select 1-5 cards to discard.")
 		return
 	end
 	playSfx(SOUND_IDS.discard)
