@@ -348,7 +348,18 @@ end
 local nightRoundBox = makeSidebarBox(40)
 local nightRoundLabel = makeSidebarLabel(nightRoundBox, 16)
 
-local scoreBox = makeSidebarBox(50)
+-- LAYOUT FEATURE 2: blind/round name + ability (mirrors the existing
+-- bossBanner content, just always-visible in the sidebar instead of a
+-- banner that only appears mid-round) and the target score + tip reward
+-- for clearing it, computed the same way the server does (see RunState.lua
+-- playHand: tipsPerRoundWin, doubled on a Boss Round) so it never drifts
+-- out of sync with the actual payout.
+local blindInfoBox = makeSidebarBox(56)
+local blindInfoLabel = makeSidebarLabel(blindInfoBox, 13)
+blindInfoLabel.TextWrapped = true
+blindInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+
+local scoreBox = makeSidebarBox(66)
 local scoreLabel = makeSidebarLabel(scoreBox, 16, Color3.fromRGB(255, 214, 130))
 
 local tipsBox = makeSidebarBox(40)
@@ -2258,8 +2269,22 @@ local function render(state)
 
 	nightRoundLabel.Text = string.format("Night %d - Round %d", state.night, state.round)
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
-	scoreLabel.Text = string.format("Score: %d / %d", state.roundScore, state.targetScore)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
+
+	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly
+	-- (tipsPerRoundWin, doubled on a Boss Round) so the sidebar never shows a
+	-- number that doesn't match what you actually get paid.
+	local reward = RunStateEngine.DefaultConfig.tipsPerRoundWin
+	if state.bossModifier then
+		reward = reward + RunStateEngine.DefaultConfig.tipsPerRoundWin
+	end
+	scoreLabel.Text = string.format("Score: %d / %d\nReward: $%d", state.roundScore, state.targetScore, reward)
+
+	if state.bossModifier then
+		blindInfoLabel.Text = string.format("👑 %s\n%s", state.bossModifier.name, state.bossModifier.description)
+	else
+		blindInfoLabel.Text = string.format("Round %d", state.round)
+	end
 
 	if state.bossModifier then
 		bossBanner.Visible = true
