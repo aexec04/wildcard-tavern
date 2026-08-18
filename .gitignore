@@ -1,0 +1,11 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Rojo build output, if you ever export a place file this way
+*.rbxlx
+*.rbxl
+
+# Aftman installs tools globally, not into the project, but just in case
+.aftman/
+_to_delete/

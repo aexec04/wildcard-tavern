@@ -1,0 +1,10 @@
+# Aftman is Roblox's tool version manager. Running `aftman install` in this
+# folder will install the exact tool versions pinned below for everyone on
+# the team -- no more "works on my machine" version mismatches.
+#
+# If `aftman install` complains that a version doesn't exist anymore, check
+# https://github.com/rojo-rbx/rojo/releases for the current latest version
+# and update the line below to match.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
