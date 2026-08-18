@@ -430,9 +430,12 @@ bossBannerLabel.Parent = bossBanner
 
 -- ----- Hand area -----
 
+-- 110px reserved on the right so a full hand of cards never fans out under
+-- the deck-remaining widget added further down (bottom-right, ~94px wide
+-- including its margin).
 local handFrame = Instance.new("Frame")
 handFrame.Name = "HandFrame"
-handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 160)
+handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 110), 0, 160)
 handFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -230)
 handFrame.BackgroundTransparency = 1
 handFrame.Parent = root
@@ -474,6 +477,68 @@ end
 
 local playButton = makeActionButton("Play Hand")
 local discardButton = makeActionButton("Discard")
+
+-- ----- Deck-remaining widget, bottom-right -----
+-- LAYOUT FEATURE 3: always-visible "how many cards are left" readout with a
+-- card-back icon, instead of that info only being reachable through the
+-- Deck Tracker overlay. Parented under `root` (not screenGui directly), so
+-- its addSoftShadow correctly cascades hidden/visible with the menu <->
+-- gameplay toggle -- see the addSoftShadow note on the Unlock popup for why
+-- that parenting choice matters.
+
+local deckWidget = Instance.new("Frame")
+deckWidget.Name = "DeckWidget"
+deckWidget.AnchorPoint = Vector2.new(1, 1)
+deckWidget.Position = UDim2.new(1, -20, 1, -70)
+deckWidget.Size = UDim2.new(0, 74, 0, 118)
+deckWidget.BackgroundTransparency = 1
+deckWidget.ZIndex = 2
+deckWidget.Parent = root
+
+local deckCardBack = Instance.new("Frame")
+deckCardBack.Size = UDim2.new(1, 0, 0, 96)
+deckCardBack.BackgroundColor3 = Color3.fromRGB(50, 70, 110)
+deckCardBack.ZIndex = 2
+deckCardBack.Parent = deckWidget
+polishPanel(deckCardBack, 8)
+addSoftShadow(deckCardBack, 10)
+
+local deckCardBackIcon = Instance.new("TextLabel")
+deckCardBackIcon.Size = UDim2.fromScale(1, 1)
+deckCardBackIcon.BackgroundTransparency = 1
+deckCardBackIcon.Font = Enum.Font.GothamBold
+deckCardBackIcon.TextSize = 30
+deckCardBackIcon.TextColor3 = Color3.fromRGB(220, 225, 240)
+deckCardBackIcon.Text = "🂠"
+deckCardBackIcon.ZIndex = 2
+deckCardBackIcon.Parent = deckCardBack
+
+local deckCountLabel = Instance.new("TextLabel")
+deckCountLabel.Size = UDim2.new(1, 0, 0, 20)
+deckCountLabel.Position = UDim2.new(0, 0, 0, 98)
+deckCountLabel.BackgroundTransparency = 1
+deckCountLabel.Font = Enum.Font.GothamBold
+deckCountLabel.TextSize = 14
+deckCountLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
+deckCountLabel.Text = ""
+deckCountLabel.ZIndex = 2
+deckCountLabel.Parent = deckWidget
+
+-- deckCounts is [suit][rank] = count (see Deck.remainingCounts) -- sum it
+-- up rather than hardcoding suit/rank names, so it stays correct even if
+-- the engine's card set ever changes.
+local function countRemainingInDeck(deckCounts)
+	local total = 0
+	if not deckCounts then
+		return total
+	end
+	for _, suitCounts in pairs(deckCounts) do
+		for _, count in pairs(suitCounts) do
+			total = total + count
+		end
+	end
+	return total
+end
 
 -- ----- Shop overlay -----
 
@@ -2270,6 +2335,7 @@ local function render(state)
 	nightRoundLabel.Text = string.format("Night %d - Round %d", state.night, state.round)
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
+	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly
 	-- (tipsPerRoundWin, doubled on a Boss Round) so the sidebar never shows a
