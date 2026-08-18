@@ -1216,24 +1216,66 @@ howToPlayExamplesLabel.Font = Enum.Font.GothamBold
 howToPlayExamplesLabel.TextSize = 15
 howToPlayExamplesLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 howToPlayExamplesLabel.TextXAlignment = Enum.TextXAlignment.Left
-howToPlayExamplesLabel.Text = "How scoring works:"
+howToPlayExamplesLabel.Text = "How scoring works -- every hand, weakest to strongest:"
 howToPlayExamplesLabel.ZIndex = 21
 howToPlayExamplesLabel.LayoutOrder = 2
 howToPlayExamplesLabel.Parent = howToPlayScroll
 
+-- Ahmed: "the Poker Hands [reference] has all ways to score points, why is
+-- that not being visually shown in the how to play?" -- one worked example
+-- per HandEvaluator.HandOrder entry now (was only 3 of 9), weakest to
+-- strongest, same visual mini-card format as before.
 local EXAMPLE_HANDS = {
-	{
+	{ -- High Card
+		{ rank = 2, suit = "Hearts" },
+		{ rank = 5, suit = "Diamonds" },
+		{ rank = 9, suit = "Clubs" },
+		{ rank = 11, suit = "Spades" },
+		{ rank = 13, suit = "Hearts" },
+	},
+	{ -- Pair
 		{ rank = 7, suit = "Hearts" },
 		{ rank = 7, suit = "Spades" },
 	},
-	{
+	{ -- Two Pair
+		{ rank = 9, suit = "Diamonds" },
+		{ rank = 9, suit = "Clubs" },
+		{ rank = 2, suit = "Hearts" },
+		{ rank = 2, suit = "Diamonds" },
+	},
+	{ -- Three of a Kind
+		{ rank = 5, suit = "Spades" },
+		{ rank = 5, suit = "Hearts" },
+		{ rank = 5, suit = "Diamonds" },
+	},
+	{ -- Straight
+		{ rank = 4, suit = "Hearts" },
+		{ rank = 5, suit = "Diamonds" },
+		{ rank = 6, suit = "Clubs" },
+		{ rank = 7, suit = "Spades" },
+		{ rank = 8, suit = "Hearts" },
+	},
+	{ -- Flush
+		{ rank = 2, suit = "Hearts" },
+		{ rank = 5, suit = "Hearts" },
+		{ rank = 9, suit = "Hearts" },
+		{ rank = 11, suit = "Hearts" },
+		{ rank = 13, suit = "Hearts" },
+	},
+	{ -- Full House
 		{ rank = 9, suit = "Diamonds" },
 		{ rank = 9, suit = "Clubs" },
 		{ rank = 9, suit = "Spades" },
 		{ rank = 2, suit = "Hearts" },
 		{ rank = 2, suit = "Diamonds" },
 	},
-	{
+	{ -- Four of a Kind
+		{ rank = 8, suit = "Hearts" },
+		{ rank = 8, suit = "Diamonds" },
+		{ rank = 8, suit = "Clubs" },
+		{ rank = 8, suit = "Spades" },
+	},
+	{ -- Straight Flush
 		{ rank = 4, suit = "Clubs" },
 		{ rank = 5, suit = "Clubs" },
 		{ rank = 6, suit = "Clubs" },
