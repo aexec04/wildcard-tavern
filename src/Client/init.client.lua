@@ -96,12 +96,21 @@ local function tweenTo(instance, properties, duration, style, direction)
 	return tween
 end
 
--- ===== Visual polish helpers (rounded corners, soft gloss) =====
--- FEATURE 1 of the rebuild-from-known-good pass: purely cosmetic, additive
--- only. Doesn't touch any color VALUES, so it should be safe against the
--- darkness bug -- if the screen goes dark after this step, we'll know it's
--- one of these two helpers (or how they're applied) and can revert just
--- this one commit.
+-- ===== Visual polish helpers (rounded corners) =====
+-- FEATURE 1 of the rebuild-from-known-good pass.
+--
+-- FOUND IT: an earlier version of this helper set also had an addGloss()
+-- that layered a near-white UIGradient on top of buttons/cards using a
+-- Transparency sequence of 0.75 -> 0.9 -> 1.0 to fake a subtle highlight.
+-- In Roblox, UIGradient.Transparency does NOT add a highlight on top of the
+-- object's own color -- it OVERRIDES how see-through the object is at each
+-- point. A sequence that's 75-100% transparent across almost the whole
+-- object means you're mostly looking straight through the button/card to
+-- whatever's behind it (the dark table background), not seeing a gloss at
+-- all. That's the actual cause of the "everything looks near-black" bug
+-- this whole project has been chasing. Leaving addGloss out entirely here;
+-- rounded corners alone are zero-risk since they don't touch color or
+-- transparency.
 
 local function roundCorner(instance, radius)
 	if instance:FindFirstChildOfClass("UICorner") then
@@ -112,27 +121,8 @@ local function roundCorner(instance, radius)
 	corner.Parent = instance
 end
 
-local function addGloss(instance)
-	if instance:FindFirstChildOfClass("UIGradient") then
-		return
-	end
-	local gradient = Instance.new("UIGradient")
-	gradient.Rotation = 90
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
-	})
-	gradient.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.75),
-		NumberSequenceKeypoint.new(0.5, 0.9),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	gradient.Parent = instance
-end
-
 local function polishButton(instance, radius)
 	roundCorner(instance, radius or 10)
-	addGloss(instance)
 end
 
 local function polishPanel(instance, radius)
