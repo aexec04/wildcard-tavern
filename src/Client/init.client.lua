@@ -96,6 +96,49 @@ local function tweenTo(instance, properties, duration, style, direction)
 	return tween
 end
 
+-- ===== Visual polish helpers (rounded corners, soft gloss) =====
+-- FEATURE 1 of the rebuild-from-known-good pass: purely cosmetic, additive
+-- only. Doesn't touch any color VALUES, so it should be safe against the
+-- darkness bug -- if the screen goes dark after this step, we'll know it's
+-- one of these two helpers (or how they're applied) and can revert just
+-- this one commit.
+
+local function roundCorner(instance, radius)
+	if instance:FindFirstChildOfClass("UICorner") then
+		return
+	end
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, radius or 10)
+	corner.Parent = instance
+end
+
+local function addGloss(instance)
+	if instance:FindFirstChildOfClass("UIGradient") then
+		return
+	end
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+	})
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.75),
+		NumberSequenceKeypoint.new(0.5, 0.9),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	gradient.Parent = instance
+end
+
+local function polishButton(instance, radius)
+	roundCorner(instance, radius or 10)
+	addGloss(instance)
+end
+
+local function polishPanel(instance, radius)
+	roundCorner(instance, radius or 16)
+end
+
 -- ===== Root UI =====
 
 local screenGui = Instance.new("ScreenGui")
@@ -158,6 +201,7 @@ local function makeCornerButton(text, xOffset)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 5
 	button.Parent = root
+	polishButton(button, 22)
 	return button
 end
 
@@ -218,6 +262,7 @@ local function makeActionButton(text)
 	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.Parent = actionFrame
+	polishButton(button, 12)
 	return button
 end
 
@@ -233,6 +278,7 @@ shopFrame.Position = UDim2.fromScale(0.2, 0.2)
 shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 shopFrame.Visible = false
 shopFrame.Parent = root
+polishPanel(shopFrame, 16)
 
 local shopTitle = Instance.new("TextLabel")
 shopTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -262,6 +308,7 @@ nextRoundButton.Text = "Next Round"
 nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 nextRoundButton.Parent = shopFrame
+polishButton(nextRoundButton, 10)
 
 -- ----- Game over overlay -----
 
@@ -272,6 +319,7 @@ gameOverFrame.Position = UDim2.fromScale(0.25, 0.35)
 gameOverFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 gameOverFrame.Visible = false
 gameOverFrame.Parent = root
+polishPanel(gameOverFrame, 16)
 
 local gameOverLabel = Instance.new("TextLabel")
 gameOverLabel.Size = UDim2.new(1, 0, 0, 60)
@@ -291,6 +339,7 @@ playAgainButton.Text = "Play Again"
 playAgainButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 playAgainButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 playAgainButton.Parent = gameOverFrame
+polishButton(playAgainButton, 10)
 
 -- ===== Menu screen =====
 
@@ -347,6 +396,7 @@ local function makeMenuButton(text)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 10
 	button.Parent = menuButtonHolder
+	polishButton(button, 12)
 	return button
 end
 
@@ -370,6 +420,7 @@ howToPlayPanel.Position = UDim2.fromScale(0.225, 0.225)
 howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 howToPlayPanel.ZIndex = 21
 howToPlayPanel.Parent = howToPlayBackdrop
+polishPanel(howToPlayPanel, 16)
 
 local howToPlayTitle = Instance.new("TextLabel")
 howToPlayTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -415,6 +466,7 @@ howToPlayCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 howToPlayCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 howToPlayCloseButton.ZIndex = 21
 howToPlayCloseButton.Parent = howToPlayPanel
+polishButton(howToPlayCloseButton, 10)
 
 howToPlayCloseButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
@@ -448,6 +500,7 @@ themesPanel.Position = UDim2.fromScale(0.225, 0.2)
 themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 themesPanel.ZIndex = 21
 themesPanel.Parent = themesBackdrop
+polishPanel(themesPanel, 16)
 
 local themesTitle = Instance.new("TextLabel")
 themesTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -480,6 +533,7 @@ themesCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 themesCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 themesCloseButton.ZIndex = 21
 themesCloseButton.Parent = themesPanel
+polishButton(themesCloseButton, 10)
 
 themesCloseButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
@@ -576,12 +630,14 @@ local function refreshThemesListImpl()
 		row.Size = UDim2.new(1, 0, 0, 50)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 		row.Parent = themesListFrame
+		polishPanel(row, 10)
 
 		local swatch = Instance.new("Frame")
 		swatch.Size = UDim2.new(0, 30, 0, 30)
 		swatch.Position = UDim2.new(0, 10, 0.5, -15)
 		swatch.BackgroundColor3 = theme.colors.accent
 		swatch.Parent = row
+		roundCorner(swatch, 6)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -220, 1, 0)
@@ -602,6 +658,7 @@ local function refreshThemesListImpl()
 		actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		actionButton.Parent = row
+		polishButton(actionButton, 8)
 
 		if theme.id == equippedId then
 			actionButton.Text = "Equipped"
@@ -721,6 +778,7 @@ local function rebuildHand(handData)
 		button.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
 		button.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
 		button.Parent = slot
+		polishButton(button, 8)
 
 		local scaleObject = Instance.new("UIScale")
 		scaleObject.Scale = BASE_SCALE
@@ -755,6 +813,7 @@ local function rebuildShop(shopOffers)
 		row.Size = UDim2.new(1, 0, 0, 50)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 		row.Parent = shopOffersFrame
+		polishPanel(row, 10)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -110, 1, 0)
@@ -776,6 +835,7 @@ local function rebuildShop(shopOffers)
 		buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		buyButton.Parent = row
+		polishButton(buyButton, 8)
 
 		buyButton.MouseButton1Click:Connect(function()
 			playSfx(SOUND_IDS.buyPatron)
