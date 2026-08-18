@@ -50,6 +50,8 @@ local Deck = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engi
 -- FEATURE 8 (Run Setup) needs these to build the variant/difficulty picker.
 local DeckVariants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DeckVariants"))
 local DifficultyTiers = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DifficultyTiers"))
+-- FEATURE 9 (Boss Round awareness) needs this for the Journey pip coloring.
+local BossRounds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BossRounds"))
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -251,6 +253,27 @@ messageLabel.TextSize = 16
 messageLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 messageLabel.Text = ""
 messageLabel.Parent = root
+
+-- FEATURE 9: a banner announcing this round's Boss modifier, if any.
+local bossBanner = Instance.new("Frame")
+bossBanner.Name = "BossBanner"
+bossBanner.Size = UDim2.new(1, -40, 0, 40)
+bossBanner.Position = UDim2.new(0, 20, 0, 66)
+bossBanner.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
+bossBanner.Visible = false
+bossBanner.ZIndex = 3
+bossBanner.Parent = root
+polishPanel(bossBanner, 10)
+
+local bossBannerLabel = Instance.new("TextLabel")
+bossBannerLabel.Size = UDim2.fromScale(1, 1)
+bossBannerLabel.BackgroundTransparency = 1
+bossBannerLabel.Font = Enum.Font.GothamBold
+bossBannerLabel.TextSize = 15
+bossBannerLabel.TextColor3 = Color3.fromRGB(255, 225, 210)
+bossBannerLabel.Text = ""
+bossBannerLabel.ZIndex = 3
+bossBannerLabel.Parent = bossBanner
 
 -- ----- Hand area -----
 
@@ -1339,14 +1362,20 @@ local function refreshJourneyImpl()
 		pipsLayout.Padding = UDim.new(0, 10)
 		pipsLayout.Parent = pipsHolder
 
-		for round = 1, 3 do
+		local roundsPerNight = 3
+		local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
+			or DifficultyTiers.getById(DifficultyTiers.DefaultId)
+		local bossRoundsEnabled = journeyDifficulty.bossRoundsEnabled ~= false
+
+		for round = 1, roundsPerNight do
 			local isPast = (night < currentNight) or (night == currentNight and round < currentRound)
 			local isCurrent = (night == currentNight and round == currentRound)
+			local isBoss = bossRoundsEnabled and BossRounds.isBossRound(round, roundsPerNight)
 
 			local pip = Instance.new("Frame")
 			pip.Size = isCurrent and UDim2.new(0, 60, 0, 44) or UDim2.new(0, 52, 0, 38)
 			pip.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
-				or (isPast and Color3.fromRGB(90, 130, 90) or Color3.fromRGB(60, 45, 32))
+				or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
 			pip.Parent = pipsHolder
 			roundCorner(pip, 10)
 
@@ -1357,10 +1386,11 @@ local function refreshJourneyImpl()
 			pipLabel.TextSize = isCurrent and 15 or 13
 			pipLabel.TextColor3 = isCurrent and Color3.fromRGB(30, 24, 18) or Color3.fromRGB(240, 230, 215)
 			local targetScore = RunStateEngine.targetScoreFor(night, round)
+			local bossTag = isBoss and " 👑" or ""
 			if isPast then
 				pipLabel.Text = string.format("R%d ✓", round)
 			else
-				pipLabel.Text = string.format("R%d\n%d pts", round, targetScore)
+				pipLabel.Text = string.format("R%d%s\n%d pts", round, bossTag, targetScore)
 			end
 			pipLabel.Parent = pip
 		end
@@ -1678,6 +1708,13 @@ local function render(state)
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
 	scoreLabel.Text = string.format("Score: %d / %d", state.roundScore, state.targetScore)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
+
+	if state.bossModifier then
+		bossBanner.Visible = true
+		bossBannerLabel.Text = string.format("👑 Boss Round -- %s: %s", state.bossModifier.name, state.bossModifier.description)
+	else
+		bossBanner.Visible = false
+	end
 
 	rebuildHand(state.hand)
 
