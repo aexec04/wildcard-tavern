@@ -73,6 +73,15 @@ local BossRounds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 -- OWNED patrons over the state payload.
 local Patrons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Patrons"))
 
+-- Declared up here (not down by the rest of "Client-side state" below) so
+-- ANY overlay's refresh function -- including ones built inside a do/end
+-- block for the local-variable budget -- can read the latest server state
+-- without needing its own forward-declare dance for it. This is what the
+-- Deck Tracker / Poker Hands reference bug (fixed earlier) was fighting
+-- around; moving this one declaration up avoids that whole category of bug
+-- for every overlay from here on, including the new Journey map below.
+local latestState = nil
+
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
 	[11] = "J", [12] = "Q", [13] = "K", [14] = "A",
@@ -1446,13 +1455,28 @@ themesButton.MouseButton1Click:Connect(function()
 end)
 
 -- ===== Road Ahead (journey/roadmap) overlay =====
--- FEATURE 4: a preview of upcoming Nights/Rounds and their target scores,
--- with a "you are here" marker. Pure UI (Frames, TextLabels, UICorner) --
--- no gradients, so it's safe against the darkness bug.
+-- LAYOUT FEATURE 9: Ahmed wanted his own creative spin here instead of
+-- copying Balatro's plain list -- a 2D, Mario-map-style path where your
+-- own Roblox avatar (real headshot thumbnail) stands on your current
+-- stage and hops/walks to the next one when you win a round.
+--
+-- latestState is declared near the top of the file specifically so this
+-- (and every overlay) can read it from inside a do/end block -- see that
+-- comment. journeyBackdrop and refreshJourney are both forward-declared/
+-- needed outside -- render() checks journeyBackdrop.Visible and calls
+-- refreshJourney() to keep the map accurate while it's open across a round
+-- change.
+local journeyBackdrop
+local refreshJourney
 
-local PREVIEW_NIGHTS = 3 -- how many Nights ahead to preview
+do
 
-local journeyBackdrop = Instance.new("Frame")
+local PREVIEW_NIGHTS = 3 -- how many Nights ahead to show on the map
+local ROUNDS_PER_NIGHT = 3
+local NODE_SIZE = 64
+local NIGHT_GAP_EXTRA = 60 -- extra width of the spacer between night clusters
+
+journeyBackdrop = Instance.new("Frame")
 journeyBackdrop.Name = "JourneyBackdrop"
 journeyBackdrop.Size = UDim2.fromScale(1, 1)
 journeyBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -1462,8 +1486,8 @@ journeyBackdrop.ZIndex = 20
 journeyBackdrop.Parent = screenGui
 
 local journeyPanel = Instance.new("Frame")
-journeyPanel.Size = UDim2.fromScale(0.6, 0.6)
-journeyPanel.Position = UDim2.fromScale(0.2, 0.2)
+journeyPanel.Size = UDim2.fromScale(0.7, 0.55)
+journeyPanel.Position = UDim2.fromScale(0.15, 0.22)
 journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 journeyPanel.ZIndex = 21
 journeyPanel.Parent = journeyBackdrop
@@ -1488,20 +1512,163 @@ journeySubtitle.Font = Enum.Font.Gotham
 journeySubtitle.TextSize = 14
 journeySubtitle.TextColor3 = Color3.fromRGB(220, 205, 185)
 journeySubtitle.TextXAlignment = Enum.TextXAlignment.Left
-journeySubtitle.Text = "Each Night is 3 Rounds. Target scores climb every Round."
+journeySubtitle.Text = "Your table walks the road one Round at a time. 👑 = Boss Round."
 journeySubtitle.ZIndex = 21
 journeySubtitle.Parent = journeyPanel
 
-local journeyListFrame = Instance.new("Frame")
-journeyListFrame.Size = UDim2.new(1, -20, 1, -130)
-journeyListFrame.Position = UDim2.new(0, 10, 0, 68)
-journeyListFrame.BackgroundTransparency = 1
-journeyListFrame.ZIndex = 21
-journeyListFrame.Parent = journeyPanel
+-- Horizontal, scrollable map strip. Both the stage nodes AND the avatar
+-- marker live directly in here (as siblings, not nested inside each
+-- other) so they share one coordinate space -- the marker's X position can
+-- just be read off a node's AbsolutePosition and it'll line up correctly,
+-- including while scrolled.
+local journeyMapScroll = Instance.new("ScrollingFrame")
+journeyMapScroll.Size = UDim2.new(1, -20, 1, -160)
+journeyMapScroll.Position = UDim2.new(0, 10, 0, 68)
+journeyMapScroll.BackgroundTransparency = 1
+journeyMapScroll.BorderSizePixel = 0
+journeyMapScroll.ScrollBarThickness = 8
+journeyMapScroll.ScrollingDirection = Enum.ScrollingDirection.X
+journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
+journeyMapScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+journeyMapScroll.ZIndex = 21
+journeyMapScroll.Parent = journeyPanel
 
-local journeyListLayout = Instance.new("UIListLayout")
-journeyListLayout.Padding = UDim.new(0, 6)
-journeyListLayout.Parent = journeyListFrame
+-- A thin path line behind the nodes, purely decorative -- gives the "walk
+-- along a road" read even before the avatar marker is on top of it.
+local journeyPathLine = Instance.new("Frame")
+journeyPathLine.Size = UDim2.new(10, 0, 0, 6)
+journeyPathLine.Position = UDim2.new(0, 0, 0.5, -3)
+journeyPathLine.BackgroundColor3 = Color3.fromRGB(90, 70, 50)
+journeyPathLine.BorderSizePixel = 0
+journeyPathLine.ZIndex = 21
+journeyPathLine.Parent = journeyMapScroll
+roundCorner(journeyPathLine, 3)
+
+local journeyStagesHolder = Instance.new("Frame")
+journeyStagesHolder.Size = UDim2.new(0, 0, 1, 0)
+journeyStagesHolder.AutomaticSize = Enum.AutomaticSize.X
+journeyStagesHolder.BackgroundTransparency = 1
+journeyStagesHolder.ZIndex = 22
+journeyStagesHolder.Parent = journeyMapScroll
+
+local journeyStagesLayout = Instance.new("UIListLayout")
+journeyStagesLayout.FillDirection = Enum.FillDirection.Horizontal
+journeyStagesLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+journeyStagesLayout.Padding = UDim.new(0, 30)
+journeyStagesLayout.Parent = journeyStagesHolder
+
+-- The player's actual avatar, standing on the map -- fetched once
+-- (yielding call, so it's off in a task.spawn) and applied whenever ready.
+local journeyAvatarMarker = Instance.new("ImageLabel")
+journeyAvatarMarker.Name = "AvatarMarker"
+journeyAvatarMarker.Size = UDim2.new(0, 46, 0, 46)
+journeyAvatarMarker.AnchorPoint = Vector2.new(0.5, 1)
+journeyAvatarMarker.Position = UDim2.new(0, 0, 0.5, -NODE_SIZE / 2 - 8)
+journeyAvatarMarker.BackgroundColor3 = Color3.fromRGB(250, 240, 220)
+journeyAvatarMarker.Image = ""
+journeyAvatarMarker.ZIndex = 24
+journeyAvatarMarker.Parent = journeyMapScroll
+roundCorner(journeyAvatarMarker, 23)
+
+task.spawn(function()
+	local ok, content = pcall(function()
+		return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+	end)
+	if ok and content then
+		journeyAvatarMarker.Image = content
+	end
+end)
+
+-- (No continuous idle-bob animation -- it would fight with the walk/hop
+-- tween below for control of the same Position property. The hop-on-walk
+-- animation is enough life for now; a proper idle bob would need its own
+-- separate UI element layered under a static-position parent to avoid
+-- that conflict, which isn't worth the complexity yet.)
+
+local journeyStageNodes = {} -- flat array, index 1..(PREVIEW_NIGHTS*ROUNDS_PER_NIGHT), in map order
+local layoutOrderCounter = 0
+
+for night = 1, PREVIEW_NIGHTS do
+	if night > 1 then
+		local spacer = Instance.new("Frame")
+		spacer.Size = UDim2.new(0, NIGHT_GAP_EXTRA, 1, 0)
+		spacer.BackgroundTransparency = 1
+		layoutOrderCounter = layoutOrderCounter + 1
+		spacer.LayoutOrder = layoutOrderCounter
+		spacer.Parent = journeyStagesHolder
+	end
+
+	for round = 1, ROUNDS_PER_NIGHT do
+		layoutOrderCounter = layoutOrderCounter + 1
+
+		local node = Instance.new("Frame")
+		node.Size = UDim2.new(0, NODE_SIZE, 0, NODE_SIZE)
+		node.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		node.LayoutOrder = layoutOrderCounter
+		node.ZIndex = 22
+		node.Parent = journeyStagesHolder
+		roundCorner(node, NODE_SIZE / 2)
+
+		if night == 1 and round == 1 then
+			-- Underneath everything else, so it doesn't shift layout order.
+			local nightLabel = Instance.new("TextLabel")
+			nightLabel.Size = UDim2.new(0, 90, 0, 20)
+			nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
+			nightLabel.BackgroundTransparency = 1
+			nightLabel.Font = Enum.Font.GothamBold
+			nightLabel.TextSize = 13
+			nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
+			nightLabel.Text = "Night 1"
+			nightLabel.ZIndex = 22
+			nightLabel.Parent = node
+		end
+
+		local roundLabel = Instance.new("TextLabel")
+		roundLabel.Size = UDim2.fromScale(1, 0.55)
+		roundLabel.Position = UDim2.fromScale(0, 0.02)
+		roundLabel.BackgroundTransparency = 1
+		roundLabel.Font = Enum.Font.GothamBold
+		roundLabel.TextSize = 16
+		roundLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
+		roundLabel.Text = string.format("R%d", round)
+		roundLabel.ZIndex = 23
+		roundLabel.Parent = node
+
+		local scoreLabel = Instance.new("TextLabel")
+		scoreLabel.Size = UDim2.fromScale(1, 0.4)
+		scoreLabel.Position = UDim2.fromScale(0, 0.55)
+		scoreLabel.BackgroundTransparency = 1
+		scoreLabel.Font = Enum.Font.Gotham
+		scoreLabel.TextSize = 11
+		scoreLabel.TextColor3 = Color3.fromRGB(220, 210, 195)
+		scoreLabel.Text = tostring(RunStateEngine.targetScoreFor(night, round))
+		scoreLabel.ZIndex = 23
+		scoreLabel.Parent = node
+
+		table.insert(journeyStageNodes, {
+			node = node,
+			roundLabel = roundLabel,
+			scoreLabel = scoreLabel,
+			night = night,
+			round = round,
+		})
+
+		-- Night labels for nights 2/3 -- placed after node 1 of that night
+		-- exists, same idea as Night 1's label above.
+		if round == 1 and night > 1 then
+			local nightLabel = Instance.new("TextLabel")
+			nightLabel.Size = UDim2.new(0, 90, 0, 20)
+			nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
+			nightLabel.BackgroundTransparency = 1
+			nightLabel.Font = Enum.Font.GothamBold
+			nightLabel.TextSize = 13
+			nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
+			nightLabel.Text = string.format("Night %d", night)
+			nightLabel.ZIndex = 22
+			nightLabel.Parent = node
+		end
+	end
+end
 
 local journeyCloseButton = Instance.new("TextButton")
 journeyCloseButton.Size = UDim2.new(0, 140, 0, 40)
@@ -1520,19 +1687,76 @@ journeyCloseButton.MouseButton1Click:Connect(function()
 	journeyBackdrop.Visible = false
 end)
 
--- Forward-declared for the same reason as refreshThemesList above.
-local refreshJourney
+-- lastJourneyStageKey: which stage the avatar was last shown on, so we only
+-- play the walk animation when it actually CHANGES (not every time the
+-- overlay happens to refresh while you're on the same stage).
+local lastJourneyStageKey = nil
+
+local function refreshJourneyImpl(animateWalk)
+	local currentNight = (latestState and latestState.night) or 1
+	local currentRound = (latestState and latestState.round) or 1
+
+	local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
+		or DifficultyTiers.getById(DifficultyTiers.DefaultId)
+	local bossRoundsEnabled = journeyDifficulty.bossRoundsEnabled ~= false
+
+	local targetNode = nil
+	for _, entry in ipairs(journeyStageNodes) do
+		local isPast = (entry.night < currentNight) or (entry.night == currentNight and entry.round < currentRound)
+		local isCurrent = (entry.night == currentNight and entry.round == currentRound)
+		local isBoss = bossRoundsEnabled and BossRounds.isBossRound(entry.round, ROUNDS_PER_NIGHT)
+
+		entry.node.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
+			or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
+		local bossTag = isBoss and " 👑" or ""
+		entry.roundLabel.Text = isPast and string.format("R%d ✓", entry.round) or string.format("R%d%s", entry.round, bossTag)
+
+		if isCurrent then
+			targetNode = entry
+		end
+	end
+
+	if targetNode then
+		local stageKey = targetNode.night .. "-" .. targetNode.round
+		local targetX = targetNode.node.Position.X.Offset + NODE_SIZE / 2
+		local newPosition = UDim2.new(0, targetX, journeyAvatarMarker.Position.Y.Scale, journeyAvatarMarker.Position.Y.Offset)
+
+		if animateWalk and lastJourneyStageKey and lastJourneyStageKey ~= stageKey then
+			-- A little hop while walking over: up, across, down.
+			local hopUp = journeyAvatarMarker.Position - UDim2.new(0, 0, 0, 20)
+			tweenTo(journeyAvatarMarker, { Position = UDim2.new(0, journeyAvatarMarker.Position.X.Offset, hopUp.Y.Scale, hopUp.Y.Offset) }, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			task.delay(0.15, function()
+				tweenTo(journeyAvatarMarker, { Position = UDim2.new(0, targetX, hopUp.Y.Scale, hopUp.Y.Offset) }, 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+			end)
+			task.delay(0.5, function()
+				tweenTo(journeyAvatarMarker, newPosition, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			end)
+		else
+			journeyAvatarMarker.Position = newPosition
+		end
+
+		lastJourneyStageKey = stageKey
+	end
+end
+
+refreshJourney = function()
+	refreshJourneyImpl(true)
+end
 
 local function openJourney()
 	playClickSfx()
-	if refreshJourney then
-		refreshJourney()
-	end
+	refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 	journeyBackdrop.Visible = true
+	-- Scroll so the current stage is in view.
+	if journeyAvatarMarker.Position.X.Offset > 0 then
+		journeyMapScroll.CanvasPosition = Vector2.new(math.max(0, journeyAvatarMarker.Position.X.Offset - 200), 0)
+	end
 end
 
 journeyButton.MouseButton1Click:Connect(openJourney)
 menuJourneyButton.MouseButton1Click:Connect(openJourney)
+
+end -- Road Ahead (journey/roadmap) overlay
 
 -- ===== Poker Hands reference overlay =====
 -- FEATURE 6: a live lookup table -- every hand type this game recognizes,
@@ -2044,8 +2268,9 @@ volumeButton.MouseButton1Click:Connect(function()
 end)
 
 -- ===== Client-side state =====
+-- (latestState itself now declared near the top of the file -- see the
+-- comment there.)
 
-local latestState = nil
 local selected = {} -- [handIndex] = true
 local hoveredIndex = nil -- single index or nil; only one card can be "pointed at"
 local cardButtons = {} -- [handIndex] = TextButton
@@ -2182,83 +2407,6 @@ local function refreshThemesListImpl()
 end
 
 refreshThemesList = refreshThemesListImpl
-
--- ----- Journey / roadmap -----
-
-local function refreshJourneyImpl()
-	for _, child in ipairs(journeyListFrame:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local currentNight = (latestState and latestState.night) or 1
-	local currentRound = (latestState and latestState.round) or 1
-
-	for night = 1, PREVIEW_NIGHTS do
-		local nightRow = Instance.new("Frame")
-		nightRow.Size = UDim2.new(1, 0, 0, 54)
-		nightRow.BackgroundTransparency = 1
-		nightRow.LayoutOrder = night
-		nightRow.Parent = journeyListFrame
-
-		local nightLabel = Instance.new("TextLabel")
-		nightLabel.Size = UDim2.new(0, 70, 1, 0)
-		nightLabel.BackgroundTransparency = 1
-		nightLabel.Font = Enum.Font.GothamBold
-		nightLabel.TextSize = 15
-		nightLabel.TextColor3 = Color3.fromRGB(240, 220, 190)
-		nightLabel.Text = string.format("Night %d", night)
-		nightLabel.Parent = nightRow
-
-		local pipsHolder = Instance.new("Frame")
-		pipsHolder.Size = UDim2.new(1, -80, 1, 0)
-		pipsHolder.Position = UDim2.new(0, 80, 0, 0)
-		pipsHolder.BackgroundTransparency = 1
-		pipsHolder.Parent = nightRow
-
-		local pipsLayout = Instance.new("UIListLayout")
-		pipsLayout.FillDirection = Enum.FillDirection.Horizontal
-		pipsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-		pipsLayout.Padding = UDim.new(0, 10)
-		pipsLayout.Parent = pipsHolder
-
-		local roundsPerNight = 3
-		local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
-			or DifficultyTiers.getById(DifficultyTiers.DefaultId)
-		local bossRoundsEnabled = journeyDifficulty.bossRoundsEnabled ~= false
-
-		for round = 1, roundsPerNight do
-			local isPast = (night < currentNight) or (night == currentNight and round < currentRound)
-			local isCurrent = (night == currentNight and round == currentRound)
-			local isBoss = bossRoundsEnabled and BossRounds.isBossRound(round, roundsPerNight)
-
-			local pip = Instance.new("Frame")
-			pip.Size = isCurrent and UDim2.new(0, 60, 0, 44) or UDim2.new(0, 52, 0, 38)
-			pip.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
-				or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
-			pip.Parent = pipsHolder
-			roundCorner(pip, 10)
-
-			local pipLabel = Instance.new("TextLabel")
-			pipLabel.Size = UDim2.fromScale(1, 1)
-			pipLabel.BackgroundTransparency = 1
-			pipLabel.Font = Enum.Font.GothamBold
-			pipLabel.TextSize = isCurrent and 15 or 13
-			pipLabel.TextColor3 = isCurrent and Color3.fromRGB(30, 24, 18) or Color3.fromRGB(240, 230, 215)
-			local targetScore = RunStateEngine.targetScoreFor(night, round)
-			local bossTag = isBoss and " 👑" or ""
-			if isPast then
-				pipLabel.Text = string.format("R%d ✓", round)
-			else
-				pipLabel.Text = string.format("R%d%s\n%d pts", round, bossTag, targetScore)
-			end
-			pipLabel.Parent = pip
-		end
-	end
-end
-
-refreshJourney = refreshJourneyImpl
 
 -- ----- Poker Hands reference -----
 
