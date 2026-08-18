@@ -14,6 +14,9 @@ local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
 local Themes = require(script.Parent.Themes)
+local DeckVariants = require(script.Parent.DeckVariants)
+local DifficultyTiers = require(script.Parent.DifficultyTiers)
+local BossRounds = require(script.Parent.BossRounds)
 
 local RunState = {}
 
@@ -32,14 +35,40 @@ function RunState.targetScoreFor(night, round, roundsPerNight)
 	return math.floor(100 * (1.35 ^ step))
 end
 
-function RunState.new(config, rng)
-	config = config or RunState.DefaultConfig
+--[[
+	options (all optional): { deckVariantId = string, difficultyId = string }
+	Unknown/omitted ids fall back to the standard deck variant and standard
+	difficulty, so `RunState.new()` and `RunState.new(nil, rng)` both still
+	produce the original default-balance run.
+]]
+function RunState.new(options, rng)
+	options = options or {}
+
+	local deckVariant = DeckVariants.getById(options.deckVariantId) or DeckVariants.getById(DeckVariants.DefaultId)
+	local difficulty = DifficultyTiers.getById(options.difficultyId) or DifficultyTiers.getById(DifficultyTiers.DefaultId)
+
+	local config = {}
+	for key, value in pairs(RunState.DefaultConfig) do
+		config[key] = value
+	end
+	for key, delta in pairs(deckVariant.configOverrides or {}) do
+		config[key] = config[key] + delta
+	end
+	config.handSize = math.max(1, config.handSize)
+	config.handsPerRound = math.max(1, config.handsPerRound)
+	config.discardsPerRound = math.max(0, config.discardsPerRound)
+	config.roundsPerNight = math.max(1, config.roundsPerNight)
+
 	local state = {
 		config = config,
 		rng = rng,
+		deckVariantId = deckVariant.id,
+		difficultyId = difficulty.id,
+		targetMultiplier = (deckVariant.targetScoreMultiplier or 1) * (difficulty.targetScoreMultiplier or 1),
+		bossRoundsEnabled = difficulty.bossRoundsEnabled ~= false,
 		night = 1,
 		round = 1,
-		tips = 0,
+		tips = deckVariant.startingTips or 0,
 		ownedPatrons = {},
 		ownedThemes = { [Themes.DefaultThemeId] = true },
 		equippedTheme = Themes.DefaultThemeId,
@@ -48,7 +77,9 @@ function RunState.new(config, rng)
 		handsRemaining = config.handsPerRound,
 		discardsRemaining = config.discardsPerRound,
 		roundScore = 0,
-		targetScore = RunState.targetScoreFor(1, 1, config.roundsPerNight),
+		targetScore = 0, -- computed by startRound below
+		handStats = {}, -- [handName] = times played this run, for the Poker Hands reference screen
+		bossModifier = nil,
 		roundOver = false,
 		runOver = false,
 		wonRun = false,
@@ -57,14 +88,28 @@ function RunState.new(config, rng)
 	return state
 end
 
--- Shuffles a fresh deck and deals a new starting hand for the current round.
+-- Shuffles a fresh deck, picks this round's Boss modifier (if any), and
+-- deals a new starting hand for the current round.
 function RunState.startRound(state)
 	state.deck = Deck.shuffle(Deck.newStandardDeck(), state.rng)
-	state.hand = Deck.draw(state.deck, state.config.handSize)
+
+	local isBoss = state.bossRoundsEnabled and BossRounds.isBossRound(state.round, state.config.roundsPerNight)
+	state.bossModifier = isBoss and BossRounds.pick(state.rng) or nil
+
+	local handSize = state.config.handSize + ((state.bossModifier and state.bossModifier.handSizeDelta) or 0)
+	handSize = math.max(1, handSize)
+	local discards = state.config.discardsPerRound + ((state.bossModifier and state.bossModifier.discardsDelta) or 0)
+	discards = math.max(0, discards)
+
+	state.hand = Deck.draw(state.deck, handSize)
 	state.handsRemaining = state.config.handsPerRound
-	state.discardsRemaining = state.config.discardsPerRound
+	state.discardsRemaining = discards
 	state.roundScore = 0
-	state.targetScore = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
+
+	local bossMultiplier = (state.bossModifier and state.bossModifier.targetScoreMultiplier) or 1
+	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
+	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
+
 	state.roundOver = false
 end
 
@@ -98,6 +143,8 @@ function RunState.playHand(state, cardIndices)
 	local playedCards = removeIndicesFromHand(state, cardIndices)
 	local handResult = HandEvaluator.evaluate(playedCards)
 
+	state.handStats[handResult.name] = (state.handStats[handResult.name] or 0) + 1
+
 	state.handsRemaining = state.handsRemaining - 1
 	local isLastHand = state.handsRemaining == 0
 
@@ -121,7 +168,12 @@ function RunState.playHand(state, cardIndices)
 	local roundWon = state.roundScore >= state.targetScore
 	if roundWon then
 		state.roundOver = true
-		state.tips = state.tips + state.config.tipsPerRoundWin
+		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
+		local reward = state.config.tipsPerRoundWin
+		if state.bossModifier then
+			reward = reward + state.config.tipsPerRoundWin
+		end
+		state.tips = state.tips + reward
 	elseif isLastHand then
 		-- Out of hands and didn't reach the target: the run ends.
 		state.roundOver = true
@@ -138,6 +190,7 @@ function RunState.playHand(state, cardIndices)
 		targetScore = state.targetScore,
 		roundWon = roundWon,
 		runOver = state.runOver,
+		bossModifierId = state.bossModifier and state.bossModifier.id or nil,
 	}
 end
 
