@@ -368,6 +368,75 @@ local tipsLabel = makeSidebarLabel(tipsBox, 16)
 local handsDiscardsBox = makeSidebarBox(40)
 local handsDiscardsLabel = makeSidebarLabel(handsDiscardsBox, 15)
 
+-- LAYOUT FEATURE 5: Patron slot icons, mirroring Balatro's persistent
+-- Joker-slot row -- shows how many Patrons you've picked up this run at a
+-- glance, without opening the Collection Gallery. This game has no hard
+-- cap on Patrons owned (unlike Balatro's Joker slots), so this shows
+-- owned-out-of-total-in-the-game rather than a hard capacity.
+local patronsBox = makeSidebarBox(58)
+
+local patronsHeader = Instance.new("TextLabel")
+patronsHeader.Size = UDim2.new(0.6, 0, 0, 16)
+patronsHeader.Position = UDim2.new(0, 0, 0, 4)
+patronsHeader.BackgroundTransparency = 1
+patronsHeader.Font = Enum.Font.GothamBold
+patronsHeader.TextSize = 12
+patronsHeader.TextColor3 = Color3.fromRGB(200, 185, 165)
+patronsHeader.TextXAlignment = Enum.TextXAlignment.Left
+patronsHeader.Text = "Patrons"
+patronsHeader.ZIndex = 2
+patronsHeader.Parent = patronsBox
+
+local patronsCountLabel = Instance.new("TextLabel")
+patronsCountLabel.Size = UDim2.new(0.4, 0, 0, 16)
+patronsCountLabel.Position = UDim2.new(0.6, 0, 0, 4)
+patronsCountLabel.BackgroundTransparency = 1
+patronsCountLabel.Font = Enum.Font.GothamBold
+patronsCountLabel.TextSize = 12
+patronsCountLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+patronsCountLabel.TextXAlignment = Enum.TextXAlignment.Right
+patronsCountLabel.Text = ""
+patronsCountLabel.ZIndex = 2
+patronsCountLabel.Parent = patronsBox
+
+local patronsSlotRow = Instance.new("Frame")
+patronsSlotRow.Size = UDim2.new(1, 0, 0, 30)
+patronsSlotRow.Position = UDim2.new(0, 0, 0, 24)
+patronsSlotRow.BackgroundTransparency = 1
+patronsSlotRow.ZIndex = 2
+patronsSlotRow.Parent = patronsBox
+
+local patronsSlotLayout = Instance.new("UIListLayout")
+patronsSlotLayout.FillDirection = Enum.FillDirection.Horizontal
+patronsSlotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+patronsSlotLayout.Padding = UDim.new(0, 6)
+patronsSlotLayout.Parent = patronsSlotRow
+
+-- Built once (fixed count -- the Patron catalog doesn't change at runtime),
+-- refreshed in render() below each time state.ownedPatrons changes.
+local patronSlots = {}
+for i = 1, #Patrons.Definitions do
+	local slot = Instance.new("Frame")
+	slot.Size = UDim2.new(0, 30, 0, 30)
+	slot.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
+	slot.LayoutOrder = i
+	slot.ZIndex = 2
+	slot.Parent = patronsSlotRow
+	roundCorner(slot, 6)
+
+	local slotLabel = Instance.new("TextLabel")
+	slotLabel.Size = UDim2.fromScale(1, 1)
+	slotLabel.BackgroundTransparency = 1
+	slotLabel.Font = Enum.Font.GothamBold
+	slotLabel.TextSize = 14
+	slotLabel.TextColor3 = Color3.fromRGB(140, 135, 130)
+	slotLabel.Text = "?"
+	slotLabel.ZIndex = 2
+	slotLabel.Parent = slot
+
+	patronSlots[i] = { frame = slot, label = slotLabel }
+end
+
 -- ----- Help (?) and mute buttons, top-right corner -----
 
 local function makeCornerButton(text, xOffset)
@@ -2461,6 +2530,33 @@ local function render(state)
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
 	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
+
+	-- LAYOUT FEATURE 5: fill in the Patron slot icons.
+	do
+		local ownedPatronIds = {}
+		for _, patron in ipairs(state.ownedPatrons or {}) do
+			ownedPatronIds[patron.id] = true
+		end
+
+		local ownedCount = 0
+		for i, patron in ipairs(Patrons.Definitions) do
+			local slot = patronSlots[i]
+			if slot then
+				local isOwned = ownedPatronIds[patron.id] == true
+				if isOwned then
+					ownedCount = ownedCount + 1
+					slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+					slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
+					slot.label.Text = patron.name:sub(1, 1)
+				else
+					slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
+					slot.label.TextColor3 = Color3.fromRGB(140, 135, 130)
+					slot.label.Text = "?"
+				end
+			end
+		end
+		patronsCountLabel.Text = string.format("%d/%d", ownedCount, #Patrons.Definitions)
+	end
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly
 	-- (tipsPerRoundWin, doubled on a Boss Round) so the sidebar never shows a
