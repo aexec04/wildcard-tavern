@@ -1531,19 +1531,11 @@ journeyMapScroll.ScrollingDirection = Enum.ScrollingDirection.X
 journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
 journeyMapScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
 journeyMapScroll.ZIndex = 21
+journeyMapScroll.ClipsDescendants = false -- the avatar marker sits slightly above the node row; don't let the scroll frame's default clipping hide it
 journeyMapScroll.Parent = journeyPanel
 
 -- A thin path line behind the nodes, purely decorative -- gives the "walk
 -- along a road" read even before the avatar marker is on top of it.
-local journeyPathLine = Instance.new("Frame")
-journeyPathLine.Size = UDim2.new(10, 0, 0, 6)
-journeyPathLine.Position = UDim2.new(0, 0, 0.5, -3)
-journeyPathLine.BackgroundColor3 = Color3.fromRGB(90, 70, 50)
-journeyPathLine.BorderSizePixel = 0
-journeyPathLine.ZIndex = 21
-journeyPathLine.Parent = journeyMapScroll
-roundCorner(journeyPathLine, 3)
-
 local journeyStagesHolder = Instance.new("Frame")
 journeyStagesHolder.Size = UDim2.new(0, 0, 1, 0)
 journeyStagesHolder.AutomaticSize = Enum.AutomaticSize.X
@@ -1551,11 +1543,27 @@ journeyStagesHolder.BackgroundTransparency = 1
 journeyStagesHolder.ZIndex = 22
 journeyStagesHolder.Parent = journeyMapScroll
 
+-- A thin path line behind the nodes, purely decorative -- gives the "walk
+-- along a road" read even before the avatar marker is on top of it. Parented
+-- INSIDE journeyStagesHolder (not journeyMapScroll) and sized to 100% of it,
+-- so it automatically spans exactly the row of nodes -- no matter how wide
+-- that row ends up being -- instead of a hardcoded guess.
+local journeyPathLine = Instance.new("Frame")
+journeyPathLine.Size = UDim2.new(1, 0, 0, 6)
+journeyPathLine.Position = UDim2.new(0, 0, 0.5, -3)
+journeyPathLine.BackgroundColor3 = Color3.fromRGB(90, 70, 50)
+journeyPathLine.BorderSizePixel = 0
+journeyPathLine.ZIndex = 21
+journeyPathLine.Parent = journeyStagesHolder
+roundCorner(journeyPathLine, 3)
+
 local journeyStagesLayout = Instance.new("UIListLayout")
 journeyStagesLayout.FillDirection = Enum.FillDirection.Horizontal
 journeyStagesLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+journeyStagesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 journeyStagesLayout.Padding = UDim.new(0, 30)
 journeyStagesLayout.Parent = journeyStagesHolder
+local JOURNEY_NODE_PADDING = 30 -- must match journeyStagesLayout.Padding above
 
 -- The player's actual avatar, standing on the map -- fetched once
 -- (yielding call, so it's off in a task.spawn) and applied whenever ready.
@@ -1570,12 +1578,26 @@ journeyAvatarMarker.ZIndex = 24
 journeyAvatarMarker.Parent = journeyMapScroll
 roundCorner(journeyAvatarMarker, 23)
 
+-- Fallback glyph: always visible until (if ever) the real avatar thumbnail
+-- loads. Covers the case where GetUserThumbnailAsync is slow, fails, or
+-- returns a placeholder (a known quirk of solo Play-testing in Studio) --
+-- the marker should never just be an empty/invisible square.
+local journeyAvatarFallback = Instance.new("TextLabel")
+journeyAvatarFallback.Size = UDim2.fromScale(1, 1)
+journeyAvatarFallback.BackgroundTransparency = 1
+journeyAvatarFallback.Font = Enum.Font.GothamBold
+journeyAvatarFallback.TextSize = 24
+journeyAvatarFallback.Text = "🧑"
+journeyAvatarFallback.ZIndex = 25
+journeyAvatarFallback.Parent = journeyAvatarMarker
+
 task.spawn(function()
 	local ok, content = pcall(function()
 		return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
 	end)
-	if ok and content then
+	if ok and content and content ~= "" then
 		journeyAvatarMarker.Image = content
+		journeyAvatarFallback.Visible = false
 	end
 end)
 
@@ -1587,6 +1609,14 @@ end)
 
 local journeyStageNodes = {} -- flat array, index 1..(PREVIEW_NIGHTS*ROUNDS_PER_NIGHT), in map order
 local layoutOrderCounter = 0
+-- xCursor tracks each node's left edge as we build the row, mirroring
+-- exactly what journeyStagesLayout (a UIListLayout) will compute. We use
+-- this instead of reading node.Position back after the fact -- reading a
+-- UIListLayout-controlled Position depends on the layout engine having
+-- already run a pass over this (currently invisible) overlay, which isn't
+-- guaranteed the first time the map is opened. A precomputed value is
+-- always correct, immediately.
+local xCursor = 0
 
 for night = 1, PREVIEW_NIGHTS do
 	if night > 1 then
@@ -1596,6 +1626,7 @@ for night = 1, PREVIEW_NIGHTS do
 		layoutOrderCounter = layoutOrderCounter + 1
 		spacer.LayoutOrder = layoutOrderCounter
 		spacer.Parent = journeyStagesHolder
+		xCursor = xCursor + NIGHT_GAP_EXTRA + JOURNEY_NODE_PADDING
 	end
 
 	for round = 1, ROUNDS_PER_NIGHT do
@@ -1651,7 +1682,9 @@ for night = 1, PREVIEW_NIGHTS do
 			scoreLabel = scoreLabel,
 			night = night,
 			round = round,
+			centerX = xCursor + NODE_SIZE / 2,
 		})
+		xCursor = xCursor + NODE_SIZE + JOURNEY_NODE_PADDING
 
 		-- Night labels for nights 2/3 -- placed after node 1 of that night
 		-- exists, same idea as Night 1's label above.
@@ -1718,7 +1751,7 @@ local function refreshJourneyImpl(animateWalk)
 
 	if targetNode then
 		local stageKey = targetNode.night .. "-" .. targetNode.round
-		local targetX = targetNode.node.Position.X.Offset + NODE_SIZE / 2
+		local targetX = targetNode.centerX
 		local newPosition = UDim2.new(0, targetX, journeyAvatarMarker.Position.Y.Scale, journeyAvatarMarker.Position.Y.Offset)
 
 		if animateWalk and lastJourneyStageKey and lastJourneyStageKey ~= stageKey then
