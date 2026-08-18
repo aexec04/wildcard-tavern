@@ -1870,95 +1870,6 @@ collectionButton.MouseButton1Click:Connect(function()
 	collectionBackdrop.Visible = true
 end)
 
--- ===== "Unlocked!" popup =====
--- FEATURE 12: a quick celebratory card shown whenever a NEW Patron or Theme
--- appears in the state compared to the previous render() -- see the diff
--- check inside render() further down.
-
-local lastOwnedPatronIds = {}
-local lastOwnedThemeIds = {}
-local hasRenderedOnce = false
-
-local unlockPopup = Instance.new("Frame")
-unlockPopup.Name = "UnlockPopup"
-unlockPopup.Size = UDim2.new(0, 280, 0, 140)
-unlockPopup.AnchorPoint = Vector2.new(0.5, 0.5)
-unlockPopup.Position = UDim2.fromScale(0.5, 0.5)
-unlockPopup.BackgroundColor3 = Color3.fromRGB(50, 40, 26)
-unlockPopup.Visible = false
-unlockPopup.ZIndex = 30
-unlockPopup.Parent = screenGui
-polishPanel(unlockPopup, 18)
-addSoftShadow(unlockPopup, 20)
-
-local unlockPopupHeader = Instance.new("TextLabel")
-unlockPopupHeader.Size = UDim2.new(1, 0, 0, 34)
-unlockPopupHeader.Position = UDim2.new(0, 0, 0, 12)
-unlockPopupHeader.BackgroundTransparency = 1
-unlockPopupHeader.Font = Enum.Font.GothamBold
-unlockPopupHeader.TextSize = 20
-unlockPopupHeader.TextColor3 = Color3.fromRGB(255, 214, 130)
-unlockPopupHeader.Text = "Unlocked!"
-unlockPopupHeader.ZIndex = 30
-unlockPopupHeader.Parent = unlockPopup
-
-local unlockPopupName = Instance.new("TextLabel")
-unlockPopupName.Size = UDim2.new(1, -30, 0, 26)
-unlockPopupName.Position = UDim2.new(0, 15, 0, 48)
-unlockPopupName.BackgroundTransparency = 1
-unlockPopupName.Font = Enum.Font.GothamBold
-unlockPopupName.TextSize = 17
-unlockPopupName.TextColor3 = Color3.fromRGB(250, 240, 220)
-unlockPopupName.Text = ""
-unlockPopupName.ZIndex = 30
-unlockPopupName.Parent = unlockPopup
-
-local unlockPopupDescription = Instance.new("TextLabel")
-unlockPopupDescription.Size = UDim2.new(1, -30, 0, 40)
-unlockPopupDescription.Position = UDim2.new(0, 15, 0, 76)
-unlockPopupDescription.BackgroundTransparency = 1
-unlockPopupDescription.Font = Enum.Font.Gotham
-unlockPopupDescription.TextSize = 13
-unlockPopupDescription.TextWrapped = true
-unlockPopupDescription.TextColor3 = Color3.fromRGB(215, 200, 180)
-unlockPopupDescription.Text = ""
-unlockPopupDescription.ZIndex = 30
-unlockPopupDescription.Parent = unlockPopup
-
-local unlockPopupScale = Instance.new("UIScale")
-unlockPopupScale.Scale = 1
-unlockPopupScale.Parent = unlockPopup
-
-local unlockPopupDismissCatcher = Instance.new("TextButton")
-unlockPopupDismissCatcher.Size = UDim2.fromScale(1, 1)
-unlockPopupDismissCatcher.BackgroundTransparency = 1
-unlockPopupDismissCatcher.Text = ""
-unlockPopupDismissCatcher.ZIndex = 30
-unlockPopupDismissCatcher.Parent = unlockPopup
-
-local unlockPopupToken = 0
-
-local function showUnlockPopup(name, description)
-	unlockPopupToken = unlockPopupToken + 1
-	local myToken = unlockPopupToken
-
-	unlockPopupName.Text = name
-	unlockPopupDescription.Text = description or ""
-	unlockPopup.Visible = true
-	unlockPopupScale.Scale = 0.7
-	tweenTo(unlockPopupScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-	local function dismiss()
-		if unlockPopupToken ~= myToken then
-			return
-		end
-		unlockPopup.Visible = false
-	end
-
-	unlockPopupDismissCatcher.MouseButton1Click:Connect(dismiss)
-	task.delay(2.4, dismiss)
-end
-
 local function selectedIndicesArray()
 	local out = {}
 	for index in pairs(selected) do
@@ -2172,43 +2083,6 @@ local function render(state)
 	end
 	if journeyBackdrop.Visible then
 		refreshJourney() -- keep "you are here" accurate if it's open across a round change
-	end
-
-	-- FEATURE 12: detect newly-owned Patrons/Themes and celebrate the first
-	-- one with an "Unlocked!" popup. Skipped on the very first render
-	-- (session start) so the default theme/starting state doesn't look
-	-- "unlocked".
-	do
-		local ownedPatronIds = {}
-		local newPatron = nil
-		for _, patron in ipairs(state.ownedPatrons or {}) do
-			ownedPatronIds[patron.id] = true
-			if hasRenderedOnce and not lastOwnedPatronIds[patron.id] and not newPatron then
-				newPatron = patron
-			end
-		end
-
-		local ownedThemeIdSet = {}
-		local newThemeId = nil
-		for _, id in ipairs(state.ownedThemeIds or {}) do
-			ownedThemeIdSet[id] = true
-			if hasRenderedOnce and not lastOwnedThemeIds[id] and not newThemeId then
-				newThemeId = id
-			end
-		end
-
-		if newPatron then
-			showUnlockPopup(newPatron.name, newPatron.description)
-		elseif newThemeId then
-			local theme = Themes.getById(newThemeId)
-			if theme then
-				showUnlockPopup(theme.name, theme.description)
-			end
-		end
-
-		lastOwnedPatronIds = ownedPatronIds
-		lastOwnedThemeIds = ownedThemeIdSet
-		hasRenderedOnce = true
 	end
 
 	shopFrame.Visible = (state.phase == "shop")
