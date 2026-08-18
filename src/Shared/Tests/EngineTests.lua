@@ -16,6 +16,7 @@ local Deck = require(script.Parent.Parent.Engine.Deck)
 local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
 local Scoring = require(script.Parent.Parent.Engine.Scoring)
 local Patrons = require(script.Parent.Parent.Engine.Patrons)
+local Themes = require(script.Parent.Parent.Engine.Themes)
 local RunState = require(script.Parent.Parent.Engine.RunState)
 local TestRunner = require(script.Parent.TestRunner)
 
@@ -209,6 +210,59 @@ table.insert(tests, { name = "RunState.buyPatron fails gracefully with insuffici
 	local ok, message = RunState.buyPatron(state, "the_regular")
 	expectFalse(ok)
 	expectTrue(message ~= nil)
+end })
+
+-- ===== Themes (cosmetics) =====
+
+table.insert(tests, { name = "RunState.new starts with the default theme owned and equipped", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectTrue(state.ownedThemes[Themes.DefaultThemeId])
+	expectEqual(state.equippedTheme, Themes.DefaultThemeId)
+end })
+
+table.insert(tests, { name = "RunState.buyTheme deducts tips and marks the theme owned", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 20
+	local ok = RunState.buyTheme(state, "midnight_blue")
+	expectTrue(ok)
+	expectTrue(state.ownedThemes["midnight_blue"])
+	expectEqual(state.tips, 20 - Themes.getById("midnight_blue").price)
+end })
+
+table.insert(tests, { name = "RunState.buyTheme fails gracefully with insufficient tips", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 0
+	local ok, message = RunState.buyTheme(state, "midnight_blue")
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+	expectFalse(state.ownedThemes["midnight_blue"] == true)
+end })
+
+table.insert(tests, { name = "RunState.buyTheme refuses to double-buy an owned theme", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	RunState.buyTheme(state, "midnight_blue")
+	local tipsAfterFirstBuy = state.tips
+	local ok, message = RunState.buyTheme(state, "midnight_blue")
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+	expectEqual(state.tips, tipsAfterFirstBuy) -- no double charge
+end })
+
+table.insert(tests, { name = "RunState.equipTheme requires ownership first", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local ok = RunState.equipTheme(state, "midnight_blue")
+	expectFalse(ok)
+	expectEqual(state.equippedTheme, Themes.DefaultThemeId) -- unchanged
+end })
+
+table.insert(tests, { name = "RunState.equipTheme succeeds once the theme is owned", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 20
+	RunState.buyTheme(state, "midnight_blue")
+	local ok = RunState.equipTheme(state, "midnight_blue")
+	expectTrue(ok)
+	expectEqual(state.equippedTheme, "midnight_blue")
 end })
 
 return tests

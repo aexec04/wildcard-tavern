@@ -53,6 +53,8 @@ end
 local PlayHandRemote = newRemote("PlayHand")
 local DiscardRemote = newRemote("Discard")
 local BuyPatronRemote = newRemote("BuyPatron")
+local BuyThemeRemote = newRemote("BuyTheme")
+local EquipThemeRemote = newRemote("EquipTheme")
 local AdvanceRoundRemote = newRemote("AdvanceRound")
 local RestartRunRemote = newRemote("RestartRun")
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
@@ -109,6 +111,15 @@ local function serializeState(session)
 		})
 	end
 
+	-- Themes are static content data (colors, price) that the client can
+	-- already read directly from ReplicatedStorage.Shared.Engine.Themes --
+	-- we only need to tell the client WHICH ones this player owns/has
+	-- equipped, not resend the whole catalog every update.
+	local ownedThemeIds = {}
+	for themeId in pairs(state.ownedThemes) do
+		table.insert(ownedThemeIds, themeId)
+	end
+
 	return {
 		phase = session.phase,
 		night = state.night,
@@ -121,6 +132,8 @@ local function serializeState(session)
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
 		shopOffers = shopOffers,
+		ownedThemeIds = ownedThemeIds,
+		equippedTheme = state.equippedTheme,
 	}
 end
 
@@ -245,6 +258,46 @@ BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
 				break
 			end
 		end
+	end
+
+	pushState(player)
+end)
+
+-- Cosmetic theme purchases/equips are allowed any time (not gated to the
+-- shop phase) -- they don't affect gameplay, so there's no reason to lock
+-- them to between-round moments the way Patron purchases are.
+
+BuyThemeRemote.OnServerEvent:Connect(function(player, themeId)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	if type(themeId) ~= "string" then
+		return
+	end
+
+	local ok, err = pcall(RunState.buyTheme, session.state, themeId)
+	if not ok then
+		warn("BuyTheme error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+
+	pushState(player)
+end)
+
+EquipThemeRemote.OnServerEvent:Connect(function(player, themeId)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	if type(themeId) ~= "string" then
+		return
+	end
+
+	local ok, err = pcall(RunState.equipTheme, session.state, themeId)
+	if not ok then
+		warn("EquipTheme error for " .. player.Name .. ": " .. tostring(err))
+		return
 	end
 
 	pushState(player)

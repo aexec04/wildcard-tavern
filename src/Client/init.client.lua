@@ -26,9 +26,16 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local PlayHandRemote = remotes:WaitForChild("PlayHand")
 local DiscardRemote = remotes:WaitForChild("Discard")
 local BuyPatronRemote = remotes:WaitForChild("BuyPatron")
+local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
+local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
 local RestartRunRemote = remotes:WaitForChild("RestartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
+
+-- Theme *data* (names/prices/colors) is static content, so the client just
+-- reads it straight from Shared -- only ownership/equipped state needs to
+-- travel over the StateUpdated remote.
+local Themes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Themes"))
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -156,6 +163,7 @@ end
 
 local muteButton = makeCornerButton("♪", -60)
 local helpButton = makeCornerButton("?", -110)
+local themesButton = makeCornerButton("🎨", -160)
 
 -- ----- Message banner (hand result / round result) -----
 
@@ -421,6 +429,76 @@ end
 menuHowToPlayButton.MouseButton1Click:Connect(openHowToPlay)
 helpButton.MouseButton1Click:Connect(openHowToPlay)
 
+-- ===== Themes (cosmetics) overlay =====
+-- Purely visual -- spend Tips on table/card color palettes. No gameplay
+-- effect. Buyable/equippable any time, not just during the shop phase.
+
+local themesBackdrop = Instance.new("Frame")
+themesBackdrop.Name = "ThemesBackdrop"
+themesBackdrop.Size = UDim2.fromScale(1, 1)
+themesBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+themesBackdrop.BackgroundTransparency = 0.4
+themesBackdrop.Visible = false
+themesBackdrop.ZIndex = 20
+themesBackdrop.Parent = screenGui
+
+local themesPanel = Instance.new("Frame")
+themesPanel.Size = UDim2.fromScale(0.55, 0.6)
+themesPanel.Position = UDim2.fromScale(0.225, 0.2)
+themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+themesPanel.ZIndex = 21
+themesPanel.Parent = themesBackdrop
+
+local themesTitle = Instance.new("TextLabel")
+themesTitle.Size = UDim2.new(1, 0, 0, 40)
+themesTitle.BackgroundTransparency = 1
+themesTitle.Font = Enum.Font.GothamBold
+themesTitle.TextSize = 22
+themesTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+themesTitle.Text = "Themes -- cosmetic only, spend Tips"
+themesTitle.ZIndex = 21
+themesTitle.Parent = themesPanel
+
+local themesListFrame = Instance.new("Frame")
+themesListFrame.Size = UDim2.new(1, -20, 1, -100)
+themesListFrame.Position = UDim2.new(0, 10, 0, 45)
+themesListFrame.BackgroundTransparency = 1
+themesListFrame.ZIndex = 21
+themesListFrame.Parent = themesPanel
+
+local themesListLayout = Instance.new("UIListLayout")
+themesListLayout.Padding = UDim.new(0, 8)
+themesListLayout.Parent = themesListFrame
+
+local themesCloseButton = Instance.new("TextButton")
+themesCloseButton.Size = UDim2.new(0, 140, 0, 40)
+themesCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+themesCloseButton.Font = Enum.Font.GothamBold
+themesCloseButton.TextSize = 16
+themesCloseButton.Text = "Close"
+themesCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+themesCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+themesCloseButton.ZIndex = 21
+themesCloseButton.Parent = themesPanel
+
+themesCloseButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	themesBackdrop.Visible = false
+end)
+
+-- Forward-declared: assigned further down once client-side state (like
+-- latestState) exists. Lua closures capture the local by reference, so
+-- this works as long as the assignment happens before it's ever called.
+local refreshThemesList
+
+themesButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	if refreshThemesList then
+		refreshThemesList()
+	end
+	themesBackdrop.Visible = true
+end)
+
 -- ===== Menu -> game transition, mute toggle =====
 
 menuPlayButton.MouseButton1Click:Connect(function()
@@ -458,6 +536,95 @@ local HOVER_SCALE = 1.06
 local SELECTED_SCALE = 1.08
 local SELECTED_HOVER_SCALE = 1.14
 
+-- ----- Theme (cosmetics) application -----
+
+local currentTheme = Themes.getById(Themes.DefaultThemeId)
+local lastEquippedThemeId = nil
+
+local function applyTheme(themeId)
+	currentTheme = Themes.getById(themeId) or Themes.getById(Themes.DefaultThemeId)
+	local colors = currentTheme.colors
+
+	tweenTo(root, { BackgroundColor3 = colors.background }, 0.25)
+	tweenTo(statusBar, { BackgroundColor3 = colors.panelBg }, 0.25)
+	tweenTo(shopFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
+	tweenTo(gameOverFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
+	tweenTo(playButton, { BackgroundColor3 = colors.accent }, 0.25)
+	tweenTo(discardButton, { BackgroundColor3 = colors.accent }, 0.25)
+	tweenTo(nextRoundButton, { BackgroundColor3 = colors.accent }, 0.25)
+	tweenTo(playAgainButton, { BackgroundColor3 = colors.accent }, 0.25)
+end
+
+local function refreshThemesListImpl()
+	for _, child in ipairs(themesListFrame:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	local ownedSet = {}
+	local equippedId = Themes.DefaultThemeId
+	if latestState then
+		for _, id in ipairs(latestState.ownedThemeIds or {}) do
+			ownedSet[id] = true
+		end
+		equippedId = latestState.equippedTheme or equippedId
+	end
+
+	for _, theme in ipairs(Themes.Definitions) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 50)
+		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.Parent = themesListFrame
+
+		local swatch = Instance.new("Frame")
+		swatch.Size = UDim2.new(0, 30, 0, 30)
+		swatch.Position = UDim2.new(0, 10, 0.5, -15)
+		swatch.BackgroundColor3 = theme.colors.accent
+		swatch.Parent = row
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -220, 1, 0)
+		label.Position = UDim2.new(0, 50, 0, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 15
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(250, 240, 220)
+		label.Text = string.format("%s -- %s", theme.name, theme.description)
+		label.Parent = row
+
+		local actionButton = Instance.new("TextButton")
+		actionButton.Size = UDim2.new(0, 130, 0, 36)
+		actionButton.Position = UDim2.new(1, -140, 0.5, -18)
+		actionButton.Font = Enum.Font.GothamBold
+		actionButton.TextSize = 14
+		actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		actionButton.Parent = row
+
+		if theme.id == equippedId then
+			actionButton.Text = "Equipped"
+			actionButton.AutoButtonColor = false
+			actionButton.BackgroundColor3 = Color3.fromRGB(70, 90, 55)
+		elseif ownedSet[theme.id] then
+			actionButton.Text = "Equip"
+			actionButton.MouseButton1Click:Connect(function()
+				playSfx(SOUND_IDS.uiClick)
+				EquipThemeRemote:FireServer(theme.id)
+			end)
+		else
+			actionButton.Text = string.format("Buy (%d)", theme.price)
+			actionButton.MouseButton1Click:Connect(function()
+				playSfx(SOUND_IDS.buyPatron)
+				BuyThemeRemote:FireServer(theme.id)
+			end)
+		end
+	end
+end
+
+refreshThemesList = refreshThemesListImpl
+
 local function selectedIndicesArray()
 	local out = {}
 	for index in pairs(selected) do
@@ -481,9 +648,9 @@ local function refreshCardVisual(index, usePop)
 
 	local targetColor
 	if isSelected then
-		targetColor = Color3.fromRGB(255, 214, 130)
+		targetColor = currentTheme.colors.cardSelected
 	else
-		targetColor = Color3.fromRGB(250, 245, 235)
+		targetColor = currentTheme.colors.cardBase
 	end
 
 	local targetScale
@@ -550,7 +717,7 @@ local function rebuildHand(handData)
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 20
-		button.BackgroundColor3 = Color3.fromRGB(250, 245, 235)
+		button.BackgroundColor3 = currentTheme.colors.cardBase
 		button.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
 		button.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
 		button.Parent = slot
@@ -620,12 +787,21 @@ end
 local function render(state)
 	latestState = state
 
+	if state.equippedTheme ~= lastEquippedThemeId then
+		applyTheme(state.equippedTheme)
+		lastEquippedThemeId = state.equippedTheme
+	end
+
 	nightRoundLabel.Text = string.format("Night %d - Round %d", state.night, state.round)
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
 	scoreLabel.Text = string.format("Score: %d / %d", state.roundScore, state.targetScore)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
 
 	rebuildHand(state.hand)
+
+	if themesBackdrop.Visible then
+		refreshThemesList() -- keep the panel accurate if it's open across a purchase
+	end
 
 	shopFrame.Visible = (state.phase == "shop")
 	gameOverFrame.Visible = (state.phase == "gameover")

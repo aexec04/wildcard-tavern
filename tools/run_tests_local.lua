@@ -29,6 +29,18 @@ if not table.find then
 	end
 end
 
+-- Color3 is a Roblox datatype global. Our engine code only ever uses
+-- Color3.fromRGB(...) as opaque cosmetic data (Themes.lua) -- it's never
+-- inspected or math'd on in engine logic -- so a minimal stand-in is
+-- enough to let this run outside Roblox.
+if not Color3 then
+	Color3 = {
+		fromRGB = function(r, g, b)
+			return { r = r, g = g, b = b }
+		end,
+	}
+end
+
 local SRC_SHARED = (arg and arg[0] and arg[0]:match("(.*)/tools/run_tests_local%.lua$") or ".") .. "/src/Shared"
 
 local moduleCache = {}

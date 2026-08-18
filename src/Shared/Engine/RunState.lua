@@ -13,6 +13,7 @@ local Deck = require(script.Parent.Deck)
 local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
+local Themes = require(script.Parent.Themes)
 
 local RunState = {}
 
@@ -40,6 +41,8 @@ function RunState.new(config, rng)
 		round = 1,
 		tips = 0,
 		ownedPatrons = {},
+		ownedThemes = { [Themes.DefaultThemeId] = true },
+		equippedTheme = Themes.DefaultThemeId,
 		deck = {},
 		hand = {},
 		handsRemaining = config.handsPerRound,
@@ -167,6 +170,33 @@ function RunState.buyPatron(state, patronId)
 	state.tips = state.tips - patron.price
 	table.insert(state.ownedPatrons, patron)
 	return true, patron.name .. " joins your table."
+end
+
+-- Purely cosmetic: unlock a table/card color theme with tips. No gameplay
+-- effect. Can be called any time -- not gated to the shop phase.
+function RunState.buyTheme(state, themeId)
+	local theme = Themes.getById(themeId)
+	if not theme then
+		return false, "Unknown theme: " .. tostring(themeId)
+	end
+	if state.ownedThemes[themeId] then
+		return false, "Already owned"
+	end
+	if state.tips < theme.price then
+		return false, "Not enough tips"
+	end
+	state.tips = state.tips - theme.price
+	state.ownedThemes[themeId] = true
+	return true, theme.name .. " unlocked."
+end
+
+-- Equip a previously-purchased theme. No gameplay effect.
+function RunState.equipTheme(state, themeId)
+	if not state.ownedThemes[themeId] then
+		return false, "Theme not owned"
+	end
+	state.equippedTheme = themeId
+	return true, "Equipped."
 end
 
 -- Call after a round is won (and shopping is done) to move on.
