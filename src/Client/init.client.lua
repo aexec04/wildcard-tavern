@@ -476,7 +476,66 @@ local function makeActionButton(text)
 end
 
 local playButton = makeActionButton("Play Hand")
+playButton.LayoutOrder = 1
+
+-- LAYOUT FEATURE 4: Sort Hand (Rank/Suit), between Play Hand and Discard --
+-- purely a client-side DISPLAY order (see sortedHandIndices + rebuildHand
+-- further down). It never touches the server's actual hand array, so
+-- there's no risk of the visual order and the real card-selection indices
+-- (used by PlayHand/Discard) drifting apart.
+local sortFrame = Instance.new("Frame")
+sortFrame.Size = UDim2.new(0, 140, 1, 0)
+sortFrame.BackgroundTransparency = 1
+sortFrame.LayoutOrder = 2
+sortFrame.Parent = actionFrame
+
+local sortFrameLayout = Instance.new("UIListLayout")
+sortFrameLayout.FillDirection = Enum.FillDirection.Horizontal
+sortFrameLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+sortFrameLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+sortFrameLayout.Padding = UDim.new(0, 8)
+sortFrameLayout.Parent = sortFrame
+
+local function makeSortButton(text)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 60, 1, 0)
+	button.Font = Enum.Font.GothamBold
+	button.TextSize = 13
+	button.Text = text
+	button.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	button.TextColor3 = Color3.fromRGB(250, 240, 220)
+	button.Parent = sortFrame
+	polishButton(button, 8)
+	return button
+end
+
+local sortByRankButton = makeSortButton("Rank")
+local sortBySuitButton = makeSortButton("Suit")
+
+local handSortMode = nil -- nil (as dealt) | "rank" | "suit"
+
+-- Forward-declared for the same reason as the other refresh* functions --
+-- assigned further down once rebuildHand/latestState exist.
+local refreshHandSort
+
+local function applyHandSortMode(mode)
+	handSortMode = mode
+	if refreshHandSort then
+		refreshHandSort()
+	end
+end
+
+sortByRankButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick, 0.35)
+	applyHandSortMode("rank")
+end)
+sortBySuitButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick, 0.35)
+	applyHandSortMode("suit")
+end)
+
 local discardButton = makeActionButton("Discard")
+discardButton.LayoutOrder = 3
 
 -- ----- Deck-remaining widget, bottom-right -----
 -- LAYOUT FEATURE 3: always-visible "how many cards are left" readout with a
@@ -2225,6 +2284,47 @@ local function onCardClicked(index)
 	refreshCardVisual(index, true)
 end
 
+-- LAYOUT FEATURE 4 (Sort Hand): returns an array of indices INTO handData,
+-- in the order cards should be displayed left-to-right. Purely a display
+-- order -- handData itself (the server's actual hand array) is never
+-- reordered, so selection/PlayHand/Discard (which work off the ORIGINAL
+-- index, not visual position) stay correct regardless of sort mode.
+local RANK_SORT_INDEX = {}
+for i, rank in ipairs(Deck.RankOrder) do
+	RANK_SORT_INDEX[rank] = i
+end
+local SUIT_SORT_INDEX = {}
+for i, suit in ipairs(SUIT_DISPLAY_ORDER) do
+	SUIT_SORT_INDEX[suit] = i
+end
+
+local function sortedHandIndices(handData, sortMode)
+	local order = {}
+	for i in ipairs(handData) do
+		table.insert(order, i)
+	end
+	if sortMode == "rank" then
+		table.sort(order, function(a, b)
+			local cardA, cardB = handData[a], handData[b]
+			local rankA, rankB = RANK_SORT_INDEX[cardA.rank] or 99, RANK_SORT_INDEX[cardB.rank] or 99
+			if rankA ~= rankB then
+				return rankA < rankB
+			end
+			return (SUIT_SORT_INDEX[cardA.suit] or 99) < (SUIT_SORT_INDEX[cardB.suit] or 99)
+		end)
+	elseif sortMode == "suit" then
+		table.sort(order, function(a, b)
+			local cardA, cardB = handData[a], handData[b]
+			local suitA, suitB = SUIT_SORT_INDEX[cardA.suit] or 99, SUIT_SORT_INDEX[cardB.suit] or 99
+			if suitA ~= suitB then
+				return suitA < suitB
+			end
+			return (RANK_SORT_INDEX[cardA.rank] or 99) < (RANK_SORT_INDEX[cardB.rank] or 99)
+		end)
+	end
+	return order
+end
+
 local function rebuildHand(handData)
 	for _, child in ipairs(handFrame:GetChildren()) do
 		if child:IsA("Frame") then
@@ -2236,14 +2336,18 @@ local function rebuildHand(handData)
 	selected = {}
 	hoveredIndex = nil
 
-	for index, card in ipairs(handData) do
+	local displayOrder = sortedHandIndices(handData, handSortMode)
+
+	for visualPosition, index in ipairs(displayOrder) do
+		local card = handData[index]
+
 		-- A fixed-size "slot" keeps UIListLayout stable; the button inside
 		-- it can grow past the slot's bounds on hover/select without
 		-- shoving the other cards around.
 		local slot = Instance.new("Frame")
 		slot.Size = UDim2.new(0, 70, 0, 100)
 		slot.BackgroundTransparency = 1
-		slot.LayoutOrder = index
+		slot.LayoutOrder = visualPosition
 		slot.Parent = handFrame
 
 		local button = Instance.new("TextButton")
@@ -2278,6 +2382,12 @@ local function rebuildHand(handData)
 			end
 			refreshAllCardVisuals()
 		end)
+	end
+end
+
+refreshHandSort = function()
+	if latestState then
+		rebuildHand(latestState.hand)
 	end
 end
 
