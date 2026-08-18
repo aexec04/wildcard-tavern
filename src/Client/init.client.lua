@@ -93,10 +93,10 @@ local SUIT_DISPLAY_ORDER = { "Spades", "Hearts", "Clubs", "Diamonds" }
 	  Balatro-Shop-Buy:   rbxassetid://117518868636544
 	  Sears-Washing-Machine-8 (click alt): rbxassetid://9118892323
 	  Falling-Down (music alt):    rbxassetid://122884689708268
-	  Retro-Impact-Zone (music alt): rbxassetid://138172142909285
+	  Celestial-Walk (music alt, has a loud sax -- Ahmed didn't like it): rbxassetid://1836047913
 ]]
 local SOUND_IDS = {
-	backgroundMusic = "rbxassetid://1836047913", -- Celestial-Walk (placeholder default, see above)
+	backgroundMusic = "rbxassetid://138172142909285", -- Retro-Impact-Zone (placeholder default, see above)
 	cardToggle = "rbxassetid://9117308777",      -- Photo-Flapping-Handling-Movement-Rubbing-1-SFX
 	playHand = "rbxassetid://9113727134",        -- Cash-Movement-2-SFX
 	discard = "rbxassetid://9114035597",         -- Deck-Of-Cards-7-SFX
@@ -116,7 +116,29 @@ local VOLUME_ICONS = { "♪", "♩", "×" }
 local volumeStepIndex = 1
 backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]
 
-local function playSfx(soundId, volume)
+-- Preload every real SFX/music asset up front so the FIRST time a sound
+-- plays (e.g. the first card click) doesn't have a noticeable delay while
+-- Roblox streams it from the CDN. Wrapped in task.spawn so it can't block
+-- the rest of the UI from building while it loads.
+task.spawn(function()
+	local ContentProvider = game:GetService("ContentProvider")
+	local toPreload = {}
+	for _, id in pairs(SOUND_IDS) do
+		if id and id ~= "rbxassetid://0" then
+			table.insert(toPreload, id)
+		end
+	end
+	if #toPreload > 0 then
+		pcall(function()
+			ContentProvider:PreloadAsync(toPreload)
+		end)
+	end
+end)
+
+-- maxLength (optional): cuts the sound off after that many seconds instead
+-- of letting it play out fully -- some of the free SFX clips (card
+-- handling, etc.) have a longer tail than you want for a quick UI moment.
+local function playSfx(soundId, volume, maxLength)
 	if not soundId or soundId == "" or soundId == "rbxassetid://0" then
 		return -- placeholder id, nothing to play yet
 	end
@@ -125,8 +147,9 @@ local function playSfx(soundId, volume)
 	sfx.Volume = volume or 0.6
 	sfx.Parent = SoundService
 	sfx:Play()
-	task.delay(5, function()
+	task.delay(maxLength or 5, function()
 		if sfx then
+			sfx:Stop()
 			sfx:Destroy()
 		end
 	end)
@@ -1875,6 +1898,11 @@ local function refreshThemesListImpl()
 		else
 			actionButton.Text = string.format("Buy (%d)", theme.price)
 			actionButton.MouseButton1Click:Connect(function()
+				if not latestState or latestState.tips < theme.price then
+					messageLabel.Text = "Not enough tips for that."
+					playSfx(SOUND_IDS.uiClick)
+					return
+				end
 				playSfx(SOUND_IDS.buyPatron)
 				BuyThemeRemote:FireServer(theme.id)
 			end)
@@ -2539,7 +2567,7 @@ local function onCardClicked(index)
 		end
 		selected[index] = true
 	end
-	playSfx(SOUND_IDS.cardToggle, 0.5)
+	playSfx(SOUND_IDS.cardToggle, 0.5, 0.35)
 	refreshCardVisual(index, true)
 	refreshScorePreview()
 end
@@ -2690,6 +2718,11 @@ local function rebuildShop(shopOffers)
 		polishButton(buyButton, 8)
 
 		buyButton.MouseButton1Click:Connect(function()
+			if not latestState or latestState.tips < offer.price then
+				messageLabel.Text = "Not enough tips for that."
+				playSfx(SOUND_IDS.uiClick)
+				return
+			end
 			playSfx(SOUND_IDS.buyPatron)
 			BuyPatronRemote:FireServer(offer.id)
 		end)
