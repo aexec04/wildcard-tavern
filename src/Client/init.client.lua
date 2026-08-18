@@ -89,7 +89,6 @@ local SUIT_DISPLAY_ORDER = { "Spades", "Hearts", "Clubs", "Diamonds" }
 	that's a separate feature for later, this is just something to hear for now.
 
 	Unused alternates from the same batch, in case you want to swap later:
-	  buy (alt):          rbxassetid://133292918309565
 	  Balatro-Shop-Buy:   rbxassetid://117518868636544
 	  Sears-Washing-Machine-8 (click alt): rbxassetid://9118892323
 	  Falling-Down (music alt):    rbxassetid://122884689708268
@@ -101,6 +100,7 @@ local SOUND_IDS = {
 	playHand = "rbxassetid://9113727134",        -- Cash-Movement-2-SFX
 	discard = "rbxassetid://9114035597",         -- Deck-Of-Cards-7-SFX
 	buyPatron = "rbxassetid://128537772502751",  -- Buy
+	roundReward = "rbxassetid://133292918309565", -- buy (alt) -- distinct "you got paid" cash sound for round-complete
 	uiClick = "rbxassetid://9118728158",         -- Rotary-Switch-10-SFX
 }
 
@@ -2412,6 +2412,14 @@ local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
 local showUnlockPopup
 
+-- lastPhase/showRoundReward: same forward-declare pattern, for the round
+-- reward popup below -- lastPhase is read/written from render() to detect
+-- the moment a round is WON (phase transitions into "shop"), not just
+-- "currently in the shop" (which stays true across unrelated re-renders
+-- while shopping, e.g. buying a Patron).
+local lastPhase = nil
+local showRoundReward
+
 do
 
 local unlockPopup = Instance.new("Frame")
@@ -2494,6 +2502,67 @@ showUnlockPopup = function(name, description)
 end
 
 end -- "Unlocked!" popup
+
+-- ----- Round reward popup: "+$X Tips!" on round win, with its own cash SFX -----
+-- Requested by Ahmed: a visual callout for how much you just earned when a
+-- round is won, plus a cash sound distinct from the shop Buy sound. Parented
+-- to screenGui directly (no backdrop) same as the Unlock popup right above
+-- -- see that block's comment for why addSoftShadow is deliberately skipped
+-- here too.
+do
+
+local roundRewardPopup = Instance.new("Frame")
+roundRewardPopup.Name = "RoundRewardPopup"
+roundRewardPopup.Size = UDim2.new(0, 260, 0, 100)
+roundRewardPopup.AnchorPoint = Vector2.new(0.5, 0.5)
+roundRewardPopup.Position = UDim2.fromScale(0.5, 0.42)
+roundRewardPopup.BackgroundColor3 = Color3.fromRGB(40, 55, 35)
+roundRewardPopup.Visible = false
+roundRewardPopup.ZIndex = 28
+roundRewardPopup.Parent = screenGui
+polishPanel(roundRewardPopup, 18)
+
+local roundRewardTitle = Instance.new("TextLabel")
+roundRewardTitle.Size = UDim2.new(1, -20, 0, 30)
+roundRewardTitle.Position = UDim2.new(0, 10, 0, 12)
+roundRewardTitle.BackgroundTransparency = 1
+roundRewardTitle.Font = Enum.Font.GothamBold
+roundRewardTitle.TextSize = 20
+roundRewardTitle.TextColor3 = Color3.fromRGB(255, 230, 180)
+roundRewardTitle.Text = "Round Complete!"
+roundRewardTitle.ZIndex = 28
+roundRewardTitle.Parent = roundRewardPopup
+
+local roundRewardAmount = Instance.new("TextLabel")
+roundRewardAmount.Size = UDim2.new(1, -20, 0, 40)
+roundRewardAmount.Position = UDim2.new(0, 10, 0, 46)
+roundRewardAmount.BackgroundTransparency = 1
+roundRewardAmount.Font = Enum.Font.GothamBold
+roundRewardAmount.TextSize = 28
+roundRewardAmount.TextColor3 = Color3.fromRGB(150, 235, 140)
+roundRewardAmount.Text = ""
+roundRewardAmount.ZIndex = 28
+roundRewardAmount.Parent = roundRewardPopup
+
+local roundRewardScale = Instance.new("UIScale")
+roundRewardScale.Scale = 1
+roundRewardScale.Parent = roundRewardPopup
+
+showRoundReward = function(amount)
+	roundRewardAmount.Text = string.format("+$%d Tips", amount)
+	roundRewardPopup.Visible = true
+	roundRewardScale.Scale = 0.6
+	playSfx(SOUND_IDS.roundReward, 1)
+	tweenTo(roundRewardScale, { Scale = 1.15 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	task.delay(0.2, function()
+		tweenTo(roundRewardScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end)
+	task.delay(2.2, function()
+		roundRewardPopup.Visible = false
+	end)
+end
+
+end -- Round reward popup
 
 local function selectedIndicesArray()
 	local out = {}
@@ -2931,6 +3000,14 @@ local function render(state)
 		lastOwnedThemeIds = ownedThemeIdSet
 		hasRenderedOnce = true
 	end
+
+	-- Round reward popup: fire once, right on the transition INTO "shop"
+	-- (i.e. the round was just won), not on every re-render while already
+	-- shopping (e.g. after buying a Patron, phase is still "shop").
+	if state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce and showRoundReward then
+		showRoundReward(reward)
+	end
+	lastPhase = state.phase
 
 	shopFrame.Visible = (state.phase == "shop")
 	gameOverFrame.Visible = (state.phase == "gameover")
