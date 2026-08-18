@@ -1963,6 +1963,14 @@ local cardScales = {} -- [handIndex] = UIScale
 -- as a sort mode is active.
 local cardVisualPosition = {}
 
+-- Tracks what the hand actually WAS last rebuild (order-independent), so
+-- the deal-in animation below only plays when the cards themselves
+-- changed (a fresh hand after Play/Discard) -- not on every single
+-- rebuildHand() call, which also fires for unrelated state pushes (buying
+-- in the shop, equipping a theme) and for Sort Hand clicks, where the
+-- exact same cards just need to reflow, not re-deal from the deck.
+local lastHandSignature = nil
+
 local BASE_SCALE = 1.0
 local HOVER_SCALE = 1.06
 local SELECTED_SCALE = 1.08
@@ -2843,7 +2851,22 @@ local function sortedHandIndices(handData, sortMode)
 	return order
 end
 
+-- Order-independent so a Sort Hand click (same cards, different order)
+-- doesn't register as a "new" hand -- see lastHandSignature above.
+local function handSignature(handData)
+	local parts = {}
+	for _, card in ipairs(handData) do
+		table.insert(parts, card.suit .. tostring(card.rank))
+	end
+	table.sort(parts)
+	return table.concat(parts, ",")
+end
+
 local function rebuildHand(handData)
+	local newSignature = handSignature(handData)
+	local isNewHand = newSignature ~= lastHandSignature
+	lastHandSignature = newSignature
+
 	for _, child in ipairs(handFrame:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
@@ -2884,6 +2907,19 @@ local function rebuildHand(handData)
 		local scaleObject = Instance.new("UIScale")
 		scaleObject.Scale = BASE_SCALE
 		scaleObject.Parent = button
+
+		-- LAYOUT FEATURE 8: deal the card in from the deck-widget corner
+		-- (bottom-right) instead of it just popping into place, but only
+		-- when this is actually a fresh hand -- see isNewHand above.
+		if isNewHand then
+			button.Position = UDim2.new(0.5, 240, 0.5, 160)
+			button.Rotation = 14
+			task.delay((visualPosition - 1) * 0.05, function()
+				if button.Parent then
+					tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				end
+			end)
+		end
 
 		cardButtons[index] = button
 		cardScales[index] = scaleObject
