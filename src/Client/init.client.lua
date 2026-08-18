@@ -39,6 +39,10 @@ local Themes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("En
 -- FEATURE 4 (Road Ahead / Journey overlay) needs the target-score formula,
 -- which already exists in RunState -- no engine changes needed.
 local RunStateEngine = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RunState"))
+-- FEATURE 5 (worked scoring examples in How to Play) runs real example
+-- hands through the actual engine so the numbers shown are never stale.
+local HandEvaluator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandEvaluator"))
+local Scoring = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Scoring"))
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -434,8 +438,8 @@ howToPlayBackdrop.ZIndex = 20
 howToPlayBackdrop.Parent = screenGui
 
 local howToPlayPanel = Instance.new("Frame")
-howToPlayPanel.Size = UDim2.fromScale(0.55, 0.55)
-howToPlayPanel.Position = UDim2.fromScale(0.225, 0.225)
+howToPlayPanel.Size = UDim2.fromScale(0.6, 0.75)
+howToPlayPanel.Position = UDim2.fromScale(0.2, 0.12)
 howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 howToPlayPanel.ZIndex = 21
 howToPlayPanel.Parent = howToPlayBackdrop
@@ -452,18 +456,37 @@ howToPlayTitle.Text = "How to Play"
 howToPlayTitle.ZIndex = 21
 howToPlayTitle.Parent = howToPlayPanel
 
-local howToPlayText = Instance.new("TextLabel")
-howToPlayText.Size = UDim2.new(1, -30, 1, -100)
-howToPlayText.Position = UDim2.new(0, 15, 0, 45)
-howToPlayText.BackgroundTransparency = 1
-howToPlayText.Font = Enum.Font.Gotham
-howToPlayText.TextSize = 16
-howToPlayText.TextColor3 = Color3.fromRGB(235, 225, 210)
-howToPlayText.TextWrapped = true
-howToPlayText.TextXAlignment = Enum.TextXAlignment.Left
-howToPlayText.TextYAlignment = Enum.TextYAlignment.Top
-howToPlayText.ZIndex = 21
-howToPlayText.Text = table.concat({
+-- FEATURE 5: worked examples, scrollable. Built from real Card tables and
+-- run through the actual HandEvaluator + Scoring modules, so the numbers
+-- shown are always exactly what you'd see in a real game.
+
+local howToPlayScroll = Instance.new("ScrollingFrame")
+howToPlayScroll.Size = UDim2.new(1, -30, 1, -100)
+howToPlayScroll.Position = UDim2.new(0, 15, 0, 45)
+howToPlayScroll.BackgroundTransparency = 1
+howToPlayScroll.BorderSizePixel = 0
+howToPlayScroll.ScrollBarThickness = 8
+howToPlayScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
+howToPlayScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+howToPlayScroll.ZIndex = 21
+howToPlayScroll.Parent = howToPlayPanel
+
+local howToPlayLayout = Instance.new("UIListLayout")
+howToPlayLayout.Padding = UDim.new(0, 14)
+howToPlayLayout.Parent = howToPlayScroll
+
+local howToPlayIntro = Instance.new("TextLabel")
+howToPlayIntro.Size = UDim2.new(1, 0, 0, 150)
+howToPlayIntro.BackgroundTransparency = 1
+howToPlayIntro.Font = Enum.Font.Gotham
+howToPlayIntro.TextSize = 15
+howToPlayIntro.TextColor3 = Color3.fromRGB(235, 225, 210)
+howToPlayIntro.TextWrapped = true
+howToPlayIntro.TextXAlignment = Enum.TextXAlignment.Left
+howToPlayIntro.TextYAlignment = Enum.TextYAlignment.Top
+howToPlayIntro.ZIndex = 21
+howToPlayIntro.LayoutOrder = 1
+howToPlayIntro.Text = table.concat({
 	"- Click cards in your hand to select up to 5 of them.",
 	"- Click Play Hand to score the best poker hand among your selected cards",
 	"  (Pair, Flush, Full House, etc). Chips x Mult = your score.",
@@ -473,8 +496,92 @@ howToPlayText.Text = table.concat({
 	"- Win a round and visit The Bar to spend Tips on Patrons -- helpers that",
 	"  boost your future hands.",
 	"- Survive as many Nights as you can. Good luck!",
+	"",
+	"Here's exactly how scoring works, with real examples:",
 }, "\n")
-howToPlayText.Parent = howToPlayPanel
+howToPlayIntro.Parent = howToPlayScroll
+
+local EXAMPLE_HANDS = {
+	{
+		{ rank = 7, suit = "Hearts" },
+		{ rank = 7, suit = "Spades" },
+	},
+	{
+		{ rank = 9, suit = "Diamonds" },
+		{ rank = 9, suit = "Clubs" },
+		{ rank = 9, suit = "Spades" },
+		{ rank = 2, suit = "Hearts" },
+		{ rank = 2, suit = "Diamonds" },
+	},
+	{
+		{ rank = 4, suit = "Clubs" },
+		{ rank = 5, suit = "Clubs" },
+		{ rank = 6, suit = "Clubs" },
+		{ rank = 7, suit = "Clubs" },
+		{ rank = 8, suit = "Clubs" },
+	},
+}
+
+local function makeMiniCard(card, parent, layoutOrder)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 34, 0, 46)
+	label.BackgroundColor3 = Color3.fromRGB(250, 245, 235)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
+	label.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+	label.LayoutOrder = layoutOrder or 0
+	label.ZIndex = 21
+	label.Parent = parent
+	roundCorner(label, 6)
+	return label
+end
+
+for exampleIndex, cards in ipairs(EXAMPLE_HANDS) do
+	local handResult = HandEvaluator.evaluate(cards)
+	local score, chips, mult = Scoring.calculate(handResult, {}, {})
+
+	local exampleRow = Instance.new("Frame")
+	exampleRow.Size = UDim2.new(1, 0, 0, 70)
+	exampleRow.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	exampleRow.ZIndex = 21
+	exampleRow.LayoutOrder = 1 + exampleIndex
+	exampleRow.Parent = howToPlayScroll
+	polishPanel(exampleRow, 10)
+
+	local cardsHolder = Instance.new("Frame")
+	cardsHolder.Size = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 16, 1, 0)
+	cardsHolder.Position = UDim2.new(0, 10, 0, 0)
+	cardsHolder.BackgroundTransparency = 1
+	cardsHolder.ZIndex = 21
+	cardsHolder.Parent = exampleRow
+
+	local cardsLayout = Instance.new("UIListLayout")
+	cardsLayout.FillDirection = Enum.FillDirection.Horizontal
+	cardsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	cardsLayout.Padding = UDim.new(0, 6)
+	cardsLayout.Parent = cardsHolder
+
+	for cardIndex, card in ipairs(cards) do
+		makeMiniCard(card, cardsHolder, cardIndex)
+	end
+
+	local resultLabel = Instance.new("TextLabel")
+	resultLabel.Size = UDim2.new(1, -(34 * #cards + 6 * (#cards - 1) + 30), 1, 0)
+	resultLabel.Position = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 20, 0, 0)
+	resultLabel.BackgroundTransparency = 1
+	resultLabel.Font = Enum.Font.Gotham
+	resultLabel.TextSize = 14
+	resultLabel.TextWrapped = true
+	resultLabel.TextXAlignment = Enum.TextXAlignment.Left
+	resultLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+	resultLabel.ZIndex = 21
+	resultLabel.Text = string.format(
+		"%s\n%d chips x %d mult = %d points",
+		handResult.name, chips, mult, score
+	)
+	resultLabel.Parent = exampleRow
+end
 
 local howToPlayCloseButton = Instance.new("TextButton")
 howToPlayCloseButton.Size = UDim2.new(0, 140, 0, 40)
