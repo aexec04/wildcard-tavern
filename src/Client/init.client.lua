@@ -30,6 +30,7 @@ local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
 local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
 local RestartRunRemote = remotes:WaitForChild("RestartRun")
+local StartRunRemote = remotes:WaitForChild("StartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
 
 -- Theme *data* (names/prices/colors) is static content, so the client just
@@ -46,6 +47,9 @@ local Scoring = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("E
 -- FEATURE 7 (Deck Tracker) needs Deck.RankOrder + reads state.deckCounts
 -- (already serialized server-side in the Boss Rounds/Deck Variants batch).
 local Deck = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Deck"))
+-- FEATURE 8 (Run Setup) needs these to build the variant/difficulty picker.
+local DeckVariants = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DeckVariants"))
+local DifficultyTiers = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DifficultyTiers"))
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -431,6 +435,7 @@ end
 local menuPlayButton = makeMenuButton("Play")
 local menuHowToPlayButton = makeMenuButton("How to Play")
 local menuJourneyButton = makeMenuButton("Road Ahead")
+local menuNewRunButton = makeMenuButton("New Run...")
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
 
@@ -964,6 +969,199 @@ deckTrackerButton.MouseButton1Click:Connect(function()
 	end
 	deckTrackerBackdrop.Visible = true
 end)
+
+-- ===== Run Setup overlay: pick a Deck Variant + Difficulty before a new
+-- run begins. FEATURE 8, reachable from the main menu ("New Run..."). =====
+
+local runSetupBackdrop = Instance.new("Frame")
+runSetupBackdrop.Name = "RunSetupBackdrop"
+runSetupBackdrop.Size = UDim2.fromScale(1, 1)
+runSetupBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+runSetupBackdrop.BackgroundTransparency = 0.4
+runSetupBackdrop.Visible = false
+runSetupBackdrop.ZIndex = 25 -- above the in-game overlays; it's reachable from the menu too
+runSetupBackdrop.Parent = screenGui
+
+local runSetupPanel = Instance.new("Frame")
+runSetupPanel.Size = UDim2.fromScale(0.6, 0.72)
+runSetupPanel.Position = UDim2.fromScale(0.2, 0.13)
+runSetupPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+runSetupPanel.ZIndex = 26
+runSetupPanel.Parent = runSetupBackdrop
+polishPanel(runSetupPanel, 16)
+addSoftShadow(runSetupPanel, 18)
+
+local runSetupTitle = Instance.new("TextLabel")
+runSetupTitle.Size = UDim2.new(1, 0, 0, 40)
+runSetupTitle.BackgroundTransparency = 1
+runSetupTitle.Font = Enum.Font.GothamBold
+runSetupTitle.TextSize = 22
+runSetupTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+runSetupTitle.Text = "Start a New Run"
+runSetupTitle.ZIndex = 26
+runSetupTitle.Parent = runSetupPanel
+
+local runSetupScroll = Instance.new("ScrollingFrame")
+runSetupScroll.Size = UDim2.new(1, -30, 1, -110)
+runSetupScroll.Position = UDim2.new(0, 15, 0, 45)
+runSetupScroll.BackgroundTransparency = 1
+runSetupScroll.BorderSizePixel = 0
+runSetupScroll.ScrollBarThickness = 8
+runSetupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+runSetupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+runSetupScroll.ZIndex = 26
+runSetupScroll.Parent = runSetupPanel
+
+local runSetupLayout = Instance.new("UIListLayout")
+runSetupLayout.Padding = UDim.new(0, 14)
+runSetupLayout.Parent = runSetupScroll
+
+local function makeRunSetupSectionLabel(text, order)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 22)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 16
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextColor3 = Color3.fromRGB(255, 214, 130)
+	label.Text = text
+	label.LayoutOrder = order
+	label.ZIndex = 26
+	label.Parent = runSetupScroll
+	return label
+end
+
+local selectedDeckVariantId = DeckVariants.DefaultId
+local selectedDifficultyId = DifficultyTiers.DefaultId
+local deckVariantCards = {}
+local difficultyCards = {}
+
+makeRunSetupSectionLabel("Deck Variant", 1)
+makeRunSetupSectionLabel("Difficulty", 19)
+
+local function makePickCard(parent, order, name, description, isSelected)
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, 0, 0, 60)
+	card.BackgroundColor3 = isSelected and Color3.fromRGB(90, 70, 40) or Color3.fromRGB(60, 45, 32)
+	card.LayoutOrder = order
+	card.ZIndex = 26
+	card.Parent = parent
+	polishPanel(card, 10)
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, -20, 0, 22)
+	nameLabel.Position = UDim2.new(0, 10, 0, 4)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 15
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+	nameLabel.Text = (isSelected and "✓ " or "") .. name
+	nameLabel.ZIndex = 26
+	nameLabel.Parent = card
+
+	local descLabel = Instance.new("TextLabel")
+	descLabel.Size = UDim2.new(1, -20, 0, 30)
+	descLabel.Position = UDim2.new(0, 10, 0, 26)
+	descLabel.BackgroundTransparency = 1
+	descLabel.Font = Enum.Font.Gotham
+	descLabel.TextSize = 13
+	descLabel.TextWrapped = true
+	descLabel.TextXAlignment = Enum.TextXAlignment.Left
+	descLabel.TextColor3 = Color3.fromRGB(210, 195, 175)
+	descLabel.Text = description
+	descLabel.ZIndex = 26
+	descLabel.Parent = card
+
+	local clickCatcher = Instance.new("TextButton")
+	clickCatcher.Size = UDim2.fromScale(1, 1)
+	clickCatcher.BackgroundTransparency = 1
+	clickCatcher.Text = ""
+	clickCatcher.ZIndex = 26
+	clickCatcher.Parent = card
+
+	return card, clickCatcher
+end
+
+local function refreshRunSetupCards()
+	for _, child in ipairs(deckVariantCards) do
+		child:Destroy()
+	end
+	deckVariantCards = {}
+	for i, variant in ipairs(DeckVariants.Definitions) do
+		local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId)
+		table.insert(deckVariantCards, card)
+		clickCatcher.MouseButton1Click:Connect(function()
+			playSfx(SOUND_IDS.uiClick, 0.4)
+			selectedDeckVariantId = variant.id
+			refreshRunSetupCards()
+		end)
+	end
+
+	for _, child in ipairs(difficultyCards) do
+		child:Destroy()
+	end
+	difficultyCards = {}
+	for i, tier in ipairs(DifficultyTiers.Definitions) do
+		local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId)
+		table.insert(difficultyCards, card)
+		clickCatcher.MouseButton1Click:Connect(function()
+			playSfx(SOUND_IDS.uiClick, 0.4)
+			selectedDifficultyId = tier.id
+			refreshRunSetupCards()
+		end)
+	end
+end
+
+refreshRunSetupCards()
+
+local runSetupBeginButton = Instance.new("TextButton")
+runSetupBeginButton.Size = UDim2.new(0, 200, 0, 44)
+runSetupBeginButton.Position = UDim2.new(0.5, -210, 1, -55)
+runSetupBeginButton.Font = Enum.Font.GothamBold
+runSetupBeginButton.TextSize = 18
+runSetupBeginButton.Text = "Begin Run"
+runSetupBeginButton.BackgroundColor3 = Color3.fromRGB(70, 110, 65)
+runSetupBeginButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+runSetupBeginButton.ZIndex = 26
+runSetupBeginButton.Parent = runSetupPanel
+polishButton(runSetupBeginButton, 12)
+
+local runSetupCancelButton = Instance.new("TextButton")
+runSetupCancelButton.Size = UDim2.new(0, 140, 0, 44)
+runSetupCancelButton.Position = UDim2.new(0.5, 10, 1, -55)
+runSetupCancelButton.Font = Enum.Font.GothamBold
+runSetupCancelButton.TextSize = 16
+runSetupCancelButton.Text = "Cancel"
+runSetupCancelButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+runSetupCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+runSetupCancelButton.ZIndex = 26
+runSetupCancelButton.Parent = runSetupPanel
+polishButton(runSetupCancelButton, 12)
+
+runSetupCancelButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	runSetupBackdrop.Visible = false
+end)
+
+runSetupBeginButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.buyPatron)
+	StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId)
+	runSetupBackdrop.Visible = false
+	menuFrame.Visible = false
+	root.Visible = true
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+		backgroundMusic:Play()
+	end
+end)
+
+local function openRunSetup()
+	playSfx(SOUND_IDS.uiClick)
+	refreshRunSetupCards()
+	runSetupBackdrop.Visible = true
+end
+
+menuNewRunButton.MouseButton1Click:Connect(openRunSetup)
 
 -- ===== Menu -> game transition, volume cycling =====
 
