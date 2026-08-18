@@ -81,19 +81,27 @@ local SUIT_SYMBOLS = { Hearts = "♥", Diamonds = "♦", Clubs = "♣", Spades =
 local RED_SUITS = { Hearts = true, Diamonds = true }
 local SUIT_DISPLAY_ORDER = { "Spades", "Hearts", "Clubs", "Diamonds" }
 
--- ===== Sound (fill these in!) =====
+-- ===== Sound =====
 --[[
-	These are placeholders (asset id 0 == silent, no crash). To add real
-	sound: in Studio, Home tab -> Toolbox -> Audio, filter Creator = "Roblox"
-	for guaranteed free-to-use tracks/SFX, right-click a result -> Copy ID,
-	and paste it in as "rbxassetid://<the number>" below.
+	Real asset IDs, picked from the batch Ahmed found. backgroundMusic default
+	is just a placeholder pick (Ahmed said he wants a later feature letting
+	players choose/upload their own background tracks, maybe gamepass-gated --
+	that's a separate feature for later, this is just something to hear for now.
+
+	Unused alternates from the same batch, in case you want to swap later:
+	  buy (alt):          rbxassetid://133292918309565
+	  Balatro-Shop-Buy:   rbxassetid://117518868636544
+	  Sears-Washing-Machine-8 (click alt): rbxassetid://9118892323
+	  Falling-Down (music alt):    rbxassetid://122884689708268
+	  Retro-Impact-Zone (music alt): rbxassetid://138172142909285
 ]]
 local SOUND_IDS = {
-	backgroundMusic = "rbxassetid://0", -- TODO: pick a looping tavern/ambient track
-	cardToggle = "rbxassetid://0",      -- TODO: short click/tap sound
-	playHand = "rbxassetid://0",        -- TODO: a "whoosh" or chime
-	buyPatron = "rbxassetid://0",       -- TODO: a coin/purchase sound
-	uiClick = "rbxassetid://0",         -- TODO: generic button click
+	backgroundMusic = "rbxassetid://1836047913", -- Celestial-Walk (placeholder default, see above)
+	cardToggle = "rbxassetid://9117308777",      -- Photo-Flapping-Handling-Movement-Rubbing-1-SFX
+	playHand = "rbxassetid://9113727134",        -- Cash-Movement-2-SFX
+	discard = "rbxassetid://9114035597",         -- Deck-Of-Cards-7-SFX
+	buyPatron = "rbxassetid://128537772502751",  -- Buy
+	uiClick = "rbxassetid://9118728158",         -- Rotary-Switch-10-SFX
 }
 
 local backgroundMusic = Instance.new("Sound")
@@ -2847,7 +2855,7 @@ discardButton.MouseButton1Click:Connect(function()
 		messageLabel.Text = "Select 1-5 cards to discard."
 		return
 	end
-	playSfx(SOUND_IDS.uiClick)
+	playSfx(SOUND_IDS.discard)
 	DiscardRemote:FireServer(indices)
 end)
 
