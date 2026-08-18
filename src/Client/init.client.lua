@@ -1162,14 +1162,19 @@ local HOW_TO_PLAY_STEPS = {
 }
 
 local howToPlayStepsGrid = Instance.new("Frame")
-howToPlayStepsGrid.Size = UDim2.new(1, 0, 0, 210)
+-- AutomaticSize (not a hardcoded pixel height) so the grid always grows to
+-- fit exactly however many rows the tiles need -- a fixed height here was
+-- the bug: it was too short for 3 rows, so the bottom row spilled out and
+-- covered "How scoring works" and the example hands right below it.
+howToPlayStepsGrid.Size = UDim2.new(1, 0, 0, 0)
+howToPlayStepsGrid.AutomaticSize = Enum.AutomaticSize.Y
 howToPlayStepsGrid.BackgroundTransparency = 1
 howToPlayStepsGrid.ZIndex = 21
 howToPlayStepsGrid.LayoutOrder = 1
 howToPlayStepsGrid.Parent = howToPlayScroll
 
 local howToPlayGridLayout = Instance.new("UIGridLayout")
-howToPlayGridLayout.CellSize = UDim2.new(0.5, -6, 0, 96)
+howToPlayGridLayout.CellSize = UDim2.new(1 / 3, -6, 0, 96)
 howToPlayGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
 howToPlayGridLayout.Parent = howToPlayStepsGrid
 
