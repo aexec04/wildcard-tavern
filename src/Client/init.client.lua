@@ -439,6 +439,15 @@ for i = 1, #Patrons.Definitions do
 	patronSlots[i] = { frame = slot, label = slotLabel }
 end
 
+-- LAYOUT FEATURE 6: live chips x mult preview for the currently-selected
+-- cards, mirroring Balatro's running score readout. Computed with the same
+-- HandEvaluator/Scoring modules the server uses (already required above
+-- for Feature 5's worked examples), so the preview can't drift out of sync
+-- with the real payout -- see refreshScorePreview() further down, which
+-- wires this up once `selected`/`latestState` exist.
+local scorePreviewBox = makeSidebarBox(50)
+local scorePreviewLabel = makeSidebarLabel(scorePreviewBox, 15, Color3.fromRGB(190, 215, 255))
+
 -- ----- Help (?) and mute buttons, top-right corner -----
 
 local function makeCornerButton(text, xOffset)
@@ -2350,6 +2359,65 @@ local function refreshAllCardVisuals()
 	end
 end
 
+-- LAYOUT FEATURE 6: recompute the chips x mult preview for whatever's
+-- currently selected. Mirrors RunState.lua's playHand exactly: same
+-- HandEvaluator.evaluate + Scoring.calculate calls, same context shape
+-- (handsRemaining is "if I played this NOW", i.e. one less than current,
+-- since that's what the real call would see). ownedPatrons has to be
+-- turned from the server's lightweight {id,name,description} payload back
+-- into real Patron instances via Patrons.getById, since only the real
+-- instances carry the .effect(...) function Scoring.calculate needs.
+local function refreshScorePreview()
+	if not latestState then
+		scorePreviewLabel.Text = "0  x  0"
+		return
+	end
+
+	local selectedCards = {}
+	for index in pairs(selected) do
+		local card = latestState.hand[index]
+		if card then
+			table.insert(selectedCards, card)
+		end
+	end
+
+	if #selectedCards == 0 then
+		scorePreviewLabel.Text = "Select cards..."
+		return
+	end
+
+	local ok, handResult = pcall(HandEvaluator.evaluate, selectedCards)
+	if not ok or not handResult then
+		scorePreviewLabel.Text = "Select cards..."
+		return
+	end
+
+	local ownedPatronInstances = {}
+	for _, patron in ipairs(latestState.ownedPatrons or {}) do
+		local def = Patrons.getById(patron.id)
+		if def then
+			table.insert(ownedPatronInstances, def)
+		end
+	end
+
+	local previewHandsRemaining = math.max(0, latestState.handsRemaining - 1)
+	local ok2, score, chips, mult = pcall(Scoring.calculate, handResult, ownedPatronInstances, {
+		allPlayedCards = selectedCards,
+		handsRemaining = previewHandsRemaining,
+		discardsRemaining = latestState.discardsRemaining,
+		isLastHand = previewHandsRemaining == 0,
+		night = latestState.night,
+		round = latestState.round,
+	})
+
+	if not ok2 then
+		scorePreviewLabel.Text = "Select cards..."
+		return
+	end
+
+	scorePreviewLabel.Text = string.format("%s\n%d x %d = %d", handResult.name, chips, mult, score)
+end
+
 local function onCardClicked(index)
 	if selected[index] then
 		selected[index] = nil
@@ -2366,6 +2434,7 @@ local function onCardClicked(index)
 	end
 	playSfx(SOUND_IDS.cardToggle, 0.5)
 	refreshCardVisual(index, true)
+	refreshScorePreview()
 end
 
 -- LAYOUT FEATURE 4 (Sort Hand): returns an array of indices INTO handData,
@@ -2583,6 +2652,7 @@ local function render(state)
 	end
 
 	rebuildHand(state.hand)
+	refreshScorePreview() -- rebuildHand just reset `selected` to empty
 
 	if themesBackdrop.Visible then
 		refreshThemesList() -- keep the panel accurate if it's open across a purchase
