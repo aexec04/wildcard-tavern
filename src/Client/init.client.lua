@@ -82,6 +82,16 @@ local Patrons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("E
 -- for every overlay from here on, including the new Journey map below.
 local latestState = nil
 
+-- Same reasoning as latestState above: currentTheme used to be declared
+-- much further down (right before applyTheme), which is exactly what bit
+-- the new Journey map -- refreshJourneyImpl (defined near the top of the
+-- file, in its own do/end block) referenced "currentTheme" before that
+-- point, so it silently resolved to an undefined GLOBAL instead of the
+-- real local, and indexing .colors on nil crashed the whole overlay open.
+-- Moving the declaration up here avoids this bug for every overlay,
+-- current and future, same fix as latestState.
+local currentTheme = Themes.getById(Themes.DefaultThemeId)
+
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
 	[11] = "J", [12] = "Q", [13] = "K", [14] = "A",
@@ -2345,8 +2355,9 @@ local SELECTED_LIFT = 6
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ----- Theme (cosmetics) application -----
+-- (currentTheme itself now declared near the top of the file -- see the
+-- comment there.)
 
-local currentTheme = Themes.getById(Themes.DefaultThemeId)
 local lastEquippedThemeId = nil
 
 local function applyTheme(themeId)
