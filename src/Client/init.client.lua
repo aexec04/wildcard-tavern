@@ -155,6 +155,14 @@ local function playSfx(soundId, volume, maxLength)
 	end)
 end
 
+-- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
+-- into the clip itself -- for a snappy UI button we only want the first
+-- one, so every generic click plays through this instead of calling
+-- playSfx(SOUND_IDS.uiClick, ...) directly.
+local function playClickSfx(volume)
+	playSfx(SOUND_IDS.uiClick, volume, 0.15)
+end
+
 -- ===== Tween helper =====
 
 local function tweenTo(instance, properties, duration, style, direction)
@@ -292,12 +300,12 @@ local function makeStepperRow(parent, labelText, min, max, step, getValue, setVa
 	end
 
 	minusButton.MouseButton1Click:Connect(function()
-		playSfx(SOUND_IDS.uiClick, 0.35)
+		playClickSfx(0.35)
 		setValue(math.max(min, getValue() - step))
 		refresh()
 	end)
 	plusButton.MouseButton1Click:Connect(function()
-		playSfx(SOUND_IDS.uiClick, 0.35)
+		playClickSfx(0.35)
 		setValue(math.min(max, getValue() + step))
 		refresh()
 	end)
@@ -637,11 +645,11 @@ local function applyHandSortMode(mode)
 end
 
 sortByRankButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick, 0.35)
+	playClickSfx(0.35)
 	applyHandSortMode("rank")
 end)
 sortBySuitButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick, 0.35)
+	playClickSfx(0.35)
 	applyHandSortMode("suit")
 end)
 
@@ -1100,12 +1108,12 @@ howToPlayCloseButton.Parent = howToPlayPanel
 polishButton(howToPlayCloseButton, 10)
 
 howToPlayCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	howToPlayBackdrop.Visible = false
 end)
 
 local function openHowToPlay()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	howToPlayBackdrop.Visible = true
 end
 
@@ -1168,7 +1176,7 @@ themesCloseButton.Parent = themesPanel
 polishButton(themesCloseButton, 10)
 
 themesCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	themesBackdrop.Visible = false
 end)
 
@@ -1178,7 +1186,7 @@ end)
 local refreshThemesList
 
 themesButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	if refreshThemesList then
 		refreshThemesList()
 	end
@@ -1256,7 +1264,7 @@ journeyCloseButton.Parent = journeyPanel
 polishButton(journeyCloseButton, 12)
 
 journeyCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	journeyBackdrop.Visible = false
 end)
 
@@ -1264,7 +1272,7 @@ end)
 local refreshJourney
 
 local function openJourney()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	if refreshJourney then
 		refreshJourney()
 	end
@@ -1371,12 +1379,12 @@ handRefCloseButton.Parent = handRefPanel
 polishButton(handRefCloseButton, 12)
 
 handRefCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	handRefBackdrop.Visible = false
 end)
 
 handRefButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	if refreshHandReference then
 		refreshHandReference()
 	end
@@ -1451,7 +1459,7 @@ deckTrackerCloseButton.Parent = deckTrackerPanel
 polishButton(deckTrackerCloseButton, 12)
 
 deckTrackerCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	deckTrackerBackdrop.Visible = false
 end)
 
@@ -1469,7 +1477,7 @@ local function makeDeckTrackerCell(parent, text, widthScale, isHeader, textColor
 end
 
 deckTrackerButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	if refreshDeckTracker then
 		refreshDeckTracker()
 	end
@@ -1561,12 +1569,12 @@ settingsCloseButton.Parent = settingsPanel
 polishButton(settingsCloseButton, 12)
 
 settingsCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	settingsBackdrop.Visible = false
 end)
 
 settingsButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	settingsBackdrop.Visible = true
 end)
 
@@ -1694,7 +1702,7 @@ local function refreshRunSetupCards()
 		local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId)
 		table.insert(deckVariantCards, card)
 		clickCatcher.MouseButton1Click:Connect(function()
-			playSfx(SOUND_IDS.uiClick, 0.4)
+			playClickSfx(0.4)
 			selectedDeckVariantId = variant.id
 			refreshRunSetupCards()
 		end)
@@ -1708,7 +1716,7 @@ local function refreshRunSetupCards()
 		local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId)
 		table.insert(difficultyCards, card)
 		clickCatcher.MouseButton1Click:Connect(function()
-			playSfx(SOUND_IDS.uiClick, 0.4)
+			playClickSfx(0.4)
 			selectedDifficultyId = tier.id
 			refreshRunSetupCards()
 		end)
@@ -1742,7 +1750,7 @@ runSetupCancelButton.Parent = runSetupPanel
 polishButton(runSetupCancelButton, 12)
 
 runSetupCancelButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	runSetupBackdrop.Visible = false
 end)
 
@@ -1758,7 +1766,7 @@ runSetupBeginButton.MouseButton1Click:Connect(function()
 end)
 
 local function openRunSetup()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	refreshRunSetupCards()
 	runSetupBackdrop.Visible = true
 end
@@ -1768,7 +1776,7 @@ menuNewRunButton.MouseButton1Click:Connect(openRunSetup)
 -- ===== Menu -> game transition, volume cycling =====
 
 menuPlayButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	menuFrame.Visible = false
 	root.Visible = true
 	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
@@ -1892,7 +1900,7 @@ local function refreshThemesListImpl()
 		elseif ownedSet[theme.id] then
 			actionButton.Text = "Equip"
 			actionButton.MouseButton1Click:Connect(function()
-				playSfx(SOUND_IDS.uiClick)
+				playClickSfx()
 				EquipThemeRemote:FireServer(theme.id)
 			end)
 		else
@@ -1900,7 +1908,7 @@ local function refreshThemesListImpl()
 			actionButton.MouseButton1Click:Connect(function()
 				if not latestState or latestState.tips < theme.price then
 					messageLabel.Text = "Not enough tips for that."
-					playSfx(SOUND_IDS.uiClick)
+					playClickSfx()
 					return
 				end
 				playSfx(SOUND_IDS.buyPatron)
@@ -2168,7 +2176,7 @@ collectionCloseButton.Parent = collectionPanel
 polishButton(collectionCloseButton, 12)
 
 collectionCloseButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	collectionBackdrop.Visible = false
 end)
 
@@ -2284,7 +2292,7 @@ end
 refreshCollection = refreshCollectionImpl
 
 collectionButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	refreshCollection()
 	collectionBackdrop.Visible = true
 end)
@@ -2567,7 +2575,7 @@ local function onCardClicked(index)
 		end
 		selected[index] = true
 	end
-	playSfx(SOUND_IDS.cardToggle, 0.5, 0.35)
+	playSfx(SOUND_IDS.cardToggle, 1.5, 0.35)
 	refreshCardVisual(index, true)
 	refreshScorePreview()
 end
@@ -2720,7 +2728,7 @@ local function rebuildShop(shopOffers)
 		buyButton.MouseButton1Click:Connect(function()
 			if not latestState or latestState.tips < offer.price then
 				messageLabel.Text = "Not enough tips for that."
-				playSfx(SOUND_IDS.uiClick)
+				playClickSfx()
 				return
 			end
 			playSfx(SOUND_IDS.buyPatron)
@@ -2893,12 +2901,12 @@ discardButton.MouseButton1Click:Connect(function()
 end)
 
 nextRoundButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	AdvanceRoundRemote:FireServer()
 end)
 
 playAgainButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.uiClick)
+	playClickSfx()
 	RestartRunRemote:FireServer()
 end)
 
