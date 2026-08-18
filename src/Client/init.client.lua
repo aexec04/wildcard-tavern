@@ -63,10 +63,13 @@ local backgroundMusic = Instance.new("Sound")
 backgroundMusic.Name = "BackgroundMusic"
 backgroundMusic.SoundId = SOUND_IDS.backgroundMusic
 backgroundMusic.Looped = true
-backgroundMusic.Volume = 0.35
 backgroundMusic.Parent = SoundService
 
-local musicMuted = false
+-- FEATURE 3: cycle loud -> quiet -> muted, free for everyone (no paywall).
+local VOLUME_STEPS = { 0.5, 0.2, 0 }
+local VOLUME_ICONS = { "♪", "♩", "×" }
+local volumeStepIndex = 1
+backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]
 
 local function playSfx(soundId, volume)
 	if not soundId or soundId == "" or soundId == "rbxassetid://0" then
@@ -127,6 +130,25 @@ end
 
 local function polishPanel(instance, radius)
 	roundCorner(instance, radius or 16)
+end
+
+-- FEATURE 3: a soft drop shadow behind a panel -- a plain, offset,
+-- fixed-transparency black Frame placed just behind it. Unlike addGloss,
+-- this uses ordinary BackgroundTransparency (0.55, constant, not a
+-- gradient), which blends normally -- it can only ever darken the thin
+-- offset border area behind a panel, never the panel's own content.
+local function addSoftShadow(panel, radius)
+	local shadow = Instance.new("Frame")
+	shadow.Name = "Shadow"
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 0.55
+	shadow.Size = UDim2.new(1, 14, 1, 14)
+	shadow.Position = UDim2.new(0, -7, 0, 4)
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = math.max(0, panel.ZIndex - 1)
+	shadow.Parent = panel.Parent
+	roundCorner(shadow, radius or 18)
+	return shadow
 end
 
 -- ===== Root UI =====
@@ -195,7 +217,7 @@ local function makeCornerButton(text, xOffset)
 	return button
 end
 
-local muteButton = makeCornerButton("♪", -60)
+local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], -60)
 local helpButton = makeCornerButton("?", -110)
 local themesButton = makeCornerButton("🎨", -160)
 
@@ -269,6 +291,7 @@ shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 shopFrame.Visible = false
 shopFrame.Parent = root
 polishPanel(shopFrame, 16)
+addSoftShadow(shopFrame, 18)
 
 local shopTitle = Instance.new("TextLabel")
 shopTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -310,6 +333,7 @@ gameOverFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 gameOverFrame.Visible = false
 gameOverFrame.Parent = root
 polishPanel(gameOverFrame, 16)
+addSoftShadow(gameOverFrame, 18)
 
 local gameOverLabel = Instance.new("TextLabel")
 gameOverLabel.Size = UDim2.new(1, 0, 0, 60)
@@ -411,6 +435,7 @@ howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 howToPlayPanel.ZIndex = 21
 howToPlayPanel.Parent = howToPlayBackdrop
 polishPanel(howToPlayPanel, 16)
+addSoftShadow(howToPlayPanel, 18)
 
 local howToPlayTitle = Instance.new("TextLabel")
 howToPlayTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -491,6 +516,7 @@ themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 themesPanel.ZIndex = 21
 themesPanel.Parent = themesBackdrop
 polishPanel(themesPanel, 16)
+addSoftShadow(themesPanel, 18)
 
 local themesTitle = Instance.new("TextLabel")
 themesTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -543,27 +569,26 @@ themesButton.MouseButton1Click:Connect(function()
 	themesBackdrop.Visible = true
 end)
 
--- ===== Menu -> game transition, mute toggle =====
+-- ===== Menu -> game transition, volume cycling =====
 
 menuPlayButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
 	menuFrame.Visible = false
 	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and not musicMuted then
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
 		backgroundMusic:Play()
 	end
 end)
 
-muteButton.MouseButton1Click:Connect(function()
-	musicMuted = not musicMuted
-	if musicMuted then
+volumeButton.MouseButton1Click:Connect(function()
+	volumeStepIndex = (volumeStepIndex % #VOLUME_STEPS) + 1
+	local newVolume = VOLUME_STEPS[volumeStepIndex]
+	backgroundMusic.Volume = newVolume
+	volumeButton.Text = VOLUME_ICONS[volumeStepIndex]
+	if newVolume <= 0 then
 		backgroundMusic:Stop()
-		muteButton.Text = "🔇"
-	else
-		muteButton.Text = "♪"
-		if backgroundMusic.SoundId ~= "rbxassetid://0" then
-			backgroundMusic:Play()
-		end
+	elseif backgroundMusic.SoundId ~= "rbxassetid://0" and not backgroundMusic.IsPlaying then
+		backgroundMusic:Play()
 	end
 end)
 
