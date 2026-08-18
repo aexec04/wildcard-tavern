@@ -1092,6 +1092,16 @@ local menuJourneyButton = makeMenuButton("Road Ahead")
 local menuNewRunButton = makeMenuButton("New Run...")
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
+-- Ahmed: "no kid on roblox will want to read words upon words with barely
+-- any visuals" -- replaced the old 9-line paragraph with a grid of icon +
+-- short-caption tiles below, same idea as the worked scoring examples
+-- (which were already visual and stay as-is).
+--
+-- Wrapped in do/end -- nothing in this whole overlay is referenced from
+-- outside it (both buttons that open it are connected from inside), so
+-- it's fully self-contained. See the local-variable-budget note near the
+-- top of the file.
+do
 
 local howToPlayBackdrop = Instance.new("Frame")
 howToPlayBackdrop.Name = "HowToPlayBackdrop"
@@ -1140,31 +1150,71 @@ local howToPlayLayout = Instance.new("UIListLayout")
 howToPlayLayout.Padding = UDim.new(0, 14)
 howToPlayLayout.Parent = howToPlayScroll
 
-local howToPlayIntro = Instance.new("TextLabel")
-howToPlayIntro.Size = UDim2.new(1, 0, 0, 150)
-howToPlayIntro.BackgroundTransparency = 1
-howToPlayIntro.Font = Enum.Font.Gotham
-howToPlayIntro.TextSize = 15
-howToPlayIntro.TextColor3 = Color3.fromRGB(235, 225, 210)
-howToPlayIntro.TextWrapped = true
-howToPlayIntro.TextXAlignment = Enum.TextXAlignment.Left
-howToPlayIntro.TextYAlignment = Enum.TextYAlignment.Top
-howToPlayIntro.ZIndex = 21
-howToPlayIntro.LayoutOrder = 1
-howToPlayIntro.Text = table.concat({
-	"- Click cards in your hand to select up to 5 of them.",
-	"- Click Play Hand to score the best poker hand among your selected cards",
-	"  (Pair, Flush, Full House, etc). Chips x Mult = your score.",
-	"- Reach the round's target score before you run out of hands to win it.",
-	"- Not happy with your hand? Use a Discard to swap selected cards for new ones",
-	"  (this doesn't cost you a hand).",
-	"- Win a round and visit The Bar to spend Tips on Patrons -- helpers that",
-	"  boost your future hands.",
-	"- Survive as many Nights as you can. Good luck!",
-	"",
-	"Here's exactly how scoring works, with real examples:",
-}, "\n")
-howToPlayIntro.Parent = howToPlayScroll
+-- A grid of icon + short-caption tiles instead of a paragraph -- one glance
+-- per rule, not a page of reading.
+local HOW_TO_PLAY_STEPS = {
+	{ icon = "👆", text = "Click cards to select up to 5" },
+	{ icon = "▶️", text = "Play Hand to score your best poker hand" },
+	{ icon = "🔄", text = "Discard to swap cards -- free, no hand cost" },
+	{ icon = "🎯", text = "Reach the target score before hands run out" },
+	{ icon = "🍺", text = "Win a round -- spend Tips on Patrons at the Bar" },
+	{ icon = "🌙", text = "Survive as many Nights as you can!" },
+}
+
+local howToPlayStepsGrid = Instance.new("Frame")
+howToPlayStepsGrid.Size = UDim2.new(1, 0, 0, 210)
+howToPlayStepsGrid.BackgroundTransparency = 1
+howToPlayStepsGrid.ZIndex = 21
+howToPlayStepsGrid.LayoutOrder = 1
+howToPlayStepsGrid.Parent = howToPlayScroll
+
+local howToPlayGridLayout = Instance.new("UIGridLayout")
+howToPlayGridLayout.CellSize = UDim2.new(0.5, -6, 0, 96)
+howToPlayGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+howToPlayGridLayout.Parent = howToPlayStepsGrid
+
+for stepIndex, step in ipairs(HOW_TO_PLAY_STEPS) do
+	local tile = Instance.new("Frame")
+	tile.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	tile.LayoutOrder = stepIndex
+	tile.ZIndex = 21
+	tile.Parent = howToPlayStepsGrid
+	polishPanel(tile, 10)
+
+	local iconLabel = Instance.new("TextLabel")
+	iconLabel.Size = UDim2.new(1, 0, 0, 40)
+	iconLabel.Position = UDim2.new(0, 0, 0, 8)
+	iconLabel.BackgroundTransparency = 1
+	iconLabel.Font = Enum.Font.GothamBold
+	iconLabel.TextSize = 28
+	iconLabel.Text = step.icon
+	iconLabel.ZIndex = 21
+	iconLabel.Parent = tile
+
+	local captionLabel = Instance.new("TextLabel")
+	captionLabel.Size = UDim2.new(1, -16, 0, 42)
+	captionLabel.Position = UDim2.new(0, 8, 0, 50)
+	captionLabel.BackgroundTransparency = 1
+	captionLabel.Font = Enum.Font.Gotham
+	captionLabel.TextSize = 13
+	captionLabel.TextColor3 = Color3.fromRGB(235, 225, 210)
+	captionLabel.TextWrapped = true
+	captionLabel.Text = step.text
+	captionLabel.ZIndex = 21
+	captionLabel.Parent = tile
+end
+
+local howToPlayExamplesLabel = Instance.new("TextLabel")
+howToPlayExamplesLabel.Size = UDim2.new(1, 0, 0, 24)
+howToPlayExamplesLabel.BackgroundTransparency = 1
+howToPlayExamplesLabel.Font = Enum.Font.GothamBold
+howToPlayExamplesLabel.TextSize = 15
+howToPlayExamplesLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+howToPlayExamplesLabel.TextXAlignment = Enum.TextXAlignment.Left
+howToPlayExamplesLabel.Text = "How scoring works:"
+howToPlayExamplesLabel.ZIndex = 21
+howToPlayExamplesLabel.LayoutOrder = 2
+howToPlayExamplesLabel.Parent = howToPlayScroll
 
 local EXAMPLE_HANDS = {
 	{
@@ -1210,7 +1260,7 @@ for exampleIndex, cards in ipairs(EXAMPLE_HANDS) do
 	exampleRow.Size = UDim2.new(1, 0, 0, 70)
 	exampleRow.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 	exampleRow.ZIndex = 21
-	exampleRow.LayoutOrder = 1 + exampleIndex
+	exampleRow.LayoutOrder = 2 + exampleIndex
 	exampleRow.Parent = howToPlayScroll
 	polishPanel(exampleRow, 10)
 
@@ -1272,6 +1322,8 @@ end
 
 menuHowToPlayButton.MouseButton1Click:Connect(openHowToPlay)
 helpButton.MouseButton1Click:Connect(openHowToPlay)
+
+end -- How to Play overlay
 
 -- ===== Themes (cosmetics) overlay =====
 -- Purely visual -- spend Tips on table/card color palettes. No gameplay
@@ -1441,12 +1493,16 @@ menuJourneyButton.MouseButton1Click:Connect(openJourney)
 -- out of sync with actual balance), and how many times you've played it
 -- this run. Plain Frames/TextLabels/UICorner only, no gradients.
 --
--- refreshHandReference is assigned much further down (once latestState
--- exists) and called from render(), so it's declared here (outside the
--- do/end below) -- everything else in this section is self-contained and
--- can be safely scoped to the block. See the local-variable-budget note
--- near the top of the file.
+-- refreshHandReference is defined much further down (once latestState
+-- exists), and it needs to reach handRefListFrame -- so both are declared
+-- here (outside the do/end below) and assigned (not `local`-declared again)
+-- from inside. BUG FIX: this used to be handRefListFrame alone with
+-- refreshHandReferenceImpl defined AFTER the block closed -- handRefListFrame
+-- was already out of scope by then, so opening Poker Hands reference
+-- silently errored out before Visible=true ran (button did nothing). See
+-- the local-variable-budget note near the top of the file.
 local refreshHandReference
+local handRefListFrame
 
 do
 
@@ -1504,7 +1560,7 @@ makeHandRefHeaderLabel("Hand", 0, 0.4)
 makeHandRefHeaderLabel("Chips x Mult", 0.4, 0.35)
 makeHandRefHeaderLabel("Played", 0.78, 0.22, Enum.TextXAlignment.Right)
 
-local handRefListFrame = Instance.new("ScrollingFrame")
+handRefListFrame = Instance.new("ScrollingFrame")
 handRefListFrame.Size = UDim2.new(1, -20, 1, -145)
 handRefListFrame.Position = UDim2.new(0, 10, 0, 68)
 handRefListFrame.BackgroundTransparency = 1
@@ -1551,12 +1607,16 @@ end -- Poker Hands reference overlay
 -- drawn this round -- reads directly off the server-computed
 -- Deck.remainingCounts snapshot already included in the state payload.
 --
--- refreshDeckTracker is assigned much further down (once latestState
--- exists) and called from render(), so it's declared here (outside the
--- do/end below) -- everything else in this section is self-contained and
--- can be safely scoped to the block. See the local-variable-budget note
--- near the top of the file.
+-- refreshDeckTracker is defined much further down (once latestState
+-- exists), and it needs to reach deckTrackerGrid -- so both are declared
+-- here (outside the do/end below) and assigned (not `local`-declared
+-- again) from inside. Same bug/fix as the Poker Hands reference overlay
+-- right above -- see that comment for the full story. (makeDeckTrackerCell
+-- doesn't need this treatment -- it's a stateless helper, redefined as a
+-- nested local inside refreshDeckTrackerImpl instead of costing another
+-- persistent top-level local.)
 local refreshDeckTracker
+local deckTrackerGrid
 
 do
 
@@ -1588,7 +1648,7 @@ deckTrackerTitle.Text = "What's Left in the Deck"
 deckTrackerTitle.ZIndex = 21
 deckTrackerTitle.Parent = deckTrackerPanel
 
-local deckTrackerGrid = Instance.new("Frame")
+deckTrackerGrid = Instance.new("Frame")
 deckTrackerGrid.Size = UDim2.new(1, -30, 1, -110)
 deckTrackerGrid.Position = UDim2.new(0, 15, 0, 45)
 deckTrackerGrid.BackgroundTransparency = 1
@@ -1615,19 +1675,6 @@ deckTrackerCloseButton.MouseButton1Click:Connect(function()
 	playClickSfx()
 	deckTrackerBackdrop.Visible = false
 end)
-
-local function makeDeckTrackerCell(parent, text, widthScale, isHeader, textColor)
-	local cell = Instance.new("TextLabel")
-	cell.Size = UDim2.new(widthScale, 0, 1, 0)
-	cell.BackgroundTransparency = 1
-	cell.Font = isHeader and Enum.Font.GothamBold or Enum.Font.Gotham
-	cell.TextSize = 13
-	cell.TextColor3 = textColor or Color3.fromRGB(230, 220, 205)
-	cell.Text = text
-	cell.ZIndex = 21
-	cell.Parent = parent
-	return cell
-end
 
 deckTrackerButton.MouseButton1Click:Connect(function()
 	playClickSfx()
@@ -2232,6 +2279,19 @@ refreshHandReference = refreshHandReferenceImpl
 -- ----- Deck Tracker -----
 
 local function refreshDeckTrackerImpl()
+	local function makeDeckTrackerCell(parent, text, widthScale, isHeader, textColor)
+		local cell = Instance.new("TextLabel")
+		cell.Size = UDim2.new(widthScale, 0, 1, 0)
+		cell.BackgroundTransparency = 1
+		cell.Font = isHeader and Enum.Font.GothamBold or Enum.Font.Gotham
+		cell.TextSize = 13
+		cell.TextColor3 = textColor or Color3.fromRGB(230, 220, 205)
+		cell.Text = text
+		cell.ZIndex = 21
+		cell.Parent = parent
+		return cell
+	end
+
 	for _, child in ipairs(deckTrackerGrid:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
