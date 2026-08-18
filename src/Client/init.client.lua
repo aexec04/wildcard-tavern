@@ -310,7 +310,9 @@ sidebar.ZIndex = 2
 sidebar.Parent = root
 
 local sidebarPadding = Instance.new("UIPadding")
-sidebarPadding.PaddingTop = UDim.new(0, 16)
+-- 76px, not 16 -- Roblox's own top-left system UI (menu/chat/voice icons)
+-- lives in roughly that space and was overlapping the "Round" box's text.
+sidebarPadding.PaddingTop = UDim.new(0, 76)
 sidebarPadding.PaddingLeft = UDim.new(0, 12)
 sidebarPadding.PaddingRight = UDim.new(0, 12)
 sidebarPadding.Parent = sidebar
