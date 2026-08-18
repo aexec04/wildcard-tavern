@@ -116,17 +116,30 @@ local VOLUME_ICONS = { "♪", "♩", "×" }
 local volumeStepIndex = 1
 backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]
 
--- Preload every real SFX/music asset up front so the FIRST time a sound
--- plays (e.g. the first card click) doesn't have a noticeable delay while
--- Roblox streams it from the CDN. Wrapped in task.spawn so it can't block
--- the rest of the UI from building while it loads.
+-- One persistent Sound instance per SFX, created ONCE here and reused for
+-- every play, instead of Instance.new()'ing (and loading) a brand new Sound
+-- every single click. That repeated create+load was the real source of the
+-- "still delayed, not instant" symptom -- PreloadAsync warms the asset
+-- cache, but a fresh Sound object still has to resolve/initialize against
+-- that asset each time you make one, and that's what was costing the delay.
+local sfxPool = {} -- soundId -> persistent Sound instance
+for _, id in pairs(SOUND_IDS) do
+	if id and id ~= "rbxassetid://0" and not sfxPool[id] then
+		local pooled = Instance.new("Sound")
+		pooled.SoundId = id
+		pooled.Parent = SoundService
+		sfxPool[id] = pooled
+	end
+end
+
+-- Preload every pooled Sound up front so the FIRST play doesn't have to
+-- wait on streaming it from the CDN. Wrapped in task.spawn so it can't
+-- block the rest of the UI from building while it loads.
 task.spawn(function()
 	local ContentProvider = game:GetService("ContentProvider")
 	local toPreload = {}
-	for _, id in pairs(SOUND_IDS) do
-		if id and id ~= "rbxassetid://0" then
-			table.insert(toPreload, id)
-		end
+	for _, pooled in pairs(sfxPool) do
+		table.insert(toPreload, pooled)
 	end
 	if #toPreload > 0 then
 		pcall(function()
@@ -138,21 +151,35 @@ end)
 -- maxLength (optional): cuts the sound off after that many seconds instead
 -- of letting it play out fully -- some of the free SFX clips (card
 -- handling, etc.) have a longer tail than you want for a quick UI moment.
+-- The "StopToken" attribute (not a Lua local -- see the LOCAL VARIABLE
+-- BUDGET note up top) guards the delayed Stop() against a newer overlapping
+-- play of the SAME pooled sound, so rapid-fire clicks can't have an old
+-- click's delayed Stop() cut off a brand new click's playback early.
 local function playSfx(soundId, volume, maxLength)
 	if not soundId or soundId == "" or soundId == "rbxassetid://0" then
 		return -- placeholder id, nothing to play yet
 	end
-	local sfx = Instance.new("Sound")
-	sfx.SoundId = soundId
+	local sfx = sfxPool[soundId]
+	if not sfx then
+		-- Fallback for any id not in SOUND_IDS at load time -- shouldn't
+		-- normally happen, but keeps this safe against future one-off calls.
+		sfx = Instance.new("Sound")
+		sfx.SoundId = soundId
+		sfx.Parent = SoundService
+		sfxPool[soundId] = sfx
+	end
 	sfx.Volume = volume or 0.6
-	sfx.Parent = SoundService
+	sfx.TimePosition = 0
 	sfx:Play()
-	task.delay(maxLength or 5, function()
-		if sfx then
-			sfx:Stop()
-			sfx:Destroy()
-		end
-	end)
+	if maxLength then
+		local myToken = (sfx:GetAttribute("StopToken") or 0) + 1
+		sfx:SetAttribute("StopToken", myToken)
+		task.delay(maxLength, function()
+			if sfx:GetAttribute("StopToken") == myToken then
+				sfx:Stop()
+			end
+		end)
+	end
 end
 
 -- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
@@ -664,6 +691,12 @@ discardButton.LayoutOrder = 3
 -- gameplay toggle -- see the addSoftShadow note on the Unlock popup for why
 -- that parenting choice matters.
 
+-- Wrapped in do...end per the LOCAL VARIABLE BUDGET note up top --
+-- deckCountLabel is the only piece render() needs to reach later, so it's
+-- forward-declared and assigned (not re-`local`-declared) inside the block.
+local deckCountLabel
+do
+
 local deckWidget = Instance.new("Frame")
 deckWidget.Name = "DeckWidget"
 deckWidget.AnchorPoint = Vector2.new(1, 1)
@@ -691,7 +724,7 @@ deckCardBackIcon.Text = "🂠"
 deckCardBackIcon.ZIndex = 2
 deckCardBackIcon.Parent = deckCardBack
 
-local deckCountLabel = Instance.new("TextLabel")
+deckCountLabel = Instance.new("TextLabel")
 deckCountLabel.Size = UDim2.new(1, 0, 0, 20)
 deckCountLabel.Position = UDim2.new(0, 0, 0, 98)
 deckCountLabel.BackgroundTransparency = 1
@@ -701,6 +734,8 @@ deckCountLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
 deckCountLabel.Text = ""
 deckCountLabel.ZIndex = 2
 deckCountLabel.Parent = deckWidget
+
+end -- do (Deck widget)
 
 -- deckCounts is [suit][rank] = count (see Deck.remainingCounts) -- sum it
 -- up rather than hardcoding suit/rank names, so it stays correct even if
@@ -2575,7 +2610,7 @@ local function onCardClicked(index)
 		end
 		selected[index] = true
 	end
-	playSfx(SOUND_IDS.cardToggle, 1.5, 0.35)
+	playSfx(SOUND_IDS.cardToggle, 3, 0.35)
 	refreshCardVisual(index, true)
 	refreshScorePreview()
 end
