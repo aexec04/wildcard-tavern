@@ -543,6 +543,69 @@ local deckTrackerButton = makeCornerButton("🂠", -310)
 local settingsButton = makeCornerButton("⚙", -360)
 local collectionButton = makeCornerButton("📔", -410)
 
+-- ----- Generic hover tooltip -----
+-- Ahmed: "whenever you hover over a button any UI, it should give you the
+-- name of what it does." One shared label, repositioned/retexted for
+-- whichever button is currently hovered, instead of a separate Instance
+-- per button.
+local addTooltip
+do
+
+local tooltipLabel = Instance.new("TextLabel")
+tooltipLabel.Name = "Tooltip"
+tooltipLabel.AutomaticSize = Enum.AutomaticSize.XY
+tooltipLabel.Size = UDim2.new(0, 0, 0, 0)
+tooltipLabel.BackgroundColor3 = Color3.fromRGB(20, 16, 12)
+tooltipLabel.BackgroundTransparency = 0.05
+tooltipLabel.Font = Enum.Font.Gotham
+tooltipLabel.TextSize = 14
+tooltipLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+tooltipLabel.Text = ""
+tooltipLabel.Visible = false
+tooltipLabel.ZIndex = 100
+tooltipLabel.Parent = screenGui
+polishPanel(tooltipLabel, 6)
+
+local tooltipPadding = Instance.new("UIPadding")
+tooltipPadding.PaddingLeft = UDim.new(0, 8)
+tooltipPadding.PaddingRight = UDim.new(0, 8)
+tooltipPadding.PaddingTop = UDim.new(0, 5)
+tooltipPadding.PaddingBottom = UDim.new(0, 5)
+tooltipPadding.Parent = tooltipLabel
+
+-- align "left": tooltip's RIGHT edge lines up with the button's right edge
+-- (for buttons near the right side of the screen, so the tooltip doesn't
+-- run off-screen). Default: centered under the button.
+addTooltip = function(button, text, align)
+	button.MouseEnter:Connect(function()
+		tooltipLabel.Text = text
+		local pos = button.AbsolutePosition
+		local size = button.AbsoluteSize
+		if align == "left" then
+			tooltipLabel.AnchorPoint = Vector2.new(1, 0)
+			tooltipLabel.Position = UDim2.fromOffset(pos.X + size.X, pos.Y + size.Y + 6)
+		else
+			tooltipLabel.AnchorPoint = Vector2.new(0.5, 0)
+			tooltipLabel.Position = UDim2.fromOffset(pos.X + size.X / 2, pos.Y + size.Y + 6)
+		end
+		tooltipLabel.Visible = true
+	end)
+	button.MouseLeave:Connect(function()
+		tooltipLabel.Visible = false
+	end)
+end
+
+addTooltip(volumeButton, "Music volume (click to cycle loud / quiet / mute)", "left")
+addTooltip(helpButton, "How to Play", "left")
+addTooltip(themesButton, "Themes -- change your table's look", "left")
+addTooltip(journeyButton, "Journey -- see the road ahead", "left")
+addTooltip(handRefButton, "Poker Hands reference", "left")
+addTooltip(deckTrackerButton, "Deck Tracker -- see what's left in the deck", "left")
+addTooltip(settingsButton, "Settings", "left")
+addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
+
+end -- Generic hover tooltip
+
 -- ----- Message banner (hand result / round result) -----
 
 local messageLabel = Instance.new("TextLabel")
@@ -642,6 +705,7 @@ end
 
 local playButton = makeActionButton("Play Hand")
 playButton.LayoutOrder = 1
+addTooltip(playButton, "Play your selected cards as a hand")
 
 -- LAYOUT FEATURE 4: Sort Hand (Rank/Suit), between Play Hand and Discard --
 -- purely a client-side DISPLAY order (see sortedHandIndices + rebuildHand
@@ -704,6 +768,8 @@ end
 
 local sortByRankButton = makeSortButton("Rank", 2)
 local sortBySuitButton = makeSortButton("Suit", 3)
+addTooltip(sortByRankButton, "Sort your hand by card rank (2-A)")
+addTooltip(sortBySuitButton, "Sort your hand by suit")
 
 -- Highlights whichever sort mode is currently active, so the buttons also
 -- double as a status readout ("Rank" lit up = your hand is sorted by rank).
@@ -733,6 +799,7 @@ end -- do (Sort Hand buttons)
 
 local discardButton = makeActionButton("Discard")
 discardButton.LayoutOrder = 3
+addTooltip(discardButton, "Discard your selected cards and draw new ones")
 
 -- ----- Deck-remaining widget, bottom-right -----
 -- LAYOUT FEATURE 3: always-visible "how many cards are left" readout with a
