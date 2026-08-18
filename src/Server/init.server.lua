@@ -23,7 +23,6 @@ local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
 local Patrons = require(Engine.Patrons)
-local Deck = require(Engine.Deck)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -58,7 +57,6 @@ local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
 local AdvanceRoundRemote = newRemote("AdvanceRound")
 local RestartRunRemote = newRemote("RestartRun")
-local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
 
 -- ===== 3. Session management =====
@@ -122,15 +120,6 @@ local function serializeState(session)
 		table.insert(ownedThemeIds, themeId)
 	end
 
-	local bossModifier = nil
-	if state.bossModifier then
-		bossModifier = {
-			id = state.bossModifier.id,
-			name = state.bossModifier.name,
-			description = state.bossModifier.description,
-		}
-	end
-
 	return {
 		phase = session.phase,
 		night = state.night,
@@ -145,13 +134,6 @@ local function serializeState(session)
 		shopOffers = shopOffers,
 		ownedThemeIds = ownedThemeIds,
 		equippedTheme = state.equippedTheme,
-		deckVariantId = state.deckVariantId,
-		difficultyId = state.difficultyId,
-		bossModifier = bossModifier,
-		handStats = state.handStats,
-		-- Deck.remainingCounts is [suit] = { [rank] = count } -- RemoteEvents
-		-- serialize nested tables fine, so this ships as-is.
-		deckCounts = Deck.remainingCounts(state.deck),
 	}
 end
 
@@ -163,11 +145,9 @@ local function pushState(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session))
 end
 
--- deckVariantId/difficultyId are optional -- RunState.new falls back to the
--- standard/standard defaults for nil or unrecognized ids.
-local function startNewSession(player, deckVariantId, difficultyId)
+local function startNewSession(player)
 	sessions[player] = {
-		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId }),
+		state = RunState.new(),
 		phase = "playing",
 		shopOffers = {},
 	}
@@ -341,24 +321,8 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 end)
 
 RestartRunRemote.OnServerEvent:Connect(function(player)
-	local session = sessions[player]
-	if not session then
-		return
-	end
-	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
-	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
-end)
-
-StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId)
 	if not sessions[player] then
 		return
 	end
-	if type(deckVariantId) ~= "string" then
-		deckVariantId = nil
-	end
-	if type(difficultyId) ~= "string" then
-		difficultyId = nil
-	end
-	startNewSession(player, deckVariantId, difficultyId)
+	startNewSession(player)
 end)
