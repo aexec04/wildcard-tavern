@@ -1971,6 +1971,14 @@ local cardVisualPosition = {}
 -- exact same cards just need to reflow, not re-deal from the deck.
 local lastHandSignature = nil
 
+-- Set right before firing PlayHand/Discard to the number of cards being
+-- replaced -- consumed by the very next rebuildHand() to animate ONLY the
+-- newly-drawn replacement cards, not the ones you kept. nil (not just
+-- unset-and-ignored) whenever a full fresh hand should deal in instead
+-- (round start / Next Round / Restart / New Run), since those don't go
+-- through Play/Discard at all.
+local pendingNewCardCount = nil
+
 local BASE_SCALE = 1.0
 local HOVER_SCALE = 1.06
 local SELECTED_SCALE = 1.08
@@ -2867,6 +2875,18 @@ local function rebuildHand(handData)
 	local isNewHand = newSignature ~= lastHandSignature
 	lastHandSignature = newSignature
 
+	-- dealFromIndex: raw hand indices >= this are the ones that should fly
+	-- in. If pendingNewCardCount is set, only the trailing N raw indices
+	-- (the newly-drawn replacements -- see removeIndicesFromHand in
+	-- RunState.lua) deal in; everything before that is a KEPT card and
+	-- should just be redrawn in place. Otherwise (round start / Next Round
+	-- / Restart / New Run) the whole hand is fresh, so deal everyone in.
+	local dealFromIndex = 1
+	if isNewHand and pendingNewCardCount then
+		dealFromIndex = math.max(1, #handData - pendingNewCardCount + 1)
+	end
+	pendingNewCardCount = nil
+
 	for _, child in ipairs(handFrame:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
@@ -2908,11 +2928,12 @@ local function rebuildHand(handData)
 		scaleObject.Scale = BASE_SCALE
 		scaleObject.Parent = button
 
-		-- LAYOUT FEATURE 8: deal the card in from the deck-widget corner
-		-- (bottom-right) instead of it just popping into place, but only
-		-- when this is actually a fresh hand -- see isNewHand above.
-		if isNewHand then
-			button.Position = UDim2.new(0.5, 240, 0.5, 160)
+		-- LAYOUT FEATURE 8: deal the card in from the deck widget (bottom
+		-- right of the screen) instead of it just popping into place --
+		-- only for cards that are actually new (index >= dealFromIndex; see
+		-- above), so kept cards after a Play/Discard don't re-deal too.
+		if isNewHand and index >= dealFromIndex then
+			button.Position = UDim2.new(0.5, 380, 0.5, 50)
 			button.Rotation = 14
 			task.delay((visualPosition - 1) * 0.05, function()
 				if button.Parent then
@@ -3146,6 +3167,13 @@ playButton.MouseButton1Click:Connect(function()
 		showScorePopup(preview)
 	end
 
+	-- The server (RunState.playHand -> removeIndicesFromHand) always keeps
+	-- surviving cards in their original relative order and appends the
+	-- newly-drawn replacements at the END of state.hand -- so the next
+	-- rebuildHand() knows exactly how many trailing raw indices are the
+	-- freshly dealt ones. See pendingNewCardCount / dealFromIndex there.
+	pendingNewCardCount = #indices
+
 	PlayHandRemote:FireServer(indices)
 end)
 
@@ -3163,6 +3191,7 @@ discardButton.MouseButton1Click:Connect(function()
 		return
 	end
 	playSfx(SOUND_IDS.discard)
+	pendingNewCardCount = #indices -- see the matching comment on Play Hand above
 	DiscardRemote:FireServer(indices)
 end)
 
