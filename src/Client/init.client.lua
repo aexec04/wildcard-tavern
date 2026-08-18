@@ -32,7 +32,6 @@ local RED_SUITS = { Hearts = true, Diamonds = true }
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "GameUI"
-screenGui.ResetOnSpawnLocalPlayer = false
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = playerGui
