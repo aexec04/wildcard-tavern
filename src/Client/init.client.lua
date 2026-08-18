@@ -12,6 +12,22 @@
 	to plug in real asset IDs from Roblox's audio library before you'll
 	hear anything; the code is ready, the actual sounds are a content
 	choice that's up to you two.
+
+	LOCAL VARIABLE BUDGET: this whole file is one big top-level script, not
+	broken into separate modules -- and Lua caps a single function at 200
+	simultaneously-active local variables. We hit that ceiling once (every
+	`local` for every Frame/Button/Label in every overlay all count against
+	the SAME budget, forever, for the rest of the file). The fix, used
+	throughout below: wrap a self-contained overlay's construction code in
+	`do ... end`. Locals declared inside a `do/end` block are freed when the
+	block ends, instead of eating into the budget for the rest of the file.
+	If something outside the block needs to reach in (e.g. a `refreshX`
+	function called from render(), far below), declare that ONE name with
+	`local refreshX` BEFORE the `do`, and assign to it (not re-`local`-declare
+	it) from inside the block -- see the Poker Hands / Deck Tracker / Unlock
+	popup sections for the pattern. When adding a new overlay, wrap its
+	construction in `do ... end` from the start rather than waiting to hit
+	this ceiling again.
 ]]
 
 local Players = game:GetService("Players")
@@ -275,38 +291,71 @@ root.BorderSizePixel = 0
 root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
 
--- ----- Top status bar -----
+-- ----- Left sidebar: round/blind info -----
+-- LAYOUT FEATURE 1: replaces the old full-width top status bar, which had
+-- started colliding with the top-right corner icon buttons as more got
+-- added (a real bug -- the "Hands" label was getting cut off). Balatro
+-- keeps this info in a dedicated left-side column instead of a top bar, so
+-- this moves the same data there and leaves the whole top edge free for
+-- the corner icon buttons with no shared space to collide over.
 
-local statusBar = Instance.new("Frame")
-statusBar.Name = "StatusBar"
-statusBar.Size = UDim2.new(1, 0, 0, 60)
-statusBar.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-statusBar.BorderSizePixel = 0
-statusBar.Parent = root
+local SIDEBAR_WIDTH = 240
 
-local statusLayout = Instance.new("UIListLayout")
-statusLayout.FillDirection = Enum.FillDirection.Horizontal
-statusLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-statusLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-statusLayout.Padding = UDim.new(0, 24)
-statusLayout.Parent = statusBar
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0, SIDEBAR_WIDTH, 1, 0)
+sidebar.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+sidebar.BorderSizePixel = 0
+sidebar.ZIndex = 2
+sidebar.Parent = root
 
-local function makeStatusLabel()
+local sidebarPadding = Instance.new("UIPadding")
+sidebarPadding.PaddingTop = UDim.new(0, 16)
+sidebarPadding.PaddingLeft = UDim.new(0, 12)
+sidebarPadding.PaddingRight = UDim.new(0, 12)
+sidebarPadding.Parent = sidebar
+
+local sidebarLayout = Instance.new("UIListLayout")
+sidebarLayout.FillDirection = Enum.FillDirection.Vertical
+sidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+sidebarLayout.Padding = UDim.new(0, 10)
+sidebarLayout.Parent = sidebar
+
+local function makeSidebarBox(height)
+	local box = Instance.new("Frame")
+	box.Size = UDim2.new(1, 0, 0, height or 46)
+	box.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	box.ZIndex = 2
+	box.Parent = sidebar
+	polishPanel(box, 10)
+	return box
+end
+
+local function makeSidebarLabel(parent, textSize, color)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 180, 1, 0)
+	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 18
-	label.TextColor3 = Color3.fromRGB(240, 220, 190)
+	label.TextSize = textSize or 16
+	label.TextColor3 = color or Color3.fromRGB(240, 220, 190)
+	label.TextWrapped = true
 	label.Text = ""
-	label.Parent = statusBar
+	label.ZIndex = 2
+	label.Parent = parent
 	return label
 end
 
-local nightRoundLabel = makeStatusLabel()
-local tipsLabel = makeStatusLabel()
-local scoreLabel = makeStatusLabel()
-local handsDiscardsLabel = makeStatusLabel()
+local nightRoundBox = makeSidebarBox(40)
+local nightRoundLabel = makeSidebarLabel(nightRoundBox, 16)
+
+local scoreBox = makeSidebarBox(50)
+local scoreLabel = makeSidebarLabel(scoreBox, 16, Color3.fromRGB(255, 214, 130))
+
+local tipsBox = makeSidebarBox(40)
+local tipsLabel = makeSidebarLabel(tipsBox, 16)
+
+local handsDiscardsBox = makeSidebarBox(40)
+local handsDiscardsLabel = makeSidebarLabel(handsDiscardsBox, 15)
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
@@ -338,8 +387,8 @@ local collectionButton = makeCornerButton("📔", -410)
 
 local messageLabel = Instance.new("TextLabel")
 messageLabel.Name = "Message"
-messageLabel.Size = UDim2.new(1, 0, 0, 30)
-messageLabel.Position = UDim2.new(0, 0, 0, 60)
+messageLabel.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 30)
+messageLabel.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 20)
 messageLabel.BackgroundTransparency = 1
 messageLabel.Font = Enum.Font.Gotham
 messageLabel.TextSize = 16
@@ -350,8 +399,8 @@ messageLabel.Parent = root
 -- FEATURE 9: a banner announcing this round's Boss modifier, if any.
 local bossBanner = Instance.new("Frame")
 bossBanner.Name = "BossBanner"
-bossBanner.Size = UDim2.new(1, -40, 0, 40)
-bossBanner.Position = UDim2.new(0, 20, 0, 66)
+bossBanner.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 40)
+bossBanner.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 56)
 bossBanner.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
 bossBanner.Visible = false
 bossBanner.ZIndex = 3
@@ -372,8 +421,8 @@ bossBannerLabel.Parent = bossBanner
 
 local handFrame = Instance.new("Frame")
 handFrame.Name = "HandFrame"
-handFrame.Size = UDim2.new(1, -40, 0, 160)
-handFrame.Position = UDim2.new(0, 20, 1, -230)
+handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 160)
+handFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -230)
 handFrame.BackgroundTransparency = 1
 handFrame.Parent = root
 
@@ -388,8 +437,8 @@ handLayout.Parent = handFrame
 
 local actionFrame = Instance.new("Frame")
 actionFrame.Name = "Actions"
-actionFrame.Size = UDim2.new(1, -40, 0, 50)
-actionFrame.Position = UDim2.new(0, 20, 1, -60)
+actionFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 50)
+actionFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -60)
 actionFrame.BackgroundTransparency = 1
 actionFrame.Parent = root
 
@@ -902,6 +951,15 @@ menuJourneyButton.MouseButton1Click:Connect(openJourney)
 -- its base chips/mult (straight from Scoring.HandBase, so it can't drift
 -- out of sync with actual balance), and how many times you've played it
 -- this run. Plain Frames/TextLabels/UICorner only, no gradients.
+--
+-- refreshHandReference is assigned much further down (once latestState
+-- exists) and called from render(), so it's declared here (outside the
+-- do/end below) -- everything else in this section is self-contained and
+-- can be safely scoped to the block. See the local-variable-budget note
+-- near the top of the file.
+local refreshHandReference
+
+do
 
 local handRefBackdrop = Instance.new("Frame")
 handRefBackdrop.Name = "HandRefBackdrop"
@@ -989,10 +1047,6 @@ handRefCloseButton.MouseButton1Click:Connect(function()
 	handRefBackdrop.Visible = false
 end)
 
--- Forward-declared for the same reason as refreshThemesList/refreshJourney
--- above -- assigned further down once latestState exists.
-local refreshHandReference
-
 handRefButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
 	if refreshHandReference then
@@ -1001,10 +1055,21 @@ handRefButton.MouseButton1Click:Connect(function()
 	handRefBackdrop.Visible = true
 end)
 
+end -- Poker Hands reference overlay
+
 -- ===== Deck Tracker overlay =====
 -- FEATURE 7: shows exactly how many of each card are still left to be
 -- drawn this round -- reads directly off the server-computed
 -- Deck.remainingCounts snapshot already included in the state payload.
+--
+-- refreshDeckTracker is assigned much further down (once latestState
+-- exists) and called from render(), so it's declared here (outside the
+-- do/end below) -- everything else in this section is self-contained and
+-- can be safely scoped to the block. See the local-variable-budget note
+-- near the top of the file.
+local refreshDeckTracker
+
+do
 
 local deckTrackerBackdrop = Instance.new("Frame")
 deckTrackerBackdrop.Name = "DeckTrackerBackdrop"
@@ -1075,9 +1140,6 @@ local function makeDeckTrackerCell(parent, text, widthScale, isHeader, textColor
 	return cell
 end
 
--- Forward-declared for the same reason as the other refresh* functions.
-local refreshDeckTracker
-
 deckTrackerButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
 	if refreshDeckTracker then
@@ -1086,10 +1148,20 @@ deckTrackerButton.MouseButton1Click:Connect(function()
 	deckTrackerBackdrop.Visible = true
 end)
 
+end -- Deck Tracker overlay
+
 -- ===== Settings overlay: simple audio-only settings panel. FEATURE 10,
 -- reachable via the gear corner button. Scoped down to just Master Volume --
 -- game options like animation speed/screenshake have no consumer code yet,
 -- so they're deliberately left out to keep this one piece small. =====
+--
+-- Wrapped in do/end: Lua caps a single function (this whole script is one
+-- top-level chunk) at 200 simultaneously-active local variables. None of
+-- this section's locals are referenced outside it, so scoping them to a
+-- block frees their slots once the block ends instead of holding them for
+-- the rest of the file -- see the LOCAL VARIABLE BUDGET note near the top
+-- of the file for the full explanation.
+do
 
 local settingsBackdrop = Instance.new("Frame")
 settingsBackdrop.Name = "SettingsBackdrop"
@@ -1169,6 +1241,8 @@ settingsButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.uiClick)
 	settingsBackdrop.Visible = true
 end)
+
+end -- Settings overlay
 
 -- ===== Run Setup overlay: pick a Deck Variant + Difficulty before a new
 -- run begins. FEATURE 8, reachable from the main menu ("New Run..."). =====
@@ -1417,7 +1491,7 @@ local function applyTheme(themeId)
 	local colors = currentTheme.colors
 
 	tweenTo(root, { BackgroundColor3 = colors.background }, 0.25)
-	tweenTo(statusBar, { BackgroundColor3 = colors.panelBg }, 0.25)
+	tweenTo(sidebar, { BackgroundColor3 = colors.panelBg }, 0.25)
 	tweenTo(shopFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
 	tweenTo(gameOverFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
 	tweenTo(playButton, { BackgroundColor3 = colors.accent }, 0.25)
@@ -1692,6 +1766,12 @@ refreshDeckTracker = refreshDeckTrackerImpl
 -- shown in full, locked ones silhouetted with a "?". Session-scoped like
 -- the rest of the run state (no DataStore yet -- see the Themes.lua
 -- comment), so this shows what's been found so far THIS run.
+--
+-- Wrapped in do/end -- see the local-variable-budget note near the top of
+-- the file. Everything here (including refreshCollection's forward-declare
+-- and its use in the button click handler below) is self-contained to this
+-- section, so it's safe to scope it entirely.
+do
 
 local collectionBackdrop = Instance.new("Frame")
 collectionBackdrop.Name = "CollectionBackdrop"
@@ -1870,6 +1950,8 @@ collectionButton.MouseButton1Click:Connect(function()
 	collectionBackdrop.Visible = true
 end)
 
+end -- Collection Gallery overlay
+
 -- ===== "Unlocked!" popup =====
 -- FEATURE 12: a quick celebratory card shown whenever a NEW Patron or Theme
 -- appears in the state compared to the previous render() -- see the diff
@@ -1885,10 +1967,19 @@ end)
 -- over everything -- this was root-caused as the cause of a "dark right
 -- away" regression and reverted once already. Skipping the shadow avoids
 -- it entirely; the rounded corners from polishPanel are enough polish.
-
+--
+-- lastOwnedPatronIds/lastOwnedThemeIds/hasRenderedOnce and showUnlockPopup
+-- are all read/called from render() much further down in the file, so
+-- they're declared here (outside the do/end below) and assigned to from
+-- inside it -- everything else in this section is self-contained and can
+-- be safely scoped to the block. See the local-variable-budget note near
+-- the top of the file.
 local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
+local showUnlockPopup
+
+do
 
 local unlockPopup = Instance.new("Frame")
 unlockPopup.Name = "UnlockPopup"
@@ -1948,7 +2039,7 @@ unlockPopupDismissCatcher.Parent = unlockPopup
 
 local unlockPopupToken = 0
 
-local function showUnlockPopup(name, description)
+showUnlockPopup = function(name, description)
 	unlockPopupToken = unlockPopupToken + 1
 	local myToken = unlockPopupToken
 
@@ -1968,6 +2059,8 @@ local function showUnlockPopup(name, description)
 	unlockPopupDismissCatcher.MouseButton1Click:Connect(dismiss)
 	task.delay(2.4, dismiss)
 end
+
+end -- "Unlocked!" popup
 
 local function selectedIndicesArray()
 	local out = {}
