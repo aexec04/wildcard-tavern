@@ -1602,6 +1602,12 @@ local selected = {} -- [handIndex] = true
 local hoveredIndex = nil -- single index or nil; only one card can be "pointed at"
 local cardButtons = {} -- [handIndex] = TextButton
 local cardScales = {} -- [handIndex] = UIScale
+-- LAYOUT FEATURE 4 (Sort Hand): [handIndex] = visual left-to-right position
+-- (1, 2, 3, ...). Needed because the hover neighbor-lift effect below has to
+-- compare who's actually NEXT TO whom on screen, not whose server-side hand
+-- index happens to be numerically close -- those two stop matching as soon
+-- as a sort mode is active.
+local cardVisualPosition = {}
 
 local BASE_SCALE = 1.0
 local HOVER_SCALE = 1.06
@@ -2221,9 +2227,16 @@ local function refreshCardVisual(index, usePop)
 	-- Fan falloff: neighbors near the hovered card lift a little too,
 	-- fading out with distance. Distance 0 (the hovered card itself) is
 	-- handled by isHovering above.
+	--
+	-- LAYOUT FEATURE 4 (Sort Hand): "neighbor" has to mean visually adjacent
+	-- on screen, not adjacent server-side hand index -- those two only match
+	-- when the hand is unsorted. Compare cardVisualPosition (left-to-right
+	-- display slot), not index/hoveredIndex directly.
 	local fanLift = 0
 	if hoveredIndex ~= nil and not isHovering then
-		local distance = math.abs(index - hoveredIndex)
+		local myPosition = cardVisualPosition[index]
+		local hoveredPosition = cardVisualPosition[hoveredIndex]
+		local distance = (myPosition and hoveredPosition) and math.abs(myPosition - hoveredPosition) or math.huge
 		if distance < HOVER_FALLOFF_DISTANCE then
 			fanLift = (1 - (distance / HOVER_FALLOFF_DISTANCE)) * (HOVER_LIFT * 0.4)
 		end
@@ -2333,6 +2346,7 @@ local function rebuildHand(handData)
 	end
 	cardButtons = {}
 	cardScales = {}
+	cardVisualPosition = {}
 	selected = {}
 	hoveredIndex = nil
 
@@ -2368,6 +2382,7 @@ local function rebuildHand(handData)
 
 		cardButtons[index] = button
 		cardScales[index] = scaleObject
+		cardVisualPosition[index] = visualPosition
 
 		button.MouseButton1Click:Connect(function()
 			onCardClicked(index)
