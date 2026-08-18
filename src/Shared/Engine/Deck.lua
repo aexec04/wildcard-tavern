@@ -41,4 +41,25 @@ function Deck.draw(deck, count)
 	return drawn
 end
 
+-- Rank display order, Ace-high down to 2 -- matches how the Deck Tracker
+-- UI lists ranks left-to-right.
+Deck.RankOrder = { 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2 }
+
+-- Counts how many of each (suit, rank) card are still left in `deck`.
+-- Returns { [suit] = { [rank] = count, ... }, ... } with every suit/rank
+-- combination present (defaulting to 0) so UI code never has to nil-check.
+function Deck.remainingCounts(deck)
+	local counts = {}
+	for _, suit in ipairs(Card.Suits) do
+		counts[suit] = {}
+		for _, rank in ipairs(Deck.RankOrder) do
+			counts[suit][rank] = 0
+		end
+	end
+	for _, card in ipairs(deck) do
+		counts[card.suit][card.rank] = counts[card.suit][card.rank] + 1
+	end
+	return counts
+end
+
 return Deck

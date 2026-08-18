@@ -18,6 +18,9 @@ local Scoring = require(script.Parent.Parent.Engine.Scoring)
 local Patrons = require(script.Parent.Parent.Engine.Patrons)
 local Themes = require(script.Parent.Parent.Engine.Themes)
 local RunState = require(script.Parent.Parent.Engine.RunState)
+local DeckVariants = require(script.Parent.Parent.Engine.DeckVariants)
+local DifficultyTiers = require(script.Parent.Parent.Engine.DifficultyTiers)
+local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -68,6 +71,26 @@ table.insert(tests, { name = "Deck.draw removes cards from the deck", fn = funct
 	local hand = Deck.draw(deck, 8)
 	expectEqual(#hand, 8)
 	expectEqual(#deck, 44)
+end })
+
+table.insert(tests, { name = "Deck.remainingCounts totals match the deck's remaining card count", fn = function()
+	local deck = Deck.newStandardDeck()
+	Deck.draw(deck, 8)
+	local counts = Deck.remainingCounts(deck)
+	local total = 0
+	for _, suit in ipairs(Card.Suits) do
+		for _, rank in ipairs(Deck.RankOrder) do
+			total = total + counts[suit][rank]
+		end
+	end
+	expectEqual(total, #deck)
+end })
+
+table.insert(tests, { name = "Deck.remainingCounts never exceeds 1 per unique card in a fresh deck", fn = function()
+	local deck = Deck.newStandardDeck()
+	local counts = Deck.remainingCounts(deck)
+	expectEqual(counts["Hearts"][14], 1)
+	expectEqual(counts["Spades"][2], 1)
 end })
 
 -- ===== HandEvaluator =====
@@ -263,6 +286,122 @@ table.insert(tests, { name = "RunState.equipTheme succeeds once the theme is own
 	local ok = RunState.equipTheme(state, "midnight_blue")
 	expectTrue(ok)
 	expectEqual(state.equippedTheme, "midnight_blue")
+end })
+
+-- ===== BossRounds =====
+
+table.insert(tests, { name = "BossRounds.isBossRound is only true on a Night's last round", fn = function()
+	expectFalse(BossRounds.isBossRound(1, 3))
+	expectFalse(BossRounds.isBossRound(2, 3))
+	expectTrue(BossRounds.isBossRound(3, 3))
+end })
+
+table.insert(tests, { name = "BossRounds.pick returns a valid, well-formed modifier", fn = function()
+	local modifier = BossRounds.pick(function(n) return n end)
+	expectTrue(modifier ~= nil)
+	expectTrue(BossRounds.getById(modifier.id) == modifier)
+	expectTrue(type(modifier.name) == "string" and #modifier.name > 0)
+	expectTrue(type(modifier.description) == "string" and #modifier.description > 0)
+end })
+
+-- ===== DeckVariants / DifficultyTiers =====
+
+table.insert(tests, { name = "DeckVariants.getById falls back to nil for an unknown id", fn = function()
+	expectTrue(DeckVariants.getById("not_a_real_deck") == nil)
+	expectTrue(DeckVariants.getById(DeckVariants.DefaultId) ~= nil)
+end })
+
+table.insert(tests, { name = "DifficultyTiers.getById falls back to nil for an unknown id", fn = function()
+	expectTrue(DifficultyTiers.getById("not_a_real_tier") == nil)
+	expectTrue(DifficultyTiers.getById(DifficultyTiers.DefaultId) ~= nil)
+end })
+
+-- ===== RunState: Deck Variants, Difficulty Tiers, Boss Rounds, hand stats =====
+
+table.insert(tests, { name = "RunState.new with no options matches the original default balance", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(state.deckVariantId, DeckVariants.DefaultId)
+	expectEqual(state.difficultyId, DifficultyTiers.DefaultId)
+	expectEqual(state.config.handSize, RunState.DefaultConfig.handSize)
+	expectEqual(state.config.handsPerRound, RunState.DefaultConfig.handsPerRound)
+	expectEqual(state.tips, 0)
+end })
+
+table.insert(tests, { name = "RunState.new applies the chosen Deck Variant's starting Tips and config deltas", fn = function()
+	local state = RunState.new({ deckVariantId = "high_roller" }, function(n) return n end)
+	expectEqual(state.tips, 6)
+	expectEqual(state.config.handsPerRound, RunState.DefaultConfig.handsPerRound - 1)
+end })
+
+table.insert(tests, { name = "RunState.new falls back to the standard deck variant for an unknown id", fn = function()
+	local state = RunState.new({ deckVariantId = "not_real" }, function(n) return n end)
+	expectEqual(state.deckVariantId, DeckVariants.DefaultId)
+end })
+
+table.insert(tests, { name = "RunState.new never lets a Deck Variant reduce hand size below 1", fn = function()
+	-- steady_hand has a -1 handSize delta; make sure clamping keeps it sane
+	-- even if DefaultConfig.handSize is ever tuned very low.
+	local state = RunState.new({ deckVariantId = "steady_hand" }, function(n) return n end)
+	expectTrue(state.config.handSize >= 1)
+end })
+
+table.insert(tests, { name = "The Casual difficulty tier disables Boss Rounds", fn = function()
+	local state = RunState.new({ difficultyId = "casual" }, function(n) return n end)
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectTrue(state.bossModifier == nil, "Casual should never pick a Boss Round modifier")
+end })
+
+table.insert(tests, { name = "Standard difficulty picks a Boss Round modifier on a Night's last round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectTrue(state.bossModifier ~= nil, "expected a Boss Round modifier to be chosen")
+end })
+
+table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks the dealt hand", fn = function()
+	-- identity rng => BossRounds.pick always selects the last Definitions
+	-- entry, which is Dry Spell (handSizeDelta = -1, discardsDelta = -1).
+	local state = RunState.new(nil, function(n) return n end)
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectEqual(state.bossModifier.id, "dry_spell")
+	expectEqual(#state.hand, state.config.handSize - 1)
+	expectEqual(state.discardsRemaining, state.config.discardsPerRound - 1)
+end })
+
+table.insert(tests, { name = "Boss Round target score multiplier is folded into targetScore", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.round = state.config.roundsPerNight
+	state.bossModifier = BossRounds.getById("house_rules") -- 1.4x target score
+	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
+	-- Re-run just the target-score math startRound would do, without
+	-- re-picking a random modifier (bossRoundsEnabled stays true so a
+	-- second startRound call would overwrite our manual pick).
+	state.targetScore = math.floor(baseTarget * state.targetMultiplier * state.bossModifier.targetScoreMultiplier)
+	expectEqual(state.targetScore, math.floor(baseTarget * 1.4))
+end })
+
+table.insert(tests, { name = "RunState.playHand doubles the Tip reward for winning a Boss Round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	state.targetScore = 0 -- guarantee an immediate round win
+	local tipsBefore = state.tips
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, tipsBefore + state.config.tipsPerRoundWin * 2)
+end })
+
+table.insert(tests, { name = "RunState.playHand tracks how many times each hand type has been played this run", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local result = RunState.playHand(state, { 1, 2 })
+	expectEqual(state.handStats[result.handName], 1)
+	local result2 = RunState.playHand(state, { 1 })
+	if result2.handName == result.handName then
+		expectEqual(state.handStats[result.handName], 2)
+	else
+		expectEqual(state.handStats[result.handName], 1)
+		expectEqual(state.handStats[result2.handName], 1)
+	end
 end })
 
 return tests

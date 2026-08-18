@@ -261,7 +261,7 @@ screenGui.Parent = playerGui
 local root = Instance.new("Frame")
 root.Name = "GameRoot"
 root.Size = UDim2.fromScale(1, 1)
-root.BackgroundColor3 = Color3.fromRGB(24, 18, 14) -- warm dark "tavern" backdrop
+root.BackgroundColor3 = Color3.fromRGB(54, 42, 32) -- warm dark "tavern" backdrop
 root.BorderSizePixel = 0
 root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
@@ -271,7 +271,7 @@ root.Parent = screenGui
 local statusBar = Instance.new("Frame")
 statusBar.Name = "StatusBar"
 statusBar.Size = UDim2.new(1, 0, 0, 60)
-statusBar.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+statusBar.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 statusBar.BorderSizePixel = 0
 statusBar.Parent = root
 polishPanel(statusBar, 0) -- flush with the top edge -- no rounding, just here for consistency
@@ -325,7 +325,7 @@ local function makeToolbarButton(text)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 20
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	button.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 5
 	button.Parent = toolbarFrame
@@ -415,7 +415,7 @@ local function makeActionButton(text)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 18
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	button.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.Parent = actionFrame
 	polishButton(button, 12)
@@ -431,7 +431,7 @@ local shopFrame = Instance.new("Frame")
 shopFrame.Name = "Shop"
 shopFrame.Size = UDim2.fromScale(0.6, 0.6)
 shopFrame.Position = UDim2.fromScale(0.2, 0.2)
-shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+shopFrame.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 shopFrame.Visible = false
 shopFrame.ZIndex = 2
 shopFrame.Parent = root
@@ -465,7 +465,7 @@ nextRoundButton.Position = UDim2.new(0.5, -100, 1, -50)
 nextRoundButton.Font = Enum.Font.GothamBold
 nextRoundButton.TextSize = 18
 nextRoundButton.Text = "Next Round"
-nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+nextRoundButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 nextRoundButton.ZIndex = 2
 nextRoundButton.Parent = shopFrame
@@ -477,7 +477,7 @@ local gameOverFrame = Instance.new("Frame")
 gameOverFrame.Name = "GameOver"
 gameOverFrame.Size = UDim2.fromScale(0.5, 0.3)
 gameOverFrame.Position = UDim2.fromScale(0.25, 0.35)
-gameOverFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+gameOverFrame.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 gameOverFrame.Visible = false
 gameOverFrame.ZIndex = 2
 gameOverFrame.Parent = root
@@ -500,7 +500,7 @@ playAgainButton.Position = UDim2.new(0.5, -100, 1, -60)
 playAgainButton.Font = Enum.Font.GothamBold
 playAgainButton.TextSize = 18
 playAgainButton.Text = "Play Again"
-playAgainButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+playAgainButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 playAgainButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 playAgainButton.ZIndex = 2
 playAgainButton.Parent = gameOverFrame
@@ -557,7 +557,7 @@ local function makeMenuButton(text)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 20
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	button.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 10
 	button.Parent = menuButtonHolder
@@ -587,7 +587,7 @@ howToPlayBackdrop.Parent = screenGui
 local howToPlayPanel = Instance.new("Frame")
 howToPlayPanel.Size = UDim2.fromScale(0.6, 0.75)
 howToPlayPanel.Position = UDim2.fromScale(0.2, 0.12)
-howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+howToPlayPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 howToPlayPanel.ZIndex = 21
 howToPlayPanel.Parent = howToPlayBackdrop
 polishPanel(howToPlayPanel)
@@ -687,7 +687,7 @@ for exampleIndex, cards in ipairs(EXAMPLE_HANDS) do
 
 	local exampleRow = Instance.new("Frame")
 	exampleRow.Size = UDim2.new(1, 0, 0, 70)
-	exampleRow.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	exampleRow.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 	exampleRow.ZIndex = 21
 	exampleRow.LayoutOrder = 1 + exampleIndex
 	exampleRow.Parent = howToPlayScroll
@@ -733,7 +733,7 @@ howToPlayCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 howToPlayCloseButton.Font = Enum.Font.GothamBold
 howToPlayCloseButton.TextSize = 16
 howToPlayCloseButton.Text = "Got it"
-howToPlayCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+howToPlayCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 howToPlayCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 howToPlayCloseButton.ZIndex = 21
 howToPlayCloseButton.Parent = howToPlayPanel
@@ -768,7 +768,7 @@ themesBackdrop.Parent = screenGui
 local themesPanel = Instance.new("Frame")
 themesPanel.Size = UDim2.fromScale(0.55, 0.6)
 themesPanel.Position = UDim2.fromScale(0.225, 0.2)
-themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+themesPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 themesPanel.ZIndex = 21
 themesPanel.Parent = themesBackdrop
 polishPanel(themesPanel)
@@ -801,7 +801,7 @@ themesCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 themesCloseButton.Font = Enum.Font.GothamBold
 themesCloseButton.TextSize = 16
 themesCloseButton.Text = "Close"
-themesCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+themesCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 themesCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 themesCloseButton.ZIndex = 21
 themesCloseButton.Parent = themesPanel
@@ -844,7 +844,7 @@ journeyBackdrop.Parent = screenGui
 local journeyPanel = Instance.new("Frame")
 journeyPanel.Size = UDim2.fromScale(0.6, 0.6)
 journeyPanel.Position = UDim2.fromScale(0.2, 0.2)
-journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+journeyPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 journeyPanel.ZIndex = 21
 journeyPanel.Parent = journeyBackdrop
 polishPanel(journeyPanel)
@@ -889,7 +889,7 @@ journeyCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 journeyCloseButton.Font = Enum.Font.GothamBold
 journeyCloseButton.TextSize = 16
 journeyCloseButton.Text = "Close"
-journeyCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+journeyCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 journeyCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 journeyCloseButton.ZIndex = 21
 journeyCloseButton.Parent = journeyPanel
@@ -989,7 +989,7 @@ local function makeStepperRow(parent, labelText, min, max, step, getValue, setVa
 	minusButton.Font = Enum.Font.GothamBold
 	minusButton.TextSize = 18
 	minusButton.Text = "-"
-	minusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	minusButton.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 	minusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 	minusButton.ZIndex = 21
 	minusButton.Parent = controlHolder
@@ -1009,7 +1009,7 @@ local function makeStepperRow(parent, labelText, min, max, step, getValue, setVa
 	plusButton.Font = Enum.Font.GothamBold
 	plusButton.TextSize = 18
 	plusButton.Text = "+"
-	plusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	plusButton.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 	plusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 	plusButton.ZIndex = 21
 	plusButton.Parent = controlHolder
@@ -1096,7 +1096,7 @@ handRefBackdrop.Parent = screenGui
 local handRefPanel = Instance.new("Frame")
 handRefPanel.Size = UDim2.fromScale(0.5, 0.65)
 handRefPanel.Position = UDim2.fromScale(0.25, 0.17)
-handRefPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+handRefPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 handRefPanel.ZIndex = 21
 handRefPanel.Parent = handRefBackdrop
 polishPanel(handRefPanel)
@@ -1159,7 +1159,7 @@ handRefCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 handRefCloseButton.Font = Enum.Font.GothamBold
 handRefCloseButton.TextSize = 16
 handRefCloseButton.Text = "Close"
-handRefCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+handRefCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 handRefCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 handRefCloseButton.ZIndex = 21
 handRefCloseButton.Parent = handRefPanel
@@ -1186,7 +1186,7 @@ refreshHandReferenceImpl = function()
 
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 34)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 		row.ZIndex = 21
 		row.Parent = handRefListFrame
 		polishPanel(row, 8)
@@ -1255,7 +1255,7 @@ deckTrackerBackdrop.Parent = screenGui
 local deckTrackerPanel = Instance.new("Frame")
 deckTrackerPanel.Size = UDim2.fromScale(0.72, 0.5)
 deckTrackerPanel.Position = UDim2.fromScale(0.14, 0.24)
-deckTrackerPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+deckTrackerPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 deckTrackerPanel.ZIndex = 21
 deckTrackerPanel.Parent = deckTrackerBackdrop
 polishPanel(deckTrackerPanel)
@@ -1288,7 +1288,7 @@ deckTrackerCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 deckTrackerCloseButton.Font = Enum.Font.GothamBold
 deckTrackerCloseButton.TextSize = 16
 deckTrackerCloseButton.Text = "Close"
-deckTrackerCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+deckTrackerCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 deckTrackerCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 deckTrackerCloseButton.ZIndex = 21
 deckTrackerCloseButton.Parent = deckTrackerPanel
@@ -1384,7 +1384,7 @@ settingsBackdrop.Parent = screenGui
 local settingsPanel = Instance.new("Frame")
 settingsPanel.Size = UDim2.fromScale(0.5, 0.62)
 settingsPanel.Position = UDim2.fromScale(0.25, 0.19)
-settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+settingsPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 settingsPanel.ZIndex = 21
 settingsPanel.Parent = settingsBackdrop
 polishPanel(settingsPanel)
@@ -1418,7 +1418,7 @@ local function makeSettingsTabButton(text)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 14
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	button.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 21
 	button.Parent = settingsTabHolder
@@ -1503,8 +1503,8 @@ end
 local function showSettingsTab(tab)
 	settingsGameTab.Visible = (tab == "game")
 	settingsAudioTab.Visible = (tab == "audio")
-	settingsGameTabButton.BackgroundColor3 = (tab == "game") and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(60, 45, 32)
-	settingsAudioTabButton.BackgroundColor3 = (tab == "audio") and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(60, 45, 32)
+	settingsGameTabButton.BackgroundColor3 = (tab == "game") and Color3.fromRGB(150, 105, 55) or Color3.fromRGB(96, 76, 56)
+	settingsAudioTabButton.BackgroundColor3 = (tab == "audio") and Color3.fromRGB(150, 105, 55) or Color3.fromRGB(96, 76, 56)
 end
 
 settingsGameTabButton.MouseButton1Click:Connect(function()
@@ -1524,7 +1524,7 @@ settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 settingsCloseButton.Font = Enum.Font.GothamBold
 settingsCloseButton.TextSize = 16
 settingsCloseButton.Text = "Close"
-settingsCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+settingsCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 settingsCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 settingsCloseButton.ZIndex = 21
 settingsCloseButton.Parent = settingsPanel
@@ -1560,7 +1560,7 @@ runSetupBackdrop.Parent = screenGui
 local runSetupPanel = Instance.new("Frame")
 runSetupPanel.Size = UDim2.fromScale(0.6, 0.72)
 runSetupPanel.Position = UDim2.fromScale(0.2, 0.13)
-runSetupPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+runSetupPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 runSetupPanel.ZIndex = 26
 runSetupPanel.Parent = runSetupBackdrop
 polishPanel(runSetupPanel)
@@ -1617,7 +1617,7 @@ makeRunSetupSectionLabel("Difficulty", 19)
 local function makePickCard(parent, order, name, description, isSelected)
 	local card = Instance.new("Frame")
 	card.Size = UDim2.new(1, 0, 0, 60)
-	card.BackgroundColor3 = isSelected and Color3.fromRGB(90, 70, 40) or Color3.fromRGB(60, 45, 32)
+	card.BackgroundColor3 = isSelected and Color3.fromRGB(140, 108, 62) or Color3.fromRGB(96, 76, 56)
 	card.LayoutOrder = order
 	card.ZIndex = 26
 	card.Parent = parent
@@ -1708,7 +1708,7 @@ runSetupCancelButton.Position = UDim2.new(0.5, 10, 1, -55)
 runSetupCancelButton.Font = Enum.Font.GothamBold
 runSetupCancelButton.TextSize = 16
 runSetupCancelButton.Text = "Cancel"
-runSetupCancelButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+runSetupCancelButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 runSetupCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 runSetupCancelButton.ZIndex = 26
 runSetupCancelButton.Parent = runSetupPanel
@@ -1760,7 +1760,7 @@ collectionBackdrop.Parent = screenGui
 local collectionPanel = Instance.new("Frame")
 collectionPanel.Size = UDim2.fromScale(0.6, 0.7)
 collectionPanel.Position = UDim2.fromScale(0.2, 0.15)
-collectionPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+collectionPanel.BackgroundColor3 = Color3.fromRGB(74, 58, 44)
 collectionPanel.ZIndex = 21
 collectionPanel.Parent = collectionBackdrop
 polishPanel(collectionPanel)
@@ -1797,7 +1797,7 @@ collectionCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
 collectionCloseButton.Font = Enum.Font.GothamBold
 collectionCloseButton.TextSize = 16
 collectionCloseButton.Text = "Close"
-collectionCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+collectionCloseButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 collectionCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 collectionCloseButton.ZIndex = 21
 collectionCloseButton.Parent = collectionPanel
@@ -1934,7 +1934,7 @@ unlockPopup.Name = "UnlockPopup"
 unlockPopup.Size = UDim2.new(0, 280, 0, 140)
 unlockPopup.AnchorPoint = Vector2.new(0.5, 0.5)
 unlockPopup.Position = UDim2.fromScale(0.5, 0.5)
-unlockPopup.BackgroundColor3 = Color3.fromRGB(50, 40, 26)
+unlockPopup.BackgroundColor3 = Color3.fromRGB(86, 68, 46)
 unlockPopup.Visible = false
 unlockPopup.ZIndex = 30
 unlockPopup.Parent = screenGui
@@ -2114,7 +2114,7 @@ local function refreshThemesListImpl()
 	for _, theme in ipairs(Themes.Definitions) do
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 50)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 		row.Parent = themesListFrame
 		polishPanel(row, 10)
 
@@ -2141,7 +2141,7 @@ local function refreshThemesListImpl()
 		actionButton.Position = UDim2.new(1, -140, 0.5, -18)
 		actionButton.Font = Enum.Font.GothamBold
 		actionButton.TextSize = 14
-		actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		actionButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 		actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		actionButton.Parent = row
 		polishButton(actionButton, 10)
@@ -2221,7 +2221,7 @@ local function refreshJourneyImpl()
 			local pip = Instance.new("Frame")
 			pip.Size = isCurrent and UDim2.new(0, 60, 0, 44) or UDim2.new(0, 52, 0, 38)
 			pip.BackgroundColor3 = isCurrent and cardSelectedColor()
-				or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
+				or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(96, 76, 56)))
 			pip.Parent = pipsHolder
 			roundCorner(pip, 10)
 
@@ -2290,7 +2290,10 @@ local function applyCardVisual(index, usePop)
 	local duration = usePop and 0.22 or 0.15
 	local style = usePop and Enum.EasingStyle.Back or Enum.EasingStyle.Quad
 
-	tweenTo(button, { Position = UDim2.new(0.5, 0, 0.5, -lift), BackgroundColor3 = color }, duration, style, Enum.EasingDirection.Out)
+	-- Cards are bottom-anchored (AnchorPoint 0.5, 1 -- see rebuildHand), so the
+	-- target Position must also use Y-scale 1, or hovering would snap every
+	-- card up to the middle of its slot instead of just lifting it slightly.
+	tweenTo(button, { Position = UDim2.new(0.5, 0, 1, -lift), BackgroundColor3 = color }, duration, style, Enum.EasingDirection.Out)
 	tweenTo(scaleObject, { Scale = scale }, duration, style, Enum.EasingDirection.Out)
 end
 
@@ -2351,6 +2354,14 @@ function rebuildHand(handData)
 		button.Parent = slot
 		polishButton(button, 10)
 
+		-- A dark outline so the card reads clearly as a card against ANY
+		-- table theme, even ones whose background happens to sit close in
+		-- tone to the card color.
+		local outline = Instance.new("UIStroke")
+		outline.Color = Color3.fromRGB(20, 15, 10)
+		outline.Thickness = 2
+		outline.Parent = button
+
 		local scaleObject = Instance.new("UIScale")
 		scaleObject.Scale = BASE_SCALE
 		scaleObject.Parent = button
@@ -2384,7 +2395,7 @@ local function rebuildShop(shopOffers)
 	for _, offer in ipairs(shopOffers) do
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 50)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.BackgroundColor3 = Color3.fromRGB(96, 76, 56)
 		row.ZIndex = 2
 		row.Parent = shopOffersFrame
 		polishPanel(row, 10)
@@ -2407,7 +2418,7 @@ local function rebuildShop(shopOffers)
 		buyButton.Font = Enum.Font.GothamBold
 		buyButton.TextSize = 15
 		buyButton.Text = "Buy"
-		buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		buyButton.BackgroundColor3 = Color3.fromRGB(150, 105, 55)
 		buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		buyButton.ZIndex = 2
 		buyButton.Parent = row
