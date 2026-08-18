@@ -36,6 +36,9 @@ local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
 -- reads it straight from Shared -- only ownership/equipped state needs to
 -- travel over the StateUpdated remote.
 local Themes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Themes"))
+-- FEATURE 4 (Road Ahead / Journey overlay) needs the target-score formula,
+-- which already exists in RunState -- no engine changes needed.
+local RunStateEngine = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RunState"))
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -220,6 +223,7 @@ end
 local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], -60)
 local helpButton = makeCornerButton("?", -110)
 local themesButton = makeCornerButton("🎨", -160)
+local journeyButton = makeCornerButton("🗺", -210)
 
 -- ----- Message banner (hand result / round result) -----
 
@@ -416,6 +420,7 @@ end
 
 local menuPlayButton = makeMenuButton("Play")
 local menuHowToPlayButton = makeMenuButton("How to Play")
+local menuJourneyButton = makeMenuButton("Road Ahead")
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
 
@@ -569,6 +574,95 @@ themesButton.MouseButton1Click:Connect(function()
 	themesBackdrop.Visible = true
 end)
 
+-- ===== Road Ahead (journey/roadmap) overlay =====
+-- FEATURE 4: a preview of upcoming Nights/Rounds and their target scores,
+-- with a "you are here" marker. Pure UI (Frames, TextLabels, UICorner) --
+-- no gradients, so it's safe against the darkness bug.
+
+local PREVIEW_NIGHTS = 3 -- how many Nights ahead to preview
+
+local journeyBackdrop = Instance.new("Frame")
+journeyBackdrop.Name = "JourneyBackdrop"
+journeyBackdrop.Size = UDim2.fromScale(1, 1)
+journeyBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+journeyBackdrop.BackgroundTransparency = 0.4
+journeyBackdrop.Visible = false
+journeyBackdrop.ZIndex = 20
+journeyBackdrop.Parent = screenGui
+
+local journeyPanel = Instance.new("Frame")
+journeyPanel.Size = UDim2.fromScale(0.6, 0.6)
+journeyPanel.Position = UDim2.fromScale(0.2, 0.2)
+journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+journeyPanel.ZIndex = 21
+journeyPanel.Parent = journeyBackdrop
+polishPanel(journeyPanel, 16)
+addSoftShadow(journeyPanel, 18)
+
+local journeyTitle = Instance.new("TextLabel")
+journeyTitle.Size = UDim2.new(1, 0, 0, 40)
+journeyTitle.BackgroundTransparency = 1
+journeyTitle.Font = Enum.Font.GothamBold
+journeyTitle.TextSize = 22
+journeyTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+journeyTitle.Text = "The Road Ahead"
+journeyTitle.ZIndex = 21
+journeyTitle.Parent = journeyPanel
+
+local journeySubtitle = Instance.new("TextLabel")
+journeySubtitle.Size = UDim2.new(1, -30, 0, 24)
+journeySubtitle.Position = UDim2.new(0, 15, 0, 38)
+journeySubtitle.BackgroundTransparency = 1
+journeySubtitle.Font = Enum.Font.Gotham
+journeySubtitle.TextSize = 14
+journeySubtitle.TextColor3 = Color3.fromRGB(220, 205, 185)
+journeySubtitle.TextXAlignment = Enum.TextXAlignment.Left
+journeySubtitle.Text = "Each Night is 3 Rounds. Target scores climb every Round."
+journeySubtitle.ZIndex = 21
+journeySubtitle.Parent = journeyPanel
+
+local journeyListFrame = Instance.new("Frame")
+journeyListFrame.Size = UDim2.new(1, -20, 1, -130)
+journeyListFrame.Position = UDim2.new(0, 10, 0, 68)
+journeyListFrame.BackgroundTransparency = 1
+journeyListFrame.ZIndex = 21
+journeyListFrame.Parent = journeyPanel
+
+local journeyListLayout = Instance.new("UIListLayout")
+journeyListLayout.Padding = UDim.new(0, 6)
+journeyListLayout.Parent = journeyListFrame
+
+local journeyCloseButton = Instance.new("TextButton")
+journeyCloseButton.Size = UDim2.new(0, 140, 0, 40)
+journeyCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+journeyCloseButton.Font = Enum.Font.GothamBold
+journeyCloseButton.TextSize = 16
+journeyCloseButton.Text = "Close"
+journeyCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+journeyCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+journeyCloseButton.ZIndex = 21
+journeyCloseButton.Parent = journeyPanel
+polishButton(journeyCloseButton, 12)
+
+journeyCloseButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	journeyBackdrop.Visible = false
+end)
+
+-- Forward-declared for the same reason as refreshThemesList above.
+local refreshJourney
+
+local function openJourney()
+	playSfx(SOUND_IDS.uiClick)
+	if refreshJourney then
+		refreshJourney()
+	end
+	journeyBackdrop.Visible = true
+end
+
+journeyButton.MouseButton1Click:Connect(openJourney)
+menuJourneyButton.MouseButton1Click:Connect(openJourney)
+
 -- ===== Menu -> game transition, volume cycling =====
 
 menuPlayButton.MouseButton1Click:Connect(function()
@@ -704,6 +798,76 @@ local function refreshThemesListImpl()
 end
 
 refreshThemesList = refreshThemesListImpl
+
+-- ----- Journey / roadmap -----
+
+local function refreshJourneyImpl()
+	for _, child in ipairs(journeyListFrame:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	local currentNight = (latestState and latestState.night) or 1
+	local currentRound = (latestState and latestState.round) or 1
+
+	for night = 1, PREVIEW_NIGHTS do
+		local nightRow = Instance.new("Frame")
+		nightRow.Size = UDim2.new(1, 0, 0, 54)
+		nightRow.BackgroundTransparency = 1
+		nightRow.LayoutOrder = night
+		nightRow.Parent = journeyListFrame
+
+		local nightLabel = Instance.new("TextLabel")
+		nightLabel.Size = UDim2.new(0, 70, 1, 0)
+		nightLabel.BackgroundTransparency = 1
+		nightLabel.Font = Enum.Font.GothamBold
+		nightLabel.TextSize = 15
+		nightLabel.TextColor3 = Color3.fromRGB(240, 220, 190)
+		nightLabel.Text = string.format("Night %d", night)
+		nightLabel.Parent = nightRow
+
+		local pipsHolder = Instance.new("Frame")
+		pipsHolder.Size = UDim2.new(1, -80, 1, 0)
+		pipsHolder.Position = UDim2.new(0, 80, 0, 0)
+		pipsHolder.BackgroundTransparency = 1
+		pipsHolder.Parent = nightRow
+
+		local pipsLayout = Instance.new("UIListLayout")
+		pipsLayout.FillDirection = Enum.FillDirection.Horizontal
+		pipsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		pipsLayout.Padding = UDim.new(0, 10)
+		pipsLayout.Parent = pipsHolder
+
+		for round = 1, 3 do
+			local isPast = (night < currentNight) or (night == currentNight and round < currentRound)
+			local isCurrent = (night == currentNight and round == currentRound)
+
+			local pip = Instance.new("Frame")
+			pip.Size = isCurrent and UDim2.new(0, 60, 0, 44) or UDim2.new(0, 52, 0, 38)
+			pip.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
+				or (isPast and Color3.fromRGB(90, 130, 90) or Color3.fromRGB(60, 45, 32))
+			pip.Parent = pipsHolder
+			roundCorner(pip, 10)
+
+			local pipLabel = Instance.new("TextLabel")
+			pipLabel.Size = UDim2.fromScale(1, 1)
+			pipLabel.BackgroundTransparency = 1
+			pipLabel.Font = Enum.Font.GothamBold
+			pipLabel.TextSize = isCurrent and 15 or 13
+			pipLabel.TextColor3 = isCurrent and Color3.fromRGB(30, 24, 18) or Color3.fromRGB(240, 230, 215)
+			local targetScore = RunStateEngine.targetScoreFor(night, round)
+			if isPast then
+				pipLabel.Text = string.format("R%d ✓", round)
+			else
+				pipLabel.Text = string.format("R%d\n%d pts", round, targetScore)
+			end
+			pipLabel.Parent = pip
+		end
+	end
+end
+
+refreshJourney = refreshJourneyImpl
 
 local function selectedIndicesArray()
 	local out = {}
@@ -908,6 +1072,9 @@ local function render(state)
 
 	if themesBackdrop.Visible then
 		refreshThemesList() -- keep the panel accurate if it's open across a purchase
+	end
+	if journeyBackdrop.Visible then
+		refreshJourney() -- keep "you are here" accurate if it's open across a round change
 	end
 
 	shopFrame.Visible = (state.phase == "shop")
