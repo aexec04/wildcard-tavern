@@ -168,6 +168,93 @@ local function addSoftShadow(panel, radius)
 	return shadow
 end
 
+-- ===== Reusable small UI helper: stepper row =====
+-- Used by the Settings overlay. Roblox has no built-in drag-slider widget,
+-- so this is a simple "- value +" stepper instead -- far less to get wrong
+-- than hand-rolled drag physics, and just as usable.
+
+local function makeStepperRow(parent, labelText, min, max, step, getValue, setValue, formatValue)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, 0, 0, 46)
+	row.BackgroundTransparency = 1
+	row.Parent = parent
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.5, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 15
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextColor3 = Color3.fromRGB(240, 230, 215)
+	label.Text = labelText
+	label.ZIndex = 21
+	label.Parent = row
+
+	local controlHolder = Instance.new("Frame")
+	controlHolder.Size = UDim2.new(0.5, 0, 1, 0)
+	controlHolder.Position = UDim2.new(0.5, 0, 0, 0)
+	controlHolder.BackgroundTransparency = 1
+	controlHolder.ZIndex = 21
+	controlHolder.Parent = row
+
+	local controlLayout = Instance.new("UIListLayout")
+	controlLayout.FillDirection = Enum.FillDirection.Horizontal
+	controlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	controlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	controlLayout.Padding = UDim.new(0, 10)
+	controlLayout.Parent = controlHolder
+
+	local minusButton = Instance.new("TextButton")
+	minusButton.Size = UDim2.new(0, 34, 0, 34)
+	minusButton.Font = Enum.Font.GothamBold
+	minusButton.TextSize = 18
+	minusButton.Text = "-"
+	minusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	minusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	minusButton.ZIndex = 21
+	minusButton.Parent = controlHolder
+	polishButton(minusButton, 8)
+
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.new(0, 60, 1, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Font = Enum.Font.GothamBold
+	valueLabel.TextSize = 15
+	valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+	valueLabel.ZIndex = 21
+	valueLabel.Parent = controlHolder
+
+	local plusButton = Instance.new("TextButton")
+	plusButton.Size = UDim2.new(0, 34, 0, 34)
+	plusButton.Font = Enum.Font.GothamBold
+	plusButton.TextSize = 18
+	plusButton.Text = "+"
+	plusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	plusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	plusButton.ZIndex = 21
+	plusButton.Parent = controlHolder
+	polishButton(plusButton, 8)
+
+	local function refresh()
+		local value = getValue()
+		valueLabel.Text = formatValue and formatValue(value) or tostring(value)
+	end
+
+	minusButton.MouseButton1Click:Connect(function()
+		playSfx(SOUND_IDS.uiClick, 0.35)
+		setValue(math.max(min, getValue() - step))
+		refresh()
+	end)
+	plusButton.MouseButton1Click:Connect(function()
+		playSfx(SOUND_IDS.uiClick, 0.35)
+		setValue(math.min(max, getValue() + step))
+		refresh()
+	end)
+
+	refresh()
+	return refresh
+end
+
 -- ===== Root UI =====
 
 local screenGui = Instance.new("ScreenGui")
@@ -240,6 +327,7 @@ local themesButton = makeCornerButton("🎨", -160)
 local journeyButton = makeCornerButton("🗺", -210)
 local handRefButton = makeCornerButton("📖", -260)
 local deckTrackerButton = makeCornerButton("🂠", -310)
+local settingsButton = makeCornerButton("⚙", -360)
 
 -- ----- Message banner (hand result / round result) -----
 
@@ -991,6 +1079,90 @@ deckTrackerButton.MouseButton1Click:Connect(function()
 		refreshDeckTracker()
 	end
 	deckTrackerBackdrop.Visible = true
+end)
+
+-- ===== Settings overlay: simple audio-only settings panel. FEATURE 10,
+-- reachable via the gear corner button. Scoped down to just Master Volume --
+-- game options like animation speed/screenshake have no consumer code yet,
+-- so they're deliberately left out to keep this one piece small. =====
+
+local settingsBackdrop = Instance.new("Frame")
+settingsBackdrop.Name = "SettingsBackdrop"
+settingsBackdrop.Size = UDim2.fromScale(1, 1)
+settingsBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+settingsBackdrop.BackgroundTransparency = 0.4
+settingsBackdrop.Visible = false
+settingsBackdrop.ZIndex = 20
+settingsBackdrop.Parent = screenGui
+
+local settingsPanel = Instance.new("Frame")
+settingsPanel.Size = UDim2.fromScale(0.4, 0.3)
+settingsPanel.Position = UDim2.fromScale(0.3, 0.35)
+settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+settingsPanel.ZIndex = 21
+settingsPanel.Parent = settingsBackdrop
+polishPanel(settingsPanel, 16)
+addSoftShadow(settingsPanel, 18)
+
+local settingsTitle = Instance.new("TextLabel")
+settingsTitle.Size = UDim2.new(1, 0, 0, 40)
+settingsTitle.BackgroundTransparency = 1
+settingsTitle.Font = Enum.Font.GothamBold
+settingsTitle.TextSize = 22
+settingsTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+settingsTitle.Text = "Settings"
+settingsTitle.ZIndex = 21
+settingsTitle.Parent = settingsPanel
+
+local settingsBody = Instance.new("Frame")
+settingsBody.Size = UDim2.new(1, -40, 1, -110)
+settingsBody.Position = UDim2.new(0, 20, 0, 50)
+settingsBody.BackgroundTransparency = 1
+settingsBody.ZIndex = 21
+settingsBody.Parent = settingsPanel
+
+-- Independent of the corner volumeButton's loud/quiet/muted cycle -- this
+-- gives fine-grained 0-100 control over the same Sound instance's Volume.
+local masterVolumeValue = math.floor(backgroundMusic.Volume * 100 + 0.5)
+
+makeStepperRow(
+	settingsBody,
+	"Master Volume",
+	0,
+	100,
+	10,
+	function()
+		return masterVolumeValue
+	end,
+	function(newValue)
+		masterVolumeValue = newValue
+		backgroundMusic.Volume = newValue / 100
+	end,
+	function(value)
+		return tostring(value) .. "%"
+	end
+)
+
+local settingsCloseButton = Instance.new("TextButton")
+settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
+settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+settingsCloseButton.Font = Enum.Font.GothamBold
+settingsCloseButton.TextSize = 16
+settingsCloseButton.Text = "Close"
+settingsCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+settingsCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+settingsCloseButton.ZIndex = 21
+settingsCloseButton.Parent = settingsPanel
+polishButton(settingsCloseButton, 12)
+
+settingsCloseButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	settingsBackdrop.Visible = false
+end)
+
+settingsButton.MouseButton1Click:Connect(function()
+	playSfx(SOUND_IDS.uiClick)
+	settingsBackdrop.Visible = true
 end)
 
 -- ===== Run Setup overlay: pick a Deck Variant + Difficulty before a new
