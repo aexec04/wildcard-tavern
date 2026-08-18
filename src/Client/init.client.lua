@@ -571,7 +571,7 @@ end)
 
 local latestState = nil
 local selected = {} -- [handIndex] = true
-local hovering = {} -- [handIndex] = true
+local hoveredIndex = nil -- single index or nil; only one card can be "pointed at"
 local cardButtons = {} -- [handIndex] = TextButton
 local cardScales = {} -- [handIndex] = UIScale
 
@@ -579,6 +579,14 @@ local BASE_SCALE = 1.0
 local HOVER_SCALE = 1.06
 local SELECTED_SCALE = 1.08
 local SELECTED_HOVER_SCALE = 1.14
+
+-- FEATURE 2: card hover "fan" -- hovering a card lifts it; its immediate
+-- neighbors lift a little too, falling off with distance, like fanning a
+-- hand of cards toward your thumb. Pure position/scale tweening, no color
+-- or transparency tricks, so this is safe against the addGloss-style bug.
+local HOVER_LIFT = 10
+local SELECTED_LIFT = 6
+local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ----- Theme (cosmetics) application -----
 
@@ -691,7 +699,18 @@ local function refreshCardVisual(index, usePop)
 	end
 
 	local isSelected = selected[index] == true
-	local isHovering = hovering[index] == true
+	local isHovering = hoveredIndex == index
+
+	-- Fan falloff: neighbors near the hovered card lift a little too,
+	-- fading out with distance. Distance 0 (the hovered card itself) is
+	-- handled by isHovering above.
+	local fanLift = 0
+	if hoveredIndex ~= nil and not isHovering then
+		local distance = math.abs(index - hoveredIndex)
+		if distance < HOVER_FALLOFF_DISTANCE then
+			fanLift = (1 - (distance / HOVER_FALLOFF_DISTANCE)) * (HOVER_LIFT * 0.4)
+		end
+	end
 
 	local targetColor
 	if isSelected then
@@ -711,11 +730,22 @@ local function refreshCardVisual(index, usePop)
 		targetScale = BASE_SCALE
 	end
 
-	tweenTo(button, { BackgroundColor3 = targetColor }, 0.15)
+	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
+
+	tweenTo(button, {
+		BackgroundColor3 = targetColor,
+		Position = UDim2.new(0.5, 0, 0.5, -lift),
+	}, 0.15)
 	if usePop then
 		tweenTo(scaleObject, { Scale = targetScale }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	else
 		tweenTo(scaleObject, { Scale = targetScale }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end
+end
+
+local function refreshAllCardVisuals()
+	for index in pairs(cardButtons) do
+		refreshCardVisual(index, false)
 	end
 end
 
@@ -746,7 +776,7 @@ local function rebuildHand(handData)
 	cardButtons = {}
 	cardScales = {}
 	selected = {}
-	hovering = {}
+	hoveredIndex = nil
 
 	for index, card in ipairs(handData) do
 		-- A fixed-size "slot" keeps UIListLayout stable; the button inside
@@ -781,12 +811,14 @@ local function rebuildHand(handData)
 			onCardClicked(index)
 		end)
 		button.MouseEnter:Connect(function()
-			hovering[index] = true
-			refreshCardVisual(index, false)
+			hoveredIndex = index
+			refreshAllCardVisuals()
 		end)
 		button.MouseLeave:Connect(function()
-			hovering[index] = nil
-			refreshCardVisual(index, false)
+			if hoveredIndex == index then
+				hoveredIndex = nil
+			end
+			refreshAllCardVisuals()
 		end)
 	end
 end
