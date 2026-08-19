@@ -1153,101 +1153,31 @@ local nextRoundButton = Shop.nextRoundButton
 local rebuildShop = Shop.rebuildShop
 local rebuildMyPatronsTab = Shop.rebuildMyPatronsTab
 
--- ----- Game over overlay -----
+-- ===== Game over overlay + Menu screen =====
+-- Extracted into Client/GameOver.lua and Client/Menu.lua. applyTheme() and
+-- render() further down still need gameOverFrame/playAgainButton, and the
+-- menu buttons are needed both by the "Menu -> game transition" glue right
+-- below and as deps into HowToPlay.lua/Journey.lua/RunSetup.lua (which wire
+-- their own click handlers onto the menu buttons), so everything comes
+-- back out of both require() calls.
+local GameOverPanel = require(script.GameOver)({
+	root = root,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+})
+local gameOverFrame = GameOverPanel.gameOverFrame
+local playAgainButton = GameOverPanel.playAgainButton
 
-local gameOverFrame = Instance.new("Frame")
-gameOverFrame.Name = "GameOver"
-gameOverFrame.Size = UDim2.fromScale(0.5, 0.3)
-gameOverFrame.Position = UDim2.fromScale(0.25, 0.35)
-gameOverFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-gameOverFrame.Visible = false
-gameOverFrame.Parent = root
-polishPanel(gameOverFrame, 16)
-addSoftShadow(gameOverFrame, 18)
-
-local gameOverLabel = Instance.new("TextLabel")
-gameOverLabel.Size = UDim2.new(1, 0, 0, 60)
-gameOverLabel.BackgroundTransparency = 1
-gameOverLabel.Font = Enum.Font.GothamBold
-gameOverLabel.TextSize = 22
-gameOverLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-gameOverLabel.Text = "Last call! Your run has ended."
-gameOverLabel.Parent = gameOverFrame
-
-local playAgainButton = Instance.new("TextButton")
-playAgainButton.Size = UDim2.new(0, 200, 0, 40)
-playAgainButton.Position = UDim2.new(0.5, -100, 1, -60)
-playAgainButton.Font = Enum.Font.GothamBold
-playAgainButton.TextSize = 18
-playAgainButton.Text = "Play Again"
-playAgainButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-playAgainButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-playAgainButton.Parent = gameOverFrame
-polishButton(playAgainButton, 10)
-
--- ===== Menu screen =====
-
-local menuFrame = Instance.new("Frame")
-menuFrame.Name = "MenuRoot"
-menuFrame.Size = UDim2.fromScale(1, 1)
-menuFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
-menuFrame.BorderSizePixel = 0
-menuFrame.ZIndex = 10
-menuFrame.Parent = screenGui
-
-local menuTitle = Instance.new("TextLabel")
-menuTitle.Size = UDim2.new(1, 0, 0, 80)
-menuTitle.Position = UDim2.fromScale(0, 0.3)
-menuTitle.BackgroundTransparency = 1
-menuTitle.Font = Enum.Font.GothamBold
-menuTitle.TextSize = 48
-menuTitle.TextColor3 = Color3.fromRGB(255, 214, 130)
-menuTitle.Text = "Wildcard Tavern"
-menuTitle.ZIndex = 10
-menuTitle.Parent = menuFrame
-
-local menuSubtitle = Instance.new("TextLabel")
-menuSubtitle.Size = UDim2.new(1, 0, 0, 30)
-menuSubtitle.Position = UDim2.fromScale(0, 0.42)
-menuSubtitle.BackgroundTransparency = 1
-menuSubtitle.Font = Enum.Font.Gotham
-menuSubtitle.TextSize = 18
-menuSubtitle.TextColor3 = Color3.fromRGB(200, 180, 160)
-menuSubtitle.Text = "a poker-hand deckbuilder -- working title"
-menuSubtitle.ZIndex = 10
-menuSubtitle.Parent = menuFrame
-
-local menuButtonHolder = Instance.new("Frame")
-menuButtonHolder.Size = UDim2.new(0, 240, 0, 110)
-menuButtonHolder.Position = UDim2.fromScale(0.5, 0.55)
-menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0)
-menuButtonHolder.BackgroundTransparency = 1
-menuButtonHolder.ZIndex = 10
-menuButtonHolder.Parent = menuFrame
-
-local menuButtonLayout = Instance.new("UIListLayout")
-menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-menuButtonLayout.Padding = UDim.new(0, 12)
-menuButtonLayout.Parent = menuButtonHolder
-
-local function makeMenuButton(text)
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 220, 0, 48)
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 20
-	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	button.TextColor3 = Color3.fromRGB(250, 240, 220)
-	button.ZIndex = 10
-	button.Parent = menuButtonHolder
-	polishButton(button, 12)
-	return button
-end
-
-local menuPlayButton = makeMenuButton("Play")
-local menuHowToPlayButton = makeMenuButton("How to Play")
-local menuJourneyButton = makeMenuButton("Road Ahead")
-local menuNewRunButton = makeMenuButton("New Run...")
+local MenuScreen = require(script.Menu)({
+	screenGui = screenGui,
+	polishButton = polishButton,
+})
+local menuFrame = MenuScreen.menuFrame
+local menuPlayButton = MenuScreen.menuPlayButton
+local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
+local menuJourneyButton = MenuScreen.menuJourneyButton
+local menuNewRunButton = MenuScreen.menuNewRunButton
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
 -- Extracted into Client/HowToPlay.lua -- fully self-contained (both buttons
@@ -1363,329 +1293,42 @@ require(script.DeckTracker)({
 	end,
 })
 
--- ===== Settings overlay: simple audio-only settings panel. FEATURE 10,
--- reachable via the gear corner button. Scoped down to just Master Volume --
--- game options like animation speed/screenshake have no consumer code yet,
--- so they're deliberately left out to keep this one piece small. =====
---
--- Wrapped in do/end: Lua caps a single function (this whole script is one
--- top-level chunk) at 200 simultaneously-active local variables. None of
--- this section's locals are referenced outside it, so scoping them to a
--- block frees their slots once the block ends instead of holding them for
--- the rest of the file -- see the LOCAL VARIABLE BUDGET note near the top
--- of the file for the full explanation.
-do
+-- ===== Settings overlay =====
+-- Extracted into Client/Settings.lua. Fully self-contained (only opened
+-- from its own corner button), so nothing needs to come back out of the
+-- require() call.
+require(script.Settings)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	settingsButton = settingsButton,
+	makeStepperRow = makeStepperRow,
+	backgroundMusic = backgroundMusic,
+})
 
-local settingsBackdrop = Instance.new("Frame")
-settingsBackdrop.Name = "SettingsBackdrop"
-settingsBackdrop.Size = UDim2.fromScale(1, 1)
-settingsBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-settingsBackdrop.BackgroundTransparency = 0.4
-settingsBackdrop.Visible = false
-settingsBackdrop.ZIndex = 20
-settingsBackdrop.Parent = screenGui
-
-local settingsPanel = Instance.new("Frame")
-settingsPanel.Size = UDim2.fromScale(0.4, 0.3)
-settingsPanel.Position = UDim2.fromScale(0.3, 0.35)
-settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-settingsPanel.ZIndex = 21
-settingsPanel.Parent = settingsBackdrop
-polishPanel(settingsPanel, 16)
-addSoftShadow(settingsPanel, 18)
-
-local settingsTitle = Instance.new("TextLabel")
-settingsTitle.Size = UDim2.new(1, 0, 0, 40)
-settingsTitle.BackgroundTransparency = 1
-settingsTitle.Font = Enum.Font.GothamBold
-settingsTitle.TextSize = 22
-settingsTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-settingsTitle.Text = "Settings"
-settingsTitle.ZIndex = 21
-settingsTitle.Parent = settingsPanel
-
-local settingsBody = Instance.new("Frame")
-settingsBody.Size = UDim2.new(1, -40, 1, -110)
-settingsBody.Position = UDim2.new(0, 20, 0, 50)
-settingsBody.BackgroundTransparency = 1
-settingsBody.ZIndex = 21
-settingsBody.Parent = settingsPanel
-
--- Independent of the corner volumeButton's loud/quiet/muted cycle -- this
--- gives fine-grained 0-100 control over the same Sound instance's Volume.
-local masterVolumeValue = math.floor(backgroundMusic.Volume * 100 + 0.5)
-
-makeStepperRow(
-	settingsBody,
-	"Master Volume",
-	0,
-	100,
-	10,
-	function()
-		return masterVolumeValue
-	end,
-	function(newValue)
-		masterVolumeValue = newValue
-		backgroundMusic.Volume = newValue / 100
-	end,
-	function(value)
-		return tostring(value) .. "%"
-	end
-)
-
-local settingsCloseButton = Instance.new("TextButton")
-settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
-settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-settingsCloseButton.Font = Enum.Font.GothamBold
-settingsCloseButton.TextSize = 16
-settingsCloseButton.Text = "Close"
-settingsCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-settingsCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-settingsCloseButton.ZIndex = 21
-settingsCloseButton.Parent = settingsPanel
-polishButton(settingsCloseButton, 12)
-
-settingsCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	settingsBackdrop.Visible = false
-end)
-
-settingsButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	settingsBackdrop.Visible = true
-end)
-
-end -- Settings overlay
-
--- ===== Run Setup overlay: pick a Deck Variant + Difficulty before a new
--- run begins. FEATURE 8, reachable from the main menu ("New Run..."). =====
-
-local runSetupBackdrop = Instance.new("Frame")
-runSetupBackdrop.Name = "RunSetupBackdrop"
-runSetupBackdrop.Size = UDim2.fromScale(1, 1)
-runSetupBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-runSetupBackdrop.BackgroundTransparency = 0.4
-runSetupBackdrop.Visible = false
-runSetupBackdrop.ZIndex = 25 -- above the in-game overlays; it's reachable from the menu too
-runSetupBackdrop.Parent = screenGui
-
-local runSetupPanel = Instance.new("Frame")
-runSetupPanel.Size = UDim2.fromScale(0.6, 0.72)
-runSetupPanel.Position = UDim2.fromScale(0.2, 0.13)
-runSetupPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-runSetupPanel.ZIndex = 26
-runSetupPanel.Parent = runSetupBackdrop
-polishPanel(runSetupPanel, 16)
-addSoftShadow(runSetupPanel, 18)
-
-local runSetupTitle = Instance.new("TextLabel")
-runSetupTitle.Size = UDim2.new(1, 0, 0, 40)
-runSetupTitle.BackgroundTransparency = 1
-runSetupTitle.Font = Enum.Font.GothamBold
-runSetupTitle.TextSize = 22
-runSetupTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-runSetupTitle.Text = "Start a New Run"
-runSetupTitle.ZIndex = 26
-runSetupTitle.Parent = runSetupPanel
-
-local runSetupScroll = Instance.new("ScrollingFrame")
-runSetupScroll.Size = UDim2.new(1, -30, 1, -110)
-runSetupScroll.Position = UDim2.new(0, 15, 0, 45)
-runSetupScroll.BackgroundTransparency = 1
-runSetupScroll.BorderSizePixel = 0
-runSetupScroll.ScrollBarThickness = 8
-runSetupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-runSetupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-runSetupScroll.ZIndex = 26
-runSetupScroll.Parent = runSetupPanel
-
-local runSetupLayout = Instance.new("UIListLayout")
-runSetupLayout.Padding = UDim.new(0, 14)
-runSetupLayout.Parent = runSetupScroll
-
--- accentColor: a whole colored bar (not just tinted text) so "which
--- section am I in" is answerable at a glance while scrolling, even before
--- reading the word -- Deck Variant is gold, Difficulty is crimson, and
--- every card below carries a matching accent stripe (see makePickCard).
-local function makeRunSetupSectionLabel(text, icon, order, accentColor)
-	local header = Instance.new("Frame")
-	header.Size = UDim2.new(1, 0, 0, 32)
-	header.BackgroundColor3 = accentColor
-	header.BackgroundTransparency = 0.75
-	header.LayoutOrder = order
-	header.ZIndex = 26
-	header.Parent = runSetupScroll
-	polishPanel(header, 8)
-
-	local stripe = Instance.new("Frame")
-	stripe.Size = UDim2.new(0, 4, 1, -10)
-	stripe.Position = UDim2.new(0, 0, 0, 5)
-	stripe.BackgroundColor3 = accentColor
-	stripe.BorderSizePixel = 0
-	stripe.ZIndex = 27
-	stripe.Parent = header
-	roundCorner(stripe, 2)
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, -20, 1, 0)
-	label.Position = UDim2.new(0, 14, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 17
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextColor3 = Color3.fromRGB(255, 240, 215)
-	label.Text = icon .. "  " .. text
-	label.ZIndex = 27
-	label.Parent = header
-	return header
-end
-
-local selectedDeckVariantId = DeckVariants.DefaultId
-local selectedDifficultyId = DifficultyTiers.DefaultId
-local deckVariantCards = {}
-local difficultyCards = {}
-
--- Deck Variant = gold (matches the game's card-suit gold), Difficulty =
--- crimson (danger/stakes read) -- reused for both the section headers
--- above and the accent stripe on every card in that section below.
-local DECK_VARIANT_ACCENT = Color3.fromRGB(255, 200, 90)
-local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
-
-makeRunSetupSectionLabel("Deck Variant", "🃏", 1, DECK_VARIANT_ACCENT)
-makeRunSetupSectionLabel("Difficulty", "⚔️", 19, DIFFICULTY_ACCENT)
-
-local function makePickCard(parent, order, name, description, isSelected, accentColor)
-	local card = Instance.new("Frame")
-	card.Size = UDim2.new(1, 0, 0, 60)
-	card.BackgroundColor3 = isSelected and Color3.fromRGB(90, 70, 40) or Color3.fromRGB(60, 45, 32)
-	card.LayoutOrder = order
-	card.ZIndex = 26
-	card.Parent = parent
-	polishPanel(card, 10)
-
-	local stripe = Instance.new("Frame")
-	stripe.Size = UDim2.new(0, 4, 1, -12)
-	stripe.Position = UDim2.new(0, 0, 0, 6)
-	stripe.BackgroundColor3 = accentColor
-	stripe.BorderSizePixel = 0
-	stripe.ZIndex = 27
-	stripe.Parent = card
-	roundCorner(stripe, 2)
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -30, 0, 22)
-	nameLabel.Position = UDim2.new(0, 16, 0, 4)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 15
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-	nameLabel.Text = (isSelected and "✓ " or "") .. name
-	nameLabel.ZIndex = 26
-	nameLabel.Parent = card
-
-	local descLabel = Instance.new("TextLabel")
-	descLabel.Size = UDim2.new(1, -30, 0, 30)
-	descLabel.Position = UDim2.new(0, 16, 0, 26)
-	descLabel.BackgroundTransparency = 1
-	descLabel.Font = Enum.Font.Gotham
-	descLabel.TextSize = 13
-	descLabel.TextWrapped = true
-	descLabel.TextXAlignment = Enum.TextXAlignment.Left
-	descLabel.TextColor3 = Color3.fromRGB(210, 195, 175)
-	descLabel.Text = description
-	descLabel.ZIndex = 26
-	descLabel.Parent = card
-
-	local clickCatcher = Instance.new("TextButton")
-	clickCatcher.Size = UDim2.fromScale(1, 1)
-	clickCatcher.BackgroundTransparency = 1
-	clickCatcher.Text = ""
-	clickCatcher.ZIndex = 26
-	clickCatcher.Parent = card
-
-	return card, clickCatcher
-end
-
-local function refreshRunSetupCards()
-	for _, child in ipairs(deckVariantCards) do
-		child:Destroy()
-	end
-	deckVariantCards = {}
-	for i, variant in ipairs(DeckVariants.Definitions) do
-		local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId, DECK_VARIANT_ACCENT)
-		table.insert(deckVariantCards, card)
-		clickCatcher.MouseButton1Click:Connect(function()
-			playClickSfx(0.4)
-			selectedDeckVariantId = variant.id
-			refreshRunSetupCards()
-		end)
-	end
-
-	for _, child in ipairs(difficultyCards) do
-		child:Destroy()
-	end
-	difficultyCards = {}
-	for i, tier in ipairs(DifficultyTiers.Definitions) do
-		local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId, DIFFICULTY_ACCENT)
-		table.insert(difficultyCards, card)
-		clickCatcher.MouseButton1Click:Connect(function()
-			playClickSfx(0.4)
-			selectedDifficultyId = tier.id
-			refreshRunSetupCards()
-		end)
-	end
-end
-
-refreshRunSetupCards()
-
-local runSetupBeginButton = Instance.new("TextButton")
-runSetupBeginButton.Size = UDim2.new(0, 200, 0, 44)
-runSetupBeginButton.Position = UDim2.new(0.5, -210, 1, -55)
-runSetupBeginButton.Font = Enum.Font.GothamBold
-runSetupBeginButton.TextSize = 18
-runSetupBeginButton.Text = "Begin Run"
-runSetupBeginButton.BackgroundColor3 = Color3.fromRGB(70, 110, 65)
-runSetupBeginButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-runSetupBeginButton.ZIndex = 26
-runSetupBeginButton.Parent = runSetupPanel
-polishButton(runSetupBeginButton, 12)
-
-local runSetupCancelButton = Instance.new("TextButton")
-runSetupCancelButton.Size = UDim2.new(0, 140, 0, 44)
-runSetupCancelButton.Position = UDim2.new(0.5, 10, 1, -55)
-runSetupCancelButton.Font = Enum.Font.GothamBold
-runSetupCancelButton.TextSize = 16
-runSetupCancelButton.Text = "Cancel"
-runSetupCancelButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-runSetupCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-runSetupCancelButton.ZIndex = 26
-runSetupCancelButton.Parent = runSetupPanel
-polishButton(runSetupCancelButton, 12)
-
-runSetupCancelButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	runSetupBackdrop.Visible = false
-end)
-
-runSetupBeginButton.MouseButton1Click:Connect(function()
-	playSfx(SOUND_IDS.buyPatron)
-	StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId)
-	runSetupBackdrop.Visible = false
-	menuFrame.Visible = false
-	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-		backgroundMusic:Play()
-	end
-end)
-
-local function openRunSetup()
-	playClickSfx()
-	refreshRunSetupCards()
-	runSetupBackdrop.Visible = true
-end
-
-menuNewRunButton.MouseButton1Click:Connect(openRunSetup)
+-- ===== Run Setup overlay =====
+-- Extracted into Client/RunSetup.lua. Fully self-contained (only opened
+-- from the menu's "New Run..." button), so nothing needs to come back out
+-- of the require() call.
+require(script.RunSetup)({
+	screenGui = screenGui,
+	root = root,
+	menuFrame = menuFrame,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	playSfx = playSfx,
+	SOUND_IDS = SOUND_IDS,
+	DeckVariants = DeckVariants,
+	DifficultyTiers = DifficultyTiers,
+	StartRunRemote = StartRunRemote,
+	backgroundMusic = backgroundMusic,
+	menuNewRunButton = menuNewRunButton,
+})
 
 -- ===== Menu -> game transition, volume cycling =====
 
@@ -1775,374 +1418,50 @@ local function applyTheme(themeId)
 end
 
 -- ===== Collection Gallery overlay =====
--- FEATURE 11: a grid of every Patron and Theme in the game -- owned ones
--- shown in full, locked ones silhouetted with a "?". Session-scoped like
--- the rest of the run state (no DataStore yet -- see the Themes.lua
--- comment), so this shows what's been found so far THIS run.
---
--- Wrapped in do/end -- see the local-variable-budget note near the top of
--- the file. Everything here (including refreshCollection's forward-declare
--- and its use in the button click handler below) is self-contained to this
--- section, so it's safe to scope it entirely.
-do
+-- Extracted into Client/Collection.lua. Fully self-contained (only opened
+-- from its own corner button), so nothing needs to come back out of the
+-- require() call.
+require(script.Collection)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	collectionButton = collectionButton,
+	Patrons = Patrons,
+	Themes = Themes,
+	getLatestState = function()
+		return latestState
+	end,
+})
 
-local collectionBackdrop = Instance.new("Frame")
-collectionBackdrop.Name = "CollectionBackdrop"
-collectionBackdrop.Size = UDim2.fromScale(1, 1)
-collectionBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-collectionBackdrop.BackgroundTransparency = 0.4
-collectionBackdrop.Visible = false
-collectionBackdrop.ZIndex = 20
-collectionBackdrop.Parent = screenGui
+-- ===== "Unlocked!" popup + Round reward popup =====
+-- Extracted into Client/UnlockPopup.lua and Client/RoundRewardPopup.lua.
+-- render() further down still needs to call showUnlockPopup()/
+-- showRoundReward() (and tracks its own lastOwnedPatronIds/
+-- lastOwnedThemeIds/hasRenderedOnce/lastPhase state to know when to), so
+-- both functions come back out of their require() calls.
+local UnlockPopupModule = require(script.UnlockPopup)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	tweenTo = tweenTo,
+})
+local showUnlockPopup = UnlockPopupModule.showUnlockPopup
 
-local collectionPanel = Instance.new("Frame")
-collectionPanel.Size = UDim2.fromScale(0.6, 0.7)
-collectionPanel.Position = UDim2.fromScale(0.2, 0.15)
-collectionPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-collectionPanel.ZIndex = 21
-collectionPanel.Parent = collectionBackdrop
-polishPanel(collectionPanel, 16)
-addSoftShadow(collectionPanel, 18)
+local RoundRewardPopupModule = require(script.RoundRewardPopup)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	tweenTo = tweenTo,
+	playSfx = playSfx,
+	SOUND_IDS = SOUND_IDS,
+})
+local showRoundReward = RoundRewardPopupModule.showRoundReward
 
-local collectionTitle = Instance.new("TextLabel")
-collectionTitle.Size = UDim2.new(1, 0, 0, 40)
-collectionTitle.BackgroundTransparency = 1
-collectionTitle.Font = Enum.Font.GothamBold
-collectionTitle.TextSize = 22
-collectionTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-collectionTitle.Text = "Collection -- this run"
-collectionTitle.ZIndex = 21
-collectionTitle.Parent = collectionPanel
-
-local collectionScroll = Instance.new("ScrollingFrame")
-collectionScroll.Size = UDim2.new(1, -30, 1, -110)
-collectionScroll.Position = UDim2.new(0, 15, 0, 45)
-collectionScroll.BackgroundTransparency = 1
-collectionScroll.BorderSizePixel = 0
-collectionScroll.ScrollBarThickness = 8
-collectionScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-collectionScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-collectionScroll.ZIndex = 21
-collectionScroll.Parent = collectionPanel
-
-local collectionLayout = Instance.new("UIListLayout")
-collectionLayout.Padding = UDim.new(0, 10)
-collectionLayout.Parent = collectionScroll
-
-local collectionCloseButton = Instance.new("TextButton")
-collectionCloseButton.Size = UDim2.new(0, 140, 0, 40)
-collectionCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-collectionCloseButton.Font = Enum.Font.GothamBold
-collectionCloseButton.TextSize = 16
-collectionCloseButton.Text = "Close"
-collectionCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-collectionCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-collectionCloseButton.ZIndex = 21
-collectionCloseButton.Parent = collectionPanel
-polishButton(collectionCloseButton, 12)
-
-collectionCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	collectionBackdrop.Visible = false
-end)
-
-local function makeCollectionSectionHeader(text, order)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, 22)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 16
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextColor3 = Color3.fromRGB(255, 214, 130)
-	label.Text = text
-	label.LayoutOrder = order
-	label.ZIndex = 21
-	label.Parent = collectionScroll
-	return label
-end
-
-local function makeCollectionRow(order, name, description, isOwned, swatchColor, icon)
-	local row = Instance.new("Frame")
-	row.Size = UDim2.new(1, 0, 0, 50)
-	row.BackgroundColor3 = isOwned and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38)
-	row.LayoutOrder = order
-	row.ZIndex = 21
-	row.Parent = collectionScroll
-	polishPanel(row, 10)
-
-	local swatch = Instance.new("Frame")
-	swatch.Size = UDim2.new(0, 30, 0, 30)
-	swatch.Position = UDim2.new(0, 10, 0.5, -15)
-	swatch.BackgroundColor3 = isOwned and (swatchColor or Color3.fromRGB(200, 170, 100)) or Color3.fromRGB(70, 65, 60)
-	swatch.ZIndex = 21
-	swatch.Parent = row
-	roundCorner(swatch, 8)
-
-	local swatchLabel = Instance.new("TextLabel")
-	swatchLabel.Size = UDim2.fromScale(1, 1)
-	swatchLabel.BackgroundTransparency = 1
-	swatchLabel.Font = Enum.Font.GothamBold
-	swatchLabel.TextSize = 16
-	swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	swatchLabel.Text = isOwned and (icon or "") or "?"
-	swatchLabel.ZIndex = 21
-	swatchLabel.Parent = swatch
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -60, 0, 22)
-	nameLabel.Position = UDim2.new(0, 50, 0, 4)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 15
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.TextColor3 = isOwned and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(140, 135, 130)
-	nameLabel.Text = isOwned and name or "???"
-	nameLabel.ZIndex = 21
-	nameLabel.Parent = row
-
-	local descLabel = Instance.new("TextLabel")
-	descLabel.Size = UDim2.new(1, -60, 0, 20)
-	descLabel.Position = UDim2.new(0, 50, 0, 24)
-	descLabel.BackgroundTransparency = 1
-	descLabel.Font = Enum.Font.Gotham
-	descLabel.TextSize = 12
-	descLabel.TextWrapped = true
-	descLabel.TextXAlignment = Enum.TextXAlignment.Left
-	descLabel.TextColor3 = isOwned and Color3.fromRGB(210, 195, 175) or Color3.fromRGB(120, 115, 110)
-	descLabel.Text = isOwned and description or "Not found yet this run."
-	descLabel.ZIndex = 21
-	descLabel.Parent = row
-end
-
--- Forward-declared for the same reason as the other refresh* functions.
-local refreshCollection
-
-local function refreshCollectionImpl()
-	for _, child in ipairs(collectionScroll:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local ownedPatronIds = {}
-	local ownedThemeIds = {}
-	if latestState then
-		for _, patron in ipairs(latestState.ownedPatrons or {}) do
-			ownedPatronIds[patron.id] = true
-		end
-		for _, id in ipairs(latestState.ownedThemeIds or {}) do
-			ownedThemeIds[id] = true
-		end
-	end
-
-	local ownedPatronCount = 0
-	for _ in pairs(ownedPatronIds) do
-		ownedPatronCount = ownedPatronCount + 1
-	end
-	local ownedThemeCount = 0
-	for _ in pairs(ownedThemeIds) do
-		ownedThemeCount = ownedThemeCount + 1
-	end
-
-	makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
-	for i, patron in ipairs(Patrons.Definitions) do
-		makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100), patron.icon)
-	end
-
-	makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
-	for i, theme in ipairs(Themes.Definitions) do
-		makeCollectionRow(100 + i, theme.name, theme.description, ownedThemeIds[theme.id] == true, theme.colors.accent)
-	end
-end
-
-refreshCollection = refreshCollectionImpl
-
-collectionButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	refreshCollection()
-	collectionBackdrop.Visible = true
-end)
-
-end -- Collection Gallery overlay
-
--- ===== "Unlocked!" popup =====
--- FEATURE 12: a quick celebratory card shown whenever a NEW Patron or Theme
--- appears in the state compared to the previous render() -- see the diff
--- check inside render() further down.
---
--- NOTE: deliberately NOT using addSoftShadow() here, unlike every other
--- overlay. addSoftShadow() parents its shadow Frame into panel.Parent and
--- sizes it to 100% of that parent -- every other overlay's panel lives
--- inside a full-screen "xBackdrop" Frame whose Visible=false cascades down
--- to hide the shadow too. This popup is a small floating card parented
--- directly to screenGui (no backdrop), so that shadow would default to
--- Visible=true and sit as a permanent ~full-screen 55%-opaque black layer
--- over everything -- this was root-caused as the cause of a "dark right
--- away" regression and reverted once already. Skipping the shadow avoids
--- it entirely; the rounded corners from polishPanel are enough polish.
---
--- lastOwnedPatronIds/lastOwnedThemeIds/hasRenderedOnce and showUnlockPopup
--- are all read/called from render() much further down in the file, so
--- they're declared here (outside the do/end below) and assigned to from
--- inside it -- everything else in this section is self-contained and can
--- be safely scoped to the block. See the local-variable-budget note near
--- the top of the file.
 local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
-local showUnlockPopup
-
--- lastPhase/showRoundReward: same forward-declare pattern, for the round
--- reward popup below -- lastPhase is read/written from render() to detect
--- the moment a round is WON (phase transitions into "shop"), not just
--- "currently in the shop" (which stays true across unrelated re-renders
--- while shopping, e.g. buying a Patron).
 local lastPhase = nil
-local showRoundReward
-
-do
-
-local unlockPopup = Instance.new("Frame")
-unlockPopup.Name = "UnlockPopup"
-unlockPopup.Size = UDim2.new(0, 280, 0, 140)
-unlockPopup.AnchorPoint = Vector2.new(0.5, 0.5)
-unlockPopup.Position = UDim2.fromScale(0.5, 0.5)
-unlockPopup.BackgroundColor3 = Color3.fromRGB(50, 40, 26)
-unlockPopup.Visible = false
-unlockPopup.ZIndex = 30
-unlockPopup.Parent = screenGui
-polishPanel(unlockPopup, 18)
-
-local unlockPopupHeader = Instance.new("TextLabel")
-unlockPopupHeader.Size = UDim2.new(1, 0, 0, 34)
-unlockPopupHeader.Position = UDim2.new(0, 0, 0, 12)
-unlockPopupHeader.BackgroundTransparency = 1
-unlockPopupHeader.Font = Enum.Font.GothamBold
-unlockPopupHeader.TextSize = 20
-unlockPopupHeader.TextColor3 = Color3.fromRGB(255, 214, 130)
-unlockPopupHeader.Text = "Unlocked!"
-unlockPopupHeader.ZIndex = 30
-unlockPopupHeader.Parent = unlockPopup
-
-local unlockPopupName = Instance.new("TextLabel")
-unlockPopupName.Size = UDim2.new(1, -30, 0, 26)
-unlockPopupName.Position = UDim2.new(0, 15, 0, 48)
-unlockPopupName.BackgroundTransparency = 1
-unlockPopupName.Font = Enum.Font.GothamBold
-unlockPopupName.TextSize = 17
-unlockPopupName.TextColor3 = Color3.fromRGB(250, 240, 220)
-unlockPopupName.Text = ""
-unlockPopupName.ZIndex = 30
-unlockPopupName.Parent = unlockPopup
-
-local unlockPopupDescription = Instance.new("TextLabel")
-unlockPopupDescription.Size = UDim2.new(1, -30, 0, 40)
-unlockPopupDescription.Position = UDim2.new(0, 15, 0, 76)
-unlockPopupDescription.BackgroundTransparency = 1
-unlockPopupDescription.Font = Enum.Font.Gotham
-unlockPopupDescription.TextSize = 13
-unlockPopupDescription.TextWrapped = true
-unlockPopupDescription.TextColor3 = Color3.fromRGB(215, 200, 180)
-unlockPopupDescription.Text = ""
-unlockPopupDescription.ZIndex = 30
-unlockPopupDescription.Parent = unlockPopup
-
-local unlockPopupScale = Instance.new("UIScale")
-unlockPopupScale.Scale = 1
-unlockPopupScale.Parent = unlockPopup
-
-local unlockPopupDismissCatcher = Instance.new("TextButton")
-unlockPopupDismissCatcher.Size = UDim2.fromScale(1, 1)
-unlockPopupDismissCatcher.BackgroundTransparency = 1
-unlockPopupDismissCatcher.Text = ""
-unlockPopupDismissCatcher.ZIndex = 30
-unlockPopupDismissCatcher.Parent = unlockPopup
-
-local unlockPopupToken = 0
-
-showUnlockPopup = function(name, description)
-	unlockPopupToken = unlockPopupToken + 1
-	local myToken = unlockPopupToken
-
-	unlockPopupName.Text = name
-	unlockPopupDescription.Text = description or ""
-	unlockPopup.Visible = true
-	unlockPopupScale.Scale = 0.7
-	tweenTo(unlockPopupScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-	local function dismiss()
-		if unlockPopupToken ~= myToken then
-			return
-		end
-		unlockPopup.Visible = false
-	end
-
-	unlockPopupDismissCatcher.MouseButton1Click:Connect(dismiss)
-	task.delay(2.4, dismiss)
-end
-
-end -- "Unlocked!" popup
-
--- ----- Round reward popup: "+$X Tips!" on round win, with its own cash SFX -----
--- Requested by Ahmed: a visual callout for how much you just earned when a
--- round is won, plus a cash sound distinct from the shop Buy sound. Parented
--- to screenGui directly (no backdrop) same as the Unlock popup right above
--- -- see that block's comment for why addSoftShadow is deliberately skipped
--- here too.
-do
-
-local roundRewardPopup = Instance.new("Frame")
-roundRewardPopup.Name = "RoundRewardPopup"
-roundRewardPopup.Size = UDim2.new(0, 260, 0, 100)
-roundRewardPopup.AnchorPoint = Vector2.new(0.5, 0.5)
-roundRewardPopup.Position = UDim2.fromScale(0.5, 0.42)
-roundRewardPopup.BackgroundColor3 = Color3.fromRGB(40, 55, 35)
-roundRewardPopup.Visible = false
-roundRewardPopup.ZIndex = 28
-roundRewardPopup.Parent = screenGui
-polishPanel(roundRewardPopup, 18)
-
-local roundRewardTitle = Instance.new("TextLabel")
-roundRewardTitle.Size = UDim2.new(1, -20, 0, 30)
-roundRewardTitle.Position = UDim2.new(0, 10, 0, 12)
-roundRewardTitle.BackgroundTransparency = 1
-roundRewardTitle.Font = Enum.Font.GothamBold
-roundRewardTitle.TextSize = 20
-roundRewardTitle.TextColor3 = Color3.fromRGB(255, 230, 180)
-roundRewardTitle.Text = "Round Complete!"
-roundRewardTitle.ZIndex = 28
-roundRewardTitle.Parent = roundRewardPopup
-
-local roundRewardAmount = Instance.new("TextLabel")
-roundRewardAmount.Size = UDim2.new(1, -20, 0, 40)
-roundRewardAmount.Position = UDim2.new(0, 10, 0, 46)
-roundRewardAmount.BackgroundTransparency = 1
-roundRewardAmount.Font = Enum.Font.GothamBold
-roundRewardAmount.TextSize = 28
-roundRewardAmount.TextColor3 = Color3.fromRGB(150, 235, 140)
-roundRewardAmount.Text = ""
-roundRewardAmount.ZIndex = 28
-roundRewardAmount.Parent = roundRewardPopup
-
-local roundRewardScale = Instance.new("UIScale")
-roundRewardScale.Scale = 1
-roundRewardScale.Parent = roundRewardPopup
-
-showRoundReward = function(amount)
-	roundRewardAmount.Text = string.format("+$%d Tips", amount)
-	roundRewardPopup.Visible = true
-	roundRewardScale.Scale = 0.6
-	playSfx(SOUND_IDS.roundReward, 1)
-	tweenTo(roundRewardScale, { Scale = 1.15 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	task.delay(0.2, function()
-		tweenTo(roundRewardScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	end)
-	task.delay(2.2, function()
-		roundRewardPopup.Visible = false
-	end)
-end
-
-end -- Round reward popup
 
 local function selectedIndicesArray()
 	local out = {}
