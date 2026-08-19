@@ -81,6 +81,19 @@ Themes.Definitions = {
 			cardSelected = Color3.fromRGB(255, 140, 140),
 		},
 	},
+	{
+		id = "neon_joker",
+		name = "Neon Joker",
+		description = "Gold and violet, straight off the marquee -- the game's own poster colors.",
+		price = 15,
+		colors = {
+			background = Color3.fromRGB(20, 10, 28),
+			panelBg = Color3.fromRGB(42, 20, 58),
+			accent = Color3.fromRGB(212, 160, 60),
+			cardBase = Color3.fromRGB(250, 240, 225),
+			cardSelected = Color3.fromRGB(200, 90, 255),
+		},
+	},
 }
 
 function Themes.getById(id)

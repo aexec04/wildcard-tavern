@@ -1541,7 +1541,13 @@ journeyMapScroll.ScrollingDirection = Enum.ScrollingDirection.X
 journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
 journeyMapScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
 journeyMapScroll.ZIndex = 21
-journeyMapScroll.ClipsDescendants = false -- the avatar marker sits slightly above the node row; don't let the scroll frame's default clipping hide it
+-- ClipsDescendants intentionally left at its ScrollingFrame default (true):
+-- this is a horizontally-scrolling strip, and the whole point of clipping
+-- is that only the currently-scrolled-into-view slice of the (much wider)
+-- node row shows. Turning it off -- tried briefly while chasing the avatar
+-- visibility bug -- let the ENTIRE node row + path line render unclipped,
+-- spilling out past the panel. The real avatar bug turned out to be the
+-- currentTheme crash below, not clipping, so this stays at the default.
 journeyMapScroll.Parent = journeyPanel
 
 -- A thin path line behind the nodes, purely decorative -- gives the "walk
@@ -2140,19 +2146,41 @@ local runSetupLayout = Instance.new("UIListLayout")
 runSetupLayout.Padding = UDim.new(0, 14)
 runSetupLayout.Parent = runSetupScroll
 
-local function makeRunSetupSectionLabel(text, order)
+-- accentColor: a whole colored bar (not just tinted text) so "which
+-- section am I in" is answerable at a glance while scrolling, even before
+-- reading the word -- Deck Variant is gold, Difficulty is crimson, and
+-- every card below carries a matching accent stripe (see makePickCard).
+local function makeRunSetupSectionLabel(text, icon, order, accentColor)
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0, 32)
+	header.BackgroundColor3 = accentColor
+	header.BackgroundTransparency = 0.75
+	header.LayoutOrder = order
+	header.ZIndex = 26
+	header.Parent = runSetupScroll
+	polishPanel(header, 8)
+
+	local stripe = Instance.new("Frame")
+	stripe.Size = UDim2.new(0, 4, 1, -10)
+	stripe.Position = UDim2.new(0, 0, 0, 5)
+	stripe.BackgroundColor3 = accentColor
+	stripe.BorderSizePixel = 0
+	stripe.ZIndex = 27
+	stripe.Parent = header
+	roundCorner(stripe, 2)
+
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, 22)
+	label.Size = UDim2.new(1, -20, 1, 0)
+	label.Position = UDim2.new(0, 14, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 16
+	label.TextSize = 17
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextColor3 = Color3.fromRGB(255, 214, 130)
-	label.Text = text
-	label.LayoutOrder = order
-	label.ZIndex = 26
-	label.Parent = runSetupScroll
-	return label
+	label.TextColor3 = Color3.fromRGB(255, 240, 215)
+	label.Text = icon .. "  " .. text
+	label.ZIndex = 27
+	label.Parent = header
+	return header
 end
 
 local selectedDeckVariantId = DeckVariants.DefaultId
@@ -2160,10 +2188,16 @@ local selectedDifficultyId = DifficultyTiers.DefaultId
 local deckVariantCards = {}
 local difficultyCards = {}
 
-makeRunSetupSectionLabel("Deck Variant", 1)
-makeRunSetupSectionLabel("Difficulty", 19)
+-- Deck Variant = gold (matches the game's card-suit gold), Difficulty =
+-- crimson (danger/stakes read) -- reused for both the section headers
+-- above and the accent stripe on every card in that section below.
+local DECK_VARIANT_ACCENT = Color3.fromRGB(255, 200, 90)
+local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
 
-local function makePickCard(parent, order, name, description, isSelected)
+makeRunSetupSectionLabel("Deck Variant", "🃏", 1, DECK_VARIANT_ACCENT)
+makeRunSetupSectionLabel("Difficulty", "⚔️", 19, DIFFICULTY_ACCENT)
+
+local function makePickCard(parent, order, name, description, isSelected, accentColor)
 	local card = Instance.new("Frame")
 	card.Size = UDim2.new(1, 0, 0, 60)
 	card.BackgroundColor3 = isSelected and Color3.fromRGB(90, 70, 40) or Color3.fromRGB(60, 45, 32)
@@ -2172,9 +2206,18 @@ local function makePickCard(parent, order, name, description, isSelected)
 	card.Parent = parent
 	polishPanel(card, 10)
 
+	local stripe = Instance.new("Frame")
+	stripe.Size = UDim2.new(0, 4, 1, -12)
+	stripe.Position = UDim2.new(0, 0, 0, 6)
+	stripe.BackgroundColor3 = accentColor
+	stripe.BorderSizePixel = 0
+	stripe.ZIndex = 27
+	stripe.Parent = card
+	roundCorner(stripe, 2)
+
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -20, 0, 22)
-	nameLabel.Position = UDim2.new(0, 10, 0, 4)
+	nameLabel.Size = UDim2.new(1, -30, 0, 22)
+	nameLabel.Position = UDim2.new(0, 16, 0, 4)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextSize = 15
@@ -2185,8 +2228,8 @@ local function makePickCard(parent, order, name, description, isSelected)
 	nameLabel.Parent = card
 
 	local descLabel = Instance.new("TextLabel")
-	descLabel.Size = UDim2.new(1, -20, 0, 30)
-	descLabel.Position = UDim2.new(0, 10, 0, 26)
+	descLabel.Size = UDim2.new(1, -30, 0, 30)
+	descLabel.Position = UDim2.new(0, 16, 0, 26)
 	descLabel.BackgroundTransparency = 1
 	descLabel.Font = Enum.Font.Gotham
 	descLabel.TextSize = 13
@@ -2213,7 +2256,7 @@ local function refreshRunSetupCards()
 	end
 	deckVariantCards = {}
 	for i, variant in ipairs(DeckVariants.Definitions) do
-		local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId)
+		local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId, DECK_VARIANT_ACCENT)
 		table.insert(deckVariantCards, card)
 		clickCatcher.MouseButton1Click:Connect(function()
 			playClickSfx(0.4)
@@ -2227,7 +2270,7 @@ local function refreshRunSetupCards()
 	end
 	difficultyCards = {}
 	for i, tier in ipairs(DifficultyTiers.Definitions) do
-		local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId)
+		local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId, DIFFICULTY_ACCENT)
 		table.insert(difficultyCards, card)
 		clickCatcher.MouseButton1Click:Connect(function()
 			playClickSfx(0.4)
