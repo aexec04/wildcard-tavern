@@ -1108,6 +1108,17 @@ do
 	-- embellishment for this one panel rather than hand-deriving a shadow
 	-- Size/Position that tracks shopFrame's own SIDEBAR_WIDTH-aware math.
 
+	-- Every descendant below explicitly gets ZIndex = 5, matching shopFrame
+	-- itself. This mirrors the convention every OTHER elevated-ZIndex panel
+	-- in this file already follows (howToPlayPanel/howToPlayTitle/... all
+	-- share one ZIndex, themesPanel/themesTitle/... likewise, etc.) -- and
+	-- it's required here: shopFrame's own children previously had no
+	-- explicit ZIndex (defaulting to 1), and with shopFrame elevated to 5
+	-- to beat the sidebar, that mismatch was letting shopFrame's own
+	-- background paint over its un-elevated children instead of showing
+	-- them, which is what made the panel render as an empty rectangle.
+	local SHOP_ZINDEX = 5
+
 	local shopTitle = Instance.new("TextLabel")
 	shopTitle.Size = UDim2.new(1, 0, 0, 36)
 	shopTitle.BackgroundTransparency = 1
@@ -1115,12 +1126,14 @@ do
 	shopTitle.TextSize = 22
 	shopTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
 	shopTitle.Text = "The Bar -- spend your Tips"
+	shopTitle.ZIndex = SHOP_ZINDEX
 	shopTitle.Parent = shopFrame
 
 	local shopTabBar = Instance.new("Frame")
 	shopTabBar.Size = UDim2.new(1, -20, 0, 36)
 	shopTabBar.Position = UDim2.new(0, 10, 0, 40)
 	shopTabBar.BackgroundTransparency = 1
+	shopTabBar.ZIndex = SHOP_ZINDEX
 	shopTabBar.Parent = shopFrame
 
 	local shopTabBarLayout = Instance.new("UIListLayout")
@@ -1132,6 +1145,7 @@ do
 	shopContentArea.Size = UDim2.new(1, -20, 1, -140)
 	shopContentArea.Position = UDim2.new(0, 10, 0, 84)
 	shopContentArea.BackgroundTransparency = 1
+	shopContentArea.ZIndex = SHOP_ZINDEX
 	shopContentArea.Parent = shopFrame
 
 	local function makeShopListTab()
@@ -1143,6 +1157,7 @@ do
 		tab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		tab.CanvasSize = UDim2.new(0, 0, 0, 0)
 		tab.Visible = false
+		tab.ZIndex = SHOP_ZINDEX
 		tab.Parent = shopContentArea
 		local layout = Instance.new("UIListLayout")
 		layout.Padding = UDim.new(0, 8)
@@ -1155,6 +1170,7 @@ do
 		tab.Size = UDim2.fromScale(1, 1)
 		tab.BackgroundTransparency = 1
 		tab.Visible = false
+		tab.ZIndex = SHOP_ZINDEX
 		tab.Parent = shopContentArea
 
 		local emojiLabel = Instance.new("TextLabel")
@@ -1164,6 +1180,7 @@ do
 		emojiLabel.Font = Enum.Font.GothamBold
 		emojiLabel.TextSize = 40
 		emojiLabel.Text = emoji
+		emojiLabel.ZIndex = SHOP_ZINDEX
 		emojiLabel.Parent = tab
 
 		local titleLabel = Instance.new("TextLabel")
@@ -1175,6 +1192,7 @@ do
 		titleLabel.TextSize = 18
 		titleLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
 		titleLabel.Text = title .. " -- coming soon"
+		titleLabel.ZIndex = SHOP_ZINDEX
 		titleLabel.Parent = tab
 
 		local descLabel = Instance.new("TextLabel")
@@ -1187,6 +1205,7 @@ do
 		descLabel.TextWrapped = true
 		descLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
 		descLabel.Text = description
+		descLabel.ZIndex = SHOP_ZINDEX
 		descLabel.Parent = tab
 
 		return tab
@@ -1231,6 +1250,7 @@ do
 		tabButton.Text = def.label
 		tabButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 		tabButton.TextColor3 = Color3.fromRGB(230, 215, 195)
+		tabButton.ZIndex = SHOP_ZINDEX
 		tabButton.Parent = shopTabBar
 		polishButton(tabButton, 8)
 		table.insert(shopTabButtons, { key = def.key, button = tabButton })
@@ -1251,6 +1271,7 @@ do
 	nextRoundButton.Text = "Next Round"
 	nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	nextRoundButton.ZIndex = SHOP_ZINDEX
 	nextRoundButton.Parent = shopFrame
 	polishButton(nextRoundButton, 10)
 end -- do (Shop overlay)
@@ -3554,6 +3575,10 @@ end
 -- A small colored badge with an icon (emoji glyph, not an uploaded image --
 -- see the TavernScene comment for why we don't guess catalog asset IDs)
 -- standing in for "a picture" for each Patron until real art exists.
+-- ZIndex = 5 everywhere below matches SHOP_ZINDEX from the Shop overlay's
+-- construction block above (that local isn't in scope down here, so this
+-- repeats the literal -- see the comment there for why every descendant
+-- needs it explicitly rather than inheriting shopFrame's ZIndex).
 local function makePatronIconBadge(parent, icon)
 	local badge = Instance.new("TextLabel")
 	badge.Size = UDim2.new(0, 46, 0, 46)
@@ -3562,6 +3587,7 @@ local function makePatronIconBadge(parent, icon)
 	badge.Font = Enum.Font.GothamBold
 	badge.TextSize = 22
 	badge.Text = icon or "🎴"
+	badge.ZIndex = 5
 	badge.Parent = parent
 	roundCorner(badge, 10)
 	return badge
@@ -3583,6 +3609,7 @@ local function rebuildShop(shopOffers)
 		emptyLabel.TextWrapped = true
 		emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
 		emptyLabel.Text = "No new Patrons to offer this visit -- you've met everyone available so far!"
+		emptyLabel.ZIndex = 5
 		emptyLabel.Parent = shopBuyListFrame
 		return
 	end
@@ -3593,6 +3620,7 @@ local function rebuildShop(shopOffers)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 64)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.ZIndex = 5
 		row.Parent = shopBuyListFrame
 		polishPanel(row, 10)
 
@@ -3608,6 +3636,7 @@ local function rebuildShop(shopOffers)
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(250, 240, 220)
 		label.Text = string.format("%s (%d tips)\n%s", offer.name, offer.price, offer.description)
+		label.ZIndex = 5
 		label.Parent = row
 
 		local buyButton = Instance.new("TextButton")
@@ -3618,6 +3647,7 @@ local function rebuildShop(shopOffers)
 		buyButton.Text = "Buy"
 		buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		buyButton.ZIndex = 5
 		buyButton.Parent = row
 		polishButton(buyButton, 8)
 
@@ -3649,6 +3679,7 @@ local function rebuildMyPatronsTab(ownedPatrons)
 		emptyLabel.TextWrapped = true
 		emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
 		emptyLabel.Text = "No Patrons yet -- buy some in the Buy Patrons tab!"
+		emptyLabel.ZIndex = 5
 		emptyLabel.Parent = shopMyPatronsListFrame
 		return
 	end
@@ -3660,6 +3691,7 @@ local function rebuildMyPatronsTab(ownedPatrons)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 64)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.ZIndex = 5
 		row.Parent = shopMyPatronsListFrame
 		polishPanel(row, 10)
 
@@ -3675,6 +3707,7 @@ local function rebuildMyPatronsTab(ownedPatrons)
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(250, 240, 220)
 		label.Text = string.format("%s\n%s", owned.name, owned.description)
+		label.ZIndex = 5
 		label.Parent = row
 
 		local discardButton = Instance.new("TextButton")
@@ -3685,6 +3718,7 @@ local function rebuildMyPatronsTab(ownedPatrons)
 		discardButton.Text = "Discard"
 		discardButton.BackgroundColor3 = Color3.fromRGB(110, 55, 45)
 		discardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		discardButton.ZIndex = 5
 		discardButton.Parent = row
 		polishButton(discardButton, 8)
 
