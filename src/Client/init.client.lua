@@ -1094,19 +1094,19 @@ do
 	shopFrame.Parent = root
 	polishPanel(shopFrame, 16)
 
-	-- addSoftShadow's shadow Frame is a plain sibling with no Visible link
-	-- back to the panel it's attached to. That was harmless while shopFrame
-	-- used the default ZIndex (its shadow computed to ZIndex 0, hidden
-	-- behind literally everything). Now that shopFrame.ZIndex = 5 (needed
-	-- to beat the sidebar), its shadow sits at ZIndex 4 -- above the
-	-- sidebar (2) and all normal gameplay UI (default 1) -- so without
-	-- this link it would stay permanently visible as a screen-covering
-	-- dark tint even while the shop is closed. Keep it in lockstep instead.
-	local shopFrameShadow = addSoftShadow(shopFrame, 18)
-	shopFrameShadow.Visible = shopFrame.Visible
-	shopFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		shopFrameShadow.Visible = shopFrame.Visible
-	end)
+	-- Deliberately NOT calling addSoftShadow(shopFrame, ...) here.
+	-- addSoftShadow sizes its shadow Frame using UDim2.new(1, 14, 1, 14) --
+	-- scale 1 of the SHADOW'S OWN PARENT (root, i.e. the full screen), not
+	-- of shopFrame itself. For most other panels in this file that's masked
+	-- because their parent is a purpose-built backdrop already the same
+	-- size as the panel (or the shadow's resulting ZIndex happens to match
+	-- that backdrop's ZIndex, so the mismatch is invisible). shopFrame has
+	-- no backdrop and is parented straight to root, so its shadow would be
+	-- a screen-covering rectangle, not a thin border -- and once ZIndex = 5
+	-- makes that shadow visible (needed to beat the sidebar), it reads as
+	-- the whole screen going dark. Simplest correct fix: skip the shadow
+	-- embellishment for this one panel rather than hand-deriving a shadow
+	-- Size/Position that tracks shopFrame's own SIDEBAR_WIDTH-aware math.
 
 	local shopTitle = Instance.new("TextLabel")
 	shopTitle.Size = UDim2.new(1, 0, 0, 36)
