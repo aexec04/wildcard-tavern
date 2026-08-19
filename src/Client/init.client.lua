@@ -1084,10 +1084,13 @@ local shopMyPatronsListFrame
 do
 	shopFrame = Instance.new("Frame")
 	shopFrame.Name = "Shop"
-	shopFrame.Size = UDim2.fromScale(0.88, 0.82)
-	shopFrame.Position = UDim2.fromScale(0.06, 0.09)
+	-- Same SIDEBAR_WIDTH-aware sizing/position convention as messageLabel/
+	-- bossBanner above, so the panel never sits under the fixed sidebar.
+	shopFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0.86, 0)
+	shopFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0.07, 0)
 	shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	shopFrame.Visible = false
+	shopFrame.ZIndex = 5 -- sidebar is ZIndex 2; without this the sidebar wins the z-fight where they overlap
 	shopFrame.Parent = root
 	polishPanel(shopFrame, 16)
 	addSoftShadow(shopFrame, 18)
