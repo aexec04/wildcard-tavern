@@ -565,9 +565,12 @@ local helpButton = makeCornerButton("?", -110)
 local themesButton = makeCornerButton("🎨", -160)
 local journeyButton = makeCornerButton("🗺", -210)
 local handRefButton = makeCornerButton("📖", -260)
-local deckTrackerButton = makeCornerButton("🂠", -310)
-local settingsButton = makeCornerButton("⚙", -360)
-local collectionButton = makeCornerButton("📔", -410)
+-- No corner button for the Deck Tracker anymore -- the blue deck widget
+-- (bottom-right) is clickable and opens it directly instead (see
+-- deckWidgetButton). Settings/Collection shifted left by 50px to close
+-- the gap left behind.
+local settingsButton = makeCornerButton("⚙", -310)
+local collectionButton = makeCornerButton("📔", -360)
 
 -- ----- Generic hover tooltip -----
 -- Ahmed: "whenever you hover over a button any UI, it should give you the
@@ -630,7 +633,6 @@ addTooltip(helpButton, "How to Play", "left")
 addTooltip(themesButton, "Themes -- change your table's look", "left")
 addTooltip(journeyButton, "Journey -- see the road ahead", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
-addTooltip(deckTrackerButton, "Deck Tracker -- see what's left in the deck", "left")
 addTooltip(settingsButton, "Settings", "left")
 addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
 
@@ -867,9 +869,11 @@ addTooltip(discardButton, "Discard your selected cards and draw new ones")
 -- that parenting choice matters.
 
 -- Wrapped in do...end per the LOCAL VARIABLE BUDGET note up top --
--- deckCountLabel is the only piece render() needs to reach later, so it's
+-- deckCountLabel and deckWidgetButton are the only pieces render()/the
+-- click handler further down need to reach later, so they're
 -- forward-declared and assigned (not re-`local`-declared) inside the block.
 local deckCountLabel
+local deckWidgetButton
 do
 
 local deckWidget = Instance.new("Frame")
@@ -880,6 +884,22 @@ deckWidget.Size = UDim2.new(0, 74, 0, 118)
 deckWidget.BackgroundTransparency = 1
 deckWidget.ZIndex = 2
 deckWidget.Parent = root
+
+-- The deck widget itself IS the Deck Tracker entry point now (no separate
+-- corner button) -- a transparent click-catcher over the whole widget, so
+-- clicking the card-back icon or the count label both open the tracker.
+-- Wired up later (see deckWidgetButton.MouseButton1Click below), at the
+-- point in the file where deckTrackerBackdrop/refreshDeckTracker already
+-- exist -- they're declared further down, so wiring it here would be a
+-- referenced-before-declaration bug.
+deckWidgetButton = Instance.new("TextButton")
+deckWidgetButton.Name = "ClickCatcher"
+deckWidgetButton.Size = UDim2.fromScale(1, 1)
+deckWidgetButton.BackgroundTransparency = 1
+deckWidgetButton.Text = ""
+deckWidgetButton.ZIndex = 3
+deckWidgetButton.Parent = deckWidget
+addTooltip(deckWidgetButton, "Deck Tracker -- click to see what's left in the deck")
 
 local deckCardBack = Instance.new("Frame")
 deckCardBack.Size = UDim2.new(1, 0, 0, 96)
@@ -2295,7 +2315,7 @@ deckTrackerCloseButton.MouseButton1Click:Connect(function()
 	deckTrackerBackdrop.Visible = false
 end)
 
-deckTrackerButton.MouseButton1Click:Connect(function()
+deckWidgetButton.MouseButton1Click:Connect(function()
 	playClickSfx()
 	if refreshDeckTracker then
 		refreshDeckTracker()
