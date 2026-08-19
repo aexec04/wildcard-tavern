@@ -1093,7 +1093,20 @@ do
 	shopFrame.ZIndex = 5 -- sidebar is ZIndex 2; without this the sidebar wins the z-fight where they overlap
 	shopFrame.Parent = root
 	polishPanel(shopFrame, 16)
-	addSoftShadow(shopFrame, 18)
+
+	-- addSoftShadow's shadow Frame is a plain sibling with no Visible link
+	-- back to the panel it's attached to. That was harmless while shopFrame
+	-- used the default ZIndex (its shadow computed to ZIndex 0, hidden
+	-- behind literally everything). Now that shopFrame.ZIndex = 5 (needed
+	-- to beat the sidebar), its shadow sits at ZIndex 4 -- above the
+	-- sidebar (2) and all normal gameplay UI (default 1) -- so without
+	-- this link it would stay permanently visible as a screen-covering
+	-- dark tint even while the shop is closed. Keep it in lockstep instead.
+	local shopFrameShadow = addSoftShadow(shopFrame, 18)
+	shopFrameShadow.Visible = shopFrame.Visible
+	shopFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+		shopFrameShadow.Visible = shopFrame.Visible
+	end)
 
 	local shopTitle = Instance.new("TextLabel")
 	shopTitle.Size = UDim2.new(1, 0, 0, 36)
