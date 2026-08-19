@@ -603,8 +603,12 @@ tooltipPadding.Parent = tooltipLabel
 -- (for buttons near the right side of the screen, so the tooltip doesn't
 -- run off-screen). Default: centered under the button.
 addTooltip = function(button, text, align)
+	-- text can be a plain string (most callers) or a zero-arg function
+	-- returning a string, for tooltips whose content can change after this
+	-- is wired up (e.g. a Patron slot's tooltip depends on whether that
+	-- Patron is currently owned, which changes as you buy/discard them).
 	button.MouseEnter:Connect(function()
-		tooltipLabel.Text = text
+		tooltipLabel.Text = (type(text) == "function") and text() or text
 		local pos = button.AbsolutePosition
 		local size = button.AbsoluteSize
 		if align == "left" then
@@ -631,6 +635,33 @@ addTooltip(settingsButton, "Settings", "left")
 addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
 
 end -- Generic hover tooltip
+
+-- Sidebar Patron slot tooltips: slot i always represents
+-- Patrons.Definitions[i] for its whole lifetime (see the comment on the
+-- patronSlots loop above), so each slot's Patron identity is fixed even
+-- though whether it's OWNED changes as you buy/discard -- use a function
+-- (not a plain string) so the tooltip re-checks ownership fresh every
+-- time you hover, via latestState, rather than freezing it at load time.
+for i, patron in ipairs(Patrons.Definitions) do
+	local slot = patronSlots[i]
+	if slot then
+		addTooltip(slot.frame, function()
+			local owned = false
+			if latestState then
+				for _, owned_patron in ipairs(latestState.ownedPatrons or {}) do
+					if owned_patron.id == patron.id then
+						owned = true
+						break
+					end
+				end
+			end
+			if owned then
+				return string.format("%s\n%s", patron.name, patron.description)
+			end
+			return "??? -- not yet unlocked"
+		end)
+	end
+end
 
 -- ----- Message banner (hand result / round result) -----
 
