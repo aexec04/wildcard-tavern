@@ -1082,12 +1082,21 @@ local shopBuyListFrame
 local shopMyPatronsListFrame
 
 do
+	-- Positioned clear of the fixed-width left sidebar (SIDEBAR_WIDTH,
+	-- declared up top) the same way messageLabel/bossBanner already do --
+	-- the previous version used a plain scale position (0.06) that doesn't
+	-- know about the sidebar's fixed pixel width, so on a lot of screen
+	-- sizes it rendered UNDER the sidebar (which also has a higher ZIndex,
+	-- so it drew on top and clipped the shop's left edge -- the exact "text
+	-- cut off on the left" bug from the screenshot). Both fixed here: a
+	-- sidebar-aware position AND an explicit ZIndex above the sidebar's.
 	shopFrame = Instance.new("Frame")
 	shopFrame.Name = "Shop"
-	shopFrame.Size = UDim2.fromScale(0.88, 0.82)
-	shopFrame.Position = UDim2.fromScale(0.06, 0.09)
+	shopFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0.86, 0)
+	shopFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0.07, 0)
 	shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	shopFrame.Visible = false
+	shopFrame.ZIndex = 5
 	shopFrame.Parent = root
 	polishPanel(shopFrame, 16)
 	addSoftShadow(shopFrame, 18)
