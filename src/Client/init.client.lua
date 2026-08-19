@@ -888,10 +888,8 @@ deckWidget.Parent = root
 -- The deck widget itself IS the Deck Tracker entry point now (no separate
 -- corner button) -- a transparent click-catcher over the whole widget, so
 -- clicking the card-back icon or the count label both open the tracker.
--- Wired up later (see deckWidgetButton.MouseButton1Click below), at the
--- point in the file where deckTrackerBackdrop/refreshDeckTracker already
--- exist -- they're declared further down, so wiring it here would be a
--- referenced-before-declaration bug.
+-- Its click handler is wired inside Client/DeckTracker.lua, which takes
+-- this button as a dep (see the require(script.DeckTracker) call below).
 deckWidgetButton = Instance.new("TextButton")
 deckWidgetButton.Name = "ClickCatcher"
 deckWidgetButton.Size = UDim2.fromScale(1, 1)
@@ -1252,900 +1250,118 @@ local menuJourneyButton = makeMenuButton("Road Ahead")
 local menuNewRunButton = makeMenuButton("New Run...")
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
--- Ahmed: "no kid on roblox will want to read words upon words with barely
--- any visuals" -- replaced the old 9-line paragraph with a grid of icon +
--- short-caption tiles below, same idea as the worked scoring examples
--- (which were already visual and stay as-is).
---
--- Wrapped in do/end -- nothing in this whole overlay is referenced from
--- outside it (both buttons that open it are connected from inside), so
--- it's fully self-contained. See the local-variable-budget note near the
--- top of the file.
-do
-
-local howToPlayBackdrop = Instance.new("Frame")
-howToPlayBackdrop.Name = "HowToPlayBackdrop"
-howToPlayBackdrop.Size = UDim2.fromScale(1, 1)
-howToPlayBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-howToPlayBackdrop.BackgroundTransparency = 0.4
-howToPlayBackdrop.Visible = false
-howToPlayBackdrop.ZIndex = 20
-howToPlayBackdrop.Parent = screenGui
-
-local howToPlayPanel = Instance.new("Frame")
-howToPlayPanel.Size = UDim2.fromScale(0.6, 0.75)
-howToPlayPanel.Position = UDim2.fromScale(0.2, 0.12)
-howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-howToPlayPanel.ZIndex = 21
-howToPlayPanel.Parent = howToPlayBackdrop
-polishPanel(howToPlayPanel, 16)
-addSoftShadow(howToPlayPanel, 18)
-
-local howToPlayTitle = Instance.new("TextLabel")
-howToPlayTitle.Size = UDim2.new(1, 0, 0, 40)
-howToPlayTitle.BackgroundTransparency = 1
-howToPlayTitle.Font = Enum.Font.GothamBold
-howToPlayTitle.TextSize = 22
-howToPlayTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-howToPlayTitle.Text = "How to Play"
-howToPlayTitle.ZIndex = 21
-howToPlayTitle.Parent = howToPlayPanel
-
--- FEATURE 5: worked examples, scrollable. Built from real Card tables and
--- run through the actual HandEvaluator + Scoring modules, so the numbers
--- shown are always exactly what you'd see in a real game.
-
-local howToPlayScroll = Instance.new("ScrollingFrame")
-howToPlayScroll.Size = UDim2.new(1, -30, 1, -100)
-howToPlayScroll.Position = UDim2.new(0, 15, 0, 45)
-howToPlayScroll.BackgroundTransparency = 1
-howToPlayScroll.BorderSizePixel = 0
-howToPlayScroll.ScrollBarThickness = 8
-howToPlayScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
-howToPlayScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-howToPlayScroll.ZIndex = 21
-howToPlayScroll.Parent = howToPlayPanel
-
-local howToPlayLayout = Instance.new("UIListLayout")
-howToPlayLayout.Padding = UDim.new(0, 14)
-howToPlayLayout.Parent = howToPlayScroll
-
--- A grid of icon + short-caption tiles instead of a paragraph -- one glance
--- per rule, not a page of reading.
-local HOW_TO_PLAY_STEPS = {
-	{ icon = "👆", text = "Click cards to select up to 5" },
-	{ icon = "▶️", text = "Play Hand to score your best poker hand" },
-	{ icon = "🔄", text = "Discard to swap cards -- free, no hand cost" },
-	{ icon = "🎯", text = "Reach the target score before hands run out" },
-	{ icon = "🍺", text = "Win a round -- spend Tips on Patrons at the Bar" },
-	{ icon = "🌙", text = "Survive as many Nights as you can!" },
-}
-
-local howToPlayStepsGrid = Instance.new("Frame")
--- AutomaticSize (not a hardcoded pixel height) so the grid always grows to
--- fit exactly however many rows the tiles need -- a fixed height here was
--- the bug: it was too short for 3 rows, so the bottom row spilled out and
--- covered "How scoring works" and the example hands right below it.
-howToPlayStepsGrid.Size = UDim2.new(1, 0, 0, 0)
-howToPlayStepsGrid.AutomaticSize = Enum.AutomaticSize.Y
-howToPlayStepsGrid.BackgroundTransparency = 1
-howToPlayStepsGrid.ZIndex = 21
-howToPlayStepsGrid.LayoutOrder = 1
-howToPlayStepsGrid.Parent = howToPlayScroll
-
-local howToPlayGridLayout = Instance.new("UIGridLayout")
-howToPlayGridLayout.CellSize = UDim2.new(1 / 3, -6, 0, 96)
-howToPlayGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-howToPlayGridLayout.Parent = howToPlayStepsGrid
-
-for stepIndex, step in ipairs(HOW_TO_PLAY_STEPS) do
-	local tile = Instance.new("Frame")
-	tile.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-	tile.LayoutOrder = stepIndex
-	tile.ZIndex = 21
-	tile.Parent = howToPlayStepsGrid
-	polishPanel(tile, 10)
-
-	local iconLabel = Instance.new("TextLabel")
-	iconLabel.Size = UDim2.new(1, 0, 0, 40)
-	iconLabel.Position = UDim2.new(0, 0, 0, 8)
-	iconLabel.BackgroundTransparency = 1
-	iconLabel.Font = Enum.Font.GothamBold
-	iconLabel.TextSize = 28
-	iconLabel.Text = step.icon
-	iconLabel.ZIndex = 21
-	iconLabel.Parent = tile
-
-	local captionLabel = Instance.new("TextLabel")
-	captionLabel.Size = UDim2.new(1, -16, 0, 42)
-	captionLabel.Position = UDim2.new(0, 8, 0, 50)
-	captionLabel.BackgroundTransparency = 1
-	captionLabel.Font = Enum.Font.Gotham
-	captionLabel.TextSize = 13
-	captionLabel.TextColor3 = Color3.fromRGB(235, 225, 210)
-	captionLabel.TextWrapped = true
-	captionLabel.Text = step.text
-	captionLabel.ZIndex = 21
-	captionLabel.Parent = tile
-end
-
-local howToPlayExamplesLabel = Instance.new("TextLabel")
-howToPlayExamplesLabel.Size = UDim2.new(1, 0, 0, 24)
-howToPlayExamplesLabel.BackgroundTransparency = 1
-howToPlayExamplesLabel.Font = Enum.Font.GothamBold
-howToPlayExamplesLabel.TextSize = 15
-howToPlayExamplesLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-howToPlayExamplesLabel.TextXAlignment = Enum.TextXAlignment.Left
-howToPlayExamplesLabel.Text = "How scoring works -- every hand, weakest to strongest:"
-howToPlayExamplesLabel.ZIndex = 21
-howToPlayExamplesLabel.LayoutOrder = 2
-howToPlayExamplesLabel.Parent = howToPlayScroll
-
--- Ahmed: "the Poker Hands [reference] has all ways to score points, why is
--- that not being visually shown in the how to play?" -- one worked example
--- per HandEvaluator.HandOrder entry now (was only 3 of 9), weakest to
--- strongest, same visual mini-card format as before.
-local EXAMPLE_HANDS = {
-	{ -- High Card
-		{ rank = 2, suit = "Hearts" },
-		{ rank = 5, suit = "Diamonds" },
-		{ rank = 9, suit = "Clubs" },
-		{ rank = 11, suit = "Spades" },
-		{ rank = 13, suit = "Hearts" },
-	},
-	{ -- Pair
-		{ rank = 7, suit = "Hearts" },
-		{ rank = 7, suit = "Spades" },
-	},
-	{ -- Two Pair
-		{ rank = 9, suit = "Diamonds" },
-		{ rank = 9, suit = "Clubs" },
-		{ rank = 2, suit = "Hearts" },
-		{ rank = 2, suit = "Diamonds" },
-	},
-	{ -- Three of a Kind
-		{ rank = 5, suit = "Spades" },
-		{ rank = 5, suit = "Hearts" },
-		{ rank = 5, suit = "Diamonds" },
-	},
-	{ -- Straight
-		{ rank = 4, suit = "Hearts" },
-		{ rank = 5, suit = "Diamonds" },
-		{ rank = 6, suit = "Clubs" },
-		{ rank = 7, suit = "Spades" },
-		{ rank = 8, suit = "Hearts" },
-	},
-	{ -- Flush
-		{ rank = 2, suit = "Hearts" },
-		{ rank = 5, suit = "Hearts" },
-		{ rank = 9, suit = "Hearts" },
-		{ rank = 11, suit = "Hearts" },
-		{ rank = 13, suit = "Hearts" },
-	},
-	{ -- Full House
-		{ rank = 9, suit = "Diamonds" },
-		{ rank = 9, suit = "Clubs" },
-		{ rank = 9, suit = "Spades" },
-		{ rank = 2, suit = "Hearts" },
-		{ rank = 2, suit = "Diamonds" },
-	},
-	{ -- Four of a Kind
-		{ rank = 8, suit = "Hearts" },
-		{ rank = 8, suit = "Diamonds" },
-		{ rank = 8, suit = "Clubs" },
-		{ rank = 8, suit = "Spades" },
-	},
-	{ -- Straight Flush
-		{ rank = 4, suit = "Clubs" },
-		{ rank = 5, suit = "Clubs" },
-		{ rank = 6, suit = "Clubs" },
-		{ rank = 7, suit = "Clubs" },
-		{ rank = 8, suit = "Clubs" },
-	},
-}
-
-local function makeMiniCard(card, parent, layoutOrder)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 34, 0, 46)
-	label.BackgroundColor3 = Color3.fromRGB(250, 245, 235)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
-	label.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
-	label.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
-	label.LayoutOrder = layoutOrder or 0
-	label.ZIndex = 21
-	label.Parent = parent
-	roundCorner(label, 6)
-	return label
-end
-
-for exampleIndex, cards in ipairs(EXAMPLE_HANDS) do
-	local handResult = HandEvaluator.evaluate(cards)
-	local score, chips, mult = Scoring.calculate(handResult, {}, {})
-
-	local exampleRow = Instance.new("Frame")
-	exampleRow.Size = UDim2.new(1, 0, 0, 70)
-	exampleRow.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-	exampleRow.ZIndex = 21
-	exampleRow.LayoutOrder = 2 + exampleIndex
-	exampleRow.Parent = howToPlayScroll
-	polishPanel(exampleRow, 10)
-
-	local cardsHolder = Instance.new("Frame")
-	cardsHolder.Size = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 16, 1, 0)
-	cardsHolder.Position = UDim2.new(0, 10, 0, 0)
-	cardsHolder.BackgroundTransparency = 1
-	cardsHolder.ZIndex = 21
-	cardsHolder.Parent = exampleRow
-
-	local cardsLayout = Instance.new("UIListLayout")
-	cardsLayout.FillDirection = Enum.FillDirection.Horizontal
-	cardsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	cardsLayout.Padding = UDim.new(0, 6)
-	cardsLayout.Parent = cardsHolder
-
-	for cardIndex, card in ipairs(cards) do
-		makeMiniCard(card, cardsHolder, cardIndex)
-	end
-
-	local resultLabel = Instance.new("TextLabel")
-	resultLabel.Size = UDim2.new(1, -(34 * #cards + 6 * (#cards - 1) + 30), 1, 0)
-	resultLabel.Position = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 20, 0, 0)
-	resultLabel.BackgroundTransparency = 1
-	resultLabel.Font = Enum.Font.Gotham
-	resultLabel.TextSize = 14
-	resultLabel.TextWrapped = true
-	resultLabel.TextXAlignment = Enum.TextXAlignment.Left
-	resultLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-	resultLabel.ZIndex = 21
-	resultLabel.Text = string.format(
-		"%s\n%d chips x %d mult = %d points",
-		handResult.name, chips, mult, score
-	)
-	resultLabel.Parent = exampleRow
-end
-
-local howToPlayCloseButton = Instance.new("TextButton")
-howToPlayCloseButton.Size = UDim2.new(0, 140, 0, 40)
-howToPlayCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-howToPlayCloseButton.Font = Enum.Font.GothamBold
-howToPlayCloseButton.TextSize = 16
-howToPlayCloseButton.Text = "Got it"
-howToPlayCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-howToPlayCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-howToPlayCloseButton.ZIndex = 21
-howToPlayCloseButton.Parent = howToPlayPanel
-polishButton(howToPlayCloseButton, 10)
-
-howToPlayCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	howToPlayBackdrop.Visible = false
-end)
-
-local function openHowToPlay()
-	playClickSfx()
-	howToPlayBackdrop.Visible = true
-end
-
-menuHowToPlayButton.MouseButton1Click:Connect(openHowToPlay)
-helpButton.MouseButton1Click:Connect(openHowToPlay)
-
-end -- How to Play overlay
+-- Extracted into Client/HowToPlay.lua -- fully self-contained (both buttons
+-- that open it are wired from inside the module), so nothing needs to come
+-- back out of the require() call.
+require(script.HowToPlay)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	RED_SUITS = RED_SUITS,
+	RANK_NAMES = RANK_NAMES,
+	SUIT_SYMBOLS = SUIT_SYMBOLS,
+	HandEvaluator = HandEvaluator,
+	Scoring = Scoring,
+	menuHowToPlayButton = menuHowToPlayButton,
+	helpButton = helpButton,
+})
 
 -- ===== Themes (cosmetics) overlay =====
--- Purely visual -- spend Tips on table/card color palettes. No gameplay
--- effect. Buyable/equippable any time, not just during the shop phase.
-
-local themesBackdrop = Instance.new("Frame")
-themesBackdrop.Name = "ThemesBackdrop"
-themesBackdrop.Size = UDim2.fromScale(1, 1)
-themesBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-themesBackdrop.BackgroundTransparency = 0.4
-themesBackdrop.Visible = false
-themesBackdrop.ZIndex = 20
-themesBackdrop.Parent = screenGui
-
-local themesPanel = Instance.new("Frame")
-themesPanel.Size = UDim2.fromScale(0.55, 0.6)
-themesPanel.Position = UDim2.fromScale(0.225, 0.2)
-themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-themesPanel.ZIndex = 21
-themesPanel.Parent = themesBackdrop
-polishPanel(themesPanel, 16)
-addSoftShadow(themesPanel, 18)
-
-local themesTitle = Instance.new("TextLabel")
-themesTitle.Size = UDim2.new(1, 0, 0, 40)
-themesTitle.BackgroundTransparency = 1
-themesTitle.Font = Enum.Font.GothamBold
-themesTitle.TextSize = 22
-themesTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-themesTitle.Text = "Themes -- cosmetic only, spend Tips"
-themesTitle.ZIndex = 21
-themesTitle.Parent = themesPanel
-
-local themesListFrame = Instance.new("Frame")
-themesListFrame.Size = UDim2.new(1, -20, 1, -100)
-themesListFrame.Position = UDim2.new(0, 10, 0, 45)
-themesListFrame.BackgroundTransparency = 1
-themesListFrame.ZIndex = 21
-themesListFrame.Parent = themesPanel
-
-local themesListLayout = Instance.new("UIListLayout")
-themesListLayout.Padding = UDim.new(0, 8)
-themesListLayout.Parent = themesListFrame
-
-local themesCloseButton = Instance.new("TextButton")
-themesCloseButton.Size = UDim2.new(0, 140, 0, 40)
-themesCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-themesCloseButton.Font = Enum.Font.GothamBold
-themesCloseButton.TextSize = 16
-themesCloseButton.Text = "Close"
-themesCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-themesCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-themesCloseButton.ZIndex = 21
-themesCloseButton.Parent = themesPanel
-polishButton(themesCloseButton, 10)
-
-themesCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	themesBackdrop.Visible = false
-end)
-
--- Forward-declared: assigned further down once client-side state (like
--- latestState) exists. Lua closures capture the local by reference, so
--- this works as long as the assignment happens before it's ever called.
-local refreshThemesList
-
-themesButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	if refreshThemesList then
-		refreshThemesList()
-	end
-	themesBackdrop.Visible = true
-end)
+-- Extracted into Client/Themes.lua. render() still needs to check
+-- themesBackdrop.Visible and call refreshThemesList() (see below), so both
+-- come back out of the require() call, same pattern as Shop.lua.
+local ThemesOverlay = require(script.Themes)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	playSfx = playSfx,
+	SOUND_IDS = SOUND_IDS,
+	Themes = Themes,
+	BuyThemeRemote = BuyThemeRemote,
+	EquipThemeRemote = EquipThemeRemote,
+	showWarning = showWarning,
+	themesButton = themesButton,
+	getLatestState = function()
+		return latestState
+	end,
+})
+local themesBackdrop = ThemesOverlay.themesBackdrop
+local refreshThemesList = ThemesOverlay.refreshThemesList
 
 -- ===== Road Ahead (journey/roadmap) overlay =====
--- LAYOUT FEATURE 9: Ahmed wanted his own creative spin here instead of
--- copying Balatro's plain list -- a 2D, Mario-map-style path where your
--- own Roblox avatar (real headshot thumbnail) stands on your current
--- stage and hops/walks to the next one when you win a round.
---
--- latestState is declared near the top of the file specifically so this
--- (and every overlay) can read it from inside a do/end block -- see that
--- comment. journeyBackdrop and refreshJourney are both forward-declared/
--- needed outside -- render() checks journeyBackdrop.Visible and calls
--- refreshJourney() to keep the map accurate while it's open across a round
--- change.
-local journeyBackdrop
-local refreshJourney
-
-do
-
-local PREVIEW_NIGHTS = 3 -- how many Nights ahead to show on the map
-local ROUNDS_PER_NIGHT = 3
-local NODE_SIZE = 64
-local NIGHT_GAP_EXTRA = 60 -- extra width of the spacer between night clusters
-
-journeyBackdrop = Instance.new("Frame")
-journeyBackdrop.Name = "JourneyBackdrop"
-journeyBackdrop.Size = UDim2.fromScale(1, 1)
-journeyBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-journeyBackdrop.BackgroundTransparency = 0.4
-journeyBackdrop.Visible = false
-journeyBackdrop.ZIndex = 20
-journeyBackdrop.Parent = screenGui
-
-local journeyPanel = Instance.new("Frame")
-journeyPanel.Size = UDim2.fromScale(0.7, 0.55)
-journeyPanel.Position = UDim2.fromScale(0.15, 0.22)
-journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-journeyPanel.ZIndex = 21
-journeyPanel.Parent = journeyBackdrop
-polishPanel(journeyPanel, 16)
-addSoftShadow(journeyPanel, 18)
-
-local journeyTitle = Instance.new("TextLabel")
-journeyTitle.Size = UDim2.new(1, 0, 0, 40)
-journeyTitle.BackgroundTransparency = 1
-journeyTitle.Font = Enum.Font.GothamBold
-journeyTitle.TextSize = 22
-journeyTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-journeyTitle.Text = "The Road Ahead"
-journeyTitle.ZIndex = 21
-journeyTitle.Parent = journeyPanel
-
-local journeySubtitle = Instance.new("TextLabel")
-journeySubtitle.Size = UDim2.new(1, -30, 0, 24)
-journeySubtitle.Position = UDim2.new(0, 15, 0, 38)
-journeySubtitle.BackgroundTransparency = 1
-journeySubtitle.Font = Enum.Font.Gotham
-journeySubtitle.TextSize = 14
-journeySubtitle.TextColor3 = Color3.fromRGB(220, 205, 185)
-journeySubtitle.TextXAlignment = Enum.TextXAlignment.Left
-journeySubtitle.Text = "Your table walks the road one Round at a time. 👑 = Boss Round."
-journeySubtitle.ZIndex = 21
-journeySubtitle.Parent = journeyPanel
-
--- Horizontal, scrollable map strip. Both the stage nodes AND the avatar
--- marker live directly in here (as siblings, not nested inside each
--- other) so they share one coordinate space -- the marker's X position can
--- just be read off a node's AbsolutePosition and it'll line up correctly,
--- including while scrolled.
-local journeyMapScroll = Instance.new("ScrollingFrame")
-journeyMapScroll.Size = UDim2.new(1, -20, 1, -160)
-journeyMapScroll.Position = UDim2.new(0, 10, 0, 68)
-journeyMapScroll.BackgroundTransparency = 1
-journeyMapScroll.BorderSizePixel = 0
-journeyMapScroll.ScrollBarThickness = 8
-journeyMapScroll.ScrollingDirection = Enum.ScrollingDirection.X
-journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
-journeyMapScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
-journeyMapScroll.ZIndex = 21
--- ClipsDescendants intentionally left at its ScrollingFrame default (true):
--- this is a horizontally-scrolling strip, and the whole point of clipping
--- is that only the currently-scrolled-into-view slice of the (much wider)
--- node row shows. Turning it off -- tried briefly while chasing the avatar
--- visibility bug -- let the ENTIRE node row + path line render unclipped,
--- spilling out past the panel. The real avatar bug turned out to be the
--- currentTheme crash below, not clipping, so this stays at the default.
-journeyMapScroll.Parent = journeyPanel
-
--- A thin path line behind the nodes, purely decorative -- gives the "walk
--- along a road" read even before the avatar marker is on top of it.
-local journeyStagesHolder = Instance.new("Frame")
-journeyStagesHolder.Size = UDim2.new(0, 0, 1, 0)
-journeyStagesHolder.AutomaticSize = Enum.AutomaticSize.X
-journeyStagesHolder.BackgroundTransparency = 1
-journeyStagesHolder.ZIndex = 22
-journeyStagesHolder.Parent = journeyMapScroll
-
--- A thin path line behind the nodes, purely decorative -- gives the "walk
--- along a road" read even before the avatar marker is on top of it. Parented
--- INSIDE journeyStagesHolder (not journeyMapScroll) and sized to 100% of it,
--- so it automatically spans exactly the row of nodes -- no matter how wide
--- that row ends up being -- instead of a hardcoded guess.
-local journeyPathLine = Instance.new("Frame")
-journeyPathLine.Size = UDim2.new(1, 0, 0, 6)
-journeyPathLine.Position = UDim2.new(0, 0, 0.5, -3)
-journeyPathLine.BackgroundColor3 = Color3.fromRGB(90, 70, 50)
-journeyPathLine.BorderSizePixel = 0
-journeyPathLine.ZIndex = 21
-journeyPathLine.Parent = journeyStagesHolder
-roundCorner(journeyPathLine, 3)
-
-local journeyStagesLayout = Instance.new("UIListLayout")
-journeyStagesLayout.FillDirection = Enum.FillDirection.Horizontal
-journeyStagesLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-journeyStagesLayout.SortOrder = Enum.SortOrder.LayoutOrder
-journeyStagesLayout.Padding = UDim.new(0, 30)
-journeyStagesLayout.Parent = journeyStagesHolder
-local JOURNEY_NODE_PADDING = 30 -- must match journeyStagesLayout.Padding above
-
--- The player's actual avatar, standing on the map -- fetched once
--- (yielding call, so it's off in a task.spawn) and applied whenever ready.
-local journeyAvatarMarker = Instance.new("ImageLabel")
-journeyAvatarMarker.Name = "AvatarMarker"
-journeyAvatarMarker.Size = UDim2.new(0, 46, 0, 46)
-journeyAvatarMarker.AnchorPoint = Vector2.new(0.5, 1)
-journeyAvatarMarker.Position = UDim2.new(0, 0, 0.5, -NODE_SIZE / 2 - 8)
-journeyAvatarMarker.BackgroundColor3 = Color3.fromRGB(250, 240, 220)
-journeyAvatarMarker.Image = ""
-journeyAvatarMarker.ZIndex = 24
-journeyAvatarMarker.Parent = journeyMapScroll
-roundCorner(journeyAvatarMarker, 23)
-
--- Fallback glyph: always visible until (if ever) the real avatar thumbnail
--- loads. Covers the case where GetUserThumbnailAsync is slow, fails, or
--- returns a placeholder (a known quirk of solo Play-testing in Studio) --
--- the marker should never just be an empty/invisible square.
-local journeyAvatarFallback = Instance.new("TextLabel")
-journeyAvatarFallback.Size = UDim2.fromScale(1, 1)
-journeyAvatarFallback.BackgroundTransparency = 1
-journeyAvatarFallback.Font = Enum.Font.GothamBold
-journeyAvatarFallback.TextSize = 24
-journeyAvatarFallback.Text = "🧑"
-journeyAvatarFallback.ZIndex = 25
-journeyAvatarFallback.Parent = journeyAvatarMarker
-
-task.spawn(function()
-	local ok, content = pcall(function()
-		return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-	end)
-	if ok and content and content ~= "" then
-		journeyAvatarMarker.Image = content
-		journeyAvatarFallback.Visible = false
-	end
-end)
-
--- (No continuous idle-bob animation -- it would fight with the walk/hop
--- tween below for control of the same Position property. The hop-on-walk
--- animation is enough life for now; a proper idle bob would need its own
--- separate UI element layered under a static-position parent to avoid
--- that conflict, which isn't worth the complexity yet.)
-
-local journeyStageNodes = {} -- flat array, index 1..(PREVIEW_NIGHTS*ROUNDS_PER_NIGHT), in map order
-local layoutOrderCounter = 0
--- xCursor tracks each node's left edge as we build the row, mirroring
--- exactly what journeyStagesLayout (a UIListLayout) will compute. We use
--- this instead of reading node.Position back after the fact -- reading a
--- UIListLayout-controlled Position depends on the layout engine having
--- already run a pass over this (currently invisible) overlay, which isn't
--- guaranteed the first time the map is opened. A precomputed value is
--- always correct, immediately.
-local xCursor = 0
-
-for night = 1, PREVIEW_NIGHTS do
-	if night > 1 then
-		local spacer = Instance.new("Frame")
-		spacer.Size = UDim2.new(0, NIGHT_GAP_EXTRA, 1, 0)
-		spacer.BackgroundTransparency = 1
-		layoutOrderCounter = layoutOrderCounter + 1
-		spacer.LayoutOrder = layoutOrderCounter
-		spacer.Parent = journeyStagesHolder
-		xCursor = xCursor + NIGHT_GAP_EXTRA + JOURNEY_NODE_PADDING
-	end
-
-	for round = 1, ROUNDS_PER_NIGHT do
-		layoutOrderCounter = layoutOrderCounter + 1
-
-		local node = Instance.new("Frame")
-		node.Size = UDim2.new(0, NODE_SIZE, 0, NODE_SIZE)
-		node.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		node.LayoutOrder = layoutOrderCounter
-		node.ZIndex = 22
-		node.Parent = journeyStagesHolder
-		roundCorner(node, NODE_SIZE / 2)
-
-		if night == 1 and round == 1 then
-			-- Underneath everything else, so it doesn't shift layout order.
-			local nightLabel = Instance.new("TextLabel")
-			nightLabel.Size = UDim2.new(0, 90, 0, 20)
-			nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
-			nightLabel.BackgroundTransparency = 1
-			nightLabel.Font = Enum.Font.GothamBold
-			nightLabel.TextSize = 13
-			nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-			nightLabel.Text = "Night 1"
-			nightLabel.ZIndex = 22
-			nightLabel.Parent = node
-		end
-
-		local roundLabel = Instance.new("TextLabel")
-		roundLabel.Size = UDim2.fromScale(1, 0.55)
-		roundLabel.Position = UDim2.fromScale(0, 0.02)
-		roundLabel.BackgroundTransparency = 1
-		roundLabel.Font = Enum.Font.GothamBold
-		roundLabel.TextSize = 16
-		roundLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
-		roundLabel.Text = string.format("R%d", round)
-		roundLabel.ZIndex = 23
-		roundLabel.Parent = node
-
-		local scoreLabel = Instance.new("TextLabel")
-		scoreLabel.Size = UDim2.fromScale(1, 0.4)
-		scoreLabel.Position = UDim2.fromScale(0, 0.55)
-		scoreLabel.BackgroundTransparency = 1
-		scoreLabel.Font = Enum.Font.Gotham
-		scoreLabel.TextSize = 11
-		scoreLabel.TextColor3 = Color3.fromRGB(220, 210, 195)
-		scoreLabel.Text = tostring(RunStateEngine.targetScoreFor(night, round))
-		scoreLabel.ZIndex = 23
-		scoreLabel.Parent = node
-
-		table.insert(journeyStageNodes, {
-			node = node,
-			roundLabel = roundLabel,
-			scoreLabel = scoreLabel,
-			night = night,
-			round = round,
-			centerX = xCursor + NODE_SIZE / 2,
-		})
-		xCursor = xCursor + NODE_SIZE + JOURNEY_NODE_PADDING
-
-		-- Night labels for nights 2/3 -- placed after node 1 of that night
-		-- exists, same idea as Night 1's label above.
-		if round == 1 and night > 1 then
-			local nightLabel = Instance.new("TextLabel")
-			nightLabel.Size = UDim2.new(0, 90, 0, 20)
-			nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
-			nightLabel.BackgroundTransparency = 1
-			nightLabel.Font = Enum.Font.GothamBold
-			nightLabel.TextSize = 13
-			nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-			nightLabel.Text = string.format("Night %d", night)
-			nightLabel.ZIndex = 22
-			nightLabel.Parent = node
-		end
-	end
-end
-
-local journeyCloseButton = Instance.new("TextButton")
-journeyCloseButton.Size = UDim2.new(0, 140, 0, 40)
-journeyCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-journeyCloseButton.Font = Enum.Font.GothamBold
-journeyCloseButton.TextSize = 16
-journeyCloseButton.Text = "Close"
-journeyCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-journeyCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-journeyCloseButton.ZIndex = 21
-journeyCloseButton.Parent = journeyPanel
-polishButton(journeyCloseButton, 12)
-
-journeyCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	journeyBackdrop.Visible = false
-end)
-
--- lastJourneyStageKey: which stage the avatar was last shown on, so we only
--- play the walk animation when it actually CHANGES (not every time the
--- overlay happens to refresh while you're on the same stage).
-local lastJourneyStageKey = nil
-
-local function refreshJourneyImpl(animateWalk)
-	local currentNight = (latestState and latestState.night) or 1
-	local currentRound = (latestState and latestState.round) or 1
-
-	local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
-		or DifficultyTiers.getById(DifficultyTiers.DefaultId)
-	local bossRoundsEnabled = journeyDifficulty.bossRoundsEnabled ~= false
-
-	local targetNode = nil
-	for _, entry in ipairs(journeyStageNodes) do
-		local isPast = (entry.night < currentNight) or (entry.night == currentNight and entry.round < currentRound)
-		local isCurrent = (entry.night == currentNight and entry.round == currentRound)
-		local isBoss = bossRoundsEnabled and BossRounds.isBossRound(entry.round, ROUNDS_PER_NIGHT)
-
-		entry.node.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
-			or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
-		local bossTag = isBoss and " 👑" or ""
-		entry.roundLabel.Text = isPast and string.format("R%d ✓", entry.round) or string.format("R%d%s", entry.round, bossTag)
-
-		if isCurrent then
-			targetNode = entry
-		end
-	end
-
-	if targetNode then
-		local stageKey = targetNode.night .. "-" .. targetNode.round
-		local targetX = targetNode.centerX
-		local newPosition = UDim2.new(0, targetX, journeyAvatarMarker.Position.Y.Scale, journeyAvatarMarker.Position.Y.Offset)
-
-		if animateWalk and lastJourneyStageKey and lastJourneyStageKey ~= stageKey then
-			-- A little hop while walking over: up, across, down.
-			local hopUp = journeyAvatarMarker.Position - UDim2.new(0, 0, 0, 20)
-			tweenTo(journeyAvatarMarker, { Position = UDim2.new(0, journeyAvatarMarker.Position.X.Offset, hopUp.Y.Scale, hopUp.Y.Offset) }, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-			task.delay(0.15, function()
-				tweenTo(journeyAvatarMarker, { Position = UDim2.new(0, targetX, hopUp.Y.Scale, hopUp.Y.Offset) }, 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-			end)
-			task.delay(0.5, function()
-				tweenTo(journeyAvatarMarker, newPosition, 0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-			end)
-		else
-			journeyAvatarMarker.Position = newPosition
-		end
-
-		lastJourneyStageKey = stageKey
-	end
-end
-
-refreshJourney = function()
-	refreshJourneyImpl(true)
-end
-
-local function openJourney()
-	playClickSfx()
-	refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
-	journeyBackdrop.Visible = true
-	-- Scroll so the current stage is in view.
-	if journeyAvatarMarker.Position.X.Offset > 0 then
-		journeyMapScroll.CanvasPosition = Vector2.new(math.max(0, journeyAvatarMarker.Position.X.Offset - 200), 0)
-	end
-end
-
-journeyButton.MouseButton1Click:Connect(openJourney)
-menuJourneyButton.MouseButton1Click:Connect(openJourney)
-
-end -- Road Ahead (journey/roadmap) overlay
+-- Extracted into Client/Journey.lua. render() still needs to check
+-- journeyBackdrop.Visible and call refreshJourney(), so both come back out
+-- of the require() call, same pattern as Themes.lua.
+local JourneyOverlay = require(script.Journey)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	tweenTo = tweenTo,
+	DifficultyTiers = DifficultyTiers,
+	BossRounds = BossRounds,
+	RunStateEngine = RunStateEngine,
+	Players = Players,
+	player = player,
+	journeyButton = journeyButton,
+	menuJourneyButton = menuJourneyButton,
+	getLatestState = function()
+		return latestState
+	end,
+	getCurrentTheme = function()
+		return currentTheme
+	end,
+})
+local journeyBackdrop = JourneyOverlay.journeyBackdrop
+local refreshJourney = JourneyOverlay.refreshJourney
 
 -- ===== Poker Hands reference overlay =====
--- FEATURE 6: a live lookup table -- every hand type this game recognizes,
--- its base chips/mult (straight from Scoring.HandBase, so it can't drift
--- out of sync with actual balance), and how many times you've played it
--- this run. Plain Frames/TextLabels/UICorner only, no gradients.
---
--- refreshHandReference is defined much further down (once latestState
--- exists), and it needs to reach handRefListFrame -- so both are declared
--- here (outside the do/end below) and assigned (not `local`-declared again)
--- from inside. BUG FIX: this used to be handRefListFrame alone with
--- refreshHandReferenceImpl defined AFTER the block closed -- handRefListFrame
--- was already out of scope by then, so opening Poker Hands reference
--- silently errored out before Visible=true ran (button did nothing). See
--- the local-variable-budget note near the top of the file.
-local refreshHandReference
-local handRefListFrame
-
-do
-
-local handRefBackdrop = Instance.new("Frame")
-handRefBackdrop.Name = "HandRefBackdrop"
-handRefBackdrop.Size = UDim2.fromScale(1, 1)
-handRefBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-handRefBackdrop.BackgroundTransparency = 0.4
-handRefBackdrop.Visible = false
-handRefBackdrop.ZIndex = 20
-handRefBackdrop.Parent = screenGui
-
-local handRefPanel = Instance.new("Frame")
-handRefPanel.Size = UDim2.fromScale(0.5, 0.65)
-handRefPanel.Position = UDim2.fromScale(0.25, 0.17)
-handRefPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-handRefPanel.ZIndex = 21
-handRefPanel.Parent = handRefBackdrop
-polishPanel(handRefPanel, 16)
-addSoftShadow(handRefPanel, 18)
-
-local handRefTitle = Instance.new("TextLabel")
-handRefTitle.Size = UDim2.new(1, 0, 0, 40)
-handRefTitle.BackgroundTransparency = 1
-handRefTitle.Font = Enum.Font.GothamBold
-handRefTitle.TextSize = 22
-handRefTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-handRefTitle.Text = "Poker Hands"
-handRefTitle.ZIndex = 21
-handRefTitle.Parent = handRefPanel
-
-local handRefHeaderRow = Instance.new("Frame")
-handRefHeaderRow.Size = UDim2.new(1, -30, 0, 22)
-handRefHeaderRow.Position = UDim2.new(0, 15, 0, 42)
-handRefHeaderRow.BackgroundTransparency = 1
-handRefHeaderRow.ZIndex = 21
-handRefHeaderRow.Parent = handRefPanel
-
-local function makeHandRefHeaderLabel(text, xScale, widthScale, alignment)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(widthScale, 0, 1, 0)
-	label.Position = UDim2.new(xScale, 0, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
-	label.TextColor3 = Color3.fromRGB(200, 185, 165)
-	label.TextXAlignment = alignment or Enum.TextXAlignment.Left
-	label.Text = text
-	label.ZIndex = 21
-	label.Parent = handRefHeaderRow
-	return label
-end
-
-makeHandRefHeaderLabel("Hand", 0, 0.4)
-makeHandRefHeaderLabel("Chips x Mult", 0.4, 0.35)
-makeHandRefHeaderLabel("Played", 0.78, 0.22, Enum.TextXAlignment.Right)
-
-handRefListFrame = Instance.new("ScrollingFrame")
-handRefListFrame.Size = UDim2.new(1, -20, 1, -145)
-handRefListFrame.Position = UDim2.new(0, 10, 0, 68)
-handRefListFrame.BackgroundTransparency = 1
-handRefListFrame.BorderSizePixel = 0
-handRefListFrame.ScrollBarThickness = 8
-handRefListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-handRefListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-handRefListFrame.ZIndex = 21
-handRefListFrame.Parent = handRefPanel
-
-local handRefListLayout = Instance.new("UIListLayout")
-handRefListLayout.Padding = UDim.new(0, 6)
-handRefListLayout.Parent = handRefListFrame
-
-local handRefCloseButton = Instance.new("TextButton")
-handRefCloseButton.Size = UDim2.new(0, 140, 0, 40)
-handRefCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-handRefCloseButton.Font = Enum.Font.GothamBold
-handRefCloseButton.TextSize = 16
-handRefCloseButton.Text = "Close"
-handRefCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-handRefCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-handRefCloseButton.ZIndex = 21
-handRefCloseButton.Parent = handRefPanel
-polishButton(handRefCloseButton, 12)
-
-handRefCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	handRefBackdrop.Visible = false
-end)
-
-handRefButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	if refreshHandReference then
-		refreshHandReference()
-	end
-	handRefBackdrop.Visible = true
-end)
-
-end -- Poker Hands reference overlay
+-- Extracted into Client/PokerHandsReference.lua. Fully self-contained (only
+-- opened from its own corner button), so nothing needs to come back out of
+-- the require() call.
+require(script.PokerHandsReference)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	handRefButton = handRefButton,
+	HandEvaluator = HandEvaluator,
+	Scoring = Scoring,
+	getLatestState = function()
+		return latestState
+	end,
+})
 
 -- ===== Deck Tracker overlay =====
--- FEATURE 7: shows exactly how many of each card are still left to be
--- drawn this round -- reads directly off the server-computed
--- Deck.remainingCounts snapshot already included in the state payload.
---
--- refreshDeckTracker is defined much further down (once latestState
--- exists), and it needs to reach deckTrackerGrid -- so both are declared
--- here (outside the do/end below) and assigned (not `local`-declared
--- again) from inside. Same bug/fix as the Poker Hands reference overlay
--- right above -- see that comment for the full story. (makeDeckTrackerCell
--- doesn't need this treatment -- it's a stateless helper, redefined as a
--- nested local inside refreshDeckTrackerImpl instead of costing another
--- persistent top-level local.)
-local refreshDeckTracker
-local deckTrackerGrid
-
-do
-
-local deckTrackerBackdrop = Instance.new("Frame")
-deckTrackerBackdrop.Name = "DeckTrackerBackdrop"
-deckTrackerBackdrop.Size = UDim2.fromScale(1, 1)
-deckTrackerBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-deckTrackerBackdrop.BackgroundTransparency = 0.4
-deckTrackerBackdrop.Visible = false
-deckTrackerBackdrop.ZIndex = 20
-deckTrackerBackdrop.Parent = screenGui
-
-local deckTrackerPanel = Instance.new("Frame")
-deckTrackerPanel.Size = UDim2.fromScale(0.72, 0.5)
-deckTrackerPanel.Position = UDim2.fromScale(0.14, 0.24)
-deckTrackerPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-deckTrackerPanel.ZIndex = 21
-deckTrackerPanel.Parent = deckTrackerBackdrop
-polishPanel(deckTrackerPanel, 16)
-addSoftShadow(deckTrackerPanel, 18)
-
-local deckTrackerTitle = Instance.new("TextLabel")
-deckTrackerTitle.Size = UDim2.new(1, 0, 0, 40)
-deckTrackerTitle.BackgroundTransparency = 1
-deckTrackerTitle.Font = Enum.Font.GothamBold
-deckTrackerTitle.TextSize = 22
-deckTrackerTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-deckTrackerTitle.Text = "What's Left in the Deck"
-deckTrackerTitle.ZIndex = 21
-deckTrackerTitle.Parent = deckTrackerPanel
-
-deckTrackerGrid = Instance.new("Frame")
-deckTrackerGrid.Size = UDim2.new(1, -30, 1, -110)
-deckTrackerGrid.Position = UDim2.new(0, 15, 0, 45)
-deckTrackerGrid.BackgroundTransparency = 1
-deckTrackerGrid.ZIndex = 21
-deckTrackerGrid.Parent = deckTrackerPanel
-
-local deckTrackerGridLayout = Instance.new("UIListLayout")
-deckTrackerGridLayout.Padding = UDim.new(0, 4)
-deckTrackerGridLayout.Parent = deckTrackerGrid
-
-local deckTrackerCloseButton = Instance.new("TextButton")
-deckTrackerCloseButton.Size = UDim2.new(0, 140, 0, 40)
-deckTrackerCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-deckTrackerCloseButton.Font = Enum.Font.GothamBold
-deckTrackerCloseButton.TextSize = 16
-deckTrackerCloseButton.Text = "Close"
-deckTrackerCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-deckTrackerCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-deckTrackerCloseButton.ZIndex = 21
-deckTrackerCloseButton.Parent = deckTrackerPanel
-polishButton(deckTrackerCloseButton, 12)
-
-deckTrackerCloseButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	deckTrackerBackdrop.Visible = false
-end)
-
-deckWidgetButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	if refreshDeckTracker then
-		refreshDeckTracker()
-	end
-	deckTrackerBackdrop.Visible = true
-end)
-
-end -- Deck Tracker overlay
+-- Extracted into Client/DeckTracker.lua. Fully self-contained (only opened
+-- from deckWidgetButton, which is passed in as a dep), so nothing needs to
+-- come back out of the require() call.
+require(script.DeckTracker)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	deckWidgetButton = deckWidgetButton,
+	Deck = Deck,
+	RANK_NAMES = RANK_NAMES,
+	SUIT_SYMBOLS = SUIT_SYMBOLS,
+	SUIT_DISPLAY_ORDER = SUIT_DISPLAY_ORDER,
+	RED_SUITS = RED_SUITS,
+	getLatestState = function()
+		return latestState
+	end,
+})
 
 -- ===== Settings overlay: simple audio-only settings panel. FEATURE 10,
 -- reachable via the gear corner button. Scoped down to just Master Volume --
@@ -2557,208 +1773,6 @@ local function applyTheme(themeId)
 	tweenTo(nextRoundButton, { BackgroundColor3 = colors.accent }, 0.25)
 	tweenTo(playAgainButton, { BackgroundColor3 = colors.accent }, 0.25)
 end
-
-local function refreshThemesListImpl()
-	for _, child in ipairs(themesListFrame:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local ownedSet = {}
-	local equippedId = Themes.DefaultThemeId
-	if latestState then
-		for _, id in ipairs(latestState.ownedThemeIds or {}) do
-			ownedSet[id] = true
-		end
-		equippedId = latestState.equippedTheme or equippedId
-	end
-
-	for _, theme in ipairs(Themes.Definitions) do
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 50)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		row.Parent = themesListFrame
-		polishPanel(row, 10)
-
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 30, 0, 30)
-		swatch.Position = UDim2.new(0, 10, 0.5, -15)
-		swatch.BackgroundColor3 = theme.colors.accent
-		swatch.Parent = row
-		roundCorner(swatch, 6)
-
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -220, 1, 0)
-		label.Position = UDim2.new(0, 50, 0, 0)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Gotham
-		label.TextSize = 15
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(250, 240, 220)
-		label.Text = string.format("%s -- %s", theme.name, theme.description)
-		label.Parent = row
-
-		local actionButton = Instance.new("TextButton")
-		actionButton.Size = UDim2.new(0, 130, 0, 36)
-		actionButton.Position = UDim2.new(1, -140, 0.5, -18)
-		actionButton.Font = Enum.Font.GothamBold
-		actionButton.TextSize = 14
-		actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-		actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		actionButton.Parent = row
-		polishButton(actionButton, 8)
-
-		if theme.id == equippedId then
-			actionButton.Text = "Equipped"
-			actionButton.AutoButtonColor = false
-			actionButton.BackgroundColor3 = Color3.fromRGB(70, 90, 55)
-		elseif ownedSet[theme.id] then
-			actionButton.Text = "Equip"
-			actionButton.MouseButton1Click:Connect(function()
-				playClickSfx()
-				EquipThemeRemote:FireServer(theme.id)
-			end)
-		else
-			actionButton.Text = string.format("Buy (%d)", theme.price)
-			actionButton.MouseButton1Click:Connect(function()
-				if not latestState or latestState.tips < theme.price then
-					showWarning("Not enough tips for that.")
-					playClickSfx()
-					return
-				end
-				playSfx(SOUND_IDS.buyPatron)
-				BuyThemeRemote:FireServer(theme.id)
-			end)
-		end
-	end
-end
-
-refreshThemesList = refreshThemesListImpl
-
--- ----- Poker Hands reference -----
-
-local function refreshHandReferenceImpl()
-	for _, child in ipairs(handRefListFrame:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local handStats = (latestState and latestState.handStats) or {}
-
-	-- Strongest hand first, matching how most poker reference charts read.
-	for i = #HandEvaluator.HandOrder, 1, -1 do
-		local handName = HandEvaluator.HandOrder[i]
-		local base = Scoring.HandBase[handName]
-
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 34)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		row.ZIndex = 21
-		row.Parent = handRefListFrame
-		polishPanel(row, 8)
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
-		nameLabel.Position = UDim2.new(0, 10, 0, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.Gotham
-		nameLabel.TextSize = 14
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-		nameLabel.Text = handName
-		nameLabel.ZIndex = 21
-		nameLabel.Parent = row
-
-		local valueLabel = Instance.new("TextLabel")
-		valueLabel.Size = UDim2.new(0.35, 0, 1, 0)
-		valueLabel.Position = UDim2.new(0.4, 0, 0, 0)
-		valueLabel.BackgroundTransparency = 1
-		valueLabel.Font = Enum.Font.Gotham
-		valueLabel.TextSize = 14
-		valueLabel.TextXAlignment = Enum.TextXAlignment.Left
-		valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-		valueLabel.Text = string.format("%d x %d", base.chips, base.mult)
-		valueLabel.ZIndex = 21
-		valueLabel.Parent = row
-
-		local playedLabel = Instance.new("TextLabel")
-		playedLabel.Size = UDim2.new(0.2, -10, 1, 0)
-		playedLabel.Position = UDim2.new(0.8, 0, 0, 0)
-		playedLabel.BackgroundTransparency = 1
-		playedLabel.Font = Enum.Font.GothamBold
-		playedLabel.TextSize = 14
-		playedLabel.TextXAlignment = Enum.TextXAlignment.Right
-		playedLabel.TextColor3 = Color3.fromRGB(200, 220, 200)
-		playedLabel.Text = tostring(handStats[handName] or 0)
-		playedLabel.ZIndex = 21
-		playedLabel.Parent = row
-	end
-end
-
-refreshHandReference = refreshHandReferenceImpl
-
--- ----- Deck Tracker -----
-
-local function refreshDeckTrackerImpl()
-	local function makeDeckTrackerCell(parent, text, widthScale, isHeader, textColor)
-		local cell = Instance.new("TextLabel")
-		cell.Size = UDim2.new(widthScale, 0, 1, 0)
-		cell.BackgroundTransparency = 1
-		cell.Font = isHeader and Enum.Font.GothamBold or Enum.Font.Gotham
-		cell.TextSize = 13
-		cell.TextColor3 = textColor or Color3.fromRGB(230, 220, 205)
-		cell.Text = text
-		cell.ZIndex = 21
-		cell.Parent = parent
-		return cell
-	end
-
-	for _, child in ipairs(deckTrackerGrid:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local deckCounts = latestState and latestState.deckCounts
-	local cellWidth = 1 / (#Deck.RankOrder + 1)
-
-	local headerRow = Instance.new("Frame")
-	headerRow.Size = UDim2.new(1, 0, 0, 24)
-	headerRow.BackgroundTransparency = 1
-	headerRow.ZIndex = 21
-	headerRow.Parent = deckTrackerGrid
-	local headerLayout = Instance.new("UIListLayout")
-	headerLayout.FillDirection = Enum.FillDirection.Horizontal
-	headerLayout.Parent = headerRow
-	makeDeckTrackerCell(headerRow, "", cellWidth, true)
-	for _, rank in ipairs(Deck.RankOrder) do
-		makeDeckTrackerCell(headerRow, RANK_NAMES[rank], cellWidth, true, Color3.fromRGB(200, 185, 165))
-	end
-
-	for _, suit in ipairs(SUIT_DISPLAY_ORDER) do
-		local suitRow = Instance.new("Frame")
-		suitRow.Size = UDim2.new(1, 0, 0, 26)
-		suitRow.BackgroundColor3 = Color3.fromRGB(50, 38, 28)
-		suitRow.ZIndex = 21
-		suitRow.Parent = deckTrackerGrid
-		roundCorner(suitRow, 6)
-		local suitLayout = Instance.new("UIListLayout")
-		suitLayout.FillDirection = Enum.FillDirection.Horizontal
-		suitLayout.Parent = suitRow
-
-		local suitColor = RED_SUITS[suit] and Color3.fromRGB(230, 140, 140) or Color3.fromRGB(220, 220, 230)
-		makeDeckTrackerCell(suitRow, SUIT_SYMBOLS[suit], cellWidth, true, suitColor)
-		for _, rank in ipairs(Deck.RankOrder) do
-			local count = (deckCounts and deckCounts[suit] and deckCounts[suit][rank]) or 0
-			local cellColor = count > 0 and Color3.fromRGB(230, 220, 205) or Color3.fromRGB(110, 100, 90)
-			makeDeckTrackerCell(suitRow, tostring(count), cellWidth, false, cellColor)
-		end
-	end
-end
-
-refreshDeckTracker = refreshDeckTrackerImpl
 
 -- ===== Collection Gallery overlay =====
 -- FEATURE 11: a grid of every Patron and Theme in the game -- owned ones
