@@ -23,6 +23,7 @@ Patrons.Definitions = {
 	{
 		id = "the_regular",
 		name = "The Regular",
+		icon = "🍺",
 		description = "+4 Mult on every hand.",
 		price = 4,
 		effect = function(_handResult, _context)
@@ -32,6 +33,7 @@ Patrons.Definitions = {
 	{
 		id = "lucky_dice",
 		name = "Lucky Dice",
+		icon = "🎲",
 		description = "+20 Chips if the hand contains a Pair (or better).",
 		price = 5,
 		effect = function(handResult, _context)
@@ -48,6 +50,7 @@ Patrons.Definitions = {
 	{
 		id = "suit_yourself",
 		name = "Suit Yourself",
+		icon = "♥️",
 		description = "+3 Mult for each Heart among the scoring cards.",
 		price = 6,
 		effect = function(handResult, _context)
@@ -66,6 +69,7 @@ Patrons.Definitions = {
 	{
 		id = "last_call",
 		name = "Last Call",
+		icon = "🌙",
 		description = "Mult x1.5 when played as your last hand of the round.",
 		price = 7,
 		effect = function(_handResult, context)
@@ -78,6 +82,7 @@ Patrons.Definitions = {
 	{
 		id = "the_bard",
 		name = "The Bard",
+		icon = "🎻",
 		description = "+2 Mult for every card played (not just scoring cards).",
 		price = 5,
 		effect = function(_handResult, context)
