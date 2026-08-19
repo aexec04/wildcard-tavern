@@ -225,6 +225,22 @@ function RunState.buyPatron(state, patronId)
 	return true, patron.name .. " joins your table."
 end
 
+-- Discard an owned Patron for half its price back (rounded down). Allowed
+-- any time -- like theme purchases, this doesn't need to be gated to the
+-- shop phase; it's tidying up your table, not a purchasing decision made
+-- under shop-visit constraints. Returns true/false, refundAmount.
+function RunState.sellPatron(state, patronId)
+	for i, patron in ipairs(state.ownedPatrons) do
+		if patron.id == patronId then
+			table.remove(state.ownedPatrons, i)
+			local refund = math.floor(patron.price / 2)
+			state.tips = state.tips + refund
+			return true, refund
+		end
+	end
+	return false, 0
+end
+
 -- Purely cosmetic: unlock a table/card color theme with tips. No gameplay
 -- effect. Can be called any time -- not gated to the shop phase.
 function RunState.buyTheme(state, themeId)

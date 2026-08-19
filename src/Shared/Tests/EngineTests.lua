@@ -235,6 +235,25 @@ table.insert(tests, { name = "RunState.buyPatron fails gracefully with insuffici
 	expectTrue(message ~= nil)
 end })
 
+table.insert(tests, { name = "RunState.sellPatron removes the patron and refunds half its price", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local tipsAfterBuy = state.tips
+	local ok, refund = RunState.sellPatron(state, "the_regular")
+	expectTrue(ok)
+	expectEqual(#state.ownedPatrons, 0)
+	expectEqual(refund, math.floor(Patrons.getById("the_regular").price / 2))
+	expectEqual(state.tips, tipsAfterBuy + refund)
+end })
+
+table.insert(tests, { name = "RunState.sellPatron fails gracefully for a patron you don't own", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local ok, refund = RunState.sellPatron(state, "the_regular")
+	expectFalse(ok)
+	expectEqual(refund, 0)
+end })
+
 -- ===== Themes (cosmetics) =====
 
 table.insert(tests, { name = "RunState.new starts with the default theme owned and equipped", fn = function()

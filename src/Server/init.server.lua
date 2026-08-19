@@ -54,6 +54,7 @@ end
 local PlayHandRemote = newRemote("PlayHand")
 local DiscardRemote = newRemote("Discard")
 local BuyPatronRemote = newRemote("BuyPatron")
+local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
 local AdvanceRoundRemote = newRemote("AdvanceRound")
@@ -280,6 +281,22 @@ BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
 		end
 	end
 
+	pushState(player)
+end)
+
+-- Discarding an owned Patron, like theme purchases below, isn't gated to
+-- the shop phase -- it's tidying up your table, not a purchase decision
+-- tied to a specific shop visit's offers.
+SellPatronRemote.OnServerEvent:Connect(function(player, patronId)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	if type(patronId) ~= "string" then
+		return
+	end
+
+	RunState.sellPatron(session.state, patronId)
 	pushState(player)
 end)
 

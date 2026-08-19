@@ -42,6 +42,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local PlayHandRemote = remotes:WaitForChild("PlayHand")
 local DiscardRemote = remotes:WaitForChild("Discard")
 local BuyPatronRemote = remotes:WaitForChild("BuyPatron")
+local SellPatronRemote = remotes:WaitForChild("SellPatron")
 local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
 local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
@@ -502,10 +503,16 @@ patronsSlotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 patronsSlotLayout.Padding = UDim.new(0, 6)
 patronsSlotLayout.Parent = patronsSlotRow
 
--- Built once (fixed count -- the Patron catalog doesn't change at runtime),
--- refreshed in render() below each time state.ownedPatrons changes.
+-- Built once, refreshed in render() below each time state.ownedPatrons
+-- changes. Capped at MAX_SIDEBAR_PATRON_SLOTS regardless of how big the
+-- Patron catalog grows -- this is a quick-glance strip, not the full
+-- browser (that's the Shop's "My Patrons" tab / Collection Gallery), and
+-- a catalog of 50+ would otherwise overflow the sidebar entirely. The
+-- exact "X / Y owned" count (patronsCountLabel above) is always accurate
+-- even when the icon row itself is truncated.
+local MAX_SIDEBAR_PATRON_SLOTS = 14
 local patronSlots = {}
-for i = 1, #Patrons.Definitions do
+for i = 1, math.min(MAX_SIDEBAR_PATRON_SLOTS, #Patrons.Definitions) do
 	local slot = Instance.new("Frame")
 	slot.Size = UDim2.new(0, 30, 0, 30)
 	slot.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
@@ -972,47 +979,265 @@ end
 
 end -- do (Score popup)
 
+-- ----- Confirm dialog (generic, reusable) -----
+-- A yes/no modal for anything destructive/irreversible -- right now just
+-- "discard this Patron?", but written generically so future confirmations
+-- (selling a special card, resetting something) can reuse it instead of
+-- each building their own popup.
+
+local showConfirmDialog
+
+do
+	local confirmBackdrop = Instance.new("Frame")
+	confirmBackdrop.Name = "ConfirmBackdrop"
+	confirmBackdrop.Size = UDim2.fromScale(1, 1)
+	confirmBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	confirmBackdrop.BackgroundTransparency = 0.35
+	confirmBackdrop.Visible = false
+	confirmBackdrop.ZIndex = 35
+	confirmBackdrop.Parent = screenGui
+
+	local confirmPanel = Instance.new("Frame")
+	confirmPanel.Size = UDim2.new(0, 360, 0, 170)
+	confirmPanel.Position = UDim2.fromScale(0.5, 0.5)
+	confirmPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	confirmPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	confirmPanel.ZIndex = 35
+	confirmPanel.Parent = confirmBackdrop
+	polishPanel(confirmPanel, 14)
+	addSoftShadow(confirmPanel, 16)
+
+	local confirmMessageLabel = Instance.new("TextLabel")
+	confirmMessageLabel.Size = UDim2.new(1, -30, 0, 90)
+	confirmMessageLabel.Position = UDim2.new(0, 15, 0, 16)
+	confirmMessageLabel.BackgroundTransparency = 1
+	confirmMessageLabel.Font = Enum.Font.Gotham
+	confirmMessageLabel.TextSize = 15
+	confirmMessageLabel.TextWrapped = true
+	confirmMessageLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+	confirmMessageLabel.Text = ""
+	confirmMessageLabel.ZIndex = 35
+	confirmMessageLabel.Parent = confirmPanel
+
+	local confirmYesButton = Instance.new("TextButton")
+	confirmYesButton.Size = UDim2.new(0, 140, 0, 40)
+	confirmYesButton.Position = UDim2.new(0, 20, 1, -55)
+	confirmYesButton.Font = Enum.Font.GothamBold
+	confirmYesButton.TextSize = 15
+	confirmYesButton.Text = "Yes, discard it"
+	confirmYesButton.BackgroundColor3 = Color3.fromRGB(140, 50, 45)
+	confirmYesButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	confirmYesButton.ZIndex = 35
+	confirmYesButton.Parent = confirmPanel
+	polishButton(confirmYesButton, 10)
+
+	local confirmNoButton = Instance.new("TextButton")
+	confirmNoButton.Size = UDim2.new(0, 140, 0, 40)
+	confirmNoButton.Position = UDim2.new(1, -160, 1, -55)
+	confirmNoButton.Font = Enum.Font.GothamBold
+	confirmNoButton.TextSize = 15
+	confirmNoButton.Text = "Cancel"
+	confirmNoButton.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
+	confirmNoButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	confirmNoButton.ZIndex = 35
+	confirmNoButton.Parent = confirmPanel
+	polishButton(confirmNoButton, 10)
+
+	-- Reassigned on every showConfirmDialog call; Yes just calls whatever's
+	-- currently pending, so there's only ever one live confirmation at a time.
+	local pendingConfirmAction = nil
+
+	confirmYesButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		confirmBackdrop.Visible = false
+		if pendingConfirmAction then
+			pendingConfirmAction()
+			pendingConfirmAction = nil
+		end
+	end)
+
+	confirmNoButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		confirmBackdrop.Visible = false
+		pendingConfirmAction = nil
+	end)
+
+	showConfirmDialog = function(message, onConfirm)
+		confirmMessageLabel.Text = message
+		pendingConfirmAction = onConfirm
+		confirmBackdrop.Visible = true
+	end
+end -- do (Confirm dialog)
+
 -- ----- Shop overlay -----
+-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
+-- is one tab among what will eventually be several (Special Cards, Night
+-- Upgrades are stubbed in now so the tab bar itself doesn't need to change
+-- shape later), and "My Patrons" is where you manage/discard what you've
+-- already got -- important once the catalog grows well past a handful.
 
-local shopFrame = Instance.new("Frame")
-shopFrame.Name = "Shop"
-shopFrame.Size = UDim2.fromScale(0.6, 0.6)
-shopFrame.Position = UDim2.fromScale(0.2, 0.2)
-shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-shopFrame.Visible = false
-shopFrame.Parent = root
-polishPanel(shopFrame, 16)
-addSoftShadow(shopFrame, 18)
+local shopFrame
+local nextRoundButton
+local shopBuyListFrame
+local shopMyPatronsListFrame
 
-local shopTitle = Instance.new("TextLabel")
-shopTitle.Size = UDim2.new(1, 0, 0, 40)
-shopTitle.BackgroundTransparency = 1
-shopTitle.Font = Enum.Font.GothamBold
-shopTitle.TextSize = 22
-shopTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-shopTitle.Text = "The Bar -- spend your Tips"
-shopTitle.Parent = shopFrame
+do
+	shopFrame = Instance.new("Frame")
+	shopFrame.Name = "Shop"
+	shopFrame.Size = UDim2.fromScale(0.88, 0.82)
+	shopFrame.Position = UDim2.fromScale(0.06, 0.09)
+	shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	shopFrame.Visible = false
+	shopFrame.Parent = root
+	polishPanel(shopFrame, 16)
+	addSoftShadow(shopFrame, 18)
 
-local shopOffersFrame = Instance.new("Frame")
-shopOffersFrame.Size = UDim2.new(1, -20, 1, -100)
-shopOffersFrame.Position = UDim2.new(0, 10, 0, 45)
-shopOffersFrame.BackgroundTransparency = 1
-shopOffersFrame.Parent = shopFrame
+	local shopTitle = Instance.new("TextLabel")
+	shopTitle.Size = UDim2.new(1, 0, 0, 36)
+	shopTitle.BackgroundTransparency = 1
+	shopTitle.Font = Enum.Font.GothamBold
+	shopTitle.TextSize = 22
+	shopTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+	shopTitle.Text = "The Bar -- spend your Tips"
+	shopTitle.Parent = shopFrame
 
-local shopOffersLayout = Instance.new("UIListLayout")
-shopOffersLayout.Padding = UDim.new(0, 8)
-shopOffersLayout.Parent = shopOffersFrame
+	local shopTabBar = Instance.new("Frame")
+	shopTabBar.Size = UDim2.new(1, -20, 0, 36)
+	shopTabBar.Position = UDim2.new(0, 10, 0, 40)
+	shopTabBar.BackgroundTransparency = 1
+	shopTabBar.Parent = shopFrame
 
-local nextRoundButton = Instance.new("TextButton")
-nextRoundButton.Size = UDim2.new(0, 200, 0, 40)
-nextRoundButton.Position = UDim2.new(0.5, -100, 1, -50)
-nextRoundButton.Font = Enum.Font.GothamBold
-nextRoundButton.TextSize = 18
-nextRoundButton.Text = "Next Round"
-nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-nextRoundButton.Parent = shopFrame
-polishButton(nextRoundButton, 10)
+	local shopTabBarLayout = Instance.new("UIListLayout")
+	shopTabBarLayout.FillDirection = Enum.FillDirection.Horizontal
+	shopTabBarLayout.Padding = UDim.new(0, 8)
+	shopTabBarLayout.Parent = shopTabBar
+
+	local shopContentArea = Instance.new("Frame")
+	shopContentArea.Size = UDim2.new(1, -20, 1, -140)
+	shopContentArea.Position = UDim2.new(0, 10, 0, 84)
+	shopContentArea.BackgroundTransparency = 1
+	shopContentArea.Parent = shopFrame
+
+	local function makeShopListTab()
+		local tab = Instance.new("ScrollingFrame")
+		tab.Size = UDim2.fromScale(1, 1)
+		tab.BackgroundTransparency = 1
+		tab.BorderSizePixel = 0
+		tab.ScrollBarThickness = 8
+		tab.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		tab.CanvasSize = UDim2.new(0, 0, 0, 0)
+		tab.Visible = false
+		tab.Parent = shopContentArea
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 8)
+		layout.Parent = tab
+		return tab
+	end
+
+	local function makeComingSoonTab(emoji, title, description)
+		local tab = Instance.new("Frame")
+		tab.Size = UDim2.fromScale(1, 1)
+		tab.BackgroundTransparency = 1
+		tab.Visible = false
+		tab.Parent = shopContentArea
+
+		local emojiLabel = Instance.new("TextLabel")
+		emojiLabel.Size = UDim2.new(1, 0, 0, 60)
+		emojiLabel.Position = UDim2.new(0, 0, 0.3, 0)
+		emojiLabel.BackgroundTransparency = 1
+		emojiLabel.Font = Enum.Font.GothamBold
+		emojiLabel.TextSize = 40
+		emojiLabel.Text = emoji
+		emojiLabel.Parent = tab
+
+		local titleLabel = Instance.new("TextLabel")
+		titleLabel.Size = UDim2.new(1, -60, 0, 26)
+		titleLabel.Position = UDim2.new(0.5, 0, 0.3, 66)
+		titleLabel.AnchorPoint = Vector2.new(0.5, 0)
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Font = Enum.Font.GothamBold
+		titleLabel.TextSize = 18
+		titleLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
+		titleLabel.Text = title .. " -- coming soon"
+		titleLabel.Parent = tab
+
+		local descLabel = Instance.new("TextLabel")
+		descLabel.Size = UDim2.new(0, 420, 0, 40)
+		descLabel.Position = UDim2.new(0.5, 0, 0.3, 96)
+		descLabel.AnchorPoint = Vector2.new(0.5, 0)
+		descLabel.BackgroundTransparency = 1
+		descLabel.Font = Enum.Font.Gotham
+		descLabel.TextSize = 14
+		descLabel.TextWrapped = true
+		descLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+		descLabel.Text = description
+		descLabel.Parent = tab
+
+		return tab
+	end
+
+	shopBuyListFrame = makeShopListTab()
+	shopMyPatronsListFrame = makeShopListTab()
+	local shopSpecialCardsTab = makeComingSoonTab("🃏", "Special Cards", "One-off cards you can add to your deck for a run -- planned for a future update.")
+	local shopNightUpgradesTab = makeComingSoonTab("⬆️", "Night Upgrades", "Permanent boosts that last the whole Night -- planned for a future update.")
+
+	local shopTabContents = {
+		buy = shopBuyListFrame,
+		mypatrons = shopMyPatronsListFrame,
+		specialcards = shopSpecialCardsTab,
+		nightupgrades = shopNightUpgradesTab,
+	}
+
+	local SHOP_TAB_DEFS = {
+		{ key = "buy", label = "Buy Patrons" },
+		{ key = "mypatrons", label = "My Patrons" },
+		{ key = "specialcards", label = "Special Cards" },
+		{ key = "nightupgrades", label = "Night Upgrades" },
+	}
+
+	local shopTabButtons = {}
+
+	local function setShopTab(key)
+		for tabKey, frame in pairs(shopTabContents) do
+			frame.Visible = (tabKey == key)
+		end
+		for _, entry in ipairs(shopTabButtons) do
+			entry.button.BackgroundColor3 = (entry.key == key) and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
+		end
+	end
+
+	for i, def in ipairs(SHOP_TAB_DEFS) do
+		local tabButton = Instance.new("TextButton")
+		tabButton.Size = UDim2.new(0, 150, 1, 0)
+		tabButton.LayoutOrder = i
+		tabButton.Font = Enum.Font.GothamBold
+		tabButton.TextSize = 14
+		tabButton.Text = def.label
+		tabButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		tabButton.TextColor3 = Color3.fromRGB(230, 215, 195)
+		tabButton.Parent = shopTabBar
+		polishButton(tabButton, 8)
+		table.insert(shopTabButtons, { key = def.key, button = tabButton })
+
+		tabButton.MouseButton1Click:Connect(function()
+			playClickSfx(0.4)
+			setShopTab(def.key)
+		end)
+	end
+
+	setShopTab("buy")
+
+	nextRoundButton = Instance.new("TextButton")
+	nextRoundButton.Size = UDim2.new(0, 200, 0, 40)
+	nextRoundButton.Position = UDim2.new(0.5, -100, 1, -50)
+	nextRoundButton.Font = Enum.Font.GothamBold
+	nextRoundButton.TextSize = 18
+	nextRoundButton.Text = "Next Round"
+	nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	nextRoundButton.Parent = shopFrame
+	polishButton(nextRoundButton, 10)
+end -- do (Shop overlay)
 
 -- ----- Game over overlay -----
 
@@ -2706,7 +2931,7 @@ local function makeCollectionSectionHeader(text, order)
 	return label
 end
 
-local function makeCollectionRow(order, name, description, isOwned, swatchColor)
+local function makeCollectionRow(order, name, description, isOwned, swatchColor, icon)
 	local row = Instance.new("Frame")
 	row.Size = UDim2.new(1, 0, 0, 50)
 	row.BackgroundColor3 = isOwned and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38)
@@ -2729,7 +2954,7 @@ local function makeCollectionRow(order, name, description, isOwned, swatchColor)
 	swatchLabel.Font = Enum.Font.GothamBold
 	swatchLabel.TextSize = 16
 	swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	swatchLabel.Text = isOwned and "" or "?"
+	swatchLabel.Text = isOwned and (icon or "") or "?"
 	swatchLabel.ZIndex = 21
 	swatchLabel.Parent = swatch
 
@@ -2791,7 +3016,7 @@ local function refreshCollectionImpl()
 
 	makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
 	for i, patron in ipairs(Patrons.Definitions) do
-		makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100))
+		makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100), patron.icon)
 	end
 
 	makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
@@ -3310,29 +3535,63 @@ refreshHandSort = function()
 	end
 end
 
+-- A small colored badge with an icon (emoji glyph, not an uploaded image --
+-- see the TavernScene comment for why we don't guess catalog asset IDs)
+-- standing in for "a picture" for each Patron until real art exists.
+local function makePatronIconBadge(parent, icon)
+	local badge = Instance.new("TextLabel")
+	badge.Size = UDim2.new(0, 46, 0, 46)
+	badge.Position = UDim2.new(0, 8, 0.5, -23)
+	badge.BackgroundColor3 = Color3.fromRGB(45, 35, 25)
+	badge.Font = Enum.Font.GothamBold
+	badge.TextSize = 22
+	badge.Text = icon or "🎴"
+	badge.Parent = parent
+	roundCorner(badge, 10)
+	return badge
+end
+
 local function rebuildShop(shopOffers)
-	for _, child in ipairs(shopOffersFrame:GetChildren()) do
+	for _, child in ipairs(shopBuyListFrame:GetChildren()) do
 		if child:IsA("Frame") then
 			child:Destroy()
 		end
 	end
 
+	if #shopOffers == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Font = Enum.Font.Gotham
+		emptyLabel.TextSize = 14
+		emptyLabel.TextWrapped = true
+		emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+		emptyLabel.Text = "No new Patrons to offer this visit -- you've met everyone available so far!"
+		emptyLabel.Parent = shopBuyListFrame
+		return
+	end
+
 	for _, offer in ipairs(shopOffers) do
+		local fullPatron = Patrons.getById(offer.id)
+
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 50)
+		row.Size = UDim2.new(1, 0, 0, 64)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		row.Parent = shopOffersFrame
+		row.Parent = shopBuyListFrame
 		polishPanel(row, 10)
 
+		makePatronIconBadge(row, fullPatron and fullPatron.icon)
+
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -110, 1, 0)
-		label.Position = UDim2.new(0, 10, 0, 0)
+		label.Size = UDim2.new(1, -170, 1, -8)
+		label.Position = UDim2.new(0, 64, 0, 4)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.Gotham
-		label.TextSize = 15
+		label.TextSize = 14
+		label.TextWrapped = true
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(250, 240, 220)
-		label.Text = string.format("%s (%d tips) -- %s", offer.name, offer.price, offer.description)
+		label.Text = string.format("%s (%d tips)\n%s", offer.name, offer.price, offer.description)
 		label.Parent = row
 
 		local buyButton = Instance.new("TextButton")
@@ -3354,6 +3613,73 @@ local function rebuildShop(shopOffers)
 			end
 			playSfx(SOUND_IDS.buyPatron)
 			BuyPatronRemote:FireServer(offer.id)
+		end)
+	end
+end
+
+local function rebuildMyPatronsTab(ownedPatrons)
+	for _, child in ipairs(shopMyPatronsListFrame:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	if #ownedPatrons == 0 then
+		local emptyLabel = Instance.new("TextLabel")
+		emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+		emptyLabel.BackgroundTransparency = 1
+		emptyLabel.Font = Enum.Font.Gotham
+		emptyLabel.TextSize = 14
+		emptyLabel.TextWrapped = true
+		emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+		emptyLabel.Text = "No Patrons yet -- buy some in the Buy Patrons tab!"
+		emptyLabel.Parent = shopMyPatronsListFrame
+		return
+	end
+
+	for _, owned in ipairs(ownedPatrons) do
+		local fullPatron = Patrons.getById(owned.id)
+		local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
+
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 64)
+		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.Parent = shopMyPatronsListFrame
+		polishPanel(row, 10)
+
+		makePatronIconBadge(row, fullPatron and fullPatron.icon)
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -190, 1, -8)
+		label.Position = UDim2.new(0, 64, 0, 4)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 14
+		label.TextWrapped = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(250, 240, 220)
+		label.Text = string.format("%s\n%s", owned.name, owned.description)
+		label.Parent = row
+
+		local discardButton = Instance.new("TextButton")
+		discardButton.Size = UDim2.new(0, 110, 0, 36)
+		discardButton.Position = UDim2.new(1, -120, 0.5, -18)
+		discardButton.Font = Enum.Font.GothamBold
+		discardButton.TextSize = 14
+		discardButton.Text = "Discard"
+		discardButton.BackgroundColor3 = Color3.fromRGB(110, 55, 45)
+		discardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		discardButton.Parent = row
+		polishButton(discardButton, 8)
+
+		discardButton.MouseButton1Click:Connect(function()
+			playClickSfx(0.4)
+			showConfirmDialog(
+				string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
+				function()
+					SellPatronRemote:FireServer(owned.id)
+				end
+			)
 		end)
 	end
 end
@@ -3479,6 +3805,7 @@ local function render(state)
 	gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then
 		rebuildShop(state.shopOffers)
+		rebuildMyPatronsTab(state.ownedPatrons)
 	end
 
 	if state.phase == "gameover" then
