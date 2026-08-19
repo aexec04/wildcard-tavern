@@ -102,267 +102,35 @@ local RED_SUITS = { Hearts = true, Diamonds = true }
 local SUIT_DISPLAY_ORDER = { "Spades", "Hearts", "Clubs", "Diamonds" }
 
 -- ===== Sound =====
---[[
-	Real asset IDs, picked from the batch Ahmed found. backgroundMusic default
-	is just a placeholder pick (Ahmed said he wants a later feature letting
-	players choose/upload their own background tracks, maybe gamepass-gated --
-	that's a separate feature for later, this is just something to hear for now.
+-- Extracted into Client/Sound.lua (asset IDs and the "why this default
+-- track" note now live there too). Nearly everything below takes
+-- playSfx/playClickSfx/SOUND_IDS as deps, so this is required first.
+local SoundModule = require(script.Sound)({
+	SoundService = SoundService,
+})
+local SOUND_IDS = SoundModule.SOUND_IDS
+local backgroundMusic = SoundModule.backgroundMusic
+local playSfx = SoundModule.playSfx
+local playClickSfx = SoundModule.playClickSfx
+local VOLUME_STEPS = SoundModule.VOLUME_STEPS
+local VOLUME_ICONS = SoundModule.VOLUME_ICONS
+local volumeStepIndex = SoundModule.volumeStepIndex
 
-	Unused alternates from the same batch, in case you want to swap later:
-	  Balatro-Shop-Buy:   rbxassetid://117518868636544
-	  Sears-Washing-Machine-8 (click alt): rbxassetid://9118892323
-	  Falling-Down (music alt):    rbxassetid://122884689708268
-	  Celestial-Walk (music alt, has a loud sax -- Ahmed didn't like it): rbxassetid://1836047913
-]]
-local SOUND_IDS = {
-	backgroundMusic = "rbxassetid://138172142909285", -- Retro-Impact-Zone (placeholder default, see above)
-	cardToggle = "rbxassetid://9117308777",      -- Photo-Flapping-Handling-Movement-Rubbing-1-SFX
-	playHand = "rbxassetid://9113727134",        -- Cash-Movement-2-SFX
-	discard = "rbxassetid://9114035597",         -- Deck-Of-Cards-7-SFX
-	buyPatron = "rbxassetid://128537772502751",  -- Buy
-	roundReward = "rbxassetid://133292918309565", -- buy (alt) -- distinct "you got paid" cash sound for round-complete
-	uiClick = "rbxassetid://9118728158",         -- Rotary-Switch-10-SFX
-}
-
-local backgroundMusic = Instance.new("Sound")
-backgroundMusic.Name = "BackgroundMusic"
-backgroundMusic.SoundId = SOUND_IDS.backgroundMusic
-backgroundMusic.Looped = true
-backgroundMusic.Parent = SoundService
-
--- FEATURE 3: cycle loud -> quiet -> muted, free for everyone (no paywall).
-local VOLUME_STEPS = { 0.5, 0.2, 0 }
-local VOLUME_ICONS = { "♪", "♩", "×" }
-local volumeStepIndex = 1
-backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]
-
--- One persistent Sound instance per SFX, created ONCE here and reused for
--- every play, instead of Instance.new()'ing (and loading) a brand new Sound
--- every single click. That repeated create+load was the real source of the
--- "still delayed, not instant" symptom -- PreloadAsync warms the asset
--- cache, but a fresh Sound object still has to resolve/initialize against
--- that asset each time you make one, and that's what was costing the delay.
-local sfxPool = {} -- soundId -> persistent Sound instance
-for _, id in pairs(SOUND_IDS) do
-	if id and id ~= "rbxassetid://0" and not sfxPool[id] then
-		local pooled = Instance.new("Sound")
-		pooled.SoundId = id
-		pooled.Parent = SoundService
-		sfxPool[id] = pooled
-	end
-end
-
--- Preload every pooled Sound up front so the FIRST play doesn't have to
--- wait on streaming it from the CDN. Wrapped in task.spawn so it can't
--- block the rest of the UI from building while it loads.
-task.spawn(function()
-	local ContentProvider = game:GetService("ContentProvider")
-	local toPreload = {}
-	for _, pooled in pairs(sfxPool) do
-		table.insert(toPreload, pooled)
-	end
-	if #toPreload > 0 then
-		pcall(function()
-			ContentProvider:PreloadAsync(toPreload)
-		end)
-	end
-end)
-
--- maxLength (optional): cuts the sound off after that many seconds instead
--- of letting it play out fully -- some of the free SFX clips (card
--- handling, etc.) have a longer tail than you want for a quick UI moment.
--- The "StopToken" attribute (not a Lua local -- see the LOCAL VARIABLE
--- BUDGET note up top) guards the delayed Stop() against a newer overlapping
--- play of the SAME pooled sound, so rapid-fire clicks can't have an old
--- click's delayed Stop() cut off a brand new click's playback early.
-local function playSfx(soundId, volume, maxLength)
-	if not soundId or soundId == "" or soundId == "rbxassetid://0" then
-		return -- placeholder id, nothing to play yet
-	end
-	local sfx = sfxPool[soundId]
-	if not sfx then
-		-- Fallback for any id not in SOUND_IDS at load time -- shouldn't
-		-- normally happen, but keeps this safe against future one-off calls.
-		sfx = Instance.new("Sound")
-		sfx.SoundId = soundId
-		sfx.Parent = SoundService
-		sfxPool[soundId] = sfx
-	end
-	sfx.Volume = volume or 0.6
-	sfx.TimePosition = 0
-	sfx:Play()
-	if maxLength then
-		local myToken = (sfx:GetAttribute("StopToken") or 0) + 1
-		sfx:SetAttribute("StopToken", myToken)
-		task.delay(maxLength, function()
-			if sfx:GetAttribute("StopToken") == myToken then
-				sfx:Stop()
-			end
-		end)
-	end
-end
-
--- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
--- into the clip itself -- for a snappy UI button we only want the first
--- one, so every generic click plays through this instead of calling
--- playSfx(SOUND_IDS.uiClick, ...) directly.
--- 0.15s cut it off too close to the sound's own startup latency, so on some
--- clicks (e.g. the "not enough tips" error click) it ended up basically
--- inaudible -- 0.25s gives it more room to actually be heard before the cut.
-local function playClickSfx(volume)
-	playSfx(SOUND_IDS.uiClick, volume, 0.25)
-end
-
--- ===== Tween helper =====
-
-local function tweenTo(instance, properties, duration, style, direction)
-	local tween = TweenService:Create(
-		instance,
-		TweenInfo.new(duration, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out),
-		properties
-	)
-	tween:Play()
-	return tween
-end
-
--- ===== Visual polish helpers (rounded corners) =====
--- FEATURE 1 of the rebuild-from-known-good pass.
---
--- FOUND IT: an earlier version of this helper set also had an addGloss()
--- that layered a near-white UIGradient on top of buttons/cards using a
--- Transparency sequence of 0.75 -> 0.9 -> 1.0 to fake a subtle highlight.
--- In Roblox, UIGradient.Transparency does NOT add a highlight on top of the
--- object's own color -- it OVERRIDES how see-through the object is at each
--- point. A sequence that's 75-100% transparent across almost the whole
--- object means you're mostly looking straight through the button/card to
--- whatever's behind it (the dark table background), not seeing a gloss at
--- all. That's the actual cause of the "everything looks near-black" bug
--- this whole project has been chasing. Leaving addGloss out entirely here;
--- rounded corners alone are zero-risk since they don't touch color or
--- transparency.
-
-local function roundCorner(instance, radius)
-	if instance:FindFirstChildOfClass("UICorner") then
-		return
-	end
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius or 10)
-	corner.Parent = instance
-end
-
-local function polishButton(instance, radius)
-	roundCorner(instance, radius or 10)
-end
-
-local function polishPanel(instance, radius)
-	roundCorner(instance, radius or 16)
-end
-
--- FEATURE 3: a soft drop shadow behind a panel -- a plain, offset,
--- fixed-transparency black Frame placed just behind it. Unlike addGloss,
--- this uses ordinary BackgroundTransparency (0.55, constant, not a
--- gradient), which blends normally -- it can only ever darken the thin
--- offset border area behind a panel, never the panel's own content.
-local function addSoftShadow(panel, radius)
-	local shadow = Instance.new("Frame")
-	shadow.Name = "Shadow"
-	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	shadow.BackgroundTransparency = 0.55
-	shadow.Size = UDim2.new(1, 14, 1, 14)
-	shadow.Position = UDim2.new(0, -7, 0, 4)
-	shadow.BorderSizePixel = 0
-	shadow.ZIndex = math.max(0, panel.ZIndex - 1)
-	shadow.Parent = panel.Parent
-	roundCorner(shadow, radius or 18)
-	return shadow
-end
-
--- ===== Reusable small UI helper: stepper row =====
--- Used by the Settings overlay. Roblox has no built-in drag-slider widget,
--- so this is a simple "- value +" stepper instead -- far less to get wrong
--- than hand-rolled drag physics, and just as usable.
-
-local function makeStepperRow(parent, labelText, min, max, step, getValue, setValue, formatValue)
-	local row = Instance.new("Frame")
-	row.Size = UDim2.new(1, 0, 0, 46)
-	row.BackgroundTransparency = 1
-	row.Parent = parent
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0.5, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.Gotham
-	label.TextSize = 15
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextColor3 = Color3.fromRGB(240, 230, 215)
-	label.Text = labelText
-	label.ZIndex = 21
-	label.Parent = row
-
-	local controlHolder = Instance.new("Frame")
-	controlHolder.Size = UDim2.new(0.5, 0, 1, 0)
-	controlHolder.Position = UDim2.new(0.5, 0, 0, 0)
-	controlHolder.BackgroundTransparency = 1
-	controlHolder.ZIndex = 21
-	controlHolder.Parent = row
-
-	local controlLayout = Instance.new("UIListLayout")
-	controlLayout.FillDirection = Enum.FillDirection.Horizontal
-	controlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	controlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	controlLayout.Padding = UDim.new(0, 10)
-	controlLayout.Parent = controlHolder
-
-	local minusButton = Instance.new("TextButton")
-	minusButton.Size = UDim2.new(0, 34, 0, 34)
-	minusButton.Font = Enum.Font.GothamBold
-	minusButton.TextSize = 18
-	minusButton.Text = "-"
-	minusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-	minusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	minusButton.ZIndex = 21
-	minusButton.Parent = controlHolder
-	polishButton(minusButton, 8)
-
-	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Size = UDim2.new(0, 60, 1, 0)
-	valueLabel.BackgroundTransparency = 1
-	valueLabel.Font = Enum.Font.GothamBold
-	valueLabel.TextSize = 15
-	valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-	valueLabel.ZIndex = 21
-	valueLabel.Parent = controlHolder
-
-	local plusButton = Instance.new("TextButton")
-	plusButton.Size = UDim2.new(0, 34, 0, 34)
-	plusButton.Font = Enum.Font.GothamBold
-	plusButton.TextSize = 18
-	plusButton.Text = "+"
-	plusButton.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-	plusButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	plusButton.ZIndex = 21
-	plusButton.Parent = controlHolder
-	polishButton(plusButton, 8)
-
-	local function refresh()
-		local value = getValue()
-		valueLabel.Text = formatValue and formatValue(value) or tostring(value)
-	end
-
-	minusButton.MouseButton1Click:Connect(function()
-		playClickSfx(0.35)
-		setValue(math.max(min, getValue() - step))
-		refresh()
-	end)
-	plusButton.MouseButton1Click:Connect(function()
-		playClickSfx(0.35)
-		setValue(math.min(max, getValue() + step))
-		refresh()
-	end)
-
-	refresh()
-	return refresh
-end
+-- ===== Visual + stepper-row helpers =====
+-- Extracted into Client/VisualHelpers.lua. Required right after Sound.lua
+-- since makeStepperRow needs playClickSfx. Nearly every overlay module
+-- below takes tweenTo/polishPanel/polishButton/roundCorner/addSoftShadow
+-- as deps.
+local VisualHelpersModule = require(script.VisualHelpers)({
+	TweenService = TweenService,
+	playClickSfx = playClickSfx,
+})
+local tweenTo = VisualHelpersModule.tweenTo
+local roundCorner = VisualHelpersModule.roundCorner
+local polishButton = VisualHelpersModule.polishButton
+local polishPanel = VisualHelpersModule.polishPanel
+local addSoftShadow = VisualHelpersModule.addSoftShadow
+local makeStepperRow = VisualHelpersModule.makeStepperRow
 
 -- ===== Root UI =====
 
@@ -381,167 +149,27 @@ root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
 
 -- ----- Left sidebar: round/blind info -----
--- LAYOUT FEATURE 1: replaces the old full-width top status bar, which had
--- started colliding with the top-right corner icon buttons as more got
--- added (a real bug -- the "Hands" label was getting cut off). Balatro
--- keeps this info in a dedicated left-side column instead of a top bar, so
--- this moves the same data there and leaves the whole top edge free for
--- the corner icon buttons with no shared space to collide over.
-
-local SIDEBAR_WIDTH = 240
-
-local sidebar = Instance.new("Frame")
-sidebar.Name = "Sidebar"
-sidebar.Size = UDim2.new(0, SIDEBAR_WIDTH, 1, 0)
-sidebar.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-sidebar.BorderSizePixel = 0
-sidebar.ZIndex = 2
-sidebar.Parent = root
-
-local sidebarPadding = Instance.new("UIPadding")
--- 76px, not 16 -- Roblox's own top-left system UI (menu/chat/voice icons)
--- lives in roughly that space and was overlapping the "Round" box's text.
-sidebarPadding.PaddingTop = UDim.new(0, 76)
-sidebarPadding.PaddingLeft = UDim.new(0, 12)
-sidebarPadding.PaddingRight = UDim.new(0, 12)
-sidebarPadding.Parent = sidebar
-
-local sidebarLayout = Instance.new("UIListLayout")
-sidebarLayout.FillDirection = Enum.FillDirection.Vertical
-sidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-sidebarLayout.Padding = UDim.new(0, 10)
-sidebarLayout.Parent = sidebar
-
-local function makeSidebarBox(height)
-	local box = Instance.new("Frame")
-	box.Size = UDim2.new(1, 0, 0, height or 46)
-	box.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-	box.ZIndex = 2
-	box.Parent = sidebar
-	polishPanel(box, 10)
-	return box
-end
-
-local function makeSidebarLabel(parent, textSize, color)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = textSize or 16
-	label.TextColor3 = color or Color3.fromRGB(240, 220, 190)
-	label.TextWrapped = true
-	label.Text = ""
-	label.ZIndex = 2
-	label.Parent = parent
-	return label
-end
-
-local nightRoundBox = makeSidebarBox(40)
-local nightRoundLabel = makeSidebarLabel(nightRoundBox, 16)
-
--- LAYOUT FEATURE 2: blind/round name + ability (mirrors the existing
--- bossBanner content, just always-visible in the sidebar instead of a
--- banner that only appears mid-round) and the target score + tip reward
--- for clearing it, computed the same way the server does (see RunState.lua
--- playHand: tipsPerRoundWin, doubled on a Boss Round) so it never drifts
--- out of sync with the actual payout.
-local blindInfoBox = makeSidebarBox(56)
-local blindInfoLabel = makeSidebarLabel(blindInfoBox, 13)
-blindInfoLabel.TextWrapped = true
-blindInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
-
-local scoreBox = makeSidebarBox(66)
-local scoreLabel = makeSidebarLabel(scoreBox, 16, Color3.fromRGB(255, 214, 130))
-
-local tipsBox = makeSidebarBox(40)
-local tipsLabel = makeSidebarLabel(tipsBox, 16)
-
-local handsDiscardsBox = makeSidebarBox(40)
-local handsDiscardsLabel = makeSidebarLabel(handsDiscardsBox, 15)
-
--- LAYOUT FEATURE 5: Patron slot icons, mirroring Balatro's persistent
--- Joker-slot row -- shows how many Patrons you've picked up this run at a
--- glance, without opening the Collection Gallery. This game has no hard
--- cap on Patrons owned (unlike Balatro's Joker slots), so this shows
--- owned-out-of-total-in-the-game rather than a hard capacity.
-local patronsBox = makeSidebarBox(58)
-
-local patronsHeader = Instance.new("TextLabel")
-patronsHeader.Size = UDim2.new(0.6, 0, 0, 16)
-patronsHeader.Position = UDim2.new(0, 0, 0, 4)
-patronsHeader.BackgroundTransparency = 1
-patronsHeader.Font = Enum.Font.GothamBold
-patronsHeader.TextSize = 12
-patronsHeader.TextColor3 = Color3.fromRGB(200, 185, 165)
-patronsHeader.TextXAlignment = Enum.TextXAlignment.Left
-patronsHeader.Text = "Patrons"
-patronsHeader.ZIndex = 2
-patronsHeader.Parent = patronsBox
-
-local patronsCountLabel = Instance.new("TextLabel")
-patronsCountLabel.Size = UDim2.new(0.4, 0, 0, 16)
-patronsCountLabel.Position = UDim2.new(0.6, 0, 0, 4)
-patronsCountLabel.BackgroundTransparency = 1
-patronsCountLabel.Font = Enum.Font.GothamBold
-patronsCountLabel.TextSize = 12
-patronsCountLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-patronsCountLabel.TextXAlignment = Enum.TextXAlignment.Right
-patronsCountLabel.Text = ""
-patronsCountLabel.ZIndex = 2
-patronsCountLabel.Parent = patronsBox
-
-local patronsSlotRow = Instance.new("Frame")
-patronsSlotRow.Size = UDim2.new(1, 0, 0, 30)
-patronsSlotRow.Position = UDim2.new(0, 0, 0, 24)
-patronsSlotRow.BackgroundTransparency = 1
-patronsSlotRow.ZIndex = 2
-patronsSlotRow.Parent = patronsBox
-
-local patronsSlotLayout = Instance.new("UIListLayout")
-patronsSlotLayout.FillDirection = Enum.FillDirection.Horizontal
-patronsSlotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-patronsSlotLayout.Padding = UDim.new(0, 6)
-patronsSlotLayout.Parent = patronsSlotRow
-
--- Built once, refreshed in render() below each time state.ownedPatrons
--- changes. Capped at MAX_SIDEBAR_PATRON_SLOTS regardless of how big the
--- Patron catalog grows -- this is a quick-glance strip, not the full
--- browser (that's the Shop's "My Patrons" tab / Collection Gallery), and
--- a catalog of 50+ would otherwise overflow the sidebar entirely. The
--- exact "X / Y owned" count (patronsCountLabel above) is always accurate
--- even when the icon row itself is truncated.
-local MAX_SIDEBAR_PATRON_SLOTS = 14
-local patronSlots = {}
-for i = 1, math.min(MAX_SIDEBAR_PATRON_SLOTS, #Patrons.Definitions) do
-	local slot = Instance.new("Frame")
-	slot.Size = UDim2.new(0, 30, 0, 30)
-	slot.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
-	slot.LayoutOrder = i
-	slot.ZIndex = 2
-	slot.Parent = patronsSlotRow
-	roundCorner(slot, 6)
-
-	local slotLabel = Instance.new("TextLabel")
-	slotLabel.Size = UDim2.fromScale(1, 1)
-	slotLabel.BackgroundTransparency = 1
-	slotLabel.Font = Enum.Font.GothamBold
-	slotLabel.TextSize = 14
-	slotLabel.TextColor3 = Color3.fromRGB(140, 135, 130)
-	slotLabel.Text = "?"
-	slotLabel.ZIndex = 2
-	slotLabel.Parent = slot
-
-	patronSlots[i] = { frame = slot, label = slotLabel }
-end
-
--- LAYOUT FEATURE 6: live chips x mult preview for the currently-selected
--- cards, mirroring Balatro's running score readout. Computed with the same
--- HandEvaluator/Scoring modules the server uses (already required above
--- for Feature 5's worked examples), so the preview can't drift out of sync
--- with the real payout -- see refreshScorePreview() further down, which
--- wires this up once `selected`/`latestState` exist.
-local scorePreviewBox = makeSidebarBox(50)
-local scorePreviewLabel = makeSidebarLabel(scorePreviewBox, 15, Color3.fromRGB(190, 215, 255))
+-- Extracted into Client/Sidebar.lua (round/blind labels, Patron slot row,
+-- score preview box). SIDEBAR_WIDTH/labels/patronSlots come back out since
+-- render() and refreshScorePreview() below still drive them every frame.
+local SidebarModule = require(script.Sidebar)({
+	root = root,
+	polishPanel = polishPanel,
+	roundCorner = roundCorner,
+	Patrons = Patrons,
+})
+local SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH
+local sidebar = SidebarModule.sidebar
+local nightRoundLabel = SidebarModule.nightRoundLabel
+local blindInfoLabel = SidebarModule.blindInfoLabel
+local scoreLabel = SidebarModule.scoreLabel
+local tipsLabel = SidebarModule.tipsLabel
+local handsDiscardsLabel = SidebarModule.handsDiscardsLabel
+local patronsCountLabel = SidebarModule.patronsCountLabel
+local patronSlots = SidebarModule.patronSlots
+local MAX_SIDEBAR_PATRON_SLOTS = SidebarModule.MAX_SIDEBAR_PATRON_SLOTS
+local scorePreviewBox = SidebarModule.scorePreviewBox
+local scorePreviewLabel = SidebarModule.scorePreviewLabel
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
@@ -665,55 +293,18 @@ for i, patron in ipairs(Patrons.Definitions) do
 	end
 end
 
--- ----- Message banner (hand result / round result) -----
-
-local messageLabel = Instance.new("TextLabel")
-messageLabel.Name = "Message"
-messageLabel.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 30)
-messageLabel.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 20)
-messageLabel.BackgroundTransparency = 1
-messageLabel.Font = Enum.Font.Gotham
-messageLabel.TextSize = 16
-messageLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-messageLabel.Text = ""
-messageLabel.Parent = root
-
--- Every warning shown through this ("Not enough tips", "Select 1-5 cards...")
--- used to just sit on screen forever once set. This clears it back to ""
--- after a few seconds. The "MessageToken" attribute (not a new top-level
--- local -- see LOCAL VARIABLE BUDGET above) guards against a newer message
--- getting wiped early by an older message's stale clear-timer.
-local function showWarning(text)
-	messageLabel.Text = text
-	local myToken = (messageLabel:GetAttribute("MessageToken") or 0) + 1
-	messageLabel:SetAttribute("MessageToken", myToken)
-	task.delay(3, function()
-		if messageLabel:GetAttribute("MessageToken") == myToken then
-			messageLabel.Text = ""
-		end
-	end)
-end
-
--- FEATURE 9: a banner announcing this round's Boss modifier, if any.
-local bossBanner = Instance.new("Frame")
-bossBanner.Name = "BossBanner"
-bossBanner.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 40)
-bossBanner.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 56)
-bossBanner.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
-bossBanner.Visible = false
-bossBanner.ZIndex = 3
-bossBanner.Parent = root
-polishPanel(bossBanner, 10)
-
-local bossBannerLabel = Instance.new("TextLabel")
-bossBannerLabel.Size = UDim2.fromScale(1, 1)
-bossBannerLabel.BackgroundTransparency = 1
-bossBannerLabel.Font = Enum.Font.GothamBold
-bossBannerLabel.TextSize = 15
-bossBannerLabel.TextColor3 = Color3.fromRGB(255, 225, 210)
-bossBannerLabel.Text = ""
-bossBannerLabel.ZIndex = 3
-bossBannerLabel.Parent = bossBanner
+-- ===== Message banner (hand result / round result) =====
+-- Extracted into Client/MessageBanner.lua. showWarning is passed as a dep
+-- into Shop.lua/Themes.lua below, and render() drives bossBanner directly,
+-- so all three come back out of the require() call.
+local MessageBannerModule = require(script.MessageBanner)({
+	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
+	root = root,
+	polishPanel = polishPanel,
+})
+local showWarning = MessageBannerModule.showWarning
+local bossBanner = MessageBannerModule.bossBanner
+local bossBannerLabel = MessageBannerModule.bossBannerLabel
 
 -- ----- Hand area -----
 
@@ -860,75 +451,18 @@ local discardButton = makeActionButton("Discard")
 discardButton.LayoutOrder = 3
 addTooltip(discardButton, "Discard your selected cards and draw new ones")
 
--- ----- Deck-remaining widget, bottom-right -----
--- LAYOUT FEATURE 3: always-visible "how many cards are left" readout with a
--- card-back icon, instead of that info only being reachable through the
--- Deck Tracker overlay. Parented under `root` (not screenGui directly), so
--- its addSoftShadow correctly cascades hidden/visible with the menu <->
--- gameplay toggle -- see the addSoftShadow note on the Unlock popup for why
--- that parenting choice matters.
-
--- Wrapped in do...end per the LOCAL VARIABLE BUDGET note up top --
--- deckCountLabel and deckWidgetButton are the only pieces render()/the
--- click handler further down need to reach later, so they're
--- forward-declared and assigned (not re-`local`-declared) inside the block.
-local deckCountLabel
-local deckWidgetButton
-do
-
-local deckWidget = Instance.new("Frame")
-deckWidget.Name = "DeckWidget"
-deckWidget.AnchorPoint = Vector2.new(1, 1)
-deckWidget.Position = UDim2.new(1, -20, 1, -70)
-deckWidget.Size = UDim2.new(0, 74, 0, 118)
-deckWidget.BackgroundTransparency = 1
-deckWidget.ZIndex = 2
-deckWidget.Parent = root
-
--- The deck widget itself IS the Deck Tracker entry point now (no separate
--- corner button) -- a transparent click-catcher over the whole widget, so
--- clicking the card-back icon or the count label both open the tracker.
--- Its click handler is wired inside Client/DeckTracker.lua, which takes
--- this button as a dep (see the require(script.DeckTracker) call below).
-deckWidgetButton = Instance.new("TextButton")
-deckWidgetButton.Name = "ClickCatcher"
-deckWidgetButton.Size = UDim2.fromScale(1, 1)
-deckWidgetButton.BackgroundTransparency = 1
-deckWidgetButton.Text = ""
-deckWidgetButton.ZIndex = 3
-deckWidgetButton.Parent = deckWidget
-addTooltip(deckWidgetButton, "Deck Tracker -- click to see what's left in the deck")
-
-local deckCardBack = Instance.new("Frame")
-deckCardBack.Size = UDim2.new(1, 0, 0, 96)
-deckCardBack.BackgroundColor3 = Color3.fromRGB(50, 70, 110)
-deckCardBack.ZIndex = 2
-deckCardBack.Parent = deckWidget
-polishPanel(deckCardBack, 8)
-addSoftShadow(deckCardBack, 10)
-
-local deckCardBackIcon = Instance.new("TextLabel")
-deckCardBackIcon.Size = UDim2.fromScale(1, 1)
-deckCardBackIcon.BackgroundTransparency = 1
-deckCardBackIcon.Font = Enum.Font.GothamBold
-deckCardBackIcon.TextSize = 30
-deckCardBackIcon.TextColor3 = Color3.fromRGB(220, 225, 240)
-deckCardBackIcon.Text = "🂠"
-deckCardBackIcon.ZIndex = 2
-deckCardBackIcon.Parent = deckCardBack
-
-deckCountLabel = Instance.new("TextLabel")
-deckCountLabel.Size = UDim2.new(1, 0, 0, 20)
-deckCountLabel.Position = UDim2.new(0, 0, 0, 98)
-deckCountLabel.BackgroundTransparency = 1
-deckCountLabel.Font = Enum.Font.GothamBold
-deckCountLabel.TextSize = 14
-deckCountLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
-deckCountLabel.Text = ""
-deckCountLabel.ZIndex = 2
-deckCountLabel.Parent = deckWidget
-
-end -- do (Deck widget)
+-- ===== Deck-remaining widget, bottom-right =====
+-- Extracted into Client/DeckWidget.lua. deckCountLabel is driven every
+-- render() call, and deckWidgetButton is passed as a dep into
+-- DeckTracker.lua below, so both come back out of the require() call.
+local DeckWidgetModule = require(script.DeckWidget)({
+	root = root,
+	polishPanel = polishPanel,
+	addSoftShadow = addSoftShadow,
+	addTooltip = addTooltip,
+})
+local deckCountLabel = DeckWidgetModule.deckCountLabel
+local deckWidgetButton = DeckWidgetModule.deckWidgetButton
 
 -- deckCounts is [suit][rank] = count (see Deck.remainingCounts) -- sum it
 -- up rather than hardcoding suit/rank names, so it stays correct even if
@@ -946,177 +480,27 @@ local function countRemainingInDeck(deckCounts)
 	return total
 end
 
--- ----- Score popup: chips x mult animation on Play Hand -----
--- LAYOUT FEATURE 7: Balatro's signature score-pop. Parented to `root` (not
--- handFrame -- rebuildHand() destroys every Frame child of handFrame on
--- every render(), which would destroy this the instant a hand is played)
--- and centered on the full screen rather than the narrower play area, to
--- avoid hand-crafting sidebar/deck-widget-aware centering math for a
--- element that's only ever on screen for about a second.
---
--- Wrapped in do...end per the LOCAL VARIABLE BUDGET note above -- showScorePopup
--- is called from playButton's click handler far below, so it's forward-declared
--- and assigned inside the block (not `local function`) to survive past `end`.
-local showScorePopup
-do
+-- ===== Score popup: chips x mult animation on Play Hand =====
+-- Extracted into Client/ScorePopup.lua. showScorePopup is called from
+-- playButton's click handler elsewhere in this file, so it comes back out
+-- of the require() call.
+local ScorePopupModule = require(script.ScorePopup)({
+	root = root,
+	tweenTo = tweenTo,
+})
+local showScorePopup = ScorePopupModule.showScorePopup
 
-local scorePopup = Instance.new("Frame")
-scorePopup.Name = "ScorePopup"
-scorePopup.Size = UDim2.new(0, 240, 0, 90)
-scorePopup.AnchorPoint = Vector2.new(0.5, 1)
-scorePopup.Position = UDim2.new(0.5, 0, 1, -240)
-scorePopup.BackgroundTransparency = 1
-scorePopup.Visible = false
-scorePopup.ZIndex = 25
-scorePopup.Parent = root
-
-local scorePopupHandName = Instance.new("TextLabel")
-scorePopupHandName.Size = UDim2.new(1, 0, 0, 24)
-scorePopupHandName.BackgroundTransparency = 1
-scorePopupHandName.Font = Enum.Font.GothamBold
-scorePopupHandName.TextSize = 18
-scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
-scorePopupHandName.TextStrokeTransparency = 0.5
-scorePopupHandName.Text = ""
-scorePopupHandName.ZIndex = 25
-scorePopupHandName.Parent = scorePopup
-
-local scorePopupMath = Instance.new("TextLabel")
-scorePopupMath.Size = UDim2.new(1, 0, 0, 50)
-scorePopupMath.Position = UDim2.new(0, 0, 0, 26)
-scorePopupMath.BackgroundTransparency = 1
-scorePopupMath.Font = Enum.Font.GothamBold
-scorePopupMath.TextSize = 36
-scorePopupMath.TextColor3 = Color3.fromRGB(255, 255, 255)
-scorePopupMath.TextStrokeTransparency = 0.4
-scorePopupMath.Text = ""
-scorePopupMath.ZIndex = 25
-scorePopupMath.Parent = scorePopup
-
-local scorePopupScale = Instance.new("UIScale")
-scorePopupScale.Scale = 1
-scorePopupScale.Parent = scorePopup
-
-local scorePopupToken = 0
-
--- preview: { name, chips, mult, score } from computeHandPreview(). Values
--- are computed at the moment Play Hand is clicked, using the exact same
--- scoring call RunState.playHand makes server-side, so this can never show
--- a number that doesn't match what you actually get paid.
-showScorePopup = function(preview)
-	scorePopupToken = scorePopupToken + 1
-	local myToken = scorePopupToken
-
-	scorePopupHandName.Text = preview.name
-	scorePopupMath.Text = string.format("%d x %d", preview.chips, preview.mult)
-	scorePopup.Visible = true
-	scorePopupScale.Scale = 0.6
-	tweenTo(scorePopupScale, { Scale = 1.15 }, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-	task.delay(0.18, function()
-		if scorePopupToken == myToken then
-			tweenTo(scorePopupScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		end
-	end)
-
-	task.delay(1.1, function()
-		if scorePopupToken == myToken then
-			scorePopup.Visible = false
-		end
-	end)
-end
-
-end -- do (Score popup)
-
--- ----- Confirm dialog (generic, reusable) -----
--- A yes/no modal for anything destructive/irreversible -- right now just
--- "discard this Patron?", but written generically so future confirmations
--- (selling a special card, resetting something) can reuse it instead of
--- each building their own popup.
-
-local showConfirmDialog
-
-do
-	local confirmBackdrop = Instance.new("Frame")
-	confirmBackdrop.Name = "ConfirmBackdrop"
-	confirmBackdrop.Size = UDim2.fromScale(1, 1)
-	confirmBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	confirmBackdrop.BackgroundTransparency = 0.35
-	confirmBackdrop.Visible = false
-	confirmBackdrop.ZIndex = 35
-	confirmBackdrop.Parent = screenGui
-
-	local confirmPanel = Instance.new("Frame")
-	confirmPanel.Size = UDim2.new(0, 360, 0, 170)
-	confirmPanel.Position = UDim2.fromScale(0.5, 0.5)
-	confirmPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-	confirmPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-	confirmPanel.ZIndex = 35
-	confirmPanel.Parent = confirmBackdrop
-	polishPanel(confirmPanel, 14)
-	addSoftShadow(confirmPanel, 16)
-
-	local confirmMessageLabel = Instance.new("TextLabel")
-	confirmMessageLabel.Size = UDim2.new(1, -30, 0, 90)
-	confirmMessageLabel.Position = UDim2.new(0, 15, 0, 16)
-	confirmMessageLabel.BackgroundTransparency = 1
-	confirmMessageLabel.Font = Enum.Font.Gotham
-	confirmMessageLabel.TextSize = 15
-	confirmMessageLabel.TextWrapped = true
-	confirmMessageLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-	confirmMessageLabel.Text = ""
-	confirmMessageLabel.ZIndex = 35
-	confirmMessageLabel.Parent = confirmPanel
-
-	local confirmYesButton = Instance.new("TextButton")
-	confirmYesButton.Size = UDim2.new(0, 140, 0, 40)
-	confirmYesButton.Position = UDim2.new(0, 20, 1, -55)
-	confirmYesButton.Font = Enum.Font.GothamBold
-	confirmYesButton.TextSize = 15
-	confirmYesButton.Text = "Yes, discard it"
-	confirmYesButton.BackgroundColor3 = Color3.fromRGB(140, 50, 45)
-	confirmYesButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	confirmYesButton.ZIndex = 35
-	confirmYesButton.Parent = confirmPanel
-	polishButton(confirmYesButton, 10)
-
-	local confirmNoButton = Instance.new("TextButton")
-	confirmNoButton.Size = UDim2.new(0, 140, 0, 40)
-	confirmNoButton.Position = UDim2.new(1, -160, 1, -55)
-	confirmNoButton.Font = Enum.Font.GothamBold
-	confirmNoButton.TextSize = 15
-	confirmNoButton.Text = "Cancel"
-	confirmNoButton.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
-	confirmNoButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	confirmNoButton.ZIndex = 35
-	confirmNoButton.Parent = confirmPanel
-	polishButton(confirmNoButton, 10)
-
-	-- Reassigned on every showConfirmDialog call; Yes just calls whatever's
-	-- currently pending, so there's only ever one live confirmation at a time.
-	local pendingConfirmAction = nil
-
-	confirmYesButton.MouseButton1Click:Connect(function()
-		playClickSfx()
-		confirmBackdrop.Visible = false
-		if pendingConfirmAction then
-			pendingConfirmAction()
-			pendingConfirmAction = nil
-		end
-	end)
-
-	confirmNoButton.MouseButton1Click:Connect(function()
-		playClickSfx()
-		confirmBackdrop.Visible = false
-		pendingConfirmAction = nil
-	end)
-
-	showConfirmDialog = function(message, onConfirm)
-		confirmMessageLabel.Text = message
-		pendingConfirmAction = onConfirm
-		confirmBackdrop.Visible = true
-	end
-end -- do (Confirm dialog)
+-- ===== Confirm dialog (generic, reusable) =====
+-- Extracted into Client/ConfirmDialog.lua. showConfirmDialog is passed as a
+-- dep into Shop.lua below, so it comes back out of the require() call.
+local ConfirmDialogModule = require(script.ConfirmDialog)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+})
+local showConfirmDialog = ConfirmDialogModule.showConfirmDialog
 
 -- ----- Shop overlay -----
 -- Extracted into Client/Shop.lua (see that file for the deps list and the
