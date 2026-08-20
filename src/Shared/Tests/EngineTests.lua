@@ -1027,4 +1027,170 @@ table.insert(tests, { name = "RunState.resolvePack skips a Patron pick that no l
 	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit, "the pick should be silently skipped, not crash or overfill")
 end })
 
+-- ===== Feature Expansion (Phase 2 cont'd): Jumbo/Mega Pack sizes =====
+
+table.insert(tests, { name = "RunState.openPack: a Jumbo pack reveals 5 items (pick 1) and charges its own price", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "buffoon_pack_jumbo", function(n) return n end)
+	expectEqual(#reveal.items, 5)
+	expectEqual(reveal.pickCount, 1)
+	expectEqual(state.tips, 100 - Packs.getById("buffoon_pack_jumbo").price)
+end })
+
+table.insert(tests, { name = "RunState.openPack/resolvePack: a Mega pack reveals 5 items and lets you pick 2", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "menu_pack_mega", function(n) return n end)
+	expectEqual(#reveal.items, 5)
+	expectEqual(reveal.pickCount, 2)
+	local ok = RunState.resolvePack(state, { reveal.items[1].id, reveal.items[2].id })
+	expectTrue(ok)
+	expectEqual(#state.menuRecipeInventory, 2)
+end })
+
+table.insert(tests, { name = "RunState.resolvePack: a Mega pack refuses a selection of the wrong count", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "house_pack_mega", function(n) return n end)
+	local ok, message = RunState.resolvePack(state, { reveal.items[1].id }) -- Mega needs 2 (or 0 to skip)
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+end })
+
+-- ===== Feature Expansion (Phase 2 cont'd): Standard Packs =====
+
+table.insert(tests, { name = "RunState.openPack: a Standard Pack reveals real cards with exactly one modifier each", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "standard_pack", function(n) return n end)
+	expectEqual(reveal.category, "standard")
+	expectEqual(#reveal.items, 3)
+	for _, item in ipairs(reveal.items) do
+		expectTrue(item.card ~= nil, "Standard Pack items should carry a card spec")
+		expectTrue(item.card.rank >= 2 and item.card.rank <= 14, "revealed rank should be a real card rank")
+		expectTrue(table.find(Card.Suits, item.card.suit) ~= nil, "revealed suit should be a real suit")
+		local modifierCount = (item.card.garnish and 1 or 0) + (item.card.special and 1 or 0) + (item.card.stamp and 1 or 0)
+		expectEqual(modifierCount, 1)
+	end
+end })
+
+table.insert(tests, { name = "RunState.resolvePack: picking a Standard Pack card adds the exact card to the discard pile", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local poolBefore = #state.hand + #state.deck + #state.discardPile
+	local reveal = RunState.openPack(state, "standard_pack", function(n) return n end)
+	local chosenItem = reveal.items[1]
+	local ok = RunState.resolvePack(state, { chosenItem.id })
+	expectTrue(ok)
+	expectEqual(#state.hand + #state.deck + #state.discardPile, poolBefore + 1, "the run's total card pool should grow by 1")
+
+	local addedCard = state.discardPile[#state.discardPile]
+	expectEqual(addedCard.rank, chosenItem.card.rank)
+	expectEqual(addedCard.suit, chosenItem.card.suit)
+	expectEqual(addedCard.garnish, chosenItem.card.garnish)
+	expectEqual(addedCard.special, chosenItem.card.special)
+	expectEqual(addedCard.stamp, chosenItem.card.stamp)
+end })
+
+table.insert(tests, { name = "RunState.resolvePack: a Standard Pack card survives into the next round's pooled deck", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "standard_pack", function(n) return n end)
+	RunState.resolvePack(state, { reveal.items[1].id })
+	local addedCard = state.discardPile[#state.discardPile]
+	RunState.startRound(state) -- pools + reshuffles for the next round
+
+	local found = false
+	for _, card in ipairs(state.hand) do
+		if card == addedCard then found = true end
+	end
+	for _, card in ipairs(state.deck) do
+		if card == addedCard then found = true end
+	end
+	expectTrue(found, "the Standard Pack card should still be in the run's card pool (same table, not regenerated)")
+end })
+
+table.insert(tests, { name = "RunState.resolvePack: a Mega Standard Pack lets you keep 2 cards at once", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local poolBefore = #state.hand + #state.deck + #state.discardPile
+	local reveal = RunState.openPack(state, "standard_pack_mega", function(n) return n end)
+	expectEqual(#reveal.items, 5)
+	expectEqual(reveal.pickCount, 2)
+	local ok = RunState.resolvePack(state, { reveal.items[1].id, reveal.items[2].id })
+	expectTrue(ok)
+	expectEqual(#state.hand + #state.deck + #state.discardPile, poolBefore + 2)
+end })
+
+-- ===== Feature Expansion (Phase 2 cont'd): another batch of Recipes =====
+
+table.insert(tests, { name = "House Recipe 'Wipe the Slate' clears a card's Garnish/Special/Stamp", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].garnish = "sweet"
+	state.hand[1].special = "gold"
+	state.hand[1].stamp = "encore"
+	local recipe = Recipes.getHouseRecipeById("wipe_the_slate")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectTrue(state.hand[1].garnish == nil)
+	expectTrue(state.hand[1].special == nil)
+	expectTrue(state.hand[1].stamp == nil)
+end })
+
+table.insert(tests, { name = "House Recipe 'Downsize' lowers rank by 1, floored at 2", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].rank = 5
+	state.hand[2].rank = 2 -- already at the floor
+	local recipe = Recipes.getHouseRecipeById("downsize")
+	local ok = recipe.apply(state, { cardIndices = { 1, 2 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].rank, 4)
+	expectEqual(state.hand[2].rank, 2)
+end })
+
+table.insert(tests, { name = "House Recipe 'Wildcard Swap' randomizes a card's rank and suit", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].rank = 7
+	state.hand[1].suit = "Hearts"
+	local recipe = Recipes.getHouseRecipeById("wildcard_swap")
+	local ok = recipe.apply(state, { cardIndices = { 1 }, rng = function(n) return n end })
+	expectTrue(ok)
+	expectEqual(state.hand[1].rank, 14) -- identity rng(13) = 13 -> rank 14
+	expectEqual(state.hand[1].suit, "Spades") -- identity rng(4) = 4 -> last suit
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Patron of the Month' gives a random owned Patron a random Special", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local recipe = Recipes.getSecretRecipeById("patron_of_the_month")
+	local ok = recipe.apply(state, { rng = function(n) return n end })
+	expectTrue(ok)
+	expectTrue(state.ownedPatronSpecials["the_regular"] ~= nil)
+	expectTrue(table.find({ "silver", "gold", "rainbow" }, state.ownedPatronSpecials["the_regular"]) ~= nil)
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Patron of the Month' refuses when there are no Patrons", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("patron_of_the_month")
+	local ok, message = recipe.apply(state, {})
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Fresh Start' clears Garnish/Special/Stamp from every card in hand", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].garnish = "sweet"
+	state.hand[2].special = "rainbow"
+	local recipe = Recipes.getSecretRecipeById("fresh_start")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	for _, card in ipairs(state.hand) do
+		expectTrue(card.garnish == nil)
+		expectTrue(card.special == nil)
+		expectTrue(card.stamp == nil)
+	end
+end })
+
 return tests

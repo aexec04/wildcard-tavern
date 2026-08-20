@@ -52,6 +52,11 @@
 		                       content, same pattern as Patrons/Themes) --
 		                       still needed for the My Recipes tab (looking
 		                       up what a held recipe id actually does)
+		HousePasses        -- the Shared/Engine/HousePasses module (static
+		                       content, same pattern as Recipes/Patrons) --
+		                       needed for the My Patrons tab's House Passes
+		                       section (looking up a held pass id's name/
+		                       icon/description)
 		BuyPatronRemote    -- RemoteEvent
 		SellPatronRemote   -- RemoteEvent
 		UseRecipeRemote    -- RemoteEvent (category, id, cardIndices?, suit?)
@@ -71,7 +76,7 @@
 			shopFrame = Frame,
 			nextRoundButton = TextButton,
 			rebuildShop = function(state),
-			rebuildMyPatronsTab = function(ownedPatrons),
+			rebuildMyPatronsTab = function(state),
 			rebuildMyRecipesTab = function(state),
 			closeTargetPanel = function(),
 		}
@@ -90,6 +95,7 @@ return function(deps)
 	local SOUND_IDS = deps.SOUND_IDS
 	local Patrons = deps.Patrons
 	local Recipes = deps.Recipes
+	local HousePasses = deps.HousePasses
 	local BuyPatronRemote = deps.BuyPatronRemote
 	local SellPatronRemote = deps.SellPatronRemote
 	local UseRecipeRemote = deps.UseRecipeRemote
@@ -971,15 +977,59 @@ return function(deps)
 		refreshPackPanel(state)
 	end
 
-	local function rebuildMyPatronsTab(ownedPatrons)
+	-- A passive (no button) info row -- used for the House Passes section
+	-- below, where ownership is permanent for the run and there's nothing
+	-- to click.
+	local function addInfoRow(parent, layoutOrder, icon, name, description)
+		local row = Instance.new("Frame")
+		row.LayoutOrder = layoutOrder
+		row.Size = UDim2.new(1, 0, 0, 56)
+		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.ZIndex = 6
+		row.Parent = parent
+		polishPanel(row, 10)
+
+		makePatronIconBadge(row, icon)
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -74, 1, -8)
+		label.Position = UDim2.new(0, 64, 0, 4)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 13
+		label.TextWrapped = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(250, 240, 220)
+		label.Text = string.format("%s\n%s", name, description)
+		label.ZIndex = 6
+		label.Parent = row
+		return row
+	end
+
+	local function rebuildMyPatronsTab(state)
+		local ownedPatrons = (state and state.ownedPatrons) or {}
+		local housePassIds = (state and state.housePassIds) or {}
+
 		for _, child in ipairs(shopMyPatronsListFrame:GetChildren()) do
 			if child:IsA("Frame") or child:IsA("TextLabel") then
 				child:Destroy()
 			end
 		end
 
+		-- See addOfferRow's comment near rebuildShop -- every element added
+		-- to this ScrollingFrame needs an explicit, sequential LayoutOrder
+		-- or UIListLayout silently reorders Frames before TextLabels
+		-- regardless of insertion order (this tab mixes Patron row Frames
+		-- with the House Passes section's TextLabel header below).
+		local nextOrder = 0
+		local function order()
+			nextOrder = nextOrder + 1
+			return nextOrder
+		end
+
 		if #ownedPatrons == 0 then
 			local emptyLabel = Instance.new("TextLabel")
+			emptyLabel.LayoutOrder = order()
 			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
 			emptyLabel.BackgroundTransparency = 1
 			emptyLabel.Font = Enum.Font.Gotham
@@ -989,56 +1039,83 @@ return function(deps)
 			emptyLabel.Text = "No Patrons yet -- buy some in the Shop tab!"
 			emptyLabel.ZIndex = 6
 			emptyLabel.Parent = shopMyPatronsListFrame
-			return
+		else
+			for _, owned in ipairs(ownedPatrons) do
+				local fullPatron = Patrons.getById(owned.id)
+				local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
+
+				local row = Instance.new("Frame")
+				row.LayoutOrder = order()
+				row.Size = UDim2.new(1, 0, 0, 64)
+				row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+				row.ZIndex = 6
+				row.Parent = shopMyPatronsListFrame
+				polishPanel(row, 10)
+
+				makePatronIconBadge(row, fullPatron and fullPatron.icon)
+
+				local label = Instance.new("TextLabel")
+				label.Size = UDim2.new(1, -190, 1, -8)
+				label.Position = UDim2.new(0, 64, 0, 4)
+				label.BackgroundTransparency = 1
+				label.Font = Enum.Font.Gotham
+				label.TextSize = 14
+				label.TextWrapped = true
+				label.TextXAlignment = Enum.TextXAlignment.Left
+				label.TextColor3 = Color3.fromRGB(250, 240, 220)
+				label.Text = string.format("%s\n%s", owned.name, owned.description)
+				label.ZIndex = 6
+				label.Parent = row
+
+				local discardButton = Instance.new("TextButton")
+				discardButton.Size = UDim2.new(0, 110, 0, 36)
+				discardButton.Position = UDim2.new(1, -120, 0.5, -18)
+				discardButton.Font = Enum.Font.GothamBold
+				discardButton.TextSize = 14
+				discardButton.Text = "Discard"
+				discardButton.BackgroundColor3 = Color3.fromRGB(110, 55, 45)
+				discardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+				discardButton.ZIndex = 6
+				discardButton.Parent = row
+				polishButton(discardButton, 8)
+
+				discardButton.MouseButton1Click:Connect(function()
+					playClickSfx(0.4)
+					showConfirmDialog(
+						string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
+						function()
+							SellPatronRemote:FireServer(owned.id)
+						end
+					)
+				end)
+			end
 		end
 
-		for _, owned in ipairs(ownedPatrons) do
-			local fullPatron = Patrons.getById(owned.id)
-			local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
-
-			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, 0, 0, 64)
-			row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-			row.ZIndex = 6
-			row.Parent = shopMyPatronsListFrame
-			polishPanel(row, 10)
-
-			makePatronIconBadge(row, fullPatron and fullPatron.icon)
-
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(1, -190, 1, -8)
-			label.Position = UDim2.new(0, 64, 0, 4)
-			label.BackgroundTransparency = 1
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 14
-			label.TextWrapped = true
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.TextColor3 = Color3.fromRGB(250, 240, 220)
-			label.Text = string.format("%s\n%s", owned.name, owned.description)
-			label.ZIndex = 6
-			label.Parent = row
-
-			local discardButton = Instance.new("TextButton")
-			discardButton.Size = UDim2.new(0, 110, 0, 36)
-			discardButton.Position = UDim2.new(1, -120, 0.5, -18)
-			discardButton.Font = Enum.Font.GothamBold
-			discardButton.TextSize = 14
-			discardButton.Text = "Discard"
-			discardButton.BackgroundColor3 = Color3.fromRGB(110, 55, 45)
-			discardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-			discardButton.ZIndex = 6
-			discardButton.Parent = row
-			polishButton(discardButton, 8)
-
-			discardButton.MouseButton1Click:Connect(function()
-				playClickSfx(0.4)
-				showConfirmDialog(
-					string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
-					function()
-						SellPatronRemote:FireServer(owned.id)
-					end
-				)
-			end)
+		-- ----- House Passes (Vouchers) section -----
+		-- Permanent-for-the-run upgrades bought from the shop's occasional
+		-- Voucher slot. state.housePassIds already shipped from the server
+		-- since Phase 1c -- this is the first thing that actually displays
+		-- it (see the "known gap" note in the feature expansion plan doc).
+		addSectionHeader(shopMyPatronsListFrame, order(), "House Passes")
+		if #housePassIds == 0 then
+			local emptyPassLabel = Instance.new("TextLabel")
+			emptyPassLabel.LayoutOrder = order()
+			emptyPassLabel.Size = UDim2.new(1, 0, 0, 40)
+			emptyPassLabel.BackgroundTransparency = 1
+			emptyPassLabel.Font = Enum.Font.Gotham
+			emptyPassLabel.TextSize = 14
+			emptyPassLabel.TextWrapped = true
+			emptyPassLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+			emptyPassLabel.Text = "No House Passes yet -- keep an eye out for a Voucher offer in the Shop tab!"
+			emptyPassLabel.ZIndex = 6
+			emptyPassLabel.Parent = shopMyPatronsListFrame
+		else
+			for _, passId in ipairs(housePassIds) do
+				local pass = HousePasses.getById(passId)
+				if pass then
+					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description)
+				end
+			end
 		end
 	end
 

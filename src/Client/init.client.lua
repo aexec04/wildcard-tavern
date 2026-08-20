@@ -88,6 +88,12 @@ local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("E
 -- PHASE 1B (hand visual treatment): need Card.Garnishes/Specials/Stamps'
 -- icon fields to show a small corner badge on modified cards in the hand.
 local Card = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Card"))
+-- PHASE 2 (My House Passes display): HousePasses.Definitions is static
+-- content, same "client reads the catalog directly" pattern as
+-- Patrons/Recipes/Themes above -- the server only sends which ids are owned
+-- (state.housePassIds, already shipped since Phase 1c but unused client-side
+-- until now).
+local HousePasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HousePasses"))
 
 -- Declared up here (not down by the rest of "Client-side state" below) so
 -- ANY overlay's refresh function -- including ones built inside a do/end
@@ -531,6 +537,7 @@ local Shop = require(script.Shop)({
 	SOUND_IDS = SOUND_IDS,
 	Patrons = Patrons,
 	Recipes = Recipes,
+	HousePasses = HousePasses,
 	BuyPatronRemote = BuyPatronRemote,
 	SellPatronRemote = SellPatronRemote,
 	UseRecipeRemote = UseRecipeRemote,
@@ -1346,7 +1353,7 @@ local function render(state)
 	gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then
 		rebuildShop(state)
-		rebuildMyPatronsTab(state.ownedPatrons)
+		rebuildMyPatronsTab(state)
 		rebuildMyRecipesTab(state)
 	else
 		-- Left the shop (round advanced, or the run ended) -- close the

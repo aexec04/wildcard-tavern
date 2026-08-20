@@ -492,6 +492,63 @@ local function inventoryForCategory(state, category)
 	return nil
 end
 
+-- Standard Packs (category = "standard") reveal actual playing cards with a
+-- modifier already applied, instead of Patrons/Recipes -- picking one adds
+-- that exact card to your run's card pool. Every Garnish/Special/Stamp that
+-- makes sense on a random card is in this pool (Reserved is Patron-only, so
+-- it's excluded); each is equally likely.
+local STANDARD_MODIFIER_POOL = {
+	{ kind = "garnish", id = "sweet" },
+	{ kind = "garnish", id = "zesty" },
+	{ kind = "garnish", id = "houseBlend" },
+	{ kind = "garnish", id = "brittle" },
+	{ kind = "garnish", id = "iron" },
+	{ kind = "garnish", id = "barToken" },
+	{ kind = "garnish", id = "golden" },
+	{ kind = "garnish", id = "lucky" },
+	{ kind = "special", id = "silver" },
+	{ kind = "special", id = "gold" },
+	{ kind = "special", id = "rainbow" },
+	{ kind = "stamp", id = "gold" },
+	{ kind = "stamp", id = "encore" },
+	{ kind = "stamp", id = "blue" },
+	{ kind = "stamp", id = "purple" },
+}
+
+local function modifierDef(kind, id)
+	if kind == "garnish" then
+		return Card.Garnishes[id]
+	elseif kind == "special" then
+		return Card.Specials[id]
+	elseif kind == "stamp" then
+		return Card.Stamps[id]
+	end
+	return nil
+end
+
+-- Builds one random-rank/random-suit card with one random modifier applied,
+-- as a Standard Pack reveal item. `id` is a synthetic per-reveal index (NOT
+-- a catalog id -- Standard Pack cards aren't drawn from a fixed catalog like
+-- Patrons/Recipes are), unique within this one reveal, which is all
+-- resolvePack needs to match a chosen id back to its item. The `card` field
+-- carries everything needed to instantiate the real Card.new(...) once
+-- chosen -- see RunState.resolvePack's "standard" branch below.
+local function randomStandardPackItem(rng, index)
+	local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
+	local suit = Card.Suits[rng(#Card.Suits)]
+	local choice = STANDARD_MODIFIER_POOL[rng(#STANDARD_MODIFIER_POOL)]
+	local def = modifierDef(choice.kind, choice.id)
+	local cardSpec = { rank = rank, suit = suit }
+	cardSpec[choice.kind] = choice.id
+	return {
+		id = tostring(index),
+		name = string.format("%s of %s (%s)", Card.RankNames[rank], suit, def.name),
+		icon = def.icon,
+		description = def.description,
+		card = cardSpec,
+	}
+end
+
 --[[
 	Buys a Pack (deducts its price, respecting Wholesale Pricing) and
 	reveals `revealCount` random items from its category. Returns the
@@ -505,7 +562,9 @@ end
 
 	`items` are lightweight display copies { id, name, icon, description },
 	not the real Patron/Recipe tables, so nothing is granted just by being
-	revealed.
+	revealed. Standard Pack items additionally carry a `card` field (see
+	randomStandardPackItem above) -- still nothing is granted/mutated until
+	resolvePack.
 ]]
 function RunState.openPack(state, packId, rng)
 	local pack = Packs.getById(packId)
@@ -537,6 +596,10 @@ function RunState.openPack(state, packId, rng)
 		for _ = 1, math.min(pack.revealCount, #available) do
 			local picked = table.remove(available, rng(#available))
 			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description })
+		end
+	elseif pack.category == "standard" then
+		for i = 1, pack.revealCount do
+			table.insert(items, randomStandardPackItem(rng, i))
 		end
 	else
 		local catalog = recipeCatalogForCategory(pack.category)
@@ -614,6 +677,24 @@ function RunState.resolvePack(state, chosenIds)
 				end
 				if patron and not alreadyOwned then
 					table.insert(state.ownedPatrons, patron)
+				end
+			end
+		elseif pending.category == "standard" then
+			-- Find the revealed item this id came from and instantiate a
+			-- real card from its spec, then drop it in the discard pile --
+			-- same place "86 It"/Brittle Garnish breakage etc. leave/remove
+			-- cards -- so it reshuffles into the deck at the next
+			-- RunState.startRound, same as every other persistent-deck card.
+			for _, item in ipairs(pending.items) do
+				if item.id == chosenId and item.card then
+					local spec = item.card
+					local newCard = Card.new(spec.rank, spec.suit, {
+						garnish = spec.garnish,
+						special = spec.special,
+						stamp = spec.stamp,
+					})
+					table.insert(state.discardPile, newCard)
+					break
 				end
 			end
 		else

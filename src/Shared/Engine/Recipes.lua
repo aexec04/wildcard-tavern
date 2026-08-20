@@ -325,6 +325,51 @@ Recipes.HouseRecipes = {
 			return true, "Lucky ticket punched."
 		end,
 	},
+	{
+		id = "wipe_the_slate", name = "Wipe the Slate", icon = "🧽", price = 4,
+		cardCount = { min = 1, max = 1 },
+		description = "Removes any Garnish, Special, and Stamp from 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].garnish = nil
+			cards[1].special = nil
+			cards[1].stamp = nil
+			return true, "Wiped clean."
+		end,
+	},
+	{
+		id = "downsize", name = "Downsize", icon = "⬇️", price = 3,
+		cardCount = { min = 1, max = 2 },
+		description = "Lowers the rank of up to 2 selected cards by 1 (floors at 2).",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards < 1 or #cards > 2 then
+				return false, "Select 1-2 cards"
+			end
+			for _, card in ipairs(cards) do
+				card.rank = math.max(2, card.rank - 1)
+			end
+			return true, "Downsized."
+		end,
+	},
+	{
+		id = "wildcard_swap", name = "Wildcard Swap", icon = "🎲", price = 4,
+		cardCount = { min = 1, max = 1 },
+		description = "Randomizes both the rank and suit of 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			local rng = (opts and opts.rng) or math.random
+			cards[1].rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
+			cards[1].suit = randomChoice(Card.Suits, rng)
+			return true, "Anything could happen."
+		end,
+	},
 }
 
 -- ===== Menu Recipes (permanently level up a hand type) =====
@@ -496,6 +541,32 @@ Recipes.SecretRecipes = {
 			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
 			state.ownedPatronSpecials[picked.id] = "gold"
 			return true, picked.name .. " gets the Star Treatment."
+		end,
+	},
+	{
+		id = "patron_of_the_month", name = "Patron of the Month", icon = "🏅", price = 7,
+		description = "A random Patron at your table gets a random Special (Silver/Gold/Rainbow), permanently.",
+		apply = function(state, opts)
+			if #state.ownedPatrons == 0 then
+				return false, "No Patrons to honor"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local picked = randomChoice(state.ownedPatrons, rng)
+			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
+			state.ownedPatronSpecials[picked.id] = randomChoice({ "silver", "gold", "rainbow" }, rng)
+			return true, picked.name .. " is Patron of the Month."
+		end,
+	},
+	{
+		id = "fresh_start", name = "Fresh Start", icon = "🔄", price = 6,
+		description = "Removes every Garnish, Special, and Stamp from every card currently in your hand.",
+		apply = function(state)
+			for _, card in ipairs(state.hand) do
+				card.garnish = nil
+				card.special = nil
+				card.stamp = nil
+			end
+			return true, "A clean slate."
 		end,
 	},
 }
