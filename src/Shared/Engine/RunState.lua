@@ -19,6 +19,8 @@ local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
 local Recipes = require(script.Parent.Recipes)
+local HousePasses = require(script.Parent.HousePasses)
+local Packs = require(script.Parent.Packs)
 
 local RunState = {}
 
@@ -103,6 +105,8 @@ function RunState.new(options, rng)
 		secretRecipeInventory = {},
 		lastRecipeUsedId = nil, -- for the "Second Helping" House Recipe
 		ownedPatronSpecials = {}, -- [patronId] = Card.Specials id (not yet folded into Scoring -- see design doc)
+		housePasses = {}, -- [passId] = true, permanent for the rest of the run -- see HousePasses.lua
+		pendingPack = nil, -- set by RunState.openPack, cleared by RunState.resolvePack -- see below
 		bossModifier = nil,
 		roundOver = false,
 		runOver = false,
@@ -133,13 +137,19 @@ function RunState.startRound(state)
 
 	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
 	handSize = math.max(1, handSize)
+	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
+		+ (state.housePasses.late_kitchen and 1 or 0)
 	discards = math.max(0, discards)
 
 	local handsPerRound = state.config.handsPerRound
 	if bossModifier and bossModifier.handsPerRoundOverride then
 		handsPerRound = bossModifier.handsPerRoundOverride
 	end
+	-- Double Shift House Pass: +1 Hand every round, permanent for the run --
+	-- applies even on a Boss Round that overrides handsPerRound, same as
+	-- everything else here layering on top of the boss's base number.
+	handsPerRound = handsPerRound + (state.housePasses.double_shift and 1 or 0)
 	handsPerRound = math.max(1, handsPerRound)
 
 	state.hand = Deck.draw(state.deck, handSize)
@@ -369,10 +379,9 @@ function RunState.discard(state, cardIndices)
 	return { discarded = #discarded, discardsRemaining = state.discardsRemaining }
 end
 
--- How many Patrons can currently sit at the table: the base config value
--- plus 1 for every owned Patron carrying a Reserved Special (see Card.lua
--- -- nothing grants one yet in this pass, but buyPatron/useHouseRecipe
--- already respect it so it's a real lever the moment something does).
+-- How many Patrons can currently sit at the table: the base config value,
+-- plus 1 for every owned Patron carrying a Reserved Special (see Card.lua),
+-- plus 1 more if the Extra Seating House Pass has been bought this run.
 function RunState.patronSlotLimit(state)
 	local bonus = 0
 	for _, patron in ipairs(state.ownedPatrons) do
@@ -380,7 +389,44 @@ function RunState.patronSlotLimit(state)
 			bonus = bonus + 1
 		end
 	end
+	if state.housePasses.extra_seating then
+		bonus = bonus + 1
+	end
 	return state.config.patronSlotLimit + bonus
+end
+
+-- What a Patron actually costs THIS player right now -- the Regulars'
+-- Discount House Pass knocks 2 off (never below 1). Shop offer prices are
+-- computed with this (server-side, in serializeState) so the client never
+-- needs to duplicate the discount math -- it just displays whatever price
+-- it was sent.
+function RunState.patronPrice(state, patron)
+	local price = patron.price
+	if state.housePasses.regulars_discount then
+		price = math.max(1, price - 2)
+	end
+	return price
+end
+
+-- Same idea for Packs -- Wholesale Pricing knocks 2 off (never below 1).
+function RunState.packPrice(state, pack)
+	local price = pack.price
+	if state.housePasses.wholesale_pricing then
+		price = math.max(1, price - 2)
+	end
+	return price
+end
+
+-- The Frequent Visitor Card House Pass knocks 2 off whatever the current
+-- reroll cost is (never below 1). `baseCost` is the session's running
+-- reroll price (it climbs each reroll within a shop visit -- see the
+-- server) -- this just applies the discount on top of it.
+function RunState.rerollCost(state, baseCost)
+	local cost = baseCost
+	if state.housePasses.frequent_visitor then
+		cost = cost - 2
+	end
+	return math.max(1, cost)
 end
 
 -- Spend tips on a patron from the shop. Returns true/false, message.
@@ -392,12 +438,193 @@ function RunState.buyPatron(state, patronId)
 	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then
 		return false, "Your table is full -- sell a Patron to make room"
 	end
-	if state.tips < patron.price then
+	local price = RunState.patronPrice(state, patron)
+	if state.tips < price then
 		return false, "Not enough tips"
 	end
-	state.tips = state.tips - patron.price
+	state.tips = state.tips - price
 	table.insert(state.ownedPatrons, patron)
 	return true, patron.name .. " joins your table."
+end
+
+-- Spend tips on a House Pass from the shop's occasional Voucher slot.
+-- Permanent for the rest of the run -- see HousePasses.lua for what each
+-- one does and which RunState helper reads it.
+function RunState.buyHousePass(state, passId)
+	local pass = HousePasses.getById(passId)
+	if not pass then
+		return false, "Unknown House Pass: " .. tostring(passId)
+	end
+	if state.housePasses[passId] then
+		return false, "You already have that House Pass"
+	end
+	if state.tips < pass.price then
+		return false, "Not enough tips"
+	end
+	state.tips = state.tips - pass.price
+	state.housePasses[passId] = true
+	if pass.onBuy then
+		pass.onBuy(state)
+	end
+	return true, pass.name .. " is now permanent for this run."
+end
+
+local function recipeCatalogForCategory(category)
+	if category == "house" then
+		return Recipes.HouseRecipes
+	elseif category == "menu" then
+		return Recipes.MenuRecipes
+	elseif category == "secret" then
+		return Recipes.SecretRecipes
+	end
+	return nil
+end
+
+local function inventoryForCategory(state, category)
+	if category == "house" then
+		return state.houseRecipeInventory
+	elseif category == "menu" then
+		return state.menuRecipeInventory
+	elseif category == "secret" then
+		return state.secretRecipeInventory
+	end
+	return nil
+end
+
+--[[
+	Buys a Pack (deducts its price, respecting Wholesale Pricing) and
+	reveals `revealCount` random items from its category. Returns the
+	reveal table (also stored as state.pendingPack) on success, or nil,
+	message on failure. Nothing is granted yet -- that's resolvePack below,
+	once the player picks which of the revealed items to keep.
+
+	Only ONE pack can be open at a time (matches the client only ever
+	showing one reveal panel) -- callers should check state.pendingPack is
+	nil before calling this, same as the server's BuyPackRemote does.
+
+	`items` are lightweight display copies { id, name, icon, description },
+	not the real Patron/Recipe tables, so nothing is granted just by being
+	revealed.
+]]
+function RunState.openPack(state, packId, rng)
+	local pack = Packs.getById(packId)
+	if not pack then
+		return nil, "Unknown pack: " .. tostring(packId)
+	end
+	local price = RunState.packPrice(state, pack)
+	if state.tips < price then
+		return nil, "Not enough tips"
+	end
+
+	rng = rng or state.rng or math.random
+	local items = {}
+
+	if pack.category == "patron" then
+		local available = {}
+		for _, patron in ipairs(Patrons.Definitions) do
+			local owned = false
+			for _, o in ipairs(state.ownedPatrons) do
+				if o.id == patron.id then
+					owned = true
+					break
+				end
+			end
+			if not owned then
+				table.insert(available, patron)
+			end
+		end
+		for _ = 1, math.min(pack.revealCount, #available) do
+			local picked = table.remove(available, rng(#available))
+			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description })
+		end
+	else
+		local catalog = recipeCatalogForCategory(pack.category)
+		for _ = 1, pack.revealCount do
+			local picked = catalog[rng(#catalog)]
+			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description })
+		end
+	end
+
+	state.tips = state.tips - price
+	state.pendingPack = {
+		packId = packId,
+		category = pack.category,
+		pickCount = math.min(pack.pickCount, #items),
+		items = items,
+	}
+	return state.pendingPack
+end
+
+--[[
+	Resolves the currently open pack (state.pendingPack). `chosenIds` is a
+	list of item ids from the reveal -- either exactly `pickCount` of them
+	(to keep those), or an empty list to skip the pack entirely (you keep
+	nothing, but you don't get your Tips back either -- same as the
+	reference game). Returns true/false, message.
+
+	Granting a chosen Patron silently no-ops (instead of failing the whole
+	resolve) if the table's already full by the time you confirm -- you
+	still keep whatever OTHER picks fit, and you don't lose the pack you
+	already paid for over one pick not landing.
+]]
+function RunState.resolvePack(state, chosenIds)
+	local pending = state.pendingPack
+	if not pending then
+		return false, "No pack is open"
+	end
+	if type(chosenIds) ~= "table" then
+		return false, "Invalid selection"
+	end
+	if #chosenIds ~= 0 and #chosenIds ~= pending.pickCount then
+		return false, "Pick exactly " .. pending.pickCount .. " item(s), or none to skip"
+	end
+
+	-- Validate every chosen id against a shrinking copy of the revealed
+	-- pool, so you can't pick more copies of an id than were actually
+	-- revealed (packs can reveal the same Recipe id twice).
+	local pool = {}
+	for _, item in ipairs(pending.items) do
+		table.insert(pool, item.id)
+	end
+	for _, chosenId in ipairs(chosenIds) do
+		local foundAt = nil
+		for i, poolId in ipairs(pool) do
+			if poolId == chosenId then
+				foundAt = i
+				break
+			end
+		end
+		if not foundAt then
+			return false, "Invalid selection"
+		end
+		table.remove(pool, foundAt)
+	end
+
+	for _, chosenId in ipairs(chosenIds) do
+		if pending.category == "patron" then
+			if #state.ownedPatrons < RunState.patronSlotLimit(state) then
+				local patron = Patrons.getById(chosenId)
+				local alreadyOwned = false
+				for _, o in ipairs(state.ownedPatrons) do
+					if o.id == chosenId then
+						alreadyOwned = true
+						break
+					end
+				end
+				if patron and not alreadyOwned then
+					table.insert(state.ownedPatrons, patron)
+				end
+			end
+		else
+			local inventory = inventoryForCategory(state, pending.category)
+			if inventory then
+				table.insert(inventory, chosenId)
+			end
+		end
+	end
+
+	state.pendingPack = nil
+	return true, "Picked!"
 end
 
 -- Discard an owned Patron for half its price back (rounded down). Allowed

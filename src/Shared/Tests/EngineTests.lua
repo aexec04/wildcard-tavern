@@ -22,6 +22,8 @@ local DeckVariants = require(script.Parent.Parent.Engine.DeckVariants)
 local DifficultyTiers = require(script.Parent.Parent.Engine.DifficultyTiers)
 local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
 local Recipes = require(script.Parent.Parent.Engine.Recipes)
+local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
+local Packs = require(script.Parent.Parent.Engine.Packs)
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -746,6 +748,176 @@ table.insert(tests, { name = "A Reserved Special on an owned Patron raises the s
 	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit)
 	state.ownedPatronSpecials["the_regular"] = "reserved"
 	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit + 1)
+end })
+
+-- ===== Feature Expansion: House Passes (Vouchers) =====
+
+table.insert(tests, { name = "RunState.buyHousePass charges tips and records ownership", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local ok, message = RunState.buyHousePass(state, "extra_seating")
+	expectTrue(ok)
+	expectTrue(state.housePasses.extra_seating == true)
+	expectEqual(state.tips, 100 - HousePasses.getById("extra_seating").price)
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "RunState.buyHousePass refuses insufficient tips and duplicate purchases", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 0
+	local ok = RunState.buyHousePass(state, "extra_seating")
+	expectFalse(ok)
+
+	state.tips = 100
+	expectTrue(RunState.buyHousePass(state, "extra_seating"))
+	local ok2 = RunState.buyHousePass(state, "extra_seating")
+	expectFalse(ok2, "expected a second purchase of the same House Pass to be refused")
+end })
+
+table.insert(tests, { name = "Extra Seating House Pass raises the Patron slot limit by 1", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local before = RunState.patronSlotLimit(state)
+	state.housePasses.extra_seating = true
+	expectEqual(RunState.patronSlotLimit(state), before + 1)
+end })
+
+table.insert(tests, { name = "Regulars' Discount House Pass reduces Patron price by 2 (min 1)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local patron = Patrons.Definitions[1]
+	expectEqual(RunState.patronPrice(state, patron), patron.price)
+	state.housePasses.regulars_discount = true
+	expectEqual(RunState.patronPrice(state, patron), math.max(1, patron.price - 2))
+end })
+
+table.insert(tests, { name = "Wholesale Pricing House Pass reduces Pack price by 2 (min 1)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local pack = Packs.Definitions[1]
+	expectEqual(RunState.packPrice(state, pack), pack.price)
+	state.housePasses.wholesale_pricing = true
+	expectEqual(RunState.packPrice(state, pack), math.max(1, pack.price - 2))
+end })
+
+table.insert(tests, { name = "Frequent Visitor Card House Pass reduces reroll cost by 2 (min 1)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(RunState.rerollCost(state, 5), 5)
+	state.housePasses.frequent_visitor = true
+	expectEqual(RunState.rerollCost(state, 5), 3)
+	expectEqual(RunState.rerollCost(state, 2), 1, "reroll cost should never go below 1")
+end })
+
+table.insert(tests, { name = "Late Kitchen House Pass grants +1 Discard every round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local baseDiscards = state.discardsRemaining
+	state.housePasses.late_kitchen = true
+	RunState.startRound(state)
+	expectEqual(state.discardsRemaining, baseDiscards + 1)
+end })
+
+table.insert(tests, { name = "Double Shift House Pass grants +1 Hand every round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local baseHands = state.handsRemaining
+	state.housePasses.double_shift = true
+	RunState.startRound(state)
+	expectEqual(state.handsRemaining, baseHands + 1)
+end })
+
+table.insert(tests, { name = "Grand Opening House Pass immediately grants +15 Tips on purchase", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local tipsBeforePurchase = state.tips
+	RunState.buyHousePass(state, "grand_opening")
+	local expectedTips = tipsBeforePurchase - HousePasses.getById("grand_opening").price + 15
+	expectEqual(state.tips, expectedTips)
+end })
+
+-- ===== Feature Expansion: Packs (Booster Pack equivalent) =====
+
+table.insert(tests, { name = "RunState.openPack reveals the right count of unowned Patrons and charges tips", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal, err = RunState.openPack(state, "buffoon_pack", function(n) return n end)
+	expectTrue(reveal ~= nil, err)
+	expectEqual(#reveal.items, 3)
+	expectEqual(reveal.category, "patron")
+	expectEqual(reveal.pickCount, 1)
+	expectEqual(state.tips, 100 - Packs.getById("buffoon_pack").price)
+	expectTrue(state.pendingPack ~= nil)
+	-- Identity rng (rng(n) = n) always removes the LAST remaining entry, so
+	-- the reveal is deterministically the last 3 Patrons in the pool.
+	local n = #Patrons.Definitions
+	expectEqual(reveal.items[1].id, Patrons.Definitions[n].id)
+	expectEqual(reveal.items[2].id, Patrons.Definitions[n - 1].id)
+	expectEqual(reveal.items[3].id, Patrons.Definitions[n - 2].id)
+end })
+
+table.insert(tests, { name = "RunState.openPack reveals from the right Recipe catalog for house/menu/secret packs", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "secret_pack", function(n) return n end)
+	expectEqual(reveal.category, "secret")
+	expectEqual(#reveal.items, 3)
+	for _, item in ipairs(reveal.items) do
+		expectTrue(Recipes.getSecretRecipeById(item.id) ~= nil)
+	end
+end })
+
+table.insert(tests, { name = "RunState.openPack refuses when there aren't enough tips", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 0
+	local reveal, err = RunState.openPack(state, "buffoon_pack")
+	expectTrue(reveal == nil)
+	expectTrue(err ~= nil)
+	expectTrue(state.pendingPack == nil)
+end })
+
+table.insert(tests, { name = "RunState.resolvePack grants the chosen item and clears pendingPack", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "menu_pack", function(n) return n end)
+	local chosenId = reveal.items[1].id
+	local ok = RunState.resolvePack(state, { chosenId })
+	expectTrue(ok)
+	expectTrue(state.pendingPack == nil)
+	local found = false
+	for _, id in ipairs(state.menuRecipeInventory) do
+		if id == chosenId then found = true end
+	end
+	expectTrue(found, "expected the chosen Menu Recipe id in the inventory")
+end })
+
+table.insert(tests, { name = "RunState.resolvePack with an empty selection skips the pack (grants nothing)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	RunState.openPack(state, "house_pack", function(n) return n end)
+	local ok = RunState.resolvePack(state, {})
+	expectTrue(ok)
+	expectTrue(state.pendingPack == nil)
+	expectEqual(#state.houseRecipeInventory, 0)
+end })
+
+table.insert(tests, { name = "RunState.resolvePack rejects a selection that wasn't actually revealed", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	RunState.openPack(state, "house_pack", function(n) return n end)
+	local ok = RunState.resolvePack(state, { "not_a_revealed_id" })
+	expectFalse(ok)
+	expectTrue(state.pendingPack ~= nil, "a bad resolve should leave the pack open, not silently clear it")
+end })
+
+table.insert(tests, { name = "RunState.resolvePack skips a Patron pick that no longer fits, but still resolves", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	-- Fill the table to the cap first.
+	for i, patron in ipairs(Patrons.Definitions) do
+		if i > state.config.patronSlotLimit then break end
+		RunState.buyPatron(state, patron.id)
+	end
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
+
+	local reveal = RunState.openPack(state, "buffoon_pack", function(n) return n end)
+	local ok = RunState.resolvePack(state, { reveal.items[1].id })
+	expectTrue(ok, "resolve should still succeed even though the table is full")
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit, "the pick should be silently skipped, not crash or overfill")
 end })
 
 return tests

@@ -1,18 +1,30 @@
 --[[
 	Client/Shop.lua
-	The Shop overlay (full-screen tabbed menu: Buy Patrons / My Patrons /
-	Recipes / My Recipes) -- extracted out of init.client.lua on its own,
-	since it's the single most self-contained UI system in the client and
-	the one we understand best right now.
+	The Shop overlay (full-screen tabbed menu: Shop / My Patrons / My
+	Recipes) -- extracted out of init.client.lua on its own, since it's the
+	single most self-contained UI system in the client and the one we
+	understand best right now.
 
-	PHASE 1B: the two "coming soon" stub tabs (Special Cards / Night
-	Upgrades) are gone -- they're now "Recipes" (browse + buy House/Menu/
-	Secret Recipes into your inventory) and "My Recipes" (use what you've
-	bought). Recipes that need target cards (and/or a suit, for Suit Swap)
-	open a small in-panel picker instead of using immediately -- see the
-	pendingUse/targetPanel block below. House Passes (Vouchers), originally
-	earmarked for the "Night Upgrades" slot, will need a NEW tab when Phase 2
-	gets to them, since this pass used both stub tabs for Recipes.
+	PHASE 1C (shop randomization): the shop used to be "3 static Patron
+	offers" plus a separate always-buyable full Recipes catalog. That
+	undercut the whole point of a shop being exciting/random, and doesn't
+	match the reference game (2 Joker offers, a Reroll button, an
+	occasional Voucher, and Packs you buy to reveal-then-pick from instead
+	of directly browsing every card). Now: the "Shop" tab shows 2 Patron
+	offers + 2 Pack offers + an occasional Voucher offer + a Reroll button,
+	all regenerated (except Reroll's escalating cost) each shop visit or
+	Reroll. Recipes are ONLY obtainable via Packs now -- there's no more
+	direct-buy Recipes catalog tab (BuyRecipeRemote/RunState.buyHouseRecipe
+	etc still exist for direct engine use, just nothing in this UI calls
+	them anymore). Buying a Pack opens a reveal panel (see the
+	pendingPack/packPanel block below) where you pick which of the 3
+	revealed items to keep, or Skip.
+
+	Recipes that need target cards (and/or a suit, for Suit Swap) open a
+	small in-panel picker instead of using immediately -- see the
+	pendingUse/targetPanel block below. That's a SEPARATE panel from the
+	Pack reveal panel (different job: picking hand cards vs. picking which
+	revealed item to keep).
 
 	This is a ModuleScript, not a LocalScript, so it has no access to
 	init.client.lua's local variables -- everything it needs from the rest
@@ -37,11 +49,16 @@
 		Patrons            -- the Shared/Engine/Patrons module (for Patrons.getById)
 		Recipes            -- the Shared/Engine/Recipes module (HouseRecipes/
 		                       MenuRecipes/SecretRecipes catalogs -- static
-		                       content, same pattern as Patrons/Themes)
+		                       content, same pattern as Patrons/Themes) --
+		                       still needed for the My Recipes tab (looking
+		                       up what a held recipe id actually does)
 		BuyPatronRemote    -- RemoteEvent
 		SellPatronRemote   -- RemoteEvent
-		BuyRecipeRemote    -- RemoteEvent (category, id)
 		UseRecipeRemote    -- RemoteEvent (category, id, cardIndices?, suit?)
+		RerollShopRemote   -- RemoteEvent ()
+		BuyPackRemote      -- RemoteEvent (packId)
+		ResolvePackRemote  -- RemoteEvent (chosenIds -- array of item ids, or {} to skip)
+		BuyHousePassRemote -- RemoteEvent (passId)
 		RANK_NAMES         -- table, [rank] = display string, for the card picker
 		SUIT_SYMBOLS       -- table, [suit] = display glyph, for the card picker
 		getLatestState     -- function() -> latest state table or nil (latestState
@@ -53,7 +70,7 @@
 		{
 			shopFrame = Frame,
 			nextRoundButton = TextButton,
-			rebuildShop = function(shopOffers),
+			rebuildShop = function(state),
 			rebuildMyPatronsTab = function(ownedPatrons),
 			rebuildMyRecipesTab = function(state),
 			closeTargetPanel = function(),
@@ -75,8 +92,11 @@ return function(deps)
 	local Recipes = deps.Recipes
 	local BuyPatronRemote = deps.BuyPatronRemote
 	local SellPatronRemote = deps.SellPatronRemote
-	local BuyRecipeRemote = deps.BuyRecipeRemote
 	local UseRecipeRemote = deps.UseRecipeRemote
+	local RerollShopRemote = deps.RerollShopRemote
+	local BuyPackRemote = deps.BuyPackRemote
+	local ResolvePackRemote = deps.ResolvePackRemote
+	local BuyHousePassRemote = deps.BuyHousePassRemote
 	local RANK_NAMES = deps.RANK_NAMES
 	local SUIT_SYMBOLS = deps.SUIT_SYMBOLS
 	local getLatestState = deps.getLatestState
@@ -91,7 +111,6 @@ return function(deps)
 	local nextRoundButton
 	local shopBuyListFrame
 	local shopMyPatronsListFrame
-	local shopRecipesListFrame
 	local shopMyRecipesListFrame
 
 	-- The card/suit target picker for Recipes that need one (e.g. Sugar
@@ -107,6 +126,20 @@ return function(deps)
 	local targetSuitRow
 	local targetConfirmButton
 	local targetCancelButton
+
+	-- The Pack reveal panel -- a SEPARATE picker from the one above (that
+	-- one picks hand cards for a Recipe you already own; this one picks
+	-- which of a Pack's 3 revealed items to keep). Sized to cover the
+	-- WHOLE shop, including the Next Round button, since the server hard-
+	-- blocks every other shop action (including AdvanceRound) while a pack
+	-- is open -- see the "Reroll / Packs / House Passes" section of
+	-- Server/init.server.lua.
+	local shopPackPanel
+	local packPanelTitleLabel
+	local packPanelHintLabel
+	local packItemsRow
+	local packConfirmButton
+	local packSkipButton
 
 	do
 		shopFrame = Instance.new("Frame")
@@ -202,37 +235,17 @@ return function(deps)
 
 		shopBuyListFrame = makeShopListTab()
 		shopMyPatronsListFrame = makeShopListTab()
-		shopRecipesListFrame = makeShopListTab()
 		shopMyRecipesListFrame = makeShopListTab()
-
-		-- Permanent first row of the Buy Patrons tab -- NOT destroyed by
-		-- rebuildShop's "clear every Frame child" loop below (this is a
-		-- TextLabel), just has its .Text refreshed each rebuild. Shows the
-		-- slot cap BEFORE a player hits it, not just as an error afterward.
-		local shopSlotsLabel = Instance.new("TextLabel")
-		shopSlotsLabel.Name = "SlotsLabel"
-		shopSlotsLabel.LayoutOrder = 0
-		shopSlotsLabel.Size = UDim2.new(1, 0, 0, 24)
-		shopSlotsLabel.BackgroundTransparency = 1
-		shopSlotsLabel.Font = Enum.Font.GothamBold
-		shopSlotsLabel.TextSize = 14
-		shopSlotsLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-		shopSlotsLabel.TextXAlignment = Enum.TextXAlignment.Left
-		shopSlotsLabel.Text = ""
-		shopSlotsLabel.ZIndex = SHOP_ZINDEX
-		shopSlotsLabel.Parent = shopBuyListFrame
 
 		local shopTabContents = {
 			buy = shopBuyListFrame,
 			mypatrons = shopMyPatronsListFrame,
-			recipes = shopRecipesListFrame,
 			myrecipes = shopMyRecipesListFrame,
 		}
 
 		local SHOP_TAB_DEFS = {
-			{ key = "buy", label = "Buy Patrons" },
+			{ key = "buy", label = "Shop" },
 			{ key = "mypatrons", label = "My Patrons" },
-			{ key = "recipes", label = "Recipes" },
 			{ key = "myrecipes", label = "My Recipes" },
 		}
 
@@ -370,6 +383,80 @@ return function(deps)
 		targetCancelButton.ZIndex = PANEL_ZINDEX
 		targetCancelButton.Parent = shopTargetPanel
 		polishButton(targetCancelButton, 8)
+
+		-- ----- Pack reveal panel -----
+		-- Bigger than the target picker above -- covers nearly the ENTIRE
+		-- shopFrame (including the Next Round button's corner), since a Pack
+		-- must be resolved (or skipped) before anything else in the shop is
+		-- allowed, server-side.
+		shopPackPanel = Instance.new("Frame")
+		shopPackPanel.Name = "PackPanel"
+		shopPackPanel.Size = UDim2.new(1, -20, 1, -20)
+		shopPackPanel.Position = UDim2.new(0, 10, 0, 10)
+		shopPackPanel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+		shopPackPanel.Visible = false
+		shopPackPanel.ZIndex = PANEL_ZINDEX
+		shopPackPanel.Parent = shopFrame
+		polishPanel(shopPackPanel, 12)
+
+		packPanelTitleLabel = Instance.new("TextLabel")
+		packPanelTitleLabel.Size = UDim2.new(1, -20, 0, 30)
+		packPanelTitleLabel.Position = UDim2.new(0, 10, 0, 14)
+		packPanelTitleLabel.BackgroundTransparency = 1
+		packPanelTitleLabel.Font = Enum.Font.GothamBold
+		packPanelTitleLabel.TextSize = 20
+		packPanelTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+		packPanelTitleLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+		packPanelTitleLabel.Text = ""
+		packPanelTitleLabel.ZIndex = PANEL_ZINDEX
+		packPanelTitleLabel.Parent = shopPackPanel
+
+		packPanelHintLabel = Instance.new("TextLabel")
+		packPanelHintLabel.Size = UDim2.new(1, -20, 0, 22)
+		packPanelHintLabel.Position = UDim2.new(0, 10, 0, 46)
+		packPanelHintLabel.BackgroundTransparency = 1
+		packPanelHintLabel.Font = Enum.Font.Gotham
+		packPanelHintLabel.TextSize = 14
+		packPanelHintLabel.TextXAlignment = Enum.TextXAlignment.Left
+		packPanelHintLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+		packPanelHintLabel.Text = ""
+		packPanelHintLabel.ZIndex = PANEL_ZINDEX
+		packPanelHintLabel.Parent = shopPackPanel
+
+		packItemsRow = Instance.new("Frame")
+		packItemsRow.Size = UDim2.new(1, -20, 0, 150)
+		packItemsRow.Position = UDim2.new(0, 10, 0, 78)
+		packItemsRow.BackgroundTransparency = 1
+		packItemsRow.ZIndex = PANEL_ZINDEX
+		packItemsRow.Parent = shopPackPanel
+		local packItemsLayout = Instance.new("UIListLayout")
+		packItemsLayout.FillDirection = Enum.FillDirection.Horizontal
+		packItemsLayout.Padding = UDim.new(0, 10)
+		packItemsLayout.Parent = packItemsRow
+
+		packConfirmButton = Instance.new("TextButton")
+		packConfirmButton.Size = UDim2.new(0, 170, 0, 40)
+		packConfirmButton.Position = UDim2.new(1, -350, 1, -56)
+		packConfirmButton.Font = Enum.Font.GothamBold
+		packConfirmButton.TextSize = 15
+		packConfirmButton.Text = "Confirm"
+		packConfirmButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		packConfirmButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		packConfirmButton.ZIndex = PANEL_ZINDEX
+		packConfirmButton.Parent = shopPackPanel
+		polishButton(packConfirmButton, 8)
+
+		packSkipButton = Instance.new("TextButton")
+		packSkipButton.Size = UDim2.new(0, 160, 0, 40)
+		packSkipButton.Position = UDim2.new(1, -170, 1, -56)
+		packSkipButton.Font = Enum.Font.GothamBold
+		packSkipButton.TextSize = 15
+		packSkipButton.Text = "Skip Pack"
+		packSkipButton.BackgroundColor3 = Color3.fromRGB(70, 55, 45)
+		packSkipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		packSkipButton.ZIndex = PANEL_ZINDEX
+		packSkipButton.Parent = shopPackPanel
+		polishButton(packSkipButton, 8)
 	end -- do (Shop overlay)
 
 	-- A small colored badge with an icon (emoji glyph, not an uploaded image --
@@ -549,7 +636,7 @@ return function(deps)
 		closeTargetPanel()
 	end)
 
-	-- ----- Recipes catalog (shared between the browse tab and My Recipes) -----
+	-- ----- Recipes catalog (used by My Recipes to look up what a held id does) -----
 
 	local RECIPE_CATEGORY_LIST = {
 		{ key = "house", label = "House Recipes", catalog = Recipes.HouseRecipes },
@@ -566,92 +653,241 @@ return function(deps)
 		return nil
 	end
 
-	-- ----- Recipes tab (browse + buy) -----
-	-- Unlike Buy Patrons (whose offers rotate) and My Patrons/My Recipes
-	-- (whose contents change as you buy/sell/use), the three Recipe catalogs
-	-- are fully static -- so this builds once, right here at construction,
-	-- instead of needing a rebuild function called from render() every frame.
-	do
-		for _, categoryDef in ipairs(RECIPE_CATEGORY_LIST) do
-			local header = Instance.new("TextLabel")
-			header.Size = UDim2.new(1, 0, 0, 24)
-			header.BackgroundTransparency = 1
-			header.Font = Enum.Font.GothamBold
-			header.TextSize = 15
-			header.TextXAlignment = Enum.TextXAlignment.Left
-			header.TextColor3 = Color3.fromRGB(255, 214, 130)
-			header.Text = categoryDef.label
-			header.ZIndex = 6
-			header.Parent = shopRecipesListFrame
+	-- ----- Pack reveal panel state + logic -----
+	-- `pendingPackSelected` is keyed by INDEX into state.pendingPack.items
+	-- (not by id -- a pack can reveal the same id more than once, e.g. two
+	-- copies of the same Menu Recipe, and each occurrence needs to be
+	-- individually selectable). `packPanelWasOpen` is how refreshPackPanel
+	-- tells "still showing the same reveal, keep the selection" apart from
+	-- "a brand new reveal just arrived, clear the selection."
+	local pendingPackSelected = {} -- [itemIndex] = true
+	local packPanelWasOpen = false
 
-			for _, recipe in ipairs(categoryDef.catalog) do
-				local row = Instance.new("Frame")
-				row.Size = UDim2.new(1, 0, 0, 64)
-				row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-				row.ZIndex = 6
-				row.Parent = shopRecipesListFrame
-				polishPanel(row, 10)
-
-				makePatronIconBadge(row, recipe.icon)
-
-				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -170, 1, -8)
-				label.Position = UDim2.new(0, 64, 0, 4)
-				label.BackgroundTransparency = 1
-				label.Font = Enum.Font.Gotham
-				label.TextSize = 14
-				label.TextWrapped = true
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.TextColor3 = Color3.fromRGB(250, 240, 220)
-				label.Text = string.format("%s (%d tips)\n%s", recipe.name, recipe.price, recipe.description)
-				label.ZIndex = 6
-				label.Parent = row
-
-				local buyButton = Instance.new("TextButton")
-				buyButton.Size = UDim2.new(0, 90, 0, 36)
-				buyButton.Position = UDim2.new(1, -100, 0.5, -18)
-				buyButton.Font = Enum.Font.GothamBold
-				buyButton.TextSize = 15
-				buyButton.Text = "Buy"
-				buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-				buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-				buyButton.ZIndex = 6
-				buyButton.Parent = row
-				polishButton(buyButton, 8)
-
-				local categoryKey = categoryDef.key
-				buyButton.MouseButton1Click:Connect(function()
-					local latestState = getLatestState()
-					if not latestState or latestState.tips < recipe.price then
-						showWarning("Not enough tips for that.")
-						playClickSfx()
-						return
-					end
-					playSfx(SOUND_IDS.buyPatron)
-					BuyRecipeRemote:FireServer(categoryKey, recipe.id)
-				end)
-			end
+	local function selectedPackCount()
+		local n = 0
+		for _ in pairs(pendingPackSelected) do
+			n = n + 1
 		end
+		return n
 	end
 
-	local function rebuildShop(shopOffers)
-		for _, child in ipairs(shopBuyListFrame:GetChildren()) do
-			if child:IsA("Frame") then
+	local function refreshPackPanel(state)
+		local pending = state and state.pendingPack
+		if not pending then
+			shopPackPanel.Visible = false
+			pendingPackSelected = {}
+			packPanelWasOpen = false
+			return
+		end
+
+		if not packPanelWasOpen then
+			pendingPackSelected = {}
+		end
+		packPanelWasOpen = true
+		shopPackPanel.Visible = true
+
+		for _, child in ipairs(packItemsRow:GetChildren()) do
+			if child:IsA("TextButton") then
 				child:Destroy()
 			end
 		end
 
-		local latestState = getLatestState()
-		local ownedCount = (latestState and latestState.ownedPatrons and #latestState.ownedPatrons) or 0
-		local slotLimit = (latestState and latestState.patronSlotLimit) or ownedCount
-		local tableIsFull = ownedCount >= slotLimit
-		local shopSlotsLabel = shopBuyListFrame:FindFirstChild("SlotsLabel")
-		if shopSlotsLabel then
-			shopSlotsLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
-				tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+		for index, item in ipairs(pending.items) do
+			local itemButton = Instance.new("TextButton")
+			itemButton.Size = UDim2.new(0, 160, 1, 0)
+			itemButton.LayoutOrder = index
+			itemButton.Font = Enum.Font.Gotham
+			itemButton.TextSize = 13
+			itemButton.TextWrapped = true
+			itemButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+			itemButton.Text = string.format("%s\n%s\n\n%s", item.icon or "🎴", item.name, item.description)
+			itemButton.BackgroundColor3 = pendingPackSelected[index] and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
+			itemButton.ZIndex = 7
+			itemButton.Parent = packItemsRow
+			polishPanel(itemButton, 10)
+
+			itemButton.MouseButton1Click:Connect(function()
+				if pendingPackSelected[index] then
+					pendingPackSelected[index] = nil
+				elseif selectedPackCount() >= pending.pickCount then
+					showWarning(string.format("You can only pick %d item%s from this pack.", pending.pickCount, pending.pickCount == 1 and "" or "s"))
+					return
+				else
+					pendingPackSelected[index] = true
+				end
+				playClickSfx(0.3)
+				refreshPackPanel(getLatestState())
+			end)
 		end
 
-		if #shopOffers == 0 then
+		local count = selectedPackCount()
+		packPanelTitleLabel.Text = string.format("Pick %d of %d", pending.pickCount, #pending.items)
+		packPanelHintLabel.Text = string.format("Click an item to select it (%d/%d picked), or Skip to take nothing.", count, pending.pickCount)
+		packConfirmButton.BackgroundColor3 = (count == pending.pickCount) and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
+	end
+
+	packConfirmButton.MouseButton1Click:Connect(function()
+		local state = getLatestState()
+		local pending = state and state.pendingPack
+		if not pending then
+			return
+		end
+		local chosen = {}
+		for index in pairs(pendingPackSelected) do
+			table.insert(chosen, pending.items[index].id)
+		end
+		if #chosen ~= pending.pickCount then
+			showWarning(string.format("Pick %d item%s first, or use Skip Pack.", pending.pickCount, pending.pickCount == 1 and "" or "s"))
+			return
+		end
+		playSfx(SOUND_IDS.buyPatron)
+		ResolvePackRemote:FireServer(chosen)
+		pendingPackSelected = {}
+	end)
+
+	packSkipButton.MouseButton1Click:Connect(function()
+		playClickSfx(0.4)
+		ResolvePackRemote:FireServer({})
+		pendingPackSelected = {}
+	end)
+
+	-- Shared row builder for the Shop tab's Patron/Pack/Voucher offers --
+	-- they're all "icon badge + name/price/description + one action
+	-- button" rows, just with a different icon lookup and click handler.
+	local function addOfferRow(parent, icon, name, price, description, buttonText, buttonEnabled, onClick)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 64)
+		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		row.ZIndex = 6
+		row.Parent = parent
+		polishPanel(row, 10)
+
+		makePatronIconBadge(row, icon)
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -170, 1, -8)
+		label.Position = UDim2.new(0, 64, 0, 4)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 14
+		label.TextWrapped = true
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(250, 240, 220)
+		label.Text = string.format("%s (%d tips)\n%s", name, price, description)
+		label.ZIndex = 6
+		label.Parent = row
+
+		local actionButton = Instance.new("TextButton")
+		actionButton.Size = UDim2.new(0, 90, 0, 36)
+		actionButton.Position = UDim2.new(1, -100, 0.5, -18)
+		actionButton.Font = Enum.Font.GothamBold
+		actionButton.TextSize = 15
+		actionButton.Text = buttonEnabled and buttonText or "Full"
+		actionButton.BackgroundColor3 = buttonEnabled and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
+		actionButton.TextColor3 = buttonEnabled and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(180, 170, 160)
+		actionButton.ZIndex = 6
+		actionButton.Parent = row
+		polishButton(actionButton, 8)
+
+		actionButton.MouseButton1Click:Connect(onClick)
+		return row
+	end
+
+	local function addSectionHeader(parent, text)
+		local header = Instance.new("TextLabel")
+		header.Size = UDim2.new(1, 0, 0, 24)
+		header.BackgroundTransparency = 1
+		header.Font = Enum.Font.GothamBold
+		header.TextSize = 15
+		header.TextXAlignment = Enum.TextXAlignment.Left
+		header.TextColor3 = Color3.fromRGB(255, 214, 130)
+		header.Text = text
+		header.ZIndex = 6
+		header.Parent = parent
+		return header
+	end
+
+	-- The whole Shop tab: Reroll button, then the occasional Voucher offer,
+	-- then Patron offers, then Pack offers -- all regenerated by the server
+	-- each shop visit (or Reroll), so this fully rebuilds every render()
+	-- while the shop's open rather than trying to patch specific rows.
+	local function rebuildShop(state)
+		for _, child in ipairs(shopBuyListFrame:GetChildren()) do
+			if child:IsA("Frame") or child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+
+		if not state then
+			return
+		end
+
+		local ownedCount = (state.ownedPatrons and #state.ownedPatrons) or 0
+		local slotLimit = state.patronSlotLimit or ownedCount
+		local tableIsFull = ownedCount >= slotLimit
+
+		-- ----- Reroll row -----
+		local rerollRow = Instance.new("Frame")
+		rerollRow.Size = UDim2.new(1, 0, 0, 44)
+		rerollRow.BackgroundTransparency = 1
+		rerollRow.ZIndex = 6
+		rerollRow.Parent = shopBuyListFrame
+
+		local rerollButton = Instance.new("TextButton")
+		rerollButton.Size = UDim2.new(0, 170, 0, 36)
+		rerollButton.Position = UDim2.new(0, 0, 0, 4)
+		rerollButton.Font = Enum.Font.GothamBold
+		rerollButton.TextSize = 14
+		rerollButton.Text = string.format("Reroll (%d tips)", state.rerollCost or 0)
+		rerollButton.BackgroundColor3 = Color3.fromRGB(70, 90, 60)
+		rerollButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		rerollButton.ZIndex = 6
+		rerollButton.Parent = rerollRow
+		polishButton(rerollButton, 8)
+
+		local tableLabel = Instance.new("TextLabel")
+		tableLabel.Size = UDim2.new(1, -190, 0, 36)
+		tableLabel.Position = UDim2.new(0, 190, 0, 4)
+		tableLabel.BackgroundTransparency = 1
+		tableLabel.Font = Enum.Font.GothamBold
+		tableLabel.TextSize = 14
+		tableLabel.TextXAlignment = Enum.TextXAlignment.Left
+		tableLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
+			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+		tableLabel.ZIndex = 6
+		tableLabel.Parent = rerollRow
+
+		rerollButton.MouseButton1Click:Connect(function()
+			local latestState = getLatestState()
+			if not latestState or latestState.tips < (latestState.rerollCost or 0) then
+				showWarning("Not enough tips to reroll.")
+				playClickSfx()
+				return
+			end
+			playClickSfx(0.4)
+			RerollShopRemote:FireServer()
+		end)
+
+		-- ----- Voucher (House Pass) offer -- only shows up some visits -----
+		if state.voucherOffer then
+			addSectionHeader(shopBuyListFrame, "Voucher")
+			local offer = state.voucherOffer
+			addOfferRow(shopBuyListFrame, offer.icon, offer.name, offer.price, offer.description, "Buy", true, function()
+				local latestState = getLatestState()
+				if not latestState or latestState.tips < offer.price then
+					showWarning("Not enough tips for that.")
+					playClickSfx()
+					return
+				end
+				playSfx(SOUND_IDS.buyPatron)
+				BuyHousePassRemote:FireServer(offer.id)
+			end)
+		end
+
+		-- ----- Patron offers -----
+		addSectionHeader(shopBuyListFrame, "Patrons")
+		if #(state.shopOffers or {}) == 0 then
 			local emptyLabel = Instance.new("TextLabel")
 			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
 			emptyLabel.BackgroundTransparency = 1
@@ -662,63 +898,45 @@ return function(deps)
 			emptyLabel.Text = "No new Patrons to offer this visit -- you've met everyone available so far!"
 			emptyLabel.ZIndex = 6
 			emptyLabel.Parent = shopBuyListFrame
-			return
+		else
+			for _, offer in ipairs(state.shopOffers) do
+				local fullPatron = Patrons.getById(offer.id)
+				addOfferRow(shopBuyListFrame, fullPatron and fullPatron.icon, offer.name, offer.price, offer.description,
+					"Buy", not tableIsFull, function()
+						local latestState = getLatestState()
+						if not latestState or latestState.tips < offer.price then
+							showWarning("Not enough tips for that.")
+							playClickSfx()
+							return
+						end
+						local liveOwnedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
+						if latestState.patronSlotLimit and liveOwnedCount >= latestState.patronSlotLimit then
+							showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
+							playClickSfx()
+							return
+						end
+						playSfx(SOUND_IDS.buyPatron)
+						BuyPatronRemote:FireServer(offer.id)
+					end)
+			end
 		end
 
-		for _, offer in ipairs(shopOffers) do
-			local fullPatron = Patrons.getById(offer.id)
-
-			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, 0, 0, 64)
-			row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-			row.ZIndex = 6
-			row.Parent = shopBuyListFrame
-			polishPanel(row, 10)
-
-			makePatronIconBadge(row, fullPatron and fullPatron.icon)
-
-			local label = Instance.new("TextLabel")
-			label.Size = UDim2.new(1, -170, 1, -8)
-			label.Position = UDim2.new(0, 64, 0, 4)
-			label.BackgroundTransparency = 1
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 14
-			label.TextWrapped = true
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.TextColor3 = Color3.fromRGB(250, 240, 220)
-			label.Text = string.format("%s (%d tips)\n%s", offer.name, offer.price, offer.description)
-			label.ZIndex = 6
-			label.Parent = row
-
-			local buyButton = Instance.new("TextButton")
-			buyButton.Size = UDim2.new(0, 90, 0, 36)
-			buyButton.Position = UDim2.new(1, -100, 0.5, -18)
-			buyButton.Font = Enum.Font.GothamBold
-			buyButton.TextSize = 15
-			buyButton.Text = tableIsFull and "Full" or "Buy"
-			buyButton.BackgroundColor3 = tableIsFull and Color3.fromRGB(70, 60, 55) or Color3.fromRGB(90, 60, 30)
-			buyButton.TextColor3 = tableIsFull and Color3.fromRGB(180, 170, 160) or Color3.fromRGB(250, 240, 220)
-			buyButton.ZIndex = 6
-			buyButton.Parent = row
-			polishButton(buyButton, 8)
-
-			buyButton.MouseButton1Click:Connect(function()
+		-- ----- Pack offers -----
+		addSectionHeader(shopBuyListFrame, "Packs")
+		for _, pack in ipairs(state.packOffers or {}) do
+			addOfferRow(shopBuyListFrame, pack.icon, pack.name, pack.price, pack.description, "Buy", true, function()
 				local latestState = getLatestState()
-				if not latestState or latestState.tips < offer.price then
+				if not latestState or latestState.tips < pack.price then
 					showWarning("Not enough tips for that.")
 					playClickSfx()
 					return
 				end
-				local ownedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
-				if latestState.patronSlotLimit and ownedCount >= latestState.patronSlotLimit then
-					showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
-					playClickSfx()
-					return
-				end
 				playSfx(SOUND_IDS.buyPatron)
-				BuyPatronRemote:FireServer(offer.id)
+				BuyPackRemote:FireServer(pack.id)
 			end)
 		end
+
+		refreshPackPanel(state)
 	end
 
 	local function rebuildMyPatronsTab(ownedPatrons)
@@ -736,7 +954,7 @@ return function(deps)
 			emptyLabel.TextSize = 14
 			emptyLabel.TextWrapped = true
 			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyLabel.Text = "No Patrons yet -- buy some in the Buy Patrons tab!"
+			emptyLabel.Text = "No Patrons yet -- buy some in the Shop tab!"
 			emptyLabel.ZIndex = 6
 			emptyLabel.Parent = shopMyPatronsListFrame
 			return
@@ -831,7 +1049,7 @@ return function(deps)
 			emptyLabel.TextSize = 14
 			emptyLabel.TextWrapped = true
 			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyLabel.Text = "No Recipes yet -- buy some in the Recipes tab!"
+			emptyLabel.Text = "No Recipes yet -- buy a Pack in the Shop tab and pick one!"
 			emptyLabel.ZIndex = 6
 			emptyLabel.Parent = shopMyRecipesListFrame
 			return

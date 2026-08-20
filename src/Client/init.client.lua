@@ -50,8 +50,13 @@ local RestartRunRemote = remotes:WaitForChild("RestartRun")
 local StartRunRemote = remotes:WaitForChild("StartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
 -- PHASE 1B (Recipes UI)
-local BuyRecipeRemote = remotes:WaitForChild("BuyRecipe")
+local BuyRecipeRemote = remotes:WaitForChild("BuyRecipe") -- kept for direct engine use; no UI calls this anymore, see PHASE 1C below
 local UseRecipeRemote = remotes:WaitForChild("UseRecipe")
+-- PHASE 1C (shop randomization: Reroll/Packs/House Passes)
+local RerollShopRemote = remotes:WaitForChild("RerollShop")
+local BuyPackRemote = remotes:WaitForChild("BuyPack")
+local ResolvePackRemote = remotes:WaitForChild("ResolvePack")
+local BuyHousePassRemote = remotes:WaitForChild("BuyHousePass")
 
 -- Theme *data* (names/prices/colors) is static content, so the client just
 -- reads it straight from Shared -- only ownership/equipped state needs to
@@ -528,8 +533,11 @@ local Shop = require(script.Shop)({
 	Recipes = Recipes,
 	BuyPatronRemote = BuyPatronRemote,
 	SellPatronRemote = SellPatronRemote,
-	BuyRecipeRemote = BuyRecipeRemote,
 	UseRecipeRemote = UseRecipeRemote,
+	RerollShopRemote = RerollShopRemote,
+	BuyPackRemote = BuyPackRemote,
+	ResolvePackRemote = ResolvePackRemote,
+	BuyHousePassRemote = BuyHousePassRemote,
 	RANK_NAMES = RANK_NAMES,
 	SUIT_SYMBOLS = SUIT_SYMBOLS,
 	-- latestState is REASSIGNED (not mutated) each render() call, so Shop
@@ -1337,7 +1345,7 @@ local function render(state)
 	shopFrame.Visible = (state.phase == "shop")
 	gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then
-		rebuildShop(state.shopOffers)
+		rebuildShop(state)
 		rebuildMyPatronsTab(state.ownedPatrons)
 		rebuildMyRecipesTab(state)
 	else

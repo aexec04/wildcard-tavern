@@ -25,6 +25,8 @@ local RunState = require(Engine.RunState)
 local Patrons = require(Engine.Patrons)
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
+local Packs = require(Engine.Packs)
+local HousePasses = require(Engine.HousePasses)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -58,8 +60,12 @@ local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
-local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id)
+local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
+local RerollShopRemote = newRemote("RerollShop") -- (player) -- pay tips to reroll Patron/Pack/Voucher offers
+local BuyPackRemote = newRemote("BuyPack")       -- (player, packId)
+local ResolvePackRemote = newRemote("ResolvePack") -- (player, chosenIds)
+local BuyHousePassRemote = newRemote("BuyHousePass") -- (player, passId)
 local AdvanceRoundRemote = newRemote("AdvanceRound")
 local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
@@ -67,8 +73,18 @@ local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
 
 -- ===== 3. Session management =====
 
-local SHOP_OFFER_COUNT = 3
-local sessions = {} -- [player] = { state = RunState, phase = "playing" | "shop" | "gameover", shopOffers = {patron, ...} }
+-- Matches the reference game's usual shop layout more closely than our old
+-- "3 Patron offers, nothing else" did: 2 Patron offers + 2 Pack offers
+-- every visit, plus an occasional single Voucher (House Pass) offer -- see
+-- VOUCHER_CHANCE. Reroll cost climbs by REROLL_COST_STEP each reroll
+-- within a single shop visit, then resets to REROLL_BASE_COST next visit.
+local SHOP_OFFER_COUNT = 2
+local PACK_OFFER_COUNT = 2
+local VOUCHER_CHANCE = 0.35
+local REROLL_BASE_COST = 5
+local REROLL_COST_STEP = 2
+
+local sessions = {} -- [player] = { state = RunState, phase = "playing" | "shop" | "gameover", shopOffers = {patron, ...}, packOffers = {pack, ...}, voucherOffer = pass | nil, rerollCost = number }
 
 local function pickShopOffers(state)
 	local available = {}
@@ -94,6 +110,52 @@ local function pickShopOffers(state)
 	return offers
 end
 
+local function pickPackOffers()
+	local pool = {}
+	for _, pack in ipairs(Packs.Definitions) do
+		table.insert(pool, pack)
+	end
+	local offers = {}
+	for _ = 1, math.min(PACK_OFFER_COUNT, #pool) do
+		local i = math.random(1, #pool)
+		table.insert(offers, table.remove(pool, i))
+	end
+	return offers
+end
+
+-- Only offers a House Pass the player doesn't already own, and only some of
+-- the time -- "shows up from time to time," not every visit, same as the
+-- reference game's Voucher slot.
+local function pickVoucherOffer(state)
+	if math.random() > VOUCHER_CHANCE then
+		return nil
+	end
+	local available = {}
+	for _, pass in ipairs(HousePasses.Definitions) do
+		if not state.housePasses[pass.id] then
+			table.insert(available, pass)
+		end
+	end
+	if #available == 0 then
+		return nil
+	end
+	return available[math.random(1, #available)]
+end
+
+-- Rerolls just the offers, keeping whatever the current rerollCost climbed
+-- to (the caller bumps it after using this). Opening a fresh shop visit
+-- uses this too, via openShop below, which additionally resets the cost.
+local function rollShopOffers(session)
+	session.shopOffers = pickShopOffers(session.state)
+	session.packOffers = pickPackOffers()
+	session.voucherOffer = pickVoucherOffer(session.state)
+end
+
+local function openShop(session)
+	rollShopOffers(session)
+	session.rerollCost = REROLL_BASE_COST
+end
+
 local function serializeCard(card)
 	return { rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp }
 end
@@ -110,11 +172,36 @@ local function serializeState(session)
 		table.insert(owned, { id = patron.id, name = patron.name, description = patron.description })
 	end
 
+	-- Prices below go through RunState.patronPrice/packPrice so the client
+	-- never has to duplicate House Pass discount math -- it just displays
+	-- whatever price it's sent.
 	local shopOffers = {}
 	for _, patron in ipairs(session.shopOffers) do
 		table.insert(shopOffers, {
-			id = patron.id, name = patron.name, description = patron.description, price = patron.price,
+			id = patron.id, name = patron.name, description = patron.description,
+			price = RunState.patronPrice(state, patron),
 		})
+	end
+
+	local packOffers = {}
+	for _, pack in ipairs(session.packOffers or {}) do
+		table.insert(packOffers, {
+			id = pack.id, name = pack.name, icon = pack.icon, description = pack.description,
+			price = RunState.packPrice(state, pack),
+		})
+	end
+
+	local voucherOffer = nil
+	if session.voucherOffer then
+		voucherOffer = {
+			id = session.voucherOffer.id, name = session.voucherOffer.name, icon = session.voucherOffer.icon,
+			description = session.voucherOffer.description, price = session.voucherOffer.price,
+		}
+	end
+
+	local housePassIds = {}
+	for passId in pairs(state.housePasses) do
+		table.insert(housePassIds, passId)
 	end
 
 	-- Themes are static content data (colors, price) that the client can
@@ -148,6 +235,14 @@ local function serializeState(session)
 		ownedPatrons = owned,
 		patronSlotLimit = RunState.patronSlotLimit(state),
 		shopOffers = shopOffers,
+		packOffers = packOffers,
+		voucherOffer = voucherOffer,
+		rerollCost = RunState.rerollCost(state, session.rerollCost or REROLL_BASE_COST),
+		-- pendingPack is already the lightweight { packId, category, pickCount,
+		-- items = {id,name,icon,description} } shape RunState.openPack builds
+		-- -- safe to ship as-is, same as deckCounts/handLevels below.
+		pendingPack = state.pendingPack,
+		housePassIds = housePassIds,
 		ownedThemeIds = ownedThemeIds,
 		equippedTheme = state.equippedTheme,
 		deckVariantId = state.deckVariantId,
@@ -183,6 +278,9 @@ local function startNewSession(player, deckVariantId, difficultyId)
 		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId }),
 		phase = "playing",
 		shopOffers = {},
+		packOffers = {},
+		voucherOffer = nil,
+		rerollCost = REROLL_BASE_COST,
 	}
 	pushState(player)
 end
@@ -232,7 +330,7 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 
 	if result.roundWon then
 		session.phase = "shop"
-		session.shopOffers = pickShopOffers(session.state)
+		openShop(session)
 	elseif result.runOver then
 		session.phase = "gameover"
 	end
@@ -264,6 +362,12 @@ end)
 BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
 	local session = sessions[player]
 	if not session or session.phase ~= "shop" then
+		return
+	end
+	-- Finish resolving an open Pack reveal before doing anything else in the
+	-- shop -- same as the reference game, a Pack takes over the whole shop
+	-- screen until you pick (or skip).
+	if session.state.pendingPack then
 		return
 	end
 	if type(patronId) ~= "string" then
@@ -340,6 +444,9 @@ BuyRecipeRemote.OnServerEvent:Connect(function(player, category, id)
 	if not session or session.phase ~= "shop" then
 		return
 	end
+	if session.state.pendingPack then
+		return
+	end
 	local def = RECIPE_CATEGORIES[category]
 	if not def or type(id) ~= "string" or not findRecipe(def.catalog, id) then
 		return
@@ -357,6 +464,9 @@ end)
 UseRecipeRemote.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)
 	local session = sessions[player]
 	if not session or session.phase ~= "shop" then
+		return
+	end
+	if session.state.pendingPack then
 		return
 	end
 	local def = RECIPE_CATEGORIES[category]
@@ -391,6 +501,120 @@ UseRecipeRemote.OnServerEvent:Connect(function(player, category, id, cardIndices
 		return
 	end
 
+	pushState(player)
+end)
+
+-- ===== Reroll / Packs / House Passes (Vouchers) =====
+-- The shop is now randomized every visit (2 Patron offers + 2 Pack offers +
+-- an occasional Voucher, see openShop/pickVoucherOffer above) instead of a
+-- static full-catalog browse -- matches the reference game and makes the
+-- Reroll button a real decision (spend Tips now for a fresh set of offers).
+
+RerollShopRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	if session.state.pendingPack then
+		return
+	end
+	local cost = RunState.rerollCost(session.state, session.rerollCost or REROLL_BASE_COST)
+	if session.state.tips < cost then
+		return
+	end
+	session.state.tips = session.state.tips - cost
+	rollShopOffers(session)
+	session.rerollCost = (session.rerollCost or REROLL_BASE_COST) + REROLL_COST_STEP
+	pushState(player)
+end)
+
+BuyPackRemote.OnServerEvent:Connect(function(player, packId)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	if session.state.pendingPack then
+		return
+	end
+	if type(packId) ~= "string" then
+		return
+	end
+
+	-- Only allow buying packs that were actually offered this shop visit --
+	-- same rule as Patron offers above.
+	local offered = false
+	for _, pack in ipairs(session.packOffers) do
+		if pack.id == packId then
+			offered = true
+			break
+		end
+	end
+	if not offered then
+		return
+	end
+
+	local ok, revealOrErr = pcall(RunState.openPack, session.state, packId)
+	if not ok then
+		warn("BuyPack error for " .. player.Name .. ": " .. tostring(revealOrErr))
+		return
+	end
+	if not revealOrErr then
+		-- Logical failure (e.g. not enough tips) -- leave the offer in place,
+		-- nothing was charged.
+		return
+	end
+
+	for i, pack in ipairs(session.packOffers) do
+		if pack.id == packId then
+			table.remove(session.packOffers, i)
+			break
+		end
+	end
+	pushState(player)
+end)
+
+ResolvePackRemote.OnServerEvent:Connect(function(player, chosenIds)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	if type(chosenIds) ~= "table" or #chosenIds > 10 then
+		return
+	end
+	for _, id in ipairs(chosenIds) do
+		if type(id) ~= "string" then
+			return
+		end
+	end
+
+	local ok, err = pcall(RunState.resolvePack, session.state, chosenIds)
+	if not ok then
+		warn("ResolvePack error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+
+	pushState(player)
+end)
+
+BuyHousePassRemote.OnServerEvent:Connect(function(player, passId)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	if session.state.pendingPack then
+		return
+	end
+	if type(passId) ~= "string" then
+		return
+	end
+	if not session.voucherOffer or session.voucherOffer.id ~= passId then
+		return
+	end
+
+	local ok = RunState.buyHousePass(session.state, passId)
+	if ok then
+		session.voucherOffer = nil
+	end
 	pushState(player)
 end)
 
@@ -439,6 +663,10 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	if not session or session.phase ~= "shop" then
 		return
 	end
+	-- Resolve (or skip) any open Pack before leaving the shop.
+	if session.state.pendingPack then
+		return
+	end
 
 	local ok, err = pcall(RunState.advanceToNextRound, session.state)
 	if not ok then
@@ -448,6 +676,12 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 
 	session.phase = "playing"
 	session.shopOffers = {}
+	session.packOffers = {}
+	session.voucherOffer = nil
+	-- Safety net, not the normal path: a pack should always be resolved
+	-- (or skipped) before Next Round is even clickable client-side, but
+	-- don't leave a stale one open across the round boundary if it happens.
+	session.state.pendingPack = nil
 	pushState(player)
 end)
 
