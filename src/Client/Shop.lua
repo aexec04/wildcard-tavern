@@ -1,9 +1,18 @@
 --[[
 	Client/Shop.lua
 	The Shop overlay (full-screen tabbed menu: Buy Patrons / My Patrons /
-	Special Cards stub / Night Upgrades stub) -- extracted out of
-	init.client.lua on its own, since it's the single most self-contained
-	UI system in the client and the one we understand best right now.
+	Recipes / My Recipes) -- extracted out of init.client.lua on its own,
+	since it's the single most self-contained UI system in the client and
+	the one we understand best right now.
+
+	PHASE 1B: the two "coming soon" stub tabs (Special Cards / Night
+	Upgrades) are gone -- they're now "Recipes" (browse + buy House/Menu/
+	Secret Recipes into your inventory) and "My Recipes" (use what you've
+	bought). Recipes that need target cards (and/or a suit, for Suit Swap)
+	open a small in-panel picker instead of using immediately -- see the
+	pendingUse/targetPanel block below. House Passes (Vouchers), originally
+	earmarked for the "Night Upgrades" slot, will need a NEW tab when Phase 2
+	gets to them, since this pass used both stub tabs for Recipes.
 
 	This is a ModuleScript, not a LocalScript, so it has no access to
 	init.client.lua's local variables -- everything it needs from the rest
@@ -11,7 +20,7 @@
 	below). It returns a small table of the pieces the rest of the client
 	still needs to reach: the panel itself (for Visible toggling and theme
 	tweening), the Next Round button (for its click handler and theme
-	tweening, both wired in init.client.lua), and the two rebuild functions
+	tweening, both wired in init.client.lua), and the rebuild functions
 	(called from render() whenever the shop's contents need to refresh).
 
 	deps fields:
@@ -26,8 +35,15 @@
 		playSfx            -- function(soundId, volume?, maxLength?)
 		SOUND_IDS          -- table, for SOUND_IDS.buyPatron
 		Patrons            -- the Shared/Engine/Patrons module (for Patrons.getById)
+		Recipes            -- the Shared/Engine/Recipes module (HouseRecipes/
+		                       MenuRecipes/SecretRecipes catalogs -- static
+		                       content, same pattern as Patrons/Themes)
 		BuyPatronRemote    -- RemoteEvent
 		SellPatronRemote   -- RemoteEvent
+		BuyRecipeRemote    -- RemoteEvent (category, id)
+		UseRecipeRemote    -- RemoteEvent (category, id, cardIndices?, suit?)
+		RANK_NAMES         -- table, [rank] = display string, for the card picker
+		SUIT_SYMBOLS       -- table, [suit] = display glyph, for the card picker
 		getLatestState     -- function() -> latest state table or nil (latestState
 		                       is reassigned, not mutated, each render() call in
 		                       init.client.lua, so this needs to be a live getter,
@@ -39,6 +55,8 @@
 			nextRoundButton = TextButton,
 			rebuildShop = function(shopOffers),
 			rebuildMyPatronsTab = function(ownedPatrons),
+			rebuildMyRecipesTab = function(state),
+			closeTargetPanel = function(),
 		}
 ]]
 
@@ -54,21 +72,41 @@ return function(deps)
 	local playSfx = deps.playSfx
 	local SOUND_IDS = deps.SOUND_IDS
 	local Patrons = deps.Patrons
+	local Recipes = deps.Recipes
 	local BuyPatronRemote = deps.BuyPatronRemote
 	local SellPatronRemote = deps.SellPatronRemote
+	local BuyRecipeRemote = deps.BuyRecipeRemote
+	local UseRecipeRemote = deps.UseRecipeRemote
+	local RANK_NAMES = deps.RANK_NAMES
+	local SUIT_SYMBOLS = deps.SUIT_SYMBOLS
 	local getLatestState = deps.getLatestState
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
-	-- is one tab among what will eventually be several (Special Cards, Night
-	-- Upgrades are stubbed in now so the tab bar itself doesn't need to change
-	-- shape later), and "My Patrons" is where you manage/discard what you've
-	-- already got -- important once the catalog grows well past a handful.
+	-- is one tab among several, and "My Patrons"/"My Recipes" are where you
+	-- manage/discard or use what you've already got -- important once the
+	-- catalogs grow well past a handful.
 
 	local shopFrame
 	local nextRoundButton
 	local shopBuyListFrame
 	local shopMyPatronsListFrame
+	local shopRecipesListFrame
+	local shopMyRecipesListFrame
+
+	-- The card/suit target picker for Recipes that need one (e.g. Sugar
+	-- Rush needs 1-2 cards, Suit Swap needs cards AND a suit). Built once
+	-- here, shown/hidden and refreshed by openTargetPanel/refreshTargetPanel/
+	-- closeTargetPanel below -- declared before the `do` block per this
+	-- file's established "assign inside, read outside" pattern so the
+	-- functions further down can reach them.
+	local shopTargetPanel
+	local targetTitleLabel
+	local targetHintLabel
+	local targetHandRow
+	local targetSuitRow
+	local targetConfirmButton
+	local targetCancelButton
 
 	do
 		shopFrame = Instance.new("Frame")
@@ -162,54 +200,10 @@ return function(deps)
 			return tab
 		end
 
-		local function makeComingSoonTab(emoji, title, description)
-			local tab = Instance.new("Frame")
-			tab.Size = UDim2.fromScale(1, 1)
-			tab.BackgroundTransparency = 1
-			tab.Visible = false
-			tab.ZIndex = SHOP_ZINDEX
-			tab.Parent = shopContentArea
-
-			local emojiLabel = Instance.new("TextLabel")
-			emojiLabel.Size = UDim2.new(1, 0, 0, 60)
-			emojiLabel.Position = UDim2.new(0, 0, 0.3, 0)
-			emojiLabel.BackgroundTransparency = 1
-			emojiLabel.Font = Enum.Font.GothamBold
-			emojiLabel.TextSize = 40
-			emojiLabel.Text = emoji
-			emojiLabel.ZIndex = SHOP_ZINDEX
-			emojiLabel.Parent = tab
-
-			local titleLabel = Instance.new("TextLabel")
-			titleLabel.Size = UDim2.new(1, -60, 0, 26)
-			titleLabel.Position = UDim2.new(0.5, 0, 0.3, 66)
-			titleLabel.AnchorPoint = Vector2.new(0.5, 0)
-			titleLabel.BackgroundTransparency = 1
-			titleLabel.Font = Enum.Font.GothamBold
-			titleLabel.TextSize = 18
-			titleLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
-			titleLabel.Text = title .. " -- coming soon"
-			titleLabel.ZIndex = SHOP_ZINDEX
-			titleLabel.Parent = tab
-
-			local descLabel = Instance.new("TextLabel")
-			descLabel.Size = UDim2.new(0, 420, 0, 40)
-			descLabel.Position = UDim2.new(0.5, 0, 0.3, 96)
-			descLabel.AnchorPoint = Vector2.new(0.5, 0)
-			descLabel.BackgroundTransparency = 1
-			descLabel.Font = Enum.Font.Gotham
-			descLabel.TextSize = 14
-			descLabel.TextWrapped = true
-			descLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			descLabel.Text = description
-			descLabel.ZIndex = SHOP_ZINDEX
-			descLabel.Parent = tab
-
-			return tab
-		end
-
 		shopBuyListFrame = makeShopListTab()
 		shopMyPatronsListFrame = makeShopListTab()
+		shopRecipesListFrame = makeShopListTab()
+		shopMyRecipesListFrame = makeShopListTab()
 
 		-- Permanent first row of the Buy Patrons tab -- NOT destroyed by
 		-- rebuildShop's "clear every Frame child" loop below (this is a
@@ -227,21 +221,19 @@ return function(deps)
 		shopSlotsLabel.Text = ""
 		shopSlotsLabel.ZIndex = SHOP_ZINDEX
 		shopSlotsLabel.Parent = shopBuyListFrame
-		local shopSpecialCardsTab = makeComingSoonTab("🃏", "Special Cards", "One-off cards you can add to your deck for a run -- planned for a future update.")
-		local shopNightUpgradesTab = makeComingSoonTab("⬆️", "Night Upgrades", "Permanent boosts that last the whole Night -- planned for a future update.")
 
 		local shopTabContents = {
 			buy = shopBuyListFrame,
 			mypatrons = shopMyPatronsListFrame,
-			specialcards = shopSpecialCardsTab,
-			nightupgrades = shopNightUpgradesTab,
+			recipes = shopRecipesListFrame,
+			myrecipes = shopMyRecipesListFrame,
 		}
 
 		local SHOP_TAB_DEFS = {
 			{ key = "buy", label = "Buy Patrons" },
 			{ key = "mypatrons", label = "My Patrons" },
-			{ key = "specialcards", label = "Special Cards" },
-			{ key = "nightupgrades", label = "Night Upgrades" },
+			{ key = "recipes", label = "Recipes" },
+			{ key = "myrecipes", label = "My Recipes" },
 		}
 
 		local shopTabButtons = {}
@@ -288,15 +280,107 @@ return function(deps)
 		nextRoundButton.ZIndex = SHOP_ZINDEX
 		nextRoundButton.Parent = shopFrame
 		polishButton(nextRoundButton, 10)
+
+		-- ----- Recipe target picker panel -----
+		-- Sits directly on shopFrame (a sibling of the tab bar/content area,
+		-- not inside any one tab) so it can cover the WHOLE shop -- including
+		-- the tab bar, so you can't switch tabs mid-selection -- regardless of
+		-- which tab was active when "Use" was clicked. ZIndex one above
+		-- SHOP_ZINDEX so it wins.
+		local PANEL_ZINDEX = SHOP_ZINDEX + 1
+
+		shopTargetPanel = Instance.new("Frame")
+		shopTargetPanel.Name = "TargetPanel"
+		shopTargetPanel.Size = UDim2.new(1, -20, 1, -90)
+		shopTargetPanel.Position = UDim2.new(0, 10, 0, 40)
+		shopTargetPanel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+		shopTargetPanel.Visible = false
+		shopTargetPanel.ZIndex = PANEL_ZINDEX
+		shopTargetPanel.Parent = shopFrame
+		polishPanel(shopTargetPanel, 12)
+
+		targetTitleLabel = Instance.new("TextLabel")
+		targetTitleLabel.Size = UDim2.new(1, -20, 0, 44)
+		targetTitleLabel.Position = UDim2.new(0, 10, 0, 10)
+		targetTitleLabel.BackgroundTransparency = 1
+		targetTitleLabel.Font = Enum.Font.GothamBold
+		targetTitleLabel.TextSize = 16
+		targetTitleLabel.TextWrapped = true
+		targetTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+		targetTitleLabel.TextYAlignment = Enum.TextYAlignment.Top
+		targetTitleLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+		targetTitleLabel.Text = ""
+		targetTitleLabel.ZIndex = PANEL_ZINDEX
+		targetTitleLabel.Parent = shopTargetPanel
+
+		targetHintLabel = Instance.new("TextLabel")
+		targetHintLabel.Size = UDim2.new(1, -20, 0, 20)
+		targetHintLabel.Position = UDim2.new(0, 10, 0, 58)
+		targetHintLabel.BackgroundTransparency = 1
+		targetHintLabel.Font = Enum.Font.Gotham
+		targetHintLabel.TextSize = 13
+		targetHintLabel.TextXAlignment = Enum.TextXAlignment.Left
+		targetHintLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+		targetHintLabel.Text = "Click cards below to select them."
+		targetHintLabel.ZIndex = PANEL_ZINDEX
+		targetHintLabel.Parent = shopTargetPanel
+
+		targetHandRow = Instance.new("Frame")
+		targetHandRow.Size = UDim2.new(1, -20, 0, 100)
+		targetHandRow.Position = UDim2.new(0, 10, 0, 86)
+		targetHandRow.BackgroundTransparency = 1
+		targetHandRow.ZIndex = PANEL_ZINDEX
+		targetHandRow.Parent = shopTargetPanel
+		local targetHandLayout = Instance.new("UIListLayout")
+		targetHandLayout.FillDirection = Enum.FillDirection.Horizontal
+		targetHandLayout.Padding = UDim.new(0, 6)
+		targetHandLayout.Parent = targetHandRow
+
+		targetSuitRow = Instance.new("Frame")
+		targetSuitRow.Size = UDim2.new(1, -20, 0, 40)
+		targetSuitRow.Position = UDim2.new(0, 10, 0, 196)
+		targetSuitRow.BackgroundTransparency = 1
+		targetSuitRow.ZIndex = PANEL_ZINDEX
+		targetSuitRow.Parent = shopTargetPanel
+		local targetSuitLayout = Instance.new("UIListLayout")
+		targetSuitLayout.FillDirection = Enum.FillDirection.Horizontal
+		targetSuitLayout.Padding = UDim.new(0, 6)
+		targetSuitLayout.Parent = targetSuitRow
+
+		targetConfirmButton = Instance.new("TextButton")
+		targetConfirmButton.Size = UDim2.new(0, 160, 0, 36)
+		targetConfirmButton.Position = UDim2.new(1, -330, 1, -50)
+		targetConfirmButton.Font = Enum.Font.GothamBold
+		targetConfirmButton.TextSize = 14
+		targetConfirmButton.Text = "Confirm"
+		targetConfirmButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		targetConfirmButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		targetConfirmButton.ZIndex = PANEL_ZINDEX
+		targetConfirmButton.Parent = shopTargetPanel
+		polishButton(targetConfirmButton, 8)
+
+		targetCancelButton = Instance.new("TextButton")
+		targetCancelButton.Size = UDim2.new(0, 150, 0, 36)
+		targetCancelButton.Position = UDim2.new(1, -160, 1, -50)
+		targetCancelButton.Font = Enum.Font.GothamBold
+		targetCancelButton.TextSize = 14
+		targetCancelButton.Text = "Cancel"
+		targetCancelButton.BackgroundColor3 = Color3.fromRGB(70, 55, 45)
+		targetCancelButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		targetCancelButton.ZIndex = PANEL_ZINDEX
+		targetCancelButton.Parent = shopTargetPanel
+		polishButton(targetCancelButton, 8)
 	end -- do (Shop overlay)
 
 	-- A small colored badge with an icon (emoji glyph, not an uploaded image --
 	-- see the TavernScene comment for why we don't guess catalog asset IDs)
-	-- standing in for "a picture" for each Patron until real art exists.
+	-- standing in for "a picture" for each Patron/Recipe until real art exists.
 	-- ZIndex = 6 everywhere below matches SHOP_ZINDEX from the Shop overlay's
 	-- construction block above (that local isn't in scope down here, so this
 	-- repeats the literal -- see the comment there for why every descendant
-	-- needs it explicitly rather than inheriting shopFrame's ZIndex).
+	-- needs it explicitly rather than inheriting shopFrame's ZIndex). The
+	-- target picker's own controls (built inside the do block, where
+	-- PANEL_ZINDEX = 7 IS in scope) don't use this function.
 	local function makePatronIconBadge(parent, icon)
 		local badge = Instance.new("TextLabel")
 		badge.Size = UDim2.new(0, 46, 0, 46)
@@ -311,6 +395,245 @@ return function(deps)
 		return badge
 	end
 
+	-- ----- Recipe target picker state + logic -----
+	-- pendingUse holds { category = "house"|"menu"|"secret", id, recipe }
+	-- while the picker is open; nil otherwise. Recipes with no cardCount
+	-- (Happy Hour, Menu Recipes, etc.) never go through this -- they use
+	-- immediately via a plain confirm dialog instead (see rebuildMyRecipesTab).
+	local pendingUse = nil
+	local pendingSelected = {} -- [handIndex] = true
+	local pendingSuit = nil
+
+	local SUIT_ORDER = { "Hearts", "Diamonds", "Clubs", "Spades" }
+
+	local function selectedCount()
+		local n = 0
+		for _ in pairs(pendingSelected) do
+			n = n + 1
+		end
+		return n
+	end
+
+	local function closeTargetPanel()
+		pendingUse = nil
+		pendingSelected = {}
+		pendingSuit = nil
+		shopTargetPanel.Visible = false
+	end
+
+	local function refreshTargetPanel()
+		if not pendingUse then
+			return
+		end
+		local recipe = pendingUse.recipe
+
+		for _, child in ipairs(targetHandRow:GetChildren()) do
+			if child:IsA("TextButton") then
+				child:Destroy()
+			end
+		end
+		for _, child in ipairs(targetSuitRow:GetChildren()) do
+			if child:IsA("TextButton") then
+				child:Destroy()
+			end
+		end
+
+		local latestState = getLatestState()
+		local hand = (latestState and latestState.hand) or {}
+
+		for index, card in ipairs(hand) do
+			local cardButton = Instance.new("TextButton")
+			cardButton.Size = UDim2.new(0, 56, 0, 78)
+			cardButton.LayoutOrder = index
+			cardButton.Font = Enum.Font.GothamBold
+			cardButton.TextSize = 16
+			cardButton.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+			cardButton.TextColor3 = (card.suit == "Hearts" or card.suit == "Diamonds") and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
+			cardButton.BackgroundColor3 = pendingSelected[index] and Color3.fromRGB(255, 214, 130) or Color3.fromRGB(235, 225, 205)
+			cardButton.ZIndex = 7
+			cardButton.Parent = targetHandRow
+			roundCorner(cardButton, 6)
+
+			cardButton.MouseButton1Click:Connect(function()
+				if pendingSelected[index] then
+					pendingSelected[index] = nil
+				elseif selectedCount() >= recipe.cardCount.max then
+					showWarning(string.format("You can only select up to %d card%s for this.", recipe.cardCount.max, recipe.cardCount.max == 1 and "" or "s"))
+					return
+				else
+					pendingSelected[index] = true
+				end
+				playClickSfx(0.3)
+				refreshTargetPanel()
+			end)
+		end
+
+		targetSuitRow.Visible = recipe.needsSuit == true
+		if recipe.needsSuit then
+			for _, suit in ipairs(SUIT_ORDER) do
+				local suitButton = Instance.new("TextButton")
+				suitButton.Size = UDim2.new(0, 84, 0, 36)
+				suitButton.Font = Enum.Font.GothamBold
+				suitButton.TextSize = 14
+				suitButton.Text = (SUIT_SYMBOLS[suit] or "") .. " " .. suit
+				suitButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+				suitButton.BackgroundColor3 = (pendingSuit == suit) and Color3.fromRGB(255, 214, 130) or Color3.fromRGB(70, 55, 40)
+				suitButton.ZIndex = 7
+				suitButton.Parent = targetSuitRow
+				polishButton(suitButton, 8)
+
+				suitButton.MouseButton1Click:Connect(function()
+					pendingSuit = suit
+					playClickSfx(0.3)
+					refreshTargetPanel()
+				end)
+			end
+		end
+
+		local count = selectedCount()
+		local needSuitOk = (not recipe.needsSuit) or pendingSuit ~= nil
+		local countOk = count >= recipe.cardCount.min and count <= recipe.cardCount.max
+		local ready = countOk and needSuitOk
+
+		local countText = (recipe.cardCount.min == recipe.cardCount.max)
+			and tostring(recipe.cardCount.min)
+			or string.format("%d-%d", recipe.cardCount.min, recipe.cardCount.max)
+
+		targetTitleLabel.Text = string.format("%s -- %s", recipe.name, recipe.description)
+		targetHintLabel.Text = string.format(
+			"Select %s card%s%s (%d selected)",
+			countText,
+			recipe.cardCount.max == 1 and "" or "s",
+			recipe.needsSuit and " and a suit" or "",
+			count
+		)
+
+		targetConfirmButton.Text = ready and "Confirm" or "Select cards..."
+		targetConfirmButton.BackgroundColor3 = ready and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
+	end
+
+	local function openTargetPanel(category, id, recipe)
+		pendingUse = { category = category, id = id, recipe = recipe }
+		pendingSelected = {}
+		pendingSuit = nil
+		shopTargetPanel.Visible = true
+		refreshTargetPanel()
+	end
+
+	targetConfirmButton.MouseButton1Click:Connect(function()
+		if not pendingUse then
+			return
+		end
+		local recipe = pendingUse.recipe
+		local indices = {}
+		for index in pairs(pendingSelected) do
+			table.insert(indices, index)
+		end
+		table.sort(indices)
+
+		local count = #indices
+		local countOk = count >= recipe.cardCount.min and count <= recipe.cardCount.max
+		local needSuitOk = (not recipe.needsSuit) or pendingSuit ~= nil
+		if not (countOk and needSuitOk) then
+			showWarning("Finish making your selection first.")
+			return
+		end
+
+		playSfx(SOUND_IDS.buyPatron)
+		UseRecipeRemote:FireServer(pendingUse.category, pendingUse.id, indices, pendingSuit)
+		closeTargetPanel()
+	end)
+
+	targetCancelButton.MouseButton1Click:Connect(function()
+		playClickSfx(0.4)
+		closeTargetPanel()
+	end)
+
+	-- ----- Recipes catalog (shared between the browse tab and My Recipes) -----
+
+	local RECIPE_CATEGORY_LIST = {
+		{ key = "house", label = "House Recipes", catalog = Recipes.HouseRecipes },
+		{ key = "menu", label = "Menu Recipes", catalog = Recipes.MenuRecipes },
+		{ key = "secret", label = "Secret Recipes", catalog = Recipes.SecretRecipes },
+	}
+
+	local function findRecipeById(catalog, id)
+		for _, recipe in ipairs(catalog) do
+			if recipe.id == id then
+				return recipe
+			end
+		end
+		return nil
+	end
+
+	-- ----- Recipes tab (browse + buy) -----
+	-- Unlike Buy Patrons (whose offers rotate) and My Patrons/My Recipes
+	-- (whose contents change as you buy/sell/use), the three Recipe catalogs
+	-- are fully static -- so this builds once, right here at construction,
+	-- instead of needing a rebuild function called from render() every frame.
+	do
+		for _, categoryDef in ipairs(RECIPE_CATEGORY_LIST) do
+			local header = Instance.new("TextLabel")
+			header.Size = UDim2.new(1, 0, 0, 24)
+			header.BackgroundTransparency = 1
+			header.Font = Enum.Font.GothamBold
+			header.TextSize = 15
+			header.TextXAlignment = Enum.TextXAlignment.Left
+			header.TextColor3 = Color3.fromRGB(255, 214, 130)
+			header.Text = categoryDef.label
+			header.ZIndex = 6
+			header.Parent = shopRecipesListFrame
+
+			for _, recipe in ipairs(categoryDef.catalog) do
+				local row = Instance.new("Frame")
+				row.Size = UDim2.new(1, 0, 0, 64)
+				row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+				row.ZIndex = 6
+				row.Parent = shopRecipesListFrame
+				polishPanel(row, 10)
+
+				makePatronIconBadge(row, recipe.icon)
+
+				local label = Instance.new("TextLabel")
+				label.Size = UDim2.new(1, -170, 1, -8)
+				label.Position = UDim2.new(0, 64, 0, 4)
+				label.BackgroundTransparency = 1
+				label.Font = Enum.Font.Gotham
+				label.TextSize = 14
+				label.TextWrapped = true
+				label.TextXAlignment = Enum.TextXAlignment.Left
+				label.TextColor3 = Color3.fromRGB(250, 240, 220)
+				label.Text = string.format("%s (%d tips)\n%s", recipe.name, recipe.price, recipe.description)
+				label.ZIndex = 6
+				label.Parent = row
+
+				local buyButton = Instance.new("TextButton")
+				buyButton.Size = UDim2.new(0, 90, 0, 36)
+				buyButton.Position = UDim2.new(1, -100, 0.5, -18)
+				buyButton.Font = Enum.Font.GothamBold
+				buyButton.TextSize = 15
+				buyButton.Text = "Buy"
+				buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+				buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+				buyButton.ZIndex = 6
+				buyButton.Parent = row
+				polishButton(buyButton, 8)
+
+				local categoryKey = categoryDef.key
+				buyButton.MouseButton1Click:Connect(function()
+					local latestState = getLatestState()
+					if not latestState or latestState.tips < recipe.price then
+						showWarning("Not enough tips for that.")
+						playClickSfx()
+						return
+					end
+					playSfx(SOUND_IDS.buyPatron)
+					BuyRecipeRemote:FireServer(categoryKey, recipe.id)
+				end)
+			end
+		end
+	end
+
 	local function rebuildShop(shopOffers)
 		for _, child in ipairs(shopBuyListFrame:GetChildren()) do
 			if child:IsA("Frame") then
@@ -322,8 +645,11 @@ return function(deps)
 		local ownedCount = (latestState and latestState.ownedPatrons and #latestState.ownedPatrons) or 0
 		local slotLimit = (latestState and latestState.patronSlotLimit) or ownedCount
 		local tableIsFull = ownedCount >= slotLimit
-		shopSlotsLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
-			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+		local shopSlotsLabel = shopBuyListFrame:FindFirstChild("SlotsLabel")
+		if shopSlotsLabel then
+			shopSlotsLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
+				tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+		end
 
 		if #shopOffers == 0 then
 			local emptyLabel = Instance.new("TextLabel")
@@ -466,10 +792,130 @@ return function(deps)
 		end
 	end
 
+	local function rebuildMyRecipesTab(state)
+		for _, child in ipairs(shopMyRecipesListFrame:GetChildren()) do
+			if child:IsA("Frame") or child:IsA("TextLabel") then
+				child:Destroy()
+			end
+		end
+
+		local inventories = {
+			house = (state and state.houseRecipeInventory) or {},
+			menu = (state and state.menuRecipeInventory) or {},
+			secret = (state and state.secretRecipeInventory) or {},
+		}
+
+		-- If the recipe we're mid-targeting is no longer in its inventory
+		-- (used some other way than the picker's own Confirm button -- e.g. a
+		-- fresh state push raced the picker), close the stale picker instead
+		-- of leaving it open pointing at a recipe that's gone.
+		if pendingUse then
+			local stillOwned = false
+			for _, ownedId in ipairs(inventories[pendingUse.category] or {}) do
+				if ownedId == pendingUse.id then
+					stillOwned = true
+					break
+				end
+			end
+			if not stillOwned then
+				closeTargetPanel()
+			end
+		end
+
+		local anyOwned = #inventories.house > 0 or #inventories.menu > 0 or #inventories.secret > 0
+		if not anyOwned then
+			local emptyLabel = Instance.new("TextLabel")
+			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
+			emptyLabel.BackgroundTransparency = 1
+			emptyLabel.Font = Enum.Font.Gotham
+			emptyLabel.TextSize = 14
+			emptyLabel.TextWrapped = true
+			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
+			emptyLabel.Text = "No Recipes yet -- buy some in the Recipes tab!"
+			emptyLabel.ZIndex = 6
+			emptyLabel.Parent = shopMyRecipesListFrame
+			return
+		end
+
+		for _, categoryDef in ipairs(RECIPE_CATEGORY_LIST) do
+			local inventory = inventories[categoryDef.key]
+			if #inventory > 0 then
+				local header = Instance.new("TextLabel")
+				header.Size = UDim2.new(1, 0, 0, 24)
+				header.BackgroundTransparency = 1
+				header.Font = Enum.Font.GothamBold
+				header.TextSize = 15
+				header.TextXAlignment = Enum.TextXAlignment.Left
+				header.TextColor3 = Color3.fromRGB(255, 214, 130)
+				header.Text = categoryDef.label
+				header.ZIndex = 6
+				header.Parent = shopMyRecipesListFrame
+
+				for _, recipeId in ipairs(inventory) do
+					local recipe = findRecipeById(categoryDef.catalog, recipeId)
+					if recipe then
+						local row = Instance.new("Frame")
+						row.Size = UDim2.new(1, 0, 0, 64)
+						row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+						row.ZIndex = 6
+						row.Parent = shopMyRecipesListFrame
+						polishPanel(row, 10)
+
+						makePatronIconBadge(row, recipe.icon)
+
+						local label = Instance.new("TextLabel")
+						label.Size = UDim2.new(1, -170, 1, -8)
+						label.Position = UDim2.new(0, 64, 0, 4)
+						label.BackgroundTransparency = 1
+						label.Font = Enum.Font.Gotham
+						label.TextSize = 14
+						label.TextWrapped = true
+						label.TextXAlignment = Enum.TextXAlignment.Left
+						label.TextColor3 = Color3.fromRGB(250, 240, 220)
+						label.Text = string.format("%s\n%s", recipe.name, recipe.description)
+						label.ZIndex = 6
+						label.Parent = row
+
+						local useButton = Instance.new("TextButton")
+						useButton.Size = UDim2.new(0, 90, 0, 36)
+						useButton.Position = UDim2.new(1, -100, 0.5, -18)
+						useButton.Font = Enum.Font.GothamBold
+						useButton.TextSize = 15
+						useButton.Text = "Use"
+						useButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+						useButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+						useButton.ZIndex = 6
+						useButton.Parent = row
+						polishButton(useButton, 8)
+
+						local categoryKey = categoryDef.key
+						useButton.MouseButton1Click:Connect(function()
+							if recipe.cardCount then
+								playClickSfx(0.4)
+								openTargetPanel(categoryKey, recipe.id, recipe)
+							else
+								playClickSfx(0.4)
+								showConfirmDialog(
+									string.format("Use %s?\n\n%s", recipe.name, recipe.description),
+									function()
+										playSfx(SOUND_IDS.buyPatron)
+										UseRecipeRemote:FireServer(categoryKey, recipe.id)
+									end
+								)
+							end
+						end)
+					end
+				end
+			end
+		end
+	end
+
 	return {
 		shopFrame = shopFrame,
 		nextRoundButton = nextRoundButton,
 		rebuildShop = rebuildShop,
 		rebuildMyPatronsTab = rebuildMyPatronsTab,
+		rebuildMyRecipesTab = rebuildMyRecipesTab,
+		closeTargetPanel = closeTargetPanel,
 	}
 end

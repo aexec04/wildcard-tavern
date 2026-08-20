@@ -49,6 +49,9 @@ local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
 local RestartRunRemote = remotes:WaitForChild("RestartRun")
 local StartRunRemote = remotes:WaitForChild("StartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
+-- PHASE 1B (Recipes UI)
+local BuyRecipeRemote = remotes:WaitForChild("BuyRecipe")
+local UseRecipeRemote = remotes:WaitForChild("UseRecipe")
 
 -- Theme *data* (names/prices/colors) is static content, so the client just
 -- reads it straight from Shared -- only ownership/equipped state needs to
@@ -73,6 +76,13 @@ local BossRounds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 -- locked ("???") entries for ones not owned yet -- the server only sends
 -- OWNED patrons over the state payload.
 local Patrons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Patrons"))
+-- PHASE 1B (Recipes UI): Recipes.HouseRecipes/MenuRecipes/SecretRecipes are
+-- static content, same "client reads the catalog directly" pattern as
+-- Patrons/Themes above -- the server only sends which ones are OWNED.
+local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Recipes"))
+-- PHASE 1B (hand visual treatment): need Card.Garnishes/Specials/Stamps'
+-- icon fields to show a small corner badge on modified cards in the hand.
+local Card = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Card"))
 
 -- Declared up here (not down by the rest of "Client-side state" below) so
 -- ANY overlay's refresh function -- including ones built inside a do/end
@@ -515,8 +525,13 @@ local Shop = require(script.Shop)({
 	playSfx = playSfx,
 	SOUND_IDS = SOUND_IDS,
 	Patrons = Patrons,
+	Recipes = Recipes,
 	BuyPatronRemote = BuyPatronRemote,
 	SellPatronRemote = SellPatronRemote,
+	BuyRecipeRemote = BuyRecipeRemote,
+	UseRecipeRemote = UseRecipeRemote,
+	RANK_NAMES = RANK_NAMES,
+	SUIT_SYMBOLS = SUIT_SYMBOLS,
 	-- latestState is REASSIGNED (not mutated) each render() call, so Shop
 	-- needs a live getter, not a value snapshotted once at construction time.
 	getLatestState = function()
@@ -527,6 +542,8 @@ local shopFrame = Shop.shopFrame
 local nextRoundButton = Shop.nextRoundButton
 local rebuildShop = Shop.rebuildShop
 local rebuildMyPatronsTab = Shop.rebuildMyPatronsTab
+local rebuildMyRecipesTab = Shop.rebuildMyRecipesTab
+local closeRecipeTargetPanel = Shop.closeTargetPanel
 
 -- ===== Game over overlay + Menu screen =====
 -- Extracted into Client/GameOver.lua and Client/Menu.lua. applyTheme() and
@@ -1115,6 +1132,39 @@ local function rebuildHand(handData)
 		button.Parent = slot
 		polishButton(button, 8)
 
+		-- PHASE 1B: Garnish/Special/Stamp visual treatment. Doesn't need
+		-- full card art (see the feature-expansion project doc's stated v1
+		-- scope) -- just a small corner badge with the relevant icon(s) so a
+		-- modified card visibly reads as modified in the hand. Priority
+		-- order (rarest/most-impactful first) when a card has more than one:
+		-- Special, then Stamp, then Garnish.
+		if card.garnish or card.special or card.stamp then
+			local icons = {}
+			if card.special and Card.Specials[card.special] then
+				table.insert(icons, Card.Specials[card.special].icon)
+			end
+			if card.stamp and Card.Stamps[card.stamp] then
+				table.insert(icons, Card.Stamps[card.stamp].icon)
+			end
+			if card.garnish and Card.Garnishes[card.garnish] then
+				table.insert(icons, Card.Garnishes[card.garnish].icon)
+			end
+
+			local badge = Instance.new("TextLabel")
+			badge.AnchorPoint = Vector2.new(1, 0)
+			badge.Position = UDim2.new(1, -2, 0, 2)
+			badge.Size = UDim2.new(0, 0, 0, 16)
+			badge.AutomaticSize = Enum.AutomaticSize.X
+			badge.BackgroundTransparency = 1
+			badge.Font = Enum.Font.GothamBold
+			badge.TextSize = 12
+			badge.TextColor3 = Color3.fromRGB(255, 255, 255)
+			badge.TextStrokeTransparency = 0.3
+			badge.Text = table.concat(icons, "")
+			badge.ZIndex = 2
+			badge.Parent = slot
+		end
+
 		local scaleObject = Instance.new("UIScale")
 		scaleObject.Scale = BASE_SCALE
 		scaleObject.Parent = button
@@ -1289,6 +1339,13 @@ local function render(state)
 	if state.phase == "shop" then
 		rebuildShop(state.shopOffers)
 		rebuildMyPatronsTab(state.ownedPatrons)
+		rebuildMyRecipesTab(state)
+	else
+		-- Left the shop (round advanced, or the run ended) -- close the
+		-- Recipe card/suit picker if it was left open, so it doesn't show up
+		-- stale (still mid-selection for a recipe from last visit) the next
+		-- time the shop opens.
+		closeRecipeTargetPanel()
 	end
 
 	if state.phase == "gameover" then

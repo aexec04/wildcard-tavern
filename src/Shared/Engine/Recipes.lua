@@ -50,6 +50,7 @@ end
 Recipes.HouseRecipes = {
 	{
 		id = "sugar_rush", name = "Sugar Rush", icon = "🍬", price = 3,
+		cardCount = { min = 1, max = 2 },
 		description = "Adds a Sweet Garnish (+30 Chips) to up to 2 selected cards.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -64,6 +65,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "spice_rack", name = "Spice Rack", icon = "🌶️", price = 3,
+		cardCount = { min = 1, max = 2 },
 		description = "Adds a Zesty Garnish (+4 Mult) to up to 2 selected cards.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -78,6 +80,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "house_blend_order", name = "House Blend Order", icon = "🍹", price = 4,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds House Blend (counts as every suit) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -90,6 +93,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "cast_iron_order", name = "Cast Iron Order", icon = "🍳", price = 4,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds an Iron Garnish (x1.5 Mult while held) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -102,6 +106,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "candy_order", name = "Candy Order", icon = "🍭", price = 4,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds a Brittle Garnish (x2 Mult, can shatter) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -114,6 +119,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "golden_hour", name = "Golden Hour", icon = "🌟", price = 5,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds a Golden Garnish (earn 3 Tips if held at round end) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -126,6 +132,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "house_token_order", name = "House Token Order", icon = "🪙", price = 4,
+		cardCount = { min = 1, max = 1 },
 		description = "Turns 1 selected card into a Bar Token (+50 Chips).",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -138,6 +145,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "upsell", name = "Upsell", icon = "⬆️", price = 3,
+		cardCount = { min = 1, max = 2 },
 		description = "Raises the rank of up to 2 selected cards by 1 (caps at Ace).",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -152,6 +160,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "eighty_six_it", name = "86 It", icon = "🗑️", price = 3,
+		cardCount = { min = 1, max = 2 },
 		description = "Removes up to 2 selected cards from your deck for good.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
@@ -175,6 +184,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "copy_the_order", name = "Copy the Order", icon = "📋", price = 6,
+		cardCount = { min = 2, max = 2 },
 		description = "Select 2 cards -- the first becomes a copy of the second.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
@@ -193,6 +203,7 @@ Recipes.HouseRecipes = {
 	},
 	{
 		id = "suit_swap", name = "Suit Swap", icon = "🔄", price = 4,
+		cardCount = { min = 1, max = 3 }, needsSuit = true,
 		description = "Converts up to 3 selected cards to a suit of your choice.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -351,6 +362,7 @@ Recipes.SecretRecipes = {
 	},
 	{
 		id = "loyalty_punch", name = "Loyalty Punch", icon = "🟨", price = 4,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds a Gold Stamp (earn 3 Tips when it scores) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
@@ -363,6 +375,7 @@ Recipes.SecretRecipes = {
 	},
 	{
 		id = "chefs_special", name = "Chef's Special", icon = "👨‍🍳", price = 5,
+		cardCount = { min = 1, max = 1 },
 		description = "Adds a random Special (Silver/Gold/Rainbow) to 1 selected card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)

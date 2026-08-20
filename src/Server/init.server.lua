@@ -24,6 +24,7 @@ local Tests = Shared:WaitForChild("Tests")
 local RunState = require(Engine.RunState)
 local Patrons = require(Engine.Patrons)
 local Deck = require(Engine.Deck)
+local Recipes = require(Engine.Recipes)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -57,6 +58,8 @@ local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
+local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id)
+local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
 local AdvanceRoundRemote = newRemote("AdvanceRound")
 local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
@@ -92,7 +95,7 @@ local function pickShopOffers(state)
 end
 
 local function serializeCard(card)
-	return { rank = card.rank, suit = card.suit }
+	return { rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp }
 end
 
 local function serializeState(session)
@@ -151,6 +154,14 @@ local function serializeState(session)
 		difficultyId = state.difficultyId,
 		bossModifier = bossModifier,
 		handStats = state.handStats,
+		handLevels = state.handLevels,
+		-- Recipes.HouseRecipes/MenuRecipes/SecretRecipes are static content
+		-- the client already reads straight from
+		-- ReplicatedStorage.Shared.Engine.Recipes (same pattern as Themes
+		-- above) -- we only need to say WHICH ones this player owns.
+		houseRecipeInventory = state.houseRecipeInventory,
+		menuRecipeInventory = state.menuRecipeInventory,
+		secretRecipeInventory = state.secretRecipeInventory,
 		-- Deck.remainingCounts is [suit] = { [rank] = count } -- RemoteEvents
 		-- serialize nested tables fine, so this ships as-is.
 		deckCounts = Deck.remainingCounts(state.deck),
@@ -298,6 +309,88 @@ SellPatronRemote.OnServerEvent:Connect(function(player, patronId)
 	end
 
 	RunState.sellPatron(session.state, patronId)
+	pushState(player)
+end)
+
+-- ===== Recipes (House/Menu/Secret) -- Phase 1b =====
+-- Buying AND using are both gated to the shop phase: House/Secret
+-- Recipes target cards in state.hand, and the only hand a player can see
+-- while the shop overlay is open is whatever's left over from the round
+-- they just won -- so "shop visit" is the one moment using one makes
+-- sense in the current UI. Menu Recipes don't need cards at all but are
+-- gated the same way for a single consistent rule.
+
+local RECIPE_CATEGORIES = {
+	house = { catalog = Recipes.HouseRecipes, buy = RunState.buyHouseRecipe, use = RunState.useHouseRecipe },
+	menu = { catalog = Recipes.MenuRecipes, buy = RunState.buyMenuRecipe, use = RunState.useMenuRecipe },
+	secret = { catalog = Recipes.SecretRecipes, buy = RunState.buySecretRecipe, use = RunState.useSecretRecipe },
+}
+
+local function findRecipe(catalog, id)
+	for _, recipe in ipairs(catalog) do
+		if recipe.id == id then
+			return recipe
+		end
+	end
+	return nil
+end
+
+BuyRecipeRemote.OnServerEvent:Connect(function(player, category, id)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	local def = RECIPE_CATEGORIES[category]
+	if not def or type(id) ~= "string" or not findRecipe(def.catalog, id) then
+		return
+	end
+
+	local ok, err = pcall(def.buy, session.state, id)
+	if not ok then
+		warn("BuyRecipe error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+
+	pushState(player)
+end)
+
+UseRecipeRemote.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)
+	local session = sessions[player]
+	if not session or session.phase ~= "shop" then
+		return
+	end
+	local def = RECIPE_CATEGORIES[category]
+	if not def or type(id) ~= "string" then
+		return
+	end
+	local recipe = findRecipe(def.catalog, id)
+	if not recipe then
+		return
+	end
+
+	local opts = {}
+	if recipe.cardCount then
+		if not isValidIndexList(cardIndices, #session.state.hand) then
+			return
+		end
+		if #cardIndices < recipe.cardCount.min or #cardIndices > recipe.cardCount.max then
+			return
+		end
+		opts.cardIndices = cardIndices
+	end
+	if recipe.needsSuit then
+		if type(suit) ~= "string" then
+			return
+		end
+		opts.suit = suit
+	end
+
+	local ok, err = pcall(def.use, session.state, id, opts)
+	if not ok then
+		warn("UseRecipe error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+
 	pushState(player)
 end)
 
