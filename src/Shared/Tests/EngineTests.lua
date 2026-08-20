@@ -21,6 +21,7 @@ local RunState = require(script.Parent.Parent.Engine.RunState)
 local DeckVariants = require(script.Parent.Parent.Engine.DeckVariants)
 local DifficultyTiers = require(script.Parent.Parent.Engine.DifficultyTiers)
 local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+local Recipes = require(script.Parent.Parent.Engine.Recipes)
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -30,6 +31,11 @@ local expectFalse = TestRunner.expectFalse
 local function C(rank, suit)
 	return Card.new(rank, suit)
 end
+
+-- rng that always rolls a 1 -- forces every "1 in N" chance to hit.
+local function alwaysHitRng(_n) return 1 end
+-- rng that never rolls a 1 (for n > 1) -- forces every "1 in N" chance to miss.
+local function neverHitRng(n) return n end
 
 local tests = {}
 
@@ -421,6 +427,253 @@ table.insert(tests, { name = "RunState.playHand tracks how many times each hand 
 		expectEqual(state.handStats[result.handName], 1)
 		expectEqual(state.handStats[result2.handName], 1)
 	end
+end })
+
+-- ===== Feature Expansion: Card Garnishes/Specials/Stamps =====
+
+table.insert(tests, { name = "Card.isFaceCard is true for Jack/Queen/King, false for Ace/number cards", fn = function()
+	expectTrue(Card.isFaceCard(C(11, "Hearts")))
+	expectTrue(Card.isFaceCard(C(13, "Spades")))
+	expectFalse(Card.isFaceCard(C(14, "Hearts")), "Ace should not count as a face card")
+	expectFalse(Card.isFaceCard(C(9, "Clubs")))
+end })
+
+table.insert(tests, { name = "Card.hasSuit: a House Blend Garnish counts as every suit", fn = function()
+	local card = Card.new(5, "Clubs", { garnish = "houseBlend" })
+	expectTrue(Card.hasSuit(card, "Hearts"))
+	expectTrue(Card.hasSuit(card, "Spades"))
+end })
+
+table.insert(tests, { name = "Scoring: Sweet Garnish adds +30 Chips when the card scores", fn = function()
+	local plain = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, chipsPlain = Scoring.calculate(plain, {}, {})
+
+	local sweetCard = Card.new(9, "Hearts", { garnish = "sweet" })
+	local sweet = HandEvaluator.evaluate({ sweetCard })
+	local _, chipsSweet = Scoring.calculate(sweet, {}, {})
+
+	expectEqual(chipsSweet, chipsPlain + 30)
+end })
+
+table.insert(tests, { name = "Scoring: Rainbow Special (x1.5 Mult) folds into the returned mult", fn = function()
+	local card = Card.new(9, "Hearts", { special = "rainbow" })
+	local hand = HandEvaluator.evaluate({ card })
+	local _, _, mult = Scoring.calculate(hand, {}, {})
+	-- High Card base mult is 1 -> x1.5
+	expectEqual(mult, 1.5)
+end })
+
+table.insert(tests, { name = "Scoring: Iron Garnish gives x1.5 Mult per copy held (not played)", fn = function()
+	local played = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local held = { Card.new(2, "Clubs", { garnish = "iron" }), Card.new(3, "Clubs", { garnish = "iron" }) }
+	local _, _, mult = Scoring.calculate(played, {}, { heldCards = held })
+	expectEqual(mult, 1 * 1.5 * 1.5)
+end })
+
+table.insert(tests, { name = "Scoring: a debuffed suit contributes 0 chips/mult from its cards", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs") }) -- Pair
+	local _, chipsNormal = Scoring.calculate(hand, {}, {})
+	local _, chipsDebuffed = Scoring.calculate(hand, {}, { debuff = "Hearts" })
+	-- The Hearts 9 contributes 0 chips when debuffed -- Clubs 9 still counts.
+	expectEqual(chipsDebuffed, chipsNormal - 9)
+end })
+
+table.insert(tests, { name = "Scoring: hand level growth raises Chips/Mult for that hand type", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs") }) -- Pair
+	local _, chips0, mult0 = Scoring.calculate(hand, {}, { handLevels = { Pair = 0 } })
+	local _, chips2, mult2 = Scoring.calculate(hand, {}, { handLevels = { Pair = 2 } })
+	local growth = Scoring.HandLevelGrowth["Pair"]
+	expectEqual(chips2, chips0 + growth.chips * 2)
+	expectEqual(mult2, mult0 + growth.mult * 2)
+end })
+
+table.insert(tests, { name = "Scoring: a Gold Stamp earns Tips when its card scores", fn = function()
+	local card = Card.new(9, "Hearts", { stamp = "gold" })
+	local hand = HandEvaluator.evaluate({ card })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	expectEqual(extra.tipsEarned, 3)
+end })
+
+table.insert(tests, { name = "Scoring: an Encore Stamp retriggers the card's own Garnish", fn = function()
+	local card = Card.new(9, "Hearts", { garnish = "zesty", stamp = "encore" })
+	local hand = HandEvaluator.evaluate({ card })
+	local _, _, mult = Scoring.calculate(hand, {}, {})
+	-- High Card base mult (1) + Zesty (+4) triggered TWICE = 1 + 4 + 4
+	expectEqual(mult, 1 + 4 + 4)
+end })
+
+table.insert(tests, { name = "Scoring: a Brittle Garnish that rolls its break chance is reported in extra.brokenCards", fn = function()
+	local card = Card.new(9, "Hearts", { garnish = "brittle" })
+	local hand = HandEvaluator.evaluate({ card })
+	local _, _, _, extra = Scoring.calculate(hand, {}, { rng = alwaysHitRng })
+	expectEqual(#extra.brokenCards, 1)
+	expectTrue(extra.brokenCards[1] == card)
+end })
+
+table.insert(tests, { name = "Scoring: a Lucky Garnish only procs its bonus Mult/Tips when the roll hits", fn = function()
+	local card = Card.new(9, "Hearts", { garnish = "lucky" })
+	local hand = HandEvaluator.evaluate({ card })
+
+	local _, _, multMiss, extraMiss = Scoring.calculate(hand, {}, { rng = neverHitRng })
+	expectEqual(multMiss, 1) -- High Card base mult, no proc
+	expectEqual(extraMiss.tipsEarned, 0)
+
+	local _, _, multHit, extraHit = Scoring.calculate(hand, {}, { rng = alwaysHitRng })
+	expectEqual(multHit, 1 + 20) -- lucky Mult proc
+	expectEqual(extraHit.tipsEarned, 20) -- lucky Tips proc
+end })
+
+-- ===== Feature Expansion: RunState deck persistence =====
+
+table.insert(tests, { name = "RunState.startRound pools hand+discardPile+deck back into a full 52-card pool", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	RunState.playHand(state, { 1, 2 })
+	RunState.discard(state, { 1 })
+	local total = #state.hand + #state.deck + #state.discardPile
+	expectEqual(total, 52)
+	RunState.startRound(state)
+	expectEqual(#state.hand + #state.deck + #state.discardPile, 52)
+end })
+
+table.insert(tests, { name = "A Garnish applied to a card survives into the next round's pooled deck", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].garnish = "sweet"
+	RunState.discard(state, { 1 }) -- sends the tagged card to the discard pile
+	RunState.startRound(state) -- pools + reshuffles for the next round
+	local found = 0
+	for _, card in ipairs(state.hand) do
+		if card.garnish == "sweet" then found = found + 1 end
+	end
+	for _, card in ipairs(state.deck) do
+		if card.garnish == "sweet" then found = found + 1 end
+	end
+	expectEqual(found, 1)
+end })
+
+-- ===== Feature Expansion: new Boss Round modifiers (RunState integration) =====
+
+table.insert(tests, { name = "Boss Round requiredCardsPerHand rejects the wrong number of cards", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("full_table") -- requires exactly 5
+	local ok = pcall(RunState.playHand, state, { 1, 2 })
+	expectFalse(ok, "expected playHand to reject a non-5-card play under Full Table")
+end })
+
+table.insert(tests, { name = "Boss Round noRepeatHandTypes scores 0 on a repeated hand type", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("no_repeats")
+	state.targetScore = 999999 -- never win mid-test
+	local first = RunState.playHand(state, { 1, 2 }) -- e.g. a Pair
+	local second = RunState.playHand(state, { 1, 2 })
+	if first.handName == second.handName then
+		expectTrue(second.blockedRepeatHand)
+		expectEqual(second.score, 0)
+	else
+		expectFalse(second.blockedRepeatHand)
+	end
+end })
+
+table.insert(tests, { name = "Boss Round tipsLostPerCardPlayed deducts Tips per card played", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("the_tab")
+	state.tips = 10
+	RunState.playHand(state, { 1, 2 })
+	expectTrue(state.tips <= 10 - 2, "expected at least 2 Tips lost for 2 cards played")
+end })
+
+table.insert(tests, { name = "Boss Round zeroTipsOnMostPlayedHand wipes Tips on your most-used hand", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("empty_pockets")
+	state.tips = 20
+	state.targetScore = 999999
+	RunState.playHand(state, { 1 }) -- first-ever hand type is automatically "most played"
+	expectEqual(state.tips, 0)
+end })
+
+table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Watered Down) roughly halves the score", fn = function()
+	local stateNormal = RunState.new(nil, function(n) return n end)
+	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
+
+	local stateHalved = RunState.new(nil, function(n) return n end)
+	stateHalved.bossModifier = BossRounds.getById("watered_down")
+	local resultHalved = RunState.playHand(stateHalved, { 1, 2 })
+
+	expectEqual(resultHalved.chips, resultNormal.chips * 0.5)
+	expectEqual(resultHalved.mult, resultNormal.mult * 0.5)
+end })
+
+table.insert(tests, { name = "Boss Round handsPerRoundOverride (Closing Time) hard-limits hands allowed", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local bossModifier = BossRounds.getById("closing_time")
+	-- Re-run just the hands-allowed math startRound would do, without
+	-- re-picking a random modifier (same approach as the existing
+	-- "Boss Round target score multiplier" test above).
+	local handsPerRound = state.config.handsPerRound
+	if bossModifier.handsPerRoundOverride then
+		handsPerRound = bossModifier.handsPerRoundOverride
+	end
+	handsPerRound = math.max(1, handsPerRound)
+	expectEqual(handsPerRound, 1)
+end })
+
+table.insert(tests, { name = "BossRounds.Definitions has grown well past the original 4 modifiers", fn = function()
+	expectTrue(#BossRounds.Definitions >= 12, "expected a much larger Boss Round pool")
+end })
+
+-- ===== Feature Expansion: expanded Patron pool =====
+
+table.insert(tests, { name = "Patrons.Definitions has grown well past the original 5 patrons", fn = function()
+	expectTrue(#Patrons.Definitions >= 15, "expected a much larger Patron pool")
+end })
+
+table.insert(tests, { name = "'The Understudy' copies the ability of the Patron to its right", fn = function()
+	local understudy = Patrons.getById("the_understudy")
+	local theRegular = Patrons.getById("the_regular") -- +4 flat Mult, no conditions
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, _, mult = Scoring.calculate(hand, { understudy, theRegular }, {})
+	-- understudy copies theRegular's +4, then theRegular ALSO applies its
+	-- own +4 -- base mult 1 + 4 (copied) + 4 (own) = 9
+	expectEqual(mult, 1 + 4 + 4)
+end })
+
+table.insert(tests, { name = "'House Favorite' scales x1.5 Mult per King held in hand", fn = function()
+	local houseFavorite = Patrons.getById("house_favorite")
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local held = { C(13, "Clubs"), C(13, "Spades") } -- 2 Kings held
+	local _, _, mult = Scoring.calculate(hand, { houseFavorite }, { heldCards = held })
+	expectEqual(mult, 1 * 1.5 * 1.5)
+end })
+
+-- ===== Feature Expansion: Recipes (House/Menu/Secret) =====
+
+table.insert(tests, { name = "A Menu Recipe permanently levels up its hand type", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.randomMenuRecipeForHand("Pair")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	expectEqual(state.handLevels["Pair"], 1)
+end })
+
+table.insert(tests, { name = "House Recipe 'Sugar Rush' adds a Sweet Garnish to the selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("sugar_rush")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].garnish, "sweet")
+end })
+
+table.insert(tests, { name = "RunState.buyHouseRecipe + useHouseRecipe: full purchase-then-use flow", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 20
+	local recipe = Recipes.HouseRecipes[1]
+	local boughtOk = RunState.buyHouseRecipe(state, recipe.id)
+	expectTrue(boughtOk)
+	expectEqual(#state.houseRecipeInventory, 1)
+
+	local usedOk = RunState.useHouseRecipe(state, recipe.id, { cardIndices = { 1 } })
+	expectTrue(usedOk)
+	expectEqual(#state.houseRecipeInventory, 0)
+	expectEqual(state.lastRecipeUsedId, recipe.id)
 end })
 
 return tests

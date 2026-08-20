@@ -10,6 +10,7 @@
 ]]
 
 local Deck = require(script.Parent.Deck)
+local Card = require(script.Parent.Card)
 local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
@@ -17,6 +18,7 @@ local Themes = require(script.Parent.Themes)
 local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
+local Recipes = require(script.Parent.Recipes)
 
 local RunState = {}
 
@@ -72,13 +74,26 @@ function RunState.new(options, rng)
 		ownedPatrons = {},
 		ownedThemes = { [Themes.DefaultThemeId] = true },
 		equippedTheme = Themes.DefaultThemeId,
-		deck = {},
+		-- Persistent, run-long card pool: `deck` is the draw pile, `discardPile`
+		-- is everything played/discarded so far this run waiting to be
+		-- reshuffled back in at the start of the next round. Cards are the
+		-- SAME Lua tables all run (never regenerated), so a Garnish/Special/
+		-- Stamp a House Recipe adds to a card sticks with it for the run.
+		deck = Deck.newStandardDeck(), -- unshuffled; startRound below shuffles+deals
+		discardPile = {},
 		hand = {},
 		handsRemaining = config.handsPerRound,
 		discardsRemaining = config.discardsPerRound,
 		roundScore = 0,
 		targetScore = 0, -- computed by startRound below
 		handStats = {}, -- [handName] = times played this run, for the Poker Hands reference screen
+		handTypesPlayedThisRound = {}, -- reset each round; used by the "No Repeats" Boss Round
+		handLevels = {}, -- [handName] = level, raised by Menu Recipes -- see Scoring.HandLevelGrowth
+		houseRecipeInventory = {}, -- array of Recipes.HouseRecipes ids currently owned, unused
+		menuRecipeInventory = {},
+		secretRecipeInventory = {},
+		lastRecipeUsedId = nil, -- for the "Second Helping" House Recipe
+		ownedPatronSpecials = {}, -- [patronId] = Card.Specials id (not yet folded into Scoring -- see design doc)
 		bossModifier = nil,
 		roundOver = false,
 		runOver = false,
@@ -88,29 +103,66 @@ function RunState.new(options, rng)
 	return state
 end
 
--- Shuffles a fresh deck, picks this round's Boss modifier (if any), and
--- deals a new starting hand for the current round.
+-- Pools whatever's left in the draw pile + discard pile + hand back
+-- together, reshuffles, picks this round's Boss modifier (if any), and
+-- deals a new starting hand. Cards are never regenerated -- this is what
+-- lets a Garnish/Special/Stamp persist across rounds (see RunState.new).
 function RunState.startRound(state)
-	state.deck = Deck.shuffle(Deck.newStandardDeck(), state.rng)
+	for _, card in ipairs(state.hand) do
+		table.insert(state.deck, card)
+	end
+	for _, card in ipairs(state.discardPile) do
+		table.insert(state.deck, card)
+	end
+	state.discardPile = {}
+	state.hand = {}
+	state.deck = Deck.shuffle(state.deck, state.rng)
 
 	local isBoss = state.bossRoundsEnabled and BossRounds.isBossRound(state.round, state.config.roundsPerNight)
 	state.bossModifier = isBoss and BossRounds.pick(state.rng) or nil
+	local bossModifier = state.bossModifier
 
-	local handSize = state.config.handSize + ((state.bossModifier and state.bossModifier.handSizeDelta) or 0)
+	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
 	handSize = math.max(1, handSize)
-	local discards = state.config.discardsPerRound + ((state.bossModifier and state.bossModifier.discardsDelta) or 0)
+	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 	discards = math.max(0, discards)
 
+	local handsPerRound = state.config.handsPerRound
+	if bossModifier and bossModifier.handsPerRoundOverride then
+		handsPerRound = bossModifier.handsPerRoundOverride
+	end
+	handsPerRound = math.max(1, handsPerRound)
+
 	state.hand = Deck.draw(state.deck, handSize)
-	state.handsRemaining = state.config.handsPerRound
+	state.handsRemaining = handsPerRound
 	state.discardsRemaining = discards
 	state.roundScore = 0
+	state.handTypesPlayedThisRound = {}
 
-	local bossMultiplier = (state.bossModifier and state.bossModifier.targetScoreMultiplier) or 1
+	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
 
 	state.roundOver = false
+end
+
+-- Applies Golden Garnish (+3 Tips) and Blue Stamp (creates a Menu Recipe
+-- for the hand that just won) for every card still held at round-end.
+-- `lastHandName` is the poker hand that won the round.
+local function settleHeldCardsAtRoundEnd(state, lastHandName)
+	for _, card in ipairs(state.hand) do
+		local garnish = card.garnish and Card.Garnishes[card.garnish]
+		if garnish and garnish.heldEndOfRoundTips then
+			state.tips = state.tips + garnish.heldEndOfRoundTips
+		end
+		local stamp = card.stamp and Card.Stamps[card.stamp]
+		if stamp and stamp.createsMenuRecipeIfHeld and lastHandName then
+			local recipe = Recipes.randomMenuRecipeForHand(lastHandName)
+			if recipe then
+				table.insert(state.menuRecipeInventory, recipe.id)
+			end
+		end
+	end
 end
 
 local function removeIndicesFromHand(state, indices)
@@ -132,32 +184,93 @@ local function removeIndicesFromHand(state, indices)
 end
 
 --[[
-	Play 1-5 cards from the hand (by 1-based index into state.hand).
+	Play 1-5 cards from the hand (by 1-based index into state.hand) -- or
+	exactly however many a Boss Round's requiredCardsPerHand demands.
 	Returns a result table: { handName, score, chips, mult, roundWon, runOver, wonRun }
 ]]
 function RunState.playHand(state, cardIndices)
 	assert(not state.roundOver, "Round is already over -- advance to the next round first")
-	assert(#cardIndices >= 1 and #cardIndices <= 5, "Play between 1 and 5 cards")
+	local bossModifier = state.bossModifier
+	if bossModifier and bossModifier.requiredCardsPerHand then
+		assert(#cardIndices == bossModifier.requiredCardsPerHand,
+			"This Boss Round requires exactly " .. bossModifier.requiredCardsPerHand .. " cards")
+	else
+		assert(#cardIndices >= 1 and #cardIndices <= 5, "Play between 1 and 5 cards")
+	end
 	assert(state.handsRemaining > 0, "No hands remaining this round")
 
 	local playedCards = removeIndicesFromHand(state, cardIndices)
 	local handResult = HandEvaluator.evaluate(playedCards)
 
+	-- Was this exact hand type already played earlier this round? Captured
+	-- BEFORE marking it played below -- used by the "No Repeats" Boss
+	-- Round (blocks scoring) and the "Repeat Customer" Patron (rewards it).
+	local alreadyPlayedThisHandTypeThisRound = state.handTypesPlayedThisRound[handResult.name] == true
+	local blockedRepeatHand = bossModifier and bossModifier.noRepeatHandTypes
+		and alreadyPlayedThisHandTypeThisRound
+	state.handTypesPlayedThisRound[handResult.name] = true
+
 	state.handStats[handResult.name] = (state.handStats[handResult.name] or 0) + 1
+
+	-- "Empty Pockets" Boss Round: playing your most-used hand type wipes
+	-- your Tips right away (checked using counts AFTER this play).
+	if bossModifier and bossModifier.zeroTipsOnMostPlayedHand then
+		local maxCount = 0
+		for _, count in pairs(state.handStats) do
+			maxCount = math.max(maxCount, count)
+		end
+		if state.handStats[handResult.name] == maxCount then
+			state.tips = 0
+		end
+	end
 
 	state.handsRemaining = state.handsRemaining - 1
 	local isLastHand = state.handsRemaining == 0
 
-	local score, chips, mult = Scoring.calculate(handResult, state.ownedPatrons, {
-		allPlayedCards = playedCards,
-		handsRemaining = state.handsRemaining,
-		discardsRemaining = state.discardsRemaining,
-		isLastHand = isLastHand,
-		night = state.night,
-		round = state.round,
-	})
+	local score, chips, mult, extra = 0, 0, 0, { tipsEarned = 0, brokenCards = {} }
+	if not blockedRepeatHand then
+		score, chips, mult, extra = Scoring.calculate(handResult, state.ownedPatrons, {
+			allPlayedCards = playedCards,
+			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
+			handLevels = state.handLevels,
+			debuff = bossModifier and bossModifier.debuff,
+			tips = state.tips, -- Tips held BEFORE this hand's reward -- Penny Pincher/Tab Regulars read this
+			alreadyPlayedThisHandTypeThisRound = alreadyPlayedThisHandTypeThisRound, -- Repeat Customer reads this
+			handsRemaining = state.handsRemaining,
+			discardsRemaining = state.discardsRemaining,
+			isLastHand = isLastHand,
+			night = state.night,
+			round = state.round,
+		})
+		if bossModifier and bossModifier.chipsMultiplier then
+			chips = chips * bossModifier.chipsMultiplier
+		end
+		if bossModifier and bossModifier.multMultiplier then
+			mult = mult * bossModifier.multMultiplier
+		end
+		score = chips * mult
+	end
 
 	state.roundScore = state.roundScore + score
+	state.tips = state.tips + (extra.tipsEarned or 0)
+
+	-- Brittle Garnish cards that shattered leave the run's card pool for
+	-- good -- everything else goes to the discard pile to reshuffle back
+	-- in next round (see RunState.startRound).
+	local brokenSet = {}
+	for _, card in ipairs(extra.brokenCards or {}) do
+		brokenSet[card] = true
+	end
+	for _, card in ipairs(playedCards) do
+		if not brokenSet[card] then
+			table.insert(state.discardPile, card)
+		end
+	end
+
+	-- "The Tab" Boss Round: lose Tips for every card played.
+	if bossModifier and bossModifier.tipsLostPerCardPlayed then
+		state.tips = math.max(0, state.tips - bossModifier.tipsLostPerCardPlayed * #playedCards)
+	end
 
 	-- Refill hand from the deck.
 	local drawn = Deck.draw(state.deck, #playedCards)
@@ -165,9 +278,31 @@ function RunState.playHand(state, cardIndices)
 		table.insert(state.hand, card)
 	end
 
+	-- "Rowdy Crowd" Boss Round: toss out extra random held cards after
+	-- every hand played (a penalty, doesn't cost a Discard).
+	if bossModifier and bossModifier.forcedRandomDiscardsPerHand and #state.hand > 0 then
+		local rng = state.rng or math.random
+		for _ = 1, bossModifier.forcedRandomDiscardsPerHand do
+			if #state.hand > 0 then
+				local i = rng(#state.hand)
+				table.insert(state.discardPile, table.remove(state.hand, i))
+				local replacement = Deck.draw(state.deck, 1)
+				for _, card in ipairs(replacement) do
+					table.insert(state.hand, card)
+				end
+			end
+		end
+	end
+
 	local roundWon = state.roundScore >= state.targetScore
 	if roundWon then
 		state.roundOver = true
+		settleHeldCardsAtRoundEnd(state, handResult.name)
+		for _, patron in ipairs(state.ownedPatrons) do
+			if patron.onRoundWin then
+				patron.onRoundWin(state)
+			end
+		end
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
 		local reward = state.config.tipsPerRoundWin
 		if state.bossModifier then
@@ -190,6 +325,7 @@ function RunState.playHand(state, cardIndices)
 		targetScore = state.targetScore,
 		roundWon = roundWon,
 		runOver = state.runOver,
+		blockedRepeatHand = blockedRepeatHand or false,
 		bossModifierId = state.bossModifier and state.bossModifier.id or nil,
 	}
 end
@@ -202,6 +338,19 @@ function RunState.discard(state, cardIndices)
 
 	local discarded = removeIndicesFromHand(state, cardIndices)
 	state.discardsRemaining = state.discardsRemaining - 1
+
+	-- Purple Stamp: discarding this card creates a random House Recipe.
+	local rng = state.rng or math.random
+	for _, card in ipairs(discarded) do
+		local stamp = card.stamp and Card.Stamps[card.stamp]
+		if stamp and stamp.createsHouseRecipeOnDiscard then
+			table.insert(state.houseRecipeInventory, Recipes.randomHouseRecipeId(rng))
+		end
+	end
+
+	for _, card in ipairs(discarded) do
+		table.insert(state.discardPile, card)
+	end
 
 	local drawn = Deck.draw(state.deck, #discarded)
 	for _, card in ipairs(drawn) do
@@ -239,6 +388,84 @@ function RunState.sellPatron(state, patronId)
 		end
 	end
 	return false, 0
+end
+
+--[[
+	Recipes (House/Menu/Secret) -- see Recipes.lua. ENGINE-ONLY IN THIS
+	PASS: nothing in the shop UI sells these or lets a player pick target
+	cards yet, but the buy -> inventory -> use flow below is fully
+	implemented and tested, ready for that UI to call into.
+]]
+
+local function buyRecipe(state, inventory, catalog, id)
+	local recipe
+	for _, r in ipairs(catalog) do
+		if r.id == id then
+			recipe = r
+			break
+		end
+	end
+	if not recipe then
+		return false, "Unknown recipe: " .. tostring(id)
+	end
+	if state.tips < recipe.price then
+		return false, "Not enough tips"
+	end
+	state.tips = state.tips - recipe.price
+	table.insert(inventory, id)
+	return true, recipe.name .. " added to your recipe box."
+end
+
+local function useRecipe(state, inventory, catalog, id, opts)
+	local index
+	for i, ownedId in ipairs(inventory) do
+		if ownedId == id then
+			index = i
+			break
+		end
+	end
+	if not index then
+		return false, "You don't have that recipe"
+	end
+	local recipe
+	for _, r in ipairs(catalog) do
+		if r.id == id then
+			recipe = r
+			break
+		end
+	end
+	if not recipe then
+		return false, "Unknown recipe: " .. tostring(id)
+	end
+	opts = opts or {}
+	opts.rng = opts.rng or state.rng or math.random
+	local ok, message = recipe.apply(state, opts, { Patrons = Patrons })
+	if ok then
+		table.remove(inventory, index)
+		state.lastRecipeUsedId = id
+	end
+	return ok, message
+end
+
+function RunState.buyHouseRecipe(state, id)
+	return buyRecipe(state, state.houseRecipeInventory, Recipes.HouseRecipes, id)
+end
+function RunState.buyMenuRecipe(state, id)
+	return buyRecipe(state, state.menuRecipeInventory, Recipes.MenuRecipes, id)
+end
+function RunState.buySecretRecipe(state, id)
+	return buyRecipe(state, state.secretRecipeInventory, Recipes.SecretRecipes, id)
+end
+
+-- opts (optional, only some recipes need these): { cardIndices = {1,2}, suit = "Hearts" }
+function RunState.useHouseRecipe(state, id, opts)
+	return useRecipe(state, state.houseRecipeInventory, Recipes.HouseRecipes, id, opts)
+end
+function RunState.useMenuRecipe(state, id, opts)
+	return useRecipe(state, state.menuRecipeInventory, Recipes.MenuRecipes, id, opts)
+end
+function RunState.useSecretRecipe(state, id, opts)
+	return useRecipe(state, state.secretRecipeInventory, Recipes.SecretRecipes, id, opts)
 end
 
 -- Purely cosmetic: unlock a table/card color theme with tips. No gameplay
