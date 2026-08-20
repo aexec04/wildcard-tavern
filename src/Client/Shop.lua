@@ -754,8 +754,19 @@ return function(deps)
 	-- Shared row builder for the Shop tab's Patron/Pack/Voucher offers --
 	-- they're all "icon badge + name/price/description + one action
 	-- button" rows, just with a different icon lookup and click handler.
-	local function addOfferRow(parent, icon, name, price, description, buttonText, buttonEnabled, onClick)
+	--
+	-- `layoutOrder` is REQUIRED, not cosmetic: UIListLayout only sorts by
+	-- LayoutOrder when it's set explicitly -- left at the default (0) on
+	-- every row, ties get broken by each Instance's Name instead (all
+	-- unnamed Frames are literally named "Frame", all unnamed TextLabels
+	-- "TextLabel"), which silently reordered every mixed Frame-row +
+	-- TextLabel-header list in this tab: every row bubbled above every
+	-- header regardless of when it was actually added ("Frame" < "TextLabel"
+	-- alphabetically). Every element parented into shopBuyListFrame or
+	-- shopMyRecipesListFrame must get an explicit, sequential LayoutOrder.
+	local function addOfferRow(parent, layoutOrder, icon, name, price, description, buttonText, buttonEnabled, onClick)
 		local row = Instance.new("Frame")
+		row.LayoutOrder = layoutOrder
 		row.Size = UDim2.new(1, 0, 0, 64)
 		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 		row.ZIndex = 6
@@ -793,8 +804,9 @@ return function(deps)
 		return row
 	end
 
-	local function addSectionHeader(parent, text)
+	local function addSectionHeader(parent, layoutOrder, text)
 		local header = Instance.new("TextLabel")
+		header.LayoutOrder = layoutOrder
 		header.Size = UDim2.new(1, 0, 0, 24)
 		header.BackgroundTransparency = 1
 		header.Font = Enum.Font.GothamBold
@@ -826,8 +838,19 @@ return function(deps)
 		local slotLimit = state.patronSlotLimit or ownedCount
 		local tableIsFull = ownedCount >= slotLimit
 
+		-- See addOfferRow's comment above -- every element added to this
+		-- ScrollingFrame needs an explicit, sequential LayoutOrder or
+		-- UIListLayout silently reorders Frames before TextLabels (or vice
+		-- versa) regardless of insertion order.
+		local nextOrder = 0
+		local function order()
+			nextOrder = nextOrder + 1
+			return nextOrder
+		end
+
 		-- ----- Reroll row -----
 		local rerollRow = Instance.new("Frame")
+		rerollRow.LayoutOrder = order()
 		rerollRow.Size = UDim2.new(1, 0, 0, 44)
 		rerollRow.BackgroundTransparency = 1
 		rerollRow.ZIndex = 6
@@ -871,9 +894,9 @@ return function(deps)
 
 		-- ----- Voucher (House Pass) offer -- only shows up some visits -----
 		if state.voucherOffer then
-			addSectionHeader(shopBuyListFrame, "Voucher")
+			addSectionHeader(shopBuyListFrame, order(), "Voucher")
 			local offer = state.voucherOffer
-			addOfferRow(shopBuyListFrame, offer.icon, offer.name, offer.price, offer.description, "Buy", true, function()
+			addOfferRow(shopBuyListFrame, order(), offer.icon, offer.name, offer.price, offer.description, "Buy", true, function()
 				local latestState = getLatestState()
 				if not latestState or latestState.tips < offer.price then
 					showWarning("Not enough tips for that.")
@@ -886,9 +909,10 @@ return function(deps)
 		end
 
 		-- ----- Patron offers -----
-		addSectionHeader(shopBuyListFrame, "Patrons")
+		addSectionHeader(shopBuyListFrame, order(), "Patrons")
 		if #(state.shopOffers or {}) == 0 then
 			local emptyLabel = Instance.new("TextLabel")
+			emptyLabel.LayoutOrder = order()
 			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
 			emptyLabel.BackgroundTransparency = 1
 			emptyLabel.Font = Enum.Font.Gotham
@@ -901,7 +925,7 @@ return function(deps)
 		else
 			for _, offer in ipairs(state.shopOffers) do
 				local fullPatron = Patrons.getById(offer.id)
-				addOfferRow(shopBuyListFrame, fullPatron and fullPatron.icon, offer.name, offer.price, offer.description,
+				addOfferRow(shopBuyListFrame, order(), fullPatron and fullPatron.icon, offer.name, offer.price, offer.description,
 					"Buy", not tableIsFull, function()
 						local latestState = getLatestState()
 						if not latestState or latestState.tips < offer.price then
@@ -922,9 +946,9 @@ return function(deps)
 		end
 
 		-- ----- Pack offers -----
-		addSectionHeader(shopBuyListFrame, "Packs")
+		addSectionHeader(shopBuyListFrame, order(), "Packs")
 		for _, pack in ipairs(state.packOffers or {}) do
-			addOfferRow(shopBuyListFrame, pack.icon, pack.name, pack.price, pack.description, "Buy", true, function()
+			addOfferRow(shopBuyListFrame, order(), pack.icon, pack.name, pack.price, pack.description, "Buy", true, function()
 				local latestState = getLatestState()
 				if not latestState or latestState.tips < pack.price then
 					showWarning("Not enough tips for that.")
@@ -1055,24 +1079,27 @@ return function(deps)
 			return
 		end
 
+		-- See addOfferRow's comment on the Shop tab -- same fix needed here:
+		-- this tab mixes TextLabel category headers with Frame recipe rows,
+		-- so every one of them needs an explicit LayoutOrder or they get
+		-- silently regrouped by Instance type instead of staying in the
+		-- House/Menu/Secret order they were added in.
+		local nextOrder = 0
+		local function order()
+			nextOrder = nextOrder + 1
+			return nextOrder
+		end
+
 		for _, categoryDef in ipairs(RECIPE_CATEGORY_LIST) do
 			local inventory = inventories[categoryDef.key]
 			if #inventory > 0 then
-				local header = Instance.new("TextLabel")
-				header.Size = UDim2.new(1, 0, 0, 24)
-				header.BackgroundTransparency = 1
-				header.Font = Enum.Font.GothamBold
-				header.TextSize = 15
-				header.TextXAlignment = Enum.TextXAlignment.Left
-				header.TextColor3 = Color3.fromRGB(255, 214, 130)
-				header.Text = categoryDef.label
-				header.ZIndex = 6
-				header.Parent = shopMyRecipesListFrame
+				addSectionHeader(shopMyRecipesListFrame, order(), categoryDef.label)
 
 				for _, recipeId in ipairs(inventory) do
 					local recipe = findRecipeById(categoryDef.catalog, recipeId)
 					if recipe then
 						local row = Instance.new("Frame")
+						row.LayoutOrder = order()
 						row.Size = UDim2.new(1, 0, 0, 64)
 						row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
 						row.ZIndex = 6
