@@ -81,13 +81,20 @@ return function(deps)
 	}
 	local FINALE_COLOR = Color3.fromRGB(255, 214, 130)
 
-	local MAX_ANIMATED_ENTRIES = 14 -- see file header -- caps worst-case sequence length
+	-- PACING: Ahmed's first playtest of this feature couldn't actually
+	-- read any of the per-entry text before it was replaced by the next
+	-- one -- 0.09s between entries is fine for a sound/shake beat but way
+	-- too fast for a human to read a few words. ENTRY_STAGGER is the main
+	-- knob if this still feels off; MAX_ANIMATED_ENTRIES was brought down
+	-- to compensate (a much slower per-entry pace needs a lower cap to
+	-- keep a big hand's worst-case sequence from dragging on).
+	local MAX_ANIMATED_ENTRIES = 10 -- see file header -- caps worst-case sequence length
 	local BASE_PITCH = 1.0
 	local PITCH_STEP = 0.045 -- per-entry pitch increment -- "increment sequentially along a musical scale"
 	local MAX_PITCH = 1.7
 	local HIGH_TIER_XMULT = 2 -- xmult entries at/above this get an anticipation pause before they land
-	local ENTRY_STAGGER = 0.09 -- seconds between entries in the normal (non-anticipation) case
-	local ANTICIPATION_PAUSE = 0.15
+	local ENTRY_STAGGER = 0.45 -- seconds between entries -- long enough to actually read each line
+	local ANTICIPATION_PAUSE = 0.3
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -295,8 +302,10 @@ return function(deps)
 			-- timer from when Play Hand was clicked -- a hand loaded with
 			-- Patrons/Garnishes (several anticipation pauses stacked up)
 			-- can easily take longer than any one fixed delay would assume,
-			-- and hiding mid-sequence would cut the reveal off early.
-			task.delay(1.1, function()
+			-- and hiding mid-sequence would cut the reveal off early. 1.6s
+			-- (up from 1.1s) so the final total actually gets read too,
+			-- not just flashed.
+			task.delay(1.6, function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
 				end
