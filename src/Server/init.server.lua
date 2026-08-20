@@ -250,6 +250,16 @@ local function serializeState(session)
 		bossModifier = bossModifier,
 		handStats = state.handStats,
 		handLevels = state.handLevels,
+		-- SCORING JUICE fix: computeHandPreview (init.client.lua) needs
+		-- these 3 to build the EXACT same Scoring.calculate context
+		-- RunState.playHand does server-side -- without them, the preview
+		-- (and the new sequenced chip/mult/xmult reveal built on top of it)
+		-- could show a hand-shape/number that doesn't match what actually
+		-- gets paid whenever a Patron Special, Sugar Shield, or a repeated
+		-- hand type under a "No Repeats" Boss Round is in play.
+		ownedPatronSpecials = state.ownedPatronSpecials,
+		brittleShieldRound = state.brittleShieldRound,
+		handTypesPlayedThisRound = state.handTypesPlayedThisRound,
 		-- Recipes.HouseRecipes/MenuRecipes/SecretRecipes are static content
 		-- the client already reads straight from
 		-- ReplicatedStorage.Shared.Engine.Recipes (same pattern as Themes

@@ -131,11 +131,24 @@ local SoundModule = require(script.Sound)({
 })
 local SOUND_IDS = SoundModule.SOUND_IDS
 local backgroundMusic = SoundModule.backgroundMusic
+local setMusicTrack = SoundModule.setMusicTrack
 local playSfx = SoundModule.playSfx
 local playClickSfx = SoundModule.playClickSfx
+local playPitched = SoundModule.playPitched
+local chipTickSound = SoundModule.chipTickSound
+local multTickSound = SoundModule.multTickSound
+local xmultTickSound = SoundModule.xmultTickSound
+local payoutThudSound = SoundModule.payoutThudSound
 local VOLUME_STEPS = SoundModule.VOLUME_STEPS
 local VOLUME_ICONS = SoundModule.VOLUME_ICONS
 local volumeStepIndex = SoundModule.volumeStepIndex
+
+-- Title theme starts the instant the game loads (the main menu is visible
+-- from the very first frame -- see Client/Menu.lua) -- everything after
+-- this point that leaves the menu (either button below) hands music
+-- control off to render()'s own setMusicTrack call, which switches to
+-- gameplay/boss/shop based on live state every time it's called.
+setMusicTrack("title")
 
 -- ===== Visual + stepper-row helpers =====
 -- Extracted into Client/VisualHelpers.lua. Required right after Sound.lua
@@ -152,6 +165,7 @@ local polishButton = VisualHelpersModule.polishButton
 local polishPanel = VisualHelpersModule.polishPanel
 local addSoftShadow = VisualHelpersModule.addSoftShadow
 local makeStepperRow = VisualHelpersModule.makeStepperRow
+local screenShake = VisualHelpersModule.screenShake
 
 -- ===== Root UI =====
 
@@ -492,13 +506,32 @@ local function countRemainingInDeck(deckCounts)
 	return total
 end
 
+-- ===== Particle burst (SCORING JUICE) =====
+-- Extracted into Client/ParticleBurst.lua. Only ScorePopup.lua uses it right
+-- now, so nothing needs to come back out of the require() call besides the
+-- module table itself, passed straight through as a dep below.
+local ParticleBurstModule = require(script.ParticleBurst)({
+	screenGui = screenGui,
+	tweenTo = tweenTo,
+})
+
 -- ===== Score popup: chips x mult animation on Play Hand =====
 -- Extracted into Client/ScorePopup.lua. showScorePopup is called from
 -- playButton's click handler elsewhere in this file, so it comes back out
--- of the require() call.
+-- of the require() call. SCORING JUICE: now takes the escalating-pitch SFX/
+-- screen shake/particle burst deps too, since it plays back preview.breakdown
+-- (see Scoring.lua) as a sequenced chips/mult/xmult reveal instead of just
+-- flashing the final numbers once.
 local ScorePopupModule = require(script.ScorePopup)({
 	root = root,
 	tweenTo = tweenTo,
+	screenShake = screenShake,
+	particleBurst = ParticleBurstModule.burst,
+	playPitched = playPitched,
+	chipTickSound = chipTickSound,
+	multTickSound = multTickSound,
+	xmultTickSound = xmultTickSound,
+	payoutThudSound = payoutThudSound,
 })
 local showScorePopup = ScorePopupModule.showScorePopup
 
@@ -955,16 +988,27 @@ end
 -- into real Patron instances via Patrons.getById, since only the real
 -- instances carry the .effect(...) function Scoring.calculate needs.
 -- Returns nil if cardIndices doesn't resolve to a previewable hand.
+-- SCORING JUICE fix: this used to only pass a handful of the fields
+-- RunState.playHand's own Scoring.calculate call passes -- missing
+-- heldCards (Iron Garnish), handLevels, ownedPatronSpecials, Sugar
+-- Shield's brittleShielded flag, the active Boss Round's debuff, and the
+-- Boss Round's post-hoc chips/mult scaling. That was already a latent gap
+-- before this pass (the OLD single-flash popup could show a slightly-off
+-- number in those situations too), but the new sequenced breakdown reveal
+-- makes it a lot more visible, so this now mirrors RunState.playHand's
+-- context construction (see RunState.lua) field-for-field.
 local function computeHandPreview(cardIndices)
 	if not latestState then
 		return nil
 	end
 
+	local selectedSet = {} -- [handIndex] = true, for the heldCards pass below
 	local selectedCards = {}
 	for _, index in ipairs(cardIndices) do
 		local card = latestState.hand[index]
 		if card then
 			table.insert(selectedCards, card)
+			selectedSet[index] = true
 		end
 	end
 
@@ -985,9 +1029,40 @@ local function computeHandPreview(cardIndices)
 		end
 	end
 
+	-- BossRounds is a Shared module, so looking up the full definition
+	-- (debuff/chipsMultiplier/multMultiplier/noRepeatHandTypes -- none of
+	-- which the server actually sends, since it only ships
+	-- id/name/description for display) by the id the server DOES send is
+	-- exactly as accurate as reading it server-side would be.
+	local bossModifierDef = latestState.bossModifier and BossRounds.getById(latestState.bossModifier.id)
+	local alreadyPlayed = latestState.handTypesPlayedThisRound and latestState.handTypesPlayedThisRound[handResult.name] == true
+
+	-- "No Repeats" Boss Round: the server scores a repeated hand type as a
+	-- flat 0 with no Scoring.calculate call at all -- match that exactly
+	-- instead of showing a nonzero preview you'd never actually get paid.
+	if bossModifierDef and bossModifierDef.noRepeatHandTypes and alreadyPlayed then
+		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {} }
+	end
+
+	-- heldCards: the cards that would remain in hand (NOT played) if this
+	-- selection is played -- Iron Garnish's held-card bonus reads this.
+	local heldCards = {}
+	for index, card in ipairs(latestState.hand) do
+		if not selectedSet[index] then
+			table.insert(heldCards, card)
+		end
+	end
+
 	local previewHandsRemaining = math.max(0, latestState.handsRemaining - 1)
-	local ok2, score, chips, mult = pcall(Scoring.calculate, handResult, ownedPatronInstances, {
+	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, ownedPatronInstances, {
 		allPlayedCards = selectedCards,
+		heldCards = heldCards,
+		handLevels = latestState.handLevels,
+		ownedPatronSpecials = latestState.ownedPatronSpecials,
+		brittleShielded = latestState.brittleShieldRound,
+		debuff = bossModifierDef and bossModifierDef.debuff,
+		tips = latestState.tips,
+		alreadyPlayedThisHandTypeThisRound = alreadyPlayed,
 		handsRemaining = previewHandsRemaining,
 		discardsRemaining = latestState.discardsRemaining,
 		isLastHand = previewHandsRemaining == 0,
@@ -999,7 +1074,24 @@ local function computeHandPreview(cardIndices)
 		return nil
 	end
 
-	return { name = handResult.name, chips = chips, mult = mult, score = score }
+	-- Boss Rounds that flatten Chips/Mult (Watered Down, Thin Chips, Flat
+	-- Mult, ...) apply AFTER Scoring.calculate, same as RunState.playHand.
+	-- Note this happens after extra.breakdown was already built, so the
+	-- ANIMATED running total during ScorePopup's reveal sequence tracks
+	-- the hand's own pre-boss-scaling buildup, then the finale visibly
+	-- snaps to these final, correctly-scaled numbers -- intentional, reads
+	-- like the boss's discount/surcharge landing at the very end.
+	if bossModifierDef and bossModifierDef.chipsMultiplier then
+		chips = chips * bossModifierDef.chipsMultiplier
+	end
+	if bossModifierDef and bossModifierDef.multMultiplier then
+		mult = mult * bossModifierDef.multMultiplier
+	end
+	score = chips * mult
+
+	-- extra.breakdown (see Scoring.lua) drives ScorePopup.lua's sequenced
+	-- chips/mult/xmult reveal -- see showScorePopup's call site below.
+	return { name = handResult.name, chips = chips, mult = mult, score = score, breakdown = extra and extra.breakdown }
 end
 
 local function refreshScorePreview()
@@ -1019,7 +1111,18 @@ local function refreshScorePreview()
 		return
 	end
 
-	scorePreviewLabel.Text = string.format("%s\n%d x %d = %d", preview.name, preview.chips, preview.mult, preview.score)
+	-- Floor before %d -- chips/mult/score can all end up fractional (a
+	-- Rainbow/Iron-Garnish-style xmult, or a Boss Round's chips/mult
+	-- halving applied to an odd number), and Lua 5.3's %d hard-errors on
+	-- a non-integral float. (See ScorePopup.lua's same guard on the
+	-- sequenced reveal's own numbers.)
+	scorePreviewLabel.Text = string.format(
+		"%s\n%d x %d = %d",
+		preview.name,
+		math.floor(preview.chips + 0.5),
+		math.floor(preview.mult + 0.5),
+		math.floor(preview.score + 0.5)
+	)
 end
 
 local function onCardClicked(index)
@@ -1226,6 +1329,20 @@ end
 
 local function render(state)
 	latestState = state
+
+	-- SCORING JUICE: background music track, picked from live state every
+	-- render -- setMusicTrack no-ops if it's already the right track, so
+	-- calling it unconditionally on every state push is cheap. Priority:
+	-- Shop (you're browsing, not playing a hand) beats Boss (the target-
+	-- score banner) beats plain Gameplay -- matches which one is actually
+	-- true first in RunState's own phase/round flow.
+	if state.phase == "shop" then
+		setMusicTrack("shop")
+	elseif state.bossModifier then
+		setMusicTrack("boss")
+	else
+		setMusicTrack("gameplay")
+	end
 
 	if state.equippedTheme ~= lastEquippedThemeId then
 		applyTheme(state.equippedTheme)

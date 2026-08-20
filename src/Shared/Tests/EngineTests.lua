@@ -255,6 +255,71 @@ table.insert(tests, { name = "Scoring.calculate: a Reserved Special on an owned 
 	expectEqual(mult, 2 + 4) -- Reserved's +1 slot effect lives in RunState.patronSlotLimit, not here
 end })
 
+-- ===== Scoring.calculate: extra.breakdown (feeds the client "juice" sequence) =====
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown starts with the base hand's chips/mult entries", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	expectTrue(extra.breakdown ~= nil)
+	expectEqual(extra.breakdown[1].kind, "chips")
+	expectEqual(extra.breakdown[1].amount, 10) -- base Pair chips
+	expectEqual(extra.breakdown[2].kind, "mult")
+	expectEqual(extra.breakdown[2].amount, 2) -- base Pair mult
+end })
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown records one chips entry per scoring card", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	-- entries 1-2 are the base hand; entries 3-4 should be the two scoring 9s
+	expectEqual(extra.breakdown[3].kind, "chips")
+	expectEqual(extra.breakdown[3].amount, 9)
+	expectEqual(extra.breakdown[4].kind, "chips")
+	expectEqual(extra.breakdown[4].amount, 9)
+	expectEqual(#extra.breakdown, 4) -- no patrons/garnishes -- nothing else should be recorded
+end })
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown records a Patron's flat mult bonus", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, _, extra = Scoring.calculate(hand, { theRegular }, {})
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "mult" and entry.amount == 4 and entry.label == theRegular.name then
+			found = true
+		end
+	end
+	expectTrue(found, "expected a +4 mult breakdown entry labeled with the Patron's name")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown records a Rainbow Special's xmult as its own entry", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, _, extra = Scoring.calculate(hand, { theRegular }, { ownedPatronSpecials = { the_regular = "rainbow" } })
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "xmult" and entry.amount == 1.5 then
+			found = true
+		end
+	end
+	expectTrue(found, "expected an xmult breakdown entry for the Rainbow Special")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown records a Sweet Garnish's chips as its own entry", fn = function()
+	local card = C(9, "Hearts")
+	card.garnish = "sweet"
+	local hand = HandEvaluator.evaluate({ card, C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	local sweetEntryChips = 0
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "chips" and entry.label == Card.toString(card) then
+			sweetEntryChips = entry.amount
+		end
+	end
+	-- Sweet Garnish is +30 chips (see Card.Garnishes) folded into that card's
+	-- own chips entry alongside its 9 rank chips.
+	expectEqual(sweetEntryChips, 9 + 30)
+end })
+
 -- ===== RunState (integration) =====
 
 table.insert(tests, { name = "RunState.targetScoreFor increases each round/night", fn = function()

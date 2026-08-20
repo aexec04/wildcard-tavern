@@ -38,6 +38,7 @@
 			addSoftShadow = function(panel, radius?),
 			makeStepperRow = function(parent, labelText, min, max, step,
 			                          getValue, setValue, formatValue) -> refresh,
+			screenShake = function(target, intensity, duration?),
 		}
 ]]
 
@@ -89,6 +90,55 @@ return function(deps)
 		shadow.Parent = panel.Parent
 		roundCorner(shadow, radius or 18)
 		return shadow
+	end
+
+	-- SCORING JUICE: whole-screen shake. Jitters `target`'s Position by small
+	-- random pixel offsets a few times, easing back to rest. Shakes the UI
+	-- itself rather than the 3D camera -- TavernScene.server.lua explicitly
+	-- never touches the camera/character (see its own header comment), and a
+	-- UI shake reads just as "juicy" for a card game where the action IS the
+	-- UI, with zero risk of ever fighting a future camera script. Intended
+	-- target is the game's full-screen root Frame (see Client/ScorePopup.lua).
+	--
+	-- `intensity` is the max pixel offset per jitter step; `duration`
+	-- (seconds, default 0.25) is spread across a fixed number of quick
+	-- steps, easing out, so a bigger shake hits harder rather than just
+	-- lasting longer.
+	--
+	-- Rest-position tracking: the FIRST time screenShake is ever called on a
+	-- given target, its current Position is remembered as "home" (in a
+	-- weak-keyed table, so it doesn't leak if the target is ever destroyed).
+	-- Every shake -- including several fired back-to-back while an earlier
+	-- one is still mid-tween, which is exactly what a fast chip/mult/xmult
+	-- reveal sequence does -- always jitters relative to that SAME home
+	-- position, never to wherever the target happens to be mid-jitter. That
+	-- prevents rapid overlapping shakes from ever drifting the screen away
+	-- from center, since every tween (including the final settle) always
+	-- aims at the one true rest position. Known rough edge, left for a
+	-- future polish pass rather than this one: overlapping shakes don't
+	-- cancel each other, they just each keep tweening toward home in
+	-- parallel -- harmless (no drift, nothing ever gets stuck off-center),
+	-- just not perfectly crisp when many fire back-to-back in under
+	-- `duration` seconds of each other.
+	local shakeRestPositions = setmetatable({}, { __mode = "k" })
+	local function screenShake(target, intensity, duration)
+		duration = duration or 0.25
+		if not shakeRestPositions[target] then
+			shakeRestPositions[target] = target.Position
+		end
+		local restPosition = shakeRestPositions[target]
+		local steps = 5
+		local stepTime = duration / steps
+		task.spawn(function()
+			for i = 1, steps do
+				local falloff = 1 - (i / steps) -- ease out -- later jitters are smaller
+				local dx = (math.random() * 2 - 1) * intensity * falloff
+				local dy = (math.random() * 2 - 1) * intensity * falloff
+				tweenTo(target, { Position = restPosition + UDim2.fromOffset(dx, dy) }, stepTime, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+				task.wait(stepTime)
+			end
+			tweenTo(target, { Position = restPosition }, stepTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		end)
 	end
 
 	-- Used by the Settings overlay.
@@ -181,5 +231,6 @@ return function(deps)
 		polishPanel = polishPanel,
 		addSoftShadow = addSoftShadow,
 		makeStepperRow = makeStepperRow,
+		screenShake = screenShake,
 	}
 end

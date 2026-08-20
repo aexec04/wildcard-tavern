@@ -81,12 +81,25 @@ end
 		}
 
 	Returns: score, chips, mult, extra
-		extra = { tipsEarned = number, brokenCards = {card, ...} }
+		extra = { tipsEarned = number, brokenCards = {card, ...}, breakdown = {...} }
 		  tipsEarned   -- Tips to award immediately (Gold Stamp / Lucky Garnish
 		                  procs / patron `tips` bonuses) -- caller adds this
 		                  to state.tips
 		  brokenCards  -- Brittle Garnish cards that shattered this hand --
 		                  caller should remove these from the deck for good
+		  breakdown    -- ordered list of every individual scoring event that
+		                  contributed to this hand's final Chips/Mult/XMult,
+		                  in the exact order they're applied below (base hand
+		                  value, then each scoring card's rank/Garnish/Special/
+		                  Stamp, then held-card Iron Garnish, then each owned
+		                  Patron's effect + Special). Each entry is
+		                  { kind = "chips"|"mult"|"xmult", amount = number,
+		                  label = string }. This is ADDITIVE data purely for
+		                  client-side scoring "juice" (Client/ScorePopup.lua
+		                  plays it back as a sequenced chips/mult/xmult reveal)
+		                  -- nothing in the engine reads its own breakdown
+		                  back, so it can never desync the actual chips/mult/
+		                  score math above.
 ]]
 function Scoring.calculate(handResult, ownedPatrons, context)
 	ownedPatrons = ownedPatrons or {}
@@ -104,6 +117,12 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 	local xmult = 1
 	local tipsEarned = 0
 	local brokenCards = {}
+
+	-- See the big comment above Scoring.calculate -- this only ever gets
+	-- APPENDED to, never read back into the actual chips/mult/xmult math.
+	local breakdown = {}
+	table.insert(breakdown, { kind = "chips", amount = chips, label = handResult.name })
+	table.insert(breakdown, { kind = "mult", amount = mult, label = handResult.name })
 
 	local debuff = context.debuff
 	local function isDebuffed(card)
@@ -167,10 +186,23 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 				mult = mult + dMult
 				xmult = xmult * dXMult
 				tipsEarned = tipsEarned + dTips
+
+				local cardLabel = Card.toString(card)
+				if dChips ~= 0 then
+					table.insert(breakdown, { kind = "chips", amount = dChips, label = cardLabel })
+				end
+				if dMult ~= 0 then
+					table.insert(breakdown, { kind = "mult", amount = dMult, label = cardLabel })
+				end
+				if dXMult ~= 1 then
+					table.insert(breakdown, { kind = "xmult", amount = dXMult, label = cardLabel })
+				end
 			end
 
+			-- "Sugar Shield" Secret Recipe protects Brittle Garnish cards
+			-- from shattering for the rest of the round it was used in.
 			local garnish = card.garnish and Card.Garnishes[card.garnish]
-			if garnish and garnish.breakOneInN and chanceHits(rng, garnish.breakOneInN) then
+			if garnish and garnish.breakOneInN and not context.brittleShielded and chanceHits(rng, garnish.breakOneInN) then
 				table.insert(brokenCards, card)
 			end
 		end
@@ -181,6 +213,7 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		local g = card.garnish and Card.Garnishes[card.garnish]
 		if g and g.heldXMult then
 			xmult = xmult * g.heldXMult
+			table.insert(breakdown, { kind = "xmult", amount = g.heldXMult, label = Card.toString(card) .. " (held)" })
 		end
 	end
 
@@ -193,8 +226,15 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		local bonus = patron.effect(handResult, context) or {}
 		chips = chips + (bonus.chips or 0)
 		mult = mult + (bonus.mult or 0)
+		if bonus.chips and bonus.chips ~= 0 then
+			table.insert(breakdown, { kind = "chips", amount = bonus.chips, label = patron.name })
+		end
+		if bonus.mult and bonus.mult ~= 0 then
+			table.insert(breakdown, { kind = "mult", amount = bonus.mult, label = patron.name })
+		end
 		if bonus.multMultiplier then
 			xmult = xmult * bonus.multMultiplier
+			table.insert(breakdown, { kind = "xmult", amount = bonus.multMultiplier, label = patron.name })
 		end
 		tipsEarned = tipsEarned + (bonus.tips or 0)
 
@@ -209,15 +249,22 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		if special then
 			chips = chips + (special.chips or 0)
 			mult = mult + (special.mult or 0)
+			if special.chips and special.chips ~= 0 then
+				table.insert(breakdown, { kind = "chips", amount = special.chips, label = patron.name .. "'s Special" })
+			end
+			if special.mult and special.mult ~= 0 then
+				table.insert(breakdown, { kind = "mult", amount = special.mult, label = patron.name .. "'s Special" })
+			end
 			if special.xmult then
 				xmult = xmult * special.xmult
+				table.insert(breakdown, { kind = "xmult", amount = special.xmult, label = patron.name .. "'s Special" })
 			end
 		end
 	end
 
 	mult = mult * xmult
 	local score = chips * mult
-	return score, chips, mult, { tipsEarned = tipsEarned, brokenCards = brokenCards }
+	return score, chips, mult, { tipsEarned = tipsEarned, brokenCards = brokenCards, breakdown = breakdown }
 end
 
 return Scoring
