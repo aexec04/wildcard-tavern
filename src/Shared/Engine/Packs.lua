@@ -107,6 +107,24 @@ Packs.Definitions = {
 		category = "standard", size = "mega", revealCount = 5, pickCount = 2,
 		description = "MEGA -- Reveals 5 random playing cards, each with a Garnish/Special/Stamp already on it -- pick 2 to add to your deck for free.",
 	},
+
+	-- ===== Mixed / Grab Bag (each revealed item independently rolls its own
+	-- category -- Patron, House/Menu/Secret Recipe, or Standard card) =====
+	{
+		id = "mixed_pack", name = "Grab Bag Pack", icon = "🎁", price = 7,
+		category = "mixed", size = "normal", revealCount = 3, pickCount = 1,
+		description = "Reveals 3 random items, each its own surprise (Patron, Recipe, or card) -- pick 1 to keep for free.",
+	},
+	{
+		id = "mixed_pack_jumbo", name = "Jumbo Grab Bag Pack", icon = "🎁", price = 10,
+		category = "mixed", size = "jumbo", revealCount = 5, pickCount = 1,
+		description = "JUMBO -- Reveals 5 random items, each its own surprise (Patron, Recipe, or card) -- pick 1 to keep for free.",
+	},
+	{
+		id = "mixed_pack_mega", name = "Mega Grab Bag Pack", icon = "🎁", price = 13,
+		category = "mixed", size = "mega", revealCount = 5, pickCount = 2,
+		description = "MEGA -- Reveals 5 random items, each its own surprise (Patron, Recipe, or card) -- pick 2 to keep for free.",
+	},
 }
 
 function Packs.getById(id)

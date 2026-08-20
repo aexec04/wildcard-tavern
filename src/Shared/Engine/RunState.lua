@@ -104,9 +104,10 @@ function RunState.new(options, rng)
 		menuRecipeInventory = {},
 		secretRecipeInventory = {},
 		lastRecipeUsedId = nil, -- for the "Second Helping" House Recipe
-		ownedPatronSpecials = {}, -- [patronId] = Card.Specials id (not yet folded into Scoring -- see design doc)
+		ownedPatronSpecials = {}, -- [patronId] = Card.Specials id, folded into Scoring.calculate
 		housePasses = {}, -- [passId] = true, permanent for the rest of the run -- see HousePasses.lua
 		pendingPack = nil, -- set by RunState.openPack, cleared by RunState.resolvePack -- see below
+		brittleShieldRound = false, -- set by the "Sugar Shield" Secret Recipe, reset each round -- see below
 		bossModifier = nil,
 		roundOver = false,
 		runOver = false,
@@ -157,6 +158,7 @@ function RunState.startRound(state)
 	state.discardsRemaining = discards
 	state.roundScore = 0
 	state.handTypesPlayedThisRound = {}
+	state.brittleShieldRound = false -- "Sugar Shield" only protects for the round it was used in
 
 	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
@@ -253,6 +255,7 @@ function RunState.playHand(state, cardIndices)
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
 			handLevels = state.handLevels,
 			ownedPatronSpecials = state.ownedPatronSpecials, -- Silver/Gold/Rainbow on a Patron
+			brittleShielded = state.brittleShieldRound, -- "Sugar Shield" Secret Recipe
 			debuff = bossModifier and bossModifier.debuff,
 			tips = state.tips, -- Tips held BEFORE this hand's reward -- Penny Pincher/Tab Regulars read this
 			alreadyPlayedThisHandTypeThisRound = alreadyPlayedThisHandTypeThisRound, -- Repeat Customer reads this
@@ -546,6 +549,7 @@ local function randomStandardPackItem(rng, index)
 		icon = def.icon,
 		description = def.description,
 		card = cardSpec,
+		category = "standard",
 	}
 end
 
@@ -595,17 +599,57 @@ function RunState.openPack(state, packId, rng)
 		end
 		for _ = 1, math.min(pack.revealCount, #available) do
 			local picked = table.remove(available, rng(#available))
-			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description })
+			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = "patron" })
 		end
 	elseif pack.category == "standard" then
 		for i = 1, pack.revealCount do
 			table.insert(items, randomStandardPackItem(rng, i))
 		end
+	elseif pack.category == "mixed" then
+		-- Grab Bag Packs: EACH revealed item independently rolls its own
+		-- random category (Patron, one of the 3 Recipe types, or a
+		-- Standard-Pack-style card), instead of a pack committing to one
+		-- category up front. `availablePatrons` is built once and shared
+		-- across iterations so a "patron" roll never reveals the same
+		-- Patron twice in one pack, same as the pure Buffoon Pack branch
+		-- above; if every Patron is already owned/exhausted mid-reveal, a
+		-- "patron" roll falls back to "standard" instead of producing
+		-- nothing.
+		local availablePatrons = {}
+		for _, patron in ipairs(Patrons.Definitions) do
+			local owned = false
+			for _, o in ipairs(state.ownedPatrons) do
+				if o.id == patron.id then
+					owned = true
+					break
+				end
+			end
+			if not owned then
+				table.insert(availablePatrons, patron)
+			end
+		end
+		local subcategories = { "patron", "house", "menu", "secret", "standard" }
+		for i = 1, pack.revealCount do
+			local sub = subcategories[rng(#subcategories)]
+			if sub == "patron" and #availablePatrons == 0 then
+				sub = "standard"
+			end
+			if sub == "patron" then
+				local picked = table.remove(availablePatrons, rng(#availablePatrons))
+				table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = "patron" })
+			elseif sub == "standard" then
+				table.insert(items, randomStandardPackItem(rng, i))
+			else
+				local catalog = recipeCatalogForCategory(sub)
+				local picked = catalog[rng(#catalog)]
+				table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = sub })
+			end
+		end
 	else
 		local catalog = recipeCatalogForCategory(pack.category)
 		for _ = 1, pack.revealCount do
 			local picked = catalog[rng(#catalog)]
-			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description })
+			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = pack.category })
 		end
 	end
 
@@ -664,8 +708,26 @@ function RunState.resolvePack(state, chosenIds)
 		table.remove(pool, foundAt)
 	end
 
+	-- Every revealed item carries its OWN `category` tag (see RunState.openPack)
+	-- -- for single-category packs (patron/house/menu/secret/standard) that
+	-- always matches the pack-level `pending.category`, but "mixed" packs
+	-- (Grab Bag) reveal a different category per item, so granting MUST
+	-- dispatch off the item's own category, not the pack's. Look up each
+	-- chosen id's item once, then branch on itemCategory below.
+	local function findItem(chosenId)
+		for _, item in ipairs(pending.items) do
+			if item.id == chosenId then
+				return item
+			end
+		end
+		return nil
+	end
+
 	for _, chosenId in ipairs(chosenIds) do
-		if pending.category == "patron" then
+		local item = findItem(chosenId)
+		local itemCategory = item and item.category or pending.category
+
+		if itemCategory == "patron" then
 			if #state.ownedPatrons < RunState.patronSlotLimit(state) then
 				local patron = Patrons.getById(chosenId)
 				local alreadyOwned = false
@@ -679,26 +741,23 @@ function RunState.resolvePack(state, chosenIds)
 					table.insert(state.ownedPatrons, patron)
 				end
 			end
-		elseif pending.category == "standard" then
-			-- Find the revealed item this id came from and instantiate a
-			-- real card from its spec, then drop it in the discard pile --
-			-- same place "86 It"/Brittle Garnish breakage etc. leave/remove
-			-- cards -- so it reshuffles into the deck at the next
-			-- RunState.startRound, same as every other persistent-deck card.
-			for _, item in ipairs(pending.items) do
-				if item.id == chosenId and item.card then
-					local spec = item.card
-					local newCard = Card.new(spec.rank, spec.suit, {
-						garnish = spec.garnish,
-						special = spec.special,
-						stamp = spec.stamp,
-					})
-					table.insert(state.discardPile, newCard)
-					break
-				end
+		elseif itemCategory == "standard" then
+			-- Instantiate a real card from the revealed item's spec, then
+			-- drop it in the discard pile -- same place "86 It"/Brittle
+			-- Garnish breakage etc. leave/remove cards -- so it reshuffles
+			-- into the deck at the next RunState.startRound, same as every
+			-- other persistent-deck card.
+			if item and item.card then
+				local spec = item.card
+				local newCard = Card.new(spec.rank, spec.suit, {
+					garnish = spec.garnish,
+					special = spec.special,
+					stamp = spec.stamp,
+				})
+				table.insert(state.discardPile, newCard)
 			end
 		else
-			local inventory = inventoryForCategory(state, pending.category)
+			local inventory = inventoryForCategory(state, itemCategory)
 			if inventory then
 				table.insert(inventory, chosenId)
 			end
