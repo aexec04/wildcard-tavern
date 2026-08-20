@@ -206,6 +206,10 @@ return function(deps)
 
 		local shopTabBarLayout = Instance.new("UIListLayout")
 		shopTabBarLayout.FillDirection = Enum.FillDirection.Horizontal
+		-- SortOrder defaults to Enum.SortOrder.Name, NOT LayoutOrder -- every
+		-- UIListLayout in this file explicitly sets it below. See the long
+		-- comment on addOfferRow for the bug this caused when it was missed.
+		shopTabBarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		shopTabBarLayout.Padding = UDim.new(0, 8)
 		shopTabBarLayout.Parent = shopTabBar
 
@@ -228,6 +232,7 @@ return function(deps)
 			tab.ZIndex = SHOP_ZINDEX
 			tab.Parent = shopContentArea
 			local layout = Instance.new("UIListLayout")
+			layout.SortOrder = Enum.SortOrder.LayoutOrder
 			layout.Padding = UDim.new(0, 8)
 			layout.Parent = tab
 			return tab
@@ -346,6 +351,7 @@ return function(deps)
 		targetHandRow.Parent = shopTargetPanel
 		local targetHandLayout = Instance.new("UIListLayout")
 		targetHandLayout.FillDirection = Enum.FillDirection.Horizontal
+		targetHandLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		targetHandLayout.Padding = UDim.new(0, 6)
 		targetHandLayout.Parent = targetHandRow
 
@@ -357,6 +363,7 @@ return function(deps)
 		targetSuitRow.Parent = shopTargetPanel
 		local targetSuitLayout = Instance.new("UIListLayout")
 		targetSuitLayout.FillDirection = Enum.FillDirection.Horizontal
+		targetSuitLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		targetSuitLayout.Padding = UDim.new(0, 6)
 		targetSuitLayout.Parent = targetSuitRow
 
@@ -431,6 +438,7 @@ return function(deps)
 		packItemsRow.Parent = shopPackPanel
 		local packItemsLayout = Instance.new("UIListLayout")
 		packItemsLayout.FillDirection = Enum.FillDirection.Horizontal
+		packItemsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		packItemsLayout.Padding = UDim.new(0, 10)
 		packItemsLayout.Parent = packItemsRow
 
