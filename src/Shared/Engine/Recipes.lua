@@ -370,6 +370,50 @@ Recipes.HouseRecipes = {
 			return true, "Anything could happen."
 		end,
 	},
+	{
+		id = "well_stocked", name = "Well Stocked", icon = "📦", price = 4,
+		description = "Adds 1 random new (plain) card to your deck.",
+		apply = function(state, opts)
+			local rng = (opts and opts.rng) or math.random
+			local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
+			local suit = randomChoice(Card.Suits, rng)
+			table.insert(state.discardPile, Card.new(rank, suit))
+			return true, "Delivery's here."
+		end,
+	},
+	{
+		id = "sunday_special", name = "Sunday Special", icon = "🥞", price = 4,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a random Garnish to 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local garnishIds = { "sweet", "zesty", "houseBlend", "brittle", "iron", "barToken", "golden", "lucky" }
+			cards[1].garnish = randomChoice(garnishIds, rng)
+			return true, "Sunday Special, applied."
+		end,
+	},
+	{
+		id = "neighborhood_watch", name = "Neighborhood Watch", icon = "👀", price = 5,
+		cardCount = { min = 2, max = 2 },
+		description = "Select 2 cards -- copies the Stamp from the second onto the first (rank/suit/Garnish/Special untouched).",
+		apply = function(state, opts)
+			local indices = (opts and opts.cardIndices) or {}
+			if #indices ~= 2 then
+				return false, "Select exactly 2 cards"
+			end
+			local target = state.hand[indices[1]]
+			local source = state.hand[indices[2]]
+			if not target or not source then
+				return false, "Invalid selection"
+			end
+			target.stamp = source.stamp
+			return true, "Stamp copied."
+		end,
+	},
 }
 
 -- ===== Menu Recipes (permanently level up a hand type) =====
@@ -567,6 +611,51 @@ Recipes.SecretRecipes = {
 				card.stamp = nil
 			end
 			return true, "A clean slate."
+		end,
+	},
+	{
+		id = "fresh_delivery", name = "Fresh Delivery", icon = "🚚", price = 6,
+		description = "Adds 1 random new card to your deck, with a random Garnish, Special, or Stamp already on it.",
+		apply = function(state, opts)
+			local rng = (opts and opts.rng) or math.random
+			local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
+			local suit = randomChoice(Card.Suits, rng)
+			local idsByKind = {
+				garnish = { "sweet", "zesty", "houseBlend", "brittle", "iron", "barToken", "golden", "lucky" },
+				special = { "silver", "gold", "rainbow" },
+				stamp = { "gold", "encore", "blue", "purple" },
+			}
+			local kind = randomChoice({ "garnish", "special", "stamp" }, rng)
+			local modifierId = randomChoice(idsByKind[kind], rng)
+			local cardOpts = {}
+			cardOpts[kind] = modifierId
+			table.insert(state.discardPile, Card.new(rank, suit, cardOpts))
+			return true, "A special delivery arrives."
+		end,
+	},
+	{
+		id = "sugar_shield", name = "Sugar Shield", icon = "🛡️", price = 6,
+		description = "Brittle Garnish cards cannot shatter for the rest of this round.",
+		apply = function(state)
+			state.brittleShieldRound = true
+			return true, "Shielded for the rest of the round."
+		end,
+	},
+	{
+		id = "crowd_favorite", name = "Crowd Favorite", icon = "📣", price = 7,
+		description = "Levels up whichever poker hand type you've played the most this run.",
+		apply = function(state)
+			local bestHand, bestCount = nil, 0
+			for handName, count in pairs(state.handStats) do
+				if count > bestCount then
+					bestHand, bestCount = handName, count
+				end
+			end
+			if not bestHand then
+				return false, "You haven't played a hand yet this run"
+			end
+			state.handLevels[bestHand] = (state.handLevels[bestHand] or 0) + 1
+			return true, bestHand .. " levels up!"
 		end,
 	},
 }

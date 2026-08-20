@@ -126,6 +126,57 @@ BossRounds.Definitions = {
 		handSizeDelta = -1,
 		discardsDelta = -1,
 	},
+
+	-- ===== Content pass (this session): 8 more Boss Rounds, all built from =====
+	-- ===== the same knobs above -- no new mechanic types needed =====
+	{
+		id = "diamonds_are_out",
+		name = "Diamonds Are Out",
+		description = "Diamond cards score no Chips or Mult this round.",
+		debuff = "Diamonds",
+	},
+	{
+		id = "clubs_are_out",
+		name = "Clubs Are Out",
+		description = "Club cards score no Chips or Mult this round.",
+		debuff = "Clubs",
+	},
+	{
+		id = "one_at_a_time",
+		name = "One at a Time",
+		description = "You must play exactly 1 card every hand this round.",
+		requiredCardsPerHand = 1,
+	},
+	{
+		id = "steep_tab",
+		name = "Steep Tab",
+		description = "Lose 2 Tips for every card you play this round.",
+		tipsLostPerCardPlayed = 2,
+	},
+	{
+		id = "quick_service",
+		name = "Quick Service",
+		description = "You may only play 2 hands this round.",
+		handsPerRoundOverride = 2,
+	},
+	{
+		id = "wild_crowd",
+		name = "Wild Crowd",
+		description = "3 random cards are tossed out of your hand after every hand you play.",
+		forcedRandomDiscardsPerHand = 3,
+	},
+	{
+		id = "thin_chips",
+		name = "Thin Chips",
+		description = "Chips from played hands are halved this round (Mult is untouched).",
+		chipsMultiplier = 0.5,
+	},
+	{
+		id = "flat_mult",
+		name = "Flat Mult",
+		description = "Mult from played hands is halved this round (Chips are untouched).",
+		multMultiplier = 0.5,
+	},
 }
 
 function BossRounds.getById(id)

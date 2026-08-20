@@ -322,6 +322,120 @@ Patrons.Definitions = {
 			return nil
 		end,
 	},
+
+	-- ===== More hand-type specialists (Two Pair / Full House were the two =====
+	-- ===== gaps left in the "+Mult for hand type" family) =====
+	{
+		id = "double_down", name = "Double Down", icon = "👯", price = 6,
+		description = "+10 Mult if the hand is exactly a Two Pair.",
+		effect = function(handResult, _context)
+			if handResult.name == "Two Pair" then
+				return { mult = 10 }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "house_special", name = "House Special", icon = "🍱", price = 8,
+		description = "+14 Mult if the hand is a Full House.",
+		effect = function(handResult, _context)
+			if handResult.name == "Full House" then
+				return { mult = 14 }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== Rank-based (new dimension -- everything above rewarded suits or =====
+	-- ===== hand shapes, nothing rewarded specific ranks among scoring cards) =====
+	{
+		id = "ace_of_the_house", name = "Ace of the House", icon = "🅰️", price = 7,
+		description = "+5 Mult for each Ace among the scoring cards.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 14 then
+					count = count + 1
+				end
+			end
+			if count > 0 then
+				return { mult = 5 * count }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "vip_table", name = "VIP Table", icon = "🎩", price = 6,
+		description = "+8 Mult if the hand contains a face card (Jack, Queen, or King) among the scoring cards.",
+		effect = function(handResult, _context)
+			for _, card in ipairs(handResult.scoringCards) do
+				if Card.isFaceCard(card) then
+					return { mult = 8 }
+				end
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More XMULT (only House Favorite/Repeat Customer existed before) =====
+	{
+		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8,
+		description = "x1.1 Mult for each Hand you have remaining this round after this one.",
+		effect = function(_handResult, context)
+			local remaining = context.handsRemaining or 0
+			if remaining > 0 then
+				return { multMultiplier = 1.1 ^ remaining }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "discard_special", name = "Discard Special", icon = "🧾", price = 6,
+		description = "+3 Mult for each Discard you have remaining this round.",
+		effect = function(_handResult, context)
+			local remaining = context.discardsRemaining or 0
+			if remaining > 0 then
+				return { mult = 3 * remaining }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More UTILITY (mirrors The Understudy, but copies the other =====
+	-- ===== direction -- Second Opinion always copies leftmost regardless =====
+	-- ===== of position, this one copies whichever Patron sits immediately =====
+	-- ===== to its own left) =====
+	{
+		id = "the_apprentice", name = "The Apprentice", icon = "🧑‍🍳", price = 6,
+		description = "Copies the ability of the Patron to its left.",
+		effect = function(handResult, context)
+			local patrons = context.ownedPatrons or {}
+			local i = context.patronIndex or 0
+			local leftNeighbor = patrons[i - 1]
+			if leftNeighbor and leftNeighbor.id ~= "the_apprentice" then
+				return leftNeighbor.effect(handResult, context)
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More ECONOMY (only Tip Jar/Penny Pincher existed before) =====
+	{
+		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7,
+		description = "Earn 1 Tip for each Patron at your table, at the end of each round you win.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			state.tips = state.tips + #state.ownedPatrons
+		end,
+	},
+	{
+		id = "nest_egg", name = "Nest Egg", icon = "🥚", price = 7,
+		description = "Earn 1 Tip for every 5 Tips you're holding (max +5), at the end of each round you win.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			state.tips = state.tips + math.min(5, math.floor(state.tips / 5))
+		end,
+	},
 }
 
 function Patrons.getById(id)
