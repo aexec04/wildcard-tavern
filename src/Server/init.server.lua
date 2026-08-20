@@ -143,6 +143,7 @@ local function serializeState(session)
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
+		patronSlotLimit = RunState.patronSlotLimit(state),
 		shopOffers = shopOffers,
 		ownedThemeIds = ownedThemeIds,
 		equippedTheme = state.equippedTheme,

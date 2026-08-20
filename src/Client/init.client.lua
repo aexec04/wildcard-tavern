@@ -1205,7 +1205,10 @@ local function render(state)
 				end
 			end
 		end
-		patronsCountLabel.Text = string.format("%d/%d", ownedCount, #Patrons.Definitions)
+		-- Slots used/available, NOT "collected out of the full 22" -- that
+		-- lifetime-collection stat lives on the Collection Gallery screen
+		-- instead. This is the number that's actually actionable mid-run.
+		patronsCountLabel.Text = string.format("%d/%d", ownedCount, state.patronSlotLimit or ownedCount)
 	end
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly

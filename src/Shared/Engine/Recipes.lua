@@ -239,6 +239,9 @@ Recipes.HouseRecipes = {
 			if not Patrons then
 				return false, "Unavailable"
 			end
+			if deps.patronSlotLimit and #state.ownedPatrons >= deps.patronSlotLimit then
+				return false, "Your table is full -- sell a Patron to make room"
+			end
 			local rng = (opts and opts.rng) or math.random
 			local available = {}
 			for _, patron in ipairs(Patrons.Definitions) do

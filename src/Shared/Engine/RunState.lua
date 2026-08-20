@@ -28,6 +28,14 @@ RunState.DefaultConfig = {
 	discardsPerRound = 3,
 	roundsPerNight = 3,
 	tipsPerRoundWin = 4,
+	-- How many Patrons can sit at your table at once. With 22 Patrons in
+	-- the pool, "buy every single one" would make the choice of WHICH
+	-- Patrons to run meaningless -- a real cap is what makes selling one
+	-- to make room for a better fit an actual decision (RunState.sellPatron
+	-- already exists for exactly this). A Reserved Special on an owned
+	-- Patron (see RunState.patronSlotLimit) is the intended way to grow
+	-- past this over the course of a run.
+	patronSlotLimit = 5,
 }
 
 -- Target score curve. Original formula/numbers -- tune freely.
@@ -60,6 +68,7 @@ function RunState.new(options, rng)
 	config.handsPerRound = math.max(1, config.handsPerRound)
 	config.discardsPerRound = math.max(0, config.discardsPerRound)
 	config.roundsPerNight = math.max(1, config.roundsPerNight)
+	config.patronSlotLimit = math.max(1, config.patronSlotLimit)
 
 	local state = {
 		config = config,
@@ -360,11 +369,28 @@ function RunState.discard(state, cardIndices)
 	return { discarded = #discarded, discardsRemaining = state.discardsRemaining }
 end
 
+-- How many Patrons can currently sit at the table: the base config value
+-- plus 1 for every owned Patron carrying a Reserved Special (see Card.lua
+-- -- nothing grants one yet in this pass, but buyPatron/useHouseRecipe
+-- already respect it so it's a real lever the moment something does).
+function RunState.patronSlotLimit(state)
+	local bonus = 0
+	for _, patron in ipairs(state.ownedPatrons) do
+		if state.ownedPatronSpecials[patron.id] == "reserved" then
+			bonus = bonus + 1
+		end
+	end
+	return state.config.patronSlotLimit + bonus
+end
+
 -- Spend tips on a patron from the shop. Returns true/false, message.
 function RunState.buyPatron(state, patronId)
 	local patron = Patrons.getById(patronId)
 	if not patron then
 		return false, "Unknown patron: " .. tostring(patronId)
+	end
+	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then
+		return false, "Your table is full -- sell a Patron to make room"
 	end
 	if state.tips < patron.price then
 		return false, "Not enough tips"
@@ -439,7 +465,7 @@ local function useRecipe(state, inventory, catalog, id, opts)
 	end
 	opts = opts or {}
 	opts.rng = opts.rng or state.rng or math.random
-	local ok, message = recipe.apply(state, opts, { Patrons = Patrons })
+	local ok, message = recipe.apply(state, opts, { Patrons = Patrons, patronSlotLimit = RunState.patronSlotLimit(state) })
 	if ok then
 		table.remove(inventory, index)
 		state.lastRecipeUsedId = id

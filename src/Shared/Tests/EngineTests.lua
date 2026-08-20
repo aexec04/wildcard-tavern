@@ -676,4 +676,76 @@ table.insert(tests, { name = "RunState.buyHouseRecipe + useHouseRecipe: full pur
 	expectEqual(state.lastRecipeUsedId, recipe.id)
 end })
 
+-- ===== Feature Expansion: Patron slot cap =====
+
+table.insert(tests, { name = "RunState.patronSlotLimit defaults to the config value (5)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit)
+	expectEqual(state.config.patronSlotLimit, 5)
+end })
+
+table.insert(tests, { name = "RunState.buyPatron refuses a purchase once the table is full", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	local names = {}
+	for _, patron in ipairs(Patrons.Definitions) do
+		table.insert(names, patron.id)
+		if #names >= state.config.patronSlotLimit then break end
+	end
+	for _, id in ipairs(names) do
+		local ok = RunState.buyPatron(state, id)
+		expectTrue(ok, "expected buying up to the slot limit to succeed")
+	end
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
+
+	-- One more (a Patron not already owned) should be refused.
+	local extra
+	for _, patron in ipairs(Patrons.Definitions) do
+		local alreadyOwned = false
+		for _, owned in ipairs(state.ownedPatrons) do
+			if owned.id == patron.id then alreadyOwned = true end
+		end
+		if not alreadyOwned then extra = patron.id break end
+	end
+	local ok, message = RunState.buyPatron(state, extra)
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
+end })
+
+table.insert(tests, { name = "Selling a Patron makes room to buy again at the cap", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	for i, patron in ipairs(Patrons.Definitions) do
+		if i > state.config.patronSlotLimit then break end
+		RunState.buyPatron(state, patron.id)
+	end
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
+
+	RunState.sellPatron(state, state.ownedPatrons[1].id)
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit - 1)
+
+	-- Now a previously-refused purchase should go through.
+	local nextPatron
+	for _, patron in ipairs(Patrons.Definitions) do
+		local alreadyOwned = false
+		for _, owned in ipairs(state.ownedPatrons) do
+			if owned.id == patron.id then alreadyOwned = true end
+		end
+		if not alreadyOwned then nextPatron = patron.id break end
+	end
+	local ok = RunState.buyPatron(state, nextPatron)
+	expectTrue(ok, "expected room to buy after selling")
+	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
+end })
+
+table.insert(tests, { name = "A Reserved Special on an owned Patron raises the slot limit by 1", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	RunState.buyPatron(state, "the_regular")
+	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit)
+	state.ownedPatronSpecials["the_regular"] = "reserved"
+	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit + 1)
+end })
+
 return tests

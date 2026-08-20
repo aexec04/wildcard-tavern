@@ -210,6 +210,23 @@ return function(deps)
 
 		shopBuyListFrame = makeShopListTab()
 		shopMyPatronsListFrame = makeShopListTab()
+
+		-- Permanent first row of the Buy Patrons tab -- NOT destroyed by
+		-- rebuildShop's "clear every Frame child" loop below (this is a
+		-- TextLabel), just has its .Text refreshed each rebuild. Shows the
+		-- slot cap BEFORE a player hits it, not just as an error afterward.
+		local shopSlotsLabel = Instance.new("TextLabel")
+		shopSlotsLabel.Name = "SlotsLabel"
+		shopSlotsLabel.LayoutOrder = 0
+		shopSlotsLabel.Size = UDim2.new(1, 0, 0, 24)
+		shopSlotsLabel.BackgroundTransparency = 1
+		shopSlotsLabel.Font = Enum.Font.GothamBold
+		shopSlotsLabel.TextSize = 14
+		shopSlotsLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		shopSlotsLabel.TextXAlignment = Enum.TextXAlignment.Left
+		shopSlotsLabel.Text = ""
+		shopSlotsLabel.ZIndex = SHOP_ZINDEX
+		shopSlotsLabel.Parent = shopBuyListFrame
 		local shopSpecialCardsTab = makeComingSoonTab("🃏", "Special Cards", "One-off cards you can add to your deck for a run -- planned for a future update.")
 		local shopNightUpgradesTab = makeComingSoonTab("⬆️", "Night Upgrades", "Permanent boosts that last the whole Night -- planned for a future update.")
 
@@ -301,6 +318,13 @@ return function(deps)
 			end
 		end
 
+		local latestState = getLatestState()
+		local ownedCount = (latestState and latestState.ownedPatrons and #latestState.ownedPatrons) or 0
+		local slotLimit = (latestState and latestState.patronSlotLimit) or ownedCount
+		local tableIsFull = ownedCount >= slotLimit
+		shopSlotsLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
+			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+
 		if #shopOffers == 0 then
 			local emptyLabel = Instance.new("TextLabel")
 			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
@@ -345,9 +369,9 @@ return function(deps)
 			buyButton.Position = UDim2.new(1, -100, 0.5, -18)
 			buyButton.Font = Enum.Font.GothamBold
 			buyButton.TextSize = 15
-			buyButton.Text = "Buy"
-			buyButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-			buyButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+			buyButton.Text = tableIsFull and "Full" or "Buy"
+			buyButton.BackgroundColor3 = tableIsFull and Color3.fromRGB(70, 60, 55) or Color3.fromRGB(90, 60, 30)
+			buyButton.TextColor3 = tableIsFull and Color3.fromRGB(180, 170, 160) or Color3.fromRGB(250, 240, 220)
 			buyButton.ZIndex = 6
 			buyButton.Parent = row
 			polishButton(buyButton, 8)
@@ -356,6 +380,12 @@ return function(deps)
 				local latestState = getLatestState()
 				if not latestState or latestState.tips < offer.price then
 					showWarning("Not enough tips for that.")
+					playClickSfx()
+					return
+				end
+				local ownedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
+				if latestState.patronSlotLimit and ownedCount >= latestState.patronSlotLimit then
+					showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
 					playClickSfx()
 					return
 				end
