@@ -320,6 +320,73 @@ table.insert(tests, { name = "Scoring.calculate: extra.breakdown records a Sweet
 	expectEqual(sweetEntryChips, 9 + 30)
 end })
 
+-- SCORING JUICE, full choreography pass: breakdown.source lets the client
+-- trace an entry back to the physical card/Patron/base-hand that caused it
+-- (see Scoring.lua's header comment). These tests lock the `source.type`
+-- contract in so a future refactor can't silently break the client's
+-- per-card reveal without a test noticing.
+
+table.insert(tests, { name = "Scoring.calculate: breakdown.source tags the base hand entries as type 'hand'", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	expectEqual(extra.breakdown[1].source.type, "hand")
+	expectEqual(extra.breakdown[2].source.type, "hand")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: breakdown.source tags a scoring card's entry with type 'card' and the same card reference", fn = function()
+	local nine = C(9, "Hearts")
+	local hand = HandEvaluator.evaluate({ nine, C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.source.type == "card" and entry.source.card == nine then
+			found = true
+		end
+	end
+	expectTrue(found, "expected a breakdown entry sourced to the literal card object that was played")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: breakdown.source tags a Patron's entry with type 'patron' and its id", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, _, extra = Scoring.calculate(hand, { theRegular }, {})
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "mult" and entry.source.type == "patron" and entry.source.patronId == "the_regular" then
+			found = true
+		end
+	end
+	expectTrue(found, "expected the Patron's mult bonus to be sourced to type 'patron' with its id")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: breakdown.source tags an Iron Garnish held-card entry with type 'heldCard'", fn = function()
+	local ironCard = C(9, "Hearts")
+	ironCard.garnish = "iron"
+	local hand = HandEvaluator.evaluate({ C(9, "Clubs"), C(9, "Spades"), C(2, "Diamonds") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, { heldCards = { ironCard } })
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "xmult" and entry.source.type == "heldCard" and entry.source.card == ironCard then
+			found = true
+		end
+	end
+	expectTrue(found, "expected Iron Garnish's held-card xmult to be sourced to type 'heldCard'")
+end })
+
+table.insert(tests, { name = "Scoring.calculate: extra.breakdown records a Gold Stamp's payout as a 'tips' entry", fn = function()
+	local goldCard = C(9, "Hearts")
+	goldCard.stamp = "gold"
+	local hand = HandEvaluator.evaluate({ goldCard, C(9, "Clubs"), C(2, "Spades") })
+	local _, _, _, extra = Scoring.calculate(hand, {}, {})
+	local found = false
+	for _, entry in ipairs(extra.breakdown) do
+		if entry.kind == "tips" and entry.amount == 3 and entry.source.type == "card" and entry.source.card == goldCard then
+			found = true
+		end
+	end
+	expectTrue(found, "expected a tips breakdown entry for the Gold Stamp's 3-tip payout")
+end })
+
 -- ===== RunState (integration) =====
 
 table.insert(tests, { name = "RunState.targetScoreFor increases each round/night", fn = function()

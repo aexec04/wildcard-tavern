@@ -532,6 +532,12 @@ local ScorePopupModule = require(script.ScorePopup)({
 	multTickSound = multTickSound,
 	xmultTickSound = xmultTickSound,
 	payoutThudSound = payoutThudSound,
+	-- SCORING JUICE, full choreography pass: played-card ghosts drop off
+	-- toward this (bottom-right, see Client/DeckWidget.lua) at the end of
+	-- the reveal, mirroring how a fresh hand deals IN from the same spot
+	-- (see rebuildHand's LAYOUT FEATURE 8) -- symmetric "cards live here"
+	-- landmark instead of just flying off an arbitrary screen edge.
+	deckWidgetButton = deckWidgetButton,
 })
 local showScorePopup = ScorePopupModule.showScorePopup
 
@@ -1041,7 +1047,7 @@ local function computeHandPreview(cardIndices)
 	-- flat 0 with no Scoring.calculate call at all -- match that exactly
 	-- instead of showing a nonzero preview you'd never actually get paid.
 	if bossModifierDef and bossModifierDef.noRepeatHandTypes and alreadyPlayed then
-		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {} }
+		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {} }
 	end
 
 	-- heldCards: the cards that would remain in hand (NOT played) if this
@@ -1091,7 +1097,108 @@ local function computeHandPreview(cardIndices)
 
 	-- extra.breakdown (see Scoring.lua) drives ScorePopup.lua's sequenced
 	-- chips/mult/xmult reveal -- see showScorePopup's call site below.
-	return { name = handResult.name, chips = chips, mult = mult, score = score, breakdown = extra and extra.breakdown }
+	-- brokenCards (SCORING JUICE, full choreography pass): Brittle Garnish
+	-- cards that shattered this hand -- ScorePopup uses this to play a
+	-- shatter effect on the matching played-card ghost. Matched by the same
+	-- literal card reference as breakdown.source.card (see Scoring.lua).
+	return {
+		name = handResult.name,
+		chips = chips,
+		mult = mult,
+		score = score,
+		breakdown = extra and extra.breakdown,
+		brokenCards = extra and extra.brokenCards,
+	}
+end
+
+-- SCORING JUICE, full choreography pass: snapshot every hand card's ON-
+-- SCREEN button as a screen-space "ghost" clone BEFORE firing PlayHand --
+-- the server round-trip's response triggers rebuildHand(), which destroys
+-- every card button in handFrame (including cards that are about to be
+-- kept, not just played), often well before ScorePopup's animated reveal
+-- finishes. Ghosts are cloned Instances parented straight to `root` (not
+-- handFrame), positioned with an absolute pixel Position/Size baked in at
+-- clone time, so they're completely immune to rebuildHand()'s destroy loop
+-- and to the hand re-flowing/re-sorting underneath them. Played cards'
+-- REAL buttons are hidden immediately (their ghost visually replaces them
+-- in place); held cards' real buttons stay visible and untouched -- their
+-- ghost only exists to show a brief Iron Garnish highlight/number-float
+-- overlay, and starts invisible.
+local function buildScoreSourceInfo(indices)
+	if not latestState then
+		return { cardGhosts = {}, patronSlotFrames = {} }
+	end
+
+	local playedSet = {}
+	for _, index in ipairs(indices) do
+		playedSet[index] = true
+	end
+
+	local cardGhosts = {}
+	for index, card in ipairs(latestState.hand) do
+		local button = cardButtons[index]
+		if button and button.Parent then
+			local isPlayed = playedSet[index] == true
+			local absPos = button.AbsolutePosition
+			local absSize = button.AbsoluteSize
+			local ghost = button:Clone()
+			ghost.Name = "ScoreGhost"
+			ghost.Active = false
+			ghost.AutoButtonColor = false
+			ghost.AnchorPoint = Vector2.new(0, 0)
+			ghost.Position = UDim2.fromOffset(absPos.X, absPos.Y)
+			ghost.Size = UDim2.fromOffset(absSize.X, absSize.Y)
+			ghost.ZIndex = 30
+			-- Held-card ghosts start hidden -- the real card is still
+			-- visible and correct in the hand; this ghost only appears for
+			-- its own brief Iron Garnish beat. Played-card ghosts start
+			-- visible immediately, replacing the (about to be hidden) real
+			-- button in place.
+			ghost.Visible = isPlayed
+			ghost.Parent = root
+
+			local scale = ghost:FindFirstChildOfClass("UIScale")
+			if not scale then
+				scale = Instance.new("UIScale")
+				scale.Parent = ghost
+			end
+
+			table.insert(cardGhosts, {
+				card = card,
+				ghost = ghost,
+				scale = scale,
+				isPlayed = isPlayed,
+				visualPosition = cardVisualPosition[index] or index,
+			})
+
+			if isPlayed then
+				button.Visible = false
+			end
+		end
+	end
+
+	-- visualPosition (left-to-right ON-SCREEN order, see cardVisualPosition
+	-- above) drives the played row's left-to-right reveal, matching how the
+	-- cards actually looked in-hand -- NOT click/selection order, which can
+	-- be any order the player happened to click them in.
+	table.sort(cardGhosts, function(a, b)
+		return a.visualPosition < b.visualPosition
+	end)
+
+	-- Patron sidebar slot i always mirrors state.ownedPatrons[i] (see
+	-- Sidebar.lua) -- map patronId -> that live Frame reference so
+	-- ScorePopup can pulse the right seat. These Frames are NOT cloned --
+	-- they're permanent, never destroyed/recreated, so a live reference is
+	-- safe to hand off and animate directly.
+	local patronSlotFrames = {}
+	for i, patron in ipairs(latestState.ownedPatrons or {}) do
+		local slot = patronSlots[i]
+		if slot then
+			patronSlotFrames[patron.id] = slot.frame
+		end
+	end
+
+	return { cardGhosts = cardGhosts, patronSlotFrames = patronSlotFrames }
 end
 
 local function refreshScorePreview()
@@ -1280,7 +1387,17 @@ local function rebuildHand(handData)
 			badge.TextStrokeTransparency = 0.3
 			badge.Text = table.concat(icons, "")
 			badge.ZIndex = 2
-			badge.Parent = slot
+			-- Parented to `button`, NOT `slot` -- button fills slot exactly
+			-- (see button.Size/Position above), so the badge's corner
+			-- position reads identically either way, BUT `button` is what
+			-- ScorePopup.lua's buildScoreSourceInfo clones into a "ghost"
+			-- for the scoring choreography (button:Clone()). A `slot`-
+			-- parented badge is a sibling of button, not a descendant, so
+			-- Instance:Clone() would never carry it over -- every played/
+			-- held card ghost shown during Play Hand's reveal sequence
+			-- would silently be missing its Garnish/Special/Stamp icon.
+			-- Found via independent review before shipping.
+			badge.Parent = button
 		end
 
 		local scaleObject = Instance.new("UIScale")
@@ -1505,7 +1622,12 @@ playButton.MouseButton1Click:Connect(function()
 	-- preview computation the sidebar already uses -- see computeHandPreview.
 	local preview = computeHandPreview(indices)
 	if preview then
-		showScorePopup(preview)
+		-- sourceInfo built ONLY once we know the popup will actually show --
+		-- buildScoreSourceInfo hides the played cards' real buttons, so
+		-- skipping it on a nil preview avoids ever leaving a card
+		-- permanently hidden with nothing showing in its place.
+		local sourceInfo = buildScoreSourceInfo(indices)
+		showScorePopup(preview, sourceInfo)
 	end
 
 	-- The server (RunState.playHand -> removeIndicesFromHand) always keeps

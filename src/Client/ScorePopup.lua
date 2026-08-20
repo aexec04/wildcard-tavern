@@ -1,43 +1,79 @@
 --[[
 	Client/ScorePopup.lua
-	Balatro's signature score-pop -- the "Hand Name / chips x mult" callout
-	shown when Play Hand is clicked. Parented to root (not handFrame --
-	rebuildHand() destroys every Frame child of handFrame on every render(),
-	which would destroy this the instant a hand is played) and centered on
-	the full screen rather than the narrower play area, to avoid hand-
-	crafting sidebar/deck-widget-aware centering math for an element that's
-	only ever on screen for a couple seconds.
+	Balatro's signature scoring sequence -- Play Hand triggers a step-by-step
+	choreography: the played cards lift into a row, each scoring card (left
+	to right) pops/highlights while its own chip/mult number flies up into
+	the HUD, held cards get a brief in-place nudge for Iron Garnish, owned
+	Patrons pulse in the sidebar when their bonus fires, then a finale slams
+	the real total home and the played cards drop away.
 
-	SCORING JUICE (this pass): this used to just flash the final "chips x
-	mult" once. It now plays preview.breakdown (see Scoring.lua's
-	extra.breakdown) back as a SEQUENCE -- each individual scoring event
-	(the base hand, every scoring card's rank/Garnish/Special/Stamp, every
-	owned Patron's effect/Special) pops in one at a time, color-coded by
-	kind (blue Chips / red Mult / purple XMult), with an escalating-pitch
-	tick sound, a small screen shake + particle burst scaled to that
-	event's size, and a brief anticipation pause before a big XMult hit --
-	then finishes on the real final numbers with the biggest pop/shake/
-	burst and a pitched-down "thud". Matches the "AI Implementation Prompt"
-	Ahmed pasted in almost field-for-field (audio pitch escalation + bass
-	thud, elastic scaling + color coding + shake/particles proportional to
-	payout, anticipatory micro-delays before high-tier multipliers).
+	FULL CHOREOGRAPHY PASS (this rewrite): Ahmed pasted a very detailed
+	field-by-field breakdown of that sequence and asked for the full thing,
+	after being warned it's a real architecture change (a genuine
+	played-card row that survives the server round-trip) rather than a
+	quick tweak to the existing HUD-only popup. Kept from the prior pass,
+	unchanged in spirit: color-coded elastic numbers (blue Chips / red Mult
+	/ purple XMult), an escalating-pitch tick sound per entry, screen shake
+	+ particle bursts scaled to payout size, an anticipation pause before a
+	big XMult, and a pitched-down "thud" finale.
+
+	NEW this pass, tracing each breakdown entry back to what caused it (see
+	Scoring.lua's `breakdown[i].source` -- the whole reason that field
+	exists is to make this file possible without any id-plumbing):
+	  - Played cards are cloned into screen-space "ghost" Instances (see
+	    init.client.lua's buildScoreSourceInfo) that lift into a centered
+	    row above the hand the instant Play Hand is clicked -- immune to
+	    rebuildHand() destroying the real hand out from under the
+	    animation the moment the server responds.
+	  - The active scoring card's ghost pops/scales/flashes while its
+	    number visibly flies from the card to the matching Chips/Mult box
+	    (split out of the old single "chips x mult" label into two boxes
+	    specifically so there's a real blue box and a real red box to fly
+	    into, matching the spec).
+	  - The OTHER played cards dim slightly while one is active -- a
+	    "focus" cue standing in for the spec's camera micro-zoom. This is
+	    a deliberate substitute, not a shortcut: TavernScene.server.lua
+	    has an explicit standing rule to never touch the real 3D
+	    Camera/character, so "focus" here is a UI-only dim/highlight
+	    trick, same philosophy as screenShake jittering the UI root
+	    instead of the camera.
+	  - Held cards get a smaller in-place highlight for Iron Garnish
+	    (no row, they never left the hand).
+	  - Owned Patrons pulse their actual Sidebar seat (scale + color
+	    flash) when their bonus/Special fires, with their own number
+	    flying from the seat to the HUD.
+	  - `kind = "tips"` entries (new in Scoring.lua this pass -- Gold
+	    Stamp / Lucky Garnish procs / a Patron's flat tips bonus) get a
+	    small floating "+N Tips" flash instead of flying into a box (there
+	    isn't a dedicated Tips box in this popup).
+	  - Brittle Garnish cards that broke this hand (preview.brokenCards)
+	    get a shatter effect and are destroyed early instead of joining
+	    the calmer end-of-sequence drop-off.
+	  - At the very end, played-card ghosts drop off toward the deck
+	    widget (bottom-right -- the same landmark new cards deal IN from),
+	    mirroring "played cards drop into the discard pile."
+
+	Every one of the above degrades gracefully to the OLD center-HUD-only
+	behavior if a ghost/slot can't be found (e.g. sourceInfo wasn't passed,
+	or a card reference doesn't match anything) -- see findGhostForCard/
+	patronSlotFrames lookups below returning nil. Nothing here can hard
+	fail just because the choreography's optional pieces didn't resolve.
 
 	The running chips/mult totals shown DURING the sequence are computed by
-	replaying the same breakdown the engine returned -- summing every
-	"chips"/"mult" entry and multiplying every "xmult" entry gives back
-	EXACTLY preview.chips/preview.mult (see Scoring.calculate's own
+	replaying the same breakdown the engine returned (summing every
+	"chips" entry and multiplying every "xmult" entry into "mult" gives
+	back EXACTLY preview.chips/preview.mult -- see Scoring.calculate's own
 	comment on why breakdown is purely additive data), so there's no way
 	for the animation to end on a different number than what you actually
-	get paid. The finale re-sets the labels to preview.chips/preview.mult
-	directly anyway, as a belt-and-suspenders guard against float drift
-	from repeated multiplication.
+	get paid. The finale re-sets the boxes to preview.chips/preview.mult
+	directly anyway, as a belt-and-suspenders guard against float drift.
 
 	A hand with lots of Patrons/Garnishes can generate a LOT of breakdown
 	entries (worst case: 5 cards x up to ~3 triggers each, plus 5 Patrons x
 	up to ~3 bonuses each plus a Special = 50+). MAX_ANIMATED_ENTRIES caps
 	how many get their own animated beat so one huge hand can't turn into
 	a multi-second slog -- everything past the cap still counts toward the
-	running/final totals, it just doesn't get its own pop/tick/shake.
+	running/final totals, it just doesn't get its own pop/tick/shake/fly.
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. showScorePopup is called from
@@ -51,14 +87,19 @@
 		particleBurst  -- function(screenPosition, color, count, options?) -- see ParticleBurst.lua
 		playPitched    -- function(sound, pitch?, volume?) -- see Sound.lua
 		chipTickSound, multTickSound, xmultTickSound, payoutThudSound -- Sound instances, see Sound.lua
+		deckWidgetButton -- optional GuiObject, drop-off target for played ghosts (bottom-right deck widget)
 
 	Returns:
 		{
-			showScorePopup = function(preview),
-			-- preview: { name, chips, mult, score, breakdown } from
-			--   computeHandPreview(). breakdown may be nil (e.g. if the
-			--   preview computation failed for some reason) -- the popup
+			showScorePopup = function(preview, sourceInfo),
+			-- preview: { name, chips, mult, score, breakdown, brokenCards }
+			--   from computeHandPreview(). breakdown/brokenCards may be nil
+			--   (e.g. if the preview computation failed) -- the popup
 			--   still shows correctly, it just skips straight to the finale.
+			-- sourceInfo: { cardGhosts, patronSlotFrames } from
+			--   init.client.lua's buildScoreSourceInfo(indices), called
+			--   right before this. May be omitted/nil -- everything below
+			--   just falls back to the old center-HUD-only behavior.
 		}
 ]]
 
@@ -72,22 +113,27 @@ return function(deps)
 	local multTickSound = deps.multTickSound
 	local xmultTickSound = deps.xmultTickSound
 	local payoutThudSound = deps.payoutThudSound
+	local deckWidgetButton = deps.deckWidgetButton
 
-	-- Blue = Chips, Red = Mult, Purple = XMult -- straight from Ahmed's spec.
+	-- Blue = Chips, Red = Mult, Purple = XMult, Green = Tips -- Blue/Red/
+	-- Purple straight from Ahmed's original juice spec; Tips added this
+	-- pass (green is the standard "money" association, and it's clearly
+	-- distinct from the other three so it never reads as a chips/mult
+	-- entry by mistake).
 	local KIND_COLORS = {
 		chips = Color3.fromRGB(110, 180, 255),
 		mult = Color3.fromRGB(255, 110, 110),
 		xmult = Color3.fromRGB(200, 130, 255),
+		tips = Color3.fromRGB(130, 230, 150),
 	}
 	local FINALE_COLOR = Color3.fromRGB(255, 214, 130)
+	local SHATTER_COLOR = Color3.fromRGB(210, 230, 255)
 
-	-- PACING: Ahmed's first playtest of this feature couldn't actually
-	-- read any of the per-entry text before it was replaced by the next
-	-- one -- 0.09s between entries is fine for a sound/shake beat but way
-	-- too fast for a human to read a few words. ENTRY_STAGGER is the main
-	-- knob if this still feels off; MAX_ANIMATED_ENTRIES was brought down
-	-- to compensate (a much slower per-entry pace needs a lower cap to
-	-- keep a big hand's worst-case sequence from dragging on).
+	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
+	-- read the per-entry text before it was replaced by the next one --
+	-- these knobs fixed that, kept unchanged here. ENTRY_STAGGER is the
+	-- main knob if the new choreography ever feels off; MAX_ANIMATED_ENTRIES
+	-- stays low to match.
 	local MAX_ANIMATED_ENTRIES = 10 -- see file header -- caps worst-case sequence length
 	local BASE_PITCH = 1.0
 	local PITCH_STEP = 0.045 -- per-entry pitch increment -- "increment sequentially along a musical scale"
@@ -95,6 +141,9 @@ return function(deps)
 	local HIGH_TIER_XMULT = 2 -- xmult entries at/above this get an anticipation pause before they land
 	local ENTRY_STAGGER = 0.45 -- seconds between entries -- long enough to actually read each line
 	local ANTICIPATION_PAUSE = 0.3
+	local FLY_DURATION = 0.28 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
+	local GHOST_LIFT_DURATION = 0.22 -- played row "lift out of hand" tween
+	local DROPOFF_DURATION = 0.5 -- played row "drop into discard" tween at the end
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -117,21 +166,64 @@ return function(deps)
 	scorePopupHandName.ZIndex = 25
 	scorePopupHandName.Parent = scorePopup
 
-	local scorePopupMath = Instance.new("TextLabel")
-	scorePopupMath.Size = UDim2.new(1, 0, 0, 50)
-	scorePopupMath.Position = UDim2.new(0, 0, 0, 26)
-	scorePopupMath.BackgroundTransparency = 1
-	scorePopupMath.Font = Enum.Font.GothamBold
-	scorePopupMath.TextSize = 36
-	scorePopupMath.TextColor3 = Color3.fromRGB(255, 255, 255)
-	scorePopupMath.TextStrokeTransparency = 0.4
-	scorePopupMath.Text = ""
-	scorePopupMath.ZIndex = 25
-	scorePopupMath.Parent = scorePopup
+	-- SCORING JUICE, full choreography pass: split out of the old single
+	-- "chips x mult" label into a real blue Chips box / red Mult box, so
+	-- flying numbers have an actual matching box to merge into (Ahmed's
+	-- spec: "the blue Chips box and red Mult box pop directly into the
+	-- HUD" / "slam together... as the math completes").
+	local chipsLabel = Instance.new("TextLabel")
+	chipsLabel.Size = UDim2.new(0, 115, 0, 50)
+	chipsLabel.Position = UDim2.new(0, 0, 0, 26)
+	chipsLabel.BackgroundTransparency = 1
+	chipsLabel.Font = Enum.Font.GothamBold
+	chipsLabel.TextSize = 30
+	chipsLabel.TextColor3 = KIND_COLORS.chips
+	chipsLabel.TextStrokeTransparency = 0.35
+	chipsLabel.TextXAlignment = Enum.TextXAlignment.Right
+	chipsLabel.Text = "0"
+	chipsLabel.ZIndex = 25
+	chipsLabel.Parent = scorePopup
+
+	local xLabel = Instance.new("TextLabel")
+	xLabel.Size = UDim2.new(0, 30, 0, 50)
+	xLabel.Position = UDim2.new(0, 115, 0, 26)
+	xLabel.BackgroundTransparency = 1
+	xLabel.Font = Enum.Font.GothamBold
+	xLabel.TextSize = 26
+	xLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	xLabel.TextStrokeTransparency = 0.4
+	xLabel.TextXAlignment = Enum.TextXAlignment.Center
+	xLabel.Text = "x"
+	xLabel.ZIndex = 25
+	xLabel.Parent = scorePopup
+
+	local multLabel = Instance.new("TextLabel")
+	multLabel.Size = UDim2.new(0, 115, 0, 50)
+	multLabel.Position = UDim2.new(0, 145, 0, 26)
+	multLabel.BackgroundTransparency = 1
+	multLabel.Font = Enum.Font.GothamBold
+	multLabel.TextSize = 30
+	multLabel.TextColor3 = KIND_COLORS.mult
+	multLabel.TextStrokeTransparency = 0.35
+	multLabel.TextXAlignment = Enum.TextXAlignment.Left
+	multLabel.Text = "0"
+	multLabel.ZIndex = 25
+	multLabel.Parent = scorePopup
+
+	-- Bump targets for flyNumberToBox's "merge into the box" impact -- see
+	-- there. Kept on the boxes themselves (not the whole popup) so a
+	-- flying chips number bumps ONLY the blue box, not the red one too.
+	local chipsScale = Instance.new("UIScale")
+	chipsScale.Parent = chipsLabel
+	local multScale = Instance.new("UIScale")
+	multScale.Parent = multLabel
 
 	-- SCORING JUICE: the per-entry "what just triggered" line -- e.g.
 	-- "King of Hearts  +9 Chips" -- color-coded and separately elastic-
-	-- popped from the big total above it.
+	-- popped from the boxes above it. Kept from the prior pass: even with
+	-- per-card ghosts now doing most of the visual work, this line is
+	-- still the one place the exact text is always guaranteed readable
+	-- regardless of whether a ghost/slot happened to be found.
 	local scorePopupEventLabel = Instance.new("TextLabel")
 	scorePopupEventLabel.Size = UDim2.new(1, 0, 0, 22)
 	scorePopupEventLabel.Position = UDim2.new(0, 0, 0, 80)
@@ -154,8 +246,24 @@ return function(deps)
 
 	local scorePopupToken = 0
 
+	-- Ghosts (and their FocusDim overlays) currently "owned" by whichever
+	-- sequence is in flight. Always cleared at the START of a new
+	-- showScorePopup call (defensive -- a previous sequence that got
+	-- interrupted, e.g. the player rushed straight into another hand,
+	-- may have left its ghosts behind) so ghosts can never pile up run
+	-- over run.
+	local liveGhosts = {}
+
+	local function destroyGhosts(ghosts)
+		for _, entry in ipairs(ghosts) do
+			if entry.ghost and entry.ghost.Parent then
+				entry.ghost:Destroy()
+			end
+		end
+	end
+
 	local function tickSoundFor(kind)
-		if kind == "chips" then
+		if kind == "chips" or kind == "tips" then
 			return chipTickSound
 		elseif kind == "mult" then
 			return multTickSound
@@ -166,6 +274,9 @@ return function(deps)
 	local function formatEntryText(entry)
 		if entry.kind == "xmult" then
 			return string.format("%s  x%g XMult", entry.label, entry.amount)
+		elseif entry.kind == "tips" then
+			local sign = entry.amount >= 0 and "+" or ""
+			return string.format("%s  %s%d Tips", entry.label, sign, math.floor(entry.amount + 0.5))
 		end
 		local verb = entry.kind == "chips" and "Chips" or "Mult"
 		local sign = entry.amount >= 0 and "+" or ""
@@ -183,29 +294,305 @@ return function(deps)
 	local function entryMagnitude(entry)
 		if entry.kind == "xmult" then
 			return (entry.amount - 1) * 6
+		elseif entry.kind == "tips" then
+			return math.min(4, math.abs(entry.amount) / 3)
 		end
 		return math.min(6, math.abs(entry.amount) / 4)
 	end
 
-	local function burstPositionFor(frame)
+	-- Generic "center point, as a UDim2 offset" helper -- used for particle
+	-- burst origins, flying-number start/end points, and label positions
+	-- alike, for any GuiObject (the popup itself, a card ghost, a Patron
+	-- slot Frame, a HUD box).
+	local function centerOf(instance)
 		return UDim2.fromOffset(
-			frame.AbsolutePosition.X + frame.AbsoluteSize.X / 2,
-			frame.AbsolutePosition.Y + frame.AbsoluteSize.Y / 2
+			instance.AbsolutePosition.X + instance.AbsoluteSize.X / 2,
+			instance.AbsolutePosition.Y + instance.AbsoluteSize.Y / 2
 		)
 	end
 
-	-- preview: { name, chips, mult, score, breakdown } from
+	local function findGhostForCard(cardGhosts, card)
+		if not cardGhosts or not card then
+			return nil
+		end
+		for _, entry in ipairs(cardGhosts) do
+			if entry.card == card then
+				return entry
+			end
+		end
+		return nil
+	end
+
+	-- ===== Played-card row layout =====
+
+	-- Lifts every PLAYED ghost (already left-to-right sorted, see
+	-- init.client.lua's buildScoreSourceInfo) into a centered row well
+	-- above the hand/HUD, the instant Play Hand is clicked -- Ahmed's
+	-- spec's "the active card nudges upward out of the played row", made
+	-- literal instead of the old HUD-only popup's implicit version of it.
+	local function layoutPlayedRow(playedGhosts)
+		if #playedGhosts == 0 then
+			return
+		end
+		local rootSize = root.AbsoluteSize
+		local gap = 14
+		local totalWidth = 0
+		for _, entry in ipairs(playedGhosts) do
+			totalWidth = totalWidth + entry.ghost.AbsoluteSize.X
+		end
+		totalWidth = totalWidth + gap * (#playedGhosts - 1)
+		local rowY = rootSize.Y * 0.3
+		local x = (rootSize.X - totalWidth) / 2
+		for _, entry in ipairs(playedGhosts) do
+			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, GHOST_LIFT_DURATION, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			x = x + entry.ghost.AbsoluteSize.X + gap
+		end
+	end
+
+	-- "Camera Focus" substitute -- see file header. Dims every OTHER played
+	-- ghost via a per-ghost overlay Frame (lazily created, cached on the
+	-- ghost entry) rather than touching the ghost's own colors, so it can
+	-- never interfere with the card's own text/badge/highlight tween.
+	local function ensureDimOverlay(entry)
+		if entry.dimOverlay then
+			return entry.dimOverlay
+		end
+		local overlay = Instance.new("Frame")
+		overlay.Name = "FocusDim"
+		overlay.Size = UDim2.fromScale(1, 1)
+		overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+		overlay.BackgroundTransparency = 1
+		overlay.BorderSizePixel = 0
+		overlay.ZIndex = entry.ghost.ZIndex + 1
+		overlay.Parent = entry.ghost
+		entry.dimOverlay = overlay
+		return overlay
+	end
+
+	local function setPlayedRowFocus(playedGhosts, activeEntry)
+		for _, entry in ipairs(playedGhosts) do
+			if entry.ghost.Parent then
+				local overlay = ensureDimOverlay(entry)
+				tweenTo(overlay, { BackgroundTransparency = entry == activeEntry and 1 or 0.55 }, 0.12)
+			end
+		end
+	end
+
+	local function clearPlayedRowFocus(playedGhosts)
+		for _, entry in ipairs(playedGhosts) do
+			if entry.dimOverlay then
+				tweenTo(entry.dimOverlay, { BackgroundTransparency = 1 }, 0.2)
+			end
+		end
+	end
+
+	-- ===== Per-source highlight beats =====
+
+	local function highlightGhost(entry)
+		local ghost = entry.ghost
+		entry.baseColor = entry.baseColor or ghost.BackgroundColor3
+		ghost.Visible = true
+		tweenTo(entry.scale, { Scale = 1.22 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tweenTo(ghost, { BackgroundColor3 = entry.baseColor:Lerp(Color3.new(1, 1, 1), 0.55) }, 0.1)
+		task.delay(0.16, function()
+			if ghost.Parent then
+				tweenTo(entry.scale, { Scale = 1 }, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				tweenTo(ghost, { BackgroundColor3 = entry.baseColor }, 0.25)
+			end
+		end)
+	end
+
+	local function ensureSlotScale(frame)
+		local scale = frame:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = frame
+		end
+		return scale
+	end
+
+	-- Rest color + overlap depth per Patron slot Frame, weak-keyed so it
+	-- never leaks (same pattern as VisualHelpers.lua's shakeRestPositions).
+	-- Needed because `frame` is the PERMANENT Sidebar seat, not a disposable
+	-- ghost -- a single Patron can rack up more than one breakdown entry in
+	-- one hand (a flat bonus + a Special, say), and nothing debounces
+	-- rapid repeated Play Hand clicks, so two pulses on the SAME slot can
+	-- easily overlap. Reading frame.BackgroundColor3 fresh each call (the
+	-- first version of this function did) would capture an already-
+	-- lerped-toward-FINALE_COLOR value as the "base" on the second overlap,
+	-- so both resets would converge on the wrong color. Caching the TRUE
+	-- rest color once, and only tweening back to it once every overlapping
+	-- pulse on that slot has finished (pulseDepth reaches 0), fixes both
+	-- problems at once. Found via independent review before shipping.
+	local patronSlotRestColors = setmetatable({}, { __mode = "k" })
+	local patronSlotPulseDepth = setmetatable({}, { __mode = "k" })
+
+	-- "Joker Activation" equivalent -- scale + color flash on the Patron's
+	-- actual, permanent Sidebar seat (never cloned/destroyed, so this is
+	-- safe to animate directly and just settles back to normal after).
+	local function pulsePatronSlot(frame)
+		local scale = ensureSlotScale(frame)
+		if not patronSlotRestColors[frame] then
+			patronSlotRestColors[frame] = frame.BackgroundColor3
+		end
+		local restColor = patronSlotRestColors[frame]
+		patronSlotPulseDepth[frame] = (patronSlotPulseDepth[frame] or 0) + 1
+
+		tweenTo(scale, { Scale = 1.35 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tweenTo(frame, { BackgroundColor3 = restColor:Lerp(FINALE_COLOR, 0.6) }, 0.1)
+		task.delay(0.16, function()
+			patronSlotPulseDepth[frame] = math.max(0, (patronSlotPulseDepth[frame] or 1) - 1)
+			if frame.Parent and patronSlotPulseDepth[frame] == 0 then
+				tweenTo(scale, { Scale = 1 }, 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				tweenTo(frame, { BackgroundColor3 = restColor }, 0.3)
+			end
+		end)
+	end
+
+	-- Brittle Garnish shattering -- destroyed early (not part of the calmer
+	-- end-of-sequence drop-off) since that card is actually leaving the
+	-- deck for good, not just going to the discard pile.
+	local function shatterGhost(entry)
+		local ghost = entry.ghost
+		-- Placeholder SFX (see Sound.lua's dedicated-placeholder pattern) --
+		-- no dedicated glass-break sound yet, chipTickSound pitched way up
+		-- reads close enough as a "crack".
+		playPitched(chipTickSound, 1.9, 0.5)
+		particleBurst(centerOf(ghost), SHATTER_COLOR, 14, { spread = 90, duration = 0.4 })
+		screenShake(root, 2, 0.12)
+		tweenTo(ghost, { Rotation = 12 }, 0.08)
+		tweenTo(entry.scale, { Scale = 0 }, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(0.3, function()
+			if ghost.Parent then
+				ghost:Destroy()
+			end
+		end)
+	end
+
+	-- ===== Flying numbers =====
+
+	-- Flies a small copy of the entry's text from `fromPos` to the center
+	-- of `targetBox` (the blue Chips box or red Mult box), then bumps that
+	-- box's own UIScale on arrival -- the "merging into it with a quick
+	-- elastic bounce" Ahmed's spec calls for. Purely decorative: the box's
+	-- actual running-total TEXT is updated immediately by the caller,
+	-- same timing as the old HUD-only popup, so this can never desync
+	-- from (or block on) the authoritative number.
+	local function flyNumberToBox(fromPos, entry, color, targetBox)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromOffset(96, 22)
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = fromPos
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 16
+		label.TextColor3 = color
+		label.TextStrokeTransparency = 0.4
+		label.Text = formatEntryText(entry)
+		label.ZIndex = 32
+		label.Parent = root
+
+		tweenTo(label, { Position = centerOf(targetBox), TextTransparency = 0.6 }, FLY_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(FLY_DURATION, function()
+			label:Destroy()
+			if targetBox.Parent then
+				local boxScale = targetBox:FindFirstChildOfClass("UIScale")
+				if boxScale then
+					tweenTo(boxScale, { Scale = 1.18 }, 0.06)
+					task.delay(0.06, function()
+						if boxScale.Parent then
+							tweenTo(boxScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+						end
+					end)
+				end
+			end
+		end)
+	end
+
+	-- Tips procs have no dedicated HUD box to fly into -- just a small
+	-- "+N Tips" flash that floats up and fades near its source.
+	local function floatTipsText(fromPos, entry)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromOffset(100, 20)
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = fromPos
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 15
+		label.TextColor3 = KIND_COLORS.tips
+		label.TextStrokeTransparency = 0.4
+		label.Text = formatEntryText(entry)
+		label.ZIndex = 32
+		label.Parent = root
+
+		local targetPos = UDim2.new(fromPos.X.Scale, fromPos.X.Offset, fromPos.Y.Scale, fromPos.Y.Offset - 46)
+		tweenTo(label, { Position = targetPos, TextTransparency = 1 }, 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		task.delay(0.6, function()
+			label:Destroy()
+		end)
+	end
+
+	-- Played ghosts drop toward the deck widget (bottom-right -- the same
+	-- landmark new cards deal IN from, see rebuildHand's LAYOUT FEATURE 8)
+	-- at the end of the sequence, matching "played cards drop off the
+	-- bottom of the screen into the discard pile." Cards that already
+	-- shattered (see shatterGhost) are skipped -- their ghost.Parent is
+	-- already nil by the time this runs.
+	local function dropOffPlayedGhosts(playedGhosts)
+		local targetPos
+		if deckWidgetButton and deckWidgetButton.Parent then
+			targetPos = centerOf(deckWidgetButton)
+		end
+		for i, entry in ipairs(playedGhosts) do
+			task.delay((i - 1) * 0.05, function()
+				local ghost = entry.ghost
+				if ghost.Parent then
+					local dest = targetPos or UDim2.fromOffset(ghost.Position.X.Offset, root.AbsoluteSize.Y + 120)
+					tweenTo(ghost, { Position = dest }, DROPOFF_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+					tweenTo(entry.scale, { Scale = 0.5 }, DROPOFF_DURATION)
+				end
+			end)
+		end
+	end
+
+	-- preview: { name, chips, mult, score, breakdown, brokenCards } from
 	-- computeHandPreview(). chips/mult/score are computed at the moment
 	-- Play Hand is clicked, using the exact same scoring call
 	-- RunState.playHand makes server-side, so this can never show a number
 	-- that doesn't match what you actually get paid.
-	local function showScorePopup(preview)
+	-- sourceInfo: { cardGhosts, patronSlotFrames } from
+	-- init.client.lua's buildScoreSourceInfo -- may be nil/omitted, in
+	-- which case every per-source visual below just no-ops back to the
+	-- plain center-HUD reveal.
+	local function showScorePopup(preview, sourceInfo)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
 
+		-- Defensive cleanup: a previous sequence that got interrupted
+		-- (e.g. the player queued up another hand before this one's
+		-- reveal finished) may have left ghosts behind -- always start
+		-- this call with a clean slate.
+		destroyGhosts(liveGhosts)
+		liveGhosts = {}
+
+		sourceInfo = sourceInfo or {}
+		local cardGhosts = sourceInfo.cardGhosts or {}
+		local patronSlotFrames = sourceInfo.patronSlotFrames or {}
+		for _, entry in ipairs(cardGhosts) do
+			table.insert(liveGhosts, entry)
+		end
+
+		local playedGhosts = {}
+		for _, entry in ipairs(cardGhosts) do
+			if entry.isPlayed then
+				table.insert(playedGhosts, entry)
+			end
+		end
+
 		scorePopupHandName.Text = preview.name
 		scorePopupEventLabel.Text = ""
-		scorePopupMath.Text = "0 x 0"
+		chipsLabel.Text = "0"
+		multLabel.Text = "0"
 		scorePopup.Visible = true
 		scorePopupScale.Scale = 0.6
 		tweenTo(scorePopupScale, { Scale = 1.15 }, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -215,6 +602,11 @@ return function(deps)
 				tweenTo(scorePopupScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 			end
 		end)
+
+		-- Lift the played row up out of the hand right away, so the cards
+		-- are already in place by the time the reveal loop starts picking
+		-- them out one at a time.
+		layoutPlayedRow(playedGhosts)
 
 		task.spawn(function()
 			task.wait(0.2) -- let the hand-name pop land before the numbers start ticking
@@ -235,6 +627,8 @@ return function(deps)
 				elseif entry.kind == "xmult" then
 					runningXMult = runningXMult * entry.amount
 				end
+				-- "tips" entries deliberately don't touch chips/mult/xmult --
+				-- they don't affect the score math, just the Tips reward.
 
 				if i <= animatedCount then
 					-- PACING: a brief anticipation pause right before a
@@ -251,7 +645,11 @@ return function(deps)
 					scorePopupEventLabel.Text = formatEntryText(entry)
 					scorePopupEventLabel.TextColor3 = color
 
-					-- VISUALS: elastic pop on the event line + color coding.
+					-- VISUALS: elastic pop on the event line + color coding
+					-- (kept from the prior pass -- always fires regardless
+					-- of whether a ghost/slot is found below, so the text
+					-- readout is never dependent on the choreography
+					-- resolving correctly).
 					scorePopupEventScale.Scale = 0.5
 					tweenTo(scorePopupEventScale, { Scale = 1 }, 0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
@@ -261,17 +659,57 @@ return function(deps)
 					local pitch = math.min(MAX_PITCH, BASE_PITCH + PITCH_STEP * (i - 1))
 					playPitched(tickSoundFor(entry.kind), pitch, 0.35)
 
+					-- SOURCE-AWARE CHOREOGRAPHY: trace this entry back to
+					-- the card/Patron that caused it (see Scoring.lua's
+					-- breakdown[i].source) and animate THAT specific
+					-- on-screen thing, falling back to the plain center
+					-- popup above if it can't be found.
+					local source = entry.source or { type = "hand" }
+					local sourcePos = nil
+
+					if source.type == "card" then
+						local ghostEntry = findGhostForCard(cardGhosts, source.card)
+						if ghostEntry then
+							setPlayedRowFocus(playedGhosts, ghostEntry)
+							highlightGhost(ghostEntry)
+							sourcePos = centerOf(ghostEntry.ghost)
+						end
+					elseif source.type == "heldCard" then
+						local ghostEntry = findGhostForCard(cardGhosts, source.card)
+						if ghostEntry then
+							highlightGhost(ghostEntry)
+							sourcePos = centerOf(ghostEntry.ghost)
+						end
+					elseif source.type == "patron" then
+						local slotFrame = patronSlotFrames[source.patronId]
+						if slotFrame then
+							pulsePatronSlot(slotFrame)
+							sourcePos = centerOf(slotFrame)
+						end
+					end
+
+					if sourcePos then
+						if entry.kind == "tips" then
+							floatTipsText(sourcePos, entry)
+						elseif entry.kind == "chips" then
+							flyNumberToBox(sourcePos, entry, color, chipsLabel)
+						else -- mult or xmult both merge into the red Mult box
+							flyNumberToBox(sourcePos, entry, color, multLabel)
+						end
+					end
+
 					local magnitude = entryMagnitude(entry)
 					if magnitude > 0.3 then
 						screenShake(root, math.min(6, 1.5 + magnitude), 0.16)
-						particleBurst(burstPositionFor(scorePopup), color, math.min(10, 2 + math.floor(magnitude)))
+						particleBurst(sourcePos or centerOf(scorePopup), color, math.min(10, 2 + math.floor(magnitude)))
 					end
 
-					-- Running total, floored before %d -- xmult chains can
+					-- Running totals, floored before %d -- xmult chains can
 					-- easily be fractional mid-sequence (e.g. a x1.5
 					-- Special) even when the eventual final mult happens to
 					-- land on a whole number.
-					scorePopupMath.Text = string.format("%d x %d", runningChips, math.floor(runningMult * runningXMult + 0.5))
+					chipsLabel.Text = string.format("%d", math.floor(runningChips + 0.5))
+					multLabel.Text = string.format("%d", math.floor(runningMult * runningXMult + 0.5))
 					task.wait(ENTRY_STAGGER)
 				end
 			end
@@ -279,6 +717,21 @@ return function(deps)
 			if scorePopupToken ~= myToken then
 				return
 			end
+
+			-- Brittle Garnish cards that shattered this hand -- shown
+			-- right after the reveal loop, right before the finale, so
+			-- the "this card broke" beat reads as the last thing that
+			-- happened to it.
+			if preview.brokenCards then
+				for _, brokenCard in ipairs(preview.brokenCards) do
+					local ghostEntry = findGhostForCard(cardGhosts, brokenCard)
+					if ghostEntry and ghostEntry.ghost.Parent then
+						shatterGhost(ghostEntry)
+					end
+				end
+			end
+
+			clearPlayedRowFocus(playedGhosts)
 
 			-- FINALE: the real final numbers (guaranteed correct -- see file
 			-- header comment), biggest pop + shake + burst + a pitched-down
@@ -288,26 +741,43 @@ return function(deps)
 			-- (a Boss Round's chips-halving applied to an odd base chips
 			-- value), not just mult -- Lua 5.3's %d hard-errors on a
 			-- non-integral float.
-			scorePopupMath.Text = string.format("%d x %d", math.floor(preview.chips + 0.5), math.floor(preview.mult + 0.5))
+			chipsLabel.Text = string.format("%d", math.floor(preview.chips + 0.5))
+			multLabel.Text = string.format("%d", math.floor(preview.mult + 0.5))
 			scorePopupScale.Scale = 1.3
 			tweenTo(scorePopupScale, { Scale = 1 }, 0.22, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
+			tweenTo(chipsScale, { Scale = 1.3 }, 0.1)
+			tweenTo(multScale, { Scale = 1.3 }, 0.1)
+			task.delay(0.1, function()
+				if scorePopupToken == myToken then
+					tweenTo(chipsScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					tweenTo(multScale, { Scale = 1 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				end
+			end)
 
 			playPitched(payoutThudSound, 0.55, 0.7) -- pitched well down to fake a heavy low thud
 
 			local finalMagnitude = math.min(10, preview.score / 40)
 			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
-			particleBurst(burstPositionFor(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
+			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
+
+			-- "Played cards drop off the bottom of the screen into the
+			-- discard pile" -- fires alongside the finale so it reads as
+			-- part of the same beat, not a separate afterthought.
+			dropOffPlayedGhosts(playedGhosts)
 
 			-- Hide AFTER the sequence actually finishes, not on a fixed
 			-- timer from when Play Hand was clicked -- a hand loaded with
 			-- Patrons/Garnishes (several anticipation pauses stacked up)
 			-- can easily take longer than any one fixed delay would assume,
-			-- and hiding mid-sequence would cut the reveal off early. 1.6s
-			-- (up from 1.1s) so the final total actually gets read too,
-			-- not just flashed.
+			-- and hiding mid-sequence would cut the reveal off early. Ghost
+			-- cleanup piggybacks on this same delay -- by 1.6s after the
+			-- finale, the drop-off tweens (<=0.5s + up to ~0.5s of
+			-- per-card stagger) are guaranteed done.
 			task.delay(1.6, function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
+					destroyGhosts(liveGhosts)
+					liveGhosts = {}
 				end
 			end)
 		end)

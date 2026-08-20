@@ -93,13 +93,37 @@ end
 		                  value, then each scoring card's rank/Garnish/Special/
 		                  Stamp, then held-card Iron Garnish, then each owned
 		                  Patron's effect + Special). Each entry is
-		                  { kind = "chips"|"mult"|"xmult", amount = number,
-		                  label = string }. This is ADDITIVE data purely for
-		                  client-side scoring "juice" (Client/ScorePopup.lua
-		                  plays it back as a sequenced chips/mult/xmult reveal)
-		                  -- nothing in the engine reads its own breakdown
-		                  back, so it can never desync the actual chips/mult/
-		                  score math above.
+		                  { kind = "chips"|"mult"|"xmult"|"tips", amount = number,
+		                  label = string, source = {...} }. This is ADDITIVE
+		                  data purely for client-side scoring "juice"
+		                  (Client/ScorePopup.lua plays it back as a sequenced,
+		                  per-card reveal) -- nothing in the engine reads its
+		                  own breakdown back, so it can never desync the
+		                  actual chips/mult/score math above.
+
+		                  `source` lets the client trace an entry back to
+		                  whatever physically caused it, so it can animate
+		                  the right on-screen thing instead of just a
+		                  generic HUD number:
+		                    { type = "hand" }                    -- base hand value, no specific card
+		                    { type = "card", card = <Card> }     -- a played card's own rank/Garnish/Special/Stamp
+		                    { type = "heldCard", card = <Card> } -- Iron Garnish while held (not played)
+		                    { type = "patron", patronId = string, patron = <Patron> }
+		                  `card`/`patron` are the SAME table references
+		                  passed into this call (handResult.scoringCards /
+		                  context.heldCards / ownedPatrons all flow straight
+		                  through from whatever the caller passed in -- see
+		                  RunState.playHand and init.client.lua's
+		                  computeHandPreview, which both build these from
+		                  the literal cards in state.hand) -- so a caller
+		                  can match a breakdown entry back to a specific
+		                  on-screen card/Patron with plain `==` reference
+		                  equality, no id-plumbing needed. `kind = "tips"`
+		                  entries (Gold Stamp, Lucky Garnish procs, a
+		                  Patron's flat tips bonus) are new this pass too --
+		                  previously tips were added to `tipsEarned` with no
+		                  breakdown entry at all, so a Lucky Garnish payout
+		                  was invisible to the client-side reveal.
 ]]
 function Scoring.calculate(handResult, ownedPatrons, context)
 	ownedPatrons = ownedPatrons or {}
@@ -121,8 +145,9 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 	-- See the big comment above Scoring.calculate -- this only ever gets
 	-- APPENDED to, never read back into the actual chips/mult/xmult math.
 	local breakdown = {}
-	table.insert(breakdown, { kind = "chips", amount = chips, label = handResult.name })
-	table.insert(breakdown, { kind = "mult", amount = mult, label = handResult.name })
+	local handSource = { type = "hand" }
+	table.insert(breakdown, { kind = "chips", amount = chips, label = handResult.name, source = handSource })
+	table.insert(breakdown, { kind = "mult", amount = mult, label = handResult.name, source = handSource })
 
 	local debuff = context.debuff
 	local function isDebuffed(card)
@@ -180,6 +205,7 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 				triggers = 2
 			end
 
+			local cardSource = { type = "card", card = card }
 			for _ = 1, triggers do
 				local dChips, dMult, dXMult, dTips = scoreCardOnce(card)
 				chips = chips + dChips
@@ -189,13 +215,20 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 
 				local cardLabel = Card.toString(card)
 				if dChips ~= 0 then
-					table.insert(breakdown, { kind = "chips", amount = dChips, label = cardLabel })
+					table.insert(breakdown, { kind = "chips", amount = dChips, label = cardLabel, source = cardSource })
 				end
 				if dMult ~= 0 then
-					table.insert(breakdown, { kind = "mult", amount = dMult, label = cardLabel })
+					table.insert(breakdown, { kind = "mult", amount = dMult, label = cardLabel, source = cardSource })
 				end
 				if dXMult ~= 1 then
-					table.insert(breakdown, { kind = "xmult", amount = dXMult, label = cardLabel })
+					table.insert(breakdown, { kind = "xmult", amount = dXMult, label = cardLabel, source = cardSource })
+				end
+				-- NEW: Gold Stamp / Lucky Garnish tips procs previously had
+				-- no breakdown entry at all (only tipsEarned was bumped) --
+				-- so the client-side reveal could never show a money flash
+				-- for them. Purely additive, same as every other kind here.
+				if dTips ~= 0 then
+					table.insert(breakdown, { kind = "tips", amount = dTips, label = cardLabel, source = cardSource })
 				end
 			end
 
@@ -213,7 +246,7 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		local g = card.garnish and Card.Garnishes[card.garnish]
 		if g and g.heldXMult then
 			xmult = xmult * g.heldXMult
-			table.insert(breakdown, { kind = "xmult", amount = g.heldXMult, label = Card.toString(card) .. " (held)" })
+			table.insert(breakdown, { kind = "xmult", amount = g.heldXMult, label = Card.toString(card) .. " (held)", source = { type = "heldCard", card = card } })
 		end
 	end
 
@@ -223,18 +256,24 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 	context.ownedPatrons = ownedPatrons
 	for i, patron in ipairs(ownedPatrons) do
 		context.patronIndex = i
+		local patronSource = { type = "patron", patronId = patron.id, patron = patron }
 		local bonus = patron.effect(handResult, context) or {}
 		chips = chips + (bonus.chips or 0)
 		mult = mult + (bonus.mult or 0)
 		if bonus.chips and bonus.chips ~= 0 then
-			table.insert(breakdown, { kind = "chips", amount = bonus.chips, label = patron.name })
+			table.insert(breakdown, { kind = "chips", amount = bonus.chips, label = patron.name, source = patronSource })
 		end
 		if bonus.mult and bonus.mult ~= 0 then
-			table.insert(breakdown, { kind = "mult", amount = bonus.mult, label = patron.name })
+			table.insert(breakdown, { kind = "mult", amount = bonus.mult, label = patron.name, source = patronSource })
 		end
 		if bonus.multMultiplier then
 			xmult = xmult * bonus.multMultiplier
-			table.insert(breakdown, { kind = "xmult", amount = bonus.multMultiplier, label = patron.name })
+			table.insert(breakdown, { kind = "xmult", amount = bonus.multMultiplier, label = patron.name, source = patronSource })
+		end
+		-- NEW: a Patron's flat tips bonus previously had no breakdown entry
+		-- either (see the matching Gold Stamp/Lucky Garnish note above).
+		if bonus.tips and bonus.tips ~= 0 then
+			table.insert(breakdown, { kind = "tips", amount = bonus.tips, label = patron.name, source = patronSource })
 		end
 		tipsEarned = tipsEarned + (bonus.tips or 0)
 
@@ -250,14 +289,14 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			chips = chips + (special.chips or 0)
 			mult = mult + (special.mult or 0)
 			if special.chips and special.chips ~= 0 then
-				table.insert(breakdown, { kind = "chips", amount = special.chips, label = patron.name .. "'s Special" })
+				table.insert(breakdown, { kind = "chips", amount = special.chips, label = patron.name .. "'s Special", source = patronSource })
 			end
 			if special.mult and special.mult ~= 0 then
-				table.insert(breakdown, { kind = "mult", amount = special.mult, label = patron.name .. "'s Special" })
+				table.insert(breakdown, { kind = "mult", amount = special.mult, label = patron.name .. "'s Special", source = patronSource })
 			end
 			if special.xmult then
 				xmult = xmult * special.xmult
-				table.insert(breakdown, { kind = "xmult", amount = special.xmult, label = patron.name .. "'s Special" })
+				table.insert(breakdown, { kind = "xmult", amount = special.xmult, label = patron.name .. "'s Special", source = patronSource })
 			end
 		end
 	end
