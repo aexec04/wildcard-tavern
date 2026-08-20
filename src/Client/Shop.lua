@@ -973,7 +973,7 @@ return function(deps)
 
 	local function rebuildMyPatronsTab(ownedPatrons)
 		for _, child in ipairs(shopMyPatronsListFrame:GetChildren()) do
-			if child:IsA("Frame") then
+			if child:IsA("Frame") or child:IsA("TextLabel") then
 				child:Destroy()
 			end
 		end
