@@ -266,29 +266,20 @@ addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "
 
 end -- Generic hover tooltip
 
--- Sidebar Patron slot tooltips: slot i always represents
--- Patrons.Definitions[i] for its whole lifetime (see the comment on the
--- patronSlots loop above), so each slot's Patron identity is fixed even
--- though whether it's OWNED changes as you buy/discard -- use a function
--- (not a plain string) so the tooltip re-checks ownership fresh every
--- time you hover, via latestState, rather than freezing it at load time.
-for i, patron in ipairs(Patrons.Definitions) do
+-- Sidebar Patron slot tooltips: slot i shows whichever Patron currently
+-- sits in seat i of YOUR table (state.ownedPatrons[i]), not a fixed
+-- roster entry -- that changes as you buy/sell, so this has to be a
+-- function (not a plain string) re-evaluated fresh every hover, via
+-- latestState, rather than bound once at construction time.
+for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
 	local slot = patronSlots[i]
 	if slot then
 		addTooltip(slot.frame, function()
-			local owned = false
-			if latestState then
-				for _, owned_patron in ipairs(latestState.ownedPatrons or {}) do
-					if owned_patron.id == patron.id then
-						owned = true
-						break
-					end
-				end
-			end
+			local owned = latestState and latestState.ownedPatrons and latestState.ownedPatrons[i]
 			if owned then
-				return string.format("%s\n%s", patron.name, patron.description)
+				return string.format("%s\n%s", owned.name, owned.description)
 			end
-			return "??? -- not yet unlocked"
+			return "Empty seat -- visit The Bar to recruit a Patron"
 		end)
 	end
 end
@@ -1181,34 +1172,39 @@ local function render(state)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
 	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
 
-	-- LAYOUT FEATURE 5: fill in the Patron slot icons.
+	-- LAYOUT FEATURE 5: fill in the Patron slot icons. Since the Patron
+	-- slot cap (RunState.patronSlotLimit, default 5) went in, this row
+	-- shows YOUR TABLE -- exactly `slotLimit` boxes, filled with the
+	-- Patrons you actually own -- NOT a 22-wide preview of the whole
+	-- roster (that "which have I collected" view already lives on the
+	-- Collection Gallery screen, where it belongs). Slot i shows
+	-- state.ownedPatrons[i] if you own that many, otherwise it's an open
+	-- seat; slots past the current limit are hidden entirely so the row
+	-- never implies more capacity than you actually have.
 	do
-		local ownedPatronIds = {}
-		for _, patron in ipairs(state.ownedPatrons or {}) do
-			ownedPatronIds[patron.id] = true
-		end
-
-		local ownedCount = 0
-		for i, patron in ipairs(Patrons.Definitions) do
+		local ownedPatrons = state.ownedPatrons or {}
+		local slotLimit = math.min(state.patronSlotLimit or #ownedPatrons, MAX_SIDEBAR_PATRON_SLOTS)
+		for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
 			local slot = patronSlots[i]
 			if slot then
-				local isOwned = ownedPatronIds[patron.id] == true
-				if isOwned then
-					ownedCount = ownedCount + 1
-					slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-					slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
-					slot.label.Text = patron.name:sub(1, 1)
+				if i > slotLimit then
+					slot.frame.Visible = false
 				else
-					slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
-					slot.label.TextColor3 = Color3.fromRGB(140, 135, 130)
-					slot.label.Text = "?"
+					slot.frame.Visible = true
+					local owned = ownedPatrons[i]
+					if owned then
+						slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+						slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
+						slot.label.Text = owned.name:sub(1, 1)
+					else
+						slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
+						slot.label.TextColor3 = Color3.fromRGB(120, 115, 110)
+						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
+					end
 				end
 			end
 		end
-		-- Slots used/available, NOT "collected out of the full 22" -- that
-		-- lifetime-collection stat lives on the Collection Gallery screen
-		-- instead. This is the number that's actually actionable mid-run.
-		patronsCountLabel.Text = string.format("%d/%d", ownedCount, state.patronSlotLimit or ownedCount)
+		patronsCountLabel.Text = string.format("%d/%d", #ownedPatrons, slotLimit)
 	end
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly
