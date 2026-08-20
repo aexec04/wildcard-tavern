@@ -9,6 +9,8 @@
 	terminology, not specific to any one game.
 ]]
 
+local Card = require(script.Parent.Card)
+
 local HandEvaluator = {}
 
 -- Ordered weakest -> strongest. Used for shop/UI display and comparisons.
@@ -57,12 +59,23 @@ local function ranksSortedByCountThenValue(rankCounts)
 	return ranks
 end
 
+-- A card with House Blend (wildSuit) Garnish counts toward EVERY suit for
+-- flush purposes (see Card.hasSuit) -- so instead of counting each card's
+-- own .suit directly, count how many cards qualify as each real suit and
+-- look for any suit that reaches 5. This lets e.g. 4 Hearts + 1 House
+-- Blend card complete a Flush, matching how House Blend already works for
+-- suit-based Patron bonuses and Boss Round suit debuffs.
 local function isFlush(cards)
 	if #cards ~= 5 then
 		return false
 	end
-	local suitCounts = countBy(cards, "suit")
-	for _, count in pairs(suitCounts) do
+	for _, suit in ipairs(Card.Suits) do
+		local count = 0
+		for _, card in ipairs(cards) do
+			if Card.hasSuit(card, suit) then
+				count = count + 1
+			end
+		end
 		if count == 5 then
 			return true
 		end

@@ -186,6 +186,7 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 
 	-- ownedPatrons/patronIndex let a patron's effect look at (or copy) its
 	-- neighbors' abilities (see "The Understudy" / "Second Opinion").
+	local ownedPatronSpecials = context.ownedPatronSpecials or {}
 	context.ownedPatrons = ownedPatrons
 	for i, patron in ipairs(ownedPatrons) do
 		context.patronIndex = i
@@ -196,6 +197,22 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			xmult = xmult * bonus.multMultiplier
 		end
 		tipsEarned = tipsEarned + (bonus.tips or 0)
+
+		-- A Special applied to this Patron (Silver/Gold/Rainbow -- e.g. via
+		-- the "Clean Sweep" or "Star Treatment" Secret Recipes) contributes
+		-- its Chips/Mult/XMult every hand, same numbers as on a card. The
+		-- Reserved Special has no chips/mult/xmult fields, so it's a no-op
+		-- here -- its +1 Patron slot effect is handled separately in
+		-- RunState.patronSlotLimit.
+		local specialId = ownedPatronSpecials[patron.id]
+		local special = specialId and Card.Specials[specialId]
+		if special then
+			chips = chips + (special.chips or 0)
+			mult = mult + (special.mult or 0)
+			if special.xmult then
+				xmult = xmult * special.xmult
+			end
+		end
 	end
 
 	mult = mult * xmult

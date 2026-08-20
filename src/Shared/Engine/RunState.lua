@@ -252,6 +252,7 @@ function RunState.playHand(state, cardIndices)
 			allPlayedCards = playedCards,
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
 			handLevels = state.handLevels,
+			ownedPatronSpecials = state.ownedPatronSpecials, -- Silver/Gold/Rainbow on a Patron
 			debuff = bossModifier and bossModifier.debuff,
 			tips = state.tips, -- Tips held BEFORE this hand's reward -- Penny Pincher/Tab Regulars read this
 			alreadyPlayedThisHandTypeThisRound = alreadyPlayedThisHandTypeThisRound, -- Repeat Customer reads this

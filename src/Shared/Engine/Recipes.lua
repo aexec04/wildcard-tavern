@@ -286,6 +286,45 @@ Recipes.HouseRecipes = {
 			return true, "Made a second helping."
 		end,
 	},
+	{
+		id = "encore_order", name = "Encore, Please", icon = "🔁", price = 6,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds an Encore Stamp (retriggers this card's Garnish/Special/Stamp one extra time) to 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].stamp = "encore"
+			return true, "Encore stamped."
+		end,
+	},
+	{
+		id = "blue_plate_special", name = "Blue Plate Special", icon = "🟦", price = 5,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Blue Stamp (creates a Menu Recipe for your last-played hand, if held at round end) to 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].stamp = "blue"
+			return true, "Blue Plate Special, applied."
+		end,
+	},
+	{
+		id = "lucky_ticket", name = "Lucky Ticket", icon = "🍀", price = 5,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Lucky Garnish (chance at bonus Mult, and separately at bonus Tips, when it scores) to 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].garnish = "lucky"
+			return true, "Lucky ticket punched."
+		end,
+	},
 }
 
 -- ===== Menu Recipes (permanently level up a hand type) =====
@@ -430,6 +469,33 @@ Recipes.SecretRecipes = {
 				state.handLevels[handName] = (state.handLevels[handName] or 0) + 1
 			end
 			return true, "The whole menu got better."
+		end,
+	},
+	{
+		id = "kitchen_secret", name = "Kitchen Secret", icon = "🟪", price = 5,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Purple Stamp (creates a random House Recipe when this card is discarded) to 1 selected card.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].stamp = "purple"
+			return true, "The kitchen shares a secret."
+		end,
+	},
+	{
+		id = "star_treatment", name = "Star Treatment", icon = "⭐", price = 6,
+		description = "A random Patron at your table gets a Gold Special (+10 Mult), permanently.",
+		apply = function(state, opts)
+			if #state.ownedPatrons == 0 then
+				return false, "No Patrons to treat"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local picked = randomChoice(state.ownedPatrons, rng)
+			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
+			state.ownedPatronSpecials[picked.id] = "gold"
+			return true, picked.name .. " gets the Star Treatment."
 		end,
 	},
 }

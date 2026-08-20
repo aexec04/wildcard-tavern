@@ -147,6 +147,23 @@ table.insert(tests, { name = "HandEvaluator: straight + flush is Straight Flush,
 	expectEqual(result.name, "Straight Flush")
 end })
 
+table.insert(tests, { name = "HandEvaluator: 4 same-suit + 1 wild (House Blend) card is a Flush", fn = function()
+	local wildCard = Card.new(3, "Spades", { garnish = "houseBlend" })
+	local result = HandEvaluator.evaluate({ C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), wildCard })
+	expectEqual(result.name, "Flush")
+end })
+
+table.insert(tests, { name = "HandEvaluator: 4 same-suit + 1 off-suit (no wild) is NOT a Flush", fn = function()
+	local result = HandEvaluator.evaluate({ C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), C(3, "Spades") })
+	expectFalse(result.name == "Flush", "a plain off-suit card should not complete a Flush")
+end })
+
+table.insert(tests, { name = "HandEvaluator: a wild card can complete both the Straight and the Flush at once", fn = function()
+	local wildCard = Card.new(8, "Spades", { garnish = "houseBlend" }) -- rank fits the straight, suit is wild
+	local result = HandEvaluator.evaluate({ C(4, "Hearts"), C(5, "Hearts"), C(6, "Hearts"), C(7, "Hearts"), wildCard })
+	expectEqual(result.name, "Straight Flush")
+end })
+
 table.insert(tests, { name = "HandEvaluator: 3+2 of a kind is Full House", fn = function()
 	local result = HandEvaluator.evaluate({ C(6, "Hearts"), C(6, "Clubs"), C(6, "Spades"), C(9, "Diamonds"), C(9, "Hearts") })
 	expectEqual(result.name, "Full House")
@@ -190,6 +207,34 @@ table.insert(tests, { name = "Scoring.calculate: 'Last Call' only triggers on th
 
 	local _, _, multLast = Scoring.calculate(hand, { lastCall }, { isLastHand = true })
 	expectEqual(multLast, 2 * 1.5)
+end })
+
+table.insert(tests, { name = "Scoring.calculate: a Gold Special on an owned Patron adds its flat Mult", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, mult = Scoring.calculate(hand, { theRegular }, { ownedPatronSpecials = { the_regular = "gold" } })
+	expectEqual(mult, 2 + 4 + 10) -- base Pair mult (2) + patron flat (4) + Gold Special (+10 Mult)
+end })
+
+table.insert(tests, { name = "Scoring.calculate: a Silver Special on an owned Patron adds its flat Chips", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, chips = Scoring.calculate(hand, { theRegular }, { ownedPatronSpecials = { the_regular = "silver" } })
+	expectEqual(chips, 10 + 9 + 9 + 50)
+end })
+
+table.insert(tests, { name = "Scoring.calculate: a Rainbow Special on an owned Patron multiplies XMult", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, mult = Scoring.calculate(hand, { theRegular }, { ownedPatronSpecials = { the_regular = "rainbow" } })
+	expectEqual(mult, (2 + 4) * 1.5)
+end })
+
+table.insert(tests, { name = "Scoring.calculate: a Reserved Special on an owned Patron adds no Chips/Mult/XMult", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
+	local theRegular = Patrons.getById("the_regular")
+	local _, _, mult = Scoring.calculate(hand, { theRegular }, { ownedPatronSpecials = { the_regular = "reserved" } })
+	expectEqual(mult, 2 + 4) -- Reserved's +1 slot effect lives in RunState.patronSlotLimit, not here
 end })
 
 -- ===== RunState (integration) =====
@@ -676,6 +721,68 @@ table.insert(tests, { name = "RunState.buyHouseRecipe + useHouseRecipe: full pur
 	expectTrue(usedOk)
 	expectEqual(#state.houseRecipeInventory, 0)
 	expectEqual(state.lastRecipeUsedId, recipe.id)
+end })
+
+table.insert(tests, { name = "House Recipe 'Encore, Please' adds an Encore Stamp to the selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("encore_order")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].stamp, "encore")
+end })
+
+table.insert(tests, { name = "House Recipe 'Blue Plate Special' adds a Blue Stamp to the selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("blue_plate_special")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].stamp, "blue")
+end })
+
+table.insert(tests, { name = "House Recipe 'Lucky Ticket' adds a Lucky Garnish to the selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("lucky_ticket")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].garnish, "lucky")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Kitchen Secret' adds a Purple Stamp to the selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("kitchen_secret")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].stamp, "purple")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Star Treatment' gives a random owned Patron a Gold Special", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local recipe = Recipes.getSecretRecipeById("star_treatment")
+	local ok = recipe.apply(state, { rng = function(n) return n end })
+	expectTrue(ok)
+	expectEqual(state.ownedPatronSpecials["the_regular"], "gold")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Star Treatment' refuses when there are no Patrons to treat", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("star_treatment")
+	local ok, message = recipe.apply(state, {})
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "RunState.playHand: 'Star Treatment' Gold Special actually raises the played score", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local before = RunState.playHand(state, { 1 })
+	Recipes.getSecretRecipeById("star_treatment").apply(state, { rng = function(n) return n end })
+	local after = RunState.playHand(state, { 1 })
+	-- Same hand shape (single card, High Card) before/after -- the only
+	-- difference is the Gold Special's +10 Mult now folded into scoring.
+	expectEqual(after.mult, before.mult + 10)
 end })
 
 -- ===== Feature Expansion: Patron slot cap =====
