@@ -160,7 +160,13 @@ return function(deps)
 
 	local patronsSlotLayout = Instance.new("UIListLayout")
 	patronsSlotLayout.FillDirection = Enum.FillDirection.Horizontal
-	patronsSlotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	-- Was Left -- with only patronSlotLimit (5 by default) of the 14
+	-- possible slots actually Visible at once (see LAYOUT FEATURE 5 in
+	-- init.client.lua's render()), Left-aligned left the row looking
+	-- lopsided, bunched against the left edge with a big empty gap on the
+	-- right. Center keeps it looking balanced no matter how many slots
+	-- are actually shown.
+	patronsSlotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	patronsSlotLayout.Padding = UDim.new(0, 6)
 	patronsSlotLayout.Parent = patronsSlotRow
 
