@@ -149,11 +149,16 @@ return function(deps)
 	local DROPOFF_DURATION = 0.7 -- played row "drop into discard" tween at the end
 	local GHOST_HARD_TIMEOUT = 12 -- last-resort backstop, see showScorePopup's per-ghost task.delay
 	-- PACING: how long the finale's final "Chips x Mult" stays on screen
-	-- before the popup hides. Was 1.1s originally, 1.6s then 2.6s in
-	-- earlier pacing passes; kept at 2.6s here (Ahmed's actual ask this
-	-- round was to slow down the REST of the sequence, not the finale
-	-- specifically -- see the per-entry knobs above).
-	local FINALE_LINGER = 2.6
+	-- before the popup hides. Was 1.1s originally, 1.6s, then 2.6s in
+	-- earlier pacing passes. Trimmed back down to 1.8s here -- Ahmed's
+	-- report was that once the played cards drop off toward the deck, the
+	-- lingering "Chips x Mult" readout with nothing else happening felt
+	-- unnecessary. Now that dropOffPlayedGhosts actually cleans its ghosts
+	-- up as soon as they land (see that function's BUGFIX comment) instead
+	-- of leaving them frozen at the deck for the rest of this linger, the
+	-- dead-air problem is smaller, but the linger itself still doesn't need
+	-- to run the full 2.6s to be readable.
+	local FINALE_LINGER = 1.8
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -561,18 +566,42 @@ return function(deps)
 	-- bottom of the screen into the discard pile." Cards that already
 	-- shattered (see shatterGhost) are skipped -- their ghost.Parent is
 	-- already nil by the time this runs.
+	--
+	-- BUGFIX (Ahmed's Studio screenshot + report): this used to only tween
+	-- each ghost down to Scale 0.5 and stop -- the ghost then just sat
+	-- there, small but fully visible, parked at the deck for however long
+	-- was left of FINALE_LINGER before the *next* showScorePopup call (or
+	-- the end-of-sequence destroyGhosts below) finally cleaned it up. Ahmed
+	-- described this as the cards "look like that for a bit instead of
+	-- just disappearing after getting back to the deck" -- so now each
+	-- ghost shrinks all the way to nothing and gets destroyed the instant
+	-- its OWN drop tween finishes, instead of waiting on the shared
+	-- end-of-sequence cleanup.
 	local function dropOffPlayedGhosts(playedGhosts)
 		local targetPos
 		if deckWidgetButton and deckWidgetButton.Parent then
 			targetPos = centerOf(deckWidgetButton)
 		end
 		for i, entry in ipairs(playedGhosts) do
-			task.delay((i - 1) * 0.05, function()
+			local startDelay = (i - 1) * 0.05
+			task.delay(startDelay, function()
 				local ghost = entry.ghost
 				if ghost.Parent then
 					local dest = targetPos or UDim2.fromOffset(ghost.Position.X.Offset, root.AbsoluteSize.Y + 120)
 					tweenTo(ghost, { Position = dest }, DROPOFF_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-					tweenTo(entry.scale, { Scale = 0.5 }, DROPOFF_DURATION)
+					tweenTo(entry.scale, { Scale = 0 }, DROPOFF_DURATION)
+				end
+			end)
+			task.delay(startDelay + DROPOFF_DURATION, function()
+				local ghost = entry.ghost
+				if ghost.Parent then
+					ghost:Destroy()
+				end
+				for liveIndex, liveEntry in ipairs(liveGhosts) do
+					if liveEntry == entry then
+						table.remove(liveGhosts, liveIndex)
+						break
+					end
 				end
 			end)
 		end
