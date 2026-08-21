@@ -26,6 +26,50 @@ local sceneModel = Instance.new("Model")
 sceneModel.Name = "TavernScene"
 sceneModel.Parent = workspace
 
+-- ===== Mood lighting (poster-art atmosphere) =====
+-- This room has no ceiling (see the wall shell below), so Roblox's normal
+-- sky/sun lighting still reaches it -- these `Lighting` service settings
+-- are what actually set the overall mood, with the torches (further down)
+-- filling in the warm highlights on top. Sampled from the game's own
+-- thumbnail/poster art: a dim, warm, candlelit tavern at night with a
+-- whisper of the Joker card's violet magic in the shadows and haze --
+-- same family of colors as the "Neon Joker" cosmetic Theme
+-- (Shared/Engine/Themes.lua), so the 3D room and the 2D UI read as one
+-- consistent look if you have that Theme equipped (there's currently no
+-- code tying the two together beyond sharing hand-picked colors -- the 3D
+-- scene doesn't reactively change per-player based on their equipped
+-- Theme, it's just one fixed mood for the whole room).
+do
+	local Lighting = game:GetService("Lighting")
+
+	-- Technology = Future is what actually lets Atmosphere/ColorCorrection
+	-- render with real depth (bloom, proper haze) instead of a flatter
+	-- fallback look -- standard for a stylized game like this. If it ever
+	-- turns out to tank frame rate on a low-end device, ShadowMap is the
+	-- safe fallback (just costs some of this atmosphere's richness).
+	Lighting.Technology = Enum.Technology.Future
+	Lighting.ClockTime = 20 -- dusk/night, so the torches actually read as the light source
+	Lighting.Brightness = 1
+	Lighting.Ambient = Color3.fromRGB(35, 24, 30) -- dark warm-plum shadow fill
+	Lighting.OutdoorAmbient = Color3.fromRGB(45, 32, 40)
+
+	local colorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect")
+	colorCorrection.Name = "TavernColorGrade"
+	colorCorrection.TintColor = Color3.fromRGB(255, 225, 205) -- warm amber, matches the candlelight in the poster art
+	colorCorrection.Contrast = 0.12
+	colorCorrection.Saturation = 0.15 -- a bit more vivid, closer to the poster's punch than flat default lighting
+	colorCorrection.Parent = Lighting
+
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+	atmosphere.Density = 0.35
+	atmosphere.Offset = 0.25
+	atmosphere.Color = Color3.fromRGB(199, 170, 140) -- warm haze near the torches
+	atmosphere.Decay = Color3.fromRGB(92, 60, 110) -- distant haze picks up a violet cast -- the Joker's magic, at range
+	atmosphere.Glare = 0.2
+	atmosphere.Haze = 1.2
+	atmosphere.Parent = Lighting
+end
+
 local function makePart(size, cframe, color, material, parent, shape)
 	local part = Instance.new("Part")
 	part.Anchored = true
@@ -164,6 +208,29 @@ do
 	)
 	tableTop.CFrame = tableTop.CFrame * CFrame.Angles(0, 0, math.rad(90))
 	tableTop.Name = "TableTop"
+
+	-- A small violet accent light hovering just over the table -- the
+	-- Joker card's magic glow from the poster art, worked into the room
+	-- itself rather than just the UI. Same color as the "Neon Joker" Theme's
+	-- `cardSelected` (Shared/Engine/Themes.lua), so anyone who's noticed
+	-- that Theme's violet gets a subtle real-world echo of it here. Kept
+	-- deliberately faint (low Brightness/Range) -- an accent, not a second
+	-- sun; the torches (see the room shell below) still do the actual work
+	-- of lighting the room.
+	local jokerGlowAnchor = Instance.new("Part")
+	jokerGlowAnchor.Name = "JokerGlowAnchor"
+	jokerGlowAnchor.Anchored = true
+	jokerGlowAnchor.CanCollide = false
+	jokerGlowAnchor.Transparency = 1
+	jokerGlowAnchor.Size = Vector3.new(0.2, 0.2, 0.2)
+	jokerGlowAnchor.CFrame = CFrame.new(TABLE_CENTER + Vector3.new(0, TABLE_TOP_Y + 3, 0))
+	jokerGlowAnchor.Parent = sceneModel
+
+	local jokerGlow = Instance.new("PointLight")
+	jokerGlow.Color = Color3.fromRGB(205, 85, 245)
+	jokerGlow.Range = 14
+	jokerGlow.Brightness = 1.2
+	jokerGlow.Parent = jokerGlowAnchor
 end
 
 -- ===== Patron NPCs, seated around the table =====

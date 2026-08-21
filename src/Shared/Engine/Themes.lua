@@ -84,14 +84,20 @@ Themes.Definitions = {
 	{
 		id = "neon_joker",
 		name = "Neon Joker",
-		description = "Gold and violet, straight off the marquee -- the game's own poster colors.",
+		-- Re-sampled straight from the actual thumbnail/poster art (the
+		-- tavern interior + the Joker card's magic glow), not just a
+		-- guessed "gold and violet" -- the poster's base is dark WOOD
+		-- brown with warm candlelight, not a straight purple wash; the
+		-- violet only shows up as the Joker's glow/smoke, which is what
+		-- `cardSelected` (the "lit up" state) represents here.
+		description = "Warm tavern wood and candlelight, with the Joker card's violet glow -- straight off the game's own poster art.",
 		price = 15,
 		colors = {
-			background = Color3.fromRGB(20, 10, 28),
-			panelBg = Color3.fromRGB(42, 20, 58),
-			accent = Color3.fromRGB(212, 160, 60),
-			cardBase = Color3.fromRGB(250, 240, 225),
-			cardSelected = Color3.fromRGB(200, 90, 255),
+			background = Color3.fromRGB(22, 14, 18),
+			panelBg = Color3.fromRGB(46, 28, 40),
+			accent = Color3.fromRGB(230, 175, 68),
+			cardBase = Color3.fromRGB(250, 238, 220),
+			cardSelected = Color3.fromRGB(205, 85, 245),
 		},
 	},
 }
