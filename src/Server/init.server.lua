@@ -67,6 +67,7 @@ local BuyPackRemote = newRemote("BuyPack")       -- (player, packId)
 local ResolvePackRemote = newRemote("ResolvePack") -- (player, chosenIds)
 local BuyHousePassRemote = newRemote("BuyHousePass") -- (player, passId)
 local AdvanceRoundRemote = newRemote("AdvanceRound")
+local SkipRoundRemote = newRemote("SkipRound") -- (player) -- JOURNEY FEATURE: skip the current round for a smaller Tips reward, see RunState.skipRound
 local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
@@ -222,6 +223,21 @@ local function serializeState(session)
 		}
 	end
 
+	-- JOURNEY FEATURE: this Night's Boss modifier, revealed from Round 1
+	-- onward (see RunState.startRound) -- lets the Journey map show WHICH
+	-- Boss is coming, not just a generic crown icon, for every round of
+	-- the current Night leading up to it. Same sanitized id/name/
+	-- description shape as bossModifier above, for the same reason: only
+	-- ship what the client actually needs to display.
+	local nightBossModifier = nil
+	if state.nightBossModifier then
+		nightBossModifier = {
+			id = state.nightBossModifier.id,
+			name = state.nightBossModifier.name,
+			description = state.nightBossModifier.description,
+		}
+	end
+
 	return {
 		phase = session.phase,
 		night = state.night,
@@ -248,6 +264,10 @@ local function serializeState(session)
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
 		bossModifier = bossModifier,
+		-- JOURNEY FEATURE
+		nightBossModifier = nightBossModifier,
+		canSkipRound = RunState.canSkipRound(state),
+		skipReward = RunState.skipRewardFor(state),
 		handStats = state.handStats,
 		handLevels = state.handLevels,
 		-- SCORING JUICE fix: computeHandPreview (init.client.lua) needs
@@ -692,6 +712,29 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	-- (or skipped) before Next Round is even clickable client-side, but
 	-- don't leave a stale one open across the round boundary if it happens.
 	session.state.pendingPack = nil
+	pushState(player)
+end)
+
+-- JOURNEY FEATURE: skip the current round outright for a smaller Tips
+-- reward -- see RunState.skipRound's header comment for the full rules
+-- (never the Boss round, never once you've touched the round). Only
+-- reachable from the "playing" phase, same as PlayHand/Discard -- there's
+-- nothing to skip while the shop or game-over screen is up.
+SkipRoundRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	if not session or session.phase ~= "playing" then
+		return
+	end
+	if not RunState.canSkipRound(session.state) then
+		return
+	end
+
+	local ok, err = pcall(RunState.skipRound, session.state)
+	if not ok then
+		warn("SkipRound error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+
 	pushState(player)
 end)
 

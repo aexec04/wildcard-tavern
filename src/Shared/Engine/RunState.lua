@@ -109,6 +109,17 @@ function RunState.new(options, rng)
 		pendingPack = nil, -- set by RunState.openPack, cleared by RunState.resolvePack -- see below
 		brittleShieldRound = false, -- set by the "Sugar Shield" Secret Recipe, reset each round -- see below
 		bossModifier = nil,
+		-- JOURNEY FEATURE: this Night's Boss Round modifier, picked once
+		-- when the Night's first round starts (see startRound below) and
+		-- held for the rest of the Night, so the Journey map can reveal
+		-- which specific Boss you're walking toward before you ever reach
+		-- Round `roundsPerNight` -- it used to only get picked at the
+		-- instant the Boss round itself started, so there was no way to
+		-- know in advance. `bossModifier` (above) still only gets set to
+		-- this on the actual Boss round itself -- everywhere else that
+		-- reads bossModifier for scoring/hand-size/etc purposes is
+		-- unaffected.
+		nightBossModifier = nil,
 		roundOver = false,
 		runOver = false,
 		wonRun = false,
@@ -132,8 +143,22 @@ function RunState.startRound(state)
 	state.hand = {}
 	state.deck = Deck.shuffle(state.deck, state.rng)
 
+	-- JOURNEY FEATURE: pick this Night's Boss modifier as soon as its FIRST
+	-- round starts (not lazily, only once you reach the Boss round itself)
+	-- so it's knowable -- and can be shown on the Journey map -- for the
+	-- whole Night leading up to it. `state.round == 1` is the "a new Night
+	-- just started" signal here (RunState.new's initial startRound call
+	-- also lands here, since every run/Night begins at round 1).
+	if state.bossRoundsEnabled then
+		if state.round == 1 then
+			state.nightBossModifier = BossRounds.pick(state.rng)
+		end
+	else
+		state.nightBossModifier = nil
+	end
+
 	local isBoss = state.bossRoundsEnabled and BossRounds.isBossRound(state.round, state.config.roundsPerNight)
-	state.bossModifier = isBoss and BossRounds.pick(state.rng) or nil
+	state.bossModifier = isBoss and state.nightBossModifier or nil
 	local bossModifier = state.bossModifier
 
 	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
@@ -899,6 +924,67 @@ function RunState.advanceToNextRound(state)
 		state.night = state.night + 1
 	end
 	RunState.startRound(state)
+end
+
+--[[
+	JOURNEY FEATURE: skip the current round outright instead of playing it,
+	for a smaller flat Tips reward (see skipRewardFor below) -- mirrors "you
+	can skip the Small/Big Blind for a reward, but never the Boss Blind"
+	from the reference game.
+
+	Deliberately narrow about WHEN skipping is allowed (see canSkipRound):
+	only the last round of a Night (the Boss round) is permanently
+	unskippable; any earlier round in the Night can be skipped, but only
+	before you've touched it (no hand played, no Discard used, no score on
+	the board yet) -- once you've started a round for real, skipping away
+	from it would be forfeiting real progress, which isn't the tradeoff
+	this feature is for.
+
+	Skipping bypasses the normal roundOver -> shop -> advanceToNextRound
+	flow entirely (it jumps straight into the next round's startRound) --
+	on purpose, so skipping a round always means missing that round's shop
+	visit too. That's the real cost of the free Tips: you don't play the
+	round, but you don't get to spend at The Bar afterward either.
+]]
+function RunState.skipRewardFor(state)
+	-- Deliberately less than a normal round win (config.tipsPerRoundWin,
+	-- doubled for a Boss Round -- see playHand above): skipping also means
+	-- missing that round's shop visit, so it has to stay worse than
+	-- actually playing for the choice to be a real tradeoff, not a
+	-- strictly-better shortcut. Scales gently by Night so skipping later
+	-- still feels worth slightly more.
+	--
+	-- BUGFIX (independent review, before this ever reached Ahmed): the
+	-- Night-based scaling below used to have no ceiling, so it silently
+	-- crossed -- and eventually exceeded -- tipsPerRoundWin by Night 4-5,
+	-- breaking the exact tradeoff this comment promises (a long run could
+	-- reach a Night where skipping paid MORE than actually winning the
+	-- round, for free, no hands played). Capped at tipsPerRoundWin - 1 so
+	-- it can climb early on but can never reach, let alone pass, a real
+	-- win's reward, no matter how far a run goes.
+	local uncapped = math.ceil(state.config.tipsPerRoundWin / 2) + (state.night - 1)
+	return math.min(uncapped, state.config.tipsPerRoundWin - 1)
+end
+
+function RunState.canSkipRound(state)
+	if state.roundOver or state.runOver then
+		return false
+	end
+	if state.round >= state.config.roundsPerNight then
+		return false -- the Boss round (last round of the Night) is never skippable
+	end
+	return state.handsRemaining == state.config.handsPerRound
+		and state.discardsRemaining == state.config.discardsPerRound
+		and state.roundScore == 0
+end
+
+function RunState.skipRound(state)
+	assert(RunState.canSkipRound(state), "Can't skip this round")
+	local reward = RunState.skipRewardFor(state)
+	state.tips = state.tips + reward
+	state.round = state.round + 1
+	RunState.startRound(state)
+	return reward
 end
 
 return RunState

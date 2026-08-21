@@ -46,6 +46,7 @@ local SellPatronRemote = remotes:WaitForChild("SellPatron")
 local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
 local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
+local SkipRoundRemote = remotes:WaitForChild("SkipRound") -- JOURNEY FEATURE: skip the current round for a smaller Tips reward
 local RestartRunRemote = remotes:WaitForChild("RestartRun")
 local StartRunRemote = remotes:WaitForChild("StartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
@@ -671,35 +672,6 @@ local ThemesOverlay = require(script.Themes)({
 local themesBackdrop = ThemesOverlay.themesBackdrop
 local refreshThemesList = ThemesOverlay.refreshThemesList
 
--- ===== Road Ahead (journey/roadmap) overlay =====
--- Extracted into Client/Journey.lua. render() still needs to check
--- journeyBackdrop.Visible and call refreshJourney(), so both come back out
--- of the require() call, same pattern as Themes.lua.
-local JourneyOverlay = require(script.Journey)({
-	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	tweenTo = tweenTo,
-	DifficultyTiers = DifficultyTiers,
-	BossRounds = BossRounds,
-	RunStateEngine = RunStateEngine,
-	Players = Players,
-	player = player,
-	journeyButton = journeyButton,
-	menuJourneyButton = menuJourneyButton,
-	getLatestState = function()
-		return latestState
-	end,
-	getCurrentTheme = function()
-		return currentTheme
-	end,
-})
-local journeyBackdrop = JourneyOverlay.journeyBackdrop
-local refreshJourney = JourneyOverlay.refreshJourney
-
 -- ===== Poker Hands reference overlay =====
 -- Extracted into Client/PokerHandsReference.lua. Fully self-contained (only
 -- opened from its own corner button), so nothing needs to come back out of
@@ -904,6 +876,45 @@ local RoundRewardPopupModule = require(script.RoundRewardPopup)({
 	SOUND_IDS = SOUND_IDS,
 })
 local showRoundReward = RoundRewardPopupModule.showRoundReward
+
+-- ===== Road Ahead (journey/roadmap) overlay =====
+-- Extracted into Client/Journey.lua. render() still needs to check
+-- journeyBackdrop.Visible and call refreshJourney(), so both come back out
+-- of the require() call, same pattern as Themes.lua. Required down here
+-- (not right after MenuScreen like the other overlays) specifically so it
+-- can take showRoundReward as a dep -- JOURNEY FEATURE's Skip button reuses
+-- the same "+$X Tips" popup a round win shows, and showRoundReward doesn't
+-- exist yet as a local until RoundRewardPopupModule above has run.
+local JourneyOverlay = require(script.Journey)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	tweenTo = tweenTo,
+	DifficultyTiers = DifficultyTiers,
+	BossRounds = BossRounds,
+	RunStateEngine = RunStateEngine,
+	Players = Players,
+	player = player,
+	journeyButton = journeyButton,
+	menuJourneyButton = menuJourneyButton,
+	getLatestState = function()
+		return latestState
+	end,
+	getCurrentTheme = function()
+		return currentTheme
+	end,
+	addTooltip = addTooltip,
+	-- JOURNEY FEATURE
+	requestSkipRound = function()
+		SkipRoundRemote:FireServer()
+	end,
+	showRoundReward = showRoundReward,
+})
+local journeyBackdrop = JourneyOverlay.journeyBackdrop
+local refreshJourney = JourneyOverlay.refreshJourney
 
 local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}

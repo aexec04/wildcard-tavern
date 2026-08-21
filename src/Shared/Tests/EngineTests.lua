@@ -582,7 +582,6 @@ table.insert(tests, { name = "Standard difficulty picks a Boss Round modifier on
 end })
 
 table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks the dealt hand", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
 	-- Find Dry Spell's actual position (handSizeDelta = -1, discardsDelta =
 	-- -1) rather than assuming it's last -- new Boss Rounds get appended
 	-- to the list over time, which would otherwise silently pick a
@@ -594,12 +593,99 @@ table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks 
 		end
 	end
 	expectTrue(dryIndex ~= nil, "expected to find dry_spell in BossRounds.Definitions")
-	state.rng = function(_n) return dryIndex end
+	-- JOURNEY FEATURE: the Night's Boss modifier is now picked at Round 1
+	-- (see RunState.startRound), not lazily the instant the Boss round
+	-- itself starts -- so the deterministic rng has to be in place from
+	-- construction, not patched onto `state.rng` after the fact (that
+	-- would be too late: Round 1's pick already happened inside
+	-- RunState.new, using whatever rng was passed there).
+	local state = RunState.new(nil, function(_n) return dryIndex end)
 	state.round = state.config.roundsPerNight
 	RunState.startRound(state)
 	expectEqual(state.bossModifier.id, "dry_spell")
 	expectEqual(#state.hand, state.config.handSize - 1)
 	expectEqual(state.discardsRemaining, state.config.discardsPerRound - 1)
+end })
+
+table.insert(tests, { name = "JOURNEY: a Night's Boss modifier is knowable from Round 1, before the Boss round itself", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectTrue(state.nightBossModifier ~= nil, "expected nightBossModifier to already be picked at Round 1")
+	expectTrue(state.bossModifier == nil, "Round 1 itself is never the Boss round")
+	local revealedId = state.nightBossModifier.id
+
+	-- Advance through the rest of the Night without touching state.rng --
+	-- the SAME modifier revealed back at Round 1 should be the one that
+	-- actually applies once the Boss round arrives.
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectEqual(state.bossModifier.id, revealedId)
+end })
+
+table.insert(tests, { name = "JOURNEY: Casual difficulty never reveals a nightBossModifier either", fn = function()
+	local state = RunState.new({ difficultyId = "casual" }, function(n) return n end)
+	expectTrue(state.nightBossModifier == nil)
+end })
+
+table.insert(tests, { name = "JOURNEY: canSkipRound is false on a Night's last (Boss) round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.round = state.config.roundsPerNight
+	expectFalse(RunState.canSkipRound(state))
+end })
+
+table.insert(tests, { name = "JOURNEY: canSkipRound is false once a hand's been played this round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectTrue(RunState.canSkipRound(state), "a fresh Round 1 should be skippable")
+	RunState.playHand(state, { 1 })
+	expectFalse(RunState.canSkipRound(state), "should no longer be skippable after playing a hand")
+end })
+
+table.insert(tests, { name = "JOURNEY: canSkipRound is false once a Discard's been used this round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	RunState.discard(state, { 1 })
+	expectFalse(RunState.canSkipRound(state))
+end })
+
+table.insert(tests, { name = "JOURNEY: skipRound grants Tips and advances straight to the next round without opening a shop", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local tipsBefore = state.tips
+	local roundBefore = state.round
+	local reward = RunState.skipRound(state)
+	expectEqual(state.tips, tipsBefore + reward)
+	expectEqual(state.round, roundBefore + 1)
+	expectTrue(reward > 0)
+	expectTrue(reward < state.config.tipsPerRoundWin, "skip reward should stay worse than actually winning the round")
+	expectFalse(state.roundOver, "skipping should never flip roundOver/open a shop")
+end })
+
+table.insert(tests, { name = "JOURNEY: skipRound refuses to run when canSkipRound is false", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.round = state.config.roundsPerNight -- the Boss round
+	local ok = pcall(RunState.skipRound, state)
+	expectFalse(ok, "expected skipRound to assert/fail on the Boss round")
+end })
+
+table.insert(tests, { name = "JOURNEY: skipRewardFor scales up gently across Nights, but never reaches tipsPerRoundWin", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local night1Reward = RunState.skipRewardFor(state)
+	state.night = 2
+	local night2Reward = RunState.skipRewardFor(state)
+	expectTrue(night2Reward > night1Reward, "later Nights should reward slightly more for skipping")
+	expectTrue(night1Reward < state.config.tipsPerRoundWin, "skipping should always stay worse than a real round win")
+	expectTrue(night2Reward < state.config.tipsPerRoundWin, "skipping should always stay worse than a real round win")
+end })
+
+table.insert(tests, { name = "JOURNEY: skipRewardFor caps out and never reaches tipsPerRoundWin, even on a very long run", fn = function()
+	-- BUGFIX regression test: this used to grow without a ceiling and cross
+	-- (then exceed) tipsPerRoundWin by around Night 4-5 -- see
+	-- skipRewardFor's header comment. Check a wide spread of Nights so this
+	-- can't silently regress at some specific Night number again.
+	local state = RunState.new(nil, function(n) return n end)
+	for night = 1, 20 do
+		state.night = night
+		local reward = RunState.skipRewardFor(state)
+		expectTrue(reward < state.config.tipsPerRoundWin, "skip reward must stay below tipsPerRoundWin at Night " .. night)
+		expectTrue(reward > 0, "skip reward must stay positive at Night " .. night)
+	end
 end })
 
 table.insert(tests, { name = "Boss Round target score multiplier is folded into targetScore", fn = function()

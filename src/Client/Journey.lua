@@ -32,6 +32,24 @@
 		getCurrentTheme   -- function() -> the currently-equipped theme table (live
 		                      getter, since currentTheme is reassigned on every
 		                      theme change, not mutated)
+		addTooltip        -- function(button, text, align?) -- text can be a
+		                      0-arg function for dynamic content
+		requestSkipRound  -- function() -- fires the SkipRound remote; the
+		                      server re-validates everything (see
+		                      RunState.canSkipRound), this is fire-and-forget
+		showRoundReward   -- function(amount) -- the same "+$X Tips" popup a
+		                      round win shows, reused here for the Skip
+		                      button's immediate feedback
+
+	JOURNEY FEATURE (skip-a-round + Boss reveal): the map now also shows
+	which specific Boss Round modifier is coming this Night (once the
+	server has picked it -- see RunState.startRound's nightBossModifier)
+	instead of just a generic crown icon, and a Skip button that lets you
+	take a smaller Tips reward instead of playing the round you're
+	currently on (never available for the Boss round itself, or once
+	you've already played a hand/used a Discard this round -- see
+	RunState.canSkipRound). Skipping never opens that round's shop visit --
+	see RunState.skipRound's header comment for the full rules.
 
 	Returns:
 		{
@@ -57,6 +75,9 @@ return function(deps)
 	local menuJourneyButton = deps.menuJourneyButton
 	local getLatestState = deps.getLatestState
 	local getCurrentTheme = deps.getCurrentTheme
+	local addTooltip = deps.addTooltip
+	local requestSkipRound = deps.requestSkipRound
+	local showRoundReward = deps.showRoundReward
 
 	-- LAYOUT FEATURE 9: Ahmed wanted his own creative spin here instead of
 	-- copying Balatro's plain list -- a 2D, Mario-map-style path where your
@@ -67,6 +88,15 @@ return function(deps)
 	local ROUNDS_PER_NIGHT = 3
 	local NODE_SIZE = 64
 	local NIGHT_GAP_EXTRA = 60 -- extra width of the spacer between night clusters
+
+	-- Shared by refreshJourneyImpl/describeStage/refreshInfoBar (JOURNEY
+	-- FEATURE) -- pulled out to one place instead of 3 copies of the same
+	-- "look up this difficulty tier, fall back to default" dance.
+	local function bossRoundsEnabledFor(latestState)
+		local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
+			or DifficultyTiers.getById(DifficultyTiers.DefaultId)
+		return journeyDifficulty.bossRoundsEnabled ~= false
+	end
 
 	local journeyBackdrop = Instance.new("Frame")
 	journeyBackdrop.Name = "JourneyBackdrop"
@@ -114,7 +144,9 @@ return function(deps)
 	-- just be read off a node's AbsolutePosition and it'll line up correctly,
 	-- including while scrolled.
 	local journeyMapScroll = Instance.new("ScrollingFrame")
-	journeyMapScroll.Size = UDim2.new(1, -20, 1, -160)
+	-- Bottom margin grew from 160 to 230 to make room for the new JOURNEY
+	-- FEATURE info/skip bar below the map (see journeyInfoBar further down).
+	journeyMapScroll.Size = UDim2.new(1, -20, 1, -230)
 	journeyMapScroll.Position = UDim2.new(0, 10, 0, 68)
 	journeyMapScroll.BackgroundTransparency = 1
 	journeyMapScroll.BorderSizePixel = 0
@@ -301,6 +333,143 @@ return function(deps)
 		end
 	end
 
+	-- JOURNEY FEATURE: per-node hover tooltip -- the full Boss name +
+	-- description once known (this Night's Boss only -- future Nights
+	-- haven't been rolled yet, see RunState.startRound), or the target
+	-- score for a plain round. `text` is a 0-arg function (addTooltip
+	-- supports this) so it always reflects the CURRENT server state at the
+	-- moment you actually hover, not whatever was true when the map was
+	-- built.
+	local function describeStage(entry)
+		local latestState = getLatestState()
+		local currentNight = (latestState and latestState.night) or 1
+		local bossRoundsEnabled = bossRoundsEnabledFor(latestState)
+		local isBoss = bossRoundsEnabled and BossRounds.isBossRound(entry.round, ROUNDS_PER_NIGHT)
+		local target = RunStateEngine.targetScoreFor(entry.night, entry.round, ROUNDS_PER_NIGHT)
+
+		if not isBoss then
+			return string.format("Round %d, Night %d\nTarget Score: %d", entry.round, entry.night, target)
+		end
+
+		if not bossRoundsEnabled then
+			return "Boss Rounds are off this run."
+		end
+
+		if entry.night == currentNight and latestState and latestState.nightBossModifier then
+			local modifier = latestState.nightBossModifier
+			return string.format("👑 %s\n%s\nTarget Score: %d", modifier.name, modifier.description, target)
+		end
+
+		return string.format("👑 Boss Round, Night %d\nRevealed once you reach this Night.\nTarget Score: %d", entry.night, target)
+	end
+
+	if addTooltip then
+		for _, entry in ipairs(journeyStageNodes) do
+			addTooltip(entry.node, function()
+				return describeStage(entry)
+			end)
+		end
+	end
+
+	-- JOURNEY FEATURE: info bar (this Night's Boss, once known) + Skip
+	-- button (take a smaller Tips reward instead of playing the round
+	-- you're currently on -- never available for the Boss round, see
+	-- RunState.canSkipRound). Sits between the map and the Close button.
+	local journeyInfoBar = Instance.new("Frame")
+	journeyInfoBar.Size = UDim2.new(1, -30, 0, 92)
+	journeyInfoBar.Position = UDim2.new(0, 15, 1, -152)
+	journeyInfoBar.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	journeyInfoBar.ZIndex = 21
+	journeyInfoBar.Parent = journeyPanel
+	roundCorner(journeyInfoBar, 10)
+
+	local journeyBossInfoLabel = Instance.new("TextLabel")
+	journeyBossInfoLabel.Size = UDim2.new(1, -170, 1, -16)
+	journeyBossInfoLabel.Position = UDim2.new(0, 12, 0, 8)
+	journeyBossInfoLabel.BackgroundTransparency = 1
+	journeyBossInfoLabel.Font = Enum.Font.Gotham
+	journeyBossInfoLabel.TextSize = 13
+	journeyBossInfoLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
+	journeyBossInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	journeyBossInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	journeyBossInfoLabel.TextWrapped = true
+	journeyBossInfoLabel.Text = ""
+	journeyBossInfoLabel.ZIndex = 22
+	journeyBossInfoLabel.Parent = journeyInfoBar
+
+	local journeySkipButton = Instance.new("TextButton")
+	journeySkipButton.Size = UDim2.new(0, 140, 0, 68)
+	journeySkipButton.Position = UDim2.new(1, -152, 0.5, -34)
+	journeySkipButton.Font = Enum.Font.GothamBold
+	journeySkipButton.TextSize = 13
+	journeySkipButton.TextWrapped = true
+	journeySkipButton.Text = "Skip"
+	journeySkipButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	journeySkipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	journeySkipButton.ZIndex = 22
+	journeySkipButton.Parent = journeyInfoBar
+	polishButton(journeySkipButton, 10)
+	if addTooltip then
+		addTooltip(journeySkipButton, "Skip the round you're currently on for a smaller Tips reward instead of playing it. You miss that round's shop visit -- and the Boss round can never be skipped.")
+	end
+
+	-- BUGFIX (independent review, before this ever reached Ahmed): this used
+	-- to call showRoundReward(...) optimistically right here, the instant
+	-- the button was clicked -- before the server had actually confirmed
+	-- the skip. RunState.canSkipRound can legitimately go stale between a
+	-- click and the server processing it (e.g. a PlayHand/Discard fired a
+	-- moment earlier is still in flight), in which case SkipRoundRemote's
+	-- handler silently no-ops -- and the player would have already seen a
+	-- "+X Tips" animation for tips they never actually received, with
+	-- nothing to correct it. Now this only fires the remote; the actual
+	-- popup is triggered later, from refreshJourneyImpl below, off a
+	-- CONFIRMED state change (the round/night key actually advancing while
+	-- phase stayed "playing" the whole time -- the only way that happens is
+	-- a successful skip), matching how init.client.lua's own round-win
+	-- popup already only fires off a confirmed phase transition, never a
+	-- click.
+	journeySkipButton.MouseButton1Click:Connect(function()
+		local latestState = getLatestState()
+		if not (latestState and latestState.canSkipRound) then
+			return -- button is visually disabled in this state, see refreshInfoBar
+		end
+		playClickSfx()
+		if requestSkipRound then
+			requestSkipRound()
+		end
+	end)
+
+	local function refreshInfoBar()
+		local latestState = getLatestState()
+		local bossRoundsEnabled = bossRoundsEnabledFor(latestState)
+
+		if not bossRoundsEnabled then
+			journeyBossInfoLabel.Text = "Boss Rounds are off this run -- every round plays the same."
+		elseif latestState and latestState.nightBossModifier then
+			local modifier = latestState.nightBossModifier
+			journeyBossInfoLabel.Text = string.format(
+				"👑 This Night's Boss (Round %d): %s\n%s",
+				ROUNDS_PER_NIGHT, modifier.name, modifier.description
+			)
+		else
+			journeyBossInfoLabel.Text = "This Night's Boss hasn't been revealed yet."
+		end
+
+		local currentRound = (latestState and latestState.round) or 1
+		local canSkip = latestState and latestState.canSkipRound == true
+		if canSkip then
+			journeySkipButton.Text = string.format("Skip Round %d\n+%d Tips", currentRound, latestState.skipReward or 0)
+			journeySkipButton.BackgroundColor3 = Color3.fromRGB(120, 80, 35)
+			journeySkipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+			journeySkipButton.AutoButtonColor = true
+		else
+			journeySkipButton.Text = "Skip\nunavailable"
+			journeySkipButton.BackgroundColor3 = Color3.fromRGB(55, 48, 42)
+			journeySkipButton.TextColor3 = Color3.fromRGB(160, 150, 140)
+			journeySkipButton.AutoButtonColor = false
+		end
+	end
+
 	local journeyCloseButton = Instance.new("TextButton")
 	journeyCloseButton.Size = UDim2.new(0, 140, 0, 40)
 	journeyCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
@@ -322,16 +491,26 @@ return function(deps)
 	-- play the walk animation when it actually CHANGES (not every time the
 	-- overlay happens to refresh while you're on the same stage).
 	local lastJourneyStageKey = nil
+	-- JOURNEY FEATURE: lastJourneyPhase/lastJourneySkipReward exist purely to
+	-- confirm a skip actually happened before showing its reward popup (see
+	-- the Skip button's click handler above for why this can't just fire on
+	-- click). A stage-key change while phase stayed "playing" on BOTH sides
+	-- of the change can only be caused by a successful RunState.skipRound --
+	-- a normal round win always transitions through "shop" first (which
+	-- gets its own reward popup from init.client.lua's render(), off that
+	-- same "entered shop" transition), so this can never double-fire for an
+	-- ordinary round win.
+	local lastJourneyPhase = nil
+	local lastJourneySkipReward = 0
 
 	local function refreshJourneyImpl(animateWalk)
 		local latestState = getLatestState()
 		local currentTheme = getCurrentTheme()
 		local currentNight = (latestState and latestState.night) or 1
 		local currentRound = (latestState and latestState.round) or 1
+		local currentPhase = (latestState and latestState.phase) or "playing"
 
-		local journeyDifficulty = DifficultyTiers.getById((latestState and latestState.difficultyId) or DifficultyTiers.DefaultId)
-			or DifficultyTiers.getById(DifficultyTiers.DefaultId)
-		local bossRoundsEnabled = journeyDifficulty.bossRoundsEnabled ~= false
+		local bossRoundsEnabled = bossRoundsEnabledFor(latestState)
 
 		local targetNode = nil
 		for _, entry in ipairs(journeyStageNodes) do
@@ -368,8 +547,29 @@ return function(deps)
 				journeyAvatarMarker.Position = newPosition
 			end
 
+			-- JOURNEY FEATURE: confirmed-skip reward popup -- see the
+			-- lastJourneyPhase/lastJourneySkipReward comment above. Checked
+			-- BEFORE lastJourneyStageKey gets overwritten below, using the
+			-- reward value cached from the round we're LEAVING (cached at
+			-- the bottom of the previous call, before anything changed).
+			if lastJourneyStageKey and stageKey ~= lastJourneyStageKey
+				and lastJourneyPhase == "playing" and currentPhase == "playing"
+				and lastJourneySkipReward > 0 and showRoundReward then
+				showRoundReward(lastJourneySkipReward)
+			end
+
 			lastJourneyStageKey = stageKey
 		end
+
+		-- Cache THIS round's phase + skip-eligibility for next call to
+		-- compare against once it (maybe) changes -- see the confirmed-skip
+		-- check above. Updated unconditionally (not just inside `if
+		-- targetNode`) so these two trackers can never fall out of sync
+		-- with lastJourneyStageKey.
+		lastJourneyPhase = currentPhase
+		lastJourneySkipReward = (latestState and latestState.skipReward) or 0
+
+		refreshInfoBar()
 	end
 
 	local function refreshJourney()
