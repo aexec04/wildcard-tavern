@@ -55,7 +55,7 @@
 			multTickSound = Sound,   -- placeholder Mult SFX
 			xmultTickSound = Sound,  -- placeholder XMult SFX
 			payoutThudSound = Sound, -- placeholder low "payout" thud, meant to be played pitched down
-			VOLUME_STEPS = { 0.5, 0.2, 0 },
+			VOLUME_STEPS = { 0.35, 0.15, 0 },
 			VOLUME_ICONS = { "♪", "♩", "×" },
 			volumeStepIndex = number, -- initial value (1); the caller owns
 			                             mutating this as the volume button cycles
@@ -83,7 +83,7 @@ return function(deps)
 	-- below each pick in case you want to swap -- same pattern as the
 	-- backgroundMusic alternates above.
 	local MUSIC_IDS = {
-		title = "rbxassetid://120237941989190",    -- Warm Signals in Silence
+		title = "rbxassetid://122891883598211",    -- Warm Signals in Silence
 		gameplay = SOUND_IDS.backgroundMusic,        -- Retro Impact Zone -- unchanged existing default
 		boss = "rbxassetid://112062136718839",       -- Into Battle
 		shop = "rbxassetid://71016453281056",        -- Rare Spawn
@@ -131,7 +131,11 @@ return function(deps)
 	end
 
 	-- FEATURE 3: cycle loud -> quiet -> muted, free for everyone (no paywall).
-	local VOLUME_STEPS = { 0.5, 0.2, 0 }
+	-- Tuned down from the original { 0.5, 0.2, 0 } -- 0.5 came in hot on
+	-- most people's volume/headphones, and the Settings slider (see
+	-- Client/Settings.lua) is the real, fine-grained control now anyway --
+	-- this is just a saner out-of-the-box "loud" step.
+	local VOLUME_STEPS = { 0.35, 0.15, 0 }
 	local VOLUME_ICONS = { "♪", "♩", "×" }
 	local volumeStepIndex = 1
 	backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]

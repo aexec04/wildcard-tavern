@@ -34,6 +34,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -161,6 +162,7 @@ setMusicTrack("title")
 -- as deps.
 local VisualHelpersModule = require(script.VisualHelpers)({
 	TweenService = TweenService,
+	UserInputService = UserInputService,
 	playClickSfx = playClickSfx,
 })
 local tweenTo = VisualHelpersModule.tweenTo
@@ -169,6 +171,7 @@ local polishButton = VisualHelpersModule.polishButton
 local polishPanel = VisualHelpersModule.polishPanel
 local addSoftShadow = VisualHelpersModule.addSoftShadow
 local makeStepperRow = VisualHelpersModule.makeStepperRow
+local makeSliderRow = VisualHelpersModule.makeSliderRow
 local screenShake = VisualHelpersModule.screenShake
 
 -- ===== Root UI =====
@@ -726,8 +729,10 @@ require(script.Settings)({
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	settingsButton = settingsButton,
-	makeStepperRow = makeStepperRow,
+	makeSliderRow = makeSliderRow,
 	backgroundMusic = backgroundMusic,
+	volumeButton = volumeButton,
+	VOLUME_ICONS = VOLUME_ICONS,
 })
 
 -- ===== Run Setup overlay =====

@@ -16,9 +16,14 @@
 		addSoftShadow     -- function(instance, radius)
 		playClickSfx      -- function(volume?)
 		settingsButton    -- TextButton, the in-game "⚙" corner button
-		makeStepperRow    -- function(parent, labelText, min, max, step, getValue,
-		                       setValue, formatValue) -- reusable +/- stepper row
+		makeSliderRow     -- function(parent, labelText, min, max, getValue,
+		                       setValue, formatValue) -- reusable drag-slider row
 		backgroundMusic   -- Sound instance, for reading/writing .Volume
+		volumeButton      -- TextButton, the corner "♪/♩/×" volume-cycle button --
+		                       its icon is kept roughly in sync (loud vs muted)
+		                       whenever the slider is dragged, so the corner icon
+		                       doesn't go stale next to this panel's real value
+		VOLUME_ICONS      -- { "♪", "♩", "×" }, same table Sound.lua hands out
 
 	Returns: {}
 ]]
@@ -30,8 +35,10 @@ return function(deps)
 	local addSoftShadow = deps.addSoftShadow
 	local playClickSfx = deps.playClickSfx
 	local settingsButton = deps.settingsButton
-	local makeStepperRow = deps.makeStepperRow
+	local makeSliderRow = deps.makeSliderRow
 	local backgroundMusic = deps.backgroundMusic
+	local volumeButton = deps.volumeButton
+	local VOLUME_ICONS = deps.VOLUME_ICONS
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -68,22 +75,33 @@ return function(deps)
 	settingsBody.ZIndex = 21
 	settingsBody.Parent = settingsPanel
 
-	-- Independent of the corner volumeButton's loud/quiet/muted cycle -- this
-	-- gives fine-grained 0-100 control over the same Sound instance's Volume.
+	-- A real click-and-drag slider (see VisualHelpers.lua's makeSliderRow) --
+	-- continuous 0-100 control over the same Sound instance's Volume, in
+	-- place of the old +/-10%-per-click stepper. Dragging it also nudges
+	-- the corner volumeButton's icon between loud/muted so that button
+	-- doesn't sit there showing a stale state right after you've just
+	-- changed the volume from in here.
 	local masterVolumeValue = math.floor(backgroundMusic.Volume * 100 + 0.5)
 
-	makeStepperRow(
+	makeSliderRow(
 		settingsBody,
 		"Master Volume",
 		0,
 		100,
-		10,
 		function()
 			return masterVolumeValue
 		end,
 		function(newValue)
 			masterVolumeValue = newValue
 			backgroundMusic.Volume = newValue / 100
+			if newValue <= 0 then
+				backgroundMusic:Stop()
+			elseif backgroundMusic.SoundId ~= "rbxassetid://0" and not backgroundMusic.IsPlaying then
+				backgroundMusic:Play()
+			end
+			if volumeButton and VOLUME_ICONS then
+				volumeButton.Text = (newValue <= 0) and VOLUME_ICONS[3] or VOLUME_ICONS[1]
+			end
 		end,
 		function(value)
 			return tostring(value) .. "%"

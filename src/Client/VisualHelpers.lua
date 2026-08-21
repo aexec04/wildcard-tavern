@@ -2,15 +2,16 @@
 	Client/VisualHelpers.lua
 	Small, generic presentation helpers used across almost every other
 	client module: a tween shortcut, rounded corners, a soft drop shadow,
-	and a reusable "- value +" stepper row (Roblox has no built-in
-	drag-slider widget, so a stepper is far less to get wrong than
-	hand-rolled drag physics, and just as usable).
+	a reusable "- value +" stepper row, and a real click-and-drag slider
+	row (makeSliderRow, added for the Master Volume control -- see
+	Client/Settings.lua -- once "just use a stepper" stopped being
+	precise enough for dialing in volume to taste).
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. Like Sound.lua, this is foundational --
 	nearly every overlay module takes tweenTo/polishPanel/polishButton/
 	roundCorner/addSoftShadow as deps -- so it's required early, right after
-	Sound.lua (makeStepperRow needs playClickSfx from Sound.lua).
+	Sound.lua (makeStepperRow/makeSliderRow need playClickSfx from Sound.lua).
 
 	FOUND IT (kept from the original comment, still relevant): an earlier
 	version of this helper set also had an addGloss() that layered a
@@ -26,8 +27,9 @@
 	alone are zero-risk since they don't touch color or transparency.
 
 	deps fields:
-		TweenService -- the TweenService
-		playClickSfx  -- function(volume?), for the stepper row's +/- buttons
+		TweenService     -- the TweenService
+		UserInputService -- the UserInputService, for makeSliderRow's drag tracking
+		playClickSfx     -- function(volume?), for the stepper/slider row controls
 
 	Returns:
 		{
@@ -38,12 +40,15 @@
 			addSoftShadow = function(panel, radius?),
 			makeStepperRow = function(parent, labelText, min, max, step,
 			                          getValue, setValue, formatValue) -> refresh,
+			makeSliderRow = function(parent, labelText, min, max,
+			                         getValue, setValue, formatValue) -> refresh,
 			screenShake = function(target, intensity, duration?),
 		}
 ]]
 
 return function(deps)
 	local TweenService = deps.TweenService
+	local UserInputService = deps.UserInputService
 	local playClickSfx = deps.playClickSfx
 
 	local function tweenTo(instance, properties, duration, style, direction)
@@ -224,6 +229,140 @@ return function(deps)
 		return refresh
 	end
 
+	-- Real click-and-drag slider row -- used for Master Volume (see
+	-- Client/Settings.lua), where a stepper's fixed 10%-per-click jumps
+	-- weren't fine-grained enough to actually dial the music down to a
+	-- comfortable level. `min`/`max` are inclusive bounds; the dragged
+	-- value is always rounded to the nearest whole number (plenty precise
+	-- for a 0-100 volume percentage, and keeps the value label from
+	-- jittering on fractional pixels).
+	--
+	-- Track + fill + knob, all children of the same row so ZIndex ordering
+	-- is automatic. Both the track AND the knob start a drag on
+	-- InputBegan (the knob sits visually on top of the track, so without
+	-- wiring both, clicking directly on the knob wouldn't register on the
+	-- track underneath it). UserInputService's global InputChanged/
+	-- InputEnded track the drag once started, so releasing the mouse
+	-- outside the row still ends the drag cleanly.
+	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 46)
+		row.BackgroundTransparency = 1
+		row.Parent = parent
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(0.35, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.Gotham
+		label.TextSize = 15
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(240, 230, 215)
+		label.Text = labelText
+		label.ZIndex = 21
+		label.Parent = row
+
+		local valueLabel = Instance.new("TextLabel")
+		valueLabel.Size = UDim2.new(0, 50, 1, 0)
+		valueLabel.Position = UDim2.new(1, -50, 0, 0)
+		valueLabel.BackgroundTransparency = 1
+		valueLabel.Font = Enum.Font.GothamBold
+		valueLabel.TextSize = 15
+		valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+		valueLabel.ZIndex = 21
+		valueLabel.Parent = row
+
+		local trackHolder = Instance.new("Frame")
+		trackHolder.Size = UDim2.new(0.65, -60, 1, 0)
+		trackHolder.Position = UDim2.new(0.35, 0, 0, 0)
+		trackHolder.BackgroundTransparency = 1
+		trackHolder.ZIndex = 21
+		trackHolder.Parent = row
+
+		local track = Instance.new("Frame")
+		track.Size = UDim2.new(1, 0, 0, 8)
+		track.AnchorPoint = Vector2.new(0, 0.5)
+		track.Position = UDim2.new(0, 0, 0.5, 0)
+		track.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+		track.ZIndex = 21
+		track.Parent = trackHolder
+		polishButton(track, 4)
+
+		local fill = Instance.new("Frame")
+		fill.Size = UDim2.new(0, 0, 1, 0)
+		fill.BackgroundColor3 = Color3.fromRGB(255, 214, 130)
+		fill.BorderSizePixel = 0
+		fill.ZIndex = 22
+		fill.Parent = track
+		polishButton(fill, 4)
+
+		local knob = Instance.new("Frame")
+		knob.Size = UDim2.new(0, 18, 0, 18)
+		knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		knob.Position = UDim2.new(0, 0, 0.5, 0)
+		knob.BackgroundColor3 = Color3.fromRGB(250, 240, 220)
+		knob.ZIndex = 23
+		knob.Parent = track
+		polishButton(knob, 9)
+
+		local function valueFromInputX(inputX)
+			local trackPos = track.AbsolutePosition.X
+			local trackWidth = track.AbsoluteSize.X
+			if trackWidth <= 0 then
+				return getValue()
+			end
+			local fraction = math.clamp((inputX - trackPos) / trackWidth, 0, 1)
+			return math.floor(min + fraction * (max - min) + 0.5)
+		end
+
+		local function refresh()
+			local value = getValue()
+			valueLabel.Text = formatValue and formatValue(value) or tostring(value)
+			local fraction = (max > min) and math.clamp((value - min) / (max - min), 0, 1) or 0
+			fill.Size = UDim2.new(fraction, 0, 1, 0)
+			knob.Position = UDim2.new(fraction, 0, 0.5, 0)
+		end
+
+		local dragging = false
+		local function isDragInput(input)
+			return input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+		end
+
+		local function beginDrag(input)
+			if not isDragInput(input) then
+				return
+			end
+			dragging = true
+			playClickSfx(0.25)
+			setValue(valueFromInputX(input.Position.X))
+			refresh()
+		end
+
+		track.InputBegan:Connect(beginDrag)
+		knob.InputBegan:Connect(beginDrag)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if not dragging then
+				return
+			end
+			if input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch then
+				setValue(valueFromInputX(input.Position.X))
+				refresh()
+			end
+		end)
+
+		UserInputService.InputEnded:Connect(function(input)
+			if dragging and isDragInput(input) then
+				dragging = false
+			end
+		end)
+
+		refresh()
+		return refresh
+	end
+
 	return {
 		tweenTo = tweenTo,
 		roundCorner = roundCorner,
@@ -231,6 +370,7 @@ return function(deps)
 		polishPanel = polishPanel,
 		addSoftShadow = addSoftShadow,
 		makeStepperRow = makeStepperRow,
+		makeSliderRow = makeSliderRow,
 		screenShake = screenShake,
 	}
 end
