@@ -144,6 +144,7 @@ return function(deps)
 	local FLY_DURATION = 0.28 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.22 -- played row "lift out of hand" tween
 	local DROPOFF_DURATION = 0.5 -- played row "drop into discard" tween at the end
+	local GHOST_HARD_TIMEOUT = 10 -- last-resort backstop, see showScorePopup's per-ghost task.delay
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -593,6 +594,23 @@ return function(deps)
 		local patronSlotFrames = sourceInfo.patronSlotFrames or {}
 		for _, entry in ipairs(cardGhosts) do
 			table.insert(liveGhosts, entry)
+			-- HARD SAFETY NET (Ahmed's Studio screenshot showed a leaked
+			-- ghost surviving into the Shop screen even after the
+			-- cancelScorePopup()-on-phase-change fix): no matter what
+			-- happens to `myToken`/liveGhosts bookkeeping above, or
+			-- whether render() ever actually gets a chance to call
+			-- cancelScorePopup for this specific state push, this ghost
+			-- can never survive longer than GHOST_HARD_TIMEOUT -- well
+			-- past any real sequence's worst-case natural duration (10
+			-- animated entries at the slowest realistic pace + the
+			-- finale's own linger is nowhere close to this). This only
+			-- ever fires if something upstream already went wrong, as a
+			-- true last-resort backstop against a PERMANENT leak.
+			task.delay(GHOST_HARD_TIMEOUT, function()
+				if entry.ghost and entry.ghost.Parent then
+					entry.ghost:Destroy()
+				end
+			end)
 		end
 
 		local playedGhosts = {}
