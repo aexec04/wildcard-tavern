@@ -330,6 +330,18 @@ return function(deps)
 	-- above the hand/HUD, the instant Play Hand is clicked -- Ahmed's
 	-- spec's "the active card nudges upward out of the played row", made
 	-- literal instead of the old HUD-only popup's implicit version of it.
+	--
+	-- BUGFIX (Ahmed's Studio screenshot): this used to place the row at a
+	-- fixed FRACTION of root.AbsoluteSize.Y (0.3), independent of where
+	-- `scorePopup` itself actually sits (which is positioned with a fixed
+	-- PIXEL offset from the bottom, not a fraction). On a shorter/embedded
+	-- Studio viewport those two independent guesses collided -- the row
+	-- rendered low enough to sit ON TOP of the hand-name/Chips-Mult boxes,
+	-- hiding them behind the played cards. Anchoring the row's bottom
+	-- edge to `scorePopup`'s OWN measured top edge (not a guess) makes
+	-- them mutually exclusive by construction, at any screen size.
+	local ROW_CARD_HEIGHT = 100 -- matches rebuildHand's card slot height
+	local ROW_MARGIN_ABOVE_POPUP = 24
 	local function layoutPlayedRow(playedGhosts)
 		if #playedGhosts == 0 then
 			return
@@ -341,7 +353,8 @@ return function(deps)
 			totalWidth = totalWidth + entry.ghost.AbsoluteSize.X
 		end
 		totalWidth = totalWidth + gap * (#playedGhosts - 1)
-		local rowY = rootSize.Y * 0.3
+		local popupTop = scorePopup.AbsolutePosition.Y
+		local rowY = math.max(20, popupTop - ROW_MARGIN_ABOVE_POPUP - ROW_CARD_HEIGHT)
 		local x = (rootSize.X - totalWidth) / 2
 		for _, entry in ipairs(playedGhosts) do
 			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, GHOST_LIFT_DURATION, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -783,7 +796,31 @@ return function(deps)
 		end)
 	end
 
+	-- BUGFIX (Ahmed's Studio screenshot): nothing used to stop an in-flight
+	-- reveal sequence if the game moved on to a new phase mid-animation --
+	-- e.g. the hand that was just played WON the round, and the server's
+	-- response (phase -> "shop") can arrive well before a several-second
+	-- reveal sequence (several anticipation pauses stacked up) finishes.
+	-- The sequence kept animating right through the phase change, so its
+	-- ghosts (parented straight to `root`, which stays around under the
+	-- Shop overlay) were still visibly flying around ON TOP of the Shop
+	-- screen -- exactly what Ahmed's screenshot showed (a leftover played
+	-- card + its flying number stuck floating over the Patron/Pack
+	-- listings). Bumping the token immediately invalidates the running
+	-- coroutine (it bails at its next per-entry check) and this also does
+	-- the same cleanup its normal end-of-sequence path would have done,
+	-- right now instead of waiting for a `task.delay` that may never
+	-- fire correctly once the coroutine's already bailed early.
+	local function cancelScorePopup()
+		scorePopupToken = scorePopupToken + 1
+		scorePopup.Visible = false
+		scorePopupEventLabel.Text = ""
+		destroyGhosts(liveGhosts)
+		liveGhosts = {}
+	end
+
 	return {
 		showScorePopup = showScorePopup,
+		cancelScorePopup = cancelScorePopup,
 	}
 end

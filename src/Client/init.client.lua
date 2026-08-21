@@ -540,6 +540,7 @@ local ScorePopupModule = require(script.ScorePopup)({
 	deckWidgetButton = deckWidgetButton,
 })
 local showScorePopup = ScorePopupModule.showScorePopup
+local cancelScorePopup = ScorePopupModule.cancelScorePopup
 
 -- ===== Confirm dialog (generic, reusable) =====
 -- Extracted into Client/ConfirmDialog.lua. showConfirmDialog is passed as a
@@ -1446,6 +1447,20 @@ end
 
 local function render(state)
 	latestState = state
+
+	-- BUGFIX (Ahmed's Studio screenshot): a score reveal sequence can
+	-- easily still be mid-animation (several anticipation pauses stacked
+	-- up) when the hand that was just played WINS the round and the
+	-- server's response pushes phase away from "playing" -- e.g. straight
+	-- to "shop". Nothing used to stop the in-flight sequence when that
+	-- happened, so its played-card ghosts (parented to `root`, which
+	-- stays around underneath every overlay) kept flying around ON TOP of
+	-- the Shop screen. Cancel any in-flight popup the instant we're no
+	-- longer in "playing" -- cheap and safe to call unconditionally
+	-- (cancelScorePopup no-ops visually if nothing was showing).
+	if state.phase ~= "playing" then
+		cancelScorePopup()
+	end
 
 	-- SCORING JUICE: background music track, picked from live state every
 	-- render -- setMusicTrack no-ops if it's already the right track, so
