@@ -130,26 +130,29 @@ return function(deps)
 	local SHATTER_COLOR = Color3.fromRGB(210, 230, 255)
 
 	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
-	-- read the per-entry text before it was replaced by the next one --
-	-- these knobs fixed that, kept unchanged here. ENTRY_STAGGER is the
-	-- main knob if the new choreography ever feels off; MAX_ANIMATED_ENTRIES
-	-- stays low to match.
-	local MAX_ANIMATED_ENTRIES = 10 -- see file header -- caps worst-case sequence length
+	-- read the per-entry text before it was replaced by the next one, and
+	-- a later full-sequence playtest still felt too fast across the board
+	-- (not just the finale) -- these knobs slow the WHOLE choreography
+	-- down, not just any one piece of it. ENTRY_STAGGER is the main knob
+	-- if it ever needs adjusting again; MAX_ANIMATED_ENTRIES is kept low
+	-- to match, so a big hand's worst-case total duration doesn't balloon
+	-- just because each individual beat got slower.
+	local MAX_ANIMATED_ENTRIES = 8 -- see file header -- caps worst-case sequence length
 	local BASE_PITCH = 1.0
 	local PITCH_STEP = 0.045 -- per-entry pitch increment -- "increment sequentially along a musical scale"
 	local MAX_PITCH = 1.7
 	local HIGH_TIER_XMULT = 2 -- xmult entries at/above this get an anticipation pause before they land
-	local ENTRY_STAGGER = 0.45 -- seconds between entries -- long enough to actually read each line
-	local ANTICIPATION_PAUSE = 0.3
-	local FLY_DURATION = 0.28 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
-	local GHOST_LIFT_DURATION = 0.22 -- played row "lift out of hand" tween
-	local DROPOFF_DURATION = 0.5 -- played row "drop into discard" tween at the end
-	local GHOST_HARD_TIMEOUT = 10 -- last-resort backstop, see showScorePopup's per-ghost task.delay
+	local ENTRY_STAGGER = 0.75 -- seconds between entries -- long enough to actually read each line
+	local ANTICIPATION_PAUSE = 0.5
+	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
+	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween
+	local DROPOFF_DURATION = 0.7 -- played row "drop into discard" tween at the end
+	local GHOST_HARD_TIMEOUT = 12 -- last-resort backstop, see showScorePopup's per-ghost task.delay
 	-- PACING: how long the finale's final "Chips x Mult" stays on screen
-	-- before the popup hides -- Ahmed asked for the finale to linger
-	-- longer so the multiplier actually has time to be read/enjoyed.
-	-- Was 1.1s originally, bumped to 1.6s in an earlier pacing pass, now
-	-- 2.6s. This is the main knob if it ever needs adjusting again.
+	-- before the popup hides. Was 1.1s originally, 1.6s then 2.6s in
+	-- earlier pacing passes; kept at 2.6s here (Ahmed's actual ask this
+	-- round was to slow down the REST of the sequence, not the finale
+	-- specifically -- see the per-entry knobs above).
 	local FINALE_LINGER = 2.6
 
 	local scorePopup = Instance.new("Frame")
