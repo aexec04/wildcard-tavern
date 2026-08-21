@@ -142,7 +142,14 @@ return function(deps)
 	local PITCH_STEP = 0.045 -- per-entry pitch increment -- "increment sequentially along a musical scale"
 	local MAX_PITCH = 1.7
 	local HIGH_TIER_XMULT = 2 -- xmult entries at/above this get an anticipation pause before they land
-	local ENTRY_STAGGER = 0.75 -- seconds between entries -- long enough to actually read each line
+	-- PACING: Ahmed's report -- playing a single card as a High Card hand
+	-- (e.g. "Ace of Clubs +11 Chips") still went by so fast he had to
+	-- screenshot it to read it, even at 0.75s. A short hand only has 1-2
+	-- entries total, so there's nothing else filling the sequence to make
+	-- it feel deliberate -- the one line that matters needs to actually
+	-- hold long enough to read on its own, not just relative to a longer
+	-- sequence. Bumped again to 1.3s.
+	local ENTRY_STAGGER = 1.3 -- seconds between entries -- long enough to actually read each line
 	local ANTICIPATION_PAUSE = 0.5
 	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween
