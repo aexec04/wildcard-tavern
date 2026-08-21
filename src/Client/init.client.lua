@@ -1538,7 +1538,16 @@ local function render(state)
 		lastEquippedThemeId = state.equippedTheme
 	end
 
-	nightRoundLabel.Text = string.format("Night %d - Round %d", state.night, state.round)
+	-- BALATRO PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
+	-- state.night passes the server's nightCap (default 8), there's no
+	-- more "/8" to show (you're past it for good), so switch to an
+	-- "(Endless)" tag instead.
+	local nightCap = state.nightCap or 8
+	if state.night > nightCap then
+		nightRoundLabel.Text = string.format("Night %d (Endless) - Round %d", state.night, state.round)
+	else
+		nightRoundLabel.Text = string.format("Night %d/%d - Round %d", state.night, nightCap, state.round)
+	end
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
 	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
@@ -1590,7 +1599,11 @@ local function render(state)
 	if state.bossModifier then
 		blindInfoLabel.Text = string.format("👑 %s\n%s", state.bossModifier.name, state.bossModifier.description)
 	else
-		blindInfoLabel.Text = string.format("Round %d", state.round)
+		-- BALATRO PARITY: Small Blind (round 1) / Big Blind (everything
+		-- else before the Boss) -- matches RoundSelect.lua's round panel
+		-- labels and the 1x/1.5x score multiplier each one actually gets
+		-- (see RunState.blindMultiplierFor).
+		blindInfoLabel.Text = state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)
 	end
 
 	if state.bossModifier then
@@ -1651,7 +1664,23 @@ local function render(state)
 	-- (i.e. the round was just won), not on every re-render while already
 	-- shopping (e.g. after buying a Patron, phase is still "shop").
 	if state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce and showRoundReward then
-		showRoundReward(reward)
+		-- BUGFIX: `reward` above only ever mirrored the flat/boss-doubled
+		-- payout, so it silently under-reported Patron onRoundWin bonuses
+		-- and the universal interest rule -- state.lastRoundReward (set by
+		-- RunState.playHand) is the ACTUAL total Tips gained, so prefer it
+		-- and only fall back to the old estimate if it's somehow missing.
+		local actualReward = state.lastRoundReward or reward
+		-- BALATRO PARITY: this is also the one moment a win at nightCap
+		-- (state.night hasn't advanced past it yet -- that only happens
+		-- once "Next Round" is clicked) is visible, so give it a
+		-- celebratory headline instead of the usual "Round Complete!".
+		-- Can only ever be true for ONE shop visit per run -- state.night
+		-- only increases, so this exact equality never holds again.
+		local title = nil
+		if state.wonRun and state.night == (state.nightCap or 8) then
+			title = string.format("🏆 Night %d Cleared -- Endless Mode Unlocked!", state.night)
+		end
+		showRoundReward(actualReward, title)
 	end
 
 	-- ROUND SELECT FEATURE: rebuild BEFORE `lastPhase` gets reassigned just

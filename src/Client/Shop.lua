@@ -1132,6 +1132,26 @@ return function(deps)
 			secret = (state and state.secretRecipeInventory) or {},
 		}
 
+		-- BALATRO PARITY: "fixed cap ~2" consumable slots -- House+Menu+
+		-- Secret share ONE box (RunState.recipeSlotLimit), so this counts
+		-- across all three, same shape as the Shop tab's "Your table:
+		-- X/Y Patrons" label.
+		local heldCount = #inventories.house + #inventories.menu + #inventories.secret
+		local recipeSlotLimit = (state and state.recipeSlotLimit) or heldCount
+		local boxIsFull = heldCount >= recipeSlotLimit
+		local capLabel = Instance.new("TextLabel")
+		capLabel.LayoutOrder = 0
+		capLabel.Size = UDim2.new(1, 0, 0, 24)
+		capLabel.BackgroundTransparency = 1
+		capLabel.Font = Enum.Font.GothamBold
+		capLabel.TextSize = 14
+		capLabel.TextXAlignment = Enum.TextXAlignment.Left
+		capLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		capLabel.Text = string.format("Recipe box: %d/%d%s", heldCount, recipeSlotLimit,
+			boxIsFull and " -- full! Use one to make room." or "")
+		capLabel.ZIndex = 6
+		capLabel.Parent = shopMyRecipesListFrame
+
 		-- If the recipe we're mid-targeting is no longer in its inventory
 		-- (used some other way than the picker's own Confirm button -- e.g. a
 		-- fresh state push raced the picker), close the stale picker instead
@@ -1152,6 +1172,7 @@ return function(deps)
 		local anyOwned = #inventories.house > 0 or #inventories.menu > 0 or #inventories.secret > 0
 		if not anyOwned then
 			local emptyLabel = Instance.new("TextLabel")
+			emptyLabel.LayoutOrder = 1 -- after capLabel (LayoutOrder 0) above
 			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
 			emptyLabel.BackgroundTransparency = 1
 			emptyLabel.Font = Enum.Font.Gotham

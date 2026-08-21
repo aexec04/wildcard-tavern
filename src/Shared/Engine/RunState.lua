@@ -39,13 +39,88 @@ RunState.DefaultConfig = {
 	-- Patron (see RunState.patronSlotLimit) is the intended way to grow
 	-- past this over the course of a run.
 	patronSlotLimit = 5,
+	-- BALATRO PARITY: how many House+Menu+Secret Recipes can be held at
+	-- once, COMBINED -- one shared "recipe box", matching Balatro's single
+	-- consumable-slot area rather than a separate cap per category. See
+	-- RunState.recipeSlotLimit.
+	recipeSlotLimit = 2,
+	-- BALATRO PARITY: clear the Boss Round of this Night and the run is
+	-- marked WON (state.wonRun) -- like beating Balatro's Ante 8. The run
+	-- doesn't stop there, though -- Nights keep climbing past this exactly
+	-- like they always did, so this is really just "which Night does
+	-- Endless Mode start after." See RunState.playHand/targetScoreFor.
+	nightCap = 8,
 }
 
--- Target score curve. Original formula/numbers -- tune freely.
-function RunState.targetScoreFor(night, round, roundsPerNight)
+--[[
+	BALATRO PARITY: Small/Big/Boss Blind distinct score multipliers (Ahmed:
+	"Small/Big/Boss Blind at distinct 1x/1.5x/2x-6x score multipliers"),
+	replacing the old single continuous curve. Two independent knobs now,
+	multiplied together in targetScoreFor:
+		1) nightBaseScoreFor(night) -- how hard THIS NIGHT is, growing
+		   exponentially with Night (unbounded -- this is what keeps Endless
+		   Mode getting harder forever, see below).
+		2) blindMultiplierFor(night, round, roundsPerNight) -- which Blind
+		   you're on this round: Small (round 1) = 1x, Big (any round
+		   between) = 1.5x, Boss (the Night's last round) scales from 2x at
+		   Night 1 up to 6x at Night `nightCap` (8, like Balatro's Ante 8),
+		   then plateaus at 6x forever after -- Endless Mode keeps escalating
+		   purely through nightBaseScoreFor's unbounded growth instead of an
+		   ever-climbing Boss multiplier.
+	Public (not just internal) so tests/UI can reason about either knob on
+	its own without re-deriving the formula.
+]]
+local TARGET_BASE_SCORE = 100
+local TARGET_NIGHT_GROWTH = 2.5 -- close to the old curve's ~2.46x-per-Night growth (1.35^3)
+local BLIND_MULTIPLIER_SMALL = 1
+local BLIND_MULTIPLIER_BIG = 1.5
+local BOSS_BLIND_MULTIPLIER_MIN = 2
+local BOSS_BLIND_MULTIPLIER_MAX = 6
+
+function RunState.nightBaseScoreFor(night)
+	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1))
+end
+
+function RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
 	roundsPerNight = roundsPerNight or RunState.DefaultConfig.roundsPerNight
-	local step = (night - 1) * roundsPerNight + (round - 1)
-	return math.floor(100 * (1.35 ^ step))
+	-- BUGFIX: accept nightCap as a parameter (defaulting to the global
+	-- constant only when the caller doesn't pass one -- same pattern as
+	-- roundsPerNight above), instead of always reading
+	-- RunState.DefaultConfig.nightCap directly. RunState.startRound
+	-- already threads its OWN run's state.config.nightCap through (see
+	-- below) -- reading the global default here instead would silently
+	-- desync the Boss multiplier's 2x-6x ramp/plateau from whatever Night
+	-- the run's actual win condition (RunState.playHand) fires at, the
+	-- moment anything (a future deck variant's configOverrides, say) ever
+	-- makes a run's nightCap differ from the default.
+	if round >= roundsPerNight then
+		-- Boss Blind: 2x at Night 1, linearly up to 6x at Night `nightCap`,
+		-- then held flat at 6x for every Night after that.
+		nightCap = nightCap or RunState.DefaultConfig.nightCap
+		local growthSteps = nightCap - 1
+		if growthSteps <= 0 then
+			return BOSS_BLIND_MULTIPLIER_MAX
+		end
+		local cappedNight = math.min(night, nightCap)
+		local progress = (cappedNight - 1) / growthSteps
+		return BOSS_BLIND_MULTIPLIER_MIN + progress * (BOSS_BLIND_MULTIPLIER_MAX - BOSS_BLIND_MULTIPLIER_MIN)
+	elseif round <= 1 then
+		return BLIND_MULTIPLIER_SMALL
+	else
+		return BLIND_MULTIPLIER_BIG
+	end
+end
+
+function RunState.targetScoreFor(night, round, roundsPerNight, nightCap)
+	roundsPerNight = roundsPerNight or RunState.DefaultConfig.roundsPerNight
+	local base = RunState.nightBaseScoreFor(night)
+	local blindMultiplier = RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
+	return math.floor(base * blindMultiplier)
+end
+
+-- How many Recipes (House + Menu + Secret combined) are currently held.
+local function totalHeldRecipes(state)
+	return #state.houseRecipeInventory + #state.menuRecipeInventory + #state.secretRecipeInventory
 end
 
 --[[
@@ -72,6 +147,8 @@ function RunState.new(options, rng)
 	config.discardsPerRound = math.max(0, config.discardsPerRound)
 	config.roundsPerNight = math.max(1, config.roundsPerNight)
 	config.patronSlotLimit = math.max(1, config.patronSlotLimit)
+	config.recipeSlotLimit = math.max(0, config.recipeSlotLimit)
+	config.nightCap = math.max(1, config.nightCap)
 
 	local state = {
 		config = config,
@@ -105,6 +182,7 @@ function RunState.new(options, rng)
 		menuRecipeInventory = {},
 		secretRecipeInventory = {},
 		lastRecipeUsedId = nil, -- for the "Second Helping" House Recipe
+		lastRecipeUsedCategory = nil, -- "house" | "menu" | "secret" -- see RunState.useRecipe's BUGFIX comment
 		ownedPatronSpecials = {}, -- [patronId] = Card.Specials id, folded into Scoring.calculate
 		housePasses = {}, -- [passId] = true, permanent for the rest of the run -- see HousePasses.lua
 		pendingPack = nil, -- set by RunState.openPack, cleared by RunState.resolvePack -- see below
@@ -133,6 +211,10 @@ function RunState.new(options, rng)
 		roundOver = false,
 		runOver = false,
 		wonRun = false,
+		-- Actual total Tips gained on the most recent round win (flat
+		-- reward + boss double + every Patron onRoundWin bonus + the
+		-- universal interest rule) -- see RunState.playHand.
+		lastRoundReward = 0,
 	}
 	RunState.startRound(state)
 	return state
@@ -213,7 +295,7 @@ function RunState.startRound(state)
 	state.brittleShieldRound = false -- "Sugar Shield" only protects for the round it was used in
 
 	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
-	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight)
+	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
 
 	state.roundOver = false
@@ -230,9 +312,18 @@ local function settleHeldCardsAtRoundEnd(state, lastHandName)
 		end
 		local stamp = card.stamp and Card.Stamps[card.stamp]
 		if stamp and stamp.createsMenuRecipeIfHeld and lastHandName then
-			local recipe = Recipes.randomMenuRecipeForHand(lastHandName)
-			if recipe then
-				table.insert(state.menuRecipeInventory, recipe.id)
+			-- RECIPE CAP (Balatro parity, "fixed cap ~2" consumable slots):
+			-- a passive reward like this can't prompt the player to make
+			-- room, so it silently does nothing once the shared recipe box
+			-- (RunState.recipeSlotLimit, House+Menu+Secret combined) is
+			-- full -- same "skip, don't crash or overfill" precedent
+			-- already used for a Patron pick landing on a full table (see
+			-- RunState.resolvePack).
+			if totalHeldRecipes(state) < RunState.recipeSlotLimit(state) then
+				local recipe = Recipes.randomMenuRecipeForHand(lastHandName)
+				if recipe then
+					table.insert(state.menuRecipeInventory, recipe.id)
+				end
 			end
 		end
 	end
@@ -372,23 +463,63 @@ function RunState.playHand(state, cardIndices)
 	local roundWon = state.roundScore >= state.targetScore
 	if roundWon then
 		state.roundOver = true
+		local tipsBeforeRoundEndRewards = state.tips
 		settleHeldCardsAtRoundEnd(state, handResult.name)
 		for _, patron in ipairs(state.ownedPatrons) do
 			if patron.onRoundWin then
 				patron.onRoundWin(state)
 			end
 		end
+
+		-- BALATRO PARITY: round-win interest is now a universal base rule
+		-- (+1 Tip per 5 held, capped at +5) instead of something you had to
+		-- buy the Nest Egg Patron for. See Patrons.lua's "nest_egg" entry
+		-- for why it was reworked to raise this cap to +10 instead of
+		-- keeping its own onRoundWin doing the identical math -- that would
+		-- have silently double-dipped once this base rule shipped.
+		local interestCap = 5
+		for _, patron in ipairs(state.ownedPatrons) do
+			if patron.id == "nest_egg" then
+				interestCap = 10
+				break
+			end
+		end
+		state.tips = state.tips + math.min(interestCap, math.floor(state.tips / 5))
+
+		-- BALATRO PARITY: clearing the Boss Round of the final capped Night
+		-- (nightCap, 8 -- like Balatro's Ante 8) marks the run WON. Nothing
+		-- else changes here -- state.night keeps climbing exactly like it
+		-- already did before this existed, so you're now in Endless Mode
+		-- (see RunState.blindMultiplierFor/targetScoreFor). This can only
+		-- ever go true once a run: state.night only ever increases, so
+		-- night == nightCap is never true again after this Night ends.
+		if state.bossModifier and state.night == state.config.nightCap then
+			state.wonRun = true
+		end
+
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
 		local reward = state.config.tipsPerRoundWin
 		if state.bossModifier then
 			reward = reward + state.config.tipsPerRoundWin
 		end
 		state.tips = state.tips + reward
+
+		-- Actual total Tips gained this round-win (flat reward + boss
+		-- double + every Patron onRoundWin bonus + the interest above) --
+		-- lets the client show the real number instead of independently
+		-- re-deriving just the flat/boss-doubled part, which under-reports
+		-- Patron bonuses and interest (see RoundRewardPopup's
+		-- showRoundReward caller in init.client.lua).
+		state.lastRoundReward = state.tips - tipsBeforeRoundEndRewards
 	elseif isLastHand then
-		-- Out of hands and didn't reach the target: the run ends.
+		-- Out of hands and didn't reach the target: the run ends. NOTE:
+		-- deliberately NOT touching state.wonRun here -- if it's already
+		-- true (this run already cleared Night nightCap earlier and is now
+		-- losing during Endless Mode), losing later doesn't erase having
+		-- already won, same as the reference game. It only ever starts
+		-- false and flips true above, so there's nothing stale to clear.
 		state.roundOver = true
 		state.runOver = true
-		state.wonRun = false
 	end
 
 	return {
@@ -400,6 +531,7 @@ function RunState.playHand(state, cardIndices)
 		targetScore = state.targetScore,
 		roundWon = roundWon,
 		runOver = state.runOver,
+		wonRun = state.wonRun,
 		blockedRepeatHand = blockedRepeatHand or false,
 		bossModifierId = state.bossModifier and state.bossModifier.id or nil,
 	}
@@ -415,10 +547,12 @@ function RunState.discard(state, cardIndices)
 	state.discardsRemaining = state.discardsRemaining - 1
 
 	-- Purple Stamp: discarding this card creates a random House Recipe.
+	-- RECIPE CAP: same silent-skip-if-full rule as the Blue Stamp reward in
+	-- settleHeldCardsAtRoundEnd -- see that function's comment.
 	local rng = state.rng or math.random
 	for _, card in ipairs(discarded) do
 		local stamp = card.stamp and Card.Stamps[card.stamp]
-		if stamp and stamp.createsHouseRecipeOnDiscard then
+		if stamp and stamp.createsHouseRecipeOnDiscard and totalHeldRecipes(state) < RunState.recipeSlotLimit(state) then
 			table.insert(state.houseRecipeInventory, Recipes.randomHouseRecipeId(rng))
 		end
 	end
@@ -449,6 +583,15 @@ function RunState.patronSlotLimit(state)
 		bonus = bonus + 1
 	end
 	return state.config.patronSlotLimit + bonus
+end
+
+-- BALATRO PARITY: how many Recipes (House+Menu+Secret combined -- one
+-- shared "recipe box") can be held at once. A plain wrapper today (no
+-- bonus sources yet), kept as its own function -- like patronSlotLimit --
+-- so a future Recipe-slot-raising House Pass/Special has one obvious place
+-- to hook into instead of every call site re-reading state.config directly.
+function RunState.recipeSlotLimit(state)
+	return state.config.recipeSlotLimit
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'
@@ -814,8 +957,15 @@ function RunState.resolvePack(state, chosenIds)
 				table.insert(state.discardPile, newCard)
 			end
 		else
+			-- RECIPE CAP: mirror the Patron branch above -- a pick that no
+			-- longer fits by the time this resolves (box already at
+			-- RunState.recipeSlotLimit, House+Menu+Secret combined) is
+			-- silently skipped, not a reason to fail the whole resolve.
+			-- Re-checked fresh every iteration so a multi-pick pack (Mega
+			-- pack: pick 2) fills up to the cap and then skips the rest,
+			-- rather than reading a stale count from before this loop.
 			local inventory = inventoryForCategory(state, itemCategory)
-			if inventory then
+			if inventory and totalHeldRecipes(state) < RunState.recipeSlotLimit(state) then
 				table.insert(inventory, chosenId)
 			end
 		end
@@ -859,6 +1009,12 @@ local function buyRecipe(state, inventory, catalog, id)
 	if not recipe then
 		return false, "Unknown recipe: " .. tostring(id)
 	end
+	-- RECIPE CAP: a shop purchase is a deliberate spend, so refuse it
+	-- outright (same shape as RunState.buyPatron's full-table refusal)
+	-- rather than charging Tips for a Recipe that won't fit.
+	if totalHeldRecipes(state) >= RunState.recipeSlotLimit(state) then
+		return false, "Your recipe box is full -- use one to make room"
+	end
 	if state.tips < recipe.price then
 		return false, "Not enough tips"
 	end
@@ -867,7 +1023,7 @@ local function buyRecipe(state, inventory, catalog, id)
 	return true, recipe.name .. " added to your recipe box."
 end
 
-local function useRecipe(state, inventory, catalog, id, opts)
+local function useRecipe(state, inventory, catalog, id, opts, category)
 	local index
 	for i, ownedId in ipairs(inventory) do
 		if ownedId == id then
@@ -890,10 +1046,37 @@ local function useRecipe(state, inventory, catalog, id, opts)
 	end
 	opts = opts or {}
 	opts.rng = opts.rng or state.rng or math.random
-	local ok, message = recipe.apply(state, opts, { Patrons = Patrons, patronSlotLimit = RunState.patronSlotLimit(state) })
+	-- RECIPE CAP: totalHeldRecipes is computed here, BEFORE this recipe is
+	-- removed from its inventory below -- so it's off by one for a recipe
+	-- (like Second Helping) whose OWN effect adds another Recipe: using it
+	-- always frees its own slot first, so subtract 1 to give apply() the
+	-- count as it will actually be right after this use succeeds, not the
+	-- stale count from right before it.
+	local deps = {
+		Patrons = Patrons,
+		patronSlotLimit = RunState.patronSlotLimit(state),
+		recipeSlotLimit = RunState.recipeSlotLimit(state),
+		totalHeldRecipes = totalHeldRecipes(state) - 1,
+	}
+	local ok, message = recipe.apply(state, opts, deps)
 	if ok then
 		table.remove(inventory, index)
 		state.lastRecipeUsedId = id
+		-- BUGFIX: "Second Helping" ("Creates a copy of the last House or
+		-- Menu Recipe you used") always inserted the copy into
+		-- houseRecipeInventory, but lastRecipeUsedId got set here for
+		-- EVERY category including Secret Recipes -- using a Menu or
+		-- Secret Recipe, then Second Helping, copied an id that only
+		-- exists in a DIFFERENT catalog into houseRecipeInventory. That
+		-- phantom entry can't be found (Shop.lua's findRecipeById silently
+		-- drops it from the UI) or used (useHouseRecipe looks it up in the
+		-- wrong catalog and refuses it as "Unknown recipe") -- with no way
+		-- to sell/discard a Recipe, it permanently occupied one of only 2
+		-- shared recipe slots for the rest of the run. Tracking WHICH
+		-- category it came from lets Second Helping insert into the right
+		-- inventory (and refuse cleanly for a Secret Recipe, matching its
+		-- own "House or Menu" description) instead of guessing "House".
+		state.lastRecipeUsedCategory = category
 	end
 	return ok, message
 end
@@ -910,13 +1093,13 @@ end
 
 -- opts (optional, only some recipes need these): { cardIndices = {1,2}, suit = "Hearts" }
 function RunState.useHouseRecipe(state, id, opts)
-	return useRecipe(state, state.houseRecipeInventory, Recipes.HouseRecipes, id, opts)
+	return useRecipe(state, state.houseRecipeInventory, Recipes.HouseRecipes, id, opts, "house")
 end
 function RunState.useMenuRecipe(state, id, opts)
-	return useRecipe(state, state.menuRecipeInventory, Recipes.MenuRecipes, id, opts)
+	return useRecipe(state, state.menuRecipeInventory, Recipes.MenuRecipes, id, opts, "menu")
 end
 function RunState.useSecretRecipe(state, id, opts)
-	return useRecipe(state, state.secretRecipeInventory, Recipes.SecretRecipes, id, opts)
+	return useRecipe(state, state.secretRecipeInventory, Recipes.SecretRecipes, id, opts, "secret")
 end
 
 -- Purely cosmetic: unlock a table/card color theme with tips. No gameplay

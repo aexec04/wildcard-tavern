@@ -430,11 +430,19 @@ Patrons.Definitions = {
 	},
 	{
 		id = "nest_egg", name = "Nest Egg", icon = "🥚", price = 7,
-		description = "Earn 1 Tip for every 5 Tips you're holding (max +5), at the end of each round you win.",
+		description = "Doubles your round-win interest cap: +10 Tips instead of +5.",
 		effect = function() return nil end,
-		onRoundWin = function(state)
-			state.tips = state.tips + math.min(5, math.floor(state.tips / 5))
-		end,
+		-- BALATRO PARITY REWORK: end-of-round interest (1 Tip per 5 held,
+		-- capped) is now a universal base rule for EVERY run (see
+		-- RunState.playHand's roundWon branch) -- this Patron used to BE
+		-- that rule, via its own onRoundWin doing the exact same math. Kept
+		-- as-is, it would have silently double-dipped the moment the base
+		-- rule shipped (both reading/adding off the same state.tips with
+		-- the same formula, back to back). Reworked to just raise the base
+		-- rule's cap instead -- RunState.playHand checks
+		-- `patron.id == "nest_egg"` directly rather than calling an
+		-- onRoundWin hook here, so owning this is still a real, distinct
+		-- upgrade instead of a redundant purchase.
 	},
 }
 

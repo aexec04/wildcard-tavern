@@ -278,6 +278,16 @@ local function serializeState(session)
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
 		patronSlotLimit = RunState.patronSlotLimit(state),
+		-- BALATRO PARITY: recipeSlotLimit/nightCap are static-per-run
+		-- numbers (same pattern as patronSlotLimit above) -- the client
+		-- reads them to show "X/2 Recipes" and "Night N/8" without
+		-- hardcoding a second copy of either constant. wonRun/
+		-- lastRoundReward are the Ante-cap win flag and the actual Tips
+		-- total from the most recent round win (see RunState.playHand).
+		recipeSlotLimit = RunState.recipeSlotLimit(state),
+		nightCap = state.config.nightCap,
+		wonRun = state.wonRun,
+		lastRoundReward = state.lastRoundReward,
 		shopOffers = shopOffers,
 		packOffers = packOffers,
 		voucherOffer = voucherOffer,

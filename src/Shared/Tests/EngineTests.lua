@@ -1201,16 +1201,179 @@ table.insert(tests, { name = "'Big Spender' earns 1 Tip per owned Patron on roun
 	expectEqual(state.tips, tipsBefore + #state.ownedPatrons) -- 2 owned Patrons
 end })
 
-table.insert(tests, { name = "'Nest Egg' earns interest on round win, capped at +5", fn = function()
-	local nestEgg = Patrons.getById("nest_egg")
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 12
-	nestEgg.onRoundWin(state)
-	expectEqual(state.tips, 12 + 2) -- floor(12/5) = 2
+-- ===== Feature Expansion: universal round-win interest =====
 
-	state.tips = 100
-	nestEgg.onRoundWin(state)
-	expectEqual(state.tips, 105) -- floor(100/5) = 20, capped at +5
+table.insert(tests, { name = "RunState.playHand: round-win interest is +1 Tip per 5 held, capped at +5, even without Nest Egg", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 0 -- guarantee an immediate round win
+	state.tips = 12 -- floor(12/5) = 2
+	local tipsBefore = state.tips
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, tipsBefore + 2 + state.config.tipsPerRoundWin)
+end })
+
+table.insert(tests, { name = "RunState.playHand: round-win interest caps at +5 Tips without Nest Egg, no matter how much is held", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 0
+	state.tips = 1000
+	local tipsBefore = state.tips
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, tipsBefore + 5 + state.config.tipsPerRoundWin)
+end })
+
+table.insert(tests, { name = "RunState.playHand records the actual total Tips gained on a round win as state.lastRoundReward", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 0
+	state.tips = 12
+	local tipsBefore = state.tips
+	RunState.playHand(state, { 1 })
+	expectEqual(state.lastRoundReward, state.tips - tipsBefore)
+	expectEqual(state.lastRoundReward, 2 + state.config.tipsPerRoundWin) -- +2 interest, +4 flat reward
+end })
+
+table.insert(tests, { name = "Owning 'Nest Egg' raises the round-win interest cap from +5 to +10, instead of duplicating it", fn = function()
+	local nestEgg = Patrons.getById("nest_egg")
+	expectTrue(nestEgg.onRoundWin == nil, "Nest Egg should no longer have its own onRoundWin -- it'd double-dip with the base interest rule")
+
+	-- Without Nest Egg: capped at +5.
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 0
+	state.tips = 100 -- floor(100/5) = 20, comfortably above either cap
+	local tipsBefore = state.tips
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, tipsBefore + 5 + state.config.tipsPerRoundWin)
+
+	-- With Nest Egg owned: cap raised to +10, still only ONE interest
+	-- payout (not 5 AND 10 stacked).
+	local state2 = RunState.new(nil, function(n) return n end)
+	table.insert(state2.ownedPatrons, nestEgg)
+	state2.targetScore = 0
+	state2.tips = 100
+	local tipsBefore2 = state2.tips
+	RunState.playHand(state2, { 1 })
+	expectEqual(state2.tips, tipsBefore2 + 10 + state2.config.tipsPerRoundWin)
+end })
+
+-- ===== Feature Expansion: Small/Big/Boss Blind score multipliers =====
+
+table.insert(tests, { name = "RunState.blindMultiplierFor: Small Blind (round 1) is always 1x", fn = function()
+	expectEqual(RunState.blindMultiplierFor(1, 1, 3), 1)
+	expectEqual(RunState.blindMultiplierFor(8, 1, 3), 1)
+end })
+
+table.insert(tests, { name = "RunState.blindMultiplierFor: Big Blind (any round before the last) is always 1.5x", fn = function()
+	expectEqual(RunState.blindMultiplierFor(1, 2, 3), 1.5)
+	expectEqual(RunState.blindMultiplierFor(5, 2, 3), 1.5)
+end })
+
+table.insert(tests, { name = "RunState.blindMultiplierFor: Boss Blind scales from 2x at Night 1 to 6x at Night 8, then plateaus", fn = function()
+	expectEqual(RunState.blindMultiplierFor(1, 3, 3), 2)
+	expectEqual(RunState.blindMultiplierFor(8, 3, 3), 6)
+	expectEqual(RunState.blindMultiplierFor(20, 3, 3), 6) -- Endless Mode: multiplier plateaus, doesn't keep climbing
+end })
+
+table.insert(tests, { name = "RunState.targetScoreFor folds nightBaseScoreFor and blindMultiplierFor together", fn = function()
+	local night = 4
+	local base = RunState.nightBaseScoreFor(night)
+	expectEqual(RunState.targetScoreFor(night, 1, 3), math.floor(base * 1))
+	expectEqual(RunState.targetScoreFor(night, 2, 3), math.floor(base * 1.5))
+	expectEqual(RunState.targetScoreFor(night, 3, 3), math.floor(base * RunState.blindMultiplierFor(night, 3, 3)))
+end })
+
+table.insert(tests, { name = "BUGFIX: RunState.blindMultiplierFor honors an explicit nightCap override, not just the global default", fn = function()
+	-- A hypothetical run with nightCap = 4 (instead of the global default
+	-- of 8): the Boss multiplier should already be maxed (6x) at Night 4,
+	-- not still ramping toward a Night-8 plateau it'll never reach.
+	expectEqual(RunState.blindMultiplierFor(1, 3, 3, 4), 2)
+	expectEqual(RunState.blindMultiplierFor(4, 3, 3, 4), 6)
+	expectEqual(RunState.blindMultiplierFor(9, 3, 3, 4), 6) -- still plateaued past its own (overridden) cap
+	-- Omitting nightCap still falls back to the global default (8), so
+	-- every other call site/test that doesn't pass one is unaffected.
+	expectEqual(RunState.blindMultiplierFor(4, 3, 3), RunState.blindMultiplierFor(4, 3, 3, RunState.DefaultConfig.nightCap))
+end })
+
+table.insert(tests, { name = "BUGFIX: RunState.startRound's Boss target score uses THIS RUN's config.nightCap, not always the global default", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.config.nightCap = 4 -- simulate a run whose nightCap differs from the default (8)
+	state.night = 4
+	state.round = 1
+	RunState.startRound(state) -- Night 4, round 1: picks a fresh nightBossModifier
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state) -- the Boss round itself
+
+	expectTrue(state.bossModifier ~= nil)
+	local bossOwnMultiplier = state.bossModifier.targetScoreMultiplier or 1
+	local expectedTarget = math.floor(
+		RunState.targetScoreFor(4, state.config.roundsPerNight, state.config.roundsPerNight, state.config.nightCap)
+		* state.targetMultiplier * bossOwnMultiplier
+	)
+	expectEqual(state.targetScore, expectedTarget)
+end })
+
+table.insert(tests, { name = "RunState.nightBaseScoreFor grows every Night, unbounded (keeps Endless Mode escalating)", fn = function()
+	local b1 = RunState.nightBaseScoreFor(1)
+	local b8 = RunState.nightBaseScoreFor(8)
+	local b20 = RunState.nightBaseScoreFor(20)
+	expectTrue(b8 > b1, "Night 8's base score should exceed Night 1's")
+	expectTrue(b20 > b8, "Night 20's base score should exceed Night 8's -- no plateau, unlike the Boss multiplier")
+end })
+
+-- ===== Feature Expansion: Ante-cap win condition + Endless Mode =====
+
+table.insert(tests, { name = "RunState.playHand marks wonRun = true on clearing the Boss Round of the final Night (nightCap)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap
+	state.round = state.config.roundsPerNight
+	state.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	state.targetScore = 0
+	expectFalse(state.wonRun)
+	RunState.playHand(state, { 1 })
+	expectTrue(state.wonRun)
+end })
+
+table.insert(tests, { name = "RunState.playHand does NOT mark wonRun before reaching nightCap", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap - 1
+	state.round = state.config.roundsPerNight
+	state.bossModifier = { id = "test_boss", name = "Test Boss", description = "" }
+	state.targetScore = 0
+	RunState.playHand(state, { 1 })
+	expectFalse(state.wonRun)
+end })
+
+table.insert(tests, { name = "RunState.playHand: a non-Boss round win at nightCap does NOT mark wonRun (only clearing the Boss Round counts)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap
+	state.round = 1 -- Small Round, not the Boss Round
+	state.bossModifier = nil
+	state.targetScore = 0
+	RunState.playHand(state, { 1 })
+	expectFalse(state.wonRun)
+end })
+
+table.insert(tests, { name = "RunState.playHand: Nights keep climbing past nightCap (Endless Mode), rounds still playable", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = state.config.nightCap + 2 -- already deep into Endless Mode
+	state.round = 1
+	state.targetScore = 0
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result.roundWon)
+	expectFalse(state.runOver)
+end })
+
+table.insert(tests, { name = "RunState.playHand: losing during Endless Mode does NOT erase an earlier win (wonRun stays true)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	-- Simulate having already cleared nightCap's Boss Round earlier in the run.
+	state.wonRun = true
+	-- Now lose a round deep into Endless Mode: 0 hands remaining, target unmet.
+	state.night = state.config.nightCap + 3
+	state.round = 1
+	state.handsRemaining = 1
+	state.targetScore = math.huge
+	local result = RunState.playHand(state, { 1 })
+	expectFalse(result.roundWon)
+	expectTrue(state.runOver)
+	expectTrue(state.wonRun, "a win earlier in the run should survive a later Endless Mode loss")
 end })
 
 -- ===== Feature Expansion: Recipes (House/Menu/Secret) =====
@@ -1377,6 +1540,160 @@ table.insert(tests, { name = "A Reserved Special on an owned Patron raises the s
 	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit)
 	state.ownedPatronSpecials["the_regular"] = "reserved"
 	expectEqual(RunState.patronSlotLimit(state), state.config.patronSlotLimit + 1)
+end })
+
+-- ===== Feature Expansion: Recipe (Consumable) slot cap =====
+
+table.insert(tests, { name = "RunState.recipeSlotLimit defaults to the config value (2), shared across House+Menu+Secret", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(RunState.recipeSlotLimit(state), state.config.recipeSlotLimit)
+	expectEqual(state.config.recipeSlotLimit, 2)
+end })
+
+table.insert(tests, { name = "RunState.buyHouseRecipe refuses once the shared recipe box is full", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local r1, r2, r3 = Recipes.HouseRecipes[1], Recipes.HouseRecipes[2], Recipes.HouseRecipes[3]
+	expectTrue(RunState.buyHouseRecipe(state, r1.id))
+	expectTrue(RunState.buyHouseRecipe(state, r2.id))
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit)
+
+	local ok, message = RunState.buyHouseRecipe(state, r3.id)
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit)
+end })
+
+table.insert(tests, { name = "The recipe box cap is SHARED across House/Menu/Secret, not per-category", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	expectTrue(RunState.buyHouseRecipe(state, Recipes.HouseRecipes[1].id))
+	expectTrue(RunState.buyMenuRecipe(state, Recipes.MenuRecipes[1].id))
+	-- Box is full (1 House + 1 Menu = 2, the shared cap) -- a Secret Recipe
+	-- purchase should now be refused too, even though secretRecipeInventory
+	-- itself is still empty.
+	local ok = RunState.buySecretRecipe(state, Recipes.SecretRecipes[1].id)
+	expectFalse(ok)
+	expectEqual(#state.secretRecipeInventory, 0)
+end })
+
+table.insert(tests, { name = "Using a Recipe makes room to buy again at the cap", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local r1, r2, r3 = Recipes.HouseRecipes[1], Recipes.HouseRecipes[2], Recipes.HouseRecipes[3]
+	RunState.buyHouseRecipe(state, r1.id)
+	RunState.buyHouseRecipe(state, r2.id)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit)
+
+	local usedOk = RunState.useHouseRecipe(state, r1.id, { cardIndices = { 1 } })
+	expectTrue(usedOk)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit - 1)
+
+	local ok = RunState.buyHouseRecipe(state, r3.id)
+	expectTrue(ok, "expected room to buy after using a Recipe")
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit)
+end })
+
+table.insert(tests, { name = "RunState.resolvePack skips a Recipe pick that no longer fits the shared box, but still resolves", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[1].id)
+	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[2].id)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit) -- already full
+
+	local reveal = RunState.openPack(state, "menu_pack", function(n) return n end)
+	local ok = RunState.resolvePack(state, { reveal.items[1].id })
+	expectTrue(ok, "resolve should still succeed even though the box is full")
+	expectEqual(#state.menuRecipeInventory, 0, "the pick should be silently skipped, not crash or overfill")
+end })
+
+table.insert(tests, { name = "House Recipe 'Second Helping' refuses when the recipe box is full", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	-- Use a real recipe first so lastRecipeUsedId is set, then fill the box
+	-- with two OTHER recipes (not Second Helping itself -- that's the next
+	-- test's edge case).
+	local r1 = Recipes.HouseRecipes[1]
+	RunState.buyHouseRecipe(state, r1.id)
+	local usedOk = RunState.useHouseRecipe(state, r1.id, { cardIndices = { 1 } })
+	expectTrue(usedOk)
+	expectTrue(state.lastRecipeUsedId ~= nil)
+
+	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[2].id)
+	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[3].id)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit) -- box full again
+
+	local secondHelping = Recipes.getHouseRecipeById("second_helping")
+	expectTrue(secondHelping ~= nil, "expected to find the 'second_helping' recipe definition")
+	-- deps.totalHeldRecipes mirrors what RunState.useRecipe would compute --
+	-- box already full and Second Helping isn't one of the 2 held recipes,
+	-- so it genuinely won't fit even after freeing a slot elsewhere.
+	local ok, message = secondHelping.apply(state, {}, { recipeSlotLimit = RunState.recipeSlotLimit(state), totalHeldRecipes = state.config.recipeSlotLimit })
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "BUGFIX: House Recipe 'Second Helping' copies a Menu Recipe into MENU inventory, not House", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local menuRecipe = Recipes.MenuRecipes[1]
+	RunState.buyMenuRecipe(state, menuRecipe.id)
+	local usedOk = RunState.useMenuRecipe(state, menuRecipe.id, {})
+	expectTrue(usedOk)
+	expectEqual(state.lastRecipeUsedId, menuRecipe.id)
+	expectEqual(state.lastRecipeUsedCategory, "menu")
+
+	RunState.buyHouseRecipe(state, "second_helping")
+	local ok = RunState.useHouseRecipe(state, "second_helping", {})
+	expectTrue(ok)
+
+	-- The copy must land in menuRecipeInventory (it's a Menu Recipe id) --
+	-- NOT houseRecipeInventory, where it would be an unfindable, unusable
+	-- phantom entry (Recipes.getHouseRecipeById would return nil for it).
+	local foundInMenu = false
+	for _, id in ipairs(state.menuRecipeInventory) do
+		if id == menuRecipe.id then foundInMenu = true end
+	end
+	expectTrue(foundInMenu, "expected the Menu Recipe copy in menuRecipeInventory")
+	for _, id in ipairs(state.houseRecipeInventory) do
+		expectTrue(id ~= menuRecipe.id, "the Menu Recipe id should never end up in houseRecipeInventory")
+	end
+end })
+
+table.insert(tests, { name = "BUGFIX: House Recipe 'Second Helping' refuses to copy a Secret Recipe (only House/Menu, per its own description)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local secretRecipe = Recipes.SecretRecipes[1]
+	RunState.buySecretRecipe(state, secretRecipe.id)
+	local usedOk = RunState.useSecretRecipe(state, secretRecipe.id, {})
+	expectTrue(usedOk)
+	expectEqual(state.lastRecipeUsedCategory, "secret")
+
+	RunState.buyHouseRecipe(state, "second_helping")
+	local ok, message = RunState.useHouseRecipe(state, "second_helping", {})
+	expectFalse(ok, "Second Helping should refuse to copy a Secret Recipe")
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "House Recipe 'Second Helping' succeeds when its own slot is the one freeing up room", fn = function()
+	-- Box holds exactly [second_helping, other] at the cap (2). Using
+	-- second_helping should still succeed -- it frees its own slot before
+	-- adding the copy, netting back to exactly the cap, not over it.
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local other = Recipes.HouseRecipes[1]
+	RunState.buyHouseRecipe(state, other.id)
+	local usedOk = RunState.useHouseRecipe(state, other.id, { cardIndices = { 1 } })
+	expectTrue(usedOk)
+	expectTrue(state.lastRecipeUsedId ~= nil)
+
+	RunState.buyHouseRecipe(state, "second_helping")
+	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[2].id)
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit) -- [second_helping, HouseRecipes[2]]
+
+	local ok = RunState.useHouseRecipe(state, "second_helping", {})
+	expectTrue(ok, "using Second Helping should succeed since it frees its own slot first")
+	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit) -- still exactly at the cap
 end })
 
 -- ===== Feature Expansion: House Passes (Vouchers) =====

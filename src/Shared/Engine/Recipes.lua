@@ -279,10 +279,32 @@ Recipes.HouseRecipes = {
 		id = "second_helping", name = "Second Helping", icon = "🍽️", price = 4,
 		description = "Creates a copy of the last House or Menu Recipe you used.",
 		apply = function(state, opts, deps)
-			if not state.lastRecipeUsedId then
+			-- BUGFIX: only House and Menu Recipes count, matching this
+			-- Recipe's own description -- state.lastRecipeUsedCategory
+			-- (set by RunState.useRecipe) also tracks Secret Recipe uses,
+			-- which must NOT be copyable here. Previously this ignored
+			-- category entirely and always inserted into
+			-- houseRecipeInventory, which silently created an
+			-- unusable/unsellable phantom entry whenever the copied id
+			-- actually belonged to Menu (or Secret) Recipes -- permanently
+			-- eating one of only 2 shared recipe slots for the rest of the
+			-- run. See RunState.useRecipe's BUGFIX comment for the full story.
+			if not state.lastRecipeUsedId or (state.lastRecipeUsedCategory ~= "house" and state.lastRecipeUsedCategory ~= "menu") then
 				return false, "Nothing to repeat yet"
 			end
-			table.insert(state.houseRecipeInventory, state.lastRecipeUsedId)
+			-- RECIPE CAP: this is a manual action the player chose to spend
+			-- a Recipe on -- unlike the passive Blue/Purple Stamp rewards,
+			-- refuse it outright when the box is already full (same shape
+			-- as Star Treatment refusing with no Patrons to treat) instead
+			-- of silently burning the Recipe for nothing. deps.
+			-- totalHeldRecipes already accounts for this Recipe's own
+			-- slot freeing up (see RunState.useRecipe).
+			if deps and deps.recipeSlotLimit ~= nil and deps.totalHeldRecipes ~= nil
+				and deps.totalHeldRecipes >= deps.recipeSlotLimit then
+				return false, "Your recipe box is full"
+			end
+			local targetInventory = state.lastRecipeUsedCategory == "menu" and state.menuRecipeInventory or state.houseRecipeInventory
+			table.insert(targetInventory, state.lastRecipeUsedId)
 			return true, "Made a second helping."
 		end,
 	},

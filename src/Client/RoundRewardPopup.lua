@@ -19,8 +19,13 @@
 
 	Returns:
 		{
-			showRoundReward = function(amount),
+			showRoundReward = function(amount, titleOverride?),
 		}
+
+	`titleOverride` (optional): BALATRO PARITY -- lets a caller swap the
+	default "Round Complete!" headline for something more momentous, used
+	exactly once per run for the Ante-cap win moment (clearing the Boss
+	Round of Night `nightCap` -- see init.client.lua's render()).
 ]]
 
 return function(deps)
@@ -67,7 +72,8 @@ return function(deps)
 	roundRewardScale.Scale = 1
 	roundRewardScale.Parent = roundRewardPopup
 
-	local function showRoundReward(amount)
+	local function showRoundReward(amount, titleOverride)
+		roundRewardTitle.Text = titleOverride or "Round Complete!"
 		roundRewardAmount.Text = string.format("+$%d Tips", amount)
 		roundRewardPopup.Visible = true
 		roundRewardScale.Scale = 0.6

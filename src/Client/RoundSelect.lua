@@ -361,7 +361,16 @@ return function(deps)
 		-- banner's). round == 1 means this is the very first time you're
 		-- seeing this particular Night, so that's the one moment worth a
 		-- slightly more celebratory subtitle.
-		titleLabel.Text = "Night " .. tostring(state.night)
+		-- BALATRO PARITY: an "Ante counter" (1/8, then Endless Mode) --
+		-- shows "/nightCap" while under it, "(Endless)" once past for good
+		-- (state.night only ever increases, so once you're past nightCap
+		-- you never see the "/8" form again this run).
+		local nightCap = state.nightCap or 8
+		if state.night > nightCap then
+			titleLabel.Text = string.format("Night %d (Endless)", state.night)
+		else
+			titleLabel.Text = string.format("Night %d/%d", state.night, nightCap)
+		end
 		subtitleLabel.Text = state.round == 1
 			and "A new Night begins! Play the round you're on, or skip it for a Tag instead."
 			or "Play the round you're on, or skip it for a Tag instead."
@@ -372,9 +381,23 @@ return function(deps)
 			local isBossRound = (entry.round == ROUNDS_PER_NIGHT)
 			local isPast = entry.round < currentRound
 			local isCurrent = entry.round == currentRound
-			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT)
+			-- BUGFIX: pass THIS run's nightCap (server-sent, see
+			-- serializeState) through so a Boss Blind preview here always
+			-- matches what RunState.startRound will actually compute
+			-- server-side, instead of assuming the global default.
+			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
-			entry.headerLabel.Text = isBossRound and "Boss Round" or string.format("Round %d", entry.round)
+			-- BALATRO PARITY: Small Blind (round 1, 1x target) / Big Blind
+			-- (any round between, 1.5x) / Boss Blind (last round, 2x-6x
+			-- scaling with Night) -- matches RunState.blindMultiplierFor,
+			-- and the sidebar's blindInfoLabel uses the same naming.
+			if isBossRound then
+				entry.headerLabel.Text = "Boss Round"
+			elseif entry.round == 1 then
+				entry.headerLabel.Text = "Small Round"
+			else
+				entry.headerLabel.Text = string.format("Big Round %d", entry.round)
+			end
 			entry.targetLabel.Text = string.format("Target: %d", target)
 
 			if isPast then
