@@ -46,7 +46,10 @@ local SellPatronRemote = remotes:WaitForChild("SellPatron")
 local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
 local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
-local SkipRoundRemote = remotes:WaitForChild("SkipRound") -- JOURNEY FEATURE: skip the current round for a smaller Tips reward
+-- ROUND SELECT FEATURE: confirm playing the current round, or skip it for
+-- its currently-revealed Tag instead (see Client/RoundSelect.lua).
+local SelectRoundRemote = remotes:WaitForChild("SelectRound")
+local SkipRoundRemote = remotes:WaitForChild("SkipRound")
 local RestartRunRemote = remotes:WaitForChild("RestartRun")
 local StartRunRemote = remotes:WaitForChild("StartRun")
 local StateUpdatedRemote = remotes:WaitForChild("StateUpdated")
@@ -880,11 +883,10 @@ local showRoundReward = RoundRewardPopupModule.showRoundReward
 -- ===== Road Ahead (journey/roadmap) overlay =====
 -- Extracted into Client/Journey.lua. render() still needs to check
 -- journeyBackdrop.Visible and call refreshJourney(), so both come back out
--- of the require() call, same pattern as Themes.lua. Required down here
--- (not right after MenuScreen like the other overlays) specifically so it
--- can take showRoundReward as a dep -- JOURNEY FEATURE's Skip button reuses
--- the same "+$X Tips" popup a round win shows, and showRoundReward doesn't
--- exist yet as a local until RoundRewardPopupModule above has run.
+-- of the require() call, same pattern as Themes.lua. Purely informational
+-- now -- skipping a round lives on its own dedicated screen (ROUND SELECT
+-- FEATURE, right below) -- so it no longer needs showRoundReward or a way
+-- to fire SkipRound.
 local JourneyOverlay = require(script.Journey)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -907,14 +909,39 @@ local JourneyOverlay = require(script.Journey)({
 		return currentTheme
 	end,
 	addTooltip = addTooltip,
-	-- JOURNEY FEATURE
-	requestSkipRound = function()
-		SkipRoundRemote:FireServer()
-	end,
-	showRoundReward = showRoundReward,
 })
 local journeyBackdrop = JourneyOverlay.journeyBackdrop
 local refreshJourney = JourneyOverlay.refreshJourney
+
+-- ===== Round Select screen =====
+-- Extracted into Client/RoundSelect.lua. render() needs to toggle
+-- roundSelectFrame.Visible and call rebuildRoundSelect() whenever
+-- phase == "roundSelect", so both come back out of the require() call.
+-- Needs showRoundReward/showUnlockPopup as deps (for its Tag-result
+-- confirmation popups), which is why this is required down here, after
+-- RoundRewardPopupModule/UnlockPopupModule above have already run.
+local RoundSelectOverlay = require(script.RoundSelect)({
+	root = root,
+	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	playClickSfx = playClickSfx,
+	tweenTo = tweenTo,
+	addTooltip = addTooltip,
+	BossRounds = BossRounds,
+	RunStateEngine = RunStateEngine,
+	SelectRoundRemote = SelectRoundRemote,
+	SkipRoundRemote = SkipRoundRemote,
+	showRoundReward = showRoundReward,
+	showUnlockPopup = showUnlockPopup,
+	showWarning = showWarning,
+	getLatestState = function()
+		return latestState
+	end,
+})
+local roundSelectFrame = RoundSelectOverlay.roundSelectFrame
+local rebuildRoundSelect = RoundSelectOverlay.rebuildRoundSelect
 
 local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
@@ -1626,8 +1653,18 @@ local function render(state)
 	if state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce and showRoundReward then
 		showRoundReward(reward)
 	end
+
+	-- ROUND SELECT FEATURE: rebuild BEFORE `lastPhase` gets reassigned just
+	-- below, so rebuildRoundSelect receives the TRUE previous phase (see its
+	-- own header comment for why it needs that to tell a confirmed skip
+	-- apart from a normal play-through that also ends up back on this
+	-- screen).
+	if state.phase == "roundSelect" then
+		rebuildRoundSelect(state, lastPhase)
+	end
 	lastPhase = state.phase
 
+	roundSelectFrame.Visible = (state.phase == "roundSelect")
 	shopFrame.Visible = (state.phase == "shop")
 	gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then

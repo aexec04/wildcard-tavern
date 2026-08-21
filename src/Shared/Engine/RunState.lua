@@ -18,6 +18,7 @@ local Themes = require(script.Parent.Themes)
 local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
+local Tags = require(script.Parent.Tags)
 local Recipes = require(script.Parent.Recipes)
 local HousePasses = require(script.Parent.HousePasses)
 local Packs = require(script.Parent.Packs)
@@ -120,6 +121,15 @@ function RunState.new(options, rng)
 		-- reads bossModifier for scoring/hand-size/etc purposes is
 		-- unaffected.
 		nightBossModifier = nil,
+		-- ROUND SELECT FEATURE: the Tag you'd get for skipping the round
+		-- you're CURRENTLY on, picked fresh every startRound (see below) --
+		-- nil on the Boss round (never skippable). See Tags.lua.
+		currentRoundSkipTag = nil,
+		-- Set by the "Happy Hour Tag" (Tags.lua): a flat Tips-off discount
+		-- applied to Patron/Pack prices for the very next shop visit only,
+		-- then cleared when that visit ends -- see patronPrice/packPrice
+		-- and advanceToNextRound below.
+		nextShopDiscount = nil,
 		roundOver = false,
 		runOver = false,
 		wonRun = false,
@@ -160,6 +170,17 @@ function RunState.startRound(state)
 	local isBoss = state.bossRoundsEnabled and BossRounds.isBossRound(state.round, state.config.roundsPerNight)
 	state.bossModifier = isBoss and state.nightBossModifier or nil
 	local bossModifier = state.bossModifier
+
+	-- ROUND SELECT FEATURE: a fresh Tag for whichever round we're now on,
+	-- IF it's skippable (see RunState.canSkipRound -- the last round of a
+	-- Night is never skippable, independent of bossRoundsEnabled). Picked
+	-- here so it's already known -- and can be shown on the Round Select
+	-- screen -- before the player ever acts on this round.
+	if state.round < state.config.roundsPerNight then
+		state.currentRoundSkipTag = Tags.pick(state.rng)
+	else
+		state.currentRoundSkipTag = nil
+	end
 
 	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
 	handSize = math.max(1, handSize)
@@ -425,25 +446,30 @@ function RunState.patronSlotLimit(state)
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'
--- Discount House Pass knocks 2 off (never below 1). Shop offer prices are
+-- Discount House Pass and a "Happy Hour Tag" (see Tags.lua/
+-- state.nextShopDiscount) both knock Tips off. Shop offer prices are
 -- computed with this (server-side, in serializeState) so the client never
 -- needs to duplicate the discount math -- it just displays whatever price
--- it was sent.
+-- it was sent. Both discounts are combined BEFORE clamping to a 1-Tip
+-- floor (not clamped one at a time) so stacking them never rounds more
+-- generously than the sum of the two actually is.
 function RunState.patronPrice(state, patron)
 	local price = patron.price
 	if state.housePasses.regulars_discount then
-		price = math.max(1, price - 2)
+		price = price - 2
 	end
-	return price
+	price = price - (state.nextShopDiscount or 0)
+	return math.max(1, price)
 end
 
--- Same idea for Packs -- Wholesale Pricing knocks 2 off (never below 1).
+-- Same idea for Packs -- Wholesale Pricing + a Happy Hour Tag both apply.
 function RunState.packPrice(state, pack)
 	local price = pack.price
 	if state.housePasses.wholesale_pricing then
-		price = math.max(1, price - 2)
+		price = price - 2
 	end
-	return price
+	price = price - (state.nextShopDiscount or 0)
+	return math.max(1, price)
 end
 
 -- The Frequent Visitor Card House Pass knocks 2 off whatever the current
@@ -918,6 +944,11 @@ end
 function RunState.advanceToNextRound(state)
 	assert(state.roundOver and not state.runOver, "Can't advance: round not won or run already over")
 
+	-- A Happy Hour Tag (Tags.lua) only ever covers the shop visit right
+	-- after you skipped for it -- clear it here, at the moment that visit
+	-- actually ends, whether or not it got used on a purchase.
+	state.nextShopDiscount = nil
+
 	state.round = state.round + 1
 	if state.round > state.config.roundsPerNight then
 		state.round = 1
@@ -927,10 +958,11 @@ function RunState.advanceToNextRound(state)
 end
 
 --[[
-	JOURNEY FEATURE: skip the current round outright instead of playing it,
-	for a smaller flat Tips reward (see skipRewardFor below) -- mirrors "you
-	can skip the Small/Big Blind for a reward, but never the Boss Blind"
-	from the reference game.
+	ROUND SELECT FEATURE: skip the current round outright instead of
+	playing it, for whatever Tag is currently revealed (see
+	state.currentRoundSkipTag/Tags.lua) -- mirrors "you can skip the
+	Small/Big Blind for a Tag, but never the Boss Blind" from the reference
+	game.
 
 	Deliberately narrow about WHEN skipping is allowed (see canSkipRound):
 	only the last round of a Night (the Boss round) is permanently
@@ -943,29 +975,9 @@ end
 	Skipping bypasses the normal roundOver -> shop -> advanceToNextRound
 	flow entirely (it jumps straight into the next round's startRound) --
 	on purpose, so skipping a round always means missing that round's shop
-	visit too. That's the real cost of the free Tips: you don't play the
-	round, but you don't get to spend at The Bar afterward either.
+	visit too. That's the real cost of the Tag: you don't play the round,
+	but you don't get to spend at The Bar afterward either.
 ]]
-function RunState.skipRewardFor(state)
-	-- Deliberately less than a normal round win (config.tipsPerRoundWin,
-	-- doubled for a Boss Round -- see playHand above): skipping also means
-	-- missing that round's shop visit, so it has to stay worse than
-	-- actually playing for the choice to be a real tradeoff, not a
-	-- strictly-better shortcut. Scales gently by Night so skipping later
-	-- still feels worth slightly more.
-	--
-	-- BUGFIX (independent review, before this ever reached Ahmed): the
-	-- Night-based scaling below used to have no ceiling, so it silently
-	-- crossed -- and eventually exceeded -- tipsPerRoundWin by Night 4-5,
-	-- breaking the exact tradeoff this comment promises (a long run could
-	-- reach a Night where skipping paid MORE than actually winning the
-	-- round, for free, no hands played). Capped at tipsPerRoundWin - 1 so
-	-- it can climb early on but can never reach, let alone pass, a real
-	-- win's reward, no matter how far a run goes.
-	local uncapped = math.ceil(state.config.tipsPerRoundWin / 2) + (state.night - 1)
-	return math.min(uncapped, state.config.tipsPerRoundWin - 1)
-end
-
 function RunState.canSkipRound(state)
 	if state.roundOver or state.runOver then
 		return false
@@ -978,13 +990,23 @@ function RunState.canSkipRound(state)
 		and state.roundScore == 0
 end
 
+-- Returns tag, result -- the Tag that was applied (Tags.Definitions entry,
+-- for id/name/icon/description) and the result table its own `apply`
+-- returned (see Tags.lua's header comment for the result shapes), so the
+-- caller can show a confirmation that matches what ACTUALLY happened.
 function RunState.skipRound(state)
 	assert(RunState.canSkipRound(state), "Can't skip this round")
-	local reward = RunState.skipRewardFor(state)
-	state.tips = state.tips + reward
+	local tag = state.currentRoundSkipTag
+	assert(tag, "No skip Tag available for this round -- startRound should always pick one for a skippable round")
+
+	local result = tag.apply(state, {
+		rng = state.rng,
+		patronSlotLimit = RunState.patronSlotLimit(state),
+	})
+
 	state.round = state.round + 1
 	RunState.startRound(state)
-	return reward
+	return tag, result
 end
 
 return RunState

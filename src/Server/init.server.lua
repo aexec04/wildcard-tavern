@@ -67,7 +67,13 @@ local BuyPackRemote = newRemote("BuyPack")       -- (player, packId)
 local ResolvePackRemote = newRemote("ResolvePack") -- (player, chosenIds)
 local BuyHousePassRemote = newRemote("BuyHousePass") -- (player, passId)
 local AdvanceRoundRemote = newRemote("AdvanceRound")
-local SkipRoundRemote = newRemote("SkipRound") -- (player) -- JOURNEY FEATURE: skip the current round for a smaller Tips reward, see RunState.skipRound
+-- ROUND SELECT FEATURE: fired from Client/RoundSelect.lua, the screen
+-- shown whenever phase == "roundSelect" (start of a run, and every time
+-- after leaving the shop -- see below). SelectRound confirms "play this
+-- round"; SkipRound takes this round's revealed Tag instead (see
+-- RunState.canSkipRound/skipRound/Tags.lua).
+local SelectRoundRemote = newRemote("SelectRound") -- (player)
+local SkipRoundRemote = newRemote("SkipRound") -- (player)
 local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
@@ -85,7 +91,14 @@ local VOUCHER_CHANCE = 0.35
 local REROLL_BASE_COST = 5
 local REROLL_COST_STEP = 2
 
-local sessions = {} -- [player] = { state = RunState, phase = "playing" | "shop" | "gameover", shopOffers = {patron, ...}, packOffers = {pack, ...}, voucherOffer = pass | nil, rerollCost = number }
+-- ROUND SELECT FEATURE: "roundSelect" is the new 4th phase -- shown at the
+-- very start of a run, and every time right after leaving the shop
+-- (instead of dropping straight into "playing"). RunState itself already
+-- has a hand dealt and ready the instant a "roundSelect" phase begins
+-- (RunState.startRound runs unconditionally) -- this phase is purely a
+-- client-visibility gate, so no engine changes were needed to add it; see
+-- SelectRoundRemote's handler below for the phase flip into "playing".
+local sessions = {} -- [player] = { state = RunState, phase = "roundSelect" | "playing" | "shop" | "gameover", shopOffers = {patron, ...}, packOffers = {pack, ...}, voucherOffer = pass | nil, rerollCost = number }
 
 local function pickShopOffers(state)
 	local available = {}
@@ -238,6 +251,21 @@ local function serializeState(session)
 		}
 	end
 
+	-- ROUND SELECT FEATURE: the Tag you'd get for skipping the round
+	-- you're currently on, if any (nil on the Boss round -- see
+	-- RunState.startRound/Tags.lua). Same sanitized id/name/icon/
+	-- description shape as nightBossModifier above -- `apply` is a
+	-- function and never needs to leave the server.
+	local currentRoundSkipTag = nil
+	if state.currentRoundSkipTag then
+		currentRoundSkipTag = {
+			id = state.currentRoundSkipTag.id,
+			name = state.currentRoundSkipTag.name,
+			icon = state.currentRoundSkipTag.icon,
+			description = state.currentRoundSkipTag.description,
+		}
+	end
+
 	return {
 		phase = session.phase,
 		night = state.night,
@@ -264,10 +292,10 @@ local function serializeState(session)
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
 		bossModifier = bossModifier,
-		-- JOURNEY FEATURE
+		-- JOURNEY FEATURE / ROUND SELECT FEATURE
 		nightBossModifier = nightBossModifier,
 		canSkipRound = RunState.canSkipRound(state),
-		skipReward = RunState.skipRewardFor(state),
+		currentRoundSkipTag = currentRoundSkipTag,
 		handStats = state.handStats,
 		handLevels = state.handLevels,
 		-- SCORING JUICE fix: computeHandPreview (init.client.lua) needs
@@ -306,7 +334,11 @@ end
 local function startNewSession(player, deckVariantId, difficultyId)
 	sessions[player] = {
 		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId }),
-		phase = "playing",
+		-- ROUND SELECT FEATURE: every run now opens on the Round Select
+		-- screen for Round 1 (matching the reference game showing Blind
+		-- Select even before the very first blind), not straight into
+		-- "playing".
+		phase = "roundSelect",
 		shopOffers = {},
 		packOffers = {},
 		voucherOffer = nil,
@@ -704,7 +736,11 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 
-	session.phase = "playing"
+	-- ROUND SELECT FEATURE: land on the Round Select screen for the new
+	-- round instead of dropping straight into "playing" -- gives the
+	-- player a chance to see (and possibly skip) it first, same as
+	-- opening a fresh run.
+	session.phase = "roundSelect"
 	session.shopOffers = {}
 	session.packOffers = {}
 	session.voucherOffer = nil
@@ -720,9 +756,23 @@ end)
 -- (never the Boss round, never once you've touched the round). Only
 -- reachable from the "playing" phase, same as PlayHand/Discard -- there's
 -- nothing to skip while the shop or game-over screen is up.
+-- ROUND SELECT FEATURE: both only fire from the "roundSelect" phase --
+-- there's nothing to Select/Skip once you've already committed to playing
+-- (or you're mid-shop/game-over). See RunState.canSkipRound/skipRound and
+-- Tags.lua for the actual rules/rewards.
+
+SelectRoundRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	if not session or session.phase ~= "roundSelect" then
+		return
+	end
+	session.phase = "playing"
+	pushState(player)
+end)
+
 SkipRoundRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
-	if not session or session.phase ~= "playing" then
+	if not session or session.phase ~= "roundSelect" then
 		return
 	end
 	if not RunState.canSkipRound(session.state) then
@@ -735,6 +785,10 @@ SkipRoundRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 
+	-- Stays in "roundSelect" -- skipping shows the SAME screen again for
+	-- whatever round you're now on (skipRound already advanced state.round
+	-- and dealt it fresh), same as the reference game returning you to
+	-- Blind Select for the next blind after a skip.
 	pushState(player)
 end)
 

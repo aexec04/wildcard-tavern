@@ -24,6 +24,7 @@ local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
 local Recipes = require(script.Parent.Parent.Engine.Recipes)
 local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
 local Packs = require(script.Parent.Parent.Engine.Packs)
+local Tags = require(script.Parent.Parent.Engine.Tags)
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -645,47 +646,141 @@ table.insert(tests, { name = "JOURNEY: canSkipRound is false once a Discard's be
 	expectFalse(RunState.canSkipRound(state))
 end })
 
-table.insert(tests, { name = "JOURNEY: skipRound grants Tips and advances straight to the next round without opening a shop", fn = function()
+table.insert(tests, { name = "ROUND SELECT: startRound reveals a currentRoundSkipTag on skippable rounds, nil on the Boss round", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
+	expectTrue(state.currentRoundSkipTag ~= nil, "Round 1 should have a skip Tag revealed")
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectTrue(state.currentRoundSkipTag == nil, "the Boss round should never have a skip Tag")
+end })
+
+-- Small helper shared by the Tag-specific tests below: find a Tag's index
+-- in Tags.Definitions (rather than assuming a position -- the catalog can
+-- grow) so a deterministic rng can force that EXACT Tag to be picked.
+local function tagIndexById(id)
+	for i, tag in ipairs(Tags.Definitions) do
+		if tag.id == id then
+			return i
+		end
+	end
+	return nil
+end
+
+table.insert(tests, { name = "ROUND SELECT: skipRound applies the Tip Jar Tag and advances without opening a shop", fn = function()
+	local tipJarIndex = tagIndexById("tip_jar")
+	expectTrue(tipJarIndex ~= nil, "expected to find tip_jar in Tags.Definitions")
+	local state = RunState.new(nil, function(_n) return tipJarIndex end)
 	local tipsBefore = state.tips
 	local roundBefore = state.round
-	local reward = RunState.skipRound(state)
-	expectEqual(state.tips, tipsBefore + reward)
+	local tag, result = RunState.skipRound(state)
+	expectEqual(tag.id, "tip_jar")
+	expectEqual(result.kind, "tips")
+	expectTrue(result.amount > 0)
+	expectTrue(result.amount < state.config.tipsPerRoundWin, "skip reward should stay worse than actually winning the round")
+	expectEqual(state.tips, tipsBefore + result.amount)
 	expectEqual(state.round, roundBefore + 1)
-	expectTrue(reward > 0)
-	expectTrue(reward < state.config.tipsPerRoundWin, "skip reward should stay worse than actually winning the round")
 	expectFalse(state.roundOver, "skipping should never flip roundOver/open a shop")
 end })
 
-table.insert(tests, { name = "JOURNEY: skipRound refuses to run when canSkipRound is false", fn = function()
+table.insert(tests, { name = "ROUND SELECT: Tip Jar's amount scales up gently across Nights, but never reaches tipsPerRoundWin", fn = function()
+	-- BUGFIX regression test: this used to grow without a ceiling and cross
+	-- (then exceed) tipsPerRoundWin by around Night 4-5. Check a wide
+	-- spread of Nights so this can't silently regress at some specific
+	-- Night number again.
+	local tipJarIndex = tagIndexById("tip_jar")
+	local state = RunState.new(nil, function(_n) return tipJarIndex end)
+	local lastAmount = 0
+	for night = 1, 20 do
+		state.night = night
+		state.currentRoundSkipTag = Tags.getById("tip_jar") -- re-picked by startRound each round in a real game; forced directly here since we're not advancing rounds
+		local _, result = RunState.skipRound(state)
+		expectTrue(result.amount < state.config.tipsPerRoundWin, "skip reward must stay below tipsPerRoundWin at Night " .. night)
+		expectTrue(result.amount > 0, "skip reward must stay positive at Night " .. night)
+		expectTrue(result.amount >= lastAmount, "should never go DOWN as Nights pass")
+		lastAmount = result.amount
+		-- RunState.skipRound advances state.round -- pull it back to a
+		-- skippable round (and undo the Night bump the loop is driving
+		-- manually) so the next iteration's skipRound call is valid again.
+		state.round = 1
+		state.roundOver = false
+	end
+end })
+
+table.insert(tests, { name = "ROUND SELECT: skipRound refuses to run when canSkipRound is false", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.round = state.config.roundsPerNight -- the Boss round
 	local ok = pcall(RunState.skipRound, state)
 	expectFalse(ok, "expected skipRound to assert/fail on the Boss round")
 end })
 
-table.insert(tests, { name = "JOURNEY: skipRewardFor scales up gently across Nights, but never reaches tipsPerRoundWin", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	local night1Reward = RunState.skipRewardFor(state)
-	state.night = 2
-	local night2Reward = RunState.skipRewardFor(state)
-	expectTrue(night2Reward > night1Reward, "later Nights should reward slightly more for skipping")
-	expectTrue(night1Reward < state.config.tipsPerRoundWin, "skipping should always stay worse than a real round win")
-	expectTrue(night2Reward < state.config.tipsPerRoundWin, "skipping should always stay worse than a real round win")
+table.insert(tests, { name = "ROUND SELECT: the On the House Tag grants a free unowned Patron", fn = function()
+	local onTheHouseIndex = tagIndexById("on_the_house")
+	expectTrue(onTheHouseIndex ~= nil, "expected to find on_the_house in Tags.Definitions")
+	local state = RunState.new(nil, function(_n) return onTheHouseIndex end)
+	local patronsBefore = #state.ownedPatrons
+	local tag, result = RunState.skipRound(state)
+	expectEqual(tag.id, "on_the_house")
+	expectEqual(result.kind, "patron")
+	expectTrue(result.patron ~= nil)
+	expectEqual(#state.ownedPatrons, patronsBefore + 1)
+	expectEqual(state.ownedPatrons[#state.ownedPatrons].id, result.patron.id)
 end })
 
-table.insert(tests, { name = "JOURNEY: skipRewardFor caps out and never reaches tipsPerRoundWin, even on a very long run", fn = function()
-	-- BUGFIX regression test: this used to grow without a ceiling and cross
-	-- (then exceed) tipsPerRoundWin by around Night 4-5 -- see
-	-- skipRewardFor's header comment. Check a wide spread of Nights so this
-	-- can't silently regress at some specific Night number again.
-	local state = RunState.new(nil, function(n) return n end)
-	for night = 1, 20 do
-		state.night = night
-		local reward = RunState.skipRewardFor(state)
-		expectTrue(reward < state.config.tipsPerRoundWin, "skip reward must stay below tipsPerRoundWin at Night " .. night)
-		expectTrue(reward > 0, "skip reward must stay positive at Night " .. night)
+table.insert(tests, { name = "ROUND SELECT: the On the House Tag falls back to Tips when the table is already full", fn = function()
+	local onTheHouseIndex = tagIndexById("on_the_house")
+	local state = RunState.new(nil, function(_n) return onTheHouseIndex end)
+	-- Fill the table to its limit with fake-but-well-formed Patron entries
+	-- (only .id matters for the ownership/capacity check inside Tags.lua).
+	for i = 1, RunState.patronSlotLimit(state) do
+		table.insert(state.ownedPatrons, { id = "fake_patron_" .. i, name = "Fake", description = "" })
 	end
+	local tipsBefore = state.tips
+	local tag, result = RunState.skipRound(state)
+	expectEqual(tag.id, "on_the_house")
+	expectEqual(result.kind, "tips")
+	expectTrue(result.fallback, "expected the fallback flag when the table is full")
+	expectEqual(state.tips, tipsBefore + result.amount)
+end })
+
+table.insert(tests, { name = "ROUND SELECT: the Happy Hour Tag discounts the next shop visit, then clears once you leave it", fn = function()
+	local happyHourIndex = tagIndexById("happy_hour")
+	expectTrue(happyHourIndex ~= nil, "expected to find happy_hour in Tags.Definitions")
+	local state = RunState.new(nil, function(_n) return happyHourIndex end)
+	local tag, result = RunState.skipRound(state)
+	expectEqual(tag.id, "happy_hour")
+	expectEqual(result.kind, "discount")
+	expectEqual(state.nextShopDiscount, result.amount)
+
+	local samplePatron = Patrons.Definitions[1]
+	expectEqual(RunState.patronPrice(state, samplePatron), math.max(1, samplePatron.price - result.amount))
+
+	-- Simulate winning the round and leaving the shop -- the discount
+	-- should be gone by the round after that.
+	state.roundOver = true
+	RunState.advanceToNextRound(state)
+	expectTrue(state.nextShopDiscount == nil, "Happy Hour's discount should be consumed once its shop visit ends")
+	expectEqual(RunState.patronPrice(state, samplePatron), samplePatron.price)
+end })
+
+table.insert(tests, { name = "ROUND SELECT: Happy Hour Tag and Regulars' Discount House Pass stack, floored at 1 Tip", fn = function()
+	local happyHourIndex = tagIndexById("happy_hour")
+	local state = RunState.new(nil, function(_n) return happyHourIndex end)
+	state.housePasses.regulars_discount = true
+	local _, result = RunState.skipRound(state)
+	local cheapPatron = { price = 4 } -- cheap enough that both discounts combined would go below 1
+	expectEqual(RunState.patronPrice(state, cheapPatron), 1)
+	-- Happy Hour applies to Pack prices too (see its description), even
+	-- though Wholesale Pricing (the House Pass equivalent) wasn't bought --
+	-- only the Tag's own 3-Tip discount applies here.
+	expectEqual(RunState.packPrice(state, { price = 10 }), 7)
+	expectEqual(result.amount, 3)
+end })
+
+table.insert(tests, { name = "Tags.pick returns a valid, well-formed Tag", fn = function()
+	local tag = Tags.pick(function(n) return n end)
+	expectTrue(tag ~= nil)
+	expectTrue(Tags.getById(tag.id) == tag)
+	expectTrue(type(tag.apply) == "function")
 end })
 
 table.insert(tests, { name = "Boss Round target score multiplier is folded into targetScore", fn = function()
