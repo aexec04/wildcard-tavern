@@ -350,6 +350,22 @@ return function(deps)
 		-- (accepted or rejected) by now, so clicking is safe again.
 		actionPending = false
 
+		-- BUGFIX (Ahmed: "when you complete a night, it should tell you
+		-- that you're at Night 2 or Night 3 etc"): this screen is the one
+		-- place a player can't avoid seeing right after clearing a Night
+		-- (it's a full-screen opaque cover, shown right after the shop that
+		-- follows a Boss round win) -- so making its own title say WHICH
+		-- Night, live off `state.night`, is a more reliable "tell you"
+		-- than a transient toast would be (a toast here would render
+		-- invisible anyway -- this frame's ZIndex sits above the toast
+		-- banner's). round == 1 means this is the very first time you're
+		-- seeing this particular Night, so that's the one moment worth a
+		-- slightly more celebratory subtitle.
+		titleLabel.Text = "Night " .. tostring(state.night)
+		subtitleLabel.Text = state.round == 1
+			and "A new Night begins! Play the round you're on, or skip it for a Tag instead."
+			or "Play the round you're on, or skip it for a Tag instead."
+
 		local currentRound = state.round
 
 		for _, entry in ipairs(roundPanels) do

@@ -161,7 +161,13 @@ function RunState.startRound(state)
 	-- also lands here, since every run/Night begins at round 1).
 	if state.bossRoundsEnabled then
 		if state.round == 1 then
-			state.nightBossModifier = BossRounds.pick(state.rng)
+			-- BUGFIX (Ahmed's playtest): pass state.night so BossRounds.pick
+			-- can gate out the brutal tier-3 modifiers (Closing Time, Watered
+			-- Down, ...) until Night 6+ -- see BossRounds.lua's header
+			-- comment. Previously this picked uniformly across ALL 24
+			-- modifiers regardless of Night, so a run-ending "1 hand only"
+			-- boss was exactly as likely on Night 1 as Night 10.
+			state.nightBossModifier = BossRounds.pick(state.rng, state.night)
 		end
 	else
 		state.nightBossModifier = nil

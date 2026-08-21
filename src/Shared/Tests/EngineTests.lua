@@ -527,6 +527,44 @@ table.insert(tests, { name = "BossRounds.pick returns a valid, well-formed modif
 	expectTrue(type(modifier.description) == "string" and #modifier.description > 0)
 end })
 
+-- BOSS DIFFICULTY: BossRounds.pick(rng, night) gates modifiers by minNight
+-- (Ahmed's playtest bug -- Closing Time, a "1 hand only" boss, appeared on
+-- an early Night when he barely had any Patrons). Every definition below
+-- with a `minNight > 1` should NEVER be reachable before that Night.
+table.insert(tests, { name = "BossRounds.pick never returns a tier-3 (minNight = 6) modifier before Night 6", fn = function()
+	-- rng(n) = n always asks for the LAST eligible index -- the strongest
+	-- possible check that nothing past the eligible tier ever leaks in,
+	-- across every Night from 1 up to (but not including) 6.
+	for night = 1, 5 do
+		local modifier = BossRounds.pick(function(n) return n end, night)
+		expectTrue((modifier.minNight or 1) <= night, "night " .. night .. " returned " .. modifier.id .. " (minNight " .. tostring(modifier.minNight) .. ")")
+	end
+end })
+
+table.insert(tests, { name = "BossRounds.pick can return a tier-3 modifier once Night reaches 6", fn = function()
+	-- rng(n) = n asks for the last eligible index -- with all 24 modifiers
+	-- eligible at Night 6+, the last one (by Definitions order) is a
+	-- tier-3 modifier, confirming the gate actually opens rather than
+	-- silently staying capped forever.
+	local modifier = BossRounds.pick(function(n) return n end, 6)
+	expectEqual(modifier.minNight, 6, "expected a tier-3 modifier once every tier is unlocked")
+end })
+
+table.insert(tests, { name = "BossRounds.pick defaults to Night 1 (most restrictive tier) if no night is passed", fn = function()
+	local modifier = BossRounds.pick(function(n) return n end)
+	expectTrue((modifier.minNight or 1) <= 1, "expected only a tier-1 modifier with no night argument")
+end })
+
+table.insert(tests, { name = "RunState.startRound picks a Boss modifier gated by state.night, not fully random", fn = function()
+	-- A dry rng forcing the LAST eligible index every time -- on Night 1
+	-- this can only ever be a tier-1 (mild) modifier, never Closing Time/
+	-- Watered Down/etc, reproducing the exact scenario Ahmed hit.
+	local state = RunState.new(nil, function(n) return n end)
+	expectTrue(state.night == 1)
+	expectTrue(state.nightBossModifier ~= nil)
+	expectTrue((state.nightBossModifier.minNight or 1) <= 1, "Night 1 should never roll a tier-2/3 Boss modifier")
+end })
+
 -- ===== DeckVariants / DifficultyTiers =====
 
 table.insert(tests, { name = "DeckVariants.getById falls back to nil for an unknown id", fn = function()
@@ -601,6 +639,20 @@ table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks 
 	-- would be too late: Round 1's pick already happened inside
 	-- RunState.new, using whatever rng was passed there).
 	local state = RunState.new(nil, function(_n) return dryIndex end)
+	-- BOSS DIFFICULTY: dry_spell is minNight = 3 (see BossRounds.lua), so
+	-- RunState.new's own Round-1-at-Night-1 pick above can't have selected
+	-- it (Night 1 only has tier-1 modifiers eligible). Force the run to
+	-- Night 3 and re-pick Round 1's Boss modifier there -- same as a real
+	-- player reaching Night 3 -- before jumping straight to the Boss round
+	-- itself (skipping normal round-by-round progression, since this test
+	-- only cares about the modifier's effect once it's active). dryIndex
+	-- still resolves to dry_spell here: at Night 3+, every modifier before
+	-- it in Definitions order (all of tier 1 + earlier tier 2) is also
+	-- eligible, so its position in the eligible list matches its position
+	-- in the full list.
+	state.night = 3
+	state.round = 1
+	RunState.startRound(state)
 	state.round = state.config.roundsPerNight
 	RunState.startRound(state)
 	expectEqual(state.bossModifier.id, "dry_spell")
