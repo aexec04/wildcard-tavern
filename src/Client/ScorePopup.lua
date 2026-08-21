@@ -145,6 +145,12 @@ return function(deps)
 	local GHOST_LIFT_DURATION = 0.22 -- played row "lift out of hand" tween
 	local DROPOFF_DURATION = 0.5 -- played row "drop into discard" tween at the end
 	local GHOST_HARD_TIMEOUT = 10 -- last-resort backstop, see showScorePopup's per-ghost task.delay
+	-- PACING: how long the finale's final "Chips x Mult" stays on screen
+	-- before the popup hides -- Ahmed asked for the finale to linger
+	-- longer so the multiplier actually has time to be read/enjoyed.
+	-- Was 1.1s originally, bumped to 1.6s in an earlier pacing pass, now
+	-- 2.6s. This is the main knob if it ever needs adjusting again.
+	local FINALE_LINGER = 2.6
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -801,10 +807,11 @@ return function(deps)
 			-- Patrons/Garnishes (several anticipation pauses stacked up)
 			-- can easily take longer than any one fixed delay would assume,
 			-- and hiding mid-sequence would cut the reveal off early. Ghost
-			-- cleanup piggybacks on this same delay -- by 1.6s after the
-			-- finale, the drop-off tweens (<=0.5s + up to ~0.5s of
-			-- per-card stagger) are guaranteed done.
-			task.delay(1.6, function()
+			-- cleanup piggybacks on this same delay -- by FINALE_LINGER
+			-- seconds after the finale, the drop-off tweens (<=0.5s + up
+			-- to ~0.5s of per-card stagger) are guaranteed done well
+			-- before it fires.
+			task.delay(FINALE_LINGER, function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
 					destroyGhosts(liveGhosts)
