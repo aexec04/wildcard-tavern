@@ -915,7 +915,26 @@ local function selectedIndicesArray()
 	for index in pairs(selected) do
 		table.insert(out, index)
 	end
-	table.sort(out)
+	-- BUGFIX (Ahmed's playtest -- scoring choreography popped cards in a
+	-- seemingly random order instead of left-to-right): this used to sort
+	-- by raw hand index (table.sort(out) with no comparator = numeric
+	-- ascending), NOT by where the cards actually sit on screen. Sort Hand
+	-- (the Rank/Suit buttons) reorders the on-screen DISPLAY without
+	-- changing any card's underlying hand index, so as soon as a non-
+	-- default sort was active, the raw-index order sent here could be a
+	-- totally different order than what's visually laid out left to
+	-- right. That order flows straight through: this array becomes both
+	-- the cardIndices sent to PlayHandRemote AND (via computeHandPreview)
+	-- HandEvaluator.evaluate's `cards` input, whose `scoringCards` order
+	-- Scoring.calculate's breakdown -- and therefore ScorePopup.lua's
+	-- entire reveal sequence -- plays back verbatim. Sorting by
+	-- cardVisualPosition (the same left-to-right on-screen order
+	-- buildScoreSourceInfo already uses to lay out the played-card row)
+	-- instead of raw index makes the highlight order always match the
+	-- row's actual left-to-right layout, whatever the current sort mode.
+	table.sort(out, function(a, b)
+		return (cardVisualPosition[a] or a) < (cardVisualPosition[b] or b)
+	end)
 	return out
 end
 
