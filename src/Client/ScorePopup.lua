@@ -149,7 +149,7 @@ return function(deps)
 	-- it feel deliberate -- the one line that matters needs to actually
 	-- hold long enough to read on its own, not just relative to a longer
 	-- sequence. Bumped again to 1.3s.
-	local ENTRY_STAGGER = 1.3 -- seconds between entries -- long enough to actually read each line
+	local ENTRY_STAGGER = 1.0 -- seconds between entries -- long enough to actually read each line
 	local ANTICIPATION_PAUSE = 0.5
 	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween
@@ -165,7 +165,7 @@ return function(deps)
 	-- of leaving them frozen at the deck for the rest of this linger, the
 	-- dead-air problem is smaller, but the linger itself still doesn't need
 	-- to run the full 2.6s to be readable.
-	local FINALE_LINGER = 1.8
+	local FINALE_LINGER = 0.7
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
