@@ -76,8 +76,28 @@ return function(deps)
 
 	local PREVIEW_NIGHTS = 3 -- how many Nights ahead to show on the map
 	local ROUNDS_PER_NIGHT = 3
-	local NODE_SIZE = 64
+	-- LANDMARK PATH (redesign, replacing the old plain-circle nodes): each
+	-- stage is now a small landmark -- a lantern post for the Small Round,
+	-- a table for the Big Round, an ornate gate for the Boss Round --
+	-- standing on a ground line, instead of a uniform colored circle.
+	-- NODE_SIZE bumped 64 -> 88 to give the tallest of these (the gate +
+	-- its crown badge) headroom without poking into the avatar marker
+	-- walking above the row (journeyAvatarMarker's Position formula below
+	-- is written in terms of NODE_SIZE, so it grows with it automatically).
+	local NODE_SIZE = 88
 	local NIGHT_GAP_EXTRA = 60 -- extra width of the spacer between night clusters
+
+	-- Shared between node construction (each landmark's natural/default
+	-- color) and refreshJourneyImpl (the done/current overrides), so both
+	-- stay in sync off one source of truth instead of hex literals
+	-- scattered across two functions.
+	local LANDMARK_COLORS = {
+		lanternGlow = Color3.fromRGB(240, 182, 76),
+		table = Color3.fromRGB(90, 69, 48),
+		gate = Color3.fromRGB(177, 84, 79),
+		done = Color3.fromRGB(126, 161, 116),
+		current = Color3.fromRGB(240, 182, 76),
+	}
 
 	-- Shared by refreshJourneyImpl/describeStage/refreshInfoBar (JOURNEY
 	-- FEATURE) -- pulled out to one place instead of 3 copies of the same
@@ -163,19 +183,22 @@ return function(deps)
 	journeyStagesHolder.ZIndex = 22
 	journeyStagesHolder.Parent = journeyMapScroll
 
-	-- A thin path line behind the nodes, purely decorative -- gives the "walk
-	-- along a road" read even before the avatar marker is on top of it. Parented
-	-- INSIDE journeyStagesHolder (not journeyMapScroll) and sized to 100% of it,
-	-- so it automatically spans exactly the row of nodes -- no matter how wide
-	-- that row ends up being -- instead of a hardcoded guess.
+	-- LANDMARK PATH: a ground line the landmarks stand ON, not a line that
+	-- cuts through their middle -- moved from mid-height (0.5 scale) down
+	-- to just under where every landmark's own bottom edge sits (each
+	-- landmark is anchored to the bottom of its NODE_SIZE-tall node, see
+	-- the node-building loop below). Parented INSIDE journeyStagesHolder
+	-- (not journeyMapScroll) and sized to 100% of it, so it automatically
+	-- spans exactly the row of nodes -- no matter how wide that row ends
+	-- up being -- instead of a hardcoded guess.
 	local journeyPathLine = Instance.new("Frame")
-	journeyPathLine.Size = UDim2.new(1, 0, 0, 6)
-	journeyPathLine.Position = UDim2.new(0, 0, 0.5, -3)
-	journeyPathLine.BackgroundColor3 = Color3.fromRGB(90, 70, 50)
+	journeyPathLine.Size = UDim2.new(1, 0, 0, 4)
+	journeyPathLine.Position = UDim2.new(0, 0, 0.5, NODE_SIZE / 2 - 6)
+	journeyPathLine.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 	journeyPathLine.BorderSizePixel = 0
 	journeyPathLine.ZIndex = 21
 	journeyPathLine.Parent = journeyStagesHolder
-	roundCorner(journeyPathLine, 3)
+	roundCorner(journeyPathLine, 2)
 
 	local journeyStagesLayout = Instance.new("UIListLayout")
 	journeyStagesLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -252,13 +275,147 @@ return function(deps)
 		for round = 1, ROUNDS_PER_NIGHT do
 			layoutOrderCounter = layoutOrderCounter + 1
 
-			local node = Instance.new("Frame")
-			node.Size = UDim2.new(0, NODE_SIZE, 0, NODE_SIZE)
-			node.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-			node.LayoutOrder = layoutOrderCounter
-			node.ZIndex = 22
-			node.Parent = journeyStagesHolder
-			roundCorner(node, NODE_SIZE / 2)
+			-- `container` plays the same layout role the old plain-circle
+			-- `node` Frame did (same size, same LayoutOrder, same thing
+			-- addTooltip hovers/measures) -- it's just transparent now, with
+			-- the actual landmark art built as children anchored to its
+			-- bottom edge, standing on journeyPathLine.
+			local container = Instance.new("Frame")
+			container.Size = UDim2.new(0, NODE_SIZE, 0, NODE_SIZE)
+			container.BackgroundTransparency = 1
+			container.LayoutOrder = layoutOrderCounter
+			container.ZIndex = 22
+			container.Parent = journeyStagesHolder
+
+			local shadow = Instance.new("Frame")
+			shadow.Name = "Shadow"
+			shadow.Size = UDim2.new(0, 40, 0, 8)
+			shadow.AnchorPoint = Vector2.new(0.5, 0)
+			shadow.Position = UDim2.new(0.5, 0, 1, -4)
+			shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			shadow.BackgroundTransparency = 0.6
+			shadow.BorderSizePixel = 0
+			shadow.ZIndex = 22
+			shadow.Parent = container
+			roundCorner(shadow, 4)
+
+			-- A soft ring behind the landmark, shown only for the CURRENT
+			-- stage (see refreshJourneyImpl) -- built once here rather than
+			-- Instance.new()'d on every refresh.
+			local ring = Instance.new("Frame")
+			ring.Name = "CurrentRing"
+			ring.Size = UDim2.new(0, 64, 0, 64)
+			ring.AnchorPoint = Vector2.new(0.5, 1)
+			ring.Position = UDim2.new(0.5, 0, 1, -6)
+			ring.BackgroundTransparency = 1
+			ring.BorderSizePixel = 0
+			ring.ZIndex = 21
+			ring.Visible = false
+			ring.Parent = container
+			roundCorner(ring, 32)
+			local ringStroke = Instance.new("UIStroke")
+			ringStroke.Color = LANDMARK_COLORS.current
+			ringStroke.Thickness = 2
+			ringStroke.Transparency = 0.25
+			ringStroke.Parent = ring
+
+			local entryKind
+			local lanternGlow, tableShape, gateShape
+
+			if round == 1 then
+				-- Small Round -- a lantern post, warmest/simplest landmark.
+				entryKind = "lantern"
+
+				local lanternPost = Instance.new("Frame")
+				lanternPost.Name = "LanternPost"
+				lanternPost.Size = UDim2.new(0, 4, 0, 30)
+				lanternPost.AnchorPoint = Vector2.new(0.5, 1)
+				lanternPost.Position = UDim2.new(0.5, 0, 1, -8)
+				lanternPost.BackgroundColor3 = Color3.fromRGB(107, 90, 62)
+				lanternPost.BorderSizePixel = 0
+				lanternPost.ZIndex = 22
+				lanternPost.Parent = container
+
+				lanternGlow = Instance.new("Frame")
+				lanternGlow.Name = "LanternGlow"
+				lanternGlow.Size = UDim2.new(0, 16, 0, 16)
+				lanternGlow.AnchorPoint = Vector2.new(0.5, 1)
+				lanternGlow.Position = UDim2.new(0.5, 0, 1, -34)
+				lanternGlow.BackgroundColor3 = LANDMARK_COLORS.lanternGlow
+				lanternGlow.BorderSizePixel = 0
+				lanternGlow.ZIndex = 23
+				lanternGlow.Parent = container
+				roundCorner(lanternGlow, 8)
+			elseif round < ROUNDS_PER_NIGHT then
+				-- Big Round -- a table (never a Boss Round; only the very
+				-- last round of a Night ever is, see the `else` branch).
+				entryKind = "table"
+
+				tableShape = Instance.new("Frame")
+				tableShape.Name = "Table"
+				tableShape.Size = UDim2.new(0, 44, 0, 18)
+				tableShape.AnchorPoint = Vector2.new(0.5, 1)
+				tableShape.Position = UDim2.new(0.5, 0, 1, -8)
+				tableShape.BackgroundColor3 = LANDMARK_COLORS.table
+				tableShape.BorderSizePixel = 0
+				tableShape.ZIndex = 22
+				tableShape.Parent = container
+				roundCorner(tableShape, 6)
+
+				local legLeft = Instance.new("Frame")
+				legLeft.Size = UDim2.new(0, 4, 0, 10)
+				legLeft.Position = UDim2.new(0, 4, 1, 0)
+				legLeft.BackgroundColor3 = LANDMARK_COLORS.table
+				legLeft.BorderSizePixel = 0
+				legLeft.ZIndex = 22
+				legLeft.Parent = tableShape
+				local legRight = legLeft:Clone()
+				legRight.Position = UDim2.new(1, -8, 1, 0)
+				legRight.Parent = tableShape
+			else
+				-- Last round of the Night -- normally the Boss Round (an
+				-- ornate gate), but Boss Rounds can be turned off for a
+				-- Difficulty Tier (see bossRoundsEnabledFor), in which case
+				-- it plays exactly like a Big Round. Both shapes are built
+				-- up front; refreshJourneyImpl toggles which one is Visible
+				-- based on the CURRENT run's live setting, since that can
+				-- only be known once a run has actually started.
+				entryKind = "dual"
+
+				tableShape = Instance.new("Frame")
+				tableShape.Name = "Table"
+				tableShape.Size = UDim2.new(0, 44, 0, 18)
+				tableShape.AnchorPoint = Vector2.new(0.5, 1)
+				tableShape.Position = UDim2.new(0.5, 0, 1, -8)
+				tableShape.BackgroundColor3 = LANDMARK_COLORS.table
+				tableShape.BorderSizePixel = 0
+				tableShape.ZIndex = 22
+				tableShape.Visible = false
+				tableShape.Parent = container
+				roundCorner(tableShape, 6)
+
+				gateShape = Instance.new("Frame")
+				gateShape.Name = "Gate"
+				gateShape.Size = UDim2.new(0, 44, 0, 54)
+				gateShape.AnchorPoint = Vector2.new(0.5, 1)
+				gateShape.Position = UDim2.new(0.5, 0, 1, -6)
+				gateShape.BackgroundColor3 = LANDMARK_COLORS.gate
+				gateShape.BorderSizePixel = 0
+				gateShape.ZIndex = 22
+				gateShape.Parent = container
+				roundCorner(gateShape, 20)
+
+				local gateCrown = Instance.new("TextLabel")
+				gateCrown.Size = UDim2.new(0, 24, 0, 24)
+				gateCrown.AnchorPoint = Vector2.new(0.5, 1)
+				gateCrown.Position = UDim2.new(0.5, 0, 0, -4)
+				gateCrown.BackgroundTransparency = 1
+				gateCrown.Font = Enum.Font.GothamBold
+				gateCrown.TextSize = 18
+				gateCrown.Text = "👑"
+				gateCrown.ZIndex = 23
+				gateCrown.Parent = gateShape
+			end
 
 			if night == 1 and round == 1 then
 				-- Underneath everything else, so it doesn't shift layout order.
@@ -271,35 +428,34 @@ return function(deps)
 				nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 				nightLabel.Text = "Night 1"
 				nightLabel.ZIndex = 22
-				nightLabel.Parent = node
+				nightLabel.Parent = container
 			end
 
-			local roundLabel = Instance.new("TextLabel")
-			roundLabel.Size = UDim2.fromScale(1, 0.55)
-			roundLabel.Position = UDim2.fromScale(0, 0.02)
-			roundLabel.BackgroundTransparency = 1
-			roundLabel.Font = Enum.Font.GothamBold
-			roundLabel.TextSize = 16
-			roundLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
-			roundLabel.Text = string.format("R%d", round)
-			roundLabel.ZIndex = 23
-			roundLabel.Parent = node
-
-			local scoreLabel = Instance.new("TextLabel")
-			scoreLabel.Size = UDim2.fromScale(1, 0.4)
-			scoreLabel.Position = UDim2.fromScale(0, 0.55)
-			scoreLabel.BackgroundTransparency = 1
-			scoreLabel.Font = Enum.Font.Gotham
-			scoreLabel.TextSize = 11
-			scoreLabel.TextColor3 = Color3.fromRGB(220, 210, 195)
-			scoreLabel.Text = tostring(RunStateEngine.targetScoreFor(night, round))
-			scoreLabel.ZIndex = 23
-			scoreLabel.Parent = node
+			-- The tag beneath each landmark ("R1", "R1 ✓", boss crown, ...) --
+			-- what used to be centered TEXT inside a circle is now a small
+			-- caption below the art. The old inline target-score number is
+			-- gone; describeStage's hover tooltip (below) already shows it,
+			-- so it's not lost, just moved off the crowded map itself.
+			local tagLabel = Instance.new("TextLabel")
+			tagLabel.Size = UDim2.new(0, NODE_SIZE, 0, 16)
+			tagLabel.AnchorPoint = Vector2.new(0.5, 0)
+			tagLabel.Position = UDim2.new(0.5, 0, 1, 4)
+			tagLabel.BackgroundTransparency = 1
+			tagLabel.Font = Enum.Font.GothamBold
+			tagLabel.TextSize = 12
+			tagLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
+			tagLabel.Text = string.format("R%d", round)
+			tagLabel.ZIndex = 23
+			tagLabel.Parent = container
 
 			table.insert(journeyStageNodes, {
-				node = node,
-				roundLabel = roundLabel,
-				scoreLabel = scoreLabel,
+				node = container,
+				tagLabel = tagLabel,
+				ring = ring,
+				kind = entryKind,
+				lanternGlow = lanternGlow,
+				tableShape = tableShape,
+				gateShape = gateShape,
 				night = night,
 				round = round,
 				centerX = xCursor + NODE_SIZE / 2,
@@ -318,7 +474,7 @@ return function(deps)
 				nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 				nightLabel.Text = string.format("Night %d", night)
 				nightLabel.ZIndex = 22
-				nightLabel.Parent = node
+				nightLabel.Parent = container
 			end
 		end
 	end
@@ -441,10 +597,44 @@ return function(deps)
 			local isCurrent = (entry.night == currentNight and entry.round == currentRound)
 			local isBoss = bossRoundsEnabled and BossRounds.isBossRound(entry.round, ROUNDS_PER_NIGHT)
 
-			entry.node.BackgroundColor3 = isCurrent and currentTheme.colors.cardSelected
-				or (isPast and Color3.fromRGB(90, 130, 90) or (isBoss and Color3.fromRGB(90, 45, 45) or Color3.fromRGB(60, 45, 32)))
-			local bossTag = isBoss and " 👑" or ""
-			entry.roundLabel.Text = isPast and string.format("R%d ✓", entry.round) or string.format("R%d%s", entry.round, bossTag)
+			-- LANDMARK PATH: the dual-shape "R3" entry only knows whether
+			-- it's actually a Boss Round once a run (and its Difficulty
+			-- Tier) is live -- toggle which built shape is showing here,
+			-- every refresh, rather than guessing at build time.
+			if entry.kind == "dual" then
+				entry.tableShape.Visible = not isBoss
+				entry.gateShape.Visible = isBoss
+			end
+
+			-- Which Instance actually carries this entry's landmark color:
+			-- the lantern's glow, the table (legs share its color via
+			-- Clone, see the build loop), or whichever of table/gate is
+			-- currently showing.
+			local colorTarget = entry.lanternGlow
+				or (entry.kind == "dual" and (isBoss and entry.gateShape or entry.tableShape))
+				or entry.tableShape
+			local naturalColor = (entry.kind == "lantern" and LANDMARK_COLORS.lanternGlow)
+				or (isBoss and LANDMARK_COLORS.gate or LANDMARK_COLORS.table)
+
+			if colorTarget then
+				local newColor = isPast and LANDMARK_COLORS.done
+					or (isCurrent and (currentTheme.colors.cardSelected or LANDMARK_COLORS.current) or naturalColor)
+				colorTarget.BackgroundColor3 = newColor
+				-- The table's two legs are separate child Frames (see the
+				-- build loop's legLeft/legRight) so they don't inherit the
+				-- tabletop's color automatically -- keep them in sync so a
+				-- done/current table doesn't end up with mismatched legs.
+				if colorTarget.Name == "Table" then
+					for _, child in ipairs(colorTarget:GetChildren()) do
+						if child:IsA("Frame") then
+							child.BackgroundColor3 = newColor
+						end
+					end
+				end
+			end
+
+			entry.ring.Visible = isCurrent
+			entry.tagLabel.Text = isPast and string.format("R%d ✓", entry.round) or (isCurrent and "You are here" or string.format("R%d%s", entry.round, isBoss and " 👑" or ""))
 
 			if isCurrent then
 				targetNode = entry
