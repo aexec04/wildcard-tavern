@@ -99,6 +99,41 @@ return function(deps)
 		current = Color3.fromRGB(240, 182, 76),
 	}
 
+	-- POLISH PASS: a "standing" silhouette anchored to the bottom of
+	-- `container` -- a flat-bottomed base with a rounded/domed top,
+	-- instead of a single uniformly-rounded pill. Reads much closer to an
+	-- actual bench/gate silhouette (and to the Landmark Path concept art
+	-- this redesign was picked from) than a plain rounded rect does.
+	-- `dome`'s own BackgroundColor3 is what refreshJourneyImpl actually
+	-- sets on done/current transitions -- `base` is just a plain child
+	-- Frame colored to match at build time, kept in sync by the existing
+	-- "propagate color to Frame children" step in refreshJourneyImpl
+	-- (same trick the old table legs relied on).
+	local function buildArchLandmark(container, name, width, height, bottomInset, color, domeRadius)
+		local dome = Instance.new("Frame")
+		dome.Name = name
+		dome.Size = UDim2.new(0, width, 0, height)
+		dome.AnchorPoint = Vector2.new(0.5, 1)
+		dome.Position = UDim2.new(0.5, 0, 1, -bottomInset)
+		dome.BackgroundColor3 = color
+		dome.BorderSizePixel = 0
+		dome.ZIndex = 22
+		dome.Parent = container
+		roundCorner(dome, domeRadius)
+
+		local base = Instance.new("Frame")
+		base.Name = "Base"
+		base.Size = UDim2.new(1, 0, 0, math.min(height, domeRadius))
+		base.AnchorPoint = Vector2.new(0.5, 1)
+		base.Position = UDim2.new(0.5, 0, 1, 0)
+		base.BackgroundColor3 = color
+		base.BorderSizePixel = 0
+		base.ZIndex = 22
+		base.Parent = dome
+
+		return dome
+	end
+
 	-- Shared by refreshJourneyImpl/describeStage/refreshInfoBar (JOURNEY
 	-- FEATURE) -- pulled out to one place instead of 3 copies of the same
 	-- "look up this difficulty tier, fall back to default" dance.
@@ -232,14 +267,17 @@ return function(deps)
 	-- instead -- journeyPathLine stays a plain, non-laid-out sibling in
 	-- the outer holder, still sized 1,0 so it spans the same full content
 	-- width once that's set below.
+	--
+	-- POLISH PASS: this is now just an invisible strip that HOLDS a row of
+	-- small dash Frames (built further down, once the real content width
+	-- is known) instead of being one solid bar itself -- matches the
+	-- dashed "road" line from the concept art instead of a plain line.
 	local journeyPathLine = Instance.new("Frame")
 	journeyPathLine.Size = UDim2.new(1, 0, 0, 4)
 	journeyPathLine.Position = UDim2.new(0, 0, 0.5, NODE_SIZE / 2 - 6)
-	journeyPathLine.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
-	journeyPathLine.BorderSizePixel = 0
+	journeyPathLine.BackgroundTransparency = 1
 	journeyPathLine.ZIndex = 21
 	journeyPathLine.Parent = journeyStagesHolder
-	roundCorner(journeyPathLine, 2)
 
 	-- The actual row of nodes/spacers lives in here, NOT directly in
 	-- journeyStagesHolder -- see the BUGFIX comment above.
@@ -369,7 +407,7 @@ return function(deps)
 			ringStroke.Parent = ring
 
 			local entryKind
-			local lanternGlow, tableShape, gateShape
+			local lanternGlow, lanternHalo, tableShape, gateShape
 
 			if round == 1 then
 				-- Small Round -- a lantern post, warmest/simplest landmark.
@@ -385,6 +423,24 @@ return function(deps)
 				lanternPost.ZIndex = 22
 				lanternPost.Parent = container
 
+				-- POLISH PASS: a soft glow halo behind the lit orb -- a
+				-- bigger, mostly-transparent circle sharing the glow's own
+				-- center, faking the warm radial-glow look from the concept
+				-- art (Roblox Frames can't do true radial gradients).
+				-- Recolored alongside the glow itself on done/current
+				-- transitions, see refreshJourneyImpl.
+				lanternHalo = Instance.new("Frame")
+				lanternHalo.Name = "LanternHalo"
+				lanternHalo.Size = UDim2.new(0, 30, 0, 30)
+				lanternHalo.AnchorPoint = Vector2.new(0.5, 1)
+				lanternHalo.Position = UDim2.new(0.5, 0, 1, -27)
+				lanternHalo.BackgroundColor3 = LANDMARK_COLORS.lanternGlow
+				lanternHalo.BackgroundTransparency = 0.65
+				lanternHalo.BorderSizePixel = 0
+				lanternHalo.ZIndex = 22
+				lanternHalo.Parent = container
+				roundCorner(lanternHalo, 15)
+
 				lanternGlow = Instance.new("Frame")
 				lanternGlow.Name = "LanternGlow"
 				lanternGlow.Size = UDim2.new(0, 16, 0, 16)
@@ -396,31 +452,10 @@ return function(deps)
 				lanternGlow.Parent = container
 				roundCorner(lanternGlow, 8)
 			elseif round < ROUNDS_PER_NIGHT then
-				-- Big Round -- a table (never a Boss Round; only the very
+				-- Big Round -- a bench (never a Boss Round; only the very
 				-- last round of a Night ever is, see the `else` branch).
 				entryKind = "table"
-
-				tableShape = Instance.new("Frame")
-				tableShape.Name = "Table"
-				tableShape.Size = UDim2.new(0, 44, 0, 18)
-				tableShape.AnchorPoint = Vector2.new(0.5, 1)
-				tableShape.Position = UDim2.new(0.5, 0, 1, -8)
-				tableShape.BackgroundColor3 = LANDMARK_COLORS.table
-				tableShape.BorderSizePixel = 0
-				tableShape.ZIndex = 22
-				tableShape.Parent = container
-				roundCorner(tableShape, 6)
-
-				local legLeft = Instance.new("Frame")
-				legLeft.Size = UDim2.new(0, 4, 0, 10)
-				legLeft.Position = UDim2.new(0, 4, 1, 0)
-				legLeft.BackgroundColor3 = LANDMARK_COLORS.table
-				legLeft.BorderSizePixel = 0
-				legLeft.ZIndex = 22
-				legLeft.Parent = tableShape
-				local legRight = legLeft:Clone()
-				legRight.Position = UDim2.new(1, -8, 1, 0)
-				legRight.Parent = tableShape
+				tableShape = buildArchLandmark(container, "Table", 44, 30, 8, LANDMARK_COLORS.table, 13)
 			else
 				-- Last round of the Night -- normally the Boss Round (an
 				-- ornate gate), but Boss Rounds can be turned off for a
@@ -431,28 +466,10 @@ return function(deps)
 				-- only be known once a run has actually started.
 				entryKind = "dual"
 
-				tableShape = Instance.new("Frame")
-				tableShape.Name = "Table"
-				tableShape.Size = UDim2.new(0, 44, 0, 18)
-				tableShape.AnchorPoint = Vector2.new(0.5, 1)
-				tableShape.Position = UDim2.new(0.5, 0, 1, -8)
-				tableShape.BackgroundColor3 = LANDMARK_COLORS.table
-				tableShape.BorderSizePixel = 0
-				tableShape.ZIndex = 22
+				tableShape = buildArchLandmark(container, "Table", 44, 30, 8, LANDMARK_COLORS.table, 13)
 				tableShape.Visible = false
-				tableShape.Parent = container
-				roundCorner(tableShape, 6)
 
-				gateShape = Instance.new("Frame")
-				gateShape.Name = "Gate"
-				gateShape.Size = UDim2.new(0, 44, 0, 54)
-				gateShape.AnchorPoint = Vector2.new(0.5, 1)
-				gateShape.Position = UDim2.new(0.5, 0, 1, -6)
-				gateShape.BackgroundColor3 = LANDMARK_COLORS.gate
-				gateShape.BorderSizePixel = 0
-				gateShape.ZIndex = 22
-				gateShape.Parent = container
-				roundCorner(gateShape, 20)
+				gateShape = buildArchLandmark(container, "Gate", 44, 54, 6, LANDMARK_COLORS.gate, 22)
 
 				local gateCrown = Instance.new("TextLabel")
 				gateCrown.Size = UDim2.new(0, 24, 0, 24)
@@ -503,6 +520,7 @@ return function(deps)
 				ring = ring,
 				kind = entryKind,
 				lanternGlow = lanternGlow,
+				lanternHalo = lanternHalo,
 				tableShape = tableShape,
 				gateShape = gateShape,
 				night = night,
@@ -536,6 +554,25 @@ return function(deps)
 	local journeyContentWidth = math.max(0, xCursor - JOURNEY_NODE_PADDING)
 	journeyStagesHolder.Size = UDim2.new(0, journeyContentWidth, 1, 0)
 	journeyMapScroll.CanvasSize = UDim2.new(0, journeyContentWidth, 0, 0)
+
+	-- POLISH PASS: the dashed road line itself -- built here rather than
+	-- up where journeyPathLine was created because it needs the real,
+	-- final journeyContentWidth to know how many dashes to lay down.
+	do
+		local DASH_WIDTH, DASH_GAP = 10, 8
+		local dashSpan = DASH_WIDTH + DASH_GAP
+		local dashCount = math.max(1, math.floor(journeyContentWidth / dashSpan))
+		for i = 0, dashCount do
+			local dash = Instance.new("Frame")
+			dash.Size = UDim2.new(0, DASH_WIDTH, 1, 0)
+			dash.Position = UDim2.new(0, i * dashSpan, 0, 0)
+			dash.BackgroundColor3 = Color3.fromRGB(96, 78, 56)
+			dash.BorderSizePixel = 0
+			dash.ZIndex = 21
+			dash.Parent = journeyPathLine
+			roundCorner(dash, 2)
+		end
+	end
 
 	-- JOURNEY FEATURE: per-node hover tooltip -- the full Boss name +
 	-- description once known (this Night's Boss only -- future Nights
@@ -678,16 +715,23 @@ return function(deps)
 				local newColor = isPast and LANDMARK_COLORS.done
 					or (isCurrent and (currentTheme.colors.cardSelected or LANDMARK_COLORS.current) or naturalColor)
 				colorTarget.BackgroundColor3 = newColor
-				-- The table's two legs are separate child Frames (see the
-				-- build loop's legLeft/legRight) so they don't inherit the
-				-- tabletop's color automatically -- keep them in sync so a
-				-- done/current table doesn't end up with mismatched legs.
-				if colorTarget.Name == "Table" then
-					for _, child in ipairs(colorTarget:GetChildren()) do
-						if child:IsA("Frame") then
-							child.BackgroundColor3 = newColor
-						end
+				-- POLISH PASS: buildArchLandmark's "Base" piece (the flat
+				-- bottom under the dome, for both the bench and the gate)
+				-- is a separate child Frame that doesn't inherit its dome's
+				-- color automatically -- keep it in sync so a done/current
+				-- landmark doesn't end up with a mismatched base. Applies
+				-- to any Frame child generically now (used to only check
+				-- for "Table" back when the table's legs were the only
+				-- case of this; the gate's own Base needs the same thing).
+				for _, child in ipairs(colorTarget:GetChildren()) do
+					if child:IsA("Frame") then
+						child.BackgroundColor3 = newColor
 					end
+				end
+				-- The lantern's glow halo is a separate sibling Frame, not
+				-- a child of lanternGlow, so it needs its own explicit sync.
+				if entry.lanternHalo then
+					entry.lanternHalo.BackgroundColor3 = newColor
 				end
 			end
 
