@@ -117,14 +117,34 @@ return function(deps)
 	journeyBackdrop.ZIndex = 20
 	journeyBackdrop.Parent = screenGui
 
+	-- BUGFIX: on a small game viewport (a small Studio test window, or just
+	-- a laptop screen) `0.55` of the viewport's height could shrink small
+	-- enough that journeyMapScroll below (panelHeight - 230, see its own
+	-- comment) came out barely bigger than NODE_SIZE (88px) -- sometimes
+	-- even smaller. ClipsDescendants then silently chopped the whole
+	-- landmark row down to nothing, leaving only the panel chrome
+	-- (title/subtitle/info bar/Close) visible -- exactly the "looks cut
+	-- out" symptom this map was redesigned to fix, and the redesign alone
+	-- didn't touch this sizing math so it was still possible to hit. A
+	-- UISizeConstraint guarantees the panel is NEVER shorter than 480px
+	-- regardless of viewport size, so journeyMapScroll always has at least
+	-- 480-230=250px to work with -- comfortably more than the 88px a node
+	-- needs -- no matter how small the window is. Anchored+centered
+	-- instead of top-left-positioned so that floor can't push the panel
+	-- off the bottom edge of a small screen.
 	local journeyPanel = Instance.new("Frame")
+	journeyPanel.AnchorPoint = Vector2.new(0.5, 0.5)
 	journeyPanel.Size = UDim2.fromScale(0.7, 0.55)
-	journeyPanel.Position = UDim2.fromScale(0.15, 0.22)
+	journeyPanel.Position = UDim2.fromScale(0.5, 0.5)
 	journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	journeyPanel.ZIndex = 21
 	journeyPanel.Parent = journeyBackdrop
 	polishPanel(journeyPanel, 16)
 	addSoftShadow(journeyPanel, 18)
+
+	local journeyPanelMinSize = Instance.new("UISizeConstraint")
+	journeyPanelMinSize.MinSize = Vector2.new(560, 480)
+	journeyPanelMinSize.Parent = journeyPanel
 
 	local journeyTitle = Instance.new("TextLabel")
 	journeyTitle.Size = UDim2.new(1, 0, 0, 40)
