@@ -99,37 +99,95 @@ return function(deps)
 		current = Color3.fromRGB(240, 182, 76),
 	}
 
+	-- POLISH PASS 2: flat single-color Frames read as paper cutouts next to
+	-- the concept art's softer, shaded illustration style. Roblox Frames
+	-- have no real lighting, so the standard fake is a UIGradient running
+	-- lighter-to-darker across the shape -- SHADING_ROTATION = 90 points it
+	-- top (lighter, "catching the light") to bottom (darker, "in shadow"),
+	-- same direction on every landmark so the whole map reads as one
+	-- consistent light source instead of each piece doing its own thing.
+	local SHADING_ROTATION = 90
+
+	local function lighten(color, amount)
+		return Color3.new(
+			math.min(1, color.R + amount),
+			math.min(1, color.G + amount),
+			math.min(1, color.B + amount)
+		)
+	end
+
+	local function darken(color, amount)
+		return Color3.new(
+			math.max(0, color.R - amount),
+			math.max(0, color.G - amount),
+			math.max(0, color.B - amount)
+		)
+	end
+
+	-- Sets `frame`'s flat color AND (re)builds its "Shading" UIGradient from
+	-- that same color, so the two can never drift apart. Safe to call both
+	-- at build time (creates the gradient) and from refreshJourneyImpl on
+	-- every done/current recolor (finds and updates the existing one) --
+	-- one function, one source of truth, instead of the gradient silently
+	-- keeping stale colors after a recolor like a naively-added UIGradient
+	-- would.
+	local function applyLandmarkColor(frame, color)
+		frame.BackgroundColor3 = color
+		local gradient = frame:FindFirstChild("Shading")
+		if not gradient then
+			gradient = Instance.new("UIGradient")
+			gradient.Name = "Shading"
+			gradient.Rotation = SHADING_ROTATION
+			gradient.Parent = frame
+		end
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, lighten(color, 0.18)),
+			ColorSequenceKeypoint.new(0.5, color),
+			ColorSequenceKeypoint.new(1, darken(color, 0.14)),
+		})
+	end
+
+	-- The flat-bottomed "Base" piece under a dome is deliberately NOT given
+	-- its own gradient (a tiny sliver doesn't have room to show one) --
+	-- instead it's just held a flat shade darker than whatever the dome's
+	-- current color is, standing in for it being the shape's grounded,
+	-- shadowed underside. Recomputed alongside the dome on every recolor.
+	local function applyBaseShadeColor(frame, color)
+		frame.BackgroundColor3 = darken(color, 0.2)
+	end
+
 	-- POLISH PASS: a "standing" silhouette anchored to the bottom of
 	-- `container` -- a flat-bottomed base with a rounded/domed top,
 	-- instead of a single uniformly-rounded pill. Reads much closer to an
 	-- actual bench/gate silhouette (and to the Landmark Path concept art
 	-- this redesign was picked from) than a plain rounded rect does.
 	-- `dome`'s own BackgroundColor3 is what refreshJourneyImpl actually
-	-- sets on done/current transitions -- `base` is just a plain child
-	-- Frame colored to match at build time, kept in sync by the existing
-	-- "propagate color to Frame children" step in refreshJourneyImpl
-	-- (same trick the old table legs relied on).
+	-- sets on done/current transitions (via applyLandmarkColor, POLISH
+	-- PASS 2 above) -- `base` is a plain child Frame shaded to match at
+	-- build time, kept in sync by the existing "propagate color to Frame
+	-- children" step in refreshJourneyImpl (same trick the old table legs
+	-- relied on).
 	local function buildArchLandmark(container, name, width, height, bottomInset, color, domeRadius)
 		local dome = Instance.new("Frame")
 		dome.Name = name
 		dome.Size = UDim2.new(0, width, 0, height)
 		dome.AnchorPoint = Vector2.new(0.5, 1)
 		dome.Position = UDim2.new(0.5, 0, 1, -bottomInset)
-		dome.BackgroundColor3 = color
 		dome.BorderSizePixel = 0
 		dome.ZIndex = 22
 		dome.Parent = container
 		roundCorner(dome, domeRadius)
+		applyLandmarkColor(dome, color)
 
 		local base = Instance.new("Frame")
 		base.Name = "Base"
 		base.Size = UDim2.new(1, 0, 0, math.min(height, domeRadius))
 		base.AnchorPoint = Vector2.new(0.5, 1)
 		base.Position = UDim2.new(0.5, 0, 1, 0)
-		base.BackgroundColor3 = color
 		base.BorderSizePixel = 0
 		base.ZIndex = 22
 		base.Parent = dome
+		applyBaseShadeColor(base, color)
 
 		return dome
 	end
@@ -446,11 +504,11 @@ return function(deps)
 				lanternGlow.Size = UDim2.new(0, 16, 0, 16)
 				lanternGlow.AnchorPoint = Vector2.new(0.5, 1)
 				lanternGlow.Position = UDim2.new(0.5, 0, 1, -34)
-				lanternGlow.BackgroundColor3 = LANDMARK_COLORS.lanternGlow
 				lanternGlow.BorderSizePixel = 0
 				lanternGlow.ZIndex = 23
 				lanternGlow.Parent = container
 				roundCorner(lanternGlow, 8)
+				applyLandmarkColor(lanternGlow, LANDMARK_COLORS.lanternGlow)
 			elseif round < ROUNDS_PER_NIGHT then
 				-- Big Round -- a bench (never a Boss Round; only the very
 				-- last round of a Night ever is, see the `else` branch).
@@ -714,22 +772,30 @@ return function(deps)
 			if colorTarget then
 				local newColor = isPast and LANDMARK_COLORS.done
 					or (isCurrent and (currentTheme.colors.cardSelected or LANDMARK_COLORS.current) or naturalColor)
-				colorTarget.BackgroundColor3 = newColor
+				-- POLISH PASS 2: goes through applyLandmarkColor now instead
+				-- of a bare BackgroundColor3 assignment, so the shape's
+				-- "Shading" UIGradient (see the POLISH PASS 2 comment up by
+				-- buildArchLandmark) gets recomputed from the NEW color too
+				-- -- otherwise a done/current recolor would leave the
+				-- gradient showing shades of whatever color the shape was
+				-- built with, drifting out of sync with its own flat base
+				-- color.
+				applyLandmarkColor(colorTarget, newColor)
 				-- POLISH PASS: buildArchLandmark's "Base" piece (the flat
 				-- bottom under the dome, for both the bench and the gate)
 				-- is a separate child Frame that doesn't inherit its dome's
-				-- color automatically -- keep it in sync so a done/current
-				-- landmark doesn't end up with a mismatched base. Applies
-				-- to any Frame child generically now (used to only check
-				-- for "Table" back when the table's legs were the only
-				-- case of this; the gate's own Base needs the same thing).
+				-- color automatically -- keep it in sync (via the same
+				-- darker-shade rule it was built with) so a done/current
+				-- landmark doesn't end up with a mismatched base.
 				for _, child in ipairs(colorTarget:GetChildren()) do
-					if child:IsA("Frame") then
-						child.BackgroundColor3 = newColor
+					if child:IsA("Frame") and child.Name == "Base" then
+						applyBaseShadeColor(child, newColor)
 					end
 				end
 				-- The lantern's glow halo is a separate sibling Frame, not
-				-- a child of lanternGlow, so it needs its own explicit sync.
+				-- a child of lanternGlow, so it needs its own explicit sync
+				-- -- stays a flat translucent tint on purpose (see its
+				-- build-time comment), not shaded.
 				if entry.lanternHalo then
 					entry.lanternHalo.BackgroundColor3 = newColor
 				end
