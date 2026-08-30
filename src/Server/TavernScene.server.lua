@@ -47,7 +47,19 @@ do
 	-- fallback look -- standard for a stylized game like this. If it ever
 	-- turns out to tank frame rate on a low-end device, ShadowMap is the
 	-- safe fallback (just costs some of this atmosphere's richness).
-	Lighting.Technology = Enum.Technology.Future
+	--
+	-- BUGFIX: wrapped in pcall. Some Studio/live security contexts refuse
+	-- this specific write outright ("The current thread cannot write
+	-- 'Technology' (lacking capability RobloxScript)") -- and because this
+	-- whole file is one big top-level `do...end` block with no pcall
+	-- around it, an uncaught error HERE was silently aborting the entire
+	-- rest of the script: the color grade, atmosphere, floor, walls,
+	-- table, and all 4 Patron NPCs below never got built at all whenever
+	-- this line threw. If the write fails, we just keep whatever
+	-- Technology was already active instead of losing the whole room.
+	pcall(function()
+		Lighting.Technology = Enum.Technology.Future
+	end)
 	Lighting.ClockTime = 20 -- dusk/night, so the torches actually read as the light source
 	Lighting.Brightness = 1
 	Lighting.Ambient = Color3.fromRGB(35, 24, 30) -- dark warm-plum shadow fill
