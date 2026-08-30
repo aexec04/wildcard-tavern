@@ -21,6 +21,11 @@
 		playSfx            -- function(soundId, volume?, maxLength?)
 		SOUND_IDS          -- table, for SOUND_IDS.buyPatron
 		Themes             -- the Shared/Engine/Themes module
+		GamePasses         -- the Shared/Engine/GamePasses module -- real-money
+		                       Robux passes; GamePasses.passForTheme(themeId)
+		                       tells us which Themes are gated behind one
+		MarketplaceService -- the MarketplaceService, for PromptGamePassPurchase
+		player             -- Players.LocalPlayer -- who PromptGamePassPurchase prompts
 		BuyThemeRemote     -- RemoteEvent
 		EquipThemeRemote   -- RemoteEvent
 		showWarning        -- function(text)
@@ -46,6 +51,9 @@ return function(deps)
 	local playSfx = deps.playSfx
 	local SOUND_IDS = deps.SOUND_IDS
 	local Themes = deps.Themes
+	local GamePasses = deps.GamePasses
+	local MarketplaceService = deps.MarketplaceService
+	local player = deps.player
 	local BuyThemeRemote = deps.BuyThemeRemote
 	local EquipThemeRemote = deps.EquipThemeRemote
 	local showWarning = deps.showWarning
@@ -79,7 +87,7 @@ return function(deps)
 	themesTitle.Font = Enum.Font.GothamBold
 	themesTitle.TextSize = 22
 	themesTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-	themesTitle.Text = "Themes -- cosmetic only, spend Tips"
+	themesTitle.Text = "Themes -- cosmetic only, no gameplay effect"
 	themesTitle.ZIndex = 21
 	themesTitle.Parent = themesPanel
 
@@ -142,6 +150,8 @@ return function(deps)
 			swatch.Parent = row
 			roundCorner(swatch, 6)
 
+			local gatingPass = GamePasses and GamePasses.passForTheme(theme.id)
+
 			local label = Instance.new("TextLabel")
 			label.Size = UDim2.new(1, -220, 1, 0)
 			label.Position = UDim2.new(0, 50, 0, 0)
@@ -150,7 +160,8 @@ return function(deps)
 			label.TextSize = 15
 			label.TextXAlignment = Enum.TextXAlignment.Left
 			label.TextColor3 = Color3.fromRGB(250, 240, 220)
-			label.Text = string.format("%s -- %s", theme.name, theme.description)
+			label.Text = gatingPass and string.format("%s -- %s (Game Pass)", theme.name, theme.description)
+				or string.format("%s -- %s", theme.name, theme.description)
 			label.Parent = row
 
 			local actionButton = Instance.new("TextButton")
@@ -173,6 +184,28 @@ return function(deps)
 					playClickSfx()
 					EquipThemeRemote:FireServer(theme.id)
 				end)
+			elseif gatingPass then
+				-- Real-money Game Pass, not a Tips purchase -- prompts
+				-- Roblox's own purchase UI directly (no server round-trip
+				-- needed for the prompt itself; MarketplaceService.
+				-- PromptGamePassPurchaseFinished on the server handles
+				-- granting the Theme once a purchase actually completes,
+				-- see Server/init.server.lua). gamePassId == 0 means
+				-- whoever's testing this hasn't created the real Pass on
+				-- the Creator Dashboard yet (see GamePasses.lua) -- show
+				-- that plainly instead of prompting a purchase for
+				-- Game Pass 0, which would just error.
+				if gatingPass.gamePassId and gatingPass.gamePassId > 0 then
+					actionButton.Text = "Get Pass"
+					actionButton.MouseButton1Click:Connect(function()
+						playClickSfx()
+						MarketplaceService:PromptGamePassPurchase(player, gatingPass.gamePassId)
+					end)
+				else
+					actionButton.Text = "Coming Soon"
+					actionButton.AutoButtonColor = false
+					actionButton.BackgroundColor3 = Color3.fromRGB(55, 45, 35)
+				end
 			else
 				actionButton.Text = string.format("Buy (%d)", theme.price)
 				actionButton.MouseButton1Click:Connect(function()

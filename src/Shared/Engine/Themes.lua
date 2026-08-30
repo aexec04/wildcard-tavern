@@ -1,14 +1,29 @@
 --[[
 	Themes.lua
-	Purely cosmetic. Spend Tips (the same currency you earn from winning
-	rounds -- no separate/real-money currency) to unlock and equip color
-	palettes for the table and cards. No gameplay effect whatsoever --
-	that's deliberate, so this can't accidentally become pay-to-win.
+	Purely cosmetic color palettes for the table and cards. No gameplay
+	effect whatsoever -- that's deliberate, so this can't accidentally
+	become pay-to-win.
+
+	Two ways to unlock a Theme, both ending the same way -- an id landing
+	in state.ownedThemes, which RunState.equipTheme checks:
+	  - classic_felt (price 0) is always owned, free.
+	  - GAME PASSES: the other 5 are gated behind the "Theme Vault" real-
+	    money Robux Game Pass (see Shared/Engine/GamePasses.lua) instead
+	    of a Tips price -- `price` is still set on each of them below for
+	    display/back-compat, but Client/Themes.lua never shows a "Buy (N)"
+	    button for a Theme GamePasses.passForTheme() returns non-nil for;
+	    it shows "Get Pass" instead, and Server/init.server.lua grants
+	    state.ownedThemes[id] = true automatically once MarketplaceService
+	    confirms ownership (see applyGamePassGrants).
 
 	Note: like the rest of the run state, owned/equipped themes reset when
 	a run restarts (RunState.new) -- there's no save-across-sessions
-	(DataStore) yet in this MVP. That's an easy thing to add later if you
-	want purchases to persist for real.
+	(DataStore) yet in this MVP. Game Pass ownership itself is NOT
+	affected by this (Roblox remembers a Game Pass forever, independent
+	of any one run) -- Server/init.server.lua re-grants gamepass-owned
+	Themes to state.ownedThemes every time a fresh RunState is built, so
+	they never actually reset in practice even though the underlying
+	table technically does.
 ]]
 
 local Themes = {}

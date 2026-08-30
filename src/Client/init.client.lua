@@ -35,6 +35,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
 local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService") -- Game Pass purchase prompts (see Shared/Engine/GamePasses.lua)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -67,6 +68,9 @@ local BuyHousePassRemote = remotes:WaitForChild("BuyHousePass")
 -- reads it straight from Shared -- only ownership/equipped state needs to
 -- travel over the StateUpdated remote.
 local Themes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Themes"))
+-- Real-money Robux Game Passes (see Shared/Engine/GamePasses.lua) -- static
+-- content read straight from Shared, same reasoning as Themes above.
+local GamePasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GamePasses"))
 -- FEATURE 4 (Road Ahead / Journey overlay) needs the target-score formula,
 -- which already exists in RunState -- no engine changes needed.
 local RunStateEngine = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RunState"))
@@ -667,6 +671,9 @@ local ThemesOverlay = require(script.Themes)({
 	playSfx = playSfx,
 	SOUND_IDS = SOUND_IDS,
 	Themes = Themes,
+	GamePasses = GamePasses,
+	MarketplaceService = MarketplaceService,
+	player = player,
 	BuyThemeRemote = BuyThemeRemote,
 	EquipThemeRemote = EquipThemeRemote,
 	showWarning = showWarning,

@@ -16,6 +16,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Engine = Shared:WaitForChild("Engine")
@@ -27,6 +28,7 @@ local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
 local Packs = require(Engine.Packs)
 local HousePasses = require(Engine.HousePasses)
+local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -99,6 +101,16 @@ local REROLL_COST_STEP = 2
 -- client-visibility gate, so no engine changes were needed to add it; see
 -- SelectRoundRemote's handler below for the phase flip into "playing".
 local sessions = {} -- [player] = { state = RunState, phase = "roundSelect" | "playing" | "shop" | "gameover", shopOffers = {patron, ...}, packOffers = {pack, ...}, voucherOffer = pass | nil, rerollCost = number }
+
+-- Real-money Game Passes (see Shared/Engine/GamePasses.lua): deliberately
+-- kept OUTSIDE the `sessions` table -- a Game Pass is owned by the PLAYER
+-- forever (Roblox remembers it), not by any one run, so this must survive
+-- `startNewSession` reassigning sessions[player] to a fresh table on every
+-- "New Run.../restart -- unlike state.ownedThemes (Tips purchases), which
+-- SHOULD reset with the run. The actual ownership-check/grant machinery
+-- lives further down (right after pushState is defined, since it needs
+-- to call that).
+local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 
 local function pickShopOffers(state)
 	local available = {}
@@ -174,7 +186,7 @@ local function serializeCard(card)
 	return { rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp }
 end
 
-local function serializeState(session)
+local function serializeState(session, player)
 	local state = session.state
 	local hand = {}
 	for _, card in ipairs(state.hand) do
@@ -298,6 +310,18 @@ local function serializeState(session)
 		pendingPack = state.pendingPack,
 		housePassIds = housePassIds,
 		ownedThemeIds = ownedThemeIds,
+		-- Real-money Game Pass ownership (see Shared/Engine/GamePasses.lua) --
+		-- separate from ownedThemeIds above even though owning "all_themes"
+		-- also populates ownedThemeIds (via applyGamePassGrants): this is
+		-- what Client/Themes.lua uses to tell "you already own the Game
+		-- Pass, equip is free" apart from "buy this Theme with Tips".
+		ownedGamePassIds = (function()
+			local ids = {}
+			for passId in pairs(ownedGamePasses[player] or {}) do
+				table.insert(ids, passId)
+			end
+			return ids
+		end)(),
 		equippedTheme = state.equippedTheme,
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
@@ -336,8 +360,83 @@ local function pushState(player)
 	if not session then
 		return
 	end
-	StateUpdatedRemote:FireClient(player, serializeState(session))
+	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 end
+
+-- ===== Real-money Game Passes (see Shared/Engine/GamePasses.lua) =====
+-- Placed here (not up by `ownedGamePasses`'s own declaration) because it
+-- needs to call pushState, which -- as a `local function` -- only exists
+-- for code appearing textually below its own definition.
+
+-- Copies whatever this player currently owns from ownedGamePasses into
+-- their live RunState.ownedThemes, so RunState.equipTheme's existing
+-- "owned themes only" check just works for gamepass-granted themes with
+-- zero changes needed to RunState.lua itself. Safe to call repeatedly
+-- (only ever sets true, never unsets) -- called both right after a fresh
+-- RunState is built (startNewSession, below) and again whenever a Game
+-- Pass ownership check finishes, since the async check can resolve
+-- after that.
+local function applyGamePassGrants(player)
+	local session = sessions[player]
+	local owned = ownedGamePasses[player]
+	if not session or not owned then
+		return
+	end
+	local grantedAny = false
+	for _, pass in ipairs(GamePasses.Definitions) do
+		if owned[pass.id] and pass.grantsThemes then
+			for _, themeId in ipairs(pass.grantsThemes) do
+				if not session.state.ownedThemes[themeId] then
+					session.state.ownedThemes[themeId] = true
+					grantedAny = true
+				end
+			end
+		end
+	end
+	if grantedAny then
+		pushState(player)
+	end
+end
+
+-- Checks every catalog entry's real ownership via MarketplaceService and
+-- caches the result. gamePassId == 0 means "not created on the Creator
+-- Dashboard yet" (see GamePasses.lua's header) -- skipped entirely so
+-- Studio testing before that setup doesn't spam failed lookups. Each
+-- check is its own task.spawn so one slow/failed lookup can't hold up
+-- the others.
+local function refreshOwnedGamePasses(player)
+	ownedGamePasses[player] = ownedGamePasses[player] or {}
+	for _, pass in ipairs(GamePasses.Definitions) do
+		if pass.gamePassId and pass.gamePassId > 0 then
+			task.spawn(function()
+				local ok, owns = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.gamePassId)
+				end)
+				if not player.Parent then
+					return -- left the game while this lookup was in flight
+				end
+				if ok then
+					if owns then
+						ownedGamePasses[player][pass.id] = true
+						applyGamePassGrants(player)
+					end
+				else
+					warn(string.format("UserOwnsGamePassAsync failed for %s / %s: %s", player.Name, pass.id, tostring(owns)))
+				end
+			end)
+		end
+	end
+end
+
+-- Refresh the cache the moment a purchase prompt closes -- if it was
+-- actually bought, this fires almost immediately after PromptGamePassPurchase
+-- resolves, so the newly-owned Theme becomes equippable without needing a
+-- rejoin. Fires on the server regardless of which client (if any) prompted it.
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+	if wasPurchased then
+		refreshOwnedGamePasses(player)
+	end
+end)
 
 -- deckVariantId/difficultyId are optional -- RunState.new falls back to the
 -- standard/standard defaults for nil or unrecognized ids.
@@ -354,17 +453,24 @@ local function startNewSession(player, deckVariantId, difficultyId)
 		voucherOffer = nil,
 		rerollCost = REROLL_BASE_COST,
 	}
+	-- Re-grant any already-known-owned Game Pass Themes to this fresh
+	-- RunState immediately (covers "New Run..."/restart -- ownership was
+	-- already fetched once for this player and doesn't need re-checking).
+	applyGamePassGrants(player)
 	pushState(player)
 end
 
 Players.PlayerAdded:Connect(startNewSession)
+Players.PlayerAdded:Connect(refreshOwnedGamePasses)
 Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil
+	ownedGamePasses[player] = nil
 end)
 
 -- In Studio, PlayerAdded may have already fired for existing test players.
 for _, player in ipairs(Players:GetPlayers()) do
 	startNewSession(player)
+	refreshOwnedGamePasses(player)
 end
 
 -- ===== 4. Remote handlers =====
