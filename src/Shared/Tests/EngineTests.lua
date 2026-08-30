@@ -1767,6 +1767,26 @@ table.insert(tests, { name = "Double Shift House Pass grants +1 Hand every round
 	expectEqual(state.handsRemaining, baseHands + 1)
 end })
 
+table.insert(tests, { name = "BUGFIX: canSkipRound stays true on a fresh round after buying Double Shift", fn = function()
+	-- Regression test for Ahmed's Night 4 playtest: canSkipRound used to
+	-- compare handsRemaining against the STATIC config.handsPerRound, which
+	-- Double Shift's permanent +1 Hand makes untrue forever once bought --
+	-- the Skip button silently vanished for the rest of the run even on a
+	-- completely untouched round.
+	local state = RunState.new(nil, function(n) return n end)
+	state.housePasses.double_shift = true
+	RunState.startRound(state)
+	expectTrue(RunState.canSkipRound(state), "a fresh round should still be skippable after buying Double Shift")
+end })
+
+table.insert(tests, { name = "BUGFIX: canSkipRound stays true on a fresh round after buying Late Kitchen", fn = function()
+	-- Same bug, the Discard-side twin: Late Kitchen's permanent +1 Discard.
+	local state = RunState.new(nil, function(n) return n end)
+	state.housePasses.late_kitchen = true
+	RunState.startRound(state)
+	expectTrue(RunState.canSkipRound(state), "a fresh round should still be skippable after buying Late Kitchen")
+end })
+
 table.insert(tests, { name = "Grand Opening House Pass immediately grants +15 Tips on purchase", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 100

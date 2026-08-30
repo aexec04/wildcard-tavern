@@ -74,7 +74,13 @@ return function(deps)
 	-- own Roblox avatar (real headshot thumbnail) stands on your current
 	-- stage and hops/walks to the next one when you win a round.
 
-	local PREVIEW_NIGHTS = 3 -- how many Nights ahead to show on the map
+	-- How many Night-clusters the map actually builds nodes for. This is a
+	-- SLIDING window over the real run, not a fixed 1-3 -- see
+	-- journeyWindowBaseNight further down for how it keeps sliding forward
+	-- as a run passes Night 3, Night 6, and so on (including past nightCap,
+	-- in Endless Mode), instead of the map only ever being able to show
+	-- Nights 1-3 for the rest of the run.
+	local PREVIEW_NIGHTS = 3
 	local ROUNDS_PER_NIGHT = 3
 	-- LANDMARK PATH (redesign, replacing the old plain-circle nodes): each
 	-- stage is now a small landmark -- a lantern post for the Small Round,
@@ -396,6 +402,12 @@ return function(deps)
 	-- that conflict, which isn't worth the complexity yet.)
 
 	local journeyStageNodes = {} -- flat array, index 1..(PREVIEW_NIGHTS*ROUNDS_PER_NIGHT), in map order
+	-- BUGFIX (Ahmed's playtest, Night 4+): journeyNightLabels[clusterIndex]
+	-- -- one per Night cluster (1..PREVIEW_NIGHTS), see the sliding-window
+	-- comment on journeyWindowBaseNight below for why these need to be
+	-- kept around and re-texted every refresh instead of just being set
+	-- once at build time.
+	local journeyNightLabels = {}
 	local layoutOrderCounter = 0
 	-- xCursor tracks each node's left edge as we build the row, mirroring
 	-- exactly what journeyStagesLayout (a UIListLayout) will compute. We use
@@ -541,8 +553,12 @@ return function(deps)
 				gateCrown.Parent = gateShape
 			end
 
-			if night == 1 and round == 1 then
+			if round == 1 then
 				-- Underneath everything else, so it doesn't shift layout order.
+				-- BUGFIX: stored into journeyNightLabels now (was a fire-and-
+				-- forget local before, text set once here and never again) --
+				-- see the sliding-window comment on journeyWindowBaseNight
+				-- below for why this needs to be re-texted every refresh.
 				local nightLabel = Instance.new("TextLabel")
 				nightLabel.Size = UDim2.new(0, 90, 0, 20)
 				nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
@@ -550,9 +566,10 @@ return function(deps)
 				nightLabel.Font = Enum.Font.GothamBold
 				nightLabel.TextSize = 13
 				nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-				nightLabel.Text = "Night 1"
+				nightLabel.Text = string.format("Night %d", night)
 				nightLabel.ZIndex = 22
 				nightLabel.Parent = container
+				journeyNightLabels[night] = nightLabel
 			end
 
 			-- The tag beneath each landmark ("R1", "R1 ✓", boss crown, ...) --
@@ -572,6 +589,20 @@ return function(deps)
 			tagLabel.ZIndex = 23
 			tagLabel.Parent = container
 
+			-- BUGFIX (Ahmed's playtest, Night 4+): `night` here is a fixed
+			-- BUILD-TIME cluster index (1..PREVIEW_NIGHTS) -- it used to be
+			-- stored directly as this entry's absolute Night forever, which
+			-- meant the map only ever had nodes for Nights 1-3, PERIOD. Once
+			-- a run passed Night 3, every node just sat there permanently
+			-- checked off (entry.night < currentNight for all of them) and
+			-- the avatar had nowhere "current" left to stand, so it froze in
+			-- place -- exactly Ahmed's "resets back to Night 1 visually but
+			-- doesn't move" report. `nightOffset` keeps the fixed cluster
+			-- position; refreshJourneyImpl recomputes the actual `night`
+			-- this cluster represents every refresh from a sliding window
+			-- (see journeyWindowBaseNight below), so the map keeps working
+			-- no matter how far a run goes (including past nightCap, in
+			-- Endless Mode).
 			table.insert(journeyStageNodes, {
 				node = container,
 				tagLabel = tagLabel,
@@ -581,26 +612,12 @@ return function(deps)
 				lanternHalo = lanternHalo,
 				tableShape = tableShape,
 				gateShape = gateShape,
-				night = night,
+				nightOffset = night,
+				night = night, -- overwritten every refresh, see above
 				round = round,
 				centerX = xCursor + NODE_SIZE / 2,
 			})
 			xCursor = xCursor + NODE_SIZE + JOURNEY_NODE_PADDING
-
-			-- Night labels for nights 2/3 -- placed after node 1 of that night
-			-- exists, same idea as Night 1's label above.
-			if round == 1 and night > 1 then
-				local nightLabel = Instance.new("TextLabel")
-				nightLabel.Size = UDim2.new(0, 90, 0, 20)
-				nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
-				nightLabel.BackgroundTransparency = 1
-				nightLabel.Font = Enum.Font.GothamBold
-				nightLabel.TextSize = 13
-				nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-				nightLabel.Text = string.format("Night %d", night)
-				nightLabel.ZIndex = 22
-				nightLabel.Parent = container
-			end
 		end
 	end
 
@@ -736,6 +753,23 @@ return function(deps)
 	-- overlay happens to refresh while you're on the same stage).
 	local lastJourneyStageKey = nil
 
+	-- BUGFIX (Ahmed's playtest, Night 4+): the map only ever has
+	-- PREVIEW_NIGHTS (3) Night-clusters actually built -- it used to show
+	-- fixed absolute Nights 1-3 forever, which broke completely once a run
+	-- passed Night 3 (see the long comment by journeyStageNodes' nightOffset
+	-- field above). journeyWindowBaseNight is which real Night cluster 1
+	-- currently represents; clusters 2/3 are always windowBase+1/+2. It's a
+	-- STICKY window, not recentered on every single refresh, on purpose --
+	-- that's what keeps the avatar walking smoothly left-to-right across a
+	-- whole 3-Night window (Nights 1,2,3 behave byte-for-byte like before)
+	-- instead of visibly snapping back to the left edge after every single
+	-- Night. It only slides forward once the CURRENT Night actually walks
+	-- off the right edge of the window (or, on a fresh run/Play Again,
+	-- snaps back down if the current Night is somehow BEHIND the window --
+	-- state.night only increases during normal play, but a restart can
+	-- legitimately jump it back to 1).
+	local journeyWindowBaseNight = 1
+
 	local function refreshJourneyImpl(animateWalk)
 		local latestState = getLatestState()
 		local currentTheme = getCurrentTheme()
@@ -744,8 +778,16 @@ return function(deps)
 
 		local bossRoundsEnabled = bossRoundsEnabledFor(latestState)
 
+		if currentNight > journeyWindowBaseNight + PREVIEW_NIGHTS - 1 or currentNight < journeyWindowBaseNight then
+			journeyWindowBaseNight = currentNight
+		end
+		for clusterIndex, nightLabel in pairs(journeyNightLabels) do
+			nightLabel.Text = string.format("Night %d", journeyWindowBaseNight + clusterIndex - 1)
+		end
+
 		local targetNode = nil
 		for _, entry in ipairs(journeyStageNodes) do
+			entry.night = journeyWindowBaseNight + entry.nightOffset - 1
 			local isPast = (entry.night < currentNight) or (entry.night == currentNight and entry.round < currentRound)
 			local isCurrent = (entry.night == currentNight and entry.round == currentRound)
 			local isBoss = bossRoundsEnabled and BossRounds.isBossRound(entry.round, ROUNDS_PER_NIGHT)

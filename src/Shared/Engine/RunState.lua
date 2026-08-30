@@ -290,6 +290,21 @@ function RunState.startRound(state)
 	state.hand = Deck.draw(state.deck, handSize)
 	state.handsRemaining = handsPerRound
 	state.discardsRemaining = discards
+	-- BUGFIX (Ahmed's playtest, Night 4+): canSkipRound below used to compare
+	-- state.handsRemaining/discardsRemaining against the STATIC
+	-- state.config.handsPerRound/discardsPerRound -- but handsPerRound/
+	-- discards just above already layer the Double Shift (+1 hand) and Late
+	-- Kitchen (+1 discard) House Passes on top of that static config value.
+	-- The moment either House Pass is bought, a freshly-started round's
+	-- handsRemaining/discardsRemaining permanently never equal the static
+	-- config numbers again, so canSkipRound returned false forever after --
+	-- the Skip button silently vanished for the rest of the run even on a
+	-- completely untouched round. Recording THIS round's real starting
+	-- numbers here (after House Passes/boss overrides are applied) gives
+	-- canSkipRound something that's actually still correct to compare
+	-- against.
+	state.roundStartHands = handsPerRound
+	state.roundStartDiscards = discards
 	state.roundScore = 0
 	state.handTypesPlayedThisRound = {}
 	state.brittleShieldRound = false -- "Sugar Shield" only protects for the round it was used in
@@ -1174,8 +1189,14 @@ function RunState.canSkipRound(state)
 	if state.round >= state.config.roundsPerNight then
 		return false -- the Boss round (last round of the Night) is never skippable
 	end
-	return state.handsRemaining == state.config.handsPerRound
-		and state.discardsRemaining == state.config.discardsPerRound
+	-- See the BUGFIX comment on state.roundStartHands/roundStartDiscards in
+	-- startRound above -- these already account for House Pass bonuses and
+	-- any Boss Round override, unlike the static state.config numbers.
+	-- Falls back to the static config for a state that predates this field
+	-- (shouldn't happen in practice -- startRound always sets it -- but
+	-- keeps this from hard-erroring on an old/malformed state table).
+	return state.handsRemaining == (state.roundStartHands or state.config.handsPerRound)
+		and state.discardsRemaining == (state.roundStartDiscards or state.config.discardsPerRound)
 		and state.roundScore == 0
 end
 

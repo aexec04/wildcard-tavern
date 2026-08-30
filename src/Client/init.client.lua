@@ -623,9 +623,11 @@ local GameOverPanel = require(script.GameOver)({
 	polishPanel = polishPanel,
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
+	tweenTo = tweenTo,
 })
 local gameOverFrame = GameOverPanel.gameOverFrame
 local playAgainButton = GameOverPanel.playAgainButton
+local refreshGameOver = GameOverPanel.refreshGameOver
 
 local MenuScreen = require(script.Menu)({
 	screenGui = screenGui,
@@ -1720,11 +1722,17 @@ local function render(state)
 		closeRecipeTargetPanel()
 	end
 
+	-- BUGFIX: this used to set gameOverLabel.Text directly, but
+	-- gameOverLabel was never actually destructured from GameOverPanel (see
+	-- that module's header comment) -- so this line threw "attempt to
+	-- index nil with 'Text'" on every single state push once phase ==
+	-- "gameover", right up until whatever the LAST successful render() call
+	-- managed to draw stayed frozen (in practice, the panel's original
+	-- build-time static text, never the dynamic Night/Round line). Fixed by
+	-- moving this panel's own text/stats/reveal-animation logic into
+	-- GameOver.lua's refreshGameOver, which owns its own labels directly.
 	if state.phase == "gameover" then
-		gameOverLabel.Text = string.format(
-			"Last call! You made it to Night %d, Round %d.",
-			state.night, state.round
-		)
+		refreshGameOver(state)
 	end
 end
 
