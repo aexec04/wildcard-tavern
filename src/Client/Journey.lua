@@ -182,8 +182,19 @@ return function(deps)
 	journeyMapScroll.BorderSizePixel = 0
 	journeyMapScroll.ScrollBarThickness = 8
 	journeyMapScroll.ScrollingDirection = Enum.ScrollingDirection.X
-	journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
-	journeyMapScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+	-- BUGFIX (real root cause of the missing landmarks, found via the
+	-- [JourneyDiag] prints): CanvasSize was left on AutomaticCanvasSize.X,
+	-- chained through journeyStagesHolder's own AutomaticSize.X below.
+	-- Diagnosing a live game showed that chain never actually resolving --
+	-- CanvasSize stayed permanently {0,0} and the very first node ended up
+	-- laid out at a nonsense screen position, clipped out of view by
+	-- journeyMapScroll's ClipsDescendants. Rather than depend on that
+	-- automatic-size chain settling at all, CanvasSize/journeyStagesHolder's
+	-- width are now both set explicitly further down (see "manually size
+	-- the map strip" below), from the same xCursor total this loop already
+	-- computes -- deterministic on the very first frame, no engine
+	-- settling required.
+	journeyMapScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- set for real once xCursor is final, below
 	journeyMapScroll.ZIndex = 21
 	-- ClipsDescendants intentionally left at its ScrollingFrame default (true):
 	-- this is a horizontally-scrolling strip, and the whole point of clipping
@@ -197,20 +208,30 @@ return function(deps)
 	-- A thin path line behind the nodes, purely decorative -- gives the "walk
 	-- along a road" read even before the avatar marker is on top of it.
 	local journeyStagesHolder = Instance.new("Frame")
+	-- Width set for real once xCursor is final, below -- see the CanvasSize
+	-- comment above for why this isn't AutomaticSize.X anymore.
 	journeyStagesHolder.Size = UDim2.new(0, 0, 1, 0)
-	journeyStagesHolder.AutomaticSize = Enum.AutomaticSize.X
 	journeyStagesHolder.BackgroundTransparency = 1
 	journeyStagesHolder.ZIndex = 22
 	journeyStagesHolder.Parent = journeyMapScroll
 
-	-- LANDMARK PATH: a ground line the landmarks stand ON, not a line that
-	-- cuts through their middle -- moved from mid-height (0.5 scale) down
-	-- to just under where every landmark's own bottom edge sits (each
-	-- landmark is anchored to the bottom of its NODE_SIZE-tall node, see
-	-- the node-building loop below). Parented INSIDE journeyStagesHolder
-	-- (not journeyMapScroll) and sized to 100% of it, so it automatically
-	-- spans exactly the row of nodes -- no matter how wide that row ends
-	-- up being -- instead of a hardcoded guess.
+	-- BUGFIX (the REAL cause of the missing landmarks -- found via the
+	-- [JourneyDiag] prints, which caught node1 sitting ~1242px to the
+	-- right of where it should be, almost exactly content-width + one
+	-- padding gap): journeyPathLine used to be a direct child of
+	-- journeyStagesHolder, the SAME frame the UIListLayout below lives on.
+	-- UIListLayout lays out every GuiObject sibling it has, with no way to
+	-- opt one out -- it doesn't know "purely decorative" from "a real
+	-- node". journeyPathLine has no LayoutOrder (defaults to 0, i.e.
+	-- first) and a Size of "100% of the holder's width", so the layout
+	-- treated it as the very first list item and gave it a slot roughly as
+	-- wide as the ENTIRE map -- shoving every actual node after it
+	-- (starting with node 1) off to the right by that same width, clipped
+	-- out of view. Fix: give the actual list items (nodes + night
+	-- spacers) their OWN inner row Frame with the UIListLayout on IT
+	-- instead -- journeyPathLine stays a plain, non-laid-out sibling in
+	-- the outer holder, still sized 1,0 so it spans the same full content
+	-- width once that's set below.
 	local journeyPathLine = Instance.new("Frame")
 	journeyPathLine.Size = UDim2.new(1, 0, 0, 4)
 	journeyPathLine.Position = UDim2.new(0, 0, 0.5, NODE_SIZE / 2 - 6)
@@ -220,12 +241,20 @@ return function(deps)
 	journeyPathLine.Parent = journeyStagesHolder
 	roundCorner(journeyPathLine, 2)
 
+	-- The actual row of nodes/spacers lives in here, NOT directly in
+	-- journeyStagesHolder -- see the BUGFIX comment above.
+	local journeyStagesRow = Instance.new("Frame")
+	journeyStagesRow.Size = UDim2.fromScale(1, 1)
+	journeyStagesRow.BackgroundTransparency = 1
+	journeyStagesRow.ZIndex = 22
+	journeyStagesRow.Parent = journeyStagesHolder
+
 	local journeyStagesLayout = Instance.new("UIListLayout")
 	journeyStagesLayout.FillDirection = Enum.FillDirection.Horizontal
 	journeyStagesLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	journeyStagesLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	journeyStagesLayout.Padding = UDim.new(0, 30)
-	journeyStagesLayout.Parent = journeyStagesHolder
+	journeyStagesLayout.Parent = journeyStagesRow
 	local JOURNEY_NODE_PADDING = 30 -- must match journeyStagesLayout.Padding above
 
 	-- The player's actual avatar, standing on the map -- fetched once
@@ -288,7 +317,7 @@ return function(deps)
 			spacer.BackgroundTransparency = 1
 			layoutOrderCounter = layoutOrderCounter + 1
 			spacer.LayoutOrder = layoutOrderCounter
-			spacer.Parent = journeyStagesHolder
+			spacer.Parent = journeyStagesRow -- the row, not the holder -- see the BUGFIX comment above
 			xCursor = xCursor + NIGHT_GAP_EXTRA + JOURNEY_NODE_PADDING
 		end
 
@@ -305,7 +334,7 @@ return function(deps)
 			container.BackgroundTransparency = 1
 			container.LayoutOrder = layoutOrderCounter
 			container.ZIndex = 22
-			container.Parent = journeyStagesHolder
+			container.Parent = journeyStagesRow -- the row, not the holder -- see the BUGFIX comment above
 
 			local shadow = Instance.new("Frame")
 			shadow.Name = "Shadow"
@@ -498,6 +527,15 @@ return function(deps)
 			end
 		end
 	end
+
+	-- Manually size the map strip now that xCursor holds the real total
+	-- width (last node's left edge + NODE_SIZE, trailing padding trimmed
+	-- off since there's no node after it to pad toward). Both
+	-- journeyStagesHolder's own width AND journeyMapScroll's CanvasSize
+	-- need this -- see the BUGFIX comments where each was created.
+	local journeyContentWidth = math.max(0, xCursor - JOURNEY_NODE_PADDING)
+	journeyStagesHolder.Size = UDim2.new(0, journeyContentWidth, 1, 0)
+	journeyMapScroll.CanvasSize = UDim2.new(0, journeyContentWidth, 0, 0)
 
 	-- JOURNEY FEATURE: per-node hover tooltip -- the full Boss name +
 	-- description once known (this Night's Boss only -- future Nights
