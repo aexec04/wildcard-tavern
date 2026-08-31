@@ -47,6 +47,8 @@
 			popOut = function(backdrop, content, opts?, onHidden?),
 			pulseFrame = function(frame, flashColor, opts?),
 			popScale = function(instance, fromScale?, duration?),
+			addButtonHoverScale = function(button, opts?),
+			revealStagger = function(instances, opts?),
 		}
 
 	POLISH PASS (post-Phase-7, "great animations" ask): the 4 functions
@@ -507,6 +509,128 @@ return function(deps)
 		tweenTo(scale, { Scale = 1 }, duration or 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	end
 
+	-- POLISH (Batch 2): generic hover + press feedback for a plain
+	-- TextButton -- scales up slightly on mouse-over, dips down slightly
+	-- on press, eases back on release/leave. A UIScale-based version of
+	-- the same "hover lift" the hand-of-cards area in init.client.lua
+	-- already does by hand for cards; this generalizes it for any button
+	-- that just wants a little life without wiring its own MouseEnter/
+	-- MouseLeave/MouseButton1Down/Up handlers every time (Menu.lua's 4
+	-- buttons, first user of this).
+	--
+	-- KNOWN LIMIT: MouseEnter/MouseLeave don't fire for touch input, so on
+	-- a touch device this button only ever shows the press dip, never the
+	-- hover swell -- the same limitation the hand-card hover fan already
+	-- has. Not a regression, just not solved here either.
+	local function addButtonHoverScale(button, opts)
+		opts = opts or {}
+		local hoverScale = opts.hoverScale or 1.05
+		local pressScale = opts.pressScale or 0.96
+		local hoverDuration = opts.hoverDuration or 0.12
+		local pressDuration = opts.pressDuration or 0.06
+
+		local scale = button:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = button
+		end
+
+		local hovering = false
+		local pressed = false
+
+		local function settle()
+			local target = pressed and pressScale or (hovering and hoverScale or 1)
+			tweenTo(scale, { Scale = target }, pressed and pressDuration or hoverDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		end
+
+		button.MouseEnter:Connect(function()
+			hovering = true
+			settle()
+		end)
+		button.MouseLeave:Connect(function()
+			hovering = false
+			pressed = false
+			settle()
+		end)
+		button.MouseButton1Down:Connect(function()
+			pressed = true
+			settle()
+		end)
+		button.MouseButton1Up:Connect(function()
+			pressed = false
+			settle()
+		end)
+	end
+
+	-- POLISH (Batch 2): a one-time staggered reveal for a LIST of
+	-- instances (e.g. a menu's title/subtitle/buttons, a row of freshly
+	-- rebuilt Shop offer cards) -- each one starts transparent and
+	-- slightly shrunk (UIScale), then scales/fades up into place,
+	-- staggered `opts.stagger` seconds apart so they cascade in rather
+	-- than all popping at once.
+	--
+	-- DELIBERATELY scale-based, not Position-based: several real callers
+	-- (Menu.lua's button row, Shop.lua's offer rows) are children of a
+	-- UIListLayout, which recomputes and overrides a child's Position
+	-- every layout pass -- an offset-then-tween-back-to-rest approach on
+	-- Position would just get silently fought/overridden by the layout
+	-- engine (same class of bug this project already chased once with
+	-- the Journey map's path line, see feature-expansion-plan.md's Phase
+	-- 7 notes). UIScale has no such conflict -- it's exactly the pattern
+	-- Sidebar's own UIListLayout-managed Patron slots already use safely
+	-- (ScorePopup.lua's pulsePatronSlot / this file's popScale).
+	--
+	-- Only touches TextTransparency/BackgroundTransparency/UIScale -- it
+	-- does NOT assume a Frame's resting BackgroundTransparency is 0 (a
+	-- label-only Frame that's meant to stay fully see-through keeps its
+	-- own resting transparency, read fresh from the instance before this
+	-- runs, never hardcoded).
+	--
+	-- Fire-and-forget one-shot -- unlike popIn/popOut, there's no
+	-- "reverse" call, since callers so far (Menu.lua's load-in, a Shop
+	-- offer row rebuilding) never need to un-reveal the same instances.
+	local function revealStagger(instances, opts)
+		opts = opts or {}
+		local stagger = opts.stagger or 0.08
+		local duration = opts.duration or 0.3
+		local fromScale = opts.fromScale or 0.75
+		for i, instance in ipairs(instances) do
+			local restBackgroundTransparency = instance.BackgroundTransparency
+			local isLabel = instance:IsA("TextLabel") or instance:IsA("TextButton")
+
+			local scale = instance:FindFirstChildOfClass("UIScale")
+			if not scale then
+				scale = Instance.new("UIScale")
+				scale.Parent = instance
+			end
+			scale.Scale = fromScale
+
+			if isLabel then
+				instance.TextTransparency = 1
+			end
+			if restBackgroundTransparency < 1 then
+				instance.BackgroundTransparency = 1
+			end
+
+			task.delay((i - 1) * stagger, function()
+				if not instance.Parent then
+					return
+				end
+				tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				local fadeProps = {}
+				if isLabel then
+					fadeProps.TextTransparency = 0
+				end
+				if restBackgroundTransparency < 1 then
+					fadeProps.BackgroundTransparency = restBackgroundTransparency
+				end
+				if next(fadeProps) then
+					tweenTo(instance, fadeProps, duration)
+				end
+			end)
+		end
+	end
+
 	return {
 		tweenTo = tweenTo,
 		roundCorner = roundCorner,
@@ -520,5 +644,7 @@ return function(deps)
 		popOut = popOut,
 		pulseFrame = pulseFrame,
 		popScale = popScale,
+		addButtonHoverScale = addButtonHoverScale,
+		revealStagger = revealStagger,
 	}
 end

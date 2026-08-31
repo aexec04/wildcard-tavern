@@ -184,6 +184,10 @@ local popIn = VisualHelpersModule.popIn
 local popOut = VisualHelpersModule.popOut
 local pulseFrame = VisualHelpersModule.pulseFrame
 local popScale = VisualHelpersModule.popScale
+-- POLISH PASS Batch 2: button hover/press feedback + a one-shot staggered
+-- reveal for a list of instances (Menu.lua's load-in, Shop.lua's offer rows).
+local addButtonHoverScale = VisualHelpersModule.addButtonHoverScale
+local revealStagger = VisualHelpersModule.revealStagger
 
 -- ===== Root UI =====
 
@@ -615,6 +619,8 @@ local Shop = require(script.Shop)({
 	getLatestState = function()
 		return latestState
 	end,
+	addButtonHoverScale = addButtonHoverScale,
+	revealStagger = revealStagger,
 })
 local shopFrame = Shop.shopFrame
 local nextRoundButton = Shop.nextRoundButton
@@ -644,6 +650,8 @@ local refreshGameOver = GameOverPanel.refreshGameOver
 local MenuScreen = require(script.Menu)({
 	screenGui = screenGui,
 	polishButton = polishButton,
+	revealStagger = revealStagger,
+	addButtonHoverScale = addButtonHoverScale,
 })
 local menuFrame = MenuScreen.menuFrame
 local menuPlayButton = MenuScreen.menuPlayButton

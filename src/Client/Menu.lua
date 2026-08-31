@@ -13,8 +13,10 @@
 	handlers).
 
 	deps fields:
-		screenGui     -- ScreenGui, menuFrame's parent
-		polishButton   -- function(instance, radius)
+		screenGui           -- ScreenGui, menuFrame's parent
+		polishButton         -- function(instance, radius)
+		revealStagger        -- function(instances, opts?)
+		addButtonHoverScale  -- function(button, opts?)
 
 	Returns:
 		{
@@ -24,11 +26,23 @@
 			menuJourneyButton = TextButton,
 			menuNewRunButton = TextButton,
 		}
+
+	POLISH PASS (Batch 2): this is the very first thing every player
+	sees, and previously had ZERO animation -- the whole screen (title,
+	subtitle, 4 buttons) just appeared instantly, fully formed, the
+	moment the LocalScript finished running, and the buttons themselves
+	had no hover/press feedback at all. Now the title/subtitle/buttons
+	cascade in with a staggered scale-and-fade (`revealStagger`,
+	VisualHelpers.lua) the moment this module builds them -- a one-shot
+	load-in animation, not tied to render() or any state -- and each
+	button gets a small hover swell / press dip (`addButtonHoverScale`).
 ]]
 
 return function(deps)
 	local screenGui = deps.screenGui
 	local polishButton = deps.polishButton
+	local revealStagger = deps.revealStagger
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -91,6 +105,20 @@ return function(deps)
 	local menuHowToPlayButton = makeMenuButton("How to Play")
 	local menuJourneyButton = makeMenuButton("Road Ahead")
 	local menuNewRunButton = makeMenuButton("New Run...")
+
+	for _, button in ipairs({ menuPlayButton, menuHowToPlayButton, menuJourneyButton, menuNewRunButton }) do
+		addButtonHoverScale(button)
+	end
+
+	-- One-shot load-in: title first, subtitle right after, then the 4
+	-- buttons cascade in top-to-bottom. Fires immediately at build time
+	-- (this screen is visible from the moment the game loads), not on any
+	-- later event.
+	revealStagger({ menuTitle, menuSubtitle, menuPlayButton, menuHowToPlayButton, menuJourneyButton, menuNewRunButton }, {
+		stagger = 0.08,
+		duration = 0.35,
+		fromScale = 0.7,
+	})
 
 	return {
 		menuFrame = menuFrame,
