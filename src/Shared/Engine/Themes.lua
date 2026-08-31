@@ -16,14 +16,18 @@
 	    state.ownedThemes[id] = true automatically once MarketplaceService
 	    confirms ownership (see applyGamePassGrants).
 
-	Note: like the rest of the run state, owned/equipped themes reset when
-	a run restarts (RunState.new) -- there's no save-across-sessions
-	(DataStore) yet in this MVP. Game Pass ownership itself is NOT
-	affected by this (Roblox remembers a Game Pass forever, independent
-	of any one run) -- Server/init.server.lua re-grants gamepass-owned
-	Themes to state.ownedThemes every time a fresh RunState is built, so
-	they never actually reset in practice even though the underlying
-	table technically does.
+	Note: `equippedTheme` still resets to the free default every run (you
+	re-equip your favorite each time, same as before) -- but as of
+	PERSISTENT SAVE (Phase 10), OWNERSHIP no longer does. A Tips-bought
+	Theme used to only last until the next "New Run.../restart, since
+	`state.ownedThemes` was rebuilt from scratch by RunState.new every time
+	-- now Server/init.server.lua passes this player's permanent
+	PlayerProfile.ownedThemeIds into RunState.new(options.ownedThemeIds),
+	so a bought Theme stays bought forever, same as it always felt like it
+	should. Game Pass ownership was never affected by the old gap in the
+	first place (Roblox remembers a Game Pass forever, independent of any
+	one run) -- Server/init.server.lua re-grants gamepass-owned Themes to
+	state.ownedThemes every time a fresh RunState is built, same as before.
 ]]
 
 local Themes = {}

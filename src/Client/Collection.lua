@@ -1,9 +1,19 @@
 --[[
 	Client/Collection.lua
 	FEATURE 11: a grid of every Patron and Theme in the game -- owned ones
-	shown in full, locked ones silhouetted with a "?". Session-scoped like
-	the rest of the run state (no DataStore yet), so this shows what's been
-	found so far THIS run. Reachable from the in-game "📔" corner button.
+	shown in full, locked ones silhouetted with a "?". Reachable from the
+	in-game "📔" corner button.
+
+	PERSISTENT SAVE (Phase 10): Patron rows used to only reflect the
+	CURRENT run's ownedPatrons, which reset every run -- finding a rare
+	Patron, then starting fresh, made it look undiscovered again (hence the
+	old title, "Collection -- this run"). They now read
+	`state.discoveredPatronIds`, a permanent set maintained server-side
+	(Shared/Engine/PlayerProfile.lua) across every run this player has ever
+	played. Theme rows still read `state.ownedThemeIds` -- same field name
+	as before, but that's now ALSO effectively permanent (RunState.new
+	seeds it from the same saved profile -- see Server/init.server.lua's
+	startNewSession), so no client-side change was needed there.
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. Fully self-contained -- nothing outside
@@ -70,14 +80,30 @@ return function(deps)
 	addSoftShadow(collectionPanel, 18)
 
 	local collectionTitle = Instance.new("TextLabel")
-	collectionTitle.Size = UDim2.new(1, 0, 0, 40)
+	collectionTitle.Size = UDim2.new(1, 0, 0, 26)
+	collectionTitle.Position = UDim2.new(0, 0, 0, 0)
 	collectionTitle.BackgroundTransparency = 1
 	collectionTitle.Font = Enum.Font.GothamBold
 	collectionTitle.TextSize = 22
 	collectionTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-	collectionTitle.Text = "Collection -- this run"
+	collectionTitle.Text = "Collection"
 	collectionTitle.ZIndex = 21
 	collectionTitle.Parent = collectionPanel
+
+	-- PERSISTENT SAVE (Phase 10): a small permanent-stats line under the
+	-- title -- state.profileStats (Server/init.server.lua's serializeState)
+	-- is 3 small counters from Shared/Engine/PlayerProfile.lua, refreshed
+	-- the same time as everything else in refreshCollection below.
+	local collectionStatsLabel = Instance.new("TextLabel")
+	collectionStatsLabel.Size = UDim2.new(1, 0, 0, 18)
+	collectionStatsLabel.Position = UDim2.new(0, 0, 0, 26)
+	collectionStatsLabel.BackgroundTransparency = 1
+	collectionStatsLabel.Font = Enum.Font.Gotham
+	collectionStatsLabel.TextSize = 13
+	collectionStatsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
+	collectionStatsLabel.Text = ""
+	collectionStatsLabel.ZIndex = 21
+	collectionStatsLabel.Parent = collectionPanel
 
 	local collectionScroll = Instance.new("ScrollingFrame")
 	collectionScroll.Size = UDim2.new(1, -30, 1, -110)
@@ -175,7 +201,7 @@ return function(deps)
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
 		descLabel.TextColor3 = isOwned and Color3.fromRGB(210, 195, 175) or Color3.fromRGB(120, 115, 110)
-		descLabel.Text = isOwned and description or "Not found yet this run."
+		descLabel.Text = isOwned and description or "Not discovered yet."
 		descLabel.ZIndex = 21
 		descLabel.Parent = row
 	end
@@ -191,8 +217,10 @@ return function(deps)
 		local ownedPatronIds = {}
 		local ownedThemeIds = {}
 		if latestState then
-			for _, patron in ipairs(latestState.ownedPatrons or {}) do
-				ownedPatronIds[patron.id] = true
+			-- PERSISTENT SAVE (Phase 10): discoveredPatronIds is the
+			-- permanent, cross-run set -- see this file's header comment.
+			for _, id in ipairs(latestState.discoveredPatronIds or {}) do
+				ownedPatronIds[id] = true
 			end
 			for _, id in ipairs(latestState.ownedThemeIds or {}) do
 				ownedThemeIds[id] = true
@@ -206,6 +234,16 @@ return function(deps)
 		local ownedThemeCount = 0
 		for _ in pairs(ownedThemeIds) do
 			ownedThemeCount = ownedThemeCount + 1
+		end
+
+		local stats = latestState and latestState.profileStats
+		if stats then
+			collectionStatsLabel.Text = string.format(
+				"Runs played: %d  |  Runs won: %d  |  Best Night reached: %d",
+				stats.runsStarted, stats.runsWon, stats.bestNightReached
+			)
+		else
+			collectionStatsLabel.Text = ""
 		end
 
 		makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)

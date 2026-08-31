@@ -17,6 +17,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
+local DataStoreService = game:GetService("DataStoreService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Engine = Shared:WaitForChild("Engine")
@@ -24,11 +25,13 @@ local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
 local Patrons = require(Engine.Patrons)
+local Themes = require(Engine.Themes) -- PERSISTENT SAVE (Phase 10): needed for Themes.DefaultThemeId, see syncProfileFromSession's BUGFIX comment
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
 local Packs = require(Engine.Packs)
 local HousePasses = require(Engine.HousePasses)
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
+local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -80,7 +83,72 @@ local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
 
--- ===== 3. Session management =====
+-- ===== 3. Persistent Player Profile (DataStoreService) =====
+-- PERSISTENT SAVE (Phase 10): see Shared/Engine/PlayerProfile.lua's header
+-- for exactly what this does and doesn't cover -- short version, discovered
+-- Patrons, Tips-bought Themes, and a few small stats now survive a rejoin
+-- or server restart; an in-progress RUN itself still doesn't (a deliberate
+-- scope decision, not a gap).
+--
+-- ONE-TIME STUDIO SETUP: DataStoreService calls fail in Studio unless
+-- "Enable Studio Access to API Services" is turned on (Studio's Home tab ->
+-- Game Settings -> Security). Every DataStore call below is wrapped in
+-- pcall specifically so testing BEFORE that's turned on doesn't error out
+-- the whole server -- it just falls back to a fresh, unsaved profile for
+-- the session, with a warn() explaining why. Once this game is actually
+-- published, DataStores work automatically for every player with zero
+-- Roblox Creator Dashboard setup needed (unlike Game Passes, which need a
+-- real Game Pass ID created first -- see GamePasses.lua) -- this Studio
+-- setting only matters for local testing.
+
+-- Bump the trailing version only for a clean-break reset of every existing
+-- player's save (extremely rare -- PlayerProfile.migrate already absorbs a
+-- missing/extra/renamed field on an old save without needing this).
+local ProfileStore = DataStoreService:GetDataStore("WildcardTavernProfile_v1")
+
+local profiles = {} -- [player] = PlayerProfile-shaped table, the live working copy
+local profileDirty = {} -- [player] = true once something's changed since the last successful save
+local AUTOSAVE_INTERVAL = 120 -- seconds; a crash-safety net between joins/leaves, not the primary save path (PlayerRemoving/BindToClose below are)
+
+local function profileKey(player)
+	return "Player_" .. tostring(player.UserId)
+end
+
+local function loadProfile(player)
+	local ok, raw = pcall(function()
+		return ProfileStore:GetAsync(profileKey(player))
+	end)
+	if not ok then
+		warn(string.format(
+			"PlayerProfile load failed for %s (%s) -- starting with a fresh, unsaved profile this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
+			player.Name, tostring(raw)
+		))
+		return PlayerProfile.new()
+	end
+	return PlayerProfile.migrate(raw)
+end
+
+local function saveProfile(player)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	local ok, err = pcall(function()
+		ProfileStore:SetAsync(profileKey(player), profile)
+	end)
+	if ok then
+		profileDirty[player] = nil
+	else
+		warn(string.format("PlayerProfile save failed for %s: %s", player.Name, tostring(err)))
+		-- Leave profileDirty set -- the next autosave tick (or the final
+		-- PlayerRemoving/BindToClose attempt) will retry.
+	end
+end
+
+-- syncProfileFromSession (needs `sessions`, declared just below) is defined
+-- right before pushState further down, the one place it's actually called.
+
+-- ===== 4. Session management =====
 
 -- Matches the reference game's usual shop layout more closely than our old
 -- "3 Patron offers, nothing else" did: 2 Patron offers + 2 Pack offers
@@ -352,7 +420,100 @@ local function serializeState(session, player)
 		-- Deck.remainingCounts is [suit] = { [rank] = count } -- RemoteEvents
 		-- serialize nested tables fine, so this ships as-is.
 		deckCounts = Deck.remainingCounts(state.deck),
+		-- PERSISTENT SAVE (Phase 10): the permanent, cross-run part of this
+		-- player's progress (Shared/Engine/PlayerProfile.lua) -- see that
+		-- file's header for exactly what these mean. discoveredPatronIds
+		-- powers Client/Collection.lua showing a Patron as found even in a
+		-- brand-new run where you haven't re-bought it yet; profileStats is
+		-- 3 small permanent counters shown alongside it. Note ownedThemeIds
+		-- above is ALSO now effectively permanent (RunState.new seeds it
+		-- from this same profile -- see startNewSession) even though it's
+		-- not read from `profiles` directly here.
+		discoveredPatronIds = (function()
+			local ids = {}
+			local profile = profiles[player]
+			if profile then
+				for id in pairs(profile.discoveredPatronIds) do
+					table.insert(ids, id)
+				end
+			end
+			return ids
+		end)(),
+		profileStats = (function()
+			local profile = profiles[player]
+			if not profile then
+				return { runsStarted = 0, runsWon = 0, bestNightReached = 0 }
+			end
+			return {
+				runsStarted = profile.stats.runsStarted,
+				runsWon = profile.stats.runsWon,
+				bestNightReached = profile.stats.bestNightReached,
+			}
+		end)(),
 	}
+end
+
+-- PERSISTENT SAVE (Phase 10): folds this player's CURRENT run into their
+-- permanent profile -- every owned Patron this run into
+-- discoveredPatronIds, every owned Theme into ownedThemeIds, the current
+-- Night into the bestNightReached high-water mark, and (once, on the
+-- false->true transition) a run win into stats.runsWon. Safe to call
+-- unconditionally on every single pushState -- idempotent and cheap for
+-- the small lists involved -- only actually marks the profile dirty
+-- (needing a save) when something genuinely new happened, so a run of
+-- unrelated state pushes (playing hands with nothing new discovered)
+-- doesn't spam DataStore writes.
+local function syncProfileFromSession(player)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile then
+		return
+	end
+
+	local patronIds = {}
+	for _, patron in ipairs(session.state.ownedPatrons) do
+		table.insert(patronIds, patron.id)
+	end
+	-- BUGFIX (caught by independent review before shipping): only fold
+	-- TIPS-bought Themes into the permanent profile -- session.state.ownedThemes
+	-- also contains the always-free default AND any Game-Pass-granted Themes
+	-- (via applyGamePassGrants), and neither of those belongs in
+	-- profile.ownedThemeIds. The free default doesn't need remembering (it's
+	-- always free regardless). A Game-Pass Theme baking itself into the
+	-- permanent profile would be worse than redundant -- MarketplaceService
+	-- ownership can be REVOKED (a Robux refund), and startNewSession seeds a
+	-- fresh RunState straight from this profile with no ownership re-check,
+	-- so a revoked Theme would stay permanently equippable forever if it
+	-- ever got recorded here. GamePasses.passForTheme(themeId) is exactly
+	-- the same "is this Theme gamepass-gated" check Themes.lua's header
+	-- describes -- excluding anything it returns non-nil for keeps this
+	-- field scoped to what its own name/comment promise: Tips purchases only.
+	local themeIds = {}
+	for themeId in pairs(session.state.ownedThemes) do
+		if themeId ~= Themes.DefaultThemeId and not GamePasses.passForTheme(themeId) then
+			table.insert(themeIds, themeId)
+		end
+	end
+
+	local changed = false
+	if PlayerProfile.recordPatronsFound(profile, patronIds) then
+		changed = true
+	end
+	if PlayerProfile.recordThemesOwned(profile, themeIds) then
+		changed = true
+	end
+	if PlayerProfile.recordNightReached(profile, session.state.night) then
+		changed = true
+	end
+	if session.state.wonRun and not session.lastKnownWonRun then
+		session.lastKnownWonRun = true
+		PlayerProfile.recordRunWon(profile)
+		changed = true
+	end
+
+	if changed then
+		profileDirty[player] = true
+	end
 end
 
 local function pushState(player)
@@ -360,6 +521,7 @@ local function pushState(player)
 	if not session then
 		return
 	end
+	syncProfileFromSession(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 end
 
@@ -462,10 +624,25 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 end)
 
 -- deckVariantId/difficultyId are optional -- RunState.new falls back to the
--- standard/standard defaults for nil or unrecognized ids.
+-- standard/standard defaults for nil or unrecognized ids. Requires
+-- profiles[player] to already be loaded (see onPlayerAdded below) -- every
+-- call site in this file is after that, including the initial join.
 local function startNewSession(player, deckVariantId, difficultyId)
+	-- PERSISTENT SAVE (Phase 10): seed the fresh RunState's owned Themes
+	-- with whatever this player has permanently bought with Tips in a past
+	-- run, on top of the always-free default RunState.new adds on its own
+	-- -- see RunState.new's own comment on ownedThemeIds and
+	-- Themes.lua's header for the gap this closes.
+	local ownedThemeIds = {}
+	local profile = profiles[player]
+	if profile then
+		for themeId in pairs(profile.ownedThemeIds) do
+			table.insert(ownedThemeIds, themeId)
+		end
+	end
+
 	sessions[player] = {
-		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId }),
+		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId, ownedThemeIds = ownedThemeIds }),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
 		-- Select even before the very first blind), not straight into
@@ -475,7 +652,18 @@ local function startNewSession(player, deckVariantId, difficultyId)
 		packOffers = {},
 		voucherOffer = nil,
 		rerollCost = REROLL_BASE_COST,
+		-- PERSISTENT SAVE (Phase 10): tracks the wonRun false->true
+		-- transition so syncProfileFromSession's PlayerProfile.recordRunWon
+		-- fires exactly once per run, not on every pushState after Night 8
+		-- clears (wonRun stays true for the rest of that Endless Mode run).
+		lastKnownWonRun = false,
 	}
+
+	if profile then
+		PlayerProfile.recordRunStarted(profile)
+		profileDirty[player] = true
+	end
+
 	-- Re-grant any already-known-owned Game Pass Themes to this fresh
 	-- RunState immediately (covers "New Run..."/restart -- ownership was
 	-- already fetched once for this player and doesn't need re-checking).
@@ -483,20 +671,73 @@ local function startNewSession(player, deckVariantId, difficultyId)
 	pushState(player)
 end
 
-Players.PlayerAdded:Connect(startNewSession)
-Players.PlayerAdded:Connect(refreshOwnedGamePasses)
-Players.PlayerRemoving:Connect(function(player)
-	sessions[player] = nil
-	ownedGamePasses[player] = nil
-end)
-
--- In Studio, PlayerAdded may have already fired for existing test players.
-for _, player in ipairs(Players:GetPlayers()) do
+-- PERSISTENT SAVE (Phase 10): profile load has to happen (and finish --
+-- GetAsync yields) BEFORE startNewSession, since it needs
+-- profiles[player].ownedThemeIds to seed the fresh RunState. Consolidated
+-- into one PlayerAdded handler instead of the 2 independent ones this used
+-- to be, specifically to guarantee that ordering.
+local function onPlayerAdded(player)
+	profiles[player] = loadProfile(player)
 	startNewSession(player)
 	refreshOwnedGamePasses(player)
 end
 
--- ===== 4. Remote handlers =====
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(function(player)
+	-- Final save attempt before this player's data goes away -- on top of
+	-- the AUTOSAVE_INTERVAL safety net, this is the normal/expected save
+	-- path for a player who just leaves normally.
+	saveProfile(player)
+	sessions[player] = nil
+	ownedGamePasses[player] = nil
+	profiles[player] = nil
+	profileDirty[player] = nil
+end)
+
+-- In Studio, PlayerAdded may have already fired for existing test players.
+for _, player in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
+
+-- PERSISTENT SAVE (Phase 10): a lightweight crash-safety net between joins/
+-- leaves -- PlayerRemoving above is the normal save path, this just covers
+-- a server crash/unexpected shutdown that skips straight past it.
+task.spawn(function()
+	while true do
+		task.wait(AUTOSAVE_INTERVAL)
+		for _, player in ipairs(Players:GetPlayers()) do
+			if profileDirty[player] then
+				saveProfile(player)
+			end
+		end
+	end
+end)
+
+-- PERSISTENT SAVE (Phase 10): flush every remaining player's profile before
+-- the server actually shuts down (Studio Stop, or a live server closing).
+-- Roblox gives BindToClose roughly 30s (often less in Studio) before
+-- forcing the shutdown regardless of whether this callback has returned,
+-- so this polls a bounded number of times instead of waiting unboundedly
+-- on a stuck DataStore call.
+game:BindToClose(function()
+	local pending = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		if profiles[player] then
+			pending = pending + 1
+			task.spawn(function()
+				saveProfile(player)
+				pending = pending - 1
+			end)
+		end
+	end
+	local waited = 0
+	while pending > 0 and waited < 25 do
+		task.wait(0.25)
+		waited = waited + 0.25
+	end
+end)
+
+-- ===== 5. Remote handlers =====
 -- NOTE: every handler re-validates on the server. Never trust the client --
 -- a player could fire these remotes directly with bogus data.
 

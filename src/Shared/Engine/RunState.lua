@@ -124,10 +124,15 @@ local function totalHeldRecipes(state)
 end
 
 --[[
-	options (all optional): { deckVariantId = string, difficultyId = string }
-	Unknown/omitted ids fall back to the standard deck variant and standard
-	difficulty, so `RunState.new()` and `RunState.new(nil, rng)` both still
-	produce the original default-balance run.
+	options (all optional): { deckVariantId = string, difficultyId = string,
+	ownedThemeIds = array<string> }
+	Unknown/omitted deckVariantId/difficultyId fall back to the standard deck
+	variant and standard difficulty, so `RunState.new()` and
+	`RunState.new(nil, rng)` both still produce the original default-balance
+	run. ownedThemeIds (PERSISTENT SAVE, Phase 10) seeds state.ownedThemes
+	with Theme ids this player has permanently bought with Tips in a past
+	run, on top of the always-free default -- see that field's own comment
+	below.
 ]]
 function RunState.new(options, rng)
 	options = options or {}
@@ -161,7 +166,25 @@ function RunState.new(options, rng)
 		round = 1,
 		tips = deckVariant.startingTips or 0,
 		ownedPatrons = {},
-		ownedThemes = { [Themes.DefaultThemeId] = true },
+		-- PERSISTENT SAVE (Phase 10): options.ownedThemeIds is an optional
+		-- array of Theme ids to seed as already-owned, on top of the always-
+		-- free default -- Server/init.server.lua passes this player's
+		-- permanent PlayerProfile.ownedThemeIds here so a Tips-bought Theme
+		-- survives "New Run.../restart instead of resetting every time (the
+		-- gap Themes.lua's old header comment used to flag as a known
+		-- limitation). Omitted/nil behaves exactly like before this option
+		-- existed -- just the free default -- so every pre-existing
+		-- RunState.new(...) call site (including this file's own tests)
+		-- keeps working unchanged.
+		ownedThemes = (function()
+			local set = { [Themes.DefaultThemeId] = true }
+			for _, themeId in ipairs(options.ownedThemeIds or {}) do
+				if type(themeId) == "string" then
+					set[themeId] = true
+				end
+			end
+			return set
+		end)(),
 		equippedTheme = Themes.DefaultThemeId,
 		-- Persistent, run-long card pool: `deck` is the draw pile, `discardPile`
 		-- is everything played/discarded so far this run waiting to be

@@ -25,6 +25,7 @@ local Recipes = require(script.Parent.Parent.Engine.Recipes)
 local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
 local Packs = require(script.Parent.Parent.Engine.Packs)
 local Tags = require(script.Parent.Parent.Engine.Tags)
+local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile) -- PERSISTENT SAVE, Phase 10
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -2209,6 +2210,118 @@ table.insert(tests, { name = "RunState.openPack: a Grab Bag Pack's 'patron' roll
 		expectEqual(item.category, "standard")
 		expectTrue(item.card ~= nil)
 	end
+end })
+
+-- ===== PlayerProfile (PERSISTENT SAVE, Phase 10) =====
+
+table.insert(tests, { name = "PlayerProfile.new: starts empty with the expected shape", fn = function()
+	local profile = PlayerProfile.new()
+	expectEqual(profile.version, PlayerProfile.SCHEMA_VERSION)
+	local anyPatron, anyTheme = false, false
+	for _ in pairs(profile.discoveredPatronIds) do anyPatron = true end
+	for _ in pairs(profile.ownedThemeIds) do anyTheme = true end
+	expectFalse(anyPatron, "a fresh profile shouldn't have any discovered Patrons yet")
+	expectFalse(anyTheme, "a fresh profile shouldn't have any bought Themes yet")
+	expectEqual(profile.stats.runsStarted, 0)
+	expectEqual(profile.stats.runsWon, 0)
+	expectEqual(profile.stats.bestNightReached, 0)
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate(nil): a brand-new player gets a safe default profile", fn = function()
+	local profile = PlayerProfile.migrate(nil)
+	expectEqual(profile.stats.runsStarted, 0)
+	local any = false
+	for _ in pairs(profile.discoveredPatronIds) do any = true end
+	expectFalse(any)
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: a valid saved profile round-trips unchanged", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" })
+	PlayerProfile.recordThemesOwned(profile, { "midnight_blue" })
+	PlayerProfile.recordRunStarted(profile)
+	PlayerProfile.recordNightReached(profile, 5)
+	PlayerProfile.recordRunWon(profile)
+
+	local reloaded = PlayerProfile.migrate(profile)
+	expectTrue(reloaded.discoveredPatronIds.tip_jar)
+	expectTrue(reloaded.discoveredPatronIds.second_opinion)
+	expectTrue(reloaded.ownedThemeIds.midnight_blue)
+	expectEqual(reloaded.stats.runsStarted, 1)
+	expectEqual(reloaded.stats.bestNightReached, 5)
+	expectEqual(reloaded.stats.runsWon, 1)
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: sanitizes a corrupt/foreign shape instead of crashing or propagating garbage", fn = function()
+	local profile = PlayerProfile.migrate({
+		discoveredPatronIds = "not a table",
+		ownedThemeIds = { midnight_blue = "yes, but not literally true" }, -- wrong value type -- must be dropped
+		stats = { runsStarted = "five", runsWon = -3, bestNightReached = 4.9 },
+		someUnrelatedFieldFromAFutureVersion = { 1, 2, 3 },
+	})
+	local any = false
+	for _ in pairs(profile.discoveredPatronIds) do any = true end
+	expectFalse(any, "a non-table discoveredPatronIds should be ignored, not error")
+	expectFalse(profile.ownedThemeIds.midnight_blue == true, "a non-true value for an owned theme id should be dropped")
+	expectEqual(profile.stats.runsStarted, 0, "a non-number runsStarted should fall back to the default")
+	expectEqual(profile.stats.runsWon, 0, "a negative runsWon should be clamped, not kept negative")
+	expectEqual(profile.stats.bestNightReached, 4, "a fractional bestNightReached should be floored")
+end })
+
+table.insert(tests, { name = "PlayerProfile.recordPatronsFound: reports changed only when something is actually new", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }))
+	expectFalse(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }), "re-recording an already-discovered Patron shouldn't report a change")
+	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" }), "a mix of old + 1 new id should still report a change")
+end })
+
+table.insert(tests, { name = "PlayerProfile.recordThemesOwned: reports changed only when something is actually new", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordThemesOwned(profile, { "midnight_blue" }))
+	expectFalse(PlayerProfile.recordThemesOwned(profile, { "midnight_blue" }))
+end })
+
+table.insert(tests, { name = "PlayerProfile.recordNightReached: only an idempotent high-water mark", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordNightReached(profile, 3))
+	expectEqual(profile.stats.bestNightReached, 3)
+	expectFalse(PlayerProfile.recordNightReached(profile, 3), "an equal Night shouldn't report a change")
+	expectFalse(PlayerProfile.recordNightReached(profile, 2), "a LOWER Night should never lower the high-water mark")
+	expectEqual(profile.stats.bestNightReached, 3)
+	expectTrue(PlayerProfile.recordNightReached(profile, 8))
+	expectEqual(profile.stats.bestNightReached, 8)
+end })
+
+table.insert(tests, { name = "PlayerProfile.recordRunStarted / recordRunWon: plain counters", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunStarted(profile)
+	PlayerProfile.recordRunStarted(profile)
+	expectEqual(profile.stats.runsStarted, 2)
+	PlayerProfile.recordRunWon(profile)
+	expectEqual(profile.stats.runsWon, 1)
+end })
+
+-- ===== RunState.new: seeding ownedThemes from a saved profile (Phase 10) =====
+
+table.insert(tests, { name = "RunState.new: without ownedThemeIds, only the free default is owned (unchanged pre-Phase-10 behavior)", fn = function()
+	local state = RunState.new()
+	expectTrue(state.ownedThemes[Themes.DefaultThemeId])
+	expectFalse(state.ownedThemes.midnight_blue == true)
+end })
+
+table.insert(tests, { name = "RunState.new: options.ownedThemeIds seeds extra Themes as already-owned", fn = function()
+	local state = RunState.new({ ownedThemeIds = { "midnight_blue", "crimson" } })
+	expectTrue(state.ownedThemes[Themes.DefaultThemeId], "the free default should still be owned regardless")
+	expectTrue(state.ownedThemes.midnight_blue)
+	expectTrue(state.ownedThemes.crimson)
+	expectFalse(state.ownedThemes.forest == true, "a Theme not in the seed list shouldn't be owned")
+end })
+
+table.insert(tests, { name = "RunState.new: a seeded Theme is immediately equippable without buying it again", fn = function()
+	local state = RunState.new({ ownedThemeIds = { "rose_gold" } })
+	local ok = RunState.equipTheme(state, "rose_gold")
+	expectTrue(ok)
+	expectEqual(state.equippedTheme, "rose_gold")
 end })
 
 return tests
