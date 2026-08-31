@@ -177,6 +177,13 @@ local addSoftShadow = VisualHelpersModule.addSoftShadow
 local makeStepperRow = VisualHelpersModule.makeStepperRow
 local makeSliderRow = VisualHelpersModule.makeSliderRow
 local screenShake = VisualHelpersModule.screenShake
+-- POLISH PASS (post-Phase-7): generic modal pop-in/out + the two small
+-- "react to a value changing" pulses, see VisualHelpers.lua's own header
+-- comment for what each is for and why they're split the way they are.
+local popIn = VisualHelpersModule.popIn
+local popOut = VisualHelpersModule.popOut
+local pulseFrame = VisualHelpersModule.pulseFrame
+local popScale = VisualHelpersModule.popScale
 
 -- ===== Root UI =====
 
@@ -210,7 +217,9 @@ local nightRoundLabel = SidebarModule.nightRoundLabel
 local blindInfoLabel = SidebarModule.blindInfoLabel
 local scoreLabel = SidebarModule.scoreLabel
 local tipsLabel = SidebarModule.tipsLabel
+local tipsBox = SidebarModule.tipsBox
 local handsDiscardsLabel = SidebarModule.handsDiscardsLabel
+local handsDiscardsBox = SidebarModule.handsDiscardsBox
 local patronsCountLabel = SidebarModule.patronsCountLabel
 local patronSlots = SidebarModule.patronSlots
 local MAX_SIDEBAR_PATRON_SLOTS = SidebarModule.MAX_SIDEBAR_PATRON_SLOTS
@@ -338,6 +347,7 @@ local MessageBannerModule = require(script.MessageBanner)({
 	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
 	root = root,
 	polishPanel = polishPanel,
+	tweenTo = tweenTo,
 })
 local showWarning = MessageBannerModule.showWarning
 local bossBanner = MessageBannerModule.bossBanner
@@ -562,6 +572,8 @@ local ConfirmDialogModule = require(script.ConfirmDialog)({
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
+	popIn = popIn,
+	popOut = popOut,
 })
 local showConfirmDialog = ConfirmDialogModule.showConfirmDialog
 
@@ -961,6 +973,21 @@ local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
 local lastPhase = nil
+
+-- POLISH PASS: sidebar pulse tracking -- Tips/Hands/Discards/Patron-slot
+-- flashes below (see the LAYOUT FEATURE 5 / tipsLabel/handsDiscardsLabel
+-- assignments in render()) only fire when a value actually changed since
+-- the last render, and never on the very first render (same
+-- `hasRenderedOnce` guard FEATURE 12 above already uses for the Unlocked
+-- popup) -- otherwise every single state push, even ones that don't touch
+-- these values at all (buying a Theme, opening a menu), would re-flash
+-- them for no reason.
+local lastTipsValue = nil
+local lastHandsRemaining = nil
+local lastDiscardsRemaining = nil
+local lastPatronSlotOwned = {}
+local SIDEBAR_TIPS_GAIN_COLOR = Color3.fromRGB(255, 214, 130) -- gold, matches the Tips/reward color used everywhere else
+local SIDEBAR_SPEND_COLOR = Color3.fromRGB(200, 90, 80) -- muted red, "you just spent/lost some"
 
 local function selectedIndicesArray()
 	local out = {}
@@ -1562,7 +1589,24 @@ local function render(state)
 	else
 		nightRoundLabel.Text = string.format("Night %d/%d - Round %d", state.night, nightCap, state.round)
 	end
+	-- POLISH PASS: flash the Tips box gold on a gain, red on a loss/spend --
+	-- and the Hands/Discards box red whenever either ticks down (a hand
+	-- played or a discard used). Guarded by hasRenderedOnce so a fresh
+	-- render (session start, or resyncing into an already-in-progress run)
+	-- never flashes for state that was already true, only for something
+	-- that visibly CHANGED.
+	if hasRenderedOnce and state.tips ~= lastTipsValue then
+		pulseFrame(tipsBox, state.tips > lastTipsValue and SIDEBAR_TIPS_GAIN_COLOR or SIDEBAR_SPEND_COLOR)
+	end
+	lastTipsValue = state.tips
 	tipsLabel.Text = string.format("Tips: %d", state.tips)
+
+	if hasRenderedOnce
+		and (state.handsRemaining < lastHandsRemaining or state.discardsRemaining < lastDiscardsRemaining) then
+		pulseFrame(handsDiscardsBox, SIDEBAR_SPEND_COLOR)
+	end
+	lastHandsRemaining = state.handsRemaining
+	lastDiscardsRemaining = state.discardsRemaining
 	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
 	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
 
@@ -1590,11 +1634,20 @@ local function render(state)
 						slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 						slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
 						slot.label.Text = owned.name:sub(1, 1)
+						-- POLISH PASS: a fresh Patron pop into this seat gets a
+						-- one-off scale pop (popScale -- NOT pulseFrame, since
+						-- this frame's BackgroundColor3 is already meaningful
+						-- state that flips every render between owned/empty;
+						-- pulseFrame's color-revert-on-settle would fight that).
+						if hasRenderedOnce and not lastPatronSlotOwned[i] then
+							popScale(slot.frame, 1.35, 0.3)
+						end
 					else
 						slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
 						slot.label.TextColor3 = Color3.fromRGB(120, 115, 110)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
 					end
+					lastPatronSlotOwned[i] = (owned ~= nil)
 				end
 			end
 		end

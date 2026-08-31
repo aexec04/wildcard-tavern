@@ -43,7 +43,24 @@
 			makeSliderRow = function(parent, labelText, min, max,
 			                         getValue, setValue, formatValue) -> refresh,
 			screenShake = function(target, intensity, duration?),
+			popIn = function(backdrop, content, opts?),
+			popOut = function(backdrop, content, opts?, onHidden?),
+			pulseFrame = function(frame, flashColor, opts?),
+			popScale = function(instance, fromScale?, duration?),
 		}
+
+	POLISH PASS (post-Phase-7, "great animations" ask): the 4 functions
+	added at the bottom (popIn/popOut/pulseFrame/popScale) are shared,
+	generic versions of animation patterns that already existed ad hoc in
+	one place each -- GameOver.lua hand-rolled its own pop-in reveal
+	(UIScale + staggered transparency tweens), and ScorePopup.lua's private
+	pulsePatronSlot() flashes a Patron's Sidebar seat with an overlap-safe
+	rest-color cache. Pulling the general shape of both out here means the
+	next modal/indicator that wants the same treatment (ConfirmDialog,
+	Sidebar's Tips/Hands/Discards/Patron-slot boxes, below) doesn't have to
+	re-derive it -- and, importantly, doesn't accidentally re-introduce a
+	bug that was already found and fixed once (see pulseFrame's own
+	comment for why naive color-revert-on-settle is a real footgun).
 ]]
 
 return function(deps)
@@ -363,6 +380,133 @@ return function(deps)
 		return refresh
 	end
 
+	-- POLISH: generic modal reveal -- `content` (typically a Frame anchored
+	-- at its own center, e.g. AnchorPoint(0.5,0.5)) pops in from a slightly
+	-- shrunk UIScale while `backdrop` fades from fully transparent to
+	-- whatever transparency it was already sitting at (captured BEFORE this
+	-- function forces it to 1, so callers never have to repeat their own
+	-- backdrop dimming value -- pass opts.backdropTransparency to override
+	-- it explicitly instead). Generalizes the reveal GameOver.lua built by
+	-- hand for its own panel; new callers (ConfirmDialog, any future
+	-- overlay) get the same "pop" for free instead of a hard instant cut.
+	local function popIn(backdrop, content, opts)
+		opts = opts or {}
+		local duration = opts.duration or 0.22
+		local targetTransparency = opts.backdropTransparency
+		if targetTransparency == nil then
+			targetTransparency = backdrop.BackgroundTransparency
+		end
+
+		local scale = content:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = content
+		end
+
+		backdrop.Visible = true
+		backdrop.BackgroundTransparency = 1
+		scale.Scale = opts.fromScale or 0.85
+
+		tweenTo(backdrop, { BackgroundTransparency = targetTransparency }, duration)
+		tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	end
+
+	-- Reverses popIn: `content` shrinks slightly while `backdrop` fades back
+	-- to fully transparent, and ONLY THEN (never on a hard cut) does
+	-- backdrop.Visible get set false and onHidden (if given) fire -- lets a
+	-- caller know it's safe to clear any per-show state once the dialog has
+	-- actually finished disappearing, not the instant a button was clicked.
+	local function popOut(backdrop, content, opts, onHidden)
+		opts = opts or {}
+		local duration = opts.duration or 0.15
+		local scale = content:FindFirstChildOfClass("UIScale")
+		if scale then
+			tweenTo(scale, { Scale = opts.toScale or 0.9 }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		end
+		local tween = tweenTo(backdrop, { BackgroundTransparency = 1 }, duration)
+		tween.Completed:Connect(function(playbackState)
+			if playbackState ~= Enum.PlaybackState.Completed then
+				return -- interrupted by a newer tween (e.g. re-shown mid-fade-out) -- don't stomp it
+			end
+			backdrop.Visible = false
+			if scale then
+				scale.Scale = 1
+			end
+			if onHidden then
+				onHidden()
+			end
+		end)
+	end
+
+	-- POLISH: generic overlap-safe "flash and settle" pulse for a Frame's
+	-- BackgroundColor3 plus a small UIScale bump -- for any small,
+	-- frequently-updated indicator that should visibly react to ITS OWN
+	-- value changing while its rest color stays CONSTANT (e.g. Sidebar's
+	-- Tips/Hands/Discards boxes, whose BackgroundColor3 is set once at
+	-- creation and never touched anywhere else). Same shape as
+	-- ScorePopup.lua's private pulsePatronSlot: a weak-keyed rest-color
+	-- cache + an overlap-depth counter, so two pulses firing back-to-back
+	-- on the same frame (two quick Tips changes) settle back to the right
+	-- color instead of a naive read-current-color-as-rest approach
+	-- converging on an already-flashed value (see pulsePatronSlot's own
+	-- comment for the full failure mode this avoids).
+	--
+	-- IMPORTANT: do NOT use this on something whose BackgroundColor3 is
+	-- itself meaningful state that changes over time (e.g. a Patron slot
+	-- that flips between an "owned" color and an "empty" color) -- the
+	-- settle step always reverts to whichever color was cached on this
+	-- frame's FIRST-ever pulse, which would fight a caller that's also
+	-- explicitly setting BackgroundColor3 every render. Use popScale
+	-- (below) for that case instead -- a pure scale bump with no color
+	-- opinion at all.
+	local pulseRestColors = setmetatable({}, { __mode = "k" })
+	local pulseDepths = setmetatable({}, { __mode = "k" })
+	local function pulseFrame(frame, flashColor, opts)
+		opts = opts or {}
+		local bumpScale = opts.scale or 1.06
+		local flashAmount = opts.flashAmount or 0.6
+		local bumpDuration = opts.bumpDuration or 0.1
+		local settleDelay = opts.settleDelay or 0.16
+		local settleDuration = opts.settleDuration or 0.28
+
+		local scale = frame:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = frame
+		end
+		if not pulseRestColors[frame] then
+			pulseRestColors[frame] = frame.BackgroundColor3
+		end
+		local restColor = pulseRestColors[frame]
+		pulseDepths[frame] = (pulseDepths[frame] or 0) + 1
+
+		tweenTo(scale, { Scale = bumpScale }, bumpDuration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tweenTo(frame, { BackgroundColor3 = restColor:Lerp(flashColor, flashAmount) }, bumpDuration)
+		task.delay(settleDelay, function()
+			pulseDepths[frame] = math.max(0, (pulseDepths[frame] or 1) - 1)
+			if frame.Parent and pulseDepths[frame] == 0 then
+				tweenTo(scale, { Scale = 1 }, settleDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+				tweenTo(frame, { BackgroundColor3 = restColor }, settleDuration)
+			end
+		end)
+	end
+
+	-- One-off scale "pop" -- bumps `instance`'s UIScale up then eases back
+	-- to 1, with NO color change at all (see pulseFrame's warning above for
+	-- why that matters). Fire-and-forget "something just appeared/changed
+	-- here" cue for anything whose own color is independently managed by
+	-- its caller every render -- e.g. Sidebar's Patron slots, which already
+	-- flip BackgroundColor3 between an owned and an empty color elsewhere.
+	local function popScale(instance, fromScale, duration)
+		local scale = instance:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = instance
+		end
+		scale.Scale = fromScale or 1.3
+		tweenTo(scale, { Scale = 1 }, duration or 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	end
+
 	return {
 		tweenTo = tweenTo,
 		roundCorner = roundCorner,
@@ -372,5 +516,9 @@ return function(deps)
 		makeStepperRow = makeStepperRow,
 		makeSliderRow = makeSliderRow,
 		screenShake = screenShake,
+		popIn = popIn,
+		popOut = popOut,
+		pulseFrame = pulseFrame,
+		popScale = popScale,
 	}
 end

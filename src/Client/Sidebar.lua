@@ -34,13 +34,21 @@
 			blindInfoLabel = TextLabel,
 			scoreLabel = TextLabel,
 			tipsLabel = TextLabel,
+			tipsBox = Frame,
 			handsDiscardsLabel = TextLabel,
+			handsDiscardsBox = Frame,
 			patronsCountLabel = TextLabel,
 			patronSlots = { [i] = { frame = Frame, label = TextLabel } },
 			MAX_SIDEBAR_PATRON_SLOTS = 14,
 			scorePreviewBox = Frame,
 			scorePreviewLabel = TextLabel,
 		}
+
+	POLISH PASS: tipsBox/handsDiscardsBox (previously kept private to this
+	module) now come back out too -- render() in init.client.lua pulses
+	them (VisualHelpers.lua's pulseFrame) whenever Tips/Hands/Discards
+	actually change, so gaining or spending something here gets a visible
+	flash instead of the number just silently changing.
 ]]
 
 return function(deps)
@@ -217,7 +225,9 @@ return function(deps)
 		blindInfoLabel = blindInfoLabel,
 		scoreLabel = scoreLabel,
 		tipsLabel = tipsLabel,
+		tipsBox = tipsBox,
 		handsDiscardsLabel = handsDiscardsLabel,
+		handsDiscardsBox = handsDiscardsBox,
 		patronsCountLabel = patronsCountLabel,
 		patronSlots = patronSlots,
 		MAX_SIDEBAR_PATRON_SLOTS = MAX_SIDEBAR_PATRON_SLOTS,

@@ -15,11 +15,19 @@
 		polishButton   -- function(instance, radius)
 		addSoftShadow  -- function(instance, radius)
 		playClickSfx   -- function(volume?)
+		popIn          -- function(backdrop, content, opts?)
+		popOut         -- function(backdrop, content, opts?, onHidden?)
 
 	Returns:
 		{
 			showConfirmDialog = function(message, onConfirm),
 		}
+
+	POLISH PASS: this used to show/hide with a bare Visible = true/false --
+	the modal would just appear and vanish instantly, one hard cut each way,
+	no different from a debug placeholder. Now uses the shared popIn/popOut
+	helpers (VisualHelpers.lua) for a scale-and-fade reveal/dismiss, same
+	family of "pop" GameOver.lua already established for its own panel.
 ]]
 
 return function(deps)
@@ -28,6 +36,8 @@ return function(deps)
 	local polishButton = deps.polishButton
 	local addSoftShadow = deps.addSoftShadow
 	local playClickSfx = deps.playClickSfx
+	local popIn = deps.popIn
+	local popOut = deps.popOut
 
 	local confirmBackdrop = Instance.new("Frame")
 	confirmBackdrop.Name = "ConfirmBackdrop"
@@ -90,23 +100,26 @@ return function(deps)
 
 	confirmYesButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		confirmBackdrop.Visible = false
+		-- The action itself fires immediately (it's a remote call / game
+		-- logic, not tied to how the dialog looks going away) -- only the
+		-- VISUAL dismiss is animated.
 		if pendingConfirmAction then
 			pendingConfirmAction()
 			pendingConfirmAction = nil
 		end
+		popOut(confirmBackdrop, confirmPanel)
 	end)
 
 	confirmNoButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		confirmBackdrop.Visible = false
 		pendingConfirmAction = nil
+		popOut(confirmBackdrop, confirmPanel)
 	end)
 
 	local function showConfirmDialog(message, onConfirm)
 		confirmMessageLabel.Text = message
 		pendingConfirmAction = onConfirm
-		confirmBackdrop.Visible = true
+		popIn(confirmBackdrop, confirmPanel)
 	end
 
 	return {
