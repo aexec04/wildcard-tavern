@@ -72,6 +72,7 @@
 		                       not a value passed once at construction time)
 		addButtonHoverScale -- function(button, opts?) -- POLISH PASS Batch 2
 		revealStagger       -- function(instances, opts?) -- POLISH PASS Batch 2
+		popScale            -- function(instance, fromScale?, duration?) -- POLISH PASS Batch 3
 
 	POLISH PASS (Batch 2): this is the single most-visited screen in the
 	game and previously had ZERO animation of its own (every offer row,
@@ -93,6 +94,16 @@
 	     state push), which reads as flickery noise, not polish -- same
 	     "only trust a change in a tracked key" rule the rest of this
 	     project already uses (Journey.lua/RoundSelect.lua/GameOver.lua).
+
+	POLISH PASS (Batch 3): `setShopTab` used to flip `frame.Visible`
+	straight to true/false with no feedback at all -- the last raw cut
+	flagged as a Batch 3 candidate. A true crossfade would need every tab's
+	content wrapped in a CanvasGroup (Roblox has no way to fade a plain
+	Frame's whole subtree at once), which is a bigger structural change
+	than this pass's risk budget -- instead, the newly-shown tab now gets a
+	`popScale` bump the moment it becomes visible, a lightweight "this just
+	switched in" cue using a pattern already proven safe everywhere else in
+	this file, without touching how any tab is actually built.
 
 	Returns:
 		{
@@ -131,6 +142,7 @@ return function(deps)
 	local getLatestState = deps.getLatestState
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local revealStagger = deps.revealStagger
+	local popScale = deps.popScale
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -289,7 +301,11 @@ return function(deps)
 
 		local function setShopTab(key)
 			for tabKey, frame in pairs(shopTabContents) do
+				local wasVisible = frame.Visible
 				frame.Visible = (tabKey == key)
+				if frame.Visible and not wasVisible then
+					popScale(frame, 0.97, 0.16)
+				end
 			end
 			for _, entry in ipairs(shopTabButtons) do
 				entry.button.BackgroundColor3 = (entry.key == key) and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)

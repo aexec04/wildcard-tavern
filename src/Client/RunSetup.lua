@@ -23,8 +23,26 @@
 		StartRunRemote     -- RemoteEvent
 		backgroundMusic    -- Sound instance, started once a run begins
 		menuNewRunButton   -- TextButton, "New Run..." on the main menu
+		popIn              -- function(backdrop, content, opts?)
+		popOut             -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
+		revealStagger      -- function(instances, opts?)
 
 	Returns: {}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut on open/Cancel; Begin Run now fires the same
+	popOut (with an onHidden callback doing the actual menu->game handoff,
+	instead of cutting straight to it), so both exits from this screen look
+	the same. Begin Run/Cancel and every Deck Variant/Difficulty pick card
+	get addButtonHoverScale. The pick cards also cascade in with
+	revealStagger -- but ONLY on the initial open (see the `reveal` param on
+	refreshRunSetupCards below), never on a plain reselect: that function
+	also runs on every card click (to redraw the new checkmark/highlight),
+	and re-staggering all 7 cards in on every single click would read as
+	flickery noise rather than useful feedback -- the exact same
+	over-triggering trap Shop.lua's offer-row signature-gating (Batch 2)
+	was built to avoid.
 ]]
 
 return function(deps)
@@ -43,6 +61,10 @@ return function(deps)
 	local StartRunRemote = deps.StartRunRemote
 	local backgroundMusic = deps.backgroundMusic
 	local menuNewRunButton = deps.menuNewRunButton
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
+	local revealStagger = deps.revealStagger
 
 	local runSetupBackdrop = Instance.new("Frame")
 	runSetupBackdrop.Name = "RunSetupBackdrop"
@@ -187,11 +209,17 @@ return function(deps)
 		clickCatcher.Text = ""
 		clickCatcher.ZIndex = 26
 		clickCatcher.Parent = card
+		addButtonHoverScale(clickCatcher, { hoverScale = 1.02, pressScale = 0.98 })
 
 		return card, clickCatcher
 	end
 
-	local function refreshRunSetupCards()
+	-- `reveal`: only true when this is the panel's initial open (see
+	-- openRunSetup below) -- see the header comment for why a plain
+	-- reselect must NOT re-trigger the cascade.
+	local function refreshRunSetupCards(reveal)
+		local newlyBuiltCards = {}
+
 		for _, child in ipairs(deckVariantCards) do
 			child:Destroy()
 		end
@@ -199,6 +227,7 @@ return function(deps)
 		for i, variant in ipairs(DeckVariants.Definitions) do
 			local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId, DECK_VARIANT_ACCENT)
 			table.insert(deckVariantCards, card)
+			table.insert(newlyBuiltCards, card)
 			clickCatcher.MouseButton1Click:Connect(function()
 				playClickSfx(0.4)
 				selectedDeckVariantId = variant.id
@@ -213,11 +242,16 @@ return function(deps)
 		for i, tier in ipairs(DifficultyTiers.Definitions) do
 			local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId, DIFFICULTY_ACCENT)
 			table.insert(difficultyCards, card)
+			table.insert(newlyBuiltCards, card)
 			clickCatcher.MouseButton1Click:Connect(function()
 				playClickSfx(0.4)
 				selectedDifficultyId = tier.id
 				refreshRunSetupCards()
 			end)
+		end
+
+		if reveal then
+			revealStagger(newlyBuiltCards, { stagger = 0.05, duration = 0.25, fromScale = 0.85 })
 		end
 	end
 
@@ -234,6 +268,7 @@ return function(deps)
 	runSetupBeginButton.ZIndex = 26
 	runSetupBeginButton.Parent = runSetupPanel
 	polishButton(runSetupBeginButton, 12)
+	addButtonHoverScale(runSetupBeginButton)
 
 	local runSetupCancelButton = Instance.new("TextButton")
 	runSetupCancelButton.Size = UDim2.new(0, 140, 0, 44)
@@ -246,27 +281,46 @@ return function(deps)
 	runSetupCancelButton.ZIndex = 26
 	runSetupCancelButton.Parent = runSetupPanel
 	polishButton(runSetupCancelButton, 12)
+	addButtonHoverScale(runSetupCancelButton)
 
 	runSetupCancelButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		runSetupBackdrop.Visible = false
+		popOut(runSetupBackdrop, runSetupPanel)
 	end)
 
+	-- POLISH PASS (Batch 3) re-entrancy guard: popOut no longer hides the
+	-- backdrop SYNCHRONOUSLY the way the old bare `Visible = false` cut
+	-- did -- the panel stays fully visible and clickable for the whole
+	-- fade-out duration (popOut's default 0.15s), so without this flag a
+	-- double-click (or Cancel-then-Begin-Run within that same window)
+	-- would run this whole handler twice: firing StartRunRemote twice and
+	-- queuing the popOut/onHidden handoff twice. Reset the moment the
+	-- panel opens again (see openRunSetup below), same "guard state that
+	-- must be reset on next open" shape ConfirmDialog's pendingConfirmAction
+	-- already uses for its own re-entrancy protection.
+	local runStarting = false
+
 	runSetupBeginButton.MouseButton1Click:Connect(function()
+		if runStarting then
+			return
+		end
+		runStarting = true
 		playSfx(SOUND_IDS.buyPatron)
 		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId)
-		runSetupBackdrop.Visible = false
-		menuFrame.Visible = false
-		root.Visible = true
-		if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-			backgroundMusic:Play()
-		end
+		popOut(runSetupBackdrop, runSetupPanel, nil, function()
+			menuFrame.Visible = false
+			root.Visible = true
+			if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+				backgroundMusic:Play()
+			end
+		end)
 	end)
 
 	local function openRunSetup()
+		runStarting = false
 		playClickSfx()
-		refreshRunSetupCards()
-		runSetupBackdrop.Visible = true
+		refreshRunSetupCards(true)
+		popIn(runSetupBackdrop, runSetupPanel)
 	end
 
 	menuNewRunButton.MouseButton1Click:Connect(openRunSetup)

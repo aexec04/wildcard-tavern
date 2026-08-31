@@ -27,8 +27,14 @@
 		HandEvaluator    -- the Shared/Engine/HandEvaluator module
 		Scoring          -- the Shared/Engine/Scoring module
 		getLatestState   -- function() -> latest state table or nil (live getter)
+		popIn            -- function(backdrop, content, opts?)
+		popOut           -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns: {}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut; the Close button gets addButtonHoverScale.
 ]]
 
 return function(deps)
@@ -41,6 +47,9 @@ return function(deps)
 	local HandEvaluator = deps.HandEvaluator
 	local Scoring = deps.Scoring
 	local getLatestState = deps.getLatestState
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local handRefBackdrop = Instance.new("Frame")
 	handRefBackdrop.Name = "HandRefBackdrop"
@@ -122,10 +131,11 @@ return function(deps)
 	handRefCloseButton.ZIndex = 21
 	handRefCloseButton.Parent = handRefPanel
 	polishButton(handRefCloseButton, 12)
+	addButtonHoverScale(handRefCloseButton)
 
 	handRefCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		handRefBackdrop.Visible = false
+		popOut(handRefBackdrop, handRefPanel)
 	end)
 
 	local function refreshHandReference()
@@ -191,7 +201,7 @@ return function(deps)
 	handRefButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		refreshHandReference()
-		handRefBackdrop.Visible = true
+		popIn(handRefBackdrop, handRefPanel)
 	end)
 
 	return {}

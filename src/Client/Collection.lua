@@ -20,8 +20,20 @@
 		Patrons           -- the Shared/Engine/Patrons module
 		Themes            -- the Shared/Engine/Themes module
 		getLatestState    -- function() -> latest state table or nil (live getter)
+		popIn             -- function(backdrop, content, opts?)
+		popOut            -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns: {}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut; the Close button gets addButtonHoverScale.
+	Deliberately NOT using revealStagger on the row list itself -- this
+	panel can hold 35+ rows (31 Patrons + every Theme) once fully unlocked,
+	and a per-row cascade at revealStagger's usual pacing would take
+	several seconds to finish, reading as sluggish rather than juicy for a
+	list this long. The modal pop-in is enough of a "this just opened" cue
+	on its own here.
 ]]
 
 return function(deps)
@@ -35,6 +47,9 @@ return function(deps)
 	local Patrons = deps.Patrons
 	local Themes = deps.Themes
 	local getLatestState = deps.getLatestState
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local collectionBackdrop = Instance.new("Frame")
 	collectionBackdrop.Name = "CollectionBackdrop"
@@ -90,10 +105,11 @@ return function(deps)
 	collectionCloseButton.ZIndex = 21
 	collectionCloseButton.Parent = collectionPanel
 	polishButton(collectionCloseButton, 12)
+	addButtonHoverScale(collectionCloseButton)
 
 	collectionCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		collectionBackdrop.Visible = false
+		popOut(collectionBackdrop, collectionPanel)
 	end)
 
 	local function makeCollectionSectionHeader(text, order)
@@ -206,7 +222,7 @@ return function(deps)
 	collectionButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		refreshCollection()
-		collectionBackdrop.Visible = true
+		popIn(collectionBackdrop, collectionPanel)
 	end)
 
 	return {}

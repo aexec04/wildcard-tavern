@@ -33,12 +33,22 @@
 		getLatestState     -- function() -> latest state table or nil (live
 		                       getter, since latestState is reassigned each
 		                       render() call, not mutated)
+		popIn              -- function(backdrop, content, opts?)
+		popOut             -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns:
 		{
 			themesBackdrop = Frame,
 			refreshThemesList = function(),
 		}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut; the Close button gets addButtonHoverScale.
+	Per-row Buy/Equip/Get Pass buttons are left alone this pass -- they're
+	rebuilt from scratch by refreshThemesList() on every purchase/equip, so
+	giving them hover would need the same signature-gating Shop.lua's offer
+	rows use, and this list is small/low-traffic enough not to be worth it.
 ]]
 
 return function(deps)
@@ -59,6 +69,9 @@ return function(deps)
 	local showWarning = deps.showWarning
 	local themesButton = deps.themesButton
 	local getLatestState = deps.getLatestState
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	-- Purely visual -- spend Tips on table/card color palettes. No gameplay
 	-- effect. Buyable/equippable any time, not just during the shop phase.
@@ -113,10 +126,11 @@ return function(deps)
 	themesCloseButton.ZIndex = 21
 	themesCloseButton.Parent = themesPanel
 	polishButton(themesCloseButton, 10)
+	addButtonHoverScale(themesCloseButton)
 
 	themesCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		themesBackdrop.Visible = false
+		popOut(themesBackdrop, themesPanel)
 	end)
 
 	local function refreshThemesList()
@@ -225,7 +239,7 @@ return function(deps)
 	themesButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		refreshThemesList()
-		themesBackdrop.Visible = true
+		popIn(themesBackdrop, themesPanel)
 	end)
 
 	return {

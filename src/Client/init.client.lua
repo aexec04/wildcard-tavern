@@ -578,6 +578,7 @@ local ConfirmDialogModule = require(script.ConfirmDialog)({
 	playClickSfx = playClickSfx,
 	popIn = popIn,
 	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 local showConfirmDialog = ConfirmDialogModule.showConfirmDialog
 
@@ -621,6 +622,7 @@ local Shop = require(script.Shop)({
 	end,
 	addButtonHoverScale = addButtonHoverScale,
 	revealStagger = revealStagger,
+	popScale = popScale,
 })
 local shopFrame = Shop.shopFrame
 local nextRoundButton = Shop.nextRoundButton
@@ -677,6 +679,9 @@ require(script.HowToPlay)({
 	Scoring = Scoring,
 	menuHowToPlayButton = menuHowToPlayButton,
 	helpButton = helpButton,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 
 -- ===== Themes (cosmetics) overlay =====
@@ -703,6 +708,9 @@ local ThemesOverlay = require(script.Themes)({
 	getLatestState = function()
 		return latestState
 	end,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 local themesBackdrop = ThemesOverlay.themesBackdrop
 local refreshThemesList = ThemesOverlay.refreshThemesList
@@ -723,6 +731,9 @@ require(script.PokerHandsReference)({
 	getLatestState = function()
 		return latestState
 	end,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 
 -- ===== Deck Tracker overlay =====
@@ -745,6 +756,9 @@ require(script.DeckTracker)({
 	getLatestState = function()
 		return latestState
 	end,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 
 -- ===== Settings overlay =====
@@ -762,6 +776,9 @@ require(script.Settings)({
 	backgroundMusic = backgroundMusic,
 	volumeButton = volumeButton,
 	VOLUME_ICONS = VOLUME_ICONS,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 
 -- ===== Run Setup overlay =====
@@ -784,6 +801,10 @@ require(script.RunSetup)({
 	StartRunRemote = StartRunRemote,
 	backgroundMusic = backgroundMusic,
 	menuNewRunButton = menuNewRunButton,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
+	revealStagger = revealStagger,
 })
 
 -- ===== Menu -> game transition, volume cycling =====
@@ -890,6 +911,9 @@ require(script.Collection)({
 	getLatestState = function()
 		return latestState
 	end,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
 })
 
 -- ===== "Unlocked!" popup + Round reward popup =====

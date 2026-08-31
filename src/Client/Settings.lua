@@ -24,8 +24,14 @@
 		                       whenever the slider is dragged, so the corner icon
 		                       doesn't go stale next to this panel's real value
 		VOLUME_ICONS      -- { "♪", "♩", "×" }, same table Sound.lua hands out
+		popIn             -- function(backdrop, content, opts?)
+		popOut            -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns: {}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut; the Close button gets addButtonHoverScale.
 ]]
 
 return function(deps)
@@ -39,6 +45,9 @@ return function(deps)
 	local backgroundMusic = deps.backgroundMusic
 	local volumeButton = deps.volumeButton
 	local VOLUME_ICONS = deps.VOLUME_ICONS
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -119,15 +128,16 @@ return function(deps)
 	settingsCloseButton.ZIndex = 21
 	settingsCloseButton.Parent = settingsPanel
 	polishButton(settingsCloseButton, 12)
+	addButtonHoverScale(settingsCloseButton)
 
 	settingsCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		settingsBackdrop.Visible = false
+		popOut(settingsBackdrop, settingsPanel)
 	end)
 
 	settingsButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		settingsBackdrop.Visible = true
+		popIn(settingsBackdrop, settingsPanel)
 	end)
 
 	return {}

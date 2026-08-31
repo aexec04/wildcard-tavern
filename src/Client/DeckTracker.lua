@@ -29,8 +29,14 @@
 		SUIT_DISPLAY_ORDER -- array, suit display order (Spades/Hearts/Clubs/Diamonds)
 		RED_SUITS         -- table, suit name -> true for red suits
 		getLatestState    -- function() -> latest state table or nil (live getter)
+		popIn             -- function(backdrop, content, opts?)
+		popOut            -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns: {}
+
+	POLISH PASS (Batch 3): popIn/popOut replace the old bare
+	Visible = true/false cut; the Close button gets addButtonHoverScale.
 ]]
 
 return function(deps)
@@ -47,6 +53,9 @@ return function(deps)
 	local SUIT_DISPLAY_ORDER = deps.SUIT_DISPLAY_ORDER
 	local RED_SUITS = deps.RED_SUITS
 	local getLatestState = deps.getLatestState
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local deckTrackerBackdrop = Instance.new("Frame")
 	deckTrackerBackdrop.Name = "DeckTrackerBackdrop"
@@ -98,10 +107,11 @@ return function(deps)
 	deckTrackerCloseButton.ZIndex = 21
 	deckTrackerCloseButton.Parent = deckTrackerPanel
 	polishButton(deckTrackerCloseButton, 12)
+	addButtonHoverScale(deckTrackerCloseButton)
 
 	deckTrackerCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		deckTrackerBackdrop.Visible = false
+		popOut(deckTrackerBackdrop, deckTrackerPanel)
 	end)
 
 	local function refreshDeckTracker()
@@ -165,7 +175,7 @@ return function(deps)
 	deckWidgetButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		refreshDeckTracker()
-		deckTrackerBackdrop.Visible = true
+		popIn(deckTrackerBackdrop, deckTrackerPanel)
 	end)
 
 	return {}

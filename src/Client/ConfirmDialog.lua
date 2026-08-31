@@ -17,6 +17,7 @@
 		playClickSfx   -- function(volume?)
 		popIn          -- function(backdrop, content, opts?)
 		popOut         -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale -- function(button, opts?)
 
 	Returns:
 		{
@@ -28,6 +29,11 @@
 	no different from a debug placeholder. Now uses the shared popIn/popOut
 	helpers (VisualHelpers.lua) for a scale-and-fade reveal/dismiss, same
 	family of "pop" GameOver.lua already established for its own panel.
+
+	POLISH PASS (Batch 3): Yes/No now get addButtonHoverScale too, closing
+	the one gap left from Batch 1's pass over this file (the modal itself
+	got popIn/popOut, but its own two buttons never got the hover/press
+	feedback every other button in the game has by now).
 ]]
 
 return function(deps)
@@ -38,6 +44,7 @@ return function(deps)
 	local playClickSfx = deps.playClickSfx
 	local popIn = deps.popIn
 	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local confirmBackdrop = Instance.new("Frame")
 	confirmBackdrop.Name = "ConfirmBackdrop"
@@ -93,6 +100,9 @@ return function(deps)
 	confirmNoButton.ZIndex = 35
 	confirmNoButton.Parent = confirmPanel
 	polishButton(confirmNoButton, 10)
+
+	addButtonHoverScale(confirmYesButton)
+	addButtonHoverScale(confirmNoButton)
 
 	-- Reassigned on every showConfirmDialog call; Yes just calls whatever's
 	-- currently pending, so there's only ever one live confirmation at a time.

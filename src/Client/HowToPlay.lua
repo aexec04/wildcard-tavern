@@ -26,8 +26,17 @@
 		Scoring              -- the Shared/Engine/Scoring module
 		menuHowToPlayButton  -- TextButton, "How to Play" on the main menu
 		helpButton           -- TextButton, the in-game "?" corner button
+		popIn                -- function(backdrop, content, opts?)
+		popOut               -- function(backdrop, content, opts?, onHidden?)
+		addButtonHoverScale  -- function(button, opts?)
 
 	Returns: {} (nothing else in the client needs to reach into this overlay)
+
+	POLISH PASS (Batch 3): this overlay used to show/hide with a bare
+	Visible = true/false, one of several remaining screens flagged at the
+	end of Batch 2 as still doing a hard cut. Now uses the shared
+	popIn/popOut helpers (same family ConfirmDialog/GameOver already use)
+	plus addButtonHoverScale on the "Got it" button.
 ]]
 
 return function(deps)
@@ -44,6 +53,9 @@ return function(deps)
 	local Scoring = deps.Scoring
 	local menuHowToPlayButton = deps.menuHowToPlayButton
 	local helpButton = deps.helpButton
+	local popIn = deps.popIn
+	local popOut = deps.popOut
+	local addButtonHoverScale = deps.addButtonHoverScale
 
 	local howToPlayBackdrop = Instance.new("Frame")
 	howToPlayBackdrop.Name = "HowToPlayBackdrop"
@@ -298,15 +310,16 @@ return function(deps)
 	howToPlayCloseButton.ZIndex = 21
 	howToPlayCloseButton.Parent = howToPlayPanel
 	polishButton(howToPlayCloseButton, 10)
+	addButtonHoverScale(howToPlayCloseButton)
 
 	howToPlayCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		howToPlayBackdrop.Visible = false
+		popOut(howToPlayBackdrop, howToPlayPanel)
 	end)
 
 	local function openHowToPlay()
 		playClickSfx()
-		howToPlayBackdrop.Visible = true
+		popIn(howToPlayBackdrop, howToPlayPanel)
 	end
 
 	menuHowToPlayButton.MouseButton1Click:Connect(openHowToPlay)
