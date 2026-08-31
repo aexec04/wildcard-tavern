@@ -141,6 +141,11 @@ local SoundModule = require(script.Sound)({
 local SOUND_IDS = SoundModule.SOUND_IDS
 local backgroundMusic = SoundModule.backgroundMusic
 local setMusicTrack = SoundModule.setMusicTrack
+-- QoL Game Pass (Custom Jukebox, Phase 9): setCustomTrack/clearCustomTrack/
+-- hasCustomTrack are used in exactly one place (Settings.lua's deps table,
+-- below) -- referenced straight off SoundModule there instead of adding 3
+-- more names to this file's already-large top-level local count (Lua caps
+-- a single chunk at 200 locals; this file sits right at that ceiling).
 local playSfx = SoundModule.playSfx
 local playClickSfx = SoundModule.playClickSfx
 local playPitched = SoundModule.playPitched
@@ -563,6 +568,16 @@ local ScorePopupModule = require(script.ScorePopup)({
 	-- (see rebuildHand's LAYOUT FEATURE 8) -- symmetric "cards live here"
 	-- landmark instead of just flying off an arbitrary screen edge.
 	deckWidgetButton = deckWidgetButton,
+	-- QoL Game Pass (Fast Forward, Phase 9): reads latestState fresh every
+	-- call (a live getter, not a one-time snapshot) -- ownership can flip
+	-- true mid-session the moment a purchase resolves (see
+	-- Server/init.server.lua's PromptGamePassPurchaseFinished handler).
+	-- Inlined here rather than a separate named top-level helper -- this
+	-- is its only use site, and this file sits right at Lua's
+	-- 200-local-per-chunk ceiling.
+	hasFastForwardPass = function()
+		return latestState ~= nil and latestState.ownedGamePassIds ~= nil and table.find(latestState.ownedGamePassIds, "fast_forward") ~= nil
+	end,
 })
 local showScorePopup = ScorePopupModule.showScorePopup
 local cancelScorePopup = ScorePopupModule.cancelScorePopup
@@ -762,15 +777,19 @@ require(script.DeckTracker)({
 })
 
 -- ===== Settings overlay =====
--- Extracted into Client/Settings.lua. Fully self-contained (only opened
--- from its own corner button), so nothing needs to come back out of the
--- require() call.
-require(script.Settings)({
+-- Extracted into Client/Settings.lua. Used to be fully self-contained
+-- (nothing needed to come back out), but since the Custom Jukebox section
+-- (Phase 9) render() needs to check settingsBackdrop.Visible and call
+-- refreshJukeboxSection() -- same pattern as themesBackdrop/
+-- refreshThemesList below -- so a Get-Pass purchase completing while this
+-- panel is already open doesn't leave it showing a stale locked state.
+local SettingsOverlay = require(script.Settings)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
+	showWarning = showWarning,
 	settingsButton = settingsButton,
 	makeSliderRow = makeSliderRow,
 	backgroundMusic = backgroundMusic,
@@ -779,6 +798,16 @@ require(script.Settings)({
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
+	-- QoL Game Pass (Custom Jukebox, Phase 9)
+	GamePasses = GamePasses,
+	MarketplaceService = MarketplaceService,
+	player = player,
+	getLatestState = function()
+		return latestState
+	end,
+	setCustomTrack = SoundModule.setCustomTrack,
+	clearCustomTrack = SoundModule.clearCustomTrack,
+	hasCustomTrack = SoundModule.hasCustomTrack,
 })
 
 -- ===== Run Setup overlay =====
@@ -852,6 +881,20 @@ local cardVisualPosition = {}
 -- in the shop, equipping a theme) and for Sort Hand clicks, where the
 -- exact same cards just need to reflow, not re-deal from the deck.
 local lastHandSignature = nil
+
+-- PERF (technical-debt pass): lastHandSignature above only ever gated the
+-- deal-in animation offset -- rebuildHand() itself still destroyed and
+-- rebuilt every single card Instance (and unconditionally wiped `selected`/
+-- `hoveredIndex`) on EVERY call, including the ~18 unrelated state pushes
+-- (buying in the Shop, equipping a Theme, etc. -- see Server/init.server.lua's
+-- pushState call sites) that fire render() -> rebuildHand() without the hand
+-- itself changing at all. That was also a latent UX bug: a Shop purchase
+-- mid-hand-selection would silently clear your card selection. This second
+-- signature adds handSortMode (Sort Hand needs a real rebuild even when the
+-- cards are identical, since only the display order changed) and gates the
+-- whole destroy/rebuild block on it -- an unrelated render now leaves the
+-- existing card Instances, and the player's in-progress selection, alone.
+local lastHandRenderSignature = nil
 
 -- Set right before firing PlayHand/Discard to the number of cards being
 -- replaced -- consumed by the very next rebuildHand() to animate ONLY the
@@ -1439,6 +1482,19 @@ local function rebuildHand(handData)
 	local isNewHand = newSignature ~= lastHandSignature
 	lastHandSignature = newSignature
 
+	-- See lastHandRenderSignature's comment above. Skips the whole
+	-- destroy/rebuild below when neither the hand's cards nor its sort mode
+	-- have changed since the last call -- cardButtons/cardScales/
+	-- cardVisualPosition/selected/hoveredIndex are all left exactly as they
+	-- were, so an unrelated render (Shop purchase, Theme equip, a Tips
+	-- pulse, ...) no longer costs a full hand rebuild or clears the
+	-- player's selection.
+	local renderSignature = newSignature .. "|" .. tostring(handSortMode)
+	if renderSignature == lastHandRenderSignature then
+		return
+	end
+	lastHandRenderSignature = renderSignature
+
 	-- dealFromIndex: raw hand indices >= this are the ones that should fly
 	-- in. If pendingNewCardCount is set, only the trailing N raw indices
 	-- (the newly-drawn replacements -- see removeIndicesFromHand in
@@ -1713,10 +1769,21 @@ local function render(state)
 	end
 
 	rebuildHand(state.hand)
-	refreshScorePreview() -- rebuildHand just reset `selected` to empty
+	-- rebuildHand resets `selected` to empty on an actual hand change, and
+	-- otherwise leaves it (and the preview) exactly as the player left it --
+	-- either way, recomputing here keeps the preview in sync.
+	refreshScorePreview()
 
 	if themesBackdrop.Visible then
 		refreshThemesList() -- keep the panel accurate if it's open across a purchase
+	end
+	-- QoL Game Pass (Phase 9, bugfix): keep the Custom Jukebox section
+	-- accurate if a Get-Pass purchase completes while Settings is already
+	-- open, same reasoning as themesBackdrop just above. Read straight off
+	-- SettingsOverlay rather than 2 more top-level locals -- see that
+	-- require() call's own comment on why.
+	if SettingsOverlay.settingsBackdrop.Visible then
+		SettingsOverlay.refreshJukeboxSection()
 	end
 	if journeyBackdrop.Visible then
 		refreshJourney() -- keep "you are here" accurate if it's open across a round change

@@ -102,13 +102,45 @@ return function(deps)
 	-- this uses ordinary BackgroundTransparency (0.55, constant, not a
 	-- gradient), which blends normally -- it can only ever darken the thin
 	-- offset border area behind a panel, never the panel's own content.
+	--
+	-- PERF/BUGFIX (technical-debt pass): this used to size itself as
+	-- `UDim2.new(1, 14, 1, 14)` of panel.Parent -- i.e. "the panel's own
+	-- size plus 14px" ONLY held true if the panel's parent happened to be
+	-- ~1:1 sized with the panel itself. In practice every one of this
+	-- function's call sites parents a modal panel inside a full-screen
+	-- backdrop Frame, so `1, 14` resolved to "100% of the screen plus
+	-- 14px" -- a second near-fullscreen dark overlay stacked behind every
+	-- dialog in the game, not a soft edge shadow. Reading the panel's own
+	-- Size/Position/AnchorPoint directly and sizing the shadow relative to
+	-- THOSE (scaled against the real parent) fixes all ~10 call sites.
+	--
+	-- The X/Y offset math below has to compensate for panel.AnchorPoint,
+	-- not just copy it onto the shadow: growing Size by a flat +14/+14
+	-- while keeping the SAME anchor point shifts where that extra 14px
+	-- lands relative to the panel's actual edges (an independent review
+	-- caught this -- a first pass that didn't compensate produced a
+	-- lopsided shadow, thick on one side and invisible on the other, for
+	-- every centered/AnchorPoint(0.5,0.5) dialog: ConfirmDialog, GameOver,
+	-- Journey). Solving "shadow's left/top/right/bottom edges sit exactly
+	-- {7, -4(recede), 7, 18} px past the panel's own edges, regardless of
+	-- anchor" for the Position that keeps a SHARED anchor point consistent
+	-- works out to offsetting by (-7 + 14*anchorX) horizontally and
+	-- (+4 + 14*anchorY) vertically -- which correctly collapses back to the
+	-- original flat (-7, +4) for every AnchorPoint(0,0) panel (the common
+	-- case) while also landing symmetrically for centered ones.
 	local function addSoftShadow(panel, radius)
 		local shadow = Instance.new("Frame")
 		shadow.Name = "Shadow"
 		shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 		shadow.BackgroundTransparency = 0.55
-		shadow.Size = UDim2.new(1, 14, 1, 14)
-		shadow.Position = UDim2.new(0, -7, 0, 4)
+		shadow.AnchorPoint = panel.AnchorPoint
+		shadow.Size = UDim2.new(panel.Size.X.Scale, panel.Size.X.Offset + 14, panel.Size.Y.Scale, panel.Size.Y.Offset + 14)
+		shadow.Position = UDim2.new(
+			panel.Position.X.Scale,
+			panel.Position.X.Offset - 7 + 14 * panel.AnchorPoint.X,
+			panel.Position.Y.Scale,
+			panel.Position.Y.Offset + 4 + 14 * panel.AnchorPoint.Y
+		)
 		shadow.BorderSizePixel = 0
 		shadow.ZIndex = math.max(0, panel.ZIndex - 1)
 		shadow.Parent = panel.Parent

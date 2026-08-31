@@ -417,8 +417,31 @@ local function refreshOwnedGamePasses(player)
 				end
 				if ok then
 					if owns then
+						-- BUGFIX (Phase 9 QoL passes, caught by independent
+						-- review before shipping): applyGamePassGrants only
+						-- calls pushState when it actually grants a Theme --
+						-- correct for all_themes, but fast_forward/
+						-- custom_jukebox grant nothing into RunState at all
+						-- (ownership alone is the whole feature, checked
+						-- client-side via ownedGamePassIds), so that branch
+						-- never fired for them. A player buying either one
+						-- would have this recorded server-side immediately,
+						-- but the client's ownedGamePassIds would stay stale
+						-- -- Settings' Custom Jukebox section (or Fast
+						-- Forward) would keep showing "Get Pass" -- until
+						-- some UNRELATED action happened to trigger any of
+						-- the other pushState call sites. Fixed by pushing
+						-- state here too, specifically when a pass is newly
+						-- recorded as owned (not on every redundant re-check
+						-- -- PlayerAdded/a repeat purchase-finished event can
+						-- call this again for an already-known pass, and
+						-- that shouldn't cost a render on the client).
+						local alreadyKnown = ownedGamePasses[player][pass.id] == true
 						ownedGamePasses[player][pass.id] = true
 						applyGamePassGrants(player)
+						if not alreadyKnown then
+							pushState(player)
+						end
 					end
 				else
 					warn(string.format("UserOwnsGamePassAsync failed for %s / %s: %s", player.Name, pass.id, tostring(owns)))

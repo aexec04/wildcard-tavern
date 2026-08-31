@@ -34,7 +34,36 @@ GamePasses.Definitions = {
 		gamePassId = 0, -- TODO: paste the real Game Pass ID here once created (see the header comment above)
 		grantsThemes = { "midnight_blue", "rose_gold", "forest", "crimson", "neon_joker" },
 	},
+	-- Phase 9: the 2 QoL passes flagged alongside Theme Vault back in Phase 7,
+	-- picked from the doc's own candidate list. Neither grants anything into
+	-- RunState (no `grantsThemes`-style field, no server-side effect at all)
+	-- -- ownership alone is the whole feature. `ownedGamePassIds` already
+	-- ships to the client generically for every catalog entry (see
+	-- Server/init.server.lua's serializeState), so both of these "just work"
+	-- the instant a real Game Pass ID replaces the `0` placeholder below --
+	-- nothing else in Server/init.server.lua needed to change for these two.
+	{
+		id = "fast_forward",
+		name = "Fast Forward",
+		icon = "⏩",
+		description = "Speeds up the hand-scoring reveal sequence -- same numbers, same result, just quicker to sit through on a run you already know by heart.",
+		gamePassId = 0, -- TODO: paste the real Game Pass ID here once created (see the header comment above)
+	},
+	{
+		id = "custom_jukebox",
+		name = "Custom Jukebox",
+		icon = "🎵",
+		description = "Paste your own background music track (a Roblox audio asset you own the rights to play) and it plays instead of the built-in soundtrack. Purely a convenience for you -- nothing else about the game changes.",
+		gamePassId = 0, -- TODO: paste the real Game Pass ID here once created (see the header comment above)
+	},
 }
+
+-- Generic "does this passId gate anything" lookup isn't needed the way
+-- passForTheme is (fast_forward/custom_jukebox aren't associated with a
+-- specific piece of content the way a Theme is) -- callers just check
+-- `GamePasses.getById(passId)` directly against a live ownedGamePassIds
+-- list shipped from the server. See Client/Settings.lua and
+-- Client/ScorePopup.lua for the 2 new call sites.
 
 function GamePasses.getById(id)
 	for _, pass in ipairs(GamePasses.Definitions) do

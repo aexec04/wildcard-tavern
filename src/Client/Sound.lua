@@ -48,6 +48,9 @@
 			MUSIC_IDS = table, -- { title, gameplay, boss, shop }
 			backgroundMusic = Sound,
 			setMusicTrack = function(key), -- key is a MUSIC_IDS key; no-op if already that track
+			setCustomTrack = function(assetId), -- QoL Game Pass (Custom Jukebox): overrides every phase track with assetId, applies immediately
+			clearCustomTrack = function(), -- drops the override; next setMusicTrack call falls back to the real phase track
+			hasCustomTrack = function(), -- true if a Custom Jukebox override is currently active
 			playSfx = function(soundId, volume?, maxLength?),
 			playClickSfx = function(volume?),
 			playPitched = function(sound, pitch?, volume?), -- for chipTickSound etc below
@@ -107,19 +110,35 @@ return function(deps)
 	backgroundMusic.Looped = true
 	backgroundMusic.Parent = SoundService
 
-	-- Tracks which MUSIC_IDS key is currently loaded, so repeated calls
-	-- with the same key (e.g. every single render() while sitting in the
-	-- shop) don't restart the track from the beginning every time.
-	local currentMusicKey = "gameplay"
+	-- QoL Game Pass (Custom Jukebox, Phase 9): a player-supplied asset id
+	-- that overrides whichever phase track would otherwise play. nil
+	-- (the common case) means "no override, use MUSIC_IDS[key] like
+	-- always." Session-scoped, same as every other per-run choice in this
+	-- game (no persistent save yet) -- set/cleared from Client/Settings.lua
+	-- via setCustomTrack/clearCustomTrack below.
+	local customTrackId = nil
+
+	-- Tracks the actual RESOLVED asset id currently loaded (not the phase
+	-- key) so repeated calls that land on the same real track -- including
+	-- every phase key collapsing onto the SAME custom override while one's
+	-- active -- don't restart it from the beginning every time.
+	local currentTrackId = nil
+	-- Tracks the most recent phase KEY actually requested (regardless of
+	-- whether a custom override was active at the time) -- clearCustomTrack
+	-- below replays this so Reset snaps straight back to the correct phase
+	-- track immediately, instead of silently keeping the custom track
+	-- playing until the next unrelated render() call happens to fire.
+	local lastRequestedKey = "gameplay"
 	local function setMusicTrack(key)
-		if key == currentMusicKey then
-			return
-		end
-		local id = MUSIC_IDS[key]
+		lastRequestedKey = key
+		local id = customTrackId or MUSIC_IDS[key]
 		if not id or id == "" then
 			return
 		end
-		currentMusicKey = key
+		if id == currentTrackId then
+			return
+		end
+		currentTrackId = id
 		local wasPlaying = backgroundMusic.IsPlaying
 		backgroundMusic.SoundId = id
 		-- Respect the volume button's current mute state -- only actually
@@ -128,6 +147,27 @@ return function(deps)
 		if wasPlaying or backgroundMusic.Volume > 0 then
 			backgroundMusic:Play()
 		end
+	end
+
+	-- setCustomTrack applies immediately (doesn't wait for the next
+	-- render()-driven setMusicTrack call) so hitting Play in Settings
+	-- feels instant. clearCustomTrack (below) replays lastRequestedKey
+	-- through setMusicTrack for the same reason -- Reset shouldn't have to
+	-- wait on the next unrelated state push to actually take effect.
+	local function setCustomTrack(assetId)
+		customTrackId = assetId
+		currentTrackId = assetId
+		local wasPlaying = backgroundMusic.IsPlaying
+		backgroundMusic.SoundId = assetId
+		if wasPlaying or backgroundMusic.Volume > 0 then
+			backgroundMusic:Play()
+		end
+	end
+
+	local function clearCustomTrack()
+		customTrackId = nil
+		currentTrackId = nil
+		setMusicTrack(lastRequestedKey) -- reapply immediately, don't wait for the next render()
 	end
 
 	-- FEATURE 3: cycle loud -> quiet -> muted, free for everyone (no paywall).
@@ -263,6 +303,11 @@ return function(deps)
 		MUSIC_IDS = MUSIC_IDS,
 		backgroundMusic = backgroundMusic,
 		setMusicTrack = setMusicTrack,
+		setCustomTrack = setCustomTrack,
+		clearCustomTrack = clearCustomTrack,
+		hasCustomTrack = function()
+			return customTrackId ~= nil
+		end,
 		playSfx = playSfx,
 		playClickSfx = playClickSfx,
 		playPitched = playPitched,
