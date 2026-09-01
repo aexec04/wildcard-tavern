@@ -234,6 +234,7 @@ local patronSlots = SidebarModule.patronSlots
 local MAX_SIDEBAR_PATRON_SLOTS = SidebarModule.MAX_SIDEBAR_PATRON_SLOTS
 local scorePreviewBox = SidebarModule.scorePreviewBox
 local scorePreviewLabel = SidebarModule.scorePreviewLabel
+local setDailyBadge = SidebarModule.setDailyBadge
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
@@ -263,6 +264,7 @@ local handRefButton = makeCornerButton("📖", -260)
 -- the gap left behind.
 local settingsButton = makeCornerButton("⚙", -310)
 local collectionButton = makeCornerButton("📔", -360)
+local leaderboardButton = makeCornerButton("🏆", -410)
 
 -- ----- Generic hover tooltip -----
 -- Ahmed: "whenever you hover over a button any UI, it should give you the
@@ -327,6 +329,7 @@ addTooltip(journeyButton, "Journey -- see the road ahead", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
 addTooltip(settingsButton, "Settings", "left")
 addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
+addTooltip(leaderboardButton, "Daily Challenge leaderboard", "left")
 
 end -- Generic hover tooltip
 
@@ -669,6 +672,8 @@ local MenuScreen = require(script.Menu)({
 	polishButton = polishButton,
 	revealStagger = revealStagger,
 	addButtonHoverScale = addButtonHoverScale,
+	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
+	playClickSfx = playClickSfx,
 })
 local menuFrame = MenuScreen.menuFrame
 local menuPlayButton = MenuScreen.menuPlayButton
@@ -954,6 +959,25 @@ require(script.Collection)({
 	getLatestState = function()
 		return latestState
 	end,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
+})
+
+-- ===== Daily Challenge Leaderboard overlay (Phase 11) =====
+-- Extracted into Client/DailyLeaderboard.lua. Fully self-contained (only
+-- opened from its own corner button), so nothing needs to come back out of
+-- the require() call -- same pattern as Collection.lua just above.
+require(script.DailyLeaderboard)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	roundCorner = roundCorner,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	leaderboardButton = leaderboardButton,
+	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
+	localPlayer = player,
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
@@ -1677,6 +1701,12 @@ local function render(state)
 	else
 		nightRoundLabel.Text = string.format("Night %d/%d - Round %d", state.night, nightCap, state.round)
 	end
+	-- DAILY CHALLENGE (Phase 11): show/hide the sidebar badge based on
+	-- whatever the server says THIS run is -- state.isDaily/dailyDateKey
+	-- are shipped fresh in every serializeState() call, so this always
+	-- reflects the actual current run, including after "New Run..." swaps
+	-- a Daily Challenge run back out for a normal one.
+	setDailyBadge(state.isDaily, state.dailyDateKey)
 	-- POLISH PASS: flash the Tips box gold on a gain, red on a loss/spend --
 	-- and the Hands/Discards box red whenever either ticks down (a hand
 	-- played or a discard used). Guarded by hasRenderedOnce so a fresh

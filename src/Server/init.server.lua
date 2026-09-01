@@ -32,6 +32,7 @@ local Packs = require(Engine.Packs)
 local HousePasses = require(Engine.HousePasses)
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
+local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -82,6 +83,17 @@ local SkipRoundRemote = newRemote("SkipRound") -- (player)
 local RestartRunRemote = newRemote("RestartRun")
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
+-- DAILY CHALLENGE (Phase 11): a seeded standard/standard run, same for
+-- every player on the same UTC day -- see Shared/Engine/SeededRng.lua's
+-- header for exactly what "same" means once player choices start
+-- diverging. GetDailyLeaderboard is a RemoteFunction (request/response,
+-- not fire-and-forget) since the client needs the actual leaderboard data
+-- back -- Roblox's RemoteFunction handles that yield/return shape
+-- directly, no separate "here's your answer" RemoteEvent needed.
+local StartDailyChallengeRemote = newRemote("StartDailyChallenge") -- (player)
+local GetDailyLeaderboardRemote = Instance.new("RemoteFunction")
+GetDailyLeaderboardRemote.Name = "GetDailyLeaderboard"
+GetDailyLeaderboardRemote.Parent = remotes
 
 -- ===== 3. Persistent Player Profile (DataStoreService) =====
 -- PERSISTENT SAVE (Phase 10): see Shared/Engine/PlayerProfile.lua's header
@@ -148,7 +160,82 @@ end
 -- syncProfileFromSession (needs `sessions`, declared just below) is defined
 -- right before pushState further down, the one place it's actually called.
 
--- ===== 4. Session management =====
+-- ===== 4. Daily Challenge Leaderboard (OrderedDataStoreService) =====
+-- DAILY CHALLENGE (Phase 11): see Shared/Engine/SeededRng.lua's header for
+-- what "same seed" actually guarantees. This section is the leaderboard
+-- half -- same one-time Studio setup ("Enable Studio Access to API
+-- Services") and pcall-everywhere caution as Persistent Player Profile
+-- above.
+--
+-- "Depth" is this project's single comparable leaderboard number: rounds
+-- FULLY CLEARED so far this run -- (night - 1) * roundsPerNight +
+-- (round - 1) -- monotonically non-decreasing across a run, finer-grained
+-- than raw Night alone (which would tie constantly), and naturally keeps
+-- climbing through Endless Mode past Night 8 too, with no special-casing
+-- needed. Tips banked is folded in as a tiebreaker only (see
+-- DAILY_SCORE_MULTIPLIER below), never the primary sort.
+--
+-- SAVE TIMING, deliberately mirrors PERSISTENT SAVE (Phase 10)'s
+-- profileDirty/autosave/PlayerRemoving/BindToClose shape rather than
+-- inventing a new one: an improvement just updates an in-memory
+-- `dailyPending[player]` snapshot and marks `dailyDirty[player]` --
+-- nothing calls DataStoreService directly from inside a remote-event
+-- handler's response path. Two reasons, both deliberate: (1) a
+-- synchronous yielding SetAsync call there would visibly lag that exact
+-- round-win's state push to the client, and (2) firing an unbounded
+-- number of overlapping `task.spawn`-ed saves (one per improvement) could
+-- let an OLDER, LOWER save finish after a newer one and leave a stale
+-- score as the final written value -- keeping exactly one pending
+-- snapshot per player and only ever reading it fresh at actual save time
+-- (never capturing a value that could go stale while queued) avoids that
+-- race entirely.
+
+local DAILY_SCORE_MULTIPLIER = 1000000 -- combinedScore = depth * this + tips; tips is clamped below this so it can never bleed into depth's digits
+local DAILY_TIPS_CAP = DAILY_SCORE_MULTIPLIER - 1
+local LEADERBOARD_COOLDOWN = 2 -- seconds; a simple per-player throttle so mashing the leaderboard-open button can't hammer DataStore with reads
+
+local dailyBoardCache = {} -- [dateKey] = OrderedDataStore instance, so re-opening the same day's board doesn't re-fetch a fresh DataStore object every time
+local dailyPending = {} -- [player] = { dateKey, depth, tips } -- this player's best Daily Challenge result not yet confirmed written to that day's board
+local dailyDirty = {} -- [player] = true while dailyPending[player] hasn't been successfully saved yet
+local lastLeaderboardRequest = {} -- [player] = os.clock() of their last GetDailyLeaderboard call
+
+local function getDailyStore(dateKey)
+	if not dailyBoardCache[dateKey] then
+		dailyBoardCache[dateKey] = DataStoreService:GetOrderedDataStore("DailyChallenge_" .. dateKey)
+	end
+	return dailyBoardCache[dateKey]
+end
+
+local function computeDailyDepth(state)
+	return (state.night - 1) * state.config.roundsPerNight + (state.round - 1)
+end
+
+local function saveDailyScore(player)
+	local pending = dailyPending[player]
+	if not pending then
+		return
+	end
+	local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
+	local store = getDailyStore(pending.dateKey)
+	local ok, err = pcall(function()
+		store:SetAsync(tostring(player.UserId), combinedScore)
+	end)
+	if ok then
+		dailyDirty[player] = nil
+	else
+		warn(string.format("Daily leaderboard save failed for %s: %s", player.Name, tostring(err)))
+		-- Leave dailyDirty set -- the next autosave tick (or the final
+		-- PlayerRemoving/BindToClose attempt) will retry with whatever
+		-- dailyPending[player] holds by then (always the freshest known
+		-- best, never a stale snapshot -- see the section header above).
+	end
+end
+
+-- trackDailyProgress (needs `sessions`, declared just below) is defined
+-- right next to syncProfileFromSession further down, both called from
+-- pushState.
+
+-- ===== 5. Session management =====
 
 -- Matches the reference game's usual shop layout more closely than our old
 -- "3 Patron offers, nothing else" did: 2 Patron offers + 2 Pack offers
@@ -180,7 +267,23 @@ local sessions = {} -- [player] = { state = RunState, phase = "roundSelect" | "p
 -- to call that).
 local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 
+-- DAILY CHALLENGE (Phase 11) FIX: all three of these used to call the
+-- global `math.random` directly, completely bypassing `state.rng` (the
+-- seeded rng RunState.new stores on the state table -- see
+-- Shared/Engine/RunState.lua line ~160 and its Deck.shuffle/BossRounds.pick/
+-- Tags.pick call sites, which DO thread it through correctly). That made a
+-- Daily Challenge run's shop offers (Patrons/Packs/Vouchers) random and
+-- different for every player from the very first shop visit, even though
+-- the deck order and Boss Round were correctly identical -- silently
+-- defeating the whole point of a Daily Challenge ("everyone starts from
+-- the identical first shop/Boss/deck order"). Found via independent
+-- review; fixed by threading `state.rng or math.random` through here too,
+-- same fallback pattern RunState.lua itself already uses everywhere (a nil
+-- rng -- a normal, non-Daily run -- transparently falls back to
+-- `math.random`, so this changes nothing for regular runs).
 local function pickShopOffers(state)
+	local rng = state.rng or math.random
+
 	local available = {}
 	for _, patron in ipairs(Patrons.Definitions) do
 		local alreadyOwned = false
@@ -198,20 +301,22 @@ local function pickShopOffers(state)
 	-- shuffle-ish pick
 	local offers = {}
 	for _ = 1, math.min(SHOP_OFFER_COUNT, #available) do
-		local i = math.random(1, #available)
+		local i = rng(#available)
 		table.insert(offers, table.remove(available, i))
 	end
 	return offers
 end
 
-local function pickPackOffers()
+local function pickPackOffers(state)
+	local rng = state.rng or math.random
+
 	local pool = {}
 	for _, pack in ipairs(Packs.Definitions) do
 		table.insert(pool, pack)
 	end
 	local offers = {}
 	for _ = 1, math.min(PACK_OFFER_COUNT, #pool) do
-		local i = math.random(1, #pool)
+		local i = rng(#pool)
 		table.insert(offers, table.remove(pool, i))
 	end
 	return offers
@@ -219,9 +324,15 @@ end
 
 -- Only offers a House Pass the player doesn't already own, and only some of
 -- the time -- "shows up from time to time," not every visit, same as the
--- reference game's Voucher slot.
+-- reference game's Voucher slot. `rng(n)` only supports integer picks in
+-- [1, n], not a float roll like `math.random()`'s no-arg form -- rolling a
+-- 1-in-10000 draw against a scaled integer threshold (rng(10000) <=
+-- VOUCHER_CHANCE * 10000) gets the same 35% probability out of the same
+-- integer-only contract every other rng() call site in this codebase uses.
 local function pickVoucherOffer(state)
-	if math.random() > VOUCHER_CHANCE then
+	local rng = state.rng or math.random
+	local roll = state.rng and (rng(10000) <= math.floor(VOUCHER_CHANCE * 10000)) or (math.random() <= VOUCHER_CHANCE)
+	if not roll then
 		return nil
 	end
 	local available = {}
@@ -233,7 +344,7 @@ local function pickVoucherOffer(state)
 	if #available == 0 then
 		return nil
 	end
-	return available[math.random(1, #available)]
+	return available[rng(#available)]
 end
 
 -- Rerolls just the offers, keeping whatever the current rerollCost climbed
@@ -241,7 +352,7 @@ end
 -- uses this too, via openShop below, which additionally resets the cost.
 local function rollShopOffers(session)
 	session.shopOffers = pickShopOffers(session.state)
-	session.packOffers = pickPackOffers()
+	session.packOffers = pickPackOffers(session.state)
 	session.voucherOffer = pickVoucherOffer(session.state)
 end
 
@@ -450,6 +561,13 @@ local function serializeState(session, player)
 				bestNightReached = profile.stats.bestNightReached,
 			}
 		end)(),
+		-- DAILY CHALLENGE (Phase 11): lets the client show a "Daily
+		-- Challenge" badge/HUD state -- dailyDateKey is the UTC day this
+		-- specific run started on (fixed at startNewSession, see that
+		-- function's comment), not necessarily "today" if the run has been
+		-- going since before a UTC midnight.
+		isDaily = session.isDaily or false,
+		dailyDateKey = session.dailyDateKey,
 	}
 end
 
@@ -516,12 +634,38 @@ local function syncProfileFromSession(player)
 	end
 end
 
+-- DAILY CHALLENGE (Phase 11): updates dailyPending[player] whenever THIS
+-- player's depth in their current Daily Challenge run improves on
+-- whatever's already queued -- see the "Daily Challenge Leaderboard"
+-- section above for why this never calls DataStoreService directly.
+-- No-ops entirely for a non-Daily session (session.isDaily false/nil).
+local function trackDailyProgress(player)
+	local session = sessions[player]
+	if not session or not session.isDaily then
+		return
+	end
+
+	local depth = computeDailyDepth(session.state)
+	local pending = dailyPending[player]
+	if pending and pending.dateKey == session.dailyDateKey and pending.depth >= depth then
+		return -- nothing new to record
+	end
+
+	dailyPending[player] = {
+		dateKey = session.dailyDateKey,
+		depth = depth,
+		tips = math.max(0, math.min(math.floor(session.state.tips), DAILY_TIPS_CAP)),
+	}
+	dailyDirty[player] = true
+end
+
 local function pushState(player)
 	local session = sessions[player]
 	if not session then
 		return
 	end
 	syncProfileFromSession(player)
+	trackDailyProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 end
 
@@ -627,7 +771,15 @@ end)
 -- standard/standard defaults for nil or unrecognized ids. Requires
 -- profiles[player] to already be loaded (see onPlayerAdded below) -- every
 -- call site in this file is after that, including the initial join.
-local function startNewSession(player, deckVariantId, difficultyId)
+--
+-- DAILY CHALLENGE (Phase 11): pass a `dailyRng` (from SeededRng.new) to
+-- start a seeded Daily Challenge run instead of a normal one -- forces
+-- deckVariantId/difficultyId to "standard"/"standard" regardless of what
+-- was passed in, same as every player's Daily Challenge run, so everyone
+-- actually starts from the same place (see StartDailyChallengeRemote's
+-- handler below, the only real caller of this path). Omitted/nil behaves
+-- exactly like before this parameter existed -- a normal math.random run.
+local function startNewSession(player, deckVariantId, difficultyId, dailyRng)
 	-- PERSISTENT SAVE (Phase 10): seed the fresh RunState's owned Themes
 	-- with whatever this player has permanently bought with Tips in a past
 	-- run, on top of the always-free default RunState.new adds on its own
@@ -641,8 +793,14 @@ local function startNewSession(player, deckVariantId, difficultyId)
 		end
 	end
 
+	local isDaily = dailyRng ~= nil
+
 	sessions[player] = {
-		state = RunState.new({ deckVariantId = deckVariantId, difficultyId = difficultyId, ownedThemeIds = ownedThemeIds }),
+		state = RunState.new({
+			deckVariantId = isDaily and "standard" or deckVariantId,
+			difficultyId = isDaily and "standard" or difficultyId,
+			ownedThemeIds = ownedThemeIds,
+		}, dailyRng),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
 		-- Select even before the very first blind), not straight into
@@ -657,6 +815,14 @@ local function startNewSession(player, deckVariantId, difficultyId)
 		-- fires exactly once per run, not on every pushState after Night 8
 		-- clears (wonRun stays true for the rest of that Endless Mode run).
 		lastKnownWonRun = false,
+		-- DAILY CHALLENGE (Phase 11): isDaily gates trackDailyProgress
+		-- above and is shipped to the client (serializeState) so the HUD
+		-- can show it's a Daily Challenge run. dailyDateKey is fixed at
+		-- the moment the run STARTS (not re-derived later), so a run that
+		-- happens to cross a UTC midnight while still in progress keeps
+		-- submitting to the day it actually started on, not "today."
+		isDaily = isDaily,
+		dailyDateKey = isDaily and SeededRng.dailyDateKey() or nil,
 	}
 
 	if profile then
@@ -688,10 +854,14 @@ Players.PlayerRemoving:Connect(function(player)
 	-- the AUTOSAVE_INTERVAL safety net, this is the normal/expected save
 	-- path for a player who just leaves normally.
 	saveProfile(player)
+	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
 	profileDirty[player] = nil
+	dailyPending[player] = nil
+	dailyDirty[player] = nil
+	lastLeaderboardRequest[player] = nil
 end)
 
 -- In Studio, PlayerAdded may have already fired for existing test players.
@@ -699,9 +869,10 @@ for _, player in ipairs(Players:GetPlayers()) do
 	onPlayerAdded(player)
 end
 
--- PERSISTENT SAVE (Phase 10): a lightweight crash-safety net between joins/
--- leaves -- PlayerRemoving above is the normal save path, this just covers
--- a server crash/unexpected shutdown that skips straight past it.
+-- PERSISTENT SAVE (Phase 10) / DAILY CHALLENGE (Phase 11): a lightweight
+-- crash-safety net between joins/leaves -- PlayerRemoving above is the
+-- normal save path for both, this just covers a server crash/unexpected
+-- shutdown that skips straight past it.
 task.spawn(function()
 	while true do
 		task.wait(AUTOSAVE_INTERVAL)
@@ -709,12 +880,16 @@ task.spawn(function()
 			if profileDirty[player] then
 				saveProfile(player)
 			end
+			if dailyDirty[player] then
+				saveDailyScore(player)
+			end
 		end
 	end
 end)
 
--- PERSISTENT SAVE (Phase 10): flush every remaining player's profile before
--- the server actually shuts down (Studio Stop, or a live server closing).
+-- PERSISTENT SAVE (Phase 10) / DAILY CHALLENGE (Phase 11): flush every
+-- remaining player's profile AND pending Daily Challenge score before the
+-- server actually shuts down (Studio Stop, or a live server closing).
 -- Roblox gives BindToClose roughly 30s (often less in Studio) before
 -- forcing the shutdown regardless of whether this callback has returned,
 -- so this polls a bounded number of times instead of waiting unboundedly
@@ -729,6 +904,13 @@ game:BindToClose(function()
 				pending = pending - 1
 			end)
 		end
+		if dailyDirty[player] then
+			pending = pending + 1
+			task.spawn(function()
+				saveDailyScore(player)
+				pending = pending - 1
+			end)
+		end
 	end
 	local waited = 0
 	while pending > 0 and waited < 25 do
@@ -737,7 +919,7 @@ game:BindToClose(function()
 	end
 end)
 
--- ===== 5. Remote handlers =====
+-- ===== 6. Remote handlers =====
 -- NOTE: every handler re-validates on the server. Never trust the client --
 -- a player could fire these remotes directly with bogus data.
 
@@ -1194,3 +1376,91 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	end
 	startNewSession(player, deckVariantId, difficultyId)
 end)
+
+-- ===== Daily Challenge (Phase 11) =====
+
+StartDailyChallengeRemote.OnServerEvent:Connect(function(player)
+	if not sessions[player] then
+		return
+	end
+	local seed = SeededRng.dailySeed()
+	startNewSession(player, nil, nil, SeededRng.new(seed))
+end)
+
+-- RemoteFunction, not RemoteEvent -- the client needs the actual
+-- leaderboard data BACK, not just a fire-and-forget notification. Always
+-- returns TODAY's board (no "browse past days" in this pass). Fetches 2
+-- things: the top 10 by combinedScore (GetSortedAsync), and this player's
+-- own best for today specifically (a direct GetAsync by their own key,
+-- NOT scraped out of the top-10 page -- correct even when their best
+-- isn't good enough to place in the top 10 at all). Whichever of the two
+-- DataStore calls fails, the OTHER still returns normally -- `ok`/
+-- `yourBestOk` are reported separately so the client can tell "nobody's
+-- beaten you yet" apart from "couldn't check."
+GetDailyLeaderboardRemote.OnServerInvoke = function(player)
+	local now = os.clock()
+	if lastLeaderboardRequest[player] and now - lastLeaderboardRequest[player] < LEADERBOARD_COOLDOWN then
+		return { ok = false, dateKey = SeededRng.dailyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
+	end
+	lastLeaderboardRequest[player] = now
+
+	local dateKey = SeededRng.dailyDateKey()
+	local store = getDailyStore(dateKey)
+
+	local top = {}
+	local ok = pcall(function()
+		local pages = store:GetSortedAsync(false, 10) -- false = descending, highest combinedScore first
+		local page = pages:GetCurrentPage()
+		for _, entry in ipairs(page) do
+			local userId = tonumber(entry.key)
+			local combinedScore = entry.value
+			local name = nil
+			if userId then
+				local nameOk, resolvedName = pcall(function()
+					return Players:GetNameFromUserIdAsync(userId)
+				end)
+				if nameOk then
+					name = resolvedName
+				end
+			end
+			table.insert(top, {
+				userId = userId,
+				name = name or "???",
+				depth = math.floor(combinedScore / DAILY_SCORE_MULTIPLIER),
+				tips = combinedScore % DAILY_SCORE_MULTIPLIER,
+			})
+		end
+	end)
+
+	-- Authoritative "your best" comes from the DataStore itself (this
+	-- player's own already-SAVED entry), not just the in-memory
+	-- dailyPending snapshot -- covers a player who submitted a score in an
+	-- earlier server session (e.g. before a rejoin) and hasn't started a
+	-- new Daily Challenge run yet THIS session, where dailyPending would
+	-- otherwise be empty. If they DO have a higher not-yet-saved
+	-- improvement pending this session, that's shown instead, so a fresh
+	-- personal best doesn't look like it "didn't count" just because the
+	-- autosave hasn't flushed it yet.
+	local yourBest = nil
+	local yourBestOk = pcall(function()
+		local raw = store:GetAsync(tostring(player.UserId))
+		if type(raw) == "number" then
+			yourBest = {
+				depth = math.floor(raw / DAILY_SCORE_MULTIPLIER),
+				tips = raw % DAILY_SCORE_MULTIPLIER,
+			}
+		end
+	end)
+	local pending = dailyPending[player]
+	if pending and pending.dateKey == dateKey and (not yourBest or pending.depth > yourBest.depth) then
+		yourBest = { depth = pending.depth, tips = pending.tips }
+	end
+
+	return {
+		ok = ok,
+		dateKey = dateKey,
+		top = top,
+		yourBest = yourBest,
+		yourBestOk = yourBestOk,
+	}
+end

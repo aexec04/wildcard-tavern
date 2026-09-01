@@ -26,6 +26,7 @@ local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
 local Packs = require(script.Parent.Parent.Engine.Packs)
 local Tags = require(script.Parent.Parent.Engine.Tags)
 local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile) -- PERSISTENT SAVE, Phase 10
+local SeededRng = require(script.Parent.Parent.Engine.SeededRng) -- DAILY CHALLENGE, Phase 11
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -2322,6 +2323,82 @@ table.insert(tests, { name = "RunState.new: a seeded Theme is immediately equipp
 	local ok = RunState.equipTheme(state, "rose_gold")
 	expectTrue(ok)
 	expectEqual(state.equippedTheme, "rose_gold")
+end })
+
+-- ===== SeededRng (DAILY CHALLENGE, Phase 11) =====
+
+table.insert(tests, { name = "SeededRng.new: the same seed produces the exact same sequence", fn = function()
+	local rngA = SeededRng.new(12345)
+	local rngB = SeededRng.new(12345)
+	for _ = 1, 20 do
+		expectEqual(rngA(100), rngB(100))
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.new: different seeds (usually) produce different sequences", fn = function()
+	local rngA = SeededRng.new(1)
+	local rngB = SeededRng.new(2)
+	local anyDifferent = false
+	for _ = 1, 10 do
+		if rngA(1000000) ~= rngB(1000000) then
+			anyDifferent = true
+		end
+	end
+	expectTrue(anyDifferent, "two different seeds produced an identical 10-draw sequence -- suspiciously unlikely, check the LCG constants/seeding")
+end })
+
+table.insert(tests, { name = "SeededRng.new: every draw stays within [1, n]", fn = function()
+	local rng = SeededRng.new(999)
+	for _ = 1, 500 do
+		local n = 1 + (_ % 37) -- vary n across calls, including n == 1
+		local v = rng(n)
+		expectTrue(v >= 1 and v <= n, string.format("draw %d out of [1,%d] range", v, n))
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.new: n == 1 always returns 1 (never errors, never out of range)", fn = function()
+	local rng = SeededRng.new(42)
+	for _ = 1, 5 do
+		expectEqual(rng(1), 1)
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.new: a negative or fractional seed still produces a stable, in-range sequence", fn = function()
+	local rng = SeededRng.new(-777.6)
+	for _ = 1, 20 do
+		local v = rng(6)
+		expectTrue(v >= 1 and v <= 6)
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.dailySeed: the same UTC day always produces the same seed", fn = function()
+	-- 2026-08-31 00:00:00 UTC and 2026-08-31 23:59:59 UTC are the same UTC
+	-- day -- both must hash to the same daily seed for a Daily Challenge
+	-- to actually mean the same run for everyone playing that day.
+	local startOfDay = 1788134400 -- 2026-08-31T00:00:00Z (Unix timestamp)
+	local endOfDay = startOfDay + 86399 -- 2026-08-31T23:59:59Z
+	expectEqual(SeededRng.dailySeed(startOfDay), SeededRng.dailySeed(endOfDay))
+	expectEqual(SeededRng.dailyDateKey(startOfDay), SeededRng.dailyDateKey(endOfDay))
+end })
+
+table.insert(tests, { name = "SeededRng.dailySeed: different UTC days produce different seeds/keys", fn = function()
+	local day1 = 1788134400 -- 2026-08-31T00:00:00Z
+	local day2 = day1 + 86400 -- 2026-09-01T00:00:00Z
+	expectFalse(SeededRng.dailySeed(day1) == SeededRng.dailySeed(day2))
+	expectFalse(SeededRng.dailyDateKey(day1) == SeededRng.dailyDateKey(day2))
+end })
+
+table.insert(tests, { name = "SeededRng: RunState.new accepts it as a drop-in rng and stays deterministic end-to-end", fn = function()
+	local seed = SeededRng.dailySeed(1788134400)
+	local stateA = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	local stateB = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	RunState.startRound(stateA)
+	RunState.startRound(stateB)
+	expectEqual(#stateA.hand, #stateB.hand)
+	for i = 1, #stateA.hand do
+		expectEqual(stateA.hand[i].rank, stateB.hand[i].rank)
+		expectEqual(stateA.hand[i].suit, stateB.hand[i].suit)
+	end
 end })
 
 return tests

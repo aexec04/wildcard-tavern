@@ -13,10 +13,12 @@
 	handlers).
 
 	deps fields:
-		screenGui           -- ScreenGui, menuFrame's parent
-		polishButton         -- function(instance, radius)
-		revealStagger        -- function(instances, opts?)
-		addButtonHoverScale  -- function(button, opts?)
+		screenGui              -- ScreenGui, menuFrame's parent
+		polishButton            -- function(instance, radius)
+		revealStagger           -- function(instances, opts?)
+		addButtonHoverScale     -- function(button, opts?)
+		StartDailyChallengeRemote -- RemoteEvent, fired on Daily Challenge click
+		playClickSfx            -- function(), played on Daily Challenge click
 
 	Returns:
 		{
@@ -26,6 +28,16 @@
 			menuJourneyButton = TextButton,
 			menuNewRunButton = TextButton,
 		}
+
+	DAILY CHALLENGE (Phase 11): a 5th button ("Daily Challenge") is added
+	to the button holder below. Deliberately NOT returned from this
+	module and NOT captured as a new top-level local in init.client.lua --
+	its click handler is wired entirely inside this file (fire
+	StartDailyChallengeRemote, play the click sfx) since init.client.lua
+	is already right up against Lua's 200-local-per-chunk ceiling. Both
+	`StartDailyChallengeRemote` and `playClickSfx` are passed in via deps
+	as either an inline expression or a reused existing local -- neither
+	needs a new local in init.client.lua either.
 
 	POLISH PASS (Batch 2): this is the very first thing every player
 	sees, and previously had ZERO animation -- the whole screen (title,
@@ -43,6 +55,8 @@ return function(deps)
 	local polishButton = deps.polishButton
 	local revealStagger = deps.revealStagger
 	local addButtonHoverScale = deps.addButtonHoverScale
+	local StartDailyChallengeRemote = deps.StartDailyChallengeRemote
+	local playClickSfx = deps.playClickSfx
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -105,16 +119,40 @@ return function(deps)
 	local menuHowToPlayButton = makeMenuButton("How to Play")
 	local menuJourneyButton = makeMenuButton("Road Ahead")
 	local menuNewRunButton = makeMenuButton("New Run...")
+	local menuDailyChallengeButton = makeMenuButton("\240\159\147\133 Daily Challenge")
 
-	for _, button in ipairs({ menuPlayButton, menuHowToPlayButton, menuJourneyButton, menuNewRunButton }) do
+	menuDailyChallengeButton.MouseButton1Click:Connect(function()
+		if playClickSfx then
+			playClickSfx()
+		end
+		if StartDailyChallengeRemote then
+			StartDailyChallengeRemote:FireServer()
+		end
+	end)
+
+	for _, button in ipairs({
+		menuPlayButton,
+		menuHowToPlayButton,
+		menuJourneyButton,
+		menuNewRunButton,
+		menuDailyChallengeButton,
+	}) do
 		addButtonHoverScale(button)
 	end
 
-	-- One-shot load-in: title first, subtitle right after, then the 4
+	-- One-shot load-in: title first, subtitle right after, then the 5
 	-- buttons cascade in top-to-bottom. Fires immediately at build time
 	-- (this screen is visible from the moment the game loads), not on any
 	-- later event.
-	revealStagger({ menuTitle, menuSubtitle, menuPlayButton, menuHowToPlayButton, menuJourneyButton, menuNewRunButton }, {
+	revealStagger({
+		menuTitle,
+		menuSubtitle,
+		menuPlayButton,
+		menuHowToPlayButton,
+		menuJourneyButton,
+		menuNewRunButton,
+		menuDailyChallengeButton,
+	}, {
 		stagger = 0.08,
 		duration = 0.35,
 		fromScale = 0.7,

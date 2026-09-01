@@ -42,6 +42,7 @@
 			MAX_SIDEBAR_PATRON_SLOTS = 14,
 			scorePreviewBox = Frame,
 			scorePreviewLabel = TextLabel,
+			setDailyBadge = function(isDaily, dateKey),
 		}
 
 	POLISH PASS: tipsBox/handsDiscardsBox (previously kept private to this
@@ -103,6 +104,28 @@ return function(deps)
 		label.ZIndex = 2
 		label.Parent = parent
 		return label
+	end
+
+	-- DAILY CHALLENGE (Phase 11): a small badge shown only while the
+	-- current run is a Daily Challenge (state.isDaily), so it's always
+	-- obvious you're in a seeded/leaderboard run and not a normal one.
+	-- Hidden by default; toggled via the `setDailyBadge` function this
+	-- module returns below, called from render() in init.client.lua.
+	-- LayoutOrder -1 (every other sidebar box defaults to 0) keeps this
+	-- pinned to the very top of the sidebar without having to add an
+	-- explicit LayoutOrder to every existing box.
+	local dailyBadgeBox = makeSidebarBox(28)
+	dailyBadgeBox.LayoutOrder = -1
+	dailyBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
+	dailyBadgeBox.Visible = false
+	local dailyBadgeLabel = makeSidebarLabel(dailyBadgeBox, 13, Color3.fromRGB(230, 210, 255))
+	dailyBadgeLabel.Text = "\240\159\147\133 Daily Challenge"
+
+	local function setDailyBadge(isDaily, dateKey)
+		dailyBadgeBox.Visible = isDaily and true or false
+		if isDaily and dateKey then
+			dailyBadgeLabel.Text = "\240\159\147\133 Daily Challenge -- " .. tostring(dateKey)
+		end
 	end
 
 	local nightRoundBox = makeSidebarBox(40)
@@ -233,5 +256,6 @@ return function(deps)
 		MAX_SIDEBAR_PATRON_SLOTS = MAX_SIDEBAR_PATRON_SLOTS,
 		scorePreviewBox = scorePreviewBox,
 		scorePreviewLabel = scorePreviewLabel,
+		setDailyBadge = setDailyBadge,
 	}
 end
