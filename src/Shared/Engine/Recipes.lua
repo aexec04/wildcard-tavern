@@ -436,6 +436,70 @@ Recipes.HouseRecipes = {
 			return true, "Stamp copied."
 		end,
 	},
+	{
+		id = "silver_service", name = "Silver Service", icon = "🥈", price = 5,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Silver Special (+50 Chips) to 1 selected card.",
+		-- GAP-FILL: every Garnish id and every Stamp id already had a
+		-- dedicated House/Secret Recipe granting it deterministically --
+		-- Silver/Gold/Rainbow Specials were the one family with NO way to
+		-- get a specific one on purpose, only a random pick via Chef's
+		-- Special (Secret). This + Gold Standard + Rainbow Sprinkle (both
+		-- Secret, below) round the Special family out to match every other
+		-- modifier kind. Silver sits here in House since it's the mildest
+		-- of the 3 (flat Chips, no Mult/xMult).
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].special = "silver"
+			return true, "Silver Special, applied."
+		end,
+	},
+	{
+		id = "borrow_the_recipe", name = "Borrow the Recipe", icon = "📝", price = 5,
+		cardCount = { min = 2, max = 2 },
+		description = "Select 2 cards -- copies the Garnish from the second onto the first (rank/suit/Special/Stamp untouched).",
+		-- GAP-FILL: mirrors Neighborhood Watch's Stamp-only copy, but for
+		-- Garnish -- previously the only way to copy a modifier between
+		-- cards was Copy the Order (copies EVERYTHING: rank/suit/Garnish/
+		-- Special/Stamp all at once). Now every modifier kind has its own
+		-- targeted copy: Garnish (here), Stamp (Neighborhood Watch), or
+		-- all of it (Copy the Order).
+		apply = function(state, opts)
+			local indices = (opts and opts.cardIndices) or {}
+			if #indices ~= 2 then
+				return false, "Select exactly 2 cards"
+			end
+			local target = state.hand[indices[1]]
+			local source = state.hand[indices[2]]
+			if not target or not source then
+				return false, "Invalid selection"
+			end
+			target.garnish = source.garnish
+			return true, "Garnish copied."
+		end,
+	},
+	{
+		id = "fresh_squeeze", name = "Fresh Squeeze", icon = "🍋", price = 4,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a random Stamp to 1 selected card.",
+		-- GAP-FILL: Sunday Special already does a random GARNISH (House)
+		-- and Chef's Special already does a random SPECIAL (Secret) --
+		-- this is the missing third leg, a random STAMP, completing the
+		-- "random modifier of a given kind" family across all 3 kinds.
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local stampIds = { "gold", "encore", "blue", "purple" }
+			cards[1].stamp = randomChoice(stampIds, rng)
+			return true, "Fresh Squeeze, applied."
+		end,
+	},
 }
 
 -- ===== Menu Recipes (permanently level up a hand type) =====
@@ -678,6 +742,61 @@ Recipes.SecretRecipes = {
 			end
 			state.handLevels[bestHand] = (state.handLevels[bestHand] or 0) + 1
 			return true, bestHand .. " levels up!"
+		end,
+	},
+	{
+		id = "gold_standard", name = "Gold Standard", icon = "🏆", price = 6,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Gold Special (+10 Mult) to 1 selected card.",
+		-- See Silver Service (HouseRecipes) for why this + Rainbow Sprinkle
+		-- exist -- rounding out the Special family with a deterministic way
+		-- to get each tier, not just a random one via Chef's Special.
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].special = "gold"
+			return true, "Gold Special, applied."
+		end,
+	},
+	{
+		id = "rainbow_sprinkle", name = "Rainbow Sprinkle", icon = "🌈", price = 8,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds a Rainbow Special (x1.5 Mult) to 1 selected card.",
+		-- Priced highest of the 3 Special-granting Recipes -- Rainbow is an
+		-- xMult (multiplicative), strictly the strongest of the 3 (Silver:
+		-- flat Chips, Gold: flat Mult, Rainbow: xMult), matching how this
+		-- codebase already prices xMult-granting Recipes/effects highest
+		-- elsewhere (e.g. Clean Sweep, Patron of the Month).
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			cards[1].special = "rainbow"
+			return true, "Rainbow Special, applied."
+		end,
+	},
+	{
+		id = "prime_reservation", name = "Prime Reservation", icon = "🎫", price = 7,
+		description = "A random Patron at your table gets a Reserved Special (+1 Patron slot), permanently.",
+		-- GAP-FILL: RunState.patronSlotLimit already reads
+		-- ownedPatronSpecials[patron.id] == "reserved" and grants +1 slot
+		-- for it (see that function's own comment) -- but until now nothing
+		-- in the entire codebase ever actually SET a Patron's Special to
+		-- "reserved". Fully wired, genuinely dead code since the very
+		-- first Special/Card.lua pass, exactly the kind of gap Star
+		-- Treatment/Patron of the Month already fill for Gold/random.
+		apply = function(state, opts)
+			if #state.ownedPatrons == 0 then
+				return false, "No Patrons to reserve for"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local picked = randomChoice(state.ownedPatrons, rng)
+			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
+			state.ownedPatronSpecials[picked.id] = "reserved"
+			return true, picked.name .. " gets a reserved seat."
 		end,
 	},
 }

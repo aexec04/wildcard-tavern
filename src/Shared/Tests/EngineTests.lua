@@ -2401,4 +2401,191 @@ table.insert(tests, { name = "SeededRng: RunState.new accepts it as a drop-in rn
 	end
 end })
 
+-- ===== Content pass (Phase 12): 6 more Patrons, 6 more Boss Rounds, =====
+-- ===== 6 more Recipes =====
+
+table.insert(tests, { name = "'Jack of All Trades' adds +5 Mult for each scoring Jack", fn = function()
+	local jack = Patrons.getById("jack_of_all_trades")
+	local pair = HandEvaluator.evaluate({ C(11, "Hearts"), C(11, "Clubs"), C(2, "Spades") }) -- pair of Jacks
+	local _, _, mult = Scoring.calculate(pair, { jack }, {})
+	expectEqual(mult, 2 + 5 * 2) -- base Pair mult (2) + patron (5 per Jack x 2 Jacks)
+end })
+
+table.insert(tests, { name = "'Queen's Gambit' adds +5 Mult for each scoring Queen", fn = function()
+	local queen = Patrons.getById("queens_gambit")
+	local pair = HandEvaluator.evaluate({ C(12, "Hearts"), C(12, "Clubs"), C(2, "Spades") }) -- pair of Queens
+	local _, _, mult = Scoring.calculate(pair, { queen }, {})
+	expectEqual(mult, 2 + 5 * 2) -- base Pair mult (2) + patron (5 per Queen x 2 Queens)
+end })
+
+table.insert(tests, { name = "'Jack of All Trades' / 'Queen's Gambit' give no bonus without a scoring Jack/Queen", fn = function()
+	local jack = Patrons.getById("jack_of_all_trades")
+	local queen = Patrons.getById("queens_gambit")
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, _, mult = Scoring.calculate(hand, { jack, queen }, {})
+	expectEqual(mult, 1) -- base High Card mult only
+end })
+
+table.insert(tests, { name = "'Closing Tab' earns 2 Tips per Discard remaining on round win", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	RunState.buyPatron(state, "closing_tab")
+	state.tips = 20
+	local closingTab = Patrons.getById("closing_tab")
+	local tipsBefore = state.tips
+	closingTab.onRoundWin(state)
+	expectEqual(state.tips, tipsBefore + 2 * state.discardsRemaining) -- 3 discards by default
+end })
+
+table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER owned Patron", fn = function()
+	local crowd = Patrons.getById("full_house_crowd")
+	local theRegular = Patrons.getById("the_regular")
+	local luckyDice = Patrons.getById("lucky_dice")
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, _, multAlone = Scoring.calculate(hand, { crowd }, {})
+	local _, _, multWithTwo = Scoring.calculate(hand, { crowd, theRegular, luckyDice }, {})
+	expectEqual(multAlone, 1) -- no OTHER Patrons -- no bonus
+	expectEqual(multWithTwo, (1 + 4) * (1.2 ^ 2)) -- base(1) + The Regular's +4, then x1.2^2 for the 2 others
+end })
+
+table.insert(tests, { name = "'Fair Share' adds +4 Chips per scoring card", fn = function()
+	local fairShare = Patrons.getById("fair_share")
+	local pair = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") }) -- pair scores 2 cards
+	local _, chips = Scoring.calculate(pair, { fairShare }, {})
+	expectEqual(chips, 10 + 9 + 9 + 4 * 2) -- base Pair chips (10 + 2 nines) + patron (4 per scoring card x 2)
+end })
+
+table.insert(tests, { name = "'Efficient Service' adds +3 Chips per combined Hand+Discard remaining", fn = function()
+	local efficient = Patrons.getById("efficient_service")
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, chipsNone = Scoring.calculate(hand, { efficient }, { handsRemaining = 0, discardsRemaining = 0 })
+	local _, chipsSome = Scoring.calculate(hand, { efficient }, { handsRemaining = 2, discardsRemaining = 1 })
+	expectEqual(chipsNone, 5 + 9) -- base High Card chips (5 + rank-9 card value), no bonus
+	expectEqual(chipsSome, 5 + 9 + 3 * 3) -- + patron (3 per combined remaining x 3)
+end })
+
+table.insert(tests, { name = "Patrons.Definitions has grown to include this phase's 6 new Patrons", fn = function()
+	expectTrue(#Patrons.Definitions >= 37, "expected the Patron pool to include this phase's 6 additions")
+end })
+
+table.insert(tests, { name = "'Watered Pour' / 'Slow Pour' are mild tier-1 versions of Thin Chips / Flat Mult", fn = function()
+	local wateredPour = BossRounds.getById("watered_pour")
+	local slowPour = BossRounds.getById("slow_pour")
+	expectEqual(wateredPour.chipsMultiplier, 0.8)
+	expectEqual(wateredPour.minNight, 1)
+	expectEqual(slowPour.multMultiplier, 0.8)
+	expectEqual(slowPour.minNight, 1)
+end })
+
+table.insert(tests, { name = "'Double Tab' combines Tips-lost-per-card with a higher target score, gated to tier 2", fn = function()
+	local doubleTab = BossRounds.getById("double_tab")
+	expectEqual(doubleTab.tipsLostPerCardPlayed, 1)
+	expectEqual(doubleTab.targetScoreMultiplier, 1.2)
+	expectEqual(doubleTab.minNight, 3)
+end })
+
+table.insert(tests, { name = "'Four Top' requires exactly 4 cards per hand, gated to tier 3 (retuned after review -- more restrictive than tier-2 Full Table)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("four_top")
+	expectEqual(state.bossModifier.minNight, 6)
+	local ok3 = pcall(RunState.playHand, state, { 1, 2, 3 })
+	expectFalse(ok3, "expected playHand to reject a 3-card play under Four Top")
+end })
+
+table.insert(tests, { name = "'Empty-Handed' zeroes discards and caps hands at 3, gated to tier 3", fn = function()
+	local empty = BossRounds.getById("empty_handed")
+	expectEqual(empty.discardsDelta, -99)
+	expectEqual(empty.handsPerRoundOverride, 3)
+	expectEqual(empty.minNight, 6)
+end })
+
+table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 70%, gated to tier 3", fn = function()
+	local stateNormal = RunState.new(nil, function(n) return n end)
+	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
+
+	local stateCut = RunState.new(nil, function(n) return n end)
+	stateCut.bossModifier = BossRounds.getById("everythings_out")
+	local resultCut = RunState.playHand(stateCut, { 1, 2 })
+
+	expectEqual(stateCut.bossModifier.minNight, 6)
+	expectEqual(resultCut.chips, resultNormal.chips * 0.3)
+	expectEqual(resultCut.mult, resultNormal.mult * 0.3)
+end })
+
+table.insert(tests, { name = "BossRounds.Definitions has grown to include this phase's 6 new modifiers", fn = function()
+	expectTrue(#BossRounds.Definitions >= 30, "expected the Boss Round pool to include this phase's 6 additions")
+end })
+
+table.insert(tests, { name = "House Recipe 'Silver Service' adds a Silver Special to 1 selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("silver_service")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].special, "silver")
+end })
+
+table.insert(tests, { name = "House Recipe 'Borrow the Recipe' copies only the Garnish, not rank/suit/Special/Stamp", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand[1].rank, state.hand[1].suit, state.hand[1].special, state.hand[1].stamp = 5, "Hearts", "gold", "encore"
+	state.hand[2].garnish = "brittle"
+	local recipe = Recipes.getHouseRecipeById("borrow_the_recipe")
+	local ok = recipe.apply(state, { cardIndices = { 1, 2 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].garnish, "brittle")
+	expectEqual(state.hand[1].rank, 5)
+	expectEqual(state.hand[1].suit, "Hearts")
+	expectEqual(state.hand[1].special, "gold")
+	expectEqual(state.hand[1].stamp, "encore")
+end })
+
+table.insert(tests, { name = "House Recipe 'Fresh Squeeze' adds a random Stamp to 1 selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getHouseRecipeById("fresh_squeeze")
+	local ok = recipe.apply(state, { cardIndices = { 1 }, rng = function(n) return n end })
+	expectTrue(ok)
+	expectEqual(state.hand[1].stamp, "purple") -- identity rng picks the last entry in the stamp id list
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Gold Standard' adds a Gold Special to 1 selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("gold_standard")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].special, "gold")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Rainbow Sprinkle' adds a Rainbow Special to 1 selected card", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("rainbow_sprinkle")
+	local ok = recipe.apply(state, { cardIndices = { 1 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].special, "rainbow")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Prime Reservation' gives a random owned Patron a Reserved Special", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local recipe = Recipes.getSecretRecipeById("prime_reservation")
+	local ok = recipe.apply(state, { rng = function(n) return n end })
+	expectTrue(ok)
+	expectEqual(state.ownedPatronSpecials["the_regular"], "reserved")
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Prime Reservation' refuses with no Patrons owned", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("prime_reservation")
+	local ok, message = recipe.apply(state, {})
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+end })
+
+table.insert(tests, { name = "RunState.patronSlotLimit actually grants +1 per Reserved Special once something sets it (Prime Reservation closes the gap)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	local baseline = RunState.patronSlotLimit(state)
+	Recipes.getSecretRecipeById("prime_reservation").apply(state, { rng = function(n) return n end })
+	expectEqual(RunState.patronSlotLimit(state), baseline + 1)
+end })
+
 return tests

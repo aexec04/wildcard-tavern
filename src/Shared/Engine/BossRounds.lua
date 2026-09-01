@@ -75,6 +75,20 @@ BossRounds.Definitions = {
 		minNight = 1,
 		tipsLostPerCardPlayed = 1,
 	},
+	{
+		id = "watered_pour",
+		name = "Watered Pour",
+		description = "Chips from played hands are reduced by 20% this round.",
+		minNight = 1,
+		chipsMultiplier = 0.8,
+	},
+	{
+		id = "slow_pour",
+		name = "Slow Pour",
+		description = "Mult from played hands is reduced by 20% this round.",
+		minNight = 1,
+		multMultiplier = 0.8,
+	},
 
 	-- ===== Tier 2 (Night 3+) -- real strategic restrictions =====
 	{
@@ -176,7 +190,14 @@ BossRounds.Definitions = {
 		minNight = 3,
 		multMultiplier = 0.5,
 	},
-
+	{
+		id = "double_tab",
+		name = "Double Tab",
+		description = "Lose 1 Tip for every card you play, and the target score is 20% higher this round.",
+		minNight = 3,
+		tipsLostPerCardPlayed = 1,
+		targetScoreMultiplier = 1.2,
+	},
 	-- ===== Tier 3 (Night 6+) -- the genuinely brutal ones. By Night 6 a =====
 	-- ===== run has had 15 rounds to build up Patrons/Recipes/House Passes =====
 	{
@@ -221,6 +242,40 @@ BossRounds.Definitions = {
 		description = "3 random cards are tossed out of your hand after every hand you play.",
 		minNight = 6,
 		forcedRandomDiscardsPerHand = 3,
+	},
+	{
+		id = "empty_handed",
+		name = "Empty-Handed",
+		description = "You start this round with 0 discards and may only play 3 hands.",
+		minNight = 6,
+		discardsDelta = -99, -- clamped to 0 by RunState.startRound
+		handsPerRoundOverride = 3,
+	},
+	{
+		id = "everythings_out",
+		name = "Everything's Out",
+		description = "Chips and Mult from played hands are reduced by 70% this round.",
+		minNight = 6,
+		chipsMultiplier = 0.3,
+		multMultiplier = 0.3,
+	},
+	{
+		id = "four_top",
+		name = "Four Top",
+		description = "You must play exactly 4 cards every hand this round.",
+		-- RETUNED (independent review, before deploy): originally tier 2
+		-- (minNight = 3) as "six_max" -- moved to tier 3 and renamed once
+		-- the review pointed out exactly-4-cards is actually MORE
+		-- restrictive than tier-2 sibling Full Table's exactly-5 (Straight/
+		-- Flush/Full House/Straight Flush all hard-require 5 cards --
+		-- see HandEvaluator.lua -- so exactly 4 forecloses all 4 of those
+		-- hand types outright, while exactly 5 forecloses nothing). That's
+		-- closer to One at a Time's severity (tier 3's exactly-1-card) than
+		-- to Full Table's, so it belongs in tier 3 -- exactly the kind of
+		-- early-run difficulty wall this file's own tier system exists to
+		-- prevent (see the file header comment).
+		minNight = 6,
+		requiredCardsPerHand = 4,
 	},
 }
 

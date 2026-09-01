@@ -444,6 +444,100 @@ Patrons.Definitions = {
 		-- onRoundWin hook here, so owning this is still a real, distinct
 		-- upgrade instead of a redundant purchase.
 	},
+
+	-- ===== More rank-based (Ace of the House/House Favorite covered Ace =====
+	-- ===== (scoring) and King (held) -- Jack and Queen were the two ranks =====
+	-- ===== with no rank-specific Patron at all yet) =====
+	{
+		id = "jack_of_all_trades", name = "Jack of All Trades", icon = "🎫", price = 6,
+		description = "+5 Mult for each Jack among the scoring cards.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 11 then
+					count = count + 1
+				end
+			end
+			if count > 0 then
+				return { mult = 5 * count }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "queens_gambit", name = "Queen's Gambit", icon = "♟️", price = 6,
+		description = "+5 Mult for each Queen among the scoring cards.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 12 then
+					count = count + 1
+				end
+			end
+			if count > 0 then
+				return { mult = 5 * count }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More ECONOMY (reads discardsRemaining at round-win time, same =====
+	-- ===== timing Nest Egg/the base interest rule already rely on -- =====
+	-- ===== discardsRemaining isn't reset to the next round's value until =====
+	-- ===== RunState.startRound, so it's still THIS round's leftover count =====
+	-- ===== here) =====
+	{
+		id = "closing_tab", name = "Closing Tab", icon = "🧻", price = 6,
+		description = "Earn 2 Tips for every Discard you have remaining at the end of a round you win.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			state.tips = state.tips + 2 * (state.discardsRemaining or 0)
+		end,
+	},
+
+	-- ===== More XMULT (scales with table size instead of a hand/held-card =====
+	-- ===== property -- rewards actually filling out your Patron slots, =====
+	-- ===== which nothing so far did directly) =====
+	{
+		id = "full_house_crowd", name = "Full House Crowd", icon = "🍻", price = 8,
+		description = "x1.2 Mult for every OTHER Patron at your table.",
+		effect = function(_handResult, context)
+			local patrons = context.ownedPatrons or {}
+			local others = math.max(0, #patrons - 1)
+			if others > 0 then
+				return { multMultiplier = 1.2 ^ others }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More +CHIPS (per-scoring-card, the Chips-side counterpart to =====
+	-- ===== The Bard's per-ALL-played-card Mult -- deliberately counts only =====
+	-- ===== handResult.scoringCards, not context.allPlayedCards, so it =====
+	-- ===== rewards cards that actually scored rather than every card =====
+	-- ===== thrown into the hand) =====
+	{
+		id = "fair_share", name = "Fair Share", icon = "🥂", price = 6,
+		description = "+4 Chips for each scoring card in the hand.",
+		effect = function(handResult, _context)
+			local count = #handResult.scoringCards
+			if count > 0 then
+				return { chips = 4 * count }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "efficient_service", name = "Efficient Service", icon = "🧑‍💼", price = 6,
+		description = "+3 Chips for every Hand or Discard you have remaining this round (combined).",
+		effect = function(_handResult, context)
+			local total = (context.handsRemaining or 0) + (context.discardsRemaining or 0)
+			if total > 0 then
+				return { chips = 3 * total }
+			end
+			return nil
+		end,
+	},
 }
 
 function Patrons.getById(id)
