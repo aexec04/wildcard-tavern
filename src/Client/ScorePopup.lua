@@ -874,7 +874,13 @@ return function(deps)
 				end
 			end)
 
-			playPitched(payoutThudSound, 0.55, 0.7) -- pitched well down to fake a heavy low thud
+			-- POLISH (Phase 14 playtest feedback): payoutThudSound used to be
+			-- "magic_bomb" pitched way down (0.55x) to fake a heavy impact --
+			-- reported as "way too aggressive, sounds like a kamehameha."
+			-- It's now "cash register" (see Sound.lua), a completely
+			-- different sound family that doesn't need disguising -- just a
+			-- gentle 0.85x to land it with a touch of weight.
+			playPitched(payoutThudSound, 0.85, 0.6)
 
 			local finalMagnitude = math.min(10, preview.score / 40)
 			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)

@@ -38,6 +38,16 @@
 		polishButton   -- function(instance, radius)
 		addSoftShadow  -- function(instance, radius)
 		tweenTo        -- function(instance, props, duration, easingStyle?, easingDirection?)
+		playSfx        -- function(soundId, volume?) -- see Sound.lua
+		SOUND_IDS      -- table, for SOUND_IDS.gameOverWin/gameOverLoss
+
+	POLISH (Phase 14, requested fix: "there is no losing sound, it just
+	brings up this screen"): this panel played NO sound at all on either
+	outcome before -- fixed by playing SOUND_IDS.gameOverWin/gameOverLoss
+	once per genuinely NEW run-ending state, reusing the exact same
+	lastGameOverKey gate the pop-in reveal animation already uses below (so
+	it fires once per fresh loss/win, never replays just from sitting on
+	this screen while other players' actions push unrelated state updates).
 
 	Returns:
 		{
@@ -53,6 +63,8 @@ return function(deps)
 	local polishButton = deps.polishButton
 	local addSoftShadow = deps.addSoftShadow
 	local tweenTo = deps.tweenTo
+	local playSfx = deps.playSfx
+	local SOUND_IDS = deps.SOUND_IDS
 
 	local gameOverFrame = Instance.new("Frame")
 	gameOverFrame.Name = "GameOver"
@@ -204,6 +216,10 @@ return function(deps)
 			task.delay(0.16, function()
 				tweenTo(playAgainButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
 			end)
+
+			if playSfx and SOUND_IDS then
+				playSfx(isWin and SOUND_IDS.gameOverWin or SOUND_IDS.gameOverLoss, 0.6)
+			end
 
 			lastGameOverKey = key
 		end

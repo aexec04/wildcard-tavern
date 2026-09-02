@@ -52,6 +52,11 @@
 	swap the id string for that slot below (or one of the alternates) and
 	nothing else needs to change.
 
+	POLISH (Phase 14): exactly that caveat played out for the Thud pick --
+	see JUICE_SOUND_IDS.payoutThud's own comment below for what changed and
+	why. Also added SOUND_IDS.gameOverWin/gameOverLoss this same pass
+	(GameOver.lua played no sound at all on either outcome before).
+
 	deps fields:
 		SoundService -- the SoundService, service parent for every Sound instance
 
@@ -90,6 +95,13 @@ return function(deps)
 		buyPatron = "rbxassetid://128537772502751",  -- Buy
 		roundReward = "rbxassetid://133292918309565", -- buy (alt) -- distinct "you got paid" cash sound for round-complete
 		uiClick = "rbxassetid://9118728158",         -- Rotary-Switch-10-SFX
+		-- POLISH (requested fix: "there is no losing sound, it just brings
+		-- up this screen") -- GameOver.lua previously played NOTHING at all
+		-- on either outcome. These 2 play once, gated by GameOver.lua's own
+		-- existing lastGameOverKey check, so a fresh run-ending state gets a
+		-- sound but sitting on the screen afterward doesn't replay it.
+		gameOverWin = "rbxassetid://1170853519",  -- "New Item" -- short fanfare-ish sting, from the same free set as JUICE_SOUND_IDS below
+		gameOverLoss = "rbxassetid://7381722902", -- "mouse_cancel" -- soft negative UI cue, same trusted set as chipTick's "mouse_select"
 	}
 
 	-- REAL SFX PASS (Phase 13): dedicated ids for the 4 juice sounds below,
@@ -101,14 +113,27 @@ return function(deps)
 		chipTick = "rbxassetid://7381722372",   -- mouse_select -- short, crisp, plays most often
 		multTick = "rbxassetid://7381723507",   -- pick_up -- a bit richer than chipTick's blip
 		xmultTick = "rbxassetid://7381724959",  -- life_up -- rising power-up tone for the rare big tier
-		payoutThud = "rbxassetid://7489673348", -- magic_bomb -- real impact, meant to be played pitched down
+		-- POLISH (Phase 14 playtest feedback): "magic_bomb" (the original
+		-- Phase 13 pick, id 7489673348) played pitched way down read as "way
+		-- too aggressive, sounds like a kamehameha from dragon ball z" once
+		-- actually heard against the finale beat -- an energy-blast-charge
+		-- sound was never going to land as a calm "payout landing" no matter
+		-- how it was pitched. Swapped for "cash register" -- a completely
+		-- different sound FAMILY (a register chime, not an impact/explosion)
+		-- that's thematically on-the-nose for a payout besides. The old
+		-- heavy pitch-down (0.55x, tuned for warping an impact sound into a
+		-- bass thud) no longer applies -- see the playPitched call in
+		-- ScorePopup.lua's finale, now a much gentler 0.85x just to land it
+		-- with a touch of weight, not to disguise what it originally was.
+		payoutThud = "rbxassetid://131886985", -- cash register
 	}
 	-- Unused alternates from the same free set, in case a slot needs
 	-- swapping once you can actually hear it against the reveal sequence:
 	--   Chip:   mouse_hover  rbxassetid://7381721556 (even lighter/quieter)
 	--   Mult:   pick_up2     rbxassetid://7381723941 (slightly bigger pickup)
-	--   XMult:  New Item     rbxassetid://1170853519 (shorter fanfare-ish alt)
-	--   Thud:   lever_shotgun_bolt rbxassetid://7411274148 (sharper/more mechanical impact)
+	--   XMult:  New Item     rbxassetid://1170853519 (shorter fanfare-ish alt -- now used for SOUND_IDS.gameOverWin instead)
+	--   Thud:   the original "magic_bomb" rbxassetid://7489673348 -- do NOT bring this back, see the comment above
+	--           lever_shotgun_bolt rbxassetid://7411274148 (still an "impact" family sound -- try only if cash register also doesn't land)
 
 	-- SCORING JUICE: 4 background tracks, switched by Client/init.client.lua's
 	-- render() (gameplay/boss/shop, based on state.phase/state.bossModifier)

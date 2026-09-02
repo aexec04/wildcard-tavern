@@ -662,6 +662,9 @@ local GameOverPanel = require(script.GameOver)({
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
 	tweenTo = tweenTo,
+	-- Win/loss sound (Phase 14 fix): this panel played nothing before.
+	playSfx = playSfx,
+	SOUND_IDS = SOUND_IDS,
 })
 local gameOverFrame = GameOverPanel.gameOverFrame
 local playAgainButton = GameOverPanel.playAgainButton
