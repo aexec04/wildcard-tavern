@@ -813,6 +813,10 @@ local SettingsOverlay = require(script.Settings)({
 	setCustomTrack = SoundModule.setCustomTrack,
 	clearCustomTrack = SoundModule.clearCustomTrack,
 	hasCustomTrack = SoundModule.hasCustomTrack,
+	-- Main Menu button (requested fix): the only place in the whole game
+	-- that lets a player back out of an in-progress run to the menu.
+	menuFrame = menuFrame,
+	root = root,
 })
 
 -- ===== Run Setup overlay =====

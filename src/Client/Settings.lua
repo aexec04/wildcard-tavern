@@ -38,6 +38,12 @@
 		setCustomTrack      -- function(assetId) -- see Sound.lua
 		clearCustomTrack    -- function() -- see Sound.lua
 		hasCustomTrack      -- function() -> boolean -- see Sound.lua
+		menuFrame           -- Frame, the main menu screen (see Menu.lua) -- shown
+		                        by the new Main Menu button below
+		root                -- Frame, the in-game gameplay root -- hidden by the
+		                        new Main Menu button below (exact mirror of what
+		                        menuPlayButton's handler does in init.client.lua,
+		                        just in reverse)
 
 	Returns:
 		{
@@ -47,6 +53,17 @@
 
 	POLISH PASS (Batch 3): popIn/popOut replace the old bare
 	Visible = true/false cut; the Close button gets addButtonHoverScale.
+
+	MAIN MENU BUTTON (requested fix): before this, there was no way to get
+	back to the main menu once a run started -- GameOver.lua only offers
+	Play Again, and quitting meant literally leaving the game. Settings is
+	reachable from both the menu screen and mid-run (it's the corner "⚙"
+	button, parented straight to screenGui, not gated by root/menuFrame
+	visibility), so it's the natural place for a way out. The handler is
+	the exact mirror of menuPlayButton's in init.client.lua: hide root,
+	show menuFrame. Nothing server-side is touched -- Phase 10's
+	persistence already means whatever run was in progress just picks back
+	up next time Play is pressed, same as it would after a disconnect.
 
 	QoL GAME PASS PASS (Phase 9): added a Custom Jukebox section below the
 	Master Volume slider -- paste a Roblox audio asset id or a full asset
@@ -82,6 +99,8 @@ return function(deps)
 	local setCustomTrack = deps.setCustomTrack
 	local clearCustomTrack = deps.clearCustomTrack
 	local hasCustomTrack = deps.hasCustomTrack
+	local menuFrame = deps.menuFrame
+	local root = deps.root
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -355,9 +374,25 @@ return function(deps)
 	end
 	refreshJukeboxSection() -- initial state at build time -- correct even if ownership isn't known yet, since it just reads whatever getLatestState() has right now
 
+	-- Close + Main Menu sit side by side along the bottom edge (was just
+	-- Close, centered) -- 140px each with a 12px gap, the pair centered as
+	-- a unit: [-146, -6] and [6, 146] around the panel's horizontal middle.
+	local settingsMainMenuButton = Instance.new("TextButton")
+	settingsMainMenuButton.Size = UDim2.new(0, 140, 0, 40)
+	settingsMainMenuButton.Position = UDim2.new(0.5, -146, 1, -50)
+	settingsMainMenuButton.Font = Enum.Font.GothamBold
+	settingsMainMenuButton.TextSize = 16
+	settingsMainMenuButton.Text = "Main Menu"
+	settingsMainMenuButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
+	settingsMainMenuButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	settingsMainMenuButton.ZIndex = 21
+	settingsMainMenuButton.Parent = settingsPanel
+	polishButton(settingsMainMenuButton, 12)
+	addButtonHoverScale(settingsMainMenuButton)
+
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
+	settingsCloseButton.Position = UDim2.new(0.5, 6, 1, -50)
 	settingsCloseButton.Font = Enum.Font.GothamBold
 	settingsCloseButton.TextSize = 16
 	settingsCloseButton.Text = "Close"
@@ -371,6 +406,17 @@ return function(deps)
 	settingsCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		popOut(settingsBackdrop, settingsPanel)
+	end)
+
+	-- Mirrors menuPlayButton's handler in init.client.lua in reverse: hide
+	-- root, show menuFrame, only once the panel has actually finished
+	-- fading out (popOut's onHidden), same as RunSetup's Begin Run handoff.
+	settingsMainMenuButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		popOut(settingsBackdrop, settingsPanel, nil, function()
+			root.Visible = false
+			menuFrame.Visible = true
+		end)
 	end)
 
 	settingsButton.MouseButton1Click:Connect(function()

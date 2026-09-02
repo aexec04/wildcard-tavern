@@ -104,11 +104,26 @@ return function(deps)
 	themesTitle.ZIndex = 21
 	themesTitle.Parent = themesPanel
 
-	local themesListFrame = Instance.new("Frame")
+	-- BUGFIX (found while adding the 2 new premium Themes below): this was
+	-- a plain Frame with a fixed height -- fine back when 6 rows (300px +
+	-- padding) comfortably fit inside it, but 8 rows (400px + padding) runs
+	-- past the panel's bottom edge, the exact same "content taller than its
+	-- fixed-size container" bug just fixed in Menu.lua's button holder.
+	-- Rather than re-guess another fixed size that just breaks again the
+	-- next time a Theme gets added, this is now a real ScrollingFrame --
+	-- AutomaticCanvasSize handles any future row count without needing
+	-- another fix here.
+	local themesListFrame = Instance.new("ScrollingFrame")
 	themesListFrame.Size = UDim2.new(1, -20, 1, -100)
 	themesListFrame.Position = UDim2.new(0, 10, 0, 45)
 	themesListFrame.BackgroundTransparency = 1
+	themesListFrame.BorderSizePixel = 0
 	themesListFrame.ZIndex = 21
+	themesListFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+	themesListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	themesListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	themesListFrame.ScrollBarThickness = 6
+	themesListFrame.ScrollBarImageColor3 = Color3.fromRGB(200, 180, 160)
 	themesListFrame.Parent = themesPanel
 
 	local themesListLayout = Instance.new("UIListLayout")

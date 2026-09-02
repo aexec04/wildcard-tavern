@@ -88,10 +88,27 @@ return function(deps)
 	menuSubtitle.ZIndex = 10
 	menuSubtitle.Parent = menuFrame
 
+	-- BUGFIX (Daily Challenge cutoff): this holder used to be a FIXED
+	-- 240x110 box, top-anchored at 0.55 down the screen -- sized back when
+	-- there were only 4 buttons, and even then 110px was already short of
+	-- the ~228px 4 buttons actually need (it just happened not to matter,
+	-- since a Frame with ClipsDescendants off doesn't clip its own
+	-- children -- it only stopped mattering because nothing ever ran past
+	-- the bottom of the *screen* itself). Adding the 5th (Daily Challenge)
+	-- button pushed the real content height to ~288px, which on a
+	-- shorter/smaller Studio play window runs past the bottom screen edge
+	-- and gets cut off there -- nothing to do with this Frame's own
+	-- bounds. Fixed properly instead of just re-guessing a bigger fixed
+	-- box: AutomaticSize.Y makes the holder always exactly as tall as its
+	-- buttons, and anchoring/positioning it by its own CENTER (rather than
+	-- top-down from a fixed fraction) keeps the whole block roughly
+	-- centered in the space below the subtitle regardless of how many
+	-- buttons it holds or how tall the screen actually is.
 	local menuButtonHolder = Instance.new("Frame")
-	menuButtonHolder.Size = UDim2.new(0, 240, 0, 110)
-	menuButtonHolder.Position = UDim2.fromScale(0.5, 0.55)
-	menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0)
+	menuButtonHolder.Size = UDim2.new(0, 240, 0, 0)
+	menuButtonHolder.AutomaticSize = Enum.AutomaticSize.Y
+	menuButtonHolder.Position = UDim2.fromScale(0.5, 0.74)
+	menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuButtonHolder.BackgroundTransparency = 1
 	menuButtonHolder.ZIndex = 10
 	menuButtonHolder.Parent = menuFrame

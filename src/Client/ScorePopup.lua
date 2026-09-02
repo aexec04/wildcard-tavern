@@ -160,6 +160,13 @@ return function(deps)
 	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween
 	local DROPOFF_DURATION = 0.7 -- played row "drop into discard" tween at the end
+	-- BUGFIX (report: "the sound effect... with the explosions doesn't
+	-- fit"): dropOffPlayedGhosts used to fire in the exact same instant as
+	-- the finale's payout thud + particle burst below, which made the loud
+	-- "explosion" read as if it belonged to the cards quietly sliding back
+	-- to the deck. This short gap lets the burst/thud land and read as its
+	-- OWN beat (the payout landing) before the calmer drop-off starts.
+	local DROPOFF_START_DELAY = 0.3
 	local GHOST_HARD_TIMEOUT = 12 -- last-resort backstop, see showScorePopup's per-ghost task.delay
 	-- PACING: how long the finale's final "Chips x Mult" stays on screen
 	-- before the popup hides. Was 1.1s originally, 1.6s, then 2.6s in
@@ -874,20 +881,40 @@ return function(deps)
 			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
 
 			-- "Played cards drop off the bottom of the screen into the
-			-- discard pile" -- fires alongside the finale so it reads as
-			-- part of the same beat, not a separate afterthought.
-			dropOffPlayedGhosts(playedGhosts)
+			-- discard pile" -- used to fire alongside the finale burst/thud
+			-- above; now waits DROPOFF_START_DELAY (see that constant) so
+			-- it reads as its own separate, calmer beat instead of getting
+			-- lumped in with the "explosion."
+			task.delay(pace(DROPOFF_START_DELAY), function()
+				if scorePopupToken == myToken then
+					dropOffPlayedGhosts(playedGhosts)
+				end
+			end)
 
 			-- Hide AFTER the sequence actually finishes, not on a fixed
 			-- timer from when Play Hand was clicked -- a hand loaded with
 			-- Patrons/Garnishes (several anticipation pauses stacked up)
 			-- can easily take longer than any one fixed delay would assume,
 			-- and hiding mid-sequence would cut the reveal off early. Ghost
-			-- cleanup piggybacks on this same delay -- by FINALE_LINGER
-			-- seconds after the finale, the drop-off tweens (<=0.5s + up
-			-- to ~0.5s of per-card stagger) are guaranteed done well
-			-- before it fires.
-			task.delay(pace(FINALE_LINGER), function()
+			-- cleanup piggybacks on this same delay.
+			--
+			-- BUGFIX: this used to just be pace(FINALE_LINGER), on the
+			-- assumption the drop-off tweens were always done well before
+			-- it fired. That was already a slightly optimistic guess for a
+			-- big hand (5+ played cards' stagger + DROPOFF_DURATION could
+			-- exceed FINALE_LINGER, letting destroyGhosts below force-cut a
+			-- ghost mid-tween -- an abrupt pop instead of its own shrink-
+			-- to-nothing), and adding DROPOFF_START_DELAY above only made
+			-- that worse. Computed properly now from the actual number of
+			-- played ghosts this hand, so destroyGhosts can never fire
+			-- before every ghost's own drop-off tween has genuinely
+			-- finished -- small hands are unaffected (FINALE_LINGER still
+			-- wins the max()), only big ones get the extra beat they
+			-- actually need.
+			local worstCaseDropoffTime = pace(DROPOFF_START_DELAY)
+				+ pace(math.max(0, #playedGhosts - 1) * 0.05)
+				+ pace(DROPOFF_DURATION)
+			task.delay(math.max(pace(FINALE_LINGER), worstCaseDropoffTime + 0.05), function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
 					destroyGhosts(liveGhosts)

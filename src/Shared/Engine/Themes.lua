@@ -119,6 +119,41 @@ Themes.Definitions = {
 			cardSelected = Color3.fromRGB(205, 85, 245),
 		},
 	},
+	-- 2 NEW PREMIUM THEMES (requested fix: "the themes are way too simple,
+	-- lets have a couple that they can buy with robux in the shop"). These
+	-- two are deliberately NOT added to all_themes' grantsThemes list in
+	-- GamePasses.lua -- each gets its OWN individual real-money Game Pass
+	-- instead (theme_golden_hour / theme_obsidian_ice), sold separately in
+	-- the Themes panel, exactly the mechanism Client/Themes.lua already
+	-- supports generically via GamePasses.passForTheme() -- no UI code
+	-- needed to change for this at all, just these definitions plus the
+	-- matching GamePasses.Definitions entries.
+	{
+		id = "golden_hour",
+		name = "Golden Hour",
+		description = "The tavern doors thrown open at sunset -- saturated amber and gold, warmer and bolder than Classic Felt's plain brown.",
+		price = 18,
+		colors = {
+			background = Color3.fromRGB(32, 18, 8),
+			panelBg = Color3.fromRGB(58, 32, 14),
+			accent = Color3.fromRGB(235, 140, 40),
+			cardBase = Color3.fromRGB(255, 244, 224),
+			cardSelected = Color3.fromRGB(255, 196, 80),
+		},
+	},
+	{
+		id = "obsidian_ice",
+		name = "Obsidian Ice",
+		description = "A polished obsidian table under cold blue light -- near-black with a sharp icy cyan glow, the highest-contrast Theme in the game.",
+		price = 18,
+		colors = {
+			background = Color3.fromRGB(8, 10, 14),
+			panelBg = Color3.fromRGB(16, 20, 28),
+			accent = Color3.fromRGB(70, 200, 230),
+			cardBase = Color3.fromRGB(230, 245, 250),
+			cardSelected = Color3.fromRGB(120, 235, 255),
+		},
+	},
 }
 
 function Themes.getById(id)
