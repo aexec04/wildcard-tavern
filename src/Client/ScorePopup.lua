@@ -88,11 +88,6 @@
 		playPitched    -- function(sound, pitch?, volume?) -- see Sound.lua
 		chipTickSound, multTickSound, xmultTickSound, payoutThudSound -- Sound instances, see Sound.lua
 		deckWidgetButton -- optional GuiObject, drop-off target for played ghosts (bottom-right deck widget)
-		hasFastForwardPass -- optional function() -> boolean, live getter -- QoL Game Pass
-		                       (Phase 9): true speeds up the whole choreography below (see
-		                       FAST_FORWARD_DIVISOR/pace()). Checked once at the top of each
-		                       showScorePopup call, not per-entry -- a hand already mid-reveal
-		                       finishes at whatever pace it started at.
 
 	Returns:
 		{
@@ -119,7 +114,6 @@ return function(deps)
 	local xmultTickSound = deps.xmultTickSound
 	local payoutThudSound = deps.payoutThudSound
 	local deckWidgetButton = deps.deckWidgetButton
-	local hasFastForwardPass = deps.hasFastForwardPass
 
 	-- Blue = Chips, Red = Mult, Purple = XMult, Green = Tips -- Blue/Red/
 	-- Purple straight from Ahmed's original juice spec; Tips added this
@@ -155,7 +149,7 @@ return function(deps)
 	-- it feel deliberate -- the one line that matters needs to actually
 	-- hold long enough to read on its own, not just relative to a longer
 	-- sequence. Bumped again to 1.3s.
-	local ENTRY_STAGGER = 1.0 -- seconds between entries -- long enough to actually read each line
+	local ENTRY_STAGGER = 1.3 -- seconds between entries -- long enough to actually read each line
 	local ANTICIPATION_PAUSE = 0.5
 	local FLY_DURATION = 0.4 -- < ENTRY_STAGGER, so a flying number always lands before the next entry starts
 	local GHOST_LIFT_DURATION = 0.35 -- played row "lift out of hand" tween
@@ -171,26 +165,7 @@ return function(deps)
 	-- of leaving them frozen at the deck for the rest of this linger, the
 	-- dead-air problem is smaller, but the linger itself still doesn't need
 	-- to run the full 2.6s to be readable.
-	local FINALE_LINGER = 0.7
-
-	-- QoL Game Pass (Fast Forward, Phase 9): every task.wait/tween duration
-	-- above gets funneled through pace() rather than used directly, so
-	-- there's exactly one place that decides how fast the choreography
-	-- runs. FAST_FORWARD_DIVISOR shrinks every one of those durations by
-	-- the same factor when the pass is owned -- same relative pacing/
-	-- readability the constants above were carefully tuned for (see their
-	-- own comments), just compressed, not reshuffled. currentPaceDivisor
-	-- is re-read once at the top of each showScorePopup call (not
-	-- per-entry) so a hand already mid-reveal can't change speed partway
-	-- through if ownership happens to resolve mid-sequence.
-	local FAST_FORWARD_DIVISOR = 1.8
-	local currentPaceDivisor = 1
-	local function pace(duration)
-		if currentPaceDivisor == 1 then
-			return duration
-		end
-		return duration / currentPaceDivisor
-	end
+	local FINALE_LINGER = 1.8
 
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
@@ -404,7 +379,7 @@ return function(deps)
 		local rowY = math.max(20, popupTop - ROW_MARGIN_ABOVE_POPUP - ROW_CARD_HEIGHT)
 		local x = (rootSize.X - totalWidth) / 2
 		for _, entry in ipairs(playedGhosts) do
-			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, GHOST_LIFT_DURATION, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 			x = x + entry.ghost.AbsoluteSize.X + gap
 		end
 	end
@@ -514,9 +489,10 @@ return function(deps)
 	-- deck for good, not just going to the discard pile.
 	local function shatterGhost(entry)
 		local ghost = entry.ghost
-		-- Placeholder SFX (see Sound.lua's dedicated-placeholder pattern) --
-		-- no dedicated glass-break sound yet, chipTickSound pitched way up
-		-- reads close enough as a "crack".
+		-- No dedicated glass-break sound exists yet -- borrows chipTickSound
+		-- (see Sound.lua) pitched way up, which reads close enough as a
+		-- "crack" for now. Worth a real dedicated shatter SFX if this ever
+		-- gets its own pass.
 		playPitched(chipTickSound, 1.9, 0.5)
 		particleBurst(centerOf(ghost), SHATTER_COLOR, 14, { spread = 90, duration = 0.4 })
 		screenShake(root, 2, 0.12)
@@ -552,8 +528,8 @@ return function(deps)
 		label.ZIndex = 32
 		label.Parent = root
 
-		tweenTo(label, { Position = centerOf(targetBox), TextTransparency = 0.6 }, pace(FLY_DURATION), Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		task.delay(pace(FLY_DURATION), function()
+		tweenTo(label, { Position = centerOf(targetBox), TextTransparency = 0.6 }, FLY_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(FLY_DURATION, function()
 			label:Destroy()
 			if targetBox.Parent then
 				local boxScale = targetBox:FindFirstChildOfClass("UIScale")
@@ -586,14 +562,8 @@ return function(deps)
 		label.Parent = root
 
 		local targetPos = UDim2.new(fromPos.X.Scale, fromPos.X.Offset, fromPos.Y.Scale, fromPos.Y.Offset - 46)
-		-- BUGFIX (Phase 9, caught by independent review before shipping):
-		-- this was hardcoded (not wrapped in pace()) while every sibling
-		-- timed element (flyNumberToBox etc.) was -- with Fast Forward
-		-- owned, a Tips proc's float would visibly lag/overlap into the
-		-- next beat instead of speeding up with everything else.
-		local floatDuration = pace(0.6)
-		tweenTo(label, { Position = targetPos, TextTransparency = 1 }, floatDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		task.delay(floatDuration, function()
+		tweenTo(label, { Position = targetPos, TextTransparency = 1 }, 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		task.delay(0.6, function()
 			label:Destroy()
 		end)
 	end
@@ -621,17 +591,16 @@ return function(deps)
 			targetPos = centerOf(deckWidgetButton)
 		end
 		for i, entry in ipairs(playedGhosts) do
-			local startDelay = pace((i - 1) * 0.05)
-			local dropoffDuration = pace(DROPOFF_DURATION)
+			local startDelay = (i - 1) * 0.05
 			task.delay(startDelay, function()
 				local ghost = entry.ghost
 				if ghost.Parent then
 					local dest = targetPos or UDim2.fromOffset(ghost.Position.X.Offset, root.AbsoluteSize.Y + 120)
-					tweenTo(ghost, { Position = dest }, dropoffDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-					tweenTo(entry.scale, { Scale = 0 }, dropoffDuration)
+					tweenTo(ghost, { Position = dest }, DROPOFF_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+					tweenTo(entry.scale, { Scale = 0 }, DROPOFF_DURATION)
 				end
 			end)
-			task.delay(startDelay + dropoffDuration, function()
+			task.delay(startDelay + DROPOFF_DURATION, function()
 				local ghost = entry.ghost
 				if ghost.Parent then
 					ghost:Destroy()
@@ -658,10 +627,6 @@ return function(deps)
 	local function showScorePopup(preview, sourceInfo)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
-
-		-- QoL Game Pass (Fast Forward): decided once per hand, not
-		-- per-entry -- see pace()'s own comment above.
-		currentPaceDivisor = (hasFastForwardPass and hasFastForwardPass()) and FAST_FORWARD_DIVISOR or 1
 
 		-- Defensive cleanup: a previous sequence that got interrupted
 		-- (e.g. the player queued up another hand before this one's
@@ -721,7 +686,7 @@ return function(deps)
 		layoutPlayedRow(playedGhosts)
 
 		task.spawn(function()
-			task.wait(pace(0.2)) -- let the hand-name pop land before the numbers start ticking
+			task.wait(0.2) -- let the hand-name pop land before the numbers start ticking
 
 			local breakdown = preview.breakdown or {}
 			local animatedCount = math.min(#breakdown, MAX_ANIMATED_ENTRIES)
@@ -747,7 +712,7 @@ return function(deps)
 					-- big XMult hits, so the payout feels like it's
 					-- building instead of ticking along at a flat rate.
 					if entry.kind == "xmult" and entry.amount >= HIGH_TIER_XMULT then
-						task.wait(pace(ANTICIPATION_PAUSE))
+						task.wait(ANTICIPATION_PAUSE)
 						if scorePopupToken ~= myToken then
 							return
 						end
@@ -822,7 +787,7 @@ return function(deps)
 					-- land on a whole number.
 					chipsLabel.Text = string.format("%d", math.floor(runningChips + 0.5))
 					multLabel.Text = string.format("%d", math.floor(runningMult * runningXMult + 0.5))
-					task.wait(pace(ENTRY_STAGGER))
+					task.wait(ENTRY_STAGGER)
 				end
 			end
 
@@ -886,7 +851,7 @@ return function(deps)
 			-- seconds after the finale, the drop-off tweens (<=0.5s + up
 			-- to ~0.5s of per-card stagger) are guaranteed done well
 			-- before it fires.
-			task.delay(pace(FINALE_LINGER), function()
+			task.delay(FINALE_LINGER, function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
 					destroyGhosts(liveGhosts)
