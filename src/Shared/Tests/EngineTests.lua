@@ -2588,4 +2588,180 @@ table.insert(tests, { name = "RunState.patronSlotLimit actually grants +1 per Re
 	expectEqual(RunState.patronSlotLimit(state), baseline + 1)
 end })
 
+-- ===== Content pass (Phase 15): 5 more Patrons, 5 more Boss Rounds, =====
+-- ===== 5 more Recipes =====
+
+table.insert(tests, { name = "'Perfect Ten' adds +5 Mult for each scoring Ten", fn = function()
+	local ten = Patrons.getById("perfect_ten")
+	local highCard = HandEvaluator.evaluate({ C(10, "Hearts") })
+	local _, _, mult = Scoring.calculate(highCard, { ten }, {})
+	expectEqual(mult, 1 + 5) -- base High Card mult (1) + patron (5 per scoring Ten)
+end })
+
+table.insert(tests, { name = "'Perfect Ten' gives no bonus without a scoring Ten", fn = function()
+	local ten = Patrons.getById("perfect_ten")
+	local highCard = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, _, mult = Scoring.calculate(highCard, { ten }, {})
+	expectEqual(mult, 1)
+end })
+
+table.insert(tests, { name = "'Night Owl' adds +3 Mult per Night reached so far", fn = function()
+	local owl = Patrons.getById("night_owl")
+	local highCard = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local _, _, mult = Scoring.calculate(highCard, { owl }, { night = 4 })
+	expectEqual(mult, 1 + 3 * 4)
+end })
+
+table.insert(tests, { name = "'Steady Hand' adds +18 Mult only when exactly 5 cards are played", fn = function()
+	local steady = Patrons.getById("steady_hand")
+	local highCard = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local fivePlayed = { C(9, "Hearts"), C(2, "Clubs"), C(3, "Spades"), C(4, "Diamonds"), C(5, "Hearts") }
+	local _, _, multFive = Scoring.calculate(highCard, { steady }, { allPlayedCards = fivePlayed })
+	expectEqual(multFive, 1 + 18)
+	local threePlayed = { C(9, "Hearts"), C(2, "Clubs"), C(3, "Spades") }
+	local _, _, multThree = Scoring.calculate(highCard, { steady }, { allPlayedCards = threePlayed })
+	expectEqual(multThree, 1)
+end })
+
+table.insert(tests, { name = "'Rainy Day Fund' earns 1 Tip per Hand remaining on round win", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local fund = Patrons.getById("rainy_day_fund")
+	state.handsRemaining = 2
+	local tipsBefore = state.tips
+	fund.onRoundWin(state)
+	expectEqual(state.tips, tipsBefore + 2)
+end })
+
+table.insert(tests, { name = "'Boss's Bane' earns 10 Tips on a Boss Round win, nothing on a normal round win", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local bane = Patrons.getById("boss_bane")
+	state.bossModifier = nil
+	local tipsBefore = state.tips
+	bane.onRoundWin(state)
+	expectEqual(state.tips, tipsBefore) -- normal round: no bonus
+	state.bossModifier = BossRounds.getById("bouncer")
+	bane.onRoundWin(state)
+	expectEqual(state.tips, tipsBefore + 10) -- boss round: +10
+end })
+
+table.insert(tests, { name = "'Slow Night'/'House Minimum' are tier-1 (minNight = 1) numeric variants of existing knobs", fn = function()
+	local slowNight = BossRounds.getById("slow_night")
+	expectEqual(slowNight.forcedRandomDiscardsPerHand, 1)
+	expectEqual(slowNight.minNight, 1)
+	local houseMinimum = BossRounds.getById("house_minimum")
+	expectEqual(houseMinimum.targetScoreMultiplier, 1.2)
+	expectEqual(houseMinimum.minNight, 1)
+end })
+
+table.insert(tests, { name = "'Picked Over' combines a Hearts debuff with a hand-size cut, gated to tier 2", fn = function()
+	local pickedOver = BossRounds.getById("picked_over")
+	expectEqual(pickedOver.debuff, "Hearts")
+	expectEqual(pickedOver.handSizeDelta, -1)
+	expectEqual(pickedOver.minNight, 3)
+end })
+
+table.insert(tests, { name = "'Rushed Order' caps hands at 3, gated to tier 2", fn = function()
+	local rushed = BossRounds.getById("rushed_order")
+	expectEqual(rushed.handsPerRoundOverride, 3)
+	expectEqual(rushed.minNight, 3)
+end })
+
+table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 60%, gated to tier 3", fn = function()
+	local bareBones = BossRounds.getById("bare_bones")
+	expectEqual(bareBones.chipsMultiplier, 0.4)
+	expectEqual(bareBones.multMultiplier, 0.4)
+	expectEqual(bareBones.minNight, 6)
+end })
+
+table.insert(tests, { name = "BossRounds.pick never returns a Phase 15 tier-2/3 modifier before its minNight", fn = function()
+	for night = 1, 2 do
+		local modifier = BossRounds.pick(function(n) return n end, night)
+		expectTrue(modifier.id ~= "picked_over" and modifier.id ~= "rushed_order" and modifier.id ~= "bare_bones",
+			"night " .. night .. " should never return " .. modifier.id)
+	end
+end })
+
+table.insert(tests, { name = "House Recipe 'Split the Check' swaps rank and suit between 2 selected cards", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand = { C(5, "Hearts"), C(9, "Spades") }
+	local recipe = Recipes.getHouseRecipeById("split_the_check")
+	local ok = recipe.apply(state, { cardIndices = { 1, 2 } })
+	expectTrue(ok)
+	expectEqual(state.hand[1].rank, 9)
+	expectEqual(state.hand[1].suit, "Spades")
+	expectEqual(state.hand[2].rank, 5)
+	expectEqual(state.hand[2].suit, "Hearts")
+end })
+
+table.insert(tests, { name = "House Recipe 'Round Up' raises every card in hand by 1, capped at Ace", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand = { C(5, "Hearts"), C(14, "Spades") } -- second card is already an Ace
+	local recipe = Recipes.getHouseRecipeById("round_up")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	expectEqual(state.hand[1].rank, 6)
+	expectEqual(state.hand[2].rank, 14) -- stayed capped at Ace
+end })
+
+table.insert(tests, { name = "House Recipe 'Round Up' refuses with an empty hand", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand = {}
+	local recipe = Recipes.getHouseRecipeById("round_up")
+	local ok = recipe.apply(state)
+	expectFalse(ok)
+end })
+
+table.insert(tests, { name = "House Recipe \"Comp'd Discard\" adds +1 Discard immediately", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local before = state.discardsRemaining
+	local recipe = Recipes.getHouseRecipeById("compd_discard")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	expectEqual(state.discardsRemaining, before + 1)
+end })
+
+table.insert(tests, { name = "Secret Recipe \"Everybody's Favorite\" gives every owned Patron a Silver Special", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 10
+	RunState.buyPatron(state, "the_regular")
+	RunState.buyPatron(state, "lucky_dice")
+	local recipe = Recipes.getSecretRecipeById("everybodys_favorite")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	expectEqual(state.ownedPatronSpecials["the_regular"], "silver")
+	expectEqual(state.ownedPatronSpecials["lucky_dice"], "silver")
+end })
+
+table.insert(tests, { name = "Secret Recipe \"Everybody's Favorite\" refuses with no Patrons owned", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("everybodys_favorite")
+	local ok = recipe.apply(state)
+	expectFalse(ok)
+end })
+
+table.insert(tests, { name = "Secret Recipe 'Nightcap Round' doubles the next round-win Tips reward, then clears itself", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local recipe = Recipes.getSecretRecipeById("nightcap_round")
+	local ok = recipe.apply(state)
+	expectTrue(ok)
+	expectTrue(state.nightcapRoundActive)
+
+	state.targetScore = 0 -- guarantee an immediate round win
+	state.tips = 0 -- avoid interest muddying the expected total
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin) -- doubled flat reward, no boss
+	expectFalse(state.nightcapRoundActive) -- one-shot: cleared after use
+end })
+
+table.insert(tests, { name = "'Nightcap Round' stacks with a Boss Round's own double instead of replacing it", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = BossRounds.getById("bouncer")
+	state.nightcapRoundActive = true
+	state.targetScore = 0
+	state.tips = 0
+	RunState.playHand(state, { 1 })
+	-- Boss doubles tipsPerRoundWin once, Nightcap Round doubles the result again.
+	expectEqual(state.tips, 4 * state.config.tipsPerRoundWin)
+end })
+
 return tests

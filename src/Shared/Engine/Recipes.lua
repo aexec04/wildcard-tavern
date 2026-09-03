@@ -500,6 +500,54 @@ Recipes.HouseRecipes = {
 			return true, "Fresh Squeeze, applied."
 		end,
 	},
+
+	-- ===== Phase 15 batch. Every Garnish/Special/Stamp id already has a =====
+	-- ===== dedicated Recipe granting it (that space is fully saturated), =====
+	-- ===== so this batch reaches for genuinely new operations instead. =====
+	{
+		id = "split_the_check", name = "Split the Check", icon = "🔀", price = 5,
+		cardCount = { min = 2, max = 2 },
+		description = "Select 2 cards -- they swap rank and suit with each other (Garnish/Special/Stamp stay put).",
+		-- Distinct from Copy the Order (makes card 1 an identical copy of
+		-- card 2) -- this exchanges the two, so both cards change and
+		-- neither becomes a duplicate of the other.
+		apply = function(state, opts)
+			local indices = (opts and opts.cardIndices) or {}
+			if #indices ~= 2 then
+				return false, "Select exactly 2 cards"
+			end
+			local a = state.hand[indices[1]]
+			local b = state.hand[indices[2]]
+			if not a or not b then
+				return false, "Invalid selection"
+			end
+			a.rank, b.rank = b.rank, a.rank
+			a.suit, b.suit = b.suit, a.suit
+			return true, "Checks split."
+		end,
+	},
+	{
+		id = "round_up", name = "Round Up", icon = "📈", price = 6,
+		description = "Raises the rank of every card currently in your hand by 1 (caps at Ace).",
+		-- The whole-hand version of Upsell (which caps at 2 selected cards).
+		apply = function(state)
+			if #state.hand == 0 then
+				return false, "Your hand is empty"
+			end
+			for _, card in ipairs(state.hand) do
+				card.rank = math.min(14, card.rank + 1)
+			end
+			return true, "Rounded up!"
+		end,
+	},
+	{
+		id = "compd_discard", name = "Comp'd Discard", icon = "🎟️", price = 4,
+		description = "+1 Discard, immediately, for the round in progress.",
+		apply = function(state)
+			state.discardsRemaining = (state.discardsRemaining or 0) + 1
+			return true, "One more, on the house."
+		end,
+	},
 }
 
 -- ===== Menu Recipes (permanently level up a hand type) =====
@@ -797,6 +845,39 @@ Recipes.SecretRecipes = {
 			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
 			state.ownedPatronSpecials[picked.id] = "reserved"
 			return true, picked.name .. " gets a reserved seat."
+		end,
+	},
+
+	-- ===== Phase 15 batch. =====
+	{
+		id = "everybodys_favorite", name = "Everybody's Favorite", icon = "🥂", price = 10,
+		description = "Every Patron at your table gets a Silver Special (+50 Chips), permanently.",
+		-- The "hit your whole table at once" counterpart to Star Treatment/
+		-- Patron of the Month (both pick just 1 random Patron) -- priced
+		-- highest of the Special-granting Recipes since it scales with
+		-- table size instead of being capped at one Patron.
+		apply = function(state)
+			if #state.ownedPatrons == 0 then
+				return false, "No Patrons to treat"
+			end
+			state.ownedPatronSpecials = state.ownedPatronSpecials or {}
+			for _, patron in ipairs(state.ownedPatrons) do
+				state.ownedPatronSpecials[patron.id] = "silver"
+			end
+			return true, "Everyone gets the Silver treatment."
+		end,
+	},
+	{
+		id = "nightcap_round", name = "Nightcap Round", icon = "🌃", price = 8,
+		description = "Doubles the Tips reward from the next round you win (stacks with a Boss Round's own double).",
+		-- Sets a one-shot flag consumed by RunState.playHand's round-win
+		-- reward block, then cleared -- same "flag set here, read and
+		-- cleared once elsewhere" shape Sugar Shield's brittleShieldRound
+		-- already established, so this reuses a proven pattern rather than
+		-- inventing a new one.
+		apply = function(state)
+			state.nightcapRoundActive = true
+			return true, "Tonight pays double."
 		end,
 	},
 }

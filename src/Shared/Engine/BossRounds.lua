@@ -277,6 +277,72 @@ BossRounds.Definitions = {
 		minNight = 6,
 		requiredCardsPerHand = 4,
 	},
+
+	-- ===== Phase 15 batch -- more content, same reuse-an-existing-field =====
+	-- ===== pattern every prior batch used. Tiered carefully against the =====
+	-- ===== closest existing sibling rather than guessed, after the Four =====
+	-- ===== Top mistuning in Phase 12 -- see that entry's comment for why =====
+	-- ===== requiredCardsPerHand specifically needs this care (a SMALLER =====
+	-- ===== exact-count forecloses MORE hand types, so it's more brutal, =====
+	-- ===== not less -- none of these new ones touch that field at all). =====
+	{
+		id = "slow_night",
+		name = "Slow Night",
+		description = "1 random card is tossed out of your hand after every hand you play.",
+		-- Milder sibling of tier-2 Rowdy Crowd (2 cards) and tier-3 Wild
+		-- Crowd (3 cards) -- 1 card is the gentlest step on this knob, so it
+		-- belongs a tier below both.
+		minNight = 1,
+		forcedRandomDiscardsPerHand = 1,
+	},
+	{
+		id = "house_minimum",
+		name = "House Minimum",
+		description = "The target score is 20% higher this round.",
+		-- Milder sibling of tier-1 House Rules (1.4x) -- same knob, lower
+		-- number, same tier (a numeric variant within a tier is the exact
+		-- pattern Watered Pour/Slow Pour already established for
+		-- Chips/Mult at tier 1).
+		minNight = 1,
+		targetScoreMultiplier = 1.2,
+	},
+	{
+		id = "picked_over",
+		name = "Picked Over",
+		description = "Heart cards score no Chips or Mult, and you're dealt one fewer card, this round.",
+		-- New COMBO (a suit debuff + a hand-size cut together) -- not just a
+		-- numeric variant, so tiered by comparing severity to existing tier-2
+		-- combos: Dry Spell (handSizeDelta -1 + discardsDelta -1) and Double
+		-- Tab (tipsLost + targetMult +20%) are both 2-knob tier-2 modifiers;
+		-- a single-suit debuff (already tier 2 alone, e.g. Hearts Are Out)
+		-- plus a 1-card hand cut (tier 1 alone, The Bouncer) reads as
+		-- comparable combined severity to those, so tier 2.
+		minNight = 3,
+		debuff = "Hearts",
+		handSizeDelta = -1,
+	},
+	{
+		id = "rushed_order",
+		name = "Rushed Order",
+		description = "You may only play 3 hands this round.",
+		-- Milder sibling of tier-3 Closing Time (1 hand) and Quick Service
+		-- (2 hands) -- 3 hands is a genuine restriction (below the default
+		-- handsPerRound) but nowhere near as crippling as capping at 1-2,
+		-- so it sits a tier below both rather than joining them at tier 3.
+		minNight = 3,
+		handsPerRoundOverride = 3,
+	},
+	{
+		id = "bare_bones",
+		name = "Bare Bones",
+		description = "Chips and Mult from played hands are reduced by 60% this round.",
+		-- Sits between tier-3 siblings Watered Down (chips+mult halved,
+		-- i.e. -50%) and Everything's Out (-70%) -- a genuine tier-3-only
+		-- escalation step, not a new knob.
+		minNight = 6,
+		chipsMultiplier = 0.4,
+		multMultiplier = 0.4,
+	},
 }
 
 function BossRounds.getById(id)

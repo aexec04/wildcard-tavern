@@ -538,6 +538,85 @@ Patrons.Definitions = {
 			return nil
 		end,
 	},
+
+	-- ===== Phase 15 batch -- more content, same low-risk "reuse an =====
+	-- ===== existing knob" pattern as Phases 2/3/12. =====
+
+	-- ===== More rank-based (Ace/King/Jack/Queen all had a dedicated Patron =====
+	-- ===== -- Ten was the last rank worth a specific callout below that) =====
+	{
+		id = "perfect_ten", name = "Perfect Ten", icon = "🔟", price = 6,
+		description = "+5 Mult for each Ten among the scoring cards.",
+		effect = function(handResult, _context)
+			local count = 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 10 then
+					count = count + 1
+				end
+			end
+			if count > 0 then
+				return { mult = 5 * count }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More XMULT (scales with run progress instead of a hand/held- =====
+	-- ===== card/table-size property -- nothing so far rewarded just being =====
+	-- ===== deep into a run) =====
+	{
+		id = "night_owl", name = "Night Owl", icon = "🦉", price = 7,
+		description = "+3 Mult for each Night you've reached so far this run.",
+		effect = function(_handResult, context)
+			local night = context.night or 0
+			if night > 0 then
+				return { mult = 3 * night }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More +MULT (rewards playing exactly a full 5-card hand -- the =====
+	-- ===== "opposite" of Small Plate's <=3-card reward, and the one card- =====
+	-- ===== count Patrons hadn't covered yet) =====
+	{
+		id = "steady_hand", name = "Steady Hand", icon = "✋", price = 6,
+		description = "+18 Mult if you play exactly 5 cards.",
+		effect = function(_handResult, context)
+			local played = context.allPlayedCards or {}
+			if #played == 5 then
+				return { mult = 18 }
+			end
+			return nil
+		end,
+	},
+
+	-- ===== More ECONOMY (reads handsRemaining at round-win time -- the =====
+	-- ===== Hands-side counterpart to Closing Tab's Discards-side payout) =====
+	{
+		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
+		description = "Earn 1 Tip for every Hand you have remaining at the end of a round you win.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			state.tips = state.tips + (state.handsRemaining or 0)
+		end,
+	},
+
+	-- ===== More ECONOMY (rewards clearing a Boss Round specifically -- =====
+	-- ===== state.bossModifier is still set to the round just won at the =====
+	-- ===== moment onRoundWin fires, since it isn't cleared until the next =====
+	-- ===== RunState.startRound -- same timing the reward-doubling code right =====
+	-- ===== below this loop in RunState.playHand already relies on) =====
+	{
+		id = "boss_bane", name = "Boss's Bane", icon = "🥊", price = 7,
+		description = "Earn 10 Tips whenever you clear a Boss Round.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			if state.bossModifier then
+				state.tips = state.tips + 10
+			end
+		end,
+	},
 }
 
 function Patrons.getById(id)

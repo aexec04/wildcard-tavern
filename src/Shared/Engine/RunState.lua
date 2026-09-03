@@ -540,6 +540,15 @@ function RunState.playHand(state, cardIndices)
 		if state.bossModifier then
 			reward = reward + state.config.tipsPerRoundWin
 		end
+		-- PHASE 15: "Nightcap Round" (Secret Recipe) sets this one-shot flag
+		-- to double whatever reward THIS round-win was already going to pay
+		-- (stacks on top of a Boss Round's own double, rather than
+		-- replacing it) -- cleared immediately after, so it only ever
+		-- applies to the next single round win, never lingers.
+		if state.nightcapRoundActive then
+			reward = reward * 2
+			state.nightcapRoundActive = false
+		end
 		state.tips = state.tips + reward
 
 		-- Actual total Tips gained this round-win (flat reward + boss
