@@ -19,6 +19,15 @@
 	into smaller, per-feature files. Fully self-contained -- nothing outside
 	this module needs anything it builds, so it returns an empty table.
 
+	ACHIEVEMENTS + TITLES (Phase 16): the stats line under the title used
+	to be a dead end -- 3 permanent counters with nowhere to go from
+	there. Now there's an "Achievements & Titles" section below the
+	Themes grid: every Shared/Engine/Achievements.lua entry, locked ones
+	silhouetted the same way locked Patrons/Themes already are, and each
+	UNLOCKED one gets an "Equip"/"Equipped" button that fires
+	EquipTitleRemote -- clicking your currently-equipped title's button
+	un-equips it (fires nil) instead of doing nothing.
+
 	deps fields:
 		screenGui        -- ScreenGui, the panel's ultimate parent (via backdrop)
 		polishPanel       -- function(instance, radius)
@@ -29,6 +38,8 @@
 		collectionButton  -- TextButton, the in-game "📔" corner button
 		Patrons           -- the Shared/Engine/Patrons module
 		Themes            -- the Shared/Engine/Themes module
+		Achievements      -- the Shared/Engine/Achievements module (Phase 16)
+		EquipTitleRemote  -- RemoteEvent, fired (achievementId or nil) on an Equip click (Phase 16)
 		getLatestState    -- function() -> latest state table or nil (live getter)
 		popIn             -- function(backdrop, content, opts?)
 		popOut            -- function(backdrop, content, opts?, onHidden?)
@@ -56,6 +67,8 @@ return function(deps)
 	local collectionButton = deps.collectionButton
 	local Patrons = deps.Patrons
 	local Themes = deps.Themes
+	local Achievements = deps.Achievements
+	local EquipTitleRemote = deps.EquipTitleRemote
 	local getLatestState = deps.getLatestState
 	local popIn = deps.popIn
 	local popOut = deps.popOut
@@ -206,6 +219,91 @@ return function(deps)
 		descLabel.Parent = row
 	end
 
+	-- ACHIEVEMENTS + TITLES (Phase 16): deliberately its own function
+	-- rather than reusing makeCollectionRow -- the row itself is close
+	-- to identical (icon swatch + name + description, locked = "???"),
+	-- but only this one needs an Equip/Equipped button and a 3rd visual
+	-- state (equipped, not just owned/locked).
+	local function makeAchievementRow(order, achievement, isUnlocked, isEquipped)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 50)
+		row.BackgroundColor3 = isEquipped and Color3.fromRGB(95, 75, 35)
+			or (isUnlocked and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38))
+		row.LayoutOrder = order
+		row.ZIndex = 21
+		row.Parent = collectionScroll
+		polishPanel(row, 10)
+
+		local swatch = Instance.new("Frame")
+		swatch.Size = UDim2.new(0, 30, 0, 30)
+		swatch.Position = UDim2.new(0, 10, 0.5, -15)
+		swatch.BackgroundColor3 = isUnlocked and Color3.fromRGB(200, 170, 100) or Color3.fromRGB(70, 65, 60)
+		swatch.ZIndex = 21
+		swatch.Parent = row
+		roundCorner(swatch, 8)
+
+		local swatchLabel = Instance.new("TextLabel")
+		swatchLabel.Size = UDim2.fromScale(1, 1)
+		swatchLabel.BackgroundTransparency = 1
+		swatchLabel.Font = Enum.Font.GothamBold
+		swatchLabel.TextSize = 16
+		swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		swatchLabel.Text = isUnlocked and achievement.icon or "?"
+		swatchLabel.ZIndex = 21
+		swatchLabel.Parent = swatch
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1, -170, 0, 22)
+		nameLabel.Position = UDim2.new(0, 50, 0, 4)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.TextSize = 15
+		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		nameLabel.TextColor3 = isUnlocked and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(140, 135, 130)
+		nameLabel.Text = isUnlocked and (achievement.name .. "  --  \"" .. achievement.title .. "\"") or "???"
+		nameLabel.ZIndex = 21
+		nameLabel.Parent = row
+
+		local descLabel = Instance.new("TextLabel")
+		descLabel.Size = UDim2.new(1, -170, 0, 20)
+		descLabel.Position = UDim2.new(0, 50, 0, 24)
+		descLabel.BackgroundTransparency = 1
+		descLabel.Font = Enum.Font.Gotham
+		descLabel.TextSize = 12
+		descLabel.TextWrapped = true
+		descLabel.TextXAlignment = Enum.TextXAlignment.Left
+		descLabel.TextColor3 = isUnlocked and Color3.fromRGB(210, 195, 175) or Color3.fromRGB(120, 115, 110)
+		descLabel.Text = isUnlocked and achievement.description or "Not unlocked yet."
+		descLabel.ZIndex = 21
+		descLabel.Parent = row
+
+		if isUnlocked then
+			local equipButton = Instance.new("TextButton")
+			equipButton.Size = UDim2.new(0, 100, 0, 32)
+			equipButton.Position = UDim2.new(1, -110, 0.5, -16)
+			equipButton.Font = Enum.Font.GothamBold
+			equipButton.TextSize = 13
+			equipButton.Text = isEquipped and "Equipped" or "Equip"
+			equipButton.BackgroundColor3 = isEquipped and Color3.fromRGB(150, 115, 50) or Color3.fromRGB(70, 55, 40)
+			equipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+			equipButton.ZIndex = 21
+			equipButton.Parent = row
+			polishButton(equipButton, 8)
+			addButtonHoverScale(equipButton)
+
+			equipButton.MouseButton1Click:Connect(function()
+				playClickSfx()
+				if EquipTitleRemote then
+					-- Clicking your CURRENTLY equipped title's button
+					-- un-equips it (fires nil) instead of doing nothing --
+					-- otherwise there'd be no way to go back to "no title"
+					-- once you'd equipped one.
+					EquipTitleRemote:FireServer(isEquipped and nil or achievement.id)
+				end
+			end)
+		end
+	end
+
 	local function refreshCollection()
 		for _, child in ipairs(collectionScroll:GetChildren()) do
 			if child:IsA("Frame") then
@@ -236,11 +334,30 @@ return function(deps)
 			ownedThemeCount = ownedThemeCount + 1
 		end
 
+		-- ACHIEVEMENTS + TITLES (Phase 16): unlockedAchievementIds/
+		-- equippedTitleId are shipped fresh in every serializeState call
+		-- (Server/init.server.lua) -- see Achievements.lua's header for
+		-- why the unlocked SET itself is never stored, only the equip
+		-- choice is.
+		local unlockedTitleIds = {}
+		local equippedTitleId = latestState and latestState.equippedTitleId
+		if latestState then
+			for _, id in ipairs(latestState.unlockedAchievementIds or {}) do
+				unlockedTitleIds[id] = true
+			end
+		end
+		local unlockedTitleCount = 0
+		for _ in pairs(unlockedTitleIds) do
+			unlockedTitleCount = unlockedTitleCount + 1
+		end
+
 		local stats = latestState and latestState.profileStats
 		if stats then
+			local equippedAchievement = equippedTitleId and Achievements.getById(equippedTitleId)
 			collectionStatsLabel.Text = string.format(
-				"Runs played: %d  |  Runs won: %d  |  Best Night reached: %d",
-				stats.runsStarted, stats.runsWon, stats.bestNightReached
+				"Runs played: %d  |  Runs won: %d  |  Best Night reached: %d  |  Title: %s",
+				stats.runsStarted, stats.runsWon, stats.bestNightReached,
+				equippedAchievement and ("\"" .. equippedAchievement.title .. "\"") or "none equipped"
 			)
 		else
 			collectionStatsLabel.Text = ""
@@ -254,6 +371,11 @@ return function(deps)
 		makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
 		for i, theme in ipairs(Themes.Definitions) do
 			makeCollectionRow(100 + i, theme.name, theme.description, ownedThemeIds[theme.id] == true, theme.colors.accent)
+		end
+
+		makeCollectionSectionHeader(string.format("Achievements & Titles -- %d / %d unlocked", unlockedTitleCount, #Achievements.Definitions), 200)
+		for i, achievement in ipairs(Achievements.Definitions) do
+			makeAchievementRow(200 + i, achievement, unlockedTitleIds[achievement.id] == true, equippedTitleId == achievement.id)
 		end
 	end
 

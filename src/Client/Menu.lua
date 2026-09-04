@@ -19,6 +19,9 @@
 		addButtonHoverScale     -- function(button, opts?)
 		StartDailyChallengeRemote -- RemoteEvent, fired on Daily Challenge click
 		playClickSfx            -- function(), played on Daily Challenge click
+		StartWeeklyChallengeRemote -- RemoteEvent, fired on Weekly Challenge click (Phase 16)
+		openSeedRunDialog       -- function(), opens SeedRunDialog.lua's modal (Phase 16)
+		openTutorial            -- function(), opens Tutorial.lua's walkthrough (Phase 16)
 
 	Returns:
 		{
@@ -39,6 +42,16 @@
 	as either an inline expression or a reused existing local -- neither
 	needs a new local in init.client.lua either.
 
+	WEEKLY CHALLENGE + SEED CODES (Phase 16): same treatment, 2 more
+	buttons ("Weekly Challenge", "Seed Run..."), same reasoning -- neither
+	captured as a new top-level local, both click handlers wired entirely
+	inside this file. "Seed Run..." doesn't fire a remote directly (it
+	needs a code from the player first) -- it just calls
+	`openSeedRunDialog()`, a callback built by Client/SeedRunDialog.lua
+	and threaded through as a dep, same "pass the finished function in,
+	don't make this module know how the dialog works" shape as everything
+	else here.
+
 	POLISH PASS (Batch 2): this is the very first thing every player
 	sees, and previously had ZERO animation -- the whole screen (title,
 	subtitle, 4 buttons) just appeared instantly, fully formed, the
@@ -57,6 +70,9 @@ return function(deps)
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local StartDailyChallengeRemote = deps.StartDailyChallengeRemote
 	local playClickSfx = deps.playClickSfx
+	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
+	local openSeedRunDialog = deps.openSeedRunDialog
+	local openTutorial = deps.openTutorial
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -84,7 +100,7 @@ return function(deps)
 	menuSubtitle.Font = Enum.Font.Gotham
 	menuSubtitle.TextSize = 18
 	menuSubtitle.TextColor3 = Color3.fromRGB(200, 180, 160)
-	menuSubtitle.Text = "a poker-hand deckbuilder -- working title"
+	menuSubtitle.Text = "a poker hand deckbuilder game!"
 	menuSubtitle.ZIndex = 10
 	menuSubtitle.Parent = menuFrame
 
@@ -137,6 +153,9 @@ return function(deps)
 	local menuJourneyButton = makeMenuButton("Road Ahead")
 	local menuNewRunButton = makeMenuButton("New Run...")
 	local menuDailyChallengeButton = makeMenuButton("\240\159\147\133 Daily Challenge")
+	local menuWeeklyChallengeButton = makeMenuButton("\240\159\151\147 Weekly Challenge")
+	local menuSeedRunButton = makeMenuButton("\240\159\142\178 Seed Run...")
+	local menuTutorialButton = makeMenuButton("🔰 Tutorial")
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
@@ -147,12 +166,42 @@ return function(deps)
 		end
 	end)
 
+	menuWeeklyChallengeButton.MouseButton1Click:Connect(function()
+		if playClickSfx then
+			playClickSfx()
+		end
+		if StartWeeklyChallengeRemote then
+			StartWeeklyChallengeRemote:FireServer()
+		end
+	end)
+
+	menuSeedRunButton.MouseButton1Click:Connect(function()
+		if playClickSfx then
+			playClickSfx()
+		end
+		if openSeedRunDialog then
+			openSeedRunDialog()
+		end
+	end)
+
+	menuTutorialButton.MouseButton1Click:Connect(function()
+		if playClickSfx then
+			playClickSfx()
+		end
+		if openTutorial then
+			openTutorial()
+		end
+	end)
+
 	for _, button in ipairs({
 		menuPlayButton,
 		menuHowToPlayButton,
 		menuJourneyButton,
 		menuNewRunButton,
 		menuDailyChallengeButton,
+		menuWeeklyChallengeButton,
+		menuSeedRunButton,
+		menuTutorialButton,
 	}) do
 		addButtonHoverScale(button)
 	end
@@ -169,6 +218,9 @@ return function(deps)
 		menuJourneyButton,
 		menuNewRunButton,
 		menuDailyChallengeButton,
+		menuWeeklyChallengeButton,
+		menuSeedRunButton,
+		menuTutorialButton,
 	}, {
 		stagger = 0.08,
 		duration = 0.35,

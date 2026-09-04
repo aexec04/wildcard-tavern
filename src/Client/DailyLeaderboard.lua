@@ -14,6 +14,13 @@
 	self-contained -- nothing outside this module needs anything it builds,
 	so it returns an empty table, same as Collection.lua.
 
+	WEEKLY CHALLENGE (Phase 16): this overlay now has a Daily/Weekly tab
+	toggle at the top instead of getting a whole separate
+	WeeklyLeaderboard.lua file -- same panel/rows/close button, just a
+	2nd RemoteFunction (GetWeeklyLeaderboardRemote) and a small
+	`activeBoard` ("daily"/"weekly") flag deciding which one
+	refreshLeaderboard() calls and how the labels read.
+
 	deps fields:
 		screenGui                -- ScreenGui, the panel's ultimate parent (via backdrop)
 		polishPanel                -- function(instance, radius)
@@ -23,15 +30,17 @@
 		playClickSfx                -- function(volume?)
 		leaderboardButton            -- TextButton, the in-game "🏆" corner button
 		GetDailyLeaderboardRemote    -- RemoteFunction, InvokeServer() -> see below
+		GetWeeklyLeaderboardRemote   -- RemoteFunction, same shape as GetDailyLeaderboardRemote (Phase 16)
 		popIn                        -- function(backdrop, content, opts?)
 		popOut                       -- function(backdrop, content, opts?, onHidden?)
 		addButtonHoverScale          -- function(button, opts?)
 		localPlayer                  -- Player, this client's Players.LocalPlayer
 
-	GetDailyLeaderboardRemote:InvokeServer() returns:
+	GetDailyLeaderboardRemote:InvokeServer() (and GetWeeklyLeaderboardRemote,
+	identical shape) returns:
 		{
 			ok = boolean,          -- false: top-10 fetch failed OR rate-limited
-			dateKey = "YYYY-MM-DD",
+			dateKey = "YYYY-MM-DD" (or "W<n>" for Weekly),
 			top = { { userId, name, depth, tips }, ... },  -- up to 10, best first
 			yourBest = { depth, tips } or nil,
 			yourBestOk = boolean,  -- false: this player's own-best fetch failed
@@ -54,6 +63,7 @@ return function(deps)
 	local playClickSfx = deps.playClickSfx
 	local leaderboardButton = deps.leaderboardButton
 	local GetDailyLeaderboardRemote = deps.GetDailyLeaderboardRemote
+	local GetWeeklyLeaderboardRemote = deps.GetWeeklyLeaderboardRemote
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
@@ -77,9 +87,29 @@ return function(deps)
 	polishPanel(leaderboardPanel, 16)
 	addSoftShadow(leaderboardPanel, 18)
 
+	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.
+	local function makeTabButton(text, xOffset)
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(0, 90, 0, 26)
+		button.Position = UDim2.new(0, xOffset, 0, 0)
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = 13
+		button.Text = text
+		button.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
+		button.TextColor3 = Color3.fromRGB(250, 240, 220)
+		button.ZIndex = 21
+		button.Parent = leaderboardPanel
+		polishButton(button, 8)
+		addButtonHoverScale(button)
+		return button
+	end
+
+	local dailyTabButton = makeTabButton("\240\159\147\133 Daily", 0)
+	local weeklyTabButton = makeTabButton("\240\159\151\147 Weekly", 96)
+
 	local leaderboardTitle = Instance.new("TextLabel")
 	leaderboardTitle.Size = UDim2.new(1, 0, 0, 26)
-	leaderboardTitle.Position = UDim2.new(0, 0, 0, 0)
+	leaderboardTitle.Position = UDim2.new(0, 0, 0, 32)
 	leaderboardTitle.BackgroundTransparency = 1
 	leaderboardTitle.Font = Enum.Font.GothamBold
 	leaderboardTitle.TextSize = 22
@@ -90,7 +120,7 @@ return function(deps)
 
 	local yourBestLabel = Instance.new("TextLabel")
 	yourBestLabel.Size = UDim2.new(1, 0, 0, 18)
-	yourBestLabel.Position = UDim2.new(0, 0, 0, 26)
+	yourBestLabel.Position = UDim2.new(0, 0, 0, 58)
 	yourBestLabel.BackgroundTransparency = 1
 	yourBestLabel.Font = Enum.Font.Gotham
 	yourBestLabel.TextSize = 13
@@ -100,8 +130,8 @@ return function(deps)
 	yourBestLabel.Parent = leaderboardPanel
 
 	local leaderboardScroll = Instance.new("ScrollingFrame")
-	leaderboardScroll.Size = UDim2.new(1, -30, 1, -110)
-	leaderboardScroll.Position = UDim2.new(0, 15, 0, 45)
+	leaderboardScroll.Size = UDim2.new(1, -30, 1, -142)
+	leaderboardScroll.Position = UDim2.new(0, 15, 0, 77)
 	leaderboardScroll.BackgroundTransparency = 1
 	leaderboardScroll.BorderSizePixel = 0
 	leaderboardScroll.ScrollBarThickness = 8
@@ -198,14 +228,34 @@ return function(deps)
 		label.Parent = leaderboardScroll
 	end
 
+	-- WEEKLY CHALLENGE (Phase 16): which board is currently showing --
+	-- "daily" or "weekly". Read by refreshLeaderboard and by the 2 tab
+	-- buttons' click handlers below (which flip it and re-refresh).
+	local activeBoard = "daily"
+
+	local function updateTabHighlight()
+		dailyTabButton.BackgroundColor3 = (activeBoard == "daily") and Color3.fromRGB(110, 80, 40) or Color3.fromRGB(70, 55, 40)
+		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and Color3.fromRGB(110, 80, 40) or Color3.fromRGB(70, 55, 40)
+	end
+
 	local function refreshLeaderboard()
 		clearRows()
 		yourBestLabel.Text = ""
 		makeLeaderboardMessage("Loading...")
+		updateTabHighlight()
+
+		local remote = (activeBoard == "weekly") and GetWeeklyLeaderboardRemote or GetDailyLeaderboardRemote
+		local icon = (activeBoard == "weekly") and "\240\159\151\147" or "\240\159\143\134"
+		local label = (activeBoard == "weekly") and "Weekly Challenge" or "Daily Challenge"
+		local period = (activeBoard == "weekly") and "this week" or "today"
+		-- Captured up front so a late-returning InvokeServer for a board
+		-- the player has since tabbed AWAY from doesn't paint its result
+		-- into the other tab's UI.
+		local requestedBoard = activeBoard
 
 		task.spawn(function()
 			local ok, result = pcall(function()
-				return GetDailyLeaderboardRemote:InvokeServer()
+				return remote:InvokeServer()
 			end)
 
 			-- The player may have closed the overlay (or the whole client
@@ -214,7 +264,10 @@ return function(deps)
 			-- nothing in this codebase ever actually clears via Destroy())
 			-- is what actually catches "player already hit Close": bail
 			-- out quietly rather than repaint a panel nobody's looking at.
-			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent then
+			-- Also bail if they've since switched tabs (see requestedBoard
+			-- above) -- that other tab's own refreshLeaderboard call is
+			-- already handling its own repaint.
+			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent or requestedBoard ~= activeBoard then
 				return
 			end
 
@@ -225,15 +278,15 @@ return function(deps)
 				return
 			end
 
-			leaderboardTitle.Text = "\240\159\143\134 Daily Challenge -- " .. tostring(result.dateKey or "")
+			leaderboardTitle.Text = icon .. " " .. label .. " -- " .. tostring(result.dateKey or "")
 
 			if result.yourBestOk and result.yourBest then
 				yourBestLabel.Text = string.format(
-					"Your best today: Depth %d, %d Tips",
-					result.yourBest.depth, result.yourBest.tips
+					"Your best %s: Depth %d, %d Tips",
+					period, result.yourBest.depth, result.yourBest.tips
 				)
 			elseif result.yourBestOk then
-				yourBestLabel.Text = "You haven't set a score today yet -- play a Daily Challenge run!"
+				yourBestLabel.Text = "You haven't set a score " .. period .. " yet -- play a " .. label .. " run!"
 			else
 				yourBestLabel.Text = "Couldn't check your best score."
 			end
@@ -245,7 +298,7 @@ return function(deps)
 
 			local top = result.top or {}
 			if #top == 0 then
-				makeLeaderboardMessage("Nobody's set a score yet today -- be the first!")
+				makeLeaderboardMessage("Nobody's set a score yet " .. period .. " -- be the first!")
 				return
 			end
 
@@ -255,6 +308,22 @@ return function(deps)
 			end
 		end)
 	end
+
+	dailyTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if activeBoard ~= "daily" then
+			activeBoard = "daily"
+			refreshLeaderboard()
+		end
+	end)
+
+	weeklyTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if activeBoard ~= "weekly" then
+			activeBoard = "weekly"
+			refreshLeaderboard()
+		end
+	end)
 
 	leaderboardButton.MouseButton1Click:Connect(function()
 		playClickSfx()

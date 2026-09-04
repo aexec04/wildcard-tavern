@@ -85,4 +85,67 @@ function SeededRng.dailyDateKey(timestamp)
 	return os.date("!%Y-%m-%d", timestamp)
 end
 
+-- PHASE 16 (Weekly Challenge): same idea as dailySeed, but bucketed into
+-- 7-day windows instead of calendar days. Deliberately NOT calendar-week
+-- aligned (no Monday/Sunday reasoning, no "%V" strftime specifier, which
+-- isn't guaranteed portable across platforms/locales) -- just
+-- `floor(unixTime / secondsPerWeek)`, an integer that ticks up by exactly
+-- 1 every 7 days, forever, starting from the Unix epoch. Every player's
+-- server clock is UTC-based (os.time()), so this lands on the same
+-- 7-day window for everyone regardless of their own timezone, same
+-- guarantee dailySeed makes for calendar days.
+local SECONDS_PER_WEEK = 604800 -- 60 * 60 * 24 * 7
+
+function SeededRng.weeklySeed(timestamp)
+	timestamp = timestamp or os.time()
+	return math.floor(timestamp / SECONDS_PER_WEEK)
+end
+
+-- Same idea as dailyDateKey -- the DataStore/leaderboard key for the
+-- week, derived from the exact same window math as weeklySeed above so
+-- the two can never drift out of sync with each other. "W" prefix just
+-- keeps it visually distinct from a Daily dateKey at a glance (and from
+-- looking like a plain number that could be mistaken for something
+-- else) -- it's not trying to be a real calendar week label.
+function SeededRng.weeklyDateKey(timestamp)
+	return "W" .. tostring(SeededRng.weeklySeed(timestamp))
+end
+
+-- PHASE 16 (Shareable Seed Codes): turns an arbitrary short string a
+-- player typed in (or got from a friend) into a deterministic seed
+-- number, so "type the same code -> get the same run" without needing
+-- any server round-trip or DataStore lookup at all -- the code itself
+-- IS the seed, just human-shareable. A djb2-style rolling hash: pure
+-- +, *, % (see this file's header on why bitwise ops are off-limits),
+-- case-insensitive (upper-cased first) so "storm7" and "STORM7" hash
+-- identically -- codes are meant to be read aloud/typed casually, not
+-- treated as case-sensitive passwords.
+function SeededRng.codeToSeed(code)
+	code = string.upper(tostring(code or ""))
+	local hash = 5381
+	for i = 1, #code do
+		hash = (hash * 33 + string.byte(code, i)) % MODULUS
+	end
+	return hash
+end
+
+-- Suggests a random shareable code for a player who doesn't already have
+-- one in mind from a friend -- NOT part of the deterministic-replay seam
+-- itself (this is a one-time "here's a code you could use" convenience,
+-- so plain math.random is fine here, unlike everywhere else in this
+-- file). Charset deliberately excludes 0/O and 1/I/L -- easy to
+-- mis-read or mis-type out loud/over chat, exactly the failure mode
+-- that would silently desync two friends' "identical" runs.
+local CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+function SeededRng.randomCode(length)
+	length = length or 6
+	local parts = {}
+	for i = 1, length do
+		local idx = math.random(1, #CODE_CHARS)
+		parts[i] = string.sub(CODE_CHARS, idx, idx)
+	end
+	return table.concat(parts)
+end
+
 return SeededRng

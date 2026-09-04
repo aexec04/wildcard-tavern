@@ -33,6 +33,7 @@ local HousePasses = require(Engine.HousePasses)
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
+local Achievements = require(Engine.Achievements) -- ACHIEVEMENTS + TITLES (Phase 16, see that file's header)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -66,6 +67,8 @@ local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
+local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
+local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
 local RerollShopRemote = newRemote("RerollShop") -- (player) -- pay tips to reroll Patron/Pack/Voucher offers
@@ -94,6 +97,23 @@ local StartDailyChallengeRemote = newRemote("StartDailyChallenge") -- (player)
 local GetDailyLeaderboardRemote = Instance.new("RemoteFunction")
 GetDailyLeaderboardRemote.Name = "GetDailyLeaderboard"
 GetDailyLeaderboardRemote.Parent = remotes
+
+-- WEEKLY CHALLENGE (Phase 16): same shape as Daily Challenge above, just
+-- bucketed into 7-day windows (SeededRng.weeklySeed/weeklyDateKey)
+-- instead of calendar days -- gives the two of you a longer-running
+-- comparison than the Daily board resets away every midnight.
+local StartWeeklyChallengeRemote = newRemote("StartWeeklyChallenge") -- (player)
+local GetWeeklyLeaderboardRemote = Instance.new("RemoteFunction")
+GetWeeklyLeaderboardRemote.Name = "GetWeeklyLeaderboard"
+GetWeeklyLeaderboardRemote.Parent = remotes
+
+-- SHAREABLE SEED CODES (Phase 16): (player, code) -- starts a seeded
+-- standard/standard run from a player-typed/shared code
+-- (SeededRng.codeToSeed) instead of a date-derived seed. No leaderboard
+-- of its own -- this is for two friends comparing a specific run
+-- on demand, not a ranked board, so it's deliberately just the one
+-- fire-and-forget remote.
+local StartSeedRunRemote = newRemote("StartSeedRun") -- (player, code)
 
 -- ===== 3. Persistent Player Profile (DataStoreService) =====
 -- PERSISTENT SAVE (Phase 10): see Shared/Engine/PlayerProfile.lua's header
@@ -231,9 +251,48 @@ local function saveDailyScore(player)
 	end
 end
 
--- trackDailyProgress (needs `sessions`, declared just below) is defined
--- right next to syncProfileFromSession further down, both called from
--- pushState.
+-- ===== 4b. Weekly Challenge Leaderboard (Phase 16) =====
+-- Deliberately a straight copy of the Daily Challenge Leaderboard shape
+-- just above -- same combinedScore encoding, same pending/dirty snapshot
+-- pattern and the exact same reasoning for it (see that section's header
+-- comment), just keyed by SeededRng.weeklyDateKey() instead of a
+-- calendar-day string. Kept as fully separate tables/functions rather
+-- than parameterizing the Daily ones over a "kind" flag -- more lines,
+-- but zero risk of a Weekly bug ever touching the Daily path or vice
+-- versa.
+
+local weeklyBoardCache = {} -- [weekKey] = OrderedDataStore instance
+local weeklyPending = {} -- [player] = { weekKey, depth, tips }
+local weeklyDirty = {} -- [player] = true while weeklyPending[player] hasn't been successfully saved yet
+local lastWeeklyLeaderboardRequest = {} -- [player] = os.clock() of their last GetWeeklyLeaderboard call
+
+local function getWeeklyStore(weekKey)
+	if not weeklyBoardCache[weekKey] then
+		weeklyBoardCache[weekKey] = DataStoreService:GetOrderedDataStore("WeeklyChallenge_" .. weekKey)
+	end
+	return weeklyBoardCache[weekKey]
+end
+
+local function saveWeeklyScore(player)
+	local pending = weeklyPending[player]
+	if not pending then
+		return
+	end
+	local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
+	local store = getWeeklyStore(pending.weekKey)
+	local ok, err = pcall(function()
+		store:SetAsync(tostring(player.UserId), combinedScore)
+	end)
+	if ok then
+		weeklyDirty[player] = nil
+	else
+		warn(string.format("Weekly leaderboard save failed for %s: %s", player.Name, tostring(err)))
+	end
+end
+
+-- trackDailyProgress/trackWeeklyProgress (need `sessions`, declared just
+-- below) are defined right next to syncProfileFromSession further down,
+-- both called from pushState.
 
 -- ===== 5. Session management =====
 
@@ -561,6 +620,41 @@ local function serializeState(session, player)
 				bestNightReached = profile.stats.bestNightReached,
 			}
 		end)(),
+		-- ACHIEVEMENTS + TITLES (Phase 16): unlockedAchievementIds is
+		-- recomputed fresh from the profile every single serializeState
+		-- call (see Achievements.lua's header for why that's cheap and
+		-- safe -- nothing here is stored) -- the client uses it to draw
+		-- the Collection screen's badge grid and to know which titles are
+		-- selectable in the equip dropdown. equippedTitleId is the one
+		-- actual saved field (PlayerProfile.equippedTitleId).
+		unlockedAchievementIds = (function()
+			local profile = profiles[player]
+			if not profile then
+				return {}
+			end
+			local ids = {}
+			for _, achievement in ipairs(Achievements.unlockedFor(profile)) do
+				table.insert(ids, achievement.id)
+			end
+			return ids
+		end)(),
+		equippedTitleId = (function()
+			local profile = profiles[player]
+			return profile and profile.equippedTitleId or nil
+		end)(),
+		-- TUTORIAL (Phase 16): `false` (not nil) here is what tells the
+		-- client "genuinely show the auto-popup" -- a not-yet-loaded
+		-- profile deliberately reports `true` instead (see the `or true`
+		-- below), so a client that somehow renders before profiles[player]
+		-- is ready doesn't mistake "still loading" for "brand new,
+		-- auto-show the tutorial."
+		hasSeenTutorial = (function()
+			local profile = profiles[player]
+			if not profile then
+				return true
+			end
+			return profile.hasSeenTutorial
+		end)(),
 		-- DAILY CHALLENGE (Phase 11): lets the client show a "Daily
 		-- Challenge" badge/HUD state -- dailyDateKey is the UTC day this
 		-- specific run started on (fixed at startNewSession, see that
@@ -568,6 +662,14 @@ local function serializeState(session, player)
 		-- going since before a UTC midnight.
 		isDaily = session.isDaily or false,
 		dailyDateKey = session.dailyDateKey,
+		-- WEEKLY CHALLENGE / SEED CODES (Phase 16): same idea as the Daily
+		-- fields just above, one pair per run mode. At most one of
+		-- isDaily/isWeekly/isSeeded is ever true for a given session --
+		-- startNewSession only ever sets one seedMode per call.
+		isWeekly = session.isWeekly or false,
+		weeklyDateKey = session.weeklyDateKey,
+		isSeeded = session.isSeeded or false,
+		seedCode = session.seedCode,
 	}
 end
 
@@ -659,6 +761,28 @@ local function trackDailyProgress(player)
 	dailyDirty[player] = true
 end
 
+-- WEEKLY CHALLENGE (Phase 16): same idea as trackDailyProgress just
+-- above, gated on session.isWeekly/session.weeklyDateKey instead.
+local function trackWeeklyProgress(player)
+	local session = sessions[player]
+	if not session or not session.isWeekly then
+		return
+	end
+
+	local depth = computeDailyDepth(session.state) -- same depth formula, not Daily-specific despite the name
+	local pending = weeklyPending[player]
+	if pending and pending.weekKey == session.weeklyDateKey and pending.depth >= depth then
+		return -- nothing new to record
+	end
+
+	weeklyPending[player] = {
+		weekKey = session.weeklyDateKey,
+		depth = depth,
+		tips = math.max(0, math.min(math.floor(session.state.tips), DAILY_TIPS_CAP)),
+	}
+	weeklyDirty[player] = true
+end
+
 local function pushState(player)
 	local session = sessions[player]
 	if not session then
@@ -666,6 +790,7 @@ local function pushState(player)
 	end
 	syncProfileFromSession(player)
 	trackDailyProgress(player)
+	trackWeeklyProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 end
 
@@ -772,14 +897,17 @@ end)
 -- profiles[player] to already be loaded (see onPlayerAdded below) -- every
 -- call site in this file is after that, including the initial join.
 --
--- DAILY CHALLENGE (Phase 11): pass a `dailyRng` (from SeededRng.new) to
--- start a seeded Daily Challenge run instead of a normal one -- forces
--- deckVariantId/difficultyId to "standard"/"standard" regardless of what
--- was passed in, same as every player's Daily Challenge run, so everyone
--- actually starts from the same place (see StartDailyChallengeRemote's
--- handler below, the only real caller of this path). Omitted/nil behaves
--- exactly like before this parameter existed -- a normal math.random run.
-local function startNewSession(player, deckVariantId, difficultyId, dailyRng)
+-- DAILY CHALLENGE (Phase 11) / WEEKLY CHALLENGE + SEED CODES (Phase 16):
+-- pass a `seededRng` (from SeededRng.new) plus a `seedMode` of
+-- "daily"/"weekly"/"seed" to start a seeded run instead of a normal one
+-- -- forces deckVariantId/difficultyId to "standard"/"standard"
+-- regardless of what was passed in, same as every seeded run, so
+-- everyone actually starts from the identical place. `seedLabel` is the
+-- dateKey (daily/weekly) or the code itself (seed), shipped to the
+-- client via serializeState so the HUD can show which mode this run is
+-- and, for seed runs, which code. Omitted/nil seededRng behaves exactly
+-- like before this parameter existed -- a normal math.random run.
+local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel)
 	-- PERSISTENT SAVE (Phase 10): seed the fresh RunState's owned Themes
 	-- with whatever this player has permanently bought with Tips in a past
 	-- run, on top of the always-free default RunState.new adds on its own
@@ -793,14 +921,17 @@ local function startNewSession(player, deckVariantId, difficultyId, dailyRng)
 		end
 	end
 
-	local isDaily = dailyRng ~= nil
+	local isDaily = seedMode == "daily"
+	local isWeekly = seedMode == "weekly"
+	local isSeeded = seedMode == "seed"
+	local forceStandard = seededRng ~= nil -- every seeded mode (daily/weekly/seed) forces standard/standard, for the same "everyone/both of you actually start from the identical place" reason Daily always has
 
 	sessions[player] = {
 		state = RunState.new({
-			deckVariantId = isDaily and "standard" or deckVariantId,
-			difficultyId = isDaily and "standard" or difficultyId,
+			deckVariantId = forceStandard and "standard" or deckVariantId,
+			difficultyId = forceStandard and "standard" or difficultyId,
 			ownedThemeIds = ownedThemeIds,
-		}, dailyRng),
+		}, seededRng),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
 		-- Select even before the very first blind), not straight into
@@ -822,7 +953,18 @@ local function startNewSession(player, deckVariantId, difficultyId, dailyRng)
 		-- happens to cross a UTC midnight while still in progress keeps
 		-- submitting to the day it actually started on, not "today."
 		isDaily = isDaily,
-		dailyDateKey = isDaily and SeededRng.dailyDateKey() or nil,
+		dailyDateKey = isDaily and seedLabel or nil,
+		-- WEEKLY CHALLENGE / SEED CODES (Phase 16): same fixed-at-start
+		-- reasoning as dailyDateKey's comment above -- a Weekly run that
+		-- happens to cross into a new 7-day window while still in
+		-- progress keeps submitting to the window it actually started
+		-- on. Seed runs have no leaderboard, so seedCode is purely a
+		-- label for the HUD ("Seed Run: STORM7") -- nothing reads it
+		-- back out for scoring.
+		isWeekly = isWeekly,
+		weeklyDateKey = isWeekly and seedLabel or nil,
+		isSeeded = isSeeded,
+		seedCode = isSeeded and seedLabel or nil,
 	}
 
 	if profile then
@@ -855,6 +997,7 @@ Players.PlayerRemoving:Connect(function(player)
 	-- path for a player who just leaves normally.
 	saveProfile(player)
 	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
+	saveWeeklyScore(player) -- WEEKLY CHALLENGE (Phase 16)
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
@@ -862,6 +1005,9 @@ Players.PlayerRemoving:Connect(function(player)
 	dailyPending[player] = nil
 	dailyDirty[player] = nil
 	lastLeaderboardRequest[player] = nil
+	weeklyPending[player] = nil
+	weeklyDirty[player] = nil
+	lastWeeklyLeaderboardRequest[player] = nil
 end)
 
 -- In Studio, PlayerAdded may have already fired for existing test players.
@@ -882,6 +1028,9 @@ task.spawn(function()
 			end
 			if dailyDirty[player] then
 				saveDailyScore(player)
+			end
+			if weeklyDirty[player] then
+				saveWeeklyScore(player)
 			end
 		end
 	end
@@ -908,6 +1057,13 @@ game:BindToClose(function()
 			pending = pending + 1
 			task.spawn(function()
 				saveDailyScore(player)
+				pending = pending - 1
+			end)
+		end
+		if weeklyDirty[player] then
+			pending = pending + 1
+			task.spawn(function()
+				saveWeeklyScore(player)
 				pending = pending - 1
 			end)
 		end
@@ -1282,6 +1438,59 @@ EquipThemeRemote.OnServerEvent:Connect(function(player, themeId)
 	pushState(player)
 end)
 
+-- ACHIEVEMENTS + TITLES (Phase 16): operates on the permanent
+-- `profiles[player]`, not the per-run `session.state`, since a Title is
+-- a cross-run choice (same reasoning ownedThemeIds moved to
+-- PlayerProfile for in PERSISTENT SAVE, Phase 10) -- still gated on an
+-- active session existing, purely so a stray remote fire from a not-
+-- fully-loaded client can't do anything. `titleId == nil` is a valid,
+-- intentional "clear my equipped title" call, not a malformed one.
+EquipTitleRemote.OnServerEvent:Connect(function(player, titleId)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile then
+		return
+	end
+	if titleId ~= nil and type(titleId) ~= "string" then
+		return
+	end
+
+	-- Unlike BuyTheme/EquipTheme's handlers above, this checks 2 separate
+	-- things: `didNotError` (pcall's own "didn't throw" result) AND
+	-- `equipOk` (PlayerProfile.equipTitle's own true/false return) -- so a
+	-- REJECTED equip (not unlocked, bad id -- equipTitle returning false,
+	-- not throwing) doesn't fall through to an unnecessary
+	-- profileDirty/pushState the way a genuine successful change should.
+	local didNotError, equipOk = pcall(PlayerProfile.equipTitle, profile, titleId)
+	if not didNotError then
+		warn("EquipTitle error for " .. player.Name .. ": " .. tostring(equipOk))
+		return
+	end
+	if not equipOk then
+		return
+	end
+
+	profileDirty[player] = true
+	pushState(player)
+end)
+
+-- TUTORIAL (Phase 16): fired once by Client/Tutorial.lua when the
+-- walkthrough is dismissed (either "Got it!" on the last step, or
+-- "Skip") -- idempotent, so no harm if it somehow fires more than once
+-- for the same player.
+MarkTutorialSeenRemote.OnServerEvent:Connect(function(player)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	if profile.hasSeenTutorial then
+		return -- already marked -- nothing changed, no need to dirty/push
+	end
+	PlayerProfile.markTutorialSeen(profile)
+	profileDirty[player] = true
+	pushState(player)
+end)
+
 AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
 	if not session or session.phase ~= "shop" then
@@ -1384,7 +1593,7 @@ StartDailyChallengeRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 	local seed = SeededRng.dailySeed()
-	startNewSession(player, nil, nil, SeededRng.new(seed))
+	startNewSession(player, nil, nil, SeededRng.new(seed), "daily", SeededRng.dailyDateKey())
 end)
 
 -- RemoteFunction, not RemoteEvent -- the client needs the actual
@@ -1464,3 +1673,101 @@ GetDailyLeaderboardRemote.OnServerInvoke = function(player)
 		yourBestOk = yourBestOk,
 	}
 end
+
+-- ===== Weekly Challenge (Phase 16) =====
+-- Deliberately a straight copy of the Daily Challenge handlers just
+-- above -- same request/response shape, just Weekly's tables/store/seed
+-- functions in place of Daily's. See "Weekly Challenge Leaderboard"
+-- section (near saveDailyScore) for why these stayed separate functions
+-- instead of a parameterized shared one.
+
+StartWeeklyChallengeRemote.OnServerEvent:Connect(function(player)
+	if not sessions[player] then
+		return
+	end
+	local seed = SeededRng.weeklySeed()
+	startNewSession(player, nil, nil, SeededRng.new(seed), "weekly", SeededRng.weeklyDateKey())
+end)
+
+GetWeeklyLeaderboardRemote.OnServerInvoke = function(player)
+	local now = os.clock()
+	if lastWeeklyLeaderboardRequest[player] and now - lastWeeklyLeaderboardRequest[player] < LEADERBOARD_COOLDOWN then
+		return { ok = false, dateKey = SeededRng.weeklyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
+	end
+	lastWeeklyLeaderboardRequest[player] = now
+
+	local weekKey = SeededRng.weeklyDateKey()
+	local store = getWeeklyStore(weekKey)
+
+	local top = {}
+	local ok = pcall(function()
+		local pages = store:GetSortedAsync(false, 10)
+		local page = pages:GetCurrentPage()
+		for _, entry in ipairs(page) do
+			local userId = tonumber(entry.key)
+			local combinedScore = entry.value
+			local name = nil
+			if userId then
+				local nameOk, resolvedName = pcall(function()
+					return Players:GetNameFromUserIdAsync(userId)
+				end)
+				if nameOk then
+					name = resolvedName
+				end
+			end
+			table.insert(top, {
+				userId = userId,
+				name = name or "???",
+				depth = math.floor(combinedScore / DAILY_SCORE_MULTIPLIER),
+				tips = combinedScore % DAILY_SCORE_MULTIPLIER,
+			})
+		end
+	end)
+
+	local yourBest = nil
+	local yourBestOk = pcall(function()
+		local raw = store:GetAsync(tostring(player.UserId))
+		if type(raw) == "number" then
+			yourBest = {
+				depth = math.floor(raw / DAILY_SCORE_MULTIPLIER),
+				tips = raw % DAILY_SCORE_MULTIPLIER,
+			}
+		end
+	end)
+	local pending = weeklyPending[player]
+	if pending and pending.weekKey == weekKey and (not yourBest or pending.depth > yourBest.depth) then
+		yourBest = { depth = pending.depth, tips = pending.tips }
+	end
+
+	return {
+		ok = ok,
+		dateKey = weekKey,
+		top = top,
+		yourBest = yourBest,
+		yourBestOk = yourBestOk,
+	}
+end
+
+-- ===== Shareable Seed Codes (Phase 16) =====
+-- No leaderboard -- this is for two friends comparing one specific run
+-- on demand (see SeededRng.lua's header for what "same seed" guarantees
+-- once your choices start diverging from theirs), not a ranked board.
+-- Server-side validation is deliberately light (just a length/type
+-- check) since a bad/garbage code just produces SOME deterministic seed
+-- -- there's no invalid input here, only "not the code your friend
+-- typed," which is a matched-code problem between the two of you, not a
+-- server-side error case.
+StartSeedRunRemote.OnServerEvent:Connect(function(player, code)
+	if not sessions[player] then
+		return
+	end
+	if type(code) ~= "string" then
+		return
+	end
+	code = string.upper(code)
+	if #code < 1 or #code > 20 then
+		return
+	end
+	local seed = SeededRng.codeToSeed(code)
+	startNewSession(player, nil, nil, SeededRng.new(seed), "seed", code)
+end)

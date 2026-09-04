@@ -234,7 +234,7 @@ local patronSlots = SidebarModule.patronSlots
 local MAX_SIDEBAR_PATRON_SLOTS = SidebarModule.MAX_SIDEBAR_PATRON_SLOTS
 local scorePreviewBox = SidebarModule.scorePreviewBox
 local scorePreviewLabel = SidebarModule.scorePreviewLabel
-local setDailyBadge = SidebarModule.setDailyBadge
+local setRunModeBadge = SidebarModule.setRunModeBadge
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
@@ -329,7 +329,7 @@ addTooltip(journeyButton, "Journey -- see the road ahead", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
 addTooltip(settingsButton, "Settings", "left")
 addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
-addTooltip(leaderboardButton, "Daily Challenge leaderboard", "left")
+addTooltip(leaderboardButton, "Daily / Weekly Challenge leaderboards", "left")
 
 end -- Generic hover tooltip
 
@@ -670,6 +670,32 @@ local gameOverFrame = GameOverPanel.gameOverFrame
 local playAgainButton = GameOverPanel.playAgainButton
 local refreshGameOver = GameOverPanel.refreshGameOver
 
+-- TUTORIAL (Phase 16): built BEFORE Menu.lua, and DOES need its own
+-- top-level local (unlike SeedRunDialog just below) -- openTutorial is
+-- called from 2 places: Menu.lua's "Tutorial" button, AND render()'s
+-- own auto-show-once-for-a-brand-new-player check further down, so it
+-- can't be inlined away the way a single-use dep can.
+local openTutorial = require(script.Tutorial)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
+	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
+}).openTutorial
+
+-- WEEKLY CHALLENGE + SEED CODES (Phase 16): SeedRunDialog.lua is built
+-- INLINE, right inside Menu.lua's own deps table below, deliberately NOT
+-- captured as its own top-level local (init.client.lua is already right
+-- up against Lua's 200-local-per-chunk ceiling, same constraint the
+-- Daily Challenge button comment above documents) -- only its
+-- `.showSeedRunDialog` field is threaded through, as `openSeedRunDialog`,
+-- for Menu.lua's "Seed Run..." button to call. Same reasoning for
+-- requiring Shared/Engine/SeededRng inline right there too, rather than
+-- as its own local -- nothing else client-side needs it.
 local MenuScreen = require(script.Menu)({
 	screenGui = screenGui,
 	polishButton = polishButton,
@@ -677,6 +703,20 @@ local MenuScreen = require(script.Menu)({
 	addButtonHoverScale = addButtonHoverScale,
 	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
 	playClickSfx = playClickSfx,
+	StartWeeklyChallengeRemote = remotes:WaitForChild("StartWeeklyChallenge"),
+	openTutorial = openTutorial,
+	openSeedRunDialog = require(script.SeedRunDialog)({
+		screenGui = screenGui,
+		polishPanel = polishPanel,
+		polishButton = polishButton,
+		addSoftShadow = addSoftShadow,
+		playClickSfx = playClickSfx,
+		popIn = popIn,
+		popOut = popOut,
+		addButtonHoverScale = addButtonHoverScale,
+		StartSeedRunRemote = remotes:WaitForChild("StartSeedRun"),
+		SeededRng = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeededRng")),
+	}).showSeedRunDialog,
 })
 local menuFrame = MenuScreen.menuFrame
 local menuPlayButton = MenuScreen.menuPlayButton
@@ -963,6 +1003,13 @@ require(script.Collection)({
 	collectionButton = collectionButton,
 	Patrons = Patrons,
 	Themes = Themes,
+	-- ACHIEVEMENTS + TITLES (Phase 16): required inline rather than as
+	-- its own top-level local -- init.client.lua is already right up
+	-- against Lua's 200-local-per-chunk ceiling (Menu.lua's header
+	-- comment has the fuller explanation), and nothing else client-side
+	-- needs this module.
+	Achievements = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Achievements")),
+	EquipTitleRemote = remotes:WaitForChild("EquipTitle"),
 	getLatestState = function()
 		return latestState
 	end,
@@ -984,6 +1031,7 @@ require(script.DailyLeaderboard)({
 	playClickSfx = playClickSfx,
 	leaderboardButton = leaderboardButton,
 	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
+	GetWeeklyLeaderboardRemote = remotes:WaitForChild("GetWeeklyLeaderboard"),
 	localPlayer = player,
 	popIn = popIn,
 	popOut = popOut,
@@ -1079,6 +1127,14 @@ local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
 local lastPhase = nil
+-- TUTORIAL (Phase 16): a purely client-side guard so the auto-show check
+-- in render() only ever fires openTutorial() once per client session,
+-- even though several state pushes can land (all still reporting
+-- state.hasSeenTutorial == false) before the player actually dismisses
+-- the walkthrough and MarkTutorialSeenRemote's round trip flips it true
+-- server-side -- set true synchronously the moment auto-open decides to
+-- act, independent of that round trip.
+local tutorialAutoShown = false
 
 -- POLISH PASS: sidebar pulse tracking -- Tips/Hands/Discards/Patron-slot
 -- flashes below (see the LAYOUT FEATURE 5 / tipsLabel/handsDiscardsLabel
@@ -1665,6 +1721,19 @@ end
 local function render(state)
 	latestState = state
 
+	-- TUTORIAL (Phase 16): auto-show exactly once per client session, only
+	-- for a genuinely brand-new player (state.hasSeenTutorial reports
+	-- false server-side only until they dismiss/skip it for the very
+	-- first time ever -- see PlayerProfile.lua's header). Menu-screen-only
+	-- deliberately isn't enforced here -- a player who's mid-run when this
+	-- first fires (shouldn't normally happen, since it's brand new
+	-- players) would just see it pop over their game, same as any other
+	-- overlay in this codebase.
+	if not tutorialAutoShown and state.hasSeenTutorial == false then
+		tutorialAutoShown = true
+		openTutorial()
+	end
+
 	-- BUGFIX (Ahmed's Studio screenshot): a score reveal sequence can
 	-- easily still be mid-animation (several anticipation pauses stacked
 	-- up) when the hand that was just played WINS the round and the
@@ -1708,12 +1777,13 @@ local function render(state)
 	else
 		nightRoundLabel.Text = string.format("Night %d/%d - Round %d", state.night, nightCap, state.round)
 	end
-	-- DAILY CHALLENGE (Phase 11): show/hide the sidebar badge based on
-	-- whatever the server says THIS run is -- state.isDaily/dailyDateKey
-	-- are shipped fresh in every serializeState() call, so this always
-	-- reflects the actual current run, including after "New Run..." swaps
-	-- a Daily Challenge run back out for a normal one.
-	setDailyBadge(state.isDaily, state.dailyDateKey)
+	-- DAILY CHALLENGE (Phase 11) / WEEKLY CHALLENGE + SEED CODES (Phase
+	-- 16): show/hide the sidebar badge based on whatever the server says
+	-- THIS run is -- state.isDaily/dailyDateKey (and their Weekly/Seeded
+	-- counterparts) are shipped fresh in every serializeState() call, so
+	-- this always reflects the actual current run, including after
+	-- "New Run..." swaps a seeded run back out for a normal one.
+	setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
 	-- POLISH PASS: flash the Tips box gold on a gain, red on a loss/spend --
 	-- and the Hands/Discards box red whenever either ticks down (a hand
 	-- played or a discard used). Guarded by hasRenderedOnce so a fresh

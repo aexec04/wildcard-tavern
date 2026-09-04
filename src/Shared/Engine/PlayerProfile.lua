@@ -27,6 +27,22 @@
 	    discovered-Patron/Theme grid. Deliberately minimal -- this is not a
 	    full stats/leaderboard system, just enough to answer "have I ever
 	    actually won a run, and how far did I get."
+	  - `hasSeenTutorial` -- TUTORIAL (Phase 16): flips true the first time
+	    this player dismisses (or skips) the first-time-player walkthrough
+	    (Client/Tutorial.lua) -- lets the client auto-show it exactly once
+	    ever, for a genuinely brand-new player, without it ever popping up
+	    again on a later run/rejoin. Manually reopenable any time from the
+	    menu regardless of this flag -- this only gates the AUTOMATIC
+	    first-time popup.
+	  - `equippedTitleId` -- ACHIEVEMENTS + TITLES (Phase 16): which of
+	    Shared/Engine/Achievements.lua's titles this player has chosen to
+	    show off, or nil for none equipped. This is the one piece of the
+	    achievements feature that actually needs saving -- which
+	    achievements are UNLOCKED is deliberately never stored (see
+	    Achievements.lua's header for why that's safe to just recompute
+	    from `stats`/discoveredPatronIds/ownedThemeIds every time) -- but
+	    which one you've chosen to WEAR is a real, unrecoverable player
+	    choice, so it's the only new field this file needed to gain.
 
 	Deliberately NOT covered by this file (a scope decision, not an
 	oversight): an in-progress RUN itself. Closing the game mid-run still
@@ -41,6 +57,8 @@
 	DataStoreService calls (which DO need Roblox) live in
 	Server/init.server.lua; this file only ever touches plain Lua tables.
 ]]
+
+local Achievements = require(script.Parent.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
 
 local PlayerProfile = {}
 
@@ -60,6 +78,8 @@ function PlayerProfile.new()
 			runsWon = 0,
 			bestNightReached = 0,
 		},
+		equippedTitleId = nil, -- ACHIEVEMENTS + TITLES (Phase 16): an Achievements.Definitions id, or nil for no title equipped
+		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
 	}
 end
 
@@ -104,6 +124,23 @@ function PlayerProfile.migrate(raw)
 		if type(rawStats.bestNightReached) == "number" then
 			profile.stats.bestNightReached = math.max(0, math.floor(rawStats.bestNightReached))
 		end
+	end
+
+	-- ACHIEVEMENTS + TITLES (Phase 16): validated AFTER everything above
+	-- (discoveredPatronIds/ownedThemeIds/stats) is already settled onto
+	-- `profile`, since checking whether this title is still actually
+	-- unlocked needs all of those. Deliberately just drops an
+	-- invalid/no-longer-unlocked saved title rather than erroring --
+	-- e.g. if a future balance change ever raised a requirement's
+	-- threshold past what this player has, they'd simply need to
+	-- re-equip once they qualify again, same as any other soft
+	-- migration in this function.
+	if type(raw.equippedTitleId) == "string" and Achievements.isUnlocked(profile, raw.equippedTitleId) then
+		profile.equippedTitleId = raw.equippedTitleId
+	end
+
+	if raw.hasSeenTutorial == true then
+		profile.hasSeenTutorial = true
 	end
 
 	return profile
@@ -167,6 +204,31 @@ end
 -- function just does the counter increment once told to).
 function PlayerProfile.recordRunWon(profile)
 	profile.stats.runsWon = profile.stats.runsWon + 1
+end
+
+-- ACHIEVEMENTS + TITLES (Phase 16): equips (or, passing nil, un-equips)
+-- a Title -- re-validates against Achievements.isUnlocked every call
+-- (never trusts a client-supplied id blindly), so this is safe to call
+-- directly off a remote handler with zero other server-side checks.
+function PlayerProfile.equipTitle(profile, achievementId)
+	if achievementId == nil then
+		profile.equippedTitleId = nil
+		return true, "Title cleared."
+	end
+	if type(achievementId) ~= "string" then
+		return false, "Invalid title"
+	end
+	if not Achievements.isUnlocked(profile, achievementId) then
+		return false, "Title not unlocked"
+	end
+	profile.equippedTitleId = achievementId
+	return true, "Title equipped."
+end
+
+-- TUTORIAL (Phase 16): idempotent -- safe to call even if already true
+-- (Server/init.server.lua's handler doesn't bother checking first).
+function PlayerProfile.markTutorialSeen(profile)
+	profile.hasSeenTutorial = true
 end
 
 return PlayerProfile

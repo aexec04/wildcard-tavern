@@ -154,6 +154,66 @@ Themes.Definitions = {
 			cardSelected = Color3.fromRGB(120, 235, 255),
 		},
 	},
+	-- PHASE 16 (cosmetics batch): 4 new Themes, deliberately Tips-priced
+	-- and NOT added to any GamePasses.Definitions `grantsThemes` list --
+	-- every non-default Theme up to this point was Robux-Game-Pass-gated,
+	-- which meant there was actually nothing a Tips-earning player could
+	-- ever spend Tips on a Theme for (Client/Themes.lua's "Buy (N)"
+	-- button path already exists in code -- GamePasses.passForTheme()
+	-- returning nil is what shows it instead of "Get Pass" -- it just had
+	-- no un-gated Theme to ever apply to). These 4 close that gap.
+	{
+		id = "amethyst_lounge",
+		name = "Amethyst Lounge",
+		description = "A velvet-draped back room -- deep purple felt under low violet light.",
+		price = 10,
+		colors = {
+			background = Color3.fromRGB(22, 14, 30),
+			panelBg = Color3.fromRGB(38, 24, 50),
+			accent = Color3.fromRGB(130, 80, 190),
+			cardBase = Color3.fromRGB(245, 238, 250),
+			cardSelected = Color3.fromRGB(190, 140, 245),
+		},
+	},
+	{
+		id = "copper_speakeasy",
+		name = "Copper Speakeasy",
+		description = "Worn copper piping and low rust-toned lamplight -- a scruffier, quieter warmth than Golden Hour's bright sunset gold.",
+		price = 9,
+		colors = {
+			background = Color3.fromRGB(28, 18, 12),
+			panelBg = Color3.fromRGB(48, 30, 20),
+			accent = Color3.fromRGB(180, 95, 45),
+			cardBase = Color3.fromRGB(248, 236, 222),
+			cardSelected = Color3.fromRGB(225, 140, 80),
+		},
+	},
+	{
+		id = "slate_parlor",
+		name = "Slate Parlor",
+		description = "Cool grey stone and brushed steel -- calmer and more neutral than Midnight Blue.",
+		price = 9,
+		colors = {
+			background = Color3.fromRGB(20, 22, 24),
+			panelBg = Color3.fromRGB(34, 38, 42),
+			accent = Color3.fromRGB(110, 122, 132),
+			cardBase = Color3.fromRGB(240, 242, 244),
+			cardSelected = Color3.fromRGB(170, 185, 195),
+		},
+	},
+	{
+		id = "mint_julep",
+		name = "Mint Julep",
+		description = "Fresh teal and pale mint -- a lighter, cooler green than Forest's deep back-room shade.",
+		price = 10,
+		colors = {
+			background = Color3.fromRGB(12, 26, 24),
+			panelBg = Color3.fromRGB(20, 44, 40),
+			accent = Color3.fromRGB(60, 160, 140),
+			cardBase = Color3.fromRGB(235, 250, 246),
+			cardSelected = Color3.fromRGB(120, 225, 195),
+		},
+	},
 }
 
 function Themes.getById(id)

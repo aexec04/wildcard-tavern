@@ -27,6 +27,8 @@ local Packs = require(script.Parent.Parent.Engine.Packs)
 local Tags = require(script.Parent.Parent.Engine.Tags)
 local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile) -- PERSISTENT SAVE, Phase 10
 local SeededRng = require(script.Parent.Parent.Engine.SeededRng) -- DAILY CHALLENGE, Phase 11
+local GamePasses = require(script.Parent.Parent.Engine.GamePasses) -- PHASE 16 cosmetics batch: confirms the 4 new Themes are un-gated
+local Achievements = require(script.Parent.Parent.Engine.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -511,6 +513,35 @@ table.insert(tests, { name = "RunState.equipTheme succeeds once the theme is own
 	local ok = RunState.equipTheme(state, "midnight_blue")
 	expectTrue(ok)
 	expectEqual(state.equippedTheme, "midnight_blue")
+end })
+
+-- ===== Themes: cosmetics batch (Phase 16) =====
+-- 4 new Tips-priced Themes -- see Themes.lua's header comment on these
+-- for why every Theme before this batch was actually Robux-Game-Pass-
+-- gated, leaving nothing a Tips-earning player could spend Tips on.
+
+table.insert(tests, { name = "Phase 16 cosmetics: the 4 new Themes exist and are NOT gated behind any Game Pass", fn = function()
+	local newThemeIds = { "amethyst_lounge", "copper_speakeasy", "slate_parlor", "mint_julep" }
+	for _, themeId in ipairs(newThemeIds) do
+		local theme = Themes.getById(themeId)
+		expectTrue(theme ~= nil, themeId .. " should exist in Themes.Definitions")
+		expectTrue(theme.price > 0, themeId .. " should have a real Tips price")
+		expectTrue(GamePasses.passForTheme(themeId) == nil, themeId .. " should NOT be gated behind a Game Pass")
+	end
+end })
+
+table.insert(tests, { name = "Phase 16 cosmetics: buying and equipping a new Theme with Tips works end-to-end", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 50
+	local theme = Themes.getById("amethyst_lounge")
+	local tipsBefore = state.tips
+	local buyOk = RunState.buyTheme(state, "amethyst_lounge")
+	expectTrue(buyOk)
+	expectEqual(state.tips, tipsBefore - theme.price)
+	expectTrue(state.ownedThemes.amethyst_lounge)
+	local equipOk = RunState.equipTheme(state, "amethyst_lounge")
+	expectTrue(equipOk)
+	expectEqual(state.equippedTheme, "amethyst_lounge")
 end })
 
 -- ===== BossRounds =====
@@ -2302,6 +2333,138 @@ table.insert(tests, { name = "PlayerProfile.recordRunStarted / recordRunWon: pla
 	expectEqual(profile.stats.runsWon, 1)
 end })
 
+-- ===== Achievements + Titles (Phase 16) =====
+
+table.insert(tests, { name = "Achievements.isUnlocked: false for a fresh profile, true once the requirement is met", fn = function()
+	local profile = PlayerProfile.new()
+	expectFalse(Achievements.isUnlocked(profile, "first_steps"))
+	PlayerProfile.recordRunStarted(profile)
+	expectTrue(Achievements.isUnlocked(profile, "first_steps"))
+end })
+
+table.insert(tests, { name = "Achievements.isUnlocked: an unknown id is always false, never errors", fn = function()
+	local profile = PlayerProfile.new()
+	expectFalse(Achievements.isUnlocked(profile, "not_a_real_achievement"))
+end })
+
+table.insert(tests, { name = "Achievements: runsWon-tiered achievements unlock at their own threshold, not before", fn = function()
+	local profile = PlayerProfile.new()
+	for _ = 1, 4 do
+		PlayerProfile.recordRunWon(profile)
+	end
+	expectTrue(Achievements.isUnlocked(profile, "closing_time"))
+	expectFalse(Achievements.isUnlocked(profile, "regular"), "4 wins shouldn't be enough for the 5-win achievement")
+	PlayerProfile.recordRunWon(profile)
+	expectTrue(Achievements.isUnlocked(profile, "regular"), "the 5th win should unlock it")
+	expectFalse(Achievements.isUnlocked(profile, "tavern_legend"))
+end })
+
+table.insert(tests, { name = "Achievements: bestNightReached-tiered achievements (Deep Cuts / Into the Endless)", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordNightReached(profile, 3)
+	expectFalse(Achievements.isUnlocked(profile, "deep_cuts"))
+	PlayerProfile.recordNightReached(profile, 4)
+	expectTrue(Achievements.isUnlocked(profile, "deep_cuts"))
+	expectFalse(Achievements.isUnlocked(profile, "into_the_endless"), "Night 4 shouldn't unlock the Night-9 Endless achievement")
+	PlayerProfile.recordNightReached(profile, 9)
+	expectTrue(Achievements.isUnlocked(profile, "into_the_endless"))
+end })
+
+table.insert(tests, { name = "Achievements: discoveredPatronIds-count achievements (Patron Saint / Full House / Every Patron)", fn = function()
+	local profile = PlayerProfile.new()
+	local ids = {}
+	for i = 1, 9 do
+		table.insert(ids, "fake_patron_" .. i)
+	end
+	PlayerProfile.recordPatronsFound(profile, ids)
+	expectFalse(Achievements.isUnlocked(profile, "patron_saint"), "9 discovered shouldn't be enough for the 10-Patron achievement")
+	PlayerProfile.recordPatronsFound(profile, { "fake_patron_10" })
+	expectTrue(Achievements.isUnlocked(profile, "patron_saint"))
+	expectFalse(Achievements.isUnlocked(profile, "full_house"))
+	expectFalse(Achievements.isUnlocked(profile, "every_patron"))
+end })
+
+table.insert(tests, { name = "Achievements: ownedThemeIds-count achievements (Redecorated / Theme Connoisseur)", fn = function()
+	local profile = PlayerProfile.new()
+	expectFalse(Achievements.isUnlocked(profile, "redecorated"))
+	PlayerProfile.recordThemesOwned(profile, { "amethyst_lounge" })
+	expectTrue(Achievements.isUnlocked(profile, "redecorated"))
+	expectFalse(Achievements.isUnlocked(profile, "theme_connoisseur"))
+	PlayerProfile.recordThemesOwned(profile, { "copper_speakeasy", "slate_parlor", "mint_julep" })
+	expectTrue(Achievements.isUnlocked(profile, "theme_connoisseur"))
+end })
+
+table.insert(tests, { name = "Achievements.unlockedFor: returns exactly the achievements this profile currently qualifies for", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunStarted(profile)
+	PlayerProfile.recordRunWon(profile)
+	local unlocked = Achievements.unlockedFor(profile)
+	local unlockedIds = {}
+	for _, a in ipairs(unlocked) do
+		unlockedIds[a.id] = true
+	end
+	expectTrue(unlockedIds.first_steps)
+	expectTrue(unlockedIds.closing_time)
+	expectFalse(unlockedIds.regular == true)
+end })
+
+table.insert(tests, { name = "PlayerProfile.equipTitle: refuses a title that isn't unlocked yet", fn = function()
+	local profile = PlayerProfile.new()
+	local ok, message = PlayerProfile.equipTitle(profile, "closing_time")
+	expectFalse(ok)
+	expectTrue(message ~= nil)
+	expectEqual(profile.equippedTitleId, nil)
+end })
+
+table.insert(tests, { name = "PlayerProfile.equipTitle: succeeds once the achievement is unlocked, and nil clears it", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunStarted(profile)
+	local ok = PlayerProfile.equipTitle(profile, "first_steps")
+	expectTrue(ok)
+	expectEqual(profile.equippedTitleId, "first_steps")
+	local clearOk = PlayerProfile.equipTitle(profile, nil)
+	expectTrue(clearOk)
+	expectEqual(profile.equippedTitleId, nil)
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: a saved equippedTitleId round-trips only while still actually unlocked", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordRunStarted(profile)
+	PlayerProfile.equipTitle(profile, "first_steps")
+	local reloaded = PlayerProfile.migrate(profile)
+	expectEqual(reloaded.equippedTitleId, "first_steps")
+
+	-- A saved title for an achievement this (corrupt/rolled-back) profile
+	-- no longer actually qualifies for should be dropped, not trusted.
+	local badProfile = PlayerProfile.new()
+	badProfile.equippedTitleId = "tavern_legend" -- runsWon is still 0
+	local reloadedBad = PlayerProfile.migrate(badProfile)
+	expectEqual(reloadedBad.equippedTitleId, nil)
+end })
+
+-- ===== Tutorial (Phase 16) =====
+
+table.insert(tests, { name = "PlayerProfile.new: hasSeenTutorial starts false", fn = function()
+	local profile = PlayerProfile.new()
+	expectFalse(profile.hasSeenTutorial)
+end })
+
+table.insert(tests, { name = "PlayerProfile.markTutorialSeen: flips the flag, is idempotent, and survives a migrate round-trip", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.markTutorialSeen(profile)
+	expectTrue(profile.hasSeenTutorial)
+	PlayerProfile.markTutorialSeen(profile) -- calling again shouldn't error or change anything
+	expectTrue(profile.hasSeenTutorial)
+
+	local reloaded = PlayerProfile.migrate(profile)
+	expectTrue(reloaded.hasSeenTutorial)
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: a saved profile predating this field defaults hasSeenTutorial to false", fn = function()
+	local reloaded = PlayerProfile.migrate({ stats = { runsStarted = 3, runsWon = 1, bestNightReached = 2 } })
+	expectFalse(reloaded.hasSeenTutorial)
+end })
+
 -- ===== RunState.new: seeding ownedThemes from a saved profile (Phase 10) =====
 
 table.insert(tests, { name = "RunState.new: without ownedThemeIds, only the free default is owned (unchanged pre-Phase-10 behavior)", fn = function()
@@ -2399,6 +2562,83 @@ table.insert(tests, { name = "SeededRng: RunState.new accepts it as a drop-in rn
 		expectEqual(stateA.hand[i].rank, stateB.hand[i].rank)
 		expectEqual(stateA.hand[i].suit, stateB.hand[i].suit)
 	end
+end })
+
+-- ===== SeededRng: Weekly Challenge + Shareable Seed Codes (Phase 16) =====
+
+table.insert(tests, { name = "SeededRng.weeklySeed: timestamps in the same 7-day window produce the same seed/key", fn = function()
+	-- An exact multiple of a week (604800s), so this IS a window boundary
+	-- itself -- avoids any off-by-a-remainder ambiguity about which
+	-- window a given raw timestamp falls into.
+	local startOfWindow = 2956 * 604800
+	local laterSameWindow = startOfWindow + 86400 * 6 -- +6 days (518400s), still < 604800s into the window
+	expectEqual(SeededRng.weeklySeed(startOfWindow), SeededRng.weeklySeed(laterSameWindow))
+	expectEqual(SeededRng.weeklyDateKey(startOfWindow), SeededRng.weeklyDateKey(laterSameWindow))
+end })
+
+table.insert(tests, { name = "SeededRng.weeklySeed: a week later produces a different seed/key", fn = function()
+	local week1 = 2956 * 604800
+	local week2 = week1 + 604800 -- exactly 1 window later
+	expectFalse(SeededRng.weeklySeed(week1) == SeededRng.weeklySeed(week2))
+	expectFalse(SeededRng.weeklyDateKey(week1) == SeededRng.weeklyDateKey(week2))
+end })
+
+table.insert(tests, { name = "SeededRng.weeklyDateKey: distinct from a same-instant dailyDateKey (no key collisions between the two boards)", fn = function()
+	local t = 1788134400
+	expectFalse(SeededRng.weeklyDateKey(t) == SeededRng.dailyDateKey(t))
+end })
+
+table.insert(tests, { name = "SeededRng: a Weekly seed also works as a drop-in rng and stays deterministic end-to-end", fn = function()
+	local seed = SeededRng.weeklySeed(1788134400)
+	local stateA = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	local stateB = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	RunState.startRound(stateA)
+	RunState.startRound(stateB)
+	for i = 1, #stateA.hand do
+		expectEqual(stateA.hand[i].rank, stateB.hand[i].rank)
+		expectEqual(stateA.hand[i].suit, stateB.hand[i].suit)
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.codeToSeed: the same code always hashes to the same seed", fn = function()
+	expectEqual(SeededRng.codeToSeed("STORM7"), SeededRng.codeToSeed("STORM7"))
+end })
+
+table.insert(tests, { name = "SeededRng.codeToSeed: is case-insensitive", fn = function()
+	expectEqual(SeededRng.codeToSeed("storm7"), SeededRng.codeToSeed("STORM7"))
+	expectEqual(SeededRng.codeToSeed("StOrM7"), SeededRng.codeToSeed("STORM7"))
+end })
+
+table.insert(tests, { name = "SeededRng.codeToSeed: different codes (usually) hash to different seeds", fn = function()
+	expectFalse(SeededRng.codeToSeed("STORM7") == SeededRng.codeToSeed("BREEZE9"))
+end })
+
+table.insert(tests, { name = "SeededRng.codeToSeed: an empty/nil code doesn't error and still produces a stable seed", fn = function()
+	expectEqual(SeededRng.codeToSeed(""), SeededRng.codeToSeed(""))
+	expectEqual(SeededRng.codeToSeed(nil), SeededRng.codeToSeed(nil))
+end })
+
+table.insert(tests, { name = "SeededRng: a code's seed also works as a drop-in rng and stays deterministic end-to-end", fn = function()
+	local seed = SeededRng.codeToSeed("STORM7")
+	local stateA = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	local stateB = RunState.new({ deckVariantId = "standard", difficultyId = "standard" }, SeededRng.new(seed))
+	RunState.startRound(stateA)
+	RunState.startRound(stateB)
+	for i = 1, #stateA.hand do
+		expectEqual(stateA.hand[i].rank, stateB.hand[i].rank)
+		expectEqual(stateA.hand[i].suit, stateB.hand[i].suit)
+	end
+end })
+
+table.insert(tests, { name = "SeededRng.randomCode: produces a code of the requested length using only the safe charset", fn = function()
+	local code = SeededRng.randomCode(8)
+	expectEqual(#code, 8)
+	expectFalse(code:match("[^ABCDEFGHJKMNPQRSTUVWXYZ23456789]") ~= nil)
+end })
+
+table.insert(tests, { name = "SeededRng.randomCode: defaults to length 6 when called with no argument", fn = function()
+	local code = SeededRng.randomCode()
+	expectEqual(#code, 6)
 end })
 
 -- ===== Content pass (Phase 12): 6 more Patrons, 6 more Boss Rounds, =====

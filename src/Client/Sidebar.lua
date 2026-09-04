@@ -42,8 +42,16 @@
 			MAX_SIDEBAR_PATRON_SLOTS = 14,
 			scorePreviewBox = Frame,
 			scorePreviewLabel = TextLabel,
-			setDailyBadge = function(isDaily, dateKey),
+			setRunModeBadge = function(isDaily, dailyDateKey, isWeekly, weeklyDateKey, isSeeded, seedCode),
 		}
+
+	PHASE 16: setDailyBadge was renamed to setRunModeBadge and generalized
+	to cover all 3 seeded-run modes (Daily/Weekly/Seed Code) sharing the
+	one badge box -- only one of the 3 is ever true for a given run, same
+	"at most one seedMode" guarantee Server/init.server.lua's
+	startNewSession keeps, so one shared box (swapping color/text/icon)
+	is simpler than 3 separate boxes that would always show at most one
+	visible anyway.
 
 	POLISH PASS: tipsBox/handsDiscardsBox (previously kept private to this
 	module) now come back out too -- render() in init.client.lua pulses
@@ -106,25 +114,41 @@ return function(deps)
 		return label
 	end
 
-	-- DAILY CHALLENGE (Phase 11): a small badge shown only while the
-	-- current run is a Daily Challenge (state.isDaily), so it's always
-	-- obvious you're in a seeded/leaderboard run and not a normal one.
-	-- Hidden by default; toggled via the `setDailyBadge` function this
-	-- module returns below, called from render() in init.client.lua.
+	-- DAILY CHALLENGE (Phase 11) / WEEKLY CHALLENGE + SEED CODES (Phase
+	-- 16): a small badge shown only while the current run is one of the
+	-- 3 seeded modes, so it's always obvious you're in a seeded/
+	-- leaderboard(or shared) run and not a normal one. Hidden by
+	-- default; toggled via the `setRunModeBadge` function this module
+	-- returns below, called from render() in init.client.lua.
 	-- LayoutOrder -1 (every other sidebar box defaults to 0) keeps this
 	-- pinned to the very top of the sidebar without having to add an
 	-- explicit LayoutOrder to every existing box.
-	local dailyBadgeBox = makeSidebarBox(28)
-	dailyBadgeBox.LayoutOrder = -1
-	dailyBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
-	dailyBadgeBox.Visible = false
-	local dailyBadgeLabel = makeSidebarLabel(dailyBadgeBox, 13, Color3.fromRGB(230, 210, 255))
-	dailyBadgeLabel.Text = "\240\159\147\133 Daily Challenge"
+	local runModeBadgeBox = makeSidebarBox(28)
+	runModeBadgeBox.LayoutOrder = -1
+	runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
+	runModeBadgeBox.Visible = false
+	local runModeBadgeLabel = makeSidebarLabel(runModeBadgeBox, 13, Color3.fromRGB(230, 210, 255))
+	runModeBadgeLabel.Text = "\240\159\147\133 Daily Challenge"
 
-	local function setDailyBadge(isDaily, dateKey)
-		dailyBadgeBox.Visible = isDaily and true or false
-		if isDaily and dateKey then
-			dailyBadgeLabel.Text = "\240\159\147\133 Daily Challenge -- " .. tostring(dateKey)
+	-- At most one of isDaily/isWeekly/isSeeded is ever true for a given
+	-- run (Server/init.server.lua's startNewSession only ever sets one
+	-- seedMode per call) -- checked in that order, first match wins,
+	-- purely so the fallthrough `else` (a normal run) is unambiguous.
+	local function setRunModeBadge(isDaily, dailyDateKey, isWeekly, weeklyDateKey, isSeeded, seedCode)
+		if isDaily then
+			runModeBadgeBox.Visible = true
+			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
+			runModeBadgeLabel.Text = "\240\159\147\133 Daily Challenge" .. (dailyDateKey and (" -- " .. tostring(dailyDateKey)) or "")
+		elseif isWeekly then
+			runModeBadgeBox.Visible = true
+			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(45, 75, 110)
+			runModeBadgeLabel.Text = "🗓 Weekly Challenge" .. (weeklyDateKey and (" -- " .. tostring(weeklyDateKey)) or "")
+		elseif isSeeded then
+			runModeBadgeBox.Visible = true
+			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(55, 95, 60)
+			runModeBadgeLabel.Text = "🎲 Seed Run" .. (seedCode and (" -- " .. tostring(seedCode)) or "")
+		else
+			runModeBadgeBox.Visible = false
 		end
 	end
 
@@ -256,6 +280,6 @@ return function(deps)
 		MAX_SIDEBAR_PATRON_SLOTS = MAX_SIDEBAR_PATRON_SLOTS,
 		scorePreviewBox = scorePreviewBox,
 		scorePreviewLabel = scorePreviewLabel,
-		setDailyBadge = setDailyBadge,
+		setRunModeBadge = setRunModeBadge,
 	}
 end
