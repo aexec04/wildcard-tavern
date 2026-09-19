@@ -83,8 +83,8 @@ return function(deps)
 	menuFrame.Parent = screenGui
 
 	local menuTitle = Instance.new("TextLabel")
-	menuTitle.Size = UDim2.new(1, 0, 0, 80)
-	menuTitle.Position = UDim2.fromScale(0, 0.3)
+	menuTitle.Size = UDim2.new(1, 0, 0, 70)
+	menuTitle.Position = UDim2.new(0, 0, 0, 18)
 	menuTitle.BackgroundTransparency = 1
 	menuTitle.Font = Enum.Font.GothamBold
 	menuTitle.TextSize = 48
@@ -94,8 +94,8 @@ return function(deps)
 	menuTitle.Parent = menuFrame
 
 	local menuSubtitle = Instance.new("TextLabel")
-	menuSubtitle.Size = UDim2.new(1, 0, 0, 30)
-	menuSubtitle.Position = UDim2.fromScale(0, 0.42)
+	menuSubtitle.Size = UDim2.new(1, 0, 0, 26)
+	menuSubtitle.Position = UDim2.new(0, 0, 0, 92)
 	menuSubtitle.BackgroundTransparency = 1
 	menuSubtitle.Font = Enum.Font.Gotham
 	menuSubtitle.TextSize = 18
@@ -104,30 +104,49 @@ return function(deps)
 	menuSubtitle.ZIndex = 10
 	menuSubtitle.Parent = menuFrame
 
-	-- BUGFIX (Daily Challenge cutoff): this holder used to be a FIXED
-	-- 240x110 box, top-anchored at 0.55 down the screen -- sized back when
-	-- there were only 4 buttons, and even then 110px was already short of
-	-- the ~228px 4 buttons actually need (it just happened not to matter,
-	-- since a Frame with ClipsDescendants off doesn't clip its own
-	-- children -- it only stopped mattering because nothing ever ran past
-	-- the bottom of the *screen* itself). Adding the 5th (Daily Challenge)
-	-- button pushed the real content height to ~288px, which on a
-	-- shorter/smaller Studio play window runs past the bottom screen edge
-	-- and gets cut off there -- nothing to do with this Frame's own
-	-- bounds. Fixed properly instead of just re-guessing a bigger fixed
-	-- box: AutomaticSize.Y makes the holder always exactly as tall as its
-	-- buttons, and anchoring/positioning it by its own CENTER (rather than
-	-- top-down from a fixed fraction) keeps the whole block roughly
-	-- centered in the space below the subtitle regardless of how many
-	-- buttons it holds or how tall the screen actually is.
+	-- BUGFIX (title/button overlap on short & landscape screens): the
+	-- title/subtitle used to sit at fixed SCALE positions (0.3 / 0.42 down
+	-- the screen) while the button holder was centered around another
+	-- fixed scale point (0.74) -- neither side knew about the other's
+	-- actual size. That was fragile even at 4 buttons, and became a real,
+	-- visible bug once this grew to 8 buttons (Phases 9/11/16 each added
+	-- one): the button stack's real height (~470px) frequently doesn't
+	-- fit in whatever fraction of a short/landscape screen "0.74 centered"
+	-- happens to land on, so the block rides up and overlaps the title
+	-- text -- exactly what a phone-landscape Studio preview showed.
+	--
+	-- Fixed properly, not by re-guessing another magic percentage: title/
+	-- subtitle now sit in a small FIXED-pixel region pinned to the very
+	-- top of the screen (safe on any screen height), and the buttons live
+	-- inside a ScrollingFrame that fills whatever space is left below
+	-- that region. AutomaticCanvasSize.Y means the scroll area always
+	-- matches the buttons' real content height, and on a screen too short
+	-- to show all 8 at once, it scrolls internally instead of overlapping
+	-- or clipping anything above it -- same "convert to a ScrollingFrame
+	-- instead of guessing a fixed size" fix already used for the Themes
+	-- panel (Phase 14) and the Road Ahead map (Phase 7).
+	local menuButtonScroll = Instance.new("ScrollingFrame")
+	menuButtonScroll.Name = "MenuButtonScroll"
+	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 124)
+	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
+	menuButtonScroll.Size = UDim2.new(0, 260, 1, -134)
+	menuButtonScroll.BackgroundTransparency = 1
+	menuButtonScroll.BorderSizePixel = 0
+	menuButtonScroll.ScrollBarThickness = 6
+	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
+	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+	menuButtonScroll.ZIndex = 10
+	menuButtonScroll.Parent = menuFrame
+
 	local menuButtonHolder = Instance.new("Frame")
-	menuButtonHolder.Size = UDim2.new(0, 240, 0, 0)
+	menuButtonHolder.Size = UDim2.new(1, 0, 0, 0)
 	menuButtonHolder.AutomaticSize = Enum.AutomaticSize.Y
-	menuButtonHolder.Position = UDim2.fromScale(0.5, 0.74)
-	menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+	menuButtonHolder.Position = UDim2.new(0.5, 0, 0, 0)
+	menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0)
 	menuButtonHolder.BackgroundTransparency = 1
 	menuButtonHolder.ZIndex = 10
-	menuButtonHolder.Parent = menuFrame
+	menuButtonHolder.Parent = menuButtonScroll
 
 	local menuButtonLayout = Instance.new("UIListLayout")
 	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
