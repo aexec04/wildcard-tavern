@@ -135,7 +135,7 @@ return function(deps)
 	menuButtonScroll.ScrollBarThickness = 6
 	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
 	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y
+	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	menuButtonScroll.ZIndex = 10
 	menuButtonScroll.Parent = menuFrame
 
