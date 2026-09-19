@@ -245,6 +245,147 @@ do
 	jokerGlow.Parent = jokerGlowAnchor
 end
 
+-- ===== Room dressing: floor rug, hanging chandelier, table clutter =====
+-- VISUAL LIFE PASS: the room read as basically empty despite the
+-- lighting/atmosphere work above -- flat wood floor, one floating light,
+-- nothing that says "someone actually lives/drinks here." These 3 small
+-- additions are all still Parts/SpecialMesh only (no MeshId/ImageId/asset
+-- IDs), same constraint as everything else in this file.
+do
+	-- A round rug under the table -- a slightly darker ring on top of a
+	-- base disc fakes a woven border pattern without needing a real
+	-- texture. Sits just above the floor (+0.05Y) to avoid z-fighting.
+	local rugBase = makePart(
+		Vector3.new(0.1, TABLE_RADIUS * 3.4, TABLE_RADIUS * 3.4),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, 0.05, 0)),
+		Color3.fromRGB(120, 35, 40),
+		Enum.Material.Fabric,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	rugBase.CFrame = rugBase.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	rugBase.CanCollide = false
+	rugBase.Name = "RugBase"
+
+	local rugBorder = makePart(
+		Vector3.new(0.08, TABLE_RADIUS * 3.4, TABLE_RADIUS * 3.4),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, 0.09, 0)),
+		Color3.fromRGB(80, 20, 28),
+		Enum.Material.Fabric,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	rugBorder.CFrame = rugBorder.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	rugBorder.CanCollide = false
+	rugBorder.Name = "RugBorder"
+	-- Cheap "ring" look: a slightly smaller, slightly-raised disc of the
+	-- base rug color sits on top of the border disc, leaving just the
+	-- border color showing around its edge -- 2 stacked cylinders instead
+	-- of a real ring mesh.
+	local rugCenter = makePart(
+		Vector3.new(0.08, TABLE_RADIUS * 3.1, TABLE_RADIUS * 3.1),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, 0.1, 0)),
+		Color3.fromRGB(120, 35, 40),
+		Enum.Material.Fabric,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	rugCenter.CFrame = rugCenter.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	rugCenter.CanCollide = false
+	rugCenter.Name = "RugCenter"
+
+	-- A hanging chandelier over the table -- a chain down to a wooden
+	-- ring with 4 small candle flames around it. Purely decorative/
+	-- floating (this room has no ceiling to actually mount it to, same
+	-- as the violet Joker-glow light above), but reads fine at a normal
+	-- play camera angle, same as the floating torches already do.
+	local chandelierCenter = TABLE_CENTER + Vector3.new(0, WALL_HEIGHT - 3, 0)
+	local chain = makePart(
+		Vector3.new(0.15, 3.5, 0.15),
+		CFrame.new(chandelierCenter + Vector3.new(0, 1.75, 0)),
+		Color3.fromRGB(40, 35, 30),
+		Enum.Material.Metal,
+		sceneModel
+	)
+	chain.CanCollide = false
+	chain.Name = "ChandelierChain"
+
+	local chandelierRing = makePart(
+		Vector3.new(0.4, 2.4, 2.4),
+		CFrame.new(chandelierCenter),
+		WOOD_DARK,
+		Enum.Material.Wood,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	chandelierRing.CFrame = chandelierRing.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	chandelierRing.CanCollide = false
+	chandelierRing.Name = "ChandelierRing"
+
+	for i = 1, 4 do
+		local angle = math.rad((i - 1) * 90)
+		local candleOffset = Vector3.new(math.sin(angle) * 1.15, -0.3, math.cos(angle) * 1.15)
+		local candle = makePart(
+			Vector3.new(0.25, 0.6, 0.25),
+			CFrame.new(chandelierCenter + candleOffset),
+			Color3.fromRGB(230, 220, 200),
+			Enum.Material.Neon,
+			sceneModel
+		)
+		candle.CanCollide = false
+		candle.Name = "ChandelierCandle" .. i
+
+		local flame = Instance.new("Fire")
+		flame.Size = 2
+		flame.Heat = 4
+		flame.Color = Color3.fromRGB(255, 170, 60)
+		flame.SecondaryColor = Color3.fromRGB(200, 60, 30)
+		flame.Parent = candle
+	end
+
+	local chandelierLight = Instance.new("PointLight")
+	chandelierLight.Color = Color3.fromRGB(255, 190, 120)
+	chandelierLight.Range = 20
+	chandelierLight.Brightness = 1.5
+	chandelierLight.Parent = chandelierRing
+
+	-- A little clutter on the tabletop -- mugs and a plate near a few of
+	-- the seats, so the table itself doesn't read as a bare disc between
+	-- rounds. Purely decorative Parts, not tied to any Patron seat
+	-- specifically (this scene doesn't reactively change per-player, same
+	-- note as the mood-lighting comment up top).
+	local mugSpecs = {
+		{ offset = Vector3.new(2.6, 0, 1.2), color = Color3.fromRGB(200, 190, 175) },
+		{ offset = Vector3.new(-1.8, 0, 2.4), color = Color3.fromRGB(180, 140, 90) },
+		{ offset = Vector3.new(-2.4, 0, -1.6), color = Color3.fromRGB(200, 190, 175) },
+	}
+	for i, spec in ipairs(mugSpecs) do
+		local mug = makePart(
+			Vector3.new(0.7, 0.5, 0.7),
+			CFrame.new(TABLE_CENTER + Vector3.new(spec.offset.X, TABLE_TOP_Y + 0.25, spec.offset.Z)),
+			spec.color,
+			Enum.Material.SmoothPlastic,
+			sceneModel,
+			Enum.PartType.Cylinder
+		)
+		mug.CFrame = mug.CFrame * CFrame.Angles(0, 0, math.rad(90))
+		mug.CanCollide = false
+		mug.Name = "TableMug" .. i
+	end
+
+	local plate = makePart(
+		Vector3.new(0.15, 1.6, 1.6),
+		CFrame.new(TABLE_CENTER + Vector3.new(1.2, TABLE_TOP_Y + 0.08, -2.2)),
+		Color3.fromRGB(225, 220, 210),
+		Enum.Material.SmoothPlastic,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	plate.CFrame = plate.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	plate.CanCollide = false
+	plate.Name = "TablePlate"
+end
+
 -- ===== Patron NPCs, seated around the table =====
 
 -- Simple blocky "chibi" figure: a ball head, a block torso, two arm

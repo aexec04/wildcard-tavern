@@ -73,6 +73,8 @@
 		addButtonHoverScale -- function(button, opts?) -- POLISH PASS Batch 2
 		revealStagger       -- function(instances, opts?) -- POLISH PASS Batch 2
 		popScale            -- function(instance, fromScale?, duration?) -- POLISH PASS Batch 3
+		makePortraitBadge   -- function(parent, icon, accentColor, opts?) -- VISUAL LIFE PASS
+		tintBackground      -- function(frame, accentColor, strength?) -- VISUAL LIFE PASS
 
 	POLISH PASS (Batch 2): this is the single most-visited screen in the
 	game and previously had ZERO animation of its own (every offer row,
@@ -143,6 +145,8 @@ return function(deps)
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local revealStagger = deps.revealStagger
 	local popScale = deps.popScale
+	local makePortraitBadge = deps.makePortraitBadge
+	local tintBackground = deps.tintBackground
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -525,19 +529,33 @@ return function(deps)
 	-- needs it explicitly rather than inheriting shopFrame's ZIndex). The
 	-- target picker's own controls (built inside the do block, where
 	-- PANEL_ZINDEX = 7 IS in scope) don't use this function.
-	local function makePatronIconBadge(parent, icon)
-		local badge = Instance.new("TextLabel")
-		badge.Size = UDim2.new(0, 46, 0, 46)
-		badge.Position = UDim2.new(0, 8, 0.5, -23)
-		badge.BackgroundColor3 = Color3.fromRGB(45, 35, 25)
-		badge.Font = Enum.Font.GothamBold
-		badge.TextSize = 22
-		badge.Text = icon or "🎴"
-		badge.ZIndex = 6
-		badge.Parent = parent
-		roundCorner(badge, 10)
-		return badge
+	--
+	-- VISUAL LIFE PASS: now delegates to VisualHelpers.makePortraitBadge for
+	-- the actual glow/gradient/ring treatment -- this wrapper just keeps the
+	-- fixed 46px-at-x8 slot every existing row already assumes, and defaults
+	-- `accentColor` to nil (a neutral gray) for callers that don't have a
+	-- category to look up (House Passes, Packs).
+	local function makePatronIconBadge(parent, icon, accentColor)
+		return makePortraitBadge(parent, icon, accentColor, { size = 46, x = 8 })
 	end
+
+	-- Recipe tiers aren't a Patron ability category, but deserve the same
+	-- "color reads as rarity/kind at a glance" treatment -- House (common,
+	-- craftable) gets a warm kitchen-brass color, Menu (mid) a cool
+	-- blue-teal, Secret (rarest) the same violet Patrons.CATEGORY_COLORS
+	-- uses for xmult, so "violet = the rare/premium tier" stays one
+	-- consistent visual rule across Patrons AND Recipes.
+	local RECIPE_TIER_COLORS = {
+		house = Color3.fromRGB(180, 130, 70),
+		menu = Color3.fromRGB(90, 150, 170),
+		secret = Color3.fromRGB(160, 100, 220),
+	}
+
+	-- Packs are a "mystery box" (you don't know what's inside until you
+	-- open it), so they get their own warm treasure-gold accent rather than
+	-- reusing a Patron/Recipe category color that would misleadingly imply
+	-- every Pack always contains that one kind of thing.
+	local PACK_ACCENT_COLOR = Color3.fromRGB(200, 150, 60)
 
 	-- ----- Recipe target picker state + logic -----
 	-- pendingUse holds { category = "house"|"menu"|"secret", id, recipe }
@@ -821,7 +839,7 @@ return function(deps)
 	-- header regardless of when it was actually added ("Frame" < "TextLabel"
 	-- alphabetically). Every element parented into shopBuyListFrame or
 	-- shopMyRecipesListFrame must get an explicit, sequential LayoutOrder.
-	local function addOfferRow(parent, layoutOrder, icon, name, price, description, buttonText, buttonEnabled, onClick)
+	local function addOfferRow(parent, layoutOrder, icon, accentColor, name, price, description, buttonText, buttonEnabled, onClick)
 		local row = Instance.new("Frame")
 		row.LayoutOrder = layoutOrder
 		row.Size = UDim2.new(1, 0, 0, 64)
@@ -829,8 +847,9 @@ return function(deps)
 		row.ZIndex = 6
 		row.Parent = parent
 		polishPanel(row, 10)
+		tintBackground(row, accentColor)
 
-		makePatronIconBadge(row, icon)
+		makePatronIconBadge(row, icon, accentColor)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -170, 1, -8)
@@ -1028,7 +1047,7 @@ return function(deps)
 		if state.voucherOffer then
 			addSectionHeader(shopBuyListFrame, order(), "Voucher")
 			local offer = state.voucherOffer
-			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), offer.icon, offer.name, offer.price, offer.description, "Buy", true, function()
+			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), offer.icon, Patrons.CATEGORY_COLORS.economy, offer.name, offer.price, offer.description, "Buy", true, function()
 				local latestState = getLatestState()
 				if not latestState or latestState.tips < offer.price then
 					showWarning("Not enough tips for that.")
@@ -1057,7 +1076,8 @@ return function(deps)
 		else
 			for _, offer in ipairs(state.shopOffers) do
 				local fullPatron = Patrons.getById(offer.id)
-				table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), fullPatron and fullPatron.icon, offer.name, offer.price, offer.description,
+				local accentColor = fullPatron and Patrons.CATEGORY_COLORS[fullPatron.category]
+				table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), fullPatron and fullPatron.icon, accentColor, offer.name, offer.price, offer.description,
 					"Buy", not tableIsFull, function()
 						local latestState = getLatestState()
 						if not latestState or latestState.tips < offer.price then
@@ -1080,7 +1100,7 @@ return function(deps)
 		-- ----- Pack offers -----
 		addSectionHeader(shopBuyListFrame, order(), "Packs")
 		for _, pack in ipairs(state.packOffers or {}) do
-			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), pack.icon, pack.name, pack.price, pack.description, "Buy", true, function()
+			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), pack.icon, PACK_ACCENT_COLOR, pack.name, pack.price, pack.description, "Buy", true, function()
 				local latestState = getLatestState()
 				if not latestState or latestState.tips < pack.price then
 					showWarning("Not enough tips for that.")
@@ -1107,7 +1127,7 @@ return function(deps)
 	-- A passive (no button) info row -- used for the House Passes section
 	-- below, where ownership is permanent for the run and there's nothing
 	-- to click.
-	local function addInfoRow(parent, layoutOrder, icon, name, description)
+	local function addInfoRow(parent, layoutOrder, icon, name, description, accentColor)
 		local row = Instance.new("Frame")
 		row.LayoutOrder = layoutOrder
 		row.Size = UDim2.new(1, 0, 0, 56)
@@ -1115,8 +1135,9 @@ return function(deps)
 		row.ZIndex = 6
 		row.Parent = parent
 		polishPanel(row, 10)
+		tintBackground(row, accentColor)
 
-		makePatronIconBadge(row, icon)
+		makePatronIconBadge(row, icon, accentColor)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -74, 1, -8)
@@ -1170,6 +1191,7 @@ return function(deps)
 			for _, owned in ipairs(ownedPatrons) do
 				local fullPatron = Patrons.getById(owned.id)
 				local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
+				local accentColor = fullPatron and Patrons.CATEGORY_COLORS[fullPatron.category]
 
 				local row = Instance.new("Frame")
 				row.LayoutOrder = order()
@@ -1178,8 +1200,9 @@ return function(deps)
 				row.ZIndex = 6
 				row.Parent = shopMyPatronsListFrame
 				polishPanel(row, 10)
+				tintBackground(row, accentColor)
 
-				makePatronIconBadge(row, fullPatron and fullPatron.icon)
+				makePatronIconBadge(row, fullPatron and fullPatron.icon, accentColor)
 
 				local label = Instance.new("TextLabel")
 				label.Size = UDim2.new(1, -190, 1, -8)
@@ -1240,7 +1263,7 @@ return function(deps)
 			for _, passId in ipairs(housePassIds) do
 				local pass = HousePasses.getById(passId)
 				if pass then
-					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description)
+					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description, Patrons.CATEGORY_COLORS.economy)
 				end
 			end
 		end
@@ -1331,6 +1354,8 @@ return function(deps)
 				for _, recipeId in ipairs(inventory) do
 					local recipe = findRecipeById(categoryDef.catalog, recipeId)
 					if recipe then
+						local accentColor = RECIPE_TIER_COLORS[categoryDef.key]
+
 						local row = Instance.new("Frame")
 						row.LayoutOrder = order()
 						row.Size = UDim2.new(1, 0, 0, 64)
@@ -1338,8 +1363,9 @@ return function(deps)
 						row.ZIndex = 6
 						row.Parent = shopMyRecipesListFrame
 						polishPanel(row, 10)
+						tintBackground(row, accentColor)
 
-						makePatronIconBadge(row, recipe.icon)
+						makePatronIconBadge(row, recipe.icon, accentColor)
 
 						local label = Instance.new("TextLabel")
 						label.Size = UDim2.new(1, -170, 1, -8)

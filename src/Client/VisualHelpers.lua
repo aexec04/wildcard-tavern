@@ -49,6 +49,8 @@
 			popScale = function(instance, fromScale?, duration?),
 			addButtonHoverScale = function(button, opts?),
 			revealStagger = function(instances, opts?),
+			makePortraitBadge = function(parent, icon, accentColor, opts?) -> badge,
+			tintBackground = function(frame, accentColor, strength?),
 		}
 
 	POLISH PASS (post-Phase-7, "great animations" ask): the 4 functions
@@ -541,6 +543,120 @@ return function(deps)
 		tweenTo(scale, { Scale = 1 }, duration or 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	end
 
+	-- VISUAL LIFE PASS: a small "portrait" badge for a Patron/Recipe/
+	-- Special -- an icon glyph with a soft colored glow behind it, a
+	-- 2-stop gradient body instead of one flat fill color, and a thin
+	-- colored ring, so an ability's TYPE reads at a glance from its color
+	-- before you've even read the description -- a lightweight version of
+	-- how a Balatro-style Joker's rarity border works. `accentColor` is a
+	-- plain Color3; this function has no opinion on what a "category" is
+	-- -- callers look that up (e.g. Patrons.CATEGORY_COLORS) and pass the
+	-- resolved color in, so the same helper works for Recipes/Specials
+	-- too, not just Patrons.
+	--
+	-- The halo is 2 oversized, mostly-transparent circles behind the
+	-- badge, each less transparent than the last going inward -- fakes a
+	-- soft radial glow (Roblox Frames can't render a real radial
+	-- gradient), the same layered-circle technique the Journey map's
+	-- lantern landmark glow already uses (see feature-expansion-plan.md).
+	--
+	-- `opts.x` is the badge's left edge in pixels within `parent` (default
+	-- 8, matching every existing offer-row's icon position) -- kept as an
+	-- offset rather than hardcoding this to always be flush-left so a
+	-- badge can still be dropped into a differently-laid-out row later.
+	local function makePortraitBadge(parent, icon, accentColor, opts)
+		opts = opts or {}
+		local size = opts.size or 46
+		local x = opts.x or 8
+		accentColor = accentColor or Color3.fromRGB(120, 100, 90)
+		local centerX = x + size / 2
+
+		local haloOuter = Instance.new("Frame")
+		haloOuter.Name = "HaloOuter"
+		haloOuter.Size = UDim2.new(0, size * 1.9, 0, size * 1.9)
+		haloOuter.Position = UDim2.new(0, centerX, 0.5, 0)
+		haloOuter.AnchorPoint = Vector2.new(0.5, 0.5)
+		haloOuter.BackgroundColor3 = accentColor
+		haloOuter.BackgroundTransparency = 0.88
+		haloOuter.BorderSizePixel = 0
+		haloOuter.ZIndex = parent.ZIndex
+		haloOuter.Parent = parent
+		roundCorner(haloOuter, size)
+
+		local haloInner = Instance.new("Frame")
+		haloInner.Name = "HaloInner"
+		haloInner.Size = UDim2.new(0, size * 1.35, 0, size * 1.35)
+		haloInner.Position = UDim2.new(0, centerX, 0.5, 0)
+		haloInner.AnchorPoint = Vector2.new(0.5, 0.5)
+		haloInner.BackgroundColor3 = accentColor
+		haloInner.BackgroundTransparency = 0.72
+		haloInner.BorderSizePixel = 0
+		haloInner.ZIndex = parent.ZIndex
+		haloInner.Parent = parent
+		roundCorner(haloInner, size)
+
+		local badge = Instance.new("TextLabel")
+		badge.Name = "PortraitBadge"
+		badge.Size = UDim2.new(0, size, 0, size)
+		badge.Position = UDim2.new(0, centerX, 0.5, 0)
+		badge.AnchorPoint = Vector2.new(0.5, 0.5)
+		badge.BackgroundColor3 = Color3.fromRGB(45, 35, 25)
+		badge.Font = Enum.Font.GothamBold
+		badge.TextSize = math.floor(size * 0.48)
+		badge.Text = icon or "🎴"
+		badge.ZIndex = parent.ZIndex + 1
+		badge.Parent = parent
+		roundCorner(badge, math.floor(size / 4))
+
+		-- Dark tavern-brown -> a tint of the category color, instead of one
+		-- flat fill -- gives the badge some depth ("life") rather than
+		-- reading as a single flat swatch.
+		local gradient = Instance.new("UIGradient")
+		gradient.Rotation = 55
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 35, 25)),
+			ColorSequenceKeypoint.new(1, accentColor:Lerp(Color3.fromRGB(45, 35, 25), 0.3)),
+		})
+		gradient.Parent = badge
+
+		local ring = Instance.new("UIStroke")
+		ring.Color = accentColor
+		ring.Thickness = 2
+		ring.Transparency = 0.1
+		ring.Parent = badge
+
+		return badge
+	end
+
+	-- VISUAL LIFE PASS: tints a row/panel's flat BackgroundColor3 into a
+	-- subtle 2-stop gradient toward `accentColor` -- kept deliberately
+	-- gentle (a `strength` of 0.16 by default blends only that much of the
+	-- accent in) so offer rows still read as "the same tavern brown,
+	-- distinguished by a color note" rather than a stripe of solid color a
+	-- Special-edition card should look far more dramatic than. Safe to
+	-- call on anything with a BackgroundColor3 -- reads the frame's OWN
+	-- current color as the gradient's base rather than assuming a fixed
+	-- brown, so it still works on a row whose base color varies (e.g. a
+	-- pack-reveal item toggling selected/unselected).
+	local function tintBackground(frame, accentColor, strength)
+		if not accentColor then
+			return
+		end
+		strength = strength or 0.16
+		local base = frame.BackgroundColor3
+		local tinted = base:Lerp(accentColor, strength)
+		local gradient = frame:FindFirstChildOfClass("UIGradient")
+		if not gradient then
+			gradient = Instance.new("UIGradient")
+			gradient.Parent = frame
+		end
+		gradient.Rotation = 65
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, base),
+			ColorSequenceKeypoint.new(1, tinted),
+		})
+	end
+
 	-- POLISH (Batch 2): generic hover + press feedback for a plain
 	-- TextButton -- scales up slightly on mouse-over, dips down slightly
 	-- on press, eases back on release/leave. A UIScale-based version of
@@ -678,5 +794,7 @@ return function(deps)
 		popScale = popScale,
 		addButtonHoverScale = addButtonHoverScale,
 		revealStagger = revealStagger,
+		makePortraitBadge = makePortraitBadge,
+		tintBackground = tintBackground,
 	}
 end

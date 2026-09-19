@@ -44,6 +44,8 @@
 		popIn             -- function(backdrop, content, opts?)
 		popOut            -- function(backdrop, content, opts?, onHidden?)
 		addButtonHoverScale -- function(button, opts?)
+		makePortraitBadge -- function(parent, icon, accentColor, opts?) -- VISUAL LIFE PASS
+		tintBackground    -- function(frame, accentColor, strength?) -- VISUAL LIFE PASS
 
 	Returns: {}
 
@@ -73,6 +75,8 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	local makePortraitBadge = deps.makePortraitBadge
+	local tintBackground = deps.tintBackground
 
 	local collectionBackdrop = Instance.new("Frame")
 	collectionBackdrop.Name = "CollectionBackdrop"
@@ -166,7 +170,14 @@ return function(deps)
 		return label
 	end
 
-	local function makeCollectionRow(order, name, description, isOwned, swatchColor, icon)
+	-- VISUAL LIFE PASS: a locked entry stays exactly as before (flat gray
+	-- swatch, "?", no glow -- looking mysterious IS the point of a
+	-- silhouette), but an owned/found entry now gets the same portrait
+	-- treatment as a Shop row: glow + gradient + ring in `accentColor`,
+	-- and a gentle background tint. `accentColor` is nil-safe (defaults to
+	-- a neutral gray inside makePortraitBadge) for anything that hasn't
+	-- been given a category/theme-accent color yet.
+	local function makeCollectionRow(order, name, description, isOwned, accentColor, icon)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 50)
 		row.BackgroundColor3 = isOwned and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38)
@@ -175,23 +186,28 @@ return function(deps)
 		row.Parent = collectionScroll
 		polishPanel(row, 10)
 
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 30, 0, 30)
-		swatch.Position = UDim2.new(0, 10, 0.5, -15)
-		swatch.BackgroundColor3 = isOwned and (swatchColor or Color3.fromRGB(200, 170, 100)) or Color3.fromRGB(70, 65, 60)
-		swatch.ZIndex = 21
-		swatch.Parent = row
-		roundCorner(swatch, 8)
+		if isOwned then
+			tintBackground(row, accentColor)
+			makePortraitBadge(row, icon, accentColor, { size = 30, x = 10 })
+		else
+			local swatch = Instance.new("Frame")
+			swatch.Size = UDim2.new(0, 30, 0, 30)
+			swatch.Position = UDim2.new(0, 10, 0.5, -15)
+			swatch.BackgroundColor3 = Color3.fromRGB(70, 65, 60)
+			swatch.ZIndex = 21
+			swatch.Parent = row
+			roundCorner(swatch, 8)
 
-		local swatchLabel = Instance.new("TextLabel")
-		swatchLabel.Size = UDim2.fromScale(1, 1)
-		swatchLabel.BackgroundTransparency = 1
-		swatchLabel.Font = Enum.Font.GothamBold
-		swatchLabel.TextSize = 16
-		swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		swatchLabel.Text = isOwned and (icon or "") or "?"
-		swatchLabel.ZIndex = 21
-		swatchLabel.Parent = swatch
+			local swatchLabel = Instance.new("TextLabel")
+			swatchLabel.Size = UDim2.fromScale(1, 1)
+			swatchLabel.BackgroundTransparency = 1
+			swatchLabel.Font = Enum.Font.GothamBold
+			swatchLabel.TextSize = 16
+			swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			swatchLabel.Text = "?"
+			swatchLabel.ZIndex = 21
+			swatchLabel.Parent = swatch
+		end
 
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.Size = UDim2.new(1, -60, 0, 22)
@@ -224,6 +240,13 @@ return function(deps)
 	-- to identical (icon swatch + name + description, locked = "???"),
 	-- but only this one needs an Equip/Equipped button and a 3rd visual
 	-- state (equipped, not just owned/locked).
+	-- VISUAL LIFE PASS: unlocked achievements get the same glow/gradient/
+	-- ring portrait treatment, in a consistent gold ("you earned this")
+	-- accent -- the equipped one keeps its own brighter row background on
+	-- top of that so "currently equipped" still reads as a distinct 3rd
+	-- state, not just "unlocked."
+	local ACHIEVEMENT_ACCENT = Color3.fromRGB(212, 165, 60)
+
 	local function makeAchievementRow(order, achievement, isUnlocked, isEquipped)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 50)
@@ -234,23 +257,28 @@ return function(deps)
 		row.Parent = collectionScroll
 		polishPanel(row, 10)
 
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 30, 0, 30)
-		swatch.Position = UDim2.new(0, 10, 0.5, -15)
-		swatch.BackgroundColor3 = isUnlocked and Color3.fromRGB(200, 170, 100) or Color3.fromRGB(70, 65, 60)
-		swatch.ZIndex = 21
-		swatch.Parent = row
-		roundCorner(swatch, 8)
+		if isUnlocked then
+			tintBackground(row, ACHIEVEMENT_ACCENT, isEquipped and 0.28 or 0.16)
+			makePortraitBadge(row, achievement.icon, ACHIEVEMENT_ACCENT, { size = 30, x = 10 })
+		else
+			local swatch = Instance.new("Frame")
+			swatch.Size = UDim2.new(0, 30, 0, 30)
+			swatch.Position = UDim2.new(0, 10, 0.5, -15)
+			swatch.BackgroundColor3 = Color3.fromRGB(70, 65, 60)
+			swatch.ZIndex = 21
+			swatch.Parent = row
+			roundCorner(swatch, 8)
 
-		local swatchLabel = Instance.new("TextLabel")
-		swatchLabel.Size = UDim2.fromScale(1, 1)
-		swatchLabel.BackgroundTransparency = 1
-		swatchLabel.Font = Enum.Font.GothamBold
-		swatchLabel.TextSize = 16
-		swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		swatchLabel.Text = isUnlocked and achievement.icon or "?"
-		swatchLabel.ZIndex = 21
-		swatchLabel.Parent = swatch
+			local swatchLabel = Instance.new("TextLabel")
+			swatchLabel.Size = UDim2.fromScale(1, 1)
+			swatchLabel.BackgroundTransparency = 1
+			swatchLabel.Font = Enum.Font.GothamBold
+			swatchLabel.TextSize = 16
+			swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			swatchLabel.Text = "?"
+			swatchLabel.ZIndex = 21
+			swatchLabel.Parent = swatch
+		end
 
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.Size = UDim2.new(1, -170, 0, 22)
@@ -365,7 +393,8 @@ return function(deps)
 
 		makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
 		for i, patron in ipairs(Patrons.Definitions) do
-			makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100), patron.icon)
+			local accentColor = Patrons.CATEGORY_COLORS[patron.category]
+			makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, accentColor, patron.icon)
 		end
 
 		makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)

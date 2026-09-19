@@ -253,7 +253,17 @@ return function(deps)
 		slotLabel.ZIndex = 2
 		slotLabel.Parent = slot
 
-		patronSlots[i] = { frame = slot, label = slotLabel }
+		-- VISUAL LIFE PASS: a thin ring that init.client.lua's render()
+		-- tints to the seated Patron's ability-category color (invisible/
+		-- neutral for an empty seat) -- built once here since this Frame is
+		-- permanent and reused every render, never destroyed/recreated.
+		local slotRing = Instance.new("UIStroke")
+		slotRing.Thickness = 2
+		slotRing.Transparency = 1
+		slotRing.Color = Color3.fromRGB(120, 100, 90)
+		slotRing.Parent = slot
+
+		patronSlots[i] = { frame = slot, label = slotLabel, ring = slotRing }
 	end
 
 	-- LAYOUT FEATURE 6: live chips x mult preview for the currently-selected
