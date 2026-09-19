@@ -68,18 +68,53 @@ do
 	local colorCorrection = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect")
 	colorCorrection.Name = "TavernColorGrade"
 	colorCorrection.TintColor = Color3.fromRGB(255, 225, 205) -- warm amber, matches the candlelight in the poster art
-	colorCorrection.Contrast = 0.12
-	colorCorrection.Saturation = 0.15 -- a bit more vivid, closer to the poster's punch than flat default lighting
+	colorCorrection.Brightness = 0.03
+	colorCorrection.Contrast = 0.18 -- POLISH PASS: a bit punchier than before -- closer to a graded "premium" look
+	colorCorrection.Saturation = 0.22
 	colorCorrection.Parent = Lighting
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-	atmosphere.Density = 0.35
+	-- POLISH PASS: dialed back slightly from 0.35 -- readability matters more
+	-- now that the menu camera reveals this room through a transparent menu
+	-- (Client/MenuCamera.lua) as the very first thing every player sees, not
+	-- just glimpsed in passing during play.
+	atmosphere.Density = 0.3
 	atmosphere.Offset = 0.25
 	atmosphere.Color = Color3.fromRGB(199, 170, 140) -- warm haze near the torches
 	atmosphere.Decay = Color3.fromRGB(92, 60, 110) -- distant haze picks up a violet cast -- the Joker's magic, at range
-	atmosphere.Glare = 0.2
-	atmosphere.Haze = 1.2
+	atmosphere.Glare = 0.15
+	atmosphere.Haze = 1.0
 	atmosphere.Parent = Lighting
+
+	-- POLISH PASS: post-processing is the single biggest lever available
+	-- for "cheap vs. premium" within this file's own "Parts + SpecialMesh
+	-- only" constraint (see the header comment) -- no amount of extra
+	-- geometry closes that gap the way grading/bloom/focus does. All 3 are
+	-- deliberately subtle: cranked too far, this reads as an Instagram
+	-- filter slapped over the room instead of an actually lit room.
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect")
+	bloom.Intensity = 0.35 -- catches the torches/chandelier candles/table lantern without blowing them out
+	bloom.Size = 20
+	bloom.Threshold = 1.5
+	bloom.Parent = Lighting
+
+	local depthOfField = Lighting:FindFirstChildOfClass("DepthOfFieldEffect") or Instance.new("DepthOfFieldEffect")
+	-- Tuned around the menu-showcase camera's own orbit distance to the
+	-- table (Client/MenuCamera.lua: ORBIT_RADIUS 14 + ORBIT_HEIGHT 9 puts it
+	-- ~17 studs out) so the table and seated Patrons stay crisp while the
+	-- far walls get a soft, camera-lens falloff instead of everything
+	-- reading equally flat. Wide enough that normal gameplay camera
+	-- distances aren't noticeably softened.
+	depthOfField.FocusDistance = 20
+	depthOfField.InFocusRadius = 16
+	depthOfField.NearIntensity = 0.05
+	depthOfField.FarIntensity = 0.25
+	depthOfField.Parent = Lighting
+
+	local sunRays = Lighting:FindFirstChildOfClass("SunRaysEffect") or Instance.new("SunRaysEffect")
+	sunRays.Intensity = 0.1 -- barely-there shafts through the open ceiling (see header comment), not a god-ray effect
+	sunRays.Spread = 0.6
+	sunRays.Parent = Lighting
 end
 
 local function makePart(size, cframe, color, material, parent, shape)
@@ -183,6 +218,77 @@ do
 		light.Brightness = 2
 		light.Parent = bracket
 	end
+
+	-- POLISH PASS: half-timbered structure -- a thick post at each corner
+	-- plus a horizontal beam band partway up all 4 walls. Cheap (8 extra
+	-- Parts total) but this is what actually breaks up "4 flat brown
+	-- rectangles" into something that reads as built rather than boxed-in.
+	local cornerOffsets = {
+		Vector3.new(-ROOM_SIZE / 2 + 0.5, WALL_HEIGHT / 2, -ROOM_SIZE / 2 + 0.5),
+		Vector3.new(ROOM_SIZE / 2 - 0.5, WALL_HEIGHT / 2, -ROOM_SIZE / 2 + 0.5),
+		Vector3.new(-ROOM_SIZE / 2 + 0.5, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.5),
+		Vector3.new(ROOM_SIZE / 2 - 0.5, WALL_HEIGHT / 2, ROOM_SIZE / 2 - 0.5),
+	}
+	for i, offset in ipairs(cornerOffsets) do
+		local post = makePart(
+			Vector3.new(1.2, WALL_HEIGHT, 1.2),
+			CFrame.new(TAVERN_ORIGIN + offset),
+			WOOD_DARK,
+			Enum.Material.Wood,
+			sceneModel
+		)
+		post.Name = "CornerPost" .. i
+	end
+
+	local beamHeight = WALL_HEIGHT * 0.55
+	local beamSpecs = {
+		{ size = Vector3.new(ROOM_SIZE, 0.6, 0.9), offset = Vector3.new(0, beamHeight, -ROOM_SIZE / 2 + 0.4) },
+		{ size = Vector3.new(ROOM_SIZE, 0.6, 0.9), offset = Vector3.new(0, beamHeight, ROOM_SIZE / 2 - 0.4) },
+		{ size = Vector3.new(0.9, 0.6, ROOM_SIZE), offset = Vector3.new(-ROOM_SIZE / 2 + 0.4, beamHeight, 0) },
+		{ size = Vector3.new(0.9, 0.6, ROOM_SIZE), offset = Vector3.new(ROOM_SIZE / 2 - 0.4, beamHeight, 0) },
+	}
+	for i, spec in ipairs(beamSpecs) do
+		local beam = makePart(
+			spec.size,
+			CFrame.new(TAVERN_ORIGIN + spec.offset),
+			WOOD_DARK,
+			Enum.Material.Wood,
+			sceneModel
+		)
+		beam.CanCollide = false
+		beam.Name = "WallBeam" .. i
+	end
+
+	-- POLISH PASS: warm backlit "stained glass" windows on the front/back
+	-- walls -- a dark wood frame Part with a bright Neon pane Part nested
+	-- inside it, each with its own PointLight. Fakes a glowing window
+	-- without any MeshId/ImageId/decal (same constraint as everything
+	-- else in this file) and gives the room a light source that isn't
+	-- just "another torch," plus real depth/parallax as the menu camera
+	-- orbits (Client/MenuCamera.lua).
+	local windowSpecs = {
+		{ x = -ROOM_SIZE / 4, z = -ROOM_SIZE / 2 + 0.6 },
+		{ x = ROOM_SIZE / 4, z = -ROOM_SIZE / 2 + 0.6 },
+		{ x = -ROOM_SIZE / 4, z = ROOM_SIZE / 2 - 0.6 },
+		{ x = ROOM_SIZE / 4, z = ROOM_SIZE / 2 - 0.6 },
+	}
+	for i, spec in ipairs(windowSpecs) do
+		local paneCFrame = CFrame.new(TAVERN_ORIGIN + Vector3.new(spec.x, 9, spec.z))
+
+		local frame = makePart(Vector3.new(4.4, 5.4, 0.3), paneCFrame, WOOD_DARK, Enum.Material.Wood, sceneModel)
+		frame.CanCollide = false
+		frame.Name = "WindowFrame" .. i
+
+		local glow = makePart(Vector3.new(3.6, 4.6, 0.15), paneCFrame, Color3.fromRGB(255, 195, 120), Enum.Material.Neon, sceneModel)
+		glow.CanCollide = false
+		glow.Name = "WindowGlow" .. i
+
+		local windowLight = Instance.new("PointLight")
+		windowLight.Color = Color3.fromRGB(255, 195, 140)
+		windowLight.Range = 12
+		windowLight.Brightness = 1.3
+		windowLight.Parent = glow
+	end
 end
 
 -- ===== Round table =====
@@ -229,20 +335,52 @@ do
 	-- deliberately faint (low Brightness/Range) -- an accent, not a second
 	-- sun; the torches (see the room shell below) still do the actual work
 	-- of lighting the room.
-	local jokerGlowAnchor = Instance.new("Part")
-	jokerGlowAnchor.Name = "JokerGlowAnchor"
-	jokerGlowAnchor.Anchored = true
-	jokerGlowAnchor.CanCollide = false
-	jokerGlowAnchor.Transparency = 1
-	jokerGlowAnchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	jokerGlowAnchor.CFrame = CFrame.new(TABLE_CENTER + Vector3.new(0, TABLE_TOP_Y + 3, 0))
-	jokerGlowAnchor.Parent = sceneModel
+	--
+	-- POLISH PASS: this used to be an invisible anchor Part with just a
+	-- PointLight on it -- an accent light with no visible source, which
+	-- reads as a lighting bug more than a deliberate touch. Now it's a
+	-- small wrought-iron stand holding a glowing violet glass globe, so
+	-- the glow has something to actually come from.
+	local jokerLanternStand = makePart(
+		Vector3.new(0.25, 2.6, 0.25),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, TABLE_TOP_Y + 1.5, 0)),
+		Color3.fromRGB(35, 32, 30),
+		Enum.Material.Metal,
+		sceneModel
+	)
+	jokerLanternStand.CanCollide = false
+	jokerLanternStand.Name = "JokerLanternStand"
+
+	local jokerLanternGlobe = makeMeshPart(
+		Vector3.new(1.1, 1.1, 1.1),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, TABLE_TOP_Y + 3, 0)),
+		Color3.fromRGB(205, 85, 245),
+		Enum.MeshType.Sphere,
+		sceneModel
+	)
+	jokerLanternGlobe.Material = Enum.Material.Neon
+	jokerLanternGlobe.Name = "JokerLanternGlobe"
 
 	local jokerGlow = Instance.new("PointLight")
 	jokerGlow.Color = Color3.fromRGB(205, 85, 245)
 	jokerGlow.Range = 14
 	jokerGlow.Brightness = 1.2
-	jokerGlow.Parent = jokerGlowAnchor
+	jokerGlow.Parent = jokerLanternGlobe
+
+	-- A slim decorative trim ring around the tabletop's edge -- a second,
+	-- slightly larger cylinder in a metal tone so the table doesn't read
+	-- as one flat disc of wood.
+	local tableTrim = makePart(
+		Vector3.new(0.3, TABLE_RADIUS * 2 + 0.3, TABLE_RADIUS * 2 + 0.3),
+		CFrame.new(TABLE_CENTER + Vector3.new(0, TABLE_TOP_Y, 0)),
+		Color3.fromRGB(150, 120, 70),
+		Enum.Material.Metal,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	tableTrim.CFrame = tableTrim.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	tableTrim.CanCollide = false
+	tableTrim.Name = "TableTrim"
 end
 
 -- ===== Room dressing: floor rug, hanging chandelier, table clutter =====
@@ -321,6 +459,21 @@ do
 	chandelierRing.CFrame = chandelierRing.CFrame * CFrame.Angles(0, 0, math.rad(90))
 	chandelierRing.CanCollide = false
 	chandelierRing.Name = "ChandelierRing"
+
+	-- A slim gold trim band around the wooden ring -- same "metal rim on a
+	-- wood disc" trick as the table's TableTrim above, so the chandelier
+	-- doesn't read as flat wood floating in space.
+	local chandelierTrim = makePart(
+		Vector3.new(0.15, 2.7, 2.7),
+		CFrame.new(chandelierCenter),
+		Color3.fromRGB(190, 155, 90),
+		Enum.Material.Metal,
+		sceneModel,
+		Enum.PartType.Cylinder
+	)
+	chandelierTrim.CFrame = chandelierTrim.CFrame * CFrame.Angles(0, 0, math.rad(90))
+	chandelierTrim.CanCollide = false
+	chandelierTrim.Name = "ChandelierTrim"
 
 	for i = 1, 4 do
 		local angle = math.rad((i - 1) * 90)
@@ -428,6 +581,32 @@ local function buildNPC(name, seatCFrame, skinColor, outfitColor, accentColor, h
 	torso.CanCollide = false
 	torso.Name = "Torso"
 
+	-- POLISH PASS: a wider block just above the torso and a darker belt
+	-- band just below give the silhouette actual shoulders and a waist
+	-- instead of one uniform box -- cheap (2 extra Parts per NPC) but it's
+	-- the difference between "blocky figure" and "blocky figure wearing
+	-- clothes."
+	local shoulders = makePart(
+		Vector3.new(2.0, 0.5, 1.25),
+		hipCFrame * CFrame.new(0, 1.75, 0),
+		outfitColor,
+		Enum.Material.Fabric,
+		npc
+	)
+	shoulders.CanCollide = false
+	shoulders.Name = "Shoulders"
+
+	local beltColor = Color3.new(outfitColor.R * 0.55, outfitColor.G * 0.55, outfitColor.B * 0.55)
+	local belt = makePart(
+		Vector3.new(1.85, 0.3, 1.15),
+		hipCFrame * CFrame.new(0, 0.55, 0),
+		beltColor,
+		Enum.Material.Fabric,
+		npc
+	)
+	belt.CanCollide = false
+	belt.Name = "Belt"
+
 	local head = makeMeshPart(Vector3.new(1.3, 1.3, 1.3), hipCFrame * CFrame.new(0, 2.1, 0), skinColor, Enum.MeshType.Sphere, npc)
 	head.Name = "Head"
 
@@ -441,6 +620,11 @@ local function buildNPC(name, seatCFrame, skinColor, outfitColor, accentColor, h
 		local arm = makePart(Vector3.new(0.5, 1.4, 0.5), armCFrame, skinColor, Enum.Material.Fabric, npc)
 		arm.CanCollide = false
 		arm.Name = "Arm" .. i
+
+		-- POLISH PASS: a small sphere "hand" capping each arm -- otherwise
+		-- every NPC's arm just ends in a flat, obviously-cut-off block.
+		local hand = makeMeshPart(Vector3.new(0.55, 0.55, 0.55), armCFrame * CFrame.new(0, -0.85, 0), skinColor, Enum.MeshType.Sphere, npc)
+		hand.Name = "Hand" .. i
 	end
 
 	-- Persona hat/accessory -- built entirely from SpecialMesh primitives

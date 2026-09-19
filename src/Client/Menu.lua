@@ -120,7 +120,11 @@ return function(deps)
 	menuScrim.Position = UDim2.fromScale(0.5, 0.5)
 	menuScrim.AnchorPoint = Vector2.new(0.5, 0.5)
 	menuScrim.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
-	menuScrim.BackgroundTransparency = 0.3
+	-- POLISH PASS: Ahmed's feedback after seeing the Showcase Pass in Play
+	-- mode was "the UI isnt as transparent" -- 0.3 was still reading as a
+	-- mostly-solid panel. Raised to 0.55 so the tavern room actually shows
+	-- through the card behind the title/buttons, not just around its edges.
+	menuScrim.BackgroundTransparency = 0.55
 	menuScrim.BorderSizePixel = 0
 	menuScrim.ZIndex = 9
 	menuScrim.Parent = menuFrame
