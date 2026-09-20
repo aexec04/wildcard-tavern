@@ -193,13 +193,6 @@ local popScale = VisualHelpersModule.popScale
 -- reveal for a list of instances (Menu.lua's load-in, Shop.lua's offer rows).
 local addButtonHoverScale = VisualHelpersModule.addButtonHoverScale
 local revealStagger = VisualHelpersModule.revealStagger
--- ART/FEEL PASS ("too snappy" / "too plain" / "not much art" fix -- see
--- VisualHelpers.lua's own header comment for the full reasoning). NOT
--- captured as new top-level locals here (init.client.lua is already right
--- up against Lua's 200-local ceiling, same reasoning documented all over
--- this file already) -- called as VisualHelpersModule.addBackgroundAtmosphere
--- / VisualHelpersModule.fadeTransition directly at each of their 2 call
--- sites below instead.
 
 -- ===== Root UI =====
 
@@ -216,52 +209,6 @@ root.BackgroundColor3 = Color3.fromRGB(24, 18, 14) -- warm dark "tavern" backdro
 root.BorderSizePixel = 0
 root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
-
--- ART PASS: root used to be one perfectly flat swatch behind the entire
--- game screen (sidebar, hand of cards, everything). A vertical gradient
--- reads as an actual lit tavern floor instead -- see VisualHelpers.lua's
--- addBackgroundAtmosphere for how this is built with no image asset. No
--- glowAnchor here (root is busy with real gameplay UI on top of it; a
--- lantern-glow halo would just fight the sidebar/cards).
---
--- TONED DOWN (Ahmed: "too dark, very wack" -- this is the screen visible
--- for basically the entire game, so it mattered most here): the first
--- version darkened top AND bottom well below the original flat color
--- (24, 18, 14) with only a barely-lighter middle, so the whole play
--- screen read as dimmer than before. Now top/bottom sit close to the
--- original brightness and the middle is the only part doing real "lit"
--- work. Grain dropped entirely, same reasoning as Menu.lua.
-VisualHelpersModule.addBackgroundAtmosphere(root, {
-	topColor = Color3.fromRGB(22, 17, 13),
-	midColor = Color3.fromRGB(36, 28, 21),
-	bottomColor = Color3.fromRGB(20, 15, 12),
-})
-
--- TRANSITION CURTAIN (feel pass): a full-screen black Frame used to
--- cross-fade between major screens -- currently just the Menu -> game
--- handoff below -- instead of the hard instant Visible-swap this used to
--- be. Sits above absolutely everything else in screenGui (ZIndex 1000)
--- and stays invisible/fully transparent whenever no transition is
--- in-flight. See VisualHelpers.lua's fadeTransition for how it's driven.
---
--- NOT captured as a new top-level local (this file is already right up
--- against Lua's 200-local ceiling, same reasoning as everywhere else this
--- comment shows up) -- the one call site that needs it later just looks
--- it back up as screenGui.TransitionCurtain instead. Wrapped in its own
--- `do...end` so the local here is scoped to just this block and its
--- register gets freed afterward rather than staying reserved for the
--- rest of the file.
-do
-	local transitionCurtain = Instance.new("Frame")
-	transitionCurtain.Name = "TransitionCurtain"
-	transitionCurtain.Size = UDim2.fromScale(1, 1)
-	transitionCurtain.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	transitionCurtain.BackgroundTransparency = 1
-	transitionCurtain.BorderSizePixel = 0
-	transitionCurtain.ZIndex = 1000
-	transitionCurtain.Visible = false
-	transitionCurtain.Parent = screenGui
-end
 
 -- ----- Left sidebar: round/blind info -----
 -- Extracted into Client/Sidebar.lua (round/blind labels, Patron slot row,
@@ -754,8 +701,6 @@ local MenuScreen = require(script.Menu)({
 	polishButton = polishButton,
 	revealStagger = revealStagger,
 	addButtonHoverScale = addButtonHoverScale,
-	addBackgroundAtmosphere = VisualHelpersModule.addBackgroundAtmosphere,
-	addButtonGradient = VisualHelpersModule.addButtonGradient,
 	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
 	playClickSfx = playClickSfx,
 	StartWeeklyChallengeRemote = remotes:WaitForChild("StartWeeklyChallenge"),
@@ -947,19 +892,11 @@ require(script.RunSetup)({
 
 menuPlayButton.MouseButton1Click:Connect(function()
 	playClickSfx()
-	-- FEEL FIX: this used to be a hard instant Visible-swap -- the exact
-	-- "too snappy" complaint. Now cross-fades through the black curtain
-	-- (see fadeTransition above) with the actual swap happening at the
-	-- fully-covered midpoint, same as RunSetup's Begin Run / Settings'
-	-- Main Menu handoffs already feel (both fade a panel first) -- this
-	-- was the one screen change in the whole game with zero transition.
-	VisualHelpersModule.fadeTransition(screenGui.TransitionCurtain, 0.22, function()
-		menuFrame.Visible = false
-		root.Visible = true
-		if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-			backgroundMusic:Play()
-		end
-	end)
+	menuFrame.Visible = false
+	root.Visible = true
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+		backgroundMusic:Play()
+	end
 end)
 
 volumeButton.MouseButton1Click:Connect(function()
