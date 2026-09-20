@@ -34,7 +34,7 @@ Patrons.Definitions = {
 		name = "The Regular",
 		icon = "☕",
 		description = "+4 Mult on every hand.",
-		price = 4, category = "mult",
+		price = 4,
 		effect = function(_handResult, _context)
 			return { mult = 4 }
 		end,
@@ -44,7 +44,7 @@ Patrons.Definitions = {
 		name = "Lucky Dice",
 		icon = "🎲",
 		description = "+20 Chips if the hand contains a Pair (or better).",
-		price = 5, category = "chips",
+		price = 5,
 		effect = function(handResult, _context)
 			local pairLike = {
 				["Pair"] = true, ["Two Pair"] = true, ["Three of a Kind"] = true,
@@ -61,7 +61,7 @@ Patrons.Definitions = {
 		name = "Suit Yourself",
 		icon = "♥️",
 		description = "+3 Mult for each Heart among the scoring cards.",
-		price = 6, category = "mult",
+		price = 6,
 		effect = function(handResult, _context)
 			local hearts = 0
 			for _, card in ipairs(handResult.scoringCards) do
@@ -80,7 +80,7 @@ Patrons.Definitions = {
 		name = "Last Call",
 		icon = "🌙",
 		description = "Mult x1.5 when played as your last hand of the round.",
-		price = 7, category = "xmult",
+		price = 7,
 		effect = function(_handResult, context)
 			if context.isLastHand then
 				return { multMultiplier = 1.5 }
@@ -93,7 +93,7 @@ Patrons.Definitions = {
 		name = "The Bard",
 		icon = "🎻",
 		description = "+2 Mult for every card played (not just scoring cards).",
-		price = 5, category = "mult",
+		price = 5,
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
 			if #played > 0 then
@@ -105,7 +105,7 @@ Patrons.Definitions = {
 
 	-- ===== +MULT: rewards a specific hand type =====
 	{
-		id = "regulars_round", name = "Regulars' Round", icon = "🤝", price = 5, category = "mult",
+		id = "regulars_round", name = "Regulars' Round", icon = "🤝", price = 5,
 		description = "+8 Mult if the hand contains a Pair (or better).",
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -119,7 +119,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "threes_company", name = "Three's Company", icon = "🎊", price = 5, category = "mult",
+		id = "threes_company", name = "Three's Company", icon = "🎊", price = 5,
 		description = "+12 Mult if the hand contains a Three of a Kind.",
 		effect = function(handResult, _context)
 			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then
@@ -129,7 +129,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "all_hands_in", name = "All Hands In", icon = "🙌", price = 7, category = "mult",
+		id = "all_hands_in", name = "All Hands In", icon = "🙌", price = 7,
 		description = "+10 Mult if the hand contains a Four of a Kind.",
 		effect = function(handResult, _context)
 			if handResult.name == "Four of a Kind" then
@@ -139,7 +139,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "straight_shooter", name = "Straight Shooter", icon = "🎯", price = 6, category = "mult",
+		id = "straight_shooter", name = "Straight Shooter", icon = "🎯", price = 6,
 		description = "+12 Mult if the hand contains a Straight.",
 		effect = function(handResult, _context)
 			if handResult.name == "Straight" or handResult.name == "Straight Flush" then
@@ -149,7 +149,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "all_matching", name = "All Matching", icon = "🃏", price = 6, category = "mult",
+		id = "all_matching", name = "All Matching", icon = "🃏", price = 6,
 		description = "+10 Mult if the hand contains a Flush.",
 		effect = function(handResult, _context)
 			if handResult.name == "Flush" or handResult.name == "Straight Flush" then
@@ -159,7 +159,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "small_plate", name = "Small Plate", icon = "🍽️", price = 5, category = "mult",
+		id = "small_plate", name = "Small Plate", icon = "🍽️", price = 5,
 		description = "+20 Mult if you play 3 or fewer cards.",
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
@@ -172,7 +172,7 @@ Patrons.Definitions = {
 
 	-- ===== +CHIPS =====
 	{
-		id = "big_portions", name = "Big Portions", icon = "🍖", price = 5, category = "chips",
+		id = "big_portions", name = "Big Portions", icon = "🍖", price = 5,
 		description = "+50 Chips if the hand contains a Pair (or better).",
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -186,7 +186,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "tab_regulars", name = "Tab Regulars", icon = "💰", price = 5, category = "chips",
+		id = "tab_regulars", name = "Tab Regulars", icon = "💰", price = 5,
 		description = "+1 Chip for every 2 Tips you're currently holding (rounded down).",
 		effect = function(_handResult, context)
 			local tips = context.tips or 0
@@ -199,7 +199,7 @@ Patrons.Definitions = {
 
 	-- ===== XMULT =====
 	{
-		id = "house_favorite", name = "House Favorite", icon = "👑", price = 8, category = "xmult",
+		id = "house_favorite", name = "House Favorite", icon = "👑", price = 8,
 		description = "x1.5 Mult for each King held in your hand (not played).",
 		effect = function(_handResult, context)
 			local count = 0
@@ -215,7 +215,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "repeat_customer", name = "Repeat Customer", icon = "🔁", price = 7, category = "xmult",
+		id = "repeat_customer", name = "Repeat Customer", icon = "🔁", price = 7,
 		description = "x3 Mult if you've already played this poker hand type this round.",
 		effect = function(_handResult, context)
 			if context.alreadyPlayedThisHandTypeThisRound then
@@ -227,7 +227,7 @@ Patrons.Definitions = {
 
 	-- ===== UTILITY =====
 	{
-		id = "the_understudy", name = "The Understudy", icon = "🎭", price = 6, category = "utility",
+		id = "the_understudy", name = "The Understudy", icon = "🎭", price = 6,
 		description = "Copies the ability of the Patron to its right.",
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
@@ -240,7 +240,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "second_opinion", name = "Second Opinion", icon = "💡", price = 6, category = "utility",
+		id = "second_opinion", name = "Second Opinion", icon = "💡", price = 6,
 		description = "Copies the ability of your leftmost Patron.",
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
@@ -254,7 +254,7 @@ Patrons.Definitions = {
 
 	-- ===== ECONOMY =====
 	{
-		id = "tip_jar", name = "Tip Jar", icon = "🫙", price = 6, category = "economy",
+		id = "tip_jar", name = "Tip Jar", icon = "🫙", price = 6,
 		description = "Earn 4 Tips at the end of each round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -262,7 +262,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "penny_pincher", name = "Penny Pincher", icon = "🪙", price = 6, category = "mult",
+		id = "penny_pincher", name = "Penny Pincher", icon = "🪙", price = 6,
 		description = "+2 Mult for every 5 Tips you're currently holding.",
 		effect = function(_handResult, context)
 			local tips = context.tips or 0
@@ -275,7 +275,7 @@ Patrons.Definitions = {
 
 	-- ===== More suit specialists (mirrors Suit Yourself, one per remaining suit) =====
 	{
-		id = "sparkling_service", name = "Sparkling Service", icon = "💎", price = 6, category = "mult",
+		id = "sparkling_service", name = "Sparkling Service", icon = "💎", price = 6,
 		description = "+3 Mult for each Diamond among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -291,7 +291,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "rowdy_bunch", name = "Rowdy Bunch", icon = "♣️", price = 6, category = "mult",
+		id = "rowdy_bunch", name = "Rowdy Bunch", icon = "♣️", price = 6,
 		description = "+3 Mult for each Club among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -307,7 +307,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "sharp_dressed", name = "Sharp Dressed", icon = "♠️", price = 6, category = "mult",
+		id = "sharp_dressed", name = "Sharp Dressed", icon = "♠️", price = 6,
 		description = "+3 Mult for each Spade among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -326,7 +326,7 @@ Patrons.Definitions = {
 	-- ===== More hand-type specialists (Two Pair / Full House were the two =====
 	-- ===== gaps left in the "+Mult for hand type" family) =====
 	{
-		id = "double_down", name = "Double Down", icon = "👯", price = 6, category = "mult",
+		id = "double_down", name = "Double Down", icon = "👯", price = 6,
 		description = "+10 Mult if the hand is exactly a Two Pair.",
 		effect = function(handResult, _context)
 			if handResult.name == "Two Pair" then
@@ -336,7 +336,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "house_special", name = "House Special", icon = "🍱", price = 8, category = "mult",
+		id = "house_special", name = "House Special", icon = "🍱", price = 8,
 		description = "+14 Mult if the hand is a Full House.",
 		effect = function(handResult, _context)
 			if handResult.name == "Full House" then
@@ -349,7 +349,7 @@ Patrons.Definitions = {
 	-- ===== Rank-based (new dimension -- everything above rewarded suits or =====
 	-- ===== hand shapes, nothing rewarded specific ranks among scoring cards) =====
 	{
-		id = "ace_of_the_house", name = "Ace of the House", icon = "🅰️", price = 7, category = "mult",
+		id = "ace_of_the_house", name = "Ace of the House", icon = "🅰️", price = 7,
 		description = "+5 Mult for each Ace among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -365,7 +365,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "vip_table", name = "VIP Table", icon = "🎩", price = 6, category = "mult",
+		id = "vip_table", name = "VIP Table", icon = "🎩", price = 6,
 		description = "+8 Mult if the hand contains a face card (Jack, Queen, or King) among the scoring cards.",
 		effect = function(handResult, _context)
 			for _, card in ipairs(handResult.scoringCards) do
@@ -379,7 +379,7 @@ Patrons.Definitions = {
 
 	-- ===== More XMULT (only House Favorite/Repeat Customer existed before) =====
 	{
-		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8, category = "xmult",
+		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8,
 		description = "x1.1 Mult for each Hand you have remaining this round after this one.",
 		effect = function(_handResult, context)
 			local remaining = context.handsRemaining or 0
@@ -390,7 +390,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "discard_special", name = "Discard Special", icon = "🧾", price = 6, category = "mult",
+		id = "discard_special", name = "Discard Special", icon = "🧾", price = 6,
 		description = "+3 Mult for each Discard you have remaining this round.",
 		effect = function(_handResult, context)
 			local remaining = context.discardsRemaining or 0
@@ -406,7 +406,7 @@ Patrons.Definitions = {
 	-- ===== of position, this one copies whichever Patron sits immediately =====
 	-- ===== to its own left) =====
 	{
-		id = "the_apprentice", name = "The Apprentice", icon = "🧑‍🍳", price = 6, category = "utility",
+		id = "the_apprentice", name = "The Apprentice", icon = "🧑‍🍳", price = 6,
 		description = "Copies the ability of the Patron to its left.",
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
@@ -421,7 +421,7 @@ Patrons.Definitions = {
 
 	-- ===== More ECONOMY (only Tip Jar/Penny Pincher existed before) =====
 	{
-		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7, category = "economy",
+		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7,
 		description = "Earn 1 Tip for each Patron at your table, at the end of each round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -429,7 +429,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "nest_egg", name = "Nest Egg", icon = "🥚", price = 7, category = "economy",
+		id = "nest_egg", name = "Nest Egg", icon = "🥚", price = 7,
 		description = "Doubles your round-win interest cap: +10 Tips instead of +5.",
 		effect = function() return nil end,
 		-- BALATRO PARITY REWORK: end-of-round interest (1 Tip per 5 held,
@@ -449,7 +449,7 @@ Patrons.Definitions = {
 	-- ===== (scoring) and King (held) -- Jack and Queen were the two ranks =====
 	-- ===== with no rank-specific Patron at all yet) =====
 	{
-		id = "jack_of_all_trades", name = "Jack of All Trades", icon = "🎫", price = 6, category = "mult",
+		id = "jack_of_all_trades", name = "Jack of All Trades", icon = "🎫", price = 6,
 		description = "+5 Mult for each Jack among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -465,7 +465,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "queens_gambit", name = "Queen's Gambit", icon = "♟️", price = 6, category = "mult",
+		id = "queens_gambit", name = "Queen's Gambit", icon = "♟️", price = 6,
 		description = "+5 Mult for each Queen among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -487,7 +487,7 @@ Patrons.Definitions = {
 	-- ===== RunState.startRound, so it's still THIS round's leftover count =====
 	-- ===== here) =====
 	{
-		id = "closing_tab", name = "Closing Tab", icon = "🧻", price = 6, category = "economy",
+		id = "closing_tab", name = "Closing Tab", icon = "🧻", price = 6,
 		description = "Earn 2 Tips for every Discard you have remaining at the end of a round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -499,7 +499,7 @@ Patrons.Definitions = {
 	-- ===== property -- rewards actually filling out your Patron slots, =====
 	-- ===== which nothing so far did directly) =====
 	{
-		id = "full_house_crowd", name = "Full House Crowd", icon = "🍻", price = 8, category = "xmult",
+		id = "full_house_crowd", name = "Full House Crowd", icon = "🍻", price = 8,
 		description = "x1.2 Mult for every OTHER Patron at your table.",
 		effect = function(_handResult, context)
 			local patrons = context.ownedPatrons or {}
@@ -517,7 +517,7 @@ Patrons.Definitions = {
 	-- ===== rewards cards that actually scored rather than every card =====
 	-- ===== thrown into the hand) =====
 	{
-		id = "fair_share", name = "Fair Share", icon = "🥂", price = 6, category = "chips",
+		id = "fair_share", name = "Fair Share", icon = "🥂", price = 6,
 		description = "+4 Chips for each scoring card in the hand.",
 		effect = function(handResult, _context)
 			local count = #handResult.scoringCards
@@ -528,7 +528,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "efficient_service", name = "Efficient Service", icon = "🧑‍💼", price = 6, category = "chips",
+		id = "efficient_service", name = "Efficient Service", icon = "🧑‍💼", price = 6,
 		description = "+3 Chips for every Hand or Discard you have remaining this round (combined).",
 		effect = function(_handResult, context)
 			local total = (context.handsRemaining or 0) + (context.discardsRemaining or 0)
@@ -545,7 +545,7 @@ Patrons.Definitions = {
 	-- ===== More rank-based (Ace/King/Jack/Queen all had a dedicated Patron =====
 	-- ===== -- Ten was the last rank worth a specific callout below that) =====
 	{
-		id = "perfect_ten", name = "Perfect Ten", icon = "🔟", price = 6, category = "mult",
+		id = "perfect_ten", name = "Perfect Ten", icon = "🔟", price = 6,
 		description = "+5 Mult for each Ten among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
@@ -565,7 +565,7 @@ Patrons.Definitions = {
 	-- ===== card/table-size property -- nothing so far rewarded just being =====
 	-- ===== deep into a run) =====
 	{
-		id = "night_owl", name = "Night Owl", icon = "🦉", price = 7, category = "mult",
+		id = "night_owl", name = "Night Owl", icon = "🦉", price = 7,
 		description = "+3 Mult for each Night you've reached so far this run.",
 		effect = function(_handResult, context)
 			local night = context.night or 0
@@ -580,7 +580,7 @@ Patrons.Definitions = {
 	-- ===== "opposite" of Small Plate's <=3-card reward, and the one card- =====
 	-- ===== count Patrons hadn't covered yet) =====
 	{
-		id = "steady_hand", name = "Steady Hand", icon = "✋", price = 6, category = "mult",
+		id = "steady_hand", name = "Steady Hand", icon = "✋", price = 6,
 		description = "+18 Mult if you play exactly 5 cards.",
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
@@ -594,7 +594,7 @@ Patrons.Definitions = {
 	-- ===== More ECONOMY (reads handsRemaining at round-win time -- the =====
 	-- ===== Hands-side counterpart to Closing Tab's Discards-side payout) =====
 	{
-		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6, category = "economy",
+		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
 		description = "Earn 1 Tip for every Hand you have remaining at the end of a round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -608,7 +608,7 @@ Patrons.Definitions = {
 	-- ===== RunState.startRound -- same timing the reward-doubling code right =====
 	-- ===== below this loop in RunState.playHand already relies on) =====
 	{
-		id = "boss_bane", name = "Boss's Bane", icon = "🥊", price = 7, category = "economy",
+		id = "boss_bane", name = "Boss's Bane", icon = "🥊", price = 7,
 		description = "Earn 10 Tips whenever you clear a Boss Round.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -617,27 +617,6 @@ Patrons.Definitions = {
 			end
 		end,
 	},
-}
-
--- VISUAL LIFE PASS: every Patron above now carries a `category` field
--- (mult/chips/xmult/economy/utility -- assigned by what its effect
--- actually returns, not by flavor/theme) so the client can give each one
--- a distinct accent color at a glance, the way a Balatro-style Joker's
--- rarity border reads before you've even hovered the description. Colors
--- chosen to stay inside the game's existing warm-tavern palette rather
--- than clashing with it: xmult (the rarest/most powerful effect type)
--- gets the same violet already used by the "Neon Joker" Theme and the
--- 3D tavern's own accent light, so it doubles as "this is the premium
--- tier" the same way it already reads that way everywhere else in the
--- game. Recipes' Card.Specials/Garnishes/Stamps (Card.lua) get their own
--- separate per-id colors instead of reusing this table -- those are
--- specific finishes on a specific physical card, not an ability family.
-Patrons.CATEGORY_COLORS = {
-	mult = Color3.fromRGB(214, 92, 62),     -- warm orange-red: flat +Mult
-	chips = Color3.fromRGB(74, 138, 199),   -- cool blue: flat +Chips
-	xmult = Color3.fromRGB(160, 100, 220),  -- violet: x-Mult multipliers (rarest/strongest)
-	economy = Color3.fromRGB(212, 165, 60), -- gold: Tips/economy effects
-	utility = Color3.fromRGB(70, 165, 155), -- teal: copy-neighbor/rule-bending effects
 }
 
 function Patrons.getById(id)

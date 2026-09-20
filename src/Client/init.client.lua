@@ -641,11 +641,6 @@ local Shop = require(script.Shop)({
 	addButtonHoverScale = addButtonHoverScale,
 	revealStagger = revealStagger,
 	popScale = popScale,
-	-- VISUAL LIFE PASS: inlined straight off VisualHelpersModule (not given
-	-- their own top-level locals) -- same "avoid the 200-local ceiling"
-	-- treatment every other single/dual-use lookup in this file gets.
-	makePortraitBadge = VisualHelpersModule.makePortraitBadge,
-	tintBackground = VisualHelpersModule.tintBackground,
 })
 local shopFrame = Shop.shopFrame
 local nextRoundButton = Shop.nextRoundButton
@@ -1021,8 +1016,6 @@ require(script.Collection)({
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
-	makePortraitBadge = VisualHelpersModule.makePortraitBadge,
-	tintBackground = VisualHelpersModule.tintBackground,
 })
 
 -- ===== Daily Challenge Leaderboard overlay (Phase 11) =====
@@ -1572,41 +1565,6 @@ local function handSignature(handData)
 end
 
 local function rebuildHand(handData)
-	-- VISUAL LIFE PASS: per-id colors for Garnish/Special/Stamp finishes,
-	-- used only below in this function. Kept here (Client-side), NOT added
-	-- to Shared/Engine/Card.lua's own tables -- that file is deliberately
-	-- Roblox-API-free so it can be required and tested from plain `lua5.3`
-	-- outside Roblox (see its header comment), and Color3 doesn't exist in
-	-- that environment. Declared as LOCALS OF THIS FUNCTION, not top-level
-	-- module locals, specifically to avoid Lua's 200-local-per-chunk
-	-- ceiling on the main chunk -- see Menu.lua's header comment for the
-	-- fuller explanation of that recurring constraint; a function's own
-	-- locals are a separate budget from the main chunk's, so nesting these
-	-- 3 tables in here (rather than adding 3 more top-level locals) costs
-	-- nothing against that ceiling.
-	local GARNISH_COLORS = {
-		sweet = Color3.fromRGB(230, 140, 190),      -- candy pink
-		zesty = Color3.fromRGB(230, 90, 60),        -- chili red
-		houseBlend = Color3.fromRGB(150, 110, 220), -- wild-suit violet
-		brittle = Color3.fromRGB(150, 210, 230),    -- spun-sugar ice blue
-		iron = Color3.fromRGB(150, 150, 160),       -- steel gray
-		barToken = Color3.fromRGB(150, 110, 70),    -- wooden token brown
-		golden = Color3.fromRGB(230, 190, 90),      -- gold
-		lucky = Color3.fromRGB(120, 200, 110),      -- four-leaf-clover green
-	}
-	local SPECIAL_COLORS = {
-		silver = Color3.fromRGB(205, 205, 215),
-		gold = Color3.fromRGB(235, 190, 80),
-		rainbow = Color3.fromRGB(210, 130, 220), -- base tone; the card itself gets a full ColorSequence, not just this one color
-		reserved = Color3.fromRGB(200, 170, 230),
-	}
-	local STAMP_COLORS = {
-		gold = Color3.fromRGB(235, 190, 80),
-		encore = Color3.fromRGB(120, 210, 200),
-		blue = Color3.fromRGB(90, 150, 220),
-		purple = Color3.fromRGB(160, 100, 220),
-	}
-
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature
 	lastHandSignature = newSignature
@@ -1714,68 +1672,6 @@ local function rebuildHand(handData)
 			-- would silently be missing its Garnish/Special/Stamp icon.
 			-- Found via independent review before shipping.
 			badge.Parent = button
-		end
-
-		-- VISUAL LIFE PASS: give a modified card's FACE some actual color
-		-- instead of leaving it flat `cardBase` with only the tiny corner
-		-- icon above. A Special foil (rarer, more impactful -- see
-		-- Card.lua) wins outright over a Garnish's subtler tint rather
-		-- than the two fighting for the same gradient; a Stamp never
-		-- touches the face at all, it gets its own small seal below.
-		-- Deliberately blends toward the accent via Color3:Lerp on the
-		-- gradient's own COLOR stops, never via UIGradient.Transparency --
-		-- that property makes the object see-through to whatever's behind
-		-- it (the dark table), not a color overlay, and is exactly what
-		-- caused the "everything looks near-black" bug documented in
-		-- setup-guide.md. Keeping BackgroundTransparency/gradient
-		-- Transparency untouched here avoids that whole bug class.
-		if card.special and SPECIAL_COLORS[card.special] then
-			local gradient = Instance.new("UIGradient")
-			gradient.Rotation = 60
-			if card.special == "rainbow" then
-				-- The flashiest finish in the game (x1.5 Mult) gets a true
-				-- multi-hue holographic sweep instead of a 2-stop tint.
-				gradient.Color = ColorSequence.new({
-					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 150)),
-					ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 210, 110)),
-					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(140, 230, 160)),
-					ColorSequenceKeypoint.new(0.75, Color3.fromRGB(120, 170, 255)),
-					ColorSequenceKeypoint.new(1, Color3.fromRGB(210, 130, 255)),
-				})
-			else
-				local tint = SPECIAL_COLORS[card.special]
-				gradient.Color = ColorSequence.new({
-					ColorSequenceKeypoint.new(0, currentTheme.colors.cardBase),
-					ColorSequenceKeypoint.new(1, currentTheme.colors.cardBase:Lerp(tint, 0.85)),
-				})
-			end
-			gradient.Parent = button
-		elseif card.garnish and GARNISH_COLORS[card.garnish] then
-			local gradient = Instance.new("UIGradient")
-			gradient.Rotation = 60
-			gradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, currentTheme.colors.cardBase),
-				ColorSequenceKeypoint.new(1, currentTheme.colors.cardBase:Lerp(GARNISH_COLORS[card.garnish], 0.5)),
-			})
-			gradient.Parent = button
-		end
-
-		-- A Stamp gets its own small colored "seal" in the opposite corner
-		-- from the finish-icon badge, rather than fighting for the same
-		-- gradient the face above already uses for a Special/Garnish --
-		-- reads as a distinct loyalty-card stamp instead of diluting
-		-- either color.
-		if card.stamp and STAMP_COLORS[card.stamp] then
-			local seal = Instance.new("Frame")
-			seal.AnchorPoint = Vector2.new(0, 1)
-			seal.Position = UDim2.new(0, 3, 1, -3)
-			seal.Size = UDim2.new(0, 10, 0, 10)
-			seal.BackgroundColor3 = STAMP_COLORS[card.stamp]
-			seal.ZIndex = 2
-			seal.Parent = button
-			local sealCorner = Instance.new("UICorner")
-			sealCorner.CornerRadius = UDim.new(1, 0)
-			sealCorner.Parent = seal
 		end
 
 		local scaleObject = Instance.new("UIScale")
@@ -1930,21 +1826,9 @@ local function render(state)
 					slot.frame.Visible = true
 					local owned = ownedPatrons[i]
 					if owned then
-						-- VISUAL LIFE PASS: was a flat brown box with just the
-						-- Patron's first letter -- now tints toward the same
-						-- ability-category color (Patrons.CATEGORY_COLORS) used
-						-- everywhere else the Patron shows up, and actually
-						-- shows its icon instead of one letter, so the seated
-						-- row reads as "who's at my table and what do they do"
-						-- at a glance, not just "5 boxes are filled."
-						local accentColor = Patrons.CATEGORY_COLORS[owned.category]
-						slot.frame.BackgroundColor3 = (accentColor or Color3.fromRGB(120, 100, 90)):Lerp(Color3.fromRGB(45, 35, 25), 0.45)
+						slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 						slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
-						slot.label.Text = owned.icon or owned.name:sub(1, 1)
-						if slot.ring then
-							slot.ring.Color = accentColor or Color3.fromRGB(120, 100, 90)
-							slot.ring.Transparency = 0.15
-						end
+						slot.label.Text = owned.name:sub(1, 1)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
 						-- one-off scale pop (popScale -- NOT pulseFrame, since
 						-- this frame's BackgroundColor3 is already meaningful
@@ -1957,9 +1841,6 @@ local function render(state)
 						slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
 						slot.label.TextColor3 = Color3.fromRGB(120, 115, 110)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
-						if slot.ring then
-							slot.ring.Transparency = 1
-						end
 					end
 					lastPatronSlotOwned[i] = (owned ~= nil)
 				end
