@@ -1,20 +1,28 @@
 --[[
 	TavernScene.server.lua
-	Builds a small 3D tavern room -- floor, walls, a round table, and 4
+	Builds the 3D tavern room the menu camera shows off (Client/MenuCamera.lua)
+	and, when USE_MARKETPLACE_TAVERN_BUILDING is false, a round table and 4
 	seated "Patron" NPCs (Viking / Wizard / Rogue / Goblin) -- entirely out
 	of plain Parts and Roblox's built-in SpecialMesh shapes (Pyramid,
-	Sphere, ...). No MeshId/ImageId/asset IDs anywhere, on purpose: unlike
-	the sound IDs (which you gave us directly), a guessed catalog asset ID
-	would just silently fail or error at runtime, so this sticks to
-	primitives that are guaranteed to exist.
+	Sphere, ...). No MeshId/ImageId/asset IDs anywhere in that procedural
+	path, on purpose: unlike the sound IDs (which you gave us directly), a
+	guessed catalog asset ID would just silently fail or error at runtime,
+	so it sticks to primitives that are guaranteed to exist.
 
-	This is a first pass at "in-world characters" -- intentionally simple
-	and blocky, not aiming to match the painted poster art (that needs
-	real art assets, a bigger separate task). Runs once when the server
-	starts and builds everything under one Model ("TavernScene") so you
-	can select and drag the whole thing to a new spot in Studio if it
-	doesn't line up with your baseplate/spawn -- nothing here touches
-	SpawnLocation or the player's camera/character.
+	MARKETPLACE BUILDING (current default): Ahmed found an actual tavern
+	room/building made by a real 3D artist on the Marketplace -- no amount
+	of primitive-based procedural code can match real modeled/textured art,
+	so when USE_MARKETPLACE_TAVERN_BUILDING is true, that asset is loaded
+	via InsertService instead of building the room out of Parts (see the
+	block right below this comment). The procedural room/table/NPCs are
+	still here, just skipped, so flipping the flag back to false gets the
+	old look back instantly if the marketplace asset doesn't fit well once
+	you see it in Studio, or if you swap in a different asset later.
+
+	Runs once when the server starts and builds everything under one Model
+	("TavernScene") so you can select and drag the whole thing to a new
+	spot in Studio if it doesn't line up with your baseplate/spawn --
+	nothing here touches SpawnLocation or the player's camera/character.
 
 	Position everything is built relative to TAVERN_ORIGIN below -- change
 	that one value if you want the whole scene somewhere else.
@@ -22,9 +30,62 @@
 
 local TAVERN_ORIGIN = Vector3.new(0, 1, 0) -- raised 1 stud so the floor doesn't z-fight a default baseplate
 
+-- Flip to false to go back to the fully procedural room/table/NPCs below
+-- instead of loading the Marketplace asset.
+local USE_MARKETPLACE_TAVERN_BUILDING = true
+local MARKETPLACE_TAVERN_ASSET_ID = 120911273645138
+
 local sceneModel = Instance.new("Model")
 sceneModel.Name = "TavernScene"
 sceneModel.Parent = workspace
+
+-- ===== Marketplace tavern building =====
+-- Loads the asset at runtime (same mechanism the Toolbox itself uses under
+-- the hood) rather than something you'd hand-place once in Studio, so a
+-- fresh Studio sync or a fresh server always has it, no manual "drag it
+-- back in" step after every Rojo sync. Requires the asset to be free (or
+-- something this game/account owns) -- if LoadAsset fails for any reason
+-- (asset isn't free, got taken down, a network hiccup), this warns loudly
+-- and falls back to the procedural room below instead of leaving an empty
+-- room with no error explaining why.
+if USE_MARKETPLACE_TAVERN_BUILDING then
+	local InsertService = game:GetService("InsertService")
+	local loadedOk, importedOrError = pcall(function()
+		return InsertService:LoadAsset(MARKETPLACE_TAVERN_ASSET_ID)
+	end)
+
+	if loadedOk and importedOrError then
+		local importedContainer = importedOrError
+		-- LoadAsset always wraps the result in its own top-level Model, one
+		-- level above whatever the asset actually is -- reparent its real
+		-- children straight into sceneModel so this shows up as
+		-- workspace.TavernScene.<actual building>, not an extra empty
+		-- wrapper Model sitting on top of it.
+		for _, child in ipairs(importedContainer:GetChildren()) do
+			child.Parent = sceneModel
+		end
+		importedContainer:Destroy()
+
+		-- Center the building on TAVERN_ORIGIN, same as everything the
+		-- procedural path below builds. PivotTo moves the whole thing as
+		-- one rigid group using its own built-in pivot -- same as dragging
+		-- it in Studio. NOTE: the asset's own pivot may not land its table/
+		-- open floor area exactly where the menu camera orbits (Client/
+		-- MenuCamera.lua's tableCenter) -- if the showcase shot looks off
+		-- once you see it, that's a camera-aim tweak in MenuCamera.lua, not
+		-- a problem with this file.
+		local tavernBuildingModel = sceneModel:FindFirstChildWhichIsA("Model")
+		if tavernBuildingModel then
+			tavernBuildingModel:PivotTo(CFrame.new(TAVERN_ORIGIN))
+			tavernBuildingModel.Name = "MarketplaceTavernBuilding"
+		end
+
+		print("[TavernScene] Loaded marketplace tavern building (asset " .. MARKETPLACE_TAVERN_ASSET_ID .. ") -- skipping the procedural room/table/NPCs below")
+	else
+		warn("[TavernScene] Failed to load marketplace asset " .. MARKETPLACE_TAVERN_ASSET_ID .. " -- falling back to the procedural room instead of leaving it empty. Error: " .. tostring(importedOrError))
+		USE_MARKETPLACE_TAVERN_BUILDING = false
+	end
+end
 
 -- ===== Mood lighting (poster-art atmosphere) =====
 -- This room has no ceiling (see the wall shell below), so Roblox's normal
@@ -159,7 +220,7 @@ local WALL_HEIGHT = 16
 local WOOD_DARK = Color3.fromRGB(64, 44, 30)
 local WOOD_MID = Color3.fromRGB(92, 64, 42)
 
-do
+if not USE_MARKETPLACE_TAVERN_BUILDING then
 	local floor = makePart(
 		Vector3.new(ROOM_SIZE, 1, ROOM_SIZE),
 		CFrame.new(TAVERN_ORIGIN),
@@ -297,7 +358,7 @@ local TABLE_CENTER = TAVERN_ORIGIN + Vector3.new(0, 0, 0)
 local TABLE_RADIUS = 6
 local TABLE_TOP_Y = 3
 
-do
+if not USE_MARKETPLACE_TAVERN_BUILDING then
 	-- Size.X becomes the vertical axis once rotated below (a Cylinder
 	-- Part's round end-caps sit on its local X axis by default), so X here
 	-- is the pedestal's HEIGHT and Y/Z (equal, for a circular cross
@@ -389,7 +450,7 @@ end
 -- nothing that says "someone actually lives/drinks here." These 3 small
 -- additions are all still Parts/SpecialMesh only (no MeshId/ImageId/asset
 -- IDs), same constraint as everything else in this file.
-do
+if not USE_MARKETPLACE_TAVERN_BUILDING then
 	-- A round rug under the table -- a slightly darker ring on top of a
 	-- base disc fakes a woven border pattern without needing a real
 	-- texture. Sits just above the floor (+0.05Y) to avoid z-fighting.
@@ -682,16 +743,18 @@ local PATRON_SEATS = {
 	{ name = "Goblin Patron", angle = 270, skin = Color3.fromRGB(120, 170, 90), outfit = Color3.fromRGB(90, 130, 60), accent = Color3.fromRGB(70, 100, 50), hat = "goblin" },
 }
 
-for _, seatSpec in ipairs(PATRON_SEATS) do
-	local angleRad = math.rad(seatSpec.angle)
-	local seatDistance = TABLE_RADIUS + 2.4
-	local seatPosition = TABLE_CENTER
-		+ Vector3.new(math.sin(angleRad) * seatDistance, 0.2, math.cos(angleRad) * seatDistance)
-	-- Face back toward the table center.
-	local seatCFrame = CFrame.new(seatPosition, TABLE_CENTER + Vector3.new(0, 0.2, 0))
+if not USE_MARKETPLACE_TAVERN_BUILDING then
+	for _, seatSpec in ipairs(PATRON_SEATS) do
+		local angleRad = math.rad(seatSpec.angle)
+		local seatDistance = TABLE_RADIUS + 2.4
+		local seatPosition = TABLE_CENTER
+			+ Vector3.new(math.sin(angleRad) * seatDistance, 0.2, math.cos(angleRad) * seatDistance)
+		-- Face back toward the table center.
+		local seatCFrame = CFrame.new(seatPosition, TABLE_CENTER + Vector3.new(0, 0.2, 0))
 
-	buildChair(seatCFrame)
-	buildNPC(seatSpec.name, seatCFrame, seatSpec.skin, seatSpec.outfit, seatSpec.accent, seatSpec.hat)
+		buildChair(seatCFrame)
+		buildNPC(seatSpec.name, seatCFrame, seatSpec.skin, seatSpec.outfit, seatSpec.accent, seatSpec.hat)
+	end
+
+	print("[TavernScene] Built room + table + " .. #PATRON_SEATS .. " seated Patron NPCs under workspace.TavernScene")
 end
-
-print("[TavernScene] Built room + table + " .. #PATRON_SEATS .. " seated Patron NPCs under workspace.TavernScene")
