@@ -73,6 +73,14 @@
 		addButtonHoverScale -- function(button, opts?) -- POLISH PASS Batch 2
 		revealStagger       -- function(instances, opts?) -- POLISH PASS Batch 2
 		popScale            -- function(instance, fromScale?, duration?) -- POLISH PASS Batch 3
+		shopBackgroundImage -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
+
+	AI ART: shopBackgroundImage is a wooden bar-backdrop illustration from
+	the art brief, rendered as a plain background ImageLabel one ZIndex
+	below every real piece of shop content (SHOP_ZINDEX below) -- currently
+	still the "rbxassetid://0" placeholder, which Roblox just renders as no
+	image, so shopFrame's own flat BackgroundColor3 shows through exactly
+	as it always has until a real id is filled in.
 
 	POLISH PASS (Batch 2): this is the single most-visited screen in the
 	game and previously had ZERO animation of its own (every offer row,
@@ -143,6 +151,7 @@ return function(deps)
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local revealStagger = deps.revealStagger
 	local popScale = deps.popScale
+	local shopBackgroundImage = deps.shopBackgroundImage
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -203,6 +212,20 @@ return function(deps)
 		shopFrame.ZIndex = 6
 		shopFrame.Parent = root
 		polishPanel(shopFrame, 16)
+
+		-- ART (placeholder-safe, see Client/ArtAssets.lua): the wooden bar
+		-- backdrop illustration. ZIndex 5, one below every real shop child
+		-- below (SHOP_ZINDEX = 6), so it always sits behind the title/tabs/
+		-- offer rows regardless of creation order.
+		local shopBackgroundArt = Instance.new("ImageLabel")
+		shopBackgroundArt.Name = "ShopBackgroundArt"
+		shopBackgroundArt.Size = UDim2.fromScale(1, 1)
+		shopBackgroundArt.BackgroundTransparency = 1
+		shopBackgroundArt.BorderSizePixel = 0
+		shopBackgroundArt.ScaleType = Enum.ScaleType.Crop
+		shopBackgroundArt.Image = shopBackgroundImage or "rbxassetid://0"
+		shopBackgroundArt.ZIndex = 5
+		shopBackgroundArt.Parent = shopFrame
 
 		-- Deliberately NOT calling addSoftShadow(shopFrame, ...) here.
 		-- addSoftShadow sizes its shadow Frame using UDim2.new(1, 14, 1, 14) --

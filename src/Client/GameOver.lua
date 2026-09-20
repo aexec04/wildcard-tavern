@@ -40,6 +40,13 @@
 		tweenTo        -- function(instance, props, duration, easingStyle?, easingDirection?)
 		playSfx        -- function(soundId, volume?) -- see Sound.lua
 		SOUND_IDS      -- table, for SOUND_IDS.gameOverWin/gameOverLoss
+		gameOverWinBackgroundImage -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
+
+	AI ART: gameOverWinBackgroundImage is a celebration-scene illustration
+	from the art brief, shown ONLY on an actual win (see winBackgroundArt
+	below) -- still "rbxassetid://0" until uploaded, which Roblox renders
+	as no image, so the win state just looks like the loss state (flat
+	panel, no picture) until a real id is filled in.
 
 	POLISH (Phase 14, requested fix: "there is no losing sound, it just
 	brings up this screen"): this panel played NO sound at all on either
@@ -65,6 +72,7 @@ return function(deps)
 	local tweenTo = deps.tweenTo
 	local playSfx = deps.playSfx
 	local SOUND_IDS = deps.SOUND_IDS
+	local gameOverWinBackgroundImage = deps.gameOverWinBackgroundImage
 
 	local gameOverFrame = Instance.new("Frame")
 	gameOverFrame.Name = "GameOver"
@@ -89,6 +97,23 @@ return function(deps)
 	accentBar.BorderSizePixel = 0
 	accentBar.ZIndex = 21
 	accentBar.Parent = gameOverFrame
+
+	-- ART (placeholder-safe, see Client/ArtAssets.lua): win-only background
+	-- illustration. Starts hidden -- refreshGameOver below flips Visible to
+	-- match isWin every time this panel refreshes, so it's never shown for
+	-- a loss. ImageTransparency keeps it from fighting the readability of
+	-- the text/stats drawn on top (ZIndex 21+) once a real id is filled in.
+	local winBackgroundArt = Instance.new("ImageLabel")
+	winBackgroundArt.Name = "WinBackgroundArt"
+	winBackgroundArt.Size = UDim2.fromScale(1, 1)
+	winBackgroundArt.BackgroundTransparency = 1
+	winBackgroundArt.ImageTransparency = 0.15
+	winBackgroundArt.BorderSizePixel = 0
+	winBackgroundArt.ScaleType = Enum.ScaleType.Crop
+	winBackgroundArt.Image = gameOverWinBackgroundImage or "rbxassetid://0"
+	winBackgroundArt.Visible = false
+	winBackgroundArt.ZIndex = 20
+	winBackgroundArt.Parent = gameOverFrame
 
 	-- POLISH: everything below the accent bar is grouped under one child
 	-- Frame so the pop-in UIScale (see revealPending below) scales the
@@ -176,6 +201,7 @@ return function(deps)
 		end
 
 		local isWin = state.wonRun == true
+		winBackgroundArt.Visible = isWin
 		if isWin then
 			accentBar.BackgroundColor3 = WIN_COLOR
 			iconLabel.Text = "🏆"

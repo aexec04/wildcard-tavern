@@ -22,6 +22,7 @@
 		StartWeeklyChallengeRemote -- RemoteEvent, fired on Weekly Challenge click (Phase 16)
 		openSeedRunDialog       -- function(), opens SeedRunDialog.lua's modal (Phase 16)
 		openTutorial            -- function(), opens Tutorial.lua's walkthrough (Phase 16)
+		menuBackgroundImage     -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
 
 	Returns:
 		{
@@ -72,6 +73,15 @@
 	from that whole detour: the ScrollingFrame button layout below, which
 	fixed a real title/button overlap bug on short/landscape screens and
 	has nothing to do with the showcase idea itself.
+
+	AI ART (post-revert, different from the showcase pass above): a plain
+	background ImageLabel behind the flat panel color, sourced from
+	Client/ArtAssets.lua -- NOT the code-only gradient/glow pass that was
+	tried and reverted earlier. This is a real illustrated background
+	image (an empty tavern-room scene from the art brief), currently still
+	the "rbxassetid://0" placeholder until it's uploaded to Roblox. No
+	camera, no 3D reveal, no transparency tricks -- same flat 2D menu,
+	just with a real picture behind it once the id is filled in.
 ]]
 
 return function(deps)
@@ -84,6 +94,7 @@ return function(deps)
 	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
 	local openSeedRunDialog = deps.openSeedRunDialog
 	local openTutorial = deps.openTutorial
+	local menuBackgroundImage = deps.menuBackgroundImage
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -92,6 +103,23 @@ return function(deps)
 	menuFrame.BorderSizePixel = 0
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = screenGui
+
+	-- ART (placeholder-safe, see Client/ArtAssets.lua): background art from
+	-- the art brief. BackgroundTransparency on the IMAGE stays 1 -- it's
+	-- menuFrame's own flat BackgroundColor3 above that acts as the fallback
+	-- for as long as menuBackgroundImage is still the "rbxassetid://0"
+	-- placeholder (Roblox renders that as simply no image, never an
+	-- error). ZIndex 9 (menuFrame's other children are all 10) guarantees
+	-- this sits behind everything regardless of creation order.
+	local menuBackgroundArt = Instance.new("ImageLabel")
+	menuBackgroundArt.Name = "MenuBackgroundArt"
+	menuBackgroundArt.Size = UDim2.fromScale(1, 1)
+	menuBackgroundArt.BackgroundTransparency = 1
+	menuBackgroundArt.BorderSizePixel = 0
+	menuBackgroundArt.ScaleType = Enum.ScaleType.Crop
+	menuBackgroundArt.Image = menuBackgroundImage or "rbxassetid://0"
+	menuBackgroundArt.ZIndex = 9
+	menuBackgroundArt.Parent = menuFrame
 
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Size = UDim2.new(1, 0, 0, 70)
