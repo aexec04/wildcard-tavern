@@ -22,6 +22,8 @@
 		StartWeeklyChallengeRemote -- RemoteEvent, fired on Weekly Challenge click (Phase 16)
 		openSeedRunDialog       -- function(), opens SeedRunDialog.lua's modal (Phase 16)
 		openTutorial            -- function(), opens Tutorial.lua's walkthrough (Phase 16)
+		addBackgroundAtmosphere -- function(frame, opts?), VisualHelpers.lua
+		addButtonGradient       -- function(button, opts?), VisualHelpers.lua
 
 	Returns:
 		{
@@ -66,12 +68,23 @@
 	panel over a scrim card, with a camera (Client/MenuCamera.lua) orbiting
 	the 3D tavern scene behind it, glossy gradient buttons, and text-stroke
 	titles. Ahmed asked to scratch that and go back to a plain 2D menu, so
-	this file is back to the simple opaque panel + flat buttons it was
+	this file went back to the simple opaque panel + flat buttons it was
 	before that pass (Client/MenuCamera.lua is no longer required by
 	anything and init.client.lua no longer wires it up). The one thing kept
 	from that whole detour: the ScrollingFrame button layout below, which
 	fixed a real title/button overlap bug on short/landscape screens and
 	has nothing to do with the showcase idea itself.
+
+	ART/FEEL PASS ("too snappy" / "too plain" / "not much art"): the flat
+	opaque panel from the revert above was still just one solid color with
+	zero depth -- exactly the "looks nothing like a real game" feedback.
+	addBackgroundAtmosphere (VisualHelpers.lua) adds a lit-from-the-middle
+	gradient + a warm glow behind the title + faint wood-grain lines, all
+	built from Frames/UIGradient, no image asset. addButtonGradient gives
+	each button a touch of raised depth instead of one flat swatch. This is
+	deliberately NOT the showcase pass again -- no camera, no 3D reveal, no
+	transparency tricks, no text-stroke -- just the same flat 2D menu with
+	actual visual depth on it.
 ]]
 
 return function(deps)
@@ -84,6 +97,8 @@ return function(deps)
 	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
 	local openSeedRunDialog = deps.openSeedRunDialog
 	local openTutorial = deps.openTutorial
+	local addBackgroundAtmosphere = deps.addBackgroundAtmosphere
+	local addButtonGradient = deps.addButtonGradient
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -92,6 +107,19 @@ return function(deps)
 	menuFrame.BorderSizePixel = 0
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = screenGui
+
+	-- ART PASS: turn the flat swatch above into something lit -- see this
+	-- file's header comment. Glow is centered behind the title (it sits at
+	-- y=18..88, so its vertical center is ~53).
+	addBackgroundAtmosphere(menuFrame, {
+		topColor = Color3.fromRGB(10, 8, 6),
+		midColor = Color3.fromRGB(32, 23, 15),
+		bottomColor = Color3.fromRGB(8, 6, 5),
+		glowAnchor = UDim2.new(0.5, 0, 0, 53),
+		glowColor = Color3.fromRGB(255, 200, 120),
+		grain = true,
+		grainLines = 14,
+	})
 
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Size = UDim2.new(1, 0, 0, 70)
@@ -175,6 +203,7 @@ return function(deps)
 		button.ZIndex = 10
 		button.Parent = menuButtonHolder
 		polishButton(button, 12)
+		addButtonGradient(button)
 		return button
 	end
 

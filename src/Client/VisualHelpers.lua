@@ -49,7 +49,24 @@
 			popScale = function(instance, fromScale?, duration?),
 			addButtonHoverScale = function(button, opts?),
 			revealStagger = function(instances, opts?),
+			addBackgroundAtmosphere = function(frame, opts?),
+			addButtonGradient = function(button, opts?),
+			fadeTransition = function(curtain, duration?, onCovered?),
 		}
+
+	ART/FEEL PASS (Ahmed: "it feels way too simple, the transition is just
+	too snappy, the background is too plain, and there really isn't much
+	art going on at all"): rather than sourcing real image assets (which
+	Ahmed explicitly doesn't have and doesn't want to chase down right now),
+	the 3 functions at the very bottom add visual depth using nothing but
+	Frames/UIGradient/UICorner -- same zero-asset toolkit as everything else
+	in this file. addBackgroundAtmosphere turns a flat-color panel into
+	something that reads as lit/textured; addButtonGradient gives a flat
+	button a touch of raised dimension; fadeTransition replaces a hard
+	instant Visible-swap with a real cross-fade. First used by Menu.lua (the
+	menu background + its buttons) and init.client.lua (the Menu -> game
+	handoff, and `root`'s own background) -- reusable anywhere else in the
+	game that still looks like flat rectangles.
 
 	POLISH PASS (post-Phase-7, "great animations" ask): the 4 functions
 	added at the bottom (popIn/popOut/pulseFrame/popScale) are shared,
@@ -663,6 +680,171 @@ return function(deps)
 		end
 	end
 
+	-- ART PASS: a cheap, code-only way to make a flat background Frame read
+	-- as an actual lit space instead of one solid rectangle -- no external
+	-- image/texture asset needed. Layers up to three things onto `frame`,
+	-- each parented directly to it with ZIndex pinned to frame.ZIndex - 1
+	-- (floored at 0) so everything added here renders BEHIND whatever
+	-- frame's existing children already are, regardless of sibling order:
+	--
+	--   1. A vertical UIGradient -- Color only, never Transparency (see the
+	--      addGloss postmortem up top for exactly why that distinction
+	--      matters here). Darkens the top/bottom edges and lifts a warm
+	--      band through the middle, so the panel reads as lit from one
+	--      soft source rather than a single flat swatch. A UIGradient's
+	--      ColorSequence fully drives what's rendered wherever it's
+	--      applied -- frame's own BackgroundColor3 stops mattering the
+	--      moment this is added, so opts.midColor defaults to a lightened
+	--      version of whatever BackgroundColor3 already was, to stay close
+	--      to a caller's original intent if they don't override it.
+	--   2. An optional soft round "glow" (opts.glowAnchor, a UDim2 point
+	--      within frame) -- a small stack of concentric circular Frames
+	--      (a Frame + UICorner radius of UDim.new(1, 0) is a perfect
+	--      circle), each bigger and more transparent than the last, faking
+	--      the soft halo a lantern-glow image sprite would give without
+	--      needing one.
+	--   3. Optional "grain" (opts.grain = true) -- a handful of very faint,
+	--      thin horizontal Frames spanning the background, suggesting
+	--      wood-plank seams and breaking up what would otherwise be a
+	--      perfectly smooth fill.
+	local function addBackgroundAtmosphere(frame, opts)
+		opts = opts or {}
+		local baseZIndex = math.max(0, frame.ZIndex - 1)
+
+		local gradient = Instance.new("UIGradient")
+		gradient.Name = "AtmosphereGradient"
+		gradient.Rotation = 90
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, opts.topColor or Color3.fromRGB(8, 6, 5)),
+			ColorSequenceKeypoint.new(0.45, opts.midColor or frame.BackgroundColor3:Lerp(Color3.new(1, 1, 1), 0.08)),
+			ColorSequenceKeypoint.new(1, opts.bottomColor or Color3.fromRGB(6, 5, 4)),
+		})
+		gradient.Parent = frame
+
+		if opts.glowAnchor then
+			local glowHolder = Instance.new("Frame")
+			glowHolder.Name = "AtmosphereGlow"
+			glowHolder.BackgroundTransparency = 1
+			glowHolder.Size = UDim2.fromScale(1, 1)
+			glowHolder.ZIndex = baseZIndex
+			glowHolder.Parent = frame
+
+			local glowColor = opts.glowColor or Color3.fromRGB(255, 200, 120)
+			local rings = opts.glowRings or {
+				{ size = 460, transparency = 0.94 },
+				{ size = 320, transparency = 0.89 },
+				{ size = 200, transparency = 0.82 },
+			}
+			for _, ring in ipairs(rings) do
+				local circle = Instance.new("Frame")
+				circle.Name = "GlowRing"
+				circle.AnchorPoint = Vector2.new(0.5, 0.5)
+				circle.Position = opts.glowAnchor
+				circle.Size = UDim2.fromOffset(ring.size, ring.size)
+				circle.BackgroundColor3 = glowColor
+				circle.BackgroundTransparency = ring.transparency
+				circle.BorderSizePixel = 0
+				circle.ZIndex = baseZIndex
+				circle.Parent = glowHolder
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(1, 0)
+				corner.Parent = circle
+			end
+		end
+
+		if opts.grain then
+			local grainHolder = Instance.new("Frame")
+			grainHolder.Name = "AtmosphereGrain"
+			grainHolder.BackgroundTransparency = 1
+			grainHolder.Size = UDim2.fromScale(1, 1)
+			grainHolder.ZIndex = baseZIndex
+			grainHolder.Parent = frame
+
+			local lineCount = opts.grainLines or 10
+			for i = 1, lineCount do
+				local line = Instance.new("Frame")
+				line.Name = "GrainLine"
+				line.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+				line.BackgroundTransparency = 0.93
+				line.BorderSizePixel = 0
+				line.Size = UDim2.new(1, 0, 0, 1)
+				line.Position = UDim2.new(0, 0, i / (lineCount + 1), 0)
+				line.ZIndex = baseZIndex
+				line.Parent = grainHolder
+			end
+		end
+
+		return gradient
+	end
+
+	-- ART PASS: a subtle two-stop vertical UIGradient (Color only) that
+	-- makes a flat button read as slightly domed/raised -- lighter near
+	-- the top edge, darker near the bottom -- instead of one flat swatch.
+	-- Deliberately relative to the button's OWN BackgroundColor3 (a %
+	-- lift/drop, not a fixed hardcoded color), so category-colored buttons
+	-- elsewhere in the game (Shop offers, etc.) would still read as "that
+	-- button's color" with a bit of dimension, not all converge on one
+	-- tint, if this ever gets used there too. Companion UIStroke gives the
+	-- button a defined edge (a "carved sign" feel) -- also derived from the
+	-- button's own color, never a flat black/white line.
+	local function addButtonGradient(button, opts)
+		opts = opts or {}
+		local base = button.BackgroundColor3
+		local lift = opts.lift or 0.18
+		local drop = opts.drop or 0.24
+
+		local gradient = Instance.new("UIGradient")
+		gradient.Name = "ButtonDepthGradient"
+		gradient.Rotation = 90
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, base:Lerp(Color3.new(1, 1, 1), lift)),
+			ColorSequenceKeypoint.new(1, base:Lerp(Color3.new(0, 0, 0), drop)),
+		})
+		gradient.Parent = button
+
+		if opts.stroke ~= false then
+			local stroke = Instance.new("UIStroke")
+			stroke.Name = "ButtonDepthStroke"
+			stroke.Color = base:Lerp(Color3.new(0, 0, 0), 0.55)
+			stroke.Thickness = opts.strokeThickness or 1.5
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			stroke.Parent = button
+		end
+
+		return gradient
+	end
+
+	-- TRANSITION (feel pass): a full-screen black "curtain" cross-fade,
+	-- replacing a hard instant Visible-swap between two screens.
+	-- `curtain` is expected to be a full-screen Frame sitting above
+	-- everything else (high ZIndex), starting hidden/fully transparent.
+	-- This fades it in, waits for that fade to actually finish, calls
+	-- `onCovered()` (expected to do the real swap -- hide one screen, show
+	-- the other -- while the curtain is fully opaque and nothing
+	-- underneath is visible anyway), then fades the curtain back out and
+	-- re-hides it once THAT finishes. `duration` is the time for EACH half
+	-- of the fade, so a full cut-and-reveal takes roughly 2x duration.
+	local function fadeTransition(curtain, duration, onCovered)
+		duration = duration or 0.22
+		curtain.Visible = true
+		curtain.BackgroundTransparency = 1
+		local fadeIn = tweenTo(curtain, { BackgroundTransparency = 0 }, duration)
+		fadeIn.Completed:Connect(function(playbackState)
+			if playbackState ~= Enum.PlaybackState.Completed then
+				return -- interrupted (e.g. another transition fired mid-fade) -- don't stomp it
+			end
+			if onCovered then
+				onCovered()
+			end
+			local fadeOut = tweenTo(curtain, { BackgroundTransparency = 1 }, duration)
+			fadeOut.Completed:Connect(function(innerState)
+				if innerState == Enum.PlaybackState.Completed then
+					curtain.Visible = false
+				end
+			end)
+		end)
+	end
+
 	return {
 		tweenTo = tweenTo,
 		roundCorner = roundCorner,
@@ -678,5 +860,8 @@ return function(deps)
 		popScale = popScale,
 		addButtonHoverScale = addButtonHoverScale,
 		revealStagger = revealStagger,
+		addBackgroundAtmosphere = addBackgroundAtmosphere,
+		addButtonGradient = addButtonGradient,
+		fadeTransition = fadeTransition,
 	}
 end
