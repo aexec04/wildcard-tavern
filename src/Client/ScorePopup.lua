@@ -455,16 +455,43 @@ return function(deps)
 
 	-- ===== Per-source highlight beats =====
 
+	-- AI ART (card-face template rollout): this used to flash ghost's own
+	-- BackgroundColor3 white then back -- which is now completely hidden
+	-- once the card-art image sits on top of it (see init.client.lua's
+	-- rebuildHand). Same fix as ensureDimOverlay above and for the exact
+	-- same reason: a lazily-created per-ghost overlay Frame, so the flash
+	-- can never interfere with -- or be hidden behind -- the ghost's own
+	-- art/text/badge. ZIndex one above ensureDimOverlay's overlay so a
+	-- highlight beat still reads clearly even on a ghost that's
+	-- simultaneously NOT focus-dimmed (the common case -- see the call
+	-- sites below, which fire setPlayedRowFocus and highlightGhost
+	-- together).
+	local function ensureHighlightOverlay(entry)
+		if entry.highlightOverlay then
+			return entry.highlightOverlay
+		end
+		local overlay = Instance.new("Frame")
+		overlay.Name = "ScoreHighlight"
+		overlay.Size = UDim2.fromScale(1, 1)
+		overlay.BackgroundColor3 = Color3.new(1, 1, 1)
+		overlay.BackgroundTransparency = 1
+		overlay.BorderSizePixel = 0
+		overlay.ZIndex = entry.ghost.ZIndex + 2
+		overlay.Parent = entry.ghost
+		entry.highlightOverlay = overlay
+		return overlay
+	end
+
 	local function highlightGhost(entry)
 		local ghost = entry.ghost
-		entry.baseColor = entry.baseColor or ghost.BackgroundColor3
+		local overlay = ensureHighlightOverlay(entry)
 		ghost.Visible = true
 		tweenTo(entry.scale, { Scale = 1.22 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		tweenTo(ghost, { BackgroundColor3 = entry.baseColor:Lerp(Color3.new(1, 1, 1), 0.55) }, 0.1)
+		tweenTo(overlay, { BackgroundTransparency = 0.45 }, 0.1)
 		task.delay(0.16, function()
 			if ghost.Parent then
 				tweenTo(entry.scale, { Scale = 1 }, 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-				tweenTo(ghost, { BackgroundColor3 = entry.baseColor }, 0.25)
+				tweenTo(overlay, { BackgroundTransparency = 1 }, 0.25)
 			end
 		end)
 	end

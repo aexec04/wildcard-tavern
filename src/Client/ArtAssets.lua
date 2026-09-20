@@ -19,8 +19,10 @@
 	then take the number from the resulting asset id and write it in below
 	as "rbxassetid://<that number>".
 
-	cardFaceTemplate is deliberately UNUSED by any module yet, even once
-	filled in -- see its own comment for why.
+	cardFaceTemplate is now wired into init.client.lua's rebuildHand -- see
+	its own comment there for the selection-cue redesign (UIStroke glow
+	instead of a BackgroundColor3 swap) that had to happen first so the
+	image wouldn't hide the hover/select signal.
 ]]
 
 return {
@@ -40,20 +42,9 @@ return {
 	-- Uploaded Sep 20, 2026 as "gameover-win-celebration-scene".
 	gameOverWinBackground = "rbxassetid://92026057699401",
 
-	-- NOT wired into any card rendering yet on purpose. Cards change
-	-- BackgroundColor3 on hover/select (see init.client.lua's rebuildHand)
-	-- -- that color change is a real gameplay signal (which cards you've
-	-- selected to play), not just decoration. Dropping an opaque card-face
-	-- image on top of the button would hide that color change entirely.
-	-- Using this properly needs the selection cue redesigned first (e.g.
-	-- a colored border/glow instead of a full background-color swap) --
-	-- worth doing once there's a real budget for that, not as a drive-by
-	-- addition here. Left here so the id has a home the moment that
-	-- redesign happens. Already uploaded (Sep 20, 2026, as
-	-- "card-face-template-ace-of-spades", asset id 125245906808033) but
-	-- deliberately left at the placeholder here until the selection-cue
-	-- redesign above actually happens and a real call site exists to use
-	-- it -- recorded in this comment so the id isn't lost in the meantime:
-	-- rbxassetid://125245906808033
-	cardFaceTemplate = "rbxassetid://0",
+	-- init.client.lua's hand cards, ScorePopup.lua's ghost clones of them.
+	-- Fallback: the card button's own flat currentTheme.colors.cardBase
+	-- fill (same color that used to be the WHOLE card face).
+	-- Uploaded Sep 20, 2026 as "card-face-template-ace-of-spades".
+	cardFaceTemplate = "rbxassetid://125245906808033",
 }

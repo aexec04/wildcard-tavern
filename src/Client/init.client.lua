@@ -1212,13 +1212,6 @@ local function refreshCardVisual(index, usePop)
 		end
 	end
 
-	local targetColor
-	if isSelected then
-		targetColor = currentTheme.colors.cardSelected
-	else
-		targetColor = currentTheme.colors.cardBase
-	end
-
 	local targetScale
 	if isSelected and isHovering then
 		targetScale = SELECTED_HOVER_SCALE
@@ -1233,9 +1226,32 @@ local function refreshCardVisual(index, usePop)
 	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	tweenTo(button, {
-		BackgroundColor3 = targetColor,
 		Position = UDim2.new(0.5, 0, 0.5, -lift),
 	}, 0.15)
+
+	-- SELECTION/HOVER CUE: see the UIStroke's own comment back in
+	-- rebuildHand for why this moved off button.BackgroundColor3. Looked
+	-- up rather than tracked in a parallel table, same pattern
+	-- VisualHelpers.lua's own functions use for UIScale (:FindFirstChildOfClass).
+	local stroke = button:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		local strokeThickness, strokeTransparency
+		if isSelected and isHovering then
+			strokeThickness, strokeTransparency = 4, 0
+		elseif isSelected then
+			strokeThickness, strokeTransparency = 3, 0.05
+		elseif isHovering then
+			strokeThickness, strokeTransparency = 2, 0.5
+		else
+			strokeThickness, strokeTransparency = 1, 1
+		end
+		tweenTo(stroke, {
+			Color = currentTheme.colors.cardSelected,
+			Thickness = strokeThickness,
+			Transparency = strokeTransparency,
+		}, 0.15)
+	end
+
 	if usePop then
 		tweenTo(scaleObject, { Scale = targetScale }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	else
@@ -1568,6 +1584,15 @@ local function handSignature(handData)
 end
 
 local function rebuildHand(handData)
+	-- AI ART: function-scoped, NOT a new top-level local (this file is
+	-- already right up against Lua's 200-local-per-chunk ceiling, same
+	-- reasoning as everywhere else in this file) -- Lua's local limit is
+	-- per-FUNCTION, so a local declared inside rebuildHand's own body
+	-- costs nothing against the main chunk's count. require() is cached
+	-- by Roblox, so calling it once per rebuildHand (not per-card) is both
+	-- cheap and correct.
+	local cardFaceImage = require(script.ArtAssets).cardFaceTemplate
+
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature
 	lastHandSignature = newSignature
@@ -1628,11 +1653,62 @@ local function rebuildHand(handData)
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 20
+		-- Fallback fill -- shown if cardFaceImage below is ever the
+		-- "rbxassetid://0" placeholder or fails to load (see
+		-- Client/ArtAssets.lua). No longer tweened for selection; see the
+		-- UIStroke-based cue below and in refreshCardVisual.
 		button.BackgroundColor3 = currentTheme.colors.cardBase
-		button.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
-		button.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+		-- Own Text left blank -- rank/suit render via cardRankSuitLabel
+		-- below instead, a CHILD of button, so it's guaranteed to draw on
+		-- top of cardArt regardless of how a TextButton's own Text and its
+		-- children's render order interact.
+		button.Text = ""
 		button.Parent = slot
 		polishButton(button, 8)
+
+		-- AI ART: the card-face template art (see the art brief). ZIndex 1
+		-- -- one below cardRankSuitLabel and the Garnish/Special/Stamp badge
+		-- further below (both ZIndex 2) -- so it's always a backdrop, never
+		-- covering the text or badge. roundCorner matches polishButton's
+		-- own radius above so the image's corners read as rounded too,
+		-- without needing button.ClipsDescendants (untouched elsewhere).
+		local cardArt = Instance.new("ImageLabel")
+		cardArt.Name = "CardArt"
+		cardArt.Size = UDim2.fromScale(1, 1)
+		cardArt.BackgroundTransparency = 1
+		cardArt.BorderSizePixel = 0
+		cardArt.ScaleType = Enum.ScaleType.Crop
+		cardArt.Image = cardFaceImage or "rbxassetid://0"
+		cardArt.ZIndex = 1
+		cardArt.Parent = button
+		roundCorner(cardArt, 8)
+
+		local cardRankSuitLabel = Instance.new("TextLabel")
+		cardRankSuitLabel.Name = "RankSuit"
+		cardRankSuitLabel.Size = UDim2.fromScale(1, 1)
+		cardRankSuitLabel.BackgroundTransparency = 1
+		cardRankSuitLabel.Font = Enum.Font.GothamBold
+		cardRankSuitLabel.TextSize = 20
+		cardRankSuitLabel.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
+		cardRankSuitLabel.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+		cardRankSuitLabel.ZIndex = 2
+		cardRankSuitLabel.Parent = button
+
+		-- SELECTION/HOVER CUE (redesign for the card-art rollout): this
+		-- used to be button.BackgroundColor3 tweening between the theme's
+		-- cardBase/cardSelected colors -- completely invisible now that
+		-- cardArt sits on top of it. Replaced with a UIStroke glow, tweened
+		-- in refreshCardVisual below -- stays visible with or without the
+		-- art image, and reads at least as clearly as the old color swap
+		-- did. Starts fully transparent; refreshCardVisual dials it in the
+		-- moment this card is first hovered/selected.
+		local cardStroke = Instance.new("UIStroke")
+		cardStroke.Name = "SelectionStroke"
+		cardStroke.Color = currentTheme.colors.cardSelected
+		cardStroke.Thickness = 1
+		cardStroke.Transparency = 1
+		cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cardStroke.Parent = button
 
 		-- PHASE 1B: Garnish/Special/Stamp visual treatment. Doesn't need
 		-- full card art (see the feature-expansion project doc's stated v1
