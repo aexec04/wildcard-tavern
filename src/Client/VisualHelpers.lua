@@ -730,10 +730,12 @@ return function(deps)
 			glowHolder.Parent = frame
 
 			local glowColor = opts.glowColor or Color3.fromRGB(255, 200, 120)
+			-- TONED DOWN (Ahmed: "too dark, very wack" on the first pass):
+			-- lighter/more-transparent than the original values.
 			local rings = opts.glowRings or {
-				{ size = 460, transparency = 0.94 },
-				{ size = 320, transparency = 0.89 },
-				{ size = 200, transparency = 0.82 },
+				{ size = 460, transparency = 0.96 },
+				{ size = 320, transparency = 0.93 },
+				{ size = 200, transparency = 0.89 },
 			}
 			for _, ring in ipairs(rings) do
 				local circle = Instance.new("Frame")
@@ -790,8 +792,12 @@ return function(deps)
 	local function addButtonGradient(button, opts)
 		opts = opts or {}
 		local base = button.BackgroundColor3
-		local lift = opts.lift or 0.18
-		local drop = opts.drop or 0.24
+		-- TONED DOWN (Ahmed: "too dark, very wack" on the first pass): the
+		-- drop toward black was heavier than the lift toward white, which
+		-- read as buttons getting muddier/darker rather than "raised".
+		-- Softer, closer-to-even values now.
+		local lift = opts.lift or 0.12
+		local drop = opts.drop or 0.14
 
 		local gradient = Instance.new("UIGradient")
 		gradient.Name = "ButtonDepthGradient"
@@ -805,7 +811,7 @@ return function(deps)
 		if opts.stroke ~= false then
 			local stroke = Instance.new("UIStroke")
 			stroke.Name = "ButtonDepthStroke"
-			stroke.Color = base:Lerp(Color3.new(0, 0, 0), 0.55)
+			stroke.Color = base:Lerp(Color3.new(0, 0, 0), 0.35)
 			stroke.Thickness = opts.strokeThickness or 1.5
 			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			stroke.Parent = button

@@ -111,14 +111,22 @@ return function(deps)
 	-- ART PASS: turn the flat swatch above into something lit -- see this
 	-- file's header comment. Glow is centered behind the title (it sits at
 	-- y=18..88, so its vertical center is ~53).
+	--
+	-- TONED DOWN (Ahmed: "too dark, very wack" on the first version of this
+	-- pass): the first attempt darkened the top/bottom edges well below the
+	-- original flat color (18, 14, 10) and only brightened a thin middle
+	-- band, so most of the screen read as darker than before. Now the top/
+	-- bottom stay close to the original brightness (not darker overall) and
+	-- the middle band is the one doing real work, reading as a warm lit
+	-- band rather than "the edges went dark". Grain (the wood-seam lines)
+	-- is dropped entirely -- it was pure extra darkening with barely any
+	-- visible payoff.
 	addBackgroundAtmosphere(menuFrame, {
-		topColor = Color3.fromRGB(10, 8, 6),
-		midColor = Color3.fromRGB(32, 23, 15),
-		bottomColor = Color3.fromRGB(8, 6, 5),
+		topColor = Color3.fromRGB(20, 16, 12),
+		midColor = Color3.fromRGB(46, 34, 22),
+		bottomColor = Color3.fromRGB(16, 13, 10),
 		glowAnchor = UDim2.new(0.5, 0, 0, 53),
 		glowColor = Color3.fromRGB(255, 200, 120),
-		grain = true,
-		grainLines = 14,
 	})
 
 	local menuTitle = Instance.new("TextLabel")

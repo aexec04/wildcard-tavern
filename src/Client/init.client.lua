@@ -218,17 +218,23 @@ root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
 
 -- ART PASS: root used to be one perfectly flat swatch behind the entire
--- game screen (sidebar, hand of cards, everything). A vertical gradient +
--- faint grain reads as an actual lit tavern floor instead -- see
--- VisualHelpers.lua's addBackgroundAtmosphere for how this is built with
--- no image asset. No glowAnchor here (root is busy with real gameplay UI
--- on top of it; a lantern-glow halo would just fight the sidebar/cards).
+-- game screen (sidebar, hand of cards, everything). A vertical gradient
+-- reads as an actual lit tavern floor instead -- see VisualHelpers.lua's
+-- addBackgroundAtmosphere for how this is built with no image asset. No
+-- glowAnchor here (root is busy with real gameplay UI on top of it; a
+-- lantern-glow halo would just fight the sidebar/cards).
+--
+-- TONED DOWN (Ahmed: "too dark, very wack" -- this is the screen visible
+-- for basically the entire game, so it mattered most here): the first
+-- version darkened top AND bottom well below the original flat color
+-- (24, 18, 14) with only a barely-lighter middle, so the whole play
+-- screen read as dimmer than before. Now top/bottom sit close to the
+-- original brightness and the middle is the only part doing real "lit"
+-- work. Grain dropped entirely, same reasoning as Menu.lua.
 VisualHelpersModule.addBackgroundAtmosphere(root, {
-	topColor = Color3.fromRGB(16, 12, 9),
-	midColor = Color3.fromRGB(30, 23, 17),
-	bottomColor = Color3.fromRGB(14, 10, 8),
-	grain = true,
-	grainLines = 16,
+	topColor = Color3.fromRGB(22, 17, 13),
+	midColor = Color3.fromRGB(36, 28, 21),
+	bottomColor = Color3.fromRGB(20, 15, 12),
 })
 
 -- TRANSITION CURTAIN (feel pass): a full-screen black Frame used to
