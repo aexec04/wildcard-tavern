@@ -15,7 +15,6 @@
 	deps fields:
 		screenGui              -- ScreenGui, menuFrame's parent
 		polishButton            -- function(instance, radius)
-		polishPanel             -- function(instance, radius)
 		revealStagger           -- function(instances, opts?)
 		addButtonHoverScale     -- function(button, opts?)
 		StartDailyChallengeRemote -- RemoteEvent, fired on Daily Challenge click
@@ -63,26 +62,21 @@
 	load-in animation, not tied to render() or any state -- and each
 	button gets a small hover swell / press dip (`addButtonHoverScale`).
 
-	SHOWCASE PASS: Ahmed pointed out the menu "looks so wonky" -- a flat
-	solid-brown panel sitting in front of whatever the camera happened to
-	be pointed at. Two changes address that without needing any new art
-	assets: (1) `menuFrame` is no longer an opaque full-screen panel --
-	it's transparent, with a single semi-opaque, rounded "menuScrim" panel
-	behind just the title/subtitle/buttons for readability, so the tavern
-	room built in the Visual Life Pass (table, lit chandelier, seated
-	Patron NPCs) is actually visible around the edges instead of hidden
-	behind a flat rectangle -- see Client/MenuCamera.lua (wired in
-	init.client.lua) for the camera side of this. (2) buttons get a subtle
-	vertical gloss gradient + a warm gold UIStroke border instead of one
-	flat fill color, and the title/subtitle get a dark TextStroke for
-	contrast now that they're sitting over a busier, moving background
-	instead of a flat one.
+	REVERTED "SHOWCASE PASS": for a while this screen was a transparent
+	panel over a scrim card, with a camera (Client/MenuCamera.lua) orbiting
+	the 3D tavern scene behind it, glossy gradient buttons, and text-stroke
+	titles. Ahmed asked to scratch that and go back to a plain 2D menu, so
+	this file is back to the simple opaque panel + flat buttons it was
+	before that pass (Client/MenuCamera.lua is no longer required by
+	anything and init.client.lua no longer wires it up). The one thing kept
+	from that whole detour: the ScrollingFrame button layout below, which
+	fixed a real title/button overlap bug on short/landscape screens and
+	has nothing to do with the showcase idea itself.
 ]]
 
 return function(deps)
 	local screenGui = deps.screenGui
 	local polishButton = deps.polishButton
-	local polishPanel = deps.polishPanel
 	local revealStagger = deps.revealStagger
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local StartDailyChallengeRemote = deps.StartDailyChallengeRemote
@@ -91,54 +85,13 @@ return function(deps)
 	local openSeedRunDialog = deps.openSeedRunDialog
 	local openTutorial = deps.openTutorial
 
-	-- No longer an opaque full-screen panel -- see the SHOWCASE PASS note
-	-- above. This Frame now only exists to parent/layer everything else;
-	-- with BackgroundTransparency 1 it paints nothing, so the 3D tavern
-	-- scene behind it (see Client/MenuCamera.lua) shows through anywhere
-	-- menuScrim/the title/the buttons don't cover.
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
 	menuFrame.Size = UDim2.fromScale(1, 1)
-	menuFrame.BackgroundTransparency = 1
+	menuFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
 	menuFrame.BorderSizePixel = 0
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = screenGui
-
-	-- A single semi-opaque, rounded panel sitting behind just the title/
-	-- subtitle/buttons (ZIndex 9, one below everything else parented to
-	-- menuFrame at ZIndex 10) so that content stays readable over a
-	-- moving 3D background, while the space AROUND it still shows the
-	-- tavern scene clearly.
-	local menuScrim = Instance.new("Frame")
-	menuScrim.Name = "MenuScrim"
-	-- Scale-based height (92% of whatever the screen actually is) rather
-	-- than a fixed pixel height, so this card always fits with a small
-	-- margin top and bottom no matter the screen's aspect ratio -- the
-	-- same reasoning as the ScrollingFrame fix below, applied one level
-	-- up.
-	menuScrim.Size = UDim2.new(0, 340, 0.92, 0)
-	menuScrim.Position = UDim2.fromScale(0.5, 0.5)
-	menuScrim.AnchorPoint = Vector2.new(0.5, 0.5)
-	menuScrim.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
-	-- POLISH PASS: Ahmed's feedback after seeing the Showcase Pass in Play
-	-- mode was "the UI isnt as transparent" -- 0.3 was still reading as a
-	-- mostly-solid panel. Raised to 0.55 so the tavern room actually shows
-	-- through the card behind the title/buttons, not just around its edges.
-	menuScrim.BackgroundTransparency = 0.55
-	menuScrim.BorderSizePixel = 0
-	menuScrim.ZIndex = 9
-	menuScrim.Parent = menuFrame
-	if polishPanel then
-		polishPanel(menuScrim, 24)
-	end
-
-	local menuScrimGradient = Instance.new("UIGradient")
-	menuScrimGradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(34, 24, 14)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 9, 6)),
-	})
-	menuScrimGradient.Rotation = 90
-	menuScrimGradient.Parent = menuScrim
 
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Size = UDim2.new(1, 0, 0, 70)
@@ -147,11 +100,9 @@ return function(deps)
 	menuTitle.Font = Enum.Font.GothamBold
 	menuTitle.TextSize = 48
 	menuTitle.TextColor3 = Color3.fromRGB(255, 214, 130)
-	menuTitle.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
-	menuTitle.TextStrokeTransparency = 0.15
 	menuTitle.Text = "Wildcard Tavern"
 	menuTitle.ZIndex = 10
-	menuTitle.Parent = menuScrim
+	menuTitle.Parent = menuFrame
 
 	local menuSubtitle = Instance.new("TextLabel")
 	menuSubtitle.Size = UDim2.new(1, 0, 0, 26)
@@ -160,11 +111,9 @@ return function(deps)
 	menuSubtitle.Font = Enum.Font.Gotham
 	menuSubtitle.TextSize = 18
 	menuSubtitle.TextColor3 = Color3.fromRGB(200, 180, 160)
-	menuSubtitle.TextStrokeColor3 = Color3.fromRGB(10, 8, 6)
-	menuSubtitle.TextStrokeTransparency = 0.4
 	menuSubtitle.Text = "a poker hand deckbuilder game!"
 	menuSubtitle.ZIndex = 10
-	menuSubtitle.Parent = menuScrim
+	menuSubtitle.Parent = menuFrame
 
 	-- BUGFIX (title/button overlap on short & landscape screens): the
 	-- title/subtitle used to sit at fixed SCALE positions (0.3 / 0.42 down
@@ -187,16 +136,11 @@ return function(deps)
 	-- or clipping anything above it -- same "convert to a ScrollingFrame
 	-- instead of guessing a fixed size" fix already used for the Themes
 	-- panel (Phase 14) and the Road Ahead map (Phase 7).
-	-- Sized relative to menuScrim (not the full screen) now that title/
-	-- subtitle/buttons all live inside that one card -- fills whatever
-	-- room is left in the card below the subtitle, with a small bottom
-	-- margin, and scrolls internally if the card ends up too short for
-	-- all 8 buttons at once.
 	local menuButtonScroll = Instance.new("ScrollingFrame")
 	menuButtonScroll.Name = "MenuButtonScroll"
 	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 124)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 260, 1, -144)
+	menuButtonScroll.Size = UDim2.new(0, 260, 1, -134)
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
 	menuButtonScroll.ScrollBarThickness = 6
@@ -204,7 +148,7 @@ return function(deps)
 	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	menuButtonScroll.ZIndex = 10
-	menuButtonScroll.Parent = menuScrim
+	menuButtonScroll.Parent = menuFrame
 
 	local menuButtonHolder = Instance.new("Frame")
 	menuButtonHolder.Size = UDim2.new(1, 0, 0, 0)
@@ -220,28 +164,6 @@ return function(deps)
 	menuButtonLayout.Padding = UDim.new(0, 12)
 	menuButtonLayout.Parent = menuButtonHolder
 
-	-- Vertical gloss gradient (lighter near the top, darker near the
-	-- bottom -- a consistent light direction, same idea as the Road
-	-- Ahead map's landmark shading from Phase 7) plus a warm gold
-	-- border, replacing one flat fill color with something that reads as
-	-- a deliberately-finished button rather than a placeholder rectangle.
-	local function addButtonGloss(button)
-		local gradient = Instance.new("UIGradient")
-		gradient.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 94, 48)),
-			ColorSequenceKeypoint.new(0.55, Color3.fromRGB(96, 64, 32)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(68, 45, 22)),
-		})
-		gradient.Rotation = 90
-		gradient.Parent = button
-
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(214, 170, 100)
-		stroke.Thickness = 1.5
-		stroke.Transparency = 0.25
-		stroke.Parent = button
-	end
-
 	local function makeMenuButton(text)
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.new(0, 220, 0, 48)
@@ -253,7 +175,6 @@ return function(deps)
 		button.ZIndex = 10
 		button.Parent = menuButtonHolder
 		polishButton(button, 12)
-		addButtonGloss(button)
 		return button
 	end
 

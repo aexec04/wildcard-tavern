@@ -704,7 +704,6 @@ local openTutorial = require(script.Tutorial)({
 local MenuScreen = require(script.Menu)({
 	screenGui = screenGui,
 	polishButton = polishButton,
-	polishPanel = polishPanel,
 	revealStagger = revealStagger,
 	addButtonHoverScale = addButtonHoverScale,
 	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
@@ -729,32 +728,6 @@ local menuPlayButton = MenuScreen.menuPlayButton
 local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
 local menuJourneyButton = MenuScreen.menuJourneyButton
 local menuNewRunButton = MenuScreen.menuNewRunButton
-
--- MENU SHOWCASE CAMERA: points the camera at the tavern scene (table +
--- chandelier + seated Patron NPCs, Visual Life Pass) while menuFrame is
--- visible, instead of leaving the flat menu panel in front of whatever
--- the camera happened to be pointed at. Wrapped in a do...end block, and
--- MenuCamera/syncMenuCamera deliberately NOT captured as top-level
--- locals, since init.client.lua is already right up against Lua's
--- 200-local-per-chunk ceiling (same reasoning documented throughout this
--- file since Phase 9). tableCenter here MUST match Server/
--- TavernScene.server.lua's own TABLE_CENTER constant (TAVERN_ORIGIN +
--- (0,0,0), and TAVERN_ORIGIN is Vector3.new(0, 1, 0)) -- see
--- Client/MenuCamera.lua's header for why.
-do
-	local MenuCamera = require(script.MenuCamera)({
-		tableCenter = Vector3.new(0, 1, 0),
-	})
-	local function syncMenuCamera()
-		if menuFrame.Visible then
-			MenuCamera.showMenuView()
-		else
-			MenuCamera.restorePlayerView()
-		end
-	end
-	menuFrame:GetPropertyChangedSignal("Visible"):Connect(syncMenuCamera)
-	syncMenuCamera()
-end
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
 -- Extracted into Client/HowToPlay.lua -- fully self-contained (both buttons

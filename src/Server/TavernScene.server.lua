@@ -1,9 +1,11 @@
 --[[
 	TavernScene.server.lua
-	Builds the 3D tavern room the menu camera shows off (Client/MenuCamera.lua)
-	and, when USE_MARKETPLACE_TAVERN_BUILDING is false, a round table and 4
-	seated "Patron" NPCs (Viking / Wizard / Rogue / Goblin) -- entirely out
-	of plain Parts and Roblox's built-in SpecialMesh shapes (Pyramid,
+	Builds a 3D tavern room in the workspace -- not currently shown off by
+	any camera (the menu's "showcase camera" idea was tried and then
+	scratched, see Client/Menu.lua's header) -- and, when
+	USE_MARKETPLACE_TAVERN_BUILDING is false, a round table and 4 seated
+	"Patron" NPCs (Viking / Wizard / Rogue / Goblin) -- entirely out of
+	plain Parts and Roblox's built-in SpecialMesh shapes (Pyramid,
 	Sphere, ...). No MeshId/ImageId/asset IDs anywhere in that procedural
 	path, on purpose: unlike the sound IDs (which you gave us directly), a
 	guessed catalog asset ID would just silently fail or error at runtime,
@@ -69,11 +71,7 @@ if USE_MARKETPLACE_TAVERN_BUILDING then
 		-- Center the building on TAVERN_ORIGIN, same as everything the
 		-- procedural path below builds. PivotTo moves the whole thing as
 		-- one rigid group using its own built-in pivot -- same as dragging
-		-- it in Studio. NOTE: the asset's own pivot may not land its table/
-		-- open floor area exactly where the menu camera orbits (Client/
-		-- MenuCamera.lua's tableCenter) -- if the showcase shot looks off
-		-- once you see it, that's a camera-aim tweak in MenuCamera.lua, not
-		-- a problem with this file.
+		-- it in Studio.
 		local tavernBuildingModel = sceneModel:FindFirstChildWhichIsA("Model")
 		if tavernBuildingModel then
 			tavernBuildingModel:PivotTo(CFrame.new(TAVERN_ORIGIN))
@@ -135,10 +133,7 @@ do
 	colorCorrection.Parent = Lighting
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-	-- POLISH PASS: dialed back slightly from 0.35 -- readability matters more
-	-- now that the menu camera reveals this room through a transparent menu
-	-- (Client/MenuCamera.lua) as the very first thing every player sees, not
-	-- just glimpsed in passing during play.
+	-- POLISH PASS: dialed back slightly from 0.35 for readability.
 	atmosphere.Density = 0.3
 	atmosphere.Offset = 0.25
 	atmosphere.Color = Color3.fromRGB(199, 170, 140) -- warm haze near the torches
@@ -160,12 +155,10 @@ do
 	bloom.Parent = Lighting
 
 	local depthOfField = Lighting:FindFirstChildOfClass("DepthOfFieldEffect") or Instance.new("DepthOfFieldEffect")
-	-- Tuned around the menu-showcase camera's own orbit distance to the
-	-- table (Client/MenuCamera.lua: ORBIT_RADIUS 14 + ORBIT_HEIGHT 9 puts it
-	-- ~17 studs out) so the table and seated Patrons stay crisp while the
-	-- far walls get a soft, camera-lens falloff instead of everything
-	-- reading equally flat. Wide enough that normal gameplay camera
-	-- distances aren't noticeably softened.
+	-- Tuned so the table/seated Patrons stay crisp while the far walls get
+	-- a soft, camera-lens falloff instead of everything reading equally
+	-- flat. Wide enough that normal gameplay camera distances aren't
+	-- noticeably softened.
 	depthOfField.FocusDistance = 20
 	depthOfField.InFocusRadius = 16
 	depthOfField.NearIntensity = 0.05
@@ -325,8 +318,7 @@ if not USE_MARKETPLACE_TAVERN_BUILDING then
 	-- inside it, each with its own PointLight. Fakes a glowing window
 	-- without any MeshId/ImageId/decal (same constraint as everything
 	-- else in this file) and gives the room a light source that isn't
-	-- just "another torch," plus real depth/parallax as the menu camera
-	-- orbits (Client/MenuCamera.lua).
+	-- just "another torch."
 	local windowSpecs = {
 		{ x = -ROOM_SIZE / 4, z = -ROOM_SIZE / 2 + 0.6 },
 		{ x = ROOM_SIZE / 4, z = -ROOM_SIZE / 2 + 0.6 },
