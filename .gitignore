@@ -9,3 +9,11 @@ Thumbs.db
 # Aftman installs tools globally, not into the project, but just in case
 .aftman/
 _to_delete/
+
+# AI-generated art staged here for uploading to Roblox as Decals/Images --
+# these are source material for the Creator Dashboard upload, not game
+# code, and Roblox never loads images off disk anyway (only by asset id --
+# see Client/ArtAssets.lua), so there's no reason to bloat the git history
+# with multi-MB PNGs. Safe to delete this whole folder once every image in
+# it has been uploaded and its asset id is recorded in ArtAssets.lua.
+art-wip/
