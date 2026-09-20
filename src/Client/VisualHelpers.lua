@@ -600,27 +600,43 @@ return function(deps)
 		badge.Size = UDim2.new(0, size, 0, size)
 		badge.Position = UDim2.new(0, centerX, 0.5, 0)
 		badge.AnchorPoint = Vector2.new(0.5, 0.5)
-		badge.BackgroundColor3 = Color3.fromRGB(45, 35, 25)
+		badge.BackgroundColor3 = accentColor
 		badge.Font = Enum.Font.GothamBold
 		badge.TextSize = math.floor(size * 0.48)
 		badge.Text = icon or "🎴"
+		-- BUGFIX (Ahmed, Play-mode screenshot: "they look dark asf"): this
+		-- TextLabel's TextColor3 was never set, which defaults to pure
+		-- black. Roblox's TextLabel emoji support is genuinely unreliable
+		-- (plenty of emoji -- a receipt, a tuxedo, etc. -- render tiny,
+		-- monochrome, or as a blank/missing glyph instead of full color),
+		-- so whatever DID render was often a near-invisible black glyph on
+		-- top of a background that was ALSO mostly a near-black brown (see
+		-- the gradient fix below) -- the two problems compounded into
+		-- "basically a dark square." Setting an explicit light color here
+		-- means even a monochrome/fallback glyph is clearly visible.
+		badge.TextColor3 = Color3.fromRGB(255, 248, 235)
 		badge.ZIndex = parent.ZIndex + 1
 		badge.Parent = parent
 		roundCorner(badge, math.floor(size / 4))
 
-		-- Dark tavern-brown -> a tint of the category color, instead of one
-		-- flat fill -- gives the badge some depth ("life") rather than
-		-- reading as a single flat swatch.
+		-- BUGFIX: this used to be a gradient from near-black brown
+		-- (45,35,25) to only a 70%-strength tint of accentColor -- on
+		-- anything but the most saturated colors that reads as "mostly a
+		-- dark brown square with a faint colored corner," not a vivid
+		-- category-colored icon. Now the badge's own fill IS the accent
+		-- color (set above), and this gradient just adds a subtle
+		-- lighter-to-darker SHADE within that same color for depth,
+		-- instead of blending toward near-black.
 		local gradient = Instance.new("UIGradient")
 		gradient.Rotation = 55
 		gradient.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 35, 25)),
-			ColorSequenceKeypoint.new(1, accentColor:Lerp(Color3.fromRGB(45, 35, 25), 0.3)),
+			ColorSequenceKeypoint.new(0, accentColor:Lerp(Color3.new(1, 1, 1), 0.25)),
+			ColorSequenceKeypoint.new(1, accentColor:Lerp(Color3.new(0, 0, 0), 0.35)),
 		})
 		gradient.Parent = badge
 
 		local ring = Instance.new("UIStroke")
-		ring.Color = accentColor
+		ring.Color = Color3.fromRGB(255, 248, 235):Lerp(accentColor, 0.3)
 		ring.Thickness = 2
 		ring.Transparency = 0.1
 		ring.Parent = badge
