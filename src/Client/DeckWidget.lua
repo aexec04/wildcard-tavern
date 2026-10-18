@@ -19,9 +19,12 @@
 		addSoftShadow  -- function(instance, radius)
 		addTooltip     -- function(button, text, align?)
 		roundCorner    -- function(instance, radius)
-		cardSpriteSheet      -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
-		cardSpriteBackOffset -- Vector2, see Client/ArtAssets.lua
-		cardSpriteCellSize   -- number, see Client/ArtAssets.lua
+		ArtAssetsModule -- the required Client/ArtAssets.lua module table (not
+		                   individual fields) -- see its own comment on
+		                   onCardSpriteSheetLoaded for why this takes the
+		                   whole module: it's the one place that actually
+		                   confirms the sprite sheet loaded, shared with
+		                   init.client.lua's hand cards.
 
 	Returns:
 		{
@@ -36,9 +39,10 @@ return function(deps)
 	local addSoftShadow = deps.addSoftShadow
 	local addTooltip = deps.addTooltip
 	local roundCorner = deps.roundCorner
-	local cardSpriteSheet = deps.cardSpriteSheet
-	local cardSpriteBackOffset = deps.cardSpriteBackOffset
-	local cardSpriteCellVector = Vector2.new(deps.cardSpriteCellSize, deps.cardSpriteCellSize)
+	local ArtAssetsModule = deps.ArtAssetsModule
+	local cardSpriteSheet = ArtAssetsModule.cardSpriteSheet
+	local cardSpriteBackOffset = ArtAssetsModule.cardSpriteBackOffset
+	local cardSpriteCellVector = Vector2.new(ArtAssetsModule.cardSpriteCellSize, ArtAssetsModule.cardSpriteCellSize)
 
 	local deckWidget = Instance.new("Frame")
 	deckWidget.Name = "DeckWidget"
@@ -74,8 +78,9 @@ return function(deps)
 	-- CARD ART (same Kenney sprite sheet as the hand's cards -- see
 	-- ArtAssets.lua): the sheet's one card-back cell. ZIndex 3, one above
 	-- deckCardBackIcon's emoji fallback (ZIndex 2) -- not that both are
-	-- ever visible at once (see showPlaceholderBack below), but matches
-	-- the "art sits in front" ordering used everywhere else.
+	-- normally visible at once (see deckCardBackIcon's own comment below
+	-- for when they briefly can be), but matches the "art sits in front"
+	-- ordering used everywhere else.
 	local deckCardBackArt = Instance.new("ImageLabel")
 	deckCardBackArt.Name = "CardBackArt"
 	deckCardBackArt.Size = UDim2.fromScale(1, 1)
@@ -89,12 +94,15 @@ return function(deps)
 	deckCardBackArt.Parent = deckCardBack
 	roundCorner(deckCardBackArt, 8)
 
-	-- Fallback while cardSpriteSheet is still the "rbxassetid://0"
-	-- placeholder -- same pattern as init.client.lua's cardRankSuitLabel
-	-- (see its own comment): hidden, not removed, the instant a real
-	-- sheet is wired in, so there's nothing else to flip by hand either
-	-- way.
-	local showPlaceholderBack = cardSpriteSheet == "rbxassetid://0"
+	-- BUGFIX (same gap as init.client.lua's rebuildHand -- see
+	-- ArtAssets.lua's onCardSpriteSheetLoaded comment for the full story):
+	-- an id merely looking real doesn't mean Roblox has actually finished
+	-- serving that image, so this used to hide the moment cardSpriteSheet
+	-- stopped being the "rbxassetid://0" placeholder -- which went blank
+	-- for exactly that gap the first time a real id got wired in. Starts
+	-- VISIBLE regardless of the id, and only hides once ArtAssets.lua's
+	-- shared confirmed-load check (same one the hand's cards subscribe to)
+	-- actually confirms deckCardBackArt loaded.
 	local deckCardBackIcon = Instance.new("TextLabel")
 	deckCardBackIcon.Size = UDim2.fromScale(1, 1)
 	deckCardBackIcon.BackgroundTransparency = 1
@@ -102,9 +110,15 @@ return function(deps)
 	deckCardBackIcon.TextSize = 30
 	deckCardBackIcon.TextColor3 = Color3.fromRGB(220, 225, 240)
 	deckCardBackIcon.Text = "🂠"
-	deckCardBackIcon.Visible = showPlaceholderBack
+	deckCardBackIcon.Visible = not ArtAssetsModule.isCardSpriteSheetConfirmedLoaded()
 	deckCardBackIcon.ZIndex = 2
 	deckCardBackIcon.Parent = deckCardBack
+
+	ArtAssetsModule.onCardSpriteSheetLoaded(cardSpriteSheet, function()
+		if deckCardBackIcon.Parent then
+			deckCardBackIcon.Visible = false
+		end
+	end)
 
 	local deckCountLabel = Instance.new("TextLabel")
 	deckCountLabel.Size = UDim2.new(1, 0, 0, 20)

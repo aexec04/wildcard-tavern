@@ -520,12 +520,14 @@ local DeckWidgetModule = require(script.DeckWidget)({
 	addSoftShadow = addSoftShadow,
 	addTooltip = addTooltip,
 	roundCorner = roundCorner,
-	-- CARD ART: same Kenney sprite sheet as the hand's cards (see
-	-- ArtAssets.lua) -- inline require(), not a new top-level local, same
-	-- reasoning as everywhere else that reads ArtAssets.lua in this file.
-	cardSpriteSheet = require(script.ArtAssets).cardSpriteSheet,
-	cardSpriteBackOffset = require(script.ArtAssets).cardSpriteBackOffset,
-	cardSpriteCellSize = require(script.ArtAssets).cardSpriteCellSize,
+	-- CARD ART: same Kenney sprite sheet as the hand's cards, same
+	-- confirmed-load check too (see ArtAssets.lua's own comment on
+	-- onCardSpriteSheetLoaded) -- the whole module, not individual fields,
+	-- so DeckWidget.lua can subscribe through the same one check instead
+	-- of duplicating its own ContentProvider call. Inline require(), not a
+	-- new top-level local, same reasoning as everywhere else that reads
+	-- ArtAssets.lua in this file.
+	ArtAssetsModule = require(script.ArtAssets),
 })
 local deckCountLabel = DeckWidgetModule.deckCountLabel
 local deckWidgetButton = DeckWidgetModule.deckWidgetButton
@@ -1593,22 +1595,51 @@ end
 local function rebuildHand(handData)
 	-- CARD ART (Kenney sprite-sheet switch -- see ArtAssets.lua's header for
 	-- why): function-scoped, NOT new top-level locals (this file is already
-	-- right up against Lua's 200-local-per-chunk ceiling, same reasoning as
-	-- everywhere else in this file) -- Lua's local limit is per-FUNCTION, so
-	-- locals declared inside rebuildHand's own body cost nothing against the
-	-- main chunk's count. require() is cached by Roblox, so calling it once
-	-- per rebuildHand (not per-card) is both cheap and correct.
+	-- right up against Lua's 200-local-per-chunk ceiling -- confirmed the
+	-- hard way: an earlier version of this pass added 2 new top-level
+	-- locals for the confirmed-load check below, and luac immediately
+	-- refused to compile with "too many local variables (limit is 200)".
+	-- All of that state now lives inside ArtAssets.lua itself instead,
+	-- which has its own separate, fresh local budget -- init.client.lua
+	-- only ever touches it through the module table, same as everything
+	-- else ArtAssets.lua exposes). require() is cached by Roblox, so
+	-- calling it once per rebuildHand (not per-card) is both cheap and
+	-- correct.
 	local cardArtModule = require(script.ArtAssets)
 	local cardSpriteSheet = cardArtModule.cardSpriteSheet
 	local cardSpriteOffset = cardArtModule.cardSpriteOffset
 	local cardSpriteCellVector = Vector2.new(cardArtModule.cardSpriteCellSize, cardArtModule.cardSpriteCellSize)
-	-- Real art isn't wired in until cardSpriteSheet actually points at an
-	-- uploaded asset -- while it's still the "rbxassetid://0" placeholder,
-	-- cardRankSuitLabel (plain text, same look the game always had) stays
-	-- the ONLY thing readers see, exactly as before this pass. The moment a
-	-- real sheet is filled in, the label hides itself automatically (see
-	-- its own Visible line below) -- nothing else to flip by hand.
-	local showPlaceholderRankSuit = cardSpriteSheet == "rbxassetid://0"
+	-- BUGFIX (Ahmed's report: hand went fully blank -- no rank/suit text
+	-- AND no art -- right after wiring in the first real cardSpriteSheet
+	-- id): an id merely LOOKING real (not the "rbxassetid://0" placeholder)
+	-- doesn't mean Roblox has actually finished serving that image yet --
+	-- even a plain, fast-clearing upload isn't guaranteed instant. The
+	-- first version of this pass hid cardRankSuitLabel the moment the id
+	-- looked real, which bit exactly that gap: id wired in, art not
+	-- actually loaded yet, and the text that used to cover for it was
+	-- already hidden. Fixed by only trusting Roblox's OWN ContentProvider
+	-- (see ArtAssets.lua's onCardSpriteSheetLoaded/
+	-- isCardSpriteSheetConfirmedLoaded -- checked once in the background,
+	-- not per-card) instead of the id string alone. Skips re-subscribing
+	-- once already confirmed -- cheap early-out for the overwhelmingly
+	-- common case (every rebuild after the first confirmation).
+	if not cardArtModule.isCardSpriteSheetConfirmedLoaded() then
+		cardArtModule.onCardSpriteSheetLoaded(cardSpriteSheet, function()
+			-- Forces a real rebuild next time, not a no-op -- see
+			-- lastHandRenderSignature's own comment below.
+			lastHandRenderSignature = nil
+			if refreshHandSort then
+				refreshHandSort()
+			end
+		end)
+	end
+	-- Real art isn't TRUSTED until isCardSpriteSheetConfirmedLoaded()
+	-- flips true (see above) -- while that's false, cardRankSuitLabel
+	-- (plain text, same look the game always had) stays the ONLY thing
+	-- readers see, exactly as before this pass. The moment a real sheet is
+	-- CONFIRMED loaded, the label hides itself automatically (see its own
+	-- Visible line below) -- nothing else to flip by hand.
+	local showPlaceholderRankSuit = not cardArtModule.isCardSpriteSheetConfirmedLoaded()
 
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature

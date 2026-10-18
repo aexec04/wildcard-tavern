@@ -52,6 +52,82 @@ local function cardSpriteOffset(rank, suit)
 	return Vector2.new(col * CARD_SPRITE_CELL, row * CARD_SPRITE_CELL)
 end
 
+-- BUGFIX (Ahmed's report: the hand AND the deck widget both went blank --
+-- no text, no art -- right after cardSpriteSheet first got a real asset
+-- id): an id merely looking real doesn't mean Roblox has actually finished
+-- serving the image yet, even for a plain, fast-clearing upload. Both
+-- init.client.lua's rebuildHand and DeckWidget.lua used to hide their
+-- plain-text fallback the instant the id stopped being the
+-- "rbxassetid://0" placeholder -- which hit exactly that gap. This module
+-- is now the one place that actually confirms the load, via Roblox's own
+-- ContentProvider, checked ONCE in the background no matter how many
+-- places ask -- every caller (the hand's cards, the deck widget's icon)
+-- subscribes with onCardSpriteSheetLoaded instead of trusting the id
+-- string, and only a caller present when the Success fires gets called
+-- back (isCardSpriteSheetConfirmedLoaded lets a later caller, e.g. the
+-- NEXT rebuildHand after the one that first subscribed, skip
+-- resubscribing and just read the already-confirmed answer directly).
+--
+-- Lives in THIS module (not init.client.lua) specifically so its 3 bits of
+-- state cost nothing against init.client.lua's own top-level-local budget
+-- -- confirmed the hard way once already: an earlier version of this fix
+-- put the state directly in init.client.lua and immediately blew past
+-- Lua's 200-local ceiling (see rebuildHand's own comment at its call
+-- site). Every Lua chunk/module gets its OWN separate local budget, so
+-- moving this here instead costs init.client.lua nothing at all.
+local spriteSheetCheckStarted = false
+local spriteSheetConfirmedLoaded = false
+local spriteSheetWaiters = {}
+
+local function isCardSpriteSheetConfirmedLoaded()
+	return spriteSheetConfirmedLoaded
+end
+
+local function onCardSpriteSheetLoaded(sheetId, onConfirmed)
+	if sheetId == "rbxassetid://0" then
+		return -- no real asset to wait on
+	end
+	if spriteSheetConfirmedLoaded then
+		if onConfirmed then
+			onConfirmed()
+		end
+		return
+	end
+	if onConfirmed then
+		table.insert(spriteSheetWaiters, onConfirmed)
+	end
+	if spriteSheetCheckStarted then
+		return -- already in flight -- this caller's waiter above will still fire
+	end
+	spriteSheetCheckStarted = true
+	task.spawn(function()
+		local ContentProvider = game:GetService("ContentProvider")
+		local status
+		-- PreloadAsync yields until every entry resolves, invoking the
+		-- callback for each along the way -- by the time it returns,
+		-- `status` is already set. pcall guards against it erroring
+		-- outright (shouldn't normally happen, but this must never be
+		-- able to hard-crash whatever script called in here).
+		local ok = pcall(function()
+			ContentProvider:PreloadAsync({ sheetId }, function(_, fetchStatus)
+				status = fetchStatus
+			end)
+		end)
+		if ok and status == Enum.AssetFetchStatus.Success then
+			spriteSheetConfirmedLoaded = true
+			for _, waiter in ipairs(spriteSheetWaiters) do
+				waiter()
+			end
+			spriteSheetWaiters = {}
+		end
+		-- Anything other than Success (Failure/TimedOut, or the pcall
+		-- itself failing) deliberately leaves spriteSheetCheckStarted
+		-- true and never retries -- matches every other art slot's
+		-- "always safe to leave at the placeholder/fallback" philosophy
+		-- rather than hammering ContentProvider in a loop.
+	end)
+end
+
 return {
 	-- Menu.lua: the empty-tavern-room background art (Part 3, prompt 3).
 	-- Fallback: Menu.lua's own flat Color3.fromRGB(18, 14, 10) panel.
@@ -91,4 +167,8 @@ return {
 	-- (rank, suit) -> Vector2 ImageRectOffset into cardSpriteSheet. See its
 	-- own comment above.
 	cardSpriteOffset = cardSpriteOffset,
+
+	-- See the BUGFIX comment above both of these for the full story.
+	isCardSpriteSheetConfirmedLoaded = isCardSpriteSheetConfirmedLoaded,
+	onCardSpriteSheetLoaded = onCardSpriteSheetLoaded,
 }
