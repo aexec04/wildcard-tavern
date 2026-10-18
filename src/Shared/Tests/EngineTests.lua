@@ -2465,6 +2465,93 @@ table.insert(tests, { name = "PlayerProfile.migrate: a saved profile predating t
 	expectFalse(reloaded.hasSeenTutorial)
 end })
 
+-- ===== PlayerProfile: Jukebox Playlist (requested fix) =====
+
+table.insert(tests, { name = "PlayerProfile.new: customPlaylist starts empty", fn = function()
+	local profile = PlayerProfile.new()
+	expectEqual(#profile.customPlaylist, 0)
+end })
+
+table.insert(tests, { name = "PlayerProfile.addPlaylistSong: accepts a well-formed id and appends it", fn = function()
+	local profile = PlayerProfile.new()
+	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
+	expectTrue(ok, message)
+	expectEqual(#profile.customPlaylist, 1)
+	expectEqual(profile.customPlaylist[1], "rbxassetid://123456")
+end })
+
+table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses a malformed id without touching the list", fn = function()
+	local profile = PlayerProfile.new()
+	local ok1 = PlayerProfile.addPlaylistSong(profile, "not an asset id")
+	local ok2 = PlayerProfile.addPlaylistSong(profile, 123456)
+	local ok3 = PlayerProfile.addPlaylistSong(profile, nil)
+	expectFalse(ok1)
+	expectFalse(ok2)
+	expectFalse(ok3)
+	expectEqual(#profile.customPlaylist, 0)
+end })
+
+table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses a duplicate of a song already saved", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
+	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
+	expectFalse(ok, message)
+	expectEqual(#profile.customPlaylist, 1, "a refused duplicate shouldn't add a second copy")
+end })
+
+table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses once the playlist is already at MAX_PLAYLIST_SIZE", fn = function()
+	local profile = PlayerProfile.new()
+	for i = 1, PlayerProfile.MAX_PLAYLIST_SIZE do
+		local ok = PlayerProfile.addPlaylistSong(profile, "rbxassetid://" .. tostring(1000 + i))
+		expectTrue(ok, "song " .. i .. " should fit under the cap")
+	end
+	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://999999")
+	expectFalse(ok, message)
+	expectEqual(#profile.customPlaylist, PlayerProfile.MAX_PLAYLIST_SIZE)
+end })
+
+table.insert(tests, { name = "PlayerProfile.removePlaylistSong: removes a saved song and reports success", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
+	local ok = PlayerProfile.removePlaylistSong(profile, "rbxassetid://111")
+	expectTrue(ok)
+	expectEqual(#profile.customPlaylist, 1)
+	expectEqual(profile.customPlaylist[1], "rbxassetid://222")
+end })
+
+table.insert(tests, { name = "PlayerProfile.removePlaylistSong: reports failure for a song that isn't saved", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
+	local ok = PlayerProfile.removePlaylistSong(profile, "rbxassetid://999")
+	expectFalse(ok)
+	expectEqual(#profile.customPlaylist, 1, "a failed removal shouldn't touch the existing list")
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: a saved playlist round-trips unchanged", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
+	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
+	local reloaded = PlayerProfile.migrate(profile)
+	expectEqual(#reloaded.customPlaylist, 2)
+	expectEqual(reloaded.customPlaylist[1], "rbxassetid://111")
+	expectEqual(reloaded.customPlaylist[2], "rbxassetid://222")
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: drops malformed/foreign customPlaylist entries instead of crashing", fn = function()
+	local reloaded = PlayerProfile.migrate({
+		customPlaylist = { "rbxassetid://111", "not an asset id", 42, "rbxassetid://222" },
+	})
+	expectEqual(#reloaded.customPlaylist, 2, "only the 2 well-formed entries should survive")
+	expectEqual(reloaded.customPlaylist[1], "rbxassetid://111")
+	expectEqual(reloaded.customPlaylist[2], "rbxassetid://222")
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: a non-table customPlaylist is ignored, not propagated", fn = function()
+	local reloaded = PlayerProfile.migrate({ customPlaylist = "not a table" })
+	expectEqual(#reloaded.customPlaylist, 0)
+end })
+
 -- ===== RunState.new: seeding ownedThemes from a saved profile (Phase 10) =====
 
 table.insert(tests, { name = "RunState.new: without ownedThemeIds, only the free default is owned (unchanged pre-Phase-10 behavior)", fn = function()

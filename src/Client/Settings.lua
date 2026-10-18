@@ -1,12 +1,14 @@
 --[[
 	Client/Settings.lua
 	FEATURE 10: a simple audio-only settings panel, reachable via the gear
-	corner button. Originally scoped down to just Master Volume -- game
-	options like animation speed/screenshake have no consumer code yet, so
-	they're still deliberately left out -- but now also has a full
-	per-sound-effect volume section (SFX VOLUME SLIDERS, see that comment
-	further down) alongside it, so the whole scrollable audio section no
-	longer fits in one glance the way the single Master Volume row used to.
+	corner button. Originally scoped down to just a single Master Volume
+	row -- game options like animation speed/screenshake have no consumer
+	code yet, so they're still deliberately left out -- but the audio
+	section has grown a lot since: that row is now just labeled "Volume"
+	(SFX VOLUME SLIDERS, see that comment further down, for why) and is
+	immediately followed, with nothing visually separating them, by one
+	slider per individual sound effect, so the whole scrollable audio
+	section no longer fits in one glance the way the single row used to.
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. Fully self-contained -- nothing outside
@@ -41,6 +43,13 @@
 		setCustomTrack      -- function(assetId) -- see Sound.lua
 		clearCustomTrack    -- function() -- see Sound.lua
 		hasCustomTrack      -- function() -> boolean -- see Sound.lua
+		-- JUKEBOX PLAYLIST (requested fix):
+		AddPlaylistSongRemote    -- RemoteEvent, fired (assetId) to save a song
+		RemovePlaylistSongRemote -- RemoteEvent, fired (assetId) to remove a saved song
+		MAX_PLAYLIST_SIZE        -- number -- Shared/Engine/PlayerProfile.MAX_PLAYLIST_SIZE,
+		                            the single source of truth for the cap (also enforced
+		                            server-side -- this is just so the client can warn
+		                            instead of silently no-opping)
 		menuFrame           -- Frame, the main menu screen (see Menu.lua) -- shown
 		                        by the new Main Menu button below
 		root                -- Frame, the in-game gameplay root -- hidden by the
@@ -73,8 +82,8 @@
 	up next time Play is pressed, same as it would after a disconnect.
 
 	QoL GAME PASS PASS (Phase 9): added a Custom Jukebox section below the
-	Master Volume slider -- paste a Roblox audio asset id or a full asset
-	link and it plays instead of the built-in soundtrack (see Sound.lua's
+	volume sliders -- paste a Roblox audio asset id or a full asset link
+	and it plays instead of the built-in soundtrack (see Sound.lua's
 	setCustomTrack). Gated behind GamePasses' "custom_jukebox" entry, same
 	3-state Buy/Get-Pass/Coming-Soon pattern Themes.lua already uses, just
 	simplified to 2 states (owned vs not) since there's nothing to "buy"
@@ -82,6 +91,22 @@
 	refreshJukeboxSection() re-checks ownership every time the panel opens
 	(not just once at build time), since a purchase can complete while this
 	panel already exists.
+
+	JUKEBOX PLAYLIST (requested fix: "make it so if they put a song ID
+	that it saves for them so if they have like 20 song IDs, they can
+	create their own playlist"): the Custom Jukebox section used to only
+	ever remember ONE pasted-in track at a time, purely in memory --
+	closing the game lost it. "Add to Playlist" now ALSO saves the song to
+	this player's permanent profile (Shared/Engine/PlayerProfile.lua's
+	customPlaylist, via AddPlaylistSongRemote) while still playing it
+	immediately, and "My Playlist" below lists every song saved that way
+	with its own Play/Remove. Capped at PlayerProfile.MAX_PLAYLIST_SIZE
+	(20) -- enforced server-side; the client just pre-checks the same 2
+	conditions (duplicate, full) so a rejected add warns instead of
+	silently doing nothing. A couple of curated PRESET playlists (for a
+	player who can't be bothered picking their own) is a reasonable next
+	step here, but deliberately not built this pass -- Ahmed's own request
+	called it out as "eventually."
 ]]
 
 return function(deps)
@@ -106,6 +131,11 @@ return function(deps)
 	local setCustomTrack = deps.setCustomTrack
 	local clearCustomTrack = deps.clearCustomTrack
 	local hasCustomTrack = deps.hasCustomTrack
+	-- JUKEBOX PLAYLIST (requested fix): see each dep's own comment further
+	-- down (around refreshPlaylistRows) for how it's used.
+	local AddPlaylistSongRemote = deps.AddPlaylistSongRemote
+	local RemovePlaylistSongRemote = deps.RemovePlaylistSongRemote
+	local MAX_PLAYLIST_SIZE = deps.MAX_PLAYLIST_SIZE
 	local menuFrame = deps.menuFrame
 	local root = deps.root
 	-- SFX VOLUME SLIDERS: see Sound.lua's own header comment for what each
@@ -151,13 +181,15 @@ return function(deps)
 	-- SFX VOLUME SLIDERS: used to be a single fixed-height Frame holding
 	-- just the Master Volume row (46px) -- now a real ScrollingFrame, the
 	-- same pattern Collection.lua's row list already uses, since this
-	-- section now holds Master Volume + a "Sound Effects" header + one
-	-- row per Sound.lua SFX_CATALOG entry + the Custom Jukebox section --
-	-- far more content than the panel can show at once. UIListLayout
-	-- stacks everything by LayoutOrder (see each addition below for its
-	-- own number) instead of hand-placed Y offsets, and
-	-- AutomaticCanvasSize means the list simply grows -- adding a new SFX
-	-- to Sound.lua's SFX_CATALOG later needs zero layout math here.
+	-- section now holds the renamed Volume row + one slider per
+	-- Sound.lua SFX_CATALOG entry (folded directly in under it, no
+	-- sub-header -- see that loop's own comment for why) + the Custom
+	-- Jukebox section -- far more content than the panel can show at
+	-- once. UIListLayout stacks everything by LayoutOrder (see each
+	-- addition below for its own number) instead of hand-placed Y
+	-- offsets, and AutomaticCanvasSize means the list simply grows --
+	-- adding a new SFX to Sound.lua's SFX_CATALOG later needs zero layout
+	-- math here.
 	local settingsScroll = Instance.new("ScrollingFrame")
 	settingsScroll.Size = UDim2.new(1, -40, 1, -130)
 	settingsScroll.Position = UDim2.new(0, 20, 0, 50)
@@ -183,7 +215,7 @@ return function(deps)
 
 	makeSliderRow(
 		settingsScroll,
-		"Master Volume",
+		"Volume",
 		0,
 		100,
 		function()
@@ -208,26 +240,17 @@ return function(deps)
 	)
 
 	-- SFX VOLUME SLIDERS (requested fix: "adjust all the sound effects, not
-	-- just music ... every sfx that we have, they can all be sliders"):
-	-- one 0-100 slider per Sound.lua SFX_CATALOG entry, same real
-	-- click-and-drag control as Master Volume above, each one scaling
-	-- only that single sound (see Sound.lua's getSfxVolume/setSfxVolume
-	-- and how playSfx/playPitched apply the multiplier). LayoutOrder 2
-	-- for the header, 3 onward for the rows (Master Volume above is 1),
-	-- so this whole section always sits directly under Master Volume and
+	-- just music ... every sfx that we have, they can all be sliders" --
+	-- then, Ahmed's follow-up: "these should NOT be in setting, they
+	-- should be in the Music Volume thing" -- i.e. NOT their own
+	-- separately-labeled sub-section, just folded directly into the same
+	-- Volume group as the row above with nothing visually separating
+	-- them): one 0-100 slider per Sound.lua SFX_CATALOG entry, same real
+	-- click-and-drag control as Volume above, each one scaling only that
+	-- single sound (see Sound.lua's getSfxVolume/setSfxVolume and how
+	-- playSfx/playPitched apply the multiplier). LayoutOrder 2 onward
+	-- (Volume above is 1), so these always sit directly under Volume and
 	-- above the Jukebox section regardless of catalog order.
-	local sfxSectionHeader = Instance.new("TextLabel")
-	sfxSectionHeader.Size = UDim2.new(1, 0, 0, 22)
-	sfxSectionHeader.BackgroundTransparency = 1
-	sfxSectionHeader.Font = Enum.Font.GothamBold
-	sfxSectionHeader.TextSize = 16
-	sfxSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
-	sfxSectionHeader.TextColor3 = Color3.fromRGB(255, 214, 130)
-	sfxSectionHeader.Text = "🔊 Sound Effects"
-	sfxSectionHeader.LayoutOrder = 2
-	sfxSectionHeader.ZIndex = 21
-	sfxSectionHeader.Parent = settingsScroll
-
 	if SFX_CATALOG then
 		for i, entry in ipairs(SFX_CATALOG) do
 			local sfxValue = math.floor(getSfxVolume(entry.id) * 100 + 0.5)
@@ -246,17 +269,20 @@ return function(deps)
 				function(value)
 					return tostring(value) .. "%"
 				end,
-				2 + i
+				1 + i
 			)
 		end
 	end
 
-	-- ===== Custom Jukebox (QoL Game Pass, Phase 9) =====
+	-- ===== Custom Jukebox (QoL Game Pass, Phase 9; JUKEBOX PLAYLIST added
+	-- this pass) =====
 	-- LayoutOrder 1000 (not just "after the SFX rows") so a future catalog
 	-- addition in Sound.lua can never accidentally push past this section
-	-- without the fixed-height math below needing to change too.
+	-- without the fixed-height math below needing to change too. Grown
+	-- from 170 to 300 to fit the new "My Playlist" list below the
+	-- add-a-song controls.
 	local jukeboxSection = Instance.new("Frame")
-	jukeboxSection.Size = UDim2.new(1, 0, 0, 170)
+	jukeboxSection.Size = UDim2.new(1, 0, 0, 300)
 	jukeboxSection.BackgroundTransparency = 1
 	jukeboxSection.LayoutOrder = 1000
 	jukeboxSection.ZIndex = 21
@@ -290,7 +316,7 @@ return function(deps)
 	lockedDescLabel.TextXAlignment = Enum.TextXAlignment.Left
 	lockedDescLabel.TextYAlignment = Enum.TextYAlignment.Top
 	lockedDescLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-	lockedDescLabel.Text = "Paste your own background music track in instead of the built-in soundtrack."
+	lockedDescLabel.Text = "Paste in your own background music tracks and build a saved playlist, instead of just the built-in soundtrack."
 	lockedDescLabel.ZIndex = 21
 	lockedDescLabel.Parent = jukeboxLockedFrame
 
@@ -328,7 +354,7 @@ return function(deps)
 
 	-- ----- Unlocked state: owned -----
 	local jukeboxUnlockedFrame = Instance.new("Frame")
-	jukeboxUnlockedFrame.Size = UDim2.new(1, 0, 0, 144)
+	jukeboxUnlockedFrame.Size = UDim2.new(1, 0, 0, 274)
 	jukeboxUnlockedFrame.Position = UDim2.new(0, 0, 0, 26)
 	jukeboxUnlockedFrame.BackgroundTransparency = 1
 	jukeboxUnlockedFrame.Visible = false
@@ -344,7 +370,7 @@ return function(deps)
 	unlockedDescLabel.TextXAlignment = Enum.TextXAlignment.Left
 	unlockedDescLabel.TextYAlignment = Enum.TextYAlignment.Top
 	unlockedDescLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-	unlockedDescLabel.Text = "Paste a Roblox audio asset id or link (only plays if it's an asset you're allowed to use):"
+	unlockedDescLabel.Text = "Paste a Roblox audio asset id or link below to add it to your playlist (only plays if it's an asset you're allowed to use):"
 	unlockedDescLabel.ZIndex = 21
 	unlockedDescLabel.Parent = jukeboxUnlockedFrame
 
@@ -363,22 +389,28 @@ return function(deps)
 	jukeboxTextBox.Parent = jukeboxUnlockedFrame
 	polishButton(jukeboxTextBox, 8)
 
-	local jukeboxPlayButton = Instance.new("TextButton")
-	jukeboxPlayButton.Size = UDim2.new(0, 90, 0, 32)
-	jukeboxPlayButton.Position = UDim2.new(0, 0, 0, 74)
-	jukeboxPlayButton.Font = Enum.Font.GothamBold
-	jukeboxPlayButton.TextSize = 14
-	jukeboxPlayButton.Text = "Play"
-	jukeboxPlayButton.BackgroundColor3 = Color3.fromRGB(70, 90, 60)
-	jukeboxPlayButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	jukeboxPlayButton.ZIndex = 21
-	jukeboxPlayButton.Parent = jukeboxUnlockedFrame
-	polishButton(jukeboxPlayButton, 8)
-	addButtonHoverScale(jukeboxPlayButton)
+	-- JUKEBOX PLAYLIST (requested fix): was "Play" (played the pasted
+	-- track immediately, nothing saved) -- now also SAVES it to this
+	-- player's persistent playlist (fires AddPlaylistSongRemote, see
+	-- Shared/Engine/PlayerProfile.lua's addPlaylistSong), so it shows up
+	-- in "My Playlist" below and survives a rejoin, while still playing
+	-- it immediately too for the same instant feedback the old button had.
+	local jukeboxAddButton = Instance.new("TextButton")
+	jukeboxAddButton.Size = UDim2.new(0, 160, 0, 32)
+	jukeboxAddButton.Position = UDim2.new(0, 0, 0, 74)
+	jukeboxAddButton.Font = Enum.Font.GothamBold
+	jukeboxAddButton.TextSize = 14
+	jukeboxAddButton.Text = "Add to Playlist"
+	jukeboxAddButton.BackgroundColor3 = Color3.fromRGB(70, 90, 60)
+	jukeboxAddButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	jukeboxAddButton.ZIndex = 21
+	jukeboxAddButton.Parent = jukeboxUnlockedFrame
+	polishButton(jukeboxAddButton, 8)
+	addButtonHoverScale(jukeboxAddButton)
 
 	local jukeboxResetButton = Instance.new("TextButton")
 	jukeboxResetButton.Size = UDim2.new(0, 90, 0, 32)
-	jukeboxResetButton.Position = UDim2.new(0, 98, 0, 74)
+	jukeboxResetButton.Position = UDim2.new(0, 170, 0, 74)
 	jukeboxResetButton.Font = Enum.Font.GothamBold
 	jukeboxResetButton.TextSize = 14
 	jukeboxResetButton.Text = "Reset"
@@ -411,20 +443,176 @@ return function(deps)
 		end
 	end
 
+	-- ===== My Playlist (JUKEBOX PLAYLIST, requested fix) =====
+	-- "make it so if they put a song ID that it saves for them so if they
+	-- have like 20 song IDs, they can create their own playlist." One row
+	-- per saved song, each with its own Play/Remove -- rebuilt from
+	-- scratch (destroy + recreate every row) on every refresh, same
+	-- pattern Collection.lua/Themes.lua already use for their own
+	-- server-driven lists, rather than trying to diff the old rows
+	-- against the new list.
+	local playlistHeaderLabel = Instance.new("TextLabel")
+	playlistHeaderLabel.Size = UDim2.new(1, 0, 0, 18)
+	playlistHeaderLabel.Position = UDim2.new(0, 0, 0, 138)
+	playlistHeaderLabel.BackgroundTransparency = 1
+	playlistHeaderLabel.Font = Enum.Font.GothamBold
+	playlistHeaderLabel.TextSize = 13
+	playlistHeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+	playlistHeaderLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+	playlistHeaderLabel.Text = "My Playlist"
+	playlistHeaderLabel.ZIndex = 21
+	playlistHeaderLabel.Parent = jukeboxUnlockedFrame
+
+	local playlistScroll = Instance.new("ScrollingFrame")
+	playlistScroll.Size = UDim2.new(1, 0, 0, 110)
+	playlistScroll.Position = UDim2.new(0, 0, 0, 160)
+	playlistScroll.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	playlistScroll.BackgroundTransparency = 0.4
+	playlistScroll.BorderSizePixel = 0
+	playlistScroll.ScrollBarThickness = 6
+	playlistScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	playlistScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	playlistScroll.ZIndex = 21
+	playlistScroll.Parent = jukeboxUnlockedFrame
+	polishButton(playlistScroll, 8)
+
+	local playlistLayout = Instance.new("UIListLayout")
+	playlistLayout.Padding = UDim.new(0, 4)
+	playlistLayout.Parent = playlistScroll
+
+	local playlistEmptyLabel = Instance.new("TextLabel")
+	playlistEmptyLabel.Size = UDim2.new(1, -12, 0, 26)
+	playlistEmptyLabel.Position = UDim2.new(0, 6, 0, 4)
+	playlistEmptyLabel.BackgroundTransparency = 1
+	playlistEmptyLabel.Font = Enum.Font.Gotham
+	playlistEmptyLabel.TextSize = 12
+	playlistEmptyLabel.TextXAlignment = Enum.TextXAlignment.Left
+	playlistEmptyLabel.TextColor3 = Color3.fromRGB(150, 140, 130)
+	playlistEmptyLabel.Text = "Nothing saved yet -- add a song above."
+	playlistEmptyLabel.LayoutOrder = 0
+	playlistEmptyLabel.ZIndex = 21
+	playlistEmptyLabel.Parent = playlistScroll
+
+	local function makePlaylistRow(order, assetId)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -12, 0, 26)
+		row.Position = UDim2.new(0, 6, 0, 0)
+		row.BackgroundTransparency = 1
+		row.LayoutOrder = order
+		row.ZIndex = 21
+		row.Parent = playlistScroll
+
+		local idLabel = Instance.new("TextLabel")
+		idLabel.Size = UDim2.new(1, -120, 1, 0)
+		idLabel.BackgroundTransparency = 1
+		idLabel.Font = Enum.Font.Gotham
+		idLabel.TextSize = 12
+		idLabel.TextXAlignment = Enum.TextXAlignment.Left
+		idLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		idLabel.TextColor3 = Color3.fromRGB(220, 210, 195)
+		idLabel.Text = "🎵 " .. assetId
+		idLabel.ZIndex = 21
+		idLabel.Parent = row
+
+		local rowPlayButton = Instance.new("TextButton")
+		rowPlayButton.Size = UDim2.new(0, 56, 0, 24)
+		rowPlayButton.Position = UDim2.new(1, -116, 0, 1)
+		rowPlayButton.Font = Enum.Font.GothamBold
+		rowPlayButton.TextSize = 12
+		rowPlayButton.Text = "▶ Play"
+		rowPlayButton.BackgroundColor3 = Color3.fromRGB(70, 90, 60)
+		rowPlayButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		rowPlayButton.ZIndex = 21
+		rowPlayButton.Parent = row
+		polishButton(rowPlayButton, 6)
+		addButtonHoverScale(rowPlayButton)
+
+		local rowRemoveButton = Instance.new("TextButton")
+		rowRemoveButton.Size = UDim2.new(0, 56, 0, 24)
+		rowRemoveButton.Position = UDim2.new(1, -56, 0, 1)
+		rowRemoveButton.Font = Enum.Font.GothamBold
+		rowRemoveButton.TextSize = 12
+		rowRemoveButton.Text = "✕ Remove"
+		rowRemoveButton.BackgroundColor3 = Color3.fromRGB(90, 45, 40)
+		rowRemoveButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		rowRemoveButton.ZIndex = 21
+		rowRemoveButton.Parent = row
+		polishButton(rowRemoveButton, 6)
+		addButtonHoverScale(rowRemoveButton)
+
+		rowPlayButton.MouseButton1Click:Connect(function()
+			playClickSfx()
+			setCustomTrack(assetId)
+			refreshJukeboxStatus()
+		end)
+
+		rowRemoveButton.MouseButton1Click:Connect(function()
+			playClickSfx()
+			if RemovePlaylistSongRemote then
+				RemovePlaylistSongRemote:FireServer(assetId)
+			end
+		end)
+	end
+
+	-- Rebuilds "My Playlist" from latest.customPlaylist (see
+	-- Server/init.server.lua's serializeState) -- called from
+	-- refreshJukeboxSection below, so every place that already refreshes
+	-- the Jukebox section (panel open, and render() while it's open --
+	-- see this file's own BUGFIX comment on that near the bottom) picks
+	-- up an add/remove for free with no extra wiring.
+	local function refreshPlaylistRows()
+		for _, child in ipairs(playlistScroll:GetChildren()) do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+		local latest = getLatestState and getLatestState()
+		local playlist = (latest and latest.customPlaylist) or {}
+		local cap = MAX_PLAYLIST_SIZE or 20
+		playlistHeaderLabel.Text = string.format("My Playlist (%d/%d)", #playlist, cap)
+		playlistEmptyLabel.Visible = (#playlist == 0)
+		for i, assetId in ipairs(playlist) do
+			makePlaylistRow(i, assetId)
+		end
+	end
+
 	-- Accepts a raw numeric id, an "rbxassetid://<id>" string, or a full
 	-- library/catalog URL -- all 3 have the numeric asset id in them
 	-- somewhere, so pulling out the first run of digits covers every case
 	-- without needing to parse a real URL.
-	jukeboxPlayButton.MouseButton1Click:Connect(function()
+	jukeboxAddButton.MouseButton1Click:Connect(function()
 		local digits = jukeboxTextBox.Text:match("%d+")
 		if not digits then
 			playClickSfx()
 			showWarning("Paste a valid asset id or link.")
 			return
 		end
+		local assetId = "rbxassetid://" .. digits
+		-- Client-side pre-checks purely so a rejected add gives real
+		-- feedback instead of silently doing nothing -- the server
+		-- (PlayerProfile.addPlaylistSong) re-checks both of these
+		-- independently and is the one actually enforced; never trust
+		-- these checks alone.
+		local latest = getLatestState and getLatestState()
+		local playlist = (latest and latest.customPlaylist) or {}
+		local cap = MAX_PLAYLIST_SIZE or 20
+		if table.find(playlist, assetId) then
+			playClickSfx()
+			showWarning("Already in your playlist.")
+			return
+		end
+		if #playlist >= cap then
+			playClickSfx()
+			showWarning(string.format("Your playlist is full (%d/%d).", cap, cap))
+			return
+		end
 		playClickSfx()
-		setCustomTrack("rbxassetid://" .. digits)
+		if AddPlaylistSongRemote then
+			AddPlaylistSongRemote:FireServer(assetId)
+		end
+		setCustomTrack(assetId)
 		refreshJukeboxStatus()
+		jukeboxTextBox.Text = ""
 	end)
 
 	jukeboxResetButton.MouseButton1Click:Connect(function()
@@ -437,7 +625,7 @@ return function(deps)
 	-- click handler below) -- a purchase can complete asynchronously while
 	-- this panel already exists (same reasoning as Themes.lua's
 	-- refreshThemesList being called on every open, not just once at
-	-- build time).
+	-- build time). Also rebuilds "My Playlist" every time, same reasoning.
 	local function refreshJukeboxSection()
 		local latest = getLatestState and getLatestState()
 		local owned = false
@@ -448,6 +636,7 @@ return function(deps)
 		jukeboxUnlockedFrame.Visible = owned
 		if owned then
 			refreshJukeboxStatus()
+			refreshPlaylistRows()
 		end
 	end
 	refreshJukeboxSection() -- initial state at build time -- correct even if ownership isn't known yet, since it just reads whatever getLatestState() has right now

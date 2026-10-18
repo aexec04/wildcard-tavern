@@ -43,6 +43,19 @@
 	    from `stats`/discoveredPatronIds/ownedThemeIds every time) -- but
 	    which one you've chosen to WEAR is a real, unrecoverable player
 	    choice, so it's the only new field this file needed to gain.
+	  - `customPlaylist` -- JUKEBOX PLAYLIST (requested fix: "if they put a
+	    song ID that it saves for them so if they have like 20 song IDs,
+	    they can create their own playlist"): an ordered list of Roblox
+	    audio asset id strings ("rbxassetid://<digits>") this player has
+	    added via Client/Settings.lua's Custom Jukebox section. Before
+	    this, a pasted-in track id (Sound.lua's setCustomTrack) only ever
+	    lived in memory for that one session -- closing the game lost it,
+	    so a player with several favorite tracks had to re-paste every
+	    single one, every single time. Capped at MAX_PLAYLIST_SIZE below;
+	    addPlaylistSong/removePlaylistSong are the only ways it changes.
+	    Which one is actually PLAYING right now is deliberately NOT part
+	    of this (that's just Sound.lua's in-memory customTrackId, same as
+	    before) -- only the saved LIST itself needs to survive a rejoin.
 
 	Deliberately NOT covered by this file (a scope decision, not an
 	oversight): an in-progress RUN itself. Closing the game mid-run still
@@ -67,6 +80,10 @@ local PlayerProfile = {}
 -- anything yet -- present so a future migration has somewhere to branch on.
 PlayerProfile.SCHEMA_VERSION = 1
 
+-- JUKEBOX PLAYLIST (requested fix): a sane cap -- matches Ahmed's own "if
+-- they have like 20 song IDs" example from the feature request itself.
+PlayerProfile.MAX_PLAYLIST_SIZE = 20
+
 -- What a player who has never been saved before starts with.
 function PlayerProfile.new()
 	return {
@@ -80,6 +97,7 @@ function PlayerProfile.new()
 		},
 		equippedTitleId = nil, -- ACHIEVEMENTS + TITLES (Phase 16): an Achievements.Definitions id, or nil for no title equipped
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
+		customPlaylist = {}, -- JUKEBOX PLAYLIST (requested fix): ordered list of "rbxassetid://<digits>" strings, see header comment
 	}
 end
 
@@ -141,6 +159,24 @@ function PlayerProfile.migrate(raw)
 
 	if raw.hasSeenTutorial == true then
 		profile.hasSeenTutorial = true
+	end
+
+	-- JUKEBOX PLAYLIST (requested fix): each entry independently
+	-- re-validated against the exact same shape addPlaylistSong requires
+	-- (never trust a raw DataStore blob just because it round-tripped
+	-- through SetAsync once) -- a malformed or foreign entry is silently
+	-- dropped rather than erroring, same "soft migration" philosophy as
+	-- every other field above. Capped at MAX_PLAYLIST_SIZE even though a
+	-- normal save could never exceed it -- addPlaylistSong already
+	-- enforces that -- purely so a hand-edited/corrupted DataStore entry
+	-- can't hand a player an unbounded list.
+	if type(raw.customPlaylist) == "table" then
+		for _, id in ipairs(raw.customPlaylist) do
+			if type(id) == "string" and id:match("^rbxassetid://%d+$")
+				and #profile.customPlaylist < PlayerProfile.MAX_PLAYLIST_SIZE then
+				table.insert(profile.customPlaylist, id)
+			end
+		end
 	end
 
 	return profile
@@ -229,6 +265,45 @@ end
 -- (Server/init.server.lua's handler doesn't bother checking first).
 function PlayerProfile.markTutorialSeen(profile)
 	profile.hasSeenTutorial = true
+end
+
+-- JUKEBOX PLAYLIST (requested fix): same shape as equipTitle above -- safe
+-- to call directly off a remote handler with zero other server-side
+-- checks, returns (ok, message) so the handler can skip an unnecessary
+-- profileDirty/pushState on a rejected add (already-in-playlist, full,
+-- malformed id) the same way EquipTitleRemote's handler already does for
+-- equipTitle. Validates the exact "rbxassetid://<digits>" shape
+-- Client/Settings.lua's jukebox text box already builds (it pulls the
+-- first run of digits out of whatever the player pasted and prepends
+-- "rbxassetid://" itself before this ever gets called) -- never trusts a
+-- client-supplied string blindly.
+function PlayerProfile.addPlaylistSong(profile, assetId)
+	if type(assetId) ~= "string" or not assetId:match("^rbxassetid://%d+$") then
+		return false, "Invalid song id"
+	end
+	for _, existing in ipairs(profile.customPlaylist) do
+		if existing == assetId then
+			return false, "Already in your playlist"
+		end
+	end
+	if #profile.customPlaylist >= PlayerProfile.MAX_PLAYLIST_SIZE then
+		return false, "Your playlist is full"
+	end
+	table.insert(profile.customPlaylist, assetId)
+	return true, "Added to your playlist."
+end
+
+function PlayerProfile.removePlaylistSong(profile, assetId)
+	if type(assetId) ~= "string" then
+		return false, "Invalid song id"
+	end
+	for i, existing in ipairs(profile.customPlaylist) do
+		if existing == assetId then
+			table.remove(profile.customPlaylist, i)
+			return true, "Removed."
+		end
+	end
+	return false, "Not in your playlist"
 end
 
 return PlayerProfile

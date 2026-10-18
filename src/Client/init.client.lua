@@ -879,6 +879,17 @@ local SettingsOverlay = require(script.Settings)({
 	SFX_CATALOG = SoundModule.SFX_CATALOG,
 	getSfxVolume = SoundModule.getSfxVolume,
 	setSfxVolume = SoundModule.setSfxVolume,
+	-- JUKEBOX PLAYLIST (requested fix): AddPlaylistSongRemote/
+	-- RemovePlaylistSongRemote reuse the already-declared top-level
+	-- `remotes` local (same as EquipTitleRemote above) -- zero new
+	-- locals. MAX_PLAYLIST_SIZE is required inline straight off
+	-- ReplicatedStorage, same one-off pattern Achievements uses just
+	-- above, so the cap has exactly one source of truth
+	-- (Shared/Engine/PlayerProfile.lua) instead of a second hardcoded
+	-- copy drifting out of sync with it.
+	AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
+	RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
+	MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
 })
 
 -- ===== Run Setup overlay =====

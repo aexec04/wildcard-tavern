@@ -68,6 +68,8 @@ local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken 
 local BuyThemeRemote = newRemote("BuyTheme")
 local EquipThemeRemote = newRemote("EquipTheme")
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
+local AddPlaylistSongRemote = newRemote("AddPlaylistSong") -- JUKEBOX PLAYLIST (requested fix): (player, assetId string, e.g. "rbxassetid://123")
+local RemovePlaylistSongRemote = newRemote("RemovePlaylistSong") -- (player, assetId string)
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
@@ -641,6 +643,23 @@ local function serializeState(session, player)
 		equippedTitleId = (function()
 			local profile = profiles[player]
 			return profile and profile.equippedTitleId or nil
+		end)(),
+		-- JUKEBOX PLAYLIST (requested fix): the player's saved list of
+		-- Custom Jukebox track ids (Shared/Engine/PlayerProfile.lua's
+		-- customPlaylist) -- Client/Settings.lua reads this to draw the
+		-- "My Playlist" rows. A plain copy, not a reference, same
+		-- reasoning as discoveredPatronIds above (never hand the live
+		-- server-side table straight to a RemoteEvent).
+		customPlaylist = (function()
+			local profile = profiles[player]
+			if not profile then
+				return {}
+			end
+			local ids = {}
+			for _, id in ipairs(profile.customPlaylist) do
+				table.insert(ids, id)
+			end
+			return ids
 		end)(),
 		-- TUTORIAL (Phase 16): `false` (not nil) here is what tells the
 		-- client "genuinely show the auto-popup" -- a not-yet-loaded
@@ -1467,6 +1486,60 @@ EquipTitleRemote.OnServerEvent:Connect(function(player, titleId)
 		return
 	end
 	if not equipOk then
+		return
+	end
+
+	profileDirty[player] = true
+	pushState(player)
+end)
+
+-- JUKEBOX PLAYLIST (requested fix): same shape as EquipTitleRemote's
+-- handler just above -- operates on the permanent `profiles[player]` (a
+-- saved track list is a cross-run choice, same reasoning as
+-- equippedTitleId), gated on an active session existing purely so a stray
+-- remote fire from a not-fully-loaded client can't do anything, and
+-- checks BOTH pcall's own success AND PlayerProfile's own true/false
+-- result so a rejected add (malformed id, duplicate, playlist full)
+-- doesn't fall through to an unnecessary profileDirty/pushState.
+AddPlaylistSongRemote.OnServerEvent:Connect(function(player, assetId)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile then
+		return
+	end
+	if type(assetId) ~= "string" then
+		return
+	end
+
+	local didNotError, ok = pcall(PlayerProfile.addPlaylistSong, profile, assetId)
+	if not didNotError then
+		warn("AddPlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
+		return
+	end
+	if not ok then
+		return
+	end
+
+	profileDirty[player] = true
+	pushState(player)
+end)
+
+RemovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile then
+		return
+	end
+	if type(assetId) ~= "string" then
+		return
+	end
+
+	local didNotError, ok = pcall(PlayerProfile.removePlaylistSong, profile, assetId)
+	if not didNotError then
+		warn("RemovePlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
+		return
+	end
+	if not ok then
 		return
 	end
 
