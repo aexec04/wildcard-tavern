@@ -71,13 +71,14 @@ return {
 
 	-- init.client.lua's hand cards, ScorePopup.lua's ghost clones of them,
 	-- and DeckWidget.lua's deck icon (via cardSpriteBackOffset below).
-	-- Fallback while this is still "rbxassetid://0": rebuildHand's
+	-- Fallback while this is "rbxassetid://0": rebuildHand's
 	-- cardRankSuitLabel (plain text rank/suit, same look the game always
 	-- had) stays VISIBLE whenever this is the placeholder, and auto-hides
 	-- itself the moment a real sheet is wired in here -- see its own
 	-- comment in init.client.lua. DeckWidget.lua's emoji card-back icon
 	-- does the same. Nothing to toggle by hand either way.
-	cardSpriteSheet = "rbxassetid://0",
+	-- Uploaded Oct 18, 2026 as "card-sprite-sheet-kenney-cc0".
+	cardSpriteSheet = "rbxassetid://99708970408841",
 
 	-- Every slice into cardSpriteSheet is exactly this many pixels square.
 	cardSpriteCellSize = CARD_SPRITE_CELL,
