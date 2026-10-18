@@ -50,6 +50,9 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local handRefBackdrop = Instance.new("Frame")
 	handRefBackdrop.Name = "HandRefBackdrop"
@@ -198,8 +201,13 @@ return function(deps)
 		end
 	end
 
+	OverlayManager.register("pokerHandsReference", function()
+		popOut(handRefBackdrop, handRefPanel)
+	end)
+
 	handRefButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("pokerHandsReference")
 		refreshHandReference()
 		popIn(handRefBackdrop, handRefPanel)
 	end)

@@ -56,6 +56,9 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local deckTrackerBackdrop = Instance.new("Frame")
 	deckTrackerBackdrop.Name = "DeckTrackerBackdrop"
@@ -172,8 +175,13 @@ return function(deps)
 		end
 	end
 
+	OverlayManager.register("deckTracker", function()
+		popOut(deckTrackerBackdrop, deckTrackerPanel)
+	end)
+
 	deckWidgetButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("deckTracker")
 		refreshDeckTracker()
 		popIn(deckTrackerBackdrop, deckTrackerPanel)
 	end)

@@ -72,6 +72,9 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	-- Purely visual -- spend Tips on table/card color palettes. No gameplay
 	-- effect. Buyable/equippable any time, not just during the shop phase.
@@ -251,8 +254,13 @@ return function(deps)
 		end
 	end
 
+	OverlayManager.register("themes", function()
+		popOut(themesBackdrop, themesPanel)
+	end)
+
 	themesButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("themes")
 		refreshThemesList()
 		popIn(themesBackdrop, themesPanel)
 	end)

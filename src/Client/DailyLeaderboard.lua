@@ -68,6 +68,9 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local localPlayer = deps.localPlayer
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local leaderboardBackdrop = Instance.new("Frame")
 	leaderboardBackdrop.Name = "DailyLeaderboardBackdrop"
@@ -325,8 +328,13 @@ return function(deps)
 		end
 	end)
 
+	OverlayManager.register("dailyLeaderboard", function()
+		popOut(leaderboardBackdrop, leaderboardPanel)
+	end)
+
 	leaderboardButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("dailyLeaderboard")
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end)

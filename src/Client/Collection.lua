@@ -80,6 +80,11 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local StateUpdatedRemote = deps.StateUpdatedRemote
+	-- BUGFIX (overlapping overlays): see OverlayManager.lua's own header
+	-- comment for the full story. Required directly off script.Parent
+	-- (zero cost to init.client.lua's own local budget), not threaded
+	-- through deps like everything else in this file.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local collectionBackdrop = Instance.new("Frame")
 	collectionBackdrop.Name = "CollectionBackdrop"
@@ -386,8 +391,13 @@ return function(deps)
 		end
 	end
 
+	OverlayManager.register("collection", function()
+		popOut(collectionBackdrop, collectionPanel)
+	end)
+
 	collectionButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("collection")
 		refreshCollection()
 		popIn(collectionBackdrop, collectionPanel)
 	end)

@@ -81,6 +81,9 @@
 			VOLUME_ICONS = { "♪", "♩", "×" },
 			volumeStepIndex = number, -- initial value (1); the caller owns
 			                             mutating this as the volume button cycles
+			SFX_CATALOG = table, -- { { label, id }, ... } -- see its own comment below
+			getSfxVolume = function(id) -> number, -- 0-1, defaults to 1 (full)
+			setSfxVolume = function(id, multiplier), -- 0-1
 		}
 ]]
 
@@ -160,6 +163,62 @@ return function(deps)
 	--   Boss:    Moonlight rbxassetid://9039974099
 	--   Shop:    Guilty Pleasure rbxassetid://1842100660
 	--            Ambient Dreams rbxassetid://124567288309185
+
+	-- SFX VOLUME SLIDERS (requested fix: "adjust all the sound effects, not
+	-- just music, so every sfx that we have, they can all be sliders"):
+	-- before this, every playSfx/playPitched call used whatever volume the
+	-- CALL SITE hardcoded (0.6 default, or a one-off override) with no way
+	-- for the player to turn any of them up or down -- only backgroundMusic
+	-- had a real slider (Settings.lua's Master Volume). Keyed by the actual
+	-- asset id string (every SOUND_IDS/JUICE_SOUND_IDS entry is a distinct
+	-- id, so this never collides), a multiplier that scales whatever volume
+	-- a given play call would have used otherwise -- 1 (full, the default
+	-- for anything never touched) down to 0 (silent), same 0-100% shape as
+	-- Master Volume. Session-only, same as Master Volume and the Custom
+	-- Jukebox override -- no persistent save for audio settings yet (see
+	-- Settings.lua's own Custom Jukebox comment).
+	local sfxVolumeMultipliers = {} -- [assetId] = multiplier, 0-1; missing = 1 (full)
+
+	local function getSfxVolume(id)
+		if not id then
+			return 1
+		end
+		local multiplier = sfxVolumeMultipliers[id]
+		if multiplier == nil then
+			return 1
+		end
+		return multiplier
+	end
+
+	local function setSfxVolume(id, multiplier)
+		if not id then
+			return
+		end
+		sfxVolumeMultipliers[id] = multiplier
+	end
+
+	-- Ordered catalog for Settings.lua to build one slider row per SFX from
+	-- -- label is what the player sees, id is the actual key into
+	-- sfxVolumeMultipliers above. backgroundMusic is deliberately excluded
+	-- (that's Master Volume, its own separate slider, not an "effect").
+	-- chipTick/multTick/xmultTick/payoutThud are the 4 dedicated
+	-- ScorePopup.lua reveal-sequence sounds (see playPitched below for how
+	-- THEIR multiplier gets applied, since they're played by Sound instance
+	-- rather than by id string).
+	local SFX_CATALOG = {
+		{ label = "Card Select", id = SOUND_IDS.cardToggle },
+		{ label = "Play Hand", id = SOUND_IDS.playHand },
+		{ label = "Discard", id = SOUND_IDS.discard },
+		{ label = "Buy / Use", id = SOUND_IDS.buyPatron },
+		{ label = "Round Reward", id = SOUND_IDS.roundReward },
+		{ label = "UI Click", id = SOUND_IDS.uiClick },
+		{ label = "Game Over (Win)", id = SOUND_IDS.gameOverWin },
+		{ label = "Game Over (Loss)", id = SOUND_IDS.gameOverLoss },
+		{ label = "Chip Tick", id = JUICE_SOUND_IDS.chipTick },
+		{ label = "Mult Tick", id = JUICE_SOUND_IDS.multTick },
+		{ label = "XMult Tick", id = JUICE_SOUND_IDS.xmultTick },
+		{ label = "Payout Thud", id = JUICE_SOUND_IDS.payoutThud },
+	}
 
 	local backgroundMusic = Instance.new("Sound")
 	backgroundMusic.Name = "BackgroundMusic"
@@ -289,7 +348,11 @@ return function(deps)
 	-- timing between ticks, so nothing here needs to be force-cut short.
 	local function playPitched(sound, pitch, volume)
 		sound.PlaybackSpeed = pitch or 1
-		sound.Volume = volume or 0.5
+		-- SFX VOLUME SLIDERS: sound.SoundId reliably identifies which of the
+		-- 4 dedicated juice sounds this is -- each is set once at creation
+		-- above and never reassigned elsewhere -- so this reads the same
+		-- per-sound multiplier the Settings panel's sliders write.
+		sound.Volume = (volume or 0.5) * getSfxVolume(sound.SoundId)
 		sound.TimePosition = 0
 		sound:Play()
 	end
@@ -331,7 +394,10 @@ return function(deps)
 			sfx.Parent = SoundService
 			sfxPool[soundId] = sfx
 		end
-		sfx.Volume = volume or 0.6
+		-- SFX VOLUME SLIDERS: scales whatever volume this call would have
+		-- used anyway by this specific sound's own slider (Settings.lua),
+		-- same shape as Master Volume scales backgroundMusic.
+		sfx.Volume = (volume or 0.6) * getSfxVolume(soundId)
 		sfx.TimePosition = 0
 		sfx:Play()
 		if maxLength then
@@ -377,5 +443,8 @@ return function(deps)
 		VOLUME_STEPS = VOLUME_STEPS,
 		VOLUME_ICONS = VOLUME_ICONS,
 		volumeStepIndex = volumeStepIndex,
+		SFX_CATALOG = SFX_CATALOG,
+		getSfxVolume = getSfxVolume,
+		setSfxVolume = setSfxVolume,
 	}
 end

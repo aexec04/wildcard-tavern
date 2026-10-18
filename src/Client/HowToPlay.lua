@@ -56,6 +56,9 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local howToPlayBackdrop = Instance.new("Frame")
 	howToPlayBackdrop.Name = "HowToPlayBackdrop"
@@ -317,8 +320,13 @@ return function(deps)
 		popOut(howToPlayBackdrop, howToPlayPanel)
 	end)
 
+	OverlayManager.register("howToPlay", function()
+		popOut(howToPlayBackdrop, howToPlayPanel)
+	end)
+
 	local function openHowToPlay()
 		playClickSfx()
+		OverlayManager.closeAllExcept("howToPlay")
 		popIn(howToPlayBackdrop, howToPlayPanel)
 	end
 

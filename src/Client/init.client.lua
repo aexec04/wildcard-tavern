@@ -872,6 +872,13 @@ local SettingsOverlay = require(script.Settings)({
 	-- that lets a player back out of an in-progress run to the menu.
 	menuFrame = menuFrame,
 	root = root,
+	-- SFX VOLUME SLIDERS (requested fix): referenced straight off
+	-- SoundModule (already a top-level local above) instead of adding 3
+	-- more of its own -- same reasoning as playSfx/chipTickSound/etc.'s
+	-- own comment just above SoundModule's destructuring.
+	SFX_CATALOG = SoundModule.SFX_CATALOG,
+	getSfxVolume = SoundModule.getSfxVolume,
+	setSfxVolume = SoundModule.setSfxVolume,
 })
 
 -- ===== Run Setup overlay =====

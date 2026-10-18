@@ -295,10 +295,23 @@ return function(deps)
 	-- track underneath it). UserInputService's global InputChanged/
 	-- InputEnded track the drag once started, so releasing the mouse
 	-- outside the row still ends the drag cleanly.
-	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue)
+	-- layoutOrder (optional, SFX VOLUME SLIDERS addition): lets a caller
+	-- stack several rows inside a parent that has its own UIListLayout
+	-- (e.g. Settings.lua's scrollable audio section, one row per sound
+	-- effect) with a deterministic, caller-chosen order -- a plain
+	-- Instance.new("Frame") row with no explicit Name would otherwise tie
+	-- with every other row at the layout's default LayoutOrder (0),
+	-- leaving their relative order unspecified. Every existing single-row
+	-- caller (just Master Volume, before this) is unaffected -- omitting
+	-- it leaves LayoutOrder at Roblox's own default (0), same as before
+	-- this parameter existed.
+	local function makeSliderRow(parent, labelText, min, max, getValue, setValue, formatValue, layoutOrder)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 46)
 		row.BackgroundTransparency = 1
+		if layoutOrder then
+			row.LayoutOrder = layoutOrder
+		end
 		row.Parent = parent
 
 		local label = Instance.new("TextLabel")

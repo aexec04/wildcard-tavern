@@ -1,9 +1,12 @@
 --[[
 	Client/Settings.lua
 	FEATURE 10: a simple audio-only settings panel, reachable via the gear
-	corner button. Scoped down to just Master Volume -- game options like
-	animation speed/screenshake have no consumer code yet, so they're
-	deliberately left out to keep this one piece small.
+	corner button. Originally scoped down to just Master Volume -- game
+	options like animation speed/screenshake have no consumer code yet, so
+	they're still deliberately left out -- but now also has a full
+	per-sound-effect volume section (SFX VOLUME SLIDERS, see that comment
+	further down) alongside it, so the whole scrollable audio section no
+	longer fits in one glance the way the single Master Volume row used to.
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. Fully self-contained -- nothing outside
@@ -44,6 +47,10 @@
 		                        new Main Menu button below (exact mirror of what
 		                        menuPlayButton's handler does in init.client.lua,
 		                        just in reverse)
+		-- SFX VOLUME SLIDERS:
+		SFX_CATALOG         -- { { label, id }, ... } -- see Sound.lua's own comment
+		getSfxVolume        -- function(id) -> number, 0-1 -- see Sound.lua
+		setSfxVolume        -- function(id, multiplier) -- see Sound.lua
 
 	Returns:
 		{
@@ -101,6 +108,14 @@ return function(deps)
 	local hasCustomTrack = deps.hasCustomTrack
 	local menuFrame = deps.menuFrame
 	local root = deps.root
+	-- SFX VOLUME SLIDERS: see Sound.lua's own header comment for what each
+	-- of these 3 is.
+	local SFX_CATALOG = deps.SFX_CATALOG
+	local getSfxVolume = deps.getSfxVolume
+	local setSfxVolume = deps.setSfxVolume
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -111,11 +126,12 @@ return function(deps)
 	settingsBackdrop.ZIndex = 20
 	settingsBackdrop.Parent = screenGui
 
-	-- Grown from the original 0.4 x 0.3 (Master-Volume-only) size to fit
-	-- the new Custom Jukebox section below the slider.
+	-- Grown from the original 0.4 x 0.3 (Master-Volume-only) size, then
+	-- again (SFX VOLUME SLIDERS) to fit a whole scrollable list of
+	-- per-sound-effect sliders on top of the Custom Jukebox section.
 	local settingsPanel = Instance.new("Frame")
-	settingsPanel.Size = UDim2.fromScale(0.46, 0.56)
-	settingsPanel.Position = UDim2.fromScale(0.27, 0.22)
+	settingsPanel.Size = UDim2.fromScale(0.5, 0.8)
+	settingsPanel.Position = UDim2.fromScale(0.25, 0.1)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
@@ -132,16 +148,30 @@ return function(deps)
 	settingsTitle.ZIndex = 21
 	settingsTitle.Parent = settingsPanel
 
-	-- Sized to fit just the Master Volume row (46px, see makeSliderRow) --
-	-- the Custom Jukebox section below gets its own sibling Frame with the
-	-- rest of the panel's space, instead of both sharing one tall
-	-- unstructured container.
-	local settingsBody = Instance.new("Frame")
-	settingsBody.Size = UDim2.new(1, -40, 0, 46)
-	settingsBody.Position = UDim2.new(0, 20, 0, 50)
-	settingsBody.BackgroundTransparency = 1
-	settingsBody.ZIndex = 21
-	settingsBody.Parent = settingsPanel
+	-- SFX VOLUME SLIDERS: used to be a single fixed-height Frame holding
+	-- just the Master Volume row (46px) -- now a real ScrollingFrame, the
+	-- same pattern Collection.lua's row list already uses, since this
+	-- section now holds Master Volume + a "Sound Effects" header + one
+	-- row per Sound.lua SFX_CATALOG entry + the Custom Jukebox section --
+	-- far more content than the panel can show at once. UIListLayout
+	-- stacks everything by LayoutOrder (see each addition below for its
+	-- own number) instead of hand-placed Y offsets, and
+	-- AutomaticCanvasSize means the list simply grows -- adding a new SFX
+	-- to Sound.lua's SFX_CATALOG later needs zero layout math here.
+	local settingsScroll = Instance.new("ScrollingFrame")
+	settingsScroll.Size = UDim2.new(1, -40, 1, -130)
+	settingsScroll.Position = UDim2.new(0, 20, 0, 50)
+	settingsScroll.BackgroundTransparency = 1
+	settingsScroll.BorderSizePixel = 0
+	settingsScroll.ScrollBarThickness = 8
+	settingsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	settingsScroll.ZIndex = 21
+	settingsScroll.Parent = settingsPanel
+
+	local settingsLayout = Instance.new("UIListLayout")
+	settingsLayout.Padding = UDim.new(0, 10)
+	settingsLayout.Parent = settingsScroll
 
 	-- A real click-and-drag slider (see VisualHelpers.lua's makeSliderRow) --
 	-- continuous 0-100 control over the same Sound instance's Volume, in
@@ -152,7 +182,7 @@ return function(deps)
 	local masterVolumeValue = math.floor(backgroundMusic.Volume * 100 + 0.5)
 
 	makeSliderRow(
-		settingsBody,
+		settingsScroll,
 		"Master Volume",
 		0,
 		100,
@@ -173,16 +203,64 @@ return function(deps)
 		end,
 		function(value)
 			return tostring(value) .. "%"
-		end
+		end,
+		1
 	)
 
+	-- SFX VOLUME SLIDERS (requested fix: "adjust all the sound effects, not
+	-- just music ... every sfx that we have, they can all be sliders"):
+	-- one 0-100 slider per Sound.lua SFX_CATALOG entry, same real
+	-- click-and-drag control as Master Volume above, each one scaling
+	-- only that single sound (see Sound.lua's getSfxVolume/setSfxVolume
+	-- and how playSfx/playPitched apply the multiplier). LayoutOrder 2
+	-- for the header, 3 onward for the rows (Master Volume above is 1),
+	-- so this whole section always sits directly under Master Volume and
+	-- above the Jukebox section regardless of catalog order.
+	local sfxSectionHeader = Instance.new("TextLabel")
+	sfxSectionHeader.Size = UDim2.new(1, 0, 0, 22)
+	sfxSectionHeader.BackgroundTransparency = 1
+	sfxSectionHeader.Font = Enum.Font.GothamBold
+	sfxSectionHeader.TextSize = 16
+	sfxSectionHeader.TextXAlignment = Enum.TextXAlignment.Left
+	sfxSectionHeader.TextColor3 = Color3.fromRGB(255, 214, 130)
+	sfxSectionHeader.Text = "🔊 Sound Effects"
+	sfxSectionHeader.LayoutOrder = 2
+	sfxSectionHeader.ZIndex = 21
+	sfxSectionHeader.Parent = settingsScroll
+
+	if SFX_CATALOG then
+		for i, entry in ipairs(SFX_CATALOG) do
+			local sfxValue = math.floor(getSfxVolume(entry.id) * 100 + 0.5)
+			makeSliderRow(
+				settingsScroll,
+				entry.label,
+				0,
+				100,
+				function()
+					return sfxValue
+				end,
+				function(newValue)
+					sfxValue = newValue
+					setSfxVolume(entry.id, newValue / 100)
+				end,
+				function(value)
+					return tostring(value) .. "%"
+				end,
+				2 + i
+			)
+		end
+	end
+
 	-- ===== Custom Jukebox (QoL Game Pass, Phase 9) =====
+	-- LayoutOrder 1000 (not just "after the SFX rows") so a future catalog
+	-- addition in Sound.lua can never accidentally push past this section
+	-- without the fixed-height math below needing to change too.
 	local jukeboxSection = Instance.new("Frame")
-	jukeboxSection.Size = UDim2.new(1, -40, 1, -166)
-	jukeboxSection.Position = UDim2.new(0, 20, 0, 106)
+	jukeboxSection.Size = UDim2.new(1, 0, 0, 170)
 	jukeboxSection.BackgroundTransparency = 1
+	jukeboxSection.LayoutOrder = 1000
 	jukeboxSection.ZIndex = 21
-	jukeboxSection.Parent = settingsPanel
+	jukeboxSection.Parent = settingsScroll
 
 	local jukeboxTitle = Instance.new("TextLabel")
 	jukeboxTitle.Size = UDim2.new(1, 0, 0, 22)
@@ -197,7 +275,7 @@ return function(deps)
 
 	-- ----- Locked state: not owned yet -----
 	local jukeboxLockedFrame = Instance.new("Frame")
-	jukeboxLockedFrame.Size = UDim2.new(1, 0, 1, -26)
+	jukeboxLockedFrame.Size = UDim2.new(1, 0, 0, 144)
 	jukeboxLockedFrame.Position = UDim2.new(0, 0, 0, 26)
 	jukeboxLockedFrame.BackgroundTransparency = 1
 	jukeboxLockedFrame.ZIndex = 21
@@ -250,7 +328,7 @@ return function(deps)
 
 	-- ----- Unlocked state: owned -----
 	local jukeboxUnlockedFrame = Instance.new("Frame")
-	jukeboxUnlockedFrame.Size = UDim2.new(1, 0, 1, -26)
+	jukeboxUnlockedFrame.Size = UDim2.new(1, 0, 0, 144)
 	jukeboxUnlockedFrame.Position = UDim2.new(0, 0, 0, 26)
 	jukeboxUnlockedFrame.BackgroundTransparency = 1
 	jukeboxUnlockedFrame.Visible = false
@@ -419,8 +497,13 @@ return function(deps)
 		end)
 	end)
 
+	OverlayManager.register("settings", function()
+		popOut(settingsBackdrop, settingsPanel)
+	end)
+
 	settingsButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		OverlayManager.closeAllExcept("settings")
 		refreshJukeboxSection()
 		popIn(settingsBackdrop, settingsPanel)
 	end)

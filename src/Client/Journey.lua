@@ -68,6 +68,9 @@ return function(deps)
 	local getLatestState = deps.getLatestState
 	local getCurrentTheme = deps.getCurrentTheme
 	local addTooltip = deps.addTooltip
+	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
+	-- header comment for the full story.
+	local OverlayManager = require(script.Parent.OverlayManager)
 
 	-- LAYOUT FEATURE 9: Ahmed wanted his own creative spin here instead of
 	-- copying Balatro's plain list -- a 2D, Mario-map-style path where your
@@ -880,8 +883,13 @@ return function(deps)
 		refreshJourneyImpl(true)
 	end
 
+	OverlayManager.register("journey", function()
+		journeyBackdrop.Visible = false
+	end)
+
 	local function openJourney()
 		playClickSfx()
+		OverlayManager.closeAllExcept("journey")
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
 		-- Scroll so the current stage is in view.
