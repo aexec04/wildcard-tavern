@@ -1004,7 +1004,11 @@ end
 -- ===== Collection Gallery overlay =====
 -- Extracted into Client/Collection.lua. Fully self-contained (only opened
 -- from its own corner button), so nothing needs to come back out of the
--- require() call.
+-- require() call -- see Collection.lua's own StateUpdatedRemote comment
+-- for how it now keeps itself live-refreshed without needing anything
+-- back out of here (capturing the return value as a new top-level local
+-- here blew straight through Lua's 200-local ceiling -- this file is
+-- already right up against it, same lesson as ArtAssets.lua's).
 require(script.Collection)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -1022,6 +1026,12 @@ require(script.Collection)({
 	-- needs this module.
 	Achievements = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Achievements")),
 	EquipTitleRemote = remotes:WaitForChild("EquipTitle"),
+	-- BUGFIX (Ahmed's report, see Collection.lua's own comment on this
+	-- same dep for the full story): reusing the ALREADY-declared
+	-- top-level `StateUpdatedRemote` local from this file's top (zero new
+	-- locals) so Collection.lua can keep its own panel live-refreshed
+	-- without init.client.lua's render() needing to call back out to it.
+	StateUpdatedRemote = StateUpdatedRemote,
 	getLatestState = function()
 		return latestState
 	end,

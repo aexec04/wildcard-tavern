@@ -44,6 +44,12 @@
 		popIn             -- function(backdrop, content, opts?)
 		popOut            -- function(backdrop, content, opts?, onHidden?)
 		addButtonHoverScale -- function(button, opts?)
+		StateUpdatedRemote -- RemoteEvent, fired by the server on every state
+		                      push (same remote init.client.lua's own render()
+		                      subscribes to) -- see the BUGFIX comment at this
+		                      file's bottom for why THIS module now also
+		                      subscribes to it directly, instead of returning
+		                      a refresh function for init.client.lua to call.
 
 	Returns: {}
 
@@ -73,6 +79,7 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	local StateUpdatedRemote = deps.StateUpdatedRemote
 
 	local collectionBackdrop = Instance.new("Frame")
 	collectionBackdrop.Name = "CollectionBackdrop"
@@ -384,6 +391,55 @@ return function(deps)
 		refreshCollection()
 		popIn(collectionBackdrop, collectionPanel)
 	end)
+
+	-- BUGFIX (Ahmed's report: "I'm unable to equip these other name
+	-- things" -- clicking Equip on anything other than the title you
+	-- already had equipped silently appeared to do nothing): the Equip
+	-- button's click handler (above, inside makeAchievementRow) really
+	-- was firing EquipTitleRemote correctly, and the server really was
+	-- accepting it (PlayerProfile.equipTitle + Server/init.server.lua's
+	-- handler both check out) -- but refreshCollection only ever ran
+	-- when the panel first OPENED (collectionButton's click above).
+	-- Nothing told the already-open panel to redraw once the server's
+	-- reply (a fresh StateUpdatedRemote push with the new equippedTitleId)
+	-- came back, so every row kept showing its pre-click Equip/Equipped
+	-- labels and highlight no matter how many times you clicked -- it
+	-- looked exactly like a dead button.
+	--
+	-- The natural fix -- expose a refresh function and have
+	-- init.client.lua's render(state) call it, same pattern Shop.lua
+	-- uses for rebuildShop -- would need capturing this require() call's
+	-- return value as a new top-level local over there. Tried that first;
+	-- it immediately blew through Lua's 200-local ceiling (init.client.lua
+	-- is already right up against it -- see ArtAssets.lua's own BUGFIX
+	-- comment for the first time that bit this exact feature). So instead
+	-- this module subscribes to StateUpdatedRemote directly -- the SAME
+	-- remote init.client.lua's render() already listens to, passed in as
+	-- a dep at zero extra local cost (it's an existing top-level local
+	-- over there, just handed to another require() call).
+	--
+	-- task.defer, not a direct call, is the reason this is actually safe:
+	-- both this listener and init.client.lua's own (function(state)
+	-- render(state) end) are connected to the same event, and Roblox
+	-- fires same-event connections in connection order -- this module's
+	-- require() call runs BEFORE init.client.lua reaches its own
+	-- StateUpdatedRemote connection further down the script, so without
+	-- task.defer this would run FIRST, reading getLatestState() (which
+	-- reads init.client.lua's `latestState` upvalue) one push BEHIND --
+	-- i.e. still missing the equip that just happened, same bug with
+	-- extra steps. task.defer queues the refresh to run after every
+	-- synchronous listener for THIS firing (including render(), which
+	-- updates `latestState` as its very first line) has already finished,
+	-- so by the time it actually runs, getLatestState() is caught up.
+	if StateUpdatedRemote then
+		StateUpdatedRemote.OnClientEvent:Connect(function()
+			task.defer(function()
+				if collectionBackdrop.Visible then
+					refreshCollection()
+				end
+			end)
+		end)
+	end
 
 	return {}
 end
