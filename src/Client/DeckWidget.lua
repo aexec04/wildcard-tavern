@@ -18,6 +18,10 @@
 		polishPanel    -- function(instance, radius)
 		addSoftShadow  -- function(instance, radius)
 		addTooltip     -- function(button, text, align?)
+		roundCorner    -- function(instance, radius)
+		cardSpriteSheet      -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
+		cardSpriteBackOffset -- Vector2, see Client/ArtAssets.lua
+		cardSpriteCellSize   -- number, see Client/ArtAssets.lua
 
 	Returns:
 		{
@@ -31,6 +35,10 @@ return function(deps)
 	local polishPanel = deps.polishPanel
 	local addSoftShadow = deps.addSoftShadow
 	local addTooltip = deps.addTooltip
+	local roundCorner = deps.roundCorner
+	local cardSpriteSheet = deps.cardSpriteSheet
+	local cardSpriteBackOffset = deps.cardSpriteBackOffset
+	local cardSpriteCellVector = Vector2.new(deps.cardSpriteCellSize, deps.cardSpriteCellSize)
 
 	local deckWidget = Instance.new("Frame")
 	deckWidget.Name = "DeckWidget"
@@ -63,6 +71,30 @@ return function(deps)
 	polishPanel(deckCardBack, 8)
 	addSoftShadow(deckCardBack, 10)
 
+	-- CARD ART (same Kenney sprite sheet as the hand's cards -- see
+	-- ArtAssets.lua): the sheet's one card-back cell. ZIndex 3, one above
+	-- deckCardBackIcon's emoji fallback (ZIndex 2) -- not that both are
+	-- ever visible at once (see showPlaceholderBack below), but matches
+	-- the "art sits in front" ordering used everywhere else.
+	local deckCardBackArt = Instance.new("ImageLabel")
+	deckCardBackArt.Name = "CardBackArt"
+	deckCardBackArt.Size = UDim2.fromScale(1, 1)
+	deckCardBackArt.BackgroundTransparency = 1
+	deckCardBackArt.BorderSizePixel = 0
+	deckCardBackArt.ScaleType = Enum.ScaleType.Stretch
+	deckCardBackArt.Image = cardSpriteSheet
+	deckCardBackArt.ImageRectOffset = cardSpriteBackOffset
+	deckCardBackArt.ImageRectSize = cardSpriteCellVector
+	deckCardBackArt.ZIndex = 3
+	deckCardBackArt.Parent = deckCardBack
+	roundCorner(deckCardBackArt, 8)
+
+	-- Fallback while cardSpriteSheet is still the "rbxassetid://0"
+	-- placeholder -- same pattern as init.client.lua's cardRankSuitLabel
+	-- (see its own comment): hidden, not removed, the instant a real
+	-- sheet is wired in, so there's nothing else to flip by hand either
+	-- way.
+	local showPlaceholderBack = cardSpriteSheet == "rbxassetid://0"
 	local deckCardBackIcon = Instance.new("TextLabel")
 	deckCardBackIcon.Size = UDim2.fromScale(1, 1)
 	deckCardBackIcon.BackgroundTransparency = 1
@@ -70,6 +102,7 @@ return function(deps)
 	deckCardBackIcon.TextSize = 30
 	deckCardBackIcon.TextColor3 = Color3.fromRGB(220, 225, 240)
 	deckCardBackIcon.Text = "🂠"
+	deckCardBackIcon.Visible = showPlaceholderBack
 	deckCardBackIcon.ZIndex = 2
 	deckCardBackIcon.Parent = deckCardBack
 

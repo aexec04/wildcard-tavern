@@ -519,6 +519,13 @@ local DeckWidgetModule = require(script.DeckWidget)({
 	polishPanel = polishPanel,
 	addSoftShadow = addSoftShadow,
 	addTooltip = addTooltip,
+	roundCorner = roundCorner,
+	-- CARD ART: same Kenney sprite sheet as the hand's cards (see
+	-- ArtAssets.lua) -- inline require(), not a new top-level local, same
+	-- reasoning as everywhere else that reads ArtAssets.lua in this file.
+	cardSpriteSheet = require(script.ArtAssets).cardSpriteSheet,
+	cardSpriteBackOffset = require(script.ArtAssets).cardSpriteBackOffset,
+	cardSpriteCellSize = require(script.ArtAssets).cardSpriteCellSize,
 })
 local deckCountLabel = DeckWidgetModule.deckCountLabel
 local deckWidgetButton = DeckWidgetModule.deckWidgetButton
@@ -1584,14 +1591,24 @@ local function handSignature(handData)
 end
 
 local function rebuildHand(handData)
-	-- AI ART: function-scoped, NOT a new top-level local (this file is
-	-- already right up against Lua's 200-local-per-chunk ceiling, same
-	-- reasoning as everywhere else in this file) -- Lua's local limit is
-	-- per-FUNCTION, so a local declared inside rebuildHand's own body
-	-- costs nothing against the main chunk's count. require() is cached
-	-- by Roblox, so calling it once per rebuildHand (not per-card) is both
-	-- cheap and correct.
-	local cardFaceImage = require(script.ArtAssets).cardFaceTemplate
+	-- CARD ART (Kenney sprite-sheet switch -- see ArtAssets.lua's header for
+	-- why): function-scoped, NOT new top-level locals (this file is already
+	-- right up against Lua's 200-local-per-chunk ceiling, same reasoning as
+	-- everywhere else in this file) -- Lua's local limit is per-FUNCTION, so
+	-- locals declared inside rebuildHand's own body cost nothing against the
+	-- main chunk's count. require() is cached by Roblox, so calling it once
+	-- per rebuildHand (not per-card) is both cheap and correct.
+	local cardArtModule = require(script.ArtAssets)
+	local cardSpriteSheet = cardArtModule.cardSpriteSheet
+	local cardSpriteOffset = cardArtModule.cardSpriteOffset
+	local cardSpriteCellVector = Vector2.new(cardArtModule.cardSpriteCellSize, cardArtModule.cardSpriteCellSize)
+	-- Real art isn't wired in until cardSpriteSheet actually points at an
+	-- uploaded asset -- while it's still the "rbxassetid://0" placeholder,
+	-- cardRankSuitLabel (plain text, same look the game always had) stays
+	-- the ONLY thing readers see, exactly as before this pass. The moment a
+	-- real sheet is filled in, the label hides itself automatically (see
+	-- its own Visible line below) -- nothing else to flip by hand.
+	local showPlaceholderRankSuit = cardSpriteSheet == "rbxassetid://0"
 
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature
@@ -1653,7 +1670,7 @@ local function rebuildHand(handData)
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 20
-		-- Fallback fill -- shown if cardFaceImage below is ever the
+		-- Fallback fill -- shown if cardSpriteSheet below is ever the
 		-- "rbxassetid://0" placeholder or fails to load (see
 		-- Client/ArtAssets.lua). No longer tweened for selection; see the
 		-- UIStroke-based cue below and in refreshCardVisual.
@@ -1666,23 +1683,42 @@ local function rebuildHand(handData)
 		button.Parent = slot
 		polishButton(button, 8)
 
-		-- AI ART: the card-face template art (see the art brief). ZIndex 1
-		-- -- one below cardRankSuitLabel and the Garnish/Special/Stamp badge
-		-- further below (both ZIndex 2) -- so it's always a backdrop, never
-		-- covering the text or badge. roundCorner matches polishButton's
-		-- own radius above so the image's corners read as rounded too,
-		-- without needing button.ClipsDescendants (untouched elsewhere).
+		-- CARD ART: one 64x64 cell sliced out of the Kenney sprite sheet
+		-- (see ArtAssets.lua's header for why this replaced the single
+		-- AI-generated template -- that asset sat in Roblox moderation a
+		-- full month with no sign of clearing; this one real card per
+		-- rank/suit, ONE upload total). ScaleType.Stretch, not Crop -- the
+		-- source cell is square and the button is a portrait rectangle
+		-- (70x100); Crop would zoom in and crop off the card's own corner
+		-- pips to cover a portrait frame with a square source, Stretch
+		-- just fills it, which reads fine at this size. ZIndex 1 -- one
+		-- below cardRankSuitLabel and the Garnish/Special/Stamp badge
+		-- further below (both ZIndex 2) -- so it's always a backdrop,
+		-- never covering the text or badge. roundCorner matches
+		-- polishButton's own radius above so the image's corners read as
+		-- rounded too, without needing button.ClipsDescendants (untouched
+		-- elsewhere).
 		local cardArt = Instance.new("ImageLabel")
 		cardArt.Name = "CardArt"
 		cardArt.Size = UDim2.fromScale(1, 1)
 		cardArt.BackgroundTransparency = 1
 		cardArt.BorderSizePixel = 0
-		cardArt.ScaleType = Enum.ScaleType.Crop
-		cardArt.Image = cardFaceImage or "rbxassetid://0"
+		cardArt.ScaleType = Enum.ScaleType.Stretch
+		cardArt.Image = cardSpriteSheet
+		cardArt.ImageRectOffset = cardSpriteOffset(card.rank, card.suit)
+		cardArt.ImageRectSize = cardSpriteCellVector
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
 		roundCorner(cardArt, 8)
 
+		-- Plain-text fallback -- see showPlaceholderRankSuit's own comment
+		-- above. The sprite sheet's own art already draws the rank/suit in
+		-- its corner, so once a real sheet is wired in, this would just be
+		-- duplicate text sitting on top of it -- hidden instead of removed
+		-- so flipping cardSpriteSheet in ArtAssets.lua back to the
+		-- placeholder (e.g. if the uploaded asset ever gets taken down)
+		-- instantly un-hides a working, readable hand again with no other
+		-- code change needed.
 		local cardRankSuitLabel = Instance.new("TextLabel")
 		cardRankSuitLabel.Name = "RankSuit"
 		cardRankSuitLabel.Size = UDim2.fromScale(1, 1)
@@ -1691,6 +1727,7 @@ local function rebuildHand(handData)
 		cardRankSuitLabel.TextSize = 20
 		cardRankSuitLabel.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
 		cardRankSuitLabel.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+		cardRankSuitLabel.Visible = showPlaceholderRankSuit
 		cardRankSuitLabel.ZIndex = 2
 		cardRankSuitLabel.Parent = button
 
