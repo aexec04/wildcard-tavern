@@ -2091,12 +2091,37 @@ playButton.MouseButton1Click:Connect(function()
 	-- preview computation the sidebar already uses -- see computeHandPreview.
 	local preview = computeHandPreview(indices)
 	if preview then
+		-- BUGFIX (Ahmed's report, "SFX doesn't work anymore and when you
+		-- play a card, nothing shows" -- right after the card-art rollout):
+		-- buildScoreSourceInfo/showScorePopup is pure animation/choreography
+		-- -- the card-art rollout added a Clone() of a now-more-complex card
+		-- button (CardArt image, RankSuit label, SelectionStroke) plus new
+		-- overlay-Frame logic in ScorePopup.lua, any one of which erroring
+		-- on some particular hand (a nil/odd card, an asset that hasn't
+		-- finished uploading, anything) used to take the ENTIRE click
+		-- handler down with it -- which skipped not just the popup's OWN
+		-- tick/thud SFX (explaining "SFX doesn't work") but also the
+		-- PlayHandRemote:FireServer call below (explaining "nothing shows"
+		-- -- the hand doesn't even advance). pcall isolates the
+		-- choreography so a bug in the JUICE can never again block the
+		-- actual Play Hand action -- worst case now is a silent/missing
+		-- popup with the hand still advancing normally and the real error
+		-- logged to Output (warn(), not a hard error) so it's easy to spot
+		-- and fix for real, instead of silently eating the whole turn.
+		--
 		-- sourceInfo built ONLY once we know the popup will actually show --
 		-- buildScoreSourceInfo hides the played cards' real buttons, so
 		-- skipping it on a nil preview avoids ever leaving a card
 		-- permanently hidden with nothing showing in its place.
-		local sourceInfo = buildScoreSourceInfo(indices)
-		showScorePopup(preview, sourceInfo)
+		local ok, sourceInfoOrErr = pcall(buildScoreSourceInfo, indices)
+		if ok then
+			local ok2, err2 = pcall(showScorePopup, preview, sourceInfoOrErr)
+			if not ok2 then
+				warn("[WildcardTavern] showScorePopup errored, hand still playing normally: " .. tostring(err2))
+			end
+		else
+			warn("[WildcardTavern] buildScoreSourceInfo errored, hand still playing normally: " .. tostring(sourceInfoOrErr))
+		end
 	end
 
 	-- The server (RunState.playHand -> removeIndicesFromHand) always keeps
