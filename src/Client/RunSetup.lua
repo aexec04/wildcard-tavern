@@ -65,6 +65,10 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local revealStagger = deps.revealStagger
+	-- PHASE A (Spectacle pass): optional -- see Client/RunRecap.lua's own
+	-- header for why "Begin Run" needs to reset that run-scoped tracker
+	-- too, not just the gameover->playing transition render() handles.
+	local onBeginRun = deps.onBeginRun
 
 	local runSetupBackdrop = Instance.new("Frame")
 	runSetupBackdrop.Name = "RunSetupBackdrop"
@@ -306,6 +310,9 @@ return function(deps)
 		end
 		runStarting = true
 		playSfx(SOUND_IDS.buyPatron)
+		if onBeginRun then
+			onBeginRun()
+		end
 		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId)
 		popOut(runSetupBackdrop, runSetupPanel, nil, function()
 			menuFrame.Visible = false

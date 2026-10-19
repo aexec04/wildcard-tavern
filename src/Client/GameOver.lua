@@ -159,7 +159,7 @@ return function(deps)
 	-- sentence (and, thanks to the bug above, not even the dynamic part of
 	-- THAT sentence).
 	local statsLabel = Instance.new("TextLabel")
-	statsLabel.Size = UDim2.new(1, -60, 0, 70)
+	statsLabel.Size = UDim2.new(1, -60, 0, 50)
 	statsLabel.Position = UDim2.new(0, 30, 0, 118)
 	statsLabel.BackgroundTransparency = 1
 	statsLabel.Font = Enum.Font.Gotham
@@ -169,6 +169,25 @@ return function(deps)
 	statsLabel.Text = ""
 	statsLabel.ZIndex = 22
 	statsLabel.Parent = content
+
+	-- PHASE A (Spectacle pass, see claude/mind-blowing-plan.md): a small
+	-- run-recap line -- the single biggest hand this run (tracked purely
+	-- client-side by Client/RunRecap.lua). Separate label from statsLabel
+	-- above (not just appended text) so it can be hidden entirely when
+	-- bestHand is nil (e.g. the run ended before a single hand scored --
+	-- an immediate quit -- rather than showing an empty/misleading line).
+	local recapLabel = Instance.new("TextLabel")
+	recapLabel.Size = UDim2.new(1, -60, 0, 22)
+	recapLabel.Position = UDim2.new(0, 30, 0, 168)
+	recapLabel.BackgroundTransparency = 1
+	recapLabel.Font = Enum.Font.GothamBold
+	recapLabel.TextSize = 14
+	recapLabel.TextWrapped = true
+	recapLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+	recapLabel.Text = ""
+	recapLabel.Visible = false
+	recapLabel.ZIndex = 22
+	recapLabel.Parent = content
 
 	local playAgainButton = Instance.new("TextButton")
 	playAgainButton.Size = UDim2.new(0, 200, 0, 40)
@@ -195,7 +214,10 @@ return function(deps)
 	-- already use for their own animations/confirmations.
 	local lastGameOverKey = nil
 
-	local function refreshGameOver(state)
+	-- bestHand (new, PHASE A): optional { name = string, score = number }
+	-- from Client/RunRecap.lua's getBest() -- nil if no hand scored this
+	-- run yet (an immediate quit) or the tracker was never wired up.
+	local function refreshGameOver(state, bestHand)
 		if not state then
 			return
 		end
@@ -220,6 +242,17 @@ return function(deps)
 			state.roundScore or 0, state.targetScore or 0, state.tips or 0
 		)
 
+		-- PHASE A (Spectacle pass): only shown when there's actually a hand
+		-- to brag about -- see recapLabel's own comment above for why this
+		-- hides entirely rather than showing an empty/misleading line.
+		if bestHand then
+			recapLabel.Visible = true
+			recapLabel.Text = string.format("⚡ Biggest Hand: %s -- %d", bestHand.name, bestHand.score)
+		else
+			recapLabel.Visible = false
+			recapLabel.Text = ""
+		end
+
 		local key = tostring(state.night) .. "-" .. tostring(state.round) .. "-" .. tostring(isWin)
 		if key ~= lastGameOverKey then
 			-- POLISH: pop-in reveal -- content starts slightly shrunk and
@@ -230,6 +263,7 @@ return function(deps)
 			iconLabel.TextTransparency = 1
 			gameOverLabel.TextTransparency = 1
 			statsLabel.TextTransparency = 1
+			recapLabel.TextTransparency = 1
 			playAgainButton.BackgroundTransparency = 1
 			playAgainButton.TextTransparency = 1
 
@@ -238,6 +272,9 @@ return function(deps)
 			tweenTo(gameOverLabel, { TextTransparency = 0 }, 0.3)
 			task.delay(0.08, function()
 				tweenTo(statsLabel, { TextTransparency = 0 }, 0.3)
+				if recapLabel.Visible then
+					tweenTo(recapLabel, { TextTransparency = 0 }, 0.3)
+				end
 			end)
 			task.delay(0.16, function()
 				tweenTo(playAgainButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)

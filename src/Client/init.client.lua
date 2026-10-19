@@ -597,6 +597,21 @@ local ScorePopupModule = require(script.ScorePopup)({
 local showScorePopup = ScorePopupModule.showScorePopup
 local cancelScorePopup = ScorePopupModule.cancelScorePopup
 
+-- ===== PHASE A (Spectacle pass, see claude/mind-blowing-plan.md) =====
+-- Boss Intro (a one-shot "arrival" beat the first time a new Boss Round
+-- shows up) + Run Recap (tracks the biggest hand played so far this run,
+-- for GameOver's recap) -- merged into ONE module/require on purpose, see
+-- PhaseA.lua's header: this file is already right at Lua's
+-- 200-local-per-chunk ceiling, and 2 separate top-level locals for these
+-- tipped it over (confirmed) where 1 doesn't.
+local PhaseAModule = require(script.PhaseA)({
+	root = root,
+	tweenTo = tweenTo,
+	screenShake = screenShake,
+	playPitched = playPitched,
+	payoutThudSound = payoutThudSound,
+})
+
 -- ===== Confirm dialog (generic, reusable) =====
 -- Extracted into Client/ConfirmDialog.lua. showConfirmDialog is passed as a
 -- dep into Shop.lua below, so it comes back out of the require() call.
@@ -952,6 +967,12 @@ require(script.RunSetup)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 	revealStagger = revealStagger,
+	-- PHASE A (Spectacle pass): the OTHER "Biggest Hand" reset path --
+	-- see RunRecap.lua's own header for why this needs 2 call sites, not
+	-- just the gameover->playing transition render() already covers.
+	onBeginRun = function()
+		PhaseAModule.resetRun()
+	end,
 })
 
 -- ===== Menu -> game transition, volume cycling =====
@@ -2078,6 +2099,14 @@ local function render(state)
 		bossBanner.Visible = false
 	end
 
+	-- PHASE A (Spectacle pass): one-shot "arrival" beat the first time a
+	-- NEW Boss Round shows up -- see BossIntro.lua's header. Gated on
+	-- hasRenderedOnce for the same reason the "Unlocked!" popup below is --
+	-- resuming/reconnecting mid-Boss-Round shouldn't replay the intro.
+	if hasRenderedOnce then
+		PhaseAModule.announceBossIfNew(state)
+	end
+
 	rebuildHand(state.hand)
 	-- rebuildHand resets `selected` to empty on an actual hand change, and
 	-- otherwise leaves it (and the preview) exactly as the player left it --
@@ -2167,6 +2196,15 @@ local function render(state)
 	if state.phase == "roundSelect" then
 		rebuildRoundSelect(state, lastPhase)
 	end
+	-- PHASE A (Spectacle pass): a fresh run starting right after a
+	-- gameover screen (by far the common "Play Again" path) clears last
+	-- run's "Biggest Hand" stat before GameOver.lua could ever show it
+	-- again. The OTHER reset path (RunSetup.lua's "Begin Run", for
+	-- starting a new run without ever reaching gameover) is wired via
+	-- onBeginRun below.
+	if lastPhase == "gameover" and state.phase ~= "gameover" then
+		PhaseAModule.resetRun()
+	end
 	lastPhase = state.phase
 
 	roundSelectFrame.Visible = (state.phase == "roundSelect")
@@ -2194,7 +2232,7 @@ local function render(state)
 	-- moving this panel's own text/stats/reveal-animation logic into
 	-- GameOver.lua's refreshGameOver, which owns its own labels directly.
 	if state.phase == "gameover" then
-		refreshGameOver(state)
+		refreshGameOver(state, PhaseAModule.getBest())
 	end
 end
 
@@ -2214,7 +2252,32 @@ playButton.MouseButton1Click:Connect(function()
 	-- LAYOUT FEATURE 7: pop the score BEFORE firing the remote, off the same
 	-- preview computation the sidebar already uses -- see computeHandPreview.
 	local preview = computeHandPreview(indices)
+
 	if preview then
+		-- PHASE A (Spectacle pass, see claude/mind-blowing-plan.md): decide
+		-- "legendary" here, not inside ScorePopup.lua, since it needs
+		-- latestState.targetScore -- a dependency ScorePopup.lua
+		-- deliberately doesn't take (see its own comment). Relative to the
+		-- round's OWN target rather than a fixed score, so this keeps
+		-- meaning "a genuinely overkill hand" at Night 1 AND at Night
+		-- 8/Endless Mode, where target scores are an order of magnitude
+		-- apart (see RunState.targetScoreFor). The xmult check catches the
+		-- other case: a single huge multiplier chain feels legendary even
+		-- on an easy early round that a big score alone wouldn't flag.
+		preview.isLegendary = false
+		if latestState.targetScore and latestState.targetScore > 0 and preview.score >= latestState.targetScore * 1.5 then
+			preview.isLegendary = true
+		end
+		if not preview.isLegendary and preview.breakdown then
+			for _, entry in ipairs(preview.breakdown) do
+				if entry.kind == "xmult" and entry.amount >= 3 then
+					preview.isLegendary = true
+					break
+				end
+			end
+		end
+		PhaseAModule.recordHand(preview)
+
 		-- BUGFIX (Ahmed's report, "SFX doesn't work anymore and when you
 		-- play a card, nothing shows" -- right after the card-art rollout):
 		-- buildScoreSourceInfo/showScorePopup is pure animation/choreography

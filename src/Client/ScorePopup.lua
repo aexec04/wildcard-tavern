@@ -135,6 +135,22 @@ return function(deps)
 	local FINALE_COLOR = Color3.fromRGB(255, 214, 130)
 	local SHATTER_COLOR = Color3.fromRGB(210, 230, 255)
 
+	-- PHASE A (Spectacle pass, Oct 2026, see claude/mind-blowing-plan.md):
+	-- "Legendary Hand" moment -- a short freeze-frame beat layered on top
+	-- of the normal reveal sequence for a genuinely huge hand, plus a
+	-- boost to every shake/particle beat for the REST of that hand's
+	-- reveal (see `legendary`/boostMagnitude below). Whether a given hand
+	-- qualifies is decided by the CALLER (init.client.lua sets
+	-- preview.isLegendary -- it has latestState.targetScore, which this
+	-- module deliberately doesn't take as a dep), so this file only ever
+	-- reacts to that one boolean field, same as every other optional
+	-- preview/sourceInfo field this file already degrades gracefully
+	-- without (see the file header).
+	local LEGENDARY_BANNER_COLOR = Color3.fromRGB(255, 221, 140)
+	local LEGENDARY_FLASH_COLOR = Color3.fromRGB(255, 225, 160)
+	local LEGENDARY_BOOST_MULTIPLIER = 1.6 -- scales every shake/particle magnitude for a legendary hand's reveal
+	local LEGENDARY_FREEZE_HOLD = 0.45 -- how long the banner lingers before the normal per-entry reveal continues
+
 	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
 	-- read the per-entry text before it was replaced by the next one, and
 	-- a later full-sequence playtest still felt too fast across the board
@@ -297,6 +313,42 @@ return function(deps)
 	local scorePopupEventScale = Instance.new("UIScale")
 	scorePopupEventScale.Scale = 1
 	scorePopupEventScale.Parent = scorePopupEventLabel
+
+	-- PHASE A (Spectacle pass): a full-root flash wash + a big slammed-in
+	-- banner, both built once here and reused every call (same pattern as
+	-- scorePopup itself) -- see showScorePopup's `legendary` block below
+	-- for when these actually get driven. ZIndex sits above the particle
+	-- bursts (30) and flying numbers (32) on purpose -- a legendary hand's
+	-- flash is meant to wash OVER everything else happening on screen in
+	-- that instant, not get buried under it.
+	local legendaryFlashOverlay = Instance.new("Frame")
+	legendaryFlashOverlay.Name = "LegendaryFlash"
+	legendaryFlashOverlay.Size = UDim2.fromScale(1, 1)
+	legendaryFlashOverlay.BackgroundColor3 = LEGENDARY_FLASH_COLOR
+	legendaryFlashOverlay.BackgroundTransparency = 1
+	legendaryFlashOverlay.BorderSizePixel = 0
+	legendaryFlashOverlay.ZIndex = 33
+	legendaryFlashOverlay.Parent = root
+
+	local legendaryBanner = Instance.new("TextLabel")
+	legendaryBanner.Name = "LegendaryBanner"
+	legendaryBanner.AnchorPoint = Vector2.new(0.5, 0.5)
+	legendaryBanner.Position = UDim2.fromScale(0.5, 0.3)
+	legendaryBanner.Size = UDim2.new(0, 560, 0, 60)
+	legendaryBanner.BackgroundTransparency = 1
+	legendaryBanner.Font = Enum.Font.GothamBlack
+	legendaryBanner.TextSize = 36
+	legendaryBanner.TextColor3 = LEGENDARY_BANNER_COLOR
+	legendaryBanner.TextStrokeTransparency = 0.1
+	legendaryBanner.TextStrokeColor3 = Color3.fromRGB(80, 40, 20)
+	legendaryBanner.TextTransparency = 1
+	legendaryBanner.Text = "⚡ LEGENDARY HAND ⚡"
+	legendaryBanner.ZIndex = 34
+	legendaryBanner.Parent = root
+
+	local legendaryBannerScale = Instance.new("UIScale")
+	legendaryBannerScale.Scale = 1
+	legendaryBannerScale.Parent = legendaryBanner
 
 	local scorePopupToken = 0
 
@@ -694,6 +746,12 @@ return function(deps)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
 
+		-- PHASE A (Spectacle pass): decided once per hand, same timing as
+		-- currentPaceDivisor just below -- see this file's "LEGENDARY
+		-- BANNER_COLOR" comment above for why this file trusts the caller's
+		-- flag instead of re-deriving it.
+		local legendary = preview.isLegendary == true
+
 		-- QoL Game Pass (Fast Forward): decided once per hand, not
 		-- per-entry -- see pace()'s own comment above.
 		currentPaceDivisor = (hasFastForwardPass and hasFastForwardPass()) and FAST_FORWARD_DIVISOR or 1
@@ -756,6 +814,48 @@ return function(deps)
 		layoutPlayedRow(playedGhosts)
 
 		task.spawn(function()
+			-- PHASE A (Spectacle pass): freeze-frame beat, fires BEFORE the
+			-- normal per-entry reveal starts -- a big slammed-in banner, a
+			-- hard screen flash, a heavier shake, a low "boom" stinger (the
+			-- existing payout thud, pitched down further -- no new asset
+			-- needed), and a scatter of extra particle bursts across the
+			-- whole screen. Everything from here through the end of this
+			-- hand's reveal also gets boosted shake/particle magnitude --
+			-- see entryMagnitude's call sites below.
+			if legendary then
+				legendaryBanner.TextTransparency = 1
+				legendaryBannerScale.Scale = 0.4
+				playPitched(payoutThudSound, 0.55, 0.8)
+				screenShake(root, 9, pace(0.35))
+				particleBurst(centerOf(scorePopup), LEGENDARY_FLASH_COLOR, 10, { spread = 90, duration = 0.5 })
+				for _ = 1, 4 do
+					local randomPos = UDim2.fromScale(0.15 + math.random() * 0.7, 0.15 + math.random() * 0.55)
+					particleBurst(randomPos, (math.random() > 0.5) and FINALE_COLOR or Color3.fromRGB(200, 130, 255), 14, { spread = 140, duration = 0.6 })
+				end
+
+				legendaryFlashOverlay.BackgroundTransparency = 1
+				tweenTo(legendaryFlashOverlay, { BackgroundTransparency = 0.3 }, pace(0.08))
+				task.delay(pace(0.08), function()
+					if scorePopupToken == myToken then
+						tweenTo(legendaryFlashOverlay, { BackgroundTransparency = 1 }, pace(0.5))
+					end
+				end)
+
+				tweenTo(legendaryBanner, { TextTransparency = 0 }, pace(0.12))
+				tweenTo(legendaryBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				task.delay(pace(0.22), function()
+					if scorePopupToken == myToken then
+						tweenTo(legendaryBannerScale, { Scale = 1 }, pace(0.14), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+					end
+				end)
+
+				task.wait(pace(LEGENDARY_FREEZE_HOLD))
+				if scorePopupToken ~= myToken then
+					return
+				end
+				tweenTo(legendaryBanner, { TextTransparency = 1 }, pace(0.4))
+			end
+
 			task.wait(pace(0.2)) -- let the hand-name pop land before the numbers start ticking
 
 			local breakdown = preview.breakdown or {}
@@ -846,9 +946,14 @@ return function(deps)
 					end
 
 					local magnitude = entryMagnitude(entry)
+					if legendary then
+						magnitude = magnitude * LEGENDARY_BOOST_MULTIPLIER
+					end
 					if magnitude > 0.3 then
-						screenShake(root, math.min(6, 1.5 + magnitude), 0.16)
-						particleBurst(sourcePos or centerOf(scorePopup), color, math.min(10, 2 + math.floor(magnitude)))
+						local shakeCap = legendary and 9 or 6
+						local burstCap = legendary and 16 or 10
+						screenShake(root, math.min(shakeCap, 1.5 + magnitude), 0.16)
+						particleBurst(sourcePos or centerOf(scorePopup), color, math.min(burstCap, 2 + math.floor(magnitude)))
 					end
 
 					-- Running totals, floored before %d -- xmult chains can
@@ -910,8 +1015,13 @@ return function(deps)
 			playPitched(payoutThudSound, 0.85, 0.6)
 
 			local finalMagnitude = math.min(10, preview.score / 40)
-			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
-			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
+			if legendary then
+				finalMagnitude = finalMagnitude * LEGENDARY_BOOST_MULTIPLIER
+			end
+			local finaleShakeCap = legendary and 15 or 10
+			local finaleBurstCap = legendary and 36 or 24
+			screenShake(root, math.min(finaleShakeCap, 3 + finalMagnitude), legendary and 0.45 or 0.3)
+			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(finaleBurstCap, 8 + math.floor(finalMagnitude)), { spread = legendary and 160 or 110, duration = 0.6 })
 
 			-- "Played cards drop off the bottom of the screen into the
 			-- discard pile" -- used to fire alongside the finale burst/thud
@@ -976,6 +1086,12 @@ return function(deps)
 		scorePopupToken = scorePopupToken + 1
 		scorePopup.Visible = false
 		scorePopupEventLabel.Text = ""
+		-- PHASE A (Spectacle pass): defensive reset, same reasoning as the
+		-- rest of this function -- a phase change mid-sequence shouldn't be
+		-- able to leave a legendary flash/banner stuck visible over
+		-- whatever screen comes next.
+		legendaryBanner.TextTransparency = 1
+		legendaryFlashOverlay.BackgroundTransparency = 1
 		destroyGhosts(liveGhosts)
 		liveGhosts = {}
 	end
