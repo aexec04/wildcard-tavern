@@ -2264,13 +2264,21 @@ playButton.MouseButton1Click:Connect(function()
 		-- apart (see RunState.targetScoreFor). The xmult check catches the
 		-- other case: a single huge multiplier chain feels legendary even
 		-- on an easy early round that a big score alone wouldn't flag.
+		--
+		-- PLAYTEST FEEDBACK (Ahmed, right after this first shipped): 1.5x/
+		-- xmult>=3 fired constantly once a deck was reasonably built (his
+		-- screenshot: 376 vs a 240 target, just 1.57x) -- "too much", it
+		-- "stays like this the whole time" because a new one kept
+		-- retriggering before the last one finished. Raised meaningfully
+		-- so this is a genuinely rare, special moment again, not a
+		-- once-or-twice-a-round occurrence.
 		preview.isLegendary = false
-		if latestState.targetScore and latestState.targetScore > 0 and preview.score >= latestState.targetScore * 1.5 then
+		if latestState.targetScore and latestState.targetScore > 0 and preview.score >= latestState.targetScore * 2.2 then
 			preview.isLegendary = true
 		end
 		if not preview.isLegendary and preview.breakdown then
 			for _, entry in ipairs(preview.breakdown) do
-				if entry.kind == "xmult" and entry.amount >= 3 then
+				if entry.kind == "xmult" and entry.amount >= 4 then
 					preview.isLegendary = true
 					break
 				end

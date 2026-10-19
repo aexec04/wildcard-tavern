@@ -136,19 +136,26 @@ return function(deps)
 	local SHATTER_COLOR = Color3.fromRGB(210, 230, 255)
 
 	-- PHASE A (Spectacle pass, Oct 2026, see claude/mind-blowing-plan.md):
-	-- "Legendary Hand" moment -- a short freeze-frame beat layered on top
-	-- of the normal reveal sequence for a genuinely huge hand, plus a
-	-- boost to every shake/particle beat for the REST of that hand's
-	-- reveal (see `legendary`/boostMagnitude below). Whether a given hand
-	-- qualifies is decided by the CALLER (init.client.lua sets
+	-- "Legendary Hand" moment -- a short freeze-frame beat BEFORE the
+	-- normal reveal sequence starts, for a genuinely huge hand. Whether a
+	-- given hand qualifies is decided by the CALLER (init.client.lua sets
 	-- preview.isLegendary -- it has latestState.targetScore, which this
 	-- module deliberately doesn't take as a dep), so this file only ever
 	-- reacts to that one boolean field, same as every other optional
 	-- preview/sourceInfo field this file already degrades gracefully
 	-- without (see the file header).
+	--
+	-- PLAYTEST FEEDBACK (Ahmed, right after this first shipped): the
+	-- first version also boosted every per-entry/finale shake+particle
+	-- for a legendary hand's WHOLE reveal, on top of the freeze-frame --
+	-- reported as "the multipliers are moving by so fast now, I liked it
+	-- before where it was slower and you can take in the effects." That
+	-- boost is gone (see entryMagnitude's call site and the finale below)
+	-- -- a legendary hand's ENTIRE distinction is now the freeze-frame
+	-- beat at the start; the reveal that follows is identical to a normal
+	-- hand's, same intensity Ahmed already tuned it to.
 	local LEGENDARY_BANNER_COLOR = Color3.fromRGB(255, 221, 140)
 	local LEGENDARY_FLASH_COLOR = Color3.fromRGB(255, 225, 160)
-	local LEGENDARY_BOOST_MULTIPLIER = 1.6 -- scales every shake/particle magnitude for a legendary hand's reveal
 	local LEGENDARY_FREEZE_HOLD = 0.45 -- how long the banner lingers before the normal per-entry reveal continues
 
 	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
@@ -339,7 +346,15 @@ return function(deps)
 	legendaryBanner.Font = Enum.Font.GothamBlack
 	legendaryBanner.TextSize = 36
 	legendaryBanner.TextColor3 = LEGENDARY_BANNER_COLOR
-	legendaryBanner.TextStrokeTransparency = 0.1
+	-- BUGFIX (Ahmed's Studio screenshot: the banner stayed fully legible
+	-- forever, even sitting in the Shop): TextTransparency only hides a
+	-- TextLabel's FILL -- the stroke/outline is a separate property that
+	-- was left at a permanent 0.1 (90% opaque) here and never touched
+	-- anywhere else, so the bold "⚡ LEGENDARY HAND ⚡" outline rendered
+	-- forever from the very first time this ever showed, independent of
+	-- TextTransparency. Starts at 1 (hidden) like the fill now, and every
+	-- place below that shows/hides the banner animates both together.
+	legendaryBanner.TextStrokeTransparency = 1
 	legendaryBanner.TextStrokeColor3 = Color3.fromRGB(80, 40, 20)
 	legendaryBanner.TextTransparency = 1
 	legendaryBanner.Text = "⚡ LEGENDARY HAND ⚡"
@@ -824,7 +839,18 @@ return function(deps)
 			-- see entryMagnitude's call sites below.
 			if legendary then
 				legendaryBanner.TextTransparency = 1
+				legendaryBanner.TextStrokeTransparency = 1
 				legendaryBannerScale.Scale = 0.4
+
+				-- HARD SAFETY NET, same pattern as the ghosts' own
+				-- GHOST_HARD_TIMEOUT below: no matter what else goes wrong
+				-- (a bug in the token bookkeeping, an interrupted sequence
+				-- that skips the normal fade-out above), this banner can
+				-- never stay on screen longer than this, full stop.
+				task.delay(2.5, function()
+					legendaryBanner.TextTransparency = 1
+					legendaryBanner.TextStrokeTransparency = 1
+				end)
 				playPitched(payoutThudSound, 0.55, 0.8)
 				screenShake(root, 9, pace(0.35))
 				particleBurst(centerOf(scorePopup), LEGENDARY_FLASH_COLOR, 10, { spread = 90, duration = 0.5 })
@@ -841,7 +867,7 @@ return function(deps)
 					end
 				end)
 
-				tweenTo(legendaryBanner, { TextTransparency = 0 }, pace(0.12))
+				tweenTo(legendaryBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
 				tweenTo(legendaryBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 				task.delay(pace(0.22), function()
 					if scorePopupToken == myToken then
@@ -853,7 +879,7 @@ return function(deps)
 				if scorePopupToken ~= myToken then
 					return
 				end
-				tweenTo(legendaryBanner, { TextTransparency = 1 }, pace(0.4))
+				tweenTo(legendaryBanner, { TextTransparency = 1, TextStrokeTransparency = 1 }, pace(0.4))
 			end
 
 			task.wait(pace(0.2)) -- let the hand-name pop land before the numbers start ticking
@@ -945,15 +971,23 @@ return function(deps)
 						end
 					end
 
+					-- PLAYTEST FEEDBACK (Ahmed, right after Phase A shipped):
+					-- "the multipliers are moving by so fast now, I liked it
+					-- before where it was slower and you can take in the
+					-- effects." The per-entry boost that used to live here
+					-- (bigger shake/particle caps on a legendary hand) made
+					-- THIS already-tuned reveal loop feel more chaotic/rushed
+					-- even though its timing (ENTRY_STAGGER etc.) never
+					-- actually changed -- extra shake on every single entry
+					-- reads as "faster" even at the same pace. Reverted: a
+					-- legendary hand's distinction is now ENTIRELY the
+					-- freeze-frame beat above (and the finale's below) --
+					-- every entry in between plays at the exact same
+					-- intensity/pace it always has, legendary or not.
 					local magnitude = entryMagnitude(entry)
-					if legendary then
-						magnitude = magnitude * LEGENDARY_BOOST_MULTIPLIER
-					end
 					if magnitude > 0.3 then
-						local shakeCap = legendary and 9 or 6
-						local burstCap = legendary and 16 or 10
-						screenShake(root, math.min(shakeCap, 1.5 + magnitude), 0.16)
-						particleBurst(sourcePos or centerOf(scorePopup), color, math.min(burstCap, 2 + math.floor(magnitude)))
+						screenShake(root, math.min(6, 1.5 + magnitude), 0.16)
+						particleBurst(sourcePos or centerOf(scorePopup), color, math.min(10, 2 + math.floor(magnitude)))
 					end
 
 					-- Running totals, floored before %d -- xmult chains can
@@ -1014,14 +1048,14 @@ return function(deps)
 			-- gentle 0.85x to land it with a touch of weight.
 			playPitched(payoutThudSound, 0.85, 0.6)
 
+			-- PLAYTEST FEEDBACK: same revert as the per-entry loop above --
+			-- the finale's own boost is gone too. A legendary hand's whole
+			-- distinction is the freeze-frame beat at the very start now;
+			-- everything from here on (including this finale) plays
+			-- identically to a normal hand's reveal.
 			local finalMagnitude = math.min(10, preview.score / 40)
-			if legendary then
-				finalMagnitude = finalMagnitude * LEGENDARY_BOOST_MULTIPLIER
-			end
-			local finaleShakeCap = legendary and 15 or 10
-			local finaleBurstCap = legendary and 36 or 24
-			screenShake(root, math.min(finaleShakeCap, 3 + finalMagnitude), legendary and 0.45 or 0.3)
-			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(finaleBurstCap, 8 + math.floor(finalMagnitude)), { spread = legendary and 160 or 110, duration = 0.6 })
+			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
+			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
 
 			-- "Played cards drop off the bottom of the screen into the
 			-- discard pile" -- used to fire alongside the finale burst/thud
@@ -1089,8 +1123,12 @@ return function(deps)
 		-- PHASE A (Spectacle pass): defensive reset, same reasoning as the
 		-- rest of this function -- a phase change mid-sequence shouldn't be
 		-- able to leave a legendary flash/banner stuck visible over
-		-- whatever screen comes next.
+		-- whatever screen comes next. Both TextTransparency (fill) AND
+		-- TextStrokeTransparency (outline) -- see this banner's own BUGFIX
+		-- comment at its creation for why leaving either one out is exactly
+		-- how it got stuck visible in the first place.
 		legendaryBanner.TextTransparency = 1
+		legendaryBanner.TextStrokeTransparency = 1
 		legendaryFlashOverlay.BackgroundTransparency = 1
 		destroyGhosts(liveGhosts)
 		liveGhosts = {}
