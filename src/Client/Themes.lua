@@ -152,6 +152,7 @@ return function(deps)
 	end)
 
 	local function refreshThemesList()
+		print("[DEBUG Themes] refreshThemesList called. #Themes.Definitions =", Themes and #Themes.Definitions, "themesListFrame =", themesListFrame, "AbsoluteSize =", themesListFrame.AbsoluteSize)
 		for _, child in ipairs(themesListFrame:GetChildren()) do
 			if child:IsA("Frame") then
 				child:Destroy()
