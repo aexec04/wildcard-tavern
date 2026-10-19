@@ -131,19 +131,28 @@ end
 return {
 	-- Menu.lua: the empty-tavern-room background art (Part 3, prompt 3).
 	-- Fallback: Menu.lua's own flat Color3.fromRGB(18, 14, 10) panel.
-	-- Uploaded Sep 20, 2026 as "menu-background-empty-tavern".
-	menuBackground = "rbxassetid://98136240961797",
+	-- REVERTED to the placeholder Oct 19, 2026 at Ahmed's request -- back
+	-- to the flat-color fallback until real art is ready to try again.
+	-- (Was "rbxassetid://98136240961797", uploaded as
+	-- "menu-background-empty-tavern" -- kept here for reference only.)
+	menuBackground = "rbxassetid://0",
 
 	-- Shop.lua ("The Bar"): the wooden bar backdrop art (Part 3, prompt 4).
 	-- Fallback: Shop.lua's own flat Color3.fromRGB(40, 30, 22) panel.
-	-- Uploaded Sep 20, 2026 as "shop-background-the-bar".
-	shopBackground = "rbxassetid://79117387321613",
+	-- REVERTED to the placeholder Oct 19, 2026 -- this id was also
+	-- throwing "Asset type does not match requested type" in Studio.
+	-- (Was "rbxassetid://79117387321613", uploaded as
+	-- "shop-background-the-bar" -- kept here for reference only.)
+	shopBackground = "rbxassetid://0",
 
 	-- GameOver.lua: shown ONLY on an actual run win, behind the "you beat
 	-- the tavern" panel. Fallback: the panel's own flat brown background
 	-- (same as the loss state, which has no image at all).
-	-- Uploaded Sep 20, 2026 as "gameover-win-celebration-scene".
-	gameOverWinBackground = "rbxassetid://92026057699401",
+	-- REVERTED to the placeholder Oct 19, 2026 -- same cleanup pass as
+	-- the other art slots on this page.
+	-- (Was "rbxassetid://92026057699401", uploaded as
+	-- "gameover-win-celebration-scene" -- kept here for reference only.)
+	gameOverWinBackground = "rbxassetid://0",
 
 	-- init.client.lua's hand cards, ScorePopup.lua's ghost clones of them,
 	-- and DeckWidget.lua's deck icon (via cardSpriteBackOffset below).
@@ -153,11 +162,15 @@ return {
 	-- itself the moment a real sheet is wired in here -- see its own
 	-- comment in init.client.lua. DeckWidget.lua's emoji card-back icon
 	-- does the same. Nothing to toggle by hand either way.
-	-- Re-uploaded Oct 19, 2026 -- the previous id threw "Asset type does
-	-- not match requested type" (it wasn't a valid Decal/Image asset).
-	-- This one is confirmed as a real Decal upload of
-	-- "card-sprite-sheet-kenney-cc0".
-	cardSpriteSheet = "rbxassetid://124421021561821",
+	-- REVERTED to the placeholder Oct 19, 2026 at Ahmed's request, after
+	-- two different uploaded ids in a row both caused problems ("Asset
+	-- type does not match requested type", then a follow-up issue even
+	-- after a confirmed real Decal upload). Back to the plain
+	-- rank/suit-text cards every player has always seen -- safe, never
+	-- blank, no more asset-id troubleshooting until it's worth trying
+	-- again. (Was "rbxassetid://124421021561821" -- kept here for
+	-- reference only.)
+	cardSpriteSheet = "rbxassetid://0",
 
 	-- Every slice into cardSpriteSheet is exactly this many pixels square.
 	cardSpriteCellSize = CARD_SPRITE_CELL,
