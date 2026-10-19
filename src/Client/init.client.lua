@@ -153,7 +153,10 @@ local chipTickSound = SoundModule.chipTickSound
 local multTickSound = SoundModule.multTickSound
 local xmultTickSound = SoundModule.xmultTickSound
 local payoutThudSound = SoundModule.payoutThudSound
-local VOLUME_STEPS = SoundModule.VOLUME_STEPS
+-- VOLUME_STEPS (the old loud/quiet/mute click-to-cycle table) is gone --
+-- volumeButton opens VolumePanel.lua's real slider panel now instead of
+-- cycling, so only the icon table + its initial index are still needed
+-- (for the button's starting glyph; VolumePanel.lua takes it from here).
 local VOLUME_ICONS = SoundModule.VOLUME_ICONS
 local volumeStepIndex = SoundModule.volumeStepIndex
 
@@ -322,7 +325,7 @@ addTooltip = function(button, text, align)
 	end)
 end
 
-addTooltip(volumeButton, "Music volume (click to cycle loud / quiet / mute)", "left")
+addTooltip(volumeButton, "Volume", "left")
 addTooltip(helpButton, "How to Play", "left")
 addTooltip(themesButton, "Themes -- change your table's look", "left")
 addTooltip(journeyButton, "Journey -- see the road ahead", "left")
@@ -837,23 +840,49 @@ require(script.DeckTracker)({
 })
 
 -- ===== Settings overlay =====
--- Extracted into Client/Settings.lua. Used to be fully self-contained
--- (nothing needed to come back out), but since the Custom Jukebox section
--- (Phase 9) render() needs to check settingsBackdrop.Visible and call
--- refreshJukeboxSection() -- same pattern as themesBackdrop/
+-- Extracted into Client/Settings.lua. Now just the Main Menu / Close
+-- panel (the whole audio section moved out into VolumePanel.lua below --
+-- see that file's header comment) -- fully self-contained again, nothing
+-- needs to come back out of the require() call.
+require(script.Settings)({
+	screenGui = screenGui,
+	polishPanel = polishPanel,
+	polishButton = polishButton,
+	addSoftShadow = addSoftShadow,
+	playClickSfx = playClickSfx,
+	settingsButton = settingsButton,
+	popIn = popIn,
+	popOut = popOut,
+	addButtonHoverScale = addButtonHoverScale,
+	-- Main Menu button (requested fix): the only place in the whole game
+	-- that lets a player back out of an in-progress run to the menu.
+	menuFrame = menuFrame,
+	root = root,
+})
+
+-- ===== Volume overlay =====
+-- Extracted into Client/VolumePanel.lua -- the "🔊" corner button's own
+-- panel (Volume slider, per-SFX sliders, Custom Jukebox + saved
+-- playlist). Used to all live inside Settings.lua/the "⚙" button; Ahmed's
+-- correction moved it here instead: "I said to put those sounds settings
+-- under the Music Volume Icon, and to rename that Music Volume Icon to
+-- just Volume." render() still needs to check volumeBackdrop.Visible and
+-- call refreshJukeboxSection() -- same pattern as themesBackdrop/
 -- refreshThemesList below -- so a Get-Pass purchase completing while this
 -- panel is already open doesn't leave it showing a stale locked state.
-local SettingsOverlay = require(script.Settings)({
+-- Captured into the one local slot freed up by SettingsOverlay no longer
+-- needing one (see the block just above) -- net zero new top-level
+-- locals, since init.client.lua sits exactly at Lua's 200 ceiling.
+local VolumePanelOverlay = require(script.VolumePanel)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	showWarning = showWarning,
-	settingsButton = settingsButton,
+	volumeButton = volumeButton,
 	makeSliderRow = makeSliderRow,
 	backgroundMusic = backgroundMusic,
-	volumeButton = volumeButton,
 	VOLUME_ICONS = VOLUME_ICONS,
 	popIn = popIn,
 	popOut = popOut,
@@ -868,25 +897,20 @@ local SettingsOverlay = require(script.Settings)({
 	setCustomTrack = SoundModule.setCustomTrack,
 	clearCustomTrack = SoundModule.clearCustomTrack,
 	hasCustomTrack = SoundModule.hasCustomTrack,
-	-- Main Menu button (requested fix): the only place in the whole game
-	-- that lets a player back out of an in-progress run to the menu.
-	menuFrame = menuFrame,
-	root = root,
-	-- SFX VOLUME SLIDERS (requested fix): referenced straight off
-	-- SoundModule (already a top-level local above) instead of adding 3
-	-- more of its own -- same reasoning as playSfx/chipTickSound/etc.'s
-	-- own comment just above SoundModule's destructuring.
+	-- SFX VOLUME SLIDERS: referenced straight off SoundModule (already a
+	-- top-level local above) instead of adding 3 more of its own -- same
+	-- reasoning as playSfx/chipTickSound/etc.'s own comment just above
+	-- SoundModule's destructuring.
 	SFX_CATALOG = SoundModule.SFX_CATALOG,
 	getSfxVolume = SoundModule.getSfxVolume,
 	setSfxVolume = SoundModule.setSfxVolume,
-	-- JUKEBOX PLAYLIST (requested fix): AddPlaylistSongRemote/
-	-- RemovePlaylistSongRemote reuse the already-declared top-level
-	-- `remotes` local (same as EquipTitleRemote above) -- zero new
-	-- locals. MAX_PLAYLIST_SIZE is required inline straight off
-	-- ReplicatedStorage, same one-off pattern Achievements uses just
-	-- above, so the cap has exactly one source of truth
-	-- (Shared/Engine/PlayerProfile.lua) instead of a second hardcoded
-	-- copy drifting out of sync with it.
+	-- JUKEBOX PLAYLIST: AddPlaylistSongRemote/RemovePlaylistSongRemote
+	-- reuse the already-declared top-level `remotes` local (same as
+	-- EquipTitleRemote above) -- zero new locals. MAX_PLAYLIST_SIZE is
+	-- required inline straight off ReplicatedStorage, same one-off
+	-- pattern Achievements uses just above, so the cap has exactly one
+	-- source of truth (Shared/Engine/PlayerProfile.lua) instead of a
+	-- second hardcoded copy drifting out of sync with it.
 	AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
 	RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
 	MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
@@ -929,17 +953,9 @@ menuPlayButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-volumeButton.MouseButton1Click:Connect(function()
-	volumeStepIndex = (volumeStepIndex % #VOLUME_STEPS) + 1
-	local newVolume = VOLUME_STEPS[volumeStepIndex]
-	backgroundMusic.Volume = newVolume
-	volumeButton.Text = VOLUME_ICONS[volumeStepIndex]
-	if newVolume <= 0 then
-		backgroundMusic:Stop()
-	elseif backgroundMusic.SoundId ~= "rbxassetid://0" and not backgroundMusic.IsPlaying then
-		backgroundMusic:Play()
-	end
-end)
+-- volumeButton's click used to cycle loud/quiet/mute right here -- it now
+-- opens VolumePanel.lua's real slider panel instead (that module wires
+-- the click itself), so there's nothing left to connect in this file.
 
 -- ===== Client-side state =====
 -- (latestState itself now declared near the top of the file -- see the
@@ -2060,12 +2076,12 @@ local function render(state)
 		refreshThemesList() -- keep the panel accurate if it's open across a purchase
 	end
 	-- QoL Game Pass (Phase 9, bugfix): keep the Custom Jukebox section
-	-- accurate if a Get-Pass purchase completes while Settings is already
-	-- open, same reasoning as themesBackdrop just above. Read straight off
-	-- SettingsOverlay rather than 2 more top-level locals -- see that
-	-- require() call's own comment on why.
-	if SettingsOverlay.settingsBackdrop.Visible then
-		SettingsOverlay.refreshJukeboxSection()
+	-- accurate if a Get-Pass purchase completes while the Volume panel is
+	-- already open, same reasoning as themesBackdrop just above. Read
+	-- straight off VolumePanelOverlay rather than 2 more top-level locals
+	-- -- see that require() call's own comment on why.
+	if VolumePanelOverlay.volumeBackdrop.Visible then
+		VolumePanelOverlay.refreshJukeboxSection()
 	end
 	if journeyBackdrop.Visible then
 		refreshJourney() -- keep "you are here" accurate if it's open across a round change
