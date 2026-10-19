@@ -111,6 +111,16 @@ local GetWeeklyLeaderboardRemote = Instance.new("RemoteFunction")
 GetWeeklyLeaderboardRemote.Name = "GetWeeklyLeaderboard"
 GetWeeklyLeaderboardRemote.Parent = remotes
 
+-- PHASE B ("mind-blowing plan", Alive & Social): server -> client only,
+-- see the "Phase B: Alive & Social" section further down for both.
+-- LeaderboardTicker is a BROADCAST (FireAllClients) -- same Daily
+-- Challenge top-N everyone already sees in the Daily board, just pushed
+-- ambiently instead of only on request. FriendPresence is PER-PLAYER
+-- (FireClient) -- each player's own friends-in-this-server list is
+-- nobody else's business.
+local LeaderboardTickerRemote = newRemote("LeaderboardTicker")
+local FriendPresenceRemote = newRemote("FriendPresence")
+
 -- SHAREABLE SEED CODES (Phase 16): (player, code) -- starts a seeded
 -- standard/standard run from a player-typed/shared code
 -- (SeededRng.codeToSeed) instead of a date-derived seed. No leaderboard
@@ -1887,6 +1897,147 @@ GetWeeklyLeaderboardRemote.OnServerInvoke = function(player)
 		yourBestOk = yourBestOk,
 	}
 end
+
+-- ===== Phase B ("mind-blowing plan", Alive & Social) =====
+-- Two independent beats, both scoped from this pass's architecture
+-- research: before this, there was ZERO existing broadcast mechanism in
+-- the codebase (every FireClient call anywhere else targets exactly one
+-- player) and ZERO existing Friends API usage anywhere. Both below are
+-- genuinely new, not an extension of something already half-built.
+
+local TICKER_INTERVAL = 45 -- seconds; ambient, not urgent -- see the task.spawn loop below
+
+-- Reuses the exact Daily Challenge top-N query GetDailyLeaderboardRemote
+-- already does on request (see "Daily Challenge Leaderboard" above) --
+-- same store, same combinedScore decoding -- just not gated behind the
+-- player opening a menu. Every DataStore call here is independently
+-- pcall-wrapped, same discipline as the rest of this file -- a failed
+-- read just means this tick's broadcast is skipped, never an error that
+-- takes down the ticker loop for good.
+local function fetchDailyTickerTop(dateKey)
+	local store = getDailyStore(dateKey)
+	local top = {}
+	local ok = pcall(function()
+		local pages = store:GetSortedAsync(false, 5) -- ambient ticker: top 5 is plenty, keeps the read light
+		local page = pages:GetCurrentPage()
+		for _, entry in ipairs(page) do
+			local userId = tonumber(entry.key)
+			local combinedScore = entry.value
+			local name = nil
+			if userId then
+				local nameOk, resolvedName = pcall(function()
+					return Players:GetNameFromUserIdAsync(userId)
+				end)
+				if nameOk then
+					name = resolvedName
+				end
+			end
+			table.insert(top, {
+				userId = userId,
+				name = name or "???",
+				depth = math.floor(combinedScore / DAILY_SCORE_MULTIPLIER),
+				tips = combinedScore % DAILY_SCORE_MULTIPLIER,
+			})
+		end
+	end)
+	if not ok then
+		return nil
+	end
+	return top
+end
+
+local function broadcastLeaderboardTicker()
+	if #Players:GetPlayers() == 0 then
+		return -- nobody to show it to -- skip the DataStore read entirely
+	end
+	local dateKey = SeededRng.dailyDateKey()
+	local top = fetchDailyTickerTop(dateKey)
+	if top then
+		LeaderboardTickerRemote:FireAllClients({ dateKey = dateKey, top = top })
+	end
+end
+
+-- FRIEND PRESENCE: deliberately NOT built on Players:GetFriendsAsync (a
+-- paginated, "give me this player's WHOLE friends list" call) -- what
+-- this actually needs is the opposite, much cheaper question: "of the
+-- (at most a handful of) players already in THIS server, which ones is
+-- this player friends with?" Player:IsFriendsWith(userId) answers that
+-- directly, one call per other player in the server, no pagination and
+-- no caching needed at this player count.
+local function getFriendPresenceList(player)
+	local list = {}
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player then
+			local ok, isFriend = pcall(function()
+				return player:IsFriendsWith(other.UserId)
+			end)
+			if ok and isFriend then
+				local otherSession = sessions[other]
+				local otherState = otherSession and otherSession.state
+				table.insert(list, {
+					userId = other.UserId,
+					name = other.Name,
+					night = otherState and otherState.night or nil,
+					round = otherState and otherState.round or nil,
+					tips = otherState and otherState.tips or nil,
+					bestNightReached = profiles[other] and profiles[other].stats and profiles[other].stats.bestNightReached or nil,
+				})
+			end
+		end
+	end
+	return list
+end
+
+local function pushFriendPresence(player)
+	FriendPresenceRemote:FireClient(player, getFriendPresenceList(player))
+end
+
+local function pushAllFriendPresence()
+	for _, player in ipairs(Players:GetPlayers()) do
+		pushFriendPresence(player)
+	end
+end
+
+-- One shared ambient loop for both beats -- a second independent loop on
+-- the same interval would just be two timers doing the same "is anyone
+-- here" check. Friend presence changes far less often than a Daily
+-- Challenge leaderboard position might, but refreshing it this often
+-- costs nothing (no DataStore call, just IsFriendsWith + in-memory
+-- session reads) and keeps "who's playing right now" from ever going
+-- stale for more than one tick.
+task.spawn(function()
+	while true do
+		task.wait(TICKER_INTERVAL)
+		broadcastLeaderboardTicker()
+		pushAllFriendPresence()
+	end
+end)
+
+-- Separate PlayerAdded/PlayerRemoving listeners (Roblox events support
+-- multiple independent :Connect() callbacks just fine) instead of adding
+-- calls into the EXISTING onPlayerAdded function/PlayerRemoving
+-- connection far above -- those are defined textually BEFORE this
+-- section, so a call from there into the functions just above would be
+-- a forward-reference to a still-nil local. This way a newly-joined
+-- player (and everyone already in the server) sees the ticker/friend
+-- list within a second or two of a join/leave, instead of only ever on
+-- the next up-to-TICKER_INTERVAL-seconds tick above.
+Players.PlayerAdded:Connect(function(_player)
+	-- Letting the OTHER PlayerAdded listener's own session/profile setup
+	-- land first (it yields on a profile load) before reading sessions/
+	-- profiles here -- a slightly-early read just undercounts this one
+	-- refresh by one player for a tick, never an error.
+	task.wait(1)
+	broadcastLeaderboardTicker()
+	pushAllFriendPresence()
+end)
+Players.PlayerRemoving:Connect(function(_player)
+	-- task.defer (not task.wait(0)/task.spawn) specifically so this runs
+	-- after Roblox actually removes the leaving player from
+	-- Players:GetPlayers() -- otherwise everyone else's refreshed list
+	-- would still include them for one more tick.
+	task.defer(pushAllFriendPresence)
+end)
 
 -- ===== Shareable Seed Codes (Phase 16) =====
 -- No leaderboard -- this is for two friends comparing one specific run

@@ -612,6 +612,18 @@ local PhaseAModule = require(script.PhaseA)({
 	payoutThudSound = payoutThudSound,
 })
 
+-- ===== PHASE B (Alive & Social pass, see claude/mind-blowing-plan.md) =====
+-- Live Leaderboard Ticker + Friend Presence -- both purely ambient corner
+-- panels, driven entirely by their own RemoteEvents (server broadcasts/
+-- pushes, this file never requests anything) -- merged into ONE module/
+-- require for the same 200-local-per-chunk reason as PhaseA above. Its
+-- return value is intentionally unused ({} -- see PhaseB.lua's header);
+-- requiring it is all that's needed to stand both panels up.
+require(script.PhaseB)({
+	root = root,
+	remotes = remotes,
+})
+
 -- ===== Confirm dialog (generic, reusable) =====
 -- Extracted into Client/ConfirmDialog.lua. showConfirmDialog is passed as a
 -- dep into Shop.lua below, so it comes back out of the require() call.
