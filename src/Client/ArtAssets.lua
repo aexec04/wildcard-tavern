@@ -153,8 +153,11 @@ return {
 	-- itself the moment a real sheet is wired in here -- see its own
 	-- comment in init.client.lua. DeckWidget.lua's emoji card-back icon
 	-- does the same. Nothing to toggle by hand either way.
-	-- Uploaded Oct 18, 2026 as "card-sprite-sheet-kenney-cc0".
-	cardSpriteSheet = "rbxassetid://99708970408841",
+	-- Re-uploaded Oct 19, 2026 -- the previous id threw "Asset type does
+	-- not match requested type" (it wasn't a valid Decal/Image asset).
+	-- This one is confirmed as a real Decal upload of
+	-- "card-sprite-sheet-kenney-cc0".
+	cardSpriteSheet = "rbxassetid://124421021561821",
 
 	-- Every slice into cardSpriteSheet is exactly this many pixels square.
 	cardSpriteCellSize = CARD_SPRITE_CELL,
