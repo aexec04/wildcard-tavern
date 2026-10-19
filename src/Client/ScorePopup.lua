@@ -930,6 +930,30 @@ return function(deps)
 					end
 				end)
 
+				-- HARD SAFETY NET (BUGFIX, Ahmed's Studio screenshot -- the
+				-- whole screen staying purple over the Shop): same reasoning
+				-- as the banner's own 2.5s timeout above, but for the FLASH
+				-- OVERLAY's BackgroundTransparency specifically. Setting a
+				-- property directly (cancelScorePopup's reset, below) does
+				-- NOT stop an already-playing Tween targeting that same
+				-- property -- TweenService keeps driving it every frame
+				-- until the Tween finishes or is :Cancel()'d, so if
+				-- cancelScorePopup() lands while the short flash-IN tween
+				-- just above (pace(0.08), i.e. well under a tenth of a
+				-- second) is still mid-flight, that tween wins the race and
+				-- finishes AT BackgroundTransparency = 0.3 -- permanently
+				-- tinting the whole screen (ZIndex 33, well above every
+				-- panel) purple/gold, with the gated fade-out tween above
+				-- never firing because scorePopupToken no longer matches.
+				-- This is exactly what a hand that both resolves the True
+				-- Wildcard AND wins the round can trigger (the "shop" phase
+				-- push races the freeze-frame). No matter what else goes
+				-- wrong, this overlay can never stay visibly tinted longer
+				-- than this, full stop.
+				task.delay(2.5, function()
+					wildcardFlashOverlay.BackgroundTransparency = 1
+				end)
+
 				tweenTo(wildcardBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
 				tweenTo(wildcardBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 				task.delay(pace(0.22), function()
@@ -973,6 +997,16 @@ return function(deps)
 					if scorePopupToken == myToken then
 						tweenTo(legendaryFlashOverlay, { BackgroundTransparency = 1 }, pace(0.5))
 					end
+				end)
+
+				-- HARD SAFETY NET (BUGFIX, same root cause/fix as the True
+				-- Wildcard flash overlay's own copy of this comment just
+				-- above -- read that one for the full explanation). This
+				-- overlay had the identical latent gap; folding the fix in
+				-- here too rather than leaving a known-identical bug in
+				-- place just because it hadn't been hit/reported yet.
+				task.delay(2.5, function()
+					legendaryFlashOverlay.BackgroundTransparency = 1
 				end)
 
 				tweenTo(legendaryBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
