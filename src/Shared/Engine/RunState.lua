@@ -22,6 +22,7 @@ local Tags = require(script.Parent.Tags)
 local Recipes = require(script.Parent.Recipes)
 local HousePasses = require(script.Parent.HousePasses)
 local Packs = require(script.Parent.Packs)
+local TrueWildcard = require(script.Parent.TrueWildcard)
 
 local RunState = {}
 
@@ -239,6 +240,19 @@ function RunState.new(options, rng)
 		-- universal interest rule) -- see RunState.playHand.
 		lastRoundReward = 0,
 	}
+
+	-- PHASE C ("mind-blowing plan" Signature Mechanic): seed exactly ONE
+	-- True Wildcard into this run's deck -- see TrueWildcard.lua's header
+	-- and RunState.playHand's matching block for how/when it resolves.
+	-- Picked from the fresh, still-UNSHUFFLED 52-card deck (any index is
+	-- equally likely to end up anywhere once RunState.startRound shuffles
+	-- it below) -- it keeps its normal dealt rank/suit and plays like any
+	-- other card right up until the first time it's actually played.
+	local wildcardRng = state.rng or math.random
+	local wildcardIndex = wildcardRng(#state.deck)
+	state.deck[wildcardIndex].isTrueWildcard = true
+	state.deck[wildcardIndex].wildcardLocked = false
+
 	RunState.startRound(state)
 	return state
 end
@@ -402,6 +416,54 @@ function RunState.playHand(state, cardIndices)
 	assert(state.handsRemaining > 0, "No hands remaining this round")
 
 	local playedCards = removeIndicesFromHand(state, cardIndices)
+
+	-- PHASE C ("mind-blowing plan" Signature Mechanic): TRUE WILDCARD.
+	-- The FIRST time the run's one True Wildcard card (see RunState.new)
+	-- is actually played, lock it in as whichever of the 52 real rank/
+	-- suit combinations scores the MOST for exactly this hand -- see
+	-- TrueWildcard.findBestChoice's header for why the comparison itself
+	-- stays deterministic (no lucky-garnish noise) even though the real
+	-- hand below still scores with the run's real rng as always.
+	-- wildcardLocked flips true right away, so every hand after this one
+	-- just plays it as a normal card with its new permanent rank/suit.
+	-- Client/init.client.lua's computeHandPreview runs this exact same
+	-- search (and always restores afterward -- see findBestChoice's own
+	-- comment) so the live preview/Play popup already shows the true
+	-- number before this ever fires for real.
+	local wildcardResolution = nil
+	for _, card in ipairs(playedCards) do
+		if card.isTrueWildcard and not card.wildcardLocked then
+			local bossMod = state.bossModifier
+			local bestRank, bestSuit = TrueWildcard.findBestChoice(playedCards, card, state.ownedPatrons, function(candidateHandResult)
+				local blocked = bossMod and bossMod.noRepeatHandTypes
+					and state.handTypesPlayedThisRound[candidateHandResult.name] == true
+				if blocked then
+					return nil
+				end
+				return {
+					allPlayedCards = playedCards,
+					heldCards = state.hand, -- cards left in hand after removeIndicesFromHand, above
+					handLevels = state.handLevels,
+					ownedPatronSpecials = state.ownedPatronSpecials,
+					brittleShielded = state.brittleShieldRound,
+					debuff = bossMod and bossMod.debuff,
+					tips = state.tips,
+					alreadyPlayedThisHandTypeThisRound = state.handTypesPlayedThisRound[candidateHandResult.name] == true,
+					handsRemaining = math.max(0, state.handsRemaining - 1),
+					discardsRemaining = state.discardsRemaining,
+					isLastHand = state.handsRemaining - 1 <= 0,
+					night = state.night,
+					round = state.round,
+				}
+			end)
+			card.rank = bestRank
+			card.suit = bestSuit
+			card.wildcardLocked = true
+			wildcardResolution = { rank = bestRank, suit = bestSuit }
+			break -- only one True Wildcard card can ever exist in a run
+		end
+	end
+
 	local handResult = HandEvaluator.evaluate(playedCards)
 
 	-- Was this exact hand type already played earlier this round? Captured
@@ -581,6 +643,7 @@ function RunState.playHand(state, cardIndices)
 		wonRun = state.wonRun,
 		blockedRepeatHand = blockedRepeatHand or false,
 		bossModifierId = state.bossModifier and state.bossModifier.id or nil,
+		wildcardResolution = wildcardResolution,
 	}
 end
 

@@ -158,6 +158,21 @@ return function(deps)
 	local LEGENDARY_FLASH_COLOR = Color3.fromRGB(255, 225, 160)
 	local LEGENDARY_FREEZE_HOLD = 0.45 -- how long the banner lingers before the normal per-entry reveal continues
 
+	-- PHASE C ("mind-blowing plan" Signature Mechanic): the True Wildcard's
+	-- OWN one-time freeze-frame beat -- same shape as the Legendary Hand
+	-- banner above (built once, reused), but its own color (a distinct
+	-- purple/violet, not gold, so the two never read as the same event)
+	-- and dynamic text set fresh each time it fires, since WHICH card it
+	-- became is different every run. See showScorePopup's wildcardResolution
+	-- block below for when this actually plays -- driven by
+	-- Client/init.client.lua's computeHandPreview, which only ever sets
+	-- preview.wildcardResolution the ONE time this card is actually played
+	-- unresolved (never from the live sidebar preview, which never calls
+	-- this file at all).
+	local WILDCARD_BANNER_COLOR = Color3.fromRGB(205, 170, 255)
+	local WILDCARD_FLASH_COLOR = Color3.fromRGB(190, 160, 255)
+	local WILDCARD_FREEZE_HOLD = 0.5
+
 	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
 	-- read the per-entry text before it was replaced by the next one, and
 	-- a later full-sequence playtest still felt too fast across the board
@@ -364,6 +379,47 @@ return function(deps)
 	local legendaryBannerScale = Instance.new("UIScale")
 	legendaryBannerScale.Scale = 1
 	legendaryBannerScale.Parent = legendaryBanner
+
+	-- PHASE C ("mind-blowing plan" Signature Mechanic): the True
+	-- Wildcard's own flash/banner, same construction as the Legendary
+	-- Hand pair above, its own instances so the two can never fight over
+	-- the same TextLabel/Frame if a hand is somehow both at once (rare,
+	-- but not impossible -- a locked-in Four of a Kind COULD also clear
+	-- the Legendary threshold). wildcardBanner.Text is set fresh per call
+	-- in showScorePopup below -- unlike the Legendary banner, there's no
+	-- fixed string to set once here.
+	local wildcardFlashOverlay = Instance.new("Frame")
+	wildcardFlashOverlay.Name = "WildcardFlash"
+	wildcardFlashOverlay.Size = UDim2.fromScale(1, 1)
+	wildcardFlashOverlay.BackgroundColor3 = WILDCARD_FLASH_COLOR
+	wildcardFlashOverlay.BackgroundTransparency = 1
+	wildcardFlashOverlay.BorderSizePixel = 0
+	wildcardFlashOverlay.ZIndex = 33
+	wildcardFlashOverlay.Parent = root
+
+	local wildcardBanner = Instance.new("TextLabel")
+	wildcardBanner.Name = "WildcardBanner"
+	wildcardBanner.AnchorPoint = Vector2.new(0.5, 0.5)
+	wildcardBanner.Position = UDim2.fromScale(0.5, 0.3)
+	wildcardBanner.Size = UDim2.new(0, 560, 0, 70)
+	wildcardBanner.BackgroundTransparency = 1
+	wildcardBanner.Font = Enum.Font.GothamBlack
+	wildcardBanner.TextSize = 30
+	wildcardBanner.TextWrapped = true
+	wildcardBanner.TextColor3 = WILDCARD_BANNER_COLOR
+	-- Same TextTransparency/TextStrokeTransparency-together discipline as
+	-- legendaryBanner above (see its own BUGFIX comment) -- both start
+	-- hidden, both always animated as a pair, everywhere below.
+	wildcardBanner.TextStrokeTransparency = 1
+	wildcardBanner.TextStrokeColor3 = Color3.fromRGB(45, 25, 70)
+	wildcardBanner.TextTransparency = 1
+	wildcardBanner.Text = ""
+	wildcardBanner.ZIndex = 34
+	wildcardBanner.Parent = root
+
+	local wildcardBannerScale = Instance.new("UIScale")
+	wildcardBannerScale.Scale = 1
+	wildcardBannerScale.Parent = wildcardBanner
 
 	local scorePopupToken = 0
 
@@ -767,6 +823,12 @@ return function(deps)
 		-- flag instead of re-deriving it.
 		local legendary = preview.isLegendary == true
 
+		-- PHASE C ("mind-blowing plan" Signature Mechanic): only set by
+		-- Client/init.client.lua's computeHandPreview when THIS exact play
+		-- is the one, once-per-run hand that resolves the True Wildcard --
+		-- see that function's own comment. { rank, suit, label } or nil.
+		local wildcardResolution = preview.wildcardResolution
+
 		-- QoL Game Pass (Fast Forward): decided once per hand, not
 		-- per-entry -- see pace()'s own comment above.
 		currentPaceDivisor = (hasFastForwardPass and hasFastForwardPass()) and FAST_FORWARD_DIVISOR or 1
@@ -837,6 +899,52 @@ return function(deps)
 			-- whole screen. Everything from here through the end of this
 			-- hand's reveal also gets boosted shake/particle magnitude --
 			-- see entryMagnitude's call sites below.
+			-- PHASE C ("mind-blowing plan" Signature Mechanic): the True
+			-- Wildcard's own freeze-frame, fires BEFORE the Legendary beat
+			-- (and before the normal per-entry reveal) if both happen to
+			-- land on the same hand -- a once-per-run moment earns going
+			-- first. Same shape as the Legendary block just below, its own
+			-- instances/color/hold.
+			if wildcardResolution then
+				wildcardBanner.TextTransparency = 1
+				wildcardBanner.TextStrokeTransparency = 1
+				wildcardBannerScale.Scale = 0.4
+				wildcardBanner.Text = "🎴 TRUE WILDCARD LOCKS IN:\n" .. wildcardResolution.label .. "!"
+
+				-- HARD SAFETY NET, same pattern as the Legendary banner's
+				-- own timeout just below -- this can never stay on screen
+				-- longer than this, full stop.
+				task.delay(2.5, function()
+					wildcardBanner.TextTransparency = 1
+					wildcardBanner.TextStrokeTransparency = 1
+				end)
+				playPitched(payoutThudSound, 0.5, 0.85)
+				screenShake(root, 8, pace(0.3))
+				particleBurst(centerOf(scorePopup), WILDCARD_FLASH_COLOR, 12, { spread = 100, duration = 0.55 })
+
+				wildcardFlashOverlay.BackgroundTransparency = 1
+				tweenTo(wildcardFlashOverlay, { BackgroundTransparency = 0.3 }, pace(0.08))
+				task.delay(pace(0.08), function()
+					if scorePopupToken == myToken then
+						tweenTo(wildcardFlashOverlay, { BackgroundTransparency = 1 }, pace(0.5))
+					end
+				end)
+
+				tweenTo(wildcardBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
+				tweenTo(wildcardBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				task.delay(pace(0.22), function()
+					if scorePopupToken == myToken then
+						tweenTo(wildcardBannerScale, { Scale = 1 }, pace(0.14), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+					end
+				end)
+
+				task.wait(pace(WILDCARD_FREEZE_HOLD))
+				if scorePopupToken ~= myToken then
+					return
+				end
+				tweenTo(wildcardBanner, { TextTransparency = 1, TextStrokeTransparency = 1 }, pace(0.4))
+			end
+
 			if legendary then
 				legendaryBanner.TextTransparency = 1
 				legendaryBanner.TextStrokeTransparency = 1
@@ -1130,6 +1238,12 @@ return function(deps)
 		legendaryBanner.TextTransparency = 1
 		legendaryBanner.TextStrokeTransparency = 1
 		legendaryFlashOverlay.BackgroundTransparency = 1
+		-- PHASE C: same defensive reset for the True Wildcard's own
+		-- banner/flash pair -- see wildcardBanner's own comment at its
+		-- creation.
+		wildcardBanner.TextTransparency = 1
+		wildcardBanner.TextStrokeTransparency = 1
+		wildcardFlashOverlay.BackgroundTransparency = 1
 		destroyGhosts(liveGhosts)
 		liveGhosts = {}
 	end

@@ -425,7 +425,18 @@ local function openShop(session)
 end
 
 local function serializeCard(card)
-	return { rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp }
+	return {
+		rank = card.rank, suit = card.suit, garnish = card.garnish, special = card.special, stamp = card.stamp,
+		-- PHASE C ("mind-blowing plan" Signature Mechanic): see
+		-- TrueWildcard.lua. isTrueWildcard marks the one card in this run
+		-- that is (or was) the True Wildcard; wildcardLocked is false right
+		-- up until the first time it's actually played -- the client uses
+		-- that combination to show "???" in the hand instead of its real
+		-- (not-yet-relevant) dealt rank/suit. Omitted entirely for every
+		-- other card, same as garnish/special/stamp above.
+		isTrueWildcard = card.isTrueWildcard,
+		wildcardLocked = card.wildcardLocked,
+	}
 end
 
 local function serializeState(session, player)

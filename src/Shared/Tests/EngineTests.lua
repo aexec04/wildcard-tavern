@@ -29,6 +29,7 @@ local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile) -- PERS
 local SeededRng = require(script.Parent.Parent.Engine.SeededRng) -- DAILY CHALLENGE, Phase 11
 local GamePasses = require(script.Parent.Parent.Engine.GamePasses) -- PHASE 16 cosmetics batch: confirms the 4 new Themes are un-gated
 local Achievements = require(script.Parent.Parent.Engine.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
+local TrueWildcard = require(script.Parent.Parent.Engine.TrueWildcard) -- PHASE C Signature Mechanic ("mind-blowing plan")
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -3139,6 +3140,76 @@ table.insert(tests, { name = "'Nightcap Round' stacks with a Boss Round's own do
 	RunState.playHand(state, { 1 })
 	-- Boss doubles tipsPerRoundWin once, Nightcap Round doubles the result again.
 	expectEqual(state.tips, 4 * state.config.tipsPerRoundWin)
+end })
+
+-- ===== PHASE C: True Wildcard (Signature Mechanic, see claude/mind-blowing-plan.md) =====
+
+table.insert(tests, { name = "RunState.new seeds exactly one True Wildcard card into a fresh run", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local wildcardCount = 0
+	local function scan(list)
+		for _, card in ipairs(list) do
+			if card.isTrueWildcard then
+				wildcardCount = wildcardCount + 1
+				expectFalse(card.wildcardLocked)
+			end
+		end
+	end
+	scan(state.deck)
+	scan(state.hand)
+	scan(state.discardPile)
+	expectEqual(wildcardCount, 1)
+end })
+
+table.insert(tests, { name = "Playing the True Wildcard locks it in as whichever rank/suit scores the most for that hand", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local wildcardCard = C(2, "Hearts") -- dealt as a lone, low-value 2 of Hearts
+	wildcardCard.isTrueWildcard = true
+	wildcardCard.wildcardLocked = false
+	-- Three real 7s + the wildcard: becoming a 4th 7 completes Four of a
+	-- Kind (chips 60 + 4x7 = 88, mult 7 -> score 616) -- vastly better
+	-- than leaving it a lone 2 (Three of a Kind off just the three 7s:
+	-- chips 30 + 3x7 = 51, mult 3 -> score 153). An unambiguous "did it
+	-- actually pick the best option" check, not just "did it pick
+	-- something reasonable."
+	state.hand = { wildcardCard, C(7, "Hearts"), C(7, "Diamonds"), C(7, "Clubs") }
+
+	local result = RunState.playHand(state, { 1, 2, 3, 4 })
+	expectEqual(result.handName, "Four of a Kind")
+	expectTrue(result.wildcardResolution ~= nil)
+	expectEqual(result.wildcardResolution.rank, 7)
+	-- Same card table reference the whole run -- it should now just BE
+	-- a 7, permanently (suit is a genuine 4-way tie here -- Hearts is
+	-- just whichever this implementation's fixed iteration order finds
+	-- first; see TrueWildcard.findBestChoice).
+	expectEqual(wildcardCard.rank, 7)
+	expectEqual(wildcardCard.suit, "Hearts")
+	expectTrue(wildcardCard.wildcardLocked)
+end })
+
+table.insert(tests, { name = "A locked True Wildcard plays as a normal card and never re-resolves", fn = function()
+	local card = C(9, "Spades")
+	card.isTrueWildcard = true
+	card.wildcardLocked = true -- already resolved by an earlier hand this run
+	local state = RunState.new(nil, function(n) return n end)
+	state.hand = { card }
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result.wildcardResolution == nil)
+	expectEqual(card.rank, 9)
+	expectEqual(card.suit, "Spades")
+end })
+
+table.insert(tests, { name = "TrueWildcard.findBestChoice always restores the card's original rank/suit afterward", fn = function()
+	local wildcardCard = C(2, "Hearts")
+	local cards = { wildcardCard, C(5, "Hearts"), C(9, "Hearts"), C(11, "Hearts"), C(13, "Hearts") }
+	local bestRank, bestSuit = TrueWildcard.findBestChoice(cards, wildcardCard, {}, function(_handResult)
+		return {} -- minimal context -- Scoring.calculate defaults everything else
+	end)
+	expectTrue(bestRank ~= nil and bestSuit ~= nil)
+	-- Non-mutating contract: whatever it found along the way, the card
+	-- itself must be back exactly where this started.
+	expectEqual(wildcardCard.rank, 2)
+	expectEqual(wildcardCard.suit, "Hearts")
 end })
 
 return tests

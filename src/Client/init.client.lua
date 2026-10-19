@@ -1388,11 +1388,6 @@ local function computeHandPreview(cardIndices)
 		return nil
 	end
 
-	local ok, handResult = pcall(HandEvaluator.evaluate, selectedCards)
-	if not ok or not handResult then
-		return nil
-	end
-
 	local ownedPatronInstances = {}
 	for _, patron in ipairs(latestState.ownedPatrons or {}) do
 		local def = Patrons.getById(patron.id)
@@ -1407,14 +1402,6 @@ local function computeHandPreview(cardIndices)
 	-- id/name/description for display) by the id the server DOES send is
 	-- exactly as accurate as reading it server-side would be.
 	local bossModifierDef = latestState.bossModifier and BossRounds.getById(latestState.bossModifier.id)
-	local alreadyPlayed = latestState.handTypesPlayedThisRound and latestState.handTypesPlayedThisRound[handResult.name] == true
-
-	-- "No Repeats" Boss Round: the server scores a repeated hand type as a
-	-- flat 0 with no Scoring.calculate call at all -- match that exactly
-	-- instead of showing a nonzero preview you'd never actually get paid.
-	if bossModifierDef and bossModifierDef.noRepeatHandTypes and alreadyPlayed then
-		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {} }
-	end
 
 	-- heldCards: the cards that would remain in hand (NOT played) if this
 	-- selection is played -- Iron Garnish's held-card bonus reads this.
@@ -1426,6 +1413,85 @@ local function computeHandPreview(cardIndices)
 	end
 
 	local previewHandsRemaining = math.max(0, latestState.handsRemaining - 1)
+
+	-- PHASE C ("mind-blowing plan" Signature Mechanic): TRUE WILDCARD
+	-- preview -- see TrueWildcard.lua's header and RunState.playHand's
+	-- matching block. If the one True Wildcard card is part of THIS
+	-- selection and hasn't locked in yet, resolve it the exact same
+	-- deterministic way the server will for real the moment Play is
+	-- actually clicked, so this preview (both the live sidebar score AND
+	-- the popup it drives at Play-time, below) always shows the TRUE
+	-- number, never a "whatever it happened to be dealt as" guess.
+	-- findBestChoice always restores the card's current rank/suit before
+	-- returning -- Lua has no preemption, so nothing else can ever
+	-- observe it mid-search -- and the extra set/restore around the real
+	-- evaluate+calculate pass below means latestState.hand is back to
+	-- exactly how it started by the time this function returns, even
+	-- though the hand grid is deliberately showing "???" for this card
+	-- the whole time anyway (see the RankSuit label code below).
+	local TrueWildcardModule = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TrueWildcard"))
+	local wildcardCard = nil
+	for _, card in ipairs(selectedCards) do
+		if card.isTrueWildcard and not card.wildcardLocked then
+			wildcardCard = card
+			break
+		end
+	end
+
+	local function buildWildcardContext(candidateHandResult)
+		local blocked = bossModifierDef and bossModifierDef.noRepeatHandTypes
+			and latestState.handTypesPlayedThisRound
+			and latestState.handTypesPlayedThisRound[candidateHandResult.name] == true
+		if blocked then
+			return nil
+		end
+		return {
+			allPlayedCards = selectedCards,
+			heldCards = heldCards,
+			handLevels = latestState.handLevels,
+			ownedPatronSpecials = latestState.ownedPatronSpecials,
+			brittleShielded = latestState.brittleShieldRound,
+			debuff = bossModifierDef and bossModifierDef.debuff,
+			tips = latestState.tips,
+			alreadyPlayedThisHandTypeThisRound = latestState.handTypesPlayedThisRound
+				and latestState.handTypesPlayedThisRound[candidateHandResult.name] == true,
+			handsRemaining = previewHandsRemaining,
+			discardsRemaining = latestState.discardsRemaining,
+			isLastHand = previewHandsRemaining == 0,
+			night = latestState.night,
+			round = latestState.round,
+		}
+	end
+
+	local wildcardResolution = nil
+	local originalWildcardRank, originalWildcardSuit
+	if wildcardCard then
+		originalWildcardRank, originalWildcardSuit = wildcardCard.rank, wildcardCard.suit
+		local bestRank, bestSuit = TrueWildcardModule.findBestChoice(selectedCards, wildcardCard, ownedPatronInstances, buildWildcardContext)
+		wildcardCard.rank, wildcardCard.suit = bestRank, bestSuit
+		wildcardResolution = { rank = bestRank, suit = bestSuit, label = (RANK_NAMES[bestRank] or tostring(bestRank)) .. " of " .. bestSuit }
+	end
+
+	local ok, handResult = pcall(HandEvaluator.evaluate, selectedCards)
+	if not ok or not handResult then
+		if wildcardCard then
+			wildcardCard.rank, wildcardCard.suit = originalWildcardRank, originalWildcardSuit
+		end
+		return nil
+	end
+
+	local alreadyPlayed = latestState.handTypesPlayedThisRound and latestState.handTypesPlayedThisRound[handResult.name] == true
+
+	-- "No Repeats" Boss Round: the server scores a repeated hand type as a
+	-- flat 0 with no Scoring.calculate call at all -- match that exactly
+	-- instead of showing a nonzero preview you'd never actually get paid.
+	if bossModifierDef and bossModifierDef.noRepeatHandTypes and alreadyPlayed then
+		if wildcardCard then
+			wildcardCard.rank, wildcardCard.suit = originalWildcardRank, originalWildcardSuit
+		end
+		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {}, wildcardResolution = wildcardResolution }
+	end
+
 	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, ownedPatronInstances, {
 		allPlayedCards = selectedCards,
 		heldCards = heldCards,
@@ -1441,6 +1507,14 @@ local function computeHandPreview(cardIndices)
 		night = latestState.night,
 		round = latestState.round,
 	})
+
+	-- Restore now that the breakdown's own per-card LABELS (plain strings,
+	-- baked in by Scoring.calculate -- see its header) are already built --
+	-- nothing downstream of this point ever needs to re-read the wildcard
+	-- card's live rank/suit again. See this block's own comment above.
+	if wildcardCard then
+		wildcardCard.rank, wildcardCard.suit = originalWildcardRank, originalWildcardSuit
+	end
 
 	if not ok2 then
 		return nil
@@ -1474,6 +1548,11 @@ local function computeHandPreview(cardIndices)
 		score = score,
 		breakdown = extra and extra.breakdown,
 		brokenCards = extra and extra.brokenCards,
+		-- PHASE C: only set when THIS selection includes the unresolved
+		-- True Wildcard -- ScorePopup.lua uses this (Play-time call only;
+		-- the live sidebar preview never calls showScorePopup at all) to
+		-- play a one-time "locks in" reveal banner.
+		wildcardResolution = wildcardResolution,
 	}
 end
 
@@ -1839,6 +1918,22 @@ local function rebuildHand(handData)
 		cardRankSuitLabel.ZIndex = 2
 		cardRankSuitLabel.Parent = button
 
+		-- PHASE C ("mind-blowing plan" Signature Mechanic): the one True
+		-- Wildcard card shows "???" instead of its real dealt rank/suit
+		-- right up until it actually resolves (RunState.playHand) --
+		-- its real identity isn't the point yet, so showing it would just
+		-- spoil the reveal. Forced Visible = true (overriding
+		-- showPlaceholderRankSuit above) so this reads even once real
+		-- card art is confirmed loaded -- the card-art ImageLabel above
+		-- still shows whatever art its CURRENT (dealt, pre-resolution)
+		-- rank/suit maps to, which is harmless since this label already
+		-- covers it with ZIndex 2 > 1.
+		if card.isTrueWildcard and not card.wildcardLocked then
+			cardRankSuitLabel.TextColor3 = Color3.fromRGB(150, 110, 230)
+			cardRankSuitLabel.Text = "✨\n???"
+			cardRankSuitLabel.Visible = true
+		end
+
 		-- SELECTION/HOVER CUE (redesign for the card-art rollout): this
 		-- used to be button.BackgroundColor3 tweening between the theme's
 		-- cardBase/cardSelected colors -- completely invisible now that
@@ -1861,8 +1956,16 @@ local function rebuildHand(handData)
 		-- modified card visibly reads as modified in the hand. Priority
 		-- order (rarest/most-impactful first) when a card has more than one:
 		-- Special, then Stamp, then Garnish.
-		if card.garnish or card.special or card.stamp then
+		if card.garnish or card.special or card.stamp or card.isTrueWildcard then
 			local icons = {}
+			-- PHASE C: the True Wildcard's own marker always leads -- it's
+			-- a once-per-run identity, not a stacking modifier, so it
+			-- reads first regardless of whatever else this card also
+			-- carries (before OR after it resolves -- see the RankSuit
+			-- "???" override above for the part that's ONLY pre-resolution).
+			if card.isTrueWildcard then
+				table.insert(icons, "🎴")
+			end
 			if card.special and Card.Specials[card.special] then
 				table.insert(icons, Card.Specials[card.special].icon)
 			end
