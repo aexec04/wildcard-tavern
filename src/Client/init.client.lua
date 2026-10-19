@@ -1641,22 +1641,36 @@ local function buildScoreSourceInfo(indices)
 			ghost.Position = UDim2.fromOffset(absPos.X, absPos.Y)
 			ghost.Size = UDim2.fromOffset(absSize.X, absSize.Y)
 			ghost.ZIndex = 30
-			-- BUGFIX (Ahmed's report, repeated: played cards render blank/
-			-- white during the score reveal, even though the hand itself
-			-- shows readable rank/suit text). A played ghost is a cloned
-			-- snapshot of the real hand button -- it should inherit
-			-- cardRankSuitLabel's Visible exactly as cloned, but this forces
-			-- it back on regardless, because a played ghost is short-lived
-			-- and NEVER rebuilt once scoring starts (unlike the live hand,
-			-- there's no later moment that needs it hidden again), so there
-			-- is no reason to ever risk it coming up unreadable. Looking up
-			-- the clone's own child (rather than trusting whatever it
-			-- inherited) means this can't regress even if hand-building ever
-			-- changes how/when that label's Visible gets set.
-			local ghostRankSuit = ghost:FindFirstChild("RankSuit")
-			if ghostRankSuit then
-				ghostRankSuit.Visible = true
-			end
+			-- BUGFIX (Ahmed's report, repeated twice now: played cards
+			-- still render blank/white during the score reveal, even
+			-- though the hand itself always shows readable rank/suit
+			-- text, and even after forcing the CLONED RankSuit label's
+			-- Visible back to true -- that alone wasn't enough, which
+			-- means something else (most likely one of ScorePopup.lua's
+			-- own per-ghost overlay Frames -- ensureDimOverlay/
+			-- ensureHighlightOverlay, both parented on top of this clone
+			-- at a higher ZIndex for their focus-dim/highlight-flash
+			-- beats) can end up covering it. Rather than keep chasing
+			-- exactly which overlay and exactly when, this gives up on
+			-- trusting anything inherited from the clone at all: a brand
+			-- new label, built fresh from this card's own real
+			-- rank/suit, parented LAST so it's always the topmost sibling
+			-- (ZIndex 40 -- above the ghost's own art/text AND above
+			-- every overlay ScorePopup.lua creates at ghost.ZIndex+1/+2).
+			-- A played ghost is short-lived and destroyed right after its
+			-- reveal finishes, so there's no later moment this ever needs
+			-- to be hidden again -- it only ever needs to be correct.
+			local ghostRankSuit = Instance.new("TextLabel")
+			ghostRankSuit.Name = "GhostRankSuit"
+			ghostRankSuit.Size = UDim2.fromScale(1, 1)
+			ghostRankSuit.BackgroundTransparency = 1
+			ghostRankSuit.Font = Enum.Font.GothamBold
+			ghostRankSuit.TextSize = 20
+			ghostRankSuit.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
+			ghostRankSuit.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
+			ghostRankSuit.Visible = true
+			ghostRankSuit.ZIndex = 40
+			ghostRankSuit.Parent = ghost
 			-- Held-card ghosts start hidden -- the real card is still
 			-- visible and correct in the hand; this ghost only appears for
 			-- its own brief Iron Garnish beat. Played-card ghosts start

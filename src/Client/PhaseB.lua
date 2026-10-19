@@ -107,13 +107,47 @@ return function(deps)
 
 	-- ===== Live Leaderboard Ticker =====
 
+	-- BUGFIX (Ahmed's report: "today's best on the top right clearly
+	-- covers some of the buttons"). This used to sit at y=12 -- the exact
+	-- same top-12px strip as init.client.lua's row of 44px corner icon
+	-- buttons (help/mute/Themes/Journey/Hand Reference/Settings/
+	-- Collection/Leaderboard, all at y=8, 44px tall -- see makeCornerButton
+	-- there), so the panel's own ZIndex (20, well above those buttons'
+	-- ZIndex 5) sat right on top of however many of them it was wide
+	-- enough to reach. Dropped to y=68 -- comfortably clear of that whole
+	-- row (8 + 44 = 52, +16px breathing room) -- instead of guessing a
+	-- narrower width that could still clip a button on a smaller window.
 	local tickerPanel, tickerRows = buildCornerCard(
-		"LeaderboardTicker", Vector2.new(1, 0), UDim2.new(1, -12, 0, 12),
+		"LeaderboardTicker", Vector2.new(1, 0), UDim2.new(1, -12, 0, 68),
 		"👑 TODAY'S BEST", Color3.fromRGB(255, 210, 120)
 	)
 
+	-- Small dismiss control, same spot/shape a mobile notification toast
+	-- would use -- lets Ahmed (or anyone) hide this ambient panel for the
+	-- rest of the session if even the repositioned spot is ever in the
+	-- way of something else, without needing a dedicated Settings entry
+	-- just for one cosmetic corner panel (also sidesteps adding another
+	-- top-level local to init.client.lua, which is already right at
+	-- Lua's 200-local ceiling -- this whole toggle lives inside PhaseB.lua's
+	-- own closure instead, same pattern as everything else in this file).
+	local tickerDismissed = false
+	local tickerDismissButton = Instance.new("TextButton")
+	tickerDismissButton.Size = UDim2.new(0, 18, 0, 18)
+	tickerDismissButton.Position = UDim2.new(1, -2, 0, -2)
+	tickerDismissButton.AnchorPoint = Vector2.new(1, 0)
+	tickerDismissButton.BackgroundTransparency = 1
+	tickerDismissButton.Font = Enum.Font.GothamBold
+	tickerDismissButton.TextSize = 14
+	tickerDismissButton.TextColor3 = Color3.fromRGB(200, 190, 180)
+	tickerDismissButton.Text = "✕"
+	tickerDismissButton.ZIndex = 21
+	tickerDismissButton.Parent = tickerPanel
+
 	local LeaderboardTickerRemote = remotes:WaitForChild("LeaderboardTicker")
 	LeaderboardTickerRemote.OnClientEvent:Connect(function(payload)
+		if tickerDismissed then
+			return
+		end
 		local top = (payload and payload.top) or {}
 		if #top == 0 then
 			tickerPanel.Visible = false
@@ -132,6 +166,11 @@ return function(deps)
 				row.Visible = false
 			end
 		end
+	end)
+
+	tickerDismissButton.MouseButton1Click:Connect(function()
+		tickerDismissed = true
+		tickerPanel.Visible = false
 	end)
 
 	-- ===== Friend Presence =====
