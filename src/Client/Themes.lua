@@ -172,7 +172,14 @@ return function(deps)
 		for _, theme in ipairs(Themes.Definitions) do
 			local row = Instance.new("Frame")
 			row.Size = UDim2.new(1, 0, 0, 50)
-			row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+			-- DEBUG (temporary): bright red + forced high ZIndex + no clipping,
+			-- to rule out "rows exist but are invisible/occluded/clipped" vs.
+			-- "rows never actually get created at all".
+			row.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+			row.BackgroundTransparency = 0
+			row.Visible = true
+			row.ZIndex = 50
+			row.ClipsDescendants = false
 			row.Parent = themesListFrame
 			polishPanel(row, 10)
 
@@ -253,6 +260,33 @@ return function(deps)
 				end)
 			end
 		end
+
+		-- DEBUG (temporary): read back the real post-layout state one frame
+		-- later, after UIListLayout has had a chance to actually run.
+		task.defer(function()
+			local children = themesListFrame:GetChildren()
+			local frameCount = 0
+			for _, child in ipairs(children) do
+				if child:IsA("Frame") then
+					frameCount = frameCount + 1
+				end
+			end
+			print("[DEBUG Themes] post-build: Frame children under themesListFrame =", frameCount, "/ total children =", #children)
+			local firstRow = themesListFrame:FindFirstChildWhichIsA("Frame")
+			if firstRow then
+				print("[DEBUG Themes] firstRow Visible =", firstRow.Visible,
+					"BackgroundTransparency =", firstRow.BackgroundTransparency,
+					"AbsoluteSize =", firstRow.AbsoluteSize,
+					"AbsolutePosition =", firstRow.AbsolutePosition,
+					"ZIndex =", firstRow.ZIndex)
+			else
+				print("[DEBUG Themes] firstRow = NONE FOUND")
+			end
+			print("[DEBUG Themes] themesListFrame CanvasSize =", themesListFrame.CanvasSize,
+				"AbsoluteCanvasSize =", themesListFrame.AbsoluteCanvasSize,
+				"Visible =", themesListFrame.Visible,
+				"ClipsDescendants =", themesListFrame.ClipsDescendants)
+		end)
 	end
 
 	OverlayManager.register("themes", function()
