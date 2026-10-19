@@ -152,10 +152,6 @@ return function(deps)
 	end)
 
 	local function refreshThemesList()
-		-- DEBUG (temporary, v3): unique marker so it's unambiguous whether
-		-- Studio is actually running THIS version of the script or a stale
-		-- cached one from before this edit synced in.
-		print("[DEBUG Themes v3] refreshThemesList called. #Themes.Definitions =", Themes and #Themes.Definitions, "themesListFrame =", themesListFrame, "AbsoluteSize =", themesListFrame.AbsoluteSize)
 		for _, child in ipairs(themesListFrame:GetChildren()) do
 			if child:IsA("Frame") then
 				child:Destroy()
@@ -172,136 +168,106 @@ return function(deps)
 			equippedId = latestState.equippedTheme or equippedId
 		end
 
-		local builtCount = 0
-		for themeIndex, theme in ipairs(Themes.Definitions) do
-			-- DEBUG (temporary, v3): wrap each row's build in pcall so one
-			-- bad theme can't silently kill the whole loop (and the rest of
-			-- the rows with it) without a trace -- if this prints an error,
-			-- we've found it; if it doesn't, every row built successfully
-			-- and the bug is purely visual/layout, not a crash.
-			local ok, err = pcall(function()
-				local row = Instance.new("Frame")
-				row.Size = UDim2.new(1, 0, 0, 50)
-				-- DEBUG (temporary): bright red + forced high ZIndex + no
-				-- clipping, to rule out "rows exist but are invisible/
-				-- occluded/clipped" vs. "rows never actually get created".
-				row.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-				row.BackgroundTransparency = 0
-				row.Visible = true
-				row.ZIndex = 50
-				row.ClipsDescendants = false
-				row.Parent = themesListFrame
-				polishPanel(row, 10)
+		for _, theme in ipairs(Themes.Definitions) do
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, 0, 0, 50)
+			row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+			-- BUGFIX (rows rendering completely invisible): this row (and
+			-- its children below) never had an explicit ZIndex, so they sat
+			-- at Roblox's default of 1 -- lower than themesBackdrop's own
+			-- ZIndex (20). Every other overlay's per-row builder in this
+			-- codebase (see VisualHelpers.lua's makeStepperRow/
+			-- makeSliderRow) explicitly stamps ZIndex = 21 on each piece it
+			-- creates for exactly this reason; this was the one spot that
+			-- forgot to. Confirmed empirically: forcing a bright red test
+			-- color AND ZIndex = 50 made the rows render instantly, while
+			-- the original (untouched) color/Z combination rendered nothing
+			-- -- proof the rows were being correctly built the whole time,
+			-- just drawn underneath the backdrop instead of above it.
+			row.ZIndex = 21
+			row.Parent = themesListFrame
+			polishPanel(row, 10)
 
-				local swatch = Instance.new("Frame")
-				swatch.Size = UDim2.new(0, 30, 0, 30)
-				swatch.Position = UDim2.new(0, 10, 0.5, -15)
-				swatch.BackgroundColor3 = theme.colors.accent
-				swatch.Parent = row
-				roundCorner(swatch, 6)
+			local swatch = Instance.new("Frame")
+			swatch.Size = UDim2.new(0, 30, 0, 30)
+			swatch.Position = UDim2.new(0, 10, 0.5, -15)
+			swatch.BackgroundColor3 = theme.colors.accent
+			swatch.ZIndex = 21
+			swatch.Parent = row
+			roundCorner(swatch, 6)
 
-				local gatingPass = GamePasses and GamePasses.passForTheme(theme.id)
+			local gatingPass = GamePasses and GamePasses.passForTheme(theme.id)
 
-				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -220, 1, 0)
-				label.Position = UDim2.new(0, 50, 0, 0)
-				label.BackgroundTransparency = 1
-				label.Font = Enum.Font.Gotham
-				label.TextSize = 15
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.TextColor3 = Color3.fromRGB(250, 240, 220)
-				label.Text = gatingPass and string.format("%s -- %s (Game Pass)", theme.name, theme.description)
-					or string.format("%s -- %s", theme.name, theme.description)
-				label.Parent = row
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(1, -220, 1, 0)
+			label.Position = UDim2.new(0, 50, 0, 0)
+			label.BackgroundTransparency = 1
+			label.Font = Enum.Font.Gotham
+			label.TextSize = 15
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.TextColor3 = Color3.fromRGB(250, 240, 220)
+			label.Text = gatingPass and string.format("%s -- %s (Game Pass)", theme.name, theme.description)
+				or string.format("%s -- %s", theme.name, theme.description)
+			label.ZIndex = 21
+			label.Parent = row
 
-				local actionButton = Instance.new("TextButton")
-				actionButton.Size = UDim2.new(0, 130, 0, 36)
-				actionButton.Position = UDim2.new(1, -140, 0.5, -18)
-				actionButton.Font = Enum.Font.GothamBold
-				actionButton.TextSize = 14
-				actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-				actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-				actionButton.Parent = row
-				polishButton(actionButton, 8)
+			local actionButton = Instance.new("TextButton")
+			actionButton.Size = UDim2.new(0, 130, 0, 36)
+			actionButton.Position = UDim2.new(1, -140, 0.5, -18)
+			actionButton.Font = Enum.Font.GothamBold
+			actionButton.TextSize = 14
+			actionButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+			actionButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+			actionButton.ZIndex = 21
+			actionButton.Parent = row
+			polishButton(actionButton, 8)
 
-				if theme.id == equippedId then
-					actionButton.Text = "Equipped"
-					actionButton.AutoButtonColor = false
-					actionButton.BackgroundColor3 = Color3.fromRGB(70, 90, 55)
-				elseif ownedSet[theme.id] then
-					actionButton.Text = "Equip"
+			if theme.id == equippedId then
+				actionButton.Text = "Equipped"
+				actionButton.AutoButtonColor = false
+				actionButton.BackgroundColor3 = Color3.fromRGB(70, 90, 55)
+			elseif ownedSet[theme.id] then
+				actionButton.Text = "Equip"
+				actionButton.MouseButton1Click:Connect(function()
+					playClickSfx()
+					EquipThemeRemote:FireServer(theme.id)
+				end)
+			elseif gatingPass then
+				-- Real-money Game Pass, not a Tips purchase -- prompts
+				-- Roblox's own purchase UI directly (no server round-trip
+				-- needed for the prompt itself; MarketplaceService.
+				-- PromptGamePassPurchaseFinished on the server handles
+				-- granting the Theme once a purchase actually completes,
+				-- see Server/init.server.lua). gamePassId == 0 means
+				-- whoever's testing this hasn't created the real Pass on
+				-- the Creator Dashboard yet (see GamePasses.lua) -- show
+				-- that plainly instead of prompting a purchase for
+				-- Game Pass 0, which would just error.
+				if gatingPass.gamePassId and gatingPass.gamePassId > 0 then
+					actionButton.Text = "Get Pass"
 					actionButton.MouseButton1Click:Connect(function()
 						playClickSfx()
-						EquipThemeRemote:FireServer(theme.id)
+						MarketplaceService:PromptGamePassPurchase(player, gatingPass.gamePassId)
 					end)
-				elseif gatingPass then
-					-- Real-money Game Pass, not a Tips purchase -- prompts
-					-- Roblox's own purchase UI directly (no server round-trip
-					-- needed for the prompt itself; MarketplaceService.
-					-- PromptGamePassPurchaseFinished on the server handles
-					-- granting the Theme once a purchase actually completes,
-					-- see Server/init.server.lua). gamePassId == 0 means
-					-- whoever's testing this hasn't created the real Pass on
-					-- the Creator Dashboard yet (see GamePasses.lua) -- show
-					-- that plainly instead of prompting a purchase for
-					-- Game Pass 0, which would just error.
-					if gatingPass.gamePassId and gatingPass.gamePassId > 0 then
-						actionButton.Text = "Get Pass"
-						actionButton.MouseButton1Click:Connect(function()
-							playClickSfx()
-							MarketplaceService:PromptGamePassPurchase(player, gatingPass.gamePassId)
-						end)
-					else
-						actionButton.Text = "Coming Soon"
-						actionButton.AutoButtonColor = false
-						actionButton.BackgroundColor3 = Color3.fromRGB(55, 45, 35)
-					end
 				else
-					actionButton.Text = string.format("Buy (%d)", theme.price)
-					actionButton.MouseButton1Click:Connect(function()
-						local latest = getLatestState()
-						if not latest or latest.tips < theme.price then
-							showWarning("Not enough tips for that.")
-							playClickSfx()
-							return
-						end
-						playSfx(SOUND_IDS.buyPatron)
-						BuyThemeRemote:FireServer(theme.id)
-					end)
+					actionButton.Text = "Coming Soon"
+					actionButton.AutoButtonColor = false
+					actionButton.BackgroundColor3 = Color3.fromRGB(55, 45, 35)
 				end
-			end)
-			if ok then
-				builtCount = builtCount + 1
 			else
-				print("[DEBUG Themes v3] ERROR building row", themeIndex, "theme.id =", theme and theme.id, "-->", err)
+				actionButton.Text = string.format("Buy (%d)", theme.price)
+				actionButton.MouseButton1Click:Connect(function()
+					local latest = getLatestState()
+					if not latest or latest.tips < theme.price then
+						showWarning("Not enough tips for that.")
+						playClickSfx()
+						return
+					end
+					playSfx(SOUND_IDS.buyPatron)
+					BuyThemeRemote:FireServer(theme.id)
+				end)
 			end
 		end
-
-		-- DEBUG (temporary, v3): SYNCHRONOUS print, right after the loop,
-		-- no task.defer -- removes "did the deferred callback even run" as
-		-- a variable entirely.
-		print("[DEBUG Themes v3] loop finished. builtCount =", builtCount, "/", #Themes.Definitions)
-		local children = themesListFrame:GetChildren()
-		local frameCount = 0
-		for _, child in ipairs(children) do
-			if child:IsA("Frame") then
-				frameCount = frameCount + 1
-			end
-		end
-		print("[DEBUG Themes v3] Frame children under themesListFrame =", frameCount, "/ total children =", #children)
-		local firstRow = themesListFrame:FindFirstChildWhichIsA("Frame")
-		if firstRow then
-			print("[DEBUG Themes v3] firstRow Visible =", firstRow.Visible,
-				"BackgroundTransparency =", firstRow.BackgroundTransparency,
-				"AbsoluteSize =", firstRow.AbsoluteSize,
-				"AbsolutePosition =", firstRow.AbsolutePosition,
-				"ZIndex =", firstRow.ZIndex)
-		else
-			print("[DEBUG Themes v3] firstRow = NONE FOUND")
-		end
-		print("[DEBUG Themes v3] themesListFrame CanvasSize =", themesListFrame.CanvasSize,
-			"Visible =", themesListFrame.Visible,
-			"ClipsDescendants =", themesListFrame.ClipsDescendants)
 	end
 
 	OverlayManager.register("themes", function()
