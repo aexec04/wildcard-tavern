@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService") -- STUDIO GAME PASS BYPASS (requested fix): see refreshOwnedGamePasses below
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Engine = Shared:WaitForChild("Engine")
@@ -855,10 +856,32 @@ end
 -- Studio testing before that setup doesn't spam failed lookups. Each
 -- check is its own task.spawn so one slow/failed lookup can't hold up
 -- the others.
+--
+-- STUDIO GAME PASS BYPASS (requested fix: Ahmed testing the Jukebox in
+-- Studio and not seeing any of it -- every single Game Pass, including
+-- custom_jukebox, is still gamePassId = 0, i.e. nothing's been created
+-- on the Creator Dashboard yet, so this function used to just skip them
+-- all forever -- "Coming Soon" in Studio is correct today, but it also
+-- means NOTHING behind a Game Pass (Theme Vault, Fast Forward, Custom
+-- Jukebox) can ever be play-tested before spending real money/creating
+-- real Passes): a placeholder pass (gamePassId <= 0) is now treated as
+-- OWNED, but only while RunService:IsStudio() is true. IsStudio() is
+-- always false in the actual published game a real player connects to
+-- -- this can never give a live player anything for free, it only
+-- unblocks local testing. The moment a real gamePassId is pasted into
+-- GamePasses.lua, that pass falls out of this branch entirely and goes
+-- through the real MarketplaceService check below like normal.
 local function refreshOwnedGamePasses(player)
 	ownedGamePasses[player] = ownedGamePasses[player] or {}
 	for _, pass in ipairs(GamePasses.Definitions) do
-		if pass.gamePassId and pass.gamePassId > 0 then
+		if (not pass.gamePassId or pass.gamePassId <= 0) and RunService:IsStudio() then
+			local alreadyKnown = ownedGamePasses[player][pass.id] == true
+			ownedGamePasses[player][pass.id] = true
+			applyGamePassGrants(player)
+			if not alreadyKnown then
+				pushState(player)
+			end
+		elseif pass.gamePassId and pass.gamePassId > 0 then
 			task.spawn(function()
 				local ok, owns = pcall(function()
 					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.gamePassId)
