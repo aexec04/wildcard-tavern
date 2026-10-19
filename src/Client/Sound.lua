@@ -84,6 +84,16 @@
 			SFX_CATALOG = table, -- { { label, id }, ... } -- see its own comment below
 			getSfxVolume = function(id) -> number, -- 0-1, defaults to 1 (full)
 			setSfxVolume = function(id, multiplier), -- 0-1
+			-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS (requested fix): see each one's
+			-- own comment further down for the full story.
+			PRESET_PLAYLISTS = table, -- { { name, songs = {assetId,...}, isReady }, ... }
+			playPlaylistFrom = function(songList, startIndex, label, shuffle), -- starts/replaces the active queue
+			setShuffleEnabled = function(enabled),
+			getShuffleEnabled = function() -> boolean,
+			isPlayingQueue = function() -> boolean, -- true while a queue (not just a single preview track) is active
+			getQueueIndex = function() -> number|nil, -- 1-based position in the active queue
+			getQueueLength = function() -> number, -- 0 if no queue active
+			getQueueLabel = function() -> string|nil, -- "My Playlist" or a preset's name
 		}
 ]]
 
@@ -220,6 +230,45 @@ return function(deps)
 		{ label = "Payout Thud", id = JUICE_SOUND_IDS.payoutThud },
 	}
 
+	-- JUKEBOX PRESET PLAYLISTS (requested fix: "a couple preset playlist
+	-- they can listen to if they can't be bothered" -- the "eventually"
+	-- Ahmed explicitly deferred when the saved-playlist feature first
+	-- shipped, now being picked up): a few curated, built-in playlists
+	-- nobody has to paste a single id for. Each entry's `songs` list is
+	-- real Roblox asset ids, same "rbxassetid://<digits>" shape as a saved
+	-- playlist song -- EXCEPT every slot below is still the "rbxassetid://0"
+	-- placeholder (same convention GamePasses.lua already uses for a Pass
+	-- that doesn't exist on the Creator Dashboard yet): nobody has picked
+	-- real tracks for these 3 moods yet. VolumePanel.lua checks isReady
+	-- (every song non-placeholder) and shows "Coming Soon" instead of a
+	-- Play button for a preset that isn't ready -- swap these ids for real
+	-- ones (same source Ahmed pulled backgroundMusic's batch from, or
+	-- anything else you're both allowed to use) and that preset activates
+	-- with no other code changes anywhere.
+	local PRESET_PLAYLISTS = {
+		{
+			name = "Lo-Fi Lounge",
+			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		},
+		{
+			name = "Arcade Energy",
+			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		},
+		{
+			name = "Late Night Jazz Bar",
+			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+		},
+	}
+	for _, preset in ipairs(PRESET_PLAYLISTS) do
+		preset.isReady = true
+		for _, id in ipairs(preset.songs) do
+			if id == "rbxassetid://0" or not id then
+				preset.isReady = false
+				break
+			end
+		end
+	end
+
 	local backgroundMusic = Instance.new("Sound")
 	backgroundMusic.Name = "BackgroundMusic"
 	backgroundMusic.SoundId = MUSIC_IDS.gameplay
@@ -230,9 +279,24 @@ return function(deps)
 	-- that overrides whichever phase track would otherwise play. nil
 	-- (the common case) means "no override, use MUSIC_IDS[key] like
 	-- always." Session-scoped, same as every other per-run choice in this
-	-- game (no persistent save yet) -- set/cleared from Client/Settings.lua
+	-- game (no persistent save yet) -- set/cleared from Client/VolumePanel.lua
 	-- via setCustomTrack/clearCustomTrack below.
 	local customTrackId = nil
+
+	-- JUKEBOX AUTOPLAY/SHUFFLE (requested fix: "autoplay through playlist",
+	-- "shuffle mode"): when a queue is active, playlistQueue is a snapshot
+	-- copy of whatever list is currently playing (either the player's saved
+	-- customPlaylist, or a built-in preset -- see VolumePanel.lua), nil
+	-- otherwise. playlistIndex is 1-based into that snapshot. playlistLabel
+	-- is just a display string ("My Playlist" or the preset's name) so the
+	-- UI can show what's playing without having to re-derive it.
+	-- shuffleEnabled only matters while a queue is active, but is kept as
+	-- its own toggle (not reset per-queue) so flipping it once sticks
+	-- across switching between "My Playlist" and a preset.
+	local playlistQueue = nil
+	local playlistIndex = 0
+	local playlistLabel = nil
+	local shuffleEnabled = false
 
 	-- Tracks the actual RESOLVED asset id currently loaded (not the phase
 	-- key) so repeated calls that land on the same real track -- including
@@ -265,12 +329,128 @@ return function(deps)
 		end
 	end
 
+	-- JUKEBOX AUTOPLAY/SHUFFLE: drops any active queue and goes back to
+	-- Looped = true (a single song on repeat) -- the behavior every
+	-- single-track path (setCustomTrack, clearCustomTrack, setMusicTrack)
+	-- has always had. Called at the START of setCustomTrack so pasting in
+	-- a one-off preview track (the Jukebox text box's "Add to Playlist")
+	-- always interrupts/replaces whatever queue was playing, same as it
+	-- always interrupted whatever single track was playing before.
+	local function stopPlaylistQueue()
+		playlistQueue = nil
+		playlistIndex = 0
+		playlistLabel = nil
+		backgroundMusic.Looped = true
+	end
+
+	-- Shuffle: never immediately repeats the song that just finished
+	-- (unless the queue only has 1 song, where that's unavoidable).
+	-- Sequential: wraps back to song 1 after the last one.
+	local function pickNextQueueIndex()
+		local len = playlistQueue and #playlistQueue or 0
+		if len == 0 then
+			return 1
+		end
+		if shuffleEnabled and len > 1 then
+			local nextIndex = math.random(1, len)
+			while nextIndex == playlistIndex do
+				nextIndex = math.random(1, len)
+			end
+			return nextIndex
+		end
+		return (playlistIndex % len) + 1
+	end
+
+	-- Jumps the active queue to a specific 1-based index and plays it.
+	-- Keeps customTrackId/currentTrackId in lockstep with the queue
+	-- position -- setMusicTrack (driven by render() every phase change)
+	-- resolves `customTrackId or MUSIC_IDS[key]`, so if these two ever
+	-- drifted out of sync with what's actually loaded, the very next
+	-- phase change would yank playback back to a stale track.
+	local function playQueueIndex(index)
+		if not playlistQueue or #playlistQueue == 0 then
+			return
+		end
+		playlistIndex = index
+		local id = playlistQueue[index]
+		customTrackId = id
+		currentTrackId = id
+		backgroundMusic.SoundId = id
+		backgroundMusic.Looped = false
+		if backgroundMusic.Volume > 0 then
+			backgroundMusic:Play()
+		end
+	end
+
+	-- JUKEBOX AUTOPLAY (requested fix: "it plays through your whole saved
+	-- playlist in order ... like a real playlist"): songList is either the
+	-- player's saved customPlaylist (from latestState, see VolumePanel.lua)
+	-- or a built-in preset's song list -- either way, snapshotted into a
+	-- fresh table here so a later add/remove to the player's real playlist
+	-- mid-playback can't mutate the queue already in flight out from under
+	-- it. startIndex lets "▶ Play" on one specific row start the queue
+	-- there instead of always at song 1.
+	local function playPlaylistFrom(songList, startIndex, label, shuffle)
+		if not songList or #songList == 0 then
+			return
+		end
+		local snapshot = {}
+		for i, id in ipairs(songList) do
+			snapshot[i] = id
+		end
+		playlistQueue = snapshot
+		playlistLabel = label
+		shuffleEnabled = shuffle or false
+		local clampedStart = startIndex or 1
+		if clampedStart < 1 then
+			clampedStart = 1
+		elseif clampedStart > #snapshot then
+			clampedStart = #snapshot
+		end
+		playQueueIndex(clampedStart)
+	end
+
+	local function setShuffleEnabled(enabled)
+		shuffleEnabled = enabled
+	end
+
+	local function getShuffleEnabled()
+		return shuffleEnabled
+	end
+
+	local function isPlayingQueue()
+		return playlistQueue ~= nil
+	end
+
+	local function getQueueIndex()
+		return playlistQueue and playlistIndex or nil
+	end
+
+	local function getQueueLength()
+		return playlistQueue and #playlistQueue or 0
+	end
+
+	local function getQueueLabel()
+		return playlistLabel
+	end
+
+	-- Fires only when a sound finishes PLAYING THROUGH on its own (never
+	-- fires for a Looped sound, which is every single-track path) -- so
+	-- this is exclusively the "one queued song just finished" signal, and
+	-- only ever actually advances anything while playlistQueue is active.
+	backgroundMusic.Ended:Connect(function()
+		if playlistQueue then
+			playQueueIndex(pickNextQueueIndex())
+		end
+	end)
+
 	-- setCustomTrack applies immediately (doesn't wait for the next
-	-- render()-driven setMusicTrack call) so hitting Play in Settings
+	-- render()-driven setMusicTrack call) so hitting Play in the Jukebox
 	-- feels instant. clearCustomTrack (below) replays lastRequestedKey
 	-- through setMusicTrack for the same reason -- Reset shouldn't have to
 	-- wait on the next unrelated state push to actually take effect.
 	local function setCustomTrack(assetId)
+		stopPlaylistQueue()
 		customTrackId = assetId
 		currentTrackId = assetId
 		local wasPlaying = backgroundMusic.IsPlaying
@@ -281,6 +461,7 @@ return function(deps)
 	end
 
 	local function clearCustomTrack()
+		stopPlaylistQueue()
 		customTrackId = nil
 		currentTrackId = nil
 		setMusicTrack(lastRequestedKey) -- reapply immediately, don't wait for the next render()
@@ -446,5 +627,14 @@ return function(deps)
 		SFX_CATALOG = SFX_CATALOG,
 		getSfxVolume = getSfxVolume,
 		setSfxVolume = setSfxVolume,
+		-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS:
+		PRESET_PLAYLISTS = PRESET_PLAYLISTS,
+		playPlaylistFrom = playPlaylistFrom,
+		setShuffleEnabled = setShuffleEnabled,
+		getShuffleEnabled = getShuffleEnabled,
+		isPlayingQueue = isPlayingQueue,
+		getQueueIndex = getQueueIndex,
+		getQueueLength = getQueueLength,
+		getQueueLabel = getQueueLabel,
 	}
 end

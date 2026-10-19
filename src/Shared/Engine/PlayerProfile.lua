@@ -52,10 +52,12 @@
 	    lived in memory for that one session -- closing the game lost it,
 	    so a player with several favorite tracks had to re-paste every
 	    single one, every single time. Capped at MAX_PLAYLIST_SIZE below;
-	    addPlaylistSong/removePlaylistSong are the only ways it changes.
-	    Which one is actually PLAYING right now is deliberately NOT part
-	    of this (that's just Sound.lua's in-memory customTrackId, same as
-	    before) -- only the saved LIST itself needs to survive a rejoin.
+	    addPlaylistSong/removePlaylistSong/movePlaylistSong (reordering,
+	    added alongside autoplay/shuffle in Sound.lua/VolumePanel.lua) are
+	    the only ways it changes. Which one is actually PLAYING right now
+	    is deliberately NOT part of this (that's just Sound.lua's
+	    in-memory customTrackId/playlist-queue state, same as before) --
+	    only the saved LIST itself needs to survive a rejoin.
 
 	Deliberately NOT covered by this file (a scope decision, not an
 	oversight): an in-progress RUN itself. Closing the game mid-run still
@@ -304,6 +306,37 @@ function PlayerProfile.removePlaylistSong(profile, assetId)
 		end
 	end
 	return false, "Not in your playlist"
+end
+
+-- REORDER PLAYLIST (requested fix: "move songs up/down in My Playlist"):
+-- direction is -1 (move earlier/up) or +1 (move later/down). Swaps assetId
+-- with its immediate neighbor in that direction -- already at the matching
+-- end is a no-op (not an error, same shape as everything else here: still
+-- (ok, message), just ok=false), same as trying to move past either edge.
+function PlayerProfile.movePlaylistSong(profile, assetId, direction)
+	if type(assetId) ~= "string" then
+		return false, "Invalid song id"
+	end
+	if direction ~= -1 and direction ~= 1 then
+		return false, "Invalid direction"
+	end
+	local index = nil
+	for i, existing in ipairs(profile.customPlaylist) do
+		if existing == assetId then
+			index = i
+			break
+		end
+	end
+	if not index then
+		return false, "Not in your playlist"
+	end
+	local targetIndex = index + direction
+	if targetIndex < 1 or targetIndex > #profile.customPlaylist then
+		return false, "Already at that end of the playlist"
+	end
+	profile.customPlaylist[index], profile.customPlaylist[targetIndex] =
+		profile.customPlaylist[targetIndex], profile.customPlaylist[index]
+	return true, "Reordered."
 end
 
 return PlayerProfile

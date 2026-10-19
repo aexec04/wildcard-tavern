@@ -913,7 +913,19 @@ local VolumePanelOverlay = require(script.VolumePanel)({
 	-- second hardcoded copy drifting out of sync with it.
 	AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
 	RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
+	MovePlaylistSongRemote = remotes:WaitForChild("MovePlaylistSong"),
 	MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
+	-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS: all straight off SoundModule
+	-- (already a top-level local above), same reasoning as SFX_CATALOG/
+	-- getSfxVolume/setSfxVolume just above -- zero new locals.
+	PRESET_PLAYLISTS = SoundModule.PRESET_PLAYLISTS,
+	playPlaylistFrom = SoundModule.playPlaylistFrom,
+	setShuffleEnabled = SoundModule.setShuffleEnabled,
+	getShuffleEnabled = SoundModule.getShuffleEnabled,
+	isPlayingQueue = SoundModule.isPlayingQueue,
+	getQueueIndex = SoundModule.getQueueIndex,
+	getQueueLength = SoundModule.getQueueLength,
+	getQueueLabel = SoundModule.getQueueLabel,
 })
 
 -- ===== Run Setup overlay =====

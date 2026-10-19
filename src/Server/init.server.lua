@@ -70,6 +70,7 @@ local EquipThemeRemote = newRemote("EquipTheme")
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local AddPlaylistSongRemote = newRemote("AddPlaylistSong") -- JUKEBOX PLAYLIST (requested fix): (player, assetId string, e.g. "rbxassetid://123")
 local RemovePlaylistSongRemote = newRemote("RemovePlaylistSong") -- (player, assetId string)
+local MovePlaylistSongRemote = newRemote("MovePlaylistSong") -- JUKEBOX PLAYLIST REORDER (requested fix): (player, assetId string, direction number -1/+1)
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
@@ -1537,6 +1538,38 @@ RemovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId)
 	local didNotError, ok = pcall(PlayerProfile.removePlaylistSong, profile, assetId)
 	if not didNotError then
 		warn("RemovePlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
+		return
+	end
+	if not ok then
+		return
+	end
+
+	profileDirty[player] = true
+	pushState(player)
+end)
+
+-- JUKEBOX PLAYLIST REORDER (requested fix: "reordering songs ... move
+-- songs up/down in My Playlist"): same shape as Add/RemovePlaylistSong
+-- just above. direction must be exactly -1 or 1 -- anything else (a typo,
+-- a tampered client) is rejected the same way PlayerProfile.
+-- movePlaylistSong itself rejects it, just one layer earlier so a
+-- malformed number can't even reach pcall.
+MovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId, direction)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile then
+		return
+	end
+	if type(assetId) ~= "string" then
+		return
+	end
+	if direction ~= -1 and direction ~= 1 then
+		return
+	end
+
+	local didNotError, ok = pcall(PlayerProfile.movePlaylistSong, profile, assetId, direction)
+	if not didNotError then
+		warn("MovePlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
 		return
 	end
 	if not ok then
