@@ -152,6 +152,17 @@ return function(deps)
 	local revealStagger = deps.revealStagger
 	local popScale = deps.popScale
 	local shopBackgroundImage = deps.shopBackgroundImage
+	-- INTERACTIVE TUTORIAL deps -- only used much further down, to build
+	-- TutorialWalkthrough.lua (see the "===== TUTORIAL WALKTHROUGH" section
+	-- near the bottom of this file for why it's required from in here).
+	local tweenTo = deps.tweenTo
+	local tutorialHandFrame = deps.handFrame
+	local tutorialPlayButton = deps.playButton
+	local tutorialDiscardButton = deps.discardButton
+	local tutorialSidebarScoreBox = deps.sidebarScoreBox
+	local tutorialSidebarTipsBox = deps.sidebarTipsBox
+	local tutorialSidebarHandsDiscardsBox = deps.sidebarHandsDiscardsBox
+	local MarkTutorialSeenRemote = deps.MarkTutorialSeenRemote
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -1411,9 +1422,50 @@ return function(deps)
 		end
 	end
 
+	-- ===== TUTORIAL WALKTHROUGH =====
+	-- Built and required HERE, not as its own top-level local in
+	-- init.client.lua -- confirmed the hard way (same ceiling PhaseA.lua's
+	-- own header describes): that chunk is already right up against Lua's
+	-- 200-local-per-chunk limit, and this feature needs BOTH
+	-- nextRoundButton/shopBuyListFrame (which don't exist until this very
+	-- require() call finishes) AND handFrame/playButton/discardButton/the
+	-- Sidebar boxes (which exist well before it). Building it in here means
+	-- nextRoundButton/shopBuyListFrame are just the plain locals already
+	-- sitting right above -- nothing extra has to thread back out through a
+	-- deps table only to immediately thread back in. Purely a local-budget
+	-- optimization, same as PhaseA.lua's own merge -- Shop.lua and the
+	-- Tutorial Walkthrough are not otherwise coupled; see
+	-- TutorialWalkthrough.lua's own header for the full feature.
+	local TutorialWalkthroughModule = require(script.Parent.TutorialWalkthrough)({
+		root = root,
+		tweenTo = tweenTo,
+		polishPanel = polishPanel,
+		playClickSfx = playClickSfx,
+		addButtonHoverScale = addButtonHoverScale,
+		MarkTutorialSeenRemote = MarkTutorialSeenRemote,
+		handFrame = tutorialHandFrame,
+		playButton = tutorialPlayButton,
+		discardButton = tutorialDiscardButton,
+		nextRoundButton = nextRoundButton,
+		sidebarScoreBox = tutorialSidebarScoreBox,
+		sidebarTipsBox = tutorialSidebarTipsBox,
+		sidebarHandsDiscardsBox = tutorialSidebarHandsDiscardsBox,
+		shopBuyListFrame = shopBuyListFrame,
+	})
+
 	return {
 		shopFrame = shopFrame,
 		nextRoundButton = nextRoundButton,
+		-- TUTORIAL WALKTHROUGH: the scrolling offer list itself (Patrons/
+		-- Packs/Vouchers), so the walkthrough's one guided Shop step can
+		-- spotlight the real list instead of guessing at one specific row
+		-- (this run's actual offers are random -- there's no single
+		-- "Buy" button guaranteed to exist every time).
+		shopBuyListFrame = shopBuyListFrame,
+		-- Exposed as a nested table (not 6 flat fields) so call sites in
+		-- init.client.lua read clearly as what they are: Shop.tutorial.start(),
+		-- Shop.tutorial.notifyHandPlayed(), etc.
+		tutorial = TutorialWalkthroughModule,
 		rebuildShop = rebuildShop,
 		rebuildMyPatronsTab = rebuildMyPatronsTab,
 		rebuildMyRecipesTab = rebuildMyRecipesTab,

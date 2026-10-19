@@ -681,6 +681,18 @@ local Shop = require(script.Shop)({
 	addButtonHoverScale = addButtonHoverScale,
 	revealStagger = revealStagger,
 	popScale = popScale,
+	-- INTERACTIVE TUTORIAL: see this file's own "INTERACTIVE TUTORIAL"
+	-- comment further down (right where the old openTutorial modal is
+	-- built) for why TutorialWalkthrough.lua is required FROM INSIDE
+	-- Shop.lua instead of getting its own top-level local here.
+	tweenTo = tweenTo,
+	handFrame = handFrame,
+	playButton = playButton,
+	discardButton = discardButton,
+	sidebarScoreBox = SidebarModule.scoreBox,
+	sidebarTipsBox = SidebarModule.tipsBox,
+	sidebarHandsDiscardsBox = SidebarModule.handsDiscardsBox,
+	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
 })
 local shopFrame = Shop.shopFrame
 local nextRoundButton = Shop.nextRoundButton
@@ -727,6 +739,29 @@ local openTutorial = require(script.Tutorial)({
 	addButtonHoverScale = addButtonHoverScale,
 	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
 }).openTutorial
+
+-- INTERACTIVE TUTORIAL (requested directly by Ahmed -- see
+-- TutorialWalkthrough.lua's own header for the full brief): replaces the
+-- plain modal above for the AUTO-TRIGGERED first-time-player experience
+-- only (see the tutorialAutoShown block further down) -- openTutorial just
+-- above stays exactly as it was and stays wired to Menu.lua's "Tutorial"
+-- button as a manual quick-reference recap.
+--
+-- Built and required FROM INSIDE Shop.lua, not as its own top-level local
+-- here (confirmed the hard way, same as PhaseA.lua's own header describes:
+-- this chunk is already right up against Lua's 200-local-per-chunk
+-- ceiling, and this feature's targets span handFrame/playButton/
+-- discardButton (all available by this point) AND nextRoundButton/
+-- shopBuyListFrame, which don't exist until Shop.lua's own require() call
+-- further up finishes -- Shop.lua already HAS those two as its own plain
+-- local variables, so merging there (purely for budget reasons, not a
+-- real coupling -- see its own "===== TUTORIAL WALKTHROUGH" section) means
+-- nextRoundButton/shopBuyListFrame never have to be threaded back out
+-- through a deps table at all. Exposed as Shop.tutorial.<method>, called
+-- from onCardClicked, the Play/Discard/Next Round click handlers, and
+-- render() -- all further down, which costs nothing against THIS chunk's
+-- own ceiling (that 200 limit is per-function, not per-file; only locals
+-- declared directly in this top-level chunk are the scarce resource).
 
 -- WEEKLY CHALLENGE + SEED CODES (Phase 16): SeedRunDialog.lua is built
 -- INLINE, right inside Menu.lua's own deps table below, deliberately NOT
@@ -1706,6 +1741,17 @@ local function onCardClicked(index)
 	playSfx(SOUND_IDS.cardToggle, 3, 0.35)
 	refreshCardVisual(index, true)
 	refreshScorePreview()
+
+	-- INTERACTIVE TUTORIAL: a no-op unless the walkthrough is both active
+	-- AND currently sitting on its "select cards" step -- see that
+	-- module's own header. Recounts rather than reusing `count` above
+	-- since that local is only computed on the "selecting" branch, not
+	-- the "deselecting" one.
+	local selectedCount = 0
+	for _ in pairs(selected) do
+		selectedCount = selectedCount + 1
+	end
+	Shop.tutorial.notifySelectionChanged(selectedCount)
 end
 
 -- LAYOUT FEATURE 4 (Sort Hand): returns an array of indices INTO handData,
@@ -2060,18 +2106,22 @@ end
 local function render(state)
 	latestState = state
 
-	-- TUTORIAL (Phase 16): auto-show exactly once per client session, only
-	-- for a genuinely brand-new player (state.hasSeenTutorial reports
-	-- false server-side only until they dismiss/skip it for the very
-	-- first time ever -- see PlayerProfile.lua's header). Menu-screen-only
-	-- deliberately isn't enforced here -- a player who's mid-run when this
-	-- first fires (shouldn't normally happen, since it's brand new
-	-- players) would just see it pop over their game, same as any other
-	-- overlay in this codebase.
+	-- INTERACTIVE TUTORIAL: auto-starts exactly once per client session,
+	-- only for a genuinely brand-new player (state.hasSeenTutorial reports
+	-- false server-side only until the walkthrough finishes/is skipped for
+	-- the very first time ever -- see PlayerProfile.lua's header). Starts
+	-- the LIVE spotlight walkthrough now, not the old static openTutorial()
+	-- modal -- that one's still reachable any time from Menu.lua's
+	-- "Tutorial" button as a quick-reference recap, untouched by this.
+	-- Menu-screen-only deliberately isn't enforced here, same reasoning as
+	-- before: a player who's mid-run when this first fires (shouldn't
+	-- normally happen, since it's brand new players) just sees it spotlight
+	-- whatever's on screen right now.
 	if not tutorialAutoShown and state.hasSeenTutorial == false then
 		tutorialAutoShown = true
-		openTutorial()
+		Shop.tutorial.start()
 	end
+	Shop.tutorial.onRender(state)
 
 	-- BUGFIX (Ahmed's Studio screenshot): a score reveal sequence can
 	-- easily still be mid-animation (several anticipation pauses stacked
@@ -2280,6 +2330,13 @@ local function render(state)
 		hasRenderedOnce = true
 	end
 
+	-- INTERACTIVE TUTORIAL: captured here, BEFORE lastPhase gets reassigned
+	-- just below (same "true previous phase" need as rebuildRoundSelect's
+	-- own comment a few lines down) -- notifyEnteredShop() itself fires
+	-- later, after rebuildShop(state) actually builds shopBuyListFrame's
+	-- rows, not here.
+	local justEnteredShop = state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce
+
 	-- Round reward popup: fire once, right on the transition INTO "shop"
 	-- (i.e. the round was just won), not on every re-render while already
 	-- shopping (e.g. after buying a Patron, phase is still "shop").
@@ -2329,6 +2386,9 @@ local function render(state)
 		rebuildShop(state)
 		rebuildMyPatronsTab(state)
 		rebuildMyRecipesTab(state)
+		if justEnteredShop then
+			Shop.tutorial.notifyEnteredShop()
+		end
 	else
 		-- Left the shop (round advanced, or the run ended) -- close the
 		-- Recipe card/suit picker if it was left open, so it doesn't show up
@@ -2442,6 +2502,7 @@ playButton.MouseButton1Click:Connect(function()
 	pendingNewCardCount = #indices
 
 	PlayHandRemote:FireServer(indices)
+	Shop.tutorial.notifyHandPlayed()
 end)
 
 discardButton.MouseButton1Click:Connect(function()
@@ -2460,11 +2521,13 @@ discardButton.MouseButton1Click:Connect(function()
 	playSfx(SOUND_IDS.discard)
 	pendingNewCardCount = #indices -- see the matching comment on Play Hand above
 	DiscardRemote:FireServer(indices)
+	Shop.tutorial.notifyDiscardUsed()
 end)
 
 nextRoundButton.MouseButton1Click:Connect(function()
 	playClickSfx()
 	AdvanceRoundRemote:FireServer()
+	Shop.tutorial.notifyNextRoundClicked()
 end)
 
 playAgainButton.MouseButton1Click:Connect(function()

@@ -271,6 +271,11 @@ return function(deps)
 		nightRoundLabel = nightRoundLabel,
 		blindInfoLabel = blindInfoLabel,
 		scoreLabel = scoreLabel,
+		-- TUTORIAL WALKTHROUGH: exposes the BOX (not just the label inside
+		-- it), same reasoning as tipsBox/handsDiscardsBox just below --
+		-- TutorialWalkthrough.lua spotlights the whole box, which reads
+		-- much better than a highlight ring hugging just the text.
+		scoreBox = scoreBox,
 		tipsLabel = tipsLabel,
 		tipsBox = tipsBox,
 		handsDiscardsLabel = handsDiscardsLabel,
