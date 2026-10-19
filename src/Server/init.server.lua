@@ -895,7 +895,23 @@ end
 local function refreshOwnedGamePasses(player)
 	ownedGamePasses[player] = ownedGamePasses[player] or {}
 	for _, pass in ipairs(GamePasses.Definitions) do
-		if (not pass.gamePassId or pass.gamePassId <= 0) and RunService:IsStudio() then
+		-- BUGFIX (Ahmed's report, repeated: "the multipliers are moving by
+		-- so fast now"): fast_forward is excluded from the Studio bypass
+		-- below. Every OTHER placeholder pass is something you need to
+		-- actually SEE to verify (a Theme's colors, the Jukebox panel) --
+		-- fast_forward instead changes a timing constant (ScorePopup.lua's
+		-- FAST_FORWARD_DIVISOR, 1.8x) that silently applies to literally
+		-- every single Studio playtest the instant this pass exists in the
+		-- catalog, even with its real gamePassId still unset. That made the
+		-- 1.0x default pace (ENTRY_STAGGER, already slowed down once this
+		-- same week) something nobody testing in Studio could ever actually
+		-- see. Leaving fast_forward out of this bypass means Studio shows
+		-- the TRUE default speed a real player gets until they buy the
+		-- Pass, same as the published game -- exactly what testing should
+		-- reflect. (Once a real gamePassId is pasted in, this branch stops
+		-- applying to it anyway and it goes through the normal
+		-- MarketplaceService check below like every other pass already does.)
+		if (not pass.gamePassId or pass.gamePassId <= 0) and pass.id ~= "fast_forward" and RunService:IsStudio() then
 			local alreadyKnown = ownedGamePasses[player][pass.id] == true
 			ownedGamePasses[player][pass.id] = true
 			applyGamePassGrants(player)

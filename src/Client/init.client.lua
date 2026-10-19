@@ -1641,6 +1641,22 @@ local function buildScoreSourceInfo(indices)
 			ghost.Position = UDim2.fromOffset(absPos.X, absPos.Y)
 			ghost.Size = UDim2.fromOffset(absSize.X, absSize.Y)
 			ghost.ZIndex = 30
+			-- BUGFIX (Ahmed's report, repeated: played cards render blank/
+			-- white during the score reveal, even though the hand itself
+			-- shows readable rank/suit text). A played ghost is a cloned
+			-- snapshot of the real hand button -- it should inherit
+			-- cardRankSuitLabel's Visible exactly as cloned, but this forces
+			-- it back on regardless, because a played ghost is short-lived
+			-- and NEVER rebuilt once scoring starts (unlike the live hand,
+			-- there's no later moment that needs it hidden again), so there
+			-- is no reason to ever risk it coming up unreadable. Looking up
+			-- the clone's own child (rather than trusting whatever it
+			-- inherited) means this can't regress even if hand-building ever
+			-- changes how/when that label's Visible gets set.
+			local ghostRankSuit = ghost:FindFirstChild("RankSuit")
+			if ghostRankSuit then
+				ghostRankSuit.Visible = true
+			end
 			-- Held-card ghosts start hidden -- the real card is still
 			-- visible and correct in the hand; this ghost only appears for
 			-- its own brief Iron Garnish beat. Played-card ghosts start
