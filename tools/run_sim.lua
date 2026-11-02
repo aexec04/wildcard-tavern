@@ -14,6 +14,7 @@
 		--ladder                     all three bots, one summary line each
 		--variants                   decent bot on every deck and difficulty
 		--bosses                     force each boss on --boss-night, report clear rates
+		--boss-list ID,ID            limit --bosses to these
 		--patron-lift                start with each Patron for free, report win-rate lift
 		--patron-table               Patron marginal value table
 		--runs N  --seed N  --jobs N
@@ -45,7 +46,7 @@ local function parseArgs(argv)
 	local names = {
 		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--src"] = "src",
 		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss",
-		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--worker-out"] = "workerOut",
+		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
 	}
 	local numbers = {
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
@@ -213,8 +214,10 @@ elseif cfg.variants then
 elseif cfg.bosses then
 	local rows = {}
 	local attempts, clears = 0, 0
+	local onlyThese = cfg.bossList and ("," .. cfg.bossList .. ",")
 	for _, def in ipairs(engine.BossRounds.Definitions) do
-		local records = collect(runConfig({ forceBoss = def.id }))
+		local records = (not onlyThese or onlyThese:find("," .. def.id .. ",", 1, true))
+			and collect(runConfig({ forceBoss = def.id })) or {}
 		local tries, wins = 0, 0
 		for _, rec in ipairs(records) do
 			for _, boss in ipairs(rec.bosses) do
@@ -226,7 +229,9 @@ elseif cfg.bosses then
 				end
 			end
 		end
-		table.insert(rows, { id = def.id, minNight = def.minNight, tries = tries, wins = wins, rate = tries > 0 and wins / tries or 0 })
+		if tries > 0 then
+			table.insert(rows, { id = def.id, minNight = def.minNight, tries = tries, wins = wins, rate = wins / tries })
+		end
 		attempts = attempts + tries
 		clears = clears + wins
 	end

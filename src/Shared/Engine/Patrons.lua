@@ -63,7 +63,7 @@ Patrons.Definitions = {
 		id = "lucky_dice",
 		name = "Lucky Dice",
 		icon = "🎲",
-		description = "+20 Chips if the hand contains a Pair (or better).",
+		description = "+15 Chips if the hand contains a Pair (or better).",
 		price = 5,
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -71,7 +71,7 @@ Patrons.Definitions = {
 				["Full House"] = true, ["Four of a Kind"] = true,
 			}
 			if pairLike[handResult.name] then
-				return { chips = 20 }
+				return { chips = 15 }
 			end
 			return nil
 		end,
@@ -112,12 +112,12 @@ Patrons.Definitions = {
 		id = "the_bard",
 		name = "The Bard",
 		icon = "🎻",
-		description = "+2 Mult for every card played (not just scoring cards).",
-		price = 5,
+		description = "+1 Mult for every card played (not just scoring cards).",
+		price = 7,
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
 			if #played > 0 then
-				return { mult = 2 * #played }
+				return { mult = #played }
 			end
 			return nil
 		end,
@@ -140,51 +140,51 @@ Patrons.Definitions = {
 	},
 	{
 		id = "threes_company", name = "Three's Company", icon = "🎊", price = 5,
-		description = "+12 Mult if the hand contains a Three of a Kind.",
+		description = "+18 Mult if the hand contains a Three of a Kind.",
 		effect = function(handResult, _context)
 			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then
-				return { mult = 12 }
+				return { mult = 18 }
 			end
 			return nil
 		end,
 	},
 	{
 		id = "all_hands_in", name = "All Hands In", icon = "🙌", price = 7,
-		description = "+10 Mult if the hand contains a Four of a Kind.",
+		description = "+25 Mult if the hand contains a Four of a Kind.",
 		effect = function(handResult, _context)
 			if handResult.name == "Four of a Kind" then
-				return { mult = 10 }
+				return { mult = 25 }
 			end
 			return nil
 		end,
 	},
 	{
 		id = "straight_shooter", name = "Straight Shooter", icon = "🎯", price = 6,
-		description = "+12 Mult if the hand contains a Straight.",
+		description = "+18 Mult if the hand contains a Straight.",
 		effect = function(handResult, _context)
 			if handResult.name == "Straight" or handResult.name == "Straight Flush" then
-				return { mult = 12 }
+				return { mult = 18 }
 			end
 			return nil
 		end,
 	},
 	{
 		id = "all_matching", name = "All Matching", icon = "🃏", price = 6,
-		description = "+10 Mult if the hand contains a Flush.",
+		description = "+18 Mult if the hand contains a Flush.",
 		effect = function(handResult, _context)
 			if handResult.name == "Flush" or handResult.name == "Straight Flush" then
-				return { mult = 10 }
+				return { mult = 18 }
 			end
 			return nil
 		end,
 	},
 	{
-		id = "small_plate", name = "Small Plate", icon = "🍽️", price = 5,
-		description = "+20 Mult if you play 3 or fewer cards.",
+		id = "small_plate", name = "Small Plate", icon = "🍽️", price = 6,
+		description = "+8 Mult if you play 3 or fewer cards.",
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
 			if #played > 0 and #played <= 3 then
-				return { mult = 20 }
+				return { mult = 8 }
 			end
 			return nil
 		end,
@@ -192,26 +192,26 @@ Patrons.Definitions = {
 
 	-- ===== +CHIPS =====
 	{
-		id = "big_portions", name = "Big Portions", icon = "🍖", price = 5,
-		description = "+50 Chips if the hand contains a Pair (or better).",
+		id = "big_portions", name = "Big Portions", icon = "🍖", price = 7,
+		description = "+25 Chips if the hand contains a Pair (or better).",
 		effect = function(handResult, _context)
 			local pairLike = {
 				["Pair"] = true, ["Two Pair"] = true, ["Three of a Kind"] = true,
 				["Full House"] = true, ["Four of a Kind"] = true,
 			}
 			if pairLike[handResult.name] then
-				return { chips = 50 }
+				return { chips = 25 }
 			end
 			return nil
 		end,
 	},
 	{
 		id = "tab_regulars", name = "Tab Regulars", icon = "💰", price = 5,
-		description = "+1 Chip for every 2 Tips you're currently holding (rounded down).",
+		description = "+1 Chip for every Tip you're currently holding.",
 		effect = function(_handResult, context)
 			local tips = context.tips or 0
-			if tips >= 2 then
-				return { chips = math.floor(tips / 2) }
+			if tips >= 1 then
+				return { chips = tips }
 			end
 			return nil
 		end,
@@ -274,12 +274,12 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "penny_pincher", name = "Penny Pincher", icon = "🪙", price = 6,
-		description = "+2 Mult for every 5 Tips you're currently holding.",
+		id = "penny_pincher", name = "Penny Pincher", icon = "🪙", price = 7,
+		description = "+1 Mult for every 3 Tips you're currently holding.",
 		effect = function(_handResult, context)
 			local tips = context.tips or 0
-			if tips >= 5 then
-				return { mult = 2 * math.floor(tips / 5) }
+			if tips >= 3 then
+				return { mult = math.floor(tips / 3) }
 			end
 			return nil
 		end,
@@ -349,10 +349,10 @@ Patrons.Definitions = {
 	},
 	{
 		id = "house_special", name = "House Special", icon = "🍱", price = 8,
-		description = "+14 Mult if the hand is a Full House.",
+		description = "+22 Mult if the hand is a Full House.",
 		effect = function(handResult, _context)
 			if handResult.name == "Full House" then
-				return { mult = 14 }
+				return { mult = 22 }
 			end
 			return nil
 		end,
@@ -361,8 +361,8 @@ Patrons.Definitions = {
 	-- ===== Rank-based (new dimension -- everything above rewarded suits or =====
 	-- ===== hand shapes, nothing rewarded specific ranks among scoring cards) =====
 	{
-		id = "ace_of_the_house", name = "Ace of the House", icon = "🅰️", price = 7,
-		description = "+5 Mult for each Ace among the scoring cards.",
+		id = "ace_of_the_house", name = "Ace of the House", icon = "🅰️", price = 6,
+		description = "+8 Mult for each Ace among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
 			for _, card in ipairs(handResult.scoringCards) do
@@ -371,7 +371,7 @@ Patrons.Definitions = {
 				end
 			end
 			if count > 0 then
-				return { mult = 5 * count }
+				return { mult = 8 * count }
 			end
 			return nil
 		end,
@@ -403,11 +403,11 @@ Patrons.Definitions = {
 	},
 	{
 		id = "discard_special", name = "Discard Special", icon = "🧾", price = 6,
-		description = "+3 Mult for each Discard you have remaining this round.",
+		description = "+1 Mult for each Discard you have remaining this round.",
 		effect = function(_handResult, context)
 			local remaining = context.discardsRemaining or 0
 			if remaining > 0 then
-				return { mult = 3 * remaining }
+				return { mult = remaining }
 			end
 			return nil
 		end,
@@ -457,8 +457,8 @@ Patrons.Definitions = {
 	-- ===== (scoring) and King (held) -- Jack and Queen were the two ranks =====
 	-- ===== with no rank-specific Patron at all yet) =====
 	{
-		id = "jack_of_all_trades", name = "Jack of All Trades", icon = "🎫", price = 6,
-		description = "+5 Mult for each Jack among the scoring cards.",
+		id = "jack_of_all_trades", name = "Jack of All Trades", icon = "🎫", price = 5,
+		description = "+9 Mult for each Jack among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
 			for _, card in ipairs(handResult.scoringCards) do
@@ -467,14 +467,14 @@ Patrons.Definitions = {
 				end
 			end
 			if count > 0 then
-				return { mult = 5 * count }
+				return { mult = 9 * count }
 			end
 			return nil
 		end,
 	},
 	{
-		id = "queens_gambit", name = "Queen's Gambit", icon = "♟️", price = 6,
-		description = "+5 Mult for each Queen among the scoring cards.",
+		id = "queens_gambit", name = "Queen's Gambit", icon = "♟️", price = 5,
+		description = "+9 Mult for each Queen among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
 			for _, card in ipairs(handResult.scoringCards) do
@@ -483,7 +483,7 @@ Patrons.Definitions = {
 				end
 			end
 			if count > 0 then
-				return { mult = 5 * count }
+				return { mult = 9 * count }
 			end
 			return nil
 		end,
@@ -496,10 +496,10 @@ Patrons.Definitions = {
 	-- ===== here) =====
 	{
 		id = "closing_tab", name = "Closing Tab", icon = "🧻", price = 6,
-		description = "Earn 2 Tips for every Discard you have remaining at the end of a round you win.",
+		description = "Earn 1 Tip for every Discard you have remaining at the end of a round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
-			state.tips = state.tips + 2 * (state.discardsRemaining or 0)
+			state.tips = state.tips + (state.discardsRemaining or 0)
 		end,
 	},
 
@@ -508,12 +508,12 @@ Patrons.Definitions = {
 	-- ===== which nothing so far did directly) =====
 	{
 		id = "full_house_crowd", name = "Full House Crowd", icon = "🍻", price = 8,
-		description = "x1.2 Mult for every OTHER Patron at your table.",
+		description = "x1.15 Mult for every OTHER Patron at your table.",
 		effect = function(_handResult, context)
 			local patrons = context.ownedPatrons or {}
 			local others = math.max(0, #patrons - 1)
 			if others > 0 then
-				return { multMultiplier = 1.2 ^ others }
+				return { multMultiplier = 1.15 ^ others }
 			end
 			return nil
 		end,
@@ -554,7 +554,7 @@ Patrons.Definitions = {
 	-- ===== -- Ten was the last rank worth a specific callout below that) =====
 	{
 		id = "perfect_ten", name = "Perfect Ten", icon = "🔟", price = 6,
-		description = "+5 Mult for each Ten among the scoring cards.",
+		description = "+8 Mult for each Ten among the scoring cards.",
 		effect = function(handResult, _context)
 			local count = 0
 			for _, card in ipairs(handResult.scoringCards) do
@@ -563,7 +563,7 @@ Patrons.Definitions = {
 				end
 			end
 			if count > 0 then
-				return { mult = 5 * count }
+				return { mult = 8 * count }
 			end
 			return nil
 		end,
@@ -573,12 +573,12 @@ Patrons.Definitions = {
 	-- ===== card/table-size property -- nothing so far rewarded just being =====
 	-- ===== deep into a run) =====
 	{
-		id = "night_owl", name = "Night Owl", icon = "🦉", price = 7,
-		description = "+3 Mult for each Night you've reached so far this run.",
+		id = "night_owl", name = "Night Owl", icon = "🦉", price = 8,
+		description = "+1 Mult for each Night you've reached so far this run.",
 		effect = function(_handResult, context)
 			local night = context.night or 0
 			if night > 0 then
-				return { mult = 3 * night }
+				return { mult = night }
 			end
 			return nil
 		end,
@@ -588,12 +588,12 @@ Patrons.Definitions = {
 	-- ===== "opposite" of Small Plate's <=3-card reward, and the one card- =====
 	-- ===== count Patrons hadn't covered yet) =====
 	{
-		id = "steady_hand", name = "Steady Hand", icon = "✋", price = 6,
-		description = "+18 Mult if you play exactly 5 cards.",
+		id = "steady_hand", name = "Steady Hand", icon = "✋", price = 7,
+		description = "+5 Mult if you play exactly 5 cards.",
 		effect = function(_handResult, context)
 			local played = context.allPlayedCards or {}
 			if #played == 5 then
-				return { mult = 18 }
+				return { mult = 5 }
 			end
 			return nil
 		end,

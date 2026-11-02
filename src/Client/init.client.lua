@@ -2442,7 +2442,7 @@ local function render(state)
 	else
 		-- BALATRO PARITY: Small Blind (round 1) / Big Blind (everything
 		-- else before the Boss) -- matches RoundSelect.lua's round panel
-		-- labels and the 1x/1.5x score multiplier each one actually gets
+		-- labels and the 1x/2x score multiplier each one actually gets
 		-- (see RunState.blindMultiplierFor).
 		-- No crown on a normal round: set the text directly, and make sure
 		-- a crown left over from a Boss Round is hidden.

@@ -17,8 +17,8 @@
 	tier 1 (Night 1+) is mild single-knob stuff (a card/discard down, a
 	modest score bump); tier 2 (Night 3+) adds real strategic
 	restrictions (suit/face debuffs, no-repeat hands, 0 discards); tier 3
-	(Night 6+) is the genuinely brutal stuff (hard hand caps, halved
-	Chips+Mult, a forced 1-card hand, tripled target) -- exactly the
+	(Night 6+) is the genuinely brutal stuff (hard hand caps, reduced
+	Chips+Mult, a forced 1-card hand, doubled target) -- exactly the
 	category Closing Time was in. By Night 6 a run has had 15 rounds
 	(5 Nights x 3 rounds) to build up Patrons/Recipes/House Passes, so
 	these read as a real challenge spike instead of an early-run wall.
@@ -143,9 +143,9 @@ BossRounds.Definitions = {
 	{
 		id = "last_call_only",
 		name = "Last Call Only",
-		description = "You start this round with 0 discards.",
+		description = "You get only 1 discard this round.",
 		minNight = 3,
-		discardsDelta = -99, -- clamped to 0 by RunState.startRound
+		discardsDelta = -2,
 	},
 	{
 		id = "dry_spell",
@@ -179,16 +179,16 @@ BossRounds.Definitions = {
 	{
 		id = "thin_chips",
 		name = "Thin Chips",
-		description = "Chips from played hands are halved this round (Mult is untouched).",
+		description = "Chips from played hands are reduced by 40% this round (Mult is untouched).",
 		minNight = 3,
-		chipsMultiplier = 0.5,
+		chipsMultiplier = 0.6,
 	},
 	{
 		id = "flat_mult",
 		name = "Flat Mult",
-		description = "Mult from played hands is halved this round (Chips are untouched).",
+		description = "Mult from played hands is reduced by 40% this round (Chips are untouched).",
 		minNight = 3,
-		multMultiplier = 0.5,
+		multMultiplier = 0.6,
 	},
 	{
 		id = "double_tab",
@@ -203,38 +203,41 @@ BossRounds.Definitions = {
 	{
 		id = "closing_time",
 		name = "Closing Time",
-		description = "You may only play 1 hand this round.",
+		description = "You may only play 1 hand this round, but the target score is halved.",
 		minNight = 6,
 		handsPerRoundOverride = 1,
+		targetScoreMultiplier = 0.5,
 	},
 	{
 		id = "quick_service",
 		name = "Quick Service",
-		description = "You may only play 2 hands this round.",
+		description = "You may only play 2 hands this round, but the target score is 25% lower.",
 		minNight = 6,
 		handsPerRoundOverride = 2,
+		targetScoreMultiplier = 0.75,
 	},
 	{
 		id = "watered_down",
 		name = "Watered Down",
-		description = "Chips and Mult from played hands are halved this round.",
+		description = "Chips and Mult from played hands are reduced by 25% this round.",
 		minNight = 6,
-		chipsMultiplier = 0.5,
-		multMultiplier = 0.5,
+		chipsMultiplier = 0.75,
+		multMultiplier = 0.75,
 	},
 	{
 		id = "one_at_a_time",
 		name = "One at a Time",
-		description = "You must play exactly 1 card every hand this round.",
+		description = "You must play exactly 1 card every hand this round, but the target score is 65% lower.",
 		minNight = 6,
 		requiredCardsPerHand = 1,
+		targetScoreMultiplier = 0.35,
 	},
 	{
 		id = "big_tab",
 		name = "Big Tab",
-		description = "The target score is triple this round.",
+		description = "The target score is double this round.",
 		minNight = 6,
-		targetScoreMultiplier = 3,
+		targetScoreMultiplier = 2,
 	},
 	{
 		id = "wild_crowd",
@@ -246,18 +249,18 @@ BossRounds.Definitions = {
 	{
 		id = "empty_handed",
 		name = "Empty-Handed",
-		description = "You start this round with 0 discards and may only play 3 hands.",
+		description = "You get only 1 discard and may only play 3 hands this round.",
 		minNight = 6,
-		discardsDelta = -99, -- clamped to 0 by RunState.startRound
+		discardsDelta = -2,
 		handsPerRoundOverride = 3,
 	},
 	{
 		id = "everythings_out",
 		name = "Everything's Out",
-		description = "Chips and Mult from played hands are reduced by 70% this round.",
+		description = "Chips and Mult from played hands are reduced by 32% this round.",
 		minNight = 6,
-		chipsMultiplier = 0.3,
-		multMultiplier = 0.3,
+		chipsMultiplier = 0.68,
+		multMultiplier = 0.68,
 	},
 	{
 		id = "four_top",
@@ -335,13 +338,13 @@ BossRounds.Definitions = {
 	{
 		id = "bare_bones",
 		name = "Bare Bones",
-		description = "Chips and Mult from played hands are reduced by 60% this round.",
-		-- Sits between tier-3 siblings Watered Down (chips+mult halved,
-		-- i.e. -50%) and Everything's Out (-70%) -- a genuine tier-3-only
+		description = "Chips and Mult from played hands are reduced by 30% this round.",
+		-- Sits between tier-3 siblings Watered Down (-25%) and
+		-- Everything's Out (-32%) -- a genuine tier-3-only
 		-- escalation step, not a new knob.
 		minNight = 6,
-		chipsMultiplier = 0.4,
-		multMultiplier = 0.4,
+		chipsMultiplier = 0.7,
+		multMultiplier = 0.7,
 	},
 }
 

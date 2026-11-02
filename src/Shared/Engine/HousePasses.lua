@@ -29,7 +29,7 @@ HousePasses.Definitions = {
 		description = "Pack prices are 2 Tips cheaper (minimum 1).",
 	},
 	{
-		id = "late_kitchen", name = "Late Kitchen", icon = "🍳", price = 10,
+		id = "late_kitchen", name = "Late Kitchen", icon = "🍳", price = 5,
 		description = "Permanently +1 Discard every round.",
 	},
 	{

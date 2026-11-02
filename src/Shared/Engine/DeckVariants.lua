@@ -25,18 +25,18 @@ DeckVariants.Definitions = {
 	{
 		id = "steady_hand",
 		name = "Steady Hand",
-		description = "+1 discard every round, but 1 fewer card dealt to your hand.",
-		configOverrides = { handSize = -1, discardsPerRound = 1 },
+		description = "+2 discards every round, but 1 fewer card dealt to your hand.",
+		configOverrides = { handSize = -1, discardsPerRound = 2 },
 		startingTips = 0,
 		targetScoreMultiplier = 1,
 	},
 	{
 		id = "high_roller",
 		name = "High Roller",
-		description = "Start with 6 extra Tips, but 1 fewer hand to play each round.",
+		description = "Start with 14 Tips and round targets are 10% lower, but you get 1 fewer hand to play each round.",
 		configOverrides = { handsPerRound = -1 },
-		startingTips = 6,
-		targetScoreMultiplier = 1,
+		startingTips = 14,
+		targetScoreMultiplier = 0.9,
 	},
 	{
 		id = "marathon",

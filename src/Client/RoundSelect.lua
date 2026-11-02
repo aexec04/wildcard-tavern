@@ -388,7 +388,7 @@ return function(deps)
 			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
 			-- BALATRO PARITY: Small Blind (round 1, 1x target) / Big Blind
-			-- (any round between, 1.5x) / Boss Blind (last round, 2x-6x
+			-- (any round between, 2x) / Boss Blind (last round, 2x-2.5x
 			-- scaling with Night) -- matches RunState.blindMultiplierFor,
 			-- and the sidebar's blindInfoLabel uses the same naming.
 			if isBossRound then

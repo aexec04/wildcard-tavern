@@ -633,8 +633,9 @@ end })
 
 table.insert(tests, { name = "RunState.new applies the chosen Deck Variant's starting Tips and config deltas", fn = function()
 	local state = RunState.new({ deckVariantId = "high_roller" }, function(n) return n end)
-	expectEqual(state.tips, 6)
+	expectEqual(state.tips, 14)
 	expectEqual(state.config.handsPerRound, RunState.DefaultConfig.handsPerRound - 1)
+	expectEqual(state.targetMultiplier, 0.9)
 end })
 
 table.insert(tests, { name = "RunState.new falls back to the standard deck variant for an unknown id", fn = function()
@@ -1073,7 +1074,7 @@ table.insert(tests, { name = "Boss Round zeroTipsOnMostPlayedHand wipes Tips on 
 	expectEqual(state.tips, 0)
 end })
 
-table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Watered Down) roughly halves the score", fn = function()
+table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Watered Down) cuts Chips and Mult by 25%", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
@@ -1081,8 +1082,8 @@ table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Watered
 	stateHalved.bossModifier = BossRounds.getById("watered_down")
 	local resultHalved = RunState.playHand(stateHalved, { 1, 2 })
 
-	expectEqual(resultHalved.chips, resultNormal.chips * 0.5)
-	expectEqual(resultHalved.mult, resultNormal.mult * 0.5)
+	expectEqual(resultHalved.chips, resultNormal.chips * 0.75)
+	expectEqual(resultHalved.mult, resultNormal.mult * 0.75)
 end })
 
 table.insert(tests, { name = "Boss Round handsPerRoundOverride (Closing Time) hard-limits hands allowed", fn = function()
@@ -1138,15 +1139,15 @@ table.insert(tests, { name = "'Wild Crowd' tosses 3 random cards after every han
 	expectEqual(#state.hand, handSizeBefore) -- refilled back up, just with different cards
 end })
 
-table.insert(tests, { name = "'Thin Chips' halves Chips but leaves Mult untouched", fn = function()
+table.insert(tests, { name = "'Thin Chips' cuts Chips by 40% but leaves Mult untouched", fn = function()
 	local bossModifier = BossRounds.getById("thin_chips")
-	expectEqual(bossModifier.chipsMultiplier, 0.5)
+	expectEqual(bossModifier.chipsMultiplier, 0.6)
 	expectTrue(bossModifier.multMultiplier == nil)
 end })
 
-table.insert(tests, { name = "'Flat Mult' halves Mult but leaves Chips untouched", fn = function()
+table.insert(tests, { name = "'Flat Mult' cuts Mult by 40% but leaves Chips untouched", fn = function()
 	local bossModifier = BossRounds.getById("flat_mult")
-	expectEqual(bossModifier.multMultiplier, 0.5)
+	expectEqual(bossModifier.multMultiplier, 0.6)
 	expectTrue(bossModifier.chipsMultiplier == nil)
 end })
 
@@ -1190,14 +1191,14 @@ table.insert(tests, { name = "'House Special' rewards Full House only", fn = fun
 	local houseSpecial = Patrons.getById("house_special")
 	local fullHouse = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(9, "Spades"), C(4, "Diamonds"), C(4, "Hearts") })
 	local _, _, mult = Scoring.calculate(fullHouse, { houseSpecial }, {})
-	expectEqual(mult, 4 + 14) -- base Full House mult (4) + patron (14)
+	expectEqual(mult, 4 + 22) -- base Full House mult (4) + patron (22)
 end })
 
-table.insert(tests, { name = "'Ace of the House' adds +5 Mult for each scoring Ace", fn = function()
+table.insert(tests, { name = "'Ace of the House' adds +8 Mult for each scoring Ace", fn = function()
 	local aceOfTheHouse = Patrons.getById("ace_of_the_house")
 	local pair = HandEvaluator.evaluate({ C(14, "Hearts"), C(14, "Clubs"), C(2, "Spades") }) -- pair of Aces
 	local _, _, mult = Scoring.calculate(pair, { aceOfTheHouse }, {})
-	expectEqual(mult, 2 + 5 * 2) -- base Pair mult (2) + patron (5 per Ace x 2 Aces)
+	expectEqual(mult, 2 + 8 * 2) -- base Pair mult (2) + patron (8 per Ace x 2 Aces)
 end })
 
 table.insert(tests, { name = "'VIP Table' adds a flat +8 Mult if a face card scores (not scaled per card)", fn = function()
@@ -1216,11 +1217,11 @@ table.insert(tests, { name = "'Early Bird' scales XMult by Hands remaining after
 	expectEqual(multTwo, 1 * (1.1 ^ 2))
 end })
 
-table.insert(tests, { name = "'Discard Special' adds +3 Mult for each Discard remaining", fn = function()
+table.insert(tests, { name = "'Discard Special' adds +1 Mult for each Discard remaining", fn = function()
 	local discardSpecial = Patrons.getById("discard_special")
 	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
 	local _, _, mult = Scoring.calculate(hand, { discardSpecial }, { discardsRemaining = 3 })
-	expectEqual(mult, 1 + 3 * 3)
+	expectEqual(mult, 1 + 1 * 3)
 end })
 
 table.insert(tests, { name = "'The Apprentice' copies the ability of the Patron to its left", fn = function()
@@ -1304,32 +1305,32 @@ table.insert(tests, { name = "RunState.blindMultiplierFor: Small Blind (round 1)
 	expectEqual(RunState.blindMultiplierFor(8, 1, 3), 1)
 end })
 
-table.insert(tests, { name = "RunState.blindMultiplierFor: Big Blind (any round before the last) is always 1.5x", fn = function()
-	expectEqual(RunState.blindMultiplierFor(1, 2, 3), 1.5)
-	expectEqual(RunState.blindMultiplierFor(5, 2, 3), 1.5)
+table.insert(tests, { name = "RunState.blindMultiplierFor: Big Blind (any round before the last) is always 2x", fn = function()
+	expectEqual(RunState.blindMultiplierFor(1, 2, 3), 2)
+	expectEqual(RunState.blindMultiplierFor(5, 2, 3), 2)
 end })
 
-table.insert(tests, { name = "RunState.blindMultiplierFor: Boss Blind scales from 2x at Night 1 to 6x at Night 8, then plateaus", fn = function()
+table.insert(tests, { name = "RunState.blindMultiplierFor: Boss Blind scales from 2x at Night 1 to 2.5x at Night 8, then plateaus", fn = function()
 	expectEqual(RunState.blindMultiplierFor(1, 3, 3), 2)
-	expectEqual(RunState.blindMultiplierFor(8, 3, 3), 6)
-	expectEqual(RunState.blindMultiplierFor(20, 3, 3), 6) -- Endless Mode: multiplier plateaus, doesn't keep climbing
+	expectEqual(RunState.blindMultiplierFor(8, 3, 3), 2.5)
+	expectEqual(RunState.blindMultiplierFor(20, 3, 3), 2.5) -- Endless Mode: multiplier plateaus, doesn't keep climbing
 end })
 
 table.insert(tests, { name = "RunState.targetScoreFor folds nightBaseScoreFor and blindMultiplierFor together", fn = function()
 	local night = 4
 	local base = RunState.nightBaseScoreFor(night)
 	expectEqual(RunState.targetScoreFor(night, 1, 3), math.floor(base * 1))
-	expectEqual(RunState.targetScoreFor(night, 2, 3), math.floor(base * 1.5))
+	expectEqual(RunState.targetScoreFor(night, 2, 3), math.floor(base * 2))
 	expectEqual(RunState.targetScoreFor(night, 3, 3), math.floor(base * RunState.blindMultiplierFor(night, 3, 3)))
 end })
 
 table.insert(tests, { name = "BUGFIX: RunState.blindMultiplierFor honors an explicit nightCap override, not just the global default", fn = function()
 	-- A hypothetical run with nightCap = 4 (instead of the global default
-	-- of 8): the Boss multiplier should already be maxed (6x) at Night 4,
+	-- of 8): the Boss multiplier should already be maxed (2.5x) at Night 4,
 	-- not still ramping toward a Night-8 plateau it'll never reach.
 	expectEqual(RunState.blindMultiplierFor(1, 3, 3, 4), 2)
-	expectEqual(RunState.blindMultiplierFor(4, 3, 3, 4), 6)
-	expectEqual(RunState.blindMultiplierFor(9, 3, 3, 4), 6) -- still plateaued past its own (overridden) cap
+	expectEqual(RunState.blindMultiplierFor(4, 3, 3, 4), 2.5)
+	expectEqual(RunState.blindMultiplierFor(9, 3, 3, 4), 2.5) -- still plateaued past its own (overridden) cap
 	-- Omitting nightCap still falls back to the global default (8), so
 	-- every other call site/test that doesn't pass one is unaffected.
 	expectEqual(RunState.blindMultiplierFor(4, 3, 3), RunState.blindMultiplierFor(4, 3, 3, RunState.DefaultConfig.nightCap))
@@ -1505,6 +1506,7 @@ table.insert(tests, { name = "RunState.playHand: 'Star Treatment' Gold Special a
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 10
 	RunState.buyPatron(state, "the_regular")
+	state.targetScore = 10 ^ 9 -- keep the round open for both hands
 	local before = RunState.playHand(state, { 1 })
 	Recipes.getSecretRecipeById("star_treatment").apply(state, { rng = function(n) return n end })
 	local after = RunState.playHand(state, { 1 })
@@ -2791,18 +2793,18 @@ end })
 -- ===== Content pass (Phase 12): 6 more Patrons, 6 more Boss Rounds, =====
 -- ===== 6 more Recipes =====
 
-table.insert(tests, { name = "'Jack of All Trades' adds +5 Mult for each scoring Jack", fn = function()
+table.insert(tests, { name = "'Jack of All Trades' adds +9 Mult for each scoring Jack", fn = function()
 	local jack = Patrons.getById("jack_of_all_trades")
 	local pair = HandEvaluator.evaluate({ C(11, "Hearts"), C(11, "Clubs"), C(2, "Spades") }) -- pair of Jacks
 	local _, _, mult = Scoring.calculate(pair, { jack }, {})
-	expectEqual(mult, 2 + 5 * 2) -- base Pair mult (2) + patron (5 per Jack x 2 Jacks)
+	expectEqual(mult, 2 + 9 * 2) -- base Pair mult (2) + patron (9 per Jack x 2 Jacks)
 end })
 
-table.insert(tests, { name = "'Queen's Gambit' adds +5 Mult for each scoring Queen", fn = function()
+table.insert(tests, { name = "'Queen's Gambit' adds +9 Mult for each scoring Queen", fn = function()
 	local queen = Patrons.getById("queens_gambit")
 	local pair = HandEvaluator.evaluate({ C(12, "Hearts"), C(12, "Clubs"), C(2, "Spades") }) -- pair of Queens
 	local _, _, mult = Scoring.calculate(pair, { queen }, {})
-	expectEqual(mult, 2 + 5 * 2) -- base Pair mult (2) + patron (5 per Queen x 2 Queens)
+	expectEqual(mult, 2 + 9 * 2) -- base Pair mult (2) + patron (9 per Queen x 2 Queens)
 end })
 
 table.insert(tests, { name = "'Jack of All Trades' / 'Queen's Gambit' give no bonus without a scoring Jack/Queen", fn = function()
@@ -2813,14 +2815,14 @@ table.insert(tests, { name = "'Jack of All Trades' / 'Queen's Gambit' give no bo
 	expectEqual(mult, 1) -- base High Card mult only
 end })
 
-table.insert(tests, { name = "'Closing Tab' earns 2 Tips per Discard remaining on round win", fn = function()
+table.insert(tests, { name = "'Closing Tab' earns 1 Tip per Discard remaining on round win", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	RunState.buyPatron(state, "closing_tab")
 	state.tips = 20
 	local closingTab = Patrons.getById("closing_tab")
 	local tipsBefore = state.tips
 	closingTab.onRoundWin(state)
-	expectEqual(state.tips, tipsBefore + 2 * state.discardsRemaining) -- 3 discards by default
+	expectEqual(state.tips, tipsBefore + state.discardsRemaining) -- 3 discards by default
 end })
 
 table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER owned Patron", fn = function()
@@ -2831,7 +2833,7 @@ table.insert(tests, { name = "'Full House Crowd' scales XMult by every OTHER own
 	local _, _, multAlone = Scoring.calculate(hand, { crowd }, {})
 	local _, _, multWithTwo = Scoring.calculate(hand, { crowd, theRegular, luckyDice }, {})
 	expectEqual(multAlone, 1) -- no OTHER Patrons -- no bonus
-	expectEqual(multWithTwo, (1 + 4) * (1.2 ^ 2)) -- base(1) + The Regular's +4, then x1.2^2 for the 2 others
+	expectEqual(multWithTwo, (1 + 4) * (1.15 ^ 2)) -- base(1) + The Regular's +4, then x1.15^2 for the 2 others
 end })
 
 table.insert(tests, { name = "'Fair Share' adds +4 Chips per scoring card", fn = function()
@@ -2878,14 +2880,14 @@ table.insert(tests, { name = "'Four Top' requires exactly 4 cards per hand, gate
 	expectFalse(ok3, "expected playHand to reject a 3-card play under Four Top")
 end })
 
-table.insert(tests, { name = "'Empty-Handed' zeroes discards and caps hands at 3, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Empty-Handed' leaves 1 discard and caps hands at 3, gated to tier 3", fn = function()
 	local empty = BossRounds.getById("empty_handed")
-	expectEqual(empty.discardsDelta, -99)
+	expectEqual(empty.discardsDelta, -2)
 	expectEqual(empty.handsPerRoundOverride, 3)
 	expectEqual(empty.minNight, 6)
 end })
 
-table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 70%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 32%, gated to tier 3", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
@@ -2894,8 +2896,8 @@ table.insert(tests, { name = "'Everything's Out' cuts Chips and Mult by 70%, gat
 	local resultCut = RunState.playHand(stateCut, { 1, 2 })
 
 	expectEqual(stateCut.bossModifier.minNight, 6)
-	expectEqual(resultCut.chips, resultNormal.chips * 0.3)
-	expectEqual(resultCut.mult, resultNormal.mult * 0.3)
+	expectEqual(resultCut.chips, resultNormal.chips * 0.68)
+	expectEqual(resultCut.mult, resultNormal.mult * 0.68)
 end })
 
 table.insert(tests, { name = "BossRounds.Definitions has grown to include this phase's 6 new modifiers", fn = function()
@@ -2978,11 +2980,11 @@ end })
 -- ===== Content pass (Phase 15): 5 more Patrons, 5 more Boss Rounds, =====
 -- ===== 5 more Recipes =====
 
-table.insert(tests, { name = "'Perfect Ten' adds +5 Mult for each scoring Ten", fn = function()
+table.insert(tests, { name = "'Perfect Ten' adds +8 Mult for each scoring Ten", fn = function()
 	local ten = Patrons.getById("perfect_ten")
 	local highCard = HandEvaluator.evaluate({ C(10, "Hearts") })
 	local _, _, mult = Scoring.calculate(highCard, { ten }, {})
-	expectEqual(mult, 1 + 5) -- base High Card mult (1) + patron (5 per scoring Ten)
+	expectEqual(mult, 1 + 8) -- base High Card mult (1) + patron (8 per scoring Ten)
 end })
 
 table.insert(tests, { name = "'Perfect Ten' gives no bonus without a scoring Ten", fn = function()
@@ -2992,19 +2994,19 @@ table.insert(tests, { name = "'Perfect Ten' gives no bonus without a scoring Ten
 	expectEqual(mult, 1)
 end })
 
-table.insert(tests, { name = "'Night Owl' adds +3 Mult per Night reached so far", fn = function()
+table.insert(tests, { name = "'Night Owl' adds +1 Mult per Night reached so far", fn = function()
 	local owl = Patrons.getById("night_owl")
 	local highCard = HandEvaluator.evaluate({ C(9, "Hearts") })
 	local _, _, mult = Scoring.calculate(highCard, { owl }, { night = 4 })
-	expectEqual(mult, 1 + 3 * 4)
+	expectEqual(mult, 1 + 1 * 4)
 end })
 
-table.insert(tests, { name = "'Steady Hand' adds +18 Mult only when exactly 5 cards are played", fn = function()
+table.insert(tests, { name = "'Steady Hand' adds +5 Mult only when exactly 5 cards are played", fn = function()
 	local steady = Patrons.getById("steady_hand")
 	local highCard = HandEvaluator.evaluate({ C(9, "Hearts") })
 	local fivePlayed = { C(9, "Hearts"), C(2, "Clubs"), C(3, "Spades"), C(4, "Diamonds"), C(5, "Hearts") }
 	local _, _, multFive = Scoring.calculate(highCard, { steady }, { allPlayedCards = fivePlayed })
-	expectEqual(multFive, 1 + 18)
+	expectEqual(multFive, 1 + 5)
 	local threePlayed = { C(9, "Hearts"), C(2, "Clubs"), C(3, "Spades") }
 	local _, _, multThree = Scoring.calculate(highCard, { steady }, { allPlayedCards = threePlayed })
 	expectEqual(multThree, 1)
@@ -3053,10 +3055,10 @@ table.insert(tests, { name = "'Rushed Order' caps hands at 3, gated to tier 2", 
 	expectEqual(rushed.minNight, 3)
 end })
 
-table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 60%, gated to tier 3", fn = function()
+table.insert(tests, { name = "'Bare Bones' cuts Chips and Mult by 30%, gated to tier 3", fn = function()
 	local bareBones = BossRounds.getById("bare_bones")
-	expectEqual(bareBones.chipsMultiplier, 0.4)
-	expectEqual(bareBones.multMultiplier, 0.4)
+	expectEqual(bareBones.chipsMultiplier, 0.7)
+	expectEqual(bareBones.multMultiplier, 0.7)
 	expectEqual(bareBones.minNight, 6)
 end })
 
@@ -3487,11 +3489,152 @@ table.insert(tests, { name = "Copying Patrons can't copy each other in a loop", 
 
 	-- The reported loop: Understudy leftmost, Second Opinion to its right.
 	expectEqual(score({ Patrons.getById("the_understudy"), Patrons.getById("second_opinion") }), base)
-	-- Real copies still work, including a chain through another copier.
+	-- Real copies still work.
 	expectEqual(score({ Patrons.getById("the_understudy"), regular }), base + 8)
 	expectEqual(score({ regular, Patrons.getById("the_apprentice") }), base + 8)
 	expectEqual(score({ regular, Patrons.getById("second_opinion") }), base + 8)
 	expectEqual(score({ Patrons.getById("the_understudy"), Patrons.getById("the_understudy") }), base)
+end })
+
+-- ===== Balance pass (docs/BALANCE_NOTES.md) =====
+
+table.insert(tests, { name = "Balance: the target curve matches the tuned numbers", fn = function()
+	expectEqual(RunState.nightBaseScoreFor(1), 65)
+	expectEqual(RunState.targetScoreFor(1, 1, 3), 65)
+	expectEqual(RunState.targetScoreFor(1, 2, 3), 130)
+	expectEqual(RunState.targetScoreFor(1, 3, 3), 130)
+	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.105 ^ 7 * 2.5))
+	-- Targets keep rising Night over Night on the same blind.
+	for night = 1, 12 do
+		for round = 1, 3 do
+			expectTrue(RunState.targetScoreFor(night + 1, round, 3) > RunState.targetScoreFor(night, round, 3))
+		end
+	end
+end })
+
+table.insert(tests, { name = "Balance: no boss modifier exceeds an effective difficulty of 2.5x", fn = function()
+	for _, def in ipairs(BossRounds.Definitions) do
+		local effective = (def.targetScoreMultiplier or 1) / ((def.chipsMultiplier or 1) * (def.multMultiplier or 1))
+		if def.handsPerRoundOverride then
+			effective = effective * (4 / def.handsPerRoundOverride)
+		end
+		expectTrue(effective <= 2.5, def.id .. " has effective difficulty " .. effective)
+	end
+end })
+
+table.insert(tests, { name = "Balance: tier-3 Chips+Mult bosses keep their ordering", fn = function()
+	local watered = BossRounds.getById("watered_down").chipsMultiplier
+	local bare = BossRounds.getById("bare_bones").chipsMultiplier
+	local everything = BossRounds.getById("everythings_out").chipsMultiplier
+	expectTrue(watered > bare and bare > everything)
+end })
+
+table.insert(tests, { name = "Balance: boss target changes apply through startRound", fn = function()
+	local function bossTarget(id, night)
+		local state = RunState.new(nil, function(n) return n end)
+		state.night = night
+		state.round = state.config.roundsPerNight
+		local original = BossRounds.pick
+		BossRounds.pick = function() return BossRounds.getById(id) end
+		state.nightBossModifier = BossRounds.getById(id)
+		state.round = 1
+		RunState.startRound(state)
+		state.round = state.config.roundsPerNight
+		RunState.startRound(state)
+		BossRounds.pick = original
+		return state
+	end
+	local base = RunState.targetScoreFor(6, 3, 3)
+	expectEqual(bossTarget("closing_time", 6).targetScore, math.floor(base * 0.5))
+	expectEqual(bossTarget("closing_time", 6).handsRemaining, 1)
+	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
+	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
+	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 2))
+	expectEqual(bossTarget("last_call_only", 6).discardsRemaining, 1)
+	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
+	expectEqual(bossTarget("empty_handed", 6).handsRemaining, 3)
+end })
+
+table.insert(tests, { name = "Balance: boss descriptions state their tuned numbers", fn = function()
+	local expected = {
+		watered_down = "25%", bare_bones = "30%", everythings_out = "32%",
+		thin_chips = "40%", flat_mult = "40%", big_tab = "double",
+		closing_time = "halved", quick_service = "25%", one_at_a_time = "65%",
+		last_call_only = "1 discard", empty_handed = "1 discard",
+	}
+	for id, text in pairs(expected) do
+		local description = BossRounds.getById(id).description
+		expectTrue(description:find(text, 1, true) ~= nil, id .. ": " .. description)
+	end
+end })
+
+table.insert(tests, { name = "Balance: Patron descriptions and prices match their effects", fn = function()
+	local function flat(handResult, played, context)
+		context = context or {}
+		context.allPlayedCards = played
+		return handResult, context
+	end
+	local pairHand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs") })
+	local twoCards = pairHand.scoringCards
+	local fiveCards = { C(2, "Hearts"), C(3, "Hearts"), C(5, "Clubs"), C(7, "Spades"), C(9, "Diamonds") }
+	local rows = {
+		{ "steady_hand", 7, "+5 Mult", "mult", 5, fiveCards },
+		{ "small_plate", 6, "+8 Mult", "mult", 8, twoCards },
+		{ "the_bard", 7, "+1 Mult", "mult", 5, fiveCards },
+		{ "big_portions", 7, "+25 Chips", "chips", 25, twoCards },
+		{ "lucky_dice", 5, "+15 Chips", "chips", 15, twoCards },
+		{ "night_owl", 8, "+1 Mult", "mult", 6, twoCards, { night = 6 } },
+		{ "penny_pincher", 7, "+1 Mult for every 3 Tips", "mult", 5, twoCards, { tips = 16 } },
+		{ "tab_regulars", 5, "+1 Chip for every Tip", "chips", 15, twoCards, { tips = 15 } },
+		{ "discard_special", 6, "+1 Mult", "mult", 2, twoCards, { discardsRemaining = 2 } },
+	}
+	for _, row in ipairs(rows) do
+		local patron = Patrons.getById(row[1])
+		expectEqual(patron.price, row[2], row[1] .. " price")
+		expectTrue(patron.description:find(row[3], 1, true) ~= nil, row[1] .. ": " .. patron.description)
+		local handResult, context = flat(pairHand, row[6], row[7])
+		expectEqual(patron.effect(handResult, context)[row[4]], row[5], row[1] .. " effect")
+	end
+
+	local handRows = {
+		{ "all_matching", { C(2, "Hearts"), C(5, "Hearts"), C(7, "Hearts"), C(9, "Hearts"), C(13, "Hearts") }, 18 },
+		{ "straight_shooter", { C(5, "Hearts"), C(6, "Clubs"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs") }, 18 },
+		{ "threes_company", { C(5, "Hearts"), C(5, "Clubs"), C(5, "Spades") }, 18 },
+		{ "all_hands_in", { C(5, "Hearts"), C(5, "Clubs"), C(5, "Spades"), C(5, "Diamonds") }, 25 },
+		{ "double_down", { C(5, "Hearts"), C(5, "Clubs"), C(6, "Spades"), C(6, "Diamonds") }, 10 },
+	}
+	for _, row in ipairs(handRows) do
+		local patron = Patrons.getById(row[1])
+		expectEqual(patron.effect(HandEvaluator.evaluate(row[2]), {}).mult, row[3], row[1])
+		expectTrue(patron.description:find("+" .. row[3] .. " Mult", 1, true) ~= nil, row[1])
+	end
+end })
+
+table.insert(tests, { name = "Balance: hand levels and the Flush base match the tuned numbers", fn = function()
+	for name, growth in pairs({
+		["Three of a Kind"] = { 25, 3 }, ["Straight"] = { 30, 3 }, ["Flush"] = { 25, 3 }, ["Full House"] = { 30, 3 },
+		["Pair"] = { 15, 1 }, ["Two Pair"] = { 20, 1 }, ["High Card"] = { 10, 1 },
+	}) do
+		expectEqual(Scoring.HandLevelGrowth[name].chips, growth[1], name)
+		expectEqual(Scoring.HandLevelGrowth[name].mult, growth[2], name)
+	end
+	expectEqual(Scoring.HandBase["Flush"].chips, 40)
+	expectEqual(Scoring.HandBase["Flush"].mult, 5)
+end })
+
+table.insert(tests, { name = "Balance: deck variants and Late Kitchen match the tuned numbers", fn = function()
+	local steady = RunState.new({ deckVariantId = "steady_hand" }, function(n) return n end)
+	expectEqual(steady.config.discardsPerRound, RunState.DefaultConfig.discardsPerRound + 2)
+	expectEqual(steady.config.handSize, RunState.DefaultConfig.handSize - 1)
+	expectEqual(steady.discardsRemaining, RunState.DefaultConfig.discardsPerRound + 2)
+
+	local roller = RunState.new({ deckVariantId = "high_roller" }, function(n) return n end)
+	expectEqual(roller.targetScore, math.floor(RunState.targetScoreFor(1, 1, 3) * 0.9))
+
+	expectTrue(DeckVariants.getById("steady_hand").description:find("+2 discards", 1, true) ~= nil)
+	expectTrue(DeckVariants.getById("high_roller").description:find("14 Tips", 1, true) ~= nil)
+	expectTrue(DeckVariants.getById("high_roller").description:find("10% lower", 1, true) ~= nil)
+	expectEqual(HousePasses.getById("late_kitchen").price, 5)
 end })
 
 return tests

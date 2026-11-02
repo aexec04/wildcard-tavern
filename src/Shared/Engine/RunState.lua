@@ -55,7 +55,7 @@ RunState.DefaultConfig = {
 
 --[[
 	BALATRO PARITY: Small/Big/Boss Blind distinct score multipliers (Ahmed:
-	"Small/Big/Boss Blind at distinct 1x/1.5x/2x-6x score multipliers"),
+	"Small/Big/Boss Blind at distinct score multipliers"),
 	replacing the old single continuous curve. Two independent knobs now,
 	multiplied together in targetScoreFor:
 		1) nightBaseScoreFor(night) -- how hard THIS NIGHT is, growing
@@ -63,20 +63,20 @@ RunState.DefaultConfig = {
 		   Mode getting harder forever, see below).
 		2) blindMultiplierFor(night, round, roundsPerNight) -- which Blind
 		   you're on this round: Small (round 1) = 1x, Big (any round
-		   between) = 1.5x, Boss (the Night's last round) scales from 2x at
-		   Night 1 up to 6x at Night `nightCap` (8, like Balatro's Ante 8),
-		   then plateaus at 6x forever after -- Endless Mode keeps escalating
+		   between) = 2x, Boss (the Night's last round) scales from 2x at
+		   Night 1 up to 2.5x at Night `nightCap` (8, like Balatro's Ante 8),
+		   then plateaus at 2.5x forever after -- Endless Mode keeps escalating
 		   purely through nightBaseScoreFor's unbounded growth instead of an
 		   ever-climbing Boss multiplier.
 	Public (not just internal) so tests/UI can reason about either knob on
 	its own without re-deriving the formula.
 ]]
-local TARGET_BASE_SCORE = 100
-local TARGET_NIGHT_GROWTH = 2.5 -- close to the old curve's ~2.46x-per-Night growth (1.35^3)
+local TARGET_BASE_SCORE = 65
+local TARGET_NIGHT_GROWTH = 2.105
 local BLIND_MULTIPLIER_SMALL = 1
-local BLIND_MULTIPLIER_BIG = 1.5
+local BLIND_MULTIPLIER_BIG = 2
 local BOSS_BLIND_MULTIPLIER_MIN = 2
-local BOSS_BLIND_MULTIPLIER_MAX = 6
+local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 
 function RunState.nightBaseScoreFor(night)
 	return TARGET_BASE_SCORE * (TARGET_NIGHT_GROWTH ^ (night - 1))
@@ -90,13 +90,13 @@ function RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
 	-- RunState.DefaultConfig.nightCap directly. RunState.startRound
 	-- already threads its OWN run's state.config.nightCap through (see
 	-- below) -- reading the global default here instead would silently
-	-- desync the Boss multiplier's 2x-6x ramp/plateau from whatever Night
+	-- desync the Boss multiplier's ramp/plateau from whatever Night
 	-- the run's actual win condition (RunState.playHand) fires at, the
 	-- moment anything (a future deck variant's configOverrides, say) ever
 	-- makes a run's nightCap differ from the default.
 	if round >= roundsPerNight then
-		-- Boss Blind: 2x at Night 1, linearly up to 6x at Night `nightCap`,
-		-- then held flat at 6x for every Night after that.
+		-- Boss Blind: 2x at Night 1, linearly up to 2.5x at Night `nightCap`,
+		-- then held flat at 2.5x for every Night after that.
 		nightCap = nightCap or RunState.DefaultConfig.nightCap
 		local growthSteps = nightCap - 1
 		if growthSteps <= 0 then
