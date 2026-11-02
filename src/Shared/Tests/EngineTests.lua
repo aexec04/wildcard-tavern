@@ -3432,4 +3432,21 @@ table.insert(tests, { name = "Shop.rollOffers never offers an owned House Pass",
 	expectEqual(Shop.rollOffers(state).voucher, nil)
 end })
 
+table.insert(tests, { name = "Shop voucher roll on a seeded run is seeded and hits about 35% of the time", fn = function()
+	-- A failed seeded roll must stay failed, not fall through to math.random.
+	local alwaysMiss = RunState.new(nil, function(n) return n end)
+	for _ = 1, 200 do
+		expectEqual(Shop.rollOffers(alwaysMiss).voucher, nil)
+	end
+
+	local state = RunState.new(nil, SeededRng.new(5))
+	local hits = 0
+	for _ = 1, 4000 do
+		if Shop.rollOffers(state).voucher then
+			hits = hits + 1
+		end
+	end
+	expectTrue(hits >= 1300 and hits <= 1500)
+end })
+
 return tests

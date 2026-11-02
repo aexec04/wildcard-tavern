@@ -74,7 +74,12 @@ end
 -- integer-only contract every other rng() call site uses.
 local function rollVoucherOffer(state)
 	local rng = state.rng or math.random
-	local roll = state.rng and (rng(10000) <= math.floor(Shop.VOUCHER_CHANCE * 10000)) or (math.random() <= Shop.VOUCHER_CHANCE)
+	local roll
+	if state.rng then
+		roll = rng(10000) <= math.floor(Shop.VOUCHER_CHANCE * 10000)
+	else
+		roll = math.random() <= Shop.VOUCHER_CHANCE
+	end
 	if not roll then
 		return nil
 	end
