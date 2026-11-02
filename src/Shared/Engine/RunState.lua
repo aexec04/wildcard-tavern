@@ -72,7 +72,7 @@ RunState.DefaultConfig = {
 	its own without re-deriving the formula.
 ]]
 local TARGET_BASE_SCORE = 65
-local TARGET_NIGHT_GROWTH = 2.105
+local TARGET_NIGHT_GROWTH = 2.26
 local BLIND_MULTIPLIER_SMALL = 1
 local BLIND_MULTIPLIER_BIG = 2
 local BOSS_BLIND_MULTIPLIER_MIN = 2
@@ -245,6 +245,13 @@ function RunState.new(options, rng)
 		-- reward + boss double + every Patron onRoundWin bonus + the
 		-- universal interest rule) -- see RunState.playHand.
 		lastRoundReward = 0,
+		-- Run-long tallies that scaling Patrons read through the scoring
+		-- context -- see RunState.runCounters.
+		roundsCleared = 0,
+		bossesCleared = 0,
+		handsPlayedTotal = 0,
+		discardsUsedTotal = 0,
+		patronsSold = 0,
 	}
 
 	-- PHASE C ("mind-blowing plan" Signature Mechanic): seed exactly ONE
@@ -395,6 +402,33 @@ function RunState.isBossRound(state)
 	return state.bossModifier ~= nil or state.isBossRound == true
 end
 
+-- What scaling Patrons may read about the run so far, as of BEFORE the hand
+-- being scored. The server ships this table to the client (serializeState),
+-- and playHand and the client's computeHandPreview both feed it through
+-- addRunCounters, so the preview and the real score can't disagree.
+function RunState.runCounters(state)
+	local handStatsBefore = {}
+	for handName, count in pairs(state.handStats) do
+		handStatsBefore[handName] = count
+	end
+	return {
+		roundsCleared = state.roundsCleared,
+		bossesCleared = state.bossesCleared,
+		handsPlayedTotal = state.handsPlayedTotal,
+		discardsUsedTotal = state.discardsUsedTotal,
+		patronsSold = state.patronsSold,
+		handStatsBefore = handStatsBefore,
+	}
+end
+
+-- Copies a runCounters table's fields into a Scoring.calculate context.
+function RunState.addRunCounters(context, counters)
+	for key, value in pairs(counters or {}) do
+		context[key] = value
+	end
+	return context
+end
+
 -- Draws `count` cards. If the draw pile runs dry mid-round, shuffles the
 -- discard pile back in and keeps drawing, so a round can never run out of
 -- cards while any exist in the run. (Before this, the discard pile was only
@@ -486,7 +520,7 @@ function RunState.playHand(state, cardIndices)
 				if blocked then
 					return nil
 				end
-				return {
+				return RunState.addRunCounters({
 					allPlayedCards = playedCards,
 					heldCards = state.hand, -- cards left in hand after removeIndicesFromHand, above
 					handLevels = state.handLevels,
@@ -500,7 +534,7 @@ function RunState.playHand(state, cardIndices)
 					isLastHand = state.handsRemaining - 1 <= 0,
 					night = state.night,
 					round = state.round,
-				}
+				}, RunState.runCounters(state))
 			end)
 			card.rank = bestRank
 			card.suit = bestSuit
@@ -519,6 +553,10 @@ function RunState.playHand(state, cardIndices)
 	local blockedRepeatHand = bossModifier and bossModifier.noRepeatHandTypes
 		and alreadyPlayedThisHandTypeThisRound
 	state.handTypesPlayedThisRound[handResult.name] = true
+
+	-- Snapshot before this hand counts toward anything, matching what the
+	-- client's preview sees.
+	local runCounters = RunState.runCounters(state)
 
 	state.handStats[handResult.name] = (state.handStats[handResult.name] or 0) + 1
 
@@ -539,7 +577,7 @@ function RunState.playHand(state, cardIndices)
 
 	local score, chips, mult, extra = 0, 0, 0, { tipsEarned = 0, brokenCards = {} }
 	if not blockedRepeatHand then
-		score, chips, mult, extra = Scoring.calculate(handResult, state.ownedPatrons, {
+		score, chips, mult, extra = Scoring.calculate(handResult, state.ownedPatrons, RunState.addRunCounters({
 			allPlayedCards = playedCards,
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
 			handLevels = state.handLevels,
@@ -553,7 +591,7 @@ function RunState.playHand(state, cardIndices)
 			isLastHand = isLastHand,
 			night = state.night,
 			round = state.round,
-		})
+		}, runCounters))
 		if bossModifier and bossModifier.chipsMultiplier then
 			chips = chips * bossModifier.chipsMultiplier
 		end
@@ -563,6 +601,7 @@ function RunState.playHand(state, cardIndices)
 		score = chips * mult
 	end
 
+	state.handsPlayedTotal = state.handsPlayedTotal + 1
 	state.roundScore = state.roundScore + score
 	state.tips = state.tips + (extra.tipsEarned or 0)
 
@@ -610,6 +649,10 @@ function RunState.playHand(state, cardIndices)
 	local roundWon = state.roundScore >= state.targetScore
 	if roundWon then
 		state.roundOver = true
+		state.roundsCleared = state.roundsCleared + 1
+		if RunState.isBossRound(state) then
+			state.bossesCleared = state.bossesCleared + 1
+		end
 		local tipsBeforeRoundEndRewards = state.tips
 		settleHeldCardsAtRoundEnd(state, handResult.name)
 		for _, patron in ipairs(state.ownedPatrons) do
@@ -716,6 +759,7 @@ function RunState.discard(state, cardIndices)
 
 	local discarded = removeIndicesFromHand(state, cardIndices)
 	state.discardsRemaining = state.discardsRemaining - 1
+	state.discardsUsedTotal = state.discardsUsedTotal + 1
 
 	-- Purple Stamp: discarding this card creates a random House Recipe.
 	-- RECIPE CAP: same silent-skip-if-full rule as the Blue Stamp reward in
@@ -1164,6 +1208,7 @@ function RunState.sellPatron(state, patronId)
 			table.remove(state.ownedPatrons, i)
 			local refund = math.floor(patron.price / 2)
 			state.tips = state.tips + refund
+			state.patronsSold = state.patronsSold + 1
 			return true, refund
 		end
 	end

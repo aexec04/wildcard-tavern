@@ -41,6 +41,9 @@ local STANDARD_KEEP_PRIORITY = 3
 local UNSEEN_GAIN = {
 	tip_jar = 0.12, big_spender = 0.10, closing_tab = 0.08, rainy_day_fund = 0.05,
 	boss_bane = 0.08, nest_egg = 0.05, last_call = 0.15, repeat_customer = 0.5,
+	-- Scaling Patrons: what the probe's "today" misses of their later growth.
+	slow_cooker = 0.3, house_tab = 0.25, regulars_chair = 0.2, cobweb_shelf = 0.15,
+	tasting_menu = 0.1, pair_bonds = 0.2, veterans_table = 0.15, estate_sale = 0.05,
 }
 
 -- How to use each Recipe from the shop, where `hand` is whatever is left over
@@ -178,7 +181,7 @@ local function scorePlay(state, hand, combo, patrons)
 		return 0, handResult
 	end
 	local handsLeft = state.handsRemaining - 1
-	local _, chips, mult = E.Scoring.calculate(handResult, patrons, {
+	local _, chips, mult = E.Scoring.calculate(handResult, patrons, E.RunState.addRunCounters({
 		rng = noLuck,
 		allPlayedCards = played,
 		heldCards = pickCards(hand, combo.held),
@@ -192,7 +195,7 @@ local function scorePlay(state, hand, combo, patrons)
 		isLastHand = handsLeft <= 0,
 		night = state.night,
 		round = state.round,
-	})
+	}, state.simCounters))
 	if boss and boss.chipsMultiplier then
 		chips = chips * boss.chipsMultiplier
 	end
@@ -208,6 +211,7 @@ function Sim.bestPlay(state)
 	local bySize = combosFor(#hand)
 	local boss = state.bossModifier
 	local required = boss and boss.requiredCardsPerHand
+	state.simCounters = E.RunState.runCounters(state)
 	local bestScore, bestCombo = -1, nil
 	for size = 1, math.min(5, #hand) do
 		if not required or size == required then
@@ -374,6 +378,7 @@ local function neutralContext(state)
 		discardsRemaining = 2,
 		night = state.night,
 		round = 1,
+		simCounters = E.RunState.runCounters(state),
 	}
 end
 
@@ -808,7 +813,9 @@ function Sim.runOne(cfg, seed)
 	local rec = newRecord(seed)
 	state.simRecord = rec
 	if cfg.forcePatron then
-		table.insert(state.ownedPatrons, E.Patrons.getById(cfg.forcePatron))
+		for id in string.gmatch(cfg.forcePatron, "[^,]+") do
+			table.insert(state.ownedPatrons, E.Patrons.getById(id))
+		end
 	end
 	if cfg.forcePasses then
 		for id in string.gmatch(cfg.forcePasses, "[^,]+") do

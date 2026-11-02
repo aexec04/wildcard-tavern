@@ -3503,7 +3503,7 @@ table.insert(tests, { name = "Balance: the target curve matches the tuned number
 	expectEqual(RunState.targetScoreFor(1, 1, 3), 65)
 	expectEqual(RunState.targetScoreFor(1, 2, 3), 130)
 	expectEqual(RunState.targetScoreFor(1, 3, 3), 130)
-	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.105 ^ 7 * 2.5))
+	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.26 ^ 7 * 2.5))
 	-- Targets keep rising Night over Night on the same blind.
 	for night = 1, 12 do
 		for round = 1, 3 do
@@ -3635,6 +3635,206 @@ table.insert(tests, { name = "Balance: deck variants and Late Kitchen match the 
 	expectTrue(DeckVariants.getById("high_roller").description:find("14 Tips", 1, true) ~= nil)
 	expectTrue(DeckVariants.getById("high_roller").description:find("10% lower", 1, true) ~= nil)
 	expectEqual(HousePasses.getById("late_kitchen").price, 5)
+end })
+
+-- ===== Scaling Patrons (Phase 4) =====
+
+-- A run driven like the client sees it: counters as shipped by the server.
+local function shippedCounters(state)
+	return RunState.runCounters(state)
+end
+
+table.insert(tests, { name = "Run counters start at zero and survive into a fresh state", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	for _, field in ipairs({ "roundsCleared", "bossesCleared", "handsPlayedTotal", "discardsUsedTotal", "patronsSold" }) do
+		expectEqual(state[field], 0, field)
+	end
+end })
+
+table.insert(tests, { name = "Run counters tick on hands, discards, round wins, boss wins and sales", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 50
+	RunState.discard(state, { 1, 2 })
+	expectEqual(state.discardsUsedTotal, 1)
+
+	state.targetScore = 10 ^ 9
+	RunState.playHand(state, { 1 })
+	expectEqual(state.handsPlayedTotal, 1)
+	expectEqual(state.roundsCleared, 0)
+
+	state.targetScore = 0
+	RunState.playHand(state, { 1 })
+	expectEqual(state.handsPlayedTotal, 2)
+	expectEqual(state.roundsCleared, 1)
+	expectEqual(state.bossesCleared, 0)
+
+	state.roundOver = false
+	state.isBossRound = true
+	state.handsRemaining = 2
+	RunState.playHand(state, { 1 })
+	expectEqual(state.roundsCleared, 2)
+	expectEqual(state.bossesCleared, 1)
+
+	RunState.buyPatron(state, "the_regular")
+	RunState.sellPatron(state, "the_regular")
+	expectEqual(state.patronsSold, 1)
+end })
+
+table.insert(tests, { name = "Bosses cleared counts Casual's boss rounds, and Clean Sweep isn't a sale", fn = function()
+	local casual = RunState.new({ difficultyId = "casual" }, function(n) return n end)
+	casual.round = casual.config.roundsPerNight
+	RunState.startRound(casual)
+	casual.targetScore = 0
+	RunState.playHand(casual, { 1 })
+	expectEqual(casual.bossesCleared, 1)
+
+	local state = RunState.new(nil, function(n) return n end)
+	state.ownedPatrons = { Patrons.getById("the_regular"), Patrons.getById("the_bard") }
+	state.secretRecipeInventory = { "clean_sweep" }
+	expectTrue(RunState.useSecretRecipe(state, "clean_sweep"))
+	expectEqual(state.patronsSold, 0)
+end })
+
+table.insert(tests, { name = "handStatsBefore excludes the hand being scored and doesn't alias handStats", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 10 ^ 9
+	local seen = nil
+	state.ownedPatrons = { {
+		id = "test_spy", name = "Spy", price = 1,
+		effect = function(handResult, context)
+			seen = { count = context.handStatsBefore[handResult.name] or 0, total = context.handsPlayedTotal }
+			return nil
+		end,
+	} }
+	RunState.playHand(state, { 1 })
+	expectEqual(seen.count, 0)
+	expectEqual(seen.total, 0)
+	RunState.playHand(state, { 1 })
+	expectEqual(seen.count, 1)
+	expectEqual(seen.total, 1)
+
+	local counters = RunState.runCounters(state)
+	counters.handStatsBefore["High Card"] = 99
+	expectTrue(state.handStats["High Card"] ~= 99)
+end })
+
+table.insert(tests, { name = "The client's preview context matches playHand's for every run counter", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 10 ^ 9
+	state.roundsCleared, state.bossesCleared, state.discardsUsedTotal, state.patronsSold = 7, 2, 11, 3
+	state.handsPlayedTotal = 20
+	state.handStats = { ["Pair"] = 12, ["Two Pair"] = 5, ["Flush"] = 3 }
+
+	local real = nil
+	state.ownedPatrons = { {
+		id = "test_spy", name = "Spy", price = 1,
+		effect = function(_handResult, context)
+			real = context
+			return nil
+		end,
+	} }
+	-- What the server would have sent the client just before this play.
+	local preview = RunState.addRunCounters({}, shippedCounters(state))
+	RunState.playHand(state, { 1 })
+
+	for _, field in ipairs({ "roundsCleared", "bossesCleared", "handsPlayedTotal", "discardsUsedTotal", "patronsSold" }) do
+		expectEqual(preview[field], real[field], field)
+	end
+	for name, count in pairs(real.handStatsBefore) do
+		expectEqual(preview.handStatsBefore[name], count, name)
+	end
+	for name, count in pairs(preview.handStatsBefore) do
+		expectEqual(real.handStatsBefore[name], count, name)
+	end
+end })
+
+table.insert(tests, { name = "Every scaling Patron previews the same score the server gives", fn = function()
+	local ids = { "slow_cooker", "house_tab", "regulars_chair", "cobweb_shelf", "tasting_menu", "estate_sale", "pair_bonds", "veterans_table" }
+	for _, id in ipairs(ids) do
+		local state = RunState.new(nil, function(n) return n end)
+		state.ownedPatrons = { Patrons.getById(id) }
+		state.targetScore = 10 ^ 9
+		state.night = 4
+		state.roundsCleared, state.bossesCleared, state.discardsUsedTotal, state.patronsSold = 9, 3, 14, 2
+		state.handsPlayedTotal = 30
+		state.handStats = { ["Pair"] = 15, ["Two Pair"] = 6, ["High Card"] = 9 }
+
+		local played = { state.hand[1] }
+		local held = {}
+		for i = 2, #state.hand do held[#held + 1] = state.hand[i] end
+		local handResult = HandEvaluator.evaluate(played)
+		local preview = Scoring.calculate(handResult, state.ownedPatrons, RunState.addRunCounters({
+			rng = neverHitRng, allPlayedCards = played, heldCards = held, handLevels = state.handLevels,
+			ownedPatronSpecials = state.ownedPatronSpecials, tips = state.tips,
+			alreadyPlayedThisHandTypeThisRound = false, handsRemaining = state.handsRemaining - 1,
+			discardsRemaining = state.discardsRemaining, isLastHand = false, night = state.night, round = state.round,
+		}, shippedCounters(state)))
+		expectEqual(RunState.playHand(state, { 1 }).score, preview, id)
+	end
+end })
+
+table.insert(tests, { name = "Scaling Patrons follow their formulas and caps", fn = function()
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts") })
+	local function bonus(id, context)
+		return Patrons.getById(id).effect(hand, context) or {}
+	end
+
+	expectEqual(bonus("slow_cooker", {}).multMultiplier, nil)
+	expectEqual(bonus("slow_cooker", { roundsCleared = 20 }).multMultiplier, 1.5)
+	expectEqual(bonus("slow_cooker", { roundsCleared = 100 }).multMultiplier, 2)
+	expectEqual(bonus("house_tab", { bossesCleared = 5 }).multMultiplier, 1.4)
+	expectEqual(bonus("regulars_chair", { handsPlayedTotal = 19 }).mult, 3)
+	expectEqual(bonus("regulars_chair", { handsPlayedTotal = 500 }).mult, 15)
+	expectEqual(bonus("regulars_chair", { handsPlayedTotal = 5 }).mult, nil)
+	expectEqual(bonus("cobweb_shelf", { discardsUsedTotal = 12 }).mult, 4)
+	expectEqual(bonus("cobweb_shelf", { discardsUsedTotal = 99 }).mult, 15)
+	expectEqual(bonus("tasting_menu", { handStatsBefore = { ["Pair"] = 3, ["Flush"] = 1 } }).mult, 2)
+	expectEqual(bonus("estate_sale", { patronsSold = 2 }).mult, 4)
+	expectEqual(bonus("estate_sale", { patronsSold = 20 }).mult, 20)
+	expectEqual(bonus("pair_bonds", { handStatsBefore = { ["Pair"] = 6, ["Two Pair"] = 2, ["Flush"] = 9 } }).mult, 2)
+	expectEqual(bonus("pair_bonds", { handStatsBefore = { ["Pair"] = 90 } }).mult, 15)
+	expectEqual(bonus("veterans_table", { night = 1 }).chips, nil)
+	expectEqual(bonus("veterans_table", { night = 4 }).chips, 24)
+
+	for id, text in pairs({
+		slow_cooker = "x0.025", house_tab = "x0.08", regulars_chair = "6 hands", cobweb_shelf = "3 Discards",
+		tasting_menu = "+1 Mult", estate_sale = "+2 Mult", pair_bonds = "4 Pairs", veterans_table = "+8 Chips",
+	}) do
+		expectTrue(Patrons.getById(id).description:find(text, 1, true) ~= nil, id)
+	end
+end })
+
+table.insert(tests, { name = "Two runs never share scaling Patron counts", fn = function()
+	local a = RunState.new(nil, function(n) return n end)
+	local b = RunState.new(nil, function(n) return n end)
+	a.ownedPatrons = { Patrons.getById("regulars_chair") }
+	b.ownedPatrons = { Patrons.getById("regulars_chair") }
+	a.targetScore, b.targetScore = 10 ^ 9, 10 ^ 9
+	a.handsRemaining = 4
+	for _ = 1, 3 do RunState.playHand(a, { 1 }) end
+	expectEqual(a.handsPlayedTotal, 3)
+	expectEqual(b.handsPlayedTotal, 0)
+	local first = RunState.playHand(b, { 1 })
+	expectEqual(first.mult, 1) -- no bonus carried over from run A
+end })
+
+table.insert(tests, { name = "Patron ids and icons are unique, and scaling Patrons reach the shop", fn = function()
+	local ids, icons = {}, {}
+	for _, patron in ipairs(Patrons.Definitions) do
+		expectTrue(not ids[patron.id], "duplicate id " .. patron.id)
+		expectTrue(not icons[patron.icon], "duplicate icon on " .. patron.id)
+		ids[patron.id], icons[patron.icon] = true, true
+	end
+	expectTrue(#Patrons.Definitions >= 50)
+
+	local seen = {}
+	local state = RunState.new(nil, SeededRng.new(3))
+	for _ = 1, 500 do
+		for _, patron in ipairs(Shop.rollOffers(state).patrons) do
+			seen[patron.id] = true
+		end
+	end
+	expectTrue(seen.slow_cooker and seen.veterans_table)
 end })
 
 return tests

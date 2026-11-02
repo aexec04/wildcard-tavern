@@ -47,6 +47,11 @@ end
 --   tips             -- Tips held before this hand's reward is added
 --   ownedPatrons, patronIndex -- this patron's own list/position, for
 --                                "copy a neighbor's ability" patrons
+--   roundsCleared, bossesCleared, handsPlayedTotal, discardsUsedTotal,
+--   patronsSold, handStatsBefore -- run-long tallies as of before this hand,
+--                                see RunState.runCounters. Definitions are
+--                                shared between runs, so a scaling Patron
+--                                must read these, never store its own count.
 
 Patrons.Definitions = {
 	{
@@ -625,6 +630,100 @@ Patrons.Definitions = {
 			if state.bossModifier or state.isBossRound then
 				state.tips = state.tips + 10
 			end
+		end,
+	},
+
+	-- ===== SCALING (grow over a run; every count lives on the run's state) =====
+	{
+		id = "slow_cooker", name = "Slow Cooker", icon = "🍲", price = 7,
+		description = "x0.025 more Mult for every round cleared this run (up to x2).",
+		effect = function(_handResult, context)
+			local rounds = context.roundsCleared or 0
+			if rounds > 0 then
+				return { multMultiplier = math.min(2, 1 + 0.025 * rounds) }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "house_tab", name = "House Tab", icon = "📒", price = 8,
+		description = "x0.08 more Mult for every Boss Round cleared this run.",
+		effect = function(_handResult, context)
+			local bosses = context.bossesCleared or 0
+			if bosses > 0 then
+				return { multMultiplier = 1 + 0.08 * bosses }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "regulars_chair", name = "Regular's Chair", icon = "🪑", price = 6,
+		description = "+1 Mult for every 6 hands played this run (up to +15).",
+		effect = function(_handResult, context)
+			local bonus = math.min(15, math.floor((context.handsPlayedTotal or 0) / 6))
+			if bonus > 0 then
+				return { mult = bonus }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "cobweb_shelf", name = "Cobweb Shelf", icon = "🕸️", price = 5,
+		description = "+1 Mult for every 3 Discards used this run (up to +15).",
+		effect = function(_handResult, context)
+			local bonus = math.min(15, math.floor((context.discardsUsedTotal or 0) / 3))
+			if bonus > 0 then
+				return { mult = bonus }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "tasting_menu", name = "Tasting Menu", icon = "📜", price = 7,
+		description = "+1 Mult for every different poker hand type played this run (up to +9).",
+		effect = function(_handResult, context)
+			local types = 0
+			for _ in pairs(context.handStatsBefore or {}) do
+				types = types + 1
+			end
+			if types > 0 then
+				return { mult = types }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "estate_sale", name = "Estate Sale", icon = "🏷️", price = 6,
+		description = "+2 Mult for every Patron you've sold this run (up to +20).",
+		effect = function(_handResult, context)
+			local sold = context.patronsSold or 0
+			if sold > 0 then
+				return { mult = math.min(20, 2 * sold) }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "pair_bonds", name = "Pair Bonds", icon = "💞", price = 6,
+		description = "+1 Mult for every 4 Pairs or Two Pairs played this run (up to +15).",
+		effect = function(_handResult, context)
+			local stats = context.handStatsBefore or {}
+			local bonus = math.min(15, math.floor(((stats["Pair"] or 0) + (stats["Two Pair"] or 0)) / 4))
+			if bonus > 0 then
+				return { mult = bonus }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "veterans_table", name = "Veteran's Table", icon = "🎖️", price = 8,
+		description = "+8 Chips for each Night you've reached after Night 1.",
+		effect = function(_handResult, context)
+			local nights = (context.night or 1) - 1
+			if nights > 0 then
+				return { chips = 8 * nights }
+			end
+			return nil
 		end,
 	},
 }

@@ -1678,7 +1678,7 @@ local function computeHandPreview(cardIndices)
 		if blocked then
 			return nil
 		end
-		return {
+		return RunStateEngine.addRunCounters({
 			allPlayedCards = selectedCards,
 			heldCards = heldCards,
 			handLevels = latestState.handLevels,
@@ -1693,7 +1693,7 @@ local function computeHandPreview(cardIndices)
 			isLastHand = previewHandsRemaining == 0,
 			night = latestState.night,
 			round = latestState.round,
-		}
+		}, latestState.runCounters)
 	end
 
 	local wildcardResolution = nil
@@ -1725,7 +1725,7 @@ local function computeHandPreview(cardIndices)
 		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {}, wildcardResolution = wildcardResolution }
 	end
 
-	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, ownedPatronInstances, {
+	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, ownedPatronInstances, RunStateEngine.addRunCounters({
 		allPlayedCards = selectedCards,
 		heldCards = heldCards,
 		handLevels = latestState.handLevels,
@@ -1739,7 +1739,7 @@ local function computeHandPreview(cardIndices)
 		isLastHand = previewHandsRemaining == 0,
 		night = latestState.night,
 		round = latestState.round,
-	})
+	}, latestState.runCounters))
 
 	-- Restore now that the breakdown's own per-card LABELS (plain strings,
 	-- baked in by Scoring.calculate -- see its header) are already built --

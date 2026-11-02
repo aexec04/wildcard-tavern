@@ -23,7 +23,7 @@
 		--endless                    keep playing after a win, up to --max-night
 		--bank N                     banking bot: never spend below N Tips
 		--force-boss ID  --boss-night N
-		--force-patron ID
+		--force-patron ID,ID         own these Patrons from the start
 		--force-passes ID,ID         own these House Passes from the start
 		--patron-offers N  --pack-offers N  --voucher-chance X   shop generosity
 		--src PATH                   engine to load (default src/Shared)

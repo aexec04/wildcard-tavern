@@ -462,6 +462,8 @@ local function serializeState(session, player)
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
+		-- Scaling Patrons' inputs, so computeHandPreview matches playHand.
+		runCounters = RunState.runCounters(state),
 		patronSlotLimit = RunState.patronSlotLimit(state),
 		-- BALATRO PARITY: recipeSlotLimit/nightCap are static-per-run
 		-- numbers (same pattern as patronSlotLimit above) -- the client
