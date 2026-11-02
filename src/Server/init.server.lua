@@ -25,12 +25,10 @@ local Engine = Shared:WaitForChild("Engine")
 local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
-local Patrons = require(Engine.Patrons)
 local Themes = require(Engine.Themes) -- PERSISTENT SAVE (Phase 10): needed for Themes.DefaultThemeId, see syncProfileFromSession's BUGFIX comment
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
-local Packs = require(Engine.Packs)
-local HousePasses = require(Engine.HousePasses)
+local Shop = require(Engine.Shop)
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
@@ -310,17 +308,6 @@ end
 
 -- ===== 5. Session management =====
 
--- Matches the reference game's usual shop layout more closely than our old
--- "3 Patron offers, nothing else" did: 2 Patron offers + 2 Pack offers
--- every visit, plus an occasional single Voucher (House Pass) offer -- see
--- VOUCHER_CHANCE. Reroll cost climbs by REROLL_COST_STEP each reroll
--- within a single shop visit, then resets to REROLL_BASE_COST next visit.
-local SHOP_OFFER_COUNT = 2
-local PACK_OFFER_COUNT = 2
-local VOUCHER_CHANCE = 0.35
-local REROLL_BASE_COST = 5
-local REROLL_COST_STEP = 2
-
 -- ROUND SELECT FEATURE: "roundSelect" is the new 4th phase -- shown at the
 -- very start of a run, and every time right after leaving the shop
 -- (instead of dropping straight into "playing"). RunState itself already
@@ -340,98 +327,21 @@ local sessions = {} -- [player] = { state = RunState, phase = "roundSelect" | "p
 -- to call that).
 local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 
--- DAILY CHALLENGE (Phase 11) FIX: all three of these used to call the
--- global `math.random` directly, completely bypassing `state.rng` (the
--- seeded rng RunState.new stores on the state table -- see
--- Shared/Engine/RunState.lua line ~160 and its Deck.shuffle/BossRounds.pick/
--- Tags.pick call sites, which DO thread it through correctly). That made a
--- Daily Challenge run's shop offers (Patrons/Packs/Vouchers) random and
--- different for every player from the very first shop visit, even though
--- the deck order and Boss Round were correctly identical -- silently
--- defeating the whole point of a Daily Challenge ("everyone starts from
--- the identical first shop/Boss/deck order"). Found via independent
--- review; fixed by threading `state.rng or math.random` through here too,
--- same fallback pattern RunState.lua itself already uses everywhere (a nil
--- rng -- a normal, non-Daily run -- transparently falls back to
--- `math.random`, so this changes nothing for regular runs).
-local function pickShopOffers(state)
-	local rng = state.rng or math.random
-
-	local available = {}
-	for _, patron in ipairs(Patrons.Definitions) do
-		local alreadyOwned = false
-		for _, owned in ipairs(state.ownedPatrons) do
-			if owned.id == patron.id then
-				alreadyOwned = true
-				break
-			end
-		end
-		if not alreadyOwned then
-			table.insert(available, patron)
-		end
-	end
-
-	-- shuffle-ish pick
-	local offers = {}
-	for _ = 1, math.min(SHOP_OFFER_COUNT, #available) do
-		local i = rng(#available)
-		table.insert(offers, table.remove(available, i))
-	end
-	return offers
-end
-
-local function pickPackOffers(state)
-	local rng = state.rng or math.random
-
-	local pool = {}
-	for _, pack in ipairs(Packs.Definitions) do
-		table.insert(pool, pack)
-	end
-	local offers = {}
-	for _ = 1, math.min(PACK_OFFER_COUNT, #pool) do
-		local i = rng(#pool)
-		table.insert(offers, table.remove(pool, i))
-	end
-	return offers
-end
-
--- Only offers a House Pass the player doesn't already own, and only some of
--- the time -- "shows up from time to time," not every visit, same as the
--- reference game's Voucher slot. `rng(n)` only supports integer picks in
--- [1, n], not a float roll like `math.random()`'s no-arg form -- rolling a
--- 1-in-10000 draw against a scaled integer threshold (rng(10000) <=
--- VOUCHER_CHANCE * 10000) gets the same 35% probability out of the same
--- integer-only contract every other rng() call site in this codebase uses.
-local function pickVoucherOffer(state)
-	local rng = state.rng or math.random
-	local roll = state.rng and (rng(10000) <= math.floor(VOUCHER_CHANCE * 10000)) or (math.random() <= VOUCHER_CHANCE)
-	if not roll then
-		return nil
-	end
-	local available = {}
-	for _, pass in ipairs(HousePasses.Definitions) do
-		if not state.housePasses[pass.id] then
-			table.insert(available, pass)
-		end
-	end
-	if #available == 0 then
-		return nil
-	end
-	return available[rng(#available)]
-end
-
 -- Rerolls just the offers, keeping whatever the current rerollCost climbed
 -- to (the caller bumps it after using this). Opening a fresh shop visit
 -- uses this too, via openShop below, which additionally resets the cost.
+-- Offer generation itself lives in Shared/Engine/Shop.lua (pure, so the
+-- headless simulator rolls offers through the same code).
 local function rollShopOffers(session)
-	session.shopOffers = pickShopOffers(session.state)
-	session.packOffers = pickPackOffers(session.state)
-	session.voucherOffer = pickVoucherOffer(session.state)
+	local offers = Shop.rollOffers(session.state)
+	session.shopOffers = offers.patrons
+	session.packOffers = offers.packs
+	session.voucherOffer = offers.voucher
 end
 
 local function openShop(session)
 	rollShopOffers(session)
-	session.rerollCost = REROLL_BASE_COST
+	session.rerollCost = Shop.REROLL_BASE_COST
 end
 
 local function serializeCard(card)
@@ -566,7 +476,7 @@ local function serializeState(session, player)
 		shopOffers = shopOffers,
 		packOffers = packOffers,
 		voucherOffer = voucherOffer,
-		rerollCost = RunState.rerollCost(state, session.rerollCost or REROLL_BASE_COST),
+		rerollCost = RunState.rerollCost(state, session.rerollCost or Shop.REROLL_BASE_COST),
 		-- pendingPack is already the lightweight { packId, category, pickCount,
 		-- items = {id,name,icon,description} } shape RunState.openPack builds
 		-- -- safe to ship as-is, same as deckCounts/handLevels below.
@@ -1037,7 +947,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		shopOffers = {},
 		packOffers = {},
 		voucherOffer = nil,
-		rerollCost = REROLL_BASE_COST,
+		rerollCost = Shop.REROLL_BASE_COST,
 		-- PERSISTENT SAVE (Phase 10): tracks the wonRun false->true
 		-- transition so syncProfileFromSession's PlayerProfile.recordRunWon
 		-- fires exactly once per run, not on every pushState after Night 8
@@ -1401,13 +1311,13 @@ RerollShopRemote.OnServerEvent:Connect(function(player)
 	if session.state.pendingPack then
 		return
 	end
-	local cost = RunState.rerollCost(session.state, session.rerollCost or REROLL_BASE_COST)
+	local cost = RunState.rerollCost(session.state, session.rerollCost or Shop.REROLL_BASE_COST)
 	if session.state.tips < cost then
 		return
 	end
 	session.state.tips = session.state.tips - cost
 	rollShopOffers(session)
-	session.rerollCost = (session.rerollCost or REROLL_BASE_COST) + REROLL_COST_STEP
+	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
 	pushState(player)
 end)
 

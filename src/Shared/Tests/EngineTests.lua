@@ -18,6 +18,7 @@ local Scoring = require(script.Parent.Parent.Engine.Scoring)
 local Patrons = require(script.Parent.Parent.Engine.Patrons)
 local Themes = require(script.Parent.Parent.Engine.Themes)
 local RunState = require(script.Parent.Parent.Engine.RunState)
+local Shop = require(script.Parent.Parent.Engine.Shop)
 local DeckVariants = require(script.Parent.Parent.Engine.DeckVariants)
 local DifficultyTiers = require(script.Parent.Parent.Engine.DifficultyTiers)
 local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
@@ -3380,6 +3381,55 @@ table.insert(tests, { name = "SeededRng rng(52) fills every bucket within 15% of
 	end
 	local one = SeededRng.new(1)
 	for _ = 1, 20 do expectEqual(one(1), 1) end
+end })
+
+table.insert(tests, { name = "Shop.rollOffers offers 2 unowned Patrons and 2 distinct Packs", fn = function()
+	local state = RunState.new(nil, SeededRng.new(11))
+	state.ownedPatrons = { Patrons.Definitions[1], Patrons.Definitions[2] }
+	for _ = 1, 200 do
+		local offers = Shop.rollOffers(state)
+		expectEqual(#offers.patrons, Shop.OFFER_COUNT)
+		expectEqual(#offers.packs, Shop.PACK_OFFER_COUNT)
+		expectTrue(offers.patrons[1].id ~= offers.patrons[2].id)
+		expectTrue(offers.packs[1].id ~= offers.packs[2].id)
+		for _, patron in ipairs(offers.patrons) do
+			expectTrue(patron.id ~= Patrons.Definitions[1].id and patron.id ~= Patrons.Definitions[2].id)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Shop.rollOffers keeps the shop's numbers and draw order", fn = function()
+	expectEqual(Shop.OFFER_COUNT, 2)
+	expectEqual(Shop.PACK_OFFER_COUNT, 2)
+	expectEqual(Shop.VOUCHER_CHANCE, 0.35)
+	expectEqual(Shop.REROLL_BASE_COST, 5)
+	expectEqual(Shop.REROLL_COST_STEP, 2)
+
+	-- Patrons, then Packs, then the voucher roll, then the voucher pick.
+	local state = RunState.new(nil, function(n) return n end)
+	local seen = {}
+	state.rng = function(n)
+		table.insert(seen, n)
+		return 1
+	end
+	local offers = Shop.rollOffers(state)
+	expectEqual(table.concat(seen, ","), table.concat({
+		#Patrons.Definitions, #Patrons.Definitions - 1,
+		#Packs.Definitions, #Packs.Definitions - 1,
+		10000, #HousePasses.Definitions,
+	}, ","))
+	expectEqual(offers.patrons[1].id, Patrons.Definitions[1].id)
+	expectEqual(offers.patrons[2].id, Patrons.Definitions[2].id)
+	expectEqual(offers.packs[1].id, Packs.Definitions[1].id)
+	expectEqual(offers.voucher.id, HousePasses.Definitions[1].id)
+end })
+
+table.insert(tests, { name = "Shop.rollOffers never offers an owned House Pass", fn = function()
+	local state = RunState.new(nil, function(_n) return 1 end)
+	for _, pass in ipairs(HousePasses.Definitions) do
+		state.housePasses[pass.id] = true
+	end
+	expectEqual(Shop.rollOffers(state).voucher, nil)
 end })
 
 return tests
