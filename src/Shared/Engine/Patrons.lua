@@ -17,6 +17,26 @@ local Card = require(script.Parent.Card)
 
 local Patrons = {}
 
+-- Runs `target`'s ability on behalf of a copying Patron. Copiers can point at
+-- each other (The Understudy seated leftmost with Second Opinion on its
+-- right would otherwise copy each other forever), so a copy that would
+-- revisit a Patron already in the current chain contributes nothing.
+local function copyAbility(selfId, target, handResult, context)
+	if not target then
+		return nil
+	end
+	local chain = context.copyChain or {}
+	context.copyChain = chain
+	if target.id == selfId or chain[target.id] then
+		return nil
+	end
+	local wasInChain = chain[selfId]
+	chain[selfId] = true
+	local bonus = target.effect(handResult, context)
+	chain[selfId] = wasInChain
+	return bonus
+end
+
 -- context fields you can use in an effect function:
 --   allPlayedCards   -- every card in the hand that was played (not just scoring ones)
 --   heldCards        -- cards left in hand, NOT played, at the moment of scoring
@@ -232,11 +252,7 @@ Patrons.Definitions = {
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
 			local i = context.patronIndex or 0
-			local rightNeighbor = patrons[i + 1]
-			if rightNeighbor and rightNeighbor.id ~= "the_understudy" then
-				return rightNeighbor.effect(handResult, context)
-			end
-			return nil
+			return copyAbility("the_understudy", patrons[i + 1], handResult, context)
 		end,
 	},
 	{
@@ -244,11 +260,7 @@ Patrons.Definitions = {
 		description = "Copies the ability of your leftmost Patron.",
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
-			local leftmost = patrons[1]
-			if leftmost and leftmost.id ~= "second_opinion" then
-				return leftmost.effect(handResult, context)
-			end
-			return nil
+			return copyAbility("second_opinion", patrons[1], handResult, context)
 		end,
 	},
 
@@ -411,11 +423,7 @@ Patrons.Definitions = {
 		effect = function(handResult, context)
 			local patrons = context.ownedPatrons or {}
 			local i = context.patronIndex or 0
-			local leftNeighbor = patrons[i - 1]
-			if leftNeighbor and leftNeighbor.id ~= "the_apprentice" then
-				return leftNeighbor.effect(handResult, context)
-			end
-			return nil
+			return copyAbility("the_apprentice", patrons[i - 1], handResult, context)
 		end,
 	},
 

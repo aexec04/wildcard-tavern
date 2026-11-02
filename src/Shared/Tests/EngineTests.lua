@@ -3458,4 +3458,40 @@ table.insert(tests, { name = "Crowd Favorite breaks a most-played tie by name, n
 	expectEqual(state.handLevels["Pair"], nil)
 end })
 
+table.insert(tests, { name = "Copying Patrons can't copy each other in a loop", fn = function()
+	local copiers = { "the_understudy", "second_opinion", "the_apprentice" }
+	local regular = Patrons.getById("the_regular")
+	local handResult = HandEvaluator.evaluate({ C(14, "Hearts") })
+	local function score(patrons)
+		local _, _, mult = Scoring.calculate(handResult, patrons, { allPlayedCards = handResult.scoringCards, rng = neverHitRng })
+		return mult
+	end
+
+	local base = score({})
+	-- Every seating of the three copiers plus The Regular must finish.
+	local ids = { copiers[1], copiers[2], copiers[3], "the_regular" }
+	local function permute(n)
+		if n == 0 then
+			local seated = {}
+			for i, id in ipairs(ids) do seated[i] = Patrons.getById(id) end
+			expectTrue(score(seated) >= base + regular.effect().mult)
+			return
+		end
+		for i = 1, n do
+			ids[i], ids[n] = ids[n], ids[i]
+			permute(n - 1)
+			ids[i], ids[n] = ids[n], ids[i]
+		end
+	end
+	permute(#ids)
+
+	-- The reported loop: Understudy leftmost, Second Opinion to its right.
+	expectEqual(score({ Patrons.getById("the_understudy"), Patrons.getById("second_opinion") }), base)
+	-- Real copies still work, including a chain through another copier.
+	expectEqual(score({ Patrons.getById("the_understudy"), regular }), base + 8)
+	expectEqual(score({ regular, Patrons.getById("the_apprentice") }), base + 8)
+	expectEqual(score({ regular, Patrons.getById("second_opinion") }), base + 8)
+	expectEqual(score({ Patrons.getById("the_understudy"), Patrons.getById("the_understudy") }), base)
+end })
+
 return tests
