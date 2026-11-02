@@ -33,10 +33,10 @@ DeckVariants.Definitions = {
 	{
 		id = "high_roller",
 		name = "High Roller",
-		description = "Start with 14 Tips and round targets are 10% lower, but you get 1 fewer hand to play each round.",
+		description = "Start with 12 Tips and round targets are 5% lower, but you get 1 fewer hand to play each round.",
 		configOverrides = { handsPerRound = -1 },
-		startingTips = 14,
-		targetScoreMultiplier = 0.9,
+		startingTips = 12,
+		targetScoreMultiplier = 0.95,
 	},
 	{
 		id = "marathon",

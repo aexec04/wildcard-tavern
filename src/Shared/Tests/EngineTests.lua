@@ -633,9 +633,9 @@ end })
 
 table.insert(tests, { name = "RunState.new applies the chosen Deck Variant's starting Tips and config deltas", fn = function()
 	local state = RunState.new({ deckVariantId = "high_roller" }, function(n) return n end)
-	expectEqual(state.tips, 14)
+	expectEqual(state.tips, 12)
 	expectEqual(state.config.handsPerRound, RunState.DefaultConfig.handsPerRound - 1)
-	expectEqual(state.targetMultiplier, 0.9)
+	expectEqual(state.targetMultiplier, 0.95)
 end })
 
 table.insert(tests, { name = "RunState.new falls back to the standard deck variant for an unknown id", fn = function()
@@ -3629,11 +3629,11 @@ table.insert(tests, { name = "Balance: deck variants and Late Kitchen match the 
 	expectEqual(steady.discardsRemaining, RunState.DefaultConfig.discardsPerRound + 2)
 
 	local roller = RunState.new({ deckVariantId = "high_roller" }, function(n) return n end)
-	expectEqual(roller.targetScore, math.floor(RunState.targetScoreFor(1, 1, 3) * 0.9))
+	expectEqual(roller.targetScore, math.floor(RunState.targetScoreFor(1, 1, 3) * 0.95))
 
 	expectTrue(DeckVariants.getById("steady_hand").description:find("+2 discards", 1, true) ~= nil)
-	expectTrue(DeckVariants.getById("high_roller").description:find("14 Tips", 1, true) ~= nil)
-	expectTrue(DeckVariants.getById("high_roller").description:find("10% lower", 1, true) ~= nil)
+	expectTrue(DeckVariants.getById("high_roller").description:find("12 Tips", 1, true) ~= nil)
+	expectTrue(DeckVariants.getById("high_roller").description:find("5% lower", 1, true) ~= nil)
 	expectEqual(HousePasses.getById("late_kitchen").price, 5)
 end })
 
