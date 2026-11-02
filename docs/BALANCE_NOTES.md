@@ -1,8 +1,93 @@
 # Balance notes
 
-Results of Phase 2 and Phase 3 of `docs/BALANCE_PLAN.md`. All numbers come from `tools/run_sim.lua`, which drives the real `RunState`, `Scoring` and `Shop`.
+Results of Phases 2, 3, 4 and 6 of `docs/BALANCE_PLAN.md`. All numbers come from `tools/run_sim.lua`, which drives the real `RunState`, `Scoring` and `Shop`.
 
 Difficulty is Standard unless stated. "Decent" and "greedy" are the plan's bots, sharing one shop policy.
+
+The first section below is the current state, after Phases 4 and 6. Everything after it describes Phase 3; two of its numbers have since changed (night growth and the High Roller deck).
+
+## Current state (after Phases 4 and 6)
+
+Ladder: 5,000 runs per bot, seeds 2100001+, never used for tuning.
+
+| Bot | Target | Result | Status |
+|---|---|---|---|
+| random | dies Night 1-2, over 90% | 94.3% | Pass |
+| greedy win | 2-6% | 5.2% | Pass |
+| greedy median death | Night 5-6 | Night 6 | Pass |
+| greedy Night-1 deaths | 10% or less | 9.1% | Pass |
+| decent win | 12-20% | 14.6% | Pass |
+| decent median death | Night 7 | Night 7 | Pass |
+
+Greedy has less margin than these numbers suggest. On a separate 2,000-run sample (seeds 2500001+) it won 6.7%, just over the band.
+
+| Check | Result |
+|---|---|
+| Soft-locks | 0 in 30,300 runs, including forced Wild Crowd, Full Table and Four Top with Double Shift and Late Kitchen |
+| Boss clear rate | Lowest is Everything's Out at 0.52x the all-boss average |
+| Deck variants | Steady Hand 13.1%, High Roller 15.0%, Marathon 16.8%, all within 20% of Standard's 14.3% (3,000 runs each) |
+| Difficulty | Casual 38.0%, Standard 14.3%, High Stakes 9.0% |
+| Menu levels | Pair + Two Pair are 39% of levels, against a 90% limit |
+| Banking bot (never spends below 25 Tips) | 51.8%, unchanged from Phase 3 |
+| Tests | 350 engine tests and all sim checks pass |
+
+### Phase 4: scaling Patrons
+
+Every scaling Patron reads run-long counters on the run's state (rounds cleared, bosses cleared, hands played, discards used, Patrons sold, and hand counts before the current hand). `RunState.runCounters` builds that table once. The server scores with it, ships it to the client, and the client preview scores with the same table, so the two cannot disagree. A test checks the preview against the real score for every scaling Patron.
+
+The plan's suggested numbers were far too strong once added to a pool of 50 Patrons: the decent bot won 94.8% and greedy 74.0%. Scoring is multiplicative, so +40 Chips per Night multiplied a Night-8 hand by about 8. Every one was cut, and night growth then moved from 2.105 to 2.26 to absorb what remained.
+
+| Patron | Plan's number | Shipped | Price |
+|---|---|---|---|
+| slow_cooker | x0.1 Mult per round cleared, up to x3 | x0.025 per round cleared, up to x2 | 7 |
+| house_tab | x0.25 Mult per boss cleared | x0.08 per boss cleared | 8 |
+| regulars_chair | +0.5 Mult per hand played, up to +60 | +1 per 6 hands played, up to +15 | 6 |
+| cobweb_shelf | +1 Mult per Discard used, up to +50 | +1 per 3 Discards used, up to +15 | 5 |
+| tasting_menu | +4 Mult per hand type played, up to +36 | +1 per hand type played (up to +9) | 7 |
+| estate_sale | +6 Mult per Patron sold, up to +60 | +2 per Patron sold, up to +20 | 6 |
+| pair_bonds | +1 Mult per Pair or Two Pair, up to +40 | +1 per 4 Pairs or Two Pairs, up to +15 | 6 |
+| veterans_table | +40 Chips per Night after Night 1 | +8 Chips per Night after Night 1 | 8 |
+
+Other changes in Phase 4:
+
+| Item | Old | New | Why |
+|---|---|---|---|
+| `TARGET_NIGHT_GROWTH` | 2.105 | 2.26 | Most runs now find several scaling Patrons |
+| High Roller starting Tips | 14 | 12 | It was 30% above Standard, because early Tips buy scaling Patrons |
+| High Roller target | x0.9 | x0.95 | Same |
+
+The plan's goal was that two scaling Patrons found early beat two static ones. Each pair below was owned from Night 1, 1,500 runs each, decent bot; the same bot with no free Patron wins about 14%. Standard error is about 1 point.
+
+| Scaling pair | Price | Win | Static pair | Price | Win |
+|---|---|---|---|---|---|
+| slow_cooker + house_tab | 15 | 28.8% | night_owl + steady_hand | 15 | 22.7% |
+| tasting_menu + veterans_table | 15 | 26.1% | the_bard + small_plate | 13 | 20.8% |
+| cobweb_shelf + estate_sale | 11 | 22.2% | ace_of_the_house + vip_table | 12 | 21.1% |
+| regulars_chair + pair_bonds | 12 | 19.5% | full_house_crowd + early_bird | 16 | 29.6% |
+
+Three of the four scaling pairs beat a similarly priced static pair, two of them clearly. regulars_chair + pair_bonds does not, and the static x-Mult pair (full_house_crowd + early_bird) beats everything. So the goal holds for most scaling Patrons but not all; those two are the ones to buff if you want every scaling Patron ahead.
+
+Owned alone from Night 1 (400 runs each, control 12.2%), the economy Patrons still lead at +18 to +21 points, then veterans_table (+15.5), slow_cooker (+13.5) and house_tab (+12.2). The rest are within about +2 to +8 points, inside this sample's noise of about 2.4 points around each other.
+
+In the Patron marginal-value probe, veterans_table reads 1.75x the median at Night 5, a little above the 1.6x band. It is left there on purpose, since a scaling Patron should outgrow a static one by late game. The probe shows the other scaling Patrons at zero because it starts with empty counters.
+
+### Phase 6: onboarding
+
+| Change | Detail |
+|---|---|
+| Walkthrough selection | It used to advance on the first card clicked and then dim the hand, so a new player's first play was forced to be a single-card High Card. Selecting now ends with a "Done picking" button that appears once a card is selected. |
+| Discard taught first | Discard is now shown before the first Play. If the selection only makes a High Card, the text warns about it and the button reads "Play it anyway". Using Discard returns to selecting, because the hand has changed. |
+| High Card hint | The first time a player plays a High Card with a Discard left, a banner explains discarding. It waits until the tutorial is over, appears once per profile, and is saved as `hasSeenHighCardHint`. |
+| New-player discard | +1 discard each round of Night 1, for a profile's first 3 runs. Seeded runs (Daily, Weekly, Seed Code) never get it. |
+| Saves | Existing saves load with the hint unseen and no other change. |
+
+The new-player discard does nothing for the bots: decent 13.0% with or without it, and greedy's Night-1 deaths stay at 8.7%, because greedy never discards. A player who doesn't discard isn't helped by having more discards, so the walkthrough change is the part aimed at them. The bonus only helps players who already discard.
+
+With every Phase 6 feature in place, a normal run plays identically: the same 2,000 seeds gave the same result to the decimal before and after.
+
+The Daily and Weekly leaderboard depth counts rounds reached, `(night - 1) * 3 + (round - 1)`. That is unaffected by the target changes. It does count a skipped round as progress, which was true before this work; `state.roundsCleared` now exists if you'd rather rank by rounds actually cleared.
+
+None of the client changes (walkthrough, banner) have been run in Roblox Studio. They parse as Lua, and the rules behind them are covered by tests.
 
 ## Result
 
