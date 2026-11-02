@@ -212,6 +212,12 @@ function RunState.new(options, rng)
 		pendingPack = nil, -- set by RunState.openPack, cleared by RunState.resolvePack -- see below
 		brittleShieldRound = false, -- set by the "Sugar Shield" Secret Recipe, reset each round -- see below
 		bossModifier = nil,
+		-- True on the last round of every Night, on EVERY difficulty --
+		-- including Casual, where bossModifier stays nil (no modifier) but
+		-- the round is still the Night's boss-sized finale. Use
+		-- RunState.isBossRound(state) for "is this a boss round?" checks;
+		-- bossModifier is only for the modifier's actual effects.
+		isBossRound = false,
 		-- JOURNEY FEATURE: this Night's Boss Round modifier, picked once
 		-- when the Night's first round starts (see startRound below) and
 		-- held for the rest of the Night, so the Journey map can reveal
@@ -292,7 +298,8 @@ function RunState.startRound(state)
 		state.nightBossModifier = nil
 	end
 
-	local isBoss = state.bossRoundsEnabled and BossRounds.isBossRound(state.round, state.config.roundsPerNight)
+	state.isBossRound = BossRounds.isBossRound(state.round, state.config.roundsPerNight)
+	local isBoss = state.bossRoundsEnabled and state.isBossRound
 	state.bossModifier = isBoss and state.nightBossModifier or nil
 	local bossModifier = state.bossModifier
 
@@ -379,6 +386,45 @@ local function settleHeldCardsAtRoundEnd(state, lastHandName)
 			end
 		end
 	end
+end
+
+-- True on the last round of every Night on every difficulty (see the
+-- isBossRound state field). Also true for any state with a bossModifier
+-- set directly, so hand-built test states keep working.
+function RunState.isBossRound(state)
+	return state.bossModifier ~= nil or state.isBossRound == true
+end
+
+-- Draws `count` cards. If the draw pile runs dry mid-round, shuffles the
+-- discard pile back in and keeps drawing, so a round can never run out of
+-- cards while any exist in the run. (Before this, the discard pile was only
+-- pooled back at startRound, and a long round -- e.g. Rowdy Crowd's forced
+-- discards plus extra hands/discards -- could empty the hand and soft-lock.)
+local function drawCards(state, count)
+	local drawn = Deck.draw(state.deck, count)
+	if #drawn < count and #state.discardPile > 0 then
+		for _, card in ipairs(state.discardPile) do
+			table.insert(state.deck, card)
+		end
+		state.discardPile = {}
+		Deck.shuffle(state.deck, state.rng)
+		for _, card in ipairs(Deck.draw(state.deck, count - #drawn)) do
+			table.insert(drawn, card)
+		end
+	end
+	return drawn
+end
+
+-- Whether the current hand can make any legal play at all.
+function RunState.hasLegalPlay(state)
+	if #state.hand == 0 then
+		return false
+	end
+	local required = state.bossModifier and state.bossModifier.requiredCardsPerHand
+	if required and #state.hand < required then
+		return false
+	end
+	return true
 end
 
 local function removeIndicesFromHand(state, indices)
@@ -527,6 +573,14 @@ function RunState.playHand(state, cardIndices)
 	for _, card in ipairs(extra.brokenCards or {}) do
 		brokenSet[card] = true
 	end
+	-- Refill hand from the deck. Drawn BEFORE the played cards go to the
+	-- discard pile, so a mid-round reshuffle (see drawCards) can't hand you
+	-- straight back the cards you just played.
+	local drawn = drawCards(state, #playedCards)
+	for _, card in ipairs(drawn) do
+		table.insert(state.hand, card)
+	end
+
 	for _, card in ipairs(playedCards) do
 		if not brokenSet[card] then
 			table.insert(state.discardPile, card)
@@ -538,24 +592,17 @@ function RunState.playHand(state, cardIndices)
 		state.tips = math.max(0, state.tips - bossModifier.tipsLostPerCardPlayed * #playedCards)
 	end
 
-	-- Refill hand from the deck.
-	local drawn = Deck.draw(state.deck, #playedCards)
-	for _, card in ipairs(drawn) do
-		table.insert(state.hand, card)
-	end
-
 	-- "Rowdy Crowd" Boss Round: toss out extra random held cards after
 	-- every hand played (a penalty, doesn't cost a Discard).
 	if bossModifier and bossModifier.forcedRandomDiscardsPerHand and #state.hand > 0 then
 		local rng = state.rng or math.random
 		for _ = 1, bossModifier.forcedRandomDiscardsPerHand do
 			if #state.hand > 0 then
-				local i = rng(#state.hand)
-				table.insert(state.discardPile, table.remove(state.hand, i))
-				local replacement = Deck.draw(state.deck, 1)
-				for _, card in ipairs(replacement) do
+				local thrown = table.remove(state.hand, rng(#state.hand))
+				for _, card in ipairs(drawCards(state, 1)) do
 					table.insert(state.hand, card)
 				end
+				table.insert(state.discardPile, thrown)
 			end
 		end
 	end
@@ -593,13 +640,16 @@ function RunState.playHand(state, cardIndices)
 		-- (see RunState.blindMultiplierFor/targetScoreFor). This can only
 		-- ever go true once a run: state.night only ever increases, so
 		-- night == nightCap is never true again after this Night ends.
-		if state.bossModifier and state.night == state.config.nightCap then
+		-- BUGFIX (balance pass): was `state.bossModifier and ...`, which is
+		-- nil on Casual (no Boss modifiers), so Casual runs could never be
+		-- won. RunState.isBossRound works on every difficulty.
+		if RunState.isBossRound(state) and state.night == state.config.nightCap then
 			state.wonRun = true
 		end
 
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
 		local reward = state.config.tipsPerRoundWin
-		if state.bossModifier then
+		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
 		end
 		-- PHASE 15: "Nightcap Round" (Secret Recipe) sets this one-shot flag
@@ -631,7 +681,18 @@ function RunState.playHand(state, cardIndices)
 		state.runOver = true
 	end
 
+	-- Last-resort soft-lock guard (see drawCards / hasLegalPlay): a round
+	-- that's still going but has no legal play ends the run instead of
+	-- hanging. Only reachable if the run has fewer cards than a hand needs.
+	local softLocked = false
+	if not state.roundOver and state.handsRemaining > 0 and not RunState.hasLegalPlay(state) then
+		state.roundOver = true
+		state.runOver = true
+		softLocked = true
+	end
+
 	return {
+		softLocked = softLocked,
 		handName = handResult.name,
 		score = score,
 		chips = chips,
@@ -667,13 +728,21 @@ function RunState.discard(state, cardIndices)
 		end
 	end
 
+	local drawn = drawCards(state, #discarded)
+	for _, card in ipairs(drawn) do
+		table.insert(state.hand, card)
+	end
+
 	for _, card in ipairs(discarded) do
 		table.insert(state.discardPile, card)
 	end
 
-	local drawn = Deck.draw(state.deck, #discarded)
-	for _, card in ipairs(drawn) do
-		table.insert(state.hand, card)
+	-- Last-resort guard: only reachable if the whole run has fewer cards
+	-- than a hand needs. End the run instead of leaving it unplayable.
+	if state.handsRemaining > 0 and not RunState.hasLegalPlay(state) then
+		state.roundOver = true
+		state.runOver = true
+		return { discarded = #discarded, discardsRemaining = state.discardsRemaining, runOver = true, softLocked = true }
 	end
 
 	return { discarded = #discarded, discardsRemaining = state.discardsRemaining }

@@ -553,6 +553,14 @@ table.insert(tests, { name = "BossRounds.isBossRound is only true on a Night's l
 	expectTrue(BossRounds.isBossRound(3, 3))
 end })
 
+table.insert(tests, { name = "BossRounds.categoryOf gives every modifier a known category", fn = function()
+	for _, def in ipairs(BossRounds.Definitions) do
+		local categoryId = BossRounds.categoryOf(def)
+		expectTrue(categoryId ~= nil and BossRounds.getCategoryById(categoryId) ~= nil, def.id .. " has no category")
+	end
+	expectEqual(BossRounds.categoryOf(BossRounds.getById("picked_over")), "debuff", "a combo should take the first matching category")
+end })
+
 table.insert(tests, { name = "BossRounds.pick returns a valid, well-formed modifier", fn = function()
 	local modifier = BossRounds.pick(function(n) return n end)
 	expectTrue(modifier ~= nil)
@@ -3210,6 +3218,168 @@ table.insert(tests, { name = "TrueWildcard.findBestChoice always restores the ca
 	-- itself must be back exactly where this started.
 	expectEqual(wildcardCard.rank, 2)
 	expectEqual(wildcardCard.suit, "Hearts")
+end })
+
+-- ===== Balance pass, Phase 1: bug fixes =====
+
+-- Puts a fresh Casual/Standard run on the last round of the final Night with
+-- a target of 0, so the next hand played clears it.
+local function finalBossState(difficultyId)
+	local state = RunState.new({ difficultyId = difficultyId }, function(n) return n end)
+	state.night = state.config.nightCap
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	state.targetScore = 0
+	return state
+end
+
+table.insert(tests, { name = "Casual: clearing the final Night's last round wins the run", fn = function()
+	local state = finalBossState("casual")
+	expectTrue(state.bossModifier == nil) -- Casual has no boss modifiers...
+	expectTrue(RunState.isBossRound(state)) -- ...but it's still the boss round
+	local result = RunState.playHand(state, { 1 })
+	expectTrue(result.roundWon)
+	expectTrue(state.wonRun)
+end })
+
+table.insert(tests, { name = "Casual: the boss round pays the doubled round reward", fn = function()
+	local state = finalBossState("casual")
+	state.tips = 0
+	RunState.playHand(state, { 1 })
+	-- 2x flat reward; interest on 0 Tips is 0, no Patrons owned.
+	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin)
+end })
+
+table.insert(tests, { name = "Casual: Boss's Bane pays on the boss round", fn = function()
+	local state = finalBossState("casual")
+	state.tips = 0
+	table.insert(state.ownedPatrons, Patrons.getById("boss_bane"))
+	RunState.playHand(state, { 1 })
+	-- Boss's Bane's +10 lands before round-win interest (+1 per 5 held).
+	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin + 10 + math.floor(10 / 5))
+end })
+
+table.insert(tests, { name = "Casual: a non-boss round is not a boss round and pays the normal reward", fn = function()
+	local state = RunState.new({ difficultyId = "casual" }, function(n) return n end)
+	expectFalse(RunState.isBossRound(state))
+	state.tips = 0
+	state.targetScore = 0
+	RunState.playHand(state, { 1 })
+	expectEqual(state.tips, state.config.tipsPerRoundWin)
+	expectFalse(state.wonRun)
+end })
+
+table.insert(tests, { name = "Standard: the final boss round still wins the run", fn = function()
+	local state = finalBossState("standard")
+	expectTrue(state.bossModifier ~= nil)
+	-- Some boss modifiers require a set number of cards; play what's allowed.
+	local count = (state.bossModifier.requiredCardsPerHand) or 1
+	local indices = {}
+	for i = 1, count do indices[i] = i end
+	RunState.playHand(state, indices)
+	expectTrue(state.wonRun)
+end })
+
+local function totalCards(state)
+	return #state.hand + #state.deck + #state.discardPile
+end
+
+table.insert(tests, { name = "An empty draw pile reshuffles the discard pile back in mid-round", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local handSize = #state.hand
+	-- Move the whole draw pile to the discard pile.
+	for _, card in ipairs(state.deck) do table.insert(state.discardPile, card) end
+	state.deck = {}
+	local before = totalCards(state)
+	RunState.playHand(state, { 1, 2, 3, 4, 5 })
+	expectEqual(#state.hand, handSize)
+	expectEqual(totalCards(state), before)
+end })
+
+table.insert(tests, { name = "Discarding with an empty draw pile still refills the hand", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local handSize = #state.hand
+	for _, card in ipairs(state.deck) do table.insert(state.discardPile, card) end
+	state.deck = {}
+	RunState.discard(state, { 1, 2, 3 })
+	expectEqual(#state.hand, handSize)
+	expectEqual(totalCards(state), 52)
+end })
+
+table.insert(tests, { name = "Rowdy Crowd + extra hands + discards never empties the hand (soft-lock regression)", fn = function()
+	local rowdy
+	for _, mod in ipairs(BossRounds.Modifiers or BossRounds.Definitions or {}) do
+		if mod.forcedRandomDiscardsPerHand then rowdy = mod break end
+	end
+	expectTrue(rowdy ~= nil)
+	local rng = SeededRng.new(136)
+	local state = RunState.new(nil, rng)
+	state.bossModifier = rowdy
+	state.targetScore = 10 ^ 12 -- unreachable: keep playing the whole round
+	state.handsRemaining = 12
+	state.discardsRemaining = 8
+	local before = totalCards(state)
+	while not state.roundOver do
+		if state.discardsRemaining > 0 and #state.hand >= 2 then
+			RunState.discard(state, { 1, 2 })
+		else
+			RunState.playHand(state, { 1 })
+		end
+		expectEqual(totalCards(state), before)
+		if not state.roundOver then
+			expectTrue(#state.hand > 0)
+		end
+	end
+	expectTrue(state.runOver) -- lost on hands, not soft-locked
+end })
+
+table.insert(tests, { name = "A run with fewer cards than a hand needs ends instead of soft-locking", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.bossModifier = { id = "test_required", requiredCardsPerHand = 5 }
+	state.hand = { C(2, "Hearts"), C(3, "Hearts"), C(4, "Hearts"), C(5, "Hearts"), C(7, "Spades") }
+	state.deck = {}
+	state.discardPile = {}
+	state.targetScore = 10 ^ 12
+	state.handsRemaining = 3
+	-- Playing all 5 leaves nothing to draw and nothing to reshuffle back in
+	-- (the played cards only hit the discard pile after the refill).
+	local result = RunState.playHand(state, { 1, 2, 3, 4, 5 })
+	expectTrue(result.softLocked)
+	expectTrue(state.runOver)
+end })
+
+table.insert(tests, { name = "SeededRng is deterministic per seed", fn = function()
+	local a, b = SeededRng.new(4242), SeededRng.new(4242)
+	for _ = 1, 500 do
+		expectEqual(a(52), b(52))
+	end
+end })
+
+table.insert(tests, { name = "SeededRng rng(2) is balanced and does not strictly alternate", fn = function()
+	local rng = SeededRng.new(7)
+	local ones, alternations, last = 0, 0, nil
+	for i = 1, 20000 do
+		local v = rng(2)
+		if v == 1 then ones = ones + 1 end
+		if i <= 64 and last and v ~= last then alternations = alternations + 1 end
+		last = v
+	end
+	expectTrue(ones >= 9600 and ones <= 10400)
+	expectTrue(alternations < 63)
+end })
+
+table.insert(tests, { name = "SeededRng rng(52) fills every bucket within 15% of uniform", fn = function()
+	local rng = SeededRng.new(99)
+	local counts = {}
+	for _ = 1, 52000 do
+		local v = rng(52)
+		counts[v] = (counts[v] or 0) + 1
+	end
+	for v = 1, 52 do
+		expectTrue((counts[v] or 0) >= 850 and (counts[v] or 0) <= 1150)
+	end
+	local one = SeededRng.new(1)
+	for _ = 1, 20 do expectEqual(one(1), 1) end
 end })
 
 return tests

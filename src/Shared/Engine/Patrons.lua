@@ -612,7 +612,9 @@ Patrons.Definitions = {
 		description = "Earn 10 Tips whenever you clear a Boss Round.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
-			if state.bossModifier then
+			-- isBossRound covers Casual too (no modifier, still a boss
+			-- round). Can't call RunState.isBossRound -- require cycle.
+			if state.bossModifier or state.isBossRound then
 				state.tips = state.tips + 10
 			end
 		end,

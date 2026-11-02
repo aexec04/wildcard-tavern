@@ -3,8 +3,8 @@
 	DAILY CHALLENGE (Phase 11): shows today's top 10 Daily Challenge scores
 	(by "depth" -- rounds fully cleared, see Server/init.server.lua's
 	computeDailyDepth -- tips as the tiebreak) plus the player's own best
-	for today, whether or not it placed in the top 10. Reachable from a new
-	"🏆" corner button, mirroring Collection.lua's "📔" pattern exactly
+	for today, whether or not it placed in the top 10. Reachable from the
+	Settings panel's "🏆 Leaderboards" button, mirroring Collection.lua's pattern
 	(backdrop + panel + popIn/popOut + Close button).
 
 	Extracted as its own file for the same reason every other overlay in
@@ -28,7 +28,7 @@
 		roundCorner                 -- function(instance, radius)
 		addSoftShadow                -- function(instance, radius)
 		playClickSfx                -- function(volume?)
-		leaderboardButton            -- TextButton, the in-game "🏆" corner button
+		leaderboardButton            -- TextButton, Settings.lua's "🏆 Leaderboards" button (was the corner icon)
 		GetDailyLeaderboardRemote    -- RemoteFunction, InvokeServer() -> see below
 		GetWeeklyLeaderboardRemote   -- RemoteFunction, same shape as GetDailyLeaderboardRemote (Phase 16)
 		popIn                        -- function(backdrop, content, opts?)
@@ -289,7 +289,7 @@ return function(deps)
 					period, result.yourBest.depth, result.yourBest.tips
 				)
 			elseif result.yourBestOk then
-				yourBestLabel.Text = "You haven't set a score " .. period .. " yet -- play a " .. label .. " run!"
+				yourBestLabel.Text = "No score set " .. period .. "."
 			else
 				yourBestLabel.Text = "Couldn't check your best score."
 			end
@@ -301,7 +301,7 @@ return function(deps)
 
 			local top = result.top or {}
 			if #top == 0 then
-				makeLeaderboardMessage("Nobody's set a score yet " .. period .. " -- be the first!")
+				makeLeaderboardMessage("No scores yet " .. period .. ".")
 				return
 			end
 

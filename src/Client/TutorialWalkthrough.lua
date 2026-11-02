@@ -239,12 +239,9 @@ return function(deps)
 	captionCard.ZIndex = 52
 	captionCard.Visible = false
 	captionCard.Parent = root
+	-- Border comes from polishPanel's gold chrome now (it used to add its
+	-- own brown UIStroke here, which would have doubled up with it).
 	polishPanel(captionCard, 14)
-
-	local captionStroke = Instance.new("UIStroke")
-	captionStroke.Thickness = 2
-	captionStroke.Color = Color3.fromRGB(90, 60, 30)
-	captionStroke.Parent = captionCard
 
 	local captionPadding = Instance.new("UIPadding")
 	captionPadding.PaddingTop = UDim.new(0, 16)

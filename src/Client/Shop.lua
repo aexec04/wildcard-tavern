@@ -207,8 +207,8 @@ return function(deps)
 	do
 		shopFrame = Instance.new("Frame")
 		shopFrame.Name = "Shop"
-		-- Same SIDEBAR_WIDTH-aware horizontal convention as messageLabel/
-		-- bossBanner in init.client.lua, so the panel never sits under the
+		-- Same SIDEBAR_WIDTH-aware horizontal convention as messageLabel
+		-- in MessageBanner.lua, so the panel never sits under the
 		-- fixed sidebar -- but full height (0 to 1, no top/bottom margin) so
 		-- it fully covers the corner icon buttons (top) and the Play Hand/
 		-- Discard bar (bottom) instead of leaving them peeking out above/

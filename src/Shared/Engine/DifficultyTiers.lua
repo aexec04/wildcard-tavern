@@ -13,7 +13,7 @@ DifficultyTiers.Definitions = {
 	{
 		id = "casual",
 		name = "Casual",
-		description = "Round targets are 20% lower and Boss Rounds are off. Good for learning the game.",
+		description = "Round targets are 20% lower and Boss Rounds have no special rules. Good for learning the game.",
 		targetScoreMultiplier = 0.8,
 		bossRoundsEnabled = false,
 	},

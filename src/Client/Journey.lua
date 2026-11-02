@@ -108,6 +108,50 @@ return function(deps)
 		current = Color3.fromRGB(240, 182, 76),
 	}
 
+	-- JOURNEY MAP (distinct boss gates): each BossRounds.categoryOf bucket
+	-- gets its own gate color + a glyph on the gate's face, so you can tell
+	-- what KIND of boss is coming at a glance instead of reading the text.
+	-- Only applies once this Night's Boss is actually known (see
+	-- refreshJourneyImpl) -- future Nights' gates stay the generic
+	-- LANDMARK_COLORS.gate with no glyph, since they haven't been rolled.
+	local GATE_CATEGORY_STYLES = {
+		debuff = { color = Color3.fromRGB(128, 82, 168), glyph = "🚫" },
+		restriction = { color = Color3.fromRGB(62, 104, 168), glyph = "✋" },
+		weaken = { color = Color3.fromRGB(206, 118, 48), glyph = "💧" },
+		squeeze = { color = Color3.fromRGB(48, 140, 132), glyph = "🃏" },
+		tips = { color = Color3.fromRGB(184, 150, 44), glyph = "💰" },
+		target = { color = Color3.fromRGB(177, 84, 79), glyph = "🎯" },
+	}
+
+	-- JOURNEY MAP (environment shift by Night): the road's backdrop color
+	-- at a few anchor Nights, linearly blended in between and held at the
+	-- last anchor past it (Endless Mode). Warm and close to town early,
+	-- dusky by Night 3, cold and dark by Night 5, near-black with bright,
+	-- stark road dashes by the final Night. `base` is the ground, `dash`
+	-- the road line -- the dash brightening late is what gives the
+	-- higher-contrast read, not just the darker ground.
+	local NIGHT_PALETTE = {
+		{ night = 1, base = Color3.fromRGB(86, 60, 38), dash = Color3.fromRGB(130, 100, 66) },
+		{ night = 3, base = Color3.fromRGB(70, 46, 62), dash = Color3.fromRGB(122, 92, 112) },
+		{ night = 5, base = Color3.fromRGB(30, 40, 66), dash = Color3.fromRGB(86, 102, 142) },
+		{ night = 8, base = Color3.fromRGB(12, 12, 18), dash = Color3.fromRGB(215, 220, 235) },
+	}
+
+	local function paletteForNight(night)
+		local first, last = NIGHT_PALETTE[1], NIGHT_PALETTE[#NIGHT_PALETTE]
+		if night <= first.night then
+			return first.base, first.dash
+		end
+		for i = 1, #NIGHT_PALETTE - 1 do
+			local a, b = NIGHT_PALETTE[i], NIGHT_PALETTE[i + 1]
+			if night <= b.night then
+				local t = (night - a.night) / (b.night - a.night)
+				return a.base:Lerp(b.base, t), a.dash:Lerp(b.dash, t)
+			end
+		end
+		return last.base, last.dash
+	end
+
 	-- POLISH PASS 2: flat single-color Frames read as paper cutouts next to
 	-- the concept art's softer, shaded illustration style. Roblox Frames
 	-- have no real lighting, so the standard fake is a UIGradient running
@@ -307,6 +351,44 @@ return function(deps)
 	-- currentTheme crash below, not clipping, so this stays at the default.
 	journeyMapScroll.Parent = journeyPanel
 
+	-- JOURNEY MAP (environment shift by Night): the ground behind the road.
+	-- Created BEFORE journeyStagesHolder so it renders underneath it.
+	-- Lives inside the canvas (not behind the ScrollingFrame) so its
+	-- horizontal gradient lines up with each Night cluster as you scroll
+	-- -- the road visibly gets colder/darker the further ahead you look.
+	-- Width + gradient set for real once xCursor is final / every refresh.
+	local journeyGround = Instance.new("Frame")
+	journeyGround.Name = "Ground"
+	journeyGround.Size = UDim2.new(0, 0, 1, 0)
+	journeyGround.BorderSizePixel = 0
+	journeyGround.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- the gradient supplies the real color
+	journeyGround.ZIndex = 21
+	journeyGround.Parent = journeyMapScroll
+	roundCorner(journeyGround, 10)
+
+	local journeyGroundGradient = Instance.new("UIGradient")
+	journeyGroundGradient.Rotation = 0 -- left-to-right, across the Nights
+	journeyGroundGradient.Parent = journeyGround
+
+	-- Same top-light/bottom-dark shading the landmarks get (see
+	-- SHADING_ROTATION), as a separate translucent layer since one Frame
+	-- can only hold one UIGradient and the ground's is already horizontal.
+	local journeyGroundShade = Instance.new("Frame")
+	journeyGroundShade.Size = UDim2.fromScale(1, 1)
+	journeyGroundShade.BorderSizePixel = 0
+	journeyGroundShade.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	journeyGroundShade.ZIndex = 21
+	journeyGroundShade.Parent = journeyGround
+	roundCorner(journeyGroundShade, 10)
+	local journeyGroundShadeGradient = Instance.new("UIGradient")
+	journeyGroundShadeGradient.Rotation = SHADING_ROTATION
+	journeyGroundShadeGradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.6, 0.8),
+		NumberSequenceKeypoint.new(1, 0.4),
+	})
+	journeyGroundShadeGradient.Parent = journeyGroundShade
+
 	-- A thin path line behind the nodes, purely decorative -- gives the "walk
 	-- along a road" read even before the avatar marker is on top of it.
 	local journeyStagesHolder = Instance.new("Frame")
@@ -480,7 +562,7 @@ return function(deps)
 			ringStroke.Parent = ring
 
 			local entryKind
-			local lanternGlow, lanternHalo, tableShape, gateShape
+			local lanternGlow, lanternHalo, tableShape, gateShape, gateGlyph
 
 			if round == 1 then
 				-- Small Round -- a lantern post, warmest/simplest landmark.
@@ -554,6 +636,20 @@ return function(deps)
 				gateCrown.Text = "👑"
 				gateCrown.ZIndex = 23
 				gateCrown.Parent = gateShape
+
+				-- JOURNEY MAP (distinct boss gates): the category glyph on
+				-- the gate's face -- hidden until this Night's Boss is known.
+				gateGlyph = Instance.new("TextLabel")
+				gateGlyph.Name = "CategoryGlyph"
+				gateGlyph.Size = UDim2.new(1, 0, 0, 24)
+				gateGlyph.Position = UDim2.new(0, 0, 0, 10)
+				gateGlyph.BackgroundTransparency = 1
+				gateGlyph.Font = Enum.Font.GothamBold
+				gateGlyph.TextSize = 16
+				gateGlyph.Text = ""
+				gateGlyph.Visible = false
+				gateGlyph.ZIndex = 23
+				gateGlyph.Parent = gateShape
 			end
 
 			if round == 1 then
@@ -615,6 +711,7 @@ return function(deps)
 				lanternHalo = lanternHalo,
 				tableShape = tableShape,
 				gateShape = gateShape,
+				gateGlyph = gateGlyph,
 				nightOffset = night,
 				night = night, -- overwritten every refresh, see above
 				round = round,
@@ -632,6 +729,23 @@ return function(deps)
 	local journeyContentWidth = math.max(0, xCursor - JOURNEY_NODE_PADDING)
 	journeyStagesHolder.Size = UDim2.new(0, journeyContentWidth, 1, 0)
 	journeyMapScroll.CanvasSize = UDim2.new(0, journeyContentWidth, 0, 0)
+	journeyGround.Size = UDim2.new(0, journeyContentWidth, 1, 0)
+
+	-- Each Night cluster's center, as a 0-1 fraction of the content width
+	-- -- where that cluster's palette color sits in journeyGroundGradient.
+	local journeyClusterCenters = {}
+	do
+		local sums, counts = {}, {}
+		for _, entry in ipairs(journeyStageNodes) do
+			sums[entry.nightOffset] = (sums[entry.nightOffset] or 0) + entry.centerX
+			counts[entry.nightOffset] = (counts[entry.nightOffset] or 0) + 1
+		end
+		for clusterIndex = 1, PREVIEW_NIGHTS do
+			local fraction = (sums[clusterIndex] / counts[clusterIndex]) / math.max(1, journeyContentWidth)
+			journeyClusterCenters[clusterIndex] = math.clamp(fraction, 0.001, 0.999)
+		end
+	end
+	local journeyDashes = {} -- { frame, clusterIndex } -- recolored per Night every refresh
 
 	-- POLISH PASS: the dashed road line itself -- built here rather than
 	-- up where journeyPathLine was created because it needs the real,
@@ -649,6 +763,17 @@ return function(deps)
 			dash.ZIndex = 21
 			dash.Parent = journeyPathLine
 			roundCorner(dash, 2)
+
+			-- Which Night cluster this dash belongs to: the nearest center.
+			local dashFraction = (i * dashSpan + DASH_WIDTH / 2) / math.max(1, journeyContentWidth)
+			local nearestCluster, nearestDistance = 1, math.huge
+			for clusterIndex, center in ipairs(journeyClusterCenters) do
+				local distance = math.abs(center - dashFraction)
+				if distance < nearestDistance then
+					nearestCluster, nearestDistance = clusterIndex, distance
+				end
+			end
+			table.insert(journeyDashes, { frame = dash, clusterIndex = nearestCluster })
 		end
 	end
 
@@ -676,7 +801,8 @@ return function(deps)
 
 		if entry.night == currentNight and latestState and latestState.nightBossModifier then
 			local modifier = latestState.nightBossModifier
-			return string.format("👑 %s\n%s\nTarget Score: %d", modifier.name, modifier.description, target)
+			local category = BossRounds.getCategoryById(BossRounds.categoryOf(BossRounds.getById(modifier.id)) or "")
+			return string.format("👑 %s%s\n%s\nTarget Score: %d", modifier.name, category and (" (" .. category.name .. ")") or "", modifier.description, target)
 		end
 
 		return string.format("👑 Boss Round, Night %d\nRevealed once you reach this Night.\nTarget Score: %d", entry.night, target)
@@ -725,9 +851,10 @@ return function(deps)
 			journeyBossInfoLabel.Text = "Boss Rounds are off this run -- every round plays the same."
 		elseif latestState and latestState.nightBossModifier then
 			local modifier = latestState.nightBossModifier
+			local category = BossRounds.getCategoryById(BossRounds.categoryOf(BossRounds.getById(modifier.id)) or "")
 			journeyBossInfoLabel.Text = string.format(
-				"👑 This Night's Boss (Round %d): %s\n%s",
-				ROUNDS_PER_NIGHT, modifier.name, modifier.description
+				"👑 This Night's Boss (Round %d): %s%s\n%s",
+				ROUNDS_PER_NIGHT, modifier.name, category and (" -- " .. category.name) or "", modifier.description
 			)
 		else
 			journeyBossInfoLabel.Text = "This Night's Boss hasn't been revealed yet."
@@ -788,6 +915,33 @@ return function(deps)
 			nightLabel.Text = string.format("Night %d", journeyWindowBaseNight + clusterIndex - 1)
 		end
 
+		-- JOURNEY MAP (environment shift by Night): recolor the ground and
+		-- road for whichever real Nights the window is showing right now.
+		do
+			local first = paletteForNight(journeyWindowBaseNight)
+			local last = paletteForNight(journeyWindowBaseNight + PREVIEW_NIGHTS - 1)
+			local keypoints = { ColorSequenceKeypoint.new(0, first) }
+			local dashColors = {}
+			for clusterIndex = 1, PREVIEW_NIGHTS do
+				local base, dash = paletteForNight(journeyWindowBaseNight + clusterIndex - 1)
+				table.insert(keypoints, ColorSequenceKeypoint.new(journeyClusterCenters[clusterIndex], base))
+				dashColors[clusterIndex] = dash
+			end
+			table.insert(keypoints, ColorSequenceKeypoint.new(1, last))
+			journeyGroundGradient.Color = ColorSequence.new(keypoints)
+			for _, dashEntry in ipairs(journeyDashes) do
+				dashEntry.frame.BackgroundColor3 = dashColors[dashEntry.clusterIndex]
+			end
+		end
+
+		-- JOURNEY MAP (distinct boss gates): only THIS Night's Boss is ever
+		-- known (future ones aren't rolled yet, see RunState.startRound).
+		local currentBossStyle = nil
+		if latestState and latestState.nightBossModifier then
+			local categoryId = BossRounds.categoryOf(BossRounds.getById(latestState.nightBossModifier.id))
+			currentBossStyle = categoryId and GATE_CATEGORY_STYLES[categoryId]
+		end
+
 		local targetNode = nil
 		for _, entry in ipairs(journeyStageNodes) do
 			entry.night = journeyWindowBaseNight + entry.nightOffset - 1
@@ -811,12 +965,23 @@ return function(deps)
 			local colorTarget = entry.lanternGlow
 				or (entry.kind == "dual" and (isBoss and entry.gateShape or entry.tableShape))
 				or entry.tableShape
+			local gateStyle = (isBoss and entry.night == currentNight) and currentBossStyle or nil
 			local naturalColor = (entry.kind == "lantern" and LANDMARK_COLORS.lanternGlow)
+				or (gateStyle and gateStyle.color)
 				or (isBoss and LANDMARK_COLORS.gate or LANDMARK_COLORS.table)
 
+			if entry.gateGlyph then
+				entry.gateGlyph.Visible = gateStyle ~= nil and not isPast
+				entry.gateGlyph.Text = gateStyle and gateStyle.glyph or ""
+			end
+
 			if colorTarget then
+				-- A known Boss gate keeps its category color even while
+				-- you're standing on it -- the CurrentRing already marks
+				-- "you are here", and swapping to the theme highlight would
+				-- hide exactly the at-a-glance cue the color exists for.
 				local newColor = isPast and LANDMARK_COLORS.done
-					or (isCurrent and (currentTheme.colors.cardSelected or LANDMARK_COLORS.current) or naturalColor)
+					or ((isCurrent and not gateStyle) and (currentTheme.colors.cardSelected or LANDMARK_COLORS.current) or naturalColor)
 				-- POLISH PASS 2: goes through applyLandmarkColor now instead
 				-- of a bare BackgroundColor3 assignment, so the shape's
 				-- "Shading" UIGradient (see the POLISH PASS 2 comment up by

@@ -35,9 +35,17 @@
 
 local SeededRng = {}
 
+-- Bumped whenever the sequence a seed produces changes. 2 = upper-16-bit
+-- draws (balance pass, Nov 2026); every Daily/Weekly/Seed-Code run plays
+-- differently from version 1 for the same seed.
+SeededRng.VERSION = 2
+
 -- A textbook Linear Congruential Generator (Numerical Recipes' constants).
--- Not cryptographically random and not perfectly uniform once folded down
--- to a small range (see the `% n` note in .new below) -- neither matters
+-- Not cryptographically random. Draws use the UPPER 16 bits of the state
+-- (see .new below): an LCG with a power-of-two modulus has terrible low
+-- bits (bit 0 strictly alternates, the low 2 bits repeat every 4 calls),
+-- so the old `state % n` made rng(2) alternate 1,2,1,2 forever and biased
+-- every shuffle. Neither "crypto" nor perfect uniformity matters
 -- here; this only needs to be FAST, DETERMINISTIC, and PORTABLE across
 -- lua5.3 (this sandbox) and Luau (real Roblox), which a plain arithmetic
 -- LCG is, and a "real" RNG (Roblox's Random.new, os.clock-seeded
@@ -62,7 +70,7 @@ function SeededRng.new(seed)
 	return function(n)
 		assert(type(n) == "number" and n >= 1, "SeededRng: n must be >= 1")
 		state = (MULTIPLIER * state + INCREMENT) % MODULUS
-		return (state % math.floor(n)) + 1
+		return (math.floor(state / 65536) % math.floor(n)) + 1
 	end
 end
 

@@ -20,9 +20,9 @@
 	A short "arrival" beat the first time a NEW Boss Round's state shows
 	up -- a hard screen flash + shake, a slammed-in banner naming the
 	boss, and a low stinger sound, instead of the Boss Round just quietly
-	appearing in the sidebar/top banner the way it always has (see
-	init.client.lua's blindInfoLabel/bossBanner, unchanged by this file --
-	this is a ONE-TIME extra beat layered on top of those). Same
+	appearing in the sidebar the way it always has (see init.client.lua's
+	blindInfoLabel, unchanged by this file -- this is a ONE-TIME extra beat
+	layered on top of it). Same
 	"only fire on a genuinely NEW state" pattern as GameOver.lua's
 	lastGameOverKey -- keyed by night+round+bossModifier id. Reuses
 	existing sound/tween/particle primitives only -- no new asset ids.

@@ -43,7 +43,9 @@ Themes.Definitions = {
 		colors = {
 			background = Color3.fromRGB(24, 18, 14),
 			panelBg = Color3.fromRGB(40, 30, 22),
-			accent = Color3.fromRGB(90, 60, 30),
+			-- Nov 1 2026 (reference-match pass): darker, near-black brown
+			-- buttons like the reference mockup (was 90, 60, 30).
+			accent = Color3.fromRGB(56, 37, 20),
 			cardBase = Color3.fromRGB(250, 245, 235),
 			cardSelected = Color3.fromRGB(255, 214, 130),
 		},

@@ -89,12 +89,26 @@ return function(deps)
 		corner.Parent = instance
 	end
 
+	local function addGoldChrome(instance, thickness)
+		if instance:FindFirstChildOfClass("UIStroke") then
+			return
+		end
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(200, 165, 90)
+		stroke.Thickness = thickness or 1.5
+		stroke.Transparency = 0.15
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = instance
+	end
+
 	local function polishButton(instance, radius)
 		roundCorner(instance, radius or 10)
+		addGoldChrome(instance, 1.5)
 	end
 
 	local function polishPanel(instance, radius)
 		roundCorner(instance, radius or 16)
+		addGoldChrome(instance, 2)
 	end
 
 	-- FEATURE 3: a soft drop shadow behind a panel -- a plain, offset,
@@ -145,6 +159,15 @@ return function(deps)
 		shadow.ZIndex = math.max(0, panel.ZIndex - 1)
 		shadow.Parent = panel.Parent
 		roundCorner(shadow, radius or 18)
+		-- BUGFIX (reference-match pass): the shadow is a SIBLING of the
+		-- panel, so hiding the panel never hid it. GameOver's panel sits
+		-- straight on the game screen (no backdrop to hide it), so its
+		-- shadow was always there -- invisible only because the screen's
+		-- opaque fill used to paint over it. Now it follows the panel.
+		shadow.Visible = panel.Visible
+		panel:GetPropertyChangedSignal("Visible"):Connect(function()
+			shadow.Visible = panel.Visible
+		end)
 		return shadow
 	end
 

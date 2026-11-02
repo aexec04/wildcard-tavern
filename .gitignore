@@ -17,3 +17,8 @@ _to_delete/
 # with multi-MB PNGs. Safe to delete this whole folder once every image in
 # it has been uploaded and its asset id is recorded in ArtAssets.lua.
 art-wip/
+
+# Local scratch
+Claude outputs/
+tools/rojo-bin/
+.Rhistory

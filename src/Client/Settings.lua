@@ -6,11 +6,15 @@
 	wired to the dedicated "🔊" volume corner button instead: "I said to
 	put those sounds settings under the Music Volume Icon, and to rename
 	that Music Volume Icon to just Volume." This panel is left with just
-	what's actually a game setting: the way back to the Main Menu.
+	what's actually a game setting: the way back to the Main Menu -- plus
+	(CORNER ROW CLEANUP) How to Play and Leaderboards, which used to be
+	their own "?" / "🏆" corner icons and now live here instead.
 
 	Extracted out of init.client.lua as part of splitting the client script
-	into smaller, per-feature files. Fully self-contained -- nothing outside
-	this module needs anything it builds, so it returns an empty table.
+	into smaller, per-feature files. The How to Play / Leaderboards buttons
+	only close this panel themselves -- HowToPlay.lua/DailyLeaderboard.lua
+	wire the actual "open" on them (handed in as their helpButton/
+	leaderboardButton deps), so both buttons come back out of the require().
 
 	deps fields:
 		screenGui        -- ScreenGui, the panel's ultimate parent (via backdrop)
@@ -32,6 +36,8 @@
 	Returns:
 		{
 			settingsBackdrop = Frame,
+			settingsHowToPlayButton = TextButton,
+			settingsLeaderboardButton = TextButton,
 		}
 
 	POLISH PASS (Batch 3): popIn/popOut replace the old bare
@@ -64,6 +70,24 @@ return function(deps)
 	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
+	-- CORNER ICON SET (Oct 25 2026): feeds the 2 icon images added to
+	-- settingsHowToPlayButton/settingsLeaderboardButton below. Same
+	-- module init.client.lua's own corner buttons read from.
+	local ArtAssetsModule = require(script.Parent.ArtAssets)
+	-- BUGFIX (Oct 29 2026): the How to Play/Leaderboards icon badges
+	-- below were square-cornered against a rounded button -- same fix as
+	-- init.client.lua's corner buttons, see makeCornerButton there for
+	-- the full explanation. Pulled from deps (init.client.lua's own
+	-- top-level roundCorner local, passed in alongside polishButton/
+	-- polishPanel), NOT a fresh require(script.Parent.VisualHelpers)
+	-- here -- that module's require() returns a FACTORY FUNCTION
+	-- (return function(deps) ... end), not the helpers table, so
+	-- indexing .roundCorner off it directly (an earlier version of this
+	-- fix did exactly that) threw "attempt to index a function value"
+	-- and aborted this file's whole require() call -- which took down
+	-- init.client.lua's entire startup with it, including every button
+	-- wired after this point (Play included).
+	local roundCorner = deps.roundCorner
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -75,8 +99,10 @@ return function(deps)
 	settingsBackdrop.Parent = screenGui
 
 	local settingsPanel = Instance.new("Frame")
-	settingsPanel.Size = UDim2.fromScale(0.35, 0.3)
-	settingsPanel.Position = UDim2.fromScale(0.325, 0.35)
+	-- 0.3 -> 0.4 tall (re-centered, 0.35 -> 0.3) for the How to Play /
+	-- Leaderboards row added above Main Menu/Close.
+	settingsPanel.Size = UDim2.fromScale(0.35, 0.4)
+	settingsPanel.Position = UDim2.fromScale(0.325, 0.3)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
@@ -92,6 +118,67 @@ return function(deps)
 	settingsTitle.Text = "Settings"
 	settingsTitle.ZIndex = 21
 	settingsTitle.Parent = settingsPanel
+
+	-- How to Play + Leaderboards: same 140px-pair layout as the bottom row
+	-- below, one row (40px + 10px gap) above it.
+	local settingsHowToPlayButton = Instance.new("TextButton")
+	settingsHowToPlayButton.Size = UDim2.new(0, 140, 0, 40)
+	settingsHowToPlayButton.Position = UDim2.new(0.5, -146, 1, -110)
+	settingsHowToPlayButton.Font = Enum.Font.GothamBold
+	settingsHowToPlayButton.TextSize = 16
+	settingsHowToPlayButton.Text = "How to Play"
+	settingsHowToPlayButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
+	settingsHowToPlayButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	settingsHowToPlayButton.ZIndex = 21
+	settingsHowToPlayButton.Parent = settingsPanel
+	polishButton(settingsHowToPlayButton, 12)
+	addButtonHoverScale(settingsHowToPlayButton)
+
+	-- CORNER ICON SET: a small icon badge on the left edge, text stays as
+	-- the button's own Text (unlike the corner buttons in init.client.lua,
+	-- these keep real words, not just an emoji, so the icon sits beside
+	-- the label instead of covering it).
+	if ArtAssetsModule.cornerIconHowToPlay ~= "rbxassetid://0" then
+		local howToPlayIcon = Instance.new("ImageLabel")
+		howToPlayIcon.Size = UDim2.new(0, 22, 0, 22)
+		howToPlayIcon.AnchorPoint = Vector2.new(0, 0.5)
+		howToPlayIcon.Position = UDim2.new(0, 10, 0.5, 0)
+		howToPlayIcon.BackgroundTransparency = 1
+		howToPlayIcon.Image = ArtAssetsModule.cornerIconHowToPlay
+		howToPlayIcon.ScaleType = Enum.ScaleType.Crop
+		howToPlayIcon.ZIndex = 22
+		howToPlayIcon.Parent = settingsHowToPlayButton
+		roundCorner(howToPlayIcon, 11)
+	end
+
+	local settingsLeaderboardButton = Instance.new("TextButton")
+	settingsLeaderboardButton.Size = UDim2.new(0, 140, 0, 40)
+	settingsLeaderboardButton.Position = UDim2.new(0.5, 6, 1, -110)
+	settingsLeaderboardButton.Font = Enum.Font.GothamBold
+	settingsLeaderboardButton.TextSize = 16
+	settingsLeaderboardButton.Text = "Leaderboards"
+	settingsLeaderboardButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
+	settingsLeaderboardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	settingsLeaderboardButton.ZIndex = 21
+	settingsLeaderboardButton.Parent = settingsPanel
+	polishButton(settingsLeaderboardButton, 12)
+	addButtonHoverScale(settingsLeaderboardButton)
+
+	-- CORNER ICON SET: same left-edge badge treatment as How to Play
+	-- above -- replaces the old inline "🏆 " emoji that used to be part
+	-- of this button's own Text string.
+	if ArtAssetsModule.cornerIconLeaderboards ~= "rbxassetid://0" then
+		local leaderboardIcon = Instance.new("ImageLabel")
+		leaderboardIcon.Size = UDim2.new(0, 22, 0, 22)
+		leaderboardIcon.AnchorPoint = Vector2.new(0, 0.5)
+		leaderboardIcon.Position = UDim2.new(0, 10, 0.5, 0)
+		leaderboardIcon.BackgroundTransparency = 1
+		leaderboardIcon.Image = ArtAssetsModule.cornerIconLeaderboards
+		leaderboardIcon.ScaleType = Enum.ScaleType.Crop
+		leaderboardIcon.ZIndex = 22
+		leaderboardIcon.Parent = settingsLeaderboardButton
+		roundCorner(leaderboardIcon, 11)
+	end
 
 	-- Close + Main Menu sit side by side along the bottom edge -- 140px
 	-- each with a 12px gap, the pair centered as a unit: [-146, -6] and
@@ -138,6 +225,15 @@ return function(deps)
 		end)
 	end)
 
+	-- Close Settings first; the panel these open is wired by its own
+	-- module (see this file's header).
+	for _, button in ipairs({ settingsHowToPlayButton, settingsLeaderboardButton }) do
+		button.MouseButton1Click:Connect(function()
+			playClickSfx()
+			popOut(settingsBackdrop, settingsPanel)
+		end)
+	end
+
 	OverlayManager.register("settings", function()
 		popOut(settingsBackdrop, settingsPanel)
 	end)
@@ -150,5 +246,7 @@ return function(deps)
 
 	return {
 		settingsBackdrop = settingsBackdrop,
+		settingsHowToPlayButton = settingsHowToPlayButton,
+		settingsLeaderboardButton = settingsLeaderboardButton,
 	}
 end

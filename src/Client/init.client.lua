@@ -205,6 +205,38 @@ screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = playerGui
 
+-- REFERENCE-MATCH PASS (Nov 1 2026): the reference mockup uses a warm
+-- book-style serif everywhere; the game used Gotham (a modern sans) in
+-- ~180 separate places across every Client module. Rather than touch all
+-- of them, swap any Gotham-family font on anything inside this ScreenGui
+-- to Merriweather, both for what already exists and for everything
+-- created later (cards, shop rows, popups...). task.defer runs the swap
+-- after the creating code has finished setting its properties. Wrapped in
+-- do...end -- this file is at Lua's 200-local ceiling.
+do
+	local serif = "rbxasset://fonts/families/Merriweather.json"
+	local fontSwap = {
+		[Enum.Font.Gotham] = Font.new(serif, Enum.FontWeight.Regular),
+		[Enum.Font.GothamMedium] = Font.new(serif, Enum.FontWeight.Regular),
+		[Enum.Font.GothamBold] = Font.new(serif, Enum.FontWeight.Bold),
+		[Enum.Font.GothamBlack] = Font.new(serif, Enum.FontWeight.Heavy),
+	}
+	local function swapFont(instance)
+		if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+			local replacement = fontSwap[instance.Font]
+			if replacement then
+				instance.FontFace = replacement
+			end
+		end
+	end
+	for _, descendant in ipairs(screenGui:GetDescendants()) do
+		swapFont(descendant)
+	end
+	screenGui.DescendantAdded:Connect(function(descendant)
+		task.defer(swapFont, descendant)
+	end)
+end
+
 local root = Instance.new("Frame")
 root.Name = "GameRoot"
 root.Size = UDim2.fromScale(1, 1)
@@ -212,6 +244,40 @@ root.BackgroundColor3 = Color3.fromRGB(24, 18, 14) -- warm dark "tavern" backdro
 root.BorderSizePixel = 0
 root.Visible = false -- hidden until the player presses Play on the menu
 root.Parent = screenGui
+
+-- ART (Nov 1 2026): the actual gameplay backdrop -- see
+-- Client/ArtAssets.lua's gameplayBackground for the full story. Same
+-- placeholder-safe pattern as Menu.lua's menuBackgroundArt: image stays
+-- fully transparent-backed, root's own flat BackgroundColor3 above is
+-- the fallback for as long as this is still "rbxassetid://0", and
+-- ZIndex 0 guarantees it sits behind every other root-level child
+-- (sidebar is ZIndex 2, everything else defaults to ZIndex 1) no
+-- matter what order they're created in.
+local gameBackgroundArt = Instance.new("ImageLabel")
+gameBackgroundArt.Name = "GameBackgroundArt"
+gameBackgroundArt.Size = UDim2.fromScale(1, 1)
+-- BUGFIX (reference-match pass, round 2): this ScreenGui never sets
+-- ZIndexBehavior, so it uses Global layering -- and in Global mode a
+-- ZIndex-0 child draws UNDER its ZIndex-1 parent's own fill. root's
+-- opaque brown was painting right over this image (and over the hand
+-- tray CardFace.lua hangs off it). Fix: root itself is now see-through,
+-- and the flat fallback color lives on this ImageLabel's own background
+-- instead (an ImageLabel draws its background first, image on top), so a
+-- placeholder/failed image still shows the same flat brown as before.
+gameBackgroundArt.BackgroundColor3 = Color3.fromRGB(24, 18, 14)
+gameBackgroundArt.BackgroundTransparency = 0
+gameBackgroundArt.BorderSizePixel = 0
+gameBackgroundArt.ScaleType = Enum.ScaleType.Crop
+gameBackgroundArt.Image = require(script.ArtAssets).gameplayBackground or "rbxassetid://0"
+gameBackgroundArt.ZIndex = 0
+-- Slight dim so the warm art reads as a backdrop and never fights the
+-- cream UI text on top of it (the reference's room is fairly dark).
+gameBackgroundArt.ImageColor3 = Color3.fromRGB(215, 205, 195)
+gameBackgroundArt.Parent = root
+root.BackgroundTransparency = 1
+-- (Removed Nov 1 2026: a ContentProvider:PreloadAsync check used to swap
+-- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
+-- Failure even for images that load fine, so it was blanking good art.)
 
 -- ----- Left sidebar: round/blind info -----
 -- Extracted into Client/Sidebar.lua (round/blind labels, Patron slot row,
@@ -241,33 +307,83 @@ local setRunModeBadge = SidebarModule.setRunModeBadge
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
-local function makeCornerButton(text, xOffset)
+-- CORNER ICON SET (Oct 25 2026): one top-level local, same reasoning as
+-- SidebarModule etc. just above -- read by makeCornerButton AND by every
+-- corner-button call site below it (6 separate reads), so it can't be an
+-- inline single-use require the way DeckWidget.lua's own ArtAssets read
+-- further down is. Settings.lua's 2 icon buttons (How to Play,
+-- Leaderboards) read ArtAssets.lua independently with their own
+-- require(script.Parent.ArtAssets) instead of taking this as a dep --
+-- same self-contained-module pattern Settings.lua already uses for
+-- OverlayManager just above its own buttons.
+local ArtAssetsModule = require(script.ArtAssets)
+
+local function makeCornerButton(text, xOffset, iconId)
+	-- REFERENCE-MATCH PASS: bigger (54px) dark-wood medallions with a
+	-- thick bright-gold rim, like the reference. Call sites still pass the
+	-- old 50px-step offsets (-60, -110, ...); they're remapped here to a
+	-- 64px step so every caller stays unchanged.
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 44, 0, 44)
-	button.Position = UDim2.new(1, xOffset, 0, 8)
+	button.Size = UDim2.new(0, 54, 0, 54)
+	button.Position = UDim2.new(1, -70 + math.floor((xOffset + 60) * 1.28), 0, 12)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 20
+	button.TextSize = 24
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+	button.BackgroundColor3 = Color3.fromRGB(38, 26, 16)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.ZIndex = 5
 	button.Parent = root
-	polishButton(button, 22)
+	polishButton(button, 27)
+	local rim = button:FindFirstChildOfClass("UIStroke")
+	if rim then
+		rim.Color = Color3.fromRGB(214, 172, 88)
+		rim.Thickness = 3
+		rim.Transparency = 0
+	end
+
+	-- CORNER ICON SET: an optional real icon image laid over the
+	-- emoji/text fallback -- same "rbxassetid://0 is always safe"
+	-- convention as every other ArtAssets.lua slot. Covers the button's
+	-- own Text once there's a real id (Roblox always draws a GuiObject's
+	-- own Text/Image beneath its children, regardless of ZIndex), so
+	-- this is only ever passed for buttons whose Text is purely
+	-- decorative (not dynamic, like Volume's loud/mute glyph).
+	if iconId and iconId ~= "rbxassetid://0" then
+		local icon = Instance.new("ImageLabel")
+		icon.Size = UDim2.new(0, 42, 0, 42)
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.Position = UDim2.fromScale(0.5, 0.5)
+		icon.BackgroundTransparency = 1
+		icon.Image = iconId
+		-- BUGFIX (Oct 29 2026): Crop, not the ImageLabel default (Stretch)
+		-- -- these uploads aren't perfectly square, so Stretch was
+		-- squishing them. roundCorner at exactly half the icon's own
+		-- size (30px -> 15px radius) clips it into a circle so its
+		-- square corners stop poking out past the button's own circular
+		-- gold rim (polishButton above, 22px radius on the 44px button
+		-- -- also a perfect circle, so the two now actually match).
+		icon.ScaleType = Enum.ScaleType.Crop
+		icon.ZIndex = 6
+		icon.Parent = button
+		roundCorner(icon, 21)
+	end
+
 	return button
 end
 
 local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], -60)
-local helpButton = makeCornerButton("?", -110)
-local themesButton = makeCornerButton("🎨", -160)
-local journeyButton = makeCornerButton("🗺", -210)
-local handRefButton = makeCornerButton("📖", -260)
+-- CORNER ROW CLEANUP: no "?" (How to Play) or "🏆" (Leaderboards) corner
+-- icons anymore -- both moved into the Settings panel (see Settings.lua),
+-- and everything right of Volume shifted 50px to close the gap.
+local themesButton = makeCornerButton("🎨", -110, ArtAssetsModule.cornerIconThemes)
+local journeyButton = makeCornerButton("🗺", -160, ArtAssetsModule.cornerIconJourney)
+local handRefButton = makeCornerButton("📖", -210, ArtAssetsModule.cornerIconHandReference)
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
 -- (bottom-right) is clickable and opens it directly instead (see
 -- deckWidgetButton). Settings/Collection shifted left by 50px to close
 -- the gap left behind.
-local settingsButton = makeCornerButton("⚙", -310)
-local collectionButton = makeCornerButton("📔", -360)
-local leaderboardButton = makeCornerButton("🏆", -410)
+local settingsButton = makeCornerButton("⚙", -260, ArtAssetsModule.cornerIconSettings)
+local collectionButton = makeCornerButton("📔", -310, ArtAssetsModule.cornerIconCollection)
 
 -- ----- Generic hover tooltip -----
 -- Ahmed: "whenever you hover over a button any UI, it should give you the
@@ -326,13 +442,11 @@ addTooltip = function(button, text, align)
 end
 
 addTooltip(volumeButton, "Volume", "left")
-addTooltip(helpButton, "How to Play", "left")
-addTooltip(themesButton, "Themes -- change your table's look", "left")
-addTooltip(journeyButton, "Journey -- see the road ahead", "left")
+addTooltip(themesButton, "Themes", "left")
+addTooltip(journeyButton, "Journey", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
 addTooltip(settingsButton, "Settings", "left")
-addTooltip(collectionButton, "Collection -- Patrons & Themes you've unlocked", "left")
-addTooltip(leaderboardButton, "Daily / Weekly Challenge leaderboards", "left")
+addTooltip(collectionButton, "Collection", "left")
 
 end -- Generic hover tooltip
 
@@ -356,8 +470,9 @@ end
 
 -- ===== Message banner (hand result / round result) =====
 -- Extracted into Client/MessageBanner.lua. showWarning is passed as a dep
--- into Shop.lua/Themes.lua below, and render() drives bossBanner directly,
--- so all three come back out of the require() call.
+-- into Shop.lua/Themes.lua below, so it comes back out of the require()
+-- call. (The old persistent Boss Round banner is gone -- see
+-- MessageBanner.lua's header.)
 local MessageBannerModule = require(script.MessageBanner)({
 	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
 	root = root,
@@ -365,8 +480,6 @@ local MessageBannerModule = require(script.MessageBanner)({
 	tweenTo = tweenTo,
 })
 local showWarning = MessageBannerModule.showWarning
-local bossBanner = MessageBannerModule.bossBanner
-local bossBannerLabel = MessageBannerModule.bossBannerLabel
 
 -- ----- Hand area -----
 
@@ -375,8 +488,11 @@ local bossBannerLabel = MessageBannerModule.bossBannerLabel
 -- including its margin).
 local handFrame = Instance.new("Frame")
 handFrame.Name = "HandFrame"
-handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 110), 0, 160)
-handFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -230)
+-- REFERENCE-MATCH PASS: taller (cards are bigger now, see
+-- Client/CardFace.lua) and lifted so there's breathing room above the
+-- action buttons; 150px reserved on the right for the bigger deck widget.
+handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 150), 0, 176)
+handFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -272)
 handFrame.BackgroundTransparency = 1
 handFrame.Parent = root
 
@@ -384,15 +500,18 @@ local handLayout = Instance.new("UIListLayout")
 handLayout.FillDirection = Enum.FillDirection.Horizontal
 handLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 handLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-handLayout.Padding = UDim.new(0, 10)
+handLayout.Padding = UDim.new(0, 6)
+-- Explicit: UIListLayout's default SortOrder can be Name, which ignores
+-- the slots' LayoutOrder (same bug class as Shop.lua's Phase 1c fix).
+handLayout.SortOrder = Enum.SortOrder.LayoutOrder
 handLayout.Parent = handFrame
 
 -- ----- Action buttons -----
 
 local actionFrame = Instance.new("Frame")
 actionFrame.Name = "Actions"
-actionFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 50)
-actionFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -60)
+actionFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 150), 0, 54)
+actionFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -80)
 actionFrame.BackgroundTransparency = 1
 actionFrame.Parent = root
 
@@ -400,18 +519,55 @@ local actionLayout = Instance.new("UIListLayout")
 actionLayout.FillDirection = Enum.FillDirection.Horizontal
 actionLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 actionLayout.Padding = UDim.new(0, 20)
+-- Explicit LayoutOrder sorting: with the default (Name) sort, the Sort
+-- group ("Frame") and its "Sort:" caption ("TextLabel" sorts after
+-- "TextButton") landed in accidental positions -- that's why the caption
+-- showed up AFTER the Rank/Suit buttons. Now: [Sort: Rank Suit] [Play
+-- Hand] [Discard], left to right.
+actionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 actionLayout.Parent = actionFrame
 
 local function makeActionButton(text)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 160, 1, 0)
+	button.Size = UDim2.new(0, 200, 1, 0)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 18
+	button.TextSize = 20
 	button.Text = text
-	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	button.BackgroundColor3 = Color3.fromRGB(56, 37, 20)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.Parent = actionFrame
-	polishButton(button, 12)
+	polishButton(button, 8)
+	-- REFERENCE-MATCH PASS: carved-wood look -- thicker gold rim plus a
+	-- color-only top-to-bottom darkening gradient (multiplies the theme's
+	-- accent color, so Themes still tint these exactly as before).
+	local rim = button:FindFirstChildOfClass("UIStroke")
+	if rim then
+		rim.Color = Color3.fromRGB(214, 172, 88)
+		rim.Thickness = 2
+		rim.Transparency = 0
+	end
+	-- (No UIGradient here: a gradient on a TextButton tints its TEXT too,
+	-- which made "Play Hand"/"Discard" look grayed out.)
+	--
+	-- ART: carved wood button image (ArtAssets.actionButtonArt). It has to
+	-- sit UNDER the button's own text, and a child normally draws over its
+	-- parent's text -- so the button goes up to ZIndex 2 and the art sits
+	-- at ZIndex 1 (this ScreenGui uses Global layering, where a lower
+	-- ZIndex draws first even for a child). The button's own fill goes
+	-- see-through once the art has loaded.
+	button.ZIndex = 2
+	do
+		local SkinArt = require(script.SkinArt)
+		local slice = SkinArt.Slices.button
+		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
+			zIndex = 1,
+			sliceCenter = slice.center,
+			sliceScale = slice.scale,
+			onLoaded = function()
+				SkinArt.hideCodeChrome(button)
+			end,
+		})
+	end
 	return button
 end
 
@@ -436,45 +592,61 @@ local refreshHandSort
 do
 
 local sortFrame = Instance.new("Frame")
-sortFrame.Size = UDim2.new(0, 195, 1, 0)
+sortFrame.Size = UDim2.new(0, 230, 1, 0)
 sortFrame.BackgroundTransparency = 1
-sortFrame.LayoutOrder = 2
+sortFrame.LayoutOrder = 0
 sortFrame.Parent = actionFrame
 
 local sortFrameLayout = Instance.new("UIListLayout")
 sortFrameLayout.FillDirection = Enum.FillDirection.Horizontal
 sortFrameLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 sortFrameLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-sortFrameLayout.Padding = UDim.new(0, 6)
+sortFrameLayout.Padding = UDim.new(0, 8)
+sortFrameLayout.SortOrder = Enum.SortOrder.LayoutOrder
 sortFrameLayout.Parent = sortFrame
 
 -- User feedback: "make it more obvious that it's sorting buttons" -- a
 -- small "Sort:" caption to the left of the two buttons, so they don't read
 -- as two random unlabeled buttons.
 local sortCaptionLabel = Instance.new("TextLabel")
-sortCaptionLabel.Size = UDim2.new(0, 40, 1, 0)
+sortCaptionLabel.Size = UDim2.new(0, 46, 1, 0)
 sortCaptionLabel.BackgroundTransparency = 1
 sortCaptionLabel.Font = Enum.Font.Gotham
-sortCaptionLabel.TextSize = 13
+sortCaptionLabel.TextSize = 17
 sortCaptionLabel.TextColor3 = Color3.fromRGB(220, 210, 190)
 sortCaptionLabel.Text = "Sort:"
 sortCaptionLabel.LayoutOrder = 1
 sortCaptionLabel.Parent = sortFrame
 
-local SORT_BUTTON_DEFAULT_COLOR = Color3.fromRGB(60, 45, 32)
+local SORT_BUTTON_DEFAULT_COLOR = Color3.fromRGB(42, 29, 18)
 local SORT_BUTTON_ACTIVE_COLOR = Color3.fromRGB(120, 90, 45)
 
 local function makeSortButton(text, order)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 65, 1, 0)
+	button.Size = UDim2.new(0, 80, 1, 0)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 13
+	button.TextSize = 17
 	button.Text = text
 	button.BackgroundColor3 = SORT_BUTTON_DEFAULT_COLOR
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.LayoutOrder = order
 	button.Parent = sortFrame
 	polishButton(button, 8)
+	-- ART: same carved wood button as Play Hand/Discard (see
+	-- makeActionButton's comment for the ZIndex reasoning).
+	button.ZIndex = 2
+	do
+		local SkinArt = require(script.SkinArt)
+		local slice = SkinArt.Slices.button
+		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
+			zIndex = 1,
+			sliceCenter = slice.center,
+			sliceScale = slice.scale,
+			onLoaded = function()
+				SkinArt.hideCodeChrome(button)
+			end,
+		})
+	end
 	return button
 end
 
@@ -488,6 +660,17 @@ addTooltip(sortBySuitButton, "Sort your hand by suit")
 local function refreshSortButtonHighlight()
 	sortByRankButton.BackgroundColor3 = (handSortMode == "rank") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
 	sortBySuitButton.BackgroundColor3 = (handSortMode == "suit") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
+	-- With the wood button art showing, the fill color above is hidden --
+	-- so show the active sort by leaving its art at full brightness and
+	-- dimming the other one (and brightening the active one's text).
+	for _, pair in ipairs({ { sortByRankButton, "rank" }, { sortBySuitButton, "suit" } }) do
+		local isActive = handSortMode == pair[2]
+		local art = pair[1]:FindFirstChild("SkinArt")
+		if art then
+			art.ImageColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(165, 150, 135)
+		end
+		pair[1].TextColor3 = isActive and Color3.fromRGB(255, 222, 150) or Color3.fromRGB(250, 240, 220)
+	end
 end
 
 local function applyHandSortMode(mode)
@@ -523,13 +706,9 @@ local DeckWidgetModule = require(script.DeckWidget)({
 	addSoftShadow = addSoftShadow,
 	addTooltip = addTooltip,
 	roundCorner = roundCorner,
-	-- CARD ART: same Kenney sprite sheet as the hand's cards, same
-	-- confirmed-load check too (see ArtAssets.lua's own comment on
-	-- onCardSpriteSheetLoaded) -- the whole module, not individual fields,
-	-- so DeckWidget.lua can subscribe through the same one check instead
-	-- of duplicating its own ContentProvider call. Inline require(), not a
-	-- new top-level local, same reasoning as everywhere else that reads
-	-- ArtAssets.lua in this file.
+	-- CARD ART: DeckWidget.lua reads cardBackTemplate off this. Inline
+	-- require(), not a new top-level local, same reasoning as everywhere
+	-- else that reads ArtAssets.lua in this file.
 	ArtAssetsModule = require(script.ArtAssets),
 })
 local deckCountLabel = DeckWidgetModule.deckCountLabel
@@ -682,8 +861,7 @@ local Shop = require(script.Shop)({
 	revealStagger = revealStagger,
 	popScale = popScale,
 	-- INTERACTIVE TUTORIAL: see this file's own "INTERACTIVE TUTORIAL"
-	-- comment further down (right where the old openTutorial modal is
-	-- built) for why TutorialWalkthrough.lua is required FROM INSIDE
+	-- comment further down (just above Menu.lua's require) for why TutorialWalkthrough.lua is required FROM INSIDE
 	-- Shop.lua instead of getting its own top-level local here.
 	tweenTo = tweenTo,
 	handFrame = handFrame,
@@ -723,29 +901,12 @@ local gameOverFrame = GameOverPanel.gameOverFrame
 local playAgainButton = GameOverPanel.playAgainButton
 local refreshGameOver = GameOverPanel.refreshGameOver
 
--- TUTORIAL (Phase 16): built BEFORE Menu.lua, and DOES need its own
--- top-level local (unlike SeedRunDialog just below) -- openTutorial is
--- called from 2 places: Menu.lua's "Tutorial" button, AND render()'s
--- own auto-show-once-for-a-brand-new-player check further down, so it
--- can't be inlined away the way a single-use dep can.
-local openTutorial = require(script.Tutorial)({
-	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
-	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
-}).openTutorial
-
 -- INTERACTIVE TUTORIAL (requested directly by Ahmed -- see
--- TutorialWalkthrough.lua's own header for the full brief): replaces the
--- plain modal above for the AUTO-TRIGGERED first-time-player experience
--- only (see the tutorialAutoShown block further down) -- openTutorial just
--- above stays exactly as it was and stays wired to Menu.lua's "Tutorial"
--- button as a manual quick-reference recap.
+-- TutorialWalkthrough.lua's own header for the full brief). No longer
+-- auto-starts for new players -- the ONLY way in is Menu.lua's "Tutorial"
+-- button (wired next to menuPlayButton's click further down), which
+-- hides the menu and starts it straight away. The old static Tutorial.lua
+-- modal is no longer required anywhere.
 --
 -- Built and required FROM INSIDE Shop.lua, not as its own top-level local
 -- here (confirmed the hard way, same as PhaseA.lua's own header describes:
@@ -781,7 +942,6 @@ local MenuScreen = require(script.Menu)({
 	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
 	playClickSfx = playClickSfx,
 	StartWeeklyChallengeRemote = remotes:WaitForChild("StartWeeklyChallenge"),
-	openTutorial = openTutorial,
 	openSeedRunDialog = require(script.SeedRunDialog)({
 		screenGui = screenGui,
 		polishPanel = polishPanel,
@@ -798,8 +958,50 @@ local MenuScreen = require(script.Menu)({
 local menuFrame = MenuScreen.menuFrame
 local menuPlayButton = MenuScreen.menuPlayButton
 local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
+local menuTutorialButton = MenuScreen.menuTutorialButton
 local menuJourneyButton = MenuScreen.menuJourneyButton
 local menuNewRunButton = MenuScreen.menuNewRunButton
+
+-- ===== Settings overlay =====
+-- Extracted into Client/Settings.lua. Main Menu / Close, plus How to Play
+-- and Leaderboards (CORNER ROW CLEANUP: those used to be their own "?" /
+-- "🏆" corner icons). Built here, before HowToPlay.lua/DailyLeaderboard.lua,
+-- because those two wire their "open" onto these buttons. Captured via a
+-- do-block (no SettingsModule local) -- this chunk is right at Lua's
+-- 200-local ceiling.
+local settingsHowToPlayButton, settingsLeaderboardButton
+do
+	local SettingsModule = require(script.Settings)({
+		screenGui = screenGui,
+		polishPanel = polishPanel,
+		polishButton = polishButton,
+		addSoftShadow = addSoftShadow,
+		playClickSfx = playClickSfx,
+		settingsButton = settingsButton,
+		popIn = popIn,
+		popOut = popOut,
+		addButtonHoverScale = addButtonHoverScale,
+		-- BUGFIX (Oct 29 2026): Settings.lua's 2 icon badges need
+		-- roundCorner to clip them into circles (see that file's own
+		-- comment) -- deps, not a second require(VisualHelpers) in
+		-- there, since VisualHelpers.lua's require() returns a FACTORY
+		-- FUNCTION (return function(deps) ... end), not the helpers
+		-- table directly -- that's only resolved to the real table HERE,
+		-- by actually calling it with deps (see VisualHelpersModule just
+		-- above). Settings.lua's own require(script.Parent.VisualHelpers)
+		-- skipped that call and indexed .roundCorner straight off the
+		-- function, which threw "attempt to index a function value" and
+		-- aborted this whole script before it reached menuPlayButton's
+		-- own click wiring further down -- why Play stopped responding.
+		roundCorner = roundCorner,
+		-- Main Menu button (requested fix): the only place in the whole game
+		-- that lets a player back out of an in-progress run to the menu.
+		menuFrame = menuFrame,
+		root = root,
+	})
+	settingsHowToPlayButton = SettingsModule.settingsHowToPlayButton
+	settingsLeaderboardButton = SettingsModule.settingsLeaderboardButton
+end
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
 -- Extracted into Client/HowToPlay.lua -- fully self-contained (both buttons
@@ -818,7 +1020,7 @@ require(script.HowToPlay)({
 	HandEvaluator = HandEvaluator,
 	Scoring = Scoring,
 	menuHowToPlayButton = menuHowToPlayButton,
-	helpButton = helpButton,
+	helpButton = settingsHowToPlayButton,
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
@@ -899,27 +1101,6 @@ require(script.DeckTracker)({
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
-})
-
--- ===== Settings overlay =====
--- Extracted into Client/Settings.lua. Now just the Main Menu / Close
--- panel (the whole audio section moved out into VolumePanel.lua below --
--- see that file's header comment) -- fully self-contained again, nothing
--- needs to come back out of the require() call.
-require(script.Settings)({
-	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	settingsButton = settingsButton,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
-	-- Main Menu button (requested fix): the only place in the whole game
-	-- that lets a player back out of an in-progress run to the menu.
-	menuFrame = menuFrame,
-	root = root,
 })
 
 -- ===== Volume overlay =====
@@ -1033,6 +1214,16 @@ menuPlayButton.MouseButton1Click:Connect(function()
 	end
 end)
 
+menuTutorialButton.MouseButton1Click:Connect(function()
+	playClickSfx()
+	menuFrame.Visible = false
+	root.Visible = true
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+		backgroundMusic:Play()
+	end
+	Shop.tutorial.start()
+end)
+
 -- volumeButton's click used to cycle loud/quiet/mute right here -- it now
 -- opens VolumePanel.lua's real slider panel instead (that module wires
 -- the click itself), so there's nothing left to connect in this file.
@@ -1106,6 +1297,9 @@ local function applyTheme(themeId)
 	local colors = currentTheme.colors
 
 	tweenTo(root, { BackgroundColor3 = colors.background }, 0.25)
+	-- root is see-through now (see gameBackgroundArt) -- the theme's
+	-- background color shows on the art's fallback fill instead.
+	tweenTo(gameBackgroundArt, { BackgroundColor3 = colors.background }, 0.25)
 	tweenTo(sidebar, { BackgroundColor3 = colors.panelBg }, 0.25)
 	tweenTo(shopFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
 	tweenTo(gameOverFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
@@ -1156,7 +1350,7 @@ require(script.Collection)({
 
 -- ===== Daily Challenge Leaderboard overlay (Phase 11) =====
 -- Extracted into Client/DailyLeaderboard.lua. Fully self-contained (only
--- opened from its own corner button), so nothing needs to come back out of
+-- opened from Settings' Leaderboards button), so nothing needs to come back out of
 -- the require() call -- same pattern as Collection.lua just above.
 require(script.DailyLeaderboard)({
 	screenGui = screenGui,
@@ -1165,7 +1359,7 @@ require(script.DailyLeaderboard)({
 	roundCorner = roundCorner,
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
-	leaderboardButton = leaderboardButton,
+	leaderboardButton = settingsLeaderboardButton,
 	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
 	GetWeeklyLeaderboardRemote = remotes:WaitForChild("GetWeeklyLeaderboard"),
 	localPlayer = player,
@@ -1263,14 +1457,6 @@ local lastOwnedPatronIds = {}
 local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
 local lastPhase = nil
--- TUTORIAL (Phase 16): a purely client-side guard so the auto-show check
--- in render() only ever fires openTutorial() once per client session,
--- even though several state pushes can land (all still reporting
--- state.hasSeenTutorial == false) before the player actually dismisses
--- the walkthrough and MarkTutorialSeenRemote's round trip flips it true
--- server-side -- set true synchronously the moment auto-open decides to
--- act, independent of that round trip.
-local tutorialAutoShown = false
 
 -- POLISH PASS: sidebar pulse tracking -- Tips/Hands/Discards/Patron-slot
 -- flashes below (see the LAYOUT FEATURE 5 / tipsLabel/handsDiscardsLabel
@@ -1366,7 +1552,7 @@ local function refreshCardVisual(index, usePop)
 	-- rebuildHand for why this moved off button.BackgroundColor3. Looked
 	-- up rather than tracked in a parallel table, same pattern
 	-- VisualHelpers.lua's own functions use for UIScale (:FindFirstChildOfClass).
-	local stroke = button:FindFirstChildOfClass("UIStroke")
+	local stroke = button:FindFirstChild("SelectionStroke")
 	if stroke then
 		local strokeThickness, strokeTransparency
 		if isSelected and isHovering then
@@ -1641,6 +1827,19 @@ local function buildScoreSourceInfo(indices)
 			ghost.Position = UDim2.fromOffset(absPos.X, absPos.Y)
 			ghost.Size = UDim2.fromOffset(absSize.X, absSize.Y)
 			ghost.ZIndex = 30
+			-- BUGFIX (Nov 1 2026, played cards lose their art): this
+			-- ScreenGui uses Global ZIndex layering, where a child does NOT
+			-- inherit its parent's layer. The cloned CardArt image kept its
+			-- hand-card ZIndex of 1, so it drew far BELOW the ghost's own
+			-- ZIndex-30 white fill and vanished. Lift every cloned piece up
+			-- with the ghost (keeping their order); the dim/highlight
+			-- overlays ScorePopup adds at 31/32 and the rank/suit face at
+			-- 40 still sit above the art as intended.
+			for _, piece in ipairs(ghost:GetDescendants()) do
+				if piece:IsA("GuiObject") then
+					piece.ZIndex = 30 + math.max(0, piece.ZIndex - 1)
+				end
+			end
 			-- BUGFIX (Ahmed's report, repeated twice now: played cards
 			-- still render blank/white during the score reveal, even
 			-- though the hand itself always shows readable rank/suit
@@ -1660,17 +1859,18 @@ local function buildScoreSourceInfo(indices)
 			-- A played ghost is short-lived and destroyed right after its
 			-- reveal finishes, so there's no later moment this ever needs
 			-- to be hidden again -- it only ever needs to be correct.
-			local ghostRankSuit = Instance.new("TextLabel")
-			ghostRankSuit.Name = "GhostRankSuit"
-			ghostRankSuit.Size = UDim2.fromScale(1, 1)
-			ghostRankSuit.BackgroundTransparency = 1
-			ghostRankSuit.Font = Enum.Font.GothamBold
-			ghostRankSuit.TextSize = 20
-			ghostRankSuit.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
-			ghostRankSuit.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
-			ghostRankSuit.Visible = true
-			ghostRankSuit.ZIndex = 40
-			ghostRankSuit.Parent = ghost
+			--
+			-- REFERENCE-MATCH PASS: same idea, now with the full card
+			-- layout. CardFace.build destroys the cloned "CardFace" first,
+			-- so the ghost never shows a doubled-up face.
+			require(script.CardFace).build(
+				ghost,
+				RANK_NAMES[card.rank] or tostring(card.rank),
+				SUIT_SYMBOLS[card.suit] or "?",
+				RED_SUITS[card.suit] == true,
+				40,
+				false
+			)
 			-- Held-card ghosts start hidden -- the real card is still
 			-- visible and correct in the hand; this ghost only appears for
 			-- its own brief Iron Garnish beat. Played-card ghosts start
@@ -1837,53 +2037,12 @@ local function handSignature(handData)
 end
 
 local function rebuildHand(handData)
-	-- CARD ART (Kenney sprite-sheet switch -- see ArtAssets.lua's header for
-	-- why): function-scoped, NOT new top-level locals (this file is already
-	-- right up against Lua's 200-local-per-chunk ceiling -- confirmed the
-	-- hard way: an earlier version of this pass added 2 new top-level
-	-- locals for the confirmed-load check below, and luac immediately
-	-- refused to compile with "too many local variables (limit is 200)".
-	-- All of that state now lives inside ArtAssets.lua itself instead,
-	-- which has its own separate, fresh local budget -- init.client.lua
-	-- only ever touches it through the module table, same as everything
-	-- else ArtAssets.lua exposes). require() is cached by Roblox, so
-	-- calling it once per rebuildHand (not per-card) is both cheap and
-	-- correct.
+	-- CARD ART: function-scoped, NOT a new top-level local (this file is
+	-- right up against Lua's 200-local-per-chunk ceiling). require() is
+	-- cached by Roblox, so once per rebuildHand is cheap.
 	local cardArtModule = require(script.ArtAssets)
-	local cardSpriteSheet = cardArtModule.cardSpriteSheet
-	local cardSpriteOffset = cardArtModule.cardSpriteOffset
-	local cardSpriteCellVector = Vector2.new(cardArtModule.cardSpriteCellSize, cardArtModule.cardSpriteCellSize)
-	-- BUGFIX (Ahmed's report: hand went fully blank -- no rank/suit text
-	-- AND no art -- right after wiring in the first real cardSpriteSheet
-	-- id): an id merely LOOKING real (not the "rbxassetid://0" placeholder)
-	-- doesn't mean Roblox has actually finished serving that image yet --
-	-- even a plain, fast-clearing upload isn't guaranteed instant. The
-	-- first version of this pass hid cardRankSuitLabel the moment the id
-	-- looked real, which bit exactly that gap: id wired in, art not
-	-- actually loaded yet, and the text that used to cover for it was
-	-- already hidden. Fixed by only trusting Roblox's OWN ContentProvider
-	-- (see ArtAssets.lua's onCardSpriteSheetLoaded/
-	-- isCardSpriteSheetConfirmedLoaded -- checked once in the background,
-	-- not per-card) instead of the id string alone. Skips re-subscribing
-	-- once already confirmed -- cheap early-out for the overwhelmingly
-	-- common case (every rebuild after the first confirmation).
-	if not cardArtModule.isCardSpriteSheetConfirmedLoaded() then
-		cardArtModule.onCardSpriteSheetLoaded(cardSpriteSheet, function()
-			-- Forces a real rebuild next time, not a no-op -- see
-			-- lastHandRenderSignature's own comment below.
-			lastHandRenderSignature = nil
-			if refreshHandSort then
-				refreshHandSort()
-			end
-		end)
-	end
-	-- Real art isn't TRUSTED until isCardSpriteSheetConfirmedLoaded()
-	-- flips true (see above) -- while that's false, cardRankSuitLabel
-	-- (plain text, same look the game always had) stays the ONLY thing
-	-- readers see, exactly as before this pass. The moment a real sheet is
-	-- CONFIRMED loaded, the label hides itself automatically (see its own
-	-- Visible line below) -- nothing else to flip by hand.
-	local showPlaceholderRankSuit = not cardArtModule.isCardSpriteSheetConfirmedLoaded()
+	local cardFaceTemplate = cardArtModule.cardFaceTemplate
+	local cardFaceModule = require(script.CardFace)
 
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature
@@ -1934,7 +2093,9 @@ local function rebuildHand(handData)
 		-- it can grow past the slot's bounds on hover/select without
 		-- shoving the other cards around.
 		local slot = Instance.new("Frame")
-		slot.Size = UDim2.new(0, 70, 0, 100)
+		-- Real size is set by CardFace.layoutHand after the loop (fits the
+		-- window); this is just a sane starting value.
+		slot.Size = UDim2.new(0, 84, 0, 122)
 		slot.BackgroundTransparency = 1
 		slot.LayoutOrder = visualPosition
 		slot.Parent = handFrame
@@ -1945,7 +2106,7 @@ local function rebuildHand(handData)
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 20
-		-- Fallback fill -- shown if cardSpriteSheet below is ever the
+		-- Fallback fill -- shown if cardFaceTemplate below is ever the
 		-- "rbxassetid://0" placeholder or fails to load (see
 		-- Client/ArtAssets.lua). No longer tweened for selection; see the
 		-- UIStroke-based cue below and in refreshCardVisual.
@@ -1956,17 +2117,16 @@ local function rebuildHand(handData)
 		-- children's render order interact.
 		button.Text = ""
 		button.Parent = slot
-		polishButton(button, 8)
+		-- roundCorner, not polishButton: polishButton now also adds the
+		-- gold-chrome UIStroke, and a card already has its own
+		-- SelectionStroke below -- the card art shouldn't get a permanent
+		-- gold border, and the selection cue needs to be its only stroke.
+		roundCorner(button, 8)
 
-		-- CARD ART: one 64x64 cell sliced out of the Kenney sprite sheet
-		-- (see ArtAssets.lua's header for why this replaced the single
-		-- AI-generated template -- that asset sat in Roblox moderation a
-		-- full month with no sign of clearing; this one real card per
-		-- rank/suit, ONE upload total). ScaleType.Stretch, not Crop -- the
-		-- source cell is square and the button is a portrait rectangle
-		-- (70x100); Crop would zoom in and crop off the card's own corner
-		-- pips to cover a portrait frame with a square source, Stretch
-		-- just fills it, which reads fine at this size. ZIndex 1 -- one
+		-- CARD ART: the single blank-centered card-face template (see
+		-- ArtAssets.lua's header), the same image for all 52 cards --
+		-- rank/suit is cardRankSuitLabel's text on top of it. Stretch, not
+		-- Crop, so the whole template fits the portrait button. ZIndex 1 -- one
 		-- below cardRankSuitLabel and the Garnish/Special/Stamp badge
 		-- further below (both ZIndex 2) -- so it's always a backdrop,
 		-- never covering the text or badge. roundCorner matches
@@ -1979,48 +2139,35 @@ local function rebuildHand(handData)
 		cardArt.BackgroundTransparency = 1
 		cardArt.BorderSizePixel = 0
 		cardArt.ScaleType = Enum.ScaleType.Stretch
-		cardArt.Image = cardSpriteSheet
-		cardArt.ImageRectOffset = cardSpriteOffset(card.rank, card.suit)
-		cardArt.ImageRectSize = cardSpriteCellVector
+		cardArt.Image = cardFaceTemplate
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
 		roundCorner(cardArt, 8)
 
-		-- Plain-text fallback -- see showPlaceholderRankSuit's own comment
-		-- above. The sprite sheet's own art already draws the rank/suit in
-		-- its corner, so once a real sheet is wired in, this would just be
-		-- duplicate text sitting on top of it -- hidden instead of removed
-		-- so flipping cardSpriteSheet in ArtAssets.lua back to the
-		-- placeholder (e.g. if the uploaded asset ever gets taken down)
-		-- instantly un-hides a working, readable hand again with no other
-		-- code change needed.
-		local cardRankSuitLabel = Instance.new("TextLabel")
-		cardRankSuitLabel.Name = "RankSuit"
-		cardRankSuitLabel.Size = UDim2.fromScale(1, 1)
-		cardRankSuitLabel.BackgroundTransparency = 1
-		cardRankSuitLabel.Font = Enum.Font.GothamBold
-		cardRankSuitLabel.TextSize = 20
-		cardRankSuitLabel.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
-		cardRankSuitLabel.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
-		cardRankSuitLabel.Visible = showPlaceholderRankSuit
-		cardRankSuitLabel.ZIndex = 2
-		cardRankSuitLabel.Parent = button
+		-- The card's rank/suit -- always shown. Not a fallback anymore:
+		-- the face template's center is blank on purpose, so this text IS
+		-- how every card reads its rank/suit, art or no art.
+		--
+		-- REFERENCE-MATCH PASS (Nov 1 2026): a real card layout instead of
+		-- one centered "A\n♥" label -- corner rank + small suit, big
+		-- center suit, small bottom-right suit. See Client/CardFace.lua.
+		local isHiddenWildcard = card.isTrueWildcard and not card.wildcardLocked
+		cardFaceModule.build(
+			button,
+			RANK_NAMES[card.rank] or tostring(card.rank),
+			SUIT_SYMBOLS[card.suit] or "?",
+			RED_SUITS[card.suit] == true,
+			2,
+			isHiddenWildcard
+		)
 
 		-- PHASE C ("mind-blowing plan" Signature Mechanic): the one True
 		-- Wildcard card shows "???" instead of its real dealt rank/suit
 		-- right up until it actually resolves (RunState.playHand) --
 		-- its real identity isn't the point yet, so showing it would just
-		-- spoil the reveal. Forced Visible = true (overriding
-		-- showPlaceholderRankSuit above) so this reads even once real
-		-- card art is confirmed loaded -- the card-art ImageLabel above
-		-- still shows whatever art its CURRENT (dealt, pre-resolution)
-		-- rank/suit maps to, which is harmless since this label already
-		-- covers it with ZIndex 2 > 1.
-		if card.isTrueWildcard and not card.wildcardLocked then
-			cardRankSuitLabel.TextColor3 = Color3.fromRGB(150, 110, 230)
-			cardRankSuitLabel.Text = "✨\n???"
-			cardRankSuitLabel.Visible = true
-		end
+		-- spoil the reveal. The card-face template carries no rank/suit of
+		-- its own, so swapping this label's text is all it takes.
+		-- (Handled by CardFace.build's hiddenWildcard argument above.)
 
 		-- SELECTION/HOVER CUE (redesign for the card-art rollout): this
 		-- used to be button.BackgroundColor3 tweening between the theme's
@@ -2125,6 +2272,9 @@ local function rebuildHand(handData)
 			refreshAllCardVisuals()
 		end)
 	end
+
+	-- REFERENCE-MATCH PASS: size cards to the window + draw the tray.
+	cardFaceModule.layoutHand(handFrame)
 end
 
 refreshHandSort = function()
@@ -2136,21 +2286,9 @@ end
 local function render(state)
 	latestState = state
 
-	-- INTERACTIVE TUTORIAL: auto-starts exactly once per client session,
-	-- only for a genuinely brand-new player (state.hasSeenTutorial reports
-	-- false server-side only until the walkthrough finishes/is skipped for
-	-- the very first time ever -- see PlayerProfile.lua's header). Starts
-	-- the LIVE spotlight walkthrough now, not the old static openTutorial()
-	-- modal -- that one's still reachable any time from Menu.lua's
-	-- "Tutorial" button as a quick-reference recap, untouched by this.
-	-- Menu-screen-only deliberately isn't enforced here, same reasoning as
-	-- before: a player who's mid-run when this first fires (shouldn't
-	-- normally happen, since it's brand new players) just sees it spotlight
-	-- whatever's on screen right now.
-	if not tutorialAutoShown and state.hasSeenTutorial == false then
-		tutorialAutoShown = true
-		Shop.tutorial.start()
-	end
+	-- INTERACTIVE TUTORIAL: started only from the menu's "Tutorial"
+	-- button now (no auto-start) -- onRender just lets an in-progress
+	-- walkthrough react to the new state (e.g. advance once a hand's dealt).
 	Shop.tutorial.onRender(state)
 
 	-- BUGFIX (Ahmed's Studio screenshot): a score reveal sequence can
@@ -2192,9 +2330,9 @@ local function render(state)
 	-- "(Endless)" tag instead.
 	local nightCap = state.nightCap or 8
 	if state.night > nightCap then
-		nightRoundLabel.Text = string.format("Night %d (Endless) - Round %d", state.night, state.round)
+		nightRoundLabel.Text = string.format("Night %d (Endless) · Round %d", state.night, state.round)
 	else
-		nightRoundLabel.Text = string.format("Night %d/%d - Round %d", state.night, nightCap, state.round)
+		nightRoundLabel.Text = string.format("Night %d/%d · Round %d", state.night, nightCap, state.round)
 	end
 	-- DAILY CHALLENGE (Phase 11) / WEEKLY CHALLENGE + SEED CODES (Phase
 	-- 16): show/hide the sidebar badge based on whatever the server says
@@ -2213,7 +2351,10 @@ local function render(state)
 		pulseFrame(tipsBox, state.tips > lastTipsValue and SIDEBAR_TIPS_GAIN_COLOR or SIDEBAR_SPEND_COLOR)
 	end
 	lastTipsValue = state.tips
-	tipsLabel.Text = string.format("Tips: %d", state.tips)
+	do
+		local tipsText = string.format("Tips: %d", state.tips)
+		SidebarModule.setIconText("tips", tipsText, "💰 " .. tipsText, tipsText, tipsLabel.TextSize)
+	end
 
 	if hasRenderedOnce
 		and (state.handsRemaining < lastHandsRemaining or state.discardsRemaining < lastDiscardsRemaining) then
@@ -2221,7 +2362,10 @@ local function render(state)
 	end
 	lastHandsRemaining = state.handsRemaining
 	lastDiscardsRemaining = state.discardsRemaining
-	handsDiscardsLabel.Text = string.format("Hands: %d  Discards: %d", state.handsRemaining, state.discardsRemaining)
+	do
+		local handsText = string.format("Hands: %d   Discards: %d", state.handsRemaining, state.discardsRemaining)
+		SidebarModule.setIconText("hands", handsText, "🃏 " .. handsText, handsText, handsDiscardsLabel.TextSize)
+	end
 	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
 
 	-- LAYOUT FEATURE 5: fill in the Patron slot icons. Since the Patron
@@ -2245,8 +2389,8 @@ local function render(state)
 					slot.frame.Visible = true
 					local owned = ownedPatrons[i]
 					if owned then
-						slot.frame.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-						slot.label.TextColor3 = Color3.fromRGB(250, 240, 220)
+						slot.frame.BackgroundColor3 = Color3.fromRGB(78, 52, 26)
+						slot.label.TextColor3 = Color3.fromRGB(255, 222, 150)
 						slot.label.Text = owned.name:sub(1, 1)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
 						-- one-off scale pop (popScale -- NOT pulseFrame, since
@@ -2257,8 +2401,8 @@ local function render(state)
 							popScale(slot.frame, 1.35, 0.3)
 						end
 					else
-						slot.frame.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
-						slot.label.TextColor3 = Color3.fromRGB(120, 115, 110)
+						slot.frame.BackgroundColor3 = Color3.fromRGB(22, 15, 9)
+						slot.label.TextColor3 = Color3.fromRGB(200, 168, 105)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
 					end
 					lastPatronSlotOwned[i] = (owned ~= nil)
@@ -2272,26 +2416,41 @@ local function render(state)
 	-- (tipsPerRoundWin, doubled on a Boss Round) so the sidebar never shows a
 	-- number that doesn't match what you actually get paid.
 	local reward = RunStateEngine.DefaultConfig.tipsPerRoundWin
-	if state.bossModifier then
+	if state.bossModifier or state.isBossRound then
 		reward = reward + RunStateEngine.DefaultConfig.tipsPerRoundWin
 	end
 	scoreLabel.Text = string.format("Score: %d / %d\nReward: $%d", state.roundScore, state.targetScore, reward)
+	SidebarModule.placeRewardIcon(string.format("Reward: $%d", reward))
 
 	if state.bossModifier then
-		blindInfoLabel.Text = string.format("👑 %s\n%s", state.bossModifier.name, state.bossModifier.description)
+		-- REFERENCE-MATCH PASS: name on a bigger first line, rule text
+		-- smaller underneath (blindInfoLabel has RichText on -- escape so
+		-- a "&" or "<" in a description can't break the markup).
+		local function esc(text)
+			return (tostring(text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
+		end
+		local bossLine = '<font size="17">%s%s</font>\n<font size="13" color="#E6D2AA">%s</font>'
+		local bossName = esc(state.bossModifier.name)
+		local bossRule = esc(state.bossModifier.description)
+		SidebarModule.setIconText(
+			"boss",
+			string.format(bossLine, "", bossName, bossRule),
+			string.format(bossLine, "👑 ", bossName, bossRule),
+			tostring(state.bossModifier.name),
+			17
+		)
 	else
 		-- BALATRO PARITY: Small Blind (round 1) / Big Blind (everything
 		-- else before the Boss) -- matches RoundSelect.lua's round panel
 		-- labels and the 1x/1.5x score multiplier each one actually gets
 		-- (see RunState.blindMultiplierFor).
-		blindInfoLabel.Text = state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)
-	end
-
-	if state.bossModifier then
-		bossBanner.Visible = true
-		bossBannerLabel.Text = string.format("👑 Boss Round -- %s: %s", state.bossModifier.name, state.bossModifier.description)
-	else
-		bossBanner.Visible = false
+		-- No crown on a normal round: set the text directly, and make sure
+		-- a crown left over from a Boss Round is hidden.
+		blindInfoLabel.Text = string.format(
+			'<font size="17">%s</font>\n<font size="13" color="#E6D2AA">No special rules this round.</font>',
+			state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)
+		)
+		SidebarModule.hideLineIcon("boss")
 	end
 
 	-- PHASE A (Spectacle pass): one-shot "arrival" beat the first time a

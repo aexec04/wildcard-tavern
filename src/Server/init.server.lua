@@ -589,6 +589,9 @@ local function serializeState(session, player)
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
 		bossModifier = bossModifier,
+		-- True on every Night's last round on every difficulty (Casual has
+		-- no bossModifier but still pays the boss reward) -- see RunState.
+		isBossRound = RunState.isBossRound(state),
 		-- JOURNEY FEATURE / ROUND SELECT FEATURE
 		nightBossModifier = nightBossModifier,
 		canSkipRound = RunState.canSkipRound(state),
@@ -690,10 +693,24 @@ local function serializeState(session, player)
 		-- below), so a client that somehow renders before profiles[player]
 		-- is ready doesn't mistake "still loading" for "brand new,
 		-- auto-show the tutorial."
+		--
+		-- STUDIO TUTORIAL BYPASS (requested fix: testing the walkthrough
+		-- in Studio was impossible once your own saved profile had already
+		-- seen it once): same idea as refreshOwnedGamePasses' Studio
+		-- bypass below -- while RunService:IsStudio() is true, a LOADED
+		-- profile always reports false, so the walkthrough auto-starts on
+		-- every Studio playtest. IsStudio() is always false in the
+		-- published game, so a live player's real flag is untouched. The
+		-- saved flag itself still flips true on dismiss (MarkTutorialSeen-
+		-- Remote is unchanged) -- it's only ever ignored in Studio, and the
+		-- client's own tutorialAutoShown guard keeps it to once per session.
 		hasSeenTutorial = (function()
 			local profile = profiles[player]
 			if not profile then
 				return true
+			end
+			if RunService:IsStudio() then
+				return false
 			end
 			return profile.hasSeenTutorial
 		end)(),
@@ -1210,10 +1227,16 @@ DiscardRemote.OnServerEvent:Connect(function(player, cardIndices)
 		return
 	end
 
-	local ok, err = pcall(RunState.discard, session.state, cardIndices)
+	local ok, result = pcall(RunState.discard, session.state, cardIndices)
 	if not ok then
-		warn("Discard error for " .. player.Name .. ": " .. tostring(err))
+		warn("Discard error for " .. player.Name .. ": " .. tostring(result))
 		return
+	end
+
+	-- A discard can now end the run (RunState's last-resort soft-lock
+	-- guard), same as PlayHand's runOver branch above.
+	if type(result) == "table" and result.runOver then
+		session.phase = "gameover"
 	end
 
 	pushState(player)

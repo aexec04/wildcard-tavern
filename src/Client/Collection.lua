@@ -95,9 +95,13 @@ return function(deps)
 	collectionBackdrop.ZIndex = 20
 	collectionBackdrop.Parent = screenGui
 
+	-- Center-anchored (same on-screen spot as the old top-left 0.2/0.15
+	-- position) so the expand toggle below grows it in place.
+	local COLLECTION_PANEL_SIZE = UDim2.fromScale(0.6, 0.7)
 	local collectionPanel = Instance.new("Frame")
-	collectionPanel.Size = UDim2.fromScale(0.6, 0.7)
-	collectionPanel.Position = UDim2.fromScale(0.2, 0.15)
+	collectionPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	collectionPanel.Size = COLLECTION_PANEL_SIZE
+	collectionPanel.Position = UDim2.fromScale(0.5, 0.5)
 	collectionPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	collectionPanel.ZIndex = 21
 	collectionPanel.Parent = collectionBackdrop
@@ -115,6 +119,15 @@ return function(deps)
 	collectionTitle.ZIndex = 21
 	collectionTitle.Parent = collectionPanel
 
+	-- EXPAND TOGGLE: corner button that blows the panel up to near-
+	-- fullscreen for browsing everything, and back. See ExpandToggle.lua.
+	require(script.Parent.ExpandToggle)(collectionPanel, {
+		collapsedSize = COLLECTION_PANEL_SIZE,
+		polishButton = polishButton,
+		addButtonHoverScale = addButtonHoverScale,
+		playClickSfx = playClickSfx,
+	})
+
 	-- PERSISTENT SAVE (Phase 10): a small permanent-stats line under the
 	-- title -- state.profileStats (Server/init.server.lua's serializeState)
 	-- is 3 small counters from Shared/Engine/PlayerProfile.lua, refreshed
@@ -130,9 +143,26 @@ return function(deps)
 	collectionStatsLabel.ZIndex = 21
 	collectionStatsLabel.Parent = collectionPanel
 
+	-- JUMP BUTTONS: a row of section shortcuts above the scroll list --
+	-- with 40+ Patrons first, reaching Themes or Achievements used to
+	-- mean scrolling past every one of them by hand. Wired up below,
+	-- once collectionScroll and the section headers exist.
+	local collectionJumpRow = Instance.new("Frame")
+	collectionJumpRow.Size = UDim2.new(1, -30, 0, 28)
+	collectionJumpRow.Position = UDim2.new(0, 15, 0, 48)
+	collectionJumpRow.BackgroundTransparency = 1
+	collectionJumpRow.ZIndex = 21
+	collectionJumpRow.Parent = collectionPanel
+
+	local collectionJumpLayout = Instance.new("UIListLayout")
+	collectionJumpLayout.FillDirection = Enum.FillDirection.Horizontal
+	collectionJumpLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	collectionJumpLayout.Padding = UDim.new(0, 8)
+	collectionJumpLayout.Parent = collectionJumpRow
+
 	local collectionScroll = Instance.new("ScrollingFrame")
-	collectionScroll.Size = UDim2.new(1, -30, 1, -110)
-	collectionScroll.Position = UDim2.new(0, 15, 0, 45)
+	collectionScroll.Size = UDim2.new(1, -30, 1, -145)
+	collectionScroll.Position = UDim2.new(0, 15, 0, 80)
 	collectionScroll.BackgroundTransparency = 1
 	collectionScroll.BorderSizePixel = 0
 	collectionScroll.ScrollBarThickness = 8
@@ -163,19 +193,32 @@ return function(deps)
 		popOut(collectionBackdrop, collectionPanel)
 	end)
 
+	-- BUGFIX (repeated "Patrons --" / "Themes --" / "Achievements &
+	-- Titles --" lines): this used to parent a bare TextLabel straight
+	-- into collectionScroll, but refreshCollection's cleanup loop only
+	-- destroys Frames -- so every refresh (every open, every state push
+	-- while open) left the old headers behind and stacked 3 more on top.
+	-- Wrapped in a transparent Frame now, same as every row already is,
+	-- so the existing cleanup catches it.
 	local function makeCollectionSectionHeader(text, order)
+		local header = Instance.new("Frame")
+		header.Size = UDim2.new(1, 0, 0, 22)
+		header.BackgroundTransparency = 1
+		header.LayoutOrder = order
+		header.ZIndex = 21
+		header.Parent = collectionScroll
+
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, 0, 0, 22)
+		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBold
 		label.TextSize = 16
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(255, 214, 130)
 		label.Text = text
-		label.LayoutOrder = order
 		label.ZIndex = 21
-		label.Parent = collectionScroll
-		return label
+		label.Parent = header
+		return header
 	end
 
 	local function makeCollectionRow(order, name, description, isOwned, swatchColor, icon)
@@ -316,6 +359,42 @@ return function(deps)
 		end
 	end
 
+	-- Rebuilt every refreshCollection (the headers are destroyed and
+	-- recreated along with the rows), so the jump buttons look their
+	-- target up here at click time rather than holding a stale reference.
+	local collectionSectionHeaders = {}
+
+	local function makeCollectionJumpButton(text, sectionKey, order)
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1 / 3, -6, 1, 0)
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = 13
+		button.Text = text
+		button.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
+		button.TextColor3 = Color3.fromRGB(250, 240, 220)
+		button.LayoutOrder = order
+		button.ZIndex = 21
+		button.Parent = collectionJumpRow
+		polishButton(button, 8)
+		addButtonHoverScale(button)
+
+		button.MouseButton1Click:Connect(function()
+			playClickSfx()
+			local header = collectionSectionHeaders[sectionKey]
+			if header and header.Parent then
+				-- The header's on-screen offset from the scroll's top edge,
+				-- plus however far we're already scrolled, is its position
+				-- in canvas space. Roblox clamps anything past the end.
+				local offsetY = header.AbsolutePosition.Y - collectionScroll.AbsolutePosition.Y
+				collectionScroll.CanvasPosition = Vector2.new(0, math.max(0, collectionScroll.CanvasPosition.Y + offsetY))
+			end
+		end)
+	end
+
+	makeCollectionJumpButton("Patrons", "patrons", 1)
+	makeCollectionJumpButton("Themes", "themes", 2)
+	makeCollectionJumpButton("Achievements & Titles", "achievements", 3)
+
 	local function refreshCollection()
 		for _, child in ipairs(collectionScroll:GetChildren()) do
 			if child:IsA("Frame") then
@@ -375,17 +454,17 @@ return function(deps)
 			collectionStatsLabel.Text = ""
 		end
 
-		makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
+		collectionSectionHeaders.patrons = makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
 		for i, patron in ipairs(Patrons.Definitions) do
 			makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100), patron.icon)
 		end
 
-		makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
+		collectionSectionHeaders.themes = makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
 		for i, theme in ipairs(Themes.Definitions) do
 			makeCollectionRow(100 + i, theme.name, theme.description, ownedThemeIds[theme.id] == true, theme.colors.accent)
 		end
 
-		makeCollectionSectionHeader(string.format("Achievements & Titles -- %d / %d unlocked", unlockedTitleCount, #Achievements.Definitions), 200)
+		collectionSectionHeaders.achievements = makeCollectionSectionHeader(string.format("Achievements & Titles -- %d / %d unlocked", unlockedTitleCount, #Achievements.Definitions), 200)
 		for i, achievement in ipairs(Achievements.Definitions) do
 			makeAchievementRow(200 + i, achievement, unlockedTitleIds[achievement.id] == true, equippedTitleId == achievement.id)
 		end

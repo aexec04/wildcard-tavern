@@ -21,7 +21,6 @@
 		playClickSfx            -- function(), played on Daily Challenge click
 		StartWeeklyChallengeRemote -- RemoteEvent, fired on Weekly Challenge click (Phase 16)
 		openSeedRunDialog       -- function(), opens SeedRunDialog.lua's modal (Phase 16)
-		openTutorial            -- function(), opens Tutorial.lua's walkthrough (Phase 16)
 		menuBackgroundImage     -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
 
 	Returns:
@@ -31,6 +30,7 @@
 			menuHowToPlayButton = TextButton,
 			menuJourneyButton = TextButton,
 			menuNewRunButton = TextButton,
+			menuTutorialButton = TextButton, -- click wired in init.client.lua (starts the live walkthrough)
 		}
 
 	DAILY CHALLENGE (Phase 11): a 5th button ("Daily Challenge") is added
@@ -93,7 +93,6 @@ return function(deps)
 	local playClickSfx = deps.playClickSfx
 	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
 	local openSeedRunDialog = deps.openSeedRunDialog
-	local openTutorial = deps.openTutorial
 	local menuBackgroundImage = deps.menuBackgroundImage
 
 	local menuFrame = Instance.new("Frame")
@@ -117,9 +116,24 @@ return function(deps)
 	menuBackgroundArt.BackgroundTransparency = 1
 	menuBackgroundArt.BorderSizePixel = 0
 	menuBackgroundArt.ScaleType = Enum.ScaleType.Crop
+	-- Nov 1 2026: reads ArtAssets.lua (via deps) instead of a hardcoded
+	-- DECAL id, which never loaded from code. Thumbnail fallback below.
 	menuBackgroundArt.Image = menuBackgroundImage or "rbxassetid://0"
-	menuBackgroundArt.ZIndex = 9
+	-- BUGFIX (Nov 1 2026): this ScreenGui uses Global ZIndex layering, so
+	-- this ZIndex-9 image drew UNDER its own ZIndex-10 parent's opaque fill
+	-- -- the menu art never showed. Same fix as the gameplay screen: the
+	-- image now sits at the parent's ZIndex (children draw after their
+	-- parent at equal ZIndex, and every menu button is created after it, so
+	-- they still draw on top), the parent's fill goes see-through, and the
+	-- flat fallback color moves onto the image's own background.
+	menuBackgroundArt.ZIndex = 10
+	menuBackgroundArt.BackgroundColor3 = menuFrame.BackgroundColor3
+	menuBackgroundArt.BackgroundTransparency = 0
+	menuFrame.BackgroundTransparency = 1
 	menuBackgroundArt.Parent = menuFrame
+	-- (Removed Nov 1 2026: a ContentProvider:PreloadAsync check used to swap
+	-- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
+	-- Failure even for images that load fine, so it was blanking good art.)
 
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Size = UDim2.new(1, 0, 0, 70)
@@ -242,15 +256,6 @@ return function(deps)
 		end
 	end)
 
-	menuTutorialButton.MouseButton1Click:Connect(function()
-		if playClickSfx then
-			playClickSfx()
-		end
-		if openTutorial then
-			openTutorial()
-		end
-	end)
-
 	for _, button in ipairs({
 		menuPlayButton,
 		menuHowToPlayButton,
@@ -291,5 +296,6 @@ return function(deps)
 		menuHowToPlayButton = menuHowToPlayButton,
 		menuJourneyButton = menuJourneyButton,
 		menuNewRunButton = menuNewRunButton,
+		menuTutorialButton = menuTutorialButton,
 	}
 end

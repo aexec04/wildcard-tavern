@@ -93,6 +93,14 @@ return function(deps)
 
 	local unlockPopupToken = 0
 
+	-- Connected ONCE (it used to be re-connected on every popup, piling up
+	-- a new connection each time for the whole session). Bumping the token
+	-- also cancels the pending timed dismiss below.
+	unlockPopupDismissCatcher.MouseButton1Click:Connect(function()
+		unlockPopupToken = unlockPopupToken + 1
+		unlockPopup.Visible = false
+	end)
+
 	local function showUnlockPopup(name, description)
 		unlockPopupToken = unlockPopupToken + 1
 		local myToken = unlockPopupToken
@@ -110,7 +118,6 @@ return function(deps)
 			unlockPopup.Visible = false
 		end
 
-		unlockPopupDismissCatcher.MouseButton1Click:Connect(dismiss)
 		task.delay(2.4, dismiss)
 	end
 

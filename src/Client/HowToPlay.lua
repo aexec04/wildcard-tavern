@@ -3,7 +3,7 @@
 	The "How to Play" overlay -- a full-screen backdrop + panel showing a
 	grid of icon/caption rule tiles plus one worked scoring example per hand
 	type (weakest to strongest), reachable from the main menu's "How to
-	Play" button and from the in-game "?" corner button.
+	Play" button and from the Settings panel's "How to Play" button.
 
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. Fully self-contained: nothing outside
@@ -25,7 +25,7 @@
 		HandEvaluator         -- the Shared/Engine/HandEvaluator module
 		Scoring              -- the Shared/Engine/Scoring module
 		menuHowToPlayButton  -- TextButton, "How to Play" on the main menu
-		helpButton           -- TextButton, the in-game "?" corner button
+		helpButton           -- TextButton, Settings.lua's "How to Play" button (was the "?" corner icon)
 		popIn                -- function(backdrop, content, opts?)
 		popOut               -- function(backdrop, content, opts?, onHidden?)
 		addButtonHoverScale  -- function(button, opts?)

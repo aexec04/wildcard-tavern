@@ -248,7 +248,24 @@ return function(deps)
 	local PRESET_PLAYLISTS = {
 		{
 			name = "Lo-Fi Lounge",
-			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+			songs = {
+				"rbxassetid://140722099430139",
+				"rbxassetid://140653696800228",
+				"rbxassetid://140658234151287",
+				"rbxassetid://140627598377770",
+				"rbxassetid://123516194124949",
+				"rbxassetid://140628387917926",
+				"rbxassetid://140653878167561",
+				"rbxassetid://9047105533",
+				"rbxassetid://140699797365730",
+				"rbxassetid://139031824972373",
+				"rbxassetid://140277562613590",
+				"rbxassetid://114213622974713",
+				"rbxassetid://9047104336",
+				"rbxassetid://9046863253",
+				"rbxassetid://140674665585340",
+				"rbxassetid://140663385665720",
+			},
 		},
 		{
 			name = "Arcade Energy",

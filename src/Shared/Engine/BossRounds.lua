@@ -354,6 +354,51 @@ function BossRounds.getById(id)
 	return nil
 end
 
+-- JOURNEY MAP (distinct boss gates): a coarse "what kind of boss is
+-- this" bucket, derived from whichever effect fields a definition sets
+-- rather than hand-tagged on all 35 entries -- so a new modifier gets a
+-- category for free, and can't be mis-tagged. The client (Journey.lua)
+-- maps each id to a gate color/glyph; this file stays presentation-free.
+-- Combos (e.g. Picked Over's debuff + hand cut) take the FIRST match in
+-- this order, which runs roughly most-to-least strategically disruptive.
+BossRounds.Categories = {
+	{ id = "debuff", name = "Debuff" },           -- suit/face cards score nothing
+	{ id = "restriction", name = "Play Limit" },  -- hand caps, exact card counts, no repeats
+	{ id = "weaken", name = "Chip/Mult Penalty" },
+	{ id = "squeeze", name = "Hand Cut" },        -- fewer cards/discards, random tosses
+	{ id = "tips", name = "Tips Penalty" },
+	{ id = "target", name = "Higher Target" },
+}
+
+function BossRounds.categoryOf(def)
+	if not def then
+		return nil
+	end
+	if def.debuff then
+		return "debuff"
+	elseif def.handsPerRoundOverride or def.requiredCardsPerHand or def.noRepeatHandTypes then
+		return "restriction"
+	elseif def.chipsMultiplier or def.multMultiplier then
+		return "weaken"
+	elseif def.handSizeDelta or def.discardsDelta or def.forcedRandomDiscardsPerHand then
+		return "squeeze"
+	elseif def.tipsLostPerCardPlayed or def.zeroTipsOnMostPlayedHand then
+		return "tips"
+	elseif def.targetScoreMultiplier then
+		return "target"
+	end
+	return nil
+end
+
+function BossRounds.getCategoryById(id)
+	for _, category in ipairs(BossRounds.Categories) do
+		if category.id == id then
+			return category
+		end
+	end
+	return nil
+end
+
 -- Boss rounds land on the last round of every Night.
 function BossRounds.isBossRound(round, roundsPerNight)
 	return round == roundsPerNight
