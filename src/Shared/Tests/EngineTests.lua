@@ -3449,4 +3449,13 @@ table.insert(tests, { name = "Shop voucher roll on a seeded run is seeded and hi
 	expectTrue(hits >= 1300 and hits <= 1500)
 end })
 
+table.insert(tests, { name = "Crowd Favorite breaks a most-played tie by name, not table order", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.handStats = { ["Pair"] = 3, ["Flush"] = 3, ["Two Pair"] = 3, ["High Card"] = 1 }
+	state.secretRecipeInventory = { "crowd_favorite" }
+	expectTrue(RunState.useSecretRecipe(state, "crowd_favorite"))
+	expectEqual(state.handLevels["Flush"], 1)
+	expectEqual(state.handLevels["Pair"], nil)
+end })
+
 return tests

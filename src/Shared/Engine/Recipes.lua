@@ -781,7 +781,8 @@ Recipes.SecretRecipes = {
 		apply = function(state)
 			local bestHand, bestCount = nil, 0
 			for handName, count in pairs(state.handStats) do
-				if count > bestCount then
+				-- Name breaks ties so the result never depends on pairs() order.
+				if count > bestCount or (count == bestCount and handName < bestHand) then
 					bestHand, bestCount = handName, count
 				end
 			end
