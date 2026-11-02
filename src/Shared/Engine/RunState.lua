@@ -126,7 +126,7 @@ end
 
 --[[
 	options (all optional): { deckVariantId = string, difficultyId = string,
-	ownedThemeIds = array<string> }
+	ownedThemeIds = array<string>, nightOneBonusDiscards = number }
 	Unknown/omitted deckVariantId/difficultyId fall back to the standard deck
 	variant and standard difficulty, so `RunState.new()` and
 	`RunState.new(nil, rng)` both still produce the original default-balance
@@ -252,6 +252,9 @@ function RunState.new(options, rng)
 		handsPlayedTotal = 0,
 		discardsUsedTotal = 0,
 		patronsSold = 0,
+		-- Extra discards each round of Night 1, for brand-new profiles --
+		-- see Onboarding.bonusDiscards.
+		nightOneBonusDiscards = options.nightOneBonusDiscards or 0,
 	}
 
 	-- PHASE C ("mind-blowing plan" Signature Mechanic): seed exactly ONE
@@ -326,6 +329,7 @@ function RunState.startRound(state)
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)
+		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
 	discards = math.max(0, discards)
 
 	local handsPerRound = state.config.handsPerRound

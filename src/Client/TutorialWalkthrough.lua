@@ -24,14 +24,19 @@
 	STEP GATING (per Ahmed's own call when asked): the 2 steps that teach
 	the CORE loop (select cards, play a hand) require the player to
 	actually DO it -- the spotlight simply won't advance until they have.
+	Selecting ends with a "Done picking" button, which only appears once a
+	card is selected, so a player can build a full hand first. Discarding
+	is taught BEFORE the first Play, because players who never discard are
+	the ones who lose Night 1; using it returns to selecting, since the
+	hand has just changed.
 	The supporting steps (Discard, the sidebar readouts, the Shop) are
 	real/live but softly gated -- a "Got it" button, not a forced action --
 	since those are genuinely optional on any given round and a hard gate
 	there risks stranding a player who, say, can't afford any Patron on
 	this particular Shop visit.
 
-	COVERAGE: first Round only, then fades out for good -- selecting/
-	playing a hand, Discard, the Hands/Discards/Score sidebar, waiting out
+	COVERAGE: first Round only, then fades out for good -- selecting a
+	hand, Discard, playing, the Hands/Discards/Score sidebar, waiting out
 	the Round, and one guided Shop/Patron visit. Everything after the
 	first "Next Round" click is unassisted, same as any returning player.
 
@@ -66,7 +71,8 @@
 			start = function(),                    -- begins at step 1; no-op if already active/done
 			onRender = function(state),             -- call every render(); the one step that needs
 			                                        -- real server state (waiting for a run to start)
-			notifySelectionChanged = function(n),   -- n = how many cards are currently selected
+			notifySelectionChanged = function(n, weakHand), -- n = cards selected; weakHand = they
+			                                        -- only make a High Card and a Discard is available
 			notifyHandPlayed = function(),          -- call right when PlayHandRemote fires
 			notifyDiscardUsed = function(),         -- call right when DiscardRemote fires
 			notifyEnteredShop = function(),         -- call once shop is visible+built after a round win
@@ -109,19 +115,23 @@ local STEPS = {
 		body = "Click cards here to select up to 5. Look for a poker hand -- even a single Pair scores, and a Flush or Full House scores a lot more.",
 	},
 	{
+		id = "discard_info",
+		mode = MODE_SPOTLIGHT,
+		target = "discard",
+		title = "Not feeling this hand?",
+		body = "Discard swaps your selected cards for new ones -- it costs a Discard, not a Hand, so use it to fish for something better before you play.",
+		button = "Keep these cards",
+		-- Shown instead when the selection only makes a High Card.
+		weakTitle = "That's only a High Card",
+		weakBody = "A High Card barely scores. Hit Discard to swap these for new cards -- it costs a Discard, not a Hand.",
+		weakButton = "Play it anyway",
+	},
+	{
 		id = "play_hand",
 		mode = MODE_SPOTLIGHT,
 		target = "play",
 		title = "Play your hand",
 		body = "Hit Play Hand to score your selected cards. Stronger hands score more Chips and Mult, which multiply together.",
-	},
-	{
-		id = "discard_info",
-		mode = MODE_SPOTLIGHT,
-		target = "discard",
-		title = "Not feeling this hand?",
-		body = "Discard swaps your selected cards for new ones -- it costs a Discard, not a Hand, so it's free to fish for something better.",
-		button = "Got it",
 	},
 	{
 		id = "sidebar_info",
@@ -153,6 +163,7 @@ local STEPS = {
 	},
 }
 
+local DONE_PICKING_TEXT = "Done picking"
 local CAPTION_WIDTH = 360
 local SPOTLIGHT_PADDING = 10
 local DIM_TRANSPARENCY = 0.55
@@ -308,6 +319,8 @@ return function(deps)
 	local completed = false
 	local currentStepIndex = 0
 	local hasDiscardedAlready = false
+	local selectedCount = 0
+	local selectionIsWeak = false
 	local currentTarget = nil -- Instance | {Instance, ...} | nil
 	local heartbeatConn = nil
 	local captionActionConn = nil
@@ -484,13 +497,18 @@ return function(deps)
 		end
 
 		currentStepIndex = index
+		local useWeakText = selectionIsWeak and step.weakBody ~= nil
 		captionCard.Visible = true
 		captionTitle.Visible = step.title ~= nil
-		captionTitle.Text = step.title or ""
-		captionBody.Text = step.body or ""
+		captionTitle.Text = (useWeakText and step.weakTitle) or step.title or ""
+		captionBody.Text = (useWeakText and step.weakBody) or step.body or ""
 
-		if step.button then
-			setCaptionButton(step.button, function()
+		local buttonText = (useWeakText and step.weakButton) or step.button
+		if step.id == "select_cards" and selectedCount > 0 then
+			buttonText = DONE_PICKING_TEXT
+		end
+		if buttonText then
+			setCaptionButton(buttonText, function()
 				advanceFrom(step.id)
 			end)
 		else
@@ -533,11 +551,22 @@ return function(deps)
 		showStep(1)
 	end
 
-	local function notifySelectionChanged(count)
-		if not active or count < 1 then
+	local function notifySelectionChanged(count, weakHand)
+		selectedCount = count
+		selectionIsWeak = weakHand == true
+		if not active then
 			return
 		end
-		advanceFrom("select_cards")
+		local step = STEPS[currentStepIndex]
+		if step and step.id == "select_cards" then
+			if count > 0 then
+				setCaptionButton(DONE_PICKING_TEXT, function()
+					advanceFrom("select_cards")
+				end)
+			else
+				setCaptionButton(nil)
+			end
+		end
 	end
 
 	local function notifyHandPlayed()
@@ -569,10 +598,8 @@ return function(deps)
 		currentStepIndex = nextIndex
 		task.delay(4.5, function()
 			-- Only still correct if NOTHING else advanced past this step
-			-- in the meantime (e.g. the player discarded during the gap,
-			-- which resolves discard_info on its own -- see
-			-- notifyDiscardUsed). If currentStepIndex has moved on, this
-			-- would just be showing a stale, already-passed step.
+			-- in the meantime. If currentStepIndex has moved on, this would
+			-- just be showing a stale, already-passed step.
 			if active and currentStepIndex == nextIndex then
 				showStep(nextIndex)
 			end
@@ -581,7 +608,17 @@ return function(deps)
 
 	local function notifyDiscardUsed()
 		hasDiscardedAlready = true
-		advanceFrom("discard_info")
+		selectedCount = 0
+		selectionIsWeak = false
+		if not active then
+			return
+		end
+		local step = STEPS[currentStepIndex]
+		if step and step.id == "discard_info" then
+			-- The hand just changed, so go back and pick from the new cards.
+			-- The Play spotlight would dim the hand with nothing selected.
+			showStep(currentStepIndex - 1)
+		end
 	end
 
 	local function notifyEnteredShop()

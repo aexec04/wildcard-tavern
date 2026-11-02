@@ -809,7 +809,11 @@ function Sim.runOne(cfg, seed)
 	local botRng = E.SeededRng.new((seed * 7 + 13) % 4294967296)
 	local restoreBoss = installBossOverride(cfg)
 
-	local state = E.RunState.new({ deckVariantId = cfg.deck, difficultyId = cfg.difficulty }, rng)
+	local state = E.RunState.new({
+		deckVariantId = cfg.deck,
+		difficultyId = cfg.difficulty,
+		nightOneBonusDiscards = cfg.nightOneDiscards,
+	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec
 	if cfg.forcePatron then

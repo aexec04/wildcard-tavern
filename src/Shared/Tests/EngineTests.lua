@@ -19,6 +19,7 @@ local Patrons = require(script.Parent.Parent.Engine.Patrons)
 local Themes = require(script.Parent.Parent.Engine.Themes)
 local RunState = require(script.Parent.Parent.Engine.RunState)
 local Shop = require(script.Parent.Parent.Engine.Shop)
+local Onboarding = require(script.Parent.Parent.Engine.Onboarding)
 local DeckVariants = require(script.Parent.Parent.Engine.DeckVariants)
 local DifficultyTiers = require(script.Parent.Parent.Engine.DifficultyTiers)
 local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
@@ -3835,6 +3836,51 @@ table.insert(tests, { name = "Patron ids and icons are unique, and scaling Patro
 		end
 	end
 	expectTrue(seen.slow_cooker and seen.veterans_table)
+end })
+
+-- ===== Onboarding (Phase 6) =====
+
+table.insert(tests, { name = "New-player bonus covers the first 3 runs and never a seeded run", fn = function()
+	expectEqual(Onboarding.bonusDiscards(0, false), 1)
+	expectEqual(Onboarding.bonusDiscards(2, false), 1)
+	expectEqual(Onboarding.bonusDiscards(3, false), 0)
+	expectEqual(Onboarding.bonusDiscards(40, false), 0)
+	expectEqual(Onboarding.bonusDiscards(0, true), 0)
+	expectEqual(Onboarding.bonusDiscards(nil, false), 0) -- no profile loaded yet
+end })
+
+table.insert(tests, { name = "Night-one bonus discards apply on Night 1 only", fn = function()
+	local state = RunState.new({ nightOneBonusDiscards = 1 }, function(n) return n end)
+	local normal = RunState.DefaultConfig.discardsPerRound
+	expectEqual(state.discardsRemaining, normal + 1)
+	state.round = 2
+	RunState.startRound(state)
+	expectEqual(state.discardsRemaining, normal + 1)
+	state.night, state.round = 2, 1
+	RunState.startRound(state)
+	expectEqual(state.discardsRemaining, normal)
+
+	local plain = RunState.new(nil, function(n) return n end)
+	expectEqual(plain.discardsRemaining, normal)
+end })
+
+table.insert(tests, { name = "High Card hint fires once, only with a Discard left, after the tutorial", fn = function()
+	local profile = PlayerProfile.new()
+	expectFalse(Onboarding.shouldShowHighCardHint("High Card", 2, profile)) -- tutorial still running
+	PlayerProfile.markTutorialSeen(profile)
+	expectTrue(Onboarding.shouldShowHighCardHint("High Card", 1, profile))
+	expectFalse(Onboarding.shouldShowHighCardHint("High Card", 0, profile))
+	expectFalse(Onboarding.shouldShowHighCardHint("Pair", 2, profile))
+	expectFalse(Onboarding.shouldShowHighCardHint("High Card", 2, nil))
+	PlayerProfile.markHighCardHintSeen(profile)
+	expectFalse(Onboarding.shouldShowHighCardHint("High Card", 2, profile))
+end })
+
+table.insert(tests, { name = "hasSeenHighCardHint defaults safely and survives a save", fn = function()
+	expectFalse(PlayerProfile.new().hasSeenHighCardHint)
+	expectFalse(PlayerProfile.migrate({}).hasSeenHighCardHint) -- existing saves
+	expectFalse(PlayerProfile.migrate({ hasSeenHighCardHint = "yes" }).hasSeenHighCardHint)
+	expectTrue(PlayerProfile.migrate({ hasSeenHighCardHint = true }).hasSeenHighCardHint)
 end })
 
 return tests

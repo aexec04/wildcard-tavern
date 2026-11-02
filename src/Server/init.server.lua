@@ -29,6 +29,7 @@ local Themes = require(Engine.Themes) -- PERSISTENT SAVE (Phase 10): needed for 
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
 local Shop = require(Engine.Shop)
+local Onboarding = require(Engine.Onboarding)
 local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (see that file's header for setup steps)
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
@@ -462,6 +463,7 @@ local function serializeState(session, player)
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
+		onboardingHint = session.onboardingHint,
 		-- Scaling Patrons' inputs, so computeHandPreview matches playHand.
 		runCounters = RunState.runCounters(state),
 		patronSlotLimit = RunState.patronSlotLimit(state),
@@ -763,6 +765,7 @@ local function pushState(player)
 	trackDailyProgress(player)
 	trackWeeklyProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
+	session.onboardingHint = nil -- one-shot: only the push right after it's set carries it
 end
 
 -- ===== Real-money Game Passes (see Shared/Engine/GamePasses.lua) =====
@@ -940,6 +943,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
 			ownedThemeIds = ownedThemeIds,
+			nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
 		}, seededRng),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
@@ -1122,6 +1126,13 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 		openShop(session)
 	elseif result.runOver then
 		session.phase = "gameover"
+	end
+
+	local profile = profiles[player]
+	if Onboarding.shouldShowHighCardHint(result.handName, session.state.discardsRemaining, profile) then
+		PlayerProfile.markHighCardHintSeen(profile)
+		profileDirty[player] = true
+		session.onboardingHint = Onboarding.HIGH_CARD_HINT
 	end
 
 	pushState(player)

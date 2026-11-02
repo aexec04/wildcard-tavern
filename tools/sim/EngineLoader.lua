@@ -58,7 +58,7 @@ function EngineLoader.load(sharedPath)
 
 	local engine = {}
 	for _, name in ipairs({
-		"Card", "Deck", "HandEvaluator", "Scoring", "Patrons", "RunState", "Shop", "Packs",
+		"Card", "Deck", "HandEvaluator", "Scoring", "Patrons", "RunState", "Shop", "Packs", "Onboarding",
 		"HousePasses", "Recipes", "BossRounds", "DeckVariants", "DifficultyTiers", "SeededRng", "Tags",
 	}) do
 		engine[name] = loadModule(sharedPath .. "/Engine/" .. name)

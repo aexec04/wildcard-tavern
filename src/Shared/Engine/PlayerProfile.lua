@@ -99,6 +99,7 @@ function PlayerProfile.new()
 		},
 		equippedTitleId = nil, -- ACHIEVEMENTS + TITLES (Phase 16): an Achievements.Definitions id, or nil for no title equipped
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
+		hasSeenHighCardHint = false, -- see Onboarding.shouldShowHighCardHint
 		customPlaylist = {}, -- JUKEBOX PLAYLIST (requested fix): ordered list of "rbxassetid://<digits>" strings, see header comment
 	}
 end
@@ -161,6 +162,10 @@ function PlayerProfile.migrate(raw)
 
 	if raw.hasSeenTutorial == true then
 		profile.hasSeenTutorial = true
+	end
+
+	if raw.hasSeenHighCardHint == true then
+		profile.hasSeenHighCardHint = true
 	end
 
 	-- JUKEBOX PLAYLIST (requested fix): each entry independently
@@ -267,6 +272,10 @@ end
 -- (Server/init.server.lua's handler doesn't bother checking first).
 function PlayerProfile.markTutorialSeen(profile)
 	profile.hasSeenTutorial = true
+end
+
+function PlayerProfile.markHighCardHintSeen(profile)
+	profile.hasSeenHighCardHint = true
 end
 
 -- JUKEBOX PLAYLIST (requested fix): same shape as equipTitle above -- safe

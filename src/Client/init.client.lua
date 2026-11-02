@@ -1981,7 +1981,9 @@ local function onCardClicked(index)
 	for _ in pairs(selected) do
 		selectedCount = selectedCount + 1
 	end
-	Shop.tutorial.notifySelectionChanged(selectedCount)
+	local preview = selectedCount > 0 and computeHandPreview(selectedIndicesArray())
+	local weakHand = preview and preview.name == "High Card" and latestState.discardsRemaining > 0
+	Shop.tutorial.notifySelectionChanged(selectedCount, weakHand)
 end
 
 -- LAYOUT FEATURE 4 (Sort Hand): returns an array of indices INTO handData,
@@ -2725,5 +2727,12 @@ playAgainButton.MouseButton1Click:Connect(function()
 end)
 
 StateUpdatedRemote.OnClientEvent:Connect(function(state)
+	if state.onboardingHint then
+		-- After the score reveal, which would otherwise cover the banner.
+		local hint = state.onboardingHint
+		task.delay(4.5, function()
+			showWarning(hint)
+		end)
+	end
 	render(state)
 end)

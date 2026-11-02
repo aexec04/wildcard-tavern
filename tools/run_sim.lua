@@ -22,6 +22,7 @@
 		--max-night N                stop after this Night's boss (default 10)
 		--endless                    keep playing after a win, up to --max-night
 		--bank N                     banking bot: never spend below N Tips
+		--night-one-discards N       extra discards on Night 1 (new-player bonus)
 		--force-boss ID  --boss-night N
 		--force-patron ID,ID         own these Patrons from the start
 		--force-passes ID,ID         own these House Passes from the start
@@ -52,7 +53,7 @@ local function parseArgs(argv)
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
-		["--first-run"] = "firstRun",
+		["--first-run"] = "firstRun", ["--night-one-discards"] = "nightOneDiscards",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
@@ -114,6 +115,9 @@ local function workerArgs(run, firstRun, count, outPath)
 	end
 	if run.forcePasses then
 		table.insert(parts, "--force-passes"); table.insert(parts, run.forcePasses)
+	end
+	if run.nightOneDiscards then
+		table.insert(parts, "--night-one-discards"); table.insert(parts, run.nightOneDiscards)
 	end
 	if run.endless then table.insert(parts, "--endless") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
