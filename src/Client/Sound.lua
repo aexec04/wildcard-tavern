@@ -17,7 +17,7 @@
 	this week's scope, this is just something to hear for now).
 
 	Unused alternates from the same batch, in case you want to swap later:
-	  Balatro-Shop-Buy:   rbxassetid://117518868636544
+	  Shop-Buy (alt):    rbxassetid://117518868636544
 	  Sears-Washing-Machine-8 (click alt): rbxassetid://9118892323
 	  Falling-Down (music alt):    rbxassetid://122884689708268
 	  Celestial-Walk (music alt, has a loud sax -- Ahmed didn't like it): rbxassetid://1836047913

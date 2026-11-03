@@ -219,7 +219,7 @@ Every number changed, old to new. Each description string was updated to match.
 The plan's values were starting points, and these bots are stronger than the plan's: they use Recipes, rerolls and Patron swaps. On the plan's curve alone, decent won 42.6%, and 57.6% once the boss clamps were in.
 
 - **Night-1 deaths could not be fixed by growth.** Only the starting target moves them, so base went from 100 to 65.
-- **The win ratio needed discard-specific changes.** Decent has to win about twice as often as greedy, and curve changes move both together. Each of these favours the bot that discards: a higher Big Blind, Flush 40x5, 1 discard on Last Call Only and Empty-Handed, a cheaper Late Kitchen, and weaker Discard Special and Closing Tab, which paid most to a player who never discards.
+- **The win ratio needed discard-specific changes.** Decent has to win about twice as often as greedy, and curve changes move both together. Each of these favours the bot that discards: a higher Big Blind, Flush 40x5, 1 discard on Last Chance and Empty-Handed, a cheaper Late Kitchen, and weaker Discard Special and Closing Tab, which paid most to a player who never discards.
 - **A 4th base discard was tested and rejected.** It did not help the ratio.
 - **The plan's Patron nerfs were not enough.** steady_hand at +12 was still 4.9x the median, so the outliers went further, often with a price rise. double_down stays at +10, not the plan's +14, because the Pair-based probe already rates it at 2.0x.
 - **One at a Time needed x0.35, not x0.6.** At x0.6 it cleared only about 21% of the time.

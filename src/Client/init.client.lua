@@ -2326,7 +2326,7 @@ local function render(state)
 		lastEquippedThemeId = state.equippedTheme
 	end
 
-	-- BALATRO PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
+	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no
 	-- more "/8" to show (you're past it for good), so switch to an
 	-- "(Endless)" tag instead.
@@ -2442,7 +2442,7 @@ local function render(state)
 			17
 		)
 	else
-		-- BALATRO PARITY: Small Blind (round 1) / Big Blind (everything
+		-- GENRE PARITY: Small Blind (round 1) / Big Blind (everything
 		-- else before the Boss) -- matches RoundSelect.lua's round panel
 		-- labels and the 1x/2x score multiplier each one actually gets
 		-- (see RunState.blindMultiplierFor).
@@ -2538,7 +2538,7 @@ local function render(state)
 		-- RunState.playHand) is the ACTUAL total Tips gained, so prefer it
 		-- and only fall back to the old estimate if it's somehow missing.
 		local actualReward = state.lastRoundReward or reward
-		-- BALATRO PARITY: this is also the one moment a win at nightCap
+		-- GENRE PARITY: this is also the one moment a win at nightCap
 		-- (state.night hasn't advanced past it yet -- that only happens
 		-- once "Next Round" is clicked) is visible, so give it a
 		-- celebratory headline instead of the usual "Round Complete!".

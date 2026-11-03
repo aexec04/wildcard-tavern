@@ -1293,7 +1293,7 @@ return function(deps)
 			secret = (state and state.secretRecipeInventory) or {},
 		}
 
-		-- BALATRO PARITY: "fixed cap ~2" consumable slots -- House+Menu+
+		-- GENRE PARITY: "fixed cap ~2" consumable slots -- House+Menu+
 		-- Secret share ONE box (RunState.recipeSlotLimit), so this counts
 		-- across all three, same shape as the Shop tab's "Your table:
 		-- X/Y Patrons" label.

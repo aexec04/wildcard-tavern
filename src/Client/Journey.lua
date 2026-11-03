@@ -73,7 +73,7 @@ return function(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
 
 	-- LAYOUT FEATURE 9: Ahmed wanted his own creative spin here instead of
-	-- copying Balatro's plain list -- a 2D, Mario-map-style path where your
+	-- copying the usual plain list -- a 2D, Mario-map-style path where your
 	-- own Roblox avatar (real headshot thumbnail) stands on your current
 	-- stage and hops/walks to the next one when you win a round.
 

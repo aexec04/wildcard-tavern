@@ -1,6 +1,6 @@
 --[[
 	Client/ScorePopup.lua
-	Balatro's signature scoring sequence -- Play Hand triggers a step-by-step
+	The step-by-step scoring sequence -- Play Hand triggers a step-by-step
 	choreography: the played cards lift into a row, each scoring card (left
 	to right) pops/highlights while its own chip/mult number flies up into
 	the HUD, held cards get a brief in-place nudge for Iron Garnish, owned

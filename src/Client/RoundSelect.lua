@@ -361,7 +361,7 @@ return function(deps)
 		-- banner's). round == 1 means this is the very first time you're
 		-- seeing this particular Night, so that's the one moment worth a
 		-- slightly more celebratory subtitle.
-		-- BALATRO PARITY: an "Ante counter" (1/8, then Endless Mode) --
+		-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) --
 		-- shows "/nightCap" while under it, "(Endless)" once past for good
 		-- (state.night only ever increases, so once you're past nightCap
 		-- you never see the "/8" form again this run).
@@ -387,7 +387,7 @@ return function(deps)
 			-- server-side, instead of assuming the global default.
 			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
-			-- BALATRO PARITY: Small Blind (round 1, 1x target) / Big Blind
+			-- GENRE PARITY: Small Blind (round 1, 1x target) / Big Blind
 			-- (any round between, 2x) / Boss Blind (last round, 2x-2.5x
 			-- scaling with Night) -- matches RunState.blindMultiplierFor,
 			-- and the sidebar's blindInfoLabel uses the same naming.

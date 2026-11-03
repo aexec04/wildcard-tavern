@@ -19,7 +19,7 @@ night | small      big        boss        boss mult
  6    |    9,765     14,648       47,433   4.86x
  8    |   61,035     91,552      366,210   6.00x
 
-Night-1 → Night-8 boss growth is ~1,830×. (Balatro's equivalent is on the order of ~170× from memory — verify if you care about parity.) Three things compound: 2.5×/Night growth, the boss blind multiplier ramp, and a boss modifier on top.
+Night-1 → Night-8 boss growth is ~1,830×. (Genre peers grow on the order of ~170×, from memory — verify if you care about parity.) Three things compound: 2.5×/Night growth, the boss blind multiplier ramp, and a boss modifier on top.
 
 1.4 Boss-modifier effective difficulty is wildly uneven
 

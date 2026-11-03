@@ -142,7 +142,7 @@ BossRounds.Definitions = {
 	},
 	{
 		id = "last_call_only",
-		name = "Last Call Only",
+		name = "Last Chance",
 		description = "You get only 1 discard this round.",
 		minNight = 3,
 		discardsDelta = -2,

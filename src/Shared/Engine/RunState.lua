@@ -40,13 +40,13 @@ RunState.DefaultConfig = {
 	-- Patron (see RunState.patronSlotLimit) is the intended way to grow
 	-- past this over the course of a run.
 	patronSlotLimit = 5,
-	-- BALATRO PARITY: how many House+Menu+Secret Recipes can be held at
-	-- once, COMBINED -- one shared "recipe box", matching Balatro's single
+	-- GENRE PARITY: how many House+Menu+Secret Recipes can be held at
+	-- once, COMBINED -- one shared "recipe box", matching the genre's single
 	-- consumable-slot area rather than a separate cap per category. See
 	-- RunState.recipeSlotLimit.
 	recipeSlotLimit = 2,
-	-- BALATRO PARITY: clear the Boss Round of this Night and the run is
-	-- marked WON (state.wonRun) -- like beating Balatro's Ante 8. The run
+	-- GENRE PARITY: clear the Boss Round of this Night and the run is
+	-- marked WON (state.wonRun) -- the usual 8-stage win in this genre. The run
 	-- doesn't stop there, though -- Nights keep climbing past this exactly
 	-- like they always did, so this is really just "which Night does
 	-- Endless Mode start after." See RunState.playHand/targetScoreFor.
@@ -54,7 +54,7 @@ RunState.DefaultConfig = {
 }
 
 --[[
-	BALATRO PARITY: Small/Big/Boss Blind distinct score multipliers (Ahmed:
+	GENRE PARITY: Small/Big/Boss Blind distinct score multipliers (Ahmed:
 	"Small/Big/Boss Blind at distinct score multipliers"),
 	replacing the old single continuous curve. Two independent knobs now,
 	multiplied together in targetScoreFor:
@@ -64,7 +64,7 @@ RunState.DefaultConfig = {
 		2) blindMultiplierFor(night, round, roundsPerNight) -- which Blind
 		   you're on this round: Small (round 1) = 1x, Big (any round
 		   between) = 2x, Boss (the Night's last round) scales from 2x at
-		   Night 1 up to 2.5x at Night `nightCap` (8, like Balatro's Ante 8),
+		   Night 1 up to 2.5x at Night `nightCap` (8, the genre's usual run length),
 		   then plateaus at 2.5x forever after -- Endless Mode keeps escalating
 		   purely through nightBaseScoreFor's unbounded growth instead of an
 		   ever-climbing Boss multiplier.
@@ -441,7 +441,7 @@ local function settleHeldCardsAtRoundEnd(state, lastHandName)
 		end
 		local stamp = card.stamp and Card.Stamps[card.stamp]
 		if stamp and stamp.createsMenuRecipeIfHeld and lastHandName then
-			-- RECIPE CAP (Balatro parity, "fixed cap ~2" consumable slots):
+			-- RECIPE CAP (genre parity, "fixed cap ~2" consumable slots):
 			-- a passive reward like this can't prompt the player to make
 			-- room, so it silently does nothing once the shared recipe box
 			-- (RunState.recipeSlotLimit, House+Menu+Secret combined) is
@@ -724,7 +724,7 @@ function RunState.playHand(state, cardIndices)
 			end
 		end
 
-		-- BALATRO PARITY: round-win interest is now a universal base rule
+		-- GENRE PARITY: round-win interest is now a universal base rule
 		-- (+1 Tip per 5 held, capped at +5) instead of something you had to
 		-- buy the Nest Egg Patron for. See Patrons.lua's "nest_egg" entry
 		-- for why it was reworked to raise this cap to +10 instead of
@@ -739,8 +739,8 @@ function RunState.playHand(state, cardIndices)
 		end
 		state.tips = state.tips + math.min(interestCap, math.floor(state.tips / 5))
 
-		-- BALATRO PARITY: clearing the Boss Round of the final capped Night
-		-- (nightCap, 8 -- like Balatro's Ante 8) marks the run WON. Nothing
+		-- GENRE PARITY: clearing the Boss Round of the final capped Night
+		-- (nightCap, 8 -- the genre's usual run length) marks the run WON. Nothing
 		-- else changes here -- state.night keeps climbing exactly like it
 		-- already did before this existed, so you're now in Endless Mode
 		-- (see RunState.blindMultiplierFor/targetScoreFor). This can only
@@ -871,7 +871,7 @@ function RunState.patronSlotLimit(state)
 	return state.config.patronSlotLimit + bonus
 end
 
--- BALATRO PARITY: how many Recipes (House+Menu+Secret combined -- one
+-- GENRE PARITY: how many Recipes (House+Menu+Secret combined -- one
 -- shared "recipe box") can be held at once. A plain wrapper today (no
 -- bonus sources yet), kept as its own function -- like patronSlotLimit --
 -- so a future Recipe-slot-raising House Pass/Special has one obvious place

@@ -226,7 +226,7 @@ table.insert(tests, { name = "Scoring.calculate: 'The Regular' patron adds flat 
 	expectEqual(mult, 2 + 4) -- base Pair mult (2) + patron (4)
 end })
 
-table.insert(tests, { name = "Scoring.calculate: 'Last Call' only triggers on the last hand", fn = function()
+table.insert(tests, { name = "Scoring.calculate: 'Curtain Call' only triggers on the last hand", fn = function()
 	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
 	local lastCall = Patrons.getById("last_call")
 

@@ -48,7 +48,7 @@ just cosmetic -- it's what makes this *our* game rather than a reskin.
 | Consumable modifier cards (stretch goal) | **Recipes** |
 
 Patron names and effects (see `src/Shared/Engine/Patrons.lua`) are 100%
-original: The Regular, Lucky Dice, Suit Yourself, Last Call, The Bard.
+original: The Regular, Lucky Dice, Suit Yourself, Curtain Call, The Bard.
 Add your own -- that's most of the game's personality and it's the
 cheapest thing to iterate on.
 

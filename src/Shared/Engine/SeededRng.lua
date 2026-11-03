@@ -17,7 +17,7 @@
 	card played, a different item bought) -- because a different choice
 	consumes a different NUMBER of random draws before the next one, which
 	shifts everything downstream out of sync. This is normal, expected
-	seeded-run behavior (the same idea Balatro's own "Seeds" feature uses)
+	seeded-run behavior (the same idea as seeded runs in other roguelikes)
 	-- it is NOT a bug, and it's exactly what makes a Daily Challenge
 	leaderboard meaningful: everyone starts from the identical first shop/
 	Boss/deck order, and how far they get from there is genuinely about

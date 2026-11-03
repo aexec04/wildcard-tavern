@@ -4,8 +4,8 @@
 	info, tips, hands/discards remaining, the Patron-slot row, and the live
 	score preview. Replaces the old full-width top status bar, which had
 	started colliding with the top-right corner icon buttons as more got
-	added (a real bug -- the "Hands" label was getting cut off). Balatro
-	keeps this info in a dedicated left-side column instead of a top bar, so
+	added (a real bug -- the "Hands" label was getting cut off). Genre peers
+	keep this info in a dedicated left-side column instead of a top bar, so
 	this moves the same data there and leaves the whole top edge free for
 	the corner icon buttons with no shared space to collide over.
 
@@ -416,10 +416,10 @@ return function(deps)
 	local handsDiscardsBox = makeSidebarBox(50)
 	local handsDiscardsLabel = makeSidebarLabel(handsDiscardsBox, 18)
 
-	-- LAYOUT FEATURE 5: Patron slot icons, mirroring Balatro's persistent
-	-- Joker-slot row -- shows how many Patrons you've picked up this run at a
+	-- LAYOUT FEATURE 5: Patron slot icons, mirroring the genre's persistent
+	-- slot row -- shows how many Patrons you've picked up this run at a
 	-- glance, without opening the Collection Gallery. This game has no hard
-	-- cap on Patrons owned (unlike Balatro's Joker slots), so this shows
+	-- cap on Patrons owned (unlike a fixed slot count), so this shows
 	-- owned-out-of-total-in-the-game rather than a hard capacity.
 	local patronsBox = makeSidebarBox(78)
 
@@ -506,7 +506,7 @@ return function(deps)
 	end
 
 	-- LAYOUT FEATURE 6: live chips x mult preview for the currently-selected
-	-- cards, mirroring Balatro's running score readout. Computed with the same
+	-- cards, mirroring the genre's running score readout. Computed with the same
 	-- HandEvaluator/Scoring modules the server uses, so the preview can't
 	-- drift out of sync with the real payout -- see refreshScorePreview()
 	-- back in init.client.lua, which wires this up once

@@ -102,7 +102,7 @@ Patrons.Definitions = {
 	},
 	{
 		id = "last_call",
-		name = "Last Call",
+		name = "Curtain Call",
 		icon = "🌙",
 		description = "Mult x1.5 when played as your last hand of the round.",
 		price = 7,
@@ -445,7 +445,7 @@ Patrons.Definitions = {
 		id = "nest_egg", name = "Nest Egg", icon = "🥚", price = 7,
 		description = "Doubles your round-win interest cap: +10 Tips instead of +5.",
 		effect = function() return nil end,
-		-- BALATRO PARITY REWORK: end-of-round interest (1 Tip per 5 held,
+		-- GENRE PARITY REWORK: end-of-round interest (1 Tip per 5 held,
 		-- capped) is now a universal base rule for EVERY run (see
 		-- RunState.playHand's roundWon branch) -- this Patron used to BE
 		-- that rule, via its own onRoundWin doing the exact same math. Kept

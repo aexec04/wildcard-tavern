@@ -22,7 +22,7 @@
 			showRoundReward = function(amount, titleOverride?),
 		}
 
-	`titleOverride` (optional): BALATRO PARITY -- lets a caller swap the
+	`titleOverride` (optional): GENRE PARITY -- lets a caller swap the
 	default "Round Complete!" headline for something more momentous, used
 	exactly once per run for the Ante-cap win moment (clearing the Boss
 	Round of Night `nightCap` -- see init.client.lua's render()).
