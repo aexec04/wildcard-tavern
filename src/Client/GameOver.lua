@@ -56,10 +56,18 @@
 	it fires once per fresh loss/win, never replays just from sitting on
 	this screen while other players' actions push unrelated state updates).
 
+	PAID CONTINUE: a Continue button sits next to Play Again whenever the
+	server says this run can still be continued (state.canContinue -- one
+	per run, see RunState.canContinue). Its click is wired in
+	init.client.lua next to Play Again's. A run that already used its
+	continue (state.revived) shows a "Revived" badge in the top corner, so
+	the summary never passes for a Standard run.
+
 	Returns:
 		{
 			gameOverFrame = Frame,
 			playAgainButton = TextButton,
+			continueButton = TextButton,
 			refreshGameOver = function(state),
 		}
 ]]
@@ -201,6 +209,35 @@ return function(deps)
 	playAgainButton.Parent = content
 	polishButton(playAgainButton, 10)
 
+	local continueButton = Instance.new("TextButton")
+	continueButton.Name = "ContinueButton"
+	continueButton.Size = UDim2.new(0, 200, 0, 40)
+	continueButton.Position = UDim2.new(0.5, 10, 1, -60)
+	continueButton.Font = Enum.Font.GothamBold
+	continueButton.TextSize = 18
+	continueButton.Text = "Continue"
+	continueButton.BackgroundColor3 = Color3.fromRGB(60, 110, 70)
+	continueButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	continueButton.Visible = false
+	continueButton.ZIndex = 22
+	continueButton.Parent = content
+	polishButton(continueButton, 10)
+
+	local revivedBadge = Instance.new("TextLabel")
+	revivedBadge.Name = "RevivedBadge"
+	revivedBadge.AnchorPoint = Vector2.new(1, 0)
+	revivedBadge.Size = UDim2.new(0, 110, 0, 26)
+	revivedBadge.Position = UDim2.new(1, -14, 0, 16)
+	revivedBadge.BackgroundColor3 = Color3.fromRGB(70, 120, 150)
+	revivedBadge.Font = Enum.Font.GothamBold
+	revivedBadge.TextSize = 14
+	revivedBadge.TextColor3 = Color3.fromRGB(250, 240, 220)
+	revivedBadge.Text = "\u{1F4AB} Revived"
+	revivedBadge.Visible = false
+	revivedBadge.ZIndex = 23
+	revivedBadge.Parent = content
+	polishPanel(revivedBadge, 13)
+
 	local WIN_COLOR = Color3.fromRGB(230, 190, 90)
 	local LOSS_COLOR = Color3.fromRGB(177, 84, 79)
 
@@ -224,6 +261,17 @@ return function(deps)
 
 		local isWin = state.wonRun == true
 		winBackgroundArt.Visible = isWin
+
+		-- PAID CONTINUE: badge for a run that used its continue, and the
+		-- Continue button only while the server allows one. With Continue
+		-- showing, the two buttons sit side by side; otherwise Play Again
+		-- stays centered.
+		local isRevived = state.revived == true
+		revivedBadge.Visible = isRevived
+		local canContinue = state.canContinue == true
+		continueButton.Visible = canContinue
+		continueButton.Text = state.continueHands and string.format("Continue (+%d Hands)", state.continueHands) or "Continue"
+		playAgainButton.Position = canContinue and UDim2.new(0.5, -210, 1, -60) or UDim2.new(0.5, -100, 1, -60)
 		if isWin then
 			accentBar.BackgroundColor3 = WIN_COLOR
 			iconLabel.Text = "🏆"
@@ -253,7 +301,9 @@ return function(deps)
 			recapLabel.Text = ""
 		end
 
-		local key = tostring(state.night) .. "-" .. tostring(state.round) .. "-" .. tostring(isWin)
+		-- isRevived is part of the key so losing again after a continue
+		-- (same Night/Round) still counts as a new run-ending moment.
+		local key = tostring(state.night) .. "-" .. tostring(state.round) .. "-" .. tostring(isWin) .. "-" .. tostring(isRevived)
 		if key ~= lastGameOverKey then
 			-- POLISH: pop-in reveal -- content starts slightly shrunk and
 			-- fully transparent, tweens up to full scale/opacity. UIScale
@@ -266,6 +316,8 @@ return function(deps)
 			recapLabel.TextTransparency = 1
 			playAgainButton.BackgroundTransparency = 1
 			playAgainButton.TextTransparency = 1
+			continueButton.BackgroundTransparency = 1
+			continueButton.TextTransparency = 1
 
 			tweenTo(contentScale, { Scale = 1 }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 			tweenTo(iconLabel, { TextTransparency = 0 }, 0.3)
@@ -278,6 +330,7 @@ return function(deps)
 			end)
 			task.delay(0.16, function()
 				tweenTo(playAgainButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
+				tweenTo(continueButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
 			end)
 
 			if playSfx and SOUND_IDS then
@@ -291,6 +344,7 @@ return function(deps)
 	return {
 		gameOverFrame = gameOverFrame,
 		playAgainButton = playAgainButton,
+		continueButton = continueButton,
 		refreshGameOver = refreshGameOver,
 	}
 end

@@ -2726,6 +2726,15 @@ playAgainButton.MouseButton1Click:Connect(function()
 	RestartRunRemote:FireServer()
 end)
 
+-- PAID CONTINUE: the server prompts the Developer Product purchase and
+-- grants it in ProcessReceipt; the next state push takes us back to play.
+-- No new top-level locals here: this script's main chunk is at Luau's
+-- 200-local limit.
+GameOverPanel.continueButton.MouseButton1Click:Connect(function()
+	playClickSfx()
+	remotes:WaitForChild("RequestContinue"):FireServer()
+end)
+
 StateUpdatedRemote.OnClientEvent:Connect(function(state)
 	if state.onboardingHint then
 		-- After the score reveal, which would otherwise cover the banner.

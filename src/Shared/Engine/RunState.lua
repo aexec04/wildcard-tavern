@@ -255,6 +255,12 @@ function RunState.new(options, rng)
 		-- Extra discards each round of Night 1, for brand-new profiles --
 		-- see Onboarding.bonusDiscards.
 		nightOneBonusDiscards = options.nightOneBonusDiscards or 0,
+		-- PAID CONTINUE: true once this run has used its one continue (see
+		-- RunState.useContinue). Never resets for the rest of the run. A
+		-- revived run submits to the "Revived" leaderboards instead of
+		-- "Standard" and stops counting toward high score records (see
+		-- Leaderboards.lua and RunState.countsForRecords).
+		revived = false,
 	}
 
 	-- PHASE C ("mind-blowing plan" Signature Mechanic): seed exactly ONE
@@ -1372,6 +1378,37 @@ function RunState.advanceToNextRound(state)
 		state.night = state.night + 1
 	end
 	RunState.startRound(state)
+end
+
+--[[
+	PAID CONTINUE (a consumable Developer Product, one per run -- see
+	DeveloperProducts.lua). Using it brings a lost run back on the round it
+	was lost on: the round score so far is kept and CONTINUE_HANDS fresh
+	Hands are granted, so it costs no rng draws and doesn't reshuffle,
+	re-deal or re-pick the Boss. It marks the run `revived` for good.
+
+	Only offered when the run ended by running out of Hands with a legal
+	play still in hand -- a soft-locked run (no legal play at all) can't be
+	saved by more Hands, so it isn't offered there.
+]]
+RunState.CONTINUE_HANDS = 2
+
+function RunState.canContinue(state)
+	return state.runOver == true and not state.revived and RunState.hasLegalPlay(state)
+end
+
+function RunState.useContinue(state)
+	assert(RunState.canContinue(state), "Can't continue this run")
+	state.revived = true
+	state.runOver = false
+	state.roundOver = false
+	state.handsRemaining = RunState.CONTINUE_HANDS
+end
+
+-- Whether this run's progress still counts toward the player's permanent
+-- high score records (bestNightReached, runsWon). A revived run doesn't.
+function RunState.countsForRecords(state)
+	return not state.revived
 end
 
 --[[

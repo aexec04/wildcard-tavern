@@ -34,6 +34,8 @@ local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (s
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
 local Achievements = require(Engine.Achievements) -- ACHIEVEMENTS + TITLES (Phase 16, see that file's header)
+local Leaderboards = require(Engine.Leaderboards) -- PAID CONTINUE: Standard vs Revived board routing + store names
+local DeveloperProducts = require(Engine.DeveloperProducts) -- PAID CONTINUE: consumable Robux products (see that file's header)
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -127,6 +129,11 @@ local FriendPresenceRemote = newRemote("FriendPresence")
 -- on demand, not a ranked board, so it's deliberately just the one
 -- fire-and-forget remote.
 local StartSeedRunRemote = newRemote("StartSeedRun") -- (player, code)
+
+-- PAID CONTINUE: (player) -- fired from the Game Over panel's Continue
+-- button. Prompts the "continue" Developer Product; the actual grant
+-- happens in ProcessReceipt (see "Paid Continue" further down).
+local RequestContinueRemote = newRemote("RequestContinue")
 
 -- ===== 3. Persistent Player Profile (DataStoreService) =====
 -- PERSISTENT SAVE (Phase 10): see Shared/Engine/PlayerProfile.lua's header
@@ -227,16 +234,66 @@ local DAILY_SCORE_MULTIPLIER = 1000000 -- combinedScore = depth * this + tips; t
 local DAILY_TIPS_CAP = DAILY_SCORE_MULTIPLIER - 1
 local LEADERBOARD_COOLDOWN = 2 -- seconds; a simple per-player throttle so mashing the leaderboard-open button can't hammer DataStore with reads
 
-local dailyBoardCache = {} -- [dateKey] = OrderedDataStore instance, so re-opening the same day's board doesn't re-fetch a fresh DataStore object every time
-local dailyPending = {} -- [player] = { dateKey, depth, tips } -- this player's best Daily Challenge result not yet confirmed written to that day's board
-local dailyDirty = {} -- [player] = true while dailyPending[player] hasn't been successfully saved yet
+-- PAID CONTINUE: every period has a "Standard" and a "Revived" board (see
+-- Shared/Engine/Leaderboards.lua), so the pending/dirty tables below are
+-- keyed by board too. A run's progress goes to Leaderboards.boardFor(state):
+-- whatever it banked before a continue stays on Standard, and everything
+-- after goes to Revived.
+local boardStoreCache = {} -- [store name] = OrderedDataStore instance, so re-opening the same board doesn't re-fetch a fresh DataStore object every time
+local dailyPending = {} -- [player] = { [board] = { dateKey, depth, tips } } -- this player's best Daily Challenge result per board not yet confirmed written
+local dailyDirty = {} -- [player] = { [board] = true } while that board's pending entry hasn't been saved yet; nil once nothing is dirty
 local lastLeaderboardRequest = {} -- [player] = os.clock() of their last GetDailyLeaderboard call
 
-local function getDailyStore(dateKey)
-	if not dailyBoardCache[dateKey] then
-		dailyBoardCache[dateKey] = DataStoreService:GetOrderedDataStore("DailyChallenge_" .. dateKey)
+local function getBoardStore(kind, board, periodKey)
+	local name = Leaderboards.storeName(kind, board, periodKey)
+	if not boardStoreCache[name] then
+		boardStoreCache[name] = DataStoreService:GetOrderedDataStore(name)
 	end
-	return dailyBoardCache[dateKey]
+	return boardStoreCache[name]
+end
+
+local function getDailyStore(dateKey, board)
+	return getBoardStore("daily", board or Leaderboards.STANDARD, dateKey)
+end
+
+-- Writes every dirty board in pendingTable[player]. A board is only marked
+-- clean if its pending entry wasn't replaced while SetAsync was yielding,
+-- so a newer improvement queued mid-save still gets written next time.
+local function flushBoardScores(player, pendingTable, dirtyTable, getStore, periodField, label)
+	local dirty = dirtyTable[player]
+	local pendingByBoard = pendingTable[player]
+	if not dirty or not pendingByBoard then
+		return
+	end
+	local boards = {}
+	for board in pairs(dirty) do
+		table.insert(boards, board)
+	end
+	for _, board in ipairs(boards) do
+		local pending = pendingByBoard[board]
+		if pending then
+			local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
+			local store = getStore(pending[periodField], board)
+			local ok, err = pcall(function()
+				store:SetAsync(tostring(player.UserId), combinedScore)
+			end)
+			if ok then
+				if dirtyTable[player] and pendingTable[player] and pendingTable[player][board] == pending then
+					dirtyTable[player][board] = nil
+				end
+			else
+				warn(string.format("%s %s leaderboard save failed for %s: %s", label, board, player.Name, tostring(err)))
+				-- Leave it dirty -- the next autosave tick (or the final
+				-- PlayerRemoving/BindToClose attempt) will retry with the
+				-- freshest pending entry (see the section header above).
+			end
+		elseif dirtyTable[player] then
+			dirtyTable[player][board] = nil
+		end
+	end
+	if dirtyTable[player] and next(dirtyTable[player]) == nil then
+		dirtyTable[player] = nil
+	end
 end
 
 local function computeDailyDepth(state)
@@ -244,24 +301,7 @@ local function computeDailyDepth(state)
 end
 
 local function saveDailyScore(player)
-	local pending = dailyPending[player]
-	if not pending then
-		return
-	end
-	local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
-	local store = getDailyStore(pending.dateKey)
-	local ok, err = pcall(function()
-		store:SetAsync(tostring(player.UserId), combinedScore)
-	end)
-	if ok then
-		dailyDirty[player] = nil
-	else
-		warn(string.format("Daily leaderboard save failed for %s: %s", player.Name, tostring(err)))
-		-- Leave dailyDirty set -- the next autosave tick (or the final
-		-- PlayerRemoving/BindToClose attempt) will retry with whatever
-		-- dailyPending[player] holds by then (always the freshest known
-		-- best, never a stale snapshot -- see the section header above).
-	end
+	flushBoardScores(player, dailyPending, dailyDirty, getDailyStore, "dateKey", "Daily")
 end
 
 -- ===== 4b. Weekly Challenge Leaderboard (Phase 16) =====
@@ -274,33 +314,16 @@ end
 -- but zero risk of a Weekly bug ever touching the Daily path or vice
 -- versa.
 
-local weeklyBoardCache = {} -- [weekKey] = OrderedDataStore instance
-local weeklyPending = {} -- [player] = { weekKey, depth, tips }
-local weeklyDirty = {} -- [player] = true while weeklyPending[player] hasn't been successfully saved yet
+local weeklyPending = {} -- [player] = { [board] = { weekKey, depth, tips } }
+local weeklyDirty = {} -- [player] = { [board] = true }; nil once nothing is dirty
 local lastWeeklyLeaderboardRequest = {} -- [player] = os.clock() of their last GetWeeklyLeaderboard call
 
-local function getWeeklyStore(weekKey)
-	if not weeklyBoardCache[weekKey] then
-		weeklyBoardCache[weekKey] = DataStoreService:GetOrderedDataStore("WeeklyChallenge_" .. weekKey)
-	end
-	return weeklyBoardCache[weekKey]
+local function getWeeklyStore(weekKey, board)
+	return getBoardStore("weekly", board or Leaderboards.STANDARD, weekKey)
 end
 
 local function saveWeeklyScore(player)
-	local pending = weeklyPending[player]
-	if not pending then
-		return
-	end
-	local combinedScore = pending.depth * DAILY_SCORE_MULTIPLIER + pending.tips
-	local store = getWeeklyStore(pending.weekKey)
-	local ok, err = pcall(function()
-		store:SetAsync(tostring(player.UserId), combinedScore)
-	end)
-	if ok then
-		weeklyDirty[player] = nil
-	else
-		warn(string.format("Weekly leaderboard save failed for %s: %s", player.Name, tostring(err)))
-	end
+	flushBoardScores(player, weeklyPending, weeklyDirty, getWeeklyStore, "weekKey", "Weekly")
 end
 
 -- trackDailyProgress/trackWeeklyProgress (need `sessions`, declared just
@@ -358,6 +381,13 @@ local function serializeCard(card)
 		isTrueWildcard = card.isTrueWildcard,
 		wildcardLocked = card.wildcardLocked,
 	}
+end
+
+-- PAID CONTINUE: whether the "continue" Developer Product can be granted
+-- at all -- a real product id is set, or this is a Studio playtest (where
+-- RequestContinue grants it free, see "Paid Continue" below).
+local function continueProductAvailable()
+	return DeveloperProducts.isConfigured(DeveloperProducts.getById("continue")) or RunService:IsStudio()
 end
 
 local function serializeState(session, player)
@@ -643,6 +673,11 @@ local function serializeState(session, player)
 		weeklyDateKey = session.weeklyDateKey,
 		isSeeded = session.isSeeded or false,
 		seedCode = session.seedCode,
+		-- PAID CONTINUE: `revived` drives the Game Over panel's "Revived"
+		-- badge; `canContinue` shows its Continue button.
+		revived = state.revived == true,
+		canContinue = session.phase == "gameover" and RunState.canContinue(state) and continueProductAvailable(),
+		continueHands = RunState.CONTINUE_HANDS,
 	}
 end
 
@@ -695,13 +730,19 @@ local function syncProfileFromSession(player)
 	if PlayerProfile.recordThemesOwned(profile, themeIds) then
 		changed = true
 	end
-	if PlayerProfile.recordNightReached(profile, session.state.night) then
+	-- PAID CONTINUE: a revived run stops counting toward high score
+	-- records. Anything it reached before the continue was already
+	-- recorded by earlier pushes.
+	local countsForRecords = RunState.countsForRecords(session.state)
+	if countsForRecords and PlayerProfile.recordNightReached(profile, session.state.night) then
 		changed = true
 	end
 	if session.state.wonRun and not session.lastKnownWonRun then
 		session.lastKnownWonRun = true
-		PlayerProfile.recordRunWon(profile)
-		changed = true
+		if countsForRecords then
+			PlayerProfile.recordRunWon(profile)
+			changed = true
+		end
 	end
 
 	if changed then
@@ -720,18 +761,21 @@ local function trackDailyProgress(player)
 		return
 	end
 
+	local board = Leaderboards.boardFor(session.state)
 	local depth = computeDailyDepth(session.state)
-	local pending = dailyPending[player]
+	dailyPending[player] = dailyPending[player] or {}
+	local pending = dailyPending[player][board]
 	if pending and pending.dateKey == session.dailyDateKey and pending.depth >= depth then
 		return -- nothing new to record
 	end
 
-	dailyPending[player] = {
+	dailyPending[player][board] = {
 		dateKey = session.dailyDateKey,
 		depth = depth,
 		tips = math.max(0, math.min(math.floor(session.state.tips), DAILY_TIPS_CAP)),
 	}
-	dailyDirty[player] = true
+	dailyDirty[player] = dailyDirty[player] or {}
+	dailyDirty[player][board] = true
 end
 
 -- WEEKLY CHALLENGE (Phase 16): same idea as trackDailyProgress just
@@ -742,18 +786,21 @@ local function trackWeeklyProgress(player)
 		return
 	end
 
+	local board = Leaderboards.boardFor(session.state)
 	local depth = computeDailyDepth(session.state) -- same depth formula, not Daily-specific despite the name
-	local pending = weeklyPending[player]
+	weeklyPending[player] = weeklyPending[player] or {}
+	local pending = weeklyPending[player][board]
 	if pending and pending.weekKey == session.weeklyDateKey and pending.depth >= depth then
 		return -- nothing new to record
 	end
 
-	weeklyPending[player] = {
+	weeklyPending[player][board] = {
 		weekKey = session.weeklyDateKey,
 		depth = depth,
 		tips = math.max(0, math.min(math.floor(session.state.tips), DAILY_TIPS_CAP)),
 	}
-	weeklyDirty[player] = true
+	weeklyDirty[player] = weeklyDirty[player] or {}
+	weeklyDirty[player][board] = true
 end
 
 local function pushState(player)
@@ -903,6 +950,58 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 		refreshOwnedGamePasses(player)
 	end
 end)
+
+-- ===== Paid Continue (Developer Product, see DeveloperProducts.lua) =====
+-- One per run: RunState.canContinue refuses once state.revived is set.
+-- Using it flips the session back to "playing" on the round that was lost
+-- (RunState.useContinue), and from then on the run routes to the Revived
+-- boards and stops counting toward high score records.
+
+-- Returns true if the continue was applied to this player's current run.
+local function applyContinue(player)
+	local session = sessions[player]
+	if not session or session.phase ~= "gameover" or not RunState.canContinue(session.state) then
+		return false
+	end
+	RunState.useContinue(session.state)
+	session.phase = "playing"
+	pushState(player)
+	return true
+end
+
+-- PurchaseIds already granted on this server. Roblox can call
+-- ProcessReceipt more than once for the same purchase; without this, a
+-- repeat call after the grant would see a revived run, refuse, and leave
+-- the receipt unacknowledged forever.
+local grantedReceipts = {}
+
+-- The only ProcessReceipt in the game -- add any future Developer Products
+-- here too, since Roblox allows a single callback.
+--
+-- If the run can't take the continue by the time the receipt arrives (the
+-- player hit Play Again while the prompt was open, or left), this returns
+-- NotProcessedYet: Roblox keeps the purchase and retries later (the next
+-- time they join or buy something), so it lands on their next lost run
+-- instead of vanishing.
+MarketplaceService.ProcessReceipt = function(receiptInfo)
+	if grantedReceipts[receiptInfo.PurchaseId] then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	local product = DeveloperProducts.getByProductId(receiptInfo.ProductId)
+	if not product then
+		warn("ProcessReceipt: unknown Developer Product " .. tostring(receiptInfo.ProductId))
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local player = Players:GetPlayerByUserId(receiptInfo.PlayerId)
+	if not player then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	if product.id == "continue" and applyContinue(player) then
+		grantedReceipts[receiptInfo.PurchaseId] = true
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	return Enum.ProductPurchaseDecision.NotProcessedYet
+end
 
 -- deckVariantId/difficultyId are optional -- RunState.new falls back to the
 -- standard/standard defaults for nil or unrecognized ids. Requires
@@ -1698,6 +1797,24 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	startNewSession(player, deckVariantId, difficultyId)
 end)
 
+-- ===== Paid Continue (see the section next to ProcessReceipt) =====
+-- Only prompts -- the grant itself happens in ProcessReceipt once Roblox
+-- confirms payment. A placeholder product (productId 0) can't be bought,
+-- so Studio applies it directly for playtesting; the live game ignores
+-- the request until a real id is set.
+RequestContinueRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	if not session or session.phase ~= "gameover" or not RunState.canContinue(session.state) then
+		return
+	end
+	local product = DeveloperProducts.getById("continue")
+	if DeveloperProducts.isConfigured(product) then
+		MarketplaceService:PromptProductPurchase(player, product.productId)
+	elseif RunService:IsStudio() then
+		applyContinue(player)
+	end
+end)
+
 -- ===== Daily Challenge (Phase 11) =====
 
 StartDailyChallengeRemote.OnServerEvent:Connect(function(player)
@@ -1718,15 +1835,21 @@ end)
 -- DataStore calls fails, the OTHER still returns normally -- `ok`/
 -- `yourBestOk` are reported separately so the client can tell "nobody's
 -- beaten you yet" apart from "couldn't check."
-GetDailyLeaderboardRemote.OnServerInvoke = function(player)
+--
+-- PAID CONTINUE: `board` is optional, Leaderboards.STANDARD (the default)
+-- or Leaderboards.REVIVED; anything else falls back to Standard.
+GetDailyLeaderboardRemote.OnServerInvoke = function(player, board)
+	if not Leaderboards.isBoard(board) then
+		board = Leaderboards.STANDARD
+	end
 	local now = os.clock()
 	if lastLeaderboardRequest[player] and now - lastLeaderboardRequest[player] < LEADERBOARD_COOLDOWN then
-		return { ok = false, dateKey = SeededRng.dailyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
+		return { ok = false, board = board, dateKey = SeededRng.dailyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
 	end
 	lastLeaderboardRequest[player] = now
 
 	local dateKey = SeededRng.dailyDateKey()
-	local store = getDailyStore(dateKey)
+	local store = getDailyStore(dateKey, board)
 
 	local top = {}
 	local ok = pcall(function()
@@ -1772,13 +1895,14 @@ GetDailyLeaderboardRemote.OnServerInvoke = function(player)
 			}
 		end
 	end)
-	local pending = dailyPending[player]
+	local pending = dailyPending[player] and dailyPending[player][board]
 	if pending and pending.dateKey == dateKey and (not yourBest or pending.depth > yourBest.depth) then
 		yourBest = { depth = pending.depth, tips = pending.tips }
 	end
 
 	return {
 		ok = ok,
+		board = board,
 		dateKey = dateKey,
 		top = top,
 		yourBest = yourBest,
@@ -1801,15 +1925,18 @@ StartWeeklyChallengeRemote.OnServerEvent:Connect(function(player)
 	startNewSession(player, nil, nil, SeededRng.new(seed), "weekly", SeededRng.weeklyDateKey())
 end)
 
-GetWeeklyLeaderboardRemote.OnServerInvoke = function(player)
+GetWeeklyLeaderboardRemote.OnServerInvoke = function(player, board)
+	if not Leaderboards.isBoard(board) then
+		board = Leaderboards.STANDARD
+	end
 	local now = os.clock()
 	if lastWeeklyLeaderboardRequest[player] and now - lastWeeklyLeaderboardRequest[player] < LEADERBOARD_COOLDOWN then
-		return { ok = false, dateKey = SeededRng.weeklyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
+		return { ok = false, board = board, dateKey = SeededRng.weeklyDateKey(), top = {}, yourBest = nil, yourBestOk = false }
 	end
 	lastWeeklyLeaderboardRequest[player] = now
 
 	local weekKey = SeededRng.weeklyDateKey()
-	local store = getWeeklyStore(weekKey)
+	local store = getWeeklyStore(weekKey, board)
 
 	local top = {}
 	local ok = pcall(function()
@@ -1846,13 +1973,14 @@ GetWeeklyLeaderboardRemote.OnServerInvoke = function(player)
 			}
 		end
 	end)
-	local pending = weeklyPending[player]
+	local pending = weeklyPending[player] and weeklyPending[player][board]
 	if pending and pending.weekKey == weekKey and (not yourBest or pending.depth > yourBest.depth) then
 		yourBest = { depth = pending.depth, tips = pending.tips }
 	end
 
 	return {
 		ok = ok,
+		board = board,
 		dateKey = weekKey,
 		top = top,
 		yourBest = yourBest,

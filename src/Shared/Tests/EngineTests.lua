@@ -32,6 +32,8 @@ local SeededRng = require(script.Parent.Parent.Engine.SeededRng) -- DAILY CHALLE
 local GamePasses = require(script.Parent.Parent.Engine.GamePasses) -- PHASE 16 cosmetics batch: confirms the 4 new Themes are un-gated
 local Achievements = require(script.Parent.Parent.Engine.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
 local TrueWildcard = require(script.Parent.Parent.Engine.TrueWildcard) -- PHASE C Signature Mechanic ("mind-blowing plan")
+local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards) -- PAID CONTINUE board routing
+local DeveloperProducts = require(script.Parent.Parent.Engine.DeveloperProducts) -- PAID CONTINUE product catalog
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -3881,6 +3883,119 @@ table.insert(tests, { name = "hasSeenHighCardHint defaults safely and survives a
 	expectFalse(PlayerProfile.migrate({}).hasSeenHighCardHint) -- existing saves
 	expectFalse(PlayerProfile.migrate({ hasSeenHighCardHint = "yes" }).hasSeenHighCardHint)
 	expectTrue(PlayerProfile.migrate({ hasSeenHighCardHint = true }).hasSeenHighCardHint)
+end })
+
+-- ===== PAID CONTINUE: revived flag + Standard/Revived board routing =====
+
+-- A Night 1 run that just lost its first round by running out of Hands.
+local function lostRun()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 1000000000
+	while not state.runOver do
+		RunState.playHand(state, { 1 })
+	end
+	return state
+end
+
+table.insert(tests, { name = "A fresh run isn't revived and can't continue", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	expectFalse(state.revived)
+	expectFalse(RunState.canContinue(state))
+	expectTrue(RunState.countsForRecords(state))
+	expectFalse(pcall(RunState.useContinue, state))
+end })
+
+table.insert(tests, { name = "Continue revives a lost run on the same round with fresh Hands", fn = function()
+	local state = lostRun()
+	local night, round = state.night, state.round
+	local roundScore, targetScore, tips = state.roundScore, state.targetScore, state.tips
+	expectTrue(RunState.canContinue(state))
+
+	RunState.useContinue(state)
+	expectTrue(state.revived)
+	expectFalse(state.runOver)
+	expectFalse(state.roundOver)
+	expectEqual(state.handsRemaining, RunState.CONTINUE_HANDS)
+	expectEqual(state.night, night)
+	expectEqual(state.round, round)
+	expectEqual(state.roundScore, roundScore)
+	expectEqual(state.targetScore, targetScore)
+	expectEqual(state.tips, tips)
+	expectFalse(RunState.countsForRecords(state))
+
+	local result = RunState.playHand(state, { 1 }) -- playable again
+	expectEqual(state.handsRemaining, RunState.CONTINUE_HANDS - 1)
+	expectFalse(result.runOver)
+end })
+
+table.insert(tests, { name = "Only one continue per run", fn = function()
+	local state = lostRun()
+	RunState.useContinue(state)
+	while not state.runOver do
+		RunState.playHand(state, { 1 })
+	end
+	expectFalse(RunState.canContinue(state))
+	expectFalse(pcall(RunState.useContinue, state))
+	expectTrue(state.revived)
+	expectTrue(state.runOver)
+end })
+
+table.insert(tests, { name = "No continue for a soft-locked run", fn = function()
+	local state = lostRun()
+	state.hand = {}
+	expectFalse(RunState.canContinue(state))
+end })
+
+table.insert(tests, { name = "The revived flag lasts for the rest of the run", fn = function()
+	local state = lostRun()
+	RunState.useContinue(state)
+	state.roundOver = true -- as if the revived round was won
+	RunState.advanceToNextRound(state)
+	expectEqual(state.round, 2)
+	expectTrue(state.revived)
+	expectEqual(Leaderboards.boardFor(state), Leaderboards.REVIVED)
+	expectFalse(RunState.countsForRecords(state))
+end })
+
+table.insert(tests, { name = "Runs route to the Standard board until they're revived", fn = function()
+	local state = lostRun()
+	expectEqual(Leaderboards.boardFor(state), Leaderboards.STANDARD)
+	RunState.useContinue(state)
+	expectEqual(Leaderboards.boardFor(state), Leaderboards.REVIVED)
+	expectEqual(Leaderboards.boardFor(nil), Leaderboards.STANDARD)
+	expectEqual(Leaderboards.boardFor(RunState.new(nil, function(n) return n end)), Leaderboards.STANDARD)
+	expectTrue(Leaderboards.isBoard("Standard"))
+	expectTrue(Leaderboards.isBoard("Revived"))
+	expectFalse(Leaderboards.isBoard("revived"))
+	expectFalse(Leaderboards.isBoard(nil))
+end })
+
+table.insert(tests, { name = "Board store names split by kind, board and SeededRng.VERSION", fn = function()
+	expectEqual(Leaderboards.storeName("daily", "Standard", "2026-11-03", 2), "DailyChallenge_Standard_v2_2026-11-03")
+	expectEqual(Leaderboards.storeName("daily", "Revived", "2026-11-03", 2), "DailyChallenge_Revived_v2_2026-11-03")
+	expectEqual(Leaderboards.storeName("weekly", "Standard", "W2911", 2), "WeeklyChallenge_Standard_v2_W2911")
+	expectEqual(Leaderboards.storeName("weekly", "Revived", "W2911", 2), "WeeklyChallenge_Revived_v2_W2911")
+	-- Defaults to the live rng version, and a version bump means new boards.
+	expectEqual(
+		Leaderboards.storeName("daily", "Standard", "2026-11-03"),
+		Leaderboards.storeName("daily", "Standard", "2026-11-03", SeededRng.VERSION)
+	)
+	expectTrue(Leaderboards.storeName("daily", "Standard", "2026-11-03", 2) ~= Leaderboards.storeName("daily", "Standard", "2026-11-03", 3))
+	-- Bad inputs fail loudly instead of writing to a stray store.
+	expectFalse(pcall(Leaderboards.storeName, "monthly", "Standard", "2026-11"))
+	expectFalse(pcall(Leaderboards.storeName, "daily", "standard", "2026-11-03"))
+	expectFalse(pcall(Leaderboards.storeName, "daily", "Standard", ""))
+	expectFalse(pcall(Leaderboards.storeName, "daily", "Standard", nil))
+end })
+
+table.insert(tests, { name = "The continue Developer Product is a placeholder until it's created", fn = function()
+	local product = DeveloperProducts.getById("continue")
+	expectTrue(product ~= nil)
+	expectEqual(product.productId, 0)
+	expectFalse(DeveloperProducts.isConfigured(product))
+	expectEqual(DeveloperProducts.getByProductId(0), nil)
+	expectEqual(DeveloperProducts.getByProductId("123"), nil)
+	expectEqual(DeveloperProducts.getById("nope"), nil)
 end })
 
 return tests
