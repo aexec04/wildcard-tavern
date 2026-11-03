@@ -73,7 +73,7 @@ local RECIPE_USE = {
 	round_up = { value = 3 },
 	-- Secret
 	mystery_guest = { value = 5 },
-	last_round = { value = 5 },
+	final_course = { value = 5 },
 	loyalty_punch = { value = 3, pick = "best", count = 1 },
 	chefs_special = { value = 6, pick = "best", count = 1 },
 	whole_menu_upgrade = { value = 9 },

@@ -34,6 +34,7 @@ local GamePasses = require(Engine.GamePasses) -- real-money Robux Game Passes (s
 local PlayerProfile = require(Engine.PlayerProfile) -- PERSISTENT SAVE (Phase 10, see that file's header) -- the permanent, cross-run part of a player's progress
 local SeededRng = require(Engine.SeededRng) -- DAILY CHALLENGE (Phase 11, see that file's header) -- deterministic rng + the daily seed/date-key it's derived from
 local Achievements = require(Engine.Achievements) -- ACHIEVEMENTS + TITLES (Phase 16, see that file's header)
+local CollectionBook = require(Engine.CollectionBook) -- COLLECTION: discovery gathering + milestone grants
 local Leaderboards = require(Engine.Leaderboards) -- PAID CONTINUE: Standard vs Revived board routing + store names
 local DeveloperProducts = require(Engine.DeveloperProducts) -- PAID CONTINUE: consumable Robux products (see that file's header)
 
@@ -593,16 +594,33 @@ local function serializeState(session, player)
 		-- above is ALSO now effectively permanent (RunState.new seeds it
 		-- from this same profile -- see startNewSession) even though it's
 		-- not read from `profiles` directly here.
-		discoveredPatronIds = (function()
-			local ids = {}
+		-- COLLECTION: { discovered = { [tabId] = {id...} }, claimedMilestoneIds,
+		-- unlockedCardBackIds } -- plain copies for Client/Collection.lua.
+		-- Titles aren't in `discovered`; the client uses unlockedAchievementIds.
+		collection = (function()
 			local profile = profiles[player]
+			local discovered = {}
+			local claimed = {}
+			local cardBacks = {}
 			if profile then
-				for id in pairs(profile.discoveredPatronIds) do
-					table.insert(ids, id)
+				for tabId, field in pairs(PlayerProfile.DISCOVERY_FIELDS) do
+					local ids = {}
+					for id in pairs(profile[field]) do
+						table.insert(ids, id)
+					end
+					discovered[tabId] = ids
+				end
+				for id in pairs(profile.claimedMilestoneIds) do
+					table.insert(claimed, id)
+				end
+				for id in pairs(profile.unlockedCardBackIds) do
+					table.insert(cardBacks, id)
 				end
 			end
-			return ids
+			return { discovered = discovered, claimedMilestoneIds = claimed, unlockedCardBackIds = cardBacks }
 		end)(),
+		-- One-shot: milestone ids claimed since the last push (nil otherwise).
+		collectionMilestoneNotice = session.collectionMilestoneNotice,
 		profileStats = (function()
 			local profile = profiles[player]
 			if not profile then
@@ -640,7 +658,7 @@ local function serializeState(session, player)
 		-- Custom Jukebox track ids (Shared/Engine/PlayerProfile.lua's
 		-- customPlaylist) -- Client/Settings.lua reads this to draw the
 		-- "My Playlist" rows. A plain copy, not a reference, same
-		-- reasoning as discoveredPatronIds above (never hand the live
+		-- reasoning as `collection` above (never hand the live
 		-- server-side table straight to a RemoteEvent).
 		customPlaylist = (function()
 			local profile = profiles[player]
@@ -733,10 +751,6 @@ local function syncProfileFromSession(player)
 		return
 	end
 
-	local patronIds = {}
-	for _, patron in ipairs(session.state.ownedPatrons) do
-		table.insert(patronIds, patron.id)
-	end
 	-- BUGFIX (caught by independent review before shipping): only fold
 	-- TIPS-bought Themes into the permanent profile -- session.state.ownedThemes
 	-- also contains the always-free default AND any Game-Pass-granted Themes
@@ -759,7 +773,13 @@ local function syncProfileFromSession(player)
 	end
 
 	local changed = false
-	if PlayerProfile.recordPatronsFound(profile, patronIds) then
+	-- COLLECTION: owned + offered in the shop + revealed in a pack + the
+	-- boss being faced all count as discovered.
+	local seen = CollectionBook.gatherSeen(session.state, {
+		patrons = session.shopOffers,
+		voucher = session.voucherOffer,
+	})
+	if PlayerProfile.recordDiscovered(profile, seen) then
 		changed = true
 	end
 	if PlayerProfile.recordThemesOwned(profile, themeIds) then
@@ -778,6 +798,19 @@ local function syncProfileFromSession(player)
 			PlayerProfile.recordRunWon(profile)
 			changed = true
 		end
+	end
+
+	-- Checked every sync (not only when something new was found) so a
+	-- profile loaded already past a milestone, or a title unlocked from
+	-- stats, still gets its reward.
+	local granted = CollectionBook.grantMilestones(profile)
+	if #granted > 0 then
+		changed = true
+		local ids = {}
+		for _, milestone in ipairs(granted) do
+			table.insert(ids, milestone.id)
+		end
+		session.collectionMilestoneNotice = ids
 	end
 
 	if changed then
@@ -848,6 +881,7 @@ local function pushState(player)
 	trackWeeklyProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 	session.onboardingHint = nil -- one-shot: only the push right after it's set carries it
+	session.collectionMilestoneNotice = nil -- one-shot, same as onboardingHint
 end
 
 -- ===== Real-money Game Passes (see Shared/Engine/GamePasses.lua) =====

@@ -224,7 +224,7 @@ return function(deps)
 			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
 		},
 		{
-			name = "Late Night Jazz Bar",
+			name = "Late Night Jazz Cafe",
 			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
 		},
 	}

@@ -34,6 +34,8 @@ local Achievements = require(script.Parent.Parent.Engine.Achievements) -- ACHIEV
 local TrueWildcard = require(script.Parent.Parent.Engine.TrueWildcard) -- PHASE C Signature Mechanic ("mind-blowing plan")
 local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards) -- PAID CONTINUE board routing
 local DeveloperProducts = require(script.Parent.Parent.Engine.DeveloperProducts) -- PAID CONTINUE product catalog
+local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook) -- COLLECTION screen rules
+local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
 local TestRunner = require(script.Parent.TestRunner)
 
 local expectEqual = TestRunner.expectEqual
@@ -4161,6 +4163,276 @@ table.insert(tests, { name = "PlayerProfile.animationPaceDivisor: free Fast is m
 	expectEqual(PlayerProfile.animationPaceDivisor("fast", true), PlayerProfile.FAST_FORWARD_PACE_DIVISOR)
 	expectTrue(PlayerProfile.FAST_PACE_DIVISOR > 1)
 	expectTrue(PlayerProfile.FAST_FORWARD_PACE_DIVISOR > PlayerProfile.FAST_PACE_DIVISOR)
+end })
+
+-- ===== Collection (CollectionBook + PlayerProfile discovery) =====
+
+-- Marks the first `n` counted non-title entries discovered. Patrons go
+-- last because discovering them also unlocks the Patron-count titles.
+local function discoverFirst(profile, n)
+	local marked = 0
+	for _, tabId in ipairs({ "recipes", "bosses", "housePasses", "patrons" }) do
+		local field = PlayerProfile.DISCOVERY_FIELDS[tabId]
+		for _, item in ipairs(CollectionBook.itemsFor(tabId)) do
+			if marked >= n then
+				return
+			end
+			profile[field][item.id] = true
+			marked = marked + 1
+		end
+	end
+end
+
+-- Unlocks every non-reward title (they're computed from stats/sets).
+local function unlockAllRegularTitles(profile)
+	profile.stats.runsStarted = 1
+	profile.stats.runsWon = 20
+	profile.stats.bestNightReached = 9
+	for _, patron in ipairs(Patrons.Definitions) do
+		profile.discoveredPatronIds[patron.id] = true
+	end
+	for i = 1, 4 do
+		profile.ownedThemeIds["theme_" .. i] = true
+	end
+end
+
+local function countedTotal()
+	return CollectionBook.completion(CollectionBook.setsFromLists({})).total
+end
+
+table.insert(tests, { name = "CollectionBook: every entry on every tab has a name, effect text and flavorText", fn = function()
+	local banned = { "balatro", "beer", "wine", "booze", "cocktail", "whiskey", "drunk" }
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		local items = CollectionBook.itemsFor(tab.id)
+		expectTrue(#items > 0, tab.id .. " has entries")
+		local seenIds = {}
+		for _, item in ipairs(items) do
+			local def = item.def
+			expectFalse(seenIds[item.id], tab.id .. " duplicate id " .. tostring(item.id))
+			seenIds[item.id] = true
+			expectTrue(type(def.name) == "string" and #def.name > 0, item.id .. " name")
+			expectTrue(type(def.description) == "string" and #def.description > 0, item.id .. " description")
+			expectTrue(type(def.flavorText) == "string" and #def.flavorText > 0, item.id .. " flavorText")
+			expectTrue(#def.flavorText <= 90, item.id .. " flavorText is one short line")
+			local lower = (def.name .. " " .. def.flavorText):lower()
+			for _, word in ipairs(banned) do
+				expectFalse(lower:find(word, 1, true) ~= nil, item.id .. " contains '" .. word .. "'")
+			end
+			expectTrue(CollectionBook.Rarities[CollectionBook.rarityOf(item)] ~= nil, item.id .. " rarity")
+		end
+	end
+	for _, back in ipairs(CardBacks.Definitions) do
+		expectTrue(type(back.flavorText) == "string" and #back.flavorText > 0, back.id .. " flavorText")
+	end
+end })
+
+table.insert(tests, { name = "CollectionBook: an entry's own rarity field overrides the derived one", fn = function()
+	local item = { id = "x", tab = "patrons", def = { id = "x", price = 4 } }
+	expectEqual(CollectionBook.rarityOf(item), "common")
+	item.def.rarity = "legendary"
+	expectEqual(CollectionBook.rarityOf(item), "legendary")
+	item.def.rarity = "mythic-not-real"
+	expectEqual(CollectionBook.rarityOf(item), "common")
+end })
+
+table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and every reward resolves", fn = function()
+	local lastPercent, ids, rewardedTitles = 0, {}, {}
+	for _, milestone in ipairs(CollectionBook.Milestones) do
+		expectFalse(ids[milestone.id], "duplicate milestone id " .. tostring(milestone.id))
+		ids[milestone.id] = true
+		expectTrue(milestone.percent > lastPercent and milestone.percent <= 100, "percents ascend within 1..100")
+		lastPercent = milestone.percent
+		expectTrue(#milestone.rewards > 0, milestone.id .. " has a reward")
+		for _, reward in ipairs(milestone.rewards) do
+			if reward.kind == "title" then
+				local achievement = Achievements.getById(reward.id)
+				expectTrue(achievement ~= nil and achievement.milestoneReward == true, reward.id .. " is a milestone title")
+				rewardedTitles[reward.id] = true
+			elseif reward.kind == "cardBack" then
+				expectTrue(CardBacks.getById(reward.id) ~= nil, reward.id .. " is a card back")
+			else
+				expectTrue(false, "unknown reward kind " .. tostring(reward.kind))
+			end
+		end
+	end
+	-- Every milestone title is actually handed out by some milestone.
+	for _, achievement in ipairs(Achievements.Definitions) do
+		if achievement.milestoneReward then
+			expectTrue(rewardedTitles[achievement.id], achievement.id .. " is granted by a milestone")
+		end
+	end
+end })
+
+table.insert(tests, { name = "PlayerProfile.recordDiscovered: adds, dedups, ignores junk, reports changes", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordDiscovered(profile, {
+		patrons = { "tip_jar" }, recipes = { "sugar_rush" }, bosses = { "bouncer" }, housePasses = { "late_kitchen" },
+	}))
+	expectTrue(profile.discoveredPatronIds.tip_jar)
+	expectTrue(profile.discoveredRecipeIds.sugar_rush)
+	expectTrue(profile.discoveredBossIds.bouncer)
+	expectTrue(profile.discoveredHousePassIds.late_kitchen)
+	-- Same ids again: nothing new.
+	expectFalse(PlayerProfile.recordDiscovered(profile, { patrons = { "tip_jar" }, bosses = { "bouncer" } }))
+	-- Non-string ids and unknown tabs are ignored.
+	expectFalse(PlayerProfile.recordDiscovered(profile, { patrons = { 42 }, themes = { "x" } }))
+	expectFalse(PlayerProfile.recordDiscovered(profile, {}))
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: Collection sets round-trip; old profiles backfill from discoveredPatronIds", fn = function()
+	local profile = PlayerProfile.new()
+	PlayerProfile.recordDiscovered(profile, { recipes = { "upsell" }, bosses = { "the_tab" }, housePasses = { "double_shift" } })
+	profile.claimedMilestoneIds.quarter = true
+	profile.rewardTitleIds.curious_guest = true
+	profile.unlockedCardBackIds.gilded_ledger = true
+	profile.equippedTitleId = "curious_guest"
+	local reloaded = PlayerProfile.migrate(profile)
+	expectTrue(reloaded.discoveredRecipeIds.upsell)
+	expectTrue(reloaded.discoveredBossIds.the_tab)
+	expectTrue(reloaded.discoveredHousePassIds.double_shift)
+	expectTrue(reloaded.claimedMilestoneIds.quarter)
+	expectTrue(reloaded.unlockedCardBackIds.gilded_ledger)
+	-- The reward title is migrated before the equipped title is checked.
+	expectEqual(reloaded.equippedTitleId, "curious_guest")
+
+	-- A save from before the Collection rebuild.
+	local old = PlayerProfile.migrate({ discoveredPatronIds = { tip_jar = true }, discoveredBossIds = "junk", rewardTitleIds = { [1] = true, ok = "yes" } })
+	expectTrue(old.discoveredPatronIds.tip_jar)
+	expectEqual(next(old.discoveredBossIds), nil)
+	expectEqual(next(old.discoveredRecipeIds), nil)
+	expectEqual(next(old.rewardTitleIds), nil)
+	local sets = CollectionBook.discoveredSetsFor(old)
+	expectEqual(CollectionBook.completion(sets).tabs.patrons.found, 1)
+end })
+
+table.insert(tests, { name = "CollectionBook.gatherSeen: owned, shop, pack and boss all count as seen", fn = function()
+	local state = {
+		ownedPatrons = { { id = "the_regular" } },
+		houseRecipeInventory = { "sugar_rush" },
+		menuRecipeInventory = { "level_pair" },
+		secretRecipeInventory = { "final_course" },
+		housePasses = { late_kitchen = true, double_shift = false },
+		bossModifier = { id = "bouncer" },
+		pendingPack = { items = {
+			{ id = "tip_jar", category = "patron" },
+			{ id = "upsell", category = "house" },
+			{ id = "card_1", category = "standard" },
+		} },
+	}
+	local seen = CollectionBook.gatherSeen(state, { patrons = { { id = "night_owl" } }, voucher = { id = "extra_seating" } })
+	local function has(list, id)
+		for _, v in ipairs(list) do if v == id then return true end end
+		return false
+	end
+	expectTrue(has(seen.patrons, "the_regular"))
+	expectTrue(has(seen.patrons, "tip_jar"))
+	expectTrue(has(seen.patrons, "night_owl"))
+	expectTrue(has(seen.recipes, "sugar_rush"))
+	expectTrue(has(seen.recipes, "level_pair"))
+	expectTrue(has(seen.recipes, "final_course"))
+	expectTrue(has(seen.recipes, "upsell"))
+	expectFalse(has(seen.recipes, "card_1"))
+	expectTrue(has(seen.housePasses, "late_kitchen"))
+	expectFalse(has(seen.housePasses, "double_shift"))
+	expectTrue(has(seen.housePasses, "extra_seating"))
+	expectTrue(has(seen.bosses, "bouncer"))
+
+	-- A real fresh run: nothing faced yet, no error without a shop.
+	local fresh = CollectionBook.gatherSeen(RunState.new(nil, function(n) return n end))
+	expectEqual(#fresh.bosses, 0)
+	expectEqual(#fresh.patrons, 0)
+end })
+
+table.insert(tests, { name = "CollectionBook.completion: per-tab and overall, reward titles and unknown ids excluded", fn = function()
+	local profile = PlayerProfile.new()
+	local empty = CollectionBook.completion(CollectionBook.discoveredSetsFor(profile))
+	expectEqual(empty.found, 0)
+	expectEqual(empty.percent, 0)
+	local rewardTitleCount = 0
+	for _, a in ipairs(Achievements.Definitions) do
+		if a.milestoneReward then rewardTitleCount = rewardTitleCount + 1 end
+	end
+	expectEqual(empty.tabs.titles.total, #Achievements.Definitions - rewardTitleCount)
+	expectEqual(empty.tabs.patrons.total, #Patrons.Definitions)
+
+	for _, def in ipairs(HousePasses.Definitions) do
+		profile.discoveredHousePassIds[def.id] = true
+	end
+	profile.discoveredBossIds.not_a_real_boss = true
+	profile.rewardTitleIds.curious_guest = true -- a reward title doesn't count
+	local c = CollectionBook.completion(CollectionBook.discoveredSetsFor(profile))
+	expectEqual(c.tabs.housePasses.percent, 100)
+	expectEqual(c.tabs.bosses.found, 0)
+	expectEqual(c.tabs.titles.found, 0)
+	expectEqual(c.found, #HousePasses.Definitions)
+	expectEqual(c.percent, math.floor(#HousePasses.Definitions * 100 / c.total))
+end })
+
+table.insert(tests, { name = "CollectionBook.grantMilestones: each milestone granted once, at its threshold", fn = function()
+	local total = countedTotal()
+	local profile = PlayerProfile.new()
+	local quarterNeeds = math.ceil(25 * total / 100)
+
+	discoverFirst(profile, quarterNeeds - 1)
+	expectEqual(#CollectionBook.grantMilestones(profile), 0)
+	expectFalse(Achievements.isUnlocked(profile, "curious_guest"))
+
+	discoverFirst(profile, quarterNeeds)
+	local granted = CollectionBook.grantMilestones(profile)
+	expectEqual(#granted, 1)
+	expectEqual(granted[1].id, "quarter")
+	expectTrue(profile.claimedMilestoneIds.quarter)
+	expectTrue(Achievements.isUnlocked(profile, "curious_guest"))
+	expectTrue((PlayerProfile.equipTitle(profile, "curious_guest")))
+	-- Already claimed: nothing new.
+	expectEqual(#CollectionBook.grantMilestones(profile), 0)
+
+	-- Everything but one entry: 50% granted, 100% not.
+	unlockAllRegularTitles(profile)
+	discoverFirst(profile, total)
+	profile.discoveredBossIds.bare_bones = nil
+	granted = CollectionBook.grantMilestones(profile)
+	expectEqual(#granted, 1)
+	expectEqual(granted[1].id, "half")
+	expectTrue(profile.unlockedCardBackIds.gilded_ledger)
+	expectFalse(profile.claimedMilestoneIds.complete == true)
+	expectFalse(Achievements.isUnlocked(profile, "keeper_of_tales"))
+
+	-- The last entry: 100% grants its title and card back.
+	profile.discoveredBossIds.bare_bones = true
+	granted = CollectionBook.grantMilestones(profile)
+	expectEqual(#granted, 1)
+	expectEqual(granted[1].id, "complete")
+	expectTrue(Achievements.isUnlocked(profile, "keeper_of_tales"))
+	expectTrue(profile.unlockedCardBackIds.starlit_keeper)
+	expectEqual(CollectionBook.nextMilestone(profile.claimedMilestoneIds), nil)
+end })
+
+table.insert(tests, { name = "CollectionBook.grantMilestones: a big jump claims several milestones at once", fn = function()
+	local profile = PlayerProfile.new()
+	discoverFirst(profile, math.ceil(60 * countedTotal() / 100))
+	local granted = CollectionBook.grantMilestones(profile)
+	expectEqual(#granted, 2)
+	expectEqual(granted[1].id, "quarter")
+	expectEqual(granted[2].id, "half")
+	expectEqual(CollectionBook.nextMilestone(profile.claimedMilestoneIds).id, "complete")
+end })
+
+table.insert(tests, { name = "CollectionBook.setsFromLists matches discoveredSetsFor (client vs server view)", fn = function()
+	local profile = PlayerProfile.new()
+	discoverFirst(profile, 70)
+	profile.stats.runsStarted = 1
+	local serverSets = CollectionBook.discoveredSetsFor(profile)
+	local lists = {}
+	for tabId, set in pairs(serverSets) do
+		lists[tabId] = {}
+		for id in pairs(set) do table.insert(lists[tabId], id) end
+	end
+	local a = CollectionBook.completion(serverSets)
+	local b = CollectionBook.completion(CollectionBook.setsFromLists(lists))
+	expectEqual(a.found, b.found)
+	expectEqual(a.total, b.total)
+	expectTrue(a.tabs.titles.found >= 1)
 end })
 
 return tests

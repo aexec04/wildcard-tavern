@@ -19,30 +19,37 @@ HousePasses.Definitions = {
 	{
 		id = "extra_seating", name = "Extra Seating", icon = "🪑", price = 10,
 		description = "Permanently +1 Patron table slot.",
+		flavorText = "The carpenter added a bench. Everyone scooted over.",
 	},
 	{
 		id = "regulars_discount", name = "Regulars' Discount", icon = "🏷️", price = 8,
 		description = "Patron prices are 2 Tips cheaper (minimum 1).",
+		flavorText = "Friendly faces get friendly prices.",
 	},
 	{
 		id = "wholesale_pricing", name = "Wholesale Pricing", icon = "📦", price = 8,
 		description = "Pack prices are 2 Tips cheaper (minimum 1).",
+		flavorText = "Buying in bulk means more crates in the cellar.",
 	},
 	{
 		id = "late_kitchen", name = "Late Kitchen", icon = "🍳", price = 5,
 		description = "Permanently +1 Discard every round.",
+		flavorText = "The cook keeps the stove warm a little longer.",
 	},
 	{
 		id = "double_shift", name = "Double Shift", icon = "⏰", price = 12,
 		description = "Permanently +1 Hand every round.",
+		flavorText = "Two cooks in the kitchen means twice the plates.",
 	},
 	{
 		id = "frequent_visitor", name = "Frequent Visitor Card", icon = "🎟️", price = 6,
 		description = "Rerolling the shop costs 2 Tips less (minimum 1).",
+		flavorText = "One more punch and the next shuffle is cheaper.",
 	},
 	{
 		id = "grand_opening", name = "Grand Opening Special", icon = "🎊", price = 5,
 		description = "Immediately earn 15 Tips.",
+		flavorText = "Ribbons, balloons and a jar full of coins.",
 		onBuy = function(state)
 			state.tips = state.tips + 15
 		end,

@@ -114,7 +114,7 @@ return function(deps)
 		{ icon = "▶️", text = "Play Hand to score your best poker hand" },
 		{ icon = "🔄", text = "Discard to swap cards -- free, no hand cost" },
 		{ icon = "🎯", text = "Reach the target score before hands run out" },
-		{ icon = "🍺", text = "Win a round -- spend Tips on Patrons at the Bar" },
+		{ icon = "🪙", text = "Win a round -- spend Tips on Patrons at The Counter" },
 		{ icon = "🌙", text = "Survive as many Nights as you can!" },
 	}
 

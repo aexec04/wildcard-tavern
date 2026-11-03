@@ -49,7 +49,7 @@ Card.Garnishes = {
 		mult = 4,
 	},
 	houseBlend = {
-		name = "House Blend", icon = "🍹",
+		name = "House Blend", icon = "🧃",
 		description = "Counts as every suit at once (for suit-based bonuses and penalties).",
 		wildSuit = true,
 	},

@@ -34,7 +34,7 @@ Packs.Definitions = {
 		description = "Reveals 3 random Patrons -- pick 1 to join your table for free.",
 	},
 	{
-		id = "house_pack", name = "House Recipe Pack", icon = "🍹", price = 5,
+		id = "house_pack", name = "House Recipe Pack", icon = "🧃", price = 5,
 		category = "house", size = "normal", revealCount = 3, pickCount = 1,
 		description = "Reveals 3 random House Recipes -- pick 1 to keep for free.",
 	},
@@ -61,7 +61,7 @@ Packs.Definitions = {
 		description = "JUMBO -- Reveals 5 random Patrons -- pick 1 to join your table for free.",
 	},
 	{
-		id = "house_pack_jumbo", name = "Jumbo House Recipe Pack", icon = "🍹", price = 8,
+		id = "house_pack_jumbo", name = "Jumbo House Recipe Pack", icon = "🧃", price = 8,
 		category = "house", size = "jumbo", revealCount = 5, pickCount = 1,
 		description = "JUMBO -- Reveals 5 random House Recipes -- pick 1 to keep for free.",
 	},
@@ -88,7 +88,7 @@ Packs.Definitions = {
 		description = "MEGA -- Reveals 5 random Patrons -- pick 2 to join your table for free.",
 	},
 	{
-		id = "house_pack_mega", name = "Mega House Recipe Pack", icon = "🍹", price = 11,
+		id = "house_pack_mega", name = "Mega House Recipe Pack", icon = "🧃", price = 11,
 		category = "house", size = "mega", revealCount = 5, pickCount = 2,
 		description = "MEGA -- Reveals 5 random House Recipes -- pick 2 to keep for free.",
 	},

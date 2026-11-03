@@ -36,6 +36,7 @@ Achievements.Definitions = {
 		icon = "👣",
 		title = "Newcomer",
 		description = "Start your first run.",
+		flavorText = "The door creaks open. Welcome in, stranger.",
 		requirement = function(profile) return profile.stats.runsStarted >= 1 end,
 	},
 	{
@@ -44,14 +45,16 @@ Achievements.Definitions = {
 		icon = "🌙",
 		title = "Tavern Keeper",
 		description = "Win your first run.",
+		flavorText = "The last candle is out and the night was yours.",
 		requirement = function(profile) return profile.stats.runsWon >= 1 end,
 	},
 	{
 		id = "regular",
 		name = "Regular",
-		icon = "🍺",
+		icon = "🍵",
 		title = "Regular",
 		description = "Win 5 runs.",
+		flavorText = "The keeper starts your cocoa when you walk in.",
 		requirement = function(profile) return profile.stats.runsWon >= 5 end,
 	},
 	{
@@ -60,6 +63,7 @@ Achievements.Definitions = {
 		icon = "🏆",
 		title = "Tavern Legend",
 		description = "Win 20 runs.",
+		flavorText = "They tell stories about you by the fireplace.",
 		requirement = function(profile) return profile.stats.runsWon >= 20 end,
 	},
 	{
@@ -68,6 +72,7 @@ Achievements.Definitions = {
 		icon = "🕯",
 		title = "Deep Diver",
 		description = "Reach Night 4 in a single run.",
+		flavorText = "Few guests stay this late. You did.",
 		requirement = function(profile) return profile.stats.bestNightReached >= 4 end,
 	},
 	{
@@ -76,6 +81,7 @@ Achievements.Definitions = {
 		icon = "♾",
 		title = "Endless Wanderer",
 		description = "Push past Night 8 into Endless Mode in a single run.",
+		flavorText = "The night keeps going and so do you.",
 		requirement = function(profile) return profile.stats.bestNightReached >= 9 end,
 	},
 	{
@@ -84,6 +90,7 @@ Achievements.Definitions = {
 		icon = "🫂",
 		title = "Patron Saint",
 		description = "Discover 10 different Patrons across all your runs.",
+		flavorText = "Ten new friends and counting.",
 		requirement = function(profile)
 			local count = 0
 			for _ in pairs(profile.discoveredPatronIds) do
@@ -98,6 +105,7 @@ Achievements.Definitions = {
 		icon = "🏘",
 		title = "Collector",
 		description = "Discover 25 different Patrons across all your runs.",
+		flavorText = "Your guest book is getting heavy.",
 		requirement = function(profile)
 			local count = 0
 			for _ in pairs(profile.discoveredPatronIds) do
@@ -112,6 +120,7 @@ Achievements.Definitions = {
 		icon = "💯",
 		title = "Completionist",
 		description = "Discover every single Patron in the game.",
+		flavorText = "Every face in town knows your name.",
 		requirement = function(profile)
 			local count = 0
 			for _ in pairs(profile.discoveredPatronIds) do
@@ -126,6 +135,7 @@ Achievements.Definitions = {
 		icon = "🖼",
 		title = "Interior Decorator",
 		description = "Buy your first Theme with Tips.",
+		flavorText = "A fresh coat of paint makes everything cozier.",
 		requirement = function(profile)
 			local count = 0
 			for _ in pairs(profile.ownedThemeIds) do
@@ -140,12 +150,42 @@ Achievements.Definitions = {
 		icon = "🎨",
 		title = "Connoisseur",
 		description = "Own 4 different Themes bought with Tips.",
+		flavorText = "You know your wallpaper from your wainscoting.",
 		requirement = function(profile)
 			local count = 0
 			for _ in pairs(profile.ownedThemeIds) do
 				count = count + 1
 			end
 			return count >= 4
+		end,
+	},
+	-- COLLECTION MILESTONE TITLES: granted (and saved in
+	-- profile.rewardTitleIds) by CollectionBook.grantMilestones, which
+	-- reads CollectionBook.Milestones to decide which title goes with
+	-- which completion %. Marked milestoneReward so they don't count
+	-- toward Collection completion themselves.
+	{
+		id = "curious_guest",
+		name = "Curious Guest",
+		icon = "🔍",
+		title = "Curious Guest",
+		description = "A Collection milestone reward.",
+		flavorText = "You've peeked behind a quarter of the tavern's doors.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.curious_guest == true
+		end,
+	},
+	{
+		id = "keeper_of_tales",
+		name = "Keeper of Tales",
+		icon = "📖",
+		title = "Keeper of Tales",
+		description = "A Collection milestone reward.",
+		flavorText = "Every story in the tavern has been told to you.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.keeper_of_tales == true
 		end,
 	},
 }

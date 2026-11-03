@@ -463,7 +463,7 @@ for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
 			if owned then
 				return string.format("%s\n%s", owned.name, owned.description)
 			end
-			return "Empty seat -- visit The Bar to recruit a Patron"
+			return "Empty seat -- visit The Counter to recruit a Patron"
 		end)
 	end
 end
@@ -1303,8 +1303,6 @@ require(script.Collection)({
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	collectionButton = collectionButton,
-	Patrons = Patrons,
-	Themes = Themes,
 	-- ACHIEVEMENTS + TITLES (Phase 16): required inline rather than as
 	-- its own top-level local -- init.client.lua is already right up
 	-- against Lua's 200-local-per-chunk ceiling (Menu.lua's header

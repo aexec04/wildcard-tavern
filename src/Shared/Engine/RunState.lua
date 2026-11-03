@@ -1494,7 +1494,7 @@ end
 	flow entirely (it jumps straight into the next round's startRound) --
 	on purpose, so skipping a round always means missing that round's shop
 	visit too. That's the real cost of the Tag: you don't play the round,
-	but you don't get to spend at The Bar afterward either.
+	but you don't get to spend at The Counter afterward either.
 ]]
 function RunState.canSkipRound(state)
 	if state.roundOver or state.runOver then

@@ -138,11 +138,47 @@ local function cleanSetting(key, value)
 	return nil
 end
 
+-- COLLECTION: [id] = true sets copied as-is by migrate.
+PlayerProfile.ID_SET_FIELDS = {
+	"discoveredRecipeIds",
+	"discoveredBossIds",
+	"discoveredHousePassIds",
+	"claimedMilestoneIds",
+	"rewardTitleIds",
+	"unlockedCardBackIds",
+}
+
+-- Which saved set each Collection tab's discoveries go into.
+PlayerProfile.DISCOVERY_FIELDS = {
+	patrons = "discoveredPatronIds",
+	recipes = "discoveredRecipeIds",
+	bosses = "discoveredBossIds",
+	housePasses = "discoveredHousePassIds",
+}
+
+local function copyIdSet(rawSet, into)
+	if type(rawSet) ~= "table" then
+		return
+	end
+	for id, flag in pairs(rawSet) do
+		if type(id) == "string" and flag == true then
+			into[id] = true
+		end
+	end
+end
+
 -- What a player who has never been saved before starts with.
 function PlayerProfile.new()
 	return {
 		version = PlayerProfile.SCHEMA_VERSION,
 		discoveredPatronIds = {}, -- [patronId] = true
+		-- COLLECTION: the other discovered sets (see CollectionBook.Tabs).
+		discoveredRecipeIds = {}, -- [recipeId] = true
+		discoveredBossIds = {}, -- [bossRoundId] = true
+		discoveredHousePassIds = {}, -- [housePassId] = true
+		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
+		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
+		unlockedCardBackIds = {}, -- [CardBacks id] = true
 		ownedThemeIds = {}, -- [themeId] = true -- Tips-bought only; the free default theme is always owned regardless, RunState.new adds it unconditionally
 		stats = {
 			runsStarted = 0,
@@ -178,6 +214,12 @@ function PlayerProfile.migrate(raw)
 				profile.discoveredPatronIds[id] = true
 			end
 		end
+	end
+
+	-- COLLECTION: older profiles only have discoveredPatronIds (copied
+	-- above), so the other sets start empty and fill in from the next run.
+	for _, field in ipairs(PlayerProfile.ID_SET_FIELDS) do
+		copyIdSet(raw[field], profile[field])
 	end
 
 	if type(raw.ownedThemeIds) == "table" then
@@ -314,6 +356,23 @@ function PlayerProfile.recordPatronsFound(profile, patronIds)
 		if type(id) == "string" and not profile.discoveredPatronIds[id] then
 			profile.discoveredPatronIds[id] = true
 			changed = true
+		end
+	end
+	return changed
+end
+
+-- COLLECTION: merges { [tabId] = {id, ...} } (CollectionBook.gatherSeen's
+-- result) into the discovered sets. Unknown tab ids are ignored. Returns
+-- true if anything new was added.
+function PlayerProfile.recordDiscovered(profile, seen)
+	local changed = false
+	for tabId, field in pairs(PlayerProfile.DISCOVERY_FIELDS) do
+		local set = profile[field]
+		for _, id in ipairs(seen[tabId] or {}) do
+			if type(id) == "string" and not set[id] then
+				set[id] = true
+				changed = true
+			end
 		end
 	end
 	return changed

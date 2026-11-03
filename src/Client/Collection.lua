@@ -1,67 +1,38 @@
 --[[
 	Client/Collection.lua
-	FEATURE 11: a grid of every Patron and Theme in the game -- owned ones
-	shown in full, locked ones silhouetted with a "?". Reachable from the
-	in-game "📔" corner button.
+	The Collection screen (parchment panel), opened from the "📔" corner
+	button. Five tabs -- Patrons, Recipes, Boss Rounds, House Passes,
+	Titles -- each showing its completion %, plus an overall % bar with the
+	next milestone reward.
 
-	PERSISTENT SAVE (Phase 10): Patron rows used to only reflect the
-	CURRENT run's ownedPatrons, which reset every run -- finding a rare
-	Patron, then starting fresh, made it look undiscovered again (hence the
-	old title, "Collection -- this run"). They now read
-	`state.discoveredPatronIds`, a permanent set maintained server-side
-	(Shared/Engine/PlayerProfile.lua) across every run this player has ever
-	played. Theme rows still read `state.ownedThemeIds` -- same field name
-	as before, but that's now ALSO effectively permanent (RunState.new
-	seeds it from the same saved profile -- see Server/init.server.lua's
-	startNewSession), so no client-side change was needed there.
+	All content and rules come from Shared/Engine/CollectionBook.lua, which
+	reads the registries. Nothing here lists content by hand.
 
-	Extracted out of init.client.lua as part of splitting the client script
-	into smaller, per-feature files. Fully self-contained -- nothing outside
-	this module needs anything it builds, so it returns an empty table.
+	Tiles: discovered entries show their icon, name and a glow in their
+	rarity's color; undiscovered ones are a dark silhouette named "???".
+	Tapping a tile opens a detail card with the effect text and flavor
+	line. A Title's detail card has the Equip button (fires EquipTitle;
+	clicking the equipped title's button un-equips it).
 
-	ACHIEVEMENTS + TITLES (Phase 16): the stats line under the title used
-	to be a dead end -- 3 permanent counters with nowhere to go from
-	there. Now there's an "Achievements & Titles" section below the
-	Themes grid: every Shared/Engine/Achievements.lua entry, locked ones
-	silhouetted the same way locked Patrons/Themes already are, and each
-	UNLOCKED one gets an "Equip"/"Equipped" button that fires
-	EquipTitleRemote -- clicking your currently-equipped title's button
-	un-equips it (fires nil) instead of doing nothing.
+	Data comes from the server's state push:
+	  state.collection = { discovered = { [tabId] = {id...} },
+	                       claimedMilestoneIds = {id...}, unlockedCardBackIds = {id...} }
+	  state.unlockedAchievementIds  -- the Titles tab's "discovered" list
+	  state.equippedTitleId, state.profileStats
+	  state.collectionMilestoneNotice -- one-shot milestone ids, shown as a toast
 
-	deps fields:
-		screenGui        -- ScreenGui, the panel's ultimate parent (via backdrop)
-		polishPanel       -- function(instance, radius)
-		polishButton      -- function(instance, radius)
-		roundCorner       -- function(instance, radius)
-		addSoftShadow     -- function(instance, radius)
-		playClickSfx      -- function(volume?)
-		collectionButton  -- TextButton, the in-game "📔" corner button
-		Patrons           -- the Shared/Engine/Patrons module
-		Themes            -- the Shared/Engine/Themes module
-		Achievements      -- the Shared/Engine/Achievements module (Phase 16)
-		EquipTitleRemote  -- RemoteEvent, fired (achievementId or nil) on an Equip click (Phase 16)
-		getLatestState    -- function() -> latest state table or nil (live getter)
-		popIn             -- function(backdrop, content, opts?)
-		popOut            -- function(backdrop, content, opts?, onHidden?)
-		addButtonHoverScale -- function(button, opts?)
-		StateUpdatedRemote -- RemoteEvent, fired by the server on every state
-		                      push (same remote init.client.lua's own render()
-		                      subscribes to) -- see the BUGFIX comment at this
-		                      file's bottom for why THIS module now also
-		                      subscribes to it directly, instead of returning
-		                      a refresh function for init.client.lua to call.
+	This module listens to StateUpdatedRemote itself (with task.defer, so
+	init.client.lua's render() has already updated latestState) instead of
+	returning a refresh function -- init.client.lua has no spare locals.
+
+	deps: screenGui, polishPanel, polishButton, roundCorner, addSoftShadow,
+	playClickSfx, collectionButton, Achievements, EquipTitleRemote,
+	getLatestState, popIn, popOut, addButtonHoverScale, StateUpdatedRemote.
 
 	Returns: {}
-
-	POLISH PASS (Batch 3): popIn/popOut replace the old bare
-	Visible = true/false cut; the Close button gets addButtonHoverScale.
-	Deliberately NOT using revealStagger on the row list itself -- this
-	panel can hold 35+ rows (31 Patrons + every Theme) once fully unlocked,
-	and a per-row cascade at revealStagger's usual pacing would take
-	several seconds to finish, reading as sluggish rather than juicy for a
-	list this long. The modal pop-in is enough of a "this just opened" cue
-	on its own here.
 ]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 return function(deps)
 	local screenGui = deps.screenGui
@@ -70,461 +41,547 @@ return function(deps)
 	local roundCorner = deps.roundCorner
 	local addSoftShadow = deps.addSoftShadow
 	local playClickSfx = deps.playClickSfx
-	local collectionButton = deps.collectionButton
-	local Patrons = deps.Patrons
-	local Themes = deps.Themes
 	local Achievements = deps.Achievements
 	local EquipTitleRemote = deps.EquipTitleRemote
 	local getLatestState = deps.getLatestState
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
-	local StateUpdatedRemote = deps.StateUpdatedRemote
-	-- BUGFIX (overlapping overlays): see OverlayManager.lua's own header
-	-- comment for the full story. Required directly off script.Parent
-	-- (zero cost to init.client.lua's own local budget), not threaded
-	-- through deps like everything else in this file.
 	local OverlayManager = require(script.Parent.OverlayManager)
+	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 
-	local collectionBackdrop = Instance.new("Frame")
-	collectionBackdrop.Name = "CollectionBackdrop"
-	collectionBackdrop.Size = UDim2.fromScale(1, 1)
-	collectionBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	collectionBackdrop.BackgroundTransparency = 0.4
-	collectionBackdrop.Visible = false
-	collectionBackdrop.ZIndex = 20
-	collectionBackdrop.Parent = screenGui
+	local CREAM = Color3.fromRGB(250, 240, 220)
+	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
+	local GOLD = Color3.fromRGB(255, 214, 130)
+	local DIM = Color3.fromRGB(140, 130, 120)
+	local BUTTON_BROWN = Color3.fromRGB(70, 55, 40)
+	local ACTIVE_BROWN = Color3.fromRGB(150, 115, 50)
+	local ITALIC = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Regular, Enum.FontStyle.Italic)
+	-- Boss Rounds have no icon of their own.
+	local FALLBACK_ICONS = { bosses = "⚡" }
 
-	-- Center-anchored (same on-screen spot as the old top-left 0.2/0.15
-	-- position) so the expand toggle below grows it in place.
-	local COLLECTION_PANEL_SIZE = UDim2.fromScale(0.6, 0.7)
-	local collectionPanel = Instance.new("Frame")
-	collectionPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-	collectionPanel.Size = COLLECTION_PANEL_SIZE
-	collectionPanel.Position = UDim2.fromScale(0.5, 0.5)
-	collectionPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-	collectionPanel.ZIndex = 21
-	collectionPanel.Parent = collectionBackdrop
-	polishPanel(collectionPanel, 16, "parchment")
-	addSoftShadow(collectionPanel, 18)
+	local function rgb(triple)
+		return Color3.fromRGB(triple[1], triple[2], triple[3])
+	end
 
-	local collectionTitle = Instance.new("TextLabel")
-	collectionTitle.Size = UDim2.new(1, 0, 0, 26)
-	collectionTitle.Position = UDim2.new(0, 0, 0, 0)
-	collectionTitle.BackgroundTransparency = 1
-	collectionTitle.Font = Enum.Font.GothamBold
-	collectionTitle.TextSize = 22
-	collectionTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-	collectionTitle.Text = "Collection"
-	collectionTitle.ZIndex = 21
-	collectionTitle.Parent = collectionPanel
+	local function label(parent, props)
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.Font = Enum.Font.Gotham
+		l.TextColor3 = CREAM
+		l.TextStrokeTransparency = 1
+		l.ZIndex = 21
+		for k, v in pairs(props) do
+			l[k] = v
+		end
+		l.Parent = parent
+		return l
+	end
 
-	-- EXPAND TOGGLE: corner button that blows the panel up to near-
-	-- fullscreen for browsing everything, and back. See ExpandToggle.lua.
-	require(script.Parent.ExpandToggle)(collectionPanel, {
-		collapsedSize = COLLECTION_PANEL_SIZE,
+	local function button(parent, props)
+		local b = Instance.new("TextButton")
+		b.Font = Enum.Font.GothamBold
+		b.TextColor3 = CREAM
+		b.BackgroundColor3 = BUTTON_BROWN
+		b.AutoButtonColor = true
+		b.ZIndex = 21
+		for k, v in pairs(props) do
+			b[k] = v
+		end
+		b.Parent = parent
+		return b
+	end
+
+	-- ===== Panel =====
+	local backdrop = Instance.new("Frame")
+	backdrop.Name = "CollectionBackdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.4
+	backdrop.Visible = false
+	backdrop.ZIndex = 20
+	backdrop.Parent = screenGui
+
+	local PANEL_SIZE = UDim2.fromScale(0.66, 0.78)
+	local panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Size = PANEL_SIZE
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	panel.ZIndex = 21
+	panel.Parent = backdrop
+	polishPanel(panel, 16, "parchment")
+	addSoftShadow(panel, 18)
+
+	label(panel, {
+		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
+		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
+	})
+
+	require(script.Parent.ExpandToggle)(panel, {
+		collapsedSize = PANEL_SIZE,
 		polishButton = polishButton,
 		addButtonHoverScale = addButtonHoverScale,
 		playClickSfx = playClickSfx,
 	})
 
-	-- PERSISTENT SAVE (Phase 10): a small permanent-stats line under the
-	-- title -- state.profileStats (Server/init.server.lua's serializeState)
-	-- is 3 small counters from Shared/Engine/PlayerProfile.lua, refreshed
-	-- the same time as everything else in refreshCollection below.
-	local collectionStatsLabel = Instance.new("TextLabel")
-	collectionStatsLabel.Size = UDim2.new(1, 0, 0, 18)
-	collectionStatsLabel.Position = UDim2.new(0, 0, 0, 26)
-	collectionStatsLabel.BackgroundTransparency = 1
-	collectionStatsLabel.Font = Enum.Font.Gotham
-	collectionStatsLabel.TextSize = 13
-	collectionStatsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
-	collectionStatsLabel.Text = ""
-	collectionStatsLabel.ZIndex = 21
-	collectionStatsLabel.Parent = collectionPanel
+	local statsLabel = label(panel, {
+		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 34),
+		TextSize = 12, TextColor3 = SOFT_CREAM, Text = "",
+	})
 
-	-- JUMP BUTTONS: a row of section shortcuts above the scroll list --
-	-- with 40+ Patrons first, reaching Themes or Achievements used to
-	-- mean scrolling past every one of them by hand. Wired up below,
-	-- once collectionScroll and the section headers exist.
-	local collectionJumpRow = Instance.new("Frame")
-	collectionJumpRow.Size = UDim2.new(1, -30, 0, 28)
-	collectionJumpRow.Position = UDim2.new(0, 15, 0, 48)
-	collectionJumpRow.BackgroundTransparency = 1
-	collectionJumpRow.ZIndex = 21
-	collectionJumpRow.Parent = collectionPanel
+	-- Overall completion bar + next milestone.
+	local overallBar = Instance.new("Frame")
+	overallBar.Size = UDim2.new(1, -30, 0, 22)
+	overallBar.Position = UDim2.fromOffset(15, 54)
+	overallBar.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
+	overallBar.ZIndex = 21
+	overallBar.Parent = panel
+	roundCorner(overallBar, 6)
 
-	local collectionJumpLayout = Instance.new("UIListLayout")
-	collectionJumpLayout.FillDirection = Enum.FillDirection.Horizontal
-	collectionJumpLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	collectionJumpLayout.Padding = UDim.new(0, 8)
-	collectionJumpLayout.Parent = collectionJumpRow
+	local overallFill = Instance.new("Frame")
+	overallFill.Size = UDim2.fromScale(0, 1)
+	overallFill.BackgroundColor3 = Color3.fromRGB(190, 145, 60)
+	overallFill.ZIndex = 22
+	overallFill.Parent = overallBar
+	roundCorner(overallFill, 6)
 
-	local collectionScroll = Instance.new("ScrollingFrame")
-	collectionScroll.Size = UDim2.new(1, -30, 1, -145)
-	collectionScroll.Position = UDim2.new(0, 15, 0, 80)
-	collectionScroll.BackgroundTransparency = 1
-	collectionScroll.BorderSizePixel = 0
-	collectionScroll.ScrollBarThickness = 8
-	collectionScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	collectionScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	collectionScroll.ZIndex = 21
-	collectionScroll.Parent = collectionPanel
+	local overallText = label(overallBar, {
+		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0),
+		Font = Enum.Font.GothamBold, TextSize = 13, ZIndex = 23,
+		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+	})
 
-	local collectionLayout = Instance.new("UIListLayout")
-	collectionLayout.Padding = UDim.new(0, 10)
-	collectionLayout.Parent = collectionScroll
+	-- Tabs.
+	local tabRow = Instance.new("Frame")
+	tabRow.Size = UDim2.new(1, -30, 0, 38)
+	tabRow.Position = UDim2.fromOffset(15, 82)
+	tabRow.BackgroundTransparency = 1
+	tabRow.ZIndex = 21
+	tabRow.Parent = panel
 
-	local collectionCloseButton = Instance.new("TextButton")
-	collectionCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	collectionCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-	collectionCloseButton.Font = Enum.Font.GothamBold
-	collectionCloseButton.TextSize = 16
-	collectionCloseButton.Text = "Close"
-	collectionCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	collectionCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	collectionCloseButton.ZIndex = 21
-	collectionCloseButton.Parent = collectionPanel
-	polishButton(collectionCloseButton, 12)
-	addButtonHoverScale(collectionCloseButton)
+	local tabLayout = Instance.new("UIListLayout")
+	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	tabLayout.Padding = UDim.new(0, 6)
+	tabLayout.Parent = tabRow
 
-	collectionCloseButton.MouseButton1Click:Connect(function()
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.new(1, -30, 1, -186)
+	scroll.Position = UDim2.fromOffset(15, 128)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 8
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.ZIndex = 21
+	scroll.Parent = panel
+
+	local grid = Instance.new("UIGridLayout")
+	grid.CellSize = UDim2.fromOffset(92, 108)
+	grid.CellPadding = UDim2.fromOffset(10, 10)
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	grid.Parent = scroll
+
+	-- Grid cells need a little inset so the rarity stroke isn't clipped.
+	local gridPadding = Instance.new("UIPadding")
+	gridPadding.PaddingTop = UDim.new(0, 4)
+	gridPadding.PaddingBottom = UDim.new(0, 4)
+	gridPadding.Parent = scroll
+
+	local closeButton = button(panel, {
+		Size = UDim2.fromOffset(140, 40), Position = UDim2.new(0.5, -70, 1, -50),
+		TextSize = 16, Text = "Close", BackgroundColor3 = Color3.fromRGB(90, 60, 30),
+	})
+	polishButton(closeButton, 12)
+	addButtonHoverScale(closeButton)
+	closeButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		popOut(collectionBackdrop, collectionPanel)
+		popOut(backdrop, panel)
 	end)
 
-	-- BUGFIX (repeated "Patrons --" / "Themes --" / "Achievements &
-	-- Titles --" lines): this used to parent a bare TextLabel straight
-	-- into collectionScroll, but refreshCollection's cleanup loop only
-	-- destroys Frames -- so every refresh (every open, every state push
-	-- while open) left the old headers behind and stacked 3 more on top.
-	-- Wrapped in a transparent Frame now, same as every row already is,
-	-- so the existing cleanup catches it.
-	local function makeCollectionSectionHeader(text, order)
-		local header = Instance.new("Frame")
-		header.Size = UDim2.new(1, 0, 0, 22)
-		header.BackgroundTransparency = 1
-		header.LayoutOrder = order
-		header.ZIndex = 21
-		header.Parent = collectionScroll
+	-- ===== Detail card =====
+	-- `detailShade` covers the panel; hiding it hides the card too.
+	local detailShade = Instance.new("TextButton")
+	detailShade.Text = ""
+	detailShade.AutoButtonColor = false
+	detailShade.Size = UDim2.fromScale(1, 1)
+	detailShade.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	detailShade.BackgroundTransparency = 0.35
+	detailShade.Visible = false
+	detailShade.ZIndex = 30
+	detailShade.Parent = panel
+	roundCorner(detailShade, 16)
 
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBold
-		label.TextSize = 16
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(255, 214, 130)
-		label.Text = text
-		label.ZIndex = 21
-		label.Parent = header
-		return header
+	local card = Instance.new("TextButton") -- a button so clicks on it don't close it
+	card.Text = ""
+	card.AutoButtonColor = false
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.fromScale(0.5, 0.5)
+	card.Size = UDim2.fromOffset(340, 330)
+	card.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	card.ZIndex = 31
+	card.Parent = detailShade
+	polishPanel(card, 14, "parchment")
+
+	-- Reuse polishPanel's gold ring as the rarity border (one UIStroke only).
+	local cardStroke = card:FindFirstChildOfClass("UIStroke")
+	cardStroke.Thickness = 3
+
+	local cardIcon = label(card, {
+		Size = UDim2.new(1, 0, 0, 64), Position = UDim2.fromOffset(0, 16),
+		TextSize = 52, ZIndex = 32, Text = "",
+	})
+	local cardName = label(card, {
+		Size = UDim2.new(1, -30, 0, 26), Position = UDim2.fromOffset(15, 84),
+		Font = Enum.Font.GothamBold, TextSize = 20, ZIndex = 32, TextWrapped = true, Text = "",
+	})
+	local cardKind = label(card, {
+		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 112),
+		Font = Enum.Font.GothamBold, TextSize = 12, ZIndex = 32, Text = "",
+	})
+	local cardEffect = label(card, {
+		Size = UDim2.new(1, -40, 0, 70), Position = UDim2.fromOffset(20, 138),
+		TextSize = 15, ZIndex = 32, TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Top, Text = "",
+	})
+	local cardFlavor = label(card, {
+		Size = UDim2.new(1, -40, 0, 44), Position = UDim2.fromOffset(20, 212),
+		TextSize = 13, ZIndex = 32, TextWrapped = true, TextColor3 = SOFT_CREAM,
+		FontFace = ITALIC, TextYAlignment = Enum.TextYAlignment.Top, Text = "",
+	})
+	local cardEquip = button(card, {
+		Size = UDim2.fromOffset(130, 34), Position = UDim2.new(0.5, -140, 1, -48),
+		TextSize = 14, ZIndex = 32, Text = "Equip", Visible = false,
+	})
+	polishButton(cardEquip, 8)
+	local cardClose = button(card, {
+		Size = UDim2.fromOffset(130, 34), Position = UDim2.new(0.5, -65, 1, -48),
+		TextSize = 14, ZIndex = 32, Text = "Back",
+	})
+	polishButton(cardClose, 8)
+
+	-- ===== Milestone toast =====
+	local toast = Instance.new("Frame")
+	toast.AnchorPoint = Vector2.new(0.5, 0)
+	toast.Position = UDim2.new(0.5, 0, 0, 70)
+	toast.Size = UDim2.fromOffset(420, 64)
+	toast.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	toast.Visible = false
+	toast.ZIndex = 60
+	toast.Parent = screenGui
+	polishPanel(toast, 12, "parchment")
+	local toastText = label(toast, {
+		Size = UDim2.new(1, -24, 1, -8), Position = UDim2.fromOffset(12, 4),
+		Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 61,
+		TextColor3 = GOLD, Text = "",
+	})
+
+	-- ===== State =====
+	local activeTabId = CollectionBook.Tabs[1].id
+	local tabButtons = {}
+	local openItem = nil -- the item shown on the detail card, if any
+
+	local function currentView()
+		local state = getLatestState()
+		local collection = state and state.collection or {}
+		local lists = {}
+		for tabId, ids in pairs(collection.discovered or {}) do
+			lists[tabId] = ids
+		end
+		lists.titles = state and state.unlockedAchievementIds or {}
+		local claimed = {}
+		for _, id in ipairs(collection.claimedMilestoneIds or {}) do
+			claimed[id] = true
+		end
+		local sets = CollectionBook.setsFromLists(lists)
+		return {
+			state = state,
+			sets = sets,
+			completion = CollectionBook.completion(sets),
+			claimed = claimed,
+			equippedTitleId = state and state.equippedTitleId,
+		}
 	end
 
-	local function makeCollectionRow(order, name, description, isOwned, swatchColor, icon)
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 50)
-		row.BackgroundColor3 = isOwned and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38)
-		row.LayoutOrder = order
-		row.ZIndex = 21
-		row.Parent = collectionScroll
-		polishPanel(row, 10)
-
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 30, 0, 30)
-		swatch.Position = UDim2.new(0, 10, 0.5, -15)
-		swatch.BackgroundColor3 = isOwned and (swatchColor or Color3.fromRGB(200, 170, 100)) or Color3.fromRGB(70, 65, 60)
-		swatch.ZIndex = 21
-		swatch.Parent = row
-		roundCorner(swatch, 8)
-
-		local swatchLabel = Instance.new("TextLabel")
-		swatchLabel.Size = UDim2.fromScale(1, 1)
-		swatchLabel.BackgroundTransparency = 1
-		swatchLabel.Font = Enum.Font.GothamBold
-		swatchLabel.TextSize = 16
-		swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		swatchLabel.Text = isOwned and (icon or "") or "?"
-		swatchLabel.ZIndex = 21
-		swatchLabel.Parent = swatch
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -60, 0, 22)
-		nameLabel.Position = UDim2.new(0, 50, 0, 4)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 15
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = isOwned and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(140, 135, 130)
-		nameLabel.Text = isOwned and name or "???"
-		nameLabel.ZIndex = 21
-		nameLabel.Parent = row
-
-		local descLabel = Instance.new("TextLabel")
-		descLabel.Size = UDim2.new(1, -60, 0, 20)
-		descLabel.Position = UDim2.new(0, 50, 0, 24)
-		descLabel.BackgroundTransparency = 1
-		descLabel.Font = Enum.Font.Gotham
-		descLabel.TextSize = 12
-		descLabel.TextWrapped = true
-		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = isOwned and Color3.fromRGB(210, 195, 175) or Color3.fromRGB(120, 115, 110)
-		descLabel.Text = isOwned and description or "Not discovered yet."
-		descLabel.ZIndex = 21
-		descLabel.Parent = row
+	local function iconFor(item)
+		return item.def.icon or FALLBACK_ICONS[item.tab] or "❔"
 	end
 
-	-- ACHIEVEMENTS + TITLES (Phase 16): deliberately its own function
-	-- rather than reusing makeCollectionRow -- the row itself is close
-	-- to identical (icon swatch + name + description, locked = "???"),
-	-- but only this one needs an Equip/Equipped button and a 3rd visual
-	-- state (equipped, not just owned/locked).
-	local function makeAchievementRow(order, achievement, isUnlocked, isEquipped)
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 50)
-		row.BackgroundColor3 = isEquipped and Color3.fromRGB(95, 75, 35)
-			or (isUnlocked and Color3.fromRGB(60, 50, 32) or Color3.fromRGB(45, 40, 38))
-		row.LayoutOrder = order
-		row.ZIndex = 21
-		row.Parent = collectionScroll
-		polishPanel(row, 10)
-
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.new(0, 30, 0, 30)
-		swatch.Position = UDim2.new(0, 10, 0.5, -15)
-		swatch.BackgroundColor3 = isUnlocked and Color3.fromRGB(200, 170, 100) or Color3.fromRGB(70, 65, 60)
-		swatch.ZIndex = 21
-		swatch.Parent = row
-		roundCorner(swatch, 8)
-
-		local swatchLabel = Instance.new("TextLabel")
-		swatchLabel.Size = UDim2.fromScale(1, 1)
-		swatchLabel.BackgroundTransparency = 1
-		swatchLabel.Font = Enum.Font.GothamBold
-		swatchLabel.TextSize = 16
-		swatchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-		swatchLabel.Text = isUnlocked and achievement.icon or "?"
-		swatchLabel.ZIndex = 21
-		swatchLabel.Parent = swatch
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -170, 0, 22)
-		nameLabel.Position = UDim2.new(0, 50, 0, 4)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 15
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = isUnlocked and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(140, 135, 130)
-		nameLabel.Text = isUnlocked and (achievement.name .. "  --  \"" .. achievement.title .. "\"") or "???"
-		nameLabel.ZIndex = 21
-		nameLabel.Parent = row
-
-		local descLabel = Instance.new("TextLabel")
-		descLabel.Size = UDim2.new(1, -170, 0, 20)
-		descLabel.Position = UDim2.new(0, 50, 0, 24)
-		descLabel.BackgroundTransparency = 1
-		descLabel.Font = Enum.Font.Gotham
-		descLabel.TextSize = 12
-		descLabel.TextWrapped = true
-		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = isUnlocked and Color3.fromRGB(210, 195, 175) or Color3.fromRGB(120, 115, 110)
-		descLabel.Text = isUnlocked and achievement.description or "Not unlocked yet."
-		descLabel.ZIndex = 21
-		descLabel.Parent = row
-
-		if isUnlocked then
-			local equipButton = Instance.new("TextButton")
-			equipButton.Size = UDim2.new(0, 100, 0, 32)
-			equipButton.Position = UDim2.new(1, -110, 0.5, -16)
-			equipButton.Font = Enum.Font.GothamBold
-			equipButton.TextSize = 13
-			equipButton.Text = isEquipped and "Equipped" or "Equip"
-			equipButton.BackgroundColor3 = isEquipped and Color3.fromRGB(150, 115, 50) or Color3.fromRGB(70, 55, 40)
-			equipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-			equipButton.ZIndex = 21
-			equipButton.Parent = row
-			polishButton(equipButton, 8)
-			addButtonHoverScale(equipButton)
-
-			equipButton.MouseButton1Click:Connect(function()
-				playClickSfx()
-				if EquipTitleRemote then
-					-- Clicking your CURRENTLY equipped title's button
-					-- un-equips it (fires nil) instead of doing nothing --
-					-- otherwise there'd be no way to go back to "no title"
-					-- once you'd equipped one.
-					EquipTitleRemote:FireServer(isEquipped and nil or achievement.id)
+	local function milestoneFor(titleId)
+		for _, milestone in ipairs(CollectionBook.Milestones) do
+			for _, reward in ipairs(milestone.rewards) do
+				if reward.kind == "title" and reward.id == titleId then
+					return milestone
 				end
-			end)
+			end
+		end
+		return nil
+	end
+
+	local function undiscoveredHint(item)
+		if item.tab == "titles" then
+			local milestone = item.def.milestoneReward and milestoneFor(item.id)
+			if milestone then
+				return "Reach " .. milestone.percent .. "% Collection completion to earn this title."
+			end
+			return "Not unlocked yet. Keep playing to earn this title."
+		elseif item.tab == "bosses" then
+			return "Not discovered yet. Face this boss on a Boss Round to add it."
+		end
+		return "Not discovered yet. Spot it in the shop or a pack to add it."
+	end
+
+	local function showDetail(item, view)
+		openItem = item
+		local found = CollectionBook.isDiscovered(view.sets, item)
+		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
+		local def = item.def
+
+		cardIcon.Text = iconFor(item)
+		cardIcon.TextTransparency = found and 0 or 0.85
+		cardStroke.Color = found and rgb(rarity.color) or Color3.fromRGB(60, 55, 50)
+		cardKind.TextColor3 = found and rgb(rarity.color) or DIM
+
+		if found then
+			cardName.Text = item.tab == "titles" and ('"' .. def.title .. '"') or def.name
+			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
+			local effect = def.description
+			if item.tab == "titles" then
+				local milestone = def.milestoneReward and milestoneFor(item.id)
+				effect = milestone and ("Reward for reaching " .. milestone.percent .. "% Collection completion.")
+					or (def.name .. ": " .. def.description)
+			end
+			cardEffect.Text = effect
+			cardFlavor.Text = def.flavorText and ('"' .. def.flavorText .. '"') or ""
+		else
+			cardName.Text = "???"
+			cardKind.Text = CollectionBook.kindLabel(item)
+			cardEffect.Text = undiscoveredHint(item)
+			cardFlavor.Text = ""
+		end
+
+		local canEquip = found and item.tab == "titles"
+		cardEquip.Visible = canEquip
+		cardClose.Position = canEquip and UDim2.new(0.5, 10, 1, -48) or UDim2.new(0.5, -65, 1, -48)
+		if canEquip then
+			local equipped = view.equippedTitleId == item.id
+			cardEquip.Text = equipped and "Unequip" or "Equip"
+			cardEquip.BackgroundColor3 = equipped and ACTIVE_BROWN or BUTTON_BROWN
+		end
+		detailShade.Visible = true
+	end
+
+	local function hideDetail()
+		openItem = nil
+		detailShade.Visible = false
+	end
+
+	cardClose.MouseButton1Click:Connect(function()
+		playClickSfx()
+		hideDetail()
+	end)
+	detailShade.MouseButton1Click:Connect(hideDetail)
+	cardEquip.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if openItem and openItem.tab == "titles" and EquipTitleRemote then
+			local state = getLatestState()
+			local equipped = state and state.equippedTitleId == openItem.id
+			EquipTitleRemote:FireServer(not equipped and openItem.id or nil)
+		end
+	end)
+
+	local function makeTile(item, order, view)
+		local found = CollectionBook.isDiscovered(view.sets, item)
+		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
+
+		local tile = Instance.new("TextButton")
+		tile.Text = ""
+		tile.AutoButtonColor = true
+		tile.LayoutOrder = order
+		tile.BackgroundColor3 = found and Color3.fromRGB(58, 44, 30) or Color3.fromRGB(22, 18, 15)
+		tile.ZIndex = 21
+		tile.Parent = scroll
+		roundCorner(tile, 8)
+
+		-- Rarity glow: a colored stroke plus a soft wash behind the icon.
+		local stroke = Instance.new("UIStroke")
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Thickness = found and 2 or 1
+		stroke.Color = found and rgb(rarity.color) or Color3.fromRGB(50, 45, 40)
+		stroke.Parent = tile
+
+		local iconWell = Instance.new("Frame")
+		iconWell.Size = UDim2.fromOffset(60, 60)
+		iconWell.Position = UDim2.new(0.5, -30, 0, 8)
+		iconWell.BackgroundColor3 = found and rgb(rarity.color) or Color3.fromRGB(10, 8, 7)
+		iconWell.BackgroundTransparency = found and 0.72 or 0
+		iconWell.ZIndex = 22
+		iconWell.Parent = tile
+		roundCorner(iconWell, 30)
+
+		local icon = label(iconWell, {
+			Size = UDim2.fromScale(1, 1), TextSize = 34, ZIndex = 23, Text = iconFor(item),
+		})
+		if not found then
+			-- Emoji ignore TextColor3, so a near-black veil makes the silhouette.
+			icon.TextTransparency = 0
+			local veil = Instance.new("Frame")
+			veil.Size = UDim2.fromScale(1, 1)
+			veil.BackgroundColor3 = Color3.fromRGB(8, 6, 5)
+			veil.BackgroundTransparency = 0.12
+			veil.ZIndex = 24
+			veil.Parent = iconWell
+			roundCorner(veil, 30)
+		end
+
+		label(tile, {
+			Size = UDim2.new(1, -8, 0, 32), Position = UDim2.new(0, 4, 0, 70),
+			Font = Enum.Font.GothamBold, TextSize = 11, TextWrapped = true, ZIndex = 22,
+			TextColor3 = found and CREAM or DIM,
+			Text = found and (item.tab == "titles" and item.def.title or item.def.name) or "???",
+		})
+
+		if found and item.tab == "titles" and view.equippedTitleId == item.id then
+			label(tile, {
+				Size = UDim2.new(1, 0, 0, 14), Position = UDim2.fromOffset(0, 2),
+				Font = Enum.Font.GothamBold, TextSize = 10, ZIndex = 25, TextColor3 = GOLD,
+				Text = "EQUIPPED",
+			})
+		end
+
+		tile.MouseButton1Click:Connect(function()
+			playClickSfx()
+			showDetail(item, view)
+		end)
+	end
+
+	local function refresh()
+		local view = currentView()
+		local completion = view.completion
+
+		-- Header stats.
+		local stats = view.state and view.state.profileStats
+		if stats then
+			local equipped = view.equippedTitleId and Achievements.getById(view.equippedTitleId)
+			statsLabel.Text = string.format(
+				"Runs played: %d  |  Runs won: %d  |  Best Night: %d  |  Title: %s",
+				math.floor(stats.runsStarted), math.floor(stats.runsWon), math.floor(stats.bestNightReached),
+				equipped and ('"' .. equipped.title .. '"') or "none"
+			)
+		else
+			statsLabel.Text = ""
+		end
+
+		-- Overall bar.
+		overallFill.Size = UDim2.fromScale(completion.total > 0 and completion.found / completion.total or 0, 1)
+		local nextMilestone = CollectionBook.nextMilestone(view.claimed)
+		local nextText
+		if nextMilestone then
+			local rewards = {}
+			for _, reward in ipairs(nextMilestone.rewards) do
+				table.insert(rewards, CollectionBook.rewardLabel(reward))
+			end
+			nextText = "Next at " .. nextMilestone.percent .. "%: " .. table.concat(rewards, " + ")
+		else
+			nextText = "Every milestone claimed!"
+		end
+		overallText.Text = string.format("Overall %d%%  (%d / %d)   --   %s",
+			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
+
+		-- Tab headers.
+		for _, tab in ipairs(CollectionBook.Tabs) do
+			local tabButton = tabButtons[tab.id]
+			local tabCompletion = completion.tabs[tab.id]
+			tabButton.Text = string.format("%s\n%d%%", tab.name, math.floor(tabCompletion.percent))
+			tabButton.BackgroundColor3 = tab.id == activeTabId and ACTIVE_BROWN or BUTTON_BROWN
+		end
+
+		-- Grid.
+		for _, child in ipairs(scroll:GetChildren()) do
+			if child:IsA("GuiObject") then
+				child:Destroy()
+			end
+		end
+		for i, item in ipairs(CollectionBook.itemsFor(activeTabId)) do
+			makeTile(item, i, view)
+		end
+
+		-- Keep an open detail card current (e.g. after an Equip click).
+		if openItem then
+			showDetail(openItem, view)
 		end
 	end
 
-	-- Rebuilt every refreshCollection (the headers are destroyed and
-	-- recreated along with the rows), so the jump buttons look their
-	-- target up here at click time rather than holding a stale reference.
-	local collectionSectionHeaders = {}
-
-	local function makeCollectionJumpButton(text, sectionKey, order)
-		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(1 / 3, -6, 1, 0)
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = 13
-		button.Text = text
-		button.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
-		button.TextColor3 = Color3.fromRGB(250, 240, 220)
-		button.LayoutOrder = order
-		button.ZIndex = 21
-		button.Parent = collectionJumpRow
-		polishButton(button, 8)
-		addButtonHoverScale(button)
-
-		button.MouseButton1Click:Connect(function()
+	for i, tab in ipairs(CollectionBook.Tabs) do
+		local tabButton = button(tabRow, {
+			Size = UDim2.new(1 / #CollectionBook.Tabs, -5, 1, 0),
+			TextSize = 12, LayoutOrder = i, Text = tab.name,
+		})
+		polishButton(tabButton, 8)
+		tabButtons[tab.id] = tabButton
+		tabButton.MouseButton1Click:Connect(function()
 			playClickSfx()
-			local header = collectionSectionHeaders[sectionKey]
-			if header and header.Parent then
-				-- The header's on-screen offset from the scroll's top edge,
-				-- plus however far we're already scrolled, is its position
-				-- in canvas space. Roblox clamps anything past the end.
-				local offsetY = header.AbsolutePosition.Y - collectionScroll.AbsolutePosition.Y
-				collectionScroll.CanvasPosition = Vector2.new(0, math.max(0, collectionScroll.CanvasPosition.Y + offsetY))
+			if activeTabId ~= tab.id then
+				activeTabId = tab.id
+				hideDetail()
+				scroll.CanvasPosition = Vector2.new(0, 0)
+				refresh()
 			end
 		end)
 	end
 
-	makeCollectionJumpButton("Patrons", "patrons", 1)
-	makeCollectionJumpButton("Themes", "themes", 2)
-	makeCollectionJumpButton("Achievements & Titles", "achievements", 3)
-
-	local function refreshCollection()
-		for _, child in ipairs(collectionScroll:GetChildren()) do
-			if child:IsA("Frame") then
-				child:Destroy()
+	local function showMilestoneToast(milestoneIds)
+		local lines = {}
+		for _, id in ipairs(milestoneIds) do
+			for _, milestone in ipairs(CollectionBook.Milestones) do
+				if milestone.id == id then
+					local rewards = {}
+					for _, reward in ipairs(milestone.rewards) do
+						table.insert(rewards, CollectionBook.rewardLabel(reward))
+					end
+					table.insert(lines, "Collection " .. milestone.percent .. "%! " .. table.concat(rewards, " + "))
+				end
 			end
 		end
-
-		local latestState = getLatestState()
-		local ownedPatronIds = {}
-		local ownedThemeIds = {}
-		if latestState then
-			-- PERSISTENT SAVE (Phase 10): discoveredPatronIds is the
-			-- permanent, cross-run set -- see this file's header comment.
-			for _, id in ipairs(latestState.discoveredPatronIds or {}) do
-				ownedPatronIds[id] = true
+		if #lines == 0 then
+			return
+		end
+		toastText.Text = table.concat(lines, "\n")
+		toast.Size = UDim2.fromOffset(420, 40 + 20 * #lines)
+		toast.Visible = true
+		local shownText = toastText.Text
+		task.delay(5, function()
+			if toastText.Text == shownText then
+				toast.Visible = false
 			end
-			for _, id in ipairs(latestState.ownedThemeIds or {}) do
-				ownedThemeIds[id] = true
-			end
-		end
-
-		local ownedPatronCount = 0
-		for _ in pairs(ownedPatronIds) do
-			ownedPatronCount = ownedPatronCount + 1
-		end
-		local ownedThemeCount = 0
-		for _ in pairs(ownedThemeIds) do
-			ownedThemeCount = ownedThemeCount + 1
-		end
-
-		-- ACHIEVEMENTS + TITLES (Phase 16): unlockedAchievementIds/
-		-- equippedTitleId are shipped fresh in every serializeState call
-		-- (Server/init.server.lua) -- see Achievements.lua's header for
-		-- why the unlocked SET itself is never stored, only the equip
-		-- choice is.
-		local unlockedTitleIds = {}
-		local equippedTitleId = latestState and latestState.equippedTitleId
-		if latestState then
-			for _, id in ipairs(latestState.unlockedAchievementIds or {}) do
-				unlockedTitleIds[id] = true
-			end
-		end
-		local unlockedTitleCount = 0
-		for _ in pairs(unlockedTitleIds) do
-			unlockedTitleCount = unlockedTitleCount + 1
-		end
-
-		local stats = latestState and latestState.profileStats
-		if stats then
-			local equippedAchievement = equippedTitleId and Achievements.getById(equippedTitleId)
-			collectionStatsLabel.Text = string.format(
-				"Runs played: %d  |  Runs won: %d  |  Best Night reached: %d  |  Title: %s",
-				stats.runsStarted, stats.runsWon, stats.bestNightReached,
-				equippedAchievement and ("\"" .. equippedAchievement.title .. "\"") or "none equipped"
-			)
-		else
-			collectionStatsLabel.Text = ""
-		end
-
-		collectionSectionHeaders.patrons = makeCollectionSectionHeader(string.format("Patrons -- %d / %d found", ownedPatronCount, #Patrons.Definitions), 1)
-		for i, patron in ipairs(Patrons.Definitions) do
-			makeCollectionRow(1 + i, patron.name, patron.description, ownedPatronIds[patron.id] == true, Color3.fromRGB(200, 170, 100), patron.icon)
-		end
-
-		collectionSectionHeaders.themes = makeCollectionSectionHeader(string.format("Themes -- %d / %d found", ownedThemeCount, #Themes.Definitions), 100)
-		for i, theme in ipairs(Themes.Definitions) do
-			makeCollectionRow(100 + i, theme.name, theme.description, ownedThemeIds[theme.id] == true, theme.colors.accent)
-		end
-
-		collectionSectionHeaders.achievements = makeCollectionSectionHeader(string.format("Achievements & Titles -- %d / %d unlocked", unlockedTitleCount, #Achievements.Definitions), 200)
-		for i, achievement in ipairs(Achievements.Definitions) do
-			makeAchievementRow(200 + i, achievement, unlockedTitleIds[achievement.id] == true, equippedTitleId == achievement.id)
-		end
+		end)
 	end
 
 	OverlayManager.register("collection", function()
-		popOut(collectionBackdrop, collectionPanel)
+		hideDetail()
+		popOut(backdrop, panel)
 	end)
 
-	collectionButton.MouseButton1Click:Connect(function()
+	deps.collectionButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("collection")
-		refreshCollection()
-		popIn(collectionBackdrop, collectionPanel)
+		hideDetail()
+		refresh()
+		popIn(backdrop, panel)
 	end)
 
-	-- BUGFIX (Ahmed's report: "I'm unable to equip these other name
-	-- things" -- clicking Equip on anything other than the title you
-	-- already had equipped silently appeared to do nothing): the Equip
-	-- button's click handler (above, inside makeAchievementRow) really
-	-- was firing EquipTitleRemote correctly, and the server really was
-	-- accepting it (PlayerProfile.equipTitle + Server/init.server.lua's
-	-- handler both check out) -- but refreshCollection only ever ran
-	-- when the panel first OPENED (collectionButton's click above).
-	-- Nothing told the already-open panel to redraw once the server's
-	-- reply (a fresh StateUpdatedRemote push with the new equippedTitleId)
-	-- came back, so every row kept showing its pre-click Equip/Equipped
-	-- labels and highlight no matter how many times you clicked -- it
-	-- looked exactly like a dead button.
-	--
-	-- The natural fix -- expose a refresh function and have
-	-- init.client.lua's render(state) call it, same pattern Shop.lua
-	-- uses for rebuildShop -- would need capturing this require() call's
-	-- return value as a new top-level local over there. Tried that first;
-	-- it immediately blew through Lua's 200-local ceiling (init.client.lua
-	-- is already right up against it -- see ArtAssets.lua's own BUGFIX
-	-- comment for the first time that bit this exact feature). So instead
-	-- this module subscribes to StateUpdatedRemote directly -- the SAME
-	-- remote init.client.lua's render() already listens to, passed in as
-	-- a dep at zero extra local cost (it's an existing top-level local
-	-- over there, just handed to another require() call).
-	--
-	-- task.defer, not a direct call, is the reason this is actually safe:
-	-- both this listener and init.client.lua's own (function(state)
-	-- render(state) end) are connected to the same event, and Roblox
-	-- fires same-event connections in connection order -- this module's
-	-- require() call runs BEFORE init.client.lua reaches its own
-	-- StateUpdatedRemote connection further down the script, so without
-	-- task.defer this would run FIRST, reading getLatestState() (which
-	-- reads init.client.lua's `latestState` upvalue) one push BEHIND --
-	-- i.e. still missing the equip that just happened, same bug with
-	-- extra steps. task.defer queues the refresh to run after every
-	-- synchronous listener for THIS firing (including render(), which
-	-- updates `latestState` as its very first line) has already finished,
-	-- so by the time it actually runs, getLatestState() is caught up.
-	if StateUpdatedRemote then
-		StateUpdatedRemote.OnClientEvent:Connect(function()
+	if deps.StateUpdatedRemote then
+		deps.StateUpdatedRemote.OnClientEvent:Connect(function()
 			task.defer(function()
-				if collectionBackdrop.Visible then
-					refreshCollection()
+				local state = getLatestState()
+				if state and state.collectionMilestoneNotice then
+					showMilestoneToast(state.collectionMilestoneNotice)
+				end
+				if backdrop.Visible then
+					refresh()
 				end
 			end)
 		end)

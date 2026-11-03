@@ -52,6 +52,7 @@ Recipes.HouseRecipes = {
 		id = "sugar_rush", name = "Sugar Rush", icon = "🍬", price = 3,
 		cardCount = { min = 1, max = 2 },
 		description = "Adds a Sweet Garnish (+30 Chips) to up to 2 selected cards.",
+		flavorText = "A sprinkle of sugar makes any card sweeter.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards < 1 or #cards > 2 then
@@ -67,6 +68,7 @@ Recipes.HouseRecipes = {
 		id = "spice_rack", name = "Spice Rack", icon = "🌶️", price = 3,
 		cardCount = { min = 1, max = 2 },
 		description = "Adds a Zesty Garnish (+4 Mult) to up to 2 selected cards.",
+		flavorText = "Just a pinch of pepper and the table wakes up.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards < 1 or #cards > 2 then
@@ -79,9 +81,10 @@ Recipes.HouseRecipes = {
 		end,
 	},
 	{
-		id = "house_blend_order", name = "House Blend Order", icon = "🍹", price = 4,
+		id = "house_blend_order", name = "House Blend Order", icon = "🧃", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds House Blend (counts as every suit) to 1 selected card.",
+		flavorText = "A little of every flavor, poured into one cup.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -95,6 +98,7 @@ Recipes.HouseRecipes = {
 		id = "cast_iron_order", name = "Cast Iron Order", icon = "🍳", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds an Iron Garnish (x1.5 Mult while held) to 1 selected card.",
+		flavorText = "Heavy, sturdy, and it holds the heat.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -108,6 +112,7 @@ Recipes.HouseRecipes = {
 		id = "candy_order", name = "Candy Order", icon = "🍭", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Brittle Garnish (x2 Mult, can shatter) to 1 selected card.",
+		flavorText = "Crunchy, dazzling and a little fragile.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -121,6 +126,7 @@ Recipes.HouseRecipes = {
 		id = "golden_hour", name = "Golden Hour", icon = "🌟", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Golden Garnish (earn 3 Tips if held at round end) to 1 selected card.",
+		flavorText = "That warm light just before the lanterns come on.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -134,6 +140,7 @@ Recipes.HouseRecipes = {
 		id = "house_token_order", name = "House Token Order", icon = "🪙", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Turns 1 selected card into a House Token (+50 Chips).",
+		flavorText = "Good for one free bowl of soup. Or fifty chips.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -147,6 +154,7 @@ Recipes.HouseRecipes = {
 		id = "upsell", name = "Upsell", icon = "⬆️", price = 3,
 		cardCount = { min = 1, max = 2 },
 		description = "Raises the rank of up to 2 selected cards by 1 (caps at Ace).",
+		flavorText = "Would you like the bigger size? Yes, you would.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards < 1 or #cards > 2 then
@@ -162,6 +170,7 @@ Recipes.HouseRecipes = {
 		id = "eighty_six_it", name = "86 It", icon = "🗑️", price = 3,
 		cardCount = { min = 1, max = 2 },
 		description = "Removes up to 2 selected cards from your deck for good.",
+		flavorText = "Off the menu, never to return.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
 			if #indices < 1 or #indices > 2 then
@@ -186,6 +195,7 @@ Recipes.HouseRecipes = {
 		id = "copy_the_order", name = "Copy the Order", icon = "📋", price = 6,
 		cardCount = { min = 2, max = 2 },
 		description = "Select 2 cards -- the first becomes a copy of the second.",
+		flavorText = "I'll have what they're having.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
 			if #indices ~= 2 then
@@ -205,6 +215,7 @@ Recipes.HouseRecipes = {
 		id = "suit_swap", name = "Suit Swap", icon = "🔄", price = 4,
 		cardCount = { min = 1, max = 3 }, needsSuit = true,
 		description = "Converts up to 3 selected cards to a suit of your choice.",
+		flavorText = "Same card, new outfit.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			local suit = opts and opts.suit
@@ -223,6 +234,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "tip_doubler", name = "Tip Doubler", icon = "🎉", price = 5,
 		description = "Doubles your current Tips (capped at +20).",
+		flavorText = "The jar got shaken and somehow got fuller.",
 		apply = function(state)
 			local gain = math.min(state.tips, 20)
 			state.tips = state.tips + gain
@@ -232,6 +244,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "tabs_on_the_house", name = "Tab's On the House", icon = "🧾", price = 5,
 		description = "Earn Tips equal to the total sell value of your Patrons (capped at 50).",
+		flavorText = "The keeper waves away the bill with a grin.",
 		apply = function(state)
 			local total = 0
 			for _, patron in ipairs(state.ownedPatrons) do
@@ -245,6 +258,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "new_regular", name = "New Regular", icon = "🙋", price = 8,
 		description = "A random Patron joins your table for free (ignores slot price).",
+		flavorText = "A new face sits down like they've always been here.",
 		apply = function(state, opts, deps)
 			local Patrons = deps and deps.Patrons
 			if not Patrons then
@@ -278,6 +292,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "second_helping", name = "Second Helping", icon = "🍽️", price = 4,
 		description = "Creates a copy of the last House or Menu Recipe you used.",
+		flavorText = "There's always room for a little more.",
 		apply = function(state, opts, deps)
 			-- BUGFIX: only House and Menu Recipes count, matching this
 			-- Recipe's own description -- state.lastRecipeUsedCategory
@@ -312,6 +327,7 @@ Recipes.HouseRecipes = {
 		id = "encore_order", name = "Encore, Please", icon = "🔁", price = 6,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds an Encore Stamp (retriggers this card's Garnish/Special/Stamp one extra time) to 1 selected card.",
+		flavorText = "The crowd shouts for more, so you do it again.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -325,6 +341,7 @@ Recipes.HouseRecipes = {
 		id = "blue_plate_special", name = "Blue Plate Special", icon = "🟦", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Blue Stamp (creates a Menu Recipe for your last-played hand, if held at round end) to 1 selected card.",
+		flavorText = "Today's special comes on the nice blue plate.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -338,6 +355,7 @@ Recipes.HouseRecipes = {
 		id = "lucky_ticket", name = "Lucky Ticket", icon = "🍀", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Lucky Garnish (chance at bonus Mult, and separately at bonus Tips, when it scores) to 1 selected card.",
+		flavorText = "Found under a table. Might be a winner.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -351,6 +369,7 @@ Recipes.HouseRecipes = {
 		id = "wipe_the_slate", name = "Wipe the Slate", icon = "🧽", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Removes any Garnish, Special, and Stamp from 1 selected card.",
+		flavorText = "A damp cloth and a fresh start.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -366,6 +385,7 @@ Recipes.HouseRecipes = {
 		id = "downsize", name = "Downsize", icon = "⬇️", price = 3,
 		cardCount = { min = 1, max = 2 },
 		description = "Lowers the rank of up to 2 selected cards by 1 (floors at 2).",
+		flavorText = "Smaller plates, same good food.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards < 1 or #cards > 2 then
@@ -381,6 +401,7 @@ Recipes.HouseRecipes = {
 		id = "wildcard_swap", name = "Wildcard Swap", icon = "🎲", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Randomizes both the rank and suit of 1 selected card.",
+		flavorText = "Close your eyes and pick a new card.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -395,6 +416,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "well_stocked", name = "Well Stocked", icon = "📦", price = 4,
 		description = "Adds 1 random new (plain) card to your deck.",
+		flavorText = "One more crate in the pantry.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
@@ -407,6 +429,7 @@ Recipes.HouseRecipes = {
 		id = "sunday_special", name = "Sunday Special", icon = "🥞", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a random Garnish to 1 selected card.",
+		flavorText = "Pancakes with a surprise topping.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -422,6 +445,7 @@ Recipes.HouseRecipes = {
 		id = "neighborhood_watch", name = "Neighborhood Watch", icon = "👀", price = 5,
 		cardCount = { min = 2, max = 2 },
 		description = "Select 2 cards -- copies the Stamp from the second onto the first (rank/suit/Garnish/Special untouched).",
+		flavorText = "Keeping an eye on what the neighbors have.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
 			if #indices ~= 2 then
@@ -440,6 +464,7 @@ Recipes.HouseRecipes = {
 		id = "silver_service", name = "Silver Service", icon = "🥈", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Silver Special (+50 Chips) to 1 selected card.",
+		flavorText = "Out comes the polished silver for this one.",
 		-- GAP-FILL: every Garnish id and every Stamp id already had a
 		-- dedicated House/Secret Recipe granting it deterministically --
 		-- Silver/Gold/Rainbow Specials were the one family with NO way to
@@ -461,6 +486,7 @@ Recipes.HouseRecipes = {
 		id = "borrow_the_recipe", name = "Borrow the Recipe", icon = "📝", price = 5,
 		cardCount = { min = 2, max = 2 },
 		description = "Select 2 cards -- copies the Garnish from the second onto the first (rank/suit/Special/Stamp untouched).",
+		flavorText = "Grandma won't mind. Probably.",
 		-- GAP-FILL: mirrors Neighborhood Watch's Stamp-only copy, but for
 		-- Garnish -- previously the only way to copy a modifier between
 		-- cards was Copy the Order (copies EVERYTHING: rank/suit/Garnish/
@@ -485,6 +511,7 @@ Recipes.HouseRecipes = {
 		id = "fresh_squeeze", name = "Fresh Squeeze", icon = "🍋", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a random Stamp to 1 selected card.",
+		flavorText = "Squeezed this morning, stamped this afternoon.",
 		-- GAP-FILL: Sunday Special already does a random GARNISH (House)
 		-- and Chef's Special already does a random SPECIAL (Secret) --
 		-- this is the missing third leg, a random STAMP, completing the
@@ -508,6 +535,7 @@ Recipes.HouseRecipes = {
 		id = "split_the_check", name = "Split the Check", icon = "🔀", price = 5,
 		cardCount = { min = 2, max = 2 },
 		description = "Select 2 cards -- they swap rank and suit with each other (Garnish/Special/Stamp stay put).",
+		flavorText = "You take mine and I'll take yours.",
 		-- Distinct from Copy the Order (makes card 1 an identical copy of
 		-- card 2) -- this exchanges the two, so both cards change and
 		-- neither becomes a duplicate of the other.
@@ -529,6 +557,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "round_up", name = "Round Up", icon = "📈", price = 6,
 		description = "Raises the rank of every card currently in your hand by 1 (caps at Ace).",
+		flavorText = "Everyone at the table gets a little boost.",
 		-- The whole-hand version of Upsell (which caps at 2 selected cards).
 		apply = function(state)
 			if #state.hand == 0 then
@@ -543,6 +572,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "compd_discard", name = "Comp'd Discard", icon = "🎟️", price = 4,
 		description = "+1 Discard, immediately, for the round in progress.",
+		flavorText = "The keeper lets this one slide.",
 		apply = function(state)
 			state.discardsRemaining = (state.discardsRemaining or 0) + 1
 			return true, "One more, on the house."
@@ -555,15 +585,15 @@ Recipes.HouseRecipes = {
 -- sync with the hand list.
 do
 	local flavorNames = {
-		["High Card"]       = { name = "Snack Plate Recipe", icon = "🥨" },
-		["Pair"]             = { name = "Two-for-One Recipe", icon = "🍢" },
-		["Two Pair"]          = { name = "Double Trouble Recipe", icon = "🍡" },
-		["Three of a Kind"]   = { name = "Triple Threat Recipe", icon = "🍕" },
-		["Straight"]          = { name = "Full Spread Recipe", icon = "🍱" },
-		["Flush"]             = { name = "Matching Set Recipe", icon = "🍣" },
-		["Full House"]        = { name = "Full House Recipe", icon = "🍲" },
-		["Four of a Kind"]    = { name = "Fourth Round Recipe", icon = "🍗" },
-		["Straight Flush"]    = { name = "Grand Tasting Recipe", icon = "🎂" },
+		["High Card"]       = { name = "Snack Plate Recipe", icon = "🥨", flavorText = "Something small to nibble while you wait." },
+		["Pair"]             = { name = "Two-for-One Recipe", icon = "🍢", flavorText = "Buy one, and the second one is on the house." },
+		["Two Pair"]          = { name = "Double Trouble Recipe", icon = "🍡", flavorText = "Two skewers, two flavors, double the fun." },
+		["Three of a Kind"]   = { name = "Triple Threat Recipe", icon = "🍕", flavorText = "Three slices, three toppings, one happy table." },
+		["Straight"]          = { name = "Full Spread Recipe", icon = "🍱", flavorText = "Every dish lined up in a neat little row." },
+		["Flush"]             = { name = "Matching Set Recipe", icon = "🍣", flavorText = "Every piece on the plate matches perfectly." },
+		["Full House"]        = { name = "Full House Recipe", icon = "🍲", flavorText = "A pot big enough for the whole house." },
+		["Four of a Kind"]    = { name = "Fourth Round Recipe", icon = "🍗", flavorText = "Four drumsticks, served piping hot." },
+		["Straight Flush"]    = { name = "Grand Tasting Recipe", icon = "🎂", flavorText = "The fanciest cake the kitchen has ever baked." },
 	}
 
 	Recipes.MenuRecipes = {}
@@ -576,6 +606,7 @@ do
 			handName = handName,
 			price = 3,
 			description = "Levels up " .. handName .. " (+chips/+mult every time you play one).",
+			flavorText = flavor.flavorText or "A dependable dish from the tavern kitchen.",
 			apply = function(state)
 				state.handLevels[handName] = (state.handLevels[handName] or 0) + 1
 				return true, handName .. " leveled up!"
@@ -590,6 +621,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "mystery_guest", name = "Mystery Guest", icon = "🎭", price = 6,
 		description = "Destroys 1 random card in hand, adds 3 random Garnished face cards.",
+		flavorText = "Nobody knows who they are, but they brought friends.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			if #state.hand > 0 then
@@ -606,8 +638,9 @@ Recipes.SecretRecipes = {
 		end,
 	},
 	{
-		id = "last_round", name = "Last Round", icon = "🥃", price = 6,
+		id = "final_course", name = "Final Course", icon = "🍨", price = 6,
 		description = "Destroys 1 random card in hand, adds 2 random Garnished Aces.",
+		flavorText = "The last plate of the night is always the fanciest.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			if #state.hand > 0 then
@@ -626,6 +659,7 @@ Recipes.SecretRecipes = {
 		id = "loyalty_punch", name = "Loyalty Punch", icon = "🟨", price = 4,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Gold Stamp (earn 3 Tips when it scores) to 1 selected card.",
+		flavorText = "Nine punches done. This one is golden.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -639,6 +673,7 @@ Recipes.SecretRecipes = {
 		id = "chefs_special", name = "Chef's Special", icon = "👨‍🍳", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a random Special (Silver/Gold/Rainbow) to 1 selected card.",
+		flavorText = "Even the chef doesn't know what's in it.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -652,6 +687,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "house_rules_order", name = "House Rules Order", icon = "🎲", price = 6,
 		description = "Converts every card in your hand to a single random suit.",
+		flavorText = "Tonight, everyone dresses the same.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			local suit = randomChoice(Card.Suits, rng)
@@ -664,6 +700,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "clean_sweep", name = "Clean Sweep", icon = "🧹", price = 8,
 		description = "A random Patron gets a Rainbow Special; every other Patron leaves (normal refund).",
+		flavorText = "Everyone out, except the guest of honor.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			if #state.ownedPatrons == 0 then
@@ -687,6 +724,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "whole_menu_upgrade", name = "Whole Menu Upgrade", icon = "📈", price = 10,
 		description = "Levels up EVERY poker hand type by 1.",
+		flavorText = "New menus for every table at once.",
 		apply = function(state)
 			for handName in pairs(Scoring.HandBase) do
 				state.handLevels[handName] = (state.handLevels[handName] or 0) + 1
@@ -698,6 +736,7 @@ Recipes.SecretRecipes = {
 		id = "kitchen_secret", name = "Kitchen Secret", icon = "🟪", price = 5,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Purple Stamp (creates a random House Recipe when this card is discarded) to 1 selected card.",
+		flavorText = "Whisper it and it becomes a recipe.",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
@@ -710,6 +749,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "star_treatment", name = "Star Treatment", icon = "⭐", price = 6,
 		description = "A random Patron at your table gets a Gold Special (+10 Mult), permanently.",
+		flavorText = "Red carpet, golden cushion, best seat in the house.",
 		apply = function(state, opts)
 			if #state.ownedPatrons == 0 then
 				return false, "No Patrons to treat"
@@ -724,6 +764,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "patron_of_the_month", name = "Patron of the Month", icon = "🏅", price = 7,
 		description = "A random Patron at your table gets a random Special (Silver/Gold/Rainbow), permanently.",
+		flavorText = "Their portrait goes up on the wall.",
 		apply = function(state, opts)
 			if #state.ownedPatrons == 0 then
 				return false, "No Patrons to honor"
@@ -738,6 +779,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "fresh_start", name = "Fresh Start", icon = "🔄", price = 6,
 		description = "Removes every Garnish, Special, and Stamp from every card currently in your hand.",
+		flavorText = "Clean slates for every card in your hand.",
 		apply = function(state)
 			for _, card in ipairs(state.hand) do
 				card.garnish = nil
@@ -750,6 +792,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "fresh_delivery", name = "Fresh Delivery", icon = "🚚", price = 6,
 		description = "Adds 1 random new card to your deck, with a random Garnish, Special, or Stamp already on it.",
+		flavorText = "Straight off the cart and already decorated.",
 		apply = function(state, opts)
 			local rng = (opts and opts.rng) or math.random
 			local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
@@ -770,6 +813,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "sugar_shield", name = "Sugar Shield", icon = "🛡️", price = 6,
 		description = "Brittle Garnish cards cannot shatter for the rest of this round.",
+		flavorText = "A sugar glaze keeps the candy from cracking.",
 		apply = function(state)
 			state.brittleShieldRound = true
 			return true, "Shielded for the rest of the round."
@@ -778,6 +822,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "crowd_favorite", name = "Crowd Favorite", icon = "📣", price = 7,
 		description = "Levels up whichever poker hand type you've played the most this run.",
+		flavorText = "Play the hit song again!",
 		apply = function(state)
 			local bestHand, bestCount = nil, 0
 			for handName, count in pairs(state.handStats) do
@@ -797,6 +842,7 @@ Recipes.SecretRecipes = {
 		id = "gold_standard", name = "Gold Standard", icon = "🏆", price = 6,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Gold Special (+10 Mult) to 1 selected card.",
+		flavorText = "Shiny, heavy and worth every coin.",
 		-- See Silver Service (HouseRecipes) for why this + Rainbow Sprinkle
 		-- exist -- rounding out the Special family with a deterministic way
 		-- to get each tier, not just a random one via Chef's Special.
@@ -813,6 +859,7 @@ Recipes.SecretRecipes = {
 		id = "rainbow_sprinkle", name = "Rainbow Sprinkle", icon = "🌈", price = 8,
 		cardCount = { min = 1, max = 1 },
 		description = "Adds a Rainbow Special (x1.5 Mult) to 1 selected card.",
+		flavorText = "Every color on top, and a little extra.",
 		-- Priced highest of the 3 Special-granting Recipes -- Rainbow is an
 		-- xMult (multiplicative), strictly the strongest of the 3 (Silver:
 		-- flat Chips, Gold: flat Mult, Rainbow: xMult), matching how this
@@ -830,6 +877,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "prime_reservation", name = "Prime Reservation", icon = "🎫", price = 7,
 		description = "A random Patron at your table gets a Reserved Special (+1 Patron slot), permanently.",
+		flavorText = "The best table, held just for them.",
 		-- GAP-FILL: RunState.patronSlotLimit already reads
 		-- ownedPatronSpecials[patron.id] == "reserved" and grants +1 slot
 		-- for it (see that function's own comment) -- but until now nothing
@@ -851,8 +899,9 @@ Recipes.SecretRecipes = {
 
 	-- ===== Phase 15 batch. =====
 	{
-		id = "everybodys_favorite", name = "Everybody's Favorite", icon = "🥂", price = 10,
+		id = "everybodys_favorite", name = "Everybody's Favorite", icon = "🧁", price = 10,
 		description = "Every Patron at your table gets a Silver Special (+50 Chips), permanently.",
+		flavorText = "Cupcakes for the whole table!",
 		-- The "hit your whole table at once" counterpart to Star Treatment/
 		-- Patron of the Month (both pick just 1 random Patron) -- priced
 		-- highest of the Special-granting Recipes since it scales with
@@ -871,6 +920,7 @@ Recipes.SecretRecipes = {
 	{
 		id = "bedtime_bonus", name = "Bedtime Bonus", icon = "🌃", price = 8,
 		description = "Doubles the Tips reward from the next round you win (stacks with a Boss Round's own double).",
+		flavorText = "Sleep tight. Tomorrow's tips are twice as nice.",
 		-- Sets a one-shot flag consumed by RunState.playHand's round-win
 		-- reward block, then cleared -- same "flag set here, read and
 		-- cleared once elsewhere" shape Sugar Shield's brittleShieldRound
