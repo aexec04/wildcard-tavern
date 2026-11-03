@@ -158,16 +158,16 @@ Every number changed, old to new. Each description string was updated to match.
 
 | Boss | Field | Old | New | Effective difficulty |
 |---|---|---|---|---|
-| watered_down | chips and mult | 0.5 | 0.75 | 4.0 to 1.78 |
+| stale_bread | chips and mult | 0.5 | 0.75 | 4.0 to 1.78 |
 | bare_bones | chips and mult | 0.4 | 0.7 | 6.25 to 2.04 |
 | everythings_out | chips and mult | 0.3 | 0.68 | 11.1 to 2.16 |
 | thin_chips | chips | 0.5 | 0.6 | 2.0 to 1.67 |
 | flat_mult | mult | 0.5 | 0.6 | 2.0 to 1.67 |
 | big_tab | target | 3 | 2 | 3.0 to 2.0 |
-| closing_time | target | none | 0.5 | 4.0 to 2.0 |
+| lights_out | target | none | 0.5 | 4.0 to 2.0 |
 | quick_service | target | none | 0.75 | 2.0 to 1.5 |
 | one_at_a_time | target | none | 0.35 | not capped by the formula |
-| last_call_only | discards | 0 | 1 | |
+| last_chance | discards | 0 | 1 | |
 | empty_handed | discards | 0 | 1 | |
 
 ### Patrons (`Patrons.lua`)
@@ -183,7 +183,7 @@ Every number changed, old to new. Each description string was updated to match.
 | penny_pincher | +2 Mult per 5 Tips | +1 Mult per 3 Tips | 6 to 7 |
 | tab_regulars | +1 Chip per 2 Tips | +1 Chip per Tip | 5 |
 | discard_special | +3 Mult per Discard left | +1 Mult per Discard left | 6 |
-| closing_tab | 2 Tips per Discard left | 1 Tip per Discard left | 6 |
+| spare_change | 2 Tips per Discard left | 1 Tip per Discard left | 6 |
 | full_house_crowd | x1.2 per other Patron | x1.15 per other Patron | 8 |
 | all_matching | +10 Mult | +18 Mult | 6 |
 | straight_shooter | +12 Mult | +18 Mult | 6 |
@@ -219,7 +219,7 @@ Every number changed, old to new. Each description string was updated to match.
 The plan's values were starting points, and these bots are stronger than the plan's: they use Recipes, rerolls and Patron swaps. On the plan's curve alone, decent won 42.6%, and 57.6% once the boss clamps were in.
 
 - **Night-1 deaths could not be fixed by growth.** Only the starting target moves them, so base went from 100 to 65.
-- **The win ratio needed discard-specific changes.** Decent has to win about twice as often as greedy, and curve changes move both together. Each of these favours the bot that discards: a higher Big Blind, Flush 40x5, 1 discard on Last Chance and Empty-Handed, a cheaper Late Kitchen, and weaker Discard Special and Closing Tab, which paid most to a player who never discards.
+- **The win ratio needed discard-specific changes.** Decent has to win about twice as often as greedy, and curve changes move both together. Each of these favours the bot that discards: a higher Big Blind, Flush 40x5, 1 discard on Last Chance and Empty-Handed, a cheaper Late Kitchen, and weaker Discard Special and Spare Change, which paid most to a player who never discards.
 - **A 4th base discard was tested and rejected.** It did not help the ratio.
 - **The plan's Patron nerfs were not enough.** steady_hand at +12 was still 4.9x the median, so the outliers went further, often with a price rise. double_down stays at +10, not the plan's +14, because the Pair-based probe already rates it at 2.0x.
 - **One at a Time needed x0.35, not x0.6.** At x0.6 it cleared only about 21% of the time.
@@ -234,7 +234,7 @@ The plan's values were starting points, and these bots are stronger than the pla
 | double_down | 2.0x | The same probe favours it |
 | the_apprentice, second_opinion | 2.92x, 1.54x | They copy a Patron from the probe's fixed table |
 | the_understudy | 0 | Nothing sits to its right in the probe |
-| last_call, repeat_customer | 0 | The probe doesn't set up their trigger |
+| curtain_call, repeat_customer | 0 | The probe doesn't set up their trigger |
 
 Forced-ownership lift at 400 runs has a standard error near 2.4 points, and these all land within about 3.5 points of control. That shows none is a large outlier, but it does not prove any is well priced. The bots don't build around a hand type, so they can't fully test these Patrons.
 
@@ -250,10 +250,10 @@ Each boss is forced on Night 6, 282 attempts each, decent bot. The all-boss aver
 | everythings_out | 0.0% | 43.6% | 0.57 |
 | bare_bones | 2.6% | 47.2% | 0.61 |
 | big_tab | 5.1% | 49.3% | 0.64 |
-| watered_down | 2.6% | 57.4% | 0.75 |
+| stale_bread | 2.6% | 57.4% | 0.75 |
 | thin_chips | 17.9% | 60.3% | 0.78 |
 | flat_mult | 17.9% | 60.3% | 0.78 |
-| closing_time | 6.4% | 63.1% | 0.82 |
+| lights_out | 6.4% | 63.1% | 0.82 |
 | four_top | 17.9% | 67.7% | 0.88 |
 
 The other 26 bosses are at 0.91x to 1.23x. Before-numbers are 78 attempts each. wild_crowd is a Night-6 boss but among the easiest at 1.21x, so its tier may be worth a look.
@@ -280,7 +280,7 @@ Owned free from Night 1, 400 runs, against a control of 14.0%. The check is that
 | tip_jar | 6 | 27.3 | +13.2 |
 | big_spender | 7 | 23.8 | +14.2 |
 | boss_bane | 7 | 21.6 | +13.0 |
-| closing_tab | 6 | 19.4 | +12.5 |
+| spare_change | 6 | 19.4 | +12.5 |
 | rainy_day_fund | 6 | 15.6 | +7.0 |
 
 nest_egg was tested on the banking bot, where it moved the win rate from 52.0% to 55.1% over 2,000 runs. That is about the size of the noise, so its value is unconfirmed. Tips are not tracked for it directly.

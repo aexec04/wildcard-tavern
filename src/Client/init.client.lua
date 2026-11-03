@@ -1753,7 +1753,7 @@ local function computeHandPreview(cardIndices)
 		return nil
 	end
 
-	-- Boss Rounds that flatten Chips/Mult (Watered Down, Thin Chips, Flat
+	-- Boss Rounds that flatten Chips/Mult (Stale Bread, Thin Chips, Flat
 	-- Mult, ...) apply AFTER Scoring.calculate, same as RunState.playHand.
 	-- Note this happens after extra.breakdown was already built, so the
 	-- ANIMATED running total during ScorePopup's reveal sequence tracks

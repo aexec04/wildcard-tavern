@@ -101,7 +101,7 @@ Patrons.Definitions = {
 		end,
 	},
 	{
-		id = "last_call",
+		id = "curtain_call",
 		name = "Curtain Call",
 		icon = "🌙",
 		description = "Mult x1.5 when played as your last hand of the round.",
@@ -500,7 +500,7 @@ Patrons.Definitions = {
 	-- ===== RunState.startRound, so it's still THIS round's leftover count =====
 	-- ===== here) =====
 	{
-		id = "closing_tab", name = "Closing Tab", icon = "🧻", price = 6,
+		id = "spare_change", name = "Spare Change", icon = "🧻", price = 6,
 		description = "Earn 1 Tip for every Discard you have remaining at the end of a round you win.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -605,7 +605,7 @@ Patrons.Definitions = {
 	},
 
 	-- ===== More ECONOMY (reads handsRemaining at round-win time -- the =====
-	-- ===== Hands-side counterpart to Closing Tab's Discards-side payout) =====
+	-- ===== Hands-side counterpart to Spare Change's Discards-side payout) =====
 	{
 		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
 		description = "Earn 1 Tip for every Hand you have remaining at the end of a round you win.",

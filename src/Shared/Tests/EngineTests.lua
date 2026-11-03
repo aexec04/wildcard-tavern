@@ -228,12 +228,12 @@ end })
 
 table.insert(tests, { name = "Scoring.calculate: 'Curtain Call' only triggers on the last hand", fn = function()
 	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") })
-	local lastCall = Patrons.getById("last_call")
+	local curtainCall = Patrons.getById("curtain_call")
 
-	local _, _, multNotLast = Scoring.calculate(hand, { lastCall }, { isLastHand = false })
+	local _, _, multNotLast = Scoring.calculate(hand, { curtainCall }, { isLastHand = false })
 	expectEqual(multNotLast, 2)
 
-	local _, _, multLast = Scoring.calculate(hand, { lastCall }, { isLastHand = true })
+	local _, _, multLast = Scoring.calculate(hand, { curtainCall }, { isLastHand = true })
 	expectEqual(multLast, 2 * 1.5)
 end })
 
@@ -526,7 +526,7 @@ end })
 -- gated, leaving nothing a Tips-earning player could spend Tips on.
 
 table.insert(tests, { name = "Phase 16 cosmetics: the 4 new Themes exist and are NOT gated behind any Game Pass", fn = function()
-	local newThemeIds = { "amethyst_lounge", "copper_speakeasy", "slate_parlor", "mint_julep" }
+	local newThemeIds = { "amethyst_lounge", "copper_kettle", "slate_parlor", "mint_sorbet" }
 	for _, themeId in ipairs(newThemeIds) do
 		local theme = Themes.getById(themeId)
 		expectTrue(theme ~= nil, themeId .. " should exist in Themes.Definitions")
@@ -574,7 +574,7 @@ table.insert(tests, { name = "BossRounds.pick returns a valid, well-formed modif
 end })
 
 -- BOSS DIFFICULTY: BossRounds.pick(rng, night) gates modifiers by minNight
--- (Ahmed's playtest bug -- Closing Time, a "1 hand only" boss, appeared on
+-- (Ahmed's playtest bug -- Lights Out, a "1 hand only" boss, appeared on
 -- an early Night when he barely had any Patrons). Every definition below
 -- with a `minNight > 1` should NEVER be reachable before that Night.
 table.insert(tests, { name = "BossRounds.pick never returns a tier-3 (minNight = 6) modifier before Night 6", fn = function()
@@ -603,8 +603,8 @@ end })
 
 table.insert(tests, { name = "RunState.startRound picks a Boss modifier gated by state.night, not fully random", fn = function()
 	-- A dry rng forcing the LAST eligible index every time -- on Night 1
-	-- this can only ever be a tier-1 (mild) modifier, never Closing Time/
-	-- Watered Down/etc, reproducing the exact scenario Ahmed hit.
+	-- this can only ever be a tier-1 (mild) modifier, never Lights Out/
+	-- Stale Bread/etc, reproducing the exact scenario Ahmed hit.
 	local state = RunState.new(nil, function(n) return n end)
 	expectTrue(state.night == 1)
 	expectTrue(state.nightBossModifier ~= nil)
@@ -668,32 +668,32 @@ table.insert(tests, { name = "Standard difficulty picks a Boss Round modifier on
 end })
 
 table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks the dealt hand", fn = function()
-	-- Find Dry Spell's actual position (handSizeDelta = -1, discardsDelta =
+	-- Find Short Staffed's actual position (handSizeDelta = -1, discardsDelta =
 	-- -1) rather than assuming it's last -- new Boss Rounds get appended
 	-- to the list over time, which would otherwise silently pick a
 	-- different modifier and break this test.
-	local dryIndex
+	local shortStaffedIndex
 	for i, def in ipairs(BossRounds.Definitions) do
-		if def.id == "dry_spell" then
-			dryIndex = i
+		if def.id == "short_staffed" then
+			shortStaffedIndex = i
 		end
 	end
-	expectTrue(dryIndex ~= nil, "expected to find dry_spell in BossRounds.Definitions")
+	expectTrue(shortStaffedIndex ~= nil, "expected to find short_staffed in BossRounds.Definitions")
 	-- JOURNEY FEATURE: the Night's Boss modifier is now picked at Round 1
 	-- (see RunState.startRound), not lazily the instant the Boss round
 	-- itself starts -- so the deterministic rng has to be in place from
 	-- construction, not patched onto `state.rng` after the fact (that
 	-- would be too late: Round 1's pick already happened inside
 	-- RunState.new, using whatever rng was passed there).
-	local state = RunState.new(nil, function(_n) return dryIndex end)
-	-- BOSS DIFFICULTY: dry_spell is minNight = 3 (see BossRounds.lua), so
+	local state = RunState.new(nil, function(_n) return shortStaffedIndex end)
+	-- BOSS DIFFICULTY: short_staffed is minNight = 3 (see BossRounds.lua), so
 	-- RunState.new's own Round-1-at-Night-1 pick above can't have selected
 	-- it (Night 1 only has tier-1 modifiers eligible). Force the run to
 	-- Night 3 and re-pick Round 1's Boss modifier there -- same as a real
 	-- player reaching Night 3 -- before jumping straight to the Boss round
 	-- itself (skipping normal round-by-round progression, since this test
-	-- only cares about the modifier's effect once it's active). dryIndex
-	-- still resolves to dry_spell here: at Night 3+, every modifier before
+	-- only cares about the modifier's effect once it's active). shortStaffedIndex
+	-- still resolves to short_staffed here: at Night 3+, every modifier before
 	-- it in Definitions order (all of tier 1 + earlier tier 2) is also
 	-- eligible, so its position in the eligible list matches its position
 	-- in the full list.
@@ -702,7 +702,7 @@ table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks 
 	RunState.startRound(state)
 	state.round = state.config.roundsPerNight
 	RunState.startRound(state)
-	expectEqual(state.bossModifier.id, "dry_spell")
+	expectEqual(state.bossModifier.id, "short_staffed")
 	expectEqual(#state.hand, state.config.handSize - 1)
 	expectEqual(state.discardsRemaining, state.config.discardsPerRound - 1)
 end })
@@ -841,12 +841,12 @@ table.insert(tests, { name = "ROUND SELECT: the On the House Tag falls back to T
 	expectEqual(state.tips, tipsBefore + result.amount)
 end })
 
-table.insert(tests, { name = "ROUND SELECT: the Happy Hour Tag discounts the next shop visit, then clears once you leave it", fn = function()
-	local happyHourIndex = tagIndexById("happy_hour")
-	expectTrue(happyHourIndex ~= nil, "expected to find happy_hour in Tags.Definitions")
-	local state = RunState.new(nil, function(_n) return happyHourIndex end)
+table.insert(tests, { name = "ROUND SELECT: the Sale Day Tag discounts the next shop visit, then clears once you leave it", fn = function()
+	local saleDayIndex = tagIndexById("sale_day")
+	expectTrue(saleDayIndex ~= nil, "expected to find sale_day in Tags.Definitions")
+	local state = RunState.new(nil, function(_n) return saleDayIndex end)
 	local tag, result = RunState.skipRound(state)
-	expectEqual(tag.id, "happy_hour")
+	expectEqual(tag.id, "sale_day")
 	expectEqual(result.kind, "discount")
 	expectEqual(state.nextShopDiscount, result.amount)
 
@@ -857,18 +857,18 @@ table.insert(tests, { name = "ROUND SELECT: the Happy Hour Tag discounts the nex
 	-- should be gone by the round after that.
 	state.roundOver = true
 	RunState.advanceToNextRound(state)
-	expectTrue(state.nextShopDiscount == nil, "Happy Hour's discount should be consumed once its shop visit ends")
+	expectTrue(state.nextShopDiscount == nil, "Sale Day's discount should be consumed once its shop visit ends")
 	expectEqual(RunState.patronPrice(state, samplePatron), samplePatron.price)
 end })
 
-table.insert(tests, { name = "ROUND SELECT: Happy Hour Tag and Regulars' Discount House Pass stack, floored at 1 Tip", fn = function()
-	local happyHourIndex = tagIndexById("happy_hour")
-	local state = RunState.new(nil, function(_n) return happyHourIndex end)
+table.insert(tests, { name = "ROUND SELECT: Sale Day Tag and Regulars' Discount House Pass stack, floored at 1 Tip", fn = function()
+	local saleDayIndex = tagIndexById("sale_day")
+	local state = RunState.new(nil, function(_n) return saleDayIndex end)
 	state.housePasses.regulars_discount = true
 	local _, result = RunState.skipRound(state)
 	local cheapPatron = { price = 4 } -- cheap enough that both discounts combined would go below 1
 	expectEqual(RunState.patronPrice(state, cheapPatron), 1)
-	-- Happy Hour applies to Pack prices too (see its description), even
+	-- Sale Day applies to Pack prices too (see its description), even
 	-- though Wholesale Pricing (the House Pass equivalent) wasn't bought --
 	-- only the Tag's own 3-Tip discount applies here.
 	expectEqual(RunState.packPrice(state, { price = 10 }), 7)
@@ -1077,21 +1077,21 @@ table.insert(tests, { name = "Boss Round zeroTipsOnMostPlayedHand wipes Tips on 
 	expectEqual(state.tips, 0)
 end })
 
-table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Watered Down) cuts Chips and Mult by 25%", fn = function()
+table.insert(tests, { name = "Boss Round chipsMultiplier/multMultiplier (Stale Bread) cuts Chips and Mult by 25%", fn = function()
 	local stateNormal = RunState.new(nil, function(n) return n end)
 	local resultNormal = RunState.playHand(stateNormal, { 1, 2 })
 
 	local stateHalved = RunState.new(nil, function(n) return n end)
-	stateHalved.bossModifier = BossRounds.getById("watered_down")
+	stateHalved.bossModifier = BossRounds.getById("stale_bread")
 	local resultHalved = RunState.playHand(stateHalved, { 1, 2 })
 
 	expectEqual(resultHalved.chips, resultNormal.chips * 0.75)
 	expectEqual(resultHalved.mult, resultNormal.mult * 0.75)
 end })
 
-table.insert(tests, { name = "Boss Round handsPerRoundOverride (Closing Time) hard-limits hands allowed", fn = function()
+table.insert(tests, { name = "Boss Round handsPerRoundOverride (Lights Out) hard-limits hands allowed", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
-	local bossModifier = BossRounds.getById("closing_time")
+	local bossModifier = BossRounds.getById("lights_out")
 	-- Re-run just the hands-allowed math startRound would do, without
 	-- re-picking a random modifier (same approach as the existing
 	-- "Boss Round target score multiplier" test above).
@@ -2367,7 +2367,7 @@ table.insert(tests, { name = "Achievements: runsWon-tiered achievements unlock a
 	for _ = 1, 4 do
 		PlayerProfile.recordRunWon(profile)
 	end
-	expectTrue(Achievements.isUnlocked(profile, "closing_time"))
+	expectTrue(Achievements.isUnlocked(profile, "grand_finale"))
 	expectFalse(Achievements.isUnlocked(profile, "regular"), "4 wins shouldn't be enough for the 5-win achievement")
 	PlayerProfile.recordRunWon(profile)
 	expectTrue(Achievements.isUnlocked(profile, "regular"), "the 5th win should unlock it")
@@ -2405,7 +2405,7 @@ table.insert(tests, { name = "Achievements: ownedThemeIds-count achievements (Re
 	PlayerProfile.recordThemesOwned(profile, { "amethyst_lounge" })
 	expectTrue(Achievements.isUnlocked(profile, "redecorated"))
 	expectFalse(Achievements.isUnlocked(profile, "theme_connoisseur"))
-	PlayerProfile.recordThemesOwned(profile, { "copper_speakeasy", "slate_parlor", "mint_julep" })
+	PlayerProfile.recordThemesOwned(profile, { "copper_kettle", "slate_parlor", "mint_sorbet" })
 	expectTrue(Achievements.isUnlocked(profile, "theme_connoisseur"))
 end })
 
@@ -2419,13 +2419,13 @@ table.insert(tests, { name = "Achievements.unlockedFor: returns exactly the achi
 		unlockedIds[a.id] = true
 	end
 	expectTrue(unlockedIds.first_steps)
-	expectTrue(unlockedIds.closing_time)
+	expectTrue(unlockedIds.grand_finale)
 	expectFalse(unlockedIds.regular == true)
 end })
 
 table.insert(tests, { name = "PlayerProfile.equipTitle: refuses a title that isn't unlocked yet", fn = function()
 	local profile = PlayerProfile.new()
-	local ok, message = PlayerProfile.equipTitle(profile, "closing_time")
+	local ok, message = PlayerProfile.equipTitle(profile, "grand_finale")
 	expectFalse(ok)
 	expectTrue(message ~= nil)
 	expectEqual(profile.equippedTitleId, nil)
@@ -2818,13 +2818,13 @@ table.insert(tests, { name = "'Jack of All Trades' / 'Queen's Gambit' give no bo
 	expectEqual(mult, 1) -- base High Card mult only
 end })
 
-table.insert(tests, { name = "'Closing Tab' earns 1 Tip per Discard remaining on round win", fn = function()
+table.insert(tests, { name = "'Spare Change' earns 1 Tip per Discard remaining on round win", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
-	RunState.buyPatron(state, "closing_tab")
+	RunState.buyPatron(state, "spare_change")
 	state.tips = 20
-	local closingTab = Patrons.getById("closing_tab")
+	local spareChange = Patrons.getById("spare_change")
 	local tipsBefore = state.tips
-	closingTab.onRoundWin(state)
+	spareChange.onRoundWin(state)
 	expectEqual(state.tips, tipsBefore + state.discardsRemaining) -- 3 discards by default
 end })
 
@@ -2859,13 +2859,13 @@ table.insert(tests, { name = "Patrons.Definitions has grown to include this phas
 	expectTrue(#Patrons.Definitions >= 37, "expected the Patron pool to include this phase's 6 additions")
 end })
 
-table.insert(tests, { name = "'Watered Pour' / 'Slow Pour' are mild tier-1 versions of Thin Chips / Flat Mult", fn = function()
-	local wateredPour = BossRounds.getById("watered_pour")
-	local slowPour = BossRounds.getById("slow_pour")
-	expectEqual(wateredPour.chipsMultiplier, 0.8)
-	expectEqual(wateredPour.minNight, 1)
-	expectEqual(slowPour.multMultiplier, 0.8)
-	expectEqual(slowPour.minNight, 1)
+table.insert(tests, { name = "'Thin Soup' / 'Slow Simmer' are mild tier-1 versions of Thin Chips / Flat Mult", fn = function()
+	local thinSoup = BossRounds.getById("thin_soup")
+	local slowSimmer = BossRounds.getById("slow_simmer")
+	expectEqual(thinSoup.chipsMultiplier, 0.8)
+	expectEqual(thinSoup.minNight, 1)
+	expectEqual(slowSimmer.multMultiplier, 0.8)
+	expectEqual(slowSimmer.minNight, 1)
 end })
 
 table.insert(tests, { name = "'Double Tab' combines Tips-lost-per-card with a higher target score, gated to tier 2", fn = function()
@@ -3131,28 +3131,28 @@ table.insert(tests, { name = "Secret Recipe \"Everybody's Favorite\" refuses wit
 	expectFalse(ok)
 end })
 
-table.insert(tests, { name = "Secret Recipe 'Nightcap Round' doubles the next round-win Tips reward, then clears itself", fn = function()
+table.insert(tests, { name = "Secret Recipe 'Bedtime Bonus' doubles the next round-win Tips reward, then clears itself", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
-	local recipe = Recipes.getSecretRecipeById("nightcap_round")
+	local recipe = Recipes.getSecretRecipeById("bedtime_bonus")
 	local ok = recipe.apply(state)
 	expectTrue(ok)
-	expectTrue(state.nightcapRoundActive)
+	expectTrue(state.bedtimeBonusActive)
 
 	state.targetScore = 0 -- guarantee an immediate round win
 	state.tips = 0 -- avoid interest muddying the expected total
 	RunState.playHand(state, { 1 })
 	expectEqual(state.tips, 2 * state.config.tipsPerRoundWin) -- doubled flat reward, no boss
-	expectFalse(state.nightcapRoundActive) -- one-shot: cleared after use
+	expectFalse(state.bedtimeBonusActive) -- one-shot: cleared after use
 end })
 
-table.insert(tests, { name = "'Nightcap Round' stacks with a Boss Round's own double instead of replacing it", fn = function()
+table.insert(tests, { name = "'Bedtime Bonus' stacks with a Boss Round's own double instead of replacing it", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.bossModifier = BossRounds.getById("bouncer")
-	state.nightcapRoundActive = true
+	state.bedtimeBonusActive = true
 	state.targetScore = 0
 	state.tips = 0
 	RunState.playHand(state, { 1 })
-	-- Boss doubles tipsPerRoundWin once, Nightcap Round doubles the result again.
+	-- Boss doubles tipsPerRoundWin once, Bedtime Bonus doubles the result again.
 	expectEqual(state.tips, 4 * state.config.tipsPerRoundWin)
 end })
 
@@ -3526,10 +3526,10 @@ table.insert(tests, { name = "Balance: no boss modifier exceeds an effective dif
 end })
 
 table.insert(tests, { name = "Balance: tier-3 Chips+Mult bosses keep their ordering", fn = function()
-	local watered = BossRounds.getById("watered_down").chipsMultiplier
+	local stale = BossRounds.getById("stale_bread").chipsMultiplier
 	local bare = BossRounds.getById("bare_bones").chipsMultiplier
 	local everything = BossRounds.getById("everythings_out").chipsMultiplier
-	expectTrue(watered > bare and bare > everything)
+	expectTrue(stale > bare and bare > everything)
 end })
 
 table.insert(tests, { name = "Balance: boss target changes apply through startRound", fn = function()
@@ -3548,22 +3548,22 @@ table.insert(tests, { name = "Balance: boss target changes apply through startRo
 		return state
 	end
 	local base = RunState.targetScoreFor(6, 3, 3)
-	expectEqual(bossTarget("closing_time", 6).targetScore, math.floor(base * 0.5))
-	expectEqual(bossTarget("closing_time", 6).handsRemaining, 1)
+	expectEqual(bossTarget("lights_out", 6).targetScore, math.floor(base * 0.5))
+	expectEqual(bossTarget("lights_out", 6).handsRemaining, 1)
 	expectEqual(bossTarget("quick_service", 6).targetScore, math.floor(base * 0.75))
 	expectEqual(bossTarget("one_at_a_time", 6).targetScore, math.floor(base * 0.35))
 	expectEqual(bossTarget("big_tab", 6).targetScore, math.floor(base * 2))
-	expectEqual(bossTarget("last_call_only", 6).discardsRemaining, 1)
+	expectEqual(bossTarget("last_chance", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).discardsRemaining, 1)
 	expectEqual(bossTarget("empty_handed", 6).handsRemaining, 3)
 end })
 
 table.insert(tests, { name = "Balance: boss descriptions state their tuned numbers", fn = function()
 	local expected = {
-		watered_down = "25%", bare_bones = "30%", everythings_out = "32%",
+		stale_bread = "25%", bare_bones = "30%", everythings_out = "32%",
 		thin_chips = "40%", flat_mult = "40%", big_tab = "double",
-		closing_time = "halved", quick_service = "25%", one_at_a_time = "65%",
-		last_call_only = "1 discard", empty_handed = "1 discard",
+		lights_out = "halved", quick_service = "25%", one_at_a_time = "65%",
+		last_chance = "1 discard", empty_handed = "1 discard",
 	}
 	for id, text in pairs(expected) do
 		local description = BossRounds.getById(id).description

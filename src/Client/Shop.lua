@@ -576,7 +576,7 @@ return function(deps)
 	-- ----- Recipe target picker state + logic -----
 	-- pendingUse holds { category = "house"|"menu"|"secret", id, recipe }
 	-- while the picker is open; nil otherwise. Recipes with no cardCount
-	-- (Happy Hour, Menu Recipes, etc.) never go through this -- they use
+	-- (Tip Doubler, Menu Recipes, etc.) never go through this -- they use
 	-- immediately via a plain confirm dialog instead (see rebuildMyRecipesTab).
 	local pendingUse = nil
 	local pendingSelected = {} -- [handIndex] = true

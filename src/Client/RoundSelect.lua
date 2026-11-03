@@ -41,7 +41,7 @@
 		                     fallback)
 		showUnlockPopup   -- function(name, description) -- reused for the
 		                     On the House Tag's free-Patron grant
-		showWarning       -- function(text) -- reused for the Happy Hour
+		showWarning       -- function(text) -- reused for the Sale Day
 		                     Tag's confirmation (no dedicated "+X Tips"/
 		                     "new item" moment fits a discount)
 		getLatestState    -- function() -> latest state table or nil (live getter)
@@ -339,8 +339,8 @@ return function(deps)
 			if showRoundReward and amount and amount > 0 then
 				showRoundReward(amount)
 			end
-		elseif tag.id == "happy_hour" and showWarning then
-			showWarning("Happy Hour Tag: your next shop visit is discounted!")
+		elseif tag.id == "sale_day" and showWarning then
+			showWarning("Sale Day Tag: your next shop visit is discounted!")
 		end
 	end
 

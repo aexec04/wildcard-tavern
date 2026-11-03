@@ -39,8 +39,8 @@ local STANDARD_KEEP_PRIORITY = 3
 -- Rough relative gains the score probe can't see: these Patrons pay out in
 -- Tips, or only trigger in a situation the neutral probe doesn't set up.
 local UNSEEN_GAIN = {
-	tip_jar = 0.12, big_spender = 0.10, closing_tab = 0.08, rainy_day_fund = 0.05,
-	boss_bane = 0.08, nest_egg = 0.05, last_call = 0.15, repeat_customer = 0.5,
+	tip_jar = 0.12, big_spender = 0.10, spare_change = 0.08, rainy_day_fund = 0.05,
+	boss_bane = 0.08, nest_egg = 0.05, curtain_call = 0.15, repeat_customer = 0.5,
 	-- Scaling Patrons: what the probe's "today" misses of their later growth.
 	slow_cooker = 0.3, house_tab = 0.25, regulars_chair = 0.2, cobweb_shelf = 0.15,
 	tasting_menu = 0.1, pair_bonds = 0.2, veterans_table = 0.15, estate_sale = 0.05,
@@ -61,7 +61,7 @@ local RECIPE_USE = {
 	eighty_six_it = { value = 5, pick = "worst", count = 2 },
 	copy_the_order = { value = 5, pick = "copy" },
 	suit_swap = { value = 3, pick = "suit" },
-	happy_hour = { value = 6 },
+	tip_doubler = { value = 6 },
 	tabs_on_the_house = { value = 5 },
 	new_regular = { value = 7, needsSeat = true },
 	encore_order = { value = 4, pick = "best", count = 1 },
@@ -85,7 +85,7 @@ local RECIPE_USE = {
 	crowd_favorite = { value = 7 },
 	gold_standard = { value = 7, pick = "best", count = 1 },
 	rainbow_sprinkle = { value = 8, pick = "best", count = 1 },
-	nightcap_round = { value = 4 },
+	bedtime_bonus = { value = 4 },
 }
 
 -- Tips each Patron actually pays out, reported per run by wrapping its

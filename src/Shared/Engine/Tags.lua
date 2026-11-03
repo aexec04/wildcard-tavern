@@ -102,8 +102,8 @@ Tags.Definitions = {
 		end,
 	},
 	{
-		id = "happy_hour",
-		name = "Happy Hour Tag",
+		id = "sale_day",
+		name = "Sale Day Tag",
 		icon = "🥤",
 		description = "Your NEXT shop visit: Patron and Pack prices are 3 Tips cheaper (minimum 1).",
 		apply = function(state)

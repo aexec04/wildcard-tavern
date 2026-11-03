@@ -11,7 +11,7 @@
 	it was just impossible since you didn't even have that many jokers to
 	begin with"). Before this, selection was uniform across ALL 24
 	modifiers regardless of what Night you were on, so a run-ending wall
-	like Closing Time (1 hand only) was exactly as likely on Night 1 as
+	like Lights Out (1 hand only) was exactly as likely on Night 1 as
 	Night 10. Now every modifier has a `minNight`, grouped into 3 rough
 	tiers by how much they actually cripple a fresh, Patron-light run:
 	tier 1 (Night 1+) is mild single-knob stuff (a card/discard down, a
@@ -19,7 +19,7 @@
 	restrictions (suit/face debuffs, no-repeat hands, 0 discards); tier 3
 	(Night 6+) is the genuinely brutal stuff (hard hand caps, reduced
 	Chips+Mult, a forced 1-card hand, doubled target) -- exactly the
-	category Closing Time was in. By Night 6 a run has had 15 rounds
+	category Lights Out was in. By Night 6 a run has had 15 rounds
 	(5 Nights x 3 rounds) to build up Patrons/Recipes/House Passes, so
 	these read as a real challenge spike instead of an early-run wall.
 
@@ -55,8 +55,8 @@ BossRounds.Definitions = {
 		handSizeDelta = -1,
 	},
 	{
-		id = "last_orders",
-		name = "Last Orders",
+		id = "short_notice",
+		name = "Short Notice",
 		description = "One fewer discard this round.",
 		minNight = 1,
 		discardsDelta = -1,
@@ -76,15 +76,15 @@ BossRounds.Definitions = {
 		tipsLostPerCardPlayed = 1,
 	},
 	{
-		id = "watered_pour",
-		name = "Watered Pour",
+		id = "thin_soup",
+		name = "Thin Soup",
 		description = "Chips from played hands are reduced by 20% this round.",
 		minNight = 1,
 		chipsMultiplier = 0.8,
 	},
 	{
-		id = "slow_pour",
-		name = "Slow Pour",
+		id = "slow_simmer",
+		name = "Slow Simmer",
 		description = "Mult from played hands is reduced by 20% this round.",
 		minNight = 1,
 		multMultiplier = 0.8,
@@ -141,15 +141,15 @@ BossRounds.Definitions = {
 		requiredCardsPerHand = 5,
 	},
 	{
-		id = "last_call_only",
+		id = "last_chance",
 		name = "Last Chance",
 		description = "You get only 1 discard this round.",
 		minNight = 3,
 		discardsDelta = -2,
 	},
 	{
-		id = "dry_spell",
-		name = "Dry Spell",
+		id = "short_staffed",
+		name = "Short Staffed",
 		description = "One fewer card dealt AND one fewer discard this round.",
 		minNight = 3,
 		handSizeDelta = -1,
@@ -201,8 +201,8 @@ BossRounds.Definitions = {
 	-- ===== Tier 3 (Night 6+) -- the genuinely brutal ones. By Night 6 a =====
 	-- ===== run has had 15 rounds to build up Patrons/Recipes/House Passes =====
 	{
-		id = "closing_time",
-		name = "Closing Time",
+		id = "lights_out",
+		name = "Lights Out",
 		description = "You may only play 1 hand this round, but the target score is halved.",
 		minNight = 6,
 		handsPerRoundOverride = 1,
@@ -217,8 +217,8 @@ BossRounds.Definitions = {
 		targetScoreMultiplier = 0.75,
 	},
 	{
-		id = "watered_down",
-		name = "Watered Down",
+		id = "stale_bread",
+		name = "Stale Bread",
 		description = "Chips and Mult from played hands are reduced by 25% this round.",
 		minNight = 6,
 		chipsMultiplier = 0.75,
@@ -304,7 +304,7 @@ BossRounds.Definitions = {
 		description = "The target score is 20% higher this round.",
 		-- Milder sibling of tier-1 House Rules (1.4x) -- same knob, lower
 		-- number, same tier (a numeric variant within a tier is the exact
-		-- pattern Watered Pour/Slow Pour already established for
+		-- pattern Thin Soup/Slow Simmer already established for
 		-- Chips/Mult at tier 1).
 		minNight = 1,
 		targetScoreMultiplier = 1.2,
@@ -315,7 +315,7 @@ BossRounds.Definitions = {
 		description = "Heart cards score no Chips or Mult, and you're dealt one fewer card, this round.",
 		-- New COMBO (a suit debuff + a hand-size cut together) -- not just a
 		-- numeric variant, so tiered by comparing severity to existing tier-2
-		-- combos: Dry Spell (handSizeDelta -1 + discardsDelta -1) and Double
+		-- combos: Short Staffed (handSizeDelta -1 + discardsDelta -1) and Double
 		-- Tab (tipsLost + targetMult +20%) are both 2-knob tier-2 modifiers;
 		-- a single-suit debuff (already tier 2 alone, e.g. Hearts Are Out)
 		-- plus a 1-card hand cut (tier 1 alone, The Bouncer) reads as
@@ -328,7 +328,7 @@ BossRounds.Definitions = {
 		id = "rushed_order",
 		name = "Rushed Order",
 		description = "You may only play 3 hands this round.",
-		-- Milder sibling of tier-3 Closing Time (1 hand) and Quick Service
+		-- Milder sibling of tier-3 Lights Out (1 hand) and Quick Service
 		-- (2 hands) -- 3 hands is a genuine restriction (below the default
 		-- handsPerRound) but nowhere near as crippling as capping at 1-2,
 		-- so it sits a tier below both rather than joining them at tier 3.
@@ -339,7 +339,7 @@ BossRounds.Definitions = {
 		id = "bare_bones",
 		name = "Bare Bones",
 		description = "Chips and Mult from played hands are reduced by 30% this round.",
-		-- Sits between tier-3 siblings Watered Down (-25%) and
+		-- Sits between tier-3 siblings Stale Bread (-25%) and
 		-- Everything's Out (-32%) -- a genuine tier-3-only
 		-- escalation step, not a new knob.
 		minNight = 6,

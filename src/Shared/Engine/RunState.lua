@@ -233,7 +233,7 @@ function RunState.new(options, rng)
 		-- you're CURRENTLY on, picked fresh every startRound (see below) --
 		-- nil on the Boss round (never skippable). See Tags.lua.
 		currentRoundSkipTag = nil,
-		-- Set by the "Happy Hour Tag" (Tags.lua): a flat Tips-off discount
+		-- Set by the "Sale Day Tag" (Tags.lua): a flat Tips-off discount
 		-- applied to Patron/Pack prices for the very next shop visit only,
 		-- then cleared when that visit ends -- see patronPrice/packPrice
 		-- and advanceToNextRound below.
@@ -355,8 +355,8 @@ function RunState.startRound(state)
 	if state.bossRoundsEnabled then
 		if state.round == 1 then
 			-- BUGFIX (Ahmed's playtest): pass state.night so BossRounds.pick
-			-- can gate out the brutal tier-3 modifiers (Closing Time, Watered
-			-- Down, ...) until Night 6+ -- see BossRounds.lua's header
+			-- can gate out the brutal tier-3 modifiers (Lights Out, Stale
+			-- Bread, ...) until Night 6+ -- see BossRounds.lua's header
 			-- comment. Previously this picked uniformly across ALL 24
 			-- modifiers regardless of Night, so a run-ending "1 hand only"
 			-- boss was exactly as likely on Night 1 as Night 10.
@@ -758,14 +758,14 @@ function RunState.playHand(state, cardIndices)
 		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
 		end
-		-- PHASE 15: "Nightcap Round" (Secret Recipe) sets this one-shot flag
+		-- PHASE 15: "Bedtime Bonus" (Secret Recipe) sets this one-shot flag
 		-- to double whatever reward THIS round-win was already going to pay
 		-- (stacks on top of a Boss Round's own double, rather than
 		-- replacing it) -- cleared immediately after, so it only ever
 		-- applies to the next single round win, never lingers.
-		if state.nightcapRoundActive then
+		if state.bedtimeBonusActive then
 			reward = reward * 2
-			state.nightcapRoundActive = false
+			state.bedtimeBonusActive = false
 		end
 		state.tips = state.tips + reward
 
@@ -881,7 +881,7 @@ function RunState.recipeSlotLimit(state)
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'
--- Discount House Pass and a "Happy Hour Tag" (see Tags.lua/
+-- Discount House Pass and a "Sale Day Tag" (see Tags.lua/
 -- state.nextShopDiscount) both knock Tips off. Shop offer prices are
 -- computed with this (server-side, in serializeState) so the client never
 -- needs to duplicate the discount math -- it just displays whatever price
@@ -897,7 +897,7 @@ function RunState.patronPrice(state, patron)
 	return math.max(1, price)
 end
 
--- Same idea for Packs -- Wholesale Pricing + a Happy Hour Tag both apply.
+-- Same idea for Packs -- Wholesale Pricing + a Sale Day Tag both apply.
 function RunState.packPrice(state, pack)
 	local price = pack.price
 	if state.housePasses.wholesale_pricing then
@@ -992,7 +992,7 @@ local STANDARD_MODIFIER_POOL = {
 	{ kind = "garnish", id = "houseBlend" },
 	{ kind = "garnish", id = "brittle" },
 	{ kind = "garnish", id = "iron" },
-	{ kind = "garnish", id = "barToken" },
+	{ kind = "garnish", id = "houseToken" },
 	{ kind = "garnish", id = "golden" },
 	{ kind = "garnish", id = "lucky" },
 	{ kind = "special", id = "silver" },
@@ -1420,7 +1420,7 @@ end
 function RunState.advanceToNextRound(state)
 	assert(state.roundOver and not state.runOver, "Can't advance: round not won or run already over")
 
-	-- A Happy Hour Tag (Tags.lua) only ever covers the shop visit right
+	-- A Sale Day Tag (Tags.lua) only ever covers the shop visit right
 	-- after you skipped for it -- clear it here, at the moment that visit
 	-- actually ends, whether or not it got used on a purchase.
 	state.nextShopDiscount = nil

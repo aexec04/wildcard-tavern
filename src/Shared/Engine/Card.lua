@@ -64,8 +64,8 @@ Card.Garnishes = {
 		description = "x1.5 Mult for each of these held in your hand (not played).",
 		heldXMult = 1.5,
 	},
-	barToken = {
-		name = "Bar Token", icon = "🪙",
+	houseToken = {
+		name = "House Token", icon = "🪙",
 		description = "+50 Chips. A wooden token, not a real card -- no rank or suit, fits any hand.",
 		chips = 50,
 		blank = true,

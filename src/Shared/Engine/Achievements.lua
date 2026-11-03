@@ -39,8 +39,8 @@ Achievements.Definitions = {
 		requirement = function(profile) return profile.stats.runsStarted >= 1 end,
 	},
 	{
-		id = "closing_time",
-		name = "Closing Time",
+		id = "grand_finale",
+		name = "Grand Finale",
 		icon = "🌙",
 		title = "Tavern Keeper",
 		description = "Win your first run.",

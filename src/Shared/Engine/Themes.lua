@@ -178,8 +178,8 @@ Themes.Definitions = {
 		},
 	},
 	{
-		id = "copper_speakeasy",
-		name = "Copper Speakeasy",
+		id = "copper_kettle",
+		name = "Copper Kettle",
 		description = "Worn copper piping and low rust-toned lamplight -- a scruffier, quieter warmth than Golden Hour's bright sunset gold.",
 		price = 9,
 		colors = {
@@ -204,8 +204,8 @@ Themes.Definitions = {
 		},
 	},
 	{
-		id = "mint_julep",
-		name = "Mint Julep",
+		id = "mint_sorbet",
+		name = "Mint Sorbet",
 		description = "Fresh teal and pale mint -- a lighter, cooler green than Forest's deep back-room shade.",
 		price = 10,
 		colors = {

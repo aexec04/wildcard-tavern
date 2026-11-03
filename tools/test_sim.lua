@@ -81,8 +81,8 @@ check("chooseKeep keeps paired ranks", #Sim.chooseKeep(paired) == 4)
 local loose = { C(2, "Hearts"), C(4, "Spades"), C(6, "Hearts"), C(8, "Clubs"), C(10, "Spades"), C(12, "Clubs"), C(14, "Spades"), C(3, "Diamonds") }
 check("chooseKeep keeps the 3 highest", #Sim.chooseKeep(loose) == 3)
 
-local forced = Sim.runOne(config({ forceBoss = "closing_time", bossNight = 1 }), 4)
-check("forced boss appears on its Night", forced.bosses[1] and forced.bosses[1].id == "closing_time")
+local forced = Sim.runOne(config({ forceBoss = "lights_out", bossNight = 1 }), 4)
+check("forced boss appears on its Night", forced.bosses[1] and forced.bosses[1].id == "lights_out")
 
 print(failed == 0 and "\nAll simulator checks passed" or ("\n" .. failed .. " simulator check(s) failed"))
 os.exit(failed == 0 and 0 or 1)

@@ -133,13 +133,13 @@ Recipes.HouseRecipes = {
 	{
 		id = "house_token_order", name = "House Token Order", icon = "🪙", price = 4,
 		cardCount = { min = 1, max = 1 },
-		description = "Turns 1 selected card into a Bar Token (+50 Chips).",
+		description = "Turns 1 selected card into a House Token (+50 Chips).",
 		apply = function(state, opts)
 			local cards = cardsAt(state, opts and opts.cardIndices)
 			if not cards or #cards ~= 1 then
 				return false, "Select exactly 1 card"
 			end
-			cards[1].garnish = "barToken"
+			cards[1].garnish = "houseToken"
 			return true, "Traded in for a token."
 		end,
 	},
@@ -221,7 +221,7 @@ Recipes.HouseRecipes = {
 		end,
 	},
 	{
-		id = "happy_hour", name = "Happy Hour", icon = "🎉", price = 5,
+		id = "tip_doubler", name = "Tip Doubler", icon = "🎉", price = 5,
 		description = "Doubles your current Tips (capped at +20).",
 		apply = function(state)
 			local gain = math.min(state.tips, 20)
@@ -413,7 +413,7 @@ Recipes.HouseRecipes = {
 				return false, "Select exactly 1 card"
 			end
 			local rng = (opts and opts.rng) or math.random
-			local garnishIds = { "sweet", "zesty", "houseBlend", "brittle", "iron", "barToken", "golden", "lucky" }
+			local garnishIds = { "sweet", "zesty", "houseBlend", "brittle", "iron", "houseToken", "golden", "lucky" }
 			cards[1].garnish = randomChoice(garnishIds, rng)
 			return true, "Sunday Special, applied."
 		end,
@@ -555,7 +555,7 @@ Recipes.HouseRecipes = {
 -- sync with the hand list.
 do
 	local flavorNames = {
-		["High Card"]       = { name = "Bar Snack Recipe", icon = "🥨" },
+		["High Card"]       = { name = "Snack Plate Recipe", icon = "🥨" },
 		["Pair"]             = { name = "Two-for-One Recipe", icon = "🍢" },
 		["Two Pair"]          = { name = "Double Trouble Recipe", icon = "🍡" },
 		["Three of a Kind"]   = { name = "Triple Threat Recipe", icon = "🍕" },
@@ -755,7 +755,7 @@ Recipes.SecretRecipes = {
 			local rank = 1 + rng(13) -- rng(13) in [1,13] -> rank in [2,14]
 			local suit = randomChoice(Card.Suits, rng)
 			local idsByKind = {
-				garnish = { "sweet", "zesty", "houseBlend", "brittle", "iron", "barToken", "golden", "lucky" },
+				garnish = { "sweet", "zesty", "houseBlend", "brittle", "iron", "houseToken", "golden", "lucky" },
 				special = { "silver", "gold", "rainbow" },
 				stamp = { "gold", "encore", "blue", "purple" },
 			}
@@ -869,7 +869,7 @@ Recipes.SecretRecipes = {
 		end,
 	},
 	{
-		id = "nightcap_round", name = "Nightcap Round", icon = "🌃", price = 8,
+		id = "bedtime_bonus", name = "Bedtime Bonus", icon = "🌃", price = 8,
 		description = "Doubles the Tips reward from the next round you win (stacks with a Boss Round's own double).",
 		-- Sets a one-shot flag consumed by RunState.playHand's round-win
 		-- reward block, then cleared -- same "flag set here, read and
@@ -877,7 +877,7 @@ Recipes.SecretRecipes = {
 		-- already established, so this reuses a proven pattern rather than
 		-- inventing a new one.
 		apply = function(state)
-			state.nightcapRoundActive = true
+			state.bedtimeBonusActive = true
 			return true, "Tonight pays double."
 		end,
 	},

@@ -10,7 +10,7 @@ Generous shop (3 Patrons + 3 Packs + 50% voucher) changes little: decent median 
 1.2 What kills runs
 Decent bot, by round: Night 4 → 82 of 300 deaths on the boss round vs 2 on rounds 1–2; Night 5 → 142 boss vs 13 non-boss. ~97% of all deaths are on the Boss round. Small/Big blinds are income tickets, not difficulty.
 Median % of target reached at death: 54%.
-Top killers: flat_mult, thin_chips, no_repeats, house_rules, house_minimum, dry_spell, picked_over, full_table, watered_pour, last_call_only.
+Top killers: flat_mult, thin_chips, no_repeats, house_rules, house_minimum, short_staffed, picked_over, full_table, thin_soup, last_chance.
 1.3 Target curve (current: TARGET_BASE_SCORE=100, TARGET_NIGHT_GROWTH=2.5, boss blind multiplier 2×→6× by Night 8)
 night | small      big        boss        boss mult
  1    |      100        150          200   2.00x
@@ -28,7 +28,7 @@ Effective extra difficulty = targetMult / (chipsMult × multMult), × 4/handsOve
 Effective ×	Modifier	minNight
 11.1	everythings_out (chips ×0.3 AND mult ×0.3)	6
 6.25	bare_bones (0.4/0.4)	6
-4.0	watered_down (0.5/0.5), closing_time (1 hand)	6
+4.0	stale_bread (0.5/0.5), lights_out (1 hand)	6
 3.0	big_tab (target ×3)	6
 2.0	thin_chips, flat_mult, quick_service	3 / 3 / 6
 ≤1.4	everything else	
@@ -47,7 +47,7 @@ growth / bossMax	greedy win	decent win	decent median death
 1.8 / 3	16.0%	24.0%	N8
 1.6 Patron marginal value (mid-build: 2 flat-mult Patrons owned, Pair/Two Pair level 3; average best hand = 1274; gain shown as % of that; 24 sampled hands)
 
-Top: steady_hand +115% (price 6), small_plate +68% (5), the_bard +63% (5), night_owl +56% (7), big_portions +50%, penny_pincher +50%, regulars_round +44%, full_house_crowd +44% (8), discard_special +37%, double_down +37%. Bottom (pure scoring effect): all_matching +2%, house_special +1%, threes_company +4%, ace_of_the_house +6%, perfect_ten +11%, jack_of_all_trades +11%. Caveat: tip_jar, closing_tab, rainy_day_fund, big_spender, nest_egg, boss_bane read 0% only because the probe measures score; last_call, repeat_customer, all_hands_in read 0% because the probe doesn't set their trigger. They are not proven dead — evaluate with dedicated EV checks. Menu levels bought by the decent bot: Pair 280, Two Pair 264, Straight 21, Three of a Kind 15, Full House 7, Flush 6, High Card 4 (avg only ~2 levels per run). Pair/Two-Pair + flat-mult Patrons is the dominant strategy.
+Top: steady_hand +115% (price 6), small_plate +68% (5), the_bard +63% (5), night_owl +56% (7), big_portions +50%, penny_pincher +50%, regulars_round +44%, full_house_crowd +44% (8), discard_special +37%, double_down +37%. Bottom (pure scoring effect): all_matching +2%, house_special +1%, threes_company +4%, ace_of_the_house +6%, perfect_ten +11%, jack_of_all_trades +11%. Caveat: tip_jar, spare_change, rainy_day_fund, big_spender, nest_egg, boss_bane read 0% only because the probe measures score; curtain_call, repeat_customer, all_hands_in read 0% because the probe doesn't set their trigger. They are not proven dead — evaluate with dedicated EV checks. Menu levels bought by the decent bot: Pair 280, Two Pair 264, Straight 21, Three of a Kind 15, Full House 7, Flush 6, High Card 4 (avg only ~2 levels per run). Pair/Two-Pair + flat-mult Patrons is the dominant strategy.
 
 1.7 Deck variants and difficulties (decent bot, curve 2.0/2.5, n=150)
 Setting	Mean night reached	Win
@@ -144,7 +144,7 @@ showUnlockPopup calls unlockPopupDismissCatcher.MouseButton1Click:Connect(dismis
 
 2.5 Hygiene (low priority)
 
-Several ids collide across registries: DeckVariant steady_hand vs Patron steady_hand; Achievement closing_time vs Boss closing_time; Recipe golden_hour vs Theme golden_hour. Harmless today (separate lookups) but add a test that each registry has unique ids internally and consider a grep for any code that looks up ids across registries.
+Several ids collide across registries: DeckVariant steady_hand vs Patron steady_hand; Recipe golden_hour vs Theme golden_hour. Harmless today (separate lookups) but add a test that each registry has unique ids internally and consider a grep for any code that looks up ids across registries.
 
 3. PHASE 2 — Headless simulator in Luau + extract the shop (needed to tune anything)
 
@@ -190,22 +190,22 @@ Note this makes Night N+1's Small blind (2.0×base_N) slightly below Night N's b
 After the modifier clamps below the decent bot will win more than the 11.3% measured with 2.0/2.5. If it exceeds ~20%, raise growth toward 2.1–2.2 rather than touching the boss cap.
 4.2 Clamp boss modifiers (BossRounds.lua) — and update description strings to match exactly
 id	field(s)	old → new	notes
-watered_down	chips/mult mult	0.5/0.5 → 0.75/0.75	"reduced by 25%" (eff ×1.78)
+stale_bread	chips/mult mult	0.5/0.5 → 0.75/0.75	"reduced by 25%" (eff ×1.78)
 bare_bones	chips/mult mult	0.4/0.4 → 0.7/0.7	"reduced by 30%" (eff ×2.04)
 everythings_out	chips/mult mult	0.3/0.3 → 0.65/0.65	"reduced by 35%" (eff ×2.37)
 thin_chips	chips mult	0.5 → 0.6	"reduced by 40%"
 flat_mult	mult mult	0.5 → 0.6	"reduced by 40%"
 big_tab	target mult	3 → 2	
-closing_time	add targetScoreMultiplier	— → 0.5	"only 1 hand, but the target is halved"
+lights_out	add targetScoreMultiplier	— → 0.5	"only 1 hand, but the target is halved"
 quick_service	add targetScoreMultiplier	— → 0.75	"only 2 hands, target ×0.75"
-Keeps the ordering watered_down < bare_bones < everythings_out. Then run the per-boss clear-rate report and soften any boss whose clear rate is < ~50% of the average (likely candidates to check: one_at_a_time — High-Card-only, exactly 1 card; four_top; no_repeats; full_table; empty_pockets). Suggested first tweaks if they fail: one_at_a_time.targetScoreMultiplier = 0.6, four_top.targetScoreMultiplier = 0.85.	
+Keeps the ordering stale_bread < bare_bones < everythings_out. Then run the per-boss clear-rate report and soften any boss whose clear rate is < ~50% of the average (likely candidates to check: one_at_a_time — High-Card-only, exactly 1 card; four_top; no_repeats; full_table; empty_pockets). Suggested first tweaks if they fail: one_at_a_time.targetScoreMultiplier = 0.6, four_top.targetScoreMultiplier = 0.85.	
 Add a test that enforces a ceiling on every modifier's effective difficulty so future additions can't recreate the ×11 problem:	
 effective = (targetScoreMultiplier or 1) / ((chipsMultiplier or 1) * (multMultiplier or 1))
 if handsPerRoundOverride then effective = effective * (4 / handsPerRoundOverride) end
 assert(effective <= 2.5)
 4.3 Patron rebalance (Patrons.lua) — starting values
 
-Nerf the flat-mult outliers: steady_hand +18 → +12 mult; small_plate +20 → +12 mult; night_owl 3*night → 2*night. Buff the hand-specific Patrons so playing Flush/Straight/Full House is a real strategy: all_matching +10 → +18; straight_shooter +12 → +18; threes_company +12 → +18; house_special +14 → +22; all_hands_in +10 → +25; double_down +10 → +14; ace_of_the_house per-Ace +5 → +7. Update every description string to match the numbers. Re-run the marginal-value table; iterate until the spread rule in §4 holds. Evaluate separately (dedicated EV tests in the sim): tip_jar (+4/round win), closing_tab (+2/remaining discard), rainy_day_fund (+1/remaining hand), big_spender (+1/Patron), nest_egg (interest cap 5→10; only matters if the bot banks ≥25 Tips — add a banking bot variant), boss_bane (+10 per boss), last_call (×1.5 last hand), repeat_customer (×3 on a repeated hand type), all_hands_in. If an economy Patron's total Tips-over-a-run < ~its price × 2, buff it.
+Nerf the flat-mult outliers: steady_hand +18 → +12 mult; small_plate +20 → +12 mult; night_owl 3*night → 2*night. Buff the hand-specific Patrons so playing Flush/Straight/Full House is a real strategy: all_matching +10 → +18; straight_shooter +12 → +18; threes_company +12 → +18; house_special +14 → +22; all_hands_in +10 → +25; double_down +10 → +14; ace_of_the_house per-Ace +5 → +7. Update every description string to match the numbers. Re-run the marginal-value table; iterate until the spread rule in §4 holds. Evaluate separately (dedicated EV tests in the sim): tip_jar (+4/round win), spare_change (+2/remaining discard), rainy_day_fund (+1/remaining hand), big_spender (+1/Patron), nest_egg (interest cap 5→10; only matters if the bot banks ≥25 Tips — add a banking bot variant), boss_bane (+10 per boss), curtain_call (×1.5 last hand), repeat_customer (×3 on a repeated hand type), all_hands_in. If an economy Patron's total Tips-over-a-run < ~its price × 2, buff it.
 
 4.4 Hand level growth (Scoring.HandLevelGrowth) — candidate buffs to make non-Pair hands worth leveling
 
