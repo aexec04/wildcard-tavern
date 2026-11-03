@@ -91,7 +91,7 @@ return function(deps)
 	gameOverFrame.ClipsDescendants = true
 	gameOverFrame.Visible = false
 	gameOverFrame.Parent = root
-	polishPanel(gameOverFrame, 16)
+	polishPanel(gameOverFrame, 16, "wood")
 	addSoftShadow(gameOverFrame, 18)
 
 	-- POLISH: a thin color-coded strip along the top -- gold for a win,

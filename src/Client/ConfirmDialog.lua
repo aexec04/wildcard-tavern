@@ -62,7 +62,7 @@ return function(deps)
 	confirmPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	confirmPanel.ZIndex = 35
 	confirmPanel.Parent = confirmBackdrop
-	polishPanel(confirmPanel, 14)
+	polishPanel(confirmPanel, 14, "wood")
 	addSoftShadow(confirmPanel, 16)
 
 	local confirmMessageLabel = Instance.new("TextLabel")

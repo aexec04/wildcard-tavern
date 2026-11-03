@@ -222,7 +222,7 @@ return function(deps)
 		-- strictly beat them, not just tie, to reliably cover them.
 		shopFrame.ZIndex = 6
 		shopFrame.Parent = root
-		polishPanel(shopFrame, 16)
+		polishPanel(shopFrame, 16, "wood")
 
 		-- ART (placeholder-safe, see Client/ArtAssets.lua): the wooden bar
 		-- backdrop illustration. ZIndex 5, one below every real shop child
@@ -398,7 +398,7 @@ return function(deps)
 		shopTargetPanel.Visible = false
 		shopTargetPanel.ZIndex = PANEL_ZINDEX
 		shopTargetPanel.Parent = shopFrame
-		polishPanel(shopTargetPanel, 12)
+		polishPanel(shopTargetPanel, 12, "wood")
 
 		targetTitleLabel = Instance.new("TextLabel")
 		targetTitleLabel.Size = UDim2.new(1, -20, 0, 44)
@@ -487,7 +487,7 @@ return function(deps)
 		shopPackPanel.Visible = false
 		shopPackPanel.ZIndex = PANEL_ZINDEX
 		shopPackPanel.Parent = shopFrame
-		polishPanel(shopPackPanel, 12)
+		polishPanel(shopPackPanel, 12, "wood")
 
 		packPanelTitleLabel = Instance.new("TextLabel")
 		packPanelTitleLabel.Size = UDim2.new(1, -20, 0, 30)

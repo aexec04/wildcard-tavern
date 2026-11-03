@@ -69,7 +69,7 @@ return function(deps)
 	handRefPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	handRefPanel.ZIndex = 21
 	handRefPanel.Parent = handRefBackdrop
-	polishPanel(handRefPanel, 16)
+	polishPanel(handRefPanel, 16, "parchment")
 	addSoftShadow(handRefPanel, 18)
 
 	local handRefTitle = Instance.new("TextLabel")

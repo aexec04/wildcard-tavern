@@ -62,7 +62,7 @@ return function(deps)
 	seedPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	seedPanel.ZIndex = 35
 	seedPanel.Parent = seedBackdrop
-	polishPanel(seedPanel, 14)
+	polishPanel(seedPanel, 14, "wood")
 	addSoftShadow(seedPanel, 16)
 
 	local seedTitleLabel = Instance.new("TextLabel")

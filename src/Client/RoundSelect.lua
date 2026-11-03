@@ -96,7 +96,7 @@ return function(deps)
 	roundSelectFrame.Visible = false
 	roundSelectFrame.ZIndex = 6 -- matches shopFrame -- see Shop.lua for why (beats the corner icon buttons)
 	roundSelectFrame.Parent = root
-	polishPanel(roundSelectFrame, 16)
+	polishPanel(roundSelectFrame, 16, "wood")
 
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Size = UDim2.new(1, -40, 0, 44)
@@ -161,7 +161,7 @@ return function(deps)
 		panel.BackgroundColor3 = Color3.fromRGB(55, 42, 30)
 		panel.ZIndex = 7
 		panel.Parent = panelRow
-		roundCorner(panel, 14)
+		polishPanel(panel, 14)
 
 		local headerLabel = Instance.new("TextLabel")
 		headerLabel.Size = UDim2.new(1, -20, 0, 30)
@@ -195,7 +195,7 @@ return function(deps)
 		targetLabel.Text = ""
 		targetLabel.ZIndex = 8
 		targetLabel.Parent = panel
-		roundCorner(targetLabel, 8)
+		polishPanel(targetLabel, 8)
 
 		local bossLabel = Instance.new("TextLabel")
 		bossLabel.Size = UDim2.new(1, -20, 0, 78)

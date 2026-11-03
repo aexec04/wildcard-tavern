@@ -75,7 +75,7 @@ return function(deps)
 	howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	howToPlayPanel.ZIndex = 21
 	howToPlayPanel.Parent = howToPlayBackdrop
-	polishPanel(howToPlayPanel, 16)
+	polishPanel(howToPlayPanel, 16, "parchment")
 	addSoftShadow(howToPlayPanel, 18)
 
 	local howToPlayTitle = Instance.new("TextLabel")

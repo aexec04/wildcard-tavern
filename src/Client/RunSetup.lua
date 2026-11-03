@@ -85,7 +85,7 @@ return function(deps)
 	runSetupPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	runSetupPanel.ZIndex = 26
 	runSetupPanel.Parent = runSetupBackdrop
-	polishPanel(runSetupPanel, 16)
+	polishPanel(runSetupPanel, 16, "wood")
 	addSoftShadow(runSetupPanel, 18)
 
 	local runSetupTitle = Instance.new("TextLabel")

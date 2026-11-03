@@ -106,7 +106,7 @@ return function(deps)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
-	polishPanel(settingsPanel, 16)
+	polishPanel(settingsPanel, 16, "wood")
 	addSoftShadow(settingsPanel, 18)
 
 	local settingsTitle = Instance.new("TextLabel")

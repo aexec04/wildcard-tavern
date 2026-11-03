@@ -36,7 +36,8 @@
 			tweenTo = function(instance, properties, duration, style?, direction?),
 			roundCorner = function(instance, radius?),
 			polishButton = function(instance, radius?),
-			polishPanel = function(instance, radius?),
+			polishPanel = function(instance, radius?, variant?),
+			              -- variant: "wood" (menus) | "parchment" (reading screens)
 			addSoftShadow = function(panel, radius?),
 			makeStepperRow = function(parent, labelText, min, max, step,
 			                          getValue, setValue, formatValue) -> refresh,
@@ -101,14 +102,202 @@ return function(deps)
 		stroke.Parent = instance
 	end
 
-	local function polishButton(instance, radius)
-		roundCorner(instance, radius or 10)
-		addGoldChrome(instance, 1.5)
+	-- ===== Shared carved-wood skin =====
+	-- Every polishPanel/polishButton caller gets the gameplay sidebar's
+	-- look from here: a gold ring, a thin gold inner rim, and (on panels
+	-- big enough for them) gold L-shaped corner brackets with a stud at
+	-- each tip. Same colors and piece names as Sidebar.lua's ornamentBox,
+	-- so SkinArt.hideCodeChrome hides these too when real art loads.
+	--
+	-- Corner radius is standardized: callers' small radii (4-18) all become
+	-- PANEL_RADIUS/BUTTON_RADIUS. A radius of ROUND_RADIUS_MIN or more is
+	-- kept as-is -- that's a deliberate circle (the corner medallions).
+	local GOLD = Color3.fromRGB(222, 182, 104)
+	local PANEL_RADIUS = 6
+	local BUTTON_RADIUS = 6
+	local ROUND_RADIUS_MIN = 20
+	local BRACKET_MIN_SIZE = 56 -- px; below this the corner brackets crowd the content
+	local RIM_MIN_SIZE = 24
+
+	-- Color-only shading (never UIGradient.Transparency -- see this file's
+	-- header). It multiplies whatever fill the panel has, so Themes that
+	-- recolor a panel (Shop, Game Over) still tint it as before. A variant
+	-- only replaces the fill while it's still the default flat panel brown;
+	-- a deliberately colored panel (the green round reward popup) keeps
+	-- its color and just gets the shading and frame.
+	local FLAT_PANEL_BROWN = Color3.fromRGB(40, 30, 22)
+	local VARIANTS = {
+		-- Dark carved wood for menus and dialogs: the standard panel brown,
+		-- top-lit like the sidebar plaques.
+		wood = {
+			fill = Color3.fromRGB(40, 30, 22),
+			shade = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(165, 160, 155)),
+		},
+		-- A lighter, softer-shaded tone for reading screens. Still dark
+		-- enough for the cream text every screen already uses.
+		parchment = {
+			fill = Color3.fromRGB(70, 55, 40),
+			shade = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(210, 195, 175)),
+		},
+	}
+
+	local function styleRadius(radius, default)
+		if radius and radius >= ROUND_RADIUS_MIN then
+			return radius
+		end
+		return default
 	end
 
-	local function polishPanel(instance, radius)
-		roundCorner(instance, radius or 16)
+	local function hasLayout(instance)
+		return instance:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+	end
+
+	-- Builds the rim/brackets one frame later (task.defer), once the caller
+	-- has finished setting ZIndex, visibility and children. Skipped when:
+	--   - the element already has them (Sidebar's own ornamentBox, or a
+	--     Clone() of an element that already had them),
+	--   - it's a ScrollingFrame (they'd scroll with the content),
+	--   - it's see-through (nothing to frame),
+	--   - its code chrome was already hidden for real art (SkinArt),
+	--   - it holds a UIListLayout/UIGridLayout -- the layout would treat
+	--     every decorative frame as an item and shove the content around.
+	--     If a layout is added later, the pieces are removed again.
+	local function addOrnateFrame(instance, withBrackets)
+		if instance:IsA("ScrollingFrame") then
+			return
+		end
+		task.defer(function()
+			if instance:FindFirstChild("InnerRim") or hasLayout(instance) then
+				return
+			end
+			if instance.BackgroundTransparency >= 1 then
+				return
+			end
+			local ring = instance:FindFirstChildOfClass("UIStroke")
+			if ring and not ring.Enabled then
+				return
+			end
+
+			local inset = withBrackets and 4 or 3
+			local pieces, brackets = {}, {}
+
+			local inner = Instance.new("Frame")
+			inner.Name = "InnerRim"
+			inner.Position = UDim2.fromOffset(inset, inset)
+			inner.Size = UDim2.new(1, -inset * 2, 1, -inset * 2)
+			inner.BackgroundTransparency = 1
+			inner.Active = false
+			local innerCorner = Instance.new("UICorner")
+			innerCorner.CornerRadius = UDim.new(0, 3)
+			innerCorner.Parent = inner
+			local innerStroke = Instance.new("UIStroke")
+			innerStroke.Color = GOLD
+			innerStroke.Thickness = 1
+			innerStroke.Transparency = 0.35
+			innerStroke.Parent = inner
+			inner.Parent = instance
+			table.insert(pieces, inner)
+
+			if withBrackets then
+				local ARM, THICK = 12, 3
+				-- Sit just over the ring like the sidebar's, unless the
+				-- element clips its children -- then tuck them inside.
+				local out = instance.ClipsDescendants and 0 or 2
+				for _, c in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+					local ax, ay = c[1], c[2]
+					local xOff = ax == 0 and -out or out
+					local yOff = ay == 0 and -out or out
+					for _, spec in ipairs({ { "BracketH", ARM, THICK }, { "BracketV", THICK, ARM } }) do
+						local arm = Instance.new("Frame")
+						arm.Name = spec[1]
+						arm.AnchorPoint = Vector2.new(ax, ay)
+						arm.Position = UDim2.new(ax, xOff, ay, yOff)
+						arm.Size = UDim2.fromOffset(spec[2], spec[3])
+						arm.BackgroundColor3 = GOLD
+						arm.BorderSizePixel = 0
+						arm.Active = false
+						arm.Parent = instance
+						table.insert(brackets, arm)
+					end
+					local stud = Instance.new("Frame")
+					stud.Name = "CornerStud"
+					stud.AnchorPoint = Vector2.new(0.5, 0.5)
+					stud.Position = UDim2.new(ax, ax == 0 and 5 or -5, ay, ay == 0 and 5 or -5)
+					stud.Size = UDim2.fromOffset(4, 4)
+					stud.Rotation = 45
+					stud.BackgroundColor3 = GOLD
+					stud.BorderSizePixel = 0
+					stud.Active = false
+					stud.Parent = instance
+					table.insert(brackets, stud)
+				end
+			end
+			for _, piece in ipairs(brackets) do
+				table.insert(pieces, piece)
+			end
+
+			-- This ScreenGui uses Global ZIndex, so the pieces must follow
+			-- the element's own ZIndex or they'd draw under its fill.
+			local function syncZ()
+				inner.ZIndex = instance.ZIndex
+				for _, piece in ipairs(brackets) do
+					piece.ZIndex = instance.ZIndex + 1
+				end
+			end
+			local function syncSize()
+				local size = instance.AbsoluteSize
+				local smallest = math.min(size.X, size.Y)
+				-- 0 means not laid out yet; show everything until it is.
+				local measured = smallest > 0
+				inner.Visible = not measured or smallest >= RIM_MIN_SIZE
+				for _, piece in ipairs(brackets) do
+					piece.Visible = not measured or smallest >= BRACKET_MIN_SIZE
+				end
+			end
+			syncZ()
+			syncSize()
+			local connections = {
+				instance:GetPropertyChangedSignal("ZIndex"):Connect(syncZ),
+				instance:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncSize),
+			}
+			table.insert(connections, instance.ChildAdded:Connect(function(child)
+				if child:IsA("UIGridStyleLayout") then
+					for _, connection in ipairs(connections) do
+						connection:Disconnect()
+					end
+					for _, piece in ipairs(pieces) do
+						piece:Destroy()
+					end
+				end
+			end))
+		end)
+	end
+
+	local function polishButton(instance, radius)
+		roundCorner(instance, styleRadius(radius, BUTTON_RADIUS))
+		addGoldChrome(instance, 1.5)
+		-- Buttons get the rim only -- corner brackets on every button would
+		-- crowd button rows.
+		addOrnateFrame(instance, false)
+	end
+
+	local function polishPanel(instance, radius, variant)
+		roundCorner(instance, styleRadius(radius, PANEL_RADIUS))
 		addGoldChrome(instance, 2)
+		local style = variant and VARIANTS[variant]
+		if style then
+			if instance.BackgroundColor3 == FLAT_PANEL_BROWN then
+				instance.BackgroundColor3 = style.fill
+			end
+			if not instance:FindFirstChildOfClass("UIGradient") then
+				local shade = Instance.new("UIGradient")
+				shade.Name = "PanelShade"
+				shade.Rotation = 90
+				shade.Color = style.shade
+				shade.Parent = instance
+			end
+		end
+		addOrnateFrame(instance, true)
 	end
 
 	-- FEATURE 3: a soft drop shadow behind a panel -- a plain, offset,
@@ -158,7 +347,7 @@ return function(deps)
 		shadow.BorderSizePixel = 0
 		shadow.ZIndex = math.max(0, panel.ZIndex - 1)
 		shadow.Parent = panel.Parent
-		roundCorner(shadow, radius or 18)
+		roundCorner(shadow, styleRadius(radius, PANEL_RADIUS + 2))
 		-- BUGFIX (reference-match pass): the shadow is a SIBLING of the
 		-- panel, so hiding the panel never hid it. GameOver's panel sits
 		-- straight on the game screen (no backdrop to hide it), so its

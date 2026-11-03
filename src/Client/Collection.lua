@@ -105,7 +105,7 @@ return function(deps)
 	collectionPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	collectionPanel.ZIndex = 21
 	collectionPanel.Parent = collectionBackdrop
-	polishPanel(collectionPanel, 16)
+	polishPanel(collectionPanel, 16, "parchment")
 	addSoftShadow(collectionPanel, 18)
 
 	local collectionTitle = Instance.new("TextLabel")

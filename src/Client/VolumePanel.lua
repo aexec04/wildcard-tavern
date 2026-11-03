@@ -143,7 +143,7 @@ return function(deps)
 	volumePanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	volumePanel.ZIndex = 21
 	volumePanel.Parent = volumeBackdrop
-	polishPanel(volumePanel, 16)
+	polishPanel(volumePanel, 16, "wood")
 	addSoftShadow(volumePanel, 18)
 
 	local volumeTitle = Instance.new("TextLabel")

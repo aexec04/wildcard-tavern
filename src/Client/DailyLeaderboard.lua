@@ -87,7 +87,7 @@ return function(deps)
 	leaderboardPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	leaderboardPanel.ZIndex = 21
 	leaderboardPanel.Parent = leaderboardBackdrop
-	polishPanel(leaderboardPanel, 16)
+	polishPanel(leaderboardPanel, 16, "parchment")
 	addSoftShadow(leaderboardPanel, 18)
 
 	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.

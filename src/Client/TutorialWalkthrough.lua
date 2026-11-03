@@ -252,7 +252,7 @@ return function(deps)
 	captionCard.Parent = root
 	-- Border comes from polishPanel's gold chrome now (it used to add its
 	-- own brown UIStroke here, which would have doubled up with it).
-	polishPanel(captionCard, 14)
+	polishPanel(captionCard, 14, "parchment")
 
 	local captionPadding = Instance.new("UIPadding")
 	captionPadding.PaddingTop = UDim.new(0, 16)

@@ -94,7 +94,7 @@ return function(deps)
 	themesPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	themesPanel.ZIndex = 21
 	themesPanel.Parent = themesBackdrop
-	polishPanel(themesPanel, 16)
+	polishPanel(themesPanel, 16, "wood")
 	addSoftShadow(themesPanel, 18)
 
 	local themesTitle = Instance.new("TextLabel")

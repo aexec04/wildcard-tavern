@@ -44,7 +44,7 @@ return function(deps)
 	unlockPopup.Visible = false
 	unlockPopup.ZIndex = 30
 	unlockPopup.Parent = screenGui
-	polishPanel(unlockPopup, 18)
+	polishPanel(unlockPopup, 18, "wood")
 
 	local unlockPopupHeader = Instance.new("TextLabel")
 	unlockPopupHeader.Size = UDim2.new(1, 0, 0, 34)

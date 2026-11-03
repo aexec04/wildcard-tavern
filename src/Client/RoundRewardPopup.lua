@@ -44,7 +44,7 @@ return function(deps)
 	roundRewardPopup.Visible = false
 	roundRewardPopup.ZIndex = 28
 	roundRewardPopup.Parent = screenGui
-	polishPanel(roundRewardPopup, 18)
+	polishPanel(roundRewardPopup, 18, "wood")
 
 	local roundRewardTitle = Instance.new("TextLabel")
 	roundRewardTitle.Size = UDim2.new(1, -20, 0, 30)

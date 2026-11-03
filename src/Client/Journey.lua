@@ -285,7 +285,7 @@ return function(deps)
 	journeyPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	journeyPanel.ZIndex = 21
 	journeyPanel.Parent = journeyBackdrop
-	polishPanel(journeyPanel, 16)
+	polishPanel(journeyPanel, 16, "parchment")
 	addSoftShadow(journeyPanel, 18)
 
 	local journeyPanelMinSize = Instance.new("UISizeConstraint")
@@ -827,7 +827,7 @@ return function(deps)
 	journeyInfoBar.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
 	journeyInfoBar.ZIndex = 21
 	journeyInfoBar.Parent = journeyPanel
-	roundCorner(journeyInfoBar, 10)
+	polishPanel(journeyInfoBar, 10)
 
 	local journeyBossInfoLabel = Instance.new("TextLabel")
 	journeyBossInfoLabel.Size = UDim2.new(1, -24, 1, -16)

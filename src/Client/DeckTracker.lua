@@ -75,7 +75,7 @@ return function(deps)
 	deckTrackerPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	deckTrackerPanel.ZIndex = 21
 	deckTrackerPanel.Parent = deckTrackerBackdrop
-	polishPanel(deckTrackerPanel, 16)
+	polishPanel(deckTrackerPanel, 16, "parchment")
 	addSoftShadow(deckTrackerPanel, 18)
 
 	local deckTrackerTitle = Instance.new("TextLabel")
