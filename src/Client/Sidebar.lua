@@ -263,6 +263,7 @@ return function(deps)
 	do
 		local slice = SkinArtModule.Slices.sidebarColumn
 		SkinArtModule.apply(root, ArtAssetsForSkin.sidebarColumnArt, {
+			tint = SkinArtModule.Tints.sidebarColumn,
 			size = UDim2.new(0, SIDEBAR_WIDTH, 1, 0),
 			zIndex = 1,
 			sliceCenter = slice.center,
@@ -293,6 +294,7 @@ return function(deps)
 		if (height or 46) >= 44 then
 			local slice = SkinArtModule.Slices.plaque
 			SkinArtModule.apply(box, ArtAssetsForSkin.plaqueFrameArt, {
+				tint = SkinArtModule.Tints.plaque,
 				sliceCenter = slice.center,
 				sliceScale = slice.scale,
 				onLoaded = function()
@@ -525,8 +527,15 @@ return function(deps)
 	--     measureSize -- that first line's text size
 	local TextService = game:GetService("TextService")
 	local lineIcons = {}
+	local setIconText -- defined below; re-applied once an icon loads
 	local function addLineIcon(key, label, imageId, iconSize)
 		local icon = SkinArtModule.apply(label, imageId, {
+			onLoaded = function()
+				local entry = lineIcons[key]
+				if entry and entry.args then
+					setIconText(key, table.unpack(entry.args))
+				end
+			end,
 			size = UDim2.fromOffset(iconSize, iconSize),
 			anchor = Vector2.new(1, 0.5),
 			position = UDim2.fromScale(0, 0.5),
@@ -541,7 +550,7 @@ return function(deps)
 	addLineIcon("hands", handsDiscardsLabel, ArtAssetsForSkin.cardsIconArt, 24)
 	addLineIcon("boss", blindInfoLabel, ArtAssetsForSkin.crownIconArt, 20)
 
-	local function setIconText(key, plainText, emojiText, measureText, measureSize)
+	function setIconText(key, plainText, emojiText, measureText, measureSize)
 		local entry = lineIcons[key]
 		if not entry then
 			-- No icon slot at all: just show the emoji version.
@@ -552,16 +561,9 @@ return function(deps)
 		entry.args = { plainText, emojiText, measureText, measureSize }
 		local icon, label = entry.icon, entry.label
 		if not (icon.Parent and icon.IsLoaded) then
+			-- Not loaded yet: keep the emoji. SkinArt's onLoaded (see
+			-- addLineIcon) re-applies this as soon as the icon arrives.
 			label.Text = emojiText
-			if not entry.hooked and icon.Parent then
-				-- Re-apply the moment the icon finishes loading.
-				entry.hooked = true
-				icon:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-					if icon.IsLoaded and entry.args then
-						setIconText(key, table.unpack(entry.args))
-					end
-				end)
-			end
 			return
 		end
 		label.Text = plainText

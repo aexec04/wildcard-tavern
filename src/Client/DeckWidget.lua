@@ -68,10 +68,44 @@ return function(deps)
 	-- before the card back and count so it draws underneath both. Once it
 	-- loads, the card back and count move into the holder's window.
 	local deckSkin = require(script.Parent.SkinArt)
-	local deckHolderArt = deckSkin.apply(deckWidget, ArtAssetsModule.deckHolderArt, {
+
+	-- ART: a solid wood board behind the holder's see-through window, so
+	-- it reads as a clipboard the card sits ON (like the reference), not an
+	-- empty frame with the room showing through. Reuses the sidebar column
+	-- art's plank texture (ImageRect picks a plain middle patch of that
+	-- 417x1024 image, clear of its gold trim) -- no extra upload needed.
+	-- Created BEFORE the holder art so it draws underneath it, and hidden
+	-- until the holder art has loaded.
+	local deckBoard = Instance.new("ImageLabel")
+	deckBoard.Name = "DeckBoard"
+	do
+		local win = deckSkin.DeckHolderWindow
+		local pad = 0.02 -- tuck the edges under the carved frame
+		deckBoard.Position = UDim2.fromScale(win.left - pad, win.top - pad)
+		deckBoard.Size = UDim2.fromScale(win.right - win.left + 2 * pad, win.bottom - win.top + 2 * pad)
+	end
+	deckBoard.BackgroundColor3 = Color3.fromRGB(46, 28, 15) -- shows if the texture is slow
+	deckBoard.BackgroundTransparency = 0
+	deckBoard.BorderSizePixel = 0
+	deckBoard.Image = ArtAssetsModule.sidebarColumnArt or "rbxassetid://0"
+	deckBoard.ImageRectOffset = Vector2.new(40, 120)
+	deckBoard.ImageRectSize = Vector2.new(300, 470)
+	deckBoard.ScaleType = Enum.ScaleType.Stretch
+	deckBoard.ImageColor3 = deckSkin.Tints.deckBoard
+	deckBoard.ZIndex = 2
+	deckBoard.Visible = false
+	deckBoard.Parent = deckWidget
+
+	-- Filled in further down, once the card back and count exist.
+	local onDeckHolderLoaded
+	deckSkin.apply(deckWidget, ArtAssetsModule.deckHolderArt, {
+		tint = deckSkin.Tints.deckHolder,
 		zIndex = 2,
 		onLoaded = function()
 			deckSkin.hideCodeChrome(deckWidget)
+			if onDeckHolderLoaded then
+				onDeckHolderLoaded()
+			end
 		end,
 	})
 
@@ -139,22 +173,29 @@ return function(deps)
 
 	-- Re-lay the card back + count inside the holder's window once the
 	-- art is actually showing (window measured from ui-deck-holder.png).
-	if deckHolderArt then
-		deckHolderArt:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-			if deckHolderArt.IsLoaded then
-				local win = deckSkin.DeckHolderWindow
-				local winW = win.right - win.left
-				deckCardBack.AnchorPoint = Vector2.new(0.5, 0)
-				deckCardBack.Position = UDim2.new((win.left + win.right) / 2, 0, win.top, 6)
-				deckCardBack.Size = UDim2.new(winW * 0.84, 0, 0, 118)
-				deckCountLabel.Position = UDim2.new(0, 0, win.bottom, -30)
-				deckCountLabel.Size = UDim2.new(1, 0, 0, 24)
-				local shadow = deckWidget:FindFirstChild("Shadow")
-				if shadow then
-					shadow.Visible = false -- was positioned for the old layout
-				end
-			end
-		end)
+	-- Once the holder art is showing: move the card back and count into
+	-- its window, and drop the card back's own light rim, blue fill and
+	-- shadow -- the holder's carved frame replaces all of them.
+	onDeckHolderLoaded = function()
+		local win = deckSkin.DeckHolderWindow
+		local winW = win.right - win.left
+		deckBoard.Visible = true
+		-- Card fills most of the board (about 82% of its width, card-shaped),
+		-- with the count on the board underneath.
+		deckCardBack.AnchorPoint = Vector2.new(0.5, 0)
+		deckCardBack.Position = UDim2.new((win.left + win.right) / 2, 0, win.top, 8)
+		deckCardBack.Size = UDim2.new(winW * 0.82, 0, 0, 116)
+		deckCountLabel.Position = UDim2.new(0, 0, win.bottom, -29)
+		deckCountLabel.Size = UDim2.new(1, 0, 0, 24)
+		local shadow = deckWidget:FindFirstChild("Shadow")
+		if shadow then
+			shadow.Visible = false
+		end
+		local backRim = deckCardBack:FindFirstChildOfClass("UIStroke")
+		if backRim then
+			backRim.Enabled = false
+		end
+		deckCardBack.BackgroundTransparency = 1
 	end
 
 	return {

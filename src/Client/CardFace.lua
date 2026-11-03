@@ -119,6 +119,7 @@ local function getTray(handFrame)
 		local SkinArt = require(script.Parent.SkinArt)
 		local slice = SkinArt.Slices.handTray
 		SkinArt.apply(tray, require(script.Parent.ArtAssets).handTrayArt, {
+			tint = SkinArt.Tints.handTray,
 			zIndex = 0,
 			sliceCenter = slice.center,
 			sliceScale = slice.scale,

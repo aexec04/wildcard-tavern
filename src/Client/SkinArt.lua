@@ -40,6 +40,7 @@ function SkinArt.apply(target, imageId, opts)
 	art.BorderSizePixel = 0
 	art.Active = false
 	art.Image = imageId
+	art.ImageColor3 = opts.tint or Color3.fromRGB(255, 255, 255)
 	art.Size = opts.size or UDim2.fromScale(1, 1)
 	art.Position = opts.position or UDim2.new(0, 0, 0, 0)
 	art.AnchorPoint = opts.anchor or Vector2.new(0, 0)
@@ -72,17 +73,17 @@ function SkinArt.apply(target, imageId, opts)
 			opts.onLoaded(art)
 		end
 	end
-	if art.IsLoaded then
-		task.defer(finish)
-	else
-		local connection
-		connection = art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-			if art.IsLoaded then
-				connection:Disconnect()
-				finish()
-			end
-		end)
-	end
+	-- Polled, not GetPropertyChangedSignal("IsLoaded"): that signal didn't
+	-- fire in testing (the deck holder art loaded but onLoaded never ran,
+	-- so the old outline stayed on top of it). A 0.25s check is cheap.
+	-- task.defer, not spawn: an already-cached image would otherwise call
+	-- onLoaded before the caller has finished building what it touches.
+	task.defer(function()
+		while art.Parent and not art.IsLoaded do
+			task.wait(0.25)
+		end
+		finish()
+	end)
 
 	return art
 end
@@ -111,6 +112,22 @@ SkinArt.Slices = {
 	handTray = { center = Rect.new(95, 95, 929, 257), scale = 0.3 },     -- ui-hand-tray.png 1024x352
 	button = { center = Rect.new(130, 60, 894, 291), scale = 0.28 },     -- ui-button.png 1024x351
 	sidebarColumn = { center = Rect.new(20, 70, 372, 954), scale = 0.575 }, -- ui-sidebar-column.png 417x1024
+}
+
+-- Color tints (ImageColor3 multiplies the art) that pull each piece back
+-- to the reference mockup's dark, low-saturation wood. Measured, not
+-- eyeballed: each is reference color / art color, per channel, sampled
+-- from the same spot in both (Nov 2 2026). The column was the big one --
+-- the art came out about 2x brighter and much more orange than the
+-- reference's near-black wood. Raise a value toward 255 to brighten.
+SkinArt.Tints = {
+	sidebarColumn = Color3.fromRGB(107, 122, 190),
+	plaque = Color3.fromRGB(232, 228, 215),
+	button = Color3.fromRGB(225, 222, 212),
+	buttonDimmed = Color3.fromRGB(150, 138, 125), -- inactive Rank/Suit sort button
+	handTray = Color3.fromRGB(215, 210, 200),
+	deckHolder = Color3.fromRGB(205, 195, 185),
+	deckBoard = Color3.fromRGB(176, 189, 191), -- column planks, tinted to the reference board
 }
 
 -- ui-deck-holder.png (651x1024): the see-through window where the card

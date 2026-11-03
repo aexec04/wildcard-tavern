@@ -560,6 +560,7 @@ local function makeActionButton(text)
 		local SkinArt = require(script.SkinArt)
 		local slice = SkinArt.Slices.button
 		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
+			tint = SkinArt.Tints.button,
 			zIndex = 1,
 			sliceCenter = slice.center,
 			sliceScale = slice.scale,
@@ -639,6 +640,7 @@ local function makeSortButton(text, order)
 		local SkinArt = require(script.SkinArt)
 		local slice = SkinArt.Slices.button
 		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
+			tint = SkinArt.Tints.button,
 			zIndex = 1,
 			sliceCenter = slice.center,
 			sliceScale = slice.scale,
@@ -667,7 +669,8 @@ local function refreshSortButtonHighlight()
 		local isActive = handSortMode == pair[2]
 		local art = pair[1]:FindFirstChild("SkinArt")
 		if art then
-			art.ImageColor3 = isActive and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(165, 150, 135)
+			local tints = require(script.SkinArt).Tints
+			art.ImageColor3 = isActive and tints.button or tints.buttonDimmed
 		end
 		pair[1].TextColor3 = isActive and Color3.fromRGB(255, 222, 150) or Color3.fromRGB(250, 240, 220)
 	end
