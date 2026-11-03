@@ -3905,32 +3905,80 @@ table.insert(tests, { name = "A fresh run isn't revived and can't continue", fn 
 	expectFalse(pcall(RunState.useContinue, state))
 end })
 
-table.insert(tests, { name = "Continue revives a lost run on the same round with fresh Hands", fn = function()
-	local state = lostRun()
-	local night, round = state.night, state.round
-	local roundScore, targetScore, tips = state.roundScore, state.targetScore, state.tips
+local function cardKeys(cards)
+	local keys = {}
+	for i, card in ipairs(cards) do
+		keys[i] = tostring(card.rank) .. ":" .. tostring(card.suit)
+	end
+	return table.concat(keys, ",")
+end
+
+table.insert(tests, { name = "One More Round restores the failed round's start", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.targetScore = 1000000000
+	-- What the round looked like when it started.
+	local night, round, tips = state.night, state.round, state.tips
+	local startHand, startDeckSize = cardKeys(state.hand), #state.deck
+	local startHands, startDiscards = state.roundStartHands, state.roundStartDiscards
+	local target = state.roundStartSnapshot.targetScore
+
+	RunState.discard(state, { 1 })
+	while not state.runOver do
+		RunState.playHand(state, { 1 })
+	end
+	expectTrue(state.roundScore > 0)
 	expectTrue(RunState.canContinue(state))
 
 	RunState.useContinue(state)
 	expectTrue(state.revived)
 	expectFalse(state.runOver)
 	expectFalse(state.roundOver)
-	expectEqual(state.handsRemaining, RunState.CONTINUE_HANDS)
 	expectEqual(state.night, night)
 	expectEqual(state.round, round)
-	expectEqual(state.roundScore, roundScore)
-	expectEqual(state.targetScore, targetScore)
 	expectEqual(state.tips, tips)
+	expectEqual(state.roundScore, 0)
+	expectEqual(state.targetScore, target)
+	expectEqual(state.handsRemaining, startHands)
+	expectEqual(state.discardsRemaining, startDiscards)
+	expectEqual(cardKeys(state.hand), startHand)
+	expectEqual(#state.deck, startDeckSize)
+	expectEqual(#state.discardPile, 0)
+	expectEqual(state.handsPlayedTotal, 0)
 	expectFalse(RunState.countsForRecords(state))
 
-	local result = RunState.playHand(state, { 1 }) -- playable again
-	expectEqual(state.handsRemaining, RunState.CONTINUE_HANDS - 1)
+	-- Every card sits in exactly one pile, and the run is playable again.
+	local seen, total = {}, 0
+	for _, pile in ipairs({ state.hand, state.deck, state.discardPile }) do
+		for _, card in ipairs(pile) do
+			expectFalse(seen[card])
+			seen[card] = true
+			total = total + 1
+		end
+	end
+	expectEqual(total, 52)
+	local result = RunState.playHand(state, { 1 })
 	expectFalse(result.runOver)
+	expectEqual(state.handsRemaining, startHands - 1)
+end })
+
+table.insert(tests, { name = "One More Round keeps owned Patrons as the shared definitions", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local patron = Patrons.Definitions[1]
+	table.insert(state.ownedPatrons, patron)
+	RunState.startRound(state) -- re-snapshot with the Patron owned
+	state.targetScore = 1000000000
+	while not state.runOver do
+		RunState.playHand(state, { 1 })
+	end
+	RunState.useContinue(state)
+	expectEqual(#state.ownedPatrons, 1)
+	expectTrue(state.ownedPatrons[1] == patron)
 end })
 
 table.insert(tests, { name = "Only one continue per run", fn = function()
 	local state = lostRun()
 	RunState.useContinue(state)
+	expectFalse(RunState.canContinue(state)) -- not lost yet
 	while not state.runOver do
 		RunState.playHand(state, { 1 })
 	end
@@ -3940,10 +3988,43 @@ table.insert(tests, { name = "Only one continue per run", fn = function()
 	expectTrue(state.runOver)
 end })
 
-table.insert(tests, { name = "No continue for a soft-locked run", fn = function()
+table.insert(tests, { name = "A soft-locked run can continue, a won run can't", fn = function()
 	local state = lostRun()
 	state.hand = {}
-	expectFalse(RunState.canContinue(state))
+	expectTrue(RunState.canContinue(state)) -- the round restarts with a fresh deal
+	local won = lostRun()
+	won.wonRun = true
+	expectFalse(RunState.canContinue(won))
+end })
+
+table.insert(tests, { name = "One free One More Round per player per day", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.hasFreeContinue(profile, "2026-11-03"))
+	expectTrue(PlayerProfile.useFreeContinue(profile, "2026-11-03"))
+	expectFalse(PlayerProfile.hasFreeContinue(profile, "2026-11-03"))
+	expectFalse(PlayerProfile.useFreeContinue(profile, "2026-11-03"))
+	-- A new day brings it back.
+	expectTrue(PlayerProfile.hasFreeContinue(profile, "2026-11-04"))
+	-- No date key, no free continue.
+	expectFalse(PlayerProfile.hasFreeContinue(profile, nil))
+	-- It survives a save round-trip; garbage is dropped.
+	expectEqual(PlayerProfile.migrate(profile).freeContinueDateKey, "2026-11-03")
+	expectEqual(PlayerProfile.migrate({ freeContinueDateKey = 5 }).freeContinueDateKey, nil)
+	expectTrue(PlayerProfile.hasFreeContinue(PlayerProfile.migrate(nil), "2026-11-03"))
+end })
+
+table.insert(tests, { name = "A revived run doesn't unlock high-score achievements", fn = function()
+	-- Mirrors Server syncProfileFromSession: records only when countsForRecords.
+	local profile = PlayerProfile.new()
+	local state = lostRun()
+	RunState.useContinue(state)
+	state.night = 9
+	if RunState.countsForRecords(state) then
+		PlayerProfile.recordNightReached(profile, state.night)
+	end
+	expectEqual(profile.stats.bestNightReached, 0)
+	expectFalse(Achievements.isUnlocked(profile, "deep_cuts"))
+	expectFalse(Achievements.isUnlocked(profile, "into_the_endless"))
 end })
 
 table.insert(tests, { name = "The revived flag lasts for the rest of the run", fn = function()
@@ -3991,6 +4072,10 @@ end })
 table.insert(tests, { name = "The continue Developer Product is a placeholder until it's created", fn = function()
 	local product = DeveloperProducts.getById("continue")
 	expectTrue(product ~= nil)
+	expectEqual(product.name, "One More Round")
+	-- Configured next to the Game Passes, not inside the pass list.
+	expectTrue(DeveloperProducts.Definitions == GamePasses.DeveloperProducts)
+	expectEqual(GamePasses.getById("continue"), nil)
 	expectEqual(product.productId, 0)
 	expectFalse(DeveloperProducts.isConfigured(product))
 	expectEqual(DeveloperProducts.getByProductId(0), nil)

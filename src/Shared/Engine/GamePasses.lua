@@ -81,6 +81,30 @@ GamePasses.Definitions = {
 	},
 }
 
+--[[
+	DEVELOPER PRODUCTS (consumables) -- deliberately NOT in Definitions
+	above: a Game Pass is owned forever, a Developer Product is bought again
+	and again and granted in MarketplaceService.ProcessReceipt
+	(Server/init.server.lua). Engine/DeveloperProducts.lua has the lookups.
+
+	`productId` is a PLACEHOLDER (0) until the product exists: Creator
+	Dashboard -> your experience -> Monetization -> Developer Products ->
+	Create. Set the name, icon and price there, then paste its numeric id
+	below. While it's 0 the product can't be bought in the live game;
+	Studio grants it free so it can be playtested.
+]]
+GamePasses.DeveloperProducts = {
+	{
+		-- ONE MORE ROUND: the run's single continue (RunState.canContinue).
+		-- Each player also gets one free per day (PlayerProfile.
+		-- hasFreeContinue), used before this paid one is offered.
+		id = "continue",
+		productId = 0, -- TODO: paste the real Developer Product ID here once created
+		name = "One More Round",
+		description = "Replay the round you lost from its start, with full Hands and Discards.",
+	},
+}
+
 -- Generic "does this passId gate anything" lookup isn't needed the way
 -- passForTheme is (fast_forward/custom_jukebox aren't associated with a
 -- specific piece of content the way a Theme is) -- callers just check

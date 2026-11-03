@@ -51,6 +51,13 @@
 	right UI is just "couldn't load the board right now, try again in a
 	moment" rather than pretending the board is empty.
 
+	ONE MORE ROUND: each period has a Standard and a Revived board
+	(Shared/Engine/Leaderboards.lua). A Standard/Revived toggle at the
+	top-right picks which one, defaulting to Standard every time the
+	overlay opens; its id is passed to InvokeServer(board). Every run on
+	the Revived board used its continue, so one "Revived" badge next to
+	"Your best" marks the whole board.
+
 	Returns: {}
 ]]
 
@@ -71,6 +78,7 @@ return function(deps)
 	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
+	local Leaderboards = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Leaderboards"))
 
 	local leaderboardBackdrop = Instance.new("Frame")
 	leaderboardBackdrop.Name = "DailyLeaderboardBackdrop"
@@ -91,10 +99,10 @@ return function(deps)
 	addSoftShadow(leaderboardPanel, 18)
 
 	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.
-	local function makeTabButton(text, xOffset)
+	local function makeTabButton(text, xOffset, xScale)
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.new(0, 90, 0, 26)
-		button.Position = UDim2.new(0, xOffset, 0, 0)
+		button.Position = UDim2.new(xScale or 0, xOffset, 0, 0)
 		button.Font = Enum.Font.GothamBold
 		button.TextSize = 13
 		button.Text = text
@@ -109,6 +117,9 @@ return function(deps)
 
 	local dailyTabButton = makeTabButton("\240\159\147\133 Daily", 0)
 	local weeklyTabButton = makeTabButton("\240\159\151\147 Weekly", 96)
+	-- ONE MORE ROUND: Standard/Revived toggle, right-aligned on the same row.
+	local standardTabButton = makeTabButton("Standard", -186, 1)
+	local revivedTabButton = makeTabButton("\u{1F4AB} Revived", -90, 1)
 
 	local leaderboardTitle = Instance.new("TextLabel")
 	leaderboardTitle.Size = UDim2.new(1, 0, 0, 26)
@@ -132,6 +143,21 @@ return function(deps)
 	yourBestLabel.ZIndex = 21
 	yourBestLabel.Parent = leaderboardPanel
 
+	local revivedBadge = Instance.new("TextLabel")
+	revivedBadge.Name = "RevivedBadge"
+	revivedBadge.AnchorPoint = Vector2.new(1, 0)
+	revivedBadge.Size = UDim2.new(0, 84, 0, 18)
+	revivedBadge.Position = UDim2.new(1, -15, 0, 58)
+	revivedBadge.BackgroundColor3 = Color3.fromRGB(70, 120, 150)
+	revivedBadge.Font = Enum.Font.GothamBold
+	revivedBadge.TextSize = 12
+	revivedBadge.TextColor3 = Color3.fromRGB(250, 240, 220)
+	revivedBadge.Text = "\u{1F4AB} Revived"
+	revivedBadge.Visible = false
+	revivedBadge.ZIndex = 21
+	revivedBadge.Parent = leaderboardPanel
+	roundCorner(revivedBadge, 9)
+
 	local leaderboardScroll = Instance.new("ScrollingFrame")
 	leaderboardScroll.Size = UDim2.new(1, -30, 1, -142)
 	leaderboardScroll.Position = UDim2.new(0, 15, 0, 77)
@@ -145,6 +171,7 @@ return function(deps)
 
 	local leaderboardLayout = Instance.new("UIListLayout")
 	leaderboardLayout.Padding = UDim.new(0, 8)
+	leaderboardLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	leaderboardLayout.Parent = leaderboardScroll
 
 	local leaderboardCloseButton = Instance.new("TextButton")
@@ -214,7 +241,7 @@ return function(deps)
 		statsLabel.TextSize = 13
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
 		statsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
-		statsLabel.Text = string.format("Depth %d  |  %d Tips", depth, tips)
+		statsLabel.Text = string.format("Depth %d  |  %d Tips", math.floor(depth), math.floor(tips))
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
 	end
@@ -235,15 +262,22 @@ return function(deps)
 	-- "daily" or "weekly". Read by refreshLeaderboard and by the 2 tab
 	-- buttons' click handlers below (which flip it and re-refresh).
 	local activeBoard = "daily"
+	-- ONE MORE ROUND: Leaderboards.STANDARD or Leaderboards.REVIVED.
+	local activeBucket = Leaderboards.STANDARD
 
+	local ACTIVE_TAB = Color3.fromRGB(110, 80, 40)
+	local IDLE_TAB = Color3.fromRGB(70, 55, 40)
 	local function updateTabHighlight()
-		dailyTabButton.BackgroundColor3 = (activeBoard == "daily") and Color3.fromRGB(110, 80, 40) or Color3.fromRGB(70, 55, 40)
-		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and Color3.fromRGB(110, 80, 40) or Color3.fromRGB(70, 55, 40)
+		dailyTabButton.BackgroundColor3 = (activeBoard == "daily") and ACTIVE_TAB or IDLE_TAB
+		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and ACTIVE_TAB or IDLE_TAB
+		standardTabButton.BackgroundColor3 = (activeBucket == Leaderboards.STANDARD) and ACTIVE_TAB or IDLE_TAB
+		revivedTabButton.BackgroundColor3 = (activeBucket == Leaderboards.REVIVED) and ACTIVE_TAB or IDLE_TAB
 	end
 
 	local function refreshLeaderboard()
 		clearRows()
 		yourBestLabel.Text = ""
+		revivedBadge.Visible = false
 		makeLeaderboardMessage("Loading...")
 		updateTabHighlight()
 
@@ -255,10 +289,11 @@ return function(deps)
 		-- the player has since tabbed AWAY from doesn't paint its result
 		-- into the other tab's UI.
 		local requestedBoard = activeBoard
+		local requestedBucket = activeBucket
 
 		task.spawn(function()
 			local ok, result = pcall(function()
-				return remote:InvokeServer()
+				return remote:InvokeServer(requestedBucket)
 			end)
 
 			-- The player may have closed the overlay (or the whole client
@@ -270,7 +305,7 @@ return function(deps)
 			-- Also bail if they've since switched tabs (see requestedBoard
 			-- above) -- that other tab's own refreshLeaderboard call is
 			-- already handling its own repaint.
-			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent or requestedBoard ~= activeBoard then
+			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent or requestedBoard ~= activeBoard or requestedBucket ~= activeBucket then
 				return
 			end
 
@@ -282,11 +317,12 @@ return function(deps)
 			end
 
 			leaderboardTitle.Text = icon .. " " .. label .. " -- " .. tostring(result.dateKey or "")
+			revivedBadge.Visible = requestedBucket == Leaderboards.REVIVED
 
 			if result.yourBestOk and result.yourBest then
 				yourBestLabel.Text = string.format(
 					"Your best %s: Depth %d, %d Tips",
-					period, result.yourBest.depth, result.yourBest.tips
+					period, math.floor(result.yourBest.depth or 0), math.floor(result.yourBest.tips or 0)
 				)
 			elseif result.yourBestOk then
 				yourBestLabel.Text = "No score set " .. period .. "."
@@ -328,6 +364,22 @@ return function(deps)
 		end
 	end)
 
+	standardTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if activeBucket ~= Leaderboards.STANDARD then
+			activeBucket = Leaderboards.STANDARD
+			refreshLeaderboard()
+		end
+	end)
+
+	revivedTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if activeBucket ~= Leaderboards.REVIVED then
+			activeBucket = Leaderboards.REVIVED
+			refreshLeaderboard()
+		end
+	end)
+
 	OverlayManager.register("dailyLeaderboard", function()
 		popOut(leaderboardBackdrop, leaderboardPanel)
 	end)
@@ -335,6 +387,7 @@ return function(deps)
 	leaderboardButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("dailyLeaderboard")
+		activeBucket = Leaderboards.STANDARD -- every open starts on Standard
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end)

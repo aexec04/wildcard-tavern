@@ -279,6 +279,58 @@ function RunState.new(options, rng)
 	return state
 end
 
+-- ONE MORE ROUND: a deep copy of the run for state.roundStartSnapshot (see
+-- RunState.useContinue). The memo keeps shared tables shared -- a card is
+-- one table wherever it sits, and bossModifier is nightBossModifier on a
+-- Boss round. Registry definitions (Patrons, Boss modifiers, Tags) and the
+-- rng are kept by reference: they're never mutated per run, and Patron
+-- definitions hold functions.
+local SNAPSHOT_BY_REFERENCE = {
+	rng = true,
+	bossModifier = true,
+	nightBossModifier = true,
+	currentRoundSkipTag = true,
+	pendingPack = true,
+}
+
+local function holdsFunction(value)
+	for _, field in pairs(value) do
+		if type(field) == "function" then
+			return true
+		end
+	end
+	return false
+end
+
+local function deepCopy(value, memo)
+	if type(value) ~= "table" then
+		return value
+	end
+	if memo[value] then
+		return memo[value]
+	end
+	if holdsFunction(value) then
+		return value
+	end
+	local copy = {}
+	memo[value] = copy
+	for key, field in pairs(value) do
+		copy[deepCopy(key, memo)] = deepCopy(field, memo)
+	end
+	return copy
+end
+
+local function copyForSnapshot(state)
+	local memo = {}
+	local copy = {}
+	for key, value in pairs(state) do
+		if key ~= "roundStartSnapshot" then
+			copy[key] = SNAPSHOT_BY_REFERENCE[key] and value or deepCopy(value, memo)
+		end
+	end
+	return copy
+end
+
 -- Pools whatever's left in the draw pile + discard pile + hand back
 -- together, reshuffles, picks this round's Boss modifier (if any), and
 -- deals a new starting hand. Cards are never regenerated -- this is what
@@ -375,6 +427,7 @@ function RunState.startRound(state)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
 
 	state.roundOver = false
+	state.roundStartSnapshot = copyForSnapshot(state)
 end
 
 -- Applies Golden Garnish (+3 Tips) and Blue Stamp (creates a Menu Recipe
@@ -1381,28 +1434,39 @@ function RunState.advanceToNextRound(state)
 end
 
 --[[
-	PAID CONTINUE (a consumable Developer Product, one per run -- see
-	DeveloperProducts.lua). Using it brings a lost run back on the round it
-	was lost on: the round score so far is kept and CONTINUE_HANDS fresh
-	Hands are granted, so it costs no rng draws and doesn't reshuffle,
-	re-deal or re-pick the Boss. It marks the run `revived` for good.
+	ONE MORE ROUND (the run's single continue -- free once a day, otherwise
+	the "continue" Developer Product; see GamePasses.DeveloperProducts and
+	Server/init.server.lua). Using it puts the run back exactly where the
+	failed round started (state.roundStartSnapshot, taken by startRound):
+	same dealt hand, deck order, Tips, inventories, and that round's full
+	Hands and Discards. It marks the run `revived` for good.
 
-	Only offered when the run ended by running out of Hands with a legal
-	play still in hand -- a soft-locked run (no legal play at all) can't be
-	saved by more Hands, so it isn't offered there.
+	The rng is NOT rewound, so later draws in the replayed round (deck
+	reshuffles mid-round, random Recipe effects) can come out differently.
 ]]
-RunState.CONTINUE_HANDS = 2
-
 function RunState.canContinue(state)
-	return state.runOver == true and not state.revived and RunState.hasLegalPlay(state)
+	return state.runOver == true
+		and not state.wonRun
+		and not state.revived
+		and state.roundStartSnapshot ~= nil
 end
 
 function RunState.useContinue(state)
 	assert(RunState.canContinue(state), "Can't continue this run")
+	local snapshot = state.roundStartSnapshot
+	local restored = copyForSnapshot(snapshot)
+	for key in pairs(state) do
+		if key ~= "rng" and key ~= "roundStartSnapshot" then
+			state[key] = nil
+		end
+	end
+	for key, value in pairs(restored) do
+		state[key] = value
+	end
+	state.roundStartSnapshot = snapshot
 	state.revived = true
 	state.runOver = false
 	state.roundOver = false
-	state.handsRemaining = RunState.CONTINUE_HANDS
 end
 
 -- Whether this run's progress still counts toward the player's permanent

@@ -390,6 +390,27 @@ local function continueProductAvailable()
 	return DeveloperProducts.isConfigured(DeveloperProducts.getById("continue")) or RunService:IsStudio()
 end
 
+-- ONE MORE ROUND: today's free continue hasn't been spent yet.
+local function hasFreeContinue(player)
+	local profile = profiles[player]
+	return profile ~= nil and PlayerProfile.hasFreeContinue(profile, SeededRng.dailyDateKey())
+end
+
+-- What the Game Over panel may offer: "free" (today's free continue),
+-- "paid" (the Developer Product), or nil. The free one always comes first.
+local function continueOffer(session, player)
+	if session.phase ~= "gameover" or not RunState.canContinue(session.state) then
+		return nil
+	end
+	if hasFreeContinue(player) then
+		return "free"
+	end
+	if continueProductAvailable() then
+		return "paid"
+	end
+	return nil
+end
+
 local function serializeState(session, player)
 	local state = session.state
 	local hand = {}
@@ -674,10 +695,10 @@ local function serializeState(session, player)
 		isSeeded = session.isSeeded or false,
 		seedCode = session.seedCode,
 		-- PAID CONTINUE: `revived` drives the Game Over panel's "Revived"
-		-- badge; `canContinue` shows its Continue button.
+		-- badge; `continueOffer` ("free" | "paid" | nil) shows its One More
+		-- Round button. Display only: RequestContinue re-checks everything.
 		revived = state.revived == true,
-		canContinue = session.phase == "gameover" and RunState.canContinue(state) and continueProductAvailable(),
-		continueHands = RunState.CONTINUE_HANDS,
+		continueOffer = continueOffer(session, player),
 	}
 end
 
@@ -953,7 +974,7 @@ end)
 
 -- ===== Paid Continue (Developer Product, see DeveloperProducts.lua) =====
 -- One per run: RunState.canContinue refuses once state.revived is set.
--- Using it flips the session back to "playing" on the round that was lost
+-- Using it puts the session back at the start of the round that was lost
 -- (RunState.useContinue), and from then on the run routes to the Revived
 -- boards and stops counting toward high score records.
 
@@ -1797,14 +1818,27 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	startNewSession(player, deckVariantId, difficultyId)
 end)
 
--- ===== Paid Continue (see the section next to ProcessReceipt) =====
--- Only prompts -- the grant itself happens in ProcessReceipt once Roblox
--- confirms payment. A placeholder product (productId 0) can't be bought,
--- so Studio applies it directly for playtesting; the live game ignores
--- the request until a real id is set.
+-- ===== One More Round (see the section next to ProcessReceipt) =====
+-- The client only asks; the server decides. Today's free continue
+-- (PlayerProfile.freeContinueDateKey) is spent first, and only once the
+-- continue has actually been applied. Otherwise this only prompts -- the
+-- paid grant happens in ProcessReceipt once Roblox confirms payment. A
+-- placeholder product (productId 0) can't be bought, so Studio applies it
+-- directly for playtesting; the live game ignores the request until a
+-- real id is set.
 RequestContinueRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
 	if not session or session.phase ~= "gameover" or not RunState.canContinue(session.state) then
+		return
+	end
+	if hasFreeContinue(player) then
+		if applyContinue(player) then
+			PlayerProfile.useFreeContinue(profiles[player], SeededRng.dailyDateKey())
+			profileDirty[player] = true
+			-- Save now, so leaving and rejoining can't hand out a second
+			-- free continue today.
+			task.spawn(saveProfile, player)
+		end
 		return
 	end
 	local product = DeveloperProducts.getById("continue")

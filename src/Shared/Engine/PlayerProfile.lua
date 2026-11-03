@@ -100,6 +100,7 @@ function PlayerProfile.new()
 		equippedTitleId = nil, -- ACHIEVEMENTS + TITLES (Phase 16): an Achievements.Definitions id, or nil for no title equipped
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
 		hasSeenHighCardHint = false, -- see Onboarding.shouldShowHighCardHint
+		freeContinueDateKey = nil, -- ONE MORE ROUND: SeededRng.dailyDateKey() of the day the free daily continue was last used, see hasFreeContinue
 		customPlaylist = {}, -- JUKEBOX PLAYLIST (requested fix): ordered list of "rbxassetid://<digits>" strings, see header comment
 	}
 end
@@ -186,7 +187,27 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 
+	if type(raw.freeContinueDateKey) == "string" then
+		profile.freeContinueDateKey = raw.freeContinueDateKey
+	end
+
 	return profile
+end
+
+-- ONE MORE ROUND: every player gets one free continue per day (the UTC day
+-- of SeededRng.dailyDateKey(), same as the Daily Challenge). The server
+-- offers it before the paid Developer Product.
+function PlayerProfile.hasFreeContinue(profile, dateKey)
+	return type(dateKey) == "string" and profile.freeContinueDateKey ~= dateKey
+end
+
+-- Spends today's free continue. Returns false if it was already spent.
+function PlayerProfile.useFreeContinue(profile, dateKey)
+	if not PlayerProfile.hasFreeContinue(profile, dateKey) then
+		return false
+	end
+	profile.freeContinueDateKey = dateKey
+	return true
 end
 
 -- Merges a list of Patron ids (e.g. this run's state.ownedPatrons, mapped to

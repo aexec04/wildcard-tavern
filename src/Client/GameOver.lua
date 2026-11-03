@@ -56,9 +56,10 @@
 	it fires once per fresh loss/win, never replays just from sitting on
 	this screen while other players' actions push unrelated state updates).
 
-	PAID CONTINUE: a Continue button sits next to Play Again whenever the
-	server says this run can still be continued (state.canContinue -- one
-	per run, see RunState.canContinue). Its click is wired in
+	ONE MORE ROUND: a button sits next to Play Again whenever the server
+	offers this run its one continue (state.continueOffer: "free" for the
+	player's free one today, "paid" for the Developer Product, nil for
+	none; see RunState.canContinue). Its click is wired in
 	init.client.lua next to Play Again's. A run that already used its
 	continue (state.revived) shows a "Revived" badge in the top corner, so
 	the summary never passes for a Standard run.
@@ -214,8 +215,9 @@ return function(deps)
 	continueButton.Size = UDim2.new(0, 200, 0, 40)
 	continueButton.Position = UDim2.new(0.5, 10, 1, -60)
 	continueButton.Font = Enum.Font.GothamBold
-	continueButton.TextSize = 18
-	continueButton.Text = "Continue"
+	continueButton.TextSize = 16
+	continueButton.TextWrapped = true
+	continueButton.Text = "One More Round"
 	continueButton.BackgroundColor3 = Color3.fromRGB(60, 110, 70)
 	continueButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 	continueButton.Visible = false
@@ -268,9 +270,9 @@ return function(deps)
 		-- stays centered.
 		local isRevived = state.revived == true
 		revivedBadge.Visible = isRevived
-		local canContinue = state.canContinue == true
+		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"
 		continueButton.Visible = canContinue
-		continueButton.Text = state.continueHands and string.format("Continue (+%d Hands)", state.continueHands) or "Continue"
+		continueButton.Text = state.continueOffer == "free" and "One More Round (Free)" or "One More Round"
 		playAgainButton.Position = canContinue and UDim2.new(0.5, -210, 1, -60) or UDim2.new(0.5, -100, 1, -60)
 		if isWin then
 			accentBar.BackgroundColor3 = WIN_COLOR
