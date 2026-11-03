@@ -972,7 +972,7 @@ local menuNewRunButton = MenuScreen.menuNewRunButton
 -- because those two wire their "open" onto these buttons. Captured via a
 -- do-block (no SettingsModule local) -- this chunk is right at Lua's
 -- 200-local ceiling.
-local settingsHowToPlayButton, settingsLeaderboardButton
+local settingsHowToPlayButton, settingsLeaderboardButton, SettingsOverlay
 do
 	local SettingsModule = require(script.Settings)({
 		screenGui = screenGui,
@@ -1001,9 +1001,35 @@ do
 		-- that lets a player back out of an in-progress run to the menu.
 		menuFrame = menuFrame,
 		root = root,
+		-- Custom Jukebox, in Settings > Audio (see Client/JukeboxSection.lua).
+		jukeboxDeps = {
+			showWarning = showWarning,
+			GamePasses = GamePasses,
+			MarketplaceService = MarketplaceService,
+			player = player,
+			getLatestState = function()
+				return latestState
+			end,
+			setCustomTrack = SoundModule.setCustomTrack,
+			clearCustomTrack = SoundModule.clearCustomTrack,
+			hasCustomTrack = SoundModule.hasCustomTrack,
+			AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
+			RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
+			MovePlaylistSongRemote = remotes:WaitForChild("MovePlaylistSong"),
+			MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
+			PRESET_PLAYLISTS = SoundModule.PRESET_PLAYLISTS,
+			playPlaylistFrom = SoundModule.playPlaylistFrom,
+			setShuffleEnabled = SoundModule.setShuffleEnabled,
+			getShuffleEnabled = SoundModule.getShuffleEnabled,
+			isPlayingQueue = SoundModule.isPlayingQueue,
+			getQueueIndex = SoundModule.getQueueIndex,
+			getQueueLength = SoundModule.getQueueLength,
+			getQueueLabel = SoundModule.getQueueLabel,
+		},
 	})
 	settingsHowToPlayButton = SettingsModule.settingsHowToPlayButton
 	settingsLeaderboardButton = SettingsModule.settingsLeaderboardButton
+	SettingsOverlay = SettingsModule
 end
 
 -- ===== How to Play overlay (reachable from menu or in-game) =====
@@ -1106,72 +1132,21 @@ require(script.DeckTracker)({
 	addButtonHoverScale = addButtonHoverScale,
 })
 
--- ===== Volume overlay =====
--- Extracted into Client/VolumePanel.lua -- the "🔊" corner button's own
--- panel (Volume slider, per-SFX sliders, Custom Jukebox + saved
--- playlist). Used to all live inside Settings.lua/the "⚙" button; Ahmed's
--- correction moved it here instead: "I said to put those sounds settings
--- under the Music Volume Icon, and to rename that Music Volume Icon to
--- just Volume." render() still needs to check volumeBackdrop.Visible and
--- call refreshJukeboxSection() -- same pattern as themesBackdrop/
--- refreshThemesList below -- so a Get-Pass purchase completing while this
--- panel is already open doesn't leave it showing a stale locked state.
--- Captured into the one local slot freed up by SettingsOverlay no longer
--- needing one (see the block just above) -- net zero new top-level
--- locals, since init.client.lua sits exactly at Lua's 200 ceiling.
-local VolumePanelOverlay = require(script.VolumePanel)({
+-- ===== Volume popup =====
+-- Client/VolumePanel.lua: Music slider, SFX slider, Mute. Nothing comes
+-- back out of it that the hub needs, so no local.
+require(script.VolumePanel)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
 	polishButton = polishButton,
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
-	showWarning = showWarning,
 	volumeButton = volumeButton,
 	makeSliderRow = makeSliderRow,
-	backgroundMusic = backgroundMusic,
 	VOLUME_ICONS = VOLUME_ICONS,
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
-	-- QoL Game Pass (Custom Jukebox, Phase 9)
-	GamePasses = GamePasses,
-	MarketplaceService = MarketplaceService,
-	player = player,
-	getLatestState = function()
-		return latestState
-	end,
-	setCustomTrack = SoundModule.setCustomTrack,
-	clearCustomTrack = SoundModule.clearCustomTrack,
-	hasCustomTrack = SoundModule.hasCustomTrack,
-	-- SFX VOLUME SLIDERS: referenced straight off SoundModule (already a
-	-- top-level local above) instead of adding 3 more of its own -- same
-	-- reasoning as playSfx/chipTickSound/etc.'s own comment just above
-	-- SoundModule's destructuring.
-	SFX_CATALOG = SoundModule.SFX_CATALOG,
-	getSfxVolume = SoundModule.getSfxVolume,
-	setSfxVolume = SoundModule.setSfxVolume,
-	-- JUKEBOX PLAYLIST: AddPlaylistSongRemote/RemovePlaylistSongRemote
-	-- reuse the already-declared top-level `remotes` local (same as
-	-- EquipTitleRemote above) -- zero new locals. MAX_PLAYLIST_SIZE is
-	-- required inline straight off ReplicatedStorage, same one-off
-	-- pattern Achievements uses just above, so the cap has exactly one
-	-- source of truth (Shared/Engine/PlayerProfile.lua) instead of a
-	-- second hardcoded copy drifting out of sync with it.
-	AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
-	RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
-	MovePlaylistSongRemote = remotes:WaitForChild("MovePlaylistSong"),
-	MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
-	-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS: all straight off SoundModule
-	-- (already a top-level local above), same reasoning as SFX_CATALOG/
-	-- getSfxVolume/setSfxVolume just above -- zero new locals.
-	PRESET_PLAYLISTS = SoundModule.PRESET_PLAYLISTS,
-	playPlaylistFrom = SoundModule.playPlaylistFrom,
-	setShuffleEnabled = SoundModule.setShuffleEnabled,
-	getShuffleEnabled = SoundModule.getShuffleEnabled,
-	isPlayingQueue = SoundModule.isPlayingQueue,
-	getQueueIndex = SoundModule.getQueueIndex,
-	getQueueLength = SoundModule.getQueueLength,
-	getQueueLabel = SoundModule.getQueueLabel,
 })
 
 -- ===== Run Setup overlay =====
@@ -2475,13 +2450,10 @@ local function render(state)
 	if themesBackdrop.Visible then
 		refreshThemesList() -- keep the panel accurate if it's open across a purchase
 	end
-	-- QoL Game Pass (Phase 9, bugfix): keep the Custom Jukebox section
-	-- accurate if a Get-Pass purchase completes while the Volume panel is
-	-- already open, same reasoning as themesBackdrop just above. Read
-	-- straight off VolumePanelOverlay rather than 2 more top-level locals
-	-- -- see that require() call's own comment on why.
-	if VolumePanelOverlay.volumeBackdrop.Visible then
-		VolumePanelOverlay.refreshJukeboxSection()
+	-- Keep the Custom Jukebox (Settings > Audio) accurate if a Get-Pass
+	-- purchase completes while Settings is open.
+	if SettingsOverlay.settingsBackdrop.Visible then
+		SettingsOverlay.refreshJukeboxSection()
 	end
 	if journeyBackdrop.Visible then
 		refreshJourney() -- keep "you are here" accurate if it's open across a round change
@@ -2712,10 +2684,19 @@ discardButton.MouseButton1Click:Connect(function()
 		showWarning("Select 1-5 cards to discard.")
 		return
 	end
-	playSfx(SOUND_IDS.discard)
-	pendingNewCardCount = #indices -- see the matching comment on Play Hand above
-	DiscardRemote:FireServer(indices)
-	Shop.tutorial.notifyDiscardUsed()
+	local function doDiscard()
+		playSfx(SOUND_IDS.discard)
+		pendingNewCardCount = #indices -- see the matching comment on Play Hand above
+		DiscardRemote:FireServer(indices)
+		Shop.tutorial.notifyDiscardUsed()
+	end
+	-- Settings > Gameplay > Confirm Before Discard.
+	if require(script.ClientSettings).get("confirmDiscard") then
+		local count = math.floor(#indices)
+		showConfirmDialog(string.format("Discard %d card%s?", count, count == 1 and "" or "s"), doDiscard)
+	else
+		doDiscard()
+	end
 end)
 
 nextRoundButton.MouseButton1Click:Connect(function()
@@ -2739,6 +2720,7 @@ GameOverPanel.continueButton.MouseButton1Click:Connect(function()
 end)
 
 StateUpdatedRemote.OnClientEvent:Connect(function(state)
+	require(script.ClientSettings).loadFromServer(state.settings)
 	if state.onboardingHint then
 		-- After the score reveal, which would otherwise cover the banner.
 		local hint = state.onboardingHint

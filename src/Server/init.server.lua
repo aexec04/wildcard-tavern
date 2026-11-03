@@ -73,6 +73,7 @@ local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase
 local AddPlaylistSongRemote = newRemote("AddPlaylistSong") -- JUKEBOX PLAYLIST (requested fix): (player, assetId string, e.g. "rbxassetid://123")
 local RemovePlaylistSongRemote = newRemote("RemovePlaylistSong") -- (player, assetId string)
 local MovePlaylistSongRemote = newRemote("MovePlaylistSong") -- JUKEBOX PLAYLIST REORDER (requested fix): (player, assetId string, direction number -1/+1)
+local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
 local UseRecipeRemote = newRemote("UseRecipe")   -- (player, category, id, cardIndices, suit)
@@ -651,6 +652,19 @@ local function serializeState(session, player)
 				table.insert(ids, id)
 			end
 			return ids
+		end)(),
+		-- Player settings (copy). nil until the profile loads, so the client
+		-- keeps its defaults instead of treating "loading" as saved values.
+		settings = (function()
+			local profile = profiles[player]
+			if not profile then
+				return nil
+			end
+			local copy = {}
+			for key, value in pairs(profile.settings) do
+				copy[key] = value
+			end
+			return copy
 		end)(),
 		-- TUTORIAL (Phase 16): `false` (not nil) here is what tells the
 		-- client "genuinely show the auto-popup" -- a not-yet-loaded
@@ -1704,6 +1718,19 @@ MovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId, direction
 
 	profileDirty[player] = true
 	pushState(player)
+end)
+
+-- Settings panel / volume popup. No pushState: the client already applied
+-- the change locally, and an echo could fight a slider mid-drag.
+SetSettingRemote.OnServerEvent:Connect(function(player, key, value)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	local didNotError, ok = pcall(PlayerProfile.setSetting, profile, key, value)
+	if didNotError and ok then
+		profileDirty[player] = true
+	end
 end)
 
 -- TUTORIAL (Phase 16): fired once by Client/Tutorial.lua when the

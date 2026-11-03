@@ -390,6 +390,10 @@ return function(deps)
 	-- `duration` seconds of each other.
 	local shakeRestPositions = setmetatable({}, { __mode = "k" })
 	local function screenShake(target, intensity, duration)
+		-- Settings > Display > Reduce Screen Shake turns every shake off.
+		if require(script.Parent.ClientSettings).get("reduceShake") then
+			return
+		end
 		duration = duration or 0.25
 		if not shakeRestPositions[target] then
 			shakeRestPositions[target] = target.Position

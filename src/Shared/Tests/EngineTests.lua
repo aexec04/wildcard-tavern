@@ -4083,4 +4083,84 @@ table.insert(tests, { name = "The continue Developer Product is a placeholder un
 	expectEqual(DeveloperProducts.getById("nope"), nil)
 end })
 
+-- ===== Player settings =====
+
+table.insert(tests, { name = "PlayerProfile settings: a new profile gets every default", fn = function()
+	local settings = PlayerProfile.new().settings
+	expectEqual(settings.musicVolume, 0.35)
+	expectEqual(settings.sfxVolume, 1)
+	expectEqual(settings.muted, false)
+	expectEqual(settings.animSpeed, "normal")
+	expectEqual(settings.reduceShake, false)
+	expectEqual(settings.colorblindSuits, false)
+	expectEqual(settings.confirmDiscard, false)
+	-- Each profile gets its own table.
+	expectTrue(PlayerProfile.new().settings ~= PlayerProfile.new().settings)
+end })
+
+table.insert(tests, { name = "PlayerProfile settings: a profile saved before settings existed loads with defaults", fn = function()
+	local old = PlayerProfile.new()
+	old.settings = nil
+	old.customPlaylist = { "rbxassetid://123" }
+	local reloaded = PlayerProfile.migrate(old)
+	expectEqual(reloaded.settings.musicVolume, 0.35)
+	expectEqual(reloaded.settings.sfxVolume, 1)
+	expectEqual(reloaded.settings.muted, false)
+	expectEqual(reloaded.settings.animSpeed, "normal")
+	expectEqual(reloaded.customPlaylist[1], "rbxassetid://123")
+end })
+
+table.insert(tests, { name = "PlayerProfile settings: saved values round-trip, bad ones fall back per field", fn = function()
+	local profile = PlayerProfile.new()
+	profile.settings.musicVolume = 0.6
+	profile.settings.muted = true
+	profile.settings.animSpeed = "fast"
+	profile.settings.colorblindSuits = true
+	local reloaded = PlayerProfile.migrate(profile)
+	expectEqual(reloaded.settings.musicVolume, 0.6)
+	expectEqual(reloaded.settings.muted, true)
+	expectEqual(reloaded.settings.animSpeed, "fast")
+	expectEqual(reloaded.settings.colorblindSuits, true)
+
+	local messy = PlayerProfile.migrate({ settings = {
+		musicVolume = 7, sfxVolume = "loud", muted = "yes", animSpeed = "ludicrous",
+		reduceShake = true, confirmDiscard = 1, someFutureSetting = true,
+	} })
+	expectEqual(messy.settings.musicVolume, 1) -- clamped
+	expectEqual(messy.settings.sfxVolume, 1)
+	expectEqual(messy.settings.muted, false)
+	expectEqual(messy.settings.animSpeed, "normal")
+	expectEqual(messy.settings.reduceShake, true)
+	expectEqual(messy.settings.confirmDiscard, false)
+	expectEqual(messy.settings.someFutureSetting, nil)
+	expectEqual(PlayerProfile.migrate({ settings = "nope" }).settings.sfxVolume, 1)
+end })
+
+table.insert(tests, { name = "PlayerProfile.setSetting validates keys and values", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue((PlayerProfile.setSetting(profile, "sfxVolume", 0.25)))
+	expectEqual(profile.settings.sfxVolume, 0.25)
+	expectTrue((PlayerProfile.setSetting(profile, "musicVolume", -2)))
+	expectEqual(profile.settings.musicVolume, 0)
+	expectFalse((PlayerProfile.setSetting(profile, "musicVolume", 0 / 0)))
+	expectTrue((PlayerProfile.setSetting(profile, "animSpeed", "fast")))
+	expectFalse((PlayerProfile.setSetting(profile, "animSpeed", "turbo")))
+	expectEqual(profile.settings.animSpeed, "fast")
+	expectFalse((PlayerProfile.setSetting(profile, "muted", "true")))
+	expectFalse((PlayerProfile.setSetting(profile, "version", 2)))
+	expectFalse((PlayerProfile.setSetting(profile, nil, true)))
+	-- Setting the same value again reports no change.
+	expectTrue((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
+	expectFalse((PlayerProfile.setSetting(profile, "confirmDiscard", true)))
+end })
+
+table.insert(tests, { name = "PlayerProfile.animationPaceDivisor: free Fast is milder than the Fast Forward pass", fn = function()
+	expectEqual(PlayerProfile.animationPaceDivisor("normal", false), 1)
+	expectEqual(PlayerProfile.animationPaceDivisor("normal", true), 1)
+	expectEqual(PlayerProfile.animationPaceDivisor("fast", false), PlayerProfile.FAST_PACE_DIVISOR)
+	expectEqual(PlayerProfile.animationPaceDivisor("fast", true), PlayerProfile.FAST_FORWARD_PACE_DIVISOR)
+	expectTrue(PlayerProfile.FAST_PACE_DIVISOR > 1)
+	expectTrue(PlayerProfile.FAST_FORWARD_PACE_DIVISOR > PlayerProfile.FAST_PACE_DIVISOR)
+end })
+
 return tests

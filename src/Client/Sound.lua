@@ -77,13 +77,9 @@
 			multTickSound = Sound,   -- dedicated Mult SFX
 			xmultTickSound = Sound,  -- dedicated XMult SFX
 			payoutThudSound = Sound, -- low "payout" thud, meant to be played pitched down
-			VOLUME_STEPS = { 0.35, 0.15, 0 },
-			VOLUME_ICONS = { "♪", "♩", "×" },
-			volumeStepIndex = number, -- initial value (1); the caller owns
-			                             mutating this as the volume button cycles
-			SFX_CATALOG = table, -- { { label, id }, ... } -- see its own comment below
-			getSfxVolume = function(id) -> number, -- 0-1, defaults to 1 (full)
-			setSfxVolume = function(id, multiplier), -- 0-1
+			VOLUME_ICONS = { "♪", "♩", "×" }, -- [1] playing, [3] muted
+			volumeStepIndex = 1, -- starting icon index
+			getSfxVolume = function(id) -> number, -- 0-1, the saved SFX volume (0 when muted)
 			-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS (requested fix): see each one's
 			-- own comment further down for the full story.
 			PRESET_PLAYLISTS = table, -- { { name, songs = {assetId,...}, isReady }, ... }
@@ -174,61 +170,17 @@ return function(deps)
 	--   Shop:    Guilty Pleasure rbxassetid://1842100660
 	--            Ambient Dreams rbxassetid://124567288309185
 
-	-- SFX VOLUME SLIDERS (requested fix: "adjust all the sound effects, not
-	-- just music, so every sfx that we have, they can all be sliders"):
-	-- before this, every playSfx/playPitched call used whatever volume the
-	-- CALL SITE hardcoded (0.6 default, or a one-off override) with no way
-	-- for the player to turn any of them up or down -- only backgroundMusic
-	-- had a real slider (Settings.lua's Master Volume). Keyed by the actual
-	-- asset id string (every SOUND_IDS/JUICE_SOUND_IDS entry is a distinct
-	-- id, so this never collides), a multiplier that scales whatever volume
-	-- a given play call would have used otherwise -- 1 (full, the default
-	-- for anything never touched) down to 0 (silent), same 0-100% shape as
-	-- Master Volume. Session-only, same as Master Volume and the Custom
-	-- Jukebox override -- no persistent save for audio settings yet (see
-	-- Settings.lua's own Custom Jukebox comment).
-	local sfxVolumeMultipliers = {} -- [assetId] = multiplier, 0-1; missing = 1 (full)
+	-- Music / SFX / mute come from Client/ClientSettings.lua (saved in the
+	-- player's profile, set from Client/VolumePanel.lua). One SFX volume
+	-- scales every sound effect; mute silences music and SFX together.
+	local ClientSettings = require(script.Parent.ClientSettings)
 
-	local function getSfxVolume(id)
-		if not id then
-			return 1
+	local function getSfxVolume(_id)
+		if ClientSettings.get("muted") then
+			return 0
 		end
-		local multiplier = sfxVolumeMultipliers[id]
-		if multiplier == nil then
-			return 1
-		end
-		return multiplier
+		return ClientSettings.get("sfxVolume") or 1
 	end
-
-	local function setSfxVolume(id, multiplier)
-		if not id then
-			return
-		end
-		sfxVolumeMultipliers[id] = multiplier
-	end
-
-	-- Ordered catalog for Settings.lua to build one slider row per SFX from
-	-- -- label is what the player sees, id is the actual key into
-	-- sfxVolumeMultipliers above. backgroundMusic is deliberately excluded
-	-- (that's Master Volume, its own separate slider, not an "effect").
-	-- chipTick/multTick/xmultTick/payoutThud are the 4 dedicated
-	-- ScorePopup.lua reveal-sequence sounds (see playPitched below for how
-	-- THEIR multiplier gets applied, since they're played by Sound instance
-	-- rather than by id string).
-	local SFX_CATALOG = {
-		{ label = "Card Select", id = SOUND_IDS.cardToggle },
-		{ label = "Play Hand", id = SOUND_IDS.playHand },
-		{ label = "Discard", id = SOUND_IDS.discard },
-		{ label = "Buy / Use", id = SOUND_IDS.buyPatron },
-		{ label = "Round Reward", id = SOUND_IDS.roundReward },
-		{ label = "UI Click", id = SOUND_IDS.uiClick },
-		{ label = "Game Over (Win)", id = SOUND_IDS.gameOverWin },
-		{ label = "Game Over (Loss)", id = SOUND_IDS.gameOverLoss },
-		{ label = "Chip Tick", id = JUICE_SOUND_IDS.chipTick },
-		{ label = "Mult Tick", id = JUICE_SOUND_IDS.multTick },
-		{ label = "XMult Tick", id = JUICE_SOUND_IDS.xmultTick },
-		{ label = "Payout Thud", id = JUICE_SOUND_IDS.payoutThud },
-	}
 
 	-- JUKEBOX PRESET PLAYLISTS (requested fix: "a couple preset playlist
 	-- they can listen to if they can't be bothered" -- the "eventually"
@@ -489,10 +441,25 @@ return function(deps)
 	-- most people's volume/headphones, and the Settings slider (see
 	-- Client/Settings.lua) is the real, fine-grained control now anyway --
 	-- this is just a saner out-of-the-box "loud" step.
-	local VOLUME_STEPS = { 0.35, 0.15, 0 }
 	local VOLUME_ICONS = { "♪", "♩", "×" }
-	local volumeStepIndex = 1
-	backgroundMusic.Volume = VOLUME_STEPS[volumeStepIndex]
+
+	-- Applies the saved music volume / mute to backgroundMusic, starting or
+	-- stopping it as it crosses 0 (same rule every Play() call here uses).
+	local function applyMusicVolume()
+		local volume = ClientSettings.get("muted") and 0 or (ClientSettings.get("musicVolume") or 0)
+		backgroundMusic.Volume = volume
+		if volume <= 0 then
+			backgroundMusic:Stop()
+		elseif backgroundMusic.SoundId ~= "rbxassetid://0" and not backgroundMusic.IsPlaying then
+			backgroundMusic:Play()
+		end
+	end
+	backgroundMusic.Volume = ClientSettings.get("musicVolume")
+	ClientSettings.onChanged(function(key)
+		if key == "musicVolume" or key == "muted" then
+			applyMusicVolume()
+		end
+	end)
 
 	-- One persistent Sound instance per SFX, created ONCE here and reused for
 	-- every play, instead of Instance.new()'ing (and loading) a brand new Sound
@@ -638,12 +605,9 @@ return function(deps)
 		multTickSound = multTickSound,
 		xmultTickSound = xmultTickSound,
 		payoutThudSound = payoutThudSound,
-		VOLUME_STEPS = VOLUME_STEPS,
 		VOLUME_ICONS = VOLUME_ICONS,
-		volumeStepIndex = volumeStepIndex,
-		SFX_CATALOG = SFX_CATALOG,
+		volumeStepIndex = 1, -- starting icon index into VOLUME_ICONS
 		getSfxVolume = getSfxVolume,
-		setSfxVolume = setSfxVolume,
 		-- JUKEBOX AUTOPLAY/SHUFFLE/PRESETS:
 		PRESET_PLAYLISTS = PRESET_PLAYLISTS,
 		playPlaylistFrom = playPlaylistFrom,

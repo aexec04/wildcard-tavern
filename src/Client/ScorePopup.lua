@@ -88,8 +88,8 @@
 		chipTickSound, multTickSound, xmultTickSound, payoutThudSound -- Sound instances, see Sound.lua
 		deckWidgetButton -- optional GuiObject, drop-off target for played ghosts (bottom-right deck widget)
 		hasFastForwardPass -- optional function() -> boolean, live getter -- QoL Game Pass
-		                       (Phase 9): true speeds up the whole choreography below (see
-		                       FAST_FORWARD_DIVISOR/pace()). Checked once at the top of each
+		                       (Phase 9): with Animation Speed "Fast", upgrades the speed-up
+		                       to the pass's full divisor (see pace()). Checked once at the top of each
 		                       showScorePopup call, not per-entry -- a hand already mid-reveal
 		                       finishes at whatever pace it started at.
 
@@ -220,14 +220,16 @@ return function(deps)
 	-- QoL Game Pass (Fast Forward, Phase 9): every task.wait/tween duration
 	-- above gets funneled through pace() rather than used directly, so
 	-- there's exactly one place that decides how fast the choreography
-	-- runs. FAST_FORWARD_DIVISOR shrinks every one of those durations by
-	-- the same factor when the pass is owned -- same relative pacing/
+	-- runs. The divisor (PlayerProfile.animationPaceDivisor: Animation
+	-- Speed setting + Fast Forward pass) shrinks every one of those durations by
+	-- the same factor -- same relative pacing/
 	-- readability the constants above were carefully tuned for (see their
 	-- own comments), just compressed, not reshuffled. currentPaceDivisor
 	-- is re-read once at the top of each showScorePopup call (not
 	-- per-entry) so a hand already mid-reveal can't change speed partway
 	-- through if ownership happens to resolve mid-sequence.
-	local FAST_FORWARD_DIVISOR = 1.8
+	local ClientSettings = require(script.Parent.ClientSettings)
+	local PlayerProfileEngine = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile"))
 	local currentPaceDivisor = 1
 	local function pace(duration)
 		if currentPaceDivisor == 1 then
@@ -828,9 +830,13 @@ return function(deps)
 		-- see that function's own comment. { rank, suit, label } or nil.
 		local wildcardResolution = preview.wildcardResolution
 
-		-- QoL Game Pass (Fast Forward): decided once per hand, not
-		-- per-entry -- see pace()'s own comment above.
-		currentPaceDivisor = (hasFastForwardPass and hasFastForwardPass()) and FAST_FORWARD_DIVISOR or 1
+		-- Settings > Display > Animation Speed, decided once per hand (see
+		-- pace()). "fast" is a free mild speed-up; owning the Fast Forward
+		-- pass upgrades it to the full one (PlayerProfile.animationPaceDivisor).
+		currentPaceDivisor = PlayerProfileEngine.animationPaceDivisor(
+			ClientSettings.get("animSpeed"),
+			hasFastForwardPass ~= nil and hasFastForwardPass()
+		)
 
 		-- Defensive cleanup: a previous sequence that got interrupted
 		-- (e.g. the player queued up another hand before this one's

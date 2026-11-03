@@ -1,92 +1,51 @@
 --[[
 	Client/Settings.lua
-	The "⚙" corner button's panel. Used to also hold the whole audio
-	section (Volume slider, per-SFX sliders, Custom Jukebox) -- Ahmed's
-	own correction moved all of that out into Client/VolumePanel.lua,
-	wired to the dedicated "🔊" volume corner button instead: "I said to
-	put those sounds settings under the Music Volume Icon, and to rename
-	that Music Volume Icon to just Volume." This panel is left with just
-	what's actually a game setting: the way back to the Main Menu -- plus
-	(CORNER ROW CLEANUP) How to Play and Leaderboards, which used to be
-	their own "?" / "🏆" corner icons and now live here instead.
+	The "⚙" corner button's panel (wood variant), in four sections:
+		Audio    -- Custom Jukebox (Client/JukeboxSection.lua, Game Pass gated)
+		Display  -- Animation speed (Normal/Fast), Reduce screen shake,
+		            Colorblind suits
+		Gameplay -- Confirm before discard
+		Account  -- How to Play, Leaderboards, Main Menu
+	Music/SFX volume and mute are in the volume popup (Client/VolumePanel.lua).
+	Toggle values live in Client/ClientSettings.lua (saved to the profile).
 
-	Extracted out of init.client.lua as part of splitting the client script
-	into smaller, per-feature files. The How to Play / Leaderboards buttons
-	only close this panel themselves -- HowToPlay.lua/DailyLeaderboard.lua
-	wire the actual "open" on them (handed in as their helpButton/
-	leaderboardButton deps), so both buttons come back out of the require().
+	How to Play / Leaderboards only close this panel; HowToPlay.lua and
+	DailyLeaderboard.lua wire the "open" on the returned buttons. Main Menu
+	hides root and shows menuFrame (the reverse of the menu's Play button).
 
 	deps fields:
-		screenGui        -- ScreenGui, the panel's ultimate parent (via backdrop)
-		polishPanel       -- function(instance, radius)
-		polishButton      -- function(instance, radius)
-		addSoftShadow     -- function(instance, radius)
-		playClickSfx      -- function(volume?)
-		settingsButton    -- TextButton, the in-game "⚙" corner button
-		popIn             -- function(backdrop, content, opts?)
-		popOut            -- function(backdrop, content, opts?, onHidden?)
-		addButtonHoverScale -- function(button, opts?)
-		menuFrame           -- Frame, the main menu screen (see Menu.lua) -- shown
-		                        by the Main Menu button below
-		root                -- Frame, the in-game gameplay root -- hidden by the
-		                        Main Menu button below (exact mirror of what
-		                        menuPlayButton's handler does in init.client.lua,
-		                        just in reverse)
+		screenGui, polishPanel, polishButton, addSoftShadow, playClickSfx,
+		roundCorner, popIn, popOut, addButtonHoverScale
+		settingsButton -- TextButton, the "⚙" corner button
+		menuFrame, root -- for Main Menu
+		jukeboxDeps    -- table, passed to JukeboxSection.lua (see its header);
+		                  parent/layoutOrder/isVisible/polishButton/etc are filled in here
 
 	Returns:
 		{
 			settingsBackdrop = Frame,
 			settingsHowToPlayButton = TextButton,
 			settingsLeaderboardButton = TextButton,
+			refreshJukeboxSection = function(), -- call from render() while open
 		}
-
-	POLISH PASS (Batch 3): popIn/popOut replace the old bare
-	Visible = true/false cut; the Close button gets addButtonHoverScale.
-
-	MAIN MENU BUTTON (requested fix): before this, there was no way to get
-	back to the main menu once a run started -- GameOver.lua only offers
-	Play Again, and quitting meant literally leaving the game. Settings is
-	reachable from both the menu screen and mid-run (it's the corner "⚙"
-	button, parented straight to screenGui, not gated by root/menuFrame
-	visibility), so it's the natural place for a way out. The handler is
-	the exact mirror of menuPlayButton's in init.client.lua: hide root,
-	show menuFrame. Nothing server-side is touched -- Phase 10's
-	persistence already means whatever run was in progress just picks back
-	up next time Play is pressed, same as it would after a disconnect.
 ]]
 
+local ClientSettings = require(script.Parent.ClientSettings)
+local OverlayManager = require(script.Parent.OverlayManager)
+local ArtAssetsModule = require(script.Parent.ArtAssets)
+
+local TEXT = Color3.fromRGB(250, 240, 220)
+local HEADER = Color3.fromRGB(255, 214, 130)
+local SUBTLE = Color3.fromRGB(190, 175, 155)
+local BUTTON = Color3.fromRGB(70, 45, 25)
+local ON = Color3.fromRGB(70, 110, 60)
+
 return function(deps)
-	local screenGui = deps.screenGui
-	local polishPanel = deps.polishPanel
 	local polishButton = deps.polishButton
-	local addSoftShadow = deps.addSoftShadow
 	local playClickSfx = deps.playClickSfx
-	local settingsButton = deps.settingsButton
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
-	local menuFrame = deps.menuFrame
-	local root = deps.root
-	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
-	-- header comment for the full story.
-	local OverlayManager = require(script.Parent.OverlayManager)
-	-- CORNER ICON SET (Oct 25 2026): feeds the 2 icon images added to
-	-- settingsHowToPlayButton/settingsLeaderboardButton below. Same
-	-- module init.client.lua's own corner buttons read from.
-	local ArtAssetsModule = require(script.Parent.ArtAssets)
-	-- BUGFIX (Oct 29 2026): the How to Play/Leaderboards icon badges
-	-- below were square-cornered against a rounded button -- same fix as
-	-- init.client.lua's corner buttons, see makeCornerButton there for
-	-- the full explanation. Pulled from deps (init.client.lua's own
-	-- top-level roundCorner local, passed in alongside polishButton/
-	-- polishPanel), NOT a fresh require(script.Parent.VisualHelpers)
-	-- here -- that module's require() returns a FACTORY FUNCTION
-	-- (return function(deps) ... end), not the helpers table, so
-	-- indexing .roundCorner off it directly (an earlier version of this
-	-- fix did exactly that) threw "attempt to index a function value"
-	-- and aborted this file's whole require() call -- which took down
-	-- init.client.lua's entire startup with it, including every button
-	-- wired after this point (Play included).
 	local roundCorner = deps.roundCorner
 
 	local settingsBackdrop = Instance.new("Frame")
@@ -96,114 +55,225 @@ return function(deps)
 	settingsBackdrop.BackgroundTransparency = 0.4
 	settingsBackdrop.Visible = false
 	settingsBackdrop.ZIndex = 20
-	settingsBackdrop.Parent = screenGui
+	settingsBackdrop.Parent = deps.screenGui
 
 	local settingsPanel = Instance.new("Frame")
-	-- 0.3 -> 0.4 tall (re-centered, 0.35 -> 0.3) for the How to Play /
-	-- Leaderboards row added above Main Menu/Close.
-	settingsPanel.Size = UDim2.fromScale(0.35, 0.4)
-	settingsPanel.Position = UDim2.fromScale(0.325, 0.3)
+	settingsPanel.Size = UDim2.fromScale(0.5, 0.8)
+	settingsPanel.Position = UDim2.fromScale(0.25, 0.1)
 	settingsPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
-	polishPanel(settingsPanel, 16, "wood")
-	addSoftShadow(settingsPanel, 18)
+	deps.polishPanel(settingsPanel, 16, "wood")
+	deps.addSoftShadow(settingsPanel, 18)
 
 	local settingsTitle = Instance.new("TextLabel")
 	settingsTitle.Size = UDim2.new(1, 0, 0, 40)
 	settingsTitle.BackgroundTransparency = 1
 	settingsTitle.Font = Enum.Font.GothamBold
 	settingsTitle.TextSize = 22
-	settingsTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+	settingsTitle.TextColor3 = TEXT
 	settingsTitle.Text = "Settings"
 	settingsTitle.ZIndex = 21
 	settingsTitle.Parent = settingsPanel
 
-	-- How to Play + Leaderboards: same 140px-pair layout as the bottom row
-	-- below, one row (40px + 10px gap) above it.
-	local settingsHowToPlayButton = Instance.new("TextButton")
-	settingsHowToPlayButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsHowToPlayButton.Position = UDim2.new(0.5, -146, 1, -110)
-	settingsHowToPlayButton.Font = Enum.Font.GothamBold
-	settingsHowToPlayButton.TextSize = 16
-	settingsHowToPlayButton.Text = "How to Play"
-	settingsHowToPlayButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
-	settingsHowToPlayButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	settingsHowToPlayButton.ZIndex = 21
-	settingsHowToPlayButton.Parent = settingsPanel
-	polishButton(settingsHowToPlayButton, 12)
-	addButtonHoverScale(settingsHowToPlayButton)
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.new(1, -40, 1, -110)
+	scroll.Position = UDim2.new(0, 20, 0, 48)
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.ScrollBarThickness = 8
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scroll.ZIndex = 21
+	scroll.Parent = settingsPanel
 
-	-- CORNER ICON SET: a small icon badge on the left edge, text stays as
-	-- the button's own Text (unlike the corner buttons in init.client.lua,
-	-- these keep real words, not just an emoji, so the icon sits beside
-	-- the label instead of covering it).
-	if ArtAssetsModule.cornerIconHowToPlay ~= "rbxassetid://0" then
-		local howToPlayIcon = Instance.new("ImageLabel")
-		howToPlayIcon.Size = UDim2.new(0, 22, 0, 22)
-		howToPlayIcon.AnchorPoint = Vector2.new(0, 0.5)
-		howToPlayIcon.Position = UDim2.new(0, 10, 0.5, 0)
-		howToPlayIcon.BackgroundTransparency = 1
-		howToPlayIcon.Image = ArtAssetsModule.cornerIconHowToPlay
-		howToPlayIcon.ScaleType = Enum.ScaleType.Crop
-		howToPlayIcon.ZIndex = 22
-		howToPlayIcon.Parent = settingsHowToPlayButton
-		roundCorner(howToPlayIcon, 11)
+	local scrollLayout = Instance.new("UIListLayout")
+	scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	scrollLayout.Padding = UDim.new(0, 8)
+	scrollLayout.Parent = scroll
+
+	local nextOrder = 0
+	local function order()
+		nextOrder = nextOrder + 1
+		return nextOrder
 	end
 
-	local settingsLeaderboardButton = Instance.new("TextButton")
-	settingsLeaderboardButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsLeaderboardButton.Position = UDim2.new(0.5, 6, 1, -110)
-	settingsLeaderboardButton.Font = Enum.Font.GothamBold
-	settingsLeaderboardButton.TextSize = 16
-	settingsLeaderboardButton.Text = "Leaderboards"
-	settingsLeaderboardButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
-	settingsLeaderboardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	settingsLeaderboardButton.ZIndex = 21
-	settingsLeaderboardButton.Parent = settingsPanel
-	polishButton(settingsLeaderboardButton, 12)
-	addButtonHoverScale(settingsLeaderboardButton)
-
-	-- CORNER ICON SET: same left-edge badge treatment as How to Play
-	-- above -- replaces the old inline "🏆 " emoji that used to be part
-	-- of this button's own Text string.
-	if ArtAssetsModule.cornerIconLeaderboards ~= "rbxassetid://0" then
-		local leaderboardIcon = Instance.new("ImageLabel")
-		leaderboardIcon.Size = UDim2.new(0, 22, 0, 22)
-		leaderboardIcon.AnchorPoint = Vector2.new(0, 0.5)
-		leaderboardIcon.Position = UDim2.new(0, 10, 0.5, 0)
-		leaderboardIcon.BackgroundTransparency = 1
-		leaderboardIcon.Image = ArtAssetsModule.cornerIconLeaderboards
-		leaderboardIcon.ScaleType = Enum.ScaleType.Crop
-		leaderboardIcon.ZIndex = 22
-		leaderboardIcon.Parent = settingsLeaderboardButton
-		roundCorner(leaderboardIcon, 11)
+	local function makeHeader(text)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 0, 30)
+		label.LayoutOrder = order()
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 18
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Bottom
+		label.TextColor3 = HEADER
+		label.Text = text
+		label.ZIndex = 21
+		label.Parent = scroll
 	end
 
-	-- Close + Main Menu sit side by side along the bottom edge -- 140px
-	-- each with a 12px gap, the pair centered as a unit: [-146, -6] and
-	-- [6, 146] around the panel's horizontal middle.
-	local settingsMainMenuButton = Instance.new("TextButton")
-	settingsMainMenuButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsMainMenuButton.Position = UDim2.new(0.5, -146, 1, -60)
-	settingsMainMenuButton.Font = Enum.Font.GothamBold
-	settingsMainMenuButton.TextSize = 16
-	settingsMainMenuButton.Text = "Main Menu"
-	settingsMainMenuButton.BackgroundColor3 = Color3.fromRGB(70, 45, 25)
-	settingsMainMenuButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	settingsMainMenuButton.ZIndex = 21
-	settingsMainMenuButton.Parent = settingsPanel
-	polishButton(settingsMainMenuButton, 12)
-	addButtonHoverScale(settingsMainMenuButton)
+	-- One row: label + description on the left, a value button on the
+	-- right. `choices` is a list of { value, text }; clicking cycles them.
+	local function makeChoiceRow(key, labelText, description, choices)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 46)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -130, 0, 22)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 15
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = TEXT
+		label.Text = labelText
+		label.ZIndex = 21
+		label.Parent = row
+
+		local desc = Instance.new("TextLabel")
+		desc.Size = UDim2.new(1, -130, 0, 20)
+		desc.Position = UDim2.new(0, 0, 0, 22)
+		desc.BackgroundTransparency = 1
+		desc.Font = Enum.Font.Gotham
+		desc.TextSize = 12
+		desc.TextWrapped = true
+		desc.TextXAlignment = Enum.TextXAlignment.Left
+		desc.TextColor3 = SUBTLE
+		desc.Text = description
+		desc.ZIndex = 21
+		desc.Parent = row
+
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(0, 110, 0, 34)
+		button.AnchorPoint = Vector2.new(1, 0.5)
+		button.Position = UDim2.new(1, -4, 0.5, 0)
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = 14
+		button.TextColor3 = TEXT
+		button.ZIndex = 21
+		button.Parent = row
+		polishButton(button, 8)
+		addButtonHoverScale(button)
+
+		local function refresh()
+			local current = ClientSettings.get(key)
+			for i, choice in ipairs(choices) do
+				if choice[1] == current then
+					button.Text = choice[2]
+					button.BackgroundColor3 = (i == 1) and BUTTON or ON
+					return
+				end
+			end
+		end
+
+		button.MouseButton1Click:Connect(function()
+			playClickSfx()
+			local current = ClientSettings.get(key)
+			local nextIndex = 1
+			for i, choice in ipairs(choices) do
+				if choice[1] == current then
+					nextIndex = (i % #choices) + 1
+				end
+			end
+			ClientSettings.set(key, choices[nextIndex][1])
+		end)
+
+		ClientSettings.onChanged(function(changedKey)
+			if changedKey == key then
+				refresh()
+			end
+		end)
+		refresh()
+	end
+
+	local OFF_ON = { { false, "Off" }, { true, "On" } }
+
+	-- ===== Audio =====
+	makeHeader("Audio")
+	local jukeboxDeps = deps.jukeboxDeps or {}
+	jukeboxDeps.parent = scroll
+	jukeboxDeps.layoutOrder = order()
+	jukeboxDeps.isVisible = function()
+		return settingsBackdrop.Visible
+	end
+	jukeboxDeps.polishButton = polishButton
+	jukeboxDeps.addButtonHoverScale = addButtonHoverScale
+	jukeboxDeps.playClickSfx = playClickSfx
+	local jukebox = require(script.Parent.JukeboxSection)(jukeboxDeps)
+
+	-- ===== Display =====
+	makeHeader("Display")
+	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward pass owners get extra speed.", {
+		{ "normal", "Normal" },
+		{ "fast", "Fast" },
+	})
+	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
+	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a bolder symbol.", OFF_ON)
+
+	-- ===== Gameplay =====
+	makeHeader("Gameplay")
+	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
+
+	-- ===== Account =====
+	makeHeader("Account")
+	local accountRow = Instance.new("Frame")
+	accountRow.Size = UDim2.new(1, 0, 0, 44)
+	accountRow.LayoutOrder = order()
+	accountRow.BackgroundTransparency = 1
+	accountRow.ZIndex = 21
+	accountRow.Parent = scroll
+
+	local accountLayout = Instance.new("UIListLayout")
+	accountLayout.FillDirection = Enum.FillDirection.Horizontal
+	accountLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	accountLayout.Padding = UDim.new(0, 10)
+	accountLayout.Parent = accountRow
+
+	local function makeAccountButton(text, layoutOrder, iconImage)
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1 / 3, -7, 0, 40)
+		button.LayoutOrder = layoutOrder
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = 15
+		button.Text = text
+		button.BackgroundColor3 = BUTTON
+		button.TextColor3 = TEXT
+		button.ZIndex = 21
+		button.Parent = accountRow
+		polishButton(button, 12)
+		addButtonHoverScale(button)
+		-- Icon badge on the left edge, parented to the button.
+		if iconImage and iconImage ~= "rbxassetid://0" then
+			local icon = Instance.new("ImageLabel")
+			icon.Size = UDim2.new(0, 22, 0, 22)
+			icon.AnchorPoint = Vector2.new(0, 0.5)
+			icon.Position = UDim2.new(0, 10, 0.5, 0)
+			icon.BackgroundTransparency = 1
+			icon.Image = iconImage
+			icon.ScaleType = Enum.ScaleType.Crop
+			icon.ZIndex = 22
+			icon.Parent = button
+			roundCorner(icon, 11)
+		end
+		return button
+	end
+
+	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, ArtAssetsModule.cornerIconHowToPlay)
+	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
+	local settingsMainMenuButton = makeAccountButton("Main Menu", 3, nil)
 
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsCloseButton.Position = UDim2.new(0.5, 6, 1, -60)
+	settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -54)
 	settingsCloseButton.Font = Enum.Font.GothamBold
 	settingsCloseButton.TextSize = 16
 	settingsCloseButton.Text = "Close"
 	settingsCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	settingsCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	settingsCloseButton.TextColor3 = TEXT
 	settingsCloseButton.ZIndex = 21
 	settingsCloseButton.Parent = settingsPanel
 	polishButton(settingsCloseButton, 12)
@@ -214,19 +284,14 @@ return function(deps)
 		popOut(settingsBackdrop, settingsPanel)
 	end)
 
-	-- Mirrors menuPlayButton's handler in init.client.lua in reverse: hide
-	-- root, show menuFrame, only once the panel has actually finished
-	-- fading out (popOut's onHidden), same as RunSetup's Begin Run handoff.
 	settingsMainMenuButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		popOut(settingsBackdrop, settingsPanel, nil, function()
-			root.Visible = false
-			menuFrame.Visible = true
+			deps.root.Visible = false
+			deps.menuFrame.Visible = true
 		end)
 	end)
 
-	-- Close Settings first; the panel these open is wired by its own
-	-- module (see this file's header).
 	for _, button in ipairs({ settingsHowToPlayButton, settingsLeaderboardButton }) do
 		button.MouseButton1Click:Connect(function()
 			playClickSfx()
@@ -238,9 +303,10 @@ return function(deps)
 		popOut(settingsBackdrop, settingsPanel)
 	end)
 
-	settingsButton.MouseButton1Click:Connect(function()
+	deps.settingsButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("settings")
+		jukebox.refreshJukeboxSection()
 		popIn(settingsBackdrop, settingsPanel)
 	end)
 
@@ -248,5 +314,6 @@ return function(deps)
 		settingsBackdrop = settingsBackdrop,
 		settingsHowToPlayButton = settingsHowToPlayButton,
 		settingsLeaderboardButton = settingsLeaderboardButton,
+		refreshJukeboxSection = jukebox.refreshJukeboxSection,
 	}
 end

@@ -34,6 +34,22 @@ local BLACK_INK = Color3.fromRGB(30, 22, 18)
 local WILDCARD_INK = Color3.fromRGB(150, 110, 230)
 local GOLD = Color3.fromRGB(205, 170, 95)
 
+-- Settings > Display > Colorblind Suits: one ink per suit (keyed by the
+-- symbol CardFace is handed) plus a suit letter in the top-right corner,
+-- so suits differ by color AND a second shape cue, not just red/black.
+local COLORBLIND_INK = {
+	["♠"] = Color3.fromRGB(30, 22, 18), -- black
+	["♥"] = Color3.fromRGB(190, 30, 40), -- red
+	["♦"] = Color3.fromRGB(30, 90, 200), -- blue
+	["♣"] = Color3.fromRGB(25, 125, 55), -- green
+}
+local SUIT_LETTER = { ["♠"] = "S", ["♥"] = "H", ["♦"] = "D", ["♣"] = "C" }
+
+local ClientSettings = require(script.Parent.ClientSettings)
+
+-- Every face built so far, so they can be redrawn when the setting flips.
+local builtFaces = setmetatable({}, { __mode = "k" }) -- [button] = args
+
 local CARD_ASPECT = 1.45 -- height / width, matches the reference cards
 local MAX_CARD_WIDTH = 96
 local MIN_CARD_WIDTH = 48
@@ -58,6 +74,7 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 end
 
 function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcard)
+	builtFaces[button] = nil -- re-registered below unless this is a hidden wildcard
 	local old = button:FindFirstChild("CardFace")
 	if old then
 		old:Destroy()
@@ -76,7 +93,9 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		return face
 	end
 
-	local ink = isRed and RED_INK or BLACK_INK
+	builtFaces[button] = { rankText, suitText, isRed, zIndex }
+	local colorblind = ClientSettings.get("colorblindSuits") and COLORBLIND_INK[suitText] ~= nil
+	local ink = colorblind and COLORBLIND_INK[suitText] or (isRed and RED_INK or BLACK_INK)
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
 	-- of the card's width and ~8% of its height); they used to start at
 	-- 4-8%, right on top of the gold filigree, which made them hard to read.
@@ -84,8 +103,25 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	makeLabel(face, "CornerSuit", suitText, ink, UDim2.fromScale(0.16, 0.1), UDim2.fromScale(0.2, 0.27), nil, Enum.TextXAlignment.Left, zIndex)
 	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(0.5, 0.36), UDim2.fromScale(0.5, 0.53), Vector2.new(0.5, 0.5), nil, zIndex)
 	makeLabel(face, "BottomSuit", suitText, ink, UDim2.fromScale(0.14, 0.09), UDim2.fromScale(0.81, 0.87), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
+	if colorblind then
+		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
+	end
 	return face
 end
+
+-- Redraw every live card face when Colorblind Suits is toggled.
+ClientSettings.onChanged(function(key)
+	if key ~= "colorblindSuits" then
+		return
+	end
+	for button, args in pairs(builtFaces) do
+		if button.Parent then
+			CardFace.build(button, args[1], args[2], args[3], args[4], false)
+		else
+			builtFaces[button] = nil
+		end
+	end
+end)
 
 -- The tray lives under GameBackgroundArt (ZIndex 0), NOT under handFrame:
 -- handFrame holds a UIListLayout, which would lay the tray out as if it

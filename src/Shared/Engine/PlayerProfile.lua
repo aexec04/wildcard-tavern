@@ -86,6 +86,58 @@ PlayerProfile.SCHEMA_VERSION = 1
 -- they have like 20 song IDs" example from the feature request itself.
 PlayerProfile.MAX_PLAYLIST_SIZE = 20
 
+-- Player settings (Settings panel + volume popup). Each entry is the
+-- default plus the rule a saved/client-sent value must pass. Profiles
+-- saved before settings existed have no `settings` table and get these
+-- defaults; musicVolume 0.35 matches the old session-only starting volume.
+PlayerProfile.SETTING_SPECS = {
+	musicVolume = { default = 0.35, kind = "fraction" },
+	sfxVolume = { default = 1, kind = "fraction" },
+	muted = { default = false, kind = "boolean" },
+	animSpeed = { default = "normal", kind = "choice", choices = { normal = true, fast = true } },
+	reduceShake = { default = false, kind = "boolean" },
+	colorblindSuits = { default = false, kind = "boolean" },
+	confirmDiscard = { default = false, kind = "boolean" },
+}
+
+-- Animation pace divisors. The free "fast" speed is milder than the
+-- Fast Forward Game Pass, which upgrades "fast" to the full speed-up.
+PlayerProfile.FAST_PACE_DIVISOR = 1.35
+PlayerProfile.FAST_FORWARD_PACE_DIVISOR = 1.8
+
+function PlayerProfile.defaultSettings()
+	local settings = {}
+	for key, spec in pairs(PlayerProfile.SETTING_SPECS) do
+		settings[key] = spec.default
+	end
+	return settings
+end
+
+-- Returns the cleaned value, or nil if `value` isn't valid for `key`.
+local function cleanSetting(key, value)
+	local spec = PlayerProfile.SETTING_SPECS[key]
+	if not spec then
+		return nil
+	end
+	if spec.kind == "fraction" then
+		if type(value) ~= "number" or value ~= value then
+			return nil
+		end
+		return math.max(0, math.min(1, value))
+	elseif spec.kind == "boolean" then
+		if type(value) ~= "boolean" then
+			return nil
+		end
+		return value
+	elseif spec.kind == "choice" then
+		if type(value) ~= "string" or not spec.choices[value] then
+			return nil
+		end
+		return value
+	end
+	return nil
+end
+
 -- What a player who has never been saved before starts with.
 function PlayerProfile.new()
 	return {
@@ -102,6 +154,7 @@ function PlayerProfile.new()
 		hasSeenHighCardHint = false, -- see Onboarding.shouldShowHighCardHint
 		freeContinueDateKey = nil, -- ONE MORE ROUND: SeededRng.dailyDateKey() of the day the free daily continue was last used, see hasFreeContinue
 		customPlaylist = {}, -- JUKEBOX PLAYLIST (requested fix): ordered list of "rbxassetid://<digits>" strings, see header comment
+		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
 end
 
@@ -191,7 +244,46 @@ function PlayerProfile.migrate(raw)
 		profile.freeContinueDateKey = raw.freeContinueDateKey
 	end
 
+	-- Each setting is checked on its own; a missing or bad one keeps its default.
+	if type(raw.settings) == "table" then
+		for key in pairs(PlayerProfile.SETTING_SPECS) do
+			local cleaned = cleanSetting(key, raw.settings[key])
+			if cleaned ~= nil then
+				profile.settings[key] = cleaned
+			end
+		end
+	end
+
 	return profile
+end
+
+-- Safe to call straight off a remote handler. Returns (ok, message);
+-- ok is false for an unknown key or a bad value, or when nothing changed
+-- (so the caller can skip a save).
+function PlayerProfile.setSetting(profile, key, value)
+	if type(key) ~= "string" or not PlayerProfile.SETTING_SPECS[key] then
+		return false, "Unknown setting"
+	end
+	local cleaned = cleanSetting(key, value)
+	if cleaned == nil then
+		return false, "Invalid value"
+	end
+	if profile.settings[key] == cleaned then
+		return false, "Unchanged"
+	end
+	profile.settings[key] = cleaned
+	return true, "Saved."
+end
+
+-- How much to divide animation durations by (1 = normal speed).
+function PlayerProfile.animationPaceDivisor(animSpeed, hasFastForwardPass)
+	if animSpeed ~= "fast" then
+		return 1
+	end
+	if hasFastForwardPass then
+		return PlayerProfile.FAST_FORWARD_PACE_DIVISOR
+	end
+	return PlayerProfile.FAST_PACE_DIVISOR
 end
 
 -- ONE MORE ROUND: every player gets one free continue per day (the UTC day
