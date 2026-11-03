@@ -64,12 +64,11 @@
 	button gets a small hover swell / press dip (`addButtonHoverScale`).
 
 	REVERTED "SHOWCASE PASS": for a while this screen was a transparent
-	panel over a scrim card, with a camera (Client/MenuCamera.lua) orbiting
-	the 3D tavern scene behind it, glossy gradient buttons, and text-stroke
-	titles. Ahmed asked to scratch that and go back to a plain 2D menu, so
-	this file is back to the simple opaque panel + flat buttons it was
-	before that pass (Client/MenuCamera.lua is no longer required by
-	anything and init.client.lua no longer wires it up). The one thing kept
+	panel over a scrim card, with a camera orbiting a 3D tavern scene
+	behind it, glossy gradient buttons, and text-stroke titles. Ahmed asked
+	to scratch that and go back to a plain 2D menu, so this file is back to
+	the simple opaque panel + flat buttons it was before that pass (the 3D
+	scene and its camera have since been deleted entirely). The one thing kept
 	from that whole detour: the ScrollingFrame button layout below, which
 	fixed a real title/button overlap bug on short/landscape screens and
 	has nothing to do with the showcase idea itself.

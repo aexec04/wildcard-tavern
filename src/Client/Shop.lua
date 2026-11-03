@@ -551,7 +551,7 @@ return function(deps)
 	end -- do (Shop overlay)
 
 	-- A small colored badge with an icon (emoji glyph, not an uploaded image --
-	-- see the TavernScene comment for why we don't guess catalog asset IDs)
+	-- we never guess catalog asset IDs)
 	-- standing in for "a picture" for each Patron/Recipe until real art exists.
 	-- ZIndex = 6 everywhere below matches SHOP_ZINDEX from the Shop overlay's
 	-- construction block above (that local isn't in scope down here, so this

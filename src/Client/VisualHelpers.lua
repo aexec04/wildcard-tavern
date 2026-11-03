@@ -173,8 +173,8 @@ return function(deps)
 
 	-- SCORING JUICE: whole-screen shake. Jitters `target`'s Position by small
 	-- random pixel offsets a few times, easing back to rest. Shakes the UI
-	-- itself rather than the 3D camera -- TavernScene.server.lua explicitly
-	-- never touches the camera/character (see its own header comment), and a
+	-- itself rather than the camera -- the game is pure 2D UI and never
+	-- touches the camera/character, and a
 	-- UI shake reads just as "juicy" for a card game where the action IS the
 	-- UI, with zero risk of ever fighting a future camera script. Intended
 	-- target is the game's full-screen root Frame (see Client/ScorePopup.lua).

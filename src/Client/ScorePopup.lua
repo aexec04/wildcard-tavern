@@ -32,11 +32,10 @@
 	    into, matching the spec).
 	  - The OTHER played cards dim slightly while one is active -- a
 	    "focus" cue standing in for the spec's camera micro-zoom. This is
-	    a deliberate substitute, not a shortcut: TavernScene.server.lua
-	    has an explicit standing rule to never touch the real 3D
-	    Camera/character, so "focus" here is a UI-only dim/highlight
-	    trick, same philosophy as screenShake jittering the UI root
-	    instead of the camera.
+	    a deliberate substitute, not a shortcut: the game is pure 2D UI
+	    and never touches the Camera/character, so "focus" here is a
+	    UI-only dim/highlight trick, same philosophy as screenShake
+	    jittering the UI root instead of the camera.
 	  - Held cards get a smaller in-place highlight for Iron Garnish
 	    (no row, they never left the hand).
 	  - Owned Patrons pulse their actual Sidebar seat (scale + color
