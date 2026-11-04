@@ -64,6 +64,24 @@ CardBacks.Definitions = {
 		flavorText = "Glows like the last lamp left burning.",
 		setOnly = true,
 	},
+	{
+		id = "kitchen_checks",
+		name = "Kitchen Checks",
+		icon = "🍲",
+		colors = { base = { 170, 70, 50 }, trim = { 250, 235, 200 } },
+		description = "A Journey reward for clearing Night 2.",
+		flavorText = "Checkered like the tablecloth by the stove.",
+		setOnly = true,
+	},
+	{
+		id = "hall_banner",
+		name = "Hall Banner",
+		icon = "🏛",
+		colors = { base = { 90, 40, 90 }, trim = { 240, 200, 120 } },
+		description = "A Journey reward for clearing Night 6.",
+		flavorText = "Stitched from the banners over the Grand Hall.",
+		setOnly = true,
+	},
 }
 
 function CardBacks.getById(id)

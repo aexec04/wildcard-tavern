@@ -56,6 +56,7 @@
 
 local Achievements = require(script.Parent.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
 local CosmeticSets = require(script.Parent.CosmeticSets)
+local JourneyMap = require(script.Parent.JourneyMap)
 
 local PlayerProfile = {}
 
@@ -157,7 +158,8 @@ function PlayerProfile.new()
 		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
-		ownedSetIds = {}, -- [CosmeticSets id] = true, Tips-bought sets only
+		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
+		clearedNightIds = {}, -- [night number 1..8] = true, first clears (JourneyMap)
 		equippedSetId = CosmeticSets.DefaultId,
 		stats = {
 			runsStarted = 0,
@@ -201,6 +203,14 @@ function PlayerProfile.migrate(raw)
 	end
 
 	copyIdSet(raw.ownedSetIds, profile.ownedSetIds)
+	if type(raw.clearedNightIds) == "table" then
+		for night, flag in pairs(raw.clearedNightIds) do
+			if type(night) == "number" and flag == true and night >= 1 and night <= JourneyMap.NightCap
+				and night == math.floor(night) then
+				profile.clearedNightIds[night] = true
+			end
+		end
+	end
 	if type(raw.equippedSetId) == "string" and CosmeticSets.getById(raw.equippedSetId) then
 		profile.equippedSetId = raw.equippedSetId
 	end
@@ -253,6 +263,7 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 
+	JourneyMap.regrantRewards(profile)
 	return profile
 end
 

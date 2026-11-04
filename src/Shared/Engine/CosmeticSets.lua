@@ -86,6 +86,11 @@ function CosmeticSets.isUnlocked(profile, setId, ownedPassIds)
 		return false
 	end
 	local unlock = set.unlock
+	-- A set granted as a reward (Journey) sits in ownedSetIds, whatever
+	-- its normal unlock source is.
+	if profile.ownedSetIds[setId] then
+		return true
+	end
 	if unlock.kind == "default" then
 		return true
 	elseif unlock.kind == "tips" then

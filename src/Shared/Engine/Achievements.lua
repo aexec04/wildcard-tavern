@@ -158,6 +158,45 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.keeper_of_tales == true
 		end,
 	},
+	-- JOURNEY REWARD TITLES: granted (and saved in profile.rewardTitleIds)
+	-- by JourneyMap.recordNightsCleared when a Night is cleared for the
+	-- first time. milestoneReward keeps them out of Collection completion.
+	{
+		id = "porch_regular",
+		name = "Porch Regular",
+		icon = "🏮",
+		title = "Porch Regular",
+		description = "A Journey reward: clear Night 1.",
+		flavorText = "Your rocking chair is already saved.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.porch_regular == true
+		end,
+	},
+	{
+		id = "loft_climber",
+		name = "Loft Climber",
+		icon = "🪜",
+		title = "Loft Climber",
+		description = "A Journey reward: clear Night 4.",
+		flavorText = "Those stairs don't creak for you any more.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.loft_climber == true
+		end,
+	},
+	{
+		id = "tavern_keeper",
+		name = "Tavern Keeper",
+		icon = "👑",
+		title = "Tavern Keeper",
+		description = "A Journey reward: clear Night 8.",
+		flavorText = "The keys are yours now.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_keeper == true
+		end,
+	},
 }
 
 function Achievements.getById(id)

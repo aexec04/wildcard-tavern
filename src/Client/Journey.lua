@@ -29,6 +29,7 @@
 		journeyButton     -- TextButton, the in-game "🗺" corner button
 		menuJourneyButton -- TextButton, "Road Ahead" on the main menu
 		getLatestState    -- function() -> latest state table or nil (live getter)
+		StateUpdatedRemote -- RemoteEvent, for the Night 8 victory moment
 		getCurrentTheme   -- function() -> the currently-equipped theme table (live
 		                      getter, since currentTheme is reassigned on every
 		                      theme change, not mutated)
@@ -878,6 +879,73 @@ return function(deps)
 		journeyBackdrop.Visible = false
 	end)
 
+	-- ===== META LAYER: "Tavern Map" tab (8 named Nights + Endless) =====
+	-- The original round-by-round road is kept as the "This Night" tab.
+	local ROAD_TITLE = journeyTitle.Text
+	local ROAD_SUBTITLE = journeySubtitle.Text
+	local ROAD_TITLE_COLOR = journeyTitle.TextColor3
+	local ROAD_SUBTITLE_COLOR = journeySubtitle.TextColor3
+	local mapView = require(script.Parent.JourneyMapView)({
+		parent = journeyPanel,
+		polishPanel = polishPanel,
+		roundCorner = roundCorner,
+		getLatestState = getLatestState,
+		titleLabel = journeyTitle,
+		subtitleLabel = journeySubtitle,
+	})
+	local activeTab = "map"
+	local tabButtons = {}
+
+	local function setTab(tabId)
+		activeTab = tabId
+		local isMap = tabId == "map"
+		mapView.setShown(isMap)
+		journeyMapScroll.Visible = not isMap
+		journeyInfoBar.Visible = not isMap
+		if isMap then
+			mapView.applyHeader(true)
+		else
+			journeyTitle.Text = ROAD_TITLE
+			journeyTitle.TextColor3 = ROAD_TITLE_COLOR
+			journeySubtitle.Text = ROAD_SUBTITLE
+			journeySubtitle.TextColor3 = ROAD_SUBTITLE_COLOR
+		end
+		for id, tabButton in pairs(tabButtons) do
+			tabButton.BackgroundColor3 = id == tabId and Color3.fromRGB(150, 115, 50) or Color3.fromRGB(70, 55, 40)
+		end
+	end
+
+	for i, tab in ipairs({ { "map", "Tavern Map" }, { "road", "This Night" } }) do
+		local tabButton = Instance.new("TextButton")
+		tabButton.Size = UDim2.fromOffset(104, 24)
+		tabButton.Position = UDim2.new(1, -230 + (i - 1) * 112, 0, 10)
+		tabButton.Font = Enum.Font.GothamBold
+		tabButton.TextSize = 12
+		tabButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		tabButton.Text = tab[2]
+		tabButton.ZIndex = 22
+		tabButton.Parent = journeyPanel
+		polishButton(tabButton, 8)
+		tabButton.MouseButton1Click:Connect(function()
+			playClickSfx()
+			setTab(tab[1])
+		end)
+		tabButtons[tab[1]] = tabButton
+	end
+
+	-- The Night 8 victory moment (listens for wonRun itself).
+	require(script.Parent.NightVictory)({
+		screenGui = screenGui,
+		polishPanel = polishPanel,
+		polishButton = polishButton,
+		roundCorner = roundCorner,
+		addSoftShadow = addSoftShadow,
+		playClickSfx = playClickSfx,
+		tweenTo = tweenTo,
+		getLatestState = getLatestState,
+		StateUpdatedRemote = deps.StateUpdatedRemote,
+	})
+
 	-- lastJourneyStageKey: which stage the avatar was last shown on, so we only
 	-- play the walk animation when it actually CHANGES (not every time the
 	-- overlay happens to refresh while you're on the same stage).
@@ -1042,6 +1110,10 @@ return function(deps)
 		end
 
 		refreshInfoBar()
+		if activeTab == "map" then
+			mapView.refresh()
+			mapView.applyHeader(true)
+		end
 	end
 
 	local function refreshJourney()
@@ -1057,6 +1129,7 @@ return function(deps)
 		OverlayManager.closeAllExcept("journey")
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
+		setTab(activeTab)
 		-- Scroll so the current stage is in view.
 		if journeyAvatarMarker.Position.X.Offset > 0 then
 			journeyMapScroll.CanvasPosition = Vector2.new(math.max(0, journeyAvatarMarker.Position.X.Offset - 200), 0)

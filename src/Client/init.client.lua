@@ -1297,6 +1297,7 @@ local JourneyOverlay = require(script.Journey)({
 		return currentTheme
 	end,
 	addTooltip = addTooltip,
+	StateUpdatedRemote = StateUpdatedRemote,
 })
 local journeyBackdrop = JourneyOverlay.journeyBackdrop
 local refreshJourney = JourneyOverlay.refreshJourney

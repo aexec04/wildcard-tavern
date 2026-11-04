@@ -25,6 +25,7 @@ local Engine = Shared:WaitForChild("Engine")
 local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
+local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
@@ -616,6 +617,20 @@ local function serializeState(session, player)
 		end)(),
 		-- One-shot: milestone ids claimed since the last push (nil otherwise).
 		collectionMilestoneNotice = session.collectionMilestoneNotice,
+		-- JOURNEY: Nights ever cleared (profile-wide), and the Night numbers
+		-- newly cleared since the last push (one-shot, nil otherwise).
+		clearedNightIds = (function()
+			local ids = {}
+			local profile = profiles[player]
+			if profile then
+				for night in pairs(profile.clearedNightIds) do
+					table.insert(ids, night)
+				end
+				table.sort(ids)
+			end
+			return ids
+		end)(),
+		journeyNotice = session.journeyNotice,
 		profileStats = (function()
 			local profile = profiles[player]
 			if not profile then
@@ -754,6 +769,16 @@ local function syncProfileFromSession(player)
 		end
 	end
 
+	-- JOURNEY: first clears of each Night grant a cosmetic reward. Revived
+	-- runs don't count, same as the other records.
+	if countsForRecords then
+		local fresh = JourneyMap.recordNightsCleared(profile, JourneyMap.nightsClearedFor(session.state))
+		if #fresh > 0 then
+			changed = true
+			session.journeyNotice = fresh
+		end
+	end
+
 	-- Checked every sync (not only when something new was found) so a
 	-- profile loaded already past a milestone, or a title unlocked from
 	-- stats, still gets its reward.
@@ -836,6 +861,7 @@ local function pushState(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 	session.onboardingHint = nil -- one-shot: only the push right after it's set carries it
 	session.collectionMilestoneNotice = nil -- one-shot, same as onboardingHint
+	session.journeyNotice = nil -- one-shot
 end
 
 -- ===== Real-money Game Passes (see Shared/Engine/GamePasses.lua) =====
