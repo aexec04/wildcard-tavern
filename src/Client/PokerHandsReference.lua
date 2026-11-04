@@ -109,11 +109,11 @@ return function(deps)
 	addSoftShadow(panel, 18)
 
 	-- ===== Header: ornate title =====
-	local function line(parent, x, y, w, h, alpha, z)
+	local function line(parent, pos, size, alpha, z)
 		local f = Instance.new("Frame")
 		f.AnchorPoint = Vector2.new(0, 0.5)
-		f.Position = x
-		f.Size = w
+		f.Position = pos
+		f.Size = size
 		f.BackgroundColor3 = GOLD
 		f.BackgroundTransparency = alpha
 		f.BorderSizePixel = 0

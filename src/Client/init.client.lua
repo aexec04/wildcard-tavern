@@ -958,9 +958,31 @@ local MenuScreen = require(script.Menu)({
 local menuFrame = MenuScreen.menuFrame
 local menuPlayButton = MenuScreen.menuPlayButton
 local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
+
 local menuTutorialButton = MenuScreen.menuTutorialButton
 local menuJourneyButton = MenuScreen.menuJourneyButton
 local menuNewRunButton = MenuScreen.menuNewRunButton
+
+-- Menu buttons connect BEFORE any optional panel is built, so a broken
+-- panel can never leave the menu dead.
+menuPlayButton.MouseButton1Click:Connect(function()
+	playClickSfx()
+	menuFrame.Visible = false
+	root.Visible = true
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+		backgroundMusic:Play()
+	end
+end)
+
+menuTutorialButton.MouseButton1Click:Connect(function()
+	playClickSfx()
+	menuFrame.Visible = false
+	root.Visible = true
+	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
+		backgroundMusic:Play()
+	end
+	Shop.tutorial.start()
+end)
 
 -- ===== Settings overlay =====
 -- Extracted into Client/Settings.lua. Main Menu / Close, plus How to Play
@@ -1008,6 +1030,7 @@ end
 -- Extracted into Client/HowToPlay.lua -- fully self-contained (both buttons
 -- that open it are wired from inside the module), so nothing needs to come
 -- back out of the require() call.
+xpcall(function()
 require(script.HowToPlay)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -1026,11 +1049,15 @@ require(script.HowToPlay)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 })
+end, function(e)
+	warn("[Client] HowToPlay panel failed to build: " .. tostring(e))
+end)
 
 -- ===== Poker Hands reference overlay =====
 -- Extracted into Client/PokerHandsReference.lua. Fully self-contained (only
 -- opened from its own corner button), so nothing needs to come back out of
 -- the require() call.
+xpcall(function()
 require(script.PokerHandsReference)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -1047,11 +1074,15 @@ require(script.PokerHandsReference)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 })
+end, function(e)
+	warn("[Client] PokerHandsReference panel failed to build: " .. tostring(e))
+end)
 
 -- ===== Deck Tracker overlay =====
 -- Extracted into Client/DeckTracker.lua. Fully self-contained (only opened
 -- from deckWidgetButton, which is passed in as a dep), so nothing needs to
 -- come back out of the require() call.
+xpcall(function()
 require(script.DeckTracker)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -1072,10 +1103,14 @@ require(script.DeckTracker)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 })
+end, function(e)
+	warn("[Client] DeckTracker panel failed to build: " .. tostring(e))
+end)
 
 -- ===== Volume popup =====
 -- Client/VolumePanel.lua: Music slider, SFX slider, Mute. Nothing comes
 -- back out of it that the hub needs, so no local.
+xpcall(function()
 require(script.VolumePanel)({
 	screenGui = screenGui,
 	polishPanel = polishPanel,
@@ -1091,11 +1126,15 @@ require(script.VolumePanel)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 })
+end, function(e)
+	warn("[Client] VolumePanel panel failed to build: " .. tostring(e))
+end)
 
 -- ===== Run Setup overlay =====
 -- Extracted into Client/RunSetup.lua. Fully self-contained (only opened
 -- from the menu's "New Run..." button), so nothing needs to come back out
 -- of the require() call.
+xpcall(function()
 require(script.RunSetup)({
 	screenGui = screenGui,
 	root = root,
@@ -1123,27 +1162,11 @@ require(script.RunSetup)({
 		PhaseAModule.resetRun()
 	end,
 })
+end, function(e)
+	warn("[Client] RunSetup panel failed to build: " .. tostring(e))
+end)
 
 -- ===== Menu -> game transition, volume cycling =====
-
-menuPlayButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	menuFrame.Visible = false
-	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-		backgroundMusic:Play()
-	end
-end)
-
-menuTutorialButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	menuFrame.Visible = false
-	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-		backgroundMusic:Play()
-	end
-	Shop.tutorial.start()
-end)
 
 -- volumeButton's click used to cycle loud/quiet/mute right here -- it now
 -- opens VolumePanel.lua's real slider panel instead (that module wires
