@@ -25,7 +25,7 @@ local Engine = Shared:WaitForChild("Engine")
 local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
-local Themes = require(Engine.Themes) -- PERSISTENT SAVE (Phase 10): needed for Themes.DefaultThemeId, see syncProfileFromSession's BUGFIX comment
+local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
 local Shop = require(Engine.Shop)
@@ -68,12 +68,9 @@ local PlayHandRemote = newRemote("PlayHand")
 local DiscardRemote = newRemote("Discard")
 local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
-local BuyThemeRemote = newRemote("BuyTheme")
-local EquipThemeRemote = newRemote("EquipTheme")
+local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
+local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
-local AddPlaylistSongRemote = newRemote("AddPlaylistSong") -- JUKEBOX PLAYLIST (requested fix): (player, assetId string, e.g. "rbxassetid://123")
-local RemovePlaylistSongRemote = newRemote("RemovePlaylistSong") -- (player, assetId string)
-local MovePlaylistSongRemote = newRemote("MovePlaylistSong") -- JUKEBOX PLAYLIST REORDER (requested fix): (player, assetId string, direction number -1/+1)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 local BuyRecipeRemote = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use
@@ -140,7 +137,7 @@ local RequestContinueRemote = newRemote("RequestContinue")
 -- ===== 3. Persistent Player Profile (DataStoreService) =====
 -- PERSISTENT SAVE (Phase 10): see Shared/Engine/PlayerProfile.lua's header
 -- for exactly what this does and doesn't cover -- short version, discovered
--- Patrons, Tips-bought Themes, and a few small stats now survive a rejoin
+-- Patrons, Tips-bought Cosmetic Sets, and a few small stats now survive a rejoin
 -- or server restart; an in-progress RUN itself still doesn't (a deliberate
 -- scope decision, not a gap).
 --
@@ -347,7 +344,7 @@ local sessions = {} -- [player] = { state = RunState, phase = "roundSelect" | "p
 -- kept OUTSIDE the `sessions` table -- a Game Pass is owned by the PLAYER
 -- forever (Roblox remembers it), not by any one run, so this must survive
 -- `startNewSession` reassigning sessions[player] to a fresh table on every
--- "New Run.../restart -- unlike state.ownedThemes (Tips purchases), which
+-- "New Run.../restart -- unlike profile.ownedSetIds (Tips purchases), which
 -- SHOULD reset with the run. The actual ownership-check/grant machinery
 -- lives further down (right after pushState is defined, since it needs
 -- to call that).
@@ -457,15 +454,6 @@ local function serializeState(session, player)
 		table.insert(housePassIds, passId)
 	end
 
-	-- Themes are static content data (colors, price) that the client can
-	-- already read directly from ReplicatedStorage.Shared.Engine.Themes --
-	-- we only need to tell the client WHICH ones this player owns/has
-	-- equipped, not resend the whole catalog every update.
-	local ownedThemeIds = {}
-	for themeId in pairs(state.ownedThemes) do
-		table.insert(ownedThemeIds, themeId)
-	end
-
 	local bossModifier = nil
 	if state.bossModifier then
 		bossModifier = {
@@ -539,12 +527,7 @@ local function serializeState(session, player)
 		-- -- safe to ship as-is, same as deckCounts/handLevels below.
 		pendingPack = state.pendingPack,
 		housePassIds = housePassIds,
-		ownedThemeIds = ownedThemeIds,
-		-- Real-money Game Pass ownership (see Shared/Engine/GamePasses.lua) --
-		-- separate from ownedThemeIds above even though owning "all_themes"
-		-- also populates ownedThemeIds (via applyGamePassGrants): this is
-		-- what Client/Themes.lua uses to tell "you already own the Game
-		-- Pass, equip is free" apart from "buy this Theme with Tips".
+		-- Real-money Game Pass ownership (see Shared/Engine/GamePasses.lua).
 		ownedGamePassIds = (function()
 			local ids = {}
 			for passId in pairs(ownedGamePasses[player] or {}) do
@@ -552,7 +535,22 @@ local function serializeState(session, player)
 			end
 			return ids
 		end)(),
-		equippedTheme = state.equippedTheme,
+		-- Cosmetic Sets: owned = unlocked by any source; equipped = the set
+		-- actually in effect (falls back to the default).
+		cosmetics = (function()
+			local profile = profiles[player]
+			if not profile then
+				return { equippedSetId = CosmeticSets.DefaultId, unlockedSetIds = { CosmeticSets.DefaultId } }
+			end
+			local passes = ownedGamePasses[player] or {}
+			local unlocked = {}
+			for _, set in ipairs(CosmeticSets.Definitions) do
+				if CosmeticSets.isUnlocked(profile, set.id, passes) then
+					table.insert(unlocked, set.id)
+				end
+			end
+			return { equippedSetId = CosmeticSets.effectiveId(profile, passes), unlockedSetIds = unlocked }
+		end)(),
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
 		bossModifier = bossModifier,
@@ -590,10 +588,7 @@ local function serializeState(session, player)
 		-- file's header for exactly what these mean. discoveredPatronIds
 		-- powers Client/Collection.lua showing a Patron as found even in a
 		-- brand-new run where you haven't re-bought it yet; profileStats is
-		-- 3 small permanent counters shown alongside it. Note ownedThemeIds
-		-- above is ALSO now effectively permanent (RunState.new seeds it
-		-- from this same profile -- see startNewSession) even though it's
-		-- not read from `profiles` directly here.
+		-- 3 small permanent counters shown alongside it.
 		-- COLLECTION: { discovered = { [tabId] = {id...} }, claimedMilestoneIds,
 		-- unlockedCardBackIds } -- plain copies for Client/Collection.lua.
 		-- Titles aren't in `discovered`; the client uses unlockedAchievementIds.
@@ -653,23 +648,6 @@ local function serializeState(session, player)
 		equippedTitleId = (function()
 			local profile = profiles[player]
 			return profile and profile.equippedTitleId or nil
-		end)(),
-		-- JUKEBOX PLAYLIST (requested fix): the player's saved list of
-		-- Custom Jukebox track ids (Shared/Engine/PlayerProfile.lua's
-		-- customPlaylist) -- Client/Settings.lua reads this to draw the
-		-- "My Playlist" rows. A plain copy, not a reference, same
-		-- reasoning as `collection` above (never hand the live
-		-- server-side table straight to a RemoteEvent).
-		customPlaylist = (function()
-			local profile = profiles[player]
-			if not profile then
-				return {}
-			end
-			local ids = {}
-			for _, id in ipairs(profile.customPlaylist) do
-				table.insert(ids, id)
-			end
-			return ids
 		end)(),
 		-- Player settings (copy). nil until the profile loads, so the client
 		-- keeps its defaults instead of treating "loading" as saved values.
@@ -736,7 +714,7 @@ end
 
 -- PERSISTENT SAVE (Phase 10): folds this player's CURRENT run into their
 -- permanent profile -- every owned Patron this run into
--- discoveredPatronIds, every owned Theme into ownedThemeIds, the current
+-- discoveredPatronIds, every owned Cosmetic Set into ownedSetIds, the current
 -- Night into the bestNightReached high-water mark, and (once, on the
 -- false->true transition) a run win into stats.runsWon. Safe to call
 -- unconditionally on every single pushState -- idempotent and cheap for
@@ -751,27 +729,6 @@ local function syncProfileFromSession(player)
 		return
 	end
 
-	-- BUGFIX (caught by independent review before shipping): only fold
-	-- TIPS-bought Themes into the permanent profile -- session.state.ownedThemes
-	-- also contains the always-free default AND any Game-Pass-granted Themes
-	-- (via applyGamePassGrants), and neither of those belongs in
-	-- profile.ownedThemeIds. The free default doesn't need remembering (it's
-	-- always free regardless). A Game-Pass Theme baking itself into the
-	-- permanent profile would be worse than redundant -- MarketplaceService
-	-- ownership can be REVOKED (a Robux refund), and startNewSession seeds a
-	-- fresh RunState straight from this profile with no ownership re-check,
-	-- so a revoked Theme would stay permanently equippable forever if it
-	-- ever got recorded here. GamePasses.passForTheme(themeId) is exactly
-	-- the same "is this Theme gamepass-gated" check Themes.lua's header
-	-- describes -- excluding anything it returns non-nil for keeps this
-	-- field scoped to what its own name/comment promise: Tips purchases only.
-	local themeIds = {}
-	for themeId in pairs(session.state.ownedThemes) do
-		if themeId ~= Themes.DefaultThemeId and not GamePasses.passForTheme(themeId) then
-			table.insert(themeIds, themeId)
-		end
-	end
-
 	local changed = false
 	-- COLLECTION: owned + offered in the shop + revealed in a pack + the
 	-- boss being faced all count as discovered.
@@ -780,9 +737,6 @@ local function syncProfileFromSession(player)
 		voucher = session.voucherOffer,
 	})
 	if PlayerProfile.recordDiscovered(profile, seen) then
-		changed = true
-	end
-	if PlayerProfile.recordThemesOwned(profile, themeIds) then
 		changed = true
 	end
 	-- PAID CONTINUE: a revived run stops counting toward high score
@@ -889,36 +843,6 @@ end
 -- needs to call pushState, which -- as a `local function` -- only exists
 -- for code appearing textually below its own definition.
 
--- Copies whatever this player currently owns from ownedGamePasses into
--- their live RunState.ownedThemes, so RunState.equipTheme's existing
--- "owned themes only" check just works for gamepass-granted themes with
--- zero changes needed to RunState.lua itself. Safe to call repeatedly
--- (only ever sets true, never unsets) -- called both right after a fresh
--- RunState is built (startNewSession, below) and again whenever a Game
--- Pass ownership check finishes, since the async check can resolve
--- after that.
-local function applyGamePassGrants(player)
-	local session = sessions[player]
-	local owned = ownedGamePasses[player]
-	if not session or not owned then
-		return
-	end
-	local grantedAny = false
-	for _, pass in ipairs(GamePasses.Definitions) do
-		if owned[pass.id] and pass.grantsThemes then
-			for _, themeId in ipairs(pass.grantsThemes) do
-				if not session.state.ownedThemes[themeId] then
-					session.state.ownedThemes[themeId] = true
-					grantedAny = true
-				end
-			end
-		end
-	end
-	if grantedAny then
-		pushState(player)
-	end
-end
-
 -- Checks every catalog entry's real ownership via MarketplaceService and
 -- caches the result. gamePassId == 0 means "not created on the Creator
 -- Dashboard yet" (see GamePasses.lua's header) -- skipped entirely so
@@ -926,13 +850,12 @@ end
 -- check is its own task.spawn so one slow/failed lookup can't hold up
 -- the others.
 --
--- STUDIO GAME PASS BYPASS (requested fix: Ahmed testing the Jukebox in
+-- STUDIO GAME PASS BYPASS (requested fix: testing Game Passes in
 -- Studio and not seeing any of it -- every single Game Pass, including
--- custom_jukebox, is still gamePassId = 0, i.e. nothing's been created
+-- fast_forward, is still gamePassId = 0, i.e. nothing's been created
 -- on the Creator Dashboard yet, so this function used to just skip them
 -- all forever -- "Coming Soon" in Studio is correct today, but it also
--- means NOTHING behind a Game Pass (Theme Vault, Fast Forward, Custom
--- Jukebox) can ever be play-tested before spending real money/creating
+-- means NOTHING behind a Game Pass (Fast Forward, the Golden Gala set) can ever be play-tested before spending real money/creating
 -- real Passes): a placeholder pass (gamePassId <= 0) is now treated as
 -- OWNED, but only while RunService:IsStudio() is true. IsStudio() is
 -- always false in the actual published game a real player connects to
@@ -946,7 +869,7 @@ local function refreshOwnedGamePasses(player)
 		-- BUGFIX (Ahmed's report, repeated: "the multipliers are moving by
 		-- so fast now"): fast_forward is excluded from the Studio bypass
 		-- below. Every OTHER placeholder pass is something you need to
-		-- actually SEE to verify (a Theme's colors, the Jukebox panel) --
+		-- actually SEE to verify (a Cosmetic Set) --
 		-- fast_forward instead changes a timing constant (ScorePopup.lua's
 		-- FAST_FORWARD_DIVISOR, 1.8x) that silently applies to literally
 		-- every single Studio playtest the instant this pass exists in the
@@ -962,7 +885,6 @@ local function refreshOwnedGamePasses(player)
 		if (not pass.gamePassId or pass.gamePassId <= 0) and pass.id ~= "fast_forward" and RunService:IsStudio() then
 			local alreadyKnown = ownedGamePasses[player][pass.id] == true
 			ownedGamePasses[player][pass.id] = true
-			applyGamePassGrants(player)
 			if not alreadyKnown then
 				pushState(player)
 			end
@@ -976,28 +898,12 @@ local function refreshOwnedGamePasses(player)
 				end
 				if ok then
 					if owns then
-						-- BUGFIX (Phase 9 QoL passes, caught by independent
-						-- review before shipping): applyGamePassGrants only
-						-- calls pushState when it actually grants a Theme --
-						-- correct for all_themes, but fast_forward/
-						-- custom_jukebox grant nothing into RunState at all
-						-- (ownership alone is the whole feature, checked
-						-- client-side via ownedGamePassIds), so that branch
-						-- never fired for them. A player buying either one
-						-- would have this recorded server-side immediately,
-						-- but the client's ownedGamePassIds would stay stale
-						-- -- Settings' Custom Jukebox section (or Fast
-						-- Forward) would keep showing "Get Pass" -- until
-						-- some UNRELATED action happened to trigger any of
-						-- the other pushState call sites. Fixed by pushing
-						-- state here too, specifically when a pass is newly
-						-- recorded as owned (not on every redundant re-check
-						-- -- PlayerAdded/a repeat purchase-finished event can
-						-- call this again for an already-known pass, and
-						-- that shouldn't cost a render on the client).
+						-- Push state when a pass is newly recorded as owned so the
+						-- client's ownedGamePassIds (and set unlocks) update without
+						-- waiting for an unrelated push. Skipped on redundant
+						-- re-checks of an already-known pass.
 						local alreadyKnown = ownedGamePasses[player][pass.id] == true
 						ownedGamePasses[player][pass.id] = true
-						applyGamePassGrants(player)
 						if not alreadyKnown then
 							pushState(player)
 						end
@@ -1088,18 +994,7 @@ end
 -- and, for seed runs, which code. Omitted/nil seededRng behaves exactly
 -- like before this parameter existed -- a normal math.random run.
 local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel)
-	-- PERSISTENT SAVE (Phase 10): seed the fresh RunState's owned Themes
-	-- with whatever this player has permanently bought with Tips in a past
-	-- run, on top of the always-free default RunState.new adds on its own
-	-- -- see RunState.new's own comment on ownedThemeIds and
-	-- Themes.lua's header for the gap this closes.
-	local ownedThemeIds = {}
 	local profile = profiles[player]
-	if profile then
-		for themeId in pairs(profile.ownedThemeIds) do
-			table.insert(ownedThemeIds, themeId)
-		end
-	end
 
 	local isDaily = seedMode == "daily"
 	local isWeekly = seedMode == "weekly"
@@ -1110,8 +1005,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		state = RunState.new({
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
-			ownedThemeIds = ownedThemeIds,
-			nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
+				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
 		}, seededRng),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
@@ -1153,16 +1047,12 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		profileDirty[player] = true
 	end
 
-	-- Re-grant any already-known-owned Game Pass Themes to this fresh
-	-- RunState immediately (covers "New Run..."/restart -- ownership was
-	-- already fetched once for this player and doesn't need re-checking).
-	applyGamePassGrants(player)
 	pushState(player)
 end
 
 -- PERSISTENT SAVE (Phase 10): profile load has to happen (and finish --
 -- GetAsync yields) BEFORE startNewSession, since it needs
--- profiles[player].ownedThemeIds to seed the fresh RunState. Consolidated
+-- profiles[player] (stats) for the fresh RunState. Consolidated
 -- into one PlayerAdded handler instead of the 2 independent ones this used
 -- to be, specifically to guarantee that ordering.
 local function onPlayerAdded(player)
@@ -1592,50 +1482,45 @@ BuyHousePassRemote.OnServerEvent:Connect(function(player, passId)
 	pushState(player)
 end)
 
--- Cosmetic theme purchases/equips are allowed any time (not gated to the
--- shop phase) -- they don't affect gameplay, so there's no reason to lock
--- them to between-round moments the way Patron purchases are.
-
-BuyThemeRemote.OnServerEvent:Connect(function(player, themeId)
+-- Cosmetic Set purchases/equips are allowed any time (not gated to the
+-- shop phase). They live on the permanent profile; Tips come from the run.
+BuyCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
 	local session = sessions[player]
-	if not session then
+	local profile = profiles[player]
+	if not session or not profile or type(setId) ~= "string" then
 		return
 	end
-	if type(themeId) ~= "string" then
+	local didNotError, ok = pcall(CosmeticSets.buy, profile, session.state, setId)
+	if not didNotError then
+		warn("BuyCosmeticSet error for " .. player.Name .. ": " .. tostring(ok))
 		return
 	end
-
-	local ok, err = pcall(RunState.buyTheme, session.state, themeId)
-	if not ok then
-		warn("BuyTheme error for " .. player.Name .. ": " .. tostring(err))
-		return
+	if ok then
+		profileDirty[player] = true
+		pushState(player)
 	end
-
-	pushState(player)
 end)
 
-EquipThemeRemote.OnServerEvent:Connect(function(player, themeId)
-	local session = sessions[player]
-	if not session then
+EquipCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
+	local profile = profiles[player]
+	if not profile or type(setId) ~= "string" then
 		return
 	end
-	if type(themeId) ~= "string" then
+	local didNotError, ok = pcall(CosmeticSets.equip, profile, setId, ownedGamePasses[player])
+	if not didNotError then
+		warn("EquipCosmeticSet error for " .. player.Name .. ": " .. tostring(ok))
 		return
 	end
-
-	local ok, err = pcall(RunState.equipTheme, session.state, themeId)
-	if not ok then
-		warn("EquipTheme error for " .. player.Name .. ": " .. tostring(err))
-		return
+	if ok then
+		profileDirty[player] = true
+		pushState(player)
 	end
-
-	pushState(player)
 end)
 
 -- ACHIEVEMENTS + TITLES (Phase 16): operates on the permanent
 -- `profiles[player]`, not the per-run `session.state`, since a Title is
--- a cross-run choice (same reasoning ownedThemeIds moved to
--- PlayerProfile for in PERSISTENT SAVE, Phase 10) -- still gated on an
+-- a cross-run choice (same reasoning as the rest of
+-- PlayerProfile) -- still gated on an
 -- active session existing, purely so a stray remote fire from a not-
 -- fully-loaded client can't do anything. `titleId == nil` is a valid,
 -- intentional "clear my equipped title" call, not a malformed one.
@@ -1649,7 +1534,7 @@ EquipTitleRemote.OnServerEvent:Connect(function(player, titleId)
 		return
 	end
 
-	-- Unlike BuyTheme/EquipTheme's handlers above, this checks 2 separate
+	-- This checks 2 separate
 	-- things: `didNotError` (pcall's own "didn't throw" result) AND
 	-- `equipOk` (PlayerProfile.equipTitle's own true/false return) -- so a
 	-- REJECTED equip (not unlocked, bad id -- equipTitle returning false,
@@ -1661,92 +1546,6 @@ EquipTitleRemote.OnServerEvent:Connect(function(player, titleId)
 		return
 	end
 	if not equipOk then
-		return
-	end
-
-	profileDirty[player] = true
-	pushState(player)
-end)
-
--- JUKEBOX PLAYLIST (requested fix): same shape as EquipTitleRemote's
--- handler just above -- operates on the permanent `profiles[player]` (a
--- saved track list is a cross-run choice, same reasoning as
--- equippedTitleId), gated on an active session existing purely so a stray
--- remote fire from a not-fully-loaded client can't do anything, and
--- checks BOTH pcall's own success AND PlayerProfile's own true/false
--- result so a rejected add (malformed id, duplicate, playlist full)
--- doesn't fall through to an unnecessary profileDirty/pushState.
-AddPlaylistSongRemote.OnServerEvent:Connect(function(player, assetId)
-	local session = sessions[player]
-	local profile = profiles[player]
-	if not session or not profile then
-		return
-	end
-	if type(assetId) ~= "string" then
-		return
-	end
-
-	local didNotError, ok = pcall(PlayerProfile.addPlaylistSong, profile, assetId)
-	if not didNotError then
-		warn("AddPlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
-		return
-	end
-	if not ok then
-		return
-	end
-
-	profileDirty[player] = true
-	pushState(player)
-end)
-
-RemovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId)
-	local session = sessions[player]
-	local profile = profiles[player]
-	if not session or not profile then
-		return
-	end
-	if type(assetId) ~= "string" then
-		return
-	end
-
-	local didNotError, ok = pcall(PlayerProfile.removePlaylistSong, profile, assetId)
-	if not didNotError then
-		warn("RemovePlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
-		return
-	end
-	if not ok then
-		return
-	end
-
-	profileDirty[player] = true
-	pushState(player)
-end)
-
--- JUKEBOX PLAYLIST REORDER (requested fix: "reordering songs ... move
--- songs up/down in My Playlist"): same shape as Add/RemovePlaylistSong
--- just above. direction must be exactly -1 or 1 -- anything else (a typo,
--- a tampered client) is rejected the same way PlayerProfile.
--- movePlaylistSong itself rejects it, just one layer earlier so a
--- malformed number can't even reach pcall.
-MovePlaylistSongRemote.OnServerEvent:Connect(function(player, assetId, direction)
-	local session = sessions[player]
-	local profile = profiles[player]
-	if not session or not profile then
-		return
-	end
-	if type(assetId) ~= "string" then
-		return
-	end
-	if direction ~= -1 and direction ~= 1 then
-		return
-	end
-
-	local didNotError, ok = pcall(PlayerProfile.movePlaylistSong, profile, assetId, direction)
-	if not didNotError then
-		warn("MovePlaylistSong error for " .. player.Name .. ": " .. tostring(ok))
-		return
-	end
-	if not ok then
 		return
 	end
 

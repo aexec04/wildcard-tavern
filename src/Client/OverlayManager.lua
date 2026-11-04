@@ -1,11 +1,11 @@
 --[[
 	Client/OverlayManager.lua
 	BUGFIX (Ahmed's report: opening a different overlay -- e.g. clicking
-	Themes while Journey, or Collection, or any other corner-button panel
+	Collection while Journey, or Collection, or any other corner-button panel
 	was already open -- left the new panel drawn directly on top of the
 	old one, both still fully visible and overlapping, instead of the old
 	one closing first). Every one of the always-reachable corner-button/
-	deck-widget overlays (Collection, Themes, Journey, Settings,
+	deck-widget overlays (Collection, Card Sets, Journey, Settings,
 	HowToPlay, PokerHandsReference, DailyLeaderboard, DeckTracker) now
 	registers its own "close myself" function here, and calls
 	closeAllExcept(itsOwnName) right before it opens itself -- so opening

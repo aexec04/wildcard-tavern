@@ -1,7 +1,6 @@
 --[[
 	Client/Settings.lua
-	The "⚙" corner button's panel (wood variant), in four sections:
-		Audio    -- Custom Jukebox (Client/JukeboxSection.lua, Game Pass gated)
+	The "⚙" corner button's panel (wood variant), in three sections:
 		Display  -- Animation speed (Normal/Fast), Reduce screen shake,
 		            Colorblind suits
 		Gameplay -- Confirm before discard
@@ -18,15 +17,12 @@
 		roundCorner, popIn, popOut, addButtonHoverScale
 		settingsButton -- TextButton, the "⚙" corner button
 		menuFrame, root -- for Main Menu
-		jukeboxDeps    -- table, passed to JukeboxSection.lua (see its header);
-		                  parent/layoutOrder/isVisible/polishButton/etc are filled in here
 
 	Returns:
 		{
 			settingsBackdrop = Frame,
 			settingsHowToPlayButton = TextButton,
 			settingsLeaderboardButton = TextButton,
-			refreshJukeboxSection = function(), -- call from render() while open
 		}
 ]]
 
@@ -192,19 +188,6 @@ return function(deps)
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }
 
-	-- ===== Audio =====
-	makeHeader("Audio")
-	local jukeboxDeps = deps.jukeboxDeps or {}
-	jukeboxDeps.parent = scroll
-	jukeboxDeps.layoutOrder = order()
-	jukeboxDeps.isVisible = function()
-		return settingsBackdrop.Visible
-	end
-	jukeboxDeps.polishButton = polishButton
-	jukeboxDeps.addButtonHoverScale = addButtonHoverScale
-	jukeboxDeps.playClickSfx = playClickSfx
-	local jukebox = require(script.Parent.JukeboxSection)(jukeboxDeps)
-
 	-- ===== Display =====
 	makeHeader("Display")
 	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward pass owners get extra speed.", {
@@ -306,7 +289,6 @@ return function(deps)
 	deps.settingsButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("settings")
-		jukebox.refreshJukeboxSection()
 		popIn(settingsBackdrop, settingsPanel)
 	end)
 
@@ -314,6 +296,5 @@ return function(deps)
 		settingsBackdrop = settingsBackdrop,
 		settingsHowToPlayButton = settingsHowToPlayButton,
 		settingsLeaderboardButton = settingsLeaderboardButton,
-		refreshJukeboxSection = jukebox.refreshJukeboxSection,
 	}
 end

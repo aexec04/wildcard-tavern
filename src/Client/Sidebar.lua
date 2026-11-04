@@ -86,7 +86,7 @@ return function(deps)
 	do
 		-- Color-only gradient (never Transparency): lighter wood at the
 		-- top, darker toward the bottom. Multiplies the theme's panelBg,
-		-- so Themes still recolor the column.
+		-- so the column keeps its fill.
 		local woodShade = Instance.new("UIGradient")
 		woodShade.Rotation = 90
 		woodShade.Color = ColorSequence.new({

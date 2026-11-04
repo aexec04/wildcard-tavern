@@ -14,17 +14,13 @@
 	    a fresh run, made it look undiscovered again. Patrons themselves
 	    still correctly reset every run (that's the roguelike loop, not a
 	    bug) -- this just remembers that you'd found it before.
-	  - `ownedThemeIds` -- every Theme ever bought with Tips. This was a
-	    genuine, previously-unflagged gap: `RunState.new` used to always
-	    reset `state.ownedThemes` back to just the free default, so buying a
-	    Theme with Tips only lasted until your next "New Run..." -- you'd
-	    have to re-buy it every single run. (Game-Pass-granted Themes were
-	    never affected by this -- Server/init.server.lua already tracks real
-	    Game Pass ownership outside any one run's state, same idea as this
-	    file just applied to Tips purchases too.)
+	  - `ownedSetIds` / `equippedSetId` -- Cosmetic Sets (CosmeticSets.lua):
+	    Tips-bought set ids, and the equipped set (falls back to the default
+	    if missing, unknown or locked). Old `ownedThemeIds`/`equippedTheme`
+	    are ignored by `migrate`.
 	  - `stats` -- a few small permanent numbers (runs started/won, best
 	    Night reached) for the Collection screen to show alongside the
-	    discovered-Patron/Theme grid. Deliberately minimal -- this is not a
+	    discovered-Patron grid. Deliberately minimal -- this is not a
 	    full stats/leaderboard system, just enough to answer "have I ever
 	    actually won a run, and how far did I get."
 	  - `hasSeenTutorial` -- TUTORIAL (Phase 16): flips true the first time
@@ -40,24 +36,9 @@
 	    achievements feature that actually needs saving -- which
 	    achievements are UNLOCKED is deliberately never stored (see
 	    Achievements.lua's header for why that's safe to just recompute
-	    from `stats`/discoveredPatronIds/ownedThemeIds every time) -- but
+	    from `stats`/discoveredPatronIds every time) -- but
 	    which one you've chosen to WEAR is a real, unrecoverable player
 	    choice, so it's the only new field this file needed to gain.
-	  - `customPlaylist` -- JUKEBOX PLAYLIST (requested fix: "if they put a
-	    song ID that it saves for them so if they have like 20 song IDs,
-	    they can create their own playlist"): an ordered list of Roblox
-	    audio asset id strings ("rbxassetid://<digits>") this player has
-	    added via Client/Settings.lua's Custom Jukebox section. Before
-	    this, a pasted-in track id (Sound.lua's setCustomTrack) only ever
-	    lived in memory for that one session -- closing the game lost it,
-	    so a player with several favorite tracks had to re-paste every
-	    single one, every single time. Capped at MAX_PLAYLIST_SIZE below;
-	    addPlaylistSong/removePlaylistSong/movePlaylistSong (reordering,
-	    added alongside autoplay/shuffle in Sound.lua/VolumePanel.lua) are
-	    the only ways it changes. Which one is actually PLAYING right now
-	    is deliberately NOT part of this (that's just Sound.lua's
-	    in-memory customTrackId/playlist-queue state, same as before) --
-	    only the saved LIST itself needs to survive a rejoin.
 
 	Deliberately NOT covered by this file (a scope decision, not an
 	oversight): an in-progress RUN itself. Closing the game mid-run still
@@ -74,6 +55,7 @@
 ]]
 
 local Achievements = require(script.Parent.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
+local CosmeticSets = require(script.Parent.CosmeticSets)
 
 local PlayerProfile = {}
 
@@ -81,10 +63,6 @@ local PlayerProfile = {}
 -- `migrate` can't already absorb (e.g. renaming a field). Not used for
 -- anything yet -- present so a future migration has somewhere to branch on.
 PlayerProfile.SCHEMA_VERSION = 1
-
--- JUKEBOX PLAYLIST (requested fix): a sane cap -- matches Ahmed's own "if
--- they have like 20 song IDs" example from the feature request itself.
-PlayerProfile.MAX_PLAYLIST_SIZE = 20
 
 -- Player settings (Settings panel + volume popup). Each entry is the
 -- default plus the rule a saved/client-sent value must pass. Profiles
@@ -179,7 +157,8 @@ function PlayerProfile.new()
 		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
-		ownedThemeIds = {}, -- [themeId] = true -- Tips-bought only; the free default theme is always owned regardless, RunState.new adds it unconditionally
+		ownedSetIds = {}, -- [CosmeticSets id] = true, Tips-bought sets only
+		equippedSetId = CosmeticSets.DefaultId,
 		stats = {
 			runsStarted = 0,
 			runsWon = 0,
@@ -189,7 +168,6 @@ function PlayerProfile.new()
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
 		hasSeenHighCardHint = false, -- see Onboarding.shouldShowHighCardHint
 		freeContinueDateKey = nil, -- ONE MORE ROUND: SeededRng.dailyDateKey() of the day the free daily continue was last used, see hasFreeContinue
-		customPlaylist = {}, -- JUKEBOX PLAYLIST (requested fix): ordered list of "rbxassetid://<digits>" strings, see header comment
 		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
 end
@@ -222,12 +200,9 @@ function PlayerProfile.migrate(raw)
 		copyIdSet(raw[field], profile[field])
 	end
 
-	if type(raw.ownedThemeIds) == "table" then
-		for id, owned in pairs(raw.ownedThemeIds) do
-			if type(id) == "string" and owned == true then
-				profile.ownedThemeIds[id] = true
-			end
-		end
+	copyIdSet(raw.ownedSetIds, profile.ownedSetIds)
+	if type(raw.equippedSetId) == "string" and CosmeticSets.getById(raw.equippedSetId) then
+		profile.equippedSetId = raw.equippedSetId
 	end
 
 	if type(raw.stats) == "table" then
@@ -244,7 +219,7 @@ function PlayerProfile.migrate(raw)
 	end
 
 	-- ACHIEVEMENTS + TITLES (Phase 16): validated AFTER everything above
-	-- (discoveredPatronIds/ownedThemeIds/stats) is already settled onto
+	-- (discoveredPatronIds/stats) is already settled onto
 	-- `profile`, since checking whether this title is still actually
 	-- unlocked needs all of those. Deliberately just drops an
 	-- invalid/no-longer-unlocked saved title rather than erroring --
@@ -262,24 +237,6 @@ function PlayerProfile.migrate(raw)
 
 	if raw.hasSeenHighCardHint == true then
 		profile.hasSeenHighCardHint = true
-	end
-
-	-- JUKEBOX PLAYLIST (requested fix): each entry independently
-	-- re-validated against the exact same shape addPlaylistSong requires
-	-- (never trust a raw DataStore blob just because it round-tripped
-	-- through SetAsync once) -- a malformed or foreign entry is silently
-	-- dropped rather than erroring, same "soft migration" philosophy as
-	-- every other field above. Capped at MAX_PLAYLIST_SIZE even though a
-	-- normal save could never exceed it -- addPlaylistSong already
-	-- enforces that -- purely so a hand-edited/corrupted DataStore entry
-	-- can't hand a player an unbounded list.
-	if type(raw.customPlaylist) == "table" then
-		for _, id in ipairs(raw.customPlaylist) do
-			if type(id) == "string" and id:match("^rbxassetid://%d+$")
-				and #profile.customPlaylist < PlayerProfile.MAX_PLAYLIST_SIZE then
-				table.insert(profile.customPlaylist, id)
-			end
-		end
 	end
 
 	if type(raw.freeContinueDateKey) == "string" then
@@ -378,23 +335,6 @@ function PlayerProfile.recordDiscovered(profile, seen)
 	return changed
 end
 
--- Same shape as recordPatronsFound, for Themes. Deliberately a SEPARATE
--- function (not a shared generic) even though the bodies are identical --
--- these track conceptually different things (permanent "have I found this"
--- vs "have I bought this"), and a future change to one's rules (e.g.
--- discovered Patrons someday needing a rarity weight) shouldn't have to
--- worry about accidentally affecting the other.
-function PlayerProfile.recordThemesOwned(profile, themeIds)
-	local changed = false
-	for _, id in ipairs(themeIds) do
-		if type(id) == "string" and not profile.ownedThemeIds[id] then
-			profile.ownedThemeIds[id] = true
-			changed = true
-		end
-	end
-	return changed
-end
-
 -- Call once, right when a fresh run actually starts (Server/init.server.lua's
 -- startNewSession). Always "changes" the profile (the counter always goes
 -- up), so the caller doesn't need to check a return value here.
@@ -403,7 +343,7 @@ function PlayerProfile.recordRunStarted(profile)
 end
 
 -- Idempotent high-water mark -- safe to call with the current Night on every
--- single state push (same pattern as recordPatronsFound/recordThemesOwned
+-- single state push (same pattern as recordPatronsFound
 -- above: returns whether it actually moved, so the caller can skip a save
 -- when it didn't).
 function PlayerProfile.recordNightReached(profile, night)
@@ -448,76 +388,6 @@ end
 
 function PlayerProfile.markHighCardHintSeen(profile)
 	profile.hasSeenHighCardHint = true
-end
-
--- JUKEBOX PLAYLIST (requested fix): same shape as equipTitle above -- safe
--- to call directly off a remote handler with zero other server-side
--- checks, returns (ok, message) so the handler can skip an unnecessary
--- profileDirty/pushState on a rejected add (already-in-playlist, full,
--- malformed id) the same way EquipTitleRemote's handler already does for
--- equipTitle. Validates the exact "rbxassetid://<digits>" shape
--- Client/Settings.lua's jukebox text box already builds (it pulls the
--- first run of digits out of whatever the player pasted and prepends
--- "rbxassetid://" itself before this ever gets called) -- never trusts a
--- client-supplied string blindly.
-function PlayerProfile.addPlaylistSong(profile, assetId)
-	if type(assetId) ~= "string" or not assetId:match("^rbxassetid://%d+$") then
-		return false, "Invalid song id"
-	end
-	for _, existing in ipairs(profile.customPlaylist) do
-		if existing == assetId then
-			return false, "Already in your playlist"
-		end
-	end
-	if #profile.customPlaylist >= PlayerProfile.MAX_PLAYLIST_SIZE then
-		return false, "Your playlist is full"
-	end
-	table.insert(profile.customPlaylist, assetId)
-	return true, "Added to your playlist."
-end
-
-function PlayerProfile.removePlaylistSong(profile, assetId)
-	if type(assetId) ~= "string" then
-		return false, "Invalid song id"
-	end
-	for i, existing in ipairs(profile.customPlaylist) do
-		if existing == assetId then
-			table.remove(profile.customPlaylist, i)
-			return true, "Removed."
-		end
-	end
-	return false, "Not in your playlist"
-end
-
--- REORDER PLAYLIST (requested fix: "move songs up/down in My Playlist"):
--- direction is -1 (move earlier/up) or +1 (move later/down). Swaps assetId
--- with its immediate neighbor in that direction -- already at the matching
--- end is a no-op (not an error, same shape as everything else here: still
--- (ok, message), just ok=false), same as trying to move past either edge.
-function PlayerProfile.movePlaylistSong(profile, assetId, direction)
-	if type(assetId) ~= "string" then
-		return false, "Invalid song id"
-	end
-	if direction ~= -1 and direction ~= 1 then
-		return false, "Invalid direction"
-	end
-	local index = nil
-	for i, existing in ipairs(profile.customPlaylist) do
-		if existing == assetId then
-			index = i
-			break
-		end
-	end
-	if not index then
-		return false, "Not in your playlist"
-	end
-	local targetIndex = index + direction
-	if targetIndex < 1 or targetIndex > #profile.customPlaylist then
-		return false, "Already at that end of the playlist"
-	end
-	profile.customPlaylist[index], profile.customPlaylist[targetIndex] =
-		profile.customPlaylist[targetIndex], profile.customPlaylist[index]
-	return true, "Reordered."
 end
 
 return PlayerProfile

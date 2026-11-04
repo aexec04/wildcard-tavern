@@ -2,8 +2,7 @@
 	Client/VolumePanel.lua
 	The corner volume button's small popup: a Music slider, an SFX slider
 	and a Mute toggle, nothing else. Values live in Client/ClientSettings.lua
-	(saved to the player's profile); Sound.lua applies them. The Custom
-	Jukebox is in Settings > Audio (Client/JukeboxSection.lua).
+	(saved to the player's profile); Sound.lua applies them.
 
 	The corner button shows VOLUME_ICONS[3] ("×") while muted or with the
 	music at 0, VOLUME_ICONS[1] ("♪") otherwise.

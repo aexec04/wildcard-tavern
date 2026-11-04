@@ -13,7 +13,7 @@
 	Extracted out of init.client.lua as part of splitting the client script
 	into smaller, per-feature files. showWarning is a widely-used
 	dependency -- it's passed into several other overlay modules (Shop.lua,
-	Themes.lua) that need to report "not enough tips" -- so it comes back
+	Collection.lua) that need to report "not enough tips" -- so it comes back
 	out of the require() call.
 
 	deps fields:

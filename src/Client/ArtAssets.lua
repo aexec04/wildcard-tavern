@@ -9,7 +9,6 @@ return {
 	-- "Carved Golden Sound Emblem" -- see the header note above on why
 	-- this is NOT wired into the Volume button yet.
 	cornerIconVolume = "rbxassetid://122689587741103",
-	cornerIconThemes = "rbxassetid://101781257967904",
 	cornerIconJourney = "rbxassetid://124013213287955",
 	cornerIconHandReference = "rbxassetid://112457122557520",
 	cornerIconSettings = "rbxassetid://137113568426955",

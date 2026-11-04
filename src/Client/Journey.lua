@@ -11,7 +11,7 @@
 	journeyBackdrop.Visible and call refreshJourney() to keep the "you are
 	here" marker accurate while the overlay is open across a round change,
 	so both come back out of the require() call, same pattern as Shop.lua
-	and Themes.lua.
+	and Collection.lua.
 
 	deps fields:
 		screenGui        -- ScreenGui, the panel's ultimate parent (via backdrop)

@@ -3,7 +3,7 @@
 	ACHIEVEMENTS + TITLES (Phase 16): a small catalog of permanent
 	milestones, each tied to a PlayerProfile stat that was already being
 	tracked (Shared/Engine/PlayerProfile.lua's `stats`, plus
-	discoveredPatronIds/ownedThemeIds) but, until now, only ever shown as
+	discoveredPatronIds) but, until now, only ever shown as
 	a plain "Runs Won: 3" style stat line on Client/Collection.lua.
 	Earning one unlocks a Title the player can equip (see
 	PlayerProfile.equipTitle) and show off next to their name.
@@ -11,7 +11,7 @@
 	DELIBERATELY STATELESS ("unlocked" is a computed property, not a
 	saved one): every stat these check is monotonic -- runsStarted/
 	runsWon only ever go up, bestNightReached is already a high-water
-	mark, discoveredPatronIds/ownedThemeIds are sets that only ever
+	mark, discoveredPatronIds are sets that only ever
 	grow (see PlayerProfile.lua's own functions for each of those --
 	none of them ever remove anything). That means "is this achievement
 	unlocked" can be recomputed fresh from the profile on every single
@@ -127,36 +127,6 @@ Achievements.Definitions = {
 				count = count + 1
 			end
 			return count >= #Patrons.Definitions
-		end,
-	},
-	{
-		id = "redecorated",
-		name = "Redecorated",
-		icon = "🖼",
-		title = "Interior Decorator",
-		description = "Buy your first Theme with Tips.",
-		flavorText = "A fresh coat of paint makes everything cozier.",
-		requirement = function(profile)
-			local count = 0
-			for _ in pairs(profile.ownedThemeIds) do
-				count = count + 1
-			end
-			return count >= 1
-		end,
-	},
-	{
-		id = "theme_connoisseur",
-		name = "Theme Connoisseur",
-		icon = "🎨",
-		title = "Connoisseur",
-		description = "Own 4 different Themes bought with Tips.",
-		flavorText = "You know your wallpaper from your wainscoting.",
-		requirement = function(profile)
-			local count = 0
-			for _ in pairs(profile.ownedThemeIds) do
-				count = count + 1
-			end
-			return count >= 4
 		end,
 	},
 	-- COLLECTION MILESTONE TITLES: granted (and saved in

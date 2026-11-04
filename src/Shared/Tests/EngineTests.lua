@@ -16,7 +16,7 @@ local Deck = require(script.Parent.Parent.Engine.Deck)
 local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
 local Scoring = require(script.Parent.Parent.Engine.Scoring)
 local Patrons = require(script.Parent.Parent.Engine.Patrons)
-local Themes = require(script.Parent.Parent.Engine.Themes)
+local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
 local RunState = require(script.Parent.Parent.Engine.RunState)
 local Shop = require(script.Parent.Parent.Engine.Shop)
 local Onboarding = require(script.Parent.Parent.Engine.Onboarding)
@@ -467,88 +467,6 @@ table.insert(tests, { name = "RunState.sellPatron fails gracefully for a patron 
 	local ok, refund = RunState.sellPatron(state, "the_regular")
 	expectFalse(ok)
 	expectEqual(refund, 0)
-end })
-
--- ===== Themes (cosmetics) =====
-
-table.insert(tests, { name = "RunState.new starts with the default theme owned and equipped", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	expectTrue(state.ownedThemes[Themes.DefaultThemeId])
-	expectEqual(state.equippedTheme, Themes.DefaultThemeId)
-end })
-
-table.insert(tests, { name = "RunState.buyTheme deducts tips and marks the theme owned", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 20
-	local ok = RunState.buyTheme(state, "midnight_blue")
-	expectTrue(ok)
-	expectTrue(state.ownedThemes["midnight_blue"])
-	expectEqual(state.tips, 20 - Themes.getById("midnight_blue").price)
-end })
-
-table.insert(tests, { name = "RunState.buyTheme fails gracefully with insufficient tips", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 0
-	local ok, message = RunState.buyTheme(state, "midnight_blue")
-	expectFalse(ok)
-	expectTrue(message ~= nil)
-	expectFalse(state.ownedThemes["midnight_blue"] == true)
-end })
-
-table.insert(tests, { name = "RunState.buyTheme refuses to double-buy an owned theme", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 100
-	RunState.buyTheme(state, "midnight_blue")
-	local tipsAfterFirstBuy = state.tips
-	local ok, message = RunState.buyTheme(state, "midnight_blue")
-	expectFalse(ok)
-	expectTrue(message ~= nil)
-	expectEqual(state.tips, tipsAfterFirstBuy) -- no double charge
-end })
-
-table.insert(tests, { name = "RunState.equipTheme requires ownership first", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	local ok = RunState.equipTheme(state, "midnight_blue")
-	expectFalse(ok)
-	expectEqual(state.equippedTheme, Themes.DefaultThemeId) -- unchanged
-end })
-
-table.insert(tests, { name = "RunState.equipTheme succeeds once the theme is owned", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 20
-	RunState.buyTheme(state, "midnight_blue")
-	local ok = RunState.equipTheme(state, "midnight_blue")
-	expectTrue(ok)
-	expectEqual(state.equippedTheme, "midnight_blue")
-end })
-
--- ===== Themes: cosmetics batch (Phase 16) =====
--- 4 new Tips-priced Themes -- see Themes.lua's header comment on these
--- for why every Theme before this batch was actually Robux-Game-Pass-
--- gated, leaving nothing a Tips-earning player could spend Tips on.
-
-table.insert(tests, { name = "Phase 16 cosmetics: the 4 new Themes exist and are NOT gated behind any Game Pass", fn = function()
-	local newThemeIds = { "amethyst_lounge", "copper_kettle", "slate_parlor", "mint_sorbet" }
-	for _, themeId in ipairs(newThemeIds) do
-		local theme = Themes.getById(themeId)
-		expectTrue(theme ~= nil, themeId .. " should exist in Themes.Definitions")
-		expectTrue(theme.price > 0, themeId .. " should have a real Tips price")
-		expectTrue(GamePasses.passForTheme(themeId) == nil, themeId .. " should NOT be gated behind a Game Pass")
-	end
-end })
-
-table.insert(tests, { name = "Phase 16 cosmetics: buying and equipping a new Theme with Tips works end-to-end", fn = function()
-	local state = RunState.new(nil, function(n) return n end)
-	state.tips = 50
-	local theme = Themes.getById("amethyst_lounge")
-	local tipsBefore = state.tips
-	local buyOk = RunState.buyTheme(state, "amethyst_lounge")
-	expectTrue(buyOk)
-	expectEqual(state.tips, tipsBefore - theme.price)
-	expectTrue(state.ownedThemes.amethyst_lounge)
-	local equipOk = RunState.equipTheme(state, "amethyst_lounge")
-	expectTrue(equipOk)
-	expectEqual(state.equippedTheme, "amethyst_lounge")
 end })
 
 -- ===== BossRounds =====
@@ -2266,11 +2184,11 @@ end })
 table.insert(tests, { name = "PlayerProfile.new: starts empty with the expected shape", fn = function()
 	local profile = PlayerProfile.new()
 	expectEqual(profile.version, PlayerProfile.SCHEMA_VERSION)
-	local anyPatron, anyTheme = false, false
+	local anyPatron = false
 	for _ in pairs(profile.discoveredPatronIds) do anyPatron = true end
-	for _ in pairs(profile.ownedThemeIds) do anyTheme = true end
 	expectFalse(anyPatron, "a fresh profile shouldn't have any discovered Patrons yet")
-	expectFalse(anyTheme, "a fresh profile shouldn't have any bought Themes yet")
+	expectEqual(next(profile.ownedSetIds), nil, "a fresh profile owns no bought sets yet")
+	expectEqual(profile.equippedSetId, CosmeticSets.DefaultId)
 	expectEqual(profile.stats.runsStarted, 0)
 	expectEqual(profile.stats.runsWon, 0)
 	expectEqual(profile.stats.bestNightReached, 0)
@@ -2287,7 +2205,8 @@ end })
 table.insert(tests, { name = "PlayerProfile.migrate: a valid saved profile round-trips unchanged", fn = function()
 	local profile = PlayerProfile.new()
 	PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" })
-	PlayerProfile.recordThemesOwned(profile, { "midnight_blue" })
+	profile.ownedSetIds.winter_evening = true
+	profile.equippedSetId = "winter_evening"
 	PlayerProfile.recordRunStarted(profile)
 	PlayerProfile.recordNightReached(profile, 5)
 	PlayerProfile.recordRunWon(profile)
@@ -2295,7 +2214,8 @@ table.insert(tests, { name = "PlayerProfile.migrate: a valid saved profile round
 	local reloaded = PlayerProfile.migrate(profile)
 	expectTrue(reloaded.discoveredPatronIds.tip_jar)
 	expectTrue(reloaded.discoveredPatronIds.second_opinion)
-	expectTrue(reloaded.ownedThemeIds.midnight_blue)
+	expectTrue(reloaded.ownedSetIds.winter_evening)
+	expectEqual(reloaded.equippedSetId, "winter_evening")
 	expectEqual(reloaded.stats.runsStarted, 1)
 	expectEqual(reloaded.stats.bestNightReached, 5)
 	expectEqual(reloaded.stats.runsWon, 1)
@@ -2304,14 +2224,14 @@ end })
 table.insert(tests, { name = "PlayerProfile.migrate: sanitizes a corrupt/foreign shape instead of crashing or propagating garbage", fn = function()
 	local profile = PlayerProfile.migrate({
 		discoveredPatronIds = "not a table",
-		ownedThemeIds = { midnight_blue = "yes, but not literally true" }, -- wrong value type -- must be dropped
+		ownedSetIds = { winter_evening = "yes, but not literally true" }, -- wrong value type -- must be dropped
 		stats = { runsStarted = "five", runsWon = -3, bestNightReached = 4.9 },
 		someUnrelatedFieldFromAFutureVersion = { 1, 2, 3 },
 	})
 	local any = false
 	for _ in pairs(profile.discoveredPatronIds) do any = true end
 	expectFalse(any, "a non-table discoveredPatronIds should be ignored, not error")
-	expectFalse(profile.ownedThemeIds.midnight_blue == true, "a non-true value for an owned theme id should be dropped")
+	expectFalse(profile.ownedSetIds.winter_evening == true, "a non-true value for an owned set id should be dropped")
 	expectEqual(profile.stats.runsStarted, 0, "a non-number runsStarted should fall back to the default")
 	expectEqual(profile.stats.runsWon, 0, "a negative runsWon should be clamped, not kept negative")
 	expectEqual(profile.stats.bestNightReached, 4, "a fractional bestNightReached should be floored")
@@ -2322,12 +2242,6 @@ table.insert(tests, { name = "PlayerProfile.recordPatronsFound: reports changed 
 	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }))
 	expectFalse(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }), "re-recording an already-discovered Patron shouldn't report a change")
 	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar", "second_opinion" }), "a mix of old + 1 new id should still report a change")
-end })
-
-table.insert(tests, { name = "PlayerProfile.recordThemesOwned: reports changed only when something is actually new", fn = function()
-	local profile = PlayerProfile.new()
-	expectTrue(PlayerProfile.recordThemesOwned(profile, { "midnight_blue" }))
-	expectFalse(PlayerProfile.recordThemesOwned(profile, { "midnight_blue" }))
 end })
 
 table.insert(tests, { name = "PlayerProfile.recordNightReached: only an idempotent high-water mark", fn = function()
@@ -2401,16 +2315,6 @@ table.insert(tests, { name = "Achievements: discoveredPatronIds-count achievemen
 	expectFalse(Achievements.isUnlocked(profile, "every_patron"))
 end })
 
-table.insert(tests, { name = "Achievements: ownedThemeIds-count achievements (Redecorated / Theme Connoisseur)", fn = function()
-	local profile = PlayerProfile.new()
-	expectFalse(Achievements.isUnlocked(profile, "redecorated"))
-	PlayerProfile.recordThemesOwned(profile, { "amethyst_lounge" })
-	expectTrue(Achievements.isUnlocked(profile, "redecorated"))
-	expectFalse(Achievements.isUnlocked(profile, "theme_connoisseur"))
-	PlayerProfile.recordThemesOwned(profile, { "copper_kettle", "slate_parlor", "mint_sorbet" })
-	expectTrue(Achievements.isUnlocked(profile, "theme_connoisseur"))
-end })
-
 table.insert(tests, { name = "Achievements.unlockedFor: returns exactly the achievements this profile currently qualifies for", fn = function()
 	local profile = PlayerProfile.new()
 	PlayerProfile.recordRunStarted(profile)
@@ -2482,164 +2386,101 @@ table.insert(tests, { name = "PlayerProfile.migrate: a saved profile predating t
 	expectFalse(reloaded.hasSeenTutorial)
 end })
 
--- ===== PlayerProfile: Jukebox Playlist (requested fix) =====
+-- ===== Cosmetic Sets =====
 
-table.insert(tests, { name = "PlayerProfile.new: customPlaylist starts empty", fn = function()
-	local profile = PlayerProfile.new()
-	expectEqual(#profile.customPlaylist, 0)
-end })
+local function tipsState(n) return { tips = n } end
 
-table.insert(tests, { name = "PlayerProfile.addPlaylistSong: accepts a well-formed id and appends it", fn = function()
-	local profile = PlayerProfile.new()
-	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
-	expectTrue(ok, message)
-	expectEqual(#profile.customPlaylist, 1)
-	expectEqual(profile.customPlaylist[1], "rbxassetid://123456")
-end })
-
-table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses a malformed id without touching the list", fn = function()
-	local profile = PlayerProfile.new()
-	local ok1 = PlayerProfile.addPlaylistSong(profile, "not an asset id")
-	local ok2 = PlayerProfile.addPlaylistSong(profile, 123456)
-	local ok3 = PlayerProfile.addPlaylistSong(profile, nil)
-	expectFalse(ok1)
-	expectFalse(ok2)
-	expectFalse(ok3)
-	expectEqual(#profile.customPlaylist, 0)
-end })
-
-table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses a duplicate of a song already saved", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
-	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://123456")
-	expectFalse(ok, message)
-	expectEqual(#profile.customPlaylist, 1, "a refused duplicate shouldn't add a second copy")
-end })
-
-table.insert(tests, { name = "PlayerProfile.addPlaylistSong: refuses once the playlist is already at MAX_PLAYLIST_SIZE", fn = function()
-	local profile = PlayerProfile.new()
-	for i = 1, PlayerProfile.MAX_PLAYLIST_SIZE do
-		local ok = PlayerProfile.addPlaylistSong(profile, "rbxassetid://" .. tostring(1000 + i))
-		expectTrue(ok, "song " .. i .. " should fit under the cap")
+table.insert(tests, { name = "CosmeticSets: definitions are well-formed and reference real card backs/achievements", fn = function()
+	local seen = {}
+	expectTrue(CosmeticSets.getById(CosmeticSets.DefaultId) ~= nil)
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		expectFalse(seen[set.id], "duplicate " .. set.id)
+		seen[set.id] = true
+		expectTrue(CardBacks.getById(set.cardBackId) ~= nil, set.id .. " card back")
+		local kind = set.unlock.kind
+		expectTrue(kind == "default" or kind == "tips" or kind == "journey" or kind == "achievement" or kind == "gamepass", set.id .. " unlock kind")
+		if kind == "achievement" then expectTrue(Achievements.getById(set.unlock.id) ~= nil) end
+		if kind == "gamepass" then expectTrue(GamePasses.getById(set.unlock.passId) ~= nil) end
+		expectTrue(#CosmeticSets.unlockText(set) > 0)
+		local lower = (set.name .. set.description):lower()
+		expectFalse(lower:find("balatro", 1, true) ~= nil)
 	end
-	local ok, message = PlayerProfile.addPlaylistSong(profile, "rbxassetid://999999")
-	expectFalse(ok, message)
-	expectEqual(#profile.customPlaylist, PlayerProfile.MAX_PLAYLIST_SIZE)
 end })
 
-table.insert(tests, { name = "PlayerProfile.removePlaylistSong: removes a saved song and reports success", fn = function()
+table.insert(tests, { name = "CosmeticSets.isUnlocked: each unlock source", fn = function()
 	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	local ok = PlayerProfile.removePlaylistSong(profile, "rbxassetid://111")
-	expectTrue(ok)
-	expectEqual(#profile.customPlaylist, 1)
-	expectEqual(profile.customPlaylist[1], "rbxassetid://222")
+	expectTrue(CosmeticSets.isUnlocked(profile, "classic_tavern"))
+	expectFalse(CosmeticSets.isUnlocked(profile, "winter_evening"))
+	expectFalse(CosmeticSets.isUnlocked(profile, "festival_night"))
+	expectFalse(CosmeticSets.isUnlocked(profile, "closing_time"))
+	expectFalse(CosmeticSets.isUnlocked(profile, "golden_gala"))
+	expectFalse(CosmeticSets.isUnlocked(profile, "nope"))
+	profile.ownedSetIds.winter_evening = true
+	profile.stats.runsWon = 1
+	expectTrue(CosmeticSets.isUnlocked(profile, "winter_evening"))
+	expectTrue(CosmeticSets.isUnlocked(profile, "festival_night"))
+	profile.stats.runsWon = 5
+	expectTrue(CosmeticSets.isUnlocked(profile, "closing_time"), "the Regular achievement")
+	expectFalse(CosmeticSets.isUnlocked(profile, "golden_gala", {}))
+	expectTrue(CosmeticSets.isUnlocked(profile, "golden_gala", { set_golden_gala = true }))
 end })
 
-table.insert(tests, { name = "PlayerProfile.removePlaylistSong: reports failure for a song that isn't saved", fn = function()
+table.insert(tests, { name = "CosmeticSets.buy: spends Tips once, rejects short funds and non-Tips sets", fn = function()
 	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	local ok = PlayerProfile.removePlaylistSong(profile, "rbxassetid://999")
-	expectFalse(ok)
-	expectEqual(#profile.customPlaylist, 1, "a failed removal shouldn't touch the existing list")
+	local price = CosmeticSets.getById("winter_evening").unlock.price
+	local poor = tipsState(price - 1)
+	expectFalse((CosmeticSets.buy(profile, poor, "winter_evening")))
+	expectEqual(poor.tips, price - 1)
+	local state = tipsState(price + 3)
+	expectTrue((CosmeticSets.buy(profile, state, "winter_evening")))
+	expectEqual(state.tips, 3)
+	expectTrue(profile.ownedSetIds.winter_evening)
+	expectFalse((CosmeticSets.buy(profile, state, "winter_evening")), "already owned")
+	expectFalse((CosmeticSets.buy(profile, tipsState(999), "festival_night")), "journey sets can't be bought")
+	expectFalse((CosmeticSets.buy(profile, tipsState(999), "nope")))
 end })
 
-table.insert(tests, { name = "PlayerProfile.movePlaylistSong: moving up (-1) swaps with the previous song", fn = function()
+table.insert(tests, { name = "CosmeticSets.equip: only unlocked sets; effectiveId falls back to the default", fn = function()
 	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://333")
-	local ok = PlayerProfile.movePlaylistSong(profile, "rbxassetid://222", -1)
-	expectTrue(ok)
-	expectEqual(profile.customPlaylist[1], "rbxassetid://222")
-	expectEqual(profile.customPlaylist[2], "rbxassetid://111")
-	expectEqual(profile.customPlaylist[3], "rbxassetid://333")
+	expectFalse((CosmeticSets.equip(profile, "winter_evening")))
+	expectEqual(profile.equippedSetId, CosmeticSets.DefaultId)
+	profile.ownedSetIds.winter_evening = true
+	expectTrue((CosmeticSets.equip(profile, "winter_evening")))
+	expectEqual(CosmeticSets.effectiveId(profile), "winter_evening")
+	expectFalse((CosmeticSets.equip(profile, "nope")))
+	-- A gamepass set stops applying if the pass isn't owned any more.
+	profile.equippedSetId = "golden_gala"
+	expectEqual(CosmeticSets.effectiveId(profile, {}), CosmeticSets.DefaultId)
+	expectEqual(CosmeticSets.effectiveId(profile, { set_golden_gala = true }), "golden_gala")
 end })
 
-table.insert(tests, { name = "PlayerProfile.movePlaylistSong: moving down (+1) swaps with the next song", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://333")
-	local ok = PlayerProfile.movePlaylistSong(profile, "rbxassetid://222", 1)
-	expectTrue(ok)
-	expectEqual(profile.customPlaylist[1], "rbxassetid://111")
-	expectEqual(profile.customPlaylist[2], "rbxassetid://333")
-	expectEqual(profile.customPlaylist[3], "rbxassetid://222")
-end })
-
-table.insert(tests, { name = "PlayerProfile.movePlaylistSong: refuses to move the first song further up", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	local ok = PlayerProfile.movePlaylistSong(profile, "rbxassetid://111", -1)
-	expectFalse(ok)
-	expectEqual(profile.customPlaylist[1], "rbxassetid://111", "a refused move at the edge shouldn't reorder anything")
-	expectEqual(profile.customPlaylist[2], "rbxassetid://222")
-end })
-
-table.insert(tests, { name = "PlayerProfile.movePlaylistSong: refuses to move the last song further down", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	local ok = PlayerProfile.movePlaylistSong(profile, "rbxassetid://222", 1)
-	expectFalse(ok)
-	expectEqual(profile.customPlaylist[2], "rbxassetid://222")
-end })
-
-table.insert(tests, { name = "PlayerProfile.movePlaylistSong: refuses a song that isn't saved", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	local ok = PlayerProfile.movePlaylistSong(profile, "rbxassetid://999", -1)
-	expectFalse(ok)
-end })
-
-table.insert(tests, { name = "PlayerProfile.migrate: a saved playlist round-trips unchanged", fn = function()
-	local profile = PlayerProfile.new()
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://111")
-	PlayerProfile.addPlaylistSong(profile, "rbxassetid://222")
-	local reloaded = PlayerProfile.migrate(profile)
-	expectEqual(#reloaded.customPlaylist, 2)
-	expectEqual(reloaded.customPlaylist[1], "rbxassetid://111")
-	expectEqual(reloaded.customPlaylist[2], "rbxassetid://222")
-end })
-
-table.insert(tests, { name = "PlayerProfile.migrate: drops malformed/foreign customPlaylist entries instead of crashing", fn = function()
-	local reloaded = PlayerProfile.migrate({
-		customPlaylist = { "rbxassetid://111", "not an asset id", 42, "rbxassetid://222" },
+table.insert(tests, { name = "PlayerProfile.migrate: old Theme/Jukebox profiles load and fall back to the default set", fn = function()
+	local profile = PlayerProfile.migrate({
+		discoveredPatronIds = { tip_jar = true },
+		ownedThemeIds = { midnight_blue = true, crimson = true },
+		equippedTheme = "midnight_blue",
+		customPlaylist = { "rbxassetid://111" },
+		ownedGamePassIds = { all_themes = true, custom_jukebox = true },
+		stats = { runsStarted = 3, runsWon = 1, bestNightReached = 4 },
 	})
-	expectEqual(#reloaded.customPlaylist, 2, "only the 2 well-formed entries should survive")
-	expectEqual(reloaded.customPlaylist[1], "rbxassetid://111")
-	expectEqual(reloaded.customPlaylist[2], "rbxassetid://222")
+	expectTrue(profile.discoveredPatronIds.tip_jar)
+	expectEqual(profile.stats.runsWon, 1)
+	expectEqual(profile.equippedSetId, CosmeticSets.DefaultId)
+	expectEqual(next(profile.ownedSetIds), nil, "old theme purchases aren't carried over")
+	expectEqual(profile.ownedThemeIds, nil)
+	expectEqual(profile.customPlaylist, nil)
 end })
 
-table.insert(tests, { name = "PlayerProfile.migrate: a non-table customPlaylist is ignored, not propagated", fn = function()
-	local reloaded = PlayerProfile.migrate({ customPlaylist = "not a table" })
-	expectEqual(#reloaded.customPlaylist, 0)
+table.insert(tests, { name = "PlayerProfile.migrate: unknown/garbage equippedSetId falls back to the default; a title from a removed achievement is dropped", fn = function()
+	expectEqual(PlayerProfile.migrate({ equippedSetId = "retired_set" }).equippedSetId, CosmeticSets.DefaultId)
+	expectEqual(PlayerProfile.migrate({ equippedSetId = 42 }).equippedSetId, CosmeticSets.DefaultId)
+	expectEqual(PlayerProfile.migrate({ equippedTitleId = "redecorated", ownedThemeIds = { a = true } }).equippedTitleId, nil)
 end })
 
--- ===== RunState.new: seeding ownedThemes from a saved profile (Phase 10) =====
-
-table.insert(tests, { name = "RunState.new: without ownedThemeIds, only the free default is owned (unchanged pre-Phase-10 behavior)", fn = function()
-	local state = RunState.new()
-	expectTrue(state.ownedThemes[Themes.DefaultThemeId])
-	expectFalse(state.ownedThemes.midnight_blue == true)
-end })
-
-table.insert(tests, { name = "RunState.new: options.ownedThemeIds seeds extra Themes as already-owned", fn = function()
-	local state = RunState.new({ ownedThemeIds = { "midnight_blue", "crimson" } })
-	expectTrue(state.ownedThemes[Themes.DefaultThemeId], "the free default should still be owned regardless")
-	expectTrue(state.ownedThemes.midnight_blue)
-	expectTrue(state.ownedThemes.crimson)
-	expectFalse(state.ownedThemes.forest == true, "a Theme not in the seed list shouldn't be owned")
-end })
-
-table.insert(tests, { name = "RunState.new: a seeded Theme is immediately equippable without buying it again", fn = function()
-	local state = RunState.new({ ownedThemeIds = { "rose_gold" } })
-	local ok = RunState.equipTheme(state, "rose_gold")
-	expectTrue(ok)
-	expectEqual(state.equippedTheme, "rose_gold")
+table.insert(tests, { name = "GamePasses: Theme Vault and Custom Jukebox are gone; Fast Forward stays", fn = function()
+	expectEqual(GamePasses.getById("all_themes"), nil)
+	expectEqual(GamePasses.getById("custom_jukebox"), nil)
+	expectTrue(GamePasses.getById("fast_forward") ~= nil)
 end })
 
 -- ===== SeededRng (DAILY CHALLENGE, Phase 11) =====
@@ -4103,13 +3944,11 @@ end })
 table.insert(tests, { name = "PlayerProfile settings: a profile saved before settings existed loads with defaults", fn = function()
 	local old = PlayerProfile.new()
 	old.settings = nil
-	old.customPlaylist = { "rbxassetid://123" }
 	local reloaded = PlayerProfile.migrate(old)
 	expectEqual(reloaded.settings.musicVolume, 0.35)
 	expectEqual(reloaded.settings.sfxVolume, 1)
 	expectEqual(reloaded.settings.muted, false)
 	expectEqual(reloaded.settings.animSpeed, "normal")
-	expectEqual(reloaded.customPlaylist[1], "rbxassetid://123")
 end })
 
 table.insert(tests, { name = "PlayerProfile settings: saved values round-trip, bad ones fall back per field", fn = function()
@@ -4190,9 +4029,6 @@ local function unlockAllRegularTitles(profile)
 	profile.stats.bestNightReached = 9
 	for _, patron in ipairs(Patrons.Definitions) do
 		profile.discoveredPatronIds[patron.id] = true
-	end
-	for i = 1, 4 do
-		profile.ownedThemeIds["theme_" .. i] = true
 	end
 end
 

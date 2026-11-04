@@ -2,8 +2,8 @@
 	CardBacks.lua
 	Cosmetic card backs. Right now the only way to unlock one is a
 	Collection milestone (CollectionBook.Milestones); unlocked ids are kept
-	in PlayerProfile.unlockedCardBackIds. Choosing which back to show in a
-	run is not built yet -- the deck widget still draws the classic back.
+	in PlayerProfile.unlockedCardBackIds. Cosmetic Sets (CosmeticSets.lua) pick which back is shown;
+	`setOnly` backs come only from a set.
 
 	`colors` are {r, g, b} triples (0-255) so this file stays pure Lua.
 ]]
@@ -36,6 +36,33 @@ CardBacks.Definitions = {
 		colors = { base = { 30, 30, 70 }, trim = { 200, 210, 255 } },
 		description = "A Collection milestone reward.",
 		flavorText = "Only handed to guests who have met every face in the tavern.",
+	},
+	{
+		id = "winter_frost",
+		name = "Winter Frost",
+		icon = "❄",
+		colors = { base = { 70, 100, 140 }, trim = { 230, 240, 255 } },
+		description = "Part of the Winter Evening set.",
+		flavorText = "Frosted at the edges like a window in January.",
+		setOnly = true,
+	},
+	{
+		id = "festival_ribbon",
+		name = "Festival Ribbon",
+		icon = "🎊",
+		colors = { base = { 150, 50, 70 }, trim = { 255, 220, 120 } },
+		description = "Part of the Festival Night set.",
+		flavorText = "Tied with the same ribbon as the lanterns outside.",
+		setOnly = true,
+	},
+	{
+		id = "closing_lantern",
+		name = "Closing Lantern",
+		icon = "🏮",
+		colors = { base = { 60, 40, 30 }, trim = { 240, 170, 80 } },
+		description = "Part of the Closing Time set.",
+		flavorText = "Glows like the last lamp left burning.",
+		setOnly = true,
 	},
 }
 

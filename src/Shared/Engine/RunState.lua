@@ -14,7 +14,6 @@ local Card = require(script.Parent.Card)
 local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
-local Themes = require(script.Parent.Themes)
 local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
@@ -126,14 +125,11 @@ end
 
 --[[
 	options (all optional): { deckVariantId = string, difficultyId = string,
-	ownedThemeIds = array<string>, nightOneBonusDiscards = number }
+	nightOneBonusDiscards = number }
 	Unknown/omitted deckVariantId/difficultyId fall back to the standard deck
 	variant and standard difficulty, so `RunState.new()` and
 	`RunState.new(nil, rng)` both still produce the original default-balance
-	run. ownedThemeIds (PERSISTENT SAVE, Phase 10) seeds state.ownedThemes
-	with Theme ids this player has permanently bought with Tips in a past
-	run, on top of the always-free default -- see that field's own comment
-	below.
+	run.
 ]]
 function RunState.new(options, rng)
 	options = options or {}
@@ -167,26 +163,6 @@ function RunState.new(options, rng)
 		round = 1,
 		tips = deckVariant.startingTips or 0,
 		ownedPatrons = {},
-		-- PERSISTENT SAVE (Phase 10): options.ownedThemeIds is an optional
-		-- array of Theme ids to seed as already-owned, on top of the always-
-		-- free default -- Server/init.server.lua passes this player's
-		-- permanent PlayerProfile.ownedThemeIds here so a Tips-bought Theme
-		-- survives "New Run.../restart instead of resetting every time (the
-		-- gap Themes.lua's old header comment used to flag as a known
-		-- limitation). Omitted/nil behaves exactly like before this option
-		-- existed -- just the free default -- so every pre-existing
-		-- RunState.new(...) call site (including this file's own tests)
-		-- keeps working unchanged.
-		ownedThemes = (function()
-			local set = { [Themes.DefaultThemeId] = true }
-			for _, themeId in ipairs(options.ownedThemeIds or {}) do
-				if type(themeId) == "string" then
-					set[themeId] = true
-				end
-			end
-			return set
-		end)(),
-		equippedTheme = Themes.DefaultThemeId,
 		-- Persistent, run-long card pool: `deck` is the draw pile, `discardPile`
 		-- is everything played/discarded so far this run waiting to be
 		-- reshuffled back in at the start of the next round. Cards are the
@@ -1387,33 +1363,6 @@ function RunState.useMenuRecipe(state, id, opts)
 end
 function RunState.useSecretRecipe(state, id, opts)
 	return useRecipe(state, state.secretRecipeInventory, Recipes.SecretRecipes, id, opts, "secret")
-end
-
--- Purely cosmetic: unlock a table/card color theme with tips. No gameplay
--- effect. Can be called any time -- not gated to the shop phase.
-function RunState.buyTheme(state, themeId)
-	local theme = Themes.getById(themeId)
-	if not theme then
-		return false, "Unknown theme: " .. tostring(themeId)
-	end
-	if state.ownedThemes[themeId] then
-		return false, "Already owned"
-	end
-	if state.tips < theme.price then
-		return false, "Not enough tips"
-	end
-	state.tips = state.tips - theme.price
-	state.ownedThemes[themeId] = true
-	return true, theme.name .. " unlocked."
-end
-
--- Equip a previously-purchased theme. No gameplay effect.
-function RunState.equipTheme(state, themeId)
-	if not state.ownedThemes[themeId] then
-		return false, "Theme not owned"
-	end
-	state.equippedTheme = themeId
-	return true, "Equipped."
 end
 
 -- Call after a round is won (and shopping is done) to move on.

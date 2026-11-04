@@ -29,6 +29,9 @@
 	playClickSfx, collectionButton, Achievements, EquipTitleRemote,
 	getLatestState, popIn, popOut, addButtonHoverScale, StateUpdatedRemote.
 
+	A "Card Sets" button in the header opens CosmeticSetsPanel.lua (equip
+	and buy cosmetic sets).
+
 	Returns: {}
 ]]
 
@@ -124,6 +127,27 @@ return function(deps)
 		polishButton = polishButton,
 		addButtonHoverScale = addButtonHoverScale,
 		playClickSfx = playClickSfx,
+	})
+
+	-- Card Sets (cosmetic card back + backdrop) live in their own panel.
+	local setsButton = button(panel, {
+		Size = UDim2.fromOffset(96, 24), Position = UDim2.fromOffset(15, 6),
+		TextSize = 12, Text = "Card Sets",
+	})
+	polishButton(setsButton, 8)
+	require(script.Parent.CosmeticSetsPanel)({
+		screenGui = screenGui,
+		polishPanel = polishPanel,
+		polishButton = polishButton,
+		roundCorner = roundCorner,
+		addSoftShadow = addSoftShadow,
+		playClickSfx = playClickSfx,
+		openButton = setsButton,
+		getLatestState = getLatestState,
+		popIn = popIn,
+		popOut = popOut,
+		addButtonHoverScale = addButtonHoverScale,
+		StateUpdatedRemote = deps.StateUpdatedRemote,
 	})
 
 	local statsLabel = label(panel, {

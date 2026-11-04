@@ -45,8 +45,6 @@ local PlayHandRemote = remotes:WaitForChild("PlayHand")
 local DiscardRemote = remotes:WaitForChild("Discard")
 local BuyPatronRemote = remotes:WaitForChild("BuyPatron")
 local SellPatronRemote = remotes:WaitForChild("SellPatron")
-local BuyThemeRemote = remotes:WaitForChild("BuyTheme")
-local EquipThemeRemote = remotes:WaitForChild("EquipTheme")
 local AdvanceRoundRemote = remotes:WaitForChild("AdvanceRound")
 -- ROUND SELECT FEATURE: confirm playing the current round, or skip it for
 -- its currently-revealed Tag instead (see Client/RoundSelect.lua).
@@ -64,12 +62,8 @@ local BuyPackRemote = remotes:WaitForChild("BuyPack")
 local ResolvePackRemote = remotes:WaitForChild("ResolvePack")
 local BuyHousePassRemote = remotes:WaitForChild("BuyHousePass")
 
--- Theme *data* (names/prices/colors) is static content, so the client just
--- reads it straight from Shared -- only ownership/equipped state needs to
--- travel over the StateUpdated remote.
-local Themes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Themes"))
 -- Real-money Robux Game Passes (see Shared/Engine/GamePasses.lua) -- static
--- content read straight from Shared, same reasoning as Themes above.
+-- content read straight from Shared, static content read straight from Shared.
 local GamePasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GamePasses"))
 -- FEATURE 4 (Road Ahead / Journey overlay) needs the target-score formula,
 -- which already exists in RunState -- no engine changes needed.
@@ -92,14 +86,14 @@ local BossRounds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local Patrons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Patrons"))
 -- PHASE 1B (Recipes UI): Recipes.HouseRecipes/MenuRecipes/SecretRecipes are
 -- static content, same "client reads the catalog directly" pattern as
--- Patrons/Themes above -- the server only sends which ones are OWNED.
+-- Patrons above -- the server only sends which ones are OWNED.
 local Recipes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Recipes"))
 -- PHASE 1B (hand visual treatment): need Card.Garnishes/Specials/Stamps'
 -- icon fields to show a small corner badge on modified cards in the hand.
 local Card = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Card"))
 -- PHASE 2 (My House Passes display): HousePasses.Definitions is static
 -- content, same "client reads the catalog directly" pattern as
--- Patrons/Recipes/Themes above -- the server only sends which ids are owned
+-- Patrons/Recipes above -- the server only sends which ids are owned
 -- (state.housePassIds, already shipped since Phase 1c but unused client-side
 -- until now).
 local HousePasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HousePasses"))
@@ -113,15 +107,9 @@ local HousePasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 -- for every overlay from here on, including the new Journey map below.
 local latestState = nil
 
--- Same reasoning as latestState above: currentTheme used to be declared
--- much further down (right before applyTheme), which is exactly what bit
--- the new Journey map -- refreshJourneyImpl (defined near the top of the
--- file, in its own do/end block) referenced "currentTheme" before that
--- point, so it silently resolved to an undefined GLOBAL instead of the
--- real local, and indexing .colors on nil crashed the whole overlay open.
--- Moving the declaration up here avoids this bug for every overlay,
--- current and future, same fix as latestState.
-local currentTheme = Themes.getById(Themes.DefaultThemeId)
+-- The UI uses one fixed palette (Client/Palette.lua). Declared up here so
+-- every overlay can read it (same reasoning as latestState).
+local currentTheme = require(script.Palette)
 
 local RANK_NAMES = {
 	[2] = "2", [3] = "3", [4] = "4", [5] = "5", [6] = "6", [7] = "7", [8] = "8", [9] = "9", [10] = "10",
@@ -141,11 +129,6 @@ local SoundModule = require(script.Sound)({
 local SOUND_IDS = SoundModule.SOUND_IDS
 local backgroundMusic = SoundModule.backgroundMusic
 local setMusicTrack = SoundModule.setMusicTrack
--- QoL Game Pass (Custom Jukebox, Phase 9): setCustomTrack/clearCustomTrack/
--- hasCustomTrack are used in exactly one place (Settings.lua's deps table,
--- below) -- referenced straight off SoundModule there instead of adding 3
--- more names to this file's already-large top-level local count (Lua caps
--- a single chunk at 200 locals; this file sits right at that ceiling).
 local playSfx = SoundModule.playSfx
 local playClickSfx = SoundModule.playClickSfx
 local playPitched = SoundModule.playPitched
@@ -375,7 +358,6 @@ local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], -60)
 -- CORNER ROW CLEANUP: no "?" (How to Play) or "🏆" (Leaderboards) corner
 -- icons anymore -- both moved into the Settings panel (see Settings.lua),
 -- and everything right of Volume shifted 50px to close the gap.
-local themesButton = makeCornerButton("🎨", -110, ArtAssetsModule.cornerIconThemes)
 local journeyButton = makeCornerButton("🗺", -160, ArtAssetsModule.cornerIconJourney)
 local handRefButton = makeCornerButton("📖", -210, ArtAssetsModule.cornerIconHandReference)
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
@@ -442,7 +424,6 @@ addTooltip = function(button, text, align)
 end
 
 addTooltip(volumeButton, "Volume", "left")
-addTooltip(themesButton, "Themes", "left")
 addTooltip(journeyButton, "Journey", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
 addTooltip(settingsButton, "Settings", "left")
@@ -470,7 +451,7 @@ end
 
 -- ===== Message banner (hand result / round result) =====
 -- Extracted into Client/MessageBanner.lua. showWarning is passed as a dep
--- into Shop.lua/Themes.lua below, so it comes back out of the require()
+-- into Shop.lua below, so it comes back out of the require()
 -- call. (The old persistent Boss Round banner is gone -- see
 -- MessageBanner.lua's header.)
 local MessageBannerModule = require(script.MessageBanner)({
@@ -539,7 +520,7 @@ local function makeActionButton(text)
 	polishButton(button, 8)
 	-- REFERENCE-MATCH PASS: carved-wood look -- thicker gold rim plus a
 	-- color-only top-to-bottom darkening gradient (multiplies the theme's
-	-- accent color, so Themes still tint these exactly as before).
+	-- accent color).
 	local rim = button:FindFirstChildOfClass("UIStroke")
 	if rim then
 		rim.Color = Color3.fromRGB(214, 172, 88)
@@ -883,7 +864,7 @@ local rebuildMyRecipesTab = Shop.rebuildMyRecipesTab
 local closeRecipeTargetPanel = Shop.closeTargetPanel
 
 -- ===== Game over overlay + Menu screen =====
--- Extracted into Client/GameOver.lua and Client/Menu.lua. applyTheme() and
+-- Extracted into Client/GameOver.lua and Client/Menu.lua. and
 -- render() further down still need gameOverFrame/playAgainButton, and the
 -- menu buttons are needed both by the "Menu -> game transition" glue right
 -- below and as deps into HowToPlay.lua/Journey.lua/RunSetup.lua (which wire
@@ -1001,31 +982,6 @@ do
 		-- that lets a player back out of an in-progress run to the menu.
 		menuFrame = menuFrame,
 		root = root,
-		-- Custom Jukebox, in Settings > Audio (see Client/JukeboxSection.lua).
-		jukeboxDeps = {
-			showWarning = showWarning,
-			GamePasses = GamePasses,
-			MarketplaceService = MarketplaceService,
-			player = player,
-			getLatestState = function()
-				return latestState
-			end,
-			setCustomTrack = SoundModule.setCustomTrack,
-			clearCustomTrack = SoundModule.clearCustomTrack,
-			hasCustomTrack = SoundModule.hasCustomTrack,
-			AddPlaylistSongRemote = remotes:WaitForChild("AddPlaylistSong"),
-			RemovePlaylistSongRemote = remotes:WaitForChild("RemovePlaylistSong"),
-			MovePlaylistSongRemote = remotes:WaitForChild("MovePlaylistSong"),
-			MAX_PLAYLIST_SIZE = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile")).MAX_PLAYLIST_SIZE,
-			PRESET_PLAYLISTS = SoundModule.PRESET_PLAYLISTS,
-			playPlaylistFrom = SoundModule.playPlaylistFrom,
-			setShuffleEnabled = SoundModule.setShuffleEnabled,
-			getShuffleEnabled = SoundModule.getShuffleEnabled,
-			isPlayingQueue = SoundModule.isPlayingQueue,
-			getQueueIndex = SoundModule.getQueueIndex,
-			getQueueLength = SoundModule.getQueueLength,
-			getQueueLabel = SoundModule.getQueueLabel,
-		},
 	})
 	settingsHowToPlayButton = SettingsModule.settingsHowToPlayButton
 	settingsLeaderboardButton = SettingsModule.settingsLeaderboardButton
@@ -1054,37 +1010,6 @@ require(script.HowToPlay)({
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
 })
-
--- ===== Themes (cosmetics) overlay =====
--- Extracted into Client/Themes.lua. render() still needs to check
--- themesBackdrop.Visible and call refreshThemesList() (see below), so both
--- come back out of the require() call, same pattern as Shop.lua.
-local ThemesOverlay = require(script.Themes)({
-	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	playSfx = playSfx,
-	SOUND_IDS = SOUND_IDS,
-	Themes = Themes,
-	GamePasses = GamePasses,
-	MarketplaceService = MarketplaceService,
-	player = player,
-	BuyThemeRemote = BuyThemeRemote,
-	EquipThemeRemote = EquipThemeRemote,
-	showWarning = showWarning,
-	themesButton = themesButton,
-	getLatestState = function()
-		return latestState
-	end,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
-})
-local themesBackdrop = ThemesOverlay.themesBackdrop
-local refreshThemesList = ThemesOverlay.refreshThemesList
 
 -- ===== Poker Hands reference overlay =====
 -- Extracted into Client/PokerHandsReference.lua. Fully self-contained (only
@@ -1264,29 +1189,6 @@ local HOVER_LIFT = 10
 local SELECTED_LIFT = 6
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
--- ----- Theme (cosmetics) application -----
--- (currentTheme itself now declared near the top of the file -- see the
--- comment there.)
-
-local lastEquippedThemeId = nil
-
-local function applyTheme(themeId)
-	currentTheme = Themes.getById(themeId) or Themes.getById(Themes.DefaultThemeId)
-	local colors = currentTheme.colors
-
-	tweenTo(root, { BackgroundColor3 = colors.background }, 0.25)
-	-- root is see-through now (see gameBackgroundArt) -- the theme's
-	-- background color shows on the art's fallback fill instead.
-	tweenTo(gameBackgroundArt, { BackgroundColor3 = colors.background }, 0.25)
-	tweenTo(sidebar, { BackgroundColor3 = colors.panelBg }, 0.25)
-	tweenTo(shopFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
-	tweenTo(gameOverFrame, { BackgroundColor3 = colors.panelBg }, 0.25)
-	tweenTo(playButton, { BackgroundColor3 = colors.accent }, 0.25)
-	tweenTo(discardButton, { BackgroundColor3 = colors.accent }, 0.25)
-	tweenTo(nextRoundButton, { BackgroundColor3 = colors.accent }, 0.25)
-	tweenTo(playAgainButton, { BackgroundColor3 = colors.accent }, 0.25)
-end
-
 -- ===== Collection Gallery overlay =====
 -- Extracted into Client/Collection.lua. Fully self-contained (only opened
 -- from its own corner button), so nothing needs to come back out of the
@@ -1348,7 +1250,7 @@ require(script.DailyLeaderboard)({
 -- Extracted into Client/UnlockPopup.lua and Client/RoundRewardPopup.lua.
 -- render() further down still needs to call showUnlockPopup()/
 -- showRoundReward() (and tracks its own lastOwnedPatronIds/
--- lastOwnedThemeIds/hasRenderedOnce/lastPhase state to know when to), so
+-- hasRenderedOnce/lastPhase state to know when to), so
 -- both functions come back out of their require() calls.
 local UnlockPopupModule = require(script.UnlockPopup)({
 	screenGui = screenGui,
@@ -1369,7 +1271,7 @@ local showRoundReward = RoundRewardPopupModule.showRoundReward
 -- ===== Road Ahead (journey/roadmap) overlay =====
 -- Extracted into Client/Journey.lua. render() still needs to check
 -- journeyBackdrop.Visible and call refreshJourney(), so both come back out
--- of the require() call, same pattern as Themes.lua. Purely informational
+-- of the require() call, same pattern as Shop.lua. Purely informational
 -- now -- skipping a round lives on its own dedicated screen (ROUND SELECT
 -- FEATURE, right below) -- so it no longer needs showRoundReward or a way
 -- to fire SkipRound.
@@ -1430,7 +1332,6 @@ local roundSelectFrame = RoundSelectOverlay.roundSelectFrame
 local rebuildRoundSelect = RoundSelectOverlay.rebuildRoundSelect
 
 local lastOwnedPatronIds = {}
-local lastOwnedThemeIds = {}
 local hasRenderedOnce = false
 local lastPhase = nil
 
@@ -2297,10 +2198,7 @@ local function render(state)
 		setMusicTrack("gameplay")
 	end
 
-	if state.equippedTheme ~= lastEquippedThemeId then
-		applyTheme(state.equippedTheme)
-		lastEquippedThemeId = state.equippedTheme
-	end
+	require(script.CosmeticSetsView).apply(state)
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no
@@ -2445,19 +2343,11 @@ local function render(state)
 	-- either way, recomputing here keeps the preview in sync.
 	refreshScorePreview()
 
-	if themesBackdrop.Visible then
-		refreshThemesList() -- keep the panel accurate if it's open across a purchase
-	end
-	-- Keep the Custom Jukebox (Settings > Audio) accurate if a Get-Pass
-	-- purchase completes while Settings is open.
-	if SettingsOverlay.settingsBackdrop.Visible then
-		SettingsOverlay.refreshJukeboxSection()
-	end
 	if journeyBackdrop.Visible then
 		refreshJourney() -- keep "you are here" accurate if it's open across a round change
 	end
 
-	-- FEATURE 12: detect newly-owned Patrons/Themes and celebrate the first
+	-- FEATURE 12: detect newly-owned Patrons and celebrate the first
 	-- one with an "Unlocked!" popup. Skipped on the very first render
 	-- (session start) so the default theme/starting state doesn't look
 	-- "unlocked".
@@ -2471,26 +2361,11 @@ local function render(state)
 			end
 		end
 
-		local ownedThemeIdSet = {}
-		local newThemeId = nil
-		for _, id in ipairs(state.ownedThemeIds or {}) do
-			ownedThemeIdSet[id] = true
-			if hasRenderedOnce and not lastOwnedThemeIds[id] and not newThemeId then
-				newThemeId = id
-			end
-		end
-
 		if newPatron then
 			showUnlockPopup(newPatron.name, newPatron.description)
-		elseif newThemeId then
-			local theme = Themes.getById(newThemeId)
-			if theme then
-				showUnlockPopup(theme.name, theme.description)
-			end
 		end
 
 		lastOwnedPatronIds = ownedPatronIds
-		lastOwnedThemeIds = ownedThemeIdSet
 		hasRenderedOnce = true
 	end
 

@@ -49,7 +49,7 @@
 		Patrons            -- the Shared/Engine/Patrons module (for Patrons.getById)
 		Recipes            -- the Shared/Engine/Recipes module (HouseRecipes/
 		                       MenuRecipes/SecretRecipes catalogs -- static
-		                       content, same pattern as Patrons/Themes) --
+		                       content, same pattern as Patrons) --
 		                       still needed for the My Recipes tab (looking
 		                       up what a held recipe id actually does)
 		HousePasses        -- the Shared/Engine/HousePasses module (static
