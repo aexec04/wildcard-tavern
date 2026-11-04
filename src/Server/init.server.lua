@@ -26,6 +26,7 @@ local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
+local CardBacks = require(Engine.CardBacks)
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
 local Recipes = require(Engine.Recipes)
@@ -71,6 +72,7 @@ local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
 local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
+local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
@@ -541,7 +543,13 @@ local function serializeState(session, player)
 		cosmetics = (function()
 			local profile = profiles[player]
 			if not profile then
-				return { equippedSetId = CosmeticSets.DefaultId, unlockedSetIds = { CosmeticSets.DefaultId } }
+				return {
+					equippedSetId = CosmeticSets.DefaultId,
+					unlockedSetIds = { CosmeticSets.DefaultId },
+					cardBackId = CardBacks.DefaultId,
+					pickedCardBackId = nil,
+					unlockedCardBackIds = { CardBacks.DefaultId },
+				}
 			end
 			local passes = ownedGamePasses[player] or {}
 			local unlocked = {}
@@ -550,7 +558,21 @@ local function serializeState(session, player)
 					table.insert(unlocked, set.id)
 				end
 			end
-			return { equippedSetId = CosmeticSets.effectiveId(profile, passes), unlockedSetIds = unlocked }
+			local backs = {}
+			for _, back in ipairs(CardBacks.Definitions) do
+				if CosmeticSets.isCardBackUnlocked(profile, back.id, passes) then
+					table.insert(backs, back.id)
+				end
+			end
+			return {
+				equippedSetId = CosmeticSets.effectiveId(profile, passes),
+				unlockedSetIds = unlocked,
+				-- cardBackId = the back in effect; pickedCardBackId = the player's
+				-- own pick (nil = following the set).
+				cardBackId = CosmeticSets.effectiveCardBackId(profile, passes),
+				pickedCardBackId = profile.equippedCardBackId,
+				unlockedCardBackIds = backs,
+			}
 		end)(),
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
@@ -1535,6 +1557,22 @@ EquipCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
 	local didNotError, ok = pcall(CosmeticSets.equip, profile, setId, ownedGamePasses[player])
 	if not didNotError then
 		warn("EquipCosmeticSet error for " .. player.Name .. ": " .. tostring(ok))
+		return
+	end
+	if ok then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
+EquipCardBackRemote.OnServerEvent:Connect(function(player, backId)
+	local profile = profiles[player]
+	if not profile or (backId ~= nil and type(backId) ~= "string") then
+		return
+	end
+	local didNotError, ok = pcall(CosmeticSets.equipCardBack, profile, backId, ownedGamePasses[player])
+	if not didNotError then
+		warn("EquipCardBack error for " .. player.Name .. ": " .. tostring(ok))
 		return
 	end
 	if ok then

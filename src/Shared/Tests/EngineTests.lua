@@ -2455,6 +2455,48 @@ table.insert(tests, { name = "CosmeticSets.equip: only unlocked sets; effectiveI
 	expectEqual(CosmeticSets.effectiveId(profile, { set_golden_gala = true }), "golden_gala")
 end })
 
+table.insert(tests, { name = "Card backs: unlock sources (default, earned, with an unlocked set)", fn = function()
+	local profile = PlayerProfile.new()
+	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "classic"))
+	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"))
+	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"))
+	expectFalse(CosmeticSets.isCardBackUnlocked(profile, "nope"))
+	profile.unlockedCardBackIds.gilded_ledger = true
+	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "gilded_ledger"), "milestone/journey earned")
+	profile.ownedSetIds.winter_evening = true
+	expectTrue(CosmeticSets.isCardBackUnlocked(profile, "winter_frost"), "comes with an unlocked set")
+	expectTrue(CosmeticSets.isCardBackUnlocked(PlayerProfile.new(), "gilded_ledger", { set_golden_gala = true }), "gala pass unlocks its set's back")
+end })
+
+table.insert(tests, { name = "Card backs: equip only unlocked, effective back follows the set when no pick", fn = function()
+	local profile = PlayerProfile.new()
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic")
+	expectFalse((CosmeticSets.equipCardBack(profile, "winter_frost")))
+	expectEqual(profile.equippedCardBackId, nil)
+	profile.ownedSetIds.winter_evening = true
+	CosmeticSets.equip(profile, "winter_evening")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "follows the set")
+	profile.unlockedCardBackIds.hall_banner = true
+	expectTrue((CosmeticSets.equipCardBack(profile, "hall_banner")))
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "hall_banner", "the pick wins over the set")
+	expectEqual(profile.equippedSetId, "winter_evening", "equipping a back leaves the set alone")
+	expectTrue((CosmeticSets.equipCardBack(profile, nil)))
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "winter_frost", "cleared pick follows the set again")
+end })
+
+table.insert(tests, { name = "Card backs: a pick that is no longer unlocked falls back; migrate keeps only known ids", fn = function()
+	local profile = PlayerProfile.new()
+	profile.equippedCardBackId = "gilded_ledger"
+	expectEqual(CosmeticSets.effectiveCardBackId(profile), "classic", "not unlocked")
+	profile.equippedSetId = "golden_gala"
+	expectEqual(CosmeticSets.effectiveCardBackId(profile, { set_golden_gala = true }), "gilded_ledger")
+	expectEqual(CosmeticSets.effectiveCardBackId(profile, {}), "classic", "pass gone")
+	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "gilded_ledger" }).equippedCardBackId, "gilded_ledger")
+	expectEqual(PlayerProfile.migrate({ equippedCardBackId = "removed_back" }).equippedCardBackId, nil)
+	expectEqual(PlayerProfile.migrate({ equippedCardBackId = 7 }).equippedCardBackId, nil)
+	expectEqual(PlayerProfile.migrate({}).equippedCardBackId, nil)
+end })
+
 table.insert(tests, { name = "PlayerProfile.migrate: old Theme/Jukebox profiles load and fall back to the default set", fn = function()
 	local profile = PlayerProfile.migrate({
 		discoveredPatronIds = { tip_jar = true },

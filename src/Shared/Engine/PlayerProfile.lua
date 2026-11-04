@@ -17,7 +17,8 @@
 	  - `ownedSetIds` / `equippedSetId` -- Cosmetic Sets (CosmeticSets.lua):
 	    Tips-bought set ids, and the equipped set (falls back to the default
 	    if missing, unknown or locked). Old `ownedThemeIds`/`equippedTheme`
-	    are ignored by `migrate`.
+	    are ignored by `migrate`. `equippedCardBackId` is an optional
+	    separate card back pick (nil = the set's back).
 	  - `stats` -- a few small permanent numbers (runs started/won, best
 	    Night reached) for the Collection screen to show alongside the
 	    discovered-Patron grid. Deliberately minimal -- this is not a
@@ -56,6 +57,7 @@
 
 local Achievements = require(script.Parent.Achievements) -- ACHIEVEMENTS + TITLES, Phase 16
 local CosmeticSets = require(script.Parent.CosmeticSets)
+local CardBacks = require(script.Parent.CardBacks)
 local JourneyMap = require(script.Parent.JourneyMap)
 
 local PlayerProfile = {}
@@ -161,6 +163,7 @@ function PlayerProfile.new()
 		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
 		clearedNightIds = {}, -- [night number 1..8] = true, first clears (JourneyMap)
 		equippedSetId = CosmeticSets.DefaultId,
+		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
 			runsStarted = 0,
 			runsWon = 0,
@@ -213,6 +216,11 @@ function PlayerProfile.migrate(raw)
 	end
 	if type(raw.equippedSetId) == "string" and CosmeticSets.getById(raw.equippedSetId) then
 		profile.equippedSetId = raw.equippedSetId
+	end
+	-- Whether the pick is still unlocked is checked when it's read
+	-- (CosmeticSets.effectiveCardBackId), since it can depend on a Game Pass.
+	if type(raw.equippedCardBackId) == "string" and CardBacks.getById(raw.equippedCardBackId) then
+		profile.equippedCardBackId = raw.equippedCardBackId
 	end
 
 	if type(raw.stats) == "table" then

@@ -1,7 +1,8 @@
 --[[
 	Client/CosmeticSetsPanel.lua
-	The "Card Sets" screen (parchment), opened from a button inside the
-	Collection panel. Lists every Cosmetic Set (CosmeticSets.Definitions):
+	The "Card Sets & Backs" screen (parchment), opened from a button inside the
+	Collection panel. A second section lists every card back (equip any
+	unlocked one, or "Match my set"). Lists every Cosmetic Set (CosmeticSets.Definitions):
 	icon, name, how it unlocks, and a button -- Equip, Equipped, Buy (Tips),
 	or a locked label. All rules live in Shared/Engine/CosmeticSets.lua; the
 	server decides (BuyCosmeticSet / EquipCosmeticSet remotes).
@@ -21,9 +22,11 @@ return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local CardBacks = require(Engine:WaitForChild("CardBacks"))
+	local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local BuyRemote = remotes:WaitForChild("BuyCosmeticSet")
 	local EquipRemote = remotes:WaitForChild("EquipCosmeticSet")
+	local EquipBackRemote = remotes:WaitForChild("EquipCardBack")
 
 	local polishPanel, polishButton = deps.polishPanel, deps.polishButton
 	local roundCorner, playClickSfx = deps.roundCorner, deps.playClickSfx
@@ -70,12 +73,12 @@ return function(deps)
 
 	label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
-		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Card Sets",
+		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Card Sets & Backs",
 	})
 	label(panel, {
 		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 34),
 		TextSize = 12, TextColor3 = SOFT_CREAM,
-		Text = "A card back and a tavern backdrop. Looks only.",
+		Text = "Sets change the tavern backdrop. Card backs can be picked on their own. Looks only.",
 	})
 
 	local scroll = Instance.new("ScrollingFrame")
@@ -106,6 +109,119 @@ return function(deps)
 	closeButton.Parent = panel
 	polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
+
+	-- How a card back is unlocked, for the locked rows.
+	local function backUnlockHint(back)
+		for _, set in ipairs(CosmeticSets.Definitions) do
+			if set.cardBackId == back.id then
+				return "Comes with " .. set.name .. " (" .. CosmeticSets.unlockText(set) .. ")"
+			end
+		end
+		for _, entry in ipairs(JourneyMap.Nights) do
+			if entry.reward.kind == "cardBack" and entry.reward.id == back.id then
+				return "Journey reward: clear Night " .. entry.night
+			end
+		end
+		return "Collection milestone reward"
+	end
+
+	local function sectionHeader(order, text)
+		local holder = Instance.new("Frame")
+		holder.Size = UDim2.new(1, -8, 0, 24)
+		holder.BackgroundTransparency = 1
+		holder.LayoutOrder = order
+		holder.ZIndex = 41
+		holder.Parent = scroll
+		label(holder, {
+			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 15,
+			TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = GOLD, Text = text,
+		})
+	end
+
+	local function backRow(order, back, cosmetics, backsUnlocked)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -8, 0, 52)
+		row.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
+		row.LayoutOrder = order
+		row.ZIndex = 41
+		row.Parent = scroll
+		roundCorner(row, 8)
+
+		local isOwned = back == nil or backsUnlocked[back.id] == true
+		-- "Match my set" row: back == nil
+		local isEquipped
+		if back == nil then
+			isEquipped = cosmetics.pickedCardBackId == nil
+		else
+			isEquipped = cosmetics.pickedCardBackId == back.id
+		end
+
+		-- Swatch in the back's own colors.
+		local swatch = Instance.new("Frame")
+		swatch.Size = UDim2.fromOffset(30, 40)
+		swatch.Position = UDim2.fromOffset(12, 6)
+		swatch.ZIndex = 42
+		swatch.Parent = row
+		roundCorner(swatch, 4)
+		local swatchStroke = Instance.new("UIStroke")
+		swatchStroke.Thickness = 2
+		swatchStroke.Parent = swatch
+		if back and isOwned then
+			local b, t = back.colors.base, back.colors.trim
+			swatch.BackgroundColor3 = Color3.fromRGB(b[1], b[2], b[3])
+			swatchStroke.Color = Color3.fromRGB(t[1], t[2], t[3])
+		else
+			swatch.BackgroundColor3 = Color3.fromRGB(60, 50, 42)
+			swatchStroke.Color = DIM
+		end
+
+		local title, detail
+		if back == nil then
+			local current = CardBacks.getById(cosmetics.cardBackId)
+			title = "Match my set"
+			detail = "Uses the equipped set's back" .. (current and (" (now: " .. current.name .. ")") or "")
+		elseif isOwned then
+			title, detail = back.icon .. " " .. back.name, back.description
+		else
+			title, detail = "🔒 ???", backUnlockHint(back)
+		end
+		label(row, {
+			Size = UDim2.new(1, -190, 0, 20), Position = UDim2.fromOffset(52, 6),
+			Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = isOwned and GOLD or DIM, Text = title,
+		})
+		label(row, {
+			Size = UDim2.new(1, -190, 0, 18), Position = UDim2.fromOffset(52, 28),
+			TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = SOFT_CREAM, Text = detail,
+		})
+
+		local action = Instance.new("TextButton")
+		action.Size = UDim2.fromOffset(110, 30)
+		action.AnchorPoint = Vector2.new(1, 0.5)
+		action.Position = UDim2.new(1, -10, 0.5, 0)
+		action.Font = Enum.Font.GothamBold
+		action.TextSize = 13
+		action.TextColor3 = CREAM
+		action.BackgroundColor3 = BROWN
+		action.ZIndex = 42
+		action.Parent = row
+		polishButton(action, 8)
+		if isEquipped then
+			action.Text = "Equipped"
+			action.AutoButtonColor = false
+			action.BackgroundColor3 = Color3.fromRGB(150, 115, 50)
+		elseif isOwned then
+			action.Text = back == nil and "Use set's" or "Equip"
+			action.MouseButton1Click:Connect(function()
+				playClickSfx()
+				EquipBackRemote:FireServer(back and back.id or nil)
+			end)
+		else
+			action.Text = "Locked"
+			action.AutoButtonColor = false
+			action.TextColor3 = DIM
+		end
+	end
 
 	local function refresh()
 		for _, child in ipairs(scroll:GetChildren()) do
@@ -189,6 +305,18 @@ return function(deps)
 				action.AutoButtonColor = false
 				action.TextColor3 = DIM
 			end
+		end
+
+		-- Card backs: pick any unlocked one, independent of the set.
+		sectionHeader(100, "Card Backs")
+		local backsUnlocked = {}
+		for _, id in ipairs(cosmetics.unlockedCardBackIds or { CardBacks.DefaultId }) do
+			backsUnlocked[id] = true
+		end
+		cosmetics.cardBackId = cosmetics.cardBackId or CardBacks.DefaultId
+		backRow(101, nil, cosmetics, backsUnlocked)
+		for i, back in ipairs(CardBacks.Definitions) do
+			backRow(101 + i, back, cosmetics, backsUnlocked)
 		end
 	end
 

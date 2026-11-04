@@ -1,7 +1,7 @@
 --[[
 	Client/CosmeticSetsView.lua
-	Applies the equipped Cosmetic Set to the live UI: swaps the gameplay
-	backdrop image and tints the deck widget's card back.
+	Applies the equipped Cosmetic Set backdrop and the equipped card back
+	(state.cosmetics.cardBackId) to the live UI.
 
 	state.cosmetics = { equippedSetId, unlockedSetIds } (from the server).
 	A set whose backdropImage is nil or "rbxassetid://0" keeps the default
@@ -22,6 +22,7 @@ local ArtAssets = require(script.Parent.ArtAssets)
 local DEFAULT_BACKDROP_TINT = Color3.fromRGB(215, 205, 195)
 
 local lastSetId = nil
+local lastBackId = nil
 local gui = nil
 
 local function find(name)
@@ -32,36 +33,41 @@ end
 local M = {}
 
 function M.apply(state)
-	local setId = state.cosmetics and state.cosmetics.equippedSetId or CosmeticSets.DefaultId
-	if setId == lastSetId then
-		return
-	end
-	local set = CosmeticSets.getById(setId) or CosmeticSets.getById(CosmeticSets.DefaultId)
+	local cosmetics = state.cosmetics
+	local setId = cosmetics and cosmetics.equippedSetId or CosmeticSets.DefaultId
+	local backId = cosmetics and cosmetics.cardBackId or CardBacks.DefaultId
 
-	local backdrop = find("GameBackgroundArt")
-	if backdrop then
-		local image = set.backdropImage
-		if image and image ~= "rbxassetid://0" then
-			backdrop.Image = image
-		else
-			backdrop.Image = ArtAssets.gameplayBackground or "rbxassetid://0"
+	if setId ~= lastSetId then
+		local set = CosmeticSets.getById(setId) or CosmeticSets.getById(CosmeticSets.DefaultId)
+		local backdrop = find("GameBackgroundArt")
+		if backdrop then
+			local image = set.backdropImage
+			if image and image ~= "rbxassetid://0" then
+				backdrop.Image = image
+			else
+				backdrop.Image = ArtAssets.gameplayBackground or "rbxassetid://0"
+			end
+			backdrop.ImageColor3 = DEFAULT_BACKDROP_TINT
 		end
-		backdrop.ImageColor3 = DEFAULT_BACKDROP_TINT
+		lastSetId = setId
 	end
 
-	local cardArt = find("CardBackArt")
-	local back = CardBacks.getById(set.cardBackId)
-	if cardArt and back then
-		if set.cardBackId == CardBacks.DefaultId then
-			cardArt.ImageColor3 = Color3.new(1, 1, 1)
-		else
-			local c = back.colors.base
-			local base = Color3.fromRGB(c[1], c[2], c[3])
-			cardArt.ImageColor3 = Color3.new(1, 1, 1):Lerp(base, 0.6)
+	-- The card back is separate from the set: the player can pick any
+	-- unlocked back, or follow the set's.
+	if backId ~= lastBackId then
+		local cardArt = find("CardBackArt")
+		local back = CardBacks.getById(backId)
+		if cardArt and back then
+			if backId == CardBacks.DefaultId then
+				cardArt.ImageColor3 = Color3.new(1, 1, 1)
+			else
+				local c = back.colors.base
+				local base = Color3.fromRGB(c[1], c[2], c[3])
+				cardArt.ImageColor3 = Color3.new(1, 1, 1):Lerp(base, 0.6)
+			end
+			lastBackId = backId
 		end
 	end
-
-	lastSetId = setId
 end
 
 return M

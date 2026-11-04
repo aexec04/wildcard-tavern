@@ -17,6 +17,7 @@
 ]]
 
 local Achievements = require(script.Parent.Achievements)
+local CardBacks = require(script.Parent.CardBacks)
 
 local CosmeticSets = {}
 
@@ -158,6 +159,52 @@ function CosmeticSets.equip(profile, setId, ownedPassIds)
 		return false, "Set not unlocked"
 	end
 	profile.equippedSetId = setId
+	return true, "Equipped."
+end
+
+-- ===== Card backs =====
+-- A card back can be equipped on its own. profile.equippedCardBackId is
+-- the player's pick; nil means "use whatever back the equipped set has".
+-- A back is unlocked when it is the default, was earned directly
+-- (profile.unlockedCardBackIds: Collection milestones, Journey rewards),
+-- or belongs to a set the player has unlocked.
+
+function CosmeticSets.isCardBackUnlocked(profile, backId, ownedPassIds)
+	if not CardBacks.getById(backId) then
+		return false
+	end
+	if backId == CardBacks.DefaultId or profile.unlockedCardBackIds[backId] then
+		return true
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		if set.cardBackId == backId and CosmeticSets.isUnlocked(profile, set.id, ownedPassIds) then
+			return true
+		end
+	end
+	return false
+end
+
+-- The back actually shown: the player's pick if still unlocked, otherwise
+-- the equipped set's back.
+function CosmeticSets.effectiveCardBackId(profile, ownedPassIds)
+	local picked = profile.equippedCardBackId
+	if picked and CosmeticSets.isCardBackUnlocked(profile, picked, ownedPassIds) then
+		return picked
+	end
+	local set = CosmeticSets.getById(CosmeticSets.effectiveId(profile, ownedPassIds))
+	return set and set.cardBackId or CardBacks.DefaultId
+end
+
+-- backId nil clears the pick (match the equipped set again).
+function CosmeticSets.equipCardBack(profile, backId, ownedPassIds)
+	if backId == nil then
+		profile.equippedCardBackId = nil
+		return true, "Card back follows your set."
+	end
+	if not CosmeticSets.isCardBackUnlocked(profile, backId, ownedPassIds) then
+		return false, "Card back not unlocked"
+	end
+	profile.equippedCardBackId = backId
 	return true, "Equipped."
 end
 
