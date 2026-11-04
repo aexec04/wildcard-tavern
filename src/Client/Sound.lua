@@ -66,6 +66,8 @@
 			JUICE_SOUND_IDS = table, -- { chipTick, multTick, xmultTick, payoutThud } -- real ids, see header comment
 			MUSIC_IDS = table, -- { title, gameplay, boss, shop }
 			backgroundMusic = Sound,
+			isMusicUnavailable = function(), -- true if the current track failed/timed out loading (warn() already printed)
+			onMusicAvailability = function(listener(unavailable)),
 			setMusicTrack = function(key), -- key is a MUSIC_IDS key; no-op if already that track
 			setCustomTrack = function(assetId), -- QoL Game Pass (Custom Jukebox): overrides every phase track with assetId, applies immediately
 			clearCustomTrack = function(), -- drops the override; next setMusicTrack call falls back to the real phase track
@@ -587,11 +589,82 @@ return function(deps)
 		playSfx(SOUND_IDS.uiClick, volume, 0.25)
 	end
 
+	-- MUSIC LOAD WATCH: warns (naming the id) when the current music track
+	-- has a malformed id, fails to fetch, or never fires Loaded within
+	-- MUSIC_LOAD_TIMEOUT seconds, and tells listeners (the corner music
+	-- button) so it can show a disabled look. Runs on every SoundId change,
+	-- so phase tracks, the Jukebox and playlists are all covered. It never
+	-- changes which track plays.
+	local MUSIC_LOAD_TIMEOUT = 6
+	local musicUnavailable = false
+	local musicListeners = {}
+	local musicWatchToken = 0
+	local function setMusicUnavailable(value)
+		if musicUnavailable == value then
+			return
+		end
+		musicUnavailable = value
+		for _, listener in ipairs(musicListeners) do
+			task.spawn(listener, value)
+		end
+	end
+	local function watchMusicLoad()
+		musicWatchToken = musicWatchToken + 1
+		local token = musicWatchToken
+		local id = backgroundMusic.SoundId
+		local function fail(reason)
+			if token ~= musicWatchToken or backgroundMusic.IsLoaded then
+				return
+			end
+			warn(string.format("[Sound] Music track %q %s", id, reason))
+			setMusicUnavailable(true)
+		end
+		if not string.match(id, "^rbxassetid://%d+$") then
+			fail("is not in the rbxassetid://<number> form")
+			return
+		end
+		if id == "rbxassetid://0" then
+			fail("is the placeholder id (no track assigned)")
+			return
+		end
+		if backgroundMusic.IsLoaded then
+			setMusicUnavailable(false)
+			return
+		end
+		local loadedConnection
+		loadedConnection = backgroundMusic.Loaded:Connect(function()
+			loadedConnection:Disconnect()
+			if token == musicWatchToken then
+				setMusicUnavailable(false)
+			end
+		end)
+		task.spawn(function()
+			pcall(function()
+				game:GetService("ContentProvider"):PreloadAsync({ backgroundMusic }, function(_, status)
+					if status == Enum.AssetFetchStatus.Failure then
+						fail("failed to load (check the asset exists and this experience has permission to use it)")
+					end
+				end)
+			end)
+		end)
+		task.delay(MUSIC_LOAD_TIMEOUT, function()
+			fail(string.format("did not load within %d seconds", MUSIC_LOAD_TIMEOUT))
+		end)
+	end
+	backgroundMusic:GetPropertyChangedSignal("SoundId"):Connect(watchMusicLoad)
+	watchMusicLoad()
+
 	return {
 		SOUND_IDS = SOUND_IDS,
 		JUICE_SOUND_IDS = JUICE_SOUND_IDS,
 		MUSIC_IDS = MUSIC_IDS,
 		backgroundMusic = backgroundMusic,
+		isMusicUnavailable = function()
+			return musicUnavailable
+		end,
+		onMusicAvailability = function(listener) -- listener(unavailable: boolean)
+			table.insert(musicListeners, listener)
+		end,
 		setMusicTrack = setMusicTrack,
 		setCustomTrack = setCustomTrack,
 		clearCustomTrack = clearCustomTrack,

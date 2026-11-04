@@ -188,7 +188,16 @@ return function(deps)
 			inner.BackgroundTransparency = 1
 			inner.Active = false
 			local innerCorner = Instance.new("UICorner")
-			innerCorner.CornerRadius = UDim.new(0, 3)
+			-- Follow the host's corner so a round medallion gets a round
+			-- inner rim. A fixed 3px radius left square corners poking out
+			-- past the circular ring (the "square behind the icon" bug).
+			local hostCorner = instance:FindFirstChildOfClass("UICorner")
+			if hostCorner and hostCorner.CornerRadius.Scale > 0 then
+				innerCorner.CornerRadius = hostCorner.CornerRadius
+			else
+				local hostOffset = hostCorner and hostCorner.CornerRadius.Offset or 0
+				innerCorner.CornerRadius = UDim.new(0, math.max(3, hostOffset - inset))
+			end
 			innerCorner.Parent = inner
 			local innerStroke = Instance.new("UIStroke")
 			innerStroke.Color = GOLD

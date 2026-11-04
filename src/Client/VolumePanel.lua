@@ -76,9 +76,34 @@ return function(deps)
 	end
 
 	local function refreshIcon()
-		if volumeButton and VOLUME_ICONS then
+		if volumeButton then
 			local silent = ClientSettings.get("muted") or ClientSettings.get("musicVolume") <= 0
-			volumeButton.Text = silent and VOLUME_ICONS[3] or VOLUME_ICONS[1]
+			local unavailable = deps.isMusicUnavailable and deps.isMusicUnavailable()
+			local dimmed = silent or unavailable
+			local icon = volumeButton:FindFirstChild("Icon")
+			if icon then
+				-- Image icon: dim it and draw a slash for muted / no track.
+				icon.ImageTransparency = dimmed and 0.6 or 0
+				local slash = volumeButton:FindFirstChild("MuteSlash")
+				if not slash then
+					slash = Instance.new("Frame")
+					slash.Name = "MuteSlash"
+					slash.AnchorPoint = Vector2.new(0.5, 0.5)
+					slash.Position = UDim2.fromScale(0.5, 0.5)
+					slash.Size = UDim2.fromOffset(3, 38)
+					slash.Rotation = 45
+					slash.BackgroundColor3 = Color3.fromRGB(222, 182, 104)
+					slash.BorderSizePixel = 0
+					slash.Active = false
+					slash.ZIndex = 8
+					slash.Parent = volumeButton
+				end
+				slash.Visible = dimmed and true or false
+			elseif VOLUME_ICONS then
+				volumeButton.Text = dimmed and VOLUME_ICONS[3] or VOLUME_ICONS[1]
+				volumeButton.TextTransparency = 0
+				volumeButton.TextStrokeTransparency = 1
+			end
 		end
 	end
 
@@ -127,6 +152,9 @@ return function(deps)
 	end)
 	refreshMute()
 	refreshIcon()
+	if deps.onMusicAvailability then
+		deps.onMusicAvailability(refreshIcon)
+	end
 
 	local volumeCloseButton = Instance.new("TextButton")
 	volumeCloseButton.Size = UDim2.new(0, 140, 0, 40)

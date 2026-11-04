@@ -301,71 +301,87 @@ local setRunModeBadge = SidebarModule.setRunModeBadge
 -- OverlayManager just above its own buttons.
 local ArtAssetsModule = require(script.ArtAssets)
 
-local function makeCornerButton(text, xOffset, iconId)
-	-- REFERENCE-MATCH PASS: bigger (54px) dark-wood medallions with a
-	-- thick bright-gold rim, like the reference. Call sites still pass the
-	-- old 50px-step offsets (-60, -110, ...); they're remapped here to a
-	-- 64px step so every caller stays unchanged.
+local function makeCornerButton(text, order, iconId)
+	-- Corner buttons live in one right-aligned UIListLayout row, so a
+	-- hidden or removed button closes up instead of leaving a gap. `order`
+	-- is the LayoutOrder (1 = leftmost). Only buttons are parented to the
+	-- row; all ornaments live inside each button.
+	local row = root:FindFirstChild("CornerIconRow")
+	if not row then
+		row = Instance.new("Frame")
+		row.Name = "CornerIconRow"
+		row.AnchorPoint = Vector2.new(1, 0)
+		row.Position = UDim2.new(1, -16, 0, 12)
+		row.Size = UDim2.new(0, 0, 0, 54)
+		row.AutomaticSize = Enum.AutomaticSize.X
+		row.BackgroundTransparency = 1
+		row.ZIndex = 5
+		row.Parent = root
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, 10)
+		layout.Parent = row
+	end
+	local hasIcon = iconId and iconId ~= "rbxassetid://0"
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(0, 54, 0, 54)
-	button.Position = UDim2.new(1, -70 + math.floor((xOffset + 60) * 1.28), 0, 12)
+	button.LayoutOrder = order
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 24
-	button.Text = text
+	button.Text = hasIcon and "" or text
 	button.BackgroundColor3 = Color3.fromRGB(38, 26, 16)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
+	button.TextTransparency = 0
+	button.TextStrokeTransparency = 1
 	button.ZIndex = 5
-	button.Parent = root
+	button.Parent = row
 	polishButton(button, 27)
+	-- Ring matched to the sidebar frame (bronze outer line + the shared
+	-- gold inner rim), thinner than before.
 	local rim = button:FindFirstChildOfClass("UIStroke")
 	if rim then
-		rim.Color = Color3.fromRGB(214, 172, 88)
-		rim.Thickness = 3
+		rim.Color = Color3.fromRGB(168, 128, 66)
+		rim.Thickness = 2
 		rim.Transparency = 0
 	end
 
-	-- CORNER ICON SET: an optional real icon image laid over the
-	-- emoji/text fallback -- same "rbxassetid://0 is always safe"
-	-- convention as every other ArtAssets.lua slot. Covers the button's
-	-- own Text once there's a real id (Roblox always draws a GuiObject's
-	-- own Text/Image beneath its children, regardless of ZIndex), so
-	-- this is only ever passed for buttons whose Text is purely
-	-- decorative (not dynamic, like Volume's loud/mute glyph).
-	if iconId and iconId ~= "rbxassetid://0" then
+	-- Optional icon image (a real id; rbxassetid://0 keeps the text glyph).
+	-- Named "Icon" so VolumePanel can dim it for the muted look.
+	if hasIcon then
 		local icon = Instance.new("ImageLabel")
-		icon.Size = UDim2.new(0, 42, 0, 42)
+		icon.Name = "Icon"
+		icon.Size = UDim2.new(0, 40, 0, 40)
 		icon.AnchorPoint = Vector2.new(0.5, 0.5)
 		icon.Position = UDim2.fromScale(0.5, 0.5)
 		icon.BackgroundTransparency = 1
 		icon.Image = iconId
-		-- BUGFIX (Oct 29 2026): Crop, not the ImageLabel default (Stretch)
-		-- -- these uploads aren't perfectly square, so Stretch was
-		-- squishing them. roundCorner at exactly half the icon's own
-		-- size (30px -> 15px radius) clips it into a circle so its
-		-- square corners stop poking out past the button's own circular
-		-- gold rim (polishButton above, 22px radius on the 44px button
-		-- -- also a perfect circle, so the two now actually match).
 		icon.ScaleType = Enum.ScaleType.Crop
 		icon.ZIndex = 6
 		icon.Parent = button
-		roundCorner(icon, 21)
+		-- Full-radius corner: clips the image to a circle inside the ring.
+		local iconCorner = Instance.new("UICorner")
+		iconCorner.CornerRadius = UDim.new(0.5, 0)
+		iconCorner.Parent = icon
 	end
 
 	return button
 end
 
-local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], -60)
+local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], 5, ArtAssetsModule.cornerIconVolume)
 -- CORNER ROW CLEANUP: no "?" (How to Play) or "🏆" (Leaderboards) corner
 -- icons anymore -- both moved into the Settings panel (see Settings.lua),
 -- and everything right of Volume shifted 50px to close the gap.
-local journeyButton = makeCornerButton("🗺", -160, ArtAssetsModule.cornerIconJourney)
-local handRefButton = makeCornerButton("📖", -210, ArtAssetsModule.cornerIconHandReference)
+local journeyButton = makeCornerButton("🗺", 4, ArtAssetsModule.cornerIconJourney)
+local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHandReference)
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
 -- (bottom-right) is clickable and opens it directly instead (see
 -- deckWidgetButton). Settings/Collection shifted left by 50px to close
 -- the gap left behind.
-local settingsButton = makeCornerButton("⚙", -260, ArtAssetsModule.cornerIconSettings)
-local collectionButton = makeCornerButton("📔", -310, ArtAssetsModule.cornerIconCollection)
+local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings)
+local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection)
 
 -- ----- Generic hover tooltip -----
 -- Ahmed: "whenever you hover over a button any UI, it should give you the
@@ -1067,6 +1083,8 @@ require(script.VolumePanel)({
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	volumeButton = volumeButton,
+	isMusicUnavailable = SoundModule.isMusicUnavailable,
+	onMusicAvailability = SoundModule.onMusicAvailability,
 	makeSliderRow = makeSliderRow,
 	VOLUME_ICONS = VOLUME_ICONS,
 	popIn = popIn,
