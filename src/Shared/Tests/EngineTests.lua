@@ -2726,6 +2726,43 @@ table.insert(tests, { name = "PlayerProfile.migrate: Endless milestone clears ro
 	expectTrue(bad.clearedNightIds[20])
 end })
 
+-- ===== Journey phase 3: registry checks and backdrop styles =====
+
+table.insert(tests, { name = "Registry: every Journey node reward points to a real set, card back or title", fn = function()
+	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
+	local count = 0
+	for _, node in ipairs(JourneyMap.allNodes()) do
+		local reward = node.info.reward
+		if reward then
+			count = count + 1
+			local registry = lookups[reward.kind]
+			expectTrue(registry ~= nil, "unknown reward kind '" .. tostring(reward.kind) .. "' on node " .. tostring(node.key))
+			expectTrue(registry.getById(reward.id) ~= nil,
+				"node " .. tostring(node.key) .. " reward " .. tostring(reward.kind) .. " '" .. tostring(reward.id) .. "' is missing from its registry")
+		end
+		expectTrue(type(node.info.name) == "string" and #node.info.name > 0, "node " .. tostring(node.key) .. " needs a name")
+		expectTrue((node.info.glyph or node.info.icon) ~= nil, "node " .. tostring(node.key) .. " needs a glyph or icon")
+	end
+	expectEqual(count, 8 + #JourneyMap.EndlessMilestones)
+end })
+
+table.insert(tests, { name = "CosmeticSets.validateStyle: shipped backdrop styles are valid; bad ones are rejected", fn = function()
+	local styled = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local ok, why = CosmeticSets.validateStyle(set.backdropStyle)
+		expectTrue(ok, set.id .. " backdropStyle: " .. tostring(why))
+		if set.backdropStyle then styled = styled + 1 end
+	end
+	expectTrue(styled >= 3, "Winter, Festival and Closing Time all have styles")
+	expectTrue(CosmeticSets.getById("winter_evening").backdropStyle.layers[1].kind == "snow")
+	expectTrue(CosmeticSets.validateStyle(nil))
+	expectTrue(not CosmeticSets.validateStyle({ tint = { 300, 0, 0 } }), "channel over 255")
+	expectTrue(not CosmeticSets.validateStyle({ vignette = { color = { 0, 0, 0 }, strength = 2 } }), "strength over 1")
+	expectTrue(not CosmeticSets.validateStyle({ layers = { { kind = "lasers", count = 3 } } }), "unknown layer")
+	expectTrue(not CosmeticSets.validateStyle({ layers = { { kind = "snow", count = 500 } } }), "too many particles")
+	expectTrue(not CosmeticSets.validateStyle("snow"), "not a table")
+end })
+
 -- ===== SeededRng (DAILY CHALLENGE, Phase 11) =====
 
 table.insert(tests, { name = "SeededRng.new: the same seed produces the exact same sequence", fn = function()

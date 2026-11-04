@@ -14,12 +14,26 @@
 	`backdropImage` is an rbxassetid; "rbxassetid://0" is a placeholder and
 	the client falls back to the default backdrop (see claude/ART_TODO.md).
 	The equipped set is profile.equippedSetId and persists across runs.
+
+	`backdropStyle` (optional) is a stack of effects drawn over the base
+	backdrop with UI elements only (Client/BackdropStyles.lua), so a set looks
+	different without new art. Colors are {r, g, b} 0-255.
+	  tint     = {r,g,b}                        multiplies the base image (ImageColor3)
+	  overlay  = { color = {r,g,b}, transparency = 0-1 }   flat tinted layer
+	  vignette = { color = {r,g,b}, strength = 0-1 }       darkened/colored edges
+	  layers   = { { kind = "snow" | "sparks" | "dust" | "bunting", count = N, ... } }
+	Particle layers are capped at BackdropLimits.maxParticles each.
 ]]
 
 local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
 
 local CosmeticSets = {}
+
+CosmeticSets.BackdropLimits = {
+	maxParticles = 30,
+	layerKinds = { snow = true, sparks = true, dust = true, bunting = true },
+}
 
 CosmeticSets.DefaultId = "classic_tavern"
 
@@ -40,6 +54,12 @@ CosmeticSets.Definitions = {
 		description = "Snow on the windows and a warm fire inside.",
 		cardBackId = "winter_frost",
 		backdropImage = "rbxassetid://0", -- TODO art: tavern in winter
+		backdropStyle = {
+			tint = { 190, 210, 245 },
+			overlay = { color = { 60, 100, 170 }, transparency = 0.86 },
+			vignette = { color = { 200, 228, 255 }, strength = 0.5 },
+			layers = { { kind = "snow", count = 22, speed = 0.6 } },
+		},
 		unlock = { kind = "tips", price = 12 },
 	},
 	{
@@ -49,6 +69,15 @@ CosmeticSets.Definitions = {
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",
 		backdropImage = "rbxassetid://0", -- TODO art: tavern festival
+		backdropStyle = {
+			tint = { 255, 235, 205 },
+			overlay = { color = { 255, 170, 80 }, transparency = 0.88 },
+			vignette = { color = { 90, 30, 20 }, strength = 0.25 },
+			layers = {
+				{ kind = "bunting", count = 14, colors = { { 230, 80, 90 }, { 250, 200, 70 }, { 90, 170, 230 }, { 120, 200, 120 } } },
+				{ kind = "sparks", count = 14, speed = 0.8 },
+			},
+		},
 		unlock = { kind = "journey", runsWon = 1 },
 	},
 	{
@@ -58,6 +87,12 @@ CosmeticSets.Definitions = {
 		description = "Dim lamps and a quiet room as the night winds down.",
 		cardBackId = "closing_lantern",
 		backdropImage = "rbxassetid://0", -- TODO art: tavern at closing time
+		backdropStyle = {
+			tint = { 160, 130, 105 },
+			overlay = { color = { 50, 25, 10 }, transparency = 0.8 },
+			vignette = { color = { 8, 4, 2 }, strength = 0.85 },
+			layers = { { kind = "dust", count = 8, speed = 0.4 } },
+		},
 		unlock = { kind = "achievement", id = "regular" },
 	},
 	{
@@ -70,6 +105,57 @@ CosmeticSets.Definitions = {
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
 	},
 }
+
+local function isRgb(t)
+	if type(t) ~= "table" or #t ~= 3 then
+		return false
+	end
+	for i = 1, 3 do
+		if type(t[i]) ~= "number" or t[i] < 0 or t[i] > 255 then
+			return false
+		end
+	end
+	return true
+end
+
+-- Returns (ok, reason). A nil style is valid (no effects).
+function CosmeticSets.validateStyle(style)
+	if style == nil then
+		return true
+	end
+	if type(style) ~= "table" then
+		return false, "style is not a table"
+	end
+	if style.tint ~= nil and not isRgb(style.tint) then
+		return false, "bad tint"
+	end
+	if style.overlay ~= nil then
+		local o = style.overlay
+		if type(o) ~= "table" or not isRgb(o.color) or type(o.transparency) ~= "number" or o.transparency < 0 or o.transparency > 1 then
+			return false, "bad overlay"
+		end
+	end
+	if style.vignette ~= nil then
+		local v = style.vignette
+		if type(v) ~= "table" or not isRgb(v.color) or type(v.strength) ~= "number" or v.strength < 0 or v.strength > 1 then
+			return false, "bad vignette"
+		end
+	end
+	for _, layer in ipairs(style.layers or {}) do
+		if not CosmeticSets.BackdropLimits.layerKinds[layer.kind] then
+			return false, "unknown layer " .. tostring(layer.kind)
+		end
+		if type(layer.count) ~= "number" or layer.count < 1 or layer.count > CosmeticSets.BackdropLimits.maxParticles then
+			return false, "layer count out of range"
+		end
+		for _, c in ipairs(layer.colors or {}) do
+			if not isRgb(c) then
+				return false, "bad layer color"
+			end
+		end
+	end
+	return true
+end
 
 function CosmeticSets.getById(id)
 	for _, set in ipairs(CosmeticSets.Definitions) do

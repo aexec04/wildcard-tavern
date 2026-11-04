@@ -17,6 +17,11 @@
 	up and the reward pops with a short message. Animation speed and "reduce
 	screen shake" settings are respected (no bounce when shake is reduced).
 
+	Studio-only debug (never built in live servers): a "Nudge" button in the
+	map's corner shows each node's normalized x/y and lets you drag nodes;
+	new coordinates print to the Output window as lines ready to paste into
+	Engine/JourneyMap.lua.
+
 	State used: state.clearedNightIds (Nights 1-8 and Endless milestone
 	Nights), state.night, state.wonRun, state.profileStats.bestNightReached,
 	state.cosmetics, state.equippedTitleId.
@@ -36,6 +41,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local ContentProvider = game:GetService("ContentProvider")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 
 return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
@@ -215,16 +223,17 @@ return function(deps)
 		local haloScale = Instance.new("UIScale")
 		haloScale.Parent = halo
 
-		local icon = text(button, {
-			Size = UDim2.fromScale(1, 1), TextSize = 26, Text = info.icon, TextWrapped = false,
-		})
+		-- Gold-ring numbered node with a small glyph from the data table
+		-- (info.glyph, falling back to info.icon). No per-location images.
 		local numberTag = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.08, 0.1), Size = UDim2.fromOffset(20, 20),
-			Font = Enum.Font.GothamBold, TextSize = 11, TextWrapped = false,
-			Text = isEndless and "∞" or tostring(data.night), BackgroundTransparency = 0,
-			BackgroundColor3 = INK, TextColor3 = CREAM, ZIndex = 28,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromScale(0.9, 0.5),
+			Font = Enum.Font.GothamBold, TextSize = 20, TextWrapped = false, ZIndex = 28,
+			Text = isEndless and "∞" or tostring(data.night),
 		})
-		deps.roundCorner(numberTag, 10)
+		local icon = text(button, {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.76), Size = UDim2.fromScale(0.9, 0.34),
+			TextSize = 13, Text = info.glyph or info.icon, TextWrapped = false, ZIndex = 28,
+		})
 
 		local bossBadge
 		if data.kind == "night" or data.kind == "milestone" then
@@ -286,7 +295,8 @@ return function(deps)
 		nodeSize = math.floor(math.clamp(canvasH * 0.18, 44, 72))
 		for index, node in ipairs(nodes) do
 			node.button.Size = UDim2.fromOffset(nodeSize, nodeSize)
-			node.icon.TextSize = math.floor(nodeSize * 0.46)
+			node.icon.TextSize = math.floor(nodeSize * 0.24)
+			node.numberTag.TextSize = math.floor(nodeSize * 0.36)
 			local info = node.data.info
 			node.name.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 4)
 			node.preview.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 32)
@@ -511,6 +521,7 @@ return function(deps)
 	deps.polishButton(closeCard, 8)
 
 	local openIndex = nil
+	local debugOn = false -- Studio-only coordinate overlay / drag mode
 
 	local function equippedNow(view, reward)
 		local cosmetics = view.state and view.state.cosmetics
@@ -609,12 +620,107 @@ return function(deps)
 	end)
 	for index, node in ipairs(nodes) do
 		node.button.MouseButton1Click:Connect(function()
+			if debugOn then
+				return
+			end
 			deps.playClickSfx()
 			if openIndex == index then
 				closeDetail()
 			else
 				openCard(index)
 			end
+		end)
+	end
+
+	-- ===== Studio-only coordinate tool =====
+	if RunService:IsStudio() then
+		local debugLabels = {}
+		local function refreshDebugLabels()
+			for index, node in ipairs(nodes) do
+				local info = node.data.info
+				if debugLabels[index] then
+					debugLabels[index].Visible = debugOn
+					debugLabels[index].Text = string.format("x %.2f  y %.2f", info.x, info.y)
+				end
+			end
+		end
+		for index, node in ipairs(nodes) do
+			local label = text(canvas, {
+				AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(110, 14), TextSize = 10, TextWrapped = false,
+				Font = Enum.Font.Code, Text = "", Visible = false, TextColor3 = Color3.fromRGB(120, 255, 160),
+				BackgroundTransparency = 0.3, BackgroundColor3 = INK, ZIndex = 50,
+			})
+			label.Position = UDim2.new(node.data.info.x, 0, node.data.info.y, -nodeSize / 2 - 2)
+			debugLabels[index] = label
+		end
+
+		local function printAll()
+			print("-- Journey node positions (paste x, y into Engine/JourneyMap.lua):")
+			for _, node in ipairs(nodes) do
+				local d = node.data
+				print(string.format("  %s: x = %.2f, y = %.2f", d.night and ("Night " .. d.night) or "Endless doors", d.info.x, d.info.y))
+			end
+		end
+
+		local dragging = nil
+		for index, node in ipairs(nodes) do
+			node.button.InputBegan:Connect(function(input)
+				if not debugOn then
+					return
+				end
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					dragging = index
+					scroll.ScrollingEnabled = false
+				end
+			end)
+		end
+		UserInputService.InputChanged:Connect(function(input)
+			if not dragging or input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			local gui = frame:FindFirstAncestorOfClass("ScreenGui")
+			local inset = (gui and gui.IgnoreGuiInset) and Vector2.zero or GuiService:GetGuiInset()
+			local mouse = UserInputService:GetMouseLocation() - inset
+			local rel = (mouse - canvas.AbsolutePosition) / canvas.AbsoluteSize
+			local info = nodes[dragging].data.info
+			info.x = math.clamp(math.floor(rel.X * 100 + 0.5) / 100, 0, 1)
+			info.y = math.clamp(math.floor(rel.Y * 100 + 0.5) / 100, 0, 1)
+			nodes[dragging].button.Position = UDim2.fromScale(info.x, info.y)
+			debugLabels[dragging].Position = UDim2.new(info.x, 0, info.y, -nodeSize / 2 - 2)
+			layout()
+			refreshDebugLabels()
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+				local info = nodes[dragging].data.info
+				print(string.format("Journey node %d moved to x = %.2f, y = %.2f", dragging, info.x, info.y))
+				dragging = nil
+				scroll.ScrollingEnabled = true
+				printAll()
+			end
+		end)
+
+		local nudge = Instance.new("TextButton")
+		nudge.Name = "NudgeToggle"
+		nudge.AnchorPoint = Vector2.new(1, 0)
+		nudge.Position = UDim2.new(1, -14, 0, 8)
+		nudge.Size = UDim2.fromOffset(86, 24)
+		nudge.Font = Enum.Font.GothamBold
+		nudge.TextSize = 11
+		nudge.TextColor3 = CREAM
+		nudge.BackgroundColor3 = Color3.fromRGB(40, 90, 60)
+		nudge.Text = "🛠 Nudge: off"
+		nudge.ZIndex = 50
+		nudge.Parent = frame
+		deps.roundCorner(nudge, 6)
+		nudge.MouseButton1Click:Connect(function()
+			debugOn = not debugOn
+			nudge.Text = debugOn and "🛠 Nudge: ON" or "🛠 Nudge: off"
+			if debugOn then
+				closeDetail()
+				print("Journey nudge ON: drag nodes; coordinates print here.")
+			end
+			refreshDebugLabels()
 		end)
 	end
 
