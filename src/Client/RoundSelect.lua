@@ -83,6 +83,11 @@ return function(deps)
 	local showUnlockPopup = deps.showUnlockPopup
 	local showWarning = deps.showWarning
 	local getLatestState = deps.getLatestState
+	local JourneyMap = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("JourneyMap"))
+	local theme = JourneyMap.EndlessTheme
+	local ENDLESS_ACCENT = Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3])
+	local ENDLESS_BG = Color3.fromRGB(theme.background[1], theme.background[2], theme.background[3])
+	local ENDLESS_SUB = Color3.fromRGB(theme.subtitle[1], theme.subtitle[2], theme.subtitle[3])
 
 	-- Same "solid opaque panel that just covers everything" trick shopFrame
 	-- uses (see Shop.lua) instead of hiding the game table underneath --
@@ -366,14 +371,28 @@ return function(deps)
 		-- (state.night only ever increases, so once you're past nightCap
 		-- you never see the "/8" form again this run).
 		local nightCap = state.nightCap or 8
-		if state.night > nightCap then
-			titleLabel.Text = string.format("Night %d (Endless)", state.night)
+		local inEndless = state.night > nightCap
+		if inEndless then
+			titleLabel.Text = string.format("♾ Endless Night %d ♾", state.night)
 		else
 			titleLabel.Text = string.format("Night %d/%d", state.night, nightCap)
 		end
 		subtitleLabel.Text = state.round == 1
 			and "A new Night begins! Play the round you're on, or skip it for a Tag instead."
 			or "Play the round you're on, or skip it for a Tag instead."
+		-- Endless Mode has its own header style (shared with the Journey map).
+		titleLabel.TextColor3 = inEndless and ENDLESS_ACCENT or Color3.fromRGB(250, 240, 220)
+		subtitleLabel.TextColor3 = inEndless and ENDLESS_SUB or Color3.fromRGB(220, 205, 185)
+		roundSelectFrame.BackgroundColor3 = inEndless and ENDLESS_BG or Color3.fromRGB(40, 30, 22)
+		if inEndless then
+			for _, milestone in ipairs(JourneyMap.EndlessMilestones) do
+				if milestone.night >= state.night then
+					subtitleLabel.Text = string.format("Next milestone: Night %d, %s. %s", milestone.night, milestone.name,
+						JourneyMap.rewardLabel(milestone.reward))
+					break
+				end
+			end
+		end
 
 		local currentRound = state.round
 

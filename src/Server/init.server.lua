@@ -73,6 +73,7 @@ local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken 
 local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
 local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
+local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
@@ -507,6 +508,7 @@ local function serializeState(session, player)
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
 		ownedPatrons = owned,
+		handsPlayedTotal = state.handsPlayedTotal, -- Night victory recap
 		onboardingHint = session.onboardingHint,
 		-- Scaling Patrons' inputs, so computeHandPreview matches playHand.
 		runCounters = RunState.runCounters(state),
@@ -795,6 +797,9 @@ local function syncProfileFromSession(player)
 	-- runs don't count, same as the other records.
 	if countsForRecords then
 		local fresh = JourneyMap.recordNightsCleared(profile, JourneyMap.nightsClearedFor(session.state))
+		for _, night in ipairs(JourneyMap.recordEndlessCleared(profile, JourneyMap.totalNightsClearedFor(session.state))) do
+			table.insert(fresh, night)
+		end
 		if #fresh > 0 then
 			changed = true
 			session.journeyNotice = fresh
@@ -1573,6 +1578,24 @@ EquipCardBackRemote.OnServerEvent:Connect(function(player, backId)
 	local didNotError, ok = pcall(CosmeticSets.equipCardBack, profile, backId, ownedGamePasses[player])
 	if not didNotError then
 		warn("EquipCardBack error for " .. player.Name .. ": " .. tostring(ok))
+		return
+	end
+	if ok then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
+-- JOURNEY: equip the reward of a cleared node. JourneyMap.equipReward
+-- refuses anything not earned.
+EquipJourneyRewardRemote.OnServerEvent:Connect(function(player, night)
+	local profile = profiles[player]
+	if not profile or type(night) ~= "number" then
+		return
+	end
+	local didNotError, ok = pcall(JourneyMap.equipReward, profile, night, ownedGamePasses[player])
+	if not didNotError then
+		warn("EquipJourneyReward error for " .. player.Name .. ": " .. tostring(ok))
 		return
 	end
 	if ok then

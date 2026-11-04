@@ -20,8 +20,8 @@ New card backs (`winter_frost`, `festival_ribbon`, `closing_lantern`) currently 
 ## Journey map (all optional, emoji and UI shapes are used now)
 - 8 location icons, one per Night: Front Porch, Warm Kitchen, Snug Booth, Cozy Loft, Garden Terrace, Grand Hall, Rooftop View, Keeper's Table (replace `icon` in `Engine/JourneyMap.lua` with image ids if wanted).
 - An Endless Nights node icon.
-- A painted parchment map background for the Tavern Map tab (currently a flat panel).
-- Victory banner art for the Night 8 moment.
+- Painted map background for the Tavern Map tab: paste the id into `JourneyMap.Config.journeyMapImage` (`Engine/JourneyMap.lua`). Make it about 2.8:1 wide (`Config.mapAspect`); node positions are the normalized `x`/`y` on each node in the same file, tune them to match the painting. 0 or a failed load keeps the UI-built look.
+- Optional art for the Night 8 "Tavern Champion" panel (`Client/NightVictory.lua`) and icons for the 3 Endless milestone nodes (`EndlessMilestones[].icon`).
 - Backdrops for the winter, festival and closing sets are listed above; they are also Journey rewards.
 - Card back art for `kitchen_checks` and `hall_banner` (tinted classic back for now).
-
+- Card back art for `ember_hours` (Endless Night 15 reward, tinted classic back for now).

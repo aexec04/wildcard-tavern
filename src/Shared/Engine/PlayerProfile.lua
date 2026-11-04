@@ -161,7 +161,7 @@ function PlayerProfile.new()
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
 		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
-		clearedNightIds = {}, -- [night number 1..8] = true, first clears (JourneyMap)
+		clearedNightIds = {}, -- [night number] = true, first clears of Nights 1-8 and Endless milestone Nights (JourneyMap)
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -208,8 +208,8 @@ function PlayerProfile.migrate(raw)
 	copyIdSet(raw.ownedSetIds, profile.ownedSetIds)
 	if type(raw.clearedNightIds) == "table" then
 		for night, flag in pairs(raw.clearedNightIds) do
-			if type(night) == "number" and flag == true and night >= 1 and night <= JourneyMap.NightCap
-				and night == math.floor(night) then
+			if type(night) == "number" and flag == true and night == math.floor(night)
+				and (JourneyMap.Nights[night] or JourneyMap.getMilestone(night)) then
 				profile.clearedNightIds[night] = true
 			end
 		end

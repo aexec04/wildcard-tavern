@@ -29,7 +29,8 @@
 		journeyButton     -- TextButton, the in-game "🗺" corner button
 		menuJourneyButton -- TextButton, "Road Ahead" on the main menu
 		getLatestState    -- function() -> latest state table or nil (live getter)
-		StateUpdatedRemote -- RemoteEvent, for the Night 8 victory moment
+		StateUpdatedRemote -- RemoteEvent, for the Night 8 victory moment and map unlocks
+		getBestHand -- function -> { name, score } | nil, for the victory recap
 		getCurrentTheme   -- function() -> the currently-equipped theme table (live
 		                      getter, since currentTheme is reassigned on every
 		                      theme change, not mutated)
@@ -892,6 +893,9 @@ return function(deps)
 		getLatestState = getLatestState,
 		titleLabel = journeyTitle,
 		subtitleLabel = journeySubtitle,
+		StateUpdatedRemote = deps.StateUpdatedRemote,
+		playClickSfx = playClickSfx,
+		polishButton = polishButton,
 	})
 	local activeTab = "map"
 	local tabButtons = {}
@@ -944,6 +948,7 @@ return function(deps)
 		tweenTo = tweenTo,
 		getLatestState = getLatestState,
 		StateUpdatedRemote = deps.StateUpdatedRemote,
+		getBestHand = deps.getBestHand,
 	})
 
 	-- lastJourneyStageKey: which stage the avatar was last shown on, so we only

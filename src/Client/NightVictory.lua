@@ -1,8 +1,9 @@
 --[[
 	Client/NightVictory.lua
-	The short "Night 8 cleared" moment: when a run's wonRun flag flips to
-	true, a banner pops up with a gold burst, the Night 8 name, and the
-	reward earned (if it's new). One button continues into Endless Mode.
+	The "Tavern Champion" moment: when a run's wonRun flag flips to true, a
+	panel pops up with a gold burst, the Night 8 name, run stats (hands
+	played, best hand, Patrons used) and the reward earned (if it's new).
+	One button continues into Endless Mode.
 	No new gameplay: the run was already won and keeps going exactly as before.
 
 	Listens to StateUpdatedRemote itself (task.defer so latestState is
@@ -10,7 +11,8 @@
 	restarting never shows it by accident.
 
 	deps: screenGui, polishPanel, polishButton, roundCorner, addSoftShadow,
-	playClickSfx, tweenTo, getLatestState, StateUpdatedRemote
+	playClickSfx, tweenTo, getLatestState, StateUpdatedRemote,
+	getBestHand (function -> { name, score } | nil)
 
 	Returns: {}
 ]]
@@ -28,6 +30,9 @@ return function(deps)
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local GOLD = Color3.fromRGB(255, 214, 130)
+	local PURPLE = Color3.fromRGB(JourneyMap.EndlessTheme.accent[1], JourneyMap.EndlessTheme.accent[2], JourneyMap.EndlessTheme.accent[3])
+	local ClientSettings = require(script.Parent.ClientSettings)
+	local TweenService = game:GetService("TweenService")
 
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NightVictoryBackdrop"
@@ -40,7 +45,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(420, 250)
+	panel.Size = UDim2.fromOffset(460, 340)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 61
@@ -64,24 +69,64 @@ return function(deps)
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 18), Font = Enum.Font.GothamBold,
-		TextSize = 28, TextColor3 = GOLD, Text = "👑 The Tavern Is Yours! 👑" })
-	label({ Size = UDim2.new(1, -40, 0, 40), Position = UDim2.fromOffset(20, 68), TextSize = 15,
-		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. "." })
-	local rewardLabel = label({ Size = UDim2.new(1, -40, 0, 40), Position = UDim2.fromOffset(20, 110), TextSize = 14,
+	label({ Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 16), Font = Enum.Font.GothamBold,
+		TextSize = 28, TextColor3 = GOLD, Text = "👑 Tavern Champion! 👑" })
+	label({ Size = UDim2.new(1, -40, 0, 20), Position = UDim2.fromOffset(20, 60), TextSize = 14,
+		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The tavern is yours!" })
+
+	-- Run stats: three tiles.
+	local function statTile(x, caption)
+		local tile = Instance.new("Frame")
+		tile.Size = UDim2.new(0.333, -10, 0, 74)
+		tile.Position = UDim2.new(x, 5, 0, 94)
+		tile.BackgroundColor3 = Color3.fromRGB(28, 20, 14)
+		tile.ZIndex = 62
+		tile.Parent = panel
+		deps.roundCorner(tile, 8)
+		local value = Instance.new("TextLabel")
+		value.Size = UDim2.new(1, -8, 0, 44)
+		value.Position = UDim2.fromOffset(4, 6)
+		value.BackgroundTransparency = 1
+		value.Font = Enum.Font.GothamBold
+		value.TextSize = 18
+		value.TextColor3 = GOLD
+		value.TextTransparency = 0
+		value.TextStrokeTransparency = 1
+		value.TextWrapped = true
+		value.ZIndex = 63
+		value.Parent = tile
+		local cap = Instance.new("TextLabel")
+		cap.Size = UDim2.new(1, -8, 0, 18)
+		cap.Position = UDim2.fromOffset(4, 52)
+		cap.BackgroundTransparency = 1
+		cap.Font = Enum.Font.Gotham
+		cap.TextSize = 11
+		cap.TextColor3 = Color3.fromRGB(215, 200, 178)
+		cap.TextTransparency = 0
+		cap.TextStrokeTransparency = 1
+		cap.Text = caption
+		cap.ZIndex = 63
+		cap.Parent = tile
+		return value
+	end
+	local handsValue = statTile(0, "Hands played")
+	local bestValue = statTile(0.333, "Best hand")
+	local patronsValue = statTile(0.666, "Patrons used")
+
+	local rewardLabel = label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 180), TextSize = 14,
 		TextColor3 = GOLD, Text = "" })
-	label({ Size = UDim2.new(1, -40, 0, 20), Position = UDim2.fromOffset(20, 152), TextSize = 12,
-		TextColor3 = Color3.fromRGB(215, 200, 178), Text = "The doors stay open. Endless Nights await." })
+	label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 222), TextSize = 13,
+		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." })
 
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(220, 40)
+	button.Size = UDim2.fromOffset(240, 40)
 	button.AnchorPoint = Vector2.new(0.5, 1)
 	button.Position = UDim2.new(0.5, 0, 1, -18)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
 	button.TextColor3 = CREAM
 	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	button.Text = "Continue to Endless ♾"
+	button.Text = "Enter Endless Nights ♾"
 	button.ZIndex = 62
 	button.Parent = panel
 	deps.polishButton(button, 12)
@@ -103,7 +148,18 @@ return function(deps)
 		else
 			rewardLabel.Text = "Night 8 already cleared before. Welcome back, Keeper."
 		end
+		local best = deps.getBestHand and deps.getBestHand() or nil
+		handsValue.Text = tostring(math.floor(state.handsPlayedTotal or 0))
+		bestValue.Text = best and string.format("%s (%d)", best.name, math.floor(best.score)) or "-"
+		patronsValue.Text = tostring(#(state.ownedPatrons or {}))
 		backdrop.Visible = true
+		if not ClientSettings.get("reduceShake") then
+			-- Pop in (skipped when screen shake is reduced).
+			local scale = panel:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+			scale.Scale = 0.85
+			scale.Parent = panel
+			TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
 		task.delay(0.1, function()
 			local size = deps.screenGui.AbsoluteSize
 			burst(UDim2.fromOffset(size.X / 2, size.Y * 0.4), GOLD, 40)

@@ -1277,6 +1277,7 @@ local showRoundReward = RoundRewardPopupModule.showRoundReward
 -- to fire SkipRound.
 local JourneyOverlay = require(script.Journey)({
 	screenGui = screenGui,
+	getBestHand = function() return PhaseAModule.getBest() end, -- Night victory recap
 	polishPanel = polishPanel,
 	polishButton = polishButton,
 	roundCorner = roundCorner,

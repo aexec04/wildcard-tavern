@@ -82,6 +82,15 @@ CardBacks.Definitions = {
 		flavorText = "Stitched from the banners over the Grand Hall.",
 		setOnly = true,
 	},
+	{
+		id = "ember_hours",
+		name = "Ember Hours",
+		icon = "🔥",
+		colors = { base = { 60, 24, 40 }, trim = { 255, 170, 90 } },
+		description = "A Journey reward for clearing Endless Night 15.",
+		flavorText = "Warm as the last coals after the doors should have closed.",
+		setOnly = true,
+	},
 }
 
 function CardBacks.getById(id)

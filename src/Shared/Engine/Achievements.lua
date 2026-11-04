@@ -197,6 +197,30 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_keeper == true
 		end,
 	},
+	{
+		id = "night_walker",
+		name = "Night Walker",
+		icon = "🌠",
+		title = "Night Walker",
+		description = "A Journey reward: clear Endless Night 10.",
+		flavorText = "Past the eighth night, the road keeps going.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.night_walker == true
+		end,
+	},
+	{
+		id = "endless_legend",
+		name = "Endless Legend",
+		icon = "🌌",
+		title = "Endless Legend",
+		description = "A Journey reward: clear Endless Night 20.",
+		flavorText = "The story of this table never ends.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.endless_legend == true
+		end,
+	},
 }
 
 function Achievements.getById(id)

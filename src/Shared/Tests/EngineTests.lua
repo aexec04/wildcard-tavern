@@ -2616,6 +2616,116 @@ table.insert(tests, { name = "PlayerProfile.migrate: a reward added after a Nigh
 	expectTrue(reloaded.ownedSetIds.winter_evening)
 end })
 
+-- ===== Journey phase 2: Endless milestones, completion, equip =====
+
+table.insert(tests, { name = "JourneyMap: nodes have normalized positions; Endless milestones resolve to real rewards", fn = function()
+	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
+	local lastNight = JourneyMap.NightCap
+	for _, node in ipairs(JourneyMap.allNodes()) do
+		expectTrue(node.info.x >= 0 and node.info.x <= 1 and node.info.y >= 0 and node.info.y <= 1, "position in 0-1 for " .. tostring(node.key))
+		if node.info.reward then
+			expectTrue(lookups[node.info.reward.kind].getById(node.info.reward.id) ~= nil, "reward resolves for " .. tostring(node.key))
+		end
+	end
+	expectTrue(#JourneyMap.EndlessMilestones >= 3)
+	for _, entry in ipairs(JourneyMap.EndlessMilestones) do
+		expectTrue(entry.night > lastNight, "milestones ascend past Night 8")
+		lastNight = entry.night
+	end
+	expectTrue(JourneyMap.Config.journeyMapImage ~= nil)
+end })
+
+table.insert(tests, { name = "JourneyMap.rewardLabel: resolves names without a lookups table", fn = function()
+	expectEqual(JourneyMap.rewardLabel({ kind = "title", id = "night_walker" }), 'Title: "Night Walker"')
+	expectEqual(JourneyMap.rewardLabel({ kind = "cardBack", id = "ember_hours" }), "Card back: Ember Hours")
+end })
+
+table.insert(tests, { name = "JourneyMap.totalNightsClearedFor: uncapped in Endless", fn = function()
+	expectEqual(JourneyMap.totalNightsClearedFor(fakeRun({ night = 12, round = 1 })), 11)
+	expectEqual(JourneyMap.totalNightsClearedFor(fakeRun({ night = 10, round = 3, roundOver = true, wonRun = true })), 10)
+	expectEqual(JourneyMap.totalNightsClearedFor(fakeRun({ night = 10, round = 3, roundOver = true, runOver = true })), 9)
+end })
+
+table.insert(tests, { name = "JourneyMap.recordEndlessCleared: grants each milestone reward once", fn = function()
+	local profile = PlayerProfile.new()
+	expectEqual(#JourneyMap.recordEndlessCleared(profile, 9), 0)
+	local fresh = JourneyMap.recordEndlessCleared(profile, 10)
+	expectEqual(#fresh, 1)
+	expectEqual(fresh[1], 10)
+	expectTrue(profile.rewardTitleIds.night_walker)
+	expectEqual(#JourneyMap.recordEndlessCleared(profile, 10), 0, "no repeat grant")
+	local more = JourneyMap.recordEndlessCleared(profile, 25)
+	expectEqual(#more, 2)
+	expectTrue(profile.unlockedCardBackIds.ember_hours)
+	expectTrue(profile.rewardTitleIds.endless_legend)
+	expectEqual(#JourneyMap.recordEndlessCleared(profile, "x"), 0)
+end })
+
+table.insert(tests, { name = "JourneyMap.completion and nextReward follow cleared nodes", fn = function()
+	local done, total, pct = JourneyMap.completion({})
+	expectEqual(done, 0)
+	expectEqual(total, 8 + #JourneyMap.EndlessMilestones)
+	expectEqual(pct, 0)
+	expectEqual(JourneyMap.nextReward({}).night, 1)
+	local cleared = { [1] = true, [2] = true }
+	local d2, _, p2 = JourneyMap.completion(cleared)
+	expectEqual(d2, 2)
+	expectEqual(p2, math.floor(200 / total))
+	expectEqual(JourneyMap.nextReward(cleared).night, 3)
+	local all = {}
+	for _, node in ipairs(JourneyMap.allNodes()) do
+		if node.night then all[node.night] = true end
+	end
+	local _, _, full = JourneyMap.completion(all)
+	expectEqual(full, 100)
+	expectEqual(JourneyMap.nextReward(all), nil)
+end })
+
+table.insert(tests, { name = "JourneyMap.equipReward: unearned rewards cannot be equipped, earned ones can", fn = function()
+	local profile = PlayerProfile.new()
+	local ok = JourneyMap.equipReward(profile, 2)
+	expectTrue(not ok, "card back of an uncleared Night")
+	expectEqual(profile.equippedCardBackId, nil)
+	expectTrue(not JourneyMap.equipReward(profile, 1), "title of an uncleared Night")
+	expectEqual(profile.equippedTitleId, nil)
+	expectTrue(not JourneyMap.equipReward(profile, 99), "unknown node")
+	expectTrue(not JourneyMap.equipReward(profile, "x"), "bad input")
+	-- Owning the item another way is not the same as earning the node.
+	profile.ownedSetIds.winter_evening = true
+	expectTrue(not JourneyMap.equipReward(profile, 3), "set owned but Night 3 not cleared")
+	JourneyMap.recordNightsCleared(profile, 3)
+	expectTrue(JourneyMap.equipReward(profile, 1))
+	expectEqual(profile.equippedTitleId, "porch_regular")
+	expectTrue(JourneyMap.equipReward(profile, 2))
+	expectEqual(profile.equippedCardBackId, "kitchen_checks")
+	expectTrue(JourneyMap.equipReward(profile, 3))
+	expectEqual(profile.equippedSetId, "winter_evening")
+	expectTrue(not JourneyMap.equipReward(profile, 10), "Endless milestone not cleared")
+	JourneyMap.recordEndlessCleared(profile, 10)
+	expectTrue(JourneyMap.equipReward(profile, 10))
+	expectEqual(profile.equippedTitleId, "night_walker")
+end })
+
+table.insert(tests, { name = "PlayerProfile.migrate: Endless milestone clears round-trip; old and bad data still load", fn = function()
+	local profile = PlayerProfile.new()
+	JourneyMap.recordNightsCleared(profile, 8)
+	JourneyMap.recordEndlessCleared(profile, 15)
+	local reloaded = PlayerProfile.migrate(profile)
+	expectTrue(reloaded.clearedNightIds[10] and reloaded.clearedNightIds[15])
+	expectTrue(reloaded.unlockedCardBackIds.ember_hours)
+	expectEqual(reloaded.clearedNightIds[20], nil)
+	-- A phase 1 profile (only Nights 1-3) loads unchanged.
+	local old = PlayerProfile.migrate({ clearedNightIds = { [1] = true, [2] = true, [3] = true }, stats = { runsStarted = 4 } })
+	expectTrue(old.clearedNightIds[3])
+	expectEqual(old.clearedNightIds[10], nil)
+	expectEqual(old.stats.runsStarted, 4)
+	-- Nights that are not nodes are dropped.
+	local bad = PlayerProfile.migrate({ clearedNightIds = { [11] = true, [30] = true, [20] = true } })
+	expectEqual(bad.clearedNightIds[11], nil)
+	expectEqual(bad.clearedNightIds[30], nil)
+	expectTrue(bad.clearedNightIds[20])
+end })
+
 -- ===== SeededRng (DAILY CHALLENGE, Phase 11) =====
 
 table.insert(tests, { name = "SeededRng.new: the same seed produces the exact same sequence", fn = function()
@@ -4226,6 +4336,11 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	end
 	-- Titles handed out by Journey rewards count too.
 	for _, entry in ipairs(JourneyMap.Nights) do
+		if entry.reward.kind == "title" then
+			rewardedTitles[entry.reward.id] = true
+		end
+	end
+	for _, entry in ipairs(JourneyMap.EndlessMilestones) do
 		if entry.reward.kind == "title" then
 			rewardedTitles[entry.reward.id] = true
 		end
