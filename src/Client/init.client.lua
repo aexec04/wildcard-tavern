@@ -1814,6 +1814,7 @@ local function refreshScorePreview()
 	end
 
 	local preview = computeHandPreview(selectedIndices)
+	require(script.HandHighlight).set(preview and preview.name or nil)
 	if not preview then
 		scorePreviewLabel.Text = "Select cards..."
 		return

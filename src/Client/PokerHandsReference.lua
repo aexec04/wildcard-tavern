@@ -33,6 +33,14 @@
 
 	Returns: {}
 
+	REDESIGN: parchment panel; one divider per row with a faint alternating
+	tint; 5 mini example cards per row (HandEvaluator.Examples, drawn with
+	CardFace); big Chips x Mult using leveled values (state.handLevels +
+	Scoring.HandLevelGrowth); level badge; dimmed 0-play rows; gold star on
+	the most played hand; live row highlight for the hand the selected cards
+	make (Client/HandHighlight.lua). Closes via Close, clicking outside, or
+	Escape. List scrolls only if the panel is too short for all 9 rows.
+
 	POLISH PASS (Batch 3): popIn/popOut replace the old bare
 	Visible = true/false cut; the Close button gets addButtonHoverScale.
 ]]
@@ -53,163 +61,397 @@ return function(deps)
 	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
+	local HandHighlight = require(script.Parent.HandHighlight)
+	local CardFace = require(script.Parent.CardFace)
+	local Palette = require(script.Parent.Palette)
+	local UserInputService = game:GetService("UserInputService")
 
-	local handRefBackdrop = Instance.new("Frame")
-	handRefBackdrop.Name = "HandRefBackdrop"
-	handRefBackdrop.Size = UDim2.fromScale(1, 1)
-	handRefBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	handRefBackdrop.BackgroundTransparency = 0.4
-	handRefBackdrop.Visible = false
-	handRefBackdrop.ZIndex = 20
-	handRefBackdrop.Parent = screenGui
+	local CREAM = Color3.fromRGB(250, 240, 220)
+	local GOLD = Color3.fromRGB(255, 214, 130)
+	local EMBER = Color3.fromRGB(205, 75, 48)
+	local MUTED = Color3.fromRGB(200, 185, 165)
+	local SUIT_SYMBOLS = { Hearts = "♥", Diamonds = "♦", Clubs = "♣", Spades = "♠" }
+	local RANK_TEXT = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
+	local ROW_COUNT = #HandEvaluator.HandOrder
+	local MIN_ROW, MAX_ROW = 34, 52
 
-	local handRefPanel = Instance.new("Frame")
-	handRefPanel.Size = UDim2.fromScale(0.5, 0.65)
-	handRefPanel.Position = UDim2.fromScale(0.25, 0.17)
-	handRefPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-	handRefPanel.ZIndex = 21
-	handRefPanel.Parent = handRefBackdrop
-	polishPanel(handRefPanel, 16, "parchment")
-	addSoftShadow(handRefPanel, 18)
+	-- Column layout (scale of row width): name, example cards, chips x mult, played.
+	local COL = {
+		name = { 0, 0.30 },
+		example = { 0.30, 0.30 },
+		value = { 0.60, 0.26 },
+		played = { 0.86, 0.14 },
+	}
 
-	local handRefTitle = Instance.new("TextLabel")
-	handRefTitle.Size = UDim2.new(1, 0, 0, 40)
-	handRefTitle.BackgroundTransparency = 1
-	handRefTitle.Font = Enum.Font.GothamBold
-	handRefTitle.TextSize = 22
-	handRefTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-	handRefTitle.Text = "Poker Hands"
-	handRefTitle.ZIndex = 21
-	handRefTitle.Parent = handRefPanel
+	local backdrop = Instance.new("TextButton")
+	backdrop.Name = "HandRefBackdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.4
+	backdrop.AutoButtonColor = false
+	backdrop.Text = ""
+	backdrop.Visible = false
+	backdrop.ZIndex = 20
+	backdrop.Parent = screenGui
 
-	local handRefHeaderRow = Instance.new("Frame")
-	handRefHeaderRow.Size = UDim2.new(1, -30, 0, 22)
-	handRefHeaderRow.Position = UDim2.new(0, 15, 0, 42)
-	handRefHeaderRow.BackgroundTransparency = 1
-	handRefHeaderRow.ZIndex = 21
-	handRefHeaderRow.Parent = handRefPanel
+	local panel = Instance.new("Frame")
+	panel.Size = UDim2.fromScale(0.6, 0.86)
+	panel.Position = UDim2.fromScale(0.2, 0.07)
+	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	panel.Active = true -- swallow clicks so only the backdrop outside closes
+	panel.ZIndex = 21
+	panel.Parent = backdrop
+	local sizeLimit = Instance.new("UISizeConstraint")
+	sizeLimit.MinSize = Vector2.new(400, 330)
+	sizeLimit.MaxSize = Vector2.new(760, 640)
+	sizeLimit.Parent = panel
+	polishPanel(panel, 16, "parchment")
+	addSoftShadow(panel, 18)
 
-	local function makeHandRefHeaderLabel(text, xScale, widthScale, alignment)
+	-- ===== Header: ornate title =====
+	local function line(parent, x, y, w, h, alpha, z)
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0, 0.5)
+		f.Position = x
+		f.Size = w
+		f.BackgroundColor3 = GOLD
+		f.BackgroundTransparency = alpha
+		f.BorderSizePixel = 0
+		f.ZIndex = z or 22
+		f.Parent = parent
+		return f
+	end
+
+	local title = Instance.new("TextLabel")
+	title.AnchorPoint = Vector2.new(0.5, 0)
+	title.Position = UDim2.new(0.5, 0, 0, 8)
+	title.Size = UDim2.new(0, 220, 0, 34)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 24
+	title.TextColor3 = CREAM
+	title.TextTransparency = 0
+	title.TextStrokeTransparency = 1
+	title.Text = "◆ Poker Hands ◆"
+	title.ZIndex = 22
+	title.Parent = panel
+	line(panel, UDim2.new(0, 24, 0, 25), UDim2.new(0.5, -144, 0, 2), 2, 0.35)
+	line(panel, UDim2.new(0.5, 124, 0, 25), UDim2.new(0.5, -148, 0, 2), 2, 0.35)
+
+	local header = Instance.new("Frame")
+	header.Position = UDim2.new(0, 14, 0, 46)
+	header.Size = UDim2.new(1, -28, 0, 20)
+	header.BackgroundTransparency = 1
+	header.ZIndex = 22
+	header.Parent = panel
+	local function headerLabel(text, col, align, inset)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(widthScale, 0, 1, 0)
-		label.Position = UDim2.new(xScale, 0, 0, 0)
+		label.Position = UDim2.new(col[1], inset or 0, 0, 0)
+		label.Size = UDim2.new(col[2], -(inset or 0), 1, 0)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBold
 		label.TextSize = 13
-		label.TextColor3 = Color3.fromRGB(200, 185, 165)
-		label.TextXAlignment = alignment or Enum.TextXAlignment.Left
+		label.TextColor3 = MUTED
+		label.TextTransparency = 0
+		label.TextStrokeTransparency = 1
+		label.TextXAlignment = align
 		label.Text = text
-		label.ZIndex = 21
-		label.Parent = handRefHeaderRow
+		label.ZIndex = 22
+		label.Parent = header
+	end
+	headerLabel("Hand", COL.name, Enum.TextXAlignment.Left, 8)
+	headerLabel("Example", COL.example, Enum.TextXAlignment.Left)
+	headerLabel("Chips x Mult", COL.value, Enum.TextXAlignment.Center)
+	headerLabel("Played", COL.played, Enum.TextXAlignment.Right, 0)
+	line(panel, UDim2.new(0, 14, 0, 70), UDim2.new(1, -28, 0, 1), 0.55)
+
+	-- ===== List (scrolls only as a small-screen fallback) =====
+	local listFrame = Instance.new("ScrollingFrame")
+	listFrame.Position = UDim2.new(0, 14, 0, 74)
+	listFrame.Size = UDim2.new(1, -28, 1, -74 - 62)
+	listFrame.BackgroundTransparency = 1
+	listFrame.BorderSizePixel = 0
+	listFrame.ScrollBarThickness = 5
+	listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	listFrame.ZIndex = 21
+	listFrame.Parent = panel
+
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Padding = UDim.new(0, 0)
+	listLayout.Parent = listFrame
+
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 140, 0, 38)
+	closeButton.Position = UDim2.new(0.5, -70, 1, -50)
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 16
+	closeButton.Text = "Close"
+	closeButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	closeButton.TextColor3 = CREAM
+	closeButton.ZIndex = 22
+	closeButton.Parent = panel
+	polishButton(closeButton, 12)
+	addButtonHoverScale(closeButton)
+
+	local function closePanel()
+		if backdrop.Visible then
+			popOut(backdrop, panel)
+		end
+	end
+	closeButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		closePanel()
+	end)
+	backdrop.MouseButton1Click:Connect(closePanel)
+	-- Escape is also Roblox's own menu key, so ignore gameProcessed.
+	UserInputService.InputBegan:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.Escape then
+			closePanel()
+		end
+	end)
+
+	-- ===== Rows =====
+	local rowsByHand = {}
+
+	local function applyHighlight(handName)
+		for name, row in pairs(rowsByHand) do
+			if row.Parent then
+				local lit = name == handName
+				local bar = row:FindFirstChild("HighlightBar")
+				if bar then
+					bar.Visible = lit
+				end
+				if lit then
+					row.BackgroundColor3 = GOLD
+					row.BackgroundTransparency = 0.78
+				else
+					row.BackgroundColor3 = Color3.fromRGB(255, 245, 225)
+					row.BackgroundTransparency = row:GetAttribute("BaseTint")
+				end
+			end
+		end
+	end
+
+	local function fitRows()
+		local available = listFrame.AbsoluteSize.Y
+		if available <= 0 then
+			return
+		end
+		local h = math.clamp(math.floor(available / ROW_COUNT), MIN_ROW, MAX_ROW)
+		for _, row in pairs(rowsByHand) do
+			if row.Parent then
+				row.Size = UDim2.new(1, 0, 0, h)
+			end
+		end
+	end
+	listFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitRows)
+
+	local function addText(parent, col, text, size, font, color, align, inset, rich)
+		local label = Instance.new("TextLabel")
+		label.Position = UDim2.new(col[1], inset or 0, 0, 0)
+		label.Size = UDim2.new(col[2], -(inset or 0), 1, 0)
+		label.BackgroundTransparency = 1
+		label.Font = font
+		label.TextSize = size
+		label.TextColor3 = color
+		label.TextTransparency = 0
+		label.TextStrokeTransparency = 1
+		label.TextXAlignment = align
+		label.TextTruncate = Enum.TextTruncate.AtEnd
+		label.RichText = rich == true
+		label.Text = text
+		label.ZIndex = 22
+		label.Parent = parent
 		return label
 	end
 
-	makeHandRefHeaderLabel("Hand", 0, 0.4)
-	makeHandRefHeaderLabel("Chips x Mult", 0.4, 0.35)
-	makeHandRefHeaderLabel("Played", 0.78, 0.22, Enum.TextXAlignment.Right)
+	local function buildExample(parent, handName, dim)
+		local spec = HandEvaluator.Examples and HandEvaluator.Examples[handName]
+		if not spec then
+			return
+		end
+		local container = Instance.new("Frame")
+		container.Position = UDim2.new(COL.example[1], 0, 0, 0)
+		container.Size = UDim2.new(COL.example[2], 0, 1, 0)
+		container.BackgroundTransparency = 1
+		container.ZIndex = 22
+		container.Parent = parent
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, 3)
+		layout.Parent = container
 
-	local handRefListFrame = Instance.new("ScrollingFrame")
-	handRefListFrame.Size = UDim2.new(1, -20, 1, -145)
-	handRefListFrame.Position = UDim2.new(0, 10, 0, 68)
-	handRefListFrame.BackgroundTransparency = 1
-	handRefListFrame.BorderSizePixel = 0
-	handRefListFrame.ScrollBarThickness = 8
-	handRefListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	handRefListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-	handRefListFrame.ZIndex = 21
-	handRefListFrame.Parent = handRefPanel
+		-- Which example cards actually score (the rest are kickers, drawn dimmer).
+		local cards = {}
+		for _, rs in ipairs(spec) do
+			table.insert(cards, { rank = rs[1], suit = rs[2] })
+		end
+		local scoring = {}
+		local okEval, result = pcall(HandEvaluator.evaluate, cards)
+		if okEval and result then
+			for _, c in ipairs(result.scoringCards) do
+				scoring[c] = true
+			end
+		end
 
-	local handRefListLayout = Instance.new("UIListLayout")
-	handRefListLayout.Padding = UDim.new(0, 6)
-	handRefListLayout.Parent = handRefListFrame
-
-	local handRefCloseButton = Instance.new("TextButton")
-	handRefCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	handRefCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-	handRefCloseButton.Font = Enum.Font.GothamBold
-	handRefCloseButton.TextSize = 16
-	handRefCloseButton.Text = "Close"
-	handRefCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	handRefCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	handRefCloseButton.ZIndex = 21
-	handRefCloseButton.Parent = handRefPanel
-	polishButton(handRefCloseButton, 12)
-	addButtonHoverScale(handRefCloseButton)
-
-	handRefCloseButton.MouseButton1Click:Connect(function()
-		playClickSfx()
-		popOut(handRefBackdrop, handRefPanel)
-	end)
+		for i, c in ipairs(cards) do
+			local card = Instance.new("Frame")
+			card.LayoutOrder = i
+			card.Size = UDim2.fromScale(0, 0.84)
+			card.BackgroundColor3 = Palette.colors.cardBase
+			card.BackgroundTransparency = (dim or (okEval and not scoring[c])) and 0.45 or 0
+			card.BorderSizePixel = 0
+			card.ZIndex = 22
+			card.Parent = container
+			local ratio = Instance.new("UIAspectRatioConstraint")
+			ratio.AspectRatio = 0.7
+			ratio.DominantAxis = Enum.DominantAxis.Height
+			ratio.Parent = card
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 3)
+			corner.Parent = card
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Color3.fromRGB(90, 60, 30)
+			stroke.Thickness = 1
+			stroke.Transparency = 0.3
+			stroke.Parent = card
+			CardFace.build(
+				card,
+				RANK_TEXT[c.rank] or tostring(c.rank),
+				SUIT_SYMBOLS[c.suit],
+				c.suit == "Hearts" or c.suit == "Diamonds",
+				23,
+				false
+			)
+		end
+	end
 
 	local function refreshHandReference()
-		for _, child in ipairs(handRefListFrame:GetChildren()) do
+		for _, child in ipairs(listFrame:GetChildren()) do
 			if child:IsA("Frame") then
 				child:Destroy()
 			end
 		end
+		rowsByHand = {}
 
 		local latestState = getLatestState()
 		local handStats = (latestState and latestState.handStats) or {}
+		local handLevels = (latestState and latestState.handLevels) or {}
+
+		-- Most played hand (strongest wins ties); nil if nothing played yet.
+		local topHand, topCount = nil, 0
+		for i = #HandEvaluator.HandOrder, 1, -1 do
+			local name = HandEvaluator.HandOrder[i]
+			local n = handStats[name] or 0
+			if n > topCount then
+				topHand, topCount = name, n
+			end
+		end
 
 		-- Strongest hand first, matching how most poker reference charts read.
+		local order = 0
 		for i = #HandEvaluator.HandOrder, 1, -1 do
 			local handName = HandEvaluator.HandOrder[i]
 			local base = Scoring.HandBase[handName]
+			local growth = Scoring.HandLevelGrowth[handName] or { chips = 0, mult = 0 }
+			local level = math.floor(handLevels[handName] or 0)
+			local chips = math.floor(base.chips + growth.chips * level)
+			local mult = math.floor(base.mult + growth.mult * level)
+			local played = math.floor(handStats[handName] or 0)
+			local dim = played == 0
+			order = order + 1
 
 			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, 0, 0, 34)
-			row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
+			row.Name = "Row_" .. handName
+			row.LayoutOrder = order
+			row.Size = UDim2.new(1, 0, 0, MIN_ROW)
+			row.BackgroundColor3 = Color3.fromRGB(255, 245, 225)
+			local baseTint = (order % 2 == 0) and 0.93 or 1
+			row:SetAttribute("BaseTint", baseTint)
+			row.BackgroundTransparency = baseTint
+			row.BorderSizePixel = 0
 			row.ZIndex = 21
-			row.Parent = handRefListFrame
-			polishPanel(row, 8)
+			row.Parent = listFrame
+			rowsByHand[handName] = row
 
-			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(0.4, 0, 1, 0)
-			nameLabel.Position = UDim2.new(0, 10, 0, 0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.Font = Enum.Font.Gotham
-			nameLabel.TextSize = 14
-			nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-			nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-			nameLabel.Text = handName
-			nameLabel.ZIndex = 21
-			nameLabel.Parent = row
+			-- One thin divider between rows (not after the last).
+			if order < ROW_COUNT then
+				local div = line(row, UDim2.new(0, 0, 1, 0), UDim2.new(1, 0, 0, 1), 0.75, 21)
+				div.Name = "Divider"
+			end
 
-			local valueLabel = Instance.new("TextLabel")
-			valueLabel.Size = UDim2.new(0.35, 0, 1, 0)
-			valueLabel.Position = UDim2.new(0.4, 0, 0, 0)
-			valueLabel.BackgroundTransparency = 1
-			valueLabel.Font = Enum.Font.Gotham
-			valueLabel.TextSize = 14
-			valueLabel.TextXAlignment = Enum.TextXAlignment.Left
-			valueLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-			valueLabel.Text = string.format("%d x %d", base.chips, base.mult)
-			valueLabel.ZIndex = 21
-			valueLabel.Parent = row
+			local bar = Instance.new("Frame")
+			bar.Name = "HighlightBar"
+			bar.Size = UDim2.new(0, 3, 1, -6)
+			bar.Position = UDim2.new(0, 0, 0, 3)
+			bar.BackgroundColor3 = GOLD
+			bar.BorderSizePixel = 0
+			bar.Visible = false
+			bar.ZIndex = 23
+			bar.Parent = row
 
-			local playedLabel = Instance.new("TextLabel")
-			playedLabel.Size = UDim2.new(0.2, -10, 1, 0)
-			playedLabel.Position = UDim2.new(0.8, 0, 0, 0)
-			playedLabel.BackgroundTransparency = 1
-			playedLabel.Font = Enum.Font.GothamBold
-			playedLabel.TextSize = 14
-			playedLabel.TextXAlignment = Enum.TextXAlignment.Right
-			playedLabel.TextColor3 = Color3.fromRGB(200, 220, 200)
-			playedLabel.Text = tostring(handStats[handName] or 0)
-			playedLabel.ZIndex = 21
-			playedLabel.Parent = row
+			local nameText = handName
+			if handName == topHand then
+				nameText = '<font color="rgb(255,214,130)">★</font> ' .. handName
+			end
+			local nameLabel = addText(row, COL.name, nameText, 14, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Left, 8, true)
+			nameLabel.TextTransparency = dim and 0.4 or 0
+
+			if level > 0 then
+				local badge = Instance.new("TextLabel")
+				badge.AnchorPoint = Vector2.new(1, 0.5)
+				badge.Position = UDim2.new(COL.name[2], -4, 0.5, 0)
+				badge.Size = UDim2.new(0, 34, 0, 16)
+				badge.BackgroundColor3 = GOLD
+				badge.BackgroundTransparency = 0.1
+				badge.Font = Enum.Font.GothamBold
+				badge.TextSize = 11
+				badge.TextColor3 = Color3.fromRGB(50, 32, 14)
+				badge.TextTransparency = 0
+				badge.TextStrokeTransparency = 1
+				badge.Text = string.format("Lv %d", level)
+				badge.ZIndex = 24
+				badge.Parent = row
+				local bc = Instance.new("UICorner")
+				bc.CornerRadius = UDim.new(0, 8)
+				bc.Parent = badge
+			end
+
+			buildExample(row, handName, dim)
+
+			local valueText = string.format(
+				'<font color="rgb(255,214,130)">%d</font> <font color="rgb(200,185,165)">x</font> <font color="rgb(205,75,48)">%d</font>',
+				chips,
+				mult
+			)
+			local valueLabel = addText(row, COL.value, valueText, 22, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Center, 0, true)
+			valueLabel.TextTransparency = dim and 0.3 or 0
+
+			local playedLabel = addText(row, COL.played, string.format("%d", played), 16, Enum.Font.GothamBold, Color3.fromRGB(200, 220, 200), Enum.TextXAlignment.Right, 0, false)
+			playedLabel.TextTransparency = dim and 0.5 or 0
 		end
+
+		fitRows()
+		applyHighlight(HandHighlight.get())
 	end
 
-	OverlayManager.register("pokerHandsReference", function()
-		popOut(handRefBackdrop, handRefPanel)
+	HandHighlight.onChange(function(handName)
+		if backdrop.Visible then
+			applyHighlight(handName)
+		end
 	end)
+
+	OverlayManager.register("pokerHandsReference", closePanel)
 
 	handRefButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("pokerHandsReference")
 		refreshHandReference()
-		popIn(handRefBackdrop, handRefPanel)
+		popIn(backdrop, panel)
 	end)
 
 	return {}

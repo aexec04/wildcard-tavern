@@ -134,6 +134,18 @@ end })
 
 -- ===== HandEvaluator =====
 
+table.insert(tests, { name = "HandEvaluator: every hand in HandOrder has an Example that evaluates to it", fn = function()
+	for _, handName in ipairs(HandEvaluator.HandOrder) do
+		local spec = HandEvaluator.Examples[handName]
+		assert(spec, "missing example for " .. handName)
+		local cards = {}
+		for _, rs in ipairs(spec) do
+			table.insert(cards, C(rs[1], rs[2]))
+		end
+		expectEqual(HandEvaluator.evaluate(cards).name, handName)
+	end
+end })
+
 table.insert(tests, { name = "HandEvaluator: single card is High Card", fn = function()
 	local result = HandEvaluator.evaluate({ C(9, "Hearts") })
 	expectEqual(result.name, "High Card")

@@ -26,6 +26,21 @@ HandEvaluator.HandOrder = {
 	"Straight Flush",
 }
 
+-- Example 5-card (or fewer) hands for the Poker Hands reference, as
+-- { rank, suit } pairs. Display data only: a test checks that each one
+-- really evaluates to its own hand name.
+HandEvaluator.Examples = {
+	["High Card"]       = { {14, "Spades"}, {10, "Hearts"}, {8, "Clubs"}, {5, "Diamonds"}, {3, "Spades"} },
+	["Pair"]            = { {9, "Hearts"}, {9, "Clubs"}, {13, "Spades"}, {6, "Diamonds"}, {3, "Hearts"} },
+	["Two Pair"]        = { {11, "Hearts"}, {11, "Spades"}, {6, "Clubs"}, {6, "Diamonds"}, {2, "Hearts"} },
+	["Three of a Kind"] = { {8, "Hearts"}, {8, "Clubs"}, {8, "Spades"}, {13, "Diamonds"}, {4, "Hearts"} },
+	["Straight"]        = { {5, "Hearts"}, {6, "Clubs"}, {7, "Spades"}, {8, "Diamonds"}, {9, "Hearts"} },
+	["Flush"]           = { {14, "Hearts"}, {11, "Hearts"}, {8, "Hearts"}, {6, "Hearts"}, {3, "Hearts"} },
+	["Full House"]      = { {10, "Hearts"}, {10, "Clubs"}, {10, "Spades"}, {4, "Diamonds"}, {4, "Hearts"} },
+	["Four of a Kind"]  = { {12, "Hearts"}, {12, "Clubs"}, {12, "Spades"}, {12, "Diamonds"}, {7, "Hearts"} },
+	["Straight Flush"]  = { {6, "Spades"}, {7, "Spades"}, {8, "Spades"}, {9, "Spades"}, {10, "Spades"} },
+}
+
 local function countBy(cards, key)
 	local counts = {}
 	for _, card in ipairs(cards) do
