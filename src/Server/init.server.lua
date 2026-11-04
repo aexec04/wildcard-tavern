@@ -43,14 +43,19 @@ local DeveloperProducts = require(Engine.DeveloperProducts) -- PAID CONTINUE: co
 -- ===== 1. Run engine tests on server start =====
 
 do
-	local TestRunner = require(Tests.TestRunner)
-	local engineTests = require(Tests.EngineTests)
-	print("===== Wildcard Tavern: running engine tests =====")
-	local results = TestRunner.run(engineTests)
-	if results.failed > 0 then
-		warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))
+	local okTests, errTests = pcall(function()
+		local TestRunner = require(Tests.TestRunner)
+		local engineTests = require(Tests.EngineTests)
+		print("===== Wildcard Tavern: running engine tests =====")
+		local results = TestRunner.run(engineTests)
+		if results.failed > 0 then
+			warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))
+		end
+		print("===================================================")
+	end)
+	if not okTests then
+		warn("[Startup] engine tests could not run (server continues): " .. tostring(errTests))
 	end
-	print("===================================================")
 end
 
 -- ===== 2. RemoteEvents =====
@@ -1109,9 +1114,23 @@ end
 -- into one PlayerAdded handler instead of the 2 independent ones this used
 -- to be, specifically to guarantee that ordering.
 local function onPlayerAdded(player)
-	profiles[player] = loadProfile(player)
-	startNewSession(player)
-	refreshOwnedGamePasses(player)
+	-- Each step is pcall'd and named so one failure can't leave the player
+	-- without a session (every remote handler ignores players with none).
+	local okLoad, profileOrErr = pcall(loadProfile, player)
+	if okLoad then
+		profiles[player] = profileOrErr
+	else
+		warn("[Startup] loadProfile failed for " .. player.Name .. ": " .. tostring(profileOrErr))
+		profiles[player] = PlayerProfile.new()
+	end
+	local okSession, errSession = pcall(startNewSession, player)
+	if not okSession then
+		warn("[Startup] startNewSession failed for " .. player.Name .. ": " .. tostring(errSession))
+	end
+	local okPasses, errPasses = pcall(refreshOwnedGamePasses, player)
+	if not okPasses then
+		warn("[Startup] refreshOwnedGamePasses failed for " .. player.Name .. ": " .. tostring(errPasses))
+	end
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
@@ -1135,9 +1154,13 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 -- In Studio, PlayerAdded may have already fired for existing test players.
-for _, player in ipairs(Players:GetPlayers()) do
-	onPlayerAdded(player)
-end
+-- Deferred (task.defer) so the profile load, which yields, can never hold up
+-- the rest of this script: every remote handler below connects first.
+task.defer(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		task.spawn(onPlayerAdded, player)
+	end
+end)
 
 -- PERSISTENT SAVE (Phase 10) / DAILY CHALLENGE (Phase 11): a lightweight
 -- crash-safety net between joins/leaves -- PlayerRemoving above is the

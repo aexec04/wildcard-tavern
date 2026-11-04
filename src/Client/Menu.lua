@@ -295,6 +295,8 @@ return function(deps)
 		menuHowToPlayButton = menuHowToPlayButton,
 		menuJourneyButton = menuJourneyButton,
 		menuNewRunButton = menuNewRunButton,
+		menuDailyChallengeButton = menuDailyChallengeButton,
+		menuWeeklyChallengeButton = menuWeeklyChallengeButton,
 		menuTutorialButton = menuTutorialButton,
 	}
 end

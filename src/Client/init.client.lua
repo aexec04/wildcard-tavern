@@ -2613,6 +2613,47 @@ GameOverPanel.continueButton.MouseButton1Click:Connect(function()
 	remotes:WaitForChild("RequestContinue"):FireServer()
 end)
 
+-- SERVER-REPLY TIMEOUT: menu buttons that need the server go inactive until a
+-- StateUpdated arrives; after 5s with no reply they show a message and re-enable.
+do
+	local REPLY_TIMEOUT = 5
+	local stateCount = 0
+	StateUpdatedRemote.OnClientEvent:Connect(function()
+		stateCount += 1
+	end)
+	local function guard(button, needsFreshState)
+		button.MouseButton1Click:Connect(function()
+			if not button.Active then
+				return
+			end
+			if not needsFreshState and latestState ~= nil then
+				return -- already have server data, nothing to wait for
+			end
+			local startCount = stateCount
+			button.Active = false
+			task.delay(REPLY_TIMEOUT, function()
+				button.Active = true
+				if stateCount == startCount then
+					showWarning("The tavern server isn't answering yet. Please try again in a moment.")
+				end
+			end)
+			-- Re-enable early as soon as the reply lands.
+			task.spawn(function()
+				local t = 0
+				while t < REPLY_TIMEOUT and stateCount == startCount do
+					t += 0.1
+					task.wait(0.1)
+				end
+				button.Active = true
+			end)
+		end)
+	end
+	guard(menuPlayButton, false)
+	guard(menuJourneyButton, false)
+	guard(MenuScreen.menuDailyChallengeButton, true)
+	guard(MenuScreen.menuWeeklyChallengeButton, true)
+end
+
 StateUpdatedRemote.OnClientEvent:Connect(function(state)
 	require(script.ClientSettings).loadFromServer(state.settings)
 	if state.onboardingHint then
