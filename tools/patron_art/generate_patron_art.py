@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 """
-Patron art pipeline: prompts -> images -> Roblox assets -> PatronArt.lua (Rojo syncs it into Studio).
+Art pipeline: prompts -> images -> Roblox assets -> generated Lua id map (Rojo syncs it into Studio).
 
-Run from the project root on your Mac:
+Categories (--category / -c, default patrons):
+  patrons      prompts.json "subjects"            -> art-wip/patrons/      -> src/Shared/Engine/PatronArt.lua
+  bosses       prompts.json "boss_subjects"       -> art-wip/bosses/       -> src/Shared/Engine/BossRoundArt.lua
+  recipes      prompts.json "recipe_subjects"     -> art-wip/recipes/      -> src/Shared/Engine/RecipeArt.lua
+  housepasses  prompts.json "housepass_subjects"  -> art-wip/housepasses/  -> src/Shared/Engine/HousePassArt.lua
+  titles       prompts.json "title_subjects"      -> art-wip/titles/       -> src/Shared/Engine/TitleArt.lua
+Each category keeps its own ids.json / image-ids.json / state.json (stale tracking) in its art-wip folder.
+
+Run from the project root on your Mac (add -c <category> to any command):
   python3 tools/patron_art/generate_patron_art.py generate --limit 5     # style test first
   python3 tools/patron_art/generate_patron_art.py generate               # the rest (skips existing PNGs)
   python3 tools/patron_art/generate_patron_art.py upload                 # Open Cloud upload, saves ids
   python3 tools/patron_art/generate_patron_art.py lua                    # writes src/Shared/Engine/PatronArt.lua
   python3 tools/patron_art/generate_patron_art.py all                    # generate + upload + lua
   python3 tools/patron_art/generate_patron_art.py status                 # what is missing / stale / uploaded
+  python3 tools/patron_art/generate_patron_art.py estimate               # image counts + cost estimate, every category (no API calls)
   python3 tools/patron_art/generate_patron_art.py queue                  # JSON of images awaiting upload (Studio route)
   python3 tools/patron_art/generate_patron_art.py record <id> <assetId>  # store an id uploaded via Studio
   python3 tools/patron_art/generate_patron_art.py import-ids ids.csv     # manual route: lines of "patron_id,assetId"
@@ -28,11 +37,44 @@ import requests
 LOCK = threading.RLock()   # guards ids.json / state.json / image-ids.json when workers run in parallel
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 HERE = ROOT / "tools" / "patron_art"
-OUT = ROOT / "art-wip" / "patrons"      # gitignored
-IDS = OUT / "ids.json"
-IMAGE_IDS = OUT / "image-ids.json"   # patron id -> IMAGE asset id (the Decal wraps it; ImageLabel needs this one)
-STATE = OUT / "state.json"   # per patron: prompt hash at generation, image hash at upload
-LUA = ROOT / "src" / "Shared" / "Engine" / "PatronArt.lua"
+ENGINE = ROOT / "src" / "Shared" / "Engine"
+
+# name -> (prompts.json key, art-wip folder, generated Lua file, singular label)
+CATEGORIES = {
+    "patrons":     ("subjects",            "patrons",     "PatronArt.lua",    "Patron"),
+    "bosses":      ("boss_subjects",       "bosses",      "BossRoundArt.lua", "Boss Round"),
+    "recipes":     ("recipe_subjects",     "recipes",     "RecipeArt.lua",    "Recipe"),
+    "housepasses": ("housepass_subjects",  "housepasses", "HousePassArt.lua", "House Pass"),
+    "titles":      ("title_subjects",      "titles",      "TitleArt.lua",     "Title"),
+}
+# Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
+COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
+
+# Rebound by set_category(); every function reads these at call time.
+CATEGORY = "patrons"
+SUBJECTS_KEY = "subjects"
+LABEL = "Patron"
+OUT = IDS = IMAGE_IDS = STATE = LUA = None
+
+
+def set_category(name):
+    global CATEGORY, SUBJECTS_KEY, LABEL, OUT, IDS, IMAGE_IDS, STATE, LUA
+    if name not in CATEGORIES:
+        sys.exit(f"Unknown category {name!r}. Choose from: {', '.join(CATEGORIES)}")
+    key, folder, lua_name, label = CATEGORIES[name]
+    CATEGORY, SUBJECTS_KEY, LABEL = name, key, label
+    OUT = ROOT / "art-wip" / folder          # gitignored
+    IDS = OUT / "ids.json"
+    IMAGE_IDS = OUT / "image-ids.json"       # id -> IMAGE asset id (the Decal wraps it; ImageLabel needs this one)
+    STATE = OUT / "state.json"               # per id: prompt hash at generation, image hash at upload
+    LUA = ENGINE / lua_name
+
+
+set_category("patrons")
+
+
+def subjects(data):
+    return data.get(SUBJECTS_KEY, {})
 
 
 def load_env():
@@ -79,7 +121,7 @@ def sha(b):
 
 
 def prompt_hash(data, pid):
-    return sha((data["style"] + "|" + data["subjects"][pid]).encode("utf-8"))
+    return sha((data["style"] + "|" + subjects(data)[pid]).encode("utf-8"))
 
 
 def image_hash(pid):
@@ -123,7 +165,7 @@ def pick(subjects, args):
         wanted = [k.strip() for k in args.only.split(",")]
         bad = [k for k in wanted if k not in subjects]
         if bad:
-            sys.exit(f"Unknown patron ids: {bad}")
+            sys.exit(f"Unknown {CATEGORY} ids: {bad}")
         keys = wanted
     return keys[: args.limit] if args.limit else keys
 
@@ -139,7 +181,7 @@ def _generate_one(pid, data, key, model, quality, args):
     if path.exists() and not args.force and not (args.stale and stale):
         print(f"skip {pid} (exists{', STALE: rerun with --stale' if stale else ''})")
         return "skipped"
-    prompt = f"{data['style']}. Subject: {data['subjects'][pid]}."
+    prompt = f"{data['style']}. Subject: {subjects(data)[pid]}."
     for attempt in range(4):
         r = requests.post(
             "https://api.openai.com/v1/images/generations",
@@ -192,7 +234,7 @@ def cmd_generate(args):
     OUT.mkdir(parents=True, exist_ok=True)
     model = os.environ.get("IMAGE_MODEL", "gpt-image-1")
     quality = os.environ.get("IMAGE_QUALITY", "medium")
-    pids = pick(data["subjects"], args)
+    pids = pick(subjects(data), args)
     failed, stop = _run_parallel(lambda pid: _generate_one(pid, data, key, model, quality, args), pids, args.workers)
     if stop:
         sys.exit(stop)
@@ -215,8 +257,8 @@ def _upload_one(pid, data, headers, creator, args):
         return "skipped"
     req = {
         "assetType": "Decal",
-        "displayName": f"Patron {pid}",
-        "description": "Wildcard Tavern patron art",
+        "displayName": f"{LABEL} {pid}",
+        "description": f"Wildcard Tavern {LABEL.lower()} art",
         "creationContext": {"creator": creator},
     }
     for attempt in range(4):
@@ -264,7 +306,7 @@ def cmd_upload(args):
         creator = {"creator": {"userId": need("ROBLOX_USER_ID")}}
     data = load_prompts()
     headers = {"x-api-key": key}
-    pids = pick(data["subjects"], args)
+    pids = pick(subjects(data), args)
     failed, stop = _run_parallel(lambda pid: _upload_one(pid, data, headers, creator["creator"], args), pids, args.workers)
     if stop:
         sys.exit(stop)
@@ -290,7 +332,7 @@ def cmd_status(_args):
     data = load_prompts()
     ids, state = load_ids(), load_state()
     counts, todo = {}, []
-    for pid in data["subjects"]:
+    for pid in subjects(data):
         st = status_of(data, pid, ids, state)
         counts[st] = counts.get(st, 0) + 1
         if st != "done":
@@ -298,9 +340,9 @@ def cmd_status(_args):
     print("  ".join(f"{k}: {v}" for k, v in sorted(counts.items())))
     for pid, st in todo:
         print(f"  {st:13} {pid}")
-    extra = [p for p in ids if p not in data["subjects"]]
+    extra = [p for p in ids if p not in subjects(data)]
     if extra:
-        print("ids for patrons no longer in prompts.json:", extra)
+        print(f"ids for {CATEGORY} no longer in prompts.json:", extra)
 
 
 def cmd_queue(_args):
@@ -308,17 +350,17 @@ def cmd_queue(_args):
     data = load_prompts()
     ids, state = load_ids(), load_state()
     out = []
-    for pid in data["subjects"]:
+    for pid in subjects(data):
         if status_of(data, pid, ids, state) == "needs-upload":
-            out.append({"id": pid, "path": str(OUT / f"{pid}.png"), "displayName": f"Patron {pid}"})
+            out.append({"id": pid, "path": str(OUT / f"{pid}.png"), "displayName": f"{LABEL} {pid}"})
     print(json.dumps(out, indent=2))
 
 
 def cmd_record(args):
-    """record <patron_id> <assetId>: store an id uploaded some other way (e.g. via Studio)."""
+    """record <id> <assetId>: store an id uploaded some other way (e.g. via Studio)."""
     pid, aid = args.file, args.extra
     if not pid or not aid:
-        sys.exit("usage: record <patron_id> <assetId>")
+        sys.exit("usage: record <id> <assetId>")
     ids = load_ids()
     ids[pid] = "".join(ch for ch in aid if ch.isdigit())
     save_ids(ids)
@@ -333,10 +375,10 @@ def load_image_ids():
 
 
 def cmd_record_image(args):
-    """record-image <patron_id> <imageId>: the Image asset id inside a patron's Decal."""
+    """record-image <patron_id> <imageId>: the Image asset id inside an entry's Decal."""
     pid, aid = args.file, args.extra
     if not pid or not aid:
-        sys.exit("usage: record-image <patron_id> <imageId>")
+        sys.exit("usage: record-image <id> <imageId>")
     m = load_image_ids()
     m[pid] = "".join(ch for ch in aid if ch.isdigit())
     OUT.mkdir(parents=True, exist_ok=True)
@@ -349,14 +391,14 @@ def cmd_lua(_args):
     imgs = load_image_ids()
     unresolved = [p for p in ids if p not in imgs]
     if unresolved:
-        print(f"WARNING: {len(unresolved)} patron(s) have a Decal id but no resolved Image id "
+        print(f"WARNING: {len(unresolved)} {CATEGORY} id(s) have a Decal id but no resolved Image id "
               f"(they will NOT load in ImageLabels): {', '.join(unresolved)}")
     ids = {p: imgs[p] for p in ids if p in imgs}
     lines = [
         "--[[",
-        "\tShared/Engine/PatronArt.lua",
-        "\tGENERATED by tools/patron_art/generate_patron_art.py -- do not hand-edit.",
-        "\tMaps patron id -> rbxassetid. UI should fall back to the patron's emoji icon",
+        f"\tShared/Engine/{LUA.name}",
+        f"\tGENERATED by tools/patron_art/generate_patron_art.py (--category {CATEGORY}) -- do not hand-edit.",
+        f"\tMaps {LABEL.lower()} id -> rbxassetid. UI should fall back to the entry's emoji icon",
         "\twhen an id is missing from this table.",
         "]]",
         "",
@@ -366,7 +408,7 @@ def cmd_lua(_args):
         lines.append(f'\t["{pid}"] = "rbxassetid://{ids[pid]}",')
     lines.append("}")
     LUA.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {LUA} with {len(ids)} patrons")
+    print(f"wrote {LUA} with {len(ids)} {CATEGORY}")
 
 
 def cmd_import_ids(args):
@@ -379,24 +421,49 @@ def cmd_import_ids(args):
     print(f"{len(ids)} ids saved")
 
 
+def cmd_estimate(_args):
+    """Image counts and cost at the current IMAGE_QUALITY. No API calls."""
+    data = load_prompts()
+    quality = os.environ.get("IMAGE_QUALITY", "medium")
+    per = COST_PER_IMAGE.get(quality, COST_PER_IMAGE["medium"])
+    print(f"IMAGE_QUALITY={quality}  (~${per:.3f}/image, rough; check platform.openai.com/pricing)")
+    total_all = todo_all = 0
+    for name in CATEGORIES:
+        set_category(name)
+        ids, state = load_ids(), load_state()
+        subs = subjects(data)
+        todo = sum(1 for pid in subs if not (OUT / f"{pid}.png").exists())
+        stale = sum(1 for pid in subs if (OUT / f"{pid}.png").exists()
+                    and state.get(pid, {}).get("prompt") != prompt_hash(data, pid))
+        total_all += len(subs)
+        todo_all += todo
+        print(f"  {name:12} {len(subs):3} prompts, {todo:3} to generate (~${todo * per:.2f}), {stale} stale")
+    print(f"  {'TOTAL':12} {total_all:3} prompts, {todo_all:3} to generate (~${todo_all * per:.2f})")
+
+
 def main():
     load_env()
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image"])
+    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
+    ap.add_argument("--category", "-c", default="patrons", choices=list(CATEGORIES),
+                    help="patrons (default), bosses, recipes, housepasses or titles")
     ap.add_argument("--workers", type=int, default=4, help="parallel requests for generate/upload (default 4)")
     ap.add_argument("--stale", action="store_true", help="also regenerate images whose prompt changed")
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
+    set_category(a.category)
     if a.cmd == "generate":
         cmd_generate(a)
     elif a.cmd == "upload":
         cmd_upload(a)
     elif a.cmd == "lua":
         cmd_lua(a)
+    elif a.cmd == "estimate":
+        cmd_estimate(a)
     elif a.cmd == "status":
         cmd_status(a)
     elif a.cmd == "queue":

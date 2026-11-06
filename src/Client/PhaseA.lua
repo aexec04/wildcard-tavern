@@ -92,6 +92,9 @@ return function(deps)
 
 	local lastBossKey = nil
 	local bossToken = 0
+	local PatronPlaque = require(script.Parent.PatronPlaque)
+	local ContentArtPA = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+	local bossPortrait = nil -- the boss art shown above the banner, if an id exists
 
 	local function announceBossIfNew(state)
 		if not state or not state.bossModifier then
@@ -104,6 +107,22 @@ return function(deps)
 		lastBossKey = key
 		bossToken = bossToken + 1
 		local myToken = bossToken
+
+		if bossPortrait then bossPortrait:Destroy() bossPortrait = nil end
+		local bossArtId = ContentArtPA.getImageId("boss_rounds", state.bossModifier.id)
+		local portrait = bossArtId and PatronPlaque.applyById(root, bossArtId, {
+			size = UDim2.fromOffset(130, 130),
+			anchor = Vector2.new(0.5, 1),
+			position = UDim2.new(0.5, 0, 0.38, -44),
+			zIndex = 37,
+			cornerRadius = 16,
+		})
+		if portrait then
+			portrait.Name = "BossIntroArt"
+			portrait.ImageTransparency = 1
+			bossPortrait = portrait
+			tweenTo(portrait, { ImageTransparency = 0 }, 0.12)
+		end
 
 		banner.Text = string.format("👑 BOSS ROUND\n%s", state.bossModifier.name)
 		banner.TextTransparency = 1
@@ -126,6 +145,13 @@ return function(deps)
 		task.delay(1.3, function()
 			if bossToken == myToken then
 				tweenTo(banner, { TextTransparency = 1 }, 0.4)
+				if portrait then
+					tweenTo(portrait, { ImageTransparency = 1 }, 0.4)
+					task.delay(0.45, function()
+						if portrait.Parent then portrait:Destroy() end
+						if bossPortrait == portrait then bossPortrait = nil end
+					end)
+				end
 			end
 		end)
 	end

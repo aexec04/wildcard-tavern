@@ -53,6 +53,8 @@ return function(deps)
 	local Achievements = require(Engine:WaitForChild("Achievements"))
 	local PlayerProfile = require(Engine:WaitForChild("PlayerProfile"))
 	local ClientSettings = require(script.Parent.ClientSettings)
+	local PatronPlaque = require(script.Parent.PatronPlaque)
+	local ContentArtJMV = require(Engine:WaitForChild("ContentArt"))
 	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
 
 	local function rgb(t)
@@ -583,6 +585,22 @@ return function(deps)
 		end
 		swatchIcon.TextTransparency = isEarned and 0 or 0.5
 		swatchIcon.TextStrokeTransparency = 1
+
+		-- Title rewards: show the Title's art when it has one (emoji otherwise).
+		swatchIcon.Visible = true
+		local oldArt = swatch:FindFirstChild("EntryArt")
+		if oldArt then oldArt:Destroy() end
+		do
+			local artId = ContentArtJMV.getImageId("titles", reward.id)
+			if artId then
+				PatronPlaque.applyById(swatch, artId, {
+					emojiLabel = swatchIcon,
+					dim = not isEarned,
+					zIndex = 44,
+					cornerRadius = 8,
+				})
+			end
+		end
 
 		if isEarned then
 			local equipped = equippedNow(view, reward)

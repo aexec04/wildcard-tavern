@@ -4557,6 +4557,27 @@ table.insert(tests, { name = "CollectionBook.grantMilestones: a big jump claims 
 	expectEqual(CollectionBook.nextMilestone(profile.claimedMilestoneIds).id, "complete")
 end })
 
+table.insert(tests, { name = "Generated art maps only reference real registry ids and rbxassetid strings", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local maps = {
+		patrons = require(Engine.PatronArt),
+		bosses = require(Engine.BossRoundArt),
+		recipes = require(Engine.RecipeArt),
+		housePasses = require(Engine.HousePassArt),
+		titles = require(Engine.TitleArt),
+	}
+	for tabId, map in pairs(maps) do
+		local known = {}
+		for _, item in ipairs(CollectionBook.itemsFor(tabId)) do known[item.id] = true end
+		for id, assetId in pairs(map) do
+			expectTrue(known[id], tabId .. " art has unknown id: " .. tostring(id))
+			expectTrue(type(assetId) == "string" and assetId:match("^rbxassetid://%d+$") ~= nil,
+				tabId .. " art id malformed for " .. tostring(id))
+			expectTrue(assetId ~= "rbxassetid://0", tabId .. " art placeholder 0 for " .. tostring(id))
+		end
+	end
+end })
+
 table.insert(tests, { name = "CollectionBook.setsFromLists matches discoveredSetsFor (client vs server view)", fn = function()
 	local profile = PlayerProfile.new()
 	discoverFirst(profile, 70)

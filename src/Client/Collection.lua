@@ -54,6 +54,7 @@ return function(deps)
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
@@ -372,12 +373,12 @@ return function(deps)
 		cardStroke.Color = found and rgb(rarity.color) or Color3.fromRGB(60, 55, 50)
 		cardKind.TextColor3 = found and rgb(rarity.color) or DIM
 
-		-- Patron detail art: overlay a portrait in the icon area; clear any
-		-- leftover art from a previously opened patron.
-		local prevArt = card:FindFirstChild("PatronDetailArt")
+		-- Detail card art: overlay a portrait for any tab that has art.
+		local prevArt = card:FindFirstChild("ContentDetailArt")
 		if prevArt then prevArt:Destroy() end
-		if item.tab == "patrons" then
-			local detailArt = PatronPlaqueModule.apply(card, item.id, {
+		do
+			local artId = ContentArt.getImageId(item.tab, item.id)
+			local detailArt = artId and PatronPlaqueModule.applyById(card, artId, {
 				emojiLabel = cardIcon,
 				dim = not found,
 				zIndex = 33,
@@ -386,7 +387,7 @@ return function(deps)
 				position = UDim2.new(0.5, -30, 0, 16),
 			})
 			if detailArt then
-				detailArt.Name = "PatronDetailArt"
+				detailArt.Name = "ContentDetailArt"
 			end
 		end
 
@@ -475,13 +476,16 @@ return function(deps)
 			icon.TextTransparency = 0.55
 			icon.TextStrokeTransparency = 1
 		end
-		if item.tab == "patrons" then
-			PatronPlaqueModule.apply(iconWell, item.id, {
-				emojiLabel = icon,
-				dim = not found,
-				zIndex = 24,
-				cornerRadius = 30,
-			})
+		do
+			local artId = ContentArt.getImageId(item.tab, item.id)
+			if artId then
+				PatronPlaqueModule.applyById(iconWell, artId, {
+					emojiLabel = icon,
+					dim = not found,
+					zIndex = 24,
+					cornerRadius = 30,
+				})
+			end
 		end
 		if not found then
 			label(iconWell, {

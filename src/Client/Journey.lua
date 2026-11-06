@@ -861,6 +861,33 @@ return function(deps)
 		else
 			journeyBossInfoLabel.Text = "This Night's Boss hasn't been revealed yet."
 		end
+
+		-- Boss portrait on the right of the bar; no art id = text only.
+		do
+			local PatronPlaque = require(script.Parent.PatronPlaque)
+			local ContentArtJ = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+			local mod = bossRoundsEnabled and latestState and latestState.nightBossModifier or nil
+			local art = journeyInfoBar:FindFirstChild("BossArt")
+			if art and art:GetAttribute("BossId") ~= (mod and mod.id) then
+				art:Destroy()
+				art = nil
+			end
+			if mod and not art then
+				local artId = ContentArtJ.getImageId("boss_rounds", mod.id)
+				art = artId and PatronPlaque.applyById(journeyInfoBar, artId, {
+					size = UDim2.fromOffset(72, 72),
+					position = UDim2.new(1, -84, 0.5, -36),
+					zIndex = 23,
+					cornerRadius = 10,
+					ring = true,
+				})
+				if art then
+					art.Name = "BossArt"
+					art:SetAttribute("BossId", mod.id)
+				end
+			end
+			journeyBossInfoLabel.Size = art and UDim2.new(1, -108, 1, -16) or UDim2.new(1, -24, 1, -16)
+		end
 	end
 
 	local journeyCloseButton = Instance.new("TextButton")

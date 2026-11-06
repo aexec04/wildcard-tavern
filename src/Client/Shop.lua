@@ -165,6 +165,8 @@ return function(deps)
 	local MarkTutorialSeenRemote = deps.MarkTutorialSeenRemote
 
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
+	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -561,7 +563,9 @@ return function(deps)
 	-- needs it explicitly rather than inheriting shopFrame's ZIndex). The
 	-- target picker's own controls (built inside the do block, where
 	-- PANEL_ZINDEX = 7 IS in scope) don't use this function.
-	local function makePatronIconBadge(parent, icon, patronId)
+	-- patronId: patron id for PatronArt lookup (patron offers, My Patrons).
+	-- contentId + contentTab: for non-patron art (recipes, house passes) via ContentArt.
+	local function makePatronIconBadge(parent, icon, patronId, contentId, contentTab)
 		local badge = Instance.new("TextLabel")
 		badge.Size = UDim2.new(0, 46, 0, 46)
 		badge.Position = UDim2.new(0, 8, 0.5, -23)
@@ -572,10 +576,12 @@ return function(deps)
 		badge.ZIndex = 6
 		badge.Parent = parent
 		roundCorner(badge, 10)
-		if patronId then
-			-- The art is a child of badge (survives Clone); PatronPlaque blanks
-			-- the badge text instead of hiding the badge once the image loads.
-			PatronPlaqueModule.apply(badge, patronId, {
+		-- Art is a child of badge (survives Clone); PatronPlaque blanks the badge
+		-- text rather than hiding the badge so the art stays visible.
+		local artId = (contentId and contentTab and ContentArt.getImageId(contentTab, contentId))
+			or (patronId and ContentArt.getImageId("patrons", patronId))
+		if artId then
+			PatronPlaqueModule.applyById(badge, artId, {
 				emojiLabel = badge,
 				zIndex = 7,
 				cornerRadius = 10,
@@ -808,8 +814,12 @@ return function(deps)
 			itemButton.Parent = packItemsRow
 			polishPanel(itemButton, 10)
 			-- Patron items: overlay art in the icon area at the top of the button.
-			if item.id then
+			local packArtCategory = (item.category == "patron" and "patrons")
+				or ((item.category == "house" or item.category == "menu" or item.category == "secret") and "recipes")
+				or nil
+			if item.id and packArtCategory then
 				PatronPlaqueModule.apply(itemButton, item.id, {
+					category = packArtCategory,
 					size = UDim2.fromOffset(60, 60),
 					position = UDim2.new(0.5, -30, 0, 8),
 					zIndex = 8,
@@ -1091,7 +1101,7 @@ return function(deps)
 				end
 				playSfx(SOUND_IDS.buyPatron)
 				BuyHousePassRemote:FireServer(offer.id)
-			end))
+			end, offer.id, "housePasses"))
 		end
 
 		-- ----- Patron offers -----
@@ -1161,7 +1171,7 @@ return function(deps)
 	-- A passive (no button) info row -- used for the House Passes section
 	-- below, where ownership is permanent for the run and there's nothing
 	-- to click.
-	local function addInfoRow(parent, layoutOrder, icon, name, description)
+	local function addInfoRow(parent, layoutOrder, icon, name, description, contentId, contentTab)
 		local row = Instance.new("Frame")
 		row.LayoutOrder = layoutOrder
 		row.Size = UDim2.new(1, 0, 0, 56)
@@ -1170,7 +1180,7 @@ return function(deps)
 		row.Parent = parent
 		polishPanel(row, 10)
 
-		makePatronIconBadge(row, icon)
+		makePatronIconBadge(row, icon, nil, contentId, contentTab)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -74, 1, -8)
@@ -1294,7 +1304,7 @@ return function(deps)
 			for _, passId in ipairs(housePassIds) do
 				local pass = HousePasses.getById(passId)
 				if pass then
-					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description)
+					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description, pass.id, "house_passes")
 				end
 			end
 		end
@@ -1393,7 +1403,7 @@ return function(deps)
 						row.Parent = shopMyRecipesListFrame
 						polishPanel(row, 10)
 
-						makePatronIconBadge(row, recipe.icon)
+						makePatronIconBadge(row, recipe.icon, nil, recipe.id, "recipes")
 
 						local label = Instance.new("TextLabel")
 						label.Size = UDim2.new(1, -170, 1, -8)

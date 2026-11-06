@@ -76,6 +76,27 @@ return function(deps)
 	local tweenTo = deps.tweenTo
 	local addTooltip = deps.addTooltip
 	local BossRounds = deps.BossRounds
+	local PatronPlaque = require(script.Parent.PatronPlaque)
+	local ContentArtRS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+
+	-- Boss portrait beside the rule text. Art is a child of the panel (not the
+	-- label) and is only rebuilt when the boss id changes. No art id = text only.
+	local function setBossArt(entry, bossId)
+		if entry.bossArtId == bossId then return end
+		entry.bossArtId = bossId
+		local old = entry.panel:FindFirstChild("BossArt")
+		if old then old:Destroy() end
+		local artId = bossId and ContentArtRS.getImageId("boss_rounds", bossId)
+		local art = artId and PatronPlaque.applyById(entry.panel, artId, {
+			size = UDim2.fromOffset(64, 64),
+			position = UDim2.new(1, -74, 0, 122),
+			zIndex = 9,
+			cornerRadius = 10,
+			ring = true,
+		})
+		if art then art.Name = "BossArt" end
+		entry.bossLabel.Size = art and UDim2.new(1, -94, 0, 78) or UDim2.new(1, -20, 0, 78)
+	end
 	local RunStateEngine = deps.RunStateEngine
 	local SelectRoundRemote = deps.SelectRoundRemote
 	local SkipRoundRemote = deps.SkipRoundRemote
@@ -429,6 +450,9 @@ return function(deps)
 				entry.statusLabel.Text = "Up next"
 				entry.panel.BackgroundColor3 = Color3.fromRGB(50, 40, 30)
 			end
+
+			local shownBoss = isBossRound and (state.nightBossModifier or state.bossModifier) or nil
+			setBossArt(entry, shownBoss and shownBoss.id or nil)
 
 			if isBossRound then
 				entry.bossLabel.Visible = true
