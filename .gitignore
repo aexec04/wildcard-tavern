@@ -22,3 +22,6 @@ art-wip/
 Claude outputs/
 tools/rojo-bin/
 .Rhistory
+
+# Patron art pipeline secrets (API keys). Never commit.
+tools/patron_art/.env

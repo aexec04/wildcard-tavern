@@ -27,3 +27,6 @@ Roblox poker-hand roguelike deckbuilder. Read `claude/STATUS.md` first for curre
 - Kid-safe names only. No alcohol references.
 - Never use the word "Balatro" anywhere in the game, assets, or Roblox page. Never copy its art, text, or code. Mechanics are fine.
 - Registries in `src/Shared/Engine/` (Patrons, BossRounds, Recipes, Packs, HousePasses, Tags, CosmeticSets, Achievements) are the source of truth for content. Do not hardcode content lists in UI code.
+
+## Patron art pipeline
+`/patron-art` runs it end to end (see `.claude/commands/patron-art.md`). Prompts: `tools/patron_art/prompts.json`. Output map: `src/Shared/Engine/PatronArt.lua` (generated, never hand-edit; UI falls back to the Patron's emoji icon when an id is missing). New Patrons need a prompts.json entry.
