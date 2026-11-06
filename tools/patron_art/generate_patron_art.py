@@ -28,6 +28,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 HERE = ROOT / "tools" / "patron_art"
 OUT = ROOT / "art-wip" / "patrons"      # gitignored
 IDS = OUT / "ids.json"
+IMAGE_IDS = OUT / "image-ids.json"   # patron id -> IMAGE asset id (the Decal wraps it; ImageLabel needs this one)
 STATE = OUT / "state.json"   # per patron: prompt hash at generation, image hash at upload
 LUA = ROOT / "src" / "Shared" / "Engine" / "PatronArt.lua"
 
@@ -273,8 +274,30 @@ def cmd_record(args):
     print(f"recorded {pid} -> {ids[pid]}")
 
 
+def load_image_ids():
+    return json.loads(IMAGE_IDS.read_text()) if IMAGE_IDS.exists() else {}
+
+
+def cmd_record_image(args):
+    """record-image <patron_id> <imageId>: the Image asset id inside a patron's Decal."""
+    pid, aid = args.file, args.extra
+    if not pid or not aid:
+        sys.exit("usage: record-image <patron_id> <imageId>")
+    m = load_image_ids()
+    m[pid] = "".join(ch for ch in aid if ch.isdigit())
+    OUT.mkdir(parents=True, exist_ok=True)
+    IMAGE_IDS.write_text(json.dumps(m, indent=2, sort_keys=True))
+    print(f"recorded image {pid} -> {m[pid]}")
+
+
 def cmd_lua(_args):
     ids = load_ids()
+    imgs = load_image_ids()
+    unresolved = [p for p in ids if p not in imgs]
+    if unresolved:
+        print(f"WARNING: {len(unresolved)} patron(s) have a Decal id but no resolved Image id "
+              f"(they will NOT load in ImageLabels): {', '.join(unresolved)}")
+    ids = {p: imgs[p] for p in ids if p in imgs}
     lines = [
         "--[[",
         "\tShared/Engine/PatronArt.lua",
@@ -305,7 +328,7 @@ def cmd_import_ids(args):
 def main():
     load_env()
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record"])
+    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
     ap.add_argument("--stale", action="store_true", help="also regenerate images whose prompt changed")
@@ -325,6 +348,8 @@ def main():
         cmd_queue(a)
     elif a.cmd == "record":
         cmd_record(a)
+    elif a.cmd == "record-image":
+        cmd_record_image(a)
     elif a.cmd == "import-ids":
         cmd_import_ids(a)
     else:

@@ -51,6 +51,7 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local OverlayManager = require(script.Parent.OverlayManager)
+	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 
@@ -369,6 +370,23 @@ return function(deps)
 		cardStroke.Color = found and rgb(rarity.color) or Color3.fromRGB(60, 55, 50)
 		cardKind.TextColor3 = found and rgb(rarity.color) or DIM
 
+		-- Patron detail art: overlay a portrait in the icon area; clear any
+		-- leftover art from a previously opened patron.
+		local prevArt = card:FindFirstChild("PatronDetailArt")
+		if prevArt then prevArt:Destroy() end
+		if found and item.tab == "patrons" then
+			local detailArt = PatronPlaqueModule.apply(card, item.id, {
+				emojiLabel = cardIcon,
+				zIndex = 33,
+				cornerRadius = 10,
+				size = UDim2.fromOffset(60, 60),
+				position = UDim2.new(0.5, -30, 0, 16),
+			})
+			if detailArt then
+				detailArt.Name = "PatronDetailArt"
+			end
+		end
+
 		if found then
 			cardName.Text = item.tab == "titles" and ('"' .. def.title .. '"') or def.name
 			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
@@ -459,6 +477,12 @@ return function(deps)
 			veil.ZIndex = 24
 			veil.Parent = iconWell
 			roundCorner(veil, 30)
+		elseif item.tab == "patrons" then
+			PatronPlaqueModule.apply(iconWell, item.id, {
+				emojiLabel = icon,
+				zIndex = 24,
+				cornerRadius = 30,
+			})
 		end
 
 		label(tile, {

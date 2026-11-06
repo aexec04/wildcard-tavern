@@ -2298,6 +2298,7 @@ local function render(state)
 	-- seat; slots past the current limit are hidden entirely so the row
 	-- never implies more capacity than you actually have.
 	do
+		local PatronPlaqueModule = require(script.PatronPlaque)
 		local ownedPatrons = state.ownedPatrons or {}
 		local slotLimit = math.min(state.patronSlotLimit or #ownedPatrons, MAX_SIDEBAR_PATRON_SLOTS)
 		for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
@@ -2312,6 +2313,7 @@ local function render(state)
 						slot.frame.BackgroundColor3 = Color3.fromRGB(78, 52, 26)
 						slot.label.TextColor3 = Color3.fromRGB(255, 222, 150)
 						slot.label.Text = owned.name:sub(1, 1)
+						PatronPlaqueModule.updateSlot(slot, owned.id)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
 						-- one-off scale pop (popScale -- NOT pulseFrame, since
 						-- this frame's BackgroundColor3 is already meaningful
@@ -2321,6 +2323,7 @@ local function render(state)
 							popScale(slot.frame, 1.35, 0.3)
 						end
 					else
+						PatronPlaqueModule.updateSlot(slot, nil)
 						slot.frame.BackgroundColor3 = Color3.fromRGB(22, 15, 9)
 						slot.label.TextColor3 = Color3.fromRGB(200, 168, 105)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore

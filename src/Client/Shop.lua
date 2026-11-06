@@ -164,6 +164,8 @@ return function(deps)
 	local tutorialSidebarHandsDiscardsBox = deps.sidebarHandsDiscardsBox
 	local MarkTutorialSeenRemote = deps.MarkTutorialSeenRemote
 
+	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
+
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
 	-- is one tab among several, and "My Patrons"/"My Recipes" are where you
@@ -559,7 +561,7 @@ return function(deps)
 	-- needs it explicitly rather than inheriting shopFrame's ZIndex). The
 	-- target picker's own controls (built inside the do block, where
 	-- PANEL_ZINDEX = 7 IS in scope) don't use this function.
-	local function makePatronIconBadge(parent, icon)
+	local function makePatronIconBadge(parent, icon, patronId)
 		local badge = Instance.new("TextLabel")
 		badge.Size = UDim2.new(0, 46, 0, 46)
 		badge.Position = UDim2.new(0, 8, 0.5, -23)
@@ -570,6 +572,13 @@ return function(deps)
 		badge.ZIndex = 6
 		badge.Parent = parent
 		roundCorner(badge, 10)
+		if patronId then
+			PatronPlaqueModule.apply(badge, patronId, {
+				emojiLabel = badge,
+				zIndex = 7,
+				cornerRadius = 10,
+			})
+		end
 		return badge
 	end
 
@@ -796,6 +805,15 @@ return function(deps)
 			itemButton.ZIndex = 7
 			itemButton.Parent = packItemsRow
 			polishPanel(itemButton, 10)
+			-- Patron items: overlay art in the icon area at the top of the button.
+			if item.id then
+				PatronPlaqueModule.apply(itemButton, item.id, {
+					size = UDim2.fromOffset(60, 60),
+					position = UDim2.new(0.5, -30, 0, 8),
+					zIndex = 8,
+					cornerRadius = 10,
+				})
+			end
 
 			itemButton.MouseButton1Click:Connect(function()
 				if pendingPackSelected[index] then
@@ -855,7 +873,7 @@ return function(deps)
 	-- header regardless of when it was actually added ("Frame" < "TextLabel"
 	-- alphabetically). Every element parented into shopBuyListFrame or
 	-- shopMyRecipesListFrame must get an explicit, sequential LayoutOrder.
-	local function addOfferRow(parent, layoutOrder, icon, name, price, description, buttonText, buttonEnabled, onClick)
+	local function addOfferRow(parent, layoutOrder, icon, name, price, description, buttonText, buttonEnabled, onClick, patronId)
 		local row = Instance.new("Frame")
 		row.LayoutOrder = layoutOrder
 		row.Size = UDim2.new(1, 0, 0, 64)
@@ -864,7 +882,7 @@ return function(deps)
 		row.Parent = parent
 		polishPanel(row, 10)
 
-		makePatronIconBadge(row, icon)
+		makePatronIconBadge(row, icon, patronId)
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -170, 1, -8)
@@ -1107,7 +1125,7 @@ return function(deps)
 						end
 						playSfx(SOUND_IDS.buyPatron)
 						BuyPatronRemote:FireServer(offer.id)
-					end))
+					end, offer.id))
 			end
 		end
 
@@ -1213,7 +1231,7 @@ return function(deps)
 				row.Parent = shopMyPatronsListFrame
 				polishPanel(row, 10)
 
-				makePatronIconBadge(row, fullPatron and fullPatron.icon)
+				makePatronIconBadge(row, fullPatron and fullPatron.icon, owned.id)
 
 				local label = Instance.new("TextLabel")
 				label.Size = UDim2.new(1, -190, 1, -8)
