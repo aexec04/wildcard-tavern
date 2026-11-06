@@ -366,7 +366,9 @@ return function(deps)
 		local def = item.def
 
 		cardIcon.Text = iconFor(item)
-		cardIcon.TextTransparency = found and 0 or 0.85
+		cardIcon.Visible = true
+		cardIcon.TextTransparency = found and 0 or 0.55
+		cardIcon.TextStrokeTransparency = 1
 		cardStroke.Color = found and rgb(rarity.color) or Color3.fromRGB(60, 55, 50)
 		cardKind.TextColor3 = found and rgb(rarity.color) or DIM
 
@@ -374,9 +376,10 @@ return function(deps)
 		-- leftover art from a previously opened patron.
 		local prevArt = card:FindFirstChild("PatronDetailArt")
 		if prevArt then prevArt:Destroy() end
-		if found and item.tab == "patrons" then
+		if item.tab == "patrons" then
 			local detailArt = PatronPlaqueModule.apply(card, item.id, {
 				emojiLabel = cardIcon,
+				dim = not found,
 				zIndex = 33,
 				cornerRadius = 10,
 				size = UDim2.fromOffset(60, 60),
@@ -471,15 +474,19 @@ return function(deps)
 			-- TextTransparency dims emojis even though TextColor3 doesn't.
 			icon.TextTransparency = 0.55
 			icon.TextStrokeTransparency = 1
-			label(iconWell, {
-				Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -16, 1, -16),
-				TextSize = 13, ZIndex = 25, Text = "🔒", BackgroundTransparency = 1,
-			})
-		elseif item.tab == "patrons" then
+		end
+		if item.tab == "patrons" then
 			PatronPlaqueModule.apply(iconWell, item.id, {
 				emojiLabel = icon,
+				dim = not found,
 				zIndex = 24,
 				cornerRadius = 30,
+			})
+		end
+		if not found then
+			label(iconWell, {
+				Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -16, 1, -16),
+				TextSize = 13, ZIndex = 26, Text = "🔒", BackgroundTransparency = 1,
 			})
 		end
 

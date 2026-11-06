@@ -45,6 +45,11 @@ function PatronPlaque.apply(frame, patronId, opts)
 	art.AnchorPoint = opts.anchor or Vector2.new(0, 0)
 	art.ZIndex = opts.zIndex or (frame.ZIndex + 1)
 	art.ImageTransparency = 0
+	if opts.dim then
+		-- Locked entries: still readable, just muted.
+		art.ImageColor3 = Color3.fromRGB(120, 110, 100)
+		art.ImageTransparency = 0.35
+	end
 
 	local r = opts.cornerRadius
 	if r == nil then r = 4 end
@@ -66,11 +71,20 @@ function PatronPlaque.apply(frame, patronId, opts)
 
 	local emojiLabel = opts.emojiLabel
 	task.defer(function()
-		while art.Parent and not art.IsLoaded do
+		local waited = 0
+		while art.Parent and not art.IsLoaded and waited < 12 do
 			task.wait(0.25)
+			waited += 0.25
 		end
 		if art.Parent and art.IsLoaded and emojiLabel then
-			emojiLabel.Visible = false
+			if art:IsDescendantOf(emojiLabel) then
+				-- The art lives inside the emoji label (Shop badge): hiding the
+				-- label would hide the art too, so blank its text instead.
+				emojiLabel.TextTransparency = 1
+				emojiLabel.TextStrokeTransparency = 1
+			else
+				emojiLabel.Visible = false
+			end
 		end
 	end)
 
