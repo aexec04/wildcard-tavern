@@ -1,5 +1,5 @@
 {
-  "style": "Hand-painted fantasy tavern character icon, warm candlelit palette of deep browns and amber with soft gold rim light, painterly brushwork, single subject centered with generous margin on a dark wood-brown vignette background, square composition, cozy and kid-friendly, no alcohol, no text, no letters, no frame or border, no copyrighted characters",
+  "style": "Stylized 3D render of a Roblox avatar character in classic Roblox avatar proportions: a cylindrical head with a simple smiley face, a blocky rectangular torso, separate blocky arms and legs with plain rectangular hands, smooth matte-plastic skin tones. It must NOT look like a LEGO minifigure: no studs on the head, no C-shaped claw hands, no minifigure legs. Dressed like Roblox catalog avatar items, with a distinct tavern-themed outfit, hat or hair, and accessories (capes, aprons, armor, wizard hats, instruments). Cozy medieval tavern setting with warm candlelight, wooden beams and amber glow, soft depth of field. Each character is a different archetype (knight, wizard, chef, bard, farmer, merchant, pirate, adventurer, and so on). If the subject is an object or place, show the avatar character proudly with it. Single subject centered with generous margin, square composition, cheerful and kid-friendly, no alcohol, no text, no letters, no logos, no Roblox logo, no frame or border",
   "subjects": {
     "the_regular": "a cheerful weary old regular sitting on a worn stool holding a steaming mug of cocoa",
     "lucky_dice": "a pair of glowing golden dice mid-roll with tiny sparkles and a four-leaf clover",
@@ -51,5 +51,7 @@
     "estate_sale": "a cheerful merchant behind a table of old trinkets and a hand-written 'for sale' tag with no readable text",
     "pair_bonds": "two friendly guests being introduced to each other by a third, tied together with a ribbon of cards",
     "veterans_table": "a gray-bearded veteran guest with medals and a thick storybook at a corner table lit by lantern"
-  }
+  },
+  "style_painterly_v1": "Hand-painted fantasy tavern character icon, warm candlelit palette of deep browns and amber with soft gold rim light, painterly brushwork, single subject centered with generous margin on a dark wood-brown vignette background, square composition, cozy and kid-friendly, no alcohol, no text, no letters, no frame or border, no copyrighted characters",
+  "style_blocky_v1": "Stylized 3D render of a chunky blocky toy-figure avatar character: rounded cylinder head with a simple friendly face, blocky torso, boxy arms and legs, glossy colorful plastic, like a collectible vinyl toy. Cozy medieval tavern setting with warm candlelight, wooden beams and amber glow, soft depth of field. Each character is a different archetype with its own outfit, hat and accessories (knight, wizard, chef, bard, farmer, merchant, pirate, robot, adventurer, and so on). If the subject is an object or place, show a blocky avatar character proudly with it. Single subject centered with generous margin, square composition, cheerful and kid-friendly, no alcohol, no text, no letters, no logos, no frame or border, no copyrighted characters"
 }

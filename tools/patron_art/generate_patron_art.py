@@ -222,9 +222,18 @@ def cmd_upload(args):
             ids[pid] = str(op["response"]["assetId"])
             save_ids(ids)
             _record_hash(pid)
+            _drop_image_id(pid)
             print(f"uploaded {pid} -> {ids[pid]}")
         else:
             print(f"NOT FINISHED/REJECTED {pid}: {json.dumps(op)[:300]}")
+
+
+def _drop_image_id(pid):
+    """A new upload is a new Decal, so any previously resolved Image id is stale."""
+    if IMAGE_IDS.exists():
+        m = json.loads(IMAGE_IDS.read_text())
+        if m.pop(pid, None) is not None:
+            IMAGE_IDS.write_text(json.dumps(m, indent=2, sort_keys=True))
 
 
 def _record_hash(pid):
@@ -269,6 +278,7 @@ def cmd_record(args):
     ids = load_ids()
     ids[pid] = "".join(ch for ch in aid if ch.isdigit())
     save_ids(ids)
+    _drop_image_id(pid)
     if (OUT / f"{pid}.png").exists():
         _record_hash(pid)
     print(f"recorded {pid} -> {ids[pid]}")
