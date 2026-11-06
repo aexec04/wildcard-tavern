@@ -573,8 +573,10 @@ return function(deps)
 		badge.Parent = parent
 		roundCorner(badge, 10)
 		if patronId then
+			-- Do not pass emojiLabel = badge: the art is a child of badge, so
+			-- hiding badge would hide the art too. The art overlays the emoji
+			-- visually at ZIndex 7 without needing to set badge.Visible = false.
 			PatronPlaqueModule.apply(badge, patronId, {
-				emojiLabel = badge,
 				zIndex = 7,
 				cornerRadius = 10,
 			})

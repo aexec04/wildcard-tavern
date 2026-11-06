@@ -458,8 +458,8 @@ return function(deps)
 		local iconWell = Instance.new("Frame")
 		iconWell.Size = UDim2.fromOffset(60, 60)
 		iconWell.Position = UDim2.new(0.5, -30, 0, 8)
-		iconWell.BackgroundColor3 = found and rgb(rarity.color) or Color3.fromRGB(10, 8, 7)
-		iconWell.BackgroundTransparency = found and 0.72 or 0
+		iconWell.BackgroundColor3 = found and rgb(rarity.color) or Color3.fromRGB(35, 28, 20)
+		iconWell.BackgroundTransparency = found and 0.72 or 0.35
 		iconWell.ZIndex = 22
 		iconWell.Parent = tile
 		roundCorner(iconWell, 30)
@@ -468,15 +468,13 @@ return function(deps)
 			Size = UDim2.fromScale(1, 1), TextSize = 34, ZIndex = 23, Text = iconFor(item),
 		})
 		if not found then
-			-- Emoji ignore TextColor3, so a near-black veil makes the silhouette.
-			icon.TextTransparency = 0
-			local veil = Instance.new("Frame")
-			veil.Size = UDim2.fromScale(1, 1)
-			veil.BackgroundColor3 = Color3.fromRGB(8, 6, 5)
-			veil.BackgroundTransparency = 0.12
-			veil.ZIndex = 24
-			veil.Parent = iconWell
-			roundCorner(veil, 30)
+			-- TextTransparency dims emojis even though TextColor3 doesn't.
+			icon.TextTransparency = 0.55
+			icon.TextStrokeTransparency = 1
+			label(iconWell, {
+				Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -16, 1, -16),
+				TextSize = 13, ZIndex = 25, Text = "🔒", BackgroundTransparency = 1,
+			})
 		elseif item.tab == "patrons" then
 			PatronPlaqueModule.apply(iconWell, item.id, {
 				emojiLabel = icon,
