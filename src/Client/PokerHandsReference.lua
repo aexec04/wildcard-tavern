@@ -68,12 +68,12 @@ return function(deps)
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local GOLD = Color3.fromRGB(255, 214, 130)
-	local EMBER = Color3.fromRGB(205, 75, 48)
+	local EMBER = Color3.fromRGB(240, 100, 75)
 	local MUTED = Color3.fromRGB(200, 185, 165)
 	local SUIT_SYMBOLS = { Hearts = "♥", Diamonds = "♦", Clubs = "♣", Spades = "♠" }
 	local RANK_TEXT = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
 	local ROW_COUNT = #HandEvaluator.HandOrder
-	local MIN_ROW, MAX_ROW = 34, 52
+	local MIN_ROW, MAX_ROW = 34, 60
 
 	-- Column layout (scale of row width): name, example cards, chips x mult, played.
 	local COL = {
@@ -95,8 +95,8 @@ return function(deps)
 	backdrop.Parent = screenGui
 
 	local panel = Instance.new("Frame")
-	panel.Size = UDim2.fromScale(0.6, 0.86)
-	panel.Position = UDim2.fromScale(0.2, 0.07)
+	panel.Size = UDim2.fromScale(0.62, 0.92)
+	panel.Position = UDim2.fromScale(0.19, 0.04)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.Active = true -- swallow clicks so only the backdrop outside closes
 	panel.ZIndex = 21
@@ -107,6 +107,21 @@ return function(deps)
 	sizeLimit.Parent = panel
 	polishPanel(panel, 16, "parchment")
 	addSoftShadow(panel, 18)
+	-- Same carved-wood plaque art the sidebar boxes use. Created before any
+	-- labels so it draws underneath them; code chrome hides once it loads.
+	do
+		local SkinArt = require(script.Parent.SkinArt)
+		local ArtAssets = require(script.Parent.ArtAssets)
+		local slice = SkinArt.Slices.plaque
+		SkinArt.apply(panel, ArtAssets.plaqueFrameArt, {
+			tint = SkinArt.Tints.plaque,
+			sliceCenter = slice.center,
+			sliceScale = slice.scale,
+			onLoaded = function()
+				SkinArt.hideCodeChrome(panel)
+			end,
+		})
+	end
 
 	-- ===== Header: ornate title =====
 	local function line(parent, pos, size, alpha, z)
@@ -125,18 +140,18 @@ return function(deps)
 	local title = Instance.new("TextLabel")
 	title.AnchorPoint = Vector2.new(0.5, 0)
 	title.Position = UDim2.new(0.5, 0, 0, 8)
-	title.Size = UDim2.new(0, 220, 0, 34)
+	title.Size = UDim2.new(0, 260, 0, 36)
 	title.BackgroundTransparency = 1
 	title.Font = Enum.Font.GothamBold
-	title.TextSize = 24
-	title.TextColor3 = CREAM
+	title.TextSize = 28
+	title.TextColor3 = GOLD
 	title.TextTransparency = 0
 	title.TextStrokeTransparency = 1
 	title.Text = "◆ Poker Hands ◆"
 	title.ZIndex = 22
 	title.Parent = panel
-	line(panel, UDim2.new(0, 24, 0, 25), UDim2.new(0.5, -144, 0, 2), 2, 0.35)
-	line(panel, UDim2.new(0.5, 124, 0, 25), UDim2.new(0.5, -148, 0, 2), 2, 0.35)
+	line(panel, UDim2.new(0, 24, 0, 25), UDim2.new(0.5, -144, 0, 2), 0.35, 22)
+	line(panel, UDim2.new(0.5, 124, 0, 25), UDim2.new(0.5, -148, 0, 2), 0.35, 22)
 
 	local header = Instance.new("Frame")
 	header.Position = UDim2.new(0, 14, 0, 46)
@@ -150,8 +165,8 @@ return function(deps)
 		label.Size = UDim2.new(col[2], -(inset or 0), 1, 0)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBold
-		label.TextSize = 13
-		label.TextColor3 = MUTED
+		label.TextSize = 15
+		label.TextColor3 = GOLD
 		label.TextTransparency = 0
 		label.TextStrokeTransparency = 1
 		label.TextXAlignment = align
@@ -168,7 +183,7 @@ return function(deps)
 	-- ===== List (scrolls only as a small-screen fallback) =====
 	local listFrame = Instance.new("ScrollingFrame")
 	listFrame.Position = UDim2.new(0, 14, 0, 74)
-	listFrame.Size = UDim2.new(1, -28, 1, -74 - 62)
+	listFrame.Size = UDim2.new(1, -28, 1, -74 - 66)
 	listFrame.BackgroundTransparency = 1
 	listFrame.BorderSizePixel = 0
 	listFrame.ScrollBarThickness = 5
@@ -183,17 +198,33 @@ return function(deps)
 	listLayout.Parent = listFrame
 
 	local closeButton = Instance.new("TextButton")
-	closeButton.Size = UDim2.new(0, 140, 0, 38)
-	closeButton.Position = UDim2.new(0.5, -70, 1, -50)
+	closeButton.Size = UDim2.new(0, 160, 0, 46)
+	closeButton.Position = UDim2.new(0.5, -80, 1, -56)
 	closeButton.Font = Enum.Font.GothamBold
 	closeButton.TextSize = 16
 	closeButton.Text = "Close"
 	closeButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	closeButton.TextColor3 = CREAM
-	closeButton.ZIndex = 22
+	closeButton.ZIndex = 23
 	closeButton.Parent = panel
 	polishButton(closeButton, 12)
 	addButtonHoverScale(closeButton)
+	do
+		-- Same button art as Play Hand / Discard. Art sits at ZIndex 22,
+		-- under the button's own text at 23.
+		local SkinArt = require(script.Parent.SkinArt)
+		local ArtAssets = require(script.Parent.ArtAssets)
+		local slice = SkinArt.Slices.button
+		SkinArt.apply(closeButton, ArtAssets.actionButtonArt, {
+			tint = SkinArt.Tints.button,
+			zIndex = 22,
+			sliceCenter = slice.center,
+			sliceScale = slice.scale,
+			onLoaded = function()
+				SkinArt.hideCodeChrome(closeButton)
+			end,
+		})
+	end
 
 	local function closePanel()
 		if backdrop.Visible then
@@ -239,10 +270,29 @@ return function(deps)
 		if available <= 0 then
 			return
 		end
+		local listW = listFrame.AbsoluteSize.X
 		local h = math.clamp(math.floor(available / ROW_COUNT), MIN_ROW, MAX_ROW)
+		-- Example cards: as tall as the row allows, but never wider than the
+		-- column holds all 5 of them (explicit pixel sizes; a 0-scale width
+		-- plus an aspect constraint collapsed them to nothing).
+		local gap = 3
+		local ch = math.floor(h * 0.84)
+		local maxW = math.floor((listW * COL.example[2] - gap * 4) / 5)
+		local cw = math.max(8, math.min(math.floor(ch * 0.7), maxW))
+		if cw < math.floor(ch * 0.7) then
+			ch = math.floor(cw / 0.7)
+		end
 		for _, row in pairs(rowsByHand) do
 			if row.Parent then
 				row.Size = UDim2.new(1, 0, 0, h)
+				local ex = row:FindFirstChild("Examples")
+				if ex then
+					for _, c in ipairs(ex:GetChildren()) do
+						if c:IsA("Frame") then
+							c.Size = UDim2.fromOffset(cw, ch)
+						end
+					end
+				end
 			end
 		end
 	end
@@ -273,6 +323,7 @@ return function(deps)
 			return
 		end
 		local container = Instance.new("Frame")
+		container.Name = "Examples"
 		container.Position = UDim2.new(COL.example[1], 0, 0, 0)
 		container.Size = UDim2.new(COL.example[2], 0, 1, 0)
 		container.BackgroundTransparency = 1
@@ -301,16 +352,12 @@ return function(deps)
 		for i, c in ipairs(cards) do
 			local card = Instance.new("Frame")
 			card.LayoutOrder = i
-			card.Size = UDim2.fromScale(0, 0.84)
+			card.Size = UDim2.fromOffset(20, 28) -- real size set in fitRows
 			card.BackgroundColor3 = Palette.colors.cardBase
 			card.BackgroundTransparency = (dim or (okEval and not scoring[c])) and 0.45 or 0
 			card.BorderSizePixel = 0
 			card.ZIndex = 22
 			card.Parent = container
-			local ratio = Instance.new("UIAspectRatioConstraint")
-			ratio.AspectRatio = 0.7
-			ratio.DominantAxis = Enum.DominantAxis.Height
-			ratio.Parent = card
 			local corner = Instance.new("UICorner")
 			corner.CornerRadius = UDim.new(0, 3)
 			corner.Parent = card
@@ -398,7 +445,7 @@ return function(deps)
 			if handName == topHand then
 				nameText = '<font color="rgb(255,214,130)">★</font> ' .. handName
 			end
-			local nameLabel = addText(row, COL.name, nameText, 14, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Left, 8, true)
+			local nameLabel = addText(row, COL.name, nameText, 17, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Left, 8, true)
 			nameLabel.TextTransparency = dim and 0.4 or 0
 
 			if level > 0 then
@@ -424,14 +471,14 @@ return function(deps)
 			buildExample(row, handName, dim)
 
 			local valueText = string.format(
-				'<font color="rgb(255,214,130)">%d</font> <font color="rgb(200,185,165)">x</font> <font color="rgb(205,75,48)">%d</font>',
+				'<font color="rgb(255,214,130)">%d</font> <font color="rgb(200,185,165)">x</font> <font color="rgb(240,100,75)">%d</font>',
 				chips,
 				mult
 			)
-			local valueLabel = addText(row, COL.value, valueText, 22, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Center, 0, true)
+			local valueLabel = addText(row, COL.value, valueText, 24, Enum.Font.GothamBold, CREAM, Enum.TextXAlignment.Center, 0, true)
 			valueLabel.TextTransparency = dim and 0.3 or 0
 
-			local playedLabel = addText(row, COL.played, string.format("%d", played), 16, Enum.Font.GothamBold, Color3.fromRGB(200, 220, 200), Enum.TextXAlignment.Right, 0, false)
+			local playedLabel = addText(row, COL.played, string.format("%d", played), 18, Enum.Font.GothamBold, Color3.fromRGB(200, 220, 200), Enum.TextXAlignment.Right, 0, false)
 			playedLabel.TextTransparency = dim and 0.5 or 0
 		end
 

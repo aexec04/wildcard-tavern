@@ -25,3 +25,6 @@ tools/rojo-bin/
 
 # Patron art pipeline secrets (API keys). Never commit.
 tools/patron_art/.env
+
+# Python bytecode cache
+tools/patron_art/__pycache__/
