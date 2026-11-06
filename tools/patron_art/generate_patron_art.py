@@ -13,7 +13,7 @@ Run from the project root on your Mac:
   python3 tools/patron_art/generate_patron_art.py record <id> <assetId>  # store an id uploaded via Studio
   python3 tools/patron_art/generate_patron_art.py import-ids ids.csv     # manual route: lines of "patron_id,assetId"
 
-Options: --only id1,id2   --limit N   --force (regenerate/re-upload)
+Options: --only id1,id2   --limit N   --force (regenerate/re-upload)   --stale   --workers N (default 4, parallel)
 
 Keys go in tools/patron_art/.env (gitignored), one per line:
   OPENAI_API_KEY=...
@@ -21,9 +21,11 @@ Keys go in tools/patron_art/.env (gitignored), one per line:
   ROBLOX_USER_ID=...        (or ROBLOX_GROUP_ID=... if the game is group-owned)
 Optional: IMAGE_MODEL (default gpt-image-1), IMAGE_QUALITY (default medium)
 """
-import argparse, base64, hashlib, json, os, pathlib, sys, time
+import argparse, base64, hashlib, json, os, pathlib, sys, threading, time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
+LOCK = threading.RLock()   # guards ids.json / state.json / image-ids.json when workers run in parallel
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 HERE = ROOT / "tools" / "patron_art"
 OUT = ROOT / "art-wip" / "patrons"      # gitignored
@@ -126,81 +128,98 @@ def pick(subjects, args):
     return keys[: args.limit] if args.limit else keys
 
 
+class Stop(Exception):
+    """A failure that affects every item (bad key, no credits): stop the whole run."""
+
+
+def _generate_one(pid, data, key, model, quality, args):
+    path = OUT / f"{pid}.png"
+    with LOCK:
+        stale = load_state().get(pid, {}).get("prompt") != prompt_hash(data, pid)
+    if path.exists() and not args.force and not (args.stale and stale):
+        print(f"skip {pid} (exists{', STALE: rerun with --stale' if stale else ''})")
+        return "skipped"
+    prompt = f"{data['style']}. Subject: {data['subjects'][pid]}."
+    for attempt in range(4):
+        r = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": model, "prompt": prompt, "size": "1024x1024", "quality": quality, "n": 1},
+            timeout=300,
+        )
+        if r.status_code == 200:
+            path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
+            with LOCK:
+                state = load_state()
+                state[pid] = {"prompt": prompt_hash(data, pid)}
+                save_state(state)
+            problems = qa(pid)
+            print(f"made {pid}" + (f"  QA: {problems}" if problems else ""), flush=True)
+            return "made"
+        body = r.text[:400]
+        low = body.lower()
+        if r.status_code in (401, 403) or "credit" in low or "billing" in low or "insufficient_quota" in low:
+            raise Stop(f"STOPPED at {pid}: HTTP {r.status_code}: {body}\n"
+                       "Check the key and add credits at platform.openai.com/settings/organization/billing")
+        if r.status_code in (429, 500, 502, 503) and attempt < 3:
+            print(f"  {pid}: HTTP {r.status_code}, retrying in {5 * (attempt + 1)}s", flush=True)
+            time.sleep(5 * (attempt + 1))
+            continue
+        print(f"FAILED {pid}: HTTP {r.status_code} {body}", flush=True)
+        return "failed"
+    return "failed"
+
+
+def _run_parallel(fn, pids, workers):
+    """Run fn(pid) over pids with a thread pool. Returns (failed_ids, stop_message)."""
+    failed, stop = [], None
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+        futs = {ex.submit(fn, pid): pid for pid in pids}
+        for f in as_completed(futs):
+            try:
+                if f.result() == "failed":
+                    failed.append(futs[f])
+            except Stop as e:
+                stop = str(e)
+                for g in futs:
+                    g.cancel()
+    return failed, stop
+
+
 def cmd_generate(args):
     key = need("OPENAI_API_KEY")
     data = load_prompts()
     OUT.mkdir(parents=True, exist_ok=True)
     model = os.environ.get("IMAGE_MODEL", "gpt-image-1")
     quality = os.environ.get("IMAGE_QUALITY", "medium")
-    failed = []
-    for pid in pick(data["subjects"], args):
-        path = OUT / f"{pid}.png"
-        state = load_state()
-        stale = state.get(pid, {}).get("prompt") != prompt_hash(data, pid)
-        if path.exists() and not args.force and not (args.stale and stale):
-            print(f"skip {pid} (exists{', STALE: rerun with --stale' if stale else ''})")
-            continue
-        prompt = f"{data['style']}. Subject: {data['subjects'][pid]}."
-        for attempt in range(4):
-            r = requests.post(
-                "https://api.openai.com/v1/images/generations",
-                headers={"Authorization": f"Bearer {key}"},
-                json={"model": model, "prompt": prompt, "size": "1024x1024", "quality": quality, "n": 1},
-                timeout=180,
-            )
-            if r.status_code == 200:
-                path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
-                state = load_state()
-                state[pid] = {"prompt": prompt_hash(data, pid)}
-                save_state(state)
-                problems = qa(pid)
-                print(f"made {pid}" + (f"  QA: {problems}" if problems else ""))
-                break
-            body = r.text[:400]
-            low = body.lower()
-            if r.status_code in (401, 403) or "credit" in low or "billing" in low or "insufficient_quota" in low:
-                # Not retryable and affects every image: stop the whole run loudly.
-                sys.exit(f"STOPPED at {pid}: HTTP {r.status_code}: {body}\n"
-                         "Check the key and add credits at platform.openai.com/settings/organization/billing")
-            if r.status_code in (429, 500, 502, 503) and attempt < 3:
-                print(f"  {pid}: HTTP {r.status_code}, retrying in {5 * (attempt + 1)}s")
-                time.sleep(5 * (attempt + 1))
-                continue
-            print(f"FAILED {pid}: HTTP {r.status_code} {body}")
-            failed.append(pid)
-            break
-
-
+    pids = pick(data["subjects"], args)
+    failed, stop = _run_parallel(lambda pid: _generate_one(pid, data, key, model, quality, args), pids, args.workers)
+    if stop:
+        sys.exit(stop)
     if failed:
         sys.exit(f"{len(failed)} image(s) failed: {', '.join(failed)}")
 
 
-def cmd_upload(args):
-    key = need("ROBLOX_API_KEY")
-    if os.environ.get("ROBLOX_GROUP_ID"):
-        creator = {"groupId": os.environ["ROBLOX_GROUP_ID"]}
-    else:
-        creator = {"userId": need("ROBLOX_USER_ID")}
-    data = load_prompts()
-    ids = load_ids()
-    headers = {"x-api-key": key}
-    for pid in pick(data["subjects"], args):
-        png = OUT / f"{pid}.png"
-        if not png.exists():
-            print(f"no image yet: {pid}")
-            continue
-        if status_of(data, pid, ids, load_state()) == "done" and not args.force:
-            print(f"skip {pid} (already uploaded)")
-            continue
-        if qa(pid):
-            print(f"skip {pid}: QA failed {qa(pid)}")
-            continue
-        req = {
-            "assetType": "Decal",
-            "displayName": f"Patron {pid}",
-            "description": "Wildcard Tavern patron art",
-            "creationContext": {"creator": creator},
-        }
+def _upload_one(pid, data, headers, creator, args):
+    png = OUT / f"{pid}.png"
+    if not png.exists():
+        print(f"no image yet: {pid}")
+        return "skipped"
+    with LOCK:
+        st = status_of(data, pid, load_ids(), load_state())
+    if st == "done" and not args.force:
+        print(f"skip {pid} (already uploaded)")
+        return "skipped"
+    if qa(pid):
+        print(f"skip {pid}: QA failed {qa(pid)}")
+        return "skipped"
+    req = {
+        "assetType": "Decal",
+        "displayName": f"Patron {pid}",
+        "description": "Wildcard Tavern patron art",
+        "creationContext": {"creator": creator},
+    }
+    for attempt in range(4):
         r = requests.post(
             "https://apis.roblox.com/assets/v1/assets",
             headers=headers,
@@ -208,24 +227,49 @@ def cmd_upload(args):
                    "fileContent": (png.name, png.read_bytes(), "image/png")},
             timeout=120,
         )
-        if r.status_code != 200:
-            print(f"UPLOAD FAILED {pid}: {r.status_code} {r.text[:300]}")
+        if r.status_code == 200:
+            break
+        if r.status_code in (401, 403):
+            raise Stop(f"STOPPED at {pid}: HTTP {r.status_code}: {r.text[:300]}")
+        if r.status_code in (429, 500, 502, 503) and attempt < 3:
+            time.sleep(5 * (attempt + 1))
             continue
-        op = r.json()
-        path = op.get("path")
-        for _ in range(60):
-            if op.get("done"):
-                break
-            time.sleep(2)
-            op = requests.get(f"https://apis.roblox.com/assets/v1/{path}", headers=headers, timeout=60).json()
-        if op.get("done") and "response" in op:
+        print(f"UPLOAD FAILED {pid}: {r.status_code} {r.text[:300]}", flush=True)
+        return "failed"
+    op = r.json()
+    path = op.get("path")
+    for _ in range(90):
+        if op.get("done"):
+            break
+        time.sleep(2)
+        op = requests.get(f"https://apis.roblox.com/assets/v1/{path}", headers=headers, timeout=60).json()
+    if op.get("done") and "response" in op:
+        with LOCK:
+            ids = load_ids()
             ids[pid] = str(op["response"]["assetId"])
             save_ids(ids)
             _record_hash(pid)
             _drop_image_id(pid)
-            print(f"uploaded {pid} -> {ids[pid]}")
-        else:
-            print(f"NOT FINISHED/REJECTED {pid}: {json.dumps(op)[:300]}")
+        print(f"uploaded {pid} -> {ids[pid]}", flush=True)
+        return "made"
+    print(f"NOT FINISHED/REJECTED {pid}: {json.dumps(op)[:300]}", flush=True)
+    return "failed"
+
+
+def cmd_upload(args):
+    key = need("ROBLOX_API_KEY")
+    if os.environ.get("ROBLOX_GROUP_ID"):
+        creator = {"creator": {"groupId": os.environ["ROBLOX_GROUP_ID"]}}
+    else:
+        creator = {"creator": {"userId": need("ROBLOX_USER_ID")}}
+    data = load_prompts()
+    headers = {"x-api-key": key}
+    pids = pick(data["subjects"], args)
+    failed, stop = _run_parallel(lambda pid: _upload_one(pid, data, headers, creator["creator"], args), pids, args.workers)
+    if stop:
+        sys.exit(stop)
+    if failed:
+        sys.exit(f"{len(failed)} upload(s) failed or unfinished: {', '.join(failed)}")
 
 
 def _drop_image_id(pid):
@@ -341,6 +385,7 @@ def main():
     ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
+    ap.add_argument("--workers", type=int, default=4, help="parallel requests for generate/upload (default 4)")
     ap.add_argument("--stale", action="store_true", help="also regenerate images whose prompt changed")
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
