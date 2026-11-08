@@ -16,12 +16,16 @@
 local Engine = script.Parent
 
 local ContentArt = {
-	patrons     = require(Engine:WaitForChild("PatronArt")),
-	boss_rounds = require(Engine:WaitForChild("BossRoundArt")),
-	recipes     = require(Engine:WaitForChild("RecipeArt")),
+	patrons      = require(Engine:WaitForChild("PatronArt")),
+	boss_rounds  = require(Engine:WaitForChild("BossRoundArt")),
+	recipes      = require(Engine:WaitForChild("RecipeArt")),
 	house_passes = require(Engine:WaitForChild("HousePassArt")),
-	titles      = require(Engine:WaitForChild("TitleArt")),
+	titles       = require(Engine:WaitForChild("TitleArt")),
+	rooms        = require(Engine:WaitForChild("RoomArt")),
 }
+-- CollectionBook tab ids use different names; alias them so both work.
+ContentArt.bosses      = ContentArt.boss_rounds
+ContentArt.housePasses = ContentArt.house_passes
 
 function ContentArt.getImageId(tab, id)
 	local t = ContentArt[tab]
