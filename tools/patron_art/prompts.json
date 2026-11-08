@@ -364,7 +364,20 @@
     "wildflower_meadow": "a patch of bright wildflowers with a butterfly",
     "willow_bridge": "a small arched stone bridge over water",
     "mountain_pass": "a snowy peak with a winding trail",
-    "tavern_gate": "a lantern-lit stone gate arch"
+    "tavern_gate": "a lantern-lit stone gate arch",
+    "desert_dunes": "golden sand dunes with a small striped tent and a friendly camel silhouette",
+    "oasis_camp": "a little oasis with palm trees, a blue pool and a cozy camp",
+    "swamp_boardwalk": "a wooden boardwalk over a misty marsh with a hanging lantern",
+    "lilypad_pond": "a quiet pond with big lily pads, a small frog and glowing mushrooms",
+    "frosty_trail": "a snowy trail between pine trees with a lantern on a post",
+    "lighthouse_cove": "a small striped lighthouse on a rocky cove with gentle waves",
+    "side_shop": "a small market stall with a striped awning and a basket of goods",
+    "side_shrine": "a tiny stone shrine with a gold bell and a glowing candle",
+    "side_rest": "a cozy tent with a bedroll and a little campfire",
+    "game_dice": "two white dice with gold dots resting on a wooden table",
+    "game_cardflip": "three face-down playing cards fanned out, one corner turned up",
+    "game_lockpick": "a round brass lock with a small key and a gold dial",
+    "game_trivia": "a golden question mark on a parchment scroll"
   },
   "style_map_region": "Painted top-down parchment treasure-map scenery, ink-and-watercolor, warm candlelit amber tones, aged paper texture, a wide empty winding clearing across the middle left clear for a trail, the far left and far right edges fade out to plain parchment so tiles can join seamlessly, kid-friendly, no alcohol, no text, no letters, no numbers, no labels, no frame or border, no characters",
   "style_map_decor": "Single ink-and-watercolor map doodle in warm browns and amber with soft gold highlights, centered with generous margin on a plain dark brown background, square composition, kid-friendly, no text, no letters, no numbers, no frame or border",
@@ -375,7 +388,11 @@
     "region_road": "a sandy gravel road, dry grass, scattered stones, a wooden signpost and a campfire ring, beige and tan tones, seen from above",
     "region_meadow": "wildflower fields, hedgerows, and a walled lantern garden with fairy lights and flower beds, seen from above",
     "region_river": "a gentle winding river, willow trees, reeds and a stone bridge, seen from above",
-    "region_tavern": "a big cozy tavern on a hill with warm glowing windows, a lantern-lit gate, a courtyard and cobblestone steps, seen from above"
+    "region_tavern": "a big cozy tavern on a hill with warm glowing windows, a lantern-lit gate, a courtyard and cobblestone steps, seen from above",
+    "region_desert": "golden sand dunes with rippled sand, a small oasis with palm trees and a blue pool, striped market tents and a camel trail, warm gold and orange tones, seen from above",
+    "region_swamp": "a misty marsh with lily pads, reeds, wooden boardwalks, glowing mushrooms and small ponds, soft green and teal tones, seen from above",
+    "region_snow": "snowy hills with snow-covered pine trees, a frozen pond, a little cabin with a glowing window and lantern posts, pale blue and white tones, seen from above",
+    "region_coast": "a sandy beach and rocky coast with gentle waves, a striped lighthouse, little boats and a wooden pier, soft teal, sand and white tones, seen from above"
   },
   "map_decor_subjects": {
     "pine_tree": "a single pine tree",
@@ -385,7 +402,15 @@
     "compass_rose": "a compass rose with no letters",
     "bridge": "a small arched stone bridge",
     "mushroom_ring": "a ring of red mushrooms in the grass",
-    "lantern_post": "a lantern on a wooden post"
+    "lantern_post": "a lantern on a wooden post",
+    "cactus": "a friendly green cactus with a small pink flower",
+    "palm_tree": "a palm tree with a few coconuts",
+    "reed_cluster": "a cluster of green reeds with cattail tops",
+    "igloo": "a small snow igloo with a glowing doorway",
+    "sailboat": "a little wooden sailboat with a white sail",
+    "lighthouse": "a small red-and-white striped lighthouse",
+    "tent": "a small striped camping tent with a flag",
+    "seashell": "a pearly spiral seashell"
   },
   "fx_subjects": {
     "fog_puff": "procedural soft cream mist puff (make_fog_puff.py, seed 11)",
