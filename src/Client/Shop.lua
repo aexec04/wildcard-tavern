@@ -1203,7 +1203,7 @@ return function(deps)
 
 		local offerCardsThisRebuild = {}
 		if #lastCardSlots == 0 then
-			shopCards.note(shopBuyListFrame, order(), "No new Patrons to offer this visit -- you've met everyone available so far!")
+			shopCards.emptyScene(shopBuyListFrame, order(), "offers")
 		else
 			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("patron"))
 			for index, slotInfo in ipairs(lastCardSlots) do
@@ -1314,7 +1314,7 @@ return function(deps)
 		end
 
 		if #ownedPatrons == 0 then
-			shopCards.note(shopMyPatronsListFrame, order(), "No Patrons yet -- buy some in the Shop tab!")
+			shopCards.emptyScene(shopMyPatronsListFrame, order(), "patrons")
 		else
 			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
 			for index, owned in ipairs(ownedPatrons) do
@@ -1348,7 +1348,7 @@ return function(deps)
 			end
 		end
 		if #passes == 0 then
-			shopCards.note(shopMyPatronsListFrame, order(), "No House Passes yet -- keep an eye out for a Voucher offer in the Shop tab!")
+			shopCards.emptyScene(shopMyPatronsListFrame, order(), "housePasses")
 		else
 			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned", true))
 			for index, pass in ipairs(passes) do
@@ -1403,7 +1403,7 @@ return function(deps)
 		end
 
 		if heldCount == 0 then
-			shopCards.note(shopMyRecipesListFrame, 1, "No Recipes yet -- buy a Pack in the Shop tab and pick one!")
+			shopCards.emptyScene(shopMyRecipesListFrame, 1, "recipes")
 			return
 		end
 

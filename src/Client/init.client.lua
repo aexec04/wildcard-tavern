@@ -430,7 +430,7 @@ for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
 			if owned then
 				return string.format("%s\n%s", owned.name, owned.description)
 			end
-			return "Empty seat -- visit The Counter to recruit a Patron"
+			return require(ReplicatedStorage.Shared.Engine.EmptyStates).hint("seat")
 		end)
 	end
 end
@@ -2377,6 +2377,7 @@ local function render(state)
 				else
 					slot.frame.Visible = true
 					local owned = ownedPatrons[i]
+					if slot.pulse then slot.pulse.Visible = (owned == nil) end
 					if owned then
 						slot.frame.BackgroundColor3 = Color3.fromRGB(78, 52, 26)
 						slot.label.TextColor3 = Color3.fromRGB(255, 222, 150)

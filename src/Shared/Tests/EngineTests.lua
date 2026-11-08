@@ -7438,4 +7438,26 @@ table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with
 	end
 end })
 
+table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for every page", fn = function()
+	local EmptyStates = require(script.Parent.Parent.Engine.EmptyStates)
+	local keys = 0
+	for key, line in pairs(EmptyStates.Lines) do
+		keys = keys + 1
+		local words = 0
+		for _ in line:gmatch("%S+") do words = words + 1 end
+		expectTrue(words >= 3 and words <= 6, key .. " line is 3 to 6 words: " .. line)
+		expectFalse(line:find("%-%-") ~= nil or line:find("\226\128\148") ~= nil, key .. " has no em dash or double dash")
+		expectFalse(line:find("yet %-") ~= nil, key .. " has no explaining after a dash")
+		expectTrue(#EmptyStates.hint(key) > 0, key .. " has a hint for the tooltip")
+	end
+	expectTrue(keys >= 4, "patrons, recipes, house passes and offers all have a line")
+	for _, key in ipairs({ "patrons", "recipes", "housePasses", "offers" }) do
+		expectEqual(#EmptyStates.icons(key), 3, key .. " has three ghost icons")
+	end
+	expectEqual(EmptyStates.line("nope"), EmptyStates.Lines.patrons, "unknown keys fall back")
+	for _, hint in pairs(EmptyStates.Hints) do
+		expectFalse(hint:find("%-%-") ~= nil, "hints have no double dash")
+	end
+end })
+
 return tests

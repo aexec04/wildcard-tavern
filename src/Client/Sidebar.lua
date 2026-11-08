@@ -548,7 +548,28 @@ return function(deps)
 		slotLabel.ZIndex = Z + 1
 		slotLabel.Parent = slot
 
-		patronSlots[i] = { frame = slot, label = slotLabel }
+		-- Open-seat pulse: a faint gold ring that slowly breathes while the seat is empty (render() shows it only
+		-- then). Static under Reduce screen shake.
+		local pulse = Instance.new("Frame")
+		pulse.Name = "EmptyPulse"
+		pulse.AnchorPoint = Vector2.new(0.5, 0.5)
+		pulse.Position = UDim2.fromScale(0.5, 0.5)
+		pulse.Size = UDim2.new(1, 6, 1, 6)
+		pulse.BackgroundTransparency = 1
+		pulse.Active = false
+		pulse.ZIndex = Z
+		pulse.Parent = slot
+		roundCorner(pulse, SLOT / 2 + 3)
+		local pulseRing = Instance.new("UIStroke")
+		pulseRing.Color = Color3.fromRGB(222, 182, 104)
+		pulseRing.Thickness = 2
+		pulseRing.Transparency = 0.5
+		pulseRing.Parent = pulse
+		if not require(script.Parent.ClientSettings).get("reduceShake") then
+			game:GetService("TweenService"):Create(pulseRing,
+				TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.9 }):Play()
+		end
+		patronSlots[i] = { frame = slot, label = slotLabel, pulse = pulse }
 	end
 	makeDivider(9)
 
