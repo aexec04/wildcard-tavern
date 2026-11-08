@@ -446,6 +446,51 @@ table.insert(tests, { name = "RunState.discard swaps cards without spending a ha
 	expectEqual(state.discardsRemaining, state.config.discardsPerRound - 1)
 end })
 
+table.insert(tests, { name = "RunState.deckView: statuses, sorted, hides the True Wildcard", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	local function countStatus(view, status)
+		local n = 0
+		for _, e in ipairs(view) do
+			if e.status == status then n = n + 1 end
+		end
+		return n
+	end
+	local view = RunState.deckView(state)
+	local total = #state.deck + #state.hand + #state.discardPile
+	expectEqual(#view, total)
+	expectEqual(countStatus(view, "hand"), #state.hand)
+	expectEqual(countStatus(view, "draw"), #state.deck)
+	expectEqual(countStatus(view, "played") + countStatus(view, "discarded"), 0)
+
+	RunState.playHand(state, { 1, 2 })
+	RunState.discard(state, { 1 })
+	view = RunState.deckView(state)
+	expectEqual(countStatus(view, "played"), 2)
+	expectEqual(countStatus(view, "discarded"), 1)
+
+	-- the entries never follow draw order: re-sorted by suit then rank
+	for i = 2, #view do
+		local a, b = view[i - 1], view[i]
+		if not a.hidden and not b.hidden and a.suit == b.suit then
+			expectTrue(a.rank <= b.rank, "ranks ascend within a suit")
+		end
+		expectTrue(not (a.hidden and not b.hidden), "hidden card sorts last")
+	end
+	-- hidden wildcard exposes no rank or suit
+	for _, e in ipairs(view) do
+		if e.hidden then
+			expectEqual(e.rank, nil)
+			expectEqual(e.suit, nil)
+		end
+	end
+
+	-- a new round pools everything back into the draw pile
+	state.roundOver = false
+	RunState.startRound(state)
+	view = RunState.deckView(state)
+	expectEqual(countStatus(view, "played") + countStatus(view, "discarded"), 0)
+end })
+
 table.insert(tests, { name = "RunState.buyPatron deducts tips and adds the patron", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 10

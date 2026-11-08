@@ -613,6 +613,8 @@ local function serializeState(session, player)
 		-- Deck.remainingCounts is [suit] = { [rank] = count } -- RemoteEvents
 		-- serialize nested tables fine, so this ships as-is.
 		deckCounts = Deck.remainingCounts(state.deck),
+		-- "Your Deck" viewer: every card with its status, sorted (never draw order).
+		deckView = RunState.deckView(state),
 		-- PERSISTENT SAVE (Phase 10): the permanent, cross-run part of this
 		-- player's progress (Shared/Engine/PlayerProfile.lua) -- see that
 		-- file's header for exactly what these mean. discoveredPatronIds

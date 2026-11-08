@@ -316,6 +316,7 @@ function RunState.startRound(state)
 		table.insert(state.deck, card)
 	end
 	for _, card in ipairs(state.discardPile) do
+		card.usedAs = nil
 		table.insert(state.deck, card)
 	end
 	state.discardPile = {}
@@ -477,6 +478,7 @@ local function drawCards(state, count)
 	local drawn = Deck.draw(state.deck, count)
 	if #drawn < count and #state.discardPile > 0 then
 		for _, card in ipairs(state.discardPile) do
+			card.usedAs = nil
 			table.insert(state.deck, card)
 		end
 		state.discardPile = {}
@@ -526,6 +528,48 @@ end
 -- Hand cards, Play and Discard only respond during an active round. Server
 -- and client both gate on this so e.g. the Round Select screen can never
 -- leak clicks through to the hand underneath.
+-- Deck viewer payload ("Your Deck"): one entry per card still in the run's
+-- deck, with where it is right now: "draw" (draw pile), "hand", "played" or
+-- "discarded" (both sit in the discard pile; playHand tags `usedAs`).
+-- Only membership is exposed: entries are sorted by suit then rank, never in
+-- draw order. The hidden True Wildcard (not locked in yet) has no rank/suit
+-- (hidden = true) so it can't be read off the payload.
+local VIEW_SUIT_ORDER = { Spades = 1, Hearts = 2, Clubs = 3, Diamonds = 4 }
+function RunState.deckView(state)
+	local entries = {}
+	local function add(card, status)
+		local entry = { status = status }
+		if card.isTrueWildcard and not card.wildcardLocked then
+			entry.hidden = true
+		else
+			entry.rank = card.rank
+			entry.suit = card.suit
+			entry.garnish = card.garnish
+			entry.special = card.special
+			entry.stamp = card.stamp
+		end
+		table.insert(entries, entry)
+	end
+	for _, card in ipairs(state.deck or {}) do add(card, "draw") end
+	for _, card in ipairs(state.hand or {}) do add(card, "hand") end
+	for _, card in ipairs(state.discardPile or {}) do
+		add(card, card.usedAs == "played" and "played" or "discarded")
+	end
+	table.sort(entries, function(a, b)
+		if (a.hidden == true) ~= (b.hidden == true) then
+			return b.hidden == true -- hidden card sorts last
+		end
+		if a.hidden then
+			return a.status < b.status
+		end
+		local sa, sb = VIEW_SUIT_ORDER[a.suit] or 9, VIEW_SUIT_ORDER[b.suit] or 9
+		if sa ~= sb then return sa < sb end
+		if a.rank ~= b.rank then return a.rank < b.rank end
+		return a.status < b.status
+	end)
+	return entries
+end
+
 function RunState.phaseAllowsCardActions(phase)
 	return phase == "playing"
 end
@@ -675,6 +719,7 @@ function RunState.playHand(state, cardIndices)
 
 	for _, card in ipairs(playedCards) do
 		if not brokenSet[card] then
+			card.usedAs = "played" -- lets the Deck viewer tell played from discarded
 			table.insert(state.discardPile, card)
 		end
 	end
