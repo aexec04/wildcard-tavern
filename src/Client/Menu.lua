@@ -500,7 +500,10 @@ return function(deps)
 		if playClickSfx then
 			playClickSfx()
 		end
-		if StartDailyChallengeRemote then
+		local CS = require(script.Parent.ChallengeStart)
+		if CS.ready() then
+			CS.start("daily", menuDailyChallengeButton) -- checks the state, asks first if a run is in progress, shows the table
+		elseif StartDailyChallengeRemote then
 			StartDailyChallengeRemote:FireServer()
 		end
 	end)
@@ -509,7 +512,10 @@ return function(deps)
 		if playClickSfx then
 			playClickSfx()
 		end
-		if StartWeeklyChallengeRemote then
+		local CS = require(script.Parent.ChallengeStart)
+		if CS.ready() then
+			CS.start("weekly", menuWeeklyChallengeButton)
+		elseif StartWeeklyChallengeRemote then
 			StartWeeklyChallengeRemote:FireServer()
 		end
 	end)

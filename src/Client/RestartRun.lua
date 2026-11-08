@@ -30,7 +30,9 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 
 local MESSAGE = "Restart this run? You will lose your progress on this run. Your Collection, Keys and badges are kept."
 
-return function(deps)
+local instance = nil
+
+local function build(deps)
 	local screenGui = deps.screenGui
 	local root = deps.root
 	local playClickSfx = deps.playClickSfx
@@ -170,12 +172,21 @@ return function(deps)
 		end
 	end
 
+	local custom = nil -- ask(): a different question with its own onConfirm (default = abandon the run)
+	local function resetTexts()
+		custom = nil
+		title.Text = "Restart Run?"
+		message.Text = MESSAGE
+		restart.Text = "Hold to Restart"
+	end
+
 	local function close()
 		isOpen = false
 		stopHoldLoop()
 		hold:reset()
 		fill.Size = UDim2.new(0, 0, 1, 0)
 		backdrop.Visible = false
+		resetTexts()
 	end
 
 	local function toast(text)
@@ -201,7 +212,12 @@ return function(deps)
 	end
 
 	local function confirmed()
+		local action = custom
 		close()
+		if action then
+			action()
+			return
+		end
 		OverlayManager.closeAllExcept("restart-run")
 		local remote = ReplicatedStorage:WaitForChild("Remotes"):FindFirstChild("AbandonRun")
 		if remote then remote:FireServer() end
@@ -264,5 +280,29 @@ return function(deps)
 	button.MouseButton1Click:Connect(open)
 	OverlayManager.register("restart-run", close)
 
-	return { button = button, refresh = refresh, open = open, close = close }
+	-- Reuse the same hold-to-confirm popup for another question (for example "start a Daily Challenge and
+	-- leave this run?"). opts = { title, message, holdText, onConfirm }. Cancel stays the default.
+	local function ask(opts)
+		resetTexts()
+		custom = opts.onConfirm
+		title.Text = opts.title or title.Text
+		message.Text = opts.message or message.Text
+		restart.Text = opts.holdText or restart.Text
+		playClickSfx()
+		hold:reset()
+		fill.Size = UDim2.new(0, 0, 1, 0)
+		isOpen = true
+		backdrop.Visible = true
+	end
+
+	return { button = button, refresh = refresh, open = open, close = close, ask = ask }
 end
+
+return setmetatable({
+	get = function() return instance end,
+}, {
+	__call = function(_, deps)
+		instance = build(deps)
+		return instance
+	end,
+})

@@ -1412,6 +1412,18 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
 	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
+	pcall(function() -- Daily / Weekly / Seed starts from the menu (Client/ChallengeStart.lua)
+		require(script.ChallengeStart).init({
+			root = root, menuFrame = menuFrame, music = backgroundMusic,
+			remotes = {
+				daily = remotes:WaitForChild("StartDailyChallenge"),
+				weekly = remotes:WaitForChild("StartWeeklyChallenge"),
+				seed = remotes:WaitForChild("StartSeedRun"),
+			},
+			getState = function() return latestState end,
+			warn = function(line) showWarning(line) end,
+		})
+	end)
 	pcall(function() -- narrow windows and phones: stats drawer, wider hand, scaled button row (Client/CompactLayout.lua)
 		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SIDEBAR_WIDTH })
 	end)

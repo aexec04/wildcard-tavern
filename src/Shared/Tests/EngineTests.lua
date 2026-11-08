@@ -7622,4 +7622,24 @@ table.insert(tests, { name = "Seeds: 6 character codes (A-Z without I and O, 2-9
 	expectEqual(SeedDisplay.label(nil), nil)
 end })
 
+table.insert(tests, { name = "ChallengeStart: every menu start state is start, confirm or a one line reason", fn = function()
+	local CS = require(script.Parent.Parent.Engine.ChallengeStart)
+	local verdict, line = CS.check({ hasState = false })
+	expectEqual(verdict, "blocked"); expectEqual(line, CS.Lines.connecting)
+	verdict, line = CS.check({ hasState = true, phase = "roundSelect", night = 1, round = 1, tutorialActive = true })
+	expectEqual(verdict, "blocked"); expectEqual(line, CS.Lines.tutorial)
+	verdict, line = CS.check({ hasState = true, phase = "roundSelect", night = 1, round = 1, traveling = true })
+	expectEqual(verdict, "blocked"); expectEqual(line, CS.Lines.traveling)
+	expectEqual((CS.check({ hasState = true, phase = "roundSelect", night = 1, round = 1 })), "start", "a fresh session just starts")
+	expectEqual((CS.check({ hasState = true, phase = "gameover", night = 3, round = 2 })), "start", "after Game Over it just starts")
+	expectEqual((CS.check({ hasState = true, phase = "playing", night = 1, round = 1 })), "confirm", "mid-round asks first")
+	expectEqual((CS.check({ hasState = true, phase = "shop", night = 2, round = 1 })), "confirm", "in the shop asks first")
+	expectEqual((CS.check({ hasState = true, phase = "roundSelect", night = 2, round = 1 })), "confirm", "a later Round Select asks first")
+	expectEqual((CS.check({ hasState = true, phase = "roundSelect", night = 1, round = 2 })), "confirm")
+	expectEqual((CS.check(nil)), "blocked", "no context is the connecting state")
+	for _, text in pairs(CS.Lines) do
+		expectTrue(#text <= 32 and not text:find("%-%-"), "short and dash free: " .. text)
+	end
+end })
+
 return tests

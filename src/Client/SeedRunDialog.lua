@@ -162,10 +162,13 @@ return function(deps)
 			return
 		end
 		playClickSfx()
-		if StartSeedRunRemote then
+		popOut(seedBackdrop, seedPanel)
+		local CS = require(script.Parent.ChallengeStart)
+		if CS.ready() then
+			CS.start("seed", nil, code) -- same rules as Daily and Weekly: state check, confirm, show the table
+		elseif StartSeedRunRemote then
 			StartSeedRunRemote:FireServer(code)
 		end
-		popOut(seedBackdrop, seedPanel)
 	end
 
 	seedStartButton.MouseButton1Click:Connect(attemptStart)
