@@ -919,6 +919,7 @@ local Shop = require(script.Shop)({
 	addButtonHoverScale = addButtonHoverScale,
 	revealStagger = revealStagger,
 	popScale = popScale,
+	particleBurst = ParticleBurstModule.burst,
 	-- INTERACTIVE TUTORIAL: see this file's own "INTERACTIVE TUTORIAL"
 	-- comment further down (just above Menu.lua's require) for why TutorialWalkthrough.lua is required FROM INSIDE
 	-- Shop.lua instead of getting its own top-level local here.

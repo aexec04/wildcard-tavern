@@ -169,6 +169,11 @@ return function(deps)
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 	local RarityFrame = require(script.Parent.RarityFrame)
+	local Packs = require(Engine:WaitForChild("Packs"))
+	local ClientSettings = require(script.Parent.ClientSettings)
+	local ShopCardsModule = require(script.Parent.ShopCards)
+	-- Art-first item cards (Client/ShopCards.lua). Look only: remotes and rules stay in this file.
+	local shopCards = ShopCardsModule.new({ playClickSfx = playClickSfx, particleBurst = deps.particleBurst })
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -258,7 +263,7 @@ return function(deps)
 				shopScrim.Position = UDim2.new(0, 10, 0, 84)
 				shopScrim.Size = UDim2.new(1, -20, 1, -140)
 				shopScrim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-				shopScrim.BackgroundTransparency = 0.35
+				shopScrim.BackgroundTransparency = 0.75 -- about a 0.25 dark scrim
 				shopScrim.BorderSizePixel = 0
 				shopScrim.Active = false
 				shopScrim.ZIndex = 5
@@ -295,15 +300,40 @@ return function(deps)
 		-- empty rectangle the first time this bug was hit.
 		local SHOP_ZINDEX = 6
 
+		-- Carved wood plaque: dark wood, gold rim, nail heads at both ends.
 		local shopTitle = Instance.new("TextLabel")
-		shopTitle.Size = UDim2.new(1, 0, 0, 36)
-		shopTitle.BackgroundTransparency = 1
+		shopTitle.Name = "CounterPlaque"
+		shopTitle.AnchorPoint = Vector2.new(0.5, 0)
+		shopTitle.Size = UDim2.fromOffset(250, 36)
+		shopTitle.Position = UDim2.new(0.5, 0, 0, 2)
+		shopTitle.BackgroundColor3 = Color3.fromRGB(88, 60, 36)
+		shopTitle.BorderSizePixel = 0
 		shopTitle.Font = Enum.Font.GothamBold
 		shopTitle.TextSize = 22
-		shopTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
+		shopTitle.TextColor3 = Color3.fromRGB(250, 235, 200)
+		shopTitle.TextStrokeColor3 = Color3.fromRGB(40, 24, 12)
+		shopTitle.TextStrokeTransparency = 0.5
 		shopTitle.Text = "The Counter"
 		shopTitle.ZIndex = SHOP_ZINDEX
 		shopTitle.Parent = shopFrame
+		roundCorner(shopTitle, 8)
+		do
+			local rim = Instance.new("UIStroke")
+			rim.Color = Color3.fromRGB(222, 182, 104)
+			rim.Thickness = 2
+			rim.Parent = shopTitle
+			for _, xScale in ipairs({ 0, 1 }) do
+				local nail = Instance.new("Frame")
+				nail.AnchorPoint = Vector2.new(0.5, 0.5)
+				nail.Position = UDim2.new(xScale, xScale == 0 and 12 or -12, 0.5, 0)
+				nail.Size = UDim2.fromOffset(8, 8)
+				nail.BackgroundColor3 = Color3.fromRGB(222, 182, 104)
+				nail.BorderSizePixel = 0
+				nail.ZIndex = SHOP_ZINDEX
+				nail.Parent = shopTitle
+				roundCorner(nail, 4)
+			end
+		end
 
 		local shopTabBar = Instance.new("Frame")
 		shopTabBar.Size = UDim2.new(1, -20, 0, 36)
@@ -316,7 +346,7 @@ return function(deps)
 		shopTabBarLayout.FillDirection = Enum.FillDirection.Horizontal
 		-- SortOrder defaults to Enum.SortOrder.Name, NOT LayoutOrder -- every
 		-- UIListLayout in this file explicitly sets it below. See the long
-		-- comment on addOfferRow for the bug this caused when it was missed.
+		-- comment above addSectionHeader for the bug this caused when it was missed.
 		shopTabBarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		shopTabBarLayout.Padding = UDim.new(0, 8)
 		shopTabBarLayout.Parent = shopTabBar
@@ -401,12 +431,12 @@ return function(deps)
 		setShopTab("buy")
 
 		nextRoundButton = Instance.new("TextButton")
-		nextRoundButton.Size = UDim2.new(0, 200, 0, 40)
-		nextRoundButton.Position = UDim2.new(0.5, -100, 1, -50)
+		nextRoundButton.Size = UDim2.new(0, 220, 0, 44)
+		nextRoundButton.Position = UDim2.new(0.5, -110, 1, -54)
 		nextRoundButton.Font = Enum.Font.GothamBold
 		nextRoundButton.TextSize = 18
 		nextRoundButton.Text = "Next Round"
-		nextRoundButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		nextRoundButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48) -- wooden sign
 		nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		nextRoundButton.ZIndex = SHOP_ZINDEX
 		nextRoundButton.Parent = shopFrame
@@ -580,50 +610,6 @@ return function(deps)
 		packSkipButton.Parent = shopPackPanel
 		polishButton(packSkipButton, 8)
 	end -- do (Shop overlay)
-
-	-- A small colored badge with an icon (emoji glyph, not an uploaded image --
-	-- we never guess catalog asset IDs)
-	-- standing in for "a picture" for each Patron/Recipe until real art exists.
-	-- ZIndex = 6 everywhere below matches SHOP_ZINDEX from the Shop overlay's
-	-- construction block above (that local isn't in scope down here, so this
-	-- repeats the literal -- see the comment there for why every descendant
-	-- needs it explicitly rather than inheriting shopFrame's ZIndex). The
-	-- target picker's own controls (built inside the do block, where
-	-- PANEL_ZINDEX = 7 IS in scope) don't use this function.
-	-- patronId: patron id for PatronArt lookup (patron offers, My Patrons).
-	-- contentId + contentTab: for non-patron art (recipes, house passes) via ContentArt.
-	local function makePatronIconBadge(parent, icon, patronId, contentId, contentTab)
-		local badge = Instance.new("TextLabel")
-		badge.Size = UDim2.new(0, 46, 0, 46)
-		badge.Position = UDim2.new(0, 8, 0.5, -23)
-		badge.BackgroundColor3 = Color3.fromRGB(45, 35, 25)
-		badge.Font = Enum.Font.GothamBold
-		badge.TextSize = 22
-		badge.Text = icon or "🎴"
-		badge.ZIndex = 6
-		badge.Parent = parent
-		roundCorner(badge, 10)
-		-- Art is a child of badge (survives Clone); PatronPlaque blanks the badge
-		-- text rather than hiding the badge so the art stays visible.
-		-- Tier ring (ring color only: badges get cloned, so no animated ornaments).
-		do
-			local tierTab = (contentId and contentTab) or (patronId and "patrons")
-			local tierId = contentId or patronId
-			if tierTab and tierId then
-				RarityFrame.apply(badge, CollectionBook.rarityForId(tierTab, tierId), { ringOnly = true, thickness = 2 })
-			end
-		end
-		local artId = (contentId and contentTab and ContentArt.getImageId(contentTab, contentId))
-			or (patronId and ContentArt.getImageId("patrons", patronId))
-		if artId then
-			PatronPlaqueModule.applyById(badge, artId, {
-				emojiLabel = badge,
-				zIndex = 7,
-				cornerRadius = 10,
-			})
-		end
-		return badge
-	end
 
 	-- ----- Recipe target picker state + logic -----
 	-- pendingUse holds { category = "house"|"menu"|"secret", id, recipe }
@@ -907,60 +893,9 @@ return function(deps)
 		pendingPackSelected = {}
 	end)
 
-	-- Shared row builder for the Shop tab's Patron/Pack/Voucher offers --
-	-- they're all "icon badge + name/price/description + one action
-	-- button" rows, just with a different icon lookup and click handler.
-	--
-	-- `layoutOrder` is REQUIRED, not cosmetic: UIListLayout only sorts by
-	-- LayoutOrder when it's set explicitly -- left at the default (0) on
-	-- every row, ties get broken by each Instance's Name instead (all
-	-- unnamed Frames are literally named "Frame", all unnamed TextLabels
-	-- "TextLabel"), which silently reordered every mixed Frame-row +
-	-- TextLabel-header list in this tab: every row bubbled above every
-	-- header regardless of when it was actually added ("Frame" < "TextLabel"
-	-- alphabetically). Every element parented into shopBuyListFrame or
-	-- shopMyRecipesListFrame must get an explicit, sequential LayoutOrder.
-	local function addOfferRow(parent, layoutOrder, icon, name, price, description, buttonText, buttonEnabled, onClick, patronId)
-		local row = Instance.new("Frame")
-		row.LayoutOrder = layoutOrder
-		row.Size = UDim2.new(1, 0, 0, 64)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		row.ZIndex = 6
-		row.Parent = parent
-		polishPanel(row, 10)
-
-		makePatronIconBadge(row, icon, patronId)
-
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -170, 1, -8)
-		label.Position = UDim2.new(0, 64, 0, 4)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Gotham
-		label.TextSize = 14
-		label.TextWrapped = true
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(250, 240, 220)
-		label.Text = string.format("%s (%d tips)\n%s", name, price, description)
-		label.ZIndex = 6
-		label.Parent = row
-
-		local actionButton = Instance.new("TextButton")
-		actionButton.Size = UDim2.new(0, 90, 0, 36)
-		actionButton.Position = UDim2.new(1, -100, 0.5, -18)
-		actionButton.Font = Enum.Font.GothamBold
-		actionButton.TextSize = 15
-		actionButton.Text = buttonEnabled and buttonText or "Full"
-		actionButton.BackgroundColor3 = buttonEnabled and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
-		actionButton.TextColor3 = buttonEnabled and Color3.fromRGB(250, 240, 220) or Color3.fromRGB(180, 170, 160)
-		actionButton.ZIndex = 6
-		actionButton.Parent = row
-		polishButton(actionButton, 8)
-		addButtonHoverScale(actionButton)
-
-		actionButton.MouseButton1Click:Connect(onClick)
-		return row
-	end
-
+	-- (The old text rows for offers were replaced by the art cards in Client/ShopCards.lua.)
+	-- Every element parented into shopBuyListFrame, shopMyPatronsListFrame or shopMyRecipesListFrame
+	-- must still get an explicit, sequential LayoutOrder: UIListLayout ties are broken by Name.
 	local function addSectionHeader(parent, layoutOrder, text)
 		local header = Instance.new("TextLabel")
 		header.LayoutOrder = layoutOrder
@@ -1040,6 +975,46 @@ return function(deps)
 	-- (below) still runs on every call with a live state, since the Pack
 	-- reveal panel's own visibility (state.pendingPack) is independent of
 	-- this signature.
+	-- Card slots for this visit, in display order. Buying removes an offer from the state; its slot
+	-- stays as an empty shelf spot with a SOLD stamp until the offer set changes (Reroll / next visit).
+	local lastCardSlots, lastPackSlots = nil, nil
+	local soldShown = {}
+
+	-- Keeps the previous slot list while every current offer is still in it (a purchase), otherwise
+	-- starts a new list from the current offers (a Reroll or a new shop visit).
+	local function reconcileSlots(previous, current)
+		if previous then
+			local known = {}
+			for _, slotInfo in ipairs(previous) do
+				known[slotInfo.key] = slotInfo
+			end
+			local allKnown = true
+			for _, item in ipairs(current) do
+				if not known[item.key] then
+					allKnown = false
+					break
+				end
+			end
+			if allKnown then
+				local present = {}
+				for _, item in ipairs(current) do
+					present[item.key] = item
+				end
+				local merged = {}
+				for _, slotInfo in ipairs(previous) do
+					local item = present[slotInfo.key]
+					table.insert(merged, { key = slotInfo.key, kind = slotInfo.kind, offer = item and item.offer or slotInfo.offer, sold = item == nil })
+				end
+				return merged
+			end
+		end
+		local fresh = {}
+		for _, item in ipairs(current) do
+			table.insert(fresh, { key = item.key, kind = item.kind, offer = item.offer, sold = false })
+		end
+		return fresh
+	end
+
 	local function rebuildShop(state)
 		local renderSignature = buildShopRenderSignature(state)
 		if state and renderSignature == lastShopRenderSignature then
@@ -1050,7 +1025,7 @@ return function(deps)
 		lastShopRenderSignature = renderSignature
 
 		for _, child in ipairs(shopBuyListFrame:GetChildren()) do
-			if child:IsA("Frame") or child:IsA("TextLabel") then
+			if not child:IsA("UIListLayout") then
 				child:Destroy()
 			end
 		end
@@ -1062,23 +1037,17 @@ return function(deps)
 		local ownedCount = (state.ownedPatrons and #state.ownedPatrons) or 0
 		local slotLimit = state.patronSlotLimit or ownedCount
 		local tableIsFull = ownedCount >= slotLimit
+		local tips = state.tips or 0
 
-		-- See addOfferRow's comment above -- every element added to this
-		-- ScrollingFrame needs an explicit, sequential LayoutOrder or
-		-- UIListLayout silently reorders Frames before TextLabels (or vice
-		-- versa) regardless of insertion order.
+		-- Every element added to this ScrollingFrame needs an explicit, sequential LayoutOrder
+		-- (see the note on UIListLayout sorting by Name).
 		local nextOrder = 0
 		local function order()
 			nextOrder = nextOrder + 1
 			return nextOrder
 		end
 
-		-- POLISH PASS Batch 2: every offer row built below gets appended
-		-- here; see buildOfferSignature's comment above for why these only
-		-- get a staggered pop-in when the offer set actually changed.
-		local offerRowsThisRebuild = {}
-
-		-- ----- Reroll row -----
+		-- ----- Reroll (a wooden bell-pull) and the table count -----
 		local rerollRow = Instance.new("Frame")
 		rerollRow.LayoutOrder = order()
 		rerollRow.Size = UDim2.new(1, 0, 0, 44)
@@ -1087,26 +1056,29 @@ return function(deps)
 		rerollRow.Parent = shopBuyListFrame
 
 		local rerollButton = Instance.new("TextButton")
-		rerollButton.Size = UDim2.new(0, 170, 0, 36)
-		rerollButton.Position = UDim2.new(0, 0, 0, 4)
+		rerollButton.Size = UDim2.new(0, 190, 0, 38)
+		rerollButton.Position = UDim2.new(0, 14, 0, 3)
 		rerollButton.Font = Enum.Font.GothamBold
-		rerollButton.TextSize = 14
+		rerollButton.TextSize = 16
 		rerollButton.Text = string.format("Reroll (%d tips)", state.rerollCost or 0)
-		rerollButton.BackgroundColor3 = Color3.fromRGB(70, 90, 60)
-		rerollButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
+		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 		rerollButton.ZIndex = 6
 		rerollButton.Parent = rerollRow
 		polishButton(rerollButton, 8)
 		addButtonHoverScale(rerollButton)
 
 		local tableLabel = Instance.new("TextLabel")
-		tableLabel.Size = UDim2.new(1, -190, 0, 36)
-		tableLabel.Position = UDim2.new(0, 190, 0, 4)
+		tableLabel.Size = UDim2.new(1, -230, 0, 38)
+		tableLabel.Position = UDim2.new(0, 220, 0, 3)
 		tableLabel.BackgroundTransparency = 1
 		tableLabel.Font = Enum.Font.GothamBold
-		tableLabel.TextSize = 14
+		tableLabel.TextSize = 15
+		tableLabel.TextWrapped = true
 		tableLabel.TextXAlignment = Enum.TextXAlignment.Left
 		tableLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		tableLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
+		tableLabel.TextStrokeTransparency = 0.4
 		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
 			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6
@@ -1120,133 +1092,178 @@ return function(deps)
 				return
 			end
 			playClickSfx(0.4)
+			-- Ring the bell: a quick wobble (skipped on Fast / Reduce screen shake).
+			if ClientSettings.get("animSpeed") ~= "fast" and not ClientSettings.get("reduceShake") then
+				task.spawn(function()
+					for _, angle in ipairs({ -5, 5, -3, 3, 0 }) do
+						if not rerollButton.Parent then
+							return
+						end
+						tweenTo(rerollButton, { Rotation = angle }, 0.05)
+						task.wait(0.05)
+					end
+				end)
+			end
 			RerollShopRemote:FireServer()
 		end)
 
-		-- ----- Voucher (House Pass) offer -- only shows up some visits -----
-		if state.voucherOffer then
-			addSectionHeader(shopBuyListFrame, order(), "Voucher")
-			local offer = state.voucherOffer
-			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), offer.icon, offer.name, offer.price, offer.description, "Buy", true, function()
-				local latestState = getLatestState()
-				if not latestState or latestState.tips < offer.price then
-					showWarning("Not enough tips for that.")
-					playClickSfx()
-					return
-				end
-				playSfx(SOUND_IDS.buyPatron)
-				BuyHousePassRemote:FireServer(offer.id)
-			end, offer.id, "housePasses"))
+		-- Buy handlers: same checks and remotes as the old rows. They return true when a remote fired.
+		local function buyVoucher(offer)
+			local latestState = getLatestState()
+			if not latestState or latestState.tips < offer.price then
+				showWarning("Not enough tips for that.")
+				playClickSfx()
+				return false
+			end
+			playSfx(SOUND_IDS.buyPatron)
+			BuyHousePassRemote:FireServer(offer.id)
+			return true
+		end
+		local function buyPatron(offer)
+			local latestState = getLatestState()
+			if not latestState or latestState.tips < offer.price then
+				showWarning("Not enough tips for that.")
+				playClickSfx()
+				return false
+			end
+			local liveOwnedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
+			if latestState.patronSlotLimit and liveOwnedCount >= latestState.patronSlotLimit then
+				showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
+				playClickSfx()
+				return false
+			end
+			playSfx(SOUND_IDS.buyPatron)
+			BuyPatronRemote:FireServer(offer.id)
+			return true
+		end
+		local function buyPack(pack)
+			local latestState = getLatestState()
+			if not latestState or latestState.tips < pack.price then
+				showWarning("Not enough tips for that.")
+				playClickSfx()
+				return false
+			end
+			playSfx(SOUND_IDS.buyPatron)
+			BuyPackRemote:FireServer(pack.id)
+			return true
 		end
 
-		-- ----- Patron offers -----
-		addSectionHeader(shopBuyListFrame, order(), "Patrons")
-		if #(state.shopOffers or {}) == 0 then
-			local emptyLabel = Instance.new("TextLabel")
-			emptyLabel.LayoutOrder = order()
-			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
-			emptyLabel.BackgroundTransparency = 1
-			emptyLabel.Font = Enum.Font.Gotham
-			emptyLabel.TextSize = 14
-			emptyLabel.TextWrapped = true
-			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyLabel.Text = "No new Patrons to offer this visit -- you've met everyone available so far!"
-			emptyLabel.ZIndex = 6
-			emptyLabel.Parent = shopBuyListFrame
+		-- ----- Patron + Voucher cards (one centered row) -----
+		local current = {}
+		if state.voucherOffer then
+			table.insert(current, { key = "v:" .. tostring(state.voucherOffer.id), kind = "voucher", offer = state.voucherOffer })
+		end
+		for _, offer in ipairs(state.shopOffers or {}) do
+			table.insert(current, { key = "p:" .. tostring(offer.id), kind = "patron", offer = offer })
+		end
+		lastCardSlots = reconcileSlots(lastCardSlots, current)
+
+		local offerCardsThisRebuild = {}
+		if #lastCardSlots == 0 then
+			shopCards.note(shopBuyListFrame, order(), "No new Patrons to offer this visit -- you've met everyone available so far!")
 		else
-			for _, offer in ipairs(state.shopOffers) do
-				local fullPatron = Patrons.getById(offer.id)
-				table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), fullPatron and fullPatron.icon, offer.name, offer.price, offer.description,
-					"Buy", not tableIsFull, function()
-						local latestState = getLatestState()
-						if not latestState or latestState.tips < offer.price then
-							showWarning("Not enough tips for that.")
-							playClickSfx()
-							return
-						end
-						local liveOwnedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
-						if latestState.patronSlotLimit and liveOwnedCount >= latestState.patronSlotLimit then
-							showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
-							playClickSfx()
-							return
-						end
-						playSfx(SOUND_IDS.buyPatron)
-						BuyPatronRemote:FireServer(offer.id)
-					end, offer.id))
+			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("patron"))
+			for index, slotInfo in ipairs(lastCardSlots) do
+				local offer = slotInfo.offer
+				if slotInfo.sold then
+					local animate = not soldShown[slotInfo.key]
+					soldShown[slotInfo.key] = true
+					shopCards.soldSpot(row, index, slotInfo.kind, animate)
+				elseif slotInfo.kind == "voucher" then
+					local card = shopCards.card(row, {
+						kind = "voucher", layoutOrder = index, name = offer.name, description = offer.description,
+						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", emoji = offer.icon, badge = "VOUCHER",
+						artTab = "house_passes", artId = offer.id, rarityTab = "housePasses", rarityId = offer.id,
+						onAction = function()
+							local fired = buyVoucher(offer)
+							if fired then
+								soldShown[slotInfo.key] = nil
+							end
+							return fired
+						end,
+					})
+					table.insert(offerCardsThisRebuild, card.slot)
+				else
+					local fullPatron = Patrons.getById(offer.id)
+					local card = shopCards.card(row, {
+						kind = "patron", layoutOrder = index, name = offer.name, description = offer.description,
+						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
+						emoji = fullPatron and fullPatron.icon, artTab = "patrons", artId = offer.id, rarityTab = "patrons", rarityId = offer.id,
+						onAction = function()
+							local fired = buyPatron(offer)
+							if fired then
+								soldShown[slotInfo.key] = nil
+							end
+							return fired
+						end,
+					})
+					table.insert(offerCardsThisRebuild, card.slot)
+				end
 			end
 		end
 
-		-- ----- Pack offers -----
+		-- ----- Pack cards (shorter) -----
 		addSectionHeader(shopBuyListFrame, order(), "Packs")
+		local currentPacks = {}
 		for _, pack in ipairs(state.packOffers or {}) do
-			table.insert(offerRowsThisRebuild, addOfferRow(shopBuyListFrame, order(), pack.icon, pack.name, pack.price, pack.description, "Buy", true, function()
-				local latestState = getLatestState()
-				if not latestState or latestState.tips < pack.price then
-					showWarning("Not enough tips for that.")
-					playClickSfx()
-					return
+			table.insert(currentPacks, { key = "k:" .. tostring(pack.id), kind = "pack", offer = pack })
+		end
+		lastPackSlots = reconcileSlots(lastPackSlots, currentPacks)
+		if #lastPackSlots > 0 then
+			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("pack"))
+			for index, slotInfo in ipairs(lastPackSlots) do
+				local pack = slotInfo.offer
+				if slotInfo.sold then
+					local animate = not soldShown[slotInfo.key]
+					soldShown[slotInfo.key] = true
+					shopCards.soldSpot(row, index, "pack", animate)
+				else
+					local baseId, sizeBadge, tierRarity = ShopCardsModule.packTier(pack.id)
+					local definition = Packs.getById(pack.id)
+					local line = definition and string.format("See %d, keep %d", definition.revealCount or 3, definition.pickCount or 1) or pack.description
+					local card = shopCards.card(row, {
+						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price,
+						affordable = tips >= pack.price, actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
+						artTab = "packs", artId = baseId, rarity = tierRarity,
+						glow = (sizeBadge == "MEGA" and 2) or (sizeBadge == "JUMBO" and 1) or 0,
+						onAction = function()
+							local fired = buyPack(pack)
+							if fired then
+								soldShown[slotInfo.key] = nil
+							end
+							return fired
+						end,
+					})
+					table.insert(offerCardsThisRebuild, card.slot)
 				end
-				playSfx(SOUND_IDS.buyPatron)
-				BuyPackRemote:FireServer(pack.id)
-			end))
+			end
 		end
 
-		-- POLISH PASS Batch 2: only pop the rows in when the offer SET
-		-- actually changed (fresh visit / Reroll) -- see
-		-- buildOfferSignature's comment above.
+		-- Only pop the cards in when the offer SET actually changed (fresh visit / Reroll).
 		local offerSignature = buildOfferSignature(state)
 		if offerSignature ~= lastShopOfferSignature then
-			revealStagger(offerRowsThisRebuild, { stagger = 0.04, duration = 0.22, fromScale = 0.85 })
+			soldShown = {}
+			revealStagger(offerCardsThisRebuild, { stagger = 0.06, duration = 0.24, fromScale = 0.85 })
 		end
 		lastShopOfferSignature = offerSignature
 
 		refreshPackPanel(state)
 	end
 
-	-- A passive (no button) info row -- used for the House Passes section
-	-- below, where ownership is permanent for the run and there's nothing
-	-- to click.
-	local function addInfoRow(parent, layoutOrder, icon, name, description, contentId, contentTab)
-		local row = Instance.new("Frame")
-		row.LayoutOrder = layoutOrder
-		row.Size = UDim2.new(1, 0, 0, 56)
-		row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		row.ZIndex = 6
-		row.Parent = parent
-		polishPanel(row, 10)
-
-		makePatronIconBadge(row, icon, nil, contentId, contentTab)
-
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -74, 1, -8)
-		label.Position = UDim2.new(0, 64, 0, 4)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.Gotham
-		label.TextSize = 13
-		label.TextWrapped = true
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(250, 240, 220)
-		label.Text = string.format("%s\n%s", name, description)
-		label.ZIndex = 6
-		label.Parent = row
-		return row
+	local function clearTab(listFrame)
+		for _, child in ipairs(listFrame:GetChildren()) do
+			if not child:IsA("UIListLayout") then
+				child:Destroy()
+			end
+		end
 	end
 
 	local function rebuildMyPatronsTab(state)
 		local ownedPatrons = (state and state.ownedPatrons) or {}
 		local housePassIds = (state and state.housePassIds) or {}
+		clearTab(shopMyPatronsListFrame)
 
-		for _, child in ipairs(shopMyPatronsListFrame:GetChildren()) do
-			if child:IsA("Frame") or child:IsA("TextLabel") then
-				child:Destroy()
-			end
-		end
-
-		-- See addOfferRow's comment near rebuildShop -- every element added
-		-- to this ScrollingFrame needs an explicit, sequential LayoutOrder
-		-- or UIListLayout silently reorders Frames before TextLabels
-		-- regardless of insertion order (this tab mixes Patron row Frames
-		-- with the House Passes section's TextLabel header below).
+		-- Every element needs an explicit, sequential LayoutOrder (see rebuildShop).
 		local nextOrder = 0
 		local function order()
 			nextOrder = nextOrder + 1
@@ -1254,103 +1271,54 @@ return function(deps)
 		end
 
 		if #ownedPatrons == 0 then
-			local emptyLabel = Instance.new("TextLabel")
-			emptyLabel.LayoutOrder = order()
-			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
-			emptyLabel.BackgroundTransparency = 1
-			emptyLabel.Font = Enum.Font.Gotham
-			emptyLabel.TextSize = 14
-			emptyLabel.TextWrapped = true
-			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyLabel.Text = "No Patrons yet -- buy some in the Shop tab!"
-			emptyLabel.ZIndex = 6
-			emptyLabel.Parent = shopMyPatronsListFrame
+			shopCards.note(shopMyPatronsListFrame, order(), "No Patrons yet -- buy some in the Shop tab!")
 		else
-			for _, owned in ipairs(ownedPatrons) do
+			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
+			for index, owned in ipairs(ownedPatrons) do
 				local fullPatron = Patrons.getById(owned.id)
 				local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
-
-				local row = Instance.new("Frame")
-				row.LayoutOrder = order()
-				row.Size = UDim2.new(1, 0, 0, 64)
-				row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-				row.ZIndex = 6
-				row.Parent = shopMyPatronsListFrame
-				polishPanel(row, 10)
-
-				makePatronIconBadge(row, fullPatron and fullPatron.icon, owned.id)
-
-				local label = Instance.new("TextLabel")
-				label.Size = UDim2.new(1, -190, 1, -8)
-				label.Position = UDim2.new(0, 64, 0, 4)
-				label.BackgroundTransparency = 1
-				label.Font = Enum.Font.Gotham
-				label.TextSize = 14
-				label.TextWrapped = true
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.TextColor3 = Color3.fromRGB(250, 240, 220)
-				label.Text = string.format("%s\n%s", owned.name, owned.description)
-				label.ZIndex = 6
-				label.Parent = row
-
-				local discardButton = Instance.new("TextButton")
-				discardButton.Size = UDim2.new(0, 110, 0, 36)
-				discardButton.Position = UDim2.new(1, -120, 0.5, -18)
-				discardButton.Font = Enum.Font.GothamBold
-				discardButton.TextSize = 14
-				discardButton.Text = "Discard"
-				discardButton.BackgroundColor3 = Color3.fromRGB(110, 55, 45)
-				discardButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-				discardButton.ZIndex = 6
-				discardButton.Parent = row
-				polishButton(discardButton, 8)
-
-				discardButton.MouseButton1Click:Connect(function()
-					playClickSfx(0.4)
-					showConfirmDialog(
-						string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
-						function()
-							SellPatronRemote:FireServer(owned.id)
-						end
-					)
-				end)
+				shopCards.card(row, {
+					kind = "owned", layoutOrder = index, name = owned.name, description = owned.description,
+					actionText = "Discard", emoji = fullPatron and fullPatron.icon,
+					artTab = "patrons", artId = owned.id, rarityTab = "patrons", rarityId = owned.id,
+					onAction = function()
+						playClickSfx(0.4)
+						showConfirmDialog(
+							string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
+							function()
+								SellPatronRemote:FireServer(owned.id)
+							end
+						)
+						return false
+					end,
+				})
 			end
 		end
 
-		-- ----- House Passes (Vouchers) section -----
-		-- Permanent-for-the-run upgrades bought from the shop's occasional
-		-- Voucher slot. state.housePassIds already shipped from the server
-		-- since Phase 1c -- this is the first thing that actually displays
-		-- it (see the "known gap" note in the feature expansion plan doc).
+		-- ----- House Passes (Vouchers): permanent for the run, nothing to click -----
 		addSectionHeader(shopMyPatronsListFrame, order(), "House Passes")
-		if #housePassIds == 0 then
-			local emptyPassLabel = Instance.new("TextLabel")
-			emptyPassLabel.LayoutOrder = order()
-			emptyPassLabel.Size = UDim2.new(1, 0, 0, 40)
-			emptyPassLabel.BackgroundTransparency = 1
-			emptyPassLabel.Font = Enum.Font.Gotham
-			emptyPassLabel.TextSize = 14
-			emptyPassLabel.TextWrapped = true
-			emptyPassLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyPassLabel.Text = "No House Passes yet -- keep an eye out for a Voucher offer in the Shop tab!"
-			emptyPassLabel.ZIndex = 6
-			emptyPassLabel.Parent = shopMyPatronsListFrame
+		local passes = {}
+		for _, passId in ipairs(housePassIds) do
+			local pass = HousePasses.getById(passId)
+			if pass then
+				table.insert(passes, pass)
+			end
+		end
+		if #passes == 0 then
+			shopCards.note(shopMyPatronsListFrame, order(), "No House Passes yet -- keep an eye out for a Voucher offer in the Shop tab!")
 		else
-			for _, passId in ipairs(housePassIds) do
-				local pass = HousePasses.getById(passId)
-				if pass then
-					addInfoRow(shopMyPatronsListFrame, order(), pass.icon, pass.name, pass.description, pass.id, "house_passes")
-				end
+			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned", true))
+			for index, pass in ipairs(passes) do
+				shopCards.card(row, {
+					kind = "owned", noAction = true, layoutOrder = index, name = pass.name, description = pass.description,
+					emoji = pass.icon, artTab = "house_passes", artId = pass.id, rarityTab = "housePasses", rarityId = pass.id,
+				})
 			end
 		end
 	end
 
 	local function rebuildMyRecipesTab(state)
-		for _, child in ipairs(shopMyRecipesListFrame:GetChildren()) do
-			if child:IsA("Frame") or child:IsA("TextLabel") then
-				child:Destroy()
-			end
-		end
+		clearTab(shopMyRecipesListFrame)
 
 		local inventories = {
 			house = (state and state.houseRecipeInventory) or {},
@@ -1358,30 +1326,26 @@ return function(deps)
 			secret = (state and state.secretRecipeInventory) or {},
 		}
 
-		-- GENRE PARITY: "fixed cap ~2" consumable slots -- House+Menu+
-		-- Secret share ONE box (RunState.recipeSlotLimit), so this counts
-		-- across all three, same shape as the Shop tab's "Your table:
-		-- X/Y Patrons" label.
+		-- GENRE PARITY: House + Menu + Secret share ONE box (RunState.recipeSlotLimit).
 		local heldCount = #inventories.house + #inventories.menu + #inventories.secret
 		local recipeSlotLimit = (state and state.recipeSlotLimit) or heldCount
 		local boxIsFull = heldCount >= recipeSlotLimit
 		local capLabel = Instance.new("TextLabel")
 		capLabel.LayoutOrder = 0
-		capLabel.Size = UDim2.new(1, 0, 0, 24)
+		capLabel.Size = UDim2.new(1, 0, 0, 26)
 		capLabel.BackgroundTransparency = 1
 		capLabel.Font = Enum.Font.GothamBold
-		capLabel.TextSize = 14
+		capLabel.TextSize = 15
 		capLabel.TextXAlignment = Enum.TextXAlignment.Left
 		capLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+		capLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
+		capLabel.TextStrokeTransparency = 0.4
 		capLabel.Text = string.format("Recipe box: %d/%d%s", heldCount, recipeSlotLimit,
 			boxIsFull and " -- full! Use one to make room." or "")
 		capLabel.ZIndex = 6
 		capLabel.Parent = shopMyRecipesListFrame
 
-		-- If the recipe we're mid-targeting is no longer in its inventory
-		-- (used some other way than the picker's own Confirm button -- e.g. a
-		-- fresh state push raced the picker), close the stale picker instead
-		-- of leaving it open pointing at a recipe that's gone.
+		-- If the recipe we're mid-targeting is gone from its inventory, close the stale picker.
 		if pendingUse then
 			local stillOwned = false
 			for _, ownedId in ipairs(inventories[pendingUse.category] or {}) do
@@ -1395,27 +1359,11 @@ return function(deps)
 			end
 		end
 
-		local anyOwned = #inventories.house > 0 or #inventories.menu > 0 or #inventories.secret > 0
-		if not anyOwned then
-			local emptyLabel = Instance.new("TextLabel")
-			emptyLabel.LayoutOrder = 1 -- after capLabel (LayoutOrder 0) above
-			emptyLabel.Size = UDim2.new(1, 0, 0, 40)
-			emptyLabel.BackgroundTransparency = 1
-			emptyLabel.Font = Enum.Font.Gotham
-			emptyLabel.TextSize = 14
-			emptyLabel.TextWrapped = true
-			emptyLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-			emptyLabel.Text = "No Recipes yet -- buy a Pack in the Shop tab and pick one!"
-			emptyLabel.ZIndex = 6
-			emptyLabel.Parent = shopMyRecipesListFrame
+		if heldCount == 0 then
+			shopCards.note(shopMyRecipesListFrame, 1, "No Recipes yet -- buy a Pack in the Shop tab and pick one!")
 			return
 		end
 
-		-- See addOfferRow's comment on the Shop tab -- same fix needed here:
-		-- this tab mixes TextLabel category headers with Frame recipe rows,
-		-- so every one of them needs an explicit LayoutOrder or they get
-		-- silently regrouped by Instance type instead of staying in the
-		-- House/Menu/Secret order they were added in.
 		local nextOrder = 0
 		local function order()
 			nextOrder = nextOrder + 1
@@ -1426,61 +1374,31 @@ return function(deps)
 			local inventory = inventories[categoryDef.key]
 			if #inventory > 0 then
 				addSectionHeader(shopMyRecipesListFrame, order(), categoryDef.label)
-
-				for _, recipeId in ipairs(inventory) do
+				local row = shopCards.row(shopMyRecipesListFrame, order(), ShopCardsModule.rowHeight("owned"))
+				for index, recipeId in ipairs(inventory) do
 					local recipe = findRecipeById(categoryDef.catalog, recipeId)
 					if recipe then
-						local row = Instance.new("Frame")
-						row.LayoutOrder = order()
-						row.Size = UDim2.new(1, 0, 0, 64)
-						row.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-						row.ZIndex = 6
-						row.Parent = shopMyRecipesListFrame
-						polishPanel(row, 10)
-
-						makePatronIconBadge(row, recipe.icon, nil, recipe.id, "recipes")
-
-						local label = Instance.new("TextLabel")
-						label.Size = UDim2.new(1, -170, 1, -8)
-						label.Position = UDim2.new(0, 64, 0, 4)
-						label.BackgroundTransparency = 1
-						label.Font = Enum.Font.Gotham
-						label.TextSize = 14
-						label.TextWrapped = true
-						label.TextXAlignment = Enum.TextXAlignment.Left
-						label.TextColor3 = Color3.fromRGB(250, 240, 220)
-						label.Text = string.format("%s\n%s", recipe.name, recipe.description)
-						label.ZIndex = 6
-						label.Parent = row
-
-						local useButton = Instance.new("TextButton")
-						useButton.Size = UDim2.new(0, 90, 0, 36)
-						useButton.Position = UDim2.new(1, -100, 0.5, -18)
-						useButton.Font = Enum.Font.GothamBold
-						useButton.TextSize = 15
-						useButton.Text = "Use"
-						useButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-						useButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-						useButton.ZIndex = 6
-						useButton.Parent = row
-						polishButton(useButton, 8)
-
 						local categoryKey = categoryDef.key
-						useButton.MouseButton1Click:Connect(function()
-							if recipe.cardCount then
+						shopCards.card(row, {
+							kind = "owned", layoutOrder = index, name = recipe.name, description = recipe.description,
+							actionText = "Use", emoji = recipe.icon, artTab = "recipes", artId = recipe.id,
+							rarityTab = "recipes", rarityId = recipe.id,
+							onAction = function()
 								playClickSfx(0.4)
-								openTargetPanel(categoryKey, recipe.id, recipe)
-							else
-								playClickSfx(0.4)
-								showConfirmDialog(
-									string.format("Use %s?\n\n%s", recipe.name, recipe.description),
-									function()
-										playSfx(SOUND_IDS.buyPatron)
-										UseRecipeRemote:FireServer(categoryKey, recipe.id)
-									end
-								)
-							end
-						end)
+								if recipe.cardCount then
+									openTargetPanel(categoryKey, recipe.id, recipe)
+								else
+									showConfirmDialog(
+										string.format("Use %s?\n\n%s", recipe.name, recipe.description),
+										function()
+											playSfx(SOUND_IDS.buyPatron)
+											UseRecipeRemote:FireServer(categoryKey, recipe.id)
+										end
+									)
+								end
+								return false
+							end,
+						})
 					end
 				end
 			end
