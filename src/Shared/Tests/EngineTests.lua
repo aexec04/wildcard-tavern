@@ -6836,7 +6836,7 @@ table.insert(tests, { name = "Badges: real Roblox badge awards skip every missin
 	expectEqual(table.concat(new, ","), "wins_5", "unknown ids and already-owned badges are not sent")
 end })
 
-table.insert(tests, { name = "Keys: defaults and two gentle roads are open, three roads are locked, 3+ routes need no Key", fn = function()
+table.insert(tests, { name = "Keys: the first fork's three roads and every default road are open, the rest are locked, 3+ routes need no Key", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local Keys = require(script.Parent.Parent.Engine.Keys)
 	local roads = Keys.allRoads()
@@ -6849,7 +6849,7 @@ table.insert(tests, { name = "Keys: defaults and two gentle roads are open, thre
 		expectTrue(Keys.isFreeRoad(id), "the default route is always open: " .. id)
 	end
 	local locked = Keys.lockedRoads()
-	expectEqual(table.concat(locked, ","), "desert_dunes,frosty_trail,swamp_boardwalk")
+	expectEqual(table.concat(locked, ","), "frosty_trail,lighthouse_cove,warm_kitchen")
 	local open = 0
 	for _, route in ipairs(WorldMap.allRoutes()) do
 		local needsKey = false
@@ -6861,64 +6861,103 @@ table.insert(tests, { name = "Keys: defaults and two gentle roads are open, thre
 	expectTrue(open >= 3, "at least 3 routes are open to a new player (" .. open .. ")")
 	local profile = PlayerProfile.new()
 	expectEqual(Keys.status(profile, "garden_terrace"), "open")
-	expectEqual(Keys.status(profile, "desert_dunes"), "locked")
+	expectEqual(Keys.status(profile, "desert_dunes"), "open")
+	expectEqual(Keys.status(profile, "swamp_boardwalk"), "open")
+	expectEqual(Keys.status(profile, "frosty_trail"), "locked")
+	-- a fresh profile: exactly the first fork's three roads are open to choose from; later forks only have their
+	-- default road open (so the run can be finished); every other road is locked
+	local _, all = Keys.allRoads()
+	local openRoads, lockedRoads = {}, {}
+	for _, id in ipairs(all) do
+		if Keys.isRoadOpen(profile, id) then openRoads[#openRoads + 1] = id else lockedRoads[#lockedRoads + 1] = id end
+	end
+	expectEqual(table.concat(openRoads, ","), "desert_dunes,garden_terrace,grand_hall,mountain_pass,swamp_boardwalk")
+	expectEqual(#lockedRoads, 3)
+	local forkA = WorldMap.choicesAfter("wildflower_meadow")
+	expectEqual(#forkA, 3)
+	for _, id in ipairs(forkA) do
+		expectTrue(Keys.isRoadOpen(profile, id), "every road of the first fork is open: " .. id)
+	end
+	-- Daily / Weekly / Seed routes ignore locks: the server sends no lockedRoads and never checks them for a plan
+	local plan = WorldMap.routeFromSeed("2026-11-08")
+	expectTrue(WorldMap.isValidRoute(plan), "a seeded plan is a valid route whatever is locked")
 end })
 
 table.insert(tests, { name = "Keys: a locked road is refused by the server check, a Key opens it for good", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local Keys = require(script.Parent.Parent.Engine.Keys)
 	local profile = PlayerProfile.new()
-	local state = runAtNight(3)
+	local function atForkB()
+		local st = runAtNight(3)
+		WorldMap.chooseRoad(st, "garden_terrace", "roundSelect")
+		while st.night < 5 do
+			st.roundOver = true
+			RunState.advanceToNextRound(st)
+		end
+		return st
+	end
+	-- Fork B (after Night 4): mountain_pass is the default road (open), frosty_trail and lighthouse_cove need a Key
+	local state = atForkB()
+	local routeLen = #state.worldRoute
 	local function open(id) return Keys.isRoadOpen(profile, id) end
-	local ok, why = WorldMap.chooseRoad(state, "desert_dunes", "roundSelect", open)
+	expectEqual(table.concat(WorldMap.pendingChoices(state) or {}, ","), "mountain_pass,frosty_trail,lighthouse_cove")
+	local ok, why = WorldMap.chooseRoad(state, "frosty_trail", "roundSelect", open)
 	expectFalse(ok); expectEqual(why, "locked")
-	expectEqual(#state.worldRoute, 2, "a refused pick changes nothing")
+	expectEqual(#state.worldRoute, routeLen, "a refused pick changes nothing")
 	-- no Key, wrong phase, bad ids, free road
-	ok, why = Keys.unlock(profile, state, "desert_dunes", "roundSelect")
+	ok, why = Keys.unlock(profile, state, "frosty_trail", "roundSelect")
 	expectFalse(ok); expectEqual(why, "no_key")
 	profile.keys = 1
-	ok, why = Keys.unlock(profile, state, "desert_dunes", "playing")
+	ok, why = Keys.unlock(profile, state, "frosty_trail", "playing")
 	expectFalse(ok); expectEqual(why, "wrong_phase")
-	ok, why = Keys.unlock(profile, state, "frosty_trail", "roundSelect")
+	ok, why = Keys.unlock(profile, state, "warm_kitchen", "roundSelect")
 	expectFalse(ok); expectEqual(why, "not_next", "only a pending road can be unlocked")
-	ok, why = Keys.unlock(profile, state, "garden_terrace", "roundSelect")
+	ok, why = Keys.unlock(profile, state, "mountain_pass", "roundSelect")
 	expectFalse(ok); expectEqual(why, "not_locked", "a free road never costs a Key")
 	ok = Keys.unlock(profile, state, 5, "roundSelect")
 	expectFalse(ok)
 	expectEqual(profile.keys, 1, "rejections keep the Key")
 	-- the real unlock
-	ok = Keys.unlock(profile, state, "desert_dunes", "roundSelect")
+	ok = Keys.unlock(profile, state, "frosty_trail", "roundSelect")
 	expectTrue(ok)
 	expectEqual(profile.keys, 0)
-	expectTrue(profile.unlockedRoadIds.desert_dunes)
-	ok, why = Keys.unlock(profile, state, "desert_dunes", "roundSelect")
+	expectTrue(profile.unlockedRoadIds.frosty_trail)
+	ok, why = Keys.unlock(profile, state, "frosty_trail", "roundSelect")
 	expectFalse(ok); expectEqual(why, "not_locked", "already open")
-	ok = WorldMap.chooseRoad(state, "desert_dunes", "roundSelect", open)
+	ok = WorldMap.chooseRoad(state, "frosty_trail", "roundSelect", open)
 	expectTrue(ok)
-	expectEqual(state.worldRoute[3], "desert_dunes")
+	expectEqual(state.worldRoute[5], "frosty_trail")
 	-- the other locked road at the same fork is still locked
-	local state2 = runAtNight(3)
-	ok, why = WorldMap.chooseRoad(state2, "swamp_boardwalk", "roundSelect", open)
+	local state2 = atForkB()
+	ok, why = WorldMap.chooseRoad(state2, "lighthouse_cove", "roundSelect", open)
 	expectFalse(ok); expectEqual(why, "locked")
 	-- the compass never spends a charge on a locked road
 	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
-	local state3 = runAtNight(3)
+	local state3 = atForkB()
 	profile.compassCharges = 2
-	ok, why = BiomeRewards.useCompass(profile, state3, "roundSelect", "swamp_boardwalk", open)
+	ok, why = BiomeRewards.useCompass(profile, state3, "roundSelect", "lighthouse_cove", open)
 	expectFalse(ok); expectEqual(why, "locked")
 	expectEqual(profile.compassCharges, 2, "a refused compass use keeps the charge")
-	ok, why = BiomeRewards.useCompass(profile, state3, "roundSelect", "mountain_pass", open)
+	ok, why = BiomeRewards.useCompass(profile, state3, "roundSelect", "grand_hall", open)
 	expectFalse(ok); expectEqual(why, "not_next")
 	expectEqual(profile.compassCharges, 2)
-	ok = BiomeRewards.useCompass(profile, state3, "roundSelect", "garden_terrace", open)
+	ok = BiomeRewards.useCompass(profile, state3, "roundSelect", "mountain_pass", open)
 	expectTrue(ok)
 	expectEqual(profile.compassCharges, 1)
 	-- Daily / Weekly / Seed boards: fixed route, no unlocking and no picking
-	local seeded = runAtNight(3)
+	local seeded = atForkB()
 	seeded.worldPlan = WorldMap.routeFromSeed("2026-11-08")
 	profile.keys = 2
-	ok, why = Keys.unlock(profile, seeded, "swamp_boardwalk", "roundSelect")
+	ok, why = Keys.unlock(profile, seeded, "lighthouse_cove", "roundSelect")
 	expectFalse(ok); expectEqual(why, "fixed_route")
+	-- Fork A is open for everyone from the start
+	local fresh = PlayerProfile.new()
+	local stateA = runAtNight(3)
+	for _, id in ipairs({ "garden_terrace", "desert_dunes", "swamp_boardwalk" }) do
+		local s2 = runAtNight(3)
+		expectTrue(WorldMap.chooseRoad(s2, id, "roundSelect", function(r) return Keys.isRoadOpen(fresh, r) end), "a new player can take " .. id)
+	end
+	expectEqual(#stateA.worldRoute, 2)
 end })
 
 table.insert(tests, { name = "Keys: one per win and one per first biome clear; unlocks persist through save and load", fn = function()
@@ -6948,17 +6987,18 @@ table.insert(tests, { name = "Keys: one per win and one per first biome clear; u
 	expectEqual(loaded.keys, 3)
 	expectTrue(loaded.unlockedRoadIds.frosty_trail)
 	expectTrue(Keys.isRoadOpen(loaded, "frosty_trail"))
-	expectFalse(Keys.isRoadOpen(loaded, "desert_dunes"))
+	expectFalse(Keys.isRoadOpen(loaded, "lighthouse_cove"))
 	-- old profiles and junk migrate safely
 	local old = PlayerProfile.migrate({})
 	expectEqual(old.keys, 0)
 	expectEqual(next(old.unlockedRoadIds), nil)
-	local junk = PlayerProfile.migrate({ keys = -4, unlockedRoadIds = { desert_dunes = true, garden_terrace = true, nope = true, swamp_boardwalk = "yes" } })
+	local junk = PlayerProfile.migrate({ keys = -4, unlockedRoadIds = { frosty_trail = true, garden_terrace = true, desert_dunes = true, nope = true, warm_kitchen = "yes" } })
 	expectEqual(junk.keys, 0)
-	expectTrue(junk.unlockedRoadIds.desert_dunes)
+	expectTrue(junk.unlockedRoadIds.frosty_trail)
 	expectEqual(junk.unlockedRoadIds.garden_terrace, nil, "free roads are not stored")
+	expectEqual(junk.unlockedRoadIds.desert_dunes, nil, "free roads are not stored")
 	expectEqual(junk.unlockedRoadIds.nope, nil)
-	expectEqual(junk.unlockedRoadIds.swamp_boardwalk, nil)
+	expectEqual(junk.unlockedRoadIds.warm_kitchen, nil)
 	expectEqual(PlayerProfile.migrate({ keys = 5000 }).keys, Keys.MAX_KEYS)
 end })
 

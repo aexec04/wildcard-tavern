@@ -7,10 +7,12 @@
 	(Fork C). All roads stay visible on the map; a locked one shows a padlock and the biome it leads to.
 
 	Open for a new player (no Key needed):
-	  - the default road at every fork (the first `next`, i.e. the Dusty Road route), and
-	  - Keys.FreeRoads: the two gentlest other roads, the Lighthouse Cove (a friendly lighthouse) and the Warm
-	    Kitchen (steam, pots and a busy stove). That makes three open routes to walk before any Key is needed.
-	Locked until a Key is spent: desert_dunes, swamp_boardwalk, frosty_trail.
+	  - the default road at every fork (the first `next`, i.e. the Dusty Road route: garden_terrace,
+	    mountain_pass, grand_hall), so the run can always be finished, and
+	  - Keys.FreeRoads: the other two roads of the FIRST fork (desert_dunes, swamp_boardwalk). So the first three
+	    roads on the map (Fork A, right after the Meadow) are all open from the start, and three full routes can be
+	    walked before any Key is needed.
+	Locked until a Key is spent: frosty_trail, lighthouse_cove, warm_kitchen (the later forks' side roads).
 
 	Keys are earned only, never sold: +1 for winning a run (PlayerProfile.recordRunWon) and +1 for the first
 	clear of a biome at its branch end (BiomeRewards.recordBiomeCleared). One Key opens one road for good
@@ -25,7 +27,7 @@ local WorldMap = require(script.Parent.WorldMap)
 local Keys = {}
 
 Keys.MAX_KEYS = 99
-Keys.FreeRoads = { "lighthouse_cove", "warm_kitchen" }
+Keys.FreeRoads = { "desert_dunes", "swamp_boardwalk" } -- with garden_terrace: the first fork's three roads
 
 -- Every road: a Night stop that follows a fork. Returns { [stopId] = true } and a sorted list.
 function Keys.allRoads(stops)
