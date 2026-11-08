@@ -6,4 +6,6 @@
 ]]
 
 return {
+	["fog_puff"] = "rbxassetid://108084082566004",
+	["fog_puff_b"] = "rbxassetid://111709818646437",
 }
