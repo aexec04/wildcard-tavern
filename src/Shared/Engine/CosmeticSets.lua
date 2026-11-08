@@ -24,6 +24,13 @@
 	  vignette = { color = {r,g,b}, strength = 0-1 }       darkened/colored edges
 	  layers   = { { kind = "snow" | "sparks" | "dust" | "bunting", count = N, ... } }
 	Particle layers are capped at BackdropLimits.maxParticles each.
+
+	Whole-table theme (no image assets needed): besides the backdrop, an equipped set themes
+	  face   = { paper = {r,g,b}, border = {r,g,b}, pip = {r,g,b}, foil = true|nil }   the card faces
+	  accent = {r,g,b}                                                            the side panel, hand tray and table edge
+	Sets without explicit values get them derived from their backdropStyle (themeOf), so every set,
+	including the biome sets, themes the card faces and panels; the default set stays neutral (today's
+	look). Use CosmeticSets.themeOf(set) -> { backdropStyle, face, accent, neutral }.
 ]]
 
 local Achievements = require(script.Parent.Achievements)
@@ -55,6 +62,8 @@ CosmeticSets.Definitions = {
 		icon = "❄",
 		description = "Frost on the garden path and lanterns glowing in the snow.",
 		cardBackId = "winter_frost",
+		face = { paper = { 232, 242, 252 }, border = { 150, 195, 235 }, pip = { 60, 100, 170 } },
+		accent = { 140, 185, 230 },
 		backdropImage = BackgroundArt.backdrop_winter_evening or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 190, 210, 245 },
@@ -70,6 +79,8 @@ CosmeticSets.Definitions = {
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",
+		face = { paper = { 255, 242, 220 }, border = { 240, 160, 80 }, pip = { 200, 100, 60 }, foil = true },
+		accent = { 240, 170, 90 },
 		backdropImage = BackgroundArt.backdrop_festival_night or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 235, 205 },
@@ -88,6 +99,8 @@ CosmeticSets.Definitions = {
 		icon = "🏮",
 		description = "Dim lamps and a quiet room as the night winds down.",
 		cardBackId = "closing_lantern",
+		face = { paper = { 228, 210, 180 }, border = { 150, 105, 60 }, pip = { 110, 80, 55 } },
+		accent = { 150, 105, 60 },
 		backdropImage = BackgroundArt.backdrop_closing_time or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 160, 130, 105 },
@@ -104,6 +117,19 @@ CosmeticSets.Definitions = {
 		description = "The tavern dressed in gold for a grand evening.",
 		cardBackId = "gilded_ledger",
 		backdropImage = BackgroundArt.backdrop_golden_gala or "rbxassetid://0",
+		-- No painted backdrop yet, so the style carries the look: a warm gold wash, gold drapes along the
+		-- top, a dark gilded vignette and drifting gold sparks. Gold-edged ivory faces with gold pips.
+		backdropStyle = {
+			tint = { 255, 236, 190 },
+			overlay = { color = { 240, 190, 70 }, transparency = 0.78 },
+			vignette = { color = { 90, 60, 10 }, strength = 0.55 },
+			layers = {
+				{ kind = "bunting", count = 16, colors = { { 235, 190, 80 }, { 190, 140, 40 }, { 250, 232, 170 } } },
+				{ kind = "sparks", count = 16, speed = 0.5 },
+			},
+		},
+		face = { paper = { 252, 240, 208 }, border = { 222, 182, 104 }, pip = { 168, 122, 24 }, foil = true },
+		accent = { 222, 182, 104 },
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
 	},
 	{
@@ -416,6 +442,73 @@ function CosmeticSets.equipCardBack(profile, backId, ownedPassIds)
 	end
 	profile.equippedCardBackId = backId
 	return true, "Equipped."
+end
+
+-- ===== whole-table theme =====
+
+CosmeticSets.NEUTRAL_FACE = { neutral = true } -- the default set keeps today's cream faces and gold rims
+
+-- A themed set is never drawn faintly: at least this much overlay and vignette, so it reads at a glance.
+CosmeticSets.MIN_OVERLAY_STRENGTH = 0.2 -- overlay transparency is capped at 1 - this
+CosmeticSets.MIN_VIGNETTE = 0.35
+
+local function mix(a, b, t)
+	return {
+		math.floor(a[1] + (b[1] - a[1]) * t + 0.5),
+		math.floor(a[2] + (b[2] - a[2]) * t + 0.5),
+		math.floor(a[3] + (b[3] - a[3]) * t + 0.5),
+	}
+end
+
+-- The backdrop style actually drawn for a set (nil for the plain default).
+function CosmeticSets.backdropStyleOf(set)
+	local style = set and set.backdropStyle
+	if not style then
+		return nil
+	end
+	local out = {}
+	for k, v in pairs(style) do out[k] = v end
+	if out.overlay then
+		out.overlay = { color = out.overlay.color, transparency = math.min(out.overlay.transparency, 1 - CosmeticSets.MIN_OVERLAY_STRENGTH) }
+	end
+	if out.vignette then
+		out.vignette = { color = out.vignette.color, strength = math.max(out.vignette.strength, CosmeticSets.MIN_VIGNETTE) }
+	end
+	return out
+end
+
+-- Card face treatment: explicit `face`, else derived from the backdrop style (tint -> paper,
+-- overlay colour -> border, vignette colour darkened -> pip), else neutral.
+function CosmeticSets.faceStyleOf(set)
+	if not set then return CosmeticSets.NEUTRAL_FACE end
+	if set.face then return set.face end
+	local style = set.backdropStyle
+	if not style or set.id == CosmeticSets.DefaultId then return CosmeticSets.NEUTRAL_FACE end
+	local base = { 250, 240, 215 }
+	local border = style.overlay and style.overlay.color or style.tint or { 200, 170, 110 }
+	local pipSource = style.vignette and style.vignette.color or border
+	return {
+		paper = mix(base, style.tint or base, 0.5),
+		border = mix(border, { 255, 255, 255 }, 0.15),
+		pip = mix(pipSource, { 30, 22, 18 }, 0.4),
+	}
+end
+
+-- Accent for the side panel, hand tray and table edge: explicit `accent`, else the face border.
+function CosmeticSets.accentOf(set)
+	if not set then return nil end
+	if set.accent then return set.accent end
+	return CosmeticSets.faceStyleOf(set).border
+end
+
+function CosmeticSets.themeOf(set)
+	local face = CosmeticSets.faceStyleOf(set)
+	return {
+		backdropStyle = CosmeticSets.backdropStyleOf(set),
+		face = face,
+		accent = face.neutral and nil or CosmeticSets.accentOf(set),
+		neutral = face.neutral == true,
+	}
 end
 
 return CosmeticSets

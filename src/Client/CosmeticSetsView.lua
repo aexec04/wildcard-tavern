@@ -59,6 +59,84 @@ function M.currentSet(state)
 	return CosmeticSets.getById(setId) or CosmeticSets.getById(CosmeticSets.DefaultId)
 end
 
+-- Whole-table theme from the set's accent: a faint wash on the side panel, the hand tray felt and a thin
+-- accent frame around the table, plus the card faces (CardFace.setStyle). The default set restores today's look.
+local themedFaceSetId = nil
+local themeTargets = {} -- [name] = instance, so render() does not search PlayerGui every call
+local function themeTarget(name)
+	local inst = themeTargets[name]
+	if inst and inst.Parent then return inst end
+	inst = find(name)
+	themeTargets[name] = inst
+	return inst
+end
+
+local function applyTheme(set)
+	local theme = CosmeticSets.themeOf(set)
+	if themedFaceSetId ~= set.id then
+		themedFaceSetId = set.id
+		pcall(function() require(script.Parent.CardFace).setStyle(theme.face) end)
+	end
+	local accent = theme.accent and Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3]) or nil
+
+	-- Each target is themed once per set; targets built later (the tray is created with the first hand)
+	-- are picked up on a later call.
+	local board = themeTarget("SidebarBoard")
+	if board and board:GetAttribute("ThemedSet") ~= set.id then
+		board:SetAttribute("ThemedSet", set.id)
+		local wash = board:FindFirstChild("SetAccent")
+		if not wash then
+			wash = Instance.new("Frame")
+			wash.Name = "SetAccent"
+			wash.Size = UDim2.fromScale(1, 1)
+			wash.BorderSizePixel = 0
+			wash.Active = false
+			wash.ZIndex = 1 -- above the board art, below the content (ZIndex 3)
+			wash.BackgroundTransparency = 1
+			wash.Parent = board
+		end
+		if accent then wash.BackgroundColor3 = accent end
+		wash.BackgroundTransparency = accent and 0.86 or 1
+	end
+
+	local layers = themeTarget("TableLookLayers")
+	if layers and layers:GetAttribute("ThemedSet") ~= set.id then
+		layers:SetAttribute("ThemedSet", set.id)
+		local edge = layers:FindFirstChild("AccentEdge")
+		if not edge then
+			edge = Instance.new("Frame")
+			edge.Name = "AccentEdge"
+			edge.Size = UDim2.fromScale(1, 1)
+			edge.BackgroundTransparency = 1
+			edge.BorderSizePixel = 0
+			edge.Active = false
+			edge.ZIndex = 0
+			local stroke = Instance.new("UIStroke")
+			stroke.Thickness = 7
+			stroke.Transparency = 1
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			stroke.Parent = edge
+			edge.Parent = layers
+		end
+		local stroke = edge:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			if accent then stroke.Color = accent end
+			stroke.Transparency = accent and 0.5 or 1
+		end
+	end
+
+	local tray = themeTarget("HandTray")
+	if tray and tray:GetAttribute("ThemedSet") ~= set.id then
+		tray:SetAttribute("ThemedSet", set.id)
+		local original = tray:GetAttribute("OriginalFelt")
+		if not original then
+			original = tray.BackgroundColor3
+			tray:SetAttribute("OriginalFelt", original)
+		end
+		tray.BackgroundColor3 = accent and original:Lerp(accent, 0.28) or original
+	end
+end
+
 function M.apply(state)
 	lastState = state
 	local cosmetics = state.cosmetics
@@ -82,6 +160,8 @@ function M.apply(state)
 		backdrop:SetAttribute("AppliedSetId", set.id)
 	end
 
+	applyTheme(set)
+
 	-- Style stack over each backdrop. A host that did not exist yet (Shop,
 	-- Round Select and the map are built on demand) is picked up on a later call.
 	for _, host in ipairs(HOSTS) do
@@ -96,7 +176,7 @@ function M.apply(state)
 			controllers[host.name] = entry
 		end
 		if entry and entry.styledSetId ~= set.id then
-			local ok = pcall(entry.controller.setStyle, set.backdropStyle)
+			local ok = pcall(entry.controller.setStyle, CosmeticSets.backdropStyleOf(set))
 			entry.styledSetId = set.id -- even on failure: don't retry every render
 			if not ok then
 				warn("Backdrop style failed for " .. host.name)

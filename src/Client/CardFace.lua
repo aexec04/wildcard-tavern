@@ -73,6 +73,77 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 	return label
 end
 
+-- Equipped Cosmetic Set treatment (CosmeticSets.faceStyleOf): { neutral = true } or
+-- { paper, border, pip, foil }. Set by CosmeticSetsView; every live face is redrawn on change.
+local setFace = nil
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+-- Low-strength set layers under the corner/centre labels: a paper wash, a thin inset border, optional foil sheen.
+local function addSetLayers(face, zIndex)
+	if not setFace or setFace.neutral then return end
+	local wash = Instance.new("Frame")
+	wash.Name = "SetPaper"
+	wash.Size = UDim2.fromScale(1, 1)
+	wash.BackgroundColor3 = rgb(setFace.paper)
+	wash.BackgroundTransparency = 0.8
+	wash.BorderSizePixel = 0
+	wash.Active = false
+	wash.ZIndex = zIndex
+	wash.Parent = face
+	local washCorner = Instance.new("UICorner")
+	washCorner.CornerRadius = UDim.new(0, 6)
+	washCorner.Parent = wash
+
+	local edge = Instance.new("Frame")
+	edge.Name = "SetBorder"
+	edge.AnchorPoint = Vector2.new(0.5, 0.5)
+	edge.Position = UDim2.fromScale(0.5, 0.5)
+	edge.Size = UDim2.fromScale(0.9, 0.93)
+	edge.BackgroundTransparency = 1
+	edge.BorderSizePixel = 0
+	edge.Active = false
+	edge.ZIndex = zIndex
+	edge.Parent = face
+	local edgeCorner = Instance.new("UICorner")
+	edgeCorner.CornerRadius = UDim.new(0, 5)
+	edgeCorner.Parent = edge
+	local edgeStroke = Instance.new("UIStroke")
+	edgeStroke.Color = rgb(setFace.border)
+	edgeStroke.Thickness = 1.5
+	edgeStroke.Transparency = 0.2
+	edgeStroke.Parent = edge
+
+	if setFace.foil then
+		local foil = Instance.new("Frame") -- a still diagonal sheen, stacked frames only
+		foil.Name = "SetFoil"
+		foil.AnchorPoint = Vector2.new(0.5, 0.5)
+		foil.Position = UDim2.fromScale(0.62, 0.5)
+		foil.Size = UDim2.fromScale(0.14, 1.5)
+		foil.Rotation = 22
+		foil.BackgroundColor3 = Color3.fromRGB(255, 244, 200)
+		foil.BackgroundTransparency = 0.86
+		foil.BorderSizePixel = 0
+		foil.Active = false
+		foil.ZIndex = zIndex
+		foil.Parent = wash
+	end
+	wash.ClipsDescendants = true
+end
+
+function CardFace.setStyle(face)
+	setFace = face
+	for button, args in pairs(builtFaces) do
+		if button.Parent then
+			CardFace.build(button, args[1], args[2], args[3], args[4], false)
+		else
+			builtFaces[button] = nil
+		end
+	end
+end
+
 function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcard)
 	builtFaces[button] = nil -- re-registered below unless this is a hidden wildcard
 	local old = button:FindFirstChild("CardFace")
@@ -94,8 +165,13 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	end
 
 	builtFaces[button] = { rankText, suitText, isRed, zIndex }
+	addSetLayers(face, zIndex)
 	local colorblind = ClientSettings.get("colorblindSuits") and COLORBLIND_INK[suitText] ~= nil
 	local ink = colorblind and COLORBLIND_INK[suitText] or (isRed and RED_INK or BLACK_INK)
+	if not colorblind and setFace and not setFace.neutral then
+		-- set pips: black suits lean toward the set's pip colour, red suits only a little (stay readable)
+		ink = ink:Lerp(rgb(setFace.pip), isRed and 0.2 or 0.5)
+	end
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
 	-- of the card's width and ~8% of its height); they used to start at
 	-- 4-8%, right on top of the gold filigree, which made them hard to read.
@@ -133,8 +209,14 @@ local function getTray(handFrame)
 	if not root then
 		return nil
 	end
-	local host = root:FindFirstChild("GameBackgroundArt") or root
-	local tray = host:FindFirstChild("HandTray")
+	-- Parented straight to root: the scene stack and TableLook (created earlier, same ZIndex 0) used to
+	-- draw over a tray living under GameBackgroundArt. Created lazily after them, it draws above them
+	-- and below every ZIndex >= 1 element.
+	local host = root
+	local tray = host:FindFirstChild("HandTray") or (root:FindFirstChild("GameBackgroundArt") and root.GameBackgroundArt:FindFirstChild("HandTray"))
+	if tray and tray.Parent ~= host then
+		tray.Parent = host -- migrate a tray created under the old parent
+	end
 	if tray then
 		return tray, host
 	end

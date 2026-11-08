@@ -7211,4 +7211,45 @@ table.insert(tests, { name = "TableStyle: backdrop resolves per region and route
 	expectTrue(not boss.grade or not BossStage.isRedish(boss.grade.color), "no red in the boss mood")
 end })
 
+table.insert(tests, { name = "CosmeticSets: every set resolves a card face and backdrop style, equipping changes the table", fn = function()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TableStyle = require(script.Parent.Parent.Engine.TableStyle)
+	local function isRgb(t)
+		return type(t) == "table" and #t == 3 and t[1] >= 0 and t[1] <= 255 and t[2] >= 0 and t[2] <= 255 and t[3] >= 0 and t[3] <= 255
+	end
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local theme = CosmeticSets.themeOf(set)
+		expectTrue(type(theme.face) == "table", set.id .. " resolves a card face style")
+		if set.id == CosmeticSets.DefaultId then
+			expectTrue(theme.neutral and theme.backdropStyle == nil and theme.accent == nil, "the default set stays neutral")
+		else
+			expectTrue(not theme.neutral, set.id .. " themes the faces")
+			expectTrue(isRgb(theme.face.paper) and isRgb(theme.face.border) and isRgb(theme.face.pip), set.id .. " face colours are valid")
+			expectTrue(isRgb(theme.accent), set.id .. " has an accent")
+			expectTrue(theme.backdropStyle ~= nil, set.id .. " resolves a backdrop style")
+			expectTrue(CosmeticSets.validateStyle(theme.backdropStyle), set.id .. " style validates")
+			if theme.backdropStyle.overlay then
+				expectTrue(theme.backdropStyle.overlay.transparency <= 1 - CosmeticSets.MIN_OVERLAY_STRENGTH, set.id .. " overlay is strong enough to read")
+			end
+			if theme.backdropStyle.vignette then
+				expectTrue(theme.backdropStyle.vignette.strength >= CosmeticSets.MIN_VIGNETTE, set.id .. " vignette is strong enough to read")
+			end
+		end
+	end
+	-- Golden Gala (the paid set) must visibly change the table
+	local gala = CosmeticSets.getById("golden_gala")
+	local default = CosmeticSets.getById(CosmeticSets.DefaultId)
+	local galaTheme, defaultTheme = CosmeticSets.themeOf(gala), CosmeticSets.themeOf(default)
+	expectTrue(galaTheme.backdropStyle ~= nil and galaTheme.backdropStyle.overlay ~= nil and #galaTheme.backdropStyle.layers >= 1, "Golden Gala draws a gold wash and layers")
+	expectTrue(galaTheme.face.foil == true and galaTheme.face.border[1] > 200, "Golden Gala has gold-edged foil faces")
+	expectTrue(galaTheme.neutral == false and defaultTheme.neutral == true, "equipping Golden Gala changes the face style")
+	local withGala = TableStyle.resolve({ region = "tavern", night = 1, set = gala })
+	local withDefault = TableStyle.resolve({ region = "tavern", night = 1, set = default })
+	expectTrue(withGala.setStyle ~= nil and withDefault.setStyle == nil, "equipping a set changes the resolved gameplay style")
+	-- explicit values for the sets the task names
+	for _, id in ipairs({ "golden_gala", "winter_evening", "festival_night", "closing_time" }) do
+		expectTrue(CosmeticSets.getById(id).face ~= nil, id .. " has explicit face values")
+	end
+end })
+
 return tests
