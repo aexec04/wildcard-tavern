@@ -33,6 +33,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local SceneKeys = require(Engine:WaitForChild("SceneKeys"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
 local StageLayout = require(Engine:WaitForChild("StageLayout"))
+local RigWalk = require(Engine:WaitForChild("RigWalk"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local BossRigs = require(script.Parent.BossRigs)
@@ -74,29 +75,54 @@ Rig.__index = Rig
 local function collectJoints(model, root)
 	local all = {}
 	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("JointInstance") and d.Part0 and d.Part1 then
+		if d:IsA("JointInstance") then
 			table.insert(all, d)
 		end
 	end
-	local placed = { [root] = true }
-	local ordered, reversed = {}, {}
-	local progress = true
-	while progress do
-		progress = false
-		for _, j in ipairs(all) do
-			if not placed[j.Part1] and placed[j.Part0] then
-				placed[j.Part1] = true
-				table.insert(ordered, j)
-				progress = true
-			elseif not placed[j.Part0] and placed[j.Part1] then
-				placed[j.Part0] = true
-				reversed[j] = true
-				table.insert(ordered, j)
-				progress = true
-			end
+	return RigWalk.walk(all, root)
+end
+
+local CORE_R15 = {
+	HumanoidRootPart = true, Head = true, UpperTorso = true, LowerTorso = true,
+	LeftUpperArm = true, LeftLowerArm = true, LeftHand = true,
+	RightUpperArm = true, RightLowerArm = true, RightHand = true,
+	LeftUpperLeg = true, LeftLowerLeg = true, LeftFoot = true,
+	RightUpperLeg = true, RightLowerLeg = true, RightFoot = true,
+}
+
+-- True when an unreached accessory Handle is welded (AccessoryWeld or any joint) to a part that was placed.
+local function weldedToPlaced(part, placed)
+	for _, d in ipairs(part:GetChildren()) do
+		if d:IsA("JointInstance") and (placed[d.Part0] or placed[d.Part1]) then
+			return true
 		end
 	end
-	return ordered, reversed, placed
+	return false
+end
+
+-- Wait (up to timeout seconds) until a freshly created avatar model has its body: a Humanoid, Head and
+-- LowerTorso, with every joint connected. CreateHumanoidModelFromDescription can hand back a model that is
+-- still being assembled, and walking it early reaches only the root.
+local function waitForModel(model, timeout)
+	local deadline = os.clock() + (timeout or 5)
+	while os.clock() < deadline do
+		local complete = model:FindFirstChildOfClass("Humanoid") ~= nil
+			and model:FindFirstChild("Head", true) ~= nil
+			and model:FindFirstChild("LowerTorso", true) ~= nil
+		if complete then
+			for _, d in ipairs(model:GetDescendants()) do
+				if d:IsA("JointInstance") and not (d.Part0 and d.Part1) then
+					complete = false
+					break
+				end
+			end
+		end
+		if complete then
+			return true
+		end
+		task.wait(0.1)
+	end
+	return false
 end
 
 local function newRig(model, kind)
@@ -106,12 +132,26 @@ local function newRig(model, kind)
 	self.model = model
 	self.kind = kind
 	self.root = root
-	local placed
-	self.joints, self.reversed, placed = collectJoints(model, root)
-	-- Parts no joint reaches would float where they were built (the "exploded" look): drop them.
+	local placed, placedCount
+	self.joints, self.reversed, placed, placedCount = collectJoints(model, root)
+	local total = 0
 	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") and not placed[d] then
-			d:Destroy()
+		if d:IsA("BasePart") then
+			total = total + 1
+		end
+	end
+	warn(string.format("[CharacterStage] %s rig: placed %d of %d parts", kind, placedCount, total))
+	-- An avatar that did not assemble would show up empty: refuse it so the caller uses the blocky rig.
+	if kind == "avatar" and placedCount < RigWalk.MIN_AVATAR_PARTS then
+		error(string.format("avatar rig incomplete (%d placed of %d parts)", placedCount, total))
+	end
+	-- Parts no joint reaches would float where they were built (the "exploded" look): drop them, but never
+	-- core R15 parts, accessory handles welded to a placed part, or anything when the walk found too little.
+	if placedCount >= RigWalk.MIN_AVATAR_PARTS then
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") and not placed[d] and not CORE_R15[d.Name] and not weldedToPlaced(d, placed) then
+				d:Destroy()
+			end
 		end
 	end
 	self.byKey = {}
@@ -550,10 +590,15 @@ local function build(deps)
 				return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
 			end)
 			if built and model then
+				-- Build the rig only once the avatar has its body; newRig itself rejects a half-built one.
+				if not waitForModel(model, 5) then
+					warn("[CharacterStage] avatar model still incomplete after 5s, trying it anyway")
+				end
 				local okRig, result = pcall(newRig, model, "avatar")
 				if okRig then
 					rig = result
 				else
+					warn("[CharacterStage] avatar rig rejected, using blocky rig: " .. tostring(result))
 					pcall(function() model:Destroy() end)
 				end
 			end

@@ -4916,4 +4916,30 @@ table.insert(tests, { name = "StageLayout: accent index is stable and in range",
 	expectTrue(distinct >= 3, "bosses spread over several accent colors")
 end })
 
+table.insert(tests, { name = "RigWalk: orders joints from the root, walks accessory welds backwards, skips half-built joints", fn = function()
+	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
+	local root, torso, head, arm, hat, orphan, lost = {}, {}, {}, {}, {}, {}, {}
+	local rootJoint = { Part0 = root, Part1 = torso }
+	local neck = { Part0 = torso, Part1 = head }
+	local shoulder = { Part0 = torso, Part1 = arm }
+	local hatWeld = { Part0 = hat, Part1 = head } -- accessory: handle is Part0
+	local unfinished = { Part0 = orphan, Part1 = nil } -- joint not assembled yet
+	local detached = { Part0 = lost, Part1 = {} } -- reaches nothing connected to the root
+	-- deliberately out of order so the walk has to iterate
+	local ordered, reversed, placed, count = RigWalk.walk(
+		{ hatWeld, unfinished, neck, detached, shoulder, rootJoint }, root)
+	expectEqual(count, 5, "root, torso, head, arm and hat are reached; the detached ones are not")
+	expectTrue(placed[hat] and placed[head] and placed[arm] and placed[torso])
+	expectTrue(not placed[orphan] and not placed[lost])
+	expectTrue(reversed[hatWeld] == true and reversed[neck] == nil, "only the accessory weld is reversed")
+	local index = {}
+	for i, j in ipairs(ordered) do
+		index[j] = i
+	end
+	expectTrue(index[rootJoint] < index[neck] and index[neck] < index[hatWeld], "anchors come before what they move")
+	expectEqual(#ordered, 4)
+	local _, _, _, tiny = RigWalk.walk({}, root)
+	expectTrue(tiny < RigWalk.MIN_AVATAR_PARTS, "an empty model counts as unassembled")
+end })
+
 return tests
