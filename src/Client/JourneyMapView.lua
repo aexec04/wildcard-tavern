@@ -526,7 +526,7 @@ return function(deps)
 	-- (label above, reward tag below), odd nodes ride low (label and tag below).
 	local canvasW, canvasH = 600, 300
 	local MIN_SPACING = 280
-	local LEFT_PAD, RIGHT_PAD = 200, 240 -- room so the first and last node and their labels never clip
+	local LEFT_PAD, RIGHT_PAD = 480, 240 -- room so the first and last node and their labels never clip; the wide left pad gives the road region some sand before Night 1
 	local LABEL_MAX = 230
 	local posX, posY = {}, {}
 	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
@@ -614,7 +614,7 @@ return function(deps)
 		lastLayoutKey = key
 		canvasH = math.max(260, size.Y - 10)
 		nodeSize = math.floor(math.clamp(canvasH * 0.15, 64, 92))
-		canvasW = math.max(size.X * 3, LEFT_PAD + RIGHT_PAD + (NODE_COUNT - 1) * MIN_SPACING)
+		canvasW = math.max(size.X * 4, LEFT_PAD + RIGHT_PAD + (NODE_COUNT - 1) * MIN_SPACING) -- five region tiles to cross
 		local spacing = (canvasW - LEFT_PAD - RIGHT_PAD) / (NODE_COUNT - 1)
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
 		scroll.CanvasSize = UDim2.fromOffset(canvasW, 0)
@@ -683,7 +683,11 @@ return function(deps)
 			g.frame.Size = UDim2.fromOffset(s, s)
 		end
 		-- Decor lives in the empty bands above the highest label and below the lowest tag.
-		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16)
+		local nodeXs = {}
+		for index = 1, NODE_COUNT do
+			nodeXs[index] = (nodePixel(index))
+		end
+		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs)
 		fogBand.layout(canvasW, canvasH)
 		updateFog(false)
 		placeMarker()

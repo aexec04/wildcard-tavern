@@ -50,9 +50,9 @@ CosmeticSets.Definitions = {
 	},
 	{
 		id = "winter_evening",
-		name = "Winter Evening",
+		name = "Frosted Garden",
 		icon = "❄",
-		description = "Snow on the windows and a warm fire inside.",
+		description = "Frost on the garden path and lanterns glowing in the snow.",
 		cardBackId = "winter_frost",
 		backdropImage = BackgroundArt.backdrop_winter_evening or "rbxassetid://0",
 		backdropStyle = {
@@ -65,7 +65,7 @@ CosmeticSets.Definitions = {
 	},
 	{
 		id = "festival_night",
-		name = "Festival Night",
+		name = "Mountain Festival",
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",

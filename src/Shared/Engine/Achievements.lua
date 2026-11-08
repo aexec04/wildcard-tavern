@@ -163,11 +163,11 @@ Achievements.Definitions = {
 	-- first time. milestoneReward keeps them out of Collection completion.
 	{
 		id = "porch_regular",
-		name = "Porch Regular",
+		name = "Road Walker",
 		icon = "🏮",
-		title = "Porch Regular",
+		title = "Road Walker",
 		description = "A Journey reward: clear Night 1.",
-		flavorText = "Your rocking chair is already saved.",
+		flavorText = "The dust of the old road never quite washes off.",
 		milestoneReward = true,
 		requirement = function(profile)
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.porch_regular == true
@@ -175,11 +175,11 @@ Achievements.Definitions = {
 	},
 	{
 		id = "loft_climber",
-		name = "Loft Climber",
+		name = "Bridge Crosser",
 		icon = "🪜",
-		title = "Loft Climber",
+		title = "Bridge Crosser",
 		description = "A Journey reward: clear Night 4.",
-		flavorText = "Those stairs don't creak for you any more.",
+		flavorText = "The old planks hold steady under your boots.",
 		milestoneReward = true,
 		requirement = function(profile)
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.loft_climber == true

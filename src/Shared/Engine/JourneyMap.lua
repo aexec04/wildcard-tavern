@@ -30,46 +30,54 @@ local JourneyMap = {}
 
 JourneyMap.NightCap = 8
 
+-- The road to the tavern: sandy road, flower fields, a garden, a river, mountains,
+-- and only then the tavern itself (gate, grand hall, the Keeper's table).
+-- `art` is the SceneArt / map_nodes key; x, y are rough canvas fractions (the Journey
+-- view spaces nodes itself; they only matter for the Studio Nudge tool).
 JourneyMap.Nights = {
-	{ night = 1, name = "The Front Porch", art = "front_porch", icon = "🏮",
+	{ night = 1, name = "The Dusty Road", art = "dusty_road", icon = "🛤",
 		x = 0.05, y = 0.62,
-		description = "Rocking chairs, lantern light and the first friendly faces.",
+		description = "Sandy gravel underfoot and a long road ahead. Every journey starts somewhere.",
 		reward = { kind = "title", id = "porch_regular" } },
-	{ night = 2, name = "The Warm Kitchen", art = "warm_kitchen", icon = "🍲",
-		x = 0.14, y = 0.3,
-		description = "Soup on the stove and a busy crowd at the counter.",
+	{ night = 2, name = "The Wildflower Meadow", art = "wildflower_meadow", icon = "🌼",
+		x = 0.2, y = 0.3,
+		description = "Fields of bright flowers hum with bees, and the first lanterns glow far off.",
 		reward = { kind = "cardBack", id = "kitchen_checks" } },
-	{ night = 3, name = "The Snug Booth", art = "snug_booth", icon = "🛋",
-		x = 0.23, y = 0.64,
-		description = "A quiet corner where the stakes quietly rise.",
+	{ night = 3, name = "The Lantern Garden", art = "garden_terrace", icon = "🏮",
+		x = 0.33, y = 0.64,
+		description = "Fairy lights and flower beds make a calm stop before the harder road.",
 		reward = { kind = "set", id = "winter_evening" } },
-	{ night = 4, name = "The Cozy Loft", art = "cozy_loft", icon = "🪜",
-		x = 0.32, y = 0.3,
-		description = "Creaky stairs lead to sharper players.",
+	{ night = 4, name = "The Willow Bridge", art = "willow_bridge", icon = "🌉",
+		x = 0.47, y = 0.3,
+		description = "A stone bridge over a quiet river. Cross it and the road gets steeper.",
 		reward = { kind = "title", id = "loft_climber" } },
-	{ night = 5, name = "The Garden Terrace", art = "garden_terrace", icon = "🌿",
-		x = 0.41, y = 0.66,
-		description = "Fairy lights strung over a night of friendly games.",
+	{ night = 5, name = "The Mountain Pass", art = "mountain_pass", icon = "⛰",
+		x = 0.64, y = 0.66,
+		description = "A narrow trail over snowy peaks, with the tavern lights somewhere beyond.",
 		reward = { kind = "set", id = "festival_night" } },
-	{ night = 6, name = "The Grand Hall", art = "grand_hall", icon = "🏛",
-		x = 0.5, y = 0.3,
-		description = "Chandeliers, banners and a very serious crowd.",
+	{ night = 6, name = "The Tavern Gate", art = "tavern_gate", icon = "🚪",
+		x = 0.76, y = 0.3,
+		description = "Lanterns and cobblestones. The tavern is finally in sight.",
 		reward = { kind = "cardBack", id = "hall_banner" } },
-	{ night = 7, name = "The Rooftop View", art = "rooftop_view", icon = "🌙",
-		x = 0.59, y = 0.64,
-		description = "The whole town sleeps below. The cards stay awake.",
+	{ night = 7, name = "The Grand Hall", art = "grand_hall", icon = "🏛",
+		x = 0.84, y = 0.64,
+		description = "Chandeliers, banners and a very serious crowd.",
 		reward = { kind = "set", id = "closing_time" } },
 	{ night = 8, name = "The Keeper's Table", art = "keepers_table", icon = "👑",
-		x = 0.68, y = 0.32,
+		x = 0.91, y = 0.32,
 		description = "The last table of the tavern. Win here and it's yours.",
 		reward = { kind = "title", id = "tavern_keeper" } },
 }
+
+-- Endless Nights (9 and beyond) are played back in the old tavern rooms, in this
+-- order (SceneKeys.artFor). These keys exist in SceneArt but have no map node.
+JourneyMap.EndlessScenes = { "front_porch", "warm_kitchen", "snug_booth", "cozy_loft", "rooftop_view" }
 
 -- Painted map image. Fill in a real id; "rbxassetid://0" (or a failed load)
 -- falls back to the UI-built parchment look.
 JourneyMap.Config = {
 	journeyMapImage = BackgroundArt.journey_map or "rbxassetid://0",
-	mapAspect = 2.8, -- canvas width / height; the image should match it
+	mapAspect = 7.5, -- canvas width / height: five region tiles of 1.5 each (the view sizes its canvas from its nodes)
 }
 
 JourneyMap.Endless = {
@@ -360,7 +368,7 @@ function JourneyMap.unlockText(node)
 	return string.format("Reach and beat the boss round of Endless Night %d.", node.night)
 end
 
--- Display text for a reward, e.g. 'Title: "Porch Regular"'.
+-- Display text for a reward, e.g. 'Title: "Road Walker"'.
 function JourneyMap.rewardLabel(reward, lookups)
 	lookups = lookups or { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
 	local def = lookups and lookups[reward.kind] and lookups[reward.kind].getById(reward.id)

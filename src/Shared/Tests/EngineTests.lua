@@ -4732,8 +4732,8 @@ end })
 
 table.insert(tests, { name = "Journey map nodes: every node resolves to landmark art or an emoji fallback", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
-	local known = { front_porch = true, warm_kitchen = true, snug_booth = true, cozy_loft = true, garden_terrace = true,
-		grand_hall = true, rooftop_view = true, keepers_table = true, endless_portal = true }
+	local known = { dusty_road = true, wildflower_meadow = true, garden_terrace = true, willow_bridge = true,
+		mountain_pass = true, tavern_gate = true, grand_hall = true, keepers_table = true, endless_portal = true }
 	local nodes = JourneyMap.allNodes()
 	expectEqual(#nodes, 12)
 	for _, node in ipairs(nodes) do
@@ -4848,18 +4848,22 @@ end })
 
 table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endless rotates", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
-	expectEqual(SceneKeys.keyFor(1, "small"), "front_porch_a")
-	expectEqual(SceneKeys.keyFor(1, "big"), "front_porch_b")
-	expectEqual(SceneKeys.keyFor(1, "boss"), "front_porch_in")
+	expectEqual(SceneKeys.keyFor(1, "small"), "dusty_road_a")
+	expectEqual(SceneKeys.keyFor(1, "big"), "dusty_road_b")
+	expectEqual(SceneKeys.keyFor(1, "boss"), "dusty_road_in")
+	expectEqual(SceneKeys.keyFor(3, "big"), "garden_terrace_b")
+	expectEqual(SceneKeys.keyFor(6, "boss"), "tavern_gate_in")
 	expectEqual(SceneKeys.keyFor(8, "boss"), "keepers_table_in")
-	-- Endless: Night 9 wraps to the first location, Night 16 to the last.
+	-- Endless: Night 9 starts the old-room rotation, Night 14 wraps back to its first entry.
 	expectEqual(SceneKeys.keyFor(9, "small"), "front_porch_a")
 	expectEqual(SceneKeys.keyFor(10, "big"), "warm_kitchen_b")
-	expectEqual(SceneKeys.keyFor(16, "boss"), "keepers_table_in")
+	expectEqual(SceneKeys.keyFor(13, "boss"), "rooftop_view_in")
+	expectEqual(SceneKeys.keyFor(14, "small"), "front_porch_a")
 	expectEqual(SceneKeys.roundKind(1), "small")
 	expectEqual(SceneKeys.roundKind(2), "big")
 	expectEqual(SceneKeys.roundKind(3), "boss")
 	expectEqual(SceneKeys.roundKind(4, 5), "big")
+	expectEqual(#JourneyMap.EndlessScenes, 5)
 	-- Every Night location yields a well-formed key for all three kinds.
 	for _, n in ipairs(JourneyMap.Nights) do
 		for _, kind in ipairs({ "small", "big", "boss" }) do
