@@ -24,6 +24,7 @@ local ContentArt = {
 	rooms        = require(Engine:WaitForChild("RoomArt")),
 	backgrounds  = require(Engine:WaitForChild("BackgroundArt")),
 	tutorial_icons = require(Engine:WaitForChild("TutorialIconArt")),
+	map_nodes    = require(Engine:WaitForChild("MapNodeArt")),
 }
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds

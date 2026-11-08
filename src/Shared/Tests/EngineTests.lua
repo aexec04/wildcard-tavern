@@ -4655,4 +4655,24 @@ table.insert(tests, { name = "Tutorial icons: all six resolve to real ids throug
 	end
 end })
 
+table.insert(tests, { name = "Journey map nodes: every node resolves to landmark art or an emoji fallback", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local known = { front_porch = true, warm_kitchen = true, snug_booth = true, cozy_loft = true, garden_terrace = true,
+		grand_hall = true, rooftop_view = true, keepers_table = true, endless_portal = true }
+	local nodes = JourneyMap.allNodes()
+	expectEqual(#nodes, 12)
+	for _, node in ipairs(nodes) do
+		local info = node.info
+		local art = info.art and ContentArt.getImageId("map_nodes", info.art)
+		if info.art then
+			expectTrue(known[info.art] == true, "unknown map_nodes key " .. tostring(info.art))
+		end
+		expectTrue(art ~= nil or (type(info.icon) == "string" and #info.icon > 0), tostring(info.name) .. " needs art or an emoji fallback")
+	end
+	for _, key in ipairs({ "wax_seal_gold", "hero_token" }) do
+		local v = ContentArt.getImageId("map_nodes", key)
+		expectTrue(v == nil or v:find("^rbxassetid://%d+$") ~= nil, key)
+	end
+end })
+
 return tests

@@ -334,5 +334,18 @@
     "target": "a wooden dartboard bullseye with a dart",
     "shop": "a leather coin purse beside a tiny shop counter",
     "endless": "a crescent moon and stars over a tavern roof"
+  },
+  "map_node_subjects": {
+    "front_porch": "a tavern front porch with a lantern and a welcome mat",
+    "warm_kitchen": "a cozy tavern kitchen with a bubbling pot",
+    "snug_booth": "a snug wooden booth with a candle",
+    "cozy_loft": "a loft nook with cushions and a window",
+    "garden_terrace": "a lantern-lit garden terrace with flowers",
+    "grand_hall": "a grand banquet hall with a long table",
+    "rooftop_view": "a tavern rooftop under the moon",
+    "keepers_table": "the keeper's table with a ledger and a key",
+    "wax_seal_gold": "a gold wax seal stamp with a small star",
+    "endless_portal": "a glowing compass-portal with stars",
+    "hero_token": "a small blocky Roblox-style traveler head with a green feathered cap, round token"
   }
 }

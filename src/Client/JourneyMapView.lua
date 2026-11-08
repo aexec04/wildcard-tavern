@@ -8,12 +8,17 @@
 	Background: JourneyMap.Config.journeyMapImage. An id of "rbxassetid://0",
 	or one that fails to load, falls back to the UI-built parchment look.
 
-	Node states: cleared (gold ring + check), current (soft pulse), locked
-	(dimmed, reward preview under the name), boss tier badge (distinct icon per
-	tier). Tapping a node opens a detail card (reward, how it unlocks, Equip).
+	Treasure-map look: a winding dotted ink trail between round parchment
+	medallions that show each landmark (ContentArt map_nodes/<key>, emoji circle
+	as the fallback). Node states: cleared (gold wax seal), current (lantern
+	glow ring, bobbing red X, hero token standing on it), locked (dimmed art,
+	"?" and fog), boss tier badge. Tapping a node opens a detail card (reward,
+	how it unlocks, Equip). Candle glows, embers, the X bob and the Endless
+	portal spin run only while the map is shown (stopAmbient on hide).
 
-	Unlock moment: when the map is shown and a node has been cleared since the
-	player last looked, the path draws toward the next node, that node lights
+	Clear moment: when the map is shown and a node has been cleared since the
+	player last looked, its seal stamps on (with a sparkle burst and a tiny map
+	shake), the hero hops along the trail to the next node, that node lights
 	up and the reward pops with a short message. Animation speed and "reduce
 	screen shake" settings are respected (no bounce when shake is reduced).
 
@@ -161,54 +166,109 @@ return function(deps)
 		return l
 	end
 
-	-- ===== Path segments (segment i joins node i to node i + 1) =====
+	-- ===== Treasure-map look =====
+	local TRAIL_INK = Color3.fromRGB(70, 46, 26)
+	local LABEL_INK = Color3.fromRGB(60, 40, 22)
+	local PARCHMENT = Color3.fromRGB(226, 202, 156)
+	local TAG_PARCHMENT = Color3.fromRGB(236, 216, 172)
+	local LABEL_STROKE = Color3.fromRGB(240, 222, 180)
+	local RIBBON = Color3.fromRGB(150, 48, 40)
+
+	local function mapArt(key)
+		return key and ContentArtJMV.getImageId("map_nodes", key) or nil
+	end
+
+	local unlocking = false -- true while the clear moment runs (refresh leaves the picture alone)
+	local requestRender -- set once refresh() exists (art that loads late re-renders)
+
+	-- ===== Trail: dotted ink path along a Bezier (segment i joins node i to i + 1) =====
 	local segments = {}
 	for i = 1, NODE_COUNT - 1 do
-		local base = Instance.new("Frame")
-		base.AnchorPoint = Vector2.new(0, 0.5)
-		base.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
-		base.BackgroundTransparency = 0.15
-		base.BorderSizePixel = 0
-		base.ZIndex = 23
-		base.Parent = canvas
-		deps.roundCorner(base, 3)
-		local fill = Instance.new("Frame")
-		fill.AnchorPoint = Vector2.new(0, 0.5)
-		fill.BackgroundColor3 = GOLD
-		fill.BorderSizePixel = 0
-		fill.ZIndex = 24
-		fill.Parent = canvas
-		deps.roundCorner(fill, 3)
-		segments[i] = { base = base, fill = fill, length = 0, filled = false }
+		segments[i] = { dots = {}, count = 0, length = 0, filled = false, sign = (i % 2 == 0) and 1 or -1,
+			ax = 0, ay = 0, bx = 0, by = 0, cx = 0, cy = 0 }
+	end
+
+	local function bezier(seg, t)
+		local u = 1 - t
+		return u * u * seg.ax + 2 * u * t * seg.cx + t * t * seg.bx,
+			u * u * seg.ay + 2 * u * t * seg.cy + t * t * seg.by
+	end
+
+	local function makeDot(seg)
+		local dot = Instance.new("Frame")
+		dot.AnchorPoint = Vector2.new(0.5, 0.5)
+		dot.BackgroundColor3 = TRAIL_INK
+		dot.BorderSizePixel = 0
+		dot.ZIndex = 23
+		dot.Parent = canvas
+		deps.roundCorner(dot, 4)
+		local foot = text(dot, {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16),
+			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 24, TextTransparency = 1, Visible = false,
+		})
+		return { frame = dot, foot = foot }
+	end
+
+	-- Visual target of a dot: cleared = solid ink (every 4th a tiny footprint), upcoming = faint.
+	local function dotTargets(seg, k)
+		if seg.filled then
+			if k % 4 == 0 then
+				return { frame = 1, foot = 0, size = 7 }
+			end
+			return { frame = 0, foot = 1, size = 7 }
+		end
+		return { frame = 0.65, foot = 1, size = 5 }
+	end
+
+	local function setDot(seg, k, animate, duration, delay)
+		local dot = seg.dots[k]
+		local tgt = dotTargets(seg, k)
+		dot.frame.Visible = k <= seg.count
+		dot.foot.Visible = seg.filled and k % 4 == 0 and k <= seg.count
+		if animate then
+			dot.frame.BackgroundTransparency = 1
+			dot.foot.TextTransparency = 1
+			local info = TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, false, delay)
+			TweenService:Create(dot.frame, info, { BackgroundTransparency = tgt.frame }):Play()
+			if dot.foot.Visible then
+				TweenService:Create(dot.foot, info, { TextTransparency = 0 }):Play()
+			end
+		else
+			dot.frame.BackgroundTransparency = tgt.frame
+			dot.foot.TextTransparency = dot.foot.Visible and 0 or 1
+		end
+		dot.frame.Size = UDim2.fromOffset(tgt.size, tgt.size)
 	end
 
 	-- ===== Nodes =====
 	local nodes = {}
-	local nodeSize = 56
+	local nodeSize = 84
+	local markerIndex = nil
 
 	local function buildNode(index)
 		local data = nodeData[index]
 		local info = data.info
 		local isEndless = data.kind == "endless"
 
+		-- Round parchment-framed medallion.
 		local button = Instance.new("TextButton")
 		button.Name = "Node" .. index
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
 		button.Position = UDim2.fromScale(info.x, info.y)
 		button.Size = UDim2.fromOffset(nodeSize, nodeSize)
-		button.BackgroundColor3 = Color3.fromRGB(45, 34, 24)
+		button.BackgroundColor3 = PARCHMENT
 		button.AutoButtonColor = false
 		button.Text = ""
 		button.ZIndex = 26
 		button.Parent = canvas
-		deps.roundCorner(button, 30)
+		deps.roundCorner(button, 60)
 		local stroke = Instance.new("UIStroke")
 		stroke.Thickness = 3
 		stroke.Parent = button
 		local scale = Instance.new("UIScale")
 		scale.Parent = button
 
-		-- Soft pulse ring for the current node.
+		-- Lantern-glow ring for the current node.
 		local halo = Instance.new("Frame")
 		halo.AnchorPoint = Vector2.new(0.5, 0.5)
 		halo.Position = UDim2.fromScale(0.5, 0.5)
@@ -217,55 +277,148 @@ return function(deps)
 		halo.Visible = false
 		halo.ZIndex = 25
 		halo.Parent = button
-		deps.roundCorner(halo, 40)
+		deps.roundCorner(halo, 70)
 		local haloStroke = Instance.new("UIStroke")
-		haloStroke.Thickness = 3
+		haloStroke.Thickness = 5
 		haloStroke.Transparency = 0.2
 		haloStroke.Parent = halo
 		local haloScale = Instance.new("UIScale")
 		haloScale.Parent = halo
 
-		-- Gold-ring numbered node with a small glyph from the data table
-		-- (info.glyph, falling back to info.icon). No per-location images.
-		local numberTag = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromScale(0.9, 0.5),
-			Font = Enum.Font.GothamBold, TextSize = 20, TextWrapped = false, ZIndex = 28,
-			Text = isEndless and "∞" or tostring(data.night),
-		})
+		-- Emoji fallback (shown when the landmark art is missing or fails to load).
 		local icon = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.76), Size = UDim2.fromScale(0.9, 0.34),
-			TextSize = 13, Text = info.glyph or info.icon, TextWrapped = false, ZIndex = 28,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromScale(0.8, 0.6),
+			TextSize = 36, Text = info.icon, TextWrapped = false, ZIndex = 27,
 		})
+		local art
+		local artId = mapArt(info.art)
+		if artId then
+			art = PatronPlaque.applyById(button, artId, {
+				emojiLabel = icon, zIndex = 27, cornerRadius = 60,
+				size = UDim2.new(1, -12, 1, -12), position = UDim2.fromOffset(6, 6),
+			})
+		end
+
+		-- Fog for locked nodes (a soft grey wash, never black).
+		local fog = Instance.new("Frame")
+		fog.Size = UDim2.new(1, -6, 1, -6)
+		fog.Position = UDim2.fromOffset(3, 3)
+		fog.BackgroundColor3 = Color3.fromRGB(190, 184, 176)
+		fog.BackgroundTransparency = 0.55
+		fog.BorderSizePixel = 0
+		fog.Visible = false
+		fog.ZIndex = 28
+		fog.Parent = button
+		deps.roundCorner(fog, 60)
+
+		-- Night number on a small ribbon.
+		local ribbon = text(button, {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1), Size = UDim2.fromOffset(40, 20),
+			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, ZIndex = 30, BackgroundTransparency = 0,
+			BackgroundColor3 = RIBBON, Text = isEndless and "∞" or tostring(data.night),
+		})
+		deps.roundCorner(ribbon, 5)
 
 		local bossBadge
 		if data.kind == "night" or data.kind == "milestone" then
 			local tierInfo = JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)]
 			bossBadge = text(button, {
-				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.92, 0.1), Size = UDim2.fromOffset(22, 22),
-				TextSize = 13, TextWrapped = false, Text = tierInfo.icon, BackgroundTransparency = 0,
-				BackgroundColor3 = Color3.fromRGB(110, 40, 40), ZIndex = 28,
+				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.1), Size = UDim2.fromOffset(26, 26),
+				TextSize = 16, TextWrapped = false, Text = tierInfo.icon, BackgroundTransparency = 0,
+				BackgroundColor3 = Color3.fromRGB(110, 40, 40), ZIndex = 30,
 			})
-			deps.roundCorner(bossBadge, 11)
+			deps.roundCorner(bossBadge, 13)
 		end
 
+		-- Cleared: gold wax seal (✓ badge when the seal art is unavailable).
 		local check = text(button, {
-			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.92), Size = UDim2.fromOffset(22, 22),
-			Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = false, Text = "✓", BackgroundTransparency = 0,
-			BackgroundColor3 = GOLD, TextColor3 = INK, Visible = false, ZIndex = 28,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.86), Size = UDim2.fromOffset(26, 26),
+			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "✓", BackgroundTransparency = 0,
+			BackgroundColor3 = GOLD, TextColor3 = INK, Visible = false, ZIndex = 31,
 		})
-		deps.roundCorner(check, 11)
+		deps.roundCorner(check, 13)
+		local seal, sealScale
+		local sealId = mapArt("wax_seal_gold")
+		if sealId then
+			seal = Instance.new("ImageLabel")
+			seal.Name = "Seal"
+			seal.AnchorPoint = Vector2.new(0.5, 0.5)
+			seal.Position = UDim2.fromScale(0.9, 0.86)
+			seal.Size = UDim2.fromOffset(38, 38)
+			seal.BackgroundTransparency = 1
+			seal.Image = sealId
+			seal.ScaleType = Enum.ScaleType.Fit
+			seal.Visible = false
+			seal.ZIndex = 31
+			seal.Parent = button
+			sealScale = Instance.new("UIScale")
+			sealScale.Parent = seal
+			seal:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+				if requestRender then
+					requestRender()
+				end
+			end)
+			-- Hidden images are not fetched on their own; ask for it so the ✓ fallback can swap to the seal.
+			task.spawn(function()
+				pcall(function()
+					ContentProvider:PreloadAsync({ seal })
+				end)
+				if requestRender then
+					requestRender()
+				end
+			end)
+		end
+
+		-- Locked: small "?".
+		local lockMark = text(button, {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.86), Size = UDim2.fromOffset(24, 24),
+			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "?", BackgroundTransparency = 0,
+			BackgroundColor3 = PARCHMENT, TextColor3 = LABEL_INK, Visible = false, ZIndex = 31,
+		})
+		deps.roundCorner(lockMark, 12)
+
+		-- Endless: slowly rotating portal (20 s per turn).
+		local spin
+		if isEndless and art then
+			spin = TweenService:Create(art, TweenInfo.new(20, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1, false), { Rotation = 360 })
+		end
 
 		-- Labels live on the canvas (not the button) so the button's UIScale
-		-- pop does not stretch the text.
+		-- pop does not stretch the text. Dark ink with a parchment stroke.
 		local name = text(canvas, {
-			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(120, 28),
-			Font = Enum.Font.GothamBold, TextSize = 11, Text = info.name, ZIndex = 27,
-			TextStrokeColor3 = INK, TextStrokeTransparency = 0.5,
+			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = false,
+			Font = Enum.Font.GothamBold, TextSize = 16, Text = info.name, ZIndex = 27,
+			TextColor3 = LABEL_INK, TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.4,
 		})
-		local preview = text(canvas, {
-			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(120, 14),
-			TextSize = 10, Text = "", TextWrapped = false, ZIndex = 27,
-			TextStrokeColor3 = INK, TextStrokeTransparency = 0.5,
+		-- Reward on a small hanging tag.
+		local tag = Instance.new("Frame")
+		tag.AnchorPoint = Vector2.new(0.5, 0)
+		tag.Size = UDim2.fromOffset(0, 24)
+		tag.AutomaticSize = Enum.AutomaticSize.X
+		tag.BackgroundColor3 = TAG_PARCHMENT
+		tag.BorderSizePixel = 0
+		tag.ZIndex = 27
+		tag.Parent = canvas
+		deps.roundCorner(tag, 6)
+		local tagStroke = Instance.new("UIStroke")
+		tagStroke.Color = Color3.fromRGB(110, 80, 45)
+		tagStroke.Thickness = 1.5
+		tagStroke.Parent = tag
+		local tagPad = Instance.new("UIPadding")
+		tagPad.PaddingLeft = UDim.new(0, 8)
+		tagPad.PaddingRight = UDim.new(0, 8)
+		tagPad.Parent = tag
+		local string_ = Instance.new("Frame")
+		string_.AnchorPoint = Vector2.new(0.5, 1)
+		string_.Position = UDim2.fromScale(0.5, 0)
+		string_.Size = UDim2.fromOffset(2, 6)
+		string_.BackgroundColor3 = Color3.fromRGB(110, 80, 45)
+		string_.BorderSizePixel = 0
+		string_.ZIndex = 27
+		string_.Parent = tag
+		local preview = text(tag, {
+			Size = UDim2.fromOffset(0, 24), AutomaticSize = Enum.AutomaticSize.X, TextSize = 14, Text = "",
+			TextWrapped = false, ZIndex = 28, Font = Enum.Font.GothamBold, TextColor3 = LABEL_INK,
 		})
 
 		local pulse = TweenService:Create(haloStroke, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.85 })
@@ -273,7 +426,8 @@ return function(deps)
 
 		nodes[index] = {
 			button = button, stroke = stroke, scale = scale, halo = halo, haloStroke = haloStroke, haloScale = haloScale,
-			icon = icon, numberTag = numberTag, bossBadge = bossBadge, check = check, name = name, preview = preview,
+			icon = icon, art = art, fog = fog, ribbon = ribbon, bossBadge = bossBadge, check = check, seal = seal,
+			sealScale = sealScale, lockMark = lockMark, spin = spin, name = name, tag = tag, preview = preview,
 			pulse = pulse, pulseScale = pulseScale, pulsing = false, data = data, isEndless = isEndless,
 		}
 	end
@@ -282,8 +436,140 @@ return function(deps)
 		buildNode(index)
 	end
 
+	-- ===== Hero token + bobbing red X (stands on the current node) =====
+	local marker = Instance.new("Frame")
+	marker.Name = "HeroMarker"
+	marker.AnchorPoint = Vector2.new(0.5, 1)
+	marker.Size = UDim2.fromOffset(56, 76)
+	marker.BackgroundTransparency = 1
+	marker.Visible = false
+	marker.ZIndex = 33
+	marker.Parent = canvas
+	local bobber = Instance.new("Frame")
+	bobber.Size = UDim2.fromScale(1, 1)
+	bobber.BackgroundTransparency = 1
+	bobber.ZIndex = 33
+	bobber.Parent = marker
+	local heroHolder = Instance.new("Frame")
+	heroHolder.AnchorPoint = Vector2.new(0.5, 0)
+	heroHolder.Position = UDim2.fromScale(0.5, 0)
+	heroHolder.Size = UDim2.fromOffset(46, 46)
+	heroHolder.BackgroundColor3 = PARCHMENT
+	heroHolder.ZIndex = 33
+	heroHolder.Parent = bobber
+	deps.roundCorner(heroHolder, 23)
+	local heroEmoji = text(heroHolder, {
+		Size = UDim2.fromScale(1, 1), TextSize = 28, Text = "🙂", TextWrapped = false, ZIndex = 34,
+	})
+	do
+		local heroId = mapArt("hero_token")
+		if heroId then
+			PatronPlaque.applyById(heroHolder, heroId, { emojiLabel = heroEmoji, zIndex = 34, cornerRadius = 23, ring = true })
+		end
+	end
+	text(bobber, {
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 1), Size = UDim2.fromOffset(34, 30),
+		Font = Enum.Font.GothamBold, TextSize = 30, TextWrapped = false, Text = "X",
+		TextColor3 = Color3.fromRGB(200, 40, 40), TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.4, ZIndex = 35,
+	})
+	local bobTween = TweenService:Create(bobber, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Position = UDim2.fromOffset(0, -6) })
+
+	-- ===== Candle glows, embers, sparkle layer =====
+	-- Flame positions measured on art-wip/backgrounds/journey_map.png (normalized).
+	local FLAMES = { { 0.04, 0.07 }, { 0.945, 0.065 }, { 0.045, 0.875 } }
+	local glows = {}
+	for i, f in ipairs(FLAMES) do
+		local outer = Instance.new("Frame")
+		outer.Name = "FlameGlow" .. i
+		outer.AnchorPoint = Vector2.new(0.5, 0.5)
+		outer.Position = UDim2.fromScale(f[1], f[2])
+		outer.BackgroundColor3 = Color3.fromRGB(255, 170, 70)
+		outer.BackgroundTransparency = 0.7
+		outer.BorderSizePixel = 0
+		outer.Visible = false
+		outer.ZIndex = 23
+		outer.Parent = canvas
+		deps.roundCorner(outer, 100)
+		local core = Instance.new("Frame")
+		core.AnchorPoint = Vector2.new(0.5, 0.5)
+		core.Position = UDim2.fromScale(0.5, 0.5)
+		core.Size = UDim2.fromScale(0.45, 0.45)
+		core.BackgroundColor3 = Color3.fromRGB(255, 225, 150)
+		core.BackgroundTransparency = 0.55
+		core.BorderSizePixel = 0
+		core.ZIndex = 23
+		core.Parent = outer
+		deps.roundCorner(core, 100)
+		local gScale = Instance.new("UIScale")
+		gScale.Parent = outer
+		glows[i] = { frame = outer, scale = gScale, fx = f[1], fy = f[2] }
+	end
+	mapImage:GetPropertyChangedSignal("Visible"):Connect(function()
+		for _, g in ipairs(glows) do
+			g.frame.Visible = mapImage.Visible
+		end
+	end)
+
+	local embers = {}
+	for i = 1, 8 do
+		local e = Instance.new("Frame")
+		e.Name = "Ember" .. i
+		e.AnchorPoint = Vector2.new(0.5, 0.5)
+		e.Size = UDim2.fromOffset(3, 3)
+		e.BackgroundColor3 = Color3.fromRGB(255, 190, 90)
+		e.BorderSizePixel = 0
+		e.Visible = false
+		e.ZIndex = 24
+		e.Parent = canvas
+		deps.roundCorner(e, 2)
+		embers[i] = e
+	end
+
+	local sparkleLayer = Instance.new("Frame")
+	sparkleLayer.Name = "Sparkles"
+	sparkleLayer.Size = UDim2.fromScale(1, 1)
+	sparkleLayer.BackgroundTransparency = 1
+	sparkleLayer.ZIndex = 32
+	sparkleLayer.Parent = canvas
+
+	-- ===== Edge fades: stepped black strips so the horizontal scroll is obvious =====
+	-- (Frame transparencies only; no UIGradient transparency.)
+	local FADE_STEPS = { 0.2, 0.4, 0.55, 0.7, 0.8, 0.88, 0.94, 0.98 }
+	for side = 1, 2 do
+		for i, tr in ipairs(FADE_STEPS) do
+			local strip = Instance.new("Frame")
+			strip.Name = side == 1 and "FadeLeft" or "FadeRight"
+			strip.AnchorPoint = Vector2.new(side == 1 and 0 or 1, 0)
+			strip.Position = UDim2.new(side == 1 and 0 or 1, side == 1 and (8 + (i - 1) * 6) or -(8 + (i - 1) * 6), 0, 6)
+			strip.Size = UDim2.new(0, 6, 1, -12)
+			strip.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			strip.BackgroundTransparency = tr
+			strip.BorderSizePixel = 0
+			strip.Active = false
+			strip.ZIndex = 36
+			strip.Parent = frame
+		end
+	end
+
 	-- ===== Layout (positions come from data; only pixels are computed here) =====
 	local canvasW, canvasH = 600, 300
+	local RIGHT_PAD = 80 -- room so the last node and its label are never clipped
+
+	local function nodePixel(index)
+		local info = nodeData[index].info
+		return info.x * canvasW, info.y * canvasH
+	end
+
+	local function placeMarker()
+		if not markerIndex or not nodes[markerIndex] then
+			marker.Visible = false
+			return
+		end
+		local x, y = nodePixel(markerIndex)
+		marker.Position = UDim2.fromOffset(x, y - nodeSize / 2 + 8)
+		marker.Visible = true
+	end
 
 	local function layout()
 		local size = scroll.AbsoluteSize
@@ -291,36 +577,55 @@ return function(deps)
 			return
 		end
 		canvasH = math.max(220, size.Y - 10)
-		canvasW = math.max(size.X, canvasH * JourneyMap.Config.mapAspect)
+		canvasW = math.max(size.X - RIGHT_PAD, canvasH * JourneyMap.Config.mapAspect, 980)
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
-		scroll.CanvasSize = UDim2.fromOffset(canvasW, 0)
-		nodeSize = math.floor(math.clamp(canvasH * 0.18, 44, 72))
+		scroll.CanvasSize = UDim2.fromOffset(canvasW + RIGHT_PAD, 0)
+		nodeSize = math.floor(math.clamp(canvasH * 0.22, 64, 84))
 		for index, node in ipairs(nodes) do
 			node.button.Size = UDim2.fromOffset(nodeSize, nodeSize)
-			node.icon.TextSize = math.floor(nodeSize * 0.24)
-			node.numberTag.TextSize = math.floor(nodeSize * 0.36)
+			node.icon.TextSize = math.floor(nodeSize * 0.45)
 			local info = node.data.info
-			node.name.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 4)
-			node.preview.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 32)
-			node.name.Size = UDim2.fromOffset(math.max(100, nodeSize * 2), 28)
-			node.preview.Size = UDim2.fromOffset(math.max(100, nodeSize * 2), 14)
+			node.name.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 10)
+			node.tag.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 36)
 			local nextData = nodeData[index + 1]
 			if nextData then
-				local ax, ay = info.x * canvasW, info.y * canvasH
-				local bx, by = nextData.info.x * canvasW, nextData.info.y * canvasH
 				local seg = segments[index]
-				seg.length = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
-				local rotation = math.deg(math.atan2(by - ay, bx - ax))
-				seg.base.Position = UDim2.fromOffset(ax, ay)
-				seg.base.Size = UDim2.fromOffset(seg.length, 6)
-				seg.base.Rotation = rotation
-				seg.fill.Position = UDim2.fromOffset(ax, ay)
-				seg.fill.Rotation = rotation
-				seg.fill.Size = UDim2.fromOffset(seg.filled and seg.length or 0, 6)
+				seg.ax, seg.ay = info.x * canvasW, info.y * canvasH
+				seg.bx, seg.by = nextData.info.x * canvasW, nextData.info.y * canvasH
+				local dx, dy = seg.bx - seg.ax, seg.by - seg.ay
+				seg.length = math.sqrt(dx * dx + dy * dy)
+				-- Winding: control point pushed sideways, alternating per segment.
+				local nx, ny = -dy / math.max(seg.length, 1), dx / math.max(seg.length, 1)
+				seg.cx = (seg.ax + seg.bx) / 2 + nx * seg.length * 0.22 * seg.sign
+				seg.cy = (seg.ay + seg.by) / 2 + ny * seg.length * 0.22 * seg.sign
+				seg.count = math.clamp(math.floor(seg.length * 1.15 / 14), 6, 80)
+				while #seg.dots < seg.count do
+					table.insert(seg.dots, makeDot(seg))
+				end
+				for k = 1, #seg.dots do
+					local dot = seg.dots[k]
+					if k <= seg.count then
+						local px, py = bezier(seg, (k - 1) / (seg.count - 1))
+						dot.frame.Position = UDim2.fromOffset(px, py)
+					end
+					dot.frame.Visible = k <= seg.count
+					dot.foot.Visible = seg.filled and k % 4 == 0 and k <= seg.count
+				end
 			end
 		end
+		for _, seg in ipairs(segments) do
+			for k = 1, #seg.dots do
+				setDot(seg, k, false)
+			end
+		end
+		for _, g in ipairs(glows) do
+			local s = math.max(40, math.floor(canvasH * 0.14))
+			g.frame.Size = UDim2.fromOffset(s, s)
+		end
+		placeMarker()
 	end
 	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+
 
 	-- ===== View of the current state =====
 	local function currentView()
@@ -403,33 +708,42 @@ return function(deps)
 	end
 
 	-- Draws every node and segment from `cleared`. `animating` leaves
-	-- segment fills alone (the unlock moment tweens them itself).
+	-- the trail alone (the unlock moment animates it itself).
 	local function render(view, cleared, animating)
 		local currentIndex = currentIndexFor(view)
-		local accentHere = view.inEndless and PURPLE or GOLD
+		local accentHere = view.inEndless and PURPLE or Color3.fromRGB(255, 190, 90)
 		for index, node in ipairs(nodes) do
 			local data = node.data
 			local isCleared = data.kind ~= "endless" and cleared[data.night] == true
 			local locked = isNodeLocked(view, cleared, index)
 			local isCurrent = currentIndex == index and not isCleared
-			local isEndless = data.kind ~= "night"
 
-			node.stroke.Color = isCleared and GOLD or (isCurrent and accentHere) or (locked and Color3.fromRGB(70, 58, 46)) or GOLD_DARK
+			node.stroke.Color = isCleared and GOLD_DARK or (isCurrent and accentHere) or (locked and Color3.fromRGB(110, 92, 72)) or Color3.fromRGB(90, 60, 30)
 			node.stroke.Thickness = isCleared and 4 or 3
-			node.button.BackgroundColor3 = isCleared and Color3.fromRGB(70, 54, 28)
-				or (isEndless and Color3.fromRGB(46, 36, 70) or Color3.fromRGB(45, 34, 24))
-			node.icon.TextTransparency = locked and 0.55 or 0
+			node.button.BackgroundColor3 = PARCHMENT
+			node.icon.TextTransparency = locked and 0.45 or 0
 			node.icon.TextStrokeTransparency = 1
-			node.check.Visible = isCleared
-			node.numberTag.TextColor3 = locked and DIM or CREAM
+			if node.art then
+				node.art.ImageColor3 = locked and Color3.fromRGB(110, 110, 110) or Color3.fromRGB(255, 255, 255)
+			end
+			node.fog.Visible = locked
+			node.lockMark.Visible = locked
+			local sealReady = node.seal ~= nil and node.seal.IsLoaded
+			if node.seal then
+				node.seal.Visible = isCleared and sealReady
+			end
+			node.check.Visible = isCleared and not sealReady
+			node.ribbon.BackgroundColor3 = locked and Color3.fromRGB(110, 70, 62) or RIBBON
 			if node.bossBadge then
 				node.bossBadge.TextTransparency = locked and 0.4 or 0
 				node.bossBadge.BackgroundTransparency = locked and 0.4 or 0
 			end
 
-			node.name.TextColor3 = locked and DIM or CREAM
-			node.preview.Text = previewText(index)
-			node.preview.TextColor3 = isCleared and GOLD or (locked and DIM or SOFT)
+			node.name.TextColor3 = locked and Color3.fromRGB(105, 85, 65) or LABEL_INK
+			local pv = previewText(index)
+			node.preview.Text = pv
+			node.preview.TextColor3 = locked and Color3.fromRGB(105, 85, 65) or LABEL_INK
+			node.tag.Visible = pv ~= ""
 			node.haloStroke.Color = accentHere
 			setPulse(node, isCurrent and frame.Visible)
 		end
@@ -444,13 +758,23 @@ return function(deps)
 				filled = cleared[data.night] == true
 			end
 			seg.filled = filled
-			seg.fill.BackgroundColor3 = (data.kind ~= "night") and PURPLE or GOLD
 			if not animating then
-				seg.fill.Size = UDim2.fromOffset(filled and seg.length or 0, 6)
+				for k = 1, #seg.dots do
+					setDot(seg, k, false)
+				end
 			end
 		end
+		if not unlocking then
+			local idx = currentIndex
+			if idx and nodes[idx] and (cleared[nodeData[idx].night or -1] == true) then
+				idx = nil
+			end
+			markerIndex = idx
+		end
+		placeMarker()
 		frame.BackgroundColor3 = view.inEndless and MAP_BG_ENDLESS or MAP_BG
 	end
+
 
 	-- ===== Detail card =====
 	local card = Instance.new("Frame")
@@ -745,7 +1069,6 @@ return function(deps)
 	-- ===== Unlock moment =====
 	local seen = nil -- nights already shown as cleared (baseline from the first state)
 	local playing = 0 -- token; a newer play or hide cancels older ones
-	local unlocking = false -- true while the unlock moment runs (refresh leaves the picture alone)
 
 	local function copySet(set)
 		local out = {}
@@ -798,8 +1121,170 @@ return function(deps)
 		TweenService:Create(node.scale, TweenInfo.new(0.2 / pace()), { Scale = 1 }):Play()
 	end
 
-	-- Plays the unlock for each night in `pendingNights` (ascending), starting
-	-- from the pre-clear picture.
+	-- ===== Ambient motion (candles, embers, bob, portal spin): started on show, stopped on hide =====
+	local ambientToken = 0
+
+	local function startAmbient()
+		ambientToken += 1
+		local my = ambientToken
+		if not calm() then
+			bobTween:Play()
+		end
+		for _, node in ipairs(nodes) do
+			if node.spin then
+				node.spin:Play()
+			end
+		end
+		for _, g in ipairs(glows) do
+			task.spawn(function()
+				local outer = g.frame
+				while ambientToken == my do
+					local d = 0.1 + math.random() * 0.15
+					local info = TweenInfo.new(d, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+					TweenService:Create(outer, info, { BackgroundTransparency = 0.55 + math.random() * 0.27 }):Play()
+					TweenService:Create(g.scale, info, { Scale = 0.88 + math.random() * 0.25 }):Play()
+					task.wait(d)
+				end
+			end)
+		end
+		for _, e in ipairs(embers) do
+			task.spawn(function()
+				task.wait(math.random() * 2.5)
+				while ambientToken == my do
+					if not mapImage.Visible then
+						task.wait(1)
+					else
+						local f = FLAMES[math.random(1, #FLAMES)]
+						local x, y = f[1] * canvasW + math.random(-8, 8), f[2] * canvasH
+						local d = 2 + math.random() * 1.5
+						e.Position = UDim2.fromOffset(x, y)
+						e.BackgroundTransparency = 0.1
+						e.Visible = true
+						TweenService:Create(e, TweenInfo.new(d, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+							Position = UDim2.fromOffset(x + math.random(-22, 22), y - math.random(60, 110)),
+							BackgroundTransparency = 1,
+						}):Play()
+						task.wait(d)
+						e.Visible = false
+					end
+				end
+			end)
+		end
+	end
+
+	local function stopAmbient()
+		ambientToken += 1
+		bobTween:Cancel()
+		for _, node in ipairs(nodes) do
+			if node.spin then
+				node.spin:Cancel()
+			end
+		end
+		for _, e in ipairs(embers) do
+			e.Visible = false
+		end
+		sparkleLayer:ClearAllChildren()
+	end
+
+	-- ===== Trail animations =====
+	-- Reveals one segment dot by dot over `duration` seconds.
+	local function drawSegment(seg, duration)
+		for k = 1, #seg.dots do
+			if k <= seg.count then
+				setDot(seg, k, true, 0.15, (k - 1) / math.max(seg.count - 1, 1) * duration)
+			end
+		end
+	end
+
+	-- On open: every segment fades in with a stagger; the segment into the
+	-- current Night draws itself over ~1 s.
+	local function introTrail(currentIndex, skipDraw)
+		for i, seg in ipairs(segments) do
+			if i == (currentIndex or 0) - 1 and seg.filled and not skipDraw then
+				drawSegment(seg, 1)
+			else
+				for k = 1, seg.count do
+					setDot(seg, k, true, 0.15, (i - 1) * 0.06 + k * 0.012)
+				end
+			end
+		end
+	end
+
+	-- Hero token hops along the trail between two neighbouring nodes.
+	local hopValue
+	local function hopMarker(fromIndex, toIndex, duration, token)
+		local seg = segments[fromIndex]
+		if not seg or toIndex ~= fromIndex + 1 then
+			markerIndex = toIndex
+			placeMarker()
+			return
+		end
+		hopValue = Instance.new("NumberValue")
+		local nv = hopValue
+		local conn = nv.Changed:Connect(function(t)
+			local px, py = bezier(seg, t)
+			marker.Position = UDim2.fromOffset(px, py - nodeSize / 2 + 8 - math.sin(t * math.pi) * 26)
+		end)
+		local tween = TweenService:Create(nv, TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Value = 1 })
+		tween:Play()
+		tween.Completed:Wait()
+		conn:Disconnect()
+		nv:Destroy()
+		if hopValue == nv then
+			hopValue = nil
+		end
+		if playing == token then
+			markerIndex = toIndex
+			placeMarker()
+		end
+	end
+
+	-- Gold seal stamps on: scale 1.6 to 1 with a short rotation, map shake, sparkle burst.
+	local function stampSeal(node, index)
+		if node.seal and node.seal.IsLoaded and node.sealScale and not calm() then
+			node.sealScale.Scale = 1.6
+			node.seal.Rotation = -25
+			TweenService:Create(node.sealScale, TweenInfo.new(0.28 / pace(), Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			TweenService:Create(node.seal, TweenInfo.new(0.28 / pace(), Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 0 }):Play()
+		else
+			task.spawn(popNode, node)
+		end
+		if not calm() then
+			task.spawn(function()
+				local base = scroll.Position
+				for _ = 1, 4 do
+					scroll.Position = base + UDim2.fromOffset(math.random(-3, 3), math.random(-3, 3))
+					task.wait(0.03)
+				end
+				scroll.Position = base
+			end)
+		end
+		local cx, cy = nodePixel(index)
+		for i = 1, 12 do
+			local s = Instance.new("Frame")
+			s.AnchorPoint = Vector2.new(0.5, 0.5)
+			s.Position = UDim2.fromOffset(cx, cy)
+			s.Size = UDim2.fromOffset(7, 7)
+			s.Rotation = 45
+			s.BackgroundColor3 = GOLD
+			s.BorderSizePixel = 0
+			s.ZIndex = 32
+			s.Parent = sparkleLayer
+			local ang = (i / 12) * math.pi * 2 + math.random() * 0.3
+			local dist = 40 + math.random() * 34
+			TweenService:Create(s, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.fromOffset(cx + math.cos(ang) * dist, cy + math.sin(ang) * dist),
+				BackgroundTransparency = 1, Size = UDim2.fromOffset(2, 2),
+			}):Play()
+			task.delay(0.75, function()
+				s:Destroy()
+			end)
+		end
+		deps.playClickSfx()
+	end
+
+	-- Plays the clear moment for each night in `pendingNights` (ascending),
+	-- starting from the pre-clear picture.
 	local function playUnlocks(view, pendingNights)
 		playing = playing + 1
 		local token = playing
@@ -807,6 +1292,12 @@ return function(deps)
 		local shown = copySet(view.cleared)
 		for _, n in ipairs(pendingNights) do
 			shown[n] = nil
+		end
+		-- The hero starts on the first node about to clear.
+		for i, data in ipairs(nodeData) do
+			if data.night == pendingNights[1] then
+				markerIndex = i
+			end
 		end
 		render(view, shown, false)
 
@@ -830,27 +1321,25 @@ return function(deps)
 				end
 				-- Bring the node into view.
 				local target = math.clamp(nodes[index].data.info.x * canvasW - scroll.AbsoluteSize.X / 2, 0,
-					math.max(0, canvasW - scroll.AbsoluteSize.X))
+					math.max(0, canvasW + RIGHT_PAD - scroll.AbsoluteSize.X))
 				TweenService:Create(scroll, TweenInfo.new(0.4 / pace()), { CanvasPosition = Vector2.new(target, 0) }):Play()
 				task.wait(0.35 / pace())
 
-				-- The node itself clears: gold ring and check.
+				-- The node clears: the seal stamps on.
 				shown[n] = true
 				render(view, shown, true)
-				popNode(nodes[index])
+				stampSeal(nodes[index], index)
+				task.wait(0.35 / pace())
 				if playing ~= token then
 					return
 				end
 
-				-- The path draws toward the next node, which then lights up.
+				-- The hero hops along the trail while it draws toward the next node.
 				local seg = segments[index]
 				if seg then
-					seg.fill.Size = UDim2.fromOffset(0, 6)
-					local draw = TweenService:Create(seg.fill, TweenInfo.new(0.7 / pace(), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-						{ Size = UDim2.fromOffset(seg.length, 6) })
-					draw:Play()
-					draw.Completed:Wait()
 					seg.filled = true
+					drawSegment(seg, 0.8 / pace())
+					hopMarker(index, index + 1, 0.8 / pace(), token)
 					if playing ~= token then
 						return
 					end
@@ -900,6 +1389,7 @@ return function(deps)
 			seen = copySet(view.cleared)
 		end
 	end
+	requestRender = refresh
 
 	local function applyHeader(isMapTab)
 		if not isMapTab then
@@ -945,6 +1435,11 @@ return function(deps)
 				for _, node in ipairs(nodes) do
 					setPulse(node, false)
 				end
+				stopAmbient()
+				if hopValue then
+					hopValue:Destroy()
+					hopValue = nil
+				end
 				return
 			end
 			layout()
@@ -963,13 +1458,16 @@ return function(deps)
 			end
 			playing = playing + 1
 			unlocking = false
+			startAmbient()
 			if #pending > 0 then
 				playUnlocks(view, pending)
+				introTrail(nil, true)
 			else
 				render(view, view.cleared, false)
+				introTrail(currentIndexFor(view), false)
 				local idx = currentIndexFor(view) or 1
 				local target = math.clamp(nodes[idx].data.info.x * canvasW - scroll.AbsoluteSize.X / 2, 0,
-					math.max(0, canvasW - scroll.AbsoluteSize.X))
+					math.max(0, canvasW + RIGHT_PAD - scroll.AbsoluteSize.X))
 				scroll.CanvasPosition = Vector2.new(target, 0)
 			end
 		end,
