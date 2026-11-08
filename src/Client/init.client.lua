@@ -786,7 +786,7 @@ local ParticleBurstModule = require(script.ParticleBurst)({
 do
 	-- Live characters (prototype): a click-through ViewportFrame under the boss plaque and the hand.
 	local okStage, stageErr = pcall(function()
-		require(script.CharacterStage).init({ root = root, SIDEBAR_WIDTH = SIDEBAR_WIDTH })
+		require(script.CharacterStage).init({ root = root, SIDEBAR_WIDTH = SIDEBAR_WIDTH }).prewarm() -- build the avatar at menu time
 	end)
 	if not okStage then
 		warn("[Client] CharacterStage failed to build: " .. tostring(stageErr))

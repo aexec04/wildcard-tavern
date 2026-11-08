@@ -255,6 +255,36 @@ function Rig:fk(rootCF, transformFor)
 	end
 end
 
+-- Fade a rig between two opacities (0 = invisible, 1 = as built) by tweening each part's Transparency (no UI
+-- gradients). dur <= 0 applies the end value at once. Driven by Rig:stepFade from the stage's frame loop.
+function Rig:setFade(from, to, dur)
+	if not self.origT then
+		self.origT = {}
+		for _, d in ipairs(self.model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				self.origT[d] = d.Transparency
+			end
+		end
+	end
+	self.fade = { t0 = os.clock(), dur = dur, from = from, to = to }
+	self:stepFade()
+end
+
+function Rig:stepFade()
+	local f = self.fade
+	if not f then return end
+	local t = f.dur > 0 and math.clamp((os.clock() - f.t0) / f.dur, 0, 1) or 1
+	local alpha = f.from + (f.to - f.from) * t
+	for part, orig in pairs(self.origT) do
+		if part.Parent then
+			part.Transparency = orig + (1 - orig) * (1 - alpha)
+		end
+	end
+	if t >= 1 then
+		self.fade = nil
+	end
+end
+
 -- Measure the rest pose: how tall it is, and where the feet and the horizontal center are relative to
 -- the root, so the rig stands with its feet on y = 0 and its middle on the placement point.
 function Rig:remeasure()
@@ -507,6 +537,10 @@ local function build(deps)
 	local lastLayoutKey = nil
 	local slideStart = nil
 	local token = 0
+	local fadingOut = {} -- rigs being replaced (stand-in -> avatar), destroyed once faded
+	local prewarmedBoss = nil -- { key, rig } built during Round Select, not mounted yet
+	local prewarmingKey = nil
+	local fallbackArmed = false
 
 	local okBuild = pcall(function()
 		viewport = Instance.new("ViewportFrame")
@@ -579,10 +613,15 @@ local function build(deps)
 			end
 			local idleAmp = reduced() and 0.15 or 1
 			dt = math.min(dt, 0.1)
+			for _, old in ipairs(fadingOut) do
+				old:stepFade()
+			end
 			if playerRig then
+				playerRig:stepFade()
 				playerRig:step(dt, idleAmp)
 			end
 			if bossRig then
+				bossRig:stepFade()
 				-- entrance: slide in from the right until the interior scene has settled
 				if slideStart then
 					local t = (os.clock() - slideStart) / 0.55
@@ -615,12 +654,22 @@ local function build(deps)
 
 	-- Show the stage once any rig exists. Also called when a rig finishes building asynchronously, because a
 	-- resumed run may not push another state update after the first one.
+	local function fadeDur()
+		return (fast() or reduced()) and 0 or 0.3
+	end
+
 	local function refreshVisible()
 		if not ok or not viewport then return end
+		local was = viewport.Visible
 		local want = mode ~= "none" and mode ~= "ending" and (playerRig ~= nil or bossRig ~= nil)
 		viewport.Visible = want or (mode == "ending" and viewport.Visible)
 		if viewport.Visible then
 			ensureLoop()
+			if not was then
+				-- the stage just appeared: fade the characters in instead of popping
+				if playerRig then playerRig:setFade(0, 1, fadeDur()) end
+				if bossRig then bossRig:setFade(0, 1, fadeDur()) end
+			end
 		end
 	end
 
@@ -639,16 +688,39 @@ local function build(deps)
 	local AVATAR_WAIT = 3 -- seconds before the blocky stand-in shows; the real avatar swaps in when ready
 
 	-- The player's own avatar, built once per session (cached); a blocky rig stands in until it is ready.
+	local installFallbackFn = nil
+
+	-- Starts the blocky stand-in timer once the stage is actually wanted (not during menu-time prewarm).
+	local function armFallback()
+		if fallbackArmed or playerRig or not installFallbackFn then return end
+		fallbackArmed = true
+		task.delay(AVATAR_WAIT, installFallbackFn)
+	end
+
 	local function ensurePlayer()
 		if playerRig or playerRequested or not ok then return end
 		playerRequested = true
 		local function install(rig)
-			if playerRig then
-				playerRig:destroy()
-			end
+			local old = playerRig
 			playerRig = rig
 			mount(rig)
 			layout()
+			if old then
+				-- stand-in -> avatar: cross-fade (old fades out, new fades in) instead of swapping
+				local d = fadeDur()
+				if viewport.Visible and d > 0 then
+					table.insert(fadingOut, old)
+					old:setFade(1, 0, d)
+					rig:setFade(0, 1, d)
+					task.delay(d + 0.05, function()
+						local i = table.find(fadingOut, old)
+						if i then table.remove(fadingOut, i) end
+						old:destroy()
+					end)
+				else
+					old:destroy()
+				end
+			end
 			refreshVisible()
 		end
 		local function installFallback()
@@ -665,8 +737,12 @@ local function build(deps)
 				install(fb)
 			end
 		end
-		-- Never make the player wait on the avatar: the blocky rig shows after AVATAR_WAIT seconds.
-		task.delay(AVATAR_WAIT, installFallback)
+		-- Never make the player wait on the avatar: the blocky rig shows AVATAR_WAIT seconds after the stage is
+		-- wanted (armFallback, called from update), not at menu-time prewarm.
+		installFallbackFn = installFallback
+		if mode ~= "none" then
+			armFallback()
+		end
 		task.spawn(function()
 			local built, model = tracedCall("avatar description", function()
 				local lp = Players.LocalPlayer
@@ -698,6 +774,41 @@ local function build(deps)
 		end
 		slideStart = nil
 		bossKey = nil
+	end
+
+	-- Menu time: start building and caching the player's avatar so it is ready before any round.
+	function M.prewarm()
+		if ok then
+			ensurePlayer()
+		end
+	end
+
+	-- Round Select: build the upcoming boss rig off-stage so the boss round can fade it in without a stall.
+	local function prewarmBoss(night, boss, nightCap)
+		local key = tostring(night) .. "-" .. tostring(boss.id)
+		if (prewarmedBoss and prewarmedBoss.key == key) or prewarmingKey == key or bossKey == key then
+			return
+		end
+		if prewarmedBoss then
+			prewarmedBoss.rig:destroy()
+			prewarmedBoss = nil
+		end
+		prewarmingKey = key
+		task.spawn(function()
+			local grand = BossLines.isGrand(night, nightCap or 8, JourneyMap.EndlessMilestones)
+			local built, model = tracedCall("boss prewarm " .. tostring(boss.id), function()
+				return BossRigs.build(boss.id, { grand = grand })
+			end)
+			if built and model then
+				local okRig, rig = tracedCall("boss rig " .. tostring(boss.id), newRig, model, "boss")
+				if okRig and rig then
+					prewarmedBoss = { key = key, rig = rig, grand = grand }
+				else
+					pcall(function() model:Destroy() end)
+				end
+			end
+			prewarmingKey = nil
+		end)
 	end
 
 	function M.isActive()
@@ -751,6 +862,9 @@ local function build(deps)
 	-- Called from render() with the latest server state; cheap when nothing changed.
 	function M.update(state)
 		if not ok or type(state) ~= "table" then return end
+		if state.phase == "roundSelect" and type(state.nightBossModifier) == "table" and state.nightBossModifier.id then
+			prewarmBoss(state.night or 1, state.nightBossModifier, state.nightCap)
+		end
 		if state.phase ~= "playing" then
 			if mode ~= "none" then
 				-- a boss fight ending lets BossFight run its defeat / loss beat first; the rig is
@@ -780,7 +894,7 @@ local function build(deps)
 		sceneKey = SceneKeys.keyFor(night, SceneKeys.roundKind(round, ROUNDS_PER_NIGHT))
 
 		local newMode = isBoss and "boss" or "normal"
-		local key = isBoss and (tostring(night) .. "-" .. tostring(round) .. "-" .. tostring(boss.id)) or nil
+		local key = isBoss and (tostring(night) .. "-" .. tostring(boss.id)) or nil
 
 		if mode == "ending" then
 			-- a new round started before the ending timer fired
@@ -788,21 +902,31 @@ local function build(deps)
 		end
 
 		ensurePlayer()
+		armFallback()
 		if not isBoss then
 			destroyBoss()
 		elseif key ~= bossKey then
 			destroyBoss()
 			bossKey = key
 			grandBoss = BossLines.isGrand(night, state.nightCap or 8, JourneyMap.EndlessMilestones)
-			local built, model = tracedCall("boss build " .. tostring(boss.id), function()
-				return BossRigs.build(boss.id, { grand = grandBoss })
-			end)
-			if built and model then
-				local okRig, rig = tracedCall("boss rig " .. tostring(boss.id), newRig, model, "boss")
+			local built, model, okRig, rig = true, nil, false, nil
+			if prewarmedBoss and prewarmedBoss.key == key then
+				okRig, rig = true, prewarmedBoss.rig -- built during Round Select
+				prewarmedBoss = nil
+			else
+				built, model = tracedCall("boss build " .. tostring(boss.id), function()
+					return BossRigs.build(boss.id, { grand = grandBoss })
+				end)
+				if built and model then
+					okRig, rig = tracedCall("boss rig " .. tostring(boss.id), newRig, model, "boss")
+				end
+			end
+			if okRig and rig or (built and model) then
 				if okRig then
 					bossRig = rig
 					bossRig.slide = 0
 					mount(bossRig)
+					bossRig:setFade(0, 1, viewport.Visible and fadeDur() or 0) -- no pop-in; refreshVisible fades if hidden
 					lastLayoutKey = nil -- the new rig needs sizing and placing
 					-- slide in from the side once the walk-in has settled (skipped on Fast / Reduce shake)
 					if not fast() and not reduced() then
