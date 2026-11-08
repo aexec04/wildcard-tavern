@@ -4953,6 +4953,25 @@ table.insert(tests, { name = "Journey fog: current + 3 revealed, +4 teaser, rest
 	for i = 1, 9 do expectEqual(s[i], "revealed") end
 end })
 
+table.insert(tests, { name = "PatronLines: every Patron has its own short, kid-safe line; unknown ids fall back", fn = function()
+	local PatronLines = require(script.Parent.Parent.Engine.PatronLines)
+	local banned = { "balatro", "beer", "wine", "booze", "cocktail", "whiskey", "drunk", "stupid", "idiot", "loser", "dumb" }
+	local known = {}
+	for _, def in ipairs(Patrons.Definitions) do
+		known[def.id] = true
+		local line = PatronLines.ById[def.id]
+		expectTrue(type(line) == "string" and #line > 0 and #line <= 40)
+		expectEqual(PatronLines.get(def.id), line)
+		for _, word in ipairs(banned) do
+			expectFalse(line:lower():find(word, 1, true) ~= nil)
+		end
+	end
+	for id in pairs(PatronLines.ById) do
+		expectTrue(known[id] == true) -- no line for a Patron that does not exist
+	end
+	expectEqual(PatronLines.get("no_such_patron"), PatronLines.Default)
+end })
+
 table.insert(tests, { name = "BossLines: every boss resolves every event (own lines or fallback), deterministic, kid-safe", fn = function()
 	local BossLines = require(script.Parent.Parent.Engine.BossLines)
 	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)

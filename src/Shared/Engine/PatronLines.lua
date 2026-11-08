@@ -1,0 +1,68 @@
+--[[
+	Shared/Engine/PatronLines.lua
+	One short, kid-safe voice line per Patron, shown in a small speech bubble when the Patron
+	scores. Keyed by Patrons id; PatronLines.get falls back to Default for any id without a line.
+]]
+
+local PatronLines = {}
+
+PatronLines.Default = "Happy to help!"
+
+PatronLines.ById = {
+	the_regular = "Same stool, same cocoa!",
+	lucky_dice = "Roll with it!",
+	suit_yourself = "Suits you perfectly!",
+	curtain_call = "Take a bow!",
+	the_bard = "A song for this hand!",
+	regulars_round = "Another round for the regulars!",
+	threes_company = "Three is a party!",
+	all_hands_in = "All hands in!",
+	straight_shooter = "Straight and true!",
+	all_matching = "Everything matches!",
+	small_plate = "Small plate, big flavor!",
+	big_portions = "Seconds for everyone!",
+	tab_regulars = "Put it on the tab!",
+	house_favorite = "The house loves this one!",
+	repeat_customer = "I will have that again!",
+	the_understudy = "I know my part!",
+	second_opinion = "Let me take a look!",
+	tip_jar = "Tips go in the jar!",
+	penny_pincher = "Every penny counts!",
+	sparkling_service = "Shiny and bright!",
+	rowdy_bunch = "Make some noise!",
+	sharp_dressed = "Looking sharp!",
+	double_down = "Double it up!",
+	house_special = "Today's special!",
+	ace_of_the_house = "Ace in the hole!",
+	vip_table = "Right this way!",
+	early_bird = "First one here!",
+	discard_special = "One person's toss is a treasure!",
+	the_apprentice = "I am learning fast!",
+	big_spender = "Treat yourself!",
+	nest_egg = "Saved up for this!",
+	jack_of_all_trades = "A little of everything!",
+	queens_gambit = "Royal move!",
+	spare_change = "Found some coins!",
+	full_house_crowd = "The place is packed!",
+	fair_share = "Everyone gets a slice!",
+	efficient_service = "Quick as a wink!",
+	perfect_ten = "A perfect ten!",
+	night_owl = "Still going strong!",
+	steady_hand = "Nice and steady!",
+	rainy_day_fund = "Saved for a day like this!",
+	boss_bane = "Not today, boss!",
+	slow_cooker = "Good things take time!",
+	house_tab = "The tab is looking good!",
+	regulars_chair = "My favorite chair!",
+	cobweb_shelf = "Dusting off an old trick!",
+	tasting_menu = "A taste of everything!",
+	estate_sale = "Everything must go!",
+	pair_bonds = "Better together!",
+	veterans_table = "Seen it all before!",
+}
+
+function PatronLines.get(patronId)
+	return PatronLines.ById[patronId] or PatronLines.Default
+end
+
+return PatronLines

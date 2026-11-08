@@ -1132,6 +1132,10 @@ return function(deps)
 						local slotFrame = patronSlotFrames[source.patronId]
 						if slotFrame then
 							pulsePatronSlot(slotFrame)
+							-- voice line + hop, once per hand per Patron (cosmetic, never throws)
+							pcall(function()
+								require(script.Parent.PatronVoice).say(source.patronId, slotFrame, preview)
+							end)
 							sourcePos = centerOf(slotFrame)
 						end
 					end

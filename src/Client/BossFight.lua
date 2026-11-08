@@ -740,15 +740,20 @@ local function build(deps)
 		if playFanfare then pcall(playFanfare) end
 		stageEvent("boss", "defeat", 1)
 		stageEvent("player", "cheer")
-		-- freeze, desaturate, tilt and slide down
+		-- freeze frame: idle motion stops and the boss holds still for a beat, then
+		-- desaturates, tilts and slides down; gold confetti and orange embers burst out.
+		stopIdle()
 		tintBase = 0.45
 		tint.BackgroundColor3 = Color3.fromRGB(110, 110, 115)
 		play(tint, { BackgroundTransparency = tintBase }, 0.25)
 		if motionOk() then
-			play(holder, { Rotation = 14, Position = UDim2.new(0.5, 0, 0, 36) }, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			later(0.25, function()
+				play(holder, { Rotation = 14, Position = UDim2.new(0.5, 0, 0, 36) }, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			end)
 		end
 		screenFlash()
 		particles(30, GOLD)
+		particles(16, Color3.fromRGB(255, 140, 60)) -- embers
 		-- stamp slams in
 		stamp.Position = UDim2.new(0.5, 0, 0, holder.Size.Y.Offset * 0.5)
 		stamp.Visible = true
@@ -758,8 +763,8 @@ local function build(deps)
 		else
 			stampScale.Scale = 1
 		end
-		say("defeated", true)
-		later(1.4, function() hide() end)
+		say("defeated", true) -- the boss's final line (BossLines), before the reward flow
+		later(1.5, function() hide() end) -- total beat stays within 1.5s; rewards are never delayed
 	end
 
 	local function lossSequence()
