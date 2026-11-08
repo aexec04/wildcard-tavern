@@ -56,6 +56,12 @@ local JOINT_NAMES = {
 }
 local JOINT_KEYS = { "waist", "neck", "rShoulder", "lShoulder", "rHip", "lHip" }
 
+-- Motor6D and AnimationConstraint joints (the latter wrapped by RigWalk.fromConstraint) take a pose rotation;
+-- plain welds do not.
+local function hasTransform(j)
+	return j.animated == true or j:IsA("Motor6D")
+end
+
 local function reduced()
 	return ClientSettings.get("reduceShake") == true
 end
@@ -77,6 +83,12 @@ local function collectJoints(model, root)
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("JointInstance") then
 			table.insert(all, d)
+		elseif d:IsA("AnimationConstraint") then
+			-- Modern avatars have no body Motor6Ds, only AnimationConstraints (see RigWalk.fromConstraint).
+			local j = RigWalk.fromConstraint(d)
+			if j then
+				table.insert(all, j)
+			end
 		end
 	end
 	-- Some freshly built avatars hand back Motor6Ds whose Part0/Part1 are still unset; heal them from the
@@ -84,7 +96,7 @@ local function collectJoints(model, root)
 	local healed = RigWalk.heal(all, function(name)
 		return model:FindFirstChild(name, true)
 	end, function(j)
-		return j.Parent and j.Parent.Name
+		return not j.animated and j.Parent and j.Parent.Name or nil
 	end)
 	if healed > 0 then
 		warn(string.format("[CharacterStage] healed %d joints with unset Part0/Part1", healed))
@@ -122,6 +134,9 @@ local function waitForModel(model, timeout)
 		if complete then
 			for _, d in ipairs(model:GetDescendants()) do
 				if d:IsA("JointInstance") and not (d.Part0 and d.Part1) then
+					complete = false
+					break
+				elseif d:IsA("AnimationConstraint") and not RigWalk.fromConstraint(d) then
 					complete = false
 					break
 				end
@@ -167,7 +182,7 @@ local function newRig(model, kind)
 	self.byKey = {}
 	for key, names in pairs(JOINT_NAMES) do
 		for _, joint in ipairs(self.joints) do
-			if table.find(names, joint.Name) and joint:IsA("Motor6D") and not self.byKey[key] then
+			if table.find(names, joint.Name) and hasTransform(joint) and not self.byKey[key] then
 				self.byKey[key] = joint
 			end
 		end
@@ -212,7 +227,7 @@ function Rig:fk(rootCF, transformFor)
 	self.root.CFrame = rootCF
 	for _, j in ipairs(self.joints) do
 		local tr = transformFor and transformFor(j) or CFrame.new()
-		local rel = j.C0 * (j:IsA("Motor6D") and tr or CFrame.new()) * j.C1:Inverse() -- Part1 relative to Part0
+		local rel = j.C0 * (hasTransform(j) and tr or CFrame.new()) * j.C1:Inverse() -- Part1 relative to Part0
 		if self.reversed[j] then
 			j.Part0.CFrame = j.Part1.CFrame * rel:Inverse()
 		else

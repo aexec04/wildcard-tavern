@@ -41,6 +41,20 @@ function RigWalk.heal(joints, partByName, getParentName)
 	return healed
 end
 
+-- Modern avatars join their body with AnimationConstraints (no Motor6D). One behaves like a Motor6D whose
+-- C0 / C1 are its two attachments' CFrames and whose parts are the attachments' parents:
+-- child.CFrame = parent.CFrame * att0.CFrame * Transform * att1.CFrame:Inverse().
+-- Returns a joint table { Part0, Part1, C0, C1, Name, animated = true, source = constraint }, or nil while
+-- the constraint is not assembled yet (missing attachment or parent).
+function RigWalk.fromConstraint(c)
+	local a0, a1 = c.Attachment0, c.Attachment1
+	if not (a0 and a1 and a0.Parent and a1.Parent) then
+		return nil
+	end
+	return { Part0 = a0.Parent, Part1 = a1.Parent, C0 = a0.CFrame, C1 = a1.CFrame, Name = c.Name,
+		animated = true, source = c }
+end
+
 function RigWalk.walk(joints, root)
 	local all = {}
 	for _, j in ipairs(joints) do

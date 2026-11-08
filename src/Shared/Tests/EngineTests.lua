@@ -5266,6 +5266,29 @@ table.insert(tests, { name = "RigWalk: heals R15 joints with unset parts so a fu
 	RigWalk.heal({ before }, function(n) return parts[n] end, function(j) return j.owner end)
 	expectEqual(before.Part0, parts.Head, "set joints are left alone")
 end })
+table.insert(tests, { name = "RigWalk: AnimationConstraints (modern avatars) become joints from their attachments and place 15+ parts", fn = function()
+	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
+	local parts = { HumanoidRootPart = { Name = "HumanoidRootPart" } }
+	local joints = {}
+	for child, anchor in pairs(RigWalk.R15_ANCHOR) do
+		parts[child] = { Name = child }
+	end
+	for child, anchor in pairs(RigWalk.R15_ANCHOR) do
+		local c = { Name = child .. "Joint",
+			Attachment0 = { Parent = parts[anchor], CFrame = "c0" },
+			Attachment1 = { Parent = parts[child], CFrame = "c1" } }
+		local j = RigWalk.fromConstraint(c)
+		expectTrue(j ~= nil and j.animated == true, "constraint wrapped")
+		expectEqual(j.Part0, parts[anchor], "Part0 is attachment 0's part")
+		expectEqual(j.Part1, parts[child], "Part1 is attachment 1's part")
+		expectEqual(j.C0, "c0"); expectEqual(j.C1, "c1")
+		table.insert(joints, j)
+	end
+	local _, _, _, count = RigWalk.walk(joints, parts.HumanoidRootPart)
+	expectTrue(count >= 16, "root plus 15 body parts reached, got " .. count)
+	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { Parent = parts.Head } }), nil, "half-built constraint is skipped")
+	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { CFrame = 1 }, Attachment1 = { Parent = parts.Head } }), nil, "orphan attachment is skipped")
+end })
 table.insert(tests, { name = "RigWalk: orders joints from the root, walks accessory welds backwards, skips half-built joints", fn = function()
 	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
 	local root, torso, head, arm, hat, orphan, lost = {}, {}, {}, {}, {}, {}, {}
