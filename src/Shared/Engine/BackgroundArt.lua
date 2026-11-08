@@ -21,5 +21,5 @@ return {
 	["run_setup_bg"] = "rbxassetid://129515788942065",
 	["settings_bg"] = "rbxassetid://89718352875218",
 	["shop_bg"] = "rbxassetid://84939118648459",
-	["shop_counter_bg"] = "rbxassetid://99690627923087",
+	["shop_counter_bg"] = "rbxassetid://118041788639046",
 }
