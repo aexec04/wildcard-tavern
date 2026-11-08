@@ -1,0 +1,108 @@
+--[[
+	SoundIds.lua
+	One table of named audio cues and music tracks. Pure data plus tiny helpers, so it runs under plain
+	Lua and is unit tested. `Client/Sound.lua` reads it (`playCue`, `setMusicTrack`).
+
+	An empty id ("") means "not picked yet": Sound.lua skips that cue silently. Never invent asset ids;
+	pick them from the Roblox audio library and paste them here. `SoundIds.missingCues()` and
+	`SoundIds.missingMusic()` list what still needs an id.
+
+	Volumes are per-cue (0 to 1). The player's SFX slider, Mute and the Music slider (Volume panel)
+	are applied on top by Sound.lua, so they are not part of this table.
+]]
+
+local SoundIds = {}
+
+-- name -> { id = "rbxassetid://<digits>" or "", volume = 0..1, maxLength = seconds? }
+SoundIds.Cues = {
+	card_deal = { id = "rbxassetid://9114035597", volume = 0.35, maxLength = 0.6 }, -- reuses the deck-flick clip
+	card_select = { id = "rbxassetid://9117308777", volume = 3, maxLength = 0.35 },
+	card_play = { id = "rbxassetid://9113727134", volume = 0.6 },
+	shuffle = { id = "", volume = 0.5 },
+	chip = { id = "rbxassetid://7381722372", volume = 0.4 },
+	chip_big = { id = "rbxassetid://7381723507", volume = 0.5 },
+	coin = { id = "rbxassetid://133292918309565", volume = 0.5 },
+	buy = { id = "rbxassetid://128537772502751", volume = 0.6 },
+	button_click = { id = "rbxassetid://9118728158", volume = 0.35, maxLength = 0.25 },
+	hover = { id = "", volume = 0.15 },
+	boss_intro = { id = "", volume = 0.6 },
+	boss_defeat = { id = "", volume = 0.6 },
+	win = { id = "rbxassetid://1170853519", volume = 0.5 },
+	lose = { id = "rbxassetid://7381722902", volume = 0.5 },
+	map_open = { id = "", volume = 0.4 },
+	road_choose = { id = "", volume = 0.5 },
+	compass_turn = { id = "", volume = 0.3 },
+}
+
+-- Display/iteration order (pairs order is not stable).
+SoundIds.CueOrder = {
+	"card_deal", "card_select", "card_play", "shuffle", "chip", "chip_big", "coin", "buy", "button_click",
+	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
+}
+
+-- Music tracks by key. `region_<id>` plays on the gameplay table while the Night's stop is in that region
+-- (empty = fall back to the plain gameplay track).
+SoundIds.Music = {
+	menu = "rbxassetid://137023744071437",
+	gameplay = "rbxassetid://132846105965979",
+	shop = "rbxassetid://86731472483471",
+	boss = "rbxassetid://133804416597931",
+	region_road = "",
+	region_meadow = "",
+	region_river = "",
+	region_peaks = "",
+	region_desert = "",
+	region_swamp = "",
+	region_snow = "",
+	region_coast = "",
+	region_tavern = "",
+}
+
+SoundIds.MusicOrder = {
+	"menu", "gameplay", "shop", "boss", "region_road", "region_meadow", "region_river", "region_peaks",
+	"region_desert", "region_swamp", "region_snow", "region_coast", "region_tavern",
+}
+
+function SoundIds.isValidId(id)
+	return type(id) == "string" and string.match(id, "^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0"
+end
+
+-- The id for a cue, or nil when the cue is unknown or has no id yet.
+function SoundIds.cueId(name)
+	local cue = SoundIds.Cues[name]
+	if cue and SoundIds.isValidId(cue.id) then
+		return cue.id
+	end
+	return nil
+end
+
+-- Music key for a gameplay table in `regionId`; falls back to "gameplay" when that region has no track.
+function SoundIds.regionMusicKey(regionId)
+	local key = "region_" .. tostring(regionId)
+	if SoundIds.isValidId(SoundIds.Music[key]) then
+		return key
+	end
+	return "gameplay"
+end
+
+function SoundIds.missingCues()
+	local out = {}
+	for _, name in ipairs(SoundIds.CueOrder) do
+		if not SoundIds.cueId(name) then
+			table.insert(out, name)
+		end
+	end
+	return out
+end
+
+function SoundIds.missingMusic()
+	local out = {}
+	for _, key in ipairs(SoundIds.MusicOrder) do
+		if not SoundIds.isValidId(SoundIds.Music[key]) then
+			table.insert(out, key)
+		end
+	end
+	return out
+end
+
+return SoundIds

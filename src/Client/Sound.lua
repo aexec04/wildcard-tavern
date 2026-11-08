@@ -153,12 +153,20 @@ return function(deps)
 	-- from Ahmed's newest batch; alternates from that SAME batch are listed
 	-- below each pick in case you want to swap -- same pattern as the
 	-- backgroundMusic alternates above.
+	-- Cue and music ids live in Shared/Engine/SoundIds.lua (menu = the title track; region_* keys are empty
+	-- until picked and setMusicTrack skips empty ids). "title" stays as an alias of "menu".
+	local SoundIds = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundIds"))
 	local MUSIC_IDS = {
-		title = "rbxassetid://137023744071437",
+		title = SoundIds.Music.menu,
 		gameplay = SOUND_IDS.backgroundMusic,        -- rbxassetid://132846105965979
-		boss = "rbxassetid://133804416597931",
-		shop = "rbxassetid://86731472483471",
+		boss = SoundIds.Music.boss,
+		shop = SoundIds.Music.shop,
 	}
+	for key, id in pairs(SoundIds.Music) do
+		if MUSIC_IDS[key] == nil then
+			MUSIC_IDS[key] = id
+		end
+	end
 	-- Alternates (backup tracks, verified loadable), in case you want to swap:
 	--   Title:    rbxassetid://116079409060113
 	--   Gameplay: rbxassetid://93176902923482
@@ -571,6 +579,26 @@ return function(deps)
 		end
 	end
 
+	-- Named cue from SoundIds.Cues: per-cue volume (times `scale`, default 1) and max length, then the
+	-- player's SFX slider/Mute inside playSfx. Unknown cues and cues with no id yet are skipped silently.
+	-- Hover is rate limited to one per 0.1s.
+	local lastHoverAt = 0
+	local function playCue(name, scale)
+		local id = SoundIds.cueId(name)
+		if not id then
+			return
+		end
+		if name == "hover" then
+			local now = os.clock()
+			if now - lastHoverAt < 0.1 then
+				return
+			end
+			lastHoverAt = now
+		end
+		local cue = SoundIds.Cues[name]
+		playSfx(id, (cue.volume or 0.5) * (scale or 1), cue.maxLength)
+	end
+
 	-- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
 	-- into the clip itself -- for a snappy UI button we only want the first
 	-- one, so every generic click plays through this instead of calling
@@ -665,6 +693,8 @@ return function(deps)
 			return customTrackId ~= nil
 		end,
 		playSfx = playSfx,
+		playCue = playCue,
+		SoundIds = SoundIds,
 		playClickSfx = playClickSfx,
 		playPitched = playPitched,
 		chipTickSound = chipTickSound,

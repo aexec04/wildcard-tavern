@@ -77,7 +77,7 @@ return function(deps)
 		roundRewardAmount.Text = string.format("+$%d Tips", amount)
 		roundRewardPopup.Visible = true
 		roundRewardScale.Scale = 0.6
-		playSfx(SOUND_IDS.roundReward, 1)
+		require(script.Parent.Cue).play("coin", 2)
 		tweenTo(roundRewardScale, { Scale = 1.15 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 		task.delay(0.2, function()
 			tweenTo(roundRewardScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)

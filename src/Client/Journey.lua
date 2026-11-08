@@ -1129,6 +1129,7 @@ return function(deps)
 			{ { "map_regions" }, { "map_nodes" }, { "map_decor" }, { "fx" } }, "journey map")
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
+		require(script.Parent.Cue).play("map_open")
 		showMap()
 	end
 

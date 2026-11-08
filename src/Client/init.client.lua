@@ -127,6 +127,7 @@ local SoundModule = require(script.Sound)({
 	SoundService = SoundService,
 })
 local SOUND_IDS = SoundModule.SOUND_IDS
+require(script.Cue).set(SoundModule.playCue) -- named cues (Engine/SoundIds) for any module
 local backgroundMusic = SoundModule.backgroundMusic
 local setMusicTrack = SoundModule.setMusicTrack
 local playSfx = SoundModule.playSfx
@@ -793,7 +794,7 @@ do
 		burst = ParticleBurstModule.burst,
 		screenShake = screenShake,
 		playThump = function() playPitched(payoutThudSound, 0.4, 0.7) end,
-		playFanfare = function() playSfx(SOUND_IDS.gameOverWin, 0.5) end,
+		playFanfare = function() SoundModule.playCue("win") end,
 		music = backgroundMusic,
 	})
 end
@@ -1962,7 +1963,7 @@ local function onCardClicked(index)
 		end
 		selected[index] = true
 	end
-	playSfx(SOUND_IDS.cardToggle, 3, 0.35)
+	SoundModule.playCue("card_select")
 	refreshCardVisual(index, true)
 	refreshScorePreview()
 
@@ -2327,7 +2328,14 @@ local function render(state)
 	elseif state.bossModifier then
 		setMusicTrack("boss")
 	else
-		setMusicTrack("gameplay")
+		-- per-region track when one is set in Engine/SoundIds (else the plain gameplay track)
+		local okRegion, musicKey = pcall(function()
+			local engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+			local route = state.worldRoute
+			local regionId = route and #route > 0 and require(engine:WaitForChild("WorldMap")).regionOf(route[#route])
+			return SoundModule.SoundIds.regionMusicKey(regionId)
+		end)
+		setMusicTrack(okRegion and musicKey or "gameplay")
 	end
 
 	require(script.CosmeticSetsView).apply(state)
@@ -2623,7 +2631,7 @@ playButton.MouseButton1Click:Connect(function()
 		showWarning("Select 1-5 cards first.")
 		return
 	end
-	playSfx(SOUND_IDS.playHand)
+	SoundModule.playCue("card_play")
 
 	-- LAYOUT FEATURE 7: pop the score BEFORE firing the remote, off the same
 	-- preview computation the sidebar already uses -- see computeHandPreview.

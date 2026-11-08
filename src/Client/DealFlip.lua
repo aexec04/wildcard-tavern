@@ -26,6 +26,7 @@ function M.play(button, order, backId)
 		return
 	end
 	backId = backId or CardBacks.DefaultId
+	if (order or 1) == 1 then require(script.Parent.Cue).play("card_deal") end -- once per batch
 	local back = CardBacks.getById(backId) or CardBacks.getById(CardBacks.DefaultId)
 	local base = back and back.colors and back.colors.base or { 50, 70, 110 }
 

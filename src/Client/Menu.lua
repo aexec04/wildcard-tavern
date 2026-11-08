@@ -399,6 +399,7 @@ return function(deps)
 		press.Parent = button
 
 		button.MouseEnter:Connect(function()
+			require(script.Parent.Cue).play("hover")
 			TweenService:Create(ringStroke, TweenInfo.new(0.12), { Transparency = 0.1 }):Play()
 			if not calm() then
 				TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, -3) }):Play()

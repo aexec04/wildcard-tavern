@@ -755,7 +755,7 @@ return function(deps)
 			return
 		end
 
-		playSfx(SOUND_IDS.buyPatron)
+		require(script.Parent.Cue).play("buy")
 		UseRecipeRemote:FireServer(pendingUse.category, pendingUse.id, indices, pendingSuit)
 		closeTargetPanel()
 	end)
@@ -882,7 +882,7 @@ return function(deps)
 			showWarning(string.format("Pick %d item%s first, or use Skip Pack.", pending.pickCount, pending.pickCount == 1 and "" or "s"))
 			return
 		end
-		playSfx(SOUND_IDS.buyPatron)
+		require(script.Parent.Cue).play("buy")
 		ResolvePackRemote:FireServer(chosen)
 		pendingPackSelected = {}
 	end)
@@ -1115,7 +1115,7 @@ return function(deps)
 				playClickSfx()
 				return false
 			end
-			playSfx(SOUND_IDS.buyPatron)
+			require(script.Parent.Cue).play("buy")
 			BuyHousePassRemote:FireServer(offer.id)
 			return true
 		end
@@ -1132,7 +1132,7 @@ return function(deps)
 				playClickSfx()
 				return false
 			end
-			playSfx(SOUND_IDS.buyPatron)
+			require(script.Parent.Cue).play("buy")
 			BuyPatronRemote:FireServer(offer.id)
 			return true
 		end
@@ -1143,7 +1143,7 @@ return function(deps)
 				playClickSfx()
 				return false
 			end
-			playSfx(SOUND_IDS.buyPatron)
+			require(script.Parent.Cue).play("buy")
 			BuyPackRemote:FireServer(pack.id)
 			return true
 		end
@@ -1391,7 +1391,7 @@ return function(deps)
 									showConfirmDialog(
 										string.format("Use %s?\n\n%s", recipe.name, recipe.description),
 										function()
-											playSfx(SOUND_IDS.buyPatron)
+											require(script.Parent.Cue).play("buy")
 											UseRecipeRemote:FireServer(categoryKey, recipe.id)
 										end
 									)

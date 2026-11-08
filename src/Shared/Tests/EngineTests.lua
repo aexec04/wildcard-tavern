@@ -4931,6 +4931,34 @@ table.insert(tests, { name = "ScoreJuice: new best, target clear, shake and burs
 	expectEqual(SJ.slowMoFor(true, true) > SJ.slowMoFor(true, false), true)
 end })
 
+table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn = function()
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local required = { "card_deal", "card_select", "card_play", "shuffle", "chip", "chip_big", "coin", "buy", "button_click",
+		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn" }
+	expectEqual(#S.CueOrder, #required)
+	for _, name in ipairs(required) do
+		local cue = S.Cues[name]
+		expectEqual(cue ~= nil, true, name)
+		expectEqual(type(cue.volume) == "number" and cue.volume > 0, true, name .. " volume")
+		expectEqual(cue.id == "" or S.isValidId(cue.id), true, name .. " id is empty or well formed")
+	end
+	expectEqual(S.cueId("nope"), nil)
+	expectEqual(S.cueId("hover"), nil, "empty id is skipped")
+	expectEqual(S.cueId("win") ~= nil, true)
+	expectEqual(S.isValidId("rbxassetid://0"), false)
+	expectEqual(S.isValidId("rbxassetid://123"), true)
+	for _, key in ipairs({ "menu", "gameplay", "shop", "boss" }) do
+		expectEqual(S.isValidId(S.Music[key]), true, key)
+	end
+	for _, id in ipairs(require(script.Parent.Parent.Engine.WorldMap).RegionOrder) do
+		expectEqual(S.Music["region_" .. id] ~= nil, true, "music slot for region " .. id)
+		expectEqual(S.regionMusicKey(id), "gameplay", "falls back while the region track is empty")
+	end
+	expectEqual(S.regionMusicKey(nil), "gameplay")
+	expectEqual(#S.missingCues() > 0, true)
+	expectEqual(#S.missingMusic(), 9, "9 region tracks still need ids")
+end })
+
 table.insert(tests, { name = "SceneKeys: floor fraction defaults and clamps", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	expectEqual(SceneKeys.floorFraction("front_porch_a"), SceneKeys.FloorFractions.default)

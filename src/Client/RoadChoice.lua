@@ -296,6 +296,7 @@ return function(deps)
 			if pending then return end
 			pending = true
 			playClickSfx()
+			require(script.Parent.Cue).play("road_choose")
 			local r = remote()
 			if r then
 				r:FireServer(stopId)

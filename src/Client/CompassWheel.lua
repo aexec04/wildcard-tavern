@@ -185,6 +185,10 @@ function CompassWheel.new(opts)
 			if a then
 				self.setBearing(a)
 				fire(nil)
+				if os.clock() - (self._lastTurnCue or 0) > 0.18 then -- tick while dragging
+					self._lastTurnCue = os.clock()
+					require(script.Parent.Cue).play("compass_turn")
+				end
 			end
 		end
 	end)

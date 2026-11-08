@@ -348,7 +348,7 @@ return function(deps)
 			end)
 
 			if playSfx and SOUND_IDS then
-				playSfx(isWin and SOUND_IDS.gameOverWin or SOUND_IDS.gameOverLoss, 0.6)
+				require(script.Parent.Cue).play(isWin and "win" or "lose", 1.2)
 			end
 
 			lastGameOverKey = key

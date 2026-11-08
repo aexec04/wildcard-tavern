@@ -730,6 +730,7 @@ local function build(deps)
 
 	local function defeatSequence()
 		retiring = true
+		require(script.Parent.Cue).play("boss_defeat")
 		setHp(0, false)
 		if fast() then
 			say("defeated", true)
@@ -868,6 +869,7 @@ local function build(deps)
 			play(pscale, { Scale = 1 }, 0.35, Enum.EasingStyle.Back)
 			later(grand and 1.4 or 1.0, function()
 					stageEvent("boss", "taunt", 0.6)
+					require(script.Parent.Cue).play("boss_intro")
 					say("intro", true)
 				end)
 			return

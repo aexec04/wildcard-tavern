@@ -497,6 +497,7 @@ return function(deps)
 			end
 			actionPending = true
 			playClickSfx()
+			require(script.Parent.Cue).play("shuffle")
 			SelectRoundRemote:FireServer()
 		end)
 
