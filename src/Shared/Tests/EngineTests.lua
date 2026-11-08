@@ -7162,4 +7162,53 @@ table.insert(tests, { name = "RunAbandon: abandoning counts the run as abandoned
 	expectTrue(copy.stats.runsAbandoned == 3, "migrate keeps and floors runsAbandoned")
 end })
 
+table.insert(tests, { name = "TableStyle: backdrop resolves per region and route, set override wins, moods change, nothing red", fn = function()
+	local TableStyle = require(script.Parent.Parent.Engine.TableStyle)
+	local BiomeBackdrops = require(script.Parent.Parent.Engine.BiomeBackdrops)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local BossStage = require(script.Parent.Parent.Engine.BossStage)
+	for regionId in pairs(WorldMap.Regions) do
+		expectTrue(BiomeBackdrops.Grades[regionId] ~= nil, "every world region has a grade: " .. tostring(regionId))
+	end
+	for _, regionId in ipairs(BiomeBackdrops.Regions) do
+		expectTrue(BiomeBackdrops.Grades[regionId] ~= nil, "every backdrop region has a grade: " .. regionId)
+	end
+	for id, g in pairs(BiomeBackdrops.Grades) do
+		expectTrue(not BossStage.isRedish(g.color), "grade is not red: " .. id)
+		expectTrue(g.strength > 0 and g.strength < 0.5, "grade strength is a wash: " .. id)
+	end
+	-- every default route resolves a region for every Night, including Endless ones
+	for _, route in ipairs(WorldMap.allRoutes()) do
+		for night = 1, 12 do
+			local region = TableStyle.regionOfNight(route, night)
+			expectTrue(BiomeBackdrops.Grades[region] ~= nil, "route Night resolves to a known region")
+		end
+	end
+	expectTrue(TableStyle.regionOfNight(nil, 3) == BiomeBackdrops.Default, "no route falls back to the tavern")
+	expectTrue(TableStyle.regionOfNight({ "dusty_road" }, 5) ~= nil, "short route reuses its last stop")
+	-- different regions grade differently
+	local meadow = TableStyle.resolve({ region = "meadow", night = 1 })
+	local snow = TableStyle.resolve({ region = "snow", night = 1 })
+	expectTrue(meadow.grade.color[1] ~= snow.grade.color[1] or meadow.grade.color[3] ~= snow.grade.color[3], "regions grade differently")
+	expectTrue(meadow.source == "default" and meadow.image == nil, "no painting yet: the default painting stays")
+	-- a recorded biome painting is used; a set with its own image replaces it; a styled set only layers on top
+	BiomeBackdrops.Images.meadow = "rbxassetid://123"
+	local withBiome = TableStyle.resolve({ region = "meadow", night = 1 })
+	expectTrue(withBiome.source == "biome" and withBiome.image == "rbxassetid://123", "biome painting resolves")
+	local override = TableStyle.resolve({ region = "meadow", night = 1, set = { backdropImage = "rbxassetid://999" } })
+	expectTrue(override.source == "set" and override.image == "rbxassetid://999", "a set image replaces the biome image")
+	local styled = TableStyle.resolve({ region = "meadow", night = 1, set = { backdropImage = "rbxassetid://0", backdropStyle = { tint = { 255, 255, 255 } } } })
+	expectTrue(styled.source == "biome" and styled.setStyle ~= nil, "a placeholder-image set keeps the biome image and layers its style")
+	BiomeBackdrops.Images.meadow = nil
+	-- Night and boss moods
+	local n1 = TableStyle.resolve({ region = "tavern", night = 1 })
+	local n8 = TableStyle.resolve({ region = "tavern", night = 8 })
+	local n12 = TableStyle.resolve({ region = "tavern", night = 12 })
+	expectTrue(n8.mood.darken > n1.mood.darken and n8.mood.warm > n1.mood.warm, "Night 8 is darker and warmer than Night 1")
+	expectTrue(n12.mood.darken == n8.mood.darken, "Endless Nights stay at the darkest mood")
+	local boss = TableStyle.resolve({ region = "tavern", night = 1, isBoss = true })
+	expectTrue(boss.mood.darken > n1.mood.darken and boss.vignette.sides > n1.vignette.sides and boss.vignette.bottom > n1.vignette.bottom, "boss rounds are darker with a heavier vignette")
+	expectTrue(not boss.grade or not BossStage.isRedish(boss.grade.color), "no red in the boss mood")
+end })
+
 return tests

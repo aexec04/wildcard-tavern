@@ -27,6 +27,9 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local SceneKeys = require(Engine:WaitForChild("SceneKeys"))
+local TableStyle = require(Engine:WaitForChild("TableStyle"))
+local TableLook = require(script.Parent.TableLook)
+local CosmeticSetsView = require(script.Parent.CosmeticSetsView)
 local preloadedFor = nil -- scene key the lazy preload last ran for
 local ClientSettings = require(script.Parent.ClientSettings)
 
@@ -102,6 +105,9 @@ local function build(deps)
 		strip.Parent = shade
 	end
 
+	-- Biome grade, Night mood, set style host and vignette (Client/TableLook.lua), above the painting.
+	local tableLook = TableLook.new(root)
+
 	-- Walk-in effect frames (above the table, below the Boss Intro overlay at 36).
 	local flash = Instance.new("Frame")
 	flash.Name = "SceneWalkInFlash"
@@ -126,6 +132,7 @@ local function build(deps)
 	local front = 1 -- index of the label currently showing
 	local currentKey = nil -- key shown (or wanted) right now
 	local lastBossKey = nil
+	local lastLookSig = nil
 	local lastState = nil
 	local fadeToken = 0
 	local pushTween = nil
@@ -152,7 +159,11 @@ local function build(deps)
 
 	-- Publish the shown image so CosmeticSetsView does not fight it (it keeps its own backdrop swap).
 	local function show(key, instant)
-		local image = key and ContentArt.getImageId("scenes", key) or nil
+		-- "img:<id>" keys come from TableStyle (a recorded biome painting, or an equipped set's own backdrop).
+		local image = nil
+		if key then
+			image = key:sub(1, 4) == "img:" and key:sub(5) or ContentArt.getImageId("scenes", key)
+		end
 		fadeToken = fadeToken + 1
 		local mine = fadeToken
 		local duration = (instant or fast()) and 0 or CROSSFADE
@@ -247,6 +258,7 @@ local function build(deps)
 		afterFn = nil
 		lastBossKey = nil
 		currentKey = nil
+		lastLookSig = nil
 		flash.BackgroundTransparency = 1
 		vignette.BackgroundTransparency = 1
 	end
@@ -259,13 +271,27 @@ local function build(deps)
 		if phase ~= "roundSelect" and phase ~= "playing" then
 			return -- shop and game over keep whatever is showing (no flicker)
 		end
-		local key = wantedKey(state)
+		local sceneKey = wantedKey(state)
+		local inBossRound = phase == "playing" and state.bossModifier ~= nil
+			and SceneKeys.roundKind(state.round, ROUNDS_PER_NIGHT) == "boss"
+		local look = TableStyle.resolve({
+			region = TableStyle.regionOfNight(state.worldRoute, state.night),
+			night = state.night, nightCap = state.nightCap, isBoss = inBossRound,
+			set = CosmeticSetsView.currentSet(state),
+		})
+		local lookSig = table.concat({ look.region, tostring(state.night), tostring(inBossRound), tostring(look.image), tostring(look.setStyle) }, "|")
+		if lookSig ~= lastLookSig then -- only on change, so renders do not restart the 0.7s crossfade
+			pcall(tableLook.apply, look, lastLookSig == nil)
+			lastLookSig = lookSig
+		end
+		-- A recorded biome painting (or a set's own backdrop) replaces the per-Night scene art.
+		local key = look.image and ("img:" .. look.image) or sceneKey
 		-- Lazy scene loading: this scene first, then the rest of this Night and the next
 		-- Night's approach; ContentArt requests each url only once.
 		if preloadedFor ~= key then
 			preloadedFor = key
 			local night = state.night or 1
-			local wanted = { { "scenes", key } }
+			local wanted = { { "scenes", sceneKey } }
 			for _, kind in ipairs({ "small", "big", "boss" }) do
 				table.insert(wanted, { "scenes", SceneKeys.keyFor(night, kind) })
 			end
@@ -282,7 +308,7 @@ local function build(deps)
 			-- Walk in only when the player was just outside this Boss round's door.
 			local outside = SceneKeys.keyFor(state.night, "big")
 			if not firstSight and currentKey == outside and not fast() and not reduced()
-				and ContentArt.getImageId("scenes", key) and ContentArt.getImageId("scenes", outside) then
+				and key == sceneKey and ContentArt.getImageId("scenes", key) and ContentArt.getImageId("scenes", outside) then
 				currentKey = key
 				walkIn(key)
 				return

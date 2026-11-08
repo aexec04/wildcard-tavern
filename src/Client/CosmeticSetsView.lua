@@ -28,6 +28,7 @@ local TweenService = game:GetService("TweenService")
 -- Select and the Journey map. defaultTint is restored when a set has no style.
 local HOSTS = {
 	{ name = "GameBackgroundArt", defaultTint = Color3.fromRGB(215, 205, 195) },
+	{ name = "TableLook", defaultTint = Color3.new(1, 1, 1) }, -- the style host above the gameplay scene painting (Client/TableLook.lua)
 	{ name = "ShopBackgroundArt", defaultTint = Color3.new(1, 1, 1) },
 	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1) },
 	{ name = "TavernMap", defaultTint = Color3.new(1, 1, 1) },
@@ -49,6 +50,14 @@ local M = {}
 -- touches the saved/equipped ids and never fires a remote.
 local previewOverride = nil -- { setId, backId }
 local lastState = nil
+
+-- The set the table should show right now: the Card Sets "Preview" if one is running, else the equipped set.
+function M.currentSet(state)
+	local cosmetics = type(state) == "table" and state.cosmetics or nil
+	local setId = cosmetics and cosmetics.equippedSetId or CosmeticSets.DefaultId
+	if previewOverride then setId = previewOverride.setId end
+	return CosmeticSets.getById(setId) or CosmeticSets.getById(CosmeticSets.DefaultId)
+end
 
 function M.apply(state)
 	lastState = state
