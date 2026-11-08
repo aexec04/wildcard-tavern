@@ -1412,6 +1412,9 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
 	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
+	pcall(function() -- narrow windows and phones: stats drawer, wider hand, scaled button row (Client/CompactLayout.lua)
+		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SIDEBAR_WIDTH })
+	end)
 	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
 		local sortFrame = nil
 		for _, c in ipairs(actionFrame:GetChildren()) do

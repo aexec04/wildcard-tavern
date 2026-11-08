@@ -7473,4 +7473,81 @@ table.insert(tests, { name = "ButtonFeel: hover swells, press squashes 6 percent
 	expectTrue(ButtonFeel.MIN_HIT >= 44, "phone-sized hit areas")
 end })
 
+-- Layout test harness: the real layout numbers (Engine/ResponsiveLayout, which Client/CompactLayout and
+-- Collection.lua apply) at four screen sizes. Nothing may extend past the screen and no two sibling buttons may
+-- overlap.
+local function layoutProblems(vpX, vpY, layout)
+	local R = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	local problems = {}
+	local function check(name, r)
+		if not R.inside(r, vpX, vpY) then problems[#problems + 1] = name .. " runs off the screen" end
+	end
+	check("hand", layout.hand)
+	check("action row", layout.actions)
+	for name, r in pairs(layout.buttons) do check(name, r) end
+	if layout.deck then check("draw pile", layout.deck) end
+	local names = { "sortRank", "sortSuit", "play", "discard" }
+	for i = 1, #names do
+		for j = i + 1, #names do
+			if R.overlaps(layout.buttons[names[i]], layout.buttons[names[j]]) then
+				problems[#problems + 1] = names[i] .. " overlaps " .. names[j]
+			end
+		end
+	end
+	if layout.deck and R.overlaps(layout.hand, layout.deck) then problems[#problems + 1] = "hand overlaps the draw pile" end
+	if layout.deck and R.overlaps(layout.actions, layout.deck) then problems[#problems + 1] = "action row overlaps the draw pile" end
+	-- the hand must have room for its cards: 8 cards at the minimum card width (48) with 6px gaps and tray padding
+	if layout.hand.w < 8 * 48 + 7 * 6 + 32 then problems[#problems + 1] = "hand is too narrow for 8 cards" end
+	return problems
+end
+
+table.insert(tests, { name = "Layout harness: gameplay screen fits 640x360, 800x450, 1280x720 and 1920x1080", fn = function()
+	local R = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	for _, vp in ipairs({ { 640, 360 }, { 800, 450 }, { 1280, 720 }, { 1920, 1080 } }) do
+		local layout = R.gameplay(vp[1], vp[2])
+		local problems = layoutProblems(vp[1], vp[2], layout)
+		expectEqual(#problems, 0, vp[1] .. "x" .. vp[2] .. ": " .. table.concat(problems, "; "))
+		expectEqual(layout.compact, vp[1] < 900, "compact mode under 900 wide")
+		expectEqual(layout.sidebarW, layout.compact and 0 or 240, "the stats panel collapses into a drawer when compact")
+		expectTrue(layout.actionScale > 0.5, "the button row never shrinks below half size")
+	end
+	-- before the fix: the stats panel always reserved 240px and the action row never scaled
+	local failedBefore = {}
+	for _, vp in ipairs({ { 640, 360 }, { 800, 450 }, { 1280, 720 }, { 1920, 1080 } }) do
+		local legacy = R.gameplayLegacy(vp[1], vp[2])
+		if #layoutProblems(vp[1], vp[2], legacy) > 0 then failedBefore[#failedBefore + 1] = vp[1] .. "x" .. vp[2] end
+	end
+	expectEqual(table.concat(failedBefore, ","), "640x360,800x450", "the old layout failed exactly the two narrow sizes")
+end })
+
+table.insert(tests, { name = "Layout harness: Collection panel, title and chips stay inside and clear of each other", fn = function()
+	local R = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	for _, vp in ipairs({ { 640, 360 }, { 800, 450 }, { 1280, 720 }, { 1920, 1080 } }) do
+		local fit = R.collectionPanel(vp[1], vp[2])
+		local panel = { x = vp[1] * (1 - fit.w) / 2, y = vp[2] * (1 - fit.h) / 2, w = vp[1] * fit.w, h = vp[2] * fit.h }
+		expectTrue(R.inside(panel, vp[1], vp[2]), vp[1] .. ": the panel is inside the screen")
+		expectTrue(fit.w >= 0.66, "never narrower than before")
+		-- title vs the Card Sets (15..111) and Badges (121..217) buttons on the title row
+		local head = R.collectionTitle(panel.w)
+		local textW = 120 -- "Collection" at 22px bold
+		local textLeft = head.fullWidth and (panel.w - textW) / 2 or (head.x + (head.w - textW) / 2)
+		local titleRect = { x = textLeft, y = 6, w = textW, h = 28 }
+		local buttons = { { x = 15, y = 6, w = 96, h = 24 }, { x = 121, y = 6, w = 96, h = 24 } }
+		for _, b in ipairs(buttons) do
+			expectFalse(R.overlaps(titleRect, b), vp[1] .. ": the title does not sit behind a button")
+		end
+		expectTrue(titleRect.x + titleRect.w <= panel.w - 60 + 1, vp[1] .. ": the title clears the expand toggle on the right")
+		-- the six rarity chips wrap instead of overflowing
+		local widths = { 92, 100, 78, 78, 106, 96 }
+		local rows = R.wrapRows(widths, panel.w - 30, 14)
+		for _, row in ipairs(rows) do
+			local used = 0
+			for _, idx in ipairs(row) do used = used + widths[idx] end
+			used = used + 14 * (#row - 1)
+			expectTrue(used <= panel.w - 30 or #row == 1, vp[1] .. ": a chip row fits the panel")
+		end
+		if vp[1] >= 1280 then expectEqual(#rows, 1, "one chip row on a wide screen") end
+	end
+end })
+
 return tests

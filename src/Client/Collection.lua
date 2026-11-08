@@ -128,7 +128,7 @@ return function(deps)
 		scrim = { position = UDim2.fromOffset(15, 156), size = UDim2.new(1, -30, 1, -214) },
 	})
 
-	label(panel, {
+	local titleLabel = label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
 	})
@@ -240,6 +240,7 @@ return function(deps)
 	legendLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	legendLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	legendLayout.Padding = UDim.new(0, 14)
+	legendLayout.Wraps = true -- on a narrow panel the chips wrap onto a second line instead of running off the edge
 	legendLayout.Parent = legendRow
 	-- Each chip is a toggle: click to hide/show that tier in the grid.
 	local hiddenRarities = {}
@@ -312,6 +313,34 @@ return function(deps)
 	gridPadding.PaddingTop = UDim.new(0, 4)
 	gridPadding.PaddingBottom = UDim.new(0, 4)
 	gridPadding.Parent = scroll
+
+	-- ===== Responsive layout (narrow windows and phones) =====
+	-- The panel grows toward the full width as the window narrows (Engine/ResponsiveLayout), the title steps
+	-- aside of the Card Sets / Badges buttons, and the legend chips wrap; the grid below follows the header.
+	local ResponsiveLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout"))
+	local legendTop = 126
+	local function relayout()
+		local cam = workspace.CurrentCamera
+		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+		local fit = ResponsiveLayout.collectionPanel(vp.X, vp.Y)
+		panel.Size = UDim2.fromScale(fit.w, fit.h)
+		local panelW = vp.X * fit.w
+		local head = ResponsiveLayout.collectionTitle(panelW)
+		titleLabel.Position = UDim2.fromOffset(head.x, 6)
+		titleLabel.Size = head.fullWidth and UDim2.new(1, 0, 0, 28) or UDim2.fromOffset(head.w, 28)
+		local legendH = math.max(26, math.ceil(legendLayout.AbsoluteContentSize.Y))
+		legendRow.Size = UDim2.new(1, -30, 0, legendH)
+		local top = legendTop + legendH + 4
+		scroll.Position = UDim2.fromOffset(15, top)
+		scroll.Size = UDim2.new(1, -30, 1, -(top + 58))
+	end
+	legendLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(relayout)
+	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(relayout)
+	do
+		local cam = workspace.CurrentCamera
+		if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(relayout) end
+	end
+	relayout()
 
 	local closeButton = button(panel, {
 		Size = UDim2.fromOffset(140, 40), Position = UDim2.new(0.5, -70, 1, -50),
