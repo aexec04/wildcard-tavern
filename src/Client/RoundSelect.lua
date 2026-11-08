@@ -81,9 +81,9 @@ return function(deps)
 	local TweenService = game:GetService("TweenService")
 
 	-- Room-specific config: static name, accent color, and room art key per card.
-	local BRONZE = Color3.fromRGB(180, 140, 80)
-	local SILVER = Color3.fromRGB(190, 195, 205)
-	local GOLD_ACCENT = Color3.fromRGB(255, 214, 130)
+	local BRONZE = Color3.fromRGB(205, 118, 52)
+	local SILVER = Color3.fromRGB(225, 232, 245)
+	local GOLD_ACCENT = Color3.fromRGB(255, 196, 40)
 	local ROOM_CONFIGS = {
 		{ roomId = "corner_table", roomName = "The Corner Table", accent = BRONZE     },
 		{ roomId = "main_hall",    roomName = "The Main Hall",    accent = SILVER     },
@@ -215,7 +215,7 @@ return function(deps)
 		local panelStroke = panel:FindFirstChildOfClass("UIStroke")
 		if panelStroke then
 			panelStroke.Color = accent
-			panelStroke.Thickness = isBossPanel and 4 or 2
+			panelStroke.Thickness = isBossPanel and 4 or 3
 			panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			if isBossPanel then
 				TweenService:Create(panelStroke,
@@ -250,7 +250,7 @@ return function(deps)
 
 		-- Status chip overlaid on the top-left of the scene image.
 		-- Shows "You are here" (green) for the current round,
-		-- "Lock Up next" (gray) for future rounds, hidden for cleared rounds.
+		-- "Lock Up next" (gray) for future rounds, "Cleared" with a check for completed rounds.
 		-- Parented to sceneImage so it's clipped to the image area.
 		local statusChip = Instance.new("TextLabel")
 		statusChip.Name = "StatusChip"
@@ -335,7 +335,8 @@ return function(deps)
 		local targetLabel = Instance.new("TextLabel")
 		targetLabel.Name = "TargetLabel"
 		targetLabel.Size = UDim2.new(1, -20, 0, 36)
-		targetLabel.Position = UDim2.new(0, 10, 0, targetY)
+		targetLabel.AnchorPoint = Vector2.new(0, 1)
+		targetLabel.Position = UDim2.new(0, 10, 1, -(10 + 40 + 6 + 44 + 8))
 		targetLabel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
 		targetLabel.Font = Enum.Font.GothamBold
 		targetLabel.TextSize = 18
@@ -352,7 +353,8 @@ return function(deps)
 		local selectButton = Instance.new("TextButton")
 		selectButton.Name = "SelectButton"
 		selectButton.Size = UDim2.new(1, -20, 0, 44)
-		selectButton.Position = UDim2.new(0, 10, 0, selectBtnY)
+		selectButton.AnchorPoint = Vector2.new(0, 1)
+		selectButton.Position = UDim2.new(0, 10, 1, -(10 + 40 + 6))
 		selectButton.Font = Enum.Font.GothamBold
 		selectButton.TextSize = 16
 		selectButton.Text = "Select"
@@ -367,7 +369,8 @@ return function(deps)
 		local skipButton = Instance.new("TextButton")
 		skipButton.Name = "SkipButton"
 		skipButton.Size = UDim2.new(1, -20, 0, 40)
-		skipButton.Position = UDim2.new(0, 10, 0, skipBtnY)
+		skipButton.AnchorPoint = Vector2.new(0, 1)
+		skipButton.Position = UDim2.new(0, 10, 1, -10)
 		skipButton.Font = Enum.Font.GothamBold
 		skipButton.TextSize = 14
 		skipButton.Text = "Skip"
@@ -543,7 +546,7 @@ return function(deps)
 			entry.sceneImage.BackgroundTransparency = isFuture and 0.4 or 0
 
 			-- Status chip: "You are here" for current, "🔒 Up next" for future,
-			-- hidden for cleared rounds.
+			-- "Cleared" check chip for completed rounds.
 			if isCurrent then
 				entry.statusChip.Visible = true
 				entry.statusChip.Text = "  You are here  "
@@ -555,7 +558,10 @@ return function(deps)
 				entry.statusChip.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 				entry.statusChip.TextColor3 = Color3.fromRGB(180, 180, 200)
 			else
-				entry.statusChip.Visible = false
+				entry.statusChip.Visible = true
+				entry.statusChip.Text = "  ✓ Cleared  "
+				entry.statusChip.BackgroundColor3 = Color3.fromRGB(45, 120, 70)
+				entry.statusChip.TextColor3 = Color3.fromRGB(215, 255, 225)
 			end
 
 			local shownBoss = isBossRound and (state.nightBossModifier or state.bossModifier) or nil
@@ -566,14 +572,14 @@ return function(deps)
 				entry.tagLabel.Visible = false
 				if state.nightBossModifier then
 					entry.bossNameLabel.Visible = true
-					entry.bossNameLabel.Text = "👑 " .. state.nightBossModifier.name
+					entry.bossNameLabel.Text = state.nightBossModifier.name
 					entry.bossLabel.Text = state.nightBossModifier.description
 				elseif state.bossModifier then
 					-- Defensive fallback: we're somehow already ON the Boss
 					-- round (bossModifier set) but nightBossModifier wasn't
 					-- sent -- use the one we definitely have.
 					entry.bossNameLabel.Visible = true
-					entry.bossNameLabel.Text = "👑 " .. state.bossModifier.name
+					entry.bossNameLabel.Text = state.bossModifier.name
 					entry.bossLabel.Text = state.bossModifier.description
 				else
 					entry.bossNameLabel.Visible = false
