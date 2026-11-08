@@ -238,9 +238,34 @@ return function(deps)
 		shopBackgroundArt.BackgroundTransparency = 1
 		shopBackgroundArt.BorderSizePixel = 0
 		shopBackgroundArt.ScaleType = Enum.ScaleType.Crop
-		shopBackgroundArt.Image = shopBackgroundImage or "rbxassetid://0"
+		-- New counter art wins; the older shop_bg stays as the fallback.
+		local counterArtId = ContentArt.getImageId("backgrounds", "shop_counter_bg")
+		shopBackgroundArt.Image = counterArtId or shopBackgroundImage or "rbxassetid://0"
+		shopBackgroundArt.Active = false
 		shopBackgroundArt.ZIndex = 5
 		shopBackgroundArt.Parent = shopFrame
+		do
+			local panelCorner = shopFrame:FindFirstChildOfClass("UICorner")
+			local artCorner = Instance.new("UICorner")
+			artCorner.CornerRadius = panelCorner and panelCorner.CornerRadius or UDim.new(0, 6)
+			artCorner.Parent = shopBackgroundArt
+			if counterArtId then
+				-- Dark scrim behind the offer cards and prices (same box as shopContentArea).
+				local shopScrim = Instance.new("Frame")
+				shopScrim.Name = "ShopScrim"
+				shopScrim.Position = UDim2.new(0, 10, 0, 84)
+				shopScrim.Size = UDim2.new(1, -20, 1, -140)
+				shopScrim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+				shopScrim.BackgroundTransparency = 0.35
+				shopScrim.BorderSizePixel = 0
+				shopScrim.Active = false
+				shopScrim.ZIndex = 5
+				shopScrim.Parent = shopFrame
+				local scrimCorner = Instance.new("UICorner")
+				scrimCorner.CornerRadius = UDim.new(0, 8)
+				scrimCorner.Parent = shopScrim
+			end
+		end
 
 		-- Deliberately NOT calling addSoftShadow(shopFrame, ...) here.
 		-- addSoftShadow sizes its shadow Frame using UDim2.new(1, 14, 1, 14) --

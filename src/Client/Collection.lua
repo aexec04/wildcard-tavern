@@ -118,6 +118,11 @@ return function(deps)
 	panel.Parent = backdrop
 	polishPanel(panel, 16, "parchment")
 	addSoftShadow(panel, 18)
+	-- Painted alcove behind everything; a dark scrim keeps the tile grid readable.
+	require(script.Parent.PanelArt).add(panel, {
+		key = "collection_bg",
+		scrim = { position = UDim2.fromOffset(15, 128), size = UDim2.new(1, -30, 1, -186) },
+	})
 
 	label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),

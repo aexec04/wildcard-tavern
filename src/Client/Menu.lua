@@ -117,7 +117,10 @@ return function(deps)
 	menuBackgroundArt.ScaleType = Enum.ScaleType.Crop
 	-- Nov 1 2026: reads ArtAssets.lua (via deps) instead of a hardcoded
 	-- DECAL id, which never loaded from code. Thumbnail fallback below.
-	menuBackgroundArt.Image = menuBackgroundImage or "rbxassetid://0"
+	-- menu_bg (house style) wins; the older ArtAssets image / flat color is the fallback.
+	local menuArtId = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).getImageId("backgrounds", "menu_bg")
+	menuBackgroundArt.Image = menuArtId or menuBackgroundImage or "rbxassetid://0"
+	menuBackgroundArt.Active = false
 	-- BUGFIX (Nov 1 2026): this ScreenGui uses Global ZIndex layering, so
 	-- this ZIndex-9 image drew UNDER its own ZIndex-10 parent's opaque fill
 	-- -- the menu art never showed. Same fix as the gameplay screen: the
@@ -130,6 +133,10 @@ return function(deps)
 	menuBackgroundArt.BackgroundTransparency = 0
 	menuFrame.BackgroundTransparency = 1
 	menuBackgroundArt.Parent = menuFrame
+	if menuArtId then
+		-- Dark edge vignette (stepped Frames, Color stops only) above the art, below the logo and buttons.
+		require(script.Parent.PanelArt).vignette(menuFrame, 10)
+	end
 	-- (Removed Nov 1 2026: a ContentProvider:PreloadAsync check used to swap
 	-- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
 	-- Failure even for images that load fine, so it was blanking good art.)

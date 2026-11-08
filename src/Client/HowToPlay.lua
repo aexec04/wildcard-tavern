@@ -92,6 +92,12 @@ return function(deps)
 	howToPlayPanel.Parent = howToPlayBackdrop
 	polishPanel(howToPlayPanel, 16, "parchment")
 	addSoftShadow(howToPlayPanel, 18)
+	-- Notice-board art; the dark scrim sits behind the text area so cream text stays readable.
+	require(script.Parent.PanelArt).add(howToPlayPanel, {
+		key = "how_to_play_bg",
+		scrim = { position = UDim2.fromOffset(PAD, TITLE_H), size = UDim2.new(1, -2 * PAD, 0, BODY_H) },
+		scrimTransparency = 0.3,
+	})
 	-- Shrink on small screens instead of clipping.
 	local fitScale = Instance.new("UIScale")
 	fitScale.Parent = howToPlayPanel
