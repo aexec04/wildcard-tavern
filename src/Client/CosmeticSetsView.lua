@@ -137,6 +137,36 @@ local function applyTheme(set)
 	end
 end
 
+-- The draw pile's frame and plate follow the equipped back and set (CosmeticSets.pileStyleOf).
+local function applyPile(set, back, backId)
+	local widget = themeTarget("DeckWidget")
+	if not widget then return end
+	local sig = tostring(backId) .. "|" .. tostring(set.id)
+	if widget:GetAttribute("ThemedPile") == sig then return end
+	widget:SetAttribute("ThemedPile", sig)
+	local pile = CosmeticSets.pileStyleOf(set, back)
+	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	widget.BackgroundColor3 = c3(pile.plate)
+	local rim = widget:FindFirstChildOfClass("UIStroke")
+	if rim then rim.Color = c3(pile.rim) end
+	local glow = widget:FindFirstChild("PileGlow")
+	if glow then
+		local gs = glow:FindFirstChildOfClass("UIStroke")
+		if gs then gs.Color = c3(pile.glow) end
+	end
+	-- the carved holder art and the board behind the card take a faint tint of the rim colour
+	for _, child in ipairs({ widget:FindFirstChild("SkinArt"), widget:FindFirstChild("DeckBoard") }) do
+		if child and child:IsA("ImageLabel") then
+			local original = child:GetAttribute("OriginalTint")
+			if not original then
+				original = child.ImageColor3
+				child:SetAttribute("OriginalTint", original)
+			end
+			child.ImageColor3 = original:Lerp(c3(pile.rim), 0.3)
+		end
+	end
+end
+
 function M.apply(state)
 	lastState = state
 	local cosmetics = state.cosmetics
@@ -231,6 +261,8 @@ function M.apply(state)
 			lastBackId = backId
 		end
 	end
+
+	applyPile(set, back, backId)
 
 	-- Theme: the equipped back's trim color tints the hand tray rim at low strength.
 	-- The default back keeps today's gold.

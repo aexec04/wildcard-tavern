@@ -501,6 +501,17 @@ function CosmeticSets.accentOf(set)
 	return CosmeticSets.faceStyleOf(set).border
 end
 
+-- Colours for the draw pile's frame and plate: the equipped back's pile style, nudged toward the equipped
+-- set's accent (a non-default set) so the pile matches the table. Returns { rim, plate, glow }.
+function CosmeticSets.pileStyleOf(set, back)
+	local pile = CardBacks.pileStyle(back)
+	local accent = set and set.id ~= CosmeticSets.DefaultId and CosmeticSets.accentOf(set) or nil
+	if not accent then
+		return pile
+	end
+	return { rim = mix(pile.rim, accent, 0.35), plate = pile.plate, glow = mix(pile.glow, accent, 0.35) }
+end
+
 function CosmeticSets.themeOf(set)
 	local face = CosmeticSets.faceStyleOf(set)
 	return {

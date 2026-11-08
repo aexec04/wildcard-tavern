@@ -6,11 +6,43 @@
 	`setOnly` backs come only from a set.
 
 	`colors` are {r, g, b} triples (0-255) so this file stays pure Lua.
+
+	The ornate frame and plate behind the draw pile follow the equipped back: `pileStyle(back)` gives
+	{ rim, plate, glow } colours. A back may set `pile = { rim, plate, glow }` itself (classic keeps the
+	warm wood and gold, Gilded Ledger is gold, Winter Frost is frosted blue); any other back, including
+	every back added later, gets one derived from its `colors` (rim = trim, plate = base darkened, glow =
+	trim), so new backs look right for free. The count pill stays dark and readable on every plate.
 ]]
 
 local CardBacks = {}
 
 CardBacks.DefaultId = "classic"
+
+local WOOD_PLATE = { 34, 22, 13 }
+
+local function mix(a, b, t)
+	return {
+		math.floor(a[1] + (b[1] - a[1]) * t + 0.5),
+		math.floor(a[2] + (b[2] - a[2]) * t + 0.5),
+		math.floor(a[3] + (b[3] - a[3]) * t + 0.5),
+	}
+end
+
+-- Pile frame colours for a back table (or nil -> the default warm wood and gold).
+function CardBacks.pileStyle(back)
+	if back and back.pile then
+		return back.pile
+	end
+	local colors = back and back.colors
+	if not colors then
+		return { rim = { 205, 170, 95 }, plate = WOOD_PLATE, glow = { 235, 200, 120 } }
+	end
+	return {
+		rim = colors.trim,
+		plate = mix(colors.base, { 14, 10, 7 }, 0.72), -- the back's own colour, kept dark so the count reads
+		glow = mix(colors.trim, { 255, 255, 255 }, 0.2),
+	}
+end
 
 CardBacks.Definitions = {
 	{
@@ -18,6 +50,7 @@ CardBacks.Definitions = {
 		name = "Classic Blue",
 		icon = "🂠",
 		colors = { base = { 50, 70, 110 }, trim = { 220, 190, 120 } },
+		pile = { rim = { 205, 170, 95 }, plate = { 34, 22, 13 }, glow = { 235, 200, 120 } }, -- warm wood and gold: today's frame
 		description = "The tavern's everyday deck.",
 		flavorText = "Worn soft at the corners from a thousand friendly games.",
 	},
@@ -26,6 +59,7 @@ CardBacks.Definitions = {
 		name = "Gilded Ledger",
 		icon = "📜",
 		colors = { base = { 120, 85, 40 }, trim = { 250, 215, 130 } },
+		pile = { rim = { 250, 215, 130 }, plate = { 62, 44, 18 }, glow = { 255, 232, 160 } }, -- gold
 		description = "A Collection milestone reward.",
 		flavorText = "Bound in the same gold leaf as the keeper's guest book.",
 	},
@@ -42,6 +76,7 @@ CardBacks.Definitions = {
 		name = "Winter Frost",
 		icon = "❄",
 		colors = { base = { 70, 100, 140 }, trim = { 230, 240, 255 } },
+		pile = { rim = { 190, 215, 245 }, plate = { 28, 42, 64 }, glow = { 220, 238, 255 } }, -- frosted blue
 		description = "Part of the Frosted Garden set.",
 		flavorText = "Frosted at the edges like a window in January.",
 		setOnly = true,

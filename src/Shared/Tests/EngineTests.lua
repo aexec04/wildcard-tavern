@@ -7378,4 +7378,38 @@ table.insert(tests, { name = "TooltipSpec: one border, padding clears the text, 
 	expectEqual(x, 1060)
 end })
 
+table.insert(tests, { name = "Pile style: the draw pile frame follows the equipped back and set, every back gets one", fn = function()
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function isRgb(t)
+		return type(t) == "table" and #t == 3 and t[1] >= 0 and t[1] <= 255 and t[2] >= 0 and t[2] <= 255 and t[3] >= 0 and t[3] <= 255
+	end
+	for _, back in ipairs(CardBacks.Definitions) do
+		local pile = CardBacks.pileStyle(back)
+		expectTrue(isRgb(pile.rim) and isRgb(pile.plate) and isRgb(pile.glow), back.id .. " has a valid pile style")
+		-- the count pill is dark and stays readable: the plate is never bright
+		expectTrue(pile.plate[1] + pile.plate[2] + pile.plate[3] < 330, back.id .. " plate stays dark")
+		for _, set in ipairs(CosmeticSets.Definitions) do
+			local p2 = CosmeticSets.pileStyleOf(set, back)
+			expectTrue(isRgb(p2.rim) and isRgb(p2.plate) and isRgb(p2.glow), back.id .. " + " .. set.id .. " resolves")
+		end
+	end
+	local default = CardBacks.pileStyle(CardBacks.getById("classic"))
+	expectEqual(default.rim[1], 205); expectEqual(default.plate[1], 34)
+	local ledger = CardBacks.pileStyle(CardBacks.getById("gilded_ledger"))
+	local frost = CardBacks.pileStyle(CardBacks.getById("winter_frost"))
+	expectTrue(ledger.rim[1] > ledger.rim[3] + 60, "Gilded Ledger is gold")
+	expectTrue(frost.rim[3] >= frost.rim[1], "Winter Frost is frosted blue")
+	-- a back without an explicit pile still derives one from its colours (new backs look right for free)
+	local derived = CardBacks.pileStyle({ colors = { base = { 20, 90, 30 }, trim = { 200, 240, 120 } } })
+	expectEqual(derived.rim[1], 200)
+	expectTrue(derived.plate[2] > derived.plate[1], "the derived plate keeps the back's hue")
+	-- the default set leaves the back's style alone; a themed set nudges the rim toward its accent
+	local classicSet = CosmeticSets.getById(CosmeticSets.DefaultId)
+	local gala = CosmeticSets.getById("golden_gala")
+	local winterBack = CardBacks.getById("winter_frost")
+	expectEqual(CosmeticSets.pileStyleOf(classicSet, winterBack).rim[1], frost.rim[1])
+	expectTrue(CosmeticSets.pileStyleOf(gala, winterBack).rim[1] > frost.rim[1], "Gala nudges the rim toward gold")
+end })
+
 return tests

@@ -123,6 +123,61 @@ return function(deps)
 	deckWidgetButton.Parent = deckWidget
 	addTooltip(deckWidgetButton, "Click to see your deck")
 
+	-- Hover feel like the hand cards: the pile lifts 6px and a gold glow ring fades in; a click gives a small
+	-- shuffle wiggle. Tweens only (no loops); Reduce screen shake keeps the glow and skips the motion. The glow
+	-- frame is a child of the widget (decorative, not in any layout) and survives a recolor by CosmeticSetsView.
+	do
+		local TweenService = game:GetService("TweenService")
+		local ClientSettings = require(script.Parent.ClientSettings)
+		local restPos = deckWidget.Position
+		local glowFrame = Instance.new("Frame")
+		glowFrame.Name = "PileGlow"
+		glowFrame.Size = UDim2.fromScale(1, 1)
+		glowFrame.BackgroundTransparency = 1
+		glowFrame.BorderSizePixel = 0
+		glowFrame.Active = false
+		glowFrame.ZIndex = 2
+		glowFrame.Parent = deckWidget
+		roundCorner(glowFrame, 10)
+		local glowStroke = Instance.new("UIStroke")
+		glowStroke.Color = Color3.fromRGB(235, 200, 120)
+		glowStroke.Thickness = 5
+		glowStroke.Transparency = 1
+		glowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		glowStroke.Parent = glowFrame
+		local liftTween, wiggleToken = nil, 0
+		local function motion()
+			return ClientSettings.get("reduceShake") ~= true
+		end
+		deckWidgetButton.MouseEnter:Connect(function()
+			TweenService:Create(glowStroke, TweenInfo.new(0.15), { Transparency = 0.2 }):Play()
+			if motion() then
+				if liftTween then liftTween:Cancel() end
+				liftTween = TweenService:Create(deckWidget, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{ Position = restPos - UDim2.fromOffset(0, 6) })
+				liftTween:Play()
+			end
+		end)
+		deckWidgetButton.MouseLeave:Connect(function()
+			TweenService:Create(glowStroke, TweenInfo.new(0.2), { Transparency = 1 }):Play()
+			if liftTween then liftTween:Cancel() end
+			liftTween = TweenService:Create(deckWidget, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = restPos })
+			liftTween:Play()
+		end)
+		deckWidgetButton.MouseButton1Click:Connect(function()
+			if not motion() then return end
+			wiggleToken = wiggleToken + 1
+			local mine = wiggleToken
+			task.spawn(function()
+				for _, rot in ipairs({ -4, 4, -2.5, 2.5, 0 }) do
+					if wiggleToken ~= mine then return end
+					TweenService:Create(deckWidget, TweenInfo.new(0.05, Enum.EasingStyle.Sine), { Rotation = rot }):Play()
+					task.wait(0.05)
+				end
+			end)
+		end)
+	end
+
 	-- Two cards peek out from under the top card (2-3px offsets, 1.5 degree turns)
 	-- so the pile reads as a stack. CosmeticSetsView swaps their art with the top card's.
 	local stackCards = {}
