@@ -5237,6 +5237,24 @@ table.insert(tests, { name = "StageLayout: accent index is stable and in range",
 	expectTrue(distinct >= 3, "bosses spread over several accent colors")
 end })
 
+table.insert(tests, { name = "RigWalk: heals R15 joints with unset parts so a full avatar places 15+ parts", fn = function()
+	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
+	local parts = {}
+	local function part(n) parts[n] = { Name = n }; return parts[n] end
+	part("HumanoidRootPart")
+	local joints = {}
+	for child in pairs(RigWalk.R15_ANCHOR) do
+		part(child)
+		table.insert(joints, { owner = child }) -- Part0 / Part1 unset
+	end
+	local healed = RigWalk.heal(joints, function(n) return parts[n] end, function(j) return j.owner end)
+	expectEqual(healed, 15, "all 15 R15 joints healed")
+	local _, _, _, count = RigWalk.walk(joints, parts.HumanoidRootPart)
+	expectTrue(count >= 16, "root plus 15 body parts reached")
+	local before = { Part0 = parts.Head, Part1 = parts.LowerTorso, owner = "Head" }
+	RigWalk.heal({ before }, function(n) return parts[n] end, function(j) return j.owner end)
+	expectEqual(before.Part0, parts.Head, "set joints are left alone")
+end })
 table.insert(tests, { name = "RigWalk: orders joints from the root, walks accessory welds backwards, skips half-built joints", fn = function()
 	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
 	local root, torso, head, arm, hat, orphan, lost = {}, {}, {}, {}, {}, {}, {}

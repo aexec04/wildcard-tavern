@@ -11,6 +11,36 @@ local RigWalk = {}
 
 RigWalk.MIN_AVATAR_PARTS = 10 -- an R15 avatar reaches 16+ body parts; fewer means it was not assembled
 
+-- R15 body part -> the part its Motor6D (a child of that part) hangs from.
+RigWalk.R15_ANCHOR = {
+	LowerTorso = "HumanoidRootPart", UpperTorso = "LowerTorso", Head = "UpperTorso",
+	LeftUpperArm = "UpperTorso", LeftLowerArm = "LeftUpperArm", LeftHand = "LeftLowerArm",
+	RightUpperArm = "UpperTorso", RightLowerArm = "RightUpperArm", RightHand = "RightLowerArm",
+	LeftUpperLeg = "LowerTorso", LeftLowerLeg = "LeftUpperLeg", LeftFoot = "LeftLowerLeg",
+	RightUpperLeg = "LowerTorso", RightLowerLeg = "RightUpperLeg", RightFoot = "RightLowerLeg",
+}
+
+-- Fills a joint's missing Part0 / Part1 from the standard R15 layout (Part1 = the joint's parent part,
+-- Part0 = its named anchor). partByName(name) returns the part or nil; getParentName(joint) returns the
+-- name of the part holding the joint. Returns how many joints were healed. Joints already set are untouched.
+function RigWalk.heal(joints, partByName, getParentName)
+	local healed = 0
+	for _, j in ipairs(joints) do
+		if not (j.Part0 and j.Part1) then
+			local childName = getParentName(j)
+			local anchorName = childName and RigWalk.R15_ANCHOR[childName]
+			if anchorName then
+				local p0, p1 = partByName(anchorName), partByName(childName)
+				if p0 and p1 then
+					j.Part0, j.Part1 = p0, p1
+					healed = healed + 1
+				end
+			end
+		end
+	end
+	return healed
+end
+
 function RigWalk.walk(joints, root)
 	local all = {}
 	for _, j in ipairs(joints) do

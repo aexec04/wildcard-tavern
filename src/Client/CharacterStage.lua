@@ -79,6 +79,16 @@ local function collectJoints(model, root)
 			table.insert(all, d)
 		end
 	end
+	-- Some freshly built avatars hand back Motor6Ds whose Part0/Part1 are still unset; heal them from the
+	-- standard R15 layout before walking (debug line lists each joint once).
+	local healed = RigWalk.heal(all, function(name)
+		return model:FindFirstChild(name, true)
+	end, function(j)
+		return j.Parent and j.Parent.Name
+	end)
+	if healed > 0 then
+		warn(string.format("[CharacterStage] healed %d joints with unset Part0/Part1", healed))
+	end
 	return RigWalk.walk(all, root)
 end
 
