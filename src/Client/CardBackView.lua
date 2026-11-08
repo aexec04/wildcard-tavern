@@ -20,7 +20,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 
 local GOLD = Color3.fromRGB(222, 182, 104)
-local LOCKED_TINT = Color3.fromRGB(120, 120, 120) -- never black
+local LOCKED_TINT = Color3.fromRGB(130, 130, 130) -- never black
 
 local M = {}
 

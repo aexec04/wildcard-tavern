@@ -23,6 +23,7 @@ return function(deps)
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local CardBacks = require(Engine:WaitForChild("CardBacks"))
 	local CardBackView = require(script.Parent.CardBackView)
+	local CosmeticSetsView = require(script.Parent.CosmeticSetsView)
 	local ArtAssets = require(script.Parent.ArtAssets)
 	local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -83,6 +84,59 @@ return function(deps)
 		Text = "Sets theme the table. Backs can be picked on their own. Looks only.",
 	})
 
+	-- Local preview (never sends a remote, never touches saved ids). A banner names what is
+	-- shown; it ends on Stop, after 8s, or when the panel closes.
+	local PREVIEW_SECONDS = 8
+	local previewToken = 0
+	local banner = Instance.new("Frame")
+	banner.Name = "PreviewBanner"
+	banner.Size = UDim2.new(1, -30, 0, 34)
+	banner.Position = UDim2.fromOffset(15, 58)
+	banner.BackgroundColor3 = Color3.fromRGB(150, 115, 50)
+	banner.Visible = false
+	banner.ZIndex = 45
+	banner.Parent = panel
+	roundCorner(banner, 8)
+	local bannerText = label(banner, {
+		Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(12, 0), Font = Enum.Font.GothamBold,
+		TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+		Text = "", ZIndex = 46,
+	})
+	local stopButton = Instance.new("TextButton")
+	stopButton.Size = UDim2.fromOffset(84, 26)
+	stopButton.AnchorPoint = Vector2.new(1, 0.5)
+	stopButton.Position = UDim2.new(1, -6, 0.5, 0)
+	stopButton.Font = Enum.Font.GothamBold
+	stopButton.TextSize = 15
+	stopButton.TextColor3 = CREAM
+	stopButton.BackgroundColor3 = BROWN
+	stopButton.Text = "Stop"
+	stopButton.ZIndex = 46
+	stopButton.Parent = banner
+	roundCorner(stopButton, 6)
+
+	local function stopPreview()
+		previewToken += 1
+		banner.Visible = false
+		pcall(CosmeticSetsView.stopPreview)
+	end
+	local function startPreview(set)
+		previewToken += 1
+		local token = previewToken
+		bannerText.Text = "Previewing " .. set.name
+		banner.Visible = true
+		pcall(CosmeticSetsView.preview, set.id, set.cardBackId)
+		task.delay(PREVIEW_SECONDS, function()
+			if previewToken == token then
+				stopPreview()
+			end
+		end)
+	end
+	stopButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		stopPreview()
+	end)
+
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -30, 1, -104)
 	scroll.Position = UDim2.fromOffset(15, 62)
@@ -127,6 +181,24 @@ return function(deps)
 		return "Collection milestone"
 	end
 
+	-- Small round lock badge pinned to a corner of a thumbnail.
+	local function lockBadge(parent)
+		local badge = Instance.new("Frame")
+		badge.Name = "LockBadge"
+		badge.Size = UDim2.fromOffset(26, 26)
+		badge.AnchorPoint = Vector2.new(1, 0)
+		badge.Position = UDim2.new(1, -4, 0, 4)
+		badge.BackgroundColor3 = Color3.fromRGB(60, 44, 30)
+		badge.ZIndex = 48
+		badge.Parent = parent
+		roundCorner(badge, 13)
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(222, 182, 104)
+		stroke.Thickness = 1.5
+		stroke.Parent = badge
+		label(badge, { Size = UDim2.fromScale(1, 1), TextSize = 15, Text = "🔒", ZIndex = 49 })
+	end
+
 	local function sectionHeader(order, text)
 		local holder = Instance.new("Frame")
 		holder.Size = UDim2.new(1, -8, 0, 24)
@@ -167,6 +239,7 @@ return function(deps)
 		thumb.AnchorPoint = Vector2.new(0.5, 0)
 		thumb.Position = UDim2.new(0.5, 0, 0, 8)
 		if not isOwned then
+			lockBadge(thumb)
 			label(thumb, {
 				Size = UDim2.new(1, -8, 1, 0), Position = UDim2.fromOffset(4, 0), TextSize = 15, TextWrapped = true,
 				Font = Enum.Font.GothamBold, TextColor3 = CREAM, TextStrokeTransparency = 0.3,
@@ -176,9 +249,9 @@ return function(deps)
 
 		label(tile, {
 			Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 148),
-			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = isOwned and GOLD or DIM,
+			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = isOwned and GOLD or SOFT_CREAM,
 			TextTruncate = Enum.TextTruncate.AtEnd,
-			Text = back == nil and "Match my set" or (isOwned and back.name or "???"),
+			Text = back == nil and "Match my set" or back.name,
 		})
 
 		local action = Instance.new("TextButton")
@@ -212,42 +285,50 @@ return function(deps)
 	-- 3-part preview for a set row: backdrop thumbnail, its back, a sample card face tinted by the set.
 	local function setPreview(row, set, back, isOwned)
 		local holder = Instance.new("Frame")
-		holder.Size = UDim2.fromOffset(150, 76)
-		holder.Position = UDim2.fromOffset(8, 8)
+		holder.Size = UDim2.fromOffset(330, 105)
+		holder.Position = UDim2.fromOffset(10, 22)
 		holder.BackgroundTransparency = 1
 		holder.ZIndex = 42
 		holder.Parent = row
 
 		local bd = Instance.new("ImageLabel")
-		bd.Size = UDim2.fromOffset(62, 76)
-		bd.BackgroundColor3 = Color3.fromRGB(50, 40, 30)
+		bd.Size = UDim2.fromOffset(170, 100)
+		bd.Position = UDim2.fromOffset(0, 2)
+		bd.BackgroundColor3 = Color3.fromRGB(86, 70, 52)
 		local image = set.backdropImage
 		bd.Image = (image and image ~= "rbxassetid://0") and image or (ArtAssets.gameplayBackground or "rbxassetid://0")
 		bd.ScaleType = Enum.ScaleType.Crop
-		bd.ImageColor3 = isOwned and Color3.new(1, 1, 1) or Color3.fromRGB(120, 120, 120)
+		bd.ImageColor3 = isOwned and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 130) -- never near-black
 		bd.ZIndex = 42
 		bd.Parent = holder
-		roundCorner(bd, 6)
+		roundCorner(bd, 8)
+		local bdStroke = Instance.new("UIStroke")
+		bdStroke.Color = Color3.fromRGB(222, 182, 104)
+		bdStroke.Thickness = 1.5
+		bdStroke.Parent = bd
+		if not isOwned then
+			lockBadge(bd)
+		end
 
 		local backThumb = CardBackView.thumb(holder, back, {
-			size = Vector2.new(38, 57), locked = not isOwned, shimmer = false, zIndex = 42,
+			size = Vector2.new(70, 105), locked = not isOwned, shimmer = false, zIndex = 42,
 		})
-		backThumb.Position = UDim2.fromOffset(66, 9)
+		backThumb.Position = UDim2.fromOffset(182, 0)
 
 		local face = Instance.new("Frame")
-		face.Size = UDim2.fromOffset(38, 57)
-		face.Position = UDim2.fromOffset(110, 9)
-		face.BackgroundColor3 = isOwned and Color3.fromRGB(246, 236, 214) or Color3.fromRGB(120, 120, 120)
+		face.Size = UDim2.fromOffset(70, 105)
+		face.Position = UDim2.fromOffset(260, 0)
+		face.BackgroundColor3 = isOwned and Color3.fromRGB(246, 236, 214) or Color3.fromRGB(130, 130, 130)
 		face.ZIndex = 42
 		face.Parent = holder
-		roundCorner(face, 5)
+		roundCorner(face, 6)
 		local faceStroke = Instance.new("UIStroke")
-		faceStroke.Thickness = 2
+		faceStroke.Thickness = 2.5
 		local trim = back and back.colors.trim or { 205, 170, 95 }
 		faceStroke.Color = Color3.fromRGB(trim[1], trim[2], trim[3])
 		faceStroke.Parent = face
 		label(face, {
-			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 18,
+			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 30,
 			TextColor3 = Color3.fromRGB(60, 40, 22), Text = "A", ZIndex = 43,
 		})
 	end
@@ -268,7 +349,7 @@ return function(deps)
 
 		for order, set in ipairs(CosmeticSets.Definitions) do
 			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, -8, 0, 96)
+			row.Size = UDim2.new(1, -8, 0, 150)
 			row.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 			row.LayoutOrder = order
 			row.ZIndex = 41
@@ -280,27 +361,28 @@ return function(deps)
 			local back = CardBacks.getById(set.cardBackId)
 			setPreview(row, set, back, isOwned)
 			label(row, {
-				Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(168, 6),
+				Size = UDim2.new(1, -490, 0, 24), Position = UDim2.fromOffset(352, 22),
 				Font = Enum.Font.GothamBold, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
-				TextColor3 = isOwned and GOLD or DIM, Text = isOwned and (set.icon .. " " .. set.name) or "🔒 ???",
+				TextColor3 = isOwned and GOLD or SOFT_CREAM, Text = set.icon .. " " .. set.name,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 			})
 			label(row, {
-				Size = UDim2.new(1, -310, 0, 40), Position = UDim2.fromOffset(168, 28),
+				Size = UDim2.new(1, -490, 0, 40), Position = UDim2.fromOffset(352, 48),
 				TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
 				TextColor3 = SOFT_CREAM, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd,
 				Text = set.description,
 			})
 			label(row, {
-				Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(168, 68),
-				TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = DIM,
+				Size = UDim2.new(1, -490, 0, 36), Position = UDim2.fromOffset(352, 92),
+				TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+				TextWrapped = true, TextColor3 = isOwned and SOFT_CREAM or GOLD,
 				TextTruncate = Enum.TextTruncate.AtEnd, Text = CosmeticSets.unlockText(set),
 			})
 
 			local action = Instance.new("TextButton")
 			action.Size = UDim2.fromOffset(120, 34)
 			action.AnchorPoint = Vector2.new(1, 0.5)
-			action.Position = UDim2.new(1, -10, 0.5, 0)
+			action.Position = UDim2.new(1, -10, 0.5, -24)
 			action.Font = Enum.Font.GothamBold
 			action.TextSize = 15
 			action.TextColor3 = CREAM
@@ -333,6 +415,24 @@ return function(deps)
 				action.AutoButtonColor = false
 				action.TextColor3 = DIM
 			end
+
+			-- Preview: local only (CosmeticSetsView override), works for locked sets too.
+			local previewButton = Instance.new("TextButton")
+			previewButton.Size = UDim2.fromOffset(120, 34)
+			previewButton.AnchorPoint = Vector2.new(1, 0.5)
+			previewButton.Position = UDim2.new(1, -10, 0.5, 24)
+			previewButton.Font = Enum.Font.GothamBold
+			previewButton.TextSize = 15
+			previewButton.TextColor3 = GOLD
+			previewButton.BackgroundColor3 = Color3.fromRGB(50, 38, 28)
+			previewButton.Text = "Preview"
+			previewButton.ZIndex = 42
+			previewButton.Parent = row
+			polishButton(previewButton, 8)
+			previewButton.MouseButton1Click:Connect(function()
+				playClickSfx()
+				startPreview(set)
+			end)
 		end
 
 		-- Card backs: pick any unlocked one, independent of the set.
@@ -362,17 +462,20 @@ return function(deps)
 	end
 
 	OverlayManager.register("cosmeticSets", function()
+		stopPreview()
 		popOut(backdrop, panel)
 	end)
 
 	deps.openButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		stopPreview()
 		OverlayManager.closeAllExcept("cosmeticSets")
 		refresh()
 		popIn(backdrop, panel)
 	end)
 	closeButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		stopPreview()
 		popOut(backdrop, panel)
 	end)
 

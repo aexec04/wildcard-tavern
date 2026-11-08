@@ -45,10 +45,19 @@ end
 
 local M = {}
 
+-- Local-only preview (Card Sets panel "Preview"): overrides what apply() draws, never
+-- touches the saved/equipped ids and never fires a remote.
+local previewOverride = nil -- { setId, backId }
+local lastState = nil
+
 function M.apply(state)
+	lastState = state
 	local cosmetics = state.cosmetics
 	local setId = cosmetics and cosmetics.equippedSetId or CosmeticSets.DefaultId
 	local backId = cosmetics and cosmetics.cardBackId or CardBacks.DefaultId
+	if previewOverride then
+		setId, backId = previewOverride.setId, previewOverride.backId
+	end
 
 	local set = CosmeticSets.getById(setId) or CosmeticSets.getById(CosmeticSets.DefaultId)
 
@@ -155,6 +164,28 @@ function M.apply(state)
 			end
 		end
 	end
+end
+
+-- Show a set (backdrop, style and its back) on the live table, locally only.
+function M.preview(setId, backId)
+	previewOverride = { setId = setId, backId = backId }
+	if lastState then
+		M.apply(lastState)
+	end
+end
+
+function M.stopPreview()
+	if not previewOverride then
+		return
+	end
+	previewOverride = nil
+	if lastState then
+		M.apply(lastState)
+	end
+end
+
+function M.isPreviewing()
+	return previewOverride ~= nil
 end
 
 return M
