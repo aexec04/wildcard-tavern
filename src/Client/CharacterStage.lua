@@ -811,6 +811,14 @@ local function build(deps)
 		end)
 	end
 
+	-- True once the characters the round needs are built and mounted (used by TravelTransition to lift its
+	-- cover). A stage that failed to build counts as ready (BossFight shows its portrait instead).
+	function M.isReady(expectBoss)
+		if not ok then return true end
+		if playerRig == nil then return false end
+		return not expectBoss or bossRig ~= nil
+	end
+
 	function M.isActive()
 		return ok and viewport ~= nil and viewport.Visible and bossRig ~= nil
 	end

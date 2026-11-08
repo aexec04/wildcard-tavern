@@ -498,7 +498,22 @@ return function(deps)
 			actionPending = true
 			playClickSfx()
 			require(script.Parent.Cue).play("shuffle")
-			SelectRoundRemote:FireServer()
+			SelectRoundRemote:FireServer() -- sent right away; the travel cover below only delays the reveal
+			pcall(function()
+				local st = getLatestState()
+				local expectBoss = st and st.bossModifier ~= nil and (st.round or 1) >= ROUNDS_PER_NIGHT
+				require(script.Parent.TravelTransition).show({
+					state = st,
+					readyFn = function()
+						local s = getLatestState()
+						if not (s and s.phase == "playing") then
+							return false
+						end
+						local stage = require(script.Parent.CharacterStage).get()
+						return stage == nil or stage.isReady(expectBoss)
+					end,
+				})
+			end)
 		end)
 
 		-- Read skip-tag reward text fresh at click time (see old BUGFIX comment).
