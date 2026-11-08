@@ -13,7 +13,7 @@ local GREEN = Color3.fromRGB(86, 140, 80)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local WOOD = Color3.fromRGB(92, 62, 36)
 
-local ui = {} -- built pieces, filled by init
+local ui = { want = {} } -- built pieces, filled by init; want = what the state asks to show
 local lastState
 
 local function label(parent, props)
@@ -35,6 +35,7 @@ local function stroke(parent, color, thickness)
 	local s = Instance.new("UIStroke")
 	s.Color = color
 	s.Thickness = thickness
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- Contextual would also outline the button text
 	s.Parent = parent
 end
 
@@ -158,9 +159,12 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	open.BackgroundColor3 = WOOD
 	open.BorderSizePixel = 0
 	open.AutoButtonColor = false
+	-- Same font as the other menu buttons, no text stroke (a stroke at this size squeezes the letters).
 	open.Font = Enum.Font.GothamBold
 	open.TextSize = 16
 	open.TextColor3 = CREAM
+	open.TextStrokeTransparency = 1
+	open.TextTransparency = 0
 	open.Text = "Daily rewards"
 	open.ZIndex = 20
 	open.Visible = false
@@ -243,6 +247,39 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	corner(close, 8)
 	stroke(close, GOLD, 1.5)
 
+	-- The strip, button and banner sit above (Global ZIndex) every full-screen overlay, so hide them while
+	-- any "...Backdrop" overlay (Journey, Collection, Card Sets, Settings, ...) is open.
+	local function overlayOpen()
+		local gui = menuFrame:FindFirstAncestorOfClass("ScreenGui")
+		if not gui then
+			return false
+		end
+		for _, child in ipairs(gui:GetChildren()) do
+			if child ~= menuFrame and child:IsA("GuiObject") and child.Visible
+				and string.sub(child.Name, -8) == "Backdrop" then
+				return true
+			end
+		end
+		return false
+	end
+	function ui.applyVisibility()
+		local covered = overlayOpen()
+		ui.strip.Visible = ui.want.strip and not covered
+		ui.open.Visible = ui.want.open and not covered
+		ui.season.Visible = ui.want.season and not covered
+		if covered and ui.popup.Visible then
+			ui.popup.Visible = false
+		end
+	end
+	task.spawn(function()
+		while menuFrame.Parent do
+			if menuFrame.Visible then
+				pcall(ui.applyVisibility)
+			end
+			task.wait(0.15)
+		end
+	end)
+
 	local function setOpen(visible)
 		popup.Visible = visible
 		if visible then
@@ -280,19 +317,19 @@ function LoginStreakUI.update(state)
 	end
 	lastState = state
 	local pick = state.nextUnlock
-	ui.strip.Visible = pick ~= nil
+	ui.want.strip = pick ~= nil
 	if pick then
 		ui.unlockText.Text = pick.label
 		ui.barFill.Size = UDim2.new(math.clamp(pick.progress / math.max(1, pick.goal), 0, 1), 0, 1, 0)
 	end
 	local seasonView = state.season
-	ui.season.Visible = seasonView ~= nil
+	ui.want.season = seasonView ~= nil
 	if seasonView then
 		ui.seasonTitle.Text = string.format("%s: %s left", seasonView.name, seasonView.timeLeft or "")
 		ui.seasonBody.Text = seasonView.earned and "Reward earned. Thank you for playing!" or (seasonView.blurb or "")
 	end
 	local login = state.login
-	ui.open.Visible = login ~= nil
+	ui.want.open = login ~= nil
 	if login then
 		local claimable = false
 		for _, reward in ipairs(login.rewards) do
@@ -306,6 +343,9 @@ function LoginStreakUI.update(state)
 		if ui.popup.Visible then
 			rebuildPopup(login)
 		end
+	end
+	if ui.applyVisibility then
+		ui.applyVisibility()
 	end
 end
 

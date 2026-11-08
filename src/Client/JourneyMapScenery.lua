@@ -180,7 +180,7 @@ return function(deps)
 		end
 		for s, band in ipairs(seams) do
 			local leftW, rightW = edges[s + 1] - edges[s], edges[s + 2] - edges[s + 1]
-			local seamW = math.floor(math.clamp(math.min(leftW, rightW) * 0.35, 120, 260))
+			local seamW = math.floor(math.clamp(math.min(leftW, rightW) * 0.4, 180, 300))
 			band.Position = UDim2.fromOffset(math.floor(edges[s + 1] - seamW / 2), 0)
 			band.Size = UDim2.fromOffset(seamW, canvasH)
 		end
