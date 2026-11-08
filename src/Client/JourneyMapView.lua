@@ -179,17 +179,62 @@ return function(deps)
 			u * u * seg.ay + 2 * u * t * seg.cy + t * t * seg.by
 	end
 
+	-- ===== Road: a continuous dirt path under the dots, so every stop leads visibly to the next =====
+	-- Overlapping round pieces every ~7px along the same Bezier: a dark edge piece under a
+	-- sandy fill piece (outline first, fills on top, both below the dots at ZIndex 24).
+	local ROAD_EDGE = Color3.fromRGB(116, 84, 48)
+	local ROAD_FILL = Color3.fromRGB(218, 190, 134)
+	local ROAD_STEP, ROAD_W = 7, 24
+	local function makeRoadPiece(seg)
+		-- Two separate canvas children so every fill sits above every edge (no dark ridges
+		-- where pieces overlap): edge ZIndex 22, fill 23, dots 24.
+		local edge = Instance.new("Frame")
+		edge.AnchorPoint = Vector2.new(0.5, 0.5)
+		edge.Size = UDim2.fromOffset(ROAD_W + 6, ROAD_W + 6)
+		edge.BackgroundColor3 = ROAD_EDGE
+		edge.BorderSizePixel = 0
+		edge.ZIndex = 22
+		edge.Parent = canvas
+		deps.roundCorner(edge, (ROAD_W + 6) / 2)
+		local fill = Instance.new("Frame")
+		fill.AnchorPoint = Vector2.new(0.5, 0.5)
+		fill.Size = UDim2.fromOffset(ROAD_W, ROAD_W)
+		fill.BackgroundColor3 = ROAD_FILL
+		fill.BorderSizePixel = 0
+		fill.ZIndex = 23
+		fill.Parent = canvas
+		deps.roundCorner(fill, ROAD_W / 2)
+		return { edge = edge, fill = fill }
+	end
+	-- Show the road with its segment: hidden in the fog, thinning out toward a teaser node.
+	local function applyRoad(seg)
+		if not seg.road then return end
+		for k, piece in ipairs(seg.road) do
+			local shown = k <= (seg.roadCount or 0) and seg.mode ~= "none"
+			piece.edge.Visible = shown
+			piece.fill.Visible = shown
+			if shown then
+				local tr = 0
+				if seg.mode == "fade" then
+					tr = math.min(0.95, 0.15 + 0.8 * ((k - 1) / math.max((seg.roadCount or 1) - 1, 1)))
+				end
+				piece.edge.BackgroundTransparency = tr
+				piece.fill.BackgroundTransparency = tr
+			end
+		end
+	end
+
 	local function makeDot(seg)
 		local dot = Instance.new("Frame")
 		dot.AnchorPoint = Vector2.new(0.5, 0.5)
 		dot.BackgroundColor3 = TRAIL_INK
 		dot.BorderSizePixel = 0
-		dot.ZIndex = 23
+		dot.ZIndex = 24
 		dot.Parent = canvas
 		deps.roundCorner(dot, 4)
 		local foot = text(dot, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16),
-			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 24, TextTransparency = 1, Visible = false,
+			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 25, TextTransparency = 1, Visible = false,
 		})
 		return { frame = dot, foot = foot }
 	end
@@ -664,6 +709,16 @@ return function(deps)
 				while #seg.dots < seg.count do
 					table.insert(seg.dots, makeDot(seg))
 				end
+				seg.road = seg.road or {}
+				seg.roadCount = math.max(8, math.floor(seg.length * 1.1 / ROAD_STEP))
+				while #seg.road < seg.roadCount do
+					table.insert(seg.road, makeRoadPiece(seg))
+				end
+				for k = 1, seg.roadCount do
+					local rx, ry = bezier(seg, (k - 1) / (seg.roadCount - 1))
+					seg.road[k].edge.Position = UDim2.fromOffset(rx, ry)
+					seg.road[k].fill.Position = UDim2.fromOffset(rx, ry)
+				end
 				for k = 1, #seg.dots do
 					local dot = seg.dots[k]
 					if k <= seg.count then
@@ -677,6 +732,7 @@ return function(deps)
 			for k = 1, #seg.dots do
 				setDot(seg, k, false)
 			end
+			applyRoad(seg)
 		end
 		for _, g in ipairs(glows) do
 			local s = math.max(40, math.floor(canvasH * 0.14))
@@ -853,6 +909,7 @@ return function(deps)
 				or ((states[index] == "revealed" and endState == "teaser") and "fade" or "none")
 			seg.modeChanged = seg.mode ~= mode
 			seg.mode = mode
+			applyRoad(seg)
 			if not animating then
 				for k = 1, #seg.dots do
 					setDot(seg, k, false)

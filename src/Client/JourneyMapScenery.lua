@@ -36,9 +36,16 @@ return function(deps)
 			decor = { "bridge", "pine_tree", "mushroom_ring" } }, -- blue-green
 		{ key = "region_peaks", tint = Color3.fromRGB(186, 190, 172), lastNode = 5,
 			decor = { "pine_tree", "signpost" } }, -- grey-green
-		{ key = "region_tavern", tint = Color3.fromRGB(226, 190, 128), lastNode = math.huge,
+		-- ONE tavern only (Nights 6 to 8; the Keeper's Table is the final destination): a single
+		-- stretched image, never tiled. The Endless nodes beyond it get a plain road region.
+		{ key = "region_tavern", tint = Color3.fromRGB(226, 190, 128), lastNode = 8, single = true,
 			decor = { "cottage", "lantern_post", "pine_tree" } }, -- warm amber
+		{ key = "region_road", tint = Color3.fromRGB(214, 192, 146), lastNode = math.huge,
+			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- the road continues past the tavern
 	}
+	-- Neighbouring regions overlap by this many pixels (their art fades to plain parchment at
+	-- the edges), so no 1px gap or white seam can show between biomes.
+	local OVERLAP = 48
 	local ART_ASPECT = 1.5 -- region art width / height
 	local SEAM_FOG = Color3.fromRGB(240, 228, 204)
 	local SEAM_STEPS = { 0.9, 0.78, 0.66, 0.78, 0.9 } -- stepped transparency, never a gradient
@@ -47,7 +54,8 @@ return function(deps)
 	layer.Name = "Scenery"
 	layer.Size = UDim2.fromScale(1, 1)
 	layer.BackgroundTransparency = 1
-	layer.ZIndex = 22
+	layer.ZIndex = 21 -- under the road (22) and the trail dots (23)
+	layer.BorderSizePixel = 0
 	layer.Parent = canvas
 
 	local regionFrames = {}
@@ -68,6 +76,7 @@ return function(deps)
 		local band = Instance.new("Frame")
 		band.Name = "SeamFog" .. s
 		band.BackgroundTransparency = 1
+		band.BorderSizePixel = 0
 		band.ZIndex = 24
 		band.Parent = layer
 		for i, tr in ipairs(SEAM_STEPS) do
@@ -110,13 +119,13 @@ return function(deps)
 	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs)
 		local edges = regionEdges(canvasW, nodeXs)
 		for i, f in ipairs(regionFrames) do
-			local x0, x1 = edges[i], edges[i + 1]
+			local x0, x1 = edges[i] - (i > 1 and OVERLAP or 0), edges[i + 1] + (i < #REGIONS and OVERLAP or 0)
 			local w = x1 - x0
 			f.Position = UDim2.fromOffset(x0, 0)
 			f.Size = UDim2.fromOffset(w + 1, canvasH)
 			f:ClearAllChildren()
 			if regionIds[i] then
-				local tiles = math.max(1, math.floor(w / (canvasH * ART_ASPECT) + 0.5))
+				local tiles = REGIONS[i].single and 1 or math.max(1, math.floor(w / (canvasH * ART_ASPECT) + 0.5))
 				for t = 1, tiles do
 					local img = Instance.new("ImageLabel")
 					img.Name = "Tile" .. t
