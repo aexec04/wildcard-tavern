@@ -96,6 +96,11 @@ return function(deps)
 	leaderboardPanel.ZIndex = 21
 	leaderboardPanel.Parent = leaderboardBackdrop
 	polishPanel(leaderboardPanel, 16, "parchment")
+	-- Painted background (PanelArt): flat panel color if the art id is missing.
+	local leaderboardPanelArt = require(script.Parent.PanelArt).add(leaderboardPanel, {
+		key = "challenge_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
+		scrimTransparency = 0.35,
+	})
 	addSoftShadow(leaderboardPanel, 18)
 
 	-- WEEKLY CHALLENGE (Phase 16): Daily/Weekly tab row, above the title.

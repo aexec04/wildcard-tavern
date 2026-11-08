@@ -46,6 +46,11 @@ return function(deps)
 	volumePanel.ZIndex = 21
 	volumePanel.Parent = volumeBackdrop
 	deps.polishPanel(volumePanel, 16, "wood")
+	-- Painted background (PanelArt): flat panel color if the art id is missing.
+	local volumePanelArt = require(script.Parent.PanelArt).add(volumePanel, {
+		key = "settings_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
+		scrimTransparency = 0.35,
+	})
 	deps.addSoftShadow(volumePanel, 18)
 
 	local volumeTitle = Instance.new("TextLabel")

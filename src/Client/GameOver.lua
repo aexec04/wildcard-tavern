@@ -93,6 +93,11 @@ return function(deps)
 	gameOverFrame.Visible = false
 	gameOverFrame.Parent = root
 	polishPanel(gameOverFrame, 16, "wood")
+	-- Painted background (PanelArt): flat panel color if the art id is missing.
+	local gameOverFrameArt = require(script.Parent.PanelArt).add(gameOverFrame, {
+		key = "game_over_lose_bg", zIndex = 20, scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
+		scrimTransparency = 0.35,
+	})
 	addSoftShadow(gameOverFrame, 18)
 
 	-- POLISH: a thin color-coded strip along the top -- gold for a win,
@@ -263,6 +268,13 @@ return function(deps)
 
 		local isWin = state.wonRun == true
 		winBackgroundArt.Visible = isWin
+		if gameOverFrameArt then
+			gameOverFrameArt.Visible = not isWin
+			local loseScrim = gameOverFrame:FindFirstChild("PanelScrim")
+			if loseScrim then
+				loseScrim.Visible = not isWin
+			end
+		end
 
 		-- PAID CONTINUE: badge for a run that used its continue, and the
 		-- Continue button only while the server allows one. With Continue

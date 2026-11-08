@@ -86,6 +86,11 @@ return function(deps)
 	runSetupPanel.ZIndex = 26
 	runSetupPanel.Parent = runSetupBackdrop
 	polishPanel(runSetupPanel, 16, "wood")
+	-- Painted background (PanelArt): flat panel color if the art id is missing.
+	local runSetupPanelArt = require(script.Parent.PanelArt).add(runSetupPanel, {
+		key = "run_setup_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
+		scrimTransparency = 0.35,
+	})
 	addSoftShadow(runSetupPanel, 18)
 
 	local runSetupTitle = Instance.new("TextLabel")

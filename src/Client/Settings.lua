@@ -60,6 +60,11 @@ return function(deps)
 	settingsPanel.ZIndex = 21
 	settingsPanel.Parent = settingsBackdrop
 	deps.polishPanel(settingsPanel, 16, "wood")
+	-- Painted background (PanelArt): flat panel color if the art id is missing.
+	local settingsPanelArt = require(script.Parent.PanelArt).add(settingsPanel, {
+		key = "settings_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
+		scrimTransparency = 0.35,
+	})
 	deps.addSoftShadow(settingsPanel, 18)
 
 	local settingsTitle = Instance.new("TextLabel")
