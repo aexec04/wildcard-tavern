@@ -331,7 +331,6 @@ return function(deps)
 		roundCorner(tagLabel, 8)
 
 		-- Target plaque: y=418 for boss (after rule text), y=356 for non-boss (after tag).
-		local targetY = isBossPanel and 418 or 356
 		local targetLabel = Instance.new("TextLabel")
 		targetLabel.Name = "TargetLabel"
 		targetLabel.Size = UDim2.new(1, -20, 0, 36)
@@ -349,7 +348,6 @@ return function(deps)
 
 		-- Select / Skip buttons sit directly under the content area.
 		-- y=462/512 for boss panel; y=400/450 for non-boss.
-		local selectBtnY = isBossPanel and 462 or 400
 		local selectButton = Instance.new("TextButton")
 		selectButton.Name = "SelectButton"
 		selectButton.Size = UDim2.new(1, -20, 0, 44)
@@ -365,7 +363,6 @@ return function(deps)
 		selectButton.Parent = panel
 		polishButton(selectButton, 10)
 
-		local skipBtnY = isBossPanel and 512 or 450
 		local skipButton = Instance.new("TextButton")
 		skipButton.Name = "SkipButton"
 		skipButton.Size = UDim2.new(1, -20, 0, 40)
