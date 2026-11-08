@@ -84,60 +84,81 @@ return function(deps)
 		Text = "Sets theme the table. Backs can be picked on their own. Looks only.",
 	})
 
-	-- Local preview (never sends a remote, never touches saved ids). A banner names what is
-	-- shown; it ends on Stop, after 8s, or when the panel closes.
-	local PREVIEW_SECONDS = 8
-	local previewToken = 0
-	local banner = Instance.new("Frame")
-	banner.Name = "PreviewBanner"
-	banner.Size = UDim2.new(1, -30, 0, 34)
-	banner.Position = UDim2.fromOffset(15, 58)
-	banner.BackgroundColor3 = Color3.fromRGB(150, 115, 50)
-	banner.Visible = false
-	banner.ZIndex = 45
-	banner.Parent = panel
-	roundCorner(banner, 8)
-	local bannerText = label(banner, {
-		Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(12, 0), Font = Enum.Font.GothamBold,
+	-- Preview mode (local only: never sends a remote, never touches saved ids).
+	-- Preview closes this panel, applies the set/back to the live table, and shows a
+	-- bottom-center bar "Preview mode: <name>" with an X. The X (or opening Collection
+	-- again) restores the equipped look and reopens this panel at the same scroll spot.
+	local previewActive = false
+	local savedScroll = Vector2.new(0, 0)
+	local lastCollectionClick = 0
+	local refresh, scroll -- assigned below
+	local previewBar = Instance.new("Frame")
+	previewBar.Name = "PreviewModeBar"
+	previewBar.AnchorPoint = Vector2.new(0.5, 1)
+	previewBar.Size = UDim2.fromOffset(380, 44)
+	previewBar.Position = UDim2.new(0.5, 0, 1, -16)
+	previewBar.BackgroundColor3 = Color3.fromRGB(70, 48, 28)
+	previewBar.Visible = false
+	previewBar.ZIndex = 60
+	previewBar.Parent = deps.screenGui
+	roundCorner(previewBar, 10)
+	local barStroke = Instance.new("UIStroke")
+	barStroke.Color = Color3.fromRGB(222, 182, 104)
+	barStroke.Thickness = 2
+	barStroke.Parent = previewBar
+	local barText = label(previewBar, {
+		Size = UDim2.new(1, -60, 1, 0), Position = UDim2.fromOffset(14, 0), Font = Enum.Font.GothamBold,
 		TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-		Text = "", ZIndex = 46,
+		TextColor3 = CREAM, Text = "", ZIndex = 61,
 	})
-	local stopButton = Instance.new("TextButton")
-	stopButton.Size = UDim2.fromOffset(84, 26)
-	stopButton.AnchorPoint = Vector2.new(1, 0.5)
-	stopButton.Position = UDim2.new(1, -6, 0.5, 0)
-	stopButton.Font = Enum.Font.GothamBold
-	stopButton.TextSize = 15
-	stopButton.TextColor3 = CREAM
-	stopButton.BackgroundColor3 = BROWN
-	stopButton.Text = "Stop"
-	stopButton.ZIndex = 46
-	stopButton.Parent = banner
-	roundCorner(stopButton, 6)
+	local barX = Instance.new("TextButton")
+	barX.Size = UDim2.fromOffset(32, 32)
+	barX.AnchorPoint = Vector2.new(1, 0.5)
+	barX.Position = UDim2.new(1, -6, 0.5, 0)
+	barX.Font = Enum.Font.GothamBold
+	barX.TextSize = 18
+	barX.TextColor3 = CREAM
+	barX.BackgroundColor3 = Color3.fromRGB(140, 60, 50)
+	barX.Text = "X"
+	barX.ZIndex = 61
+	barX.Parent = previewBar
+	roundCorner(barX, 8)
 
-	local function stopPreview()
-		previewToken += 1
-		banner.Visible = false
+	-- Ends preview and restores the equipped look. reopen = bring this panel back.
+	local function endPreview(reopen)
+		if not previewActive then
+			return
+		end
+		previewActive = false
+		previewBar.Visible = false
 		pcall(CosmeticSetsView.stopPreview)
+		if reopen then
+			refresh()
+			OverlayManager.closeAllExcept("cosmeticSets")
+			popIn(backdrop, panel)
+			local pos = savedScroll
+			task.defer(function() scroll.CanvasPosition = pos end)
+		end
 	end
-	local function startPreview(set)
-		previewToken += 1
-		local token = previewToken
-		bannerText.Text = "Previewing " .. set.name
-		banner.Visible = true
-		pcall(CosmeticSetsView.preview, set.id, set.cardBackId)
-		task.delay(PREVIEW_SECONDS, function()
-			if previewToken == token then
-				stopPreview()
-			end
+	local function startPreview(name, setId, backId)
+		savedScroll = scroll.CanvasPosition
+		previewActive = true
+		barText.Text = "Preview mode: " .. name
+		previewBar.Visible = true
+		pcall(CosmeticSetsView.preview, setId, backId)
+		popOut(backdrop, panel)
+	end
+	barX.MouseButton1Click:Connect(function()
+		playClickSfx()
+		endPreview(true)
+	end)
+	if deps.collectionButton then
+		deps.collectionButton.MouseButton1Click:Connect(function()
+			lastCollectionClick = os.clock()
 		end)
 	end
-	stopButton.MouseButton1Click:Connect(function()
-		playClickSfx()
-		stopPreview()
-	end)
 
-	local scroll = Instance.new("ScrollingFrame")
+	scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -30, 1, -104)
 	scroll.Position = UDim2.fromOffset(15, 62)
 	scroll.BackgroundTransparency = 1
@@ -216,7 +237,7 @@ return function(deps)
 	-- back == nil is the "Match my set" tile (shows the set's back).
 	local function backTile(grid, order, back, cosmetics, backsUnlocked)
 		local tile = Instance.new("Frame")
-		tile.Size = UDim2.fromOffset(132, 226)
+		tile.Size = UDim2.fromOffset(132, 262)
 		tile.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 		tile.LayoutOrder = order
 		tile.ZIndex = 41
@@ -280,6 +301,26 @@ return function(deps)
 			action.AutoButtonColor = false
 			action.TextColor3 = DIM
 		end
+
+		-- Preview this back on the live table (with the currently equipped set), locked or not.
+		if back ~= nil then
+			local previewBtn = Instance.new("TextButton")
+			previewBtn.Size = UDim2.fromOffset(112, 30)
+			previewBtn.AnchorPoint = Vector2.new(0.5, 0)
+			previewBtn.Position = UDim2.new(0.5, 0, 0, 216)
+			previewBtn.Font = Enum.Font.GothamBold
+			previewBtn.TextSize = 15
+			previewBtn.TextColor3 = GOLD
+			previewBtn.BackgroundColor3 = Color3.fromRGB(50, 38, 28)
+			previewBtn.Text = "Preview"
+			previewBtn.ZIndex = 42
+			previewBtn.Parent = tile
+			polishButton(previewBtn, 8)
+			previewBtn.MouseButton1Click:Connect(function()
+				playClickSfx()
+				startPreview(back.name, cosmetics.equippedSetId or CosmeticSets.DefaultId, back.id)
+			end)
+		end
 	end
 
 	-- 3-part preview for a set row: backdrop thumbnail, its back, a sample card face tinted by the set.
@@ -333,7 +374,7 @@ return function(deps)
 		})
 	end
 
-	local function refresh()
+	refresh = function()
 		for _, child in ipairs(scroll:GetChildren()) do
 			if child:IsA("Frame") then
 				child:Destroy()
@@ -431,7 +472,7 @@ return function(deps)
 			polishButton(previewButton, 8)
 			previewButton.MouseButton1Click:Connect(function()
 				playClickSfx()
-				startPreview(set)
+				startPreview(set.name, set.id, set.cardBackId)
 			end)
 		end
 
@@ -451,7 +492,7 @@ return function(deps)
 		grid.ZIndex = 41
 		grid.Parent = scroll
 		local gridLayout = Instance.new("UIGridLayout")
-		gridLayout.CellSize = UDim2.fromOffset(132, 226)
+		gridLayout.CellSize = UDim2.fromOffset(132, 262)
 		gridLayout.CellPadding = UDim2.fromOffset(10, 10)
 		gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		gridLayout.Parent = grid
@@ -462,20 +503,34 @@ return function(deps)
 	end
 
 	OverlayManager.register("cosmeticSets", function()
-		stopPreview()
+		if previewActive then
+			-- Another overlay opened: end preview. If it was the Collection button, put this
+			-- panel back instead (after that handler finishes) so the player returns to it.
+			endPreview(false)
+			if os.clock() - lastCollectionClick < 0.5 then
+				task.defer(function()
+					lastCollectionClick = 0
+					refresh()
+					OverlayManager.closeAllExcept("cosmeticSets")
+					popIn(backdrop, panel)
+					local pos = savedScroll
+					task.defer(function() scroll.CanvasPosition = pos end)
+				end)
+			end
+			return
+		end
 		popOut(backdrop, panel)
 	end)
 
 	deps.openButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		stopPreview()
+		endPreview(false)
 		OverlayManager.closeAllExcept("cosmeticSets")
 		refresh()
 		popIn(backdrop, panel)
 	end)
 	closeButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		stopPreview()
 		popOut(backdrop, panel)
 	end)
 

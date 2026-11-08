@@ -152,6 +152,7 @@ return function(deps)
 		addSoftShadow = addSoftShadow,
 		playClickSfx = playClickSfx,
 		openButton = setsButton,
+		collectionButton = deps.collectionButton,
 		getLatestState = getLatestState,
 		popIn = popIn,
 		popOut = popOut,
