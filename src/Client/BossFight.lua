@@ -117,7 +117,9 @@ local function build(deps)
 	local function layout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-		local h = math.floor(vp.Y * (grand and 0.34 or 0.28))
+		-- Cap so plaque + HP bar end by ~34% (38% grand) of the screen height: the
+		-- played-cards row and score popup below must stay clear of them (1280x720).
+		local h = math.floor(math.min(vp.Y * (grand and 0.34 or 0.28), vp.Y * (grand and 0.38 or 0.34) - 98))
 		local areaW = vp.X - sidebarWidth
 		host.Position = UDim2.new(0, sidebarWidth + areaW / 2, 0, math.floor(vp.Y * 0.02))
 		host.Size = UDim2.new(0, 360, 0, h + 96)
@@ -573,7 +575,7 @@ local function build(deps)
 	local banner = Instance.new("TextLabel")
 	banner.Name = "BossEnrageBanner"
 	banner.AnchorPoint = Vector2.new(0.5, 0.5)
-	banner.Position = UDim2.fromScale(0.5, 0.3)
+	banner.Position = UDim2.fromScale(0.5, 0.3) -- re-aimed at the portrait on enrage
 	banner.Size = UDim2.new(0, 460, 0, 70)
 	banner.BackgroundTransparency = 1
 	banner.Font = Enum.Font.GothamBlack
@@ -644,6 +646,12 @@ local function build(deps)
 		play(tint, { BackgroundTransparency = tintBase }, 0.4)
 		rageFx.BackgroundColor3 = color
 		banner.TextColor3 = color
+		-- sits across the portrait (never on the plaque or HP bar)
+		do
+			local rs = root.AbsolutePosition
+			local c = holder.AbsolutePosition + holder.AbsoluteSize / 2 - rs
+			banner.Position = UDim2.fromOffset(c.X, c.Y)
+		end
 		-- banner slams in for ~1.2s
 		banner.TextTransparency = 0
 		banner.TextStrokeTransparency = 0.1

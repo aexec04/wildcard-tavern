@@ -46,17 +46,8 @@ local LOAD_TIMEOUT = 8
 -- never leaves a blank tile (a late load still swaps the art back in).
 local function revealArt(art, emojiLabel)
 	if not emojiLabel then
-		if not art.IsLoaded then
-			local target = art.ImageTransparency
-			art.ImageTransparency = 1
-			local conn
-			conn = art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
-				if art.IsLoaded then
-					conn:Disconnect()
-					TweenService:Create(art, TweenInfo.new(0.12), { ImageTransparency = target }):Play()
-				end
-			end)
-		end
+		-- No emoji fallback to flash, so leave the art fully visible: IsLoaded
+		-- only flips once an image is drawn, so gating on it would hide it forever.
 		return
 	end
 	-- The art lives inside the emoji label (Shop badge): hiding the label would

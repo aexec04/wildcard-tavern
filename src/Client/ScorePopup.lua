@@ -533,6 +533,13 @@ return function(deps)
 		totalWidth = totalWidth + gap * (#playedGhosts - 1)
 		local popupTop = scorePopup.AbsolutePosition.Y
 		local rowY = math.max(20, popupTop - ROW_MARGIN_ABOVE_POPUP - ROW_CARD_HEIGHT)
+		-- Boss rounds: keep the row below the boss plaque and HP bar (host bottom),
+		-- but never lower than just above the popup.
+		local bossHost = root:FindFirstChild("BossFightHost")
+		if bossHost and bossHost.Visible then
+			local bossBottom = bossHost.AbsolutePosition.Y - root.AbsolutePosition.Y + bossHost.AbsoluteSize.Y
+			rowY = math.min(math.max(rowY, bossBottom + 6), popupTop - 6 - ROW_CARD_HEIGHT)
+		end
 		local x = (rootSize.X - totalWidth) / 2
 		for _, entry in ipairs(playedGhosts) do
 			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
