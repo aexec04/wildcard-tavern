@@ -2,16 +2,18 @@
 	Client/ShopCards.lua
 	Art-first item cards for the Shop ("The Counter") and its My Patrons / My Recipes tabs.
 	Look only: Shop.lua keeps every remote, price check and phase rule and passes an
-	`onAction` callback per card.
+	`onAction` callback per card. Cards are ART, a name ribbon and a price coin (Engine/CardShape sizes them
+	from the viewport so they fill the row); the rules text moved into the shared hover tooltip (Client/Tooltip,
+	also tap-and-hold on touch) and the Buy button slides up over the bottom of the art on hover or selection.
 
-	local cards = ShopCards.new({ roundCorner, playClickSfx, particleBurst? })
+	local cards = ShopCards.new({ roundCorner, playClickSfx, particleBurst?, addTooltip? })
 
 	cards.row(parent, layoutOrder, height) -> ScrollingFrame
 		Horizontal row of cards, centered when it fits, scrolls sideways when it does not.
 	cards.card(row, spec) -> { slot, pop = fn }
 		spec.kind        "patron" | "voucher" | "pack" | "owned"   (shapes the card)
 		spec.layoutOrder number
-		spec.name, spec.description, spec.line   (line replaces the description, e.g. packs)
+		spec.name, spec.description, spec.line   (line replaces the description, e.g. packs; shown in the tooltip)
 		spec.price       number | nil (nil = no price tag, owned cards)
 		spec.affordable  bool (false = dimmed card and a red price)
 		spec.actionText  "Buy" | "Sell" | "Use"; spec.enabled bool; spec.disabledText ("Full")
@@ -53,30 +55,22 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local PRICE_OK = Color3.fromRGB(60, 40, 22)
 local PRICE_BAD = Color3.fromRGB(190, 40, 34)
 
+local CardShape = require(Engine:WaitForChild("CardShape"))
+
 local HEAD = 16 -- headroom above a resting card so a lifted card and its price tag never clip
 local LIFT = 8
-local BANNER_H = 36
-local BUTTON_H = 34
+local BANNER_H = CardShape.BANNER_H
+local BUTTON_H = CardShape.BUTTON_H
 
--- Per-kind geometry: card width, art height, effect strip height.
-local SHAPES = {
-	patron = { w = 190, artH = 112, stripH = 74 },
-	voucher = { w = 190, artH = 112, stripH = 74 },
-	pack = { w = 190, artH = 90, stripH = 36 },
-	owned = { w = 170, artH = 96, stripH = 66 },
-}
+-- Shape of a card for the current viewport (cards grow on big screens, shrink on phones).
+local function currentScale()
+	local cam = workspace.CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+	return CardShape.scaleFor(vp.X, vp.Y)
+end
 
 local function shapeFor(kind, noAction)
-	local s = SHAPES[kind] or SHAPES.patron
-	local artTop = 6
-	local bannerTop = artTop + s.artH - 18
-	local stripTop = bannerTop + BANNER_H + 4
-	local buttonTop = stripTop + s.stripH + 6
-	return {
-		w = s.w, artH = s.artH, stripH = s.stripH,
-		artTop = artTop, bannerTop = bannerTop, stripTop = stripTop, buttonTop = buttonTop,
-		h = noAction and (stripTop + s.stripH + 6) or (buttonTop + BUTTON_H + 6),
-	}
+	return CardShape.shape(kind, currentScale(), noAction)
 end
 
 -- Height a row needs for cards of this kind (headroom for the lift, plus the scroll bar).
@@ -154,6 +148,7 @@ ShopCards.packTier = packTier
 function ShopCards.new(deps)
 	local playClickSfx = deps.playClickSfx or function() end
 	local particleBurst = deps.particleBurst
+	local addTooltip = deps.addTooltip
 	local self = {}
 	local selected = nil -- the card whose action button is pinned open (tap / click)
 
@@ -279,23 +274,13 @@ function ShopCards.new(deps)
 			label(pill, { Size = UDim2.fromScale(1, 1), Text = spec.badge, TextColor3 = GOLD })
 		end
 
-		-- ===== Name banner overlapping the bottom of the art =====
+		-- ===== Name ribbon overlapping the bottom of the art =====
 		local banner = frame(body, { Name = "Banner", Position = UDim2.fromOffset(2, shape.bannerTop), Size = UDim2.fromOffset(W - 4, BANNER_H),
 			BackgroundColor3 = WOOD })
 		corner(banner, 6)
 		stroke(banner, GOLD, 1.5, 0)
 		label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.name or "",
-			TextColor3 = CREAM, TextWrapped = true, TextSize = 15 })
-
-		-- ===== Effect strip: ink on parchment =====
-		local effect = frame(body, { Name = "Effect", Position = UDim2.fromOffset(6, shape.stripTop), Size = UDim2.fromOffset(W - 12, shape.stripH),
-			BackgroundColor3 = PARCHMENT })
-		corner(effect, 6)
-		stroke(effect, Color3.fromRGB(120, 88, 56), 1.5, 0)
-		label(effect, { Position = UDim2.fromOffset(6, 3), Size = UDim2.new(1, -12, 1, -6), Font = Enum.Font.GothamMedium,
-			Text = spec.line or spec.description or "", TextColor3 = INK, TextWrapped = true, TextSize = 15,
-			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
-			TextTruncate = Enum.TextTruncate.AtEnd })
+			TextColor3 = CREAM, TextWrapped = true, TextSize = 16 })
 
 		-- ===== Dim when it cannot be afforded =====
 		local affordable = spec.affordable ~= false
@@ -328,10 +313,18 @@ function ShopCards.new(deps)
 		hit.ZIndex = Z
 		hit.Parent = body
 
+		-- The rules text lives in the shared hover tooltip (name on the first line, then the effect).
+		local tipText = spec.line or spec.description
+		if addTooltip and tipText and tipText ~= "" then
+			addTooltip(hit, function()
+				return (spec.name or "") .. "\n" .. tipText
+			end)
+		end
+
 		local enabled = spec.enabled ~= false
 		local button
 		if not spec.noAction then
-			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, shape.buttonTop - 2), Size = UDim2.fromOffset(W, BUTTON_H + 4),
+			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, shape.drawerTop - 2), Size = UDim2.fromOffset(W, BUTTON_H + 4),
 				BackgroundTransparency = 1, ClipsDescendants = true })
 			button = Instance.new("TextButton")
 			button.Name = "Action"

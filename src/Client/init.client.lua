@@ -850,6 +850,7 @@ local Shop = require(script.Shop)({
 	revealStagger = revealStagger,
 	popScale = popScale,
 	particleBurst = ParticleBurstModule.burst,
+	addTooltip = addTooltip, -- art cards show their rules text in the shared hover tooltip
 	-- INTERACTIVE TUTORIAL: see this file's own "INTERACTIVE TUTORIAL"
 	-- comment further down (just above Menu.lua's require) for why TutorialWalkthrough.lua is required FROM INSIDE
 	-- Shop.lua instead of getting its own top-level local here.

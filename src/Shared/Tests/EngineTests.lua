@@ -7412,4 +7412,30 @@ table.insert(tests, { name = "Pile style: the draw pile frame follows the equipp
 	expectTrue(CosmeticSets.pileStyleOf(gala, winterBack).rim[1] > frost.rim[1], "Gala nudges the rim toward gold")
 end })
 
+table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with the screen and fit the rows", fn = function()
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	expectTrue(CardShape.scaleFor(1920, 1080) == CardShape.MAX_SCALE, "big screens get the biggest cards")
+	expectTrue(CardShape.scaleFor(640, 360) == CardShape.MIN_SCALE, "phones get the smallest cards")
+	local mid = CardShape.scaleFor(1280, 720)
+	expectTrue(mid > CardShape.MIN_SCALE and mid < CardShape.MAX_SCALE, "1280x720 sits in between")
+	for _, kind in ipairs({ "patron", "voucher", "pack", "owned" }) do
+		local small, big = CardShape.shape(kind, 0.7), CardShape.shape(kind, 1.35)
+		expectTrue(big.w > small.w and big.h > small.h, kind .. " grows with the scale")
+		-- no text strip: the card ends just under the ribbon
+		expectEqual(big.h, big.bannerTop + CardShape.BANNER_H + 8)
+		expectTrue(big.drawerTop + CardShape.BUTTON_H <= big.bannerTop, kind .. ": the Buy drawer sits above the ribbon, adding no height")
+		-- art is the star: it takes at least 70% of the card height
+		expectTrue(big.artH / big.h >= 0.7, kind .. " art fills most of the card")
+	end
+	-- 1080p: five patron/voucher cards fit one row of the shop; 1280x720: they fit or scroll sideways
+	local row1080 = 1920 - 240 - 40
+	expectTrue(CardShape.fitsRow(5, row1080, CardShape.shape("patron", CardShape.scaleFor(1920, 1080)), 16, 14), "five big cards fit at 1080p")
+	-- the Counter (patron row + pack row + header + buttons) fits the screen height at 720p and 1080p
+	for _, vp in ipairs({ { 1280, 720 }, { 1920, 1080 } }) do
+		local sc = CardShape.scaleFor(vp[1], vp[2])
+		local rows = CardShape.shape("patron", sc).h + CardShape.shape("pack", sc).h + 2 * 40
+		expectTrue(rows < vp[2] - 140, "both rows fit above the buttons at " .. vp[2] .. "p (" .. rows .. ")")
+	end
+end })
+
 return tests

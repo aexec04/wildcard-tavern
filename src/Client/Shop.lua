@@ -173,7 +173,7 @@ return function(deps)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local ShopCardsModule = require(script.Parent.ShopCards)
 	-- Art-first item cards (Client/ShopCards.lua). Look only: remotes and rules stay in this file.
-	local shopCards = ShopCardsModule.new({ playClickSfx = playClickSfx, particleBurst = deps.particleBurst })
+	local shopCards = ShopCardsModule.new({ playClickSfx = playClickSfx, particleBurst = deps.particleBurst, addTooltip = deps.addTooltip })
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
