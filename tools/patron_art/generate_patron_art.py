@@ -50,6 +50,7 @@ CATEGORIES = {
     "backgrounds": ("background_subjects", "backgrounds", "BackgroundArt.lua", "Background"),
     "tutorial_icons": ("tutorial_icon_subjects", "tutorial_icons", "TutorialIconArt.lua", "Tutorial Icon"),
     "map_nodes": ("map_node_subjects", "map_nodes", "MapNodeArt.lua", "Map Node"),
+    "hud": ("hud_subjects", "hud", "HudArt.lua", "HUD"),
     "menu_icons": ("menu_icon_subjects", "menu_icons", "MenuIconArt.lua", "Menu Icon"),
     "map_regions": ("map_region_subjects", "map_regions", "MapRegionArt.lua", "Map Region"),
     "map_decor": ("map_decor_subjects", "map_decor", "MapDecorArt.lua", "Map Decor"),
@@ -60,6 +61,9 @@ CATEGORY_OPTS = {
     "tutorial_icons": {"quality": "low", "style_key": "style_icon"},
     "map_nodes": {"quality": "low", "style_key": "style_icon"},
     "menu_icons": {"quality": "low", "style_key": "house_style"},
+    # sizes = per-key overrides (sidebar_board is portrait, the divider is wide landscape)
+    "hud": {"quality": "low", "style_key": "house_style",
+            "sizes": {"sidebar_board": "1024x1536", "flourish_divider": "1536x1024"}},
     "map_regions": {"size": "1536x1024", "quality": "low", "style_key": "style_map_region"},
     "map_decor": {"quality": "low", "style_key": "style_map_decor"},
 }
@@ -210,7 +214,7 @@ def _generate_one(pid, data, key, model, quality, args):
             r = requests.post(
                 "https://api.openai.com/v1/images/edits",
                 headers={"Authorization": f"Bearer {key}"},
-                data={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": "1"},
+                data={"model": model, "prompt": prompt, "size": opts.get("sizes", {}).get(pid, opts.get("size", "1024x1024")), "quality": quality, "n": "1"},
                 files={"image[]": (pathlib.Path(ref).name, pathlib.Path(ref).read_bytes(), "image/png")},
                 timeout=300,
             )
@@ -218,7 +222,7 @@ def _generate_one(pid, data, key, model, quality, args):
             r = requests.post(
                 "https://api.openai.com/v1/images/generations",
                 headers={"Authorization": f"Bearer {key}"},
-                json={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": 1},
+                json={"model": model, "prompt": prompt, "size": opts.get("sizes", {}).get(pid, opts.get("size", "1024x1024")), "quality": quality, "n": 1},
                 timeout=300,
             )
         if r.status_code == 200:

@@ -377,5 +377,14 @@
     "tutorial": "a feathered quill and scroll, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "road_ahead": "a rolled treasure map with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "hud_subjects": {
+    "sidebar_board": "a tall wood-framed tavern notice board hung on a wall, warm lit aged parchment center with a perfectly plain, evenly textured surface (no pinned items, no drawings, no marks, so UI can sit anywhere), a dark vignette toward the wood edges, subtle metal studs on the frame, a soft candle glow at the top corners, portrait composition, no text, no letters, no characters, kid-friendly",
+    "coin_purse": "a leather coin purse with gold coins, single centered subject with generous margin on a plain dark brown background, painterly, no text, no letters, no numbers, no characters, kid-friendly, square composition",
+    "hands_cards": "a small fan of three playing cards with blank faces, single centered subject with generous margin on a plain dark brown background, painterly, no text, no letters, no numbers, no characters, kid-friendly, square composition",
+    "discard_bin": "a playing card with a blank face dropping into a small wooden bin, single centered subject with generous margin on a plain dark brown background, painterly, no text, no letters, no numbers, no characters, kid-friendly, square composition",
+    "target_score": "a small wooden dartboard bullseye, single centered subject with generous margin on a plain dark brown background, painterly, no text, no letters, no numbers, no characters, kid-friendly, square composition",
+    "brass_hook": "a polished brass wall hook, single centered subject with generous margin on a plain dark brown background, painterly, no text, no letters, no numbers, no characters, kid-friendly, square composition",
+    "flourish_divider": "a thin ornate gold-and-ink flourish divider line, wide horizontal composition, centered on a plain dark brown background, painterly, no text, no letters, no characters, kid-friendly"
   }
 }

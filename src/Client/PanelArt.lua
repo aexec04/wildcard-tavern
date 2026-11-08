@@ -4,7 +4,8 @@
 	ContentArt id is missing (rbxassetid://0 or not recorded yet) nothing is added.
 
 	PanelArt.add(panel, {
-		key = "collection_bg",          -- ContentArt "backgrounds" key
+		key = "collection_bg",          -- ContentArt key (in `category`)
+		category = "backgrounds",        -- optional ContentArt category, default "backgrounds"
 		fallbackId = "rbxassetid://...", -- optional older art to use when the key has none
 		zIndex = panel.ZIndex,           -- default: the panel's own (children draw after the panel)
 		scrim = { position = UDim2, size = UDim2 }, -- optional dark scrim behind the content
@@ -29,7 +30,8 @@ local function matchCorner(inst, panel)
 end
 
 function PanelArt.add(panel, opts)
-	local id = ContentArt.getImageId("backgrounds", opts.key) or opts.fallbackId
+	local category = opts.category or "backgrounds"
+	local id = ContentArt.getImageId(category, opts.key) or opts.fallbackId
 	if type(id) ~= "string" or id == "" or id == "rbxassetid://0" then
 		return nil
 	end
@@ -45,7 +47,7 @@ function PanelArt.add(panel, opts)
 	art.ZIndex = z
 	art.Parent = panel
 	matchCorner(art, panel)
-	if opts.scrim and ContentArt.getImageId("backgrounds", opts.key) then
+	if opts.scrim and ContentArt.getImageId(category, opts.key) then
 		local scrim = Instance.new("Frame")
 		scrim.Name = "PanelScrim"
 		scrim.Position = opts.scrim.position
