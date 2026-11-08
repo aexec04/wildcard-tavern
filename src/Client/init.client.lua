@@ -2199,6 +2199,11 @@ local function rebuildHand(handData)
 					tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 				end
 			end)
+			-- Cosmetic back-to-face flip (overlay child of the button; no input/state effect).
+			pcall(function()
+				local cos = latestState and latestState.cosmetics
+				require(script.DealFlip).play(button, visualPosition, cos and cos.cardBackId)
+			end)
 		end
 
 		cardButtons[index] = button
