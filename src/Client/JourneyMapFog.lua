@@ -1,7 +1,10 @@
 --[[
 	Client/JourneyMapFog.lua
 	Fog of war for the Journey map. One drifting cloud band covers everything
-	past the reveal limit. It is built in code from overlapping soft
+	past the reveal limit. When the fx art (ContentArt fx/fog_puff, fog_puff_b) has
+	Image ids, each patch is one large soft-edged ImageLabel puff (alpha falloff baked
+	into the texture, tinted FOG, ImageTransparency 0.25 to 0.5, heavy overlap so the
+	band reads as one mist bank). Until an id is recorded it falls back to overlapping soft
 	round Frames in warm cream (Color and BackgroundTransparency only, never a
 	gradient): each patch is 4 concentric discs that fade toward the rim, in a slow
 	back layer and a nearer front layer, with the leading columns thinned so the mist
@@ -135,6 +138,32 @@ return function(deps)
 	-- down from it. Warm cream only, Color + BackgroundTransparency, no gradients.
 	local RING_SCALES = { 1, 0.82, 0.62, 0.4 }
 	local RING_STEPS = { 0, 0.08, 0.18, 0.28 } -- how much more opaque each inner ring is
+	-- Image puffs: fog_puff / fog_puff_b alternate. `fade` (0..0.5) thins the patch near
+	-- the revealed side. Returns false when no art id is recorded (caller uses discs).
+	local PUFF_KEYS = { "fog_puff", "fog_puff_b" }
+	local function imagePuff(layerIndex, n, cx, cy, diameter, transparency, fade)
+		local ContentArt = deps.ContentArt
+		local id = ContentArt and ContentArt.getImageId("fx", PUFF_KEYS[(n % 2) + 1])
+			or (ContentArt and ContentArt.getImageId("fx", PUFF_KEYS[1]))
+		if not id then
+			return false
+		end
+		local img = Instance.new("ImageLabel")
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.Position = UDim2.fromOffset(cx, cy)
+		img.Size = UDim2.fromOffset(diameter, diameter)
+		img.BackgroundTransparency = 1
+		img.BorderSizePixel = 0
+		img.Image = id
+		img.ScaleType = Enum.ScaleType.Stretch
+		img.ImageColor3 = FOG
+		img.ImageTransparency = math.min(transparency + fade, 0.95)
+		img.ZIndex = Z_FOG
+		img.Parent = puffHolder
+		table.insert(puffs, { frame = img, cx = cx, cy = cy, layer = layerIndex })
+		return true
+	end
+
 	local function puff(layerIndex, cx, cy, diameter, base)
 		local holder = Instance.new("Frame")
 		holder.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -190,6 +219,31 @@ return function(deps)
 		-- part of the map) are fainter so the mist thins out near the nodes.
 		local function thin(col)
 			return col == 1 and 0.3 or (col == 2 and 0.18 or (col == 3 and 0.08 or 0))
+		end
+		-- Image mist: fewer, much larger overlapping puffs (about 2x the disc size).
+		if deps.ContentArt and deps.ContentArt.getImageId("fx", "fog_puff") then
+			local n = 0
+			local function build(layerIndex, step, d, rows, t0, x0)
+				local c = 0
+				local x = x0
+				while x < bandW do
+					c += 1
+					for r = 1, rows do
+						n += 1
+						local cy = (r - 0.5) * canvasH / rows + (((c + r) % 3) - 1) * 40
+						local t = t0 + ((n * 7) % 5) * 0.05
+						local fade = c == 1 and 0.4 or (c == 2 and 0.22 or (c == 3 and 0.1 or 0))
+						imagePuff(layerIndex, n, x + ((r % 2) * 140), cy, d, t, fade)
+					end
+					x += step
+				end
+			end
+			build(1, 800, math.max(1100, canvasH * 1.7), math.max(2, math.ceil(canvasH / 700)), 0.4, -450)
+			build(2, 620, math.max(900, canvasH * 1.35), math.max(2, math.ceil(canvasH / 560)), 0.3, -380)
+			if wasDrifting then
+				startDrift()
+			end
+			return
 		end
 		-- Back layer: huge, faint.
 		local backStep, backD = 520, math.max(620, canvasH * 0.95)

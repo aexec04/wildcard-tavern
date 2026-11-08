@@ -55,6 +55,8 @@ CATEGORIES = {
     "map_regions": ("map_region_subjects", "map_regions", "MapRegionArt.lua", "Map Region"),
     "map_decor": ("map_decor_subjects", "map_decor", "MapDecorArt.lua", "Map Decor"),
     "card_backs": ("card_back_subjects", "card_backs", "CardBackArt.lua", "Card Back"),
+    # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
+    "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
 # Per-category overrides: image size, quality, and which prompts.json key holds the style prefix.
 CATEGORY_OPTS = {

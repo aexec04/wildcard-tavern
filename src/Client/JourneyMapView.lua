@@ -128,7 +128,7 @@ return function(deps)
 	})
 	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
 	local fogBand = require(script.Parent.JourneyMapFog)({
-		canvas = canvas, TweenService = TweenService, roundCorner = deps.roundCorner, calm = calm, pace = pace,
+		canvas = canvas, TweenService = TweenService, roundCorner = deps.roundCorner, calm = calm, pace = pace, ContentArt = ContentArtJMV,
 	})
 
 	local function text(parent, props)
