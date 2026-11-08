@@ -74,6 +74,11 @@ local function fast()
 end
 
 -- ===== Rig =====
+local CF_OPS = {
+	mul = function(a, b) return a * b end,
+	inverse = function(a) return a:Inverse() end,
+	identity = CFrame.new(),
+}
 local Rig = {}
 Rig.__index = Rig
 
@@ -222,6 +227,17 @@ local function newRig(model, kind)
 	self.scale1Height = 5
 	self.phase = math.random() * 6
 	self:remeasure()
+	if kind == "avatar" then
+		-- Debug: gap between a joint's two attachment points at rest (about 0 for a solid avatar).
+		for _, j in ipairs(self.joints) do
+			if RigWalk.isWrapper(j) and (j.Name == "Neck" or j.Name == "Waist" or j.Name == "LeftShoulder") then
+				local a = j.Part0.CFrame * j.C0
+				local b = j.Part1.CFrame * j.C1
+				warn(string.format("[CharacterStage] joint %s %s->%s gap %.3f", j.Name, j.Part0.Name, j.Part1.Name,
+					(a.Position - b.Position).Magnitude))
+			end
+		end
+	end
 	return self
 end
 
@@ -230,7 +246,7 @@ function Rig:fk(rootCF, transformFor)
 	self.root.CFrame = rootCF
 	for _, j in ipairs(self.joints) do
 		local tr = transformFor and transformFor(j) or CFrame.new()
-		local rel = j.C0 * (hasTransform(j) and tr or CFrame.new()) * j.C1:Inverse() -- Part1 relative to Part0
+		local rel = RigWalk.relative(j, hasTransform(j) and tr or nil, CF_OPS) -- Part1 relative to Part0
 		if self.reversed[j] then
 			j.Part0.CFrame = j.Part1.CFrame * rel:Inverse()
 		else

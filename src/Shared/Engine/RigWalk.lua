@@ -51,8 +51,21 @@ function RigWalk.fromConstraint(c)
 	if not (a0 and a1 and a0.Parent and a1.Parent) then
 		return nil
 	end
-	return { Part0 = a0.Parent, Part1 = a1.Parent, C0 = a0.CFrame, C1 = a1.CFrame, Name = c.Name,
+	-- AnimationConstraint also has its own C0 / C1 offsets (relative to each attachment); they are identity on
+	-- plain rigs but not on scaled avatars, and ignoring them leaves a gap at every joint (the "exploded" look).
+	local c0, c1 = a0.CFrame, a1.CFrame
+	local ok0, o0 = pcall(function() return c.C0 end)
+	local ok1, o1 = pcall(function() return c.C1 end)
+	if ok0 and o0 ~= nil then c0 = c0 * o0 end
+	if ok1 and o1 ~= nil then c1 = c1 * o1 end
+	return { Part0 = a0.Parent, Part1 = a1.Parent, C0 = c0, C1 = c1, Name = c.Name,
 		animated = true, source = c }
+end
+
+-- Part1's CFrame relative to Part0 for a joint: C0 * transform * C1^-1. ops = { mul, inverse, identity } so the same
+-- math runs on CFrames in Studio and on plain stand-ins in tests. transform may be nil (rest pose).
+function RigWalk.relative(j, transform, ops)
+	return ops.mul(ops.mul(j.C0, transform or ops.identity), ops.inverse(j.C1))
 end
 
 -- True for the wrapper tables made by fromConstraint. Real Instances (Weld, Motor6D) are userdata and error

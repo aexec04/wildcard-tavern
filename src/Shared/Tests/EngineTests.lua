@@ -5289,6 +5289,33 @@ table.insert(tests, { name = "RigWalk: AnimationConstraints (modern avatars) bec
 	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { Parent = parts.Head } }), nil, "half-built constraint is skipped")
 	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { CFrame = 1 }, Attachment1 = { Parent = parts.Head } }), nil, "orphan attachment is skipped")
 end })
+table.insert(tests, { name = "RigWalk: a 3-part chain from attachments touches, and constraint C0/C1 offsets are applied", fn = function()
+	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
+	-- Translation-only stand-ins for CFrames.
+	local mt = {}
+	local function v(x, y, z) return setmetatable({ x = x, y = y, z = z }, mt) end
+	mt.__mul = function(a, b) return v(a.x + b.x, a.y + b.y, a.z + b.z) end
+	local ops = { mul = function(a, b) return a * b end, inverse = function(a) return v(-a.x, -a.y, -a.z) end, identity = v(0, 0, 0) }
+	local root, torso, head = { p = v(0, 0, 0) }, {}, {}
+	local joints = {
+		RigWalk.fromConstraint({ Name = "Root", Attachment0 = { Parent = root, CFrame = v(0, 0, 0) }, Attachment1 = { Parent = torso, CFrame = v(0, -1, 0) } }),
+		RigWalk.fromConstraint({ Name = "Neck", Attachment0 = { Parent = torso, CFrame = v(0, 1, 0) }, Attachment1 = { Parent = head, CFrame = v(0, -0.5, 0) } }),
+	}
+	local ordered = RigWalk.walk(joints, root)
+	expectEqual(#ordered, 2)
+	for _, j in ipairs(ordered) do
+		j.Part1.p = j.Part0.p * RigWalk.relative(j, nil, ops)
+	end
+	expectEqual(torso.p.y, 1, "torso sits 1 above the root")
+	expectEqual(head.p.y, 2.5, "head sits 1.5 above the torso")
+	for _, j in ipairs(ordered) do
+		local a, b = j.Part0.p * j.C0, j.Part1.p * j.C1
+		expectTrue(a.x == b.x and a.y == b.y and a.z == b.z, j.Name .. " attachment points touch")
+	end
+	local scaled = RigWalk.fromConstraint({ Name = "S", C0 = v(0, 0.25, 0), C1 = v(0, 0, 0),
+		Attachment0 = { Parent = root, CFrame = v(0, 1, 0) }, Attachment1 = { Parent = torso, CFrame = v(0, 0, 0) } })
+	expectEqual(scaled.C0.y, 1.25, "constraint C0 offset applied")
+end })
 table.insert(tests, { name = "RigWalk: hasTransform / isWrapper never read .animated on a real joint Instance", fn = function()
 	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
 	-- Stand-in for a Weld / Motor6D: unknown field reads error, like a real Instance.
