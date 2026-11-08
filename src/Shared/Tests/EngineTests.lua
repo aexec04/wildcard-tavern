@@ -6128,4 +6128,22 @@ table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing
 	expectEqual(WorldMap.sceneArtFor("garden_terrace", function() return false end), "garden_terrace", "no fallback needed")
 end })
 
+table.insert(tests, { name = "Tutorial: step list covers the guided first hand, Round Select and the Newcomer popup, and replay is wired", fn = function()
+	local f = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not f then
+		return -- not running from the repo root (Studio): nothing to check
+	end
+	local src = f:read("*a")
+	f:close()
+	local last = 0
+	for _, id in ipairs({ "select_cards", "discard_info", "play_hand", "sidebar_info", "shop_patrons", "next_round", "waiting_for_round_select", "round_select_info", "newcomer_title" }) do
+		local at = src:find('id = "' .. id .. '"', 1, true)
+		expectTrue(at ~= nil, "missing step " .. id)
+		expectTrue(at > last, "step out of order: " .. id)
+		last = at
+	end
+	expectTrue(src:find("replay = replay", 1, true) ~= nil, "replay is exported")
+	expectTrue(src:find("Skip tutorial", 1, true) ~= nil, "skip link exists")
+end })
+
 return tests

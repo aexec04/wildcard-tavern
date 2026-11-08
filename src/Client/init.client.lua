@@ -1051,7 +1051,7 @@ menuTutorialButton.MouseButton1Click:Connect(function()
 	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
 		backgroundMusic:Play()
 	end
-	Shop.tutorial.start()
+	Shop.tutorial.replay()
 end)
 
 -- ===== Settings overlay =====
@@ -1118,6 +1118,11 @@ require(script.HowToPlay)({
 	popIn = popIn,
 	popOut = popOut,
 	addButtonHoverScale = addButtonHoverScale,
+	replayTutorial = function()
+		menuFrame.Visible = false
+		root.Visible = true
+		Shop.tutorial.replay()
+	end,
 })
 end, function(e)
 	warn("[Client] HowToPlay panel failed to build: " .. tostring(e))

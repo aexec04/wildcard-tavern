@@ -56,6 +56,7 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	local replayTutorial = deps.replayTutorial -- optional function()
 	-- BUGFIX (overlapping overlays): see Client/OverlayManager.lua's own
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
@@ -342,9 +343,21 @@ return function(deps)
 	local howToPlayCloseButton = makeNavButton("Next", 130) -- becomes "Got it" on the last page
 	howToPlayCloseButton.Position = UDim2.new(1, -PAD - 130, 0, navY)
 
+	-- "Replay tutorial" sits in the middle of the nav row on the last page.
+	local replayButton = makeNavButton("Replay tutorial", 190)
+	replayButton.Position = UDim2.new(1, -PAD - 130 - 12 - 190, 0, navY)
+	replayButton.Visible = false
+	replayButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		popOut(howToPlayBackdrop, howToPlayPanel)
+		if replayTutorial then
+			replayTutorial()
+		end
+	end)
+
 	local pageIndicator = Instance.new("TextLabel")
 	pageIndicator.Size = UDim2.new(0, 200, 0, 42)
-	pageIndicator.Position = UDim2.new(0.5, -100, 0, navY)
+	pageIndicator.Position = UDim2.new(0, 160, 0, navY) -- left of the Replay button (last page)
 	pageIndicator.BackgroundTransparency = 1
 	pageIndicator.Font = Enum.Font.Gotham
 	pageIndicator.TextSize = 16
@@ -360,6 +373,7 @@ return function(deps)
 		howToPlayTitle.Text = pages[currentPage].title
 		pageIndicator.Text = string.format("Page %d of %d", currentPage, #pages)
 		howToPlayBackButton.Visible = currentPage > 1
+		replayButton.Visible = (currentPage == #pages) and replayTutorial ~= nil
 		howToPlayCloseButton.Text = (currentPage == #pages) and "Got it" or "Next"
 	end
 	showPage(1)

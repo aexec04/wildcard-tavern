@@ -161,6 +161,27 @@ local STEPS = {
 		title = "You're all set",
 		body = "Hit Next Round whenever you're ready. Good luck out there!",
 	},
+	-- After Next Round the table goes to Round Select. Silent wait (no
+	-- caption) until the phase flips, then one sentence about it.
+	{
+		id = "waiting_for_round_select",
+		mode = MODE_LIGHT,
+		silent = true,
+	},
+	{
+		id = "round_select_info",
+		mode = MODE_LIGHT,
+		title = "Round Select",
+		body = "Each Night has a Small Round, a Big Round and a Boss. Select plays the round; Skip takes a Tag bonus instead. Beat the Boss to clear the Night.",
+		button = "Got it",
+	},
+	{
+		id = "newcomer_title",
+		mode = MODE_CENTER,
+		title = "Title unlocked: Newcomer",
+		body = "You finished the tutorial! Equip your new title from the Collection, under Titles.",
+		button = "Nice!",
+	},
 }
 
 local DONE_PICKING_TEXT = "Done picking"
@@ -307,7 +328,7 @@ return function(deps)
 	skipLink.BackgroundTransparency = 1
 	skipLink.AutoButtonColor = false
 	skipLink.Font = Enum.Font.Gotham
-	skipLink.TextSize = 12
+	skipLink.TextSize = 15
 	skipLink.TextColor3 = Color3.fromRGB(180, 170, 155)
 	skipLink.Text = "Skip tutorial"
 	skipLink.LayoutOrder = 4
@@ -497,6 +518,11 @@ return function(deps)
 		end
 
 		currentStepIndex = index
+		if step.silent then
+			hideSpotlightChrome()
+			captionCard.Visible = false
+			return
+		end
 		local useWeakText = selectionIsWeak and step.weakBody ~= nil
 		captionCard.Visible = true
 		captionTitle.Visible = step.title ~= nil
@@ -631,12 +657,26 @@ return function(deps)
 	-- off the menu-safe "waiting_for_run_start" step the instant a run
 	-- actually begins (state.phase flips to "playing"). Every other step
 	-- advances purely off the explicit notify*() calls above.
+	local autoTried = false
 	local function onRender(state)
-		if not active or not state then
+		if not state then
+			return
+		end
+		-- Shown once per profile: auto-start the first time the table is
+		-- visible and the profile has not finished/skipped it (the server
+		-- flag flips on dismiss; Studio always reports false).
+		if not active and not completed and not autoTried and state.hasSeenTutorial == false and root.Visible then
+			autoTried = true
+			start()
+			return
+		end
+		if not active then
 			return
 		end
 		local step = STEPS[currentStepIndex]
 		if step and step.id == "waiting_for_run_start" and state.phase == "playing" then
+			showStep(currentStepIndex + 1)
+		elseif step and step.id == "waiting_for_round_select" and state.phase == "roundSelect" then
 			showStep(currentStepIndex + 1)
 		end
 	end
@@ -646,12 +686,25 @@ return function(deps)
 			return
 		end
 		if STEPS[currentStepIndex] and STEPS[currentStepIndex].id == "next_round" then
-			completeWalkthrough()
+			advanceFrom("next_round")
 		end
+	end
+
+	-- Replay from the Menu / How to Play: resets the walkthrough state.
+	local function replay()
+		if active then
+			return
+		end
+		completed = false
+		hasDiscardedAlready = false
+		selectedCount = 0
+		selectionIsWeak = false
+		start()
 	end
 
 	return {
 		start = start,
+		replay = replay,
 		onRender = onRender,
 		notifySelectionChanged = notifySelectionChanged,
 		notifyHandPlayed = notifyHandPlayed,
