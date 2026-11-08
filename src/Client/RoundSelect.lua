@@ -217,7 +217,7 @@ return function(deps)
 	subtitleLabel.Position = UDim2.new(0, 20, 0, 58)
 	subtitleLabel.BackgroundTransparency = 1
 	subtitleLabel.Font = Enum.Font.Gotham
-	subtitleLabel.TextSize = 14
+	subtitleLabel.TextSize = 16
 	subtitleLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 	subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	subtitleLabel.Text = "Play the round you're on, or skip it for a Tag instead."
@@ -259,6 +259,7 @@ return function(deps)
 	--   below that = room name, boss/tag info, target plaque, action buttons
 	-- Cards do not stretch to fill the screen height.
 	local roundPanels = {}
+	local cardScales = {}
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
 		local isBossPanel = (round == ROUNDS_PER_NIGHT)
@@ -268,6 +269,10 @@ return function(deps)
 		panel.Name = "RoundPanel" .. round
 		panel.Size = UDim2.new(0, 220, 0, 620)
 		panel.LayoutOrder = round
+		local cardScale = Instance.new("UIScale")
+		cardScale.Name = "FitScale"
+		cardScale.Parent = panel
+		table.insert(cardScales, cardScale)
 		panel.BackgroundColor3 = Color3.fromRGB(55, 42, 30)
 		panel.ZIndex = 7
 		panel.Parent = panelRow
@@ -314,25 +319,32 @@ return function(deps)
 		end
 		roundCorner(sceneImage, 14)
 
-		-- Scrim over the bottom ~58% of the card: clear at the top, near-black
-		-- at the bottom, so the art fades into the text area. Never dimmed.
+		-- Scrim over the bottom 45% of the card: clear at the top, nearly opaque
+		-- at the bottom, so the art fades into the text area. Stepped strips
+		-- (Frame transparency only, no UIGradient.Transparency). Never dimmed.
 		local scrim = Instance.new("Frame")
 		scrim.Name = "Scrim"
 		scrim.AnchorPoint = Vector2.new(0, 1)
 		scrim.Position = UDim2.new(0, 0, 1, 0)
-		scrim.Size = UDim2.new(1, 0, 0.58, 0)
-		scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+		scrim.Size = UDim2.new(1, 0, 0.45, 0)
+		scrim.BackgroundTransparency = 1
 		scrim.BorderSizePixel = 0
+		scrim.ClipsDescendants = true
 		scrim.ZIndex = 9
 		scrim.Parent = panel
 		roundCorner(scrim, 14)
-		local scrimGradient = Instance.new("UIGradient")
-		scrimGradient.Rotation = 90
-		scrimGradient.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(1, 0.15),
-		})
-		scrimGradient.Parent = scrim
+		local SCRIM_STEPS = 14
+		for i = 1, SCRIM_STEPS do
+			local strip = Instance.new("Frame")
+			strip.Name = "Strip" .. i
+			strip.Size = UDim2.new(1, 0, 1 / SCRIM_STEPS, 1)
+			strip.Position = UDim2.new(0, 0, (i - 1) / SCRIM_STEPS, 0)
+			strip.BackgroundColor3 = Color3.new(0, 0, 0)
+			strip.BackgroundTransparency = 1 - 0.92 * (i / SCRIM_STEPS) ^ 0.8
+			strip.BorderSizePixel = 0
+			strip.ZIndex = 9
+			strip.Parent = scrim
+		end
 
 		-- Status chip overlaid on the top-left of the scene image.
 		-- Shows "You are here" (green) for the current round,
@@ -345,7 +357,7 @@ return function(deps)
 		statusChip.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 		statusChip.BackgroundTransparency = 0.1
 		statusChip.Font = Enum.Font.GothamBold
-		statusChip.TextSize = 11
+		statusChip.TextSize = 14
 		statusChip.TextColor3 = Color3.fromRGB(200, 200, 215)
 		statusChip.Text = ""
 		statusChip.ZIndex = 12
@@ -362,11 +374,11 @@ return function(deps)
 		roomLabel.BackgroundTransparency = 1
 		roomLabel.Font = Enum.Font.GothamBold
 		roomLabel.TextSize = 17
-		roomLabel.TextColor3 = accent
+		roomLabel.TextColor3 = Color3.fromRGB(250, 235, 200)
 		roomLabel.TextXAlignment = Enum.TextXAlignment.Center
 		roomLabel.Text = cfg.roomName
 		roomLabel.ZIndex = 11
-		roomLabel.TextStrokeTransparency = 0.35
+		roomLabel.TextStrokeTransparency = 0.3
 		roomLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		roomLabel.Parent = panel
 
@@ -379,12 +391,12 @@ return function(deps)
 		bossNameLabel.BackgroundTransparency = 1
 		bossNameLabel.Font = Enum.Font.GothamBold
 		bossNameLabel.TextSize = 18
-		bossNameLabel.TextColor3 = GOLD_ACCENT
+		bossNameLabel.TextColor3 = Color3.fromRGB(250, 235, 200)
 		bossNameLabel.TextXAlignment = Enum.TextXAlignment.Center
 		bossNameLabel.Text = ""
 		bossNameLabel.ZIndex = 11
 		bossNameLabel.Visible = isBossPanel
-		bossNameLabel.TextStrokeTransparency = 0.35
+		bossNameLabel.TextStrokeTransparency = 0.3
 		bossNameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		bossNameLabel.Parent = panel
 
@@ -411,13 +423,13 @@ return function(deps)
 		-- Tag chip: non-boss panels only (y=324), shown for the current round.
 		local tagLabel = Instance.new("TextLabel")
 		tagLabel.Name = "TagLabel"
-		tagLabel.Size = UDim2.new(1, -20, 0, 24)
+		tagLabel.Size = UDim2.new(1, -20, 0, 28)
 		tagLabel.AnchorPoint = Vector2.new(0, 1)
 		tagLabel.Position = UDim2.new(0, 10, 1, -150)
 		tagLabel.BackgroundColor3 = Color3.fromRGB(48, 52, 32)
 		tagLabel.BackgroundTransparency = 1
 		tagLabel.Font = Enum.Font.Gotham
-		tagLabel.TextSize = 12
+		tagLabel.TextSize = 16
 		tagLabel.TextColor3 = Color3.fromRGB(200, 220, 170)
 		tagLabel.TextXAlignment = Enum.TextXAlignment.Center
 		tagLabel.Text = ""
@@ -467,7 +479,7 @@ return function(deps)
 		skipButton.AnchorPoint = Vector2.new(0, 1)
 		skipButton.Position = UDim2.new(0, 10, 1, -10)
 		skipButton.Font = Enum.Font.GothamBold
-		skipButton.TextSize = 14
+		skipButton.TextSize = 16
 		skipButton.Text = "Skip"
 		skipButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		skipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
@@ -517,6 +529,24 @@ return function(deps)
 	-- JOURNEY FEATURE / ROUND SELECT FEATURE: describes a Tag's effect the
 	-- SAME way for both the panel's own tagLabel text and its tooltip, so
 	-- the two can never say different things.
+	-- Fit the 620px cards to the viewport: height = min(620, 80% of the
+	-- viewport, row height). Scale is clamped 0.6..1 (1280x720 -> ~0.93).
+	-- The bottom-anchored content scales with the card, so nothing is cut off.
+	local CARD_H = 620
+	local function fitCards()
+		local cam = workspace.CurrentCamera
+		local vpY = cam and cam.ViewportSize.Y or 720
+		local rowH = panelRow.AbsoluteSize.Y
+		local h = math.min(CARD_H, 0.80 * vpY)
+		if rowH > 0 then h = math.min(h, rowH - 8) end
+		local scale = math.clamp(h / CARD_H, 0.6, 1)
+		for _, sc in ipairs(cardScales) do sc.Scale = scale end
+	end
+	fitCards()
+	panelRow:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)
+	local fitCam = workspace.CurrentCamera
+	if fitCam then fitCam:GetPropertyChangedSignal("ViewportSize"):Connect(fitCards) end
+
 	local function describeTag(tag)
 		return string.format("%s %s\n%s", tag.icon or "🏷️", tag.name, tag.description)
 	end
@@ -672,7 +702,7 @@ return function(deps)
 					entry.bossLabel.Text = "Boss Rounds are off this run."
 				end
 				entry.bossNameLabel.TextTransparency = 0
-				entry.bossNameLabel.TextStrokeTransparency = 0.35
+				entry.bossNameLabel.TextStrokeTransparency = 0.3
 				entry.bossLabel.TextTransparency = 0
 				entry.bossLabel.TextStrokeTransparency = 0.35
 			else
