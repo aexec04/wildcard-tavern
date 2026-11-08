@@ -731,6 +731,12 @@ return function(deps)
 				math.floor(stats.runsStarted), math.floor(stats.runsWon), math.floor(stats.bestNightReached),
 				equipped and ('"' .. equipped.title .. '"') or "none"
 			)
+			-- Next unlock (moved here from the main menu strip)
+			local pick = view.state and view.state.nextUnlock
+			if pick and pick.label then
+				statsLabel.Text = statsLabel.Text .. "  |  Next unlock: " .. pick.label
+			end
+			statsLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		else
 			statsLabel.Text = ""
 		end

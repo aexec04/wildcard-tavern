@@ -1,20 +1,34 @@
--- Menu extras: the "Next unlock" strip, the daily-rewards calendar button and its popup.
--- Self-contained so the hub only calls init(menuFrame, remote) once and update(state) from render.
+-- Daily login rewards, as a small popup during play (not a permanent menu panel), plus the season banner.
+-- Self-contained so the hub only calls init(menuFrame, remote, playClick) once and update(state) from render.
 -- Display only: the server (Engine/LoginStreak.lua) decides streaks and claims.
+--
+-- The popup (chest/gift art, the streak as flame icons, the reward, a Claim button) opens when the game opens
+-- with a reward ready and again when a played round ends with one still waiting (Engine/DailyPopup decides),
+-- dismisses itself after 12s if ignored, and a claimed reward flies to the Tips counter. A small gift icon sits
+-- in the top-right icon row only while a reward is waiting. The "Next unlock" info lives in the Collection
+-- header and the run summary now. Nothing sits in the top-left 60px (Roblox's own buttons).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local DailyPopup = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("DailyPopup"))
+local ResponsiveLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout"))
+local ClientSettings = require(script.Parent.ClientSettings)
 
 local LoginStreakUI = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
 local PARCHMENT = Color3.fromRGB(222, 198, 150)
-local PARCHMENT_DARK = Color3.fromRGB(199, 178, 137)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local GREEN = Color3.fromRGB(86, 140, 80)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local WOOD = Color3.fromRGB(92, 62, 36)
 
+local AUTO_DISMISS = 12
+
 local ui = { want = {} } -- built pieces, filled by init; want = what the state asks to show
+local tracker = {} -- Engine/DailyPopup state
 local lastState
+local shownToken = 0
 
 local function label(parent, props)
 	local l = Instance.new("TextLabel")
@@ -23,7 +37,7 @@ local function label(parent, props)
 	l.TextColor3 = INK
 	l.TextTransparency = 0
 	l.TextStrokeTransparency = 1
-	l.ZIndex = 40
+	l.ZIndex = 91
 	for k, v in pairs(props) do
 		l[k] = v
 	end
@@ -45,138 +59,99 @@ local function corner(parent, radius)
 	c.Parent = parent
 end
 
-local function formatLeft(seconds)
-	seconds = math.max(0, math.floor(seconds))
-	return string.format("%dh %02dm", math.floor(seconds / 3600), math.floor(seconds % 3600 / 60))
+local function overlayOpen(gui, except)
+	if not gui then return false end
+	for _, child in ipairs(gui:GetChildren()) do
+		if child ~= except and child:IsA("GuiObject") and child.Visible and string.sub(child.Name, -8) == "Backdrop" then
+			return true
+		end
+	end
+	return false
 end
 
-local function rebuildPopup(login)
-	for _, child in ipairs(ui.rows:GetChildren()) do
-		if child:IsA("GuiObject") then
-			child:Destroy()
-		end
+local function flameText(streak)
+	local shown, extra = DailyPopup.flames(streak, 7)
+	local text = string.rep("🔥", shown)
+	if extra > 0 then text = text .. " +" .. extra end
+	return text == "" and "🔥" or text
+end
+
+local function refreshPopup(login)
+	local reward = DailyPopup.nextClaimable(login)
+	if not reward then return end
+	ui.flames.Text = flameText(login.streak)
+	ui.streak.Text = string.format("Day %d streak", login.streak)
+	ui.reward.Text = reward.label
+	ui.claimDay = reward.day
+end
+
+local function hidePopup(instant)
+	shownToken = shownToken + 1
+	if not ui.popup.Visible then return end
+	if instant or ClientSettings.get("animSpeed") == "fast" then
+		ui.popup.Visible = false
+		return
 	end
-	ui.streakLabel.Text = string.format("Login streak: %d day%s", login.streak, login.streak == 1 and "" or "s")
-	ui.footer.Text = "A new day starts in " .. formatLeft(login.secondsToNextDay or 0)
-		.. ". Miss one day and your streak is safe; miss two and it restarts."
-	for index, reward in ipairs(login.rewards) do
-		local row = Instance.new("Frame")
-		row.LayoutOrder = index
-		row.Size = UDim2.new(1, 0, 0, 52)
-		row.BackgroundColor3 = PARCHMENT_DARK
-		row.BorderSizePixel = 0
-		row.ZIndex = 40
-		row.Parent = ui.rows
-		corner(row, 8)
-		stroke(row, reward.claimable and GOLD or INK, reward.claimable and 2 or 1.5)
-		label(row, {
-			Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(0, 70, 1, 0), Text = "Day " .. reward.day,
-			TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left,
-		})
-		label(row, {
-			Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -200, 1, 0), Text = reward.label,
-			TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
-		})
-		local button = Instance.new("TextButton")
-		button.AnchorPoint = Vector2.new(1, 0.5)
-		button.Position = UDim2.new(1, -8, 0.5, 0)
-		button.Size = UDim2.new(0, 100, 0, 36)
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = 16
-		button.TextColor3 = CREAM
-		button.AutoButtonColor = false
-		button.BorderSizePixel = 0
-		button.ZIndex = 41
-		button.Parent = row
-		corner(button, 6)
-		if reward.claimed then
-			button.Text = "Claimed"
-			button.BackgroundColor3 = Color3.fromRGB(120, 110, 95)
-		elseif reward.claimable then
-			button.Text = "Claim"
-			button.BackgroundColor3 = GREEN
-			stroke(button, GOLD, 1.5)
-			button.MouseButton1Click:Connect(function()
-				if ui.playClick then
-					ui.playClick()
-				end
-				ui.remote:FireServer(reward.day)
-			end)
-		else
-			button.Text = "Locked"
-			button.BackgroundColor3 = Color3.fromRGB(100, 80, 60)
-		end
+	local mine = shownToken
+	TweenService:Create(ui.scale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+	task.delay(0.15, function()
+		if shownToken == mine then ui.popup.Visible = false end
+	end)
+end
+
+local function showPopup()
+	local login = lastState and lastState.login
+	if not (login and DailyPopup.nextClaimable(login)) then return end
+	refreshPopup(login)
+	shownToken = shownToken + 1
+	local mine = shownToken
+	ui.popup.Visible = true
+	if ClientSettings.get("reduceShake") == true or ClientSettings.get("animSpeed") == "fast" then
+		ui.scale.Scale = 1
+	else
+		ui.scale.Scale = 0.8
+		TweenService:Create(ui.scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	end
+	task.delay(AUTO_DISMISS, function()
+		if shownToken == mine and ui.popup.Visible then hidePopup() end
+	end)
+end
+
+-- A coin flies from the popup to the Tips counter (the left panel) when a reward is claimed.
+local function flyCoin()
+	local gui = ui.gui
+	if not gui or ClientSettings.get("reduceShake") == true then return end
+	local from = ui.popup.AbsolutePosition + ui.popup.AbsoluteSize / 2
+	local board = gui:FindFirstChild("SidebarBoard", true)
+	local to = board and (board.AbsolutePosition + Vector2.new(70, 330)) or Vector2.new(70, 330)
+	local coin = Instance.new("TextLabel")
+	coin.AnchorPoint = Vector2.new(0.5, 0.5)
+	coin.Position = UDim2.fromOffset(from.X, from.Y)
+	coin.Size = UDim2.fromOffset(40, 40)
+	coin.BackgroundTransparency = 1
+	coin.Text = "💰"
+	coin.TextSize = 34
+	coin.ZIndex = 120
+	coin.Parent = gui
+	local t = TweenService:Create(coin, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Position = UDim2.fromOffset(to.X, to.Y), TextTransparency = 0.6 })
+	t:Play()
+	t.Completed:Once(function() coin:Destroy() end)
 end
 
 -- menuFrame: the Menu root; remote: ClaimLoginReward; playClick: optional click sfx.
 function LoginStreakUI.init(menuFrame, remote, playClick)
 	ui.remote = remote
 	ui.playClick = playClick
+	local gui = menuFrame:FindFirstAncestorOfClass("ScreenGui")
+	ui.gui = gui
+	local host = gui or menuFrame
 
-	local strip = Instance.new("Frame")
-	strip.Name = "NextUnlockStrip"
-	strip.Position = UDim2.new(0, 16, 0, 16)
-	strip.Size = UDim2.new(0, 320, 0, 86)
-	strip.BackgroundColor3 = PARCHMENT
-	strip.BorderSizePixel = 0
-	strip.ZIndex = 20
-	strip.Visible = false
-	strip.Parent = menuFrame
-	corner(strip, 8)
-	stroke(strip, INK, 1.5)
-	ui.strip = strip
-	label(strip, {
-		Position = UDim2.new(0, 10, 0, 4), Size = UDim2.new(1, -20, 0, 20), Text = "Next unlock",
-		TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21,
-	})
-	ui.unlockText = label(strip, {
-		Position = UDim2.new(0, 10, 0, 24), Size = UDim2.new(1, -20, 0, 36), Text = "",
-		TextSize = 15, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 21,
-	})
-	local barBack = Instance.new("Frame")
-	barBack.Position = UDim2.new(0, 10, 1, -20)
-	barBack.Size = UDim2.new(1, -20, 0, 10)
-	barBack.BackgroundColor3 = PARCHMENT_DARK
-	barBack.BorderSizePixel = 0
-	barBack.ZIndex = 21
-	barBack.Parent = strip
-	corner(barBack, 5)
-	stroke(barBack, INK, 1)
-	ui.barFill = Instance.new("Frame")
-	ui.barFill.Size = UDim2.new(0, 0, 1, 0)
-	ui.barFill.BackgroundColor3 = GOLD
-	ui.barFill.BorderSizePixel = 0
-	ui.barFill.ZIndex = 22
-	ui.barFill.Parent = barBack
-	corner(ui.barFill, 5)
-
-	local open = Instance.new("TextButton")
-	open.Name = "DailyRewardsButton"
-	open.Position = UDim2.new(0, 16, 0, 110)
-	open.Size = UDim2.new(0, 320, 0, 44)
-	open.BackgroundColor3 = WOOD
-	open.BorderSizePixel = 0
-	open.AutoButtonColor = false
-	-- Same font as the other menu buttons, no text stroke (a stroke at this size squeezes the letters).
-	open.Font = Enum.Font.GothamBold
-	open.TextSize = 16
-	open.TextColor3 = CREAM
-	open.TextStrokeTransparency = 1
-	open.TextTransparency = 0
-	open.Text = "Daily rewards"
-	open.ZIndex = 20
-	open.Visible = false
-	open.Parent = menuFrame
-	corner(open, 8)
-	stroke(open, GOLD, 2)
-	ui.open = open
-
-	-- Season banner (Engine/Seasons.lua): only visible while a season is running. Display only.
+	-- Season banner (Engine/Seasons.lua): only visible while a season is running. Display only. It sits below the
+	-- top-left system buttons (ResponsiveLayout.clearOfTopBar).
 	local season = Instance.new("Frame")
 	season.Name = "SeasonBanner"
-	season.Position = UDim2.new(0, 16, 0, 164)
+	season.Position = UDim2.new(0, 16, 0, ResponsiveLayout.clearOfTopBar(16, 16))
 	season.Size = UDim2.new(0, 320, 0, 72)
 	season.BackgroundColor3 = Color3.fromRGB(40, 50, 95)
 	season.BorderSizePixel = 0
@@ -196,156 +171,148 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 21,
 	})
 
-	-- Popup (parented to the menu so it hides with it).
+	-- The popup (a ScreenGui child so it also shows during play).
 	local popup = Instance.new("Frame")
-	popup.Name = "LoginStreakPopup"
+	popup.Name = "DailyRewardPopup" -- not a "...Backdrop": it never locks the gameplay hit areas
 	popup.AnchorPoint = Vector2.new(0.5, 0.5)
-	popup.Position = UDim2.fromScale(0.5, 0.5)
-	popup.Size = UDim2.new(0, 480, 0, 380)
+	popup.Position = UDim2.fromScale(0.5, 0.42)
+	popup.Size = UDim2.fromOffset(360, 250)
 	popup.BackgroundColor3 = PARCHMENT
 	popup.BorderSizePixel = 0
 	popup.Visible = false
 	popup.Active = true
-	popup.ZIndex = 39
-	popup.Parent = menuFrame
-	corner(popup, 10)
+	popup.ZIndex = 90
+	popup.Parent = host
+	corner(popup, 12)
 	stroke(popup, GOLD, 3)
 	ui.popup = popup
-	label(popup, {
-		Position = UDim2.new(0, 0, 0, 10), Size = UDim2.new(1, 0, 0, 30), Text = "Daily Rewards", TextSize = 24,
-	})
-	ui.streakLabel = label(popup, {
-		Position = UDim2.new(0, 0, 0, 44), Size = UDim2.new(1, 0, 0, 24), Text = "", TextSize = 18,
-	})
-	ui.rows = Instance.new("Frame")
-	ui.rows.Position = UDim2.new(0, 16, 0, 78)
-	ui.rows.Size = UDim2.new(1, -32, 0, 180)
-	ui.rows.BackgroundTransparency = 1
-	ui.rows.ZIndex = 40
-	ui.rows.Parent = popup
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
-	layout.Parent = ui.rows
-	ui.footer = label(popup, {
-		Position = UDim2.new(0, 20, 0, 270), Size = UDim2.new(1, -40, 0, 44), Text = "", TextSize = 15,
+	ui.scale = Instance.new("UIScale")
+	ui.scale.Parent = popup
+	label(popup, { Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 54), Text = "🎁", TextSize = 46 })
+	label(popup, { Position = UDim2.new(0, 0, 0, 62), Size = UDim2.new(1, 0, 0, 28), Text = "Daily reward ready!", TextSize = 22 })
+	ui.flames = label(popup, { Position = UDim2.new(0, 10, 0, 92), Size = UDim2.new(1, -20, 0, 30), Text = "", TextSize = 24 })
+	ui.streak = label(popup, { Position = UDim2.new(0, 0, 0, 122), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 16 })
+	ui.reward = label(popup, {
+		Position = UDim2.new(0, 16, 0, 146), Size = UDim2.new(1, -32, 0, 28), Text = "", TextSize = 17,
 		Font = Enum.Font.GothamMedium, TextWrapped = true,
 	})
-	local close = Instance.new("TextButton")
-	close.AnchorPoint = Vector2.new(0.5, 1)
-	close.Position = UDim2.new(0.5, 0, 1, -12)
-	close.Size = UDim2.new(0, 140, 0, 40)
-	close.BackgroundColor3 = WOOD
-	close.BorderSizePixel = 0
-	close.AutoButtonColor = false
-	close.Font = Enum.Font.GothamBold
-	close.TextSize = 17
-	close.TextColor3 = CREAM
-	close.Text = "Close"
-	close.ZIndex = 41
-	close.Parent = popup
-	corner(close, 8)
-	stroke(close, GOLD, 1.5)
+	local claim = Instance.new("TextButton")
+	claim.Name = "Claim"
+	claim.AnchorPoint = Vector2.new(0.5, 1)
+	claim.Position = UDim2.new(0.5, 0, 1, -14)
+	claim.Size = UDim2.fromOffset(180, 46)
+	claim.BackgroundColor3 = GREEN
+	claim.BorderSizePixel = 0
+	claim.AutoButtonColor = true
+	claim.Font = Enum.Font.GothamBold
+	claim.TextSize = 20
+	claim.TextColor3 = CREAM
+	claim.Text = "Claim"
+	claim.ZIndex = 92
+	claim.Parent = popup
+	corner(claim, 8)
+	stroke(claim, GOLD, 2)
+	local later = Instance.new("TextButton") -- small "x" so it can be waved away; it also dismisses itself
+	later.Name = "Later"
+	later.AnchorPoint = Vector2.new(1, 0)
+	later.Position = UDim2.new(1, -8, 0, 8)
+	later.Size = UDim2.fromOffset(32, 32)
+	later.BackgroundTransparency = 1
+	later.Font = Enum.Font.GothamBold
+	later.TextSize = 20
+	later.TextColor3 = INK
+	later.Text = "X"
+	later.ZIndex = 92
+	later.Parent = popup
 
-	-- The strip, button and banner sit above (Global ZIndex) every full-screen overlay, so hide them while
-	-- any "...Backdrop" overlay (Journey, Collection, Card Sets, Settings, ...) is open.
-	local function overlayOpen()
-		local gui = menuFrame:FindFirstAncestorOfClass("ScreenGui")
-		if not gui then
-			return false
+	claim.MouseButton1Click:Connect(function()
+		if playClick then playClick() end
+		if ui.claimDay then
+			remote:FireServer(ui.claimDay)
+			flyCoin()
 		end
-		for _, child in ipairs(gui:GetChildren()) do
-			if child ~= menuFrame and child:IsA("GuiObject") and child.Visible
-				and string.sub(child.Name, -8) == "Backdrop" then
-				return true
-			end
-		end
-		return false
-	end
-	function ui.applyVisibility()
-		local covered = overlayOpen()
-		ui.strip.Visible = ui.want.strip and not covered
-		ui.open.Visible = ui.want.open and not covered
-		ui.season.Visible = ui.want.season and not covered
-		if covered and ui.popup.Visible then
-			ui.popup.Visible = false
-		end
-	end
+		hidePopup()
+	end)
+	later.MouseButton1Click:Connect(function()
+		if playClick then playClick() end
+		hidePopup()
+	end)
+
+	-- Hide the season banner while a full-screen overlay is open (it sits above the menu in Global layering);
+	-- a popup that was waiting on an overlay opens as soon as the overlay closes.
 	task.spawn(function()
-		while menuFrame.Parent do
-			if menuFrame.Visible then
-				pcall(ui.applyVisibility)
-			end
-			task.wait(0.15)
-		end
-	end)
-
-	local function setOpen(visible)
-		popup.Visible = visible
-		if visible then
-			popup.Size = UDim2.new(0, 440, 0, 350)
-			TweenService:Create(popup, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-				{ Size = UDim2.new(0, 480, 0, 380) }):Play()
-		end
-	end
-	open.MouseButton1Click:Connect(function()
-		if playClick then
-			playClick()
-		end
-		if lastState and lastState.login then
-			rebuildPopup(lastState.login)
-		end
-		setOpen(not popup.Visible)
-	end)
-	close.MouseButton1Click:Connect(function()
-		if playClick then
-			playClick()
-		end
-		setOpen(false)
-	end)
-	menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if not menuFrame.Visible then
-			popup.Visible = false
+		while host.Parent do
+			pcall(function()
+				if menuFrame.Visible then
+					season.Visible = ui.want.season and not overlayOpen(gui, menuFrame)
+				else
+					season.Visible = false
+				end
+				if ui.pending and not overlayOpen(gui, nil) then
+					ui.pending = false
+					showPopup()
+				end
+			end)
+			task.wait(0.2)
 		end
 	end)
 end
 
+-- The gift icon in the top-right icon row: only while a reward is waiting.
+local function ensureGift()
+	if ui.gift and ui.gift.Parent then return ui.gift end
+	local gui = ui.gui
+	local row = gui and gui:FindFirstChild("CornerIconRow", true)
+	if not row then return nil end
+	local sibling = row:FindFirstChildWhichIsA("TextButton") or row:FindFirstChildWhichIsA("ImageButton")
+	local gift = Instance.new("TextButton")
+	gift.Name = "DailyGiftIcon"
+	gift.LayoutOrder = 99
+	gift.Size = sibling and sibling.Size or UDim2.fromOffset(44, 44)
+	gift.BackgroundColor3 = Color3.fromRGB(70, 48, 30)
+	gift.Font = Enum.Font.GothamBold
+	gift.TextSize = 24
+	gift.Text = "🎁"
+	gift.Visible = false
+	gift.ZIndex = sibling and sibling.ZIndex or 10
+	gift.Parent = row
+	corner(gift, 10)
+	stroke(gift, GOLD, 2)
+	gift.MouseButton1Click:Connect(function()
+		if ui.playClick then ui.playClick() end
+		showPopup()
+	end)
+	ui.gift = gift
+	return gift
+end
+
 -- Called from the hub's render with every state push (pcall'd there).
 function LoginStreakUI.update(state)
-	if not ui.strip or type(state) ~= "table" then
+	if not ui.popup or type(state) ~= "table" then
 		return
 	end
 	lastState = state
-	local pick = state.nextUnlock
-	ui.want.strip = pick ~= nil
-	if pick then
-		ui.unlockText.Text = pick.label
-		ui.barFill.Size = UDim2.new(math.clamp(pick.progress / math.max(1, pick.goal), 0, 1), 0, 1, 0)
-	end
 	local seasonView = state.season
 	ui.want.season = seasonView ~= nil
 	if seasonView then
 		ui.seasonTitle.Text = string.format("%s: %s left", seasonView.name, seasonView.timeLeft or "")
 		ui.seasonBody.Text = seasonView.earned and "Reward earned. Thank you for playing!" or (seasonView.blurb or "")
 	end
-	local login = state.login
-	ui.want.open = login ~= nil
-	if login then
-		local claimable = false
-		for _, reward in ipairs(login.rewards) do
-			claimable = claimable or reward.claimable
+	local waiting = DailyPopup.nextClaimable(state.login) ~= nil
+	local gift = ensureGift()
+	if gift then gift.Visible = waiting end
+	if waiting then
+		if DailyPopup.shouldShow(tracker, state) then
+			ui.pending = true -- opens at once unless an overlay is up (the spawn loop above retries)
+			if not overlayOpen(ui.gui, nil) then
+				ui.pending = false
+				showPopup()
+			end
+		elseif ui.popup.Visible then
+			refreshPopup(state.login)
 		end
-		if claimable then
-			ui.open.Text = string.format("Daily rewards: claim now! (day %d)", login.streak)
-		else
-			ui.open.Text = string.format("Daily rewards (streak %d)", login.streak)
-		end
-		if ui.popup.Visible then
-			rebuildPopup(login)
-		end
-	end
-	if ui.applyVisibility then
-		ui.applyVisibility()
+	elseif ui.popup.Visible then
+		hidePopup(true) -- claimed (or a new day with nothing to claim)
 	end
 end
 

@@ -306,7 +306,7 @@ function RunSummaryUI.update(state)
 			math.floor(summary.night), summary.round or 1, summary.handsPlayed,
 			summary.bestHand and string.format("%s (%d)", summary.bestHand.name, summary.bestHand.score) or "none",
 			#summary.route, #summary.route == 1 and "" or "s"
-		)
+		) .. ((state.nextUnlock and state.nextUnlock.label) and ("\nNext unlock: " .. state.nextUnlock.label) or "")
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)

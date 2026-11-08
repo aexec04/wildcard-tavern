@@ -15,6 +15,7 @@
 	collectionPanel(vpX, vpY) -> { w, h }     fractions of the screen
 	collectionTitle(panelW) -> { x, w, fullWidth }   the title steps aside of the Card Sets / Badges buttons
 	wrapRows(widths, avail, gap) -> rows      chips or tabs wrapped onto extra lines instead of overflowing
+	clearOfTopBar(x, y, safeTop) -> y        keeps left-zone panels below Roblox's top bar (about 60px)
 	inside(rect, vpX, vpY) -> bool            rect lies fully on screen
 	overlaps(a, b) -> bool                    two rects share area
 ]]
@@ -26,6 +27,20 @@ ResponsiveLayout.SIDEBAR_W = 240
 ResponsiveLayout.PILE_RESERVE = 150 -- the draw pile (124px) and its margin on the right
 ResponsiveLayout.ACTION_NATURAL_W = 230 + 200 + 200 + 2 * 20 -- sort group, Play Hand, Discard, two gaps
 ResponsiveLayout.ACTION_H = 54
+
+-- Roblox's own top bar (menu, chat) sits in the top-left corner. Nothing of ours may sit under it: panels in
+-- the left zone start at least TOPBAR_H px down (also respect the device safe area on phones).
+ResponsiveLayout.TOPBAR_H = 60
+ResponsiveLayout.TOPBAR_ZONE_W = 320
+
+-- y (px) for a panel whose left edge is at x: pushed below the top bar when it sits in the left zone.
+function ResponsiveLayout.clearOfTopBar(x, y, safeTop)
+	local floor = ResponsiveLayout.TOPBAR_H + (safeTop or 0)
+	if x < ResponsiveLayout.TOPBAR_ZONE_W and y < floor then
+		return floor
+	end
+	return y
+end
 
 function ResponsiveLayout.isCompact(vpX)
 	return vpX < ResponsiveLayout.COMPACT_WIDTH

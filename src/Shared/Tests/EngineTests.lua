@@ -7550,4 +7550,36 @@ table.insert(tests, { name = "Layout harness: Collection panel, title and chips 
 	end
 end })
 
+table.insert(tests, { name = "DailyPopup: shows when the game opens with a reward ready and after a round, never nags", fn = function()
+	local DailyPopup = require(script.Parent.Parent.Engine.DailyPopup)
+	local R = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	local function state(phase, claimable, day, round)
+		return { phase = phase, night = 1, round = round or 1,
+			login = { streak = 3, rewards = { { day = day or 3, claimable = claimable, claimed = false, label = "5 Tips" } } } }
+	end
+	expectEqual(DailyPopup.nextClaimable(state("menu", false).login), nil, "nothing claimable")
+	expectEqual(DailyPopup.nextClaimable(state("menu", true).login).day, 3)
+	local t = {}
+	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", false)), "nothing waiting: no popup")
+	expectTrue(DailyPopup.shouldShow(t, state("roundSelect", true)), "game opens with a reward ready: show")
+	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", true)), "same state again: no nagging")
+	expectFalse(DailyPopup.shouldShow(t, state("playing", true)), "mid-round: stays quiet")
+	expectTrue(DailyPopup.shouldShow(t, state("shop", true)), "a round just ended with the reward still waiting: show again")
+	expectFalse(DailyPopup.shouldShow(t, state("shop", true)), "once per finished round")
+	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", true, 3, 2)), "not a round end: quiet")
+	expectFalse(DailyPopup.shouldShow(t, state("playing", true, 3, 2)))
+	expectTrue(DailyPopup.shouldShow(t, state("shop", true, 3, 2)), "the next finished round asks again")
+	expectFalse(DailyPopup.shouldShow(t, state("shop", false, 3, 2)), "claimed: nothing to show")
+	expectTrue(DailyPopup.shouldShow(t, state("shop", true, 7, 2)), "the next reward (another day) asks on first sight")
+	local shown, extra = DailyPopup.flames(3, 7)
+	expectTrue(shown == 3 and extra == 0, "3 flames")
+	shown, extra = DailyPopup.flames(12, 7)
+	expectTrue(shown == 7 and extra == 5, "long streaks cap the flames and say how many more")
+	-- top-left rule: panels stay clear of Roblox's top bar
+	expectEqual(R.clearOfTopBar(16, 16), 60, "a left-zone panel is pushed below the top bar")
+	expectEqual(R.clearOfTopBar(16, 120), 120, "already clear stays put")
+	expectEqual(R.clearOfTopBar(900, 10), 10, "away from the top-left corner nothing moves")
+	expectEqual(R.clearOfTopBar(16, 16, 44), 104, "the phone safe area adds to it")
+end })
+
 return tests
