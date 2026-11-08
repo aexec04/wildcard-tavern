@@ -7085,4 +7085,20 @@ table.insert(tests, { name = "BossStage: boss rounds have no health bar and no r
 	expectTrue(BossStage.isRedish({ 220, 40, 30 }) and not BossStage.isRedish({ 250, 235, 200 }), "isRedish sanity")
 end })
 
+table.insert(tests, { name = "CardFit: Round Select cards fill big screens, fit 1280x720 and phones", fn = function()
+	local CardFit = require(script.Parent.Parent.Engine.CardFit)
+	local big = CardFit.scale(1080, 1860, 900, 620, 220, 1.25)
+	expectTrue(big > 1 and big <= 1.25, "cards grow on a 1080p full-width screen")
+	local hd = CardFit.scale(720, 1220, 600, 620, 220, 1.25)
+	expectTrue(hd >= 0.6 and hd < 1, "cards shrink to fit 1280x720")
+	local phone = CardFit.scale(400, 760, 290, 620, 220, 1.25)
+	expectTrue(phone < 0.7, "cards shrink on a phone")
+	local narrow = CardFit.scale(1080, 500, 900, 620, 220, 1.25)
+	expectTrue(narrow * 220 * 3 + 48 <= 500 or narrow == 0.6, "three cards fit a narrow row")
+	for _, vp in ipairs({ 360, 540, 720, 1080, 1440 }) do
+		local sc = CardFit.scale(vp, vp * 1.7, vp * 0.7, 620, 220, 1.25)
+		expectTrue(sc >= 0.6 and sc <= 1.25, "scale stays in range")
+	end
+end })
+
 return tests

@@ -2617,6 +2617,7 @@ local function render(state)
 	lastPhase = state.phase
 
 	roundSelectFrame.Visible = (state.phase == "roundSelect")
+	pcall(require(script.SidebarSlide).set, root, SIDEBAR_WIDTH, state.phase == "roundSelect") -- stats panel away on Round Select
 	shopFrame.Visible = (state.phase == "shop")
 	gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then

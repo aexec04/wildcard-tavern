@@ -72,6 +72,7 @@ return function(deps)
 	local polishPanel = deps.polishPanel
 	local polishButton = deps.polishButton
 	local roundCorner = deps.roundCorner
+	local CardFit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CardFit"))
 	local playClickSfx = deps.playClickSfx
 	local tweenTo = deps.tweenTo
 	local addTooltip = deps.addTooltip
@@ -129,8 +130,10 @@ return function(deps)
 	-- to change.
 	local roundSelectFrame = Instance.new("Frame")
 	roundSelectFrame.Name = "RoundSelect"
-	roundSelectFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 1, 0)
-	roundSelectFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 0)
+	-- Full width: the left stats panel only matters during a round, so Round Select covers it
+	-- (Client/SidebarSlide.lua slides the panel away here and back in when a round starts).
+	roundSelectFrame.Size = UDim2.new(1, -40, 1, 0)
+	roundSelectFrame.Position = UDim2.new(0, 20, 0, 0)
 	roundSelectFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	roundSelectFrame.Visible = false
 	roundSelectFrame.ZIndex = 6 -- matches shopFrame -- see Shop.lua for why (beats the corner icon buttons)
@@ -202,27 +205,44 @@ return function(deps)
 	end
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -40, 0, 44)
-	titleLabel.Position = UDim2.new(0, 20, 0, 16)
+	titleLabel.Size = UDim2.new(1, -360, 0, 44)
+	titleLabel.Position = UDim2.new(0, 180, 0, 14)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextSize = 26
+	titleLabel.TextSize = 34
 	titleLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
 	titleLabel.Text = "This Night"
 	titleLabel.ZIndex = 7
 	titleLabel.Parent = roundSelectFrame
 
 	local subtitleLabel = Instance.new("TextLabel")
-	subtitleLabel.Size = UDim2.new(1, -40, 0, 24)
-	subtitleLabel.Position = UDim2.new(0, 20, 0, 58)
+	subtitleLabel.Size = UDim2.new(1, -360, 0, 26)
+	subtitleLabel.Position = UDim2.new(0, 180, 0, 58)
 	subtitleLabel.BackgroundTransparency = 1
 	subtitleLabel.Font = Enum.Font.Gotham
-	subtitleLabel.TextSize = 16
+	subtitleLabel.TextSize = 18
 	subtitleLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-	subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	subtitleLabel.Text = "Play the round you're on, or skip it for a Tag instead."
 	subtitleLabel.ZIndex = 7
 	subtitleLabel.Parent = roundSelectFrame
+
+	-- Slim Tips chip, top right (the sidebar's Tips box is hidden while this screen is up).
+	local tipsChip = Instance.new("TextLabel")
+	tipsChip.Name = "TipsChip"
+	tipsChip.AnchorPoint = Vector2.new(1, 0)
+	tipsChip.Size = UDim2.new(0, 150, 0, 34)
+	tipsChip.Position = UDim2.new(1, -20, 0, 18)
+	tipsChip.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
+	tipsChip.BackgroundTransparency = 0.2
+	tipsChip.BorderSizePixel = 0
+	tipsChip.Font = Enum.Font.GothamBold
+	tipsChip.TextSize = 17
+	tipsChip.TextColor3 = Color3.fromRGB(235, 200, 120)
+	tipsChip.Text = "Tips: 0"
+	tipsChip.ZIndex = 7
+	tipsChip.Parent = roundSelectFrame
+	roundCorner(tipsChip, 8)
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
@@ -571,14 +591,13 @@ return function(deps)
 	-- viewport, row height). Scale is clamped 0.6..1 (1280x720 -> ~0.93).
 	-- The bottom-anchored content scales with the card, so nothing is cut off.
 	local CARD_H = 620
+	local MAX_FIT = 1.25 -- the full-width screen lets the cards grow on big viewports
 	local function fitCards()
 		local cam = workspace.CurrentCamera
 		local vpY = cam and cam.ViewportSize.Y or 720
 		local rowH = panelRow.AbsoluteSize.Y
-		local h = math.min(CARD_H, 0.80 * vpY)
-		-- Leave ~4% headroom so a hovered (1.04x) card never clips.
-		if rowH > 0 then h = math.min(h, (rowH - 8) / 1.05) end
-		local scale = math.clamp(h / CARD_H, 0.6, 1)
+		local rowW = panelRow.AbsoluteSize.X
+		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, 220, MAX_FIT)
 		fx.setFit(scale)
 	end
 	fitCards()
@@ -679,6 +698,7 @@ return function(deps)
 		else
 			titleLabel.Text = string.format("Night %d/%d", state.night, nightCap)
 		end
+		tipsChip.Text = string.format("Tips: %d", math.floor(tonumber(state.tips) or 0))
 		subtitleLabel.Text = state.round == 1
 			and "A new Night begins! Play the round you're on, or skip it for a Tag instead."
 			or "Play the round you're on, or skip it for a Tag instead."
