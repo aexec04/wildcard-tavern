@@ -181,6 +181,10 @@ function PlayerProfile.new()
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
 		hasSeenHighCardHint = false, -- see Onboarding.shouldShowHighCardHint
 		freeContinueDateKey = nil, -- ONE MORE ROUND: SeededRng.dailyDateKey() of the day the free daily continue was last used, see hasFreeContinue
+		-- LOGIN STREAK (Engine/LoginStreak.lua)
+		lastLoginDay = nil, -- UTC day number of the last check-in
+		loginStreak = 0,
+		claimedLoginDays = {}, -- [reward day] = true
 		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
 end
@@ -299,6 +303,20 @@ function PlayerProfile.migrate(raw)
 
 	if type(raw.freeContinueDateKey) == "string" then
 		profile.freeContinueDateKey = raw.freeContinueDateKey
+	end
+
+	if type(raw.lastLoginDay) == "number" and raw.lastLoginDay == raw.lastLoginDay and raw.lastLoginDay >= 0 then
+		profile.lastLoginDay = math.floor(raw.lastLoginDay)
+	end
+	if type(raw.loginStreak) == "number" and raw.loginStreak == raw.loginStreak then
+		profile.loginStreak = math.max(0, math.min(9999, math.floor(raw.loginStreak)))
+	end
+	if type(raw.claimedLoginDays) == "table" then
+		for day, flag in pairs(raw.claimedLoginDays) do
+			if type(day) == "number" and flag == true then
+				profile.claimedLoginDays[day] = true
+			end
+		end
 	end
 
 	-- Each setting is checked on its own; a missing or bad one keeps its default.

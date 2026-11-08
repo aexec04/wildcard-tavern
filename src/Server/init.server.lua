@@ -25,6 +25,8 @@ local Engine = Shared:WaitForChild("Engine")
 local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
+local LoginStreak = require(Engine.LoginStreak) -- daily login streak rules
+local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
@@ -81,6 +83,7 @@ local BuyPatronRemote = newRemote("BuyPatron")
 local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
 local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
 local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
+local ClaimLoginRewardRemote = newRemote("ClaimLoginReward") -- (player, rewardDay)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
@@ -670,6 +673,24 @@ local function serializeState(session, player)
 			return ids
 		end)(),
 		journeyNotice = session.journeyNotice,
+		-- LOGIN STREAK + menu strip (display only; ClaimLoginReward re-checks everything).
+		login = (function()
+			local profile = profiles[player]
+			if not profile then
+				return nil
+			end
+			local view = LoginStreak.view(profile)
+			view.secondsToNextDay = LoginStreak.secondsToNextDay(os.time())
+			return view
+		end)(),
+		nextUnlock = (function()
+			local profile = profiles[player]
+			return profile and NextUnlock.compute(profile) or nil
+		end)(),
+		placesSeen = (function()
+			local profile = profiles[player]
+			return profile and NextUnlock.placesSeen(profile) or nil
+		end)(),
 		-- WORLD MAP: the road so far, the roads waiting to be picked (nil when none), and whether the route
 		-- is fixed by the seed (Daily, Weekly, Seed). The client never decides any of this.
 		worldRoute = state.worldRoute,
@@ -1183,6 +1204,15 @@ local function onPlayerAdded(player)
 		warn("[Startup] loadProfile failed for " .. player.Name .. ": " .. tostring(profileOrErr))
 		profiles[player] = PlayerProfile.new()
 	end
+	-- LOGIN STREAK: one check-in per UTC day (a clock error just skips it).
+	local okStreak, streakErr = pcall(function()
+		if LoginStreak.checkIn(profiles[player], LoginStreak.dayNumber(os.time())) then
+			profileDirty[player] = true
+		end
+	end)
+	if not okStreak then
+		warn("[Startup] login streak failed for " .. player.Name .. ": " .. tostring(streakErr))
+	end
 	local okSession, errSession = pcall(startNewSession, player)
 	if not okSession then
 		warn("[Startup] startNewSession failed for " .. player.Name .. ": " .. tostring(errSession))
@@ -1620,6 +1650,20 @@ end)
 
 -- Cosmetic Set purchases/equips are allowed any time (not gated to the
 -- shop phase). They live on the permanent profile; Tips come from the run.
+-- LOGIN STREAK: claim one reward day. Allowed any time; Tips are added to the current run.
+ClaimLoginRewardRemote.OnServerEvent:Connect(function(player, rewardDay)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile or type(rewardDay) ~= "number" then
+		return
+	end
+	local ok = LoginStreak.claim(profile, rewardDay, session.state)
+	if ok then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
 BuyCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
 	local session = sessions[player]
 	local profile = profiles[player]

@@ -1768,6 +1768,10 @@ return function(deps)
 			hint = "Every reward earned. Well played, Keeper!"
 		end
 		local progress = string.format("Journey %d%% (%d/%d)", percent, done, total)
+		local seenInfo = view.state and view.state.placesSeen
+		if seenInfo and seenInfo.total > 0 then
+			progress = progress .. string.format(". Places seen: %d of %d", seenInfo.seen, seenInfo.total)
+		end
 		if view.inEndless then
 			deps.titleLabel.Text = "♾ " .. JourneyMap.Endless.name .. " ♾"
 			deps.titleLabel.TextColor3 = PURPLE

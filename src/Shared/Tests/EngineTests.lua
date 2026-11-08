@@ -4193,6 +4193,65 @@ table.insert(tests, { name = "One free One More Round per player per day", fn = 
 	expectTrue(PlayerProfile.hasFreeContinue(PlayerProfile.migrate(nil), "2026-11-03"))
 end })
 
+table.insert(tests, { name = "Login streak: advance, grace day, reset, claims", fn = function()
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local profile = PlayerProfile.new()
+	expectTrue(LoginStreak.checkIn(profile, 100))
+	expectEqual(profile.loginStreak, 1)
+	expectFalse(LoginStreak.checkIn(profile, 100)) -- same day does nothing
+	expectEqual(profile.loginStreak, 1)
+	expectTrue(LoginStreak.checkIn(profile, 101))
+	expectTrue(LoginStreak.checkIn(profile, 103)) -- one missed day is forgiven
+	expectEqual(profile.loginStreak, 3)
+	-- Day 3 reward: Tips go to the run, once.
+	expectTrue(LoginStreak.canClaim(profile, 3))
+	expectFalse(LoginStreak.canClaim(profile, 7))
+	local state = { tips = 2 }
+	expectFalse((LoginStreak.claim(profile, 3, nil)))
+	expectTrue((LoginStreak.claim(profile, 3, state)))
+	expectEqual(state.tips, 7)
+	expectFalse((LoginStreak.claim(profile, 3, state)))
+	expectEqual(LoginStreak.nextReward(profile).day, 7)
+	-- It survives a save round-trip.
+	local saved = PlayerProfile.migrate(profile)
+	expectEqual(saved.loginStreak, 3)
+	expectEqual(saved.lastLoginDay, 103)
+	expectTrue(saved.claimedLoginDays[3])
+	-- Two missed days reset the streak and the claims.
+	expectTrue(LoginStreak.checkIn(profile, 106))
+	expectEqual(profile.loginStreak, 1)
+	expectFalse(profile.claimedLoginDays[3] == true)
+	-- A clock that went backwards also restarts instead of crashing.
+	expectTrue(LoginStreak.checkIn(profile, 50))
+	expectEqual(profile.loginStreak, 1)
+	-- Day 7 card back and day 14 patron are real ids.
+	profile.loginStreak = 14
+	expectTrue((LoginStreak.claim(profile, 7, nil)))
+	expectTrue(profile.unlockedCardBackIds.festival_ribbon)
+	expectTrue((LoginStreak.claim(profile, 14, nil)))
+	expectTrue(profile.discoveredPatronIds.the_bard)
+	expectEqual(LoginStreak.nextReward(profile).day, 3)
+	expectEqual(LoginStreak.dayNumber(86400 * 5 + 10), 5)
+	-- Garbage in a saved profile is dropped.
+	local bad = PlayerProfile.migrate({ lastLoginDay = "x", loginStreak = -4, claimedLoginDays = { a = true } })
+	expectEqual(bad.lastLoginDay, nil)
+	expectEqual(bad.loginStreak, 0)
+end })
+
+table.insert(tests, { name = "Next unlock strip and places seen", fn = function()
+	local NextUnlock = require(script.Parent.Parent.Engine.NextUnlock)
+	local profile = PlayerProfile.new()
+	local pick = NextUnlock.compute(profile)
+	expectTrue(pick ~= nil)
+	expectTrue(pick.goal >= 1 and pick.progress >= 0 and pick.progress <= pick.goal)
+	expectTrue(type(pick.label) == "string" and #pick.label > 0)
+	local seen = NextUnlock.placesSeen(profile)
+	expectEqual(seen.seen, 0)
+	expectTrue(seen.total > 0)
+	profile.worldSeenStopIds.dusty_road = true
+	expectEqual(NextUnlock.placesSeen(profile).seen, 1)
+end })
+
 table.insert(tests, { name = "A revived run doesn't unlock high-score achievements", fn = function()
 	-- Mirrors Server syncProfileFromSession: records only when countsForRecords.
 	local profile = PlayerProfile.new()
