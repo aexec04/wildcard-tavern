@@ -312,9 +312,31 @@ return function(deps)
 		})
 
 		if opts.iconKey then
-			local textPad = Instance.new("UIPadding")
-			textPad.PaddingBottom = UDim.new(0, 16)
-			textPad.Parent = button
+			-- LABEL CLEARANCE (measured in Studio): the frame art has a thick bottom
+			-- border, so padding from the outer edge was not enough. The label lives
+			-- in its own TextLabel whose BOTTOM edge is 26px above the button bottom
+			-- (24px tall, so text center is 38px above it; minimum 24 / 30). Tiles
+			-- (138 tall): icon 10..80, label 88..112. Small (114): icon 8..54, label 64..88.
+			button.Text = ""
+			local labelBox = Instance.new("TextLabel")
+			labelBox.Name = "Label"
+			labelBox.AnchorPoint = Vector2.new(0.5, 1)
+			labelBox.Position = UDim2.new(0.5, 0, 1, -26)
+			labelBox.Size = UDim2.new(1, -16, 0, 24)
+			labelBox.BackgroundTransparency = 1
+			labelBox.Font = Enum.Font.GothamBold
+			labelBox.TextSize = opts.textSize
+			labelBox.Text = opts.text
+			labelBox.TextWrapped = false
+			labelBox.TextXAlignment = Enum.TextXAlignment.Center
+			labelBox.TextYAlignment = Enum.TextYAlignment.Center
+			labelBox.TextColor3 = CREAM
+			labelBox.TextTransparency = 0
+			labelBox.TextStrokeColor3 = Color3.fromRGB(40, 24, 10)
+			labelBox.TextStrokeTransparency = 0.5
+			labelBox.Active = false
+			labelBox.ZIndex = ART_Z + 2
+			labelBox.Parent = button
 			local size = opts.iconSize
 			local artId = ContentArt.getImageId("menu_icons", opts.iconKey)
 			local holder = Instance.new("Frame")
