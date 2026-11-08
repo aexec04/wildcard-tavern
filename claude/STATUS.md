@@ -21,10 +21,7 @@
 
 ## Open items (ship-check 2026-11-07: DON'T SHIP)
 
-**Blocking, must do before launch:**
-- `GamePasses.lua:34` Fast Forward game pass, `gamePassId = 0` (speeds up scoring reveal)
-- `GamePasses.lua:41` Golden Gala Set game pass, `gamePassId = 0` (unlocks gala cosmetic set)
-- `GamePasses.lua:63` One More Round developer product, `productId = 0` (paid continue)
+**Blocking, must do before launch:** none left in code. Monetization ids are set (Fast Forward, Golden Gala, One More Round); the Studio free grants stay behind `RunService:IsStudio()`.
 
 **World map, still open:** (1) record Image ids for the generated art (4 regions, 13 map nodes, 8 decor, 27 scenes, 5 card backs, 5 titles, 5 hud pieces; decal ids are in `claude/OUTBOX.md`) and give the new decor and `side_*` / `game_*` icons a place in `JourneyMapScenery` / the side stop chips; (2) the Tavern Map is still drawn as the straight 8-node road (no fork roads, side stop detours or compass camera; the fork screen, side stop chips and minigames live on Round Select); (3) the 3 biome patrons and 2 recipes are not authored (shop pool and balance risk); (4) Studio checks of RoadChoice, CompassWheel, SideStopPanel, MinigamePanel and CharacterStage. Balance: `walkRoute` tests prove all 18 routes share the same targets, hands and discards per Night, and reward value stays within 2x across routes.
 

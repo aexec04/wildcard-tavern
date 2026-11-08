@@ -31,14 +31,14 @@ GamePasses.Definitions = {
 		name = "Fast Forward",
 		icon = "⏩",
 		description = "Speeds up the hand-scoring reveal sequence -- same numbers, same result, just quicker to sit through on a run you already know by heart.",
-		gamePassId = 0, -- TODO: paste the real Game Pass ID here once created (see the header comment above)
+		gamePassId = 2075404246,
 	},
 	{
 		id = "set_golden_gala",
 		name = "Golden Gala Set",
 		icon = "✨",
 		description = "Unlocks the Golden Gala cosmetic set: a gold-trimmed card back and a dressed-up tavern backdrop. Looks only.",
-		gamePassId = 0, -- TODO: paste the real Game Pass ID here once created
+		gamePassId = 2075068276,
 	},
 }
 
@@ -48,10 +48,9 @@ GamePasses.Definitions = {
 	and again and granted in MarketplaceService.ProcessReceipt
 	(Server/init.server.lua). Engine/DeveloperProducts.lua has the lookups.
 
-	`productId` is a PLACEHOLDER (0) until the product exists: Creator
-	Dashboard -> your experience -> Monetization -> Developer Products ->
-	Create. Set the name, icon and price there, then paste its numeric id
-	below. While it's 0 the product can't be bought in the live game;
+	`productId` is the numeric id from Creator Dashboard -> your experience
+	-> Monetization -> Developer Products (name, icon and price live
+	there). If it is ever 0 the product can't be bought in the live game;
 	Studio grants it free so it can be playtested.
 ]]
 GamePasses.DeveloperProducts = {
@@ -60,7 +59,7 @@ GamePasses.DeveloperProducts = {
 		-- Each player also gets one free per day (PlayerProfile.
 		-- hasFreeContinue), used before this paid one is offered.
 		id = "continue",
-		productId = 0, -- TODO: paste the real Developer Product ID here once created
+		productId = 3729724982,
 		name = "One More Round",
 		description = "Replay the round you lost from its start, with full Hands and Discards.",
 	},
