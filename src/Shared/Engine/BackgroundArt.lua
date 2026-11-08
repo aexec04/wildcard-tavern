@@ -10,8 +10,12 @@ return {
 	["backdrop_festival_night"] = "rbxassetid://132162931089194",
 	["backdrop_golden_gala"] = "rbxassetid://98915670623191",
 	["backdrop_winter_evening"] = "rbxassetid://137583926261531",
+	["collection_bg"] = "rbxassetid://112056399596251",
 	["game_over_win_bg"] = "rbxassetid://94887773574028",
+	["how_to_play_bg"] = "rbxassetid://102369388069654",
 	["journey_map"] = "rbxassetid://140481956278965",
+	["menu_bg"] = "rbxassetid://71959374981817",
 	["round_select_bg"] = "rbxassetid://114875254867033",
 	["shop_bg"] = "rbxassetid://84939118648459",
+	["shop_counter_bg"] = "rbxassetid://99690627923087",
 }
