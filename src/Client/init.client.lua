@@ -766,6 +766,9 @@ do
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
 		burst = ParticleBurstModule.burst,
 		screenShake = screenShake,
+		playThump = function() playPitched(payoutThudSound, 0.4, 0.7) end,
+		playFanfare = function() playSfx(SOUND_IDS.gameOverWin, 0.5) end,
+		music = backgroundMusic,
 	})
 end
 

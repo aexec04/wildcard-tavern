@@ -4711,6 +4711,44 @@ table.insert(tests, { name = "Journey fog: current + 3 revealed, +4 teaser, rest
 	for i = 1, 9 do expectEqual(s[i], "revealed") end
 end })
 
+table.insert(tests, { name = "BossLines: every boss resolves every event (own lines or fallback), deterministic, kid-safe", fn = function()
+	local BossLines = require(script.Parent.Parent.Engine.BossLines)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local banned = { "balatro", "beer", "wine", "booze", "cocktail", "whiskey", "drunk", "stupid", "idiot", "loser", "dumb" }
+	for _, def in ipairs(BossRounds.Definitions) do
+		local category = BossRounds.categoryOf(def)
+		for _, event in ipairs(BossLines.Events) do
+			local line = BossLines.pick(def.id, category, event, "seed-1")
+			expectTrue(type(line) == "string" and #line > 0)
+			expectEqual(BossLines.pick(def.id, category, event, "seed-1"), line)
+		end
+		expectTrue(BossLines.ByBoss[def.id] ~= nil)
+	end
+	expectTrue(BossLines.isGrand(8, 8, JourneyMap.EndlessMilestones))
+	expectTrue(BossLines.isGrand(15, 8, JourneyMap.EndlessMilestones))
+	expectFalse(BossLines.isGrand(3, 8, JourneyMap.EndlessMilestones))
+	expectFalse(BossLines.isGrand(9, 8, JourneyMap.EndlessMilestones))
+	-- Unknown boss and unknown category still resolve through the default pool.
+	for _, event in ipairs(BossLines.Events) do
+		expectTrue(BossLines.pick("no_such_boss", "no_such_category", event, 1) ~= nil)
+	end
+	-- Every line in every pool is kid-safe, and every ByBoss key is a real boss.
+	local function check(list)
+		for _, line in ipairs(list) do
+			for _, word in ipairs(banned) do
+				expectFalse(line:lower():find(word, 1, true) ~= nil)
+			end
+		end
+	end
+	for _, pool in pairs(BossLines.Fallback) do
+		for _, list in pairs(pool) do check(list) end
+	end
+	for id, events in pairs(BossLines.ByBoss) do
+		expectTrue(BossRounds.getById(id) ~= nil)
+		for _, list in pairs(events) do check(list) end
+	end
+end })
+
 table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endless rotates", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	expectEqual(SceneKeys.keyFor(1, "small"), "front_porch_a")
