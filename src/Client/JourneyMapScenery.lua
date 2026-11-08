@@ -24,6 +24,7 @@
 return function(deps)
 	local canvas = deps.canvas
 	local ContentArt = deps.ContentArt
+	local RegionTiles = deps.RegionTiles
 
 	-- lastNode = index (in JourneyMap.allNodes order) of the last node inside the region.
 	-- decor = doodles that fit the place, used in this order.
@@ -60,7 +61,7 @@ return function(deps)
 			SEAM_STEPS[i] = 1 - k * (1 - peak)
 		end
 	end
-	local PARCHMENT_BASE = Color3.fromRGB(228, 210, 170)
+	local PARCHMENT_BASE = Color3.fromRGB(176, 170, 120) -- muted sand-green, so a gap never reads as a cream block
 
 	local layer = Instance.new("Frame")
 	layer.Name = "Scenery"
@@ -149,21 +150,29 @@ return function(deps)
 			f.BackgroundTransparency = regionIds[i] and 1 or 0
 			if regionIds[i] then
 				if REGIONS[i].single then
-					-- The single tavern keeps its native aspect (never stretched), centred on its last
-					-- node (the Keeper's Table); the art fades to parchment at its edges.
-					local imgW = math.floor(canvasH * ART_ASPECT)
+					-- The single tavern: a Crop copy covers the WHOLE frame (no uncovered gap, ever), and
+					-- the hero image keeps its native aspect on top, centred on the Keeper's node.
 					local cx = (nodeXs and nodeXs[REGIONS[i].lastNode]) or (x0 + w / 2)
+					local t = RegionTiles.single(w + 1, canvasH, ART_ASPECT, cx - x0)
+					local fill = Instance.new("ImageLabel")
+					fill.Name = "Fill"
+					fill.Size = UDim2.fromOffset(t.fillW, canvasH)
+					fill.BackgroundTransparency = 1
+					fill.Image = regionIds[i]
+					fill.ScaleType = Enum.ScaleType.Crop
+					fill.ZIndex = 22
+					fill.Parent = f
 					local img = Instance.new("ImageLabel")
 					img.Name = "Tile1"
-					img.Position = UDim2.fromOffset(math.floor(cx - x0 - imgW / 2), 0)
-					img.Size = UDim2.fromOffset(imgW, canvasH)
+					img.Position = UDim2.fromOffset(t.heroX, 0)
+					img.Size = UDim2.fromOffset(t.heroW, canvasH)
 					img.BackgroundTransparency = 1
 					img.Image = regionIds[i]
 					img.ScaleType = Enum.ScaleType.Fit
-					img.ZIndex = 22
+					img.ZIndex = 23
 					img.Parent = f
 				else
-					local tiles = math.max(1, math.floor(w / (canvasH * ART_ASPECT) + 0.5))
+					local tiles = RegionTiles.tiled(w, canvasH, ART_ASPECT)
 					for t = 1, tiles do
 						local img = Instance.new("ImageLabel")
 						img.Name = "Tile" .. t

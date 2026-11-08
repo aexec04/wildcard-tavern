@@ -5207,6 +5207,19 @@ table.insert(tests, { name = "StageLayout: feet stay above the hand row and both
 	end
 end })
 
+table.insert(tests, { name = "RegionTiles: tavern fill covers the whole region frame, hero keeps aspect", fn = function()
+	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
+	for _, frameW in ipairs({ 600, 1175, 2400 }) do
+		local t = RegionTiles.single(frameW, 545, 1.5, frameW * 0.9)
+		expectTrue(t.fillW >= frameW, "fill spans the frame width")
+		expectTrue(t.heroW == math.floor(545 * 1.5), "hero keeps native aspect")
+	end
+	for _, w in ipairs({ 300, 457, 1000, 2000 }) do
+		local n = RegionTiles.tiled(w, 545, 1.5)
+		expectTrue(n >= 1 and n * math.ceil(w / n) >= w, "tiles span the frame")
+	end
+end })
+
 table.insert(tests, { name = "StageLayout: accent index is stable and in range", fn = function()
 	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
 	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)

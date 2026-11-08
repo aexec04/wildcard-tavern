@@ -126,6 +126,7 @@ return function(deps)
 	-- Region backdrops, seam fog and decor doodles (art optional; flat parchment fallback).
 	local scenery = require(script.Parent.JourneyMapScenery)({
 		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
+		RegionTiles = require(Engine:WaitForChild("RegionTiles")),
 	})
 	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
 	local fogBand = require(script.Parent.JourneyMapFog)({
