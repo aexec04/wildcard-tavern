@@ -46,6 +46,7 @@ CATEGORIES = {
     "recipes":     ("recipe_subjects",     "recipes",     "RecipeArt.lua",    "Recipe"),
     "housepasses": ("housepass_subjects",  "housepasses", "HousePassArt.lua", "House Pass"),
     "titles":      ("title_subjects",      "titles",      "TitleArt.lua",     "Title"),
+    "rooms":       ("room_subjects",       "rooms",       "RoomArt.lua",      "Room"),
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

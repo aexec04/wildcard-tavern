@@ -309,5 +309,10 @@
     "tavern_keeper": "an avatar in an apron holding a big ring of iron keys and a wooden broom, standing in the tavern doorway",
     "night_walker": "an avatar with a glowing lantern walking past the tavern under a big crescent moon",
     "endless_legend": "an avatar in a purple-and-gold cape and golden crown striding along a glowing purple path under an enormous moon"
+  },
+  "room_subjects": {
+    "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
+    "main_hall": "the bustling main hall of a lively tavern with long wooden tables, a roaring stone fireplace, Roblox avatar patrons gathered around, warm amber lighting from ceiling lanterns",
+    "back_room": "a private back room in a tavern with a green felt card table, a dramatic overhead spotlight, rich velvet curtains framing a shadowy doorway, mysterious and exclusive atmosphere"
   }
 }
