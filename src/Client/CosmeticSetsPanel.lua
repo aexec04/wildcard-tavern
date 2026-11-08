@@ -119,7 +119,7 @@ return function(deps)
 		end
 		for _, entry in ipairs(JourneyMap.Nights) do
 			if entry.reward.kind == "cardBack" and entry.reward.id == back.id then
-				return "Journey reward: clear Night " .. entry.night
+				return "Reward for clearing Night " .. entry.night
 			end
 		end
 		return "Collection milestone reward"

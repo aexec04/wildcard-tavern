@@ -375,6 +375,8 @@ local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], 5, ArtAsset
 -- icons anymore -- both moved into the Settings panel (see Settings.lua),
 -- and everything right of Volume shifted 50px to close the gap.
 local journeyButton = makeCornerButton("🗺", 4, ArtAssetsModule.cornerIconJourney)
+-- Journey overlay is dormant: its corner entry point is hidden (the row closes the gap).
+journeyButton.Visible = false
 local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHandReference)
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
 -- (bottom-right) is clickable and opens it directly instead (see
@@ -451,7 +453,6 @@ addTooltip = function(button, text, align)
 end
 
 addTooltip(volumeButton, "Volume", "left")
-addTooltip(journeyButton, "Journey", "left")
 addTooltip(handRefButton, "Poker Hands reference", "left")
 addTooltip(settingsButton, "Settings", "left")
 addTooltip(collectionButton, "Collection", "left")
