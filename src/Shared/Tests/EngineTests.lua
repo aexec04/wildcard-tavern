@@ -6345,7 +6345,8 @@ table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing
 end })
 
 table.insert(tests, { name = "Tutorial: step list covers the guided first hand, Round Select and the Newcomer popup, and replay is wired", fn = function()
-	local f = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	-- Roblox has no `io` library: only the local runner can read the source file.
+	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
 	if not f then
 		return -- not running from the repo root (Studio): nothing to check
 	end
