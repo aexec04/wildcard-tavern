@@ -438,6 +438,37 @@ table.insert(tests, { name = "RunState.playHand scores a hand and refills to han
 	expectEqual(state.handsRemaining, state.config.handsPerRound - 1)
 end })
 
+table.insert(tests, { name = "RunSummary: best hand, patrons used, route, badge tiers and saved badge", fn = function()
+	local RunSummary = require(script.Parent.Parent.Engine.RunSummary)
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(state.bestHand, nil)
+	local first = RunState.playHand(state, { 1, 2 })
+	expectEqual(state.bestHand.score, first.score)
+	state.ownedPatrons = { Patrons.getById("the_regular") }
+	local second = RunState.playHand(state, { 1 })
+	expectTrue(state.bestHand.score >= math.max(first.score, second.score))
+	expectEqual(state.patronsUsedOrder[1], "the_regular")
+	local summary = RunSummary.build(state, "Road Walker")
+	expectEqual(summary.handsPlayed, 2)
+	expectEqual(summary.patrons[1].id, "the_regular")
+	expectEqual(summary.titleText, "Road Walker")
+	expectTrue(#summary.route >= 1 and summary.route[1].icon ~= nil)
+	-- Badge tiers rise with the Night; a win is at least legendary.
+	expectEqual(RunSummary.badgeRarity(1, false), "common")
+	expectEqual(RunSummary.badgeRarity(4, false), "rare")
+	expectEqual(RunSummary.badgeRarity(8, false), "legendary")
+	expectEqual(RunSummary.badgeRarity(3, true), "legendary")
+	expectEqual(RunSummary.badgeRarity(12, true), "mythical")
+	-- A saved badge survives migrate; garbage is dropped.
+	local profile = PlayerProfile.new()
+	profile.equippedBadge = RunSummary.badgeFromSummary(summary)
+	local saved = PlayerProfile.migrate(profile).equippedBadge
+	expectEqual(saved.night, summary.night)
+	expectEqual(saved.routeIds[1], summary.routeIds[1])
+	expectEqual(PlayerProfile.migrate({ equippedBadge = { night = 3, rarity = "nope" } }).equippedBadge, nil)
+	expectEqual(PlayerProfile.migrate({ equippedBadge = "x" }).equippedBadge, nil)
+end })
+
 table.insert(tests, { name = "RunState.discard swaps cards without spending a hand", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	local handsBefore = state.handsRemaining

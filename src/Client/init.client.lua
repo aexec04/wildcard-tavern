@@ -1026,6 +1026,16 @@ local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
 local menuTutorialButton = MenuScreen.menuTutorialButton
 local menuJourneyButton = MenuScreen.menuJourneyButton
 local menuNewRunButton = MenuScreen.menuNewRunButton
+do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Over from render()
+	local ok, err = pcall(function()
+		require(script.RunSummaryUI).init(screenGui, {
+			playClick = playClickSfx,
+			restart = function() remotes:WaitForChild("RestartRun"):FireServer() end,
+			saveBadge = function() remotes:WaitForChild("SaveBadge"):FireServer() end,
+		})
+	end)
+	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
+end
 do -- Daily login streak popup and Next unlock strip (Client/LoginStreakUI.lua); fed from render()
 	local ok, err = pcall(function()
 		require(script.LoginStreakUI).init(menuFrame, remotes:WaitForChild("ClaimLoginReward"), playClickSfx)
@@ -2357,6 +2367,7 @@ local function render(state)
 	pcall(function() require(script.CharacterStage).get().update(state) end) -- live characters (before BossFight so it can hide the portrait)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
+	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no

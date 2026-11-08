@@ -185,6 +185,7 @@ function PlayerProfile.new()
 		lastLoginDay = nil, -- UTC day number of the last check-in
 		loginStreak = 0,
 		claimedLoginDays = {}, -- [reward day] = true
+		equippedBadge = nil, -- RUN SUMMARY badge (Engine/RunSummary.badgeFromSummary), or nil
 		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
 end
@@ -318,6 +319,8 @@ function PlayerProfile.migrate(raw)
 			end
 		end
 	end
+
+	profile.equippedBadge = require(script.Parent.RunSummary).cleanBadge(raw.equippedBadge)
 
 	-- Each setting is checked on its own; a missing or bad one keeps its default.
 	if type(raw.settings) == "table" then

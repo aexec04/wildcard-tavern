@@ -25,6 +25,7 @@ local Engine = Shared:WaitForChild("Engine")
 local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
+local RunSummary = require(Engine.RunSummary) -- Game Over summary data and the profile badge
 local LoginStreak = require(Engine.LoginStreak) -- daily login streak rules
 local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
@@ -84,6 +85,7 @@ local SellPatronRemote = newRemote("SellPatron") -- "Discard" was already taken 
 local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
 local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local ClaimLoginRewardRemote = newRemote("ClaimLoginReward") -- (player, rewardDay)
+local SaveBadgeRemote = newRemote("SaveBadge") -- (player): saves the finished run's badge as the profile badge
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
@@ -673,6 +675,24 @@ local function serializeState(session, player)
 			return ids
 		end)(),
 		journeyNotice = session.journeyNotice,
+		-- RUN SUMMARY: only at Game Over. `badgeSaved` = this run's badge is already the profile badge.
+		runSummary = (function()
+			if session.phase ~= "gameover" then
+				return nil
+			end
+			local profile = profiles[player]
+			local titleText
+			local title = profile and profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
+			if title then
+				titleText = title.title
+			end
+			local summary = RunSummary.build(state, titleText)
+			local saved = profile and profile.equippedBadge
+			summary.badgeSaved = saved ~= nil and saved.night == math.floor(summary.night)
+				and saved.rarity == summary.rarity and saved.won == summary.won
+				and saved.bestHandScore == (summary.bestHand and summary.bestHand.score or nil)
+			return summary
+		end)(),
 		-- LOGIN STREAK + menu strip (display only; ClaimLoginReward re-checks everything).
 		login = (function()
 			local profile = profiles[player]
@@ -1662,6 +1682,18 @@ ClaimLoginRewardRemote.OnServerEvent:Connect(function(player, rewardDay)
 		profileDirty[player] = true
 		pushState(player)
 	end
+end)
+
+-- RUN SUMMARY: the badge is rebuilt from the server's own run state, the client sends nothing.
+SaveBadgeRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	local profile = profiles[player]
+	if not session or not profile or session.phase ~= "gameover" then
+		return
+	end
+	profile.equippedBadge = RunSummary.badgeFromSummary(RunSummary.build(session.state))
+	profileDirty[player] = true
+	pushState(player)
 end)
 
 BuyCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)

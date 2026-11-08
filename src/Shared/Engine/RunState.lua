@@ -23,6 +23,7 @@ local HousePasses = require(script.Parent.HousePasses)
 local Packs = require(script.Parent.Packs)
 local TrueWildcard = require(script.Parent.TrueWildcard)
 local WorldMap = require(script.Parent.WorldMap)
+local RunSummary = require(script.Parent.RunSummary)
 
 local RunState = {}
 
@@ -708,6 +709,7 @@ function RunState.playHand(state, cardIndices)
 	end
 
 	state.handsPlayedTotal = state.handsPlayedTotal + 1
+	RunSummary.recordHand(state, handResult.name, score) -- best hand + Patrons used, for the end-of-run summary
 	state.roundScore = state.roundScore + score
 	state.tips = state.tips + (extra.tipsEarned or 0)
 
