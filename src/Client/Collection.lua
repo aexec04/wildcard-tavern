@@ -525,6 +525,7 @@ return function(deps)
 	end
 
 	local function refresh()
+		task.spawn(ContentArt.preloadAll) -- first call warms the cache; later calls return at once
 		local view = currentView()
 		local completion = view.completion
 

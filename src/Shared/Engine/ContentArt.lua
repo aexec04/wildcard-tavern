@@ -37,4 +37,34 @@ function ContentArt.getImageId(tab, id)
 	return v
 end
 
+-- Warm the asset cache so tiles built later find their art already loaded
+-- (no emoji/placeholder flash). Non-blocking by design: callers run it inside
+-- task.spawn. Runs once per session; later calls return immediately.
+-- Roblox-only (ContentProvider); a no-op under the plain-Lua test runner.
+local preloadStarted = false
+function ContentArt.preloadAll()
+	if preloadStarted then return end
+	local okSvc, ContentProvider = pcall(function() return game:GetService("ContentProvider") end)
+	if not okSvc or not ContentProvider then return end
+	preloadStarted = true
+	local seen, urls = {}, {}
+	for key, map in pairs(ContentArt) do
+		if type(map) == "table" and key ~= "bosses" and key ~= "housePasses" then
+			for _, v in pairs(map) do
+				if type(v) == "string" and v ~= "" and v ~= "rbxassetid://0" and not seen[v] then
+					seen[v] = true
+					table.insert(urls, v)
+				end
+			end
+		end
+	end
+	local BATCH = 25
+	for i = 1, #urls, BATCH do
+		local batch = {}
+		for j = i, math.min(i + BATCH - 1, #urls) do table.insert(batch, urls[j]) end
+		pcall(function() ContentProvider:PreloadAsync(batch) end)
+		task.wait()
+	end
+end
+
 return ContentArt

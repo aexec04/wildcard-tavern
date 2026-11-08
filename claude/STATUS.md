@@ -31,3 +31,4 @@
 
 **Clean:** 0 failing tests; "Balatro" appears only in the banned-word test lists, `docs/DESIGN.md` and `.claude` rule text; no alcohol words in game text; all art ids are `rbxassetid://<digits>`; `.env` and `art-wip/` untracked.
 - **How to Play:** `Client/HowToPlay.lua`, two pages (The Basics: 3x2 icon tiles from `ContentArt` `tutorial_icons`; Hand Rankings: two columns from `HandEvaluator.Examples` + `Scoring.HandBase`, level 0 values). No scrolling; Back / Next / Got it.
+- **Art loading:** `PatronPlaque` (apply/applyById) hides the emoji at once when the image is already loaded, otherwise keeps the art invisible and the emoji hidden until `IsLoaded`, then fades in (0.12s); after 3s or a failed load the emoji comes back. `ContentArt.preloadAll()` batches every art id through `ContentProvider:PreloadAsync` (25 per batch); it runs from the client after the menu is built and on Collection's first refresh.

@@ -974,6 +974,15 @@ local menuTutorialButton = MenuScreen.menuTutorialButton
 local menuJourneyButton = MenuScreen.menuJourneyButton
 local menuNewRunButton = MenuScreen.menuNewRunButton
 
+-- Warm the image cache for all content art (non-blocking) so Collection tiles
+-- and other art find their images already loaded.
+task.spawn(function()
+	local ok, err = pcall(function()
+		require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).preloadAll()
+	end)
+	if not ok then warn("[Client] art preload failed: " .. tostring(err)) end
+end)
+
 -- Menu buttons connect BEFORE any optional panel is built, so a broken
 -- panel can never leave the menu dead.
 menuPlayButton.MouseButton1Click:Connect(function()

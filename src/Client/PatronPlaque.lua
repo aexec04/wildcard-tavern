@@ -35,6 +35,90 @@ local ART_MAPS = {
 }
 
 local GOLD = Color3.fromRGB(222, 182, 104)
+local TweenService = game:GetService("TweenService")
+local ContentProvider = game:GetService("ContentProvider")
+local LOAD_TIMEOUT = 3
+
+-- Reveal `art` without a placeholder flash. Already loaded (cached/preloaded):
+-- hide the emoji synchronously. Otherwise keep the art invisible AND the emoji
+-- hidden until IsLoaded flips, then fade the art in. If the image has not
+-- loaded after LOAD_TIMEOUT seconds or fails, restore the emoji so a broken id
+-- never leaves a blank tile (a late load still swaps the art back in).
+local function revealArt(art, emojiLabel)
+	if not emojiLabel then
+		if not art.IsLoaded then
+			local target = art.ImageTransparency
+			art.ImageTransparency = 1
+			local conn
+			conn = art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+				if art.IsLoaded then
+					conn:Disconnect()
+					TweenService:Create(art, TweenInfo.new(0.12), { ImageTransparency = target }):Play()
+				end
+			end)
+		end
+		return
+	end
+	-- The art lives inside the emoji label (Shop badge): hiding the label would
+	-- hide the art too, so blank its text instead.
+	local inside = art:IsDescendantOf(emojiLabel)
+	local origVisible = emojiLabel.Visible
+	local origText, origStroke = emojiLabel.TextTransparency, emojiLabel.TextStrokeTransparency
+	local function hideEmoji()
+		if inside then
+			emojiLabel.TextTransparency = 1
+			emojiLabel.TextStrokeTransparency = 1
+		else
+			emojiLabel.Visible = false
+		end
+	end
+	local function restoreEmoji()
+		if inside then
+			emojiLabel.TextTransparency = origText
+			emojiLabel.TextStrokeTransparency = origStroke
+		else
+			emojiLabel.Visible = origVisible
+		end
+	end
+
+	if art.IsLoaded then
+		hideEmoji()
+		return
+	end
+
+	local target = art.ImageTransparency
+	art.ImageTransparency = 1
+	hideEmoji()
+	local shown = false
+	local function onLoaded()
+		if shown or not art.Parent then return end
+		shown = true
+		hideEmoji()
+		art.Visible = true
+		TweenService:Create(art, TweenInfo.new(0.12), { ImageTransparency = target }):Play()
+	end
+	art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+		if art.IsLoaded then onLoaded() end
+	end)
+	local function giveUp()
+		if shown or not art.Parent then return end
+		art.Visible = false
+		restoreEmoji()
+	end
+	task.delay(LOAD_TIMEOUT, function()
+		if not art.IsLoaded then giveUp() end
+	end)
+	task.spawn(function()
+		pcall(function()
+			ContentProvider:PreloadAsync({ art }, function(_, status)
+				if status == Enum.AssetFetchStatus.Failure or status == Enum.AssetFetchStatus.TimedOut then
+					giveUp()
+				end
+			end)
+		end)
+		if art.Parent and art.IsLoaded then onLoaded() end
+	end)
+end
 
 local PatronPlaque = {}
 
@@ -74,22 +158,7 @@ function PatronPlaque.applyById(frame, artId, opts)
 		ring.Parent = art
 	end
 	art.Parent = frame
-	local emojiLabel = opts.emojiLabel
-	task.defer(function()
-		local waited = 0
-		while art.Parent and not art.IsLoaded and waited < 12 do
-			task.wait(0.25)
-			waited += 0.25
-		end
-		if art.Parent and art.IsLoaded and emojiLabel then
-			if art:IsDescendantOf(emojiLabel) then
-				emojiLabel.TextTransparency = 1
-				emojiLabel.TextStrokeTransparency = 1
-			else
-				emojiLabel.Visible = false
-			end
-		end
-	end)
+	revealArt(art, opts.emojiLabel)
 	return art
 end
 
@@ -136,24 +205,7 @@ function PatronPlaque.apply(frame, patronId, opts)
 
 	art.Parent = frame
 
-	local emojiLabel = opts.emojiLabel
-	task.defer(function()
-		local waited = 0
-		while art.Parent and not art.IsLoaded and waited < 12 do
-			task.wait(0.25)
-			waited += 0.25
-		end
-		if art.Parent and art.IsLoaded and emojiLabel then
-			if art:IsDescendantOf(emojiLabel) then
-				-- The art lives inside the emoji label (Shop badge): hiding the
-				-- label would hide the art too, so blank its text instead.
-				emojiLabel.TextTransparency = 1
-				emojiLabel.TextStrokeTransparency = 1
-			else
-				emojiLabel.Visible = false
-			end
-		end
-	end)
+	revealArt(art, opts.emojiLabel)
 
 	return art
 end
