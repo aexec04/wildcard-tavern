@@ -4429,6 +4429,36 @@ table.insert(tests, { name = "CollectionBook: six rarity tiers, every entry rate
 	expectTrue(counts.mythical * 100 < total * 5, "mythical is under 5 percent of entries")
 end })
 
+table.insert(tests, { name = "BossOutfits: every boss has a valid outfit (known hat/prop, color triples), Keeper and Default resolve", fn = function()
+	local BossOutfits = require(script.Parent.Parent.Engine.BossOutfits)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local function oneOf(list, v)
+		for _, x in ipairs(list) do if x == v then return true end end
+		return false
+	end
+	local function checkOutfit(label, o)
+		expectTrue(oneOf(BossOutfits.Hats, o.hat), label .. " hat " .. tostring(o.hat))
+		expectTrue(oneOf(BossOutfits.Props, o.prop), label .. " prop " .. tostring(o.prop))
+		for _, f in ipairs({ "skin", "shirt", "pants", "hatColor", "propColor", "accent" }) do
+			local c = o[f]
+			if c ~= nil then
+				expectEqual(#c, 3, label .. " " .. f .. " is a triple")
+				for _, n in ipairs(c) do expectTrue(n >= 0 and n <= 255, label .. " " .. f .. " in range") end
+			end
+		end
+	end
+	for _, def in ipairs(BossRounds.Definitions) do
+		expectTrue(BossOutfits.Bosses[def.id] ~= nil, def.id .. " has its own outfit")
+		checkOutfit(def.id, BossOutfits.resolve(def.id, false))
+	end
+	for id in pairs(BossOutfits.Bosses) do
+		expectTrue(BossRounds.getById(id) ~= nil, id .. " is a real boss id")
+	end
+	checkOutfit("keeper", BossOutfits.resolve("bouncer", true))
+	expectEqual(BossOutfits.resolve("bouncer", true).hat, "crown")
+	checkOutfit("unknown", BossOutfits.resolve("no_such_boss", false)) -- falls back to Default
+end })
+
 table.insert(tests, { name = "ContentArt: background preload plan starts with the menu and leaves scenes and map art lazy", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	local plan = ContentArt.PreloadPlan

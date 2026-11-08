@@ -16,13 +16,13 @@
 	menacing but different. The stage rescales every rig to its target height, so proportions matter here,
 	not absolute size.
 
-	Outfits: BossRigs.Outfits[bossId] overrides pieces of BossRigs.DefaultOutfit; any boss without an
-	entry uses the default. Fields:
+	Outfits are DATA in Shared/Engine/BossOutfits.lua (one entry per boss id, matched to the painted
+	portraits; Default for any boss without one, Keeper for the grand Night 8 boss). Fields:
 	  skin, shirt, pants   Color3
 	  accent               Color3 (default: picked from the boss id)
-	  hat                  "tall" | "cap" | "crown" | "none"
+	  hat                  "tall" | "cap" | "crown" | "chef" | "party" | "none"
 	  hatColor             Color3
-	  prop                 "ladle" | "ledger" | "scroll" | "none"
+	  prop                 see BossOutfits.Props (ladle, ledger, scroll, pocketwatch, receipt, paddle, ...)
 	  propColor            Color3
 	  cape                 bool (default true)
 	  scale                body scale (1 = as built; the stage refits the height anyway)
@@ -33,17 +33,19 @@ local StageLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChil
 
 local M = {}
 
-M.DefaultOutfit = {
-	skin = Color3.fromRGB(178, 152, 134),
-	shirt = Color3.fromRGB(46, 32, 38),
-	pants = Color3.fromRGB(28, 24, 30),
-	hat = "tall",
-	hatColor = Color3.fromRGB(26, 22, 26),
-	prop = "ledger",
-	propColor = Color3.fromRGB(86, 58, 40),
-	cape = true,
-	scale = 1,
-}
+local BossOutfits = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BossOutfits"))
+
+-- Color triples in BossOutfits become Color3 here.
+local COLOR_FIELDS = { "skin", "shirt", "pants", "hatColor", "propColor", "accent" }
+local function toColors(outfit)
+	for _, field in ipairs(COLOR_FIELDS) do
+		local c = outfit[field]
+		if type(c) == "table" then
+			outfit[field] = Color3.fromRGB(c[1], c[2], c[3])
+		end
+	end
+	return outfit
+end
 
 -- One accent per boss, picked from the id unless the outfit sets its own.
 M.Accents = {
@@ -55,21 +57,15 @@ M.Accents = {
 	Color3.fromRGB(210, 72, 146), -- magenta
 }
 
--- Fill in per boss later (ids are in Engine/BossRounds.lua). A few examples to show the shape.
-M.Outfits = {
-	bouncer = { shirt = Color3.fromRGB(24, 24, 32), hat = "none", prop = "none", cape = false },
-	the_tab = { hat = "cap", prop = "ledger" },
-	thin_soup = { shirt = Color3.fromRGB(70, 74, 82), hat = "tall", hatColor = Color3.fromRGB(226, 226, 220), prop = "ladle" },
-	slow_simmer = { shirt = Color3.fromRGB(78, 70, 66), hat = "tall", hatColor = Color3.fromRGB(226, 224, 216), prop = "ladle" },
-	house_rules = { shirt = Color3.fromRGB(40, 34, 70), hat = "tall", prop = "scroll" },
-}
-
 -- Body proportions. The boss is long-limbed with broad shoulders; the player's fallback is plain.
 local PLAIN = { torsoW = 2, torsoH = 2, torsoD = 1, armW = 1, armL = 2, legW = 1, legL = 2, head = Vector3.new(1.2, 1, 1.2) }
 local TALL = { torsoW = 2.3, torsoH = 2.6, torsoD = 1.2, armW = 1, armL = 2.8, legW = 1.1, legL = 2.9, head = Vector3.new(1.15, 1.1, 1.15) }
 
-local function part(parent, name, size, color, material)
+local function part(parent, name, size, color, material, shape)
 	local p = Instance.new("Part")
+	if shape then
+		p.Shape = shape
+	end
 	p.Name = name
 	p.Size = size
 	p.Color = color
@@ -176,26 +172,104 @@ local function addHat(model, outfit, accent)
 	elseif outfit.hat == "crown" then
 		local hat = part(model, "Hat", Vector3.new(1.3, 0.7, 1.3), Color3.fromRGB(240, 190, 70), Enum.Material.Metal)
 		weld(hat, "HatWeld", head, hat, CFrame.new(0, top + 0.35, 0))
+	elseif outfit.hat == "chef" then
+		-- a band plus a wide puffed top, like the painted cooks and bakers
+		local base = part(model, "Hat", Vector3.new(1.3, 0.5, 1.3), outfit.hatColor)
+		weld(base, "HatWeld", head, base, CFrame.new(0, top + 0.25, 0))
+		local puff = part(model, "HatPuff", Vector3.new(1.65, 0.95, 1.65), outfit.hatColor)
+		weld(puff, "PuffWeld", head, puff, CFrame.new(0, top + 0.95, 0))
+	elseif outfit.hat == "party" then
+		-- a stepped cone with an accent tip
+		local lower = part(model, "Hat", Vector3.new(1.1, 0.5, 1.1), outfit.hatColor)
+		weld(lower, "HatWeld", head, lower, CFrame.new(0, top + 0.25, 0))
+		local mid = part(model, "HatMid", Vector3.new(0.75, 0.5, 0.75), outfit.hatColor)
+		weld(mid, "MidWeld", head, mid, CFrame.new(0, top + 0.75, 0))
+		local tip = part(model, "HatTip", Vector3.new(0.4, 0.4, 0.4), accent, nil, Enum.PartType.Ball)
+		weld(tip, "TipWeld", head, tip, CFrame.new(0, top + 1.15, 0))
 	end
 end
 
+-- Props are held in the right hand. Each entry is a list of { name, size, offset(z is forward), colorKey, material, shape }.
+-- `hand` is the bottom of the arm; "c" = the prop color, "gold" and "paper" are fixed.
+local GOLD_C = Color3.fromRGB(240, 190, 70)
+local PAPER_C = Color3.fromRGB(236, 224, 190)
+local PROP_PARTS = {
+	ladle = {
+		{ "Prop", Vector3.new(0.25, 0.25, 2.2), Vector3.new(0, 0, -1.1), "c" },
+		{ "PropBowl", Vector3.new(0.9, 0.35, 0.9), Vector3.new(0, 0, -2.3), "c" },
+	},
+	ledger = { { "Prop", Vector3.new(1.2, 0.3, 1.6), Vector3.new(0, 0, -0.9), "c" } },
+	scroll = {
+		{ "Prop", Vector3.new(0.5, 0.5, 2), Vector3.new(0, 0, -1), "paper" },
+		{ "PropRibbon", Vector3.new(0.56, 0.56, 0.3), Vector3.new(0, 0, -1), "gold" },
+	},
+	pocketwatch = {
+		{ "Prop", Vector3.new(0.9, 0.9, 0.9), Vector3.new(0, -0.2, -0.8), "gold", Enum.Material.Metal, Enum.PartType.Ball },
+		{ "PropChain", Vector3.new(0.08, 0.9, 0.08), Vector3.new(0, 0.5, -0.8), "gold", Enum.Material.Metal },
+	},
+	receipt = { -- a long paper strip hanging toward the floor
+		{ "Prop", Vector3.new(0.9, 3.4, 0.06), Vector3.new(0, -1.5, -0.7), "paper" },
+		{ "PropInk", Vector3.new(0.6, 0.08, 0.08), Vector3.new(0, -0.6, -0.74), "c" },
+	},
+	paddle = {
+		{ "Prop", Vector3.new(0.2, 0.2, 1.2), Vector3.new(0, 0, -0.6), "c" },
+		{ "PropDisc", Vector3.new(1.5, 0.15, 1.5), Vector3.new(0, 0, -1.7), "c" },
+	},
+	broom = {
+		{ "Prop", Vector3.new(0.2, 3.2, 0.2), Vector3.new(0, 0.2, -0.5), "c" },
+		{ "PropBristles", Vector3.new(0.9, 0.7, 0.5), Vector3.new(0, -1.6, -0.5), "paper" },
+	},
+	sign = {
+		{ "Prop", Vector3.new(0.15, 1.8, 0.15), Vector3.new(0, 0.5, -0.6), "wood" },
+		{ "PropBoard", Vector3.new(1.4, 1.1, 0.12), Vector3.new(0, 1.5, -0.6), "c" },
+	},
+	coins = {
+		-- Cylinders run along X, so the size is (thickness, diameter, diameter) and addProp turns them flat.
+		{ "Prop", Vector3.new(0.14, 0.9, 0.9), Vector3.new(0, 0, -0.8), "c", Enum.Material.Metal, Enum.PartType.Cylinder },
+		{ "PropCoin2", Vector3.new(0.14, 0.9, 0.9), Vector3.new(0, 0.16, -0.8), "c", Enum.Material.Metal, Enum.PartType.Cylinder },
+		{ "PropCoin3", Vector3.new(0.14, 0.9, 0.9), Vector3.new(0, 0.32, -0.8), "c", Enum.Material.Metal, Enum.PartType.Cylinder },
+	},
+	tray = {
+		{ "Prop", Vector3.new(2, 0.12, 1.6), Vector3.new(0, 0.1, -1.0), "c" },
+		{ "PropPlate1", Vector3.new(0.6, 0.18, 0.6), Vector3.new(-0.4, 0.28, -1.0), "paper" },
+		{ "PropPlate2", Vector3.new(0.6, 0.18, 0.6), Vector3.new(0.45, 0.28, -0.9), "gold" },
+	},
+	lantern = {
+		{ "Prop", Vector3.new(0.7, 0.9, 0.7), Vector3.new(0, -0.5, -0.5), "c", Enum.Material.Neon },
+		{ "PropCap", Vector3.new(0.8, 0.15, 0.8), Vector3.new(0, 0.02, -0.5), "wood" },
+	},
+	rollingpin = {
+		{ "Prop", Vector3.new(0.45, 0.45, 2.2), Vector3.new(0, 0, -1.1), "c" },
+		{ "PropGrip", Vector3.new(0.25, 0.25, 3), Vector3.new(0, 0, -1.1), "c" },
+	},
+	loaf = { { "Prop", Vector3.new(1.4, 0.7, 0.8), Vector3.new(0, 0, -0.9), "c" } },
+	stick = {
+		{ "Prop", Vector3.new(0.2, 4.2, 0.2), Vector3.new(0, 1.2, -0.4), "c" },
+		{ "PropBand", Vector3.new(0.3, 0.3, 0.3), Vector3.new(0, 3.2, -0.4), "gold", Enum.Material.Metal, Enum.PartType.Ball },
+	},
+	cards = {
+		{ "Prop", Vector3.new(0.7, 0.05, 1), Vector3.new(0, 0, -0.8), "c" },
+		{ "PropCard2", Vector3.new(0.7, 0.05, 1), Vector3.new(0.12, 0.06, -0.85), "paper" },
+		{ "PropCard3", Vector3.new(0.7, 0.05, 1), Vector3.new(-0.1, 0.12, -0.9), "c" },
+	},
+}
+local WOOD_C = Color3.fromRGB(110, 76, 46)
+
 local function addProp(model, outfit)
 	local arm = model:FindFirstChild("Right Arm")
-	if not arm or outfit.prop == "none" then
+	local parts = PROP_PARTS[outfit.prop]
+	if not arm or not parts then
 		return
 	end
 	local hand = -arm.Size.Y / 2
-	if outfit.prop == "ladle" then
-		local prop = part(model, "Prop", Vector3.new(0.25, 0.25, 2.2), outfit.propColor)
-		weld(prop, "PropWeld", arm, prop, CFrame.new(0, hand, -1.1))
-		local bowl = part(model, "PropBowl", Vector3.new(0.9, 0.35, 0.9), outfit.propColor)
-		weld(bowl, "BowlWeld", arm, bowl, CFrame.new(0, hand, -2.3))
-	elseif outfit.prop == "ledger" then
-		local prop = part(model, "Prop", Vector3.new(1.2, 0.3, 1.6), outfit.propColor)
-		weld(prop, "PropWeld", arm, prop, CFrame.new(0, hand, -0.9))
-	elseif outfit.prop == "scroll" then
-		local prop = part(model, "Prop", Vector3.new(0.5, 0.5, 2), Color3.fromRGB(235, 220, 180))
-		weld(prop, "PropWeld", arm, prop, CFrame.new(0, hand, -1))
+	for _, def in ipairs(parts) do
+		local colors = { c = outfit.propColor, gold = GOLD_C, paper = PAPER_C, wood = WOOD_C }
+		local prop = part(model, def[1], def[2], colors[def[4]] or outfit.propColor, def[5], def[6])
+		local cf = CFrame.new(def[3].X, hand + def[3].Y, def[3].Z)
+		if def[6] == Enum.PartType.Cylinder then
+			cf = cf * CFrame.Angles(0, 0, math.rad(90)) -- stand the disc flat
+		end
+		weld(prop, def[1] .. "Weld", arm, prop, cf)
 	end
 end
 
@@ -232,13 +306,7 @@ end
 
 function M.build(bossId, opts)
 	opts = opts or {}
-	local outfit = {}
-	for k, v in pairs(M.DefaultOutfit) do
-		outfit[k] = v
-	end
-	for k, v in pairs(M.Outfits[bossId] or {}) do
-		outfit[k] = v
-	end
+	local outfit = toColors(BossOutfits.resolve(bossId, opts.grand))
 	local accent = opts.tierColor or outfit.accent or M.Accents[StageLayout.accentIndex(bossId or "boss", #M.Accents)]
 	if opts.grand then
 		accent = Color3.fromRGB(235, 190, 80)
