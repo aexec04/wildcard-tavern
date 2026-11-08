@@ -55,6 +55,7 @@ CATEGORIES = {
     "map_regions": ("map_region_subjects", "map_regions", "MapRegionArt.lua", "Map Region"),
     "map_decor": ("map_decor_subjects", "map_decor", "MapDecorArt.lua", "Map Decor"),
     "card_backs": ("card_back_subjects", "card_backs", "CardBackArt.lua", "Card Back"),
+    "scenes": ("scene_subjects", "scenes", "SceneArt.lua", "Scene"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -70,6 +71,7 @@ CATEGORY_OPTS = {
     "map_regions": {"size": "1536x1024", "quality": "low", "style_key": "style_map_region"},
     "map_decor": {"quality": "low", "style_key": "style_map_decor"},
     "card_backs": {"size": "1024x1536", "quality": "medium", "style_key": "house_style"},
+    "scenes": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
