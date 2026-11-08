@@ -549,8 +549,16 @@ return function(deps)
 
 	-- ===== Status line / live hand preview ("Select cards...") =====
 	local scorePreviewBox = makeSection(content, 56, 10, true)
+	-- Darker parchment inset (board parchment -12%) with a thin ink-brown outline.
+	scorePreviewBox.BackgroundColor3 = Color3.fromRGB(199, 178, 137)
+	scorePreviewBox.BackgroundTransparency = 0
+	local previewStroke = Instance.new("UIStroke")
+	previewStroke.Color = Color3.fromRGB(96, 66, 38)
+	previewStroke.Thickness = 1.5
+	previewStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	previewStroke.Parent = scorePreviewBox
 	local scorePreviewLabel = makeLabel(scorePreviewBox, 16, {
-		TextColor3 = INK, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0.7, Size = UDim2.new(1, -12, 1, -4), Position = UDim2.fromOffset(6, 2) })
+		TextColor3 = INK, Font = Enum.Font.GothamBold, TextTransparency = 0, TextStrokeTransparency = 1, Size = UDim2.new(1, -12, 1, -4), Position = UDim2.fromOffset(6, 2) })
 
 	-- Dividers hide on short screens; the arch spacer keeps sections on the parchment.
 	local SECTIONS_H, DIVIDER_H, GAP = 76 + 96 + 44 + 66 + 88 + 56, 26, 10
