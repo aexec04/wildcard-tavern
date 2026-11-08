@@ -197,6 +197,67 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_keeper == true
 		end,
 	},
+	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
+	{
+		id = "dune_wanderer",
+		name = "Dune Wanderer",
+		icon = "🏜",
+		title = "Dune Wanderer",
+		description = "A Map reward: see every stop of the Golden Dunes.",
+		flavorText = "Sand in your boots, a smile on your face.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.dune_wanderer == true
+		end,
+	},
+	{
+		id = "marsh_wader",
+		name = "Marsh Wader",
+		icon = "🐸",
+		title = "Marsh Wader",
+		description = "A Map reward: see every stop of the Misty Marsh.",
+		flavorText = "Knows which lily pads hold your weight.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.marsh_wader == true
+		end,
+	},
+	{
+		id = "snow_scout",
+		name = "Snow Scout",
+		icon = "❄",
+		title = "Snow Scout",
+		description = "A Map reward: see every stop of the Frosty Hills.",
+		flavorText = "Leaves the neatest footprints in the whole valley.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.snow_scout == true
+		end,
+	},
+	{
+		id = "lighthouse_friend",
+		name = "Lighthouse Friend",
+		icon = "🗼",
+		title = "Lighthouse Friend",
+		description = "A Map reward: see every stop of the Lantern Coast.",
+		flavorText = "The lamp keeper always saves you a warm seat.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.lighthouse_friend == true
+		end,
+	},
+	{
+		id = "trailblazer",
+		name = "Trailblazer",
+		icon = "🧭",
+		title = "Trailblazer",
+		description = "A Map reward: see every region of the world.",
+		flavorText = "Every road on the map has felt your footsteps.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.trailblazer == true
+		end,
+	},
 	{
 		id = "night_walker",
 		name = "Night Walker",

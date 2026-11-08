@@ -4528,6 +4528,12 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 			end
 		end
 	end
+	-- Titles handed out by the world map (biome rewards and bonuses) count too.
+	for _, r in ipairs(require(script.Parent.Parent.Engine.BiomeRewards).allRewards()) do
+		if r.kind == "title" then
+			rewardedTitles[r.id] = true
+		end
+	end
 	-- Titles handed out by Journey rewards count too.
 	for _, entry in ipairs(JourneyMap.Nights) do
 		if entry.reward.kind == "title" then
@@ -5353,6 +5359,132 @@ table.insert(tests, { name = "WorldMap: recordWorldProgress counts each cleared 
 		expectTrue(p2.clearedNightIds[n], "Night " .. n)
 	end
 	expectEqual(#WorldMap.defaultRoute(), 8)
+end })
+
+table.insert(tests, { name = "BiomeRewards: every reward resolves, has a rarity, a flavor text and a prompt-able id", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Achievements = require(script.Parent.Parent.Engine.Achievements)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	for region in pairs(BiomeRewards.Rows) do
+		expectTrue(WorldMap.Regions[region] ~= nil, region .. " is a real region")
+	end
+	for _, region in ipairs(WorldMap.RegionOrder) do
+		expectTrue(BiomeRewards.Rows[region] ~= nil, region .. " has a reward row")
+	end
+	for _, r in ipairs(BiomeRewards.allRewards()) do
+		if r.kind == "cardBack" then
+			local back = CardBacks.getById(r.id)
+			expectTrue(back ~= nil, r.id .. " card back exists")
+			expectTrue(CollectionBook.Rarities[CollectionBook.rarityForId("backs", r.id)] ~= nil)
+			expectTrue(back.flavorText and back.flavorText ~= "")
+		elseif r.kind == "set" then
+			expectTrue(CosmeticSets.getById(r.id) ~= nil, r.id .. " set exists")
+		elseif r.kind == "title" then
+			local a = Achievements.getById(r.id)
+			expectTrue(a ~= nil and a.milestoneReward == true, r.id .. " title exists")
+			expectTrue(a.flavorText and a.flavorText ~= "")
+		else
+			expectTrue(false, "unknown kind " .. tostring(r.kind))
+		end
+	end
+end })
+
+table.insert(tests, { name = "BiomeRewards: branch ends grant once; mid-biome stops grant nothing", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local profile = PlayerProfile.new()
+	local route = { "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp" }
+	-- Night 3 cleared (desert_dunes): the dunes road is not finished yet
+	BiomeRewards.recordProgress(profile, { "dusty_road", "wildflower_meadow", "desert_dunes" }, 3)
+	expectEqual(profile.unlockedCardBackIds.dune_gold, nil, "mid-biome: no reward yet")
+	-- Night 2 cleared: the meadow branch ended when the road turned to the desert
+	expectTrue(profile.unlockedCardBackIds.kitchen_checks, "meadow branch end")
+	-- Night 4 cleared (oasis_camp): the dunes road ends here
+	local fresh = BiomeRewards.recordProgress(profile, route, 4)
+	expectTrue(profile.unlockedCardBackIds.dune_gold)
+	expectTrue(#fresh >= 1)
+	-- repeated pushes grant nothing new
+	fresh = BiomeRewards.recordProgress(profile, route, 4)
+	expectEqual(#fresh, 0)
+	-- a pending fork (route not extended yet) after oasis_camp counts as the end of the desert too
+	local p2 = PlayerProfile.new()
+	BiomeRewards.recordProgress(p2, { "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp" }, 4)
+	expectTrue(p2.unlockedCardBackIds.dune_gold)
+	-- stops not yet cleared are never rewarded
+	local p3 = PlayerProfile.new()
+	BiomeRewards.recordProgress(p3, route, 1)
+	expectEqual(p3.unlockedCardBackIds.dune_gold, nil)
+	expectEqual(p3.unlockedCardBackIds.kitchen_checks, nil)
+	-- invalid routes grant nothing
+	expectEqual(#BiomeRewards.recordProgress(PlayerProfile.new(), { "dusty_road", "keepers_table" }, 2), 0)
+end })
+
+table.insert(tests, { name = "BiomeRewards: the Keeper win grants the tavern row; the default route keeps its Night rewards", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local JourneyMap = require(script.Parent.Parent.Engine.JourneyMap)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local profile = PlayerProfile.new()
+	local route = WorldMap.defaultRoute()
+	JourneyMap.recordNightsCleared(profile, 8)
+	BiomeRewards.recordProgress(profile, route, 7)
+	expectEqual(profile.unlockedCardBackIds.gala, nil, "not before the Keeper")
+	BiomeRewards.recordProgress(profile, route, 8)
+	expectTrue(profile.unlockedCardBackIds.gala)
+	expectTrue(profile.unlockedCardBackIds.hall_banner)
+	-- the Night 1 to 8 rewards are untouched
+	for n, node in ipairs(JourneyMap.Nights) do
+		expectTrue(profile.clearedNightIds[n])
+		local r = node.reward
+		local owned = (r.kind == "title" and profile.rewardTitleIds[r.id])
+			or (r.kind == "cardBack" and profile.unlockedCardBackIds[r.id])
+			or (r.kind == "set" and profile.ownedSetIds[r.id])
+		expectTrue(owned, "Night " .. n .. " reward")
+	end
+end })
+
+table.insert(tests, { name = "BiomeRewards: region bonuses and Trailblazer need every stop seen", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local profile = PlayerProfile.new()
+	profile.worldSeenStopIds.desert_dunes = true
+	expectEqual(#BiomeRewards.recordRegionBonuses(profile), 0, "one of two desert stops")
+	profile.worldSeenStopIds.oasis_camp = true
+	local fresh = BiomeRewards.recordRegionBonuses(profile)
+	expectEqual(#fresh, 1)
+	expectTrue(profile.rewardTitleIds.dune_wanderer)
+	expectEqual(#BiomeRewards.recordRegionBonuses(profile), 0, "granted once")
+	expectEqual(profile.rewardTitleIds.trailblazer, nil)
+	for id, stop in pairs(WorldMap.Stops) do
+		if stop.kind == "night" then profile.worldSeenStopIds[id] = true end
+	end
+	BiomeRewards.recordRegionBonuses(profile)
+	expectTrue(profile.rewardTitleIds.trailblazer)
+	expectTrue(profile.rewardTitleIds.marsh_wader and profile.rewardTitleIds.snow_scout and profile.rewardTitleIds.lighthouse_friend)
+end })
+
+table.insert(tests, { name = "BiomeRewards: every one of the 18 routes ends in a granted tavern row", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	for _, route in ipairs(WorldMap.allRoutes()) do
+		local profile = PlayerProfile.new()
+		BiomeRewards.recordProgress(profile, route, 8)
+		expectTrue(profile.unlockedCardBackIds.gala, "gala on " .. table.concat(route, ">"))
+		-- the biome of Night 4 (the end of fork A's road) was rewarded
+		local region = WorldMap.regionOf(route[4])
+		local row = BiomeRewards.Rows[region]
+		for _, r in ipairs(row.reward) do
+			local ok = (r.kind == "cardBack" and profile.unlockedCardBackIds[r.id])
+				or (r.kind == "set" and profile.ownedSetIds[r.id])
+				or (r.kind == "title" and profile.rewardTitleIds[r.id])
+			expectTrue(ok, region .. " reward " .. r.id)
+		end
+	end
 end })
 
 table.insert(tests, { name = "SceneKeys: the chosen road decides each Night's scene, with fallbacks", fn = function()

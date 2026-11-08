@@ -91,6 +91,47 @@ CardBacks.Definitions = {
 		flavorText = "Warm as the last coals after the doors should have closed.",
 		setOnly = true,
 	},
+	-- Biome rewards (Engine/BiomeRewards.lua): earned by finishing a road through that biome.
+	{
+		id = "dune_gold",
+		name = "Dune Gold",
+		icon = "🏜",
+		colors = { base = { 196, 150, 80 }, trim = { 255, 226, 150 } },
+		description = "A Map reward for finishing the dunes road.",
+		flavorText = "Rippled like the sand after a warm evening breeze.",
+	},
+	{
+		id = "lilypad_green",
+		name = "Lilypad Green",
+		icon = "🐸",
+		colors = { base = { 52, 96, 70 }, trim = { 220, 235, 150 } },
+		description = "A Map reward for finishing the marsh road.",
+		flavorText = "Small frogs sit on every leaf and keep the secret.",
+	},
+	{
+		id = "shell_pearl",
+		name = "Shell Pearl",
+		icon = "🐚",
+		colors = { base = { 70, 130, 140 }, trim = { 250, 240, 225 } },
+		description = "A Map reward for finishing the coast road.",
+		flavorText = "Still sounds faintly of the tide.",
+	},
+	{
+		id = "frost_walker",
+		name = "Frost Walker",
+		icon = "❄",
+		colors = { base = { 90, 120, 160 }, trim = { 235, 244, 255 } },
+		description = "A Map reward for finishing the snow road.",
+		flavorText = "Each flake is different, and so is every hand dealt.",
+	},
+	{
+		id = "gala",
+		name = "Gala Night",
+		icon = "👑",
+		colors = { base = { 110, 30, 50 }, trim = { 255, 215, 120 } },
+		description = "A Map reward for reaching the Keeper's Table.",
+		flavorText = "Dealt only at the grandest table of the tavern.",
+	},
 }
 
 function CardBacks.getById(id)

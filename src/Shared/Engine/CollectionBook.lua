@@ -194,6 +194,11 @@ CollectionBook.RarityOverrides = {
 		endless_legend = "legendary",
 		tavern_keeper = "mythical",
 		keeper_of_tales = "mythical",
+		dune_wanderer = "rare",
+		marsh_wader = "rare",
+		snow_scout = "rare",
+		lighthouse_friend = "rare",
+		trailblazer = "legendary",
 	},
 	sets = {
 		classic_tavern = "common",
@@ -212,6 +217,11 @@ CollectionBook.RarityOverrides = {
 		closing_lantern = "rare",
 		ember_hours = "epic",
 		starlit_keeper = "mythical",
+		dune_gold = "rare",
+		lilypad_green = "rare",
+		shell_pearl = "rare",
+		frost_walker = "epic",
+		gala = "legendary",
 	},
 }
 

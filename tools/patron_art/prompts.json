@@ -308,7 +308,12 @@
     "loft_climber": "an avatar happily climbing a wooden ladder up to a cozy tavern loft full of lanterns",
     "tavern_keeper": "an avatar in an apron holding a big ring of iron keys and a wooden broom, standing in the tavern doorway",
     "night_walker": "an avatar with a glowing lantern walking past the tavern under a big crescent moon",
-    "endless_legend": "an avatar in a purple-and-gold cape and golden crown striding along a glowing purple path under an enormous moon"
+    "endless_legend": "an avatar in a purple-and-gold cape and golden crown striding along a glowing purple path under an enormous moon",
+    "dune_wanderer": "an avatar in a light sand-colored scarf and sun hat walking up a golden sand dune at sunset with a small water flask",
+    "marsh_wader": "an avatar in tall green boots wading through a misty marsh with a glowing lantern, lily pads and friendly frogs around",
+    "snow_scout": "an avatar in a warm woolly hat and scarf holding a lantern on a snowy hill, snow-dusted pine trees behind",
+    "lighthouse_friend": "an avatar in a yellow raincoat waving from a rocky shore beside a friendly striped lighthouse at dusk",
+    "trailblazer": "an avatar with a rolled map and a walking stick on a hilltop, a winding road with many colorful regions stretching behind"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -413,7 +418,12 @@
     "closing_lantern": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. dusky purple and amber with a hanging lantern crest and soft glowing rays",
     "kitchen_checks": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. red-and-cream checkered tablecloth pattern with a gold wooden-spoon-and-whisk crest in a round medallion",
     "hall_banner": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. forest green banner cloth with a gold shield crest and fringe at the bottom",
-    "ember_hours": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. charcoal black with glowing ember orange cracks and a gold flame crest"
+    "ember_hours": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. charcoal black with glowing ember orange cracks and a gold flame crest",
+    "dune_gold": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. warm sand and amber with rippled dune lines, a gold sun and star crest",
+    "lilypad_green": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. misty deep green with a lattice of lily pads and small glowing mushrooms, a gold lily flower crest",
+    "shell_pearl": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. soft teal and pearl white with scalloped waves, a gold seashell and pearl crest",
+    "frost_walker": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. pale blue and silver with snow-covered pines and falling snowflakes, a gold lantern crest",
+    "gala": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. rich burgundy and gold with grand chandelier rays, ornate banners and a gold crown crest"
   },
   "pack_subjects": {
     "buffoon_pack": "a red velvet pouch bulging with tiny patron figurines, tied with gold cord and topped with a little jester bell. A single object, centered, painterly, soft shadow underneath, plain very dark neutral background, kid-friendly, no text, no letters",

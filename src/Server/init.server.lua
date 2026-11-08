@@ -27,6 +27,7 @@ local Tests = Shared:WaitForChild("Tests")
 local RunState = require(Engine.RunState)
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
+local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local CardBacks = require(Engine.CardBacks)
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
@@ -814,6 +815,11 @@ local function syncProfileFromSession(player)
 			profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state), session.worldCounted)
 		session.worldCounted = worldCounted
 		if worldChanged then
+			changed = true
+		end
+		-- Biome rewards: branch ends, region bonuses (granted once each, see Engine/BiomeRewards.lua).
+		local biomeFresh = BiomeRewards.recordProgress(profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state))
+		if #biomeFresh > 0 then
 			changed = true
 		end
 		local fresh = JourneyMap.recordNightsCleared(profile, JourneyMap.nightsClearedFor(session.state))
