@@ -1262,6 +1262,7 @@ local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit 
 -- here blew straight through Lua's 200-local ceiling -- this file is
 -- already right up against it, same lesson as ArtAssets.lua's).
 require(script.Collection)({
+	addTooltip = addTooltip,
 	screenGui = screenGui,
 	polishPanel = polishPanel,
 	polishButton = polishButton,

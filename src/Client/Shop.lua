@@ -829,7 +829,7 @@ return function(deps)
 			itemButton.TextSize = 13
 			itemButton.TextWrapped = true
 			itemButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-			itemButton.Text = string.format("%s\n%s\n\n%s", item.icon or "🎴", item.name, item.description)
+			itemButton.Text = "" -- art first: icon/art on top, name on a ribbon, a one-line effect under it
 			itemButton.BackgroundColor3 = pendingPackSelected[index] and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
 			itemButton.ZIndex = 7
 			itemButton.Parent = packItemsRow
@@ -838,15 +838,58 @@ return function(deps)
 			local packArtCategory = (item.category == "patron" and "patrons")
 				or ((item.category == "house" or item.category == "menu" or item.category == "secret") and "recipes")
 				or nil
+			-- emoji fallback behind the art (no text block any more)
+			local iconLabel = Instance.new("TextLabel")
+			iconLabel.Name = "ItemIcon"
+			iconLabel.AnchorPoint = Vector2.new(0.5, 0)
+			iconLabel.Position = UDim2.new(0.5, 0, 0, 6)
+			iconLabel.Size = UDim2.fromOffset(64, 64)
+			iconLabel.BackgroundTransparency = 1
+			iconLabel.Font = Enum.Font.GothamBold
+			iconLabel.TextSize = 40
+			iconLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+			iconLabel.Text = item.icon or "🎴"
+			iconLabel.ZIndex = 8
+			iconLabel.Parent = itemButton
 			if item.id and packArtCategory then
 				PatronPlaqueModule.apply(itemButton, item.id, {
 					category = packArtCategory,
-					size = UDim2.fromOffset(60, 60),
-					position = UDim2.new(0.5, -30, 0, 8),
+					size = UDim2.fromOffset(72, 72),
+					position = UDim2.new(0.5, -36, 0, 4),
 					zIndex = 8,
 					cornerRadius = 10,
 				})
 			end
+			local nameRibbon = Instance.new("TextLabel")
+			nameRibbon.Name = "ItemName"
+			nameRibbon.Position = UDim2.new(0, 6, 0, 80)
+			nameRibbon.Size = UDim2.new(1, -12, 0, 24)
+			nameRibbon.BackgroundColor3 = Color3.fromRGB(92, 62, 36)
+			nameRibbon.BorderSizePixel = 0
+			nameRibbon.Font = Enum.Font.GothamBold
+			nameRibbon.TextSize = 15
+			nameRibbon.TextColor3 = Color3.fromRGB(250, 235, 200)
+			nameRibbon.TextTruncate = Enum.TextTruncate.AtEnd
+			nameRibbon.Text = item.name
+			nameRibbon.ZIndex = 9
+			nameRibbon.Parent = itemButton
+			local ribbonCorner = Instance.new("UICorner")
+			ribbonCorner.CornerRadius = UDim.new(0, 6)
+			ribbonCorner.Parent = nameRibbon
+			local effectLine = Instance.new("TextLabel")
+			effectLine.Name = "ItemEffect"
+			effectLine.Position = UDim2.new(0, 6, 0, 106)
+			effectLine.Size = UDim2.new(1, -12, 1, -110)
+			effectLine.BackgroundTransparency = 1
+			effectLine.Font = Enum.Font.Gotham
+			effectLine.TextSize = 15
+			effectLine.TextColor3 = Color3.fromRGB(235, 220, 190)
+			effectLine.TextWrapped = true
+			effectLine.TextTruncate = Enum.TextTruncate.AtEnd
+			effectLine.TextYAlignment = Enum.TextYAlignment.Top
+			effectLine.Text = item.description or ""
+			effectLine.ZIndex = 9
+			effectLine.Parent = itemButton
 
 			itemButton.MouseButton1Click:Connect(function()
 				if pendingPackSelected[index] then

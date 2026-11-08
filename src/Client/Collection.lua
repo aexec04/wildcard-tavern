@@ -50,6 +50,7 @@ return function(deps)
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
+	local addTooltip = deps.addTooltip -- the shared hover tooltip: tiles show the effect text there
 	local OverlayManager = require(script.Parent.OverlayManager)
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
@@ -678,6 +679,13 @@ return function(deps)
 			playClickSfx()
 			showDetail(item, view)
 		end)
+		-- Discovered tiles: name and effect in the shared hover tooltip (the tile itself stays art and a name).
+		if found and addTooltip and item.def and item.def.description then
+			addTooltip(tile, function()
+				local name = item.tab == "titles" and item.def.title or item.def.name
+				return tostring(name) .. "\n" .. item.def.description
+			end)
+		end
 	end
 
 	refresh = function()
