@@ -1480,6 +1480,8 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		})
 	end)
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
+
+	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
 end
 
 local lastOwnedPatronIds = {}

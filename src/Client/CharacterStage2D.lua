@@ -29,6 +29,10 @@ local StageLayout = require(Engine:WaitForChild("StageLayout"))
 local StageMotion = require(Engine:WaitForChild("StageMotion"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
+-- The standing avatar looked pasted onto the painted scene (different scale and light), so the player is a
+-- headshot medallion on the left panel instead (Client/PlayerMedallion.lua). Set true to bring the avatar back.
+local USE_STAGE_AVATAR = false
+
 local ROUNDS_PER_NIGHT = 3
 local FADE_IN = 0.3
 local GIVE_UP_AFTER = 4 -- seconds before a slow thumbnail counts as "done" for readiness
@@ -151,6 +155,10 @@ local function build(deps)
 	local function requestThumbnail()
 		if thumbRequested or not ok then return end
 		thumbRequested = true
+		if not USE_STAGE_AVATAR then
+			thumbDone = true -- nothing to fetch; the travel transition must not wait on it
+			return
+		end
 		task.spawn(function()
 			local player = Players.LocalPlayer
 			local content, ready
@@ -242,6 +250,7 @@ local function build(deps)
 
 	local function setShown(on)
 		if not ok or on == shown then return end
+		if on and not USE_STAGE_AVATAR then return end
 		shown = on
 		holder.Visible = on
 		shadow.Visible = on
