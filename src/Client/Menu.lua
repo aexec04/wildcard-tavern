@@ -313,7 +313,7 @@ return function(deps)
 
 		if opts.iconKey then
 			local textPad = Instance.new("UIPadding")
-			textPad.PaddingBottom = UDim.new(0, 6)
+			textPad.PaddingBottom = UDim.new(0, 16)
 			textPad.Parent = button
 			local size = opts.iconSize
 			local artId = ContentArt.getImageId("menu_icons", opts.iconKey)
@@ -430,30 +430,30 @@ return function(deps)
 	local menuNewRunButton = makeFrameButton({
 		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 62,
 	})
-	local tileRow = makeRow(3, 118, 16)
+	local tileRow = makeRow(3, 138, 16)
 	local menuDailyChallengeButton = makeFrameButton({
-		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 150, height = 118,
+		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 150, height = 138,
 		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 70,
 	})
 	local menuWeeklyChallengeButton = makeFrameButton({
-		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 150, height = 118,
+		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 150, height = 138,
 		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 70,
 	})
 	local menuSeedRunButton = makeFrameButton({
-		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 150, height = 118,
+		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 150, height = 138,
 		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
 	})
-	local bottomRow = makeRow(4, 100, 20)
+	local bottomRow = makeRow(4, 114, 16)
 	local menuJourneyButton = makeFrameButton({
-		text = "Road Ahead", textSize = 15, parent = bottomRow, order = 1, width = 100, height = 100,
+		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 114, height = 114,
 		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
 	})
 	local menuHowToPlayButton = makeFrameButton({
-		text = "How to Play", textSize = 15, parent = bottomRow, order = 2, width = 100, height = 100,
+		text = "How to Play", textSize = 14, parent = bottomRow, order = 2, width = 114, height = 114,
 		iconKey = "how_to_play", emoji = "\240\159\147\150", iconSize = 46,
 	})
 	local menuTutorialButton = makeFrameButton({
-		text = "Tutorial", textSize = 15, parent = bottomRow, order = 3, width = 100, height = 100,
+		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
 
