@@ -222,10 +222,11 @@ return function(deps)
 	menuButtonScroll.Name = "MenuButtonScroll"
 	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 160)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 560, 1, -172)
+	menuButtonScroll.Size = UDim2.new(0, 640, 1, -172)
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
-	menuButtonScroll.ScrollBarThickness = 6
+	menuButtonScroll.ScrollBarThickness = 0 -- everything fits; only scrolls on genuinely tiny screens
+	menuButtonScroll.ScrollingEnabled = true
 	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
 	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -242,11 +243,11 @@ return function(deps)
 	local menuButtonLayout = Instance.new("UIListLayout")
 	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	menuButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	menuButtonLayout.Padding = UDim.new(0, 18)
+	menuButtonLayout.Padding = UDim.new(0, 12)
 	menuButtonLayout.Parent = menuButtonHolder
 	local holderPad = Instance.new("UIPadding")
 	holderPad.PaddingTop = UDim.new(0, 10)
-	holderPad.PaddingBottom = UDim.new(0, 24)
+	holderPad.PaddingBottom = UDim.new(0, 12)
 	holderPad.Parent = menuButtonHolder
 
 	local function makeRow(order, height, padding)
@@ -450,10 +451,10 @@ return function(deps)
 	end
 
 	local menuPlayButton = makeFrameButton({
-		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 88, glow = true,
+		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 76, glow = true,
 	})
 	local menuNewRunButton = makeFrameButton({
-		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 62,
+		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 54,
 	})
 	local tileRow = makeRow(3, 138, 16)
 	local menuDailyChallengeButton = makeFrameButton({
@@ -468,7 +469,8 @@ return function(deps)
 		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 150, height = 138,
 		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
 	})
-	local bottomRow = makeRow(4, 114, 16)
+	-- One row of five equal 114px tiles (5*114 + 4*10 = 610 <= 640 wide scroll).
+	local bottomRow = makeRow(4, 114, 10)
 	local menuJourneyButton = makeFrameButton({
 		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 114, height = 114,
 		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
@@ -481,16 +483,16 @@ return function(deps)
 		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
-	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Own centered row
-	-- (two 114px buttons) so it stays inside the safe area at phone width. Reuses the in-run
-	-- corner icon art (no menu_icons key); the panels open from Collection.lua / Settings.lua.
-	local accountRow = makeRow(5, 114, 16)
+	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Same row as the
+	-- three small tiles. Reuses the in-run corner icon art (no menu_icons key); the panels
+	-- open from Collection.lua / Settings.lua.
+	local accountRow = bottomRow
 	local menuCollectionButton = makeFrameButton({
-		text = "Collection", textSize = 14, parent = accountRow, order = 1, width = 114, height = 114,
+		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 114, height = 114,
 		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
 	})
 	local menuSettingsButton = makeFrameButton({
-		text = "Settings", textSize = 14, parent = accountRow, order = 2, width = 114, height = 114,
+		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 114, height = 114,
 		iconKey = "settings", iconImage = ArtAssets.cornerIconSettings, emoji = "\226\154\153", iconSize = 46,
 	})
 
