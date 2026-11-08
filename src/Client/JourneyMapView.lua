@@ -428,7 +428,7 @@ return function(deps)
 	local marker = Instance.new("Frame")
 	marker.Name = "HeroMarker"
 	marker.AnchorPoint = Vector2.new(0.5, 1)
-	marker.Size = UDim2.fromOffset(56, 76)
+	marker.Size = UDim2.fromOffset(64, 92)
 	marker.BackgroundTransparency = 1
 	marker.Visible = false
 	marker.ZIndex = 33
@@ -438,30 +438,13 @@ return function(deps)
 	bobber.BackgroundTransparency = 1
 	bobber.ZIndex = 33
 	bobber.Parent = marker
-	local heroHolder = Instance.new("Frame")
-	heroHolder.AnchorPoint = Vector2.new(0.5, 0)
-	heroHolder.Position = UDim2.fromScale(0.5, 0)
-	heroHolder.Size = UDim2.fromOffset(46, 46)
-	heroHolder.BackgroundColor3 = PARCHMENT
-	heroHolder.ZIndex = 33
-	heroHolder.Parent = bobber
-	deps.roundCorner(heroHolder, 23)
-	local heroEmoji = text(heroHolder, {
-		Size = UDim2.fromScale(1, 1), TextSize = 28, Text = "🙂", TextWrapped = false, ZIndex = 34,
-	})
-	do
-		local heroId = mapArt("hero_token")
-		if heroId then
-			PatronPlaque.applyById(heroHolder, heroId, { emojiLabel = heroEmoji, zIndex = 34, cornerRadius = 23, ring = true })
-		end
-	end
-	text(bobber, {
-		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 1), Size = UDim2.fromOffset(34, 30),
-		Font = Enum.Font.GothamBold, TextSize = 30, TextWrapped = false, Text = "X",
-		TextColor3 = Color3.fromRGB(200, 40, 40), TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.4, ZIndex = 35,
+	-- The hero (avatar clone -> avatar bust -> token), built when the map opens, destroyed when it closes.
+	local hero = require(script.Parent.JourneyMapHero)({
+		parent = bobber, Players = game:GetService("Players"), TweenService = TweenService,
+		ContentArt = ContentArtJMV, PatronPlaque = PatronPlaque, roundCorner = deps.roundCorner, calm = calm,
 	})
 	local bobTween = TweenService:Create(bobber, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = UDim2.fromOffset(0, -6) })
+		{ Position = UDim2.fromOffset(0, -5) })
 
 	-- ===== Candle glows, embers, sparkle layer =====
 	-- Flame positions measured on art-wip/backgrounds/journey_map.png (normalized).
@@ -549,6 +532,8 @@ return function(deps)
 	local revealOverride = nil -- Night used for the fog while the clear moment replays
 	local fogAnimate = false -- true while the fog band rolls back
 	local lastLayoutKey = nil
+	local heroWalking = false -- true while the hero walks the trail
+	local followHero = false -- the camera tracks the hero while it walks
 
 	local function nodePixel(index)
 		if nudged[index] then
@@ -562,13 +547,28 @@ return function(deps)
 		return math.clamp(x - scroll.AbsoluteSize.X / 2, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
 	end
 
+	-- Where the hero's feet rest at node `index`: on the trail just before it
+	-- (beside the medallion, clear of its label), or left of the first node.
+	local function standPoint(index)
+		local x, y = nodePixel(index)
+		local back = nodeSize / 2 + 34
+		local seg = segments[index - 1]
+		if seg and seg.length > back * 2 and not nudged[index] and not nudged[index - 1] then
+			return bezier(seg, 1 - back / seg.length)
+		end
+		return x - back, y
+	end
+
 	local function placeMarker()
 		if not markerIndex or not nodes[markerIndex] then
 			marker.Visible = false
 			return
 		end
-		local x, y = nodePixel(markerIndex)
-		marker.Position = UDim2.fromOffset(x, y - nodeSize / 2 + 8)
+		if heroWalking then
+			return -- the walk drives the position
+		end
+		local x, y = standPoint(markerIndex)
+		marker.Position = UDim2.fromOffset(x, y + 6)
 		marker.Visible = true
 	end
 
@@ -1177,6 +1177,51 @@ return function(deps)
 	})
 	deps.roundCorner(toast, 8)
 
+	-- "Find me": recentre the camera on the hero.
+	local findMe = Instance.new("TextButton")
+	findMe.Name = "FindMe"
+	findMe.Position = UDim2.fromOffset(14, 8)
+	findMe.Size = UDim2.fromOffset(104, 28)
+	findMe.Font = Enum.Font.GothamBold
+	findMe.TextSize = 14
+	findMe.TextColor3 = CREAM
+	findMe.TextTransparency = 0
+	findMe.TextStrokeTransparency = 1
+	findMe.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	findMe.AutoButtonColor = true
+	findMe.Text = "📍 Find me"
+	findMe.ZIndex = 46
+	findMe.Parent = frame
+	deps.roundCorner(findMe, 6)
+	findMe.MouseButton1Click:Connect(function()
+		deps.playClickSfx()
+		followHero = false
+		TweenService:Create(scroll, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+			{ CanvasPosition = Vector2.new(scrollTargetFor(marker.Position.X.Offset), 0) }):Play()
+	end)
+
+	-- Mouse drag-scroll (touch already drags a ScrollingFrame). Grabbing the map ends the camera follow.
+	do
+		local dragStart, startX = nil, 0
+		scroll.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and not debugOn then
+				dragStart, startX = input.Position.X, scroll.CanvasPosition.X
+				followHero = false
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(input)
+			if dragStart and input.UserInputType == Enum.UserInputType.MouseMovement then
+				local maxX = math.max(0, canvasW - scroll.AbsoluteSize.X)
+				scroll.CanvasPosition = Vector2.new(math.clamp(startX - (input.Position.X - dragStart), 0, maxX), 0)
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragStart = nil
+			end
+		end)
+	end
+
 	local function showToast(message, token, accent)
 		toast.Text = message
 		toast.BackgroundColor3 = accent
@@ -1302,22 +1347,120 @@ return function(deps)
 		end
 	end
 
-	-- Hero token hops along the trail between two neighbouring nodes.
-	local hopValue
-	local function hopMarker(fromIndex, toIndex, duration, token)
+	-- ===== Hero walk =====
+	local WALK_SPEED = 160 -- px per second
+	local hopValue -- the walk's driver value (destroyed on close)
+
+	-- Polyline from where the hero stands at `fromIndex`, over the node, along the trail to its stand point at the next node.
+	local function walkPath(fromIndex)
 		local seg = segments[fromIndex]
-		if not seg or toIndex ~= fromIndex + 1 then
+		if not seg or seg.length < 1 then
+			return nil, 0
+		end
+		local back = math.min((nodeSize / 2 + 34) / seg.length, 0.4)
+		local sx, sy = standPoint(fromIndex)
+		local pts = { { sx, sy, 0 } }
+		local total = 0
+		for k = 0, 24 do
+			local px, py = bezier(seg, back + (1 - 2 * back) * k / 24)
+			local last = pts[#pts]
+			total += math.sqrt((px - last[1]) ^ 2 + (py - last[2]) ^ 2)
+			pts[#pts + 1] = { px, py, total }
+		end
+		return pts, total
+	end
+
+	local function walkSeconds(fromIndex)
+		local _, total = walkPath(fromIndex)
+		return math.max(0.6, total / WALK_SPEED) / pace()
+	end
+
+	-- Steady speed with a short ease at each end: share of the distance covered at time t (0..1).
+	local EASE = 0.1
+	local function walkProgress(t)
+		local peak = 1 / (1 - EASE)
+		if t < EASE then
+			return peak * t * t / (2 * EASE)
+		elseif t > 1 - EASE then
+			local r = 1 - t
+			return 1 - peak * r * r / (2 * EASE)
+		end
+		return peak * (EASE / 2 + (t - EASE))
+	end
+
+	local function dustPuff(x, y)
+		local d = Instance.new("Frame")
+		d.AnchorPoint = Vector2.new(0.5, 0.5)
+		d.Position = UDim2.fromOffset(x, y + 4)
+		d.Size = UDim2.fromOffset(7, 7)
+		d.BackgroundColor3 = Color3.fromRGB(214, 196, 160)
+		d.BackgroundTransparency = 0.35
+		d.BorderSizePixel = 0
+		d.ZIndex = 32
+		d.Parent = sparkleLayer
+		deps.roundCorner(d, 10)
+		TweenService:Create(d, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.fromOffset(18, 18), Position = UDim2.fromOffset(x, y - 4), BackgroundTransparency = 1,
+		}):Play()
+		task.delay(0.5, function()
+			d:Destroy()
+		end)
+	end
+
+	local function settleHero()
+		heroWalking = false
+		hero.setWalking(false)
+		bobTween:Cancel()
+		bobber.Position = UDim2.fromOffset(0, 0)
+		if frame.Visible and not calm() then
+			bobTween:Play()
+		end
+	end
+
+	-- Walks the hero from node `fromIndex` to the next one along the dotted trail. Yields until it arrives.
+	local function walkHero(fromIndex, toIndex, token)
+		local pts, total = walkPath(fromIndex)
+		if not pts or toIndex ~= fromIndex + 1 then
 			markerIndex = toIndex
 			placeMarker()
 			return
 		end
-		hopValue = Instance.new("NumberValue")
-		local nv = hopValue
+		heroWalking = true
+		marker.Visible = true
+		bobTween:Cancel()
+		bobber.Position = UDim2.fromOffset(0, 0)
+		hero.setWalking(true)
+		hero.face(1)
+		local nv = Instance.new("NumberValue")
+		hopValue = nv
+		local lastDust = 0
 		local conn = nv.Changed:Connect(function(t)
-			local px, py = bezier(seg, t)
-			marker.Position = UDim2.fromOffset(px, py - nodeSize / 2 + 8 - math.sin(t * math.pi) * 26)
+			local d = walkProgress(t) * total
+			local a, b = pts[1], pts[#pts]
+			for k = 2, #pts do
+				if pts[k][3] >= d then
+					a, b = pts[k - 1], pts[k]
+					break
+				end
+			end
+			local span = math.max(b[3] - a[3], 0.001)
+			local f = math.clamp((d - a[3]) / span, 0, 1)
+			local x, y = a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f
+			marker.Position = UDim2.fromOffset(x, y + 6)
+			if math.abs(b[1] - a[1]) > 0.5 then
+				hero.face(b[1] > a[1] and 1 or -1)
+			end
+			if followHero then
+				local cur = scroll.CanvasPosition.X
+				scroll.CanvasPosition = Vector2.new(cur + (scrollTargetFor(x) - cur) * 0.15, 0)
+			end
+			local now = os.clock()
+			if not calm() and now - lastDust >= 0.4 then
+				lastDust = now
+				dustPuff(x, y)
+			end
 		end)
-		local tween = TweenService:Create(nv, TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Value = 1 })
+		local tween = TweenService:Create(nv, TweenInfo.new(math.max(0.6, total / WALK_SPEED) / pace(), Enum.EasingStyle.Linear), { Value = 1 })
 		tween:Play()
 		tween.Completed:Wait()
 		conn:Disconnect()
@@ -1327,7 +1470,14 @@ return function(deps)
 		end
 		if playing == token then
 			markerIndex = toIndex
+			hero.face(1)
+			settleHero()
 			placeMarker()
+			if followHero then
+				local x = standPoint(toIndex)
+				TweenService:Create(scroll, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+					{ CanvasPosition = Vector2.new(scrollTargetFor(x), 0) }):Play()
+			end
 		end
 	end
 
@@ -1445,49 +1595,48 @@ return function(deps)
 				TweenService:Create(scroll, TweenInfo.new(0.4 / pace()), { CanvasPosition = Vector2.new(target, 0) }):Play()
 				task.wait(0.35 / pace())
 
-				-- The node clears: the seal stamps on.
+				-- The node clears: the hero sets off along the trail as the seal stamps on.
 				shown[n] = true
 				render(view, shown, true)
-				stampSeal(nodes[index], index)
-				task.wait(0.35 / pace())
-				if playing ~= token then
-					return
-				end
-
-				-- The hero hops along the trail while it draws toward the next node.
 				local seg = segments[index]
+				local walkDone = seg == nil
 				if seg then
 					seg.filled = true
-					drawSegment(seg, 0.8 / pace())
-					hopMarker(index, index + 1, 0.8 / pace(), token)
-					if playing ~= token then
-						return
-					end
-					-- The fog rolls back one stop; the newly revealed node and trail fade in.
+					drawSegment(seg, walkSeconds(index))
+					followHero = true
+					task.spawn(function()
+						walkHero(index, index + 1, token)
+						walkDone = true
+					end)
+				end
+				stampSeal(nodes[index], index)
+				if seg then
+					-- The fog rolls back one stop while the hero walks; the new node and trail fade in.
 					revealOverride = n + 1
 					fogAnimate = true
 					render(view, shown, true)
 					fogAnimate = false
-					for i, s2 in ipairs(segments) do
-						if s2.modeChanged and s2.mode ~= "none" then
+					for _, s2 in ipairs(segments) do
+						if s2 ~= seg and s2.modeChanged and s2.mode ~= "none" then
 							drawSegment(s2, 0.9 / pace())
 						end
 					end
 					for _, revealedIndex in ipairs(reveal.newly) do
 						fadeInRevealed(revealedIndex)
 					end
-					local lookAt = nodePixel(math.min(index + 1, NODE_COUNT))
-					TweenService:Create(scroll, TweenInfo.new(1.2 / pace(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-						{ CanvasPosition = Vector2.new(scrollTargetFor(lookAt), 0) }):Play()
 					local nextNode = nodes[index + 1]
 					if nextNode and #reveal.newly == 0 then
 						popNode(nextNode)
 					end
-					task.wait(1.2 / pace())
-					if playing ~= token then
-						return
-					end
 				end
+				while not walkDone and playing == token do
+					task.wait(0.05)
+				end
+				followHero = false
+				if playing ~= token then
+					return
+				end
+				task.wait(0.3 / pace())
 
 				local reward = rewardOf(index)
 				if reward then
@@ -1589,6 +1738,11 @@ return function(deps)
 					hopValue:Destroy()
 					hopValue = nil
 				end
+				heroWalking = false
+				followHero = false
+				bobTween:Cancel()
+				hero.destroy()
+				marker.Visible = false
 				return
 			end
 			layout(true)
@@ -1609,6 +1763,9 @@ return function(deps)
 			unlocking = false
 			startAmbient()
 			fogBand.startDrift()
+			hero.build()
+			hero.face(1)
+			hero.setWalking(false)
 			if #pending > 0 then
 				playUnlocks(view, pending)
 				introTrail(nil, true)
