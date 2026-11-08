@@ -2396,6 +2396,14 @@ local function render(state)
 						slot.label.TextColor3 = Color3.fromRGB(255, 222, 150)
 						slot.label.Text = owned.name:sub(1, 1)
 						PatronPlaqueModule.updateSlot(slot, owned.id)
+						-- Tier ring color (ring only, no ornaments on seats).
+						pcall(function()
+							local seatRing = slot.frame:FindFirstChildOfClass("UIStroke")
+							local tier = require(ReplicatedStorage.Shared.Engine.CollectionBook).rarityForId("patrons", owned.id)
+							if seatRing then
+								seatRing.Color = tier == "common" and Color3.fromRGB(96, 64, 36) or require(script.RarityFrame).colorFor(tier)
+							end
+						end)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
 						-- one-off scale pop (popScale -- NOT pulseFrame, since
 						-- this frame's BackgroundColor3 is already meaningful
@@ -2406,6 +2414,10 @@ local function render(state)
 						end
 					else
 						PatronPlaqueModule.updateSlot(slot, nil)
+						local emptyRing = slot.frame:FindFirstChildOfClass("UIStroke")
+						if emptyRing then
+							emptyRing.Color = Color3.fromRGB(96, 64, 36)
+						end
 						slot.frame.BackgroundColor3 = Color3.fromRGB(196, 168, 118)
 						slot.label.TextColor3 = Color3.fromRGB(120, 88, 54)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
@@ -2499,7 +2511,10 @@ local function render(state)
 		end
 
 		if newPatron then
-			showUnlockPopup(newPatron.name, newPatron.description)
+			local okTier, tier = pcall(function()
+				return require(ReplicatedStorage.Shared.Engine.CollectionBook).rarityForId("patrons", newPatron.id)
+			end)
+			showUnlockPopup(newPatron.name, newPatron.description, okTier and tier or nil)
 		end
 
 		lastOwnedPatronIds = ownedPatronIds

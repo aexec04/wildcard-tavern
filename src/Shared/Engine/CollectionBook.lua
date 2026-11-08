@@ -36,8 +36,13 @@ CollectionBook.Rarities = {
 	common = { order = 1, name = "Common", color = { 175, 165, 150 } },
 	uncommon = { order = 2, name = "Uncommon", color = { 95, 185, 115 } },
 	rare = { order = 3, name = "Rare", color = { 85, 145, 235 } },
-	legendary = { order = 4, name = "Legendary", color = { 245, 185, 60 } },
+	epic = { order = 4, name = "Epic", color = { 165, 100, 230 } },
+	legendary = { order = 5, name = "Legendary", color = { 245, 185, 60 } },
+	mythical = { order = 6, name = "Mythical", color = { 255, 120, 190 } },
 }
+
+-- Tier ids in order, for legends and tests.
+CollectionBook.RarityOrder = { "common", "uncommon", "rare", "epic", "legendary", "mythical" }
 
 CollectionBook.Tabs = {
 	{ id = "patrons", name = "Patrons", profileField = "discoveredPatronIds" },
@@ -138,40 +143,114 @@ function CollectionBook.kindLabel(item)
 end
 
 -- ===== Rarity =====
--- An entry's own `rarity` field wins. Otherwise it's worked out from data
--- the entry already has: price for Patrons/Recipes/House Passes, minNight
--- for Boss Rounds.
+-- Six tiers (CollectionBook.RarityOrder). Order of precedence:
+--   1. the entry's own `rarity` field,
+--   2. CollectionBook.RarityOverrides[tab][id] (explicit, edit me),
+--   3. a rule from data the entry already has:
+--        patrons      price 8 rare, 7 uncommon, else common
+--        recipes      secret rare, house price 5+ uncommon, menu common
+--        bosses       minNight 6+ rare, 3+ uncommon, else common
+--        housePasses  price 12 legendary, 10 epic, 8 rare, 6 uncommon, else common
+--        titles       milestone rewards epic, others uncommon
+-- Mythical is kept for a handful of top-end things (Night 8 and 100% rewards,
+-- the Golden Gala set); everything else tops out at legendary.
+-- Tabs "sets" (Cosmetic Sets) and "backs" (Card Backs) are rated only by overrides.
+CollectionBook.RarityOverrides = {
+	patrons = {
+		house_favorite = "legendary",
+		veterans_table = "epic",
+		house_tab = "epic",
+		full_house_crowd = "epic",
+		house_special = "epic",
+	},
+	recipes = { star_treatment = "epic" },
+	titles = {
+		curious_guest = "rare",
+		tavern_legend = "rare",
+		patron_saint = "rare",
+		every_patron = "epic",
+		endless_legend = "legendary",
+		tavern_keeper = "mythical",
+		keeper_of_tales = "mythical",
+	},
+	sets = {
+		classic_tavern = "common",
+		winter_evening = "rare",
+		festival_night = "rare",
+		closing_time = "epic",
+		golden_gala = "mythical",
+	},
+	backs = {
+		classic = "common",
+		winter_frost = "uncommon",
+		festival_ribbon = "uncommon",
+		kitchen_checks = "uncommon",
+		hall_banner = "uncommon",
+		gilded_ledger = "rare",
+		closing_lantern = "rare",
+		ember_hours = "epic",
+		starlit_keeper = "mythical",
+	},
+}
+
 function CollectionBook.rarityOf(item)
 	local def = item.def
 	if type(def.rarity) == "string" and CollectionBook.Rarities[def.rarity] then
 		return def.rarity
 	end
+	local override = CollectionBook.RarityOverrides[item.tab]
+	if override and override[item.id] then
+		return override[item.id]
+	end
 	local price = def.price or 0
 	if item.tab == "patrons" then
-		if price >= 8 then return "legendary" end
-		if price >= 7 then return "rare" end
-		if price >= 6 then return "uncommon" end
+		if price >= 8 then return "rare" end
+		if price >= 7 then return "uncommon" end
 		return "common"
 	elseif item.tab == "recipes" then
 		if item.kind == "secret" then
-			return price >= 8 and "legendary" or "rare"
+			return "rare"
 		elseif item.kind == "menu" then
 			return "common"
 		end
 		return price >= 5 and "uncommon" or "common"
 	elseif item.tab == "bosses" then
 		local minNight = def.minNight or 1
-		if minNight >= 6 then return "legendary" end
-		if minNight >= 3 then return "rare" end
+		if minNight >= 6 then return "rare" end
+		if minNight >= 3 then return "uncommon" end
 		return "common"
 	elseif item.tab == "housePasses" then
 		if price >= 12 then return "legendary" end
+		if price >= 10 then return "epic" end
 		if price >= 8 then return "rare" end
-		return "uncommon"
+		if price >= 6 then return "uncommon" end
+		return "common"
 	elseif item.tab == "titles" then
-		return def.milestoneReward and "legendary" or "uncommon"
+		return def.milestoneReward and "epic" or "uncommon"
 	end
 	return "common"
+end
+
+-- Accepts Collection tab ids and ContentArt category names ("boss_rounds",
+-- "house_passes"). Returns "common" for an unknown id.
+local TAB_ALIASES = { boss_rounds = "bosses", house_passes = "housePasses" }
+function CollectionBook.rarityForId(tabId, id)
+	tabId = TAB_ALIASES[tabId] or tabId
+	for _, item in ipairs(CollectionBook.itemsFor(tabId)) do
+		if item.id == id then
+			return CollectionBook.rarityOf(item)
+		end
+	end
+	return "common"
+end
+
+-- Rarity for a Cosmetic Set / Card Back definition (not Collection tabs).
+function CollectionBook.rarityOfSet(set)
+	return CollectionBook.rarityOf({ id = set.id, tab = "sets", def = set })
+end
+
+function CollectionBook.rarityOfBack(back)
+	return CollectionBook.rarityOf({ id = back.id, tab = "backs", def = back })
 end
 
 -- ===== Discovery =====

@@ -167,6 +167,8 @@ return function(deps)
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
 	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+	local RarityFrame = require(script.Parent.RarityFrame)
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -603,6 +605,14 @@ return function(deps)
 		roundCorner(badge, 10)
 		-- Art is a child of badge (survives Clone); PatronPlaque blanks the badge
 		-- text rather than hiding the badge so the art stays visible.
+		-- Tier ring (ring color only: badges get cloned, so no animated ornaments).
+		do
+			local tierTab = (contentId and contentTab) or (patronId and "patrons")
+			local tierId = contentId or patronId
+			if tierTab and tierId then
+				RarityFrame.apply(badge, CollectionBook.rarityForId(tierTab, tierId), { ringOnly = true, thickness = 2 })
+			end
+		end
 		local artId = (contentId and contentTab and ContentArt.getImageId(contentTab, contentId))
 			or (patronId and ContentArt.getImageId("patrons", patronId))
 		if artId then

@@ -4354,6 +4354,36 @@ table.insert(tests, { name = "CollectionBook: every entry on every tab has a nam
 	end
 end })
 
+table.insert(tests, { name = "CollectionBook: six rarity tiers, every entry rated, sane distribution", fn = function()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	expectEqual(table.concat(CollectionBook.RarityOrder, ","), "common,uncommon,rare,epic,legendary,mythical")
+	local counts, total = {}, 0
+	local function tally(id, label)
+		expectTrue(CollectionBook.Rarities[id] ~= nil, label .. " has a valid tier")
+		counts[id] = (counts[id] or 0) + 1
+		total = total + 1
+	end
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		for _, item in ipairs(CollectionBook.itemsFor(tab.id)) do
+			tally(CollectionBook.rarityOf(item), tab.id .. "/" .. item.id)
+		end
+	end
+	for _, set in ipairs(CosmeticSets.Definitions or CosmeticSets.Sets or {}) do
+		tally(CollectionBook.rarityOfSet(set), "set/" .. set.id)
+	end
+	for _, back in ipairs(CardBacks.Definitions or CardBacks.Backs or {}) do
+		tally(CollectionBook.rarityOfBack(back), "back/" .. back.id)
+	end
+	for _, id in ipairs(CollectionBook.RarityOrder) do
+		expectTrue((counts[id] or 0) > 0, id .. " is used at least once")
+		if id ~= "common" then
+			expectTrue(counts.common > counts[id], "common is the largest group (vs " .. id .. ")")
+		end
+	end
+	expectTrue(counts.mythical * 100 < total * 5, "mythical is under 5 percent of entries")
+end })
+
 table.insert(tests, { name = "CollectionBook: an entry's own rarity field overrides the derived one", fn = function()
 	local item = { id = "x", tab = "patrons", def = { id = "x", price = 4 } }
 	expectEqual(CollectionBook.rarityOf(item), "common")

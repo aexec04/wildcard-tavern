@@ -101,9 +101,16 @@ return function(deps)
 		unlockPopup.Visible = false
 	end)
 
-	local function showUnlockPopup(name, description)
+	local function showUnlockPopup(name, description, rarityId)
 		unlockPopupToken = unlockPopupToken + 1
 		local myToken = unlockPopupToken
+
+		-- Tier frame around the card (optional third argument).
+		if rarityId then
+			pcall(function()
+				require(script.Parent.RarityFrame).apply(unlockPopup, rarityId, { thickness = 3, radius = 18, zIndex = 31 })
+			end)
+		end
 
 		unlockPopupName.Text = name
 		unlockPopupDescription.Text = description or ""

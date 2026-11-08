@@ -55,6 +55,7 @@ return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local RarityFrame = require(script.Parent.RarityFrame)
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
@@ -121,7 +122,7 @@ return function(deps)
 	-- Painted alcove behind everything; a dark scrim keeps the tile grid readable.
 	require(script.Parent.PanelArt).add(panel, {
 		key = "collection_bg",
-		scrim = { position = UDim2.fromOffset(15, 128), size = UDim2.new(1, -30, 1, -186) },
+		scrim = { position = UDim2.fromOffset(15, 156), size = UDim2.new(1, -30, 1, -214) },
 	})
 
 	label(panel, {
@@ -198,9 +199,47 @@ return function(deps)
 	tabLayout.Padding = UDim.new(0, 6)
 	tabLayout.Parent = tabRow
 
+	-- Rarity legend: one swatch + name per tier, in order.
+	local legendRow = Instance.new("Frame")
+	legendRow.Name = "RarityLegend"
+	legendRow.Size = UDim2.new(1, -30, 0, 26)
+	legendRow.Position = UDim2.fromOffset(15, 126)
+	legendRow.BackgroundTransparency = 1
+	legendRow.ZIndex = 21
+	legendRow.Parent = panel
+	local legendLayout = Instance.new("UIListLayout")
+	legendLayout.FillDirection = Enum.FillDirection.Horizontal
+	legendLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	legendLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	legendLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	legendLayout.Padding = UDim.new(0, 14)
+	legendLayout.Parent = legendRow
+	for i, rarityId in ipairs(CollectionBook.RarityOrder) do
+		local chip = Instance.new("Frame")
+		chip.LayoutOrder = i
+		chip.AutomaticSize = Enum.AutomaticSize.X
+		chip.Size = UDim2.fromOffset(0, 24)
+		chip.BackgroundTransparency = 1
+		chip.ZIndex = 21
+		chip.Parent = legendRow
+		local swatch = Instance.new("Frame")
+		swatch.Size = UDim2.fromOffset(16, 16)
+		swatch.Position = UDim2.fromOffset(0, 4)
+		swatch.BackgroundColor3 = Color3.fromRGB(34, 26, 18)
+		swatch.ZIndex = 22
+		swatch.Parent = chip
+		roundCorner(swatch, 4)
+		RarityFrame.apply(swatch, rarityId, { ringOnly = true, thickness = 2 })
+		label(chip, {
+			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 24), Position = UDim2.fromOffset(22, 0),
+			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = SOFT_CREAM,
+			Text = CollectionBook.Rarities[rarityId].name,
+		})
+	end
+
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -186)
-	scroll.Position = UDim2.fromOffset(15, 128)
+	scroll.Size = UDim2.new(1, -30, 1, -214)
+	scroll.Position = UDim2.fromOffset(15, 156)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
@@ -251,48 +290,87 @@ return function(deps)
 	card.AutoButtonColor = false
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(340, 330)
-	card.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	-- Art-first layout: a big 2:3 portrait on the left in a rarity frame with
+	-- the name banner overlapping its bottom edge; the effect strip, flavor
+	-- text and buttons sit to the right. The card is sized to its content.
+	local INK = Color3.fromRGB(60, 40, 22)
+	local CARD_W, CARD_H = 600, 420
+	local PORTRAIT_W, PORTRAIT_H = 230, 345
+	card.Size = UDim2.fromOffset(CARD_W, CARD_H)
+	card.BackgroundColor3 = Color3.fromRGB(222, 198, 150)
 	card.ZIndex = 31
 	card.Parent = detailShade
 	polishPanel(card, 14, "parchment")
+	local cardSize = Instance.new("UISizeConstraint")
+	cardSize.MaxSize = Vector2.new(CARD_W, CARD_H)
+	cardSize.Parent = card
 
-	-- Reuse polishPanel's gold ring as the rarity border (one UIStroke only).
-	local cardStroke = card:FindFirstChildOfClass("UIStroke")
-	cardStroke.Thickness = 3
-
-	local cardIcon = label(card, {
-		Size = UDim2.new(1, 0, 0, 64), Position = UDim2.fromOffset(0, 16),
-		TextSize = 52, ZIndex = 32, Text = "",
+	local portrait = Instance.new("Frame")
+	portrait.Name = "Portrait"
+	portrait.Position = UDim2.fromOffset(22, 22)
+	portrait.Size = UDim2.fromOffset(PORTRAIT_W, PORTRAIT_H)
+	portrait.BackgroundColor3 = Color3.fromRGB(34, 26, 18)
+	portrait.ClipsDescendants = true
+	portrait.ZIndex = 32
+	portrait.Parent = card
+	roundCorner(portrait, 10)
+	local cardIcon = label(portrait, {
+		Size = UDim2.fromScale(1, 1), TextSize = 96, ZIndex = 33, Text = "",
 	})
+
 	local cardName = label(card, {
-		Size = UDim2.new(1, -30, 0, 26), Position = UDim2.fromOffset(15, 84),
-		Font = Enum.Font.GothamBold, TextSize = 20, ZIndex = 32, TextWrapped = true, Text = "",
+		Size = UDim2.fromOffset(PORTRAIT_W + 24, 36), Position = UDim2.fromOffset(22 - 12, 22 + PORTRAIT_H - 18),
+		BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(58, 40, 26),
+		Font = Enum.Font.GothamBold, TextSize = 18, ZIndex = 36, TextWrapped = true, Text = "",
+		TextColor3 = CREAM,
 	})
+	roundCorner(cardName, 6)
+	local bannerStroke = Instance.new("UIStroke")
+	bannerStroke.Color = Color3.fromRGB(222, 182, 104)
+	bannerStroke.Thickness = 1.5
+	bannerStroke.Parent = cardName
+
+	local RIGHT_X = 22 + PORTRAIT_W + 24
+	local RIGHT_W = CARD_W - RIGHT_X - 22
 	local cardKind = label(card, {
-		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 112),
-		Font = Enum.Font.GothamBold, TextSize = 12, ZIndex = 32, Text = "",
+		Size = UDim2.fromOffset(RIGHT_W, 28), Position = UDim2.fromOffset(RIGHT_X, 22),
+		BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(58, 40, 26),
+		Font = Enum.Font.GothamBold, TextSize = 16, ZIndex = 32, Text = "",
 	})
-	local cardEffect = label(card, {
-		Size = UDim2.new(1, -40, 0, 70), Position = UDim2.fromOffset(20, 138),
-		TextSize = 15, ZIndex = 32, TextWrapped = true,
-		TextYAlignment = Enum.TextYAlignment.Top, Text = "",
+	roundCorner(cardKind, 14)
+	local effectStrip = Instance.new("Frame")
+	effectStrip.Position = UDim2.fromOffset(RIGHT_X, 62)
+	effectStrip.Size = UDim2.fromOffset(RIGHT_W, 118)
+	effectStrip.BackgroundColor3 = Color3.fromRGB(199, 178, 137)
+	effectStrip.ZIndex = 32
+	effectStrip.Parent = card
+	roundCorner(effectStrip, 8)
+	local effectStripStroke = Instance.new("UIStroke")
+	effectStripStroke.Color = Color3.fromRGB(120, 88, 56)
+	effectStripStroke.Thickness = 1.5
+	effectStripStroke.Parent = effectStrip
+	local cardEffect = label(effectStrip, {
+		Size = UDim2.new(1, -20, 1, -12), Position = UDim2.fromOffset(10, 6),
+		Font = Enum.Font.GothamBold, TextSize = 18, ZIndex = 33, TextWrapped = true,
+		TextColor3 = INK, TextYAlignment = Enum.TextYAlignment.Center, Text = "",
 	})
 	local cardFlavor = label(card, {
-		Size = UDim2.new(1, -40, 0, 44), Position = UDim2.fromOffset(20, 212),
-		TextSize = 13, ZIndex = 32, TextWrapped = true, TextColor3 = SOFT_CREAM,
+		Size = UDim2.fromOffset(RIGHT_W, 100), Position = UDim2.fromOffset(RIGHT_X, 192),
+		TextSize = 15, ZIndex = 32, TextWrapped = true, TextColor3 = INK,
 		FontFace = ITALIC, TextYAlignment = Enum.TextYAlignment.Top, Text = "",
 	})
 	local cardEquip = button(card, {
-		Size = UDim2.fromOffset(130, 34), Position = UDim2.new(0.5, -140, 1, -48),
-		TextSize = 14, ZIndex = 32, Text = "Equip", Visible = false,
+		Size = UDim2.fromOffset(120, 38), Position = UDim2.new(0, RIGHT_X, 1, -62),
+		TextSize = 16, ZIndex = 32, Text = "Equip", Visible = false,
 	})
 	polishButton(cardEquip, 8)
 	local cardClose = button(card, {
-		Size = UDim2.fromOffset(130, 34), Position = UDim2.new(0.5, -65, 1, -48),
-		TextSize = 14, ZIndex = 32, Text = "Back",
+		Size = UDim2.fromOffset(120, 38), Position = UDim2.new(0, RIGHT_X, 1, -62),
+		TextSize = 16, ZIndex = 32, Text = "Back",
 	})
 	polishButton(cardClose, 8)
+	-- Compatibility handle: showDetail recolors this with the rarity.
+	local cardStroke = card:FindFirstChildOfClass("UIStroke")
 
 	-- ===== Milestone toast =====
 	local toast = Instance.new("Frame")
@@ -365,6 +443,7 @@ return function(deps)
 		return "Not discovered yet. Spot it in the shop or a pack to add it."
 	end
 
+	local cardFloat = nil -- Tween: the detail card's idle float
 	local function showDetail(item, view)
 		openItem = item
 		local found = CollectionBook.isDiscovered(view.sets, item)
@@ -375,32 +454,35 @@ return function(deps)
 		cardIcon.Visible = true
 		cardIcon.TextTransparency = found and 0 or 0.55
 		cardIcon.TextStrokeTransparency = 1
-		cardStroke.Color = found and rgb(rarity.color) or Color3.fromRGB(60, 55, 50)
-		cardKind.TextColor3 = found and rgb(rarity.color) or DIM
+		local rarityId = CollectionBook.rarityOf(item)
+		cardStroke.Color = RarityFrame.colorFor(rarityId)
+		cardKind.TextColor3 = found and CREAM or DIM
+		cardKind.BackgroundColor3 = found and rgb(rarity.color):Lerp(Color3.fromRGB(30, 22, 16), 0.45) or Color3.fromRGB(58, 40, 26)
+		RarityFrame.apply(portrait, rarityId, { thickness = 4, radius = 10, locked = not found, zIndex = 38 })
 
-		-- Detail card art: overlay a portrait for any tab that has art.
-		local prevArt = card:FindFirstChild("ContentDetailArt")
+		-- Portrait art: Crop fills the whole 2:3 frame.
+		local prevArt = portrait:FindFirstChild("ContentDetailArt")
 		if prevArt then prevArt:Destroy() end
 		do
 			local artId = ContentArt.getImageId(item.tab, item.id)
-			local detailArt = artId and PatronPlaqueModule.applyById(card, artId, {
+			local detailArt = artId and PatronPlaqueModule.applyById(portrait, artId, {
 				emojiLabel = cardIcon,
 				dim = not found,
 				zIndex = 33,
 				cornerRadius = 10,
-				size = UDim2.fromOffset(60, 60),
-				position = UDim2.new(0.5, -30, 0, 16),
+				category = item.tab,
 			})
 			if detailArt then
 				detailArt.Name = "ContentDetailArt"
+				detailArt.ScaleType = Enum.ScaleType.Crop
 			end
 		end
-		local prevLock = card:FindFirstChild("ContentLockBadge")
+		local prevLock = portrait:FindFirstChild("ContentLockBadge")
 		if prevLock then prevLock:Destroy() end
 		if not found then
-			local lockBadge = label(card, {
-				Size = UDim2.fromOffset(22, 22), Position = UDim2.new(0.5, 14, 0, 58),
-				TextSize = 16, ZIndex = 36, Text = "🔒", BackgroundTransparency = 1,
+			local lockBadge = label(portrait, {
+				Size = UDim2.fromOffset(34, 34), Position = UDim2.new(1, -40, 0, 6),
+				TextSize = 26, ZIndex = 40, Text = "🔒", BackgroundTransparency = 1,
 			})
 			lockBadge.Name = "ContentLockBadge"
 		end
@@ -418,24 +500,44 @@ return function(deps)
 			cardFlavor.Text = def.flavorText and ('"' .. def.flavorText .. '"') or ""
 		else
 			cardName.Text = "???"
-			cardKind.Text = CollectionBook.kindLabel(item)
+			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
 			cardEffect.Text = undiscoveredHint(item)
 			cardFlavor.Text = ""
 		end
 
 		local canEquip = found and item.tab == "titles"
 		cardEquip.Visible = canEquip
-		cardClose.Position = canEquip and UDim2.new(0.5, 10, 1, -48) or UDim2.new(0.5, -65, 1, -48)
+		cardClose.Position = UDim2.new(0, RIGHT_X + (canEquip and 130 or 0), 1, -62)
 		if canEquip then
 			local equipped = view.equippedTitleId == item.id
 			cardEquip.Text = equipped and "Unequip" or "Equip"
 			cardEquip.BackgroundColor3 = equipped and ACTIVE_BROWN or BUTTON_BROWN
+		end
+
+		-- Gentle float (a few pixels, 3.4s) unless Reduce shake is on.
+		if cardFloat then
+			cardFloat:Cancel()
+			cardFloat = nil
+		end
+		card.Position = UDim2.fromScale(0.5, 0.5)
+		local settingsOk, reduce = pcall(function()
+			return require(script.Parent.ClientSettings).get("reduceShake")
+		end)
+		if not (settingsOk and reduce) then
+			cardFloat = game:GetService("TweenService"):Create(card, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+				Position = UDim2.new(0.5, 0, 0.5, -5),
+			})
+			cardFloat:Play()
 		end
 		detailShade.Visible = true
 	end
 
 	local function hideDetail()
 		openItem = nil
+		if cardFloat then
+			cardFloat:Cancel()
+			cardFloat = nil
+		end
 		detailShade.Visible = false
 	end
 
@@ -467,11 +569,10 @@ return function(deps)
 		roundCorner(tile, 8)
 
 		-- Rarity glow: a colored stroke plus a soft wash behind the icon.
-		local stroke = Instance.new("UIStroke")
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Thickness = found and 2 or 1
-		stroke.Color = found and rgb(rarity.color) or Color3.fromRGB(50, 45, 40)
-		stroke.Parent = tile
+		-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
+		RarityFrame.apply(tile, CollectionBook.rarityOf(item), {
+			thickness = found and 2 or 1.5, radius = 8, locked = not found, zIndex = 27,
+		})
 
 		local iconWell = Instance.new("Frame")
 		iconWell.Size = UDim2.fromOffset(60, 60)
