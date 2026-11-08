@@ -95,6 +95,9 @@ end
 
 local requested = {} -- url -> true once a load was started for it
 local function getProvider()
+	-- Client only: PreloadAsync yields (and can hang) on the server, so never hand it out there.
+	local okClient, isClient = pcall(function() return game:GetService("RunService"):IsClient() end)
+	if not okClient or not isClient then return nil end
 	local okSvc, ContentProvider = pcall(function() return game:GetService("ContentProvider") end)
 	if okSvc then return ContentProvider end
 	return nil

@@ -49,20 +49,31 @@ local DeveloperProducts = require(Engine.DeveloperProducts) -- PAID CONTINUE: co
 
 -- ===== 1. Run engine tests on server start =====
 
+-- Never gate startup on the tests: they run in their own thread with a time limit, so a
+-- hung test can't stop the Remotes folder from being created (the client waits on it).
 do
-	local okTests, errTests = pcall(function()
-		local TestRunner = require(Tests.TestRunner)
-		local engineTests = require(Tests.EngineTests)
-		print("===== Wildcard Tavern: running engine tests =====")
-		local results = TestRunner.run(engineTests)
-		if results.failed > 0 then
-			warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))
+	local finished = false
+	task.spawn(function()
+		local okTests, errTests = pcall(function()
+			local TestRunner = require(Tests.TestRunner)
+			local engineTests = require(Tests.EngineTests)
+			print("===== Wildcard Tavern: running engine tests =====")
+			local results = TestRunner.run(engineTests)
+			if results.failed > 0 then
+				warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))
+			end
+			print("===================================================")
+		end)
+		if not okTests then
+			warn("[Startup] engine tests could not run (server continues): " .. tostring(errTests))
 		end
-		print("===================================================")
+		finished = true
 	end)
-	if not okTests then
-		warn("[Startup] engine tests could not run (server continues): " .. tostring(errTests))
-	end
+	task.delay(10, function()
+		if not finished then
+			warn("[Startup] engine tests timed out after 10s (a test is yielding); the server continues without them")
+		end
+	end)
 end
 
 -- ===== 2. RemoteEvents =====
