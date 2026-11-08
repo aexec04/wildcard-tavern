@@ -5207,6 +5207,16 @@ table.insert(tests, { name = "StageMotion: sway is bounded and continuous, hit s
 		small = math.max(small, math.abs(StageMotion.hitShake(i * 0.005, 0.3)))
 	end
 	expectTrue(big > small, "a bigger hit shakes more")
+	local prevBob
+	for i = 0, 800 do
+		local b = StageMotion.bobOffset(i * 0.01, 6, 1.6, false)
+		expectTrue(math.abs(b) <= 6.0001, "bob is bounded by its amplitude")
+		if prevBob then
+			expectTrue(math.abs(b - prevBob) < 0.2, "bob is continuous (no steps)")
+		end
+		prevBob = b
+		expectEqual(StageMotion.bobOffset(i * 0.01, 6, 1.6, true), 0)
+	end
 	expectEqual(StageMotion.hop(0, 14), 0)
 	expectEqual(StageMotion.hop(0.5, 14), 0)
 	expectTrue(StageMotion.hop(0.16, 14) > 13, "hop peaks mid-way")

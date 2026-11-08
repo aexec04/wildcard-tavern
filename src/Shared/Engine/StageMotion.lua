@@ -38,6 +38,15 @@ function StageMotion.hitShake(elapsed, strength, duration)
 	return math.sin(elapsed * 62) * 7 * env, math.sin(elapsed * 47) * 4 * env
 end
 
+-- Smooth levitation offset in pixels (negative = up) for the Collection detail card: a continuous sine of
+-- the clock, bounded by +-amp, 0 when reduced. Callers apply it as a Position offset (fractional, no rounding).
+function StageMotion.bobOffset(t, amp, speed, reduced)
+	if reduced then
+		return 0
+	end
+	return math.sin(t * (speed or 1.6)) * (amp or 6)
+end
+
 -- Returns pixels of lift (>= 0).
 function StageMotion.hop(elapsed, height, duration)
 	duration = duration or 0.32

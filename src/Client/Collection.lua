@@ -57,6 +57,7 @@ return function(deps)
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 	local RarityFrame = require(script.Parent.RarityFrame)
 	local ClientSettings = require(script.Parent.ClientSettings)
+	local StageMotion = require(Engine:WaitForChild("StageMotion"))
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
@@ -470,7 +471,7 @@ return function(deps)
 		return "Not discovered yet. Spot it in the shop or a pack to add it."
 	end
 
-	local cardFloat = nil -- Tween: the detail card's idle float
+	local cardFloat = nil -- RBXScriptConnection: the detail card's levitation (only while the card is open)
 	local function showDetail(item, view)
 		openItem = item
 		local found = CollectionBook.isDiscovered(view.sets, item)
@@ -541,20 +542,16 @@ return function(deps)
 			cardEquip.BackgroundColor3 = equipped and ACTIVE_BROWN or BUTTON_BROWN
 		end
 
-		-- Gentle float (a few pixels, 3.4s) unless Reduce shake is on.
-		if cardFloat then
-			cardFloat:Cancel()
-			cardFloat = nil
-		end
+		-- Levitate: ONE RenderStepped connection, a continuous sine of the clock applied as a fractional
+		-- Position offset (no tweens, so no restarts or stepping). Re-showing the card keeps the same
+		-- connection. Skipped under Reduce shake; disconnected in hideDetail.
 		card.Position = UDim2.fromScale(0.5, 0.5)
-		local settingsOk, reduce = pcall(function()
-			return require(script.Parent.ClientSettings).get("reduceShake")
-		end)
-		if not (settingsOk and reduce) then
-			cardFloat = game:GetService("TweenService"):Create(card, TweenInfo.new(1.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-				Position = UDim2.new(0.5, 0, 0.5, -5),
-			})
-			cardFloat:Play()
+		if not cardFloat then
+			cardFloat = game:GetService("RunService").RenderStepped:Connect(function()
+				if not (detailShade.Visible and backdrop.Visible) then return end
+				local reduce = ClientSettings.get("reduceShake") == true
+				card.Position = UDim2.new(0.5, 0, 0.5, StageMotion.bobOffset(os.clock(), 6, 1.6, reduce))
+			end)
 		end
 		detailShade.Visible = true
 	end
@@ -562,7 +559,7 @@ return function(deps)
 	local function hideDetail()
 		openItem = nil
 		if cardFloat then
-			cardFloat:Cancel()
+			cardFloat:Disconnect()
 			cardFloat = nil
 		end
 		detailShade.Visible = false
@@ -582,24 +579,9 @@ return function(deps)
 		end
 	end)
 
-	-- Idle bob: one continuous sine per tile icon (own phase), driven by a single
-	-- Heartbeat loop that only runs work while the panel is visible. No tweens, so
-	-- there is no restart jitter. Skipped under "Reduce screen shake".
-	local bobbers = {}
-	local bobStart = os.clock()
-	local BOB_PIXELS, BOB_PERIOD = 2.5, 3.2
-	game:GetService("RunService").Heartbeat:Connect(function()
-		if not backdrop.Visible or #bobbers == 0 or ClientSettings.get("reduceShake") then
-			return
-		end
-		local t = os.clock() - bobStart
-		for _, b in ipairs(bobbers) do
-			if b.well.Parent then
-				b.well.Position = UDim2.new(0.5, -30, 0, 8 + BOB_PIXELS * math.sin((t / BOB_PERIOD + b.phase) * 2 * math.pi))
-			end
-		end
-	end)
-
+	-- Grid tiles do not animate at all (159+ tiles must cost nothing); only the open detail card levitates.
+	local TILE_BATCH = 20
+	local buildToken = 0
 	local function makeTile(item, order, view)
 		local found = CollectionBook.isDiscovered(view.sets, item)
 		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
@@ -627,7 +609,6 @@ return function(deps)
 		iconWell.ZIndex = 22
 		iconWell.Parent = tile
 		roundCorner(iconWell, 30)
-		table.insert(bobbers, { well = iconWell, phase = (order * 0.137) % 1 })
 
 		local icon = label(iconWell, {
 			Size = UDim2.fromScale(1, 1), TextSize = 34, ZIndex = 23, Text = iconFor(item),
@@ -724,9 +705,26 @@ return function(deps)
 				child:Destroy()
 			end
 		end
-		table.clear(bobbers)
-		for i, item in ipairs(CollectionBook.displayItems(activeTabId, hiddenRarities)) do
-			makeTile(item, i, view)
+		-- Build tiles in small batches (20 per frame) so opening the Collection does not stutter; a newer
+		-- refresh bumps buildToken and the old batch loop stops.
+		buildToken = buildToken + 1
+		local mine = buildToken
+		local items = CollectionBook.displayItems(activeTabId, hiddenRarities)
+		for i = 1, math.min(#items, TILE_BATCH) do
+			makeTile(items[i], i, view)
+		end
+		if #items > TILE_BATCH then
+			task.spawn(function()
+				local i = TILE_BATCH + 1
+				while i <= #items do
+					task.wait()
+					if buildToken ~= mine or not scroll.Parent then return end
+					for j = i, math.min(#items, i + TILE_BATCH - 1) do
+						makeTile(items[j], j, view)
+					end
+					i = i + TILE_BATCH
+				end
+			end)
 		end
 
 		-- Keep an open detail card current (e.g. after an Equip click).
