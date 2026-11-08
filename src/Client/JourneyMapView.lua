@@ -152,7 +152,10 @@ return function(deps)
 	local LABEL_INK = Color3.fromRGB(60, 40, 22)
 	local PARCHMENT = Color3.fromRGB(226, 202, 156)
 	local TAG_PARCHMENT = Color3.fromRGB(236, 216, 172)
-	local LABEL_STROKE = Color3.fromRGB(240, 222, 180)
+	-- Node names: cream with a dark stroke (same as Round Select titles) so locked and
+	-- unlocked labels read equally well over the painted map.
+	local NAME_CREAM = Color3.fromRGB(250, 235, 200)
+	local NAME_STROKE = Color3.fromRGB(35, 22, 10)
 	local RIBBON = Color3.fromRGB(150, 48, 40)
 
 	local function mapArt(key)
@@ -376,7 +379,7 @@ return function(deps)
 		local name = text(canvas, {
 			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = true,
 			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 27,
-			TextColor3 = LABEL_INK, TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.3,
+			TextColor3 = NAME_CREAM, TextStrokeColor3 = NAME_STROKE, TextStrokeTransparency = 0.3,
 		})
 		-- Reward on a small hanging tag.
 		local tag = Instance.new("Frame")
@@ -822,10 +825,10 @@ return function(deps)
 				node.bossBadge.BackgroundTransparency = locked and 0.4 or 0
 			end
 
-			node.name.TextColor3 = locked and Color3.fromRGB(105, 85, 65) or LABEL_INK
+			node.name.TextColor3 = NAME_CREAM
 			local pv = previewText(index)
 			node.preview.Text = pv
-			node.preview.TextColor3 = locked and Color3.fromRGB(105, 85, 65) or LABEL_INK
+			node.preview.TextColor3 = LABEL_INK -- on the parchment tag, dark ink in both states
 			node.tag.Visible = shownNode and pv ~= ""
 			node.haloStroke.Color = accentHere
 			setPulse(node, isCurrent and shownNode and frame.Visible)

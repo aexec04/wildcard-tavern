@@ -1,10 +1,11 @@
 --[[
 	Client/JourneyMapFog.lua
 	Fog of war for the Journey map. One drifting cloud band covers everything
-	past the reveal limit. It is built in code from overlapping soft round
-	Frames in warm-white (Color stops and stepped BackgroundTransparency only,
-	never a gradient): a slow back layer and a nearer front layer, with
-	feathered leading columns so the edge dissolves. It is never black.
+	past the reveal limit. It is built in code from overlapping soft
+	round Frames in warm cream (Color and BackgroundTransparency only, never a
+	gradient): each patch is 4 concentric discs that fade toward the rim, in a slow
+	back layer and a nearer front layer, with the leading columns thinned so the mist
+	dissolves near revealed nodes. It is never black.
 
 	The band is one Frame; moving the fog back one stop is a tween of its
 	Position. A "Something stirs in the fog..." tag rides on the band. The
@@ -55,13 +56,13 @@ return function(deps)
 	local hint = Instance.new("TextLabel")
 	hint.Name = "FogHint"
 	hint.AnchorPoint = Vector2.new(0.5, 0.5)
-	hint.Size = UDim2.fromOffset(0, 28)
+	hint.Size = UDim2.fromOffset(0, 32)
 	hint.AutomaticSize = Enum.AutomaticSize.X
 	hint.BackgroundColor3 = Color3.fromRGB(236, 216, 172)
 	hint.BackgroundTransparency = 0.1
 	hint.BorderSizePixel = 0
 	hint.Font = Enum.Font.GothamBold
-	hint.TextSize = 14
+	hint.TextSize = 16
 	hint.TextWrapped = false
 	hint.TextColor3 = INK
 	hint.TextTransparency = 0
@@ -128,7 +129,13 @@ return function(deps)
 	local edgeTarget = nil
 	local edgeTween = nil
 
-	local function puff(layerIndex, cx, cy, diameter, outerTr, innerTr)
+	-- A patch is 4 concentric round discs (scale 1 -> 0.4) whose opacity rises toward the
+	-- centre, so the edge fades out softly instead of ending in one hard circle. The
+	-- `base` transparency (0..1) is the patch's outermost ring; the inner rings step
+	-- down from it. Warm cream only, Color + BackgroundTransparency, no gradients.
+	local RING_SCALES = { 1, 0.82, 0.62, 0.4 }
+	local RING_STEPS = { 0, 0.08, 0.18, 0.28 } -- how much more opaque each inner ring is
+	local function puff(layerIndex, cx, cy, diameter, base)
 		local holder = Instance.new("Frame")
 		holder.AnchorPoint = Vector2.new(0.5, 0.5)
 		holder.Position = UDim2.fromOffset(cx, cy)
@@ -136,8 +143,10 @@ return function(deps)
 		holder.BackgroundTransparency = 1
 		holder.ZIndex = Z_FOG
 		holder.Parent = puffHolder
-		disc(holder, 1, FOG, math.min(outerTr, 0.98))
-		disc(holder, 0.62, FOG_CORE, math.min(innerTr, 0.98))
+		for i, scale in ipairs(RING_SCALES) do
+			local tr = math.min(base - RING_STEPS[i] * (1 - math.max(0, base - 0.9)), 0.985)
+			disc(holder, scale, i >= 3 and FOG_CORE or FOG, math.max(tr, 0.4))
+		end
 		table.insert(puffs, { frame = holder, cx = cx, cy = cy, layer = layerIndex })
 	end
 
@@ -177,31 +186,36 @@ return function(deps)
 		puffs = {}
 		local bandW = canvasW + 700
 		band.Size = UDim2.fromOffset(bandW, canvasH)
-		-- Back layer: big, faint, sparse.
-		local backStep, backD = 340, math.max(440, canvasH * 0.7)
-		local rows = math.max(2, math.ceil(canvasH / 330))
+		-- Fewer, larger patches than before. The first columns (next to the revealed
+		-- part of the map) are fainter so the mist thins out near the nodes.
+		local function thin(col)
+			return col == 1 and 0.3 or (col == 2 and 0.18 or (col == 3 and 0.08 or 0))
+		end
+		-- Back layer: huge, faint.
+		local backStep, backD = 520, math.max(620, canvasH * 0.95)
+		local rows = math.max(2, math.ceil(canvasH / 480))
 		local col = 0
-		local x = -320
+		local x = -300
 		while x < bandW do
 			col += 1
-			local feather = col == 1 and 0.2 or (col == 2 and 0.08 or 0)
 			for r = 1, rows do
-				local cy = (r - 0.5) * canvasH / rows + (((col + r) % 2) * 2 - 1) * 24
-				puff(1, x + ((r % 2) * 90), cy, backD, 0.8 + feather, 0.7 + feather)
+				local cy = (r - 0.5) * canvasH / rows + (((col + r) % 2) * 2 - 1) * 30
+				local jitter = ((col * 7 + r * 13) % 5) * 0.012
+				puff(1, x + ((r % 2) * 120), cy, backD, 0.92 + jitter + thin(col))
 			end
 			x += backStep
 		end
-		-- Front layer: nearer, denser.
-		local frontStep, frontD = 230, math.max(340, canvasH * 0.5)
-		rows = math.max(3, math.ceil(canvasH / 250))
+		-- Front layer: nearer, a little denser.
+		local frontStep, frontD = 380, math.max(480, canvasH * 0.7)
+		rows = math.max(3, math.ceil(canvasH / 360))
 		col = 0
-		x = -260
+		x = -240
 		while x < bandW do
 			col += 1
-			local feather = col == 1 and 0.26 or (col == 2 and 0.12 or 0)
 			for r = 1, rows do
-				local cy = (r - 0.5) * canvasH / rows + (((col * 3 + r) % 3) - 1) * 30
-				puff(2, x + ((r % 2) * 60), cy, frontD, 0.7 + feather, 0.5 + feather)
+				local cy = (r - 0.5) * canvasH / rows + (((col * 3 + r) % 3) - 1) * 36
+				local jitter = ((col * 11 + r * 5) % 5) * 0.015
+				puff(2, x + ((r % 2) * 90), cy, frontD, 0.88 + jitter + thin(col))
 			end
 			x += frontStep
 		end
