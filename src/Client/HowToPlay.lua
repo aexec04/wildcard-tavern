@@ -153,11 +153,13 @@ return function(deps)
 		tile.ZIndex = Z
 		tile.Parent = basicsPage
 		polishPanel(tile, 10)
+		-- Icon (72) + title (28) + body (72) block, centered vertically in the tile.
+		local blockTop = math.max(8, math.floor((math.floor(TILE_H) - (72 + 8 + 28 + 4 + 72)) / 2))
 
 		-- Emoji sits under the painted icon and only shows if the art is missing or fails to load.
 		local emoji = Instance.new("TextLabel")
 		emoji.Size = UDim2.new(0, 72, 0, 72)
-		emoji.Position = UDim2.new(0.5, -36, 0, 12)
+		emoji.Position = UDim2.new(0.5, -36, 0, blockTop)
 		emoji.BackgroundTransparency = 1
 		emoji.Font = Enum.Font.GothamBold
 		emoji.TextSize = 48
@@ -172,7 +174,7 @@ return function(deps)
 		if artId then
 			local img = Instance.new("ImageLabel")
 			img.Size = UDim2.new(0, 72, 0, 72)
-			img.Position = UDim2.new(0.5, -36, 0, 12)
+			img.Position = UDim2.new(0.5, -36, 0, blockTop)
 			img.BackgroundTransparency = 1
 			img.Image = artId
 			img.ScaleType = Enum.ScaleType.Fit
@@ -180,33 +182,57 @@ return function(deps)
 			img.Parent = tile
 			roundCorner(img, 10)
 			task.spawn(function()
-				local ok = pcall(function() ContentProvider:PreloadAsync({ img }) end)
-				if not ok or not img.IsLoaded then
-					img.Visible = false
+				-- Never gate on img.IsLoaded after PreloadAsync (reads false before first render).
+				-- Only Failure/TimedOut (or 8s with no load) brings the emoji back; the art
+				-- stays Visible so a late load still shows.
+				local artOk = false
+				local function showEmoji()
 					emoji.Visible = true
+					img.ImageTransparency = 1
 				end
+				img:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+					if img.IsLoaded then
+						artOk = true
+						emoji.Visible = false
+						img.ImageTransparency = 0
+					end
+				end)
+				task.delay(8, function()
+					if img.Parent and not artOk and not img.IsLoaded then showEmoji() end
+				end)
+				local ok = pcall(function()
+					ContentProvider:PreloadAsync({ img }, function(_, status)
+						if status == Enum.AssetFetchStatus.Success then
+							artOk = true
+							emoji.Visible = false
+						elseif status == Enum.AssetFetchStatus.Failure or status == Enum.AssetFetchStatus.TimedOut then
+							showEmoji()
+						end
+					end)
+				end)
+				if not ok then showEmoji() end
 			end)
 		else
 			emoji.Visible = true
 		end
 
 		local titleLabel = Instance.new("TextLabel")
-		titleLabel.Size = UDim2.new(1, -16, 0, 26)
-		titleLabel.Position = UDim2.new(0, 8, 0, 92)
+		titleLabel.Size = UDim2.new(1, -16, 0, 28)
+		titleLabel.Position = UDim2.new(0, 8, 0, blockTop + 80)
 		titleLabel.BackgroundTransparency = 1
 		titleLabel.Font = Enum.Font.GothamBold
-		titleLabel.TextSize = 18
+		titleLabel.TextSize = 20
 		titleLabel.TextColor3 = GOLD
 		titleLabel.Text = step.title
 		titleLabel.ZIndex = Z
 		titleLabel.Parent = tile
 
 		local captionLabel = Instance.new("TextLabel")
-		captionLabel.Size = UDim2.new(1, -20, 1, -126)
-		captionLabel.Position = UDim2.new(0, 10, 0, 120)
+		captionLabel.Size = UDim2.new(1, -20, 0, 72)
+		captionLabel.Position = UDim2.new(0, 10, 0, blockTop + 112)
 		captionLabel.BackgroundTransparency = 1
 		captionLabel.Font = Enum.Font.Gotham
-		captionLabel.TextSize = 16
+		captionLabel.TextSize = 17
 		captionLabel.TextColor3 = Color3.fromRGB(235, 225, 210)
 		captionLabel.TextWrapped = true
 		captionLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -353,6 +379,16 @@ return function(deps)
 
 	OverlayManager.register("howToPlay", function()
 		popOut(howToPlayBackdrop, howToPlayPanel)
+	end)
+
+	-- Hide the dark menu title/shadow/ribbon while How to Play is open (they bled through above the panel).
+	local menuRoot = menuHowToPlayButton:FindFirstAncestor("MenuRoot")
+	howToPlayBackdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not menuRoot then return end
+		for _, n in ipairs({ "MenuTitle", "MenuTitleShadow", "MenuRibbon" }) do
+			local o = menuRoot:FindFirstChild(n)
+			if o then o.Visible = not howToPlayBackdrop.Visible end
+		end
 	end)
 
 	local function openHowToPlay()

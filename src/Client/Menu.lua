@@ -155,6 +155,7 @@ return function(deps)
 
 	-- ===== Title: carved gold look (gold fill, dark stroke, soft drop shadow) =====
 	local menuTitleShadow = Instance.new("TextLabel")
+	menuTitleShadow.Name = "MenuTitleShadow"
 	menuTitleShadow.Size = UDim2.new(1, 0, 0, 80)
 	menuTitleShadow.Position = UDim2.new(0, 3, 0, 23)
 	menuTitleShadow.BackgroundTransparency = 1
@@ -168,6 +169,7 @@ return function(deps)
 	menuTitleShadow.Parent = menuFrame
 
 	local menuTitle = Instance.new("TextLabel")
+	menuTitle.Name = "MenuTitle"
 	menuTitle.Size = UDim2.new(1, 0, 0, 80)
 	menuTitle.Position = UDim2.new(0, 0, 0, 20)
 	menuTitle.BackgroundTransparency = 1
