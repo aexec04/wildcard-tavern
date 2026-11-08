@@ -37,7 +37,7 @@ local ART_MAPS = {
 local GOLD = Color3.fromRGB(222, 182, 104)
 local TweenService = game:GetService("TweenService")
 local ContentProvider = game:GetService("ContentProvider")
-local LOAD_TIMEOUT = 3
+local LOAD_TIMEOUT = 8
 
 -- Reveal `art` without a placeholder flash. Already loaded (cached/preloaded):
 -- hide the emoji synchronously. Otherwise keep the art invisible AND the emoji
@@ -100,23 +100,28 @@ local function revealArt(art, emojiLabel)
 	art:GetPropertyChangedSignal("IsLoaded"):Connect(function()
 		if art.IsLoaded then onLoaded() end
 	end)
+	-- giveUp must NOT hide the art: an invisible ImageLabel never loads, so a
+	-- late load could never swap in. Keep it Visible (transparent), show emoji.
 	local function giveUp()
 		if shown or not art.Parent then return end
-		art.Visible = false
 		restoreEmoji()
 	end
+	local preloadOk = false
 	task.delay(LOAD_TIMEOUT, function()
-		if not art.IsLoaded then giveUp() end
+		if not art.IsLoaded and not preloadOk then giveUp() end
 	end)
 	task.spawn(function()
 		pcall(function()
 			ContentProvider:PreloadAsync({ art }, function(_, status)
-				if status == Enum.AssetFetchStatus.Failure or status == Enum.AssetFetchStatus.TimedOut then
+				if status == Enum.AssetFetchStatus.Success then
+					preloadOk = true
+					onLoaded()
+				elseif status == Enum.AssetFetchStatus.Failure or status == Enum.AssetFetchStatus.TimedOut then
 					giveUp()
 				end
 			end)
 		end)
-		if art.Parent and art.IsLoaded then onLoaded() end
+		if preloadOk or (art.Parent and art.IsLoaded) then onLoaded() end
 	end)
 end
 
