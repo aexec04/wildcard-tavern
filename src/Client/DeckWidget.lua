@@ -121,7 +121,7 @@ return function(deps)
 	deckWidgetButton.Text = ""
 	deckWidgetButton.ZIndex = 3
 	deckWidgetButton.Parent = deckWidget
-	addTooltip(deckWidgetButton, "Deck Tracker -- click to see what's left in the deck")
+	addTooltip(deckWidgetButton, "Click to see your deck")
 
 	-- Two cards peek out from under the top card (2-3px offsets, 1.5 degree turns)
 	-- so the pile reads as a stack. CosmeticSetsView swaps their art with the top card's.

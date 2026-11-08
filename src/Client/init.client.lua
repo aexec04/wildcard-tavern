@@ -611,7 +611,7 @@ end
 
 local playButton = makeActionButton("Play Hand")
 playButton.LayoutOrder = 1
-addTooltip(playButton, "Play your selected cards as a hand")
+-- (no tooltip: the label already says Play Hand)
 
 -- LAYOUT FEATURE 4: Sort Hand (Rank/Suit), between Play Hand and Discard --
 -- purely a client-side DISPLAY order (see sortedHandIndices + rebuildHand
@@ -691,8 +691,7 @@ end
 
 local sortByRankButton = makeSortButton("Rank", 2)
 local sortBySuitButton = makeSortButton("Suit", 3)
-addTooltip(sortByRankButton, "Sort your hand by card rank (2-A)")
-addTooltip(sortBySuitButton, "Sort your hand by suit")
+-- (no tooltips on the labeled Rank / Suit sort buttons)
 
 -- Highlights whichever sort mode is currently active, so the buttons also
 -- double as a status readout ("Rank" lit up = your hand is sorted by rank).
@@ -734,7 +733,7 @@ end -- do (Sort Hand buttons)
 
 local discardButton = makeActionButton("Discard")
 discardButton.LayoutOrder = 3
-addTooltip(discardButton, "Discard your selected cards and draw new ones")
+-- (no tooltip: the label already says Discard)
 
 -- ===== Deck-remaining widget, bottom-right =====
 -- Extracted into Client/DeckWidget.lua. deckCountLabel is driven every

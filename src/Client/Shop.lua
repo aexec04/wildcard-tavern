@@ -299,7 +299,7 @@ return function(deps)
 		shopTitle.Font = Enum.Font.GothamBold
 		shopTitle.TextSize = 22
 		shopTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-		shopTitle.Text = "The Counter -- spend your Tips"
+		shopTitle.Text = "The Counter"
 		shopTitle.ZIndex = SHOP_ZINDEX
 		shopTitle.Parent = shopFrame
 
