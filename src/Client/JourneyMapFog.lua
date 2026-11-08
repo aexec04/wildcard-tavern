@@ -32,8 +32,8 @@ return function(deps)
 	local TweenService = deps.TweenService
 	local canvas = deps.canvas
 
-	local FOG = Color3.fromRGB(244, 232, 208)
-	local FOG_CORE = Color3.fromRGB(250, 240, 220)
+	local FOG = Color3.fromRGB(126, 118, 106) -- a darker, desaturated haze (never a bright band)
+	local FOG_CORE = Color3.fromRGB(104, 98, 90)
 	local GLOW = Color3.fromRGB(255, 200, 110)
 	local GLOW_CORE = Color3.fromRGB(255, 228, 165)
 	local INK = Color3.fromRGB(60, 40, 22)

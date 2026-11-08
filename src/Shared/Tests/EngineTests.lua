@@ -7252,4 +7252,22 @@ table.insert(tests, { name = "CosmeticSets: every set resolves a card face and b
 	end
 end })
 
+table.insert(tests, { name = "RegionTiles.fadeSlices: biome joins cross-fade with no gap and no pale band", fn = function()
+	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
+	for _, width in ipairs({ 96, 100, 241 }) do
+		local slices = RegionTiles.fadeSlices(width, 16)
+		expectTrue(#slices == 16, "one slice per step")
+		local x, prevT = 0, 1
+		for _, sl in ipairs(slices) do
+			expectTrue(sl.x == x and sl.w >= 0, "slices tile the width without a gap or overlap")
+			expectTrue(sl.transparency <= prevT and sl.transparency >= 0 and sl.transparency <= 1, "transparency only falls (clear to opaque)")
+			x = sl.x + sl.w
+			prevT = sl.transparency
+		end
+		expectTrue(x == width, "slices span the full join")
+		expectTrue(slices[1].transparency > 0.95 and slices[#slices].transparency < 0.05, "starts clear, ends opaque")
+	end
+	expectTrue(#RegionTiles.fadeSlices(50, 0) == 1, "at least one slice")
+end })
+
 return tests

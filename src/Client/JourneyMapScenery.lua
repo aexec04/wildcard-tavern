@@ -13,6 +13,12 @@
 	tavern. A region wider than its art (aspect 1.5) repeats the art in tiles; the art
 	fades to plain parchment at its left and right edges so tiles join.
 
+	Joins: no pale or white seam. Each painted tile is zoomed 1.2x about its centre inside a clipping
+	frame, so the pale parchment fade the art has at its own edges falls outside the frame. Where two
+	biomes meet (a 2 * OVERLAP zone), the later biome is drawn as thin ImageLabel slices whose
+	ImageTransparency steps from clear to opaque (RegionTiles.fadeSlices), a true cross-fade of the two
+	neighbouring paintings (stacked frames, no UIGradient Transparency).
+
 	deps: canvas (Frame), roundCorner, ContentArt
 
 	Returns { layout = function(canvasW, canvasH, topLimit, bottomLimit, nodeXs) }
@@ -48,19 +54,8 @@ return function(deps)
 	-- the edges), so no 1px gap or white seam can show between biomes.
 	local OVERLAP = 48
 	local ART_ASPECT = 1.5 -- region art width / height
-	local SEAM_FOG = Color3.fromRGB(240, 228, 204)
-	-- Feathered join: 24 thin strips whose transparency follows a smoothstep bell (opaque-ish in the middle,
-	-- clear at both ends), so the overlap reads as a soft mist instead of a straight cut. Never UIGradient
-	-- Transparency.
-	local SEAM_STEPS = {}
-	do
-		local n, peak = 24, 0.5 -- peak = lowest transparency, at the centre of the join (soft, art shows through)
-		for i = 1, n do
-			local d = math.abs((i - 0.5) / n * 2 - 1) -- 1 at the ends, 0 in the middle
-			local k = 1 - d * d * (3 - 2 * d) -- smoothstep bell
-			SEAM_STEPS[i] = 1 - k * (1 - peak)
-		end
-	end
+	local ZOOM = 1.2 -- tiles are zoomed about their centre so the art's own pale edge fade is clipped away
+	local FADE_SLICES = 16
 	local PARCHMENT_BASE = Color3.fromRGB(176, 170, 120) -- muted sand-green, so a gap never reads as a cream block
 
 	local layer = Instance.new("Frame")
@@ -92,30 +87,13 @@ return function(deps)
 		regionFrames[i] = f
 	end
 
-	local seams = {}
-	for s = 1, #REGIONS - 1 do
-		local band = Instance.new("Frame")
-		band.Name = "SeamFog" .. s
-		band.BackgroundTransparency = 1
-		band.BorderSizePixel = 0
-		band.ZIndex = 24
-		band.Parent = layer
-		for i, tr in ipairs(SEAM_STEPS) do
-			local strip = Instance.new("Frame")
-			strip.Size = UDim2.new(1 / #SEAM_STEPS, 0, 1, 0)
-			strip.Position = UDim2.fromScale((i - 1) / #SEAM_STEPS, 0)
-			-- Tint runs from the left biome's colour to the right one's, so the join is never a pale band.
-			local l, r = REGIONS[s].tint, REGIONS[s + 1].tint
-			local c = RegionTiles.seamColor(
-				{ l.R * 255, l.G * 255, l.B * 255 }, { r.R * 255, r.G * 255, r.B * 255 }, i, #SEAM_STEPS)
-			strip.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
-			strip.BackgroundTransparency = tr
-			strip.BorderSizePixel = 0
-			strip.ZIndex = 24
-			strip.Parent = band
-		end
-		seams[s] = band
-	end
+	local fadeLayer = Instance.new("Frame") -- cross-fade slices; above every region body (they only cover joins)
+	fadeLayer.Name = "RegionFades"
+	fadeLayer.Size = UDim2.fromScale(1, 1)
+	fadeLayer.BackgroundTransparency = 1
+	fadeLayer.BorderSizePixel = 0
+	fadeLayer.ZIndex = 22
+	fadeLayer.Parent = layer
 
 	local decorLayer = Instance.new("Frame")
 	decorLayer.Name = "Decor"
@@ -141,62 +119,99 @@ return function(deps)
 		return edges
 	end
 
+	-- Draws region i's painting into `row` (a Frame of size w x canvasH whose left is canvas x = x0).
+	local function paintRegion(row, i, w, canvasH, x0, nodeXs)
+		local image = regionIds[i]
+		local function zoomed(parent, name, x, tileW, scaleType, z)
+			-- clip window of the tile's exact size, with the image zoomed ZOOM about the centre inside it
+			local win = Instance.new("Frame")
+			win.Name = name .. "Win"
+			win.Position = UDim2.fromOffset(x, 0)
+			win.Size = UDim2.fromOffset(tileW, canvasH)
+			win.BackgroundTransparency = 1
+			win.BorderSizePixel = 0
+			win.ClipsDescendants = true
+			win.ZIndex = z
+			win.Parent = parent
+			local img = Instance.new("ImageLabel")
+			img.Name = name
+			img.AnchorPoint = Vector2.new(0.5, 0.5)
+			img.Position = UDim2.fromScale(0.5, 0.5)
+			img.Size = UDim2.fromScale(ZOOM, ZOOM)
+			img.BackgroundTransparency = 1
+			img.Image = image
+			img.ScaleType = scaleType
+			img.ZIndex = z
+			img.Parent = win
+			return win
+		end
+		if REGIONS[i].single then
+			-- The single tavern: a zoomed Crop copy covers the WHOLE row, and the hero image keeps its native
+			-- aspect on top, centred on the Keeper's node.
+			local cx = (nodeXs and nodeXs[REGIONS[i].lastNode]) or (x0 + w / 2)
+			local t = RegionTiles.single(w + 1, canvasH, ART_ASPECT, cx - x0)
+			zoomed(row, "Fill", 0, t.fillW, Enum.ScaleType.Crop, 22)
+			zoomed(row, "Tile1", t.heroX, t.heroW, Enum.ScaleType.Fit, 23)
+		else
+			local tiles = RegionTiles.tiled(w, canvasH, ART_ASPECT)
+			for t = 1, tiles do
+				zoomed(row, "Tile" .. t, math.floor((t - 1) * w / tiles), math.ceil(w / tiles) + 1, Enum.ScaleType.Crop, 22)
+			end
+		end
+	end
+
 	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs)
 		local edges = regionEdges(canvasW, nodeXs)
 		base.Size = UDim2.fromOffset(math.floor(canvasW), canvasH)
+		fadeLayer:ClearAllChildren()
 		for i, f in ipairs(regionFrames) do
 			local x0, x1 = edges[i] - (i > 1 and OVERLAP or 0), edges[i + 1] + (i < #REGIONS and OVERLAP or 0)
 			local w = x1 - x0
-			f.Position = UDim2.fromOffset(x0, 0)
-			f.Size = UDim2.fromOffset(w + 1, canvasH)
+			-- The body starts after the cross-fade zone (2 * OVERLAP wide) so its left edge is never a hard cut.
+			local fadeW = (i > 1 and regionIds[i]) and 2 * OVERLAP or 0
 			f:ClearAllChildren()
+			f.ClipsDescendants = true
+			f.Position = UDim2.fromOffset(x0 + fadeW, 0)
+			f.Size = UDim2.fromOffset(w - fadeW + 1, canvasH)
 			-- With art the flat tint steps aside and the continuous parchment base shows through.
 			f.BackgroundTransparency = regionIds[i] and 1 or 0
 			if regionIds[i] then
-				if REGIONS[i].single then
-					-- The single tavern: a Crop copy covers the WHOLE frame (no uncovered gap, ever), and
-					-- the hero image keeps its native aspect on top, centred on the Keeper's node.
-					local cx = (nodeXs and nodeXs[REGIONS[i].lastNode]) or (x0 + w / 2)
-					local t = RegionTiles.single(w + 1, canvasH, ART_ASPECT, cx - x0)
-					local fill = Instance.new("ImageLabel")
-					fill.Name = "Fill"
-					fill.Size = UDim2.fromOffset(t.fillW, canvasH)
-					fill.BackgroundTransparency = 1
-					fill.Image = regionIds[i]
-					fill.ScaleType = Enum.ScaleType.Crop
-					fill.ZIndex = 22
-					fill.Parent = f
-					local img = Instance.new("ImageLabel")
-					img.Name = "Tile1"
-					img.Position = UDim2.fromOffset(t.heroX, 0)
-					img.Size = UDim2.fromOffset(t.heroW, canvasH)
-					img.BackgroundTransparency = 1
-					img.Image = regionIds[i]
-					img.ScaleType = Enum.ScaleType.Fit
-					img.ZIndex = 23
-					img.Parent = f
-				else
-					local tiles = RegionTiles.tiled(w, canvasH, ART_ASPECT)
-					for t = 1, tiles do
-						local img = Instance.new("ImageLabel")
-						img.Name = "Tile" .. t
-						img.Position = UDim2.fromOffset(math.floor((t - 1) * w / tiles), 0)
-						img.Size = UDim2.fromOffset(math.ceil(w / tiles) + 1, canvasH)
-						img.BackgroundTransparency = 1
-						img.Image = regionIds[i]
-						img.ScaleType = Enum.ScaleType.Crop
-						img.ZIndex = 22
-						img.Parent = f
+				local row = Instance.new("Frame")
+				row.Name = "Row"
+				row.Position = UDim2.fromOffset(-fadeW, 0)
+				row.Size = UDim2.fromOffset(w + 1, canvasH)
+				row.BackgroundTransparency = 1
+				row.BorderSizePixel = 0
+				row.ZIndex = 22
+				row.Parent = f
+				paintRegion(row, i, w, canvasH, x0, nodeXs)
+				if fadeW > 0 then
+					-- cross-fade: thin clipped slices of the same painting, clear on the left to opaque on the right
+					for k, slice in ipairs(RegionTiles.fadeSlices(fadeW, FADE_SLICES)) do
+						local win = Instance.new("Frame")
+						win.Name = "Fade" .. i .. "_" .. k
+						win.Position = UDim2.fromOffset(x0 + slice.x, 0)
+						win.Size = UDim2.fromOffset(slice.w, canvasH)
+						win.BackgroundTransparency = 1
+						win.BorderSizePixel = 0
+						win.ClipsDescendants = true
+						win.ZIndex = 22
+						win.Parent = fadeLayer
+						local copy = Instance.new("Frame")
+						copy.Name = "Row"
+						copy.Position = UDim2.fromOffset(-slice.x, 0)
+						copy.Size = UDim2.fromOffset(w + 1, canvasH)
+						copy.BackgroundTransparency = 1
+						copy.BorderSizePixel = 0
+						copy.ZIndex = 22
+						copy.Parent = win
+						paintRegion(copy, i, w, canvasH, x0, nodeXs)
+						for _, d in ipairs(copy:GetDescendants()) do
+							if d:IsA("ImageLabel") then d.ImageTransparency = slice.transparency end
+						end
 					end
 				end
 			end
-		end
-		for s, band in ipairs(seams) do
-			local leftW, rightW = edges[s + 1] - edges[s], edges[s + 2] - edges[s + 1]
-			-- narrow blend that sits inside the 2 * OVERLAP zone where both neighbours' art overlaps
-			local seamW = math.floor(math.clamp(math.min(leftW, rightW) * 0.2, 90, 2 * OVERLAP + 24))
-			band.Position = UDim2.fromOffset(math.floor(edges[s + 1] - seamW / 2), 0)
-			band.Size = UDim2.fromOffset(seamW, canvasH)
 		end
 
 		decorLayer:ClearAllChildren()
