@@ -260,6 +260,13 @@ return function(deps)
 	-- Cards do not stretch to fill the screen height.
 	local roundPanels = {}
 	local cardScales = {}
+	-- Hover life and idle motion (cosmetic only), see RoundSelectFX.lua.
+	local fx = require(script.Parent.RoundSelectFX).new({
+		roundSelectFrame = roundSelectFrame,
+		playClickSfx = playClickSfx,
+		roundCorner = roundCorner,
+		isActionPending = function() return actionPending end,
+	})
 	local NO_BUTTON_DROP = 96 -- Select (44) + gap (6) + Skip (40) + margins, see the button positions below
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
@@ -289,12 +296,7 @@ return function(deps)
 			panelStroke.Color = accent
 			panelStroke.Thickness = isBossPanel and 4 or 3
 			panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			if isBossPanel then
-				TweenService:Create(panelStroke,
-					TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-					{ Thickness = 8 }
-				):Play()
-			end
+			-- The Boss card's pulsing glow is driven by RoundSelectFX (paused while hidden).
 		end
 
 		-- Scene image: top 280px, full card width, rounded corners.
@@ -512,9 +514,10 @@ return function(deps)
 			SkipRoundRemote:FireServer()
 		end)
 
-		table.insert(roundPanels, {
+		local entryRef = {
 			round = round,
 			isBossRound = isBossPanel,
+			cardScale = cardScale,
 			panel = panel,
 			sceneImage = sceneImage,
 			statusChip = statusChip,
@@ -530,7 +533,9 @@ return function(deps)
 				roomLabel.Position.Y.Offset, bossNameLabel.Position.Y.Offset, bossLabel.Position.Y.Offset,
 				tagLabel.Position.Y.Offset, targetLabel.Position.Y.Offset,
 			},
-		})
+		}
+		table.insert(roundPanels, entryRef)
+		fx.addCard(entryRef)
 	end
 
 	-- JOURNEY FEATURE / ROUND SELECT FEATURE: describes a Tag's effect the
@@ -545,9 +550,10 @@ return function(deps)
 		local vpY = cam and cam.ViewportSize.Y or 720
 		local rowH = panelRow.AbsoluteSize.Y
 		local h = math.min(CARD_H, 0.80 * vpY)
-		if rowH > 0 then h = math.min(h, rowH - 8) end
+		-- Leave ~4% headroom so a hovered (1.04x) card never clips.
+		if rowH > 0 then h = math.min(h, (rowH - 8) / 1.05) end
 		local scale = math.clamp(h / CARD_H, 0.6, 1)
-		for _, sc in ipairs(cardScales) do sc.Scale = scale end
+		fx.setFit(scale)
 	end
 	fitCards()
 	panelRow:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)
@@ -730,6 +736,8 @@ return function(deps)
 				entry.tagLabel.TextTransparency = 0
 				entry.tagLabel.TextStrokeTransparency = 0.35
 			end
+
+			fx.setKind(entry, isCurrent and "current" or (isPast and "past" or "future"))
 
 			-- Only the round you're actually on gets buttons.
 			entry.selectButton.Visible = isCurrent
