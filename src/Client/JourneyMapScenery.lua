@@ -30,7 +30,7 @@ return function(deps)
 	-- decor = doodles that fit the place, used in this order.
 	local REGIONS = {
 		{ key = "region_road", tint = Color3.fromRGB(222, 200, 150), lastNode = 1,
-			decor = { "compass_rose", "signpost", "pine_tree" } }, -- sand
+			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- sand (no compass_rose: the map has one real compass icon)
 		{ key = "region_meadow", tint = Color3.fromRGB(190, 200, 142), lastNode = 3,
 			decor = { "windmill", "mushroom_ring", "lantern_post", "cottage" } }, -- green
 		{ key = "region_river", tint = Color3.fromRGB(168, 196, 176), lastNode = 4,
@@ -54,7 +54,7 @@ return function(deps)
 	-- Transparency.
 	local SEAM_STEPS = {}
 	do
-		local n, peak = 24, 0.12 -- peak = lowest transparency, at the centre of the join
+		local n, peak = 24, 0.5 -- peak = lowest transparency, at the centre of the join (soft, art shows through)
 		for i = 1, n do
 			local d = math.abs((i - 0.5) / n * 2 - 1) -- 1 at the ends, 0 in the middle
 			local k = 1 - d * d * (3 - 2 * d) -- smoothstep bell
@@ -193,7 +193,8 @@ return function(deps)
 		end
 		for s, band in ipairs(seams) do
 			local leftW, rightW = edges[s + 1] - edges[s], edges[s + 2] - edges[s + 1]
-			local seamW = math.floor(math.clamp(math.min(leftW, rightW) * 0.4, 180, 300))
+			-- narrow blend that sits inside the 2 * OVERLAP zone where both neighbours' art overlaps
+			local seamW = math.floor(math.clamp(math.min(leftW, rightW) * 0.2, 90, 2 * OVERLAP + 24))
 			band.Position = UDim2.fromOffset(math.floor(edges[s + 1] - seamW / 2), 0)
 			band.Size = UDim2.fromOffset(seamW, canvasH)
 		end

@@ -23,7 +23,9 @@ return function(deps)
 
 	local icon = Instance.new("TextButton")
 	icon.Name = "CompassIcon"
-	icon.Position = UDim2.fromOffset(14, 14)
+	-- Top left, just under the "Find me" button (14,8 to 36); this is the map's only compass (the old decorative
+	-- compass_rose doodle was removed from JourneyMapScenery).
+	icon.Position = UDim2.fromOffset(14, 46)
 	icon.Size = UDim2.fromOffset(52, 52)
 	icon.BackgroundColor3 = PARCHMENT
 	icon.Text = "🧭"
@@ -58,7 +60,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "CompassPanel"
-	panel.Position = UDim2.fromOffset(14, 74)
+	panel.Position = UDim2.fromOffset(14, 106)
 	panel.Size = UDim2.fromOffset(300, 366)
 	panel.BackgroundColor3 = PARCHMENT
 	panel.BorderSizePixel = 0

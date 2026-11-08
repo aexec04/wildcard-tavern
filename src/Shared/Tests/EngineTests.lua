@@ -6669,6 +6669,33 @@ table.insert(tests, { name = "WorldMapLayout: every side stop sits beside its pa
 	end
 end })
 
+table.insert(tests, { name = "WorldMapLayout: no two node + label boxes overlap (road, fork and side stops)", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local L = require(script.Parent.Parent.Engine.WorldMapLayout)
+	for _, setup in ipairs({ { h = 600, node = 90 }, { h = 720, node = 92 }, { h = 900, node = 92 } }) do
+		local nightX, routeY = {}, {}
+		for i = 1, 8 do
+			nightX[i] = 400 + (i - 1) * 300
+			routeY[i] = setup.h * 0.5 + ((i % 2 == 0) and -1 or 1) * setup.h * 0.11
+		end
+		for _, route in ipairs(WorldMap.allRoutes()) do
+			local res = L.compute({ nightX = nightX, routeY = routeY, height = setup.h, route = route,
+				minGap = math.floor(setup.node * 1.5), nodeSize = setup.node })
+			local boxes = L.boxesOf(res, setup.node, route)
+			local ids = {}
+			for id in pairs(boxes) do ids[#ids + 1] = id end
+			table.sort(ids)
+			for i = 1, #ids do
+				local a = boxes[ids[i]]
+				expectTrue(a.y0 >= 0 and a.y1 <= setup.h, ids[i] .. " stays inside the canvas (h " .. setup.h .. ")")
+				for j = i + 1, #ids do
+					expectTrue(not L.overlaps(a, boxes[ids[j]]), ids[i] .. " overlaps " .. ids[j] .. " (h " .. setup.h .. ")")
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "SideStops: hidden stops reveal only at the parent with a token or a compass charge", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local SideStops = require(script.Parent.Parent.Engine.SideStops)

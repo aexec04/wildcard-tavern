@@ -63,10 +63,51 @@ function WorldMapLayout.displayRoute(worldRoute, stops)
 	return route
 end
 
+-- Screen boxes (node + its label) the Graph view draws, so overlaps can be avoided here and tested.
+-- kind "night": node of size floor(nodeSize * 0.78) (nodeSize on the player's road), label 190 x 44 below it.
+-- kind "side": node of size floor(nodeSize * 0.56), label 150 x 40 to the RIGHT of it (a short, wide box).
+WorldMapLayout.NIGHT_LABEL_W, WorldMapLayout.NIGHT_LABEL_H = 190, 44
+WorldMapLayout.SIDE_LABEL_W, WorldMapLayout.SIDE_LABEL_H = 150, 40
+
+function WorldMapLayout.box(kind, x, y, nodeSize, onRoute, compact)
+	if kind == "side" then
+		local size = math.floor(nodeSize * 0.56)
+		if compact then -- crowded spot: node only, its label shows on hover
+			return { x0 = x - size / 2, x1 = x + size / 2, y0 = y - size / 2, y1 = y + size / 2 }
+		end
+		local h = math.max(size, WorldMapLayout.SIDE_LABEL_H)
+		return { x0 = x - size / 2, x1 = x + size / 2 + 4 + WorldMapLayout.SIDE_LABEL_W, y0 = y - h / 2, y1 = y + h / 2 }
+	end
+	local size = onRoute and nodeSize or math.floor(nodeSize * 0.78)
+	local w = WorldMapLayout.NIGHT_LABEL_W
+	return { x0 = x - w / 2, x1 = x + w / 2, y0 = y - size / 2, y1 = y + size / 2 + 6 + WorldMapLayout.NIGHT_LABEL_H }
+end
+
+function WorldMapLayout.overlaps(a, b)
+	return a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1
+end
+
+-- Every node + label box of a compute() result: { id = box }. route = the displayed road (array of ids).
+function WorldMapLayout.boxesOf(res, nodeSize, route)
+	local onRoute = {}
+	for _, id in ipairs(route or {}) do onRoute[id] = true end
+	local out = {}
+	for id, p in pairs(res.pos) do
+		out[id] = WorldMapLayout.box("night", p.x, p.y, nodeSize, onRoute[id])
+	end
+	for id, p in pairs(res.side) do
+		out[id] = WorldMapLayout.box("side", p.x, p.y, nodeSize, nil, p.compact)
+	end
+	return out
+end
+
 function WorldMapLayout.compute(opts)
 	local stops = opts.stops or WorldMap.Stops
 	local H = opts.height
 	local minGap = opts.minGap or 110
+	if opts.nodeSize then -- a column must fit a node plus its label
+		minGap = math.max(minGap, math.floor(opts.nodeSize * 0.78) + 6 + WorldMapLayout.NIGHT_LABEL_H + 4)
+	end
 	local depthOf = WorldMapLayout.depths(stops)
 	local onRoute = {}
 	for i, id in ipairs(opts.route) do
@@ -137,8 +178,10 @@ function WorldMapLayout.compute(opts)
 			end
 		end
 	end
-	-- Side stops hang off their parent Night stop: to the right of it, above (dy < 0) or below it.
+	-- Side stops hang off their parent Night stop: to the right of it, above (dy < 0) or below it. A side
+	-- stop is only placed where its node + label box (WorldMapLayout.box) overlaps no other node or label.
 	local side = {}
+	local nodeSize = opts.nodeSize or 72
 	local spacing = (opts.nightX[2] or (opts.nightX[1] + 280)) - opts.nightX[1]
 	local sideIds = {}
 	for id, stop in pairs(stops) do
@@ -148,29 +191,51 @@ function WorldMapLayout.compute(opts)
 	end
 	table.sort(sideIds)
 	local step = math.floor(minGap * 0.6)
-	local function clash(x, y)
-		for _, other in pairs(side) do
-			if math.abs(other.x - x) < 90 and math.abs(other.y - y) < 48 then return true end
-		end
-		for _, n in pairs(pos) do
-			if math.abs(n.x - x) < 70 and math.abs(n.y - y) < 60 then return true end
+	local boxes = {}
+	for id, p in pairs(pos) do
+		boxes[#boxes + 1] = WorldMapLayout.box("night", p.x, p.y, nodeSize, onRoute[id] ~= nil)
+	end
+	local function clash(b)
+		for _, other in ipairs(boxes) do
+			if WorldMapLayout.overlaps(b, other) then return true end
 		end
 		return false
 	end
+	local sideSize = math.floor(nodeSize * 0.56)
 	for _, id in ipairs(sideIds) do
 		local stop = stops[id]
 		local pp = pos[stop.parent]
 		local want = ((stop.dy or 0.14) < 0) and -1 or 1
-		local x = pp.x + math.floor(spacing * 0.45)
-		local placed
-		-- preferred side first, then the other side, then further out
-		for _, k in ipairs({ 1, 1.7, 2.4 }) do
-			for _, dir in ipairs({ want, -want }) do
-				local y = math.max(40, math.min(H - 40, pp.y + dir * step * k))
-				if not placed and not clash(x, y) then placed = y end
+		local lo, hi = 30, H - 30
+		local placedX, placedY
+		-- preferred side first, then the other side, scanning outward in small steps; then further across.
+		-- If the full node + label box fits nowhere (a crowded small canvas), place the node alone and mark it
+		-- compact: the view then shows its label on hover only.
+		local compact = false
+		for pass = 1, 2 do
+			compact = pass == 2
+			for _, fx in ipairs({ 0.45, 0.32, 0.58, 0.7, 0.85, 1.0, 0.2 }) do
+				local x = pp.x + math.floor(spacing * fx)
+				local off = math.floor(step * 0.7)
+				while not placedY and off <= H do
+					for _, dir in ipairs({ want, -want }) do
+						local y = pp.y + dir * off
+						if not placedY and y >= lo and y <= hi
+							and not clash(WorldMapLayout.box("side", x, y, nodeSize, nil, compact)) then
+							placedX, placedY = x, y
+						end
+					end
+					off = off + 12
+				end
+				if placedY then break end
 			end
+			if placedY then break end
 		end
-		side[id] = { x = x, y = placed or math.max(40, math.min(H - 40, pp.y + want * step)), parent = stop.parent }
+		if not placedY then -- no free spot: take the preferred one (the layout test flags this case)
+			placedX, placedY = pp.x + math.floor(spacing * 0.45), math.max(lo, math.min(hi, pp.y + want * step))
+		end
+		side[id] = { x = placedX, y = placedY, parent = stop.parent, compact = compact or nil }
+		boxes[#boxes + 1] = WorldMapLayout.box("side", placedX, placedY, nodeSize, nil, compact)
 	end
 	return { pos = pos, edges = edges, depthOf = depthOf, side = side }
 end

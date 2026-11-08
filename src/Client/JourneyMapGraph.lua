@@ -42,6 +42,7 @@ return function(deps)
 	local shown = false
 	local items = {} -- frames created by the last build (destroyed on rebuild)
 	local highlighted = nil -- stop id the compass points at
+	local focusId = nil -- stop whose biome reward chip is shown (tap or hover); nil = only the next branch end
 	local lastPos = {} -- stopId -> {x, y} from the last build (route stops included)
 
 	local function remember(inst)
@@ -84,6 +85,30 @@ return function(deps)
 		end
 	end
 
+	-- An unvisited road: one continuous strip (rotated frame) with a darker edge, so it reads as a road
+	-- and not as scattered dots. lit = the road a fork offers or the compass points at.
+	local function road(ax, ay, bx, by, lit, transparency)
+		local dx, dy = bx - ax, by - ay
+		local len = math.sqrt(dx * dx + dy * dy)
+		local strip = remember(Instance.new("Frame"))
+		strip.AnchorPoint = Vector2.new(0.5, 0.5)
+		strip.Position = UDim2.fromOffset((ax + bx) / 2, (ay + by) / 2)
+		strip.Size = UDim2.fromOffset(len, lit and 10 or 8)
+		strip.Rotation = math.deg(math.atan2(dy, dx))
+		strip.BackgroundColor3 = lit and GOLD or Color3.fromRGB(196, 170, 120)
+		strip.BackgroundTransparency = transparency
+		strip.BorderSizePixel = 0
+		strip.Active = false
+		strip.ZIndex = 23
+		strip.Parent = root
+		deps.roundCorner(strip, 5)
+		local edge = Instance.new("UIStroke")
+		edge.Color = Color3.fromRGB(110, 84, 50)
+		edge.Thickness = 1.5
+		edge.Transparency = math.min(1, transparency + 0.1)
+		edge.Parent = strip
+	end
+
 	local function textLabel(text, x, y, w, h, size, z)
 		local l = remember(Instance.new("TextLabel"))
 		l.AnchorPoint = Vector2.new(0.5, 0)
@@ -95,7 +120,7 @@ return function(deps)
 		l.TextSize = size
 		l.TextColor3 = CREAM
 		l.TextStrokeColor3 = Color3.fromRGB(30, 22, 16)
-		l.TextStrokeTransparency = 0.3
+		l.TextStrokeTransparency = 0.2
 		l.TextTransparency = 0
 		l.TextWrapped = true
 		l.Active = false
@@ -120,7 +145,7 @@ return function(deps)
 			nightX[d], routeY[d] = nightPixel(d)
 		end
 		local res = Layout.compute({ nightX = nightX, routeY = routeY, height = canvasH, route = route,
-			minGap = math.floor(nodeSize * 1.5) })
+			minGap = math.floor(nodeSize * 1.5), nodeSize = nodeSize })
 		local onRoute = {}
 		for i, id in ipairs(route) do
 			onRoute[id] = i
@@ -136,6 +161,12 @@ return function(deps)
 			choices[id] = true
 		end
 		local ends = Layout.branchEnds()
+		-- Default chip: the next branch end ahead on the player's own road. Any other stop shows its chip
+		-- only while focused (tapped or hovered), so the map is not covered in reward text.
+		local nextEnd = nil
+		for d, id in ipairs(route) do
+			if ends[id] and d >= night then nextEnd = id break end
+		end
 
 		local function vis(id)
 			if onRoute[id] then
@@ -151,7 +182,7 @@ return function(deps)
 				local va, vb = vis(e.from), vis(e.to)
 				if va ~= "hidden" and vb ~= "hidden" then
 					local lit = (choices[e.to] == true and onRoute[e.from] ~= nil) or e.to == highlighted
-					dotted(a.x, a.y, b.x, b.y, lit and GOLD or Color3.fromRGB(110, 90, 62), lit and 0.15 or 0.5)
+					road(a.x, a.y, b.x, b.y, lit, lit and 0.1 or 0.45)
 				end
 			end
 		end
@@ -164,14 +195,14 @@ return function(deps)
 			local tint = region and region.tint or { 200, 190, 150 }
 			local top = p.y - (onRoute[id] and nodeSize or size) / 2 - 6
 			-- Reward badge on the biome's branch end.
-			if ends[id] and v ~= "hidden" then
+			local badge = nil
+			if ends[id] and v ~= "hidden" and v ~= "teaser" then
 				local text = deps.rewardText and deps.rewardText(ends[id])
 				if text then
-					local badge = textLabel("🎁 " .. text, p.x, top - 24, 190, 22, 15, 27)
+					badge = textLabel("🎁 " .. text, p.x, top - 24, 190, 22, 15, 27)
 					badge.TextColor3 = Color3.fromRGB(255, 226, 150)
-					if v == "teaser" then
-						badge.TextTransparency = 0.4
-					end
+					badge.Name = "RewardChip_" .. id
+					badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
 					top = top - 24
 				end
 			end
@@ -225,12 +256,24 @@ return function(deps)
 					btn.Activated:Connect(function()
 						fire(id)
 					end)
+				elseif badge then
+					-- tap pins the reward chip, hover previews it
+					btn.Activated:Connect(function()
+						focusId = (focusId ~= id) and id or nil
+						build()
+					end)
+				end
+				if badge then
+					btn.MouseEnter:Connect(function() badge.Visible = true end)
+					btn.MouseLeave:Connect(function()
+						badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
+					end)
 				end
 				local name = v == "teaser" and "???" or stop.name
 				local lab = textLabel(name, p.x, p.y + size / 2 + 6, 190, 44, 16, 26)
 				lab.TextYAlignment = Enum.TextYAlignment.Top
 				if not choices[id] then
-					lab.TextTransparency = 0.25
+					lab.TextTransparency = 0
 				end
 			end
 		end
@@ -272,9 +315,18 @@ return function(deps)
 				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
 				st.Thickness = glow and 3 or 2
 				st.Parent = btn
-				local lab = textLabel(stub and "???" or (stop.name .. (visited[id] and " (done)" or "")), p.x, p.y + sideSize / 2 + 4, 170, 40, 15, 27)
-				lab.TextYAlignment = Enum.TextYAlignment.Top
-				lab.TextTransparency = visited[id] and 0.4 or 0.1
+				local lab = textLabel(stub and "???" or (stop.name .. (visited[id] and " (done)" or "")), p.x + sideSize / 2 + 4, p.y, 150, 40, 15, 27)
+				-- label sits to the right of the node (WorldMapLayout.box "side")
+				lab.AnchorPoint = Vector2.new(0, 0.5)
+				lab.TextXAlignment = Enum.TextXAlignment.Left
+				lab.TextYAlignment = Enum.TextYAlignment.Center
+				if p.compact then -- crowded spot (WorldMapLayout): the name shows while hovering
+					lab.Visible = false
+					btn.MouseEnter:Connect(function() lab.Visible = true end)
+					btn.MouseLeave:Connect(function() lab.Visible = false end)
+				end
+				lab.TextTransparency = visited[id] and 0.25 or 0
+				lab.TextStrokeTransparency = 0.1
 				if revealed[id] and not popped[id] then
 					popped[id] = true
 					local sc = Instance.new("UIScale")
