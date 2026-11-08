@@ -50,7 +50,14 @@
     "tasting_menu": "a curious guest with a tasting spoon sampling little dishes in a neat row on a long board",
     "estate_sale": "a cheerful merchant behind a table of old trinkets and a hand-written 'for sale' tag with no readable text",
     "pair_bonds": "two friendly guests being introduced to each other by a third, tied together with a ribbon of cards",
-    "veterans_table": "a gray-bearded veteran guest with medals and a thick storybook at a corner table lit by lantern"
+    "veterans_table": "a gray-bearded veteran guest with medals and a thick storybook at a corner table lit by lantern",
+    "meadow_bee": "a cheerful avatar in a bee costume hovering over a basket of wildflowers with tiny playing cards",
+    "ferry_captain": "an avatar ferry captain in a little sailor cap steering a tiny lantern boat across a calm river",
+    "summit_guide": "an avatar mountain guide with a rope and walking stick standing on a snowy peak holding up a gold card",
+    "sand_merchant": "an avatar desert merchant in a wide hat beside a friendly camel loaded with colorful cloth bundles",
+    "marsh_gardener": "an avatar gardener in rubber boots tending glowing mushrooms in a misty marsh",
+    "lantern_lighter": "an avatar in a thick scarf lighting a row of lanterns along a snowy path",
+    "lighthouse_keeper": "an avatar lighthouse keeper in a yellow raincoat holding a glowing lantern beside a small striped lighthouse"
   },
   "boss_rounds": {
     "subjects": {
@@ -281,7 +288,14 @@
     "level_flush": "an avatar setting out a plate of matching rice balls in rows, every piece the same color",
     "level_full_house": "an avatar chef stirring a gigantic pot of stew big enough for the entire tavern",
     "level_four_of_a_kind": "an avatar presenting four giant steaming drumsticks arranged on a platter",
-    "level_straight_flush": "an avatar baker unveiling a grand tiered celebration cake with sparklers and gold stars"
+    "level_straight_flush": "an avatar baker unveiling a grand tiered celebration cake with sparklers and gold stars",
+    "honey_drizzle": "an avatar chef drizzling golden honey from a wooden dipper over a stack of small cakes with flowers around",
+    "riverside_chowder": "an avatar chef serving a steaming bowl of chowder on a stone bridge with willow branches",
+    "summit_stew": "an avatar chef stirring a big pot of stew on a snowy mountain ledge with a lantern",
+    "date_cake": "an avatar baker slicing a sticky date cake on a palm leaf by a small oasis pool",
+    "bog_stew": "an avatar chef stirring a bubbling green pot over a campfire beside glowing mushrooms",
+    "frost_pudding": "an avatar chef setting a wobbly pudding on a frosty windowsill with lanterns outside",
+    "sea_biscuit": "an avatar baker holding a tray of salty pretzel biscuits on a dock with a little lighthouse"
   },
   "housepass_subjects": {
     "extra_seating": "an avatar carpenter happily adding one more wooden chair to a cozy tavern table, sawdust floating",

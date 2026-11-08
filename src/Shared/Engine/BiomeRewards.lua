@@ -10,13 +10,15 @@
 	  3. Keeper win: clearing Night 8 (the tavern biome's branch end) grants the tavern row; the Tavern Keeper
 	     title itself is still the Night 8 Journey reward (JourneyMap.recordNightsCleared).
 
-	Reward kinds match JourneyMap: "cardBack", "set", "title" (ids from CardBacks, CosmeticSets, Achievements).
+	Reward kinds: "cardBack", "set", "title" (ids from CardBacks, CosmeticSets, Achievements) plus "patron" and
+	"recipe" (a House Recipe): those two are added to the Collection (profile.discoveredPatronIds /
+	discoveredRecipeIds, like the login-streak Bard). They are mild and already sit in the shop pool for every
+	run, so no road changes the balance (see the tests in EngineTests, "World map balance").
 	Granted rows are remembered in profile.worldRewardIds so each is handed out once. Existing Night 1 to 8
 	rewards stay with JourneyMap.recordNightsCleared; rows that repeat one of them are harmless (granting is
 	idempotent).
 
-	Patrons and recipes are NOT part of the rows yet: adding them changes the shop pool and the balance plan,
-	so that waits for a balance pass (see claude/OUTBOX.md, World map step 4).
+	Every biome row except road and tavern also hands out one Patron and one House Recipe.
 ]]
 
 local WorldMap = require(script.Parent.WorldMap)
@@ -26,16 +28,32 @@ local BiomeRewards = {}
 
 BiomeRewards.Rows = {
 	road = { reward = {} },
-	meadow = { reward = { { kind = "cardBack", id = "kitchen_checks" } } },
-	river = { reward = { { kind = "title", id = "loft_climber" } } },
-	peaks = { reward = { { kind = "set", id = "festival_night" } } },
-	desert = { reward = { { kind = "cardBack", id = "dune_gold" } }, bonus = { kind = "title", id = "dune_wanderer" } },
-	swamp = { reward = { { kind = "cardBack", id = "lilypad_green" } }, bonus = { kind = "title", id = "marsh_wader" } },
+	meadow = { reward = { { kind = "cardBack", id = "kitchen_checks" }, { kind = "patron", id = "meadow_bee" },
+		{ kind = "recipe", id = "honey_drizzle" } } },
+	river = { reward = { { kind = "title", id = "loft_climber" }, { kind = "patron", id = "ferry_captain" },
+		{ kind = "recipe", id = "riverside_chowder" } } },
+	peaks = { reward = { { kind = "set", id = "festival_night" }, { kind = "patron", id = "summit_guide" },
+		{ kind = "recipe", id = "summit_stew" } } },
+	desert = {
+		reward = { { kind = "cardBack", id = "dune_gold" }, { kind = "patron", id = "sand_merchant" },
+			{ kind = "recipe", id = "date_cake" } },
+		bonus = { kind = "title", id = "dune_wanderer" },
+	},
+	swamp = {
+		reward = { { kind = "cardBack", id = "lilypad_green" }, { kind = "patron", id = "marsh_gardener" },
+			{ kind = "recipe", id = "bog_stew" } },
+		bonus = { kind = "title", id = "marsh_wader" },
+	},
 	snow = {
-		reward = { { kind = "set", id = "winter_evening" }, { kind = "cardBack", id = "frost_walker" } },
+		reward = { { kind = "set", id = "winter_evening" }, { kind = "cardBack", id = "frost_walker" },
+			{ kind = "patron", id = "lantern_lighter" }, { kind = "recipe", id = "frost_pudding" } },
 		bonus = { kind = "title", id = "snow_scout" },
 	},
-	coast = { reward = { { kind = "cardBack", id = "shell_pearl" } }, bonus = { kind = "title", id = "lighthouse_friend" } },
+	coast = {
+		reward = { { kind = "cardBack", id = "shell_pearl" }, { kind = "patron", id = "lighthouse_keeper" },
+			{ kind = "recipe", id = "sea_biscuit" } },
+		bonus = { kind = "title", id = "lighthouse_friend" },
+	},
 	tavern = { reward = { { kind = "cardBack", id = "gala" }, { kind = "cardBack", id = "hall_banner" } } },
 }
 
@@ -48,7 +66,36 @@ local function grant(profile, reward)
 		profile.ownedSetIds[reward.id] = true
 	elseif reward.kind == "title" then
 		profile.rewardTitleIds[reward.id] = true
+	elseif reward.kind == "patron" then
+		profile.discoveredPatronIds = profile.discoveredPatronIds or {}
+		profile.discoveredPatronIds[reward.id] = true
+	elseif reward.kind == "recipe" then
+		profile.discoveredRecipeIds = profile.discoveredRecipeIds or {}
+		profile.discoveredRecipeIds[reward.id] = true
 	end
+end
+
+-- Short display text of one reward ("Card back: Dune Gold", "Patron: Meadow Bee"), for the map and the
+-- fork cards. Falls back to the id.
+function BiomeRewards.label(reward)
+	local Patrons = require(script.Parent.Patrons)
+	local Recipes = require(script.Parent.Recipes)
+	local CardBacks = require(script.Parent.CardBacks)
+	local CosmeticSets = require(script.Parent.CosmeticSets)
+	local Achievements = require(script.Parent.Achievements)
+	local def, prefix
+	if reward.kind == "cardBack" then
+		def, prefix = CardBacks.getById(reward.id), "Card back: "
+	elseif reward.kind == "set" then
+		def, prefix = CosmeticSets.getById(reward.id), "Card set: "
+	elseif reward.kind == "title" then
+		def, prefix = Achievements.getById(reward.id), "Title: "
+	elseif reward.kind == "patron" then
+		def, prefix = Patrons.getById(reward.id), "Patron: "
+	elseif reward.kind == "recipe" then
+		def, prefix = Recipes.getHouseRecipeById(reward.id), "Recipe: "
+	end
+	return (prefix or "") .. (def and (def.name or def.title) or reward.id)
 end
 
 -- Every reward the map can hand out (for tests and previews).

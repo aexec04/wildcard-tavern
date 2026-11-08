@@ -5788,7 +5788,8 @@ table.insert(tests, { name = "World map balance: rewards per route stay in the s
 		expectTrue(profile.unlockedCardBackIds.gala)
 		local score = 0
 		for _, r in ipairs(granted) do
-			local tab = (r.kind == "cardBack" and "backs") or (r.kind == "set" and "sets") or "titles"
+			local tab = (r.kind == "cardBack" and "backs") or (r.kind == "set" and "sets")
+				or (r.kind == "patron" and "patrons") or (r.kind == "recipe" and "recipes") or "titles"
 			score = score + (order[CollectionBook.rarityForId(tab, r.id)] or 1)
 		end
 		lo, hi = math.min(lo, score), math.max(hi, score)
@@ -5847,8 +5848,87 @@ table.insert(tests, { name = "BiomeRewards: every reward resolves, has a rarity,
 			local a = Achievements.getById(r.id)
 			expectTrue(a ~= nil and a.milestoneReward == true, r.id .. " title exists")
 			expectTrue(a.flavorText and a.flavorText ~= "")
+		elseif r.kind == "patron" then
+			local p = require(script.Parent.Parent.Engine.Patrons).getById(r.id)
+			expectTrue(p ~= nil and p.flavorText and p.flavorText ~= "", r.id .. " patron exists with flavor text")
+			expectTrue(CollectionBook.Rarities[CollectionBook.rarityForId("patrons", r.id)] ~= nil)
+		elseif r.kind == "recipe" then
+			local rec = require(script.Parent.Parent.Engine.Recipes).getHouseRecipeById(r.id)
+			expectTrue(rec ~= nil and rec.flavorText and rec.flavorText ~= "", r.id .. " recipe exists with flavor text")
+			expectTrue(CollectionBook.Rarities[CollectionBook.rarityForId("recipes", r.id)] ~= nil)
 		else
 			expectTrue(false, "unknown kind " .. tostring(r.kind))
+		end
+	end
+end })
+
+table.insert(tests, { name = "Biome Patrons and Recipes: one of each per biome, mild effects, voice lines, prompts, Collection discovery", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local PatronLines = require(script.Parent.Parent.Engine.PatronLines)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local biomes = { "meadow", "river", "peaks", "desert", "swamp", "snow", "coast" }
+	for _, region in ipairs(biomes) do
+		local nPatron, nRecipe = 0, 0
+		for _, r in ipairs(BiomeRewards.Rows[region].reward) do
+			if r.kind == "patron" then
+				nPatron = nPatron + 1
+				local p = Patrons.getById(r.id)
+				expectEqual(p.biome, region)
+				expectTrue(p.price <= 5, r.id .. " stays cheap and mild")
+				expectTrue(PatronLines.ById[r.id] ~= nil, r.id .. " has its own voice line")
+				expectEqual(CollectionBook.rarityForId("patrons", r.id), "uncommon")
+			elseif r.kind == "recipe" then
+				nRecipe = nRecipe + 1
+				local rec = Recipes.getHouseRecipeById(r.id)
+				expectEqual(rec.biome, region)
+				expectTrue(rec.price <= 4)
+				expectEqual(CollectionBook.rarityForId("recipes", r.id), "uncommon")
+				local state = { hand = { { rank = 5, suit = "Hearts" }, { rank = 6, suit = "Clubs" } } }
+				local ok = rec.apply(state, { cardIndices = { 1 } })
+				expectTrue(ok and state.hand[1].garnish ~= nil, r.id .. " garnishes one card")
+				expectFalse(rec.apply(state, { cardIndices = { 1, 2 } }), "exactly one card")
+			end
+		end
+		expectEqual(nPatron, 1, region .. " has one Patron")
+		expectEqual(nRecipe, 1, region .. " has one House Recipe")
+	end
+	-- Effects: situational and small.
+	local function card(rank, suit) return { rank = rank, suit = suit } end
+	local function result(name, cards) return { name = name, scoringCards = cards } end
+	local lows = result("Pair", { card(2, "Hearts"), card(6, "Clubs"), card(9, "Spades") })
+	expectEqual(Patrons.getById("meadow_bee").effect(lows, {}).chips, 12)
+	expectEqual(Patrons.getById("ferry_captain").effect(lows, { allPlayedCards = { 1, 2, 3 } }).chips, 10)
+	expectEqual(Patrons.getById("ferry_captain").effect(lows, { allPlayedCards = { 1, 2 } }), nil)
+	expectEqual(Patrons.getById("summit_guide").effect(result("Pair", { card(13, "Hearts"), card(14, "Clubs"), card(3, "Clubs") }), {}).mult, 4)
+	expectEqual(Patrons.getById("sand_merchant").effect(result("Flush", { card(2, "Hearts") }), {}).tips, 1)
+	expectEqual(Patrons.getById("sand_merchant").effect(lows, {}), nil)
+	expectEqual(Patrons.getById("marsh_gardener").effect(result("Pair", { card(2, "Clubs"), card(2, "Spades") }), {}).mult, 3)
+	expectEqual(Patrons.getById("marsh_gardener").effect(lows, {}), nil, "a Heart cancels it")
+	expectEqual(Patrons.getById("lantern_lighter").effect(lows, { heldCards = { 1, 2, 3 } }).chips, 12)
+	expectEqual(Patrons.getById("lighthouse_keeper").effect(lows, { discardsRemaining = 3 }).mult, 6)
+	-- Granting adds them to the Collection once.
+	local profile = PlayerProfile.new()
+	BiomeRewards.recordBiomeCleared(profile, "desert")
+	expectTrue(profile.discoveredPatronIds.sand_merchant and profile.discoveredRecipeIds.date_cake)
+	expectEqual(#BiomeRewards.recordBiomeCleared(profile, "desert"), 0, "once")
+	expectEqual(BiomeRewards.label({ kind = "patron", id = "sand_merchant" }), "Patron: Sand Merchant")
+	expectEqual(BiomeRewards.label({ kind = "recipe", id = "date_cake" }), "Recipe: Date Cake")
+	-- Every new id has a prompts.json entry (skipped where io is missing, e.g. Studio).
+	if io and io.open then
+		local f = io.open("tools/patron_art/prompts.json", "r")
+		if f then
+			local text = f:read("*a")
+			f:close()
+			for _, region in ipairs(biomes) do
+				for _, r in ipairs(BiomeRewards.Rows[region].reward) do
+					if r.kind == "patron" or r.kind == "recipe" then
+						expectTrue(text:find('"' .. r.id .. '"', 1, true) ~= nil, r.id .. " has a prompts.json entry")
+					end
+				end
+			end
 		end
 	end
 end })
@@ -5943,6 +6023,8 @@ table.insert(tests, { name = "BiomeRewards: every one of the 18 routes ends in a
 			local ok = (r.kind == "cardBack" and profile.unlockedCardBackIds[r.id])
 				or (r.kind == "set" and profile.ownedSetIds[r.id])
 				or (r.kind == "title" and profile.rewardTitleIds[r.id])
+				or (r.kind == "patron" and profile.discoveredPatronIds[r.id])
+				or (r.kind == "recipe" and profile.discoveredRecipeIds[r.id])
 			expectTrue(ok, region .. " reward " .. r.id)
 		end
 	end

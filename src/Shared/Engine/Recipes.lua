@@ -933,6 +933,44 @@ Recipes.SecretRecipes = {
 	},
 }
 
+-- ===== Biome House Recipes (WorldMap branch-end rewards, Engine/BiomeRewards.lua) =====
+-- One per biome. Each puts an existing Garnish on exactly ONE selected card (the single-card versions of the
+-- shop recipes), so there is no new mechanic and no road is stronger.
+local function garnishRecipe(def, garnish, message)
+	def.cardCount = { min = 1, max = 1 }
+	def.rarity = "uncommon"
+	def.apply = function(state, opts)
+		local cards = cardsAt(state, opts and opts.cardIndices)
+		if not cards or #cards ~= 1 then
+			return false, "Select exactly 1 card"
+		end
+		cards[1].garnish = garnish
+		return true, message
+	end
+	table.insert(Recipes.HouseRecipes, def)
+end
+garnishRecipe({ id = "honey_drizzle", name = "Honey Drizzle", icon = "🍯", price = 3, biome = "meadow",
+	description = "Adds a Sweet Garnish (+30 Chips) to 1 selected card.",
+	flavorText = "Gathered one flower at a time." }, "sweet", "Golden and sticky.")
+garnishRecipe({ id = "riverside_chowder", name = "Riverside Chowder", icon = "🥣", price = 3, biome = "river",
+	description = "Adds a Zesty Garnish (+4 Mult) to 1 selected card.",
+	flavorText = "Best eaten on the bridge with the willows listening." }, "zesty", "Warm and peppery.")
+garnishRecipe({ id = "summit_stew", name = "Summit Stew", icon = "🍲", price = 4, biome = "peaks",
+	description = "Adds an Iron Garnish (x1.5 Mult while held) to 1 selected card.",
+	flavorText = "Cooked at the top, where the air makes everything taste better." }, "iron", "Hearty and heavy.")
+garnishRecipe({ id = "date_cake", name = "Date Cake", icon = "🍰", price = 4, biome = "desert",
+	description = "Adds a Golden Garnish (earn 3 Tips if held at round end) to 1 selected card.",
+	flavorText = "A treat from the oasis, wrapped in a palm leaf." }, "golden", "Sweet as the oasis.")
+garnishRecipe({ id = "bog_stew", name = "Bog Stew", icon = "🍵", price = 4, biome = "swamp",
+	description = "Adds House Blend (counts as every suit) to 1 selected card.",
+	flavorText = "Looks odd, tastes of every garden at once." }, "houseBlend", "A little of everything.")
+garnishRecipe({ id = "frost_pudding", name = "Frost Pudding", icon = "🍮", price = 3, biome = "snow",
+	description = "Adds a Sweet Garnish (+30 Chips) to 1 selected card.",
+	flavorText = "Chilled on a windowsill under the lanterns." }, "sweet", "Cool and creamy.")
+garnishRecipe({ id = "sea_biscuit", name = "Sea Biscuit", icon = "🥨", price = 3, biome = "coast",
+	description = "Adds a Zesty Garnish (+4 Mult) to 1 selected card.",
+	flavorText = "Salty, crunchy and loved by every lighthouse cat." }, "zesty", "Salty and bright.")
+
 function Recipes.getHouseRecipeById(id)
 	for _, r in ipairs(Recipes.HouseRecipes) do
 		if r.id == id then return r end

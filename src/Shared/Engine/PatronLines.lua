@@ -59,6 +59,13 @@ PatronLines.ById = {
 	estate_sale = "Everything must go!",
 	pair_bonds = "Better together!",
 	veterans_table = "Seen it all before!",
+	meadow_bee = "Bzzz, small cards are sweet!",
+	ferry_captain = "Three aboard, off we go!",
+	summit_guide = "Kings and Aces, nice climb!",
+	sand_merchant = "A fine flush, friend!",
+	marsh_gardener = "Shady cards grow best!",
+	lantern_lighter = "Lanterns lit for the whole hand!",
+	lighthouse_keeper = "Plenty of light left!",
 }
 
 function PatronLines.get(patronId)

@@ -25,3 +25,4 @@ New card backs (`winter_frost`, `festival_ribbon`, `closing_lantern`) currently 
 - Backdrops for the winter, festival and closing sets are listed above; they are also Journey rewards.
 - Card back art for `kitchen_checks` and `hall_banner` (tinted classic back for now).
 - Card back art for `ember_hours` (Endless Night 15 reward, tinted classic back for now).
+- Biome reward art (emoji fallback today; prompts already in `tools/patron_art/prompts.json`): patrons `meadow_bee`, `ferry_captain`, `summit_guide`, `sand_merchant`, `marsh_gardener`, `lantern_lighter`, `lighthouse_keeper` (category `patrons`); recipes `honey_drizzle`, `riverside_chowder`, `summit_stew`, `date_cake`, `bog_stew`, `frost_pudding`, `sea_biscuit` (category `recipes`).

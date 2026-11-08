@@ -778,6 +778,109 @@ Patrons.Definitions = {
 	},
 }
 
+-- ===== Biome Patrons (WorldMap branch-end rewards, Engine/BiomeRewards.lua) =====
+-- One per biome. Deliberately mild or situational (price 5, no scaling) so no road is stronger: they sit in
+-- the shop pool like every other Patron, and the biome reward adds them to the Collection.
+local function countScoring(handResult, test)
+	local n = 0
+	for _, card in ipairs(handResult.scoringCards) do
+		if test(card) then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+local biomePatrons = {
+	{
+		id = "meadow_bee", name = "Meadow Bee", icon = "🐝", price = 5, rarity = "uncommon", biome = "meadow",
+		description = "+6 Chips for each scoring card ranked 6 or lower.",
+		flavorText = "Hums over the small cards and never forgets a flower.",
+		effect = function(handResult, _context)
+			local n = countScoring(handResult, function(card) return card.rank <= 6 end)
+			if n > 0 then
+				return { chips = 6 * n }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "ferry_captain", name = "Ferry Captain", icon = "⛴️", price = 5, rarity = "uncommon", biome = "river",
+		description = "+10 Chips when you play exactly 3 cards.",
+		flavorText = "Three passengers per trip, and not one more.",
+		effect = function(_handResult, context)
+			if #(context.allPlayedCards or {}) == 3 then
+				return { chips = 10 }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "summit_guide", name = "Summit Guide", icon = "🧗", price = 5, rarity = "uncommon", biome = "peaks",
+		description = "+2 Mult for each King or Ace among the scoring cards.",
+		flavorText = "Only counts the tallest peaks on the trail.",
+		effect = function(handResult, _context)
+			local n = countScoring(handResult, function(card) return card.rank == 13 or card.rank == 14 end)
+			if n > 0 then
+				return { mult = 2 * n }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "sand_merchant", name = "Sand Merchant", icon = "🐪", price = 5, rarity = "uncommon", biome = "desert",
+		description = "Earn 1 Tip when your hand is a Flush.",
+		flavorText = "Trades in warm spices and one very patient camel.",
+		effect = function(handResult, _context)
+			if handResult.name == "Flush" then
+				return { tips = 1 }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "marsh_gardener", name = "Marsh Gardener", icon = "🍄", price = 5, rarity = "uncommon", biome = "swamp",
+		description = "+3 Mult if none of the scoring cards is a Heart or a Diamond.",
+		flavorText = "Grows mushrooms only in the shadiest corners.",
+		effect = function(handResult, _context)
+			local red = countScoring(handResult, function(card)
+				return Card.hasSuit(card, "Hearts") or Card.hasSuit(card, "Diamonds")
+			end)
+			if red == 0 and #handResult.scoringCards > 0 then
+				return { mult = 3 }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "lantern_lighter", name = "Lantern Lighter", icon = "🏮", price = 5, rarity = "uncommon", biome = "snow",
+		description = "+4 Chips for each card still in your hand when you play.",
+		flavorText = "Keeps a lantern lit for every card left in the cold.",
+		effect = function(_handResult, context)
+			local held = #(context.heldCards or {})
+			if held > 0 then
+				return { chips = 4 * held }
+			end
+			return nil
+		end,
+	},
+	{
+		id = "lighthouse_keeper", name = "Lighthouse Keeper", icon = "🗼", price = 5, rarity = "uncommon", biome = "coast",
+		description = "+2 Mult for each Discard you still have.",
+		flavorText = "Saves a little light for later, just in case.",
+		effect = function(_handResult, context)
+			local d = context.discardsRemaining or 0
+			if d > 0 then
+				return { mult = 2 * d }
+			end
+			return nil
+		end,
+	},
+}
+for _, patron in ipairs(biomePatrons) do
+	table.insert(Patrons.Definitions, patron)
+end
+
 function Patrons.getById(id)
 	for _, patron in ipairs(Patrons.Definitions) do
 		if patron.id == id then

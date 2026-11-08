@@ -26,11 +26,7 @@ local function rewardText(region)
 	local row = BiomeRewards.Rows[region]
 	local names = {}
 	for _, r in ipairs(row and row.reward or {}) do
-		local def = (r.kind == "cardBack" and CardBacks.getById(r.id))
-			or (r.kind == "set" and CosmeticSets.getById(r.id))
-			or (r.kind == "title" and Achievements.getById(r.id))
-		local label = r.kind == "cardBack" and "card back" or (r.kind == "set" and "set" or "title")
-		names[#names + 1] = (def and def.name or r.id) .. " " .. label
+		names[#names + 1] = BiomeRewards.label(r)
 	end
 	if row and row.bonus then
 		local def = Achievements.getById(row.bonus.id)

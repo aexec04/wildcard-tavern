@@ -138,7 +138,8 @@ return function(deps)
 			if not reward then
 				return nil
 			end
-			return JourneyMap.rewardLabel(reward, lookups)
+			local more = #row.reward - 1
+			return BiomeRewardsJMV.label(reward) .. (more > 0 and (" +" .. more) or "")
 		end,
 	})
 	-- Compass icon and wheel overlay (turns the map view toward the pointed road).
