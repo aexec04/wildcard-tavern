@@ -780,6 +780,13 @@ local ParticleBurstModule = require(script.ParticleBurst)({
 
 -- Boss fight presence (portrait, HP bar, hit reactions); visual only, driven by render().
 do
+	-- Live characters (prototype): a click-through ViewportFrame under the boss plaque and the hand.
+	local okStage, stageErr = pcall(function()
+		require(script.CharacterStage).init({ root = root, SIDEBAR_WIDTH = SIDEBAR_WIDTH })
+	end)
+	if not okStage then
+		warn("[Client] CharacterStage failed to build: " .. tostring(stageErr))
+	end
 	require(script.BossFight).init({
 		root = root,
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
@@ -2324,6 +2331,7 @@ local function render(state)
 
 	require(script.CosmeticSetsView).apply(state)
 	require(script.GameplayScene).get().update(state)
+	pcall(function() require(script.CharacterStage).get().update(state) end) -- live characters (before BossFight so it can hide the portrait)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once

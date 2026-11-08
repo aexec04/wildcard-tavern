@@ -103,6 +103,27 @@ local function build(deps)
 		end)
 	end
 
+	-- Live characters (Client/CharacterStage.lua): the same events drive the boss and player rigs.
+	-- Visual only; any failure there leaves this portrait in charge.
+	local function stageEvent(who, name, strength)
+		pcall(function()
+			local stage = require(script.Parent.CharacterStage).get()
+			if not stage then return end
+			if who == "boss" then
+				stage.playBossState(name, strength)
+			else
+				stage.playPlayerState(name)
+			end
+		end)
+	end
+	local function stageActive()
+		local okStage, active = pcall(function()
+			local stage = require(script.Parent.CharacterStage).get()
+			return stage ~= nil and stage.isActive()
+		end)
+		return okStage and active == true
+	end
+
 	-- ===== host =====
 	local host = Instance.new("Frame")
 	host.Name = "BossFightHost"
@@ -393,6 +414,8 @@ local function build(deps)
 		local share = delta / math.max(target, 1)
 		popText(string.format("-%d", math.floor(delta + 0.5)), legendary and GOLD or Color3.fromRGB(255, 120, 90), 26 + math.floor(math.min(share, 1) * 14), 0.2)
 		if legendary then
+			stageEvent("boss", "stagger", 1)
+			stageEvent("player", "cheer")
 			flashTint(0.6)
 			screenFlash()
 			particles(26, GOLD)
@@ -405,6 +428,8 @@ local function build(deps)
 			end
 			if screenShake then pcall(screenShake, root, 6, 0.25) end
 		elseif share >= BIG_HIT then
+			stageEvent("boss", "hit", math.min(1, share * 2))
+			stageEvent("player", "cheer")
 			flashTint(0.5)
 			screenFlash()
 			particles(18, Color3.fromRGB(255, 170, 80))
@@ -420,12 +445,14 @@ local function build(deps)
 			if screenShake then pcall(screenShake, root, 4, 0.2) end
 		elseif share < SMIRK_BELOW then
 			-- quiet beat: the boss shrugs it off
+			stageEvent("boss", "taunt", 0.3)
 			popText("...", CREAM, 20, 0.8)
 			if motionOk() then
 				play(pscale, { Scale = 1.04 }, 0.2)
 				later(0.5, function() play(pscale, { Scale = 1 }, 0.3) end)
 			end
 		else
+			stageEvent("boss", "hit", math.min(1, share * 3))
 			flashTint(0.4)
 			particles(8, Color3.fromRGB(255, 130, 100))
 			shake(5, 4)
@@ -622,6 +649,8 @@ local function build(deps)
 		local spec = ATTACK[category]
 		if not spec or not visible or retiring then return end
 		if playThump then pcall(playThump) end
+		stageEvent("boss", "attack", spec.lunge - 1 > 0.06 and 1 or 0.5)
+		stageEvent("player", "flinch")
 		if spec.band then
 			band.BackgroundTransparency = 0.45
 			play(band, { BackgroundTransparency = 1 }, 0.3)
@@ -640,6 +669,7 @@ local function build(deps)
 
 	local function enrage()
 		enraged = true
+		stageEvent("boss", "enrage", 1)
 		local color = grand and ENRAGE_GOLD or ENRAGE_RED
 		tintBase = 0.78
 		tint.BackgroundColor3 = color
@@ -707,6 +737,8 @@ local function build(deps)
 			return
 		end
 		if playFanfare then pcall(playFanfare) end
+		stageEvent("boss", "defeat", 1)
+		stageEvent("player", "cheer")
 		-- freeze, desaturate, tilt and slide down
 		tintBase = 0.45
 		tint.BackgroundColor3 = Color3.fromRGB(110, 110, 115)
@@ -731,6 +763,8 @@ local function build(deps)
 
 	local function lossSequence()
 		retiring = true
+		stageEvent("boss", "victory", 1)
+		stageEvent("player", "slump")
 		say("victory", true)
 		if motionOk() then
 			-- grows slightly and laughs (bob)
@@ -762,6 +796,7 @@ local function build(deps)
 		barStroke.Color = GOLD
 		rim.Thickness = 3
 		holder.Rotation = 0
+		holder.Visible = true
 		holder.Position = UDim2.new(0.5, 0, 0, 0)
 		pscale.Scale = 1
 		tintBase = 1
@@ -831,10 +866,14 @@ local function build(deps)
 			-- entrance: pop in, then the intro taunt once the Boss Intro banner has landed
 			pscale.Scale = 0.85
 			play(pscale, { Scale = 1 }, 0.35, Enum.EasingStyle.Back)
-			later(grand and 1.4 or 1.0, function() say("intro", true) end)
+			later(grand and 1.4 or 1.0, function()
+					stageEvent("boss", "taunt", 0.6)
+					say("intro", true)
+				end)
 			return
 		end
 
+		holder.Visible = not stageActive() -- the live boss replaces the framed portrait
 		local hands = state.handsRemaining
 		local playedHand = lastHands ~= nil and hands ~= nil and hands < lastHands
 		lastHands = hands

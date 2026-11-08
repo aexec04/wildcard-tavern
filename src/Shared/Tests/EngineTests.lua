@@ -4837,6 +4837,15 @@ table.insert(tests, { name = "RunState: shop actions (buy, reroll, packs) only i
 	expectEqual(RunState.phaseAllowsCardActions("playing"), true)
 end })
 
+table.insert(tests, { name = "SceneKeys: floor fraction defaults and clamps", fn = function()
+	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
+	expectEqual(SceneKeys.floorFraction("front_porch_a"), SceneKeys.FloorFractions.default)
+	expectEqual(SceneKeys.floorFraction(nil), SceneKeys.FloorFractions.default)
+	SceneKeys.FloorFractions.test_scene = 0.9
+	expectEqual(SceneKeys.floorFraction("test_scene"), 0.85)
+	SceneKeys.FloorFractions.test_scene = nil
+end })
+
 table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endless rotates", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	expectEqual(SceneKeys.keyFor(1, "small"), "front_porch_a")

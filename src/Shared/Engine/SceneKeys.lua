@@ -37,4 +37,19 @@ function SceneKeys.keyFor(night, roundKind, nights)
 	return SceneKeys.artFor(night, nights) .. suffix
 end
 
+-- Where the floor sits in each scene, as a fraction of the screen height (0 top, 1 bottom).
+-- Characters (Client/CharacterStage.lua) stand with their feet on this line. Tune per scene
+-- by adding "<art>_a|_b|_in" keys; anything missing uses `default`.
+SceneKeys.FloorFractions = {
+	default = 0.66,
+}
+
+function SceneKeys.floorFraction(key)
+	local value = SceneKeys.FloorFractions[key]
+	if type(value) ~= "number" then
+		value = SceneKeys.FloorFractions.default
+	end
+	return math.min(0.85, math.max(0.5, value))
+end
+
 return SceneKeys
