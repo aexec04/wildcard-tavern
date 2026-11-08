@@ -133,18 +133,121 @@ local function addSetLayers(face, zIndex)
 	wash.ClipsDescendants = true
 end
 
+-- The universal pattern for special cards (Engine/SpecialPatterns): a round corner seal with the modifier's
+-- glyph and an edge treatment (border, steel with rivets, or a foil sheen), drawn the same on every card face
+-- everywhere, tinted 20 percent by the equipped Card Set's accent. UI shapes only.
+local SpecialPatterns = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SpecialPatterns"))
+local SEAL_POS = {
+	tr = { Vector2.new(1, 0), UDim2.fromScale(0.97, 0.03) },
+	bl = { Vector2.new(0, 1), UDim2.fromScale(0.03, 0.97) },
+	br = { Vector2.new(1, 1), UDim2.fromScale(0.97, 0.97) },
+}
+
+local function addSpecialLayers(face, card, zIndex)
+	if not SpecialPatterns.hasSpecial(card) then return end
+	local accent = setFace and not setFace.neutral and setFace.border or nil
+	for _, p in ipairs(SpecialPatterns.patternsFor(card)) do
+		local c = rgb(SpecialPatterns.tinted(p.color, accent))
+		if p.edge ~= "none" then
+			local edge = Instance.new("Frame")
+			edge.Name = "SpecialEdge_" .. p.kind
+			edge.AnchorPoint = Vector2.new(0.5, 0.5)
+			edge.Position = UDim2.fromScale(0.5, 0.5)
+			edge.Size = UDim2.fromScale(p.edge == "steel" and 0.98 or 0.94, p.edge == "steel" and 0.985 or 0.96)
+			edge.BackgroundTransparency = 1
+			edge.BorderSizePixel = 0
+			edge.Active = false
+			edge.ZIndex = zIndex + 1
+			edge.ClipsDescendants = true
+			edge.Parent = face
+			local ec = Instance.new("UICorner")
+			ec.CornerRadius = UDim.new(0, 5)
+			ec.Parent = edge
+			local st = Instance.new("UIStroke")
+			st.Color = c
+			st.Thickness = p.edge == "steel" and 3 or 2
+			st.Transparency = 0.1
+			st.Parent = edge
+			if p.edge == "foil" then
+				local sheen = Instance.new("Frame") -- a still diagonal sheen in the modifier's colour
+				sheen.AnchorPoint = Vector2.new(0.5, 0.5)
+				sheen.Position = UDim2.fromScale(0.45, 0.5)
+				sheen.Size = UDim2.fromScale(0.2, 1.6)
+				sheen.Rotation = 24
+				sheen.BackgroundColor3 = c
+				sheen.BackgroundTransparency = 0.78
+				sheen.BorderSizePixel = 0
+				sheen.Active = false
+				sheen.ZIndex = zIndex + 1
+				sheen.Parent = edge
+			elseif p.rivets then
+				for _, pos in ipairs({ { 0.05, 0.04 }, { 0.95, 0.04 }, { 0.05, 0.96 }, { 0.95, 0.96 } }) do
+					local rivet = Instance.new("Frame")
+					rivet.AnchorPoint = Vector2.new(0.5, 0.5)
+					rivet.Position = UDim2.fromScale(pos[1], pos[2])
+					rivet.Size = UDim2.fromOffset(5, 5)
+					rivet.BackgroundColor3 = Color3.fromRGB(205, 212, 225)
+					rivet.BorderSizePixel = 0
+					rivet.Active = false
+					rivet.ZIndex = zIndex + 2
+					rivet.Parent = edge
+					local rc = Instance.new("UICorner")
+					rc.CornerRadius = UDim.new(0.5, 0)
+					rc.Parent = rivet
+				end
+			end
+		end
+		local where = SEAL_POS[p.corner] or SEAL_POS.tr
+		local seal = Instance.new("Frame")
+		seal.Name = "SpecialSeal_" .. p.kind
+		seal.AnchorPoint = where[1]
+		seal.Position = where[2]
+		seal.Size = UDim2.fromScale(0.3, 0.3)
+		seal.BackgroundColor3 = c
+		seal.BorderSizePixel = 0
+		seal.Active = false
+		seal.ZIndex = zIndex + 3
+		seal.Parent = face
+		local ar = Instance.new("UIAspectRatioConstraint")
+		ar.AspectRatio = 1
+		ar.Parent = seal
+		local sc = Instance.new("UICorner")
+		sc.CornerRadius = UDim.new(0.5, 0)
+		sc.Parent = seal
+		local ss = Instance.new("UIStroke")
+		ss.Color = Color3.fromRGB(40, 28, 18)
+		ss.Thickness = 1.5
+		ss.Parent = seal
+		local g = Instance.new("TextLabel")
+		g.Size = UDim2.fromScale(1, 1)
+		g.BackgroundTransparency = 1
+		g.Font = Enum.Font.GothamBlack
+		g.TextScaled = true
+		g.TextColor3 = Color3.fromRGB(30, 22, 16)
+		g.Text = p.glyph
+		g.ZIndex = zIndex + 4
+		g.Parent = seal
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0.18, 0)
+		pad.PaddingBottom = UDim.new(0.18, 0)
+		pad.PaddingLeft = UDim.new(0.12, 0)
+		pad.PaddingRight = UDim.new(0.12, 0)
+		pad.Parent = g
+	end
+end
+
 function CardFace.setStyle(face)
 	setFace = face
 	for button, args in pairs(builtFaces) do
 		if button.Parent then
-			CardFace.build(button, args[1], args[2], args[3], args[4], false)
+			CardFace.build(button, args[1], args[2], args[3], args[4], false, args[5])
 		else
 			builtFaces[button] = nil
 		end
 	end
 end
 
-function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcard)
+function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcard, card)
 	builtFaces[button] = nil -- re-registered below unless this is a hidden wildcard
 	local old = button:FindFirstChild("CardFace")
 	if old then
@@ -164,7 +267,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		return face
 	end
 
-	builtFaces[button] = { rankText, suitText, isRed, zIndex }
+	builtFaces[button] = { rankText, suitText, isRed, zIndex, card }
 	addSetLayers(face, zIndex)
 	local colorblind = ClientSettings.get("colorblindSuits") and COLORBLIND_INK[suitText] ~= nil
 	local ink = colorblind and COLORBLIND_INK[suitText] or (isRed and RED_INK or BLACK_INK)
@@ -172,6 +275,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		-- set pips: black suits lean toward the set's pip colour, red suits only a little (stay readable)
 		ink = ink:Lerp(rgb(setFace.pip), isRed and 0.2 or 0.5)
 	end
+	local drawSpecial = function() addSpecialLayers(face, card, zIndex) end
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
 	-- of the card's width and ~8% of its height); they used to start at
 	-- 4-8%, right on top of the gold filigree, which made them hard to read.
@@ -182,6 +286,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
 	end
+	drawSpecial()
 	return face
 end
 
@@ -192,7 +297,7 @@ ClientSettings.onChanged(function(key)
 	end
 	for button, args in pairs(builtFaces) do
 		if button.Parent then
-			CardFace.build(button, args[1], args[2], args[3], args[4], false)
+			CardFace.build(button, args[1], args[2], args[3], args[4], false, args[5])
 		else
 			builtFaces[button] = nil
 		end

@@ -24,6 +24,9 @@
 		spec.badge       small corner text ("JUMBO", "MEGA")
 		spec.glow        extra frame thickness for big packs
 		spec.onAction    function(card) -> bool  (true = it fired: coin burst and pop)
+		spec.onClick     function(card)  pick-style cards (pack reveals): a click calls this instead of pinning the
+		                 card; the caller shows the choice with card.setSelected(bool)
+		card.hit / card.artClip / card.body / card.setSelected(bool)
 	cards.soldSpot(row, layoutOrder, kind, animate) -> Frame   empty shelf spot with a SOLD stamp
 	cards.note(parent, layoutOrder, text) -> TextLabel   short message row (empty states)
 
@@ -284,6 +287,7 @@ function ShopCards.new(deps)
 		local slot = frame(row, { Name = "Card_" .. tostring(spec.name), LayoutOrder = spec.layoutOrder or 0,
 			Size = UDim2.fromOffset(W, shape.h + HEAD + 4), BackgroundTransparency = 1 })
 		card.slot = slot
+		card.spec = spec
 
 		-- Shadow stays put while the card lifts, so the gap reads as height.
 		local shadow = frame(slot, { Position = UDim2.fromOffset(2, HEAD + 6), Size = UDim2.fromOffset(W - 4, shape.h),
@@ -375,6 +379,20 @@ function ShopCards.new(deps)
 		hit.AutoButtonColor = false
 		hit.ZIndex = Z
 		hit.Parent = body
+		card.hit = hit
+		card.artClip = artClip
+
+		-- Pick-style cards (pack reveals): a green check and a thick gold edge show the choice.
+		local pickedBadge = frame(body, { Name = "PickedBadge", Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(34, 34),
+			BackgroundColor3 = Color3.fromRGB(86, 140, 80), Visible = false, ZIndex = Z + 2 })
+		corner(pickedBadge, 17)
+		stroke(pickedBadge, GOLD, 2, 0)
+		label(pickedBadge, { Size = UDim2.fromScale(1, 1), Text = "OK", TextSize = 16, TextColor3 = CREAM, ZIndex = Z + 3 })
+		local pickedStroke = stroke(body, GOLD, 4, 1)
+		function card.setSelected(on)
+			pickedBadge.Visible = on
+			pickedStroke.Transparency = on and 0 or 1
+		end
 
 		-- The rules text lives in the shared hover tooltip (name on the first line, then the effect).
 		local tipText = spec.line or spec.description
@@ -458,6 +476,11 @@ function ShopCards.new(deps)
 		end
 		card.setPinned = setPinned
 		hit.MouseButton1Click:Connect(function()
+			if spec.onClick then
+				playClickSfx(0.3)
+				spec.onClick(card)
+				return
+			end
 			playClickSfx(0.3)
 			if selected and selected ~= card then
 				pcall(selected.setPinned, false)

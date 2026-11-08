@@ -29,3 +29,10 @@ The reference image is `art-wip/backgrounds/journey_map.png` (gitignored with th
   prompt still applies. Example:
   `python3 tools/patron_art/generate_patron_art.py -c map_decor generate --style house_style --reference --force`
 - Changing the style text marks images stale (`--stale` regenerates them).
+
+## Roblox blocky look (all new character art)
+All new art that shows a character (pack picks, Patrons, Boss portraits, enhancement and badge figures, biome
+pieces) must keep the Roblox blocky look of the Bosses and Night cards: a cylindrical head with a simple smiley
+face, blocky torso, arms and legs, matte-plastic skin, and never a LEGO minifigure. The `style` prefix in
+`prompts.json` already says this; `python3 tools/art_status.py` checks that it still does (it reports "style check:
+FAILED" at the top of `claude/ART_STATUS.md` if the words Roblox and blocky ever disappear from it).

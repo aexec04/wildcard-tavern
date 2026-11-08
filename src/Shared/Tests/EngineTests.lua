@@ -7767,4 +7767,50 @@ table.insert(tests, { name = "TutorialScript: scripted hands name an exact combo
 	expectFalse(TS.applyStage({ deck = {}, hand = {} }, 9))
 end })
 
+table.insert(tests, { name = "SpecialPatterns: every Garnish, Special and Stamp has one pattern, tinted by the set", fn = function()
+	local SP = require(script.Parent.Parent.Engine.SpecialPatterns)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	expectEqual(#SP.missing(), 0, "missing patterns: " .. table.concat(SP.missing(), ", "))
+	local seenCorner = {}
+	for kind, table_ in pairs({ garnish = SP.Garnish, special = SP.Special, stamp = SP.Stamp }) do
+		for id, p in pairs(table_) do
+			expectTrue(type(p.glyph) == "string" and #p.glyph >= 1 and #p.glyph <= 2, kind .. ":" .. id .. " has a short glyph")
+			expectTrue(#p.color == 3, kind .. ":" .. id .. " has a colour")
+			expectTrue(p.edge == "border" or p.edge == "steel" or p.edge == "foil" or p.edge == "none", kind .. ":" .. id .. " edge type")
+		end
+	end
+	-- the same card always resolves the same patterns in the same order: garnish, special, stamp
+	local both = SP.patternsFor({ rank = 10, suit = "Hearts", garnish = "iron", special = "gold", stamp = "blue" })
+	expectEqual(#both, 3)
+	expectEqual(both[1].kind, "garnish"); expectEqual(both[2].kind, "special"); expectEqual(both[3].kind, "stamp")
+	expectEqual(both[1].edge, "steel"); expectTrue(both[1].rivets, "Iron Garnish: a steel border with rivets")
+	expectEqual(both[3].glyph, "B", "Blue Stamp is a seal marked B")
+	expectEqual(#SP.patternsFor({ rank = 3, suit = "Clubs" }), 0, "a plain card has no pattern")
+	expectFalse(SP.hasSpecial({ rank = 3, suit = "Clubs" })); expectTrue(SP.hasSpecial({ garnish = "lucky" }))
+	-- a Card Set nudges the colour 20 percent toward its accent, no accent leaves it alone
+	local c = SP.tinted({ 100, 100, 100 }, { 200, 0, 100 })
+	expectTrue(c[1] == 120 and c[2] == 80 and c[3] == 100, "20 percent toward the accent")
+	expectTrue(SP.tinted({ 1, 2, 3 }, nil)[2] == 2)
+	expectTrue(Card.Garnishes.iron ~= nil)
+end })
+
+table.insert(tests, { name = "PackPreview: a revealed card shows the plain copy of the same card you already hold", fn = function()
+	local PP = require(script.Parent.Parent.Engine.PackPreview)
+	local deckView = {
+		{ rank = 7, suit = "Hearts", status = "draw" },
+		{ rank = 7, suit = "Hearts", garnish = "iron", status = "draw" },
+		{ rank = 7, suit = "Hearts", status = "discard" },
+		{ rank = 9, suit = "Clubs", status = "hand" },
+	}
+	local spec = { rank = 7, suit = "Hearts", special = "gold" }
+	local m = PP.matchFromDeckView(deckView, spec)
+	expectTrue(m ~= nil and m.copies == 2, "two plain copies, the Iron one does not count")
+	expectEqual(m.entry.status, "draw")
+	expectEqual(PP.caption(m, spec), "You hold 2 plain 7 of Hearts. The new card joins your deck.")
+	expectEqual(PP.matchFromDeckView(deckView, { rank = 2, suit = "Spades" }), nil, "no plain copy: nothing to ghost")
+	expectTrue(PP.caption(nil, spec):find("joins your deck") ~= nil)
+	expectEqual(PP.matchFromDeckView(nil, spec), nil)
+	expectTrue(PP.caption(PP.matchFromDeckView({ { rank = 12, suit = "Spades" } }, { rank = 12, suit = "Spades" }), { rank = 12, suit = "Spades" }):find("Queen") ~= nil)
+end })
+
 return tests

@@ -1866,7 +1866,8 @@ local function buildScoreSourceInfo(indices)
 				SUIT_SYMBOLS[card.suit] or "?",
 				RED_SUITS[card.suit] == true,
 				40,
-				false
+				false,
+				card
 			)
 			-- Held-card ghosts start hidden -- the real card is still
 			-- visible and correct in the hand; this ghost only appears for
@@ -2172,7 +2173,8 @@ local function rebuildHand(handData, phase)
 			SUIT_SYMBOLS[card.suit] or "?",
 			RED_SUITS[card.suit] == true,
 			2,
-			isHiddenWildcard
+			isHiddenWildcard,
+			card -- Garnish / Special / Stamp: the universal pattern is drawn from it (Engine/SpecialPatterns)
 		)
 
 		-- PHASE C ("mind-blowing plan" Signature Mechanic): the one True

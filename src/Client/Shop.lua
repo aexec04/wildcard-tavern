@@ -567,7 +567,7 @@ return function(deps)
 		packPanelHintLabel.Position = UDim2.new(0, 10, 0, 46)
 		packPanelHintLabel.BackgroundTransparency = 1
 		packPanelHintLabel.Font = Enum.Font.Gotham
-		packPanelHintLabel.TextSize = 14
+		packPanelHintLabel.TextSize = 15
 		packPanelHintLabel.TextXAlignment = Enum.TextXAlignment.Left
 		packPanelHintLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
 		packPanelHintLabel.Text = ""
@@ -575,7 +575,7 @@ return function(deps)
 		packPanelHintLabel.Parent = shopPackPanel
 
 		packItemsRow = Instance.new("Frame")
-		packItemsRow.Size = UDim2.new(1, -20, 0, 150)
+		packItemsRow.Size = UDim2.new(1, -20, 0, ShopCardsModule.rowHeight("patron", true))
 		packItemsRow.Position = UDim2.new(0, 10, 0, 78)
 		packItemsRow.BackgroundTransparency = 1
 		packItemsRow.ZIndex = PANEL_ZINDEX
@@ -583,12 +583,14 @@ return function(deps)
 		local packItemsLayout = Instance.new("UIListLayout")
 		packItemsLayout.FillDirection = Enum.FillDirection.Horizontal
 		packItemsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		packItemsLayout.Padding = UDim.new(0, 10)
+		packItemsLayout.Padding = UDim.new(0, 16)
+		packItemsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		packItemsLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 		packItemsLayout.Parent = packItemsRow
 
 		packConfirmButton = Instance.new("TextButton")
-		packConfirmButton.Size = UDim2.new(0, 170, 0, 40)
-		packConfirmButton.Position = UDim2.new(1, -350, 1, -56)
+		packConfirmButton.Size = UDim2.new(0, 150, 0, 34)
+		packConfirmButton.Position = UDim2.new(1, -320, 1, -50)
 		packConfirmButton.Font = Enum.Font.GothamBold
 		packConfirmButton.TextSize = 15
 		packConfirmButton.Text = "Confirm"
@@ -599,8 +601,8 @@ return function(deps)
 		polishButton(packConfirmButton, 8)
 
 		packSkipButton = Instance.new("TextButton")
-		packSkipButton.Size = UDim2.new(0, 160, 0, 40)
-		packSkipButton.Position = UDim2.new(1, -170, 1, -56)
+		packSkipButton.Size = UDim2.new(0, 140, 0, 34)
+		packSkipButton.Position = UDim2.new(1, -160, 1, -50)
 		packSkipButton.Font = Enum.Font.GothamBold
 		packSkipButton.TextSize = 15
 		packSkipButton.Text = "Skip Pack"
@@ -790,6 +792,10 @@ return function(deps)
 	-- tells "still showing the same reveal, keep the selection" apart from
 	-- "a brand new reveal just arrived, clear the selection."
 	local pendingPackSelected = {} -- [itemIndex] = true
+	local packBuiltSig, packCards = nil, {} -- the reveal the pick cards were built for, and the cards
+	local PackPreviewModule = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PackPreview"))
+	local RANK_LABELS = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
+	local SUIT_SYMBOLS_SHOP = { Hearts = "\226\153\165", Diamonds = "\226\153\166", Clubs = "\226\153\163", Spades = "\226\153\160" }
 	local packPanelWasOpen = false
 
 	local function selectedPackCount()
@@ -806,6 +812,7 @@ return function(deps)
 			shopPackPanel.Visible = false
 			pendingPackSelected = {}
 			packPanelWasOpen = false
+			packBuiltSig = nil
 			return
 		end
 
@@ -815,94 +822,102 @@ return function(deps)
 		packPanelWasOpen = true
 		shopPackPanel.Visible = true
 
-		for _, child in ipairs(packItemsRow:GetChildren()) do
-			if child:IsA("TextButton") then
-				child:Destroy()
+		-- Large painted pick cards across the screen: art, name on a ribbon, the effect in the hover tooltip.
+		-- The cards are built once per reveal; a click only updates which are marked.
+		local sig = tostring(pending.packId)
+		for _, item in ipairs(pending.items) do sig = sig .. "|" .. tostring(item.id) end
+		if packBuiltSig ~= sig then
+			packBuiltSig = sig
+			for _, child in ipairs(packItemsRow:GetChildren()) do
+				if not child:IsA("UIListLayout") then child:Destroy() end
+			end
+			packCards = {}
+			for index, item in ipairs(pending.items) do
+				local packArtCategory = (item.category == "patron" and "patrons")
+					or ((item.category == "house" or item.category == "menu" or item.category == "secret") and "recipes")
+					or nil
+				local description = item.description
+				local standardCard = item.category == "standard" and item.card or nil
+				local match = standardCard and PackPreviewModule.matchFromDeckView((getLatestState() or {}).deckView, standardCard) or nil
+				if standardCard then
+					description = description .. "\n" .. PackPreviewModule.caption(match, standardCard)
+				end
+				local card = shopCards.card(packItemsRow, {
+					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true,
+					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
+					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
+					rarity = standardCard and "common" or nil,
+					onClick = function(c)
+						local pend = getLatestState() and getLatestState().pendingPack
+						local limit = pend and pend.pickCount or 1
+						if pendingPackSelected[index] then
+							pendingPackSelected[index] = nil
+						elseif selectedPackCount() >= limit then
+							showWarning(string.format("You can only pick %d item%s from this pack.", limit, limit == 1 and "" or "s"))
+							return
+						else
+							pendingPackSelected[index] = true
+						end
+						refreshPackPanel(getLatestState())
+					end,
+				})
+				packCards[index] = card
+				if standardCard then
+					-- a real card face (with its special pattern) instead of a picture
+					local host = Instance.new("Frame")
+					host.Name = "PickFace"
+					host.AnchorPoint = Vector2.new(0.5, 0.5)
+					host.Position = UDim2.fromScale(0.5, 0.5)
+					host.Size = UDim2.fromScale(0.62, 0.92)
+					host.BackgroundColor3 = Color3.fromRGB(246, 238, 220)
+					host.BorderSizePixel = 0
+					host.ZIndex = 7
+					host.Parent = card.artClip
+					local ar = Instance.new("UIAspectRatioConstraint")
+					ar.AspectRatio = 1 / 1.45
+					ar.Parent = host
+					roundCorner(host, 8)
+					require(script.Parent.CardFace).build(host, RANK_LABELS[standardCard.rank] or tostring(standardCard.rank),
+						SUIT_SYMBOLS_SHOP[standardCard.suit] or "?", standardCard.suit == "Hearts" or standardCard.suit == "Diamonds", 8, false, standardCard)
+					-- hover: the plain card of the same rank and suit that you already hold ghosts in beside it
+					if match then
+						local ghost
+						card.hit.MouseEnter:Connect(function()
+							if ghost then ghost:Destroy() end
+							local slotPos = card.slot.AbsolutePosition - shopPackPanel.AbsolutePosition
+							ghost = Instance.new("Frame")
+							ghost.Name = "ReplacedGhost"
+							ghost.Size = UDim2.fromOffset(64, 92)
+							ghost.Position = UDim2.fromOffset(math.max(6, slotPos.X - 74), slotPos.Y + 70)
+							ghost.BackgroundColor3 = Color3.fromRGB(246, 238, 220)
+							ghost.BackgroundTransparency = 0.15
+							ghost.BorderSizePixel = 0
+							ghost.ZIndex = shopPackPanel.ZIndex + 5
+							ghost.Parent = shopPackPanel
+							roundCorner(ghost, 6)
+							require(script.Parent.CardFace).build(ghost, RANK_LABELS[standardCard.rank] or tostring(standardCard.rank),
+								SUIT_SYMBOLS_SHOP[standardCard.suit] or "?", standardCard.suit == "Hearts" or standardCard.suit == "Diamonds", shopPackPanel.ZIndex + 6, false, nil)
+							local arrowLabel = Instance.new("TextLabel")
+							arrowLabel.Size = UDim2.fromOffset(30, 92)
+							arrowLabel.Position = UDim2.fromOffset(66, 0)
+							arrowLabel.BackgroundTransparency = 1
+							arrowLabel.Font = Enum.Font.GothamBlack
+							arrowLabel.TextSize = 28
+							arrowLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+							arrowLabel.Text = ">"
+							arrowLabel.ZIndex = shopPackPanel.ZIndex + 7
+							arrowLabel.Parent = ghost
+						end)
+						card.hit.MouseLeave:Connect(function()
+							if ghost then ghost:Destroy() ghost = nil end
+						end)
+					end
+				end
 			end
 		end
-
-		for index, item in ipairs(pending.items) do
-			local itemButton = Instance.new("TextButton")
-			itemButton.Size = UDim2.new(0, 160, 1, 0)
-			itemButton.LayoutOrder = index
-			itemButton.Font = Enum.Font.Gotham
-			itemButton.TextSize = 13
-			itemButton.TextWrapped = true
-			itemButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-			itemButton.Text = "" -- art first: icon/art on top, name on a ribbon, a one-line effect under it
-			itemButton.BackgroundColor3 = pendingPackSelected[index] and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
-			itemButton.ZIndex = 7
-			itemButton.Parent = packItemsRow
-			polishPanel(itemButton, 10)
-			-- Patron items: overlay art in the icon area at the top of the button.
-			local packArtCategory = (item.category == "patron" and "patrons")
-				or ((item.category == "house" or item.category == "menu" or item.category == "secret") and "recipes")
-				or nil
-			-- emoji fallback behind the art (no text block any more)
-			local iconLabel = Instance.new("TextLabel")
-			iconLabel.Name = "ItemIcon"
-			iconLabel.AnchorPoint = Vector2.new(0.5, 0)
-			iconLabel.Position = UDim2.new(0.5, 0, 0, 6)
-			iconLabel.Size = UDim2.fromOffset(64, 64)
-			iconLabel.BackgroundTransparency = 1
-			iconLabel.Font = Enum.Font.GothamBold
-			iconLabel.TextSize = 40
-			iconLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-			iconLabel.Text = item.icon or "🎴"
-			iconLabel.ZIndex = 8
-			iconLabel.Parent = itemButton
-			if item.id and packArtCategory then
-				PatronPlaqueModule.apply(itemButton, item.id, {
-					category = packArtCategory,
-					size = UDim2.fromOffset(72, 72),
-					position = UDim2.new(0.5, -36, 0, 4),
-					zIndex = 8,
-					cornerRadius = 10,
-				})
-			end
-			local nameRibbon = Instance.new("TextLabel")
-			nameRibbon.Name = "ItemName"
-			nameRibbon.Position = UDim2.new(0, 6, 0, 80)
-			nameRibbon.Size = UDim2.new(1, -12, 0, 24)
-			nameRibbon.BackgroundColor3 = Color3.fromRGB(92, 62, 36)
-			nameRibbon.BorderSizePixel = 0
-			nameRibbon.Font = Enum.Font.GothamBold
-			nameRibbon.TextSize = 15
-			nameRibbon.TextColor3 = Color3.fromRGB(250, 235, 200)
-			nameRibbon.TextTruncate = Enum.TextTruncate.AtEnd
-			nameRibbon.Text = item.name
-			nameRibbon.ZIndex = 9
-			nameRibbon.Parent = itemButton
-			local ribbonCorner = Instance.new("UICorner")
-			ribbonCorner.CornerRadius = UDim.new(0, 6)
-			ribbonCorner.Parent = nameRibbon
-			local effectLine = Instance.new("TextLabel")
-			effectLine.Name = "ItemEffect"
-			effectLine.Position = UDim2.new(0, 6, 0, 106)
-			effectLine.Size = UDim2.new(1, -12, 1, -110)
-			effectLine.BackgroundTransparency = 1
-			effectLine.Font = Enum.Font.Gotham
-			effectLine.TextSize = 15
-			effectLine.TextColor3 = Color3.fromRGB(235, 220, 190)
-			effectLine.TextWrapped = true
-			effectLine.TextTruncate = Enum.TextTruncate.AtEnd
-			effectLine.TextYAlignment = Enum.TextYAlignment.Top
-			effectLine.Text = item.description or ""
-			effectLine.ZIndex = 9
-			effectLine.Parent = itemButton
-
-			itemButton.MouseButton1Click:Connect(function()
-				if pendingPackSelected[index] then
-					pendingPackSelected[index] = nil
-				elseif selectedPackCount() >= pending.pickCount then
-					showWarning(string.format("You can only pick %d item%s from this pack.", pending.pickCount, pending.pickCount == 1 and "" or "s"))
-					return
-				else
-					pendingPackSelected[index] = true
-				end
-				playClickSfx(0.3)
-				refreshPackPanel(getLatestState())
-			end)
+		for index, card in pairs(packCards) do
+			card.setSelected(pendingPackSelected[index] == true)
+			card.setPinned(pendingPackSelected[index] == true)
 		end
 
 		local count = selectedPackCount()

@@ -277,8 +277,35 @@ return function(deps)
 				SUIT_SYMBOLS[entry.suit] or "?",
 				RED_SUITS[entry.suit] == true,
 				24,
-				false
+				false,
+				entry
 			)
+			-- special cards (Garnish / Special / Stamp) glow so the player can see where they are in the deck
+			if entry.garnish or entry.special or entry.stamp then
+				local glow = Instance.new("UIStroke")
+				glow.Name = "SpecialGlow"
+				glow.Color = Color3.fromRGB(255, 226, 140)
+				glow.Thickness = 2.5
+				glow.Transparency = 0.2
+				glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				if card:FindFirstChildOfClass("UIStroke") and card:FindFirstChildOfClass("UIStroke").Name ~= "SpecialGlow" then
+					-- the card already carries its own edge stroke: put the glow on an overlay frame instead
+					local ring = Instance.new("Frame")
+					ring.Name = "SpecialGlowRing"
+					ring.Size = UDim2.fromScale(1, 1)
+					ring.BackgroundTransparency = 1
+					ring.BorderSizePixel = 0
+					ring.Active = false
+					ring.ZIndex = 25
+					ring.Parent = card
+					local rc = Instance.new("UICorner")
+					rc.CornerRadius = UDim.new(0, 6)
+					rc.Parent = ring
+					glow.Parent = ring
+				else
+					glow.Parent = card
+				end
+			end
 			local icons = iconsFor(entry)
 			if icons ~= "" then
 				label(card, {
