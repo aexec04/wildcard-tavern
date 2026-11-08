@@ -5355,6 +5355,32 @@ table.insert(tests, { name = "WorldMap: recordWorldProgress counts each cleared 
 	expectEqual(#WorldMap.defaultRoute(), 8)
 end })
 
+table.insert(tests, { name = "SceneKeys: the chosen road decides each Night's scene, with fallbacks", fn = function()
+	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	SceneKeys.setRoute(nil)
+	expectEqual(SceneKeys.keyFor(3, "small"), "garden_terrace_a", "no route: the default Nights")
+	SceneKeys.setRoute({ "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp" })
+	expectEqual(SceneKeys.keyFor(1, "small"), "dusty_road_a")
+	-- desert scenes are not generated yet: the stop's fallback scene is used
+	expectEqual(SceneKeys.keyFor(3, "big"), "dusty_road_b")
+	expectEqual(SceneKeys.keyFor(4, "boss"), "dusty_road_in")
+	-- a Night whose road is not picked yet, and Nights past the route, use the default list
+	expectEqual(SceneKeys.keyFor(5, "small"), "mountain_pass_a")
+	expectEqual(SceneKeys.keyFor(9, "small"), "front_porch_a", "Endless rotation is unchanged")
+	-- a full default route gives exactly the old keys for Nights 1 to 8
+	SceneKeys.setRoute(WorldMap.defaultRoute())
+	SceneKeys.setRoute(WorldMap.defaultRoute())
+	for n, stop in ipairs(WorldMap.defaultRoute()) do
+		expectEqual(SceneKeys.keyFor(n, "boss"), WorldMap.Stops[stop].art .. "_in")
+	end
+	-- explicit lists (used by older callers and tests) ignore the route
+	expectEqual(SceneKeys.artFor(1, { { art = "x" } }, {}), "x")
+	SceneKeys.setRoute("junk")
+	expectEqual(SceneKeys.route, nil)
+	SceneKeys.setRoute(nil)
+end })
+
 table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing scene while art is missing", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local SceneArt = require(script.Parent.Parent.Engine.SceneArt)

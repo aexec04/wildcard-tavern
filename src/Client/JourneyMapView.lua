@@ -60,6 +60,7 @@ return function(deps)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local PatronPlaque = require(script.Parent.PatronPlaque)
 	local ContentArtJMV = require(Engine:WaitForChild("ContentArt"))
+	local WorldMapView = require(Engine:WaitForChild("WorldMap")) -- chosen road names on the Night nodes
 	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
 
 	local function rgb(t)
@@ -1730,6 +1731,17 @@ return function(deps)
 		end
 		local view = currentView()
 		render(view, view.cleared, false)
+		-- WORLD MAP: Nights whose road is already picked show the chosen stop's name and icon.
+		local route = view.state and view.state.worldRoute
+		if type(route) == "table" then
+			for i = 1, JourneyMap.NightCap do
+				local stop = WorldMapView.Stops[route[i] or ""]
+				if stop and nodes[i] then
+					nodes[i].name.Text = stop.name
+					nodes[i].icon.Text = stop.icon or nodes[i].icon.Text
+				end
+			end
+		end
 		if openIndex then
 			fillCard()
 		end

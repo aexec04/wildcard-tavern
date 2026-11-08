@@ -7,6 +7,8 @@
 ]]
 
 local JourneyMap = require(script.Parent.JourneyMap)
+local WorldMap = require(script.Parent.WorldMap)
+local SceneArt = require(script.Parent.SceneArt)
 
 local SceneKeys = {}
 
@@ -25,14 +27,33 @@ end
 
 -- The location art name for a Night. Nights 1..#nights use their own location; later
 -- (Endless) Nights rotate through `endless` (the old tavern rooms): Night 9 is the first.
+-- WORLD MAP: the run's chosen road (state.worldRoute), set by the client scene modules on every state push.
+-- Night n then uses the art of route[n]; a Night whose road is not picked yet, and every Night past the
+-- route, uses the default Nights list. New biome stops use their `fallbackArt` while their own scenes are
+-- missing from SceneArt.
+SceneKeys.route = nil
+
+function SceneKeys.setRoute(route)
+	SceneKeys.route = type(route) == "table" and route or nil
+end
+
+local function hasScenes(art)
+	return SceneArt[art .. "_a"] ~= nil
+end
+
 function SceneKeys.artFor(night, nights, endless)
+	local n = math.max(1, math.floor(night))
+	if nights == nil and SceneKeys.route and n <= WorldMap.NIGHTS then
+		local stopId = SceneKeys.route[n]
+		if stopId and WorldMap.Stops[stopId] then
+			return WorldMap.sceneArtFor(stopId, hasScenes)
+		end
+	end
 	nights = nights or JourneyMap.Nights
 	endless = endless or JourneyMap.EndlessScenes
-	local n = math.max(1, math.floor(night))
 	if n <= #nights or #endless == 0 then
 		return nights[((n - 1) % #nights) + 1].art
-	end
-	return endless[((n - #nights - 1) % #endless) + 1]
+	end	return endless[((n - #nights - 1) % #endless) + 1]
 end
 
 -- (night, roundKind) -> SceneArt key, e.g. (1, "boss") -> "front_porch_in".

@@ -254,6 +254,7 @@ local function build(deps)
 	function M.update(state)
 		if type(state) ~= "table" or not state.night or not state.round then return end
 		lastState = state
+		SceneKeys.setRoute(state.worldRoute) -- the chosen road decides each Night's scene
 		local phase = state.phase
 		if phase ~= "roundSelect" and phase ~= "playing" then
 			return -- shop and game over keep whatever is showing (no flicker)

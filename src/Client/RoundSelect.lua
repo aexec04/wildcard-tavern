@@ -608,11 +608,17 @@ return function(deps)
 		end
 	end
 
+	-- WORLD MAP: the fork screen. Parented to roundSelectFrame so it shows and hides with this screen.
+	local roadChoice = require(script.Parent.RoadChoice)({
+		root = roundSelectFrame, polishPanel = polishPanel, roundCorner = roundCorner, playClickSfx = playClickSfx,
+	})
+
 	local function rebuildRoundSelect(state, previousPhase)
 		-- See actionPending's BUGFIX comment above: any fresh state push
 		-- means whatever click caused it has definitely been resolved
 		-- (accepted or rejected) by now, so clicking is safe again.
 		actionPending = false
+		pcall(roadChoice.update, state)
 
 		-- BUGFIX (Ahmed: "when you complete a night, it should tell you
 		-- that you're at Night 2 or Night 3 etc"): this screen is the one

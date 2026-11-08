@@ -732,6 +732,7 @@ local function build(deps)
 		local boss = state.bossModifier
 		local isBoss = boss ~= nil and round >= ROUNDS_PER_NIGHT
 		local night = state.night or 1
+		SceneKeys.setRoute(state.worldRoute)
 		sceneKey = SceneKeys.keyFor(night, SceneKeys.roundKind(round, ROUNDS_PER_NIGHT))
 
 		local newMode = isBoss and "boss" or "normal"
