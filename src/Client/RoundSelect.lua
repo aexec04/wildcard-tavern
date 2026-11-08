@@ -37,7 +37,7 @@
 		SelectRoundRemote -- RemoteEvent () -- confirm "play this round"
 		SkipRoundRemote   -- RemoteEvent () -- skip this round for its Tag
 		showRoundReward   -- function(amount) -- "+$X Tips" popup, reused for
-		                     the Tip Jar Tag (and the On the House Tag's Tips
+		                     the Tip Jar Tag (and On the House Tag's Tips
 		                     fallback)
 		showUnlockPopup   -- function(name, description) -- reused for the
 		                     On the House Tag's free-Patron grant
@@ -76,7 +76,6 @@ return function(deps)
 	local tweenTo = deps.tweenTo
 	local addTooltip = deps.addTooltip
 	local BossRounds = deps.BossRounds
-	local PatronPlaque = require(script.Parent.PatronPlaque)
 	local ContentArtRS = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
 	local RoomArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoomArt"))
 	local TweenService = game:GetService("TweenService")
@@ -91,24 +90,26 @@ return function(deps)
 		{ roomId = "back_room",    roomName = "The Back Room",    accent = GOLD_ACCENT },
 	}
 
-	-- Boss portrait centered in the scene area (top 40% of the boss panel). Only
-	-- applied to the boss panel; rebuilt when the boss id changes.
+	-- Boss panel: set the scene image to show the boss portrait at full width.
+	-- Falls back to the back_room scene art if the boss has no portrait yet,
+	-- and to a plain dark panel if neither is available. The portrait fills the
+	-- entire top image area -- no inset picture-in-picture.
 	local function setBossArt(entry, bossId)
 		if entry.bossArtId == bossId then return end
 		entry.bossArtId = bossId
-		local old = entry.panel:FindFirstChild("BossArt")
-		if old then old:Destroy() end
 		if entry.round ~= ROUNDS_PER_NIGHT then return end
-		local artId = bossId and ContentArtRS.getImageId("boss_rounds", bossId)
-		local art = artId and PatronPlaque.applyById(entry.panel, artId, {
-			size = UDim2.fromOffset(110, 110),
-			position = UDim2.new(0.5, -55, 0, 5),
-			zIndex = 9,
-			cornerRadius = 14,
-			ring = true,
-		})
-		if art then art.Name = "BossArt" end
+		if bossId then
+			local artId = ContentArtRS.getImageId("boss_rounds", bossId)
+			if artId then
+				entry.sceneImage.Image = artId
+				return
+			end
+		end
+		-- Fallback: back_room scene art, then plain dark panel.
+		local fallbackId = RoomArt["back_room"]
+		entry.sceneImage.Image = (type(fallbackId) == "string" and fallbackId ~= "" and fallbackId ~= "rbxassetid://0") and fallbackId or ""
 	end
+
 	local RunStateEngine = deps.RunStateEngine
 	local SelectRoundRemote = deps.SelectRoundRemote
 	local SkipRoundRemote = deps.SkipRoundRemote
@@ -159,9 +160,10 @@ return function(deps)
 	subtitleLabel.ZIndex = 7
 	subtitleLabel.Parent = roundSelectFrame
 
+	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
-	panelRow.Size = UDim2.new(1, -40, 1, -180)
-	panelRow.Position = UDim2.new(0, 20, 0, 96)
+	panelRow.Size = UDim2.new(1, -40, 1, -112)
+	panelRow.Position = UDim2.new(0, 20, 0, 104)
 	panelRow.BackgroundTransparency = 1
 	panelRow.ZIndex = 7
 	panelRow.Parent = roundSelectFrame
@@ -169,7 +171,7 @@ return function(deps)
 	local panelRowLayout = Instance.new("UIListLayout")
 	panelRowLayout.FillDirection = Enum.FillDirection.Horizontal
 	panelRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	panelRowLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	panelRowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	panelRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	panelRowLayout.Padding = UDim.new(0, 24)
 	panelRowLayout.Parent = panelRow
@@ -188,8 +190,10 @@ return function(deps)
 	local actionPending = false
 
 	-- Three cards built once, refreshed by rebuildRoundSelect.
-	-- Each card has a themed room identity: Corner Table (bronze), Main Hall
-	-- (silver), Back Room (gold) with a slow pulsing glow on the boss panel.
+	-- Each card is a fixed 220x560px panel with:
+	--   top 280px  = scene image (boss portrait for round 3, room art for 1-2)
+	--   below that = room name, boss/tag info, target plaque, action buttons
+	-- Cards do not stretch to fill the screen height.
 	local roundPanels = {}
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
@@ -198,40 +202,35 @@ return function(deps)
 
 		local panel = Instance.new("Frame")
 		panel.Name = "RoundPanel" .. round
-		panel.Size = UDim2.new(0, 220, 1, 0)
+		panel.Size = UDim2.new(0, 220, 0, 560)
 		panel.LayoutOrder = round
 		panel.BackgroundColor3 = Color3.fromRGB(55, 42, 30)
 		panel.ZIndex = 7
 		panel.Parent = panelRow
 
-		-- Pre-add UIStroke on the boss panel before polishPanel so
-		-- addGoldChrome skips its own stroke; then loop-tween it for a
-		-- subtle pulsing glow effect.
-		if isBossPanel then
-			local glowStroke = Instance.new("UIStroke")
-			glowStroke.Color = accent
-			glowStroke.Thickness = 3
-			glowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			glowStroke.Parent = panel
-			TweenService:Create(glowStroke,
-				TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Thickness = 7 }
-			):Play()
-		end
-
 		polishPanel(panel, 14)
 
-		-- Tint non-boss panel chrome to its room's accent color.
-		if not isBossPanel then
-			local stroke = panel:FindFirstChildOfClass("UIStroke")
-			if stroke then stroke.Color = accent end
+		-- Override the UIStroke polishPanel added: use the room's accent color.
+		-- Boss panel gets a thicker stroke and a slow pulsing glow (2.5s cycle).
+		local panelStroke = panel:FindFirstChildOfClass("UIStroke")
+		if panelStroke then
+			panelStroke.Color = accent
+			panelStroke.Thickness = isBossPanel and 4 or 2
+			panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			if isBossPanel then
+				TweenService:Create(panelStroke,
+					TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Thickness = 8 }
+				):Play()
+			end
 		end
 
-		-- Scene image: top 40% of the card. Shows room art once generated;
-		-- falls back to a plain dark panel as placeholder.
+		-- Scene image: top 280px, full card width, rounded corners.
+		-- For the boss panel this is the boss portrait (set by setBossArt);
+		-- for the other two panels it shows the room's scene art.
 		local sceneImage = Instance.new("ImageLabel")
 		sceneImage.Name = "SceneImage"
-		sceneImage.Size = UDim2.new(1, 0, 0.4, 0)
+		sceneImage.Size = UDim2.new(1, 0, 0, 280)
 		sceneImage.Position = UDim2.new(0, 0, 0, 0)
 		sceneImage.BackgroundColor3 = Color3.fromRGB(28, 20, 14)
 		sceneImage.BackgroundTransparency = 0
@@ -241,79 +240,88 @@ return function(deps)
 		sceneImage.ZIndex = 8
 		sceneImage.ClipsDescendants = true
 		sceneImage.Parent = panel
-		local roomArtId = RoomArt[cfg.roomId]
-		if type(roomArtId) == "string" and roomArtId ~= "" and roomArtId ~= "rbxassetid://0" then
-			sceneImage.Image = roomArtId
+		if not isBossPanel then
+			local roomArtId = RoomArt[cfg.roomId]
+			if type(roomArtId) == "string" and roomArtId ~= "" and roomArtId ~= "rbxassetid://0" then
+				sceneImage.Image = roomArtId
+			end
 		end
 		roundCorner(sceneImage, 14)
 
-		-- Room name header (static; always uses the room accent color).
+		-- Status chip overlaid on the top-left of the scene image.
+		-- Shows "You are here" (green) for the current round,
+		-- "Lock Up next" (gray) for future rounds, hidden for cleared rounds.
+		-- Parented to sceneImage so it's clipped to the image area.
+		local statusChip = Instance.new("TextLabel")
+		statusChip.Name = "StatusChip"
+		statusChip.Size = UDim2.new(0, 130, 0, 22)
+		statusChip.Position = UDim2.new(0, 8, 0, 8)
+		statusChip.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+		statusChip.BackgroundTransparency = 0.1
+		statusChip.Font = Enum.Font.GothamBold
+		statusChip.TextSize = 11
+		statusChip.TextColor3 = Color3.fromRGB(200, 200, 215)
+		statusChip.Text = ""
+		statusChip.ZIndex = 10
+		statusChip.Visible = false
+		statusChip.Parent = sceneImage
+		roundCorner(statusChip, 6)
+
+		-- Room name: larger accent-colored header just below the scene image.
 		local roomLabel = Instance.new("TextLabel")
 		roomLabel.Name = "RoomLabel"
-		roomLabel.Size = UDim2.new(1, -16, 0, 22)
-		roomLabel.Position = UDim2.new(0, 8, 0.4, 6)
+		roomLabel.Size = UDim2.new(1, -16, 0, 28)
+		roomLabel.Position = UDim2.new(0, 8, 0, 288)
 		roomLabel.BackgroundTransparency = 1
 		roomLabel.Font = Enum.Font.GothamBold
-		roomLabel.TextSize = 13
+		roomLabel.TextSize = 17
 		roomLabel.TextColor3 = accent
 		roomLabel.TextXAlignment = Enum.TextXAlignment.Center
 		roomLabel.Text = cfg.roomName
 		roomLabel.ZIndex = 8
 		roomLabel.Parent = panel
 
-		-- Status: Cleared / You are here / Up next.
-		local statusLabel = Instance.new("TextLabel")
-		statusLabel.Name = "StatusLabel"
-		statusLabel.Size = UDim2.new(1, -16, 0, 16)
-		statusLabel.Position = UDim2.new(0, 8, 0.4, 30)
-		statusLabel.BackgroundTransparency = 1
-		statusLabel.Font = Enum.Font.Gotham
-		statusLabel.TextSize = 11
-		statusLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
-		statusLabel.Text = ""
-		statusLabel.ZIndex = 8
-		statusLabel.Parent = panel
+		-- Boss name: large gold text, boss panel only (y=324).
+		local bossNameLabel = Instance.new("TextLabel")
+		bossNameLabel.Name = "BossNameLabel"
+		bossNameLabel.Size = UDim2.new(1, -16, 0, 26)
+		bossNameLabel.Position = UDim2.new(0, 8, 0, 324)
+		bossNameLabel.BackgroundTransparency = 1
+		bossNameLabel.Font = Enum.Font.GothamBold
+		bossNameLabel.TextSize = 18
+		bossNameLabel.TextColor3 = GOLD_ACCENT
+		bossNameLabel.TextXAlignment = Enum.TextXAlignment.Center
+		bossNameLabel.Text = ""
+		bossNameLabel.ZIndex = 8
+		bossNameLabel.Visible = isBossPanel
+		bossNameLabel.Parent = panel
 
-		-- Target plaque.
-		local targetLabel = Instance.new("TextLabel")
-		targetLabel.Name = "TargetLabel"
-		targetLabel.Size = UDim2.new(1, -20, 0, 32)
-		targetLabel.Position = UDim2.new(0, 10, 0.4, 50)
-		targetLabel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
-		targetLabel.Font = Enum.Font.GothamBold
-		targetLabel.TextSize = 18
-		targetLabel.TextColor3 = Color3.fromRGB(120, 170, 255)
-		targetLabel.Text = ""
-		targetLabel.ZIndex = 8
-		targetLabel.Parent = panel
-		polishPanel(targetLabel, 8)
-
-		-- Boss rule text (boss panel only; portrait goes into the scene area
-		-- via setBossArt).
+		-- Boss rule text: readable 16px, up to 2 lines, boss panel only (y=358).
 		local bossLabel = Instance.new("TextLabel")
 		bossLabel.Name = "BossLabel"
-		bossLabel.Size = UDim2.new(1, -20, 0, 72)
-		bossLabel.Position = UDim2.new(0, 10, 0.4, 88)
+		bossLabel.Size = UDim2.new(1, -20, 0, 52)
+		bossLabel.Position = UDim2.new(0, 10, 0, 358)
 		bossLabel.BackgroundTransparency = 1
 		bossLabel.Font = Enum.Font.Gotham
-		bossLabel.TextSize = 11
+		bossLabel.TextSize = 16
 		bossLabel.TextColor3 = Color3.fromRGB(230, 180, 170)
 		bossLabel.TextWrapped = true
+		bossLabel.TextXAlignment = Enum.TextXAlignment.Center
 		bossLabel.TextYAlignment = Enum.TextYAlignment.Top
 		bossLabel.Text = ""
 		bossLabel.ZIndex = 8
 		bossLabel.Visible = isBossPanel
 		bossLabel.Parent = panel
 
-		-- Tag chip (non-boss panels only; filled for the current round).
+		-- Tag chip: non-boss panels only (y=324), shown for the current round.
 		local tagLabel = Instance.new("TextLabel")
 		tagLabel.Name = "TagLabel"
 		tagLabel.Size = UDim2.new(1, -20, 0, 24)
-		tagLabel.Position = UDim2.new(0, 10, 0.4, 88)
+		tagLabel.Position = UDim2.new(0, 10, 0, 324)
 		tagLabel.BackgroundColor3 = Color3.fromRGB(48, 52, 32)
 		tagLabel.BackgroundTransparency = 1
 		tagLabel.Font = Enum.Font.Gotham
-		tagLabel.TextSize = 11
+		tagLabel.TextSize = 12
 		tagLabel.TextColor3 = Color3.fromRGB(200, 220, 170)
 		tagLabel.TextXAlignment = Enum.TextXAlignment.Center
 		tagLabel.Text = ""
@@ -322,10 +330,29 @@ return function(deps)
 		tagLabel.Parent = panel
 		roundCorner(tagLabel, 8)
 
+		-- Target plaque: y=418 for boss (after rule text), y=356 for non-boss (after tag).
+		local targetY = isBossPanel and 418 or 356
+		local targetLabel = Instance.new("TextLabel")
+		targetLabel.Name = "TargetLabel"
+		targetLabel.Size = UDim2.new(1, -20, 0, 36)
+		targetLabel.Position = UDim2.new(0, 10, 0, targetY)
+		targetLabel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+		targetLabel.Font = Enum.Font.GothamBold
+		targetLabel.TextSize = 18
+		targetLabel.TextColor3 = Color3.fromRGB(120, 170, 255)
+		targetLabel.TextXAlignment = Enum.TextXAlignment.Center
+		targetLabel.Text = ""
+		targetLabel.ZIndex = 8
+		targetLabel.Parent = panel
+		polishPanel(targetLabel, 8)
+
+		-- Select / Skip buttons sit directly under the content area.
+		-- y=462/512 for boss panel; y=400/450 for non-boss.
+		local selectBtnY = isBossPanel and 462 or 400
 		local selectButton = Instance.new("TextButton")
 		selectButton.Name = "SelectButton"
-		selectButton.Size = UDim2.new(1, -20, 0, 40)
-		selectButton.Position = UDim2.new(0, 10, 1, -92)
+		selectButton.Size = UDim2.new(1, -20, 0, 44)
+		selectButton.Position = UDim2.new(0, 10, 0, selectBtnY)
 		selectButton.Font = Enum.Font.GothamBold
 		selectButton.TextSize = 16
 		selectButton.Text = "Select"
@@ -336,10 +363,11 @@ return function(deps)
 		selectButton.Parent = panel
 		polishButton(selectButton, 10)
 
+		local skipBtnY = isBossPanel and 512 or 450
 		local skipButton = Instance.new("TextButton")
 		skipButton.Name = "SkipButton"
 		skipButton.Size = UDim2.new(1, -20, 0, 40)
-		skipButton.Position = UDim2.new(0, 10, 1, -46)
+		skipButton.Position = UDim2.new(0, 10, 0, skipBtnY)
 		skipButton.Font = Enum.Font.GothamBold
 		skipButton.TextSize = 14
 		skipButton.Text = "Skip"
@@ -378,8 +406,9 @@ return function(deps)
 			isBossRound = isBossPanel,
 			panel = panel,
 			sceneImage = sceneImage,
-			statusLabel = statusLabel,
+			statusChip = statusChip,
 			targetLabel = targetLabel,
+			bossNameLabel = bossNameLabel,
 			bossLabel = bossLabel,
 			tagLabel = tagLabel,
 			selectButton = selectButton,
@@ -497,26 +526,37 @@ return function(deps)
 			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
 			entry.targetLabel.Text = string.format("Target: %d", math.floor(target))
+			entry.targetLabel.TextTransparency = 0
+			entry.targetLabel.TextStrokeTransparency = 1
 
 			if isPast then
-				entry.statusLabel.Text = "Cleared"
 				entry.panel.BackgroundColor3 = Color3.fromRGB(45, 55, 45)
 			elseif isCurrent then
-				entry.statusLabel.Text = "You are here"
 				entry.panel.BackgroundColor3 = Color3.fromRGB(70, 55, 38)
 			else
-				entry.statusLabel.Text = "Up next"
 				entry.panel.BackgroundColor3 = Color3.fromRGB(40, 32, 24)
 			end
 
-			-- Dim labels and scene image on locked/future panels.
-			local dimT = isFuture and 0.5 or 0
-			entry.statusLabel.TextTransparency = dimT
-			entry.statusLabel.TextStrokeTransparency = 1
-			entry.targetLabel.TextTransparency = dimT
-			entry.targetLabel.TextStrokeTransparency = 1
+			-- Dim ONLY the scene image for future (up-next) rounds.
+			-- All text stays fully readable regardless of round state.
 			entry.sceneImage.ImageTransparency = isFuture and 0.55 or 0
-			entry.sceneImage.BackgroundTransparency = isFuture and 0.45 or 0
+			entry.sceneImage.BackgroundTransparency = isFuture and 0.4 or 0
+
+			-- Status chip: "You are here" for current, "🔒 Up next" for future,
+			-- hidden for cleared rounds.
+			if isCurrent then
+				entry.statusChip.Visible = true
+				entry.statusChip.Text = "  You are here  "
+				entry.statusChip.BackgroundColor3 = Color3.fromRGB(50, 110, 60)
+				entry.statusChip.TextColor3 = Color3.fromRGB(200, 255, 210)
+			elseif isFuture then
+				entry.statusChip.Visible = true
+				entry.statusChip.Text = "  🔒 Up next  "
+				entry.statusChip.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
+				entry.statusChip.TextColor3 = Color3.fromRGB(180, 180, 200)
+			else
+				entry.statusChip.Visible = false
+			end
 
 			local shownBoss = isBossRound and (state.nightBossModifier or state.bossModifier) or nil
 			setBossArt(entry, shownBoss and shownBoss.id or nil)
@@ -525,19 +565,27 @@ return function(deps)
 				entry.bossLabel.Visible = true
 				entry.tagLabel.Visible = false
 				if state.nightBossModifier then
-					entry.bossLabel.Text = string.format("👑 %s\n%s", state.nightBossModifier.name, state.nightBossModifier.description)
+					entry.bossNameLabel.Visible = true
+					entry.bossNameLabel.Text = "👑 " .. state.nightBossModifier.name
+					entry.bossLabel.Text = state.nightBossModifier.description
 				elseif state.bossModifier then
 					-- Defensive fallback: we're somehow already ON the Boss
 					-- round (bossModifier set) but nightBossModifier wasn't
 					-- sent -- use the one we definitely have.
-					entry.bossLabel.Text = string.format("👑 %s\n%s", state.bossModifier.name, state.bossModifier.description)
+					entry.bossNameLabel.Visible = true
+					entry.bossNameLabel.Text = "👑 " .. state.bossModifier.name
+					entry.bossLabel.Text = state.bossModifier.description
 				else
+					entry.bossNameLabel.Visible = false
 					entry.bossLabel.Text = "Boss Rounds are off this run."
 				end
-				entry.bossLabel.TextTransparency = dimT
+				entry.bossNameLabel.TextTransparency = 0
+				entry.bossNameLabel.TextStrokeTransparency = 1
+				entry.bossLabel.TextTransparency = 0
 				entry.bossLabel.TextStrokeTransparency = 1
 			else
 				entry.bossLabel.Visible = false
+				entry.bossNameLabel.Visible = false
 				entry.tagLabel.Visible = true
 				if isCurrent and state.currentRoundSkipTag then
 					local tag = state.currentRoundSkipTag
@@ -548,9 +596,9 @@ return function(deps)
 					entry.tagLabel.BackgroundTransparency = 1
 				else
 					entry.tagLabel.Text = "Tag on arrival"
-					entry.tagLabel.BackgroundTransparency = isFuture and 0.65 or 0.3
+					entry.tagLabel.BackgroundTransparency = 0.65
 				end
-				entry.tagLabel.TextTransparency = dimT
+				entry.tagLabel.TextTransparency = 0
 				entry.tagLabel.TextStrokeTransparency = 1
 			end
 
