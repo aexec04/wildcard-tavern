@@ -557,8 +557,9 @@ return function(deps)
 		-- Boss rounds: keep the row below the boss plaque and HP bar (host bottom),
 		-- but never lower than just above the popup.
 		local bossHost = root:FindFirstChild("BossFightHost")
-		if bossHost and bossHost.Visible then
-			local bossBottom = bossHost.AbsolutePosition.Y - root.AbsolutePosition.Y + bossHost.AbsoluteSize.Y
+		local bossPlate = bossHost and bossHost:FindFirstChild("NamePlate") -- the host is now a full-area backdrop
+		if bossHost and bossPlate and bossHost.Visible then
+			local bossBottom = bossPlate.AbsolutePosition.Y - root.AbsolutePosition.Y + bossPlate.AbsoluteSize.Y
 			rowY = math.min(math.max(rowY, bossBottom + 6), popupTop - 6 - ROW_CARD_HEIGHT)
 		end
 		local x = (rootSize.X - totalWidth) / 2

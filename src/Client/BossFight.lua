@@ -1,29 +1,23 @@
 --[[
 	Client/BossFight.lua
-	Boss Rounds as a fight, visual and audio only (no scoring, target or balance changes).
+	Boss Rounds as a scene, visual and audio only (no scoring, target or balance changes).
 	Driven entirely by the server state the hub already renders: update(state) is called from
 	render() and compares the round score with the last one it saw.
 
-	Part 1: boss presence (portrait, rim light, floor shadow, name plate with the rule), a boss HP
-	bar that drains toward the Target with a lagging pale "damage" chunk, hit reactions sized by the
-	hand's share of the Target (small hit = shake + red flash, big hit >= 30% = knock-back + screen
-	flash + extra particles, legendary hand = stagger tag), floating damage numbers and a smirk
-	on weak hands. Everything lives in one host frame at ZIndex 1 (behind the hand, above the scene
-	art) and every tween is tracked so a round end or overlay change cancels cleanly.
+	The painted boss portrait is the backdrop of the play area (right of the sidebar): ScaleType Crop,
+	anchored so the face stays high, with a dark stepped vignette on the bottom and sides so the card row
+	and played hand stay readable. A slim wood banner at the top centre shows the boss name and rule.
+	There is NO boss health bar (the sidebar target progress is the only score progress) and nothing
+	turns red: hits flash cream, enrage is a gold banner, defeat greys the art (Engine/BossStage holds
+	the rules and is tested). Hit reactions are gentle (small shake, knock-back, stagger tilt), plus
+	floating damage numbers and a smirk on weak hands.
 
-	Layout: top centre of the table area (right of the sidebar), portrait about 28% of the screen
-	height, then plate and HP bar. Normal rounds are untouched (the host stays hidden).
-
-	Part 2 (text, motion and audio only): taunts in a parchment speech bubble (Engine/BossLines,
-	deterministic from the run/daily/seed code, one at a time, rate limited), an attack beat each
-	time a hand is played under a rule that acts on the table (lunge, dark band flash over the hand
-	area, thump, tiny shake, strength by rule category), enrage at 50% of the Target (red or, for
-	grand bosses, gold flush, bar flash and shake, ENRAGED! banner, slow vignette pulse, music about
-	7% faster, faster idle), defeat (desaturate, tilt and slide, DEFEATED stamp, gold particles,
-	fanfare, at most 1.5s and it never delays the reward flow) and a victory laugh on a loss. The
-	final Night boss and Endless milestone bosses (BossLines.isGrand) get a larger portrait, a
-	longer intro line and gold enrage colours. Fast speed skips the long beats; Reduce shake skips
-	motion.
+	Taunts in a parchment speech bubble (Engine/BossLines, deterministic from the run/daily/seed code),
+	an attack beat each time a hand is played under a rule that acts on the table, enrage at 50% of the
+	Target (banner, thump, music about 7% faster, faster sway), defeat (grey, tilt and slide, DEFEATED
+	stamp, gold particles, fanfare, at most 1.5s, never delays the reward flow) and a victory laugh on a
+	loss. The final Night boss and Endless milestone bosses (BossLines.isGrand) get a gold banner and a
+	longer intro line. Fast speed skips the long beats; Reduce shake skips motion.
 
 	deps: root, SIDEBAR_WIDTH, burst(UDim2, Color3, count, options) (ParticleBurst), screenShake(frame, strength, time),
 	      playThump(), playFanfare(), music (the Sound instance, optional)
@@ -42,14 +36,16 @@ local PatronPlaque = require(script.Parent.PatronPlaque)
 local BossRounds = require(Engine:WaitForChild("BossRounds"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
+local BossStage = require(Engine:WaitForChild("BossStage"))
 
-local ENRAGE_RED = Color3.fromRGB(220, 40, 30)
 local ENRAGE_GOLD = Color3.fromRGB(235, 180, 40)
 local BUBBLE_GAP = 3.5 -- seconds between taunts (intro and the ending lines ignore it)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(70, 48, 30)
-local BAR_W = 340
+local BAR_W = 400
+local BASE_SCALE = 1.03 -- resting scale of the backdrop: slack so shakes and sway never show an edge
+local HIT_FLASH = Color3.fromRGB(250, 240, 210) -- cream, never red
 local BIG_HIT = 0.30 -- share of the Target that counts as a big hit
 local LEGENDARY = 2.2 -- same rule the hub uses for isLegendary: hand >= 2.2x Target
 local SMIRK_BELOW = 0.08 -- share of the Target below which the boss "does nothing"
@@ -129,7 +125,6 @@ local function build(deps)
 	-- ===== host =====
 	local host = Instance.new("Frame")
 	host.Name = "BossFightHost"
-	host.AnchorPoint = Vector2.new(0.5, 0)
 	host.BackgroundTransparency = 1
 	host.BorderSizePixel = 0
 	host.Active = false
@@ -140,75 +135,78 @@ local function build(deps)
 	local function layout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-		-- Cap so plaque + HP bar end by ~34% (38% grand) of the screen height: the
-		-- played-cards row and score popup below must stay clear of them (1280x720).
-		local h = math.floor(math.min(vp.Y * (grand and 0.34 or 0.28), vp.Y * (grand and 0.38 or 0.34) - 98))
-		local areaW = vp.X - sidebarWidth
-		host.Position = UDim2.new(0, sidebarWidth + areaW / 2, 0, math.floor(vp.Y * 0.02))
-		host.Size = UDim2.new(0, 360, 0, h + 96)
-		M.portraitSize = h
-		if M.portraitHolder then
-			M.portraitHolder.Size = UDim2.new(0, h, 0, h)
-		end
+		local areaW = math.max(vp.X - sidebarWidth, 200)
+		host.AnchorPoint = Vector2.new(0, 0)
+		host.Position = UDim2.new(0, sidebarWidth, 0, 0)
+		host.Size = UDim2.new(0, areaW, 1, 0)
 	end
+	host.ClipsDescendants = true
 
-	local portraitSize = 200
-	do
-		local cam = workspace.CurrentCamera
-		local vpY = cam and cam.ViewportSize.Y or 720
-		portraitSize = math.floor(vpY * 0.28)
-	end
-
-	-- floor shadow
-	local shadow = Instance.new("Frame")
-	shadow.Name = "FloorShadow"
-	shadow.AnchorPoint = Vector2.new(0.5, 0)
-	shadow.BackgroundColor3 = Color3.new(0, 0, 0)
-	shadow.BackgroundTransparency = 0.55
-	shadow.BorderSizePixel = 0
-	shadow.Active = false
-	shadow.ZIndex = 0
-	shadow.Parent = host
-	corner(shadow, 100)
-
-	-- portrait holder (what shakes / scales / tilts)
+	-- backdrop holder (what shakes / scales / tilts): fills the play area
 	local holder = Instance.new("Frame")
 	holder.Name = "BossPortrait"
 	holder.AnchorPoint = Vector2.new(0.5, 0)
 	holder.Position = UDim2.new(0.5, 0, 0, 0)
-	holder.Size = UDim2.new(0, portraitSize, 0, portraitSize)
-	holder.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
-	holder.BackgroundTransparency = 0.25
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.BackgroundTransparency = 1
 	holder.BorderSizePixel = 0
 	holder.Active = false
 	holder.ZIndex = 0
 	holder.Parent = host
-	corner(holder, 16)
 	M.portraitHolder = holder
-	local rim = Instance.new("UIStroke") -- soft rim light
-	rim.Color = GOLD
-	rim.Thickness = 3
-	rim.Transparency = 0.25
-	rim.Parent = holder
 	local pscale = Instance.new("UIScale")
+	pscale.Scale = BASE_SCALE
 	pscale.Parent = holder
+	local function S(x) return BASE_SCALE * x end
 
 	local art -- ImageLabel or emoji TextLabel, rebuilt per boss
-	local tint = Instance.new("Frame") -- red hit flash over the portrait
+	-- dark stepped vignette (bottom and both sides) so the card row and hand stay readable
+	local vignette = Instance.new("Frame")
+	vignette.Name = "BossVignette"
+	vignette.Size = UDim2.fromScale(1, 1)
+	vignette.BackgroundTransparency = 1
+	vignette.BorderSizePixel = 0
+	vignette.Active = false
+	vignette.ZIndex = 0
+	vignette.Parent = holder
+	do
+		local stepT = 1 - BossStage.style(true, false, false).vignette * 0.3 -- 0.85 per layer, they stack
+		local function strip(anchor, pos, size)
+			local f = Instance.new("Frame")
+			f.AnchorPoint = anchor
+			f.Position = pos
+			f.Size = size
+			f.BackgroundColor3 = Color3.fromRGB(10, 7, 5)
+			f.BackgroundTransparency = stepT
+			f.BorderSizePixel = 0
+			f.Active = false
+			f.ZIndex = 0
+			f.Parent = vignette
+		end
+		for i = 1, 8 do
+			strip(Vector2.new(0, 1), UDim2.fromScale(0, 1), UDim2.fromScale(1, 0.66 * (1 - (i - 1) / 8)))
+		end
+		for i = 1, 5 do
+			local w = 0.2 * (1 - (i - 1) / 5)
+			strip(Vector2.new(0, 0), UDim2.fromScale(0, 0), UDim2.fromScale(w, 1))
+			strip(Vector2.new(1, 0), UDim2.fromScale(1, 0), UDim2.fromScale(w, 1))
+		end
+	end
+	local tint = Instance.new("Frame") -- cream hit flash / grey defeat wash over the art
 	tint.Name = "HitTint"
 	tint.Size = UDim2.fromScale(1, 1)
-	tint.BackgroundColor3 = Color3.fromRGB(220, 40, 30)
+	tint.BackgroundColor3 = HIT_FLASH
 	tint.BackgroundTransparency = 1
 	tint.BorderSizePixel = 0
 	tint.Active = false
 	tint.ZIndex = 0
 	tint.Parent = holder
-	corner(tint, 16)
 
-	-- name plate
+	-- slim name banner, top centre
 	local plate = Instance.new("Frame")
 	plate.Name = "NamePlate"
 	plate.AnchorPoint = Vector2.new(0.5, 0)
+	plate.Position = UDim2.new(0.5, 0, 0, 10)
 	plate.BackgroundColor3 = WOOD
 	plate.BorderSizePixel = 0
 	plate.Size = UDim2.new(0, BAR_W, 0, 50)
@@ -243,94 +241,8 @@ local function build(deps)
 	ruleLabel.ZIndex = 0
 	ruleLabel.Parent = plate
 
-	-- HP bar
-	local bar = Instance.new("Frame")
-	bar.Name = "BossHpBar"
-	bar.AnchorPoint = Vector2.new(0.5, 0)
-	bar.Size = UDim2.new(0, BAR_W, 0, 26)
-	bar.BackgroundColor3 = Color3.fromRGB(34, 22, 18)
-	bar.BorderSizePixel = 0
-	bar.Active = false
-	bar.ZIndex = 0
-	bar.Parent = host
-	corner(bar, 8)
-	local barStroke = Instance.new("UIStroke")
-	barStroke.Color = GOLD
-	barStroke.Thickness = 2
-	barStroke.Parent = bar
-	local trackX, trackW = 30, BAR_W - 30 - 86 -- icon on the left, number on the right
-	local track = Instance.new("Frame")
-	track.Name = "Track"
-	track.Position = UDim2.new(0, trackX, 0, 5)
-	track.Size = UDim2.new(0, trackW, 0, 16)
-	track.BackgroundColor3 = Color3.fromRGB(18, 12, 10)
-	track.BorderSizePixel = 0
-	track.ClipsDescendants = true
-	track.Active = false
-	track.ZIndex = 0
-	track.Parent = bar
-	corner(track, 5)
-	local chunk = Instance.new("Frame") -- pale lagging "damage" chunk
-	chunk.Name = "DamageChunk"
-	chunk.Size = UDim2.new(1, 0, 1, 0)
-	chunk.BackgroundColor3 = Color3.fromRGB(255, 230, 200)
-	chunk.BorderSizePixel = 0
-	chunk.Active = false
-	chunk.ZIndex = 0
-	chunk.Parent = track
-	local fillClip = Instance.new("Frame") -- shrinks; the gradient frame inside keeps its full width
-	fillClip.Name = "FillClip"
-	fillClip.Size = UDim2.new(1, 0, 1, 0)
-	fillClip.BackgroundTransparency = 1
-	fillClip.BorderSizePixel = 0
-	fillClip.ClipsDescendants = true
-	fillClip.Active = false
-	fillClip.ZIndex = 0
-	fillClip.Parent = track
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(0, trackW, 1, 0)
-	fill.BackgroundColor3 = Color3.new(1, 1, 1)
-	fill.BorderSizePixel = 0
-	fill.Active = false
-	fill.ZIndex = 0
-	fill.Parent = fillClip
-	local grad = Instance.new("UIGradient") -- Color stops only, never Transparency
-	grad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 50, 40)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(235, 190, 70)),
-	})
-	grad.Parent = fill
-	local icon = Instance.new("TextLabel")
-	icon.Size = UDim2.new(0, 26, 1, 0)
-	icon.Position = UDim2.new(0, 3, 0, 0)
-	icon.BackgroundTransparency = 1
-	icon.Font = Enum.Font.GothamBold
-	icon.TextSize = 18
-	icon.Text = "💀"
-	icon.TextColor3 = CREAM
-	icon.ZIndex = 0
-	icon.Parent = bar
-	local hpText = Instance.new("TextLabel")
-	hpText.Size = UDim2.new(0, 80, 1, 0)
-	hpText.Position = UDim2.new(1, -84, 0, 0)
-	hpText.BackgroundTransparency = 1
-	hpText.Font = Enum.Font.GothamBold
-	hpText.TextSize = 16
-	hpText.TextXAlignment = Enum.TextXAlignment.Right
-	hpText.TextColor3 = CREAM
-	hpText.TextStrokeTransparency = 0.4
-	hpText.Text = ""
-	hpText.ZIndex = 0
-	hpText.Parent = bar
-
 	local function arrange()
 		layout()
-		local h = holder.Size.Y.Offset
-		shadow.Position = UDim2.new(0.5, 0, 0, h - 8)
-		shadow.Size = UDim2.new(0, math.floor(h * 0.8), 0, 16)
-		plate.Position = UDim2.new(0.5, 0, 0, h + 8)
-		bar.Position = UDim2.new(0.5, 0, 0, h + 8 + 50 + 6)
-		host.Size = UDim2.new(0, 360, 0, h + 8 + 50 + 6 + 26)
 	end
 	arrange()
 	do
@@ -341,25 +253,11 @@ local function build(deps)
 	end
 
 	-- ===== effects =====
-	local function setHp(fraction, instant)
-		fraction = math.clamp(fraction, 0, 1)
-		if instant then
-			fillClip.Size = UDim2.new(fraction, 0, 1, 0)
-			chunk.Size = UDim2.new(fraction, 0, 1, 0)
-		else
-			play(fillClip, { Size = UDim2.new(fraction, 0, 1, 0) }, 0.15)
-			later(0.55, function()
-				play(chunk, { Size = UDim2.new(fraction, 0, 1, 0) }, 0.45)
-			end)
-		end
-		hpText.Text = string.format("%d", math.floor(fraction * target + 0.5))
-	end
-
 	local function popText(text, color, size, offsetY)
 		local label = Instance.new("TextLabel")
 		label.AnchorPoint = Vector2.new(0.5, 0.5)
-		label.Position = UDim2.new(0.5, 0, 0, (offsetY or 0.5) * holder.Size.Y.Offset)
-		label.Size = UDim2.new(0, 200, 0, size + 8)
+		label.Position = UDim2.new(0.5, 0, 0.12 + 0.3 * (offsetY or 0.5), 0)
+		label.Size = UDim2.new(0, 260, 0, size + 8)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBlack
 		label.TextSize = size
@@ -379,7 +277,7 @@ local function build(deps)
 		local base = UDim2.new(0.5, 0, 0, 0)
 		for i = 1, count do
 			later(i * 0.04, function()
-				local dx = (i % 2 == 0 and -1 or 1) * strength
+				local dx = (i % 2 == 0 and -1 or 1) * strength * 0.6
 				play(holder, { Position = base + UDim2.new(0, dx, 0, 0) }, 0.04)
 			end)
 		end
@@ -408,13 +306,13 @@ local function build(deps)
 
 	local function particles(count, color)
 		if not burst then return end
-		local pos = holder.AbsolutePosition + holder.AbsoluteSize / 2
+		local pos = host.AbsolutePosition + Vector2.new(host.AbsoluteSize.X / 2, host.AbsoluteSize.Y * 0.35)
 		pcall(burst, UDim2.fromOffset(pos.X, pos.Y), color, count, { size = 8, spread = 120 })
 	end
 
 	local function react(delta, legendary)
 		local share = delta / math.max(target, 1)
-		popText(string.format("-%d", math.floor(delta + 0.5)), legendary and GOLD or Color3.fromRGB(255, 120, 90), 26 + math.floor(math.min(share, 1) * 14), 0.2)
+		popText(string.format("-%d", math.floor(delta + 0.5)), legendary and GOLD or CREAM, 26 + math.floor(math.min(share, 1) * 14), 0.2)
 		if legendary then
 			stageEvent("boss", "stagger", 1)
 			stageEvent("player", "cheer")
@@ -423,10 +321,10 @@ local function build(deps)
 			particles(26, GOLD)
 			popText("STAGGERED!", GOLD, 24, 0.55)
 			if motionOk() then
-				play(holder, { Rotation = -10 }, 0.15)
+				play(holder, { Rotation = -1.5 }, 0.15)
 				later(0.9, function() play(holder, { Rotation = 0 }, 0.3, Enum.EasingStyle.Back) end)
-				play(pscale, { Scale = 0.9 }, 0.15)
-				later(0.9, function() play(pscale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back) end)
+				play(pscale, { Scale = S(0.97) }, 0.15)
+				later(0.9, function() play(pscale, { Scale = BASE_SCALE }, 0.3, Enum.EasingStyle.Back) end)
 			end
 			if screenShake then pcall(screenShake, root, 6, 0.25) end
 		elseif share >= BIG_HIT then
@@ -434,13 +332,13 @@ local function build(deps)
 			stageEvent("player", "cheer")
 			flashTint(0.5)
 			screenFlash()
-			particles(18, Color3.fromRGB(255, 170, 80))
+			particles(18, GOLD)
 			if motionOk() then
 				-- knock-back: shove up and back, then spring home
-				play(pscale, { Scale = 0.94 }, 0.1)
-				play(holder, { Position = UDim2.new(0.5, 0, 0, -12) }, 0.1)
+				play(pscale, { Scale = S(0.98) }, 0.1)
+				play(holder, { Position = UDim2.new(0.5, 0, 0, -6) }, 0.1)
 				later(0.12, function()
-					play(pscale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back)
+					play(pscale, { Scale = BASE_SCALE }, 0.3, Enum.EasingStyle.Back)
 					play(holder, { Position = UDim2.new(0.5, 0, 0, 0) }, 0.3, Enum.EasingStyle.Back)
 				end)
 			end
@@ -450,14 +348,14 @@ local function build(deps)
 			stageEvent("boss", "taunt", 0.3)
 			popText("...", CREAM, 20, 0.8)
 			if motionOk() then
-				play(pscale, { Scale = 1.04 }, 0.2)
-				later(0.5, function() play(pscale, { Scale = 1 }, 0.3) end)
+				play(pscale, { Scale = S(1.015) }, 0.2)
+				later(0.5, function() play(pscale, { Scale = BASE_SCALE }, 0.3) end)
 			end
 		else
 			stageEvent("boss", "hit", math.min(1, share * 3))
 			flashTint(0.4)
-			particles(8, Color3.fromRGB(255, 130, 100))
-			shake(5, 4)
+			particles(8, CREAM)
+			shake(4, 4)
 		end
 	end
 
@@ -484,33 +382,31 @@ local function build(deps)
 		-- the holder, so the two never fight. Faster while enraged. Disconnected by stopIdle / hide.
 		local speed = 1.5 / period
 		local phase = grand and 0.4 or 0
+		local amp = BossStage.style(true, enraged, grand).swayAmp * (grand and 1.4 or 1)
 		swayConn = RunService.RenderStepped:Connect(function()
 			if not (art and host.Visible) then return end
-			local dx, dy, rot = StageMotion.sway(os.clock() * speed, phase, grand and 3.5 or 2.5)
+			local dx, dy, rot = StageMotion.sway(os.clock() * speed, phase, amp)
 			art.Position = UDim2.new(0, dx, 0, dy)
 			art.Rotation = rot
 		end)
-		local info = TweenInfo.new(period, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-		local sway = TweenService:Create(rim, TweenInfo.new(period, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 5 })
-		sway:Play()
-		table.insert(idleTweens, sway)
-		local breathe = TweenService:Create(shadow, info, { BackgroundTransparency = 0.7 })
-		breathe:Play()
-		table.insert(idleTweens, breathe)
 	end
 
 	local function setArt(boss)
 		if art then art:Destroy() art = nil end
 		local artId = boss and ContentArt.getImageId("boss_rounds", boss.id) or nil
 		if artId then
+			-- Crop over a frame 30% taller than the area, anchored top: the face stays above the card row.
 			art = PatronPlaque.applyById(holder, artId, {
-				size = UDim2.fromScale(1, 1), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
-				zIndex = 0, cornerRadius = 16,
+				size = UDim2.fromScale(1, 1.3), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
+				zIndex = 0, cornerRadius = 0,
 			})
+			if art then art.ScaleType = Enum.ScaleType.Crop end
 		end
 		if not art then
 			art = Instance.new("TextLabel")
-			art.Size = UDim2.fromScale(1, 1)
+			art.AnchorPoint = Vector2.new(0.5, 0)
+			art.Position = UDim2.fromScale(0.5, 0.18)
+			art.Size = UDim2.fromScale(0.45, 0.45)
 			art.BackgroundTransparency = 1
 			art.Font = Enum.Font.GothamBold
 			art.TextScaled = true
@@ -519,8 +415,11 @@ local function build(deps)
 			art.ZIndex = 0
 			art.Parent = holder
 		end
+		-- keep the vignette and flash above the art
+		vignette.Parent = nil
+		vignette.Parent = holder
 		tint.Parent = nil
-		tint.Parent = holder -- keep the flash above the art
+		tint.Parent = holder
 	end
 
 	-- ===== part 2: taunts, attacks, enrage, defeat =====
@@ -570,8 +469,7 @@ local function build(deps)
 		lastBubble = now
 		bubbleToken = bubbleToken + 1
 		local mine = bubbleToken
-		local h = holder.Size.Y.Offset
-		bubble.Position = UDim2.new(0.5, -(h / 2) - 8, 0, 10)
+		bubble.Position = UDim2.new(0.5, -(BAR_W / 2) - 10, 0, 10) -- left of the banner
 		bubbleText.Text = line
 		bubbleText.TextTransparency = 0
 		bubbleText.TextStrokeTransparency = 1
@@ -609,17 +507,6 @@ local function build(deps)
 	band.ZIndex = 33
 	band.Parent = root
 
-	-- slow screen vignette pulse while enraged (a light full-screen tint, never blocks input)
-	local rageFx = Instance.new("Frame")
-	rageFx.Name = "BossRageTint"
-	rageFx.Size = UDim2.fromScale(1, 1)
-	rageFx.BackgroundColor3 = ENRAGE_RED
-	rageFx.BackgroundTransparency = 1
-	rageFx.BorderSizePixel = 0
-	rageFx.Active = false
-	rageFx.ZIndex = 32
-	rageFx.Parent = root
-
 	local banner = Instance.new("TextLabel")
 	banner.Name = "BossEnrageBanner"
 	banner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -628,7 +515,7 @@ local function build(deps)
 	banner.BackgroundTransparency = 1
 	banner.Font = Enum.Font.GothamBlack
 	banner.TextSize = 44
-	banner.TextColor3 = ENRAGE_RED
+	banner.TextColor3 = ENRAGE_GOLD
 	banner.TextStrokeColor3 = Color3.new(0, 0, 0)
 	banner.TextStrokeTransparency = 1
 	banner.TextTransparency = 1
@@ -641,7 +528,7 @@ local function build(deps)
 	local stamp = Instance.new("TextLabel")
 	stamp.Name = "BossDefeatedStamp"
 	stamp.AnchorPoint = Vector2.new(0.5, 0.5)
-	stamp.Position = UDim2.new(0.5, 0, 0, 0)
+	stamp.Position = UDim2.fromScale(0.5, 0.3)
 	stamp.Size = UDim2.new(0, 320, 0, 60)
 	stamp.BackgroundTransparency = 1
 	stamp.Font = Enum.Font.GothamBlack
@@ -677,10 +564,10 @@ local function build(deps)
 			play(band, { BackgroundTransparency = 1 }, 0.3)
 		end
 		if motionOk() then
-			play(pscale, { Scale = spec.lunge }, 0.1)
-			play(holder, { Position = UDim2.new(0.5, 0, 0, 14) }, 0.1)
+			play(pscale, { Scale = S(1 + (spec.lunge - 1) * 0.4) }, 0.1)
+			play(holder, { Position = UDim2.new(0.5, 0, 0, 6) }, 0.1)
 			later(0.14, function()
-				play(pscale, { Scale = 1 }, 0.25, Enum.EasingStyle.Back)
+				play(pscale, { Scale = BASE_SCALE }, 0.25, Enum.EasingStyle.Back)
 				play(holder, { Position = UDim2.new(0.5, 0, 0, 0) }, 0.25, Enum.EasingStyle.Back)
 			end)
 			if spec.shake > 0 and screenShake then pcall(screenShake, root, spec.shake, 0.15) end
@@ -691,16 +578,13 @@ local function build(deps)
 	local function enrage()
 		enraged = true
 		stageEvent("boss", "enrage", 1)
-		local color = grand and ENRAGE_GOLD or ENRAGE_RED
-		tintBase = 0.78
-		tint.BackgroundColor3 = color
-		play(tint, { BackgroundTransparency = tintBase }, 0.4)
-		rageFx.BackgroundColor3 = color
-		banner.TextColor3 = color
-		-- sits across the portrait (never on the plaque or HP bar)
+		-- No red and no screen tint (Engine/BossStage): a gold banner, a cream flash and a faster sway.
+		local color = BossStage.style(true, true, grand).banner
+		banner.TextColor3 = Color3.fromRGB(color[1], color[2], color[3])
+		-- sits across the backdrop's upper middle (never on the name banner)
 		do
 			local rs = root.AbsolutePosition
-			local c = holder.AbsolutePosition + holder.AbsoluteSize / 2 - rs
+			local c = host.AbsolutePosition + host.AbsoluteSize * Vector2.new(0.5, 0.3) - rs
 			banner.Position = UDim2.fromOffset(c.X, c.Y)
 		end
 		-- banner slams in for ~1.2s
@@ -716,28 +600,8 @@ local function build(deps)
 			play(banner, { TextTransparency = 1, TextStrokeTransparency = 1 }, 0.3)
 		end)
 		if playThump then pcall(playThump) end
-		-- bar flashes and shakes
-		if motionOk() then
-			for i = 1, 4 do
-				later(i * 0.08, function()
-					play(barStroke, { Color = (i % 2 == 1) and color or GOLD }, 0.07)
-					local dx = (i % 2 == 1) and 4 or -4
-					play(bar, { Position = bar.Position + UDim2.new(0, dx, 0, 0) }, 0.07)
-				end)
-			end
-			later(0.5, function()
-				play(bar, { Position = UDim2.new(0.5, 0, 0, holder.Size.Y.Offset + 8 + 50 + 6) }, 0.1)
-				play(barStroke, { Color = color }, 0.1)
-			end)
-			-- slow red/gold pulse over the scene, until the round ends
-			rageFx.BackgroundTransparency = 0.88
-			local pulse = TweenService:Create(rageFx,
-				TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ BackgroundTransparency = 0.8 })
-			pulse:Play()
-			table.insert(tweens, pulse)
-			startIdle(0.8) -- faster idle
-		end
+		screenFlash()
+		startIdle(0.8) -- faster sway (no-op under Reduce shake)
 		-- music a touch faster (restored in hide)
 		if music and not musicBase then
 			local ok, base = pcall(function() return music.PlaybackSpeed end)
@@ -752,7 +616,6 @@ local function build(deps)
 	local function defeatSequence()
 		retiring = true
 		require(script.Parent.Cue).play("boss_defeat")
-		setHp(0, false)
 		if fast() then
 			say("defeated", true)
 			later(0.6, function() hide() end)
@@ -769,14 +632,14 @@ local function build(deps)
 		play(tint, { BackgroundTransparency = tintBase }, 0.25)
 		if motionOk() then
 			later(0.25, function()
-				play(holder, { Rotation = 14, Position = UDim2.new(0.5, 0, 0, 36) }, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+				play(holder, { Rotation = 2, Position = UDim2.new(0.5, 0, 0, 24) }, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 			end)
 		end
 		screenFlash()
 		particles(30, GOLD)
-		particles(16, Color3.fromRGB(255, 140, 60)) -- embers
+		particles(16, CREAM) -- sparks
 		-- stamp slams in
-		stamp.Position = UDim2.new(0.5, 0, 0, holder.Size.Y.Offset * 0.5)
+		stamp.Position = UDim2.fromScale(0.5, 0.3)
 		stamp.Visible = true
 		if motionOk() then
 			stampScale.Scale = 3
@@ -795,10 +658,10 @@ local function build(deps)
 		say("victory", true)
 		if motionOk() then
 			-- grows slightly and laughs (bob)
-			play(pscale, { Scale = 1.1 }, 0.3, Enum.EasingStyle.Back)
+			play(pscale, { Scale = S(1.04) }, 0.3, Enum.EasingStyle.Back)
 			for i = 1, 4 do
 				later(0.3 + i * 0.16, function()
-					play(holder, { Position = UDim2.new(0.5, 0, 0, (i % 2 == 1) and -8 or 0) }, 0.14)
+					play(holder, { Position = UDim2.new(0.5, 0, 0, (i % 2 == 1) and -4 or 0) }, 0.14)
 				end)
 			end
 		end
@@ -819,15 +682,12 @@ local function build(deps)
 		banner.TextTransparency = 1
 		banner.TextStrokeTransparency = 1
 		band.BackgroundTransparency = 1
-		rageFx.BackgroundTransparency = 1
-		barStroke.Color = GOLD
-		rim.Thickness = 3
 		holder.Rotation = 0
 		holder.Visible = true
 		holder.Position = UDim2.new(0.5, 0, 0, 0)
-		pscale.Scale = 1
+		pscale.Scale = BASE_SCALE
 		tintBase = 1
-		tint.BackgroundColor3 = Color3.fromRGB(220, 40, 30)
+		tint.BackgroundColor3 = HIT_FLASH
 		tint.BackgroundTransparency = 1
 		if musicBase and music then
 			pcall(function() music.PlaybackSpeed = musicBase end)
@@ -891,13 +751,12 @@ local function build(deps)
 			nameLabel.Text = boss.name or ""
 			ruleLabel.Text = boss.description or ""
 			lastScore = score
-			setHp(1 - score / target, true)
 			host.Visible = true
 			visible = true
 			startIdle()
 			-- entrance: pop in, then the intro taunt once the Boss Intro banner has landed
-			pscale.Scale = 0.85
-			play(pscale, { Scale = 1 }, 0.35, Enum.EasingStyle.Back)
+			pscale.Scale = S(0.96)
+			play(pscale, { Scale = BASE_SCALE }, 0.35, Enum.EasingStyle.Back)
 			later(grand and 1.4 or 1.0, function()
 					stageEvent("boss", "taunt", 0.6)
 					require(script.Parent.Cue).play("boss_intro")
@@ -914,11 +773,9 @@ local function build(deps)
 		if score > lastScore then
 			local delta = score - lastScore
 			lastScore = score
-			setHp(1 - score / target, false)
 			react(delta, delta >= LEGENDARY * target)
 		elseif score < lastScore then
 			lastScore = score
-			setHp(1 - score / target, true)
 		end
 
 		-- Follow-up beats, delayed so they do not collide with the hit reaction.

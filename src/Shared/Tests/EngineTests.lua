@@ -7068,4 +7068,21 @@ table.insert(tests, { name = "WorldMapLayout: displayRoute extends picks with th
 	expectTrue(ends.dusty_road == nil, "start is not an end")
 end })
 
+table.insert(tests, { name = "BossStage: boss rounds have no health bar and no red tint", fn = function()
+	local BossStage = require(script.Parent.Parent.Engine.BossStage)
+	for _, enraged in ipairs({ false, true }) do
+		for _, grand in ipairs({ false, true }) do
+			local st = BossStage.style(true, enraged, grand)
+			expectTrue(st.healthBar == false, "no boss health bar")
+			expectTrue(st.rageTint == false, "no enrage screen tint")
+			expectTrue(st.backdrop == true, "boss art is the backdrop")
+			expectTrue(not BossStage.isRedish(st.hitFlash), "hit flash is not red")
+			expectTrue(not BossStage.isRedish(st.banner), "banner is not red")
+		end
+	end
+	local plain = BossStage.style(false, false, false)
+	expectTrue(plain.backdrop == false and plain.healthBar == false, "normal rounds draw no boss stage")
+	expectTrue(BossStage.isRedish({ 220, 40, 30 }) and not BossStage.isRedish({ 250, 235, 200 }), "isRedish sanity")
+end })
+
 return tests
