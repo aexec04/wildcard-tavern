@@ -4429,6 +4429,25 @@ table.insert(tests, { name = "CollectionBook: six rarity tiers, every entry rate
 	expectTrue(counts.mythical * 100 < total * 5, "mythical is under 5 percent of entries")
 end })
 
+table.insert(tests, { name = "CollectionBook: displayItems sorts common to rare and filters tiers", fn = function()
+	local rank = {}
+	for i, id in ipairs(CollectionBook.RarityOrder) do rank[id] = i end
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		local all = CollectionBook.displayItems(tab.id)
+		expectEqual(#all, #CollectionBook.itemsFor(tab.id))
+		local last = 0
+		for _, item in ipairs(all) do
+			local r = rank[CollectionBook.rarityOf(item)]
+			expectTrue(r >= last, tab.id .. " is ordered common to rare")
+			last = r
+		end
+		local filtered = CollectionBook.displayItems(tab.id, { common = true })
+		for _, item in ipairs(filtered) do
+			expectTrue(CollectionBook.rarityOf(item) ~= "common", "common is filtered out")
+		end
+	end
+end })
+
 table.insert(tests, { name = "CollectionBook: an entry's own rarity field overrides the derived one", fn = function()
 	local item = { id = "x", tab = "patrons", def = { id = "x", price = 4 } }
 	expectEqual(CollectionBook.rarityOf(item), "common")

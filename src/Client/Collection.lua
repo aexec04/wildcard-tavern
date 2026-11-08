@@ -56,6 +56,7 @@ return function(deps)
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 	local RarityFrame = require(script.Parent.RarityFrame)
+	local ClientSettings = require(script.Parent.ClientSettings)
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
@@ -214,8 +215,15 @@ return function(deps)
 	legendLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	legendLayout.Padding = UDim.new(0, 14)
 	legendLayout.Parent = legendRow
+	-- Each chip is a toggle: click to hide/show that tier in the grid.
+	local hiddenRarities = {}
+	local refresh -- assigned below; chips call it
 	for i, rarityId in ipairs(CollectionBook.RarityOrder) do
-		local chip = Instance.new("Frame")
+		local tierColor = rgb(CollectionBook.Rarities[rarityId].color)
+		local chip = Instance.new("TextButton")
+		chip.Name = "Chip_" .. rarityId
+		chip.Text = ""
+		chip.AutoButtonColor = false
 		chip.LayoutOrder = i
 		chip.AutomaticSize = Enum.AutomaticSize.X
 		chip.Size = UDim2.fromOffset(0, 24)
@@ -225,16 +233,34 @@ return function(deps)
 		local swatch = Instance.new("Frame")
 		swatch.Size = UDim2.fromOffset(16, 16)
 		swatch.Position = UDim2.fromOffset(0, 4)
-		swatch.BackgroundColor3 = Color3.fromRGB(34, 26, 18)
+		swatch.BackgroundColor3 = tierColor
 		swatch.ZIndex = 22
 		swatch.Parent = chip
 		roundCorner(swatch, 4)
 		RarityFrame.apply(swatch, rarityId, { ringOnly = true, thickness = 2 })
-		label(chip, {
+		local check = label(swatch, {
+			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 15,
+			TextColor3 = Color3.fromRGB(30, 22, 14), ZIndex = 24, Text = "✓",
+		})
+		local name = label(chip, {
 			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 24), Position = UDim2.fromOffset(22, 0),
 			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = SOFT_CREAM,
 			Text = CollectionBook.Rarities[rarityId].name,
 		})
+		local function paint()
+			local on = not hiddenRarities[rarityId]
+			-- unchecked: dark swatch, no tick, dim name (the ring keeps the tier color)
+			swatch.BackgroundColor3 = on and tierColor or Color3.fromRGB(34, 26, 18)
+			check.Visible = on
+			name.TextColor3 = on and SOFT_CREAM or DIM
+		end
+		paint()
+		chip.MouseButton1Click:Connect(function()
+			playClickSfx()
+			hiddenRarities[rarityId] = (not hiddenRarities[rarityId]) or nil
+			paint()
+			if refresh then refresh() end
+		end)
 	end
 
 	local scroll = Instance.new("ScrollingFrame")
@@ -555,6 +581,24 @@ return function(deps)
 		end
 	end)
 
+	-- Idle bob: one continuous sine per tile icon (own phase), driven by a single
+	-- Heartbeat loop that only runs work while the panel is visible. No tweens, so
+	-- there is no restart jitter. Skipped under "Reduce screen shake".
+	local bobbers = {}
+	local bobStart = os.clock()
+	local BOB_PIXELS, BOB_PERIOD = 2.5, 3.2
+	game:GetService("RunService").Heartbeat:Connect(function()
+		if not backdrop.Visible or #bobbers == 0 or ClientSettings.get("reduceShake") then
+			return
+		end
+		local t = os.clock() - bobStart
+		for _, b in ipairs(bobbers) do
+			if b.well.Parent then
+				b.well.Position = UDim2.new(0.5, -30, 0, 8 + BOB_PIXELS * math.sin((t / BOB_PERIOD + b.phase) * 2 * math.pi))
+			end
+		end
+	end)
+
 	local function makeTile(item, order, view)
 		local found = CollectionBook.isDiscovered(view.sets, item)
 		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
@@ -582,6 +626,7 @@ return function(deps)
 		iconWell.ZIndex = 22
 		iconWell.Parent = tile
 		roundCorner(iconWell, 30)
+		table.insert(bobbers, { well = iconWell, phase = (order * 0.137) % 1 })
 
 		local icon = label(iconWell, {
 			Size = UDim2.fromScale(1, 1), TextSize = 34, ZIndex = 23, Text = iconFor(item),
@@ -630,7 +675,7 @@ return function(deps)
 		end)
 	end
 
-	local function refresh()
+	refresh = function()
 		task.spawn(ContentArt.preloadAll) -- first call warms the cache; later calls return at once
 		local view = currentView()
 		local completion = view.completion
@@ -678,7 +723,8 @@ return function(deps)
 				child:Destroy()
 			end
 		end
-		for i, item in ipairs(CollectionBook.itemsFor(activeTabId)) do
+		table.clear(bobbers)
+		for i, item in ipairs(CollectionBook.displayItems(activeTabId, hiddenRarities)) do
 			makeTile(item, i, view)
 		end
 

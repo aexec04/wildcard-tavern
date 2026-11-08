@@ -118,6 +118,28 @@ local function buildItems(tabId)
 	return items
 end
 
+-- Items of a tab for display: most common first, rarest last (ties keep the
+-- registry order). `hidden` is an optional set { [rarityId] = true } of tiers
+-- to leave out. Pure; needs CollectionBook.rarityOf (defined below).
+function CollectionBook.displayItems(tabId, hidden)
+	local rank = {}
+	for i, id in ipairs(CollectionBook.RarityOrder) do rank[id] = i end
+	local out = {}
+	for index, item in ipairs(CollectionBook.itemsFor(tabId)) do
+		local rarityId = CollectionBook.rarityOf(item)
+		if not (hidden and hidden[rarityId]) then
+			table.insert(out, { item = item, rank = rank[rarityId] or 1, index = index })
+		end
+	end
+	table.sort(out, function(a, b)
+		if a.rank ~= b.rank then return a.rank < b.rank end
+		return a.index < b.index
+	end)
+	local items = {}
+	for i, entry in ipairs(out) do items[i] = entry.item end
+	return items
+end
+
 local itemCache = {}
 function CollectionBook.itemsFor(tabId)
 	if not itemCache[tabId] then
