@@ -314,5 +314,9 @@
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
     "main_hall": "the bustling main hall of a lively tavern with long wooden tables, a roaring stone fireplace, Roblox avatar patrons gathered around, warm amber lighting from ceiling lanterns",
     "back_room": "a private back room in a tavern with a green felt card table, a dramatic overhead spotlight, rich velvet curtains framing a shadowy doorway, mysterious and exclusive atmosphere"
+  },
+  "style_background": "Painterly digital illustration in the style of a cozy medieval tavern scene: warm amber candlelight, rich wood tones, soft painterly brushwork, kid-friendly, no alcohol, no text, no letters, no logos, no frame or border",
+  "background_subjects": {
+    "round_select_bg": "Dark worn oak tavern table seen from directly above, warm candlelight glow falling from the corners, subtle wood grain, a few faint ring stains and scratches, large empty dark center, painterly, same style as the other tavern art. No cards, no characters, no text."
   }
 }

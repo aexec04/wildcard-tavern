@@ -47,6 +47,11 @@ CATEGORIES = {
     "housepasses": ("housepass_subjects",  "housepasses", "HousePassArt.lua", "House Pass"),
     "titles":      ("title_subjects",      "titles",      "TitleArt.lua",     "Title"),
     "rooms":       ("room_subjects",       "rooms",       "RoomArt.lua",      "Room"),
+    "backgrounds": ("background_subjects", "backgrounds", "BackgroundArt.lua", "Background"),
+}
+# Per-category overrides: image size, quality, and which prompts.json key holds the style prefix.
+CATEGORY_OPTS = {
+    "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
@@ -182,12 +187,14 @@ def _generate_one(pid, data, key, model, quality, args):
     if path.exists() and not args.force and not (args.stale and stale):
         print(f"skip {pid} (exists{', STALE: rerun with --stale' if stale else ''})")
         return "skipped"
-    prompt = f"{data['style']}. Subject: {subjects(data)[pid]}."
+    opts = CATEGORY_OPTS.get(CATEGORY, {})
+    prompt = f"{data[opts.get('style_key', 'style')]}. Subject: {subjects(data)[pid]}."
+    quality = opts.get("quality", quality)
     for attempt in range(4):
         r = requests.post(
             "https://api.openai.com/v1/images/generations",
             headers={"Authorization": f"Bearer {key}"},
-            json={"model": model, "prompt": prompt, "size": "1024x1024", "quality": quality, "n": 1},
+            json={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": 1},
             timeout=300,
         )
         if r.status_code == 200:

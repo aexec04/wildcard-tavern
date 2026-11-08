@@ -22,6 +22,7 @@ local ContentArt = {
 	house_passes = require(Engine:WaitForChild("HousePassArt")),
 	titles       = require(Engine:WaitForChild("TitleArt")),
 	rooms        = require(Engine:WaitForChild("RoomArt")),
+	backgrounds  = require(Engine:WaitForChild("BackgroundArt")),
 }
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds

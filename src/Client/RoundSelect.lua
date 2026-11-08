@@ -137,6 +137,49 @@ return function(deps)
 	roundSelectFrame.Parent = root
 	polishPanel(roundSelectFrame, 16, "wood")
 
+	-- Full-panel table background behind everything. The frame's flat fill
+	-- stays underneath as the fallback if the image is missing or fails to load.
+	-- Edge darkening is a Color-only UIGradient on the image itself (it
+	-- multiplies the picture: dark at the left/right edges, untouched in the
+	-- centre where the cards sit). Transparency is never touched.
+	do
+		local bgId = ContentArtRS.getImageId("backgrounds", "round_select_bg")
+		if bgId then
+			local bgImage = Instance.new("ImageLabel")
+			bgImage.Name = "TableBackground"
+			bgImage.Size = UDim2.new(1, 0, 1, 0)
+			bgImage.BackgroundTransparency = 1
+			bgImage.BorderSizePixel = 0
+			bgImage.Image = bgId
+			bgImage.ScaleType = Enum.ScaleType.Crop
+			bgImage.ZIndex = 6
+			bgImage.Parent = roundSelectFrame
+			roundCorner(bgImage, 16)
+			local vignette = Instance.new("UIGradient")
+			vignette.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 60, 60)),
+				ColorSequenceKeypoint.new(0.25, Color3.fromRGB(215, 215, 215)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+				ColorSequenceKeypoint.new(0.75, Color3.fromRGB(215, 215, 215)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(60, 60, 60)),
+			})
+			vignette.Parent = bgImage
+			-- Fall back to the flat panel colour if the asset fails to load.
+			task.spawn(function()
+				local ok = pcall(function()
+					game:GetService("ContentProvider"):PreloadAsync({ bgImage }, function(_, status)
+						if status == Enum.AssetFetchStatus.Failure then
+							bgImage.Visible = false
+						end
+					end)
+				end)
+				if not ok then
+					bgImage.Visible = false
+				end
+			end)
+		end
+	end
+
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Size = UDim2.new(1, -40, 0, 44)
 	titleLabel.Position = UDim2.new(0, 20, 0, 16)
