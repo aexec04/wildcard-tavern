@@ -128,6 +128,19 @@ return function(deps)
 		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
 		RegionTiles = require(Engine:WaitForChild("RegionTiles")),
 	})
+	-- The rest of the branching world (other roads, fork chips, biome reward badges); see JourneyMapGraph.
+	local BiomeRewardsJMV = require(Engine:WaitForChild("BiomeRewards"))
+	local worldGraph = require(script.Parent.JourneyMapGraph)({
+		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
+		rewardText = function(region)
+			local row = BiomeRewardsJMV.Rows[region]
+			local reward = row and row.reward and row.reward[1]
+			if not reward then
+				return nil
+			end
+			return JourneyMap.rewardLabel(reward, lookups)
+		end,
+	})
 	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
 	local fogBand = require(script.Parent.JourneyMapFog)({
 		canvas = canvas, TweenService = TweenService, roundCorner = deps.roundCorner, calm = calm, pace = pace, ContentArt = ContentArtJMV,
@@ -742,6 +755,7 @@ return function(deps)
 		end
 		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs)
 		fogBand.layout(canvasW, canvasH)
+		worldGraph.layout(canvasW, canvasH, nodeSize, nodePixel)
 		updateFog(false)
 		placeMarker()
 	end
@@ -1732,6 +1746,7 @@ return function(deps)
 		end
 		local view = currentView()
 		render(view, view.cleared, false)
+		worldGraph.refresh(view.state)
 		-- WORLD MAP: Nights whose road is already picked show the chosen stop's name and icon.
 		local route = view.state and view.state.worldRoute
 		if type(route) == "table" then
@@ -1793,6 +1808,7 @@ return function(deps)
 		end,
 		setShown = function(shown)
 			frame.Visible = shown
+			worldGraph.setShown(shown)
 			if not shown then
 				playing = playing + 1 -- cancel any unlock in progress
 				unlocking = false

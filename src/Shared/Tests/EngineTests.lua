@@ -6481,4 +6481,59 @@ table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, comp
 	expectTrue(not PL.isCompact(720), "1280x720 is not compact")
 end })
 
+table.insert(tests, { name = "WorldMapLayout: every stop is placed, nodes never overlap, every edge joins two real stops", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local L = require(script.Parent.Parent.Engine.WorldMapLayout)
+	local nightX, routeY = {}, {}
+	for i = 1, 8 do
+		nightX[i] = 400 + (i - 1) * 280
+		routeY[i] = 300 + ((i % 2 == 0) and -60 or 60)
+	end
+	local routes = WorldMap.allRoutes()
+	expectTrue(#routes == 18, "18 routes")
+	for _, route in ipairs(routes) do
+		local res = L.compute({ nightX = nightX, routeY = routeY, height = 600, route = route })
+		local count = 0
+		for id, p in pairs(res.pos) do
+			count = count + 1
+			expectTrue(WorldMap.Stops[id] ~= nil and p.depth >= 1 and p.depth <= 8, "real stop " .. id)
+			for id2, q in pairs(res.pos) do
+				if id < id2 and p.x == q.x then
+					expectTrue(math.abs(p.y - q.y) >= 100, id .. " overlaps " .. id2)
+				end
+			end
+		end
+		local nights = 0
+		for _, stop in pairs(WorldMap.Stops) do
+			if stop.kind == "night" then nights = nights + 1 end
+		end
+		expectEqual(count, nights)
+		for _, e in ipairs(res.edges) do
+			expectTrue(res.pos[e.from] and res.pos[e.to], "edge joins two placed stops")
+			expectEqual(res.pos[e.to].depth, res.pos[e.from].depth + 1)
+		end
+		for i, id in ipairs(route) do
+			expectEqual(res.pos[id].y, routeY[i])
+		end
+	end
+end })
+
+table.insert(tests, { name = "WorldMapLayout: displayRoute extends picks with the default road; fog rule; branch ends", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local L = require(script.Parent.Parent.Engine.WorldMapLayout)
+	local r = L.displayRoute({ "dusty_road" })
+	expectEqual(#r, 8)
+	expectEqual(r[8], WorldMap.Finish)
+	r = L.displayRoute({ "dusty_road", "wildflower_meadow", "desert_dunes" })
+	expectEqual(r[3], "desert_dunes")
+	expectEqual(r[4], "oasis_camp")
+	expectEqual(L.visibility(4, 1, false), "revealed")
+	expectEqual(L.visibility(5, 1, false), "teaser")
+	expectEqual(L.visibility(6, 1, false), "hidden")
+	expectEqual(L.visibility(6, 1, true), "revealed")
+	local ends = L.branchEnds()
+	expectTrue(ends.oasis_camp == "desert" and ends.frosty_trail == "snow" and ends.keepers_table == "tavern", "branch ends")
+	expectTrue(ends.dusty_road == nil, "start is not an end")
+end })
+
 return tests
