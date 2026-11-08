@@ -82,6 +82,7 @@ local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
+local UseCompassRemote = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
@@ -670,6 +671,8 @@ local function serializeState(session, player)
 		worldRoute = state.worldRoute,
 		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
 		worldFixed = state.worldPlan ~= nil,
+		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
+		compassReveal = session.phase == "roundSelect" and BiomeRewards.revealedChoices(state) or nil,
 		profileStats = (function()
 			local profile = profiles[player]
 			if not profile then
@@ -1641,6 +1644,19 @@ ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 	end
 	local ok = WorldMap.chooseRoad(session.state, stopId, session.phase)
 	if ok then
+		pushState(player)
+	end
+end)
+
+-- WORLD MAP: spend a compass charge at a fork to reveal the reward at the end of each road.
+UseCompassRemote.OnServerEvent:Connect(function(player)
+	local session, profile = sessions[player], profiles[player]
+	if not session or not profile then
+		return
+	end
+	local ok = BiomeRewards.useCompass(profile, session.state, session.phase)
+	if ok then
+		profileDirty[player] = true
 		pushState(player)
 	end
 end)

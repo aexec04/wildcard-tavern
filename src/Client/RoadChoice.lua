@@ -15,6 +15,29 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local WorldMap = require(Engine:WaitForChild("WorldMap"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local BiomeRewards = require(Engine:WaitForChild("BiomeRewards"))
+local CardBacks = require(Engine:WaitForChild("CardBacks"))
+local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
+local Achievements = require(Engine:WaitForChild("Achievements"))
+local CompassWheel = require(script.Parent.CompassWheel)
+
+-- "Dune Gold card back, Dune Wanderer title": the exact rewards at the end of a road (shown after the compass).
+local function rewardText(region)
+	local row = BiomeRewards.Rows[region]
+	local names = {}
+	for _, r in ipairs(row and row.reward or {}) do
+		local def = (r.kind == "cardBack" and CardBacks.getById(r.id))
+			or (r.kind == "set" and CosmeticSets.getById(r.id))
+			or (r.kind == "title" and Achievements.getById(r.id))
+		local label = r.kind == "cardBack" and "card back" or (r.kind == "set" and "set" or "title")
+		names[#names + 1] = (def and def.name or r.id) .. " " .. label
+	end
+	if row and row.bonus then
+		local def = Achievements.getById(row.bonus.id)
+		names[#names + 1] = (def and def.name or row.bonus.id) .. " title (all stops seen)"
+	end
+	return #names > 0 and table.concat(names, ", ") or "a surprise"
+end
 
 local INK = Color3.fromRGB(60, 40, 22)
 local CREAM = Color3.fromRGB(250, 235, 200)
@@ -22,6 +45,9 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local PARCHMENT = Color3.fromRGB(222, 198, 150)
 
 local CARD_W, CARD_H = 236, 330
+local HEADER_H = 150 -- title, subtitle and the compass wheel
+local PANEL_W = CARD_W * 3 + 4 * 16 + 24
+local PANEL_H = HEADER_H + CARD_H + 70
 
 return function(deps)
 	local root = deps.root
@@ -62,7 +88,7 @@ return function(deps)
 	panel.Name = "RoadChoicePanel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(CARD_W * 3 + 4 * 16 + 24, CARD_H + 150)
+	panel.Size = UDim2.fromOffset(PANEL_W, PANEL_H)
 	panel.BackgroundColor3 = Color3.fromRGB(78, 52, 30)
 	panel.ZIndex = 21
 	panel.Parent = backdrop
@@ -72,13 +98,13 @@ return function(deps)
 	fit.Parent = panel
 
 	local title = label(panel, {
-		Size = UDim2.new(1, -40, 0, 34), Position = UDim2.fromOffset(20, 12), Text = "Choose your road",
+		Size = UDim2.new(1, -190, 0, 34), Position = UDim2.fromOffset(20, 12), Text = "Choose your road",
 		TextSize = 26, TextColor3 = CREAM, ZIndex = 22,
 	})
 	title.TextStrokeTransparency = 0.3
 	title.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 	local subtitle = label(panel, {
-		Size = UDim2.new(1, -40, 0, 24), Position = UDim2.fromOffset(20, 48), Text = "",
+		Size = UDim2.new(1, -190, 0, 36), Position = UDim2.fromOffset(20, 44), Text = "",
 		TextSize = 16, TextColor3 = Color3.fromRGB(235, 218, 180), ZIndex = 22, Font = Enum.Font.GothamMedium,
 	})
 
@@ -86,7 +112,7 @@ return function(deps)
 	row.Name = "Roads"
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.Position = UDim2.new(0.5, 0, 0, 82)
+	row.Position = UDim2.new(0.5, 0, 0, HEADER_H)
 	row.Size = UDim2.new(1, -24, 0, CARD_H)
 	row.ZIndex = 22
 	row.Parent = panel
@@ -130,6 +156,49 @@ return function(deps)
 	local dismissedKey = nil
 	local currentKey = nil
 	local cards = {}
+	local cardByStop = {} -- [stopId] = { stroke, rewardLabel, region }
+	local currentStopId = WorldMap.Start
+	local latestState = nil
+
+	-- Compass wheel: turn it (drag or tap a rim icon) and the road it points at lights up.
+	local function highlight(stopId)
+		for id, c in pairs(cardByStop) do
+			local on = id == stopId
+			c.stroke.Color = on and GOLD or Color3.fromRGB(110, 80, 45)
+			c.stroke.Thickness = on and 5 or 2
+		end
+	end
+	local wheel = CompassWheel.new({
+		parent = panel, size = 118,
+		onTurn = function(bearing, id)
+			highlight(id or WorldMap.pickByBearing(currentStopId, bearing))
+		end,
+	})
+	wheel.frame.AnchorPoint = Vector2.new(1, 0)
+	wheel.frame.Position = UDim2.new(1, -30, 0, 14)
+	wheel.frame.ZIndex = 22
+
+	local revealButton = Instance.new("TextButton")
+	revealButton.Name = "UseCompass"
+	revealButton.Position = UDim2.fromOffset(20, 84)
+	revealButton.Size = UDim2.fromOffset(250, 38)
+	revealButton.BackgroundColor3 = GOLD
+	revealButton.Text = "🧭 Use compass: reveal rewards"
+	revealButton.Font = Enum.Font.GothamBold
+	revealButton.TextSize = 16
+	revealButton.TextColor3 = INK
+	revealButton.ZIndex = 22
+	revealButton.Visible = false
+	revealButton.Parent = panel
+	roundCorner(revealButton, 8)
+	revealButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		local folder = ReplicatedStorage:FindFirstChild("Remotes")
+		local r = folder and folder:FindFirstChild("UseCompass")
+		if r then
+			r:FireServer()
+		end
+	end)
 
 	local function remote()
 		local folder = ReplicatedStorage:FindFirstChild("Remotes")
@@ -141,6 +210,7 @@ return function(deps)
 			c:Destroy()
 		end
 		cards = {}
+		cardByStop = {}
 	end
 
 	local function buildCard(order, stopId)
@@ -201,11 +271,12 @@ return function(deps)
 			Size = UDim2.new(1, -20, 0, 40), Position = UDim2.fromOffset(10, 184), Text = stop.hint or "",
 			TextSize = 15, Font = Enum.Font.GothamMedium, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 24,
 		})
-		label(card, {
-			Size = UDim2.new(1, -20, 0, 40), Position = UDim2.fromOffset(10, 228),
+		local rewardLabel = label(card, {
+			Size = UDim2.new(1, -20, 0, 52), Position = UDim2.fromOffset(10, 224),
 			Text = "At the end of this road: a " .. (region and region.name or "biome") .. " reward",
 			TextSize = 15, TextColor3 = Color3.fromRGB(120, 84, 24), TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 24,
 		})
+		cardByStop[stopId] = { stroke = stroke, rewardLabel = rewardLabel, region = stop.region }
 
 		local take = Instance.new("TextButton")
 		take.Name = "TakeRoad"
@@ -239,7 +310,7 @@ return function(deps)
 
 	local function fitToScreen()
 		local size = root.AbsoluteSize
-		local needW, needH = CARD_W * 3 + 4 * 16 + 24, CARD_H + 150
+		local needW, needH = PANEL_W, PANEL_H
 		fit.Scale = math.clamp(math.min((size.X - 40) / needW, (size.Y - 40) / needH), 0.5, 1)
 	end
 
@@ -261,7 +332,43 @@ return function(deps)
 
 	local M = {}
 
+	-- Wheel icons, idle bearing (toward the Keeper's Table) and compass state for the current fork.
+	local function refreshCompass(state, choices)
+		local route = state.worldRoute
+		currentStopId = (type(route) == "table" and route[#route]) or WorldMap.Start
+		local icons = {}
+		for _, id in ipairs(choices) do
+			local stop = WorldMap.Stops[id]
+			if stop then
+				icons[#icons + 1] = { bearing = WorldMap.bearing(currentStopId, id) or 0, text = stop.icon or "?", id = id }
+			end
+		end
+		wheel.setIcons(icons)
+		wheel.setCharges(state.compassCharges or 0)
+		wheel.setBearing(WorldMap.bearing(currentStopId, WorldMap.Finish) or 90, true)
+		highlight(nil)
+	end
+
+	-- After a compass charge is spent the cards name their exact rewards.
+	local function refreshReveal(state, choices)
+		local revealed = {}
+		for _, id in ipairs(type(state.compassReveal) == "table" and state.compassReveal or {}) do
+			revealed[id] = true
+		end
+		for _, id in ipairs(choices) do
+			local c = cardByStop[id]
+			if c then
+				c.rewardLabel.Text = revealed[id] and ("Reward: " .. rewardText(c.region))
+					or ("At the end of this road: a " .. (WorldMap.Regions[c.region] and WorldMap.Regions[c.region].name or "biome") .. " reward")
+			end
+		end
+		local canUse = (state.compassCharges or 0) > 0 and next(revealed) == nil
+		revealButton.Visible = canUse
+		wheel.setCharges(state.compassCharges or 0)
+	end
+
 	function M.update(state)
+		latestState = state
 		local choices = type(state) == "table" and state.phase == "roundSelect" and state.worldChoices or nil
 		if type(choices) ~= "table" or #choices < 2 then
 			currentKey = nil
@@ -274,13 +381,15 @@ return function(deps)
 		if key ~= currentKey then
 			currentKey = key
 			clearCards()
-			subtitle.Text = string.format("Night %d: the road splits. Pick where to go next.", math.floor(state.night or 1))
+			subtitle.Text = string.format("Night %d: the road splits. Turn the compass or pick a card.", math.floor(state.night or 1))
 			for i, id in ipairs(choices) do
 				if WorldMap.Stops[id] then
 					buildCard(i, id)
 				end
 			end
+			refreshCompass(state, choices)
 		end
+		refreshReveal(state, choices)
 		if dismissedKey == key then
 			backdrop.Visible = false
 			chip.Visible = true

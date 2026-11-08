@@ -169,6 +169,7 @@ function PlayerProfile.new()
 		worldSeenStopIds = {}, -- [stop id] = true
 		worldBiomeClears = {}, -- [region id] = count
 		worldRewardIds = {}, -- [reward row id] = true (granted once, step 4)
+		compassCharges = 0, -- 0 to PlayerProfile.MAX_COMPASS_CHARGES, earned by winning map minigames, spent at a fork
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -250,6 +251,9 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 	copyIdSet(raw.worldRewardIds, profile.worldRewardIds)
+	if type(raw.compassCharges) == "number" and raw.compassCharges == raw.compassCharges then
+		profile.compassCharges = math.max(0, math.min(PlayerProfile.MAX_COMPASS_CHARGES, math.floor(raw.compassCharges)))
+	end
 	if type(raw.equippedSetId) == "string" and CosmeticSets.getById(raw.equippedSetId) then
 		profile.equippedSetId = raw.equippedSetId
 	end
@@ -407,6 +411,22 @@ function PlayerProfile.recordNightReached(profile, night)
 		return true
 	end
 	return false
+end
+
+-- WORLD MAP compass charges. Earned by winning a map minigame (steps 7a/7b), spent on a fork to reveal the
+-- exact reward at the end of each road. Returns true if a charge was added / spent.
+PlayerProfile.MAX_COMPASS_CHARGES = 3
+
+function PlayerProfile.addCompassCharge(profile)
+	if profile.compassCharges >= PlayerProfile.MAX_COMPASS_CHARGES then return false end
+	profile.compassCharges = profile.compassCharges + 1
+	return true
+end
+
+function PlayerProfile.spendCompassCharge(profile)
+	if profile.compassCharges <= 0 then return false end
+	profile.compassCharges = profile.compassCharges - 1
+	return true
 end
 
 -- WORLD MAP: mirrors the run's road into the profile and counts cleared Night stops per region.

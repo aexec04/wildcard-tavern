@@ -20,6 +20,7 @@
 ]]
 
 local WorldMap = require(script.Parent.WorldMap)
+local PlayerProfile = require(script.Parent.PlayerProfile)
 
 local BiomeRewards = {}
 
@@ -120,6 +121,26 @@ function BiomeRewards.recordRegionBonuses(profile)
 		fresh[#fresh + 1] = BiomeRewards.AllRegionsBonus
 	end
 	return fresh
+end
+
+-- COMPASS: spend one charge at a fork to see exactly what waits at the end of each road. Only on Round Select,
+-- only while a fork is pending, once per Night. Returns true plus the road ids, or false plus a reason.
+function BiomeRewards.useCompass(profile, state, phase)
+	if not WorldMap.phaseAllowsRoadChoice(phase) then return false, "wrong_phase" end
+	local choices = WorldMap.pendingChoices(state)
+	if not choices or #choices < 2 then return false, "no_fork" end
+	if state.compassNight == state.night then return false, "already_used" end
+	if not PlayerProfile.spendCompassCharge(profile) then return false, "no_charge" end
+	state.compassNight = state.night
+	return true, choices
+end
+
+-- The roads whose rewards the compass revealed this Night (nil when not used).
+function BiomeRewards.revealedChoices(state)
+	if state and state.compassNight ~= nil and state.compassNight == state.night then
+		return WorldMap.pendingChoices(state)
+	end
+	return nil
 end
 
 -- True when route[i] is the last stop of its biome on this road: the Finish, or every road that can follow

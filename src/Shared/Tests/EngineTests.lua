@@ -5487,6 +5487,71 @@ table.insert(tests, { name = "BiomeRewards: every one of the 18 routes ends in a
 	end
 end })
 
+table.insert(tests, { name = "Compass: charges are capped, spent once per fork, and gated by phase", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local profile = PlayerProfile.new()
+	expectEqual(profile.compassCharges, 0)
+	for _ = 1, 5 do
+		PlayerProfile.addCompassCharge(profile)
+	end
+	expectEqual(profile.compassCharges, PlayerProfile.MAX_COMPASS_CHARGES)
+	expectFalse(PlayerProfile.addCompassCharge(profile), "capped at 3")
+	-- load clamps junk
+	expectEqual(PlayerProfile.migrate({ compassCharges = 99 }).compassCharges, 3)
+	expectEqual(PlayerProfile.migrate({ compassCharges = -4 }).compassCharges, 0)
+	expectEqual(PlayerProfile.migrate({ compassCharges = "x" }).compassCharges, 0)
+	expectEqual(PlayerProfile.migrate({ compassCharges = 0 / 0 }).compassCharges, 0)
+	-- not at a fork (Night 2 is a plain road)
+	local plain = runAtNight(2)
+	local ok, why = BiomeRewards.useCompass(profile, plain, "roundSelect")
+	expectFalse(ok); expectEqual(why, "no_fork")
+	expectEqual(profile.compassCharges, 3, "a refused use spends nothing")
+	-- wrong phase
+	local fork = runAtNight(3)
+	ok, why = BiomeRewards.useCompass(profile, fork, "playing")
+	expectFalse(ok); expectEqual(why, "wrong_phase")
+	ok, why = BiomeRewards.useCompass(profile, fork, "shop")
+	expectFalse(ok)
+	expectEqual(profile.compassCharges, 3)
+	-- the real use
+	local roads
+	ok, roads = BiomeRewards.useCompass(profile, fork, "roundSelect")
+	expectTrue(ok); expectEqual(#roads, 3)
+	expectEqual(profile.compassCharges, 2)
+	expectEqual(#BiomeRewards.revealedChoices(fork), 3)
+	ok, why = BiomeRewards.useCompass(profile, fork, "roundSelect")
+	expectFalse(ok); expectEqual(why, "already_used")
+	expectEqual(profile.compassCharges, 2)
+	-- the reveal ends once the road is picked
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	WorldMap.chooseRoad(fork, "desert_dunes", "roundSelect")
+	expectEqual(BiomeRewards.revealedChoices(fork), nil)
+	-- no charges
+	local broke = PlayerProfile.new()
+	ok, why = BiomeRewards.useCompass(broke, runAtNight(3), "roundSelect")
+	expectFalse(ok); expectEqual(why, "no_charge")
+end })
+
+table.insert(tests, { name = "Compass: turning the wheel picks the road it points at (shortest turn wraps)", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	-- from the meadow the desert road heads up-right, the marsh down-right, the garden straight on
+	local up = WorldMap.bearing("wildflower_meadow", "desert_dunes")
+	local down = WorldMap.bearing("wildflower_meadow", "swamp_boardwalk")
+	expectTrue(up > 0 and up < 90, "desert is up and to the right: " .. up)
+	expectTrue(down > 90 and down < 180, "marsh is down and to the right: " .. down)
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", up), "desert_dunes")
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", down), "swamp_boardwalk")
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", 270), "desert_dunes", "pointing backwards still picks the nearest road")
+	-- the idle bearing points from every stop toward the Finish
+	for id, stop in pairs(WorldMap.Stops) do
+		if id ~= WorldMap.Finish and stop.kind == "night" then
+			local b = WorldMap.bearing(id, WorldMap.Finish)
+			expectTrue(b > 0 and b < 180, id .. " heads east toward the Keeper: " .. b)
+		end
+	end
+end })
+
 table.insert(tests, { name = "SceneKeys: the chosen road decides each Night's scene, with fallbacks", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
