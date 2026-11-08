@@ -7460,4 +7460,17 @@ table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for ev
 	end
 end })
 
+table.insert(tests, { name = "ButtonFeel: hover swells, press squashes 6 percent, Play lights up with 1 to 5 cards", fn = function()
+	local ButtonFeel = require(script.Parent.Parent.Engine.ButtonFeel)
+	expectEqual(ButtonFeel.scaleFor(false, false), 1)
+	expectEqual(ButtonFeel.scaleFor(true, false), 1.05)
+	expectEqual(ButtonFeel.scaleFor(true, true), 0.94, "press wins over hover")
+	expectEqual(ButtonFeel.scaleFor(false, true), 0.94)
+	expectTrue(math.abs((1 - ButtonFeel.PRESS_SCALE) - 0.06) < 1e-9, "a 6 percent squash")
+	expectFalse(ButtonFeel.playReady(0), "nothing selected: dim and still")
+	expectTrue(ButtonFeel.playReady(1) and ButtonFeel.playReady(5), "1 to 5 cards selected: lit")
+	expectFalse(ButtonFeel.playReady(6) or ButtonFeel.playReady(nil) or ButtonFeel.playReady(-1), "out of range stays dim")
+	expectTrue(ButtonFeel.MIN_HIT >= 44, "phone-sized hit areas")
+end })
+
 return tests

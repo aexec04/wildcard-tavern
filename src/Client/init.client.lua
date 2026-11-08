@@ -595,6 +595,7 @@ local function makeSortButton(text, order)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 17
 	button.Text = text
+	button.Name = "Sort" .. text -- found by Client/ActionButtonFX
 	button.BackgroundColor3 = SORT_BUTTON_DEFAULT_COLOR
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.LayoutOrder = order
@@ -626,6 +627,7 @@ local sortBySuitButton = makeSortButton("Suit", 3)
 -- Highlights whichever sort mode is currently active, so the buttons also
 -- double as a status readout ("Rank" lit up = your hand is sorted by rank).
 local function refreshSortButtonHighlight()
+	pcall(function() require(script.ActionButtonFX).setSort(handSortMode) end) -- lit edge on the active sort tag
 	sortByRankButton.BackgroundColor3 = (handSortMode == "rank") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
 	sortBySuitButton.BackgroundColor3 = (handSortMode == "suit") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
 	-- With the wood button art showing, the fill color above is hidden --
@@ -1410,6 +1412,17 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
 	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
+	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
+		local sortFrame = nil
+		for _, c in ipairs(actionFrame:GetChildren()) do
+			if c:IsA("Frame") then sortFrame = c end
+		end
+		require(script.ActionButtonFX).install({
+			play = playButton, discard = discardButton,
+			rank = sortFrame:FindFirstChild("SortRank"), suit = sortFrame:FindFirstChild("SortSuit"),
+			burst = ParticleBurstModule.burst,
+		})
+	end)
 end
 
 local lastOwnedPatronIds = {}
@@ -1891,6 +1904,7 @@ local function refreshScorePreview()
 	for index in pairs(selected) do
 		table.insert(selectedIndices, index)
 	end
+	pcall(function() require(script.ActionButtonFX).setSelection(#selectedIndices) end) -- Play/Discard light up or dim
 
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
