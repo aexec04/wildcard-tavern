@@ -60,6 +60,7 @@ return function(deps)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local PatronPlaque = require(script.Parent.PatronPlaque)
 	local ContentArtJMV = require(Engine:WaitForChild("ContentArt"))
+	local MapPan = require(Engine:WaitForChild("MapPan")) -- 2D camera maths (clamp, centre, compass target)
 	local WorldMapView = require(Engine:WaitForChild("WorldMap")) -- chosen road names on the Night nodes
 	local lookups = { cardBack = CardBacks, set = CosmeticSets, title = Achievements }
 
@@ -110,8 +111,8 @@ return function(deps)
 	scroll.Position = UDim2.fromOffset(8, 6)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 8
-	scroll.ScrollingDirection = Enum.ScrollingDirection.X
+	scroll.ScrollBarThickness = 4 -- thin: the world is panned by dragging, the wheel and the compass
+	scroll.ScrollingDirection = Enum.ScrollingDirection.XY -- a 2D world: pan up, down, left and right (edges clamp)
 	scroll.CanvasSize = UDim2.fromOffset(0, 0)
 	scroll.ZIndex = 22
 	scroll.Parent = frame
@@ -147,10 +148,13 @@ return function(deps)
 	local worldCompass = require(script.Parent.JourneyMapCompass)({
 		parent = frame, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
 		graph = worldGraph,
-		scrollTo = function(x)
-			local maxX = math.max(0, scroll.CanvasSize.X.Offset - scroll.AbsoluteSize.X)
+		scrollTo = function(x, y)
+			-- pans the camera in both axes to centre (x, y); clamped to the canvas (Engine/MapPan)
+			local size = scroll.AbsoluteSize
+			local cx, cy = MapPan.centerOn(x, y or scroll.CanvasSize.Y.Offset / 2,
+				scroll.CanvasSize.X.Offset, scroll.CanvasSize.Y.Offset, size.X, size.Y)
 			TweenService:Create(scroll, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{ CanvasPosition = Vector2.new(math.clamp(x - scroll.AbsoluteSize.X / 2, 0, maxX), 0) }):Play()
+				{ CanvasPosition = Vector2.new(cx, cy) }):Play()
 		end,
 	})
 	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
@@ -598,6 +602,8 @@ return function(deps)
 	-- Nodes sit at least MIN_SPACING apart on a gentle zig-zag; even nodes ride high
 	-- (label above, reward tag below), odd nodes ride low (label and tag below).
 	local canvasW, canvasH = 600, 300
+	local viewH = 300 -- visible height; the canvas is MapPan.WORLD_SCREENS_Y times taller
+	local userPannedY = false -- once the player drags vertically, auto-follow stops re-centering the band
 	local MIN_SPACING = 280
 	local LEFT_PAD, RIGHT_PAD = 480, 240 -- room so the first and last node and their labels never clip; the wide left pad gives the road region some sand before Night 1
 	local LABEL_MAX = 230
@@ -621,6 +627,15 @@ return function(deps)
 
 	local function scrollTargetFor(x)
 		return math.clamp(x - scroll.AbsoluteSize.X / 2, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
+	end
+	-- Vertical camera: centred on the road band, unless the player has panned up/down themselves.
+	local nodeBandY = nil -- nil = the canvas middle, where the road runs (set in layout)
+	local function scrollTargetY(y)
+		if userPannedY then
+			return scroll.CanvasPosition.Y
+		end
+		local _, cy = MapPan.centerOn(0, y or canvasH / 2, canvasW, canvasH, scroll.AbsoluteSize.X, scroll.AbsoluteSize.Y)
+		return cy
 	end
 
 	-- Where the hero's feet rest at node `index`: on the trail just before it
@@ -690,13 +705,14 @@ return function(deps)
 			return
 		end
 		lastLayoutKey = key
-		canvasH = math.max(260, size.Y - 10)
-		nodeSize = math.floor(math.clamp(canvasH * 0.15, 64, 92))
+		viewH = math.max(260, size.Y - 10)
+		canvasH = MapPan.canvasHeight(viewH)
+		nodeSize = math.floor(math.clamp(viewH * 0.15, 64, 92))
 		canvasW = math.max(size.X * 4, LEFT_PAD + RIGHT_PAD + (NODE_COUNT - 1) * MIN_SPACING) -- five region tiles to cross
 		local spacing = (canvasW - LEFT_PAD - RIGHT_PAD) / (NODE_COUNT - 1)
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
-		scroll.CanvasSize = UDim2.fromOffset(canvasW, 0)
-		local mid, amp = canvasH * 0.5, canvasH * 0.11
+		scroll.CanvasSize = UDim2.fromOffset(canvasW, canvasH)
+		local mid, amp = canvasH * 0.5, viewH * 0.11 -- the road runs through the middle of the taller world
 		local minY, maxY = math.huge, -math.huge
 		for index = 1, NODE_COUNT do
 			local wave = (index % 2 == 0) and -1 or 1
@@ -762,7 +778,7 @@ return function(deps)
 			applyRoad(seg)
 		end
 		for _, g in ipairs(glows) do
-			local s = math.max(40, math.floor(canvasH * 0.14))
+			local s = math.max(40, math.floor(viewH * 0.14))
 			g.frame.Size = UDim2.fromOffset(s, s)
 		end
 		-- Decor lives in the empty bands above the highest label and below the lowest tag.
@@ -1288,23 +1304,30 @@ return function(deps)
 	findMe.MouseButton1Click:Connect(function()
 		deps.playClickSfx()
 		followHero = false
+		userPannedY = false
+		local size = scroll.AbsoluteSize
+		local cx, cy = MapPan.centerOn(marker.Position.X.Offset, marker.Position.Y.Offset, canvasW, canvasH, size.X, size.Y)
 		TweenService:Create(scroll, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-			{ CanvasPosition = Vector2.new(scrollTargetFor(marker.Position.X.Offset), 0) }):Play()
+			{ CanvasPosition = Vector2.new(cx, cy) }):Play()
 	end)
 
 	-- Mouse drag-scroll (touch already drags a ScrollingFrame). Grabbing the map ends the camera follow.
 	do
-		local dragStart, startX = nil, 0
+		local dragStart, startX, startY, dragFrom = nil, 0, 0, nil
 		scroll.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 and not debugOn then
-				dragStart, startX = input.Position.X, scroll.CanvasPosition.X
+				dragStart, startX, startY = input.Position.X, scroll.CanvasPosition.X, scroll.CanvasPosition.Y
+				dragFrom = input.Position.Y
 				followHero = false
 			end
 		end)
 		UserInputService.InputChanged:Connect(function(input)
 			if dragStart and input.UserInputType == Enum.UserInputType.MouseMovement then
-				local maxX = math.max(0, canvasW - scroll.AbsoluteSize.X)
-				scroll.CanvasPosition = Vector2.new(math.clamp(startX - (input.Position.X - dragStart), 0, maxX), 0)
+				local size = scroll.AbsoluteSize
+				local nx, ny = MapPan.clamp(startX - (input.Position.X - dragStart), startY - (input.Position.Y - dragFrom),
+					canvasW, canvasH, size.X, size.Y)
+				if math.abs(ny - startY) > 4 then userPannedY = true end
+				scroll.CanvasPosition = Vector2.new(nx, ny)
 			end
 		end)
 		UserInputService.InputEnded:Connect(function(input)
@@ -1544,7 +1567,7 @@ return function(deps)
 			end
 			if followHero then
 				local cur = scroll.CanvasPosition.X
-				scroll.CanvasPosition = Vector2.new(cur + (scrollTargetFor(x) - cur) * 0.15, 0)
+				scroll.CanvasPosition = Vector2.new(cur + (scrollTargetFor(x) - cur) * 0.15, scrollTargetY(y))
 			end
 			local now = os.clock()
 			if not calm() and now - lastDust >= 0.4 then
@@ -1568,7 +1591,7 @@ return function(deps)
 			if followHero then
 				local x = standPoint(toIndex)
 				TweenService:Create(scroll, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-					{ CanvasPosition = Vector2.new(scrollTargetFor(x), 0) }):Play()
+					{ CanvasPosition = Vector2.new(scrollTargetFor(x), scrollTargetY(nodeBandY)) }):Play()
 			end
 		end
 	end
@@ -1684,7 +1707,7 @@ return function(deps)
 				end
 				-- Bring the node into view.
 				local target = scrollTargetFor((nodePixel(index)))
-				TweenService:Create(scroll, TweenInfo.new(0.4 / pace()), { CanvasPosition = Vector2.new(target, 0) }):Play()
+				TweenService:Create(scroll, TweenInfo.new(0.4 / pace()), { CanvasPosition = Vector2.new(target, scrollTargetY(nodeBandY)) }):Play()
 				task.wait(0.35 / pace())
 
 				-- The node clears: the hero sets off along the trail as the seal stamps on.
@@ -1885,7 +1908,8 @@ return function(deps)
 				introTrail(currentIndexFor(view), false)
 				-- Ease the camera to the current Night (a frame later, once the panel has its final size).
 				local idx = currentIndexFor(view) or 1
-				scroll.CanvasPosition = Vector2.new(0, 0)
+				userPannedY = false
+				scroll.CanvasPosition = Vector2.new(0, scrollTargetY(nodeBandY))
 				local myPlay = playing
 				task.defer(function()
 					if not frame.Visible or playing ~= myPlay then
@@ -1894,7 +1918,7 @@ return function(deps)
 					layout()
 					local target = scrollTargetFor((nodePixel(idx)))
 					TweenService:Create(scroll, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-						{ CanvasPosition = Vector2.new(target, 0) }):Play()
+						{ CanvasPosition = Vector2.new(target, scrollTargetY(nodeBandY)) }):Play()
 				end)
 			end
 		end,

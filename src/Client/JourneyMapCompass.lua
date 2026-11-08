@@ -6,7 +6,7 @@
 	fires the existing UseCompass remote (the server spends the charge and reveals the rewards) and then
 	ChooseRoad for the pointed road; the server still validates both. With no charge the wheel is a preview.
 
-	deps = { parent (the map frame), roundCorner, ReplicatedStorage, Engine, getState, graph, scrollTo(x) }
+	deps = { parent (the map frame), roundCorner, ReplicatedStorage, Engine, getState, graph, scrollTo(x, y) }
 	Returned: { refresh(state), setShown(bool) }
 ]]
 
@@ -16,6 +16,7 @@ local RoadLock = require(script.Parent.RoadLock)
 return function(deps)
 	local WorldMap = require(deps.Engine:WaitForChild("WorldMap"))
 	local Layout = require(deps.Engine:WaitForChild("WorldMapLayout"))
+	local MapPan = require(deps.Engine:WaitForChild("MapPan"))
 
 	local INK = Color3.fromRGB(60, 40, 22)
 	local GOLD = Color3.fromRGB(222, 182, 104)
@@ -136,9 +137,33 @@ return function(deps)
 		pointed = id or WorldMap.pickByBearing(currentStopId, b)
 		deps.graph.highlight(pointed)
 		if pointed then
-			local x = deps.graph.positionOf(pointed)
+			local x, y = deps.graph.positionOf(pointed)
 			if x then
-				deps.scrollTo(x)
+				deps.scrollTo(x, y) -- pan the camera in both axes toward the pointed road
+			end
+		else
+			-- No road lies that way: pan toward the nearest unexplored / recommended road in that direction,
+			-- or simply a screen's worth along the bearing (Engine/MapPan).
+			local hx, hy = deps.graph.positionOf(currentStopId)
+			if hx then
+				local seen = {}
+				for _, sid in ipairs(state and state.worldSeenStopIds or {}) do seen[sid] = true end
+				local candidates = {}
+				local here = WorldMap.Stops[currentStopId]
+				for i, nxt in ipairs(here and here.next or {}) do
+					local cx, cy = deps.graph.positionOf(nxt)
+					if cx then
+						candidates[#candidates + 1] = { id = nxt, x = cx, y = cy, unexplored = not seen[nxt], recommended = i == 1 }
+					end
+				end
+				local hero = { x = hx, y = hy }
+				local target = MapPan.compassTarget(hero, b, candidates)
+				if target then
+					deps.scrollTo(target.x, target.y)
+				else
+					local tx, ty = MapPan.stepToward(hx, hy, b, 420)
+					deps.scrollTo(tx, ty)
+				end
 			end
 		end
 		local stop = pointed and WorldMap.Stops[pointed]

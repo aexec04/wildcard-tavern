@@ -7310,4 +7310,45 @@ table.insert(tests, { name = "RegionTiles.fadeSlices: biome joins cross-fade wit
 	expectTrue(#RegionTiles.fadeSlices(50, 0) == 1, "at least one slice")
 end })
 
+table.insert(tests, { name = "MapPan: the camera clamps at every edge, centres in both axes, the compass picks a road", fn = function()
+	local MapPan = require(script.Parent.Parent.Engine.MapPan)
+	-- world 4000 x 1600, view 1000 x 700
+	local x, y = MapPan.clamp(-50, -20, 4000, 1600, 1000, 700)
+	expectTrue(x == 0 and y == 0, "clamps at the top left")
+	x, y = MapPan.clamp(9000, 9000, 4000, 1600, 1000, 700)
+	expectTrue(x == 3000 and y == 900, "clamps at the bottom right")
+	x, y = MapPan.clamp(1200, 300, 4000, 1600, 1000, 700)
+	expectTrue(x == 1200 and y == 300, "inside the world nothing moves")
+	x, y = MapPan.clamp(50, 50, 600, 300, 1000, 700)
+	expectTrue(x == 0 and y == 0, "a world smaller than the view stays at 0")
+	-- Find me: centres a world point in both axes, clamped
+	x, y = MapPan.centerOn(2000, 800, 4000, 1600, 1000, 700)
+	expectTrue(x == 1500 and y == 450, "centres on the point in both axes")
+	x, y = MapPan.centerOn(100, 50, 4000, 1600, 1000, 700)
+	expectTrue(x == 0 and y == 0, "a point near the corner clamps")
+	expectEqual(MapPan.canvasHeight(400), math.floor(400 * MapPan.WORLD_SCREENS_Y))
+	expectTrue(MapPan.WORLD_SCREENS_Y >= 2, "the world is at least two screens tall")
+	-- bearings: 0 up, 90 right, 180 down
+	local ux, uy = MapPan.stepToward(100, 100, 0, 50)
+	local rx, ry = MapPan.stepToward(100, 100, 90, 50)
+	local dx, dy = MapPan.stepToward(100, 100, 180, 50)
+	expectTrue(math.abs(ux - 100) < 1e-9 and math.abs(uy - 50) < 1e-9, "bearing 0 is up")
+	expectTrue(math.abs(rx - 150) < 1e-9 and math.abs(ry - 100) < 1e-9, "bearing 90 is right")
+	expectTrue(math.abs(dx - 100) < 1e-9 and math.abs(dy - 150) < 1e-9, "bearing 180 is down")
+	-- compass target selection
+	local hero = { x = 1000, y = 800 }
+	local up = { id = "up", x = 1000, y = 400, unexplored = true }
+	local right = { id = "right", x = 1400, y = 800, recommended = true }
+	local down = { id = "down", x = 1000, y = 1200, unexplored = false }
+	expectEqual(MapPan.compassTarget(hero, 0, { up, right, down }).id, "up")
+	expectEqual(MapPan.compassTarget(hero, 90, { up, right, down }).id, "right")
+	expectEqual(MapPan.compassTarget(hero, 180, { up, right, down }).id, "down")
+	expectEqual(MapPan.compassTarget(hero, 270, { up, right, down }), nil, "nothing within range to the west")
+	-- a recommended road wins a near tie over an unexplored one
+	local upRight = { id = "ur", x = 1250, y = 500, unexplored = true }
+	local rightRec = { id = "rr", x = 1300, y = 700, recommended = true }
+	expectEqual(MapPan.compassTarget(hero, 50, { upRight, rightRec }).id, "rr", "recommended wins a near tie")
+	expectEqual(MapPan.compassTarget(hero, 45, {}), nil, "no candidates, no target")
+end })
+
 return tests
