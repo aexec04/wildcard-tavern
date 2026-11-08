@@ -46,33 +46,96 @@ function ContentArt.getImageId(tab, id)
 	return v
 end
 
--- Warm the asset cache so tiles built later find their art already loaded
--- (no emoji/placeholder flash). Non-blocking by design: callers run it inside
--- task.spawn. Runs once per session; later calls return immediately.
+-- ===== Asset loading =====
+-- Loading every image at start (about 300 ids) starved the menu and the screen the player
+-- actually opens. Loading is now tiered and deduplicated (each url is requested once):
+--   1. Urgent  : ContentArt.preload(items, label) loads right away (menu art at start, the
+--                current Collection tab, the next scenes, the Journey map when it opens).
+--   2. Background: ContentArt.preloadAll() walks PreloadPlan in order, small batches with a
+--                pause between them, so nothing blocks the menu. Gameplay scenes and map
+--                art are NOT in the plan; they load lazily (GameplayScene / Journey).
+-- Items are { category } for a whole category or { category, key } for one image.
+-- Timings are printed ("[ArtLoad] ...") so slow phases show up in the Studio output.
 -- Roblox-only (ContentProvider); a no-op under the plain-Lua test runner.
-local preloadStarted = false
-function ContentArt.preloadAll()
-	if preloadStarted then return end
-	local okSvc, ContentProvider = pcall(function() return game:GetService("ContentProvider") end)
-	if not okSvc or not ContentProvider then return end
-	preloadStarted = true
-	local seen, urls = {}, {}
-	for key, map in pairs(ContentArt) do
-		if type(map) == "table" and key ~= "bosses" and key ~= "housePasses" then
-			for _, v in pairs(map) do
-				if type(v) == "string" and v ~= "" and v ~= "rbxassetid://0" and not seen[v] then
-					seen[v] = true
-					table.insert(urls, v)
-				end
+ContentArt.PreloadPlan = {
+	{ name = "menu",     delay = 0, items = { { "backgrounds", "menu_bg" }, { "menu_icons" } } },
+	{ name = "gameplay", delay = 2, items = { { "hud" }, { "backgrounds" } } },
+	{ name = "cosmetics", delay = 3, items = { { "card_backs" }, { "packs" }, { "tutorial_icons" } } },
+	{ name = "collection", delay = 4, items = { { "patrons" }, { "recipes" }, { "boss_rounds" }, { "house_passes" }, { "titles" } } },
+}
+-- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
+-- (Journey map), rooms. They load on demand through ContentArt.preload.
+ContentArt.LazyCategories = { "scenes", "map_nodes", "map_regions", "map_decor", "fx", "rooms" }
+
+-- Urls for a list of items, skipping missing/zero ids. Pure (tested).
+function ContentArt.collectUrls(items)
+	local urls, seen = {}, {}
+	local function add(v)
+		if type(v) == "string" and v ~= "" and v ~= "rbxassetid://0" and not seen[v] then
+			seen[v] = true
+			table.insert(urls, v)
+		end
+	end
+	for _, item in ipairs(items) do
+		local map = ContentArt[item[1]]
+		if type(map) == "table" then
+			if item[2] then
+				add(map[item[2]])
+			else
+				-- sorted keys keep the order stable between runs
+				local keys = {}
+				for k in pairs(map) do table.insert(keys, k) end
+				table.sort(keys)
+				for _, k in ipairs(keys) do add(map[k]) end
 			end
 		end
 	end
-	local BATCH = 25
-	for i = 1, #urls, BATCH do
+	return urls
+end
+
+local requested = {} -- url -> true once a load was started for it
+local function getProvider()
+	local okSvc, ContentProvider = pcall(function() return game:GetService("ContentProvider") end)
+	if okSvc then return ContentProvider end
+	return nil
+end
+local startClock = os.clock()
+
+-- Load the not-yet-requested images of `items` now, in batches. Yields; call inside task.spawn.
+-- opts.batch (default 12) and opts.pause (seconds between batches, default 0).
+function ContentArt.preload(items, label, opts)
+	local ContentProvider = getProvider()
+	if not ContentProvider then return 0 end
+	opts = opts or {}
+	local fresh = {}
+	for _, url in ipairs(ContentArt.collectUrls(items)) do
+		if not requested[url] then
+			requested[url] = true
+			table.insert(fresh, url)
+		end
+	end
+	if #fresh == 0 then return 0 end
+	local t0 = os.clock()
+	local BATCH = opts.batch or 12
+	for i = 1, #fresh, BATCH do
 		local batch = {}
-		for j = i, math.min(i + BATCH - 1, #urls) do table.insert(batch, urls[j]) end
+		for j = i, math.min(i + BATCH - 1, #fresh) do table.insert(batch, fresh[j]) end
 		pcall(function() ContentProvider:PreloadAsync(batch) end)
-		task.wait()
+		if opts.pause and opts.pause > 0 then task.wait(opts.pause) end
+	end
+	print(string.format("[ArtLoad] %s: %d images in %.2fs (%.1fs after start)",
+		tostring(label or "?"), #fresh, os.clock() - t0, os.clock() - startClock))
+	return #fresh
+end
+
+-- Background loader: runs the plan once, in order, never blocking whatever is on screen.
+local preloadStarted = false
+function ContentArt.preloadAll()
+	if preloadStarted or not getProvider() then return end
+	preloadStarted = true
+	for _, phase in ipairs(ContentArt.PreloadPlan) do
+		if phase.delay > 0 then task.wait(phase.delay) end
+		ContentArt.preload(phase.items, phase.name, { batch = 8, pause = 0.15 })
 	end
 end
 

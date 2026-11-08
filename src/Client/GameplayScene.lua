@@ -27,6 +27,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local SceneKeys = require(Engine:WaitForChild("SceneKeys"))
+local preloadedFor = nil -- scene key the lazy preload last ran for
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local ROUNDS_PER_NIGHT = 3 -- same client-side assumption RoundSelect.lua makes
@@ -258,6 +259,18 @@ local function build(deps)
 			return -- shop and game over keep whatever is showing (no flicker)
 		end
 		local key = wantedKey(state)
+		-- Lazy scene loading: this scene first, then the rest of this Night and the next
+		-- Night's approach; ContentArt requests each url only once.
+		if preloadedFor ~= key then
+			preloadedFor = key
+			local night = state.night or 1
+			local wanted = { { "scenes", key } }
+			for _, kind in ipairs({ "small", "big", "boss" }) do
+				table.insert(wanted, { "scenes", SceneKeys.keyFor(night, kind) })
+			end
+			table.insert(wanted, { "scenes", SceneKeys.keyFor(night + 1, "small") })
+			task.spawn(ContentArt.preload, wanted, "scenes night " .. tostring(night), { batch = 2 })
+		end
 		local isBossPlay = phase == "playing" and state.bossModifier ~= nil
 			and SceneKeys.roundKind(state.round, ROUNDS_PER_NIGHT) == "boss"
 		local bossKey = tostring(state.night) .. "-" .. tostring(state.round)

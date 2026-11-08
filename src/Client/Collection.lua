@@ -677,7 +677,7 @@ return function(deps)
 	end
 
 	refresh = function()
-		task.spawn(ContentArt.preloadAll) -- first call warms the cache; later calls return at once
+		task.spawn(ContentArt.preload, { { activeTabId } }, "collection tab " .. activeTabId) -- current tab first; urls load once
 		local view = currentView()
 		local completion = view.completion
 

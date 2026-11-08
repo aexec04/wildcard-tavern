@@ -4429,6 +4429,27 @@ table.insert(tests, { name = "CollectionBook: six rarity tiers, every entry rate
 	expectTrue(counts.mythical * 100 < total * 5, "mythical is under 5 percent of entries")
 end })
 
+table.insert(tests, { name = "ContentArt: background preload plan starts with the menu and leaves scenes and map art lazy", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local plan = ContentArt.PreloadPlan
+	expectEqual(plan[1].name, "menu")
+	expectEqual(plan[1].delay, 0)
+	local lazy = {}
+	for _, c in ipairs(ContentArt.LazyCategories) do lazy[c] = true end
+	for _, phase in ipairs(plan) do
+		for _, item in ipairs(phase.items) do
+			expectTrue(not lazy[item[1]], item[1] .. " must not be in the eager plan")
+			expectTrue(type(ContentArt[item[1]]) == "table", item[1] .. " is a real category")
+		end
+	end
+	-- the single-key form resolves one image; the category form lists them all, de-duplicated
+	local one = ContentArt.collectUrls({ { "backgrounds", "menu_bg" } })
+	expectTrue(#one <= 1)
+	local twice = ContentArt.collectUrls({ { "menu_icons" }, { "menu_icons" } })
+	expectEqual(#twice, #ContentArt.collectUrls({ { "menu_icons" } }))
+	expectEqual(ContentArt.preload({ { "menu_icons" } }, "test"), 0) -- no ContentProvider under plain Lua
+end })
+
 table.insert(tests, { name = "CollectionBook: displayItems sorts common to rare and filters tiers", fn = function()
 	local rank = {}
 	for i, id in ipairs(CollectionBook.RarityOrder) do rank[id] = i end
