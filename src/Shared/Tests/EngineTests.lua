@@ -5012,4 +5012,161 @@ table.insert(tests, { name = "RigWalk: orders joints from the root, walks access
 	expectTrue(tiny < RigWalk.MIN_AVATAR_PARTS, "an empty model counts as unassembled")
 end })
 
+table.insert(tests, { name = "WorldMap: the real graph validates", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local ok, errors = WorldMap.validate()
+	expectTrue(ok, "validate failed: " .. table.concat(errors, "; "))
+	expectEqual(WorldMap.Start, "dusty_road")
+	expectEqual(WorldMap.Finish, "keepers_table")
+end })
+
+table.insert(tests, { name = "WorldMap: default route equals today's 8 Nights (art and order)", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local JourneyMap = require(script.Parent.Parent.Engine.JourneyMap)
+	local route = WorldMap.defaultRoute()
+	expectEqual(#route, #JourneyMap.Nights)
+	for i, night in ipairs(JourneyMap.Nights) do
+		expectEqual(WorldMap.Stops[route[i]].art, night.art, "Night " .. i)
+		expectEqual(WorldMap.Stops[route[i]].name, night.name, "Night " .. i .. " name")
+		expectEqual(WorldMap.routeNight({ table.unpack(route, 1, i) }), i)
+	end
+end })
+
+table.insert(tests, { name = "WorldMap: every route is 8 Night stops, valid, ends in the tavern", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local routes = WorldMap.allRoutes()
+	expectEqual(#routes, 18, "3 x 3 x 2 routes")
+	local seen = {}
+	for _, route in ipairs(routes) do
+		expectEqual(#route, 8)
+		expectEqual(WorldMap.routeNight(route), 8)
+		expectEqual(route[1], "dusty_road")
+		expectEqual(route[8], "keepers_table")
+		expectTrue(WorldMap.isValidRoute(route))
+		local key = table.concat(route, ">")
+		expectTrue(not seen[key], "duplicate route " .. key)
+		seen[key] = true
+		-- the tavern region is always last: Nights 6 to 8
+		for n = 6, 8 do
+			expectEqual(WorldMap.regionOf(route[n]), "tavern", "Night " .. n .. " of " .. key)
+		end
+		for n = 1, 5 do
+			expectTrue(WorldMap.regionOf(route[n]) ~= "tavern", "tavern too early in " .. key)
+		end
+	end
+	-- all four new biomes appear on some route
+	local regions = {}
+	for _, route in ipairs(routes) do
+		for _, id in ipairs(route) do
+			regions[WorldMap.regionOf(id)] = true
+		end
+	end
+	for _, r in ipairs({ "desert", "swamp", "snow", "coast", "meadow", "river", "peaks", "tavern" }) do
+		expectTrue(regions[r], r .. " is on no route")
+	end
+end })
+
+table.insert(tests, { name = "WorldMap: forks, choicesAfter, regionOf, isValidRoute", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	expectEqual(#WorldMap.choicesAfter("dusty_road"), 1)
+	expectEqual(#WorldMap.choicesAfter("wildflower_meadow"), 3)
+	expectEqual(#WorldMap.choicesAfter("willow_bridge"), 3)
+	expectEqual(#WorldMap.choicesAfter("tavern_gate"), 2)
+	expectEqual(#WorldMap.choicesAfter("keepers_table"), 0)
+	expectEqual(#WorldMap.choicesAfter("no_such_stop"), 0)
+	expectTrue(WorldMap.isFork("wildflower_meadow") and not WorldMap.isFork("dusty_road"))
+	expectEqual(WorldMap.regionOf("desert_dunes"), "desert")
+	expectEqual(WorldMap.regionOf("nope"), nil)
+	expectTrue(WorldMap.isValidRoute({ "dusty_road", "wildflower_meadow", "desert_dunes" }))
+	expectFalse(WorldMap.isValidRoute({ "dusty_road", "desert_dunes" }), "skipping a stop")
+	expectFalse(WorldMap.isValidRoute({ "wildflower_meadow" }), "must start at the start")
+	expectFalse(WorldMap.isValidRoute({}))
+	-- the copy returned by choicesAfter is safe to mutate
+	local c = WorldMap.choicesAfter("wildflower_meadow")
+	c[1] = "hacked"
+	expectEqual(WorldMap.choicesAfter("wildflower_meadow")[1], "garden_terrace")
+end })
+
+table.insert(tests, { name = "WorldMap: validate catches broken graphs", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local function night(region, nxt, x)
+		return { kind = "night", region = region, art = "a", name = "n", x = x or 0.5, y = 0.5, next = nxt }
+	end
+	-- 3-stop line of the right length when nights = 3
+	local good = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
+	local ok = WorldMap.validate(good, "s", "f", 3)
+	expectTrue(ok)
+	expectFalse(WorldMap.validate(good, "s", "f", 4), "wrong length")
+	-- cycle
+	local cyc = { s = night("road", { "m" }), m = night("meadow", { "s", "f" }), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(cyc, "s", "f", 3))
+	-- dead end that is not the finish
+	local dead = { s = night("road", { "m", "d" }), m = night("meadow", { "f" }), d = night("river", {}), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(dead, "s", "f", 3))
+	-- unreachable stop
+	local orphan = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}), o = night("river", { "f" }) }
+	expectFalse(WorldMap.validate(orphan, "s", "f", 3))
+	-- unequal route lengths
+	local uneven = { s = night("road", { "m", "f" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(uneven, "s", "f", 3))
+	-- unknown region, missing next target, tavern leading out, side stop without parent
+	local badRegion = { s = night("lava", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(badRegion, "s", "f", 3))
+	local missing = { s = night("road", { "zzz" }), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(missing, "s", "f", 3))
+	local leaving = { s = night("tavern", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
+	expectFalse(WorldMap.validate(leaving, "s", "f", 3))
+	local sideGood = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}),
+		x = { kind = "side", parent = "m", side = "shop" } }
+	expectTrue(WorldMap.validate(sideGood, "s", "f", 3))
+	local sideBad = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}),
+		x = { kind = "side", parent = "nope", side = "shop" } }
+	expectFalse(WorldMap.validate(sideBad, "s", "f", 3))
+	expectEqual(WorldMap.regionOf("x", sideGood), "meadow", "a side stop uses its parent's region")
+end })
+
+table.insert(tests, { name = "WorldMap: bearing and pickByBearing", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local near = function(a, b) return math.abs(a - b) < 1e-6 end
+	local stops = {
+		a = { kind = "night", x = 0.5, y = 0.5, next = { "n", "e", "s", "w" } },
+		n = { kind = "night", x = 0.5, y = 0.2, next = {} },
+		e = { kind = "night", x = 0.8, y = 0.5, next = {} },
+		s = { kind = "night", x = 0.5, y = 0.8, next = {} },
+		w = { kind = "night", x = 0.2, y = 0.5, next = {} },
+	}
+	expectTrue(near(WorldMap.bearing("a", "n", stops), 0), "north")
+	expectTrue(near(WorldMap.bearing("a", "e", stops), 90), "east")
+	expectTrue(near(WorldMap.bearing("a", "s", stops), 180), "south")
+	expectTrue(near(WorldMap.bearing("a", "w", stops), 270), "west")
+	expectEqual(WorldMap.bearing("a", "missing", stops), nil)
+	expectEqual(WorldMap.pickByBearing("a", 10, stops), "n")
+	expectEqual(WorldMap.pickByBearing("a", 350, stops), "n", "wraps around north")
+	expectEqual(WorldMap.pickByBearing("a", 100, stops), "e")
+	expectEqual(WorldMap.pickByBearing("a", 200, stops), "s")
+	expectEqual(WorldMap.pickByBearing("a", 300, stops), "w")
+	expectEqual(WorldMap.pickByBearing("n", 0, stops), nil, "no roads")
+	expectEqual(WorldMap.angleDiff(350, 10), 20)
+	-- the real map: a fork heading up-right picks the desert road, down-right the marsh
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", 45), "desert_dunes")
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", 135), "swamp_boardwalk")
+	expectEqual(WorldMap.pickByBearing("wildflower_meadow", 90), "garden_terrace")
+end })
+
+table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing scene while art is missing", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local SceneArt = require(script.Parent.Parent.Engine.SceneArt)
+	local function hasArt(key)
+		return SceneArt[key .. "_a"] ~= nil
+	end
+	for _, id in ipairs({ "desert_dunes", "oasis_camp", "swamp_boardwalk", "lilypad_pond", "frosty_trail", "lighthouse_cove" }) do
+		local stop = WorldMap.Stops[id]
+		expectTrue(stop.fallbackArt ~= nil, id .. " needs a fallbackArt")
+		expectTrue(hasArt(stop.fallbackArt), id .. " fallback " .. stop.fallbackArt .. " has no scenes")
+		expectEqual(WorldMap.sceneArtFor(id, function() return false end), stop.fallbackArt)
+		expectEqual(WorldMap.sceneArtFor(id, function() return true end), stop.art)
+	end
+	expectEqual(WorldMap.sceneArtFor("garden_terrace", function() return false end), "garden_terrace", "no fallback needed")
+end })
+
 return tests

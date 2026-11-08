@@ -1,0 +1,328 @@
+--[[
+	Shared/Engine/WorldMap.lua
+	Pure data and helpers for the branching adventure map (design: claude/MAP_DESIGN.md sections 1 and 2).
+	No Roblox APIs, so it runs under plain Lua and is unit-tested.
+
+	The world is a directed graph of stops. Every route from Start to Finish is exactly NIGHTS Night stops
+	long, so a run is always 8 Nights whichever roads are taken (balance stays valid). A stop's Night number
+	is its depth along the route, never stored on the stop.
+
+	Shape (three forks):
+	  Night 1-2   dusty_road -> wildflower_meadow
+	  Fork A      after Night 2: 3 roads of 2 stops (Nights 3-4): lantern garden + willow bridge (default),
+	              desert dunes + oasis camp, swamp boardwalk + lilypad pond
+	  Fork B      after Night 4: 3 roads of 1 stop (Night 5): mountain pass (default), frosty trail, lighthouse cove
+	  Crossing    tavern_gate (Night 6), the start of the tavern region
+	  Fork C      after Night 6: 2 roads of 1 stop (Night 7): grand hall (default), warm kitchen
+	  Finish      keepers_table (Night 8)
+	That is 3 x 3 x 2 = 18 main routes. Forks B and C have one-stop roads because the default route must stay
+	today's eight Nights and the tavern region (gate, hall, Keeper) has to come last.
+
+	`art` is the SceneArt / map_nodes key. `fallbackArt` is an existing scene to use while the stop's own
+	scenes are not generated yet (the new biomes; step 8 of the build order). Coordinates are canvas fractions
+	(x along the world, y down) used for the map layout and the compass bearing.
+]]
+
+local WorldMap = {}
+
+WorldMap.NIGHTS = 8
+WorldMap.Start = "dusty_road"
+WorldMap.Finish = "keepers_table"
+
+-- Biomes. `scenery` is the map_regions key (missing art falls back to the flat tint), `reward` the biome
+-- reward row id used by step 4.
+WorldMap.Regions = {
+	road = { name = "The Dusty Road", tint = { 222, 200, 150 }, scenery = "region_road", reward = "road" },
+	meadow = { name = "Wildflower Meadow", tint = { 190, 200, 142 }, scenery = "region_meadow", reward = "meadow" },
+	river = { name = "Willow River", tint = { 168, 196, 176 }, scenery = "region_river", reward = "river" },
+	peaks = { name = "Mountain Peaks", tint = { 186, 190, 172 }, scenery = "region_peaks", reward = "peaks" },
+	desert = { name = "Golden Dunes", tint = { 232, 204, 140 }, scenery = "region_desert", reward = "desert" },
+	swamp = { name = "Misty Marsh", tint = { 150, 176, 138 }, scenery = "region_swamp", reward = "swamp" },
+	snow = { name = "Frosty Hills", tint = { 206, 218, 228 }, scenery = "region_snow", reward = "snow" },
+	coast = { name = "Lantern Coast", tint = { 170, 206, 214 }, scenery = "region_coast", reward = "coast" },
+	tavern = { name = "The Tavern", tint = { 226, 190, 128 }, scenery = "region_tavern", reward = "tavern" },
+}
+
+-- Display order of the regions (for legends and lists; `pairs` order is not stable).
+WorldMap.RegionOrder = { "road", "meadow", "river", "peaks", "desert", "swamp", "snow", "coast", "tavern" }
+
+-- `next` lists the Night stops reachable from here: 1 id is a plain road, 2 to 3 ids are a fork.
+-- The FIRST entry of every `next` list is the default road (the one today's eight Nights follow).
+WorldMap.Stops = {
+	dusty_road = { kind = "night", region = "road", art = "dusty_road", name = "The Dusty Road", icon = "🛤",
+		next = { "wildflower_meadow" }, x = 0.04, y = 0.5 },
+	wildflower_meadow = { kind = "night", region = "meadow", art = "wildflower_meadow", name = "The Wildflower Meadow", icon = "🌼",
+		next = { "garden_terrace", "desert_dunes", "swamp_boardwalk" }, x = 0.12, y = 0.5 },
+
+	-- Fork A, road 1 (default): garden and river.
+	garden_terrace = { kind = "night", region = "meadow", art = "garden_terrace", name = "The Lantern Garden", icon = "🏮",
+		hint = "Calm gardens, then a quiet river", next = { "willow_bridge" }, x = 0.22, y = 0.5 },
+	willow_bridge = { kind = "night", region = "river", art = "willow_bridge", name = "The Willow Bridge", icon = "🌉",
+		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.5 },
+	-- Fork A, road 2: the dunes.
+	desert_dunes = { kind = "night", region = "desert", art = "desert_dunes", fallbackArt = "dusty_road", name = "The Singing Dunes", icon = "🏜",
+		hint = "Warm sands and market stalls", next = { "oasis_camp" }, x = 0.22, y = 0.18 },
+	oasis_camp = { kind = "night", region = "desert", art = "oasis_camp", fallbackArt = "dusty_road", name = "The Oasis Camp", icon = "🌴",
+		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.18 },
+	-- Fork A, road 3: the marsh.
+	swamp_boardwalk = { kind = "night", region = "swamp", art = "swamp_boardwalk", fallbackArt = "willow_bridge", name = "The Misty Boardwalk", icon = "🌫",
+		hint = "Foggy planks and glowing mushrooms", next = { "lilypad_pond" }, x = 0.22, y = 0.82 },
+	lilypad_pond = { kind = "night", region = "swamp", art = "lilypad_pond", fallbackArt = "willow_bridge", name = "The Lilypad Pond", icon = "🐸",
+		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.82 },
+
+	-- Fork B: one stop on Night 5, all three roads rejoin at the tavern gate.
+	mountain_pass = { kind = "night", region = "peaks", art = "mountain_pass", name = "The Mountain Pass", icon = "⛰",
+		hint = "Rocky trails and snowy peaks", next = { "tavern_gate" }, x = 0.46, y = 0.5 },
+	frosty_trail = { kind = "night", region = "snow", art = "frosty_trail", fallbackArt = "mountain_pass", name = "The Frosty Trail", icon = "❄",
+		hint = "Snowdrifts and lantern-lit pines", next = { "tavern_gate" }, x = 0.46, y = 0.18 },
+	lighthouse_cove = { kind = "night", region = "coast", art = "lighthouse_cove", fallbackArt = "willow_bridge", name = "The Lighthouse Cove", icon = "🗼",
+		hint = "Tide pools and a friendly lighthouse", next = { "tavern_gate" }, x = 0.46, y = 0.82 },
+
+	-- The tavern region always comes last: gate, hall (or kitchen), Keeper.
+	tavern_gate = { kind = "night", region = "tavern", art = "tavern_gate", name = "The Tavern Gate", icon = "🚪",
+		next = { "grand_hall", "warm_kitchen" }, x = 0.6, y = 0.5 },
+	grand_hall = { kind = "night", region = "tavern", art = "grand_hall", name = "The Grand Hall", icon = "🏛",
+		hint = "Chandeliers and banners", next = { "keepers_table" }, x = 0.74, y = 0.34 },
+	warm_kitchen = { kind = "night", region = "tavern", art = "warm_kitchen", name = "The Warm Kitchen", icon = "🍲",
+		hint = "Steam, pots and a busy stove", next = { "keepers_table" }, x = 0.74, y = 0.66 },
+	keepers_table = { kind = "night", region = "tavern", art = "keepers_table", name = "The Keeper's Table", icon = "👑",
+		next = {}, x = 0.9, y = 0.5 },
+}
+
+-- ===== Lookups =====
+
+function WorldMap.get(stopId)
+	return WorldMap.Stops[stopId]
+end
+
+-- The Night stops that can follow `stopId` (empty at the Finish or for an unknown/side id).
+function WorldMap.choicesAfter(stopId, stops)
+	stops = stops or WorldMap.Stops
+	local stop = stops[stopId]
+	if not stop or stop.kind ~= "night" then
+		return {}
+	end
+	local out = {}
+	for i, id in ipairs(stop.next or {}) do
+		out[i] = id
+	end
+	return out
+end
+
+function WorldMap.isFork(stopId, stops)
+	return #WorldMap.choicesAfter(stopId, stops) > 1
+end
+
+-- Region id of a stop (a side stop belongs to its parent's region).
+function WorldMap.regionOf(stopId, stops)
+	stops = stops or WorldMap.Stops
+	local stop = stops[stopId]
+	if not stop then return nil end
+	if stop.kind == "side" and stop.parent and stops[stop.parent] then
+		return stops[stop.parent].region
+	end
+	return stop.region
+end
+
+-- How many Night stops a route array holds; the last one is the current Night. Side stops and ids that are
+-- not Night stops do not count.
+function WorldMap.routeNight(route, stops)
+	stops = stops or WorldMap.Stops
+	local n = 0
+	for _, id in ipairs(route or {}) do
+		local stop = stops[id]
+		if stop and stop.kind == "night" then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+-- True when `route` is a valid prefix of a path: starts at Start and every step is a legal choice.
+function WorldMap.isValidRoute(route, stops, start)
+	stops = stops or WorldMap.Stops
+	start = start or WorldMap.Start
+	if type(route) ~= "table" or #route == 0 or route[1] ~= start then
+		return false
+	end
+	for i = 2, #route do
+		if not table.find(WorldMap.choicesAfter(route[i - 1], stops), route[i]) then
+			return false
+		end
+	end
+	return true
+end
+
+-- The route that always takes the first road: today's eight Nights.
+function WorldMap.defaultRoute(stops, start)
+	stops = stops or WorldMap.Stops
+	local route = { start or WorldMap.Start }
+	local guard = 0
+	while guard < 64 do
+		guard = guard + 1
+		local nxt = WorldMap.choicesAfter(route[#route], stops)[1]
+		if not nxt then break end
+		route[#route + 1] = nxt
+	end
+	return route
+end
+
+-- Every full route Start -> Finish as arrays of stop ids, in a stable order (first road first).
+function WorldMap.allRoutes(stops, start, finish)
+	stops = stops or WorldMap.Stops
+	start = start or WorldMap.Start
+	finish = finish or WorldMap.Finish
+	local routes = {}
+	local path = {}
+	local function walk(id, depth)
+		if depth > 64 then return end
+		path[#path + 1] = id
+		if id == finish then
+			routes[#routes + 1] = { table.unpack(path) }
+		else
+			for _, nxt in ipairs(WorldMap.choicesAfter(id, stops)) do
+				walk(nxt, depth + 1)
+			end
+		end
+		path[#path] = nil
+	end
+	walk(start, 1)
+	return routes
+end
+
+-- The art key to use for a stop's scenes: its own `art`, or `fallbackArt` while `hasArt(key)` says the
+-- own art does not exist yet (hasArt omitted = always use the own art).
+function WorldMap.sceneArtFor(stopId, hasArt, stops)
+	stops = stops or WorldMap.Stops
+	local stop = stops[stopId]
+	if not stop then return nil end
+	if hasArt and stop.fallbackArt and not hasArt(stop.art) then
+		return stop.fallbackArt
+	end
+	return stop.art
+end
+
+-- ===== Compass =====
+
+local atan2 = math.atan2 or math.atan -- Lua 5.3 and Luau differ; both give atan2(y, x) here
+
+-- Compass bearing in degrees [0, 360) from one stop to another: 0 = up (north), 90 = right (east),
+-- 180 = down, 270 = left. Uses the stops' canvas x/y (y grows downward).
+function WorldMap.bearing(fromId, toId, stops)
+	stops = stops or WorldMap.Stops
+	local a, b = stops[fromId], stops[toId]
+	if not (a and b) then return nil end
+	local dx, dy = b.x - a.x, b.y - a.y
+	if dx == 0 and dy == 0 then return 0 end
+	local deg = math.deg(atan2(dx, -dy))
+	return deg % 360
+end
+
+local function angleDiff(a, b)
+	local d = math.abs(a - b) % 360
+	return d > 180 and 360 - d or d
+end
+
+WorldMap.angleDiff = angleDiff
+
+-- Of the roads after `stopId`, the one whose bearing is closest to `degrees`. Ties go to the earlier
+-- (default) road. Returns nil when there is no road.
+function WorldMap.pickByBearing(stopId, degrees, stops)
+	local best, bestDiff
+	for _, id in ipairs(WorldMap.choicesAfter(stopId, stops)) do
+		local d = angleDiff(WorldMap.bearing(stopId, id, stops) or 0, degrees)
+		if not bestDiff or d < bestDiff - 1e-9 then
+			best, bestDiff = id, d
+		end
+	end
+	return best
+end
+
+-- ===== Validation =====
+
+-- Checks a graph (default: the real one). Returns ok, errors (array of strings).
+-- Rules: Start and Finish exist; every stop is reachable from Start; no cycles; every route ends at the
+-- Finish and has exactly `nights` Night stops; `next` ids exist and are Night stops; side stops have a
+-- Night-stop parent; regions exist; tavern stops are never followed by a non-tavern stop.
+function WorldMap.validate(stops, start, finish, nights, regions)
+	stops = stops or WorldMap.Stops
+	start = start or WorldMap.Start
+	finish = finish or WorldMap.Finish
+	nights = nights or WorldMap.NIGHTS
+	regions = regions or WorldMap.Regions
+	local errors = {}
+	local function err(fmt, ...)
+		errors[#errors + 1] = string.format(fmt, ...)
+	end
+
+	if not stops[start] then err("start stop %s missing", tostring(start)) end
+	if not stops[finish] then err("finish stop %s missing", tostring(finish)) end
+	if #errors > 0 then return false, errors end
+
+	for id, stop in pairs(stops) do
+		if stop.kind ~= "night" and stop.kind ~= "side" then
+			err("%s has unknown kind %s", id, tostring(stop.kind))
+		end
+		if stop.kind == "night" then
+			if not regions[stop.region] then err("%s has unknown region %s", id, tostring(stop.region)) end
+			if type(stop.art) ~= "string" or stop.art == "" then err("%s has no art key", id) end
+			if type(stop.name) ~= "string" or stop.name == "" then err("%s has no name", id) end
+			if type(stop.x) ~= "number" or type(stop.y) ~= "number" then err("%s has no x/y", id) end
+			if id ~= finish and #(stop.next or {}) == 0 then err("%s is a dead end", id) end
+			if id == finish and #(stop.next or {}) > 0 then err("finish %s must not have next stops", id) end
+			if #(stop.next or {}) > 3 then err("%s has more than 3 roads", id) end
+			for _, nxt in ipairs(stop.next or {}) do
+				if not stops[nxt] then
+					err("%s -> %s does not exist", id, tostring(nxt))
+				elseif stops[nxt].kind ~= "night" then
+					err("%s -> %s is not a Night stop", id, tostring(nxt))
+				elseif stops[nxt].region == nil or (stop.region == "tavern" and stops[nxt].region ~= "tavern") then
+					err("%s (tavern) leads out of the tavern to %s", id, nxt)
+				end
+			end
+		elseif stop.kind == "side" then
+			local parent = stops[stop.parent]
+			if not parent or parent.kind ~= "night" then
+				err("side stop %s has no Night-stop parent", id)
+			end
+		end
+	end
+	if #errors > 0 then return false, errors end
+
+	-- Cycles and route lengths (DFS from Start).
+	local visiting, reached = {}, {}
+	local function walk(id, count)
+		if visiting[id] then
+			err("cycle through %s", id)
+			return
+		end
+		reached[id] = true
+		count = count + 1
+		if count > nights then
+			err("a route is longer than %d Night stops at %s", nights, id)
+			return
+		end
+		local nexts = stops[id].next or {}
+		if id == finish then
+			if count ~= nights then
+				err("a route reaches %s after %d Night stops, expected %d", id, count, nights)
+			end
+			return
+		end
+		visiting[id] = true
+		for _, nxt in ipairs(nexts) do
+			walk(nxt, count)
+		end
+		visiting[id] = nil
+	end
+	walk(start, 0)
+
+	for id, stop in pairs(stops) do
+		if stop.kind == "night" and not reached[id] then
+			err("%s is not reachable from the start on a valid route", id)
+		end
+	end
+	return #errors == 0, errors
+end
+
+return WorldMap
