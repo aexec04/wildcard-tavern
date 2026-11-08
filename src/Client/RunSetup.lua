@@ -90,8 +90,13 @@ return function(deps)
 	-- Painted background (PanelArt): flat panel color if the art id is missing.
 	local runSetupPanelArt = require(script.Parent.PanelArt).add(runSetupPanel, {
 		key = "run_setup_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
-		scrimTransparency = 0.2,
+		-- BackgroundTransparency 0.2 would be an 80% black layer (the old near-black panel);
+		-- 0.65 keeps the room art visible and the parchment cards carry the text.
+		scrimTransparency = 0.65,
 	})
+	if runSetupPanelArt then
+		runSetupPanel.BackgroundTransparency = 1 -- art is the lowest layer, no opaque fill under it
+	end
 	addSoftShadow(runSetupPanel, 18)
 
 	local runSetupTitle = Instance.new("TextLabel")
@@ -124,6 +129,7 @@ return function(deps)
 	runSetupScroll.Parent = runSetupPanel
 
 	local runSetupLayout = Instance.new("UIListLayout")
+	runSetupLayout.SortOrder = Enum.SortOrder.LayoutOrder -- default is Name, which ignored the LayoutOrder bands
 	runSetupLayout.Padding = UDim.new(0, 14)
 	runSetupLayout.Parent = runSetupScroll
 

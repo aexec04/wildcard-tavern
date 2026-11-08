@@ -97,6 +97,7 @@ return function(deps)
 
 	local deckTrackerGridLayout = Instance.new("UIListLayout")
 	deckTrackerGridLayout.Padding = UDim.new(0, 4)
+	deckTrackerGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	deckTrackerGridLayout.Parent = deckTrackerGrid
 
 	local deckTrackerCloseButton = Instance.new("TextButton")
@@ -148,6 +149,7 @@ return function(deps)
 		headerRow.Parent = deckTrackerGrid
 		local headerLayout = Instance.new("UIListLayout")
 		headerLayout.FillDirection = Enum.FillDirection.Horizontal
+		headerLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		headerLayout.Parent = headerRow
 		makeDeckTrackerCell(headerRow, "", cellWidth, true)
 		for _, rank in ipairs(Deck.RankOrder) do
@@ -163,6 +165,7 @@ return function(deps)
 			roundCorner(suitRow, 6)
 			local suitLayout = Instance.new("UIListLayout")
 			suitLayout.FillDirection = Enum.FillDirection.Horizontal
+			suitLayout.SortOrder = Enum.SortOrder.LayoutOrder
 			suitLayout.Parent = suitRow
 
 			local suitColor = RED_SUITS[suit] and Color3.fromRGB(230, 140, 140) or Color3.fromRGB(220, 220, 230)

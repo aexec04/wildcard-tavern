@@ -452,6 +452,7 @@ return function(deps)
 		controlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		controlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 		controlLayout.Padding = UDim.new(0, 10)
+		controlLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		controlLayout.Parent = controlHolder
 
 		local minusButton = Instance.new("TextButton")

@@ -96,4 +96,11 @@ local TestRunner = loadModuleByPath(SRC_SHARED .. "/Tests/TestRunner")
 print("Running Wildcard Tavern engine tests (plain Lua, no Roblox)...\n")
 local results = TestRunner.run(tests)
 
+-- Source lint: every UIList/UIGrid layout in src/Client must set SortOrder.
+local lintOk, lintFails = pcall(dofile, "tools/lint_sort_order.lua")
+if lintOk and lintFails and lintFails > 0 then
+	print("FAILED: " .. lintFails .. " layout(s) without SortOrder")
+	os.exit(1)
+end
+
 os.exit(results.failed == 0 and 0 or 1)
