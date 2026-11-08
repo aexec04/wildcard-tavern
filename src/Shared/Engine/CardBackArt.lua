@@ -8,11 +8,16 @@
 return {
 	["classic"] = "rbxassetid://111262009384494",
 	["closing_lantern"] = "rbxassetid://139393984601071",
+	["dune_gold"] = "rbxassetid://84274424798939",
 	["ember_hours"] = "rbxassetid://85606575735220",
 	["festival_ribbon"] = "rbxassetid://134205992641319",
+	["frost_walker"] = "rbxassetid://129194529928131",
+	["gala"] = "rbxassetid://126569883266254",
 	["gilded_ledger"] = "rbxassetid://139200255779297",
 	["hall_banner"] = "rbxassetid://131532003385284",
 	["kitchen_checks"] = "rbxassetid://79128290260860",
+	["lilypad_green"] = "rbxassetid://109268503877630",
+	["shell_pearl"] = "rbxassetid://135323772066823",
 	["starlit_keeper"] = "rbxassetid://109033841832967",
 	["winter_frost"] = "rbxassetid://72796900071534",
 }

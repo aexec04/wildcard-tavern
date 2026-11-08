@@ -6183,9 +6183,9 @@ table.insert(tests, { name = "SceneKeys: the chosen road decides each Night's sc
 	expectEqual(SceneKeys.keyFor(3, "small"), "garden_terrace_a", "no route: the default Nights")
 	SceneKeys.setRoute({ "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp" })
 	expectEqual(SceneKeys.keyFor(1, "small"), "dusty_road_a")
-	-- desert scenes are not generated yet: the stop's fallback scene is used
-	expectEqual(SceneKeys.keyFor(3, "big"), "dusty_road_b")
-	expectEqual(SceneKeys.keyFor(4, "boss"), "dusty_road_in")
+	-- desert scenes are generated and recorded: the chosen stop's own scene is used
+	expectEqual(SceneKeys.keyFor(3, "big"), "desert_dunes_b")
+	expectEqual(SceneKeys.keyFor(4, "boss"), "oasis_camp_in")
 	-- a Night whose road is not picked yet, and Nights past the route, use the default list
 	expectEqual(SceneKeys.keyFor(5, "small"), "mountain_pass_a")
 	expectEqual(SceneKeys.keyFor(9, "small"), "front_porch_a", "Endless rotation is unchanged")

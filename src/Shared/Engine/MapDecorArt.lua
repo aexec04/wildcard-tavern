@@ -7,11 +7,19 @@
 
 return {
 	["bridge"] = "rbxassetid://132991815667306",
+	["cactus"] = "rbxassetid://95428038597750",
 	["compass_rose"] = "rbxassetid://77306756729256",
 	["cottage"] = "rbxassetid://124969408320690",
+	["igloo"] = "rbxassetid://134130782886752",
 	["lantern_post"] = "rbxassetid://119004074141346",
+	["lighthouse"] = "rbxassetid://92281878076391",
 	["mushroom_ring"] = "rbxassetid://115134266098619",
+	["palm_tree"] = "rbxassetid://88714359795753",
 	["pine_tree"] = "rbxassetid://86215223038194",
+	["reed_cluster"] = "rbxassetid://100399340035336",
+	["sailboat"] = "rbxassetid://107374916587108",
+	["seashell"] = "rbxassetid://102588414037148",
 	["signpost"] = "rbxassetid://83513926410707",
+	["tent"] = "rbxassetid://71119106751159",
 	["windmill"] = "rbxassetid://80585467042470",
 }

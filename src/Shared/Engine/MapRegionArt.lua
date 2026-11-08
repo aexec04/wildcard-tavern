@@ -6,11 +6,15 @@
 ]]
 
 return {
+	["region_coast"] = "rbxassetid://85887868972475",
+	["region_desert"] = "rbxassetid://115225253903223",
 	["region_meadow"] = "rbxassetid://121586886956826",
 	["region_orchard"] = "rbxassetid://77345015873145",
 	["region_peaks"] = "rbxassetid://139954937669464",
 	["region_river"] = "rbxassetid://111040463840610",
 	["region_road"] = "rbxassetid://88004470832791",
+	["region_snow"] = "rbxassetid://88120099597727",
+	["region_swamp"] = "rbxassetid://128717921039254",
 	["region_tavern"] = "rbxassetid://104528144063426",
 	["region_village"] = "rbxassetid://133303417864105",
 }

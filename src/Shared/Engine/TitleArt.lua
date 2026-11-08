@@ -8,6 +8,7 @@
 return {
 	["curious_guest"] = "rbxassetid://80572363232014",
 	["deep_cuts"] = "rbxassetid://90948137773300",
+	["dune_wanderer"] = "rbxassetid://109593895352496",
 	["endless_legend"] = "rbxassetid://98484248538812",
 	["every_patron"] = "rbxassetid://93041309194201",
 	["first_steps"] = "rbxassetid://115198356864133",
@@ -15,11 +16,15 @@ return {
 	["grand_finale"] = "rbxassetid://80414073804130",
 	["into_the_endless"] = "rbxassetid://117449705428732",
 	["keeper_of_tales"] = "rbxassetid://103857082486922",
+	["lighthouse_friend"] = "rbxassetid://101207212416601",
 	["loft_climber"] = "rbxassetid://81065081190946",
+	["marsh_wader"] = "rbxassetid://136694362442846",
 	["night_walker"] = "rbxassetid://73741219167067",
 	["patron_saint"] = "rbxassetid://127695598258847",
 	["porch_regular"] = "rbxassetid://113141074816748",
 	["regular"] = "rbxassetid://71884701655716",
+	["snow_scout"] = "rbxassetid://136197075009596",
 	["tavern_keeper"] = "rbxassetid://116372972871874",
 	["tavern_legend"] = "rbxassetid://101562753346775",
+	["trailblazer"] = "rbxassetid://123803414277460",
 }

@@ -8,9 +8,14 @@
 return {
 	["brass_hook"] = "rbxassetid://122486306330473",
 	["coin_purse"] = "rbxassetid://93298168987280",
+	["compass_ring"] = "rbxassetid://123112359365591",
+	["dice_faces"] = "rbxassetid://75360233152447",
 	["discard_bin"] = "rbxassetid://91221212978712",
 	["flourish_divider"] = "rbxassetid://138675631990700",
+	["fork_glow"] = "rbxassetid://99383888680850",
 	["hands_cards"] = "rbxassetid://92396961283593",
+	["lockpick_dial"] = "rbxassetid://125440107811686",
 	["sidebar_board"] = "rbxassetid://70720991331119",
 	["target_score"] = "rbxassetid://72960489465679",
+	["token_icon"] = "rbxassetid://96701221672159",
 }
