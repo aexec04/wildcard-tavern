@@ -22,6 +22,7 @@ local Recipes = require(script.Parent.Recipes)
 local HousePasses = require(script.Parent.HousePasses)
 local Packs = require(script.Parent.Packs)
 local TrueWildcard = require(script.Parent.TrueWildcard)
+local WorldMap = require(script.Parent.WorldMap)
 
 local RunState = {}
 
@@ -161,6 +162,10 @@ function RunState.new(options, rng)
 		bossRoundsEnabled = difficulty.bossRoundsEnabled ~= false,
 		night = 1,
 		round = 1,
+		-- WORLD MAP: the stop of each Night chosen so far (Night n = worldRoute[n]); worldPlan is a fixed
+		-- route for Daily, Weekly and Seed runs (see WorldMap.routeFromSeed), nil on free runs.
+		worldRoute = { WorldMap.Start },
+		worldPlan = options.worldPlan,
 		tips = deckVariant.startingTips or 0,
 		ownedPatrons = {},
 		-- Persistent, run-long card pool: `deck` is the draw pile, `discardPile`
@@ -1437,6 +1442,7 @@ function RunState.advanceToNextRound(state)
 	if state.round > state.config.roundsPerNight then
 		state.round = 1
 		state.night = state.night + 1
+		WorldMap.extendRoute(state) -- plain roads and fixed plans fill in; a fork waits for ChooseRoad
 	end
 	RunState.startRound(state)
 end

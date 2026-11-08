@@ -5153,6 +5153,208 @@ table.insert(tests, { name = "WorldMap: bearing and pickByBearing", fn = functio
 	expectEqual(WorldMap.pickByBearing("wildflower_meadow", 90), "garden_terrace")
 end })
 
+-- Plays a fresh run up to the start of `night` (round 1 of that Night) without playing hands.
+local function runAtNight(night, options)
+	local state = RunState.new(options, function(_n) return 1 end)
+	while state.night < night do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	return state
+end
+
+table.insert(tests, { name = "WorldMap: a new run starts on the Dusty Road; Night 2 fills itself (one road)", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = RunState.new(nil, function(_n) return 1 end)
+	expectEqual(#state.worldRoute, 1)
+	expectEqual(state.worldRoute[1], "dusty_road")
+	expectEqual(WorldMap.pendingChoices(state), nil, "Night 1 never asks")
+	state = runAtNight(2)
+	expectEqual(state.worldRoute[2], "wildflower_meadow", "a plain road needs no choice")
+	expectEqual(WorldMap.pendingChoices(state), nil)
+end })
+
+table.insert(tests, { name = "WorldMap: a fork waits for ChooseRoad; the pick is validated", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = runAtNight(3)
+	expectEqual(#state.worldRoute, 2, "Night 3 is a fork, nothing picked yet")
+	local choices = WorldMap.pendingChoices(state)
+	expectEqual(#choices, 3)
+	-- rejections
+	local ok, why = WorldMap.chooseRoad(state, "desert_dunes", "playing")
+	expectFalse(ok); expectEqual(why, "wrong_phase")
+	ok, why = WorldMap.chooseRoad(state, "desert_dunes", "shop")
+	expectFalse(ok); expectEqual(why, "wrong_phase")
+	ok, why = WorldMap.chooseRoad(state, "keepers_table", "roundSelect")
+	expectFalse(ok); expectEqual(why, "not_next")
+	ok, why = WorldMap.chooseRoad(state, "mountain_pass", "roundSelect")
+	expectFalse(ok); expectEqual(why, "not_next", "a stop from a later fork")
+	ok, why = WorldMap.chooseRoad(state, "tavern_gate", "roundSelect")
+	expectFalse(ok); expectEqual(why, "not_next")
+	for _, bad in ipairs({ 5, true, {}, "", "nope" }) do
+		ok = WorldMap.chooseRoad(state, bad, "roundSelect")
+		expectFalse(ok, "cheating id " .. tostring(bad))
+	end
+	expectEqual(#state.worldRoute, 2, "rejected picks change nothing")
+	-- the real pick
+	ok = WorldMap.chooseRoad(state, "desert_dunes", "roundSelect")
+	expectTrue(ok)
+	expectEqual(state.worldRoute[3], "desert_dunes")
+	expectEqual(WorldMap.currentStop(state), "desert_dunes")
+	-- already chosen for this Night: a second pick is refused
+	ok, why = WorldMap.chooseRoad(state, "swamp_boardwalk", "roundSelect")
+	expectFalse(ok); expectEqual(why, "no_choice")
+	expectEqual(state.worldRoute[3], "desert_dunes")
+	-- Night 1 and 2 have nothing to choose
+	local early = RunState.new(nil, function(_n) return 1 end)
+	ok, why = WorldMap.chooseRoad(early, "wildflower_meadow", "roundSelect")
+	expectFalse(ok); expectEqual(why, "no_choice")
+end })
+
+table.insert(tests, { name = "WorldMap: no pick means the default road; later forks continue from the pick", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = runAtNight(3)
+	expectTrue(WorldMap.fillDefault(state))
+	expectEqual(state.worldRoute[3], "garden_terrace")
+	expectFalse(WorldMap.fillDefault(state), "nothing left to fill")
+	-- Night 4 is a plain road, Night 5 a fork again
+	state = runAtNight(4)
+	WorldMap.chooseRoad(state, "swamp_boardwalk", "roundSelect") -- Night 3 is still pending in this fresh run
+	state = runAtNight(3)
+	WorldMap.chooseRoad(state, "swamp_boardwalk", "roundSelect")
+	while state.night < 5 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	expectEqual(state.worldRoute[4], "lilypad_pond", "the swamp road continues to its second stop")
+	local c = WorldMap.pendingChoices(state)
+	expectEqual(#c, 3)
+	expectFalse(WorldMap.chooseRoad(state, "grand_hall", "roundSelect"))
+	expectTrue(WorldMap.chooseRoad(state, "lighthouse_cove", "roundSelect"))
+	-- Night 6 onward: the whole route stays a valid prefix and reaches the tavern
+	while state.night < 8 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		WorldMap.fillDefault(state)
+	end
+	expectTrue(WorldMap.isValidRoute(state.worldRoute))
+	expectEqual(#state.worldRoute, 8)
+	expectEqual(state.worldRoute[8], "keepers_table")
+	-- past Night 8 (Endless) the route no longer grows
+	state.roundOver = true
+	RunState.advanceToNextRound(state)
+	state.roundOver = true
+	RunState.advanceToNextRound(state)
+	state.roundOver = true
+	RunState.advanceToNextRound(state)
+	expectEqual(state.night, 9)
+	expectEqual(#state.worldRoute, 8)
+	expectEqual(WorldMap.pendingChoices(state), nil)
+end })
+
+table.insert(tests, { name = "WorldMap: seeded runs get a fixed, valid, repeatable route and cannot choose", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local a = WorldMap.routeFromSeed("daily:2026-11-08")
+	local b = WorldMap.routeFromSeed("daily:2026-11-08")
+	expectEqual(table.concat(a, ">"), table.concat(b, ">"), "same label, same road")
+	expectEqual(#a, 8)
+	expectTrue(WorldMap.isValidRoute(a))
+	expectEqual(a[8], "keepers_table")
+	-- different labels spread over several routes
+	local seen, count = {}, 0
+	for i = 1, 40 do
+		local key = table.concat(WorldMap.routeFromSeed("seed:STORM" .. i), ">")
+		if not seen[key] then seen[key] = true; count = count + 1 end
+	end
+	expectTrue(count >= 6, "expected a spread of routes, got " .. count)
+	-- a run with a plan follows it and refuses ChooseRoad
+	local plan = WorldMap.routeFromSeed("weekly:2026-W45")
+	local state = runAtNight(3, { worldPlan = plan })
+	expectEqual(state.worldRoute[3], plan[3], "the plan fills the fork by itself")
+	local ok, why = WorldMap.chooseRoad(state, plan[3], "roundSelect")
+	expectFalse(ok); expectEqual(why, "fixed_route")
+	local fresh = RunState.new({ worldPlan = plan }, function(_n) return 1 end)
+	ok, why = WorldMap.chooseRoad(fresh, "wildflower_meadow", "roundSelect")
+	expectFalse(ok); expectEqual(why, "fixed_route")
+	local free = runAtNight(8, { worldPlan = plan })
+	expectEqual(table.concat(free.worldRoute, ">"), table.concat(plan, ">"))
+end })
+
+table.insert(tests, { name = "WorldMap: the road survives One More Round (snapshot keeps the pick)", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = runAtNight(3)
+	expectEqual(#state.roundStartSnapshot.worldRoute, 2, "snapshot taken before the pick")
+	expectTrue(WorldMap.chooseRoad(state, "swamp_boardwalk", "roundSelect"))
+	expectEqual(#state.roundStartSnapshot.worldRoute, 3, "the pick is written into the snapshot")
+	state.runOver = true
+	RunState.useContinue(state)
+	expectEqual(state.worldRoute[3], "swamp_boardwalk")
+	expectEqual(#state.worldRoute, 3)
+	-- the copy is independent of the snapshot
+	state.worldRoute[3] = "x"
+	expectEqual(state.roundStartSnapshot.worldRoute[3], "swamp_boardwalk")
+end })
+
+table.insert(tests, { name = "WorldMap: profile fields load safely and drop unknown ids", fn = function()
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local fresh = PlayerProfile.new()
+	expectEqual(#fresh.worldRoute, 0)
+	expectEqual(next(fresh.worldSeenStopIds), nil)
+	local loaded = PlayerProfile.migrate({
+		worldRoute = { "dusty_road", "wildflower_meadow", "desert_dunes" },
+		worldSeenStopIds = { desert_dunes = true, ghost_stop = true, dusty_road = false, [5] = true },
+		worldBiomeClears = { desert = 2.7, lava = 3, meadow = -1, road = "x" },
+		worldRewardIds = { desert = true, [3] = true },
+	})
+	expectEqual(#loaded.worldRoute, 3)
+	expectTrue(loaded.worldSeenStopIds.desert_dunes)
+	expectEqual(loaded.worldSeenStopIds.ghost_stop, nil)
+	expectEqual(loaded.worldSeenStopIds.dusty_road, nil)
+	expectEqual(loaded.worldBiomeClears.desert, 2)
+	expectEqual(loaded.worldBiomeClears.lava, nil)
+	expectEqual(loaded.worldBiomeClears.meadow, nil)
+	expectEqual(loaded.worldBiomeClears.road, nil)
+	expectTrue(loaded.worldRewardIds.desert)
+	-- a broken or cheated route is dropped, old profiles without the fields still load
+	expectEqual(#PlayerProfile.migrate({ worldRoute = { "dusty_road", "keepers_table" } }).worldRoute, 0)
+	expectEqual(#PlayerProfile.migrate({ worldRoute = { "dusty_road", "nope" } }).worldRoute, 0)
+	expectEqual(#PlayerProfile.migrate({ worldRoute = "x" }).worldRoute, 0)
+	expectEqual(#PlayerProfile.migrate({}).worldRoute, 0)
+	expectEqual(#PlayerProfile.migrate(nil).worldRoute, 0)
+end })
+
+table.insert(tests, { name = "WorldMap: recordWorldProgress counts each cleared stop once and keeps clearedNightIds working", fn = function()
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local JourneyMap = require(script.Parent.Parent.Engine.JourneyMap)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local profile = PlayerProfile.new()
+	local route = { "dusty_road", "wildflower_meadow", "desert_dunes" }
+	local changed, counted = PlayerProfile.recordWorldProgress(profile, route, 0, 0)
+	expectTrue(changed); expectEqual(counted, 0)
+	expectEqual(profile.worldBiomeClears.road, nil)
+	changed, counted = PlayerProfile.recordWorldProgress(profile, route, 2, counted)
+	expectEqual(counted, 2)
+	expectEqual(profile.worldBiomeClears.road, 1)
+	expectEqual(profile.worldBiomeClears.meadow, 1)
+	changed, counted = PlayerProfile.recordWorldProgress(profile, route, 2, counted)
+	expectFalse(changed, "repeated pushes change nothing")
+	expectEqual(profile.worldBiomeClears.road, 1)
+	-- a second run adds to the totals
+	changed, counted = PlayerProfile.recordWorldProgress(profile, route, 2, 0)
+	expectEqual(profile.worldBiomeClears.road, 2)
+	-- an invalid route is ignored
+	changed = PlayerProfile.recordWorldProgress(profile, { "dusty_road", "keepers_table" }, 2, 0)
+	expectFalse(changed)
+	expectTrue(profile.worldSeenStopIds.desert_dunes)
+	-- the default route still grants the Night 1 to 8 rewards through recordNightsCleared
+	local p2 = PlayerProfile.new()
+	JourneyMap.recordNightsCleared(p2, 8)
+	for n = 1, 8 do
+		expectTrue(p2.clearedNightIds[n], "Night " .. n)
+	end
+	expectEqual(#WorldMap.defaultRoute(), 8)
+end })
+
 table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing scene while art is missing", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local SceneArt = require(script.Parent.Parent.Engine.SceneArt)

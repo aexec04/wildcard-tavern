@@ -26,6 +26,7 @@ local Tests = Shared:WaitForChild("Tests")
 
 local RunState = require(Engine.RunState)
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
+local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local CardBacks = require(Engine.CardBacks)
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
@@ -79,6 +80,7 @@ local BuyCosmeticSetRemote = newRemote("BuyCosmeticSet") -- (player, setId)
 local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
+local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 local MarkTutorialSeenRemote = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
@@ -662,6 +664,11 @@ local function serializeState(session, player)
 			return ids
 		end)(),
 		journeyNotice = session.journeyNotice,
+		-- WORLD MAP: the road so far, the roads waiting to be picked (nil when none), and whether the route
+		-- is fixed by the seed (Daily, Weekly, Seed). The client never decides any of this.
+		worldRoute = state.worldRoute,
+		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
+		worldFixed = state.worldPlan ~= nil,
 		profileStats = (function()
 			local profile = profiles[player]
 			if not profile then
@@ -803,6 +810,12 @@ local function syncProfileFromSession(player)
 	-- JOURNEY: first clears of each Night grant a cosmetic reward. Revived
 	-- runs don't count, same as the other records.
 	if countsForRecords then
+		local worldChanged, worldCounted = PlayerProfile.recordWorldProgress(
+			profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state), session.worldCounted)
+		session.worldCounted = worldCounted
+		if worldChanged then
+			changed = true
+		end
 		local fresh = JourneyMap.recordNightsCleared(profile, JourneyMap.nightsClearedFor(session.state))
 		for _, night in ipairs(JourneyMap.recordEndlessCleared(profile, JourneyMap.totalNightsClearedFor(session.state))) do
 			table.insert(fresh, night)
@@ -1066,6 +1079,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
 				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
+			-- Ranked and shared boards walk a fixed road derived from the date key / seed code.
+			worldPlan = seededRng ~= nil and WorldMap.routeFromSeed(tostring(seedMode) .. ":" .. tostring(seedLabel)) or nil,
 		}, seededRng),
 		-- ROUND SELECT FEATURE: every run now opens on the Round Select
 		-- screen for Round 1 (matching the reference game showing Blind
@@ -1611,6 +1626,19 @@ EquipCardBackRemote.OnServerEvent:Connect(function(player, backId)
 	end
 end)
 
+-- WORLD MAP: pick the next road at a fork. Only valid in roundSelect (the start of a Night, before its
+-- first round is played or skipped), only for a stop that follows the current one, never on a seeded run.
+ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	local ok = WorldMap.chooseRoad(session.state, stopId, session.phase)
+	if ok then
+		pushState(player)
+	end
+end)
+
 -- JOURNEY: equip the reward of a cleared node. JourneyMap.equipReward
 -- refuses anything not earned.
 EquipJourneyRewardRemote.OnServerEvent:Connect(function(player, night)
@@ -1741,6 +1769,7 @@ SelectRoundRemote.OnServerEvent:Connect(function(player)
 	if not session or session.phase ~= "roundSelect" then
 		return
 	end
+	WorldMap.fillDefault(session.state) -- no road picked at a fork: take the default one
 	session.phase = "playing"
 	pushState(player)
 end)
@@ -1753,6 +1782,7 @@ SkipRoundRemote.OnServerEvent:Connect(function(player)
 	if not RunState.canSkipRound(session.state) then
 		return
 	end
+	WorldMap.fillDefault(session.state)
 
 	local ok, err = pcall(RunState.skipRound, session.state)
 	if not ok then

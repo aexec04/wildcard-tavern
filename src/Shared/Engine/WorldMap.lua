@@ -238,6 +238,98 @@ function WorldMap.pickByBearing(stopId, degrees, stops)
 	return best
 end
 
+-- ===== The route of a run =====
+-- state.worldRoute is the array of stop ids chosen so far, one per Night: Night n's stop is worldRoute[n].
+-- It starts as { Start }. At the start of Night n (2 to NIGHTS) the route is one short until the road is
+-- picked: a plain road (one choice) or a fixed plan (Daily, Weekly, Seed runs) fills in by itself, a fork
+-- waits for ChooseRoad, and a player who never chooses gets the default (first) road.
+
+function WorldMap.pendingChoices(state)
+	local route = state and state.worldRoute
+	if type(route) ~= "table" or type(state.night) ~= "number" then return nil end
+	if state.night < 2 or state.night > WorldMap.NIGHTS then return nil end
+	if #route ~= state.night - 1 then return nil end
+	local choices = WorldMap.choicesAfter(route[#route])
+	if #choices == 0 then return nil end
+	return choices
+end
+
+-- The stop of the current Night (the last route entry), or nil past the Finish.
+function WorldMap.currentStop(state)
+	local route = state and state.worldRoute
+	if type(route) ~= "table" then return nil end
+	return route[math.min(#route, state.night or 1)]
+end
+
+-- Fills in the current Night's stop when nothing needs asking. Returns true if it added one.
+function WorldMap.extendRoute(state)
+	local choices = WorldMap.pendingChoices(state)
+	if not choices then return false end
+	local nxt
+	if state.worldPlan and state.worldPlan[state.night] and table.find(choices, state.worldPlan[state.night]) then
+		nxt = state.worldPlan[state.night]
+	elseif #choices == 1 then
+		nxt = choices[1]
+	end
+	if not nxt then return false end
+	state.worldRoute[#state.worldRoute + 1] = nxt
+	return true
+end
+
+-- A player who leaves Round Select without picking gets the default road (or the plan's).
+function WorldMap.fillDefault(state)
+	local choices = WorldMap.pendingChoices(state)
+	if not choices then return false end
+	if WorldMap.extendRoute(state) then return true end
+	state.worldRoute[#state.worldRoute + 1] = choices[1]
+	return true
+end
+
+-- Roads are only picked on the Round Select screen (never while playing, shopping or after game over).
+function WorldMap.phaseAllowsRoadChoice(phase)
+	return phase == "roundSelect"
+end
+
+-- Server-side validation of ChooseRoad; pass the session phase as the third argument to apply the phase gate
+-- too. Returns true, or false plus a reason code.
+function WorldMap.chooseRoad(state, stopId, phase)
+	if phase ~= nil and not WorldMap.phaseAllowsRoadChoice(phase) then return false, "wrong_phase" end
+	if type(state) ~= "table" or type(state.worldRoute) ~= "table" then return false, "no_route" end
+	if type(stopId) ~= "string" then return false, "bad_id" end
+	if state.worldPlan then return false, "fixed_route" end -- ranked boards use the seed's route
+	local choices = WorldMap.pendingChoices(state)
+	if not choices then return false, "no_choice" end
+	if not table.find(choices, stopId) then return false, "not_next" end
+	state.worldRoute[#state.worldRoute + 1] = stopId
+	-- The One More Round snapshot was taken before the pick; keep the pick in it so a continue does not undo it.
+	local snap = state.roundStartSnapshot
+	if type(snap) == "table" and type(snap.worldRoute) == "table" and #snap.worldRoute < #state.worldRoute then
+		snap.worldRoute = { table.unpack(state.worldRoute) }
+	end
+	return true
+end
+
+-- A fixed route from a string (the Daily date key, Weekly key or Seed code), so every player of the same
+-- board walks the same road. Uses its own tiny hash, never the run's rng, so deck and shop draws are
+-- unchanged. Returns an array of NIGHTS stop ids.
+function WorldMap.routeFromSeed(label)
+	-- Plain arithmetic only (no bit operators, which differ between Lua 5.3 and Luau); every product stays
+	-- below 2^53 so doubles are exact.
+	local text = tostring(label)
+	local h = 5381
+	for i = 1, #text do
+		h = (h * 33 + text:byte(i)) % 4294967296
+	end
+	local route = { WorldMap.Start }
+	while #route < WorldMap.NIGHTS do
+		local choices = WorldMap.choicesAfter(route[#route])
+		if #choices == 0 then break end
+		h = (h * 69069 + 1) % 4294967296
+		route[#route + 1] = choices[(math.floor(h / 65536) % #choices) + 1]
+	end
+	return route
+end
+
 -- ===== Validation =====
 
 -- Checks a graph (default: the real one). Returns ok, errors (array of strings).

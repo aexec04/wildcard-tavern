@@ -59,6 +59,7 @@ local Achievements = require(script.Parent.Achievements) -- ACHIEVEMENTS + TITLE
 local CosmeticSets = require(script.Parent.CosmeticSets)
 local CardBacks = require(script.Parent.CardBacks)
 local JourneyMap = require(script.Parent.JourneyMap)
+local WorldMap = require(script.Parent.WorldMap)
 
 local PlayerProfile = {}
 
@@ -162,6 +163,12 @@ function PlayerProfile.new()
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
 		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
 		clearedNightIds = {}, -- [night number] = true, first clears of Nights 1-8 and Endless milestone Nights (JourneyMap)
+		-- WORLD MAP (Engine/WorldMap.lua): the road of the current/last run, every stop ever seen (map memory
+		-- and fog), how many Night stops of each region were cleared, and the biome rewards already granted.
+		worldRoute = {}, -- array of WorldMap stop ids
+		worldSeenStopIds = {}, -- [stop id] = true
+		worldBiomeClears = {}, -- [region id] = count
+		worldRewardIds = {}, -- [reward row id] = true (granted once, step 4)
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -214,6 +221,35 @@ function PlayerProfile.migrate(raw)
 			end
 		end
 	end
+	-- WORLD MAP: only ids that exist in the current graph survive a load (content can be renamed freely).
+	if type(raw.worldRoute) == "table" then
+		local route = {}
+		for i, id in ipairs(raw.worldRoute) do
+			if type(id) ~= "string" or not WorldMap.Stops[id] then
+				route = {}
+				break
+			end
+			route[i] = id
+		end
+		if WorldMap.isValidRoute(route) then
+			profile.worldRoute = route
+		end
+	end
+	if type(raw.worldSeenStopIds) == "table" then
+		for id, flag in pairs(raw.worldSeenStopIds) do
+			if type(id) == "string" and flag == true and WorldMap.Stops[id] then
+				profile.worldSeenStopIds[id] = true
+			end
+		end
+	end
+	if type(raw.worldBiomeClears) == "table" then
+		for region, count in pairs(raw.worldBiomeClears) do
+			if type(region) == "string" and WorldMap.Regions[region] and type(count) == "number" and count > 0 then
+				profile.worldBiomeClears[region] = math.min(9999, math.floor(count))
+			end
+		end
+	end
+	copyIdSet(raw.worldRewardIds, profile.worldRewardIds)
 	if type(raw.equippedSetId) == "string" and CosmeticSets.getById(raw.equippedSetId) then
 		profile.equippedSetId = raw.equippedSetId
 	end
@@ -371,6 +407,47 @@ function PlayerProfile.recordNightReached(profile, night)
 		return true
 	end
 	return false
+end
+
+-- WORLD MAP: mirrors the run's road into the profile and counts cleared Night stops per region.
+-- `cleared` is how many Nights of the route are cleared so far; `counted` is how many of those were already
+-- added to worldBiomeClears for this run (the caller keeps it, so repeated pushes never double count).
+-- Returns changed, newCounted. Every stop on the route is marked seen.
+function PlayerProfile.recordWorldProgress(profile, route, cleared, counted)
+	counted = counted or 0
+	if not WorldMap.isValidRoute(route) then
+		return false, counted
+	end
+	local changed = false
+	local same = #profile.worldRoute == #route
+	if same then
+		for i, id in ipairs(route) do
+			if profile.worldRoute[i] ~= id then
+				same = false
+				break
+			end
+		end
+	end
+	if not same then
+		profile.worldRoute = { table.unpack(route) }
+		changed = true
+	end
+	for _, id in ipairs(route) do
+		if not profile.worldSeenStopIds[id] then
+			profile.worldSeenStopIds[id] = true
+			changed = true
+		end
+	end
+	local upTo = math.min(math.floor(cleared or 0), #route)
+	for i = counted + 1, upTo do
+		local region = WorldMap.regionOf(route[i])
+		if region then
+			profile.worldBiomeClears[region] = (profile.worldBiomeClears[region] or 0) + 1
+			changed = true
+		end
+		counted = i
+	end
+	return changed, counted
 end
 
 -- Call exactly once, the moment a run's wonRun flag flips from false to
