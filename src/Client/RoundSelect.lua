@@ -613,12 +613,18 @@ return function(deps)
 		root = roundSelectFrame, polishPanel = polishPanel, roundCorner = roundCorner, playClickSfx = playClickSfx,
 	})
 
+	-- WORLD MAP side stops (shop, shrine, rest), chips at the top left of this screen.
+	local sideStops = require(script.Parent.SideStopPanel)({
+		root = roundSelectFrame, roundCorner = roundCorner, playClickSfx = playClickSfx,
+	})
+
 	local function rebuildRoundSelect(state, previousPhase)
 		-- See actionPending's BUGFIX comment above: any fresh state push
 		-- means whatever click caused it has definitely been resolved
 		-- (accepted or rejected) by now, so clicking is safe again.
 		actionPending = false
 		pcall(roadChoice.update, state)
+		pcall(sideStops.update, state)
 
 		-- BUGFIX (Ahmed: "when you complete a night, it should tell you
 		-- that you're at Night 2 or Night 3 etc"): this screen is the one

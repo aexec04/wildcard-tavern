@@ -380,6 +380,10 @@ function RunState.startRound(state)
 	-- applies even on a Boss Round that overrides handsPerRound, same as
 	-- everything else here layering on top of the boss's base number.
 	handsPerRound = handsPerRound + (state.housePasses.double_shift and 1 or 0)
+	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
+	if state.bonusHandsNight and state.bonusHandsNight == state.night then
+		handsPerRound = handsPerRound + 1
+	end
 	handsPerRound = math.max(1, handsPerRound)
 
 	state.hand = Deck.draw(state.deck, handSize)
@@ -1443,6 +1447,19 @@ function RunState.advanceToNextRound(state)
 		state.round = 1
 		state.night = state.night + 1
 		WorldMap.extendRoute(state) -- plain roads and fixed plans fill in; a fork waits for ChooseRoad
+		-- Shrine on the world map: a free House Pass for exactly one Night (see Engine/SideStops.lua).
+		local temp = state.tempPass
+		if temp then
+			if state.night == temp.night and not state.housePasses[temp.id] then
+				state.housePasses[temp.id] = true
+				temp.active = true
+			elseif state.night > temp.night then
+				if temp.active then
+					state.housePasses[temp.id] = nil
+				end
+				state.tempPass = nil
+			end
+		end
 	end
 	RunState.startRound(state)
 end
@@ -1461,7 +1478,7 @@ end
 function RunState.canContinue(state)
 	return state.runOver == true
 		and not state.wonRun
-		and not state.revived
+		and (not state.revived or (state.extraContinues or 0) > 0) -- a Rest stop can bank a second continue
 		and state.roundStartSnapshot ~= nil
 end
 
@@ -1469,6 +1486,8 @@ function RunState.useContinue(state)
 	assert(RunState.canContinue(state), "Can't continue this run")
 	local snapshot = state.roundStartSnapshot
 	local restored = copyForSnapshot(snapshot)
+	-- A banked second continue is used up now; the run stays "revived" for the boards either way.
+	local extraLeft = state.revived and math.max(0, (state.extraContinues or 0) - 1) or (state.extraContinues or 0)
 	for key in pairs(state) do
 		if key ~= "rng" and key ~= "roundStartSnapshot" then
 			state[key] = nil
@@ -1478,6 +1497,7 @@ function RunState.useContinue(state)
 		state[key] = value
 	end
 	state.roundStartSnapshot = snapshot
+	state.extraContinues = extraLeft
 	state.revived = true
 	state.runOver = false
 	state.roundOver = false

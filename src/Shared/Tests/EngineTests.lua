@@ -5487,6 +5487,181 @@ table.insert(tests, { name = "BiomeRewards: every one of the 18 routes ends in a
 	end
 end })
 
+-- A run standing at the start of `night` on the default road, with its fork (if any) already picked.
+local function runAtStop(night, tips)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = RunState.new(nil, function(_n) return 1 end)
+	while state.night < night do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		WorldMap.fillDefault(state) -- never choosing takes the default road at every fork
+	end
+	state.tips = tips or 20
+	return state
+end
+
+table.insert(tests, { name = "SideStops: data is valid, at most 2 per region, and found by parent", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local ok, errors = WorldMap.validate()
+	expectTrue(ok, table.concat(errors, "; "))
+	local perRegion = {}
+	for id, stop in pairs(WorldMap.Stops) do
+		if stop.kind == "side" then
+			expectTrue(WorldMap.Stops[stop.parent].kind == "night", id .. " hangs off a Night stop")
+			local r = WorldMap.regionOf(id)
+			perRegion[r] = (perRegion[r] or 0) + 1
+		end
+	end
+	for r, n in pairs(perRegion) do
+		expectTrue(n <= 2, r .. " has " .. n .. " side stops")
+	end
+	expectEqual(WorldMap.sideStopsAt("wildflower_meadow")[1], "picnic_stall")
+	expectEqual(#WorldMap.sideStopsAt("dusty_road"), 0)
+	-- three side stops in one region is rejected
+	local night = function(region, nxt) return { kind = "night", region = region, art = "a", name = "n", x = 0.5, y = 0.5, next = nxt } end
+	local g = { s = night("road", { "m" }), m = night("meadow", { "f" }), f = night("tavern", {}) }
+	for i = 1, 3 do
+		g["x" .. i] = { kind = "side", parent = "m", side = "shop" }
+	end
+	expectFalse(WorldMap.validate(g, "s", "f", 3))
+	g.x3 = nil
+	expectTrue(WorldMap.validate(g, "s", "f", 3))
+	g.x2.side = "bogus"
+	expectFalse(WorldMap.validate(g, "s", "f", 3))
+end })
+
+table.insert(tests, { name = "SideStops: only open at the parent stop, in roundSelect, on the first round", fn = function()
+	local SideStops = require(script.Parent.Parent.Engine.SideStops)
+	local state = runAtStop(2) -- Night 2 at the meadow: the picnic stall hangs here
+	expectEqual(SideStops.blockedReason(state, "picnic_stall", "roundSelect"), nil)
+	expectEqual(SideStops.available(state, "roundSelect")[1], "picnic_stall")
+	expectEqual(SideStops.blockedReason(state, "picnic_stall", "playing"), "wrong_phase")
+	expectEqual(SideStops.blockedReason(state, "picnic_stall", "shop"), "wrong_phase")
+	expectEqual(#SideStops.available(state, "playing"), 0)
+	expectEqual(SideStops.blockedReason(state, "oasis_stall", "roundSelect"), "not_here", "a stop from another place")
+	expectEqual(SideStops.blockedReason(state, "nope", "roundSelect"), "unknown")
+	expectEqual(SideStops.blockedReason(state, 7, "roundSelect"), "unknown")
+	expectEqual(SideStops.blockedReason(state, "wildflower_meadow", "roundSelect"), "unknown", "a Night stop is not a side stop")
+	state.round = 2
+	expectEqual(SideStops.blockedReason(state, "picnic_stall", "roundSelect"), "not_started")
+	-- a pending fork means the road is not picked yet
+	local fork = runAtNight(3)
+	expectEqual(SideStops.blockedReason(fork, "garden_shrine", "roundSelect"), "not_here")
+end })
+
+table.insert(tests, { name = "SideStops: shop buys only offered patrons, charges Tips, once per run", fn = function()
+	local SideStops = require(script.Parent.Parent.Engine.SideStops)
+	local state = runAtStop(2, 30)
+	local offers = SideStops.rollShop(state)
+	expectTrue(#offers >= 1 and #offers <= 2)
+	local first = offers[1]
+	local ok, why = SideStops.buy(state, "picnic_stall", "playing", offers, first.id)
+	expectFalse(ok); expectEqual(why, "wrong_phase")
+	ok, why = SideStops.buy(state, "picnic_stall", "roundSelect", offers, "not_a_patron")
+	expectFalse(ok); expectEqual(why, "not_offered")
+	ok, why = SideStops.buy(state, "picnic_stall", "roundSelect", offers, 5)
+	expectFalse(ok); expectEqual(why, "bad_id")
+	ok, why = SideStops.buy(state, "garden_shrine", "roundSelect", offers, first.id)
+	expectFalse(ok)
+	local tipsBefore = state.tips
+	ok = SideStops.buy(state, "picnic_stall", "roundSelect", offers, first.id)
+	expectTrue(ok)
+	expectTrue(state.tips < tipsBefore)
+	expectEqual(#state.ownedPatrons, 1)
+	for _, p in ipairs(offers) do
+		expectTrue(p.id ~= first.id, "bought offer is gone")
+	end
+	-- too poor
+	local poor = runAtStop(2, 0)
+	local poorOffers = SideStops.rollShop(poor)
+	ok = SideStops.buy(poor, "picnic_stall", "roundSelect", poorOffers, poorOffers[1].id)
+	expectFalse(ok)
+	expectEqual(#poor.ownedPatrons, 0)
+	-- leaving marks it visited for good
+	expectTrue(SideStops.finish(state, "picnic_stall", "roundSelect"))
+	ok, why = SideStops.finish(state, "picnic_stall", "roundSelect")
+	expectFalse(ok); expectEqual(why, "visited")
+	ok, why = SideStops.buy(state, "picnic_stall", "roundSelect", offers, offers[1] and offers[1].id or "x")
+	expectFalse(ok); expectEqual(why, "visited")
+end })
+
+table.insert(tests, { name = "SideStops: the shrine gives a free House Pass for the next Night only", fn = function()
+	local SideStops = require(script.Parent.Parent.Engine.SideStops)
+	local state = runAtStop(3, 10) -- garden_terrace (default road) has the garden shrine
+	local ok, why = SideStops.shrine(state, "garden_shrine", "playing")
+	expectFalse(ok); expectEqual(why, "wrong_phase")
+	ok, why = SideStops.shrine(state, "picnic_stall", "roundSelect")
+	expectFalse(ok)
+	local poor = runAtStop(3, 2)
+	ok, why = SideStops.shrine(poor, "garden_shrine", "roundSelect")
+	expectFalse(ok); expectEqual(why, "not_enough_tips")
+	expectEqual(poor.tips, 2)
+	ok = SideStops.shrine(state, "garden_shrine", "roundSelect")
+	expectTrue(ok)
+	expectEqual(state.tips, 10 - SideStops.SHRINE_COST)
+	local id = state.tempPass.id
+	expectEqual(state.tempPass.night, 4)
+	expectEqual(state.housePasses[id], nil, "not active yet this Night")
+	ok, why = SideStops.shrine(state, "garden_shrine", "roundSelect")
+	expectFalse(ok); expectEqual(why, "visited")
+	-- Night 4 turns on, Night 5 turns it off again
+	while state.night < 4 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	expectTrue(state.housePasses[id], "active during Night 4")
+	while state.night < 5 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	expectEqual(state.housePasses[id], nil, "gone on Night 5")
+	expectEqual(state.tempPass, nil)
+end })
+
+table.insert(tests, { name = "SideStops: rest gives +1 Hand next Night or banks a second One More Round", fn = function()
+	local SideStops = require(script.Parent.Parent.Engine.SideStops)
+	local state = runAtStop(4) -- willow_bridge: the bridge rest
+	local ok, why = SideStops.rest(state, "bridge_rest", "roundSelect", "nope")
+	expectFalse(ok); expectEqual(why, "bad_choice")
+	ok = SideStops.rest(state, "bridge_rest", "playing", "hand")
+	expectFalse(ok)
+	ok = SideStops.rest(state, "bridge_rest", "roundSelect", "hand")
+	expectTrue(ok)
+	expectEqual(state.bonusHandsNight, 5)
+	local before = state.config.handsPerRound
+	while state.night < 5 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	expectEqual(state.handsRemaining, before + 1, "+1 Hand on the next Night")
+	while state.night < 6 do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+	end
+	expectEqual(state.handsRemaining, before, "only that Night")
+	-- the second continue
+	local rest2 = runAtStop(4)
+	expectTrue(SideStops.rest(rest2, "bridge_rest", "roundSelect", "continue"))
+	expectEqual(rest2.extraContinues, 1)
+	rest2.runOver = true
+	expectTrue(RunState.canContinue(rest2))
+	RunState.useContinue(rest2)
+	expectTrue(rest2.revived)
+	expectEqual(rest2.extraContinues, 1, "the banked one is still there after the first continue")
+	rest2.runOver = true
+	expectTrue(RunState.canContinue(rest2), "second continue allowed")
+	RunState.useContinue(rest2)
+	expectEqual(rest2.extraContinues, 0)
+	rest2.runOver = true
+	expectFalse(RunState.canContinue(rest2), "no third")
+	-- banking twice is refused
+	local rest3 = runAtStop(4)
+	expectTrue(SideStops.rest(rest3, "bridge_rest", "roundSelect", "continue"))
+	rest3.sideVisited = {}
+	local ok3, why3 = SideStops.rest(rest3, "bridge_rest", "roundSelect", "continue")
+	expectFalse(ok3); expectEqual(why3, "already_banked")
+end })
+
 table.insert(tests, { name = "Compass: charges are capped, spent once per fork, and gated by phase", fn = function()
 	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
 	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)

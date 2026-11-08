@@ -89,6 +89,40 @@ WorldMap.Stops = {
 		next = {}, x = 0.9, y = 0.5 },
 }
 
+-- Side stops: optional spurs off a Night stop (never a Night themselves). `side` is "shop", "shrine", "rest"
+-- (step 6) or "minigame" with a `game` (steps 7a/7b). At most MAX_SIDE_PER_REGION per biome (validate checks it).
+-- x/y are offsets from the parent's position for the dotted detour.
+WorldMap.MAX_SIDE_PER_REGION = 2
+WorldMap.SideKinds = { shop = true, shrine = true, rest = true, minigame = true }
+local function side(id, parent, kind, name, icon, dx, dy)
+	WorldMap.Stops[id] = { kind = "side", parent = parent, side = kind, name = name, icon = icon,
+		dx = dx or 0.02, dy = dy or 0.14 }
+end
+side("picnic_stall", "wildflower_meadow", "shop", "The Picnic Stall", "🧺")
+side("garden_shrine", "garden_terrace", "shrine", "The Garden Shrine", "⛩", 0.0, -0.14)
+side("bridge_rest", "willow_bridge", "rest", "The Bridge Rest", "🛖")
+side("summit_shrine", "mountain_pass", "shrine", "The Summit Shrine", "⛩")
+side("oasis_stall", "oasis_camp", "shop", "The Oasis Stall", "🛍")
+side("dune_rest", "desert_dunes", "rest", "The Dune Tent", "⛺", 0.0, -0.14)
+side("lantern_hut", "swamp_boardwalk", "rest", "The Lantern Hut", "🛖")
+side("mushroom_stall", "lilypad_pond", "shop", "The Mushroom Stall", "🍄")
+side("cabin_rest", "frosty_trail", "rest", "The Snow Cabin", "🏠", 0.0, -0.14)
+side("harbor_stall", "lighthouse_cove", "shop", "The Harbor Stall", "⚓")
+side("gate_shrine", "tavern_gate", "shrine", "The Gate Shrine", "⛩", 0.0, 0.14)
+
+-- The side stops hanging off a Night stop, in a stable order.
+function WorldMap.sideStopsAt(stopId, stops)
+	stops = stops or WorldMap.Stops
+	local out = {}
+	for id, stop in pairs(stops) do
+		if stop.kind == "side" and stop.parent == stopId then
+			out[#out + 1] = id
+		end
+	end
+	table.sort(out)
+	return out
+end
+
 -- ===== Lookups =====
 
 function WorldMap.get(stopId)
@@ -376,6 +410,19 @@ function WorldMap.validate(stops, start, finish, nights, regions)
 			local parent = stops[stop.parent]
 			if not parent or parent.kind ~= "night" then
 				err("side stop %s has no Night-stop parent", id)
+			elseif not WorldMap.SideKinds[stop.side] then
+				err("side stop %s has unknown side kind %s", id, tostring(stop.side))
+			end
+		end
+	end
+	-- At most MAX_SIDE_PER_REGION side stops per biome.
+	local perRegion = {}
+	for id, stop in pairs(stops) do
+		if stop.kind == "side" and stops[stop.parent] then
+			local region = stops[stop.parent].region
+			perRegion[region] = (perRegion[region] or 0) + 1
+			if perRegion[region] == WorldMap.MAX_SIDE_PER_REGION + 1 then
+				err("region %s has more than %d side stops", tostring(region), WorldMap.MAX_SIDE_PER_REGION)
 			end
 		end
 	end

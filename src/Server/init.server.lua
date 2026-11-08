@@ -28,6 +28,7 @@ local RunState = require(Engine.RunState)
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
+local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
 local CardBacks = require(Engine.CardBacks)
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
@@ -82,6 +83,7 @@ local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
+local SideStopRemote = newRemote("SideStop") -- WORLD MAP: (player, stopId, action, arg) shop/shrine/rest side stops
 local UseCompassRemote = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
@@ -671,6 +673,29 @@ local function serializeState(session, player)
 		worldRoute = state.worldRoute,
 		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
 		worldFixed = state.worldPlan ~= nil,
+		-- Side stops open at this Night's stop (Round Select only): id, kind, name, icon and, for a shop, its offers.
+		sideStops = (function()
+			local list = {}
+			for _, id in ipairs(SideStops.available(state, session.phase)) do
+				local stop = WorldMap.Stops[id]
+				local entry = { id = id, side = stop.side, name = stop.name, icon = stop.icon }
+				local offers = session.sideShops and session.sideShops[id]
+				if offers then
+					entry.offers = {}
+					for _, p in ipairs(offers) do
+						table.insert(entry.offers, { id = p.id, name = p.name, icon = p.icon, description = p.description,
+							price = RunState.patronPrice(state, p) })
+					end
+				end
+				if stop.side == "shrine" then
+					entry.cost = SideStops.SHRINE_COST
+				end
+				table.insert(list, entry)
+			end
+			return list
+		end)(),
+		sideBonus = { tempPass = state.tempPass and state.tempPass.id or nil, bonusHandsNight = state.bonusHandsNight,
+			extraContinues = state.extraContinues or 0 },
 		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
 		compassReveal = session.phase == "roundSelect" and BiomeRewards.revealedChoices(state) or nil,
 		profileStats = (function()
@@ -1646,6 +1671,35 @@ ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 	if ok then
 		pushState(player)
 	end
+end)
+
+-- WORLD MAP side stops (shop, shrine, rest): (player, stopId, action, arg). Round Select, first round of a
+-- Night, standing at the stop's parent, once per run per stop. The rules and every rejection live in
+-- Engine/SideStops.lua; this only routes the action.
+SideStopRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
+	local session = sessions[player]
+	if not session or type(stopId) ~= "string" or type(action) ~= "string" then
+		return
+	end
+	local state, phase = session.state, session.phase
+	session.sideShops = session.sideShops or {}
+	if action == "open" then
+		if SideStops.blockedReason(state, stopId, phase) == nil and WorldMap.Stops[stopId].side == "shop"
+			and not session.sideShops[stopId] then
+			session.sideShops[stopId] = SideStops.rollShop(state)
+		end
+	elseif action == "buy" then
+		SideStops.buy(state, stopId, phase, session.sideShops[stopId], arg)
+	elseif action == "leave" then
+		if SideStops.finish(state, stopId, phase) then
+			session.sideShops[stopId] = nil
+		end
+	elseif action == "shrine" then
+		SideStops.shrine(state, stopId, phase)
+	elseif action == "rest" then
+		SideStops.rest(state, stopId, phase, arg)
+	end
+	pushState(player)
 end)
 
 -- WORLD MAP: spend a compass charge at a fork to reveal the reward at the end of each road.
