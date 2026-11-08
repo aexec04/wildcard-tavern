@@ -4913,6 +4913,24 @@ table.insert(tests, { name = "RunState: shop actions (buy, reroll, packs) only i
 	expectEqual(RunState.phaseAllowsCardActions("playing"), true)
 end })
 
+table.insert(tests, { name = "ScoreJuice: new best, target clear, shake and burst scaling", fn = function()
+	local SJ = require(script.Parent.Parent.Engine.ScoreJuice)
+	expectEqual(SJ.isNewBest(100, 0), false) -- first hand is not a record
+	expectEqual(SJ.isNewBest(100, 100), false)
+	expectEqual(SJ.isNewBest(101, 100), true)
+	expectEqual(SJ.clearsTarget(0, 300, 300), true)
+	expectEqual(SJ.clearsTarget(100, 150, 300), false)
+	expectEqual(SJ.clearsTarget(300, 50, 300), false) -- already cleared before this hand
+	expectEqual(SJ.clearsTarget(0, 50, nil), false)
+	expectEqual(SJ.shakeFor(0, 300), 3)
+	expectEqual(SJ.shakeFor(150, 300) > SJ.shakeFor(30, 300), true)
+	expectEqual(SJ.shakeFor(9999, 300), 10)
+	expectEqual(SJ.burstFor(1, 300), 8)
+	expectEqual(SJ.burstFor(9999, 300), 30)
+	expectEqual(SJ.slowMoFor(false, false), 0)
+	expectEqual(SJ.slowMoFor(true, true) > SJ.slowMoFor(true, false), true)
+end })
+
 table.insert(tests, { name = "SceneKeys: floor fraction defaults and clamps", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	expectEqual(SceneKeys.floorFraction("front_porch_a"), SceneKeys.FloorFractions.default)

@@ -2648,6 +2648,10 @@ playButton.MouseButton1Click:Connect(function()
 		-- retriggering before the last one finished. Raised meaningfully
 		-- so this is a genuinely rare, special moment again, not a
 		-- once-or-twice-a-round occurrence.
+		-- Score juice inputs (ScorePopup finale: NEW BEST, target-clear pulse).
+		preview.targetScore = latestState.targetScore
+		preview.roundScoreBefore = latestState.roundScore or 0
+		preview.isRunStart = latestState.night == 1 and latestState.round == 1 and (latestState.roundScore or 0) == 0
 		preview.isLegendary = false
 		if latestState.targetScore and latestState.targetScore > 0 and preview.score >= latestState.targetScore * 2.2 then
 			preview.isLegendary = true

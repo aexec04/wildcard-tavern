@@ -381,6 +381,27 @@ return function(deps)
 	legendaryBannerScale.Scale = 1
 	legendaryBannerScale.Parent = legendaryBanner
 
+	-- POLISH 1: "NEW BEST!" / "TARGET CLEARED!" banner (hidden until the finale).
+	local ScoreJuice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScoreJuice"))
+	local juiceBest = 0
+	local juiceBanner = Instance.new("TextLabel")
+	juiceBanner.Name = "ScoreJuiceBanner"
+	juiceBanner.AnchorPoint = Vector2.new(0.5, 0.5)
+	juiceBanner.Position = UDim2.fromScale(0.5, 0.4)
+	juiceBanner.Size = UDim2.new(0, 520, 0, 56)
+	juiceBanner.BackgroundTransparency = 1
+	juiceBanner.Font = Enum.Font.GothamBlack
+	juiceBanner.TextSize = 34
+	juiceBanner.TextColor3 = Color3.fromRGB(255, 214, 90)
+	juiceBanner.TextStrokeColor3 = Color3.fromRGB(70, 40, 15)
+	juiceBanner.TextTransparency = 1
+	juiceBanner.TextStrokeTransparency = 1
+	juiceBanner.Text = ""
+	juiceBanner.ZIndex = 34
+	juiceBanner.Parent = root
+	local juiceScale = Instance.new("UIScale")
+	juiceScale.Parent = juiceBanner
+
 	-- PHASE C ("mind-blowing plan" Signature Mechanic): the True
 	-- Wildcard's own flash/banner, same construction as the Legendary
 	-- Hand pair above, its own instances so the two can never fight over
@@ -1210,6 +1231,52 @@ return function(deps)
 			local finalMagnitude = math.min(10, preview.score / 40)
 			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
 			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
+
+			-- POLISH 1: record hand flourish + target-cleared pulse (rules in
+			-- Engine/ScoreJuice). Slow-motion beat is a short hold with the
+			-- popup scaled up; skipped on Fast pace (currentPaceDivisor > 1).
+			do
+				if preview.isRunStart then
+					juiceBest = 0
+				end
+				local newBest = ScoreJuice.isNewBest(preview.score, juiceBest)
+				local clears = ScoreJuice.clearsTarget(preview.roundScoreBefore, preview.score, preview.targetScore)
+				juiceBest = math.max(juiceBest, preview.score)
+				if newBest or clears then
+					local color = newBest and Color3.fromRGB(255, 214, 90) or Color3.fromRGB(150, 235, 150)
+					juiceBanner.Text = newBest and "NEW BEST!" or "TARGET CLEARED!"
+					juiceBanner.TextColor3 = color
+					juiceBanner.TextTransparency = 0
+					juiceBanner.TextStrokeTransparency = 0.2
+					juiceScale.Scale = 0.5
+					tweenTo(juiceScale, { Scale = 1.1 }, pace(0.25), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					playPitched(payoutThudSound, 1.25, 0.5)
+					screenShake(root, ScoreJuice.shakeFor(preview.score, preview.targetScore), pace(0.3))
+					particleBurst(centerOf(scorePopup), color, ScoreJuice.burstFor(preview.score, preview.targetScore), { spread = 140, duration = 0.7 })
+					if clears then
+						tweenTo(scorePopupScale, { Scale = 1.25 }, pace(0.15))
+						task.delay(pace(0.15), function()
+							if scorePopupToken == myToken then
+								tweenTo(scorePopupScale, { Scale = 1 }, pace(0.3), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+							end
+						end)
+					end
+					if currentPaceDivisor == 1 then
+						task.wait(ScoreJuice.slowMoFor(newBest, clears))
+					end
+					task.delay(pace(1.4), function()
+						tweenTo(juiceBanner, { TextTransparency = 1, TextStrokeTransparency = 1 }, pace(0.4))
+					end)
+					-- Hard safety net like the other banners.
+					task.delay(2.5, function()
+						juiceBanner.TextTransparency = 1
+						juiceBanner.TextStrokeTransparency = 1
+					end)
+					if scorePopupToken ~= myToken then
+						return
+					end
+				end
+			end
 
 			-- "Played cards drop off the bottom of the screen into the
 			-- discard pile" -- used to fire alongside the finale burst/thud
