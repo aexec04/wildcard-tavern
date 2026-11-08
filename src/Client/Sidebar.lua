@@ -103,7 +103,14 @@ return function(deps)
 	board.ZIndex = 1
 	board.Parent = root
 	polishPanel(board, 8)
-	PanelArt.add(board, { category = "hud", key = "sidebar_board", zIndex = 1 })
+	-- The board art has a dark half-arch across its top. Push the art up and
+	-- clip it so the arch is cropped away instead of showing as a stray shape.
+	board.ClipsDescendants = true
+	local boardArt = PanelArt.add(board, { category = "hud", key = "sidebar_board", zIndex = 1 })
+	if boardArt then
+		boardArt.Position = UDim2.new(0, 0, -0.14, 0)
+		boardArt.Size = UDim2.new(1, 0, 1.14, 0)
+	end
 
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
@@ -266,14 +273,18 @@ return function(deps)
 	nightRoundBox.Name = "HeaderRibbon"
 	nightRoundBox.Size = UDim2.new(1, 0, 0, 44)
 	nightRoundBox.LayoutOrder = 1
-	nightRoundBox.BackgroundColor3 = TAG_PARCHMENT
+	nightRoundBox.BackgroundColor3 = Color3.fromRGB(104, 66, 36) -- painted wood plaque
 	nightRoundBox.BorderSizePixel = 0
 	nightRoundBox.ZIndex = Z + 1
 	nightRoundBox.Parent = sidebar
 	roundCorner(nightRoundBox, 5)
 	do
+		local grain = Instance.new("UIGradient") -- Color stops only (never Transparency)
+		grain.Color = ColorSequence.new(Color3.fromRGB(128, 84, 46), Color3.fromRGB(86, 54, 28))
+		grain.Rotation = 90
+		grain.Parent = nightRoundBox
 		local st = Instance.new("UIStroke")
-		st.Color = Color3.fromRGB(110, 80, 45)
+		st.Color = GOLD
 		st.Thickness = 2
 		st.Parent = nightRoundBox
 		for side = 1, 2 do -- ribbon tails
@@ -287,7 +298,10 @@ return function(deps)
 			tail.Parent = nightRoundBox
 		end
 	end
-	local nightRoundLabel = makeLabel(nightRoundBox, 19, { ZIndex = Z + 2, Size = UDim2.new(1, -14, 1, 0), Position = UDim2.fromOffset(7, 0) })
+	local nightRoundLabel = makeLabel(nightRoundBox, 19, {
+		ZIndex = Z + 2, Size = UDim2.new(1, -14, 1, 0), Position = UDim2.fromOffset(7, 0),
+		TextColor3 = Color3.fromRGB(255, 240, 200), TextStrokeColor3 = Color3.fromRGB(40, 24, 12), TextStrokeTransparency = 0.3,
+	})
 
 	-- Spacer so the sections start on the parchment, below the board's arched top beam.
 	local spacer = Instance.new("Frame")
@@ -308,7 +322,7 @@ return function(deps)
 	local contentLayout = Instance.new("UIListLayout")
 	contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	contentLayout.Padding = UDim.new(0, 6)
+	contentLayout.Padding = UDim.new(0, 10)
 	contentLayout.Parent = content
 
 	local dividers = {}
@@ -350,8 +364,8 @@ return function(deps)
 	end
 
 	-- ===== Round type + rule text (blindInfoLabel keeps RichText from render()) =====
-	local blindInfoBox = makeSection(content, 66, 1)
-	local blindInfoLabel = makeLabel(blindInfoBox, 17, { RichText = true, TextYAlignment = Enum.TextYAlignment.Center })
+	local blindInfoBox = makeSection(content, 76, 1)
+	local blindInfoLabel = makeLabel(blindInfoBox, 17, { RichText = true, TextYAlignment = Enum.TextYAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd })
 	-- render() writes cream rule text; show it in ink instead (cream on parchment is unreadable).
 	do
 		local busy = false
@@ -359,7 +373,7 @@ return function(deps)
 			if busy then
 				return
 			end
-			local fixed = blindInfoLabel.Text:gsub("#E6D2AA", "#4A3320"):gsub('size="13"', 'size="15"')
+			local fixed = blindInfoLabel.Text:gsub("#E6D2AA", "#3C2816"):gsub('size="13"', 'size="15"')
 			if fixed ~= blindInfoLabel.Text then
 				busy = true
 				blindInfoLabel.Text = fixed
@@ -502,23 +516,23 @@ return function(deps)
 
 		local slot = Instance.new("Frame")
 		slot.Size = UDim2.fromOffset(SLOT, SLOT)
-		slot.BackgroundColor3 = Color3.fromRGB(45, 40, 38)
+		slot.BackgroundColor3 = Color3.fromRGB(196, 168, 118) -- parchment medallion (render() recolors)
 		slot.LayoutOrder = i
 		slot.ZIndex = Z + 1
 		slot.Parent = patronsSlotRow
 		roundCorner(slot, SLOT / 2)
 		local seatRing = Instance.new("UIStroke")
-		seatRing.Color = GOLD
+		seatRing.Color = Color3.fromRGB(96, 64, 36) -- ink-brown outline
 		seatRing.Thickness = 2
-		seatRing.Transparency = 0.15
+		seatRing.Transparency = 0
 		seatRing.Parent = slot
 
 		local slotLabel = Instance.new("TextLabel")
 		slotLabel.Size = UDim2.fromScale(1, 1)
 		slotLabel.BackgroundTransparency = 1
 		slotLabel.Font = Enum.Font.GothamBold
-		slotLabel.TextSize = 17
-		slotLabel.TextColor3 = Color3.fromRGB(140, 135, 130)
+		slotLabel.TextSize = 18
+		slotLabel.TextColor3 = Color3.fromRGB(120, 88, 54)
 		slotLabel.Text = "?"
 		slotLabel.ZIndex = Z + 1
 		slotLabel.Parent = slot
@@ -535,17 +549,18 @@ return function(deps)
 
 	-- ===== Status line / live hand preview ("Select cards...") =====
 	local scorePreviewBox = makeSection(content, 56, 10, true)
-	local scorePreviewLabel = makeLabel(scorePreviewBox, 17, { Size = UDim2.new(1, -12, 1, -4), Position = UDim2.fromOffset(6, 2) })
+	local scorePreviewLabel = makeLabel(scorePreviewBox, 16, {
+		TextColor3 = INK, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0.7, Size = UDim2.new(1, -12, 1, -4), Position = UDim2.fromOffset(6, 2) })
 
 	-- Dividers hide on short screens; the arch spacer keeps sections on the parchment.
-	local SECTIONS_H, DIVIDER_H, GAP = 66 + 96 + 44 + 66 + 88 + 56, 26, 6
+	local SECTIONS_H, DIVIDER_H, GAP = 76 + 96 + 44 + 66 + 88 + 56, 26, 10
 	local function relayout()
 		local h = sidebar.AbsoluteSize.Y
 		if h < 50 then
 			return
 		end
-		spacer.Size = UDim2.new(1, 0, 0, math.max(4, math.floor(h * 0.19) - 76 - 44 - 2 * 6))
-		local avail = h * 0.86 - h * 0.19
+		spacer.Size = UDim2.new(1, 0, 0, math.max(4, math.floor(h * 0.12) - 76 - 44 - 2 * 6))
+		local avail = h * 0.9 - h * 0.12
 		local withDividers = SECTIONS_H + 4 * DIVIDER_H + 9 * GAP
 		local show = avail >= withDividers
 		for _, d in ipairs(dividers) do
@@ -559,7 +574,7 @@ return function(deps)
 	local function placeRewardIcon() end
 	local function setIconText(key, plainText, emojiText)
 		if key == "boss" then
-			blindInfoLabel.Text = emojiText -- crown emoji (no HUD crown art)
+			blindInfoLabel.Text = plainText -- no crown: plain name line plus rule text
 		elseif key == "tips" then
 			tipsLabel.Text = plainText
 		elseif key == "hands" then

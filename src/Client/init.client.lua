@@ -2347,8 +2347,8 @@ local function render(state)
 						end
 					else
 						PatronPlaqueModule.updateSlot(slot, nil)
-						slot.frame.BackgroundColor3 = Color3.fromRGB(22, 15, 9)
-						slot.label.TextColor3 = Color3.fromRGB(200, 168, 105)
+						slot.frame.BackgroundColor3 = Color3.fromRGB(196, 168, 118)
+						slot.label.TextColor3 = Color3.fromRGB(120, 88, 54)
 						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
 					end
 					lastPatronSlotOwned[i] = (owned ~= nil)
