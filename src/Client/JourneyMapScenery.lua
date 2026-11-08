@@ -48,7 +48,19 @@ return function(deps)
 	local OVERLAP = 48
 	local ART_ASPECT = 1.5 -- region art width / height
 	local SEAM_FOG = Color3.fromRGB(240, 228, 204)
-	local SEAM_STEPS = { 0.9, 0.78, 0.66, 0.78, 0.9 } -- stepped transparency, never a gradient
+	-- Feathered join: 24 thin strips whose transparency follows a smoothstep bell (opaque-ish in the middle,
+	-- clear at both ends), so the overlap reads as a soft mist instead of a straight cut. Never UIGradient
+	-- Transparency.
+	local SEAM_STEPS = {}
+	do
+		local n, peak = 24, 0.4 -- peak = lowest transparency, at the centre of the join
+		for i = 1, n do
+			local d = math.abs((i - 0.5) / n * 2 - 1) -- 1 at the ends, 0 in the middle
+			local k = 1 - d * d * (3 - 2 * d) -- smoothstep bell
+			SEAM_STEPS[i] = 1 - k * (1 - peak)
+		end
+	end
+	local PARCHMENT_BASE = Color3.fromRGB(228, 210, 170)
 
 	local layer = Instance.new("Frame")
 	layer.Name = "Scenery"
@@ -57,6 +69,14 @@ return function(deps)
 	layer.ZIndex = 21 -- under the road (22) and the trail dots (23)
 	layer.BorderSizePixel = 0
 	layer.Parent = canvas
+
+	-- One continuous parchment sheet under every region, so a tile join can never show the panel behind.
+	local base = Instance.new("Frame")
+	base.Name = "ParchmentBase"
+	base.BackgroundColor3 = PARCHMENT_BASE
+	base.BorderSizePixel = 0
+	base.ZIndex = 21
+	base.Parent = layer
 
 	local regionFrames = {}
 	local regionIds = {}
@@ -118,24 +138,43 @@ return function(deps)
 
 	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs)
 		local edges = regionEdges(canvasW, nodeXs)
+		base.Size = UDim2.fromOffset(math.floor(canvasW), canvasH)
 		for i, f in ipairs(regionFrames) do
 			local x0, x1 = edges[i] - (i > 1 and OVERLAP or 0), edges[i + 1] + (i < #REGIONS and OVERLAP or 0)
 			local w = x1 - x0
 			f.Position = UDim2.fromOffset(x0, 0)
 			f.Size = UDim2.fromOffset(w + 1, canvasH)
 			f:ClearAllChildren()
+			-- With art the flat tint steps aside and the continuous parchment base shows through.
+			f.BackgroundTransparency = regionIds[i] and 1 or 0
 			if regionIds[i] then
-				local tiles = REGIONS[i].single and 1 or math.max(1, math.floor(w / (canvasH * ART_ASPECT) + 0.5))
-				for t = 1, tiles do
+				if REGIONS[i].single then
+					-- The single tavern keeps its native aspect (never stretched), centred on its last
+					-- node (the Keeper's Table); the art fades to parchment at its edges.
+					local imgW = math.floor(canvasH * ART_ASPECT)
+					local cx = (nodeXs and nodeXs[REGIONS[i].lastNode]) or (x0 + w / 2)
 					local img = Instance.new("ImageLabel")
-					img.Name = "Tile" .. t
-					img.Position = UDim2.fromOffset(math.floor((t - 1) * w / tiles), 0)
-					img.Size = UDim2.fromOffset(math.ceil(w / tiles) + 1, canvasH)
+					img.Name = "Tile1"
+					img.Position = UDim2.fromOffset(math.floor(cx - x0 - imgW / 2), 0)
+					img.Size = UDim2.fromOffset(imgW, canvasH)
 					img.BackgroundTransparency = 1
 					img.Image = regionIds[i]
-					img.ScaleType = Enum.ScaleType.Crop
+					img.ScaleType = Enum.ScaleType.Fit
 					img.ZIndex = 22
 					img.Parent = f
+				else
+					local tiles = math.max(1, math.floor(w / (canvasH * ART_ASPECT) + 0.5))
+					for t = 1, tiles do
+						local img = Instance.new("ImageLabel")
+						img.Name = "Tile" .. t
+						img.Position = UDim2.fromOffset(math.floor((t - 1) * w / tiles), 0)
+						img.Size = UDim2.fromOffset(math.ceil(w / tiles) + 1, canvasH)
+						img.BackgroundTransparency = 1
+						img.Image = regionIds[i]
+						img.ScaleType = Enum.ScaleType.Crop
+						img.ZIndex = 22
+						img.Parent = f
+					end
 				end
 			end
 		end

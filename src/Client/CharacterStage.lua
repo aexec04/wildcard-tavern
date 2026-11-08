@@ -569,50 +569,81 @@ local function build(deps)
 		rig.model.Parent = viewport
 	end
 
+	-- Show the stage once any rig exists. Also called when a rig finishes building asynchronously, because a
+	-- resumed run may not push another state update after the first one.
+	local function refreshVisible()
+		if not ok or not viewport then return end
+		local want = mode ~= "none" and mode ~= "ending" and (playerRig ~= nil or bossRig ~= nil)
+		viewport.Visible = want or (mode == "ending" and viewport.Visible)
+		if viewport.Visible then
+			ensureLoop()
+		end
+	end
+
+	-- xpcall that prints the error text and a traceback to the Output, so a failing rig is never silent.
+	local function tracedCall(label, fn, ...)
+		local results = table.pack(xpcall(fn, function(err)
+			return tostring(err) .. "\n" .. debug.traceback()
+		end, ...))
+		if not results[1] then
+			warn("[CharacterStage] " .. label .. " failed: " .. tostring(results[2]))
+			return false, results[2]
+		end
+		return true, results[2]
+	end
+
+	local AVATAR_WAIT = 3 -- seconds before the blocky stand-in shows; the real avatar swaps in when ready
+
 	-- The player's own avatar, built once per session (cached); a blocky rig stands in until it is ready.
 	local function ensurePlayer()
 		if playerRig or playerRequested or not ok then return end
 		playerRequested = true
-		local function fallback()
-			local color = Color3.fromRGB(90, 130, 190)
-			local model = BossRigs.buildBlocky({
-				skin = Color3.fromRGB(226, 184, 140), shirt = color, pants = Color3.fromRGB(55, 60, 80),
-			}, "PlayerRig")
-			local rig = newRig(model, "blocky")
-			playerFallback = true
-			return rig
-		end
-		task.spawn(function()
-			local rig = nil
-			local built, model = pcall(function()
-				local lp = Players.LocalPlayer
-				local description = Players:GetHumanoidDescriptionFromUserId(lp.UserId)
-				return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
-			end)
-			if built and model then
-				-- Build the rig only once the avatar has its body; newRig itself rejects a half-built one.
-				if not waitForModel(model, 5) then
-					warn("[CharacterStage] avatar model still incomplete after 5s, trying it anyway")
-				end
-				local okRig, result = pcall(newRig, model, "avatar")
-				if okRig then
-					rig = result
-				else
-					warn("[CharacterStage] avatar rig rejected, using blocky rig: " .. tostring(result))
-					pcall(function() model:Destroy() end)
-				end
-			end
-			if not rig then
-				local okFb, fb = pcall(fallback)
-				if not okFb then
-					playerRequested = false
-					return
-				end
-				rig = fb
+		local function install(rig)
+			if playerRig then
+				playerRig:destroy()
 			end
 			playerRig = rig
 			mount(rig)
 			layout()
+			refreshVisible()
+		end
+		local function installFallback()
+			if playerRig then return end
+			local okFb, fb = tracedCall("blocky player rig", function()
+				local color = Color3.fromRGB(90, 130, 190)
+				local model = BossRigs.buildBlocky({
+					skin = Color3.fromRGB(226, 184, 140), shirt = color, pants = Color3.fromRGB(55, 60, 80),
+				}, "PlayerRig")
+				return newRig(model, "blocky")
+			end)
+			if okFb and fb then
+				playerFallback = true
+				install(fb)
+			end
+		end
+		-- Never make the player wait on the avatar: the blocky rig shows after AVATAR_WAIT seconds.
+		task.delay(AVATAR_WAIT, installFallback)
+		task.spawn(function()
+			local built, model = tracedCall("avatar description", function()
+				local lp = Players.LocalPlayer
+				local description = Players:GetHumanoidDescriptionFromUserId(lp.UserId)
+				return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
+			end)
+			if not (built and model) then
+				installFallback()
+				return
+			end
+			if not waitForModel(model, 5) then
+				warn("[CharacterStage] avatar model still incomplete after 5s, trying it anyway")
+			end
+			local okRig, rig = tracedCall("avatar rig", newRig, model, "avatar")
+			if okRig and rig then
+				playerFallback = false
+				install(rig) -- swaps out the blocky stand-in if it was already shown
+			else
+				pcall(function() model:Destroy() end)
+				installFallback()
+			end
 		end)
 	end
 
@@ -718,11 +749,11 @@ local function build(deps)
 			destroyBoss()
 			bossKey = key
 			grandBoss = BossLines.isGrand(night, state.nightCap or 8, JourneyMap.EndlessMilestones)
-			local built, model = pcall(function()
+			local built, model = tracedCall("boss build " .. tostring(boss.id), function()
 				return BossRigs.build(boss.id, { grand = grandBoss })
 			end)
 			if built and model then
-				local okRig, rig = pcall(newRig, model, "boss")
+				local okRig, rig = tracedCall("boss rig " .. tostring(boss.id), newRig, model, "boss")
 				if okRig then
 					bossRig = rig
 					bossRig.slide = 0
@@ -749,12 +780,7 @@ local function build(deps)
 			lastLayoutKey = sceneKey
 			layout()
 		end
-		if viewport then
-			viewport.Visible = playerRig ~= nil or bossRig ~= nil
-			if viewport.Visible then
-				ensureLoop()
-			end
-		end
+		refreshVisible()
 	end
 
 	function M.failed()

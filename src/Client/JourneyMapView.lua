@@ -182,20 +182,21 @@ return function(deps)
 	-- ===== Road: a continuous dirt path under the dots, so every stop leads visibly to the next =====
 	-- Overlapping round pieces every ~7px along the same Bezier: a dark edge piece under a
 	-- sandy fill piece (outline first, fills on top, both below the dots at ZIndex 24).
-	local ROAD_EDGE = Color3.fromRGB(116, 84, 48)
-	local ROAD_FILL = Color3.fromRGB(218, 190, 134)
-	local ROAD_STEP, ROAD_W = 7, 24
+	-- Light sandy road (~32px) with a dark edge so it stands out against any biome art.
+	local ROAD_EDGE = Color3.fromRGB(78, 52, 28)
+	local ROAD_FILL = Color3.fromRGB(240, 220, 168)
+	local ROAD_STEP, ROAD_W = 8, 32
 	local function makeRoadPiece(seg)
 		-- Two separate canvas children so every fill sits above every edge (no dark ridges
 		-- where pieces overlap): edge ZIndex 22, fill 23, dots 24.
 		local edge = Instance.new("Frame")
 		edge.AnchorPoint = Vector2.new(0.5, 0.5)
-		edge.Size = UDim2.fromOffset(ROAD_W + 6, ROAD_W + 6)
+		edge.Size = UDim2.fromOffset(ROAD_W + 8, ROAD_W + 8)
 		edge.BackgroundColor3 = ROAD_EDGE
 		edge.BorderSizePixel = 0
 		edge.ZIndex = 22
 		edge.Parent = canvas
-		deps.roundCorner(edge, (ROAD_W + 6) / 2)
+		deps.roundCorner(edge, (ROAD_W + 8) / 2)
 		local fill = Instance.new("Frame")
 		fill.AnchorPoint = Vector2.new(0.5, 0.5)
 		fill.Size = UDim2.fromOffset(ROAD_W, ROAD_W)
@@ -423,7 +424,7 @@ return function(deps)
 		-- pop does not stretch the text. Dark ink with a parchment stroke.
 		local name = text(canvas, {
 			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = true,
-			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 27,
+			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 26, -- under popups (30+) and node icons
 			TextColor3 = NAME_CREAM, TextStrokeColor3 = NAME_STROKE, TextStrokeTransparency = 0.3,
 		})
 		-- Reward on a small hanging tag.
@@ -682,17 +683,11 @@ return function(deps)
 			local lines = math.ceil(#info.name * 9.8 / labelW)
 			local labelH = lines * 21 + 2
 			node.name.Size = UDim2.fromOffset(labelW, labelH)
-			if index % 2 == 0 then
-				node.name.AnchorPoint = Vector2.new(0.5, 1)
-				node.name.TextYAlignment = Enum.TextYAlignment.Bottom
-				node.name.Position = UDim2.fromOffset(x, y - nodeSize / 2 - LABEL_GAP)
-				node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + 14)
-			else
-				node.name.AnchorPoint = Vector2.new(0.5, 0)
-				node.name.TextYAlignment = Enum.TextYAlignment.Top
-				node.name.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP)
-				node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP + labelH + 8)
-			end
+			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
+			node.name.AnchorPoint = Vector2.new(0.5, 0)
+			node.name.TextYAlignment = Enum.TextYAlignment.Top
+			node.name.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP)
+			node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP + labelH + 8)
 			local nextData = nodeData[index + 1]
 			if nextData then
 				local nx, ny = nodePixel(index + 1)
