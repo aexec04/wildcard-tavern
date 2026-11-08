@@ -58,6 +58,7 @@ local function build(deps)
 	local fadeToken = 0
 	local eventKind, eventStart, eventStrength = nil, 0, 1
 	local lastKey = nil
+	local footPad = 0 -- thumbnail has empty space under the feet; the box sinks by it so feet rest on the floor line
 	local baseX, baseY = 0, 0 -- feet position in pixels (holder anchor is bottom centre)
 
 	local function blockPart(parent, name, pos, size, color)
@@ -199,7 +200,8 @@ local function build(deps)
 		holder.Size = UDim2.fromOffset(playerPx, playerPx)
 		shadow.Size = UDim2.fromOffset(playerPx * 0.55, math.max(8, playerPx * 0.07))
 		shadow.Position = UDim2.fromOffset(baseX, baseY - 2)
-		holder.Position = UDim2.fromOffset(baseX, baseY)
+		footPad = playerPx * StageLayout.AVATAR_FOOT_PAD
+		holder.Position = UDim2.fromOffset(baseX, baseY + footPad)
 	end
 
 	local function stopLoop()
@@ -233,7 +235,7 @@ local function build(deps)
 			if reduced() then
 				lift, ex, erot = lift * 0.3, ex * 0.3, erot * 0.3
 			end
-			holder.Position = UDim2.fromOffset(baseX + dx + ex, baseY + dy - lift + sink)
+			holder.Position = UDim2.fromOffset(baseX + dx + ex, baseY + footPad + dy - lift + sink)
 			holder.Rotation = rot + erot
 		end)
 	end

@@ -5244,7 +5244,7 @@ table.insert(tests, { name = "StageLayout: feet stay above the hand row and both
 		expectEqual(grandPlayer, player)
 		expectTrue(grandBoss >= boss and grandBoss <= band + 0.001)
 		local alone, none = StageLayout.heights(screenH, floorFrac, "normal", false)
-		expectTrue(none == nil and alone <= player, "normal rounds show a smaller player only")
+		expectTrue(none == nil and alone <= band + 0.001 and alone >= 0.9 * band, "normal rounds show a large player only, inside the band")
 	end
 end })
 
