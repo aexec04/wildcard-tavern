@@ -7101,4 +7101,28 @@ table.insert(tests, { name = "CardFit: Round Select cards fill big screens, fit 
 	end
 end })
 
+table.insert(tests, { name = "InputLock: opening an overlay disables gameplay hit areas, closing restores them", fn = function()
+	local InputLock = require(script.Parent.Parent.Engine.InputLock)
+	local lock = InputLock.new()
+	local deck, play = true, true
+	lock:guard(function(on) deck = on end)
+	lock:guard(function(on) play = on end)
+	expectTrue(deck and play, "gameplay is interactive with no overlay")
+	lock:setOpen("roundSelect", true)
+	expectTrue(not deck and not play, "round select disables the deck pile and Play")
+	lock:setOpen("collection", true)
+	lock:setOpen("roundSelect", false)
+	expectTrue(not deck, "still locked while another overlay is open")
+	lock:setOpen("collection", false)
+	expectTrue(deck and play, "closing the last overlay restores everything")
+	lock:setOpen("shop", true)
+	lock:setOpen("shop", true)
+	lock:setOpen("shop", false)
+	expectTrue(deck and not lock:isLocked(), "opening the same overlay twice counts once")
+	local late = nil
+	lock:setOpen("shop", true)
+	lock:guard(function(on) late = on end)
+	expectTrue(late == false, "a widget guarded while locked starts disabled")
+end })
+
 return tests

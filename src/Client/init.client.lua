@@ -1470,6 +1470,17 @@ local RoundSelectOverlay = require(script.RoundSelect)({
 })
 local roundSelectFrame = RoundSelectOverlay.roundSelectFrame
 local rebuildRoundSelect = RoundSelectOverlay.rebuildRoundSelect
+do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sort); see Client/InputGuard.lua
+	local okGuard, errGuard = pcall(function()
+		require(script.InputGuard).install({
+			root = root,
+			overlays = { roundSelectFrame, shopFrame, gameOverFrame },
+			guarded = { root:FindFirstChild("DeckWidget"), handFrame, actionFrame },
+			tooltip = screenGui:FindFirstChild("Tooltip"),
+		})
+	end)
+	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
+end
 
 local lastOwnedPatronIds = {}
 local hasRenderedOnce = false
