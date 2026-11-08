@@ -5220,6 +5220,17 @@ table.insert(tests, { name = "RegionTiles: tavern fill covers the whole region f
 	end
 end })
 
+table.insert(tests, { name = "RegionTiles: seam colour runs from the left biome to the right biome", fn = function()
+	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
+	local a, b = { 222, 200, 150 }, { 190, 200, 142 }
+	local first, last = RegionTiles.seamColor(a, b, 1, 24), RegionTiles.seamColor(a, b, 24, 24)
+	for c = 1, 3 do
+		expectTrue(first[c] == a[c] and last[c] == b[c], "ends match the neighbouring biomes")
+	end
+	local mid = RegionTiles.seamColor(a, b, 12, 24)
+	expectTrue(mid[1] < a[1] and mid[1] > b[1], "middle blends the two")
+end })
+
 table.insert(tests, { name = "StageLayout: accent index is stable and in range", fn = function()
 	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
 	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)

@@ -28,4 +28,16 @@ function RegionTiles.tiled(frameW, frameH, aspect)
 	return math.max(1, math.floor(frameW / (frameH * aspect) + 0.5))
 end
 
+-- Colour of seam strip i of n: runs from the left biome's colour (a) to the right biome's (b), each an
+-- {r, g, b} triple of 0..255 numbers. Returns {r, g, b} (rounded), so a join is tinted by the two biomes
+-- instead of one cream band.
+function RegionTiles.seamColor(a, b, i, n)
+	local t = n <= 1 and 0.5 or (i - 1) / (n - 1)
+	local out = {}
+	for c = 1, 3 do
+		out[c] = math.floor(a[c] + (b[c] - a[c]) * t + 0.5)
+	end
+	return out
+end
+
 return RegionTiles

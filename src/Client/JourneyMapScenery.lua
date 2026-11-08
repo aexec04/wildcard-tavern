@@ -54,7 +54,7 @@ return function(deps)
 	-- Transparency.
 	local SEAM_STEPS = {}
 	do
-		local n, peak = 24, 0.4 -- peak = lowest transparency, at the centre of the join
+		local n, peak = 24, 0.12 -- peak = lowest transparency, at the centre of the join
 		for i = 1, n do
 			local d = math.abs((i - 0.5) / n * 2 - 1) -- 1 at the ends, 0 in the middle
 			local k = 1 - d * d * (3 - 2 * d) -- smoothstep bell
@@ -104,7 +104,11 @@ return function(deps)
 			local strip = Instance.new("Frame")
 			strip.Size = UDim2.new(1 / #SEAM_STEPS, 0, 1, 0)
 			strip.Position = UDim2.fromScale((i - 1) / #SEAM_STEPS, 0)
-			strip.BackgroundColor3 = SEAM_FOG
+			-- Tint runs from the left biome's colour to the right one's, so the join is never a pale band.
+			local l, r = REGIONS[s].tint, REGIONS[s + 1].tint
+			local c = RegionTiles.seamColor(
+				{ l.R * 255, l.G * 255, l.B * 255 }, { r.R * 255, r.G * 255, r.B * 255 }, i, #SEAM_STEPS)
+			strip.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
 			strip.BackgroundTransparency = tr
 			strip.BorderSizePixel = 0
 			strip.ZIndex = 24
