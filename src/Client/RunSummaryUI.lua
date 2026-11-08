@@ -3,6 +3,7 @@
 -- stats and Patrons on the right, buttons Save badge / Continue / Play Again. Display only.
 local TweenService = game:GetService("TweenService")
 
+local SeedDisplay = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedDisplay"))
 local RunSummaryUI = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -168,11 +169,48 @@ function RunSummaryUI.init(screenGui, deps)
 		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -22, 0, 400), Size = UDim2.new(0.5, -138, 0, 46),
 	})
 
+	-- Share seed (Seed Runs only): the code and a ready-to-send line in a selectable box (Ctrl+C copies it).
+	ui.share = button(panel, "Share seed", WOOD, {
+		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(1, -334, 0, 38),
+	})
+	ui.share.Visible = false
+	ui.shareBox = Instance.new("TextBox")
+	ui.shareBox.Name = "ShareSeedBox"
+	ui.shareBox.Position = UDim2.new(0, 312, 0, 300)
+	ui.shareBox.Size = UDim2.new(1, -334, 0, 38)
+	ui.shareBox.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
+	ui.shareBox.BorderSizePixel = 0
+	ui.shareBox.Font = Enum.Font.GothamBold
+	ui.shareBox.TextSize = 15
+	ui.shareBox.TextColor3 = Color3.fromRGB(255, 232, 160)
+	ui.shareBox.TextEditable = false
+	ui.shareBox.ClearTextOnFocus = false
+	ui.shareBox.TextTruncate = Enum.TextTruncate.AtEnd
+	ui.shareBox.Visible = false
+	ui.shareBox.ZIndex = 73
+	ui.shareBox.Parent = panel
+	corner(ui.shareBox, 8)
+	ui.shareBox.Focused:Connect(function()
+		ui.shareBox.SelectionStart = 1
+		ui.shareBox.CursorPosition = #ui.shareBox.Text + 1
+	end)
+	ui.shareHint = label(panel, {
+		Position = UDim2.new(0, 312, 0, 340), Size = UDim2.new(1, -334, 0, 18), Text = "Select the line, then press Ctrl+C.",
+		TextSize = 15, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, Visible = false,
+	})
+
 	local function click()
 		if deps.playClick then
 			deps.playClick()
 		end
 	end
+	ui.share.MouseButton1Click:Connect(function()
+		click()
+		ui.share.Visible = false
+		ui.shareBox.Visible = true
+		ui.shareHint.Visible = true
+		ui.shareBox:CaptureFocus()
+	end)
 	ui.save.MouseButton1Click:Connect(function()
 		if ui.save.Active then
 			click()
@@ -307,6 +345,14 @@ function RunSummaryUI.update(state)
 			summary.bestHand and string.format("%s (%d)", summary.bestHand.name, summary.bestHand.score) or "none",
 			#summary.route, #summary.route == 1 and "" or "s"
 		) .. ((state.nextUnlock and state.nextUnlock.label) and ("\nNext unlock: " .. state.nextUnlock.label) or "")
+		-- the seed of this run: a Seed Run can be shared, a Daily or Weekly shows its date or week instead
+		local seedInfo = SeedDisplay.label(state)
+		if seedInfo then
+			ui.stats.Text = ui.stats.Text .. "\n" .. seedInfo.text
+		end
+		local shareText = SeedDisplay.shareText(state)
+		ui.share.Visible = shareText ~= nil and not ui.shareBox.Visible
+		if shareText then ui.shareBox.Text = shareText elseif ui.shareBox.Visible then ui.shareBox.Visible = false ui.shareHint.Visible = false end
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)

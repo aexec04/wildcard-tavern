@@ -2346,6 +2346,10 @@ local function render(state)
 	-- this always reflects the actual current run, including after
 	-- "New Run..." swaps a seeded run back out for a normal one.
 	setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
+	pcall(function() -- the seed / date / week also shows in Settings
+		local info = require(ReplicatedStorage.Shared.Engine.SeedDisplay).label(state)
+		SettingsOverlay.setRunLabel(info and ("This run  |  " .. info.text) or nil)
+	end)
 	-- POLISH PASS: flash the Tips box gold on a gain, red on a loss/spend --
 	-- and the Hands/Discards box red whenever either ticks down (a hand
 	-- played or a discard used). Guarded by hasRenderedOnce so a fresh

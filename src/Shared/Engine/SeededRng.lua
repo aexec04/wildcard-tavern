@@ -141,10 +141,35 @@ end
 -- one in mind from a friend -- NOT part of the deterministic-replay seam
 -- itself (this is a one-time "here's a code you could use" convenience,
 -- so plain math.random is fine here, unlike everywhere else in this
--- file). Charset deliberately excludes 0/O and 1/I/L -- easy to
--- mis-read or mis-type out loud/over chat, exactly the failure mode
--- that would silently desync two friends' "identical" runs.
-local CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+-- file). Seed codes are 6 characters from A to Z without I and O, plus
+-- the digits 2 to 9 (no 0 or 1): easy to read out loud and to type over
+-- chat, exactly the failure mode that would silently desync two
+-- friends' "identical" runs.
+local CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+SeededRng.CODE_CHARS = CODE_CHARS
+SeededRng.CODE_LENGTH = 6
+
+-- validateCode(text) -> ok, normalizedCode, friendlyMessage
+-- Normalizes (upper-cases, drops spaces and dashes) and checks the length and the alphabet.
+function SeededRng.validateCode(text)
+	if type(text) ~= "string" then
+		return false, "", "Type a seed code first."
+	end
+	local code = string.upper((string.gsub(text, "[%s%-]", "")))
+	if #code == 0 then
+		return false, "", "Type a seed code first."
+	end
+	if #code ~= SeededRng.CODE_LENGTH then
+		return false, code, string.format("Seed codes have %d characters.", SeededRng.CODE_LENGTH)
+	end
+	for i = 1, #code do
+		local ch = string.sub(code, i, i)
+		if not string.find(CODE_CHARS, ch, 1, true) then
+			return false, code, "Codes use letters (no I or O) and the digits 2 to 9."
+		end
+	end
+	return true, code, ""
+end
 
 function SeededRng.randomCode(length)
 	length = length or 6

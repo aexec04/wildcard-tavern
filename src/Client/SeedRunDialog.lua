@@ -44,7 +44,7 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local StartSeedRunRemote = deps.StartSeedRunRemote
-	local SeededRng = deps.SeededRng
+	local SeededRng = deps.SeededRng or require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeededRng"))
 
 	local seedBackdrop = Instance.new("Frame")
 	seedBackdrop.Name = "SeedRunBackdrop"
@@ -83,11 +83,11 @@ return function(deps)
 	seedHintLabel.Position = UDim2.new(0, 15, 0, 40)
 	seedHintLabel.BackgroundTransparency = 1
 	seedHintLabel.Font = Enum.Font.Gotham
-	seedHintLabel.TextSize = 13
+	seedHintLabel.TextSize = 15
 	seedHintLabel.TextWrapped = true
 	seedHintLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
 	seedHintLabel.TextXAlignment = Enum.TextXAlignment.Left
-	seedHintLabel.Text = "Type a code from a friend, or roll one to send them -- same code, same run."
+	seedHintLabel.Text = "Type a 6 character code from a friend, or roll one to send them. Same code, same run."
 	seedHintLabel.ZIndex = 35
 	seedHintLabel.Parent = seedPanel
 
@@ -96,7 +96,8 @@ return function(deps)
 	seedCodeBox.Position = UDim2.new(0, 15, 0, 84)
 	seedCodeBox.Font = Enum.Font.GothamBold
 	seedCodeBox.TextSize = 18
-	seedCodeBox.PlaceholderText = "e.g. STORM7"
+	seedCodeBox.PlaceholderText = "e.g. STAR27"
+	seedCodeBox.MaxVisibleGraphemes = 8
 	seedCodeBox.Text = ""
 	seedCodeBox.ClearTextOnFocus = false
 	seedCodeBox.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
@@ -153,8 +154,11 @@ return function(deps)
 	end)
 
 	local function attemptStart()
-		local code = seedCodeBox.Text
-		if type(code) ~= "string" or #code < 1 then
+		local okCode, code, message = SeededRng.validateCode(seedCodeBox.Text)
+		if not okCode then
+			-- a friendly message in the hint line instead of failing silently
+			seedHintLabel.Text = message
+			seedHintLabel.TextColor3 = Color3.fromRGB(255, 190, 150)
 			return
 		end
 		playClickSfx()
@@ -182,6 +186,8 @@ return function(deps)
 
 	local function showSeedRunDialog()
 		seedCodeBox.Text = ""
+		seedHintLabel.Text = "Type a 6 character code from a friend, or roll one to send them. Same code, same run."
+		seedHintLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
 		popIn(seedBackdrop, seedPanel)
 	end
 

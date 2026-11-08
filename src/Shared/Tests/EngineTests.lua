@@ -7582,4 +7582,44 @@ table.insert(tests, { name = "DailyPopup: shows when the game opens with a rewar
 	expectEqual(R.clearOfTopBar(16, 16, 44), 104, "the phone safe area adds to it")
 end })
 
+table.insert(tests, { name = "Seeds: 6 character codes (A-Z without I and O, 2-9), friendly errors, display text per run type", fn = function()
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	local SeedDisplay = require(script.Parent.Parent.Engine.SeedDisplay)
+	local ok, code, msg = SeededRng.validateCode("star27")
+	expectTrue(ok and code == "STAR27" and msg == "", "lower case is normalized")
+	ok, code = SeededRng.validateCode(" st-ar 27 ")
+	expectTrue(ok and code == "STAR27", "spaces and dashes are dropped")
+	ok, code, msg = SeededRng.validateCode("")
+	expectFalse(ok); expectTrue(#msg > 0, "empty: a message")
+	ok, _, msg = SeededRng.validateCode("ABC")
+	expectFalse(ok); expectTrue(msg:find("6") ~= nil, "wrong length says 6 characters")
+	ok, _, msg = SeededRng.validateCode("ABCDEFG")
+	expectFalse(ok, "too long")
+	local _normalized
+	for _, bad in ipairs({ "ABCDI2", "ABCDO2", "ABCD01", "ABCD0Z", "ABC!23" }) do
+		ok, _normalized, msg = SeededRng.validateCode(bad)
+		expectFalse(ok, bad .. " has a character outside the alphabet")
+		expectTrue(#msg > 0)
+	end
+	expectFalse(SeededRng.validateCode(nil)); expectFalse(SeededRng.validateCode(123456))
+	expectFalse(SeededRng.CODE_CHARS:find("I", 1, true) or SeededRng.CODE_CHARS:find("O", 1, true) or SeededRng.CODE_CHARS:find("[01]"), "no I, O, 0 or 1")
+	expectEqual(#SeededRng.CODE_CHARS, 32)
+	-- every rolled code validates
+	for _ = 1, 200 do
+		local rolled = SeededRng.randomCode(6)
+		expectTrue(SeededRng.validateCode(rolled), "rolled codes are valid: " .. rolled)
+	end
+	-- display text
+	local l = SeedDisplay.label({ isSeeded = true, seedCode = "STAR27" })
+	expectEqual(l.text, "Seed: STAR27"); expectTrue(l.shareable)
+	expectEqual(SeedDisplay.shareText({ isSeeded = true, seedCode = "STAR27" }), "Play my Wildcard Tavern seed: STAR27")
+	l = SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-08" })
+	expectEqual(l.text, "Daily: 2026-11-08"); expectFalse(l.shareable)
+	l = SeedDisplay.label({ isWeekly = true, weeklyDateKey = "2026-W45" })
+	expectEqual(l.text, "Weekly: 2026-W45")
+	expectEqual(SeedDisplay.label({}), nil, "an ordinary run shows no seed")
+	expectEqual(SeedDisplay.shareText({ isDaily = true, dailyDateKey = "x" }), nil, "only Seed Runs can be shared")
+	expectEqual(SeedDisplay.label(nil), nil)
+end })
+
 return tests

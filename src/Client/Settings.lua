@@ -78,6 +78,19 @@ return function(deps)
 	settingsTitle.ZIndex = 21
 	settingsTitle.Parent = settingsPanel
 
+	-- The seed (Seed Run), date (Daily) or week (Weekly) of the run in progress; hidden for ordinary runs.
+	local runLabel = Instance.new("TextLabel")
+	runLabel.Name = "RunSeedLabel"
+	runLabel.Size = UDim2.new(1, -40, 0, 22)
+	runLabel.Position = UDim2.new(0, 20, 0, 40)
+	runLabel.BackgroundTransparency = 1
+	runLabel.Font = Enum.Font.GothamBold
+	runLabel.TextSize = 16
+	runLabel.TextColor3 = HEADER
+	runLabel.Visible = false
+	runLabel.ZIndex = 21
+	runLabel.Parent = settingsPanel
+
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -40, 1, -110)
 	scroll.Position = UDim2.new(0, 20, 0, 48)
@@ -311,7 +324,15 @@ return function(deps)
 		deps.menuSettingsButton.MouseButton1Click:Connect(openSettings)
 	end
 
+	local function setRunLabel(text)
+		runLabel.Visible = text ~= nil
+		runLabel.Text = text or ""
+		scroll.Position = UDim2.new(0, 20, 0, text and 66 or 48)
+		scroll.Size = UDim2.new(1, -40, 1, text and -128 or -110)
+	end
+
 	return {
+		setRunLabel = setRunLabel,
 		settingsBackdrop = settingsBackdrop,
 		settingsHowToPlayButton = settingsHowToPlayButton,
 		settingsLeaderboardButton = settingsLeaderboardButton,

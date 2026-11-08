@@ -243,28 +243,66 @@ return function(deps)
 	end
 
 	-- ===== Run-mode badge (Daily / Weekly / Seed), pinned above the header =====
-	local runModeBadgeBox = makeBadgeBox(28)
+	local runModeBadgeBox = makeBadgeBox(36)
 	runModeBadgeBox.LayoutOrder = -1
 	runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
 	runModeBadgeBox.Visible = false
-	local runModeBadgeLabel = makeLabel(runModeBadgeBox, 13, { TextColor3 = Color3.fromRGB(230, 210, 255), TextStrokeTransparency = 1 })
-	runModeBadgeLabel.Text = "\240\159\147\133 Daily Challenge"
+	local runModeBadgeLabel = makeLabel(runModeBadgeBox, 16, { TextColor3 = Color3.fromRGB(230, 210, 255), TextStrokeTransparency = 1 })
+	runModeBadgeLabel.Text = "Daily"
+	-- The seed code of a Seed Run sits in a read-only TextBox: click it to select the code, then Ctrl+C copies it
+	-- (games cannot write to the clipboard themselves). A tiny "Press Ctrl+C" note appears for a moment.
+	local seedBox = Instance.new("TextBox")
+	seedBox.Name = "SeedCodeBox"
+	seedBox.AnchorPoint = Vector2.new(1, 0.5)
+	seedBox.Position = UDim2.new(1, -8, 0.5, 0)
+	seedBox.Size = UDim2.fromOffset(110, 26)
+	seedBox.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
+	seedBox.BorderSizePixel = 0
+	seedBox.Font = Enum.Font.GothamBold
+	seedBox.TextSize = 18
+	seedBox.TextColor3 = Color3.fromRGB(255, 232, 160)
+	seedBox.TextEditable = false
+	seedBox.ClearTextOnFocus = false
+	seedBox.Text = ""
+	seedBox.Visible = false
+	seedBox.ZIndex = Z + 2
+	seedBox.Parent = runModeBadgeBox
+	roundCorner(seedBox, 5)
+	seedBox.Focused:Connect(function()
+		seedBox.SelectionStart = 1
+		seedBox.CursorPosition = #seedBox.Text + 1
+		runModeBadgeLabel.Text = "Press Ctrl+C"
+		task.delay(1.6, function()
+			if seedBox.Visible then runModeBadgeLabel.Text = "Seed:" end
+		end)
+	end)
 
+	local SeedDisplay = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedDisplay"))
 	local function setRunModeBadge(isDaily, dailyDateKey, isWeekly, weeklyDateKey, isSeeded, seedCode)
-		if isDaily then
-			runModeBadgeBox.Visible = true
-			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(80, 55, 110)
-			runModeBadgeLabel.Text = "\240\159\147\133 Daily Challenge" .. (dailyDateKey and (" -- " .. tostring(dailyDateKey)) or "")
-		elseif isWeekly then
-			runModeBadgeBox.Visible = true
-			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(45, 75, 110)
-			runModeBadgeLabel.Text = "🗓 Weekly Challenge" .. (weeklyDateKey and (" -- " .. tostring(weeklyDateKey)) or "")
-		elseif isSeeded then
-			runModeBadgeBox.Visible = true
-			runModeBadgeBox.BackgroundColor3 = Color3.fromRGB(55, 95, 60)
-			runModeBadgeLabel.Text = "🎲 Seed Run" .. (seedCode and (" -- " .. tostring(seedCode)) or "")
-		else
+		local info = SeedDisplay.label({
+			isDaily = isDaily, dailyDateKey = dailyDateKey, isWeekly = isWeekly, weeklyDateKey = weeklyDateKey,
+			isSeeded = isSeeded, seedCode = seedCode,
+		})
+		if not info then
 			runModeBadgeBox.Visible = false
+			seedBox.Visible = false
+			return
+		end
+		runModeBadgeBox.Visible = true
+		runModeBadgeBox.BackgroundColor3 = info.kind == "daily" and Color3.fromRGB(80, 55, 110)
+			or (info.kind == "weekly" and Color3.fromRGB(45, 75, 110) or Color3.fromRGB(55, 95, 60))
+		if info.kind == "seed" then
+			-- "Seed:" on the left, the code selectable on the right
+			runModeBadgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+			runModeBadgeLabel.Position = UDim2.fromOffset(10, 0)
+			if runModeBadgeLabel.Text ~= "Press Ctrl+C" then runModeBadgeLabel.Text = "Seed:" end
+			seedBox.Text = info.value
+			seedBox.Visible = true
+		else
+			seedBox.Visible = false
+			runModeBadgeLabel.TextXAlignment = Enum.TextXAlignment.Center
+			runModeBadgeLabel.Position = UDim2.fromOffset(0, 0)
+			runModeBadgeLabel.Text = info.text
 		end
 	end
 

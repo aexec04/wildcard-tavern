@@ -2630,10 +2630,11 @@ StartSeedRunRemote.OnServerEvent:Connect(function(player, code)
 	if type(code) ~= "string" then
 		return
 	end
-	code = string.upper(code)
-	if #code < 1 or #code > 20 then
+	local okCode, normalized = SeededRng.validateCode(code) -- 6 characters, A-Z without I and O, digits 2-9
+	if not okCode then
 		return
 	end
+	code = normalized
 	local seed = SeededRng.codeToSeed(code)
 	startNewSession(player, nil, nil, SeededRng.new(seed), "seed", code)
 end)
