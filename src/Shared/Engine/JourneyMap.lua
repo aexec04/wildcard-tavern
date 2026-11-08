@@ -236,6 +236,61 @@ function JourneyMap.allNodes()
 	return list
 end
 
+-- ===== Fog of war =====
+-- A node's place on the Night line: Nights are themselves, the Endless doors
+-- sit just past the cap, milestones are their Endless Night.
+function JourneyMap.nodePosition(node)
+	if node.kind == "endless" then
+		return JourneyMap.NightCap + 1
+	end
+	return node.night
+end
+
+JourneyMap.RevealAhead = 3 -- Nights past the current one that are fully drawn
+
+-- "revealed" (current Night and the next RevealAhead, or anything cleared),
+-- "teaser" (the Night right after those), or "hidden" (everything beyond).
+function JourneyMap.revealState(position, currentNight, cleared)
+	if cleared then
+		return "revealed"
+	end
+	local ahead = position - math.max(currentNight, 1)
+	if ahead <= JourneyMap.RevealAhead then
+		return "revealed"
+	elseif ahead == JourneyMap.RevealAhead + 1 then
+		return "teaser"
+	end
+	return "hidden"
+end
+
+-- Reveal state for every node in allNodes() order. `clearedNights` =
+-- { [night] = true }; `endlessOpen` marks the Endless doors as seen. Fog
+-- rolls back from the left only: any node before a revealed one is revealed.
+function JourneyMap.nodeRevealStates(currentNight, clearedNights, endlessOpen)
+	local nodes = JourneyMap.allNodes()
+	local states = {}
+	for i, node in ipairs(nodes) do
+		local isCleared
+		if node.kind == "endless" then
+			isCleared = endlessOpen == true
+		else
+			isCleared = clearedNights[node.night] == true
+		end
+		states[i] = JourneyMap.revealState(JourneyMap.nodePosition(node), currentNight, isCleared)
+	end
+	local lastRevealed = 0
+	for i = #states, 1, -1 do
+		if states[i] == "revealed" then
+			lastRevealed = i
+			break
+		end
+	end
+	for i = 1, lastRevealed do
+		states[i] = "revealed"
+	end
+	return states
+end
+
 -- Journey completion across every reward node. `cleared` = { [night] = true }.
 -- Returns cleared count, total, whole percent.
 function JourneyMap.completion(cleared)

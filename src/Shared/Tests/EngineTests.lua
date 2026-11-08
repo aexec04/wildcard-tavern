@@ -4675,4 +4675,40 @@ table.insert(tests, { name = "Journey map nodes: every node resolves to landmark
 	end
 end })
 
+table.insert(tests, { name = "Journey fog: current + 3 revealed, +4 teaser, rest hidden; cleared always revealed", fn = function()
+	local nodes = JourneyMap.allNodes()
+	local function states(night, cleared, endlessOpen)
+		return JourneyMap.nodeRevealStates(night, cleared or {}, endlessOpen)
+	end
+	local s = states(1)
+	for i = 1, 4 do expectEqual(s[i], "revealed") end
+	expectEqual(s[5], "teaser")
+	for i = 6, #nodes do expectEqual(s[i], "hidden") end
+	-- Endless doors (position 9) and milestones 10/15/20 stay hidden until within 3 Nights.
+	s = states(5)
+	expectEqual(s[8], "revealed")
+	expectEqual(s[9], "teaser")
+	expectEqual(s[10], "hidden")
+	s = states(6)
+	expectEqual(s[9], "revealed")
+	expectEqual(s[10], "teaser")   -- Night 10 milestone is 4 ahead
+	expectEqual(s[11], "hidden")   -- Night 15
+	s = states(12)
+	expectEqual(s[11], "revealed")  -- Night 15 within 3 of Night 12
+	expectEqual(s[12], "hidden")    -- Night 20
+	expectEqual(JourneyMap.revealState(4, 1, false), "revealed")
+	expectEqual(JourneyMap.revealState(5, 1, false), "teaser")
+	expectEqual(JourneyMap.revealState(6, 1, false), "hidden")
+	expectEqual(JourneyMap.revealState(9, 1, true), "revealed")
+	-- A cleared far node pulls every earlier node out of the fog.
+	s = states(1, { [7] = true })
+	for i = 1, 7 do expectEqual(s[i], "revealed") end
+	expectEqual(s[8], "hidden")
+	-- All cleared Nights stay revealed in a fresh run; the doors open once Endless was entered.
+	local all = {}
+	for n = 1, JourneyMap.NightCap do all[n] = true end
+	s = states(1, all, true)
+	for i = 1, 9 do expectEqual(s[i], "revealed") end
+end })
+
 return tests

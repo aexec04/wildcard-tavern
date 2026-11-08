@@ -930,6 +930,8 @@ return function(deps)
 	local function setTab(tabId)
 		activeTab = tabId
 		local isMap = tabId == "map"
+		-- The map is a near-full-screen overlay; "This Night" keeps the compact panel.
+		journeyPanel.Size = isMap and UDim2.fromScale(0.92, 0.92) or UDim2.fromScale(0.7, 0.55)
 		mapView.setShown(isMap)
 		journeyMapScroll.Visible = not isMap
 		journeyInfoBar.Visible = not isMap
@@ -945,6 +947,13 @@ return function(deps)
 			tabButton.BackgroundColor3 = id == tabId and Color3.fromRGB(150, 115, 50) or Color3.fromRGB(70, 55, 40)
 		end
 	end
+
+	-- Closing the overlay by any route (Close, another overlay) stops the map's drifting fog and ambience.
+	journeyBackdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not journeyBackdrop.Visible then
+			mapView.setShown(false)
+		end
+	end)
 
 	for i, tab in ipairs({ { "map", "Tavern Map" }, { "road", "This Night" } }) do
 		local tabButton = Instance.new("TextButton")

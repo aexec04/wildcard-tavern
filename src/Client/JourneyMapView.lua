@@ -122,33 +122,14 @@ return function(deps)
 	canvas.ZIndex = 22
 	canvas.Parent = scroll
 
-	-- Painted map image (hidden until it is a real id that loads).
-	local mapImage = Instance.new("ImageLabel")
-	mapImage.Name = "MapImage"
-	mapImage.Size = UDim2.fromScale(1, 1)
-	mapImage.BackgroundTransparency = 1
-	mapImage.ScaleType = Enum.ScaleType.Stretch
-	mapImage.Visible = false
-	mapImage.ZIndex = 22
-	mapImage.Parent = canvas
-	do
-		local id = JourneyMap.Config.journeyMapImage
-		if type(id) == "string" and id ~= "" and id ~= "rbxassetid://0" then
-			mapImage.Image = id
-			task.spawn(function()
-				local ok = pcall(function()
-					ContentProvider:PreloadAsync({ mapImage }, function(_, status)
-						if status == Enum.AssetFetchStatus.Success then
-							mapImage.Visible = true
-						end
-					end)
-				end)
-				if not ok then
-					mapImage.Visible = false
-				end
-			end)
-		end
-	end
+	-- Region backdrops, seam fog and decor doodles (art optional; flat parchment fallback).
+	local scenery = require(script.Parent.JourneyMapScenery)({
+		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
+	})
+	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
+	local fogBand = require(script.Parent.JourneyMapFog)({
+		canvas = canvas, TweenService = TweenService, roundCorner = deps.roundCorner, calm = calm, pace = pace,
+	})
 
 	local function text(parent, props)
 		local l = Instance.new("TextLabel")
@@ -185,6 +166,7 @@ return function(deps)
 	local segments = {}
 	for i = 1, NODE_COUNT - 1 do
 		segments[i] = { dots = {}, count = 0, length = 0, filled = false, sign = (i % 2 == 0) and 1 or -1,
+			mode = "full", modeChanged = false, -- fog: "full", "fade" (dissolving into the fog) or "none"
 			ax = 0, ay = 0, bx = 0, by = 0, cx = 0, cy = 0 }
 	end
 
@@ -211,6 +193,12 @@ return function(deps)
 
 	-- Visual target of a dot: cleared = solid ink (every 4th a tiny footprint), upcoming = faint.
 	local function dotTargets(seg, k)
+		if seg.mode == "none" then
+			return { frame = 1, foot = 1, size = 5 }
+		elseif seg.mode == "fade" then
+			local t = (k - 1) / math.max(seg.count - 1, 1)
+			return { frame = math.min(0.97, 0.4 + 0.57 * t), foot = 1, size = math.max(2, math.floor(5 - 3 * t + 0.5)) }
+		end
 		if seg.filled then
 			if k % 4 == 0 then
 				return { frame = 1, foot = 0, size = 7 }
@@ -223,8 +211,8 @@ return function(deps)
 	local function setDot(seg, k, animate, duration, delay)
 		local dot = seg.dots[k]
 		local tgt = dotTargets(seg, k)
-		dot.frame.Visible = k <= seg.count
-		dot.foot.Visible = seg.filled and k % 4 == 0 and k <= seg.count
+		dot.frame.Visible = k <= seg.count and seg.mode ~= "none"
+		dot.foot.Visible = seg.filled and seg.mode == "full" and k % 4 == 0 and k <= seg.count
 		if animate then
 			dot.frame.BackgroundTransparency = 1
 			dot.foot.TextTransparency = 1
@@ -254,7 +242,7 @@ return function(deps)
 		local button = Instance.new("TextButton")
 		button.Name = "Node" .. index
 		button.AnchorPoint = Vector2.new(0.5, 0.5)
-		button.Position = UDim2.fromScale(info.x, info.y)
+		button.Position = UDim2.fromOffset(0, 0) -- placed by layout()
 		button.Size = UDim2.fromOffset(nodeSize, nodeSize)
 		button.BackgroundColor3 = PARCHMENT
 		button.AutoButtonColor = false
@@ -386,9 +374,9 @@ return function(deps)
 		-- Labels live on the canvas (not the button) so the button's UIScale
 		-- pop does not stretch the text. Dark ink with a parchment stroke.
 		local name = text(canvas, {
-			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = false,
-			Font = Enum.Font.GothamBold, TextSize = 16, Text = info.name, ZIndex = 27,
-			TextColor3 = LABEL_INK, TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.4,
+			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = true,
+			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 27,
+			TextColor3 = LABEL_INK, TextStrokeColor3 = LABEL_STROKE, TextStrokeTransparency = 0.3,
 		})
 		-- Reward on a small hanging tag.
 		local tag = Instance.new("Frame")
@@ -428,7 +416,7 @@ return function(deps)
 			button = button, stroke = stroke, scale = scale, halo = halo, haloStroke = haloStroke, haloScale = haloScale,
 			icon = icon, art = art, fog = fog, ribbon = ribbon, bossBadge = bossBadge, check = check, seal = seal,
 			sealScale = sealScale, lockMark = lockMark, spin = spin, name = name, tag = tag, preview = preview,
-			pulse = pulse, pulseScale = pulseScale, pulsing = false, data = data, isEndless = isEndless,
+			pulse = pulse, pulseScale = pulseScale, pulsing = false, data = data, isEndless = isEndless, tagStroke = tagStroke,
 		}
 	end
 
@@ -477,7 +465,7 @@ return function(deps)
 
 	-- ===== Candle glows, embers, sparkle layer =====
 	-- Flame positions measured on art-wip/backgrounds/journey_map.png (normalized).
-	local FLAMES = { { 0.04, 0.07 }, { 0.945, 0.065 }, { 0.045, 0.875 } }
+	local FLAMES = {} -- the old baked-in painting had flames; the region art does not
 	local glows = {}
 	for i, f in ipairs(FLAMES) do
 		local outer = Instance.new("Frame")
@@ -505,14 +493,9 @@ return function(deps)
 		gScale.Parent = outer
 		glows[i] = { frame = outer, scale = gScale, fx = f[1], fy = f[2] }
 	end
-	mapImage:GetPropertyChangedSignal("Visible"):Connect(function()
-		for _, g in ipairs(glows) do
-			g.frame.Visible = mapImage.Visible
-		end
-	end)
 
 	local embers = {}
-	for i = 1, 8 do
+	for i = 1, 0 do
 		local e = Instance.new("Frame")
 		e.Name = "Ember" .. i
 		e.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -552,13 +535,31 @@ return function(deps)
 		end
 	end
 
-	-- ===== Layout (positions come from data; only pixels are computed here) =====
+	-- ===== Layout: one winding trail left to right =====
+	-- Nodes sit at least MIN_SPACING apart on a gentle zig-zag; even nodes ride high
+	-- (label above, reward tag below), odd nodes ride low (label and tag below).
 	local canvasW, canvasH = 600, 300
-	local RIGHT_PAD = 80 -- room so the last node and its label are never clipped
+	local MIN_SPACING = 280
+	local LEFT_PAD, RIGHT_PAD = 200, 240 -- room so the first and last node and their labels never clip
+	local LABEL_MAX = 230
+	local posX, posY = {}, {}
+	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
+	local debugOn = false -- Studio-only coordinate overlay / drag mode (reveals everything while on)
+	local reveal = { states = {}, newly = {} } -- fog state per node, set by render
+	local revealOverride = nil -- Night used for the fog while the clear moment replays
+	local fogAnimate = false -- true while the fog band rolls back
+	local lastLayoutKey = nil
 
 	local function nodePixel(index)
-		local info = nodeData[index].info
-		return info.x * canvasW, info.y * canvasH
+		if nudged[index] then
+			local info = nodeData[index].info
+			return info.x * canvasW, info.y * canvasH
+		end
+		return posX[index] or 0, posY[index] or 0
+	end
+
+	local function scrollTargetFor(x)
+		return math.clamp(x - scroll.AbsoluteSize.X / 2, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
 	end
 
 	local function placeMarker()
@@ -571,33 +572,91 @@ return function(deps)
 		marker.Visible = true
 	end
 
-	local function layout()
+	-- Fog edge: the first node that is not fully revealed. A teaser sits right on
+	-- the edge (half inside the fog); with no teaser the edge sits past the last
+	-- revealed node.
+	local function updateFog(animate)
+		local states = reveal.states
+		local first
+		for i = 1, NODE_COUNT do
+			if states[i] and states[i] ~= "revealed" then
+				first = i
+				break
+			end
+		end
+		if not first or debugOn then
+			fogBand.update({ edgeX = nil })
+			return
+		end
+		local fx, fy = nodePixel(first)
+		if states[first] == "teaser" then
+			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = fx, hintY = fy + nodeSize * 0.75 + 20,
+				animate = animate })
+		else
+			local px = nodePixel(first - 1)
+			local edge = px + (fx - px) * 0.7
+			fogBand.update({ edgeX = edge, hintX = edge + 90, hintY = canvasH * 0.5, animate = animate })
+		end
+	end
+
+	local function layout(force)
 		local size = scroll.AbsoluteSize
 		if size.X < 10 or size.Y < 10 then
 			return
 		end
-		canvasH = math.max(220, size.Y - 10)
-		canvasW = math.max(size.X - RIGHT_PAD, canvasH * JourneyMap.Config.mapAspect, 980)
+		local key = size.X .. "x" .. size.Y
+		if not force and key == lastLayoutKey then
+			return
+		end
+		lastLayoutKey = key
+		canvasH = math.max(260, size.Y - 10)
+		nodeSize = math.floor(math.clamp(canvasH * 0.15, 64, 92))
+		canvasW = math.max(size.X * 3, LEFT_PAD + RIGHT_PAD + (NODE_COUNT - 1) * MIN_SPACING)
+		local spacing = (canvasW - LEFT_PAD - RIGHT_PAD) / (NODE_COUNT - 1)
 		canvas.Size = UDim2.fromOffset(canvasW, canvasH)
-		scroll.CanvasSize = UDim2.fromOffset(canvasW + RIGHT_PAD, 0)
-		nodeSize = math.floor(math.clamp(canvasH * 0.22, 64, 84))
+		scroll.CanvasSize = UDim2.fromOffset(canvasW, 0)
+		local mid, amp = canvasH * 0.5, canvasH * 0.11
+		local minY, maxY = math.huge, -math.huge
+		for index = 1, NODE_COUNT do
+			local wave = (index % 2 == 0) and -1 or 1
+			posX[index] = LEFT_PAD + (index - 1) * spacing
+			posY[index] = mid + wave * amp * (0.85 + 0.15 * math.sin(index * 1.7))
+			minY, maxY = math.min(minY, posY[index]), math.max(maxY, posY[index])
+		end
+		local labelW = math.floor(math.clamp(spacing * 0.85, 150, LABEL_MAX))
+		local LABEL_GAP, TAG_H = 10, 24
 		for index, node in ipairs(nodes) do
+			local x, y = nodePixel(index)
+			local info = node.data.info
+			node.button.Position = UDim2.fromOffset(x, y)
 			node.button.Size = UDim2.fromOffset(nodeSize, nodeSize)
 			node.icon.TextSize = math.floor(nodeSize * 0.45)
-			local info = node.data.info
-			node.name.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 10)
-			node.tag.Position = UDim2.new(info.x, 0, info.y, nodeSize / 2 + 36)
+			local lines = math.ceil(#info.name * 9.8 / labelW)
+			local labelH = lines * 21 + 2
+			node.name.Size = UDim2.fromOffset(labelW, labelH)
+			if index % 2 == 0 then
+				node.name.AnchorPoint = Vector2.new(0.5, 1)
+				node.name.TextYAlignment = Enum.TextYAlignment.Bottom
+				node.name.Position = UDim2.fromOffset(x, y - nodeSize / 2 - LABEL_GAP)
+				node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + 14)
+			else
+				node.name.AnchorPoint = Vector2.new(0.5, 0)
+				node.name.TextYAlignment = Enum.TextYAlignment.Top
+				node.name.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP)
+				node.tag.Position = UDim2.fromOffset(x, y + nodeSize / 2 + LABEL_GAP + labelH + 8)
+			end
 			local nextData = nodeData[index + 1]
 			if nextData then
+				local nx, ny = nodePixel(index + 1)
 				local seg = segments[index]
-				seg.ax, seg.ay = info.x * canvasW, info.y * canvasH
-				seg.bx, seg.by = nextData.info.x * canvasW, nextData.info.y * canvasH
+				seg.ax, seg.ay = x, y
+				seg.bx, seg.by = nx, ny
 				local dx, dy = seg.bx - seg.ax, seg.by - seg.ay
 				seg.length = math.sqrt(dx * dx + dy * dy)
 				-- Winding: control point pushed sideways, alternating per segment.
-				local nx, ny = -dy / math.max(seg.length, 1), dx / math.max(seg.length, 1)
-				seg.cx = (seg.ax + seg.bx) / 2 + nx * seg.length * 0.22 * seg.sign
-				seg.cy = (seg.ay + seg.by) / 2 + ny * seg.length * 0.22 * seg.sign
+				local px, py = -dy / math.max(seg.length, 1), dx / math.max(seg.length, 1)
+				seg.cx = (seg.ax + seg.bx) / 2 + px * seg.length * 0.1 * seg.sign
+				seg.cy = (seg.ay + seg.by) / 2 + py * seg.length * 0.1 * seg.sign
 				seg.count = math.clamp(math.floor(seg.length * 1.15 / 14), 6, 80)
 				while #seg.dots < seg.count do
 					table.insert(seg.dots, makeDot(seg))
@@ -605,11 +664,9 @@ return function(deps)
 				for k = 1, #seg.dots do
 					local dot = seg.dots[k]
 					if k <= seg.count then
-						local px, py = bezier(seg, (k - 1) / (seg.count - 1))
-						dot.frame.Position = UDim2.fromOffset(px, py)
+						local bx, by = bezier(seg, (k - 1) / (seg.count - 1))
+						dot.frame.Position = UDim2.fromOffset(bx, by)
 					end
-					dot.frame.Visible = k <= seg.count
-					dot.foot.Visible = seg.filled and k % 4 == 0 and k <= seg.count
 				end
 			end
 		end
@@ -622,9 +679,15 @@ return function(deps)
 			local s = math.max(40, math.floor(canvasH * 0.14))
 			g.frame.Size = UDim2.fromOffset(s, s)
 		end
+		-- Decor lives in the empty bands above the highest label and below the lowest tag.
+		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16)
+		fogBand.layout(canvasW, canvasH)
+		updateFog(false)
 		placeMarker()
 	end
-	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		layout()
+	end)
 
 
 	-- ===== View of the current state =====
@@ -711,12 +774,32 @@ return function(deps)
 	-- the trail alone (the unlock moment animates it itself).
 	local function render(view, cleared, animating)
 		local currentIndex = currentIndexFor(view)
+		local endlessSeen = cleared[JourneyMap.NightCap] == true or (not unlocking and view.endlessOpen)
+		local states
+		if debugOn then
+			states = {}
+			for i = 1, NODE_COUNT do
+				states[i] = "revealed"
+			end
+		else
+			states = JourneyMap.nodeRevealStates(revealOverride or math.max(view.night, 1), cleared, endlessSeen)
+		end
+		local newly = {}
+		for i = 1, NODE_COUNT do
+			if states[i] == "revealed" and reveal.states[i] ~= nil and reveal.states[i] ~= "revealed" then
+				table.insert(newly, i)
+			end
+		end
+		reveal.states, reveal.newly = states, newly
 		local accentHere = view.inEndless and PURPLE or Color3.fromRGB(255, 190, 90)
 		for index, node in ipairs(nodes) do
 			local data = node.data
 			local isCleared = data.kind ~= "endless" and cleared[data.night] == true
 			local locked = isNodeLocked(view, cleared, index)
 			local isCurrent = currentIndex == index and not isCleared
+			local shownNode = states[index] == "revealed"
+			node.button.Visible = shownNode
+			node.name.Visible = shownNode
 
 			node.stroke.Color = isCleared and GOLD_DARK or (isCurrent and accentHere) or (locked and Color3.fromRGB(110, 92, 72)) or Color3.fromRGB(90, 60, 30)
 			node.stroke.Thickness = isCleared and 4 or 3
@@ -743,9 +826,9 @@ return function(deps)
 			local pv = previewText(index)
 			node.preview.Text = pv
 			node.preview.TextColor3 = locked and Color3.fromRGB(105, 85, 65) or LABEL_INK
-			node.tag.Visible = pv ~= ""
+			node.tag.Visible = shownNode and pv ~= ""
 			node.haloStroke.Color = accentHere
-			setPulse(node, isCurrent and frame.Visible)
+			setPulse(node, isCurrent and shownNode and frame.Visible)
 		end
 
 		local endlessEntered = view.reached > JourneyMap.NightCap
@@ -758,6 +841,11 @@ return function(deps)
 				filled = cleared[data.night] == true
 			end
 			seg.filled = filled
+			local endState = states[index + 1]
+			local mode = (states[index] == "revealed" and endState == "revealed") and "full"
+				or ((states[index] == "revealed" and endState == "teaser") and "fade" or "none")
+			seg.modeChanged = seg.mode ~= mode
+			seg.mode = mode
 			if not animating then
 				for k = 1, #seg.dots do
 					setDot(seg, k, false)
@@ -772,6 +860,7 @@ return function(deps)
 			markerIndex = idx
 		end
 		placeMarker()
+		updateFog(fogAnimate)
 		frame.BackgroundColor3 = view.inEndless and MAP_BG_ENDLESS or MAP_BG
 	end
 
@@ -847,7 +936,6 @@ return function(deps)
 	deps.polishButton(closeCard, 8)
 
 	local openIndex = nil
-	local debugOn = false -- Studio-only coordinate overlay / drag mode
 
 	local function equippedNow(view, reward)
 		local cosmetics = view.state and view.state.cosmetics
@@ -982,7 +1070,9 @@ return function(deps)
 				local info = node.data.info
 				if debugLabels[index] then
 					debugLabels[index].Visible = debugOn
-					debugLabels[index].Text = string.format("x %.2f  y %.2f", info.x, info.y)
+					local px, py = nodePixel(index)
+					debugLabels[index].Position = UDim2.fromOffset(px, py - nodeSize / 2 - 2)
+					debugLabels[index].Text = string.format("x %.2f  y %.2f", px / canvasW, py / canvasH)
 				end
 			end
 		end
@@ -992,7 +1082,6 @@ return function(deps)
 				Font = Enum.Font.Code, Text = "", Visible = false, TextColor3 = Color3.fromRGB(120, 255, 160),
 				BackgroundTransparency = 0.3, BackgroundColor3 = INK, ZIndex = 50,
 			})
-			label.Position = UDim2.new(node.data.info.x, 0, node.data.info.y, -nodeSize / 2 - 2)
 			debugLabels[index] = label
 		end
 
@@ -1000,7 +1089,8 @@ return function(deps)
 			print("-- Journey node positions (paste x, y into Engine/JourneyMap.lua):")
 			for _, node in ipairs(nodes) do
 				local d = node.data
-				print(string.format("  %s: x = %.2f, y = %.2f", d.night and ("Night " .. d.night) or "Endless doors", d.info.x, d.info.y))
+				local px, py = nodePixel(_)
+				print(string.format("  %s: x = %.2f, y = %.2f", d.night and ("Night " .. d.night) or "Endless doors", px / canvasW, py / canvasH))
 			end
 		end
 
@@ -1027,9 +1117,8 @@ return function(deps)
 			local info = nodes[dragging].data.info
 			info.x = math.clamp(math.floor(rel.X * 100 + 0.5) / 100, 0, 1)
 			info.y = math.clamp(math.floor(rel.Y * 100 + 0.5) / 100, 0, 1)
-			nodes[dragging].button.Position = UDim2.fromScale(info.x, info.y)
-			debugLabels[dragging].Position = UDim2.new(info.x, 0, info.y, -nodeSize / 2 - 2)
-			layout()
+			nudged[dragging] = true
+			layout(true)
 			refreshDebugLabels()
 		end)
 		UserInputService.InputEnded:Connect(function(input)
@@ -1063,6 +1152,9 @@ return function(deps)
 				print("Journey nudge ON: drag nodes; coordinates print here.")
 			end
 			refreshDebugLabels()
+			if requestRender then
+				requestRender() -- Nudge reveals every node (the fog steps aside) while on
+			end
 		end)
 	end
 
@@ -1151,7 +1243,7 @@ return function(deps)
 			task.spawn(function()
 				task.wait(math.random() * 2.5)
 				while ambientToken == my do
-					if not mapImage.Visible then
+					if #FLAMES == 0 then
 						task.wait(1)
 					else
 						local f = FLAMES[math.random(1, #FLAMES)]
@@ -1239,6 +1331,52 @@ return function(deps)
 		end
 	end
 
+	local function sparkleBurst(cx, cy, count)
+		for i = 1, count do
+			local s = Instance.new("Frame")
+			s.AnchorPoint = Vector2.new(0.5, 0.5)
+			s.Position = UDim2.fromOffset(cx, cy)
+			s.Size = UDim2.fromOffset(7, 7)
+			s.Rotation = 45
+			s.BackgroundColor3 = GOLD
+			s.BorderSizePixel = 0
+			s.ZIndex = 36
+			s.Parent = sparkleLayer
+			local ang = (i / count) * math.pi * 2 + math.random() * 0.3
+			local dist = 40 + math.random() * 34
+			TweenService:Create(s, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = UDim2.fromOffset(cx + math.cos(ang) * dist, cy + math.sin(ang) * dist),
+				BackgroundTransparency = 1, Size = UDim2.fromOffset(2, 2),
+			}):Play()
+			task.delay(0.75, function()
+				s:Destroy()
+			end)
+		end
+	end
+
+	-- A newly revealed node fades in (labels, tag, a small pop unless Reduce Shake is on) with sparkles.
+	local function fadeInRevealed(index)
+		local node = nodes[index]
+		if not node then
+			return
+		end
+		local info = TweenInfo.new(0.6 / pace(), Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+		node.name.TextTransparency, node.name.TextStrokeTransparency = 1, 1
+		TweenService:Create(node.name, info, { TextTransparency = 0, TextStrokeTransparency = 0.3 }):Play()
+		node.preview.TextTransparency = 1
+		node.tag.BackgroundTransparency = 1
+		node.tagStroke.Transparency = 1
+		TweenService:Create(node.preview, info, { TextTransparency = 0 }):Play()
+		TweenService:Create(node.tag, info, { BackgroundTransparency = 0 }):Play()
+		TweenService:Create(node.tagStroke, info, { Transparency = 0 }):Play()
+		if not calm() then
+			node.scale.Scale = 0.55
+			TweenService:Create(node.scale, TweenInfo.new(0.5 / pace(), Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end
+		local cx, cy = nodePixel(index)
+		sparkleBurst(cx, cy, 10)
+	end
+
 	-- Gold seal stamps on: scale 1.6 to 1 with a short rotation, map shake, sparkle burst.
 	local function stampSeal(node, index)
 		if node.seal and node.seal.IsLoaded and node.sealScale and not calm() then
@@ -1260,26 +1398,7 @@ return function(deps)
 			end)
 		end
 		local cx, cy = nodePixel(index)
-		for i = 1, 12 do
-			local s = Instance.new("Frame")
-			s.AnchorPoint = Vector2.new(0.5, 0.5)
-			s.Position = UDim2.fromOffset(cx, cy)
-			s.Size = UDim2.fromOffset(7, 7)
-			s.Rotation = 45
-			s.BackgroundColor3 = GOLD
-			s.BorderSizePixel = 0
-			s.ZIndex = 32
-			s.Parent = sparkleLayer
-			local ang = (i / 12) * math.pi * 2 + math.random() * 0.3
-			local dist = 40 + math.random() * 34
-			TweenService:Create(s, TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Position = UDim2.fromOffset(cx + math.cos(ang) * dist, cy + math.sin(ang) * dist),
-				BackgroundTransparency = 1, Size = UDim2.fromOffset(2, 2),
-			}):Play()
-			task.delay(0.75, function()
-				s:Destroy()
-			end)
-		end
+		sparkleBurst(cx, cy, 12)
 		deps.playClickSfx()
 	end
 
@@ -1293,6 +1412,8 @@ return function(deps)
 		for _, n in ipairs(pendingNights) do
 			shown[n] = nil
 		end
+		-- The fog starts where it stood before the clear.
+		revealOverride = pendingNights[1]
 		-- The hero starts on the first node about to clear.
 		for i, data in ipairs(nodeData) do
 			if data.night == pendingNights[1] then
@@ -1320,8 +1441,7 @@ return function(deps)
 					return
 				end
 				-- Bring the node into view.
-				local target = math.clamp(nodes[index].data.info.x * canvasW - scroll.AbsoluteSize.X / 2, 0,
-					math.max(0, canvasW + RIGHT_PAD - scroll.AbsoluteSize.X))
+				local target = scrollTargetFor((nodePixel(index)))
 				TweenService:Create(scroll, TweenInfo.new(0.4 / pace()), { CanvasPosition = Vector2.new(target, 0) }):Play()
 				task.wait(0.35 / pace())
 
@@ -1343,9 +1463,29 @@ return function(deps)
 					if playing ~= token then
 						return
 					end
+					-- The fog rolls back one stop; the newly revealed node and trail fade in.
+					revealOverride = n + 1
+					fogAnimate = true
+					render(view, shown, true)
+					fogAnimate = false
+					for i, s2 in ipairs(segments) do
+						if s2.modeChanged and s2.mode ~= "none" then
+							drawSegment(s2, 0.9 / pace())
+						end
+					end
+					for _, revealedIndex in ipairs(reveal.newly) do
+						fadeInRevealed(revealedIndex)
+					end
+					local lookAt = nodePixel(math.min(index + 1, NODE_COUNT))
+					TweenService:Create(scroll, TweenInfo.new(1.2 / pace(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+						{ CanvasPosition = Vector2.new(scrollTargetFor(lookAt), 0) }):Play()
 					local nextNode = nodes[index + 1]
-					if nextNode then
+					if nextNode and #reveal.newly == 0 then
 						popNode(nextNode)
+					end
+					task.wait(1.2 / pace())
+					if playing ~= token then
+						return
 					end
 				end
 
@@ -1358,6 +1498,7 @@ return function(deps)
 			end
 			if playing == token then
 				unlocking = false
+				revealOverride = nil
 				render(view, view.cleared, false)
 			end
 		end)
@@ -1430,19 +1571,27 @@ return function(deps)
 			if not shown then
 				playing = playing + 1 -- cancel any unlock in progress
 				unlocking = false
+				revealOverride = nil
+				fogAnimate = false
 				toast.Visible = false
 				closeDetail()
 				for _, node in ipairs(nodes) do
 					setPulse(node, false)
+					-- undo any half-finished reveal fade
+					node.name.TextTransparency, node.name.TextStrokeTransparency = 0, 0.3
+					node.preview.TextTransparency = 0
+					node.tag.BackgroundTransparency, node.tagStroke.Transparency = 0, 0
+					node.scale.Scale = 1
 				end
 				stopAmbient()
+				fogBand.stopDrift()
 				if hopValue then
 					hopValue:Destroy()
 					hopValue = nil
 				end
 				return
 			end
-			layout()
+			layout(true)
 			local view = currentView()
 			local pending = {}
 			if seen and view.state then
@@ -1459,16 +1608,26 @@ return function(deps)
 			playing = playing + 1
 			unlocking = false
 			startAmbient()
+			fogBand.startDrift()
 			if #pending > 0 then
 				playUnlocks(view, pending)
 				introTrail(nil, true)
 			else
 				render(view, view.cleared, false)
 				introTrail(currentIndexFor(view), false)
+				-- Ease the camera to the current Night (a frame later, once the panel has its final size).
 				local idx = currentIndexFor(view) or 1
-				local target = math.clamp(nodes[idx].data.info.x * canvasW - scroll.AbsoluteSize.X / 2, 0,
-					math.max(0, canvasW + RIGHT_PAD - scroll.AbsoluteSize.X))
-				scroll.CanvasPosition = Vector2.new(target, 0)
+				scroll.CanvasPosition = Vector2.new(0, 0)
+				local myPlay = playing
+				task.defer(function()
+					if not frame.Visible or playing ~= myPlay then
+						return
+					end
+					layout()
+					local target = scrollTargetFor((nodePixel(idx)))
+					TweenService:Create(scroll, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+						{ CanvasPosition = Vector2.new(target, 0) }):Play()
+				end)
 			end
 		end,
 		applyHeader = applyHeader,
