@@ -260,6 +260,7 @@ return function(deps)
 	-- Cards do not stretch to fill the screen height.
 	local roundPanels = {}
 	local cardScales = {}
+	local NO_BUTTON_DROP = 96 -- Select (44) + gap (6) + Skip (40) + margins, see the button positions below
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
 		local isBossPanel = (round == ROUNDS_PER_NIGHT)
@@ -523,6 +524,12 @@ return function(deps)
 			tagLabel = tagLabel,
 			selectButton = selectButton,
 			skipButton = skipButton,
+			-- Bottom-anchored text that moves down (with a shorter card) on cards that have no buttons.
+			shiftables = { roomLabel, bossNameLabel, bossLabel, tagLabel, targetLabel },
+			shiftBase = {
+				roomLabel.Position.Y.Offset, bossNameLabel.Position.Y.Offset, bossLabel.Position.Y.Offset,
+				tagLabel.Position.Y.Offset, targetLabel.Position.Y.Offset,
+			},
 		})
 	end
 
@@ -727,6 +734,16 @@ return function(deps)
 			-- Only the round you're actually on gets buttons.
 			entry.selectButton.Visible = isCurrent
 			entry.skipButton.Visible = isCurrent and state.canSkipRound == true
+
+			-- Cleared / Up next cards have no buttons: drop the text block by NO_BUTTON_DROP
+			-- and make the card that much shorter so it ends just under the Target plaque
+			-- (the active card keeps the full 620px for Select and Skip).
+			local drop = isCurrent and 0 or NO_BUTTON_DROP
+			entry.panel.Size = UDim2.new(0, 220, 0, 620 - drop)
+			for i, obj in ipairs(entry.shiftables) do
+				local p = obj.Position
+				obj.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, entry.shiftBase[i] + drop)
+			end
 		end
 
 		-- Confirmed-skip detection (see lastStageKeyForConfirm's comment

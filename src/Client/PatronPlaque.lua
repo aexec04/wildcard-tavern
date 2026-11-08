@@ -146,9 +146,9 @@ function PatronPlaque.applyById(frame, artId, opts)
 	art.ImageTransparency = 0
 	if opts.dim then
 		-- Locked: dimmed, never a black silhouette (colour multiply, no transparency).
-		art.ImageColor3 = Color3.fromRGB(90, 90, 90)
+		art.ImageColor3 = Color3.fromRGB(120, 120, 120)
 	end
-	local r = opts.cornerRadius
+local r = opts.cornerRadius
 	if r == nil then r = 4 end
 	if r > 0 then
 		local corner = Instance.new("UICorner")
@@ -189,7 +189,7 @@ function PatronPlaque.apply(frame, patronId, opts)
 	art.ImageTransparency = 0
 	if opts.dim then
 		-- Locked: dimmed, never a black silhouette (colour multiply, no transparency).
-		art.ImageColor3 = Color3.fromRGB(90, 90, 90)
+		art.ImageColor3 = Color3.fromRGB(120, 120, 120)
 	end
 
 	local r = opts.cornerRadius
