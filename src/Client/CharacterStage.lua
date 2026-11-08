@@ -25,6 +25,12 @@
 	boss plaque); Engine/SceneKeys.FloorFractions can still override the floor for one scene key.
 ]]
 
+-- The 3D rigs were scrapped (the blocky boss looked nothing like its painted portrait and the avatar rig
+-- was unreliable). With USE_3D_RIGS = false (the default) init() builds Client/CharacterStage2D instead:
+-- the painted boss portrait (BossFight) plus the player's avatar thumbnail. This file's rig code, BossRigs
+-- and BossOutfits stay in place, unused, in case it is revisited.
+local USE_3D_RIGS = false
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -970,7 +976,11 @@ end
 local instance = nil
 return {
 	init = function(deps)
-		instance = build(deps)
+		if USE_3D_RIGS then
+			instance = build(deps)
+		else
+			instance = require(script.Parent.CharacterStage2D).build(deps)
+		end
 		return instance
 	end,
 	get = function()

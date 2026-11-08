@@ -31,9 +31,11 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local StageMotion = require(Engine:WaitForChild("StageMotion"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local PatronPlaque = require(script.Parent.PatronPlaque)
@@ -461,14 +463,33 @@ local function build(deps)
 
 	-- ===== idle: breathe + sway while the host is up =====
 	local idleTweens = {}
+	local swayConn = nil
 	local function stopIdle()
 		for _, t in ipairs(idleTweens) do t:Cancel() end
 		idleTweens = {}
+		if swayConn then
+			swayConn:Disconnect()
+			swayConn = nil
+		end
+		if art then
+			art.Position = UDim2.fromScale(0, 0) -- (the emoji fallback also sits at 0,0)
+			art.Rotation = 0
+		end
 	end
 	local function startIdle(period)
 		stopIdle()
 		if not motionOk() then return end
 		period = period or 1.5
+		-- One continuous sine (sub-pixel) on the portrait art: breathing + a slight lean. Hit shakes tween
+		-- the holder, so the two never fight. Faster while enraged. Disconnected by stopIdle / hide.
+		local speed = 1.5 / period
+		local phase = grand and 0.4 or 0
+		swayConn = RunService.RenderStepped:Connect(function()
+			if not (art and host.Visible) then return end
+			local dx, dy, rot = StageMotion.sway(os.clock() * speed, phase, grand and 3.5 or 2.5)
+			art.Position = UDim2.new(0, dx, 0, dy)
+			art.Rotation = rot
+		end)
 		local info = TweenInfo.new(period, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
 		local sway = TweenService:Create(rim, TweenInfo.new(period, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 5 })
 		sway:Play()
@@ -819,6 +840,11 @@ local function build(deps)
 	end
 
 	-- ===== public =====
+	-- True once the boss portrait for this fight is on screen (TravelTransition waits on it for boss rounds).
+	function M.portraitReady()
+		return visible and art ~= nil
+	end
+
 	function M.reset()
 		hide()
 		roundKey = nil

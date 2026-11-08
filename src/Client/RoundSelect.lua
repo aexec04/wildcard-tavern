@@ -509,8 +509,18 @@ return function(deps)
 						if not (s and s.phase == "playing") then
 							return false
 						end
+						-- the avatar thumbnail (CharacterStage) and, for a boss round, the boss portrait (BossFight)
 						local stage = require(script.Parent.CharacterStage).get()
-						return stage == nil or stage.isReady(expectBoss)
+						if stage ~= nil and not stage.isReady(expectBoss) then
+							return false
+						end
+						if expectBoss then
+							local fight = require(script.Parent.BossFight).get()
+							if fight ~= nil and not fight.portraitReady() then
+								return false
+							end
+						end
+						return true
 					end,
 				})
 			end)

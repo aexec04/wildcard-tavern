@@ -5181,6 +5181,37 @@ table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endles
 	end
 end })
 
+table.insert(tests, { name = "StageMotion: sway is bounded and continuous, hit shake decays, hop returns to zero", fn = function()
+	local StageMotion = require(script.Parent.Parent.Engine.StageMotion)
+	local prevDy
+	for i = 0, 600 do
+		local t = i * 0.01
+		local dx, dy, rot = StageMotion.sway(t, 0.7, 3)
+		expectTrue(math.abs(dy) <= 3.0001 and math.abs(dx) <= 1.2001 and math.abs(rot) <= 0.6001, "sway stays within its amplitude")
+		if prevDy then
+			expectTrue(math.abs(dy - prevDy) < 0.2, "sway has no jumps between frames")
+		end
+		prevDy = dy
+	end
+	local rx, ry, rr = StageMotion.sway(12.3, 0.7, 3, true)
+	expectTrue(rx == 0 and ry == 0 and rr == 0, "reduced motion gives no sway")
+	local a = math.abs(StageMotion.hitShake(0.02, 1))
+	local x0, r0 = StageMotion.hitShake(0.5, 1)
+	local x1, r1 = StageMotion.hitShake(-0.1, 1)
+	local x2 = StageMotion.hitShake(0.1, 0)
+	expectTrue(x0 == 0 and r0 == 0 and x1 == 0 and r1 == 0 and x2 == 0, "shake is zero outside its window or at strength 0")
+	expectTrue(a <= 7, "shake is bounded")
+	local big, small = 0, 0
+	for i = 1, 30 do
+		big = math.max(big, math.abs(StageMotion.hitShake(i * 0.005, 1)))
+		small = math.max(small, math.abs(StageMotion.hitShake(i * 0.005, 0.3)))
+	end
+	expectTrue(big > small, "a bigger hit shakes more")
+	expectEqual(StageMotion.hop(0, 14), 0)
+	expectEqual(StageMotion.hop(0.5, 14), 0)
+	expectTrue(StageMotion.hop(0.16, 14) > 13, "hop peaks mid-way")
+end })
+
 table.insert(tests, { name = "StageLayout: feet stay above the hand row and both rigs fit the free band", fn = function()
 	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
 	for _, screenH in ipairs({ 600, 720, 900, 1080, 1440 }) do
