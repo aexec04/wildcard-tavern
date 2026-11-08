@@ -7352,4 +7352,30 @@ table.insert(tests, { name = "MapPan: the camera clamps at every edge, centres i
 	expectEqual(MapPan.compassTarget(hero, 45, {}), nil, "no candidates, no target")
 end })
 
+table.insert(tests, { name = "TooltipSpec: one border, padding clears the text, placement stays on screen", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local spec = TooltipSpec.Spec
+	expectEqual(spec.borders, 1, "exactly one border")
+	expectFalse(spec.innerRim, "no inner rim frame through the text")
+	expectTrue(TooltipSpec.textClear(spec), "padding is wider than the border plus breathing space")
+	expectFalse(TooltipSpec.textClear({ borders = 2, innerRim = true, stroke = 1.5, padX = 5, padY = 5 }), "the old double border fails the check")
+	expectTrue(spec.maxWidth <= 320, "long text wraps instead of running to the screen edge")
+	local screen = { X = 1280, Y = 720 }
+	-- above the target by default
+	local x, y = TooltipSpec.place({ X = 600, Y = 400 }, { X = 100, Y = 40 }, { X = 200, Y = 60 }, screen)
+	expectTrue(y + 60 + spec.gap <= 400 and x == 550, "above and centred")
+	-- no room above: below
+	x, y = TooltipSpec.place({ X = 600, Y = 10 }, { X = 100, Y = 40 }, { X = 200, Y = 60 }, screen)
+	expectTrue(y >= 50, "below when there is no room above")
+	-- clamped inside the screen on both sides and the bottom
+	for _, pos in ipairs({ { 0, 300 }, { 1250, 300 }, { 600, 715 }, { 1279, 719 }, { 0, 0 } }) do
+		x, y = TooltipSpec.place({ X = pos[1], Y = pos[2] }, { X = 30, Y = 30 }, { X = 280, Y = 120 }, screen)
+		expectTrue(x >= spec.margin and x + 280 <= screen.X - spec.margin + 1e-9, "inside horizontally")
+		expectTrue(y >= spec.margin and y + 120 <= screen.Y - spec.margin + 1e-9, "inside vertically")
+	end
+	-- left align: right edges line up
+	x = TooltipSpec.place({ X = 1200, Y = 300 }, { X = 60, Y = 40 }, { X = 200, Y = 50 }, screen, "left")
+	expectEqual(x, 1060)
+end })
+
 return tests

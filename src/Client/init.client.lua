@@ -404,84 +404,10 @@ local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconC
 local addTooltip
 do
 
-local tooltipLabel = Instance.new("TextLabel")
-tooltipLabel.Name = "Tooltip"
-tooltipLabel.AutomaticSize = Enum.AutomaticSize.XY
-tooltipLabel.Size = UDim2.new(0, 0, 0, 0)
-tooltipLabel.BackgroundColor3 = Color3.fromRGB(20, 16, 12)
-tooltipLabel.BackgroundTransparency = 0.05
-tooltipLabel.Font = Enum.Font.Gotham
-tooltipLabel.TextSize = 14
-tooltipLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-tooltipLabel.Text = ""
-tooltipLabel.Visible = false
-tooltipLabel.ZIndex = 100
-tooltipLabel.Parent = screenGui
-polishPanel(tooltipLabel, 6)
-
-local tooltipPadding = Instance.new("UIPadding")
-tooltipPadding.PaddingLeft = UDim.new(0, 8)
-tooltipPadding.PaddingRight = UDim.new(0, 8)
-tooltipPadding.PaddingTop = UDim.new(0, 5)
-tooltipPadding.PaddingBottom = UDim.new(0, 5)
-tooltipPadding.Parent = tooltipLabel
-
--- align "left": tooltip's RIGHT edge lines up with the button's right edge
--- (for buttons near the right side of the screen, so the tooltip doesn't
--- run off-screen). Default: centered under the button.
-addTooltip = function(button, text, align)
-	-- text can be a plain string (most callers) or a zero-arg function
-	-- returning a string, for tooltips whose content can change after this
-	-- is wired up (e.g. a Patron slot's tooltip depends on whether that
-	-- Patron is currently owned, which changes as you buy/discard them).
-	button.MouseEnter:Connect(function()
-		tooltipLabel.Text = (type(text) == "function") and text() or text
-		-- Placed ABOVE the target with a 6px gap, below when there is no room
-		-- above, clamped to the screen. AutomaticSize settles a frame late,
-		-- so place twice.
-		local function place()
-			local pos = button.AbsolutePosition
-			local size = button.AbsoluteSize
-			local tsz = tooltipLabel.AbsoluteSize
-			local screen = screenGui.AbsoluteSize
-			local x = (align == "left") and (pos.X + size.X - tsz.X) or (pos.X + size.X / 2 - tsz.X / 2)
-			local y = pos.Y - tsz.Y - 6
-			if y < 4 then
-				y = pos.Y + size.Y + 6
-			end
-			x = math.max(4, math.min(x, screen.X - tsz.X - 4))
-			y = math.max(4, math.min(y, screen.Y - tsz.Y - 4))
-			tooltipLabel.AnchorPoint = Vector2.new(0, 0)
-			tooltipLabel.Position = UDim2.fromOffset(x, y)
-		end
-		place()
-		tooltipLabel.Visible = true
-		task.defer(place)
-		-- Hide when the target is hidden, destroyed or its overlay closes
-		-- (MouseLeave never fires then, which left stale tooltips behind).
-		local conn
-		conn = game:GetService("RunService").Heartbeat:Connect(function()
-			local alive = button.Parent ~= nil and tooltipLabel.Visible
-			if alive then
-				local obj = button
-				while obj and not obj:IsA("LayerCollector") do
-					if obj:IsA("GuiObject") and not obj.Visible then alive = false break end
-					obj = obj.Parent
-				end
-			end
-			if not alive then
-				tooltipLabel.Visible = false
-				conn:Disconnect()
-			end
-		end)
-		local leave
-		leave = button.MouseLeave:Connect(function()
-			leave:Disconnect()
-			conn:Disconnect()
-			tooltipLabel.Visible = false
-		end)
-	end)
-end
+-- The one shared tooltip (single outer border, padding, max width with wrapping): Client/Tooltip.lua.
+-- align "left": the tooltip's right edge lines up with the button's right edge (buttons near the right
+-- screen edge). Text can be a string or a zero-arg function evaluated on each hover.
+addTooltip = require(script.Tooltip).new(screenGui).attach
 
 addTooltip(volumeButton, "Volume", "left")
 addTooltip(journeyButton, "Journey", "left")
