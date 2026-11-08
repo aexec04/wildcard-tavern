@@ -7125,4 +7125,41 @@ table.insert(tests, { name = "InputLock: opening an overlay disables gameplay hi
 	expectTrue(late == false, "a widget guarded while locked starts disabled")
 end })
 
+table.insert(tests, { name = "HoldConfirm: cancel by default, completes only after the full hold", fn = function()
+	local HoldConfirm = require(script.Parent.Parent.Engine.HoldConfirm)
+	local h = HoldConfirm.new(1.5)
+	expectTrue(h:update(100) == false and h:progress(100) == 0, "nothing happens without a press")
+	h:press(10)
+	expectTrue(h:update(10.5) == false and math.abs(h:progress(10.75) - 0.5) < 1e-9, "halfway is not enough")
+	h:release(11.0)
+	expectTrue(h:update(20) == false and h:progress(20) == 0, "releasing early cancels and resets")
+	h:press(30)
+	expectTrue(h:update(31.49) == false, "just short of 1.5s does not confirm")
+	expectTrue(h:update(31.5) == true, "the full time confirms")
+	expectTrue(h:update(32) == false, "confirms exactly once")
+	h:reset()
+	expectTrue(h:progress(40) == 0, "reset clears it")
+end })
+
+table.insert(tests, { name = "RunAbandon: abandoning counts the run as abandoned and grants nothing", fn = function()
+	local RunAbandon = require(script.Parent.Parent.Engine.RunAbandon)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local profile = PlayerProfile.new()
+	local before = { won = profile.stats.runsWon, best = profile.stats.bestNightReached, started = profile.stats.runsStarted }
+	expectTrue(profile.stats.runsAbandoned == 0, "fresh profile has 0 abandoned runs")
+	for _, phase in ipairs({ "roundSelect", "playing", "shop", "nightVictory" }) do
+		expectTrue(RunAbandon.canAbandon({ phase = phase, state = {} }), phase .. " can be abandoned")
+	end
+	expectTrue(not RunAbandon.canAbandon({ phase = "gameover", state = {} }), "a finished run cannot")
+	expectTrue(not RunAbandon.canAbandon(nil) and not RunAbandon.canAbandon({}), "no session, no abandon")
+	local ok = RunAbandon.abandon({ phase = "shop", state = {} }, profile, PlayerProfile)
+	expectTrue(ok and profile.stats.runsAbandoned == 1, "counted as abandoned")
+	expectTrue(profile.stats.runsWon == before.won and profile.stats.bestNightReached == before.best
+		and profile.stats.runsStarted == before.started, "no win, Night credit or start is granted")
+	local bad = RunAbandon.abandon({ phase = "gameover", state = {} }, profile, PlayerProfile)
+	expectTrue(not bad and profile.stats.runsAbandoned == 1, "a refused abandon changes nothing")
+	local copy = PlayerProfile.migrate({ stats = { runsAbandoned = 3.7 } })
+	expectTrue(copy.stats.runsAbandoned == 3, "migrate keeps and floors runsAbandoned")
+end })
+
 return tests

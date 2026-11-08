@@ -4,7 +4,7 @@
 		Display  -- Animation speed (Normal/Fast), Reduce screen shake,
 		            Colorblind suits
 		Gameplay -- Confirm before discard
-		Account  -- How to Play, Leaderboards, Main Menu
+		Account  -- How to Play, Leaderboards, Main Menu, Restart Run (danger button, in a run only)
 	Music/SFX volume and mute are in the volume popup (Client/VolumePanel.lua).
 	Toggle values live in Client/ClientSettings.lua (saved to the profile).
 
@@ -255,6 +255,14 @@ return function(deps)
 	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
 	local settingsMainMenuButton = makeAccountButton("Main Menu", 3, nil)
 
+	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
+	local restartRun = require(script.Parent.RestartRun)({
+		screenGui = deps.screenGui, root = deps.root, menuFrame = deps.menuFrame,
+		polishPanel = deps.polishPanel, polishButton = polishButton, playClickSfx = playClickSfx,
+		addSoftShadow = deps.addSoftShadow, addButtonHoverScale = addButtonHoverScale,
+		parent = scroll, layoutOrder = order(),
+	})
+
 	local settingsCloseButton = Instance.new("TextButton")
 	settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
 	settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -54)
@@ -295,6 +303,7 @@ return function(deps)
 	local function openSettings()
 		playClickSfx()
 		OverlayManager.closeAllExcept("settings")
+		restartRun.refresh()
 		popIn(settingsBackdrop, settingsPanel)
 	end
 	deps.settingsButton.MouseButton1Click:Connect(openSettings)

@@ -183,6 +183,7 @@ function PlayerProfile.new()
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
 			runsStarted = 0,
+			runsAbandoned = 0, -- runs given up from Settings > Restart Run
 			runsWon = 0,
 			bestNightReached = 0,
 		},
@@ -306,6 +307,9 @@ function PlayerProfile.migrate(raw)
 		local rawStats = raw.stats
 		if type(rawStats.runsStarted) == "number" then
 			profile.stats.runsStarted = math.max(0, math.floor(rawStats.runsStarted))
+		end
+		if type(rawStats.runsAbandoned) == "number" then
+			profile.stats.runsAbandoned = math.max(0, math.floor(rawStats.runsAbandoned))
 		end
 		if type(rawStats.runsWon) == "number" then
 			profile.stats.runsWon = math.max(0, math.floor(rawStats.runsWon))
@@ -454,6 +458,12 @@ end
 -- up), so the caller doesn't need to check a return value here.
 function PlayerProfile.recordRunStarted(profile)
 	profile.stats.runsStarted = profile.stats.runsStarted + 1
+end
+
+-- Settings > Restart Run: counts the run as abandoned. Grants nothing (no win, no Night credit beyond
+-- what syncProfileFromSession already recorded as the run went).
+function PlayerProfile.recordRunAbandoned(profile)
+	profile.stats.runsAbandoned = (profile.stats.runsAbandoned or 0) + 1
 end
 
 -- Idempotent high-water mark -- safe to call with the current Night on every

@@ -30,6 +30,7 @@ local LoginStreak = require(Engine.LoginStreak) -- daily login streak rules
 local Seasons = require(Engine.Seasons) -- limited-time seasonal set (dates, unlock, banner)
 local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
+local RunAbandon = require(Engine.RunAbandon) -- Settings > Restart Run rule
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
@@ -127,6 +128,7 @@ local AdvanceRoundRemote = newRemote("AdvanceRound")
 local SelectRoundRemote = newRemote("SelectRound") -- (player)
 local SkipRoundRemote = newRemote("SkipRound") -- (player)
 local RestartRunRemote = newRemote("RestartRun")
+local AbandonRunRemote = newRemote("AbandonRun") -- Settings > Restart Run (confirmed on the client); no args
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
 -- DAILY CHALLENGE (Phase 11): a seeded standard/standard run, same for
@@ -2141,6 +2143,19 @@ RestartRunRemote.OnServerEvent:Connect(function(player)
 	end
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
+end)
+
+-- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
+-- nothing is granted and nothing is submitted to a leaderboard; then a fresh session starts exactly like
+-- New Run (same Deck Variant/Difficulty), so the menu's Play opens a clean run.
+AbandonRunRemote.OnServerEvent:Connect(function(player)
+	local session = sessions[player]
+	local ok = RunAbandon.abandon(session, profiles[player], PlayerProfile)
+	if not ok then
+		return
+	end
+	profileDirty[player] = true
 	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
 end)
 
