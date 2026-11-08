@@ -1089,6 +1089,7 @@ do
 		addSoftShadow = addSoftShadow,
 		playClickSfx = playClickSfx,
 		settingsButton = settingsButton,
+		menuSettingsButton = MenuScreen.menuSettingsButton,
 		popIn = popIn,
 		popOut = popOut,
 		addButtonHoverScale = addButtonHoverScale,
@@ -1341,6 +1342,7 @@ require(script.Collection)({
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	collectionButton = collectionButton,
+	menuCollectionButton = MenuScreen.menuCollectionButton,
 	-- ACHIEVEMENTS + TITLES (Phase 16): required inline rather than as
 	-- its own top-level local -- init.client.lua is already right up
 	-- against Lua's 200-local-per-chunk ceiling (Menu.lua's header

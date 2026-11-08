@@ -806,13 +806,17 @@ return function(deps)
 		popOut(backdrop, panel)
 	end)
 
-	deps.collectionButton.MouseButton1Click:Connect(function()
+	local function openCollection()
 		playClickSfx()
 		OverlayManager.closeAllExcept("collection")
 		hideDetail()
 		refresh()
 		popIn(backdrop, panel)
-	end)
+	end
+	deps.collectionButton.MouseButton1Click:Connect(openCollection)
+	if deps.menuCollectionButton then
+		deps.menuCollectionButton.MouseButton1Click:Connect(openCollection)
+	end
 
 	if deps.StateUpdatedRemote then
 		deps.StateUpdatedRemote.OnClientEvent:Connect(function()

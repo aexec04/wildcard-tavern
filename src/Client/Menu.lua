@@ -340,7 +340,7 @@ return function(deps)
 			labelBox.ZIndex = ART_Z + 2
 			labelBox.Parent = button
 			local size = opts.iconSize
-			local artId = ContentArt.getImageId("menu_icons", opts.iconKey)
+			local artId = ContentArt.getImageId("menu_icons", opts.iconKey) or opts.iconImage
 			local holder = Instance.new("Frame")
 			holder.AnchorPoint = Vector2.new(0.5, 0)
 			holder.Position = UDim2.new(0.5, 0, 0, small and 8 or 10)
@@ -481,6 +481,18 @@ return function(deps)
 		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
+	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Own centered row
+	-- (two 114px buttons) so it stays inside the safe area at phone width. Reuses the in-run
+	-- corner icon art (no menu_icons key); the panels open from Collection.lua / Settings.lua.
+	local accountRow = makeRow(5, 114, 16)
+	local menuCollectionButton = makeFrameButton({
+		text = "Collection", textSize = 14, parent = accountRow, order = 1, width = 114, height = 114,
+		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
+	})
+	local menuSettingsButton = makeFrameButton({
+		text = "Settings", textSize = 14, parent = accountRow, order = 2, width = 114, height = 114,
+		iconKey = "settings", iconImage = ArtAssets.cornerIconSettings, emoji = "\226\154\153", iconSize = 46,
+	})
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
@@ -570,5 +582,7 @@ return function(deps)
 		menuDailyChallengeButton = menuDailyChallengeButton,
 		menuWeeklyChallengeButton = menuWeeklyChallengeButton,
 		menuTutorialButton = menuTutorialButton,
+		menuCollectionButton = menuCollectionButton,
+		menuSettingsButton = menuSettingsButton,
 	}
 end

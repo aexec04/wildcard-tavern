@@ -292,11 +292,15 @@ return function(deps)
 		popOut(settingsBackdrop, settingsPanel)
 	end)
 
-	deps.settingsButton.MouseButton1Click:Connect(function()
+	local function openSettings()
 		playClickSfx()
 		OverlayManager.closeAllExcept("settings")
 		popIn(settingsBackdrop, settingsPanel)
-	end)
+	end
+	deps.settingsButton.MouseButton1Click:Connect(openSettings)
+	if deps.menuSettingsButton then
+		deps.menuSettingsButton.MouseButton1Click:Connect(openSettings)
+	end
 
 	return {
 		settingsBackdrop = settingsBackdrop,
