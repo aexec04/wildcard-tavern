@@ -123,6 +123,29 @@ return function(deps)
 	deckWidgetButton.Parent = deckWidget
 	addTooltip(deckWidgetButton, "Deck Tracker -- click to see what's left in the deck")
 
+	-- Two cards peek out from under the top card (2-3px offsets, 1.5 degree turns)
+	-- so the pile reads as a stack. CosmeticSetsView swaps their art with the top card's.
+	local stackCards = {}
+	for i, spec in ipairs({ { name = "StackBackA", dx = 3, dy = 3, rot = 1.5 }, { name = "StackBackB", dx = -2, dy = 2, rot = -1.5 } }) do
+		local c = Instance.new("ImageLabel")
+		c.Name = spec.name
+		c.AnchorPoint = Vector2.new(0.5, 0)
+		c.BackgroundColor3 = Color3.fromRGB(50, 70, 110)
+		c.BorderSizePixel = 0
+		c.Image = cardBackTemplate
+		c.ScaleType = Enum.ScaleType.Stretch
+		c.Rotation = spec.rot
+		c.ZIndex = 2
+		c.Active = false
+		c.Parent = deckWidget
+		roundCorner(c, 8)
+		local edge = Instance.new("UIStroke")
+		edge.Color = Color3.fromRGB(20, 14, 8)
+		edge.Thickness = 1
+		edge.Parent = c
+		stackCards[i] = { frame = c, dx = spec.dx, dy = spec.dy }
+	end
+
 	local deckCardBack = Instance.new("Frame")
 	deckCardBack.Position = UDim2.fromOffset(12, 12)
 	deckCardBack.Size = UDim2.new(1, -24, 0, 140)
@@ -137,10 +160,12 @@ return function(deps)
 	-- the "art sits in front" ordering used everywhere else.
 	local deckCardBackArt = Instance.new("ImageLabel")
 	deckCardBackArt.Name = "CardBackArt"
+	deckCardBackArt.AnchorPoint = Vector2.new(0.5, 0.5)
+	deckCardBackArt.Position = UDim2.fromScale(0.5, 0.5)
 	deckCardBackArt.Size = UDim2.fromScale(1, 1)
 	deckCardBackArt.BackgroundTransparency = 1
 	deckCardBackArt.BorderSizePixel = 0
-	deckCardBackArt.ScaleType = Enum.ScaleType.Stretch
+	deckCardBackArt.ScaleType = Enum.ScaleType.Stretch -- Crop once a painted back is equipped
 	deckCardBackArt.Image = cardBackTemplate
 	deckCardBackArt.ZIndex = 3
 	deckCardBackArt.Parent = deckCardBack
@@ -161,14 +186,17 @@ return function(deps)
 	deckCardBackIcon.Parent = deckCardBack
 
 	local deckCountLabel = Instance.new("TextLabel")
-	deckCountLabel.Size = UDim2.new(1, 0, 0, 26)
-	deckCountLabel.Position = UDim2.new(0, 0, 0, 158)
-	deckCountLabel.BackgroundTransparency = 1
+	deckCountLabel.AnchorPoint = Vector2.new(0.5, 0)
+	deckCountLabel.Size = UDim2.new(0, 72, 0, 24)
+	deckCountLabel.Position = UDim2.new(0.5, 0, 0, 158)
+	deckCountLabel.BackgroundColor3 = Color3.fromRGB(24, 15, 8) -- dark pill keeps the count readable on any back
+	deckCountLabel.BackgroundTransparency = 0.25
+	roundCorner(deckCountLabel, 12)
 	deckCountLabel.Font = Enum.Font.GothamBold
 	deckCountLabel.TextSize = 18
 	deckCountLabel.TextColor3 = Color3.fromRGB(240, 230, 215)
 	deckCountLabel.Text = ""
-	deckCountLabel.ZIndex = 2
+	deckCountLabel.ZIndex = 4
 	deckCountLabel.Parent = deckWidget
 
 	-- Re-lay the card back + count inside the holder's window once the
@@ -185,8 +213,8 @@ return function(deps)
 		deckCardBack.AnchorPoint = Vector2.new(0.5, 0)
 		deckCardBack.Position = UDim2.new((win.left + win.right) / 2, 0, win.top, 8)
 		deckCardBack.Size = UDim2.new(winW * 0.82, 0, 0, 116)
-		deckCountLabel.Position = UDim2.new(0, 0, win.bottom, -29)
-		deckCountLabel.Size = UDim2.new(1, 0, 0, 24)
+		deckCountLabel.Position = UDim2.new(0.5, 0, win.bottom, -29)
+		deckCountLabel.Size = UDim2.new(0, 72, 0, 24)
 		local shadow = deckWidget:FindFirstChild("Shadow")
 		if shadow then
 			shadow.Visible = false
@@ -197,6 +225,24 @@ return function(deps)
 		end
 		deckCardBack.BackgroundTransparency = 1
 	end
+
+	local function syncStack()
+		for _, c in ipairs(stackCards) do
+			c.frame.Visible = deckCardBack.Visible
+			c.frame.Size = deckCardBack.Size
+			local pos = deckCardBack.Position
+			c.frame.AnchorPoint = Vector2.new(0.5, 0)
+			-- The top card is anchored at its left edge before the holder art loads, and centered after.
+			local cx = deckCardBack.AnchorPoint.X == 0.5 and pos.X or UDim.new(pos.X.Scale, pos.X.Offset)
+			local halfW = deckCardBack.AnchorPoint.X == 0.5 and 0 or deckCardBack.AbsoluteSize.X / 2
+			c.frame.Position = UDim2.new(cx.Scale, cx.Offset + halfW + c.dx, pos.Y.Scale, pos.Y.Offset + c.dy)
+		end
+	end
+	for _, prop in ipairs({ "Position", "Size", "AnchorPoint", "Visible" }) do
+		deckCardBack:GetPropertyChangedSignal(prop):Connect(syncStack)
+	end
+	deckCardBack:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncStack)
+	syncStack()
 
 	return {
 		deckCountLabel = deckCountLabel,

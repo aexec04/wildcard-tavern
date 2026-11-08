@@ -21,6 +21,8 @@ local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local CardBacks = require(Engine:WaitForChild("CardBacks"))
 local ArtAssets = require(script.Parent.ArtAssets)
 local BackdropStyles = require(script.Parent.BackdropStyles)
+local CardBackView = require(script.Parent.CardBackView)
+local TweenService = game:GetService("TweenService")
 
 -- Backdrops that show the equipped set's style: gameplay, Shop, Round
 -- Select and the Journey map. defaultTint is restored when a set has no style.
@@ -86,18 +88,71 @@ function M.apply(state)
 
 	-- The card back is separate from the set: the player can pick any
 	-- unlocked back, or follow the set's.
+	local back = CardBacks.getById(backId)
 	if backId ~= lastBackId then
 		local cardArt = find("CardBackArt")
-		local back = CardBacks.getById(backId)
 		if cardArt and back then
-			if backId == CardBacks.DefaultId then
-				cardArt.ImageColor3 = Color3.new(1, 1, 1)
+			local painted = CardBackView.imageFor(backId)
+			local function applyArt(label)
+				if painted then
+					label.Image = painted
+					label.ScaleType = Enum.ScaleType.Crop
+					label.ImageColor3 = Color3.new(1, 1, 1)
+				else
+					label.Image = ArtAssets.cardBackTemplate or "rbxassetid://0"
+					label.ScaleType = Enum.ScaleType.Stretch
+					if backId == CardBacks.DefaultId then
+						label.ImageColor3 = Color3.new(1, 1, 1)
+					else
+						local c = back.colors.base
+						label.ImageColor3 = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(c[1], c[2], c[3]), 0.6)
+					end
+				end
+			end
+			for _, name in ipairs({ "StackBackA", "StackBackB" }) do
+				local stack = find(name)
+				if stack then
+					applyArt(stack)
+				end
+			end
+			if lastBackId == nil then
+				applyArt(cardArt)
 			else
-				local c = back.colors.base
-				local base = Color3.fromRGB(c[1], c[2], c[3])
-				cardArt.ImageColor3 = Color3.new(1, 1, 1):Lerp(base, 0.6)
+				-- Equip moment: flip the pile (scale X 1 -> 0 -> 1 over 0.35s), swapping the art at the midpoint.
+				local flipId = backId
+				local half = TweenInfo.new(0.175, Enum.EasingStyle.Sine)
+				local close = TweenService:Create(cardArt, half, { Size = UDim2.fromScale(0, 1) })
+				close.Completed:Once(function()
+					if lastBackId == flipId then
+						applyArt(cardArt)
+					end
+					TweenService:Create(cardArt, half, { Size = UDim2.fromScale(1, 1) }):Play()
+				end)
+				close:Play()
 			end
 			lastBackId = backId
+		end
+	end
+
+	-- Theme: the equipped back's trim color tints the hand tray rim at low strength.
+	-- The default back keeps today's gold.
+	local tray = find("HandTray")
+	if tray and tray:GetAttribute("TintedBack") ~= backId then
+		tray:SetAttribute("TintedBack", backId)
+		local trim = back and back.colors.trim
+		for _, stroke in ipairs({ tray:FindFirstChildOfClass("UIStroke"), tray:FindFirstChild("InnerRim") and tray.InnerRim:FindFirstChildOfClass("UIStroke") }) do
+			if stroke then
+				local original = stroke:GetAttribute("OriginalColor")
+				if not original then
+					original = stroke.Color
+					stroke:SetAttribute("OriginalColor", original)
+				end
+				if trim and backId ~= CardBacks.DefaultId then
+					stroke.Color = original:Lerp(Color3.fromRGB(trim[1], trim[2], trim[3]), 0.45)
+				else
+					stroke.Color = original
+				end
+			end
 		end
 	end
 end

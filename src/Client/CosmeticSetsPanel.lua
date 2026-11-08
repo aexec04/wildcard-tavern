@@ -22,6 +22,8 @@ return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local CardBacks = require(Engine:WaitForChild("CardBacks"))
+	local CardBackView = require(script.Parent.CardBackView)
+	local ArtAssets = require(script.Parent.ArtAssets)
 	local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local BuyRemote = remotes:WaitForChild("BuyCosmeticSet")
@@ -63,7 +65,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.5, 0.7)
+	panel.Size = UDim2.fromScale(0.64, 0.84)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
@@ -76,14 +78,14 @@ return function(deps)
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Card Sets & Backs",
 	})
 	label(panel, {
-		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 34),
-		TextSize = 12, TextColor3 = SOFT_CREAM,
-		Text = "Sets change the tavern backdrop. Card backs can be picked on their own. Looks only.",
+		Size = UDim2.new(1, -30, 0, 20), Position = UDim2.fromOffset(15, 34),
+		TextSize = 15, TextColor3 = SOFT_CREAM, TextTruncate = Enum.TextTruncate.AtEnd,
+		Text = "Sets theme the table. Backs can be picked on their own. Looks only.",
 	})
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -100)
-	scroll.Position = UDim2.fromOffset(15, 58)
+	scroll.Size = UDim2.new(1, -30, 1, -104)
+	scroll.Position = UDim2.fromOffset(15, 62)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 6
@@ -101,7 +103,7 @@ return function(deps)
 	closeButton.AnchorPoint = Vector2.new(0.5, 1)
 	closeButton.Position = UDim2.new(0.5, 0, 1, -10)
 	closeButton.Font = Enum.Font.GothamBold
-	closeButton.TextSize = 14
+	closeButton.TextSize = 15
 	closeButton.TextColor3 = CREAM
 	closeButton.BackgroundColor3 = BROWN
 	closeButton.Text = "Close"
@@ -110,19 +112,19 @@ return function(deps)
 	polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
 
-	-- How a card back is unlocked, for the locked rows.
+	-- Short unlock hint for a locked back tile (kept under ~28 characters so it fits at 15px).
 	local function backUnlockHint(back)
 		for _, set in ipairs(CosmeticSets.Definitions) do
 			if set.cardBackId == back.id then
-				return "Comes with " .. set.name .. " (" .. CosmeticSets.unlockText(set) .. ")"
+				return "Comes with " .. set.name
 			end
 		end
 		for _, entry in ipairs(JourneyMap.Nights) do
 			if entry.reward.kind == "cardBack" and entry.reward.id == back.id then
-				return "Reward for clearing Night " .. entry.night
+				return "Clear Night " .. entry.night
 			end
 		end
-		return "Collection milestone reward"
+		return "Collection milestone"
 	end
 
 	local function sectionHeader(order, text)
@@ -138,17 +140,18 @@ return function(deps)
 		})
 	end
 
-	local function backRow(order, back, cosmetics, backsUnlocked)
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, -8, 0, 52)
-		row.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
-		row.LayoutOrder = order
-		row.ZIndex = 41
-		row.Parent = scroll
-		roundCorner(row, 8)
+	-- One tile in the Card Backs grid: tall painted thumbnail (90x135), name, action.
+	-- back == nil is the "Match my set" tile (shows the set's back).
+	local function backTile(grid, order, back, cosmetics, backsUnlocked)
+		local tile = Instance.new("Frame")
+		tile.Size = UDim2.fromOffset(132, 226)
+		tile.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
+		tile.LayoutOrder = order
+		tile.ZIndex = 41
+		tile.Parent = grid
+		roundCorner(tile, 8)
 
 		local isOwned = back == nil or backsUnlocked[back.id] == true
-		-- "Match my set" row: back == nil
 		local isEquipped
 		if back == nil then
 			isEquipped = cosmetics.pickedCardBackId == nil
@@ -156,55 +159,38 @@ return function(deps)
 			isEquipped = cosmetics.pickedCardBackId == back.id
 		end
 
-		-- Swatch in the back's own colors.
-		local swatch = Instance.new("Frame")
-		swatch.Size = UDim2.fromOffset(30, 40)
-		swatch.Position = UDim2.fromOffset(12, 6)
-		swatch.ZIndex = 42
-		swatch.Parent = row
-		roundCorner(swatch, 4)
-		local swatchStroke = Instance.new("UIStroke")
-		swatchStroke.Thickness = 2
-		swatchStroke.Parent = swatch
-		if back and isOwned then
-			local b, t = back.colors.base, back.colors.trim
-			swatch.BackgroundColor3 = Color3.fromRGB(b[1], b[2], b[3])
-			swatchStroke.Color = Color3.fromRGB(t[1], t[2], t[3])
-		else
-			swatch.BackgroundColor3 = Color3.fromRGB(60, 50, 42)
-			swatchStroke.Color = DIM
+		local shown = back or CardBacks.getById(cosmetics.cardBackId)
+		local thumb = CardBackView.thumb(tile, shown, {
+			equipped = isEquipped, locked = not isOwned, zIndex = 42,
+			isActive = function() return backdrop.Visible end,
+		})
+		thumb.AnchorPoint = Vector2.new(0.5, 0)
+		thumb.Position = UDim2.new(0.5, 0, 0, 8)
+		if not isOwned then
+			label(thumb, {
+				Size = UDim2.new(1, -8, 1, 0), Position = UDim2.fromOffset(4, 0), TextSize = 15, TextWrapped = true,
+				Font = Enum.Font.GothamBold, TextColor3 = CREAM, TextStrokeTransparency = 0.3,
+				Text = "🔒 " .. backUnlockHint(back), ZIndex = 47,
+			})
 		end
 
-		local title, detail
-		if back == nil then
-			local current = CardBacks.getById(cosmetics.cardBackId)
-			title = "Match my set"
-			detail = "Uses the equipped set's back" .. (current and (" (now: " .. current.name .. ")") or "")
-		elseif isOwned then
-			title, detail = back.icon .. " " .. back.name, back.description
-		else
-			title, detail = "🔒 ???", backUnlockHint(back)
-		end
-		label(row, {
-			Size = UDim2.new(1, -190, 0, 20), Position = UDim2.fromOffset(52, 6),
-			Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
-			TextColor3 = isOwned and GOLD or DIM, Text = title,
-		})
-		label(row, {
-			Size = UDim2.new(1, -190, 0, 18), Position = UDim2.fromOffset(52, 28),
-			TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = SOFT_CREAM, Text = detail,
+		label(tile, {
+			Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 148),
+			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = isOwned and GOLD or DIM,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			Text = back == nil and "Match my set" or (isOwned and back.name or "???"),
 		})
 
 		local action = Instance.new("TextButton")
-		action.Size = UDim2.fromOffset(110, 30)
-		action.AnchorPoint = Vector2.new(1, 0.5)
-		action.Position = UDim2.new(1, -10, 0.5, 0)
+		action.Size = UDim2.fromOffset(112, 30)
+		action.AnchorPoint = Vector2.new(0.5, 0)
+		action.Position = UDim2.new(0.5, 0, 0, 180)
 		action.Font = Enum.Font.GothamBold
-		action.TextSize = 13
+		action.TextSize = 15
 		action.TextColor3 = CREAM
 		action.BackgroundColor3 = BROWN
 		action.ZIndex = 42
-		action.Parent = row
+		action.Parent = tile
 		polishButton(action, 8)
 		if isEquipped then
 			action.Text = "Equipped"
@@ -223,6 +209,49 @@ return function(deps)
 		end
 	end
 
+	-- 3-part preview for a set row: backdrop thumbnail, its back, a sample card face tinted by the set.
+	local function setPreview(row, set, back, isOwned)
+		local holder = Instance.new("Frame")
+		holder.Size = UDim2.fromOffset(150, 76)
+		holder.Position = UDim2.fromOffset(8, 8)
+		holder.BackgroundTransparency = 1
+		holder.ZIndex = 42
+		holder.Parent = row
+
+		local bd = Instance.new("ImageLabel")
+		bd.Size = UDim2.fromOffset(62, 76)
+		bd.BackgroundColor3 = Color3.fromRGB(50, 40, 30)
+		local image = set.backdropImage
+		bd.Image = (image and image ~= "rbxassetid://0") and image or (ArtAssets.gameplayBackground or "rbxassetid://0")
+		bd.ScaleType = Enum.ScaleType.Crop
+		bd.ImageColor3 = isOwned and Color3.new(1, 1, 1) or Color3.fromRGB(120, 120, 120)
+		bd.ZIndex = 42
+		bd.Parent = holder
+		roundCorner(bd, 6)
+
+		local backThumb = CardBackView.thumb(holder, back, {
+			size = Vector2.new(38, 57), locked = not isOwned, shimmer = false, zIndex = 42,
+		})
+		backThumb.Position = UDim2.fromOffset(66, 9)
+
+		local face = Instance.new("Frame")
+		face.Size = UDim2.fromOffset(38, 57)
+		face.Position = UDim2.fromOffset(110, 9)
+		face.BackgroundColor3 = isOwned and Color3.fromRGB(246, 236, 214) or Color3.fromRGB(120, 120, 120)
+		face.ZIndex = 42
+		face.Parent = holder
+		roundCorner(face, 5)
+		local faceStroke = Instance.new("UIStroke")
+		faceStroke.Thickness = 2
+		local trim = back and back.colors.trim or { 205, 170, 95 }
+		faceStroke.Color = Color3.fromRGB(trim[1], trim[2], trim[3])
+		faceStroke.Parent = face
+		label(face, {
+			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 18,
+			TextColor3 = Color3.fromRGB(60, 40, 22), Text = "A", ZIndex = 43,
+		})
+	end
+
 	local function refresh()
 		for _, child in ipairs(scroll:GetChildren()) do
 			if child:IsA("Frame") then
@@ -239,7 +268,7 @@ return function(deps)
 
 		for order, set in ipairs(CosmeticSets.Definitions) do
 			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, -8, 0, 64)
+			row.Size = UDim2.new(1, -8, 0, 96)
 			row.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 			row.LayoutOrder = order
 			row.ZIndex = 41
@@ -248,33 +277,32 @@ return function(deps)
 
 			local isOwned = unlocked[set.id] == true
 			local isEquipped = cosmetics.equippedSetId == set.id
-			label(row, {
-				Size = UDim2.fromOffset(44, 44), Position = UDim2.fromOffset(8, 10),
-				TextSize = 28, Text = isOwned and set.icon or "🔒",
-			})
 			local back = CardBacks.getById(set.cardBackId)
+			setPreview(row, set, back, isOwned)
 			label(row, {
-				Size = UDim2.new(1, -190, 0, 20), Position = UDim2.fromOffset(60, 8),
-				Font = Enum.Font.GothamBold, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left,
-				TextColor3 = isOwned and GOLD or DIM, Text = isOwned and set.name or "???",
+				Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(168, 6),
+				Font = Enum.Font.GothamBold, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
+				TextColor3 = isOwned and GOLD or DIM, Text = isOwned and (set.icon .. " " .. set.name) or "🔒 ???",
+				TextTruncate = Enum.TextTruncate.AtEnd,
 			})
 			label(row, {
-				Size = UDim2.new(1, -190, 0, 16), Position = UDim2.fromOffset(60, 28),
-				TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = SOFT_CREAM,
-				Text = isOwned and (set.description .. (back and ("  Card back: " .. back.name) or "")) or set.description,
+				Size = UDim2.new(1, -310, 0, 40), Position = UDim2.fromOffset(168, 28),
+				TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+				TextColor3 = SOFT_CREAM, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd,
+				Text = set.description,
 			})
 			label(row, {
-				Size = UDim2.new(1, -190, 0, 14), Position = UDim2.fromOffset(60, 44),
-				TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = DIM,
-				Text = CosmeticSets.unlockText(set),
+				Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(168, 68),
+				TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = DIM,
+				TextTruncate = Enum.TextTruncate.AtEnd, Text = CosmeticSets.unlockText(set),
 			})
 
 			local action = Instance.new("TextButton")
-			action.Size = UDim2.fromOffset(110, 32)
+			action.Size = UDim2.fromOffset(120, 34)
 			action.AnchorPoint = Vector2.new(1, 0.5)
 			action.Position = UDim2.new(1, -10, 0.5, 0)
 			action.Font = Enum.Font.GothamBold
-			action.TextSize = 13
+			action.TextSize = 15
 			action.TextColor3 = CREAM
 			action.BackgroundColor3 = BROWN
 			action.ZIndex = 42
@@ -314,9 +342,22 @@ return function(deps)
 			backsUnlocked[id] = true
 		end
 		cosmetics.cardBackId = cosmetics.cardBackId or CardBacks.DefaultId
-		backRow(101, nil, cosmetics, backsUnlocked)
+		local grid = Instance.new("Frame")
+		grid.Name = "BacksGrid"
+		grid.Size = UDim2.new(1, -8, 0, 0)
+		grid.AutomaticSize = Enum.AutomaticSize.Y
+		grid.BackgroundTransparency = 1
+		grid.LayoutOrder = 101
+		grid.ZIndex = 41
+		grid.Parent = scroll
+		local gridLayout = Instance.new("UIGridLayout")
+		gridLayout.CellSize = UDim2.fromOffset(132, 226)
+		gridLayout.CellPadding = UDim2.fromOffset(10, 10)
+		gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		gridLayout.Parent = grid
+		backTile(grid, 0, nil, cosmetics, backsUnlocked)
 		for i, back in ipairs(CardBacks.Definitions) do
-			backRow(101 + i, back, cosmetics, backsUnlocked)
+			backTile(grid, i, back, cosmetics, backsUnlocked)
 		end
 	end
 
