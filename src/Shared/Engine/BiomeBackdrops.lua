@@ -2,9 +2,10 @@
 	Shared/Engine/BiomeBackdrops.lua
 	Data for the gameplay table backdrop of each biome (region). Used by Engine/TableStyle.
 
-	Images: region id -> image id ("rbxassetid://<digits>"), nil until a painting exists. Fill these in
-	        when the 8 region backdrops are recorded (art category `biome_backdrops`, see the art task);
-	        until then the default painting (and the per-Night scene art) shows with the colour grade below.
+	Images: region id -> image id ("rbxassetid://<digits>"), nil until a painting exists. This is the generated
+	        BiomeBackdropArt map (art category `biome_backdrops`, prompts in prompts.json
+	        `biome_backdrop_subjects`); until ids are recorded the default painting (and the per-Night scene
+	        art) shows with the colour grade below.
 	Grades: region id -> { color = {r,g,b}, strength = 0..1 }: a flat colour wash laid over the picture
 	        (a Frame with BackgroundTransparency = 1 - strength; never a UIGradient Transparency), so each
 	        biome already looks different. None of them is red.
@@ -15,9 +16,8 @@ local BiomeBackdrops = {}
 BiomeBackdrops.Regions = { "meadow", "river", "peaks", "desert", "swamp", "snow", "coast", "tavern" } -- the 8 painted backdrops (the start "road" region only has a grade)
 BiomeBackdrops.Default = "tavern"
 
-BiomeBackdrops.Images = {
-	-- meadow = "rbxassetid://...",
-}
+-- Recorded ids come from the generated map (`record-image <region> <imageId> -c biome_backdrops`).
+BiomeBackdrops.Images = require(script.Parent.BiomeBackdropArt)
 
 BiomeBackdrops.Grades = {
 	meadow = { color = { 190, 200, 90 }, strength = 0.16 }, -- warm green-gold

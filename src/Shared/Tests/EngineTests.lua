@@ -7230,8 +7230,9 @@ table.insert(tests, { name = "TableStyle: backdrop resolves per region and route
 	local meadow = TableStyle.resolve({ region = "meadow", night = 1 })
 	local snow = TableStyle.resolve({ region = "snow", night = 1 })
 	expectTrue(meadow.grade.color[1] ~= snow.grade.color[1] or meadow.grade.color[3] ~= snow.grade.color[3], "regions grade differently")
-	expectTrue(meadow.source == "default" and meadow.image == nil, "no painting yet: the default painting stays")
+	expectTrue(meadow.source == (BiomeBackdrops.Images.meadow and "biome" or "default"), "the default painting stays until a biome painting is recorded")
 	-- a recorded biome painting is used; a set with its own image replaces it; a styled set only layers on top
+	local savedMeadow = BiomeBackdrops.Images.meadow
 	BiomeBackdrops.Images.meadow = "rbxassetid://123"
 	local withBiome = TableStyle.resolve({ region = "meadow", night = 1 })
 	expectTrue(withBiome.source == "biome" and withBiome.image == "rbxassetid://123", "biome painting resolves")
@@ -7239,7 +7240,7 @@ table.insert(tests, { name = "TableStyle: backdrop resolves per region and route
 	expectTrue(override.source == "set" and override.image == "rbxassetid://999", "a set image replaces the biome image")
 	local styled = TableStyle.resolve({ region = "meadow", night = 1, set = { backdropImage = "rbxassetid://0", backdropStyle = { tint = { 255, 255, 255 } } } })
 	expectTrue(styled.source == "biome" and styled.setStyle ~= nil, "a placeholder-image set keeps the biome image and layers its style")
-	BiomeBackdrops.Images.meadow = nil
+	BiomeBackdrops.Images.meadow = savedMeadow
 	-- Night and boss moods
 	local n1 = TableStyle.resolve({ region = "tavern", night = 1 })
 	local n8 = TableStyle.resolve({ region = "tavern", night = 8 })
