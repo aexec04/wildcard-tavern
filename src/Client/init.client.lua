@@ -2025,7 +2025,7 @@ local function handSignature(handData)
 	return table.concat(parts, ",")
 end
 
-local function rebuildHand(handData)
+local function rebuildHand(handData, phase)
 	-- CARD ART: function-scoped, NOT a new top-level local (this file is
 	-- right up against Lua's 200-local-per-chunk ceiling). require() is
 	-- cached by Roblox, so once per rebuildHand is cheap.
@@ -2036,6 +2036,16 @@ local function rebuildHand(handData)
 	local newSignature = handSignature(handData)
 	local isNewHand = newSignature ~= lastHandSignature
 	lastHandSignature = newSignature
+	-- FLOW FIX: deal animations (fly-in, DealFlip) only run while the phase
+	-- is "playing". A skip deals the next round's hand while Round Select is
+	-- up; build it silently now and forget the signatures, so pressing Select
+	-- rebuilds the hand as a fresh deal with the animation.
+	local mayAnimate = RunStateEngine.phaseAllowsCardActions(phase)
+	if not mayAnimate then
+		isNewHand = false
+		lastHandSignature = nil
+		pendingNewCardCount = nil
+	end
 
 	-- See lastHandRenderSignature's comment above. Skips the whole
 	-- destroy/rebuild below when neither the hand's cards nor its sort mode
@@ -2048,7 +2058,7 @@ local function rebuildHand(handData)
 	if renderSignature == lastHandRenderSignature then
 		return
 	end
-	lastHandRenderSignature = renderSignature
+	lastHandRenderSignature = mayAnimate and renderSignature or nil
 
 	-- dealFromIndex: raw hand indices >= this are the ones that should fly
 	-- in. If pendingNewCardCount is set, only the trailing N raw indices
@@ -2273,7 +2283,7 @@ end
 
 refreshHandSort = function()
 	if latestState then
-		rebuildHand(latestState.hand)
+		rebuildHand(latestState.hand, latestState.phase)
 	end
 end
 
@@ -2465,7 +2475,7 @@ local function render(state)
 		end
 	end
 
-	rebuildHand(state.hand)
+	rebuildHand(state.hand, state.phase)
 	-- rebuildHand resets `selected` to empty on an actual hand change, and
 	-- otherwise leaves it (and the preview) exactly as the player left it --
 	-- either way, recomputing here keeps the preview in sync.

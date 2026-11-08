@@ -530,6 +530,13 @@ function RunState.phaseAllowsCardActions(phase)
 	return phase == "playing"
 end
 
+-- Buy, Reroll, packs, House Passes and Next Round are only valid in the
+-- "shop" phase (which only follows a PLAYED and cleared round; a skip goes
+-- straight back to "roundSelect"). The server checks this on every shop remote.
+function RunState.phaseAllowsShopActions(phase)
+	return phase == "shop"
+end
+
 function RunState.playHand(state, cardIndices)
 	assert(not state.roundOver, "Round is already over -- advance to the next round first")
 	local bossModifier = state.bossModifier

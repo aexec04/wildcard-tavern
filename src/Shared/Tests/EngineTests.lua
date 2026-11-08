@@ -4749,6 +4749,19 @@ table.insert(tests, { name = "BossLines: every boss resolves every event (own li
 	end
 end })
 
+table.insert(tests, { name = "RunState: shop actions (buy, reroll, packs) only in the shop phase", fn = function()
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	expectEqual(RunState.phaseAllowsShopActions("shop"), true)
+	for _, phase in ipairs({ "roundSelect", "playing", "gameover", "" }) do
+		expectEqual(RunState.phaseAllowsShopActions(phase), false)
+	end
+	expectEqual(RunState.phaseAllowsShopActions(nil), false)
+	-- card actions and the deal animation are the mirror image
+	expectEqual(RunState.phaseAllowsCardActions("roundSelect"), false)
+	expectEqual(RunState.phaseAllowsCardActions("shop"), false)
+	expectEqual(RunState.phaseAllowsCardActions("playing"), true)
+end })
+
 table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endless rotates", fn = function()
 	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
 	expectEqual(SceneKeys.keyFor(1, "small"), "front_porch_a")

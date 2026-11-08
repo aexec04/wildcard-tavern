@@ -1301,7 +1301,7 @@ end)
 
 BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	-- Finish resolving an open Pack reveal before doing anything else in the
@@ -1381,7 +1381,7 @@ end
 
 BuyRecipeRemote.OnServerEvent:Connect(function(player, category, id)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -1403,7 +1403,7 @@ end)
 
 UseRecipeRemote.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -1452,7 +1452,7 @@ end)
 
 RerollShopRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -1470,7 +1470,7 @@ end)
 
 BuyPackRemote.OnServerEvent:Connect(function(player, packId)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -1515,7 +1515,7 @@ end)
 
 ResolvePackRemote.OnServerEvent:Connect(function(player, chosenIds)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if type(chosenIds) ~= "table" or #chosenIds > 10 then
@@ -1538,7 +1538,7 @@ end)
 
 BuyHousePassRemote.OnServerEvent:Connect(function(player, passId)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	if session.state.pendingPack then
@@ -1695,7 +1695,7 @@ end)
 
 AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
-	if not session or session.phase ~= "shop" then
+	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
 	end
 	-- Resolve (or skip) any open Pack before leaving the shop.
