@@ -188,6 +188,9 @@ screenGui.Name = "GameUI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = playerGui
+do -- touch/phone pass (safe area, 14px text, 44px taps); no-op on desktop
+	pcall(function() require(script.PhoneUI).install(screenGui) end)
+end
 
 -- REFERENCE-MATCH PASS (Nov 1 2026): the reference mockup uses a warm
 -- book-style serif everywhere; the game used Gotham (a modern sans) in

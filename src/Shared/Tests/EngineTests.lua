@@ -6146,4 +6146,25 @@ table.insert(tests, { name = "Tutorial: step list covers the guided first hand, 
 	expectTrue(src:find("Skip tutorial", 1, true) ~= nil, "skip link exists")
 end })
 
+table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
+	expectEqual(PL.textSize(11, true), 14)
+	expectEqual(PL.textSize(11, false), 11)
+	expectEqual(PL.textSize(16, true), 16)
+	local w, h = PL.tapSize(30, 60, true)
+	expectEqual(w, 44)
+	expectEqual(h, 60)
+	w, h = PL.tapSize(30, 30, false)
+	expectEqual(w, 30)
+	expectEqual(h, 30)
+	-- growing a top-left anchored button 30 -> 44 shifts it by -7 so it grows around its center
+	local dx, dy = PL.growShift(30, 30, 44, 44, 0, 0)
+	expectEqual(dx, -7)
+	expectEqual(dy, -7)
+	dx = PL.growShift(30, 30, 44, 44, 0.5, 0.5)
+	expectEqual(dx, 0)
+	expectTrue(PL.isCompact(400), "800x400 is compact")
+	expectTrue(not PL.isCompact(720), "1280x720 is not compact")
+end })
+
 return tests
