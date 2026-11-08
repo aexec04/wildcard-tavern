@@ -257,6 +257,15 @@ gameBackgroundArt.ZIndex = 0
 -- cream UI text on top of it (the reference's room is fairly dark).
 gameBackgroundArt.ImageColor3 = Color3.fromRGB(215, 205, 195)
 gameBackgroundArt.Parent = root
+-- Per-round scene art over the default backdrop (falls back to it while ids are missing).
+do
+	require(script.GameplayScene).init({
+		root = root,
+		gameBackgroundArt = gameBackgroundArt,
+		playSfx = playSfx,
+		soundId = SOUND_IDS.cardToggle, -- soft whoosh-like rub, played quietly
+	})
+end
 root.BackgroundTransparency = 1
 -- (Removed Nov 1 2026: a ContentProvider:PreloadAsync check used to swap
 -- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
@@ -1180,6 +1189,7 @@ require(script.RunSetup)({
 	-- just the gameover->playing transition render() already covers.
 	onBeginRun = function()
 		PhaseAModule.resetRun()
+		require(script.GameplayScene).get().reset()
 	end,
 })
 end, function(e)
@@ -2271,6 +2281,7 @@ local function render(state)
 	end
 
 	require(script.CosmeticSetsView).apply(state)
+	require(script.GameplayScene).get().update(state)
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no
@@ -2409,7 +2420,15 @@ local function render(state)
 	-- hasRenderedOnce for the same reason the "Unlocked!" popup below is --
 	-- resuming/reconnecting mid-Boss-Round shouldn't replay the intro.
 	if hasRenderedOnce then
-		PhaseAModule.announceBossIfNew(state)
+		-- The scene walk-in (GameplayScene) plays first; the intro follows when it ends.
+		local scene = require(script.GameplayScene).get()
+		if scene.walkInActive() then
+			scene.afterWalkIn(function(latest)
+				PhaseAModule.announceBossIfNew(latest)
+			end)
+		else
+			PhaseAModule.announceBossIfNew(state)
+		end
 	end
 
 	rebuildHand(state.hand)
@@ -2490,6 +2509,7 @@ local function render(state)
 	-- onBeginRun below.
 	if lastPhase == "gameover" and state.phase ~= "gameover" then
 		PhaseAModule.resetRun()
+		require(script.GameplayScene).get().reset()
 	end
 	lastPhase = state.phase
 

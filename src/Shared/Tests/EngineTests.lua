@@ -4711,4 +4711,27 @@ table.insert(tests, { name = "Journey fog: current + 3 revealed, +4 teaser, rest
 	for i = 1, 9 do expectEqual(s[i], "revealed") end
 end })
 
+table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endless rotates", fn = function()
+	local SceneKeys = require(script.Parent.Parent.Engine.SceneKeys)
+	expectEqual(SceneKeys.keyFor(1, "small"), "front_porch_a")
+	expectEqual(SceneKeys.keyFor(1, "big"), "front_porch_b")
+	expectEqual(SceneKeys.keyFor(1, "boss"), "front_porch_in")
+	expectEqual(SceneKeys.keyFor(8, "boss"), "keepers_table_in")
+	-- Endless: Night 9 wraps to the first location, Night 16 to the last.
+	expectEqual(SceneKeys.keyFor(9, "small"), "front_porch_a")
+	expectEqual(SceneKeys.keyFor(10, "big"), "warm_kitchen_b")
+	expectEqual(SceneKeys.keyFor(16, "boss"), "keepers_table_in")
+	expectEqual(SceneKeys.roundKind(1), "small")
+	expectEqual(SceneKeys.roundKind(2), "big")
+	expectEqual(SceneKeys.roundKind(3), "boss")
+	expectEqual(SceneKeys.roundKind(4, 5), "big")
+	-- Every Night location yields a well-formed key for all three kinds.
+	for _, n in ipairs(JourneyMap.Nights) do
+		for _, kind in ipairs({ "small", "big", "boss" }) do
+			local key = SceneKeys.keyFor(n.night, kind)
+			expectTrue(key == n.art .. SceneKeys.SUFFIX[kind])
+		end
+	end
+end })
+
 return tests
