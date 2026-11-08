@@ -339,7 +339,8 @@ end
 
 -- Server-side validation of ChooseRoad; pass the session phase as the third argument to apply the phase gate
 -- too. Returns true, or false plus a reason code.
-function WorldMap.chooseRoad(state, stopId, phase)
+-- roadOpen (optional) is a function(stopId) -> bool from the server (Engine/Keys): a locked road is refused.
+function WorldMap.chooseRoad(state, stopId, phase, roadOpen)
 	if phase ~= nil and not WorldMap.phaseAllowsRoadChoice(phase) then return false, "wrong_phase" end
 	if type(state) ~= "table" or type(state.worldRoute) ~= "table" then return false, "no_route" end
 	if type(stopId) ~= "string" then return false, "bad_id" end
@@ -347,6 +348,7 @@ function WorldMap.chooseRoad(state, stopId, phase)
 	local choices = WorldMap.pendingChoices(state)
 	if not choices then return false, "no_choice" end
 	if not table.find(choices, stopId) then return false, "not_next" end
+	if roadOpen and not roadOpen(stopId) then return false, "locked" end
 	state.worldRoute[#state.worldRoute + 1] = stopId
 	-- The One More Round snapshot was taken before the pick; keep the pick in it so a continue does not undo it.
 	local snap = state.roundStartSnapshot

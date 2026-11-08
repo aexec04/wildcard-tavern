@@ -11,6 +11,7 @@
 ]]
 
 local CompassWheel = require(script.Parent.CompassWheel)
+local RoadLock = require(script.Parent.RoadLock)
 
 return function(deps)
 	local WorldMap = require(deps.Engine:WaitForChild("WorldMap"))
@@ -20,6 +21,23 @@ return function(deps)
 	local GOLD = Color3.fromRGB(222, 182, 104)
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local PARCHMENT = Color3.fromRGB(222, 198, 150)
+
+	-- Keys counter next to the compass: Keys open locked roads (Engine/Keys.lua).
+	local keysPill = Instance.new("TextLabel")
+	keysPill.Name = "KeysCounter"
+	keysPill.Position = UDim2.fromOffset(74, 54)
+	keysPill.Size = UDim2.fromOffset(86, 36)
+	keysPill.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+	keysPill.Text = "🗝 0"
+	keysPill.Font = Enum.Font.GothamBold
+	keysPill.TextSize = 18
+	keysPill.TextColor3 = Color3.fromRGB(250, 235, 200)
+	keysPill.TextTransparency = 0
+	keysPill.TextStrokeTransparency = 1
+	keysPill.ZIndex = 44
+	keysPill.Visible = false
+	keysPill.Parent = deps.parent
+	deps.roundCorner(keysPill, 18)
 
 	local icon = Instance.new("TextButton")
 	icon.Name = "CompassIcon"
@@ -159,7 +177,7 @@ return function(deps)
 		end
 		local use, choose = folder:FindFirstChild("UseCompass"), folder:FindFirstChild("ChooseRoad")
 		if use then
-			use:FireServer()
+			use:FireServer(pointed) -- the server refuses (and keeps the charge) when that road is locked
 		end
 		if choose then
 			choose:FireServer(pointed)
@@ -171,11 +189,12 @@ return function(deps)
 		if not (state and type(choices) == "table" and #choices > 1 and (state.compassCharges or 0) > 0 and pointed) then
 			return false
 		end
-		return table.find(choices, pointed) ~= nil
+		return table.find(choices, pointed) ~= nil and not RoadLock.isLocked(state, pointed)
 	end
 
 	local function updateButtons()
 		local charges = state and state.compassCharges or 0
+		keysPill.Text = "🗝 " .. RoadLock.keys(state)
 		badge.Text = tostring(math.floor(charges))
 		wheel.setCharges(charges)
 		local ok = canSpend()
@@ -184,7 +203,11 @@ return function(deps)
 		spend.Active = ok
 		spend.AutoButtonColor = ok
 		if not ok then
-			spend.Text = charges > 0 and "Point at a road of the fork" or "No charges: preview only"
+			if charges > 0 and pointed and RoadLock.isLocked(state, pointed) then
+				spend.Text = "That road needs a Key"
+			else
+				spend.Text = charges > 0 and "Point at a road of the fork" or "No charges: preview only"
+			end
 		else
 			spend.Text = "Spend a charge: take this road"
 		end
@@ -214,6 +237,7 @@ return function(deps)
 		end,
 		setShown = function(shown)
 			icon.Visible = shown
+			keysPill.Visible = shown
 			if not shown then
 				panel.Visible = false
 				deps.graph.highlight(nil)

@@ -22,6 +22,7 @@ return function(deps)
 	deps.TweenService = deps.TweenService or game:GetService("TweenService")
 	local WorldMap = require(Engine:WaitForChild("WorldMap"))
 	local Layout = require(Engine:WaitForChild("WorldMapLayout"))
+	local RoadLock = require(script.Parent.RoadLock) -- locked roads: padlock + "Unlock with a Key?" confirm
 
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local GOLD = Color3.fromRGB(222, 182, 104)
@@ -160,6 +161,16 @@ return function(deps)
 		for _, id in ipairs(state.worldChoices or {}) do
 			choices[id] = true
 		end
+		local lockedRoad = {}
+		for _, id in ipairs(state.lockedRoads or {}) do
+			lockedRoad[id] = true
+		end
+		local keys = RoadLock.keys(state)
+		local function takeRoad(id, stop)
+			RoadLock.pick(id, state, deps.confirmParent or canvas, stop.name, function()
+				fire(id)
+			end)
+		end
 		local ends = Layout.branchEnds()
 		-- Default chip: the next branch end ahead on the player's own road. Any other stop shows its chip
 		-- only while focused (tapped or hovered), so the map is not covered in reward text.
@@ -211,10 +222,10 @@ return function(deps)
 				local chip = remember(Instance.new("TextButton"))
 				chip.Name = "TakeRoad_" .. id
 				chip.AnchorPoint = Vector2.new(0.5, 0)
-				chip.Size = UDim2.fromOffset(132, 28)
+				chip.Size = UDim2.fromOffset(lockedRoad[id] and 176 or 132, 28)
 				chip.Position = UDim2.fromOffset(p.x, top - 30)
-				chip.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
-				chip.Text = "Take this road"
+				chip.BackgroundColor3 = lockedRoad[id] and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(60, 120, 60)
+				chip.Text = lockedRoad[id] and (keys > 0 and "🔒 Unlock with a Key" or "🔒 Locked") or "Take this road"
 				chip.Font = Enum.Font.GothamBold
 				chip.TextSize = 15
 				chip.TextColor3 = CREAM
@@ -227,7 +238,7 @@ return function(deps)
 				st.Thickness = 1.5
 				st.Parent = chip
 				chip.Activated:Connect(function()
-					fire(id)
+					takeRoad(id, stop)
 				end)
 			end
 			if not onRoute[id] and v ~= "hidden" then
@@ -254,7 +265,7 @@ return function(deps)
 				st.Parent = btn
 				if choices[id] then
 					btn.Activated:Connect(function()
-						fire(id)
+						takeRoad(id, stop)
 					end)
 				elseif badge then
 					-- tap pins the reward chip, hover previews it
@@ -268,6 +279,10 @@ return function(deps)
 					btn.MouseLeave:Connect(function()
 						badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
 					end)
+				end
+				if lockedRoad[id] and v ~= "teaser" then -- every locked road keeps a padlock, pending or not
+					local pad = textLabel("🔒", p.x + size / 2 - 2, p.y - size / 2 - 10, 30, 28, 22, 29)
+					pad.Name = "Padlock_" .. id
 				end
 				local name = v == "teaser" and "???" or stop.name
 				local lab = textLabel(name, p.x, p.y + size / 2 + 6, 190, 44, 16, 26)

@@ -20,6 +20,7 @@ local CardBacks = require(Engine:WaitForChild("CardBacks"))
 local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local Achievements = require(Engine:WaitForChild("Achievements"))
 local CompassWheel = require(script.Parent.CompassWheel)
+local RoadLock = require(script.Parent.RoadLock)
 
 -- "Dune Gold card back, Dune Wanderer title": the exact rewards at the end of a road (shown after the compass).
 local function rewardText(region)
@@ -272,7 +273,7 @@ return function(deps)
 			Text = "At the end of this road: a " .. (region and region.name or "biome") .. " reward",
 			TextSize = 15, TextColor3 = Color3.fromRGB(120, 84, 24), TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 24,
 		})
-		cardByStop[stopId] = { stroke = stroke, rewardLabel = rewardLabel, region = stop.region }
+		cardByStop[stopId] = { stroke = stroke, rewardLabel = rewardLabel, region = stop.region, take = nil, lock = nil }
 
 		local take = Instance.new("TextButton")
 		take.Name = "TakeRoad"
@@ -287,19 +288,30 @@ return function(deps)
 		take.ZIndex = 24
 		take.Parent = card
 		roundCorner(take, 8)
+		cardByStop[stopId].take = take
+		-- padlock on the art when the road needs a Key (shown by refreshLocks)
+		local lock = label(strip, {
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(40, 40),
+			Text = "🔒", TextSize = 30, ZIndex = 28, BackgroundTransparency = 0.25, BackgroundColor3 = Color3.fromRGB(40, 28, 18),
+		})
+		lock.Visible = false
+		roundCorner(lock, 20)
+		cardByStop[stopId].lock = lock
 		local pending = false
 		take.MouseButton1Click:Connect(function()
 			if pending then return end
-			pending = true
 			playClickSfx()
-			require(script.Parent.Cue).play("road_choose")
-			local r = remote()
-			if r then
-				r:FireServer(stopId)
-			end
-			-- The next state push hides the panel; re-arm if it never comes (rejected pick).
-			task.delay(2, function()
-				pending = false
+			RoadLock.pick(stopId, latestState, backdrop, stop.name, function()
+				pending = true
+				require(script.Parent.Cue).play("road_choose")
+				local r = remote()
+				if r then
+					r:FireServer(stopId)
+				end
+				-- The next state push hides the panel; re-arm if it never comes (rejected pick).
+				task.delay(2, function()
+					pending = false
+				end)
 			end)
 		end)
 		table.insert(cards, card)
@@ -364,6 +376,19 @@ return function(deps)
 		wheel.setCharges(state.compassCharges or 0)
 	end
 
+	-- Padlock + button text for roads that need a Key (the whole map keeps them visible).
+	local function refreshLocks(state, choices)
+		for _, id in ipairs(choices) do
+			local c = cardByStop[id]
+			if c and c.take then
+				local locked = RoadLock.isLocked(state, id)
+				c.lock.Visible = locked
+				c.take.Text = locked and (RoadLock.keys(state) > 0 and "🔒 Unlock with a Key" or "🔒 Locked: needs a Key") or "Take this road"
+				c.take.BackgroundColor3 = locked and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(86, 140, 70)
+			end
+		end
+	end
+
 	function M.update(state)
 		latestState = state
 		local choices = type(state) == "table" and state.phase == "roundSelect" and state.worldChoices or nil
@@ -387,6 +412,7 @@ return function(deps)
 			refreshCompass(state, choices)
 		end
 		refreshReveal(state, choices)
+		refreshLocks(state, choices)
 		if dismissedKey == key then
 			backdrop.Visible = false
 			chip.Visible = true

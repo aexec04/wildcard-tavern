@@ -23,6 +23,7 @@
 
 local WorldMap = require(script.Parent.WorldMap)
 local PlayerProfile = require(script.Parent.PlayerProfile)
+local Keys = require(script.Parent.Keys)
 
 local BiomeRewards = {}
 
@@ -126,6 +127,7 @@ function BiomeRewards.recordBiomeCleared(profile, region)
 		grant(profile, r)
 		fresh[#fresh + 1] = r
 	end
+	Keys.add(profile) -- the first clear of a biome earns one Key (once: guarded by worldRewardIds above)
 	return fresh
 end
 
@@ -172,10 +174,16 @@ end
 
 -- COMPASS: spend one charge at a fork to see exactly what waits at the end of each road. Only on Round Select,
 -- only while a fork is pending, once per Night. Returns true plus the road ids, or false plus a reason.
-function BiomeRewards.useCompass(profile, state, phase)
+-- target (optional) is the road the player means to take with it: a road that is not a pending choice or is still
+-- locked (roadOpen(target) false) is refused BEFORE a charge is spent.
+function BiomeRewards.useCompass(profile, state, phase, target, roadOpen)
 	if not WorldMap.phaseAllowsRoadChoice(phase) then return false, "wrong_phase" end
 	local choices = WorldMap.pendingChoices(state)
 	if not choices or #choices < 2 then return false, "no_fork" end
+	if target ~= nil then
+		if type(target) ~= "string" or not table.find(choices, target) then return false, "not_next" end
+		if roadOpen and not roadOpen(target) then return false, "locked" end
+	end
 	if state.compassNight == state.night then return false, "already_used" end
 	if not PlayerProfile.spendCompassCharge(profile) then return false, "no_charge" end
 	state.compassNight = state.night

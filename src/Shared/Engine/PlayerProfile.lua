@@ -60,6 +60,7 @@ local CosmeticSets = require(script.Parent.CosmeticSets)
 local CardBacks = require(script.Parent.CardBacks)
 local JourneyMap = require(script.Parent.JourneyMap)
 local WorldMap = require(script.Parent.WorldMap)
+local Keys = require(script.Parent.Keys) -- locked roads on the world map
 
 local PlayerProfile = {}
 
@@ -172,6 +173,8 @@ function PlayerProfile.new()
 		worldBiomeClears = {}, -- [region id] = count
 		worldRewardIds = {}, -- [reward row id] = true (granted once, step 4)
 		compassCharges = 0, -- 0 to PlayerProfile.MAX_COMPASS_CHARGES, earned by winning map minigames, spent at a fork
+		keys = 0, -- Keys (Engine/Keys.lua): +1 per run win and per first biome clear, one opens a locked road for good
+		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -258,6 +261,18 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 	copyIdSet(raw.worldRewardIds, profile.worldRewardIds)
+	if type(raw.keys) == "number" and raw.keys == raw.keys then
+		profile.keys = math.max(0, math.min(Keys.MAX_KEYS, math.floor(raw.keys)))
+	end
+	if type(raw.unlockedRoadIds) == "table" then
+		local locked = {}
+		for _, id in ipairs(Keys.lockedRoads()) do locked[id] = true end
+		for id, flag in pairs(raw.unlockedRoadIds) do
+			if type(id) == "string" and flag == true and locked[id] then -- unknown or free ids are dropped
+				profile.unlockedRoadIds[id] = true
+			end
+		end
+	end
 	if type(raw.compassCharges) == "number" and raw.compassCharges == raw.compassCharges then
 		profile.compassCharges = math.max(0, math.min(PlayerProfile.MAX_COMPASS_CHARGES, math.floor(raw.compassCharges)))
 	end
@@ -498,6 +513,7 @@ end
 -- function just does the counter increment once told to).
 function PlayerProfile.recordRunWon(profile)
 	profile.stats.runsWon = profile.stats.runsWon + 1
+	Keys.add(profile) -- a win earns one Key (called once per win by the server)
 end
 
 -- ACHIEVEMENTS + TITLES (Phase 16): equips (or, passing nil, un-equips)

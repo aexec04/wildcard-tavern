@@ -132,6 +132,7 @@ return function(deps)
 	local BiomeRewardsJMV = require(Engine:WaitForChild("BiomeRewards"))
 	local worldGraph = require(script.Parent.JourneyMapGraph)({
 		canvas = canvas, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
+		confirmParent = frame, -- the "Unlock with a Key?" dialog covers the visible map, not the scrolling canvas
 		rewardText = function(region)
 			local row = BiomeRewardsJMV.Rows[region]
 			local reward = row and row.reward and row.reward[1]

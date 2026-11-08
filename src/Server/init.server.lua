@@ -32,6 +32,7 @@ local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and pl
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
+local Keys = require(Engine.Keys) -- locked roads and Keys
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
 local Minigames = require(Engine.Minigames) -- the four map minigames, scored here
 local CardBacks = require(Engine.CardBacks)
@@ -103,6 +104,7 @@ local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (pl
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
 local SideStopRemote = newRemote("SideStop") -- WORLD MAP: (player, stopId, action, arg) shop/shrine/rest side stops
+local UnlockRoadRemote = newRemote("UnlockRoad") -- WORLD MAP: (player, stopId) spends a Key to open a locked road at a pending fork
 local UseCompassRemote = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
 local SetSettingRemote = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
@@ -782,6 +784,19 @@ local function serializeState(session, player)
 			result = session.minigame.result,
 		} or nil,
 		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
+		keys = Keys.count(profiles[player]),
+		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
+		lockedRoads = not state.worldPlan and (function()
+			local list = {}
+			for _, id in ipairs(Keys.lockedRoads()) do
+				if not Keys.isRoadOpen(profiles[player], id) then
+					list[#list + 1] = id
+				end
+			end
+			return list
+		end)() or nil,
+		-- "open" / "unlocked" / "locked" for every road of the pending fork (all roads stay visible; locked ones show a padlock)
+		roadStatus = session.phase == "roundSelect" and not state.worldPlan and Keys.statusMap(profiles[player], WorldMap.pendingChoices(state)) or nil,
 		compassReveal = session.phase == "roundSelect" and BiomeRewards.revealedChoices(state) or nil,
 		profileStats = (function()
 			local profile = profiles[player]
@@ -1791,8 +1806,25 @@ ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 	if not session then
 		return
 	end
-	local ok = WorldMap.chooseRoad(session.state, stopId, session.phase)
+	-- A locked road is refused here, so a client can never walk one (the compass pick goes through this too).
+	local profile = profiles[player]
+	local ok = WorldMap.chooseRoad(session.state, stopId, session.phase, function(id)
+		return Keys.isRoadOpen(profile, id)
+	end)
 	if ok then
+		pushState(player)
+	end
+end)
+
+-- WORLD MAP: spend one Key to open a locked road for good (Engine/Keys.lua checks the phase, that the road is a
+-- pending fork choice, that it is locked and that a Key is available; never on seeded boards).
+UnlockRoadRemote.OnServerEvent:Connect(function(player, stopId)
+	local session, profile = sessions[player], profiles[player]
+	if not session or not profile then
+		return
+	end
+	if Keys.unlock(profile, session.state, stopId, session.phase) then
+		profileDirty[player] = true
 		pushState(player)
 	end
 end)
@@ -1873,12 +1905,15 @@ MinigameRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
 end)
 
 -- WORLD MAP: spend a compass charge at a fork to reveal the reward at the end of each road.
-UseCompassRemote.OnServerEvent:Connect(function(player)
+UseCompassRemote.OnServerEvent:Connect(function(player, target)
 	local session, profile = sessions[player], profiles[player]
 	if not session or not profile then
 		return
 	end
-	local ok = BiomeRewards.useCompass(profile, session.state, session.phase)
+	-- target = the road the client wants to take with it; a locked road is refused before a charge is spent
+	local ok = BiomeRewards.useCompass(profile, session.state, session.phase, target, function(id)
+		return Keys.isRoadOpen(profile, id)
+	end)
 	if ok then
 		profileDirty[player] = true
 		pushState(player)
