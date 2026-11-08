@@ -48,10 +48,12 @@ CATEGORIES = {
     "titles":      ("title_subjects",      "titles",      "TitleArt.lua",     "Title"),
     "rooms":       ("room_subjects",       "rooms",       "RoomArt.lua",      "Room"),
     "backgrounds": ("background_subjects", "backgrounds", "BackgroundArt.lua", "Background"),
+    "tutorial_icons": ("tutorial_icon_subjects", "tutorial_icons", "TutorialIconArt.lua", "Tutorial Icon"),
 }
 # Per-category overrides: image size, quality, and which prompts.json key holds the style prefix.
 CATEGORY_OPTS = {
     "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
+    "tutorial_icons": {"quality": "low", "style_key": "style_icon"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

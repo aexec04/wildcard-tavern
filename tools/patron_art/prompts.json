@@ -325,5 +325,14 @@
     "backdrop_festival_night": "A tavern on festival night, strings of colorful paper lanterns and bunting along the top and corners, warm festive glow, subtle and dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
     "backdrop_closing_time": "A tavern at closing time, chairs stacked on tables, a single dim lantern, long soft shadows, sleepy amber light in the corners, subtle and very dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
     "backdrop_golden_gala": "A grand tavern gala, gold-trimmed curtains and golden chandeliers glowing in the corners, ornate gold details, rich warm light, subtle and dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text."
+  },
+  "style_icon": "Hand-painted fantasy tavern icon, warm candlelit palette of deep browns and amber with soft gold rim light, painterly brushwork, single subject centered with generous margin on a plain dark brown background, square composition, cozy and kid-friendly, no alcohol, no text, no letters, no numbers, no frame or border, no copyrighted characters",
+  "tutorial_icon_subjects": {
+    "select_cards": "a blocky Roblox-style hand picking up a playing card",
+    "play_hand": "a fan of five playing cards with a warm golden spark",
+    "discard": "a playing card being tossed into a small wooden bin",
+    "target": "a wooden dartboard bullseye with a dart",
+    "shop": "a leather coin purse beside a tiny shop counter",
+    "endless": "a crescent moon and stars over a tavern roof"
   }
 }

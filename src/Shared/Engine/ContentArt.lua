@@ -10,7 +10,7 @@
 	  -- etc.
 
 	Tab names match CollectionBook tab ids: patrons, recipes, boss_rounds,
-	house_passes, titles.
+	house_passes, titles, rooms, backgrounds, tutorial_icons.
 ]]
 
 local Engine = script.Parent
@@ -23,6 +23,7 @@ local ContentArt = {
 	titles       = require(Engine:WaitForChild("TitleArt")),
 	rooms        = require(Engine:WaitForChild("RoomArt")),
 	backgrounds  = require(Engine:WaitForChild("BackgroundArt")),
+	tutorial_icons = require(Engine:WaitForChild("TutorialIconArt")),
 }
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds

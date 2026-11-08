@@ -1,8 +1,8 @@
 --[[
 	Client/HowToPlay.lua
-	The "How to Play" overlay -- a full-screen backdrop + panel showing a
-	grid of icon/caption rule tiles plus one worked scoring example per hand
-	type (weakest to strongest), reachable from the main menu's "How to
+	The "How to Play" overlay: a full-screen backdrop + a two-page panel. Page 1
+	is a 3x2 grid of painted-icon rule tiles, page 2 lists every hand type with
+	an example and its base chips x mult. Reachable from the main menu's "How to
 	Play" button and from the Settings panel's "How to Play" button.
 
 	Extracted out of init.client.lua as part of splitting the client script
@@ -60,264 +60,289 @@ return function(deps)
 	-- header comment for the full story.
 	local OverlayManager = require(script.Parent.OverlayManager)
 
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local ContentProvider = game:GetService("ContentProvider")
+	local ContentArt = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+
+	local GOLD = Color3.fromRGB(255, 214, 130)
+	local CREAM = Color3.fromRGB(250, 240, 220)
+	local TILE_BG = Color3.fromRGB(60, 45, 32)
+	local Z = 21
+	local PANEL_W, TITLE_H, BODY_H, NAV_H = 760, 56, 440, 64
+	local PAD = 16
+
+	-- Full-screen dim backdrop. Active = true so clicks never reach the game.
 	local howToPlayBackdrop = Instance.new("Frame")
 	howToPlayBackdrop.Name = "HowToPlayBackdrop"
 	howToPlayBackdrop.Size = UDim2.fromScale(1, 1)
 	howToPlayBackdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	howToPlayBackdrop.BackgroundTransparency = 0.4
+	howToPlayBackdrop.BackgroundTransparency = 0.45
+	howToPlayBackdrop.Active = true
 	howToPlayBackdrop.Visible = false
 	howToPlayBackdrop.ZIndex = 20
 	howToPlayBackdrop.Parent = screenGui
 
 	local howToPlayPanel = Instance.new("Frame")
-	howToPlayPanel.Size = UDim2.fromScale(0.6, 0.75)
-	howToPlayPanel.Position = UDim2.fromScale(0.2, 0.12)
+	howToPlayPanel.Name = "HowToPlayPanel"
+	howToPlayPanel.Size = UDim2.new(0, PANEL_W, 0, TITLE_H + BODY_H + NAV_H)
+	howToPlayPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+	howToPlayPanel.Position = UDim2.fromScale(0.5, 0.5)
 	howToPlayPanel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
-	howToPlayPanel.ZIndex = 21
+	howToPlayPanel.ZIndex = Z
 	howToPlayPanel.Parent = howToPlayBackdrop
 	polishPanel(howToPlayPanel, 16, "parchment")
 	addSoftShadow(howToPlayPanel, 18)
+	-- Shrink on small screens instead of clipping.
+	local fitScale = Instance.new("UIScale")
+	fitScale.Parent = howToPlayPanel
+	local function refit()
+		local vp = screenGui.AbsoluteSize
+		local s = math.min(1, (vp.X - 24) / PANEL_W, (vp.Y - 24) / (TITLE_H + BODY_H + NAV_H))
+		fitScale.Scale = math.max(0.4, s)
+	end
+	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(refit)
+	refit()
 
 	local howToPlayTitle = Instance.new("TextLabel")
-	howToPlayTitle.Size = UDim2.new(1, 0, 0, 40)
+	howToPlayTitle.Size = UDim2.new(1, 0, 0, TITLE_H)
 	howToPlayTitle.BackgroundTransparency = 1
 	howToPlayTitle.Font = Enum.Font.GothamBold
-	howToPlayTitle.TextSize = 22
-	howToPlayTitle.TextColor3 = Color3.fromRGB(250, 240, 220)
-	howToPlayTitle.Text = "How to Play"
-	howToPlayTitle.ZIndex = 21
+	howToPlayTitle.TextSize = 26
+	howToPlayTitle.TextColor3 = CREAM
+	howToPlayTitle.ZIndex = Z
 	howToPlayTitle.Parent = howToPlayPanel
 
-	-- FEATURE 5: worked examples, scrollable. Built from real Card tables and
-	-- run through the actual HandEvaluator + Scoring modules, so the numbers
-	-- shown are always exactly what you'd see in a real game.
+	local function makePage(name)
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.Size = UDim2.new(1, -2 * PAD, 0, BODY_H)
+		f.Position = UDim2.new(0, PAD, 0, TITLE_H)
+		f.BackgroundTransparency = 1
+		f.ZIndex = Z
+		f.Visible = false
+		f.Parent = howToPlayPanel
+		return f
+	end
 
-	local howToPlayScroll = Instance.new("ScrollingFrame")
-	howToPlayScroll.Size = UDim2.new(1, -30, 1, -100)
-	howToPlayScroll.Position = UDim2.new(0, 15, 0, 45)
-	howToPlayScroll.BackgroundTransparency = 1
-	howToPlayScroll.BorderSizePixel = 0
-	howToPlayScroll.ScrollBarThickness = 8
-	howToPlayScroll.CanvasSize = UDim2.new(0, 0, 0, 0) -- grown automatically below
-	howToPlayScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	howToPlayScroll.ZIndex = 21
-	howToPlayScroll.Parent = howToPlayPanel
-
-	local howToPlayLayout = Instance.new("UIListLayout")
-	howToPlayLayout.Padding = UDim.new(0, 14)
-	howToPlayLayout.Parent = howToPlayScroll
-
-	-- A grid of icon + short-caption tiles instead of a paragraph -- one glance
-	-- per rule, not a page of reading.
-	local HOW_TO_PLAY_STEPS = {
-		{ icon = "👆", text = "Click cards to select up to 5" },
-		{ icon = "▶️", text = "Play Hand to score your best poker hand" },
-		{ icon = "🔄", text = "Discard to swap cards -- free, no hand cost" },
-		{ icon = "🎯", text = "Reach the target score before hands run out" },
-		{ icon = "🪙", text = "Win a round -- spend Tips on Patrons at The Counter" },
-		{ icon = "🌙", text = "Survive as many Nights as you can!" },
+	-- ===== Page 1: The Basics (3x2 tiles) =====
+	local basicsPage = makePage("BasicsPage")
+	local STEPS = {
+		{ key = "select_cards", icon = "👆", title = "Pick Cards", text = "Click up to 5 cards in your hand." },
+		{ key = "play_hand", icon = "▶️", title = "Play Hand", text = "Score your best poker hand." },
+		{ key = "discard", icon = "🔄", title = "Discard", text = "Swap cards for free. It costs no hand." },
+		{ key = "target", icon = "🎯", title = "Hit the Target", text = "Reach the target score before your hands run out." },
+		{ key = "shop", icon = "🪙", title = "Shop", text = "Win a round, then spend Tips on Patrons at The Counter." },
+		{ key = "endless", icon = "🌙", title = "Keep Going", text = "Survive as many Nights as you can." },
 	}
+	local GAP = 12
+	local TILE_W = (PANEL_W - 2 * PAD - 2 * GAP) / 3
+	local TILE_H = (BODY_H - GAP) / 2
 
-	local howToPlayStepsGrid = Instance.new("Frame")
-	-- AutomaticSize (not a hardcoded pixel height) so the grid always grows to
-	-- fit exactly however many rows the tiles need -- a fixed height here was
-	-- the bug: it was too short for 3 rows, so the bottom row spilled out and
-	-- covered "How scoring works" and the example hands right below it.
-	howToPlayStepsGrid.Size = UDim2.new(1, 0, 0, 0)
-	howToPlayStepsGrid.AutomaticSize = Enum.AutomaticSize.Y
-	howToPlayStepsGrid.BackgroundTransparency = 1
-	howToPlayStepsGrid.ZIndex = 21
-	howToPlayStepsGrid.LayoutOrder = 1
-	howToPlayStepsGrid.Parent = howToPlayScroll
-
-	local howToPlayGridLayout = Instance.new("UIGridLayout")
-	howToPlayGridLayout.CellSize = UDim2.new(1 / 3, -6, 0, 96)
-	howToPlayGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-	howToPlayGridLayout.Parent = howToPlayStepsGrid
-
-	for stepIndex, step in ipairs(HOW_TO_PLAY_STEPS) do
+	for i, step in ipairs(STEPS) do
+		local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
 		local tile = Instance.new("Frame")
-		tile.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		tile.LayoutOrder = stepIndex
-		tile.ZIndex = 21
-		tile.Parent = howToPlayStepsGrid
+		tile.Size = UDim2.new(0, math.floor(TILE_W), 0, math.floor(TILE_H))
+		tile.Position = UDim2.new(0, math.floor(col * (TILE_W + GAP)), 0, math.floor(row * (TILE_H + GAP)))
+		tile.BackgroundColor3 = TILE_BG
+		tile.ZIndex = Z
+		tile.Parent = basicsPage
 		polishPanel(tile, 10)
 
-		local iconLabel = Instance.new("TextLabel")
-		iconLabel.Size = UDim2.new(1, 0, 0, 40)
-		iconLabel.Position = UDim2.new(0, 0, 0, 8)
-		iconLabel.BackgroundTransparency = 1
-		iconLabel.Font = Enum.Font.GothamBold
-		iconLabel.TextSize = 28
-		iconLabel.Text = step.icon
-		iconLabel.ZIndex = 21
-		iconLabel.Parent = tile
+		-- Emoji sits under the painted icon and only shows if the art is missing or fails to load.
+		local emoji = Instance.new("TextLabel")
+		emoji.Size = UDim2.new(0, 72, 0, 72)
+		emoji.Position = UDim2.new(0.5, -36, 0, 12)
+		emoji.BackgroundTransparency = 1
+		emoji.Font = Enum.Font.GothamBold
+		emoji.TextSize = 48
+		emoji.Text = step.icon
+		emoji.TextTransparency = 0
+		emoji.TextStrokeTransparency = 1
+		emoji.ZIndex = Z
+		emoji.Visible = false
+		emoji.Parent = tile
+
+		local artId = ContentArt.getImageId("tutorial_icons", step.key)
+		if artId then
+			local img = Instance.new("ImageLabel")
+			img.Size = UDim2.new(0, 72, 0, 72)
+			img.Position = UDim2.new(0.5, -36, 0, 12)
+			img.BackgroundTransparency = 1
+			img.Image = artId
+			img.ScaleType = Enum.ScaleType.Fit
+			img.ZIndex = Z
+			img.Parent = tile
+			roundCorner(img, 10)
+			task.spawn(function()
+				local ok = pcall(function() ContentProvider:PreloadAsync({ img }) end)
+				if not ok or not img.IsLoaded then
+					img.Visible = false
+					emoji.Visible = true
+				end
+			end)
+		else
+			emoji.Visible = true
+		end
+
+		local titleLabel = Instance.new("TextLabel")
+		titleLabel.Size = UDim2.new(1, -16, 0, 26)
+		titleLabel.Position = UDim2.new(0, 8, 0, 92)
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Font = Enum.Font.GothamBold
+		titleLabel.TextSize = 18
+		titleLabel.TextColor3 = GOLD
+		titleLabel.Text = step.title
+		titleLabel.ZIndex = Z
+		titleLabel.Parent = tile
 
 		local captionLabel = Instance.new("TextLabel")
-		captionLabel.Size = UDim2.new(1, -16, 0, 42)
-		captionLabel.Position = UDim2.new(0, 8, 0, 50)
+		captionLabel.Size = UDim2.new(1, -20, 1, -126)
+		captionLabel.Position = UDim2.new(0, 10, 0, 120)
 		captionLabel.BackgroundTransparency = 1
 		captionLabel.Font = Enum.Font.Gotham
-		captionLabel.TextSize = 13
+		captionLabel.TextSize = 16
 		captionLabel.TextColor3 = Color3.fromRGB(235, 225, 210)
 		captionLabel.TextWrapped = true
+		captionLabel.TextXAlignment = Enum.TextXAlignment.Center
+		captionLabel.TextYAlignment = Enum.TextYAlignment.Top
 		captionLabel.Text = step.text
-		captionLabel.ZIndex = 21
+		captionLabel.ZIndex = Z
 		captionLabel.Parent = tile
 	end
 
-	local howToPlayExamplesLabel = Instance.new("TextLabel")
-	howToPlayExamplesLabel.Size = UDim2.new(1, 0, 0, 24)
-	howToPlayExamplesLabel.BackgroundTransparency = 1
-	howToPlayExamplesLabel.Font = Enum.Font.GothamBold
-	howToPlayExamplesLabel.TextSize = 15
-	howToPlayExamplesLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-	howToPlayExamplesLabel.TextXAlignment = Enum.TextXAlignment.Left
-	howToPlayExamplesLabel.Text = "How scoring works -- every hand, weakest to strongest:"
-	howToPlayExamplesLabel.ZIndex = 21
-	howToPlayExamplesLabel.LayoutOrder = 2
-	howToPlayExamplesLabel.Parent = howToPlayScroll
-
-	-- Ahmed: "the Poker Hands [reference] has all ways to score points, why is
-	-- that not being visually shown in the how to play?" -- one worked example
-	-- per HandEvaluator.HandOrder entry now (was only 3 of 9), weakest to
-	-- strongest, same visual mini-card format as before.
-	local EXAMPLE_HANDS = {
-		{ -- High Card
-			{ rank = 2, suit = "Hearts" },
-			{ rank = 5, suit = "Diamonds" },
-			{ rank = 9, suit = "Clubs" },
-			{ rank = 11, suit = "Spades" },
-			{ rank = 13, suit = "Hearts" },
-		},
-		{ -- Pair
-			{ rank = 7, suit = "Hearts" },
-			{ rank = 7, suit = "Spades" },
-		},
-		{ -- Two Pair
-			{ rank = 9, suit = "Diamonds" },
-			{ rank = 9, suit = "Clubs" },
-			{ rank = 2, suit = "Hearts" },
-			{ rank = 2, suit = "Diamonds" },
-		},
-		{ -- Three of a Kind
-			{ rank = 5, suit = "Spades" },
-			{ rank = 5, suit = "Hearts" },
-			{ rank = 5, suit = "Diamonds" },
-		},
-		{ -- Straight
-			{ rank = 4, suit = "Hearts" },
-			{ rank = 5, suit = "Diamonds" },
-			{ rank = 6, suit = "Clubs" },
-			{ rank = 7, suit = "Spades" },
-			{ rank = 8, suit = "Hearts" },
-		},
-		{ -- Flush
-			{ rank = 2, suit = "Hearts" },
-			{ rank = 5, suit = "Hearts" },
-			{ rank = 9, suit = "Hearts" },
-			{ rank = 11, suit = "Hearts" },
-			{ rank = 13, suit = "Hearts" },
-		},
-		{ -- Full House
-			{ rank = 9, suit = "Diamonds" },
-			{ rank = 9, suit = "Clubs" },
-			{ rank = 9, suit = "Spades" },
-			{ rank = 2, suit = "Hearts" },
-			{ rank = 2, suit = "Diamonds" },
-		},
-		{ -- Four of a Kind
-			{ rank = 8, suit = "Hearts" },
-			{ rank = 8, suit = "Diamonds" },
-			{ rank = 8, suit = "Clubs" },
-			{ rank = 8, suit = "Spades" },
-		},
-		{ -- Straight Flush
-			{ rank = 4, suit = "Clubs" },
-			{ rank = 5, suit = "Clubs" },
-			{ rank = 6, suit = "Clubs" },
-			{ rank = 7, suit = "Clubs" },
-			{ rank = 8, suit = "Clubs" },
-		},
-	}
+	-- ===== Page 2: Hand Rankings (two columns, strongest first) =====
+	-- Examples come from HandEvaluator.Examples; chips x mult from Scoring.HandBase
+	-- (level 0), so nothing here is hardcoded.
+	local rankingsPage = makePage("RankingsPage")
+	local order = HandEvaluator.HandOrder
+	local COLS, ROWS = 2, math.ceil(#order / 2)
+	local COL_W = (PANEL_W - 2 * PAD - GAP) / COLS
+	local ROW_H = (BODY_H - (ROWS - 1) * 8) / ROWS
+	local CARD_W, CARD_H, CARD_GAP = 40, 56, 3
 
 	local function makeMiniCard(card, parent, layoutOrder)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(0, 34, 0, 46)
+		label.Size = UDim2.new(0, CARD_W, 0, CARD_H)
 		label.BackgroundColor3 = Color3.fromRGB(250, 245, 235)
 		label.Font = Enum.Font.GothamBold
-		label.TextSize = 13
+		label.TextSize = 16
 		label.TextColor3 = RED_SUITS[card.suit] and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(20, 20, 20)
 		label.Text = string.format("%s\n%s", RANK_NAMES[card.rank] or tostring(card.rank), SUIT_SYMBOLS[card.suit] or "?")
 		label.LayoutOrder = layoutOrder or 0
-		label.ZIndex = 21
+		label.ZIndex = Z
 		label.Parent = parent
 		roundCorner(label, 6)
 		return label
 	end
 
-	for exampleIndex, cards in ipairs(EXAMPLE_HANDS) do
-		local handResult = HandEvaluator.evaluate(cards)
-		local score, chips, mult = Scoring.calculate(handResult, {}, {})
+	for i = 1, #order do
+		local name = order[#order + 1 - i] -- strongest first
+		-- fill column by column: left column strongest, right column weakest
+		local col, row = math.floor((i - 1) / ROWS), (i - 1) % ROWS
+		local base = Scoring.HandBase[name]
+		local spec = HandEvaluator.Examples and HandEvaluator.Examples[name]
+		if base and spec then
+			local rowFrame = Instance.new("Frame")
+			rowFrame.Size = UDim2.new(0, math.floor(COL_W), 0, math.floor(ROW_H))
+			rowFrame.Position = UDim2.new(0, math.floor(col * (COL_W + GAP)), 0, math.floor(row * (ROW_H + 8)))
+			rowFrame.BackgroundColor3 = TILE_BG
+			rowFrame.ZIndex = Z
+			rowFrame.Parent = rankingsPage
+			polishPanel(rowFrame, 10)
 
-		local exampleRow = Instance.new("Frame")
-		exampleRow.Size = UDim2.new(1, 0, 0, 70)
-		exampleRow.BackgroundColor3 = Color3.fromRGB(60, 45, 32)
-		exampleRow.ZIndex = 21
-		exampleRow.LayoutOrder = 2 + exampleIndex
-		exampleRow.Parent = howToPlayScroll
-		polishPanel(exampleRow, 10)
+			local holder = Instance.new("Frame")
+			local cardsW = CARD_W * #spec + CARD_GAP * (#spec - 1)
+			holder.Size = UDim2.new(0, cardsW, 1, 0)
+			holder.Position = UDim2.new(0, 8, 0, 0)
+			holder.BackgroundTransparency = 1
+			holder.ZIndex = Z
+			holder.Parent = rowFrame
+			local lay = Instance.new("UIListLayout")
+			lay.FillDirection = Enum.FillDirection.Horizontal
+			lay.VerticalAlignment = Enum.VerticalAlignment.Center
+			lay.SortOrder = Enum.SortOrder.LayoutOrder
+			lay.Padding = UDim.new(0, CARD_GAP)
+			lay.Parent = holder
+			for ci, c in ipairs(spec) do
+				makeMiniCard({ rank = c[1], suit = c[2] }, holder, ci)
+			end
 
-		local cardsHolder = Instance.new("Frame")
-		cardsHolder.Size = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 16, 1, 0)
-		cardsHolder.Position = UDim2.new(0, 10, 0, 0)
-		cardsHolder.BackgroundTransparency = 1
-		cardsHolder.ZIndex = 21
-		cardsHolder.Parent = exampleRow
-
-		local cardsLayout = Instance.new("UIListLayout")
-		cardsLayout.FillDirection = Enum.FillDirection.Horizontal
-		cardsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-		cardsLayout.Padding = UDim.new(0, 6)
-		cardsLayout.Parent = cardsHolder
-
-		for cardIndex, card in ipairs(cards) do
-			makeMiniCard(card, cardsHolder, cardIndex)
+			local info = Instance.new("TextLabel")
+			info.Size = UDim2.new(1, -(cardsW + 24), 1, -4)
+			info.Position = UDim2.new(0, cardsW + 16, 0, 2)
+			info.BackgroundTransparency = 1
+			info.Font = Enum.Font.GothamBold
+			info.TextSize = 16
+			info.TextWrapped = true
+			info.TextXAlignment = Enum.TextXAlignment.Left
+			info.TextColor3 = GOLD
+			info.ZIndex = Z
+			info.Text = string.format("%s\n%d x %d", name, math.floor(base.chips), math.floor(base.mult))
+			info.Parent = rowFrame
 		end
-
-		local resultLabel = Instance.new("TextLabel")
-		resultLabel.Size = UDim2.new(1, -(34 * #cards + 6 * (#cards - 1) + 30), 1, 0)
-		resultLabel.Position = UDim2.new(0, 34 * #cards + 6 * (#cards - 1) + 20, 0, 0)
-		resultLabel.BackgroundTransparency = 1
-		resultLabel.Font = Enum.Font.Gotham
-		resultLabel.TextSize = 14
-		resultLabel.TextWrapped = true
-		resultLabel.TextXAlignment = Enum.TextXAlignment.Left
-		resultLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-		resultLabel.ZIndex = 21
-		resultLabel.Text = string.format(
-			"%s\n%d chips x %d mult = %d points",
-			handResult.name, chips, mult, score
-		)
-		resultLabel.Parent = exampleRow
 	end
 
-	local howToPlayCloseButton = Instance.new("TextButton")
-	howToPlayCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	howToPlayCloseButton.Position = UDim2.new(0.5, -70, 1, -50)
-	howToPlayCloseButton.Font = Enum.Font.GothamBold
-	howToPlayCloseButton.TextSize = 16
-	howToPlayCloseButton.Text = "Got it"
-	howToPlayCloseButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	howToPlayCloseButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-	howToPlayCloseButton.ZIndex = 21
-	howToPlayCloseButton.Parent = howToPlayPanel
-	polishButton(howToPlayCloseButton, 10)
-	addButtonHoverScale(howToPlayCloseButton)
+	-- ===== Navigation =====
+	local pages = {
+		{ frame = basicsPage, title = "The Basics" },
+		{ frame = rankingsPage, title = "Hand Rankings" },
+	}
+	local currentPage = 1
 
+	local function makeNavButton(text, w)
+		local b = Instance.new("TextButton")
+		b.Size = UDim2.new(0, w, 0, 42)
+		b.AnchorPoint = Vector2.new(0, 0)
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 18
+		b.Text = text
+		b.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
+		b.TextColor3 = CREAM
+		b.ZIndex = Z
+		b.Parent = howToPlayPanel
+		polishButton(b, 10)
+		addButtonHoverScale(b)
+		return b
+	end
+	local navY = TITLE_H + BODY_H + 11
+	local howToPlayBackButton = makeNavButton("Back", 130)
+	howToPlayBackButton.Position = UDim2.new(0, PAD, 0, navY)
+	local howToPlayCloseButton = makeNavButton("Next", 130) -- becomes "Got it" on the last page
+	howToPlayCloseButton.Position = UDim2.new(1, -PAD - 130, 0, navY)
+
+	local pageIndicator = Instance.new("TextLabel")
+	pageIndicator.Size = UDim2.new(0, 200, 0, 42)
+	pageIndicator.Position = UDim2.new(0.5, -100, 0, navY)
+	pageIndicator.BackgroundTransparency = 1
+	pageIndicator.Font = Enum.Font.Gotham
+	pageIndicator.TextSize = 16
+	pageIndicator.TextColor3 = Color3.fromRGB(235, 225, 210)
+	pageIndicator.ZIndex = Z
+	pageIndicator.Parent = howToPlayPanel
+
+	local function showPage(n)
+		currentPage = math.clamp(n, 1, #pages)
+		for i, p in ipairs(pages) do
+			p.frame.Visible = (i == currentPage)
+		end
+		howToPlayTitle.Text = pages[currentPage].title
+		pageIndicator.Text = string.format("Page %d of %d", currentPage, #pages)
+		howToPlayBackButton.Visible = currentPage > 1
+		howToPlayCloseButton.Text = (currentPage == #pages) and "Got it" or "Next"
+	end
+	showPage(1)
+
+	howToPlayBackButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		showPage(currentPage - 1)
+	end)
 	howToPlayCloseButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		popOut(howToPlayBackdrop, howToPlayPanel)
+		if currentPage < #pages then
+			showPage(currentPage + 1)
+		else
+			popOut(howToPlayBackdrop, howToPlayPanel)
+		end
 	end)
 
 	OverlayManager.register("howToPlay", function()
@@ -327,6 +352,7 @@ return function(deps)
 	local function openHowToPlay()
 		playClickSfx()
 		OverlayManager.closeAllExcept("howToPlay")
+		showPage(1)
 		popIn(howToPlayBackdrop, howToPlayPanel)
 	end
 

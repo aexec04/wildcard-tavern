@@ -4647,4 +4647,12 @@ table.insert(tests, { name = "Wired background art: shop, win, journey map and s
 	expectEqual(seen, 4)
 end })
 
+table.insert(tests, { name = "Tutorial icons: all six resolve to real ids through ContentArt", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	for _, key in ipairs({ "select_cards", "play_hand", "discard", "target", "shop", "endless" }) do
+		local v = ContentArt.getImageId("tutorial_icons", key)
+		expectTrue(type(v) == "string" and v:find("^rbxassetid://%d+$") ~= nil, "tutorial_icons." .. key)
+	end
+end })
+
 return tests
