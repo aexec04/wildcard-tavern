@@ -4603,4 +4603,25 @@ table.insert(tests, { name = "RunState.phaseAllowsCardActions: only the playing 
 	expectEqual(RunState.phaseAllowsCardActions(nil), false)
 end })
 
+table.insert(tests, { name = "Collection: every entry resolves to ContentArt or an icon fallback; art keys match registry ids", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		local items = CollectionBook.itemsFor(tab.id)
+		local ids = {}
+		for _, item in ipairs(items) do
+			ids[item.id] = true
+			local artId = ContentArt.getImageId(tab.id, item.id)
+			if artId == nil then
+				expectTrue(type(item.def.icon) == "string" and item.def.icon ~= "", tab.id .. "/" .. tostring(item.id) .. " has neither art nor an icon fallback")
+			else
+				expectTrue(artId:find("^rbxassetid://%d+$") ~= nil, tab.id .. "/" .. tostring(item.id) .. " has a malformed art id")
+			end
+		end
+		-- No orphan art keys (a typo'd key would silently never show).
+		for id in pairs(ContentArt[tab.id] or {}) do
+			expectTrue(ids[id] == true, "art key " .. tab.id .. "/" .. tostring(id) .. " matches no registry entry")
+		end
+	end
+end })
+
 return tests

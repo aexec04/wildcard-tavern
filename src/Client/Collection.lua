@@ -390,6 +390,15 @@ return function(deps)
 				detailArt.Name = "ContentDetailArt"
 			end
 		end
+		local prevLock = card:FindFirstChild("ContentLockBadge")
+		if prevLock then prevLock:Destroy() end
+		if not found then
+			local lockBadge = label(card, {
+				Size = UDim2.fromOffset(22, 22), Position = UDim2.new(0.5, 14, 0, 58),
+				TextSize = 16, ZIndex = 36, Text = "🔒", BackgroundTransparency = 1,
+			})
+			lockBadge.Name = "ContentLockBadge"
+		end
 
 		if found then
 			cardName.Text = item.tab == "titles" and ('"' .. def.title .. '"') or def.name

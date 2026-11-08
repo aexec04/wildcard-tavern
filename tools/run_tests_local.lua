@@ -48,6 +48,11 @@ local moduleCache = {}
 local function makeProxy(path)
 	return setmetatable({ __path = path }, {
 		__index = function(_, key)
+			if key == "WaitForChild" then
+				return function(self, name)
+					return self[name]
+				end
+			end
 			if key == "Parent" then
 				local parent = path:match("(.*)/[^/]+$")
 				return makeProxy(parent or ".")

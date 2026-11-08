@@ -56,8 +56,8 @@ function PatronPlaque.applyById(frame, artId, opts)
 	art.ZIndex = opts.zIndex or (frame.ZIndex + 1)
 	art.ImageTransparency = 0
 	if opts.dim then
-		art.ImageColor3 = Color3.fromRGB(120, 110, 100)
-		art.ImageTransparency = 0.35
+		-- Locked: dimmed, never a black silhouette (colour multiply, no transparency).
+		art.ImageColor3 = Color3.fromRGB(90, 90, 90)
 	end
 	local r = opts.cornerRadius
 	if r == nil then r = 4 end
@@ -114,9 +114,8 @@ function PatronPlaque.apply(frame, patronId, opts)
 	art.ZIndex = opts.zIndex or (frame.ZIndex + 1)
 	art.ImageTransparency = 0
 	if opts.dim then
-		-- Locked entries: still readable, just muted.
-		art.ImageColor3 = Color3.fromRGB(120, 110, 100)
-		art.ImageTransparency = 0.35
+		-- Locked: dimmed, never a black silhouette (colour multiply, no transparency).
+		art.ImageColor3 = Color3.fromRGB(90, 90, 90)
 	end
 
 	local r = opts.cornerRadius
