@@ -523,6 +523,13 @@ end
 	exactly however many a Boss Round's requiredCardsPerHand demands.
 	Returns a result table: { handName, score, chips, mult, roundWon, runOver, wonRun }
 ]]
+-- Hand cards, Play and Discard only respond during an active round. Server
+-- and client both gate on this so e.g. the Round Select screen can never
+-- leak clicks through to the hand underneath.
+function RunState.phaseAllowsCardActions(phase)
+	return phase == "playing"
+end
+
 function RunState.playHand(state, cardIndices)
 	assert(not state.roundOver, "Round is already over -- advance to the next round first")
 	local bossModifier = state.bossModifier

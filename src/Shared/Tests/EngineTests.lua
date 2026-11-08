@@ -4595,4 +4595,12 @@ table.insert(tests, { name = "CollectionBook.setsFromLists matches discoveredSet
 	expectTrue(a.tabs.titles.found >= 1)
 end })
 
+table.insert(tests, { name = "RunState.phaseAllowsCardActions: only the playing phase can play/discard/select", fn = function()
+	expectTrue(RunState.phaseAllowsCardActions("playing"))
+	for _, phase in ipairs({ "roundSelect", "shop", "gameover", "menu" }) do
+		expectEqual(RunState.phaseAllowsCardActions(phase), false)
+	end
+	expectEqual(RunState.phaseAllowsCardActions(nil), false)
+end })
+
 return tests

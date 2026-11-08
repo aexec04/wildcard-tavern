@@ -423,16 +423,27 @@ addTooltip = function(button, text, align)
 	-- Patron is currently owned, which changes as you buy/discard them).
 	button.MouseEnter:Connect(function()
 		tooltipLabel.Text = (type(text) == "function") and text() or text
-		local pos = button.AbsolutePosition
-		local size = button.AbsoluteSize
-		if align == "left" then
-			tooltipLabel.AnchorPoint = Vector2.new(1, 0)
-			tooltipLabel.Position = UDim2.fromOffset(pos.X + size.X, pos.Y + size.Y + 6)
-		else
-			tooltipLabel.AnchorPoint = Vector2.new(0.5, 0)
-			tooltipLabel.Position = UDim2.fromOffset(pos.X + size.X / 2, pos.Y + size.Y + 6)
+		-- Top-left placement, clamped inside the screen; flips above the
+		-- button when there is no room below (e.g. the bottom-right Deck
+		-- widget). AutomaticSize settles a frame late, so place twice.
+		local function place()
+			local pos = button.AbsolutePosition
+			local size = button.AbsoluteSize
+			local tsz = tooltipLabel.AbsoluteSize
+			local screen = screenGui.AbsoluteSize
+			local x = (align == "left") and (pos.X + size.X - tsz.X) or (pos.X + size.X / 2 - tsz.X / 2)
+			local y = pos.Y + size.Y + 6
+			if y + tsz.Y > screen.Y - 4 then
+				y = pos.Y - tsz.Y - 6
+			end
+			x = math.max(4, math.min(x, screen.X - tsz.X - 4))
+			y = math.max(4, y)
+			tooltipLabel.AnchorPoint = Vector2.new(0, 0)
+			tooltipLabel.Position = UDim2.fromOffset(x, y)
 		end
+		place()
 		tooltipLabel.Visible = true
+		task.defer(place)
 	end)
 	button.MouseLeave:Connect(function()
 		tooltipLabel.Visible = false
@@ -1876,6 +1887,9 @@ local function refreshScorePreview()
 end
 
 local function onCardClicked(index)
+	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
+		return
+	end
 	if selected[index] then
 		selected[index] = nil
 	else
@@ -2500,7 +2514,7 @@ end
 -- ===== Wire up buttons =====
 
 playButton.MouseButton1Click:Connect(function()
-	if not latestState or latestState.phase ~= "playing" then
+	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
 	local indices = selectedIndicesArray()
@@ -2592,7 +2606,7 @@ playButton.MouseButton1Click:Connect(function()
 end)
 
 discardButton.MouseButton1Click:Connect(function()
-	if not latestState or latestState.phase ~= "playing" then
+	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
 	if latestState.discardsRemaining <= 0 then

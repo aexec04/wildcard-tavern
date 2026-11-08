@@ -137,6 +137,27 @@ return function(deps)
 	roundSelectFrame.Parent = root
 	polishPanel(roundSelectFrame, 16, "wood")
 
+	-- INPUT SINK: while Round Select is up, nothing underneath (hand cards,
+	-- Deck widget, Play/Discard) may respond. Full-screen, invisible, Active
+	-- so it swallows clicks. ZIndex 4 sits above the gameplay UI (1-3) and
+	-- below the corner buttons (5+) so Settings/Volume stay usable.
+	do
+		local sink = Instance.new("Frame")
+		sink.Name = "RoundSelectInputSink"
+		sink.Size = UDim2.fromScale(1, 1)
+		sink.BackgroundTransparency = 1
+		sink.BorderSizePixel = 0
+		sink.Active = true
+		sink.ZIndex = 4
+		sink.Visible = false
+		sink.Parent = root
+		local function sync()
+			sink.Visible = roundSelectFrame.Visible
+		end
+		roundSelectFrame:GetPropertyChangedSignal("Visible"):Connect(sync)
+		sync()
+	end
+
 	-- Full-panel table background behind everything. The frame's flat fill
 	-- stays underneath as the fallback if the image is missing or fails to load.
 	-- Edge darkening is a Color-only UIGradient on the image itself (it

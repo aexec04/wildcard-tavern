@@ -1242,7 +1242,7 @@ end
 
 PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 	local session = sessions[player]
-	if not session or session.phase ~= "playing" then
+	if not session or not RunState.phaseAllowsCardActions(session.phase) then
 		return
 	end
 	if not isValidIndexList(cardIndices, #session.state.hand) then
@@ -1274,7 +1274,7 @@ end)
 
 DiscardRemote.OnServerEvent:Connect(function(player, cardIndices)
 	local session = sessions[player]
-	if not session or session.phase ~= "playing" then
+	if not session or not RunState.phaseAllowsCardActions(session.phase) then
 		return
 	end
 	if not isValidIndexList(cardIndices, #session.state.hand) then
