@@ -93,6 +93,14 @@ return function(deps)
 	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
 	local openSeedRunDialog = deps.openSeedRunDialog
 	local menuBackgroundImage = deps.menuBackgroundImage
+	local TweenService = game:GetService("TweenService")
+	local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+	local ClientSettings = require(script.Parent.ClientSettings)
+	local SkinArt = require(script.Parent.SkinArt)
+	local ArtAssets = require(script.Parent.ArtAssets)
+	local function calm()
+		return ClientSettings.get("reduceShake") == true -- Reduce Shake: no glow, lift or flicker
+	end
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
@@ -118,7 +126,7 @@ return function(deps)
 	-- Nov 1 2026: reads ArtAssets.lua (via deps) instead of a hardcoded
 	-- DECAL id, which never loaded from code. Thumbnail fallback below.
 	-- menu_bg (house style) wins; the older ArtAssets image / flat color is the fallback.
-	local menuArtId = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).getImageId("backgrounds", "menu_bg")
+	local menuArtId = ContentArt.getImageId("backgrounds", "menu_bg")
 	menuBackgroundArt.Image = menuArtId or menuBackgroundImage or "rbxassetid://0"
 	menuBackgroundArt.Active = false
 	-- BUGFIX (Nov 1 2026): this ScreenGui uses Global ZIndex layering, so
@@ -141,54 +149,78 @@ return function(deps)
 	-- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
 	-- Failure even for images that load fine, so it was blanking good art.)
 
+	local GOLD = Color3.fromRGB(255, 214, 130)
+	local CREAM = Color3.fromRGB(250, 240, 220)
+	local ART_Z = 10 -- button art; the buttons themselves sit one above
+
+	-- ===== Title: carved gold look (gold fill, dark stroke, soft drop shadow) =====
+	local menuTitleShadow = Instance.new("TextLabel")
+	menuTitleShadow.Size = UDim2.new(1, 0, 0, 80)
+	menuTitleShadow.Position = UDim2.new(0, 3, 0, 23)
+	menuTitleShadow.BackgroundTransparency = 1
+	menuTitleShadow.Font = Enum.Font.GothamBold
+	menuTitleShadow.TextSize = 58
+	menuTitleShadow.TextColor3 = Color3.fromRGB(0, 0, 0)
+	menuTitleShadow.TextTransparency = 0.6
+	menuTitleShadow.TextStrokeTransparency = 1
+	menuTitleShadow.Text = "Wildcard Tavern"
+	menuTitleShadow.ZIndex = 10
+	menuTitleShadow.Parent = menuFrame
+
 	local menuTitle = Instance.new("TextLabel")
-	menuTitle.Size = UDim2.new(1, 0, 0, 70)
-	menuTitle.Position = UDim2.new(0, 0, 0, 18)
+	menuTitle.Size = UDim2.new(1, 0, 0, 80)
+	menuTitle.Position = UDim2.new(0, 0, 0, 20)
 	menuTitle.BackgroundTransparency = 1
 	menuTitle.Font = Enum.Font.GothamBold
-	menuTitle.TextSize = 48
-	menuTitle.TextColor3 = Color3.fromRGB(255, 214, 130)
+	menuTitle.TextSize = 58
+	menuTitle.TextColor3 = GOLD
+	menuTitle.TextTransparency = 0
+	menuTitle.TextStrokeColor3 = Color3.fromRGB(60, 36, 14)
+	menuTitle.TextStrokeTransparency = 0.1
 	menuTitle.Text = "Wildcard Tavern"
-	menuTitle.ZIndex = 10
+	menuTitle.ZIndex = 11
 	menuTitle.Parent = menuFrame
 
+	-- Subtitle text lives on a small ribbon banner under the title.
 	local menuSubtitle = Instance.new("TextLabel")
-	menuSubtitle.Size = UDim2.new(1, 0, 0, 26)
-	menuSubtitle.Position = UDim2.new(0, 0, 0, 92)
-	menuSubtitle.BackgroundTransparency = 1
-	menuSubtitle.Font = Enum.Font.Gotham
-	menuSubtitle.TextSize = 18
-	menuSubtitle.TextColor3 = Color3.fromRGB(200, 180, 160)
+	menuSubtitle.Name = "MenuRibbon"
+	menuSubtitle.AnchorPoint = Vector2.new(0.5, 0)
+	menuSubtitle.Size = UDim2.fromOffset(340, 32)
+	menuSubtitle.Position = UDim2.new(0.5, 0, 0, 108)
+	menuSubtitle.BackgroundColor3 = Color3.fromRGB(150, 48, 40)
+	menuSubtitle.Font = Enum.Font.GothamBold
+	menuSubtitle.TextSize = 16
+	menuSubtitle.TextColor3 = CREAM
 	menuSubtitle.Text = "a poker hand deckbuilder game!"
-	menuSubtitle.ZIndex = 10
+	menuSubtitle.ZIndex = 11
 	menuSubtitle.Parent = menuFrame
+	do
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 4)
+		c.Parent = menuSubtitle
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(214, 172, 88)
+		st.Thickness = 1.5
+		st.Parent = menuSubtitle
+		for side = 1, 2 do -- ribbon tails
+			local tail = Instance.new("Frame")
+			tail.AnchorPoint = Vector2.new(0.5, 0)
+			tail.Size = UDim2.fromOffset(26, 24)
+			tail.Position = UDim2.new(0.5, (side == 1 and -1 or 1) * 182, 0, 114)
+			tail.BackgroundColor3 = Color3.fromRGB(110, 34, 30)
+			tail.BorderSizePixel = 0
+			tail.Rotation = side == 1 and -8 or 8
+			tail.ZIndex = 10
+			tail.Parent = menuFrame
+		end
+	end
 
-	-- BUGFIX (title/button overlap on short & landscape screens): the
-	-- title/subtitle used to sit at fixed SCALE positions (0.3 / 0.42 down
-	-- the screen) while the button holder was centered around another
-	-- fixed scale point (0.74) -- neither side knew about the other's
-	-- actual size. That was fragile even at 4 buttons, and became a real,
-	-- visible bug once this grew to 8 buttons (Phases 9/11/16 each added
-	-- one): the button stack's real height (~470px) frequently doesn't
-	-- fit in whatever fraction of a short/landscape screen "0.74 centered"
-	-- happens to land on, so the block rides up and overlaps the title
-	-- text -- exactly what a phone-landscape Studio preview showed.
-	--
-	-- Fixed properly, not by re-guessing another magic percentage: title/
-	-- subtitle now sit in a small FIXED-pixel region pinned to the very
-	-- top of the screen (safe on any screen height), and the buttons live
-	-- inside a ScrollingFrame that fills whatever space is left below
-	-- that region. AutomaticCanvasSize.Y means the scroll area always
-	-- matches the buttons' real content height, and on a screen too short
-	-- to show all 8 at once, it scrolls internally instead of overlapping
-	-- or clipping anything above it -- same "convert to a ScrollingFrame
-	-- instead of guessing a fixed size" fix already used for the Themes
-	-- panel (Phase 14) and the Road Ahead map (Phase 7).
+	-- Scrolling holder for the buttons (short screens scroll instead of overlapping the title).
 	local menuButtonScroll = Instance.new("ScrollingFrame")
 	menuButtonScroll.Name = "MenuButtonScroll"
-	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 124)
+	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 160)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 260, 1, -134)
+	menuButtonScroll.Size = UDim2.new(0, 560, 1, -172)
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
 	menuButtonScroll.ScrollBarThickness = 6
@@ -201,39 +233,229 @@ return function(deps)
 	local menuButtonHolder = Instance.new("Frame")
 	menuButtonHolder.Size = UDim2.new(1, 0, 0, 0)
 	menuButtonHolder.AutomaticSize = Enum.AutomaticSize.Y
-	menuButtonHolder.Position = UDim2.new(0.5, 0, 0, 0)
-	menuButtonHolder.AnchorPoint = Vector2.new(0.5, 0)
 	menuButtonHolder.BackgroundTransparency = 1
 	menuButtonHolder.ZIndex = 10
 	menuButtonHolder.Parent = menuButtonScroll
 
 	local menuButtonLayout = Instance.new("UIListLayout")
 	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	menuButtonLayout.Padding = UDim.new(0, 12)
+	menuButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	menuButtonLayout.Padding = UDim.new(0, 18)
 	menuButtonLayout.Parent = menuButtonHolder
+	local holderPad = Instance.new("UIPadding")
+	holderPad.PaddingTop = UDim.new(0, 10)
+	holderPad.PaddingBottom = UDim.new(0, 24)
+	holderPad.Parent = menuButtonHolder
 
-	local function makeMenuButton(text)
+	local function makeRow(order, height, padding)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, height)
+		row.BackgroundTransparency = 1
+		row.LayoutOrder = order
+		row.ZIndex = 10
+		row.Parent = menuButtonHolder
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, padding)
+		layout.Parent = row
+		return row
+	end
+
+	local slots = {} -- stagger-in targets (the slot holds the button so hover can lift it)
+	local glowTweens = {}
+
+	-- Ornate wood-and-gold button (the same carved art as Play Hand / Discard), a TextButton
+	-- inside a fixed slot. opts: { text, textSize, iconKey, emoji, iconSize, parent, order, width, height, glow }
+	local function makeFrameButton(opts)
+		local slot = Instance.new("Frame")
+		slot.Size = UDim2.fromOffset(opts.width, opts.height)
+		slot.BackgroundTransparency = 1
+		slot.LayoutOrder = opts.order or 0
+		slot.ZIndex = 10
+		slot.Parent = opts.parent
+		table.insert(slots, slot)
+
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(0, 220, 0, 48)
+		button.Size = UDim2.fromScale(1, 1)
 		button.Font = Enum.Font.GothamBold
-		button.TextSize = 20
-		button.Text = text
+		button.TextSize = opts.textSize
+		button.Text = opts.text
+		button.TextWrapped = true
+		button.TextYAlignment = opts.iconKey and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center
+		button.TextColor3 = CREAM
+		button.TextTransparency = 0
+		button.TextStrokeColor3 = Color3.fromRGB(40, 24, 10)
+		button.TextStrokeTransparency = 0.5
 		button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-		button.TextColor3 = Color3.fromRGB(250, 240, 220)
-		button.ZIndex = 10
-		button.Parent = menuButtonHolder
+		button.AutoButtonColor = false
+		button.ZIndex = ART_Z + 1
+		button.Parent = slot
 		polishButton(button, 12)
+		local rim = button:FindFirstChildOfClass("UIStroke")
+		if rim then
+			rim.Color = Color3.fromRGB(214, 172, 88)
+			rim.Thickness = 2
+		end
+		local small = opts.width < 120
+		local slice = SkinArt.Slices.button
+		SkinArt.apply(button, ArtAssets.actionButtonArt, {
+			tint = SkinArt.Tints.button,
+			zIndex = ART_Z,
+			sliceCenter = slice.center,
+			sliceScale = small and 0.18 or slice.scale,
+			onLoaded = function()
+				SkinArt.hideCodeChrome(button)
+			end,
+		})
+
+		if opts.iconKey then
+			local textPad = Instance.new("UIPadding")
+			textPad.PaddingBottom = UDim.new(0, 6)
+			textPad.Parent = button
+			local size = opts.iconSize
+			local artId = ContentArt.getImageId("menu_icons", opts.iconKey)
+			local holder = Instance.new("Frame")
+			holder.AnchorPoint = Vector2.new(0.5, 0)
+			holder.Position = UDim2.new(0.5, 0, 0, small and 8 or 10)
+			holder.Size = UDim2.fromOffset(size, size)
+			holder.BackgroundTransparency = 1
+			holder.Active = false
+			holder.ZIndex = ART_Z + 2
+			holder.Parent = button
+			if artId then
+				local img = Instance.new("ImageLabel")
+				img.Size = UDim2.fromScale(1, 1)
+				img.BackgroundTransparency = 1
+				img.Image = artId
+				img.ScaleType = Enum.ScaleType.Fit
+				img.Active = false
+				img.ZIndex = ART_Z + 2
+				img.Parent = holder
+				local c = Instance.new("UICorner")
+				c.CornerRadius = UDim.new(0, 8)
+				c.Parent = img
+			else
+				local emoji = Instance.new("TextLabel")
+				emoji.Size = UDim2.fromScale(1, 1)
+				emoji.BackgroundTransparency = 1
+				emoji.Font = Enum.Font.Gotham
+				emoji.TextSize = math.floor(size * 0.8)
+				emoji.Text = opts.emoji
+				emoji.TextTransparency = 0
+				emoji.TextStrokeTransparency = 1
+				emoji.ZIndex = ART_Z + 2
+				emoji.Parent = holder
+			end
+		end
+
+		-- Hover ring (a separate frame so the art's chrome-hiding never touches it).
+		local ring = Instance.new("Frame")
+		ring.Name = "HoverRing"
+		ring.Size = UDim2.fromScale(1, 1)
+		ring.BackgroundTransparency = 1
+		ring.Active = false
+		ring.ZIndex = ART_Z + 3
+		ring.Parent = button
+		do
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0, 10)
+			c.Parent = ring
+		end
+		local ringStroke = Instance.new("UIStroke")
+		ringStroke.Color = Color3.fromRGB(255, 232, 160)
+		ringStroke.Thickness = 3
+		ringStroke.Transparency = 1
+		ringStroke.Parent = ring
+
+		local press = Instance.new("UIScale")
+		press.Name = "PressScale"
+		press.Parent = button
+
+		button.MouseEnter:Connect(function()
+			TweenService:Create(ringStroke, TweenInfo.new(0.12), { Transparency = 0.1 }):Play()
+			if not calm() then
+				TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, -3) }):Play()
+			end
+			if playClickSfx then
+				playClickSfx(0.15)
+			end
+		end)
+		local function rest()
+			TweenService:Create(ringStroke, TweenInfo.new(0.12), { Transparency = 1 }):Play()
+			TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, 0) }):Play()
+			TweenService:Create(press, TweenInfo.new(0.08), { Scale = 1 }):Play()
+		end
+		button.MouseLeave:Connect(rest)
+		button.MouseButton1Down:Connect(function()
+			TweenService:Create(press, TweenInfo.new(0.06), { Scale = 0.97 }):Play()
+		end)
+		button.MouseButton1Up:Connect(function()
+			TweenService:Create(press, TweenInfo.new(0.1), { Scale = 1 }):Play()
+		end)
+
+		if opts.glow then
+			local glow = Instance.new("Frame")
+			glow.Name = "PlayGlow"
+			glow.AnchorPoint = Vector2.new(0.5, 0.5)
+			glow.Position = UDim2.fromScale(0.5, 0.5)
+			glow.Size = UDim2.new(1, 8, 1, 8)
+			glow.BackgroundTransparency = 1
+			glow.Active = false
+			glow.ZIndex = ART_Z
+			glow.Parent = slot
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0, 14)
+			c.Parent = glow
+			local gs = Instance.new("UIStroke")
+			gs.Color = Color3.fromRGB(255, 190, 90)
+			gs.Thickness = 2
+			gs.Transparency = 0.6
+			gs.Parent = glow
+			-- 1.25s each way = a 2.5s loop; stopped while the menu is closed
+			table.insert(glowTweens, TweenService:Create(gs, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Thickness = 6, Transparency = 0.15 }))
+			table.insert(glowTweens, { reset = function()
+				gs.Thickness, gs.Transparency = 2, 0.6
+			end })
+		end
 		return button
 	end
 
-	local menuPlayButton = makeMenuButton("Play")
-	local menuHowToPlayButton = makeMenuButton("How to Play")
-	local menuJourneyButton = makeMenuButton("Road Ahead")
-	local menuNewRunButton = makeMenuButton("New Run...")
-	local menuDailyChallengeButton = makeMenuButton("\240\159\147\133 Daily Challenge")
-	local menuWeeklyChallengeButton = makeMenuButton("\240\159\151\147 Weekly Challenge")
-	local menuSeedRunButton = makeMenuButton("\240\159\142\178 Seed Run...")
-	local menuTutorialButton = makeMenuButton("🔰 Tutorial")
+	local menuPlayButton = makeFrameButton({
+		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 88, glow = true,
+	})
+	local menuNewRunButton = makeFrameButton({
+		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 62,
+	})
+	local tileRow = makeRow(3, 118, 16)
+	local menuDailyChallengeButton = makeFrameButton({
+		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 150, height = 118,
+		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 70,
+	})
+	local menuWeeklyChallengeButton = makeFrameButton({
+		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 150, height = 118,
+		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 70,
+	})
+	local menuSeedRunButton = makeFrameButton({
+		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 150, height = 118,
+		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
+	})
+	local bottomRow = makeRow(4, 100, 20)
+	local menuJourneyButton = makeFrameButton({
+		text = "Road Ahead", textSize = 15, parent = bottomRow, order = 1, width = 100, height = 100,
+		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
+	})
+	local menuHowToPlayButton = makeFrameButton({
+		text = "How to Play", textSize = 15, parent = bottomRow, order = 2, width = 100, height = 100,
+		iconKey = "how_to_play", emoji = "\240\159\147\150", iconSize = 46,
+	})
+	local menuTutorialButton = makeFrameButton({
+		text = "Tutorial", textSize = 15, parent = bottomRow, order = 3, width = 100, height = 100,
+		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
+	})
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
@@ -262,39 +484,57 @@ return function(deps)
 		end
 	end)
 
-	for _, button in ipairs({
-		menuPlayButton,
-		menuHowToPlayButton,
-		menuJourneyButton,
-		menuNewRunButton,
-		menuDailyChallengeButton,
-		menuWeeklyChallengeButton,
-		menuSeedRunButton,
-		menuTutorialButton,
-	}) do
-		addButtonHoverScale(button)
+	-- One-shot load-in: title, ribbon, then the button slots top to bottom.
+	local reveal = { menuTitleShadow, menuTitle, menuSubtitle }
+	for _, slot in ipairs(slots) do
+		table.insert(reveal, slot)
 	end
+	revealStagger(reveal, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
 
-	-- One-shot load-in: title first, subtitle right after, then the 5
-	-- buttons cascade in top-to-bottom. Fires immediately at build time
-	-- (this screen is visible from the moment the game loads), not on any
-	-- later event.
-	revealStagger({
-		menuTitle,
-		menuSubtitle,
-		menuPlayButton,
-		menuHowToPlayButton,
-		menuJourneyButton,
-		menuNewRunButton,
-		menuDailyChallengeButton,
-		menuWeeklyChallengeButton,
-		menuSeedRunButton,
-		menuTutorialButton,
-	}, {
-		stagger = 0.08,
-		duration = 0.35,
-		fromScale = 0.7,
-	})
+	-- ===== Loops (only while the menu is open; skipped under Reduce Shake) =====
+	local loopToken = 0
+	local function stopLoops()
+		loopToken += 1
+		for _, t in ipairs(glowTweens) do
+			if t.Cancel then
+				t:Cancel()
+			elseif t.reset then
+				t.reset()
+			end
+		end
+		menuTitle.TextTransparency = 0
+	end
+	local function startLoops()
+		stopLoops()
+		if calm() then
+			return
+		end
+		local my = loopToken
+		for _, t in ipairs(glowTweens) do
+			if t.Play then
+				t:Play()
+			end
+		end
+		task.spawn(function()
+			task.wait(1.5) -- let the load-in finish first
+			while loopToken == my and menuFrame.Visible do
+				local d = 0.2 + math.random() * 0.3
+				local info = TweenInfo.new(d, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+				TweenService:Create(menuTitle, info, { TextTransparency = math.random() * 0.12 }):Play()
+				task.wait(d)
+			end
+		end)
+	end
+	menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+		if menuFrame.Visible then
+			startLoops()
+		else
+			stopLoops()
+		end
+	end)
+	if menuFrame.Visible then
+		startLoops()
+	end
 
 	return {
 		menuFrame = menuFrame,

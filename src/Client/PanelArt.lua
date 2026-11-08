@@ -63,8 +63,9 @@ function PanelArt.add(panel, opts)
 	return art
 end
 
--- Dark edges on all four sides, stepped transparency (never a gradient).
-local STEPS = { 0.45, 0.62, 0.76, 0.87, 0.94, 0.98 }
+-- Dark edges on all four sides: 32 thin steps per side with small transparency
+-- increments (quadratic falloff), so no visible bands. Frames only, no gradients.
+local STEP_COUNT, EDGE_SHARE = 32, 0.13
 function PanelArt.vignette(parent, zIndex)
 	local holder = Instance.new("Frame")
 	holder.Name = "EdgeVignette"
@@ -73,9 +74,11 @@ function PanelArt.vignette(parent, zIndex)
 	holder.Active = false
 	holder.ZIndex = zIndex
 	holder.Parent = parent
-	local step = 0.025
-	for i, tr in ipairs(STEPS) do
+	local step = EDGE_SHARE / STEP_COUNT
+	for i = 1, STEP_COUNT do
 		local o = (i - 1) * step
+		local fall = 1 - (i - 1) / STEP_COUNT
+		local tr = 1 - 0.6 * fall * fall
 		for side = 1, 4 do
 			local f = Instance.new("Frame")
 			f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)

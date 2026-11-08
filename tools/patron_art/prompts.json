@@ -369,5 +369,13 @@
     "mushroom_ring": "a ring of red mushrooms in the grass",
     "lantern_post": "a lantern on a wooden post"
   },
-  "house_style": "Painterly digital illustration in the style of a cozy medieval tavern scene: warm amber candlelight, rich wood tones, soft painterly brushwork, kid-friendly, no alcohol, no text, no letters, no logos, no frame or border"
+  "house_style": "Painterly digital illustration in the style of a cozy medieval tavern scene: warm amber candlelight, rich wood tones, soft painterly brushwork, kid-friendly, no alcohol, no text, no letters, no logos, no frame or border",
+  "menu_icon_subjects": {
+    "daily": "a lantern-lit calendar page, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "weekly": "a golden goblet trophy, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "seed": "a pair of carved wooden dice, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tutorial": "a feathered quill and scroll, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "road_ahead": "a rolled treasure map with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  }
 }

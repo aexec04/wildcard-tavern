@@ -25,6 +25,7 @@ local ContentArt = {
 	backgrounds  = require(Engine:WaitForChild("BackgroundArt")),
 	tutorial_icons = require(Engine:WaitForChild("TutorialIconArt")),
 	map_nodes    = require(Engine:WaitForChild("MapNodeArt")),
+	menu_icons   = require(Engine:WaitForChild("MenuIconArt")),
 	map_regions  = require(Engine:WaitForChild("MapRegionArt")),
 	map_decor    = require(Engine:WaitForChild("MapDecorArt")),
 }

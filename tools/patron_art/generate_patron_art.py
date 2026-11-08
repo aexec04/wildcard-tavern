@@ -50,6 +50,7 @@ CATEGORIES = {
     "backgrounds": ("background_subjects", "backgrounds", "BackgroundArt.lua", "Background"),
     "tutorial_icons": ("tutorial_icon_subjects", "tutorial_icons", "TutorialIconArt.lua", "Tutorial Icon"),
     "map_nodes": ("map_node_subjects", "map_nodes", "MapNodeArt.lua", "Map Node"),
+    "menu_icons": ("menu_icon_subjects", "menu_icons", "MenuIconArt.lua", "Menu Icon"),
     "map_regions": ("map_region_subjects", "map_regions", "MapRegionArt.lua", "Map Region"),
     "map_decor": ("map_decor_subjects", "map_decor", "MapDecorArt.lua", "Map Decor"),
 }
@@ -58,6 +59,7 @@ CATEGORY_OPTS = {
     "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
     "tutorial_icons": {"quality": "low", "style_key": "style_icon"},
     "map_nodes": {"quality": "low", "style_key": "style_icon"},
+    "menu_icons": {"quality": "low", "style_key": "house_style"},
     "map_regions": {"size": "1536x1024", "quality": "low", "style_key": "style_map_region"},
     "map_decor": {"quality": "low", "style_key": "style_map_decor"},
 }
