@@ -202,13 +202,15 @@ return function(deps)
 
 		local panel = Instance.new("Frame")
 		panel.Name = "RoundPanel" .. round
-		panel.Size = UDim2.new(0, 220, 0, 560)
+		panel.Size = UDim2.new(0, 220, 0, 620)
 		panel.LayoutOrder = round
 		panel.BackgroundColor3 = Color3.fromRGB(55, 42, 30)
 		panel.ZIndex = 7
 		panel.Parent = panelRow
 
 		polishPanel(panel, 14)
+		-- Full-bleed scene art: no flat card fill underneath it.
+		panel.BackgroundTransparency = 1
 
 		-- Override the UIStroke polishPanel added: use the room's accent color.
 		-- Boss panel gets a thicker stroke and a slow pulsing glow (2.5s cycle).
@@ -230,7 +232,7 @@ return function(deps)
 		-- for the other two panels it shows the room's scene art.
 		local sceneImage = Instance.new("ImageLabel")
 		sceneImage.Name = "SceneImage"
-		sceneImage.Size = UDim2.new(1, 0, 0, 280)
+		sceneImage.Size = UDim2.new(1, 0, 1, 0)
 		sceneImage.Position = UDim2.new(0, 0, 0, 0)
 		sceneImage.BackgroundColor3 = Color3.fromRGB(28, 20, 14)
 		sceneImage.BackgroundTransparency = 0
@@ -248,6 +250,26 @@ return function(deps)
 		end
 		roundCorner(sceneImage, 14)
 
+		-- Scrim over the bottom ~58% of the card: clear at the top, near-black
+		-- at the bottom, so the art fades into the text area. Never dimmed.
+		local scrim = Instance.new("Frame")
+		scrim.Name = "Scrim"
+		scrim.AnchorPoint = Vector2.new(0, 1)
+		scrim.Position = UDim2.new(0, 0, 1, 0)
+		scrim.Size = UDim2.new(1, 0, 0.58, 0)
+		scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+		scrim.BorderSizePixel = 0
+		scrim.ZIndex = 9
+		scrim.Parent = panel
+		roundCorner(scrim, 14)
+		local scrimGradient = Instance.new("UIGradient")
+		scrimGradient.Rotation = 90
+		scrimGradient.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(1, 0.15),
+		})
+		scrimGradient.Parent = scrim
+
 		-- Status chip overlaid on the top-left of the scene image.
 		-- Shows "You are here" (green) for the current round,
 		-- "Lock Up next" (gray) for future rounds, "Cleared" with a check for completed rounds.
@@ -262,7 +284,7 @@ return function(deps)
 		statusChip.TextSize = 11
 		statusChip.TextColor3 = Color3.fromRGB(200, 200, 215)
 		statusChip.Text = ""
-		statusChip.ZIndex = 10
+		statusChip.ZIndex = 12
 		statusChip.Visible = false
 		statusChip.Parent = sceneImage
 		roundCorner(statusChip, 6)
@@ -271,36 +293,43 @@ return function(deps)
 		local roomLabel = Instance.new("TextLabel")
 		roomLabel.Name = "RoomLabel"
 		roomLabel.Size = UDim2.new(1, -16, 0, 28)
-		roomLabel.Position = UDim2.new(0, 8, 0, 288)
+		roomLabel.AnchorPoint = Vector2.new(0, 1)
+		roomLabel.Position = UDim2.new(0, 8, 1, isBossPanel and -232 or -180)
 		roomLabel.BackgroundTransparency = 1
 		roomLabel.Font = Enum.Font.GothamBold
 		roomLabel.TextSize = 17
 		roomLabel.TextColor3 = accent
 		roomLabel.TextXAlignment = Enum.TextXAlignment.Center
 		roomLabel.Text = cfg.roomName
-		roomLabel.ZIndex = 8
+		roomLabel.ZIndex = 11
+		roomLabel.TextStrokeTransparency = 0.35
+		roomLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		roomLabel.Parent = panel
 
 		-- Boss name: large gold text, boss panel only (y=324).
 		local bossNameLabel = Instance.new("TextLabel")
 		bossNameLabel.Name = "BossNameLabel"
 		bossNameLabel.Size = UDim2.new(1, -16, 0, 26)
-		bossNameLabel.Position = UDim2.new(0, 8, 0, 324)
+		bossNameLabel.AnchorPoint = Vector2.new(0, 1)
+		bossNameLabel.Position = UDim2.new(0, 8, 1, -204)
 		bossNameLabel.BackgroundTransparency = 1
 		bossNameLabel.Font = Enum.Font.GothamBold
 		bossNameLabel.TextSize = 18
 		bossNameLabel.TextColor3 = GOLD_ACCENT
 		bossNameLabel.TextXAlignment = Enum.TextXAlignment.Center
 		bossNameLabel.Text = ""
-		bossNameLabel.ZIndex = 8
+		bossNameLabel.ZIndex = 11
 		bossNameLabel.Visible = isBossPanel
+		bossNameLabel.TextStrokeTransparency = 0.35
+		bossNameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		bossNameLabel.Parent = panel
 
 		-- Boss rule text: readable 16px, up to 2 lines, boss panel only (y=358).
 		local bossLabel = Instance.new("TextLabel")
 		bossLabel.Name = "BossLabel"
 		bossLabel.Size = UDim2.new(1, -20, 0, 52)
-		bossLabel.Position = UDim2.new(0, 10, 0, 358)
+		bossLabel.AnchorPoint = Vector2.new(0, 1)
+		bossLabel.Position = UDim2.new(0, 10, 1, -150)
 		bossLabel.BackgroundTransparency = 1
 		bossLabel.Font = Enum.Font.Gotham
 		bossLabel.TextSize = 16
@@ -309,15 +338,18 @@ return function(deps)
 		bossLabel.TextXAlignment = Enum.TextXAlignment.Center
 		bossLabel.TextYAlignment = Enum.TextYAlignment.Top
 		bossLabel.Text = ""
-		bossLabel.ZIndex = 8
+		bossLabel.ZIndex = 11
 		bossLabel.Visible = isBossPanel
+		bossLabel.TextStrokeTransparency = 0.35
+		bossLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		bossLabel.Parent = panel
 
 		-- Tag chip: non-boss panels only (y=324), shown for the current round.
 		local tagLabel = Instance.new("TextLabel")
 		tagLabel.Name = "TagLabel"
 		tagLabel.Size = UDim2.new(1, -20, 0, 24)
-		tagLabel.Position = UDim2.new(0, 10, 0, 324)
+		tagLabel.AnchorPoint = Vector2.new(0, 1)
+		tagLabel.Position = UDim2.new(0, 10, 1, -150)
 		tagLabel.BackgroundColor3 = Color3.fromRGB(48, 52, 32)
 		tagLabel.BackgroundTransparency = 1
 		tagLabel.Font = Enum.Font.Gotham
@@ -325,8 +357,10 @@ return function(deps)
 		tagLabel.TextColor3 = Color3.fromRGB(200, 220, 170)
 		tagLabel.TextXAlignment = Enum.TextXAlignment.Center
 		tagLabel.Text = ""
-		tagLabel.ZIndex = 8
+		tagLabel.ZIndex = 11
 		tagLabel.Visible = not isBossPanel
+		tagLabel.TextStrokeTransparency = 0.35
+		tagLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		tagLabel.Parent = panel
 		roundCorner(tagLabel, 8)
 
@@ -342,7 +376,7 @@ return function(deps)
 		targetLabel.TextColor3 = Color3.fromRGB(120, 170, 255)
 		targetLabel.TextXAlignment = Enum.TextXAlignment.Center
 		targetLabel.Text = ""
-		targetLabel.ZIndex = 8
+		targetLabel.ZIndex = 11
 		targetLabel.Parent = panel
 		polishPanel(targetLabel, 8)
 
@@ -358,7 +392,7 @@ return function(deps)
 		selectButton.Text = "Select"
 		selectButton.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
 		selectButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		selectButton.ZIndex = 8
+		selectButton.ZIndex = 11
 		selectButton.Visible = false
 		selectButton.Parent = panel
 		polishButton(selectButton, 10)
@@ -373,7 +407,7 @@ return function(deps)
 		skipButton.Text = "Skip"
 		skipButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 		skipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		skipButton.ZIndex = 8
+		skipButton.ZIndex = 11
 		skipButton.Visible = false
 		skipButton.Parent = panel
 		polishButton(skipButton, 10)
@@ -529,18 +563,9 @@ return function(deps)
 			entry.targetLabel.TextTransparency = 0
 			entry.targetLabel.TextStrokeTransparency = 1
 
-			if isPast then
-				entry.panel.BackgroundColor3 = Color3.fromRGB(45, 55, 45)
-			elseif isCurrent then
-				entry.panel.BackgroundColor3 = Color3.fromRGB(70, 55, 38)
-			else
-				entry.panel.BackgroundColor3 = Color3.fromRGB(40, 32, 24)
-			end
-
-			-- Dim ONLY the scene image for future (up-next) rounds.
-			-- All text stays fully readable regardless of round state.
-			entry.sceneImage.ImageTransparency = isFuture and 0.55 or 0
-			entry.sceneImage.BackgroundTransparency = isFuture and 0.4 or 0
+			-- Dim ONLY the scene image (Cleared / Up next). The scrim and
+			-- all text stay fully readable regardless of round state.
+			entry.sceneImage.ImageColor3 = (isPast or isFuture) and Color3.fromRGB(160, 160, 160) or Color3.new(1, 1, 1)
 
 			-- Status chip: "You are here" for current, "🔒 Up next" for future,
 			-- "Cleared" check chip for completed rounds.
@@ -583,9 +608,9 @@ return function(deps)
 					entry.bossLabel.Text = "Boss Rounds are off this run."
 				end
 				entry.bossNameLabel.TextTransparency = 0
-				entry.bossNameLabel.TextStrokeTransparency = 1
+				entry.bossNameLabel.TextStrokeTransparency = 0.35
 				entry.bossLabel.TextTransparency = 0
-				entry.bossLabel.TextStrokeTransparency = 1
+				entry.bossLabel.TextStrokeTransparency = 0.35
 			else
 				entry.bossLabel.Visible = false
 				entry.bossNameLabel.Visible = false
@@ -602,7 +627,7 @@ return function(deps)
 					entry.tagLabel.BackgroundTransparency = 0.65
 				end
 				entry.tagLabel.TextTransparency = 0
-				entry.tagLabel.TextStrokeTransparency = 1
+				entry.tagLabel.TextStrokeTransparency = 0.35
 			end
 
 			-- Only the round you're actually on gets buttons.
