@@ -759,6 +759,16 @@ local ParticleBurstModule = require(script.ParticleBurst)({
 	tweenTo = tweenTo,
 })
 
+-- Boss fight presence (portrait, HP bar, hit reactions); visual only, driven by render().
+do
+	require(script.BossFight).init({
+		root = root,
+		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
+		burst = ParticleBurstModule.burst,
+		screenShake = screenShake,
+	})
+end
+
 -- ===== Score popup: chips x mult animation on Play Hand =====
 -- Extracted into Client/ScorePopup.lua. showScorePopup is called from
 -- playButton's click handler elsewhere in this file, so it comes back out
@@ -2282,6 +2292,7 @@ local function render(state)
 
 	require(script.CosmeticSetsView).apply(state)
 	require(script.GameplayScene).get().update(state)
+	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no
