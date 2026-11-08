@@ -21,7 +21,8 @@
 
 	Respects Fast (no slide-in) and Reduce shake (idles nearly still, events are small and short).
 	Rigs, connections and delayed callbacks are all dropped on reset(); one rig pair at a time.
-	Floors: Engine/SceneKeys.FloorFractions (per scene key, default 0.66 of the screen height).
+	Floor and sizes: Engine/StageLayout (feet just above the hand row, heights from the free band below the
+	boss plaque); Engine/SceneKeys.FloorFractions can still override the floor for one scene key.
 ]]
 
 local Players = game:GetService("Players")
@@ -31,6 +32,7 @@ local RunService = game:GetService("RunService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local SceneKeys = require(Engine:WaitForChild("SceneKeys"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
+local StageLayout = require(Engine:WaitForChild("StageLayout"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local BossRigs = require(script.Parent.BossRigs)
@@ -65,6 +67,10 @@ end
 local Rig = {}
 Rig.__index = Rig
 
+-- Orders the joints so each one's anchor part is placed before the part it moves. Accessory welds
+-- (hats, hair, wings) are built the other way round, Part0 = the accessory handle and Part1 = the body
+-- part it hangs on, so those are walked backwards (reversed[joint] = true) and solved for Part0.
+-- Returns ordered, reversed, placed (set of parts the walk reached).
 local function collectJoints(model, root)
 	local all = {}
 	for _, d in ipairs(model:GetDescendants()) do
@@ -73,7 +79,7 @@ local function collectJoints(model, root)
 		end
 	end
 	local placed = { [root] = true }
-	local ordered = {}
+	local ordered, reversed = {}, {}
 	local progress = true
 	while progress do
 		progress = false
@@ -82,10 +88,15 @@ local function collectJoints(model, root)
 				placed[j.Part1] = true
 				table.insert(ordered, j)
 				progress = true
+			elseif not placed[j.Part0] and placed[j.Part1] then
+				placed[j.Part0] = true
+				reversed[j] = true
+				table.insert(ordered, j)
+				progress = true
 			end
 		end
 	end
-	return ordered
+	return ordered, reversed, placed
 end
 
 local function newRig(model, kind)
@@ -95,7 +106,14 @@ local function newRig(model, kind)
 	self.model = model
 	self.kind = kind
 	self.root = root
-	self.joints = collectJoints(model, root)
+	local placed
+	self.joints, self.reversed, placed = collectJoints(model, root)
+	-- Parts no joint reaches would float where they were built (the "exploded" look): drop them.
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") and not placed[d] then
+			d:Destroy()
+		end
+	end
 	self.byKey = {}
 	for key, names in pairs(JOINT_NAMES) do
 		for _, joint in ipairs(self.joints) do
@@ -144,38 +162,40 @@ function Rig:fk(rootCF, transformFor)
 	self.root.CFrame = rootCF
 	for _, j in ipairs(self.joints) do
 		local tr = transformFor and transformFor(j) or CFrame.new()
-		local c0, c1 = j.C0, j.C1
-		if j:IsA("Motor6D") then
-			j.Part1.CFrame = j.Part0.CFrame * c0 * tr * c1:Inverse()
+		local rel = j.C0 * (j:IsA("Motor6D") and tr or CFrame.new()) * j.C1:Inverse() -- Part1 relative to Part0
+		if self.reversed[j] then
+			j.Part0.CFrame = j.Part1.CFrame * rel:Inverse()
 		else
-			j.Part1.CFrame = j.Part0.CFrame * c0 * c1:Inverse()
+			j.Part1.CFrame = j.Part0.CFrame * rel
 		end
 	end
 end
 
--- Measure the rest pose: how tall it is and where the feet are relative to the root.
+-- Measure the rest pose: how tall it is, and where the feet and the horizontal center are relative to
+-- the root, so the rig stands with its feet on y = 0 and its middle on the placement point.
 function Rig:remeasure()
 	self:fk(CFrame.new(), nil)
-	local minY, maxY = math.huge, -math.huge
+	local minX, maxX, minY, maxY, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge, math.huge, -math.huge
 	for _, d in ipairs(self.model:GetDescendants()) do
-		if d:IsA("BasePart") and d.Transparency < 1 then
+		if d:IsA("BasePart") and d.Transparency < 1 and d ~= self.root then
 			local half = d.Size / 2
 			local cf = d.CFrame
 			for _, sx in ipairs({ -1, 1 }) do
 				for _, sy in ipairs({ -1, 1 }) do
 					for _, sz in ipairs({ -1, 1 }) do
-						local y = cf:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz)).Y
-						minY = math.min(minY, y)
-						maxY = math.max(maxY, y)
+						local p = cf:PointToWorldSpace(Vector3.new(half.X * sx, half.Y * sy, half.Z * sz))
+						minX, maxX = math.min(minX, p.X), math.max(maxX, p.X)
+						minY, maxY = math.min(minY, p.Y), math.max(maxY, p.Y)
+						minZ, maxZ = math.min(minZ, p.Z), math.max(maxZ, p.Z)
 					end
 				end
 			end
 		end
 	end
 	if minY == math.huge then
-		minY, maxY = -3, 2
+		minX, maxX, minY, maxY, minZ, maxZ = -1, 1, -3, 2, -0.5, 0.5
 	end
-	self.localRoot = CFrame.new(0, -minY, 0)
+	self.localRoot = CFrame.new(-(minX + maxX) / 2, -minY, -(minZ + maxZ) / 2)
 	self.height = maxY - minY
 	local scale = self.model:GetScale()
 	self.scale1Height = self.height / math.max(scale, 0.001)
@@ -427,10 +447,6 @@ local function build(deps)
 		ok = false
 	end
 
-	local function bossHeightFrac()
-		return grandBoss and 0.40 or 0.35
-	end
-
 	local function layout()
 		if not ok then return end
 		local size = viewport.AbsoluteSize
@@ -440,18 +456,27 @@ local function build(deps)
 		local aspect = size.X / size.Y
 		local H = 2 * DIST * math.tan(math.rad(FOV / 2))
 		local W = H * aspect
-		local floorFrac = SceneKeys.floorFraction(sceneKey)
+		-- Floor line: a per-scene override in SceneKeys.FloorFractions wins, otherwise it sits just above
+		-- the hand row (fixed pixels) so feet are always visible; heights fill the band above it.
+		local floorFrac
+		if type(SceneKeys.FloorFractions[sceneKey]) == "number" then
+			floorFrac = SceneKeys.floorFraction(sceneKey)
+		else
+			floorFrac = StageLayout.floorFraction(size.Y)
+		end
+		local playerPx, bossPx = StageLayout.heights(size.Y, floorFrac, mode, grandBoss)
+		local studsPerPx = H / size.Y
 		local cy = (floorFrac - 0.5) * H
 		cam.CFrame = CFrame.lookAt(Vector3.new(0, cy, DIST), Vector3.new(0, cy, 0))
 		if playerRig then
-			local frac = (mode == "boss") and 0.32 or 0.22
-			playerRig:fitHeight(frac * H)
-			playerRig.pos = Vector3.new((mode == "boss") and -0.2 * W or -0.34 * W, 0, 0)
+			playerRig:fitHeight(playerPx * studsPerPx)
+			-- Player on the left, boss on the right; in normal rounds the player sits further left.
+			playerRig.pos = Vector3.new((mode == "boss") and -0.2 * W or -0.3 * W, 0, 0)
 			playerRig.yaw = PLAYER_YAW
 			playerRig.side = -1
 		end
 		if bossRig then
-			bossRig:fitHeight(bossHeightFrac() * H)
+			bossRig:fitHeight((bossPx or playerPx) * studsPerPx)
 			bossRig.pos = Vector3.new(0.2 * W, 0, 0)
 			bossRig.yaw = BOSS_YAW
 			bossRig.side = 1

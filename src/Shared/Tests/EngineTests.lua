@@ -4873,4 +4873,47 @@ table.insert(tests, { name = "SceneKeys: Night + round kind -> scene key, Endles
 	end
 end })
 
+table.insert(tests, { name = "StageLayout: feet stay above the hand row and both rigs fit the free band", fn = function()
+	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
+	for _, screenH in ipairs({ 600, 720, 900, 1080, 1440 }) do
+		local floorFrac = StageLayout.floorFraction(screenH)
+		local floorPx = floorFrac * screenH
+		local handTop = screenH - 272 -- handFrame sits 272px above the bottom (init.client.lua)
+		expectTrue(floorPx <= handTop, "floor below the hand row at " .. screenH)
+		expectTrue(floorFrac >= 0.5 and floorFrac <= 0.85, "floor fraction clamped")
+		local bandTop = StageLayout.TOP_FRACTION * screenH
+		local player, boss = StageLayout.heights(screenH, floorFrac, "boss", false)
+		expectTrue(player >= StageLayout.MIN_HEIGHT, "player has a minimum height")
+		-- Above the minimum-height clamp, the boss must stay inside the band and be close to the player's height.
+		local band = StageLayout.bandPixels(screenH, floorFrac)
+		expectTrue(boss <= band + 0.001, "boss fits the band at " .. screenH)
+		expectTrue(boss / player >= 1 and boss / player <= 1.25, "boss is roughly the player's height")
+		if screenH >= 720 then
+			expectTrue(floorPx - boss >= bandTop - 0.5, "boss head stays under the plaque and HP bar at " .. screenH)
+		end
+		local grandPlayer, grandBoss = StageLayout.heights(screenH, floorFrac, "boss", true)
+		expectEqual(grandPlayer, player)
+		expectTrue(grandBoss >= boss and grandBoss <= band + 0.001)
+		local alone, none = StageLayout.heights(screenH, floorFrac, "normal", false)
+		expectTrue(none == nil and alone <= player, "normal rounds show a smaller player only")
+	end
+end })
+
+table.insert(tests, { name = "StageLayout: accent index is stable and in range", fn = function()
+	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local seen = {}
+	for _, def in ipairs(BossRounds.Definitions or {}) do
+		local i = StageLayout.accentIndex(def.id, 6)
+		expectTrue(i >= 1 and i <= 6)
+		expectEqual(StageLayout.accentIndex(def.id, 6), i)
+		seen[i] = true
+	end
+	local distinct = 0
+	for _ in pairs(seen) do
+		distinct = distinct + 1
+	end
+	expectTrue(distinct >= 3, "bosses spread over several accent colors")
+end })
+
 return tests
