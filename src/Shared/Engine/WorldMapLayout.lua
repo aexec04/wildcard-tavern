@@ -150,6 +150,14 @@ function WorldMapLayout.visibility(depth, currentNight, seen)
 	return "hidden"
 end
 
+-- Turn a compass bearing by `delta` degrees (an arrow button), snapped to a multiple of `snap` (default 15),
+-- wrapped into 0..359.
+function WorldMapLayout.stepBearing(bearing, delta, snap)
+	snap = snap or 15
+	local b = math.floor((bearing + delta) / snap + 0.5) * snap
+	return b % 360
+end
+
 -- The stop ids whose rewards are shown as a badge: the last Night stop of each biome along each road.
 function WorldMapLayout.branchEnds(stops)
 	stops = stops or WorldMap.Stops

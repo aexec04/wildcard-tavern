@@ -37,6 +37,8 @@ return function(deps)
 	local lastState = nil
 	local shown = false
 	local items = {} -- frames created by the last build (destroyed on rebuild)
+	local highlighted = nil -- stop id the compass points at
+	local lastPos = {} -- stopId -> {x, y} from the last build (route stops included)
 
 	local function remember(inst)
 		items[#items + 1] = inst
@@ -115,6 +117,7 @@ return function(deps)
 		for i, id in ipairs(route) do
 			onRoute[id] = i
 		end
+		lastPos = res.pos
 		local night = math.floor(state.night or 1)
 		local seen = {}
 		for _, id in ipairs(state.worldSeenStopIds or {}) do
@@ -139,7 +142,7 @@ return function(deps)
 				local a, b = res.pos[e.from], res.pos[e.to]
 				local va, vb = vis(e.from), vis(e.to)
 				if va ~= "hidden" and vb ~= "hidden" then
-					local lit = choices[e.to] == true and onRoute[e.from] ~= nil
+					local lit = (choices[e.to] == true and onRoute[e.from] ~= nil) or e.to == highlighted
 					dotted(a.x, a.y, b.x, b.y, lit and GOLD or Color3.fromRGB(110, 90, 62), lit and 0.15 or 0.5)
 				end
 			end
@@ -195,7 +198,8 @@ return function(deps)
 				btn.Position = UDim2.fromOffset(p.x, p.y)
 				btn.Size = UDim2.fromOffset(size, size)
 				btn.BackgroundColor3 = Color3.fromRGB(tint[1], tint[2], tint[3])
-				btn.BackgroundTransparency = choices[id] and 0 or 0.3
+				local glow = choices[id] or id == highlighted
+				btn.BackgroundTransparency = glow and 0 or 0.3
 				btn.Text = v == "teaser" and "?" or (stop.icon or "?")
 				btn.TextSize = math.floor(size * 0.45)
 				btn.Font = Enum.Font.GothamBold
@@ -205,9 +209,9 @@ return function(deps)
 				btn.Parent = root
 				deps.roundCorner(btn, size)
 				local st = Instance.new("UIStroke")
-				st.Color = choices[id] and GOLD or Color3.fromRGB(110, 80, 45)
-				st.Thickness = choices[id] and 3 or 2
-				st.Transparency = choices[id] and 0 or 0.35
+				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
+				st.Thickness = id == highlighted and 5 or (choices[id] and 3 or 2)
+				st.Transparency = glow and 0 or 0.35
 				st.Parent = btn
 				if choices[id] then
 					btn.Activated:Connect(function()
@@ -234,6 +238,18 @@ return function(deps)
 		refresh = function(state)
 			lastState = state
 			build()
+		end,
+		-- The compass points at a road: its stop (and the road leading to it) light up.
+		highlight = function(stopId)
+			if highlighted ~= stopId then
+				highlighted = stopId
+				build()
+			end
+		end,
+		-- Canvas position of a stop from the last build (nil before the first layout).
+		positionOf = function(stopId)
+			local p = lastPos[stopId]
+			return p and p.x, p and p.y
 		end,
 		setShown = function(s)
 			shown = s

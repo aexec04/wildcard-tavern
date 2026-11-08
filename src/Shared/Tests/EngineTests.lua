@@ -6518,6 +6518,19 @@ table.insert(tests, { name = "WorldMapLayout: every stop is placed, nodes never 
 	end
 end })
 
+table.insert(tests, { name = "WorldMapLayout: compass arrows step in 15 degrees and wrap; bearing picks the road", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local L = require(script.Parent.Parent.Engine.WorldMapLayout)
+	expectEqual(L.stepBearing(0, -15), 345)
+	expectEqual(L.stepBearing(350, 15), 0)
+	expectEqual(L.stepBearing(90, 15), 105)
+	expectEqual(L.stepBearing(92, 0), 90)
+	for _, id in ipairs(WorldMap.choicesAfter("wildflower_meadow")) do
+		local b = WorldMap.bearing("wildflower_meadow", id)
+		expectEqual(WorldMap.pickByBearing("wildflower_meadow", b), id)
+	end
+end })
+
 table.insert(tests, { name = "WorldMapLayout: displayRoute extends picks with the default road; fog rule; branch ends", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local L = require(script.Parent.Parent.Engine.WorldMapLayout)

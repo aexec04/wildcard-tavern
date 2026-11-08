@@ -141,6 +141,16 @@ return function(deps)
 			return JourneyMap.rewardLabel(reward, lookups)
 		end,
 	})
+	-- Compass icon and wheel overlay (turns the map view toward the pointed road).
+	local worldCompass = require(script.Parent.JourneyMapCompass)({
+		parent = frame, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
+		graph = worldGraph,
+		scrollTo = function(x)
+			local maxX = math.max(0, scroll.CanvasSize.X.Offset - scroll.AbsoluteSize.X)
+			TweenService:Create(scroll, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{ CanvasPosition = Vector2.new(math.clamp(x - scroll.AbsoluteSize.X / 2, 0, maxX), 0) }):Play()
+		end,
+	})
 	-- Fog of war: drifting cloud band, "???" teaser glow and the hint tag.
 	local fogBand = require(script.Parent.JourneyMapFog)({
 		canvas = canvas, TweenService = TweenService, roundCorner = deps.roundCorner, calm = calm, pace = pace, ContentArt = ContentArtJMV,
@@ -1747,6 +1757,7 @@ return function(deps)
 		local view = currentView()
 		render(view, view.cleared, false)
 		worldGraph.refresh(view.state)
+		worldCompass.refresh(view.state)
 		-- WORLD MAP: Nights whose road is already picked show the chosen stop's name and icon.
 		local route = view.state and view.state.worldRoute
 		if type(route) == "table" then
@@ -1809,6 +1820,7 @@ return function(deps)
 		setShown = function(shown)
 			frame.Visible = shown
 			worldGraph.setShown(shown)
+			worldCompass.setShown(shown)
 			if not shown then
 				playing = playing + 1 -- cancel any unlock in progress
 				unlocking = false
