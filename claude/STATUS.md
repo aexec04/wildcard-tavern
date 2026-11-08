@@ -1,7 +1,7 @@
 # Wildcard Tavern — Status
 
 - **3D room:** removed. The tavern is a 2D painted backdrop (Client/ArtAssets.lua); there is no 3D scene, building load, camera or Lighting setup. `TavernScene.server.lua` and its marketplace building load were deleted in `d68922f`; stale comments pointing at them were cleaned up on 2026-11-03.
-- **Tests:** `lua5.3 tools/run_tests_local.lua` (any Lua 5.1+ works, e.g. plain `lua`) — 375 passing as of 2026-11-07.
+- **Tests:** `lua5.3 tools/run_tests_local.lua` (any Lua 5.1+ works, e.g. plain `lua`) — 377 passing as of 2026-11-07.
 - **Client hub:** `src/Client/init.client.lua` is at the 200-local limit for its main chunk. Add new code in modules or `do...end` blocks.
 - **One More Round (continue):** one per run, restoring the lost round to its start (`RunState.roundStartSnapshot`, taken in `startRound`; the rng isn't rewound). Each player gets one free per UTC day (`PlayerProfile.freeContinueDateKey`), offered before the paid Developer Product (`GamePasses.DeveloperProducts`, placeholder `productId = 0`; Studio grants it free). The server decides which one applies (`continueOffer`, `RequestContinue`, `ProcessReceipt`). Revived runs go to separate "Revived" Daily/Weekly boards (store names bucketed on `SeededRng.VERSION`) and don't count toward `bestNightReached`, `runsWon` or the achievements built on them. Game Over and the leaderboard (Standard/Revived toggle, default Standard) show a "Revived" badge.
 - **UI skin:** `VisualHelpers.polishPanel`/`polishButton` give every panel and button the sidebar look: gold ring, gold inner rim, gold corner brackets and studs on panels at least 56px, and a standard 6px corner radius (radius 20+ is kept for round medallions). `polishPanel(x, r, "wood")` is for menus and dialogs, `"parchment"` for reading screens. The ornaments are skipped on ScrollingFrames, see-through elements and anything holding a UIListLayout/UIGridLayout.
@@ -18,19 +18,20 @@
 - **Server startup:** engine tests run in a `pcall`; remotes are created right after. The profile/session setup for players already in the server (Studio) is deferred until every remote handler is connected, and each step (`loadProfile`, `startNewSession`, `refreshOwnedGamePasses`) is `pcall`'d with a `[Startup]` warn. Client: Play, Road Ahead, Daily and Weekly go inactive until a `StateUpdated` arrives; after 5s with no reply they show a message and re-enable.
 - **Content art:** six art categories share one pipeline (`tools/patron_art/generate_patron_art.py --category <cat>`). Prompts in `tools/patron_art/prompts.json`; style: Roblox avatar 3D render. Categories and their generated Lua maps: `patrons` → `PatronArt.lua` (50 entries, all Image ids wired; `early_bird`, `night_owl` flagged for regen — generated as real birds), `bosses` → `BossRoundArt.lua` (35 entries), `recipes` → `RecipeArt.lua` (58 entries), `housepasses` → `HousePassArt.lua` (7 entries), `titles` → `TitleArt.lua` (16 entries), `rooms` → `RoomArt.lua` (3 entries: corner_table, main_hall, back_room — empty until generated). `backgrounds` → `BackgroundArt.lua` (1 entry, `round_select_bg`, 1536x1024 low quality, own `style_background` prefix; drawn full-panel behind RoundSelect cards, falls back to flat color). The four new non-patron maps are empty (`return {}`) until art is generated; UI falls back to emoji icon or plain dark panel. `Engine/ContentArt.lua` is the central lookup: `ContentArt.getImageId(tab, id)` accepts both ContentArt-style keys (`boss_rounds`, `house_passes`) and CollectionBook tab ids (`bosses`, `housePasses`) via aliases. Art appears in: sidebar patron seats, Shop offer rows, Shop My Patrons, pack reveal, Collection tiles and detail cards, RoundSelect boss portrait and scene images, PhaseA boss intro, Journey tab, JourneyMapView title swatches. Pipeline: generate → upload → Studio execute_luau to resolve Image ids → `lua` to write the map → commit. Run `python3 tools/patron_art/generate_patron_art.py estimate` for counts and cost. See `/patron-art` skill for step-by-step commands.
 
-## Open items (ship-check 2026-11-06)
+## Open items (ship-check 2026-11-07: DON'T SHIP)
 
-**Must do before launch:**
-- `GamePasses.lua:34` — create **Fast Forward** game pass on Creator Dashboard, paste numeric id
-- `GamePasses.lua:41` — create **Golden Gala Set** game pass, paste numeric id
-- `GamePasses.lua:63` — create **One More Round** developer product, paste numeric id
-- `ArtAssets.lua:3` — upload shop background art (`shopBackground`)
-- `ArtAssets.lua:4` — upload game-over win background art (`gameOverWinBackground`)
-- `JourneyMap.lua:70` — upload journey map painted background (`journeyMapImage`)
-- `CosmeticSets.lua:56,71,89,104` — upload 4 backdrop images (Winter, Festival, Closing Time, Golden Gala)
-- `Sound.lua:226–230` — supply 6 music tracks (3 Tavern + 3 Endless); current slots are `rbxassetid://0`
+**Blocking, must do before launch:**
+- `GamePasses.lua:34` Fast Forward game pass, `gamePassId = 0` (speeds up scoring reveal)
+- `GamePasses.lua:41` Golden Gala Set game pass, `gamePassId = 0` (unlocks gala cosmetic set)
+- `GamePasses.lua:63` One More Round developer product, `productId = 0` (paid continue)
+- `ArtAssets.lua` `shopBackground` and `gameOverWinBackground` are `rbxassetid://0`
+- `JourneyMap.lua:70` `journeyMapImage` is `rbxassetid://0`
+- `CosmeticSets.lua:56,71,89,104` four backdrop images are `rbxassetid://0` (Winter, Festival, Closing Time, Golden Gala)
+- `Sound.lua:226-230` six music tracks are `rbxassetid://0` (3 Tavern, 3 Endless)
 
-**Can ship without (non-blocking):**
-- Regenerate `early_bird` and `night_owl` patron art (generated as realistic birds, not Roblox figures)
-- Run art pipeline for 4 new categories (bosses/recipes/housepasses/titles): 116 images, ~$1.28 at low quality
-- Run art pipeline for `rooms` category (3 images): `python3 tools/patron_art/generate_patron_art.py all -c rooms`
+**Non-blocking:**
+- Recipes (58), House Passes (7) and Titles (16) art is generated and uploaded as Decals; Image ids are not resolved or recorded, so `RecipeArt/HousePassArt/TitleArt.lua` are still empty and the UI shows emoji.
+- Regenerate `early_bird` and `night_owl` patron art (came out as realistic birds).
+- Verify in Studio play: no "failed due to" asset errors (volume icon id, new art ids). Not checked this run (no Studio MCP).
+
+**Clean:** 0 failing tests; "Balatro" appears only in the banned-word test lists, `docs/DESIGN.md` and `.claude` rule text; no alcohol words in game text; all art ids are `rbxassetid://<digits>`; `.env` and `art-wip/` untracked.
