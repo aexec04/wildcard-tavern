@@ -27,7 +27,7 @@
     "house_special": "a chef proudly presenting a huge steaming platter piled with one of every dish on the menu",
     "ace_of_the_house": "a smug champion at a checkers board holding a glowing ace card, trophy cup nearby",
     "vip_table": "a dignified guest on a velvet cushion at a reserved table with a gold sign and a polished spoon",
-    "early_bird": "a small bird in a tiny waistcoat waiting politely at the tavern door at dawn with a pocket watch",
+    "early_bird": "a Roblox avatar in a cozy tavern doorway at sunrise wearing a rooster-feather hat and a morning-yellow vest, holding a pocket watch and a steaming mug of cocoa, cheerful early riser",
     "discard_special": "a tidy guest next to a neat pile of folded cards and set-aside trinkets",
     "the_apprentice": "a young apprentice watching closely and copying a master's hands, a notebook open",
     "big_spender": "a generous guest carrying a tray of muffins for the whole table, coin purse jingling",
@@ -39,7 +39,7 @@
     "fair_share": "a careful cook cutting a pie into perfectly equal slices with a ruler and knife",
     "efficient_service": "a speedy server balancing stacked plates and clearing a table in a blur, tiny motion lines",
     "perfect_ten": "a happy food critic holding up a big golden number ten sign over an empty plate",
-    "night_owl": "a wide-eyed owl wearing a nightcap perched beside a burning candle at a tavern window under stars",
+    "night_owl": "a Roblox avatar in an owl-themed hooded cloak with big round owl-eye patterns on the hood, holding a lantern beside a tavern window under a starry night sky, sleepy and friendly",
     "steady_hand": "a calm waiter balancing five full bowls on one arm without spilling a drop",
     "rainy_day_fund": "a guest with an umbrella and a small coin pouch standing in the rain beside a lantern",
     "boss_bane": "a brave guest in a sturdy apron holding a rolling pin like a shield, standing firm in the doorway",
@@ -317,6 +317,13 @@
   },
   "style_background": "Painterly digital illustration in the style of a cozy medieval tavern scene: warm amber candlelight, rich wood tones, soft painterly brushwork, kid-friendly, no alcohol, no text, no letters, no logos, no frame or border",
   "background_subjects": {
-    "round_select_bg": "Dark worn oak tavern table seen from directly above, warm candlelight glow falling from the corners, subtle wood grain, a few faint ring stains and scratches, large empty dark center, painterly, same style as the other tavern art. No cards, no characters, no text."
+    "round_select_bg": "Dark worn oak tavern table seen from directly above, warm candlelight glow falling from the corners, subtle wood grain, a few faint ring stains and scratches, large empty dark center, painterly, same style as the other tavern art. No cards, no characters, no text.",
+    "shop_bg": "A tavern shop counter seen from the front, polished dark wood counter along the bottom, shelves with jars and lanterns, warm lamplight glow from the corners, large empty dark center, painterly, same style as the other tavern art. No cards, no characters, no text.",
+    "game_over_win_bg": "A celebratory tavern interior, golden light and falling confetti around the edges, warm glowing lanterns and streamers in the corners, large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
+    "journey_map": "Aged parchment map on a dark wooden table seen from above, curled edges, subtle faded ink textures, faint stains, warm candlelight at the corners, large empty center, painterly, same style as the other tavern art. No characters, no text, no writing.",
+    "backdrop_winter_evening": "A tavern at winter evening, frosted window edges and soft snowflakes in the corners, cool blue dusk light mixed with warm lantern glow, wooden beams, subtle and dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
+    "backdrop_festival_night": "A tavern on festival night, strings of colorful paper lanterns and bunting along the top and corners, warm festive glow, subtle and dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
+    "backdrop_closing_time": "A tavern at closing time, chairs stacked on tables, a single dim lantern, long soft shadows, sleepy amber light in the corners, subtle and very dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text.",
+    "backdrop_golden_gala": "A grand tavern gala, gold-trimmed curtains and golden chandeliers glowing in the corners, ornate gold details, rich warm light, subtle and dark with a large empty dark center, painterly, same style as the other tavern art. No characters, no text."
   }
 }

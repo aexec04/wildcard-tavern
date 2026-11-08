@@ -30,8 +30,8 @@
 - `Sound.lua:226-230` six music tracks are `rbxassetid://0` (3 Tavern, 3 Endless)
 
 **Non-blocking:**
-- Recipes (58), House Passes (7) and Titles (16) art is generated and uploaded as Decals; Image ids are not resolved or recorded, so `RecipeArt/HousePassArt/TitleArt.lua` are still empty and the UI shows emoji.
-- Regenerate `early_bird` and `night_owl` patron art (came out as realistic birds).
-- Verify in Studio play: no "failed due to" asset errors (volume icon id, new art ids). Not checked this run (no Studio MCP).
+- Recipes, House Passes and Titles art is wired. `early_bird` / `night_owl` were regenerated as Roblox-style characters and uploaded as Decals (ids not yet resolved or recorded; `PatronArt.lua` still holds the old bird images).
+- 7 backgrounds (shop, game-over win, journey map, 4 cosmetic backdrops) are uploaded as Decals but not yet resolved, recorded or wired; they replace the `rbxassetid://0` slots above once wired.
+- Verify in Studio play: no "failed due to" asset errors. Not checked (no Studio MCP).
 
 **Clean:** 0 failing tests; "Balatro" appears only in the banned-word test lists, `docs/DESIGN.md` and `.claude` rule text; no alcohol words in game text; all art ids are `rbxassetid://<digits>`; `.env` and `art-wip/` untracked.
