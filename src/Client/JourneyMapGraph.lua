@@ -45,6 +45,7 @@ return function(deps)
 	local highlighted = nil -- stop id the compass points at
 	local focusId = nil -- stop whose biome reward chip is shown (tap or hover); nil = only the next branch end
 	local lastPos = {} -- stopId -> {x, y} from the last build (route stops included)
+	local lastBoxes = {} -- stopId -> node + label box from the last build (WorldMapLayout.boxesOf)
 
 	local function remember(inst)
 		items[#items + 1] = inst
@@ -110,6 +111,20 @@ return function(deps)
 		edge.Parent = strip
 	end
 
+	-- A far road drawn as a gentle S-curve (eased y between the two nodes) from short strips, so roads that
+	-- leave and join a column read as clean paths instead of straight lines crossing the map.
+	local function curvedRoad(ax, ay, bx, by, lit, transparency)
+		local segs = math.max(4, math.min(10, math.floor(math.abs(bx - ax) / 40)))
+		local px, py = ax, ay
+		for k = 1, segs do
+			local t = k / segs
+			local e = t * t * (3 - 2 * t)
+			local x, y = ax + (bx - ax) * t, ay + (by - ay) * e
+			road(px, py, x, y, lit, transparency)
+			px, py = x, y
+		end
+	end
+
 	local function textLabel(text, x, y, w, h, size, z)
 		local l = remember(Instance.new("TextLabel"))
 		l.AnchorPoint = Vector2.new(0.5, 0)
@@ -152,6 +167,7 @@ return function(deps)
 			onRoute[id] = i
 		end
 		lastPos = res.pos
+		lastBoxes = Layout.boxesOf(res, nodeSize, route)
 		local night = math.floor(state.night or 1)
 		local seen = {}
 		for _, id in ipairs(state.worldSeenStopIds or {}) do
@@ -197,7 +213,13 @@ return function(deps)
 				local va, vb = vis(e.from), vis(e.to)
 				if va ~= "hidden" and vb ~= "hidden" then
 					local lit = (choices[e.to] == true and onRoute[e.from] ~= nil) or e.to == highlighted
-					road(a.x, a.y, b.x, b.y, lit, lit and 0.1 or 0.45)
+					-- Only roads that touch the player's road, a lit road, or are within one Night of the
+					-- player are drawn; the rest of the far web stays out of sight (it was a tangle).
+					local near = onRoute[e.from] ~= nil or onRoute[e.to] ~= nil or lit
+						or math.min(a.depth, b.depth) <= night + 1
+					if near then
+						curvedRoad(a.x, a.y, b.x, b.y, lit, lit and 0.1 or 0.45)
+					end
 				end
 			end
 		end
@@ -289,6 +311,19 @@ return function(deps)
 				if lockedRoad[id] and v ~= "teaser" then -- every locked road keeps a padlock, pending or not
 					local pad = textLabel("🔒", p.x + size / 2 - 2, p.y - size / 2 - 10, 30, 28, 22, 29)
 					pad.Name = "Padlock_" .. id
+					-- Keys cost, shown while the stop is focused (tap) or hovered
+					local cost = textLabel(keys > 0 and "Costs 1 Key" or "Needs a Key", p.x, p.y - size / 2 - 34, 130, 22, 15, 41)
+					cost.Name = "KeyCost_" .. id
+					cost.TextColor3 = Color3.fromRGB(255, 226, 150)
+					cost.Visible = focusId == id
+					btn.MouseEnter:Connect(function() cost.Visible = true end)
+					btn.MouseLeave:Connect(function() cost.Visible = (focusId == id) end)
+					if not choices[id] and not badge then
+						btn.Activated:Connect(function()
+							focusId = (focusId ~= id) and id or nil
+							build()
+						end)
+					end
 				end
 				local name = v == "teaser" and "???" or stop.name
 				local lab = textLabel(name, p.x, p.y + size / 2 + 6, 190, 44, 16, 26)
@@ -436,6 +471,26 @@ return function(deps)
 				highlighted = stopId
 				build()
 			end
+		end,
+		-- Nearest spot to (cx, cy) where a w x h box (centred) overlaps no node or label from the last
+		-- build; scans down then up in 20px steps, then falls back to the request. Returns x, y.
+		freeSpot = function(cx, cy, w, h)
+			local function clashAt(y)
+				local b = { x0 = cx - w / 2, x1 = cx + w / 2, y0 = y - h / 2, y1 = y + h / 2 }
+				for _, other in pairs(lastBoxes) do
+					if Layout.overlaps(b, other) then return true end
+				end
+				return false
+			end
+			for off = 0, math.max(canvasH, 200), 20 do
+				for _, dir in ipairs({ 1, -1 }) do
+					local y = cy + dir * off
+					if y - h / 2 >= 0 and y + h / 2 <= canvasH and not clashAt(y) then
+						return cx, y
+					end
+				end
+			end
+			return cx, cy
 		end,
 		-- Canvas position of a stop from the last build (nil before the first layout).
 		positionOf = function(stopId)

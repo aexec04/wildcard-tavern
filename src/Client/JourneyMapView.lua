@@ -666,7 +666,9 @@ return function(deps)
 		end
 		local fx, fy = nodePixel(first)
 		if states[first] == "teaser" then
-			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = fx, hintY = fy + nodeSize * 0.75 + 20,
+			-- The tag (centred 40px right of hintX, about 290x36) must not sit on any graph node or label.
+			local _, hy = worldGraph.freeSpot(fx + 40, fy + nodeSize * 0.75 + 20, 290, 36)
+			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = fx, hintY = hy,
 				animate = animate })
 		else
 			local px = nodePixel(first - 1)
@@ -912,7 +914,7 @@ return function(deps)
 			local pv = previewText(index)
 			node.preview.Text = pv
 			node.preview.TextColor3 = LABEL_INK -- on the parchment tag, dark ink in both states
-			node.tag.Visible = shownNode and pv ~= ""
+			node.tag.Visible = shownNode and pv:match("%S") ~= nil
 			node.haloStroke.Color = accentHere
 			setPulse(node, isCurrent and shownNode and frame.Visible)
 		end
