@@ -114,6 +114,10 @@ side("flip_bridge", "willow_bridge", "minigame", "The Card Flip Table", "🃏", 
 side("lockpick_cave", "mountain_pass", "minigame", "The Lockbox Cave", "🔐", 0.0, -0.14)
 side("trivia_cabin", "frosty_trail", "minigame", "The Trivia Corner", "❓")
 side("dice_dock", "lighthouse_cove", "minigame", "The Dice Dock", "🎲", 0.0, -0.14)
+-- Hidden side stops: a "?" stub on the map until revealed with a map token or compass charge (Engine/SideStops).
+for _, id in ipairs({ "lockpick_cave", "dune_rest", "lantern_hut", "cabin_rest" }) do
+	WorldMap.Stops[id].hidden = true
+end
 WorldMap.Stops.flip_bridge.game = "cardflip"
 WorldMap.Stops.lockpick_cave.game = "lockpick"
 WorldMap.Stops.trivia_cabin.game = "trivia"

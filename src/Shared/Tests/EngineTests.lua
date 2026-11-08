@@ -6518,6 +6518,82 @@ table.insert(tests, { name = "WorldMapLayout: every stop is placed, nodes never 
 	end
 end })
 
+table.insert(tests, { name = "WorldMapLayout: every side stop sits beside its parent and clear of every Night node", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local L = require(script.Parent.Parent.Engine.WorldMapLayout)
+	local nightX, routeY = {}, {}
+	for i = 1, 8 do
+		nightX[i] = 400 + (i - 1) * 280
+		routeY[i] = 300 + ((i % 2 == 0) and -60 or 60)
+	end
+	for _, route in ipairs(WorldMap.allRoutes()) do
+		local res = L.compute({ nightX = nightX, routeY = routeY, height = 600, route = route, minGap = 108 })
+		local sides = 0
+		for id, p in pairs(res.side) do
+			sides = sides + 1
+			expectTrue(res.pos[p.parent] ~= nil and p.x > res.pos[p.parent].x, id .. " is right of its parent")
+			for nid, n in pairs(res.pos) do
+				local d = math.sqrt((n.x - p.x) ^ 2 + (n.y - p.y) ^ 2)
+				expectTrue(d >= 58, id .. " is too close to " .. nid)
+			end
+			for id2, q in pairs(res.side) do
+				if id < id2 then
+					expectTrue(math.sqrt((q.x - p.x) ^ 2 + (q.y - p.y) ^ 2) >= 40, id .. " overlaps " .. id2)
+				end
+			end
+		end
+		expectEqual(sides, 15)
+	end
+end })
+
+table.insert(tests, { name = "SideStops: hidden stops reveal only at the parent with a token or a compass charge", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local SideStops = require(script.Parent.Parent.Engine.SideStops)
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local hidden = {}
+	for id, stop in pairs(WorldMap.Stops) do
+		if stop.kind == "side" and stop.hidden then hidden[#hidden + 1] = id end
+	end
+	table.sort(hidden)
+	expectEqual(#hidden, 4)
+	local state = runAtStop(5)
+	local id = "lockpick_cave"
+	expectEqual(WorldMap.currentStop(state), "mountain_pass")
+	expectEqual(SideStops.blockedReason(state, id, "roundSelect"), "hidden")
+	expectTrue(SideStops.hiddenHere(state, "roundSelect")[1] == id, "listed as revealable here")
+	local ok, why = SideStops.reveal(state, {}, id, "roundSelect", "token")
+	expectFalse(ok)
+	expectEqual(why, "no_token")
+	ok, why = SideStops.reveal(state, { compassCharges = 0 }, id, "roundSelect", "compass")
+	expectEqual(why, "no_charge")
+	ok, why = SideStops.reveal(state, {}, id, "playing", "token")
+	expectEqual(why, "wrong_phase")
+	ok, why = SideStops.reveal(state, {}, "dune_rest", "roundSelect", "token")
+	expectEqual(why, "not_here", "a hidden stop of another place")
+	ok, why = SideStops.reveal(state, {}, id, "roundSelect", "bogus")
+	expectEqual(why, "bad_method")
+	ok, why = SideStops.reveal(state, {}, "summit_shrine", "roundSelect", "token")
+	expectEqual(why, "not_hidden", "visible stops cannot be revealed")
+	state.mapTokens = 1
+	ok = SideStops.reveal(state, {}, id, "roundSelect", "token")
+	expectTrue(ok, "token reveals")
+	expectEqual(state.mapTokens, 0)
+	expectEqual(SideStops.blockedReason(state, id, "roundSelect"), nil, "usable once revealed")
+	expectFalse(SideStops.reveal(state, {}, id, "roundSelect", "token"), "only once")
+	-- the compass path spends a charge from the profile
+	local state2 = runAtStop(2)
+	state2.worldRoute = { "dusty_road", "wildflower_meadow", "swamp_boardwalk" }
+	state2.night, state2.round = 3, 1
+	local profile = { compassCharges = 2 }
+	expectTrue(SideStops.reveal(state2, profile, "lantern_hut", "roundSelect", "compass"))
+	expectEqual(profile.compassCharges, 1)
+	-- no reveal while a fork is pending or after the first round
+	local state3 = runAtStop(2)
+	state3.worldRoute = { "dusty_road", "wildflower_meadow" }
+	state3.night, state3.round, state3.mapTokens = 2, 1, 1
+	expectEqual(#SideStops.hiddenHere(state3, "roundSelect"), 0)
+end })
+
 table.insert(tests, { name = "WorldMapLayout: compass arrows step in 15 degrees and wrap; bearing picks the road", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local L = require(script.Parent.Parent.Engine.WorldMapLayout)

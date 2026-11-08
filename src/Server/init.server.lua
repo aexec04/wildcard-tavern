@@ -757,6 +757,24 @@ local function serializeState(session, player)
 		sideBonus = { tempPass = state.tempPass and state.tempPass.id or nil, bonusHandsNight = state.bonusHandsNight,
 			extraContinues = state.extraContinues or 0 },
 		mapTokens = state.mapTokens or 0,
+		-- Hidden side stops: the ones revealed this run, and the ones that could be revealed right now.
+		sideRevealed = (function()
+			local list = {}
+			for id in pairs(state.sideRevealed or {}) do
+				list[#list + 1] = id
+			end
+			table.sort(list)
+			return list
+		end)(),
+		sideHidden = SideStops.hiddenHere(state, session.phase),
+		sideVisited = (function()
+			local list = {}
+			for id in pairs(state.sideVisited or {}) do
+				list[#list + 1] = id
+			end
+			table.sort(list)
+			return list
+		end)(),
 		-- The open minigame as the player may see it (never answers or hidden cards), plus how it ended.
 		minigame = session.minigame and {
 			stopId = session.minigame.stopId,
@@ -1804,6 +1822,12 @@ SideStopRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
 		SideStops.shrine(state, stopId, phase)
 	elseif action == "rest" then
 		SideStops.rest(state, stopId, phase, arg)
+	elseif action == "reveal" then
+		-- arg = "token" or "compass"; the rules (and the cost) live in SideStops.reveal
+		local profile = profiles[player]
+		if SideStops.reveal(state, profile, stopId, phase, arg) and arg == "compass" then
+			profileDirty[player] = true
+		end
 	end
 	pushState(player)
 end)

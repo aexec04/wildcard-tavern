@@ -7,6 +7,9 @@
 	  - a "Take this road" chip on each stop of a pending fork (fires the ChooseRoad remote; the server
 	    validates, the Round Select popup stays as a fallback);
 	  - a reward badge on each biome's branch end;
+	  - side stops (shop, shrine, rest, minigames) as small nodes on dotted detours off their parent stop; a
+	    hidden one is a "?" stub until revealed with a map token or compass charge (SideStop remote, action
+	    "reveal") and then pops in; a usable one shows a hint, since the stops themselves open on Round Select;
 	  - the existing fog rule (current Night + 3 shown, +4 a "?" teaser, the rest hidden).
 
 	Built with deps = { canvas, roundCorner, ReplicatedStorage, Engine, rewardText = fn(region) -> string|nil }.
@@ -16,6 +19,7 @@
 return function(deps)
 	local canvas = deps.canvas
 	local Engine = deps.Engine
+	deps.TweenService = deps.TweenService or game:GetService("TweenService")
 	local WorldMap = require(Engine:WaitForChild("WorldMap"))
 	local Layout = require(Engine:WaitForChild("WorldMapLayout"))
 
@@ -100,7 +104,11 @@ return function(deps)
 		return l
 	end
 
-	local function build()
+	local popped = {} -- revealed side stops that already played their pop-in
+	local menuFor, hintFor = nil, nil -- side stop whose reveal menu / "ready" hint is open
+	local build
+
+	function build()
 		clear()
 		if not shown then
 			return
@@ -226,6 +234,116 @@ return function(deps)
 				end
 			end
 		end
+
+		-- Side stops: small nodes on a dotted detour off their parent. Hidden ones stay a "?" stub until
+		-- revealed (map token or compass charge, standing at the parent); a reveal pops in once.
+		local usable, revealable, revealed, visited = {}, {}, {}, {}
+		for _, e in ipairs(state.sideStops or {}) do usable[e.id] = true end
+		for _, id in ipairs(state.sideHidden or {}) do revealable[id] = true end
+		for _, id in ipairs(state.sideRevealed or {}) do revealed[id] = true end
+		for _, id in ipairs(state.sideVisited or {}) do visited[id] = true end
+		local sideSize = math.floor(nodeSize * 0.56)
+		local sideIds = {}
+		for id in pairs(res.side) do sideIds[#sideIds + 1] = id end
+		table.sort(sideIds)
+		for _, id in ipairs(sideIds) do
+			local p, stop = res.side[id], WorldMap.Stops[id]
+			local parent = res.pos[p.parent]
+			if vis(p.parent) == "revealed" then
+				local stub = stop.hidden and not revealed[id]
+				local glow = usable[id] == true or revealable[id] == true
+				dotted(parent.x, parent.y, p.x, p.y, glow and GOLD or Color3.fromRGB(110, 90, 62), glow and 0.1 or 0.45)
+				local btn = remember(Instance.new("TextButton"))
+				btn.Name = "Side_" .. id
+				btn.AnchorPoint = Vector2.new(0.5, 0.5)
+				btn.Position = UDim2.fromOffset(p.x, p.y)
+				btn.Size = UDim2.fromOffset(sideSize, sideSize)
+				btn.BackgroundColor3 = stub and Color3.fromRGB(120, 105, 80) or Color3.fromRGB(222, 198, 150)
+				btn.BackgroundTransparency = visited[id] and 0.5 or 0.1
+				btn.Text = stub and "?" or (stop.icon or "?")
+				btn.TextSize = math.floor(sideSize * 0.5)
+				btn.Font = Enum.Font.GothamBold
+				btn.TextColor3 = stub and CREAM or INK
+				btn.AutoButtonColor = false
+				btn.ZIndex = 27
+				btn.Parent = root
+				deps.roundCorner(btn, sideSize)
+				local st = Instance.new("UIStroke")
+				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
+				st.Thickness = glow and 3 or 2
+				st.Parent = btn
+				local lab = textLabel(stub and "???" or (stop.name .. (visited[id] and " (done)" or "")), p.x, p.y + sideSize / 2 + 4, 170, 40, 15, 27)
+				lab.TextYAlignment = Enum.TextYAlignment.Top
+				lab.TextTransparency = visited[id] and 0.4 or 0.1
+				if revealed[id] and not popped[id] then
+					popped[id] = true
+					local sc = Instance.new("UIScale")
+					sc.Scale = 0.2
+					sc.Parent = btn
+					deps.TweenService:Create(sc, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+				end
+				btn.Activated:Connect(function()
+					if revealable[id] then
+						menuFor = (menuFor ~= id) and id or nil
+						build()
+					elseif usable[id] then
+						hintFor = id
+						build()
+					end
+				end)
+				if hintFor == id then
+					local h = textLabel("Ready! Close the map and open it from Round Select.", p.x, p.y - sideSize / 2 - 46, 200, 42, 15, 40)
+					h.TextColor3 = Color3.fromRGB(255, 226, 150)
+					task.delay(3, function()
+						if hintFor == id then
+							hintFor = nil
+							build()
+						end
+					end)
+				end
+				-- Reveal menu: spend a map token or a compass charge.
+				if menuFor == id and revealable[id] then
+					local menu = remember(Instance.new("Frame"))
+					menu.AnchorPoint = Vector2.new(0.5, 1)
+					menu.Position = UDim2.fromOffset(p.x, p.y - sideSize / 2 - 8)
+					menu.Size = UDim2.fromOffset(220, 98)
+					menu.BackgroundColor3 = Color3.fromRGB(222, 198, 150)
+					menu.ZIndex = 45
+					menu.Parent = root
+					deps.roundCorner(menu, 10)
+					local ms = Instance.new("UIStroke")
+					ms.Color = Color3.fromRGB(110, 80, 45)
+					ms.Thickness = 2
+					ms.Parent = menu
+					local function option(text, y, enabled, method)
+						local b = Instance.new("TextButton")
+						b.Position = UDim2.fromOffset(8, y)
+						b.Size = UDim2.new(1, -16, 0, 38)
+						b.BackgroundColor3 = enabled and GOLD or Color3.fromRGB(150, 135, 110)
+						b.Text = text
+						b.Font = Enum.Font.GothamBold
+						b.TextSize = 15
+						b.TextColor3 = INK
+						b.AutoButtonColor = enabled
+						b.ZIndex = 46
+						b.Parent = menu
+						deps.roundCorner(b, 8)
+						b.Activated:Connect(function()
+							if not enabled then return end
+							local folder = deps.ReplicatedStorage:FindFirstChild("Remotes")
+							local remote = folder and folder:FindFirstChild("SideStop")
+							if remote then
+								remote:FireServer(id, "reveal", method)
+							end
+							menuFor = nil
+						end)
+					end
+					local tokens, charges = math.floor(state.mapTokens or 0), math.floor(state.compassCharges or 0)
+					option(string.format("Use a map token (%d)", tokens), 8, tokens > 0, "token")
+					option(string.format("Use a compass charge (%d)", charges), 52, charges > 0, "compass")
+				end
+			end
+		end
 	end
 
 	return {
@@ -256,6 +374,7 @@ return function(deps)
 			if s then
 				build()
 			else
+				menuFor, hintFor = nil, nil
 				clear()
 			end
 		end,

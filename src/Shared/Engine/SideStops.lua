@@ -32,8 +32,58 @@ function SideStops.blockedReason(state, stopId, phase)
 	if state.round ~= 1 or state.roundOver then return "not_started" end
 	if WorldMap.pendingChoices(state) then return "not_here" end -- pick the road first
 	if WorldMap.currentStop(state) ~= stop.parent then return "not_here" end
+	if SideStops.isHidden(state, stopId) then return "hidden" end
 	if state.sideVisited and state.sideVisited[stopId] then return "visited" end
 	return nil
+end
+
+-- A stop flagged `hidden` in WorldMap.Stops shows only as a "?" stub on the map until the player reveals it
+-- (SideStops.reveal). Revealed ids are kept in state.sideRevealed for the run.
+function SideStops.isHidden(state, stopId)
+	local stop = WorldMap.Stops[stopId]
+	if not stop or stop.kind ~= "side" or not stop.hidden then return false end
+	return not (state.sideRevealed and state.sideRevealed[stopId])
+end
+
+-- Hidden stops that could be revealed right now (the player stands at their parent stop, first round of the
+-- Night, in Round Select, road already picked): ids in a stable order.
+function SideStops.hiddenHere(state, phase)
+	local out = {}
+	if not WorldMap.phaseAllowsRoadChoice(phase) then return out end
+	if state.round ~= 1 or state.roundOver or WorldMap.pendingChoices(state) then return out end
+	for _, id in ipairs(WorldMap.sideStopsAt(WorldMap.currentStop(state))) do
+		if SideStops.isHidden(state, id) and not (state.sideVisited and state.sideVisited[id]) then
+			out[#out + 1] = id
+		end
+	end
+	return out
+end
+
+-- Reveals a hidden stop by spending a map token (`state.mapTokens`) or a compass charge
+-- (`profile.compassCharges`). Returns true, or false and a reason: wrong_phase, unknown, not_hidden,
+-- not_here, bad_method, no_token, no_charge.
+function SideStops.reveal(state, profile, stopId, phase, method)
+	if not WorldMap.phaseAllowsRoadChoice(phase) then return false, "wrong_phase" end
+	local stop = type(stopId) == "string" and WorldMap.Stops[stopId] or nil
+	if not stop or stop.kind ~= "side" then return false, "unknown" end
+	if not SideStops.isHidden(state, stopId) then return false, "not_hidden" end
+	local here = false
+	for _, id in ipairs(SideStops.hiddenHere(state, phase)) do
+		if id == stopId then here = true end
+	end
+	if not here then return false, "not_here" end
+	if method == "token" then
+		if (state.mapTokens or 0) <= 0 then return false, "no_token" end
+		state.mapTokens = state.mapTokens - 1
+	elseif method == "compass" then
+		if type(profile) ~= "table" or (profile.compassCharges or 0) <= 0 then return false, "no_charge" end
+		profile.compassCharges = profile.compassCharges - 1
+	else
+		return false, "bad_method"
+	end
+	state.sideRevealed = state.sideRevealed or {}
+	state.sideRevealed[stopId] = true
+	return true
 end
 
 -- Side stops the player can use right now: ids in a stable order.

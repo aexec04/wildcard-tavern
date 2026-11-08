@@ -137,7 +137,42 @@ function WorldMapLayout.compute(opts)
 			end
 		end
 	end
-	return { pos = pos, edges = edges, depthOf = depthOf }
+	-- Side stops hang off their parent Night stop: to the right of it, above (dy < 0) or below it.
+	local side = {}
+	local spacing = (opts.nightX[2] or (opts.nightX[1] + 280)) - opts.nightX[1]
+	local sideIds = {}
+	for id, stop in pairs(stops) do
+		if stop.kind == "side" and pos[stop.parent] then
+			sideIds[#sideIds + 1] = id
+		end
+	end
+	table.sort(sideIds)
+	local step = math.floor(minGap * 0.6)
+	local function clash(x, y)
+		for _, other in pairs(side) do
+			if math.abs(other.x - x) < 90 and math.abs(other.y - y) < 48 then return true end
+		end
+		for _, n in pairs(pos) do
+			if math.abs(n.x - x) < 70 and math.abs(n.y - y) < 60 then return true end
+		end
+		return false
+	end
+	for _, id in ipairs(sideIds) do
+		local stop = stops[id]
+		local pp = pos[stop.parent]
+		local want = ((stop.dy or 0.14) < 0) and -1 or 1
+		local x = pp.x + math.floor(spacing * 0.45)
+		local placed
+		-- preferred side first, then the other side, then further out
+		for _, k in ipairs({ 1, 1.7, 2.4 }) do
+			for _, dir in ipairs({ want, -want }) do
+				local y = math.max(40, math.min(H - 40, pp.y + dir * step * k))
+				if not placed and not clash(x, y) then placed = y end
+			end
+		end
+		side[id] = { x = x, y = placed or math.max(40, math.min(H - 40, pp.y + want * step)), parent = stop.parent }
+	end
+	return { pos = pos, edges = edges, depthOf = depthOf, side = side }
 end
 
 -- Fog rule for the extra stops: same Night distance rule as the nodes (the current Night and the next 3 are
