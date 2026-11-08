@@ -34,6 +34,7 @@ local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road o
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
+local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
 local Minigames = require(Engine.Minigames) -- the four map minigames, scored here
 local CardBacks = require(Engine.CardBacks)
@@ -105,6 +106,7 @@ local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (pl
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
 local SideStopRemote = newRemote("SideStop") -- WORLD MAP: (player, stopId, action, arg) shop/shrine/rest side stops
+local EquipBadgeRemote = newRemote("EquipBadge") -- BADGES: (player, badgeId|nil) equips an owned badge
 local UnlockRoadRemote = newRemote("UnlockRoad") -- WORLD MAP: (player, stopId) spends a Key to open a locked road at a pending fork
 local UseCompassRemote = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
@@ -702,6 +704,8 @@ local function serializeState(session, player)
 				titleText = title.title
 			end
 			local summary = RunSummary.build(state, titleText)
+		local _, badgeIcon = Badges.equippedText(profile)
+		summary.badgeIcon = badgeIcon
 			local saved = profile and profile.equippedBadge
 			summary.badgeSaved = saved ~= nil and saved.night == math.floor(summary.night)
 				and saved.rarity == summary.rarity and saved.won == summary.won
@@ -787,6 +791,8 @@ local function serializeState(session, player)
 		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
 		keys = Keys.count(profiles[player]),
 		badgeIds = Badges.list(profiles[player]),
+		equippedBadgeId = profiles[player] and profiles[player].equippedBadgeId or nil,
+		badgeNotice = session.badgeNotice,
 		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
 		lockedRoads = not state.worldPlan and (function()
 			local list = {}
@@ -906,6 +912,23 @@ end
 -- (needing a save) when something genuinely new happened, so a run of
 -- unrelated state pushes (playing hands with nothing new discovered)
 -- doesn't spam DataStore writes.
+-- BADGES: a newly earned game Badge also awards the matching real Roblox Badge when BadgeIds has an id for it.
+-- A missing id is skipped silently (Badges.awardPlan), everything runs in a spawned pcall and never blocks gameplay.
+local BadgeService = game:GetService("BadgeService")
+local function awardRobloxBadges(player, newIds)
+	local plan = Badges.awardPlan(newIds, BadgeIds)
+	if #plan == 0 then
+		return
+	end
+	task.spawn(function()
+		for _, award in ipairs(plan) do
+			pcall(function()
+				BadgeService:AwardBadge(player.UserId, award.robloxId)
+			end)
+		end
+	end)
+end
+
 local function syncProfileFromSession(player)
 	local session = sessions[player]
 	local profile = profiles[player]
@@ -914,6 +937,8 @@ local function syncProfileFromSession(player)
 	end
 
 	local changed = false
+	local badgesBefore = {}
+	for id, flag in pairs(profile.badgeIds or {}) do badgesBefore[id] = flag end
 	-- COLLECTION: owned + offered in the shop + revealed in a pack + the
 	-- boss being faced all count as discovered.
 	local seen = CollectionBook.gatherSeen(session.state, {
@@ -968,6 +993,9 @@ local function syncProfileFromSession(player)
 		end
 	end
 
+	-- BADGES: rule badges (wins, Nights, minigames, Collection, streaks, seasons) are checked every sync; any badge
+	-- earned since the start of this sync (rule or biome) also awards its real Roblox Badge, when one is configured.
+	-- Collection milestones are granted just below, so evaluate after them (see the second pass).
 	-- Checked every sync (not only when something new was found) so a
 	-- profile loaded already past a milestone, or a title unlocked from
 	-- stats, still gets its reward.
@@ -979,6 +1007,15 @@ local function syncProfileFromSession(player)
 			table.insert(ids, milestone.id)
 		end
 		session.collectionMilestoneNotice = ids
+	end
+
+	-- BADGES: rule badges, then award every badge earned since the start of this sync.
+	Badges.evaluate(profile)
+	local earned = Badges.newlyEarned(badgesBefore, profile.badgeIds)
+	if #earned > 0 then
+		changed = true
+		session.badgeNotice = earned
+		awardRobloxBadges(player, earned)
 	end
 
 	if changed then
@@ -1820,6 +1857,18 @@ ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 	end
 end)
 
+-- BADGES: equip an owned badge (nil clears); Badges.equip refuses anything not owned.
+EquipBadgeRemote.OnServerEvent:Connect(function(player, badgeId)
+	local profile = profiles[player]
+	if not profile or (badgeId ~= nil and type(badgeId) ~= "string") then
+		return
+	end
+	if Badges.equip(profile, badgeId) then
+		profileDirty[player] = true
+		pushState(player)
+	end
+end)
+
 -- WORLD MAP: spend one Key to open a locked road for good (Engine/Keys.lua checks the phase, that the road is a
 -- pending fork choice, that it is locked and that a Key is available; never on seeded boards).
 UnlockRoadRemote.OnServerEvent:Connect(function(player, stopId)
@@ -1895,6 +1944,8 @@ MinigameRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
 			SideStops.markVisited(state, stopId)
 			if mg.g.won then
 				mg.result = Minigames.reward(state, profile, mg.rng)
+				PlayerProfile.recordMinigameWin(profile) -- feeds the minigame badges
+				profileDirty[player] = true
 				if mg.result.compass then
 					profileDirty[player] = true
 				end
@@ -2185,7 +2236,7 @@ local function friendFlair(userId)
 		if p.UserId == userId and profile then
 			local backDef = profile.equippedCardBackId and CardBacks.getById(profile.equippedCardBackId)
 			local titleDef = profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
-			return backDef and backDef.name or nil, titleDef and titleDef.title or nil
+			return backDef and backDef.name or nil, titleDef and titleDef.title or nil, select(2, Badges.equippedText(profile))
 		end
 	end
 	return nil, nil
@@ -2219,12 +2270,12 @@ local function friendsBoardResult(player, store, storeName, board, dateKey)
 			yourBest = { depth = row.depth, tips = row.tips }
 		else
 			row.name = friends.names[row.userId] or "???"
-			row.cardBackName, row.titleText = friendFlair(row.userId)
+			row.cardBackName, row.titleText, row.badgeIcon = friendFlair(row.userId)
 		end
 		-- the player's own row gets their own name and flair too
 		if row.userId == player.UserId then
 			row.name = player.Name
-			row.cardBackName, row.titleText = friendFlair(player.UserId)
+			row.cardBackName, row.titleText, row.badgeIcon = friendFlair(player.UserId)
 		end
 	end
 	return {

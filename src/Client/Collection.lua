@@ -161,6 +161,29 @@ return function(deps)
 		StateUpdatedRemote = deps.StateUpdatedRemote,
 	})
 
+	-- Badges (earned collectibles, one can be equipped beside your name) have their own shelf panel.
+	do -- (a do-block keeps this chunk's local count down)
+		local badgesButton = button(panel, {
+			Size = UDim2.fromOffset(96, 24), Position = UDim2.fromOffset(121, 6),
+			TextSize = 12, Text = "Badges",
+		})
+		polishButton(badgesButton, 8)
+		require(script.Parent.BadgesPanel)({
+			screenGui = screenGui,
+			polishPanel = polishPanel,
+			polishButton = polishButton,
+			roundCorner = roundCorner,
+			addSoftShadow = addSoftShadow,
+			playClickSfx = playClickSfx,
+			openButton = badgesButton,
+			getLatestState = getLatestState,
+			popIn = popIn,
+			popOut = popOut,
+			addButtonHoverScale = addButtonHoverScale,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+		})
+	end
+
 	local statsLabel = label(panel, {
 		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 34),
 		TextSize = 12, TextColor3 = SOFT_CREAM, Text = "",

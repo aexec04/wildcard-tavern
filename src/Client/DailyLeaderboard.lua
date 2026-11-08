@@ -363,6 +363,7 @@ return function(deps)
 			local localUserId = localPlayer and localPlayer.UserId
 			for i, entry in ipairs(top) do
 				local flairParts = {}
+				if entry.badgeIcon then table.insert(flairParts, entry.badgeIcon) end
 				if entry.titleText then table.insert(flairParts, entry.titleText) end
 				if entry.cardBackName then table.insert(flairParts, entry.cardBackName .. " back") end
 				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), entry.name or "???", entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))

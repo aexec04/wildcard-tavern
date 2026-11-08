@@ -177,6 +177,8 @@ function PlayerProfile.new()
 		keys = 0, -- Keys (Engine/Keys.lua): +1 per run win and per first biome clear, one opens a locked road for good
 		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
 		badgeIds = {}, -- [Badges id] = true, earned once (Engine/Badges.lua)
+		equippedBadgeId = nil, -- one Badges id shown beside the name on leaderboards and the results screen
+		minigameWins = 0, -- map minigames won (feeds the minigame badges)
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -269,6 +271,12 @@ function PlayerProfile.migrate(raw)
 				profile.badgeIds[id] = true -- unknown ids are dropped
 			end
 		end
+	end
+	if type(raw.minigameWins) == "number" and raw.minigameWins == raw.minigameWins then
+		profile.minigameWins = math.max(0, math.min(99999, math.floor(raw.minigameWins)))
+	end
+	if type(raw.equippedBadgeId) == "string" and profile.badgeIds[raw.equippedBadgeId] then
+		profile.equippedBadgeId = raw.equippedBadgeId -- only an owned badge stays equipped
 	end
 	if type(raw.keys) == "number" and raw.keys == raw.keys then
 		profile.keys = math.max(0, math.min(Keys.MAX_KEYS, math.floor(raw.keys)))
@@ -515,6 +523,11 @@ function PlayerProfile.recordWorldProgress(profile, route, cleared, counted)
 		counted = i
 	end
 	return changed, counted
+end
+
+-- Called once when a map minigame is won (the server, right after scoring it).
+function PlayerProfile.recordMinigameWin(profile)
+	profile.minigameWins = math.min(99999, (profile.minigameWins or 0) + 1)
 end
 
 -- Call exactly once, the moment a run's wonRun flag flips from false to

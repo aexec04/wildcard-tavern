@@ -6740,6 +6740,102 @@ table.insert(tests, { name = "Biome completion: every biome gives a set, a badge
 	expectTrue(CosmeticSets.equip(p2, "dune_market"))
 end })
 
+table.insert(tests, { name = "Badges: definitions are well-formed, rule badges are earned once, equip needs ownership", fn = function()
+	local Badges = require(script.Parent.Parent.Engine.Badges)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local seen = {}
+	local ruleKinds = { runsWon = true, nightReached = true, minigameWins = true, milestone = true, loginStreak = true, season = true }
+	local groups = {}
+	for _, def in ipairs(Badges.Definitions) do
+		expectFalse(seen[def.id], "duplicate " .. def.id)
+		seen[def.id] = true
+		expectTrue(CollectionBook.Rarities[def.rarity] ~= nil, def.id .. " rarity")
+		expectTrue(def.name ~= "" and def.description ~= "" and def.hint ~= "" and def.icon ~= "" and def.group ~= "", def.id .. " text")
+		expectFalse((def.name .. def.description .. def.hint):lower():find("balatro", 1, true) ~= nil)
+		if def.rule then
+			expectTrue(ruleKinds[def.rule.kind], def.id .. " rule kind")
+		else
+			expectTrue(def.region ~= nil and (def.tier == "first" or def.tier == "master"), def.id .. " is a biome badge")
+		end
+		groups[def.group] = true
+	end
+	for _, g in ipairs({ "Biomes", "Wins", "Nights", "Games", "Collection", "Visits", "Seasons" }) do
+		expectTrue(groups[g], "badges cover " .. g)
+	end
+	-- the milestone and season rules point at real data
+	local Seasons = require(script.Parent.Parent.Engine.Seasons)
+	for _, def in ipairs(Badges.Definitions) do
+		if def.rule and def.rule.kind == "milestone" then
+			local found = false
+			for _, m in ipairs(CollectionBook.Milestones) do
+				if m.id == def.rule.id then found = true end
+			end
+			expectTrue(found, def.id .. " milestone exists")
+		elseif def.rule and def.rule.kind == "season" then
+			expectTrue(Seasons.getById(def.rule.id) ~= nil, def.id .. " season exists")
+		end
+	end
+	-- earning
+	local profile = PlayerProfile.new()
+	expectEqual(#Badges.evaluate(profile), 0, "a new profile earns nothing")
+	profile.stats.runsWon = 5
+	profile.stats.bestNightReached = 8
+	profile.minigameWins = 1
+	profile.claimedMilestoneIds.quarter = true
+	profile.loginStreak = 7
+	profile.seasonRewardIds.winter_lanterns = true
+	local fresh = Badges.evaluate(profile)
+	local got = {}
+	for _, id in ipairs(fresh) do got[id] = true end
+	for _, id in ipairs({ "wins_1", "wins_5", "night_3", "night_5", "night_8", "minigame_1", "collection_25", "streak_3", "streak_7", "season_winter_lanterns" }) do
+		expectTrue(got[id], id .. " earned")
+	end
+	for _, id in ipairs({ "wins_25", "night_10", "minigame_10", "collection_50", "collection_100", "streak_14" }) do
+		expectFalse(got[id], id .. " not yet")
+	end
+	expectEqual(#Badges.evaluate(profile), 0, "earned once")
+	profile.loginStreak = 0 -- a broken streak never takes a badge away
+	expectTrue(Badges.has(profile, "streak_7"))
+	-- minigame counter
+	PlayerProfile.recordMinigameWin(profile)
+	expectEqual(profile.minigameWins, 2)
+	-- equip
+	local ok, why = Badges.equip(profile, "wins_25")
+	expectFalse(ok); expectEqual(why, "not_owned")
+	ok, why = Badges.equip(profile, "nope")
+	expectFalse(ok); expectEqual(why, "unknown")
+	ok = Badges.equip(profile, "wins_5")
+	expectTrue(ok); expectEqual(profile.equippedBadgeId, "wins_5")
+	expectEqual(Badges.equippedText(profile), "🏆 Five Wins")
+	ok = Badges.equip(profile, nil)
+	expectTrue(ok); expectEqual(profile.equippedBadgeId, nil)
+	expectEqual(Badges.equippedText(profile), nil)
+	-- persistence: an equipped badge must be owned
+	Badges.equip(profile, "night_5")
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.equippedBadgeId, "night_5")
+	expectEqual(loaded.minigameWins, 2)
+	expectEqual(PlayerProfile.migrate({ equippedBadgeId = "wins_1" }).equippedBadgeId, nil, "not owned")
+	expectEqual(PlayerProfile.migrate({ badgeIds = { wins_1 = true }, equippedBadgeId = "wins_1" }).equippedBadgeId, "wins_1")
+end })
+
+table.insert(tests, { name = "Badges: real Roblox badge awards skip every missing id, and only new badges are sent", fn = function()
+	local Badges = require(script.Parent.Parent.Engine.Badges)
+	local BadgeIds = require(script.Parent.Parent.Engine.BadgeIds)
+	expectEqual(next(BadgeIds), nil, "ships with no ids set")
+	expectEqual(#Badges.awardPlan({ "wins_1", "biome_snow" }, BadgeIds), 0, "nil ids are skipped silently")
+	expectEqual(#Badges.awardPlan({ "wins_1" }, nil), 0)
+	expectEqual(#Badges.awardPlan(nil, {}), 0)
+	local plan = Badges.awardPlan({ "wins_1", "wins_5", "night_3" }, { wins_1 = 111, night_3 = "x", wins_5 = 0 })
+	expectEqual(#plan, 1, "only a positive numeric id is sent")
+	expectEqual(plan[1].badge, "wins_1"); expectEqual(plan[1].robloxId, 111)
+	-- only newly earned badges are awarded
+	local before = { wins_1 = true }
+	local after = { wins_1 = true, wins_5 = true, nope = true }
+	local new = Badges.newlyEarned(before, after)
+	expectEqual(table.concat(new, ","), "wins_5", "unknown ids and already-owned badges are not sent")
+end })
+
 table.insert(tests, { name = "Keys: defaults and two gentle roads are open, three roads are locked, 3+ routes need no Key", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local Keys = require(script.Parent.Parent.Engine.Keys)

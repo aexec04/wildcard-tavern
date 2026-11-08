@@ -212,7 +212,7 @@ local function buildCard(summary)
 	})
 	label(parent, {
 		Position = UDim2.new(0, 10, 0, 102), Size = UDim2.new(1, -20, 0, 24),
-		Text = summary.titleText or "Wandering Guest", TextSize = 18, Font = Enum.Font.GothamMedium,
+		Text = (summary.badgeIcon and (summary.badgeIcon .. " ") or "") .. (summary.titleText or "Wandering Guest"), TextSize = 18, Font = Enum.Font.GothamMedium,
 	})
 	label(parent, {
 		Position = UDim2.new(0, 10, 0, 138), Size = UDim2.new(1, -20, 0, 20), Text = "Best hand", TextSize = 15,
