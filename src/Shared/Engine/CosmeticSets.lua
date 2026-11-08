@@ -10,6 +10,7 @@
 	  { kind = "journey", runsWon = N }       won N runs (profile.stats.runsWon)
 	  { kind = "achievement", id = "..." }    an Achievements id is unlocked
 	  { kind = "gamepass", passId = "..." }   a GamePasses id is owned
+	  { kind = "biome", region = "..." }      granted into ownedSetIds by BiomeRewards (first clear of that biome)
 
 	`backdropImage` is an rbxassetid; "rbxassetid://0" is a placeholder and
 	the client falls back to the default backdrop (see claude/ART_TODO.md).
@@ -104,6 +105,126 @@ CosmeticSets.Definitions = {
 		cardBackId = "gilded_ledger",
 		backdropImage = BackgroundArt.backdrop_golden_gala or "rbxassetid://0",
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
+	},
+	{
+		id = "meadow_picnic",
+		name = "Meadow Picnic",
+		icon = "🧺",
+		description = "A Map reward for finishing the Wildflower Meadow road for the first time.",
+		cardBackId = "kitchen_checks",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 236, 240, 205 },
+			overlay = { color = { 190, 200, 142 }, transparency = 0.88 },
+			vignette = { color = { 60, 80, 30 }, strength = 0.3 },
+			layers = { { kind = "dust", count = 8, speed = 0.4 } },
+		},
+		unlock = { kind = "biome", region = "meadow" },
+	},
+	{
+		id = "riverside_evening",
+		name = "Riverside Evening",
+		icon = "🌉",
+		description = "A Map reward for finishing the Willow River road for the first time.",
+		cardBackId = "winter_frost",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 210, 232, 228 },
+			overlay = { color = { 168, 196, 176 }, transparency = 0.88 },
+			vignette = { color = { 20, 50, 60 }, strength = 0.35 },
+			layers = { { kind = "dust", count = 6, speed = 0.3 } },
+		},
+		unlock = { kind = "biome", region = "river" },
+	},
+	{
+		id = "summit_camp",
+		name = "Summit Camp",
+		icon = "⛺",
+		description = "A Map reward for finishing the Mountain Peaks road for the first time.",
+		cardBackId = "hall_banner",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 225, 228, 220 },
+			overlay = { color = { 120, 130, 140 }, transparency = 0.88 },
+			vignette = { color = { 30, 36, 48 }, strength = 0.4 },
+			layers = { { kind = "snow", count = 10, speed = 0.4 } },
+		},
+		unlock = { kind = "biome", region = "peaks" },
+	},
+	{
+		id = "dune_market",
+		name = "Dune Market",
+		icon = "🏜",
+		description = "A Map reward for finishing the Golden Dunes road for the first time.",
+		cardBackId = "dune_gold",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 255, 236, 200 },
+			overlay = { color = { 232, 190, 110 }, transparency = 0.88 },
+			vignette = { color = { 90, 50, 10 }, strength = 0.3 },
+			layers = { { kind = "dust", count = 14, speed = 0.5 } },
+		},
+		unlock = { kind = "biome", region = "desert" },
+	},
+	{
+		id = "marsh_lanterns",
+		name = "Marsh Lanterns",
+		icon = "🏮",
+		description = "A Map reward for finishing the Misty Marsh road for the first time.",
+		cardBackId = "lilypad_green",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 200, 225, 195 },
+			overlay = { color = { 90, 130, 90 }, transparency = 0.87 },
+			vignette = { color = { 12, 30, 20 }, strength = 0.5 },
+			layers = { { kind = "sparks", count = 10, speed = 0.4 } },
+		},
+		unlock = { kind = "biome", region = "swamp" },
+	},
+	{
+		id = "snowy_hearth",
+		name = "Snowy Hearth",
+		icon = "🔥",
+		description = "A Map reward for finishing the Frosty Hills road for the first time.",
+		cardBackId = "frost_walker",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 215, 230, 250 },
+			overlay = { color = { 70, 110, 180 }, transparency = 0.86 },
+			vignette = { color = { 200, 228, 255 }, strength = 0.45 },
+			layers = { { kind = "snow", count = 24, speed = 0.6 } },
+		},
+		unlock = { kind = "biome", region = "snow" },
+	},
+	{
+		id = "harbor_lights",
+		name = "Harbor Lights",
+		icon = "⚓",
+		description = "A Map reward for finishing the Lantern Coast road for the first time.",
+		cardBackId = "shell_pearl",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 205, 228, 235 },
+			overlay = { color = { 120, 170, 190 }, transparency = 0.88 },
+			vignette = { color = { 16, 40, 56 }, strength = 0.4 },
+			layers = { { kind = "sparks", count = 8, speed = 0.5 } },
+		},
+		unlock = { kind = "biome", region = "coast" },
+	},
+	{
+		id = "tavern_feast",
+		name = "Tavern Feast",
+		icon = "🍲",
+		description = "A Map reward for finishing the Tavern road for the first time.",
+		cardBackId = "gala",
+		backdropImage = "rbxassetid://0",
+		backdropStyle = {
+			tint = { 255, 232, 196 },
+			overlay = { color = { 255, 170, 80 }, transparency = 0.88 },
+			vignette = { color = { 70, 30, 10 }, strength = 0.3 },
+			layers = { { kind = "sparks", count = 12, speed = 0.7 } },
+		},
+		unlock = { kind = "biome", region = "tavern" },
 	},
 }
 
@@ -207,6 +328,8 @@ function CosmeticSets.unlockText(set)
 		return "Achievement: " .. (a and a.name or "?")
 	elseif unlock.kind == "gamepass" then
 		return "Game Pass"
+	elseif unlock.kind == "biome" then
+		return "Reach the end of the " .. tostring(unlock.region) .. " road"
 	end
 	return ""
 end

@@ -2487,7 +2487,7 @@ table.insert(tests, { name = "CosmeticSets: definitions are well-formed and refe
 		seen[set.id] = true
 		expectTrue(CardBacks.getById(set.cardBackId) ~= nil, set.id .. " card back")
 		local kind = set.unlock.kind
-		expectTrue(kind == "default" or kind == "tips" or kind == "journey" or kind == "achievement" or kind == "gamepass", set.id .. " unlock kind")
+		expectTrue(kind == "default" or kind == "tips" or kind == "journey" or kind == "achievement" or kind == "gamepass" or kind == "biome", set.id .. " unlock kind")
 		if kind == "achievement" then expectTrue(Achievements.getById(set.unlock.id) ~= nil) end
 		if kind == "gamepass" then expectTrue(GamePasses.getById(set.unlock.passId) ~= nil) end
 		expectTrue(#CosmeticSets.unlockText(set) > 0)
@@ -5889,6 +5889,9 @@ table.insert(tests, { name = "BiomeRewards: every reward resolves, has a rarity,
 			local a = Achievements.getById(r.id)
 			expectTrue(a ~= nil and a.milestoneReward == true, r.id .. " title exists")
 			expectTrue(a.flavorText and a.flavorText ~= "")
+		elseif r.kind == "badge" then
+			local b = require(script.Parent.Parent.Engine.Badges).getById(r.id)
+			expectTrue(b ~= nil and b.name ~= "" and b.description ~= "" and CollectionBook.Rarities[b.rarity] ~= nil, r.id .. " badge exists")
 		elseif r.kind == "patron" then
 			local p = require(script.Parent.Parent.Engine.Patrons).getById(r.id)
 			expectTrue(p ~= nil and p.flavorText and p.flavorText ~= "", r.id .. " patron exists with flavor text")
@@ -6064,6 +6067,7 @@ table.insert(tests, { name = "BiomeRewards: every one of the 18 routes ends in a
 			local ok = (r.kind == "cardBack" and profile.unlockedCardBackIds[r.id])
 				or (r.kind == "set" and profile.ownedSetIds[r.id])
 				or (r.kind == "title" and profile.rewardTitleIds[r.id])
+				or (r.kind == "badge" and profile.badgeIds[r.id])
 				or (r.kind == "patron" and profile.discoveredPatronIds[r.id])
 				or (r.kind == "recipe" and profile.discoveredRecipeIds[r.id])
 			expectTrue(ok, region .. " reward " .. r.id)
@@ -6667,6 +6671,73 @@ table.insert(tests, { name = "WorldMapLayout: every side stop sits beside its pa
 		end
 		expectEqual(sides, 15)
 	end
+end })
+
+table.insert(tests, { name = "Biome completion: every biome gives a set, a badge and a title; a win through it adds Master, each once", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local Badges = require(script.Parent.Parent.Engine.Badges)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local biomes = { "meadow", "river", "peaks", "desert", "swamp", "snow", "coast", "tavern" }
+	for _, region in ipairs(biomes) do
+		local first = { set = 0, badge = 0, title = 0 }
+		for _, r in ipairs(BiomeRewards.Rows[region].reward) do
+			if first[r.kind] ~= nil then first[r.kind] = first[r.kind] + 1 end
+		end
+		-- the Peaks and Snow rows already granted an older set, so they hold two
+		expectTrue(first.set >= 1 and first.badge == 1 and first.title >= 1, region .. " first-clear set, badge and title")
+		local master = BiomeRewards.Master[region]
+		expectTrue(master ~= nil and #master == 2, region .. " has a Master badge and title")
+		for _, r in ipairs(master) do
+			if r.kind == "badge" then
+				local def = Badges.getById(r.id)
+				expectTrue(def ~= nil and def.tier == "master" and def.region == region, r.id)
+			else
+				local a = Achievements.getById(r.id)
+				expectTrue(a ~= nil and a.milestoneReward == true and a.flavorText ~= "", r.id)
+				expectTrue(CollectionBook.Rarities[CollectionBook.rarityForId("titles", r.id)] ~= nil)
+			end
+		end
+	end
+	for _, def in ipairs(Badges.Definitions) do
+		expectTrue(CollectionBook.Rarities[def.rarity] ~= nil, def.id .. " rarity")
+		expectFalse((def.name .. def.description):lower():find("balatro", 1, true) ~= nil)
+	end
+	-- first clear: granted once (route through the desert), nothing for the next push
+	local profile = PlayerProfile.new()
+	local route = { "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp", "mountain_pass", "tavern_gate", "grand_hall", "keepers_table" }
+	expectTrue(WorldMap.isValidRoute(route))
+	BiomeRewards.recordProgress(profile, route, 8)
+	expectTrue(profile.badgeIds.biome_desert and profile.badgeIds.biome_meadow and profile.badgeIds.biome_tavern)
+	expectTrue(profile.rewardTitleIds.dune_crosser and profile.ownedSetIds.dune_market)
+	expectEqual(profile.badgeIds.master_desert, nil, "no Master before a win")
+	expectEqual(#BiomeRewards.recordProgress(profile, route, 8), 0, "once")
+	-- a win through the route: Master badge and title for every biome on it, once
+	local fresh = BiomeRewards.recordRunWin(profile, route)
+	expectTrue(#fresh > 0)
+	for _, region in ipairs({ "meadow", "desert", "peaks", "tavern" }) do
+		expectTrue(profile.badgeIds["master_" .. region], "master " .. region)
+	end
+	expectTrue(profile.rewardTitleIds.dune_master and profile.rewardTitleIds.tavern_master)
+	expectEqual(profile.badgeIds.master_snow, nil, "a biome off the route gets no Master")
+	expectEqual(#BiomeRewards.recordRunWin(profile, route), 0, "Master is granted once per biome")
+	-- persistence and junk
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.badgeIds.master_desert and loaded.badgeIds.biome_tavern)
+	local junk = PlayerProfile.migrate({ badgeIds = { biome_snow = true, nope = true, master_coast = "yes" } })
+	expectTrue(junk.badgeIds.biome_snow)
+	expectEqual(junk.badgeIds.nope, nil)
+	expectEqual(junk.badgeIds.master_coast, nil)
+	expectEqual(next(PlayerProfile.migrate({}).badgeIds), nil)
+	-- an invalid route grants nothing
+	expectEqual(#BiomeRewards.recordRunWin(PlayerProfile.new(), { "keepers_table" }), 0)
+	-- the new sets are usable once granted and equip like any other
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local p2 = PlayerProfile.new()
+	expectFalse(CosmeticSets.isUnlocked(p2, "dune_market"))
+	BiomeRewards.recordBiomeCleared(p2, "desert")
+	expectTrue(CosmeticSets.isUnlocked(p2, "dune_market"))
+	expectTrue(CosmeticSets.equip(p2, "dune_market"))
 end })
 
 table.insert(tests, { name = "Keys: defaults and two gentle roads are open, three roads are locked, 3+ routes need no Key", fn = function()

@@ -272,6 +272,199 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.lantern_keeper == true
 		end,
 	},
+	-- BIOME COMPLETION TITLES (Engine/BiomeRewards.lua): first clear, and Master (a won run through the biome).
+	{
+		id = "meadow_walker",
+		name = "Meadow Walker",
+		icon = "🌼",
+		title = "Meadow Walker",
+		description = "A Map reward: reach the end of the Wildflower Meadow road for the first time.",
+		flavorText = "Knows every flower by its first name.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.meadow_walker == true
+		end,
+	},
+	{
+		id = "meadow_master",
+		name = "Meadow Master",
+		icon = "🌻",
+		title = "Meadow Master",
+		description = "A Map reward: win a run that travels through the Wildflower Meadow.",
+		flavorText = "The bees wave when you pass.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.meadow_master == true
+		end,
+	},
+	{
+		id = "river_crosser",
+		name = "River Crosser",
+		icon = "🌉",
+		title = "River Crosser",
+		description = "A Map reward: reach the end of the Willow River road for the first time.",
+		flavorText = "Never once wobbled on the stepping stones.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.river_crosser == true
+		end,
+	},
+	{
+		id = "river_master",
+		name = "River Master",
+		icon = "🐟",
+		title = "River Master",
+		description = "A Map reward: win a run that travels through the Willow River.",
+		flavorText = "The willows bow as you cross.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.river_master == true
+		end,
+	},
+	{
+		id = "peak_climber",
+		name = "Peak Climber",
+		icon = "⛰",
+		title = "Peak Climber",
+		description = "A Map reward: reach the end of the Mountain Peaks road for the first time.",
+		flavorText = "Has a very good view and says so.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.peak_climber == true
+		end,
+	},
+	{
+		id = "peak_master",
+		name = "Peak Master",
+		icon = "🏔",
+		title = "Peak Master",
+		description = "A Map reward: win a run that travels through the Mountain Peaks.",
+		flavorText = "The mountain keeps a spot warm for you.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.peak_master == true
+		end,
+	},
+	{
+		id = "dune_crosser",
+		name = "Dune Crosser",
+		icon = "🏜",
+		title = "Dune Crosser",
+		description = "A Map reward: reach the end of the Golden Dunes road for the first time.",
+		flavorText = "Sand in every pocket, a map in every hand.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.dune_crosser == true
+		end,
+	},
+	{
+		id = "dune_master",
+		name = "Dune Master",
+		icon = "🐪",
+		title = "Dune Master",
+		description = "A Map reward: win a run that travels through the Golden Dunes.",
+		flavorText = "The dunes shift to make way for you.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.dune_master == true
+		end,
+	},
+	{
+		id = "marsh_strider",
+		name = "Marsh Strider",
+		icon = "🐸",
+		title = "Marsh Strider",
+		description = "A Map reward: reach the end of the Misty Marsh road for the first time.",
+		flavorText = "Hops from plank to plank without a splash.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.marsh_strider == true
+		end,
+	},
+	{
+		id = "marsh_master",
+		name = "Marsh Master",
+		icon = "🪷",
+		title = "Marsh Master",
+		description = "A Map reward: win a run that travels through the Misty Marsh.",
+		flavorText = "The fireflies light your way.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.marsh_master == true
+		end,
+	},
+	{
+		id = "snow_trekker",
+		name = "Snow Trekker",
+		icon = "❄",
+		title = "Snow Trekker",
+		description = "A Map reward: reach the end of the Frosty Hills road for the first time.",
+		flavorText = "Leaves the deepest, happiest footprints.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.snow_trekker == true
+		end,
+	},
+	{
+		id = "snow_master",
+		name = "Snow Master",
+		icon = "⛄",
+		title = "Snow Master",
+		description = "A Map reward: win a run that travels through the Frosty Hills.",
+		flavorText = "The snowflakes line up to greet you.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.snow_master == true
+		end,
+	},
+	{
+		id = "cove_sailor",
+		name = "Cove Sailor",
+		icon = "⛵",
+		title = "Cove Sailor",
+		description = "A Map reward: reach the end of the Lantern Coast road for the first time.",
+		flavorText = "Waves at every lighthouse, and they wave back.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.cove_sailor == true
+		end,
+	},
+	{
+		id = "coast_master",
+		name = "Coast Master",
+		icon = "🌊",
+		title = "Coast Master",
+		description = "A Map reward: win a run that travels through the Lantern Coast.",
+		flavorText = "The tide times itself to suit you.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.coast_master == true
+		end,
+	},
+	{
+		id = "tavern_guest",
+		name = "Tavern Guest",
+		icon = "🏠",
+		title = "Tavern Guest",
+		description = "A Map reward: reach the end of the Tavern road for the first time.",
+		flavorText = "Always gets the best seat by the fire.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_guest == true
+		end,
+	},
+	{
+		id = "tavern_master",
+		name = "Tavern Master",
+		icon = "🎉",
+		title = "Tavern Master",
+		description = "A Map reward: win a run that travels through the Tavern.",
+		flavorText = "Welcome home, champion.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_master == true
+		end,
+	},
 	{
 		id = "night_walker",
 		name = "Night Walker",

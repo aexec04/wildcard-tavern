@@ -166,6 +166,10 @@ return function(deps)
 			lockedRoad[id] = true
 		end
 		local keys = RoadLock.keys(state)
+		local haveBadge = {}
+		for _, b in ipairs(state.badgeIds or {}) do
+			haveBadge[b] = true
+		end
 		local function takeRoad(id, stop)
 			RoadLock.pick(id, state, deps.confirmParent or canvas, stop.name, function()
 				fire(id)
@@ -210,7 +214,9 @@ return function(deps)
 			if ends[id] and v ~= "hidden" and v ~= "teaser" then
 				local text = deps.rewardText and deps.rewardText(ends[id])
 				if text then
-					badge = textLabel("🎁 " .. text, p.x, top - 24, 190, 22, 15, 27)
+					local region = ends[id]
+				local mark = haveBadge["master_" .. region] and "  ★ Master" or (haveBadge["biome_" .. region] and "  ✓ cleared" or "")
+				badge = textLabel("🎁 " .. text .. mark, p.x, top - 24, 230, 22, 15, 27)
 					badge.TextColor3 = Color3.fromRGB(255, 226, 150)
 					badge.Name = "RewardChip_" .. id
 					badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)

@@ -33,6 +33,7 @@ local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
+local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
 local Minigames = require(Engine.Minigames) -- the four map minigames, scored here
 local CardBacks = require(Engine.CardBacks)
@@ -785,6 +786,7 @@ local function serializeState(session, player)
 		} or nil,
 		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
 		keys = Keys.count(profiles[player]),
+		badgeIds = Badges.list(profiles[player]),
 		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
 		lockedRoads = not state.worldPlan and (function()
 			local list = {}
@@ -932,6 +934,8 @@ local function syncProfileFromSession(player)
 		session.lastKnownWonRun = true
 		if countsForRecords then
 			PlayerProfile.recordRunWon(profile)
+			-- a WON run through a biome upgrades its badge and title (once per biome)
+			BiomeRewards.recordRunWin(profile, session.state.worldRoute)
 			changed = true
 		end
 	end

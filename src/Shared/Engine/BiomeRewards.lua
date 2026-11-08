@@ -24,38 +24,52 @@
 local WorldMap = require(script.Parent.WorldMap)
 local PlayerProfile = require(script.Parent.PlayerProfile)
 local Keys = require(script.Parent.Keys)
+local Badges = require(script.Parent.Badges)
 
 local BiomeRewards = {}
 
 BiomeRewards.Rows = {
 	road = { reward = {} },
 	meadow = { reward = { { kind = "cardBack", id = "kitchen_checks" }, { kind = "patron", id = "meadow_bee" },
-		{ kind = "recipe", id = "honey_drizzle" } } },
+		{ kind = "recipe", id = "honey_drizzle" }, { kind = "set", id = "meadow_picnic" }, { kind = "badge", id = "biome_meadow" }, { kind = "title", id = "meadow_walker" } } },
 	river = { reward = { { kind = "title", id = "loft_climber" }, { kind = "patron", id = "ferry_captain" },
-		{ kind = "recipe", id = "riverside_chowder" } } },
+		{ kind = "recipe", id = "riverside_chowder" }, { kind = "set", id = "riverside_evening" }, { kind = "badge", id = "biome_river" }, { kind = "title", id = "river_crosser" } } },
 	peaks = { reward = { { kind = "set", id = "festival_night" }, { kind = "patron", id = "summit_guide" },
-		{ kind = "recipe", id = "summit_stew" } } },
+		{ kind = "recipe", id = "summit_stew" }, { kind = "set", id = "summit_camp" }, { kind = "badge", id = "biome_peaks" }, { kind = "title", id = "peak_climber" } } },
 	desert = {
 		reward = { { kind = "cardBack", id = "dune_gold" }, { kind = "patron", id = "sand_merchant" },
-			{ kind = "recipe", id = "date_cake" } },
+			{ kind = "recipe", id = "date_cake" }, { kind = "set", id = "dune_market" }, { kind = "badge", id = "biome_desert" }, { kind = "title", id = "dune_crosser" } },
 		bonus = { kind = "title", id = "dune_wanderer" },
 	},
 	swamp = {
 		reward = { { kind = "cardBack", id = "lilypad_green" }, { kind = "patron", id = "marsh_gardener" },
-			{ kind = "recipe", id = "bog_stew" } },
+			{ kind = "recipe", id = "bog_stew" }, { kind = "set", id = "marsh_lanterns" }, { kind = "badge", id = "biome_swamp" }, { kind = "title", id = "marsh_strider" } },
 		bonus = { kind = "title", id = "marsh_wader" },
 	},
 	snow = {
 		reward = { { kind = "set", id = "winter_evening" }, { kind = "cardBack", id = "frost_walker" },
-			{ kind = "patron", id = "lantern_lighter" }, { kind = "recipe", id = "frost_pudding" } },
+			{ kind = "patron", id = "lantern_lighter" }, { kind = "recipe", id = "frost_pudding" }, { kind = "set", id = "snowy_hearth" }, { kind = "badge", id = "biome_snow" }, { kind = "title", id = "snow_trekker" } },
 		bonus = { kind = "title", id = "snow_scout" },
 	},
 	coast = {
 		reward = { { kind = "cardBack", id = "shell_pearl" }, { kind = "patron", id = "lighthouse_keeper" },
-			{ kind = "recipe", id = "sea_biscuit" } },
+			{ kind = "recipe", id = "sea_biscuit" }, { kind = "set", id = "harbor_lights" }, { kind = "badge", id = "biome_coast" }, { kind = "title", id = "cove_sailor" } },
 		bonus = { kind = "title", id = "lighthouse_friend" },
 	},
-	tavern = { reward = { { kind = "cardBack", id = "gala" }, { kind = "cardBack", id = "hall_banner" } } },
+	tavern = { reward = { { kind = "cardBack", id = "gala" }, { kind = "cardBack", id = "hall_banner" }, { kind = "set", id = "tavern_feast" }, { kind = "badge", id = "biome_tavern" }, { kind = "title", id = "tavern_guest" } } },
+}
+
+-- Winning a run that travels through a biome upgrades its badge: the gold Master badge and a Master title,
+-- granted once per biome (BiomeRewards.recordRunWin).
+BiomeRewards.Master = {
+	meadow = { { kind = "badge", id = "master_meadow" }, { kind = "title", id = "meadow_master" } },
+	river = { { kind = "badge", id = "master_river" }, { kind = "title", id = "river_master" } },
+	peaks = { { kind = "badge", id = "master_peaks" }, { kind = "title", id = "peak_master" } },
+	desert = { { kind = "badge", id = "master_desert" }, { kind = "title", id = "dune_master" } },
+	swamp = { { kind = "badge", id = "master_swamp" }, { kind = "title", id = "marsh_master" } },
+	snow = { { kind = "badge", id = "master_snow" }, { kind = "title", id = "snow_master" } },
+	coast = { { kind = "badge", id = "master_coast" }, { kind = "title", id = "coast_master" } },
+	tavern = { { kind = "badge", id = "master_tavern" }, { kind = "title", id = "tavern_master" } },
 }
 
 BiomeRewards.AllRegionsBonus = { kind = "title", id = "trailblazer" }
@@ -67,6 +81,8 @@ local function grant(profile, reward)
 		profile.ownedSetIds[reward.id] = true
 	elseif reward.kind == "title" then
 		profile.rewardTitleIds[reward.id] = true
+	elseif reward.kind == "badge" then
+		Badges.grant(profile, reward.id)
 	elseif reward.kind == "patron" then
 		profile.discoveredPatronIds = profile.discoveredPatronIds or {}
 		profile.discoveredPatronIds[reward.id] = true
@@ -91,6 +107,8 @@ function BiomeRewards.label(reward)
 		def, prefix = CosmeticSets.getById(reward.id), "Card set: "
 	elseif reward.kind == "title" then
 		def, prefix = Achievements.getById(reward.id), "Title: "
+	elseif reward.kind == "badge" then
+		def, prefix = Badges.getById(reward.id), "Badge: "
 	elseif reward.kind == "patron" then
 		def, prefix = Patrons.getById(reward.id), "Patron: "
 	elseif reward.kind == "recipe" then
@@ -108,6 +126,11 @@ function BiomeRewards.allRewards()
 		end
 		if row.bonus then
 			out[#out + 1] = { region = region, kind = row.bonus.kind, id = row.bonus.id, bonus = true }
+		end
+	end
+	for region, list in pairs(BiomeRewards.Master) do
+		for _, r in ipairs(list) do
+			out[#out + 1] = { region = region, kind = r.kind, id = r.id, master = true }
 		end
 	end
 	out[#out + 1] = { region = "all", kind = BiomeRewards.AllRegionsBonus.kind, id = BiomeRewards.AllRegionsBonus.id, bonus = true }
@@ -128,6 +151,28 @@ function BiomeRewards.recordBiomeCleared(profile, region)
 		fresh[#fresh + 1] = r
 	end
 	Keys.add(profile) -- the first clear of a biome earns one Key (once: guarded by worldRewardIds above)
+	return fresh
+end
+
+-- A WON run through a biome upgrades it: grants that biome's Master badge and title once. `route` is the run's
+-- worldRoute. Call once when the run is won (the server does, not for revived runs). Returns the new rewards.
+function BiomeRewards.recordRunWin(profile, route)
+	local fresh = {}
+	if not WorldMap.isValidRoute(route) then return fresh end
+	local done = {}
+	for _, id in ipairs(route) do
+		local region = WorldMap.regionOf(id)
+		local list = region and BiomeRewards.Master[region]
+		local key = "master:" .. tostring(region)
+		if list and not done[region] and not profile.worldRewardIds[key] then
+			done[region] = true
+			profile.worldRewardIds[key] = true
+			for _, r in ipairs(list) do
+				grant(profile, r)
+				fresh[#fresh + 1] = r
+			end
+		end
+	end
 	return fresh
 end
 

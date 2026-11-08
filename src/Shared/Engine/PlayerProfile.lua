@@ -61,6 +61,7 @@ local CardBacks = require(script.Parent.CardBacks)
 local JourneyMap = require(script.Parent.JourneyMap)
 local WorldMap = require(script.Parent.WorldMap)
 local Keys = require(script.Parent.Keys) -- locked roads on the world map
+local Badges = require(script.Parent.Badges)
 
 local PlayerProfile = {}
 
@@ -175,6 +176,7 @@ function PlayerProfile.new()
 		compassCharges = 0, -- 0 to PlayerProfile.MAX_COMPASS_CHARGES, earned by winning map minigames, spent at a fork
 		keys = 0, -- Keys (Engine/Keys.lua): +1 per run win and per first biome clear, one opens a locked road for good
 		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
+		badgeIds = {}, -- [Badges id] = true, earned once (Engine/Badges.lua)
 		equippedSetId = CosmeticSets.DefaultId,
 		equippedCardBackId = nil, -- a CardBacks id, or nil = use the equipped set's back
 		stats = {
@@ -261,6 +263,13 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 	copyIdSet(raw.worldRewardIds, profile.worldRewardIds)
+	if type(raw.badgeIds) == "table" then
+		for id, flag in pairs(raw.badgeIds) do
+			if type(id) == "string" and flag == true and Badges.getById(id) then
+				profile.badgeIds[id] = true -- unknown ids are dropped
+			end
+		end
+	end
 	if type(raw.keys) == "number" and raw.keys == raw.keys then
 		profile.keys = math.max(0, math.min(Keys.MAX_KEYS, math.floor(raw.keys)))
 	end
