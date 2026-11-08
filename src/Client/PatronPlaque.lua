@@ -228,7 +228,7 @@ function PatronPlaque.updateSlot(slot, patronId)
 		PatronPlaque.apply(slot.frame, patronId, {
 			emojiLabel = slot.label,
 			zIndex = slot.frame.ZIndex + 1,
-			cornerRadius = 16,
+			cornerRadius = math.floor(slot.frame.Size.X.Offset / 2) > 0 and math.floor(slot.frame.Size.X.Offset / 2) or 16,
 		})
 	end
 end

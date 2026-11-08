@@ -34,8 +34,8 @@
 	(big score + progress bar, icons, Hands/Discards columns), so render() is
 	unchanged. nightRoundLabel, blindInfoLabel (restyled to dark ink),
 	patronsCountLabel and scorePreviewLabel are shown directly. Text is dark ink
-	(60,40,22) with a faint parchment stroke. The Patron slots hang from brass
-	hooks (hud/brass_hook). Icons (coin_purse, hands_cards, discard_bin,
+	(60,40,22) with a faint parchment stroke. Patron seats sit in one
+	framed inset (double-ring medallions). Icons (coin_purse, hands_cards, discard_bin,
 	target_score) fall back to emoji. Dividers hide on short screens.
 
 	Returns:
@@ -467,82 +467,87 @@ return function(deps)
 	end)
 	makeDivider(7)
 
-	-- ===== Patrons: header, brass hooks, round medallion seats =====
-	local patronsBox = makeSection(content, 88, 8)
-	local patronsHeader = makeLabel(patronsBox, 17, { Size = UDim2.new(0.6, -8, 0, 22), Position = UDim2.fromOffset(8, 2), TextXAlignment = Enum.TextXAlignment.Left, Text = "Patrons" })
-	local patronsCountLabel = makeLabel(patronsBox, 17, { Size = UDim2.new(0.4, -8, 0, 22), Position = UDim2.new(0.6, 0, 0, 2), TextXAlignment = Enum.TextXAlignment.Right })
+	-- ===== Patrons: title + one framed inset of round double-ring seats =====
+	-- Seats are 38px with a 3px gap so 5 fit the 216px content width (inset padding 4);
+	-- more than 5 unlocked seats wrap to extra rows and the section grows (AutomaticSize).
+	local patronsBox = makeSection(content, 78, 8)
+	patronsBox.AutomaticSize = Enum.AutomaticSize.Y
+	local patronsCountLabel = makeLabel(patronsBox, 16, { Visible = false }) -- data label ("n/limit"), set by render()
+	local patronsHeader = makeLabel(patronsBox, 16, { Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 2), TextXAlignment = Enum.TextXAlignment.Left, Text = "Patrons", Font = Enum.Font.GothamBold })
+	patronsCountLabel:GetPropertyChangedSignal("Text"):Connect(function()
+		patronsHeader.Text = "Patrons " .. patronsCountLabel.Text
+	end)
 
-	local SLOT, SLOT_GAP = 34, 6
-	local hookRow = Instance.new("Frame")
-	hookRow.Name = "HookRow"
-	hookRow.Size = UDim2.new(1, 0, 0, 26)
-	hookRow.Position = UDim2.fromOffset(0, 26)
-	hookRow.BackgroundTransparency = 1
-	hookRow.ZIndex = Z
-	hookRow.Parent = patronsBox
-
+	local SLOT, SLOT_GAP = 38, 3
 	local patronsSlotRow = Instance.new("Frame")
-	patronsSlotRow.Size = UDim2.new(1, 0, 0, SLOT)
-	patronsSlotRow.Position = UDim2.fromOffset(0, 46)
-	patronsSlotRow.BackgroundTransparency = 1
+	patronsSlotRow.Name = "PatronsInset"
+	patronsSlotRow.Size = UDim2.new(1, 0, 0, SLOT + 12)
+	patronsSlotRow.AutomaticSize = Enum.AutomaticSize.Y
+	patronsSlotRow.Position = UDim2.fromOffset(0, 26)
+	patronsSlotRow.BackgroundColor3 = Color3.fromRGB(199, 178, 137) -- same inset as the status strip
+	patronsSlotRow.BackgroundTransparency = 0
 	patronsSlotRow.ZIndex = Z
 	patronsSlotRow.Parent = patronsBox
-	for _, row in ipairs({ hookRow, patronsSlotRow }) do
-		local l = Instance.new("UIListLayout")
-		l.FillDirection = Enum.FillDirection.Horizontal
-		l.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		l.Padding = UDim.new(0, SLOT_GAP)
-		l.SortOrder = Enum.SortOrder.LayoutOrder
-		l.Parent = row
-	end
+	roundCorner(patronsSlotRow, 8)
+	local insetStroke = Instance.new("UIStroke")
+	insetStroke.Color = Color3.fromRGB(96, 66, 38)
+	insetStroke.Thickness = 1.5
+	insetStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	insetStroke.Parent = patronsSlotRow
+	local insetPad = Instance.new("UIPadding")
+	insetPad.PaddingTop, insetPad.PaddingBottom = UDim.new(0, 6), UDim.new(0, 6)
+	insetPad.PaddingLeft, insetPad.PaddingRight = UDim.new(0, 4), UDim.new(0, 4)
+	insetPad.Parent = patronsSlotRow
+	local seatLayout = Instance.new("UIListLayout")
+	seatLayout.FillDirection = Enum.FillDirection.Horizontal
+	seatLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	seatLayout.Wraps = true
+	seatLayout.Padding = UDim.new(0, SLOT_GAP)
+	seatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	seatLayout.Parent = patronsSlotRow
 
 	local MAX_SIDEBAR_PATRON_SLOTS = 14
 	local patronSlots = {}
-	local hookId = hud("brass_hook")
 	for i = 1, math.min(MAX_SIDEBAR_PATRON_SLOTS, #Patrons.Definitions) do
-		local hook
-		if hookId then
-			hook = Instance.new("ImageLabel")
-			hook.Size = UDim2.fromOffset(SLOT, 26)
-			hook.BackgroundTransparency = 1
-			hook.Image = hookId
-			hook.ScaleType = Enum.ScaleType.Crop
-			hook.LayoutOrder = i
-			hook.Active = false
-			hook.ZIndex = Z
-			hook.Parent = hookRow
-			roundCorner(hook, 6)
-		end
-
 		local slot = Instance.new("Frame")
 		slot.Size = UDim2.fromOffset(SLOT, SLOT)
-		slot.BackgroundColor3 = Color3.fromRGB(196, 168, 118) -- parchment medallion (render() recolors)
+		slot.BackgroundColor3 = Color3.fromRGB(196, 168, 118) -- slightly darker parchment medallion (render() recolors)
 		slot.LayoutOrder = i
 		slot.ZIndex = Z + 1
 		slot.Parent = patronsSlotRow
 		roundCorner(slot, SLOT / 2)
-		local seatRing = Instance.new("UIStroke")
-		seatRing.Color = Color3.fromRGB(96, 64, 36) -- ink-brown outline
+		local seatRing = Instance.new("UIStroke") -- outer ring, ink brown
+		seatRing.Color = Color3.fromRGB(96, 64, 36)
 		seatRing.Thickness = 2
 		seatRing.Transparency = 0
 		seatRing.Parent = slot
+		-- inner thin gold ring, above any patron art
+		local innerRing = Instance.new("Frame")
+		innerRing.Name = "InnerRing"
+		innerRing.AnchorPoint = Vector2.new(0.5, 0.5)
+		innerRing.Position = UDim2.fromScale(0.5, 0.5)
+		innerRing.Size = UDim2.new(1, -4, 1, -4)
+		innerRing.BackgroundTransparency = 1
+		innerRing.Active = false
+		innerRing.ZIndex = Z + 4
+		innerRing.Parent = slot
+		roundCorner(innerRing, SLOT / 2)
+		local goldRing = Instance.new("UIStroke")
+		goldRing.Color = Color3.fromRGB(222, 182, 104)
+		goldRing.Thickness = 1
+		goldRing.Parent = innerRing
 
 		local slotLabel = Instance.new("TextLabel")
 		slotLabel.Size = UDim2.fromScale(1, 1)
 		slotLabel.BackgroundTransparency = 1
 		slotLabel.Font = Enum.Font.GothamBold
-		slotLabel.TextSize = 18
-		slotLabel.TextColor3 = Color3.fromRGB(120, 88, 54)
-		slotLabel.Text = "?"
+		slotLabel.TextSize = 20
+		slotLabel.TextColor3 = Color3.fromRGB(96, 64, 36)
+		slotLabel.TextTransparency = 0.55 -- faint engraved "+"
+		slotLabel.Text = "+"
 		slotLabel.ZIndex = Z + 1
 		slotLabel.Parent = slot
 
-		if hook then -- hooks mirror seat visibility (render() hides seats past the slot limit)
-			hook.Visible = slot.Visible
-			slot:GetPropertyChangedSignal("Visible"):Connect(function()
-				hook.Visible = slot.Visible
-			end)
-		end
 		patronSlots[i] = { frame = slot, label = slotLabel }
 	end
 	makeDivider(9)
@@ -561,7 +566,7 @@ return function(deps)
 		TextColor3 = INK, Font = Enum.Font.GothamBold, TextTransparency = 0, TextStrokeTransparency = 1, Size = UDim2.new(1, -12, 1, -4), Position = UDim2.fromOffset(6, 2) })
 
 	-- Dividers hide on short screens; the arch spacer keeps sections on the parchment.
-	local SECTIONS_H, DIVIDER_H, GAP = 76 + 96 + 44 + 66 + 88 + 56, 26, 10
+	local SECTIONS_H, DIVIDER_H, GAP = 76 + 96 + 44 + 66 + 78 + 56, 26, 10
 	local function relayout()
 		local h = sidebar.AbsoluteSize.Y
 		if h < 50 then
