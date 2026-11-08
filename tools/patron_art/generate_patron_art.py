@@ -196,15 +196,29 @@ def _generate_one(pid, data, key, model, quality, args):
         print(f"skip {pid} (exists{', STALE: rerun with --stale' if stale else ''})")
         return "skipped"
     opts = CATEGORY_OPTS.get(CATEGORY, {})
-    prompt = f"{data[opts.get('style_key', 'style')]}. Subject: {subjects(data)[pid]}."
+    style_key = getattr(args, "style", None) or opts.get("style_key", "style")
+    prompt = f"{data[style_key]}. Subject: {subjects(data)[pid]}."
     quality = opts.get("quality", quality)
+    ref = getattr(args, "reference", None)
+    if ref and not pathlib.Path(ref).exists():
+        raise Stop(f"--reference file not found: {ref}")
     for attempt in range(4):
-        r = requests.post(
-            "https://api.openai.com/v1/images/generations",
-            headers={"Authorization": f"Bearer {key}"},
-            json={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": 1},
-            timeout=300,
-        )
+        if ref:
+            # Reference image: the edits endpoint takes it as image input and restyles toward it.
+            r = requests.post(
+                "https://api.openai.com/v1/images/edits",
+                headers={"Authorization": f"Bearer {key}"},
+                data={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": "1"},
+                files={"image[]": (pathlib.Path(ref).name, pathlib.Path(ref).read_bytes(), "image/png")},
+                timeout=300,
+            )
+        else:
+            r = requests.post(
+                "https://api.openai.com/v1/images/generations",
+                headers={"Authorization": f"Bearer {key}"},
+                json={"model": model, "prompt": prompt, "size": opts.get("size", "1024x1024"), "quality": quality, "n": 1},
+                timeout=300,
+            )
         if r.status_code == 200:
             path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
             with LOCK:
@@ -470,7 +484,12 @@ def main():
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--style", help="prompts.json style key to use instead of the category's (e.g. house_style)")
+    ap.add_argument("--reference", nargs="?", const="art-wip/backgrounds/journey_map.png",
+                    help="reference image sent to the images edit endpoint (default: art-wip/backgrounds/journey_map.png)")
     a = ap.parse_args()
+    if a.style and a.style not in load_prompts():
+        sys.exit(f"Unknown style key {a.style!r} in prompts.json")
     set_category(a.category)
     if a.cmd == "generate":
         cmd_generate(a)
