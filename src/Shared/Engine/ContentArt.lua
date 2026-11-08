@@ -29,6 +29,7 @@ local ContentArt = {
 	menu_icons   = require(Engine:WaitForChild("MenuIconArt")),
 	map_regions  = require(Engine:WaitForChild("MapRegionArt")),
 	map_decor    = require(Engine:WaitForChild("MapDecorArt")),
+	card_backs   = require(Engine:WaitForChild("CardBackArt")),
 }
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds
