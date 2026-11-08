@@ -27,7 +27,6 @@
 - `ArtAssets.lua` `shopBackground` and `gameOverWinBackground` are `rbxassetid://0`
 - `JourneyMap.lua:70` `journeyMapImage` is `rbxassetid://0`
 - `CosmeticSets.lua:56,71,89,104` four backdrop images are `rbxassetid://0` (Winter, Festival, Closing Time, Golden Gala)
-- `Sound.lua:226-230` six music tracks are `rbxassetid://0` (3 Tavern, 3 Endless)
 
 **Non-blocking:**
 - Recipes, House Passes and Titles art is wired. `early_bird` / `night_owl` were regenerated as Roblox-style characters and uploaded as Decals (ids not yet resolved or recorded; `PatronArt.lua` still holds the old bird images).

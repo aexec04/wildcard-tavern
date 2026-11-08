@@ -99,7 +99,7 @@ return function(deps)
 	local SoundService = deps.SoundService
 
 	local SOUND_IDS = {
-		backgroundMusic = "rbxassetid://138172142909285", -- Retro-Impact-Zone (placeholder default, see above)
+		backgroundMusic = "rbxassetid://132846105965979", -- gameplay track (MUSIC_IDS.gameplay reads this)
 		cardToggle = "rbxassetid://9117308777",      -- Photo-Flapping-Handling-Movement-Rubbing-1-SFX
 		playHand = "rbxassetid://9113727134",        -- Cash-Movement-2-SFX
 		discard = "rbxassetid://9114035597",         -- Deck-Of-Cards-7-SFX
@@ -154,23 +154,16 @@ return function(deps)
 	-- below each pick in case you want to swap -- same pattern as the
 	-- backgroundMusic alternates above.
 	local MUSIC_IDS = {
-		title = "rbxassetid://122891883598211",    -- Warm Signals in Silence
-		gameplay = SOUND_IDS.backgroundMusic,        -- Retro Impact Zone -- unchanged existing default
-		boss = "rbxassetid://112062136718839",       -- Into Battle
-		shop = "rbxassetid://71016453281056",        -- Rare Spawn
+		title = "rbxassetid://137023744071437",
+		gameplay = SOUND_IDS.backgroundMusic,        -- rbxassetid://132846105965979
+		boss = "rbxassetid://133804416597931",
+		shop = "rbxassetid://86731472483471",
 	}
-	-- Unused alternates from the same batch, in case you want to swap later:
-	--   Title:   Hollywood Romance rbxassetid://9045322793
-	--            XVII Composition 1952 rbxassetid://122891883598211
-	--            XV Composition 1947 rbxassetid://121483308829289
-	--            Ambient Dreams rbxassetid://124567288309185
-	--            Falling Down rbxassetid://122884689708268
-	--            (Celestial Walk rbxassetid://1836047913 was in this same
-	--            batch too, but skipped on purpose here -- see the
-	--            "Ahmed didn't like it" note above, same track.)
-	--   Boss:    Moonlight rbxassetid://9039974099
-	--   Shop:    Guilty Pleasure rbxassetid://1842100660
-	--            Ambient Dreams rbxassetid://124567288309185
+	-- Alternates (backup tracks, verified loadable), in case you want to swap:
+	--   Title:    rbxassetid://116079409060113
+	--   Gameplay: rbxassetid://93176902923482
+	--   Boss:     rbxassetid://126739564081315
+	--   Shop:     rbxassetid://128505516414181
 
 	-- Music / SFX / mute come from Client/ClientSettings.lua (saved in the
 	-- player's profile, set from Client/VolumePanel.lua). One SFX volume
@@ -222,12 +215,12 @@ return function(deps)
 			},
 		},
 		{
-			name = "Arcade Energy",
-			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+			name = "Tavern Jigs",
+			songs = { "rbxassetid://9039477366", "rbxassetid://9039478813", "rbxassetid://76040041327326" },
 		},
 		{
 			name = "Late Night Jazz Cafe",
-			songs = { "rbxassetid://0", "rbxassetid://0", "rbxassetid://0" },
+			songs = { "rbxassetid://83241783099960", "rbxassetid://127468148248456", "rbxassetid://103245181853642" },
 		},
 	}
 	for _, preset in ipairs(PRESET_PLAYLISTS) do
