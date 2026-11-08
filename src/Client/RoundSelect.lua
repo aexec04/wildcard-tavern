@@ -518,6 +518,7 @@ return function(deps)
 			actionPending = true
 			playClickSfx()
 			require(script.Parent.Cue).play("shuffle")
+			require(script.Parent.TutorialBus).fire("select_round")
 			SelectRoundRemote:FireServer() -- sent right away; the travel cover below only delays the reveal
 			pcall(function()
 				local st = getLatestState()

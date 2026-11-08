@@ -180,13 +180,17 @@ local function build(deps)
 		restart.Text = "Hold to Restart"
 	end
 
+	local onCloseHook = nil
 	local function close()
+		local hook = onCloseHook
+		onCloseHook = nil
 		isOpen = false
 		stopHoldLoop()
 		hold:reset()
 		fill.Size = UDim2.new(0, 0, 1, 0)
 		backdrop.Visible = false
 		resetTexts()
+		if hook then hook() end
 	end
 
 	local function toast(text)
@@ -285,6 +289,7 @@ local function build(deps)
 	local function ask(opts)
 		resetTexts()
 		custom = opts.onConfirm
+		onCloseHook = opts.onClose
 		title.Text = opts.title or title.Text
 		message.Text = opts.message or message.Text
 		restart.Text = opts.holdText or restart.Text

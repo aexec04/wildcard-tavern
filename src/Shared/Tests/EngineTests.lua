@@ -2996,7 +2996,7 @@ end })
 table.insert(tests, { name = "SeededRng.randomCode: produces a code of the requested length using only the safe charset", fn = function()
 	local code = SeededRng.randomCode(8)
 	expectEqual(#code, 8)
-	expectFalse(code:match("[^ABCDEFGHJKMNPQRSTUVWXYZ23456789]") ~= nil)
+	expectFalse(code:match("[^ABCDEFGHJKLMNPQRSTUVWXYZ23456789]") ~= nil, "A-Z without I and O, digits 2-9")
 end })
 
 table.insert(tests, { name = "SeededRng.randomCode: defaults to length 6 when called with no argument", fn = function()
@@ -6568,23 +6568,27 @@ table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing
 	expectEqual(WorldMap.sceneArtFor("garden_terrace", function() return false end), "garden_terrace", "no fallback needed")
 end })
 
-table.insert(tests, { name = "Tutorial: step list covers the guided first hand, Round Select and the Newcomer popup, and replay is wired", fn = function()
+table.insert(tests, { name = "Tutorial: the step table covers the guided hands in order and the walkthrough is wired", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local order = {}
+	for i, step in ipairs(Steps.Steps) do order[step.id] = i end
+	local last = 0
+	for _, id in ipairs({ "menu_play", "select_round", "pick_pair", "play_pair", "pick_two_pair", "play_two_pair", "pick_flush", "play_flush", "pick_straight_flush", "play_straight_flush", "next_round", "done" }) do
+		expectTrue(order[id] ~= nil, "missing step " .. id)
+		expectTrue(order[id] > last, "step out of order: " .. id)
+		last = order[id]
+	end
 	-- Roblox has no `io` library: only the local runner can read the source file.
 	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
 	if not f then
-		return -- not running from the repo root (Studio): nothing to check
+		return -- not running from the repo root (Studio): nothing more to check
 	end
 	local src = f:read("*a")
 	f:close()
-	local last = 0
-	for _, id in ipairs({ "select_cards", "discard_info", "play_hand", "sidebar_info", "shop_patrons", "next_round", "waiting_for_round_select", "round_select_info", "newcomer_title" }) do
-		local at = src:find('id = "' .. id .. '"', 1, true)
-		expectTrue(at ~= nil, "missing step " .. id)
-		expectTrue(at > last, "step out of order: " .. id)
-		last = at
-	end
 	expectTrue(src:find("replay = replay", 1, true) ~= nil, "replay is exported")
-	expectTrue(src:find("Skip tutorial", 1, true) ~= nil, "skip link exists")
+	expectTrue(src:find("Hold to Skip", 1, true) ~= nil, "skipping needs a hold")
+	expectTrue(src:find("Active = true", 1, true) ~= nil or src:find("f.Active = true", 1, true) ~= nil, "the dim frames block clicks")
+	expectFalse(src:find("Keep these cards", 1, true) ~= nil, "no old optional-choice buttons")
 end })
 
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
@@ -7640,6 +7644,127 @@ table.insert(tests, { name = "ChallengeStart: every menu start state is start, c
 	for _, text in pairs(CS.Lines) do
 		expectTrue(#text <= 32 and not text:find("%-%-"), "short and dash free: " .. text)
 	end
+end })
+
+table.insert(tests, { name = "Tutorial: one action per step, short text, cannot advance without it, skip needs the hold", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local seen = {}
+	for _, step in ipairs(Steps.Steps) do
+		expectFalse(seen[step.id], "unique step id " .. step.id)
+		seen[step.id] = true
+		expectTrue(type(step.action) == "string", step.id .. " has exactly one action")
+		local words = 0
+		for _ in step.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= Steps.MAX_WORDS, step.id .. " text is short: " .. words .. " words")
+		expectFalse(step.text:find("%-%-") ~= nil or step.text:find("\226\128\148") ~= nil, step.id .. " has no dash marks")
+		expectFalse((" " .. step.text:lower() .. " "):find(" or ") ~= nil, step.id .. " offers no choice")
+		if step.action ~= "ok" then expectTrue(step.target ~= nil, step.id .. " points at a target") end
+	end
+	local m = Steps.new()
+	expectEqual(m:current().id, "menu_play")
+	expectEqual(m:report("play_hand"), "wrong", "the wrong deliberate action does not advance")
+	expectEqual(m:current().id, "menu_play")
+	expectEqual(m:report("pick", { selected = { [1] = true } }), "ignored", "selecting is not wrong, it is not the step either")
+	expectEqual(m:report("menu_play"), "advanced")
+	expectEqual(m:report("menu_play"), "wrong", "doing the finished step again is wrong now")
+	expectEqual(m:report("select_round"), "advanced")
+	-- pick the exact pair: slots 1 and 2
+	expectEqual(m:current().id, "pick_pair")
+	expectEqual(m:report("play_hand"), "wrong", "cannot play before picking")
+	expectEqual(m:report("pick", { scripted = true, selected = { [1] = true } }), "ignored", "one of the two is not enough")
+	expectEqual(m:report("pick", { scripted = true, selected = { [1] = true, [3] = true } }), "ignored", "a wrong card does not count")
+	expectEqual(m:report("pick", { scripted = true, selected = { [1] = true, [2] = true, [3] = true } }), "ignored", "an extra card does not count")
+	expectEqual(m:report("pick", { scripted = true, selected = { [1] = true, [2] = true } }), "advanced")
+	expectEqual(m:current().id, "play_pair")
+	expectEqual(m:report("play_hand"), "advanced")
+	-- an unscripted replay accepts any selection
+	local replay = Steps.new()
+	replay:catchUp("pick")
+	expectEqual(replay:report("pick", { scripted = false, selected = { [4] = true } }), "advanced")
+	-- finish the whole list
+	local full = Steps.new()
+	full:report("menu_play"); full:report("select_round")
+	for _, step in ipairs(Steps.Steps) do
+		if step.action == "pick" then
+			local sel = {}
+			for i = 1, step.count do sel[i] = true end
+			expectEqual(full:report("pick", { scripted = true, selected = sel }), "advanced", step.id)
+		elseif step.action == "play_hand" or step.action == "next_round" or step.action == "ok" then
+			expectEqual(full:report(step.action), "advanced", step.id)
+		end
+	end
+	expectTrue(full:finished() and not full:skipped(), "completing every step finishes it")
+	-- catch up: the Shop appears early
+	local early = Steps.new()
+	early:report("menu_play"); early:report("select_round")
+	expectTrue(early:catchUp("next_round"))
+	expectEqual(early:current().id, "next_round")
+	-- skip needs the full hold
+	local sk = Steps.new()
+	local hold = sk:skipHold()
+	hold:press(0)
+	expectFalse(hold:update(1.0), "a short press does not skip")
+	hold:release(1.2)
+	expectFalse(hold:update(5), "releasing cancels")
+	hold:press(10)
+	expectTrue(hold:update(11.5), "the full 1.5s hold confirms the skip")
+	sk:skip()
+	expectTrue(sk:finished() and sk:skipped())
+	expectEqual(sk:current(), nil)
+end })
+
+table.insert(tests, { name = "TutorialScript: scripted hands name an exact combo and lose no cards", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialScript)
+	local Deck = require(script.Parent.Parent.Engine.Deck)
+	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
+	local want = { "Pair", "Two Pair", "Flush", "Straight Flush" }
+	for stage, expected in ipairs(want) do
+		local deck = Deck.shuffle(Deck.newStandardDeck(), function(n) return (n * 7919) % n + 1 end)
+		local state = { deck = deck, hand = Deck.draw(deck, 8) }
+		local before = #state.deck + #state.hand
+		expectTrue(TS.applyStage(state, stage), "stage " .. stage .. " applies")
+		expectEqual(#state.hand, 8, "the hand keeps its size")
+		expectEqual(#state.deck + #state.hand, before, "no cards are created or lost")
+		-- every card is unique
+		local seen = {}
+		for _, list in ipairs({ state.hand, state.deck }) do
+			for _, c in ipairs(list) do
+				local k = c.rank .. c.suit
+				expectFalse(seen[k], "unique card " .. k)
+				seen[k] = true
+			end
+		end
+		-- the first targetCount cards are the named combo
+		local n = TS.targetCount(stage)
+		local target = {}
+		for i = 1, n do target[i] = state.hand[i] end
+		local result = HandEvaluator.evaluate(target)
+		expectEqual(result.name or result.handName or result, expected, "stage " .. stage .. " is a " .. expected)
+		-- the later stages' targets are still in the deck or hand
+		for later = stage + 1, #TS.Stages do
+			for _, t in ipairs(TS.Stages[later].targets) do
+				local found = false
+				for _, list in ipairs({ state.hand, state.deck }) do
+					for _, c in ipairs(list) do
+						if c.rank == t[1] and c.suit == t[2] then found = true end
+					end
+				end
+				expectTrue(found, "later target still available: " .. t[1] .. t[2])
+			end
+		end
+		-- the filler cards do not turn the whole hand into something better than the stage by accident
+		-- (fillers have distinct ranks that differ from the targets')
+		local ranks = {}
+		for i = n + 1, #state.hand do
+			expectFalse(ranks[state.hand[i].rank], "filler ranks are distinct")
+			ranks[state.hand[i].rank] = true
+			for j = 1, n do
+				expectTrue(state.hand[i].rank ~= state.hand[j].rank, "no filler pairs with a target")
+			end
+		end
+	end
+	expectFalse(TS.applyStage({ deck = {}, hand = {} }, 1), "missing target cards leave the hand alone")
+	expectFalse(TS.applyStage({ deck = {}, hand = {} }, 9))
 end })
 
 return tests

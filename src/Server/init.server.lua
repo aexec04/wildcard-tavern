@@ -31,6 +31,7 @@ local Seasons = require(Engine.Seasons) -- limited-time seasonal set (dates, unl
 local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local RunAbandon = require(Engine.RunAbandon) -- Settings > Restart Run rule
+local TutorialScript = require(Engine.TutorialScript) -- scripted first-run hands (pair, two pair, flush, straight flush)
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
@@ -871,6 +872,7 @@ local function serializeState(session, player)
 		-- saved flag itself still flips true on dismiss (MarkTutorialSeen-
 		-- Remote is unchanged) -- it's only ever ignored in Studio, and the
 		-- client's own tutorialAutoShown guard keeps it to once per session.
+		tutorialStage = session.tutorialStage, -- 1..4 while the scripted tutorial hands are being dealt
 		hasSeenTutorial = (function()
 			local profile = profiles[player]
 			if not profile then
@@ -1296,6 +1298,9 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		weeklyDateKey = isWeekly and seedLabel or nil,
 		isSeeded = isSeeded,
 		seedCode = isSeeded and seedLabel or nil,
+		-- First-run tutorial: a brand-new player's first normal run is dealt scripted hands (stage 1 to 4) so the
+		-- guided steps can name an exact combo. nil for returning players and every seeded mode.
+		tutorialStage = (seededRng == nil and profile and profile.hasSeenTutorial == false) and 1 or nil,
 	}
 
 	if profile then
@@ -1465,8 +1470,16 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 	if result.roundWon then
 		session.phase = "shop"
 		openShop(session)
+		session.tutorialStage = nil -- the round ended: the scripted hands are done
 	elseif result.runOver then
 		session.phase = "gameover"
+		session.tutorialStage = nil
+	elseif session.tutorialStage then
+		-- next scripted hand: two pair, then a flush, then a straight flush; then the deal is normal again
+		session.tutorialStage = session.tutorialStage + 1
+		if session.tutorialStage > #TutorialScript.Stages or not TutorialScript.applyStage(session.state, session.tutorialStage) then
+			session.tutorialStage = nil
+		end
 	end
 
 	local profile = profiles[player]
@@ -2110,6 +2123,11 @@ SelectRoundRemote.OnServerEvent:Connect(function(player)
 	WorldMap.fillDefault(session.state) -- no road picked at a fork: take the default one
 	session.minigame = nil
 	session.phase = "playing"
+	if session.tutorialStage and profiles[player] and profiles[player].hasSeenTutorial == false then
+		TutorialScript.applyStage(session.state, session.tutorialStage) -- stage 1: the pair
+	else
+		session.tutorialStage = nil
+	end
 	pushState(player)
 end)
 

@@ -985,6 +985,7 @@ end)
 -- panel can never leave the menu dead.
 menuPlayButton.MouseButton1Click:Connect(function()
 	playClickSfx()
+	require(script.TutorialBus).fire("menu_play")
 	menuFrame.Visible = false
 	root.Visible = true
 	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
@@ -1412,6 +1413,16 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
 	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
+	pcall(function() -- tutorial targets owned by other modules (Client/TutorialBus.lua)
+		local bus = require(script.TutorialBus)
+		bus.register("menuPlay", menuPlayButton)
+		bus.register("selectButton", function()
+			for _, d in ipairs(roundSelectFrame:GetDescendants()) do
+				if d.Name == "SelectButton" and d:IsA("TextButton") and d.Visible then return d end
+			end
+			return nil
+		end)
+	end)
 	pcall(function() -- Daily / Weekly / Seed starts from the menu (Client/ChallengeStart.lua)
 		require(script.ChallengeStart).init({
 			root = root, menuFrame = menuFrame, music = backgroundMusic,
@@ -1974,7 +1985,7 @@ local function onCardClicked(index)
 	end
 	local preview = selectedCount > 0 and computeHandPreview(selectedIndicesArray())
 	local weakHand = preview and preview.name == "High Card" and latestState.discardsRemaining > 0
-	Shop.tutorial.notifySelectionChanged(selectedCount, weakHand)
+	Shop.tutorial.notifySelectionChanged(selectedCount, weakHand, selected)
 end
 
 -- LAYOUT FEATURE 4 (Sort Hand): returns an array of indices INTO handData,
