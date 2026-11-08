@@ -37,6 +37,7 @@ return function(deps)
 	volumeBackdrop.Visible = false
 	volumeBackdrop.ZIndex = 20
 	volumeBackdrop.Parent = deps.screenGui
+	require(script.Parent.MenuTitleHider).bind(deps.screenGui, volumeBackdrop)
 
 	local volumePanel = Instance.new("Frame")
 	volumePanel.Size = UDim2.new(0, 380, 0, 250)

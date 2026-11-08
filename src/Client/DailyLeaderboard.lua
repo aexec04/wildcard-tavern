@@ -88,6 +88,7 @@ return function(deps)
 	leaderboardBackdrop.Visible = false
 	leaderboardBackdrop.ZIndex = 20
 	leaderboardBackdrop.Parent = screenGui
+	require(script.Parent.MenuTitleHider).bind(screenGui, leaderboardBackdrop)
 
 	local leaderboardPanel = Instance.new("Frame")
 	leaderboardPanel.Size = UDim2.fromScale(0.5, 0.65)

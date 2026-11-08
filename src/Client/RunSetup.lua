@@ -78,6 +78,7 @@ return function(deps)
 	runSetupBackdrop.Visible = false
 	runSetupBackdrop.ZIndex = 25 -- above the in-game overlays; it's reachable from the menu too
 	runSetupBackdrop.Parent = screenGui
+	require(script.Parent.MenuTitleHider).bind(screenGui, runSetupBackdrop)
 
 	local runSetupPanel = Instance.new("Frame")
 	runSetupPanel.Size = UDim2.fromScale(0.6, 0.72)
@@ -89,7 +90,7 @@ return function(deps)
 	-- Painted background (PanelArt): flat panel color if the art id is missing.
 	local runSetupPanelArt = require(script.Parent.PanelArt).add(runSetupPanel, {
 		key = "run_setup_bg", scrim = { position = UDim2.fromScale(0, 0), size = UDim2.fromScale(1, 1) },
-		scrimTransparency = 0.35,
+		scrimTransparency = 0.2,
 	})
 	addSoftShadow(runSetupPanel, 18)
 
@@ -102,6 +103,14 @@ return function(deps)
 	runSetupTitle.Text = "Start a New Run"
 	runSetupTitle.ZIndex = 26
 	runSetupTitle.Parent = runSetupPanel
+
+	local GOLD = Color3.fromRGB(222, 182, 104)
+	local INK = Color3.fromRGB(60, 40, 22)
+	-- LayoutOrder bands: each header must sort directly before its own cards.
+	-- (The old Difficulty header used order 19, below Deck Variant cards numbered 3+,
+	-- so with more than 16 variants the header landed in the wrong place.)
+	local DECK_HEADER_ORDER, DECK_CARD_BASE = 1, 1
+	local DIFF_HEADER_ORDER, DIFF_CARD_BASE = 1000, 1000
 
 	local runSetupScroll = Instance.new("ScrollingFrame")
 	runSetupScroll.Size = UDim2.new(1, -30, 1, -110)
@@ -123,18 +132,22 @@ return function(deps)
 	-- reading the word -- Deck Variant is gold, Difficulty is crimson, and
 	-- every card below carries a matching accent stripe (see makePickCard).
 	local function makeRunSetupSectionLabel(text, icon, order, accentColor)
+		-- Wood plaque (dark wood fill, gold stroke, cream text) like the sidebar header.
 		local header = Instance.new("Frame")
-		header.Size = UDim2.new(1, 0, 0, 32)
-		header.BackgroundColor3 = accentColor
-		header.BackgroundTransparency = 0.75
+		header.Size = UDim2.new(1, 0, 0, 36)
+		header.BackgroundColor3 = Color3.fromRGB(86, 58, 34)
 		header.LayoutOrder = order
 		header.ZIndex = 26
 		header.Parent = runSetupScroll
-		polishPanel(header, 8)
+		roundCorner(header, 8)
+		local headerStroke = Instance.new("UIStroke")
+		headerStroke.Color = GOLD
+		headerStroke.Thickness = 2
+		headerStroke.Parent = header
 
 		local stripe = Instance.new("Frame")
-		stripe.Size = UDim2.new(0, 4, 1, -10)
-		stripe.Position = UDim2.new(0, 0, 0, 5)
+		stripe.Size = UDim2.new(0, 4, 1, -12)
+		stripe.Position = UDim2.new(0, 6, 0, 6)
 		stripe.BackgroundColor3 = accentColor
 		stripe.BorderSizePixel = 0
 		stripe.ZIndex = 27
@@ -142,13 +155,13 @@ return function(deps)
 		roundCorner(stripe, 2)
 
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, -20, 1, 0)
-		label.Position = UDim2.new(0, 14, 0, 0)
+		label.Size = UDim2.new(1, -30, 1, 0)
+		label.Position = UDim2.new(0, 20, 0, 0)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.GothamBold
-		label.TextSize = 17
+		label.TextSize = 18
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Color3.fromRGB(255, 240, 215)
+		label.TextColor3 = Color3.fromRGB(250, 235, 200)
 		label.Text = icon .. "  " .. text
 		label.ZIndex = 27
 		label.Parent = header
@@ -166,17 +179,22 @@ return function(deps)
 	local DECK_VARIANT_ACCENT = Color3.fromRGB(255, 200, 90)
 	local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
 
-	makeRunSetupSectionLabel("Deck Variant", "🃏", 1, DECK_VARIANT_ACCENT)
-	makeRunSetupSectionLabel("Difficulty", "⚔️", 19, DIFFICULTY_ACCENT)
+	makeRunSetupSectionLabel("Deck Variant", "🃏", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
+	makeRunSetupSectionLabel("Difficulty", "⚔️", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
 
 	local function makePickCard(parent, order, name, description, isSelected, accentColor)
 		local card = Instance.new("Frame")
-		card.Size = UDim2.new(1, 0, 0, 60)
-		card.BackgroundColor3 = isSelected and Color3.fromRGB(90, 70, 40) or Color3.fromRGB(60, 45, 32)
+		-- Parchment card: ink text; selected = darker fill, gold 2px stroke, checkmark.
+		card.Size = UDim2.new(1, 0, 0, 66)
+		card.BackgroundColor3 = isSelected and Color3.fromRGB(196, 168, 118) or Color3.fromRGB(222, 198, 150)
 		card.LayoutOrder = order
 		card.ZIndex = 26
 		card.Parent = parent
-		polishPanel(card, 10)
+		roundCorner(card, 10)
+		local cardStroke = Instance.new("UIStroke")
+		cardStroke.Color = isSelected and GOLD or INK
+		cardStroke.Thickness = isSelected and 2 or 1.5
+		cardStroke.Parent = card
 
 		local stripe = Instance.new("Frame")
 		stripe.Size = UDim2.new(0, 4, 1, -12)
@@ -188,26 +206,26 @@ return function(deps)
 		roundCorner(stripe, 2)
 
 		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size = UDim2.new(1, -30, 0, 22)
+		nameLabel.Size = UDim2.new(1, -30, 0, 24)
 		nameLabel.Position = UDim2.new(0, 16, 0, 4)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Font = Enum.Font.GothamBold
-		nameLabel.TextSize = 15
+		nameLabel.TextSize = 17
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
+		nameLabel.TextColor3 = INK
 		nameLabel.Text = (isSelected and "✓ " or "") .. name
 		nameLabel.ZIndex = 26
 		nameLabel.Parent = card
 
 		local descLabel = Instance.new("TextLabel")
-		descLabel.Size = UDim2.new(1, -30, 0, 30)
-		descLabel.Position = UDim2.new(0, 16, 0, 26)
+		descLabel.Size = UDim2.new(1, -30, 0, 34)
+		descLabel.Position = UDim2.new(0, 16, 0, 28)
 		descLabel.BackgroundTransparency = 1
 		descLabel.Font = Enum.Font.Gotham
-		descLabel.TextSize = 13
+		descLabel.TextSize = 15
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = Color3.fromRGB(210, 195, 175)
+		descLabel.TextColor3 = INK
 		descLabel.Text = description
 		descLabel.ZIndex = 26
 		descLabel.Parent = card
@@ -234,7 +252,7 @@ return function(deps)
 		end
 		deckVariantCards = {}
 		for i, variant in ipairs(DeckVariants.Definitions) do
-			local card, clickCatcher = makePickCard(runSetupScroll, 2 + i, variant.name, variant.description, variant.id == selectedDeckVariantId, DECK_VARIANT_ACCENT)
+			local card, clickCatcher = makePickCard(runSetupScroll, DECK_CARD_BASE + i, variant.name, variant.description, variant.id == selectedDeckVariantId, DECK_VARIANT_ACCENT)
 			table.insert(deckVariantCards, card)
 			table.insert(newlyBuiltCards, card)
 			clickCatcher.MouseButton1Click:Connect(function()
@@ -249,7 +267,7 @@ return function(deps)
 		end
 		difficultyCards = {}
 		for i, tier in ipairs(DifficultyTiers.Definitions) do
-			local card, clickCatcher = makePickCard(runSetupScroll, 20 + i, tier.name, tier.description, tier.id == selectedDifficultyId, DIFFICULTY_ACCENT)
+			local card, clickCatcher = makePickCard(runSetupScroll, DIFF_CARD_BASE + i, tier.name, tier.description, tier.id == selectedDifficultyId, DIFFICULTY_ACCENT)
 			table.insert(difficultyCards, card)
 			table.insert(newlyBuiltCards, card)
 			clickCatcher.MouseButton1Click:Connect(function()

@@ -52,6 +52,7 @@ return function(deps)
 	settingsBackdrop.Visible = false
 	settingsBackdrop.ZIndex = 20
 	settingsBackdrop.Parent = deps.screenGui
+	require(script.Parent.MenuTitleHider).bind(deps.screenGui, settingsBackdrop)
 
 	local settingsPanel = Instance.new("Frame")
 	settingsPanel.Size = UDim2.fromScale(0.5, 0.8)

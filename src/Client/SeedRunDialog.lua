@@ -54,6 +54,7 @@ return function(deps)
 	seedBackdrop.Visible = false
 	seedBackdrop.ZIndex = 35
 	seedBackdrop.Parent = screenGui
+	require(script.Parent.MenuTitleHider).bind(screenGui, seedBackdrop)
 
 	local seedPanel = Instance.new("Frame")
 	seedPanel.Size = UDim2.new(0, 360, 0, 210)
