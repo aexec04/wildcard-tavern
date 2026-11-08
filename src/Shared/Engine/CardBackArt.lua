@@ -6,4 +6,13 @@
 ]]
 
 return {
+	["classic"] = "rbxassetid://111262009384494",
+	["closing_lantern"] = "rbxassetid://139393984601071",
+	["ember_hours"] = "rbxassetid://85606575735220",
+	["festival_ribbon"] = "rbxassetid://134205992641319",
+	["gilded_ledger"] = "rbxassetid://139200255779297",
+	["hall_banner"] = "rbxassetid://131532003385284",
+	["kitchen_checks"] = "rbxassetid://79128290260860",
+	["starlit_keeper"] = "rbxassetid://109033841832967",
+	["winter_frost"] = "rbxassetid://72796900071534",
 }
