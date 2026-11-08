@@ -1,7 +1,9 @@
+local BackgroundArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BackgroundArt"))
+
 return {
 	menuBackground = "rbxassetid://103951896085634",
-	shopBackground = "rbxassetid://0",
-	gameOverWinBackground = "rbxassetid://0",
+	shopBackground = BackgroundArt.shop_bg or "rbxassetid://0",
+	gameOverWinBackground = BackgroundArt.game_over_win_bg or "rbxassetid://0",
 	cardFaceTemplate = "rbxassetid://104840515050032",
 	cardBackTemplate = "rbxassetid://109450269406536",
 

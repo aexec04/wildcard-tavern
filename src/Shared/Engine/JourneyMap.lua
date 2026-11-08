@@ -24,6 +24,7 @@
 local CosmeticSets = require(script.Parent.CosmeticSets)
 local CardBacks = require(script.Parent.CardBacks)
 local Achievements = require(script.Parent.Achievements)
+local BackgroundArt = require(script.Parent.BackgroundArt)
 
 local JourneyMap = {}
 
@@ -67,7 +68,7 @@ JourneyMap.Nights = {
 -- Painted map image. Fill in a real id; "rbxassetid://0" (or a failed load)
 -- falls back to the UI-built parchment look.
 JourneyMap.Config = {
-	journeyMapImage = "rbxassetid://0",
+	journeyMapImage = BackgroundArt.journey_map or "rbxassetid://0",
 	mapAspect = 2.8, -- canvas width / height; the image should match it
 }
 

@@ -27,6 +27,7 @@
 
 local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
+local BackgroundArt = require(script.Parent.BackgroundArt)
 
 local CosmeticSets = {}
 
@@ -53,7 +54,7 @@ CosmeticSets.Definitions = {
 		icon = "❄",
 		description = "Snow on the windows and a warm fire inside.",
 		cardBackId = "winter_frost",
-		backdropImage = "rbxassetid://0", -- TODO art: tavern in winter
+		backdropImage = BackgroundArt.backdrop_winter_evening or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 190, 210, 245 },
 			overlay = { color = { 60, 100, 170 }, transparency = 0.86 },
@@ -68,7 +69,7 @@ CosmeticSets.Definitions = {
 		icon = "🎊",
 		description = "Lanterns and ribbons for a night of celebration.",
 		cardBackId = "festival_ribbon",
-		backdropImage = "rbxassetid://0", -- TODO art: tavern festival
+		backdropImage = BackgroundArt.backdrop_festival_night or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 235, 205 },
 			overlay = { color = { 255, 170, 80 }, transparency = 0.88 },
@@ -86,7 +87,7 @@ CosmeticSets.Definitions = {
 		icon = "🏮",
 		description = "Dim lamps and a quiet room as the night winds down.",
 		cardBackId = "closing_lantern",
-		backdropImage = "rbxassetid://0", -- TODO art: tavern at closing time
+		backdropImage = BackgroundArt.backdrop_closing_time or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 160, 130, 105 },
 			overlay = { color = { 50, 25, 10 }, transparency = 0.8 },
@@ -101,7 +102,7 @@ CosmeticSets.Definitions = {
 		icon = "✨",
 		description = "The tavern dressed in gold for a grand evening.",
 		cardBackId = "gilded_ledger",
-		backdropImage = "rbxassetid://0", -- TODO art: tavern gala
+		backdropImage = BackgroundArt.backdrop_golden_gala or "rbxassetid://0",
 		unlock = { kind = "gamepass", passId = "set_golden_gala" },
 	},
 }

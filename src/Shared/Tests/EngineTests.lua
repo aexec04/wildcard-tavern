@@ -4624,4 +4624,27 @@ table.insert(tests, { name = "Collection: every entry resolves to ContentArt or 
 	end
 end })
 
+table.insert(tests, { name = "Wired background art: shop, win, journey map and set backdrops resolve to real ids", fn = function()
+	local BackgroundArt = require(script.Parent.Parent.Engine.BackgroundArt)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local function isId(v) return type(v) == "string" and v:find("^rbxassetid://%d+$") ~= nil and v ~= "rbxassetid://0" end
+	for _, key in ipairs({ "round_select_bg", "shop_bg", "game_over_win_bg", "journey_map",
+		"backdrop_winter_evening", "backdrop_festival_night", "backdrop_closing_time", "backdrop_golden_gala" }) do
+		expectTrue(isId(BackgroundArt[key]), "BackgroundArt." .. key)
+		expectEqual(ContentArt.getImageId("backgrounds", key), BackgroundArt[key])
+	end
+	expectEqual(JourneyMap.Config.journeyMapImage, BackgroundArt.journey_map)
+	local want = { winter_evening = "backdrop_winter_evening", festival_night = "backdrop_festival_night",
+		closing_time = "backdrop_closing_time", golden_gala = "backdrop_golden_gala" }
+	local seen = 0
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		local key = want[set.id]
+		if key then
+			seen = seen + 1
+			expectEqual(set.backdropImage, BackgroundArt[key])
+		end
+	end
+	expectEqual(seen, 4)
+end })
+
 return tests
