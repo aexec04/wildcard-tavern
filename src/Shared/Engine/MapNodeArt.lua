@@ -6,4 +6,15 @@
 ]]
 
 return {
+	["cozy_loft"] = "rbxassetid://124668504651296",
+	["endless_portal"] = "rbxassetid://77936047292670",
+	["front_porch"] = "rbxassetid://133763032922263",
+	["garden_terrace"] = "rbxassetid://82404979813497",
+	["grand_hall"] = "rbxassetid://94950056762344",
+	["hero_token"] = "rbxassetid://130931005937494",
+	["keepers_table"] = "rbxassetid://83310836988088",
+	["rooftop_view"] = "rbxassetid://127866672244430",
+	["snug_booth"] = "rbxassetid://75256045322915",
+	["warm_kitchen"] = "rbxassetid://114993489995778",
+	["wax_seal_gold"] = "rbxassetid://96195614335964",
 }
