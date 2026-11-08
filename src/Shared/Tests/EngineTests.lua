@@ -5289,6 +5289,24 @@ table.insert(tests, { name = "RigWalk: AnimationConstraints (modern avatars) bec
 	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { Parent = parts.Head } }), nil, "half-built constraint is skipped")
 	expectEqual(RigWalk.fromConstraint({ Name = "x", Attachment0 = { CFrame = 1 }, Attachment1 = { Parent = parts.Head } }), nil, "orphan attachment is skipped")
 end })
+table.insert(tests, { name = "RigWalk: hasTransform / isWrapper never read .animated on a real joint Instance", fn = function()
+	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
+	-- Stand-in for a Weld / Motor6D: unknown field reads error, like a real Instance.
+	local function fakeInstance(class)
+		return setmetatable({ Name = class }, { __index = function(_, k)
+			error(tostring(k) .. " is not a valid member of " .. class)
+		end })
+	end
+	local motor, weld = fakeInstance("Motor6D"), fakeInstance("Weld")
+	local isMotor = function(j) return j.Name == "Motor6D" end
+	local wrapped = RigWalk.fromConstraint({ Name = "c",
+		Attachment0 = { Parent = {}, CFrame = 1 }, Attachment1 = { Parent = {}, CFrame = 2 } })
+	expectTrue(RigWalk.hasTransform(motor, isMotor), "Motor6D takes a pose")
+	expectTrue(not RigWalk.hasTransform(weld, isMotor), "Weld does not")
+	expectTrue(RigWalk.hasTransform(wrapped, isMotor), "wrapped constraint takes a pose")
+	expectTrue(RigWalk.isWrapper(wrapped), "wrapper detected")
+	expectTrue(not RigWalk.isWrapper(motor) and not RigWalk.isWrapper(weld), "instances are not wrappers")
+end })
 table.insert(tests, { name = "RigWalk: orders joints from the root, walks accessory welds backwards, skips half-built joints", fn = function()
 	local RigWalk = require(script.Parent.Parent.Engine.RigWalk)
 	local root, torso, head, arm, hat, orphan, lost = {}, {}, {}, {}, {}, {}, {}

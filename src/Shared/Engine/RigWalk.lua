@@ -55,6 +55,21 @@ function RigWalk.fromConstraint(c)
 		animated = true, source = c }
 end
 
+-- True for the wrapper tables made by fromConstraint. Real Instances (Weld, Motor6D) are userdata and error
+-- on unknown field reads, so never index `.animated` on a joint without this check first.
+function RigWalk.isWrapper(j)
+	return type(j) == "table" and rawget(j, "animated") == true
+end
+
+-- True when the joint takes a pose rotation: a wrapped AnimationConstraint or a real Motor6D.
+-- isMotor(j) is called only for non-wrappers (CharacterStage passes j:IsA("Motor6D")).
+function RigWalk.hasTransform(j, isMotor)
+	if RigWalk.isWrapper(j) then
+		return true
+	end
+	return isMotor(j) == true
+end
+
 function RigWalk.walk(joints, root)
 	local all = {}
 	for _, j in ipairs(joints) do

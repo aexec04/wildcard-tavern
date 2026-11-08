@@ -59,7 +59,10 @@ local JOINT_KEYS = { "waist", "neck", "rShoulder", "lShoulder", "rHip", "lHip" }
 -- Motor6D and AnimationConstraint joints (the latter wrapped by RigWalk.fromConstraint) take a pose rotation;
 -- plain welds do not.
 local function hasTransform(j)
-	return j.animated == true or j:IsA("Motor6D")
+	-- Never read j.animated on a real Instance (it errors); RigWalk.hasTransform checks the type first.
+	return RigWalk.hasTransform(j, function(inst)
+		return inst:IsA("Motor6D")
+	end)
 end
 
 local function reduced()
@@ -96,7 +99,7 @@ local function collectJoints(model, root)
 	local healed = RigWalk.heal(all, function(name)
 		return model:FindFirstChild(name, true)
 	end, function(j)
-		return not j.animated and j.Parent and j.Parent.Name or nil
+		return not RigWalk.isWrapper(j) and j.Parent and j.Parent.Name or nil
 	end)
 	if healed > 0 then
 		warn(string.format("[CharacterStage] healed %d joints with unset Part0/Part1", healed))
