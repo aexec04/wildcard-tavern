@@ -5361,6 +5361,107 @@ table.insert(tests, { name = "WorldMap: recordWorldProgress counts each cleared 
 	expectEqual(#WorldMap.defaultRoute(), 8)
 end })
 
+-- Plays a run along `route` (array of stops) without playing hands: advances round by round, taking the
+-- scripted road at each fork, and records the numbers that decide difficulty.
+local function walkRoute(route, options)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local state = RunState.new(options, function(_n) return 1 end)
+	local rows = {}
+	local function record()
+		rows[#rows + 1] = { night = state.night, round = state.round, target = state.targetScore,
+			hands = state.handsRemaining, discards = state.discardsRemaining, boss = state.isBossRound }
+	end
+	record()
+	while not (state.night == 8 and state.round == state.config.roundsPerNight) do
+		state.roundOver = true
+		RunState.advanceToNextRound(state)
+		if WorldMap.pendingChoices(state) then
+			WorldMap.chooseRoad(state, route[state.night], "roundSelect")
+		end
+		record()
+	end
+	return state, rows
+end
+
+table.insert(tests, { name = "World map balance: every one of the 18 routes has identical targets, hands and discards per Night", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local routes = WorldMap.allRoutes()
+	local _, baseline = walkRoute(routes[1])
+	expectEqual(#baseline, 24, "8 Nights of 3 rounds")
+	for _, route in ipairs(routes) do
+		local state, rows = walkRoute(route)
+		local key = table.concat(route, ">")
+		expectEqual(#rows, #baseline, key)
+		for i, row in ipairs(rows) do
+			expectEqual(row.target, baseline[i].target, "target Night " .. row.night .. " round " .. row.round .. " on " .. key)
+			expectEqual(row.hands, baseline[i].hands, "hands on " .. key)
+			expectEqual(row.discards, baseline[i].discards, "discards on " .. key)
+			expectEqual(row.boss, baseline[i].boss)
+		end
+		-- the run really walked that road
+		expectEqual(table.concat(state.worldRoute, ">"), key)
+		-- difficulty rises with the Night, never with the road: each Night's boss round is the biggest target
+		local lastBoss = 0
+		for _, row in ipairs(rows) do
+			if row.boss then
+				expectTrue(row.target > lastBoss, "boss targets climb on " .. key)
+				lastBoss = row.target
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "World map balance: rewards per route stay in the same range and the default route is unchanged", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local JourneyMap = require(script.Parent.Parent.Engine.JourneyMap)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local order = {}
+	for i, id in ipairs(CollectionBook.RarityOrder) do order[id] = i end
+	local lo, hi = math.huge, 0
+	for _, route in ipairs(WorldMap.allRoutes()) do
+		local profile = PlayerProfile.new()
+		JourneyMap.recordNightsCleared(profile, 8)
+		local granted = BiomeRewards.recordProgress(profile, route, 8, { mapTokens = 0 })
+		-- every route ends at the Keeper with the tavern row; the number of rewards is bounded
+		expectTrue(profile.unlockedCardBackIds.gala)
+		local score = 0
+		for _, r in ipairs(granted) do
+			local tab = (r.kind == "cardBack" and "backs") or (r.kind == "set" and "sets") or "titles"
+			score = score + (order[CollectionBook.rarityForId(tab, r.id)] or 1)
+		end
+		lo, hi = math.min(lo, score), math.max(hi, score)
+	end
+	-- no road is a free lunch or a dead end: the reward value of the richest route is under 2x the poorest
+	expectTrue(lo > 0)
+	expectTrue(hi <= lo * 2, string.format("reward value ranges %d to %d", lo, hi))
+	-- the default route is the old eight Nights: the same stops and the same Night rewards
+	local def = WorldMap.defaultRoute()
+	for n, night in ipairs(JourneyMap.Nights) do
+		expectEqual(WorldMap.Stops[def[n]].art, night.art)
+	end
+end })
+
+table.insert(tests, { name = "World map balance: Daily, Weekly and Seed boards get a fixed 8-Night route that is the same for everyone", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local labels = { "daily:2026-11-08", "daily:2026-11-09", "weekly:2026-W45", "weekly:2026-W46" }
+	for i = 1, 25 do
+		labels[#labels + 1] = "seed:CODE" .. i
+	end
+	for _, label in ipairs(labels) do
+		local plan = WorldMap.routeFromSeed(label)
+		expectTrue(WorldMap.isValidRoute(plan), label)
+		expectEqual(#plan, 8)
+		expectEqual(plan[8], "keepers_table")
+		-- two players on the same board walk the same road, whatever they click
+		local a = walkRoute(plan, { worldPlan = plan })
+		local b = walkRoute(WorldMap.defaultRoute(), { worldPlan = plan })
+		expectEqual(table.concat(a.worldRoute, ">"), table.concat(plan, ">"), label)
+		expectEqual(table.concat(b.worldRoute, ">"), table.concat(plan, ">"), "a choice attempt cannot change " .. label)
+	end
+end })
+
 table.insert(tests, { name = "BiomeRewards: every reward resolves, has a rarity, a flavor text and a prompt-able id", fn = function()
 	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)

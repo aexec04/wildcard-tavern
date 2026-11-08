@@ -1,7 +1,7 @@
 # Wildcard Tavern — Status
 
 - **3D room:** removed. The tavern is a 2D painted backdrop (Client/ArtAssets.lua); there is no 3D scene, building load, camera or Lighting setup. `TavernScene.server.lua` and its marketplace building load were deleted in `d68922f`; stale comments pointing at them were cleaned up on 2026-11-03.
-- **Tests:** `lua5.3 tools/run_tests_local.lua` (any Lua 5.1+ works, e.g. plain `lua`) — 393 passing as of 2026-11-08.
+- **Tests:** `lua5.3 tools/run_tests_local.lua` (any Lua 5.1+ works, e.g. plain `lua`) — 430 passing as of 2026-11-08.
 - **Client hub:** `src/Client/init.client.lua` is at the 200-local limit for its main chunk. Add new code in modules or `do...end` blocks.
 - **One More Round (continue):** one per run, restoring the lost round to its start (`RunState.roundStartSnapshot`, taken in `startRound`; the rng isn't rewound). Each player gets one free per UTC day (`PlayerProfile.freeContinueDateKey`), offered before the paid Developer Product (`GamePasses.DeveloperProducts`, placeholder `productId = 0`; Studio grants it free). The server decides which one applies (`continueOffer`, `RequestContinue`, `ProcessReceipt`). Revived runs go to separate "Revived" Daily/Weekly boards (store names bucketed on `SeededRng.VERSION`) and don't count toward `bestNightReached`, `runsWon` or the achievements built on them. Game Over and the leaderboard (Standard/Revived toggle, default Standard) show a "Revived" badge.
 - **UI skin:** `VisualHelpers.polishPanel`/`polishButton` give every panel and button the sidebar look: gold ring, gold inner rim, gold corner brackets and studs on panels at least 56px, and a standard 6px corner radius (radius 20+ is kept for round medallions). `polishPanel(x, r, "wood")` is for menus and dialogs, `"parchment"` for reading screens. The ornaments are skipped on ScrollingFrames, see-through elements and anything holding a UIListLayout/UIGridLayout.
@@ -25,6 +25,8 @@
 - `GamePasses.lua:34` Fast Forward game pass, `gamePassId = 0` (speeds up scoring reveal)
 - `GamePasses.lua:41` Golden Gala Set game pass, `gamePassId = 0` (unlocks gala cosmetic set)
 - `GamePasses.lua:63` One More Round developer product, `productId = 0` (paid continue)
+
+**World map, still open:** (1) record Image ids for the generated art (4 regions, 13 map nodes, 8 decor, 27 scenes, 5 card backs, 5 titles, 5 hud pieces; decal ids are in `claude/OUTBOX.md`) and give the new decor and `side_*` / `game_*` icons a place in `JourneyMapScenery` / the side stop chips; (2) the Tavern Map is still drawn as the straight 8-node road (no fork roads, side stop detours or compass camera; the fork screen, side stop chips and minigames live on Round Select); (3) the 3 biome patrons and 2 recipes are not authored (shop pool and balance risk); (4) Studio checks of RoadChoice, CompassWheel, SideStopPanel, MinigamePanel and CharacterStage. Balance: `walkRoute` tests prove all 18 routes share the same targets, hands and discards per Night, and reward value stays within 2x across routes.
 
 **Non-blocking:**
 - Verify in Studio play: no "failed due to" asset errors. Not checked (no Studio MCP).
