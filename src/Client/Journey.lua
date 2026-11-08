@@ -916,6 +916,16 @@ return function(deps)
 	-- No tab row: the overlay always shows the Tavern Map at the large size. The old
 	-- "This Night" road (journeyMapScroll, journeyInfoBar, stage nodes) is entangled with
 	-- refreshJourneyImpl, so it stays built but is permanently hidden.
+	-- Hidden at build time and kept hidden if anything flips Visible back on (a stray 88x88 frame from
+	-- this list showed over the Tavern Map). Nothing may show the old list again.
+	for _, old in ipairs({ journeyMapScroll, journeyInfoBar }) do
+		old.Visible = false
+		old:GetPropertyChangedSignal("Visible"):Connect(function()
+			if old.Visible then
+				old.Visible = false
+			end
+		end)
+	end
 	local function showMap()
 		journeyPanel.Size = UDim2.fromScale(0.92, 0.92)
 		mapView.setShown(true)

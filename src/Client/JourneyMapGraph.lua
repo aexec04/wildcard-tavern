@@ -483,7 +483,7 @@ return function(deps)
 				return false
 			end
 			for off = 0, math.max(canvasH, 200), 20 do
-				for _, dir in ipairs({ 1, -1 }) do
+				for _, dir in ipairs({ 0, 1, -1 }) do
 					local y = cy + dir * off
 					if y - h / 2 >= 0 and y + h / 2 <= canvasH and not clashAt(y) then
 						return cx, y

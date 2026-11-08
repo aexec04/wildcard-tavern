@@ -667,8 +667,11 @@ return function(deps)
 		local fx, fy = nodePixel(first)
 		if states[first] == "teaser" then
 			-- The tag (centred 40px right of hintX, about 290x36) must not sit on any graph node or label.
-			local _, hy = worldGraph.freeSpot(fx + 40, fy + nodeSize * 0.75 + 20, 290, 36)
-			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = fx, hintY = hy,
+			-- Beside the glowing node (right side, 14px gap), level with it, so it never reaches the node
+			-- below. FogBand places the tag's centre at hintX + 40, so hintX is shifted back by 40.
+			local tagCx = fx + nodeSize / 2 + 14 + 145
+			local _, hy = worldGraph.freeSpot(tagCx, fy, 290, 36)
+			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = tagCx - 40, hintY = hy,
 				animate = animate })
 		else
 			local px = nodePixel(first - 1)
