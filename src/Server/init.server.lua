@@ -2074,6 +2074,97 @@ StartDailyChallengeRemote.OnServerEvent:Connect(function(player)
 	startNewSession(player, nil, nil, SeededRng.new(seed), "daily", SeededRng.dailyDateKey())
 end)
 
+-- ===== Friends scope (Daily and Weekly) =====
+-- Friends tab: the player's Roblox friends (plus themselves) from the same store the Everyone
+-- board reads. DataStore-cheap: one GetSortedAsync page per store and one friend list per player,
+-- both cached for Leaderboards.FRIENDS_CACHE_SECONDS, so opening the tab repeatedly or many
+-- players asking at once costs at most one read per minute per store. Friends who are in this
+-- server also show their equipped card back and title (offline friends show none).
+local friendsPageCache = Leaderboards.newCache(Leaderboards.FRIENDS_CACHE_SECONDS, os.clock) -- [store name] = rows
+local friendListCache = Leaderboards.newCache(Leaderboards.FRIENDS_CACHE_SECONDS, os.clock) -- [userId] = { ids, names }
+
+local function getFriendList(player)
+	local cached = friendListCache.get(player.UserId)
+	if cached then return cached end
+	local ids, names = {}, {}
+	pcall(function()
+		local pages = Players:GetFriendsAsync(player.UserId)
+		local count = 0
+		while true do
+			for _, item in ipairs(pages:GetCurrentPage()) do
+				ids[item.Id] = true
+				names[item.Id] = item.Username
+				count += 1
+			end
+			if pages.IsFinished or count >= Leaderboards.MAX_FRIENDS then break end
+			pages:AdvanceToNextPageAsync()
+		end
+	end)
+	return friendListCache.set(player.UserId, { ids = ids, names = names })
+end
+
+Players.PlayerRemoving:Connect(function(p)
+	friendListCache.entries[p.UserId] = nil
+end)
+
+local function friendFlair(userId)
+	for p, profile in pairs(profiles) do
+		if p.UserId == userId and profile then
+			local backDef = profile.equippedCardBackId and CardBacks.getById(profile.equippedCardBackId)
+			local titleDef = profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
+			return backDef and backDef.name or nil, titleDef and titleDef.title or nil
+		end
+	end
+	return nil, nil
+end
+
+local function friendsBoardResult(player, store, storeName, board, dateKey)
+	local rows = friendsPageCache.get(storeName)
+	local ok = true
+	if not rows then
+		rows = {}
+		ok = pcall(function()
+			local pages = store:GetSortedAsync(false, Leaderboards.FRIENDS_PAGE_SIZE)
+			for _, entry in ipairs(pages:GetCurrentPage()) do
+				local userId = tonumber(entry.key)
+				if userId then
+					table.insert(rows, {
+						userId = userId,
+						depth = math.floor(entry.value / DAILY_SCORE_MULTIPLIER),
+						tips = entry.value % DAILY_SCORE_MULTIPLIER,
+					})
+				end
+			end
+		end)
+		if ok then friendsPageCache.set(storeName, rows) end
+	end
+	local friends = getFriendList(player)
+	local top = Leaderboards.friendRows(rows, friends.ids, player.UserId, 10)
+	local yourBest = nil
+	for _, row in ipairs(top) do
+		if row.userId == player.UserId then
+			yourBest = { depth = row.depth, tips = row.tips }
+		else
+			row.name = friends.names[row.userId] or "???"
+			row.cardBackName, row.titleText = friendFlair(row.userId)
+		end
+		-- the player's own row gets their own name and flair too
+		if row.userId == player.UserId then
+			row.name = player.Name
+			row.cardBackName, row.titleText = friendFlair(player.UserId)
+		end
+	end
+	return {
+		ok = ok,
+		board = board,
+		scope = Leaderboards.FRIENDS,
+		dateKey = dateKey,
+		top = top,
+		yourBest = yourBest,
+		yourBestOk = ok,
+	}
+end
+
 -- RemoteFunction, not RemoteEvent -- the client needs the actual
 -- leaderboard data BACK, not just a fire-and-forget notification. Always
 -- returns TODAY's board (no "browse past days" in this pass). Fetches 2
@@ -2087,7 +2178,7 @@ end)
 --
 -- PAID CONTINUE: `board` is optional, Leaderboards.STANDARD (the default)
 -- or Leaderboards.REVIVED; anything else falls back to Standard.
-GetDailyLeaderboardRemote.OnServerInvoke = function(player, board)
+GetDailyLeaderboardRemote.OnServerInvoke = function(player, board, scope)
 	if not Leaderboards.isBoard(board) then
 		board = Leaderboards.STANDARD
 	end
@@ -2099,6 +2190,9 @@ GetDailyLeaderboardRemote.OnServerInvoke = function(player, board)
 
 	local dateKey = SeededRng.dailyDateKey()
 	local store = getDailyStore(dateKey, board)
+	if scope == Leaderboards.FRIENDS then
+		return friendsBoardResult(player, store, Leaderboards.storeName("daily", board, dateKey), board, dateKey)
+	end
 
 	local top = {}
 	local ok = pcall(function()
@@ -2174,7 +2268,7 @@ StartWeeklyChallengeRemote.OnServerEvent:Connect(function(player)
 	startNewSession(player, nil, nil, SeededRng.new(seed), "weekly", SeededRng.weeklyDateKey())
 end)
 
-GetWeeklyLeaderboardRemote.OnServerInvoke = function(player, board)
+GetWeeklyLeaderboardRemote.OnServerInvoke = function(player, board, scope)
 	if not Leaderboards.isBoard(board) then
 		board = Leaderboards.STANDARD
 	end
@@ -2186,6 +2280,9 @@ GetWeeklyLeaderboardRemote.OnServerInvoke = function(player, board)
 
 	local weekKey = SeededRng.weeklyDateKey()
 	local store = getWeeklyStore(weekKey, board)
+	if scope == Leaderboards.FRIENDS then
+		return friendsBoardResult(player, store, Leaderboards.storeName("weekly", board, weekKey), board, weekKey)
+	end
 
 	local top = {}
 	local ok = pcall(function()

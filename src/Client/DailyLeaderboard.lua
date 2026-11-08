@@ -126,6 +126,9 @@ return function(deps)
 	-- ONE MORE ROUND: Standard/Revived toggle, right-aligned on the same row.
 	local standardTabButton = makeTabButton("Standard", -186, 1)
 	local revivedTabButton = makeTabButton("\u{1F4AB} Revived", -90, 1)
+	-- FRIENDS: toggles the board between everyone and only your Roblox friends (plus you).
+	local friendsTabButton = makeTabButton("\u{1F465} Friends", 192)
+	friendsTabButton.TextSize = 15
 
 	local leaderboardTitle = Instance.new("TextLabel")
 	leaderboardTitle.Size = UDim2.new(1, 0, 0, 26)
@@ -206,7 +209,7 @@ return function(deps)
 		end
 	end
 
-	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou)
+	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou, flair)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 34)
 		row.BackgroundColor3 = isYou and Color3.fromRGB(80, 60, 32) or Color3.fromRGB(50, 42, 34)
@@ -236,6 +239,10 @@ return function(deps)
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
 		nameLabel.Text = isYou and (name .. " (you)") or name
+		if flair and flair ~= "" then
+			nameLabel.Text = nameLabel.Text .. "  \u{2022}  " .. flair -- equipped title and card back (friends in this server)
+		end
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		nameLabel.ZIndex = 21
 		nameLabel.Parent = row
 
@@ -270,6 +277,8 @@ return function(deps)
 	local activeBoard = "daily"
 	-- ONE MORE ROUND: Leaderboards.STANDARD or Leaderboards.REVIVED.
 	local activeBucket = Leaderboards.STANDARD
+	-- FRIENDS: Leaderboards.EVERYONE or Leaderboards.FRIENDS.
+	local activeScope = Leaderboards.EVERYONE
 
 	local ACTIVE_TAB = Color3.fromRGB(110, 80, 40)
 	local IDLE_TAB = Color3.fromRGB(70, 55, 40)
@@ -278,6 +287,7 @@ return function(deps)
 		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and ACTIVE_TAB or IDLE_TAB
 		standardTabButton.BackgroundColor3 = (activeBucket == Leaderboards.STANDARD) and ACTIVE_TAB or IDLE_TAB
 		revivedTabButton.BackgroundColor3 = (activeBucket == Leaderboards.REVIVED) and ACTIVE_TAB or IDLE_TAB
+		friendsTabButton.BackgroundColor3 = (activeScope == Leaderboards.FRIENDS) and ACTIVE_TAB or IDLE_TAB
 	end
 
 	local function refreshLeaderboard()
@@ -296,10 +306,11 @@ return function(deps)
 		-- into the other tab's UI.
 		local requestedBoard = activeBoard
 		local requestedBucket = activeBucket
+		local requestedScope = activeScope
 
 		task.spawn(function()
 			local ok, result = pcall(function()
-				return remote:InvokeServer(requestedBucket)
+				return remote:InvokeServer(requestedBucket, requestedScope)
 			end)
 
 			-- The player may have closed the overlay (or the whole client
@@ -311,7 +322,7 @@ return function(deps)
 			-- Also bail if they've since switched tabs (see requestedBoard
 			-- above) -- that other tab's own refreshLeaderboard call is
 			-- already handling its own repaint.
-			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent or requestedBoard ~= activeBoard or requestedBucket ~= activeBucket then
+			if not leaderboardBackdrop.Visible or not leaderboardPanel.Parent or requestedBoard ~= activeBoard or requestedBucket ~= activeBucket or requestedScope ~= activeScope then
 				return
 			end
 
@@ -343,13 +354,18 @@ return function(deps)
 
 			local top = result.top or {}
 			if #top == 0 then
-				makeLeaderboardMessage("No scores yet " .. period .. ".")
+				makeLeaderboardMessage(requestedScope == Leaderboards.FRIENDS
+					and ("None of your friends have a score " .. period .. " yet.")
+					or ("No scores yet " .. period .. "."))
 				return
 			end
 
 			local localUserId = localPlayer and localPlayer.UserId
 			for i, entry in ipairs(top) do
-				makeLeaderboardRow(i, "#" .. tostring(i), entry.name or "???", entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId)
+				local flairParts = {}
+				if entry.titleText then table.insert(flairParts, entry.titleText) end
+				if entry.cardBackName then table.insert(flairParts, entry.cardBackName .. " back") end
+				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), entry.name or "???", entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
 			end
 		end)
 	end
@@ -386,6 +402,12 @@ return function(deps)
 		end
 	end)
 
+	friendsTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		activeScope = (activeScope == Leaderboards.FRIENDS) and Leaderboards.EVERYONE or Leaderboards.FRIENDS
+		refreshLeaderboard()
+	end)
+
 	OverlayManager.register("dailyLeaderboard", function()
 		popOut(leaderboardBackdrop, leaderboardPanel)
 	end)
@@ -394,6 +416,7 @@ return function(deps)
 		playClickSfx()
 		OverlayManager.closeAllExcept("dailyLeaderboard")
 		activeBucket = Leaderboards.STANDARD -- every open starts on Standard
+		activeScope = Leaderboards.EVERYONE -- and on the Everyone board
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end)

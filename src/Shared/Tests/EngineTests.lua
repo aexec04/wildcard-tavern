@@ -4953,6 +4953,32 @@ table.insert(tests, { name = "Journey fog: current + 3 revealed, +4 teaser, rest
 	for i = 1, 9 do expectEqual(s[i], "revealed") end
 end })
 
+table.insert(tests, { name = "Leaderboards: friends scope keeps only friends and self in board order; cache expires after its TTL", fn = function()
+	local entries = {
+		{ userId = 1, depth = 9 }, { userId = 2, depth = 8 }, { userId = 3, depth = 7 },
+		{ userId = 4, depth = 6 }, { userId = 5, depth = 5 },
+	}
+	local rows = Leaderboards.friendRows(entries, { [2] = true, [5] = true }, 4, 10)
+	expectEqual(#rows, 3)
+	expectEqual(rows[1].userId, 2)
+	expectEqual(rows[2].userId, 4) -- the player's own row stays in board order
+	expectEqual(rows[3].userId, 5)
+	expectEqual(rows[3].rank, 3)
+	expectEqual(#Leaderboards.friendRows(entries, {}, 99, 10), 0) -- no friends and not on the board
+	expectEqual(#Leaderboards.friendRows(entries, { [1] = true, [2] = true, [3] = true }, 99, 2), 2) -- limit
+	expectEqual(entries[2].rank, nil) -- input rows are not mutated
+	expectTrue(Leaderboards.isScope("friends") and Leaderboards.isScope("everyone"))
+	expectFalse(Leaderboards.isScope("nope"))
+	local now = 100
+	local cache = Leaderboards.newCache(60, function() return now end)
+	expectEqual(cache.get("a"), nil)
+	cache.set("a", "x")
+	now = 159
+	expectEqual(cache.get("a"), "x")
+	now = 160
+	expectEqual(cache.get("a"), nil)
+end })
+
 table.insert(tests, { name = "PatronLines: every Patron has its own short, kid-safe line; unknown ids fall back", fn = function()
 	local PatronLines = require(script.Parent.Parent.Engine.PatronLines)
 	local banned = { "balatro", "beer", "wine", "booze", "cocktail", "whiskey", "drunk", "stupid", "idiot", "loser", "dumb" }
