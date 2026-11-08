@@ -472,15 +472,8 @@ return function(deps)
 	journeyAvatarFallback.ZIndex = 25
 	journeyAvatarFallback.Parent = journeyAvatarMarker
 
-	task.spawn(function()
-		local ok, content = pcall(function()
-			return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-		end)
-		if ok and content and content ~= "" then
-			journeyAvatarMarker.Image = content
-			journeyAvatarFallback.Visible = false
-		end
-	end)
+	-- The headshot (GetUserThumbnailAsync) fetch was removed with the "This Night" tab;
+	-- the old road UI below stays built but permanently hidden (see showMap).
 
 	-- (No continuous idle-bob animation -- it would fight with the walk/hop
 	-- tween below for control of the same Position property. The hop-on-walk
@@ -909,10 +902,6 @@ return function(deps)
 
 	-- ===== META LAYER: "Tavern Map" tab (8 named Nights + Endless) =====
 	-- The original round-by-round road is kept as the "This Night" tab.
-	local ROAD_TITLE = journeyTitle.Text
-	local ROAD_SUBTITLE = journeySubtitle.Text
-	local ROAD_TITLE_COLOR = journeyTitle.TextColor3
-	local ROAD_SUBTITLE_COLOR = journeySubtitle.TextColor3
 	local mapView = require(script.Parent.JourneyMapView)({
 		parent = journeyPanel,
 		polishPanel = polishPanel,
@@ -924,28 +913,15 @@ return function(deps)
 		playClickSfx = playClickSfx,
 		polishButton = polishButton,
 	})
-	local activeTab = "map"
-	local tabButtons = {}
-
-	local function setTab(tabId)
-		activeTab = tabId
-		local isMap = tabId == "map"
-		-- The map is a near-full-screen overlay; "This Night" keeps the compact panel.
-		journeyPanel.Size = isMap and UDim2.fromScale(0.92, 0.92) or UDim2.fromScale(0.7, 0.55)
-		mapView.setShown(isMap)
-		journeyMapScroll.Visible = not isMap
-		journeyInfoBar.Visible = not isMap
-		if isMap then
-			mapView.applyHeader(true)
-		else
-			journeyTitle.Text = ROAD_TITLE
-			journeyTitle.TextColor3 = ROAD_TITLE_COLOR
-			journeySubtitle.Text = ROAD_SUBTITLE
-			journeySubtitle.TextColor3 = ROAD_SUBTITLE_COLOR
-		end
-		for id, tabButton in pairs(tabButtons) do
-			tabButton.BackgroundColor3 = id == tabId and Color3.fromRGB(150, 115, 50) or Color3.fromRGB(70, 55, 40)
-		end
+	-- No tab row: the overlay always shows the Tavern Map at the large size. The old
+	-- "This Night" road (journeyMapScroll, journeyInfoBar, stage nodes) is entangled with
+	-- refreshJourneyImpl, so it stays built but is permanently hidden.
+	local function showMap()
+		journeyPanel.Size = UDim2.fromScale(0.92, 0.92)
+		mapView.setShown(true)
+		journeyMapScroll.Visible = false
+		journeyInfoBar.Visible = false
+		mapView.applyHeader(true)
 	end
 
 	-- Closing the overlay by any route (Close, another overlay) stops the map's drifting fog and ambience.
@@ -954,24 +930,6 @@ return function(deps)
 			mapView.setShown(false)
 		end
 	end)
-
-	for i, tab in ipairs({ { "map", "Tavern Map" }, { "road", "This Night" } }) do
-		local tabButton = Instance.new("TextButton")
-		tabButton.Size = UDim2.fromOffset(104, 24)
-		tabButton.Position = UDim2.new(1, -230 + (i - 1) * 112, 0, 10)
-		tabButton.Font = Enum.Font.GothamBold
-		tabButton.TextSize = 12
-		tabButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		tabButton.Text = tab[2]
-		tabButton.ZIndex = 22
-		tabButton.Parent = journeyPanel
-		polishButton(tabButton, 8)
-		tabButton.MouseButton1Click:Connect(function()
-			playClickSfx()
-			setTab(tab[1])
-		end)
-		tabButtons[tab[1]] = tabButton
-	end
 
 	-- The Night 8 victory moment (listens for wonRun itself).
 	require(script.Parent.NightVictory)({
@@ -1151,10 +1109,8 @@ return function(deps)
 		end
 
 		refreshInfoBar()
-		if activeTab == "map" then
-			mapView.refresh()
-			mapView.applyHeader(true)
-		end
+		mapView.refresh()
+		mapView.applyHeader(true)
 	end
 
 	local function refreshJourney()
@@ -1170,11 +1126,7 @@ return function(deps)
 		OverlayManager.closeAllExcept("journey")
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
-		setTab(activeTab)
-		-- Scroll so the current stage is in view.
-		if journeyAvatarMarker.Position.X.Offset > 0 then
-			journeyMapScroll.CanvasPosition = Vector2.new(math.max(0, journeyAvatarMarker.Position.X.Offset - 200), 0)
-		end
+		showMap()
 	end
 
 	journeyButton.MouseButton1Click:Connect(openJourney)

@@ -468,15 +468,16 @@ return function(deps)
 		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
 	})
 	local bottomRow = makeRow(4, 114, 16)
-	-- Road Ahead entry point removed: the Journey overlay is dormant. This detached
-	-- button is never parented, so Journey.lua's deps still resolve but nothing shows.
-	local menuJourneyButton = Instance.new("TextButton")
+	local menuJourneyButton = makeFrameButton({
+		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 114, height = 114,
+		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
+	})
 	local menuHowToPlayButton = makeFrameButton({
-		text = "How to Play", textSize = 14, parent = bottomRow, order = 1, width = 114, height = 114,
+		text = "How to Play", textSize = 14, parent = bottomRow, order = 2, width = 114, height = 114,
 		iconKey = "how_to_play", emoji = "\240\159\147\150", iconSize = 46,
 	})
 	local menuTutorialButton = makeFrameButton({
-		text = "Tutorial", textSize = 14, parent = bottomRow, order = 2, width = 114, height = 114,
+		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
 
