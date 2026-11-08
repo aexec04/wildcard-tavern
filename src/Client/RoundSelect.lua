@@ -617,6 +617,10 @@ return function(deps)
 	local sideStops = require(script.Parent.SideStopPanel)({
 		root = roundSelectFrame, roundCorner = roundCorner, playClickSfx = playClickSfx,
 	})
+	-- Map minigames (dice, card flip, lockpick, trivia); scored on the server.
+	local minigamePanel = require(script.Parent.MinigamePanel)({
+		root = roundSelectFrame, roundCorner = roundCorner, playClickSfx = playClickSfx,
+	})
 
 	local function rebuildRoundSelect(state, previousPhase)
 		-- See actionPending's BUGFIX comment above: any fresh state push
@@ -625,6 +629,7 @@ return function(deps)
 		actionPending = false
 		pcall(roadChoice.update, state)
 		pcall(sideStops.update, state)
+		pcall(minigamePanel.update, state)
 
 		-- BUGFIX (Ahmed: "when you complete a night, it should tell you
 		-- that you're at Night 2 or Night 3 etc"): this screen is the one

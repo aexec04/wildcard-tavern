@@ -41,7 +41,7 @@ function SideStops.available(state, phase)
 	local out = {}
 	if not WorldMap.phaseAllowsRoadChoice(phase) then return out end
 	for _, id in ipairs(WorldMap.sideStopsAt(WorldMap.currentStop(state))) do
-		if SideStops.blockedReason(state, id, phase) == nil and WorldMap.Stops[id].side ~= "minigame" then
+		if SideStops.blockedReason(state, id, phase) == nil then
 			out[#out + 1] = id
 		end
 	end
@@ -52,6 +52,7 @@ local function markVisited(state, stopId)
 	state.sideVisited = state.sideVisited or {}
 	state.sideVisited[stopId] = true
 end
+SideStops.markVisited = markVisited -- the minigame flow marks a stop used once its game ends
 
 -- Rolls the shop stop's offers: up to Shop.OFFER_COUNT patrons, same pool and rules as the Counter.
 function SideStops.rollShop(state)

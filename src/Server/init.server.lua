@@ -29,6 +29,7 @@ local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
+local Minigames = require(Engine.Minigames) -- the four map minigames, scored here
 local CardBacks = require(Engine.CardBacks)
 local CosmeticSets = require(Engine.CosmeticSets) -- Cosmetic Sets: profile-based, see PlayerProfile.ownedSetIds
 local Deck = require(Engine.Deck)
@@ -83,6 +84,7 @@ local EquipCosmeticSetRemote = newRemote("EquipCosmeticSet") -- (player, setId)
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
+local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
 local SideStopRemote = newRemote("SideStop") -- WORLD MAP: (player, stopId, action, arg) shop/shrine/rest side stops
 local UseCompassRemote = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 local EquipTitleRemote = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
@@ -678,7 +680,7 @@ local function serializeState(session, player)
 			local list = {}
 			for _, id in ipairs(SideStops.available(state, session.phase)) do
 				local stop = WorldMap.Stops[id]
-				local entry = { id = id, side = stop.side, name = stop.name, icon = stop.icon }
+				local entry = { id = id, side = stop.side, name = stop.name, icon = stop.icon, game = stop.game }
 				local offers = session.sideShops and session.sideShops[id]
 				if offers then
 					entry.offers = {}
@@ -696,6 +698,13 @@ local function serializeState(session, player)
 		end)(),
 		sideBonus = { tempPass = state.tempPass and state.tempPass.id or nil, bonusHandsNight = state.bonusHandsNight,
 			extraContinues = state.extraContinues or 0 },
+		mapTokens = state.mapTokens or 0,
+		-- The open minigame as the player may see it (never answers or hidden cards), plus how it ended.
+		minigame = session.minigame and {
+			stopId = session.minigame.stopId,
+			view = Minigames.view(session.minigame.g, os.clock()),
+			result = session.minigame.result,
+		} or nil,
 		compassCharges = profiles[player] and profiles[player].compassCharges or 0,
 		compassReveal = session.phase == "roundSelect" and BiomeRewards.revealedChoices(state) or nil,
 		profileStats = (function()
@@ -846,7 +855,7 @@ local function syncProfileFromSession(player)
 			changed = true
 		end
 		-- Biome rewards: branch ends, region bonuses (granted once each, see Engine/BiomeRewards.lua).
-		local biomeFresh = BiomeRewards.recordProgress(profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state))
+		local biomeFresh = BiomeRewards.recordProgress(profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state), session.state)
 		if #biomeFresh > 0 then
 			changed = true
 		end
@@ -1702,6 +1711,46 @@ SideStopRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
 	pushState(player)
 end)
 
+-- WORLD MAP minigames: (player, stopId, action, arg). "start" opens the game of a minigame side stop (same
+-- gate as the other side stops), the game's own moves ("roll", "hold", "flip", "stop", "answer") are scored by
+-- Engine/Minigames.lua on the server, "close" leaves. When a game ends the stop counts as visited; a win gives
+-- a token and maybe a compass charge (Minigames.reward). Losing costs nothing.
+MinigameRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
+	local session, profile = sessions[player], profiles[player]
+	if not session or type(stopId) ~= "string" or type(action) ~= "string" then
+		return
+	end
+	local state, phase = session.state, session.phase
+	local mg = session.minigame
+	if action == "start" then
+		local stop = WorldMap.Stops[stopId]
+		if mg or not stop or stop.side ~= "minigame" or SideStops.blockedReason(state, stopId, phase) ~= nil then
+			return
+		end
+		local seed = os.time() * 7919 + player.UserId
+		local rng = Minigames.newRng(seed)
+		session.minigame = { stopId = stopId, g = Minigames.new(stop.game, rng, os.clock()), rng = rng }
+	elseif action == "close" then
+		session.minigame = nil
+	elseif mg and mg.stopId == stopId and not mg.g.done and WorldMap.phaseAllowsRoadChoice(phase) then
+		local ok = Minigames.act(mg.g, action, arg, os.clock())
+		if ok and mg.g.done then
+			SideStops.markVisited(state, stopId)
+			if mg.g.won then
+				mg.result = Minigames.reward(state, profile, mg.rng)
+				if mg.result.compass then
+					profileDirty[player] = true
+				end
+			else
+				mg.result = { token = false, compass = false }
+			end
+		end
+	else
+		return
+	end
+	pushState(player)
+end)
+
 -- WORLD MAP: spend a compass charge at a fork to reveal the reward at the end of each road.
 UseCompassRemote.OnServerEvent:Connect(function(player)
 	local session, profile = sessions[player], profiles[player]
@@ -1846,6 +1895,7 @@ SelectRoundRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 	WorldMap.fillDefault(session.state) -- no road picked at a fork: take the default one
+	session.minigame = nil
 	session.phase = "playing"
 	pushState(player)
 end)

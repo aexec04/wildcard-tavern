@@ -5662,6 +5662,217 @@ table.insert(tests, { name = "SideStops: rest gives +1 Hand next Night or banks 
 	expectFalse(ok3); expectEqual(why3, "already_banked")
 end })
 
+local function scriptedRng(values)
+	local i = 0
+	return function(n)
+		i = i + 1
+		local v = values[i] or 1
+		return math.max(1, math.min(v, n))
+	end
+end
+
+table.insert(tests, { name = "Minigames: newRng repeats from a seed and stays in range", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local a, b = Minigames.newRng(42), Minigames.newRng(42)
+	local c = Minigames.newRng(43)
+	local same, differ = true, false
+	for _ = 1, 50 do
+		local x, y, z = a(6), b(6), c(6)
+		expectTrue(x >= 1 and x <= 6)
+		if x ~= y then same = false end
+		if x ~= z then differ = true end
+	end
+	expectTrue(same, "same seed, same rolls")
+	expectTrue(differ, "different seed, different rolls")
+	expectEqual(Minigames.new("nope", a), nil)
+	local ok, why = Minigames.act(nil, "roll")
+	expectFalse(ok); expectEqual(why, "no_game")
+end })
+
+table.insert(tests, { name = "Minigames: dice (closest to 7 without going over, house rolls to 5)", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	-- win: 4 vs a house that busts (3 then 5 = 8)
+	local g = Minigames.new("dice", scriptedRng({ 4, 3, 5 }))
+	local ok, why = Minigames.act(g, "hold")
+	expectFalse(ok); expectEqual(why, "roll_first")
+	expectTrue(Minigames.act(g, "roll"))
+	expectTrue(Minigames.act(g, "hold"))
+	expectTrue(g.done and g.won)
+	expectEqual(g.score, 4); expectEqual(g.houseScore, 0)
+	ok, why = Minigames.act(g, "roll")
+	expectFalse(ok); expectEqual(why, "finished")
+	-- lose: bust
+	g = Minigames.new("dice", scriptedRng({ 5, 5 }))
+	Minigames.act(g, "roll")
+	local _, info = Minigames.act(g, "roll")
+	expectTrue(info.bust and g.done and not g.won)
+	-- tie loses: 4 vs 2+1+1
+	g = Minigames.new("dice", scriptedRng({ 4, 2, 1, 1 }))
+	Minigames.act(g, "roll"); Minigames.act(g, "hold")
+	expectEqual(g.houseScore, 4)
+	expectFalse(g.won, "ties go to the house")
+	-- three dice end the turn by themselves
+	g = Minigames.new("dice", scriptedRng({ 1, 1, 1, 6 }))
+	for _ = 1, 3 do Minigames.act(g, "roll") end
+	expectTrue(g.done and not g.won, "3 against the house's 6 loses")
+	expectEqual(g.score, 3); expectEqual(g.houseScore, 6)
+end })
+
+table.insert(tests, { name = "Minigames: card flip (3 pairs in 8 flips, bad moves refused)", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local g = Minigames.new("cardflip", scriptedRng({ 1 }))
+	g.faces = { 1, 2, 1, 3, 2, 3 }
+	for _, bad in ipairs({ 0, 7, 1.5, "1", true }) do
+		local ok = Minigames.act(g, "flip", bad)
+		expectFalse(ok, "bad index " .. tostring(bad))
+	end
+	expectEqual(g.flips, 0, "bad moves cost nothing")
+	local ok, info = Minigames.act(g, "flip", 1)
+	expectTrue(ok); expectEqual(info.face, 1)
+	local ok2, why = Minigames.act(g, "flip", 1)
+	expectFalse(ok2); expectEqual(why, "already_flipped")
+	ok, info = Minigames.act(g, "flip", 3)
+	expectTrue(info.match)
+	ok, why = Minigames.act(g, "flip", 1)
+	expectFalse(ok); expectEqual(why, "already_matched")
+	-- a miss hides both again
+	Minigames.act(g, "flip", 2)
+	ok, info = Minigames.act(g, "flip", 4)
+	expectEqual(info.match, false)
+	expectEqual(#info.hide, 2)
+	-- the view never leaks unflipped faces
+	local v = Minigames.view(g)
+	expectEqual(v.faces, nil)
+	-- finish: 2/5 then 4/6
+	Minigames.act(g, "flip", 2); Minigames.act(g, "flip", 5)
+	expectEqual(g.pairs, 2)
+	Minigames.act(g, "flip", 4); Minigames.act(g, "flip", 6)
+	expectTrue(g.done and g.won, "6 flips would be enough; this took 8")
+	-- the flip limit ends a losing game
+	local lose = Minigames.new("cardflip", scriptedRng({ 1 }))
+	lose.faces = { 1, 2, 3, 1, 2, 3 }
+	for _ = 1, 4 do
+		Minigames.act(lose, "flip", 1); Minigames.act(lose, "flip", 2)
+	end
+	expectTrue(lose.done and not lose.won)
+end })
+
+table.insert(tests, { name = "Minigames: lockpick reads the needle from the server clock", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	expectEqual(Minigames.needleAt(0, 100), 0)
+	expectEqual(Minigames.needleAt(3.6, 100), 360)
+	expectEqual(Minigames.needleAt(5.4, 100), 180, "sweeps back down")
+	for t = 0, 20, 0.7 do
+		local a = Minigames.needleAt(t, 173)
+		expectTrue(a >= 0 and a <= 360)
+	end
+	local g = Minigames.new("lockpick", scriptedRng({ 50, 1, 200, 30, 60 }), 100)
+	g.speed, g.center = 180, 90
+	-- the client's claimed angle is ignored: only the clock counts
+	local ok, info = Minigames.act(g, "stop", 90, 100.5) -- needle at 90
+	expectTrue(ok and info.hit)
+	expectEqual(g.hits, 1)
+	g.center = 300
+	ok, info = Minigames.act(g, "stop", 300, 100.5) -- needle still at 90: a miss, whatever the client says
+	expectTrue(ok); expectFalse(info.hit)
+	g.center = 90
+	Minigames.act(g, "stop", 0, 100.5); g.center = 90
+	ok = Minigames.act(g, "stop", 0, 100.5)
+	expectTrue(g.done and g.won, "3 hits")
+	-- 5 misses lose
+	local lose = Minigames.new("lockpick", scriptedRng({ 10, 1 }), 0)
+	lose.speed, lose.center = 180, 300
+	for _ = 1, 5 do Minigames.act(lose, "stop", 0, 0.5) end
+	expectTrue(lose.done and not lose.won)
+	local bad, why = Minigames.act(lose, "stop", 0, 0.5)
+	expectFalse(bad); expectEqual(why, "finished")
+	local g2 = Minigames.new("lockpick", scriptedRng({ 1 }))
+	bad, why = Minigames.act(g2, "flip")
+	expectFalse(bad); expectEqual(why, "bad_action")
+end })
+
+table.insert(tests, { name = "Minigames: trivia asks 3 questions, hides answers, times out, needs 2 right", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local g = Minigames.new("trivia", Minigames.newRng(7), 0)
+	expectEqual(#g.questions, 3)
+	for _, q in ipairs(g.questions) do
+		expectEqual(#q.answers, 3)
+		local right = 0
+		for _, a in ipairs(q.answers) do
+			if a.ok then right = right + 1 end
+		end
+		expectEqual(right, 1, "exactly one right answer: " .. q.text)
+	end
+	local v = Minigames.view(g, 1)
+	expectTrue(v.question.text ~= nil and #v.question.answers == 3)
+	expectEqual(type(v.question.answers[1]), "string", "answers are plain text, no flags")
+	local function rightIndex(game)
+		for i, a in ipairs(game.questions[game.current].answers) do
+			if a.ok then return i end
+		end
+	end
+	expectFalse(Minigames.act(g, "answer", 0, 1))
+	expectFalse(Minigames.act(g, "answer", 4, 1))
+	expectFalse(Minigames.act(g, "answer", 1.5, 1))
+	local ok, info = Minigames.act(g, "answer", rightIndex(g), 2)
+	expectTrue(ok and info.right)
+	-- second answer comes too late
+	ok, info = Minigames.act(g, "answer", rightIndex(g), 2 + Minigames.QUESTION_SECONDS + 5)
+	expectTrue(ok); expectFalse(info.right); expectTrue(info.late)
+	ok, info = Minigames.act(g, "answer", rightIndex(g), 2 + Minigames.QUESTION_SECONDS + 7)
+	expectTrue(g.done and g.won, "2 of 3 wins")
+	-- 1 of 3 loses
+	local g2 = Minigames.new("trivia", Minigames.newRng(9), 0)
+	Minigames.act(g2, "answer", rightIndex(g2), 1)
+	for _ = 1, 2 do
+		local wrong = rightIndex(g2) % 3 + 1
+		Minigames.act(g2, "answer", wrong, 1)
+	end
+	expectTrue(g2.done and not g2.won)
+end })
+
+table.insert(tests, { name = "Minigames: a win gives a token (max 3, never on ranked boards) and maybe a compass charge", fn = function()
+	local Minigames = require(script.Parent.Parent.Engine.Minigames)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local state = runAtNight(2)
+	local profile = PlayerProfile.new()
+	local out = Minigames.reward(state, profile, scriptedRng({ 1 }))
+	expectTrue(out.token and out.compass)
+	expectEqual(state.mapTokens, 1); expectEqual(profile.compassCharges, 1)
+	out = Minigames.reward(state, profile, scriptedRng({ 2 }))
+	expectTrue(out.token); expectFalse(out.compass, "a 2 means no charge this time")
+	Minigames.reward(state, profile, scriptedRng({ 2 }))
+	out = Minigames.reward(state, profile, scriptedRng({ 1 }))
+	expectFalse(out.token, "capped at 3 tokens")
+	expectEqual(state.mapTokens, 3)
+	-- ranked: Daily, Weekly and Seed runs have a fixed route
+	local ranked = runAtNight(2, { worldPlan = { "dusty_road", "wildflower_meadow" } })
+	out = Minigames.reward(ranked, profile, scriptedRng({ 1 }))
+	expectFalse(out.token or out.compass)
+	expectEqual(ranked.mapTokens, nil)
+end })
+
+table.insert(tests, { name = "BiomeRewards: a map token upgrades a branch end with the biome's bonus title", fn = function()
+	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local route = { "dusty_road", "wildflower_meadow", "desert_dunes", "oasis_camp" }
+	local noToken = PlayerProfile.new()
+	BiomeRewards.recordProgress(noToken, route, 4, { mapTokens = 0 })
+	expectTrue(noToken.unlockedCardBackIds.dune_gold)
+	expectEqual(noToken.rewardTitleIds.dune_wanderer, nil)
+	local state = { mapTokens = 2 }
+	local profile = PlayerProfile.new()
+	BiomeRewards.recordProgress(profile, route, 4, state)
+	expectTrue(profile.unlockedCardBackIds.dune_gold and profile.rewardTitleIds.dune_wanderer)
+	expectEqual(state.mapTokens, 1, "one token spent")
+	BiomeRewards.recordProgress(profile, route, 4, state)
+	expectEqual(state.mapTokens, 1, "nothing more to upgrade, nothing spent")
+	-- a region without a bonus keeps its token
+	local s2 = { mapTokens = 1 }
+	BiomeRewards.recordProgress(PlayerProfile.new(), { "dusty_road", "wildflower_meadow", "desert_dunes" }, 2, s2)
+	expectEqual(s2.mapTokens, 1, "meadow has no bonus title")
+end })
+
 table.insert(tests, { name = "Compass: charges are capped, spent once per fork, and gated by phase", fn = function()
 	local BiomeRewards = require(script.Parent.Parent.Engine.BiomeRewards)
 	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)

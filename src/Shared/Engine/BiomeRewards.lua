@@ -163,14 +163,26 @@ end
 
 -- Called with the run's route and how many Nights are cleared. Grants every branch end reached and the region
 -- bonuses. Safe to call on every push. Returns the newly granted rewards.
-function BiomeRewards.recordProgress(profile, route, cleared)
+function BiomeRewards.recordProgress(profile, route, cleared, state)
 	local fresh = {}
 	if not WorldMap.isValidRoute(route) then return fresh end
 	local upTo = math.min(math.floor(cleared or 0), #route)
 	for i = 1, upTo do
 		if BiomeRewards.isBranchEnd(route, i) then
-			for _, r in ipairs(BiomeRewards.recordBiomeCleared(profile, WorldMap.regionOf(route[i]))) do
+			local region = WorldMap.regionOf(route[i])
+			local granted = BiomeRewards.recordBiomeCleared(profile, region)
+			for _, r in ipairs(granted) do
 				fresh[#fresh + 1] = r
+			end
+			-- A minigame token (state.mapTokens) upgrades the branch end: the biome's bonus title comes
+			-- with it right away instead of waiting for every stop to be seen. One token per biome.
+			local row = BiomeRewards.Rows[region]
+			local key = region .. ":complete"
+			if #granted > 0 and state and (state.mapTokens or 0) > 0 and row and row.bonus and not profile.worldRewardIds[key] then
+				state.mapTokens = state.mapTokens - 1
+				profile.worldRewardIds[key] = true
+				grant(profile, row.bonus)
+				fresh[#fresh + 1] = row.bonus
 			end
 		end
 	end

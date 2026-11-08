@@ -109,6 +109,15 @@ side("mushroom_stall", "lilypad_pond", "shop", "The Mushroom Stall", "🍄")
 side("cabin_rest", "frosty_trail", "rest", "The Snow Cabin", "🏠", 0.0, -0.14)
 side("harbor_stall", "lighthouse_cove", "shop", "The Harbor Stall", "⚓")
 side("gate_shrine", "tavern_gate", "shrine", "The Gate Shrine", "⛩", 0.0, 0.14)
+-- Minigame stops (Engine/Minigames.lua): a win gives a map token and maybe a compass charge.
+side("flip_bridge", "willow_bridge", "minigame", "The Card Flip Table", "🃏", 0.0, -0.14)
+side("lockpick_cave", "mountain_pass", "minigame", "The Lockbox Cave", "🔐", 0.0, -0.14)
+side("trivia_cabin", "frosty_trail", "minigame", "The Trivia Corner", "❓")
+side("dice_dock", "lighthouse_cove", "minigame", "The Dice Dock", "🎲", 0.0, -0.14)
+WorldMap.Stops.flip_bridge.game = "cardflip"
+WorldMap.Stops.lockpick_cave.game = "lockpick"
+WorldMap.Stops.trivia_cabin.game = "trivia"
+WorldMap.Stops.dice_dock.game = "dice"
 
 -- The side stops hanging off a Night stop, in a stable order.
 function WorldMap.sideStopsAt(stopId, stops)

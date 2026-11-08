@@ -224,6 +224,15 @@ return function(deps)
 			})
 			chip.MouseButton1Click:Connect(function()
 				playClickSfx()
+				if entry.side == "minigame" then
+					-- the game opens in Client/MinigamePanel.lua once the server answers
+					local folder = ReplicatedStorage:FindFirstChild("Remotes")
+					local r = folder and folder:FindFirstChild("Minigame")
+					if r then
+						r:FireServer(entry.id, "start")
+					end
+					return
+				end
 				openId = entry.id
 				if entry.side == "shop" and not entry.offers then
 					fire(entry.id, "open")
