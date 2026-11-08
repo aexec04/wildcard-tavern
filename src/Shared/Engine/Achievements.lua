@@ -258,6 +258,20 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.trailblazer == true
 		end,
 	},
+	-- SEASONAL TITLE (Engine/Seasons.lua): granted into rewardTitleIds by Seasons.recordProgress.
+	{
+		id = "lantern_keeper",
+		name = "Lantern Keeper",
+		icon = "🏮",
+		title = "Lantern Keeper",
+		description = "A seasonal reward: clear 3 Nights in one run during Winter Lanterns.",
+		flavorText = "Keeps the lanterns lit through the longest nights.",
+		milestoneReward = true,
+		seasonal = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.lantern_keeper == true
+		end,
+	},
 	{
 		id = "night_walker",
 		name = "Night Walker",

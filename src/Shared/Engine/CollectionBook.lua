@@ -199,6 +199,7 @@ CollectionBook.RarityOverrides = {
 		snow_scout = "rare",
 		lighthouse_friend = "rare",
 		trailblazer = "legendary",
+		lantern_keeper = "epic", -- seasonal (Engine/Seasons.lua)
 	},
 	sets = {
 		classic_tavern = "common",
@@ -222,6 +223,7 @@ CollectionBook.RarityOverrides = {
 		shell_pearl = "rare",
 		frost_walker = "epic",
 		gala = "legendary",
+		winter_lanterns = "epic", -- seasonal (Engine/Seasons.lua)
 	},
 }
 

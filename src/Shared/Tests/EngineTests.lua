@@ -4625,6 +4625,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 			rewardedTitles[r.id] = true
 		end
 	end
+	-- Titles handed out by seasons count too.
+	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
+		rewardedTitles[season.rewards.titleId] = true
+	end
 	-- Titles handed out by Journey rewards count too.
 	for _, entry in ipairs(JourneyMap.Nights) do
 		if entry.reward.kind == "title" then
@@ -4977,6 +4981,52 @@ table.insert(tests, { name = "Leaderboards: friends scope keeps only friends and
 	expectEqual(cache.get("a"), "x")
 	now = 160
 	expectEqual(cache.get("a"), nil)
+end })
+
+table.insert(tests, { name = "Seasons: dates, active window, time left, one-time grant, registry ids and prompts exist", fn = function()
+	local Seasons = require(script.Parent.Parent.Engine.Seasons)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	local Achievements = require(script.Parent.Parent.Engine.Achievements)
+	-- date maths against known unix times
+	expectEqual(Seasons.parseDate("1970-01-01"), 0)
+	expectEqual(Seasons.parseDate("2000-03-01"), 951868800)
+	expectEqual(Seasons.parseDate("2024-02-29"), 1709164800)
+	expectEqual(Seasons.parseDate("nope"), nil)
+	expectEqual(Seasons.parseDate("2026-13-01"), nil)
+	local season = Seasons.getById("winter_lanterns")
+	expectTrue(season ~= nil)
+	local s, e = Seasons.startsAt(season), Seasons.endsAt(season)
+	expectTrue(s and e and e > s)
+	expectEqual(e - s, 22 * 86400) -- Dec 15 to Jan 5 inclusive
+	-- active window: first second in, last second in, first second after is out
+	expectEqual(Seasons.active(s - 1), nil)
+	expectEqual(Seasons.active(s), season)
+	expectEqual(Seasons.active(e - 1), season)
+	expectEqual(Seasons.active(e), nil)
+	expectEqual(Seasons.secondsLeft(season, e - 90), 90)
+	expectEqual(Seasons.secondsLeft(season, e + 5), 0)
+	expectEqual(Seasons.timeLeftText(3 * 86400 + 5 * 3600), "3d 5h")
+	expectEqual(Seasons.timeLeftText(5 * 3600 + 20 * 60), "5h 20m")
+	expectEqual(Seasons.timeLeftText(40 * 60), "40m")
+	-- progress: not enough Nights, outside the season, then the one-time grant
+	local profile = PlayerProfile.new()
+	local mid = s + 5 * 86400
+	expectEqual(Seasons.recordProgress(profile, mid, season.unlock.nights - 1), nil)
+	expectEqual(Seasons.recordProgress(profile, e + 100, season.unlock.nights), nil)
+	expectFalse(Seasons.view(profile, mid).earned)
+	expectEqual(Seasons.recordProgress(profile, mid, season.unlock.nights), season)
+	expectTrue(profile.unlockedCardBackIds[season.rewards.cardBackId])
+	expectTrue(profile.rewardTitleIds[season.rewards.titleId])
+	expectTrue(Seasons.view(profile, mid).earned)
+	expectEqual(Seasons.recordProgress(profile, mid, 8), nil) -- only once
+	expectEqual(Seasons.view(profile, e + 1), nil) -- no banner outside the season
+	-- earned rewards survive a save/load round trip and the season ending
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.seasonRewardIds.winter_lanterns)
+	expectTrue(loaded.unlockedCardBackIds.winter_lanterns)
+	-- reward ids are real registry entries
+	expectTrue(CardBacks.getById(season.rewards.cardBackId) ~= nil)
+	expectTrue(Achievements.getById(season.rewards.titleId) ~= nil)
 end })
 
 table.insert(tests, { name = "PatronLines: every Patron has its own short, kid-safe line; unknown ids fall back", fn = function()

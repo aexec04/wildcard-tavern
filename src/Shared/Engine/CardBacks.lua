@@ -132,6 +132,16 @@ CardBacks.Definitions = {
 		description = "A Map reward for reaching the Keeper's Table.",
 		flavorText = "Dealt only at the grandest table of the tavern.",
 	},
+	-- Seasonal reward (Engine/Seasons.lua): earned during the Winter Lanterns season.
+	{
+		id = "winter_lanterns",
+		name = "Winter Lanterns",
+		icon = "🏮",
+		colors = { base = { 40, 50, 95 }, trim = { 255, 200, 110 } },
+		description = "A seasonal reward: clear 3 Nights in one run during Winter Lanterns.",
+		flavorText = "Strung up for the longest nights of the year.",
+		seasonal = true,
+	},
 }
 
 function CardBacks.getById(id)

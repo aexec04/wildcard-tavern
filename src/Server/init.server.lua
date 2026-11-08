@@ -27,6 +27,7 @@ local Tests = Shared:WaitForChild("Tests")
 local RunState = require(Engine.RunState)
 local RunSummary = require(Engine.RunSummary) -- Game Over summary data and the profile badge
 local LoginStreak = require(Engine.LoginStreak) -- daily login streak rules
+local Seasons = require(Engine.Seasons) -- limited-time seasonal set (dates, unlock, banner)
 local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
@@ -714,6 +715,11 @@ local function serializeState(session, player)
 			view.secondsToNextDay = LoginStreak.secondsToNextDay(os.time())
 			return view
 		end)(),
+		-- SEASON banner (display only; nil outside a season). Rewards are granted in syncProfileFromSession.
+		season = (function()
+			local profile = profiles[player]
+			return profile and Seasons.view(profile, os.time()) or nil
+		end)(),
 		nextUnlock = (function()
 			local profile = profiles[player]
 			return profile and NextUnlock.compute(profile) or nil
@@ -909,6 +915,10 @@ local function syncProfileFromSession(player)
 		-- Biome rewards: branch ends, region bonuses (granted once each, see Engine/BiomeRewards.lua).
 		local biomeFresh = BiomeRewards.recordProgress(profile, session.state.worldRoute, JourneyMap.nightsClearedFor(session.state), session.state)
 		if #biomeFresh > 0 then
+			changed = true
+		end
+		-- Seasonal set: clearing enough Nights in one run while a season is running grants its rewards once.
+		if Seasons.recordProgress(profile, os.time(), JourneyMap.nightsClearedFor(session.state)) then
 			changed = true
 		end
 		local fresh = JourneyMap.recordNightsCleared(profile, JourneyMap.nightsClearedFor(session.state))

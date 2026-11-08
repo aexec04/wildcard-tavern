@@ -128,6 +128,7 @@ PlayerProfile.ID_SET_FIELDS = {
 	"claimedMilestoneIds",
 	"rewardTitleIds",
 	"unlockedCardBackIds",
+	"seasonRewardIds", -- [Seasons id] = true, seasonal rewards already earned (Engine/Seasons.lua)
 }
 
 -- Which saved set each Collection tab's discoveries go into.
@@ -161,6 +162,7 @@ function PlayerProfile.new()
 		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true
+		seasonRewardIds = {}, -- [Seasons id] = true
 		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
 		clearedNightIds = {}, -- [night number] = true, first clears of Nights 1-8 and Endless milestone Nights (JourneyMap)
 		-- WORLD MAP (Engine/WorldMap.lua): the road of the current/last run, every stop ever seen (map memory

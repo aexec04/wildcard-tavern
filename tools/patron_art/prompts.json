@@ -313,7 +313,8 @@
     "marsh_wader": "an avatar in tall green boots wading through a misty marsh with a glowing lantern, lily pads and friendly frogs around",
     "snow_scout": "an avatar in a warm woolly hat and scarf holding a lantern on a snowy hill, snow-dusted pine trees behind",
     "lighthouse_friend": "an avatar in a yellow raincoat waving from a rocky shore beside a friendly striped lighthouse at dusk",
-    "trailblazer": "an avatar with a rolled map and a walking stick on a hilltop, a winding road with many colorful regions stretching behind"
+    "trailblazer": "an avatar with a rolled map and a walking stick on a hilltop, a winding road with many colorful regions stretching behind",
+    "lantern_keeper": "an avatar in a warm winter coat and scarf holding up a glowing paper lantern on a snowy tavern street at dusk, strings of small lanterns glowing overhead"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -453,7 +454,8 @@
     "lilypad_green": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. misty deep green with a lattice of lily pads and small glowing mushrooms, a gold lily flower crest",
     "shell_pearl": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. soft teal and pearl white with scalloped waves, a gold seashell and pearl crest",
     "frost_walker": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. pale blue and silver with snow-covered pines and falling snowflakes, a gold lantern crest",
-    "gala": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. rich burgundy and gold with grand chandelier rays, ornate banners and a gold crown crest"
+    "gala": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. rich burgundy and gold with grand chandelier rays, ornate banners and a gold crown crest",
+    "winter_lanterns": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. deep midnight blue with falling snowflakes and rows of glowing amber paper lanterns, a large gold lantern crest in the center"
   },
   "pack_subjects": {
     "buffoon_pack": "a red velvet pouch bulging with tiny patron figurines, tied with gold cord and topped with a little jester bell. A single object, centered, painterly, soft shadow underneath, plain very dark neutral background, kid-friendly, no text, no letters",
