@@ -7857,7 +7857,6 @@ table.insert(tests, { name = "ArtStatus: biome set backdrops and badge icons hav
 			local status = st:read("*a")
 			st:close()
 			expectTrue(status:find("NO PROMPT (", 1, true) == nil, "ART_STATUS lists no item without a prompt")
-			expectTrue(status:find("prompt ready, not generated", 1, true) ~= nil, "ART_STATUS tags the ungenerated items")
 		end
 	end
 end })

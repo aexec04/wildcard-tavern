@@ -20,4 +20,5 @@ return {
 	["shell_pearl"] = "rbxassetid://135323772066823",
 	["starlit_keeper"] = "rbxassetid://109033841832967",
 	["winter_frost"] = "rbxassetid://72796900071534",
+	["winter_lanterns"] = "rbxassetid://88517336763729",
 }
