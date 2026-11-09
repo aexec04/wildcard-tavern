@@ -7443,6 +7443,21 @@ table.insert(tests, { name = "CardFit: Round Select cards fill big screens, fit 
 	end
 end })
 
+table.insert(tests, { name = "CardFit: card row gap stays at least 28px on screen for scales 0.5 to 1.2, under both layout models", fn = function()
+	local CardFit = require(script.Parent.Parent.Engine.CardFit)
+	local cardW = 340
+	local s = 0.5
+	while s <= 1.2001 do
+		-- Model A: the layout spaces by the scaled width, so the on-screen gap is Padding.
+		expectTrue(CardFit.padding(s, cardW, true) >= 28, "scaled layout gap >= 28 at " .. s)
+		-- Model B: the layout spaces by the unscaled width; gap = Padding - cardW * (1 - s).
+		local gapB = CardFit.padding(s, cardW, false) - cardW * (1 - s)
+		expectTrue(gapB >= 28 - 1e-9, "unscaled layout gap >= 28 at " .. s)
+		s = s + 0.05
+	end
+	expectTrue(CardFit.shortfall(-13) == 41 and CardFit.shortfall(30) == 0, "shortfall tops the gap up to 28")
+end })
+
 table.insert(tests, { name = "InputLock: opening an overlay disables gameplay hit areas, closing restores them", fn = function()
 	local InputLock = require(script.Parent.Parent.Engine.InputLock)
 	local lock = InputLock.new()

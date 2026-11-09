@@ -89,8 +89,14 @@ return function(deps)
 		messageBar:SetAttribute("MessageToken", myToken)
 
 		messageBar.Visible = true
-		messageBar.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, START_Y)
-		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, RESTING_Y) }, 0.18)
+		-- Round Select sets BannerAtBottom so the strip sits above its Scout bar, never over the title or subtitle.
+		local atBottom = root:GetAttribute("BannerAtBottom") == true
+		local function pos(y)
+			if atBottom then return UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -126 + (y - RESTING_Y)) end
+			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, y)
+		end
+		messageBar.Position = pos(START_Y)
+		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = pos(RESTING_Y) }, 0.18)
 		tweenTo(messageLabel, { TextTransparency = 0 }, 0.18)
 
 		task.delay(3, function()

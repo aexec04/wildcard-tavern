@@ -156,6 +156,7 @@ return function(deps)
 		sink.Parent = root
 		local function sync()
 			sink.Visible = roundSelectFrame.Visible
+			root:SetAttribute("BannerAtBottom", roundSelectFrame.Visible) -- warnings sit above the Scout bar, not over the title
 			-- Real modal: the corner icon row (and its hover tooltips) is hidden while Round Select is up,
 			-- so nothing behind the window can be reached. It returns when the window closes.
 			local gui = root:FindFirstAncestorWhichIsA("LayerCollector") or root
@@ -285,6 +286,7 @@ return function(deps)
 	--   top 280px  = scene image (boss portrait for round 3, room art for 1-2)
 	--   below that = room name, boss/tag info, target plaque, action buttons
 	-- Cards do not stretch to fill the screen height.
+	local CARD_W = 340 -- about 0.55 of the 620 card height; the three equal cards use the free width
 	local roundPanels = {}
 	local cardScales = {}
 	-- Hover life and idle motion (cosmetic only), see RoundSelectFX.lua.
@@ -302,7 +304,7 @@ return function(deps)
 
 		local panel = Instance.new("Frame")
 		panel.Name = "RoundPanel" .. round
-		panel.Size = UDim2.new(0, 220, 0, 620)
+		panel.Size = UDim2.new(0, CARD_W, 0, 620)
 		panel.LayoutOrder = round
 		local cardScale = Instance.new("UIScale")
 		cardScale.Name = "FitScale"
@@ -638,10 +640,19 @@ return function(deps)
 		local vpY = cam and cam.ViewportSize.Y or 720
 		local rowH = panelRow.AbsoluteSize.Y
 		local rowW = panelRow.AbsoluteSize.X
-		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, 220, MAX_FIT)
+		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, CARD_W, MAX_FIT)
 		fx.setFit(scale)
-		-- UIScale does not move siblings: widen the gap by the extra width so scaled cards never overlap or clip
-		panelRowLayout.Padding = UDim.new(0, 24 * scale + 220 * (scale - 1))
+		-- The layout spaces by the scaled card size, so Padding is the on-screen gap (never below 28px).
+		panelRowLayout.Padding = UDim.new(0, CardFit.padding(scale, CARD_W))
+		-- Measure after layout; if the real gap is still short, add the shortfall.
+		task.defer(function()
+			local a, b = panelRow:FindFirstChild("RoundPanel1"), panelRow:FindFirstChild("RoundPanel2")
+			if a and b and a.AbsoluteSize.X > 0 then
+				local gap = b.AbsolutePosition.X - (a.AbsolutePosition.X + a.AbsoluteSize.X)
+				local short = CardFit.shortfall(gap)
+				if short > 0 then panelRowLayout.Padding = UDim.new(0, panelRowLayout.Padding.Offset + short) end
+			end
+		end)
 	end
 	fitCards()
 	panelRow:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)
@@ -869,7 +880,7 @@ return function(deps)
 			end
 			entry.goldTint.Visible = isPast
 			entry.medal.Visible = isPast
-			entry.panel.Size = UDim2.new(0, 220, 0, 620 - drop)
+			entry.panel.Size = UDim2.new(0, CARD_W, 0, 620 - drop)
 			for i, obj in ipairs(entry.shiftables) do
 				local p = obj.Position
 				obj.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, entry.shiftBase[i] + drop)
