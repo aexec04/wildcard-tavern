@@ -1132,6 +1132,25 @@ local PATRON_TAGS = {
 	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
 	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
 }
+-- BOSS COUNTERPLAY: which boss rule tags this Patron truly helps against (Engine/BossCounters.lua). EDIT ME.
+local PATRON_COUNTERS = {
+	ace_of_the_house = { "faceDebuff" }, big_portions = { "weakenMult", "handBan" }, color_matcher = { "suitDebuff" },
+	curtain_call = { "fewerHands", "slowStart" }, early_bird = { "slowStart" }, extra_chair = { "lowHandSize", "cardToss" },
+	fair_share = { "weakenMult" }, ferry_captain = { "cardCount" }, flush_fan = { "weakenMult" },
+	foursome_table = { "fewerHands", "targetBoost" }, full_suit_feast = { "targetBoost" }, house_special = { "targetBoost" },
+	kitchen_duo = { "weakenMult" }, ladder_builder = { "cardCount" }, lantern_lighter = { "cardToss" },
+	lucky_dice = { "weakenMult", "handBan" }, marsh_gardener = { "suitDebuff" }, meadow_bee = { "faceDebuff" },
+	overtime = { "fewerHands", "slowStart", "cardToss" }, pair_parade = { "handBan" }, perfect_ten = { "faceDebuff", "oddRank" },
+	quick_service = { "tipsDrain" }, regulars_round = { "weakenChips", "handBan", "patronLimit" }, royal_road = { "targetBoost" },
+	savings_club = { "tipsDrain" }, second_helpings = { "lowHandSize", "fewerDiscards" }, second_opinion = { "patronLimit" },
+	small_plate = { "cardCount" }, steady_hand = { "cardCount" }, suit_sampler = { "suitDebuff" },
+	tab_regulars = { "tipsDrain" }, tasting_menu = { "noRepeat" }, the_regular = { "weakenChips", "patronLimit" },
+	the_understudy = { "patronLimit" }, threes_company = { "weakenChips" }, tip_jar = { "tipsDrain" },
+	twin_spoons = { "handBan" },
+}
+for _, patron in ipairs(Patrons.Definitions) do
+	patron.counters = PATRON_COUNTERS[patron.id]
+end
 Patrons.TagIds = { "flush", "pairs", "straight", "economy", "scaling", "rulebender", "ranks", "flat" }
 for _, patron in ipairs(Patrons.Definitions) do
 	patron.tags = PATRON_TAGS[patron.id]

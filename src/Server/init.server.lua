@@ -142,6 +142,7 @@ local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, regio
 Rem.SpectateAction = newRemote("SpectateAction") -- (player, action "watch"|"stop"|"react"|"block"|"unblock", argument)
 Rem.EquipFlair = newRemote("EquipFlair") -- (player, slot id, flair id): Engine/Flair.lua, validated and saved
 Rem.ClaimCollectionReward = newRemote("ClaimCollectionReward") -- (player, group id, percent) or (player, "all")
+Rem.UseRuleBan = newRemote("UseRuleBan") -- (player): spend a Rule Ban token on this Night's boss (validated by RunState.useRuleBan)
 Rem.StoreOpened = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
 Rem.HintSeen = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
 Rem.ResetHints = newRemote("ResetHints") -- (player): Settings > Replay Hints
@@ -983,6 +984,14 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		-- BOSS SCOUT (Engine/BossCounters.lua): the Night's boss from its first round on, and the Rule Ban tokens
+		scout = (state.bossRoundsEnabled and not state.rush and state.nightBossModifier) and (function()
+			local card = require(Engine.BossCounters).scout(state.nightBossModifier)
+			card.banned = state.bannedBossNight == state.night
+			return card
+		end)() or nil,
+		ruleBans = state.ruleBansEnabled and (state.ruleBans or 0) or nil,
+		config = { roundsPerNight = state.config.roundsPerNight }, -- the Boss Scout banner needs to know which round is the boss round
 		flairStore = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio(), "flair") or nil, -- Flair for sale
 		seasonStore = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio(), "season") or nil, -- premium passes
 		flair = profiles[player] and (function()
@@ -1817,6 +1826,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			endlessRules = seededRng == nil and isTutorial ~= true and not rush and challengeId == nil, -- Crowd Rules: normal runs only
 			rush = rush,
 			mode = quick and "quick" or nil,
+			-- BOSS COUNTERPLAY: Rule Ban tokens for normal runs only (never Daily, Weekly, Seed, Boss Rush, challenge, Quick or the tutorial)
+			ruleBans = seededRng == nil and isTutorial ~= true and not rush and not quick and challengeId == nil,
 			challengeId = challengeId,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
 			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,
@@ -2927,6 +2938,24 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 		pushRewardNotice(player, { icon = result.event.icon, text = result.event.name .. ": " .. table.concat(result.texts, ", ") })
 	else
 		pushRewardNotice(player, { icon = "❗", text = result })
+	end
+	pushState(player)
+end)
+
+-- RULE BAN (Engine/BossCounters.lua, RunState.useRuleBan): the server validates the phase (Round Select only), the token,
+-- that the boss round has not begun and that this run may use tokens at all (normal runs only). The round is dealt again
+-- without the rule; the client only asks.
+Rem.UseRuleBan.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "UseRuleBanRemote", os.clock()) then return end
+	local session = sessions[player]
+	if not session or session.isTutorial or session.isDaily or session.isWeekly or session.isSeeded then
+		return
+	end
+	local ok, reason = RunState.useRuleBan(session.state, session.phase)
+	if ok then
+		pushRewardNotice(player, { icon = "🚫", text = "Rule banned. Good luck!" })
+	else
+		pushRewardNotice(player, { icon = "❗", text = reason })
 	end
 	pushState(player)
 end)

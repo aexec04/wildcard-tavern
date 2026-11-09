@@ -34,12 +34,21 @@ Stakes.Definitions = {
 	{ id = "legend", name = "Legend", icon = "👑", hint = "Boss rounds give 1 fewer discard.", rule = { bossExtraDiscards = -1 } },
 }
 
+-- RULE BAN tokens a normal run starts with (Engine/BossCounters, RunState.useRuleBan): 1 on stakes 1 to 4, none above.
+-- One more is earned by clearing the Night 4 boss. Boss counterplay only, never changes Daily, Weekly or Seed runs.
+Stakes.RuleBansAtStart = { 1, 1, 1, 1, 0, 0, 0, 0 }
+Stakes.RULE_BAN_BONUS_NIGHT = 4
+
 -- Clamps anything (nil, junk, floats) to a whole stake number from MIN to MAX.
 function Stakes.clamp(n)
 	if type(n) ~= "number" or n ~= n then
 		return Stakes.MIN
 	end
 	return math.max(Stakes.MIN, math.min(Stakes.MAX, math.floor(n)))
+end
+
+function Stakes.ruleBansFor(n)
+	return Stakes.RuleBansAtStart[Stakes.clamp(n)] or 0
 end
 
 function Stakes.get(n)

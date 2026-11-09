@@ -185,6 +185,10 @@ function RunState.new(options, rng)
 		stakeRules = stakeRules,
 		-- ENDLESS (Engine/EndlessRules.lua): Crowd Rules after the Night cap, normal runs only.
 		endlessRulesEnabled = options.endlessRules == true,
+		-- RULE BAN tokens (Engine/Stakes.lua RuleBansAtStart): only a run created with options.ruleBans = true has them, so the
+		-- server decides which runs may use them (normal runs; never Daily, Weekly, Seed, Boss Rush, challenge or tutorial).
+		ruleBansEnabled = options.ruleBans == true and not quick,
+		ruleBans = (options.ruleBans == true and not quick) and Stakes.ruleBansFor(stake) or 0,
 		quickRun = quick, -- Engine/RunModes.lua
 		runMode = quick and "quick" or nil,
 		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
@@ -402,7 +406,8 @@ function RunState.startRound(state)
 	end
 	state.isBossRound = BossRounds.isBossRound(state.round, state.config.roundsPerNight)
 	local isBoss = state.bossRoundsEnabled and state.isBossRound
-	state.bossModifier = isBoss and state.nightBossModifier or nil
+	-- RULE BAN (RunState.useRuleBan): a banned boss fights with no rule this round (the Night's base target still applies)
+	state.bossModifier = isBoss and state.bannedBossNight ~= state.night and state.nightBossModifier or nil
 	local bossModifier = state.bossModifier
 
 	-- ROUND SELECT FEATURE: a fresh Tag for whichever round we're now on,
@@ -497,8 +502,11 @@ function RunState.startRound(state)
 	state.targetScore = math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
 
 	-- Cold Start Boss Round: Tips are lost as the round begins
+	state.bossTipsLostAtStart = 0
 	if bossModifier and bossModifier.tipsLostAtStart then
+		local before = state.tips
 		state.tips = math.max(0, state.tips - bossModifier.tipsLostAtStart)
+		state.bossTipsLostAtStart = before - state.tips -- a Rule Ban refunds exactly this
 	end
 
 	state.roundOver = false
@@ -895,6 +903,9 @@ function RunState.playHand(state, cardIndices)
 			end
 		if RunState.isBossRound(state) then
 			state.bossesCleared = state.bossesCleared + 1
+			if state.ruleBansEnabled and state.night == Stakes.RULE_BAN_BONUS_NIGHT then
+				state.ruleBans = (state.ruleBans or 0) + 1 -- clearing the Night 4 boss earns one more Rule Ban
+			end
 		end
 		local tipsBeforeRoundEndRewards = state.tips
 		settleHeldCardsAtRoundEnd(state, handResult.name)
@@ -1691,6 +1702,35 @@ end
 
 -- Whether this run's progress still counts toward the player's permanent
 -- high score records (bestNightReached, runsWon). A revived run doesn't.
+-- RULE BAN: spend one token to fight the Night's boss with no rule (its own target modifier goes too; the Night's base
+-- target stays). Only before the boss round has begun (Round Select, nothing played), once per boss, and only in a run
+-- that was created with tokens. The round is dealt again without the rule. Returns ok, reason.
+function RunState.useRuleBan(state, phase)
+	if not state.ruleBansEnabled then
+		return false, "Rule Bans are not part of this run."
+	end
+	if (state.ruleBans or 0) < 1 then
+		return false, "No Rule Ban left."
+	end
+	if phase ~= nil and phase ~= "roundSelect" then
+		return false, "Only before the boss round starts."
+	end
+	if state.runOver or state.roundOver or not state.isBossRound or not state.nightBossModifier or not state.bossRoundsEnabled then
+		return false, "There is no boss rule to ban."
+	end
+	if state.bannedBossNight == state.night then
+		return false, "This boss is already banned."
+	end
+	if state.roundScore > 0 or state.handsRemaining ~= state.roundStartHands then
+		return false, "The round has already started."
+	end
+	state.ruleBans = state.ruleBans - 1
+	state.bannedBossNight = state.night
+	state.tips = state.tips + (state.bossTipsLostAtStart or 0) -- Cold Start took Tips as the round was set up: give them back
+	RunState.startRound(state) -- deals the round again, now with no rule
+	return true
+end
+
 function RunState.countsForRecords(state)
 	return not state.revived and not state.rush and not state.quickRun -- a Boss Rush or Quick Run never moves Night records, wins, stamps or titles
 end

@@ -179,6 +179,16 @@ return function(deps)
 	-- Art-first item cards (Client/ShopCards.lua). Look only: remotes and rules stay in this file.
 	local shopCards = ShopCardsModule.new({ playClickSfx = playClickSfx, particleBurst = deps.particleBurst, addTooltip = deps.addTooltip })
 	-- Synergy tags (Engine/Synergy.lua): up to 2 small tags on a Patron card that fits what you own or play. Display only.
+	-- Boss counter shield (Engine/BossCounters.lua): a small shield on an offer that helps against the Night's boss. Display only.
+	local function shieldFor(def)
+		local ok, shield = pcall(function()
+			local st = getLatestState() or {}
+			local scout = st.scout
+			local boss = scout and require(Engine:WaitForChild("BossRounds")).getById(scout.id)
+			return boss and def and require(Engine:WaitForChild("BossCounters")).shield(boss, def) or nil
+		end)
+		return ok and shield or nil
+	end
 	local function synergyTagsFor(patronId)
 		local ok, tags = pcall(function()
 			local Synergy = require(Engine:WaitForChild("Synergy"))
@@ -901,6 +911,10 @@ return function(deps)
 				end
 				local card = shopCards.card(packItemsRow, {
 					synergy = packArtCategory == "patrons" and synergyTagsFor(item.id) or nil,
+					shield = shieldFor(packArtCategory == "patrons" and Patrons.getById(item.id) or (function()
+						local R = require(Engine:WaitForChild("Recipes"))
+						return R.getHouseRecipeById(item.id) or R.getMenuRecipeById(item.id) or R.getSecretRecipeById(item.id)
+					end)()),
 					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true,
 					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
 					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
@@ -1319,6 +1333,7 @@ return function(deps)
 					shopCards.soldSpot(row, index, slotInfo.kind, animate)
 				elseif slotInfo.kind == "voucher" then
 					local card = shopCards.card(row, {
+						shield = shieldFor(require(Engine:WaitForChild("HousePasses")).getById(offer.id)),
 						kind = "voucher", layoutOrder = index, name = offer.name, description = offer.description,
 						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", emoji = offer.icon, badge = "VOUCHER",
 						artTab = "house_passes", artId = offer.id, rarityTab = "housePasses", rarityId = offer.id,
@@ -1334,7 +1349,7 @@ return function(deps)
 				else
 					local fullPatron = Patrons.getById(offer.id)
 					local card = shopCards.card(row, {
-						synergy = synergyTagsFor(offer.id),
+						synergy = synergyTagsFor(offer.id), shield = shieldFor(fullPatron),
 						kind = "patron", layoutOrder = index, name = offer.name, description = offer.description,
 						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
 						emoji = fullPatron and fullPatron.icon, artTab = "patrons", artId = offer.id, rarityTab = "patrons", rarityId = offer.id,

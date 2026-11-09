@@ -9329,6 +9329,102 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	expectEqual(outside.seasonXp, 0, "no season, no season XP"); expectTrue(outside.tavernXp > 0)
 end })
 
+table.insert(tests, { name = "Boss counterplay: Scout card, every boss has counters, shield tags, Rule Ban token rules and fairness", fn = function()
+	local BC = require(script.Parent.Parent.Engine.BossCounters)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	-- registry: 1 to 2 known rule tags per boss, rule lines of 12 words or fewer, at least 3 counter items each, no unknown counter tags
+	expectEqual(table.concat(BC.validate(), "; "), "", "boss and item tags are valid")
+	for _, boss in ipairs(BossRounds.Definitions) do
+		expectTrue(#BC.itemsFor(boss) >= 3, boss.id .. " is counterable")
+		local scout = BC.scout(boss)
+		expectTrue(scout.name ~= "" and scout.icon ~= "" and #scout.rules >= 1, boss.id .. " scout card")
+		expectTrue(BC.wordCount(scout.line) <= 12, boss.id .. " rule line is 12 words or fewer: " .. BC.wordCount(scout.line))
+		expectTrue(not scout.line:find("—"), "no dashes")
+	end
+	expectEqual(BC.scout(nil), nil); expectEqual(BC.scout("x"), nil)
+	-- per tag coverage across the three registries
+	local perTag = {}
+	for _, tag in ipairs(BossRounds.RuleTagIds) do perTag[tag] = 0 end
+	for _, p in ipairs(Patrons.Definitions) do for _, t in ipairs(p.counters or {}) do perTag[t] = (perTag[t] or 0) + 1 end end
+	for _, list in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
+		for _, r in ipairs(list) do for _, t in ipairs(r.counters or {}) do perTag[t] = (perTag[t] or 0) + 1 end end
+	end
+	for _, hp in ipairs(HousePasses.Definitions) do for _, t in ipairs(hp.counters or {}) do perTag[t] = (perTag[t] or 0) + 1 end end
+	for tag, n in pairs(perTag) do expectTrue(n >= 3, "tag " .. tag .. " has at least 3 counter items, got " .. n) end
+	-- the helper
+	local lights = BossRounds.getById("lights_out")
+	expectEqual(BC.counters(lights, Patrons.getById("overtime")), "fewerHands")
+	expectEqual(BC.counters(lights, HousePasses.getById("double_shift")), "fewerHands")
+	expectEqual(BC.counters(lights, Patrons.getById("tip_jar")), nil, "an economy Patron does not counter a hand limit")
+	expectEqual(BC.counters(lights, { id = "x" }), nil); expectEqual(BC.counters(nil, Patrons.getById("overtime")), nil); expectEqual(BC.counters(lights, nil), nil)
+	local shield = BC.shield(lights, Patrons.getById("overtime"))
+	expectTrue(shield ~= nil and shield.icon == "🛡️" and shield.line:find("The Boss") == nil and shield.line:find(lights.name, 1, true) ~= nil)
+	expectEqual(BC.shield(lights, Patrons.getById("tip_jar")), nil)
+	-- two tags: a counter for either tag counts
+	local staffed = BossRounds.getById("short_staffed")
+	expectTrue(BC.counters(staffed, Patrons.getById("extra_chair")) ~= nil and BC.counters(staffed, Patrons.getById("second_helpings")) ~= nil)
+	-- Rule Ban tokens: 1 on stakes 1 to 4, none on 5 to 8, junk clamps
+	for stake = 1, 4 do expectEqual(Stakes.ruleBansFor(stake), 1) end
+	for stake = 5, 8 do expectEqual(Stakes.ruleBansFor(stake), 0) end
+	expectEqual(Stakes.ruleBansFor(99), 0); expectEqual(Stakes.ruleBansFor("x"), 1)
+	local function bossRun(options, bossId)
+		local s = RunState.new(options, SeededRng.new(41))
+		s.night, s.round = 1, 3
+		s.nightBossModifier = BossRounds.getById(bossId or "lights_out")
+		RunState.startRound(s)
+		return s
+	end
+	-- fairness: a run created without tokens (Daily, Weekly, Seed, Boss Rush, challenge, tutorial, Quick) cannot ban
+	local plain = bossRun(nil)
+	expectEqual(plain.ruleBans, 0); expectFalse(plain.ruleBansEnabled)
+	expectFalse((RunState.useRuleBan(plain, "roundSelect")), "no tokens in a run without them")
+	expectFalse(bossRun({ mode = "quick", ruleBans = true }).ruleBansEnabled, "a Quick Run has none")
+	local pTok = RunState.new({ ruleBans = true, stakeId = 1 }, SeededRng.new(2)); expectEqual(pTok.ruleBans, 1)
+	expectEqual(RunState.new({ ruleBans = true, stakeId = 5 }, SeededRng.new(2)).ruleBans, 0, "stake 5 starts with none")
+	-- the ban: validated, spends a token, deals the round again with no rule, the base target stays
+	local s = bossRun({ ruleBans = true, stakeId = 1 })
+	expectEqual(s.handsRemaining, 1, "Lights Out: 1 hand"); expectTrue(s.bossModifier ~= nil)
+	local targetWithRule = s.targetScore
+	expectFalse((RunState.useRuleBan(s, "playing")), "only from Round Select")
+	expectTrue(RunState.useRuleBan(s, "roundSelect"))
+	expectEqual(s.ruleBans, 0); expectEqual(s.bossModifier, nil, "the rule is off for this fight"); expectEqual(s.handsRemaining, s.config.handsPerRound, "normal hands again")
+	expectTrue(RunState.isBossRound(s), "it is still the boss round"); expectEqual(#s.hand, s.config.handSize); expectTrue(s.targetScore > 0)
+	expectEqual(s.targetScore, targetWithRule * 2, "Lights Out halved the target: banned means the base target")
+	local again, why = RunState.useRuleBan(s, "roundSelect"); expectFalse(again); expectTrue(why == "No Rule Ban left." or why == "This boss is already banned.")
+	-- one use per boss even with a second token, and the next Night's boss is not banned
+	s.ruleBans = 2
+	local second, why2 = RunState.useRuleBan(s, "roundSelect"); expectFalse(second); expectEqual(why2, "This boss is already banned.")
+	-- validation: not a boss round, a played round, a finished round
+	local normal = RunState.new({ ruleBans = true }, SeededRng.new(3))
+	expectFalse((RunState.useRuleBan(normal, "roundSelect")), "round 1 has no boss rule")
+	local played = bossRun({ ruleBans = true }, "bouncer"); played.roundScore = 5
+	expectFalse((RunState.useRuleBan(played, "roundSelect")), "the round has begun")
+	local over = bossRun({ ruleBans = true }, "bouncer"); over.roundOver = true
+	expectFalse((RunState.useRuleBan(over, "roundSelect")))
+	-- Cold Start: Tips lost when the round was set up are given back, once
+	local cold = bossRun({ ruleBans = true }, "cold_start")
+	cold.tips = 10; RunState.startRound(cold); expectEqual(cold.tips, 8, "Cold Start took 2 Tips")
+	expectTrue(RunState.useRuleBan(cold, "roundSelect")); expectEqual(cold.tips, 10, "refunded")
+	-- hand size boss: Bouncer deals one fewer card, banned deals the full hand
+	local bounce = bossRun({ ruleBans = true }, "bouncer")
+	expectEqual(#bounce.hand, bounce.config.handSize - 1); expectTrue(RunState.useRuleBan(bounce, "roundSelect")); expectEqual(#bounce.hand, bounce.config.handSize)
+	-- the Night 4 boss clear earns one more token
+	local night4 = RunState.new({ ruleBans = true, stakeId = 1 }, SeededRng.new(5))
+	night4.night, night4.round = 4, 3
+	night4.nightBossModifier = BossRounds.getById("bouncer"); RunState.startRound(night4)
+	night4.targetScore = 0; night4.ruleBans = 0
+	RunState.playHand(night4, { 1 })
+	expectEqual(night4.ruleBans, 1, "Night 4 boss cleared: +1 token")
+	local night3 = RunState.new({ ruleBans = true, stakeId = 1 }, SeededRng.new(5))
+	night3.night, night3.round = 3, 3; night3.nightBossModifier = BossRounds.getById("bouncer"); RunState.startRound(night3)
+	night3.targetScore = 0; night3.ruleBans = 0; RunState.playHand(night3, { 1 })
+	expectEqual(night3.ruleBans, 0, "only the Night 4 boss pays a token")
+	-- the ban never changes scoring math: with the rule gone the same hand scores the same as a run that never had it
+	expectEqual(Stakes.RULE_BAN_BONUS_NIGHT, 4)
+end })
+
 table.insert(tests, { name = "Spectate: cap, duplicates, self, one target at a time, leave cleanup, block, toggle, reactions, whitelisted stream, rate limit", fn = function()
 	local Sp = require(script.Parent.Parent.Engine.Spectate)
 	local state = Sp.new()

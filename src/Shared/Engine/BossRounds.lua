@@ -466,6 +466,31 @@ BossRounds.Definitions = {
 	},
 }
 
+-- BOSS COUNTERPLAY (Engine/BossCounters.lua): 1 to 2 `rules` tags per Boss Round. EDIT ME. Items that help against a tag
+-- carry the same tag in their `counters` list (Patrons, Recipes and House Passes), so the Counter can show a shield.
+local BOSS_RULE_TAGS = {
+	bare_bones = { "weakenChips", "weakenMult" }, big_tab = { "targetBoost" }, bouncer = { "lowHandSize" },
+	clubs_are_out = { "suitDebuff" }, cold_start = { "tipsDrain" }, crowded_counter = { "patronLimit" },
+	diamonds_are_out = { "suitDebuff" }, double_tab = { "tipsDrain", "targetBoost" }, empty_handed = { "fewerDiscards", "fewerHands" },
+	empty_pockets = { "tipsDrain" }, everythings_out = { "weakenChips", "weakenMult" }, flat_mult = { "weakenMult" },
+	four_top = { "cardCount" }, full_table = { "cardCount" }, hearts_are_out = { "suitDebuff" },
+	heavy_hands = { "cardCount" }, house_minimum = { "targetBoost" }, house_rules = { "targetBoost" },
+	last_chance = { "fewerDiscards" }, lights_out = { "fewerHands" }, no_repeats = { "noRepeat" },
+	no_vips = { "faceDebuff" }, one_at_a_time = { "cardCount" }, pair_patrol = { "handBan" },
+	penny_wise = { "tipsDrain" }, picked_over = { "suitDebuff", "lowHandSize" }, picky_eater = { "handBan" },
+	quick_service = { "fewerHands" }, quiet_corner = { "oddRank" }, rowdy_crowd = { "cardToss" },
+	rushed_order = { "fewerHands" }, short_notice = { "fewerDiscards" }, short_staffed = { "lowHandSize", "fewerDiscards" },
+	sleepy_cook = { "slowStart" }, slow_night = { "cardToss" }, slow_simmer = { "weakenMult" },
+	spades_are_out = { "suitDebuff" }, stale_bread = { "weakenChips", "weakenMult" }, steep_tab = { "tipsDrain" },
+	the_tab = { "tipsDrain" }, thin_chips = { "weakenChips" }, thin_soup = { "weakenChips" },
+	wild_crowd = { "cardToss" },
+}
+BossRounds.RuleTagIds = { "fewerHands", "fewerDiscards", "lowHandSize", "cardToss", "cardCount", "suitDebuff", "faceDebuff", "oddRank", "noRepeat",
+	"handBan", "targetBoost", "weakenChips", "weakenMult", "tipsDrain", "patronLimit", "slowStart" }
+for _, boss in ipairs(BossRounds.Definitions) do
+	boss.rules = BOSS_RULE_TAGS[boss.id]
+end
+
 function BossRounds.getById(id)
 	for _, def in ipairs(BossRounds.Definitions) do
 		if def.id == id then

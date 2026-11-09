@@ -86,6 +86,16 @@ HousePasses.Definitions = {
 	},
 }
 
+-- BOSS COUNTERPLAY: which boss rule tags a House Pass truly helps against (Engine/BossCounters.lua). EDIT ME.
+local HOUSEPASS_COUNTERS = {
+	boss_prep = { "fewerDiscards" }, card_cart = { "lowHandSize", "cardToss" }, double_shift = { "fewerHands", "slowStart" },
+	late_kitchen = { "fewerDiscards", "lowHandSize" }, savings_account = { "tipsDrain" }, tip_stand = { "tipsDrain" },
+	warm_welcome = { "targetBoost" },
+}
+for _, pass in ipairs(HousePasses.Definitions) do
+	pass.counters = HOUSEPASS_COUNTERS[pass.id]
+end
+
 function HousePasses.getById(id)
 	for _, pass in ipairs(HousePasses.Definitions) do
 		if pass.id == id then

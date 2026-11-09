@@ -347,6 +347,18 @@ function ShopCards.new(deps)
 			end
 		end
 
+		-- ===== Boss counter shield (Engine/BossCounters.lua): this item helps against the upcoming boss, bottom left =====
+		if spec.shield then
+			local pill = frame(artClip, { Name = "BossShield", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 6, 1, -6),
+				Size = UDim2.fromOffset(76, 24), BackgroundColor3 = Color3.fromRGB(30, 36, 58), BackgroundTransparency = 0.1 })
+			corner(pill, 12)
+			stroke(pill, Color3.fromRGB(140, 200, 255), 2, 0)
+			label(pill, { Size = UDim2.new(1, -4, 1, 0), Position = UDim2.fromOffset(2, 0), Text = "🛡️ " .. (spec.shield.ruleIcon or ""), TextColor3 = Color3.fromRGB(190, 225, 255), TextSize = 14 })
+			if addTooltip then
+				addTooltip(pill, spec.shield.line)
+			end
+		end
+
 		-- ===== Name ribbon overlapping the bottom of the art =====
 		local banner = frame(body, { Name = "Banner", Position = UDim2.fromOffset(2, shape.bannerTop), Size = UDim2.fromOffset(W - 4, BANNER_H),
 			BackgroundColor3 = WOOD })

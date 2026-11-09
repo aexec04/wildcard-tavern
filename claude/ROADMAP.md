@@ -33,6 +33,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Challenge runs with a twist (Pairs Only, No Discards)
 - [x] Legend prestige after stake 8: ten cosmetic Legend levels (`Engine/Legend.lua`)
 - [x] More bosses with distinct rules; Boss Rush after the first win
+- [x] Boss counterplay: Boss Scout, shield tags on counter items in the Counter, and a one time Rule Ban (`Engine/BossCounters.lua`)
 
 ## Phase 4: Social
 - [x] Friends and global leaderboards for Daily, Weekly and Endless

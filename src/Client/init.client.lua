@@ -2450,6 +2450,7 @@ local function render(state)
 	pcall(require(script.FirstTimeHints).update, state) -- one shot hint bubbles (Engine/Hints.lua), display only
 	pcall(require(script.LegendCrest).update, screenGui, state) -- Legend crest and gold aura on the name medallion, display only
 	pcall(require(script.FlairFX).setState, state) -- equipped Flair for the popups (visual only)
+	pcall(require(script.BossScout).update, screenGui, state) -- Boss Scout banner, Counter chip and Rule Ban tokens
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no

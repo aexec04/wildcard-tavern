@@ -1158,6 +1158,20 @@ do
 	})
 end
 
+-- BOSS COUNTERPLAY: which boss rule tags a Recipe truly helps against (Engine/BossCounters.lua). EDIT ME.
+local RECIPE_COUNTERS = {
+	compd_discard = { "fewerDiscards", "slowStart", "lowHandSize" }, downsize = { "oddRank" }, fresh_delivery = { "cardToss", "lowHandSize" },
+	fresh_menu = { "noRepeat" }, gold_standard = { "targetBoost" }, house_blend_order = { "suitDebuff" },
+	suit_flip = { "suitDebuff" }, suit_swap = { "suitDebuff" }, tabs_on_the_house = { "tipsDrain" },
+	tip_doubler = { "tipsDrain" }, twin_card = { "cardToss" }, upsell = { "faceDebuff", "oddRank" },
+	well_stocked = { "lowHandSize", "cardToss" }, whole_menu_upgrade = { "targetBoost", "noRepeat" }, wildcard_swap = { "oddRank", "noRepeat" },
+}
+for _, catalog in ipairs({ Recipes.HouseRecipes, Recipes.MenuRecipes, Recipes.SecretRecipes }) do
+	for _, recipe in ipairs(catalog) do
+		recipe.counters = RECIPE_COUNTERS[recipe.id]
+	end
+end
+
 function Recipes.getHouseRecipeById(id)
 	for _, r in ipairs(Recipes.HouseRecipes) do
 		if r.id == id then return r end
