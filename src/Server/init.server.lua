@@ -916,6 +916,8 @@ local function serializeState(session, player)
 		equippedBadgeId2 = profiles[player] and profiles[player].equippedBadgeId2 or nil, -- VIP second badge slot
 		bossRush = profiles[player] and BossRush.view(profiles[player]) or nil,
 		runStats = profiles[player] and require(Engine.RunHistory).view(profiles[player]) or nil, -- Tavern Stats page
+		regulars = profiles[player] and profiles[player].lifetime
+			and require(Engine.Regulars).view(profiles[player].lifetime, math.floor(os.time() / 86400)) or nil, -- Menu Regulars
 		isRush = state.rush ~= nil,
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
@@ -1213,6 +1215,10 @@ local function syncProfileFromSession(player)
 			local mod = runState.bossModifier
 			require(Engine.RunTelemetry).recordBoss(session.telemetry, mod and mod.id or "unknown", true,
 				(runState.roundStartHands or 0) - (runState.handsRemaining or 0), runState.night)
+			-- TAVERN REGULARS: the first clear of a Boss Round seats that boss in the Menu (Engine/Regulars.lua)
+			if profile and mod and require(Engine.RunHistory).recordBoss(profile, mod.id, true) then
+				changed = true
+			end
 		end)
 	end
 	if (runState.handsPlayedTotal or 0) >= 1 then logStep(player, "first_hand_played") end
@@ -1234,6 +1240,10 @@ local function syncProfileFromSession(player)
 					local mod = runState.bossModifier
 					RunTelemetry.recordBoss(session.telemetry, mod and mod.id or "unknown", false,
 						(runState.roundStartHands or 0) - (runState.handsRemaining or 0), runState.night)
+					if profile and mod then
+						require(Engine.RunHistory).recordBoss(profile, mod.id, false) -- your record against them
+						changed = true
+					end
 				end
 				local ownedIds = {}
 				for _, p in ipairs(runState.ownedPatrons or {}) do ownedIds[#ownedIds + 1] = p.id end

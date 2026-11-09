@@ -11530,6 +11530,62 @@ table.insert(tests, { name = "Bonds balance: a bond never lifts a hand's score b
 	expectTrue(worst <= 1.10, string.format("bond lifts a hand by %.1f percent (%s)", (worst - 1) * 100, tostring(worstWhere)))
 end })
 
+table.insert(tests, { name = "Regulars: at most 6, newest first, none without the achievement, greetings rotate by UTC day, records saved", fn = function()
+	local RunHistory = require(script.Parent.Parent.Engine.RunHistory)
+	local Regulars = require(script.Parent.Parent.Engine.Regulars)
+	local RegularLines = require(script.Parent.Parent.Engine.RegularLines)
+	local BossRounds = require(script.Parent.Parent.Engine.BossRounds)
+	-- A brand new profile has no Regulars at all.
+	local profile = { lifetime = RunHistory.newLifetime() }
+	expectEqual(0, #Regulars.view(profile.lifetime, 1))
+	-- Losing to a boss never seats them; the first clear does, once.
+	local bossA, bossB = BossRounds.Definitions[1].id, BossRounds.Definitions[2].id
+	expectFalse(RunHistory.recordBoss(profile, bossA, false))
+	expectEqual(0, #Regulars.view(profile.lifetime, 1))
+	expectTrue(RunHistory.recordBoss(profile, bossA, true))
+	expectFalse(RunHistory.recordBoss(profile, bossA, true)) -- already a Regular
+	local view = Regulars.view(profile.lifetime, 1)
+	expectEqual(1, #view)
+	expectEqual(2, view[1].wins)
+	expectEqual(1, view[1].losses)
+	expectEqual("boss", view[1].kind)
+	-- A run win seats each Patron of the run (first time only); a lost run seats none.
+	RunHistory.record(profile, { t = 1, night = 3, won = false, patrons = { "the_regular" } }, 0)
+	expectEqual(1, #Regulars.view(profile.lifetime, 1))
+	RunHistory.record(profile, { t = 2, night = 8, won = true, patrons = { "the_regular", "lucky_dice" } }, 0)
+	view = Regulars.view(profile.lifetime, 1)
+	expectEqual(3, #view)
+	expectEqual("patron", view[1].kind) -- newest first
+	-- Never more than 6 shown, even with many Regulars.
+	for i = 3, 12 do
+		RunHistory.recordBoss(profile, BossRounds.Definitions[i].id, true)
+	end
+	expectEqual(6, #Regulars.view(profile.lifetime, 1))
+	expectEqual(6, #Regulars.select(profile.lifetime))
+	expectEqual(nil, Regulars.view(profile.lifetime, 1)[7])
+	-- Unknown ids from a damaged save are dropped on load and ignored in selection.
+	local cleaned = RunHistory.cleanLifetime({ regulars = { "boss:" .. bossB, "boss:no_such_boss", 5, "junk", "patron:the_regular" } })
+	expectEqual(3, #cleaned.regulars) -- the number and "junk" are dropped on load
+	expectEqual(2, #Regulars.select(cleaned)) -- the unknown boss is skipped
+	-- Greeting is stable within a day and rotates across days.
+	expectEqual(RegularLines.greeting("boss", bossA, 100), RegularLines.greeting("boss", bossA, 100))
+	local distinct = {}
+	for day = 1, 8 do
+		distinct[RegularLines.greeting("patron", "the_regular", day)] = true
+	end
+	local n = 0
+	for _ in pairs(distinct) do n = n + 1 end
+	expectTrue(n >= 4, "greeting rotates, got " .. n .. " distinct")
+	-- Lines are short and plain.
+	for kind, pool in pairs(RegularLines.Greetings) do
+		expectTrue(#pool >= 6, kind .. " has lines")
+		for _, line in ipairs(pool) do
+			expectTrue(#line <= 60, line)
+			expectFalse(line:find("-", 1, true) ~= nil or line:find("\226\128\148", 1, true) ~= nil or line:lower():find("balatro", 1, true) ~= nil, line)
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max, no dashes, deterministic by seed", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopkeeperLines)
 	expectEqual(12, #L.Events)

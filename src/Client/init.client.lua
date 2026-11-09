@@ -2386,6 +2386,7 @@ local function render(state)
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
+	pcall(require(script.MenuRegulars).update, state, MenuScreen.menuFrame) -- Tavern Regulars row on the menu, display only
 	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
 	pcall(require(script.StorePanel).update, state) -- keeps an open Store current; opens it once after the second run
 	pcall(require(script.NewsPanel).update, state) -- News banner on the menu and the News panel, display only

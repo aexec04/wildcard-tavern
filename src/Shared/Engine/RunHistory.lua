@@ -6,7 +6,10 @@
 	  runHistory = { entry, ... }   newest first, at most RunHistory.CAP (20)
 	    entry = { t = unix seconds, mode, road = region id, stake, night, won, score, hands,
 	              patrons = { id, ... } (at most 8), bestHand = { name, score } | nil }
-	  lifetime = { bestHandScore, tipsEarned, bestNightByStake = { ["1"] = n }, patronWins = { [patronId] = wins } }
+	  lifetime = { bestHandScore, tipsEarned, bestNightByStake = { ["1"] = n }, patronWins = { [patronId] = wins },
+	               bossRecord = { [bossId] = { w, l } }, regulars = { "boss:<id>" | "patron:<id>", ... } oldest first }
+	  The Tavern Regulars (Engine/Regulars.lua) read bossRecord and regulars: a Regular is added the first time you
+	  beat that Boss Round or win a run with that Patron.
 
 	Runs, wins and hands played come from profile.stats (already saved). The server records a run only when it ends
 	normally (Game Over), never a tutorial or an abandoned run; every mode is tagged (standard, daily, weekly, seed,
@@ -17,6 +20,8 @@ local RunHistory = {}
 
 RunHistory.CAP = 20
 RunHistory.MAX_PATRONS = 8
+RunHistory.MAX_REGULARS = 60
+RunHistory.MAX_BOSS_RECORDS = 80
 RunHistory.Modes = { "standard", "daily", "weekly", "seed", "challenge", "rush", "quick" }
 
 local MODE_OK = {}
@@ -70,7 +75,7 @@ function RunHistory.cleanEntry(raw)
 end
 
 function RunHistory.newLifetime()
-	return { bestHandScore = 0, tipsEarned = 0, bestNightByStake = {}, patronWins = {} }
+	return { bestHandScore = 0, tipsEarned = 0, bestNightByStake = {}, patronWins = {}, bossRecord = {}, regulars = {} }
 end
 
 function RunHistory.cleanLifetime(raw)
@@ -98,7 +103,43 @@ function RunHistory.cleanLifetime(raw)
 			end
 		end
 	end
+	if type(raw.bossRecord) == "table" then
+		local count = 0
+		for id, rec in pairs(raw.bossRecord) do
+			if type(id) == "string" and #id <= 40 and type(rec) == "table" and count < RunHistory.MAX_BOSS_RECORDS then
+				local w, l = whole(rec.w, 0, 1e6) or 0, whole(rec.l, 0, 1e6) or 0
+				if w + l > 0 then
+					out.bossRecord[id] = { w = w, l = l }
+					count = count + 1
+				end
+			end
+		end
+	end
+	if type(raw.regulars) == "table" then
+		local seen = {}
+		for _, key in ipairs(raw.regulars) do
+			if type(key) == "string" and #key <= 50 and not seen[key] and (key:sub(1, 5) == "boss:" or key:sub(1, 7) == "patron:")
+				and #out.regulars < RunHistory.MAX_REGULARS then
+				seen[key] = true
+				out.regulars[#out.regulars + 1] = key
+			end
+		end
+	end
 	return out
+end
+
+-- A new Regular the first time (key is "boss:<id>" or "patron:<id>"); the list keeps the newest MAX_REGULARS.
+local function addRegular(life, key)
+	for _, existing in ipairs(life.regulars) do
+		if existing == key then
+			return false
+		end
+	end
+	life.regulars[#life.regulars + 1] = key
+	while #life.regulars > RunHistory.MAX_REGULARS do
+		table.remove(life.regulars, 1)
+	end
+	return true
 end
 
 -- { runHistory, lifetime } cleaned from raw saved values.
@@ -169,9 +210,35 @@ function RunHistory.record(profile, entry, tipsEarned)
 	if entry.won then
 		for _, id in ipairs(entry.patrons) do
 			life.patronWins[id] = (life.patronWins[id] or 0) + 1
+			addRegular(life, "patron:" .. id) -- first win with a Patron makes them a Regular
 		end
 	end
 	return true
+end
+
+-- A Boss Round ended: won = you cleared it. The first clear makes the boss a Regular. Returns true if a Regular was added.
+function RunHistory.recordBoss(profile, bossId, won)
+	if type(bossId) ~= "string" or #bossId > 40 or bossId == "unknown" then
+		return false
+	end
+	local life = RunHistory.cleanLifetime(profile.lifetime)
+	profile.lifetime = life
+	local rec = life.bossRecord[bossId]
+	if not rec then
+		local count = 0
+		for _ in pairs(life.bossRecord) do count = count + 1 end
+		if count >= RunHistory.MAX_BOSS_RECORDS then
+			return false
+		end
+		rec = { w = 0, l = 0 }
+		life.bossRecord[bossId] = rec
+	end
+	if won then
+		rec.w = math.min(1e6, rec.w + 1)
+		return addRegular(life, "boss:" .. bossId)
+	end
+	rec.l = math.min(1e6, rec.l + 1)
+	return false
 end
 
 -- Quick Run personal best (its own board-free record): a win beats any loss, then the higher Night, then the score.
