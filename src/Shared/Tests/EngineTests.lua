@@ -11298,4 +11298,38 @@ table.insert(tests, { name = "RunHistory: a Seed Run keeps its seed code (short 
 	expectTrue(RunHistory.cleanEntry({ t = 1, night = 1, seed = 5 }).seed == nil, "a non-string seed is dropped")
 end })
 
+table.insert(tests, { name = "MapSeams: every join overlaps by 18 percent of the narrower region, the colour ramp is valid, missing art falls back to the nearest painting", fn = function()
+	local MapSeams = require(script.Parent.Parent.Engine.MapSeams)
+	local regions = {
+		{ key = "a", tint = { 222, 200, 150 }, lastNode = 1 }, { key = "b", tint = { 190, 200, 142 }, lastNode = 3 },
+		{ key = "c", tint = { 168, 196, 176 }, lastNode = 4 }, { key = "d", tint = { 226, 190, 128 }, lastNode = math.huge },
+	}
+	-- joinWidth: 36 percent of the narrower region (18 on each side), within the min/max caps and never wider than the region
+	for _, widths in ipairs({ { 340, 680 }, { 1000, 1400 }, { 200, 5000 }, { 90, 90 }, { 4000, 4000 } }) do
+		local jw = MapSeams.joinWidth(widths[1], widths[2])
+		local narrow = math.min(widths[1], widths[2])
+		expectTrue(jw <= narrow, "zone fits inside the narrower region")
+		expectTrue(jw <= MapSeams.JOIN_MAX, "zone is capped")
+		local want = math.min(narrow, MapSeams.JOIN_MAX, math.max(MapSeams.JOIN_MIN, math.floor(narrow * MapSeams.JOIN_FRAC)))
+		expectTrue(jw >= want - 1, "zone is at least 36 percent of the narrower region unless capped")
+	end
+	local plan = MapSeams.plan(regions, 4072, 734, nil, function(i) return i ~= 3 end)
+	expectEqual(#regions + 1, #plan.edges, "edges include both canvas ends")
+	expectEqual(0, plan.edges[1]); expectEqual(4072, plan.edges[#plan.edges])
+	for i = 2, #regions do
+		local j = plan.joins[i]
+		expectTrue(j ~= nil and j.width > 0, "join " .. i .. " exists")
+		expectTrue(math.max(j.overlapLeftPct, j.overlapRightPct) >= 17.5, "join " .. i .. " overlaps by about 18 percent of the narrower side")
+		expectTrue(j.from < j.x and j.to > j.x, "the zone straddles the join")
+	end
+	expectEqual(2, plan.regions[3].fallbackFrom, "region 3 has no art and borrows the nearest painting")
+	expectTrue(plan.regions[1].fallbackFrom == nil, "a region with art needs no fallback")
+	-- under-layer ramp: starts at 0, ends at 1, strictly increasing, a colour from every region
+	local stops = MapSeams.underlayStops(regions, plan.edges, 4072)
+	expectEqual(0, stops[1].t); expectEqual(1, stops[#stops].t)
+	for k = 2, #stops do expectTrue(stops[k].t > stops[k - 1].t, "ramp stops increase") end
+	expectTrue(#stops >= #regions, "every region contributes a colour")
+	expectEqual(nil, MapSeams.fallbackSource(regions, 1, function() return false end), "no art anywhere means no fallback")
+end })
+
 return tests

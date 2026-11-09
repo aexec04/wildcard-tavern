@@ -29,6 +29,8 @@ return function(deps)
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local SIZE = 44
 	local KIND_ICON = { chest = "🧰", merchant = "🛒", secret_patron = "🔓" }
+	local SPOT_NAMES = { chest = "Hidden chest", merchant = "Wandering merchant", secret_patron = "Secret stash" }
+	local hover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = deps.calm })
 
 	local root = Instance.new("Frame")
 	root.Name = "Discoveries"
@@ -154,6 +156,13 @@ return function(deps)
 						require(script.Parent.ArtIcon).apply(button, "discoveries", spot.kind, button, { zIndex = 27, cornerRadius = SIZE / 2 })
 					end
 					spotViews[#spotViews + 1] = { frame = button, stroke = stroke, x = x, y = y, claimed = claimed == true }
+					hover.bind(button, function() -- hover card: honest about what it is (spots only exist once revealed)
+						local region = WorldMap.Regions[spot.region]
+						return {
+							title = SPOT_NAMES[spot.kind] or "Hidden spot", biome = region and region.name or "",
+							line = claimed and "You already found this." or "Tap to open it for a reward.", done = claimed == true,
+						}
+					end, { noGlow = true })
 					if not claimed then
 						button.MouseButton1Click:Connect(function()
 							local r = remote("ClaimDiscovery")

@@ -128,6 +128,8 @@ return function(deps)
 	local scenery = require(script.Parent.JourneyMapScenery)({
 		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
 		RegionTiles = require(Engine:WaitForChild("RegionTiles")),
+		MapSeams = require(Engine:WaitForChild("MapSeams")),
+		TweenService = TweenService, calm = calm, parentFrame = frame, addTooltip = deps.addTooltip,
 	})
 	-- The rest of the branching world (other roads, fork chips, biome reward badges); see JourneyMapGraph.
 	local BiomeRewardsJMV = require(Engine:WaitForChild("BiomeRewards"))
@@ -314,6 +316,8 @@ return function(deps)
 	end
 
 	-- ===== Nodes =====
+	local nodeHover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = calm })
+	local revealStateOf = function() return nil end -- replaced below, once `reveal` exists (it is declared after buildNode)
 	local nodes = {}
 	local nodeSize = 84
 	local markerIndex = nil
@@ -449,6 +453,14 @@ return function(deps)
 			BackgroundColor3 = PARCHMENT, TextColor3 = LABEL_INK, Visible = false, ZIndex = 31,
 		})
 		deps.roundCorner(lockMark, 12)
+		-- Hover: lift and an info card; fogged stops only say "???" (the node's own click opens its detail card).
+		nodeHover.bind(button, function()
+			local fogState = revealStateOf(index)
+			if fogState ~= nil and fogState ~= "revealed" then
+				return { title = "???", biome = "Night " .. tostring(data.night), line = "Something stirs in the fog." }
+			end
+			return { title = info.name, biome = isEndless and "Endless Nights" or ("Night " .. tostring(data.night)), line = "Tap for details and rewards." }
+		end, { noGlow = true })
 
 		-- Endless: slowly rotating portal (20 s per turn).
 		local spin
@@ -616,6 +628,7 @@ return function(deps)
 	local nudged = {} -- nodes dragged with the Studio Nudge tool keep the dragged spot
 	local debugOn = false -- Studio-only coordinate overlay / drag mode (reveals everything while on)
 	local reveal = { states = {}, newly = {} } -- fog state per node, set by render
+	revealStateOf = function(index) return reveal.states[index] end
 	local revealOverride = nil -- Night used for the fog while the clear moment replays
 	local fogAnimate = false -- true while the fog band rolls back
 	local lastLayoutKey = nil
@@ -682,6 +695,7 @@ return function(deps)
 		end
 		if not first or debugOn then
 			fogBand.update({ edgeX = nil })
+			scenery.setFogEdge(nil)
 			return
 		end
 		local fx, fy = nodePixel(first)
@@ -693,10 +707,12 @@ return function(deps)
 			local _, hy = worldGraph.freeSpot(tagCx, fy, 290, 36)
 			fogBand.update({ edgeX = fx, teaser = { x = fx, y = fy, size = nodeSize }, hintX = tagCx - 40, hintY = hy,
 				animate = animate })
+			scenery.setFogEdge(fx)
 		else
 			local px = nodePixel(first - 1)
 			local edge = px + (fx - px) * 0.7
 			fogBand.update({ edgeX = edge, hintX = edge + 90, hintY = canvasH * 0.5, animate = animate })
+			scenery.setFogEdge(edge)
 		end
 	end
 

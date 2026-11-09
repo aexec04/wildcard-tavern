@@ -32,30 +32,61 @@ return function(deps)
 	local canvas = deps.canvas
 	local ContentArt = deps.ContentArt
 	local RegionTiles = deps.RegionTiles
+	local MapSeams = deps.MapSeams -- Engine/MapSeams: join geometry shared with the tests and tools/map_seam_report.lua
 
 	-- lastNode = index (in JourneyMap.allNodes order) of the last node inside the region.
 	-- decor = doodles that fit the place, used in this order.
 	local REGIONS = {
-		{ key = "region_road", tint = Color3.fromRGB(222, 200, 150), lastNode = 1,
+		{ key = "region_road", tint = Color3.fromRGB(222, 200, 150), lastNode = 1, name = "The Dusty Road",
 			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- sand (no compass_rose: the map has one real compass icon)
-		{ key = "region_meadow", tint = Color3.fromRGB(190, 200, 142), lastNode = 3,
+		{ key = "region_meadow", name = "Wildflower Meadow", tint = Color3.fromRGB(190, 200, 142), lastNode = 3,
 			decor = { "windmill", "mushroom_ring", "lantern_post", "cottage" } }, -- green
-		{ key = "region_river", tint = Color3.fromRGB(168, 196, 176), lastNode = 4,
+		{ key = "region_river", name = "Willow River", tint = Color3.fromRGB(168, 196, 176), lastNode = 4,
 			decor = { "bridge", "pine_tree", "mushroom_ring" } }, -- blue-green
-		{ key = "region_peaks", tint = Color3.fromRGB(186, 190, 172), lastNode = 5,
+		{ key = "region_peaks", name = "Mountain Peaks", tint = Color3.fromRGB(186, 190, 172), lastNode = 5,
 			decor = { "pine_tree", "signpost" } }, -- grey-green
 		-- ONE tavern only (Nights 6 to 8; the Keeper's Table is the final destination): a single
 		-- stretched image, never tiled. The Endless nodes beyond it get a plain road region.
-		{ key = "region_tavern", tint = Color3.fromRGB(226, 190, 128), lastNode = 8, single = true,
+		{ key = "region_tavern", name = "The Tavern", tint = Color3.fromRGB(226, 190, 128), lastNode = 8, single = true,
 			decor = { "cottage", "lantern_post", "pine_tree" } }, -- warm amber
-		{ key = "region_road", tint = Color3.fromRGB(214, 192, 146), lastNode = math.huge,
+		{ key = "region_road", tint = Color3.fromRGB(214, 192, 146), name = "The Road Beyond", lastNode = math.huge,
 			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- the road continues past the tavern
 	}
 		local ART_ASPECT = 1.5 -- region art width / height
 	local ZOOM = 1.2 -- tiles are zoomed about their centre so the art's own pale edge fade is clipped away
-	local JOIN_MIN, JOIN_MAX = 96, 480 -- cross-fade zone: >= 25 percent of the narrower region, within these pixels
+	-- Cross-fade zone: MapSeams.joinWidth (36 percent of the narrower region, so each painting overlaps its neighbour by
+	-- 18 percent on each side). UIGradient.Transparency is never used (project rule): the fade is thin ImageTransparency slices.
 	local HORIZON_Y = 0.5 -- every painting is anchored on the same vertical fraction so horizons line up
 	local PARCHMENT_BASE = Color3.fromRGB(176, 170, 120) -- muted sand-green, so a gap never reads as a cream block
+
+	-- Hover card text for each doodle: what it is and what to expect there. Hidden (fogged) landmarks only say "???".
+	local DECOR_INFO = {
+		signpost = { "Old Signpost", "Arrows point the way to the tavern." },
+		pine_tree = { "Tall Pine", "A quiet spot to rest. Nothing is hidden here." },
+		mushroom_ring = { "Mushroom Ring", "A fairy ring. Tavern folk say it brings luck." },
+		windmill = { "Windmill", "Its sails turn all day for the tavern's flour." },
+		lantern_post = { "Lantern Post", "Lit every evening for travellers." },
+		cottage = { "Little Cottage", "A cosy stop with a warm window." },
+		bridge = { "Stone Bridge", "Cross it to keep following the road." },
+	}
+	local hover = deps.TweenService and require(script.Parent.MapHover).new({
+		canvas = canvas, TweenService = deps.TweenService, calm = deps.calm,
+	}) or nil
+	local fogEdge = nil -- canvas x where the fog starts (nil = nothing hidden); set by the view
+	local decorRegion = {} -- decor ImageLabel -> region index
+
+	local function bindLandmark(img, key, regionIndex)
+		if not hover then return end
+		decorRegion[img] = regionIndex
+		hover.bind(img, function()
+			local hidden = fogEdge ~= nil and img.Position.X.Offset > fogEdge
+			if hidden then
+				return { title = "???", biome = "???", line = "Something is hidden in the fog." }
+			end
+			local info = DECOR_INFO[key] or { key:gsub("_", " "), "A landmark on the road." }
+			return { title = info[1], biome = REGIONS[regionIndex].name or "", line = info[2] }
+		end, { pin = true })
+	end
 
 	local layer = Instance.new("Frame")
 	layer.Name = "Scenery"
@@ -68,13 +99,17 @@ return function(deps)
 	-- One continuous parchment sheet under every region, so a tile join can never show the panel behind.
 	local base = Instance.new("Frame")
 	base.Name = "ParchmentBase"
-	base.BackgroundColor3 = PARCHMENT_BASE
+	base.BackgroundColor3 = Color3.new(1, 1, 1) -- tinted by the ramp below
 	base.BorderSizePixel = 0
 	base.ZIndex = 21
 	base.Parent = layer
+	local baseRamp = Instance.new("UIGradient") -- Color stops only: the averaged region colours across the canvas
+	baseRamp.Color = ColorSequence.new(PARCHMENT_BASE)
+	baseRamp.Parent = base
 
 	local regionFrames = {}
 	local regionIds = {}
+	local fallbackIds = {} -- fallbackIds[i] = the nearest recorded painting, used when region i has none
 	for i, region in ipairs(REGIONS) do
 		local f = Instance.new("Frame")
 		f.Name = "Region" .. i
@@ -84,6 +119,12 @@ return function(deps)
 		f.Parent = layer
 		regionIds[i] = ContentArt.getImageId("map_regions", region.key)
 		regionFrames[i] = f
+	end
+	for i in ipairs(REGIONS) do
+		if not regionIds[i] then
+			local src = MapSeams.fallbackSource(REGIONS, i, function(j) return regionIds[j] ~= nil end)
+			fallbackIds[i] = src and regionIds[src] or nil
+		end
 	end
 
 	local fadeLayer = Instance.new("Frame") -- cross-fade slices; above every region body (they only cover joins)
@@ -111,24 +152,12 @@ return function(deps)
 
 	-- Region edges in canvas pixels: edges[i] = left of region i, edges[#REGIONS + 1] = canvasW.
 	local function regionEdges(canvasW, nodeXs)
-		local edges = { 0 }
-		for i = 1, #REGIONS - 1 do
-			local last = REGIONS[i].lastNode
-			local x
-			if nodeXs and nodeXs[last] and nodeXs[last + 1] then
-				x = (nodeXs[last] + nodeXs[last + 1]) / 2
-			else
-				x = canvasW * i / #REGIONS
-			end
-			edges[i + 1] = math.floor(math.clamp(x, edges[i] + 1, canvasW))
-		end
-		edges[#REGIONS + 1] = math.floor(canvasW)
-		return edges
+		return MapSeams.edges(REGIONS, canvasW, nodeXs)
 	end
 
 	-- Draws region i's painting into `row` (a Frame of size w x canvasH whose left is canvas x = x0).
 	local function paintRegion(row, i, w, canvasH, x0, nodeXs)
-		local image = regionIds[i]
+		local image = regionIds[i] or fallbackIds[i]
 		-- Clip window [winX, winX + winW] showing the tile whose nominal span is [nomX, nomX + nomW]; the image is
 		-- zoomed ZOOM about the nominal centre, so windows can be widened or narrowed without moving the painting.
 		local function zoomed(parent, name, winX, winW, nomX, nomW, scaleType, z)
@@ -186,10 +215,15 @@ return function(deps)
 		local edges = regionEdges(canvasW, nodeXs)
 		local joinW = {} -- joinW[i] = width of the cross-fade zone between region i-1 and i, centred on edges[i]
 		for i = 2, #REGIONS do
-			joinW[i] = RegionTiles.joinWidth(edges[i] - edges[i - 1], edges[i + 1] - edges[i], JOIN_MIN, JOIN_MAX)
+			joinW[i] = MapSeams.joinWidth(edges[i] - edges[i - 1], edges[i + 1] - edges[i])
 		end
 		seamLayer:ClearAllChildren()
 		base.Size = UDim2.fromOffset(math.floor(canvasW), canvasH)
+		local keypoints = {}
+		for _, stop in ipairs(MapSeams.underlayStops(REGIONS, edges, canvasW)) do
+			keypoints[#keypoints + 1] = ColorSequenceKeypoint.new(stop.t, Color3.fromRGB(stop.r, stop.g, stop.b))
+		end
+		if #keypoints >= 2 then baseRamp.Color = ColorSequence.new(keypoints) end
 		fadeLayer:ClearAllChildren()
 		for i, f in ipairs(regionFrames) do
 			local x0 = edges[i] - (i > 1 and joinW[i] / 2 or 0)
@@ -197,14 +231,15 @@ return function(deps)
 			x0, x1 = math.floor(x0), math.floor(x1)
 			local w = x1 - x0
 			-- The body starts after the cross-fade zone so its left edge is never a hard cut.
-			local fadeW = (i > 1 and regionIds[i]) and joinW[i] or 0
+			local image = regionIds[i] or fallbackIds[i]
+			local fadeW = (i > 1 and image) and joinW[i] or 0
 			f:ClearAllChildren()
 			f.ClipsDescendants = true
 			f.Position = UDim2.fromOffset(x0 + fadeW, 0)
 			f.Size = UDim2.fromOffset(w - fadeW + 1, canvasH)
 			-- With art the flat tint steps aside and the continuous parchment base shows through.
-			f.BackgroundTransparency = regionIds[i] and 1 or 0
-			if regionIds[i] then
+			f.BackgroundTransparency = image and 1 or 0
+			if image then
 				local row = Instance.new("Frame")
 				row.Name = "Row"
 				row.Position = UDim2.fromOffset(-fadeW, 0)
@@ -296,6 +331,7 @@ return function(deps)
 					img.ZIndex = 23
 					img.Parent = decorLayer
 					deps.roundCorner(img, 14)
+					bindLandmark(img, key, r)
 					local stroke = Instance.new("UIStroke")
 					stroke.Color = Color3.fromRGB(110, 80, 45)
 					stroke.Thickness = 1.5
@@ -320,9 +356,14 @@ return function(deps)
 				img.ScaleType = Enum.ScaleType.Fit
 				img.ZIndex = 24
 				img.Parent = decorLayer
+				bindLandmark(img, key, i)
 			end
 		end
 	end
 
-	return { layout = layout }
+	return {
+		layout = layout,
+		-- The view tells the scenery where the fog starts so hidden landmarks only say "???".
+		setFogEdge = function(x) fogEdge = x end,
+	}
 end
