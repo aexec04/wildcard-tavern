@@ -111,7 +111,7 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] vip_table
 - [x] warm_hearth
 
-## Recipe portraits  (65/81 done) - category recipes (incl. 7 biome recipes)
+## Recipe portraits  (81/81 done) - category recipes (incl. 7 biome recipes)
 - [x] bedtime_bonus
 - [x] blue_plate_special
 - [x] bog_stew
@@ -121,7 +121,7 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] chefs_special
 - [x] clean_sweep
 - [x] compd_discard
-- [ ] cooks_choice (prompt)
+- [x] cooks_choice
 - [x] copy_the_order
 - [x] crowd_favorite
 - [x] date_cake
@@ -129,15 +129,15 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] eighty_six_it
 - [x] encore_order
 - [x] everybodys_favorite
-- [ ] family_style (prompt)
-- [ ] feast_platter (prompt)
+- [x] family_style
+- [x] feast_platter
 - [x] final_course
 - [x] fresh_delivery
-- [ ] fresh_menu (prompt)
+- [x] fresh_menu
 - [x] fresh_squeeze
 - [x] fresh_start
 - [x] frost_pudding
-- [ ] gold_leaf (prompt)
+- [x] gold_leaf
 - [x] gold_standard
 - [x] golden_hour
 - [x] honey_drizzle
@@ -159,42 +159,48 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] mystery_guest
 - [x] neighborhood_watch
 - [x] new_regular
-- [ ] pair_platter (prompt)
-- [ ] patron_echo (prompt)
+- [x] pair_platter
+- [x] patron_echo
 - [x] patron_of_the_month
-- [ ] patron_shuffle (prompt)
+- [x] patron_shuffle
 - [x] prime_reservation
 - [x] rainbow_sprinkle
 - [x] riverside_chowder
 - [x] round_up
-- [ ] row_platter (prompt)
+- [x] row_platter
 - [x] sea_biscuit
 - [x] second_helping
-- [ ] silver_platter (prompt)
+- [x] silver_platter
 - [x] silver_service
-- [ ] single_serving (prompt)
+- [x] single_serving
 - [x] spice_rack
 - [x] split_the_check
-- [ ] stamp_collector (prompt)
+- [x] stamp_collector
 - [x] star_treatment
 - [x] sugar_rush
 - [x] sugar_shield
-- [ ] suit_flip (prompt)
-- [ ] suit_platter (prompt)
+- [x] suit_flip
+- [x] suit_platter
 - [x] suit_swap
 - [x] summit_stew
 - [x] sunday_special
-- [ ] swap_out (prompt)
+- [x] swap_out
 - [x] tabs_on_the_house
 - [x] tip_doubler
-- [ ] twin_card (prompt)
+- [x] twin_card
 - [x] upsell
 - [x] well_stocked
 - [x] whole_menu_upgrade
 - [x] wildcard_swap
 - [x] wipe_the_slate
 
-## Title portraits (incl. 16 biome titles, Winter Lanterns)  (83/87 done) - category titles
+## Title portraits (incl. 16 biome titles, Winter Lanterns)  (98/98 done) - category titles
+- [x] book_badges
+- [x] book_bosses
+- [x] book_patrons
+- [x] book_recipes
+- [x] book_sets
+- [x] book_titles
 - [x] careful_hands
 - [x] challenge_first
 - [x] challenge_many
@@ -231,6 +237,9 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] into_the_endless
 - [x] keeper_of_tales
 - [x] lantern_keeper
+- [x] legend_1
+- [x] legend_5
+- [x] legend_9
 - [x] lighthouse_friend
 - [x] loft_climber
 - [x] map_spots
@@ -258,8 +267,10 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] river_master
 - [x] rush_six
 - [x] rush_three
-- [ ] season_harvest_moon (prompt)
-- [ ] season_winter_welcome (prompt)
+- [x] season_harvest_moon
+- [x] season_premium_harvest
+- [x] season_premium_winter
+- [x] season_winter_welcome
 - [x] snow_master
 - [x] snow_scout
 - [x] snow_trekker
@@ -274,14 +285,14 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] streak_thirty
 - [x] streak_three
 - [x] table_regular
-- [ ] tavern_ambassador (prompt)
+- [x] tavern_ambassador
 - [x] tavern_guest
 - [x] tavern_keeper
 - [x] tavern_legend
 - [x] tavern_master
 - [x] ten_runs
 - [x] trailblazer
-- [ ] welcoming_host (prompt)
+- [x] welcoming_host
 
 ## Boss portraits  (43/43 done) - category bosses
 - [x] bare_bones
@@ -343,7 +354,7 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] warm_welcome
 - [x] wholesale_pricing
 
-## Card back art (incl. Winter Lanterns, biome backs)  (15/17 done) - category card_backs
+## Card back art (incl. Winter Lanterns, biome backs)  (22/22 done) - category card_backs
 - [x] classic
 - [x] closing_lantern
 - [x] dune_gold
@@ -353,14 +364,19 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] gala
 - [x] gilded_ledger
 - [x] hall_banner
-- [ ] harvest_moon (prompt)
+- [x] harvest_moon
+- [x] harvest_premium
 - [x] kitchen_checks
+- [x] legend_crown
+- [x] legend_eternal
+- [x] legend_gold
 - [x] lilypad_green
 - [x] shell_pearl
 - [x] starlit_keeper
 - [x] winter_frost
 - [x] winter_lanterns
-- [ ] winter_welcome (prompt)
+- [x] winter_premium
+- [x] winter_welcome
 
 ## Shop pack icons  (6/6 done) - category packs
 - [x] buffoon_pack
@@ -501,14 +517,16 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] target_score
 - [x] token_icon
 
-## Menu icons  (10/11 done) - category menu_icons
+## Menu icons  (13/13 done) - category menu_icons
 - [x] boss_rush
+- [x] boss_scout
 - [x] daily
 - [x] how_to_play
-- [ ] invite (prompt)
+- [x] invite
 - [x] news
 - [x] quests
 - [x] road_ahead
+- [x] rule_ban
 - [x] seed
 - [x] store
 - [x] tutorial
@@ -562,6 +580,8 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] snowy_hearth
 - [x] harbor_lights
 - [x] tavern_feast
+- [x] harvest_table
+- [x] winter_table
 
 ## Badge icons (32; emoji until recorded) - category badges
 - [x] biome_meadow
@@ -597,4 +617,4 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] streak_14
 - [x] season_winter_lanterns
 
-**Total missing: 23**
+**Total missing: 0**

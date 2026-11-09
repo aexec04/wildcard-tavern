@@ -8,10 +8,12 @@
 return {
 	["dune_market"] = "rbxassetid://125794626012731",
 	["harbor_lights"] = "rbxassetid://82405515764766",
+	["harvest_table"] = "rbxassetid://109337052136116",
 	["marsh_lanterns"] = "rbxassetid://122334714529596",
 	["meadow_picnic"] = "rbxassetid://140332678601762",
 	["riverside_evening"] = "rbxassetid://83886672368846",
 	["snowy_hearth"] = "rbxassetid://83273754533326",
 	["summit_camp"] = "rbxassetid://130425201456177",
 	["tavern_feast"] = "rbxassetid://134123093959841",
+	["winter_table"] = "rbxassetid://125985737354172",
 }

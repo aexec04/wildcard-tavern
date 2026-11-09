@@ -77,6 +77,40 @@ function SeasonPanel.init(deps)
 	bannerStroke.Color = GOLD
 	bannerStroke.Thickness = 2
 	bannerStroke.Parent = banner
+	-- painted season banner (ContentArt "seasons", SeasonTrack bannerKey) behind the text; wood stays as the fallback
+	local bannerArt = Instance.new("Frame")
+	bannerArt.Name = "SeasonBannerArt"
+	bannerArt.Size = UDim2.fromScale(1, 1)
+	bannerArt.BackgroundTransparency = 1
+	bannerArt.ClipsDescendants = true
+	bannerArt.ZIndex = 42
+	bannerArt.Parent = banner
+	deps.roundCorner(bannerArt, 8)
+	local bannerScrim = Instance.new("Frame")
+	bannerScrim.Name = "SeasonBannerScrim"
+	bannerScrim.Size = UDim2.fromScale(1, 1)
+	bannerScrim.BackgroundColor3 = Color3.fromRGB(20, 12, 6)
+	bannerScrim.BackgroundTransparency = 1
+	bannerScrim.BorderSizePixel = 0
+	bannerScrim.ZIndex = 43
+	bannerScrim.Visible = false
+	bannerScrim.Parent = bannerArt
+	local bannerKeyShown
+	local function setBanner(key)
+		if key == bannerKeyShown then return end
+		bannerKeyShown = key
+		for _, c in ipairs(bannerArt:GetChildren()) do
+			if c:IsA("ImageLabel") then c:Destroy() end
+		end
+		bannerScrim.Visible = false
+		if not key then return end
+		local img = ArtIcon.apply(bannerArt, "seasons", key, nil, { zIndex = 42, cornerRadius = 8 })
+		if img then
+			img.ScaleType = Enum.ScaleType.Crop
+			bannerScrim.BackgroundTransparency = 0.45
+			bannerScrim.Visible = true
+		end
+	end
 	local nameLabel = label(banner, {
 		Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(14, 0), TextSize = 22, TextColor3 = CREAM,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "Tavern Season",
@@ -307,6 +341,7 @@ function SeasonPanel.init(deps)
 		local view = state and state.season
 		clearTrack()
 		if not view then
+			setBanner(nil)
 			nameLabel.Text = "Tavern Season"
 			daysLabel.Text = ""
 			barText.Text = "No season is running right now."
@@ -315,6 +350,7 @@ function SeasonPanel.init(deps)
 			return
 		end
 		if view.upcoming then
+			setBanner(view.bannerKey)
 			nameLabel.Text = view.name
 			daysLabel.Text = "Starts in " .. tostring(view.startsIn) .. "d"
 			barText.Text = "Coming soon."
@@ -322,6 +358,7 @@ function SeasonPanel.init(deps)
 			claimAll.Visible = false
 			return
 		end
+		setBanner(view.bannerKey)
 		nameLabel.Text = view.name
 		daysLabel.Text = "🕒 " .. tostring(view.daysLeft) .. "d left"
 		claimAll.Visible = true

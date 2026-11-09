@@ -7,11 +7,14 @@
 
 return {
 	["boss_rush"] = "rbxassetid://96430964109872",
+	["boss_scout"] = "rbxassetid://116093971378956",
 	["daily"] = "rbxassetid://106622713678438",
 	["how_to_play"] = "rbxassetid://77669465353485",
+	["invite"] = "rbxassetid://79558089070391",
 	["news"] = "rbxassetid://71301990796791",
 	["quests"] = "rbxassetid://137165261914789",
 	["road_ahead"] = "rbxassetid://133212733706393",
+	["rule_ban"] = "rbxassetid://104613861219524",
 	["seed"] = "rbxassetid://126396465671325",
 	["store"] = "rbxassetid://104657128008922",
 	["tutorial"] = "rbxassetid://82560529734625",

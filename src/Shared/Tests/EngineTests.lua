@@ -11171,6 +11171,7 @@ table.insert(tests, { name = "Roadmap art: every registry entry has a prompt, ne
 		challenges = ids(require(Engine.Challenges).Definitions),
 		store_bundles = ids(require(Engine.Store).Items),
 	}
+	valid.challenges.quick_run = true -- the Quick Run tile in Run Setup (a RunModes mode, not a Challenges entry)
 	for cat, set in pairs(valid) do
 		for key in pairs(ContentArt[cat]) do expectTrue(set[key], cat .. " art key " .. key .. " is a registry id") end
 	end

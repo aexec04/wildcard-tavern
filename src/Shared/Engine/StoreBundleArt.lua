@@ -8,6 +8,13 @@
 return {
 	["card_set_bundle"] = "rbxassetid://100695352945548",
 	["continue"] = "rbxassetid://126273260192322",
+	["flair_bundle"] = "rbxassetid://112907150169989",
+	["flair_crown_finisher"] = "rbxassetid://134204160914603",
+	["flair_rainbow_numbers"] = "rbxassetid://109749472729787",
+	["flair_ribbon_trail"] = "rbxassetid://122468230632704",
+	["flair_star_aura"] = "rbxassetid://85461581334600",
+	["premium_harvest_moon"] = "rbxassetid://77525070034149",
+	["premium_winter_welcome"] = "rbxassetid://108034187249814",
 	["starter_pack"] = "rbxassetid://124967309357559",
 	["vip"] = "rbxassetid://122139024616487",
 }
