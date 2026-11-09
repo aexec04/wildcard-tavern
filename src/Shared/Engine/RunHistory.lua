@@ -65,6 +65,7 @@ function RunHistory.cleanEntry(raw)
 		hands = whole(raw.hands, 0, 1e6) or 0,
 		patrons = patrons,
 		bestHand = bestHand,
+		seed = type(raw.seed) == "string" and raw.seed ~= "" and #raw.seed <= 24 and raw.seed or nil,
 	}
 end
 
@@ -127,7 +128,7 @@ function RunHistory.modeOf(flags)
 end
 
 -- Builds an entry from a finished RunState. `region` is the road's region id (the server knows it).
-function RunHistory.entryFromState(state, mode, region, now)
+function RunHistory.entryFromState(state, mode, region, now, seed)
 	local patrons = {}
 	for _, id in ipairs(state.patronsUsedOrder or {}) do
 		if #patrons < RunHistory.MAX_PATRONS then
@@ -139,6 +140,7 @@ function RunHistory.entryFromState(state, mode, region, now)
 		won = state.wonRun == true, score = state.totalScore or 0, hands = state.handsPlayedTotal or 0,
 		patrons = patrons,
 		bestHand = state.bestHand and { name = state.bestHand.name, score = state.bestHand.score } or nil,
+		seed = seed ~= nil and tostring(seed) or nil,
 	})
 end
 
@@ -214,13 +216,13 @@ function RunHistory.favoritePatron(lifetime)
 	return nil
 end
 
--- What the client draws: three headline numbers, the last 10 runs and the lifetime list.
+-- What the client draws: three headline numbers, the last runs (up to CAP, for the sparkline) and the lifetime list.
 function RunHistory.view(profile)
 	local life = RunHistory.cleanLifetime(profile.lifetime)
 	local stats = profile.stats or {}
 	local runs = {}
 	for i, entry in ipairs(profile.runHistory or {}) do
-		if i > 10 then break end
+		if i > RunHistory.CAP then break end
 		runs[i] = entry
 	end
 	local bestNight = 0

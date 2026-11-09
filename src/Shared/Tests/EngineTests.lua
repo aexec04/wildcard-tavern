@@ -8764,7 +8764,7 @@ table.insert(tests, { name = "RunHistory: capped at 20 newest first, tagged by m
 	expectEqual(RunHistory.favoritePatron(RunHistory.newLifetime()), nil)
 	profile.stats.runsStarted, profile.stats.runsWon, profile.stats.handsPlayedTotal = 25, 5, 400
 	local view = RunHistory.view(profile)
-	expectEqual(#view.recent, 10, "the page shows the last 10"); expectEqual(view.runs, 25); expectEqual(view.wins, 5); expectEqual(view.hands, 400)
+	expectEqual(#view.recent, 20, "the page shows every kept run (20) for the sparkline"); expectEqual(view.runs, 25); expectEqual(view.wins, 5); expectEqual(view.hands, 400)
 	expectEqual(view.bestHandScore, 250)
 	-- junk entries and junk numbers are refused
 	expectFalse(RunHistory.record(profile, { night = "x", t = 5 }))
@@ -11286,6 +11286,16 @@ table.insert(tests, { name = "Flair.view: locked options carry progress toward t
 	expectTrue(seen.classic_numbers.goal == nil, "default options have no goal")
 	profile.tavernRank = 99
 	expectEqual(5, Flair.view(profile).slots[1].options[2].progress, "progress is capped at the goal")
+end })
+
+table.insert(tests, { name = "RunHistory: a Seed Run keeps its seed code (short strings only); other runs have none", fn = function()
+	local RunHistory = require(script.Parent.Parent.Engine.RunHistory)
+	local entry = RunHistory.entryFromState({ night = 3, stake = 2, wonRun = true, totalScore = 900, handsPlayedTotal = 12, patronsUsedOrder = { "a" } }, "seed", "meadow", 1000, "ABC-123")
+	expectEqual("ABC-123", entry.seed, "seed kept")
+	local plain = RunHistory.entryFromState({ night = 3 }, "standard", "meadow", 1000)
+	expectTrue(plain.seed == nil, "no seed on a normal run")
+	expectTrue(RunHistory.cleanEntry({ t = 1, night = 1, seed = string.rep("x", 40) }).seed == nil, "a long seed is dropped")
+	expectTrue(RunHistory.cleanEntry({ t = 1, night = 1, seed = 5 }).seed == nil, "a non-string seed is dropped")
 end })
 
 return tests

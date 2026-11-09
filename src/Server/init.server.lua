@@ -1241,7 +1241,7 @@ local function syncProfileFromSession(player)
 					daily = session.isDaily, weekly = session.isWeekly, seeded = session.isSeeded,
 					quick = runState.quickRun == true,
 				})
-				local entry = RunHistory.entryFromState(runState, mode, WorldMap.regionOf(route[#route]), os.time())
+				local entry = RunHistory.entryFromState(runState, mode, WorldMap.regionOf(route[#route]), os.time(), session.isSeeded and session.seedCode or nil)
 				if entry and RunHistory.record(profile, entry, runState.tipsEarnedTotal) then
 					changed = true
 					if RunHistory.recordQuickBest(profile, entry) then
