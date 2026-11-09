@@ -26,8 +26,8 @@ Long-term retention, engagement and monetization of players who find the game or
 
 ## Phase 3: Variety and exploration
 - [ ] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter
-- [ ] Start-of-run choices: starting deck, starting Patron, one curse or blessing
-- [ ] Random events between Nights
+- [x] Start-of-run choices: starting deck, starting Patron, one curse or blessing
+- [x] Random events between Nights
 - [ ] Challenge runs with a twist (Pairs Only, No Discards)
 - [ ] More bosses with distinct rules; Boss Rush after the first win
 

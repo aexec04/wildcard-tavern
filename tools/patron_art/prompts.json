@@ -632,5 +632,12 @@
     "packed_house": "a round silver medal with a stack of wooden stools emblem and a ribbon",
     "closing_time": "a round gold medal with a crescent moon and a hanging lantern emblem",
     "legend": "a round gold medal with a crown and laurel wreath emblem, sparkling"
+  },
+  "event_subjects": {
+    "stranger_wager": "a painted event card: a cheerful stranger in a hooded cloak rolling a wooden die across a candlelit tavern table, warm light, no text, no letters, kid-friendly",
+    "hungry_cook": "a painted event card: a traveling cook with a big spoon and a bundle of recipe scrolls at the tavern door, warm light, no text, no letters, kid-friendly",
+    "traveling_patron": "a painted event card: a traveler with a backpack and a walking stick entering a tavern with a friendly smile, warm light, no text, no letters, kid-friendly",
+    "kind_donation": "a painted event card: villagers carrying a woven basket of gold coins and flowers to a tavern door, warm light, no text, no letters, kid-friendly",
+    "lantern_stall": "a painted event card: a night market stall hung with glowing paper lanterns, a seller smiling, warm light, no text, no letters, kid-friendly"
   }
 }

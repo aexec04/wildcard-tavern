@@ -968,6 +968,15 @@ do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Ov
 	end)
 	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
 end
+do -- Start-of-run draft and between-Nights event cards (Client/ChoicePanel.lua); fed from render()
+	local ok, err = pcall(function()
+		require(script.ChoicePanel).init({
+			screenGui = screenGui, menuFrame = menuFrame, polishButton = polishButton, roundCorner = roundCorner,
+			playClickSfx = playClickSfx, choiceRemote = remotes:WaitForChild("Choice"),
+		})
+	end)
+	if not ok then warn("[Client] ChoicePanel failed: " .. tostring(err)) end
+end
 do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile on the main menu
 	local ok, err = pcall(function()
 		require(script.QuestsPanel).init({
@@ -2378,6 +2387,7 @@ local function render(state)
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
+	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
 

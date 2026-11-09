@@ -464,6 +464,12 @@ local function settleHeldCardsAtRoundEnd(state, lastHandName)
 	end
 end
 
+-- Re-takes the One More Round snapshot of the current round start, after a start-of-run or between-Nights choice
+-- (Engine/RunChoice.lua) changed the run, so a continue does not undo the pick.
+function RunState.refreshSnapshot(state)
+	state.roundStartSnapshot = copyForSnapshot(state)
+end
+
 -- True on the last round of every Night on every difficulty (see the
 -- isBossRound state field). Also true for any state with a bossModifier
 -- set directly, so hand-built test states keep working.
@@ -1006,6 +1012,24 @@ function RunState.buyPatron(state, patronId)
 		return false, "Not enough tips"
 	end
 	state.tips = state.tips - price
+	table.insert(state.ownedPatrons, patron)
+	return true, patron.name .. " joins your table."
+end
+
+-- Seats a Patron for free (the start-of-run draft, Engine/RunChoice.lua). Same limits as buying: no duplicates, a free seat.
+function RunState.grantPatron(state, patronId)
+	local patron = Patrons.getById(patronId)
+	if not patron then
+		return false, "Unknown patron: " .. tostring(patronId)
+	end
+	for _, owned in ipairs(state.ownedPatrons) do
+		if owned.id == patron.id then
+			return false, "Already at your table"
+		end
+	end
+	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then
+		return false, "Your table is full"
+	end
 	table.insert(state.ownedPatrons, patron)
 	return true, patron.name .. " joins your table."
 end

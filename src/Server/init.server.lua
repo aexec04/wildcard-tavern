@@ -50,6 +50,7 @@ local PatronsData = require(Engine.Patrons) -- display names for the Next Goal l
 local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toasts that outlive a run
 local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
 local rewardSeqCounter = 0
+local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
@@ -121,6 +122,7 @@ local ClaimLoginRewardRemote = newRemote("ClaimLoginReward") -- (player, rewardD
 local SaveBadgeRemote = newRemote("SaveBadge") -- (player): saves the finished run's badge as the profile badge
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
+local ChoiceRemote = newRemote("Choice") -- (player, optionId): answers the open draft or event card
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
 local SideStopRemote = newRemote("SideStop") -- WORLD MAP: (player, stopId, action, arg) shop/shrine/rest side stops
@@ -844,6 +846,7 @@ local function serializeState(session, player)
 				return def and def.name or nil
 			end,
 		}) or nil,
+		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -1451,6 +1454,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		end
 		-- TAVERN RANK / QUESTS / LOGIN: Tips banked for the next run are paid out here (normal runs only; seeded boards stay fair).
 		if seededRng == nil then
+			sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
 			local bank = TavernRank.takeStartTips(profile)
 			if bank > 0 then
 				sessions[player].state.tips = sessions[player].state.tips + bank
@@ -2014,7 +2018,7 @@ end)
 -- first round is played or skipped), only for a stop that follows the current one, never on a seeded run.
 ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 	local session = sessions[player]
-	if not session then
+	if not session or session.choice then
 		return
 	end
 	-- A locked road is refused here, so a client can never walk one (the compass pick goes through this too).
@@ -2268,6 +2272,11 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	-- (or skipped) before Next Round is even clickable client-side, but
 	-- don't leave a stale one open across the round boundary if it happens.
 	session.state.pendingPack = nil
+	-- RUN EVENTS: about half the time a new Night opens with an event card (normal runs only).
+	local fixedRun = session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial
+	if session.state.round == 1 and session.state.night >= 2 then
+		session.choice = RunChoice.rollEvent(session.state, not fixedRun)
+	end
 	pushState(player)
 end)
 
@@ -2281,10 +2290,30 @@ end)
 -- (or you're mid-shop/game-over). See RunState.canSkipRound/skipRound and
 -- Tags.lua for the actual rules/rewards.
 
+-- RUN CHOICES: the player answers the open start-of-run draft or between-Nights event card.
+ChoiceRemote.OnServerEvent:Connect(function(player, optionId)
+	local session = sessions[player]
+	if not session or not session.choice or session.phase ~= "roundSelect" or type(optionId) ~= "string" then
+		return
+	end
+	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
+	if ok then
+		session.choice = nextChoice
+		RunState.refreshSnapshot(session.state) -- One More Round must not undo the pick
+	end
+	if message and message ~= "" then
+		pushRewardNotice(player, { icon = ok and "✨" or "❗", text = message })
+	end
+	pushState(player)
+end)
+
 SelectRoundRemote.OnServerEvent:Connect(function(player)
 	local session = sessions[player]
 	if not session or session.phase ~= "roundSelect" then
 		return
+	end
+	if session.choice then
+		return -- a draft or event card is open: answer it first
 	end
 	WorldMap.fillDefault(session.state) -- no road picked at a fork: take the default one
 	session.minigame = nil
@@ -2302,7 +2331,7 @@ SkipRoundRemote.OnServerEvent:Connect(function(player)
 	if not session or session.phase ~= "roundSelect" then
 		return
 	end
-	if not RunState.canSkipRound(session.state) then
+	if session.choice or not RunState.canSkipRound(session.state) then
 		return
 	end
 	WorldMap.fillDefault(session.state)

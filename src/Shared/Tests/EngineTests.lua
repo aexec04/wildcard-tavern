@@ -8735,4 +8735,163 @@ table.insert(tests, { name = "Funnel and Analytics: each step is logged once per
 	expectEqual(Analytics.event("player", "x", 1, {}), false)
 end })
 
+-- ===== Start-of-run draft and run events =====
+
+local function snapshotNumbers(state)
+	return { tips = state.tips, hands = state.config.handsPerRound, discards = state.config.discardsPerRound,
+		patronSlots = state.config.patronSlotLimit, recipeSlots = state.config.recipeSlotLimit, pay = state.config.tipsPerRoundWin,
+		bossPct = state.stakeRules.bossTargetPct, reroll = state.stakeRules.rerollExtra, noInterest = state.stakeRules.noInterest }
+end
+
+table.insert(tests, { name = "RunModifiers: each has a blessing and a curse that both change the run, and stays valid", fn = function()
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	expectTrue(#RunModifiers.Definitions >= 6)
+	for _, def in ipairs(RunModifiers.Definitions) do
+		expectTrue(#def.blessing > 0 and #def.curse > 0, def.id .. " has both texts")
+		local state = RunState.new(nil, function(_n) return 1 end)
+		local before = snapshotNumbers(state)
+		local handsBefore, discardsBefore = state.handsRemaining, state.discardsRemaining
+		local ok, message = RunModifiers.apply(state, def.id)
+		expectTrue(ok and #message > 0, def.id .. " applies")
+		local after = snapshotNumbers(state)
+		local changed = 0
+		for key, value in pairs(before) do
+			if after[key] ~= value then changed = changed + 1 end
+		end
+		expectTrue(changed >= 2, def.id .. " changes at least a blessing and a curse number, changed " .. changed)
+		expectTrue(state.config.handsPerRound >= 1 and state.config.patronSlotLimit >= 1 and state.config.discardsPerRound >= 0
+			and state.config.tipsPerRoundWin >= 1 and state.config.recipeSlotLimit >= 0, def.id .. " keeps the config valid")
+		expectEqual(state.runModifierId, def.id)
+		if def.config and def.config.handsPerRound then
+			expectEqual(state.handsRemaining, handsBefore + def.config.handsPerRound, "the dealt round gets the hand too")
+		end
+		if def.config and def.config.discardsPerRound then
+			expectEqual(state.discardsRemaining, math.max(0, discardsBefore + def.config.discardsPerRound))
+		end
+	end
+	expectEqual((RunModifiers.apply(RunState.new(nil, function(_n) return 1 end), "nope")), false)
+end })
+
+table.insert(tests, { name = "RunChoice draft: 3 starting Patrons (never rare or better), then 3 blessings; the picks apply, bad ids are refused, seeded runs get none", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local set = Unlocks.setFor(PlayerProfile.new())
+	for seed = 1, 25 do
+		local rng = function(n) return ((seed * 7919 + n * 31) % n) + 1 end
+		local state = RunState.new({ unlockedContent = set }, rng)
+		local choice = RunChoice.startDraft(state, true)
+		expectEqual(choice.kind, "patron")
+		expectEqual(#choice.options, 3)
+		local seen = {}
+		for _, o in ipairs(choice.options) do
+			expectTrue(not seen[o.id], "distinct")
+			seen[o.id] = true
+			local patron = Patrons.getById(o.id)
+			local rarity = CollectionBook.rarityOf({ tab = "patrons", id = o.id, def = patron })
+			expectTrue(rarity == "common" or rarity == "uncommon", o.id .. " is " .. rarity)
+			expectTrue(Unlocks.available(state, "patron", o.id) and not patron.biome, o.id .. " is open and not a road reward")
+		end
+		-- refuse an id that was not offered
+		local ok = RunChoice.pick(state, choice, "nest_egg_not_offered")
+		expectEqual(ok, false)
+		expectEqual(#state.ownedPatrons, 0)
+		-- pick the first Patron
+		local picked = choice.options[1].id
+		local ok2, _, nextChoice = RunChoice.pick(state, choice, picked)
+		expectTrue(ok2)
+		expectEqual(#state.ownedPatrons, 1)
+		expectEqual(state.ownedPatrons[1].id, picked)
+		expectEqual(nextChoice.kind, "modifier")
+		expectEqual(#nextChoice.options, 3)
+		for _, o in ipairs(nextChoice.options) do
+			expectTrue(o.line1:sub(1, 1) == "+" and o.line2:sub(1, 1) == "-", "blessing line then curse line")
+		end
+		local ok3, _, after = RunChoice.pick(state, nextChoice, nextChoice.options[1].id)
+		expectTrue(ok3)
+		expectEqual(after, nil, "the draft is over")
+		expectEqual(state.runModifierId, nextChoice.options[1].id)
+		-- One More Round keeps the draft once the snapshot is refreshed
+		RunState.refreshSnapshot(state)
+		expectEqual(#state.roundStartSnapshot.ownedPatrons, 1)
+		expectEqual(state.roundStartSnapshot.runModifierId, state.runModifierId)
+	end
+	expectEqual(RunChoice.startDraft(RunState.new(nil, math.random), false), nil, "Daily, Weekly, Seed and the tutorial get none")
+	expectEqual(RunChoice.rollEvent(RunState.new(nil, math.random), false), nil)
+end })
+
+table.insert(tests, { name = "RunEvents: every event has a safe Decline, every outcome leaves a valid run, a refused outcome changes nothing", fn = function()
+	local RunEvents = require(script.Parent.Parent.Engine.RunEvents)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local ids = {}
+	local function prepared()
+		local state = RunState.new(nil, function(n) return 1 end)
+		state.night = 3
+		state.tips = 20
+		RunState.buyPatron(state, "the_regular")
+		return state
+	end
+	for _, event in ipairs(RunEvents.Definitions) do
+		expectTrue(not ids[event.id], "unique id " .. event.id)
+		ids[event.id] = true
+		expectTrue(#event.name > 0 and #event.text > 0 and event.icon ~= nil)
+		local last = event.options[#event.options]
+		expectEqual(last.id, "decline", event.id .. " ends with Decline")
+		expectTrue(#event.options >= 2 and #event.options <= 3)
+		-- Decline changes nothing
+		local state = prepared()
+		local before = { tips = state.tips, patrons = #state.ownedPatrons, recipes = #state.houseRecipeInventory }
+		expectTrue((RunEvents.resolve(state, event.id, "decline", math.random)))
+		expectEqual(state.tips, before.tips); expectEqual(#state.ownedPatrons, before.patrons); expectEqual(#state.houseRecipeInventory, before.recipes)
+		-- every option, with each possible coin flip
+		for _, option in ipairs(event.options) do
+			for _, coin in ipairs({ 1, 2 }) do
+				local s2 = prepared()
+				local ok, message = RunEvents.resolve(s2, event.id, option.id, function(n) return math.min(coin, n) end)
+				expectTrue(type(message) == "string" and #message > 0)
+				expectTrue(s2.tips >= 0, event.id .. "/" .. option.id .. " tips never negative")
+				expectTrue(#s2.ownedPatrons <= RunState.patronSlotLimit(s2), "patrons fit the seats")
+				local held = #s2.houseRecipeInventory + #s2.menuRecipeInventory + #s2.secretRecipeInventory
+				expectTrue(held <= RunState.recipeSlotLimit(s2), "recipes fit the box")
+				expectTrue(s2.handsRemaining >= 1)
+			end
+		end
+	end
+	-- a refused outcome (not enough Tips) leaves the run untouched and the card open
+	local poor = prepared()
+	poor.tips = 1
+	local ok = RunEvents.resolve(poor, "hungry_cook", "trade", math.random)
+	expectEqual(ok, false)
+	expectEqual(poor.tips, 1)
+	-- the roll: a normal run may get one after Night 1, never when not allowed, about half the time
+	local hits, trials = 0, 400
+	for i = 1, trials do
+		local state = prepared()
+		state.rng = function(n) return math.random(n) end
+		if RunChoice.rollEvent(state, true) then hits = hits + 1 end
+	end
+	expectTrue(hits > trials * 0.35 and hits < trials * 0.65, "about half the Nights: " .. hits .. " of " .. trials)
+	local cardState = prepared()
+	cardState.rng = function(n) return 1 end
+	local card = RunChoice.rollEvent(cardState, true)
+	expectEqual(card.kind, "event")
+	expectEqual(card.options[#card.options].id, "decline")
+	for _, o in ipairs(card.options) do expectEqual(type(o.name), "string") end
+	-- events on a hand-built poor, patron-less state still offer something safe or nothing
+	local bare = RunState.new(nil, function(n) return 1 end)
+	bare.night = 2
+	bare.tips = 0
+	for _, e in ipairs(RunEvents.availableFor(bare)) do
+		expectTrue(e.options[#e.options].id == "decline")
+	end
+	-- prompts exist for every event
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if f then
+		local json = f:read("*a"); f:close()
+		expectTrue(json:find('"event_subjects"', 1, true) ~= nil)
+		for _, e in ipairs(RunEvents.Definitions) do
+			expectTrue(json:find('"' .. e.id .. '"', 1, true) ~= nil, e.id .. " has an event_subjects prompt")
+		end
+	end
+end })
+
 return tests
