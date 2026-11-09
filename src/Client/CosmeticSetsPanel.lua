@@ -24,6 +24,7 @@ return function(deps)
 	local CardBacks = require(Engine:WaitForChild("CardBacks"))
 	local CardBackView = require(script.Parent.CardBackView)
 	local CosmeticSetsView = require(script.Parent.CosmeticSetsView)
+	local SetSkin = require(script.Parent.SetSkin)
 	local ArtAssets = require(script.Parent.ArtAssets)
 	local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -368,10 +369,55 @@ return function(deps)
 		local trim = back and back.colors.trim or { 205, 170, 95 }
 		faceStroke.Color = Color3.fromRGB(trim[1], trim[2], trim[3])
 		faceStroke.Parent = face
+		-- the set's skin on the sample card front: paper, border colour, court ornament and frame art
+		local theme = CosmeticSets.themeOf(set)
+		if isOwned and not theme.face.neutral then
+			local p, b = theme.face.paper, theme.face.border
+			face.BackgroundColor3 = Color3.fromRGB(p[1], p[2], p[3])
+			faceStroke.Color = Color3.fromRGB(b[1], b[2], b[3])
+		end
+		SetSkin.cardLayers(face, 42, "K", theme.skin)
 		label(face, {
 			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 30,
-			TextColor3 = Color3.fromRGB(60, 40, 22), Text = "A", ZIndex = 43,
+			TextColor3 = Color3.fromRGB(60, 40, 22), Text = "K", ZIndex = 44,
 		})
+
+		-- a sample button and panel border in the set's skin, under the backdrop and cards
+		local colors = theme.skin.colors
+		local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+		local sampleButton = Instance.new("TextButton")
+		sampleButton.Name = "SampleButton"
+		sampleButton.Size = UDim2.fromOffset(170, 28)
+		sampleButton.Position = UDim2.fromOffset(0, 108)
+		sampleButton.AutoButtonColor = false
+		sampleButton.Active = false
+		sampleButton.Font = Enum.Font.GothamBold
+		sampleButton.TextSize = 15
+		sampleButton.TextColor3 = CREAM
+		sampleButton.Text = "Button"
+		sampleButton.BackgroundColor3 = colors and c3(colors.button) or BROWN
+		sampleButton.ZIndex = 42
+		sampleButton.Parent = holder
+		roundCorner(sampleButton, 6)
+		local sampleStroke = Instance.new("UIStroke")
+		sampleStroke.Color = Color3.fromRGB(200, 165, 90)
+		sampleStroke.Thickness = 2
+		sampleStroke.Parent = sampleButton
+		SetSkin.sample(sampleButton, "button", theme.skin)
+		local samplePanel = Instance.new("Frame")
+		samplePanel.Name = "SamplePanel"
+		samplePanel.Size = UDim2.fromOffset(148, 28)
+		samplePanel.Position = UDim2.fromOffset(182, 108)
+		samplePanel.BackgroundColor3 = colors and c3(colors.panel) or Color3.fromRGB(60, 44, 30)
+		samplePanel.ZIndex = 42
+		samplePanel.Parent = holder
+		roundCorner(samplePanel, 6)
+		local panelStroke = Instance.new("UIStroke")
+		panelStroke.Color = Color3.fromRGB(200, 165, 90)
+		panelStroke.Thickness = 2
+		panelStroke.Parent = samplePanel
+		SetSkin.sample(samplePanel, "panel", theme.skin)
+		label(samplePanel, { Size = UDim2.fromScale(1, 1), TextSize = 14, TextColor3 = SOFT_CREAM, Text = "Panel border", ZIndex = 44 })
 	end
 
 	refresh = function()
@@ -390,7 +436,7 @@ return function(deps)
 
 		for order, set in ipairs(CosmeticSets.Definitions) do
 			local row = Instance.new("Frame")
-			row.Size = UDim2.new(1, -8, 0, 150)
+			row.Size = UDim2.new(1, -8, 0, 164)
 			row.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 			row.LayoutOrder = order
 			row.ZIndex = 41
@@ -502,6 +548,7 @@ return function(deps)
 		end
 	end
 
+	require(script.Parent.PanelTabs).attach(backdrop, "cosmeticSets", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("cosmeticSets", function()
 		if previewActive then
 			-- Another overlay opened: end preview. If it was the Collection button, put this
@@ -522,13 +569,15 @@ return function(deps)
 		popOut(backdrop, panel)
 	end)
 
-	deps.openButton.MouseButton1Click:Connect(function()
+	local function openThisPanel()
 		playClickSfx()
 		endPreview(false)
 		OverlayManager.closeAllExcept("cosmeticSets")
 		refresh()
 		popIn(backdrop, panel)
-	end)
+	end
+	OverlayManager.registerOpener("cosmeticSets", openThisPanel) -- Tome tabs and the Menu open it from here
+	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		popOut(backdrop, panel)

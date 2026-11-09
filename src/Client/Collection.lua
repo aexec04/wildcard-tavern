@@ -29,7 +29,7 @@
 	playClickSfx, collectionButton, Achievements, EquipTitleRemote,
 	getLatestState, popIn, popOut, addButtonHoverScale, StateUpdatedRemote.
 
-	A "Card Sets" button in the header opens CosmeticSetsPanel.lua (equip
+	A hidden "Card Sets" button (the Tome tab and Menu open it) opens CosmeticSetsPanel.lua (equip
 	and buy cosmetic sets).
 
 	Returns: {}
@@ -146,6 +146,7 @@ return function(deps)
 		TextSize = 14, Text = "Card Sets",
 	})
 	polishButton(setsButton, 8)
+	setsButton.Visible = false -- navigation lives in PanelTabs (Tome > Card Sets) and the Menu; the panel still opens via its opener
 	require(script.Parent.CosmeticSetsPanel)({
 		screenGui = screenGui,
 		polishPanel = polishPanel,

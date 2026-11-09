@@ -73,11 +73,17 @@ end
 
 local function applyTheme(set)
 	local theme = CosmeticSets.themeOf(set)
+	local SetSkin = require(script.Parent.SetSkin)
 	if themedFaceSetId ~= set.id then
 		themedFaceSetId = set.id
+		SetSkin.set(theme.skin) -- before the faces rebuild, so they read the new skin
 		pcall(function() require(script.Parent.CardFace).setStyle(theme.face) end)
 	end
 	local accent = theme.accent and Color3.fromRGB(theme.accent[1], theme.accent[2], theme.accent[3]) or nil
+	for _, name in ipairs(SetSkin.HUD_PANELS) do -- side panel, hand tray and draw pile wear the panel skin too
+		local target = themeTarget(name)
+		if target then SetSkin.register(target, "panel") end
+	end
 
 	-- Each target is themed once per set; targets built later (the tray is created with the first hand)
 	-- are picked up on a later call.

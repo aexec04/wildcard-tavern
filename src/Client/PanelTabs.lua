@@ -80,6 +80,7 @@ local function newButton(parent, text, width, order, height)
 	local s = Instance.new("UIStroke")
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = b
+	require(script.Parent.SetSkin).register(b, "tab") -- the equipped Card Set's tab plate or wash
 	return b
 end
 

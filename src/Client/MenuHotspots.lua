@@ -42,7 +42,7 @@ local ROW_H = Layout.SCROLL.rowH - 6
 -- Small icon on each row's wax seal until the painted seals exist.
 local ICONS = {
 	play = "🃏", newRun = "✨", daily = "📅", weekly = "🗓", seed = "🎲", quests = "📜", leaderboards = "🏆", road = "🗺",
-	collection = "📚", flair = "✨", legend = "👑", stats = "📒", store = "🛒", season = "🎟", rewards = "🎁", invite = "💌",
+	collection = "📚", cardSets = "🎴", flair = "✨", legend = "👑", stats = "📒", store = "🛒", season = "🎟", rewards = "🎁", invite = "💌",
 	howToPlay = "📖", tutorial = "🎓", settings = "⚙", volume = "🔊",
 }
 

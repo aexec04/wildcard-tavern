@@ -288,6 +288,7 @@ return function(deps)
 		-- Buttons get the rim only -- corner brackets on every button would
 		-- crowd button rows.
 		addOrnateFrame(instance, false)
+		require(script.Parent.SetSkin).register(instance, "button")
 	end
 
 	local function polishPanel(instance, radius, variant)
@@ -307,6 +308,7 @@ return function(deps)
 			end
 		end
 		addOrnateFrame(instance, true)
+		require(script.Parent.SetSkin).register(instance, "panel")
 	end
 
 	-- FEATURE 3: a soft drop shadow behind a panel -- a plain, offset,

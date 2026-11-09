@@ -35,6 +35,7 @@ local ContentArt = {
 	packs        = require(Engine:WaitForChild("PackArt")),
 	biome_backdrops = require(Engine:WaitForChild("BiomeBackdropArt")),
 	set_backdrops = require(Engine:WaitForChild("SetBackdropArt")),
+	set_skins    = require(Engine:WaitForChild("SetSkinArt")),        -- "<setId>_face_frame" ... (set UI skin slots, empty until recorded)
 	badges       = require(Engine:WaitForChild("BadgeArt")),
 	stakes       = require(Engine:WaitForChild("StakeArt")),          -- keyed by Stakes id
 	quests       = require(Engine:WaitForChild("QuestArt")),          -- keyed by Quests id

@@ -30,13 +30,20 @@
 	  accent = {r,g,b}                                                            the side panel, hand tray and table edge
 	Sets without explicit values get them derived from their backdropStyle (themeOf), so every set,
 	including the biome sets, themes the card faces and panels; the default set stays neutral (today's
-	look). Use CosmeticSets.themeOf(set) -> { backdropStyle, face, accent, neutral }.
+	look). Use CosmeticSets.themeOf(set) -> { backdropStyle, face, accent, neutral, skin }.
+
+	Skin slots (Client/SetSkin.lua applies them): CosmeticSets.skinOf(set) -> { images, colors, neutral } where
+	images = { faceFrame, facePaper, faceCourt, panelFrame, buttonPlate, tabPlate } are optional image ids read from
+	Engine/SetSkinArt.lua (keys "<setId>_face_frame", "<setId>_face_paper", ...; nil while the art is missing) and
+	colors = { paper, border, pip, panel, button, tab } are present for every non-default set (derived from the
+	set's face and accent), so each set already looks different without art. The default set has colors = nil.
 ]]
 
 local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
 local BackgroundArt = require(script.Parent.BackgroundArt)
 local SetBackdropArt = require(script.Parent.SetBackdropArt) -- biome sets: generated map, empty until recorded
+local SetSkinArt = require(script.Parent.SetSkinArt) -- per-set UI skin images: generated map, empty until recorded
 
 local CosmeticSets = {}
 
@@ -550,9 +557,46 @@ function CosmeticSets.pileStyleOf(set, back)
 	return { rim = mix(pile.rim, accent, 0.35), plate = pile.plate, glow = mix(pile.glow, accent, 0.35) }
 end
 
+CosmeticSets.SKIN_SLOTS = {
+	{ slot = "faceFrame", key = "face_frame" },
+	{ slot = "facePaper", key = "face_paper" },
+	{ slot = "faceCourt", key = "face_court" },
+	{ slot = "panelFrame", key = "panel_frame" },
+	{ slot = "buttonPlate", key = "button_plate" },
+	{ slot = "tabPlate", key = "tab_plate" },
+}
+
+-- Skin for a set: { images = { slot = id|nil }, colors = {...}|nil, neutral }. Pure.
+function CosmeticSets.skinOf(set)
+	local images = {}
+	if set and set.id then
+		for _, def in ipairs(CosmeticSets.SKIN_SLOTS) do
+			local id = SetSkinArt[set.id .. "_" .. def.key]
+			if type(id) == "string" and id ~= "" and id ~= "rbxassetid://0" then images[def.slot] = id end
+		end
+	end
+	local face = CosmeticSets.faceStyleOf(set)
+	if face.neutral then
+		return { images = images, colors = nil, neutral = true }
+	end
+	local accent = CosmeticSets.accentOf(set) or face.border
+	local dark = { 28, 20, 14 }
+	return {
+		images = images,
+		neutral = false,
+		colors = {
+			paper = face.paper, border = face.border, pip = face.pip,
+			panel = mix(accent, dark, 0.45),
+			button = mix(accent, dark, 0.3),
+			tab = mix(accent, dark, 0.55),
+		},
+	}
+end
+
 function CosmeticSets.themeOf(set)
 	local face = CosmeticSets.faceStyleOf(set)
 	return {
+		skin = CosmeticSets.skinOf(set),
 		backdropStyle = CosmeticSets.backdropStyleOf(set),
 		face = face,
 		accent = face.neutral and nil or CosmeticSets.accentOf(set),

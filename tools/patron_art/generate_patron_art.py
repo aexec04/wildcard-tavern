@@ -59,6 +59,7 @@ CATEGORIES = {
     "packs": ("pack_subjects", "packs", "PackArt.lua", "Pack"),
     "biome_backdrops": ("biome_backdrop_subjects", "biome_backdrops", "BiomeBackdropArt.lua", "Biome Backdrop"),
     "set_backdrops": ("set_backdrop_subjects", "set_backdrops", "SetBackdropArt.lua", "Set Backdrop"),
+    "set_skins": ("set_skin_subjects", "set_skins", "SetSkinArt.lua", "Set Skin"),
     "badges": ("badge_subjects", "badges", "BadgeArt.lua", "Badge"),
     "stakes": ("stake_subjects", "stakes", "StakeArt.lua", "Stake"),
     "quests": ("quest_subjects", "quests", "QuestArt.lua", "Quest"),

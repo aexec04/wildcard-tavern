@@ -82,7 +82,8 @@ local function rgb(t)
 end
 
 -- Low-strength set layers under the corner/centre labels: a paper wash, a thin inset border, optional foil sheen.
-local function addSetLayers(face, zIndex)
+local function addSetLayers(face, zIndex, rankText)
+	pcall(require(script.Parent.SetSkin).cardLayers, face, zIndex, rankText) -- set art: paper tile, court ornament, frame
 	if not setFace or setFace.neutral then return end
 	local wash = Instance.new("Frame")
 	wash.Name = "SetPaper"
@@ -268,7 +269,7 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	end
 
 	builtFaces[button] = { rankText, suitText, isRed, zIndex, card }
-	addSetLayers(face, zIndex)
+	addSetLayers(face, zIndex, rankText)
 	local colorblind = ClientSettings.get("colorblindSuits") and COLORBLIND_INK[suitText] ~= nil
 	local ink = colorblind and COLORBLIND_INK[suitText] or (isRed and RED_INK or BLACK_INK)
 	if not colorblind and setFace and not setFace.neutral then

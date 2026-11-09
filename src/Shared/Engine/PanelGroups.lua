@@ -3,7 +3,7 @@
 	Pure data for the account panel navigation (Client/PanelTabs.lua): three tavern furniture groups, each with
 	the pages inside it. Every page belongs to exactly one group; opening any page opens its group.
 
-	  The Tome       (leather brown)  Collection, Badges, Legend, Flair, Stats
+	  The Tome       (leather brown)  Collection, Card Sets, Badges, Legend, Flair, Stats
 	  The Strongbox  (deep green)     Rewards, Daily, Quests, Season
 	  The Coin Jar   (brass)          Store
 
@@ -19,6 +19,7 @@ PanelGroups.GROUPS = {
 		color = { 112, 72, 40 }, glow = { 150, 104, 60 },
 		pages = {
 			{ id = "collection", text = "Collection", emoji = "🃏" },
+			{ id = "cosmeticSets", text = "Card Sets", emoji = "🎴" },
 			{ id = "badges", text = "Badges", emoji = "🏅" },
 			{ id = "legend", text = "Legend", emoji = "👑" },
 			{ id = "flair", text = "Flair", emoji = "✨" },

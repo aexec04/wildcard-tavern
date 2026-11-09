@@ -11998,8 +11998,9 @@ table.insert(tests, { name = "PanelGroups: every page is in exactly one group, g
 		end
 		expectEqual(PG.defaultPage(g.id), g.pages[1].id, "group tab opens its first page")
 	end
-	expectEqual(total, 10, "ten pages in total")
-	expectEqual(#PG.pages(), 10, "flat list has every page")
+	expectEqual(total, 11, "eleven pages in total")
+	expectEqual(#PG.pages(), 11, "flat list has every page")
+	expectEqual(PG.groupOf("cosmeticSets").id, "tome", "Card Sets is a Tome tab")
 	expectEqual(PG.groupOf("collection").id, "tome")
 	expectEqual(PG.groupOf("season").id, "strongbox")
 	expectEqual(PG.groupOf("store").id, "coinjar")
@@ -12014,7 +12015,7 @@ table.insert(tests, { name = "PanelGroups: every page is in exactly one group, g
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("PanelGroups", 1, true) ~= nil and src:find("PanelTabs.back", 1, true) ~= nil and src:find("Group_", 1, true) ~= nil, "group tabs, ribbons and Back are built")
 	local ids = {}
-	for _, file in ipairs({ "Collection", "CollectionRewardsPanel", "BadgesPanel", "LegendPanel", "FlairPanel", "StatsPanel", "SeasonPanel", "QuestsPanel", "DailyRewardsPanel", "StorePanel" }) do
+	for _, file in ipairs({ "Collection", "CollectionRewardsPanel", "BadgesPanel", "LegendPanel", "FlairPanel", "StatsPanel", "SeasonPanel", "QuestsPanel", "DailyRewardsPanel", "StorePanel", "CosmeticSetsPanel" }) do
 		local c = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
 		expectTrue(c:find("registerOpener", 1, true) ~= nil and c:find("PanelTabs", 1, true) ~= nil, file .. " keeps its opener and strip")
 	end
@@ -12045,6 +12046,57 @@ table.insert(tests, { name = "Bond art: a prompt per Bond id plus bond_locked, c
 	for _, w in ipairs({ "beer", "wine", "ale", "whisky", "balatro" }) do
 		expectFalse(block:lower():find("%f[%a]" .. w .. "%f[%A]") ~= nil, "no banned word " .. w)
 	end
+end })
+
+table.insert(tests, { name = "Set skins: every set has colour fallbacks, the default stays neutral, missing art leaves image slots empty, wiring is present", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local SkinArt = require(script.Parent.Parent.Engine.SetSkinArt)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectTrue(ContentArt.set_skins == SkinArt, "ContentArt exposes set_skins")
+	expectEqual(#CS.SKIN_SLOTS, 6, "six skin slots")
+	local seenPanel = {}
+	for _, set in ipairs(CS.Definitions) do
+		local skin = CS.skinOf(set)
+		expectTrue(type(skin.images) == "table", set.id .. " has an images table")
+		for _, def in ipairs(CS.SKIN_SLOTS) do
+			local mapped = SkinArt[set.id .. "_" .. def.key]
+			expectTrue(skin.images[def.slot] == mapped or (mapped == nil and skin.images[def.slot] == nil), set.id .. " " .. def.slot .. " follows SetSkinArt")
+		end
+		if set.id == CS.DefaultId then
+			expectTrue(skin.neutral and skin.colors == nil, "the default set keeps today's look")
+		else
+			expectFalse(skin.neutral, set.id .. " is themed")
+			for _, key in ipairs({ "paper", "border", "pip", "panel", "button", "tab" }) do
+				local c = skin.colors[key]
+				expectTrue(type(c) == "table" and #c == 3, set.id .. " colour " .. key)
+				for i = 1, 3 do expectTrue(c[i] >= 0 and c[i] <= 255, set.id .. " " .. key .. " in range") end
+			end
+			seenPanel[table.concat(skin.colors.panel, ",")] = true
+		end
+		expectTrue(CS.themeOf(set).skin ~= nil, set.id .. " theme carries the skin")
+	end
+	local distinct = 0
+	for _ in pairs(seenPanel) do distinct = distinct + 1 end
+	expectTrue(distinct >= 5, "sets look different from each other even without art")
+	expectTrue(CS.skinOf(nil).neutral, "nil set is neutral")
+	local f = io and io.open and io.open("src/Client/SetSkin.lua", "r")
+	if not f then return end
+	f:close()
+	local function read(path)
+		local h = io.open(path, "r")
+		local c = h:read("*a"); h:close()
+		return c
+	end
+	expectTrue(read("src/Client/VisualHelpers.lua"):find("SetSkin", 1, true) ~= nil, "polishPanel and polishButton register with SetSkin")
+	expectTrue(read("src/Client/CardFace.lua"):find("cardLayers", 1, true) ~= nil, "card fronts use the set skin")
+	expectTrue(read("src/Client/PanelTabs.lua"):find("SetSkin", 1, true) ~= nil, "tabs use the set skin")
+	expectTrue(read("src/Client/CosmeticSetsView.lua"):find("SetSkin.set", 1, true) ~= nil, "equip updates the skin live")
+	expectTrue(read("src/Client/CosmeticSetsPanel.lua"):find("SetSkin.sample", 1, true) ~= nil, "Card Sets panel previews the skin")
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	expectEqual(ML.hotspotOf("cardSets").id, "tome", "Menu furniture opens Card Sets")
+	local listed = false
+	for _, a in ipairs(ML.Actions) do if a.id == "cardSets" then listed = true end end
+	expectTrue(listed, "All actions lists Card Sets")
 end })
 
 return tests

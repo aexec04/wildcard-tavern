@@ -211,7 +211,7 @@ return function(deps)
 	require(script.Parent.InvitePrompt).bind(menuInviteButton)
 
 	-- Panels that open through OverlayManager openers (no old Menu button): Flair, Legend, Ledger, Leaderboards, Volume.
-	for id, overlay in pairs({ flair = "flair", legend = "legend", stats = "stats", leaderboards = "dailyLeaderboard", volume = "volume" }) do
+	for id, overlay in pairs({ cardSets = "cosmeticSets", flair = "flair", legend = "legend", stats = "stats", leaderboards = "dailyLeaderboard", volume = "volume" }) do
 		buttons[id].MouseButton1Click:Connect(function()
 			pcall(OverlayManager.open, overlay) -- each panel's opener plays its own click sound
 		end)
