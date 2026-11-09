@@ -72,6 +72,7 @@ CATEGORIES = {
     "seasons": ("season_subjects", "seasons", "SeasonArt.lua", "Season"),
     "legend": ("legend_subjects", "legend", "LegendArt.lua", "Legend"),
     "spectate": ("spectate_subjects", "spectate", "SpectateArt.lua", "Spectate"),
+    "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -108,6 +109,8 @@ CATEGORY_OPTS = {
         "season_harvest_moon": "1536x1024", "season_winter_welcome": "1536x1024"}},
     "legend": {"quality": "low", "style_key": "house_style"},
     "spectate": {"quality": "low", "style_key": "house_style"},
+    # shop_counter is a wide strip; the rest are single objects or portraits
+    "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

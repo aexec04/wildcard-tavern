@@ -907,5 +907,12 @@
     "fire": "a cheerful orange flame with a yellow center and small sparks, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "heart": "a bright red heart with a golden shine and tiny sparkles, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "laugh": "a round laughing face with a big smile and happy tears, golden glow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "shop_subjects": {
+    "shop_peddler": "Marlo, a friendly hooded travelling peddler holding a glowing lantern and a big bundle on his back, blocky painted Roblox tavern style, single centered subject with generous margin on a plain dark brown background, portrait composition, painterly, no text, no letters, no numbers, kid-friendly, no alcohol",
+    "shop_stranger": "a mysterious cloaked wandering stranger holding a glowing gold coin, face hidden in a deep hood, blocky painted Roblox tavern style, single centered subject with generous margin on a plain dark brown background, portrait composition, painterly, no text, no letters, no numbers, kid-friendly, no alcohol",
+    "shop_counter": "a long wooden market counter strip seen from the front with worn planks, a brass lip and small hooks, seamless horizontally, blocky painted Roblox tavern style, wide landscape composition on a plain dark brown background, painterly, no text, no letters, no numbers, kid-friendly, no alcohol",
+    "shop_crate": "a wooden pack crate filled with straw and a few sealed card packs, blocky painted Roblox tavern style, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly, no alcohol",
+    "shop_tag": "a small hanging wooden price tag on a rope with a brass rim and a blank face, blocky painted Roblox tavern style, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly, no alcohol"
   }
 }

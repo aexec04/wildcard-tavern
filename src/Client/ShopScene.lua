@@ -87,6 +87,21 @@ function ShopScene.new(deps)
 	counter.Active = false
 	counter.ZIndex = 5
 	counter.Parent = scene
+	pcall(function() -- painted counter strip once shop_counter has a resolved Image id (flat plank colour until then)
+		local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+		local id = ContentArt.getImageId("shop", "shop_counter")
+		if id then
+			local img = Instance.new("ImageLabel")
+			img.Name = "CounterArt"
+			img.Size = UDim2.fromScale(1, 1)
+			img.BackgroundTransparency = 1
+			img.Image = id
+			img.ScaleType = Enum.ScaleType.Crop
+			img.Active = false
+			img.ZIndex = 5
+			img.Parent = counter
+		end
+	end)
 	local lip = Instance.new("Frame")
 	lip.Name = "CounterLip"
 	lip.Size = UDim2.new(1, 0, 0, 5)

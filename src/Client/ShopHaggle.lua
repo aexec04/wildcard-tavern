@@ -185,6 +185,23 @@ function ShopHaggle.new(deps)
 		s.Thickness = 2.5
 		s.Parent = card
 	end
+	pcall(function() -- the Stranger peeks over the top right of the card once shop_stranger has a resolved Image id
+		local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+		local id = ContentArt.getImageId("shop", "shop_stranger")
+		if id then
+			local img = Instance.new("ImageLabel")
+			img.Name = "StrangerPortrait"
+			img.AnchorPoint = Vector2.new(1, 1)
+			img.Position = UDim2.new(1, -8, 0, 10)
+			img.Size = UDim2.fromOffset(76, 76)
+			img.BackgroundTransparency = 1
+			img.Image = id
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Active = false
+			img.ZIndex = Z + 1
+			img.Parent = card
+		end
+	end)
 	local cardName = label(card, { size = 18, sizeUdim = UDim2.new(1, -12, 0, 26), position = UDim2.fromOffset(6, 4) })
 	local cardBless = label(card, { size = 15, color = Color3.fromRGB(40, 90, 40), sizeUdim = UDim2.new(1, -16, 0, 40), position = UDim2.fromOffset(8, 32) })
 	local cardCurse = label(card, { size = 15, color = CURSE, sizeUdim = UDim2.new(1, -16, 0, 40), position = UDim2.fromOffset(8, 74) })

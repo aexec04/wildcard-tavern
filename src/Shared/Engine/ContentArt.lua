@@ -48,6 +48,7 @@ local ContentArt = {
 	seasons      = require(Engine:WaitForChild("SeasonArt")),         -- SeasonTrack bannerKey and menu_season (Season panel, Menu tile)
 	legend       = require(Engine:WaitForChild("LegendArt")),         -- Legend trinket ids (Legend panel)
 	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)
+	shop         = require(Engine:WaitForChild("ShopArt")),           -- shop_peddler, shop_stranger, shop_counter, shop_crate, shop_tag (Counter scene)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
 ContentArt.store = ContentArt.store_bundles
