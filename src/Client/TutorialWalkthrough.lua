@@ -45,7 +45,7 @@ return function(deps)
 	TutorialBus.register("nextRound", deps.nextRoundButton)
 
 	local machine = Steps.new()
-	local active, completed, autoTried = false, false, false
+	local active, completed = false, false
 	local lastState = nil
 	local scripted = false
 	local lastSelected = {}
@@ -263,6 +263,11 @@ return function(deps)
 		currentList = nil
 	end
 
+	local function dismissNewRibbon()
+		local ribbon = TutorialBus.resolve("tutorialNew")
+		if ribbon then ribbon:SetAttribute("Dismiss", true) end
+	end
+
 	local complete
 
 	local function show()
@@ -338,7 +343,15 @@ return function(deps)
 		active = false
 		if skipped then machine:skip() end
 		hideAll()
+		dismissNewRibbon()
 		MarkTutorialSeenRemote:FireServer()
+		-- Leave the scripted run: a fresh normal session replaces it and the player returns to the main menu.
+		local remotes = ReplicatedStorage:WaitForChild("Remotes")
+		local startRun = remotes:FindFirstChild("StartRun")
+		if startRun then startRun:FireServer() end
+		local menu = gui:FindFirstChild("MenuRoot", true)
+		root.Visible = false
+		if menu then menu.Visible = true end
 	end
 
 	local function report(action, detail)
@@ -412,11 +425,9 @@ return function(deps)
 		if not state then return end
 		lastState = state
 		scripted = state.tutorialStage ~= nil
-		if not active and not completed and not autoTried and state.hasSeenTutorial == false then
-			autoTried = true
-			syncToState(state)
-			start()
-			return
+		-- Never auto-starts: the tutorial begins only from the menu's Tutorial tile (replay()).
+		if state.hasSeenTutorial == true then
+			dismissNewRibbon()
 		end
 		if not active then return end
 		local before = machine:current()
@@ -426,6 +437,9 @@ return function(deps)
 
 	local function replay()
 		if active then return end
+		dismissNewRibbon()
+		local startRemote = ReplicatedStorage:WaitForChild("Remotes"):FindFirstChild("StartTutorial")
+		if startRemote then startRemote:FireServer() end -- scripted run on the server, isolated from the real profile
 		machine = Steps.new()
 		completed = false
 		active = true

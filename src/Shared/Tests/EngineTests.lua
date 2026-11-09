@@ -6591,6 +6591,35 @@ table.insert(tests, { name = "Tutorial: the step table covers the guided hands i
 	expectFalse(src:find("Keep these cards", 1, true) ~= nil, "no old optional-choice buttons")
 end })
 
+table.insert(tests, { name = "TutorialStart: only an explicit tutorial run is scripted, it never writes the profile, ribbon until done", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialStart)
+	expectEqual(TS.initialStage(true, false), 1)
+	expectEqual(TS.initialStage(nil, false), nil) -- Play, New Run, first launch
+	expectEqual(TS.initialStage(false, false), nil)
+	expectEqual(TS.initialStage(true, true), nil) -- Daily, Weekly, Seed never
+	expectFalse(TS.writesProfile({ isTutorial = true }))
+	expectTrue(TS.writesProfile({ isTutorial = false }) and TS.writesProfile({}))
+	expectTrue(TS.showNewRibbon({ hasSeenTutorial = false }, false))
+	expectFalse(TS.showNewRibbon({ hasSeenTutorial = true }, false))
+	expectFalse(TS.showNewRibbon({ hasSeenTutorial = false }, true))
+	-- Source scans (local runner only; Studio has no `io`).
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local server = f:read("*a"); f:close()
+	local n = 0
+	for _ in server:gmatch("startNewSession%([^\n]*, true%)") do n = n + 1 end
+	expectEqual(n, 1) -- exactly one call passes isTutorial: the StartTutorial handler
+	expectTrue(server:find("StartTutorialRemote.OnServerEvent", 1, true) ~= nil)
+	expectFalse(server:find("hasSeenTutorial == false) and 1", 1, true) ~= nil, "no first-run auto stage")
+	local c = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	local client = c:read("*a"); c:close()
+	expectFalse(client:find("autoTried", 1, true) ~= nil, "no auto start in the walkthrough")
+	local m = io.open("src/Client/init.client.lua", "r")
+	local hub = m:read("*a"); m:close()
+	local _, starts = hub:gsub("tutorial%.replay%(%)", "")
+	expectTrue(starts >= 1)
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)

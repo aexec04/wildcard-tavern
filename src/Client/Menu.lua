@@ -483,6 +483,48 @@ return function(deps)
 		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
+	-- "New" ribbon + soft pulsing rim until the tutorial has been completed once or dismissed. Children of the
+	-- button (they survive Clone, never block clicks). TutorialWalkthrough hides it via TutorialBus "tutorialNew".
+	do
+		local TweenService = game:GetService("TweenService")
+		local ribbon = Instance.new("TextLabel")
+		ribbon.Name = "NewRibbon"
+		ribbon.AnchorPoint = Vector2.new(1, 0)
+		ribbon.Position = UDim2.new(1, -2, 0, 2)
+		ribbon.Size = UDim2.fromOffset(40, 20)
+		ribbon.BackgroundColor3 = Color3.fromRGB(176, 52, 40)
+		ribbon.Font = Enum.Font.GothamBold
+		ribbon.Text = "New"
+		ribbon.TextSize = 15
+		ribbon.TextColor3 = Color3.fromRGB(250, 235, 200)
+		ribbon.TextTransparency = 0
+		ribbon.TextStrokeTransparency = 0.6
+		ribbon.Rotation = 8
+		ribbon.ZIndex = ART_Z + 6
+		ribbon.Active = false
+		ribbon.Parent = menuTutorialButton
+		local rc = Instance.new("UICorner")
+		rc.CornerRadius = UDim.new(0, 5)
+		rc.Parent = ribbon
+		local rim = menuTutorialButton:FindFirstChildOfClass("UIStroke")
+		local tween
+		if rim then
+			tween = TweenService:Create(rim, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Color = Color3.fromRGB(255, 226, 140), Thickness = 3.5 })
+			tween:Play()
+		end
+		require(script.Parent.TutorialBus).register("tutorialNew", function() return ribbon end)
+		ribbon:SetAttribute("Dismiss", false)
+		ribbon:GetAttributeChangedSignal("Dismiss"):Connect(function()
+			if ribbon:GetAttribute("Dismiss") then
+				ribbon.Visible = false
+				if tween then
+					tween:Cancel()
+					if rim then rim.Color = Color3.fromRGB(214, 172, 88); rim.Thickness = 2 end
+				end
+			end
+		end)
+	end
 	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Same row as the
 	-- three small tiles. Reuses the in-run corner icon art (no menu_icons key); the panels
 	-- open from Collection.lua / Settings.lua.

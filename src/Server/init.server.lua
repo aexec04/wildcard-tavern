@@ -31,6 +31,7 @@ local Seasons = require(Engine.Seasons) -- limited-time seasonal set (dates, unl
 local NextUnlock = require(Engine.NextUnlock) -- menu 'Next unlock' strip and places seen
 local JourneyMap = require(Engine.JourneyMap) -- Journey meta layer: first-clear rewards
 local RunAbandon = require(Engine.RunAbandon) -- Settings > Restart Run rule
+local TutorialStart = require(Engine.TutorialStart)
 local TutorialScript = require(Engine.TutorialScript) -- scripted first-run hands (pair, two pair, flush, straight flush)
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
@@ -130,6 +131,7 @@ local SelectRoundRemote = newRemote("SelectRound") -- (player)
 local SkipRoundRemote = newRemote("SkipRound") -- (player)
 local RestartRunRemote = newRemote("RestartRun")
 local AbandonRunRemote = newRemote("AbandonRun") -- Settings > Restart Run (confirmed on the client); no args
+local StartTutorialRemote = newRemote("StartTutorial") -- Menu Tutorial tile only: starts the scripted tutorial run
 local StartRunRemote = newRemote("StartRun") -- like RestartRun, but with a chosen Deck Variant + Difficulty
 local StateUpdatedRemote = newRemote("StateUpdated") -- server -> client
 -- DAILY CHALLENGE (Phase 11): a seeded standard/standard run, same for
@@ -872,6 +874,7 @@ local function serializeState(session, player)
 		-- saved flag itself still flips true on dismiss (MarkTutorialSeen-
 		-- Remote is unchanged) -- it's only ever ignored in Studio, and the
 		-- client's own tutorialAutoShown guard keeps it to once per session.
+		isTutorial = session.isTutorial == true,
 		tutorialStage = session.tutorialStage, -- 1..4 while the scripted tutorial hands are being dealt
 		hasSeenTutorial = (function()
 			local profile = profiles[player]
@@ -938,6 +941,9 @@ local function syncProfileFromSession(player)
 	local profile = profiles[player]
 	if not session or not profile then
 		return
+	end
+	if not TutorialStart.writesProfile(session) then
+		return -- a tutorial run never touches stats, keys, discoveries or rewards
 	end
 
 	local changed = false
@@ -1249,7 +1255,7 @@ end
 -- client via serializeState so the HUD can show which mode this run is
 -- and, for seed runs, which code. Omitted/nil seededRng behaves exactly
 -- like before this parameter existed -- a normal math.random run.
-local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel)
+local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel, isTutorial)
 	local profile = profiles[player]
 
 	local isDaily = seedMode == "daily"
@@ -1300,10 +1306,12 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		seedCode = isSeeded and seedLabel or nil,
 		-- First-run tutorial: a brand-new player's first normal run is dealt scripted hands (stage 1 to 4) so the
 		-- guided steps can name an exact combo. nil for returning players and every seeded mode.
-		tutorialStage = (seededRng == nil and profile and profile.hasSeenTutorial == false) and 1 or nil,
+		-- Only the menu's Tutorial tile (StartTutorial remote) passes isTutorial; no other path starts it.
+		tutorialStage = TutorialStart.initialStage(isTutorial, seededRng ~= nil),
+		isTutorial = isTutorial == true and seededRng == nil,
 	}
 
-	if profile then
+	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
 		profileDirty[player] = true
 	end
@@ -1483,7 +1491,7 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 	end
 
 	local profile = profiles[player]
-	if Onboarding.shouldShowHighCardHint(result.handName, session.state.discardsRemaining, profile) then
+	if TutorialStart.writesProfile(session) and Onboarding.shouldShowHighCardHint(result.handName, session.state.discardsRemaining, profile) then
 		PlayerProfile.markHighCardHintSeen(profile)
 		profileDirty[player] = true
 		session.onboardingHint = Onboarding.HIGH_CARD_HINT
@@ -2123,7 +2131,7 @@ SelectRoundRemote.OnServerEvent:Connect(function(player)
 	WorldMap.fillDefault(session.state) -- no road picked at a fork: take the default one
 	session.minigame = nil
 	session.phase = "playing"
-	if session.tutorialStage and profiles[player] and profiles[player].hasSeenTutorial == false then
+	if session.tutorialStage and session.isTutorial then
 		TutorialScript.applyStage(session.state, session.tutorialStage) -- stage 1: the pair
 	else
 		session.tutorialStage = nil
@@ -2175,6 +2183,14 @@ AbandonRunRemote.OnServerEvent:Connect(function(player)
 	end
 	profileDirty[player] = true
 	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
+end)
+
+-- The ONLY way a tutorial run begins: the Tutorial tile on the main menu. Scripted hands, no profile writes.
+StartTutorialRemote.OnServerEvent:Connect(function(player)
+	if not sessions[player] then
+		return
+	end
+	startNewSession(player, nil, nil, nil, nil, nil, true)
 end)
 
 StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId)
