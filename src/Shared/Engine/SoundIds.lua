@@ -34,12 +34,17 @@ SoundIds.Cues = {
 	map_open = { id = "", volume = 0.4 },
 	road_choose = { id = "", volume = 0.5 },
 	compass_turn = { id = "", volume = 0.3 },
+	shop_enter = { id = "", volume = 0.4 }, -- Peddler greets you (Client/ShopScene.lua)
+	shop_buy = { id = "", volume = 0.5 },
+	shop_reroll = { id = "", volume = 0.4 },
+	shop_cant = { id = "", volume = 0.3 },
 }
 
 -- Display/iteration order (pairs order is not stable).
 SoundIds.CueOrder = {
 	"card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
+	"shop_enter", "shop_buy", "shop_reroll", "shop_cant",
 }
 
 -- Music tracks by key. `region_<id>` plays on the gameplay table while the Night's stop is in that region

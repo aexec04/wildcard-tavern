@@ -5194,7 +5194,8 @@ end })
 table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn = function()
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
-		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn" }
+		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
+		"shop_enter", "shop_buy", "shop_reroll", "shop_cant" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(required) do
 		local cue = S.Cues[name]
@@ -11351,6 +11352,23 @@ table.insert(tests, { name = "MapSeams: every join overlaps by 18 percent of the
 	for i, r in ipairs(regions) do c3[i] = { key = r.key, tint = fakeColor(200, 180, 150) } end
 	local s3 = MapSeams.underlayStops(c3, plan.edges, 4072)
 	expectEqual(200, math.floor(s3[1].r + 0.5), "Color3 tint converted to 0..255")
+end })
+
+table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max, no dashes, deterministic by seed", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopkeeperLines)
+	expectEqual(12, #L.Events)
+	for _, event in ipairs(L.Events) do
+		local lines = L.ByEvent[event]
+		expectTrue(lines ~= nil and #lines >= 4, event .. " has 4+ lines")
+		for _, line in ipairs(lines) do
+			expectTrue(#line <= 60, "short line: " .. line)
+			expectFalse(line:find("-", 1, true) ~= nil, "no dash: " .. line)
+			expectFalse(line:find("\226\128\148", 1, true) ~= nil, "no em dash: " .. line)
+			expectFalse(line:lower():find("balatro", 1, true) ~= nil)
+		end
+		expectEqual(L.pick(event, "s1"), L.pick(event, "s1"))
+	end
+	expectTrue(L.pick("no_such_event", 1) ~= nil)
 end })
 
 return tests

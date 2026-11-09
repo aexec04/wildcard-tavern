@@ -205,6 +205,7 @@ return function(deps)
 	-- catalogs grow well past a handful.
 
 	local shopFrame
+	local shopScene -- ShopScene instance (nil if it failed to build)
 	local nextRoundButton
 	local shopBuyListFrame
 	local shopMyPatronsListFrame
@@ -295,6 +296,14 @@ return function(deps)
 				scrimCorner.CornerRadius = UDim.new(0, 8)
 				scrimCorner.Parent = shopScrim
 			end
+		end
+
+		-- Peddler's Wagon dressing (Client/ShopScene.lua): counter strip, rail, Marlo and ambient motes. Look only.
+		do
+			local ok, built = pcall(function()
+				return require(script.Parent.ShopScene).new({ shopFrame = shopFrame, getState = getLatestState })
+			end)
+			shopScene = ok and built or nil
 		end
 
 		-- Deliberately NOT calling addSoftShadow(shopFrame, ...) here.
@@ -1245,6 +1254,7 @@ return function(deps)
 			if not latestState or latestState.tips < (latestState.rerollCost or 0) then
 				showWarning("Not enough tips to reroll.")
 				playClickSfx()
+				if shopScene then shopScene.onCantAfford() end
 				return
 			end
 			playClickSfx(0.4)
@@ -1260,6 +1270,7 @@ return function(deps)
 					end
 				end)
 			end
+			if shopScene then shopScene.onReroll() end
 			RerollShopRemote:FireServer()
 			tutorialReport("reroll")
 		end)
@@ -1270,9 +1281,11 @@ return function(deps)
 			if not latestState or latestState.tips < offer.price then
 				showWarning("Not enough tips for that.")
 				playClickSfx()
+				if shopScene then shopScene.onCantAfford() end
 				return false
 			end
 			require(script.Parent.Cue).play("buy")
+			if shopScene then shopScene.onBuy("buy") end
 			BuyHousePassRemote:FireServer(offer.id)
 			return true
 		end
@@ -1282,6 +1295,7 @@ return function(deps)
 			if not latestState or latestState.tips < offer.price then
 				showWarning("Not enough tips for that.")
 				playClickSfx()
+				if shopScene then shopScene.onCantAfford() end
 				return false
 			end
 			local liveOwnedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
@@ -1291,6 +1305,7 @@ return function(deps)
 				return false
 			end
 			require(script.Parent.Cue).play("buy")
+			if shopScene then shopScene.onBuy("buyPatron") end
 			BuyPatronRemote:FireServer(offer.id)
 			tutorialReport("buy_patron")
 			return true
@@ -1301,9 +1316,11 @@ return function(deps)
 			if not latestState or latestState.tips < pack.price then
 				showWarning("Not enough tips for that.")
 				playClickSfx()
+				if shopScene then shopScene.onCantAfford() end
 				return false
 			end
 			require(script.Parent.Cue).play("buy")
+			if shopScene then shopScene.onBuy("buyPack") end
 			BuyPackRemote:FireServer(pack.id)
 			tutorialReport("buy_pack")
 			return true
