@@ -479,7 +479,9 @@
     "road_ahead": "a rolled treasure map with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "store": "a wooden market stall with a striped awning, a small brass scale and a few wrapped gifts, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
-    "quests": "a rolled parchment quest scroll tied with a red ribbon and a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+    "quests": "a rolled parchment quest scroll tied with a red ribbon and a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "news": "a rolled paper scroll with a red ribbon and a small brass bell beside it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "boss_rush": "a row of three small boss masks in a line with a gold lightning bolt above them, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "hud_subjects": {
     "sidebar_board": "a tall wood-framed tavern notice board hung on a wall, warm lit aged parchment center with a perfectly plain, evenly textured surface (no pinned items, no drawings, no marks, so UI can sit anywhere), a dark vignette toward the wood edges, subtle metal studs on the frame, a soft candle glow at the top corners, portrait composition, no text, no letters, no characters, kid-friendly",
@@ -657,7 +659,10 @@
     "hungry_cook": "a painted event card: a traveling cook with a big spoon and a bundle of recipe scrolls at the tavern door, warm light, no text, no letters, kid-friendly",
     "traveling_patron": "a painted event card: a traveler with a backpack and a walking stick entering a tavern with a friendly smile, warm light, no text, no letters, kid-friendly",
     "kind_donation": "a painted event card: villagers carrying a woven basket of gold coins and flowers to a tavern door, warm light, no text, no letters, kid-friendly",
-    "lantern_stall": "a painted event card: a night market stall hung with glowing paper lanterns, a seller smiling, warm light, no text, no letters, kid-friendly"
+    "lantern_stall": "a painted event card: a night market stall hung with glowing paper lanterns, a seller smiling, warm light, no text, no letters, kid-friendly",
+    "news_lantern_weekend": "a wide painted news banner: a tavern street strung with glowing paper lanterns at dusk, festive, no text, no letters, kid-friendly",
+    "news_harvest_week": "a wide painted news banner: hay bales, pumpkins and golden wheat around a tavern door, warm light, no text, no letters, kid-friendly",
+    "news_feast_week": "a wide painted news banner: a long banquet table loaded with steaming dishes under hanging lanterns, no text, no letters, kid-friendly"
   },
   "store_subjects": {
     "starter_pack": "a painted bundle card: a wrapped gift box with a gold ribbon, a card back and a small trophy peeking out, warm candlelight, no text, no letters, kid-friendly",
@@ -665,9 +670,33 @@
     "vip": "a painted bundle card: a glowing gold star badge on a velvet cushion beside a small coin purse, warm candlelight, no text, no letters, kid-friendly",
     "continue": "a painted bundle card: an hourglass with golden sand turning back, a playing card behind it, warm candlelight, no text, no letters, kid-friendly"
   },
-  "news_subjects": {
-    "news_lantern_weekend": "a wide painted news banner: a tavern street strung with glowing paper lanterns at dusk, festive, no text, no letters, kid-friendly",
-    "news_harvest_week": "a wide painted news banner: hay bales, pumpkins and golden wheat around a tavern door, warm light, no text, no letters, kid-friendly",
-    "news_feast_week": "a wide painted news banner: a long banquet table loaded with steaming dishes under hanging lanterns, no text, no letters, kid-friendly"
+  "quest_subjects": {
+    "pairs_3": "two matching playing cards fanned side by side with a small gold ribbon, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "flush_clear": "five playing cards of one suit fanned out with blue sparkles, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "buy_pack": "a wrapped gift pack of cards tied with a gold ribbon and bow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "discard_5": "a small pile of cards swirling into a wooden bin with a green refresh arrow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "boss_win": "a gold trophy cup with a small crown above a cracked dark mask, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "hands_10": "a hand of five playing cards held up with a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "rank_medal_subjects": {
+    "tier_1": "a round wooden medal with a single bronze ring and a plain lantern emblem, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tier_2": "a round bronze medal with a ribbon and a small candle emblem, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tier_3": "a round silver medal with a ribbon and a small brass key emblem, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tier_4": "a round gold medal with a ribbon and a star emblem, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tier_5": "a round gold medal with laurel leaves and a small crown emblem, sparkling, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tier_6": "a large ornate gold medal with a jeweled crown, laurel wreath and a glowing aura, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "discovery_subjects": {
+    "chest": "a small wooden treasure chest with brass corners, lid slightly open and glowing gold light, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "merchant": "a traveling merchant's cart with a striped awning, hanging lanterns and a few wrapped goods, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "secret_patron": "a small wooden door with a glowing keyhole and a tiny lantern, mysterious and inviting, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "challenge_subjects": {
+    "pairs_only": "two matching playing cards joined by a golden chain, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "no_discards": "a wooden discard bin with a big brass padlock on it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "one_seat": "a single lonely wooden chair with a glowing gold cushion at a table, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "glass_deck": "a playing card made of glass with a small crack and sparkles, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "speed_run": "a brass pocket watch with a small flame trailing behind it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tight_wallet": "a small leather coin purse tied tightly with a string, a single coin beside it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   }
 }

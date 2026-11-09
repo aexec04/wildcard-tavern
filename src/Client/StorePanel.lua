@@ -97,13 +97,7 @@ local function buildCard(row, order)
 	ring.Thickness = 2
 	ring.Parent = well
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = row.icon, TextSize = 46, TextColor3 = CREAM, ZIndex = 34 })
-	pcall(function()
-		local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
-		local artId = ContentArt.getImageId("store", row.id)
-		if artId then
-			require(script.Parent.PatronPlaque).applyById(well, artId, { emojiLabel = icon, zIndex = 35, cornerRadius = 43 })
-		end
-	end)
+	require(script.Parent.ArtIcon).apply(well, "store_bundles", row.id, icon, { zIndex = 35, cornerRadius = 43 })
 
 	label(card, { Name = "Name", Size = UDim2.new(1, -16, 0, 26), Position = UDim2.fromOffset(8, 104), Text = row.name, TextSize = 19 })
 	label(card, {

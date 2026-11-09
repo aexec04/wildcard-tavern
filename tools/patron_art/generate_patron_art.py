@@ -60,6 +60,13 @@ CATEGORIES = {
     "biome_backdrops": ("biome_backdrop_subjects", "biome_backdrops", "BiomeBackdropArt.lua", "Biome Backdrop"),
     "set_backdrops": ("set_backdrop_subjects", "set_backdrops", "SetBackdropArt.lua", "Set Backdrop"),
     "badges": ("badge_subjects", "badges", "BadgeArt.lua", "Badge"),
+    "stakes": ("stake_subjects", "stakes", "StakeArt.lua", "Stake"),
+    "quests": ("quest_subjects", "quests", "QuestArt.lua", "Quest"),
+    "rank_medals": ("rank_medal_subjects", "rank_medals", "RankMedalArt.lua", "Rank Medal"),
+    "store_bundles": ("store_subjects", "store_bundles", "StoreBundleArt.lua", "Store Bundle"),
+    "events": ("event_subjects", "events", "EventArt.lua", "Event"),
+    "discoveries": ("discovery_subjects", "discoveries", "DiscoveryArt.lua", "Discovery"),
+    "challenges": ("challenge_subjects", "challenges", "ChallengeArt.lua", "Challenge"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -80,6 +87,15 @@ CATEGORY_OPTS = {
     "biome_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
     "set_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
     "badges": {"quality": "low", "style_key": "style_icon"},
+    "stakes": {"quality": "low", "style_key": "house_style"},
+    "quests": {"quality": "low", "style_key": "house_style"},
+    "rank_medals": {"quality": "low", "style_key": "house_style"},
+    "store_bundles": {"quality": "low", "style_key": "house_style"},
+    # event cards and the wide news banners share one category; banners (news_*) are landscape
+    "events": {"quality": "low", "style_key": "house_style", "sizes": {
+        "news_lantern_weekend": "1536x1024", "news_harvest_week": "1536x1024", "news_feast_week": "1536x1024"}},
+    "discoveries": {"quality": "low", "style_key": "house_style"},
+    "challenges": {"quality": "low", "style_key": "house_style"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
@@ -475,20 +491,23 @@ def cmd_estimate(_args):
     """Image counts and cost at the current IMAGE_QUALITY. No API calls."""
     data = load_prompts()
     quality = os.environ.get("IMAGE_QUALITY", "medium")
-    per = COST_PER_IMAGE.get(quality, COST_PER_IMAGE["medium"])
-    print(f"IMAGE_QUALITY={quality}  (~${per:.3f}/image, rough; check platform.openai.com/pricing)")
+    base_per = COST_PER_IMAGE.get(quality, COST_PER_IMAGE["medium"])
+    print(f"IMAGE_QUALITY={quality}  (~${base_per:.3f}/image, rough; categories with their own quality use that; check platform.openai.com/pricing)")
     total_all = todo_all = 0
+    cost_all = 0.0
     for name in CATEGORIES:
         set_category(name)
         ids, state = load_ids(), load_state()
         subs = subjects(data)
+        per = COST_PER_IMAGE.get(CATEGORY_OPTS.get(name, {}).get("quality", quality), base_per)
         todo = sum(1 for pid in subs if not (OUT / f"{pid}.png").exists())
         stale = sum(1 for pid in subs if (OUT / f"{pid}.png").exists()
                     and state.get(pid, {}).get("prompt") != prompt_hash(data, pid))
         total_all += len(subs)
         todo_all += todo
+        cost_all += todo * per
         print(f"  {name:12} {len(subs):3} prompts, {todo:3} to generate (~${todo * per:.2f}), {stale} stale")
-    print(f"  {'TOTAL':12} {total_all:3} prompts, {todo_all:3} to generate (~${todo_all * per:.2f})")
+    print(f"  {'TOTAL':12} {total_all:3} prompts, {todo_all:3} to generate (~${cost_all:.2f})")
 
 
 def main():

@@ -150,6 +150,9 @@ return function(deps)
 					stroke.Thickness = 2.5
 					stroke.Parent = button
 					items[#items + 1] = button
+					if not claimed then -- painted mark over the emoji (art is a child, so the button text is blanked, not hidden)
+						require(script.Parent.ArtIcon).apply(button, "discoveries", spot.kind, button, { zIndex = 27, cornerRadius = SIZE / 2 })
+					end
 					spotViews[#spotViews + 1] = { frame = button, stroke = stroke, x = x, y = y, claimed = claimed == true }
 					if not claimed then
 						button.MouseButton1Click:Connect(function()

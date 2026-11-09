@@ -78,6 +78,8 @@ function NewsPanel.attach(parent, layoutOrder)
 	stroke.Thickness = 2
 	stroke.Parent = frame
 	local icon = label(frame, { Name = "Icon", Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(4, 1), Text = "📰", TextSize = 26, TextColor3 = CREAM, ZIndex = 11 })
+	-- Painted news scroll (menu_icons "news") covers the emoji once loaded; the emoji stays if the id is missing.
+	require(script.Parent.ArtIcon).apply(icon, "menu_icons", "news", icon, { size = UDim2.fromOffset(34, 34), position = UDim2.fromOffset(3, 3), zIndex = 12, cornerRadius = 6 })
 	local text = label(frame, {
 		Name = "Text", Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(46, 0), Text = "", TextSize = 15, TextColor3 = CREAM,
 		TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 11,
@@ -117,13 +119,7 @@ local function buildActive(row, order)
 	well.Parent = card
 	ui.roundCorner(well, 32)
 	local emoji = label(well, { Size = UDim2.fromScale(1, 1), Text = row.icon, TextSize = 34, TextColor3 = CREAM, ZIndex = 34 })
-	pcall(function()
-		local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
-		local artId = ContentArt.getImageId("news", row.bannerKey)
-		if artId then
-			require(script.Parent.PatronPlaque).applyById(well, artId, { emojiLabel = emoji, zIndex = 35, cornerRadius = 32 })
-		end
-	end)
+	require(script.Parent.ArtIcon).apply(well, "events", row.bannerKey, emoji, { zIndex = 35, cornerRadius = 32 })
 	label(card, { Size = UDim2.new(1, -230, 0, 24), Position = UDim2.fromOffset(88, 8), Text = row.name, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left })
 	label(card, {
 		Size = UDim2.new(1, -230, 0, 40), Position = UDim2.fromOffset(88, 32), Text = row.blurb, TextSize = 15, Font = Enum.Font.GothamMedium,

@@ -9687,4 +9687,44 @@ table.insert(tests, { name = "LiveEvents rewards: claimed once, only while the e
 	end
 end })
 
+table.insert(tests, { name = "Roadmap art: every registry entry has a prompt, new art maps are registered and rank medals map to 6 tiers", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	for _, cat in ipairs({ "stakes", "quests", "rank_medals", "store_bundles", "events", "discoveries", "challenges" }) do
+		expectTrue(type(ContentArt[cat]) == "table", cat .. " is a ContentArt category")
+	end
+	expectTrue(ContentArt.store == ContentArt.store_bundles and ContentArt.news == ContentArt.events, "old store/news names still resolve")
+	expectEqual(ContentArt.getImageId("quests", "pairs_3"), nil) -- empty map: nil, never an error
+	-- 30 ranks -> 6 medal tiers of 5 ranks
+	expectEqual(TavernRank.medalKey(1), "tier_1"); expectEqual(TavernRank.medalKey(5), "tier_1")
+	expectEqual(TavernRank.medalKey(6), "tier_2"); expectEqual(TavernRank.medalKey(30), "tier_6")
+	expectEqual(TavernRank.medalKey(0), "tier_1"); expectEqual(TavernRank.medalKey(99), "tier_6")
+	-- generated maps may only hold ids that exist in the registries
+	local function ids(list, field) local t = {}; for _, d in ipairs(list) do t[d[field or "id"]] = true end; return t end
+	local Engine = script.Parent.Parent.Engine
+	local valid = {
+		stakes = ids(require(Engine.Stakes).Definitions),
+		quests = ids(require(Engine.Quests).Definitions),
+		challenges = ids(require(Engine.Challenges).Definitions),
+		store_bundles = ids(require(Engine.Store).Items),
+	}
+	for cat, set in pairs(valid) do
+		for key in pairs(ContentArt[cat]) do expectTrue(set[key], cat .. " art key " .. key .. " is a registry id") end
+	end
+	-- every registry id has a prompts.json entry (text check; skipped where io is missing, e.g. Studio)
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local function need(key, what) expectTrue(src:find('"' .. key .. '":', 1, true) ~= nil, what .. " " .. key .. " has a prompt") end
+		for _, d in ipairs(require(Engine.Stakes).Definitions) do need(d.id, "stake") end
+		for _, d in ipairs(require(Engine.Quests).Definitions) do need(d.id, "quest") end
+		for _, d in ipairs(require(Engine.Challenges).Definitions) do need(d.id, "challenge") end
+		for _, d in ipairs(require(Engine.Store).Items) do need(d.id, "store item") end
+		for _, d in ipairs(require(Engine.RunEvents).Definitions) do need(d.id, "run event") end
+		for _, d in ipairs(require(Engine.LiveEvents).Definitions) do need(d.bannerKey, "live event banner") end
+		for t = 1, TavernRank.MEDAL_TIERS do need("tier_" .. t, "rank medal") end
+		for _, k in ipairs({ "chest", "merchant", "secret_patron", "news", "boss_rush", "quests", "store" }) do need(k, "icon") end
+	end
+end })
+
 return tests

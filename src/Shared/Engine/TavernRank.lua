@@ -66,6 +66,14 @@ TavernRank.Rewards = {
 	[30] = { kind = "title", id = "grand_host" },
 }
 
+-- Painted medal art key for a rank: 6 tiers of 5 ranks each (ContentArt "rank_medals": tier_1 .. tier_6).
+TavernRank.MEDAL_TIERS = 6
+function TavernRank.medalKey(rank)
+	local r = math.clamp and math.clamp(math.floor(tonumber(rank) or 1), 1, TavernRank.MAX_RANK)
+		or math.max(1, math.min(TavernRank.MAX_RANK, math.floor(tonumber(rank) or 1)))
+	return "tier_" .. math.ceil(r / (TavernRank.MAX_RANK / TavernRank.MEDAL_TIERS))
+end
+
 -- Short text for a reward ("+3 Tips next run"). `lookup` (optional) = { cardBackName = fn(id), setName = fn(id), titleName = fn(id) }.
 function TavernRank.rewardText(reward, lookup)
 	if not reward then

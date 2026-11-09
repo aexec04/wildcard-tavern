@@ -69,7 +69,10 @@ local function buildCard(parent, row, order, roundCorner)
 	ring.Color = GOLD
 	ring.Thickness = 2
 	ring.Parent = well
-	label(well, { Size = UDim2.fromScale(1, 1), Text = row.done and "✔" or row.icon, TextSize = 30, TextColor3 = CREAM, ZIndex = 33 })
+	local wellIcon = label(well, { Size = UDim2.fromScale(1, 1), Text = row.done and "✔" or row.icon, TextSize = 30, TextColor3 = CREAM, ZIndex = 33 })
+	if not row.done then -- a finished quest keeps its check mark
+		require(script.Parent.ArtIcon).apply(well, "quests", row.id, wellIcon, { zIndex = 34, cornerRadius = 30 })
+	end
 
 	label(card, {
 		Name = "Name", Size = UDim2.new(1, -200, 0, 24), Position = UDim2.fromOffset(86, 8), Text = row.name, TextSize = 18,

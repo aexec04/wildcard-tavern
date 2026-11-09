@@ -72,12 +72,34 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	badge.Font = Enum.Font.GothamBold
 	badge.TextSize = 18
 	badge.TextColor3 = INK
-	badge.Text = "1"
+	badge.Text = ""
 	badge.ZIndex = 11
 	badge.Parent = frame
 	local badgeCorner = Instance.new("UICorner")
 	badgeCorner.CornerRadius = UDim.new(0, 16)
 	badgeCorner.Parent = badge
+	-- Painted tier medal over the gold disc (art keyed by TavernRank.medalKey); the number sits above it.
+	-- No art id yet: nothing is added and the plain gold badge shows as before.
+	local medalHolder = Instance.new("Frame")
+	medalHolder.Name = "MedalHolder"
+	medalHolder.Size = badge.Size
+	medalHolder.Position = badge.Position
+	medalHolder.BackgroundTransparency = 1
+	medalHolder.ZIndex = 12
+	medalHolder.Parent = frame
+	local num = Instance.new("TextLabel")
+	num.Name = "Number"
+	num.Size = badge.Size
+	num.Position = badge.Position
+	num.BackgroundTransparency = 1
+	num.Font = Enum.Font.GothamBold
+	num.TextSize = 18
+	num.TextColor3 = INK
+	num.TextStrokeColor3 = Color3.fromRGB(255, 235, 190)
+	num.TextStrokeTransparency = 0.6
+	num.Text = "1"
+	num.ZIndex = 13
+	num.Parent = frame
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
@@ -115,7 +137,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	text.ZIndex = 11
 	text.Parent = frame
 
-	ui = { frame = frame, badge = badge, fill = fill, text = text, view = nil }
+	ui = { frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
 	if addTooltip then
 		addTooltip(frame, function()
 			return ui.view and MenuRank.tipFor(ui.view) or "Play to earn XP."
@@ -130,7 +152,13 @@ function MenuRank.update(state)
 	end
 	local view = state.rank
 	ui.view = view
-	ui.badge.Text = tostring(math.floor(view.rank))
+	ui.num.Text = tostring(math.floor(view.rank))
+	local key = TavernRank.medalKey(view.rank)
+	if ui.medalKey ~= key then -- only when the tier changes (every 5 ranks)
+		ui.medalKey = key
+		for _, c in ipairs(ui.medalHolder:GetChildren()) do c:Destroy() end
+		require(script.Parent.ArtIcon).apply(ui.medalHolder, "rank_medals", key, nil, { zIndex = 12, cornerRadius = 16 })
+	end
 	ui.text.Text = MenuRank.textFor(view)
 	local ratio = view.maxed and 1 or math.clamp(view.need > 0 and view.into / view.need or 0, 0, 1)
 	if shown.ratio ~= ratio or shown.rank ~= view.rank then

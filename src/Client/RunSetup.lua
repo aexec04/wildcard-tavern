@@ -46,6 +46,7 @@
 ]]
 
 return function(deps)
+	local ArtIcon = require(script.Parent.ArtIcon) -- painted icons for stake / challenge / Boss Rush cards, emoji when no id
 	local screenGui = deps.screenGui
 	local root = deps.root
 	local menuFrame = deps.menuFrame
@@ -213,7 +214,7 @@ return function(deps)
 		return Stakes.clamp(state and state.highestStakeUnlocked)
 	end
 
-	local function makePickCard(parent, order, name, description, isSelected, accentColor, locked)
+	local function makePickCard(parent, order, name, description, isSelected, accentColor, locked, art)
 		local card = Instance.new("Frame")
 		-- Parchment card: ink text; selected = darker fill, gold 2px stroke, checkmark.
 		-- `locked` (stakes not yet won): dimmed parchment, never clickable by the caller.
@@ -264,6 +265,22 @@ return function(deps)
 		descLabel.Text = description
 		descLabel.ZIndex = 26
 		descLabel.Parent = card
+
+		-- Optional painted icon (art = { category, key }) at the right; text narrows to make room.
+		-- No id yet: nothing changes (callers keep their emoji prefix in that case).
+		if art and ArtIcon.has(art[1], art[2]) then
+			nameLabel.Size = UDim2.new(1, -92, 0, 24)
+			descLabel.Size = UDim2.new(1, -92, 0, 34)
+			local well = Instance.new("Frame")
+			well.Name = "ArtWell"
+			well.Size = UDim2.fromOffset(50, 50)
+			well.Position = UDim2.new(1, -60, 0.5, -25)
+			well.BackgroundTransparency = 1
+			well.ZIndex = 26
+			well.Parent = card
+			local img = ArtIcon.apply(well, art[1], art[2], nil, { zIndex = 27, cornerRadius = 8 })
+			if img and locked then img.ImageColor3 = Color3.fromRGB(130, 130, 130) end -- dimmed, never black
+		end
 
 		local clickCatcher = Instance.new("TextButton")
 		clickCatcher.Size = UDim2.fromScale(1, 1)
@@ -322,7 +339,7 @@ return function(deps)
 			local locked = n > open
 			local text = locked and ("Locked. " .. Stakes.unlockHint(n)) or def.hint
 			local card, clickCatcher = makePickCard(runSetupScroll, STAKE_CARD_BASE + n,
-				def.icon .. " " .. n .. ". " .. def.name, text, n == selectedStake, STAKE_ACCENT, locked)
+				(ArtIcon.has("stakes", def.id) and "" or (def.icon .. " ")) .. n .. ". " .. def.name, text, n == selectedStake, STAKE_ACCENT, locked, { "stakes", def.id })
 			table.insert(stakeCards, card)
 			table.insert(newlyBuiltCards, card)
 			if locked then
@@ -348,7 +365,7 @@ return function(deps)
 		end
 		local function addChallengeCard(order, id, name, text)
 			local isSelected = selectedMode ~= "rush" and selectedChallengeId == id
-			local card, clickCatcher = makePickCard(runSetupScroll, CHALLENGE_CARD_BASE + order, name, text, isSelected, CHALLENGE_ACCENT, false)
+			local card, clickCatcher = makePickCard(runSetupScroll, CHALLENGE_CARD_BASE + order, name, text, isSelected, CHALLENGE_ACCENT, false, id and { "challenges", id } or nil)
 			table.insert(challengeCards, card)
 			table.insert(newlyBuiltCards, card)
 			clickCatcher.MouseButton1Click:Connect(function()
@@ -360,7 +377,7 @@ return function(deps)
 		end
 		addChallengeCard(1, nil, "No twist", "A normal run.")
 		for i, def in ipairs(Challenges.Definitions) do
-			addChallengeCard(i + 1, def.id, def.icon .. " " .. def.name .. (clearedSet[def.id] and "  (cleared)" or ""), def.text)
+			addChallengeCard(i + 1, def.id, (ArtIcon.has("challenges", def.id) and "" or (def.icon .. " ")) .. def.name .. (clearedSet[def.id] and "  (cleared)" or ""), def.text)
 		end
 
 		-- Boss Rush: locked until the first win; picking it drops the stake and the challenge.
@@ -372,7 +389,7 @@ return function(deps)
 		local rushText = rush.unlocked
 			and ("Boss after boss with 3 Patrons you pick. No shop. Best: " .. tostring(math.floor(rush.best or 0)))
 			or "Locked. Win a run first."
-		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, "⚔️ Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked)
+		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, (ArtIcon.has("menu_icons", "boss_rush") and "" or "⚔️ ") .. "Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked, { "menu_icons", "boss_rush" })
 		table.insert(rushCards, rushCard)
 		table.insert(newlyBuiltCards, rushCard)
 		if rush.unlocked then

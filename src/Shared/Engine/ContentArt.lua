@@ -36,7 +36,17 @@ local ContentArt = {
 	biome_backdrops = require(Engine:WaitForChild("BiomeBackdropArt")),
 	set_backdrops = require(Engine:WaitForChild("SetBackdropArt")),
 	badges       = require(Engine:WaitForChild("BadgeArt")),
+	stakes       = require(Engine:WaitForChild("StakeArt")),          -- keyed by Stakes id
+	quests       = require(Engine:WaitForChild("QuestArt")),          -- keyed by Quests id
+	rank_medals  = require(Engine:WaitForChild("RankMedalArt")),      -- tier_1..tier_6 (RankMedal tier = ceil(rank / 5))
+	store_bundles = require(Engine:WaitForChild("StoreBundleArt")),   -- keyed by Store id
+	events       = require(Engine:WaitForChild("EventArt")),          -- RunEvents id and LiveEvents bannerKey
+	discoveries  = require(Engine:WaitForChild("DiscoveryArt")),      -- chest, merchant, secret_patron
+	challenges   = require(Engine:WaitForChild("ChallengeArt")),      -- keyed by Challenges id
 }
+-- Older callers asked for "store" and "news"; both resolve to the new maps.
+ContentArt.store = ContentArt.store_bundles
+ContentArt.news  = ContentArt.events
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds
 ContentArt.housePasses = ContentArt.house_passes
@@ -64,6 +74,7 @@ ContentArt.PreloadPlan = {
 	{ name = "menu",     delay = 0, items = { { "backgrounds", "menu_bg" }, { "menu_icons" } } },
 	{ name = "gameplay", delay = 2, items = { { "hud" }, { "backgrounds" } } },
 	{ name = "cosmetics", delay = 3, items = { { "card_backs" }, { "packs" }, { "tutorial_icons" } } },
+	{ name = "account", delay = 5, items = { { "rank_medals" }, { "quests" }, { "stakes" }, { "challenges" }, { "store_bundles" }, { "events" }, { "discoveries" } } },
 	{ name = "collection", delay = 4, items = { { "patrons" }, { "recipes" }, { "boss_rounds" }, { "house_passes" }, { "titles" } } },
 }
 -- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
