@@ -85,6 +85,24 @@ rule("streak_7", "Week at the Tavern", "🔥", "uncommon", "Visits", "Visit 7 da
 rule("streak_14", "Fortnight Friend", "🔥", "rare", "Visits", "Visit 14 days in a row.", "Visit 14 days in a row.", "loginStreak", 14)
 rule("season_winter_lanterns", "Winter Lanterns", "🏮", "epic", "Seasons", "Earn the Winter Lanterns rewards during the season.", "Clear 3 Nights in one run during Winter Lanterns.", "season", "winter_lanterns")
 
+-- Shelf filter chips on the Badges panel: Roads (first-clear biome badges), Masters, Night (reach-a-Night
+-- badges) and Special (wins, games, collection, visits, seasons). Every badge is in exactly one chip.
+Badges.Chips = { "All", "Roads", "Masters", "Night", "Special" }
+function Badges.chipOf(def)
+	if def.tier == "first" then return "Roads" end
+	if def.tier == "master" then return "Masters" end
+	if def.group == "Nights" then return "Night" end
+	return "Special"
+end
+
+-- Grid sizing for the shelf: as many columns as fit (at least minCols), cells stretched so the grid fills
+-- the whole width with no empty right margin. Returns cols, cellW.
+function Badges.gridFor(width, minCell, gap, minCols)
+	local cols = math.max(minCols or 2, math.floor((width + gap) / (minCell + gap)))
+	local cellW = math.floor((width - (cols - 1) * gap) / cols)
+	return cols, cellW
+end
+
 function Badges.getById(id)
 	for _, def in ipairs(Badges.Definitions) do
 		if def.id == id then

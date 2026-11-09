@@ -1,14 +1,17 @@
 --[[
 	Client/BadgesPanel.lua
-	The Badge shelf (parchment), opened from a "Badges" button in the Collection header. One tile per badge in
-	Engine/Badges.lua with a RarityFrame for its tier. Earned badges show their icon, name and an Equip / Equipped
-	button (one equipped badge, shown beside the player's name on the leaderboards and the results screen;
-	EquipBadge remote, the server refuses a badge that is not owned). Locked badges are silhouettes (dimmed icon, the
-	tier colour kept, name and the earn hint). Master badges get a slow gold shine sweep, driven by ONE Heartbeat
-	connection that only exists while the panel is open and stops under Reduce screen shake.
+	The Badge trophy shelf, opened from a "Badges" button in the Collection header. A progress bar (earned of
+	total), filter chips (All, Roads, Masters, Night, Special: Badges.chipOf) and a grid that fills the panel
+	width (Badges.gridFor). One tile per badge in Engine/Badges.lua: the painted BadgeArt fills the top two
+	thirds (Crop, drawn at full opacity at once: no IsLoaded gate, the emoji sits behind it as a fallback and a
+	missing id warns once), a gold frame when earned, a dark silhouette with a padlock when locked, the name and
+	the requirement line below, and a small Equip / Unequip pill. The equipped badge wears an "Equipped" ribbon and
+	a shine sweep (one Heartbeat connection, alive only while the panel is open, off under Reduce screen shake).
+	Hovering a tile shows only its requirement. One equipped badge is shown beside the player's name on the
+	leaderboards and the results screen (EquipBadge remote; the server refuses a badge that is not owned).
 
 	Reads state.badgeIds (earned ids) and state.equippedBadgeId. Refreshes on every StateUpdated while open.
-	deps: screenGui, polishPanel, polishButton, roundCorner, addSoftShadow, playClickSfx, openButton,
+	deps: screenGui, polishPanel, polishButton, roundCorner, addSoftShadow, playClickSfx, openButton, addTooltip,
 	      getLatestState, popIn, popOut, addButtonHoverScale, StateUpdatedRemote
 ]]
 
@@ -31,13 +34,14 @@ return function(deps)
 	local popIn, popOut = deps.popIn, deps.popOut
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
-	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
-	local GOLD = Color3.fromRGB(255, 214, 130)
+	local GOLD = Color3.fromRGB(222, 182, 104)
 	local BROWN = Color3.fromRGB(70, 55, 40)
 	local INK = Color3.fromRGB(60, 40, 22)
 	local TILE = Color3.fromRGB(232, 212, 168)
-	local TILE_W, TILE_H = 150, 196
+	local TILE_W, TILE_H = 170, 247 -- replaced by relayout() from the real shelf width
+	local GAP, MIN_CELL = 10, 170
 	local SHINE_PERIOD = 3.2
+	local warnedNoArt = {}
 
 	local function label(parent, props)
 		local l = Instance.new("TextLabel")
@@ -65,7 +69,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.64, 0.84)
+	panel.Size = UDim2.fromScale(0.78, 0.88)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
@@ -77,25 +81,60 @@ return function(deps)
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Badges",
 	})
-	local countLabel = label(panel, {
-		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 34),
-		TextSize = 15, TextColor3 = SOFT_CREAM, Text = "",
+
+	-- progress bar: gold fill, the count sits on it
+	local progressBack = Instance.new("Frame")
+	progressBack.Size = UDim2.new(1, -30, 0, 22)
+	progressBack.Position = UDim2.fromOffset(15, 38)
+	progressBack.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	progressBack.BorderSizePixel = 0
+	progressBack.ZIndex = 41
+	progressBack.Parent = panel
+	roundCorner(progressBack, 11)
+	local progressFill = Instance.new("Frame")
+	progressFill.Size = UDim2.fromScale(0, 1)
+	progressFill.BackgroundColor3 = GOLD
+	progressFill.BorderSizePixel = 0
+	progressFill.ZIndex = 42
+	progressFill.Parent = progressBack
+	roundCorner(progressFill, 11)
+	local countLabel = label(progressBack, {
+		Size = UDim2.fromScale(1, 1), TextSize = 14, Font = Enum.Font.GothamBold, ZIndex = 43,
+		TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(30, 18, 8), TextStrokeTransparency = 0.35, Text = "",
 	})
 
+	-- filter chips
+	local activeChip = "All"
+	local chipButtons = {}
+	local chipRow = Instance.new("Frame")
+	chipRow.Size = UDim2.new(1, -30, 0, 28)
+	chipRow.Position = UDim2.fromOffset(15, 68)
+	chipRow.BackgroundTransparency = 1
+	chipRow.ZIndex = 41
+	chipRow.Parent = panel
+	local chipLayout = Instance.new("UIListLayout")
+	chipLayout.FillDirection = Enum.FillDirection.Horizontal
+	chipLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	chipLayout.Padding = UDim.new(0, 8)
+	chipLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	chipLayout.Parent = chipRow
+
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -112)
-	scroll.Position = UDim2.fromOffset(15, 62)
+	scroll.Size = UDim2.new(1, -30, 1, -146)
+	scroll.Position = UDim2.fromOffset(15, 104)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 6
+	scroll.ScrollBarThickness = 10
+	scroll.ScrollBarImageColor3 = GOLD
+	scroll.ScrollBarImageTransparency = 0
 	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	scroll.CanvasSize = UDim2.new()
 	scroll.ZIndex = 41
 	scroll.Parent = panel
 	local grid = Instance.new("UIGridLayout")
 	grid.CellSize = UDim2.fromOffset(TILE_W, TILE_H)
-	grid.CellPadding = UDim2.fromOffset(10, 10)
-	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	grid.CellPadding = UDim2.fromOffset(GAP, GAP)
+	grid.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = scroll
 
@@ -113,7 +152,7 @@ return function(deps)
 	polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
 
-	-- ===== Master shine: one loop for all Master tiles, alive only while the panel is open =====
+	-- ===== Equipped shine: one loop for the shelf, alive only while the panel is open =====
 	local shines = {} -- { strip = Frame, phase = number }
 	local shineConn = nil
 	local function stopShine()
@@ -143,10 +182,12 @@ return function(deps)
 	end
 
 	local function tile(def, owned, equipped, order)
+		local w = TILE_W
+		local artH = math.floor(w * 0.9)
 		local t = Instance.new("Frame")
 		t.Name = "Badge_" .. def.id
 		t.LayoutOrder = order
-		t.BackgroundColor3 = owned and TILE or Color3.fromRGB(190, 172, 138)
+		t.BackgroundColor3 = owned and TILE or Color3.fromRGB(176, 158, 126)
 		t.BorderSizePixel = 0
 		t.ClipsDescendants = true
 		t.ZIndex = 42
@@ -154,90 +195,140 @@ return function(deps)
 		roundCorner(t, 10)
 		RarityFrame.apply(t, def.rarity, { thickness = def.tier == "master" and 4 or 3, radius = 10, locked = not owned, zIndex = 46 })
 
-		-- medallion
-		local medal = Instance.new("Frame")
-		medal.Size = UDim2.fromOffset(72, 72)
-		medal.AnchorPoint = Vector2.new(0.5, 0)
-		medal.Position = UDim2.new(0.5, 0, 0, 12)
-		medal.BackgroundColor3 = owned and (def.tier == "master" and Color3.fromRGB(235, 196, 96) or Color3.fromRGB(205, 178, 120))
-			or Color3.fromRGB(150, 135, 110)
-		medal.ZIndex = 43
-		medal.Parent = t
-		roundCorner(medal, 36)
-		local ring = Instance.new("UIStroke")
-		ring.Color = owned and Color3.fromRGB(110, 80, 45) or Color3.fromRGB(105, 92, 74)
-		ring.Thickness = 2
-		ring.Parent = medal
-		local icon = label(medal, {
-			Size = UDim2.fromScale(1, 1), TextSize = 40, Font = Enum.Font.GothamBold, Text = def.icon, ZIndex = 44,
+		-- art window: the painted badge fills the top two thirds
+		local artFrame = Instance.new("Frame")
+		artFrame.Name = "ArtWindow"
+		artFrame.Position = UDim2.fromOffset(6, 6)
+		artFrame.Size = UDim2.fromOffset(w - 12, artH)
+		artFrame.BackgroundColor3 = owned and Color3.fromRGB(70, 52, 36) or Color3.fromRGB(46, 36, 28)
+		artFrame.BorderSizePixel = 0
+		artFrame.ClipsDescendants = true
+		artFrame.ZIndex = 43
+		artFrame.Parent = t
+		roundCorner(artFrame, 8)
+		local frameStroke = Instance.new("UIStroke")
+		frameStroke.Color = owned and GOLD or Color3.fromRGB(105, 92, 74)
+		frameStroke.Thickness = owned and 2.5 or 1.5
+		frameStroke.Parent = artFrame
+		-- emoji fallback sits BEHIND the art and is never hidden: the art simply covers it
+		label(artFrame, {
+			Size = UDim2.fromScale(1, 1), TextSize = math.floor(artH * 0.5), Font = Enum.Font.GothamBold, Text = def.icon, ZIndex = 44,
+			TextTransparency = owned and 0 or 0.7, TextColor3 = owned and CREAM or Color3.fromRGB(60, 50, 40),
 		})
-		if not owned then
-			icon.TextTransparency = 0.7 -- silhouette: the shape is there, the picture is not
-			icon.TextColor3 = Color3.fromRGB(60, 50, 40)
+		local artId = ContentArt.getImageId("badges", def.id)
+		if artId then
+			local art = PatronPlaque.applyById(artFrame, artId, { zIndex = 45, cornerRadius = 0 })
+			if art then
+				art.ScaleType = Enum.ScaleType.Crop
+				-- locked: a dark silhouette, never black
+				art.ImageColor3 = owned and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(62, 62, 62)
+			end
+		elseif not warnedNoArt[def.id] then
+			warnedNoArt[def.id] = true
+			warn("[Badges] no painted art for badge '" .. def.id .. "' (emoji fallback shown)")
 		end
-		-- Painted badge art (BadgeArt via ContentArt "badges"); the emoji stays until an id is recorded and loaded.
-		PatronPlaque.applyById(medal, ContentArt.getImageId("badges", def.id), {
-			emojiLabel = icon, dim = not owned, cornerRadius = 36, zIndex = 45,
-		})
+		if not owned then
+			local lock = label(artFrame, {
+				AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(46, 46),
+				TextSize = 26, Text = "\240\159\148\146", ZIndex = 47, BackgroundTransparency = 0.25,
+				BackgroundColor3 = Color3.fromRGB(26, 19, 13),
+			})
+			roundCorner(lock, 23)
+		end
 
+		-- hover shows only the requirement
+		local hit = Instance.new("TextButton")
+		hit.Name = "Hit"
+		hit.Size = artFrame.Size
+		hit.Position = artFrame.Position
+		hit.BackgroundTransparency = 1
+		hit.Text = ""
+		hit.AutoButtonColor = false
+		hit.ZIndex = 49
+		hit.Parent = t
+		if deps.addTooltip then
+			deps.addTooltip(hit, def.hint)
+		end
+
+		local nameY = 6 + artH + 4
 		label(t, {
-			Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 88), TextSize = 15,
-			Font = Enum.Font.GothamBold, TextWrapped = true, TextColor3 = INK, ZIndex = 44,
+			Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, nameY), TextSize = 15,
+			Font = Enum.Font.GothamBold, TextColor3 = INK, ZIndex = 44, TextTruncate = Enum.TextTruncate.AtEnd,
 			Text = def.name,
+		})
+		label(t, {
+			Size = UDim2.new(1, -12, 0, 30), Position = UDim2.fromOffset(6, nameY + 20), TextSize = 13,
+			TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(80, 62, 44),
+			Font = Enum.Font.GothamMedium, ZIndex = 44, TextTruncate = Enum.TextTruncate.AtEnd, Text = def.hint,
 		})
 
 		if owned then
 			local b = Instance.new("TextButton")
-			b.Size = UDim2.new(1, -24, 0, 30)
+			b.Size = UDim2.fromOffset(math.floor(w * 0.62), 24)
 			b.AnchorPoint = Vector2.new(0.5, 1)
-			b.Position = UDim2.new(0.5, 0, 1, -12)
+			b.Position = UDim2.new(0.5, 0, 1, -6)
 			b.Font = Enum.Font.GothamBold
-			b.TextSize = 15
+			b.TextSize = 14
 			b.TextColor3 = CREAM
 			b.TextTransparency = 0
 			b.TextStrokeTransparency = 1
-			b.ZIndex = 47
+			b.ZIndex = 50
 			b.Parent = t
-			roundCorner(b, 8)
-			if equipped then
-				b.Text = "Equipped"
-				b.BackgroundColor3 = Color3.fromRGB(150, 115, 50)
-				b.AutoButtonColor = false
-				b.MouseButton1Click:Connect(function()
-					playClickSfx()
+			roundCorner(b, 12)
+			b.Text = equipped and "Unequip" or "Equip"
+			b.BackgroundColor3 = equipped and Color3.fromRGB(150, 115, 50) or BROWN
+			b.MouseButton1Click:Connect(function()
+				playClickSfx()
+				if equipped then
 					EquipRemote:FireServer(nil) -- tapping the equipped badge takes it off
-				end)
-			else
-				b.Text = "Equip"
-				b.BackgroundColor3 = BROWN
-				b.MouseButton1Click:Connect(function()
-					playClickSfx()
+				else
 					EquipRemote:FireServer(def.id)
-				end)
-			end
-		else
-			label(t, {
-				Size = UDim2.new(1, -16, 0, 56), Position = UDim2.new(0, 8, 1, -64), TextSize = 15,
-				TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(80, 62, 44),
-				Font = Enum.Font.GothamMedium, ZIndex = 44, Text = "🔒 " .. def.hint,
-			})
+				end
+			end)
 		end
 
-		if owned and def.tier == "master" then
+		if equipped then
+			local ribbon = Instance.new("Frame")
+			ribbon.Name = "EquippedRibbon"
+			ribbon.Position = UDim2.fromOffset(0, 14)
+			ribbon.Size = UDim2.fromOffset(92, 22)
+			ribbon.BackgroundColor3 = GOLD
+			ribbon.BorderSizePixel = 0
+			ribbon.ZIndex = 51
+			ribbon.Parent = t
+			label(ribbon, {
+				Size = UDim2.fromScale(1, 1), TextSize = 13, Font = Enum.Font.GothamBold, TextColor3 = INK, ZIndex = 52, Text = "Equipped",
+			})
 			local strip = Instance.new("Frame") -- thin white-gold diagonal highlight (plain Frame; no UIGradient transparency)
-			strip.Name = "MasterShine"
+			strip.Name = "EquippedShine"
 			strip.Size = UDim2.fromScale(0.14, 1.3)
 			strip.Position = UDim2.fromScale(2, -0.1)
 			strip.Rotation = 18
 			strip.BackgroundColor3 = Color3.fromRGB(255, 240, 190)
-			strip.BackgroundTransparency = 0.72
+			strip.BackgroundTransparency = 0.7
 			strip.BorderSizePixel = 0
 			strip.Active = false
 			strip.ZIndex = 48
 			strip.Parent = t
-			table.insert(shines, { strip = strip, phase = (order % 7) * 0.13 })
+			table.insert(shines, { strip = strip, phase = 0 })
 		end
 		return t
+	end
+
+	-- Cells fill the whole shelf width (Badges.gridFor); tiles are rebuilt at the new size.
+	local function relayout()
+		local cam = workspace.CurrentCamera
+		local vpX = cam and cam.ViewportSize.X or 1280
+		local small = vpX < 700
+		panel.Size = small and UDim2.fromScale(0.96, 0.92) or UDim2.fromScale(0.78, 0.88)
+		local width = scroll.AbsoluteSize.X
+		if width <= 0 then
+			width = math.floor(vpX * (small and 0.96 or 0.78)) - 30
+		end
+		local _, cellW = Badges.gridFor(width - 12, MIN_CELL, GAP, 2) -- 12 = scroll bar + breathing room
+		TILE_W = cellW
+		TILE_H = math.floor(cellW * 0.9) + 94
+		grid.CellSize = UDim2.fromOffset(TILE_W, TILE_H)
 	end
 
 	local function refresh()
@@ -247,6 +338,7 @@ return function(deps)
 			end
 		end
 		shines = {}
+		relayout()
 		local state = deps.getLatestState()
 		local have = {}
 		for _, id in ipairs(state and state.badgeIds or {}) do
@@ -267,14 +359,57 @@ return function(deps)
 			end
 			return a.index < b.index
 		end)
-		local earned = 0
-		for i, o in ipairs(order) do
+		local earned, shown = 0, 0
+		for _, o in ipairs(order) do
 			if o.owned then earned = earned + 1 end
-			tile(o.def, o.owned, equippedId == o.def.id, i)
+			if activeChip == "All" or Badges.chipOf(o.def) == activeChip then
+				shown = shown + 1
+				tile(o.def, o.owned, equippedId == o.def.id, shown)
+			end
 		end
-		countLabel.Text = string.format("%d of %d earned.  Equip one to show it beside your name.", earned, #Badges.Definitions)
+		countLabel.Text = string.format("%d of %d earned", earned, #Badges.Definitions)
+		progressFill.Size = UDim2.fromScale(#Badges.Definitions > 0 and earned / #Badges.Definitions or 0, 1)
+		for _, entry in ipairs(chipButtons) do
+			entry.button.BackgroundColor3 = (entry.name == activeChip) and Color3.fromRGB(150, 115, 50) or BROWN
+		end
 		startShine()
 	end
+
+	for i, name in ipairs(Badges.Chips) do
+		local c = Instance.new("TextButton")
+		c.LayoutOrder = i
+		c.Size = UDim2.fromOffset(84, 28)
+		c.Font = Enum.Font.GothamBold
+		c.TextSize = 14
+		c.TextColor3 = CREAM
+		c.TextTransparency = 0
+		c.TextStrokeTransparency = 1
+		c.BackgroundColor3 = BROWN
+		c.Text = name
+		c.ZIndex = 42
+		c.Parent = chipRow
+		roundCorner(c, 14)
+		table.insert(chipButtons, { name = name, button = c })
+		c.MouseButton1Click:Connect(function()
+			playClickSfx(0.4)
+			activeChip = name
+			refresh()
+		end)
+	end
+
+	-- keep the grid filling the width if the window changes while the shelf is open
+	local resizePending = false
+	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if backdrop.Visible and not resizePending then
+			resizePending = true
+			task.defer(function()
+				resizePending = false
+				if backdrop.Visible then
+					refresh()
+				end
+			end)
+		end
+	end)
 
 	OverlayManager.register("badges", function()
 		stopShine()
@@ -284,6 +419,9 @@ return function(deps)
 	deps.openButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("badges")
+		task.spawn(function()
+			ContentArt.preload({ { "badges" } }, "badges") -- a lazy category: warm it as the shelf opens
+		end)
 		refresh()
 		popIn(backdrop, panel)
 	end)

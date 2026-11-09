@@ -7028,6 +7028,28 @@ table.insert(tests, { name = "Badges: definitions are well-formed, rule badges a
 	expectEqual(PlayerProfile.migrate({ badgeIds = { wins_1 = true }, equippedBadgeId = "wins_1" }).equippedBadgeId, "wins_1")
 end })
 
+table.insert(tests, { name = "Badges: every badge is in exactly one shelf chip, painted art exists for every id, grid fills the width", fn = function()
+	local Badges = require(script.Parent.Parent.Engine.Badges)
+	local BadgeArt = require(script.Parent.Parent.Engine.BadgeArt)
+	local counts = {}
+	local valid = {}
+	for _, chip in ipairs(Badges.Chips) do valid[chip] = true end
+	for _, def in ipairs(Badges.Definitions) do
+		local chip = Badges.chipOf(def)
+		expectTrue(valid[chip] and chip ~= "All", def.id .. " has a real chip")
+		counts[chip] = (counts[chip] or 0) + 1
+		expectTrue(type(BadgeArt[def.id]) == "string" and BadgeArt[def.id]:match("^rbxassetid://%d+$") ~= nil, def.id .. " has painted art")
+		expectTrue(#def.hint:gsub("%S+", "x"):gsub("%s", "") <= 12, def.id .. " requirement is 12 words or fewer")
+	end
+	expectEqual(counts.Roads, 8)
+	expectEqual(counts.Masters, 8)
+	for _, w in ipairs({ 260, 500, 900, 1400 }) do
+		local cols, cellW = Badges.gridFor(w, 170, 10, 2)
+		expectTrue(cols >= 2 and cellW > 0, "cols and cell size at width " .. w)
+		expectTrue(w - (cols * cellW + (cols - 1) * 10) < cols, "no empty right margin at width " .. w)
+	end
+end })
+
 table.insert(tests, { name = "Badges: real Roblox badge awards skip every missing id, and only new badges are sent", fn = function()
 	local Badges = require(script.Parent.Parent.Engine.Badges)
 	local BadgeIds = require(script.Parent.Parent.Engine.BadgeIds)

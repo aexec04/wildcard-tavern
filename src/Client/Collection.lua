@@ -177,6 +177,7 @@ return function(deps)
 			addSoftShadow = addSoftShadow,
 			playClickSfx = playClickSfx,
 			openButton = badgesButton,
+			addTooltip = addTooltip,
 			getLatestState = getLatestState,
 			popIn = popIn,
 			popOut = popOut,
