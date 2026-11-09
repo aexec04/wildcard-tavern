@@ -342,7 +342,13 @@
     "late_kitchen": "an avatar cook working by moonlight in a warm glowing kitchen, a lantern and a bubbling pot",
     "double_shift": "two identical avatar servers in aprons carrying trays side by side, one in daylight colors and one in moonlight colors",
     "frequent_visitor": "an avatar showing a sparkling membership card with golden stars to a delighted doorkeeper",
-    "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons"
+    "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons",
+    "pantry_shelf": "an avatar cook stacking jars on a tall wooden pantry shelf with a proud smile",
+    "tip_stand": "an avatar greeter standing beside a small wooden stand with a dish of shiny coins",
+    "card_cart": "an avatar dealer pushing a little wooden cart piled high with playing cards",
+    "savings_account": "an avatar banker locking a sturdy wooden coin chest with a golden key",
+    "warm_welcome": "an avatar innkeeper greeting a grumpy guest at the door with a warm hug and balloons",
+    "boss_prep": "an avatar cook pinning a long checklist on a kitchen door before a big night"
   },
   "title_subjects": {
     "feast_guest": "an avatar at a long candlelit banquet table lifting a steaming bowl, a paper crown on the head, happy",
