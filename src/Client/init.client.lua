@@ -988,6 +988,10 @@ do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile o
 	end)
 	if not ok then warn("[Client] QuestsPanel failed: " .. tostring(err)) end
 end
+do -- Combo counter (Client/ComboCounter.lua), driven by the score popup
+	local ok, err = pcall(function() require(script.ComboCounter).init(screenGui) end)
+	if not ok then warn("[Client] ComboCounter failed: " .. tostring(err)) end
+end
 do -- Unlock toast (Client/UnlockToast.lua); fed from render()
 	local ok, err = pcall(function() require(script.UnlockToast).init(screenGui) end)
 	if not ok then warn("[Client] UnlockToast failed: " .. tostring(err)) end
@@ -2400,6 +2404,7 @@ local function render(state)
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
+	pcall(require(script.FeelHooks).update, state) -- coin, discard and shuffle sounds from state changes, audio only
 	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only

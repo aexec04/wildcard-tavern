@@ -383,6 +383,7 @@ return function(deps)
 
 	-- POLISH 1: "NEW BEST!" / "TARGET CLEARED!" banner (hidden until the finale).
 	local ScoreJuice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScoreJuice"))
+	local ScoreFeel = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScoreFeel")) -- tier size/color, combo, big-hand shake
 	local juiceBest = 0
 	local juiceBanner = Instance.new("TextLabel")
 	juiceBanner.Name = "ScoreJuiceBanner"
@@ -1209,7 +1210,21 @@ return function(deps)
 			-- non-integral float.
 			chipsLabel.Text = string.format("%d", math.floor(preview.chips + 0.5))
 			multLabel.Text = string.format("%d", math.floor(preview.mult + 0.5))
-			scorePopupScale.Scale = 1.3
+			-- GAME FEEL: the finale pop grows with the hand's share of the Target, its hand name takes the tier's color,
+			-- a big hand (half the Target or more) gets an extra slam, and the combo counter ticks up (visual only).
+			local feelTier = ScoreFeel.tierFor(preview.score, preview.targetScore)
+			local feelColor = ScoreFeel.tierColor(feelTier)
+			scorePopupHandName.TextColor3 = Color3.fromRGB(feelColor[1], feelColor[2], feelColor[3])
+			scorePopupScale.Scale = ScoreFeel.popScale(feelTier)
+			do
+				local slam = ScoreFeel.slamFor(feelTier)
+				if slam > 0 and currentPaceDivisor == 1 then -- Reduce shake is honored inside screenShake; Fast skips it
+					screenShake(root, slam + 3, 0.22)
+				end
+				pcall(function()
+					require(script.Parent.ComboCounter).hand(preview.score, (preview.roundScoreBefore or 0) <= 0)
+				end)
+			end
 			tweenTo(scorePopupScale, { Scale = 1 }, 0.22, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
 			tweenTo(chipsScale, { Scale = 1.3 }, 0.1)
 			tweenTo(multScale, { Scale = 1.3 }, 0.1)

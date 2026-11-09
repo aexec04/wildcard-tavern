@@ -156,6 +156,7 @@ return function(deps)
 	-- Cue and music ids live in Shared/Engine/SoundIds.lua (menu = the title track; region_* keys are empty
 	-- until picked and setMusicTrack skips empty ids). "title" stays as an alias of "menu".
 	local SoundIds = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundIds"))
+	local TweenService = game:GetService("TweenService") -- the biome music crossfade
 	local MUSIC_IDS = {
 		title = SoundIds.Music.menu,
 		gameplay = SOUND_IDS.backgroundMusic,        -- rbxassetid://132846105965979
@@ -281,15 +282,16 @@ return function(deps)
 	-- track immediately, instead of silently keeping the custom track
 	-- playing until the next unrelated render() call happens to fire.
 	local lastRequestedKey = "gameplay"
-	local function setMusicTrack(key)
-		lastRequestedKey = key
-		local id = customTrackId or MUSIC_IDS[key]
-		if not id or id == "" then
-			return
-		end
-		if id == currentTrackId then
-			return
-		end
+	-- BIOME MUSIC: moving between gameplay-table tracks (the plain gameplay track and the per-biome ones in
+	-- SoundIds.Music) fades out, swaps, fades in. The fade runs on a SoundGroup so the Music slider and Mute,
+	-- which set backgroundMusic.Volume, are never touched. A biome with no track id keeps the current track.
+	local fadeGroup = Instance.new("SoundGroup")
+	fadeGroup.Name = "MusicFade"
+	fadeGroup.Parent = SoundService
+	backgroundMusic.SoundGroup = fadeGroup
+	local fadeToken = 0
+	local FADE_TIME = 0.5
+	local function swapTo(id)
 		currentTrackId = id
 		local wasPlaying = backgroundMusic.IsPlaying
 		backgroundMusic.SoundId = id
@@ -298,6 +300,32 @@ return function(deps)
 		-- as every other volume-aware Play() call in this file.
 		if wasPlaying or backgroundMusic.Volume > 0 then
 			backgroundMusic:Play()
+		end
+	end
+	local function setMusicTrack(key)
+		local previousKey = lastRequestedKey
+		lastRequestedKey = key
+		local id = customTrackId or MUSIC_IDS[key]
+		if not id or id == "" then
+			return
+		end
+		if id == currentTrackId then
+			return
+		end
+		fadeToken += 1
+		local mine = fadeToken
+		if currentTrackId ~= nil and not customTrackId and SoundIds.shouldCrossfade(previousKey, key) then
+			TweenService:Create(fadeGroup, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Sine), { Volume = 0 }):Play()
+			task.delay(FADE_TIME, function()
+				if mine ~= fadeToken then
+					return -- a newer request took over
+				end
+				swapTo(id)
+				TweenService:Create(fadeGroup, TweenInfo.new(FADE_TIME, Enum.EasingStyle.Sine), { Volume = 1 }):Play()
+			end)
+		else
+			fadeGroup.Volume = 1
+			swapTo(id)
 		end
 	end
 

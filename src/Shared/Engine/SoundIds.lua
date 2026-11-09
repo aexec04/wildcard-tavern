@@ -19,6 +19,8 @@ SoundIds.Cues = {
 	card_select = { id = "rbxassetid://9117308777", volume = 3, maxLength = 0.35 },
 	card_play = { id = "rbxassetid://9113727134", volume = 0.6 },
 	shuffle = { id = "", volume = 0.5 },
+	card_flip = { id = "", volume = 0.35, maxLength = 0.4 }, -- the deal flip (Client/DealFlip.lua)
+	discard = { id = "", volume = 0.5 }, -- a Discard was used (Client/FeelHooks.lua)
 	chip = { id = "rbxassetid://7381722372", volume = 0.4 },
 	chip_big = { id = "rbxassetid://7381723507", volume = 0.5 },
 	coin = { id = "rbxassetid://133292918309565", volume = 0.5 },
@@ -36,7 +38,7 @@ SoundIds.Cues = {
 
 -- Display/iteration order (pairs order is not stable).
 SoundIds.CueOrder = {
-	"card_deal", "card_select", "card_play", "shuffle", "chip", "chip_big", "coin", "buy", "button_click",
+	"card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 }
 
@@ -62,6 +64,16 @@ SoundIds.MusicOrder = {
 	"menu", "gameplay", "shop", "boss", "region_road", "region_meadow", "region_river", "region_peaks",
 	"region_desert", "region_swamp", "region_snow", "region_coast", "region_tavern",
 }
+
+-- Gameplay-table music keys: the plain gameplay track and one per biome. Changing between them crossfades.
+function SoundIds.isTableKey(key)
+	return key == "gameplay" or (type(key) == "string" and string.sub(key, 1, 7) == "region_")
+end
+
+-- Crossfade (fade out, swap, fade in) only between two gameplay-table tracks, never for menu, shop or boss music.
+function SoundIds.shouldCrossfade(fromKey, toKey)
+	return fromKey ~= nil and fromKey ~= toKey and SoundIds.isTableKey(fromKey) and SoundIds.isTableKey(toKey)
+end
 
 function SoundIds.isValidId(id)
 	return type(id) == "string" and string.match(id, "^rbxassetid://%d+$") ~= nil and id ~= "rbxassetid://0"

@@ -5158,7 +5158,7 @@ end })
 
 table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn = function()
 	local S = require(script.Parent.Parent.Engine.SoundIds)
-	local required = { "card_deal", "card_select", "card_play", "shuffle", "chip", "chip_big", "coin", "buy", "button_click",
+	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(required) do
@@ -9372,6 +9372,81 @@ table.insert(tests, { name = "ShareResult: a short result line and a challenge l
 	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
 	local code = SeededRng.randomCode()
 	expectTrue(SeededRng.validateCode(code) ~= nil)
+end })
+
+-- ===== Phase 5: game feel =====
+
+table.insert(tests, { name = "ScoreFeel: popup tier by share of the Target, bigger tiers pop more and slam only from tier 4, combos build and reset", fn = function()
+	local F = require(script.Parent.Parent.Engine.ScoreFeel)
+	expectEqual(F.tierFor(5, 100), 1); expectEqual(F.tierFor(10, 100), 2); expectEqual(F.tierFor(24, 100), 2)
+	expectEqual(F.tierFor(25, 100), 3); expectEqual(F.tierFor(49, 100), 3); expectEqual(F.tierFor(50, 100), 4)
+	expectEqual(F.tierFor(99, 100), 4); expectEqual(F.tierFor(100, 100), 5); expectEqual(F.tierFor(5000, 100), 5)
+	expectEqual(F.tierFor(40, nil), 1); expectEqual(F.tierFor(40, 0), 1); expectEqual(F.tierFor(nil, 100), 1)
+	local lastPop, lastSlam = 0, -1
+	for tier = 1, 5 do
+		expectTrue(F.popScale(tier) > lastPop, "bigger tiers pop more")
+		expectTrue(F.slamFor(tier) >= lastSlam)
+		lastPop, lastSlam = F.popScale(tier), F.slamFor(tier)
+		local c = F.tierColor(tier)
+		expectTrue(#c == 3 and c[1] >= 0 and c[1] <= 255 and c[2] >= 0 and c[3] <= 255)
+	end
+	expectEqual(F.slamFor(3), 0, "no extra slam below half the Target")
+	expectTrue(F.slamFor(4) > 0 and F.slamFor(5) > F.slamFor(4))
+	expectEqual(F.popScale(99), F.popScale(5), "out of range tiers clamp")
+	-- combo: builds across scoring hands, resets on a new round or a zero hand
+	local combo = 0
+	combo = F.nextCombo(combo, 100, true); expectEqual(combo, 1)
+	combo = F.nextCombo(combo, 100, false); expectEqual(combo, 2)
+	combo = F.nextCombo(combo, 50, false); expectEqual(combo, 3)
+	expectEqual(F.nextCombo(combo, 0, false), 0, "a hand that scores nothing ends the combo")
+	expectEqual(F.nextCombo(combo, 100, true), 1, "a new round starts over")
+	expectEqual(F.nextCombo(F.MAX_COMBO, 10, false), F.MAX_COMBO, "capped")
+	expectEqual(F.comboText(1), nil); expectEqual(F.comboText(0), nil); expectEqual(F.comboText(3), "COMBO x3")
+	expectTrue(F.comboScale(1) == 1 and F.comboScale(3) > 1 and F.comboScale(50) <= 1.6)
+	-- the score itself is never read or changed here: the same hand scores the same with or without it
+	local state = RunState.new(nil, function(_n) return 1 end)
+	state.targetScore = 10 ^ 9
+	state.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	local result = RunState.playHand(state, { 1, 2 })
+	local before = result.score
+	F.tierFor(result.score, state.targetScore); F.nextCombo(0, result.score, true)
+	expectEqual(result.score, before)
+end })
+
+table.insert(tests, { name = "SoundIds: biome tracks crossfade only between gameplay tables, new cues are empty slots that are skipped silently", fn = function()
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	expectTrue(S.isTableKey("gameplay") and S.isTableKey("region_peaks") and not S.isTableKey("menu") and not S.isTableKey("shop") and not S.isTableKey("boss"))
+	expectTrue(S.shouldCrossfade("gameplay", "region_peaks") and S.shouldCrossfade("region_road", "region_meadow") and S.shouldCrossfade("region_snow", "gameplay"))
+	expectTrue(not S.shouldCrossfade("menu", "gameplay") and not S.shouldCrossfade("gameplay", "boss") and not S.shouldCrossfade("shop", "region_road"))
+	expectTrue(not S.shouldCrossfade("gameplay", "gameplay") and not S.shouldCrossfade(nil, "gameplay"))
+	for _, name in ipairs({ "card_flip", "discard", "shuffle", "coin", "card_play" }) do
+		expectTrue(S.Cues[name] ~= nil, name .. " is a named cue")
+	end
+	expectEqual(S.cueId("card_flip"), nil); expectEqual(S.cueId("discard"), nil)
+	local missing = {}
+	for _, name in ipairs(S.missingCues()) do missing[name] = true end
+	expectTrue(missing.card_flip and missing.discard and missing.shuffle, "empty slots are listed so the ids can be picked")
+	-- the fallback: a region with no id plays the plain gameplay track
+	expectEqual(S.regionMusicKey("desert"), "gameplay")
+	-- source checks: the hooks exist and no frame is created per scored hand
+	local f = io and io.open and io.open("src/Client/FeelHooks.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('Cue.play("coin"', 1, true) and src:find('Cue.play("discard"', 1, true) and src:find('Cue.play("shuffle"', 1, true))
+		expectTrue(src:find("Instance.new", 1, true) == nil, "FeelHooks creates no instances")
+	end
+	local c = io and io.open and io.open("src/Client/ComboCounter.lua", "r")
+	if c then
+		local src = c:read("*a"); c:close()
+		local init = src:match("function ComboCounter%.init.-\nend\n") or ""
+		local rest = src:gsub("function ComboCounter%.init.-\nend\n", "")
+		expectTrue(init:find("Instance.new", 1, true) ~= nil and rest:find("Instance.new", 1, true) == nil, "the combo label is created once and reused")
+	end
+	local sound = io and io.open and io.open("src/Client/Sound.lua", "r")
+	if sound then
+		local src = sound:read("*a"); sound:close()
+		expectTrue(src:find("shouldCrossfade", 1, true) ~= nil and src:find("SoundGroup", 1, true) ~= nil, "Sound.lua crossfades on a SoundGroup")
+	end
 end })
 
 return tests

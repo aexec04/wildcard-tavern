@@ -37,7 +37,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [ ] Later: co-op or versus
 
 ## Phase 5: Game feel and monetization
-- [ ] Score pops, screen shake, combo chains, card sounds, one music track per biome (user-only: pick audio ids)
+- [x] Score pops, screen shake, combo chains, card sounds, one music track per biome (user-only: pick audio ids)
 - [ ] Cosmetic sales: Card Sets, backdrops, titles; Starter Pack; VIP pass; paid continue with separate boards
 - [ ] Real Game Passes, Developer Products and Badges created in Creator Hub (user-only)
 

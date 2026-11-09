@@ -63,6 +63,7 @@ function M.play(button, order, backId)
 		if not overlay.Parent then
 			return
 		end
+		if (order or 1) == 1 then require(script.Parent.Cue).play("card_flip") end -- once per batch
 		local tween = TweenService:Create(overlay, TweenInfo.new(FLIP_TIME, Enum.EasingStyle.Sine), { Size = UDim2.fromScale(0, 1) })
 		tween.Completed:Once(function()
 			overlay:Destroy()
