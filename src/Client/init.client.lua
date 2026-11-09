@@ -2505,6 +2505,15 @@ local function render(state)
 			end
 		end
 		SidebarModule.patronsCountLabel.Text = string.format("%d/%d", #ownedPatrons, slotLimit)
+		-- PATRON BONDS: glowing threads between bonded seats (Client/BondThreads.lua), built lazily, never fatal.
+		pcall(function()
+			local threads = SidebarModule.bondThreads
+			if not threads then
+				threads = require(script.BondThreads).new(SidebarModule.sidebar, SidebarModule.patronSlots)
+				SidebarModule.bondThreads = threads
+			end
+			threads.update(state)
+		end)
 	end
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly

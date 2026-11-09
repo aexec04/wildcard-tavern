@@ -142,6 +142,7 @@ PlayerProfile.ID_SET_FIELDS = {
 	"discoveredRecipeIds",
 	"discoveredBossIds",
 	"discoveredHousePassIds",
+	"discoveredBondIds", -- Patron Bonds formed (Engine/Bonds.lua)
 	"claimedMilestoneIds",
 	"rewardTitleIds",
 	"unlockedCardBackIds",
@@ -154,6 +155,7 @@ PlayerProfile.DISCOVERY_FIELDS = {
 	recipes = "discoveredRecipeIds",
 	bosses = "discoveredBossIds",
 	housePasses = "discoveredHousePassIds",
+	bonds = "discoveredBondIds",
 }
 
 local function copyIdSet(rawSet, into)
@@ -176,6 +178,7 @@ function PlayerProfile.new()
 		discoveredRecipeIds = {}, -- [recipeId] = true
 		discoveredBossIds = {}, -- [bossRoundId] = true
 		discoveredHousePassIds = {}, -- [housePassId] = true
+		discoveredBondIds = {}, -- [Bonds id] = true
 		claimedMilestoneIds = {}, -- [CollectionBook.Milestones id] = true
 		rewardTitleIds = {}, -- [Achievements id] = true, titles granted by milestones
 		unlockedCardBackIds = {}, -- [CardBacks id] = true

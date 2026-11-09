@@ -11456,6 +11456,80 @@ table.insert(tests, { name = "Strangers: 1 in 6 shops, never Nights 1 to 2 or ra
 	expectTrue(stacked.handsRemaining >= 1 and #stacked.hand >= 1 and stacked.discardsRemaining >= 0)
 end })
 
+table.insert(tests, { name = "Bonds: detection, no bond for one Patron, once per Patron per hand, discovery ids, names", fn = function()
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	local a, b, c = Patrons.getById("lucky_dice"), Patrons.getById("regulars_round"), Patrons.getById("threes_company") -- all "pairs"
+	expectEqual(0, #Bonds.find({ a }))
+	expectEqual(0, #Bonds.find({}))
+	expectEqual(1, #Bonds.find({ a, b }))
+	expectEqual("Twin Pact", Bonds.find({ a, b })[1].name)
+	expectEqual(3, #Bonds.find({ a, b, c })) -- three pairs of Patrons
+	expectEqual(0, #Bonds.find({ a, Patrons.getById("the_regular") })) -- "flat" never bonds
+	expectEqual("pairs", Bonds.formedIds({ a, b, c })[1])
+	expectEqual(1, #Bonds.formedIds({ a, b, c }))
+	for _, def in ipairs(Bonds.Definitions) do
+		expectTrue(#def.name > 0 and #def.flavorText > 0 and not def.name:lower():find("balatro", 1, true))
+	end
+	-- Scoring: on a hand where all three trigger, each Patron earns at most ONE bond extra.
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(9, "Spades"), C(2, "Spades"), C(3, "Hearts") })
+	local _, _, _, extraOn = Scoring.calculate(hand, { a, b, c }, {})
+	local perPatron, bondEntries = {}, 0
+	for _, entry in ipairs(extraOn.breakdown) do
+		if entry.source and entry.source.bond then
+			bondEntries = bondEntries + 1
+			perPatron[entry.source.patronId] = (perPatron[entry.source.patronId] or 0) + 1
+		end
+	end
+	expectTrue(bondEntries >= 1 and bondEntries <= 3)
+	for _, n in pairs(perPatron) do
+		expectEqual(1, n)
+	end
+	-- No bond, no bonus: a single Patron scores exactly as with bonds switched off.
+	local s1 = Scoring.calculate(hand, { a }, {})
+	local s2 = Scoring.calculate(hand, { a }, { bondsOff = true })
+	expectEqual(s2, s1)
+	-- Collection discovery: owning a bonded pair records the Bond, and Bonds never count toward completion.
+	local seen = CollectionBook.gatherSeen({ ownedPatrons = { a, b } }, nil)
+	expectEqual("pairs", seen.bonds[1])
+	local total = CollectionBook.completion(CollectionBook.setsFromLists({})).total
+	local withBonds = 0
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		for _, item in ipairs(CollectionBook.itemsFor(tab.id)) do
+			if item.counts then withBonds = withBonds + 1 end
+		end
+	end
+	expectEqual(total, withBonds)
+end })
+
+table.insert(tests, { name = "Bonds balance: a bond never lifts a hand's score by more than 10 percent over the Night 3 curve", fn = function()
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	local hands = {
+		HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades"), C(5, "Hearts"), C(7, "Clubs") }),
+		HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(9, "Spades"), C(5, "Hearts"), C(7, "Clubs") }),
+		HandEvaluator.evaluate({ C(2, "Hearts"), C(6, "Hearts"), C(9, "Hearts"), C(11, "Hearts"), C(13, "Hearts") }),
+		HandEvaluator.evaluate({ C(5, "Hearts"), C(6, "Clubs"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs") }),
+	}
+	local worst = 0
+	local worstWhere
+	for i = 1, #Patrons.Definitions - 1 do
+		for j = i + 1, #Patrons.Definitions do
+			local p, q = Patrons.Definitions[i], Patrons.Definitions[j]
+			if not p.biome and not q.biome and #Bonds.find({ p, q }) > 0 then
+				for hi, hand in ipairs(hands) do
+					local ctx = { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5 }
+					local on = Scoring.calculate(hand, { p, q }, ctx)
+					local off = Scoring.calculate(hand, { p, q }, { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5, bondsOff = true })
+					if off > 0 and on / off > worst then
+						worst = on / off
+						worstWhere = p.id .. "+" .. q.id .. " hand " .. hi
+					end
+				end
+			end
+		end
+	end
+	expectTrue(worst <= 1.10, string.format("bond lifts a hand by %.1f percent (%s)", (worst - 1) * 100, tostring(worstWhere)))
+end })
+
 table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max, no dashes, deterministic by seed", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopkeeperLines)
 	expectEqual(12, #L.Events)

@@ -19,6 +19,7 @@
 	pass, not copied from any other game.
 ]]
 
+local Bonds = require(script.Parent.Bonds) -- Patron Bonds: a small extra when two bonded Patrons both trigger
 local Card = require(script.Parent.Card)
 
 local Scoring = {}
@@ -257,10 +258,12 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 	-- neighbors' abilities (see "The Understudy" / "Second Opinion").
 	local ownedPatronSpecials = context.ownedPatronSpecials or {}
 	context.ownedPatrons = ownedPatrons
+	local patronBonuses = {} -- [i] = that Patron's effect result this hand (Patron Bonds read it after the loop)
 	for i, patron in ipairs(ownedPatrons) do
 		context.patronIndex = i
 		local patronSource = { type = "patron", patronId = patron.id, patron = patron }
 		local bonus = patron.effect(handResult, context) or {}
+		patronBonuses[i] = bonus
 		local power = context.patronPower -- Challenge "One Seat": every Patron effect counts double
 		if power and power ~= 1 then
 			bonus = {
@@ -309,6 +312,33 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 				xmult = xmult * special.xmult
 				table.insert(breakdown, { kind = "xmult", amount = special.xmult, label = patron.name .. "'s Special", source = patronSource })
 			end
+		end
+	end
+
+	-- PATRON BONDS (Engine/Bonds.lua): when both ends of a bond triggered, each Patron earns one small extra, once per hand.
+	if not context.bondsOff then
+		local extras = Bonds.extras(Bonds.find(ownedPatrons), patronBonuses)
+		local order = {}
+		for i in pairs(extras) do
+			order[#order + 1] = i
+		end
+		table.sort(order)
+		for _, i in ipairs(order) do
+			local extra = extras[i]
+			local patron = ownedPatrons[i]
+			local source = { type = "patron", patronId = patron.id, patron = patron, bond = extra.bond.name }
+			if extra.kind == "mult" then
+				mult = mult + extra.amount
+			elseif extra.kind == "multMultiplier" then
+				xmult = xmult * (1 + extra.amount)
+			elseif extra.kind == "chips" then
+				chips = chips + extra.amount
+			else
+				tipsEarned = tipsEarned + extra.amount
+			end
+			local isX = extra.kind == "multMultiplier"
+			table.insert(breakdown, { kind = isX and "xmult" or extra.kind, amount = isX and (1 + extra.amount) or extra.amount,
+				label = extra.bond.name, source = source })
 		end
 	end
 

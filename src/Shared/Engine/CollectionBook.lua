@@ -28,6 +28,7 @@ local BossRounds = require(script.Parent.BossRounds)
 local HousePasses = require(script.Parent.HousePasses)
 local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
+local Bonds = require(script.Parent.Bonds)
 
 local CollectionBook = {}
 
@@ -50,6 +51,7 @@ CollectionBook.Tabs = {
 	{ id = "bosses", name = "Boss Rounds", profileField = "discoveredBossIds" },
 	{ id = "housePasses", name = "House Passes", profileField = "discoveredHousePassIds" },
 	{ id = "titles", name = "Titles" },
+	{ id = "bonds", name = "Bonds", profileField = "discoveredBondIds" }, -- Patron Bonds formed; never counts toward completion
 }
 
 -- EDIT ME: overall-completion milestones. Each is granted once, the first
@@ -114,6 +116,11 @@ local function buildItems(tabId)
 		for _, def in ipairs(HousePasses.Definitions) do add(def) end
 	elseif tabId == "titles" then
 		for _, def in ipairs(Achievements.Definitions) do add(def) end
+	elseif tabId == "bonds" then
+		for _, def in ipairs(Bonds.Definitions) do
+			add(def)
+			items[#items].counts = false -- a bonus page: Bonds do not change the completion percent or milestones
+		end
 	end
 	return items
 end
@@ -160,6 +167,8 @@ function CollectionBook.kindLabel(item)
 		return "House Pass"
 	elseif item.tab == "titles" then
 		return "Title"
+	elseif item.tab == "bonds" then
+		return "Bond"
 	end
 	return ""
 end
@@ -443,7 +452,7 @@ end
 -- in the open pack, and the boss being faced. `shop` is
 -- { patrons = {patronDef...}, voucher = passDef|nil } (may be nil).
 function CollectionBook.gatherSeen(state, shop)
-	local seen = { patrons = {}, recipes = {}, bosses = {}, housePasses = {} }
+	local seen = { patrons = {}, recipes = {}, bosses = {}, housePasses = {}, bonds = Bonds.formedIds(state.ownedPatrons) }
 
 	for _, patron in ipairs(state.ownedPatrons or {}) do
 		table.insert(seen.patrons, patron.id)
