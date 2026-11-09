@@ -154,46 +154,25 @@ return function(deps)
 		end
 	end
 
-	-- ===== Slim parchment strips: news, rank, next goal, today's board =====
-	local menuButtonScroll = Instance.new("ScrollingFrame")
-	menuButtonScroll.Name = "MenuButtonScroll"
-	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 146)
-	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(1, -16, 0, 176)
-	menuButtonScroll.BackgroundTransparency = 1
-	menuButtonScroll.BorderSizePixel = 0
-	menuButtonScroll.ScrollBarThickness = 6
-	menuButtonScroll.ScrollingEnabled = true
-	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
-	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	menuButtonScroll.ZIndex = 12
-	menuButtonScroll.Parent = menuFrame
-	local scrollLimit = Instance.new("UISizeConstraint")
-	scrollLimit.MaxSize = Vector2.new(700, 1000)
-	scrollLimit.Parent = menuButtonScroll
-
-	local menuButtonHolder = Instance.new("Frame")
-	menuButtonHolder.Size = UDim2.new(1, 0, 0, 0)
-	menuButtonHolder.AutomaticSize = Enum.AutomaticSize.Y
-	menuButtonHolder.BackgroundTransparency = 1
-	menuButtonHolder.ZIndex = 12
-	menuButtonHolder.Parent = menuButtonScroll
-	local menuButtonLayout = Instance.new("UIListLayout")
-	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	menuButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	menuButtonLayout.Padding = UDim.new(0, 6)
-	menuButtonLayout.Parent = menuButtonHolder
-	local holderPad = Instance.new("UIPadding")
-	holderPad.PaddingTop = UDim.new(0, 8)
-	holderPad.PaddingBottom = UDim.new(0, 8)
-	holderPad.Parent = menuButtonHolder
-
-	require(script.Parent.NewsPanel).attach(menuButtonHolder, -3) -- News banner for the running live event (state.news)
-	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank)
-	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal)
+	-- ===== Notice Board: pinned notes on the left wall (rank, next goal, news, today's board) =====
+	local hotspots -- built below; the note handlers need it
+	local board = require(script.Parent.MenuBoard).build(menuFrame)
+	local newsNote = require(script.Parent.NewsPanel).attach(board.list, -3) -- News banner for the running live event (state.news)
+	local rankNote = require(script.Parent.MenuRank).attach(board.list, -2) -- Tavern Rank bar (state.rank)
+	local goalNote = require(script.Parent.NextGoalBanner).attach(board.list, -1) -- Next Goal line (state.nextGoal)
 	-- Today's best run and a rounded run count (Client/MenuTicker.lua); its button opens the Daily board (wired by the hub)
-	local menuTickerButton = require(script.Parent.MenuTicker).attach(menuButtonHolder, 0)
+	local menuTickerButton = require(script.Parent.MenuTicker).attach(board.list, 0)
+	board.pin(newsNote) -- the banner is already a button that opens the News panel
+	board.pin(rankNote, function()
+		pcall(OverlayManager.open, "legend")
+	end)
+	local GOAL_TARGET = { tutorial = "tutorial", quest = "quests", unlock = "collection", rank = "legend" }
+	board.pin(goalNote, function()
+		local target = GOAL_TARGET[require(script.Parent.NextGoalBanner).kind]
+		local owner = target and Layout.hotspotOf(target)
+		if owner and owner.item and hotspots then hotspots.openScroll(owner.id) end
+	end)
+	board.pin(menuTickerButton.Parent) -- the ticker frame; its own button keeps the hub's Daily board wiring
 
 	-- ===== Actions: one real button each =====
 	local buttons = {}
@@ -307,7 +286,7 @@ return function(deps)
 	hotspotLayer.ZIndex = 13
 	hotspotLayer.Parent = menuFrame
 
-	local hotspots = Hotspots.build({
+	hotspots = Hotspots.build({
 		menuFrame = menuFrame,
 		layer = hotspotLayer,
 		buttons = buttons,
@@ -325,11 +304,13 @@ return function(deps)
 		end
 		return v
 	end
-	hotspots.applyViewport(viewport().X, viewport().Y)
-	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	local function applyViewport()
 		local v = viewport()
 		hotspots.applyViewport(v.X, v.Y)
-	end)
+		board.apply(v.X, v.Y, Layout.isPhone(v.X))
+	end
+	applyViewport()
+	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyViewport)
 
 	-- ===== Foreground and parallax =====
 	local scene = require(script.Parent.MenuScene).build(menuFrame)
@@ -339,6 +320,7 @@ return function(deps)
 		calm = calm,
 		layers = {
 			{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
+			{ inst = board.frame, base = UDim2.fromScale(Layout.NoticeBoard.x, Layout.NoticeBoard.y), px = P.wall },
 			{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
 			{ inst = titleGroup, base = UDim2.new(), px = P.near },
 			{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },

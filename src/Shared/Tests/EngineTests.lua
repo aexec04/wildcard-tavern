@@ -11721,9 +11721,9 @@ table.insert(tests, { name = "Collection no longer lists run stats; the Tavern L
 	end
 end })
 
-table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overlaps, clear of strips, every old action reachable, parallax clamps and calm", fn = function()
+table.insert(tests, { name = "MenuLayout: six evenly spaced counter items, scrolls fit on screen, board clear of title and sign, every action in one scroll, parallax clamps and calm", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
-	local seen = {}
+	local seen, items = {}, {}
 	for _, h in ipairs(ML.Hotspots) do
 		expectFalse(seen[h.id], "duplicate hotspot " .. h.id)
 		seen[h.id] = true
@@ -11731,29 +11731,50 @@ table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overl
 		expectTrue(#h.actions >= 1, h.id .. " has an action")
 		expectTrue(#h.label > 0 and #h.desc > 0 and not h.label:find("-", 1, true) and not h.desc:find("-", 1, true), "plain label and description")
 		expectFalse((h.label .. h.desc):lower():find("balatro", 1, true) ~= nil)
+		if h.item then items[h.item] = h end
 	end
+	expectEqual(#items, 6, "six counter items")
+	for i = 2, 6 do
+		expectTrue(math.abs((items[i].x - items[i - 1].x) - ML.ITEM_SPACING) < 1e-9, "items evenly spaced")
+		expectEqual(items[i].y, items[1].y)
+	end
+	expectTrue(math.abs((items[1].x + items[6].x) / 2 - 0.5) < 1e-9, "item row centred")
 	for _, size in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 } }) do
 		local w, h = size[1], size[2]
 		expectFalse(ML.isPhone(w), "desktop size shows the scene")
-		local rects = {}
-		for i, hs in ipairs(ML.Hotspots) do
+		local counterTop = ML.Counter.top * h
+		local rects, names = {}, {}
+		local play = ML.getHotspot("play")
+		local pl, pt, pr, pb = ML.rect(play, w, h)
+		expectTrue(pl >= 0 and pt >= 0 and pr <= w and pb <= counterTop, "play sign inside the screen above the counter at " .. w)
+		for i = 1, 6 do
+			local hs = items[i]
 			local l, t, r, b = ML.rect(hs, w, h)
-			expectTrue(l >= 0 and t >= 0 and r <= w and b <= h, hs.id .. " inside the screen at " .. w)
-			rects[i] = { l, t, r, b }
-			-- clear of the title and strips (top 322px, 700 wide, centred), the Regulars corner and the All actions button
-			local strip = { (w - 700) / 2, 0, (w + 700) / 2, 322 }
-			expectTrue(ML.overlapFraction(rects[i], strip) == 0, hs.id .. " clear of the strips at " .. w)
-			expectTrue(ML.overlapFraction(rects[i], { 16, h - 168, 212, h - 16 }) == 0, hs.id .. " clear of the Regulars at " .. w)
-			expectTrue(ML.overlapFraction(rects[i], { w - 166, h - 54, w - 16, h - 16 }) == 0, hs.id .. " clear of All actions at " .. w)
+			local pl2, pt2, pr2, pb2 = ML.plateRect(hs, w, h)
+			expectTrue(l >= 0 and r <= w and t >= counterTop and pb2 <= h, hs.id .. " and plate sit on the counter at " .. w)
+			rects[#rects + 1] = { l, t, r, b }; names[#names + 1] = hs.id
+			rects[#rects + 1] = { pl2, pt2, pr2, pb2 }; names[#names + 1] = hs.id .. " plate"
+			expectTrue(ML.overlapFraction({ l, t, r, b }, { 16, h - 168, 212, h - 16 }) == 0, hs.id .. " clear of the Regulars at " .. w)
+			expectTrue(ML.overlapFraction({ pl2, pt2, pr2, pb2 }, { w - 166, h - 54, w - 16, h - 16 }) == 0, hs.id .. " plate clear of All actions at " .. w)
+			expectTrue(ML.overlapFraction({ l, t, r, b }, { pl, pt, pr, pb }) == 0, hs.id .. " clear of the Play sign at " .. w)
+			-- the open scroll fits on screen and sits above its item
+			local sl, st, sr, sb = ML.scrollRect(hs, #hs.actions, w, h)
+			expectTrue(sl >= 0 and st >= 0 and sr <= w and sb <= t, hs.id .. " scroll fits on screen at " .. w)
 		end
 		for i = 1, #rects do
 			for j = i + 1, #rects do
-				expectTrue(ML.overlapFraction(rects[i], rects[j]) <= 0.15, ML.Hotspots[i].id .. " and " .. ML.Hotspots[j].id .. " overlap too much at " .. w)
+				expectTrue(ML.overlapFraction(rects[i], rects[j]) == 0, names[i] .. " and " .. names[j] .. " overlap at " .. w)
 			end
 		end
+		-- the Notice Board clears the title (340 wide ribbon, top 145px), the Play sign, the Regulars and the counter
+		local nl, nt, nr, nb = ML.noticeRect(w, h)
+		expectTrue(nl >= 0 and nr <= w and nb < counterTop, "notice board inside the screen above the counter at " .. w)
+		expectTrue(ML.overlapFraction({ nl, nt, nr, nb }, { (w - 340) / 2, 0, (w + 340) / 2, 145 }) == 0, "board clear of the title at " .. w)
+		expectTrue(ML.overlapFraction({ nl, nt, nr, nb }, { pl, pt, pr, pb }) == 0, "board clear of the Play sign at " .. w)
+		expectTrue(ML.overlapFraction({ nl, nt, nr, nb }, { 0.38 * w, 0.33 * h, 0.62 * w, 0.35 * h }) == 0, "board clear of the beam at " .. w)
 	end
 	expectTrue(ML.isPhone(360) and ML.isPhone(640) and not ML.isPhone(1280), "phones skip the scene")
-	-- every old Menu action is owned by exactly one hotspot and listed for the All actions list
+	-- every old Menu action is owned by exactly one hotspot (sign or scroll) and listed for the All actions list
 	local owners = {}
 	for _, hs in ipairs(ML.Hotspots) do
 		for _, id in ipairs(hs.actions) do
@@ -11764,11 +11785,11 @@ table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overl
 	for _, action in ipairs(ML.Actions) do
 		expectFalse(listed[action.id], "action listed twice " .. action.id)
 		listed[action.id] = true
-		expectEqual(owners[action.id], 1, action.id .. " has one hotspot")
+		expectEqual(owners[action.id], 1, action.id .. " lives in exactly one scroll")
 		expectTrue(#action.label > 0 and not action.label:find("\226\128\148", 1, true))
 	end
 	for id in pairs(owners) do expectTrue(listed[id], id .. " is in the All actions list") end
-	for _, old in ipairs({ "play", "newRun", "daily", "weekly", "seed", "quests", "road", "howToPlay", "tutorial", "collection", "settings", "store", "invite", "season", "rewards" }) do
+	for _, old in ipairs({ "play", "newRun", "daily", "weekly", "seed", "quests", "road", "howToPlay", "tutorial", "collection", "settings", "store", "invite", "season", "rewards", "leaderboards", "volume", "flair", "legend", "stats" }) do
 		expectTrue(listed[old] and owners[old] == 1, "old action reachable: " .. old)
 	end
 	-- parallax
@@ -11795,9 +11816,11 @@ table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overl
 		"menuSeasonButton", "menuTickerButton" }) do
 		expectTrue(menu:find(name .. " = " .. name, 1, true) ~= nil or menu:find(name .. " = ", 1, true) ~= nil, "Menu still returns " .. name)
 	end
-	local scene = io.open("src/Client/MenuScene.lua", "r"):read("*a")
-	expectTrue(scene:find("for i = 1, 6 do", 1, true) ~= nil and scene:find("for i = 1, 3 do", 1, true) ~= nil, "scene object counts")
-	expectTrue(1 + 2 + 6 + 3 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
+	local sf = io.open("src/Client/MenuScene.lua", "r")
+	local scene = sf:read("*a"); sf:close()
+	expectTrue(scene:find("MOTE_SIZES = { 4, 6, 5, 8, 10 }", 1, true) ~= nil, "motes stay 4 to 10 px")
+	expectTrue(scene:find("\240\159\143\174", 1, true) == nil and scene:find("Lantern", 1, true) == nil or scene:find("removed", 1, true) ~= nil, "no placeholder lantern emoji in the scene")
+	expectTrue(5 + 1 + 1 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
 end })
 
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()

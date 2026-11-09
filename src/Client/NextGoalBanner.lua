@@ -102,6 +102,7 @@ function NextGoalBanner.update(state)
 		return
 	end
 	local goal = state.nextGoal
+	NextGoalBanner.kind = goal.kind -- the Menu's Notice Board uses it to open the right scroll
 	ui.frame.Visible = true
 	if shownText ~= goal.text then
 		shownText = goal.text

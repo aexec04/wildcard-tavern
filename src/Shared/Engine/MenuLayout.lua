@@ -17,6 +17,7 @@ MenuLayout.Parallax = {
 	far = 10,        -- backdrop, px of shift at the screen edge
 	mid = 18,        -- hotspots
 	near = 28,       -- title and foreground
+	wall = 10,       -- the Notice Board moves with the wall layer (same as far)
 	maxOffset = 32,  -- nothing ever moves further than this
 	tiltDegrees = 1.5, -- the title tilts this much at the screen edge
 	idleDrift = 6,   -- touch and phone: slow idle drift, px
@@ -27,29 +28,53 @@ MenuLayout.Parallax = {
 MenuLayout.PHONE_WIDTH = 700 -- narrower than this: no scene, just the action list
 MenuLayout.MAX_ANIMATED = 16 -- cap on animated foreground objects
 
--- Hotspots. `lit` marks the one primary action (pulsing lantern).
+-- The tavern composition (menu redesign 2). A long bar COUNTER runs along the bottom; six painted ITEMS sit on it in a fixed
+-- row, evenly spaced and centred; a click UNROLLS a parchment scroll upward from the item that lists that group's actions.
+-- The carved Deal Me In SIGN hangs from a ceiling beam in the centre. A NOTICE BOARD on the left wall holds the pinned notes.
+-- Tutorial note: every action button lives inside its scroll (hidden while the scroll is closed). A tutorial step that points at
+-- one must open that item's scroll first (MenuHotspots result.openScroll(itemId)); Play and New Run are always visible.
+-- Boss Rush has no Menu action yet (it starts from Run Setup), Badges and Bonds are tabs inside Collection, Poker Hands has its
+-- own corner button, so the scrolls list only real Menu actions.
+MenuLayout.Counter = { top = 0.78, bottom = 1.0 }
+MenuLayout.ITEM_Y = 0.855       -- centre of the item row, fraction of screen height
+MenuLayout.ITEM_S = 0.115       -- item height as a fraction of screen height (square)
+MenuLayout.ITEM_SPACING = 0.115 -- distance between item centres, fraction of screen width
+MenuLayout.PLATE_H = 0.05       -- carved name plate under each item, fraction of screen height
+MenuLayout.PLATE_W = 1.5        -- plate width as a multiple of the item width
+MenuLayout.NoticeBoard = { x = 0.02, y = 0.28, w = 0.27, h = 0.30 } -- left wall, fractions of screen width and height
+MenuLayout.SCROLL = { width = 270, rowH = 46, pad = 16, rod = 14, gap = 8, minTop = 8 }
+
+-- x of counter item number i (1 to 6): evenly spaced, centred on the screen.
+function MenuLayout.itemX(i)
+	return 0.5 + (i - 3.5) * MenuLayout.ITEM_SPACING
+end
+
+-- Hotspots: the Play sign plus the six counter items (in counter order, left to right).
+-- `lit` marks the one primary action (pulsing lantern). `item` is the counter slot.
 MenuLayout.Hotspots = {
-	{ id = "play", x = 0.50, y = 0.64, s = 0.24, asp = 1.5, label = "Deal Me In", desc = "Start a new run", glyph = "🏮", art = "menu_sign_play", lit = true,
+	{ id = "play", x = 0.50, y = 0.56, s = 0.24, asp = 1.5, label = "Deal Me In", desc = "Start a new run", glyph = "\240\159\143\174", art = "menu_sign_play", lit = true,
 		actions = { "play", "newRun" } },
-	{ id = "noticeboard", x = 0.15, y = 0.50, s = 0.22, asp = 0.9, label = "Notice Board", desc = "Daily and weekly challenges and quests", glyph = "📌", art = "menu_noticeboard",
-		actions = { "daily", "weekly", "quests" } },
-	{ id = "maptable", x = 0.32, y = 0.72, s = 0.16, asp = 1.4, label = "Road Ahead", desc = "Study the Tavern Map", glyph = "🗺", art = "menu_maptable",
+	{ id = "questscroll", item = 1, label = "Quest Scroll", desc = "Challenges, quests and boards", glyph = "\240\159\147\156",
+		actions = { "daily", "weekly", "seed", "quests", "leaderboards" } },
+	{ id = "maptable", item = 2, label = "Road Ahead", desc = "Study the Tavern Map", glyph = "\240\159\151\186", art = "menu_maptable",
 		actions = { "road" } },
-	{ id = "bookshelf", x = 0.86, y = 0.55, s = 0.26, asp = 0.8, label = "Bookshelf", desc = "Collection, Flair, Legend and your Ledger", glyph = "📚", art = "menu_bookshelf",
+	{ id = "tome", item = 3, label = "The Tome", desc = "Collection, Flair, Legend and your Ledger", glyph = "\240\159\147\154", art = "menu_bookshelf",
 		actions = { "collection", "flair", "legend", "stats" } },
-	{ id = "book", x = 0.71, y = 0.72, s = 0.14, asp = 1.0, label = "Open Book", desc = "Learn how to play", glyph = "📖",
+	{ id = "coinjar", item = 4, label = "Coin Jar", desc = "Store, Season, Rewards and Invite", glyph = "\240\159\170\153", art = "menu_coinjar",
+		actions = { "store", "season", "rewards", "invite" } },
+	{ id = "rulebook", item = 5, label = "Rulebook", desc = "Learn how to play", glyph = "\240\159\147\150",
 		actions = { "howToPlay", "tutorial" } },
-	{ id = "coinjar", x = 0.86, y = 0.83, s = 0.14, asp = 1.0, label = "Bar Counter", desc = "The Store and the Tavern Season", glyph = "🪙", art = "menu_coinjar",
-		actions = { "store", "season" } },
-	{ id = "scroll", x = 0.07, y = 0.62, s = 0.12, asp = 1.0, label = "Daily Rewards", desc = "Your seven day reward ladder", glyph = "📜",
-		actions = { "rewards" } },
-	{ id = "chalkboard", x = 0.93, y = 0.32, s = 0.16, asp = 1.0, label = "Chalkboard", desc = "Leaderboards", glyph = "🏆", art = "menu_chalkboard",
-		actions = { "leaderboards" } },
-	{ id = "jukebox", x = 0.07, y = 0.32, s = 0.16, asp = 0.8, label = "Jukebox", desc = "Settings and Volume", glyph = "🎵", art = "menu_jukebox",
+	{ id = "jukebox", item = 6, label = "Jukebox", desc = "Settings and Volume", glyph = "\240\159\142\181", art = "menu_jukebox",
 		actions = { "settings", "volume" } },
-	{ id = "dicecup", x = 0.50, y = 0.90, s = 0.09, asp = 1.0, label = "Dice Cup", desc = "Play a Seed Run", glyph = "🎲", art = "menu_dicecup",
-		actions = { "seed" } },
 }
+for _, hotspot in ipairs(MenuLayout.Hotspots) do
+	if hotspot.item then
+		hotspot.x = MenuLayout.itemX(hotspot.item)
+		hotspot.y = MenuLayout.ITEM_Y
+		hotspot.s = MenuLayout.ITEM_S
+		hotspot.asp = 1.0
+	end
+end
 
 -- Actions in the order the "All actions" list shows them (and the phone list). Each is owned by exactly one hotspot.
 MenuLayout.Actions = {
@@ -74,13 +99,6 @@ MenuLayout.Actions = {
 	{ id = "settings", label = "Settings" },
 	{ id = "volume", label = "Volume" },
 }
-
--- Invite joins the bar counter fan (it is a social action, next to Store and Season).
-for _, hotspot in ipairs(MenuLayout.Hotspots) do
-	if hotspot.id == "coinjar" then
-		table.insert(hotspot.actions, "invite")
-	end
-end
 
 function MenuLayout.getHotspot(id)
 	for _, hotspot in ipairs(MenuLayout.Hotspots) do
@@ -131,6 +149,37 @@ function MenuLayout.overlapFraction(a, b)
 	local areaA = (a[3] - a[1]) * (a[4] - a[2])
 	local areaB = (b[3] - b[1]) * (b[4] - b[2])
 	return inter / math.min(areaA, areaB)
+end
+
+-- Pixel rectangle of the name plate under a counter item.
+function MenuLayout.plateRect(hotspot, screenW, screenH)
+	local l, _, r, b = MenuLayout.rect(hotspot, screenW, screenH)
+	local cx, half = (l + r) / 2, (r - l) / 2 * MenuLayout.PLATE_W
+	return cx - half, b + 2, cx + half, b + 2 + MenuLayout.PLATE_H * screenH
+end
+
+-- Pixel rectangle of the Notice Board.
+function MenuLayout.noticeRect(screenW, screenH)
+	local n = MenuLayout.NoticeBoard
+	return n.x * screenW, n.y * screenH, (n.x + n.w) * screenW, (n.y + n.h) * screenH
+end
+
+-- Pixel rectangle of an item's open scroll (left, top, right, bottom): centred over the item, its bottom edge just above the
+-- item, kept on screen. `count` is the number of action rows.
+function MenuLayout.scrollRect(hotspot, count, screenW, screenH)
+	local S = MenuLayout.SCROLL
+	local w = math.min(S.width, screenW - 16)
+	local h = count * S.rowH + S.pad * 2 + S.rod * 2
+	local il, it, ir = MenuLayout.rect(hotspot, screenW, screenH)
+	local cx = (il + ir) / 2
+	local left = math.max(8, math.min(cx - w / 2, screenW - w - 8))
+	local bottom = it - S.gap
+	local top = bottom - h
+	if top < S.minTop then
+		top = S.minTop
+		bottom = top + h
+	end
+	return left, top, left + w, bottom
 end
 
 local function clamp(v, lo, hi)
