@@ -52,6 +52,38 @@ Store.Items = {
 	},
 }
 
+-- FLAIR PIECES (Engine/Flair.lua `store` options) and the SEASON PREMIUM TRACK (Engine/SeasonTrack.lua): items with a
+-- `section` are shown in their own screens (Flair panel, Season panel), not in the main Store row. All cosmetic, one time,
+-- placeholder product ids (0) until created in Creator Hub (see claude/LAUNCH.md and claude/ROADMAP.md).
+local function flairItem(id, flairId, name, icon, what)
+	return {
+		id = id, kind = "product", productId = 0, oneTime = true, icon = icon, name = name, section = "flair",
+		description = "Flair for your table: " .. what .. ". Looks only, never changes your score.",
+		contents = { flair = { flairId } }, perks = { name },
+	}
+end
+Store.Items[#Store.Items + 1] = flairItem("flair_rainbow_numbers", "rainbow_numbers", "Rainbow Numbers", "🌈", "rainbow score numbers")
+Store.Items[#Store.Items + 1] = flairItem("flair_ribbon_trail", "ribbon_trail", "Ribbon Trail", "🎀", "ribbons follow your played cards")
+Store.Items[#Store.Items + 1] = flairItem("flair_crown_finisher", "crown_finisher", "Crown Flash", "👑", "a crown flash on big hands")
+Store.Items[#Store.Items + 1] = flairItem("flair_star_aura", "star_aura", "Star Aura", "🌟", "a star aura around your name")
+Store.Items[#Store.Items + 1] = {
+	id = "flair_bundle", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
+	description = "All four Store Flair pieces at a lower price. Looks only, never changes your score.",
+	contents = { flair = { "rainbow_numbers", "ribbon_trail", "crown_finisher", "star_aura" } },
+	perks = { "Rainbow Numbers", "Ribbon Trail", "Crown Flash", "Star Aura" },
+}
+-- one premium pass per season (`seasonPremium` = the season id); bought once per season
+Store.Items[#Store.Items + 1] = {
+	id = "premium_harvest_moon", kind = "product", productId = 0, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
+	seasonPremium = "harvest_moon", description = "A second reward row on every tier of the Harvest Moon season. Looks only.",
+	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A few Tips for your next run" },
+}
+Store.Items[#Store.Items + 1] = {
+	id = "premium_winter_welcome", kind = "product", productId = 0, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
+	seasonPremium = "winter_welcome", description = "A second reward row on every tier of the Winter Welcome season. Looks only.",
+	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A few Tips for your next run" },
+}
+
 function Store.getById(id)
 	for _, item in ipairs(Store.Items) do
 		if item.id == id then
@@ -114,21 +146,39 @@ local function giveContents(profile, contents)
 		profile.rewardTitleIds = profile.rewardTitleIds or {}
 		profile.rewardTitleIds[id] = true
 	end
+	for _, id in ipairs(contents.flair or {}) do
+		require(script.Parent.Flair).grantOwned(profile, id)
+	end
 end
 
 -- Grants a one-time product. Returns true when something was granted, false when it was already owned (the buyer
 -- keeps what they have; nothing is granted twice).
-function Store.grant(profile, itemId)
+function Store.grant(profile, itemId, day)
 	local item = Store.getById(itemId)
-	if not item or item.kind ~= "product" or not item.contents then
+	if not item or item.kind ~= "product" or not (item.contents or item.seasonPremium) then
 		return false
 	end
 	profile.storePurchases = profile.storePurchases or {}
 	if item.oneTime and profile.storePurchases[item.id] then
 		return false
 	end
-	giveContents(profile, item.contents)
+	if item.contents then
+		giveContents(profile, item.contents)
+	end
+	if item.seasonPremium then
+		-- the premium pass of a season: marks it owned and claims every premium tier already reached (mid season buyers)
+		require(script.Parent.SeasonTrack).grantPremium(profile, item.seasonPremium, day or math.floor(os.time() / 86400))
+	end
 	profile.storePurchases[item.id] = true
+	return true
+end
+
+-- A season's premium pass can only be bought while that season runs (the server checks before prompting).
+function Store.canBuy(item, day)
+	if item and item.seasonPremium then
+		local active = require(script.Parent.SeasonTrack).active(day or math.floor(os.time() / 86400))
+		return active ~= nil and active.id == item.seasonPremium
+	end
 	return true
 end
 
@@ -180,10 +230,20 @@ function Store.equipSecondBadge(profile, badgeId, isVip, badgeOwned)
 end
 
 -- What the Store panel draws. `inStudio`: a placeholder item can be taken free there.
-function Store.view(profile, ownedPasses, inStudio)
+-- Items of a section ("flair", "season") as rows, or the main Store items when `section` is nil.
+-- A Flair item also counts as owned when every piece it gives is already yours (earned or bought another way).
+function Store.view(profile, ownedPasses, inStudio, section)
 	local rows = {}
 	for _, item in ipairs(Store.Items) do
+	if item.section == section then
 		local owned = Store.owned(profile, item, ownedPasses)
+		if not owned and item.contents and item.contents.flair then
+			local Flair = require(script.Parent.Flair)
+			owned = true
+			for _, id in ipairs(item.contents.flair) do
+				if not (profile.flairOwned and profile.flairOwned[id]) and not Flair.isOwned(profile, id) then owned = false end
+			end
+		end
 		local configured = Store.isConfigured(item)
 		rows[#rows + 1] = {
 			id = item.id, kind = item.kind, icon = item.icon, name = item.name, description = item.description, perks = item.perks,
@@ -193,6 +253,7 @@ function Store.view(profile, ownedPasses, inStudio)
 			studioFree = not configured and inStudio == true,
 			comingSoon = not configured and not inStudio and not item.listOnly,
 		}
+	end
 	end
 	return { items = rows, vip = ownedPasses ~= nil and ownedPasses.vip == true }
 end

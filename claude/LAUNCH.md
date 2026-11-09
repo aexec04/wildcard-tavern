@@ -61,6 +61,7 @@ Screenshot anything that looks wrong and write the screen name on it.
 - Starter Pack (Developer Product): create it, paste the number into `Engine/Store.lua`, item `starter_pack`, field `productId` (now 0).
 - Card Set Bundle (Developer Product): `Engine/Store.lua`, item `card_set_bundle`, `productId` (now 0).
 - VIP (Game Pass): create it, paste the number into `Engine/GamePasses.lua`, entry `vip`, `gamePassId` (now 0).
+- Flair pieces and the Season premium pass (all Developer Products, one time, placeholders id 0, paste each number into `Engine/Store.lua` as `productId`): `flair_rainbow_numbers`, `flair_ribbon_trail`, `flair_crown_finisher`, `flair_star_aura` (single pieces), `flair_bundle` (all four, price it lower than the four together), `premium_harvest_moon` (the Harvest Moon premium row, only buyable 2026-11-01 to 11-30), `premium_winter_welcome` (Winter Welcome, 2026-12-01 to 12-30). Premium buyers get a second reward row on all 30 tiers, mid season buyers get the tiers already reached at once. Everything is cosmetic: no price may ever change scoring.
 - Already set: Fast Forward pass, Golden Gala Set pass, One More Round product (`DeveloperProducts` in `Engine/GamePasses.lua`). Check the prices in Creator Hub match what you want.
 - After pasting, test a purchase in a published place with a second account. The server only acknowledges a receipt after the profile saved.
 

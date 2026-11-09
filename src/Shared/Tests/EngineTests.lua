@@ -2487,7 +2487,7 @@ table.insert(tests, { name = "CosmeticSets: definitions are well-formed and refe
 		seen[set.id] = true
 		expectTrue(CardBacks.getById(set.cardBackId) ~= nil, set.id .. " card back")
 		local kind = set.unlock.kind
-		expectTrue(kind == "default" or kind == "tips" or kind == "journey" or kind == "achievement" or kind == "gamepass" or kind == "biome", set.id .. " unlock kind")
+		expectTrue(kind == "default" or kind == "tips" or kind == "journey" or kind == "achievement" or kind == "gamepass" or kind == "biome" or kind == "season", set.id .. " unlock kind")
 		if kind == "achievement" then expectTrue(Achievements.getById(set.unlock.id) ~= nil) end
 		if kind == "gamepass" then expectTrue(GamePasses.getById(set.unlock.passId) ~= nil) end
 		expectTrue(#CosmeticSets.unlockText(set) > 0)
@@ -4695,6 +4695,7 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	-- Titles handed out by the Tavern Season track count too.
 	for _, season in ipairs(require(script.Parent.Parent.Engine.SeasonTrack).Seasons) do
 		rewardedTitles[season.titleId] = true
+		rewardedTitles[season.premiumTitleId] = true
 	end
 	-- Titles handed out by Tavern Rank rewards count too.
 	for _, reward in pairs(require(script.Parent.Parent.Engine.TavernRank).Rewards) do
@@ -8693,7 +8694,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 96, "53 original + 30 new + 2 invite + 2 season + 6 Collection completion + 3 Legend titles")
+	expectEqual(#Defs, 98, "53 original + 30 new + 2 invite + 4 season (2 free, 2 premium) + 6 Collection completion + 3 Legend titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -9326,6 +9327,113 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	local outside = PlayerProfile.new()
 	AP.sync(outside, {}, fake, first1 - 100, false)
 	expectEqual(outside.seasonXp, 0, "no season, no season XP"); expectTrue(outside.tavernXp > 0)
+end })
+
+table.insert(tests, { name = "Premium Season track and Flair store items: tier grants, mid season purchase, idempotency, ownership, cosmetic only", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local s1, s2 = ST.Seasons[1], ST.Seasons[2]
+	local first1 = ST.window(s1)
+	local first2 = ST.window(s2)
+	local day = first1 + 5
+	-- every premium tier has a cosmetic reward; the content ids are real; the special tiers are where they should be
+	for _, season in ipairs(ST.Seasons) do
+		local tips = 0
+		for tier = 1, 30 do
+			local r = ST.premiumRewardFor(season, tier)
+			expectTrue(r ~= nil, season.id .. " premium tier " .. tier)
+			expectTrue(r.kind == "tips" or r.kind == "title" or r.kind == "set" or r.kind == "cardBack" or r.kind == "flair", "cosmetic or Tips only")
+			if r.kind == "tips" then tips = tips + r.amount end
+			if r.kind == "title" then expectTrue(Achievements.getById(r.id) ~= nil and Achievements.getById(r.id).milestoneReward, r.id) end
+			if r.kind == "set" then expectTrue(CosmeticSets.getById(r.id) ~= nil, r.id) end
+			if r.kind == "cardBack" then expectTrue(CardBacks.getById(r.id) ~= nil, r.id) end
+			if r.kind == "flair" then expectTrue(Flair.getById(r.id) ~= nil and Flair.getById(r.id).unlock.kind == "store", r.id) end
+		end
+		expectTrue(tips <= 30, "premium Tips stay small")
+		expectEqual(ST.premiumRewardFor(season, 30).id, season.premiumBackId); expectEqual(ST.premiumRewardFor(season, 15).id, season.premiumSetId)
+		expectEqual(ST.premiumRewardFor(season, 8).id, season.premiumTitleId); expectEqual(ST.premiumRewardFor(season, 31), nil)
+		expectEqual(Store.getById(season.premiumItemId).seasonPremium, season.id, "the Store item points at its season")
+		expectEqual(CosmeticSets.getById(season.premiumSetId).unlock.kind, "season")
+		expectTrue(CardBacks.getById(season.premiumBackId).seasonal)
+	end
+	-- free player: premium locked, nothing claimable, view shows what is included
+	local free = PlayerProfile.new()
+	ST.addXp(free, 500, day)
+	expectFalse((ST.claimPremium(free, 1, day)), "locked without the pass")
+	local view = ST.view(free, day)
+	expectFalse(view.premium.owned); expectEqual(view.premium.itemId, s1.premiumItemId); expectTrue(#view.premium.perks >= 3)
+	expectTrue(view.tiers[1].premium.locked and view.tiers[1].premium.reward ~= nil and view.tiers[1].premium.text ~= "")
+	-- buying mid season grants every premium tier already reached at once, nothing more
+	expectTrue(Store.canBuy(Store.getById(s1.premiumItemId), day)); expectFalse(Store.canBuy(Store.getById(s2.premiumItemId), day), "only the running season's pass")
+	expectTrue(Store.canBuy(Store.getById("starter_pack"), day))
+	free.pendingStartTips = 0
+	expectTrue(Store.grant(free, s1.premiumItemId, day))
+	expectTrue(ST.hasPremium(free, s1)); expectTrue(free.storePurchases[s1.premiumItemId])
+	local reached = ST.tierOf(free.seasonXp)
+	local count = 0
+	for _ in pairs(free.seasonPremiumClaimed) do count = count + 1 end
+	expectEqual(count, reached, "the reached premium tiers were claimed at once")
+	local expectedTips = 0
+	for tier = 1, reached do
+		local r = ST.premiumRewardFor(s1, tier)
+		if r.kind == "tips" then expectedTips = expectedTips + r.amount end
+	end
+	expectEqual(free.pendingStartTips, expectedTips, "1 Tip per reached ordinary premium tier")
+	-- idempotent: a second grant, a repeated receipt, a second claim all grant nothing
+	expectFalse(Store.grant(free, s1.premiumItemId, day), "one time item")
+	expectEqual(#ST.grantPremium(free, s1.id, day), 0); expectEqual(#ST.claimAllPremium(free, day), 0)
+	expectFalse((ST.claimPremium(free, 1, day))); expectEqual(free.pendingStartTips, expectedTips)
+	local view2 = ST.view(free, day)
+	expectTrue(view2.premium.owned and view2.tiers[1].premium.claimed and not view2.tiers[1].premium.locked)
+	-- later tiers become claimable as XP grows, individually or all at once
+	ST.addXp(free, 90 * 12, day)
+	expectEqual(ST.view(free, day).premium.claimable, ST.tierOf(free.seasonXp) - reached)
+	local ok, reward = ST.claimPremium(free, 8, day)
+	expectTrue(ok); expectEqual(reward.kind, "title"); expectTrue(free.rewardTitleIds[s1.premiumTitleId])
+	expectFalse((ST.claimPremium(free, 31, day))); expectFalse((ST.claimPremium(free, 1.5, day))); expectFalse((ST.claimPremium(free, "8", day)))
+	-- the whole row: set, flair pieces and the unique back
+	local rich = PlayerProfile.new()
+	ST.addXp(rich, ST.MAX_XP, day)
+	ST.grantPremium(rich, s1.id, day)
+	expectTrue(rich.ownedSetIds[s1.premiumSetId]); expectTrue(CosmeticSets.isUnlocked(rich, s1.premiumSetId))
+	expectTrue(rich.unlockedCardBackIds[s1.premiumBackId] and rich.rewardTitleIds[s1.premiumTitleId])
+	for _, id in ipairs({ "rainbow_numbers", "ribbon_trail", "crown_finisher", "star_aura" }) do expectTrue(Flair.isOwned(rich, id), id) end
+	expectTrue(rich.pendingStartTips <= TavernRank.MAX_PENDING_TIPS)
+	expectEqual(#ST.claimAll(rich, day), 30, "the free row is separate"); expectEqual(#ST.claimAllPremium(rich, day), 0, "premium was claimed by the purchase")
+	-- a new season: premium owners of season 1 are not premium in season 2, their rewards stay owned
+	expectTrue(ST.ensureSeason(rich, first2)); expectFalse(ST.hasPremium(rich, s2)); expectEqual(next(rich.seasonPremiumClaimed), nil)
+	expectTrue(ST.hasPremium(rich, s1), "the old pass stays recorded"); expectTrue(rich.unlockedCardBackIds[s1.premiumBackId])
+	expectFalse((ST.claimPremium(rich, 1, first2)))
+	-- buying after a season ended grants ownership for good but nothing claimable
+	local late = PlayerProfile.new()
+	expectEqual(#ST.grantPremium(late, s1.id, first2), 0); expectTrue(ST.hasPremium(late, s1)); expectEqual(next(late.seasonPremiumClaimed), nil)
+	expectEqual(#ST.grantPremium(late, "nope", day), 0); expectFalse(ST.hasPremium(late, { id = "nope" }))
+	-- Flair store items: single and bundle grant once, free routes count as owned, ownership validated
+	local p = PlayerProfile.new()
+	expectTrue(Store.grant(p, "flair_rainbow_numbers")); expectTrue(Flair.isOwned(p, "rainbow_numbers")); expectFalse(Store.grant(p, "flair_rainbow_numbers"))
+	expectTrue(Store.grant(p, "flair_bundle")); for _, id in ipairs({ "ribbon_trail", "crown_finisher", "star_aura" }) do expectTrue(Flair.isOwned(p, id), id) end
+	expectFalse(Store.grant(p, "flair_bundle"))
+	local rows = Store.view(PlayerProfile.new(), {}, true, "flair").items
+	expectEqual(#rows, 5); for _, row in ipairs(rows) do expectFalse(row.owned); expectTrue(row.available and row.studioFree) end
+	local owned = Store.view(p, {}, false, "flair").items
+	for _, row in ipairs(owned) do expectTrue(row.owned, row.id .. " is owned") end
+	expectEqual(#Store.view(PlayerProfile.new(), {}, false, "season").items, 2)
+	for _, row in ipairs(Store.view(PlayerProfile.new(), {}, false).items) do expectTrue(row.id ~= "flair_bundle" and row.id ~= s1.premiumItemId, "the main Store row is unchanged") end
+	expectFalse(Store.grant(p, "not_an_item")); expectFalse(Store.grant(p, "vip"))
+	-- placeholder ids: every new item is id 0 (Studio grants it free, live shows coming soon)
+	for _, item in ipairs(Store.Items) do
+		if item.section then expectEqual(item.productId, 0); expectTrue(item.oneTime) end
+	end
+	-- save and load: premium ownership and claims survive, junk is dropped
+	local loaded = PlayerProfile.migrate(free)
+	expectTrue(loaded.seasonPremium[s1.id]); expectTrue(loaded.seasonPremiumClaimed[1]); expectTrue(loaded.storePurchases[s1.premiumItemId])
+	local junk = PlayerProfile.migrate({ seasonId = s1.id, seasonPremium = { [s1.id] = true, gone = true, [s2.id] = "yes" }, seasonPremiumClaimed = { [3] = true, [99] = true, x = true } })
+	expectTrue(junk.seasonPremium[s1.id]); expectEqual(junk.seasonPremium.gone, nil); expectEqual(junk.seasonPremium[s2.id], nil)
+	expectTrue(junk.seasonPremiumClaimed[3]); expectEqual(junk.seasonPremiumClaimed[99], nil)
+	expectEqual(next(PlayerProfile.migrate({}).seasonPremium), nil, "old saves get safe defaults")
 end })
 
 table.insert(tests, { name = "Accessibility: defaults off, calm mode, flashes, particles, Larger Text never clips, hold time clamped and saved", fn = function()
@@ -10630,7 +10738,11 @@ table.insert(tests, { name = "Store: every item is cosmetic or convenience, plac
 		for _, id in ipairs(item.contents and item.contents.sets or {}) do expectTrue(CosmeticSets.getById(id) ~= nil, id .. " is a real set") end
 		for _, id in ipairs(item.contents and item.contents.titles or {}) do expectTrue(Achievements.getById(id) ~= nil, id .. " is a real title") end
 		-- a contents table only holds cosmetics
-		for key in pairs(item.contents or {}) do expectTrue(key == "cardBacks" or key == "sets" or key == "titles", item.id .. " holds only cosmetics: " .. key) end
+		for key in pairs(item.contents or {}) do expectTrue(key == "cardBacks" or key == "sets" or key == "titles" or key == "flair", item.id .. " holds only cosmetics: " .. key) end
+		for _, id in ipairs(item.contents and item.contents.flair or {}) do
+			local option = require(script.Parent.Parent.Engine.Flair).getById(id)
+			expectTrue(option ~= nil and option.unlock ~= nil and option.unlock.kind == "store", id .. " is a real store Flair")
+		end
 	end
 	expectEqual(Store.getById("starter_pack").productId, 0, "placeholder until the product exists")
 	expectEqual(Store.getById("card_set_bundle").productId, 0)

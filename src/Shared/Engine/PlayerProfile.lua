@@ -182,6 +182,8 @@ function PlayerProfile.new()
 		seasonId = nil, -- Tavern Season track (Engine/SeasonTrack.lua): the season the next two fields belong to
 		seasonXp = 0,
 		seasonClaimed = {}, -- [tier] = true
+		seasonPremium = {}, -- [season id] = true, premium passes bought (Engine/SeasonTrack.lua)
+		seasonPremiumClaimed = {}, -- [tier] = true, premium rewards taken this season
 		ownedSetIds = {}, -- [CosmeticSets id] = true: Tips-bought or Journey-reward sets
 		clearedNightIds = {}, -- [night number] = true, first clears of Nights 1-8 and Endless milestone Nights (JourneyMap)
 		-- WORLD MAP (Engine/WorldMap.lua): the road of the current/last run, every stop ever seen (map memory
@@ -484,6 +486,8 @@ function PlayerProfile.migrate(raw)
 		Legend.grantDue(profile) -- idempotent: re-grants anything a level should already have (safe after a rename)
 	end
 	profile.seasonId, profile.seasonXp, profile.seasonClaimed = require(script.Parent.SeasonTrack).cleanSaved(raw.seasonId, raw.seasonXp, raw.seasonClaimed)
+	profile.seasonPremium, profile.seasonPremiumClaimed = require(script.Parent.SeasonTrack).cleanPremium(raw.seasonPremium, raw.seasonPremiumClaimed)
+	if profile.seasonId == nil then profile.seasonPremiumClaimed = {} end -- claims belong to the season in seasonId
 	profile.quickBest = require(script.Parent.RunHistory).cleanQuickBest(raw.quickBest) -- Quick Run personal best (Engine/RunModes.lua)
 	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)
 	profile.starterPrompted = raw.starterPrompted == true

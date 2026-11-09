@@ -253,6 +253,41 @@ CosmeticSets.Definitions = {
 		},
 		unlock = { kind = "biome", region = "tavern" },
 	},
+	-- SEASON PREMIUM SETS (Engine/SeasonTrack.lua tier 15 of the premium row): granted into ownedSetIds with the pass.
+	{
+		id = "harvest_table",
+		name = "Harvest Table",
+		icon = "🌕",
+		description = "A Tavern Season premium reward: a table dressed for the Harvest Moon.",
+		cardBackId = "harvest_premium",
+		face = { paper = { 252, 238, 208 }, border = { 214, 140, 60 }, pip = { 150, 80, 30 } },
+		accent = { 220, 150, 70 },
+		backdropImage = SetBackdropArt.harvest_table or "rbxassetid://0",
+		backdropStyle = {
+			tint = { 255, 225, 180 },
+			overlay = { color = { 220, 140, 50 }, transparency = 0.88 },
+			vignette = { color = { 60, 28, 8 }, strength = 0.35 },
+			layers = { { kind = "sparks", count = 12, speed = 0.5 }, { kind = "dust", count = 8, speed = 0.4 } },
+		},
+		unlock = { kind = "season", seasonId = "harvest_moon" },
+	},
+	{
+		id = "winter_table",
+		name = "Winter Welcome Table",
+		icon = "🧣",
+		description = "A Tavern Season premium reward: a cozy table for the snowy months.",
+		cardBackId = "winter_premium",
+		face = { paper = { 236, 244, 252 }, border = { 120, 160, 215 }, pip = { 50, 80, 140 } },
+		accent = { 120, 165, 220 },
+		backdropImage = SetBackdropArt.winter_table or "rbxassetid://0",
+		backdropStyle = {
+			tint = { 205, 220, 250 },
+			overlay = { color = { 70, 100, 170 }, transparency = 0.86 },
+			vignette = { color = { 190, 215, 250 }, strength = 0.45 },
+			layers = { { kind = "snow", count = 20, speed = 0.5 } },
+		},
+		unlock = { kind = "season", seasonId = "winter_welcome" },
+	},
 }
 
 local function isRgb(t)
@@ -357,6 +392,8 @@ function CosmeticSets.unlockText(set)
 		return "Game Pass"
 	elseif unlock.kind == "biome" then
 		return "Reach the end of the " .. tostring(unlock.region) .. " road"
+	elseif unlock.kind == "season" then
+		return "Tavern Season premium reward"
 	end
 	return ""
 end

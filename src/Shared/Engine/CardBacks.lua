@@ -177,6 +177,25 @@ CardBacks.Definitions = {
 		flavorText = "Strung up for the longest nights of the year.",
 		seasonal = true,
 	},
+	-- Tavern Season PREMIUM finals (Engine/SeasonTrack.lua premium tier 30): only premium owners of that season.
+	{
+		id = "harvest_premium",
+		name = "Harvest Gold",
+		icon = "🌾",
+		colors = { base = { 150, 90, 30 }, trim = { 255, 226, 150 } },
+		description = "A Tavern Season premium reward: tier 30 of the Harvest Moon premium row.",
+		flavorText = "Gold wheat under a gold moon.",
+		seasonal = true,
+	},
+	{
+		id = "winter_premium",
+		name = "Winter Silver",
+		icon = "❄",
+		colors = { base = { 40, 70, 120 }, trim = { 235, 242, 255 } },
+		description = "A Tavern Season premium reward: tier 30 of the Winter Welcome premium row.",
+		flavorText = "Frost-silver stitched by candlelight.",
+		seasonal = true,
+	},
 	-- Legend prestige rewards (Engine/Legend.lua levels 3, 7 and 10): cosmetic only.
 	{
 		id = "legend_gold",

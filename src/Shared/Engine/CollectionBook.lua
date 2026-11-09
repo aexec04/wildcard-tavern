@@ -219,6 +219,7 @@ CollectionBook.RarityOverrides = {
 	},
 	sets = {
 		classic_tavern = "common",
+		harvest_table = "epic", winter_table = "epic", -- Tavern Season premium sets
 		winter_evening = "rare",
 		festival_night = "rare",
 		closing_time = "epic",
@@ -250,6 +251,7 @@ CollectionBook.RarityOverrides = {
 		winter_lanterns = "epic", -- seasonal (Engine/Seasons.lua)
 		harvest_moon = "legendary", winter_welcome = "legendary", -- Tavern Season finals (Engine/SeasonTrack.lua)
 		legend_gold = "legendary", legend_crown = "legendary", legend_eternal = "mythical", -- Legend prestige (Engine/Legend.lua)
+		harvest_premium = "epic", winter_premium = "epic", -- Tavern Season premium finals (Engine/SeasonTrack.lua)
 	},
 }
 

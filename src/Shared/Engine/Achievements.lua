@@ -787,6 +787,9 @@ local function seasonTitle(id, name, icon, flavor)
 end
 seasonTitle("season_harvest_moon", "Harvest Regular", "🌕", "You were there when the lanterns lit the fields.")
 seasonTitle("season_winter_welcome", "Winter Regular", "🧣", "You kept the fire going all winter.")
+-- premium season titles (Engine/SeasonTrack.lua premium tier 8)
+seasonTitle("season_premium_harvest", "Harvest Patron", "🌾", "You gilded the whole harvest.")
+seasonTitle("season_premium_winter", "Winter Patron", "❄️", "Your table was the warmest in town.")
 -- Collection completion titles (Engine/CollectionRewards.lua, 100 percent of a group): granted into rewardTitleIds on claim
 for _, spec in ipairs({
 	{ "book_patrons", "Patron Whisperer", "🧑‍🍳", "Every Patron has sat at your table." },

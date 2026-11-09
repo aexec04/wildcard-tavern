@@ -981,6 +981,8 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		flairStore = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio(), "flair") or nil, -- Flair for sale
+		seasonStore = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio(), "season") or nil, -- premium passes
 		flair = profiles[player] and (function()
 			local ok, view = pcall(function() return require(Engine.Flair).view(profiles[player]) end)
 			return ok and view or nil
@@ -2876,7 +2878,7 @@ end)
 
 -- TAVERN SEASON (Engine/SeasonTrack.lua): claim one reached tier (a number) or every reached tier ("all").
 -- The server checks the XP, the running season and the claimed set; the client only asks.
-SeasonClaimRemote.OnServerEvent:Connect(function(player, which)
+SeasonClaimRemote.OnServerEvent:Connect(function(player, which, premium)
 	if not RateLimit.allow(player.UserId, "SeasonClaimRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or (type(which) ~= "number" and which ~= "all") then
@@ -2889,8 +2891,16 @@ SeasonClaimRemote.OnServerEvent:Connect(function(player, which)
 		for _, c in ipairs(SeasonTrack.claimAll(profile, day)) do
 			texts[#texts + 1] = SeasonTrack.rewardText(c.reward, liveLookup)
 		end
+		for _, c in ipairs(SeasonTrack.claimAllPremium(profile, day)) do -- the premium row, only when the pass is owned
+			texts[#texts + 1] = SeasonTrack.rewardText(c.reward, liveLookup)
+		end
 	else
-		local ok, reward = SeasonTrack.claim(profile, which, day)
+		local ok, reward
+		if premium == true then
+			ok, reward = SeasonTrack.claimPremium(profile, which, day) -- validates ownership of the pass
+		else
+			ok, reward = SeasonTrack.claim(profile, which, day)
+		end
 		if ok then
 			texts[1] = SeasonTrack.rewardText(reward, liveLookup)
 		end
@@ -2912,6 +2922,11 @@ StorePurchaseRemote.OnServerEvent:Connect(function(player, itemId)
 		return
 	end
 	Analytics.single(player, "store_prompt", 1, { item = item.id }) -- tuning data: a purchase prompt was requested
+	if not Store.canBuy(item, LoginStreak.dayNumber(os.time())) then
+		pushRewardNotice(player, { icon = "🕯️", text = item.name .. " can only be bought while its season is running." })
+		pushState(player)
+		return
+	end
 	if Store.owned(profile, item, ownedGamePasses[player]) then
 		pushRewardNotice(player, { icon = "✔", text = item.name .. " is already yours." })
 	elseif Store.isConfigured(item) then

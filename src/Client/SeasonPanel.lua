@@ -27,6 +27,7 @@ function SeasonPanel.init(deps)
 	local PARCH = Color3.fromRGB(222, 198, 150)
 	local GREEN = Color3.fromRGB(86, 140, 80)
 	local TILE_W, TILE_H = 104, 170
+	local PREMIUM_H = 118 -- the premium row under each tier
 
 	local function label(parent, props)
 		local l = Instance.new("TextLabel")
@@ -55,7 +56,7 @@ function SeasonPanel.init(deps)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.86, 0.7)
+	panel.Size = UDim2.fromScale(0.86, 0.86)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
@@ -87,7 +88,7 @@ function SeasonPanel.init(deps)
 
 	-- progress bar to the next tier
 	local barBack = Instance.new("Frame")
-	barBack.Size = UDim2.new(1, -230, 0, 24)
+	barBack.Size = UDim2.new(1, -440, 0, 24)
 	barBack.Position = UDim2.fromOffset(15, 66)
 	barBack.BackgroundColor3 = Color3.fromRGB(120, 96, 66)
 	barBack.BorderSizePixel = 0
@@ -120,7 +121,7 @@ function SeasonPanel.init(deps)
 	-- the horizontal track
 	local track = Instance.new("ScrollingFrame")
 	track.Name = "SeasonTrack"
-	track.Size = UDim2.new(1, -30, 0, TILE_H + 22)
+	track.Size = UDim2.new(1, -30, 0, TILE_H + PREMIUM_H + 26)
 	track.Position = UDim2.fromOffset(15, 104)
 	track.BackgroundTransparency = 1
 	track.BorderSizePixel = 0
@@ -137,6 +138,22 @@ function SeasonPanel.init(deps)
 	trackLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	trackLayout.Padding = UDim.new(0, 8)
 	trackLayout.Parent = track
+
+	local premiumButton = Instance.new("TextButton")
+	premiumButton.Size = UDim2.fromOffset(200, 34)
+	premiumButton.AnchorPoint = Vector2.new(1, 0)
+	premiumButton.Position = UDim2.new(1, -215, 0, 61)
+	premiumButton.Font = Enum.Font.GothamBold
+	premiumButton.TextSize = 15
+	premiumButton.TextColor3 = INK
+	premiumButton.BackgroundColor3 = GOLD
+	premiumButton.Text = "Premium"
+	premiumButton.ZIndex = 43
+	premiumButton.Visible = false
+	premiumButton.Parent = panel
+	deps.polishButton(premiumButton, 8)
+	deps.addButtonHoverScale(premiumButton)
+	local premiumItemId = nil
 
 	local footer = label(panel, {
 		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.new(0, 15, 1, -78), Font = Enum.Font.GothamMedium,
@@ -172,6 +189,63 @@ function SeasonPanel.init(deps)
 			return "titles", reward.id, "🏷️"
 		end
 		return nil, nil, "🪙"
+	end
+
+	local function premiumSection(t, row)
+		local prem = row.premium
+		if not prem then return end
+		local box = Instance.new("Frame")
+		box.Name = "Premium"
+		box.Position = UDim2.fromOffset(4, TILE_H + 4)
+		box.Size = UDim2.fromOffset(TILE_W - 8, PREMIUM_H - 6)
+		box.BackgroundColor3 = prem.claimed and Color3.fromRGB(176, 190, 140) or Color3.fromRGB(235, 214, 160)
+		box.BorderSizePixel = 0
+		box.ZIndex = 43
+		box.Parent = t
+		deps.roundCorner(box, 8)
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = GOLD
+		stroke.Thickness = 2
+		stroke.Parent = box
+		label(box, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 2), TextSize = 14, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
+		local category, key, emoji
+		local r = prem.reward
+		if r and r.kind == "cardBack" then category, key, emoji = "card_backs", r.id, "🂠"
+		elseif r and r.kind == "title" then category, key, emoji = "titles", r.id, "🏷️"
+		elseif r and r.kind == "flair" then category, key, emoji = "flair", r.id, "✨"
+		elseif r and r.kind == "set" then category, key, emoji = "set_backdrops", r.id, "🎴"
+		else emoji = "🪙" end
+		local well = Instance.new("Frame")
+		well.Size = UDim2.fromOffset(40, 40)
+		well.Position = UDim2.fromOffset(28, 20)
+		well.BackgroundColor3 = WOOD
+		well.BorderSizePixel = 0
+		well.ZIndex = 44
+		well.Parent = box
+		deps.roundCorner(well, 8)
+		local glyph = label(well, { Size = UDim2.fromScale(1, 1), TextSize = 22, TextColor3 = CREAM, Text = emoji, ZIndex = 45 })
+		if category then
+			pcall(ArtIcon.apply, well, category, key, glyph, { cornerRadius = 8, zIndex = 46, dim = prem.locked })
+		end
+		if prem.locked then glyph.TextTransparency = 0.35 end -- dimmed, never black
+		label(box, { Size = UDim2.new(1, -4, 0, 30), Position = UDim2.fromOffset(2, 62), TextSize = 14, TextWrapped = true, Font = Enum.Font.GothamMedium, Text = prem.text or "" })
+		if prem.claimed then
+			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 18, TextColor3 = GREEN, Text = "✔", ZIndex = 48 })
+		elseif prem.locked then
+			label(box, { Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -26, 0, 0), TextSize = 16, Text = "🔒", ZIndex = 48 })
+		end
+		local claimBox = Instance.new("TextButton")
+		claimBox.Size = UDim2.fromScale(1, 1)
+		claimBox.BackgroundTransparency = 1
+		claimBox.Text = ""
+		claimBox.ZIndex = 49
+		claimBox.Parent = box
+		claimBox.MouseButton1Click:Connect(function()
+			if row.reached and not prem.locked and not prem.claimed then
+				deps.playClickSfx()
+				ClaimRemote:FireServer(row.tier, true)
+			end
+		end)
 	end
 
 	local function tile(row, seasonSeed)
@@ -217,6 +291,8 @@ function SeasonPanel.init(deps)
 		elseif not row.reached then
 			label(t, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, TILE_H - 20), TextSize = 14, Font = Enum.Font.Gotham, Text = row.need .. " XP" })
 		end
+		t.Size = UDim2.fromOffset(TILE_W, TILE_H + PREMIUM_H)
+		premiumSection(t, row)
 		t.MouseButton1Click:Connect(function()
 			if row.reached and not row.claimed then
 				deps.playClickSfx()
@@ -249,6 +325,24 @@ function SeasonPanel.init(deps)
 		nameLabel.Text = view.name
 		daysLabel.Text = "🕒 " .. tostring(view.daysLeft) .. "d left"
 		claimAll.Visible = true
+		premiumItemId = view.premium and view.premium.itemId or nil
+		premiumButton.Visible = view.premium ~= nil
+		if view.premium then
+			local store = state.seasonStore
+			local row2
+			for _, item in ipairs(store and store.items or {}) do
+				if item.id == premiumItemId then row2 = item end
+			end
+			if view.premium.owned then
+				premiumButton.Text = "Premium owned"
+				premiumButton.BackgroundColor3 = Color3.fromRGB(176, 190, 140)
+			else
+				local price = row2 and require(script.Parent.StorePanel).priceText(row2) or "Coming soon"
+				premiumButton.Text = "Get Premium"
+				premiumButton.BackgroundColor3 = GOLD
+				deps.addTooltip(premiumButton, "Premium row: " .. table.concat(view.premium.perks or {}, ", ") .. ". " .. price .. ". Looks only, never changes your score.")
+			end
+		end
 		claimAll.Text = view.claimable > 0 and ("Claim All (" .. view.claimable .. ")") or "Claim All"
 		claimAll.AutoButtonColor = view.claimable > 0
 		claimAll.BackgroundColor3 = view.claimable > 0 and GREEN or Color3.fromRGB(110, 100, 86)
@@ -266,6 +360,14 @@ function SeasonPanel.init(deps)
 		local focus = math.max(0, math.min(view.tier, 30) - 2)
 		track.CanvasPosition = Vector2.new(focus * (TILE_W + 8), 0)
 	end
+
+	premiumButton.MouseButton1Click:Connect(function()
+		local state = deps.getLatestState and deps.getLatestState() or nil
+		if premiumItemId and state and state.season and state.season.premium and not state.season.premium.owned then
+			deps.playClickSfx()
+			ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("StorePurchase"):FireServer(premiumItemId) -- the server validates the season and ownership
+		end
+	end)
 
 	claimAll.MouseButton1Click:Connect(function()
 		local state = deps.getLatestState and deps.getLatestState() or nil

@@ -34,12 +34,14 @@ SeasonTrack.Seasons = {
 		startDate = "2026-11-01", endDate = "2026-11-30",
 		cardBackAt10 = "kitchen_checks", cardBackAt20 = "starlit_keeper",
 		titleId = "season_harvest_moon", finalCardBackId = "harvest_moon",
+		premiumItemId = "premium_harvest_moon", premiumTitleId = "season_premium_harvest", premiumSetId = "harvest_table", premiumBackId = "harvest_premium",
 	},
 	{
 		id = "winter_welcome", name = "Winter Welcome", bannerKey = "season_winter_welcome",
 		startDate = "2026-12-01", endDate = "2026-12-30",
 		cardBackAt10 = "hall_banner", cardBackAt20 = "winter_frost",
 		titleId = "season_winter_welcome", finalCardBackId = "winter_welcome",
+		premiumItemId = "premium_winter_welcome", premiumTitleId = "season_premium_winter", premiumSetId = "winter_table", premiumBackId = "winter_premium",
 	},
 }
 
@@ -58,6 +60,32 @@ function SeasonTrack.rewardFor(season, tier)
 	local tips = TIPS_BY_TIER[tier]
 	if tips then return { kind = "tips", amount = tips } end
 	return nil
+end
+
+-- PREMIUM ROW: a second reward on the same 30 tiers, bought once per season (Engine/Store.lua `premium_<season>`).
+-- Cosmetic only: a Season Card Set (tier 15), Store Flair pieces (5, 10, 18, 24), a premium title (8), a card back only
+-- premium owners get (tier 30) and 1 Tip on every other tier (23 Tips in all, the banked-Tips cap still applies).
+local PREMIUM_FLAIR = { [5] = "rainbow_numbers", [10] = "ribbon_trail", [18] = "crown_finisher", [24] = "star_aura" }
+
+function SeasonTrack.premiumRewardFor(season, tier)
+	if tier == 8 then return { kind = "title", id = season.premiumTitleId } end
+	if tier == 15 then return { kind = "set", id = season.premiumSetId } end
+	if tier == SeasonTrack.TIERS then return { kind = "cardBack", id = season.premiumBackId } end
+	if PREMIUM_FLAIR[tier] then return { kind = "flair", id = PREMIUM_FLAIR[tier] } end
+	if tier >= 1 and tier < SeasonTrack.TIERS then return { kind = "tips", amount = 1 } end
+	return nil
+end
+
+function SeasonTrack.hasPremium(profile, season)
+	return type(profile.seasonPremium) == "table" and profile.seasonPremium[season.id] == true
+end
+
+-- What the premium pass includes, for the "exactly what is included" line before buying.
+function SeasonTrack.premiumPerks(season)
+	return {
+		"Card Set: " .. season.premiumSetId, "4 Flair pieces", "Title and a tier 30 card back only for premium",
+		"1 Tip on 22 more tiers",
+	}
 end
 
 function SeasonTrack.getById(id)
@@ -128,6 +156,7 @@ function SeasonTrack.ensureSeason(profile, day)
 	profile.seasonId = season.id
 	profile.seasonXp = 0
 	profile.seasonClaimed = {}
+	profile.seasonPremiumClaimed = {} -- the premium pass of an old season stays recorded (seasonPremium), its claims reset
 	return true
 end
 
@@ -156,6 +185,11 @@ local function grant(profile, reward)
 	elseif reward.kind == "cardBack" then
 		profile.unlockedCardBackIds = profile.unlockedCardBackIds or {}
 		profile.unlockedCardBackIds[reward.id] = true
+	elseif reward.kind == "set" then
+		profile.ownedSetIds = profile.ownedSetIds or {}
+		profile.ownedSetIds[reward.id] = true
+	elseif reward.kind == "flair" then
+		require(script.Parent.Flair).grantOwned(profile, reward.id)
 	end
 end
 
@@ -196,10 +230,70 @@ function SeasonTrack.claimAll(profile, day)
 	return claimed
 end
 
+-- Claims one PREMIUM tier: the season's premium pass must be owned, the tier reached and not claimed, the season running.
+function SeasonTrack.claimPremium(profile, tier, day)
+	local season = SeasonTrack.active(day)
+	if not season then
+		return false, "No season is running."
+	end
+	SeasonTrack.ensureSeason(profile, day)
+	if not SeasonTrack.hasPremium(profile, season) then
+		return false, "Needs the premium pass."
+	end
+	if type(tier) ~= "number" or tier ~= math.floor(tier) or tier < 1 or tier > SeasonTrack.TIERS then
+		return false, "Unknown tier."
+	end
+	profile.seasonPremiumClaimed = profile.seasonPremiumClaimed or {}
+	if SeasonTrack.tierOf(profile.seasonXp) < tier then
+		return false, "Not reached yet."
+	end
+	if profile.seasonPremiumClaimed[tier] then
+		return false, "Already claimed."
+	end
+	local reward = SeasonTrack.premiumRewardFor(season, tier)
+	if not reward then
+		return false, "Nothing to claim."
+	end
+	profile.seasonPremiumClaimed[tier] = true
+	grant(profile, reward)
+	return true, reward
+end
+
+function SeasonTrack.claimAllPremium(profile, day)
+	local claimed = {}
+	for tier = 1, SeasonTrack.TIERS do
+		local ok, reward = SeasonTrack.claimPremium(profile, tier, day)
+		if ok then
+			claimed[#claimed + 1] = { tier = tier, reward = reward, premium = true }
+		end
+	end
+	return claimed
+end
+
+-- The premium pass of `seasonId` was bought (Engine/Store.lua): owned for good, and every premium tier already reached is
+-- claimed at once when that season is running (a mid season purchase). Idempotent. Returns the claimed list.
+function SeasonTrack.grantPremium(profile, seasonId, day)
+	if not SeasonTrack.getById(seasonId) then
+		return {}
+	end
+	profile.seasonPremium = type(profile.seasonPremium) == "table" and profile.seasonPremium or {}
+	profile.seasonPremium[seasonId] = true
+	local active = SeasonTrack.active(day)
+	if active and active.id == seasonId then
+		return SeasonTrack.claimAllPremium(profile, day)
+	end
+	return {}
+end
+
 -- Short reward text ("+3 Tips next run"). `lookup` (optional) = { cardBackName, titleName } like TavernRank.rewardText.
 function SeasonTrack.rewardText(reward, lookup)
 	if reward and reward.kind == "tips" then
 		return "+" .. reward.amount .. " Tips next run"
+	elseif reward and reward.kind == "set" then
+		return "Card Set: " .. ((lookup and lookup.setName and lookup.setName(reward.id)) or reward.id)
+	elseif reward and reward.kind == "flair" then
+		local option = require(script.Parent.Flair).getById(reward.id)
+		return "Flair: " .. (option and option.name or reward.id)
 	end
 	return TavernRank.rewardText(reward, lookup)
 end
@@ -223,6 +317,24 @@ function SeasonTrack.cleanSaved(rawId, rawXp, rawClaimed)
 	return id, xp, claimed
 end
 
+-- Cleans saved premium ownership and claims: only known season ids and real tiers survive.
+function SeasonTrack.cleanPremium(rawPremium, rawClaimed)
+	local owned, claimed = {}, {}
+	if type(rawPremium) == "table" then
+		for id, flag in pairs(rawPremium) do
+			if flag == true and type(id) == "string" and SeasonTrack.getById(id) then owned[id] = true end
+		end
+	end
+	if type(rawClaimed) == "table" then
+		for tier, flag in pairs(rawClaimed) do
+			if flag == true and type(tier) == "number" and tier == math.floor(tier) and tier >= 1 and tier <= SeasonTrack.TIERS then
+				claimed[tier] = true
+			end
+		end
+	end
+	return owned, claimed
+end
+
 -- What the client draws. nil when no season runs and none is coming.
 function SeasonTrack.view(profile, day, lookup)
 	local season = SeasonTrack.active(day)
@@ -238,20 +350,29 @@ function SeasonTrack.view(profile, day, lookup)
 	local claimed = (profile.seasonId == season.id) and profile.seasonClaimed or {}
 	local reached = SeasonTrack.tierOf(xp)
 	local tiers, claimable = {}, 0
+	local premiumOwned = SeasonTrack.hasPremium(profile, season)
+	local premiumClaimed = (profile.seasonId == season.id) and profile.seasonPremiumClaimed or {}
+	premiumClaimed = premiumClaimed or {}
+	local premiumClaimable = 0
 	for tier = 1, SeasonTrack.TIERS do
 		local reward = SeasonTrack.rewardFor(season, tier)
 		local isReached, isClaimed = tier <= reached, claimed[tier] == true
 		if isReached and not isClaimed then claimable = claimable + 1 end
+		local premiumReward = SeasonTrack.premiumRewardFor(season, tier)
+		local premiumDone = premiumClaimed[tier] == true
+		if premiumOwned and isReached and not premiumDone then premiumClaimable = premiumClaimable + 1 end
 		tiers[tier] = {
 			tier = tier, need = tier * SeasonTrack.XP_PER_TIER, reward = reward, text = SeasonTrack.rewardText(reward, lookup),
 			reached = isReached, claimed = isClaimed,
+			premium = { reward = premiumReward, text = SeasonTrack.rewardText(premiumReward, lookup), claimed = premiumDone, locked = not premiumOwned },
 		}
 	end
 	return {
 		id = season.id, name = season.name, bannerKey = season.bannerKey, daysLeft = SeasonTrack.daysLeft(season, day),
 		xp = xp, tier = reached, maxed = reached >= SeasonTrack.TIERS, xpPerTier = SeasonTrack.XP_PER_TIER,
 		into = reached >= SeasonTrack.TIERS and 0 or xp - reached * SeasonTrack.XP_PER_TIER,
-		tiers = tiers, claimable = claimable,
+		tiers = tiers, claimable = claimable + premiumClaimable,
+		premium = { owned = premiumOwned, itemId = season.premiumItemId, claimable = premiumClaimable, perks = SeasonTrack.premiumPerks(season) },
 	}
 end
 

@@ -23,6 +23,7 @@ function FlairPanel.init(deps)
 	local FlairFX = require(script.Parent.FlairFX)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local EquipRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EquipFlair")
+	local PurchaseRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("StorePurchase")
 
 	local INK = Color3.fromRGB(60, 40, 22)
 	local CREAM = Color3.fromRGB(250, 235, 200)
@@ -72,6 +73,26 @@ function FlairPanel.init(deps)
 		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 36), Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
 		Text = "Looks only. Flair never changes your score.",
 	})
+
+	-- the four Store pieces at a lower price (hidden once everything in it is yours)
+	local bundleButton = Instance.new("TextButton")
+	bundleButton.Size = UDim2.fromOffset(190, 30)
+	bundleButton.AnchorPoint = Vector2.new(1, 0)
+	bundleButton.Position = UDim2.new(1, -15, 0, 34)
+	bundleButton.Font = Enum.Font.GothamBold
+	bundleButton.TextSize = 14
+	bundleButton.TextColor3 = INK
+	bundleButton.BackgroundColor3 = GOLD
+	bundleButton.Text = "Flair Bundle"
+	bundleButton.ZIndex = 43
+	bundleButton.Visible = false
+	bundleButton.Parent = panel
+	deps.polishButton(bundleButton, 8)
+	bundleButton.MouseButton1Click:Connect(function()
+		deps.playClickSfx()
+		PurchaseRemote:FireServer("flair_bundle")
+	end)
+	local StorePanelModule = require(script.Parent.StorePanel)
 
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -30, 1, -118)
@@ -209,8 +230,25 @@ function FlairPanel.init(deps)
 				end)
 			end
 		else
-			label(t, { Size = UDim2.new(1, -8, 0, 66), Position = UDim2.fromOffset(4, 112), Font = Enum.Font.GothamMedium, TextSize = 14, TextWrapped = true,
-				Text = option.store and "In the Tavern Store." or option.hint })
+			label(t, { Size = UDim2.new(1, -8, 0, option.store and 28 or 66), Position = UDim2.fromOffset(4, 112), Font = Enum.Font.GothamMedium, TextSize = 14, TextWrapped = true,
+				Text = option.store and "Tavern Store" or option.hint })
+			if option.store then
+				local buy = Instance.new("TextButton")
+				buy.Size = UDim2.fromOffset(112, 28)
+				buy.Position = UDim2.fromOffset(10, 150)
+				buy.Font = Enum.Font.GothamBold
+				buy.TextSize = 14
+				buy.TextColor3 = INK
+				buy.BackgroundColor3 = GOLD
+				buy.Text = "Buy"
+				buy.ZIndex = 44
+				buy.Parent = t
+				deps.polishButton(buy, 6)
+				buy.MouseButton1Click:Connect(function()
+					deps.playClickSfx()
+					PurchaseRemote:FireServer("flair_" .. option.id) -- the server checks the item, Studio grants placeholders free
+				end)
+			end
 		end
 		deps.addTooltip(t, option.name .. (option.owned and "" or (": " .. (option.store and "Sold in the Tavern Store." or option.hint))))
 	end
@@ -225,6 +263,13 @@ function FlairPanel.init(deps)
 		local view = state and state.flair
 		if not view then
 			return
+		end
+		bundleButton.Visible = false
+		for _, item in ipairs(state.flairStore and state.flairStore.items or {}) do
+			if item.id == "flair_bundle" and not item.owned then
+				bundleButton.Visible = true
+				bundleButton.Text = "Flair Bundle: " .. StorePanelModule.priceText(item)
+			end
 		end
 		for i, slot in ipairs(view.slots) do
 			local section = Instance.new("Frame")

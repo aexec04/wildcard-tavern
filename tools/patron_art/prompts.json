@@ -462,7 +462,9 @@
     "book_badges": "an avatar wearing a sash covered in shiny round badges, standing proudly in a lantern lit tavern",
     "legend_1": "an avatar standing tall under a glowing golden crown that floats above the head in a candlelit tavern, proud",
     "legend_5": "an avatar in a long golden cape holding a glowing trophy cup, a crowd of blocky guests cheering behind",
-    "legend_9": "an avatar wearing a huge golden crown seated on a glowing throne made of playing cards, calm and kind"
+    "legend_9": "an avatar wearing a huge golden crown seated on a glowing throne made of playing cards, calm and kind",
+    "season_premium_harvest": "an avatar in a golden harvest cape holding up a glowing gold pumpkin lantern, proud",
+    "season_premium_winter": "an avatar in a silver winter cloak holding a glowing lantern in falling snow, proud"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -613,7 +615,9 @@
     "winter_welcome": "A single card back design, portrait 2:3, symmetrical, ornate pale gold border frame, deep winter blue with a glowing lantern and a knitted scarf pattern, snowflakes and stars around it, no text, no letters, no numbers, kid-friendly",
     "legend_gold": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, deep brown with a big shining gold crown in the center and gold laurel leaves around it, no text, no letters, no numbers, kid-friendly",
     "legend_crown": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, royal purple with a tall golden crown and small gold stars in a ring, no text, no letters, no numbers, kid-friendly",
-    "legend_eternal": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, midnight blue with a single glowing golden candle flame in the center and a ring of tiny gold stars, no text, no letters, no numbers, kid-friendly"
+    "legend_eternal": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, midnight blue with a single glowing golden candle flame in the center and a ring of tiny gold stars, no text, no letters, no numbers, kid-friendly",
+    "harvest_premium": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, rich amber with a gold harvest moon, wheat sprigs and a ring of tiny lanterns, no text, no letters, no numbers, kid-friendly",
+    "winter_premium": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, deep winter blue with silver snowflakes, a glowing lantern and a knitted scarf pattern, no text, no letters, no numbers, kid-friendly"
   },
   "pack_subjects": {
     "buffoon_pack": "a red velvet pouch bulging with tiny patron figurines, tied with gold cord and topped with a little jester bell. A single object, centered, painterly, soft shadow underneath, plain very dark neutral background, kid-friendly, no text, no letters",
@@ -709,7 +713,9 @@
     "marsh_lanterns": "wide backdrop, a misty marsh at night with floating paper lanterns, lily pads and gentle fireflies. Composition: calm darker center and lower third (soft shadow, ground, no busy detail), interest in the upper half and the edges, strong dark vignette, clear horizontal light-to-dark flow, wide empty scenery, no people, no characters, no props where cards would sit, no text, no letters, no logos, kid-friendly",
     "snowy_hearth": "wide backdrop, a snowy cabin porch at dusk with a glowing window, pine boughs and drifting snow. Composition: calm darker center and lower third (soft shadow, ground, no busy detail), interest in the upper half and the edges, strong dark vignette, clear horizontal light-to-dark flow, wide empty scenery, no people, no characters, no props where cards would sit, no text, no letters, no logos, kid-friendly",
     "harbor_lights": "wide backdrop, a small harbor at night with moored boats, string lights on the pier and calm teal water. Composition: calm darker center and lower third (soft shadow, ground, no busy detail), interest in the upper half and the edges, strong dark vignette, clear horizontal light-to-dark flow, wide empty scenery, no people, no characters, no props where cards would sit, no text, no letters, no logos, kid-friendly",
-    "tavern_feast": "wide backdrop, a festive tavern hall with long wooden tables, golden chandeliers, bunting and warm firelight. Composition: calm darker center and lower third (soft shadow, ground, no busy detail), interest in the upper half and the edges, strong dark vignette, clear horizontal light-to-dark flow, wide empty scenery, no people, no characters, no props where cards would sit, no text, no letters, no logos, kid-friendly"
+    "tavern_feast": "wide backdrop, a festive tavern hall with long wooden tables, golden chandeliers, bunting and warm firelight. Composition: calm darker center and lower third (soft shadow, ground, no busy detail), interest in the upper half and the edges, strong dark vignette, clear horizontal light-to-dark flow, wide empty scenery, no people, no characters, no props where cards would sit, no text, no letters, no logos, kid-friendly",
+    "harvest_table": "a warm tavern table at harvest time with gold lanterns, pumpkins and wheat under a big harvest moon, wide painterly background, no text, no letters, no numbers, kid-friendly",
+    "winter_table": "a cozy tavern table in winter with silver lanterns, knitted scarves and snow outside the window, wide painterly background, no text, no letters, no numbers, kid-friendly"
   },
   "badge_subjects": {
     "biome_meadow": "a round bronze medal badge with a bouquet of wildflowers embossed in the center, Meadow road explorer award",
@@ -769,7 +775,14 @@
     "starter_pack": "a painted bundle card: a wrapped gift box with a gold ribbon, a card back and a small trophy peeking out, warm candlelight, no text, no letters, kid-friendly",
     "card_set_bundle": "a painted bundle card: two fanned tavern card backs, one festival red and one midnight blue, with tiny lanterns, warm candlelight, no text, no letters, kid-friendly",
     "vip": "a painted bundle card: a glowing gold star badge on a velvet cushion beside a small coin purse, warm candlelight, no text, no letters, kid-friendly",
-    "continue": "a painted bundle card: an hourglass with golden sand turning back, a playing card behind it, warm candlelight, no text, no letters, kid-friendly"
+    "continue": "a painted bundle card: an hourglass with golden sand turning back, a playing card behind it, warm candlelight, no text, no letters, kid-friendly",
+    "flair_rainbow_numbers": "glowing rainbow colored score digits floating over a wooden table, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "flair_ribbon_trail": "a playing card trailing purple and pink ribbons, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "flair_crown_finisher": "a golden crown flashing with white light above a playing card, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "flair_star_aura": "a round name badge surrounded by glowing yellow stars, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "flair_bundle": "four small glowing gift boxes tied with ribbons: one rainbow, one ribbon, one crown, one star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "premium_harvest_moon": "a golden ticket with a harvest moon, wheat and a tiny lantern on it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "premium_winter_welcome": "a silver ticket with a snowflake, a knitted scarf and a tiny lantern on it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "quest_subjects": {
     "pairs_3": "two matching playing cards fanned side by side with a small gold ribbon, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
