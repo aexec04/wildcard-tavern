@@ -172,6 +172,22 @@ function Flair.cleanPublicTag(raw)
 	return nil
 end
 
+-- Progress toward a free unlock rule: current value and goal (nil for store items and one-off achievements).
+local function ruleProgress(profile, rule)
+	if not rule then return nil end
+	if rule.kind == "rank" then
+		return math.min(profile.tavernRank or 1, rule.n), rule.n
+	elseif rule.kind == "stake" then
+		return math.min(math.max((profile.highestStakeUnlocked or 1) - 1, 0), rule.n), rule.n
+	elseif rule.kind == "quests" then
+		return math.min(profile.questsDone or 0, rule.n), rule.n
+	elseif rule.kind == "legend" then
+		return math.min(Legend.level(profile), rule.n), rule.n
+	end
+	return nil
+end
+Flair.ruleProgress = ruleProgress
+
 -- What the client draws: per slot the options with owned/equipped flags and the unlock hint.
 function Flair.view(profile)
 	local slots = {}
@@ -179,7 +195,9 @@ function Flair.view(profile)
 		local equipped = Flair.equippedId(profile, slot.id)
 		local options = {}
 		for _, option in ipairs(BY_SLOT[slot.id]) do
+			local progress, goal = ruleProgress(profile, option.unlock)
 			options[#options + 1] = {
+				progress = progress, goal = goal,
 				id = option.id, name = option.name, icon = option.icon, rarity = option.rarity,
 				owned = Flair.isOwned(profile, option.id), equipped = option.id == equipped,
 				hint = option.unlock and option.unlock.hint or "", store = option.unlock ~= nil and option.unlock.kind == "store",

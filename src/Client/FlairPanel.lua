@@ -32,6 +32,8 @@ function FlairPanel.init(deps)
 	local PARCH = Color3.fromRGB(222, 198, 150)
 	local GREEN = Color3.fromRGB(86, 140, 80)
 	local TILE_W, TILE_H = 132, 196
+	local firstSightOwned -- option ids owned when the panel first drew this session; later unlocks wear a NEW ribbon
+	local lastEquipped = {} -- slotId -> option id, to sparkle when it changes
 
 	local function label(parent, props)
 		local l = Instance.new("TextLabel")
@@ -65,13 +67,13 @@ function FlairPanel.init(deps)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
 	panel.Parent = backdrop
-	deps.polishPanel(panel, 16, "parchment")
+	deps.polishPanel(panel, 16, "wood")
 	deps.addSoftShadow(panel, 18)
 
-	label(panel, { Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 6), TextSize = 22, Text = "Flair" })
+	label(panel, { Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 6), TextSize = 28, Text = "Flair", TextColor3 = CREAM })
 	label(panel, {
-		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 36), Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
-		Text = "Looks only. Flair never changes your score.",
+		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 38), Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "Looks only. Flair never changes your score.", TextColor3 = CREAM, TextSize = 16,
 	})
 
 	-- the four Store pieces at a lower price (hidden once everything in it is yours)
@@ -95,8 +97,8 @@ function FlairPanel.init(deps)
 	local StorePanelModule = require(script.Parent.StorePanel)
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -118)
-	scroll.Position = UDim2.fromOffset(15, 62)
+	scroll.Size = UDim2.new(1, -30, 1, -250)
+	scroll.Position = UDim2.fromOffset(15, 194)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 10
@@ -125,47 +127,118 @@ function FlairPanel.init(deps)
 	deps.polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
 
-	-- one-shot previews: a score number sample or an aura name chip near the middle of the panel
-	local function previewSample(slotId, option)
-		local center = UDim2.fromOffset(panel.AbsolutePosition.X + panel.AbsoluteSize.X / 2, panel.AbsolutePosition.Y + panel.AbsoluteSize.Y * 0.45)
-		if slotId == "playTrail" or slotId == "finisher" then
-			if deps.particleBurst then
-				FlairFX.preview(deps.particleBurst, slotId, option, center)
-			end
-			return
-		end
-		local sample = Instance.new("TextLabel")
-		sample.AnchorPoint = Vector2.new(0.5, 0.5)
-		sample.Size = UDim2.fromOffset(260, 56)
-		sample.Position = UDim2.fromScale(0.5, 0.5)
-		sample.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
-		sample.BackgroundTransparency = 0.2
-		sample.Font = Enum.Font.GothamBold
-		sample.TextSize = 32
-		sample.TextTransparency = 0
-		sample.TextStrokeTransparency = 0.6
-		sample.ZIndex = 60
-		sample.Parent = backdrop
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 12)
-		corner.Parent = sample
-		local c = option.color or { 250, 235, 200 }
-		sample.TextColor3 = Color3.fromRGB(c[1], c[2], c[3])
-		sample.Text = slotId == "nameAura" and ((option.crest or "") .. " You") or "12,480"
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(c[1], c[2], c[3])
-		stroke.Thickness = slotId == "nameAura" and 3 or math.max(1, (option.glow or 0))
-		stroke.Parent = sample
-		task.delay(1.4, function()
-			if sample.Parent then
-				if ClientSettings.get("reduceShake") == true then
-					sample:Destroy()
-				else
-					TweenService:Create(sample, TweenInfo.new(0.3), { BackgroundTransparency = 1, TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-					task.delay(0.35, function() if sample.Parent then sample:Destroy() end end)
-				end
+	-- LIVE STAGE: the score number, name aura, play trail and finisher of the selected options (equipped ones until the
+	-- player taps Preview on another) loop here. Calm mode shows the static score and name only.
+	local selected = {} -- slotId -> option row (Preview taps); equipped options fill the gaps
+	local equippedBySlot = {}
+	local stage = Instance.new("Frame")
+	stage.Name = "Stage"
+	stage.Size = UDim2.new(0.56, 0, 0, 124)
+	stage.Position = UDim2.fromOffset(15, 66)
+	stage.BackgroundColor3 = Color3.fromRGB(26, 19, 14)
+	stage.BorderSizePixel = 0
+	stage.ClipsDescendants = true
+	stage.ZIndex = 42
+	stage.Parent = panel
+	deps.roundCorner(stage, 12)
+	local stageStroke = Instance.new("UIStroke")
+	stageStroke.Color = GOLD
+	stageStroke.Thickness = 2
+	stageStroke.Parent = stage
+	local stageScore = label(stage, { Size = UDim2.new(1, 0, 0, 48), Position = UDim2.fromOffset(0, 26), TextSize = 40, Text = "12,480", TextColor3 = CREAM, ZIndex = 45 })
+	local stageScoreStroke = Instance.new("UIStroke")
+	stageScoreStroke.Thickness = 1
+	stageScoreStroke.Parent = stageScore
+	local stageName = label(stage, { Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 84), TextSize = 20, Text = "You", TextColor3 = CREAM, ZIndex = 45 })
+	label(stage, { Size = UDim2.new(1, -16, 0, 20), Position = UDim2.fromOffset(8, 4), TextSize = 15, Text = "Live preview", TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 45 })
+	local stagePoint = Instance.new("Frame") -- where trails and finishers burst
+	stagePoint.Size = UDim2.fromOffset(2, 2)
+	stagePoint.AnchorPoint = Vector2.new(0.5, 0.5)
+	stagePoint.Position = UDim2.fromScale(0.5, 0.5)
+	stagePoint.BackgroundTransparency = 1
+	stagePoint.Parent = stage
+
+	local summary = Instance.new("Frame") -- "Equipped" summary of all four slots
+	summary.Name = "Equipped"
+	summary.Size = UDim2.new(0.44, -22, 0, 124)
+	summary.Position = UDim2.new(0.56, 7, 0, 66)
+	summary.BackgroundColor3 = Color3.fromRGB(26, 19, 14)
+	summary.BorderSizePixel = 0
+	summary.ZIndex = 42
+	summary.Parent = panel
+	deps.roundCorner(summary, 12)
+	local summaryStroke = Instance.new("UIStroke")
+	summaryStroke.Color = Color3.fromRGB(150, 112, 60)
+	summaryStroke.Thickness = 1.5
+	summaryStroke.Parent = summary
+	local summaryLines = {}
+	label(summary, { Size = UDim2.new(1, -16, 0, 20), Position = UDim2.fromOffset(10, 4), TextSize = 16, Text = "Equipped", TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 45 })
+	for i = 1, 4 do
+		summaryLines[i] = label(summary, {
+			Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(10, 24 + (i - 1) * 24), TextSize = 15, Text = "",
+			TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 45,
+		})
+	end
+
+	local function rgbOf(option, fallback)
+		local c = option and option.color or fallback
+		return Color3.fromRGB(c[1], c[2], c[3])
+	end
+
+	local function currentOption(slotId)
+		return selected[slotId] or equippedBySlot[slotId]
+	end
+
+	local function paintStage()
+		local num = currentOption("scoreNumbers")
+		local aura = currentOption("nameAura")
+		local numColor = rgbOf(num, { 250, 235, 200 })
+		stageScore.TextColor3 = numColor
+		stageScoreStroke.Color = numColor
+		stageScoreStroke.Thickness = math.max(0, (num and num.glow or 0))
+		local auraColor = rgbOf(aura, { 250, 235, 200 })
+		stageName.TextColor3 = auraColor
+		stageName.Text = ((aura and aura.crest and aura.crest ~= "") and (aura.crest .. " ") or "") .. "You"
+	end
+
+	local function stageBurstPos()
+		return UDim2.fromOffset(stagePoint.AbsolutePosition.X, stagePoint.AbsolutePosition.Y)
+	end
+
+	local stageToken = 0
+	local function stopStage()
+		stageToken = stageToken + 1
+	end
+	local function startStage()
+		stopStage()
+		paintStage()
+		if ClientSettings.get("reduceShake") == true or not deps.particleBurst then return end
+		local mine = stageToken
+		task.spawn(function()
+			while stageToken == mine and backdrop.Visible do
+				local trail = currentOption("playTrail")
+				local finisher = currentOption("finisher")
+				if trail then pcall(FlairFX.preview, deps.particleBurst, "playTrail", trail, stageBurstPos()) end
+				TweenService:Create(stageScore, TweenInfo.new(0.15, Enum.EasingStyle.Back), { TextSize = 46 }):Play()
+				task.wait(0.15)
+				TweenService:Create(stageScore, TweenInfo.new(0.2), { TextSize = 40 }):Play()
+				task.wait(0.85)
+				if stageToken ~= mine then break end
+				if finisher then pcall(FlairFX.preview, deps.particleBurst, "finisher", finisher, stageBurstPos()) end
+				task.wait(1.8)
 			end
 		end)
+	end
+
+	-- Preview tap: put that option on the stage (replaces the one-shot sample).
+	local function previewSample(slotId, option)
+		selected[slotId] = option
+		paintStage()
+		if slotId == "playTrail" or slotId == "finisher" then
+			if deps.particleBurst and ClientSettings.get("reduceShake") ~= true then
+				pcall(FlairFX.preview, deps.particleBurst, slotId, option, stageBurstPos())
+			end
+		end
 	end
 
 	local function tile(row, slotId, option)
@@ -230,8 +303,27 @@ function FlairPanel.init(deps)
 				end)
 			end
 		else
-			label(t, { Size = UDim2.new(1, -8, 0, option.store and 28 or 66), Position = UDim2.fromOffset(4, 112), Font = Enum.Font.GothamMedium, TextSize = 14, TextWrapped = true,
+			label(t, { Size = UDim2.new(1, -8, 0, option.store and 28 or (option.goal and 42 or 66)), Position = UDim2.fromOffset(4, 112), Font = Enum.Font.GothamMedium, TextSize = 14, TextWrapped = true,
 				Text = option.store and "Tavern Store" or option.hint })
+			if option.goal and not option.store then -- progress toward the unlock, e.g. Rank 3 of 5
+				local track = Instance.new("Frame")
+				track.Size = UDim2.new(1, -20, 0, 10)
+				track.Position = UDim2.fromOffset(10, 158)
+				track.BackgroundColor3 = Color3.fromRGB(120, 100, 70)
+				track.BorderSizePixel = 0
+				track.ZIndex = 44
+				track.Parent = t
+				deps.roundCorner(track, 5)
+				local fill = Instance.new("Frame")
+				fill.Size = UDim2.fromScale(math.clamp((option.progress or 0) / option.goal, 0, 1), 1)
+				fill.BackgroundColor3 = GOLD
+				fill.BorderSizePixel = 0
+				fill.ZIndex = 45
+				fill.Parent = track
+				deps.roundCorner(fill, 5)
+				label(t, { Size = UDim2.new(1, -8, 0, 18), Position = UDim2.fromOffset(4, 172), TextSize = 14, Font = Enum.Font.GothamMedium,
+					Text = string.format("%d of %d", math.floor(option.progress or 0), math.floor(option.goal)) })
+			end
 			if option.store then
 				local buy = Instance.new("TextButton")
 				buy.Size = UDim2.fromOffset(112, 28)
@@ -251,6 +343,23 @@ function FlairPanel.init(deps)
 			end
 		end
 		deps.addTooltip(t, option.name .. (option.owned and "" or (": " .. (option.store and "Sold in the Tavern Store." or option.hint))))
+		if option.owned and firstSightOwned and not firstSightOwned[option.id] then
+			local ribbon = label(t, {
+				Size = UDim2.fromOffset(46, 20), Position = UDim2.fromOffset(-4, 6), Text = "NEW", TextSize = 14, TextColor3 = INK,
+				BackgroundTransparency = 0, BackgroundColor3 = GOLD, ZIndex = 50,
+			})
+			deps.roundCorner(ribbon, 4)
+		end
+		if option.equipped and lastEquipped[slotId] ~= option.id then
+			if lastEquipped[slotId] ~= nil and deps.particleBurst and ClientSettings.get("reduceShake") ~= true then
+				task.defer(function() -- a sparkle on the newly equipped tile
+					if t.Parent then
+						pcall(deps.particleBurst, UDim2.fromOffset(t.AbsolutePosition.X + TILE_W / 2, t.AbsolutePosition.Y + 40), GOLD, 10, { size = 7, spread = 60, duration = 0.6 })
+					end
+				end)
+			end
+			lastEquipped[slotId] = option.id
+		end
 	end
 
 	local function refresh()
@@ -265,6 +374,23 @@ function FlairPanel.init(deps)
 			return
 		end
 		bundleButton.Visible = false
+		if not firstSightOwned then
+			firstSightOwned = {}
+			for _, slot in ipairs(view.slots) do
+				for _, option in ipairs(slot.options) do
+					if option.owned then firstSightOwned[option.id] = true end
+				end
+			end
+		end
+		for i, slot in ipairs(view.slots) do
+			for _, option in ipairs(slot.options) do
+				if option.equipped then
+					equippedBySlot[slot.id] = option
+					summaryLines[i].Text = slot.icon .. " " .. option.name
+				end
+			end
+		end
+		paintStage()
 		for _, item in ipairs(state.flairStore and state.flairStore.items or {}) do
 			if item.id == "flair_bundle" and not item.owned then
 				bundleButton.Visible = true
@@ -278,9 +404,14 @@ function FlairPanel.init(deps)
 			section.BackgroundTransparency = 1
 			section.ZIndex = 41
 			section.Parent = scroll
-			label(section, { Size = UDim2.new(1, 0, 0, 26), TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Text = slot.icon .. " " .. slot.name })
+			local ownedCount = 0
+			for _, option in ipairs(slot.options) do
+				if option.owned then ownedCount = ownedCount + 1 end
+			end
+			label(section, { Size = UDim2.new(1, 0, 0, 28), TextSize = 22, TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left,
+				Text = slot.icon .. " " .. slot.name .. "   " .. ownedCount .. " of " .. #slot.options .. " unlocked" })
 			local row = Instance.new("ScrollingFrame")
-			row.Position = UDim2.fromOffset(0, 30)
+			row.Position = UDim2.fromOffset(0, 34)
 			row.Size = UDim2.new(1, 0, 0, TILE_H + 4)
 			row.BackgroundTransparency = 1
 			row.BorderSizePixel = 0
@@ -303,6 +434,7 @@ function FlairPanel.init(deps)
 
 	require(script.Parent.PanelTabs).attach(backdrop, "flair", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("flair", function()
+		stopStage()
 		deps.popOut(backdrop, panel)
 	end)
 	local function openThisPanel()
@@ -310,11 +442,13 @@ function FlairPanel.init(deps)
 		OverlayManager.closeAllExcept("flair")
 		refresh()
 		deps.popIn(backdrop, panel)
+		startStage()
 	end
 	OverlayManager.registerOpener("flair", openThisPanel)
 	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		deps.playClickSfx()
+		stopStage()
 		deps.popOut(backdrop, panel)
 	end)
 	deps.StateUpdatedRemote.OnClientEvent:Connect(function()

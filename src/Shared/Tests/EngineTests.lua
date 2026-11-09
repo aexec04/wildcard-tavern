@@ -11269,4 +11269,23 @@ table.insert(tests, { name = "RewardArt: every reward kind in every registry res
 	expectTrue(unknownEmoji ~= "", "an unknown kind still gets an emoji")
 end })
 
+table.insert(tests, { name = "Flair.view: locked options carry progress toward their unlock; store and default ones have no goal", fn = function()
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local profile = { tavernRank = 3, highestStakeUnlocked = 1, questsDone = 4 }
+	local view = Flair.view(profile)
+	local seen = {}
+	for _, slot in ipairs(view.slots) do
+		for _, option in ipairs(slot.options) do seen[option.id] = option end
+	end
+	expectEqual(3, seen.ember_numbers.progress, "rank progress is the current rank")
+	expectEqual(5, seen.ember_numbers.goal, "rank goal")
+	expectEqual(4, seen.sparkle_trail.progress, "quest progress")
+	expectEqual(10, seen.sparkle_trail.goal, "quest goal")
+	expectEqual(0, seen.gold_numbers.progress, "stake progress starts at 0")
+	expectTrue(seen.rainbow_numbers.goal == nil, "store items have no progress goal")
+	expectTrue(seen.classic_numbers.goal == nil, "default options have no goal")
+	profile.tavernRank = 99
+	expectEqual(5, Flair.view(profile).slots[1].options[2].progress, "progress is capped at the goal")
+end })
+
 return tests
