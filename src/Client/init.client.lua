@@ -968,6 +968,16 @@ do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Ov
 	end)
 	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
 end
+do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile on the main menu
+	local ok, err = pcall(function()
+		require(script.QuestsPanel).init({
+			screenGui = screenGui, openButton = MenuScreen.menuQuestsButton, polishPanel = polishPanel, polishButton = polishButton,
+			roundCorner = roundCorner, playClickSfx = playClickSfx, popIn = popIn, popOut = popOut,
+			getLatestState = function() return latestState end,
+		})
+	end)
+	if not ok then warn("[Client] QuestsPanel failed: " .. tostring(err)) end
+end
 do -- Unlock toast (Client/UnlockToast.lua); fed from render()
 	local ok, err = pcall(function() require(script.UnlockToast).init(screenGui) end)
 	if not ok then warn("[Client] UnlockToast failed: " .. tostring(err)) end
@@ -2366,6 +2376,8 @@ local function render(state)
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
+	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
+	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no

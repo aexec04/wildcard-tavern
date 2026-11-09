@@ -778,6 +778,9 @@ function RunState.playHand(state, cardIndices)
 	if roundWon then
 		state.roundOver = true
 		state.roundsCleared = state.roundsCleared + 1
+			if handResult.name == "Flush" or handResult.name == "Straight Flush" then
+				state.flushClears = (state.flushClears or 0) + 1 -- daily quest: clear a round with a Flush
+			end
 		if RunState.isBossRound(state) then
 			state.bossesCleared = state.bossesCleared + 1
 		end
@@ -1218,6 +1221,7 @@ function RunState.openPack(state, packId, rng)
 	end
 
 	state.tips = state.tips - price
+	state.packsBought = (state.packsBought or 0) + 1 -- daily quest: buy a pack
 	state.pendingPack = {
 		packId = packId,
 		category = pack.category,

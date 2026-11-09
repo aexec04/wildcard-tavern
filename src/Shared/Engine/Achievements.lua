@@ -197,6 +197,67 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.tavern_keeper == true
 		end,
 	},
+	-- TAVERN RANK TITLES: granted (and saved in profile.rewardTitleIds) by Engine/TavernRank.lua on a rank up.
+	{
+		id = "table_regular",
+		name = "Table Regular",
+		icon = "🪑",
+		title = "Table Regular",
+		description = "Reach Tavern Rank 5.",
+		flavorText = "Your chair is warm before you sit.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.table_regular == true
+		end,
+	},
+	{
+		id = "favorite_guest",
+		name = "Favorite Guest",
+		icon = "💛",
+		title = "Favorite Guest",
+		description = "Reach Tavern Rank 10.",
+		flavorText = "The kitchen sends out your favorite without asking.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.favorite_guest == true
+		end,
+	},
+	{
+		id = "house_captain",
+		name = "House Captain",
+		icon = "🧭",
+		title = "House Captain",
+		description = "Reach Tavern Rank 15.",
+		flavorText = "Even the new regulars look to you for the way.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.house_captain == true
+		end,
+	},
+	{
+		id = "hall_warden",
+		name = "Hall Warden",
+		icon = "🔔",
+		title = "Hall Warden",
+		description = "Reach Tavern Rank 20.",
+		flavorText = "You know every creak and every corner of the hall.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.hall_warden == true
+		end,
+	},
+	{
+		id = "grand_host",
+		name = "Grand Host",
+		icon = "🏛️",
+		title = "Grand Host",
+		description = "Reach Tavern Rank 30.",
+		flavorText = "The whole tavern stands to cheer your name.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.grand_host == true
+		end,
+	},
 	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
 	{
 		id = "dune_wanderer",

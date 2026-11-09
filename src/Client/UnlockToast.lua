@@ -1,7 +1,10 @@
--- Unlock toast: a small parchment banner ("Unlocked: Nest Egg") that slides in at the top when the server
--- opens new Patrons or Recipes (state.unlockNotice = { seq, items = { { kind, id, hint } } }, Engine/Unlocks).
--- Art first: the painted portrait (emoji fallback) in a gold ring, one line of text, then it slides away.
--- Display only. Self-contained: the hub calls init(screenGui) once and update(state) from render in a pcall.
+-- Toasts: a small parchment banner that slides in at the top for good news, one at a time (a queue):
+--   * "Unlocked: Nest Egg"           state.unlockNotice   = { seq, items = { { kind, id, hint } } }   (Engine/Unlocks)
+--   * "Quest done: Pair Up  +40 XP"  state.progressNotice = { seq, rankUps, quests, rewards }         (Engine/AccountProgress)
+--   * "Rank 5!  Title: Table Regular"
+-- Art first: the painted portrait when there is one (emoji fallback) in a gold ring, one line of text, then it
+-- slides away. Display only. Self-contained: the hub calls init(screenGui) once and update(state) from render
+-- in a pcall.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -23,8 +26,11 @@ local MAX_NAMES = 2
 
 local gui -- the ScreenGui
 local toast -- the built frame, created on first use
-local lastSeq = 0
+local lastUnlockSeq = 0
+local lastProgressSeq = 0
 local token = 0
+local queue = {} -- entries waiting: { icon, text, tab, id }
+local busy = false
 
 local function defOf(item)
 	if item.kind == "patron" then
@@ -37,7 +43,7 @@ local function build()
 	local frame = Instance.new("Frame")
 	frame.Name = "UnlockToast"
 	frame.AnchorPoint = Vector2.new(0.5, 0)
-	frame.Size = UDim2.fromOffset(420, 76)
+	frame.Size = UDim2.fromOffset(440, 76)
 	frame.Position = UDim2.new(0.5, 0, 0, -100)
 	frame.BackgroundColor3 = PARCHMENT
 	frame.Visible = false
@@ -108,27 +114,21 @@ function UnlockToast.textFor(names)
 	return string.format("Unlocked: %s, %s and %d more", names[1], names[2], #names - 2)
 end
 
-local function show(items)
-	local names, first = {}, nil
-	for _, item in ipairs(items) do
-		local def, tab = defOf(item)
-		if def then
-			names[#names + 1] = def.name
-			first = first or { def = def, tab = tab, id = item.id }
-		end
-	end
-	if not first then
+local function showNext()
+	if busy or #queue == 0 then
 		return
 	end
+	local entry = table.remove(queue, 1)
+	busy = true
 	toast = toast or build()
-	toast.Text.Text = UnlockToast.textFor(names)
-	toast.Well.Icon.Text = first.def.icon or "✨"
+	toast.Text.Text = entry.text
+	toast.Well.Icon.Text = entry.icon or "✨"
 	for _, child in ipairs(toast.Well:GetChildren()) do
 		if child.Name == "ContentArt" then
 			child:Destroy()
 		end
 	end
-	local artId = ContentArt.getImageId(first.tab, first.id)
+	local artId = entry.tab and ContentArt.getImageId(entry.tab, entry.id)
 	if artId then
 		PatronPlaque.applyById(toast.Well, artId, { emojiLabel = toast.Well.Icon, zIndex = 133, cornerRadius = 28 })
 	end
@@ -152,10 +152,46 @@ local function show(items)
 		tween.Completed:Connect(function()
 			if mine == token and toast then
 				toast.Visible = false
+				busy = false
+				showNext()
 			end
 		end)
 		tween:Play()
 	end)
+end
+
+local function push(entry)
+	queue[#queue + 1] = entry
+	showNext()
+end
+
+local function pushUnlocks(items)
+	local names, first = {}, nil
+	for _, item in ipairs(items) do
+		local def, tab = defOf(item)
+		if def then
+			names[#names + 1] = def.name
+			first = first or { def = def, tab = tab, id = item.id }
+		end
+	end
+	if first then
+		push({ icon = first.def.icon, text = UnlockToast.textFor(names), tab = first.tab, id = first.id })
+	end
+end
+
+local function pushProgress(notice)
+	for _, q in ipairs(notice.quests or {}) do
+		push({ icon = q.icon or "✔", text = string.format("Quest done: %s   +%d XP", q.name, q.xp or 0) })
+	end
+	local ups = notice.rankUps or {}
+	if #ups > 0 then
+		local line = "Rank " .. ups[#ups] .. "!"
+		local rewards = notice.rewards or {}
+		if #rewards > 0 then
+			line = line .. "  " .. rewards[#rewards]:gsub("^Rank %d+: ", "")
+		end
+		push({ icon = "🏅", text = line })
+	end
 end
 
 function UnlockToast.init(screenGui)
@@ -164,12 +200,19 @@ end
 
 -- Called from render(): shows each new notice (by seq) once.
 function UnlockToast.update(state)
-	local notice = state and state.unlockNotice
-	if not gui or not notice or type(notice.seq) ~= "number" or notice.seq <= lastSeq then
+	if not gui or type(state) ~= "table" then
 		return
 	end
-	lastSeq = notice.seq
-	show(notice.items or {})
+	local unlock = state.unlockNotice
+	if unlock and type(unlock.seq) == "number" and unlock.seq > lastUnlockSeq then
+		lastUnlockSeq = unlock.seq
+		pushUnlocks(unlock.items or {})
+	end
+	local progress = state.progressNotice
+	if progress and type(progress.seq) == "number" and progress.seq > lastProgressSeq then
+		lastProgressSeq = progress.seq
+		pushProgress(progress)
+	end
 end
 
 return UnlockToast

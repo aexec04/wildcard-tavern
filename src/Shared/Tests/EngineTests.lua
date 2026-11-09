@@ -4224,7 +4224,7 @@ table.insert(tests, { name = "One free One More Round per player per day", fn = 
 	expectTrue(PlayerProfile.hasFreeContinue(PlayerProfile.migrate(nil), "2026-11-03"))
 end })
 
-table.insert(tests, { name = "Login streak: advance, grace day, reset, claims", fn = function()
+table.insert(tests, { name = "Login streak: advance, grace day, reset, 7-slot ladder that loops, one claim per day", fn = function()
 	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
 	local profile = PlayerProfile.new()
 	expectTrue(LoginStreak.checkIn(profile, 100))
@@ -4234,39 +4234,64 @@ table.insert(tests, { name = "Login streak: advance, grace day, reset, claims", 
 	expectTrue(LoginStreak.checkIn(profile, 101))
 	expectTrue(LoginStreak.checkIn(profile, 103)) -- one missed day is forgiven
 	expectEqual(profile.loginStreak, 3)
-	-- Day 3 reward: Tips go to the run, once.
+	-- Only today's slot (3) can be claimed, once. Tips go to the live run.
 	expectTrue(LoginStreak.canClaim(profile, 3))
 	expectFalse(LoginStreak.canClaim(profile, 7))
+	expectFalse(LoginStreak.canClaim(profile, 1))
 	local state = { tips = 2 }
-	expectFalse((LoginStreak.claim(profile, 3, nil)))
 	expectTrue((LoginStreak.claim(profile, 3, state)))
 	expectEqual(state.tips, 7)
 	expectFalse((LoginStreak.claim(profile, 3, state)))
-	expectEqual(LoginStreak.nextReward(profile).day, 7)
+	expectEqual(LoginStreak.nextReward(profile).day, 4, "after claiming, tomorrow's slot is next")
 	-- It survives a save round-trip.
 	local saved = PlayerProfile.migrate(profile)
 	expectEqual(saved.loginStreak, 3)
 	expectEqual(saved.lastLoginDay, 103)
-	expectTrue(saved.claimedLoginDays[3])
-	-- Two missed days reset the streak and the claims.
+	expectEqual(saved.loginClaimedDay, 103)
+	-- The view shows 7 slots with today marked and earlier ones claimed.
+	local view = LoginStreak.view(profile)
+	expectEqual(#view.rewards, 7)
+	expectTrue(view.rewards[1].claimed and view.rewards[2].claimed and view.rewards[3].claimed and not view.rewards[4].claimed)
+	expectTrue(view.rewards[3].today and not view.rewards[3].claimable)
+	-- Two missed days reset the streak.
 	expectTrue(LoginStreak.checkIn(profile, 106))
 	expectEqual(profile.loginStreak, 1)
-	expectFalse(profile.claimedLoginDays[3] == true)
+	expectTrue(LoginStreak.canClaim(profile, 1))
+	-- With no live run the Tips are banked for the next run.
+	local fresh = PlayerProfile.new()
+	LoginStreak.checkIn(fresh, 10)
+	expectTrue((LoginStreak.claim(fresh, 1, nil)))
+	expectEqual(fresh.pendingStartTips, 3)
 	-- A clock that went backwards also restarts instead of crashing.
 	expectTrue(LoginStreak.checkIn(profile, 50))
 	expectEqual(profile.loginStreak, 1)
-	-- Day 7 card back and day 14 patron are real ids.
-	profile.loginStreak = 14
-	expectTrue((LoginStreak.claim(profile, 7, nil)))
-	expectTrue(profile.unlockedCardBackIds.festival_ribbon)
-	expectTrue((LoginStreak.claim(profile, 14, nil)))
-	expectTrue(profile.discoveredPatronIds.the_bard)
-	expectEqual(LoginStreak.nextReward(profile).day, 3)
+	-- XP slot, card back slot (then Tips once it is owned) and the loop back to slot 1 on day 8.
+	local p2 = PlayerProfile.new()
+	for day = 1, 7 do
+		LoginStreak.checkIn(p2, 200 + day)
+		expectEqual(LoginStreak.slotFor(p2.loginStreak), day)
+		local ok = LoginStreak.claim(p2, day, nil)
+		expectTrue(ok, "slot " .. day .. " claims")
+	end
+	expectTrue(p2.tavernXp >= 40 + 60 + 80, "XP slots pay XP")
+	expectTrue(p2.unlockedCardBackIds.festival_ribbon, "day 7 gives the card back")
+	LoginStreak.checkIn(p2, 208)
+	expectEqual(p2.loginStreak, 8)
+	expectEqual(LoginStreak.slotFor(8), 1, "the ladder loops")
+	expectTrue(LoginStreak.canClaim(p2, 1))
+	p2.pendingStartTips = 0
+	local tipsBefore = 0
+	for day = 1, 7 do
+		if day > 1 then LoginStreak.checkIn(p2, 207 + day) end
+		LoginStreak.claim(p2, LoginStreak.slotFor(p2.loginStreak), nil)
+	end
+	expectTrue(p2.pendingStartTips > tipsBefore + 10, "the second day 7 pays Tips instead of the owned card back")
 	expectEqual(LoginStreak.dayNumber(86400 * 5 + 10), 5)
 	-- Garbage in a saved profile is dropped.
-	local bad = PlayerProfile.migrate({ lastLoginDay = "x", loginStreak = -4, claimedLoginDays = { a = true } })
+	local bad = PlayerProfile.migrate({ lastLoginDay = "x", loginStreak = -4, claimedLoginDays = { a = true }, loginClaimedDay = "y" })
 	expectEqual(bad.lastLoginDay, nil)
 	expectEqual(bad.loginStreak, 0)
+	expectEqual(bad.loginClaimedDay, nil)
 end })
 
 table.insert(tests, { name = "Next unlock strip and places seen", fn = function()
@@ -4628,6 +4653,12 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	-- Titles handed out by seasons count too.
 	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
 		rewardedTitles[season.rewards.titleId] = true
+	end
+	-- Titles handed out by Tavern Rank rewards count too.
+	for _, reward in pairs(require(script.Parent.Parent.Engine.TavernRank).Rewards) do
+		if reward.kind == "title" then
+			rewardedTitles[reward.id] = true
+		end
 	end
 	-- Titles handed out by Journey rewards count too.
 	for _, entry in ipairs(JourneyMap.Nights) do
@@ -8414,6 +8445,172 @@ table.insert(tests, { name = "Unlocks balance: the starting Patrons alone can ca
 	local score = Scoring.calculate(hand, build, ctx())
 	local target = RunState.targetScoreFor(3, 2)
 	expectTrue(score >= target, "a starting-pool build scores " .. score .. " vs the Night 3 Big target " .. target)
+end })
+
+-- ===== Tavern Rank, daily quests, account progress =====
+
+table.insert(tests, { name = "TavernRank: 30 ranks, rising XP, every rank has a reward that resolves to real content", fn = function()
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local CardBacks = require(script.Parent.Parent.Engine.CardBacks)
+	expectEqual(TavernRank.MAX_RANK, 30)
+	expectEqual(TavernRank.xpForRank(1), 0)
+	expectEqual(TavernRank.rankFor(0), 1)
+	expectEqual(TavernRank.rankFor(TavernRank.xpForRank(7)), 7)
+	expectEqual(TavernRank.rankFor(TavernRank.xpForRank(7) - 1), 6)
+	expectEqual(TavernRank.rankFor(10 ^ 9), 30)
+	for r = 2, 30 do
+		expectTrue(TavernRank.xpToNext(r) > TavernRank.xpToNext(r - 1), "XP per rank rises")
+		local reward = TavernRank.Rewards[r]
+		expectTrue(reward ~= nil, "rank " .. r .. " has a reward")
+		if reward.kind == "title" then
+			expectTrue(Achievements.getById(reward.id) ~= nil and Achievements.getById(reward.id).milestoneReward, reward.id .. " is a real reward title")
+		elseif reward.kind == "cardBack" then
+			expectTrue(CardBacks.getById(reward.id) ~= nil, reward.id .. " is a real card back")
+		elseif reward.kind == "set" then
+			expectTrue(CosmeticSets.getById(reward.id) ~= nil, reward.id .. " is a real set")
+		else
+			expectEqual(reward.kind, "tips")
+			expectTrue(reward.amount >= 1 and reward.amount <= 10, "small Tips only")
+		end
+	end
+	-- a rank-30 player still sees a sane view
+	local view = TavernRank.view({ tavernXp = TavernRank.MAX_XP })
+	expectTrue(view.maxed and view.rank == 30 and view.need == 0)
+end })
+
+table.insert(tests, { name = "TavernRank.addXp: rewards are granted once, in order, nothing is lost on a big jump, Tips are capped", fn = function()
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local profile = PlayerProfile.new()
+	expectEqual((TavernRank.addXp(profile, 0)), 0)
+	local _, ups = TavernRank.addXp(profile, 79)
+	expectEqual(#ups, 0)
+	_, ups = TavernRank.addXp(profile, 1)
+	expectEqual(ups[1], 2)
+	expectEqual(profile.pendingStartTips, 3)
+	-- a huge jump grants every reward on the way, exactly once
+	_, ups = TavernRank.addXp(profile, TavernRank.xpForRank(12))
+	expectTrue(profile.rewardTitleIds.table_regular and profile.rewardTitleIds.favorite_guest and profile.rewardTitleIds.house_captain == nil, "rank 5 and 10 titles, not rank 15 yet")
+	expectTrue(profile.unlockedCardBackIds.kitchen_checks and profile.unlockedCardBackIds.hall_banner, "card backs on the way")
+	expectTrue(profile.ownedSetIds.winter_evening, "rank 12 Card Set")
+	expectTrue(profile.pendingStartTips <= TavernRank.MAX_PENDING_TIPS, "banked Tips are capped")
+	local tipsNow = profile.pendingStartTips
+	TavernRank.grantDue(profile)
+	expectEqual(profile.pendingStartTips, tipsNow, "no double grant")
+	-- the bank pays out once
+	expectEqual(TavernRank.takeStartTips(profile), tipsNow)
+	expectEqual(TavernRank.takeStartTips(profile), 0)
+	-- first win of the day is once per UTC day
+	expectEqual(TavernRank.firstWinBonus(profile, 50), TavernRank.Xp.firstWinOfDay)
+	expectEqual(TavernRank.firstWinBonus(profile, 50), 0)
+	expectEqual(TavernRank.firstWinBonus(profile, 51), TavernRank.Xp.firstWinOfDay)
+	-- save / load keeps XP, derives the rank, drops junk
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.tavernXp, profile.tavernXp)
+	expectEqual(loaded.tavernRank, TavernRank.rankFor(profile.tavernXp))
+	local bad = PlayerProfile.migrate({ tavernXp = -5, pendingStartTips = 9999, rankRewardIds = { [99] = true, x = true }, questsDone = "z" })
+	expectEqual(bad.tavernXp, 0)
+	expectEqual(bad.pendingStartTips, TavernRank.MAX_PENDING_TIPS)
+	expectTrue(next(bad.rankRewardIds) == nil)
+	expectEqual(bad.questsDone, 0)
+end })
+
+table.insert(tests, { name = "Quests: the same three quests for a given UTC day, different days vary, progress completes once and pays", fn = function()
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local a, b = Quests.rollFor(20000), Quests.rollFor(20000)
+	expectEqual(table.concat(a, ","), table.concat(b, ","), "deterministic")
+	expectEqual(#a, 3)
+	local seen = {}
+	for _, id in ipairs(a) do
+		expectTrue(Quests.getById(id) ~= nil and not seen[id], "distinct real quests")
+		seen[id] = true
+	end
+	local distinct = {}
+	for day = 20000, 20030 do distinct[table.concat(Quests.rollFor(day), ",")] = true end
+	local count = 0
+	for _ in pairs(distinct) do count = count + 1 end
+	expectTrue(count > 5, "days vary: " .. count .. " different sets in 31 days")
+	-- every counter a quest reads exists in Quests.countersOf
+	local counters = Quests.countersOf({})
+	for _, def in ipairs(Quests.Definitions) do
+		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
+		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
+	end
+	-- progress: partial, capped, completes once, pays XP and Tips
+	local profile = PlayerProfile.new()
+	local day = 20000
+	local first = Quests.getById(Quests.rollFor(day)[1])
+	local done = Quests.apply(profile, day, { [first.counter] = first.goal - 1 > 0 and first.goal - 1 or 0 })
+	if first.goal > 1 then
+		expectEqual(#done, 0)
+		expectEqual(profile.quests.progress[first.id], first.goal - 1)
+	end
+	done = Quests.apply(profile, day, { [first.counter] = 99 })
+	expectEqual(#done >= 1, true)
+	expectEqual(profile.quests.progress[first.id], first.goal, "progress is capped at the goal")
+	expectTrue(profile.quests.done[first.id])
+	expectTrue(profile.tavernXp >= first.xp and profile.pendingStartTips >= first.tips)
+	local xpBefore, doneBefore = profile.tavernXp, profile.questsDone
+	Quests.apply(profile, day, { [first.counter] = 99 })
+	expectEqual(profile.tavernXp, xpBefore, "paid once")
+	expectEqual(profile.questsDone, doneBefore)
+	-- a new day rolls fresh quests
+	expectTrue(Quests.ensureDay(profile, day + 1))
+	expectEqual(next(profile.quests.progress), nil)
+	-- save / load
+	Quests.apply(profile, day + 1, { hands = 3, pairs = 1 })
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.quests.day, day + 1)
+	expectEqual(table.concat(loaded.quests.ids, ","), table.concat(profile.quests.ids, ","))
+	expectEqual(PlayerProfile.migrate({ quests = { day = 5, ids = { "nope" } } }).quests, nil, "junk quests are dropped")
+	-- view
+	local view = Quests.view(profile, day + 1, 3600)
+	expectEqual(#view.quests, 3)
+end })
+
+table.insert(tests, { name = "AccountProgress: counters become XP and quest progress once, daily and weekly runs count, a dropped counter never double counts", fn = function()
+	local AccountProgress = require(script.Parent.Parent.Engine.AccountProgress)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local profile = PlayerProfile.new()
+	local snap = {}
+	local state = { handsPlayedTotal = 4, roundsCleared = 1, bossesCleared = 0, discardsUsedTotal = 2, handStats = { Pair = 2 } }
+	local r1 = AccountProgress.sync(profile, snap, state, 20000, false)
+	local expectedXp = 4 * TavernRank.Xp.hand + TavernRank.Xp.round
+	expectTrue(profile.tavernXp >= expectedXp, "hands and rounds give XP")
+	local xpAfter = profile.tavernXp
+	local r2 = AccountProgress.sync(profile, snap, state, 20000, false)
+	expectEqual(profile.tavernXp, xpAfter, "the same counters count once")
+	expectEqual(#r2.quests, 0)
+	-- a counter that drops (round restored) then climbs again only counts the new part
+	state.handsPlayedTotal = 2
+	AccountProgress.sync(profile, snap, state, 20000, false)
+	expectEqual(profile.tavernXp, xpAfter)
+	state.handsPlayedTotal = 6
+	AccountProgress.sync(profile, snap, state, 20000, false)
+	expectEqual(profile.tavernXp, xpAfter + 2 * TavernRank.Xp.hand, "only the 2 hands above the old high count")
+	-- a win gives win XP plus the first win bonus, the bonus only once per day
+	local before = profile.tavernXp
+	AccountProgress.sync(profile, snap, state, 20000, true)
+	expectEqual(profile.tavernXp - before >= TavernRank.Xp.win + TavernRank.Xp.firstWinOfDay, true)
+	before = profile.tavernXp
+	AccountProgress.sync(profile, snap, state, 20000, true)
+	expectEqual(profile.tavernXp - before, TavernRank.Xp.win, "no second first-win bonus today")
+	-- a boss kill and a pack bought move the matching quests (when today's three include them)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local ids = Quests.rollFor(20000)
+	local completedAny = false
+	for _, id in ipairs(ids) do
+		if profile.quests.done[id] then completedAny = true end
+	end
+	state.handsPlayedTotal, state.bossesCleared, state.packsBought, state.flushClears, state.discardsUsedTotal = 40, 3, 3, 3, 40
+	state.handStats = { Pair = 20 }
+	local r3 = AccountProgress.sync(profile, snap, state, 20000, false)
+	for _, id in ipairs(ids) do
+		expectTrue(profile.quests.done[id], id .. " completes once its counter is high enough")
+	end
+	expectTrue(profile.questsDone == 3 and (#r3.quests + (completedAny and 1 or 0)) >= 1)
+	-- the Unlocks rule that reads questsDone / tavernRank sees the new fields
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	expectTrue(Unlocks.ruleMet(profile, { kind = "quests", n = 3 }) and Unlocks.ruleMet(profile, { kind = "rank", n = profile.tavernRank }))
 end })
 
 return tests

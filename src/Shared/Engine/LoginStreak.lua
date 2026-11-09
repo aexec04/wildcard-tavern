@@ -1,23 +1,32 @@
 -- Daily login streak (pure rules, server authoritative, UTC days).
 --
 -- Profile fields: lastLoginDay (UTC day number, floor(unix / 86400)), loginStreak (consecutive days),
--- claimedLoginDays ([reward day] = true, cleared when the streak resets).
+-- loginClaimedDay (the lastLoginDay whose reward was already claimed).
 --
 -- Rules:
 --   * checkIn(profile, day) runs once per UTC day. Same day: nothing. Next day: streak + 1.
 --     Exactly one missed day (a gap of 2) is forgiven (the "grace day"): streak + 1. A longer gap restarts at 1.
---   * Rewards unlock at streak >= reward.day and are claimed once per streak (claim, not automatic).
---   * Tips go to the live run (Tips only exist inside a run); a card back or patron goes to the profile.
+--   * The reward ladder has 7 slots and loops: streak 1 is slot 1, streak 7 is slot 7, streak 8 is slot 1 again.
+--     Each day has exactly one reward (today's slot), claimed once with claim(), never automatic.
+--   * Tips go to the live run when there is one, otherwise they are banked for the next run
+--     (profile.pendingStartTips). XP goes to the Tavern Rank. A card back or a Tips fallback never repeats a freebie.
+local TavernRank = require(script.Parent.TavernRank)
+
 local LoginStreak = {}
 
 local SECONDS_PER_DAY = 86400
 LoginStreak.GRACE_DAYS = 1
+LoginStreak.LADDER = 7
 
--- EDIT ME. `day` is the streak length that unlocks the reward.
+-- EDIT ME. `day` is the slot on the 7-day ladder.
 LoginStreak.Rewards = {
-	{ day = 3, kind = "tips", amount = 5, label = "5 Tips" },
-	{ day = 7, kind = "cardBack", id = "festival_ribbon", label = "Card back: Festival Ribbon" },
-	{ day = 14, kind = "patron", id = "the_bard", label = "Patron: The Bard (added to your Collection)" },
+	{ day = 1, kind = "tips", amount = 3, label = "3 Tips", icon = "🪙" },
+	{ day = 2, kind = "xp", amount = 40, label = "40 XP", icon = "⭐" },
+	{ day = 3, kind = "tips", amount = 5, label = "5 Tips", icon = "🪙" },
+	{ day = 4, kind = "xp", amount = 60, label = "60 XP", icon = "⭐" },
+	{ day = 5, kind = "tips", amount = 6, label = "6 Tips", icon = "💰" },
+	{ day = 6, kind = "xp", amount = 80, label = "80 XP", icon = "🌟" },
+	{ day = 7, kind = "cardBack", id = "festival_ribbon", fallbackTips = 10, label = "Card back: Festival Ribbon", icon = "🎴" },
 }
 
 function LoginStreak.dayNumber(timestamp)
@@ -27,6 +36,12 @@ end
 -- Seconds until the next UTC day starts.
 function LoginStreak.secondsToNextDay(timestamp)
 	return SECONDS_PER_DAY - (timestamp % SECONDS_PER_DAY)
+end
+
+-- The ladder slot (1..7) that a streak length is on. Streak 0 (never logged in) is slot 1.
+function LoginStreak.slotFor(streak)
+	streak = math.max(1, math.floor(streak or 1))
+	return ((streak - 1) % LoginStreak.LADDER) + 1
 end
 
 -- Returns true when the streak changed (the caller should save).
@@ -44,10 +59,8 @@ function LoginStreak.checkIn(profile, day)
 	else
 		-- First login, a long gap, or a clock that went backwards: start over.
 		profile.loginStreak = 1
-		profile.claimedLoginDays = {}
 	end
 	profile.lastLoginDay = day
-	profile.claimedLoginDays = profile.claimedLoginDays or {}
 	return true
 end
 
@@ -60,64 +73,91 @@ function LoginStreak.rewardForDay(day)
 	return nil
 end
 
+local function claimedToday(profile)
+	return profile.lastLoginDay ~= nil and profile.loginClaimedDay == profile.lastLoginDay
+end
+
+-- Only today's slot can be claimed, once per UTC day.
 function LoginStreak.canClaim(profile, rewardDay)
-	local reward = LoginStreak.rewardForDay(rewardDay)
-	if not reward then
+	if (profile.loginStreak or 0) < 1 or claimedToday(profile) then
 		return false
 	end
-	local claimed = profile.claimedLoginDays or {}
-	return (profile.loginStreak or 0) >= reward.day and not claimed[reward.day]
+	return rewardDay == LoginStreak.slotFor(profile.loginStreak) and LoginStreak.rewardForDay(rewardDay) ~= nil
 end
 
--- The first reward still ahead (claimable or not), or nil when all are claimed.
+-- Today's reward if it is still waiting, else the next slot's reward (for "come back tomorrow"), or nil with no streak.
 function LoginStreak.nextReward(profile)
-	local claimed = profile.claimedLoginDays or {}
-	for _, reward in ipairs(LoginStreak.Rewards) do
-		if not claimed[reward.day] then
-			return reward
-		end
+	local streak = profile.loginStreak or 0
+	if streak < 1 then
+		return LoginStreak.rewardForDay(1)
 	end
-	return nil
+	local slot = LoginStreak.slotFor(streak)
+	if not claimedToday(profile) then
+		return LoginStreak.rewardForDay(slot)
+	end
+	return LoginStreak.rewardForDay((slot % LoginStreak.LADDER) + 1)
 end
 
--- Claims one reward. `state` is the live RunState (needed for Tips). Returns (ok, rewardOrMessage).
+-- Claims today's reward. `state` is the live RunState (Tips go straight in; without one they are banked).
+-- Returns (ok, rewardOrMessage). `ranked` (third value) lists rank ups when the reward was XP.
 function LoginStreak.claim(profile, rewardDay, state)
 	if not LoginStreak.canClaim(profile, rewardDay) then
 		return false, "Not available"
 	end
 	local reward = LoginStreak.rewardForDay(rewardDay)
-	if reward.kind == "tips" then
-		if type(state) ~= "table" or type(state.tips) ~= "number" then
-			return false, "Start a run to claim Tips"
+	local function giveTips(amount)
+		if type(state) == "table" and type(state.tips) == "number" then
+			state.tips = state.tips + amount
+		else
+			profile.pendingStartTips = math.min(TavernRank.MAX_PENDING_TIPS, (profile.pendingStartTips or 0) + amount)
 		end
-		state.tips = state.tips + reward.amount
+	end
+	local ups = {}
+	if reward.kind == "tips" then
+		giveTips(reward.amount)
+	elseif reward.kind == "xp" then
+		local _, rankUps = TavernRank.addXp(profile, reward.amount)
+		ups = rankUps
 	elseif reward.kind == "cardBack" then
 		profile.unlockedCardBackIds = profile.unlockedCardBackIds or {}
-		profile.unlockedCardBackIds[reward.id] = true
-	elseif reward.kind == "patron" then
-		profile.discoveredPatronIds = profile.discoveredPatronIds or {}
-		profile.discoveredPatronIds[reward.id] = true
+		if profile.unlockedCardBackIds[reward.id] then
+			giveTips(reward.fallbackTips or 0) -- already owned: the loop pays Tips instead
+		else
+			profile.unlockedCardBackIds[reward.id] = true
+		end
 	else
 		return false, "Unknown reward"
 	end
-	profile.claimedLoginDays = profile.claimedLoginDays or {}
-	profile.claimedLoginDays[reward.day] = true
-	return true, reward
+	profile.loginClaimedDay = profile.lastLoginDay
+	return true, reward, ups
 end
 
--- What the client shows: streak, each reward with its status.
+-- What the client shows: the streak, today's slot and all 7 slots with their status.
 function LoginStreak.view(profile)
+	local streak = profile.loginStreak or 0
+	local today = LoginStreak.slotFor(streak)
+	local waiting = streak >= 1 and not claimedToday(profile)
 	local rows = {}
-	local claimed = profile.claimedLoginDays or {}
 	for _, reward in ipairs(LoginStreak.Rewards) do
+		local claimed
+		if reward.day < today then
+			claimed = streak >= 1
+		elseif reward.day == today then
+			claimed = streak >= 1 and not waiting
+		else
+			claimed = false
+		end
 		table.insert(rows, {
 			day = reward.day,
 			label = reward.label,
-			claimed = claimed[reward.day] == true,
-			claimable = LoginStreak.canClaim(profile, reward.day),
+			icon = reward.icon,
+			kind = reward.kind,
+			claimed = claimed,
+			claimable = waiting and reward.day == today,
+			today = reward.day == today,
 		})
 	end
-	return { streak = profile.loginStreak or 0, rewards = rows }
+	return { streak = streak, today = today, rewards = rows }
 end
 
 return LoginStreak

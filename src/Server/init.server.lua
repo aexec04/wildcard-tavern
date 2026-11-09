@@ -39,6 +39,10 @@ local Keys = require(Engine.Keys) -- locked roads and Keys
 local Stakes = require(Engine.Stakes) -- difficulty ladder
 local Unlocks = require(Engine.Unlocks) -- unlock drip (shop and pack pools, Collection hints)
 local unlockSeqCounter = 0 -- ids unlock toasts across runs (see syncProfileFromSession)
+local TavernRank = require(Engine.TavernRank) -- account level and rewards
+local Quests = require(Engine.Quests) -- daily quests
+local AccountProgress = require(Engine.AccountProgress) -- run counters to XP and quest progress
+local progressSeqCounter = 0 -- ids progress toasts (rank ups, quests done)
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -807,6 +811,9 @@ local function serializeState(session, player)
 		badgeIds = Badges.list(profiles[player]),
 		equippedBadgeId = profiles[player] and profiles[player].equippedBadgeId or nil,
 		badgeNotice = session.badgeNotice,
+		progressNotice = session.progressNotice, -- { seq, rankUps, quests, rewards }, shown once per seq by Client/UnlockToast
+		rank = profiles[player] and TavernRank.view(profiles[player]) or nil,
+		dailyQuests = profiles[player] and Quests.view(profiles[player], LoginStreak.dayNumber(os.time()), LoginStreak.secondsToNextDay(os.time())) or nil,
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
 		unlockHints = Unlocks.lockedHints(profiles[player]), -- Collection: hint per still-locked Patron and Recipe
 		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
@@ -976,10 +983,12 @@ local function syncProfileFromSession(player)
 	if countsForRecords and PlayerProfile.recordNightReached(profile, session.state.night) then
 		changed = true
 	end
+	local justWon = false -- this sync saw a counted run flip to won (Tavern Rank win XP)
 	if session.state.wonRun and not session.lastKnownWonRun then
 		session.lastKnownWonRun = true
 		if countsForRecords then
 			PlayerProfile.recordRunWon(profile)
+			justWon = true
 			-- a WON run through a biome upgrades its badge and title (once per biome)
 			BiomeRewards.recordRunWin(profile, session.state.worldRoute)
 				-- STAKES: a standard run (not Daily, Weekly, Seed or revived) unlocks the next stake and stamps its roads
@@ -1051,6 +1060,29 @@ local function syncProfileFromSession(player)
 	local freshUnlocks, unlockSaved = Unlocks.evaluate(profile)
 	if unlockSaved then
 		changed = true
+	end
+	-- TAVERN RANK + DAILY QUESTS: counters turn into XP and quest progress (Engine/AccountProgress.lua).
+	session.progressSnap = session.progressSnap or {}
+	local progress = AccountProgress.sync(profile, session.progressSnap, session.state, LoginStreak.dayNumber(os.time()), justWon)
+	if progress.changed then
+		changed = true
+	end
+	if #progress.rankUps > 0 or #progress.quests > 0 then
+		local lookup = {
+			cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+			setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+			titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+		}
+		local texts = {}
+		for _, g in ipairs(progress.granted) do
+			texts[#texts + 1] = "Rank " .. g.rank .. ": " .. TavernRank.rewardText(g.reward, lookup)
+		end
+		local questLines = {}
+		for _, q in ipairs(progress.quests) do
+			questLines[#questLines + 1] = { name = q.name, icon = q.icon, xp = q.xp }
+		end
+		progressSeqCounter = progressSeqCounter + 1
+		session.progressNotice = { seq = progressSeqCounter, rankUps = progress.rankUps, quests = questLines, rewards = texts }
 	end
 	if #freshUnlocks > 0 then
 		-- one counter for the whole server, so a new run's first notice still counts as new on the client
@@ -1354,6 +1386,13 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		-- TAVERN RANK / QUESTS / LOGIN: Tips banked for the next run are paid out here (normal runs only; seeded boards stay fair).
+		if seededRng == nil then
+			local bank = TavernRank.takeStartTips(profile)
+			if bank > 0 then
+				sessions[player].state.tips = sessions[player].state.tips + bank
+			end
+		end
 		profileDirty[player] = true
 	end
 

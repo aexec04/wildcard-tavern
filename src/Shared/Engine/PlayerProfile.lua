@@ -64,6 +64,8 @@ local Keys = require(script.Parent.Keys) -- locked roads on the world map
 local Badges = require(script.Parent.Badges)
 local Stakes = require(script.Parent.Stakes) -- difficulty ladder
 local Unlocks = require(script.Parent.Unlocks) -- unlock drip
+local TavernRank = require(script.Parent.TavernRank) -- account level
+local Quests = require(script.Parent.Quests) -- daily quests
 
 local PlayerProfile = {}
 
@@ -201,6 +203,16 @@ function PlayerProfile.new()
 		lastLoginDay = nil, -- UTC day number of the last check-in
 		loginStreak = 0,
 		claimedLoginDays = {}, -- [reward day] = true
+		loginClaimedDay = nil, -- the lastLoginDay whose ladder reward was claimed (Engine/LoginStreak.lua)
+		-- TAVERN RANK (Engine/TavernRank.lua)
+		tavernXp = 0,
+		tavernRank = 1,
+		pendingStartTips = 0, -- Tips banked for the next normal run
+		rankRewardIds = {}, -- [rank] = true, rewards already granted
+		lastFirstWinDay = nil, -- UTC day of the last first-win-of-the-day XP bonus
+		-- DAILY QUESTS (Engine/Quests.lua)
+		quests = nil, -- { day, ids, progress, done } for today
+		questsDone = 0,
 		equippedBadge = nil, -- RUN SUMMARY badge (Engine/RunSummary.badgeFromSummary), or nil
 		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
@@ -376,6 +388,47 @@ function PlayerProfile.migrate(raw)
 			if type(day) == "number" and flag == true then
 				profile.claimedLoginDays[day] = true
 			end
+		end
+	end
+
+	local function wholeNumber(v, lo, hi)
+		if type(v) == "number" and v == v then
+			return math.max(lo, math.min(hi, math.floor(v)))
+		end
+		return nil
+	end
+	profile.loginClaimedDay = wholeNumber(raw.loginClaimedDay, 0, 1e9)
+	profile.tavernXp = wholeNumber(raw.tavernXp, 0, TavernRank.MAX_XP) or 0
+	profile.pendingStartTips = wholeNumber(raw.pendingStartTips, 0, TavernRank.MAX_PENDING_TIPS) or 0
+	profile.lastFirstWinDay = wholeNumber(raw.lastFirstWinDay, 0, 1e9)
+	profile.questsDone = wholeNumber(raw.questsDone, 0, 1e7) or 0
+	if type(raw.rankRewardIds) == "table" then
+		for rank, flag in pairs(raw.rankRewardIds) do
+			if type(rank) == "number" and flag == true and TavernRank.Rewards[rank] then
+				profile.rankRewardIds[rank] = true
+			end
+		end
+	end
+	profile.tavernRank = TavernRank.rankFor(profile.tavernXp)
+	if type(raw.quests) == "table" and wholeNumber(raw.quests.day, 0, 1e9) and type(raw.quests.ids) == "table" then
+		local quests = { day = wholeNumber(raw.quests.day, 0, 1e9), ids = {}, progress = {}, done = {} }
+		for _, id in ipairs(raw.quests.ids) do
+			if type(id) == "string" and Quests.getById(id) then
+				quests.ids[#quests.ids + 1] = id
+			end
+		end
+		if #quests.ids == Quests.PER_DAY then
+			for id, n in pairs(type(raw.quests.progress) == "table" and raw.quests.progress or {}) do
+				if Quests.getById(id) and wholeNumber(n, 0, 1e6) then
+					quests.progress[id] = wholeNumber(n, 0, 1e6)
+				end
+			end
+			for id, flag in pairs(type(raw.quests.done) == "table" and raw.quests.done or {}) do
+				if Quests.getById(id) and flag == true then
+					quests.done[id] = true
+				end
+			end
+			profile.quests = quests
 		end
 	end
 

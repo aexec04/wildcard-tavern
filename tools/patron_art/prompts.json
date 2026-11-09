@@ -307,6 +307,11 @@
     "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons"
   },
   "title_subjects": {
+    "table_regular": "an avatar sitting at a cozy corner table with a personal cocoa mug, a small blank brass nameplate on the table",
+    "favorite_guest": "an avatar being handed a steaming plate by a smiling cook, a golden heart ribbon pinned on the vest",
+    "house_captain": "an avatar in a captain hat holding a brass compass beside a tavern door, confident smile",
+    "hall_warden": "an avatar holding a big ring of keys and a glowing lantern in a long tavern hall",
+    "grand_host": "an avatar in a fine vest and golden sash standing on a stage in the great hall with cheering guests behind",
     "first_steps": "an avatar newcomer in a plain traveler cloak stepping through the tavern door with a small bag, curious smile",
     "grand_finale": "an avatar in an apron and a small crown holding a gleaming trophy and a golden ledger in the middle of the tavern",
     "regular": "an avatar sitting on a favorite stool with a personal cocoa mug and a small blank nameplate",
@@ -454,7 +459,8 @@
     "seed": "a pair of carved wooden dice, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "tutorial": "a feathered quill and scroll, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "road_ahead": "a rolled treasure map with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
-    "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+    "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "quests": "a rolled parchment quest scroll tied with a red ribbon and a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "hud_subjects": {
     "sidebar_board": "a tall wood-framed tavern notice board hung on a wall, warm lit aged parchment center with a perfectly plain, evenly textured surface (no pinned items, no drawings, no marks, so UI can sit anywhere), a dark vignette toward the wood edges, subtle metal studs on the frame, a soft candle glow at the top corners, portrait composition, no text, no letters, no characters, kid-friendly",

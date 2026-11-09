@@ -450,24 +450,30 @@ return function(deps)
 		return button
 	end
 
+	require(script.Parent.MenuRank).attach(menuButtonHolder, 0) -- Tavern Rank bar (state.rank), above Play
 	local menuPlayButton = makeFrameButton({
 		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 76, glow = true,
 	})
 	local menuNewRunButton = makeFrameButton({
 		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 54,
 	})
-	local tileRow = makeRow(3, 138, 16)
+	local tileRow = makeRow(3, 138, 12)
 	local menuDailyChallengeButton = makeFrameButton({
-		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 150, height = 138,
+		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 144, height = 138,
 		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 70,
 	})
 	local menuWeeklyChallengeButton = makeFrameButton({
-		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 150, height = 138,
+		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 144, height = 138,
 		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 70,
 	})
 	local menuSeedRunButton = makeFrameButton({
-		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 150, height = 138,
+		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 144, height = 138,
 		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
+	})
+	-- Daily Quests tile (Client/QuestsPanel.lua opens from it). Painted icon key "quests", scroll emoji until it exists.
+	local menuQuestsButton = makeFrameButton({
+		text = "Daily Quests", textSize = 15, parent = tileRow, order = 4, width = 144, height = 138,
+		iconKey = "quests", emoji = "\240\159\147\156", iconSize = 70,
 	})
 	-- One row of five equal 114px tiles (5*114 + 4*10 = 610 <= 640 wide scroll).
 	local bottomRow = makeRow(4, 114, 10)
@@ -634,5 +640,6 @@ return function(deps)
 		menuTutorialButton = menuTutorialButton,
 		menuCollectionButton = menuCollectionButton,
 		menuSettingsButton = menuSettingsButton,
+		menuQuestsButton = menuQuestsButton,
 	}
 end

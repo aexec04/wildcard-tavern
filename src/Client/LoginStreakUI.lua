@@ -81,8 +81,19 @@ local function refreshPopup(login)
 	if not reward then return end
 	ui.flames.Text = flameText(login.streak)
 	ui.streak.Text = string.format("Day %d streak", login.streak)
-	ui.reward.Text = reward.label
+	ui.reward.Text = "Today: " .. reward.label
 	ui.claimDay = reward.day
+	-- the 7-slot ladder (loops): claimed = green check, today = gold ring, later = dim
+	for i, slot in ipairs(ui.slots or {}) do
+		local row = login.rewards and login.rewards[i]
+		if row then
+			slot.icon.Text = row.claimed and "✔" or (row.icon or "🎁")
+			slot.frame.BackgroundColor3 = row.claimed and GREEN or (row.today and PARCHMENT or Color3.fromRGB(150, 134, 104))
+			slot.stroke.Color = row.today and GOLD or INK
+			slot.stroke.Thickness = row.today and 3 or 1.5
+			slot.icon.TextTransparency = (row.claimed or row.today) and 0 or 0.45
+		end
+	end
 end
 
 local function hidePopup(instant)
@@ -176,7 +187,7 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	popup.Name = "DailyRewardPopup" -- not a "...Backdrop": it never locks the gameplay hit areas
 	popup.AnchorPoint = Vector2.new(0.5, 0.5)
 	popup.Position = UDim2.fromScale(0.5, 0.42)
-	popup.Size = UDim2.fromOffset(360, 250)
+	popup.Size = UDim2.fromOffset(380, 316)
 	popup.BackgroundColor3 = PARCHMENT
 	popup.BorderSizePixel = 0
 	popup.Visible = false
@@ -192,8 +203,27 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	label(popup, { Position = UDim2.new(0, 0, 0, 62), Size = UDim2.new(1, 0, 0, 28), Text = "Daily reward ready!", TextSize = 22 })
 	ui.flames = label(popup, { Position = UDim2.new(0, 10, 0, 92), Size = UDim2.new(1, -20, 0, 30), Text = "", TextSize = 24 })
 	ui.streak = label(popup, { Position = UDim2.new(0, 0, 0, 122), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 16 })
+	-- Ladder slots: seven small painted medallions (parchment, ink ring), numbered by day.
+	ui.slots = {}
+	for i = 1, 7 do
+		local slotFrame = Instance.new("Frame")
+		slotFrame.Name = "LadderSlot" .. i
+		slotFrame.Size = UDim2.fromOffset(44, 44)
+		slotFrame.Position = UDim2.new(0.5, (i - 4) * 50 - 22, 0, 150)
+		slotFrame.BackgroundColor3 = Color3.fromRGB(150, 134, 104)
+		slotFrame.ZIndex = 91
+		slotFrame.Parent = popup
+		corner(slotFrame, 22)
+		local slotStroke = Instance.new("UIStroke")
+		slotStroke.Color = INK
+		slotStroke.Thickness = 1.5
+		slotStroke.Parent = slotFrame
+		local slotIcon = label(slotFrame, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 22, ZIndex = 92 })
+		label(slotFrame, { Size = UDim2.fromOffset(18, 14), Position = UDim2.new(0.5, -9, 1, -2), Text = tostring(i), TextSize = 14, ZIndex = 92 })
+		ui.slots[i] = { frame = slotFrame, icon = slotIcon, stroke = slotStroke }
+	end
 	ui.reward = label(popup, {
-		Position = UDim2.new(0, 16, 0, 146), Size = UDim2.new(1, -32, 0, 28), Text = "", TextSize = 17,
+		Position = UDim2.new(0, 16, 0, 206), Size = UDim2.new(1, -32, 0, 28), Text = "", TextSize = 17,
 		Font = Enum.Font.GothamMedium, TextWrapped = true,
 	})
 	local claim = Instance.new("TextButton")
