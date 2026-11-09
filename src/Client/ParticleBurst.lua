@@ -29,7 +29,8 @@
 			-- color: Color3, every particle in this burst shares one color
 			--   (call burst() again for a multi-color effect).
 			-- count: how many particles to spawn.
-			-- options: { size = number?, spread = number?, duration = number? }
+			-- options: { size = number?, spread = number?, duration = number?, zIndex = number? }
+				--   zIndex defaults to 30; panels that sit above that (Flair, Spectate) pass a higher one
 		}
 ]]
 
@@ -42,6 +43,7 @@ return function(deps)
 		local size = options.size or 8
 		local spread = options.spread or 70
 		local duration = options.duration or 0.45
+			local zIndex = options.zIndex or 30
 
 		count = require(script.Parent.ClientSettings).particleCount(count) -- fewer sparkles under Reduce Flashing
 		for _ = 1, count do
@@ -52,7 +54,7 @@ return function(deps)
 			particle.Size = UDim2.fromOffset(size, size)
 			particle.BackgroundColor3 = color
 			particle.BorderSizePixel = 0
-			particle.ZIndex = 30 -- above the score popup (25) and everything else on screen
+			particle.ZIndex = zIndex -- default 30: above the score popup (25) and the run UI
 			particle.Parent = screenGui
 
 			local corner = Instance.new("UICorner")

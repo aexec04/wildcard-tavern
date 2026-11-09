@@ -11640,4 +11640,33 @@ table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max,
 	expectTrue(L.pick("no_such_event", 1) ~= nil)
 end })
 
+table.insert(tests, { name = "FlairFX: previews draw above every Flair panel layer, ParticleBurst takes a zIndex (default 30), calm mode plays nothing", fn = function()
+	local f = io and io.open and io.open("src/Client/FlairFX.lua", "r")
+	if not f then return end -- Studio has no io
+	local fx = f:read("*a"); f:close()
+	local pb = io.open("src/Client/ParticleBurst.lua", "r"):read("*a")
+	local panel = io.open("src/Client/FlairPanel.lua", "r"):read("*a")
+	expectTrue(pb:find("options.zIndex or 30", 1, true) ~= nil, "default zIndex stays 30")
+	expectTrue(pb:find("particle.ZIndex = zIndex", 1, true) ~= nil, "particles use the zIndex option")
+	local panelZ = tonumber(fx:match("FlairFX%.PANEL_Z = (%d+)"))
+	expectTrue(panelZ ~= nil, "PANEL_Z is defined")
+	local maxZ = 0
+	for z in panel:gmatch("ZIndex = (%d+)") do maxZ = math.max(maxZ, tonumber(z)) end
+	for z in panel:gmatch("zIndex = (%d+)") do maxZ = math.max(maxZ, tonumber(z)) end
+	expectTrue(maxZ > 0 and panelZ > maxZ, "PANEL_Z above every FlairPanel ZIndex")
+	expectTrue(fx:find("trailBurst(burst, pos, option, true, z)", 1, true) ~= nil, "trail preview passes the zIndex")
+	expectTrue(fx:find("finisherBurst(burst, pos, option, true, z, true)", 1, true) ~= nil, "finisher preview passes the zIndex")
+	expectTrue(fx:find("reduceShake", 1, true) ~= nil and fx:find("local function allowed", 1, true) ~= nil, "calm mode gate exists")
+	-- every slot kind is previewed by the panel; a classic or empty option plays nothing
+	for _, kind in ipairs({ "playTrail", "finisher", "scoreNumbers", "nameAura" }) do
+		expectTrue(panel:find(kind, 1, true) ~= nil, "panel handles " .. kind)
+	end
+	expectTrue(fx:find('option.style == nil or option.style == "none"', 1, true) ~= nil, "empty trail plays nothing")
+	expectTrue(fx:find('option.id ~= "classic_numbers"', 1, true) ~= nil, "classic numbers add no colour or glow")
+	-- the popup finisher covers any clearing hand and is passed the clear flag
+	local sp = io.open("src/Client/ScorePopup.lua", "r"):read("*a")
+	expectTrue(sp:find("FlairGlow", 1, true) ~= nil, "score digits glow")
+	expectTrue(sp:find(".finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget", 1, true) ~= nil, "finisher gets the clear flag")
+end })
+
 return tests

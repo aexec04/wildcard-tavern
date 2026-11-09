@@ -151,6 +151,21 @@ function FlairPanel.init(deps)
 	stageScoreStroke.Parent = stageScore
 	local stageName = label(stage, { Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 84), TextSize = 20, Text = "You", TextColor3 = CREAM, ZIndex = 45 })
 	label(stage, { Size = UDim2.new(1, -16, 0, 20), Position = UDim2.fromOffset(8, 4), TextSize = 15, Text = "Live preview", TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 45 })
+	local previewingLabel = label(stage, { Size = UDim2.new(0.5, -8, 0, 20), Position = UDim2.new(0.5, 0, 0, 4), TextSize = 15, Text = "", TextColor3 = CREAM,
+		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 45 })
+	local auraRing = Instance.new("Frame") -- soft glow ring that pulses around the name when an aura is previewed
+	auraRing.Name = "AuraRing"
+	auraRing.AnchorPoint = Vector2.new(0.5, 0.5)
+	auraRing.Position = UDim2.new(0.5, 0, 0, 97)
+	auraRing.Size = UDim2.fromOffset(90, 30)
+	auraRing.BackgroundTransparency = 1
+	auraRing.Visible = false
+	auraRing.ZIndex = 44
+	auraRing.Parent = stage
+	deps.roundCorner(auraRing, 15)
+	local auraRingStroke = Instance.new("UIStroke")
+	auraRingStroke.Thickness = 3
+	auraRingStroke.Parent = auraRing
 	local stagePoint = Instance.new("Frame") -- where trails and finishers burst
 	stagePoint.Size = UDim2.fromOffset(2, 2)
 	stagePoint.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -201,6 +216,24 @@ function FlairPanel.init(deps)
 		stageName.Text = ((aura and aura.crest and aura.crest ~= "") and (aura.crest .. " ") or "") .. "You"
 	end
 
+	local function pulseAura(option)
+		if not FlairFX.canAnimate() then return end
+		auraRingStroke.Color = rgbOf(option, { 250, 235, 200 })
+		auraRingStroke.Transparency = 0.2
+		auraRing.Size = UDim2.fromOffset(90, 30)
+		auraRing.Visible = true
+		TweenService:Create(auraRing, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(190, 44) }):Play()
+		TweenService:Create(auraRingStroke, TweenInfo.new(0.7), { Transparency = 1 }):Play()
+		TweenService:Create(stageName, TweenInfo.new(0.12, Enum.EasingStyle.Back), { TextSize = 26 }):Play()
+		task.delay(0.15, function() TweenService:Create(stageName, TweenInfo.new(0.2), { TextSize = 20 }):Play() end)
+	end
+
+	local function popNumbers()
+		if not FlairFX.canAnimate() then return end
+		TweenService:Create(stageScore, TweenInfo.new(0.15, Enum.EasingStyle.Back), { TextSize = 54 }):Play()
+		task.delay(0.18, function() TweenService:Create(stageScore, TweenInfo.new(0.25), { TextSize = 40 }):Play() end)
+	end
+
 	local function stageBurstPos()
 		return UDim2.fromOffset(stagePoint.AbsolutePosition.X, stagePoint.AbsolutePosition.Y)
 	end
@@ -230,14 +263,19 @@ function FlairPanel.init(deps)
 		end)
 	end
 
-	-- Preview tap: put that option on the stage (replaces the one-shot sample).
+	-- Preview tap: put that option on the stage and play it once, above the panel.
 	local function previewSample(slotId, option)
 		selected[slotId] = option
 		paintStage()
+		previewingLabel.Text = "Previewing: " .. tostring(option.name)
 		if slotId == "playTrail" or slotId == "finisher" then
-			if deps.particleBurst and ClientSettings.get("reduceShake") ~= true then
+			if deps.particleBurst and FlairFX.canAnimate() then
 				pcall(FlairFX.preview, deps.particleBurst, slotId, option, stageBurstPos())
 			end
+		elseif slotId == "scoreNumbers" then
+			popNumbers()
+		elseif slotId == "nameAura" then
+			pulseAura(option)
 		end
 	end
 
@@ -440,6 +478,8 @@ function FlairPanel.init(deps)
 	local function openThisPanel()
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("flair")
+		for slotId in pairs(selected) do selected[slotId] = nil end -- equipped options return to the stage
+		previewingLabel.Text = ""
 		refresh()
 		deps.popIn(backdrop, panel)
 		startStage()

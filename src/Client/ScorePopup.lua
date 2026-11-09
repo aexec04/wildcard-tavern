@@ -912,6 +912,23 @@ return function(deps)
 			local FlairFX = require(script.Parent.FlairFX)
 			FINALE_COLOR = FlairFX.scoreColor() or FINALE_DEFAULT
 			FlairFX.playTrail(particleBurst, centerOf(scorePopup))
+			-- Score Numbers glow on every digit tick (chips and mult), not only the finale
+			local glow, flairColor = FlairFX.scoreGlow(), FlairFX.scoreColor()
+			for _, digits in ipairs({ chipsLabel, multLabel }) do
+				local stroke = digits:FindFirstChild("FlairGlow")
+				if glow > 0 and flairColor then
+					if not stroke then
+						stroke = Instance.new("UIStroke")
+						stroke.Name = "FlairGlow"
+						stroke.Parent = digits
+					end
+					stroke.Color = flairColor
+					stroke.Thickness = glow
+					stroke.Enabled = true
+				elseif stroke then
+					stroke.Enabled = false
+				end
+			end
 		end)
 		scorePopupHandName.Text = preview.name
 		scorePopupEventLabel.Text = ""
@@ -1258,7 +1275,7 @@ return function(deps)
 			local finalMagnitude = math.min(10, preview.score / 40)
 			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
 			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
-			pcall(function() require(script.Parent.FlairFX).finisher(particleBurst, centerOf(scorePopup), preview) end) -- equipped Finisher (big hands only)
+			pcall(function() require(script.Parent.FlairFX).finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget(preview.roundScoreBefore, preview.score, preview.targetScore)) end) -- equipped Finisher: any clearing hand, stronger on big hands
 
 			-- POLISH 1: record hand flourish + target-cleared pulse (rules in
 			-- Engine/ScoreJuice). Slow-motion beat is a short hold with the
