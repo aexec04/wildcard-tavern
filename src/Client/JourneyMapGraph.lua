@@ -39,6 +39,7 @@ return function(deps)
 
 	local nodeSize, canvasH = 72, 300
 	local nightPixel = function() return 0, 0 end
+	local laidOut = false -- build() waits for layout(): before it nightPixel is a (0,0) stub that stacked every stop at x=0
 	local lastState = nil
 	local shown = false
 	local items = {} -- frames created by the last build (destroyed on rebuild)
@@ -151,7 +152,7 @@ return function(deps)
 
 	function build()
 		clear()
-		if not shown then
+		if not shown or not laidOut then
 			return
 		end
 		local state = lastState or {}
@@ -475,6 +476,7 @@ return function(deps)
 			canvasH = h
 			nodeSize = size
 			nightPixel = pixelFn
+			laidOut = true
 			build()
 		end,
 		refresh = function(state)

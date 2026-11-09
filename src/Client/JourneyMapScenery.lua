@@ -287,19 +287,26 @@ return function(deps)
 
 		-- Soft low-opacity tint band across each join that blends the two biome colours (Color stops only),
 		-- plus one shared prop planted on the seam line so the join reads as one landscape.
+		-- The band is many thin slices whose opacity follows sin^2 across the join (0 at both ends), so it has no
+		-- hard vertical edge (a single flat band showed up as a faint stripe). Colour is a lerp of the two tints.
+		local SLICES = 16
 		for i = 2, #REGIONS do
-			local band = Instance.new("Frame")
-			band.Name = "SeamTint" .. i
-			band.Position = UDim2.fromOffset(math.floor(edges[i] - joinW[i] / 2), 0)
-			band.Size = UDim2.fromOffset(joinW[i], canvasH)
-			band.BackgroundColor3 = Color3.new(1, 1, 1)
-			band.BackgroundTransparency = 0.82
-			band.BorderSizePixel = 0
-			band.ZIndex = 23
-			band.Parent = seamLayer
-			local grad = Instance.new("UIGradient")
-			grad.Color = ColorSequence.new(REGIONS[i - 1].tint, REGIONS[i].tint)
-			grad.Parent = band
+			local ca, cb = REGIONS[i - 1].tint, REGIONS[i].tint
+			local x0 = edges[i] - joinW[i] / 2
+			local sw = joinW[i] / SLICES
+			for k = 1, SLICES do
+				local t = (k - 0.5) / SLICES
+				local weight = math.sin(math.pi * t) ^ 2
+				local slice = Instance.new("Frame")
+				slice.Name = "SeamTint" .. i .. "_" .. k
+				slice.Position = UDim2.fromOffset(math.floor(x0 + (k - 1) * sw), 0)
+				slice.Size = UDim2.fromOffset(math.ceil(sw) + 1, canvasH)
+				slice.BackgroundColor3 = ca:Lerp(cb, t)
+				slice.BackgroundTransparency = 1 - 0.3 * weight
+				slice.BorderSizePixel = 0
+				slice.ZIndex = 23
+				slice.Parent = seamLayer
+			end
 		end
 
 		decorLayer:ClearAllChildren()

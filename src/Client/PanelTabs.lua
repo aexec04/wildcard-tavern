@@ -137,8 +137,34 @@ function PanelTabs.attach(backdrop, id, playClick)
 		PanelTabs.back(id)
 	end)
 
+	-- The strip occupies y 3..37. Centered panels (up to 0.9 of the height) are nudged down 24px once so their titles
+	-- are never covered, and the top-right corner icon row is hidden while an account panel is open.
+	local STRIP_CLEAR = 24
+	local function clearStrip()
+		for _, child in ipairs(backdrop:GetChildren()) do
+			if child:IsA("GuiObject") and child ~= strip and not child:GetAttribute("TabShifted")
+				and child.AnchorPoint.Y == 0.5 and child.Position.Y.Scale == 0.5 then
+				child:SetAttribute("TabShifted", true)
+				child.Position = child.Position + UDim2.fromOffset(0, STRIP_CLEAR)
+			end
+		end
+	end
+	local function cornerRow()
+		local gui = backdrop:FindFirstAncestorWhichIsA("LayerCollector")
+		local row = gui and gui:FindFirstChild("CornerIconRow", true)
+		return row and row:IsA("GuiObject") and row or nil
+	end
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		local row = cornerRow()
+		if row then
+			if backdrop.Visible then
+				row.Visible = false
+			elseif not (backdrop.Parent and backdrop.Parent:GetAttribute("BannerAtBottom")) then
+				row.Visible = true -- Round Select (BannerAtBottom) keeps its own hide
+			end
+		end
 		if backdrop.Visible then
+			pcall(clearStrip)
 			if current ~= id then previous, current = current, id end
 			for tabId, b in pairs(buttons) do styleButton(b, tabId == id) end
 		elseif current == id then

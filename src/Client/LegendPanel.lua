@@ -373,9 +373,9 @@ function LegendPanel.init(deps)
 		for _, c in ipairs(showBack:GetChildren()) do
 			if c:IsA("ImageLabel") then c:Destroy() end
 		end
-		if bestBack then
-			pcall(ArtIcon.apply, showBack, "card_backs", bestBack.id, showBackGlyph, { cornerRadius = 8, zIndex = 46 })
-		end
+		-- Nothing earned yet: show the default painted back (dimmed) instead of the grey missing-art box.
+		pcall(ArtIcon.apply, showBack, "card_backs", bestBack and bestBack.id or "classic", showBackGlyph,
+			{ cornerRadius = 8, zIndex = 46, dim = not bestBack })
 	end
 
 	require(script.Parent.PanelTabs).attach(backdrop, "legend", deps.playClickSfx) -- shared tab strip + Back

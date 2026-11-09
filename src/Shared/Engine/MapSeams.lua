@@ -18,9 +18,9 @@
 
 local MapSeams = {}
 
-MapSeams.JOIN_FRAC = 0.36 -- zone = 36 percent of the narrower region: 18 percent of overlap on each side
-MapSeams.JOIN_MIN = 120
-MapSeams.JOIN_MAX = 720
+MapSeams.JOIN_FRAC = 0.6 -- zone = 60 percent of the narrower region: 30 percent of overlap on each side (wide, soft join)
+MapSeams.JOIN_MIN = 200
+MapSeams.JOIN_MAX = 1000
 MapSeams.ART_ASPECT = 1.5 -- region art is generated at 1536x1024
 
 function MapSeams.joinWidth(wa, wb)
