@@ -61,11 +61,6 @@ local BossRush = require(Engine.BossRush) -- back-to-back boss rounds
 local Store = require(Engine.Store) -- the Tavern Store: cosmetics and convenience only
 local LiveEvents = require(Engine.LiveEvents) -- timed events (News banner, double XP weekends); never changes fair boards
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
-local liveLookup = { -- display names for event reward text
-	cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
-	setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
-	titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
-}
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -83,6 +78,11 @@ local Achievements = require(Engine.Achievements) -- ACHIEVEMENTS + TITLES (Phas
 local CollectionBook = require(Engine.CollectionBook) -- COLLECTION: discovery gathering + milestone grants
 local Leaderboards = require(Engine.Leaderboards) -- PAID CONTINUE: Standard vs Revived board routing + store names
 local DeveloperProducts = require(Engine.DeveloperProducts) -- PAID CONTINUE: consumable Robux products (see that file's header)
+local liveLookup = { -- display names for event reward text
+	cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+	setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+	titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+}
 
 -- ===== 1. Run engine tests on server start =====
 
@@ -3362,7 +3362,8 @@ local function globalBoardResult(player, store, storeName, board, periodKey, pen
 	return { ok = ok, board = board, scope = Leaderboards.GLOBAL, dateKey = periodKey, top = top, yourBest = yourBest, yourBestOk = yourBestOk }
 end
 
-Rem.GetEndlessLeaderboard.OnServerInvoke = function(player, board, scope)
+Rem._lb = {}
+Rem._lb.GetEndlessLeaderboard = function(player, board, scope)
 	if not Leaderboards.isBoard(board) then
 		board = Leaderboards.STANDARD
 	end
@@ -3403,7 +3404,7 @@ end
 --
 -- PAID CONTINUE: `board` is optional, Leaderboards.STANDARD (the default)
 -- or Leaderboards.REVIVED; anything else falls back to Standard.
-Rem.GetDailyLeaderboard.OnServerInvoke = function(player, board, scope)
+Rem._lb.GetDailyLeaderboard = function(player, board, scope)
 	if not Leaderboards.isBoard(board) then
 		board = Leaderboards.STANDARD
 	end
@@ -3498,7 +3499,7 @@ Rem.StartWeeklyChallenge.OnServerEvent:Connect(function(player)
 	startNewSession(player, nil, nil, SeededRng.new(seed), "weekly", SeededRng.weeklyDateKey())
 end)
 
-Rem.GetWeeklyLeaderboard.OnServerInvoke = function(player, board, scope)
+Rem._lb.GetWeeklyLeaderboard = function(player, board, scope)
 	if not Leaderboards.isBoard(board) then
 		board = Leaderboards.STANDARD
 	end
@@ -3684,7 +3685,7 @@ do -- (FlairBoards is declared near the top of the file so the EquipFlair handle
 		return out
 	end
 	for _, remote in ipairs({ Rem.GetDailyLeaderboard, Rem.GetWeeklyLeaderboard, Rem.GetEndlessLeaderboard }) do
-		local inner = remote.OnServerInvoke
+		local inner = Rem._lb[remote.Name] -- never read OnServerInvoke (write-only on a RemoteFunction)
 		remote.OnServerInvoke = function(...)
 			local result = inner(...)
 			local ok, decorated = pcall(FlairBoards.decorate, result)

@@ -116,4 +116,11 @@ if locOk and locFails and locFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: a top-level local used before its declaration reads as a nil global (python3 required).
+local ordRes = os.execute("python3 -I tools/check_order.py")
+if ordRes == false or (type(ordRes) == "number" and ordRes ~= 0) then
+	print("FAILED: top-level local used before its declaration")
+	os.exit(1)
+end
+
 os.exit(results.failed == 0 and 0 or 1)

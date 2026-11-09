@@ -516,6 +516,7 @@ local refreshHandSort
 -- Wrapped in do...end per the LOCAL VARIABLE BUDGET note up top -- nothing
 -- built in here needs to be reachable from outside except handSortMode and
 -- refreshHandSort, both already forward-declared above.
+local Shop -- forward declaration: the sort handlers below use it; assigned where Shop.lua is required
 do
 
 local sortFrame = Instance.new("Frame")
@@ -779,7 +780,7 @@ local ConfirmDialogModule = require(script.ConfirmDialog)({
 -- Shop.nextRoundButton's click handler, both wired further down) and the two
 -- rebuild functions (called from render() whenever the shop's contents
 -- need to refresh).
-local Shop = require(script.Shop)({
+Shop = require(script.Shop)({
 	root = root,
 	SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH,
 	polishPanel = VisualHelpersModule.polishPanel,

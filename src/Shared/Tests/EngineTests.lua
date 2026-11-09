@@ -11219,4 +11219,24 @@ table.insert(tests, { name = "Newest features art: seasons, legend and spectate 
 	for _, k in ipairs({ "boss_scout", "rule_ban", "quick_run" }) do need(k, "icon") end
 end })
 
+table.insert(tests, { name = "Fresh profile serializes the rank, season and news views with the server's liveLookup (boot regression)", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CardBacks, CosmeticSets, Achievements = require(Engine.CardBacks), require(Engine.CosmeticSets), require(Engine.Achievements)
+	local lookup = { -- same shape as liveLookup in Server/init.server.lua
+		cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+		setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+		titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+	}
+	local profile = PlayerProfile.new()
+	local TavernRank, SeasonTrack, LiveEvents = require(Engine.TavernRank), require(Engine.SeasonTrack), require(Engine.LiveEvents)
+	local view = TavernRank.view(profile)
+	expectTrue(view ~= nil, "rank view")
+	if view and view.nextReward then TavernRank.rewardText(view.nextReward, lookup) end
+	for _, kind in ipairs({ "cardBack", "set", "title", "tips" }) do
+		expectTrue(type(TavernRank.rewardText({ kind = kind, id = "classic", amount = 1 }, lookup)) == "string", "rewardText " .. kind)
+	end
+	expectTrue(SeasonTrack.view(profile, 20000, lookup) ~= nil, "season view")
+	expectTrue(LiveEvents.view(profile, 20000, lookup) ~= nil, "news view")
+end })
+
 return tests
