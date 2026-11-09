@@ -13,6 +13,7 @@
 local TweenService = game:GetService("TweenService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("MenuLayout"))
+local ContentArt = require(Engine:WaitForChild("ContentArt"))
 
 local MenuBoard = {}
 
@@ -43,6 +44,21 @@ function MenuBoard.build(parent)
 	edge.Color = Color3.fromRGB(62, 40, 24)
 	edge.Thickness = 4
 	edge.Parent = frame
+	local boardArt = ContentArt.getImageId("menu_scene", Layout.SceneArt.board)
+	if boardArt then -- painted wall board behind the notes (the flat wood colour is the fallback)
+		local img = Instance.new("ImageLabel")
+		img.Name = "BoardArt"
+		img.Size = UDim2.fromScale(1, 1)
+		img.BackgroundTransparency = 1
+		img.Image = boardArt
+		img.ScaleType = Enum.ScaleType.Stretch
+		img.Active = false
+		img.ZIndex = 12
+		img.Parent = frame
+		local ic = Instance.new("UICorner")
+		ic.CornerRadius = UDim.new(0, 10)
+		ic.Parent = img
+	end
 	local head = Instance.new("TextLabel")
 	head.Name = "Head"
 	head.Size = UDim2.new(1, 0, 0, 26)

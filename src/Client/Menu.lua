@@ -56,7 +56,8 @@ return function(deps)
 	menuBackgroundArt.Size = UDim2.fromScale(Layout.Parallax.backdropScale, Layout.Parallax.backdropScale)
 	menuBackgroundArt.BorderSizePixel = 0
 	menuBackgroundArt.ScaleType = Enum.ScaleType.Crop
-	local menuArtId = ContentArt.getImageId("backgrounds", "menu_bg") -- house style art wins; ArtAssets image / flat colour is the fallback
+	-- the painted tavern wall (menu_scene) is the base layer; the old backdrop, ArtAssets image and flat colour are the fallbacks
+	local menuArtId = ContentArt.getImageId("menu_scene", Layout.SceneArt.wall) or ContentArt.getImageId("backgrounds", "menu_bg")
 	menuBackgroundArt.Image = menuArtId or menuBackgroundImage or "rbxassetid://0"
 	menuBackgroundArt.Active = false
 	menuBackgroundArt.ZIndex = 10
@@ -320,6 +321,8 @@ return function(deps)
 		calm = calm,
 		layers = {
 			{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
+			{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
+			{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
 			{ inst = board.frame, base = UDim2.fromScale(Layout.NoticeBoard.x, Layout.NoticeBoard.y), px = P.wall },
 			{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
 			{ inst = titleGroup, base = UDim2.new(), px = P.near },

@@ -167,6 +167,20 @@ function Hotspots.newAction(id, info)
 	seal.Parent = plaque
 	off(seal, 2)
 	round(seal, UDim.new(1, 0))
+	local sealArt = ContentArt.getImageId("menu_scene", (id == "play" or id == "newRun") and Layout.SceneArt.sealGold or Layout.SceneArt.sealRed)
+	if sealArt then -- painted wax seal (gold for the Deal Me In actions, red for the rest); the flat wax colour is the fallback
+		local img = Instance.new("ImageLabel")
+		img.Name = "SealArt"
+		img.Size = UDim2.fromScale(1.3, 1.3)
+		img.AnchorPoint = Vector2.new(0.5, 0.5)
+		img.Position = UDim2.fromScale(0.5, 0.5)
+		img.BackgroundTransparency = 1
+		img.Image = sealArt
+		img.ScaleType = Enum.ScaleType.Fit
+		img.Active = false
+		img.Parent = seal
+		off(img, 2)
+	end
 	local glyph = Instance.new("TextLabel")
 	glyph.Name = "Glyph"
 	glyph.Size = UDim2.fromScale(1, 1)
@@ -558,6 +572,18 @@ function Hotspots.build(opts)
 		paper.Position = UDim2.fromOffset(0, S.rod)
 		paper.Size = UDim2.new(1, 0, 1, -S.rod * 2)
 		paper.ClipsDescendants = true
+		local paperArt = ContentArt.getImageId("menu_scene", Layout.SceneArt.parchment)
+		if paperArt then -- painted parchment tile under the rows (the flat colour stays as the fallback)
+			local tile = Instance.new("ImageLabel")
+			tile.Name = "ParchmentArt"
+			tile.Size = UDim2.fromScale(1, 1)
+			tile.BackgroundTransparency = 1
+			tile.Image = paperArt
+			tile.ScaleType = Enum.ScaleType.Stretch
+			tile.Active = false
+			tile.ZIndex = Z_FAN
+			tile.Parent = paper
+		end
 		local edge = Instance.new("UIStroke")
 		edge.Color = Color3.fromRGB(176, 140, 84)
 		edge.Thickness = 1
@@ -579,6 +605,18 @@ function Hotspots.build(opts)
 			rod.Position = UDim2.new(0.5, 0, edgeAt[2], 0)
 			rod.Size = UDim2.new(1, 12, 0, S.rod)
 			round(rod, UDim.new(0, 6))
+			local rodArt = ContentArt.getImageId("menu_scene", edgeAt[2] == 0 and Layout.SceneArt.scrollTop or Layout.SceneArt.scrollBottom)
+			if rodArt then -- painted rod over the wooden one
+				local img = Instance.new("ImageLabel")
+				img.Name = "RodArt"
+				img.Size = UDim2.fromScale(1, 1)
+				img.BackgroundTransparency = 1
+				img.Image = rodArt
+				img.ScaleType = Enum.ScaleType.Stretch
+				img.Active = false
+				img.ZIndex = Z_FAN + 3
+				img.Parent = rod
+			end
 			for side = 0, 1 do -- brass caps on the rod ends
 				local cap = solid(rod, "Cap", BRASS, Z_FAN + 4)
 				cap.AnchorPoint = Vector2.new(side, 0.5)
@@ -627,20 +665,26 @@ function Hotspots.build(opts)
 		rim.Parent = object
 		local lift = Instance.new("UIScale")
 		lift.Parent = object
-		local artId = hotspot.art and ContentArt.getImageId("menu_icons", hotspot.art) or nil
+		-- counter items prefer their painted object (menu_scene) and sit straight on the counter; the older medallion art and the
+		-- emoji are the fallbacks
+		local itemId = hotspot.item and ContentArt.getImageId("menu_scene", Layout.SceneArt.items[hotspot.item]) or nil
+		local artId = itemId or (hotspot.art and ContentArt.getImageId("menu_icons", hotspot.art) or nil)
+		if itemId then
+			object.BackgroundTransparency = 1
+		end
 		if artId then
 			local img = Instance.new("ImageLabel")
 			img.Name = "Art"
-			img.Size = UDim2.fromScale(0.86, 0.86)
+			img.Size = itemId and UDim2.fromScale(1, 1) or UDim2.fromScale(0.86, 0.86)
 			img.AnchorPoint = Vector2.new(0.5, 0.5)
 			img.Position = UDim2.fromScale(0.5, 0.5)
 			img.BackgroundTransparency = 1
 			img.Image = artId
-			img.ScaleType = Enum.ScaleType.Crop
+			img.ScaleType = itemId and Enum.ScaleType.Fit or Enum.ScaleType.Crop
 			img.Active = false
 			img.ZIndex = 15
 			img.Parent = object
-			round(img, UDim.new(0.24, 0))
+			if not itemId then round(img, UDim.new(0.24, 0)) end
 		else
 			local glyph = Instance.new("TextLabel")
 			glyph.Name = "Glyph"

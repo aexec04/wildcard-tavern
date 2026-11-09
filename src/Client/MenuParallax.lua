@@ -47,7 +47,7 @@ function MenuParallax.new(opts)
 		sy += (ny - sy) * a
 		local tiltDegrees = Layout.tilt(sx, isCalm)
 		for _, layer in ipairs(layers) do
-			local dx, dy = Layout.parallaxOffset(sx, sy, layer.px, isCalm)
+			local dx, dy = Layout.parallaxOffset(sx, sy, layer.px, isCalm, layer.maxPx)
 			place(layer, dx, dy, tiltDegrees)
 		end
 		if opts.onStep then opts.onStep(sx, sy, t, isCalm) end

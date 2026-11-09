@@ -14,11 +14,14 @@
 local MenuLayout = {}
 
 MenuLayout.Parallax = {
-	far = 10,        -- backdrop, px of shift at the screen edge
-	mid = 18,        -- hotspots
-	near = 28,       -- title and foreground
-	wall = 10,       -- the Notice Board moves with the wall layer (same as far)
-	maxOffset = 32,  -- nothing ever moves further than this
+	far = 8,         -- wall backdrop, px of shift at the screen edge
+	beams = 16,      -- mid layer: ceiling beams and hanging lanterns
+	mid = 22,        -- the counter layer: counter, items and scrolls (items are meant to be 24, they share the layer)
+	near = 28,       -- title
+	lantern = 34,    -- the cutout foreground lantern, the only layer allowed past maxOffset
+	wall = 8,        -- the Notice Board moves with the wall layer (same as far)
+	maxOffset = 32,  -- nothing ever moves further than this, except the foreground lantern (lanternMax)
+	lanternMax = 34,
 	tiltDegrees = 1.5, -- the title tilts this much at the screen edge
 	idleDrift = 6,   -- touch and phone: slow idle drift, px
 	lerp = 0.08,     -- smoothing per frame at 60 fps
@@ -27,6 +30,25 @@ MenuLayout.Parallax = {
 
 MenuLayout.PHONE_WIDTH = 700 -- narrower than this: no scene, just the action list
 MenuLayout.MAX_ANIMATED = 16 -- cap on animated foreground objects
+
+-- Painted scene art (category menu_scene) and the animated life drawn over it. Fractions of the screen. Animated budget:
+-- 5 dust motes + 6 embers + fire glow + window light shaft + counter candle glow + steam wisp + swinging lantern = 16.
+MenuLayout.SceneArt = {
+	wall = "menu_wall_far", beams = "menu_mid_beams", counter = "menu_counter", board = "menu_noticeboard_wall",
+	scrollTop = "menu_scroll_top", scrollBottom = "menu_scroll_bottom", parchment = "menu_parchment",
+	sealGold = "menu_seal_gold", sealRed = "menu_seal_red", lantern = "menu_lantern_fg",
+	-- counter slot -> object image
+	items = { "menu_item_scroll", "menu_item_map", "menu_item_tome", "menu_item_coinjar", "menu_item_rulebook", "menu_item_jukebox" },
+	-- the beams image is cropped to the band of beams (source pixels of the 1536x1024 picture) so its brown sky never covers the wall
+	beamsRect = { x = 0, y = 270, w = 1536, h = 380 },
+	fire = { x = 0.61, y = 0.60, w = 0.14, h = 0.14 },      -- fireplace glow centre
+	window = { x = 0.04, y = 0.30, w = 0.14, h = 0.34 },     -- window light shaft start
+	candle = { x = 0.10, y = 0.745, w = 0.05 },              -- candle on the counter's left end
+	steam = { x = 0.575, y = 0.77 },                         -- above the counter mug spot
+	lanternPos = { x = 0.92, y = 0.18, h = 0.22 },            -- foreground lantern, hangs from the top
+	embers = 6,
+	motes = 5,
+}
 
 -- The tavern composition (menu redesign 2). A long bar COUNTER runs along the bottom; six painted ITEMS sit on it in a fixed
 -- row, evenly spaced and centred; a click UNROLLS a parchment scroll upward from the item that lists that group's actions.
@@ -191,9 +213,9 @@ MenuLayout.clamp = clamp
 
 -- Parallax shift in pixels for a layer. nx, ny are the cursor from the screen centre, -1 to 1. The layer moves opposite to the
 -- cursor. Calm mode and reduced motion return zero, and nothing ever exceeds maxOffset.
-function MenuLayout.parallaxOffset(nx, ny, layerPx, calm)
+function MenuLayout.parallaxOffset(nx, ny, layerPx, calm, maxPx)
 	if calm then return 0, 0 end
-	local limit = MenuLayout.Parallax.maxOffset
+	local limit = maxPx or MenuLayout.Parallax.maxOffset
 	local dx = clamp(-clamp(nx or 0, -1, 1) * layerPx, -limit, limit)
 	local dy = clamp(-clamp(ny or 0, -1, 1) * layerPx, -limit, limit)
 	return dx, dy

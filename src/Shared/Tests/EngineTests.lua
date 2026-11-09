@@ -11797,7 +11797,7 @@ table.insert(tests, { name = "MenuLayout: six evenly spaced counter items, scrol
 	expectTrue(math.abs(dx) <= 32 and math.abs(dy) <= 32, "offsets clamp at 32")
 	expectEqual(dx, -32)
 	local ax, ay = ML.parallaxOffset(0.5, 0.5, ML.Parallax.mid, false)
-	expectTrue(ax == -9 and ay == -9)
+	expectTrue(ax == -ML.Parallax.mid / 2 and ay == -ML.Parallax.mid / 2)
 	local cx, cy = ML.parallaxOffset(1, 1, 28, true)
 	expectTrue(cx == 0 and cy == 0, "calm mode returns zero offset")
 	expectEqual(ML.tilt(1, true), 0)
@@ -11820,7 +11820,20 @@ table.insert(tests, { name = "MenuLayout: six evenly spaced counter items, scrol
 	local scene = sf:read("*a"); sf:close()
 	expectTrue(scene:find("MOTE_SIZES = { 4, 6, 5, 8, 10 }", 1, true) ~= nil, "motes stay 4 to 10 px")
 	expectTrue(scene:find("\240\159\143\174", 1, true) == nil and scene:find("Lantern", 1, true) == nil or scene:find("removed", 1, true) ~= nil, "no placeholder lantern emoji in the scene")
-	expectTrue(5 + 1 + 1 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
+	expectTrue(5 + 6 + 5 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
+	-- scene art wiring: depths from the brief, only the lantern may pass 32px
+	local PX = ML.Parallax
+	expectTrue(PX.far == 8 and PX.wall == 8 and PX.beams == 16 and PX.mid == 22 and PX.lantern == 34, "parallax depths")
+	expectTrue(PX.far < PX.beams and PX.beams < PX.mid and PX.mid < PX.lantern, "deeper layers move more")
+	expectEqual((ML.parallaxOffset(1, 0, PX.lantern, false, PX.lanternMax)), -34)
+	expectEqual((ML.parallaxOffset(1, 0, 200, false)), -32)
+	expectEqual(ML.SceneArt.motes + ML.SceneArt.embers + 5, ML.MAX_ANIMATED, "animated budget: motes, embers, fire, shaft, candle, steam, lantern")
+	expectEqual(#ML.SceneArt.items, 6, "one painted object per counter item")
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	for _, key in ipairs({ "wall", "beams", "counter", "board", "scrollTop", "scrollBottom", "parchment", "sealGold", "sealRed", "lantern" }) do
+		expectTrue(ContentArt.getImageId("menu_scene", ML.SceneArt[key]) ~= nil, "menu_scene art recorded: " .. key)
+	end
+	for _, id in ipairs(ML.SceneArt.items) do expectTrue(ContentArt.getImageId("menu_scene", id) ~= nil, "menu_scene art recorded: " .. id) end
 end })
 
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
