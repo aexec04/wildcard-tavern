@@ -102,7 +102,9 @@ def main():
     # Cosmetic Set backdrops: backdropImage placeholders
     sets_src = (ENGINE / "CosmeticSets.lua").read_text(encoding="utf-8")
     backgrounds = map_ids("BackgroundArt.lua")
-    lines.append("## Cosmetic Set backdrops (backdropImage)")
+    set_art = map_ids("SetBackdropArt.lua")  # biome sets read SetBackdropArt[id]
+    set_prompts = set((PROMPTS.get("set_backdrop_subjects") or {}).keys())
+    lines.append("## Cosmetic Set backdrops (backdropImage) - category set_backdrops")
     set_missing = 0
     for block in re.finditer(r'\n\t\{\n\t\tid = "([a-z0-9_]+)",(.*?)\n\t\},', sets_src, re.S):
         sid, body = block.group(1), block.group(2)
@@ -114,9 +116,12 @@ def main():
         art_key = re.search(r'BackgroundArt\.(\w+)', expr)
         if art_key:
             done = bool(backgrounds.get(art_key.group(1)))
+        elif "SetBackdropArt." in expr:
+            done = bool(set_art.get(sid))
         elif re.search(r'rbxassetid://[1-9]', expr):
             done = True
-        lines.append(f"- [{'x' if done else ' '}] {sid}" + ("" if done else " (NO PROMPT: needs a backdrop category/prompts; the set's backdropStyle covers the look meanwhile)"))
+        tag = "prompt ready, not generated" if sid in set_prompts else "NO PROMPT"
+        lines.append(f"- [{'x' if done else ' '}] {sid}" + ("" if done else f" ({tag})"))
         if not done:
             set_missing += 1
     total_missing += set_missing
@@ -124,11 +129,15 @@ def main():
 
     # Badges: no art category yet
     badge_ids = ["biome_" + r for r in BIOME_REGIONS] + ["master_" + r for r in BIOME_REGIONS] + RULE_BADGES
-    lines.append(f"## Badge icons ({len(badge_ids)}; emoji today)")
-    lines.append("No art category yet: add a `badges` category (prompts + CATEGORY_OPTS + BadgeArt.lua + ContentArt) before generating.")
+    badge_art = map_ids("BadgeArt.lua")
+    badge_prompts = set((PROMPTS.get("badge_subjects") or {}).keys())
+    lines.append(f"## Badge icons ({len(badge_ids)}; emoji until recorded) - category badges")
     for b in badge_ids:
-        lines.append(f"- [ ] {b} (NO PROMPT)")
-    total_missing += len(badge_ids)
+        if badge_art.get(b):
+            lines.append(f"- [x] {b}")
+        else:
+            lines.append(f"- [ ] {b} ({'prompt ready, not generated' if b in badge_prompts else 'NO PROMPT'})")
+            total_missing += 1
     lines.append("")
     lines.append(f"**Total missing: {total_missing}**")
     out = ROOT / "claude" / "ART_STATUS.md"

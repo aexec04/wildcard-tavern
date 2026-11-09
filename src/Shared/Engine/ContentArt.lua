@@ -34,6 +34,8 @@ local ContentArt = {
 	scenes       = require(Engine:WaitForChild("SceneArt")),
 	packs        = require(Engine:WaitForChild("PackArt")),
 	biome_backdrops = require(Engine:WaitForChild("BiomeBackdropArt")),
+	set_backdrops = require(Engine:WaitForChild("SetBackdropArt")),
+	badges       = require(Engine:WaitForChild("BadgeArt")),
 }
 -- CollectionBook tab ids use different names; alias them so both work.
 ContentArt.bosses      = ContentArt.boss_rounds
@@ -66,7 +68,7 @@ ContentArt.PreloadPlan = {
 }
 -- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
 -- (Journey map), rooms. They load on demand through ContentArt.preload.
-ContentArt.LazyCategories = { "scenes", "map_nodes", "map_regions", "map_decor", "fx", "rooms", "biome_backdrops" }
+ContentArt.LazyCategories = { "scenes", "map_nodes", "map_regions", "map_decor", "fx", "rooms", "biome_backdrops", "set_backdrops", "badges" }
 
 -- Urls for a list of items, skipping missing/zero ids. Pure (tested).
 function ContentArt.collectUrls(items)

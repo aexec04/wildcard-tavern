@@ -36,6 +36,7 @@
 local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
 local BackgroundArt = require(script.Parent.BackgroundArt)
+local SetBackdropArt = require(script.Parent.SetBackdropArt) -- biome sets: generated map, empty until recorded
 
 local CosmeticSets = {}
 
@@ -138,7 +139,7 @@ CosmeticSets.Definitions = {
 		icon = "🧺",
 		description = "A Map reward for finishing the Wildflower Meadow road for the first time.",
 		cardBackId = "kitchen_checks",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.meadow_picnic or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 236, 240, 205 },
 			overlay = { color = { 190, 200, 142 }, transparency = 0.88 },
@@ -153,7 +154,7 @@ CosmeticSets.Definitions = {
 		icon = "🌉",
 		description = "A Map reward for finishing the Willow River road for the first time.",
 		cardBackId = "winter_frost",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.riverside_evening or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 210, 232, 228 },
 			overlay = { color = { 168, 196, 176 }, transparency = 0.88 },
@@ -168,7 +169,7 @@ CosmeticSets.Definitions = {
 		icon = "⛺",
 		description = "A Map reward for finishing the Mountain Peaks road for the first time.",
 		cardBackId = "hall_banner",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.summit_camp or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 225, 228, 220 },
 			overlay = { color = { 120, 130, 140 }, transparency = 0.88 },
@@ -183,7 +184,7 @@ CosmeticSets.Definitions = {
 		icon = "🏜",
 		description = "A Map reward for finishing the Golden Dunes road for the first time.",
 		cardBackId = "dune_gold",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.dune_market or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 236, 200 },
 			overlay = { color = { 232, 190, 110 }, transparency = 0.88 },
@@ -198,7 +199,7 @@ CosmeticSets.Definitions = {
 		icon = "🏮",
 		description = "A Map reward for finishing the Misty Marsh road for the first time.",
 		cardBackId = "lilypad_green",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.marsh_lanterns or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 200, 225, 195 },
 			overlay = { color = { 90, 130, 90 }, transparency = 0.87 },
@@ -213,7 +214,7 @@ CosmeticSets.Definitions = {
 		icon = "🔥",
 		description = "A Map reward for finishing the Frosty Hills road for the first time.",
 		cardBackId = "frost_walker",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.snowy_hearth or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 215, 230, 250 },
 			overlay = { color = { 70, 110, 180 }, transparency = 0.86 },
@@ -228,7 +229,7 @@ CosmeticSets.Definitions = {
 		icon = "⚓",
 		description = "A Map reward for finishing the Lantern Coast road for the first time.",
 		cardBackId = "shell_pearl",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.harbor_lights or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 205, 228, 235 },
 			overlay = { color = { 120, 170, 190 }, transparency = 0.88 },
@@ -243,7 +244,7 @@ CosmeticSets.Definitions = {
 		icon = "🍲",
 		description = "A Map reward for finishing the Tavern road for the first time.",
 		cardBackId = "gala",
-		backdropImage = "rbxassetid://0",
+		backdropImage = SetBackdropArt.tavern_feast or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 232, 196 },
 			overlay = { color = { 255, 170, 80 }, transparency = 0.88 },

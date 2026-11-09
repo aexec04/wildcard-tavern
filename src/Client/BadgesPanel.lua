@@ -20,6 +20,8 @@ return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local Badges = require(Engine:WaitForChild("Badges"))
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local PatronPlaque = require(script.Parent.PatronPlaque)
 	local RarityFrame = require(script.Parent.RarityFrame)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local EquipRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EquipBadge")
@@ -173,6 +175,10 @@ return function(deps)
 			icon.TextTransparency = 0.7 -- silhouette: the shape is there, the picture is not
 			icon.TextColor3 = Color3.fromRGB(60, 50, 40)
 		end
+		-- Painted badge art (BadgeArt via ContentArt "badges"); the emoji stays until an id is recorded and loaded.
+		PatronPlaque.applyById(medal, ContentArt.getImageId("badges", def.id), {
+			emojiLabel = icon, dim = not owned, cornerRadius = 36, zIndex = 45,
+		})
 
 		label(t, {
 			Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 88), TextSize = 15,

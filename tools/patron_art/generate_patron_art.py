@@ -58,6 +58,8 @@ CATEGORIES = {
     "scenes": ("scene_subjects", "scenes", "SceneArt.lua", "Scene"),
     "packs": ("pack_subjects", "packs", "PackArt.lua", "Pack"),
     "biome_backdrops": ("biome_backdrop_subjects", "biome_backdrops", "BiomeBackdropArt.lua", "Biome Backdrop"),
+    "set_backdrops": ("set_backdrop_subjects", "set_backdrops", "SetBackdropArt.lua", "Set Backdrop"),
+    "badges": ("badge_subjects", "badges", "BadgeArt.lua", "Badge"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -76,6 +78,8 @@ CATEGORY_OPTS = {
     "scenes": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
     "packs": {"quality": "low", "style_key": "house_style"},
     "biome_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
+    "set_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
+    "badges": {"quality": "low", "style_key": "style_icon"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

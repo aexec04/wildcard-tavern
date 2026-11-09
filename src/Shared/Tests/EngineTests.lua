@@ -7813,4 +7813,53 @@ table.insert(tests, { name = "PackPreview: a revealed card shows the plain copy 
 	expectTrue(PP.caption(PP.matchFromDeckView({ { rank = 12, suit = "Spades" } }, { rank = 12, suit = "Spades" }), { rank = 12, suit = "Spades" }):find("Queen") ~= nil)
 end })
 
+table.insert(tests, { name = "ArtStatus: biome set backdrops and badge icons have a prompt and a wired slot", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CosmeticSets = require(Engine.CosmeticSets)
+	local Badges = require(Engine.Badges)
+	local ContentArt = require(Engine.ContentArt)
+	expectTrue(type(ContentArt.set_backdrops) == "table", "ContentArt has set_backdrops")
+	expectTrue(type(ContentArt.badges) == "table", "ContentArt has badges")
+	local biomeSets = {}
+	for _, set in ipairs(CosmeticSets.Definitions) do
+		if set.unlock and set.unlock.kind == "biome" then
+			table.insert(biomeSets, set.id)
+			expectTrue(type(set.backdropImage) == "string", set.id .. " has a backdropImage slot")
+			-- Recording an id in SetBackdropArt must reach the set (wired, not hardcoded).
+			local mapped = ContentArt.set_backdrops[set.id]
+			expectTrue(mapped == nil or set.backdropImage == mapped, set.id .. " backdropImage follows SetBackdropArt")
+		end
+	end
+	expectEqual(#biomeSets, 8, "8 biome Card Sets")
+	expectEqual(#Badges.Definitions, 32, "16 biome badges + 16 rule badges")
+	-- Prompts exist for every item (skipped where io is missing, e.g. Studio).
+	if io and io.open then
+		local f = io.open("tools/patron_art/prompts.json", "r")
+		if f then
+			local text = f:read("*a")
+			f:close()
+			local function section(name)
+				local s = text:find('"' .. name .. '"', 1, true)
+				expectTrue(s ~= nil, name .. " section exists")
+				return text:sub(s or 1)
+			end
+			local sets, badges = section("set_backdrop_subjects"), section("badge_subjects")
+			for _, id in ipairs(biomeSets) do
+				expectTrue(sets:find('"' .. id .. '"', 1, true) ~= nil, id .. " has a set_backdrop_subjects prompt")
+			end
+			for _, def in ipairs(Badges.Definitions) do
+				expectTrue(badges:find('"' .. def.id .. '"', 1, true) ~= nil, def.id .. " has a badge_subjects prompt")
+			end
+		end
+		-- ART_STATUS.md (python3 tools/art_status.py) must not list any item without a prompt.
+		local st = io.open("claude/ART_STATUS.md", "r")
+		if st then
+			local status = st:read("*a")
+			st:close()
+			expectTrue(status:find("NO PROMPT (", 1, true) == nil, "ART_STATUS lists no item without a prompt")
+			expectTrue(status:find("prompt ready, not generated", 1, true) ~= nil, "ART_STATUS tags the ungenerated items")
+		end
+	end
+end })
+
 return tests
