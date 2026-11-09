@@ -722,6 +722,7 @@ do
 		warn("[Client] CharacterStage failed to build: " .. tostring(stageErr))
 	end
 	pcall(function() require(script.AccessibilityFX).init(screenGui) end) -- Larger Text (Settings), no new locals here
+	pcall(function() require(script.FirstTimeHints).init(screenGui) end) -- first time hint bubbles
 	require(script.BossFight).init({
 		root = root,
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
@@ -2443,6 +2444,7 @@ local function render(state)
 	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
+	pcall(require(script.FirstTimeHints).update, state) -- one shot hint bubbles (Engine/Hints.lua), display only
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no

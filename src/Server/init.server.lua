@@ -138,6 +138,8 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local HintSeenRemote = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
+local ResetHintsRemote = newRemote("ResetHints") -- (player): Settings > Replay Hints
 local SeasonClaimRemote = newRemote("ClaimSeason") -- (player, tier number or "all"): Tavern Season track rewards
 local ClaimLiveEventRemote = newRemote("ClaimLiveEvent") -- (player, eventId): claims the rewards of a running event once
 local StorePurchaseRemote = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
@@ -972,6 +974,8 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		hintsSeen = profiles[player] and profiles[player].hintsSeen or nil, -- first time hints already shown (Engine/Hints.lua)
+		lastInterest = state.lastInterest, -- the interest paid at the last round win (hint "first_interest")
 		season = profiles[player] and require(Engine.SeasonTrack).view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		dailyTheme = LiveEvents.dailyLabel(LoginStreak.dayNumber(os.time())), -- text beside the Daily date only
@@ -2722,6 +2726,25 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 		pushRewardNotice(player, { icon = "❗", text = result })
 	end
 	pushState(player)
+end)
+
+-- FIRST TIME HINTS (Engine/Hints.lua): the client reports a hint it showed; unknown ids are refused. No state push:
+-- the client already knows, and an echo could re-trigger a bubble.
+HintSeenRemote.OnServerEvent:Connect(function(player, hintId)
+	if not RateLimit.allow(player.UserId, "HintSeenRemote", os.clock()) then return end
+	local profile = profiles[player]
+	if profile and require(Engine.Hints).markSeen(profile, hintId) then
+		profileDirty[player] = true
+	end
+end)
+ResetHintsRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "ResetHintsRemote", os.clock()) then return end
+	local profile = profiles[player]
+	if profile then
+		require(Engine.Hints).reset(profile)
+		profileDirty[player] = true
+		pushState(player)
+	end
 end)
 
 -- TAVERN SEASON (Engine/SeasonTrack.lua): claim one reached tier (a number) or every reached tier ("all").

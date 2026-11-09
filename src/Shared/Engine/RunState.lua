@@ -921,6 +921,7 @@ function RunState.playHand(state, cardIndices)
 		if not (state.stakeRules and state.stakeRules.noInterest) then -- Final Bell stake: no interest
 			local interest = BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
 			state.tips = state.tips + interest
+			state.lastInterest = interest -- first time hints: "interest paid" (Engine/Hints.lua)
 			state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, interest)
 		end
 

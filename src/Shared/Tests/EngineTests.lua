@@ -8835,6 +8835,62 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "Hints: data table valid, each hint once, never in the tutorial, replay clears, safe migration", fn = function()
+	local Hints = require(script.Parent.Parent.Engine.Hints)
+	expectEqual(#Hints.Definitions, 10)
+	local ids = {}
+	for _, hint in ipairs(Hints.Definitions) do
+		expectTrue(not ids[hint.id], "unique " .. hint.id); ids[hint.id] = true
+		expectTrue(type(hint.target) == "string" and hint.target ~= "", hint.id .. " has a target key")
+		expectTrue(type(hint.icon) == "string" and hint.icon ~= "", hint.id .. " has an icon")
+		expectTrue(Hints.wordCount(hint.text) <= Hints.MAX_WORDS and Hints.wordCount(hint.text) >= 3, hint.id .. " is 12 words or fewer: " .. Hints.wordCount(hint.text))
+		expectTrue(type(hint.trigger) == "function")
+		expectTrue(not hint.text:find("—") and not hint.text:find("–"), "no dashes in hint text")
+	end
+	expectEqual(Hints.wordCount("[Chips] times [Mult] is your hand's score."), 7, "highlight marks are not words")
+	-- nothing is due on a quiet state, each trigger fires on its own condition
+	expectEqual(Hints.dueFor({ phase = "playing" }, {}, {}), nil)
+	expectEqual(Hints.dueFor({ phase = "playing", handsPlayedTotal = 1 }, {}, {}).id, "first_score")
+	expectEqual(Hints.dueFor({ phase = "shop" }, {}, {}).id, "first_counter")
+	expectEqual(Hints.dueFor({ phase = "roundSelect", ownedPatrons = { {} } }, {}, {}).id, "first_patron")
+	expectEqual(Hints.dueFor({ phase = "roundSelect", menuRecipeInventory = { "level_pair" } }, {}, {}).id, "first_recipe")
+	expectEqual(Hints.dueFor({ phase = "playing", bossModifier = {} }, {}, {}).id, "first_boss")
+	expectEqual(Hints.dueFor({ phase = "roundSelect", lastInterest = 2 }, {}, {}).id, "first_interest")
+	expectEqual(Hints.dueFor({ phase = "roundSelect", discoveries = { found = 1 } }, {}, {}).id, "first_discovery")
+	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { runSetupOpen = true }).id, "first_stakes")
+	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { questsOpen = true }).id, "first_quests")
+	expectEqual(Hints.dueFor({ phase = "menu" }, {}, { seasonOpen = true }).id, "first_season")
+	-- once only: a seen hint never comes back, the next due one shows instead
+	expectEqual(Hints.dueFor({ phase = "shop", handsPlayedTotal = 2 }, { first_counter = true }, {}), nil, "first_score needs the playing phase")
+	expectEqual(Hints.dueFor({ phase = "playing", handsPlayedTotal = 2, ownedPatrons = { {} } }, { first_score = true }, {}).id, "first_patron")
+	-- never during the forced tutorial
+	expectEqual(Hints.dueFor({ phase = "shop", isTutorial = true }, {}, {}), nil)
+	expectEqual(Hints.dueFor({ phase = "playing", handsPlayedTotal = 5, isTutorial = true }, {}, {}), nil)
+	expectEqual(Hints.dueFor(nil, {}, {}), nil); expectEqual(Hints.dueFor("x", {}, {}), nil)
+	-- a bad trigger input never throws
+	expectEqual(Hints.dueFor({ phase = "playing", ownedPatrons = "junk", discoveries = 5 }, {}, {}), nil)
+	-- the profile: mark once, unknown refused, replay clears, migration drops junk
+	local profile = PlayerProfile.new()
+	expectEqual(next(profile.hintsSeen), nil)
+	expectTrue(Hints.markSeen(profile, "first_score")); expectFalse(Hints.markSeen(profile, "first_score"), "second mark is a no-op")
+	expectFalse(Hints.markSeen(profile, "not_a_hint")); expectFalse(Hints.markSeen(profile, 5)); expectFalse(Hints.markSeen(profile, nil))
+	expectEqual(Hints.dueFor({ phase = "playing", handsPlayedTotal = 1 }, profile.hintsSeen, {}), nil)
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.hintsSeen.first_score)
+	local junk = PlayerProfile.migrate({ hintsSeen = { first_score = true, old_removed_hint = true, first_boss = "yes", [3] = true } })
+	expectTrue(junk.hintsSeen.first_score); expectEqual(junk.hintsSeen.old_removed_hint, nil); expectEqual(junk.hintsSeen.first_boss, nil)
+	expectEqual(next(PlayerProfile.migrate({}).hintsSeen), nil, "old saves get safe defaults")
+	Hints.reset(profile)
+	expectEqual(next(profile.hintsSeen), nil)
+	expectEqual(Hints.dueFor({ phase = "playing", handsPlayedTotal = 1 }, profile.hintsSeen, {}).id, "first_score", "replay brings hints back")
+	-- the interest tally exists for the last hint
+	local s = RunState.new(nil, SeededRng.new(9))
+	s.targetScore = 0
+	s.tips = 20
+	RunState.playHand(s, { 1 })
+	expectTrue((s.lastInterest or 0) > 0, "interest at round win is recorded")
+end })
+
 table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new season, claim once, rewards owned for good, safe migration", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)

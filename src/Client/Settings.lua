@@ -227,6 +227,65 @@ return function(deps)
 		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
 	})
 
+	-- Replay Hints: forget which first time hints were shown (Engine/Hints.lua), so each shows once more
+	do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 62)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -130, 0, 22)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextColor3 = TEXT
+		title.Text = "Replay Hints"
+		title.ZIndex = 21
+		title.Parent = row
+		local blurb = Instance.new("TextLabel")
+		blurb.Size = UDim2.new(1, -130, 0, 36)
+		blurb.Position = UDim2.new(0, 0, 0, 22)
+		blurb.BackgroundTransparency = 1
+		blurb.Font = Enum.Font.Gotham
+		blurb.TextSize = 14
+		blurb.TextWrapped = true
+		blurb.TextXAlignment = Enum.TextXAlignment.Left
+		blurb.TextYAlignment = Enum.TextYAlignment.Top
+		blurb.TextColor3 = SUBTLE
+		blurb.Text = "Show the one line tips again as you meet each part of the game."
+		blurb.ZIndex = 21
+		blurb.Parent = row
+		local replay = Instance.new("TextButton")
+		replay.Size = UDim2.new(0, 110, 0, 34)
+		replay.AnchorPoint = Vector2.new(1, 0.5)
+		replay.Position = UDim2.new(1, -4, 0.5, 0)
+		replay.Font = Enum.Font.GothamBold
+		replay.TextSize = 14
+		replay.TextColor3 = TEXT
+		replay.BackgroundColor3 = BUTTON
+		replay.Text = "Replay"
+		replay.ZIndex = 21
+		replay.Parent = row
+		polishButton(replay, 8)
+		addButtonHoverScale(replay)
+		replay.MouseButton1Click:Connect(function()
+			playClickSfx()
+			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+			local remote = remotes and remotes:FindFirstChild("ResetHints")
+			if remote then
+				remote:FireServer()
+			end
+			pcall(function() require(script.Parent.FirstTimeHints).replay() end)
+			replay.Text = "Done"
+			task.delay(1.5, function()
+				if replay.Parent then replay.Text = "Replay" end
+			end)
+		end)
+	end
+
 	-- ===== Account =====
 	makeHeader("Account")
 	local accountRow = Instance.new("Frame")
