@@ -2,13 +2,13 @@
 	Engine/PanelLayout.lua
 	Shared numbers for the account panel tab strip (Client/PanelTabs.lua) and the Expand button (Client/ExpandToggle.lua),
 	so a corner control can never sit under the strip. Pure Lua, no Roblox APIs.
-	The strip covers y 3 to 37. Centered panels are nudged down STRIP_NUDGE once while a tab strip is attached.
+	The strip covers y 3 to 63. Centered panels are nudged down STRIP_NUDGE once while a tab strip is attached.
 ]]
 
 local PanelLayout = {}
 
-PanelLayout.STRIP_BOTTOM = 37
-PanelLayout.STRIP_NUDGE = 24
+PanelLayout.STRIP_BOTTOM = 63 -- group tabs (y 3 to 37) plus the hanging bookmark ribbons (y 39 to 63)
+PanelLayout.STRIP_NUDGE = 40
 PanelLayout.EXPANDED_MARGIN = 96 -- an expanded panel is (screen height - this) tall, so it is 48px off the top before the nudge
 PanelLayout.TOGGLE_INSET = 8 -- toggle sits this far below the panel top
 PanelLayout.TOGGLE_SIZE = 30
@@ -23,7 +23,7 @@ function PanelLayout.expandedHeight(screenH)
 	return screenH - PanelLayout.EXPANDED_MARGIN
 end
 
--- True when a control with the given top edge and height overlaps the tab strip band (y 3 to 37).
+-- True when a control with the given top edge and height overlaps the tab strip band (y 3 to 63).
 function PanelLayout.hitsStrip(y, h)
 	return y < PanelLayout.STRIP_BOTTOM and (y + h) > 3
 end

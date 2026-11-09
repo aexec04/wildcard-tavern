@@ -11691,13 +11691,13 @@ table.insert(tests, { name = "PanelLayout: the Expand button never sits under th
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 360, 640 } }) do
 		local h = sz[2]
-		for _, nudged in ipairs({ false, true }) do
+		for _, nudged in ipairs({ true }) do -- every panel with a strip is nudged down once (PanelTabs.clearStrip)
 			expectFalse(PL.hitsStrip(PL.toggleTop(h, h * 0.78, nudged), PL.TOGGLE_SIZE), "collapsed toggle clear at " .. h)
 			local expandedTop = PL.toggleTop(h, PL.expandedHeight(h), nudged)
 			expectFalse(PL.hitsStrip(expandedTop, PL.TOGGLE_SIZE), "expanded toggle clear at " .. h)
 			expectTrue(expandedTop >= 40, "expanded toggle at least 40px down at " .. h)
 		end
-		expectTrue((h - PL.expandedHeight(h)) / 2 > PL.STRIP_BOTTOM + 8, "expanded panel starts below the strip")
+		expectTrue((h - PL.expandedHeight(h)) / 2 + PL.STRIP_NUDGE > PL.STRIP_BOTTOM + 8, "expanded panel starts below the strip")
 	end
 	expectTrue(PL.hitsStrip(8, 30)) -- the old top-edge placement was under the strip
 	local f = io and io.open and io.open("src/Client/ExpandToggle.lua", "r")
@@ -11943,6 +11943,45 @@ table.insert(tests, { name = "ModalGate: counter opens and closes and never goes
 	for _, file in ipairs({ "ChoicePanel", "RoadChoice", "Collection", "Shop" }) do
 		local h = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
 		expectTrue(h:find("ModalStage", 1, true) ~= nil and h:find("mount", 1, true) ~= nil, file .. " mounts a stage")
+	end
+end })
+
+table.insert(tests, { name = "PanelGroups: every page is in exactly one group, group order is Tome/Strongbox/Coin Jar, openers cover every page, strip clears the panels", fn = function()
+	local PG = require(script.Parent.Parent.Engine.PanelGroups)
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local order = {}
+	for _, g in ipairs(PG.GROUPS) do order[#order + 1] = g.id end
+	expectEqual(table.concat(order, ","), "tome,strongbox,coinjar", "group order")
+	local seen, total = {}, 0
+	for _, g in ipairs(PG.GROUPS) do
+		expectTrue(#g.pages >= 1 and g.color ~= nil and g.glow ~= nil and g.emoji ~= nil, g.id .. " is complete")
+		for _, p in ipairs(g.pages) do
+			expectFalse(seen[p.id] ~= nil, p.id .. " is in only one group")
+			seen[p.id] = g.id
+			total = total + 1
+			expectEqual(PG.groupOf(p.id).id, g.id, "groupOf " .. p.id)
+		end
+		expectEqual(PG.defaultPage(g.id), g.pages[1].id, "group tab opens its first page")
+	end
+	expectEqual(total, 10, "ten pages in total")
+	expectEqual(#PG.pages(), 10, "flat list has every page")
+	expectEqual(PG.groupOf("collection").id, "tome")
+	expectEqual(PG.groupOf("season").id, "strongbox")
+	expectEqual(PG.groupOf("store").id, "coinjar")
+	expectTrue(PG.groupOf("nope") == nil, "unknown page has no group")
+	expectTrue(PL.hitsStrip(10, 30) and not PL.hitsStrip(PL.STRIP_BOTTOM + 1, 30), "strip band is y 3 to STRIP_BOTTOM")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 360, 640 } }) do
+		local h = sz[2]
+		expectTrue((h - h * 0.78) / 2 + PL.STRIP_NUDGE > PL.STRIP_BOTTOM, "a 78 percent panel starts below the strip at " .. h)
+	end
+	local f = io and io.open and io.open("src/Client/PanelTabs.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("PanelGroups", 1, true) ~= nil and src:find("PanelTabs.back", 1, true) ~= nil and src:find("Group_", 1, true) ~= nil, "group tabs, ribbons and Back are built")
+	local ids = {}
+	for _, file in ipairs({ "Collection", "CollectionRewardsPanel", "BadgesPanel", "LegendPanel", "FlairPanel", "StatsPanel", "SeasonPanel", "QuestsPanel", "DailyRewardsPanel", "StorePanel" }) do
+		local c = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
+		expectTrue(c:find("registerOpener", 1, true) ~= nil and c:find("PanelTabs", 1, true) ~= nil, file .. " keeps its opener and strip")
 	end
 end })
 
