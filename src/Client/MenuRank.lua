@@ -51,7 +51,7 @@ end
 function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local frame = Instance.new("Frame")
 	frame.Name = "RankBar"
-	frame.Size = UDim2.fromOffset(360, 40)
+	frame.Size = UDim2.fromOffset(460, 40) -- same width as the Next Goal banner under it
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.ZIndex = 10

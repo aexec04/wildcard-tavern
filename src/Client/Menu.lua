@@ -450,7 +450,8 @@ return function(deps)
 		return button
 	end
 
-	require(script.Parent.MenuRank).attach(menuButtonHolder, 0) -- Tavern Rank bar (state.rank), above Play
+	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank), above Play
+	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal), above Play
 	local menuPlayButton = makeFrameButton({
 		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 76, glow = true,
 	})

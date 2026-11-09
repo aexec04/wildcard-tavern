@@ -213,6 +213,11 @@ function PlayerProfile.new()
 		-- DAILY QUESTS (Engine/Quests.lua)
 		quests = nil, -- { day, ids, progress, done } for today
 		questsDone = 0,
+		-- FIRST 5 MINUTES (Engine/Funnel.lua, NextGoal.lua)
+		funnelSeen = {}, -- [funnel step id] = true, each analytics funnel step is sent once per player
+		tutorialRewardClaimed = false, -- the card back and the Newcomer title for finishing the tutorial
+		firstWinRewardClaimed = false, -- the bigger first-win reward
+		followPrompted = false, -- the one-time experience notifications prompt was already shown
 		equippedBadge = nil, -- RUN SUMMARY badge (Engine/RunSummary.badgeFromSummary), or nil
 		settings = PlayerProfile.defaultSettings(), -- see SETTING_SPECS
 	}
@@ -410,6 +415,10 @@ function PlayerProfile.migrate(raw)
 		end
 	end
 	profile.tavernRank = TavernRank.rankFor(profile.tavernXp)
+	profile.funnelSeen = require(script.Parent.Funnel).clean(raw.funnelSeen)
+	profile.tutorialRewardClaimed = raw.tutorialRewardClaimed == true
+	profile.firstWinRewardClaimed = raw.firstWinRewardClaimed == true
+	profile.followPrompted = raw.followPrompted == true
 	if type(raw.quests) == "table" and wholeNumber(raw.quests.day, 0, 1e9) and type(raw.quests.ids) == "table" then
 		local quests = { day = wholeNumber(raw.quests.day, 0, 1e9), ids = {}, progress = {}, done = {} }
 		for _, id in ipairs(raw.quests.ids) do

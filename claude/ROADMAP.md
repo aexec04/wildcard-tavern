@@ -14,15 +14,15 @@ Long-term retention, engagement and monetization of players who find the game or
 ## Phase 1: First 5 minutes
 - [ ] Thumbnail, icon, title and a short gameplay video for the game page (user-only: Creator Hub)
 - [ ] Fast load, mobile layout and controls pass on a real phone (user-only test)
-- [ ] Tutorial under 2 minutes ending in a first win and a reward
-- [ ] First-run reward and "next goal" banner on the menu
+- [x] Tutorial under 2 minutes ending in a first win and a reward
+- [x] First-run reward and "next goal" banner on the menu
 
 ## Phase 2: Daily return and long-term goals
 - [x] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map
 - [x] Unlock drip: start small, unlock Patrons, recipes, Card Sets and titles through play; Collection shows locked silhouettes
 - [x] Daily login streak and 3 daily quests (small Tips and cosmetic rewards)
-- [ ] Always-visible next goal on the menu
-- [ ] Follow prompt so players get Roblox reminders
+- [x] Always-visible next goal on the menu
+- [x] Follow prompt so players get Roblox reminders
 
 ## Phase 3: Variety and exploration
 - [ ] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter

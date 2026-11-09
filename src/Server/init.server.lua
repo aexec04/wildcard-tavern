@@ -43,6 +43,14 @@ local TavernRank = require(Engine.TavernRank) -- account level and rewards
 local Quests = require(Engine.Quests) -- daily quests
 local AccountProgress = require(Engine.AccountProgress) -- run counters to XP and quest progress
 local progressSeqCounter = 0 -- ids progress toasts (rank ups, quests done)
+local Analytics = require(Engine.Analytics) -- funnel steps and custom events; errors never reach gameplay
+local NextGoal = require(Engine.NextGoal) -- the menu's Next Goal line
+local FirstRewards = require(Engine.FirstRewards) -- tutorial and first-win rewards, the one-time follow prompt
+local PatronsData = require(Engine.Patrons) -- display names for the Next Goal line
+local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toasts that outlive a run
+local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
+local rewardSeqCounter = 0
+local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -210,6 +218,22 @@ local ProfileStore = DataStoreService:GetDataStore("WildcardTavernProfile_v1")
 
 local profiles = {} -- [player] = PlayerProfile-shaped table, the live working copy
 local profileDirty = {} -- [player] = true once something's changed since the last successful save
+
+-- FIRST 5 MINUTES: a one-time reward toast (survives the run that earned it) and the funnel logger.
+local function pushRewardNotice(player, notice)
+	rewardSeqCounter = rewardSeqCounter + 1
+	rewardNotices[player] = { seq = rewardSeqCounter, icon = notice.icon, text = notice.text }
+end
+local function logStep(player, stepId)
+	local profile = profiles[player]
+	if not profile then
+		return
+	end
+	funnelSessions[player] = funnelSessions[player] or (tostring(player.UserId) .. "-" .. tostring(os.time()))
+	if Analytics.step(player, profile, stepId, funnelSessions[player]) then
+		profileDirty[player] = true
+	end
+end
 local AUTOSAVE_INTERVAL = 120 -- seconds; a crash-safety net between joins/leaves, not the primary save path (PlayerRemoving/BindToClose below are)
 
 local function profileKey(player)
@@ -814,6 +838,14 @@ local function serializeState(session, player)
 		progressNotice = session.progressNotice, -- { seq, rankUps, quests, rewards }, shown once per seq by Client/UnlockToast
 		rank = profiles[player] and TavernRank.view(profiles[player]) or nil,
 		dailyQuests = profiles[player] and Quests.view(profiles[player], LoginStreak.dayNumber(os.time()), LoginStreak.secondsToNextDay(os.time())) or nil,
+		nextGoal = profiles[player] and NextGoal.compute(profiles[player], LoginStreak.dayNumber(os.time()), {
+			unlock = function(kind, id)
+				local def = kind == "patron" and PatronsData.getById(id) or (Recipes.getHouseRecipeById(id) or Recipes.getSecretRecipeById(id))
+				return def and def.name or nil
+			end,
+		}) or nil,
+		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
+		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
 		unlockHints = Unlocks.lockedHints(profiles[player]), -- Collection: hint per still-locked Patron and Recipe
 		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
@@ -1084,6 +1116,33 @@ local function syncProfileFromSession(player)
 		progressSeqCounter = progressSeqCounter + 1
 		session.progressNotice = { seq = progressSeqCounter, rankUps = progress.rankUps, quests = questLines, rewards = texts }
 	end
+	-- FIRST 5 MINUTES: funnel steps, run_end, the one-time first-win reward and follow prompt.
+	local runState = session.state
+	if (runState.handsPlayedTotal or 0) >= 1 then logStep(player, "first_hand_played") end
+	if (runState.roundsCleared or 0) >= 1 then logStep(player, "first_round_won") end
+	if session.phase == "shop" then logStep(player, "first_shop_visit") end
+	if session.phase == "gameover" then
+		logStep(player, "first_run_ended")
+		if not session.runEndLogged then
+			session.runEndLogged = true
+			local route = runState.worldRoute or {}
+			Analytics.runEnd(player, runState.stake, WorldMap.regionOf(route[#route]), runState.night, runState.wonRun)
+		end
+	end
+	if justWon and profile.stats.runsWon == 1 then
+		local notice = FirstRewards.firstWin(profile)
+		if notice then
+			pushRewardNotice(player, notice)
+			changed = true
+		end
+		if FirstRewards.followDue(profile) then
+			rewardSeqCounter = rewardSeqCounter + 1
+			followPrompts[player] = rewardSeqCounter
+			changed = true
+		end
+	end
+	for _, q in ipairs(progress.quests) do Analytics.questDone(player, q.id) end
+	for _, rank in ipairs(progress.rankUps) do Analytics.rankUp(player, rank) end
 	if #freshUnlocks > 0 then
 		-- one counter for the whole server, so a new run's first notice still counts as new on the client
 		unlockSeqCounter = unlockSeqCounter + 1
@@ -1386,6 +1445,10 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		Analytics.runStart(player, stake, seedMode or "normal")
+		if profile.stats.runsStarted >= 2 then
+			logStep(player, "second_run_started")
+		end
 		-- TAVERN RANK / QUESTS / LOGIN: Tips banked for the next run are paid out here (normal runs only; seeded boards stay fair).
 		if seededRng == nil then
 			local bank = TavernRank.takeStartTips(profile)
@@ -1423,6 +1486,7 @@ local function onPlayerAdded(player)
 	if not okStreak then
 		warn("[Startup] login streak failed for " .. player.Name .. ": " .. tostring(streakErr))
 	end
+	logStep(player, "menu_shown")
 	local okSession, errSession = pcall(startNewSession, player)
 	if not okSession then
 		warn("[Startup] startNewSession failed for " .. player.Name .. ": " .. tostring(errSession))
@@ -1444,6 +1508,9 @@ Players.PlayerRemoving:Connect(function(player)
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
+	rewardNotices[player] = nil
+	followPrompts[player] = nil
+	funnelSessions[player] = nil
 	profileDirty[player] = nil
 	dailyPending[player] = nil
 	dailyDirty[player] = nil
@@ -2149,10 +2216,21 @@ end)
 -- walkthrough is dismissed (either "Got it!" on the last step, or
 -- "Skip") -- idempotent, so no harm if it somehow fires more than once
 -- for the same player.
-MarkTutorialSeenRemote.OnServerEvent:Connect(function(player)
+MarkTutorialSeenRemote.OnServerEvent:Connect(function(player, finished)
 	local profile = profiles[player]
 	if not profile then
 		return
+	end
+	-- FIRST 5 MINUTES: only FINISHING the tutorial (not skipping it) pays the reward, once, and only from a tutorial run.
+	local tutorialSession = sessions[player]
+	if finished == true and tutorialSession and tutorialSession.isTutorial then
+		logStep(player, "tutorial_finished")
+		local notice = FirstRewards.tutorial(profile)
+		if notice then
+			pushRewardNotice(player, notice)
+			profileDirty[player] = true
+			pushState(player)
+		end
 	end
 	if profile.hasSeenTutorial then
 		return -- already marked -- nothing changed, no need to dirty/push
@@ -2271,6 +2349,7 @@ StartTutorialRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 	startNewSession(player, nil, nil, nil, nil, nil, true)
+	logStep(player, "tutorial_started")
 end)
 
 StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId)

@@ -6733,8 +6733,8 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local ids = {}
 	for i, step in ipairs(Steps.Steps) do ids[step.id] = i end
-	local order = { "play_straight_flush", "panel_target", "panel_tips", "panel_hands", "panel_discards", "panel_patrons",
-		"shop_patrons", "buy_patron", "see_patron", "buy_pack", "pick_pack_item", "confirm_pack", "tab_patrons", "tab_recipes",
+	local order = { "play_straight_flush", "panel_target", "panel_tips", "panel_hands", "panel_patrons",
+		"shop_patrons", "buy_patron", "buy_pack", "pick_pack_item", "confirm_pack", "tab_patrons",
 		"tab_shop", "reroll", "next_round", "done" }
 	local last = 0
 	for _, id in ipairs(order) do
@@ -6753,14 +6753,13 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	expectEqual(m:report("reroll"), "wrong")
 	expectFalse(m:allows("buy")); expectFalse(m:allows("reroll")); expectFalse(m:allows("nextRound"))
 	expectTrue(m:allows("tap"))
-	for _, id in ipairs({ "panel_target", "panel_tips", "panel_hands", "panel_discards", "panel_patrons", "shop_patrons" }) do
+	for _, id in ipairs({ "panel_target", "panel_tips", "panel_hands", "panel_patrons", "shop_patrons" }) do
 		expectEqual(m:current().id, id)
 		expectEqual(m:report("tap"), "advanced")
 	end
 	expectEqual(m:current().id, "buy_patron")
 	expectTrue(m:allows("buy")); expectFalse(m:allows("pack")); expectFalse(m:allows("packSkip"))
 	expectEqual(m:report("buy_patron"), "advanced")
-	expectEqual(m:report("tap"), "advanced") -- see_patron
 	expectEqual(m:current().id, "buy_pack")
 	expectEqual(m:report("buy_pack"), "advanced")
 	expectEqual(m:current().id, "pick_pack_item")
@@ -6772,8 +6771,6 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	expectEqual(m:current().id, "tab_patrons")
 	expectTrue(m:allows("tab", { key = "mypatrons" })); expectFalse(m:allows("tab", { key = "myrecipes" }))
 	expectEqual(m:report("tab_mypatrons"), "advanced")
-	expectTrue(m:allows("tab", { key = "myrecipes" }))
-	expectEqual(m:report("tab_myrecipes"), "advanced")
 	expectTrue(m:allows("tab", { key = "buy" }))
 	expectEqual(m:report("tab_buy"), "advanced")
 	expectEqual(m:current().id, "reroll")
@@ -8611,6 +8608,131 @@ table.insert(tests, { name = "AccountProgress: counters become XP and quest prog
 	-- the Unlocks rule that reads questsDone / tavernRank sees the new fields
 	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
 	expectTrue(Unlocks.ruleMet(profile, { kind = "quests", n = 3 }) and Unlocks.ruleMet(profile, { kind = "rank", n = profile.tavernRank }))
+end })
+
+table.insert(tests, { name = "Tutorial stays under 2 minutes: the time budget of all steps, every step one short action", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local seconds = Steps.estimatedSeconds()
+	expectTrue(seconds <= Steps.MAX_SECONDS, "estimated " .. seconds .. "s, budget " .. Steps.MAX_SECONDS .. "s")
+	expectTrue(#Steps.Steps <= 24, "at most 24 steps, got " .. #Steps.Steps)
+	for _, step in ipairs(Steps.Steps) do
+		expectTrue(Steps.SECONDS[step.action] ~= nil, step.id .. " has a time estimate")
+	end
+end })
+
+-- ===== First 5 minutes: goal banner, first rewards, funnel and analytics =====
+
+table.insert(tests, { name = "NextGoal: tutorial, first win, quest, unlock, rank in that order, always a short line and a 0 to 1 bar", fn = function()
+	local NextGoal = require(script.Parent.Parent.Engine.NextGoal)
+	local Quests = require(script.Parent.Parent.Engine.Quests)
+	local names = { unlock = function(kind, id) return "Thing " .. id end }
+	local profile = PlayerProfile.new()
+	local goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "tutorial")
+	profile.hasSeenTutorial = true
+	profile.stats.bestNightReached = 3
+	goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "firstWin")
+	expectEqual(goal.ratio, 3 / 8)
+	profile.stats.runsWon = 1
+	goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "quest", "an unfinished daily quest comes next")
+	expectTrue(goal.text:find("%(%d+/%d+%)") ~= nil)
+	-- finish all three quests: the closest unlock is next
+	Quests.ensureDay(profile, 20000)
+	for _, id in ipairs(profile.quests.ids) do profile.quests.done[id] = true end
+	goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "unlock")
+	expectTrue(goal.text:find("Thing ") ~= nil and goal.ratio >= 0 and goal.ratio < 1)
+	-- nothing measurable left: the next rank, then the top
+	for kind, rules in pairs(require(script.Parent.Parent.Engine.Unlocks).Rules) do
+		for id in pairs(rules) do profile.unlockedContent[kind .. ":" .. id] = true end
+	end
+	goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "rank")
+	profile.tavernXp = require(script.Parent.Parent.Engine.TavernRank).MAX_XP
+	goal = NextGoal.compute(profile, 20000, names)
+	expectEqual(goal.kind, "done")
+	for _, g in ipairs({ goal }) do
+		expectTrue(g.ratio >= 0 and g.ratio <= 1 and #g.text > 0 and #g.text <= 70, "short line: " .. g.text)
+	end
+end })
+
+table.insert(tests, { name = "Unlocks.closest: picks the nearest measurable closed item, none once everything is open", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local profile = PlayerProfile.new()
+	profile.stats.bestNightReached = 2
+	local c = Unlocks.closest(profile)
+	expectTrue(c ~= nil and c.ratio > 0 and c.ratio < 1)
+	expectTrue(c.kind == "patron" or c.kind == "recipe")
+	profile.stats.runsWon = 100
+	profile.stats.bestNightReached = 100
+	profile.stats.handsPlayedTotal = 100000
+	profile.highestStakeUnlocked = 8
+	expectEqual(Unlocks.closest(profile), nil)
+end })
+
+table.insert(tests, { name = "FirstRewards: tutorial and first win pay once, the follow prompt is asked once, Newcomer opens with the tutorial", fn = function()
+	local FirstRewards = require(script.Parent.Parent.Engine.FirstRewards)
+	local profile = PlayerProfile.new()
+	expectTrue(not Achievements.isUnlocked(profile, "first_steps"), "Newcomer is closed at the start")
+	local n = FirstRewards.tutorial(profile)
+	expectTrue(n ~= nil and n.text:find("Newcomer") ~= nil)
+	expectTrue(profile.unlockedCardBackIds.closing_lantern)
+	expectTrue(Achievements.isUnlocked(profile, "first_steps"), "the title opens after the tutorial")
+	expectEqual(FirstRewards.tutorial(profile), nil, "paid once")
+	local win = FirstRewards.firstWin(profile)
+	expectTrue(win ~= nil and profile.unlockedCardBackIds.ember_hours and profile.pendingStartTips == FirstRewards.FIRST_WIN_TIPS)
+	expectEqual(FirstRewards.firstWin(profile), nil)
+	expectTrue(FirstRewards.followDue(profile))
+	expectTrue(not FirstRewards.followDue(profile), "asked once")
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.tutorialRewardClaimed and loaded.firstWinRewardClaimed and loaded.followPrompted)
+	local junk = PlayerProfile.migrate({ tutorialRewardClaimed = "yes", followPrompted = 1 })
+	expectTrue(not junk.tutorialRewardClaimed and not junk.followPrompted)
+	-- both card backs are real
+	expectTrue(CardBacks.getById(FirstRewards.TUTORIAL_CARD_BACK) ~= nil and CardBacks.getById(FirstRewards.FIRST_WIN_CARD_BACK) ~= nil)
+end })
+
+table.insert(tests, { name = "Funnel and Analytics: each step is logged once per player, errors never escape, no service means a quiet no-op", fn = function()
+	local Funnel = require(script.Parent.Parent.Engine.Funnel)
+	local Analytics = require(script.Parent.Parent.Engine.Analytics)
+	expectEqual(#Funnel.Steps, 8)
+	expectEqual(Funnel.indexOf("menu_shown"), 1)
+	expectEqual(Funnel.indexOf("second_run_started"), 8)
+	local profile = PlayerProfile.new()
+	expectEqual(Funnel.markIfNew(profile, "menu_shown"), 1)
+	expectEqual(Funnel.markIfNew(profile, "menu_shown"), nil)
+	expectEqual(Funnel.markIfNew(profile, "not_a_step"), nil)
+	expectTrue(PlayerProfile.migrate(profile).funnelSeen.menu_shown and next(PlayerProfile.migrate({ funnelSeen = { x = true, tutorial_started = 1 } }).funnelSeen) == nil)
+	-- with a fake service
+	local logged = {}
+	Analytics.setService({
+		LogFunnelStepEvent = function(_, player, funnel, session, step, name) logged[#logged + 1] = { "step", funnel, session, step, name } end,
+		LogCustomEvent = function(_, player, name, value, fields) logged[#logged + 1] = { "event", name, value, fields } end,
+	})
+	local p2 = PlayerProfile.new()
+	expectTrue(Analytics.step("player", p2, "tutorial_started", "sess"))
+	expectTrue(not Analytics.step("player", p2, "tutorial_started", "sess"), "never twice")
+	expectEqual(logged[1][2], Funnel.NAME); expectEqual(logged[1][4], 2); expectEqual(logged[1][5], "tutorial_started")
+	Analytics.runStart("player", 3, "daily")
+	Analytics.runEnd("player", 3, "desert", 5, true)
+	Analytics.questDone("player", "pairs_3")
+	Analytics.rankUp("player", 4)
+	expectEqual(#logged, 5)
+	expectEqual(logged[2][2], "run_start"); expectEqual(logged[2][4].stake, "3"); expectEqual(logged[3][4].road, "desert")
+	expectEqual(logged[3][4].won, "yes")
+	-- a service that throws never breaks the caller
+	Analytics.setService({
+		LogFunnelStepEvent = function() error("boom") end,
+		LogCustomEvent = function() error("boom") end,
+	})
+	expectTrue(Analytics.step("player", PlayerProfile.new(), "menu_shown", "s"))
+	expectEqual(Analytics.event("player", "x", 1, {}), false)
+	-- no service at all
+	Analytics.setService(nil)
+	expectTrue(Analytics.step("player", PlayerProfile.new(), "menu_shown", "s"))
+	expectEqual(Analytics.event("player", "x", 1, {}), false)
 end })
 
 return tests

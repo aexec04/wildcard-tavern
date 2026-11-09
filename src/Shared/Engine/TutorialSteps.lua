@@ -54,22 +54,36 @@ TutorialSteps.Steps = {
 	-- ONE action: tap the spotlighted piece ("tap") or do the named thing.
 	{ id = "panel_target", action = "tap", target = "sidebarScore", allow = { "tap" }, shop = true, text = "Reach this target to clear a round and earn Tips." },
 	{ id = "panel_tips", action = "tap", target = "sidebarTips", allow = { "tap" }, shop = true, text = "Tips are your money. Spend them at the Counter." },
-	{ id = "panel_hands", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Hands: how many times you can play cards." },
-	{ id = "panel_discards", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Discards: swap cards you do not want." },
+	{ id = "panel_hands", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Hands and Discards: your plays and card swaps." },
 	{ id = "panel_patrons", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Patron slots hold the helpers you hire." },
 	{ id = "shop_patrons", action = "tap", target = "shopPatronsRow", allow = { "tap" }, shop = true, text = "Patrons give you bonuses every hand." },
 	{ id = "buy_patron", action = "buy_patron", target = "cheapestPatron", allow = { "buy" }, shop = true, text = "Buy the cheapest Patron." },
-	{ id = "see_patron", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Your new Patron works for you every hand." },
 	{ id = "buy_pack", action = "buy_pack", target = "cheapestPack", allow = { "pack" }, shop = true, text = "Buy a Pack and open it." },
 	{ id = "pick_pack_item", action = "pack_item", target = "packItems", allow = { "packItem" }, shop = true, text = "Tap one card to keep." },
 	{ id = "confirm_pack", action = "pack_confirm", target = "packConfirm", allow = { "packConfirm" }, shop = true, text = "Press Confirm to keep it." },
 	{ id = "tab_patrons", action = "tab_mypatrons", target = "shopTabMyPatrons", allow = { "tab" }, tab = "mypatrons", shop = true, text = "Open the My Patrons tab." },
-	{ id = "tab_recipes", action = "tab_myrecipes", target = "shopTabMyRecipes", allow = { "tab" }, tab = "myrecipes", shop = true, text = "Now open the My Recipes tab." },
 	{ id = "tab_shop", action = "tab_buy", target = "shopTabBuy", allow = { "tab" }, tab = "buy", shop = true, text = "Go back to the Shop tab." },
 	{ id = "reroll", action = "reroll", target = "reroll", allow = { "reroll" }, shop = true, text = "Reroll costs Tips and shows new offers." },
 	{ id = "next_round", action = "next_round", target = "nextRound", allow = { "nextRound" }, text = "Press Next Round to keep going." },
 	{ id = "done", action = "ok", target = nil, allow = { "ok" }, celebrate = true, text = "You did it! Ready to play for real?", button = "Finish" },
 }
+
+-- TIME BUDGET. Rough seconds a player needs per action (reading the line, finding the spotlight, doing it; a played
+-- hand includes its scoring animation). The whole walkthrough must stay under TutorialSteps.MAX_SECONDS (2 minutes):
+-- a test sums it, so adding a step that pushes it over fails until another step is cut.
+TutorialSteps.MAX_SECONDS = 120
+TutorialSteps.SECONDS = {
+	menu_play = 3, select_round = 3, pick = 4, play_hand = 7, tap = 3, buy_patron = 4, buy_pack = 4, pack_item = 3,
+	pack_confirm = 3, tab_mypatrons = 3, tab_myrecipes = 3, tab_buy = 3, reroll = 4, next_round = 3, ok = 3,
+}
+
+function TutorialSteps.estimatedSeconds()
+	local total = 0
+	for _, step in ipairs(TutorialSteps.Steps) do
+		total = total + (TutorialSteps.SECONDS[step.action] or 4)
+	end
+	return total
+end
 
 -- selected = { [handIndex] = true }; the target cards are hand slots 1..count.
 function TutorialSteps.pickSatisfied(step, detail)

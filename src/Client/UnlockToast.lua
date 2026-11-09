@@ -2,6 +2,7 @@
 --   * "Unlocked: Nest Egg"           state.unlockNotice   = { seq, items = { { kind, id, hint } } }   (Engine/Unlocks)
 --   * "Quest done: Pair Up  +40 XP"  state.progressNotice = { seq, rankUps, quests, rewards }         (Engine/AccountProgress)
 --   * "Rank 5!  Title: Table Regular"
+--   * "Tutorial complete! ..." / "First win! ..."   state.rewardNotice = { seq, icon, text } (Engine/FirstRewards)
 -- Art first: the painted portrait when there is one (emoji fallback) in a gold ring, one line of text, then it
 -- slides away. Display only. Self-contained: the hub calls init(screenGui) once and update(state) from render
 -- in a pcall.
@@ -28,6 +29,7 @@ local gui -- the ScreenGui
 local toast -- the built frame, created on first use
 local lastUnlockSeq = 0
 local lastProgressSeq = 0
+local lastRewardSeq = 0
 local token = 0
 local queue = {} -- entries waiting: { icon, text, tab, id }
 local busy = false
@@ -207,6 +209,11 @@ function UnlockToast.update(state)
 	if unlock and type(unlock.seq) == "number" and unlock.seq > lastUnlockSeq then
 		lastUnlockSeq = unlock.seq
 		pushUnlocks(unlock.items or {})
+	end
+	local reward = state.rewardNotice
+	if reward and type(reward.seq) == "number" and reward.seq > lastRewardSeq then
+		lastRewardSeq = reward.seq
+		push({ icon = reward.icon, text = reward.text })
 	end
 	local progress = state.progressNotice
 	if progress and type(progress.seq) == "number" and progress.seq > lastProgressSeq then

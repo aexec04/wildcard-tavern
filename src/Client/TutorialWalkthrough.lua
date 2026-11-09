@@ -459,7 +459,7 @@ return function(deps)
 		if skipped then machine:skip() end
 		hideAll()
 		dismissNewRibbon()
-		MarkTutorialSeenRemote:FireServer()
+		MarkTutorialSeenRemote:FireServer(skipped ~= true) -- true = finished, which pays the one-time reward
 		-- Leave the scripted run: a fresh normal session replaces it and the player returns to the main menu.
 		local remotes = ReplicatedStorage:WaitForChild("Remotes")
 		local startRun = remotes:FindFirstChild("StartRun")

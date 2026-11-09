@@ -2377,6 +2377,8 @@ local function render(state)
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
+	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
+	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once

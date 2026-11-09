@@ -188,6 +188,51 @@ function Unlocks.filter(state, kind, list)
 	return out
 end
 
+-- How far along a measurable rule is: current, needed. nil for rules progress alone cannot open.
+local function progressOf(profile, rule)
+	local stats = (profile and profile.stats) or {}
+	if rule.kind == "wins" then
+		return stats.runsWon or 0, rule.n
+	elseif rule.kind == "bestNight" then
+		return stats.bestNightReached or 0, rule.n
+	elseif rule.kind == "hands" then
+		return stats.handsPlayedTotal or 0, rule.n
+	elseif rule.kind == "stake" then
+		return math.max(0, ((profile and profile.highestStakeUnlocked) or 1) - 1), rule.n
+	elseif rule.kind == "quests" then
+		return (profile and profile.questsDone) or 0, rule.n
+	elseif rule.kind == "rank" then
+		return ((profile and profile.tavernRank) or 1) - 1, rule.n - 1
+	end
+	return nil
+end
+
+-- The closed item that is closest to opening, for the "next goal" line:
+-- { kind, id, hint, current, needed, ratio } or nil when nothing measurable is left.
+function Unlocks.closest(profile)
+	local best
+	for _, kind in ipairs({ "patron", "recipe" }) do
+		local ids = {}
+		for id in pairs(Unlocks.Rules[kind]) do
+			ids[#ids + 1] = id
+		end
+		table.sort(ids)
+		for _, id in ipairs(ids) do
+			local rule = Unlocks.Rules[kind][id]
+			if not Unlocks.isUnlocked(profile, kind, id) then
+				local current, needed = progressOf(profile, rule)
+				if current and needed and needed > 0 then
+					local ratio = math.max(0, math.min(1, current / needed))
+					if ratio < 1 and (best == nil or ratio > best.ratio) then
+						best = { kind = kind, id = id, hint = rule.hint, current = current, needed = needed, ratio = ratio }
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
 -- Hints for the Collection: [kind][id] = hint for gated content this profile has NOT opened yet.
 function Unlocks.lockedHints(profile)
 	local out = { patron = {}, recipe = {} }

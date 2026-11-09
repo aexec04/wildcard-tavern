@@ -35,9 +35,9 @@ Achievements.Definitions = {
 		name = "First Steps",
 		icon = "👣",
 		title = "Newcomer",
-		description = "Start your first run.",
+		description = "Start your first run or finish the tutorial.",
 		flavorText = "The door creaks open. Welcome in, stranger.",
-		requirement = function(profile) return profile.stats.runsStarted >= 1 end,
+		requirement = function(profile) return profile.stats.runsStarted >= 1 or profile.tutorialRewardClaimed == true end,
 	},
 	{
 		id = "grand_finale",
