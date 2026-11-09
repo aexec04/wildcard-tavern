@@ -538,34 +538,45 @@ return function(deps)
 	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Same row as the
 	-- three small tiles. Reuses the in-run corner icon art (no menu_icons key); the panels
 	-- open from Collection.lua / Settings.lua.
-	local accountRow = makeRow(5, 114, 8) -- its own row: Collection, Settings, Store, Invite, Season (5 x 106 + 4 x 8 = 562 <= 640)
+	local accountRow = makeRow(6, 114, 8) -- its own row: Collection, Settings, Store, Invite, Season, Rewards (6 x 98 + 5 x 8 = 628 <= 640)
 	local menuCollectionButton = makeFrameButton({
-		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 106, height = 114,
+		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 98, height = 114,
 		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
 	})
 	local menuSettingsButton = makeFrameButton({
-		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 106, height = 114,
+		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 98, height = 114,
 		iconKey = "settings", iconImage = ArtAssets.cornerIconSettings, emoji = "\226\154\153", iconSize = 46,
 	})
 	-- The Tavern Store (Client/StorePanel.lua opens from it): painted icon key "store", market emoji until it exists.
 	local menuStoreButton = makeFrameButton({
-		text = "Store", textSize = 14, parent = accountRow, order = 6, width = 106, height = 114,
+		text = "Store", textSize = 14, parent = accountRow, order = 6, width = 98, height = 114,
 		iconKey = "store", emoji = "\240\159\155\146", iconSize = 46,
 	})
 	-- Invite a friend (Client/InvitePrompt.lua): Roblox's invite sheet; painted icon key "invite" once it exists, envelope emoji until then.
 	local menuInviteButton = makeFrameButton({
-		text = "Invite", textSize = 14, parent = accountRow, order = 7, width = 106, height = 114,
+		text = "Invite", textSize = 14, parent = accountRow, order = 7, width = 98, height = 114,
 		iconKey = "invite", emoji = "\240\159\146\140", iconSize = 46,
 	})
 	require(script.Parent.InvitePrompt).bind(menuInviteButton)
 	-- Tavern Season (Client/SeasonPanel.lua opens from it): the 30 day reward ladder. Icon key "season", ticket emoji until it exists.
 	local menuSeasonButton = makeFrameButton({
-		text = "Season", textSize = 14, parent = accountRow, order = 8, width = 106, height = 114,
+		text = "Season", textSize = 14, parent = accountRow, order = 8, width = 98, height = 114,
 		iconKey = "season", emoji = "\240\159\142\171", iconSize = 46,
 		iconImage = ContentArt.getImageId("seasons", "menu_season"), -- painted ticket once generated; ticket emoji until then
 	})
 
-	menuDailyChallengeButton.MouseButton1Click:Connect(function()
+	
+	-- Daily Rewards: the permanent 7-day ladder (Client/DailyRewardsPanel.lua), readable any time. Painted "daily_rewards" icon once it exists, gift emoji until then.
+	local menuDailyRewardsButton = makeFrameButton({
+		text = "Rewards", textSize = 14, parent = accountRow, order = 9, width = 98, height = 114,
+		iconKey = "daily_rewards", emoji = "\240\159\142\129", iconSize = 46,
+		iconImage = ContentArt.getImageId("discoveries", "chest"), -- reuse the painted chest until a dedicated icon is recorded
+	})
+	menuDailyRewardsButton.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
+	end)
+
+menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
 			playClickSfx()
 		end

@@ -334,6 +334,11 @@ return function(deps)
 	local settingsHowToPlayButton = makeAccountButton("How to Play", 1, ArtAssetsModule.cornerIconHowToPlay)
 	local settingsLeaderboardButton = makeAccountButton("Leaderboards", 2, ArtAssetsModule.cornerIconLeaderboards)
 	local settingsMainMenuButton = makeAccountButton("Main Menu", 3, nil)
+	-- Daily Rewards ladder, readable any time (Client/DailyRewardsPanel.lua); its own full-width row under the three buttons.
+	local settingsDailyButton = makeAccountButton("Daily Rewards", 4, nil)
+	settingsDailyButton.Parent = scroll
+	settingsDailyButton.Size = UDim2.new(1, 0, 0, 40)
+	settingsDailyButton.LayoutOrder = order()
 
 	-- Restart Run (danger button + hold-to-confirm popup), see Client/RestartRun.lua. Hidden when no run is active.
 	local restartRun = require(script.Parent.RestartRun)({
@@ -366,6 +371,13 @@ return function(deps)
 		popOut(settingsBackdrop, settingsPanel, nil, function()
 			deps.root.Visible = false
 			deps.menuFrame.Visible = true
+		end)
+	end)
+
+	settingsDailyButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		popOut(settingsBackdrop, settingsPanel, nil, function()
+			pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
 		end)
 	end)
 

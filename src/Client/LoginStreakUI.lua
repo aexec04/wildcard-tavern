@@ -175,7 +175,13 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	ui.popup = popup
 	ui.scale = Instance.new("UIScale")
 	ui.scale.Parent = popup
-	label(popup, { Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 54), Text = "🎁", TextSize = 46 })
+	-- Painted chest (discoveries/chest, already recorded) over the gift emoji, which stays as the fallback.
+	local giftEmoji = label(popup, { Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 54), Text = "🎁", TextSize = 46 })
+	pcall(function()
+		require(script.Parent.ArtIcon).apply(popup, "discoveries", "chest", giftEmoji, {
+			zIndex = 93, cornerRadius = 8, size = UDim2.fromOffset(60, 56), position = UDim2.new(0.5, -30, 0, 4),
+		})
+	end)
 	label(popup, { Position = UDim2.new(0, 0, 0, 62), Size = UDim2.new(1, 0, 0, 28), Text = "Daily reward ready!", TextSize = 22 })
 	ui.flames = label(popup, { Position = UDim2.new(0, 10, 0, 92), Size = UDim2.new(1, -20, 0, 30), Text = "", TextSize = 24 })
 	ui.streak = label(popup, { Position = UDim2.new(0, 0, 0, 122), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 16 })

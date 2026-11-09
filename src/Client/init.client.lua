@@ -934,6 +934,16 @@ do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile o
 	end)
 	if not ok then warn("[Client] QuestsPanel failed: " .. tostring(err)) end
 end
+do -- Daily Rewards ladder (Client/DailyRewardsPanel.lua), opened from the Menu tile and from Settings
+	local ok, err = pcall(function()
+		require(script.DailyRewardsPanel).init({
+			screenGui = screenGui, polishPanel = VisualHelpersModule.polishPanel, polishButton = VisualHelpersModule.polishButton,
+			roundCorner = VisualHelpersModule.roundCorner, playClickSfx = SoundModule.playClickSfx, popIn = VisualHelpersModule.popIn, popOut = VisualHelpersModule.popOut,
+			getLatestState = function() return latestState end,
+		})
+	end)
+	if not ok then warn("[Client] DailyRewardsPanel failed: " .. tostring(err)) end
+end
 do -- Tavern Season panel (Client/SeasonPanel.lua): the 30 day reward ladder, opened from the Season tile on the main menu
 	local ok, err = pcall(function()
 		require(script.SeasonPanel).init({
@@ -2383,6 +2393,7 @@ local function render(state)
 	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
+	pcall(require(script.DailyRewardsPanel).update, state) -- keeps an open Daily Rewards ladder current, display only
 	pcall(require(script.FirstTimeHints).update, state) -- one shot hint bubbles (Engine/Hints.lua), display only
 	pcall(require(script.LegendCrest).update, screenGui, state) -- Legend crest and gold aura on the name medallion, display only
 	pcall(require(script.FlairFX).setState, state) -- equipped Flair for the popups (visual only)
