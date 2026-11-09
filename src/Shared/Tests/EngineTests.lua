@@ -4489,6 +4489,7 @@ local function unlockAllRegularTitles(profile)
 	profile.challengesCleared = { a = true, b = true, c = true, d = true }
 	profile.discoveries = { a = true, b = true, c = true }
 	profile.clearedNightIds = { [1] = true, [2] = true, [3] = true, [4] = true }
+	profile.invitesAccepted = 10
 	for _, patron in ipairs(Patrons.Definitions) do
 		profile.discoveredPatronIds[patron.id] = true
 	end
@@ -8678,7 +8679,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 83, "53 original + 30 new")
+	expectEqual(#Defs, 85, "53 original + 30 new + 2 invite titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -8777,6 +8778,57 @@ table.insert(tests, { name = "RunHistory: capped at 20 newest first, tagged by m
 	state.patronsUsedOrder = { "a", "b" }
 	local entry = RunHistory.entryFromState(state, "standard", "tavern", 42)
 	expectTrue(entry.won and entry.night == 8 and entry.score == 123456 and entry.bestHand.score == 9000 and #entry.patrons == 2)
+end })
+
+table.insert(tests, { name = "Invites: join data parsing, each invitee credited once, no self invites, titles at 3 and 10, starter back once", fn = function()
+	local Invites = require(script.Parent.Parent.Engine.Invites)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	expectEqual(Invites.launchData(12345), "inv:12345"); expectEqual(Invites.launchData(-1), nil); expectEqual(Invites.launchData("x"), nil)
+	expectEqual(Invites.inviterFromJoinData({ LaunchData = "inv:777" }), 777)
+	expectEqual(Invites.inviterFromJoinData({ ReferredByPlayerId = 42 }), 42)
+	expectEqual(Invites.inviterFromJoinData({ LaunchData = "inv:abc", ReferredByPlayerId = 9 }), 9, "bad launch data falls back")
+	expectEqual(Invites.inviterFromJoinData({ LaunchData = "inv:99999999999999999999" }), nil)
+	expectEqual(Invites.inviterFromJoinData({ LaunchData = "hello" }), nil); expectEqual(Invites.inviterFromJoinData(nil), nil)
+	-- the inviter: once per invitee, never for self
+	local host = PlayerProfile.new()
+	host.pendingStartTips = 0
+	local ok = Invites.creditInviter(host, 1, 2)
+	expectTrue(ok); expectEqual(host.invitesAccepted, 1); expectEqual(host.pendingStartTips, Invites.INVITER_TIPS)
+	expectFalse((Invites.creditInviter(host, 1, 2)), "the same invitee never counts twice")
+	expectFalse((Invites.creditInviter(host, 1, 1)), "self invite")
+	expectFalse((Invites.creditInviter(host, 1, "x")), "junk id")
+	expectEqual(host.invitesAccepted, 1)
+	local _, reached = Invites.creditInviter(host, 1, 3)
+	expectEqual(#reached, 0)
+	_, reached = Invites.creditInviter(host, 1, 4)
+	expectEqual(reached[1], "welcoming_host", "third invite reaches Welcoming Host")
+	expectTrue(Achievements.isUnlocked(host, "welcoming_host")); expectFalse(Achievements.isUnlocked(host, "tavern_ambassador"))
+	for id = 10, 16 do Invites.creditInviter(host, 1, id) end
+	expectEqual(host.invitesAccepted, 10); expectTrue(Achievements.isUnlocked(host, "tavern_ambassador"))
+	expectTrue(host.pendingStartTips <= TavernRank.MAX_PENDING_TIPS, "banked Tips stay capped")
+	-- the invitee: only a brand new player, once
+	local guest = PlayerProfile.new()
+	expectFalse((Invites.acceptInvite(guest, 5, 5)), "self invite")
+	expectTrue(Invites.acceptInvite(guest, 5, 1)); expectTrue(guest.unlockedCardBackIds[Invites.INVITEE_CARD_BACK])
+	expectEqual(guest.invitedByUserId, 1)
+	expectFalse((Invites.acceptInvite(guest, 5, 2)), "only the first inviter counts")
+	local veteran = PlayerProfile.new()
+	veteran.stats.runsStarted = 3
+	expectFalse((Invites.acceptInvite(veteran, 6, 1)), "an existing player is not a new arrival")
+	expectEqual(veteran.invitedByUserId, nil)
+	-- offline inviter inbox: deduplicated, drained idempotently
+	local inbox = Invites.inboxAdd(nil, 20); inbox = Invites.inboxAdd(inbox, 21); inbox = Invites.inboxAdd(inbox, 20)
+	expectEqual(#inbox, 2)
+	local later = PlayerProfile.new()
+	local credited = Invites.drainInbox(later, 1, inbox)
+	expectEqual(credited, 2); expectEqual(Invites.drainInbox(later, 1, inbox), 0, "draining twice grants nothing")
+	-- save and load keeps the ledger; junk is dropped
+	local loaded = PlayerProfile.migrate(host)
+	expectEqual(loaded.invitesAccepted, 10); expectTrue(loaded.inviteLedger["16"])
+	local junk = PlayerProfile.migrate({ invitesAccepted = "x", inviteLedger = { a = true, ["5"] = true, ["6"] = "no" }, invitedByUserId = -4 })
+	expectEqual(junk.invitesAccepted, 1); expectEqual(junk.invitedByUserId, nil); expectFalse(junk.inviteeRewardClaimed)
+	expectEqual(PlayerProfile.migrate({}).invitesAccepted, 0, "old saves get safe defaults")
+	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
 table.insert(tests, { name = "RunState counts Tips earned over a run for the Tavern Stats page", fn = function()

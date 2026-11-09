@@ -433,7 +433,9 @@
     "hat_trick": "an avatar tossing a top hat into the air with three gold stars trailing it",
     "hand_thousand": "an avatar surrounded by a tall swirl of a thousand floating playing cards, amazed",
     "map_spots": "an avatar peeking behind a wooden barrel with a magnifying glass, curious",
-    "nights_cleared": "an avatar walking a glowing path with four lanterns lit along it, content"
+    "nights_cleared": "an avatar walking a glowing path with four lanterns lit along it, content",
+    "welcoming_host": "an avatar holding a tavern door wide open with a warm welcoming smile, golden light and a small group of friends arriving",
+    "tavern_ambassador": "an avatar in a fancy ribbon sash holding up a glowing lantern and waving a crowd of friends toward a tavern door"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -547,7 +549,8 @@
     "store": "a wooden market stall with a striped awning, a small brass scale and a few wrapped gifts, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "quests": "a rolled parchment quest scroll tied with a red ribbon and a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "news": "a rolled paper scroll with a red ribbon and a small brass bell beside it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
-    "boss_rush": "a row of three small boss masks in a line with a gold lightning bolt above them, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+    "boss_rush": "a row of three small boss masks in a line with a gold lightning bolt above them, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "invite": "a sealed parchment invitation envelope with a gold wax seal and a small glowing lantern, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "hud_subjects": {
     "sidebar_board": "a tall wood-framed tavern notice board hung on a wall, warm lit aged parchment center with a perfectly plain, evenly textured surface (no pinned items, no drawings, no marks, so UI can sit anywhere), a dark vignette toward the wood edges, subtle metal studs on the frame, a soft candle glow at the top corners, portrait composition, no text, no letters, no characters, kid-friendly",

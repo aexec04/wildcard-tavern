@@ -701,6 +701,7 @@ local WAVE_RARITY = {
 	quests_twentyfive = "uncommon", rank_ten = "uncommon", hand_five_hundred = "uncommon",
 	hand_thousand = "rare", stake_six = "rare", streak_fourteen = "rare", rank_fifteen = "rare",
 	rush_six = "rare", challenge_many = "rare", endless_thirty = "rare",
+	welcoming_host = "uncommon", tavern_ambassador = "epic",
 	stake_eight = "epic", streak_thirty = "epic", quests_hundred = "epic", hand_two_thousand = "epic",
 }
 
@@ -776,6 +777,11 @@ addWave("hand_thousand", "Thousand Hands", "🎴", "Thousand Hands", "Play 1000 
 	function(p) return stat(p, "handsPlayedTotal") >= 1000 end)
 addWave("map_spots", "Corner Peeker", "🔍", "Corner Peeker", "Find 3 hidden spots on the Tavern Map.", "You always check behind the barrel.",
 	function(p) return countOf(p.discoveries) >= 3 end)
+-- invites (Engine/Invites.lua): distinct friends who joined through your invite
+addWave("welcoming_host", "Welcoming Host", "💌", "Welcoming Host", "Bring 3 friends in through an invite.", "The door is open and the lanterns are lit.",
+	function(p) return (p.invitesAccepted or 0) >= 3 end)
+addWave("tavern_ambassador", "Tavern Ambassador", "🎺", "Tavern Ambassador", "Bring 10 friends in through an invite.", "Half the town knows your table.",
+	function(p) return (p.invitesAccepted or 0) >= 10 end)
 addWave("nights_cleared", "Road Regular", "🛤️", "Road Regular", "Clear 4 different Nights.", "The road knows your footsteps.",
 	function(p) return countOf(p.clearedNightIds) >= 4 end)
 

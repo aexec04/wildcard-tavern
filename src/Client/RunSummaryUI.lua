@@ -178,14 +178,21 @@ function RunSummaryUI.init(screenGui, deps)
 	})
 
 	-- Share seed (Seed Runs only): the code and a ready-to-send line in a selectable box (Ctrl+C copies it).
+	-- three equal buttons on one row (x from 312 to the panel's right margin): Share, Challenge, Invite
 	ui.share = button(panel, "Share result", WOOD, {
-		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(0.5, -176, 0, 38),
+		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
 	})
 	ui.share.Visible = false
 	ui.challenge = button(panel, "Challenge a friend", WOOD, {
-		Position = UDim2.new(0.5, -22, 0, 300), Size = UDim2.new(0.5, -171, 0, 38),
+		Position = UDim2.new(1 / 3, 312 - 109, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
 	})
 	ui.challenge.Visible = false
+	-- Invite friends (Client/InvitePrompt.lua), always available beside the share buttons
+	ui.invite = button(panel, "Invite friends", WOOD, {
+		Position = UDim2.new(2 / 3, 312 - 218, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
+	})
+	ui.invite.Visible = false
+	require(script.Parent.InvitePrompt).bind(ui.invite)
 	ui.shareBox = Instance.new("TextBox")
 	ui.shareBox.Name = "ShareSeedBox"
 	ui.shareBox.Position = UDim2.new(0, 312, 0, 300)
@@ -220,6 +227,7 @@ function RunSummaryUI.init(screenGui, deps)
 		ui.shareBox.Text = text
 		ui.share.Visible = false
 		ui.challenge.Visible = false
+		ui.invite.Visible = false
 		ui.shareBox.Visible = true
 		ui.shareHint.Visible = true
 		ui.shareBox:CaptureFocus()
@@ -390,6 +398,7 @@ function RunSummaryUI.update(state)
 		ui.shareHint.Visible = false
 		ui.share.Visible = true
 		ui.challenge.Visible = true
+		ui.invite.Visible = true
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)

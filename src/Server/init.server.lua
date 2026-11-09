@@ -1737,6 +1737,50 @@ end
 -- profiles[player] (stats) for the fresh RunState. Consolidated
 -- into one PlayerAdded handler instead of the 2 independent ones this used
 -- to be, specifically to guarantee that ordering.
+-- INVITES (Engine/Invites.lua): runs once per join inside a pcall, never blocks gameplay.
+--  1. drain this player's own inbox (invitees credited while they were offline);
+--  2. if this player arrived through an invite, grant them the starter card back (once, new players only) and credit
+--     the inviter: directly when they are in this server, otherwise through a small DataStore inbox.
+local function processInvites(player)
+	local Invites = require(Engine.Invites)
+	local profile = profiles[player]
+	if not profile or saveBlocked[player] then
+		return
+	end
+	local store = DataStoreService:GetDataStore("WildcardTavernInvites_v1")
+	local inboxKey = "u" .. tostring(player.UserId)
+	local okRead, inbox = pcall(function() return store:GetAsync(inboxKey) end)
+	if okRead and type(inbox) == "table" and #inbox > 0 then
+		local credited, titles = Invites.drainInbox(profile, player.UserId, inbox)
+		if credited > 0 then
+			profileDirty[player] = true
+			pushRewardNotice(player, { icon = "💌", text = string.format("%d friend%s joined through your invite. +%d Tips next run.", credited, credited == 1 and "" or "s", credited * Invites.INVITER_TIPS) })
+		end
+		pcall(function() store:RemoveAsync(inboxKey) end) -- credited ones are in the ledger, so a failed remove is harmless
+	end
+	local okJoin, joinData = pcall(function() return player:GetJoinData() end)
+	local inviterId = okJoin and Invites.inviterFromJoinData(joinData) or nil
+	if not inviterId or not Invites.acceptInvite(profile, player.UserId, inviterId) then
+		return
+	end
+	profileDirty[player] = true
+	pushRewardNotice(player, { icon = "🎁", text = "A friend invited you. Here is a starter card back!" })
+	local inviter = Players:GetPlayerByUserId(inviterId)
+	local inviterProfile = inviter and profiles[inviter]
+	if inviterProfile then
+		if Invites.creditInviter(inviterProfile, inviterId, player.UserId) then
+			profileDirty[inviter] = true
+			pushRewardNotice(inviter, { icon = "💌", text = player.DisplayName .. " joined through your invite. +" .. Invites.INVITER_TIPS .. " Tips next run." })
+		end
+	else
+		pcall(function()
+			store:UpdateAsync("u" .. tostring(inviterId), function(old)
+				return Invites.inboxAdd(old, player.UserId)
+			end)
+		end)
+	end
+end
+
 local function onPlayerAdded(player)
 	-- Each step is pcall'd and named so one failure can't leave the player
 	-- without a session (every remote handler ignores players with none).
@@ -1759,6 +1803,12 @@ local function onPlayerAdded(player)
 	if saveBlocked[player] then
 		pushRewardNotice(player, { icon = "⚠️", text = "Your progress can't be saved right now. You can still play." })
 	end
+	task.spawn(function()
+		local okInv, errInv = pcall(processInvites, player)
+		if not okInv then
+			warn("[Startup] invites failed for " .. player.Name .. ": " .. tostring(errInv))
+		end
+	end)
 	logStep(player, "menu_shown")
 	local okSession, errSession = pcall(startNewSession, player)
 	if not okSession then

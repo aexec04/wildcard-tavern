@@ -550,6 +550,12 @@ return function(deps)
 		text = "Store", textSize = 14, parent = accountRow, order = 6, width = 106, height = 114,
 		iconKey = "store", emoji = "\240\159\155\146", iconSize = 46,
 	})
+	-- Invite a friend (Client/InvitePrompt.lua): Roblox's invite sheet; painted icon key "invite" once it exists, envelope emoji until then.
+	local menuInviteButton = makeFrameButton({
+		text = "Invite", textSize = 14, parent = accountRow, order = 7, width = 106, height = 114,
+		iconKey = "invite", emoji = "\240\159\146\140", iconSize = 46,
+	})
+	require(script.Parent.InvitePrompt).bind(menuInviteButton)
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
