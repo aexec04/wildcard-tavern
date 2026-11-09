@@ -3,13 +3,14 @@
 Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home front page: a reason to return daily and about 3 hours of content. Plan: [ROADMAP.md](ROADMAP.md). The long per-feature notes that used to live here are in git history (`git log -p claude/STATUS.md`); read the code and its tests for detail.
 
 ## Health
-- **Tests:** `lua tools/run_tests_local.lua` (plain `lua` works, `lua5.3` is not installed here): 575 passing, 0 failing. Includes the sort-order lint, the text-size lint (nothing under 14) and the locals guard.
+- **Tests:** `lua tools/run_tests_local.lua` (plain `lua` works, `lua5.3` is not installed here): 580 passing, 0 failing. Includes the sort-order lint, the text-size lint (nothing under 14) and the locals guard.
 - **Locals guard:** `tools/check_locals.lua`. Server 141 of 150. Client hub `src/Client/init.client.lua` is 132 of 132 (Lua hard limit 200); it is a ratchet, lower it when you move locals out, never raise it. Add new client code as modules or `do ... end` blocks.
 - **Not verifiable without Studio:** the hub rewrite (aliases inlined, see OUTBOX), Spectate with two players, real Invites, phone and 360x640 layouts, Tavern Map road choice and side stops, Season/Flair/Legend panels. Restart Play and click through Menu, Run Setup, a run, the Counter, Collection and Settings after any hub change.
 
 ## What exists
 - **Run loop:** 8 Nights of Small, Big and Boss rounds, Patrons, Recipes, House Passes, packs, tags, The Counter shop (opens only after a played, cleared round), One More Round (free daily, then paid), 8 stakes, Legend prestige, Quick Run, Boss Rush, challenge runs, Daily, Weekly and Seed runs, Endless with Crowd Rules, start-of-run draft and random events.
 - **The Counter:** Peddler's Wagon scene with Marlo the Peddler and his lines (`Client/ShopScene.lua`, `Engine/ShopkeeperLines.lua`), one Haggle per visit on a server-timed needle (`Engine/Haggle.lua`, refused on ranked boards and in the tutorial) and the rare Wandering Stranger with six Dealer's Bargains (`Engine/Strangers.lua`, never Nights 1 to 2 or ranked).
+- **The Menu is the tavern:** parallax backdrop, ten painted hotspots with carved plaques and fans, an All actions list (the only view on phones), lantern, motes and candle glow (`Engine/MenuLayout.lua`, `Client/MenuHotspots.lua`, `MenuParallax.lua`, `MenuScene.lua`). Poker Hands is a ledger board with a detail card (`Engine/HandLedger.lua`). Collection shows progress only; run numbers live in the Tavern Ledger.
 - **Bonds and Regulars:** Patron Bonds between Patrons sharing a synergy tag (`Engine/Bonds.lua`, glowing sidebar threads, Collection Bonds tab); Tavern Regulars in the Menu corner for bosses you beat and Patrons you won with (`Engine/Regulars.lua`).
 - **Big moments:** Showdown gold banner on a Boss clear (`Client/Showdown.lua`) and a Win Card with a selectable share line after a run win or new best (`Engine/WinCard.lua`, `Client/WinCard.lua`).
 - **Bosses:** 43 Boss Rounds with rule tags, Boss Scout and one-time Rule Ban, painted boss portrait with HP bar, taunts, attacks, enrage and defeat beats (`Client/BossFight.lua`, `Engine/BossLines.lua`).
@@ -23,6 +24,7 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 ## Open items
 - **User only:** store page thumbnail, icon and video; real phone test; create the Developer Products and passes in Creator Hub and paste their ids (list in `claude/LAUNCH.md`); resolve decal ids to Image ids for new art and send `record-image` lines.
 - **Art not generated yet:** biome Patrons and House Recipes, Endless rule icons, store page images; `tools/art_status.py` has the live list.
-- **Studio checks owed:** Peddler scene, Haggle bar, Stranger card, Bond threads, Menu Regulars, Showdown banner, Win Card, RoadChoice, CompassWheel, SideStopPanel, MinigamePanel, CharacterStage, Season, Flair, Legend, Spectate, Stats, Invites, hints.
+- **Decal ids to resolve:** 9 Menu hotspot images (`menu_icons`) and 5 shop images (`shop`), lines are in OUTBOX; emoji and flat colour show until then.
+- **Studio checks owed:** Menu hotspots and parallax, Poker Hands ledger, Flair Preview, Collection Expand button, Peddler scene, Haggle bar, Stranger card, Bond threads, Menu Regulars, Showdown banner, Win Card, RoadChoice, CompassWheel, SideStopPanel, MinigamePanel, CharacterStage, Season, Flair, Legend, Spectate, Stats, Invites, hints.
 - **Untracked helper scripts:** `tools/_*.py` and `tools/_check_boss_counters.lua` are one-off migration helpers (listed in OUTBOX); delete or commit them yourself.
 - **Content rules:** kid-safe names, no alcohol, never the banned B-word in game text (it appears only in banned-word test lists and design docs).
