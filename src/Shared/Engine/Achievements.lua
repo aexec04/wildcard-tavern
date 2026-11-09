@@ -787,6 +787,22 @@ local function seasonTitle(id, name, icon, flavor)
 end
 seasonTitle("season_harvest_moon", "Harvest Regular", "🌕", "You were there when the lanterns lit the fields.")
 seasonTitle("season_winter_welcome", "Winter Regular", "🧣", "You kept the fire going all winter.")
+-- Collection completion titles (Engine/CollectionRewards.lua, 100 percent of a group): granted into rewardTitleIds on claim
+for _, spec in ipairs({
+	{ "book_patrons", "Patron Whisperer", "🧑‍🍳", "Every Patron has sat at your table." },
+	{ "book_recipes", "Master Cook", "📖", "Not one recipe is a mystery to you." },
+	{ "book_bosses", "Giant Tamer", "👑", "Every big guest has shaken your hand." },
+	{ "book_sets", "Table Dresser", "🎴", "Every table in the tavern wears your colors." },
+	{ "book_titles", "Title Hoarder", "🏷️", "You have a name for every occasion." },
+	{ "book_badges", "Badge Collector", "🏅", "Your sash has no room left." },
+}) do
+	local id = spec[1]
+	table.insert(Achievements.Definitions, {
+		id = id, name = spec[2], icon = spec[3], title = spec[2], rarity = "legendary", milestoneReward = true,
+		description = "A Collection reward: complete this part of the Collection.", flavorText = spec[4],
+		requirement = function(p) return p.rewardTitleIds ~= nil and p.rewardTitleIds[id] == true end,
+	})
+end
 -- invites (Engine/Invites.lua): distinct friends who joined through your invite
 addWave("welcoming_host", "Welcoming Host", "💌", "Welcoming Host", "Bring 3 friends in through an invite.", "The door is open and the lanterns are lit.",
 	function(p) return (p.invitesAccepted or 0) >= 3 end)

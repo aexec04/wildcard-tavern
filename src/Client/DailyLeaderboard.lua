@@ -433,14 +433,18 @@ return function(deps)
 		popOut(leaderboardBackdrop, leaderboardPanel)
 	end)
 
-	leaderboardButton.MouseButton1Click:Connect(function()
+	local function openLeaderboard()
 		playClickSfx()
 		OverlayManager.closeAllExcept("dailyLeaderboard")
 		activeBucket = Leaderboards.STANDARD -- every open starts on Standard
 		activeScope = Leaderboards.GLOBAL -- and on the Global board
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
-	end)
+	end
+	leaderboardButton.MouseButton1Click:Connect(openLeaderboard)
+	if deps.menuTickerButton then -- the main menu strip's "Daily board" button opens the same overlay
+		deps.menuTickerButton.MouseButton1Click:Connect(openLeaderboard)
+	end
 
 	return {}
 end

@@ -138,6 +138,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local ClaimCollectionRewardRemote = newRemote("ClaimCollectionReward") -- (player, group id, percent) or (player, "all")
 local StoreOpenedRemote = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
 local HintSeenRemote = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
 local ResetHintsRemote = newRemote("ResetHints") -- (player): Settings > Replay Hints
@@ -382,6 +383,9 @@ local boardStoreCache = {} -- [store name] = OrderedDataStore instance, so re-op
 local dailyPending = {} -- [player] = { [board] = { dateKey, depth, tips } } -- this player's best Daily Challenge result per board not yet confirmed written
 local dailyDirty = {} -- [player] = { [board] = true } while that board's pending entry hasn't been saved yet; nil once nothing is dirty
 local lastLeaderboardRequest = {} -- [player] = os.clock() of their last GetDailyLeaderboard call
+-- MENU TICKER (Engine/MenuTicker.lua): today's best run and a rounded run count, cached so every server reads the board and
+-- the counter at most once a minute. `pending` runs are added to the shared DataStore counter on the same cadence.
+local menuTicker = { at = -1e9, data = nil, pending = 0, flushedAt = -1e9 }
 
 local function getBoardStore(kind, board, periodKey)
 	local name = Leaderboards.storeName(kind, board, periodKey)
@@ -975,6 +979,10 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		collectionRewards = profiles[player] and (function()
+			local ok, view = pcall(function() return require(Engine.CollectionRewards).view(profiles[player], liveLookup) end)
+			return ok and view or nil
+		end)() or nil, -- Collection completion rings and milestones
 		hintsSeen = profiles[player] and profiles[player].hintsSeen or nil, -- first time hints already shown (Engine/Hints.lua)
 		lastInterest = state.lastInterest, -- the interest paid at the last round win (hint "first_interest")
 		season = profiles[player] and require(Engine.SeasonTrack).view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
@@ -1746,6 +1754,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
+		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
 		Analytics.runStart(player, stake, seedMode or "normal")
 		if profile.stats.runsStarted >= 2 then
 			logStep(player, "second_run_started")
@@ -2774,6 +2783,32 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 	pushState(player)
 end)
 
+-- COLLECTION COMPLETION REWARDS (Engine/CollectionRewards.lua): the server re-checks the progress before paying; once each.
+ClaimCollectionRewardRemote.OnServerEvent:Connect(function(player, group, pct)
+	if not RateLimit.allow(player.UserId, "ClaimCollectionRewardRemote", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile or (group ~= "all" and (type(group) ~= "string" or type(pct) ~= "number")) then
+		return
+	end
+	local CollectionRewards = require(Engine.CollectionRewards)
+	local texts = {}
+	if group == "all" then
+		for _, c in ipairs(CollectionRewards.claimAll(profile)) do
+			texts[#texts + 1] = CollectionRewards.rewardText(c.reward, liveLookup)
+		end
+	else
+		local ok, reward = CollectionRewards.claim(profile, group, pct)
+		if ok then
+			texts[1] = CollectionRewards.rewardText(reward, liveLookup)
+		end
+	end
+	if #texts > 0 then
+		profileDirty[player] = true
+		pushRewardNotice(player, { icon = "🏅", text = "Collection: " .. table.concat(texts, ", ") })
+	end
+	pushState(player)
+end)
+
 StoreOpenedRemote.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "StoreOpenedRemote", os.clock()) then return end
 	Analytics.single(player, "store_opened", 1, {}) -- budgeted per player per hour like every tuning event
@@ -3434,6 +3469,64 @@ local function broadcastLeaderboardTicker()
 	local top = fetchDailyTickerTop(dateKey)
 	if top then
 		LeaderboardTickerRemote:FireAllClients({ dateKey = dateKey, top = top })
+	end
+end
+
+-- MENU TICKER: GetMenuTicker returns { top = { name, depth, tips, title }, runs } for the main menu strip. One DataStore
+-- read of the Daily board top and one of the run counter per minute per server (cached), one counter write per minute
+-- (the runs started on this server since the last write). Every call is pcall'd: a failure returns the last data or
+-- an empty table, and the client shows a flavor line instead.
+do
+	local TickerRemote = Instance.new("RemoteFunction")
+	TickerRemote.Name = "GetMenuTicker"
+	TickerRemote.Parent = remotes
+	local MenuTicker = require(Engine.MenuTicker)
+	TickerRemote.OnServerInvoke = function(player)
+		if not RateLimit.allow(player.UserId, "GetMenuTicker", os.clock()) then
+			return menuTicker.data or {}
+		end
+		local now = os.clock()
+		if menuTicker.data and now - menuTicker.at < MenuTicker.CACHE_SECONDS then
+			return menuTicker.data
+		end
+		menuTicker.at = now
+		local dateKey = SeededRng.dailyDateKey()
+		local data = { dateKey = dateKey }
+		pcall(function()
+			local top = fetchDailyTickerTop(dateKey)
+			local first = top and top[1]
+			if first then
+				local title
+				local inServer = first.userId and Players:GetPlayerByUserId(first.userId)
+				local profile = inServer and profiles[inServer]
+				local def = profile and profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
+				title = def and def.title or nil
+				data.top = { name = first.name, depth = first.depth, tips = first.tips, title = title }
+			end
+		end)
+		pcall(function()
+			local counter = DataStoreService:GetDataStore("WildcardTavernDailyRuns_v1")
+			local key = "d" .. tostring(dateKey)
+			local total
+			if menuTicker.pending > 0 and now - menuTicker.flushedAt >= MenuTicker.CACHE_SECONDS then
+				local add = menuTicker.pending
+				menuTicker.pending = 0
+				menuTicker.flushedAt = now
+				local ok, result = pcall(function()
+					return counter:UpdateAsync(key, function(old) return (tonumber(old) or 0) + add end)
+				end)
+				if ok then total = result else menuTicker.pending = menuTicker.pending + add end
+			end
+			if not total then
+				total = counter:GetAsync(key)
+			end
+			data.runs = tonumber(total) or 0
+		end)
+		if not data.top and not data.runs and menuTicker.data then
+			return menuTicker.data -- the stores failed: keep showing the last good numbers
+		end
+		menuTicker.data = data
+		return data
 	end
 end
 

@@ -4682,6 +4682,12 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, m in ipairs(require(script.Parent.Parent.Engine.Discoveries).Milestones) do
 		rewardedTitles[m.titleId] = true
 	end
+	-- Titles handed out by Collection completion rewards count too.
+	for _, perGroup in pairs(require(script.Parent.Parent.Engine.CollectionRewards).Rewards) do
+		for _, reward in pairs(perGroup) do
+			if reward.kind == "title" then rewardedTitles[reward.id] = true end
+		end
+	end
 	-- Titles handed out by the Tavern Season track count too.
 	for _, season in ipairs(require(script.Parent.Parent.Engine.SeasonTrack).Seasons) do
 		rewardedTitles[season.titleId] = true
@@ -8683,7 +8689,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 87, "53 original + 30 new + 2 invite titles + 2 season titles")
+	expectEqual(#Defs, 93, "53 original + 30 new + 2 invite titles + 2 season titles + 6 Collection completion titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -8833,6 +8839,106 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(junk.invitesAccepted, 1); expectEqual(junk.invitedByUserId, nil); expectFalse(junk.inviteeRewardClaimed)
 	expectEqual(PlayerProfile.migrate({}).invitesAccepted, 0, "old saves get safe defaults")
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
+end })
+
+table.insert(tests, { name = "MenuTicker: run counts rounded, board line with name and flair, flavor fallback", fn = function()
+	local MT = require(script.Parent.Parent.Engine.MenuTicker)
+	expectEqual(MT.roundRuns(0), 0); expectEqual(MT.roundRuns(9), 0); expectEqual(MT.roundRuns(10), 10); expectEqual(MT.roundRuns(47), 40)
+	expectEqual(MT.roundRuns(99), 90); expectEqual(MT.roundRuns(100), 100); expectEqual(MT.roundRuns(374), 350); expectEqual(MT.roundRuns(1234), 1200)
+	expectEqual(MT.roundRuns(-5), 0); expectEqual(MT.roundRuns("x"), 0); expectEqual(MT.roundRuns(nil), 0)
+	local text, real = MT.text({ top = { name = "Maple", depth = 6, tips = 12, title = "Table Regular" }, runs = 137 }, 3)
+	expectTrue(real); expectEqual(text, "Today's best: Maple (Table Regular) reached Night 6   |   about 100 runs today")
+	local plain, real2 = MT.text({ top = { name = "Maple", depth = 3 }, runs = 4 }, 3)
+	expectTrue(real2); expectEqual(plain, "Today's best: Maple reached Night 3", "a few runs are not shown")
+	-- fallback: no board, a failed store, junk data
+	for _, data in ipairs({ {}, { top = false }, { top = { name = "???", depth = 4 } }, { top = { name = "" } }, "x", { top = "no" } }) do
+		local line, isReal = MT.text(data, 2)
+		expectFalse(isReal); expectEqual(line, MT.FlavorLines[3])
+	end
+	expectEqual(select(1, MT.text(nil, 0)), MT.FlavorLines[1])
+	expectEqual(select(1, MT.text({ runs = 250 }, 1)), MT.FlavorLines[2] .. "   |   about 250 runs today")
+	-- the flavor line rotates by day and never indexes out of range, even for odd day numbers
+	for day = -20, 40 do
+		local line = MT.text({}, day)
+		expectTrue(type(line) == "string" and line ~= "")
+	end
+	expectEqual(select(1, MT.text({}, 0 / 0 ~= 0 / 0 and 1 or 1)), MT.FlavorLines[2])
+	for _, line in ipairs(MT.FlavorLines) do
+		expectTrue(not line:find("—") and #line <= 60, "short, no dashes: " .. line)
+	end
+end })
+
+table.insert(tests, { name = "CollectionRewards: milestone math, claim once, rewards valid, new titles, safe migration", fn = function()
+	local CR = require(script.Parent.Parent.Engine.CollectionRewards)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	expectEqual(#CR.Groups, 6)
+	expectEqual(table.concat(CR.Percents, ","), "25,50,75,100")
+	local seenTitles = {}
+	for _, g in ipairs(CR.Groups) do
+		for _, pct in ipairs(CR.Percents) do
+			local r = CR.Rewards[g.id][pct]
+			expectTrue(r ~= nil, g.id .. " " .. pct .. " has a reward")
+			if r.kind == "cardBack" then expectTrue(CardBacks.getById(r.id) ~= nil, "card back " .. r.id) end
+			if r.kind == "tips" then expectTrue(r.amount >= 1 and r.amount <= 10) end
+			if r.kind == "title" then
+				local a = Achievements.getById(r.id)
+				expectTrue(a ~= nil and a.milestoneReward == true and pct == 100, "the title is new and sits at 100 percent")
+				expectTrue(not seenTitles[r.id], "one title per group"); seenTitles[r.id] = true
+			end
+		end
+		expectEqual(CR.Rewards[g.id][100].kind, "title")
+	end
+	-- a new profile: nothing reached, nothing claimable, every ring at 0
+	local profile = PlayerProfile.new()
+	local view = CR.view(profile)
+	expectEqual(#view.groups, 6); expectEqual(view.claimable, 0)
+	for _, row in ipairs(view.groups) do
+		expectEqual(row.percent, 0); expectEqual(#row.milestones, 4); expectTrue(row.total > 0, row.id .. " has entries")
+	end
+	local ok, why = CR.claim(profile, "patrons", 25)
+	expectFalse(ok); expectEqual(why, "Not reached yet.")
+	expectFalse((CR.claim(profile, "nope", 25))); expectFalse((CR.claim(profile, "patrons", 30))); expectFalse((CR.claim(profile, nil, 25))); expectFalse((CR.claim(profile, "patrons", "25")))
+	-- milestone math is exact: discover exactly 25 percent of Patrons
+	local total = #Patrons.Definitions
+	local need = math.ceil(25 * total / 100)
+	for i = 1, need - 1 do profile.discoveredPatronIds[Patrons.Definitions[i].id] = true end
+	expectFalse((CR.claim(profile, "patrons", 25)), "one short of 25 percent")
+	profile.discoveredPatronIds[Patrons.Definitions[need].id] = true
+	local p = CR.progress(profile).patrons
+	expectEqual(p.found, need); expectTrue(p.percent >= 25)
+	profile.pendingStartTips = 0
+	local ok2, reward = CR.claim(profile, "patrons", 25)
+	expectTrue(ok2); expectEqual(reward.kind, "tips"); expectEqual(profile.pendingStartTips, reward.amount)
+	local again, reason = CR.claim(profile, "patrons", 25)
+	expectFalse(again); expectEqual(reason, "Already claimed.")
+	expectEqual(profile.pendingStartTips, reward.amount, "paid once")
+	expectEqual(CR.view(profile).claimable, 0)
+	-- 100 percent: everything claimable, claim all pays each once, the title is granted
+	for _, def in ipairs(Patrons.Definitions) do profile.discoveredPatronIds[def.id] = true end
+	local after = CR.view(profile)
+	expectEqual(after.claimable, 3, "50, 75 and 100 are ready")
+	local all = CR.claimAll(profile)
+	expectEqual(#all, 3); expectEqual(#CR.claimAll(profile), 0, "claim all twice grants nothing")
+	expectTrue(profile.unlockedCardBackIds.kitchen_checks); expectTrue(profile.rewardTitleIds.book_patrons)
+	expectTrue(Achievements.isUnlocked(profile, "book_patrons"))
+	expectTrue(profile.pendingStartTips <= TavernRank.MAX_PENDING_TIPS)
+	-- badges and sets are measured here
+	local b = PlayerProfile.new()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CosmeticSets.Definitions) do b.ownedSetIds[set.id] = true end
+	expectEqual(CR.progress(b).sets.percent, 100); expectTrue(CR.view(b).claimable == 4)
+	-- save and load: claims survive, junk keys are dropped
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.collectionRewardsClaimed["patrons:100"]); expectTrue(loaded.collectionRewardsClaimed["patrons:25"])
+	local junk = PlayerProfile.migrate({ collectionRewardsClaimed = { ["patrons:25"] = true, ["patrons:30"] = true, ["gone:25"] = true, ["x"] = true, ["bosses:50"] = "yes" } })
+	expectTrue(junk.collectionRewardsClaimed["patrons:25"]); expectEqual(junk.collectionRewardsClaimed["patrons:30"], nil)
+	expectEqual(junk.collectionRewardsClaimed["gone:25"], nil); expectEqual(junk.collectionRewardsClaimed["bosses:50"], nil)
+	expectEqual(next(PlayerProfile.migrate({}).collectionRewardsClaimed), nil, "old saves get safe defaults")
+	-- the reward titles never count toward the Titles group (completion stays reachable)
+	local titlesTotal = CR.progress(PlayerProfile.new()).titles.total
+	local regular = 0
+	for _, a in ipairs(Achievements.Definitions) do if not a.milestoneReward then regular = regular + 1 end end
+	expectEqual(titlesTotal, regular)
 end })
 
 table.insert(tests, { name = "RunTelemetry: per run aggregate, one flush, caps, hourly budget, Analytics batches never throw", fn = function()

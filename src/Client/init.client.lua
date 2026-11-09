@@ -1372,6 +1372,7 @@ require(script.DailyLeaderboard)({
 	addSoftShadow = addSoftShadow,
 	playClickSfx = playClickSfx,
 	leaderboardButton = settingsLeaderboardButton,
+	menuTickerButton = MenuScreen.menuTickerButton,
 	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
 	GetWeeklyLeaderboardRemote = remotes:WaitForChild("GetWeeklyLeaderboard"),
 	GetEndlessLeaderboardRemote = remotes:WaitForChild("GetEndlessLeaderboard"),

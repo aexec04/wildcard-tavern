@@ -186,6 +186,30 @@ return function(deps)
 		})
 	end
 
+	-- Collection completion rewards (rings and 25/50/75/100 percent milestones) open from a fourth header button.
+	do
+		local rewardsButton = button(panel, {
+			Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(345, 4),
+			TextSize = 14, Text = "Rewards",
+		})
+		polishButton(rewardsButton, 8)
+		require(script.Parent.CollectionRewardsPanel).init({
+			screenGui = screenGui,
+			polishPanel = polishPanel,
+			polishButton = polishButton,
+			roundCorner = roundCorner,
+			addSoftShadow = addSoftShadow,
+			playClickSfx = playClickSfx,
+			openButton = rewardsButton,
+			addTooltip = addTooltip,
+			getLatestState = getLatestState,
+			popIn = popIn,
+			popOut = popOut,
+			addButtonHoverScale = addButtonHoverScale,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+		})
+	end
+
 	-- Tavern Stats (run history and lifetime numbers) opens from a third header button.
 	do
 		local statsButton = button(panel, {

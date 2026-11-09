@@ -453,7 +453,13 @@
     "welcoming_host": "an avatar holding a tavern door wide open with a warm welcoming smile, golden light and a small group of friends arriving",
     "tavern_ambassador": "an avatar in a fancy ribbon sash holding up a glowing lantern and waving a crowd of friends toward a tavern door",
     "season_harvest_moon": "an avatar in a harvest scarf holding a basket of glowing pumpkins under a huge golden moon, happy",
-    "season_winter_welcome": "an avatar in a cozy winter scarf and hat offering a steaming mug of cocoa at a snowy tavern door, happy"
+    "season_winter_welcome": "an avatar in a cozy winter scarf and hat offering a steaming mug of cocoa at a snowy tavern door, happy",
+    "book_patrons": "an avatar sitting at a long tavern table surrounded by dozens of friendly blocky guests all raising a toast with cocoa mugs",
+    "book_recipes": "an avatar chef proudly holding a giant open recipe book with a glowing page, a pot steaming beside",
+    "book_bosses": "an avatar gently petting a huge friendly shadowy boss figure with glowing eyes, both smiling, tavern background",
+    "book_sets": "an avatar draping a golden tablecloth over a card table while cards of many colorful backs float around",
+    "book_titles": "an avatar wearing a tall stack of different funny hats with little name tags, grinning",
+    "book_badges": "an avatar wearing a sash covered in shiny round badges, standing proudly in a lantern lit tavern"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",

@@ -24,6 +24,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Always-visible next goal on the menu
 - [x] Follow prompt so players get Roblox reminders
 - [x] Tavern Season: a 30 day, 30 tier reward ladder on top of Tavern Rank (`Engine/SeasonTrack.lua`, Season tile on the menu)
+- [x] Collection completion rewards (rings and 25, 50, 75, 100 percent milestones per group) and a menu ticker with today's best run (`Engine/CollectionRewards.lua`, `Engine/MenuTicker.lua`)
 
 ## Phase 3: Variety and exploration
 - [x] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter

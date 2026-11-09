@@ -453,6 +453,8 @@ return function(deps)
 	require(script.Parent.NewsPanel).attach(menuButtonHolder, -3) -- News banner for the running live event (state.news), top of the menu
 	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank), above Play
 	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal), above Play
+	-- Today's best run and a rounded run count (Client/MenuTicker.lua); its button opens the Daily board (wired by the hub)
+	local menuTickerButton = require(script.Parent.MenuTicker).attach(menuButtonHolder, 0)
 	local menuPlayButton = makeFrameButton({
 		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 76, glow = true,
 	})
@@ -661,5 +663,6 @@ return function(deps)
 		menuQuestsButton = menuQuestsButton,
 		menuStoreButton = menuStoreButton,
 		menuSeasonButton = menuSeasonButton,
+		menuTickerButton = menuTickerButton,
 	}
 end
