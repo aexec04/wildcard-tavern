@@ -138,6 +138,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local SeasonClaimRemote = newRemote("ClaimSeason") -- (player, tier number or "all"): Tavern Season track rewards
 local ClaimLiveEventRemote = newRemote("ClaimLiveEvent") -- (player, eventId): claims the rewards of a running event once
 local StorePurchaseRemote = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
 local ChoiceRemote = newRemote("Choice") -- (player, optionId): answers the open draft or event card
@@ -971,6 +972,7 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		season = profiles[player] and require(Engine.SeasonTrack).view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
 		dailyTheme = LiveEvents.dailyLabel(LoginStreak.dayNumber(os.time())), -- text beside the Daily date only
 		store = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio()) or nil,
@@ -2718,6 +2720,34 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 		pushRewardNotice(player, { icon = result.event.icon, text = result.event.name .. ": " .. table.concat(result.texts, ", ") })
 	else
 		pushRewardNotice(player, { icon = "❗", text = result })
+	end
+	pushState(player)
+end)
+
+-- TAVERN SEASON (Engine/SeasonTrack.lua): claim one reached tier (a number) or every reached tier ("all").
+-- The server checks the XP, the running season and the claimed set; the client only asks.
+SeasonClaimRemote.OnServerEvent:Connect(function(player, which)
+	if not RateLimit.allow(player.UserId, "SeasonClaimRemote", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile or (type(which) ~= "number" and which ~= "all") then
+		return
+	end
+	local SeasonTrack = require(Engine.SeasonTrack)
+	local day = LoginStreak.dayNumber(os.time())
+	local texts = {}
+	if which == "all" then
+		for _, c in ipairs(SeasonTrack.claimAll(profile, day)) do
+			texts[#texts + 1] = SeasonTrack.rewardText(c.reward, liveLookup)
+		end
+	else
+		local ok, reward = SeasonTrack.claim(profile, which, day)
+		if ok then
+			texts[1] = SeasonTrack.rewardText(reward, liveLookup)
+		end
+	end
+	if #texts > 0 then
+		profileDirty[player] = true
+		pushRewardNotice(player, { icon = "🎟️", text = "Season: " .. table.concat(texts, ", ") })
 	end
 	pushState(player)
 end)

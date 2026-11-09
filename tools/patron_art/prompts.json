@@ -451,7 +451,9 @@
     "map_spots": "an avatar peeking behind a wooden barrel with a magnifying glass, curious",
     "nights_cleared": "an avatar walking a glowing path with four lanterns lit along it, content",
     "welcoming_host": "an avatar holding a tavern door wide open with a warm welcoming smile, golden light and a small group of friends arriving",
-    "tavern_ambassador": "an avatar in a fancy ribbon sash holding up a glowing lantern and waving a crowd of friends toward a tavern door"
+    "tavern_ambassador": "an avatar in a fancy ribbon sash holding up a glowing lantern and waving a crowd of friends toward a tavern door",
+    "season_harvest_moon": "an avatar in a harvest scarf holding a basket of glowing pumpkins under a huge golden moon, happy",
+    "season_winter_welcome": "an avatar in a cozy winter scarf and hat offering a steaming mug of cocoa at a snowy tavern door, happy"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -597,7 +599,9 @@
     "shell_pearl": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. soft teal and pearl white with scalloped waves, a gold seashell and pearl crest",
     "frost_walker": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. pale blue and silver with snow-covered pines and falling snowflakes, a gold lantern crest",
     "gala": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. rich burgundy and gold with grand chandelier rays, ornate banners and a gold crown crest",
-    "winter_lanterns": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. deep midnight blue with falling snowflakes and rows of glowing amber paper lanterns, a large gold lantern crest in the center"
+    "winter_lanterns": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. deep midnight blue with falling snowflakes and rows of glowing amber paper lanterns, a large gold lantern crest in the center",
+    "harvest_moon": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, deep amber and brown with a large golden harvest moon in the center, wheat sprigs and tiny lanterns around it, no text, no letters, no numbers, kid-friendly",
+    "winter_welcome": "A single card back design, portrait 2:3, symmetrical, ornate pale gold border frame, deep winter blue with a glowing lantern and a knitted scarf pattern, snowflakes and stars around it, no text, no letters, no numbers, kid-friendly"
   },
   "pack_subjects": {
     "buffoon_pack": "a red velvet pouch bulging with tiny patron figurines, tied with gold cord and topped with a little jester bell. A single object, centered, painterly, soft shadow underneath, plain very dark neutral background, kid-friendly, no text, no letters",
@@ -822,5 +826,10 @@
     "icon_cards": "centered close up of a fan of five glowing playing cards with a golden crown above them, simple bold shapes, dark warm background, playing cards around a wooden tavern table",
     "icon_lantern": "centered glowing golden lantern with a playing card hanging from it, simple bold shapes, dark warm background",
     "icon_hero": "centered smiling blocky avatar face with a tiny tavern hat holding one glowing playing card, simple bold shapes, dark warm background"
+  },
+  "season_subjects": {
+    "season_harvest_moon": "a wide painted banner of a huge golden harvest moon over rolling fields dotted with glowing lanterns and haystacks, warm candlelit tavern style, wide landscape composition, no text, no letters, no numbers, kid-friendly",
+    "season_winter_welcome": "a wide painted banner of a snowy village street with warm glowing tavern windows, strings of lanterns and a starry blue sky, warm candlelit style, wide landscape composition, no text, no letters, no numbers, kid-friendly",
+    "menu_season": "a golden ticket with a ribbon and a tiny moon on it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   }
 }

@@ -177,6 +177,25 @@ CardBacks.Definitions = {
 		flavorText = "Strung up for the longest nights of the year.",
 		seasonal = true,
 	},
+	-- Tavern Season track finals (Engine/SeasonTrack.lua): tier 30 of that season only.
+	{
+		id = "harvest_moon",
+		name = "Harvest Moon",
+		icon = "🌕",
+		colors = { base = { 120, 70, 30 }, trim = { 255, 214, 130 } },
+		description = "A Tavern Season reward: reach tier 30 of the Harvest Moon season.",
+		flavorText = "A big golden moon over a field of lanterns.",
+		seasonal = true,
+	},
+	{
+		id = "winter_welcome",
+		name = "Winter Welcome",
+		icon = "🧣",
+		colors = { base = { 50, 80, 130 }, trim = { 240, 245, 255 } },
+		description = "A Tavern Season reward: reach tier 30 of the Winter Welcome season.",
+		flavorText = "Woven from warm scarves and cold stars.",
+		seasonal = true,
+	},
 }
 
 function CardBacks.getById(id)

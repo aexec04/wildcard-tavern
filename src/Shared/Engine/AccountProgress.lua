@@ -11,6 +11,7 @@
 local Quests = require(script.Parent.Quests)
 local TavernRank = require(script.Parent.TavernRank)
 local RunModes = require(script.Parent.RunModes)
+local SeasonTrack = require(script.Parent.SeasonTrack)
 local LiveEvents = require(script.Parent.LiveEvents) -- a double XP weekend multiplies account XP only
 
 local AccountProgress = {}
@@ -51,12 +52,20 @@ function AccountProgress.sync(profile, snap, state, day, justWon)
 	if justWon then
 		xp = xp + TavernRank.firstWinBonus(profile, day)
 	end
-	addXp(math.floor(xp * LiveEvents.xpMultiplier(day) * RunModes.xpScale(state.runMode))) -- a Quick Run pays about half
+	local totalXp = math.floor(xp * LiveEvents.xpMultiplier(day) * RunModes.xpScale(state.runMode)) -- a Quick Run pays about half
+	addXp(totalXp)
+	-- Tavern Season: the same XP also fills the season ladder (separate numbers, reset when the season changes)
+	if SeasonTrack.addXp(profile, totalXp, day) > 0 then
+		result.changed = true
+	end
 
 	local completed, ups, granted = Quests.apply(profile, day, deltas)
 	if #completed > 0 then
 		result.changed = true
 		result.quests = completed
+		for _, q in ipairs(completed) do -- quests feed the season ladder with the XP they paid to the rank
+			SeasonTrack.addXp(profile, math.floor(q.xp * LiveEvents.xpMultiplier(day)), day)
+		end
 		for _, r in ipairs(ups) do result.rankUps[#result.rankUps + 1] = r end
 		for _, g in ipairs(granted) do result.granted[#result.granted + 1] = g end
 	elseif next(deltas) ~= nil then

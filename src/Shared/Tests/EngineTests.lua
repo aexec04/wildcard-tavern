@@ -4682,6 +4682,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, m in ipairs(require(script.Parent.Parent.Engine.Discoveries).Milestones) do
 		rewardedTitles[m.titleId] = true
 	end
+	-- Titles handed out by the Tavern Season track count too.
+	for _, season in ipairs(require(script.Parent.Parent.Engine.SeasonTrack).Seasons) do
+		rewardedTitles[season.titleId] = true
+	end
 	-- Titles handed out by Tavern Rank rewards count too.
 	for _, reward in pairs(require(script.Parent.Parent.Engine.TavernRank).Rewards) do
 		if reward.kind == "title" then
@@ -8679,7 +8683,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 85, "53 original + 30 new + 2 invite titles")
+	expectEqual(#Defs, 87, "53 original + 30 new + 2 invite titles + 2 season titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -8829,6 +8833,97 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(junk.invitesAccepted, 1); expectEqual(junk.invitedByUserId, nil); expectFalse(junk.inviteeRewardClaimed)
 	expectEqual(PlayerProfile.migrate({}).invitesAccepted, 0, "old saves get safe defaults")
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
+end })
+
+table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new season, claim once, rewards owned for good, safe migration", fn = function()
+	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	expectEqual(#ST.validate(), 0, "seasons parse and never overlap")
+	local s1, s2 = ST.Seasons[1], ST.Seasons[2]
+	local first1, last1 = ST.window(s1)
+	local first2 = ST.window(s2)
+	expectEqual(last1 - first1 + 1, 30, "a 30 day season"); expectEqual(first2, last1 + 1, "back to back, no gap")
+	-- date edges: both the first and last day count, the day before and after do not
+	expectEqual(ST.active(first1 - 1), nil); expectEqual(ST.active(first1).id, s1.id); expectEqual(ST.active(last1).id, s1.id)
+	expectEqual(ST.active(last1 + 1).id, s2.id); expectEqual(ST.active(select(2, ST.window(s2)) + 1), nil)
+	expectEqual(ST.daysLeft(s1, first1), 30); expectEqual(ST.daysLeft(s1, last1), 1); expectEqual(ST.daysLeft(s1, last1 + 1), 0)
+	expectEqual(ST.upcoming(first1 - 5).id, s1.id); expectEqual(ST.upcoming(last1).id, s2.id); expectEqual(ST.upcoming(first2 + 100), nil)
+	-- 30 tiers, a reward on every one, content ids exist, nothing is gameplay power
+	for _, season in ipairs(ST.Seasons) do
+		for tier = 1, 30 do
+			local r = ST.rewardFor(season, tier)
+			expectTrue(r ~= nil, season.id .. " tier " .. tier .. " has a reward")
+			expectTrue(r.kind == "tips" or r.kind == "cardBack" or r.kind == "title", "cosmetic or Tips only")
+			if r.kind == "cardBack" then expectTrue(CardBacks.getById(r.id) ~= nil, "card back " .. r.id) end
+			if r.kind == "title" then expectTrue(Achievements.getById(r.id) ~= nil, "title " .. r.id) end
+			if r.kind == "tips" then expectTrue(r.amount >= 1 and r.amount <= 10) end
+		end
+		expectEqual(ST.rewardFor(season, 30).id, season.finalCardBackId); expectEqual(ST.rewardFor(season, 25).id, season.titleId)
+		expectTrue(CardBacks.getById(season.finalCardBackId).seasonal, "the final back is season only")
+	end
+	expectEqual(ST.rewardFor(s1, 31), nil)
+	-- XP and tiers
+	local day = first1 + 3
+	local p = PlayerProfile.new()
+	expectEqual(ST.addXp(p, 10, first1 - 1), 0, "no XP outside a season"); expectEqual(p.seasonXp, 0)
+	expectEqual(ST.addXp(p, 100, day), 100); expectEqual(p.seasonId, s1.id); expectEqual(ST.tierOf(p.seasonXp), 1)
+	expectEqual(ST.addXp(p, -5, day), 0); expectEqual(ST.addXp(p, 0 / 0, day), 0); expectEqual(ST.addXp(p, 2.9, day), 2)
+	expectEqual(ST.addXp(p, 1e12, day), ST.MAX_XP - 102, "capped at the season maximum"); expectEqual(ST.tierOf(p.seasonXp), 30)
+	-- claims: reached only, once, in the running season, junk tiers refused
+	local fresh = PlayerProfile.new()
+	ST.addXp(fresh, 200, day)
+	expectFalse((ST.claim(fresh, 3, day)), "tier 3 needs 270 XP")
+	local ok, reward = ST.claim(fresh, 1, day)
+	expectTrue(ok); expectEqual(reward.kind, "tips"); expectEqual(fresh.pendingStartTips, reward.amount)
+	expectFalse((ST.claim(fresh, 1, day)), "claimed once"); expectFalse((ST.claim(fresh, 0, day))); expectFalse((ST.claim(fresh, 31, day)))
+	expectFalse((ST.claim(fresh, 1.5, day))); expectFalse((ST.claim(fresh, "2", day)))
+	expectFalse((ST.claim(fresh, 2, first1 - 1)), "no season running")
+	local all = ST.claimAll(fresh, day)
+	expectEqual(#all, 1, "only tier 2 was left"); expectEqual(#ST.claimAll(fresh, day), 0, "claim all twice grants nothing")
+	local rich = PlayerProfile.new()
+	ST.addXp(rich, ST.MAX_XP, day)
+	local before = rich.pendingStartTips
+	expectEqual(#ST.claimAll(rich, day), 30)
+	expectTrue(rich.unlockedCardBackIds[s1.cardBackAt10] and rich.unlockedCardBackIds[s1.cardBackAt20] and rich.unlockedCardBackIds[s1.finalCardBackId])
+	expectTrue(rich.rewardTitleIds[s1.titleId]); expectTrue(Achievements.isUnlocked(rich, s1.titleId))
+	expectTrue(rich.pendingStartTips > before and rich.pendingStartTips <= TavernRank.MAX_PENDING_TIPS, "Tips stay capped")
+	-- a new season resets XP and claims, but what was claimed stays owned
+	expectTrue(ST.ensureSeason(rich, first2)); expectEqual(rich.seasonId, s2.id); expectEqual(rich.seasonXp, 0); expectEqual(next(rich.seasonClaimed), nil)
+	expectTrue(rich.unlockedCardBackIds[s1.finalCardBackId] and rich.rewardTitleIds[s1.titleId], "season 1 rewards stay owned")
+	expectFalse(ST.ensureSeason(rich, first2), "no second reset")
+	expectEqual(ST.addXp(rich, 90, first2), 90); expectEqual(ST.tierOf(rich.seasonXp), 1)
+	-- with no season running, nothing changes
+	expectFalse(ST.ensureSeason(rich, first2 + 1000)); expectEqual(rich.seasonId, s2.id)
+	-- the view
+	local view = ST.view(fresh, day)
+	expectEqual(view.name, s1.name); expectEqual(view.tier, 2); expectEqual(#view.tiers, 30); expectEqual(view.claimable, 0)
+	expectEqual(view.daysLeft, 27); expectTrue(view.tiers[1].claimed and view.tiers[2].claimed and not view.tiers[3].reached)
+	ST.addXp(fresh, 90, day)
+	expectEqual(ST.view(fresh, day).claimable, 1)
+	expectEqual(ST.view(PlayerProfile.new(), first1 - 3).upcoming, true); expectEqual(ST.view(PlayerProfile.new(), first1 - 3).startsIn, 3)
+	expectEqual(ST.view(PlayerProfile.new(), first2 + 500), nil)
+	-- a profile that belongs to an older season shows zero for the running one
+	local old = PlayerProfile.new(); old.seasonId, old.seasonXp = s1.id, 500
+	expectEqual(ST.view(old, first2).xp, 0)
+	-- save and load
+	local loaded = PlayerProfile.migrate(fresh)
+	expectEqual(loaded.seasonId, s1.id); expectEqual(loaded.seasonXp, fresh.seasonXp); expectTrue(loaded.seasonClaimed[1])
+	local junk = PlayerProfile.migrate({ seasonId = "gone", seasonXp = 500, seasonClaimed = { [1] = true } })
+	expectEqual(junk.seasonId, nil); expectEqual(junk.seasonXp, 0); expectEqual(next(junk.seasonClaimed), nil)
+	local junk2 = PlayerProfile.migrate({ seasonId = s1.id, seasonXp = 1e20, seasonClaimed = { [99] = true, [2] = true, x = true, [3] = "no" } })
+	expectEqual(junk2.seasonXp, ST.MAX_XP); expectTrue(junk2.seasonClaimed[2]); expectEqual(junk2.seasonClaimed[99], nil); expectEqual(junk2.seasonClaimed[3], nil)
+	expectEqual(PlayerProfile.migrate({}).seasonXp, 0, "old saves get safe defaults")
+	-- Tavern Rank XP also fills the ladder (same sources) and a quest pays both
+	local AP = require(script.Parent.Parent.Engine.AccountProgress)
+	local ap = PlayerProfile.new()
+	local snap = {}
+	local fake = { handsPlayedTotal = 10, roundsCleared = 1, bossesCleared = 0, handStats = {} }
+	AP.sync(ap, snap, fake, day, false)
+	expectEqual(ap.seasonXp, 10 * TavernRank.Xp.hand + TavernRank.Xp.round, "hands and rounds feed the season")
+	expectEqual(ap.seasonXp, ap.tavernXp, "the same number as the rank XP from the counters")
+	local outside = PlayerProfile.new()
+	AP.sync(outside, {}, fake, first1 - 100, false)
+	expectEqual(outside.seasonXp, 0, "no season, no season XP"); expectTrue(outside.tavernXp > 0)
 end })
 
 table.insert(tests, { name = "Accessibility: defaults off, calm mode, flashes, particles, Larger Text never clips, hold time clamped and saved", fn = function()

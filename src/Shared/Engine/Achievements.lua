@@ -777,6 +777,16 @@ addWave("hand_thousand", "Thousand Hands", "🎴", "Thousand Hands", "Play 1000 
 	function(p) return stat(p, "handsPlayedTotal") >= 1000 end)
 addWave("map_spots", "Corner Peeker", "🔍", "Corner Peeker", "Find 3 hidden spots on the Tavern Map.", "You always check behind the barrel.",
 	function(p) return countOf(p.discoveries) >= 3 end)
+-- Tavern Season titles (Engine/SeasonTrack.lua tier 25): granted into rewardTitleIds when the tier is claimed
+local function seasonTitle(id, name, icon, flavor)
+	table.insert(Achievements.Definitions, {
+		id = id, name = name, icon = icon, title = name, rarity = "epic", milestoneReward = true,
+		description = "A Tavern Season reward: reach tier 25 of the season.", flavorText = flavor,
+		requirement = function(p) return p.rewardTitleIds ~= nil and p.rewardTitleIds[id] == true end,
+	})
+end
+seasonTitle("season_harvest_moon", "Harvest Regular", "🌕", "You were there when the lanterns lit the fields.")
+seasonTitle("season_winter_welcome", "Winter Regular", "🧣", "You kept the fire going all winter.")
 -- invites (Engine/Invites.lua): distinct friends who joined through your invite
 addWave("welcoming_host", "Welcoming Host", "💌", "Welcoming Host", "Bring 3 friends in through an invite.", "The door is open and the lanterns are lit.",
 	function(p) return (p.invitesAccepted or 0) >= 3 end)

@@ -990,6 +990,17 @@ do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile o
 	end)
 	if not ok then warn("[Client] QuestsPanel failed: " .. tostring(err)) end
 end
+do -- Tavern Season panel (Client/SeasonPanel.lua): the 30 day reward ladder, opened from the Season tile on the main menu
+	local ok, err = pcall(function()
+		require(script.SeasonPanel).init({
+			screenGui = screenGui, openButton = MenuScreen.menuSeasonButton, polishPanel = polishPanel, polishButton = polishButton,
+			roundCorner = roundCorner, addSoftShadow = addSoftShadow, playClickSfx = playClickSfx, addTooltip = addTooltip,
+			popIn = popIn, popOut = popOut, addButtonHoverScale = addButtonHoverScale,
+			getLatestState = function() return latestState end, StateUpdatedRemote = StateUpdatedRemote,
+		})
+	end)
+	if not ok then warn("[Client] SeasonPanel failed: " .. tostring(err)) end
+end
 do -- Tavern News panel (Client/NewsPanel.lua): the banner on the menu opens it
 	local ok, err = pcall(function()
 		require(script.NewsPanel).init({

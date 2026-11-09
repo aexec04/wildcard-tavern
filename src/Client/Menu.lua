@@ -536,7 +536,7 @@ return function(deps)
 	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Same row as the
 	-- three small tiles. Reuses the in-run corner icon art (no menu_icons key); the panels
 	-- open from Collection.lua / Settings.lua.
-	local accountRow = bottomRow
+	local accountRow = makeRow(5, 114, 8) -- its own row: Collection, Settings, Store, Invite, Season (5 x 106 + 4 x 8 = 562 <= 640)
 	local menuCollectionButton = makeFrameButton({
 		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 106, height = 114,
 		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
@@ -556,6 +556,11 @@ return function(deps)
 		iconKey = "invite", emoji = "\240\159\146\140", iconSize = 46,
 	})
 	require(script.Parent.InvitePrompt).bind(menuInviteButton)
+	-- Tavern Season (Client/SeasonPanel.lua opens from it): the 30 day reward ladder. Icon key "season", ticket emoji until it exists.
+	local menuSeasonButton = makeFrameButton({
+		text = "Season", textSize = 14, parent = accountRow, order = 8, width = 106, height = 114,
+		iconKey = "season", emoji = "\240\159\142\171", iconSize = 46,
+	})
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
@@ -655,5 +660,6 @@ return function(deps)
 		menuSettingsButton = menuSettingsButton,
 		menuQuestsButton = menuQuestsButton,
 		menuStoreButton = menuStoreButton,
+		menuSeasonButton = menuSeasonButton,
 	}
 end

@@ -248,6 +248,7 @@ CollectionBook.RarityOverrides = {
 		frost_walker = "epic",
 		gala = "legendary",
 		winter_lanterns = "epic", -- seasonal (Engine/Seasons.lua)
+		harvest_moon = "legendary", winter_welcome = "legendary", -- Tavern Season finals (Engine/SeasonTrack.lua)
 	},
 }
 
