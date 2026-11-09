@@ -86,7 +86,8 @@ check("forced boss appears on its Night", forced.bosses[1] and forced.bosses[1].
 
 -- Balance regression (50 runs, fixed seeds): the decent bot's median death Night stays in its band on stakes 1 and 8
 -- and nothing soft-locks. Measured 2026-11-08 (600 runs, balance pass 2): decent median N8 / N7 / N6 on stakes 1 / 4 / 8.
-for _, stake in ipairs({ 1, 4, 8 }) do
+-- Balance pass 3 (600 runs): decent win 29.0 / 26.3 / 23.0 / 20.2 / 16.5 / 12.8 / 7.0 / 6.0 on stakes 1 to 8; stake 7 median N6.
+for _, stake in ipairs({ 1, 4, 7, 8 }) do
 	local nights, softLocks = {}, 0
 	for seed = 1, 50 do
 		local r = Sim.runOne(config({ stake = stake }), seed)

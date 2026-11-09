@@ -10,7 +10,8 @@
 		rerollExtra         added to the shop reroll price
 		noInterest          no interest on held Tips at round end
 		recipeSlotDelta     added to the recipe box size
-		tipsPerRoundDelta   added to the flat Tips paid for clearing a round
+		tipsPerRoundDelta   added to the flat Tips paid for clearing a round (Boss Round double included)
+		tipsNonBossDelta    added to the Tips paid for clearing a NON-boss round only (Closing Time)
 		bossExtraDiscards   added to the discards of Boss Rounds only (a second small debuff)
 
 	Daily, Weekly, Seed, revived and tutorial runs always use stake 1 so shared boards stay fair.
@@ -25,11 +26,11 @@ Stakes.MAX = 8
 Stakes.Definitions = {
 	{ id = "regular", name = "Regular", icon = "🍞", hint = "The tavern as it is.", rule = {} },
 	{ id = "busy_night", name = "Busy Night", icon = "🕯️", hint = "One fewer discard each round.", rule = { discardsDelta = -1 } },
-	{ id = "rowdy_crowd", name = "Rowdy Crowd", icon = "🎻", hint = "Boss targets are 14% higher.", rule = { bossTargetPct = 14 } },
-	{ id = "rush_hour", name = "Rush Hour", icon = "⏱️", hint = "Rerolls cost 1 more. Boss targets rise 5%.", rule = { rerollExtra = 1, bossTargetPct = 5 } },
+	{ id = "rowdy_crowd", name = "Rowdy Crowd", icon = "🎻", hint = "Boss targets are 10% higher.", rule = { bossTargetPct = 10 } },
+	{ id = "rush_hour", name = "Rush Hour", icon = "⏱️", hint = "Rerolls cost 1 more. Boss targets rise 9%.", rule = { rerollExtra = 1, bossTargetPct = 9 } },
 	{ id = "final_bell", name = "Final Bell", icon = "🔔", hint = "No interest on your Tips.", rule = { noInterest = true } },
 	{ id = "packed_house", name = "Packed House", icon = "🪑", hint = "Recipe box holds 1 less. Boss targets rise 5%.", rule = { recipeSlotDelta = -1, bossTargetPct = 5 } },
-	{ id = "closing_time", name = "Closing Time", icon = "🌙", hint = "Rounds pay 1 less Tip.", rule = { tipsPerRoundDelta = -1 } },
+	{ id = "closing_time", name = "Closing Time", icon = "🌙", hint = "Rounds pay 1 less Tip, except Boss Rounds.", rule = { tipsNonBossDelta = -1 } },
 	{ id = "legend", name = "Legend", icon = "👑", hint = "Boss rounds give 1 fewer discard.", rule = { bossExtraDiscards = -1 } },
 }
 
@@ -55,6 +56,7 @@ function Stakes.rulesFor(n)
 		noInterest = false,
 		recipeSlotDelta = 0,
 		tipsPerRoundDelta = 0,
+		tipsNonBossDelta = 0,
 		bossExtraDiscards = 0,
 	}
 	for i = 1, n do

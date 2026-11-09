@@ -166,6 +166,7 @@ function RunState.new(options, rng)
 	config.discardsPerRound = math.max(0, config.discardsPerRound + stakeRules.discardsDelta)
 	config.recipeSlotLimit = math.max(0, config.recipeSlotLimit + stakeRules.recipeSlotDelta)
 	config.tipsPerRoundWin = math.max(1, config.tipsPerRoundWin + stakeRules.tipsPerRoundDelta)
+	config.tipsNonBossDelta = stakeRules.tipsNonBossDelta
 
 	local state = {
 		config = config,
@@ -918,6 +919,8 @@ function RunState.playHand(state, cardIndices)
 		local reward = math.max(1, state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) + endlessField(state, "tipsDelta")) -- Tip Stand, Lean Tips
 		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
+		else
+			reward = math.max(1, reward + (state.config.tipsNonBossDelta or 0)) -- Closing Time (stake 7): non-boss rounds only
 		end
 		-- PHASE 15: "Bedtime Bonus" (Secret Recipe) sets this one-shot flag
 		-- to double whatever reward THIS round-win was already going to pay

@@ -8237,7 +8237,20 @@ table.insert(tests, { name = "Stakes in RunState: each rule changes only what it
 	expectEqual(RunState.new({ stakeId = 2 }, rng).config.discardsPerRound, plain.config.discardsPerRound - 1, "Busy Night")
 	expectEqual(RunState.rerollCost(RunState.new({ stakeId = 4 }, rng), 5), 6, "Rush Hour")
 	expectEqual(RunState.new({ stakeId = 6 }, rng).config.recipeSlotLimit, plain.config.recipeSlotLimit - 1, "Packed House")
-	expectEqual(RunState.new({ stakeId = 7 }, rng).config.tipsPerRoundWin, plain.config.tipsPerRoundWin - 1, "Closing Time")
+	-- Closing Time: the flat Tip is unchanged, non-boss rounds pay 1 less, Boss Rounds pay the same as stake 1
+	expectEqual(RunState.new({ stakeId = 7 }, rng).config.tipsPerRoundWin, plain.config.tipsPerRoundWin, "Closing Time keeps the flat Tip")
+	expectEqual(RunState.new({ stakeId = 7 }, rng).config.tipsNonBossDelta, -1, "Closing Time")
+	expectEqual(RunState.new({ stakeId = 6 }, rng).config.tipsNonBossDelta, 0, "stake 6 pays full")
+	local function payout(stakeId, boss)
+		local s = RunState.new({ stakeId = stakeId }, rng)
+		s.targetScore = 0
+		s.tips = 0
+		s.isBossRound = boss
+		RunState.playHand(s, { 1 })
+		return s.tips
+	end
+	expectEqual(payout(7, false), payout(1, false) - 1, "Closing Time: a normal round pays 1 less")
+	expectEqual(payout(7, true), payout(1, true), "Closing Time: a Boss Round pays the same")
 	expectEqual(RunState.new({ stakeId = 99 }, rng).stake, 8, "clamped")
 
 	-- Final Bell: no interest
