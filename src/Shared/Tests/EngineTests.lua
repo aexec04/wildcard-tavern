@@ -7540,6 +7540,14 @@ table.insert(tests, { name = "RegionTiles.fadeSlices: biome joins cross-fade wit
 		expectTrue(slices[1].transparency > 0.95 and slices[#slices].transparency < 0.05, "starts clear, ends opaque")
 	end
 	expectTrue(#RegionTiles.fadeSlices(50, 0) == 1, "at least one slice")
+	-- wide joins: at least 25% of the narrower region (within 96..480), never wider than it
+	expectTrue(RegionTiles.joinWidth(1000, 2000, 96, 480) == 250, "25% of the narrower region")
+	expectTrue(RegionTiles.joinWidth(200, 2000, 96, 480) == 96, "minimum width")
+	expectTrue(RegionTiles.joinWidth(5000, 6000, 96, 480) == 480, "capped")
+	expectTrue(RegionTiles.joinWidth(60, 2000, 96, 480) == 60, "never wider than the narrower region")
+	expectTrue(RegionTiles.sliceCount(96) == 16 and RegionTiles.sliceCount(480) == 64 and RegionTiles.sliceCount(5000) == 64, "slice count clamps 16..64")
+	local fine = RegionTiles.fadeSlices(480, RegionTiles.sliceCount(480))
+	expectTrue(fine[1].w <= 8, "thin slices on a wide join (no stair stepping)")
 end })
 
 table.insert(tests, { name = "MapPan: the camera clamps at every edge, centres in both axes, the compass picks a road", fn = function()

@@ -1,7 +1,7 @@
 --[[
 	Client/JourneyMapScenery.lua
-	Backdrop for the Journey map canvas: five painted regions side by side, the road
-	to the tavern (ContentArt map_regions: road, meadow, river, peaks, tavern), soft
+	Backdrop for the Journey map canvas: six painted strips side by side, the road
+	to the tavern (ContentArt map_regions: road, meadow, river, peaks, tavern, road again), soft
 	fog bands over the seams, and map_decor doodles in the empty bands above and
 	below the trail. Without region art each region is a flat tint; decor without art
 	is skipped. Decor positions come from a fixed formula of the doodle's index, so
@@ -15,8 +15,9 @@
 
 	Joins: no pale or white seam. Each painted tile is zoomed 1.2x about its centre inside a clipping
 	frame, so the pale parchment fade the art has at its own edges falls outside the frame. Where two
-	biomes meet (a 2 * OVERLAP zone), the later biome is drawn as thin ImageLabel slices whose
-	ImageTransparency steps from clear to opaque (RegionTiles.fadeSlices), a true cross-fade of the two
+	biomes meet (a zone of at least 25 percent of the narrower region, 96 to 480px, RegionTiles.joinWidth), the later biome is drawn as thin ImageLabel slices whose
+	ImageTransparency follows a smootherstep from clear to opaque over many thin slices (RegionTiles.fadeSlices),
+	a low-opacity tint band blends the two biome colours across the join, and a signpost or lantern post stands on the seam, a true cross-fade of the two
 	neighbouring paintings (stacked frames, no UIGradient Transparency).
 
 	deps: canvas (Frame), roundCorner, ContentArt
@@ -50,12 +51,10 @@ return function(deps)
 		{ key = "region_road", tint = Color3.fromRGB(214, 192, 146), lastNode = math.huge,
 			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- the road continues past the tavern
 	}
-	-- Neighbouring regions overlap by this many pixels (their art fades to plain parchment at
-	-- the edges), so no 1px gap or white seam can show between biomes.
-	local OVERLAP = 48
-	local ART_ASPECT = 1.5 -- region art width / height
+		local ART_ASPECT = 1.5 -- region art width / height
 	local ZOOM = 1.2 -- tiles are zoomed about their centre so the art's own pale edge fade is clipped away
-	local FADE_SLICES = 16
+	local JOIN_MIN, JOIN_MAX = 96, 480 -- cross-fade zone: >= 25 percent of the narrower region, within these pixels
+	local HORIZON_Y = 0.5 -- every painting is anchored on the same vertical fraction so horizons line up
 	local PARCHMENT_BASE = Color3.fromRGB(176, 170, 120) -- muted sand-green, so a gap never reads as a cream block
 
 	local layer = Instance.new("Frame")
@@ -94,6 +93,14 @@ return function(deps)
 	fadeLayer.BorderSizePixel = 0
 	fadeLayer.ZIndex = 22
 	fadeLayer.Parent = layer
+
+	local seamLayer = Instance.new("Frame") -- tint bands over the joins
+	seamLayer.Name = "Seams"
+	seamLayer.Size = UDim2.fromScale(1, 1)
+	seamLayer.BackgroundTransparency = 1
+	seamLayer.BorderSizePixel = 0
+	seamLayer.ZIndex = 23
+	seamLayer.Parent = layer
 
 	local decorLayer = Instance.new("Frame")
 	decorLayer.Name = "Decor"
@@ -135,7 +142,6 @@ return function(deps)
 			win.Parent = parent
 			local img = Instance.new("ImageLabel")
 			img.Name = name
-			img.AnchorPoint = Vector2.new(0.5, 0.5)
 			img.Position = UDim2.fromScale(0.5, 0.5)
 			img.Size = UDim2.fromScale(ZOOM, ZOOM)
 			img.BackgroundTransparency = 1
@@ -162,13 +168,20 @@ return function(deps)
 
 	local function layout(canvasW, canvasH, topLimit, bottomLimit, nodeXs)
 		local edges = regionEdges(canvasW, nodeXs)
+		local joinW = {} -- joinW[i] = width of the cross-fade zone between region i-1 and i, centred on edges[i]
+		for i = 2, #REGIONS do
+			joinW[i] = RegionTiles.joinWidth(edges[i] - edges[i - 1], edges[i + 1] - edges[i], JOIN_MIN, JOIN_MAX)
+		end
+		seamLayer:ClearAllChildren()
 		base.Size = UDim2.fromOffset(math.floor(canvasW), canvasH)
 		fadeLayer:ClearAllChildren()
 		for i, f in ipairs(regionFrames) do
-			local x0, x1 = edges[i] - (i > 1 and OVERLAP or 0), edges[i + 1] + (i < #REGIONS and OVERLAP or 0)
+			local x0 = edges[i] - (i > 1 and joinW[i] / 2 or 0)
+			local x1 = edges[i + 1] + (i < #REGIONS and joinW[i + 1] / 2 or 0)
+			x0, x1 = math.floor(x0), math.floor(x1)
 			local w = x1 - x0
-			-- The body starts after the cross-fade zone (2 * OVERLAP wide) so its left edge is never a hard cut.
-			local fadeW = (i > 1 and regionIds[i]) and 2 * OVERLAP or 0
+			-- The body starts after the cross-fade zone so its left edge is never a hard cut.
+			local fadeW = (i > 1 and regionIds[i]) and joinW[i] or 0
 			f:ClearAllChildren()
 			f.ClipsDescendants = true
 			f.Position = UDim2.fromOffset(x0 + fadeW, 0)
@@ -187,7 +200,7 @@ return function(deps)
 				paintRegion(row, i, w, canvasH, x0, nodeXs)
 				if fadeW > 0 then
 					-- cross-fade: thin clipped slices of the same painting, clear on the left to opaque on the right
-					for k, slice in ipairs(RegionTiles.fadeSlices(fadeW, FADE_SLICES)) do
+					for k, slice in ipairs(RegionTiles.fadeSlices(fadeW, RegionTiles.sliceCount(fadeW))) do
 						local win = Instance.new("Frame")
 						win.Name = "Fade" .. i .. "_" .. k
 						win.Position = UDim2.fromOffset(x0 + slice.x, 0)
@@ -212,6 +225,23 @@ return function(deps)
 					end
 				end
 			end
+		end
+
+		-- Soft low-opacity tint band across each join that blends the two biome colours (Color stops only),
+		-- plus one shared prop planted on the seam line so the join reads as one landscape.
+		for i = 2, #REGIONS do
+			local band = Instance.new("Frame")
+			band.Name = "SeamTint" .. i
+			band.Position = UDim2.fromOffset(math.floor(edges[i] - joinW[i] / 2), 0)
+			band.Size = UDim2.fromOffset(joinW[i], canvasH)
+			band.BackgroundColor3 = Color3.new(1, 1, 1)
+			band.BackgroundTransparency = 0.82
+			band.BorderSizePixel = 0
+			band.ZIndex = 23
+			band.Parent = seamLayer
+			local grad = Instance.new("UIGradient")
+			grad.Color = ColorSequence.new(REGIONS[i - 1].tint, REGIONS[i].tint)
+			grad.Parent = band
 		end
 
 		decorLayer:ClearAllChildren()
@@ -253,6 +283,24 @@ return function(deps)
 					stroke.Transparency = 0.3
 					stroke.Parent = img
 				end
+			end
+		end
+		-- shared prop on each seam line (a sign or lantern post straddling the join)
+		for i = 2, #REGIONS do
+			local key = (i % 2 == 0) and "signpost" or "lantern_post"
+			local id = ContentArt.getImageId("map_decor", key)
+			if id and bottomLimit + size + 12 <= canvasH then
+				local img = Instance.new("ImageLabel")
+				img.Name = "Seam_" .. key
+				img.AnchorPoint = Vector2.new(0.5, 0)
+				img.Position = UDim2.fromOffset(math.floor(edges[i]), math.floor(bottomLimit + 6))
+				img.Size = UDim2.fromOffset(size, size)
+				img.BackgroundTransparency = 1
+				img.Image = id
+				img.ImageTransparency = 0.12
+				img.ScaleType = Enum.ScaleType.Fit
+				img.ZIndex = 24
+				img.Parent = decorLayer
 			end
 		end
 	end

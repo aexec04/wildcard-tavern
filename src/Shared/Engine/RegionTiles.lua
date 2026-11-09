@@ -39,10 +39,24 @@ function RegionTiles.fadeSlices(width, n)
 		local x0 = math.floor((k - 1) * width / n)
 		local x1 = math.floor(k * width / n)
 		local t = (k - 0.5) / n -- 0..1 across the join
-		local smooth = t * t * (3 - 2 * t)
+		local smooth = t * t * t * (t * (t * 6 - 15) + 10) -- smootherstep: eased ends, no visible stair step
 		out[k] = { x = x0, w = x1 - x0, transparency = 1 - smooth }
 	end
 	return out
+end
+
+-- Width of the cross-fade zone between two neighbouring regions of widths wa and wb: at least 25 percent of the
+-- narrower one (and never under `minW`), capped at `maxW` and at the narrower region itself.
+function RegionTiles.joinWidth(wa, wb, minW, maxW)
+	local narrow = math.min(wa, wb)
+	local w = math.max(minW or 96, narrow * 0.25)
+	w = math.min(w, maxW or 480, narrow)
+	return math.floor(w)
+end
+
+-- Number of slices for a fade zone of `width` pixels: about one per 6px, between 16 and 64.
+function RegionTiles.sliceCount(width)
+	return math.max(16, math.min(64, math.ceil(width / 6)))
 end
 
 -- Colour of seam strip i of n: runs from the left biome's colour (a) to the right biome's (b), each an
