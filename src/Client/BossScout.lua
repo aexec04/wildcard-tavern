@@ -183,6 +183,25 @@ local function buildTokenChip(parent)
 	stroke.Color = GOLD
 	stroke.Thickness = 1.5
 	stroke.Parent = tokenChip
+	-- Painted Rule Ban token (menu_icons "rule_ban") on the left; the no-entry emoji stays if the id is missing.
+	tokenChip.TextXAlignment = Enum.TextXAlignment.Right
+	local pad = Instance.new("UIPadding")
+	pad.PaddingRight = UDim.new(0, 12)
+	pad.Parent = tokenChip
+	local icon = Instance.new("TextLabel")
+	icon.Name = "TokenIcon"
+	icon.BackgroundTransparency = 1
+	icon.Position = UDim2.fromOffset(6, 1)
+	icon.Size = UDim2.fromOffset(24, 24)
+	icon.Font = Enum.Font.GothamBold
+	icon.TextSize = 16
+	icon.Text = "🚫"
+	icon.TextColor3 = CREAM
+	icon.TextTransparency = 0
+	icon.TextStrokeTransparency = 1
+	icon.ZIndex = 13
+	icon.Parent = tokenChip
+	pcall(require(script.Parent.ArtIcon).apply, icon, "menu_icons", "rule_ban", icon, { cornerRadius = 6 })
 end
 
 function BossScout.update(root, state)
@@ -223,7 +242,7 @@ function BossScout.update(root, state)
 		local show = state.ruleBans ~= nil
 		tokenChip.Visible = show
 		if show then
-			tokenChip.Text = "🚫 " .. tostring(state.ruleBans)
+			tokenChip.Text = tostring(math.floor(state.ruleBans))
 		end
 	end
 end
