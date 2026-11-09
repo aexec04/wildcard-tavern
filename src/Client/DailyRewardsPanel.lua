@@ -35,11 +35,12 @@ local function label(parent, props)
 	return l
 end
 
--- Painted art for a reward row: Tips use the coin purse, the card back reward its own back; XP stays emoji.
+-- Painted art for a reward row: the shared resolver (Tips coin purse, card back); the festival ribbon is the day 7 back.
+local RewardArt = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RewardArt"))
 local function artFor(row)
-	if row.kind == "tips" then return "hud", "coin_purse" end
 	if row.kind == "cardBack" then return "card_backs", "festival_ribbon" end
-	return nil
+	local category, key = RewardArt.resolve(row)
+	return category, key
 end
 
 function DailyRewardsPanel.countdownText(seconds)

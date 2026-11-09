@@ -118,9 +118,8 @@ function CollectionRewardsPanel.init(deps)
 	end
 
 	local function rewardArt(reward)
-		if reward.kind == "cardBack" then return "card_backs", reward.id, "🂠" end
-		if reward.kind == "title" then return "titles", reward.id, "🏷️" end
-		return nil, nil, "🪙"
+		-- Shared resolver: Tips, XP, tokens and the rest always get an emoji, never the grey X box.
+		return require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RewardArt")).resolve(reward)
 	end
 
 	local function chip(row, group, m, order)

@@ -11239,4 +11239,34 @@ table.insert(tests, { name = "Fresh profile serializes the rank, season and news
 	expectTrue(LiveEvents.view(profile, 20000, lookup) ~= nil, "news view")
 end })
 
+table.insert(tests, { name = "RewardArt: every reward kind in every registry resolves to painted art or an emoji", fn = function()
+	local RewardArt = require(script.Parent.Parent.Engine.RewardArt)
+	local function check(reward, where)
+		local category, key, emoji = RewardArt.resolve(reward)
+		expectTrue(type(emoji) == "string" and emoji ~= "", where .. " has an emoji fallback (kind " .. tostring(reward.kind) .. ")")
+		expectTrue((category == nil) == (key == nil), where .. " category and key come together")
+		expectTrue(RewardArt.Kinds[reward.kind] ~= nil, where .. " kind " .. tostring(reward.kind) .. " is known to RewardArt")
+	end
+	for level, reward in pairs(require(script.Parent.Parent.Engine.TavernRank).Rewards) do check(reward, "rank " .. level) end
+	for level, reward in pairs(require(script.Parent.Parent.Engine.Legend).Rewards) do check(reward, "legend " .. level) end
+	for _, milestone in ipairs(CollectionBook.Milestones) do
+		for _, reward in ipairs(milestone.rewards) do check(reward, "collection " .. milestone.id) end
+	end
+	for _, reward in ipairs(require(script.Parent.Parent.Engine.LoginStreak).Rewards) do check(reward, "login day " .. reward.day) end
+	local SeasonTrack = require(script.Parent.Parent.Engine.SeasonTrack)
+	for _, season in ipairs(SeasonTrack.Seasons) do
+		for tier = 1, SeasonTrack.TIERS do
+			local free = SeasonTrack.rewardFor(season, tier)
+			if free then check(free, "season free " .. tier) end
+			local prem = SeasonTrack.premiumRewardFor(season, tier)
+			if prem then check(prem, "season premium " .. tier) end
+		end
+	end
+	local category, key = RewardArt.resolve({ kind = "tips", amount = 3 })
+	expectEqual("hud", category, "Tips use the painted coin purse")
+	expectEqual("coin_purse", key, "Tips use the painted coin purse")
+	local _, _, unknownEmoji = RewardArt.resolve({ kind = "mystery" })
+	expectTrue(unknownEmoji ~= "", "an unknown kind still gets an emoji")
+end })
+
 return tests

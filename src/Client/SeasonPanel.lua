@@ -215,14 +215,10 @@ function SeasonPanel.init(deps)
 		end
 	end
 
-	-- art category and key of a reward, and its emoji fallback
+	-- art category and key of a reward, and its emoji fallback (shared resolver: no reward kind falls back to the X box)
+	local RewardArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RewardArt"))
 	local function rewardArt(reward)
-		if reward.kind == "cardBack" then
-			return "card_backs", reward.id, "🂠"
-		elseif reward.kind == "title" then
-			return "titles", reward.id, "🏷️"
-		end
-		return "hud", "coin_purse", "💰" -- Tips: the sidebar coin purse art
+		return RewardArt.resolve(reward)
 	end
 
 	local function premiumSection(t, row)
@@ -242,13 +238,7 @@ function SeasonPanel.init(deps)
 		stroke.Thickness = 2
 		stroke.Parent = box
 		label(box, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 2), TextSize = 14, TextColor3 = Color3.fromRGB(150, 100, 20), Text = "Premium" })
-		local category, key, emoji
-		local r = prem.reward
-		if r and r.kind == "cardBack" then category, key, emoji = "card_backs", r.id, "🂠"
-		elseif r and r.kind == "title" then category, key, emoji = "titles", r.id, "🏷️"
-		elseif r and r.kind == "flair" then category, key, emoji = "flair", r.id, "✨"
-		elseif r and r.kind == "set" then category, key, emoji = "set_backdrops", r.id, "🎴"
-		else category, key, emoji = "hud", "coin_purse", "💰" end
+		local category, key, emoji = rewardArt(prem.reward)
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(40, 40)
 		well.Position = UDim2.fromOffset(28, 20)
