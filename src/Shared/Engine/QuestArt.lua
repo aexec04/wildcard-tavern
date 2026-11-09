@@ -6,10 +6,24 @@
 ]]
 
 return {
+	["big_swing"] = "rbxassetid://119810957801054",
+	["boss_streak"] = "rbxassetid://103836513468188",
 	["boss_win"] = "rbxassetid://84501764472708",
 	["buy_pack"] = "rbxassetid://132769021310255",
+	["buy_pass"] = "rbxassetid://78086309306243",
 	["discard_5"] = "rbxassetid://77173019803089",
+	["discard_cards_10"] = "rbxassetid://97142409013523",
 	["flush_clear"] = "rbxassetid://87795395778698",
+	["full_house_play"] = "rbxassetid://97590409828515",
 	["hands_10"] = "rbxassetid://87779682247431",
+	["hands_15"] = "rbxassetid://107618855838282",
 	["pairs_3"] = "rbxassetid://105808644124034",
+	["pairs_8"] = "rbxassetid://112735021956160",
+	["quick_win"] = "rbxassetid://78992026400541",
+	["reach_night_3"] = "rbxassetid://81447012784214",
+	["rounds_5"] = "rbxassetid://139995469914038",
+	["straight_play"] = "rbxassetid://77671316896855",
+	["tips_left"] = "rbxassetid://108424647182441",
+	["trips_play"] = "rbxassetid://80707970525985",
+	["use_recipe"] = "rbxassetid://108579254180791",
 }

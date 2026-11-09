@@ -6,11 +6,17 @@
 ]]
 
 return {
+	["boss_prep"] = "rbxassetid://116518572270675",
+	["card_cart"] = "rbxassetid://98710537165794",
 	["double_shift"] = "rbxassetid://123011191743778",
 	["extra_seating"] = "rbxassetid://128664039642835",
 	["frequent_visitor"] = "rbxassetid://112452255053593",
 	["grand_opening"] = "rbxassetid://98773666530512",
 	["late_kitchen"] = "rbxassetid://137419712034386",
+	["pantry_shelf"] = "rbxassetid://88198425508813",
 	["regulars_discount"] = "rbxassetid://76928187407457",
+	["savings_account"] = "rbxassetid://92736424790185",
+	["tip_stand"] = "rbxassetid://99028140492641",
+	["warm_welcome"] = "rbxassetid://98070246539234",
 	["wholesale_pricing"] = "rbxassetid://137647300659790",
 }
