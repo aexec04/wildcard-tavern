@@ -110,4 +110,10 @@ if textOk and textFails and textFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: top level local counts of the two hub scripts (200 limit guard).
+local locOk, locFails = pcall(dofile, "tools/check_locals.lua")
+if locOk and locFails and locFails > 0 then
+	os.exit(1)
+end
+
 os.exit(results.failed == 0 and 0 or 1)

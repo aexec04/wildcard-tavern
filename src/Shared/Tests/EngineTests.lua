@@ -6683,7 +6683,7 @@ table.insert(tests, { name = "TutorialStart: only an explicit tutorial run is sc
 	local n = 0
 	for _ in server:gmatch("startNewSession%([^\n]*, true%)") do n = n + 1 end
 	expectEqual(n, 1) -- exactly one call passes isTutorial: the StartTutorial handler
-	expectTrue(server:find("StartTutorialRemote.OnServerEvent", 1, true) ~= nil)
+	expectTrue(server:find("Rem.StartTutorial.OnServerEvent", 1, true) ~= nil)
 	expectFalse(server:find("hasSeenTutorial == false) and 1", 1, true) ~= nil, "no first-run auto stage")
 	local c = io.open("src/Client/TutorialWalkthrough.lua", "r")
 	local client = c:read("*a"); c:close()
