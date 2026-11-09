@@ -75,6 +75,7 @@ CATEGORIES = {
     "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
     "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
     "bonds": ("bond_subjects", "bonds", "BondArt.lua", "Bond"),
+    "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -114,6 +115,12 @@ CATEGORY_OPTS = {
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
+    # Bayou tavern menu layers (back to front). Transparent layers are cut out from magenta; sky and water stay opaque.
+    "menu_bayou": {"quality": "low", "style_key": "house_style", "transparent": True,
+                   "opaque": ["bayou_sky", "bayou_water"],
+                   "sizes": {"bayou_sky": "1536x1024", "bayou_far_trees": "1536x1024", "bayou_water": "1536x1024",
+                             "bayou_tavern_stilts": "1536x1024", "bayou_mist": "1536x1024",
+                             "bayou_cypress_knees": "1536x1024", "bayou_willow_fg": "1024x1536"}},
     # Menu tavern layers and props. `transparent` = generated on flat magenta, then cut out to real alpha (cutout.py, checked in qa());
     # `opaque` lists the ids that stay opaque. The model has no wide strip size, so menu_counter is 1536x1024 with the
     # bar drawn in the lower part of the canvas (the UI crops it).
