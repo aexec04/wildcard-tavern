@@ -6684,6 +6684,20 @@ table.insert(tests, { name = "Tutorial forced input: only the scripted cards, Pl
 	end
 end })
 
+table.insert(tests, { name = "Tutorial Skip button: 24px inside the edge, below the icon row and Tips chip, scales down on small screens", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialStart)
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 2560, 1440 } }) do
+		local L = TS.skipLayout(v[1], v[2])
+		expectTrue(L.right >= 24, "margin from the edge")
+		expectTrue(L.top >= 66 + 16, "below the corner icon row (ends at y 66)")
+		expectTrue(L.top >= 52 + 16, "below the Tips chip")
+		expectTrue(L.scale >= 0.75 and L.scale <= 1)
+		expectTrue(L.right + L.width * L.scale <= v[1] / 2, "fully on screen")
+	end
+	expectEqual(TS.skipLayout(2560, 1440).scale, 1)
+	expectTrue(TS.skipLayout(800, 450).scale < 1)
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)

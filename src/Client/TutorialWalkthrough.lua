@@ -29,6 +29,7 @@ local RunService = game:GetService("RunService")
 
 local Steps = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TutorialSteps"))
 local TutorialBus = require(script.Parent.TutorialBus)
+local TutorialStart = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TutorialStart"))
 
 local PAD = 10
 local DIM = 0.5
@@ -152,13 +153,17 @@ return function(deps)
 	local skipButton = Instance.new("TextButton")
 	skipButton.Name = "TutorialSkip"
 	skipButton.AnchorPoint = Vector2.new(1, 0)
-	skipButton.Position = UDim2.new(1, -12, 0, 76)
-	skipButton.Size = UDim2.fromOffset(96, 36)
-	skipButton.BackgroundColor3 = Color3.fromRGB(60, 44, 32)
-	skipButton.BackgroundTransparency = 0.15
+	skipButton.Position = UDim2.new(1, -24, 0, 84)
+	skipButton.Size = UDim2.fromOffset(92, 36)
+	-- ghost button in the tavern style: mostly see-through dark wood, brass border, cream text
+	skipButton.BackgroundColor3 = Color3.fromRGB(52, 36, 22)
+	skipButton.BackgroundTransparency = 0.35
+	skipButton.AutoButtonColor = false
 	skipButton.Font = Enum.Font.GothamBold
 	skipButton.TextSize = 16
-	skipButton.TextColor3 = Color3.fromRGB(215, 200, 175)
+	skipButton.TextColor3 = Color3.fromRGB(250, 235, 200)
+	skipButton.TextTransparency = 0
+	skipButton.TextStrokeTransparency = 0.6
 	skipButton.Text = "Skip"
 	skipButton.ZIndex = Z + 4
 	skipButton.Visible = false
@@ -166,6 +171,24 @@ return function(deps)
 	local sCorner = Instance.new("UICorner")
 	sCorner.CornerRadius = UDim.new(0, 8)
 	sCorner.Parent = skipButton
+	local sStroke = Instance.new("UIStroke")
+	sStroke.Color = Color3.fromRGB(214, 172, 88)
+	sStroke.Thickness = 2
+	sStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	sStroke.Parent = skipButton
+	local sScale = Instance.new("UIScale")
+	sScale.Parent = skipButton
+	skipButton.MouseEnter:Connect(function() skipButton.BackgroundTransparency = 0.15 end)
+	skipButton.MouseLeave:Connect(function() skipButton.BackgroundTransparency = 0.35 end)
+	-- safe placement: inside the screen edge, below the corner icons and the Tips chip, smaller on small screens
+	local function placeSkip()
+		local size = gui.AbsoluteSize
+		local L = TutorialStart.skipLayout(size.X, size.Y)
+		skipButton.Position = UDim2.new(1, -L.right, 0, L.top)
+		sScale.Scale = L.scale
+	end
+	placeSkip()
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeSkip)
 
 	-- ===== targets and positions =====
 	local currentList = nil -- { Instance, ... } being spotlighted

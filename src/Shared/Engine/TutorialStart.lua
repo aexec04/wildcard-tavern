@@ -28,4 +28,13 @@ function TutorialStart.showNewRibbon(profile, dismissed)
 	return not (profile and profile.hasSeenTutorial == true)
 end
 
+-- Where the Skip button sits: top right, at least 24px inside the screen edge (the gold border), below the
+-- corner icon row (12..66) and the Tips chip (18..52) with an 18px gap, scaled down on small screens.
+TutorialStart.SKIP_MARGIN = 24
+TutorialStart.SKIP_TOP = 84
+function TutorialStart.skipLayout(viewW, viewH)
+	local scale = math.max(0.75, math.min(1, math.min(viewW / 1280, viewH / 720)))
+	return { right = TutorialStart.SKIP_MARGIN, top = TutorialStart.SKIP_TOP, scale = scale, width = 92, height = 36 }
+end
+
 return TutorialStart
