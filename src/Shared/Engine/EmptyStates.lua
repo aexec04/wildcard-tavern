@@ -27,8 +27,8 @@ EmptyStates.Icons = {
 -- Where the missing thing comes from (hover tooltip text, never printed on the page).
 EmptyStates.Hints = {
 	patrons = "Recruit Patrons in the Shop tab.",
-	recipes = "Buy a Pack in the Shop tab and pick a Recipe.",
-	housePasses = "Keep an eye out for a Voucher offer in the Shop tab.",
+	recipes = "Open Packs to find Recipes.",
+	housePasses = "Buy Vouchers in the Shop tab.",
 	offers = "You have met everyone available so far.",
 	seat = "Visit The Counter to recruit a Patron.",
 }

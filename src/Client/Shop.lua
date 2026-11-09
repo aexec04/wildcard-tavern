@@ -355,6 +355,29 @@ return function(deps)
 		shopTabBarLayout.Padding = UDim.new(0, 8)
 		shopTabBarLayout.Parent = shopTabBar
 
+		-- "Recipe box: n/m" chip on the same row as the tabs (filled in by rebuildMyRecipesTab)
+		do
+			local chip = Instance.new("TextLabel")
+			chip.Name = "RecipeBoxChip"
+			chip.AnchorPoint = Vector2.new(1, 0)
+			chip.Size = UDim2.fromOffset(190, 30)
+			chip.Position = UDim2.new(1, -14, 0, 43)
+			chip.BackgroundColor3 = Color3.fromRGB(40, 28, 18)
+			chip.BackgroundTransparency = 0.2
+			chip.Font = Enum.Font.GothamBold
+			chip.TextSize = 15
+			chip.TextColor3 = Color3.fromRGB(255, 214, 130)
+			chip.Text = ""
+			chip.Visible = false
+			chip.ZIndex = SHOP_ZINDEX
+			chip.Parent = shopFrame
+			roundCorner(chip, 8)
+			local chipStroke = Instance.new("UIStroke")
+			chipStroke.Color = Color3.fromRGB(222, 182, 104)
+			chipStroke.Thickness = 1.5
+			chipStroke.Parent = chip
+		end
+
 		local shopContentArea = Instance.new("Frame")
 		shopContentArea.Size = UDim2.new(1, -20, 1, -148) -- 84 top + 64 reserved footer (Next Round sits in it)
 		shopContentArea.Position = UDim2.new(0, 10, 0, 84)
@@ -406,6 +429,8 @@ return function(deps)
 					popScale(frame, 0.97, 0.16)
 				end
 			end
+			local chipRef = shopFrame:FindFirstChild("RecipeBoxChip")
+			if chipRef then chipRef.Visible = (key == "myrecipes") end
 			for _, entry in ipairs(shopTabButtons) do
 				entry.button.BackgroundColor3 = (entry.key == key) and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
 			end
@@ -1362,6 +1387,7 @@ return function(deps)
 			return nextOrder
 		end
 
+		addSectionHeader(shopMyPatronsListFrame, order(), "Patrons")
 		if #ownedPatrons == 0 then
 			shopCards.emptyScene(shopMyPatronsListFrame, order(), "patrons")
 		else
@@ -1422,20 +1448,11 @@ return function(deps)
 		local heldCount = #inventories.house + #inventories.menu + #inventories.secret
 		local recipeSlotLimit = (state and state.recipeSlotLimit) or heldCount
 		local boxIsFull = heldCount >= recipeSlotLimit
-		local capLabel = Instance.new("TextLabel")
-		capLabel.LayoutOrder = 0
-		capLabel.Size = UDim2.new(1, 0, 0, 26)
-		capLabel.BackgroundTransparency = 1
-		capLabel.Font = Enum.Font.GothamBold
-		capLabel.TextSize = 15
-		capLabel.TextXAlignment = Enum.TextXAlignment.Left
-		capLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
-		capLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
-		capLabel.TextStrokeTransparency = 0.4
-		capLabel.Text = string.format("Recipe box: %d/%d%s", heldCount, recipeSlotLimit,
-			boxIsFull and " -- full! Use one to make room." or "")
-		capLabel.ZIndex = 6
-		capLabel.Parent = shopMyRecipesListFrame
+		local chip = shopFrame:FindFirstChild("RecipeBoxChip")
+		if chip then
+			chip.Text = string.format("Recipe box: %d/%d%s", heldCount, recipeSlotLimit, boxIsFull and " (full)" or "")
+			chip.TextColor3 = boxIsFull and Color3.fromRGB(255, 150, 120) or Color3.fromRGB(255, 214, 130)
+		end
 
 		-- If the recipe we're mid-targeting is gone from its inventory, close the stale picker.
 		if pendingUse then

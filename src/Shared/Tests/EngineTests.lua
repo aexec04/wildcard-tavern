@@ -7686,6 +7686,9 @@ table.insert(tests, { name = "EmptyStates: short lines, no dashes, a hint for ev
 	expectEqual(EmptyStates.line("nope"), EmptyStates.Lines.patrons, "unknown keys fall back")
 	for _, hint in pairs(EmptyStates.Hints) do
 		expectFalse(hint:find("%-%-") ~= nil, "hints have no double dash")
+		local words = 0
+		for _ in hint:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= 8, "hints are 8 words or fewer: " .. hint)
 	end
 end })
 

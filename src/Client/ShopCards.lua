@@ -197,27 +197,23 @@ function ShopCards.new(deps)
 		})
 	end
 
-	-- An empty page with life: three faint ghost cards on dotted outlines that bob gently, a soft lantern
-	-- glow behind them and one short line (Engine/EmptyStates). The hint lives in the hover tooltip.
+	-- A compact, STILL empty state: three small faint ghost cards on dotted outlines and one short line under
+	-- them (Engine/EmptyStates). No motion at all (the old bobbing ghosts looked laggy). The hint lives in the
+	-- hover tooltip, whose target is the ghosts only, so the tooltip (placed above the target) never covers
+	-- the line of text.
 	function self.emptyScene(parent, layoutOrder, key)
 		local EmptyStates = require(Engine:WaitForChild("EmptyStates"))
-		local scale = currentScale()
-		local gw, gh = math.floor(96 * scale + 0.5), math.floor(132 * scale + 0.5)
-		local H = gh + 80
+		local scale = math.min(currentScale(), 1)
+		local gw, gh = math.floor(64 * scale + 0.5), math.floor(86 * scale + 0.5)
+		local H = gh + 50 -- about 140px, well under the 200px cap
 		local scene = frame(parent, { Name = "EmptyScene", LayoutOrder = layoutOrder, Size = UDim2.new(1, 0, 0, H), BackgroundTransparency = 1 })
-		-- lantern glow: stacked soft discs (Frame transparency only)
-		for i, d in ipairs({ 300, 220, 150 }) do
-			local disc = frame(scene, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, gh * 0.5 + 8),
-				Size = UDim2.fromOffset(d * scale, d * scale * 0.7), BackgroundColor3 = Color3.fromRGB(255, 200, 110),
-				BackgroundTransparency = 0.88 + i * 0.03 })
-			corner(disc, 999)
-		end
 		local icons = EmptyStates.icons(key)
-		local reduce = ClientSettings.get("reduceShake") == true
+		local cluster = frame(scene, { Name = "GhostCluster", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6),
+			Size = UDim2.fromOffset(3 * gw + 2 * 16, gh), BackgroundTransparency = 1 })
 		for i = 1, 3 do
-			local group = frame(scene, { Name = "Ghost" .. i, AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(gw, gh),
-				Position = UDim2.new(0.5, (i - 2) * (gw + 22), 0, 10), BackgroundColor3 = CREAM, BackgroundTransparency = 0.93 })
-			corner(group, 10)
+			local group = frame(cluster, { Name = "Ghost" .. i, Position = UDim2.fromOffset((i - 1) * (gw + 16), 0),
+				Size = UDim2.fromOffset(gw, gh), BackgroundColor3 = CREAM, BackgroundTransparency = 0.93 })
+			corner(group, 8)
 			-- dotted outline: small dots around the perimeter
 			local step = 11
 			local function dot(x, y)
@@ -226,34 +222,23 @@ function ShopCards.new(deps)
 			end
 			for x = 6, gw - 6, step do dot(x, 3) dot(x, gh - 3) end
 			for y = 6, gh - 6, step do dot(3, y) dot(gw - 3, y) end
-			label(group, { Size = UDim2.fromScale(1, 1), Text = icons[i] or "", TextSize = math.floor(40 * scale), TextTransparency = 0.82,
+			label(group, { Size = UDim2.fromScale(1, 1), Text = icons[i] or "", TextSize = math.floor(30 * scale), TextTransparency = 0.82,
 				TextColor3 = CREAM })
-			if not reduce then
-				-- slow bob, each ghost out of step with the others
-				local from = group.Position
-				task.delay((i - 1) * 0.5, function()
-					if group.Parent then
-						local t = TweenService:Create(group, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-							{ Position = from - UDim2.fromOffset(0, 6) })
-						t:Play()
-					end
-				end)
-			end
 		end
-		local text = label(scene, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.new(1, -20, 0, 32),
-			Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(30, 20, 12),
+		label(scene, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4), Size = UDim2.new(1, -20, 0, 30),
+			Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(30, 20, 12),
 			TextStrokeTransparency = 0.5, Text = EmptyStates.line(key) })
 		if addTooltip then
 			local hint = EmptyStates.hint(key)
 			if hint ~= "" then
-				-- the tooltip target must be a GuiButton-like with MouseEnter: a transparent button over the scene
+				-- the tooltip target must be a GuiButton-like with MouseEnter: a transparent button over the ghosts only
 				local hit = Instance.new("TextButton")
 				hit.Size = UDim2.fromScale(1, 1)
 				hit.BackgroundTransparency = 1
 				hit.Text = ""
 				hit.AutoButtonColor = false
 				hit.ZIndex = Z
-				hit.Parent = scene
+				hit.Parent = cluster
 				addTooltip(hit, hint)
 			end
 		end
