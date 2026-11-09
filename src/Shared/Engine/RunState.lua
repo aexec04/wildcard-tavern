@@ -31,6 +31,8 @@ local Unlocks = require(script.Parent.Unlocks)
 local BossRules = require(script.Parent.BossRules)
 local Challenges = require(script.Parent.Challenges)
 local BossRush = require(script.Parent.BossRush)
+local Haggle = require(script.Parent.Haggle) -- one haggle per shop visit moves one price by 1 Tip
+local Strangers = require(script.Parent.Strangers) -- Dealer's Bargains: numeric run effects
 
 local RunState = {}
 
@@ -425,12 +427,14 @@ function RunState.startRound(state)
 		+ Patrons.sum(state.ownedPatrons, "handSizeDelta") -- Extra Chair, Overtime
 		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
 		+ endlessField(state, "handSizeDelta")
+		+ Strangers.field(state, "handSizeDelta")
 	handSize = math.max(1, handSize)
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)
 		+ Patrons.sum(state.ownedPatrons, "discardsDelta") -- Second Helpings
 		+ endlessField(state, "discardsDelta")
+		+ Strangers.field(state, "discardsDelta")
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
 	if state.isBossRound and state.housePasses.boss_prep then
 		discards = discards + 1 -- Boss Prep
@@ -453,6 +457,7 @@ function RunState.startRound(state)
 	handsPerRound = handsPerRound + (state.housePasses.double_shift and 1 or 0)
 	handsPerRound = handsPerRound + Patrons.sum(state.ownedPatrons, "handsDelta") -- Overtime
 	handsPerRound = handsPerRound + endlessField(state, "handsDelta")
+	handsPerRound = handsPerRound + Strangers.field(state, "handsDelta")
 	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
 	if state.bonusHandsNight and state.bonusHandsNight == state.night then
 		handsPerRound = handsPerRound + 1
@@ -819,6 +824,10 @@ function RunState.playHand(state, cardIndices)
 		if (bossModifier and bossModifier.noScoringTips) or (state.challenge and state.challenge.noScoringTips) then
 			extra.tipsEarned = 0 -- Penny Wise
 		end
+		local bargainPct = Strangers.field(state, "scorePct") -- Dealer's Bargain Mult boost or curse
+		if bargainPct ~= 0 then
+			mult = mult * math.max(0.1, 1 + bargainPct / 100)
+		end
 		score = chips * mult
 	end
 
@@ -951,7 +960,7 @@ function RunState.playHand(state, cardIndices)
 		end
 
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
-		local reward = math.max(1, state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) + endlessField(state, "tipsDelta")) -- Tip Stand, Lean Tips
+		local reward = math.max(1, state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) + endlessField(state, "tipsDelta") + Strangers.field(state, "tipsDelta")) -- Tip Stand, Lean Tips, Dealer's Bargain
 		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
 		else
@@ -1096,7 +1105,7 @@ function RunState.patronPrice(state, patron)
 		price = price - 2
 	end
 	price = price - (state.nextShopDiscount or 0)
-	price = math.max(1, price)
+	price = math.max(1, price + Haggle.delta(state, "patron", patron.id))
 	local pct = endlessField(state, "patronPricePct")
 	if pct ~= 0 then
 		price = math.ceil(price * (1 + pct / 100)) -- Pricey Patrons
@@ -1111,7 +1120,7 @@ function RunState.packPrice(state, pack)
 		price = price - 2
 	end
 	price = price - (state.nextShopDiscount or 0)
-	return math.max(1, price)
+	return math.max(1, price + Haggle.delta(state, "pack", pack.id))
 end
 
 -- The Frequent Visitor Card House Pass knocks 2 off whatever the current

@@ -206,6 +206,7 @@ return function(deps)
 
 	local shopFrame
 	local shopScene -- ShopScene instance (nil if it failed to build)
+	local shopHaggle -- Haggle button, timing bar and Stranger card (Client/ShopHaggle.lua)
 	local nextRoundButton
 	local shopBuyListFrame
 	local shopMyPatronsListFrame
@@ -304,6 +305,13 @@ return function(deps)
 				return require(script.Parent.ShopScene).new({ shopFrame = shopFrame, getState = getLatestState })
 			end)
 			shopScene = ok and built or nil
+			local okH, haggle = pcall(function()
+				return require(script.Parent.ShopHaggle).new({
+					shopFrame = shopFrame, playClickSfx = playClickSfx,
+					say = function(text) if shopScene then shopScene.sayText(text) end end,
+				})
+			end)
+			shopHaggle = okH and haggle or nil
 		end
 
 		-- Deliberately NOT calling addSoftShadow(shopFrame, ...) here.
@@ -1167,6 +1175,7 @@ return function(deps)
 	end
 
 	local function rebuildShop(state)
+		if shopHaggle and state then shopHaggle.update(state) end
 		local renderSignature = buildShopRenderSignature(state)
 		if state and renderSignature == lastShopRenderSignature then
 			lastShopRenderSignature = renderSignature

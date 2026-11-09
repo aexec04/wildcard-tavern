@@ -454,6 +454,10 @@ end
 local function openShop(session)
 	rollShopOffers(session)
 	session.rerollCost = Shop.REROLL_BASE_COST
+	-- A new visit: one haggle again, and maybe the Wandering Stranger (1 in 6, normal runs from Night 3).
+	require(Engine.Haggle).reset(session.state)
+	session.state.strangerSeed = session.state.strangerSeed or (os.time() * 31 + math.floor(os.clock() * 1000)) -- fixed once per run, so repeat visits are stable
+	session.strangerOffer = require(Engine.Strangers).rollVisit(session.state, require(Engine.Haggle).ctxFor(session))
 end
 
 local function serializeCard(card)
@@ -798,6 +802,13 @@ local function serializeState(session, player)
 		worldRoute = state.worldRoute,
 		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
 		worldFixed = state.worldPlan ~= nil,
+		-- THE COUNTER: the haggle bar, the Wandering Stranger's offer and the Dealer's Bargains taken this run.
+		haggle = session.phase == "shop" and (function()
+			require(Engine.Haggle).expire(state, os.clock())
+			return require(Engine.Haggle).view(state, require(Engine.Haggle).ctxFor(session), session.phase)
+		end)() or nil,
+		stranger = session.phase == "shop" and require(Engine.Strangers).view(session.strangerOffer) or nil,
+		bargains = state.bargains,
 		-- Side stops open at this Night's stop (Round Select only): id, kind, name, icon and, for a shop, its offers.
 		sideStops = (function()
 			local list = {}
@@ -2291,6 +2302,56 @@ Rem.RerollShop.OnServerEvent:Connect(function(player)
 	rollShopOffers(session)
 	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
 	pushState(player)
+end)
+
+-- HAGGLE: "start" opens the 3 second bar for one offered Patron or Pack, "stop" reads the needle from the
+-- server clock (the client's own angle is never sent). One per shop visit; refused on ranked boards and in the tutorial.
+Rem.Haggle.OnServerEvent:Connect(function(player, action, kind, id)
+	if not RateLimit.allow(player.UserId, "Rem.Haggle", os.clock()) then return end
+	local session = sessions[player]
+	if not session or not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+		return
+	end
+	local Haggle = require(Engine.Haggle)
+	if action == "start" then
+		local list = (kind == "patron" and session.shopOffers) or (kind == "pack" and session.packOffers) or nil
+		local offered = false
+		for _, item in ipairs(list or {}) do
+			if item.id == id then
+				offered = true
+			end
+		end
+		if offered and Haggle.start(session.state, Haggle.ctxFor(session), session.phase, os.clock(), kind, id) then
+			pushState(player)
+		end
+	elseif action == "stop" then
+		if Haggle.stop(session.state, os.clock()) then
+			pushState(player)
+		end
+	end
+end)
+
+-- WANDERING STRANGER: accept the one Dealer's Bargain on offer (charged and applied by Engine/Strangers.lua) or
+-- decline (free, changes nothing). Only in the shop, only the bargain rolled for this visit.
+Rem.Stranger.OnServerEvent:Connect(function(player, action)
+	if not RateLimit.allow(player.UserId, "Rem.Stranger", os.clock()) then return end
+	local session = sessions[player]
+	if not session or not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+		return
+	end
+	local offer = session.strangerOffer
+	if not offer then
+		return
+	end
+	if action == "accept" then
+		if require(Engine.Strangers).accept(session.state, offer.id) then
+			session.strangerOffer = nil
+			pushState(player)
+		end
+	elseif action == "decline" then
+		session.strangerOffer = nil
+		pushState(player)
+	end
 end)
 
 Rem.BuyPack.OnServerEvent:Connect(function(player, packId)

@@ -11354,6 +11354,108 @@ table.insert(tests, { name = "MapSeams: every join overlaps by 18 percent of the
 	expectEqual(200, math.floor(s3[1].r + 0.5), "Color3 tint converted to 0..255")
 end })
 
+table.insert(tests, { name = "Haggle: result comes from the clock position, miss penalty capped, never below 1, refused when ranked or tutorial", fn = function()
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local patron = Patrons.Definitions[1]
+	-- Needle: angle 180 (the zone center) at 0.75 s, 0 at t=0.
+	expectEqual(0, Haggle.needleAt(0))
+	expectEqual(180, Haggle.needleAt(0.75))
+	expectTrue(Haggle.inZone(180) and not Haggle.inZone(100))
+	-- Hit: stopped at 0.75 s -> 1 Tip less.
+	local state = RunState.new(nil, function(n) return n end)
+	local base = RunState.patronPrice(state, patron)
+	expectTrue(Haggle.start(state, {}, "shop", 100, "patron", patron.id))
+	local ok, res = Haggle.stop(state, 100.75)
+	expectTrue(ok and res.hit and res.delta == -1)
+	expectEqual(math.max(1, base - 1), RunState.patronPrice(state, patron))
+	-- Used: a second haggle this visit is refused; a new visit allows it again.
+	expectFalse(Haggle.start(state, {}, "shop", 101, "patron", patron.id))
+	Haggle.reset(state)
+	expectEqual(base, RunState.patronPrice(state, patron))
+	-- Miss: stopped at 0 s (angle 0) -> +1, and never more than +1 however often it is read.
+	expectTrue(Haggle.start(state, {}, "shop", 200, "patron", patron.id))
+	local _, miss = Haggle.stop(state, 200)
+	expectFalse(miss.hit)
+	expectEqual(base + 1, RunState.patronPrice(state, patron))
+	expectEqual(base + 1, RunState.patronPrice(state, patron))
+	-- Timeout counts as a miss even if the needle happens to be in the zone.
+	Haggle.reset(state)
+	Haggle.start(state, {}, "shop", 300, "pack", "x")
+	local _, late = Haggle.stop(state, 300 + 3.75 + 3) -- elapsed 6.75 s, angle 180
+	expectTrue(late.timedOut and not late.hit)
+	-- Never free: a 1 Tip item stays at 1 on a hit.
+	Haggle.reset(state)
+	state.haggle = { used = true, kind = "patron", id = "cheap", delta = -1 }
+	expectEqual(0, Haggle.delta(state, "patron", "other"))
+	expectEqual(-1, Haggle.delta(state, "patron", "cheap"))
+	local cheap = { id = "cheap", price = 1 }
+	expectEqual(1, RunState.patronPrice(state, cheap))
+	-- Refusals.
+	local fresh = RunState.new(nil, function(n) return n end)
+	expectFalse(Haggle.start(fresh, { ranked = true }, "shop", 1, "patron", "a"))
+	expectFalse(Haggle.start(fresh, { tutorial = true }, "shop", 1, "patron", "a"))
+	expectFalse(Haggle.start(fresh, {}, "playing", 1, "patron", "a"))
+	expectFalse(Haggle.start(fresh, {}, "shop", 1, "voucher", "a"))
+	expectFalse(Haggle.stop(fresh, 1))
+end })
+
+table.insert(tests, { name = "Strangers: 1 in 6 shops, never Nights 1 to 2 or ranked, bargains apply and curses are real, declining is free", fn = function()
+	local Strangers = require(script.Parent.Parent.Engine.Strangers)
+	expectEqual(6, #Strangers.Bargains)
+	for _, b in ipairs(Strangers.Bargains) do
+		expectTrue(b.price >= 1 and #b.blessingText > 0 and #b.curseText > 0 and b.promptId ~= nil)
+		expectFalse((b.name .. b.blessingText .. b.curseText):lower():find("balatro", 1, true) ~= nil)
+	end
+	-- Frequency over 600 seeds on Night 4.
+	local hits = 0
+	for seed = 1, 600 do
+		if Strangers.appears(seed, 4, {}) then hits = hits + 1 end
+		expectFalse(Strangers.appears(seed, 1, {}))
+		expectFalse(Strangers.appears(seed, 2, {}))
+		expectFalse(Strangers.appears(seed, 5, { ranked = true }))
+		expectFalse(Strangers.appears(seed, 5, { tutorial = true }))
+		expectEqual(Strangers.appears(seed, 6, {}), Strangers.appears(seed, 6, {}))
+	end
+	expectTrue(hits >= 65 and hits <= 135, "about 100 of 600, got " .. hits)
+	-- Applying: Hot Pan gives +25 percent now, and the discard curse hits only the next Night.
+	local state = RunState.new(nil, function(n) return n end)
+	state.night = 3
+	state.tips = 20
+	expectEqual(0, Strangers.field(state, "scorePct"))
+	expectTrue(Strangers.accept(state, "hot_pan"))
+	expectEqual(15, state.tips)
+	expectEqual(25, Strangers.field(state, "scorePct"))
+	expectEqual(0, Strangers.field(state, "discardsDelta"))
+	state.night = 4
+	expectEqual(-1, Strangers.field(state, "discardsDelta"))
+	state.night = 5
+	expectEqual(0, Strangers.field(state, "discardsDelta"))
+	-- The curse really lowers the dealt discards on the cursed Night.
+	state.night = 4
+	RunState.startRound(state)
+	local cursed = state.discardsRemaining
+	state.bargains = {}
+	RunState.startRound(state)
+	expectEqual(cursed + 1, state.discardsRemaining)
+	-- Declining changes nothing; an unaffordable bargain is refused and charges nothing.
+	local poor = RunState.new(nil, function(n) return n end)
+	poor.tips = 1
+	expectFalse(Strangers.accept(poor, "hot_pan"))
+	expectEqual(1, poor.tips)
+	expectEqual(nil, poor.bargains)
+	expectFalse(Strangers.accept(poor, "no_such_deal"))
+	-- No bargain can make a round unplayable: floors hold with every curse stacked.
+	local stacked = RunState.new(nil, function(n) return n end)
+	stacked.night = 2
+	stacked.bargains = {}
+	for _, b in ipairs(Strangers.Bargains) do
+		table.insert(stacked.bargains, { id = b.id, night = 1 })
+	end
+	RunState.startRound(stacked)
+	expectTrue(stacked.handsRemaining >= 1 and #stacked.hand >= 1 and stacked.discardsRemaining >= 0)
+end })
+
 table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max, no dashes, deterministic by seed", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopkeeperLines)
 	expectEqual(12, #L.Events)

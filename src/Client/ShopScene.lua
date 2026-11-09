@@ -9,7 +9,7 @@
 	  * reactions: onBuy (coin arc to Marlo and a nod), onReroll (rail shake), onCantAfford (Marlo line, no red flashing).
 	Loops only run while the shop frame is visible. Everything is destroyed with the frame.
 
-	ShopScene.new({ shopFrame, getState, getSeed? }) -> { say, onBuy, onReroll, onCantAfford, railShake }
+	ShopScene.new({ shopFrame, getState }) -> { say, sayText, onBuy, onReroll, onCantAfford, railShake }
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -222,11 +222,10 @@ function ShopScene.new(deps)
 	end
 
 	-- Marlo says a line for an event (rate limited to one bubble at a time).
-	function self.say(event)
-		lineCount += 1
+	local function show(text)
 		bubbleToken += 1
 		local token = bubbleToken
-		bubble.Text = Lines.pick(event, seedFor(event))
+		bubble.Text = text
 		bubble.Visible = true
 		bubble.BackgroundTransparency = 0.05
 		bubble.TextTransparency = 0
@@ -248,6 +247,16 @@ function ShopScene.new(deps)
 				end
 			end)
 		end)
+	end
+
+	function self.say(event)
+		lineCount += 1
+		show(Lines.pick(event, seedFor(event)))
+	end
+
+	-- A fixed line (the haggle result), same bubble.
+	function self.sayText(text)
+		show(text)
 	end
 
 	function self.railShake()
