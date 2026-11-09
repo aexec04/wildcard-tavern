@@ -34,6 +34,7 @@ function RunSummary.recordHand(state, handName, score)
 	if type(score) ~= "number" then
 		return
 	end
+	state.lastHand = { name = handName, score = score } -- the hand just scored (Client/Showdown.lua reads it on a Boss clear)
 	if not state.bestHand or score > state.bestHand.score then
 		state.bestHand = { name = handName, score = score }
 	end

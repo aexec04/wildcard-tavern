@@ -725,6 +725,7 @@ local function build(deps)
 					lossSequence()
 				elseif state.phase == "shop" or state.phase == "roundSelect" or state.phase == "nightVictory" then
 					defeatSequence()
+					pcall(require(script.Parent.Showdown).play, state, root) -- gold "final blow" banner on the winning hand
 				else
 					hide()
 				end

@@ -767,6 +767,8 @@ local function serializeState(session, player)
 		summary.badgeIcon = badgeIcon
 			local saved = profile and profile.equippedBadge
 			summary.stake = state.stake
+			-- WIN CARD (Client/WinCard.lua): best Night so far counts as a new best (ties included), Night 3 and up
+			summary.newBest = profile ~= nil and summary.night >= 3 and summary.night >= ((profile.stats and profile.stats.bestNightReached) or 0)
 			summary.endlessBestByStake = profile and profile.endlessBestByStake or nil
 			summary.totalScore = math.floor(state.totalScore or 0)
 			summary.badgeSaved = saved ~= nil and saved.night == math.floor(summary.night)
@@ -802,6 +804,7 @@ local function serializeState(session, player)
 		worldRoute = state.worldRoute,
 		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
 		worldFixed = state.worldPlan ~= nil,
+		lastHand = state.lastHand and { name = state.lastHand.name, score = math.floor(state.lastHand.score) } or nil, -- Showdown banner
 		-- THE COUNTER: the haggle bar, the Wandering Stranger's offer and the Dealer's Bargains taken this run.
 		haggle = session.phase == "shop" and (function()
 			require(Engine.Haggle).expire(state, os.clock())

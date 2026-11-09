@@ -11586,6 +11586,43 @@ table.insert(tests, { name = "Regulars: at most 6, newest first, none without th
 	end
 end })
 
+table.insert(tests, { name = "WinCard: share text within 200 chars, no dashes, never the banned word, 3 Patrons max; lastHand recorded", fn = function()
+	local WinCard = require(script.Parent.Parent.Engine.WinCard)
+	local RunSummary = require(script.Parent.Parent.Engine.RunSummary)
+	local summary = {
+		won = true, night = 8, bestHand = { name = "Straight Flush", score = 123456 },
+		patrons = {
+			{ id = "a", name = "Mr. Hyphen-Man", icon = "x" }, { id = "b", name = "Second", icon = "y" },
+			{ id = "c", name = "Third", icon = "z" }, { id = "d", name = "Fourth", icon = "w" },
+		},
+	}
+	local card = WinCard.build(summary, { stake = 5, cardBackId = "classic", seedText = "Seed: ABC234", newBest = true })
+	expectTrue(#card.shareText <= 200 and #card.shareText > 0)
+	expectEqual(3, #card.patrons)
+	expectEqual("Tavern Champion", card.title)
+	expectEqual("Stake 5", card.stakeText)
+	expectFalse(card.shareText:find("-", 1, true) ~= nil or card.shareText:find("\226\128\148", 1, true) ~= nil, card.shareText)
+	expectFalse(card.patrons[1].name:find("-", 1, true) ~= nil)
+	expectTrue(card.shareText:find("ABC234", 1, true) ~= nil)
+	-- A very long seed line is clipped to 200.
+	local long = WinCard.build(summary, { stake = 2, seedText = string.rep("word ", 80) })
+	expectTrue(#long.shareText <= 200)
+	-- The banned word never gets through, whether in a name or a seed line.
+	local bad = WinCard.build({ won = false, night = 2, bestHand = { name = "Balatro Hand", score = 5 }, patrons = {} }, {})
+	expectFalse(bad.shareText:lower():find("balatro", 1, true) ~= nil)
+	expectEqual("", WinCard.clean("my Balatro seed"))
+	-- Not-won, not-best runs get no card; a win or a new best does.
+	expectFalse(WinCard.worthShowing({ won = false }, { newBest = false }))
+	expectTrue(WinCard.worthShowing({ won = true }, {}))
+	expectTrue(WinCard.worthShowing({ won = false }, { newBest = true }))
+	-- RunSummary.recordHand keeps the hand just scored for the Showdown banner.
+	local state = { ownedPatrons = {} }
+	RunSummary.recordHand(state, "Flush", 900)
+	RunSummary.recordHand(state, "Pair", 40)
+	expectEqual("Pair", state.lastHand.name)
+	expectEqual("Flush", state.bestHand.name)
+end })
+
 table.insert(tests, { name = "ShopkeeperLines: 4+ lines per event, 60 chars max, no dashes, deterministic by seed", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopkeeperLines)
 	expectEqual(12, #L.Events)

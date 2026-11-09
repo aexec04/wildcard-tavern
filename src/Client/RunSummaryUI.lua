@@ -193,6 +193,16 @@ function RunSummaryUI.init(screenGui, deps)
 	})
 	ui.invite.Visible = false
 	require(script.Parent.InvitePrompt).bind(ui.invite)
+	-- WIN CARD (Client/WinCard.lua): offered after a run win or a new best, top right beside the heading
+	ui.winCard = button(panel, "Win Card", GREEN, {
+		Position = UDim2.new(1, -146, 0, 24), Size = UDim2.fromOffset(124, 34), TextSize = 16,
+	})
+	ui.winCard.Visible = false
+	ui.winCard.MouseButton1Click:Connect(function()
+		pcall(function()
+			require(script.Parent.WinCard).show(ui.backdrop.Parent, ui.lastState, ui.lastSummary)
+		end)
+	end)
 	ui.shareBox = Instance.new("TextBox")
 	ui.shareBox.Name = "ShareSeedBox"
 	ui.shareBox.Position = UDim2.new(0, 312, 0, 300)
@@ -399,6 +409,7 @@ function RunSummaryUI.update(state)
 		ui.share.Visible = true
 		ui.challenge.Visible = true
 		ui.invite.Visible = true
+		ui.winCard.Visible = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("WinCard")).worthShowing(summary, summary)
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)
