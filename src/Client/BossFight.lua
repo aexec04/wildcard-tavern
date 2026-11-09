@@ -287,11 +287,13 @@ local function build(deps)
 	end
 
 	local function flashTint(strength)
+		if not require(script.Parent.ClientSettings).flashesAllowed() then return end -- Reduce Flashing
 		tint.BackgroundTransparency = math.min(tintBase, 1 - strength)
 		play(tint, { BackgroundTransparency = tintBase }, 0.35)
 	end
 
 	local function screenFlash()
+		if not require(script.Parent.ClientSettings).flashesAllowed() then return end -- Reduce Flashing
 		local f = Instance.new("Frame")
 		f.Size = UDim2.fromScale(1, 1)
 		f.BackgroundColor3 = Color3.fromRGB(255, 240, 210)

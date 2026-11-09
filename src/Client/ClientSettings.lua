@@ -18,6 +18,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PlayerProfile = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile"))
 
+local Accessibility = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Accessibility"))
+
 local ClientSettings = {}
 
 local SAVE_DEBOUNCE = 0.4
@@ -52,8 +54,32 @@ local function sendToServer(key)
 	end)
 end
 
+-- Every module that skips loops, pulses and shake asks get("reduceShake"); that now also answers true under
+-- Reduce Motion and Reduce Flashing (calm mode, Engine/Accessibility). The Settings panel shows the raw
+-- switch through getRaw so the three toggles stay independent.
 function ClientSettings.get(key)
+	if key == "reduceShake" then
+		return Accessibility.calm(values)
+	end
 	return values[key]
+end
+
+function ClientSettings.getRaw(key)
+	return values[key]
+end
+
+-- Accessibility helpers (see Engine/Accessibility.lua).
+function ClientSettings.flashesAllowed()
+	return Accessibility.flashesAllowed(values)
+end
+function ClientSettings.motionAllowed()
+	return Accessibility.motionAllowed(values)
+end
+function ClientSettings.particleCount(count)
+	return Accessibility.particleCount(values, count)
+end
+function ClientSettings.holdSeconds()
+	return Accessibility.holdSeconds(values)
 end
 
 function ClientSettings.isLoaded()
@@ -66,6 +92,9 @@ function ClientSettings.set(key, value)
 	end
 	values[key] = value
 	notify(key, value)
+	if key == "reduceMotion" or key == "reduceFlashing" then
+		notify("reduceShake", Accessibility.calm(values)) -- listeners of the old calm switch hear about it too
+	end
 	sendToServer(key)
 end
 

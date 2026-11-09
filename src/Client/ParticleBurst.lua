@@ -43,6 +43,7 @@ return function(deps)
 		local spread = options.spread or 70
 		local duration = options.duration or 0.45
 
+		count = require(script.Parent.ClientSettings).particleCount(count) -- fewer sparkles under Reduce Flashing
 		for _ = 1, count do
 			local particle = Instance.new("Frame")
 			particle.Name = "JuiceParticle"

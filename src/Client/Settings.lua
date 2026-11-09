@@ -176,7 +176,7 @@ return function(deps)
 		addButtonHoverScale(button)
 
 		local function refresh()
-			local current = ClientSettings.get(key)
+			local current = ClientSettings.getRaw(key)
 			for i, choice in ipairs(choices) do
 				if choice[1] == current then
 					button.Text = choice[2]
@@ -188,7 +188,7 @@ return function(deps)
 
 		button.MouseButton1Click:Connect(function()
 			playClickSfx()
-			local current = ClientSettings.get(key)
+			local current = ClientSettings.getRaw(key)
 			local nextIndex = 1
 			for i, choice in ipairs(choices) do
 				if choice[1] == current then
@@ -215,11 +215,17 @@ return function(deps)
 		{ "fast", "Fast" },
 	})
 	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
-	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a bolder symbol.", OFF_ON)
+	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
+	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
+	makeChoiceRow("reduceMotion", "Reduce Motion", "Still backgrounds and no travel animations.", OFF_ON)
+	makeChoiceRow("largerText", "Larger Text", "Makes text 15 percent bigger where there is room.", OFF_ON)
 
 	-- ===== Gameplay =====
 	makeHeader("Gameplay")
 	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
+	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
+		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
+	})
 
 	-- ===== Account =====
 	makeHeader("Account")

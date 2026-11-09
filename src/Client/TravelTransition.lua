@@ -47,6 +47,9 @@ function TravelTransition.show(opts)
 	if not playerGui then
 		return false
 	end
+	if not ClientSettings.motionAllowed() then
+		return false -- Reduce Motion: no travel animation at all
+	end
 	running = true
 
 	local reduced = ClientSettings.get("reduceShake") == true

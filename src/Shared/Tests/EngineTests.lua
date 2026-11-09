@@ -8831,6 +8831,51 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "Accessibility: defaults off, calm mode, flashes, particles, Larger Text never clips, hold time clamped and saved", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local defaults = PlayerProfile.defaultSettings()
+	expectFalse(defaults.reduceFlashing); expectFalse(defaults.reduceMotion); expectFalse(defaults.largerText); expectEqual(defaults.holdConfirmSeconds, 1.5)
+	expectFalse(A.calm(defaults)); expectTrue(A.flashesAllowed(defaults)); expectTrue(A.motionAllowed(defaults))
+	expectEqual(A.textScale(defaults), 1); expectEqual(A.particleCount(defaults, 20), 20); expectEqual(A.holdSeconds(defaults), 1.5)
+	-- each comfort option has its own effect, and all three count as calm (loops and shake off)
+	expectTrue(A.calm({ reduceShake = true })); expectTrue(A.calm({ reduceMotion = true })); expectTrue(A.calm({ reduceFlashing = true }))
+	expectFalse(A.flashesAllowed({ reduceFlashing = true })); expectTrue(A.flashesAllowed({ reduceMotion = true, reduceShake = true }))
+	expectFalse(A.motionAllowed({ reduceMotion = true })); expectTrue(A.motionAllowed({ reduceFlashing = true }))
+	expectEqual(A.particleCount({ reduceFlashing = true }, 20), 8); expectEqual(A.particleCount({ reduceFlashing = true }, 0), 0)
+	expectEqual(A.particleCount(nil, -4), 0)
+	-- Larger Text: 15 percent, capped by the label height, never smaller than before
+	expectEqual(A.textScale({ largerText = true }), 1.15)
+	expectEqual(A.scaledTextSize(20, 1.15, nil), 23); expectEqual(A.scaledTextSize(14, 1.15, 0), 16)
+	expectEqual(A.scaledTextSize(20, 1.15, 22), 20, "a tight label keeps its size (22px * 0.9 = 19)")
+	expectEqual(A.scaledTextSize(14, 1.15, 100), 16); expectEqual(A.scaledTextSize(14, 1, 100), 14); expectEqual(A.scaledTextSize(14, nil, 5), 14)
+	for base = 14, 40 do
+		for _, fit in ipairs({ 0, 10, 18, 24, 30, 60 }) do
+			local size = A.scaledTextSize(base, A.TEXT_SCALE, fit)
+			expectTrue(size >= base, "never shrinks " .. base .. "/" .. fit)
+			expectTrue(fit == 0 or size <= math.max(base, math.floor(fit * 0.9)), "never taller than the label " .. base .. "/" .. fit)
+		end
+	end
+	-- hold time
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = 0.1 }), 0.5); expectEqual(A.holdSeconds({ holdConfirmSeconds = 9 }), 3)
+	expectEqual(A.holdSeconds({ holdConfirmSeconds = "x" }), 1.5); expectEqual(A.holdSeconds({ holdConfirmSeconds = 2 }), 2)
+	-- saving: the server accepts booleans and a clamped range, refuses junk
+	local profile = PlayerProfile.new()
+	expectTrue((PlayerProfile.setSetting(profile, "largerText", true))); expectTrue(profile.settings.largerText)
+	expectFalse((PlayerProfile.setSetting(profile, "reduceMotion", "yes")))
+	expectTrue((PlayerProfile.setSetting(profile, "holdConfirmSeconds", 2))); expectEqual(profile.settings.holdConfirmSeconds, 2)
+	expectTrue((PlayerProfile.setSetting(profile, "holdConfirmSeconds", 99))); expectEqual(profile.settings.holdConfirmSeconds, 3)
+	expectFalse((PlayerProfile.setSetting(profile, "holdConfirmSeconds", 0 / 0)))
+	expectFalse((PlayerProfile.setSetting(profile, "holdConfirmSeconds", math.huge)))
+	expectFalse((PlayerProfile.setSetting(profile, "holdConfirmSeconds", "fast")))
+	local loaded = PlayerProfile.migrate({ settings = { largerText = true, holdConfirmSeconds = 1.26 } })
+	expectTrue(loaded.settings.largerText); expectEqual(loaded.settings.holdConfirmSeconds, 1.3)
+	expectFalse(PlayerProfile.migrate({}).settings.reduceFlashing, "old saves get safe defaults")
+	-- scoring is untouched: every accessibility key is a setting, none is a run option
+	for _, key in ipairs({ "reduceFlashing", "reduceMotion", "largerText", "holdConfirmSeconds" }) do
+		expectTrue(PlayerProfile.SETTING_SPECS[key] ~= nil)
+	end
+end })
+
 table.insert(tests, { name = "Recipes second batch: 16 registered with unlock rules and prompts, every effect works", fn = function()
 	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
 	local ids = { "pair_platter", "suit_platter", "row_platter", "feast_platter", "single_serving", "fresh_menu",

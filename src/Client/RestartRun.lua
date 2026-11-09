@@ -232,6 +232,7 @@ local function build(deps)
 
 	local function startHold()
 		if not isOpen or holdConn then return end
+		hold = HoldConfirm.new(require(script.Parent.ClientSettings).holdSeconds()) -- Settings > Hold to Confirm
 		hold:press(os.clock())
 		holdConn = RunService.Heartbeat:Connect(function()
 			local now = os.clock()

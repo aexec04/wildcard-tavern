@@ -86,6 +86,11 @@ PlayerProfile.SETTING_SPECS = {
 	reduceShake = { default = false, kind = "boolean" },
 	colorblindSuits = { default = false, kind = "boolean" },
 	confirmDiscard = { default = false, kind = "boolean" },
+	-- accessibility and comfort (Engine/Accessibility.lua)
+	reduceFlashing = { default = false, kind = "boolean" },
+	reduceMotion = { default = false, kind = "boolean" },
+	largerText = { default = false, kind = "boolean" },
+	holdConfirmSeconds = { default = 1.5, kind = "range", min = 0.5, max = 3 },
 }
 
 -- Animation pace divisors. The free "fast" speed is milder than the
@@ -117,6 +122,11 @@ local function cleanSetting(key, value)
 			return nil
 		end
 		return value
+	elseif spec.kind == "range" then
+		if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+			return nil
+		end
+		return math.floor(math.max(spec.min, math.min(spec.max, value)) * 10 + 0.5) / 10
 	elseif spec.kind == "choice" then
 		if type(value) ~= "string" or not spec.choices[value] then
 			return nil

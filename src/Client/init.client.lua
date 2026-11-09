@@ -721,6 +721,7 @@ do
 	if not okStage then
 		warn("[Client] CharacterStage failed to build: " .. tostring(stageErr))
 	end
+	pcall(function() require(script.AccessibilityFX).init(screenGui) end) -- Larger Text (Settings), no new locals here
 	require(script.BossFight).init({
 		root = root,
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
