@@ -157,6 +157,9 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		if debuff == "FaceCards" then
 			return Card.isFaceCard(card)
 		end
+		if debuff == "OddRanks" then
+			return card.rank % 2 == 1 -- 3, 5, 7, 9, Jack and King
+		end
 		return Card.hasSuit(card, debuff)
 	end
 
@@ -258,6 +261,14 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 		context.patronIndex = i
 		local patronSource = { type = "patron", patronId = patron.id, patron = patron }
 		local bonus = patron.effect(handResult, context) or {}
+		local power = context.patronPower -- Challenge "One Seat": every Patron effect counts double
+		if power and power ~= 1 then
+			bonus = {
+				chips = bonus.chips and bonus.chips * power or nil, mult = bonus.mult and bonus.mult * power or nil,
+				multMultiplier = bonus.multMultiplier and ((bonus.multMultiplier - 1) * power + 1) or nil,
+				tips = bonus.tips and bonus.tips * power or nil,
+			}
+		end
 		chips = chips + (bonus.chips or 0)
 		mult = mult + (bonus.mult or 0)
 		if bonus.chips and bonus.chips ~= 0 then

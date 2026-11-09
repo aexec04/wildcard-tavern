@@ -20,6 +20,7 @@ local RunEvents = require(script.Parent.RunEvents)
 local RunState = require(script.Parent.RunState)
 local Unlocks = require(script.Parent.Unlocks)
 local CollectionBook = require(script.Parent.CollectionBook)
+local BossRush = require(script.Parent.BossRush)
 
 local RunChoice = {}
 
@@ -81,6 +82,34 @@ local function modifierChoice(state)
 	return { kind = "modifier", title = "Choose a blessing", text = "Every blessing comes with a catch.", icon = "🎁", options = options }
 end
 
+-- BOSS RUSH: take BossRush.PICKS Patrons along, one pick at a time from the same open list (no rarity limit).
+-- `taken` lists the ids already picked, so each step shows the rest.
+function RunChoice.rushDraft(state, step, taken)
+	step = step or 1
+	taken = taken or {}
+	local pool = {}
+	for _, patron in ipairs(Unlocks.filter(state, "patron", Patrons.Definitions)) do
+		local used = false
+		for _, id in ipairs(taken) do
+			if id == patron.id then used = true end
+		end
+		if not used and not patron.biome then pool[#pool + 1] = patron end
+	end
+	local picks = draw(pool, BossRush.OFFERS, rngOf(state))
+	if #picks == 0 then
+		return nil
+	end
+	local options = {}
+	for _, p in ipairs(picks) do
+		options[#options + 1] = { id = p.id, name = p.name, icon = p.icon, line1 = p.description or "", line2 = "" }
+	end
+	return {
+		kind = "rushPatron", step = step, taken = taken,
+		title = string.format("Boss Rush: pick Patron %d of %d", step, BossRush.PICKS),
+		text = "No shop here. These Patrons are all you get.", icon = "⚔️", options = options,
+	}
+end
+
 -- The first choice of a fresh normal run, or nil when `allowed` is false (seeded and tutorial runs).
 function RunChoice.startDraft(state, allowed)
 	if allowed == false then
@@ -131,6 +160,16 @@ function RunChoice.pick(state, choice, optionId)
 		if not ok then return false, message end
 		state.startPatronId = optionId
 		return true, message, modifierChoice(state)
+	elseif choice.kind == "rushPatron" then
+		local ok, message = RunState.grantPatron(state, optionId)
+		if not ok then return false, message end
+		local taken = {}
+		for _, id in ipairs(choice.taken or {}) do taken[#taken + 1] = id end
+		taken[#taken + 1] = optionId
+		if #taken >= BossRush.PICKS then
+			return true, message, nil
+		end
+		return true, message, RunChoice.rushDraft(state, #taken + 1, taken)
 	elseif choice.kind == "modifier" then
 		local ok, message = RunModifiers.apply(state, optionId)
 		return ok, message, nil

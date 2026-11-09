@@ -1739,6 +1739,15 @@ local function computeHandPreview(cardIndices)
 
 	local alreadyPlayed = latestState.handTypesPlayedThisRound and latestState.handTypesPlayedThisRound[handResult.name] == true
 
+	-- Boss Round / Challenge scoring rules (Engine/BossRules): the same helpers RunState.playHand uses, so the preview matches.
+	local BossRules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BossRules"))
+	if BossRules.blocksHand(handResult.name, bossModifierDef, latestState.challenge) then
+		if wildcardCard then
+			wildcardCard.rank, wildcardCard.suit = originalWildcardRank, originalWildcardSuit
+		end
+		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {}, wildcardResolution = wildcardResolution }
+	end
+
 	-- "No Repeats" Boss Round: the server scores a repeated hand type as a
 	-- flat 0 with no Scoring.calculate call at all -- match that exactly
 	-- instead of showing a nonzero preview you'd never actually get paid.
@@ -1749,7 +1758,8 @@ local function computeHandPreview(cardIndices)
 		return { name = handResult.name, chips = 0, mult = 0, score = 0, breakdown = {}, brokenCards = {}, wildcardResolution = wildcardResolution }
 	end
 
-	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, ownedPatronInstances, RunStateEngine.addRunCounters({
+	local ok2, score, chips, mult, extra = pcall(Scoring.calculate, handResult, BossRules.scoringPatrons(bossModifierDef, ownedPatronInstances), RunStateEngine.addRunCounters({
+		patronPower = latestState.challenge and latestState.challenge.patronPower,
 		allPlayedCards = selectedCards,
 		heldCards = heldCards,
 		handLevels = latestState.handLevels,
@@ -1790,6 +1800,7 @@ local function computeHandPreview(cardIndices)
 	if bossModifierDef and bossModifierDef.multMultiplier then
 		mult = mult * bossModifierDef.multMultiplier
 	end
+	mult = mult * BossRules.scoreFactor(bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands)
 	score = chips * mult
 
 	-- extra.breakdown (see Scoring.lua) drives ScorePopup.lua's sequenced

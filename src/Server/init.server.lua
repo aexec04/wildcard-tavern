@@ -52,6 +52,8 @@ local followPrompts = {} -- [player] = seq: asks the client to offer experience 
 local rewardSeqCounter = 0
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
+local Challenges = require(Engine.Challenges) -- challenge runs with a twist
+local BossRush = require(Engine.BossRush) -- back-to-back boss rounds
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
@@ -583,6 +585,8 @@ local function serializeState(session, player)
 		tips = state.tips,
 		hand = hand,
 		handsRemaining = state.handsRemaining,
+		roundStartHands = state.roundStartHands, -- the client's score preview needs it (Sleepy Cook: first hand of the round)
+		challenge = state.challenge, -- the Challenge Run twist in force, or nil (Engine/Challenges.lua)
 		discardsRemaining = state.discardsRemaining,
 		roundScore = state.roundScore,
 		targetScore = state.targetScore,
@@ -851,6 +855,9 @@ local function serializeState(session, player)
 		}) or nil,
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
+		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		bossRush = profiles[player] and BossRush.view(profiles[player]) or nil,
+		isRush = state.rush ~= nil,
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -1031,7 +1038,7 @@ local function syncProfileFromSession(player)
 			-- a WON run through a biome upgrades its badge and title (once per biome)
 			BiomeRewards.recordRunWin(profile, session.state.worldRoute)
 				-- STAKES: a standard run (not Daily, Weekly, Seed or revived) unlocks the next stake and stamps its roads
-				if not (session.isDaily or session.isWeekly or session.isSeeded) then
+				if not (session.isDaily or session.isWeekly or session.isSeeded or session.state.challenge) then
 					local regions = {}
 					for _, stopId in ipairs(session.state.worldRoute or {}) do
 						regions[#regions + 1] = WorldMap.regionOf(stopId)
@@ -1150,6 +1157,28 @@ local function syncProfileFromSession(player)
 	end
 	for _, q in ipairs(progress.quests) do Analytics.questDone(player, q.id) end
 	for _, rank in ipairs(progress.rankUps) do Analytics.rankUp(player, rank) end
+	-- CHALLENGE RUNS / BOSS RUSH results live in the profile only (no boards).
+	if justWon and session.state.challenge then
+		local cleared = Challenges.recordClear(profile, session.state.challenge.id, os.time() - (session.startedAt or os.time()))
+		if cleared then
+			changed = true
+			local def = Challenges.getById(session.state.challenge.id)
+			local titleDef = cleared.title and Achievements.getById(cleared.title)
+			local text = "Challenge cleared: " .. (def and def.name or "?")
+			if titleDef then text = text .. ". Title: " .. titleDef.title end
+			if cleared.bonusXp > 0 then text = text .. ". Speed bonus +" .. cleared.bonusXp .. " XP" end
+			pushRewardNotice(player, { icon = "🏅", text = text })
+		end
+	end
+	if session.state.rush then
+		if BossRush.record(profile, session.state.bossesCleared) then
+			changed = true
+		end
+		if session.phase == "gameover" and not session.rushEndLogged then
+			session.rushEndLogged = true
+			pushRewardNotice(player, { icon = "⚔️", text = string.format("Boss Rush over: %d bosses beaten. Best: %d", session.state.bossesCleared, profile.bossRushBest or 0) })
+		end
+	end
 	if #freshUnlocks > 0 then
 		-- one counter for the whole server, so a new run's first notice still counts as new on the client
 		unlockSeqCounter = unlockSeqCounter + 1
@@ -1389,10 +1418,18 @@ end
 -- client via serializeState so the HUD can show which mode this run is
 -- and, for seed runs, which code. Omitted/nil seededRng behaves exactly
 -- like before this parameter existed -- a normal math.random run.
-local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel, isTutorial, stakeId)
+-- extra (optional) = { challengeId = string, rush = bool }: a Challenge Run twist or a Boss Rush. Both are for normal runs
+-- only, so they are ignored for Daily, Weekly, Seed and the tutorial.
+local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel, isTutorial, stakeId, extra)
 	local profile = profiles[player]
 	-- STAKES: only an unlocked stake is honored; seeded and tutorial runs are always stake 1 (fair boards).
 	local stake = Stakes.resolveStart(profile, stakeId, seededRng ~= nil or isTutorial == true)
+	extra = (seededRng == nil and isTutorial ~= true and extra) or {}
+	local rush = extra.rush == true and BossRush.isUnlocked(profile)
+	local challengeId = (not rush and Challenges.getById(extra.challengeId)) and extra.challengeId or nil
+	if rush then
+		stake = 1 -- a Boss Rush ignores the stake and the challenge
+	end
 
 	local isDaily = seedMode == "daily"
 	local isWeekly = seedMode == "weekly"
@@ -1404,6 +1441,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
 			stakeId = stake,
+			rush = rush,
+			challengeId = challengeId,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
 			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,
 				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
@@ -1458,7 +1497,12 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		end
 		-- TAVERN RANK / QUESTS / LOGIN: Tips banked for the next run are paid out here (normal runs only; seeded boards stay fair).
 		if seededRng == nil then
-			sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
+			if rush then
+				sessions[player].choice = RunChoice.rushDraft(sessions[player].state, 1, {}) -- Boss Rush: take 3 Patrons along
+			else
+				sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
+			end
+			sessions[player].startedAt = os.time() -- the Speed Run challenge times the run from here
 			local merchant = Discoveries.takeMerchantDiscount(profile) -- a map merchant: Tips off the first shop visit
 			if merchant > 0 then
 				sessions[player].state.nextShopDiscount = (sessions[player].state.nextShopDiscount or 0) + merchant
@@ -1634,7 +1678,13 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 		return
 	end
 
-	if result.roundWon then
+	if result.roundWon and session.state.rush then
+		-- BOSS RUSH: no shop, the next boss comes straight away (Engine/BossRush.lua)
+		pcall(RunState.advanceToNextRound, session.state)
+		session.phase = "roundSelect"
+		session.state.pendingPack = nil
+		pushRewardNotice(player, { icon = "⚔️", text = string.format("Boss %d beaten! The next one is waiting.", session.state.bossesCleared) })
+	elseif result.roundWon then
 		session.phase = "shop"
 		openShop(session)
 		session.tutorialStage = nil -- the round ended: the scripted hands are done
@@ -2394,7 +2444,8 @@ RestartRunRemote.OnServerEvent:Connect(function(player)
 	end
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake)
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake,
+		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil })
 end)
 
 -- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
@@ -2419,7 +2470,7 @@ StartTutorialRemote.OnServerEvent:Connect(function(player)
 	logStep(player, "tutorial_started")
 end)
 
-StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId)
+StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode)
 	if not sessions[player] then
 		return
 	end
@@ -2432,7 +2483,10 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	if type(difficultyId) ~= "string" then
 		difficultyId = nil
 	end
-	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId)
+	if type(challengeId) ~= "string" then
+		challengeId = nil
+	end
+	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush" })
 end)
 
 -- ===== One More Round (see the section next to ProcessReceipt) =====

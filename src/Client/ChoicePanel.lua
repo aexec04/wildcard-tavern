@@ -43,7 +43,7 @@ function ChoicePanel.keyOf(choice)
 	for _, o in ipairs(choice.options or {}) do
 		ids[#ids + 1] = o.id
 	end
-	return tostring(choice.kind) .. ":" .. tostring(choice.eventId) .. ":" .. table.concat(ids, ",")
+	return tostring(choice.kind) .. ":" .. tostring(choice.eventId) .. ":" .. tostring(choice.step) .. ":" .. table.concat(ids, ",")
 end
 
 local function label(parent, props)
@@ -97,7 +97,7 @@ local function buildCard(choice, option, order)
 	ring.Thickness = 2
 	ring.Parent = well
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
-	if choice.kind == "patron" then
+	if choice.kind == "patron" or choice.kind == "rushPatron" then
 		PatronPlaque.apply(well, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
 	elseif choice.kind == "event" and not isDecline then
 		local artId = ContentArt.getImageId("events", choice.eventId)

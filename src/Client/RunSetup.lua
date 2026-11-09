@@ -196,6 +196,18 @@ return function(deps)
 	local selectedStake = 1
 	local stakeCards = {}
 	makeRunSetupSectionLabel("Stakes", "🏅", STAKE_HEADER_ORDER, STAKE_ACCENT)
+	-- CHALLENGE RUNS and BOSS RUSH (Engine/Challenges.lua, BossRush.lua): optional extras after the stakes.
+	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+	local Challenges = require(Engine:WaitForChild("Challenges"))
+	local CHALLENGE_HEADER_ORDER, CHALLENGE_CARD_BASE = 3000, 3000
+	local RUSH_HEADER_ORDER, RUSH_CARD_BASE = 4000, 4000
+	local CHALLENGE_ACCENT = Color3.fromRGB(150, 110, 210)
+	local RUSH_ACCENT = Color3.fromRGB(220, 90, 70)
+	local selectedChallengeId = nil -- nil = a normal run
+	local selectedMode = nil -- "rush" = Boss Rush
+	local challengeCards, rushCards = {}, {}
+	makeRunSetupSectionLabel("Challenge", "🎭", CHALLENGE_HEADER_ORDER, CHALLENGE_ACCENT)
+	makeRunSetupSectionLabel("Boss Rush", "⚔️", RUSH_HEADER_ORDER, RUSH_ACCENT)
 	local function highestStake()
 		local state = deps.getLatestState and deps.getLatestState()
 		return Stakes.clamp(state and state.highestStakeUnlocked)
@@ -324,6 +336,56 @@ return function(deps)
 			end
 		end
 
+		-- Challenge twists: None, then one card per twist (a check when already cleared). Picking one drops the Boss Rush.
+		for _, child in ipairs(challengeCards) do
+			child:Destroy()
+		end
+		challengeCards = {}
+		local latest = deps.getLatestState and deps.getLatestState()
+		local clearedSet = {}
+		for _, row in ipairs(latest and latest.challenges or {}) do
+			if row.cleared then clearedSet[row.id] = true end
+		end
+		local function addChallengeCard(order, id, name, text)
+			local isSelected = selectedMode ~= "rush" and selectedChallengeId == id
+			local card, clickCatcher = makePickCard(runSetupScroll, CHALLENGE_CARD_BASE + order, name, text, isSelected, CHALLENGE_ACCENT, false)
+			table.insert(challengeCards, card)
+			table.insert(newlyBuiltCards, card)
+			clickCatcher.MouseButton1Click:Connect(function()
+				playClickSfx(0.4)
+				selectedChallengeId = id
+				selectedMode = nil
+				refreshRunSetupCards()
+			end)
+		end
+		addChallengeCard(1, nil, "No twist", "A normal run.")
+		for i, def in ipairs(Challenges.Definitions) do
+			addChallengeCard(i + 1, def.id, def.icon .. " " .. def.name .. (clearedSet[def.id] and "  (cleared)" or ""), def.text)
+		end
+
+		-- Boss Rush: locked until the first win; picking it drops the stake and the challenge.
+		for _, child in ipairs(rushCards) do
+			child:Destroy()
+		end
+		rushCards = {}
+		local rush = latest and latest.bossRush or { unlocked = false, best = 0 }
+		local rushText = rush.unlocked
+			and ("Boss after boss with 3 Patrons you pick. No shop. Best: " .. tostring(math.floor(rush.best or 0)))
+			or "Locked. Win a run first."
+		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, "⚔️ Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked)
+		table.insert(rushCards, rushCard)
+		table.insert(newlyBuiltCards, rushCard)
+		if rush.unlocked then
+			rushClick.MouseButton1Click:Connect(function()
+				playClickSfx(0.4)
+				selectedMode = (selectedMode == "rush") and nil or "rush"
+				if selectedMode == "rush" then selectedChallengeId = nil end
+				refreshRunSetupCards()
+			end)
+		else
+			rushClick.Active = false
+		end
+
 		if reveal then
 			revealStagger(newlyBuiltCards, { stagger = 0.05, duration = 0.25, fromScale = 0.85 })
 		end
@@ -383,7 +445,7 @@ return function(deps)
 		if onBeginRun then
 			onBeginRun()
 		end
-		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake)
+		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake, selectedChallengeId, selectedMode)
 		popOut(runSetupBackdrop, runSetupPanel, nil, function()
 			menuFrame.Visible = false
 			root.Visible = true

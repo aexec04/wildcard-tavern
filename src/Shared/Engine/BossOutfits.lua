@@ -61,6 +61,8 @@ BossOutfits.Bosses = {
 	thin_soup = { shirt = { 70, 74, 82 }, hat = "chef", hatColor = WHITE, prop = "ladle", propColor = { 150, 150, 156 }, accent = { 232, 140, 50 }, cape = false },
 	slow_simmer = { shirt = { 78, 70, 66 }, hat = "chef", hatColor = WHITE, prop = "ladle", propColor = WOOD, accent = { 232, 150, 42 }, cape = false },
 	slow_night = { shirt = { 60, 50, 90 }, pants = { 40, 34, 66 }, hat = "cap", hatColor = { 90, 76, 140 }, prop = "lantern", propColor = { 255, 200, 110 }, accent = { 150, 84, 210 }, cape = false },
+	sleepy_cook = { shirt = { 150, 160, 190 }, hat = "chef", hatColor = WHITE, prop = "ladle", propColor = WOOD, accent = { 120, 130, 210 }, cape = false },
+	cold_start = { shirt = { 80, 120, 170 }, hat = "cap", hatColor = { 60, 90, 140 }, prop = "lantern", propColor = { 160, 210, 255 }, accent = { 120, 190, 240 }, cape = false },
 	-- Night 3 and up (tier 2)
 	rowdy_crowd = { shirt = { 180, 70, 60 }, hat = "party", hatColor = { 90, 160, 220 }, prop = "cards", propColor = WHITE, accent = { 210, 72, 146 }, cape = false },
 	no_repeats = { shirt = { 24, 22, 28 }, hat = "none", prop = "paddle", propColor = WOOD, accent = { 205, 52, 46 } },
@@ -72,6 +74,9 @@ BossOutfits.Bosses = {
 	empty_pockets = { shirt = { 96, 80, 60 }, hat = "cap", hatColor = { 70, 56, 42 }, prop = "coins", propColor = GOLD, accent = { 232, 150, 42 }, cape = false },
 	full_table = { shirt = { 226, 222, 210 }, pants = { 28, 28, 34 }, hat = "none", prop = "tray", propColor = { 200, 190, 170 }, accent = { 44, 168, 164 }, cape = false },
 	last_chance = { shirt = { 40, 46, 70 }, hat = "none", prop = "lantern", propColor = { 255, 200, 110 }, accent = { 232, 150, 42 } },
+	pair_patrol = { shirt = { 40, 70, 120 }, hat = "cap", hatColor = { 30, 50, 90 }, prop = "sign", propColor = GOLD, accent = GOLD, cape = false },
+	heavy_hands = { shirt = { 120, 70, 50 }, hat = "none", prop = "rollingpin", propColor = WOOD, accent = { 210, 120, 60 }, cape = false },
+	quiet_corner = { shirt = { 90, 80, 110 }, hat = "tall", hatColor = { 70, 60, 96 }, prop = "scroll", propColor = WHITE, accent = { 170, 150, 220 } },
 	short_staffed = { shirt = { 150, 140, 126 }, hat = "none", prop = "tray", propColor = { 190, 170, 140 }, accent = { 210, 72, 146 }, cape = false },
 	steep_tab = { shirt = { 70, 80, 100 }, hat = "cap", hatColor = { 46, 56, 76 }, prop = "receipt", propColor = PAPER, accent = { 44, 168, 164 }, cape = false },
 	thin_chips = { shirt = { 232, 224, 204 }, pants = { 90, 74, 60 }, hat = "chef", hatColor = WHITE, prop = "tray", propColor = { 214, 190, 140 }, accent = { 232, 150, 42 }, cape = false },
@@ -90,6 +95,9 @@ BossOutfits.Bosses = {
 	house_minimum = { shirt = { 40, 34, 70 }, hat = "tall", hatColor = { 30, 26, 48 }, prop = "stick", propColor = WOOD, accent = GOLD },
 	picked_over = { shirt = { 90, 60, 60 }, hat = "none", prop = "tray", propColor = { 190, 170, 140 }, accent = { 205, 52, 46 }, cape = false },
 	rushed_order = { shirt = { 190, 90, 60 }, pants = { 50, 40, 36 }, hat = "chef", hatColor = WHITE, prop = "receipt", propColor = PAPER, accent = { 205, 52, 46 }, cape = false },
+	picky_eater = { shirt = { 200, 190, 170 }, hat = "chef", hatColor = WHITE, prop = "tray", propColor = { 200, 190, 170 }, accent = { 90, 160, 90 }, cape = false },
+	crowded_counter = { shirt = { 110, 80, 60 }, hat = "cap", hatColor = { 90, 64, 46 }, prop = "ledger", propColor = { 150, 110, 70 }, accent = { 232, 150, 42 }, cape = false },
+	penny_wise = { shirt = { 70, 90, 60 }, hat = "cap", hatColor = { 50, 70, 46 }, prop = "coins", propColor = GOLD, accent = GOLD, cape = false },
 	bare_bones = { shirt = { 226, 224, 216 }, pants = { 226, 224, 216 }, hat = "cap", hatColor = { 226, 224, 216 }, prop = "none", accent = { 190, 186, 170 }, cape = false },
 }
 

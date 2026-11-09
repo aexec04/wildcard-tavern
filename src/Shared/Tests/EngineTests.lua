@@ -4654,6 +4654,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
 		rewardedTitles[season.rewards.titleId] = true
 	end
+	-- Titles handed out by Challenge Runs count too.
+	for _, def in ipairs(require(script.Parent.Parent.Engine.Challenges).Definitions) do
+		rewardedTitles[def.titleId] = true
+	end
 	-- Titles handed out by map discovery milestones count too.
 	for _, m in ipairs(require(script.Parent.Parent.Engine.Discoveries).Milestones) do
 		rewardedTitles[m.titleId] = true
@@ -9005,6 +9009,257 @@ table.insert(tests, { name = "Discoveries: bonus titles at half and at all of th
 		local text = json:read("*a"); json:close()
 		expectTrue(text:find('"curious_explorer"', 1, true) ~= nil and text:find('"grand_explorer"', 1, true) ~= nil, "title prompts exist")
 	end
+end })
+
+-- ===== Boss rules, Challenge Runs and Boss Rush =====
+
+-- A run at the start of a Boss Round with the named modifier, a fixed hand of known cards and a target out of reach.
+local function bossState(bossId, patrons)
+	local state = RunState.new(nil, function(_n) return 1 end)
+	state.round = state.config.roundsPerNight
+	state.nightBossModifier = BossRounds.getById(bossId)
+	RunState.startRound(state)
+	state.targetScore = 10 ^ 9
+	state.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	for _, id in ipairs(patrons or {}) do
+		table.insert(state.ownedPatrons, Patrons.getById(id))
+	end
+	return state
+end
+
+table.insert(tests, { name = "BossRules: blocked hand types, minimum hand, first-hand factor, Patron cap, Tips percent", fn = function()
+	local BossRules = require(script.Parent.Parent.Engine.BossRules)
+	local picky = BossRounds.getById("picky_eater")
+	expectTrue(BossRules.blocksHand("Flush", picky) and BossRules.blocksHand("Straight", picky) and not BossRules.blocksHand("Pair", picky))
+	local patrol = BossRounds.getById("pair_patrol")
+	expectTrue(BossRules.blocksHand("High Card", patrol) and not BossRules.blocksHand("Pair", patrol) and not BossRules.blocksHand("Flush", patrol))
+	expectTrue(BossRules.blocksHand("Flush", nil, picky) and not BossRules.blocksHand("Flush", nil, nil), "any rule set can block, nil is fine")
+	expectEqual(BossRules.scoreFactor(BossRounds.getById("sleepy_cook"), true), 0.5)
+	expectEqual(BossRules.scoreFactor(BossRounds.getById("sleepy_cook"), false), 1)
+	expectEqual(BossRules.scoreFactor(nil, true), 1)
+	local list = { 1, 2, 3, 4 }
+	expectEqual(#BossRules.scoringPatrons(BossRounds.getById("crowded_counter"), list), 2)
+	expectEqual(BossRules.scoringPatrons(nil, list), list)
+	expectEqual(BossRules.tipsPercent(nil, { tipsPercent = 50 }), 50)
+	expectEqual(BossRules.applyPercent(8, 50), 4)
+	expectEqual(BossRules.applyPercent(5, 100), 5)
+end })
+
+table.insert(tests, { name = "New Boss Rounds: eight new rules, tiered, each one works in RunState.playHand", fn = function()
+	local ids = { "sleepy_cook", "cold_start", "pair_patrol", "heavy_hands", "quiet_corner", "picky_eater", "crowded_counter", "penny_wise" }
+	local tierOf = { sleepy_cook = 1, cold_start = 1, pair_patrol = 3, heavy_hands = 3, quiet_corner = 3, picky_eater = 6, crowded_counter = 6, penny_wise = 6 }
+	for _, id in ipairs(ids) do
+		local def = BossRounds.getById(id)
+		expectTrue(def ~= nil and def.minNight == tierOf[id] and #def.description > 0 and def.icon ~= nil, id .. " is registered and tiered")
+		expectTrue(BossRounds.categoryOf(def) ~= nil, id .. " has a category")
+	end
+	-- Sleepy Cook: the first hand scores half, the next one does not
+	local control = bossState("slow_simmer") -- an unrelated mild boss as the baseline for the same cards
+	control.nightBossModifier, control.bossModifier = nil, nil
+	local cook = bossState("sleepy_cook")
+	control = bossState("bouncer")
+	control.bossModifier = nil
+	local a = RunState.playHand(cook, { 1, 2 }).score
+	local b = RunState.playHand(control, { 1, 2 }).score
+	expectEqual(a, b / 2, "the first hand scores half")
+	cook.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	control.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	expectEqual(RunState.playHand(cook, { 1, 2 }).score, RunState.playHand(control, { 1, 2 }).score, "later hands score in full")
+	-- Cold Start: 2 Tips lost as the round begins, never below 0
+	local cold = RunState.new(nil, function(_n) return 1 end)
+	cold.tips = 10
+	cold.round = cold.config.roundsPerNight
+	cold.nightBossModifier = BossRounds.getById("cold_start")
+	RunState.startRound(cold)
+	expectEqual(cold.tips, 8)
+	cold.tips = 1
+	RunState.startRound(cold)
+	expectEqual(cold.tips, 0)
+	-- Pair Patrol: High Card scores 0, a Pair scores
+	local patrol = bossState("pair_patrol")
+	expectEqual(RunState.playHand(patrol, { 3 }).score, 0, "High Card scores nothing")
+	patrol.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	expectTrue(RunState.playHand(patrol, { 1, 2 }).score > 0, "a Pair scores")
+	-- Heavy Hands: fewer than 3 cards is refused
+	local heavy = bossState("heavy_hands")
+	expectEqual((pcall(RunState.playHand, heavy, { 1, 2 })), false)
+	expectEqual((pcall(RunState.playHand, heavy, { 1, 2, 3 })), true)
+	-- Quiet Corner: odd ranks score nothing (a 7 is odd, an 8 is even)
+	local quiet = bossState("quiet_corner")
+	local oddScore = RunState.playHand(quiet, { 1 }).score -- the 7 of Hearts
+	quiet.hand = { C(8, "Hearts"), C(2, "Spades"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds"), C(4, "Clubs") }
+	local evenScore = RunState.playHand(quiet, { 1 }).score -- the 8 of Hearts
+	expectTrue(evenScore > oddScore, "even ranks score, odd ranks do not")
+	-- Picky Eater: a Flush scores nothing, a Pair does
+	local picky = bossState("picky_eater")
+	picky.hand = { C(2, "Hearts"), C(5, "Hearts"), C(8, "Hearts"), C(11, "Hearts"), C(13, "Hearts"), C(7, "Spades"), C(7, "Clubs"), C(3, "Diamonds") }
+	expectEqual(RunState.playHand(picky, { 1, 2, 3, 4, 5 }).score, 0, "a Flush scores nothing")
+	picky.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	expectTrue(RunState.playHand(picky, { 1, 2 }).score > 0)
+	-- Crowded Counter: only the first 2 Patrons score (3 Patrons == the first 2)
+	local crowd3 = bossState("crowded_counter", { "the_regular", "the_regular", "the_regular" })
+	local crowd2 = bossState("crowded_counter", { "the_regular", "the_regular" })
+	local free3 = bossState("bouncer", { "the_regular", "the_regular", "the_regular" })
+	free3.bossModifier = nil
+	local s3, s2, sf = RunState.playHand(crowd3, { 1, 2 }).score, RunState.playHand(crowd2, { 1, 2 }).score, RunState.playHand(free3, { 1, 2 }).score
+	expectEqual(s3, s2, "the third Patron does not score")
+	expectTrue(sf > s3, "without the boss all three score")
+	-- Penny Wise: a Gold Stamp pays Tips normally but not here
+	local wise = bossState("penny_wise")
+	local plain = bossState("bouncer")
+	plain.bossModifier = nil
+	wise.hand[1].stamp = "gold"; plain.hand[1].stamp = "gold"
+	wise.tips, plain.tips = 0, 0
+	RunState.playHand(wise, { 1 })
+	RunState.playHand(plain, { 1 })
+	expectTrue(plain.tips > 0 and wise.tips == 0, "Tips from scoring are not paid")
+	-- art prompts and the same rules in the client preview (source check)
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if f then
+		local json = f:read("*a"); f:close()
+		for _, id in ipairs(ids) do expectTrue(json:find('"' .. id .. '"', 1, true) ~= nil, id .. " has a boss_subjects prompt") end
+	end
+	local hub = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if hub then
+		local src = hub:read("*a"); hub:close()
+		expectTrue(src:find("BossRules.blocksHand", 1, true) ~= nil and src:find("BossRules.scoreFactor", 1, true) ~= nil, "the preview uses the same rules")
+	end
+end })
+
+table.insert(tests, { name = "Challenge Runs: six twists, each changes the run as it says, the clear pays a title once", fn = function()
+	local Challenges = require(script.Parent.Parent.Engine.Challenges)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	expectTrue(#Challenges.Definitions >= 6)
+	for _, def in ipairs(Challenges.Definitions) do
+		expectTrue(Achievements.getById(def.titleId) ~= nil and Achievements.getById(def.titleId).milestoneReward, def.id .. " has a reward title")
+		local state = RunState.new({ challengeId = def.id }, function(_n) return 1 end)
+		expectEqual(state.challenge.id, def.id)
+		expectTrue(state.handsRemaining >= 1 and state.config.patronSlotLimit >= 1, def.id .. " leaves a valid run")
+	end
+	local base = RunState.new(nil, function(_n) return 1 end)
+	-- No Discards
+	local nd = RunState.new({ challengeId = "no_discards" }, function(_n) return 1 end)
+	expectEqual(nd.discardsRemaining, 0)
+	expectEqual(nd.handsRemaining, base.handsRemaining + 2)
+	-- One Seat: one seat, Patron effects count double
+	local seat = RunState.new({ challengeId = "one_seat" }, function(_n) return 1 end)
+	expectEqual(RunState.patronSlotLimit(seat), 1)
+	table.insert(seat.ownedPatrons, Patrons.getById("the_regular"))
+	local plain = RunState.new(nil, function(_n) return 1 end)
+	table.insert(plain.ownedPatrons, Patrons.getById("the_regular"))
+	seat.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	plain.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	seat.targetScore, plain.targetScore = 10 ^ 9, 10 ^ 9
+	local doubled, single = RunState.playHand(seat, { 1, 2 }), RunState.playHand(plain, { 1, 2 })
+	expectTrue(doubled.mult > single.mult, "Patron effects count double: " .. doubled.mult .. " vs " .. single.mult)
+	-- Pairs Only: a Flush scores nothing, a Pair scores
+	local po = RunState.new({ challengeId = "pairs_only" }, function(_n) return 1 end)
+	po.targetScore = 10 ^ 9
+	po.hand = { C(2, "Hearts"), C(5, "Hearts"), C(8, "Hearts"), C(11, "Hearts"), C(13, "Hearts"), C(7, "Spades"), C(7, "Clubs"), C(3, "Diamonds") }
+	expectEqual(RunState.playHand(po, { 1, 2, 3, 4, 5 }).score, 0)
+	po.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
+	expectTrue(RunState.playHand(po, { 1, 2 }).score > 0)
+	-- Glass Deck: with a lucky roll every played card may break, but never below the minimum deck
+	local glass = RunState.new({ challengeId = "glass_deck" }, function(_n) return 1 end)
+	glass.targetScore = 10 ^ 9
+	glass.handsRemaining = 99
+	for _ = 1, 30 do
+		RunState.playHand(glass, { 1, 2, 3, 4, 5 })
+	end
+	local total = #glass.deck + #glass.discardPile + #glass.hand
+	expectTrue(glass.glassBroken > 0, "cards broke")
+	expectTrue(total >= Challenges.GLASS_MIN_CARDS, "the deck never drops below " .. Challenges.GLASS_MIN_CARDS .. ", has " .. total)
+	expectEqual(total, 52 - glass.glassBroken)
+	-- Tight Wallet: a cleared round pays half
+	local tw = RunState.new({ challengeId = "tight_wallet" }, function(_n) return 1 end)
+	local full = RunState.new(nil, function(_n) return 1 end)
+	tw.targetScore, full.targetScore = 0, 0
+	tw.tips, full.tips = 0, 0
+	RunState.playHand(tw, { 1 }); RunState.playHand(full, { 1 })
+	expectEqual(tw.lastRoundReward, math.floor(full.lastRoundReward / 2), "half the Tips")
+	-- Clearing: title once, remembered, Speed Run bonus only when fast
+	local profile = PlayerProfile.new()
+	local r = Challenges.recordClear(profile, "pairs_only", 9999)
+	expectTrue(r.first and r.title == "pair_master" and r.bonusXp == 0 and profile.rewardTitleIds.pair_master and profile.challengesCleared.pairs_only)
+	local again = Challenges.recordClear(profile, "pairs_only", 9999)
+	expectTrue(not again.first and again.title == nil)
+	local fast = Challenges.recordClear(profile, "speed_run", 600)
+	expectEqual(fast.bonusXp, Challenges.SPEED_BONUS_XP)
+	expectTrue(profile.tavernXp >= Challenges.SPEED_BONUS_XP)
+	local slow = Challenges.recordClear(PlayerProfile.new(), "speed_run", 5000)
+	expectEqual(slow.bonusXp, 0)
+	expectEqual(Challenges.recordClear(profile, "nope", 1), nil)
+	-- save / load
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.challengesCleared.pairs_only and loaded.challengesCleared.speed_run)
+	expectTrue(PlayerProfile.migrate({ challengesCleared = { pairs_only = true, nope = true, speed_run = 1 } }).challengesCleared.nope == nil)
+	-- prompts
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if f then
+		local json = f:read("*a"); f:close()
+		for _, def in ipairs(Challenges.Definitions) do expectTrue(json:find('"' .. def.titleId .. '"', 1, true) ~= nil, def.titleId .. " has a title prompt") end
+	end
+end })
+
+table.insert(tests, { name = "Boss Rush: unlocks after the first win, 3 picked Patrons, back-to-back bosses that get harder, ends at the first loss, best is kept", fn = function()
+	local BossRush = require(script.Parent.Parent.Engine.BossRush)
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local profile = PlayerProfile.new()
+	expectTrue(not BossRush.isUnlocked(profile))
+	profile.stats.runsWon = 1
+	expectTrue(BossRush.isUnlocked(profile))
+	local rng = function(n) return math.random(n) end
+	local state = RunState.new({ rush = true }, rng)
+	expectTrue(BossRush.isRush(state) and state.config.roundsPerNight == 1 and state.isBossRound and state.bossModifier ~= nil)
+	expectTrue(not RunState.countsForRecords(state), "a Rush never moves records")
+	-- the draft: three picks, no repeats, then it is over
+	local choice = RunChoice.rushDraft(state, 1, {})
+	expectEqual(choice.kind, "rushPatron"); expectEqual(#choice.options, BossRush.OFFERS)
+	local picked = {}
+	for step = 1, BossRush.PICKS do
+		expectEqual(choice.step, step)
+		local id = choice.options[1].id
+		expectTrue(not picked[id], "never offered again")
+		picked[id] = true
+		local ok, _, nextChoice = RunChoice.pick(state, choice, id)
+		expectTrue(ok)
+		choice = nextChoice
+	end
+	expectEqual(choice, nil, "the draft ends after 3 picks")
+	expectEqual(#state.ownedPatrons, BossRush.PICKS)
+	-- clear bosses one after another: every round is a boss, no shop, the Night climbs, the targets and tiers rise
+	local lastTarget, lastNight = 0, 0
+	for k = 1, 9 do
+		expectTrue(state.isBossRound and state.bossModifier ~= nil, "boss " .. k)
+		expectEqual(state.night, k)
+		expectTrue(state.targetScore > lastTarget, "targets climb")
+		expectTrue(state.bossModifier.minNight <= state.night, "tier is open for this Night")
+		lastTarget = state.targetScore
+		state.targetScore = 0 -- win this boss at once
+		state.bossModifier = nil -- keep the test hand simple
+		RunState.playHand(state, { 1 })
+		expectTrue(state.roundOver and not state.runOver)
+		expectEqual(state.bossesCleared, k)
+		expectTrue(not state.wonRun, "a Rush is never won, it only ends in a loss")
+		RunState.advanceToNextRound(state)
+	end
+	expectEqual(state.night, 10)
+	-- the first loss ends it
+	state.targetScore = 10 ^ 9
+	state.handsRemaining = 1
+	state.bossModifier = nil
+	RunState.playHand(state, { 1 })
+	expectTrue(state.runOver)
+	expectEqual(BossRush.score(state), 9)
+	-- the personal best
+	expectTrue(BossRush.record(profile, BossRush.score(state)))
+	expectTrue(not BossRush.record(profile, 4), "a lower score is not a new best")
+	expectEqual(BossRush.view(profile).best, 9)
+	expectEqual(PlayerProfile.migrate(profile).bossRushBest, 9)
+	expectEqual(PlayerProfile.migrate({ bossRushBest = "x" }).bossRushBest, 0)
+	-- a normal run is untouched by all of this
+	local normal = RunState.new(nil, rng)
+	expectTrue(normal.rush == nil and normal.config.roundsPerNight == 3 and RunState.countsForRecords(normal))
 end })
 
 return tests

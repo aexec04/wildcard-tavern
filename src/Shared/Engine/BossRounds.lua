@@ -39,6 +39,13 @@
 		  requiredCardsPerHand = number|nil,   -- must play EXACTLY this many cards
 		  noRepeatHandTypes = true|nil,        -- 2nd play of a hand type scores 0
 		  zeroTipsOnMostPlayedHand = true|nil, -- playing your most-used hand wipes Tips
+		  firstHandMultiplier = number|nil,    -- the first hand of the round scores x this (Engine/BossRules)
+		  tipsLostAtStart = number|nil,        -- Tips lost as the round begins
+		  minHandName = string|nil,            -- hands ranked below this one score 0
+		  minCardsPerHand = number|nil,        -- every hand needs at least this many cards
+		  noScoreHandTypes = table|nil,        -- { [handName] = true } these hands score 0
+		  patronCap = number|nil,              -- only the first N Patrons take part in scoring
+		  noScoringTips = true|nil,            -- Tips from scoring (Patrons, Stamps, Lucky) are not paid
 		  debuff = "FaceCards"|"Hearts"|"Diamonds"|"Clubs"|"Spades"|nil, -- matching
 		    scoring cards contribute 0 Chips/Mult/Garnish/Special/Stamp this round }
 ]]
@@ -381,6 +388,82 @@ BossRounds.Definitions = {
 		chipsMultiplier = 0.7,
 		multMultiplier = 0.7,
 	},
+
+	-- ===== Phase 3 batch -- 8 new rules, each with a rule no earlier Boss Round had. =====
+	-- ===== The scoring rules live in Engine/BossRules.lua (shared with Challenge Runs) and =====
+	-- ===== are read by RunState.playHand and the client's score preview. =====
+	{
+		id = "sleepy_cook",
+		icon = "😴",
+		name = "Sleepy Cook",
+		description = "Your first hand each round scores only half.",
+		flavorText = "He yawns over the stove. The first order comes out half done.",
+		minNight = 1,
+		firstHandMultiplier = 0.5,
+	},
+	{
+		id = "cold_start",
+		icon = "🥶",
+		name = "Cold Start",
+		description = "You lose 2 Tips as this round begins.",
+		flavorText = "The doorman wants a coin for the draft.",
+		minNight = 1,
+		tipsLostAtStart = 2,
+	},
+	{
+		id = "pair_patrol",
+		icon = "👮",
+		name = "Pair Patrol",
+		description = "High Card hands score nothing this round.",
+		flavorText = "The patrol only waves through matching cards.",
+		minNight = 3,
+		minHandName = "Pair",
+	},
+	{
+		id = "heavy_hands",
+		icon = "🏋️",
+		name = "Heavy Hands",
+		description = "You must play at least 3 cards every hand.",
+		flavorText = "Small plates are not allowed tonight.",
+		minNight = 3,
+		minCardsPerHand = 3,
+	},
+	{
+		id = "quiet_corner",
+		icon = "🤫",
+		name = "Quiet Corner",
+		description = "Cards with an odd rank score nothing this round.",
+		flavorText = "The odd chairs are full of sleepers.",
+		minNight = 3,
+		debuff = "OddRanks",
+	},
+	{
+		id = "picky_eater",
+		icon = "🍽️",
+		name = "Picky Eater",
+		description = "Straights and Flushes score nothing this round.",
+		flavorText = "He eats anything except lines and colors.",
+		minNight = 6,
+		noScoreHandTypes = { ["Straight"] = true, ["Flush"] = true, ["Straight Flush"] = true },
+	},
+	{
+		id = "crowded_counter",
+		icon = "🧍",
+		name = "Crowded Counter",
+		description = "Only your first 2 Patrons help you score this round.",
+		flavorText = "There is room for two helpers at the counter, no more.",
+		minNight = 6,
+		patronCap = 2,
+	},
+	{
+		id = "penny_wise",
+		icon = "🪙",
+		name = "Penny Wise",
+		description = "Tips from scoring are not paid this round.",
+		flavorText = "She counts every coin and keeps them all.",
+		minNight = 6,
+		noScoringTips = true,
+	},
 }
 
 function BossRounds.getById(id)
@@ -414,13 +497,14 @@ function BossRounds.categoryOf(def)
 	end
 	if def.debuff then
 		return "debuff"
-	elseif def.handsPerRoundOverride or def.requiredCardsPerHand or def.noRepeatHandTypes then
+	elseif def.handsPerRoundOverride or def.requiredCardsPerHand or def.noRepeatHandTypes
+		or def.minCardsPerHand or def.minHandName or def.noScoreHandTypes or def.patronCap then
 		return "restriction"
-	elseif def.chipsMultiplier or def.multMultiplier then
+	elseif def.chipsMultiplier or def.multMultiplier or def.firstHandMultiplier then
 		return "weaken"
 	elseif def.handSizeDelta or def.discardsDelta or def.forcedRandomDiscardsPerHand then
 		return "squeeze"
-	elseif def.tipsLostPerCardPlayed or def.zeroTipsOnMostPlayedHand then
+	elseif def.tipsLostPerCardPlayed or def.zeroTipsOnMostPlayedHand or def.tipsLostAtStart or def.noScoringTips then
 		return "tips"
 	elseif def.targetScoreMultiplier then
 		return "target"

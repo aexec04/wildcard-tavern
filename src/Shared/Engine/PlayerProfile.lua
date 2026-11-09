@@ -217,6 +217,8 @@ function PlayerProfile.new()
 		discoveries = {}, -- [spot id] = true, claimed
 		discoveryRevealed = {}, -- [region] = true, revealed with a compass charge
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
+		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
+		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
 		-- FIRST 5 MINUTES (Engine/Funnel.lua, NextGoal.lua)
 		funnelSeen = {}, -- [funnel step id] = true, each analytics funnel step is sent once per player
 		tutorialRewardClaimed = false, -- the card back and the Newcomer title for finishing the tutorial
@@ -420,6 +422,8 @@ function PlayerProfile.migrate(raw)
 	end
 	profile.tavernRank = TavernRank.rankFor(profile.tavernXp)
 	profile.funnelSeen = require(script.Parent.Funnel).clean(raw.funnelSeen)
+	profile.challengesCleared = require(script.Parent.Challenges).cleanSaved(raw.challengesCleared)
+	profile.bossRushBest = require(script.Parent.BossRush).cleanSaved(raw.bossRushBest)
 	profile.discoveries, profile.discoveryRevealed, profile.merchantDiscount =
 		require(script.Parent.Discoveries).cleanSaved(raw.discoveries, raw.discoveryRevealed, raw.merchantDiscount)
 	profile.tutorialRewardClaimed = raw.tutorialRewardClaimed == true

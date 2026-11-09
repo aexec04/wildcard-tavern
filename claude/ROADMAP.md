@@ -28,8 +28,8 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter
 - [x] Start-of-run choices: starting deck, starting Patron, one curse or blessing
 - [x] Random events between Nights
-- [ ] Challenge runs with a twist (Pairs Only, No Discards)
-- [ ] More bosses with distinct rules; Boss Rush after the first win
+- [x] Challenge runs with a twist (Pairs Only, No Discards)
+- [x] More bosses with distinct rules; Boss Rush after the first win
 
 ## Phase 4: Social
 - [ ] Friends and global leaderboards for Daily, Weekly and Endless

@@ -194,6 +194,14 @@
   "style_painterly_v1": "Hand-painted fantasy tavern character icon, warm candlelit palette of deep browns and amber with soft gold rim light, painterly brushwork, single subject centered with generous margin on a dark wood-brown vignette background, square composition, cozy and kid-friendly, no alcohol, no text, no letters, no frame or border, no copyrighted characters",
   "style_blocky_v1": "Stylized 3D render of a chunky blocky toy-figure avatar character: rounded cylinder head with a simple friendly face, blocky torso, boxy arms and legs, glossy colorful plastic, like a collectible vinyl toy. Cozy medieval tavern setting with warm candlelight, wooden beams and amber glow, soft depth of field. Each character is a different archetype with its own outfit, hat and accessories (knight, wizard, chef, bard, farmer, merchant, pirate, robot, adventurer, and so on). If the subject is an object or place, show a blocky avatar character proudly with it. Single subject centered with generous margin, square composition, cheerful and kid-friendly, no alcohol, no text, no letters, no logos, no frame or border, no copyrighted characters",
   "boss_subjects": {
+    "sleepy_cook": "a sleepy avatar chef in a floppy hat yawning beside a steaming pot, half asleep",
+    "cold_start": "a shivering avatar doorman in a scarf and earmuffs holding a small lantern in a snowy tavern doorway",
+    "pair_patrol": "an avatar patrol guard in a blue cap holding a sign with two matching cards, stern but kind",
+    "heavy_hands": "a strong avatar cook carrying a huge stack of plates with both hands, determined grin",
+    "quiet_corner": "an avatar in a nightcap sitting in a dim corner chair with a finger to the lips, shushing",
+    "picky_eater": "an avatar in a tall chef hat holding a plate and frowning at it, one eyebrow raised",
+    "crowded_counter": "an avatar behind a tavern counter squeezed between many stools, holding up two fingers",
+    "penny_wise": "an avatar in a green visor counting a big pile of gold coins at a small desk, happy smirk",
     "bouncer": "a big friendly doorman avatar in a dark vest standing arms crossed in the tavern doorway, one hand raised like a stop sign",
     "short_notice": "a startled avatar innkeeper clutching a huge pocket watch with a sunrise glowing in the window behind",
     "house_rules": "a stern avatar steward in a tall hat holding a giant rolled scroll of rules tied with a gold ribbon",
@@ -307,6 +315,12 @@
     "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons"
   },
   "title_subjects": {
+    "pair_master": "an avatar holding up two matching playing cards with a proud grin on a tavern stage",
+    "steady_dealer": "an avatar with a calm steady hand dealing cards slowly across a wooden table",
+    "solo_star": "an avatar alone in a single golden armchair with a glowing star above, confident pose",
+    "careful_hands": "an avatar gently holding a glass playing card up to a lantern, careful smile",
+    "quick_draw": "an avatar in motion flicking cards across a table with a tiny hourglass behind",
+    "coin_keeper": "an avatar guarding a small leather coin purse with both hands, wise smile",
     "curious_explorer": "an avatar with a brass spyglass peeking around a signpost on a sunny path, curious grin",
     "grand_explorer": "an avatar holding a rolled treasure map and a lantern on a hilltop overlooking the whole land, proud smile",
     "table_regular": "an avatar sitting at a cozy corner table with a personal cocoa mug, a small blank brass nameplate on the table",

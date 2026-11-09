@@ -283,6 +283,79 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.grand_explorer == true
 		end,
 	},
+	-- CHALLENGE TITLES: granted (and saved in profile.rewardTitleIds) by Engine/Challenges.lua on the first clear of a twist.
+	{
+		id = "pair_master",
+		name = "Pair Master",
+		icon = "👯",
+		title = "Pair Master",
+		description = "Win a Pairs Only challenge run.",
+		flavorText = "Two of a kind, every single time.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.pair_master == true
+		end,
+	},
+	{
+		id = "steady_dealer",
+		name = "Steady Dealer",
+		icon = "🎴",
+		title = "Steady Dealer",
+		description = "Win a No Discards challenge run.",
+		flavorText = "You never needed a second chance.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.steady_dealer == true
+		end,
+	},
+	{
+		id = "solo_star",
+		name = "Solo Star",
+		icon = "🌟",
+		title = "Solo Star",
+		description = "Win a One Seat challenge run.",
+		flavorText = "One helper was all the help you needed.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.solo_star == true
+		end,
+	},
+	{
+		id = "careful_hands",
+		name = "Careful Hands",
+		icon = "🔮",
+		title = "Careful Hands",
+		description = "Win a Glass Deck challenge run.",
+		flavorText = "You handled every card like glass.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.careful_hands == true
+		end,
+	},
+	{
+		id = "quick_draw",
+		name = "Quick Draw",
+		icon = "⏱️",
+		title = "Quick Draw",
+		description = "Win a Speed Run challenge run.",
+		flavorText = "The candles had barely burned down.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.quick_draw == true
+		end,
+	},
+	{
+		id = "coin_keeper",
+		name = "Coin Keeper",
+		icon = "👛",
+		title = "Coin Keeper",
+		description = "Win a Tight Wallet challenge run.",
+		flavorText = "You made every coin count twice.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.coin_keeper == true
+		end,
+	},
 	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
 	{
 		id = "dune_wanderer",

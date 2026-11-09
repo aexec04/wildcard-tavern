@@ -26,6 +26,9 @@ local WorldMap = require(script.Parent.WorldMap)
 local RunSummary = require(script.Parent.RunSummary)
 local Stakes = require(script.Parent.Stakes)
 local Unlocks = require(script.Parent.Unlocks)
+local BossRules = require(script.Parent.BossRules)
+local Challenges = require(script.Parent.Challenges)
+local BossRush = require(script.Parent.BossRush)
 
 local RunState = {}
 
@@ -270,6 +273,12 @@ function RunState.new(options, rng)
 	state.deck[wildcardIndex].isTrueWildcard = true
 	state.deck[wildcardIndex].wildcardLocked = false
 
+	-- BOSS RUSH / CHALLENGE RUN: set the run up before its first round is dealt (Engine/BossRush.lua, Challenges.lua).
+	if options.rush then
+		BossRush.configure(state)
+	elseif options.challengeId then
+		Challenges.configure(state, options.challengeId)
+	end
 	RunState.startRound(state)
 	return state
 end
@@ -431,6 +440,11 @@ function RunState.startRound(state)
 	end
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
+
+	-- Cold Start Boss Round: Tips are lost as the round begins
+	if bossModifier and bossModifier.tipsLostAtStart then
+		state.tips = math.max(0, state.tips - bossModifier.tipsLostAtStart)
+	end
 
 	state.roundOver = false
 	state.roundStartSnapshot = copyForSnapshot(state)
@@ -625,6 +639,10 @@ function RunState.playHand(state, cardIndices)
 	else
 		assert(#cardIndices >= 1 and #cardIndices <= 5, "Play between 1 and 5 cards")
 	end
+	local minCards = BossRules.minCards(bossModifier) or BossRules.minCards(state.challenge)
+	if minCards then
+		assert(#cardIndices >= minCards, "This round needs at least " .. minCards .. " cards per hand")
+	end
 	assert(state.handsRemaining > 0, "No hands remaining this round")
 
 	local playedCards = removeIndicesFromHand(state, cardIndices)
@@ -708,8 +726,11 @@ function RunState.playHand(state, cardIndices)
 	local isLastHand = state.handsRemaining == 0
 
 	local score, chips, mult, extra = 0, 0, 0, { tipsEarned = 0, brokenCards = {} }
-	if not blockedRepeatHand then
-		score, chips, mult, extra = Scoring.calculate(handResult, state.ownedPatrons, RunState.addRunCounters({
+	-- Boss Round / Challenge rules that make this hand type score nothing (Pair Patrol, Picky Eater, Pairs Only)
+	local blockedByRule = BossRules.blocksHand(handResult.name, bossModifier, state.challenge)
+	if not (blockedRepeatHand or blockedByRule) then
+		score, chips, mult, extra = Scoring.calculate(handResult, BossRules.scoringPatrons(bossModifier, state.ownedPatrons), RunState.addRunCounters({
+			patronPower = state.challenge and state.challenge.patronPower,
 			allPlayedCards = playedCards,
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
 			handLevels = state.handLevels,
@@ -729,6 +750,11 @@ function RunState.playHand(state, cardIndices)
 		end
 		if bossModifier and bossModifier.multMultiplier then
 			mult = mult * bossModifier.multMultiplier
+		end
+		-- Sleepy Cook: the first hand of the round scores less
+		mult = mult * BossRules.scoreFactor(bossModifier, state.handsRemaining + 1 == state.roundStartHands)
+		if (bossModifier and bossModifier.noScoringTips) or (state.challenge and state.challenge.noScoringTips) then
+			extra.tipsEarned = 0 -- Penny Wise
 		end
 		score = chips * mult
 	end
@@ -751,6 +777,20 @@ function RunState.playHand(state, cardIndices)
 	local drawn = drawCards(state, #playedCards)
 	for _, card in ipairs(drawn) do
 		table.insert(state.hand, card)
+	end
+
+	-- Glass Deck challenge: played cards may break and leave the run for good (never below a minimum deck size).
+	local glassChance = state.challenge and state.challenge.glassChance
+	if glassChance then
+		local rng = state.rng or math.random
+		local remaining = #state.deck + #state.discardPile + #state.hand + #playedCards
+		for _, card in ipairs(playedCards) do
+			if not brokenSet[card] and remaining > Challenges.GLASS_MIN_CARDS and rng(100) <= glassChance then
+				brokenSet[card] = true
+				remaining = remaining - 1
+				state.glassBroken = (state.glassBroken or 0) + 1
+			end
+		end
 	end
 
 	for _, card in ipairs(playedCards) do
@@ -812,7 +852,7 @@ function RunState.playHand(state, cardIndices)
 			end
 		end
 		if not (state.stakeRules and state.stakeRules.noInterest) then -- Last Call stake: no interest
-			state.tips = state.tips + math.min(interestCap, math.floor(state.tips / 5))
+			state.tips = state.tips + BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
 		end
 
 		-- GENRE PARITY: clearing the Boss Round of the final capped Night
@@ -843,6 +883,7 @@ function RunState.playHand(state, cardIndices)
 			reward = reward * 2
 			state.bedtimeBonusActive = false
 		end
+		reward = BossRules.applyPercent(reward, BossRules.tipsPercent(state.challenge)) -- Tight Wallet
 		state.tips = state.tips + reward
 
 		-- Actual total Tips gained this round-win (flat reward + boss
@@ -1568,7 +1609,7 @@ end
 -- Whether this run's progress still counts toward the player's permanent
 -- high score records (bestNightReached, runsWon). A revived run doesn't.
 function RunState.countsForRecords(state)
-	return not state.revived
+	return not state.revived and not state.rush -- a Boss Rush never moves Night records or wins
 end
 
 --[[
