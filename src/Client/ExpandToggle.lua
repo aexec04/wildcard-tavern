@@ -69,6 +69,7 @@ return function(panel, opts)
 
 	local function setExpanded(value, instant)
 		expanded = value
+		panel:SetAttribute("Expanded", value) -- panels that re-fit their own size on resize must leave it alone while expanded
 		button.Text = expanded and COLLAPSE_GLYPH or EXPAND_GLYPH
 		local targetSize = expanded and expandedSize or collapsedSize
 		if activeTween then
@@ -78,8 +79,16 @@ return function(panel, opts)
 		if instant then
 			panel.Size = targetSize
 		else
-			activeTween = TweenService:Create(panel, TWEEN_INFO, { Size = targetSize })
-			activeTween:Play()
+			local tween = TweenService:Create(panel, TWEEN_INFO, { Size = targetSize })
+			activeTween = tween
+			panel:SetAttribute("Expanded", true) -- hold the size until the tween ends, even when collapsing
+			tween.Completed:Connect(function()
+				if activeTween == tween then
+					activeTween = nil
+					panel:SetAttribute("Expanded", expanded)
+				end
+			end)
+			tween:Play()
 		end
 	end
 
@@ -96,5 +105,9 @@ return function(panel, opts)
 			return expanded
 		end,
 		setExpanded = setExpanded,
+		-- a panel that re-fits itself (responsive layout) reports its new normal size here
+		setCollapsedSize = function(size)
+			collapsedSize = size
+		end,
 	}
 end

@@ -11669,6 +11669,24 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	expectTrue(sp:find(".finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget", 1, true) ~= nil, "finisher gets the clear flag")
 end })
 
+table.insert(tests, { name = "FlairFX preview passes zIndex and big particles to every burst; Expand toggle survives the Collection relayout", fn = function()
+	local f = io and io.open and io.open("src/Client/FlairFX.lua", "r")
+	if not f then return end
+	local fx = f:read("*a"); f:close()
+	expectTrue(fx:find("PREVIEW_COUNT, PREVIEW_SIZE = 24, 11", 1, true) ~= nil, "preview is 24 particles of size 11")
+	local flat = fx:gsub("\n%s*", " ")
+	local _, callCount = flat:gsub("pcall%(burst,", "")
+	local _, zCount = flat:gsub("pcall%(burst,[^}]-zIndex = zIndex }", "")
+	expectEqual(zCount, callCount, "every burst call forwards zIndex")
+	local pb = io.open("src/Client/ParticleBurst.lua", "r"):read("*a")
+	expectTrue(pb:find("particle.ZIndex = zIndex", 1, true) ~= nil)
+	local col = io.open("src/Client/Collection.lua", "r"):read("*a")
+	expectTrue(col:find('panel:GetAttribute("Expanded") ~= true', 1, true) ~= nil, "relayout must not reset Size while expanded")
+	expectTrue(col:find("expandToggle.setCollapsedSize", 1, true) ~= nil)
+	local tg = io.open("src/Client/ExpandToggle.lua", "r"):read("*a")
+	expectTrue(tg:find('SetAttribute("Expanded"', 1, true) ~= nil)
+end })
+
 table.insert(tests, { name = "PanelLayout: the Expand button never sits under the tab strip, collapsed or expanded, at desktop and phone sizes", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 360, 640 } }) do

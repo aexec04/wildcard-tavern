@@ -43,7 +43,7 @@ return function(deps)
 		local size = options.size or 8
 		local spread = options.spread or 70
 		local duration = options.duration or 0.45
-			local zIndex = options.zIndex or 30
+		local zIndex = options.zIndex or 30
 
 		count = require(script.Parent.ClientSettings).particleCount(count) -- fewer sparkles under Reduce Flashing
 		for _ = 1, count do

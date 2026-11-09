@@ -133,7 +133,7 @@ return function(deps)
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
 	})
 
-	require(script.Parent.ExpandToggle)(panel, {
+	local expandToggle = require(script.Parent.ExpandToggle)(panel, {
 		collapsedSize = PANEL_SIZE,
 		polishButton = polishButton,
 		addButtonHoverScale = addButtonHoverScale,
@@ -423,8 +423,12 @@ return function(deps)
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		local fit = ResponsiveLayout.collectionPanel(vp.X, vp.Y)
-		panel.Size = UDim2.fromScale(fit.w, fit.h)
-		local panelW = vp.X * fit.w
+		-- the responsive size is the collapsed size; while expanded the toggle owns Size (resetting it here undid the tween)
+		expandToggle.setCollapsedSize(UDim2.fromScale(fit.w, fit.h))
+		if panel:GetAttribute("Expanded") ~= true then
+			panel.Size = UDim2.fromScale(fit.w, fit.h)
+		end
+		local panelW = panel.AbsoluteSize.X > 0 and panel.AbsoluteSize.X or vp.X * fit.w
 		local head = ResponsiveLayout.collectionTitle(panelW)
 		titleLabel.Position = UDim2.fromOffset(head.x, 6)
 		titleLabel.Size = head.fullWidth and UDim2.new(1, 0, 0, 28) or UDim2.fromOffset(head.w, 28)

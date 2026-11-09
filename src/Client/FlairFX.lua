@@ -17,6 +17,7 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local FlairFX = {}
 
 local MAX_PARTICLES = 24
+local PREVIEW_COUNT, PREVIEW_SIZE = 24, 11 -- previews are bigger and fuller than in-run effects
 FlairFX.PANEL_Z = 200 -- previews draw above every panel (FlairPanel uses 40 to 46, Spectate less)
 local BIG_HANDS = { ["Flush"] = true, ["Full House"] = true, ["Four of a Kind"] = true, ["Straight Flush"] = true }
 
@@ -88,7 +89,9 @@ local function trailBurst(burst, pos, option, isPreview, zIndex)
 		return
 	end
 	local color = rgb(colors[math.random(#colors)])
-	pcall(burst, pos, color, 6, { size = 6, spread = 70, duration = 0.5, zIndex = zIndex })
+	local count, size = 6, 6
+	if isPreview then count, size = PREVIEW_COUNT, PREVIEW_SIZE end -- the Flair panel preview must read on the Stage
+	pcall(burst, pos, color, count, { size = size, spread = 70, duration = 0.5, zIndex = zIndex })
 end
 
 local function finisherBurst(burst, pos, option, isPreview, zIndex, strong)
@@ -103,12 +106,13 @@ local function finisherBurst(burst, pos, option, isPreview, zIndex, strong)
 	local total = 0
 	for i = 1, bursts do
 		local count = math.min(spec.count, MAX_PARTICLES - total)
+		if isPreview then count = PREVIEW_COUNT end
 		if count <= 0 then break end
 		total = total + count
 		local color = rgb(spec.colors[((i - 1) % #spec.colors) + 1])
 		local offset = UDim2.fromOffset((i - 2) * 46, ((i % 2 == 0) and -22 or 12))
 		pcall(burst, UDim2.new(pos.X.Scale, pos.X.Offset + offset.X.Offset, pos.Y.Scale, pos.Y.Offset + offset.Y.Offset), color, count,
-			{ size = 8, spread = spec.spread, duration = 0.65, zIndex = zIndex })
+			{ size = isPreview and PREVIEW_SIZE or 8, spread = spec.spread, duration = 0.65, zIndex = zIndex })
 	end
 end
 
