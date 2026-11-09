@@ -182,7 +182,7 @@ function ChoicePanel.init(deps)
 	backdrop.Name = "ChoiceBackdrop" -- a "...Backdrop" locks the gameplay hit areas while it is up (InputGuard)
 	backdrop.Size = UDim2.fromScale(1, 1)
 	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	backdrop.BackgroundTransparency = 0.35
+	backdrop.BackgroundTransparency = 0.25 -- solid enough that Round Select cards never show through the title
 	backdrop.Active = true
 	backdrop.Visible = false
 	backdrop.ZIndex = 60
@@ -191,7 +191,7 @@ function ChoicePanel.init(deps)
 	local holder = Instance.new("Frame")
 	holder.Name = "Holder"
 	holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	holder.Position = UDim2.fromScale(0.5, 0.5)
+	holder.Position = UDim2.new(0.5, 0, 0.5, 24) -- sits below the top toast strip (y 20 to 54)
 	holder.Size = UDim2.fromOffset(CARD_W * 3 + 60, CARD_H + 150)
 	holder.BackgroundTransparency = 1
 	holder.ZIndex = 61
@@ -199,9 +199,22 @@ function ChoicePanel.init(deps)
 	local scale = Instance.new("UIScale")
 	scale.Parent = holder
 
-	local title = label(holder, {
-		Name = "Title", Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 0), Text = "", TextSize = 28, TextColor3 = CREAM,
-		ZIndex = 62,
+	local titlePlaque = Instance.new("Frame") -- wood plaque so the title stays readable on any scene
+	titlePlaque.Name = "TitlePlaque"
+	titlePlaque.AnchorPoint = Vector2.new(0.5, 0)
+	titlePlaque.Position = UDim2.new(0.5, 0, 0, 0)
+	titlePlaque.Size = UDim2.new(0, 520, 0, 42)
+	titlePlaque.BackgroundColor3 = WOOD
+	titlePlaque.ZIndex = 62
+	titlePlaque.Parent = holder
+	deps.roundCorner(titlePlaque, 10)
+	local plaqueStroke = Instance.new("UIStroke")
+	plaqueStroke.Color = GOLD
+	plaqueStroke.Thickness = 2
+	plaqueStroke.Parent = titlePlaque
+	local title = label(titlePlaque, {
+		Name = "Title", Size = UDim2.fromScale(1, 1), Text = "", TextSize = 28, TextColor3 = CREAM,
+		ZIndex = 63,
 	})
 	local text = label(holder, {
 		Name = "Text", Size = UDim2.new(1, -40, 0, 44), Position = UDim2.fromOffset(20, 42), Text = "", TextSize = 17, TextColor3 = CREAM,

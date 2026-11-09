@@ -154,7 +154,7 @@ function FX.new(deps)
 			loop(card.chip, { BackgroundTransparency = 0.45 }, 1.2)
 		end
 		if card.isBoss and card.stroke then
-			loop(card.stroke, { Thickness = 8, Color = BOSS_GLOW }, 1.25)
+			loop(card.stroke, { Thickness = 5, Color = BOSS_GLOW }, 1.25)
 			for i, ember in ipairs(card.embers) do
 				startEmber(card, ember, token, i)
 			end

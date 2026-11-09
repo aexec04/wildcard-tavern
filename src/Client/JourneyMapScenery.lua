@@ -129,12 +129,13 @@ return function(deps)
 	-- Draws region i's painting into `row` (a Frame of size w x canvasH whose left is canvas x = x0).
 	local function paintRegion(row, i, w, canvasH, x0, nodeXs)
 		local image = regionIds[i]
-		local function zoomed(parent, name, x, tileW, scaleType, z)
-			-- clip window of the tile's exact size, with the image zoomed ZOOM about the centre inside it
+		-- Clip window [winX, winX + winW] showing the tile whose nominal span is [nomX, nomX + nomW]; the image is
+		-- zoomed ZOOM about the nominal centre, so windows can be widened or narrowed without moving the painting.
+		local function zoomed(parent, name, winX, winW, nomX, nomW, scaleType, z)
 			local win = Instance.new("Frame")
 			win.Name = name .. "Win"
-			win.Position = UDim2.fromOffset(x, 0)
-			win.Size = UDim2.fromOffset(tileW, canvasH)
+			win.Position = UDim2.fromOffset(winX, 0)
+			win.Size = UDim2.fromOffset(winW, canvasH)
 			win.BackgroundTransparency = 1
 			win.BorderSizePixel = 0
 			win.ClipsDescendants = true
@@ -142,26 +143,41 @@ return function(deps)
 			win.Parent = parent
 			local img = Instance.new("ImageLabel")
 			img.Name = name
-			img.Position = UDim2.fromScale(0.5, 0.5)
-			img.Size = UDim2.fromScale(ZOOM, ZOOM)
+			img.AnchorPoint = Vector2.new(0.5, 0.5)
+			img.Position = UDim2.fromOffset(nomX + nomW / 2 - winX, canvasH / 2)
+			img.Size = UDim2.fromOffset(nomW * ZOOM, canvasH * ZOOM)
 			img.BackgroundTransparency = 1
 			img.Image = image
 			img.ScaleType = scaleType
 			img.ZIndex = z
 			img.Parent = win
-			return win
+			return win, img
 		end
 		if REGIONS[i].single then
 			-- The single tavern: a zoomed Crop copy covers the WHOLE row, and the hero image keeps its native
 			-- aspect on top, centred on the Keeper's node.
 			local cx = (nodeXs and nodeXs[REGIONS[i].lastNode]) or (x0 + w / 2)
 			local t = RegionTiles.single(w + 1, canvasH, ART_ASPECT, cx - x0)
-			zoomed(row, "Fill", 0, t.fillW, Enum.ScaleType.Crop, 22)
-			zoomed(row, "Tile1", t.heroX, t.heroW, Enum.ScaleType.Fit, 23)
+			zoomed(row, "Fill", 0, t.fillW, 0, t.fillW, Enum.ScaleType.Crop, 22)
+			zoomed(row, "Tile1", t.heroX, t.heroW, t.heroX, t.heroW, Enum.ScaleType.Fit, 23)
 		else
+			-- Repeated tiles of one painting cannot match at their edges, so every tile boundary is a cross-fade:
+			-- the earlier tile runs FW px past its edge and the later tile fades in over that overlap (thin slices,
+			-- smootherstep), the same technique as the biome joins. No hard vertical band remains.
 			local tiles = RegionTiles.tiled(w, canvasH, ART_ASPECT)
+			local nomW = math.ceil(w / tiles) + 1
+			local FW = tiles > 1 and math.floor(math.min(120, nomW * 0.1)) or 0
 			for t = 1, tiles do
-				zoomed(row, "Tile" .. t, math.floor((t - 1) * w / tiles), math.ceil(w / tiles) + 1, Enum.ScaleType.Crop, 22)
+				local nomX = math.floor((t - 1) * w / tiles)
+				local winX = nomX + (t > 1 and FW or 0)
+				local winEnd = nomX + nomW + (t < tiles and FW or 0)
+				zoomed(row, "Tile" .. t, winX, winEnd - winX, nomX, nomW, Enum.ScaleType.Crop, 22)
+				if t > 1 then
+					for k, slice in ipairs(RegionTiles.fadeSlices(FW, RegionTiles.sliceCount(FW))) do
+						local _, img = zoomed(row, "TileFade" .. t .. "_" .. k, nomX + slice.x, slice.w, nomX, nomW, Enum.ScaleType.Crop, 23)
+						img.ImageTransparency = slice.transparency
+					end
+				end
 			end
 		end
 	end
@@ -220,7 +236,10 @@ return function(deps)
 						copy.Parent = win
 						paintRegion(copy, i, w, canvasH, x0, nodeXs)
 						for _, d in ipairs(copy:GetDescendants()) do
-							if d:IsA("ImageLabel") then d.ImageTransparency = slice.transparency end
+							if d:IsA("ImageLabel") then
+								-- keep the tile cross-fade: combine both transparencies instead of overwriting
+								d.ImageTransparency = 1 - (1 - d.ImageTransparency) * (1 - slice.transparency)
+							end
 						end
 					end
 				end

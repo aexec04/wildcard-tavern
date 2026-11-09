@@ -220,12 +220,12 @@ return function(deps)
 	-- Scrolling holder for the buttons (short screens scroll instead of overlapping the title).
 	local menuButtonScroll = Instance.new("ScrollingFrame")
 	menuButtonScroll.Name = "MenuButtonScroll"
-	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 160)
+	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 146)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 700, 1, -172) -- six bottom tiles: 6 * 106 + 5 * 8 = 676
+	menuButtonScroll.Size = UDim2.new(0, 700, 1, -156) -- content is about 530px tall, so Play to Season fit 1280x720 without scrolling
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
-	menuButtonScroll.ScrollBarThickness = 0 -- everything fits; only scrolls on genuinely tiny screens
+	menuButtonScroll.ScrollBarThickness = 6 -- scroll hint: the bar only shows when the screen is too short for everything
 	menuButtonScroll.ScrollingEnabled = true
 	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
 	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -243,11 +243,11 @@ return function(deps)
 	local menuButtonLayout = Instance.new("UIListLayout")
 	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	menuButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	menuButtonLayout.Padding = UDim.new(0, 12)
+	menuButtonLayout.Padding = UDim.new(0, 6)
 	menuButtonLayout.Parent = menuButtonHolder
 	local holderPad = Instance.new("UIPadding")
-	holderPad.PaddingTop = UDim.new(0, 10)
-	holderPad.PaddingBottom = UDim.new(0, 12)
+	holderPad.PaddingTop = UDim.new(0, 8)
+	holderPad.PaddingBottom = UDim.new(0, 8)
 	holderPad.Parent = menuButtonHolder
 
 	local function makeRow(order, height, padding)
@@ -319,7 +319,7 @@ return function(deps)
 			-- border, so padding from the outer edge was not enough. The label lives
 			-- in its own TextLabel whose BOTTOM edge is 26px above the button bottom
 			-- (24px tall, so text center is 38px above it; minimum 24 / 30). Tiles
-			-- (138 tall): icon 10..80, label 88..112. Small (114): icon 8..54, label 64..88.
+			-- (126 tall): icon 10..70, label 76..100. Small (114): icon 8..54, label 64..88.
 			button.Text = ""
 			local labelBox = Instance.new("TextLabel")
 			labelBox.Name = "Label"
@@ -461,23 +461,23 @@ return function(deps)
 	local menuNewRunButton = makeFrameButton({
 		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 54,
 	})
-	local tileRow = makeRow(3, 138, 12)
+	local tileRow = makeRow(3, 126, 12)
 	local menuDailyChallengeButton = makeFrameButton({
-		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 144, height = 138,
-		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 70,
+		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 144, height = 126,
+		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 60,
 	})
 	local menuWeeklyChallengeButton = makeFrameButton({
-		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 144, height = 138,
-		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 70,
+		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 144, height = 126,
+		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 60,
 	})
 	local menuSeedRunButton = makeFrameButton({
-		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 144, height = 138,
-		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 70,
+		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 144, height = 126,
+		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 60,
 	})
 	-- Daily Quests tile (Client/QuestsPanel.lua opens from it). Painted icon key "quests", scroll emoji until it exists.
 	local menuQuestsButton = makeFrameButton({
-		text = "Daily Quests", textSize = 15, parent = tileRow, order = 4, width = 144, height = 138,
-		iconKey = "quests", emoji = "\240\159\147\156", iconSize = 70,
+		text = "Daily Quests", textSize = 15, parent = tileRow, order = 4, width = 144, height = 126,
+		iconKey = "quests", emoji = "\240\159\147\156", iconSize = 60,
 	})
 	-- One row of five equal 114px tiles (5*114 + 4*10 = 610 <= 640 wide scroll).
 	local bottomRow = makeRow(4, 114, 8)

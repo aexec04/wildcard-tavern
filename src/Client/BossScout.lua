@@ -80,10 +80,10 @@ local function buildBanner(parent)
 	stroke.Thickness = 2
 	stroke.Parent = banner
 
-	label(banner, { Name = "ScoutLabel", Size = UDim2.fromOffset(60, 18), Position = UDim2.fromOffset(8, 4), TextSize = 14, TextColor3 = GOLD, Text = "SCOUT" })
-	local scoutIcon = label(banner, { Name = "Icon", Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(8, 22), TextSize = 28, Text = "👑" })
+	label(banner, { Name = "ScoutLabel", Size = UDim2.fromOffset(52, 22), Position = UDim2.fromOffset(56, 6), TextSize = 14, TextColor3 = GOLD, Text = "SCOUT" })
+	local scoutIcon = label(banner, { Name = "Icon", Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(8, 13), TextSize = 28, Text = "👑" })
 	pcall(require(script.Parent.ArtIcon).apply, scoutIcon, "menu_icons", "boss_scout", scoutIcon, { cornerRadius = 8 }) -- painted icon; crown until the art loads
-	label(banner, { Name = "BossName", Size = UDim2.new(1, -250, 0, 22), Position = UDim2.fromOffset(56, 6), TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	label(banner, { Name = "BossName", Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(110, 6), TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
 	label(banner, { Name = "RuleLine", Size = UDim2.new(1, -250, 0, 34), Position = UDim2.fromOffset(56, 28), Font = Enum.Font.GothamMedium, TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "" })
 

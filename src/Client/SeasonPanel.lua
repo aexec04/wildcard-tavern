@@ -56,7 +56,7 @@ function SeasonPanel.init(deps)
 
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.86, 0.86)
+	panel.Size = UDim2.new(0.86, 0, 0, 520) -- sized to its content (track 314 + header 104 + footer and Close)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
@@ -190,7 +190,7 @@ function SeasonPanel.init(deps)
 	local premiumItemId = nil
 
 	local footer = label(panel, {
-		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.new(0, 15, 1, -78), Font = Enum.Font.GothamMedium,
+		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.new(0, 15, 1, -78), Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "Earn season XP the way you earn Tavern Rank XP. Unclaimed rewards end with the season.",
 	})
 	local closeButton = Instance.new("TextButton")
@@ -222,7 +222,7 @@ function SeasonPanel.init(deps)
 		elseif reward.kind == "title" then
 			return "titles", reward.id, "🏷️"
 		end
-		return nil, nil, "🪙"
+		return "hud", "coin_purse", "💰" -- Tips: the sidebar coin purse art
 	end
 
 	local function premiumSection(t, row)
@@ -248,7 +248,7 @@ function SeasonPanel.init(deps)
 		elseif r and r.kind == "title" then category, key, emoji = "titles", r.id, "🏷️"
 		elseif r and r.kind == "flair" then category, key, emoji = "flair", r.id, "✨"
 		elseif r and r.kind == "set" then category, key, emoji = "set_backdrops", r.id, "🎴"
-		else emoji = "🪙" end
+		else category, key, emoji = "hud", "coin_purse", "💰" end
 		local well = Instance.new("Frame")
 		well.Size = UDim2.fromOffset(40, 40)
 		well.Position = UDim2.fromOffset(28, 20)

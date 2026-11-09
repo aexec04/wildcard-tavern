@@ -67,6 +67,7 @@ local function icon(button, text, x)
 	l.TextColor3 = Color3.fromRGB(255, 232, 180)
 	l.Active = false
 	l.ZIndex = button.ZIndex + 2
+	l.Visible = false -- emoji glyphs rendered as tiny misplaced blobs beside the label; the button text is clear on its own
 	l.Parent = button
 	return l
 end

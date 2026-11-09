@@ -1,4 +1,4 @@
--- Daily login rewards, as a small popup during play (not a permanent menu panel), plus the season banner.
+-- Daily login rewards, as a small popup during play (not a permanent menu panel).
 -- Self-contained so the hub only calls init(menuFrame, remote, playClick) once and update(state) from render.
 -- Display only: the server (Engine/LoginStreak.lua) decides streaks and claims.
 --
@@ -158,30 +158,6 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	ui.gui = gui
 	local host = gui or menuFrame
 
-	-- Season banner (Engine/Seasons.lua): only visible while a season is running. Display only. It sits below the
-	-- top-left system buttons (ResponsiveLayout.clearOfTopBar).
-	local season = Instance.new("Frame")
-	season.Name = "SeasonBanner"
-	season.Position = UDim2.new(0, 16, 0, ResponsiveLayout.clearOfTopBar(16, 16))
-	season.Size = UDim2.new(0, 320, 0, 72)
-	season.BackgroundColor3 = Color3.fromRGB(40, 50, 95)
-	season.BorderSizePixel = 0
-	season.Visible = false
-	season.ZIndex = 20
-	season.Parent = menuFrame
-	corner(season, 8)
-	stroke(season, GOLD, 2)
-	ui.season = season
-	ui.seasonTitle = label(season, {
-		Position = UDim2.new(0, 10, 0, 6), Size = UDim2.new(1, -20, 0, 24), Text = "", TextSize = 17,
-		TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21,
-	})
-	ui.seasonBody = label(season, {
-		Position = UDim2.new(0, 10, 0, 30), Size = UDim2.new(1, -20, 0, 38), Text = "", TextSize = 15,
-		Font = Enum.Font.GothamMedium, TextColor3 = Color3.fromRGB(255, 220, 150), TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 21,
-	})
-
 	-- The popup (a ScreenGui child so it also shows during play).
 	local popup = Instance.new("Frame")
 	popup.Name = "DailyRewardPopup" -- not a "...Backdrop": it never locks the gameplay hit areas
@@ -268,16 +244,10 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 		hidePopup()
 	end)
 
-	-- Hide the season banner while a full-screen overlay is open (it sits above the menu in Global layering);
-	-- a popup that was waiting on an overlay opens as soon as the overlay closes.
+	-- A popup that was waiting on an overlay opens as soon as the overlay closes.
 	task.spawn(function()
 		while host.Parent do
 			pcall(function()
-				if menuFrame.Visible then
-					season.Visible = ui.want.season and not overlayOpen(gui, menuFrame)
-				else
-					season.Visible = false
-				end
 				if ui.pending and not overlayOpen(gui, nil) then
 					ui.pending = false
 					showPopup()
@@ -322,12 +292,6 @@ function LoginStreakUI.update(state)
 		return
 	end
 	lastState = state
-	local seasonView = state.season
-	ui.want.season = seasonView ~= nil
-	if seasonView then
-		ui.seasonTitle.Text = string.format("%s: %s left", seasonView.name, seasonView.timeLeft or "")
-		ui.seasonBody.Text = seasonView.earned and "Reward earned. Thank you for playing!" or (seasonView.blurb or "")
-	end
 	local waiting = DailyPopup.nextClaimable(state.login) ~= nil
 	local gift = ensureGift()
 	if gift then gift.Visible = waiting end

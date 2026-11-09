@@ -553,7 +553,8 @@ local function makeSortButton(text, order)
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(0, 80, 1, 0)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 17
+	button.TextSize = 15 -- 15 keeps the label off the ornate frame edge
+	button.TextTruncate = Enum.TextTruncate.AtEnd
 	button.Text = text
 	button.Name = "Sort" .. text -- found by Client/ActionButtonFX
 	button.BackgroundColor3 = SORT_BUTTON_DEFAULT_COLOR

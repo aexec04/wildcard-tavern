@@ -246,7 +246,7 @@ return function(deps)
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
-	panelRow.Size = UDim2.new(1, -40, 1, -112)
+	panelRow.Size = UDim2.new(1, -40, 1, -192) -- 112 header + 80 reserved for the Boss Scout bar (66 tall) under the cards
 	panelRow.Position = UDim2.new(0, 20, 0, 104)
 	panelRow.BackgroundTransparency = 1
 	panelRow.ZIndex = 7
@@ -600,6 +600,8 @@ return function(deps)
 		local rowW = panelRow.AbsoluteSize.X
 		local scale = CardFit.scale(vpY, rowW, rowH, CARD_H, 220, MAX_FIT)
 		fx.setFit(scale)
+		-- UIScale does not move siblings: widen the gap by the extra width so scaled cards never overlap or clip
+		panelRowLayout.Padding = UDim.new(0, 24 * scale + 220 * (scale - 1))
 	end
 	fitCards()
 	panelRow:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCards)

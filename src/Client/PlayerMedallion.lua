@@ -16,7 +16,7 @@ local Players = game:GetService("Players")
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
-local SIZE = 50 -- 6 + 50 + 3 + 17 = 76: ends exactly where the sidebar content starts (PaddingTop 76)
+local SIZE = 42 -- 14 + 42 + 2 + 17 = 75: ends just above where the sidebar content starts (PaddingTop 76), so the name is never cut off
 
 local PlayerMedallion = {}
 
@@ -29,7 +29,7 @@ function PlayerMedallion.install(root)
 	local holder = Instance.new("Frame")
 	holder.Name = "PlayerMedallion"
 	holder.AnchorPoint = Vector2.new(1, 0)
-	holder.Position = UDim2.new(1, -12, 0, 6)
+	holder.Position = UDim2.new(1, -12, 0, 14)
 	holder.Size = UDim2.new(0, SIZE + 16, 0, SIZE + 22)
 	holder.BackgroundTransparency = 1
 	holder.BorderSizePixel = 0
@@ -59,7 +59,7 @@ function PlayerMedallion.install(root)
 	initial.Size = UDim2.fromScale(1, 1)
 	initial.BackgroundTransparency = 1
 	initial.Font = Enum.Font.GothamBold
-	initial.TextSize = 26
+	initial.TextSize = 22
 	initial.TextColor3 = CREAM
 	initial.Text = string.upper(string.sub((player and (player.DisplayName ~= "" and player.DisplayName or player.Name)) or "?", 1, 1))
 	initial.ZIndex = 5
@@ -82,7 +82,7 @@ function PlayerMedallion.install(root)
 	local name = Instance.new("TextLabel")
 	name.Name = "PlayerName"
 	name.AnchorPoint = Vector2.new(0.5, 0)
-	name.Position = UDim2.new(0.5, 0, 0, SIZE + 3)
+	name.Position = UDim2.new(0.5, 0, 0, SIZE + 2)
 	name.Size = UDim2.new(1, 0, 0, 17)
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.GothamBold
