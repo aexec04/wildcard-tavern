@@ -188,11 +188,28 @@ return function(deps)
 	makeRunSetupSectionLabel("Deck Variant", "🃏", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
 	makeRunSetupSectionLabel("Difficulty", "⚔️", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
 
-	local function makePickCard(parent, order, name, description, isSelected, accentColor)
+	-- STAKES (Engine/Stakes.lua): eight tiers, each adds one rule. Win a run on a stake to open the next.
+	-- Painted tier icons come later (prompts.json stake_subjects); the emoji icon is the fallback today.
+	local Stakes = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Stakes"))
+	local STAKE_HEADER_ORDER, STAKE_CARD_BASE = 2000, 2000
+	local STAKE_ACCENT = Color3.fromRGB(230, 150, 60)
+	local selectedStake = 1
+	local stakeCards = {}
+	makeRunSetupSectionLabel("Stakes", "🏅", STAKE_HEADER_ORDER, STAKE_ACCENT)
+	local function highestStake()
+		local state = deps.getLatestState and deps.getLatestState()
+		return Stakes.clamp(state and state.highestStakeUnlocked)
+	end
+
+	local function makePickCard(parent, order, name, description, isSelected, accentColor, locked)
 		local card = Instance.new("Frame")
 		-- Parchment card: ink text; selected = darker fill, gold 2px stroke, checkmark.
+		-- `locked` (stakes not yet won): dimmed parchment, never clickable by the caller.
 		card.Size = UDim2.new(1, 0, 0, 66)
 		card.BackgroundColor3 = isSelected and Color3.fromRGB(196, 168, 118) or Color3.fromRGB(222, 198, 150)
+		if locked then
+			card.BackgroundColor3 = Color3.fromRGB(150, 134, 104)
+		end
 		card.LayoutOrder = order
 		card.ZIndex = 26
 		card.Parent = parent
@@ -231,7 +248,7 @@ return function(deps)
 		descLabel.TextSize = 15
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = INK
+		descLabel.TextColor3 = locked and Color3.fromRGB(90, 70, 48) or INK
 		descLabel.Text = description
 		descLabel.ZIndex = 26
 		descLabel.Parent = card
@@ -281,6 +298,30 @@ return function(deps)
 				selectedDifficultyId = tier.id
 				refreshRunSetupCards()
 			end)
+		end
+
+		for _, child in ipairs(stakeCards) do
+			child:Destroy()
+		end
+		stakeCards = {}
+		local open = highestStake()
+		selectedStake = math.min(selectedStake, open)
+		for n, def in ipairs(Stakes.Definitions) do
+			local locked = n > open
+			local text = locked and ("Locked. " .. Stakes.unlockHint(n)) or def.hint
+			local card, clickCatcher = makePickCard(runSetupScroll, STAKE_CARD_BASE + n,
+				def.icon .. " " .. n .. ". " .. def.name, text, n == selectedStake, STAKE_ACCENT, locked)
+			table.insert(stakeCards, card)
+			table.insert(newlyBuiltCards, card)
+			if locked then
+				clickCatcher.Active = false
+			else
+				clickCatcher.MouseButton1Click:Connect(function()
+					playClickSfx(0.4)
+					selectedStake = n
+					refreshRunSetupCards()
+				end)
+			end
 		end
 
 		if reveal then
@@ -342,7 +383,7 @@ return function(deps)
 		if onBeginRun then
 			onBeginRun()
 		end
-		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId)
+		StartRunRemote:FireServer(selectedDeckVariantId, selectedDifficultyId, selectedStake)
 		popOut(runSetupBackdrop, runSetupPanel, nil, function()
 			menuFrame.Visible = false
 			root.Visible = true

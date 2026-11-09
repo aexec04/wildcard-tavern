@@ -616,5 +616,15 @@
     "streak_7": "a round medal badge showing a bright bonfire flame with seven sparks",
     "streak_14": "a round medal badge showing a big golden flame inside a lantern with a ribbon",
     "season_winter_lanterns": "a round medal badge showing a red and gold paper lantern with a snowflake and falling snow"
+  },
+  "stake_subjects": {
+    "regular": "a round wooden medal with a plain bread loaf emblem and a single bronze ring",
+    "busy_night": "a round wooden medal with a lit candle emblem and two bronze rings",
+    "rowdy_crowd": "a round bronze medal with a small fiddle emblem and a ribbon",
+    "rush_hour": "a round bronze medal with a small pocket watch emblem and a ribbon",
+    "last_call": "a round silver medal with a small brass bell emblem and a ribbon",
+    "packed_house": "a round silver medal with a stack of wooden stools emblem and a ribbon",
+    "closing_time": "a round gold medal with a crescent moon and a hanging lantern emblem",
+    "legend": "a round gold medal with a crown and laurel wreath emblem, sparkling"
   }
 }

@@ -245,7 +245,23 @@ return function(deps)
 					top = top - 24
 				end
 			end
-			-- Take-this-road chip on a pending fork.
+			-- STAKES: a small stamp medal with the highest stake won on this finished road (state.stakeStamps).
+				local stamp = ends[id] and v ~= "hidden" and v ~= "teaser" and state.stakeStamps and state.stakeStamps[ends[id]] or 0
+				if stamp > 0 then
+					local medal = textLabel(tostring(math.floor(stamp)), p.x + size / 2, p.y - size / 2 - 4, 24, 24, 15, 28)
+					medal.Name = "StakeStamp_" .. id
+					medal.AnchorPoint = Vector2.new(0.5, 0.5)
+					medal.BackgroundTransparency = 0
+					medal.BackgroundColor3 = Color3.fromRGB(222, 182, 104)
+					medal.TextColor3 = Color3.fromRGB(60, 40, 22)
+					medal.TextStrokeTransparency = 1
+					deps.roundCorner(medal, 12)
+					local ring = Instance.new("UIStroke")
+					ring.Color = Color3.fromRGB(86, 58, 34)
+					ring.Thickness = 2
+					ring.Parent = medal
+				end
+				-- Take-this-road chip on a pending fork.
 			if choices[id] then
 				local chip = remember(Instance.new("TextButton"))
 				chip.Name = "TakeRoad_" .. id

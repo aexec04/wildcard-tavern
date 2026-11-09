@@ -36,6 +36,7 @@ local TutorialScript = require(Engine.TutorialScript) -- scripted first-run hand
 local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road of each run
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
+local Stakes = require(Engine.Stakes) -- difficulty ladder
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -621,6 +622,9 @@ local function serializeState(session, player)
 		end)(),
 		deckVariantId = state.deckVariantId,
 		difficultyId = state.difficultyId,
+		stake = state.stake,
+		highestStakeUnlocked = Stakes.highestUnlocked(profiles[player]),
+		stakeStamps = profiles[player] and profiles[player].stakeStamps or {},
 		bossModifier = bossModifier,
 		-- True on every Night's last round on every difficulty (Casual has
 		-- no bossModifier but still pays the boss reward) -- see RunState.
@@ -974,6 +978,14 @@ local function syncProfileFromSession(player)
 			PlayerProfile.recordRunWon(profile)
 			-- a WON run through a biome upgrades its badge and title (once per biome)
 			BiomeRewards.recordRunWin(profile, session.state.worldRoute)
+				-- STAKES: a standard run (not Daily, Weekly, Seed or revived) unlocks the next stake and stamps its roads
+				if not (session.isDaily or session.isWeekly or session.isSeeded) then
+					local regions = {}
+					for _, stopId in ipairs(session.state.worldRoute or {}) do
+						regions[#regions + 1] = WorldMap.regionOf(stopId)
+					end
+					Stakes.recordWin(profile, session.state.stake, regions)
+				end
 			changed = true
 		end
 	end
@@ -1258,8 +1270,10 @@ end
 -- client via serializeState so the HUD can show which mode this run is
 -- and, for seed runs, which code. Omitted/nil seededRng behaves exactly
 -- like before this parameter existed -- a normal math.random run.
-local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel, isTutorial)
+local function startNewSession(player, deckVariantId, difficultyId, seededRng, seedMode, seedLabel, isTutorial, stakeId)
 	local profile = profiles[player]
+	-- STAKES: only an unlocked stake is honored; seeded and tutorial runs are always stake 1 (fair boards).
+	local stake = Stakes.resolveStart(profile, stakeId, seededRng ~= nil or isTutorial == true)
 
 	local isDaily = seedMode == "daily"
 	local isWeekly = seedMode == "weekly"
@@ -1270,6 +1284,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		state = RunState.new({
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
+			stakeId = stake,
 				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
 			-- Ranked and shared boards walk a fixed road derived from the date key / seed code.
 			worldPlan = seededRng ~= nil and WorldMap.routeFromSeed(tostring(seedMode) .. ":" .. tostring(seedLabel)) or nil,
@@ -2172,7 +2187,7 @@ RestartRunRemote.OnServerEvent:Connect(function(player)
 	end
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake)
 end)
 
 -- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
@@ -2185,7 +2200,7 @@ AbandonRunRemote.OnServerEvent:Connect(function(player)
 		return
 	end
 	profileDirty[player] = true
-	startNewSession(player, session.state.deckVariantId, session.state.difficultyId)
+	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake)
 end)
 
 -- The ONLY way a tutorial run begins: the Tutorial tile on the main menu. Scripted hands, no profile writes.
@@ -2196,9 +2211,12 @@ StartTutorialRemote.OnServerEvent:Connect(function(player)
 	startNewSession(player, nil, nil, nil, nil, nil, true)
 end)
 
-StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId)
+StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId)
 	if not sessions[player] then
 		return
+	end
+	if type(stakeId) ~= "number" then
+		stakeId = nil -- startNewSession validates it against the profile's highestStakeUnlocked
 	end
 	if type(deckVariantId) ~= "string" then
 		deckVariantId = nil
@@ -2206,7 +2224,7 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	if type(difficultyId) ~= "string" then
 		difficultyId = nil
 	end
-	startNewSession(player, deckVariantId, difficultyId)
+	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId)
 end)
 
 -- ===== One More Round (see the section next to ProcessReceipt) =====

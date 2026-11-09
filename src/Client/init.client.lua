@@ -1176,6 +1176,7 @@ require(script.RunSetup)({
 	SOUND_IDS = SOUND_IDS,
 	DeckVariants = DeckVariants,
 	DifficultyTiers = DifficultyTiers,
+	getLatestState = function() return latestState end, -- Stakes: highestStakeUnlocked
 	StartRunRemote = StartRunRemote,
 	backgroundMusic = backgroundMusic,
 	menuNewRunButton = menuNewRunButton,

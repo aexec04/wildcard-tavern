@@ -18,7 +18,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [ ] First-run reward and "next goal" banner on the menu
 
 ## Phase 2: Daily return and long-term goals
-- [ ] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map
+- [x] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map
 - [ ] Unlock drip: start small, unlock Patrons, recipes, Card Sets and titles through play; Collection shows locked silhouettes
 - [ ] Daily login streak and 3 daily quests (small Tips and cosmetic rewards)
 - [ ] Always-visible next goal on the menu

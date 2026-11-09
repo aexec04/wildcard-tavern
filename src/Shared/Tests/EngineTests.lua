@@ -8147,4 +8147,130 @@ table.insert(tests, { name = "ArtStatus: biome set backdrops and badge icons hav
 	end
 end })
 
+-- ===== Stakes (difficulty ladder) =====
+
+table.insert(tests, { name = "Stakes: eight stakes, each adds exactly one rule on top of the lower ones, stake 1 changes nothing", fn = function()
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	expectEqual(#Stakes.Definitions, 8)
+	local function activeRules(n)
+		local count = 0
+		for _, value in pairs(Stakes.rulesFor(n)) do
+			if value ~= 0 and value ~= false then count = count + 1 end
+		end
+		return count
+	end
+	expectEqual(activeRules(1), 0, "Regular adds nothing")
+	for n = 2, 8 do
+		expectEqual(activeRules(n), activeRules(n - 1) + 1, "stake " .. n .. " adds one rule")
+		expectTrue(#Stakes.Definitions[n].hint > 0 and #Stakes.unlockHint(n) > 0, "stake " .. n .. " has text")
+	end
+	expectEqual(Stakes.clamp(nil), 1)
+	expectEqual(Stakes.clamp(99), 8)
+	expectEqual(Stakes.clamp(0 / 0), 1)
+end })
+
+table.insert(tests, { name = "Stakes in RunState: each rule changes only what it says", fn = function()
+	local rng = function(_n) return 1 end
+	local base = RunState.new({ stakeId = 1 }, rng)
+	local plain = RunState.new(nil, rng)
+	expectEqual(base.config.discardsPerRound, plain.config.discardsPerRound, "stake 1 equals the default")
+	expectEqual(base.config.tipsPerRoundWin, plain.config.tipsPerRoundWin)
+	expectEqual(base.config.recipeSlotLimit, plain.config.recipeSlotLimit)
+	expectEqual(base.targetScore, plain.targetScore)
+	expectEqual(RunState.rerollCost(base, 5), 5)
+
+	expectEqual(RunState.new({ stakeId = 2 }, rng).config.discardsPerRound, plain.config.discardsPerRound - 1, "Busy Night")
+	expectEqual(RunState.rerollCost(RunState.new({ stakeId = 4 }, rng), 5), 6, "Rush Hour")
+	expectEqual(RunState.new({ stakeId = 6 }, rng).config.recipeSlotLimit, plain.config.recipeSlotLimit - 1, "Packed House")
+	expectEqual(RunState.new({ stakeId = 7 }, rng).config.tipsPerRoundWin, plain.config.tipsPerRoundWin - 1, "Closing Time")
+	expectEqual(RunState.new({ stakeId = 99 }, rng).stake, 8, "clamped")
+
+	-- Last Call: no interest
+	local s5 = RunState.new({ stakeId = 5 }, rng)
+	s5.targetScore = 0
+	s5.tips = 12
+	RunState.playHand(s5, { 1 })
+	expectEqual(s5.tips, 12 + s5.config.tipsPerRoundWin, "no interest at Last Call")
+	local s4 = RunState.new({ stakeId = 4 }, rng)
+	s4.targetScore = 0
+	s4.tips = 12
+	RunState.playHand(s4, { 1 })
+	expectEqual(s4.tips, 12 + 2 + s4.config.tipsPerRoundWin, "interest still paid below Last Call")
+end })
+
+table.insert(tests, { name = "Stakes balance: targets and hands never change, boss rounds only 10% higher, discards never negative", fn = function()
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local route = WorldMap.defaultRoute()
+	local _, baseline = walkRoute(route, { stakeId = 1 })
+	for stake = 2, 8 do
+		local _, rows = walkRoute(route, { stakeId = stake })
+		expectEqual(#rows, #baseline)
+		for i, row in ipairs(rows) do
+			expectEqual(row.hands, baseline[i].hands, "hands unchanged at stake " .. stake)
+			expectTrue(row.discards >= 0, "discards never negative")
+			if row.boss then
+				local lift = (stake >= 3) and 1.1 or 1
+				expectEqual(row.target, math.floor(baseline[i].target * lift), "boss target at stake " .. stake .. " night " .. row.night)
+				expectTrue(row.target <= baseline[i].target * 1.1 + 1, "boss target within 10%")
+			else
+				expectEqual(row.target, baseline[i].target, "non-boss target unchanged at stake " .. stake)
+			end
+		end
+	end
+	-- Legend: boss rounds give one fewer discard than Closing Time
+	local _, legend = walkRoute(route, { stakeId = 8 })
+	local _, closing = walkRoute(route, { stakeId = 7 })
+	for i, row in ipairs(legend) do
+		if row.boss then
+			expectEqual(row.discards, math.max(0, closing[i].discards - 1), "Legend boss discard")
+		else
+			expectEqual(row.discards, closing[i].discards)
+		end
+	end
+end })
+
+table.insert(tests, { name = "Stakes unlock and stamps: win on stake N opens N+1, stamps keep the highest, junk saves are cleaned", fn = function()
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	local profile = PlayerProfile.new()
+	expectEqual(Stakes.highestUnlocked(profile), 1)
+	expectTrue(not Stakes.isUnlocked(profile, 2))
+	expectEqual(Stakes.resolveStart(profile, 3, false), 1, "a locked stake falls back to Regular")
+	expectTrue(Stakes.recordWin(profile, 1, { "road", "meadow", "tavern" }))
+	expectEqual(profile.highestStakeUnlocked, 2)
+	expectEqual(Stakes.stampOf(profile, "meadow"), 1)
+	expectEqual(Stakes.resolveStart(profile, 2, false), 2)
+	expectEqual(Stakes.resolveStart(profile, 2, true), 1, "seeded and tutorial runs are Regular")
+	-- a lower win never lowers anything; a higher win raises the stamp and unlocks one more
+	Stakes.recordWin(profile, 2, { "road", "desert" })
+	Stakes.recordWin(profile, 1, { "road" })
+	expectEqual(profile.highestStakeUnlocked, 3)
+	expectEqual(Stakes.stampOf(profile, "road"), 2)
+	expectEqual(Stakes.stampOf(profile, "desert"), 2)
+	expectEqual(Stakes.stampOf(profile, "meadow"), 1)
+	-- the top stake stays the top
+	profile.highestStakeUnlocked = 8
+	Stakes.recordWin(profile, 8, { "tavern" })
+	expectEqual(profile.highestStakeUnlocked, 8)
+	expectEqual(Stakes.stampOf(profile, "tavern"), 8)
+	-- save/load: valid values survive, junk is dropped
+	local loaded = PlayerProfile.migrate({ highestStakeUnlocked = 5, stakeStamps = { road = 3, nowhere = 4, meadow = "x", peaks = -2 } })
+	expectEqual(loaded.highestStakeUnlocked, 5)
+	expectEqual(loaded.stakeStamps.road, 3)
+	expectTrue(loaded.stakeStamps.nowhere == nil and loaded.stakeStamps.meadow == nil and loaded.stakeStamps.peaks == nil, "junk dropped")
+	expectEqual(PlayerProfile.migrate({ highestStakeUnlocked = "9" }).highestStakeUnlocked, 1)
+	expectEqual(PlayerProfile.migrate(nil).highestStakeUnlocked, 1)
+end })
+
+table.insert(tests, { name = "Stakes: every stake has a stake_subjects art prompt, none is generated yet", fn = function()
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end
+	local json = f:read("*a")
+	f:close()
+	expectTrue(json:find('"stake_subjects"', 1, true) ~= nil, "stake_subjects section exists")
+	for _, def in ipairs(Stakes.Definitions) do
+		expectTrue(json:find('"' .. def.id .. '"', 1, true) ~= nil, def.id .. " has a prompt")
+	end
+end })
+
 return tests

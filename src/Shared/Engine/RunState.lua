@@ -24,6 +24,7 @@ local Packs = require(script.Parent.Packs)
 local TrueWildcard = require(script.Parent.TrueWildcard)
 local WorldMap = require(script.Parent.WorldMap)
 local RunSummary = require(script.Parent.RunSummary)
+local Stakes = require(script.Parent.Stakes)
 
 local RunState = {}
 
@@ -154,9 +155,18 @@ function RunState.new(options, rng)
 	config.recipeSlotLimit = math.max(0, config.recipeSlotLimit)
 	config.nightCap = math.max(1, config.nightCap)
 
+	-- STAKES (Engine/Stakes.lua): each stake adds one rule; stake 1 changes nothing.
+	local stake = Stakes.clamp(options.stakeId)
+	local stakeRules = Stakes.rulesFor(stake)
+	config.discardsPerRound = math.max(0, config.discardsPerRound + stakeRules.discardsDelta)
+	config.recipeSlotLimit = math.max(0, config.recipeSlotLimit + stakeRules.recipeSlotDelta)
+	config.tipsPerRoundWin = math.max(1, config.tipsPerRoundWin + stakeRules.tipsPerRoundDelta)
+
 	local state = {
 		config = config,
 		rng = rng,
+		stake = stake,
+		stakeRules = stakeRules,
 		deckVariantId = deckVariant.id,
 		difficultyId = difficulty.id,
 		targetMultiplier = (deckVariant.targetScoreMultiplier or 1) * (difficulty.targetScoreMultiplier or 1),
@@ -371,6 +381,9 @@ function RunState.startRound(state)
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
+	if state.isBossRound and state.stakeRules then
+		discards = discards + state.stakeRules.bossExtraDiscards -- Legend stake: a second small boss debuff
+	end
 	discards = math.max(0, discards)
 
 	local handsPerRound = state.config.handsPerRound
@@ -410,6 +423,9 @@ function RunState.startRound(state)
 	state.brittleShieldRound = false -- "Sugar Shield" only protects for the round it was used in
 
 	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
+	if state.isBossRound and state.stakeRules then
+		bossMultiplier = bossMultiplier * (1 + state.stakeRules.bossTargetPct / 100) -- Rowdy Crowd stake
+	end
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
 
@@ -783,7 +799,9 @@ function RunState.playHand(state, cardIndices)
 				break
 			end
 		end
-		state.tips = state.tips + math.min(interestCap, math.floor(state.tips / 5))
+		if not (state.stakeRules and state.stakeRules.noInterest) then -- Last Call stake: no interest
+			state.tips = state.tips + math.min(interestCap, math.floor(state.tips / 5))
+		end
 
 		-- GENRE PARITY: clearing the Boss Round of the final capped Night
 		-- (nightCap, 8 -- the genre's usual run length) marks the run WON. Nothing
@@ -961,6 +979,9 @@ function RunState.rerollCost(state, baseCost)
 	local cost = baseCost
 	if state.housePasses.frequent_visitor then
 		cost = cost - 2
+	end
+	if state.stakeRules then
+		cost = cost + state.stakeRules.rerollExtra -- Rush Hour stake
 	end
 	return math.max(1, cost)
 end

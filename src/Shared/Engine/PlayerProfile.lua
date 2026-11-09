@@ -62,6 +62,7 @@ local JourneyMap = require(script.Parent.JourneyMap)
 local WorldMap = require(script.Parent.WorldMap)
 local Keys = require(script.Parent.Keys) -- locked roads on the world map
 local Badges = require(script.Parent.Badges)
+local Stakes = require(script.Parent.Stakes) -- difficulty ladder
 
 local PlayerProfile = {}
 
@@ -176,6 +177,8 @@ function PlayerProfile.new()
 		compassCharges = 0, -- 0 to PlayerProfile.MAX_COMPASS_CHARGES, earned by winning map minigames, spent at a fork
 		keys = 0, -- Keys (Engine/Keys.lua): +1 per run win and per first biome clear, one opens a locked road for good
 		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
+		highestStakeUnlocked = 1, -- Engine/Stakes.lua: the highest stake a run may start on
+		stakeStamps = {}, -- [region id] = highest stake won on a run through that road
 		badgeIds = {}, -- [Badges id] = true, earned once (Engine/Badges.lua)
 		equippedBadgeId = nil, -- one Badges id shown beside the name on leaderboards and the results screen
 		minigameWins = 0, -- map minigames won (feeds the minigame badges)
@@ -279,6 +282,9 @@ function PlayerProfile.migrate(raw)
 	if type(raw.equippedBadgeId) == "string" and profile.badgeIds[raw.equippedBadgeId] then
 		profile.equippedBadgeId = raw.equippedBadgeId -- only an owned badge stays equipped
 	end
+	profile.highestStakeUnlocked, profile.stakeStamps = Stakes.cleanSaved(raw.highestStakeUnlocked, raw.stakeStamps, function(region)
+		return WorldMap.Regions[region] ~= nil
+	end)
 	if type(raw.keys) == "number" and raw.keys == raw.keys then
 		profile.keys = math.max(0, math.min(Keys.MAX_KEYS, math.floor(raw.keys)))
 	end
