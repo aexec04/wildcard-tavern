@@ -11782,4 +11782,64 @@ table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overl
 	expectTrue(1 + 2 + 6 + 3 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
 end })
 
+table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
+	local HL = require(script.Parent.Parent.Engine.HandLedger)
+	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Scoring = require(script.Parent.Parent.Engine.Scoring)
+	local ledger = HL.build({ order = HandEvaluator.HandOrder, base = Scoring.HandBase, growth = Scoring.HandLevelGrowth,
+		handStats = { Pair = 4, Flush = 1 }, handLevels = { Pair = 2 }, lastHand = "Flush", lifetimeHands = 120 })
+	expectEqual(#ledger.rows, #HandEvaluator.HandOrder)
+	local seen = {}
+	for i, row in ipairs(ledger.rows) do
+		expectEqual(row.name, HandEvaluator.HandOrder[i]) -- weakest to strongest, in Engine order
+		expectFalse(seen[row.name], "each hand once")
+		seen[row.name] = true
+		expectTrue(HL.TIER_COLORS[row.tier] ~= nil, "tier colour")
+		local c = HL.TIER_COLORS[row.tier]
+		expectTrue(c[1] >= c[2] and c[2] >= c[3] - 40 and not (c[2] < 60), "tier colours are wood, brass or gold, never red")
+		expectTrue(#row.tip > 0 and not row.tip:find("-", 1, true) and not row.tip:find("\226\128\148", 1, true), "tip is plain")
+		expectFalse(row.tip:lower():find("balatro", 1, true) ~= nil)
+		local spec = HandEvaluator.Examples[row.name]
+		expectTrue(spec ~= nil and #spec >= 1, "example cards resolve for " .. row.name)
+	end
+	expectEqual(ledger.rows[1].tier, "wood")
+	expectEqual(ledger.rows[#ledger.rows].tier, "legend")
+	local pair, flush, high = ledger.rows[2], ledger.rows[6], ledger.rows[1]
+	expectEqual(pair.level, 2)
+	expectTrue(pair.leveled and not flush.leveled)
+	expectEqual(pair.chips, Scoring.HandBase["Pair"].chips + Scoring.HandLevelGrowth["Pair"].chips * 2)
+	expectTrue(pair.chipsFormula:find("Lv 2", 1, true) ~= nil and high.chipsFormula:find("Lv", 1, true) == nil)
+	expectTrue(high.notPlayed and not pair.notPlayed)
+	expectTrue(flush.justPlayed and not pair.justPlayed)
+	expectEqual(ledger.lifetimeHands, 120)
+	expectEqual(ledger.topHand, pair.points >= flush.points and "Pair" or "Flush") -- most points this run (estimate)
+	local count = 0
+	for _, row in ipairs(ledger.rows) do if row.isTop then count = count + 1 end end
+	expectEqual(count, 1)
+	expectEqual(HL.defaultSelection(ledger, "Straight"), "Straight")
+	expectEqual(HL.defaultSelection(ledger, nil), "Flush") -- the hand just played
+	expectEqual(HL.defaultSelection(HL.build({ order = HandEvaluator.HandOrder, base = Scoring.HandBase, growth = Scoring.HandLevelGrowth }), nil), "High Card")
+	-- layout: panel inside the screen, list and detail inside the panel and never overlapping
+	for _, size in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 800, 600 }, { 360, 640 }, { 412, 915 } }) do
+		local w, h = size[1], size[2]
+		local L = HL.layout(w, h, #ledger.rows)
+		expectTrue(L.panel.w <= w and L.panel.h <= h, "panel fits " .. w .. "x" .. h)
+		expectEqual(L.phone, w < 700)
+		for _, r in ipairs({ L.list, L.detail }) do
+			expectTrue(r.x >= 0 and r.y >= 50 and r.x + r.w <= L.panel.w and r.y + r.h <= L.panel.h, "section inside the panel " .. w)
+			expectTrue(r.w > 100 and r.h > 100, "section has room")
+		end
+		local a, b = L.list, L.detail
+		local apart = a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y
+		expectTrue(apart, "list and detail do not overlap at " .. w)
+		expectTrue(L.rowH >= 40, "rows are tall enough to tap")
+		if not L.phone then expectTrue(L.panel.h <= h * 0.9 + 1, "panel clears the top strip") end
+	end
+	local f = io and io.open and io.open("src/Client/PokerHandsReference.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find('registerOpener("pokerHandsReference"', 1, true) ~= nil and src:find("handRefButton.MouseButton1Click", 1, true) ~= nil, "existing openers kept")
+	expectFalse(src:find("SkinArt", 1, true) ~= nil, "old ornate frame art is gone")
+end })
+
 return tests
