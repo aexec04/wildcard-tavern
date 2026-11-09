@@ -89,10 +89,10 @@ return function(deps)
 		messageBar:SetAttribute("MessageToken", myToken)
 
 		messageBar.Visible = true
-		-- Round Select sets BannerAtBottom so the strip sits above its Scout bar, never over the title or subtitle.
+		-- Round Select sets BannerAtBottom so the strip sits just under its subtitle, never over the title.
 		local atBottom = root:GetAttribute("BannerAtBottom") == true
 		local function pos(y)
-			if atBottom then return UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -126 + (y - RESTING_Y)) end
+			if atBottom then return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 90 + (y - RESTING_Y)) end
 			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, y)
 		end
 		messageBar.Position = pos(START_Y)

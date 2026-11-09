@@ -1,8 +1,7 @@
 --[[
 	Client/BossScout.lua
 	BOSS COUNTERPLAY (Engine/BossCounters.lua), display plus one request:
-	  * Boss Scout banner on Round Select: a "Scout" label, the rule's icon, the boss name and the one line rule (12 words
-	    or fewer), so players see the rule before they shop and build;
+	  * Round Select shows the rule on the Boss card itself (no Scout bar); only the Rule Ban button lives here;
 	  * a small boss chip on the Counter (the Shop header area) with the same line;
 	  * Rule Bans: a token count on the sidebar board and on the banner, and a hold-to-confirm "Ban Rule" button on the
 	    banner when the boss round is up (spends a token, the server deals the round again without the rule);
@@ -61,37 +60,22 @@ local function stopHold()
 end
 
 local function buildBanner(parent)
+	-- No Scout bar any more: the Boss card shows the rule name and its line. This holder only carries the Rule Ban
+	-- button, top right of Round Select beside the Tips chip, shown only when a ban can be spent.
 	banner = Instance.new("Frame")
 	banner.Name = "BossScoutBanner"
-	banner.AnchorPoint = Vector2.new(0.5, 1)
-	banner.Position = UDim2.new(0.5, 0, 1, -8)
-	banner.Size = UDim2.new(0.9, 0, 0, 66)
-	banner.BackgroundColor3 = WOOD
+	banner.AnchorPoint = Vector2.new(1, 0)
+	banner.Position = UDim2.new(1, -182, 0, 12)
+	banner.Size = UDim2.fromOffset(220, 46)
+	banner.BackgroundTransparency = 1
 	banner.BorderSizePixel = 0
 	banner.Visible = false
 	banner.ZIndex = 58
 	banner.Parent = parent
-	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(640, 66)
-	limit.Parent = banner
-	corner(banner, 10)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = GOLD
-	stroke.Thickness = 2
-	stroke.Parent = banner
-
-	label(banner, { Name = "ScoutLabel", Size = UDim2.fromOffset(52, 22), Position = UDim2.fromOffset(56, 6), TextSize = 14, TextColor3 = GOLD, Text = "SCOUT" })
-	local scoutIcon = label(banner, { Name = "Icon", Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(8, 13), TextSize = 28, Text = "👑" })
-	pcall(require(script.Parent.ArtIcon).apply, scoutIcon, "menu_icons", "boss_scout", scoutIcon, { cornerRadius = 8 }) -- painted icon; crown until the art loads
-	label(banner, { Name = "BossName", Size = UDim2.new(1, -310, 0, 22), Position = UDim2.fromOffset(110, 6), TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
-	label(banner, { Name = "RuleLine", Size = UDim2.new(1, -250, 0, 34), Position = UDim2.fromOffset(56, 28), Font = Enum.Font.GothamMedium, TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "" })
 
 	local ban = Instance.new("TextButton")
 	ban.Name = "BanButton"
-	ban.AnchorPoint = Vector2.new(1, 0.5)
-	ban.Position = UDim2.new(1, -8, 0.5, 0)
-	ban.Size = UDim2.fromOffset(176, 46)
+	ban.Size = UDim2.fromScale(1, 1)
 	ban.BackgroundColor3 = Color3.fromRGB(150, 60, 50)
 	ban.AutoButtonColor = false
 	ban.Font = Enum.Font.GothamBold
@@ -219,16 +203,15 @@ function BossScout.update(root, state)
 
 	if banner then
 		local show = scout ~= nil and state.phase == "roundSelect"
-		banner.Visible = show
 		if show then
-			banner.Icon.Text = scout.icon or "👑"
-			banner.BossName.Text = scout.name .. (scout.banned and " (rule banned)" or "")
-			banner.RuleLine.Text = scout.banned and "Fighting with no rule this round." or (scout.line or "")
 			local config = state.config
 			local lastRound = (config and config.roundsPerNight) or 3
 			local canBan = (state.ruleBans or 0) > 0 and not scout.banned and (state.round or 1) >= lastRound
+			banner.Visible = canBan
 			banner.BanButton.Visible = canBan
 			banner.BanButton.Text = canBan and ("Hold to ban the rule (" .. tostring(state.ruleBans) .. " left)") or "Hold to ban the rule"
+		else
+			banner.Visible = false
 		end
 	end
 	if chip then

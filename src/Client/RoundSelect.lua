@@ -156,7 +156,7 @@ return function(deps)
 		sink.Parent = root
 		local function sync()
 			sink.Visible = roundSelectFrame.Visible
-			root:SetAttribute("BannerAtBottom", roundSelectFrame.Visible) -- warnings sit above the Scout bar, not over the title
+			root:SetAttribute("BannerAtBottom", roundSelectFrame.Visible) -- warnings sit just under the subtitle
 			-- Real modal: the corner icon row (and its hover tooltips) is hidden while Round Select is up,
 			-- so nothing behind the window can be reached. It returns when the window closes.
 			local gui = root:FindFirstAncestorWhichIsA("LayerCollector") or root
@@ -254,7 +254,7 @@ return function(deps)
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
-	panelRow.Size = UDim2.new(1, -40, 1, -192) -- 112 header + 80 reserved for the Boss Scout bar (66 tall) under the cards
+	panelRow.Size = UDim2.new(1, -40, 1, -120) -- 104 header + 16 bottom margin
 	panelRow.Position = UDim2.new(0, 20, 0, 104)
 	panelRow.BackgroundTransparency = 1
 	panelRow.ZIndex = 7

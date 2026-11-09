@@ -11897,4 +11897,18 @@ table.insert(tests, { name = "Sidebar: BondThreads is a sibling overlay, not a c
 	expectTrue(pad and y and pad >= y + 42 + 2 + 17 - 1, "sidebar content starts below the medallion")
 end })
 
+table.insert(tests, { name = "Round Select: no Scout bar, no reserved space, rule on the Boss card, warning strip under the subtitle", fn = function()
+	local f = io and io.open and io.open("src/Client/BossScout.lua", "r")
+	if not f then return end
+	local bs = f:read("*a"); f:close()
+	expectFalse(bs:find('"SCOUT"', 1, true) ~= nil, "no SCOUT label")
+	expectFalse(bs:find('Name = "RuleLine"', 1, true) ~= nil, "no rule line on the bar")
+	expectTrue(bs:find('ban.Name = "BanButton"', 1, true) ~= nil or bs:find('"BanButton"', 1, true) ~= nil, "Rule Ban button kept")
+	local rs = io.open("src/Client/RoundSelect.lua", "r"):read("*a")
+	expectFalse(rs:find("reserved for the Boss Scout bar", 1, true) ~= nil, "no reserved scout space")
+	expectTrue(rs:find("entry.bossLabel.Text = state.nightBossModifier.description", 1, true) ~= nil, "Boss card shows the rule text")
+	local mb = io.open("src/Client/MessageBanner.lua", "r"):read("*a")
+	expectFalse(mb:find("1, -126", 1, true) ~= nil, "warning strip is not pinned to the bottom")
+end })
+
 return tests
