@@ -116,6 +116,8 @@ CATEGORY_OPTS = {
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
+    # Card Set UI skins: 6 slots per set. face_paper is an opaque tile; the rest are cut out from magenta.
+    "set_skins": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": [], "sizes": {}},  # filled below
     # Bayou tavern menu layers (back to front). Transparent layers are cut out from magenta; sky and water stay opaque.
     "menu_bayou": {"quality": "low", "style_key": "house_style", "transparent": True,
                    "opaque": ["bayou_sky", "bayou_water"],
@@ -130,6 +132,19 @@ CATEGORY_OPTS = {
                    "sizes": {"menu_wall_far": "1536x1024", "menu_mid_beams": "1536x1024", "menu_counter": "1536x1024",
                              "menu_noticeboard_wall": "1024x1024"}},
 }
+
+# set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
+_SKIN_SIZES = {"_face_frame": "1024x1536", "_face_paper": "1024x1024", "_face_court": "1024x1024",
+               "_panel_frame": "1536x1024", "_button_plate": "1536x1024", "_tab_plate": "1024x1024"}
+try:
+    for _pid in json.loads((HERE / "prompts.json").read_text(encoding="utf-8")).get("set_skin_subjects", {}):
+        for _suffix, _size in _SKIN_SIZES.items():
+            if _pid.endswith(_suffix):
+                CATEGORY_OPTS["set_skins"]["sizes"][_pid] = _size
+                if _suffix == "_face_paper":
+                    CATEGORY_OPTS["set_skins"]["opaque"].append(_pid)
+except (OSError, ValueError):
+    pass
 
 
 def wants_alpha(pid):
