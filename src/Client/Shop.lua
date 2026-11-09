@@ -178,6 +178,15 @@ return function(deps)
 	local ShopCardsModule = require(script.Parent.ShopCards)
 	-- Art-first item cards (Client/ShopCards.lua). Look only: remotes and rules stay in this file.
 	local shopCards = ShopCardsModule.new({ playClickSfx = playClickSfx, particleBurst = deps.particleBurst, addTooltip = deps.addTooltip })
+	-- Synergy tags (Engine/Synergy.lua): up to 2 small tags on a Patron card that fits what you own or play. Display only.
+	local function synergyTagsFor(patronId)
+		local ok, tags = pcall(function()
+			local Synergy = require(Engine:WaitForChild("Synergy"))
+			local st = getLatestState() or {}
+			return Synergy.tagsFor({ id = patronId }, Synergy.context(st.ownedPatrons, st.handStats))
+		end)
+		return ok and tags or nil
+	end
 
 	-- ----- Shop overlay -----
 	-- A full-screen tabbed menu, not a small popup, on purpose: "Buy Patrons"
@@ -891,6 +900,7 @@ return function(deps)
 					description = description .. "\n" .. PackPreviewModule.caption(match, standardCard)
 				end
 				local card = shopCards.card(packItemsRow, {
+					synergy = packArtCategory == "patrons" and synergyTagsFor(item.id) or nil,
 					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true,
 					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
 					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
@@ -1324,6 +1334,7 @@ return function(deps)
 				else
 					local fullPatron = Patrons.getById(offer.id)
 					local card = shopCards.card(row, {
+						synergy = synergyTagsFor(offer.id),
 						kind = "patron", layoutOrder = index, name = offer.name, description = offer.description,
 						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
 						emoji = fullPatron and fullPatron.icon, artTab = "patrons", artId = offer.id, rarityTab = "patrons", rarityId = offer.id,

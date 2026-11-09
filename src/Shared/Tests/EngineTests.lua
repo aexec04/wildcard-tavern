@@ -8835,6 +8835,46 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "Synergy: every Patron has 1 to 3 valid tags, owned tags, dominant hand, economy gap, at most 2 tags shown", fn = function()
+	local Synergy = require(script.Parent.Parent.Engine.Synergy)
+	expectEqual(table.concat(Synergy.validate(), "; "), "", "every Patron has 1 to 3 valid unique tags")
+	expectTrue(#Patrons.Definitions >= 81)
+	-- the Patron Definitions carry the six main tags and the data covers them all
+	local used = {}
+	for _, p in ipairs(Patrons.Definitions) do for _, t in ipairs(p.tags) do used[t] = (used[t] or 0) + 1 end end
+	for _, tag in ipairs({ "flush", "pairs", "straight", "economy", "scaling", "rulebender" }) do expectTrue((used[tag] or 0) >= 3, tag .. " is used") end
+	for _, id in ipairs(Patrons.TagIds) do expectTrue(Synergy.Tags[id] ~= nil, "tag info for " .. id) end
+	for id, info in pairs(Synergy.Tags) do
+		expectTrue(info.icon ~= "" and #info.word <= 10 and not info.word:find(" "), id .. " is an icon plus one word")
+	end
+	-- owned tags
+	local owned = { { id = "flush_fan" }, { id = "suit_sampler" }, { id = "tip_jar" }, { id = "pair_bonds" } }
+	local counts = Synergy.ownedTags(owned)
+	expectEqual(counts.flush, 2); expectEqual(counts.economy, 1); expectEqual(counts.pairs, 1); expectEqual(counts.scaling, 1)
+	expectEqual(next(Synergy.ownedTags({})), nil); expectEqual(next(Synergy.ownedTags(nil)), nil)
+	-- dominant hand: most played, ties alphabetical, unknown names and zeros ignored
+	expectEqual(Synergy.dominantHand({ Pair = 5, Flush = 9, ["High Card"] = 40 }), "Flush", "High Card feeds no tag")
+	expectEqual(Synergy.dominantHand({ Pair = 3, Straight = 3 }), "Pair")
+	expectEqual(Synergy.dominantHand({}), nil); expectEqual(Synergy.dominantHand(nil), nil); expectEqual(Synergy.dominantHand({ Flush = 0 }), nil)
+	expectTrue(Synergy.dominantTags({ ["Straight Flush"] = 4 }).straight and Synergy.dominantTags({ ["Straight Flush"] = 4 }).flush)
+	-- tagsFor: dominant first, then the economy gap, then owned; never "flat"; at most 2
+	local ctx = Synergy.context(owned, { Flush = 6 })
+	local fan = Synergy.tagsFor(Patrons.getById("all_matching"), ctx)
+	expectEqual(#fan, 1); expectEqual(fan[1].tag, "flush"); expectEqual(fan[1].reason, "Fits the hand you play most.")
+	local pairPatron = Synergy.tagsFor({ id = "pair_bonds" }, ctx)
+	expectEqual(#pairPatron, 2); expectEqual(pairPatron[1].tag, "scaling", "owned tag, listed after dominant and economy")
+	expectEqual(#Synergy.tagsFor(Patrons.getById("the_regular"), ctx), 0, "a flat Patron shows nothing")
+	local fresh = Synergy.context({}, {})
+	local jar = Synergy.tagsFor(Patrons.getById("tip_jar"), fresh)
+	expectEqual(#jar, 1); expectEqual(jar[1].tag, "economy"); expectEqual(jar[1].reason, "You have no Tips Patron yet.")
+	expectEqual(#Synergy.tagsFor(Patrons.getById("tip_jar"), Synergy.context({ { id = "penny_pincher" } }, {})), 1, "owning one: shown as a match instead")
+	expectEqual(Synergy.tagsFor(Patrons.getById("tip_jar"), Synergy.context({ { id = "penny_pincher" } }, {}))[1].reason, "Works with a Patron you own.")
+	-- three matches are cut to two
+	local both = Synergy.tagsFor({ tags = { "flush", "pairs", "economy" } }, Synergy.context({ { id = "flush_fan" }, { id = "twin_spoons" } }, { Flush = 3 }))
+	expectEqual(#both, 2)
+	expectEqual(#Synergy.tagsFor(nil, ctx), 0); expectEqual(#Synergy.tagsFor({ id = "nope" }, ctx), 0); expectEqual(#Synergy.tagsFor(Patrons.getById("tip_jar"), nil), 0)
+end })
+
 table.insert(tests, { name = "Hints: data table valid, each hint once, never in the tutorial, replay clears, safe migration", fn = function()
 	local Hints = require(script.Parent.Parent.Engine.Hints)
 	expectEqual(#Hints.Definitions, 10)

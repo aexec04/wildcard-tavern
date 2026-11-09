@@ -1106,6 +1106,37 @@ for _, patron in ipairs(depthPatrons) do
 	table.insert(Patrons.Definitions, patron)
 end
 
+-- SYNERGY TAGS (Engine/Synergy.lua): 1 to 3 build tags per Patron, shown as small glowing tags in the Counter and pack
+-- picks when a Patron fits what the player owns. EDIT ME: this table is the one place to retag a Patron.
+-- flush (suits), pairs (pairs, trips, quads, full house), straight, economy (Tips, rerolls), scaling (grows over the run),
+-- rulebender (changes discards, hands or hand size), ranks (specific ranks or face cards), flat (steady bonuses).
+local PATRON_TAGS = {
+	the_regular = { "flat" }, lucky_dice = { "pairs" }, suit_yourself = { "flush" }, curtain_call = { "flat" }, the_bard = { "flat" },
+	regulars_round = { "pairs" }, threes_company = { "pairs" }, all_hands_in = { "pairs" }, straight_shooter = { "straight" },
+	all_matching = { "flush" }, small_plate = { "flat" }, big_portions = { "pairs" }, tab_regulars = { "economy" },
+	house_favorite = { "ranks" }, repeat_customer = { "flat" }, the_understudy = { "flat" }, second_opinion = { "flat" },
+	tip_jar = { "economy" }, penny_pincher = { "economy" }, sparkling_service = { "flush" }, rowdy_bunch = { "flush" },
+	sharp_dressed = { "flush" }, double_down = { "pairs" }, house_special = { "pairs" }, ace_of_the_house = { "ranks" },
+	vip_table = { "ranks" }, early_bird = { "flat" }, discard_special = { "flat" }, the_apprentice = { "flat" },
+	big_spender = { "economy" }, nest_egg = { "economy" }, jack_of_all_trades = { "ranks" }, queens_gambit = { "ranks" },
+	spare_change = { "economy" }, full_house_crowd = { "scaling" }, fair_share = { "flat" }, efficient_service = { "flat" },
+	perfect_ten = { "ranks" }, night_owl = { "scaling" }, steady_hand = { "flat" }, rainy_day_fund = { "economy" },
+	boss_bane = { "economy" }, slow_cooker = { "scaling" }, house_tab = { "scaling" }, regulars_chair = { "scaling" },
+	cobweb_shelf = { "scaling" }, tasting_menu = { "scaling" }, estate_sale = { "scaling" }, pair_bonds = { "scaling", "pairs" },
+	veterans_table = { "scaling" }, meadow_bee = { "ranks" }, ferry_captain = { "flat" }, summit_guide = { "ranks" },
+	sand_merchant = { "economy", "flush" }, marsh_gardener = { "flush" }, lantern_lighter = { "flat" }, lighthouse_keeper = { "flat" },
+	flush_fan = { "flush" }, suit_sampler = { "flush" }, warm_hearth = { "flush" }, color_matcher = { "flush" },
+	full_suit_feast = { "flush" }, twin_spoons = { "pairs" }, triple_treat = { "pairs" }, foursome_table = { "pairs" },
+	kitchen_duo = { "pairs" }, pair_parade = { "pairs" }, stair_climber = { "straight" }, long_road = { "straight" },
+	ladder_builder = { "straight" }, royal_road = { "straight" }, savings_club = { "economy" }, bargain_hunter = { "economy" },
+	quick_service = { "economy" }, lucky_penny_jar = { "economy", "pairs" }, rising_dough = { "scaling" }, stack_of_plates = { "scaling" },
+	bread_starter = { "scaling" }, extra_chair = { "rulebender" }, second_helpings = { "rulebender" }, overtime = { "rulebender" },
+}
+Patrons.TagIds = { "flush", "pairs", "straight", "economy", "scaling", "rulebender", "ranks", "flat" }
+for _, patron in ipairs(Patrons.Definitions) do
+	patron.tags = PATRON_TAGS[patron.id]
+end
+
 -- Sum of a numeric rule field (handSizeDelta, discardsDelta, handsDelta, rerollDelta) over the owned Patrons.
 function Patrons.sum(owned, field)
 	local total = 0

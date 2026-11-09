@@ -333,6 +333,20 @@ function ShopCards.new(deps)
 			label(pill, { Size = UDim2.fromScale(1, 1), Text = spec.badge, TextColor3 = GOLD })
 		end
 
+		-- ===== Synergy tags (Engine/Synergy.lua): up to 2 small glowing pills, icon plus one word, top right =====
+		for i, tag in ipairs(spec.synergy or {}) do
+			local pill = frame(artClip, { Name = "Synergy_" .. tag.tag, AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -6, 0, 6 + (i - 1) * 28), Size = UDim2.fromOffset(#tag.word * 8 + 36, 24),
+				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.1 })
+			corner(pill, 12)
+			stroke(pill, Color3.fromRGB(255, 226, 140), 2, 0) -- gold glow ring
+			label(pill, { Size = UDim2.new(1, -4, 1, 0), Position = UDim2.fromOffset(2, 0), Text = tag.icon .. " " .. tag.word,
+				TextColor3 = Color3.fromRGB(255, 226, 140), TextSize = 14 })
+			if addTooltip then
+				addTooltip(pill, tag.line .. " " .. (tag.reason or ""))
+			end
+		end
+
 		-- ===== Name ribbon overlapping the bottom of the art =====
 		local banner = frame(body, { Name = "Banner", Position = UDim2.fromOffset(2, shape.bannerTop), Size = UDim2.fromOffset(W - 4, BANNER_H),
 			BackgroundColor3 = WOOD })
