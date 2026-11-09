@@ -6620,6 +6620,25 @@ table.insert(tests, { name = "TutorialStart: only an explicit tutorial run is sc
 	expectTrue(starts >= 1)
 end })
 
+table.insert(tests, { name = "Tutorial spotlight: every step target is a known name, resolved live and never from a stale rect", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	for _, step in ipairs(Steps.Steps) do
+		if step.target then
+			expectTrue(Steps.TargetNames[step.target] == true, "unknown target " .. tostring(step.target) .. " in step " .. step.id)
+		end
+	end
+	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("resolveTarget(currentStep)", 1, true) ~= nil, "layout re-resolves the target every frame")
+	expectTrue(src:find("IsDescendantOf(screenGui)", 1, true) ~= nil, "destroyed elements are rejected")
+	expectTrue(src:find("[Tutorial] target not found", 1, true) ~= nil, "a missing target warns")
+	expectTrue(src:find("HandIndex", 1, true) ~= nil, "hand cards are found by tag")
+	local h = io.open("src/Client/init.client.lua", "r")
+	local hub = h:read("*a"); h:close()
+	expectTrue(hub:find('slot:SetAttribute("HandIndex"', 1, true) ~= nil, "hand slots carry the tag")
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)

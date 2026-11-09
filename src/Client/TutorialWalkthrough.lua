@@ -38,7 +38,17 @@ return function(deps)
 	local root = deps.root
 	local playClickSfx = deps.playClickSfx
 	local MarkTutorialSeenRemote = deps.MarkTutorialSeenRemote
-	local gui = root:FindFirstAncestorOfClass("ScreenGui") or root
+	local screenGui = root:FindFirstAncestorOfClass("ScreenGui") or root
+	-- All chrome lives in one full-size overlay and every rect is converted by THIS frame's own AbsolutePosition,
+	-- so the GuiInset (top bar) and any parent offset cancel out.
+	local gui = Instance.new("Frame")
+	gui.Name = "TutorialOverlay"
+	gui.BackgroundTransparency = 1
+	gui.BorderSizePixel = 0
+	gui.Active = false
+	gui.Size = UDim2.fromScale(1, 1)
+	gui.ZIndex = Z - 1
+	gui.Parent = screenGui
 
 	-- targets owned by the hub; the others come from TutorialBus (registered by Menu / RoundSelect)
 	TutorialBus.register("play", deps.playButton)
@@ -159,6 +169,8 @@ return function(deps)
 
 	-- ===== targets and positions =====
 	local currentList = nil -- { Instance, ... } being spotlighted
+	local currentStep = nil -- the step whose target is re-resolved every frame (the UI is rebuilt under us)
+	local warned = {} -- step id -> true, so a missing target warns once
 	local conn = nil
 
 	local function visible(inst)
@@ -167,7 +179,10 @@ return function(deps)
 			if obj:IsA("GuiObject") and not obj.Visible then return false end
 			obj = obj.Parent
 		end
-		return inst ~= nil and inst.Parent ~= nil
+		if inst == nil or inst.Parent == nil or not inst:IsDescendantOf(screenGui) then return false end
+		-- a destroyed/rebuilt or zero-size element has no usable rect
+		if inst:IsA("GuiObject") and (inst.AbsoluteSize.X <= 0 or inst.AbsoluteSize.Y <= 0) then return false end
+		return true
 	end
 
 	local function handSlots(count)
@@ -175,11 +190,15 @@ return function(deps)
 		for _, child in ipairs(deps.handFrame:GetChildren()) do
 			if child:IsA("Frame") then slots[#slots + 1] = child end
 		end
-		table.sort(slots, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
-		if count and count < #slots then
-			local first = {}
-			for i = 1, count do first[i] = slots[i] end
-			return first
+		-- slots are tagged with the hand index they show (init.client), so the scripted target cards are found
+		-- by tag, not by their position on screen (the hand may be sorted)
+		if count then
+			local picked = {}
+			for _, slot in ipairs(slots) do
+				local idx = slot:GetAttribute("HandIndex")
+				if idx and idx <= count then picked[#picked + 1] = slot end
+			end
+			return picked
 		end
 		return slots
 	end
@@ -218,8 +237,30 @@ return function(deps)
 		return minX - gp.X - PAD, minY - gp.Y - PAD, (maxX - minX) + PAD * 2, (maxY - minY) + PAD * 2
 	end
 
+	local function setChromeHidden()
+		for _, f in ipairs(dims) do f.Visible = false end
+		highlight.Visible = false
+		arrow.Visible = false
+	end
+
 	local function layout()
 		if not currentList then return end
+		if currentStep then
+			-- re-find the live target every frame: hand cards and the Select button are rebuilt on every render
+			local list = resolveTarget(currentStep)
+			if not list or #list == 0 then
+				setChromeHidden()
+				if not warned[currentStep.id] then
+					warned[currentStep.id] = true
+					warn("[Tutorial] target not found for step " .. tostring(currentStep.id) .. " (" .. tostring(currentStep.target) .. "): no spotlight")
+				end
+				return
+			end
+			currentList = list
+			dims[1].Visible = true
+			highlight.Visible = true
+			arrow.Visible = true
+		end
 		local ok = pcall(function()
 			local size = gui.AbsoluteSize
 			local x, y, w, h = rectOf(currentList)
@@ -234,11 +275,21 @@ return function(deps)
 			-- sits between the ribbon and the target, pointing at it
 			local rw, rh = ribbon.AbsoluteSize.X, 56
 			local below = y + h + 56 + rh <= size.Y - 8
-			local ry = below and (y + h + 44) or (y - 44 - rh)
-			local rx = math.clamp(x + w / 2 - rw / 2, 12, math.max(12, size.X - rw - 12))
-			ribbon.Position = UDim2.fromOffset(rx, math.max(8, ry))
-			arrow.Position = UDim2.fromOffset(x + w / 2, below and (y + h + 22) or (y - 22))
-			arrow.Text = below and "^" or "v"
+			local above = y - 44 - rh >= 8
+			if below or above then
+				local ry = below and (y + h + 44) or (y - 44 - rh)
+				local rx = math.clamp(x + w / 2 - rw / 2, 12, math.max(12, size.X - rw - 12))
+				ribbon.Position = UDim2.fromOffset(rx, ry)
+				arrow.Position = UDim2.fromOffset(x + w / 2, below and (y + h + 22) or (y - 22))
+				arrow.Text = below and "^" or "v"
+			else
+				-- no room above or below (a tall target): beside it, never on top of it
+				local right = x + w + 56 + rw <= size.X - 8
+				local rx = right and (x + w + 48) or math.max(8, x - 48 - rw)
+				ribbon.Position = UDim2.fromOffset(rx, math.clamp(y + h / 2 - rh / 2, 8, math.max(8, size.Y - rh - 8)))
+				arrow.Position = UDim2.fromOffset(right and (x + w + 24) or (x - 24), y + h / 2)
+				arrow.Text = right and "<" or ">"
+			end
 		end)
 		return ok
 	end
@@ -261,6 +312,7 @@ return function(deps)
 		okButton.Visible = false
 		skipButton.Visible = false
 		currentList = nil
+		currentStep = nil
 	end
 
 	local function dismissNewRibbon()
@@ -281,6 +333,7 @@ return function(deps)
 			-- the last step: a dimmed screen, the line and one button
 			stopFollowing()
 			currentList = nil
+			currentStep = nil
 			for _, f in ipairs(dims) do f.Position, f.Size = UDim2.fromOffset(0, 0), UDim2.new(1, 0, 1, 0) end
 			dims[1].Visible = true
 			for i = 2, 4 do dims[i].Visible = false end
@@ -304,6 +357,7 @@ return function(deps)
 			setChrome(false)
 			dims[1].Visible = false
 			currentList = nil
+			currentStep = nil
 			stopFollowing()
 			conn = RunService.Heartbeat:Connect(function()
 				if resolveTarget(step) then
@@ -314,8 +368,15 @@ return function(deps)
 			return
 		end
 		currentList = list
+		currentStep = step
 		setChrome(true)
 		layout()
+		if RunService:IsStudio() then
+			local gp = gui.AbsolutePosition
+			local x, y, w, h = rectOf(list)
+			print(string.format("[Tutorial] step %s target %s rect x=%d y=%d w=%d h=%d (%d element(s))",
+				tostring(step.id), tostring(step.target), math.floor(x + gp.X), math.floor(y + gp.Y), math.floor(w), math.floor(h), #list))
+		end
 		stopFollowing()
 		conn = RunService.Heartbeat:Connect(layout) -- the hand and buttons can reflow while the player looks at them
 	end
@@ -349,7 +410,7 @@ return function(deps)
 		local remotes = ReplicatedStorage:WaitForChild("Remotes")
 		local startRun = remotes:FindFirstChild("StartRun")
 		if startRun then startRun:FireServer() end
-		local menu = gui:FindFirstChild("MenuRoot", true)
+		local menu = screenGui:FindFirstChild("MenuRoot", true)
 		root.Visible = false
 		if menu then menu.Visible = true end
 	end

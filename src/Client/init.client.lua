@@ -2113,6 +2113,7 @@ local function rebuildHand(handData, phase)
 		slot.Size = UDim2.new(0, 84, 0, 122)
 		slot.BackgroundTransparency = 1
 		slot.LayoutOrder = visualPosition
+		slot:SetAttribute("HandIndex", index) -- stable tag for the tutorial spotlight (hand is rebuilt every deal)
 		slot.Parent = handFrame
 
 		local button = Instance.new("TextButton")

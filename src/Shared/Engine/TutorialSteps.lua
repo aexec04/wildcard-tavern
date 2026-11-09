@@ -31,6 +31,9 @@ local TutorialSteps = {}
 
 TutorialSteps.MAX_WORDS = 12
 
+-- Every step target must be one of these names; Client/TutorialWalkthrough resolves each live, every frame.
+TutorialSteps.TargetNames = { menuPlay = true, selectButton = true, handCards = true, play = true, nextRound = true }
+
 TutorialSteps.Steps = {
 	{ id = "menu_play", action = "menu_play", target = "menuPlay", text = "Press Play to start your first run." },
 	{ id = "select_round", action = "select_round", target = "selectButton", text = "Press Select to play this round." },
