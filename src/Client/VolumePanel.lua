@@ -184,11 +184,13 @@ return function(deps)
 		popOut(volumeBackdrop, volumePanel)
 	end)
 
-	volumeButton.MouseButton1Click:Connect(function()
+	local function openVolume()
 		playClickSfx()
 		OverlayManager.closeAllExcept("volume")
 		popIn(volumeBackdrop, volumePanel)
-	end)
+	end
+	volumeButton.MouseButton1Click:Connect(openVolume)
+	OverlayManager.registerOpener("volume", openVolume) -- the Menu's jukebox hotspot
 
 	return {
 		volumeBackdrop = volumeBackdrop,

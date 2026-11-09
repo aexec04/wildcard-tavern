@@ -11703,4 +11703,83 @@ table.insert(tests, { name = "Collection no longer lists run stats; the Tavern L
 	end
 end })
 
+table.insert(tests, { name = "MenuLayout: unique in-bounds hotspots, small overlaps, clear of strips, every old action reachable, parallax clamps and calm", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local seen = {}
+	for _, h in ipairs(ML.Hotspots) do
+		expectFalse(seen[h.id], "duplicate hotspot " .. h.id)
+		seen[h.id] = true
+		expectTrue(h.x > 0 and h.x < 1 and h.y > 0 and h.y < 1 and h.s > 0 and h.s < 0.4, "fractions in range " .. h.id)
+		expectTrue(#h.actions >= 1, h.id .. " has an action")
+		expectTrue(#h.label > 0 and #h.desc > 0 and not h.label:find("-", 1, true) and not h.desc:find("-", 1, true), "plain label and description")
+		expectFalse((h.label .. h.desc):lower():find("balatro", 1, true) ~= nil)
+	end
+	for _, size in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 } }) do
+		local w, h = size[1], size[2]
+		expectFalse(ML.isPhone(w), "desktop size shows the scene")
+		local rects = {}
+		for i, hs in ipairs(ML.Hotspots) do
+			local l, t, r, b = ML.rect(hs, w, h)
+			expectTrue(l >= 0 and t >= 0 and r <= w and b <= h, hs.id .. " inside the screen at " .. w)
+			rects[i] = { l, t, r, b }
+			-- clear of the title and strips (top 322px, 700 wide, centred), the Regulars corner and the All actions button
+			local strip = { (w - 700) / 2, 0, (w + 700) / 2, 322 }
+			expectTrue(ML.overlapFraction(rects[i], strip) == 0, hs.id .. " clear of the strips at " .. w)
+			expectTrue(ML.overlapFraction(rects[i], { 16, h - 168, 212, h - 16 }) == 0, hs.id .. " clear of the Regulars at " .. w)
+			expectTrue(ML.overlapFraction(rects[i], { w - 166, h - 54, w - 16, h - 16 }) == 0, hs.id .. " clear of All actions at " .. w)
+		end
+		for i = 1, #rects do
+			for j = i + 1, #rects do
+				expectTrue(ML.overlapFraction(rects[i], rects[j]) <= 0.15, ML.Hotspots[i].id .. " and " .. ML.Hotspots[j].id .. " overlap too much at " .. w)
+			end
+		end
+	end
+	expectTrue(ML.isPhone(360) and ML.isPhone(640) and not ML.isPhone(1280), "phones skip the scene")
+	-- every old Menu action is owned by exactly one hotspot and listed for the All actions list
+	local owners = {}
+	for _, hs in ipairs(ML.Hotspots) do
+		for _, id in ipairs(hs.actions) do
+			owners[id] = (owners[id] or 0) + 1
+		end
+	end
+	local listed = {}
+	for _, action in ipairs(ML.Actions) do
+		expectFalse(listed[action.id], "action listed twice " .. action.id)
+		listed[action.id] = true
+		expectEqual(owners[action.id], 1, action.id .. " has one hotspot")
+		expectTrue(#action.label > 0 and not action.label:find("\226\128\148", 1, true))
+	end
+	for id in pairs(owners) do expectTrue(listed[id], id .. " is in the All actions list") end
+	for _, old in ipairs({ "play", "newRun", "daily", "weekly", "seed", "quests", "road", "howToPlay", "tutorial", "collection", "settings", "store", "invite", "season", "rewards" }) do
+		expectTrue(listed[old] and owners[old] == 1, "old action reachable: " .. old)
+	end
+	-- parallax
+	local dx, dy = ML.parallaxOffset(1, -1, 1000, false)
+	expectTrue(math.abs(dx) <= 32 and math.abs(dy) <= 32, "offsets clamp at 32")
+	expectEqual(dx, -32)
+	local ax, ay = ML.parallaxOffset(0.5, 0.5, ML.Parallax.mid, false)
+	expectTrue(ax == -9 and ay == -9)
+	local cx, cy = ML.parallaxOffset(1, 1, 28, true)
+	expectTrue(cx == 0 and cy == 0, "calm mode returns zero offset")
+	expectEqual(ML.tilt(1, true), 0)
+	expectTrue(math.abs(ML.tilt(5, false)) <= 1.5 + 1e-9, "tilt is about 1.5 degrees at most")
+	for t = 0, 60, 3 do
+		local nx, ny = ML.idleCursor(t)
+		local ox, oy = ML.parallaxOffset(nx, ny, ML.Parallax.mid, false)
+		expectTrue(math.abs(ox) <= ML.Parallax.idleDrift + 1e-9 and math.abs(oy) <= ML.Parallax.idleDrift + 1e-9, "idle drift stays within 6px")
+	end
+	-- source scans (local runner only; Studio has no io)
+	local f = io and io.open and io.open("src/Client/Menu.lua", "r")
+	if not f then return end
+	local menu = f:read("*a"); f:close()
+	for _, name in ipairs({ "menuFrame", "menuPlayButton", "menuHowToPlayButton", "menuJourneyButton", "menuNewRunButton", "menuDailyChallengeButton",
+		"menuWeeklyChallengeButton", "menuTutorialButton", "menuCollectionButton", "menuSettingsButton", "menuQuestsButton", "menuStoreButton",
+		"menuSeasonButton", "menuTickerButton" }) do
+		expectTrue(menu:find(name .. " = " .. name, 1, true) ~= nil or menu:find(name .. " = ", 1, true) ~= nil, "Menu still returns " .. name)
+	end
+	local scene = io.open("src/Client/MenuScene.lua", "r"):read("*a")
+	expectTrue(scene:find("for i = 1, 6 do", 1, true) ~= nil and scene:find("for i = 1, 3 do", 1, true) ~= nil, "scene object counts")
+	expectTrue(1 + 2 + 6 + 3 <= ML.MAX_ANIMATED, "animated objects stay under the cap")
+end })
+
 return tests

@@ -442,6 +442,7 @@ return function(deps)
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end
 	leaderboardButton.MouseButton1Click:Connect(openLeaderboard)
+	OverlayManager.registerOpener("dailyLeaderboard", openLeaderboard) -- the Menu's chalkboard hotspot
 	if deps.menuTickerButton then -- the main menu strip's "Daily board" button opens the same overlay
 		deps.menuTickerButton.MouseButton1Click:Connect(openLeaderboard)
 	end

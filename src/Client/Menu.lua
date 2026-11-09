@@ -1,159 +1,95 @@
 --[[
 	Client/Menu.lua
-	The main menu screen (title, subtitle, and the Play / New Run... /
-	Daily / Weekly / Seed / How to Play / Tutorial buttons) shown before a run starts.
+	The main menu: the tavern IS the menu. A painted backdrop with parallax layers, a title ribbon, slim parchment strips
+	(news, rank, next goal, today's board) and painted hotspots instead of a button grid.
 
-	Extracted out of init.client.lua as part of splitting the client script
-	into smaller, per-feature files. Everything this builds is needed back
-	in init.client.lua: menuFrame is toggled by the "Menu -> game
-	transition" glue and by RunSetup's Begin Run handler, and the four
-	buttons are each wired up elsewhere (menuPlayButton in the transition
-	glue right after this; the other three are passed as deps into
-	HowToPlay.lua/Journey.lua/RunSetup.lua, which wire their own click
-	handlers).
+	Modules: Engine/MenuLayout.lua (hotspot positions, parallax numbers, tested), Client/MenuHotspots.lua (objects, carved
+	wooden plaques, fans, the All actions list), Client/MenuParallax.lua (cursor parallax), Client/MenuScene.lua (lantern, motes,
+	candle glow, smoke). Reduce Shake / Reduce Motion (calm mode) turns parallax, flicker and drops off. Phones show only the
+	All actions list (Play first).
+
+	Every action is ONE real TextButton (MenuHotspots.newAction) that other scripts wire their click handlers to, so the names
+	returned below are unchanged: the hotspots and the list only move those buttons around.
 
 	deps fields:
-		screenGui              -- ScreenGui, menuFrame's parent
-		polishButton            -- function(instance, radius)
-		revealStagger           -- function(instances, opts?)
-		addButtonHoverScale     -- function(button, opts?)
-		StartDailyChallengeRemote -- RemoteEvent, fired on Daily Challenge click
-		playClickSfx            -- function(), played on Daily Challenge click
-		StartWeeklyChallengeRemote -- RemoteEvent, fired on Weekly Challenge click (Phase 16)
-		openSeedRunDialog       -- function(), opens SeedRunDialog.lua's modal (Phase 16)
-		menuBackgroundImage     -- string, "rbxassetid://..." -- see Client/ArtAssets.lua
+		screenGui, polishButton, revealStagger, addButtonHoverScale -- as before (polishButton / addButtonHoverScale unused now)
+		StartDailyChallengeRemote, StartWeeklyChallengeRemote, openSeedRunDialog, playClickSfx
+		menuBackgroundImage -- string, "rbxassetid://..." -- see Client/ArtAssets.lua (fallback when menu_bg is missing)
 
-	Returns:
-		{
-			menuFrame = Frame,
-			menuPlayButton = TextButton,
-			menuHowToPlayButton = TextButton,
-			menuJourneyButton = TextButton,
-			menuNewRunButton = TextButton,
-			menuTutorialButton = TextButton, -- click wired in init.client.lua (starts the live walkthrough)
-		}
-
-	DAILY CHALLENGE (Phase 11): a 5th button ("Daily Challenge") is added
-	to the button holder below. Deliberately NOT returned from this
-	module and NOT captured as a new top-level local in init.client.lua --
-	its click handler is wired entirely inside this file (fire
-	StartDailyChallengeRemote, play the click sfx) since init.client.lua
-	is already right up against Lua's 200-local-per-chunk ceiling. Both
-	`StartDailyChallengeRemote` and `playClickSfx` are passed in via deps
-	as either an inline expression or a reused existing local -- neither
-	needs a new local in init.client.lua either.
-
-	WEEKLY CHALLENGE + SEED CODES (Phase 16): same treatment, 2 more
-	buttons ("Weekly Challenge", "Seed Run..."), same reasoning -- neither
-	captured as a new top-level local, both click handlers wired entirely
-	inside this file. "Seed Run..." doesn't fire a remote directly (it
-	needs a code from the player first) -- it just calls
-	`openSeedRunDialog()`, a callback built by Client/SeedRunDialog.lua
-	and threaded through as a dep, same "pass the finished function in,
-	don't make this module know how the dialog works" shape as everything
-	else here.
-
-	POLISH PASS (Batch 2): this is the very first thing every player
-	sees, and previously had ZERO animation -- the whole screen (title,
-	subtitle, 4 buttons) just appeared instantly, fully formed, the
-	moment the LocalScript finished running, and the buttons themselves
-	had no hover/press feedback at all. Now the title/subtitle/buttons
-	cascade in with a staggered scale-and-fade (`revealStagger`,
-	VisualHelpers.lua) the moment this module builds them -- a one-shot
-	load-in animation, not tied to render() or any state -- and each
-	button gets a small hover swell / press dip (`addButtonHoverScale`).
-
-	REVERTED "SHOWCASE PASS": for a while this screen was a transparent
-	panel over a scrim card, with a camera orbiting a 3D tavern scene
-	behind it, glossy gradient buttons, and text-stroke titles. Ahmed asked
-	to scratch that and go back to a plain 2D menu, so this file is back to
-	the simple opaque panel + flat buttons it was before that pass (the 3D
-	scene and its camera have since been deleted entirely). The one thing kept
-	from that whole detour: the ScrollingFrame button layout below, which
-	fixed a real title/button overlap bug on short/landscape screens and
-	has nothing to do with the showcase idea itself.
-
-	AI ART (post-revert, different from the showcase pass above): a plain
-	background ImageLabel behind the flat panel color, sourced from
-	Client/ArtAssets.lua -- NOT the code-only gradient/glow pass that was
-	tried and reverted earlier. This is a real illustrated background
-	image (an empty tavern-room scene from the art brief), currently still
-	the "rbxassetid://0" placeholder until it's uploaded to Roblox. No
-	camera, no 3D reveal, no transparency tricks -- same flat 2D menu,
-	just with a real picture behind it once the id is filled in.
+	Returns the same table as before (menuFrame and the action buttons the hub wires up).
 ]]
 
 return function(deps)
 	local screenGui = deps.screenGui
-	local polishButton = deps.polishButton
 	local revealStagger = deps.revealStagger
-	local addButtonHoverScale = deps.addButtonHoverScale
 	local StartDailyChallengeRemote = deps.StartDailyChallengeRemote
 	local playClickSfx = deps.playClickSfx
 	local StartWeeklyChallengeRemote = deps.StartWeeklyChallengeRemote
 	local openSeedRunDialog = deps.openSeedRunDialog
 	local menuBackgroundImage = deps.menuBackgroundImage
 	local TweenService = game:GetService("TweenService")
-	local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
+	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local Layout = require(Engine:WaitForChild("MenuLayout"))
 	local ClientSettings = require(script.Parent.ClientSettings)
-	local SkinArt = require(script.Parent.SkinArt)
-	local ArtAssets = require(script.Parent.ArtAssets)
+	local Hotspots = require(script.Parent.MenuHotspots)
+	local OverlayManager = require(script.Parent.OverlayManager)
 	local function calm()
-		return ClientSettings.get("reduceShake") == true -- Reduce Shake: no glow, lift or flicker
+		return ClientSettings.get("reduceShake") == true -- Reduce Shake / Reduce Motion: no parallax, glow, lift or flicker
 	end
 
 	local menuFrame = Instance.new("Frame")
 	menuFrame.Name = "MenuRoot"
 	menuFrame.Size = UDim2.fromScale(1, 1)
 	menuFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
+	menuFrame.BackgroundTransparency = 1
 	menuFrame.BorderSizePixel = 0
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = screenGui
 
-	-- ART (placeholder-safe, see Client/ArtAssets.lua): background art from
-	-- the art brief. BackgroundTransparency on the IMAGE stays 1 -- it's
-	-- menuFrame's own flat BackgroundColor3 above that acts as the fallback
-	-- for as long as menuBackgroundImage is still the "rbxassetid://0"
-	-- placeholder (Roblox renders that as simply no image, never an
-	-- error). ZIndex 9 (menuFrame's other children are all 10) guarantees
-	-- this sits behind everything regardless of creation order.
+	-- Far layer: the painted backdrop, drawn 8 percent larger so parallax never shows an edge. Global ZIndex layering: the image
+	-- sits at the parent's ZIndex and everything else is created after it.
 	local menuBackgroundArt = Instance.new("ImageLabel")
 	menuBackgroundArt.Name = "MenuBackgroundArt"
-	menuBackgroundArt.Size = UDim2.fromScale(1, 1)
-	menuBackgroundArt.BackgroundTransparency = 1
+	menuBackgroundArt.AnchorPoint = Vector2.new(0.5, 0.5)
+	menuBackgroundArt.Position = UDim2.fromScale(0.5, 0.5)
+	menuBackgroundArt.Size = UDim2.fromScale(Layout.Parallax.backdropScale, Layout.Parallax.backdropScale)
 	menuBackgroundArt.BorderSizePixel = 0
 	menuBackgroundArt.ScaleType = Enum.ScaleType.Crop
-	-- Nov 1 2026: reads ArtAssets.lua (via deps) instead of a hardcoded
-	-- DECAL id, which never loaded from code. Thumbnail fallback below.
-	-- menu_bg (house style) wins; the older ArtAssets image / flat color is the fallback.
-	local menuArtId = ContentArt.getImageId("backgrounds", "menu_bg")
+	local menuArtId = ContentArt.getImageId("backgrounds", "menu_bg") -- house style art wins; ArtAssets image / flat colour is the fallback
 	menuBackgroundArt.Image = menuArtId or menuBackgroundImage or "rbxassetid://0"
 	menuBackgroundArt.Active = false
-	-- BUGFIX (Nov 1 2026): this ScreenGui uses Global ZIndex layering, so
-	-- this ZIndex-9 image drew UNDER its own ZIndex-10 parent's opaque fill
-	-- -- the menu art never showed. Same fix as the gameplay screen: the
-	-- image now sits at the parent's ZIndex (children draw after their
-	-- parent at equal ZIndex, and every menu button is created after it, so
-	-- they still draw on top), the parent's fill goes see-through, and the
-	-- flat fallback color moves onto the image's own background.
 	menuBackgroundArt.ZIndex = 10
-	menuBackgroundArt.BackgroundColor3 = menuFrame.BackgroundColor3
+	menuBackgroundArt.BackgroundColor3 = Color3.fromRGB(18, 14, 10)
 	menuBackgroundArt.BackgroundTransparency = 0
-	menuFrame.BackgroundTransparency = 1
 	menuBackgroundArt.Parent = menuFrame
 	if menuArtId then
-		-- Dark edge vignette (stepped Frames, Color stops only) above the art, below the logo and buttons.
-		require(script.Parent.PanelArt).vignette(menuFrame, 10)
+		require(script.Parent.PanelArt).vignette(menuFrame, 10) -- dark edge vignette (stepped Frames, Color stops only)
 	end
-	-- (Removed Nov 1 2026: a ContentProvider:PreloadAsync check used to swap
-	-- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
-	-- Failure even for images that load fine, so it was blanking good art.)
+
+	-- Hovering a hotspot dims the rest of the scene by 20 percent.
+	local sceneDim = Instance.new("Frame")
+	sceneDim.Name = "SceneDim"
+	sceneDim.Size = UDim2.fromScale(1, 1)
+	sceneDim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	sceneDim.BackgroundTransparency = 1
+	sceneDim.BorderSizePixel = 0
+	sceneDim.Active = false
+	sceneDim.ZIndex = 10
+	sceneDim.Parent = menuFrame
 
 	local GOLD = Color3.fromRGB(255, 214, 130)
 	local CREAM = Color3.fromRGB(250, 240, 220)
-	local ART_Z = 10 -- button art; the buttons themselves sit one above
 
-	-- ===== Title: carved gold look (gold fill, dark stroke, soft drop shadow) =====
+	-- ===== Near layer: the carved gold title and the ribbon =====
+	local titleGroup = Instance.new("Frame")
+	titleGroup.Name = "TitleGroup"
+	titleGroup.Size = UDim2.fromScale(1, 1)
+	titleGroup.BackgroundTransparency = 1
+	titleGroup.Active = false
+	titleGroup.ZIndex = 11
+	titleGroup.Parent = menuFrame
+
 	local menuTitleShadow = Instance.new("TextLabel")
 	menuTitleShadow.Name = "MenuTitleShadow"
 	menuTitleShadow.Size = UDim2.new(1, 0, 0, 80)
@@ -166,7 +102,7 @@ return function(deps)
 	menuTitleShadow.TextStrokeTransparency = 1
 	menuTitleShadow.Text = "Wildcard Tavern"
 	menuTitleShadow.ZIndex = 10
-	menuTitleShadow.Parent = menuFrame
+	menuTitleShadow.Parent = titleGroup
 
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Name = "MenuTitle"
@@ -181,9 +117,8 @@ return function(deps)
 	menuTitle.TextStrokeTransparency = 0.1
 	menuTitle.Text = "Wildcard Tavern"
 	menuTitle.ZIndex = 11
-	menuTitle.Parent = menuFrame
+	menuTitle.Parent = titleGroup
 
-	-- Subtitle text lives on a small ribbon banner under the title.
 	local menuSubtitle = Instance.new("TextLabel")
 	menuSubtitle.Name = "MenuRibbon"
 	menuSubtitle.AnchorPoint = Vector2.new(0.5, 0)
@@ -193,9 +128,11 @@ return function(deps)
 	menuSubtitle.Font = Enum.Font.GothamBold
 	menuSubtitle.TextSize = 16
 	menuSubtitle.TextColor3 = CREAM
+	menuSubtitle.TextTransparency = 0
+	menuSubtitle.TextStrokeTransparency = 1
 	menuSubtitle.Text = "a poker hand deckbuilder game!"
 	menuSubtitle.ZIndex = 11
-	menuSubtitle.Parent = menuFrame
+	menuSubtitle.Parent = titleGroup
 	do
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0, 4)
@@ -213,33 +150,35 @@ return function(deps)
 			tail.BorderSizePixel = 0
 			tail.Rotation = side == 1 and -8 or 8
 			tail.ZIndex = 10
-			tail.Parent = menuFrame
+			tail.Parent = titleGroup
 		end
 	end
 
-	-- Scrolling holder for the buttons (short screens scroll instead of overlapping the title).
+	-- ===== Slim parchment strips: news, rank, next goal, today's board =====
 	local menuButtonScroll = Instance.new("ScrollingFrame")
 	menuButtonScroll.Name = "MenuButtonScroll"
 	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 146)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 700, 1, -156) -- content is about 530px tall, so Play to Season fit 1280x720 without scrolling
+	menuButtonScroll.Size = UDim2.new(1, -16, 0, 176)
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
-	menuButtonScroll.ScrollBarThickness = 6 -- scroll hint: the bar only shows when the screen is too short for everything
+	menuButtonScroll.ScrollBarThickness = 6
 	menuButtonScroll.ScrollingEnabled = true
 	menuButtonScroll.ScrollBarImageColor3 = Color3.fromRGB(200, 170, 120)
 	menuButtonScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	menuButtonScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	menuButtonScroll.ZIndex = 10
+	menuButtonScroll.ZIndex = 12
 	menuButtonScroll.Parent = menuFrame
+	local scrollLimit = Instance.new("UISizeConstraint")
+	scrollLimit.MaxSize = Vector2.new(700, 1000)
+	scrollLimit.Parent = menuButtonScroll
 
 	local menuButtonHolder = Instance.new("Frame")
 	menuButtonHolder.Size = UDim2.new(1, 0, 0, 0)
 	menuButtonHolder.AutomaticSize = Enum.AutomaticSize.Y
 	menuButtonHolder.BackgroundTransparency = 1
-	menuButtonHolder.ZIndex = 10
+	menuButtonHolder.ZIndex = 12
 	menuButtonHolder.Parent = menuButtonScroll
-
 	local menuButtonLayout = Instance.new("UIListLayout")
 	menuButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	menuButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -250,333 +189,53 @@ return function(deps)
 	holderPad.PaddingBottom = UDim.new(0, 8)
 	holderPad.Parent = menuButtonHolder
 
-	local function makeRow(order, height, padding)
-		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, height)
-		row.BackgroundTransparency = 1
-		row.LayoutOrder = order
-		row.ZIndex = 10
-		row.Parent = menuButtonHolder
-		local layout = Instance.new("UIListLayout")
-		layout.FillDirection = Enum.FillDirection.Horizontal
-		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		layout.VerticalAlignment = Enum.VerticalAlignment.Center
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0, padding)
-		layout.Parent = row
-		return row
-	end
-
-	local slots = {} -- stagger-in targets (the slot holds the button so hover can lift it)
-	local glowTweens = {}
-
-	-- Ornate wood-and-gold button (the same carved art as Play Hand / Discard), a TextButton
-	-- inside a fixed slot. opts: { text, textSize, iconKey, emoji, iconSize, parent, order, width, height, glow }
-	local function makeFrameButton(opts)
-		local slot = Instance.new("Frame")
-		slot.Size = UDim2.fromOffset(opts.width, opts.height)
-		slot.BackgroundTransparency = 1
-		slot.LayoutOrder = opts.order or 0
-		slot.ZIndex = 10
-		slot.Parent = opts.parent
-		table.insert(slots, slot)
-
-		local button = Instance.new("TextButton")
-		button.Size = UDim2.fromScale(1, 1)
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = opts.textSize
-		button.Text = opts.text
-		button.TextWrapped = true
-		button.TextYAlignment = opts.iconKey and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center
-		button.TextColor3 = CREAM
-		button.TextTransparency = 0
-		button.TextStrokeColor3 = Color3.fromRGB(40, 24, 10)
-		button.TextStrokeTransparency = 0.5
-		button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-		button.AutoButtonColor = false
-		button.ZIndex = ART_Z + 1
-		button.Parent = slot
-		polishButton(button, 12)
-		local rim = button:FindFirstChildOfClass("UIStroke")
-		if rim then
-			rim.Color = Color3.fromRGB(214, 172, 88)
-			rim.Thickness = 2
-		end
-		local small = opts.width < 120
-		local slice = SkinArt.Slices.button
-		SkinArt.apply(button, ArtAssets.actionButtonArt, {
-			tint = SkinArt.Tints.button,
-			zIndex = ART_Z,
-			sliceCenter = slice.center,
-			sliceScale = small and 0.18 or slice.scale,
-			onLoaded = function()
-				SkinArt.hideCodeChrome(button)
-			end,
-		})
-
-		if opts.iconKey then
-			-- LABEL CLEARANCE (measured in Studio): the frame art has a thick bottom
-			-- border, so padding from the outer edge was not enough. The label lives
-			-- in its own TextLabel whose BOTTOM edge is 26px above the button bottom
-			-- (24px tall, so text center is 38px above it; minimum 24 / 30). Tiles
-			-- (126 tall): icon 10..70, label 76..100. Small (114): icon 8..54, label 64..88.
-			button.Text = ""
-			local labelBox = Instance.new("TextLabel")
-			labelBox.Name = "Label"
-			labelBox.AnchorPoint = Vector2.new(0.5, 1)
-			labelBox.Position = UDim2.new(0.5, 0, 1, -26)
-			labelBox.Size = UDim2.new(1, -16, 0, 24)
-			labelBox.BackgroundTransparency = 1
-			labelBox.Font = Enum.Font.GothamBold
-			labelBox.TextSize = opts.textSize
-			labelBox.Text = opts.text
-			labelBox.TextWrapped = false
-			labelBox.TextXAlignment = Enum.TextXAlignment.Center
-			labelBox.TextYAlignment = Enum.TextYAlignment.Center
-			labelBox.TextColor3 = CREAM
-			labelBox.TextTransparency = 0
-			labelBox.TextStrokeColor3 = Color3.fromRGB(40, 24, 10)
-			labelBox.TextStrokeTransparency = 0.5
-			labelBox.Active = false
-			labelBox.ZIndex = ART_Z + 2
-			labelBox.Parent = button
-			local size = opts.iconSize
-			local artId = ContentArt.getImageId("menu_icons", opts.iconKey) or opts.iconImage
-			local holder = Instance.new("Frame")
-			holder.AnchorPoint = Vector2.new(0.5, 0)
-			holder.Position = UDim2.new(0.5, 0, 0, small and 8 or 10)
-			holder.Size = UDim2.fromOffset(size, size)
-			holder.BackgroundTransparency = 1
-			holder.Active = false
-			holder.ZIndex = ART_Z + 2
-			holder.Parent = button
-			if artId then
-				local img = Instance.new("ImageLabel")
-				img.Size = UDim2.fromScale(1, 1)
-				img.BackgroundTransparency = 1
-				img.Image = artId
-				img.ScaleType = Enum.ScaleType.Fit
-				img.Active = false
-				img.ZIndex = ART_Z + 2
-				img.Parent = holder
-				local c = Instance.new("UICorner")
-				c.CornerRadius = UDim.new(0, 8)
-				c.Parent = img
-			else
-				local emoji = Instance.new("TextLabel")
-				emoji.Size = UDim2.fromScale(1, 1)
-				emoji.BackgroundTransparency = 1
-				emoji.Font = Enum.Font.Gotham
-				emoji.TextSize = math.floor(size * 0.8)
-				emoji.Text = opts.emoji
-				emoji.TextTransparency = 0
-				emoji.TextStrokeTransparency = 1
-				emoji.ZIndex = ART_Z + 2
-				emoji.Parent = holder
-			end
-		end
-
-		-- Hover ring (a separate frame so the art's chrome-hiding never touches it).
-		local ring = Instance.new("Frame")
-		ring.Name = "HoverRing"
-		ring.Size = UDim2.fromScale(1, 1)
-		ring.BackgroundTransparency = 1
-		ring.Active = false
-		ring.ZIndex = ART_Z + 3
-		ring.Parent = button
-		do
-			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(0, 10)
-			c.Parent = ring
-		end
-		local ringStroke = Instance.new("UIStroke")
-		ringStroke.Color = Color3.fromRGB(255, 232, 160)
-		ringStroke.Thickness = 3
-		ringStroke.Transparency = 1
-		ringStroke.Parent = ring
-
-		local press = Instance.new("UIScale")
-		press.Name = "PressScale"
-		press.Parent = button
-
-		button.MouseEnter:Connect(function()
-			require(script.Parent.Cue).play("hover")
-			TweenService:Create(ringStroke, TweenInfo.new(0.12), { Transparency = 0.1 }):Play()
-			if not calm() then
-				TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, -3) }):Play()
-			end
-			if playClickSfx then
-				playClickSfx(0.15)
-			end
-		end)
-		local function rest()
-			TweenService:Create(ringStroke, TweenInfo.new(0.12), { Transparency = 1 }):Play()
-			TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, 0) }):Play()
-			TweenService:Create(press, TweenInfo.new(0.08), { Scale = 1 }):Play()
-		end
-		button.MouseLeave:Connect(rest)
-		button.MouseButton1Down:Connect(function()
-			TweenService:Create(press, TweenInfo.new(0.06), { Scale = 0.97 }):Play()
-		end)
-		button.MouseButton1Up:Connect(function()
-			TweenService:Create(press, TweenInfo.new(0.1), { Scale = 1 }):Play()
-		end)
-
-		if opts.glow then
-			local glow = Instance.new("Frame")
-			glow.Name = "PlayGlow"
-			glow.AnchorPoint = Vector2.new(0.5, 0.5)
-			glow.Position = UDim2.fromScale(0.5, 0.5)
-			glow.Size = UDim2.new(1, 8, 1, 8)
-			glow.BackgroundTransparency = 1
-			glow.Active = false
-			glow.ZIndex = ART_Z
-			glow.Parent = slot
-			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(0, 14)
-			c.Parent = glow
-			local gs = Instance.new("UIStroke")
-			gs.Color = Color3.fromRGB(255, 190, 90)
-			gs.Thickness = 2
-			gs.Transparency = 0.6
-			gs.Parent = glow
-			-- 1.25s each way = a 2.5s loop; stopped while the menu is closed
-			table.insert(glowTweens, TweenService:Create(gs, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Thickness = 6, Transparency = 0.15 }))
-			table.insert(glowTweens, { reset = function()
-				gs.Thickness, gs.Transparency = 2, 0.6
-			end })
-		end
-		return button
-	end
-
-	require(script.Parent.NewsPanel).attach(menuButtonHolder, -3) -- News banner for the running live event (state.news), top of the menu
-	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank), above Play
-	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal), above Play
+	require(script.Parent.NewsPanel).attach(menuButtonHolder, -3) -- News banner for the running live event (state.news)
+	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank)
+	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal)
 	-- Today's best run and a rounded run count (Client/MenuTicker.lua); its button opens the Daily board (wired by the hub)
 	local menuTickerButton = require(script.Parent.MenuTicker).attach(menuButtonHolder, 0)
-	local menuPlayButton = makeFrameButton({
-		text = "Play", textSize = 36, parent = menuButtonHolder, order = 1, width = 360, height = 76, glow = true,
-	})
-	local menuNewRunButton = makeFrameButton({
-		text = "New Run...", textSize = 24, parent = menuButtonHolder, order = 2, width = 300, height = 54,
-	})
-	local tileRow = makeRow(3, 126, 12)
-	local menuDailyChallengeButton = makeFrameButton({
-		text = "Daily Challenge", textSize = 15, parent = tileRow, order = 1, width = 144, height = 126,
-		iconKey = "daily", emoji = "\240\159\147\133", iconSize = 60,
-	})
-	local menuWeeklyChallengeButton = makeFrameButton({
-		text = "Weekly Challenge", textSize = 15, parent = tileRow, order = 2, width = 144, height = 126,
-		iconKey = "weekly", emoji = "\240\159\151\147", iconSize = 60,
-	})
-	local menuSeedRunButton = makeFrameButton({
-		text = "Seed Run...", textSize = 15, parent = tileRow, order = 3, width = 144, height = 126,
-		iconKey = "seed", emoji = "\240\159\142\178", iconSize = 60,
-	})
-	-- Daily Quests tile (Client/QuestsPanel.lua opens from it). Painted icon key "quests", scroll emoji until it exists.
-	local menuQuestsButton = makeFrameButton({
-		text = "Daily Quests", textSize = 15, parent = tileRow, order = 4, width = 144, height = 126,
-		iconKey = "quests", emoji = "\240\159\147\156", iconSize = 60,
-	})
-	-- One row of five equal 114px tiles (5*114 + 4*10 = 610 <= 640 wide scroll).
-	local bottomRow = makeRow(4, 114, 8)
-	local menuJourneyButton = makeFrameButton({
-		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 106, height = 114,
-		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
-	})
-	local menuHowToPlayButton = makeFrameButton({
-		text = "How to Play", textSize = 14, parent = bottomRow, order = 2, width = 106, height = 114,
-		iconKey = "how_to_play", emoji = "\240\159\147\150", iconSize = 46,
-	})
-	local menuTutorialButton = makeFrameButton({
-		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 106, height = 114,
-		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
-	})
-	-- "New" ribbon + soft pulsing rim until the tutorial has been completed once or dismissed. Children of the
-	-- button (they survive Clone, never block clicks). TutorialWalkthrough hides it via TutorialBus "tutorialNew".
-	do
-		local TweenService = game:GetService("TweenService")
-		local ribbon = Instance.new("TextLabel")
-		ribbon.Name = "NewRibbon"
-		ribbon.AnchorPoint = Vector2.new(1, 0)
-		ribbon.Position = UDim2.new(1, -2, 0, 2)
-		ribbon.Size = UDim2.fromOffset(40, 20)
-		ribbon.BackgroundColor3 = Color3.fromRGB(176, 52, 40)
-		ribbon.Font = Enum.Font.GothamBold
-		ribbon.Text = "New"
-		ribbon.TextSize = 15
-		ribbon.TextColor3 = Color3.fromRGB(250, 235, 200)
-		ribbon.TextTransparency = 0
-		ribbon.TextStrokeTransparency = 0.6
-		ribbon.Rotation = 8
-		ribbon.ZIndex = ART_Z + 6
-		ribbon.Active = false
-		ribbon.Parent = menuTutorialButton
-		local rc = Instance.new("UICorner")
-		rc.CornerRadius = UDim.new(0, 5)
-		rc.Parent = ribbon
-		local rim = menuTutorialButton:FindFirstChildOfClass("UIStroke")
-		local tween
-		if rim then
-			tween = TweenService:Create(rim, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Color = Color3.fromRGB(255, 226, 140), Thickness = 3.5 })
-			tween:Play()
-		end
-		require(script.Parent.TutorialBus).register("tutorialNew", function() return ribbon end)
-		ribbon:SetAttribute("Dismiss", false)
-		ribbon:GetAttributeChangedSignal("Dismiss"):Connect(function()
-			if ribbon:GetAttribute("Dismiss") then
-				ribbon.Visible = false
-				if tween then
-					tween:Cancel()
-					if rim then rim.Color = Color3.fromRGB(214, 172, 88); rim.Thickness = 2 end
-				end
-			end
+
+	-- ===== Actions: one real button each =====
+	local buttons = {}
+	for _, action in ipairs(Layout.Actions) do
+		local hotspot = Layout.hotspotOf(action.id)
+		local single = hotspot and #hotspot.actions == 1
+		buttons[action.id] = Hotspots.newAction(action.id, {
+			actionLabel = action.label,
+			hotspotLabel = (single or action.id == "play") and hotspot.label or action.label,
+			desc = (single or action.id == "play") and hotspot.desc or "",
+		})
+		buttons[action.id].MouseEnter:Connect(function()
+			require(script.Parent.Cue).play("hover")
 		end)
 	end
-	-- Browse the Collection (Badges, Card Sets) and Settings before a run. Same row as the
-	-- three small tiles. Reuses the in-run corner icon art (no menu_icons key); the panels
-	-- open from Collection.lua / Settings.lua.
-	local accountRow = makeRow(6, 114, 8) -- its own row: Collection, Settings, Store, Invite, Season, Rewards (6 x 98 + 5 x 8 = 628 <= 640)
-	local menuCollectionButton = makeFrameButton({
-		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 98, height = 114,
-		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
-	})
-	local menuSettingsButton = makeFrameButton({
-		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 98, height = 114,
-		iconKey = "settings", iconImage = ArtAssets.cornerIconSettings, emoji = "\226\154\153", iconSize = 46,
-	})
-	-- The Tavern Store (Client/StorePanel.lua opens from it): painted icon key "store", market emoji until it exists.
-	local menuStoreButton = makeFrameButton({
-		text = "Store", textSize = 14, parent = accountRow, order = 6, width = 98, height = 114,
-		iconKey = "store", emoji = "\240\159\155\146", iconSize = 46,
-	})
-	-- Invite a friend (Client/InvitePrompt.lua): Roblox's invite sheet; painted icon key "invite" once it exists, envelope emoji until then.
-	local menuInviteButton = makeFrameButton({
-		text = "Invite", textSize = 14, parent = accountRow, order = 7, width = 98, height = 114,
-		iconKey = "invite", emoji = "\240\159\146\140", iconSize = 46,
-	})
+	local menuPlayButton = buttons.play
+	local menuNewRunButton = buttons.newRun
+	local menuDailyChallengeButton = buttons.daily
+	local menuWeeklyChallengeButton = buttons.weekly
+	local menuSeedRunButton = buttons.seed
+	local menuQuestsButton = buttons.quests
+	local menuJourneyButton = buttons.road
+	local menuHowToPlayButton = buttons.howToPlay
+	local menuTutorialButton = buttons.tutorial
+	local menuCollectionButton = buttons.collection
+	local menuSettingsButton = buttons.settings
+	local menuStoreButton = buttons.store
+	local menuInviteButton = buttons.invite
+	local menuSeasonButton = buttons.season
+	local menuDailyRewardsButton = buttons.rewards
 	require(script.Parent.InvitePrompt).bind(menuInviteButton)
-	-- Tavern Season (Client/SeasonPanel.lua opens from it): the 30 day reward ladder. Icon key "season", ticket emoji until it exists.
-	local menuSeasonButton = makeFrameButton({
-		text = "Season", textSize = 14, parent = accountRow, order = 8, width = 98, height = 114,
-		iconKey = "season", emoji = "\240\159\142\171", iconSize = 46,
-		iconImage = ContentArt.getImageId("seasons", "menu_season"), -- painted ticket once generated; ticket emoji until then
-	})
 
-	
-	-- Daily Rewards: the permanent 7-day ladder (Client/DailyRewardsPanel.lua), readable any time. Painted "daily_rewards" icon once it exists, gift emoji until then.
-	local menuDailyRewardsButton = makeFrameButton({
-		text = "Rewards", textSize = 14, parent = accountRow, order = 9, width = 98, height = 114,
-		iconKey = "daily_rewards", emoji = "\240\159\142\129", iconSize = 46,
-		iconImage = ContentArt.getImageId("discoveries", "chest"), -- reuse the painted chest until a dedicated icon is recorded
-	})
+	-- Panels that open through OverlayManager openers (no old Menu button): Flair, Legend, Ledger, Leaderboards, Volume.
+	for id, overlay in pairs({ flair = "flair", legend = "legend", stats = "stats", leaderboards = "dailyLeaderboard", volume = "volume" }) do
+		buttons[id].MouseButton1Click:Connect(function()
+			pcall(OverlayManager.open, overlay) -- each panel's opener plays its own click sound
+		end)
+	end
 	menuDailyRewardsButton.MouseButton1Click:Connect(function()
 		pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
 	end)
-
-menuDailyChallengeButton.MouseButton1Click:Connect(function()
+	menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
 			playClickSfx()
 		end
@@ -587,7 +246,6 @@ menuDailyChallengeButton.MouseButton1Click:Connect(function()
 			StartDailyChallengeRemote:FireServer()
 		end
 	end)
-
 	menuWeeklyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
 			playClickSfx()
@@ -599,7 +257,6 @@ menuDailyChallengeButton.MouseButton1Click:Connect(function()
 			StartWeeklyChallengeRemote:FireServer()
 		end
 	end)
-
 	menuSeedRunButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
 			playClickSfx()
@@ -609,37 +266,107 @@ menuDailyChallengeButton.MouseButton1Click:Connect(function()
 		end
 	end)
 
-	-- One-shot load-in: title, ribbon, then the button slots top to bottom.
-	local reveal = { menuTitleShadow, menuTitle, menuSubtitle }
-	for _, slot in ipairs(slots) do
-		table.insert(reveal, slot)
+	-- "New" ribbon until the tutorial has been completed once or dismissed. It is a child of the button (survives Clone, never
+	-- blocks clicks); TutorialWalkthrough hides it via TutorialBus "tutorialNew". The Open Book hotspot mirrors it.
+	local ribbon = Instance.new("TextLabel")
+	ribbon.Name = "NewRibbon"
+	ribbon.AnchorPoint = Vector2.new(1, 0)
+	ribbon.Position = UDim2.new(1, -2, 0, 2)
+	ribbon.Size = UDim2.fromOffset(44, 22)
+	ribbon.BackgroundColor3 = Color3.fromRGB(176, 52, 40)
+	ribbon.Font = Enum.Font.GothamBold
+	ribbon.Text = "New"
+	ribbon.TextSize = 15
+	ribbon.TextColor3 = Color3.fromRGB(250, 235, 200)
+	ribbon.TextTransparency = 0
+	ribbon.TextStrokeTransparency = 1
+	ribbon.Rotation = 8
+	ribbon.ZIndex = 20
+	ribbon.Active = false
+	ribbon:SetAttribute("ZOff", 6)
+	ribbon.Parent = menuTutorialButton
+	do
+		local rc = Instance.new("UICorner")
+		rc.CornerRadius = UDim.new(0, 5)
+		rc.Parent = ribbon
+		require(script.Parent.TutorialBus).register("tutorialNew", function() return ribbon end)
+		ribbon:SetAttribute("Dismiss", false)
+		ribbon:GetAttributeChangedSignal("Dismiss"):Connect(function()
+			if ribbon:GetAttribute("Dismiss") then
+				ribbon.Visible = false
+			end
+		end)
 	end
-	revealStagger(reveal, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
+
+	-- ===== Mid layer: the hotspots =====
+	local hotspotLayer = Instance.new("Frame")
+	hotspotLayer.Name = "HotspotLayer"
+	hotspotLayer.Size = UDim2.fromScale(1, 1)
+	hotspotLayer.BackgroundTransparency = 1
+	hotspotLayer.Active = false
+	hotspotLayer.ZIndex = 13
+	hotspotLayer.Parent = menuFrame
+
+	local hotspots = Hotspots.build({
+		menuFrame = menuFrame,
+		layer = hotspotLayer,
+		buttons = buttons,
+		calm = calm,
+		tutorialRibbon = ribbon,
+		onHover = function(on)
+			TweenService:Create(sceneDim, TweenInfo.new(0.12), { BackgroundTransparency = on and 0.8 or 1 }):Play()
+		end,
+	})
+	local function viewport()
+		local v = screenGui.AbsoluteSize
+		if v.X <= 0 or v.Y <= 0 then
+			local camera = workspace.CurrentCamera
+			v = camera and camera.ViewportSize or Vector2.new(1920, 1080)
+		end
+		return v
+	end
+	hotspots.applyViewport(viewport().X, viewport().Y)
+	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		local v = viewport()
+		hotspots.applyViewport(v.X, v.Y)
+	end)
+
+	-- ===== Foreground and parallax =====
+	local scene = require(script.Parent.MenuScene).build(menuFrame)
+	local P = Layout.Parallax
+	local parallax = require(script.Parent.MenuParallax).new({
+		screenGui = screenGui,
+		calm = calm,
+		layers = {
+			{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
+			{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
+			{ inst = titleGroup, base = UDim2.new(), px = P.near },
+			{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
+		},
+		onStep = scene.update,
+	})
+
+	-- One-shot load-in: title and ribbon fade up, the hotspots drop in with a 0.06s stagger.
+	revealStagger({ menuTitleShadow, menuTitle, menuSubtitle }, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
 
 	-- ===== Loops (only while the menu is open; skipped under Reduce Shake) =====
 	local loopToken = 0
 	local function stopLoops()
 		loopToken += 1
-		for _, t in ipairs(glowTweens) do
-			if t.Cancel then
-				t:Cancel()
-			elseif t.reset then
-				t.reset()
-			end
-		end
+		hotspots.stopLoops()
+		hotspots.closeAll()
+		parallax.stop()
 		menuTitle.TextTransparency = 0
 	end
 	local function startLoops()
 		stopLoops()
+		hotspots.entry()
+		parallax.start() -- holds still in calm mode
 		if calm() then
 			return
 		end
 		local my = loopToken
-		for _, t in ipairs(glowTweens) do
-			if t.Play then
-				t:Play()
-			end
-		end
+		hotspots.startLoops()
 		task.spawn(function()
 			task.wait(1.5) -- let the load-in finish first
 			while loopToken == my and menuFrame.Visible do
