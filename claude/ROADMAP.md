@@ -31,6 +31,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Start-of-run choices: starting deck, starting Patron, one curse or blessing
 - [x] Random events between Nights
 - [x] Challenge runs with a twist (Pairs Only, No Discards)
+- [x] Legend prestige after stake 8: ten cosmetic Legend levels (`Engine/Legend.lua`)
 - [x] More bosses with distinct rules; Boss Rush after the first win
 
 ## Phase 4: Social

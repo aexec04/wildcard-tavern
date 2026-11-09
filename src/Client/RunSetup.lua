@@ -355,6 +355,20 @@ return function(deps)
 			end
 		end
 
+		-- Legend progress (Engine/Legend.lua): the prestige after stake 8, shown at the end of the stake list. Not selectable.
+		do
+			local legendState = deps.getLatestState and deps.getLatestState()
+			local view = legendState and legendState.legend
+			if view then
+				local name = view.open and ("👑 Legend level " .. view.level .. " of " .. view.max) or "👑 Legend"
+				local text = view.open and view.hint or "Clear stake 8 to become a Legend. Rewards are cosmetic."
+				local legendCard, legendClick = makePickCard(runSetupScroll, STAKE_CARD_BASE + 20, name, text, false, Color3.fromRGB(255, 214, 100), not view.open, nil)
+				legendClick.Active = false
+				table.insert(stakeCards, legendCard)
+				table.insert(newlyBuiltCards, legendCard)
+			end
+		end
+
 		-- Challenge twists: None, then one card per twist (a check when already cleared). Picking one drops the Boss Rush.
 		for _, child in ipairs(challengeCards) do
 			child:Destroy()

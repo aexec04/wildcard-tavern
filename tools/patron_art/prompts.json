@@ -459,7 +459,10 @@
     "book_bosses": "an avatar gently petting a huge friendly shadowy boss figure with glowing eyes, both smiling, tavern background",
     "book_sets": "an avatar draping a golden tablecloth over a card table while cards of many colorful backs float around",
     "book_titles": "an avatar wearing a tall stack of different funny hats with little name tags, grinning",
-    "book_badges": "an avatar wearing a sash covered in shiny round badges, standing proudly in a lantern lit tavern"
+    "book_badges": "an avatar wearing a sash covered in shiny round badges, standing proudly in a lantern lit tavern",
+    "legend_1": "an avatar standing tall under a glowing golden crown that floats above the head in a candlelit tavern, proud",
+    "legend_5": "an avatar in a long golden cape holding a glowing trophy cup, a crowd of blocky guests cheering behind",
+    "legend_9": "an avatar wearing a huge golden crown seated on a glowing throne made of playing cards, calm and kind"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -607,7 +610,10 @@
     "gala": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. rich burgundy and gold with grand chandelier rays, ornate banners and a gold crown crest",
     "winter_lanterns": "portrait 2:3 playing card back design, a single centered ornate design with a gold border frame and a perfectly symmetrical pattern filling the whole card, flat front-on view, opaque background, no text, no letters, no numbers, no characters, kid-friendly. deep midnight blue with falling snowflakes and rows of glowing amber paper lanterns, a large gold lantern crest in the center",
     "harvest_moon": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, deep amber and brown with a large golden harvest moon in the center, wheat sprigs and tiny lanterns around it, no text, no letters, no numbers, kid-friendly",
-    "winter_welcome": "A single card back design, portrait 2:3, symmetrical, ornate pale gold border frame, deep winter blue with a glowing lantern and a knitted scarf pattern, snowflakes and stars around it, no text, no letters, no numbers, kid-friendly"
+    "winter_welcome": "A single card back design, portrait 2:3, symmetrical, ornate pale gold border frame, deep winter blue with a glowing lantern and a knitted scarf pattern, snowflakes and stars around it, no text, no letters, no numbers, kid-friendly",
+    "legend_gold": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, deep brown with a big shining gold crown in the center and gold laurel leaves around it, no text, no letters, no numbers, kid-friendly",
+    "legend_crown": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, royal purple with a tall golden crown and small gold stars in a ring, no text, no letters, no numbers, kid-friendly",
+    "legend_eternal": "A single card back design, portrait 2:3, symmetrical, ornate gold border frame, midnight blue with a single glowing golden candle flame in the center and a ring of tiny gold stars, no text, no letters, no numbers, kid-friendly"
   },
   "pack_subjects": {
     "buffoon_pack": "a red velvet pouch bulging with tiny patron figurines, tied with gold cord and topped with a little jester bell. A single object, centered, painterly, soft shadow underneath, plain very dark neutral background, kid-friendly, no text, no letters",
@@ -837,5 +843,10 @@
     "season_harvest_moon": "a wide painted banner of a huge golden harvest moon over rolling fields dotted with glowing lanterns and haystacks, warm candlelit tavern style, wide landscape composition, no text, no letters, no numbers, kid-friendly",
     "season_winter_welcome": "a wide painted banner of a snowy village street with warm glowing tavern windows, strings of lanterns and a starry blue sky, warm candlelit style, wide landscape composition, no text, no letters, no numbers, kid-friendly",
     "menu_season": "a golden ticket with a ribbon and a tiny moon on it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "legend_subjects": {
+    "gold_cup": "a shining golden trophy cup with a small crown on a wooden table, glowing warm light, single centered subject on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "eternal_candle": "a tall white candle with a steady golden flame in a brass holder, glowing warm light, single centered subject on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "keepers_key": "a big ornate golden key with a crown shaped handle, glowing warm light, single centered subject on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   }
 }

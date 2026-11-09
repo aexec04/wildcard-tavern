@@ -803,6 +803,19 @@ for _, spec in ipairs({
 		requirement = function(p) return p.rewardTitleIds ~= nil and p.rewardTitleIds[id] == true end,
 	})
 end
+-- Legend prestige titles (Engine/Legend.lua levels 1, 5 and 9): granted into rewardTitleIds
+for _, spec in ipairs({
+	{ "legend_1", "Legend", "👑", "legendary", "You cleared the hardest night." },
+	{ "legend_5", "Living Legend", "🌟", "legendary", "Stories about you are told at every table." },
+	{ "legend_9", "Legend of Legends", "🏆", "mythical", "Even the Keeper tips a hat to you." },
+}) do
+	local id = spec[1]
+	table.insert(Achievements.Definitions, {
+		id = id, name = spec[2], icon = spec[3], title = spec[2], rarity = spec[4], milestoneReward = true,
+		description = "A Legend reward: climb the Legend levels after stake 8.", flavorText = spec[5],
+		requirement = function(p) return p.rewardTitleIds ~= nil and p.rewardTitleIds[id] == true end,
+	})
+end
 -- invites (Engine/Invites.lua): distinct friends who joined through your invite
 addWave("welcoming_host", "Welcoming Host", "💌", "Welcoming Host", "Bring 3 friends in through an invite.", "The door is open and the lanterns are lit.",
 	function(p) return (p.invitesAccepted or 0) >= 3 end)

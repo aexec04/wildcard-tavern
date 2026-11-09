@@ -234,6 +234,9 @@ function PlayerProfile.new()
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
 		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
+		legendPoints = 0, -- Legend prestige (Engine/Legend.lua): level = points, capped at 10
+		legendRoads = {}, -- [region] = true, roads already cleared on stake 8 (the new-road bonus is paid once)
+		legendRewardIds = {}, -- [level] = true, Legend rewards already granted
 		collectionRewardsClaimed = {}, -- ["patrons:50"] = true (Engine/CollectionRewards.lua)
 		hintsSeen = {}, -- [first time hint id] = true (Engine/Hints.lua)
 		invitesAccepted = 0, -- Engine/Invites.lua: distinct invitees credited
@@ -470,6 +473,13 @@ function PlayerProfile.migrate(raw)
 	require(script.Parent.Invites).cleanSaved(profile, raw)
 	profile.hintsSeen = require(script.Parent.Hints).cleanSaved(raw.hintsSeen)
 	profile.collectionRewardsClaimed = require(script.Parent.CollectionRewards).cleanSaved(raw.collectionRewardsClaimed)
+	do
+		local Legend = require(script.Parent.Legend)
+		profile.legendPoints, profile.legendRoads, profile.legendRewardIds = Legend.cleanSaved(raw.legendPoints, raw.legendRoads, raw.legendRewardIds, function(region)
+			return WorldMap.Regions[region] ~= nil
+		end)
+		Legend.grantDue(profile) -- idempotent: re-grants anything a level should already have (safe after a rename)
+	end
 	profile.seasonId, profile.seasonXp, profile.seasonClaimed = require(script.Parent.SeasonTrack).cleanSaved(raw.seasonId, raw.seasonXp, raw.seasonClaimed)
 	profile.quickBest = require(script.Parent.RunHistory).cleanQuickBest(raw.quickBest) -- Quick Run personal best (Engine/RunModes.lua)
 	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)

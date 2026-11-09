@@ -4682,6 +4682,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, m in ipairs(require(script.Parent.Parent.Engine.Discoveries).Milestones) do
 		rewardedTitles[m.titleId] = true
 	end
+	-- Titles handed out by Legend prestige count too.
+	for _, reward in pairs(require(script.Parent.Parent.Engine.Legend).Rewards) do
+		if reward.kind == "title" then rewardedTitles[reward.id] = true end
+	end
 	-- Titles handed out by Collection completion rewards count too.
 	for _, perGroup in pairs(require(script.Parent.Parent.Engine.CollectionRewards).Rewards) do
 		for _, reward in pairs(perGroup) do
@@ -8689,7 +8693,7 @@ end })
 
 table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
 	local Defs = Achievements.Definitions
-	expectEqual(#Defs, 93, "53 original + 30 new + 2 invite titles + 2 season titles + 6 Collection completion titles")
+	expectEqual(#Defs, 96, "53 original + 30 new + 2 invite + 2 season + 6 Collection completion + 3 Legend titles")
 	local ids, titles, titled = {}, {}, 0
 	for index, a in ipairs(Defs) do
 		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
@@ -8839,6 +8843,64 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(junk.invitesAccepted, 1); expectEqual(junk.invitedByUserId, nil); expectFalse(junk.inviteeRewardClaimed)
 	expectEqual(PlayerProfile.migrate({}).invitesAccepted, 0, "old saves get safe defaults")
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
+end })
+
+table.insert(tests, { name = "Legend: level math, new road bonus, rewards once, no gameplay power, safe migration", fn = function()
+	local Legend = require(script.Parent.Parent.Engine.Legend)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	expectEqual(Legend.MAX_LEVEL, 10); expectEqual(Legend.UNLOCK_STAKE, Stakes.MAX)
+	-- rewards: 10 levels, valid ids, at most 10 new registry entries, cosmetic kinds only
+	local newEntries = 0
+	for level = 1, 10 do
+		local r = Legend.Rewards[level]
+		expectTrue(r ~= nil, "level " .. level)
+		expectTrue(r.kind == "title" or r.kind == "cardBack" or r.kind == "aura" or r.kind == "trinket", "cosmetic only")
+		if r.kind == "title" then expectTrue(Achievements.getById(r.id) ~= nil and Achievements.getById(r.id).milestoneReward, r.id); newEntries = newEntries + 1 end
+		if r.kind == "cardBack" then expectTrue(CardBacks.getById(r.id) ~= nil, r.id); newEntries = newEntries + 1 end
+		if r.kind == "trinket" then expectTrue(type(r.icon) == "string" and r.icon ~= "" and r.name ~= "") end
+	end
+	expectTrue(newEntries <= 10, "at most 10 new registry entries, got " .. newEntries)
+	expectEqual(Legend.levelFor(-3), 0); expectEqual(Legend.levelFor(4.9), 4); expectEqual(Legend.levelFor(50), 10); expectEqual(Legend.levelFor("x"), 0); expectEqual(Legend.levelFor(nil), 0)
+	-- a new profile is not a Legend
+	local profile = PlayerProfile.new()
+	expectEqual(Legend.level(profile), 0); expectFalse(Legend.isOpen(profile)); expectFalse(Legend.hasAura(profile))
+	local view0 = Legend.view(profile)
+	expectEqual(view0.level, 0); expectTrue(view0.locked); expectFalse(view0.open); expectEqual(#view0.rewards, 10)
+	-- the first clear: 1 point + 1 for the new road = level 2, the level 1 title and the level 2 aura
+	local r1 = Legend.recordClear(profile, { "road", "road", "meadow" })
+	expectEqual(r1.points, 3, "1 clear + 2 new roads"); expectEqual(r1.levelBefore, 0); expectEqual(r1.levelAfter, 3)
+	expectEqual(#r1.granted, 3); expectTrue(profile.rewardTitleIds.legend_1); expectTrue(profile.unlockedCardBackIds.legend_gold)
+	expectTrue(Legend.hasAura(profile)); expectTrue(Achievements.isUnlocked(profile, "legend_1"))
+	-- repeating the same roads only pays the clear point, never the road bonus again
+	local r2 = Legend.recordClear(profile, { "road", "meadow" })
+	expectEqual(r2.points, 1); expectEqual(Legend.level(profile), 4); expectEqual(#r2.granted, 1)
+	expectEqual(#Legend.trinkets(profile), 1); expectEqual(Legend.trinkets(profile)[1].id, "gold_cup")
+	-- a new road pays again, junk regions are ignored
+	local r3 = Legend.recordClear(profile, { "river", 5, "swamp" })
+	expectEqual(r3.points, 3); expectEqual(Legend.level(profile), 7); expectTrue(profile.unlockedCardBackIds.legend_crown)
+	-- rewards are granted once: grantDue again grants nothing, and the cap holds
+	expectEqual(#Legend.grantDue(profile), 0)
+	for _ = 1, 20 do Legend.recordClear(profile, {}) end
+	expectEqual(Legend.level(profile), 10); expectEqual(Legend.view(profile).level, 10)
+	expectTrue(profile.rewardTitleIds.legend_9 and profile.unlockedCardBackIds.legend_eternal)
+	expectEqual(#Legend.trinkets(profile), 3); expectEqual(Legend.view(profile).hint, "Every Legend reward is yours.")
+	local points = profile.legendPoints
+	Legend.recordClear(profile, { "coast" })
+	expectEqual(Legend.level(profile), 10, "the level never passes 10"); expectTrue(profile.legendPoints > points and profile.legendPoints <= Legend.MAX_POINTS)
+	-- Legend never touches runs: it only writes cosmetic profile sets
+	local before = profile.stats.runsWon
+	Legend.recordClear(profile, {})
+	expectEqual(profile.stats.runsWon, before)
+	-- save and load: points, roads and rewards survive, junk is dropped, missing grants are re-derived
+	local loaded = PlayerProfile.migrate(profile)
+	expectEqual(loaded.legendPoints, profile.legendPoints); expectTrue(loaded.legendRoads.river); expectTrue(loaded.legendRewardIds[10])
+	local junk = PlayerProfile.migrate({ legendPoints = "x", legendRoads = { road = true, nowhere = true, meadow = "yes" }, legendRewardIds = { [99] = true, [2] = true } })
+	expectEqual(junk.legendPoints, 0); expectTrue(junk.legendRoads.road); expectEqual(junk.legendRoads.nowhere, nil); expectEqual(junk.legendRoads.meadow, nil)
+	expectEqual(junk.legendRewardIds[99], nil)
+	expectEqual(PlayerProfile.migrate({ legendPoints = 1e12 }).legendPoints, Legend.MAX_POINTS)
+	local regrant = PlayerProfile.migrate({ legendPoints = 5 })
+	expectTrue(regrant.rewardTitleIds.legend_1 == true and regrant.legendRewardIds[5], "rewards for the saved level are granted on load")
+	expectEqual(PlayerProfile.migrate({}).legendPoints, 0, "old saves get safe defaults")
 end })
 
 table.insert(tests, { name = "MenuTicker: run counts rounded, board line with name and flair, flavor fallback", fn = function()

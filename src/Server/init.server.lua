@@ -979,6 +979,10 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		legend = profiles[player] and (function()
+			local ok, view = pcall(function() return require(Engine.Legend).view(profiles[player], liveLookup) end)
+			return ok and view or nil
+		end)() or nil, -- Legend prestige (level, rewards, aura)
 		collectionRewards = profiles[player] and (function()
 			local ok, view = pcall(function() return require(Engine.CollectionRewards).view(profiles[player], liveLookup) end)
 			return ok and view or nil
@@ -1184,6 +1188,16 @@ local function syncProfileFromSession(player)
 						regions[#regions + 1] = WorldMap.regionOf(stopId)
 					end
 					Stakes.recordWin(profile, session.state.stake, regions)
+					-- LEGEND PRESTIGE (Engine/Legend.lua): a standard stake 8 clear earns Legend points (a new road pays a bonus)
+					if session.state.stake == Stakes.MAX and not session.state.quickRun then
+						pcall(function()
+							local Legend = require(Engine.Legend)
+							local result = Legend.recordClear(profile, regions)
+							if result.levelAfter > result.levelBefore then
+								pushRewardNotice(player, { icon = "👑", text = "Legend level " .. result.levelAfter .. "!" })
+							end
+						end)
+					end
 				end
 			changed = true
 		end

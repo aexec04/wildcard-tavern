@@ -177,6 +177,34 @@ CardBacks.Definitions = {
 		flavorText = "Strung up for the longest nights of the year.",
 		seasonal = true,
 	},
+	-- Legend prestige rewards (Engine/Legend.lua levels 3, 7 and 10): cosmetic only.
+	{
+		id = "legend_gold",
+		name = "Legend Gold",
+		icon = "🥇",
+		colors = { base = { 90, 60, 20 }, trim = { 255, 220, 120 } },
+		description = "A Legend reward: reach Legend level 3.",
+		flavorText = "Stamped in real tavern gold.",
+		seasonal = true,
+	},
+	{
+		id = "legend_crown",
+		name = "Legend Crown",
+		icon = "👑",
+		colors = { base = { 60, 30, 80 }, trim = { 255, 230, 150 } },
+		description = "A Legend reward: reach Legend level 7.",
+		flavorText = "Only worn by those who finished the hardest night.",
+		seasonal = true,
+	},
+	{
+		id = "legend_eternal",
+		name = "Eternal Legend",
+		icon = "🌟",
+		colors = { base = { 20, 20, 40 }, trim = { 255, 245, 200 } },
+		description = "A Legend reward: reach Legend level 10.",
+		flavorText = "The last candle never goes out.",
+		seasonal = true,
+	},
 	-- Tavern Season track finals (Engine/SeasonTrack.lua): tier 30 of that season only.
 	{
 		id = "harvest_moon",

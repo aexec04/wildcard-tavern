@@ -210,6 +210,30 @@ return function(deps)
 		})
 	end
 
+	-- Legend prestige (levels after stake 8, cosmetic rewards) opens from a fifth header button.
+	do
+		local legendButton = button(panel, {
+			Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(455, 4),
+			TextSize = 14, Text = "Legend",
+		})
+		polishButton(legendButton, 8)
+		require(script.Parent.LegendPanel).init({
+			screenGui = screenGui,
+			polishPanel = polishPanel,
+			polishButton = polishButton,
+			roundCorner = roundCorner,
+			addSoftShadow = addSoftShadow,
+			playClickSfx = playClickSfx,
+			openButton = legendButton,
+			addTooltip = addTooltip,
+			getLatestState = getLatestState,
+			popIn = popIn,
+			popOut = popOut,
+			addButtonHoverScale = addButtonHoverScale,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+		})
+	end
+
 	-- Tavern Stats (run history and lifetime numbers) opens from a third header button.
 	do
 		local statsButton = button(panel, {
