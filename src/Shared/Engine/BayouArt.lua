@@ -6,4 +6,12 @@
 ]]
 
 return {
+	["bayou_boat_post"] = "rbxassetid://101047694071557",
+	["bayou_cypress_knees"] = "rbxassetid://80641536618970",
+	["bayou_far_trees"] = "rbxassetid://120091422177477",
+	["bayou_mist"] = "rbxassetid://102162167527961",
+	["bayou_sky"] = "rbxassetid://93982596957068",
+	["bayou_tavern_stilts"] = "rbxassetid://134829576797386",
+	["bayou_water"] = "rbxassetid://98785715949951",
+	["bayou_willow_fg"] = "rbxassetid://78786892328032",
 }
