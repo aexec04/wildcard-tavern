@@ -1028,7 +1028,7 @@ return function(deps)
 	equipButton.Position = UDim2.new(1, -66, 1, -10)
 	equipButton.Size = UDim2.fromOffset(96, 30)
 	equipButton.Font = Enum.Font.GothamBold
-	equipButton.TextSize = 13
+	equipButton.TextSize = 14
 	equipButton.TextColor3 = CREAM
 	equipButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	equipButton.Text = "Equip"

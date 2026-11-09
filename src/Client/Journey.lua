@@ -658,7 +658,7 @@ return function(deps)
 				nightLabel.Position = UDim2.new(0.5, -45, 0, -30)
 				nightLabel.BackgroundTransparency = 1
 				nightLabel.Font = Enum.Font.GothamBold
-				nightLabel.TextSize = 13
+				nightLabel.TextSize = 14
 				nightLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 				nightLabel.Text = string.format("Night %d", night)
 				nightLabel.ZIndex = 22
@@ -829,7 +829,7 @@ return function(deps)
 	journeyBossInfoLabel.Position = UDim2.new(0, 12, 0, 8)
 	journeyBossInfoLabel.BackgroundTransparency = 1
 	journeyBossInfoLabel.Font = Enum.Font.Gotham
-	journeyBossInfoLabel.TextSize = 13
+	journeyBossInfoLabel.TextSize = 14
 	journeyBossInfoLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
 	journeyBossInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 	journeyBossInfoLabel.TextYAlignment = Enum.TextYAlignment.Top

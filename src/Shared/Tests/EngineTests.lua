@@ -9138,6 +9138,44 @@ table.insert(tests, { name = "EndlessRules: one new Crowd Rule every 3 Nights pa
 	expectEqual(PlayerProfile.recordEndlessBest(profile, 3, 0 / 0), false)
 end })
 
+table.insert(tests, { name = "SaveLock and RateLimit: a live lease blocks other servers, stale or own leases do not, release clears it, spam is dropped", fn = function()
+	local SaveLock = require(script.Parent.Parent.Engine.SaveLock)
+	local RateLimit = require(script.Parent.Parent.Engine.RateLimit)
+	-- no stored profile, or no lease: claim
+	expectTrue(SaveLock.canClaim(nil, "A", 1000))
+	expectTrue(SaveLock.canClaim({ stats = {} }, "A", 1000))
+	-- our own lease, and a stale one, can be taken; a live foreign one cannot
+	expectTrue(SaveLock.canClaim({ sessionLock = { jobId = "A", t = 990 } }, "A", 1000))
+	expectEqual(SaveLock.canClaim({ sessionLock = { jobId = "B", t = 990 } }, "A", 1000), false)
+	expectTrue(SaveLock.canClaim({ sessionLock = { jobId = "B", t = 1000 - SaveLock.LEASE - 1 } }, "A", 1000))
+	expectTrue(SaveLock.canClaim({ sessionLock = { jobId = "B" } }, "A", 1000), "a malformed lease is treated as stale")
+	-- stamping copies and never touches the live profile
+	local profile = { keys = 3 }
+	local held = SaveLock.stamp(profile, "A", 1000, false)
+	expectEqual(held.keys, 3)
+	expectEqual(held.sessionLock.jobId, "A")
+	expectEqual(profile.sessionLock, nil)
+	local released = SaveLock.stamp(held, "A", 1001, true)
+	expectEqual(released.sessionLock, nil)
+	expectEqual(#SaveLock.RETRY_DELAYS, 3)
+	-- rate limit: a burst passes, a flood is cut, time refills, players and remotes are separate
+	local t, passed = 100, 0
+	for _ = 1, 100 do
+		if RateLimit.allow(9001, "PlayHand", t) then passed = passed + 1 end
+	end
+	expectEqual(passed, RateLimit.BURST)
+	expectEqual(RateLimit.allow(9001, "PlayHand", t), false)
+	expectTrue(RateLimit.allow(9001, "PlayHand", t + 1), "refills over time")
+	expectTrue(RateLimit.allow(9001, "Discard", t), "another remote has its own bucket")
+	expectTrue(RateLimit.allow(9002, "PlayHand", t), "another player has their own bucket")
+	-- normal play: 5 calls per second for a minute is never blocked
+	for i = 1, 300 do
+		expectTrue(RateLimit.allow(9003, "Buy", 200 + i * 0.2))
+	end
+	RateLimit.forget(9001)
+	expectTrue(RateLimit.allow(9001, "PlayHand", t))
+end })
+
 -- ===== Map discoveries =====
 
 table.insert(tests, { name = "Discoveries: fixed placement, stable ids, kinds, counter total follows the per-region constant", fn = function()

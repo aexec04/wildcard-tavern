@@ -111,7 +111,7 @@ return function(deps)
 		button.Size = UDim2.new(0, 90, 0, 26)
 		button.Position = UDim2.new(xScale or 0, xOffset, 0, 0)
 		button.Font = Enum.Font.GothamBold
-		button.TextSize = 13
+		button.TextSize = 14
 		button.Text = text
 		button.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 		button.TextColor3 = Color3.fromRGB(250, 240, 220)
@@ -149,7 +149,7 @@ return function(deps)
 	yourBestLabel.Position = UDim2.new(0, 0, 0, 58)
 	yourBestLabel.BackgroundTransparency = 1
 	yourBestLabel.Font = Enum.Font.Gotham
-	yourBestLabel.TextSize = 13
+	yourBestLabel.TextSize = 14
 	yourBestLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
 	yourBestLabel.Text = ""
 	yourBestLabel.ZIndex = 21
@@ -255,7 +255,7 @@ return function(deps)
 		statsLabel.Position = UDim2.new(1, -168, 0, 0)
 		statsLabel.BackgroundTransparency = 1
 		statsLabel.Font = Enum.Font.Gotham
-		statsLabel.TextSize = 13
+		statsLabel.TextSize = 14
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
 		statsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
 		statsLabel.Text = string.format(statsFormat, math.floor(depth), math.floor(tips))

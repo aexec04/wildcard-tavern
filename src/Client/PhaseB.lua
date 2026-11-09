@@ -69,7 +69,7 @@ return function(deps)
 		title.Size = UDim2.new(1, 0, 0, 16)
 		title.BackgroundTransparency = 1
 		title.Font = Enum.Font.GothamBold
-		title.TextSize = 13
+		title.TextSize = 14
 		title.TextColor3 = titleColor
 		title.TextXAlignment = Enum.TextXAlignment.Left
 		title.Text = titleText
@@ -83,7 +83,7 @@ return function(deps)
 			row.Size = UDim2.new(1, 0, 0, 16)
 			row.BackgroundTransparency = 1
 			row.Font = Enum.Font.Gotham
-			row.TextSize = 13
+			row.TextSize = 14
 			row.TextColor3 = Color3.fromRGB(228, 224, 230)
 			row.TextXAlignment = Enum.TextXAlignment.Left
 			row.TextTruncate = Enum.TextTruncate.AtEnd

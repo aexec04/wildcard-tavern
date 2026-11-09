@@ -209,7 +209,7 @@ return function(deps)
 
 	local overallText = label(overallBar, {
 		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0),
-		Font = Enum.Font.GothamBold, TextSize = 13, ZIndex = 23,
+		Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 23,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
 	})
 
@@ -698,7 +698,7 @@ return function(deps)
 		if not found then
 			label(iconWell, {
 				Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -16, 1, -16),
-				TextSize = 13, ZIndex = 26, Text = "🔒", BackgroundTransparency = 1,
+				TextSize = 14, ZIndex = 26, Text = "🔒", BackgroundTransparency = 1,
 			})
 		end
 

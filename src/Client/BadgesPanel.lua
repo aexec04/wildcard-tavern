@@ -258,7 +258,7 @@ return function(deps)
 			Text = def.name,
 		})
 		label(t, {
-			Size = UDim2.new(1, -12, 0, 30), Position = UDim2.fromOffset(6, nameY + 20), TextSize = 13,
+			Size = UDim2.new(1, -12, 0, 30), Position = UDim2.fromOffset(6, nameY + 20), TextSize = 14,
 			TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(80, 62, 44),
 			Font = Enum.Font.GothamMedium, ZIndex = 44, TextTruncate = Enum.TextTruncate.AtEnd, Text = def.hint,
 		})
@@ -322,7 +322,7 @@ return function(deps)
 			ribbon.ZIndex = 51
 			ribbon.Parent = t
 			label(ribbon, {
-				Size = UDim2.fromScale(1, 1), TextSize = 13, Font = Enum.Font.GothamBold, TextColor3 = INK, ZIndex = 52, Text = "Equipped",
+				Size = UDim2.fromScale(1, 1), TextSize = 14, Font = Enum.Font.GothamBold, TextColor3 = INK, ZIndex = 52, Text = "Equipped",
 			})
 			local strip = Instance.new("Frame") -- thin white-gold diagonal highlight (plain Frame; no UIGradient transparency)
 			strip.Name = "EquippedShine"

@@ -52,6 +52,8 @@ local followPrompts = {} -- [player] = seq: asks the client to offer experience 
 local storePrompts = {} -- [player] = seq: opens the Store on the Starter Pack once, after the second run
 local rewardSeqCounter = 0
 local EndlessRules = require(Engine.EndlessRules)
+local SaveLock = require(Engine.SaveLock) -- session lease + load retry schedule
+local RateLimit = require(Engine.RateLimit) -- per-player token bucket on every remote
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
@@ -264,32 +266,67 @@ local function profileKey(player)
 	return "Player_" .. tostring(player.UserId)
 end
 
+local saveBlocked = {} -- [player] = true when the stored profile could not be loaded or is held by another server
+
+-- Loads and claims the profile. Retries with backoff (not in Studio); on failure the player still plays with a fresh
+-- profile, but saveBlocked is set so that profile can never overwrite the real save.
 local function loadProfile(player)
-	local ok, raw = pcall(function()
-		return ProfileStore:GetAsync(profileKey(player))
-	end)
-	if not ok then
-		warn(string.format(
-			"PlayerProfile load failed for %s (%s) -- starting with a fresh, unsaved profile this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
-			player.Name, tostring(raw)
-		))
-		return PlayerProfile.new()
+	local key = profileKey(player)
+	local delays = RunService:IsStudio() and {} or SaveLock.RETRY_DELAYS
+	local lastErr = "locked by another server"
+	for attempt = 1, #delays + 1 do
+		local claimed, stored = false, nil
+		local ok, err = pcall(function()
+			ProfileStore:UpdateAsync(key, function(old)
+				if SaveLock.canClaim(old, game.JobId, os.time()) then
+					claimed, stored = true, old
+					local out = {}
+					if type(old) == "table" then
+						for k, v in pairs(old) do out[k] = v end
+					end
+					out.sessionLock = { jobId = game.JobId, t = os.time() }
+					return out
+				end
+				claimed = false
+				return nil -- cancel: a live server holds this profile
+			end)
+		end)
+		if ok and claimed then
+			return PlayerProfile.migrate(stored)
+		end
+		lastErr = ok and "locked by another server" or tostring(err)
+		if attempt <= #delays then
+			task.wait(delays[attempt])
+		end
 	end
-	return PlayerProfile.migrate(raw)
+	warn(string.format(
+		"PlayerProfile load failed for %s (%s) -- playing with a fresh profile that will NOT be saved this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
+		player.Name, lastErr
+	))
+	saveBlocked[player] = true
+	return PlayerProfile.new()
 end
 
-local function saveProfile(player)
+-- `release` (the final save on leave) also clears the lease so the next server can claim at once.
+local function saveProfile(player, release)
 	local profile = profiles[player]
-	if not profile then
+	if not profile or saveBlocked[player] then
 		return
 	end
+	local written = false
 	local ok, err = pcall(function()
-		ProfileStore:SetAsync(profileKey(player), profile)
+		ProfileStore:UpdateAsync(profileKey(player), function(old)
+			if not SaveLock.canClaim(old, game.JobId, os.time()) then
+				return nil -- another live server owns this profile now: never overwrite it
+			end
+			written = true
+			return SaveLock.stamp(profile, game.JobId, os.time(), release == true)
+		end)
 	end)
-	if ok then
+	if ok and written then
 		profileDirty[player] = nil
 	else
-		warn(string.format("PlayerProfile save failed for %s: %s", player.Name, tostring(err)))
+		warn(string.format("PlayerProfile save failed for %s: %s", player.Name, ok and "profile is held by another server" or tostring(err)))
 		-- Leave profileDirty set -- the next autosave tick (or the final
 		-- PlayerRemoving/BindToClose attempt) will retry.
 	end
@@ -921,6 +958,7 @@ local function serializeState(session, player)
 				return def and def.name or nil
 			end,
 		}) or nil,
+		saveDisabled = saveBlocked[player] == true, -- load failed or held by another server: progress will not save
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		-- CROWD RULES (Endless): the active rules as display data, and the one that joined this Night (nil when none)
 		crowdRules = state.endlessRulesEnabled and (function()
@@ -1534,6 +1572,9 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 		if okGrant and status == "granted" then
 			profileDirty[buyer] = true
 			pcall(saveProfile, buyer)
+			if profileDirty[buyer] then
+				return Enum.ProductPurchaseDecision.NotProcessedYet -- not saved yet: Roblox retries, the grant is idempotent
+			end
 			grantedReceipts[receiptInfo.PurchaseId] = true
 			pushState(buyer)
 			return Enum.ProductPurchaseDecision.PurchaseGranted
@@ -1696,6 +1737,9 @@ local function onPlayerAdded(player)
 	if not okStreak then
 		warn("[Startup] login streak failed for " .. player.Name .. ": " .. tostring(streakErr))
 	end
+	if saveBlocked[player] then
+		pushRewardNotice(player, { icon = "⚠️", text = "Your progress can't be saved right now. You can still play." })
+	end
 	logStep(player, "menu_shown")
 	local okSession, errSession = pcall(startNewSession, player)
 	if not okSession then
@@ -1712,10 +1756,12 @@ Players.PlayerRemoving:Connect(function(player)
 	-- Final save attempt before this player's data goes away -- on top of
 	-- the AUTOSAVE_INTERVAL safety net, this is the normal/expected save
 	-- path for a player who just leaves normally.
-	saveProfile(player)
+	saveProfile(player, true) -- final save also releases the session lease
 	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
 	saveWeeklyScore(player) -- WEEKLY CHALLENGE (Phase 16)
 	saveEndlessScore(player)
+	RateLimit.forget(player.UserId)
+	saveBlocked[player] = nil
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
@@ -1776,7 +1822,7 @@ game:BindToClose(function()
 		if profiles[player] then
 			pending = pending + 1
 			task.spawn(function()
-				saveProfile(player)
+				saveProfile(player, true)
 				pending = pending - 1
 			end)
 		end
@@ -1822,6 +1868,7 @@ local function isValidIndexList(list, handSize)
 end
 
 PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
+	if not RateLimit.allow(player.UserId, "PlayHandRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsCardActions(session.phase) then
 		return
@@ -1868,6 +1915,7 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 end)
 
 DiscardRemote.OnServerEvent:Connect(function(player, cardIndices)
+	if not RateLimit.allow(player.UserId, "DiscardRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsCardActions(session.phase) then
 		return
@@ -1895,6 +1943,7 @@ DiscardRemote.OnServerEvent:Connect(function(player, cardIndices)
 end)
 
 BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
+	if not RateLimit.allow(player.UserId, "BuyPatronRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -1939,6 +1988,7 @@ end)
 -- the shop phase -- it's tidying up your table, not a purchase decision
 -- tied to a specific shop visit's offers.
 SellPatronRemote.OnServerEvent:Connect(function(player, patronId)
+	if not RateLimit.allow(player.UserId, "SellPatronRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session then
 		return
@@ -1975,6 +2025,7 @@ local function findRecipe(catalog, id)
 end
 
 BuyRecipeRemote.OnServerEvent:Connect(function(player, category, id)
+	if not RateLimit.allow(player.UserId, "BuyRecipeRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -1997,6 +2048,7 @@ BuyRecipeRemote.OnServerEvent:Connect(function(player, category, id)
 end)
 
 UseRecipeRemote.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)
+	if not RateLimit.allow(player.UserId, "UseRecipeRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2046,6 +2098,7 @@ end)
 -- Reroll button a real decision (spend Tips now for a fresh set of offers).
 
 RerollShopRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "RerollShopRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2064,6 +2117,7 @@ RerollShopRemote.OnServerEvent:Connect(function(player)
 end)
 
 BuyPackRemote.OnServerEvent:Connect(function(player, packId)
+	if not RateLimit.allow(player.UserId, "BuyPackRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2109,6 +2163,7 @@ BuyPackRemote.OnServerEvent:Connect(function(player, packId)
 end)
 
 ResolvePackRemote.OnServerEvent:Connect(function(player, chosenIds)
+	if not RateLimit.allow(player.UserId, "ResolvePackRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2132,6 +2187,7 @@ ResolvePackRemote.OnServerEvent:Connect(function(player, chosenIds)
 end)
 
 BuyHousePassRemote.OnServerEvent:Connect(function(player, passId)
+	if not RateLimit.allow(player.UserId, "BuyHousePassRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2157,6 +2213,7 @@ end)
 -- shop phase). They live on the permanent profile; Tips come from the run.
 -- LOGIN STREAK: claim one reward day. Allowed any time; Tips are added to the current run.
 ClaimLoginRewardRemote.OnServerEvent:Connect(function(player, rewardDay)
+	if not RateLimit.allow(player.UserId, "ClaimLoginRewardRemote", os.clock()) then return end
 	local session = sessions[player]
 	local profile = profiles[player]
 	if not session or not profile or type(rewardDay) ~= "number" then
@@ -2171,6 +2228,7 @@ end)
 
 -- RUN SUMMARY: the badge is rebuilt from the server's own run state, the client sends nothing.
 SaveBadgeRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "SaveBadgeRemote", os.clock()) then return end
 	local session = sessions[player]
 	local profile = profiles[player]
 	if not session or not profile or session.phase ~= "gameover" then
@@ -2182,6 +2240,7 @@ SaveBadgeRemote.OnServerEvent:Connect(function(player)
 end)
 
 BuyCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
+	if not RateLimit.allow(player.UserId, "BuyCosmeticSetRemote", os.clock()) then return end
 	local session = sessions[player]
 	local profile = profiles[player]
 	if not session or not profile or type(setId) ~= "string" then
@@ -2199,6 +2258,7 @@ BuyCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
 end)
 
 EquipCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
+	if not RateLimit.allow(player.UserId, "EquipCosmeticSetRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(setId) ~= "string" then
 		return
@@ -2215,6 +2275,7 @@ EquipCosmeticSetRemote.OnServerEvent:Connect(function(player, setId)
 end)
 
 EquipCardBackRemote.OnServerEvent:Connect(function(player, backId)
+	if not RateLimit.allow(player.UserId, "EquipCardBackRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or (backId ~= nil and type(backId) ~= "string") then
 		return
@@ -2233,6 +2294,7 @@ end)
 -- WORLD MAP: pick the next road at a fork. Only valid in roundSelect (the start of a Night, before its
 -- first round is played or skipped), only for a stop that follows the current one, never on a seeded run.
 ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
+	if not RateLimit.allow(player.UserId, "ChooseRoadRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or session.choice then
 		return
@@ -2249,6 +2311,7 @@ end)
 
 -- BADGES: equip an owned badge (nil clears); Badges.equip refuses anything not owned.
 EquipBadgeRemote.OnServerEvent:Connect(function(player, badgeId, slot)
+	if not RateLimit.allow(player.UserId, "EquipBadgeRemote", os.clock()) then return end
 	if slot == 2 then
 		-- VIP second badge slot (Engine/Store.lua): only VIP, only an owned badge
 		local vipProfile = profiles[player]
@@ -2274,6 +2337,7 @@ end)
 -- WORLD MAP: spend one Key to open a locked road for good (Engine/Keys.lua checks the phase, that the road is a
 -- pending fork choice, that it is locked and that a Key is available; never on seeded boards).
 UnlockRoadRemote.OnServerEvent:Connect(function(player, stopId)
+	if not RateLimit.allow(player.UserId, "UnlockRoadRemote", os.clock()) then return end
 	local session, profile = sessions[player], profiles[player]
 	if not session or not profile then
 		return
@@ -2288,6 +2352,7 @@ end)
 -- Night, standing at the stop's parent, once per run per stop. The rules and every rejection live in
 -- Engine/SideStops.lua; this only routes the action.
 SideStopRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
+	if not RateLimit.allow(player.UserId, "SideStopRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or type(stopId) ~= "string" or type(action) ~= "string" then
 		return
@@ -2324,6 +2389,7 @@ end)
 -- Engine/Minigames.lua on the server, "close" leaves. When a game ends the stop counts as visited; a win gives
 -- a token and maybe a compass charge (Minigames.reward). Losing costs nothing.
 MinigameRemote.OnServerEvent:Connect(function(player, stopId, action, arg)
+	if not RateLimit.allow(player.UserId, "MinigameRemote", os.clock()) then return end
 	local session, profile = sessions[player], profiles[player]
 	if not session or type(stopId) ~= "string" or type(action) ~= "string" then
 		return
@@ -2363,6 +2429,7 @@ end)
 
 -- WORLD MAP: spend a compass charge at a fork to reveal the reward at the end of each road.
 UseCompassRemote.OnServerEvent:Connect(function(player, target)
+	if not RateLimit.allow(player.UserId, "UseCompassRemote", os.clock()) then return end
 	local session, profile = sessions[player], profiles[player]
 	if not session or not profile then
 		return
@@ -2380,6 +2447,7 @@ end)
 -- JOURNEY: equip the reward of a cleared node. JourneyMap.equipReward
 -- refuses anything not earned.
 EquipJourneyRewardRemote.OnServerEvent:Connect(function(player, night)
+	if not RateLimit.allow(player.UserId, "EquipJourneyRewardRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(night) ~= "number" then
 		return
@@ -2403,6 +2471,7 @@ end)
 -- fully-loaded client can't do anything. `titleId == nil` is a valid,
 -- intentional "clear my equipped title" call, not a malformed one.
 EquipTitleRemote.OnServerEvent:Connect(function(player, titleId)
+	if not RateLimit.allow(player.UserId, "EquipTitleRemote", os.clock()) then return end
 	local session = sessions[player]
 	local profile = profiles[player]
 	if not session or not profile then
@@ -2434,6 +2503,7 @@ end)
 -- Settings panel / volume popup. No pushState: the client already applied
 -- the change locally, and an echo could fight a slider mid-drag.
 SetSettingRemote.OnServerEvent:Connect(function(player, key, value)
+	if not RateLimit.allow(player.UserId, "SetSettingRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile then
 		return
@@ -2449,6 +2519,7 @@ end)
 -- "Skip") -- idempotent, so no harm if it somehow fires more than once
 -- for the same player.
 MarkTutorialSeenRemote.OnServerEvent:Connect(function(player, finished)
+	if not RateLimit.allow(player.UserId, "MarkTutorialSeenRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile then
 		return
@@ -2473,6 +2544,7 @@ MarkTutorialSeenRemote.OnServerEvent:Connect(function(player, finished)
 end)
 
 AdvanceRoundRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "AdvanceRoundRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
 		return
@@ -2528,6 +2600,7 @@ end)
 
 -- MAP DISCOVERIES: claim a revealed spot once; reveal a region's spots with a compass charge.
 ClaimDiscoveryRemote.OnServerEvent:Connect(function(player, spotId)
+	if not RateLimit.allow(player.UserId, "ClaimDiscoveryRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(spotId) ~= "string" then
 		return
@@ -2544,6 +2617,7 @@ ClaimDiscoveryRemote.OnServerEvent:Connect(function(player, spotId)
 end)
 
 RevealDiscoveriesRemote.OnServerEvent:Connect(function(player, region)
+	if not RateLimit.allow(player.UserId, "RevealDiscoveriesRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(region) ~= "string" then
 		return
@@ -2558,6 +2632,7 @@ end)
 
 -- LIVE EVENTS: claim a running event's rewards once (Engine/LiveEvents.lua); the News panel's Claim button.
 ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
+	if not RateLimit.allow(player.UserId, "ClaimLiveEventRemote", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(eventId) ~= "string" then
 		return
@@ -2576,6 +2651,7 @@ end)
 -- STORE: prompt a purchase (Roblox shows the real price; the grant happens in ProcessReceipt or on pass ownership).
 -- A placeholder item (id 0) is "coming soon" in the live game and free in Studio so it can be playtested.
 StorePurchaseRemote.OnServerEvent:Connect(function(player, itemId)
+	if not RateLimit.allow(player.UserId, "StorePurchaseRemote", os.clock()) then return end
 	local profile = profiles[player]
 	local item = type(itemId) == "string" and Store.getById(itemId) or nil
 	if not profile or not item or item.listOnly then
@@ -2604,6 +2680,7 @@ end)
 
 -- RUN CHOICES: the player answers the open start-of-run draft or between-Nights event card.
 ChoiceRemote.OnServerEvent:Connect(function(player, optionId)
+	if not RateLimit.allow(player.UserId, "ChoiceRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunChoice.canAnswer(session.phase, session.choice, optionId) then
 		return
@@ -2620,6 +2697,7 @@ ChoiceRemote.OnServerEvent:Connect(function(player, optionId)
 end)
 
 SelectRoundRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "SelectRoundRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or session.phase ~= "roundSelect" then
 		return
@@ -2639,6 +2717,7 @@ SelectRoundRemote.OnServerEvent:Connect(function(player)
 end)
 
 SkipRoundRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "SkipRoundRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or session.phase ~= "roundSelect" then
 		return
@@ -2662,6 +2741,7 @@ SkipRoundRemote.OnServerEvent:Connect(function(player)
 end)
 
 RestartRunRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "RestartRunRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session then
 		return
@@ -2676,6 +2756,7 @@ end)
 -- nothing is granted and nothing is submitted to a leaderboard; then a fresh session starts exactly like
 -- New Run (same Deck Variant/Difficulty), so the menu's Play opens a clean run.
 AbandonRunRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "AbandonRunRemote", os.clock()) then return end
 	local session = sessions[player]
 	local ok = RunAbandon.abandon(session, profiles[player], PlayerProfile)
 	if not ok then
@@ -2687,6 +2768,7 @@ end)
 
 -- The ONLY way a tutorial run begins: the Tutorial tile on the main menu. Scripted hands, no profile writes.
 StartTutorialRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "StartTutorialRemote", os.clock()) then return end
 	if not sessions[player] then
 		return
 	end
@@ -2695,6 +2777,7 @@ StartTutorialRemote.OnServerEvent:Connect(function(player)
 end)
 
 StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyId, stakeId, challengeId, mode)
+	if not RateLimit.allow(player.UserId, "StartRunRemote", os.clock()) then return end
 	if not sessions[player] then
 		return
 	end
@@ -2722,6 +2805,7 @@ end)
 -- directly for playtesting; the live game ignores the request until a
 -- real id is set.
 RequestContinueRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "RequestContinueRemote", os.clock()) then return end
 	local session = sessions[player]
 	if not session or session.phase ~= "gameover" or not RunState.canContinue(session.state) then
 		return
@@ -2747,6 +2831,7 @@ end)
 -- ===== Daily Challenge (Phase 11) =====
 
 StartDailyChallengeRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "StartDailyChallengeRemote", os.clock()) then return end
 	if not sessions[player] then
 		return
 	end
@@ -3036,6 +3121,7 @@ end
 -- instead of a parameterized shared one.
 
 StartWeeklyChallengeRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "StartWeeklyChallengeRemote", os.clock()) then return end
 	if not sessions[player] then
 		return
 	end
@@ -3264,6 +3350,7 @@ end)
 -- typed," which is a matched-code problem between the two of you, not a
 -- server-side error case.
 StartSeedRunRemote.OnServerEvent:Connect(function(player, code)
+	if not RateLimit.allow(player.UserId, "StartSeedRunRemote", os.clock()) then return end
 	if not sessions[player] then
 		return
 	end

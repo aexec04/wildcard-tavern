@@ -115,7 +115,7 @@ return function(deps)
 
 	local rewardLabel = label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 180), TextSize = 14,
 		TextColor3 = GOLD, Text = "" })
-	label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 222), TextSize = 13,
+	label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 222), TextSize = 14,
 		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." })
 
 	local button = Instance.new("TextButton")

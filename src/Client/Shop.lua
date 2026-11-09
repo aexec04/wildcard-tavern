@@ -514,7 +514,7 @@ return function(deps)
 		targetHintLabel.Position = UDim2.new(0, 10, 0, 58)
 		targetHintLabel.BackgroundTransparency = 1
 		targetHintLabel.Font = Enum.Font.Gotham
-		targetHintLabel.TextSize = 13
+		targetHintLabel.TextSize = 14
 		targetHintLabel.TextXAlignment = Enum.TextXAlignment.Left
 		targetHintLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
 		targetHintLabel.Text = "Click cards below to select them."

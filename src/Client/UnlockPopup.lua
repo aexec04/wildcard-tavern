@@ -73,7 +73,7 @@ return function(deps)
 	unlockPopupDescription.Position = UDim2.new(0, 15, 0, 76)
 	unlockPopupDescription.BackgroundTransparency = 1
 	unlockPopupDescription.Font = Enum.Font.Gotham
-	unlockPopupDescription.TextSize = 13
+	unlockPopupDescription.TextSize = 14
 	unlockPopupDescription.TextWrapped = true
 	unlockPopupDescription.TextColor3 = Color3.fromRGB(215, 200, 180)
 	unlockPopupDescription.Text = ""
