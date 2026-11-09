@@ -73,6 +73,7 @@ CATEGORIES = {
     "legend": ("legend_subjects", "legend", "LegendArt.lua", "Legend"),
     "spectate": ("spectate_subjects", "spectate", "SpectateArt.lua", "Spectate"),
     "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
+    "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -111,7 +112,20 @@ CATEGORY_OPTS = {
     "spectate": {"quality": "low", "style_key": "house_style"},
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
+    # Menu tavern layers and props. `transparent` = generated on flat magenta, then cut out to real alpha (cutout.py, checked in qa());
+    # `opaque` lists the ids that stay opaque. The model has no wide strip size, so menu_counter is 1536x1024 with the
+    # bar drawn in the lower part of the canvas (the UI crops it).
+    "menu_scene": {"quality": "low", "style_key": "house_style", "transparent": True,
+                   "opaque": ["menu_wall_far", "menu_parchment"],
+                   "sizes": {"menu_wall_far": "1536x1024", "menu_mid_beams": "1536x1024", "menu_counter": "1536x1024",
+                             "menu_noticeboard_wall": "1024x1024"}},
 }
+
+
+def wants_alpha(pid):
+    """True when this category asks for a transparent background for pid."""
+    opts = CATEGORY_OPTS.get(CATEGORY, {})
+    return bool(opts.get("transparent")) and pid not in opts.get("opaque", [])
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
 
@@ -206,6 +220,8 @@ def qa(pid):
         problems.append("suspiciously small (blank or failed image?)")
     if len(b) > 15_000_000:
         problems.append("too large for upload")
+    if wants_alpha(pid) and len(b) > 26 and b[25] not in (4, 6):
+        problems.append("no alpha channel (expected a transparent background)")
     return problems
 
 
@@ -272,6 +288,9 @@ def _generate_one(pid, data, key, model, quality, args):
             )
         if r.status_code == 200:
             path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
+            if wants_alpha(pid):  # generated on flat magenta; the model has no alpha output, so key it out (tools/patron_art/cutout.py)
+                import cutout
+                cutout.cutout(str(path))
             with LOCK:
                 state = load_state()
                 state[pid] = {"prompt": prompt_hash(data, pid)}
