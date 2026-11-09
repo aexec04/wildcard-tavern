@@ -11836,6 +11836,28 @@ table.insert(tests, { name = "MenuLayout: six evenly spaced counter items, scrol
 	for _, id in ipairs(ML.SceneArt.items) do expectTrue(ContentArt.getImageId("menu_scene", id) ~= nil, "menu_scene art recorded: " .. id) end
 end })
 
+table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, depths rise and stay under 32px, animated budget fits, art map only holds layer ids", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local B = ML.Bayou
+	local want = { "bayou_sky", "bayou_far_trees", "bayou_water", "bayou_tavern_stilts", "bayou_boat_post", "bayou_mist", "bayou_cypress_knees", "bayou_willow_fg" }
+	expectEqual(#B.layers, #want, "eight bayou layers")
+	local prev = 0
+	for i, def in ipairs(B.layers) do
+		expectEqual(def.id, want[i], "layer order back to front")
+		expectTrue(def.px > prev and def.px <= ML.Parallax.maxOffset, "depth rises toward the front and stays within the clamp: " .. def.id)
+		prev = def.px
+	end
+	expectTrue(B.animated + 1 <= ML.MAX_ANIMATED, "bayou life plus the lantern stays under the animated cap")
+	expectEqual(B.animated, 5 + B.fireflies, "water, mist, window glow, boat, moss plus fireflies")
+	local known = {}
+	for _, id in ipairs(want) do known[id] = true end
+	for id in pairs(require(script.Parent.Parent.Engine.BayouArt)) do expectTrue(known[id], "BayouArt only holds bayou layer ids: " .. id) end
+	local f = io.open("src/Client/MenuBayou.lua", "r")
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("UIGradient", 1, true) ~= nil and src:find("Transparency = ColorSequence", 1, true) == nil, "water shimmer only touches gradient Color and Offset")
+	expectTrue(src:find("calm", 1, true) ~= nil, "bayou life honours calm mode")
+end })
+
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
 	local HL = require(script.Parent.Parent.Engine.HandLedger)
 	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)

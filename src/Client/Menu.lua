@@ -68,6 +68,10 @@ return function(deps)
 		require(script.Parent.PanelArt).vignette(menuFrame, 10) -- dark edge vignette (stepped Frames, Color stops only)
 	end
 
+	-- The bayou backdrop (menu_bayou art) sits on top of the wall and replaces it once its sky art is recorded; no art, no change.
+	local bayou = require(script.Parent.MenuBayou).build(menuFrame)
+	if bayou.active then menuBackgroundArt.Visible = false end
+
 	-- Hovering a hotspot dims the rest of the scene by 20 percent.
 	local sceneDim = Instance.new("Frame")
 	sceneDim.Name = "SceneDim"
@@ -315,20 +319,26 @@ return function(deps)
 
 	-- ===== Foreground and parallax =====
 	local scene = require(script.Parent.MenuScene).build(menuFrame)
+	scene.setBayou(bayou.active)
 	local P = Layout.Parallax
+	local parallaxLayers = {
+		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
+		{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
+		{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
+		{ inst = board.frame, base = UDim2.fromScale(Layout.NoticeBoard.x, Layout.NoticeBoard.y), px = P.wall },
+		{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
+		{ inst = titleGroup, base = UDim2.new(), px = P.near },
+		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
+	}
+	for _, layer in ipairs(bayou.layers) do table.insert(parallaxLayers, layer) end
 	local parallax = require(script.Parent.MenuParallax).new({
 		screenGui = screenGui,
 		calm = calm,
-		layers = {
-			{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
-			{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
-			{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
-			{ inst = board.frame, base = UDim2.fromScale(Layout.NoticeBoard.x, Layout.NoticeBoard.y), px = P.wall },
-			{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
-			{ inst = titleGroup, base = UDim2.new(), px = P.near },
-			{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
-		},
-		onStep = scene.update,
+		layers = parallaxLayers,
+		onStep = function(nx, ny, t, isCalm)
+			scene.update(nx, ny, t, isCalm)
+			if bayou.active then bayou.update(nx, ny, t, isCalm) end
+		end,
 	})
 
 	-- One-shot load-in: title and ribbon fade up, the hotspots drop in with a 0.06s stagger.

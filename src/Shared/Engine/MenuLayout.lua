@@ -50,6 +50,29 @@ MenuLayout.SceneArt = {
 	motes = 5,
 }
 
+-- The bayou backdrop (category menu_bayou, Client/MenuBayou.lua): a stilt tavern over misty water at golden hour. Layers back to
+-- front with their parallax depth in px (deeper in front moves more, nothing past maxOffset). x, y, w, h are fractions of the
+-- screen for the image box (anchor centre); `bleed` layers are drawn backdropScale larger so parallax never shows an edge.
+-- Animated budget: water shimmer + drifting mist + tavern window glow + rowboat bob + moss sway + 6 fireflies = 11, plus the
+-- swinging lantern from MenuScene = 12, under MAX_ANIMATED. The bayou replaces the painted wall only when its sky art is recorded.
+MenuLayout.Bayou = {
+	layers = {
+		{ key = "sky",     id = "bayou_sky",           px = 3,  x = 0.5,  y = 0.5,  w = 1,    h = 1,    bleed = true },
+		{ key = "trees",   id = "bayou_far_trees",     px = 6,  x = 0.5,  y = 0.5,  w = 1.08, h = 0.72 },
+		{ key = "water",   id = "bayou_water",         px = 10, x = 0.5,  y = 0.74, w = 1.08, h = 0.56 },
+		{ key = "tavern",  id = "bayou_tavern_stilts", px = 14, x = 0.70, y = 0.47, w = 0.46, h = 0.62 },
+		{ key = "boat",    id = "bayou_boat_post",     px = 18, x = 0.40, y = 0.64, w = 0.26, h = 0.26 },
+		{ key = "mist",    id = "bayou_mist",          px = 20, x = 0.5,  y = 0.60, w = 1.2,  h = 0.34 },
+		{ key = "knees",   id = "bayou_cypress_knees", px = 24, x = 0.5,  y = 0.86, w = 1.08, h = 0.36 },
+		{ key = "willow",  id = "bayou_willow_fg",     px = 30, x = 0.14, y = 0.5,  w = 0.40, h = 1.04 },
+	},
+	fireflies = 6,
+	animated = 11,
+	windowGlow = { x = 0.5, y = 0.60, w = 0.50, h = 0.20 }, -- inside the tavern image, fractions of its box
+	mistTint = { 255, 236, 205 },                           -- the mist ribbon has a pink tint from its cutout, warm it up
+	scrim = 0.55,                                           -- dark translucent backing under the title and the counter, 0 to 1 transparency
+}
+
 -- The tavern composition (menu redesign 2). A long bar COUNTER runs along the bottom; six painted ITEMS sit on it in a fixed
 -- row, evenly spaced and centred; a click UNROLLS a parchment scroll upward from the item that lists that group's actions.
 -- The carved Deal Me In SIGN hangs from a ceiling beam in the centre. A NOTICE BOARD on the left wall holds the pinned notes.

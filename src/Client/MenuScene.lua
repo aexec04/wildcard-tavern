@@ -163,10 +163,20 @@ function MenuScene.build(parent)
 
 	local animated = { fire, shaft, candle, steam }
 
+	-- The bayou backdrop (Client/MenuBayou.lua) replaces the tavern wall: the wall-bound life (beams, fire, shaft, candle, steam,
+	-- embers) is hidden, the dust motes and the swinging lantern stay. The animated count drops to the lantern plus the motes.
+	local bayouMode = false
+	function scene.setBayou(on)
+		bayouMode = on
+		beams.Visible = beamsArt ~= nil and not on
+		scene.animatedCount = on and (1 + #motes) or (1 + 4 + EMBERS + #motes)
+	end
+
 	function scene.update(nx, ny, t, calm)
-		for _, f in ipairs(animated) do f.Visible = not calm end
+		local wallLife = not calm and not bayouMode
+		for _, f in ipairs(animated) do f.Visible = wallLife end
 		for _, m in ipairs(motes) do m.frame.Visible = not calm end
-		for _, e in ipairs(embers) do e.frame.Visible = not calm end
+		for _, e in ipairs(embers) do e.frame.Visible = wallLife end
 		if calm then
 			lantern.Rotation = 0
 			return

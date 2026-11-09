@@ -3,7 +3,7 @@
 Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home front page: a reason to return daily and about 3 hours of content. Plan: [ROADMAP.md](ROADMAP.md). The long per-feature notes that used to live here are in git history (`git log -p claude/STATUS.md`); read the code and its tests for detail.
 
 ## Health
-- **Tests:** `lua tools/run_tests_local.lua` (plain `lua` works, `lua5.3` is not installed here): 586 passing, 0 failing. Includes the sort-order lint, the text-size lint (nothing under 14) and the locals guard.
+- **Tests:** `lua tools/run_tests_local.lua` (plain `lua` works, `lua5.3` is not installed here): 587 passing, 0 failing. Includes the sort-order lint, the text-size lint (nothing under 14) and the locals guard.
 - **Locals guard:** `tools/check_locals.lua`. Server 141 of 150. Client hub `src/Client/init.client.lua` is 132 of 132 (Lua hard limit 200); it is a ratchet, lower it when you move locals out, never raise it. Add new client code as modules or `do ... end` blocks.
 - **Not verifiable without Studio:** the hub rewrite (aliases inlined, see OUTBOX), Spectate with two players, real Invites, phone and 360x640 layouts, Tavern Map road choice and side stops, Season/Flair/Legend panels. Restart Play and click through Menu, Run Setup, a run, the Counter, Collection and Settings after any hub change.
 
@@ -26,6 +26,7 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - **User only:** store page thumbnail, icon and video; real phone test; create the Developer Products and passes in Creator Hub and paste their ids (list in `claude/LAUNCH.md`); resolve decal ids to Image ids for new art and send `record-image` lines.
 - **Art not generated yet:** biome Patrons and House Recipes, Endless rule icons, store page images; `tools/art_status.py` has the live list.
 - **Decal ids to resolve:** 9 Menu hotspot images (`menu_icons`), 5 shop images (`shop`) and 8 Bond medallions (`bonds`), lines are in OUTBOX; emoji and flat colour show until then. The 16 `menu_scene` images are resolved and wired.
-- **Studio checks owed:** Menu hotspots and parallax, Poker Hands ledger, Flair Preview, Collection Expand button, Peddler scene, Haggle bar, Stranger card, Bond threads, Menu Regulars, Showdown banner, Win Card, RoadChoice, CompassWheel, SideStopPanel, MinigamePanel, CharacterStage, Season, Flair, Legend, Spectate, Stats, Invites, hints.
+- **Bayou menu backdrop:** wired (`Client/MenuBayou.lua`, `MenuLayout.Bayou`, `Engine/BayouArt.lua`) but dormant: the 8 `menu_bayou` Decal ids are in OUTBOX and need Image ids via `record-image ... -c menu_bayou` then `generate_patron_art.py lua -c menu_bayou`. Until then the tavern wall shows.
+- **Studio checks owed:** bayou Menu (layer order, scrims, mist tint, fireflies, calm mode), Menu hotspots and parallax, Poker Hands ledger, Flair Preview, Collection Expand button, Peddler scene, Haggle bar, Stranger card, Bond threads, Menu Regulars, Showdown banner, Win Card, RoadChoice, CompassWheel, SideStopPanel, MinigamePanel, CharacterStage, Season, Flair, Legend, Spectate, Stats, Invites, hints.
 - **Untracked helper scripts:** `tools/_*.py` and `tools/_check_boss_counters.lua` are one-off migration helpers (listed in OUTBOX); delete or commit them yourself.
 - **Content rules:** kid-safe names, no alcohol, never the banned B-word in game text (it appears only in banned-word test lists and design docs).

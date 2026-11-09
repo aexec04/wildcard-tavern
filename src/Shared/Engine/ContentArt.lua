@@ -51,6 +51,7 @@ local ContentArt = {
 	shop         = require(Engine:WaitForChild("ShopArt")),           -- shop_peddler, shop_stranger, shop_counter, shop_crate, shop_tag (Counter scene)
 	bonds        = require(Engine:WaitForChild("BondArt")),           -- keyed by Bonds id plus bond_locked (Collection Bonds tab, Bond threads)
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
+	menu_bayou   = require(Engine:WaitForChild("BayouArt")),          -- bayou_sky ... bayou_willow_fg (Menu bayou backdrop, empty until Image ids are recorded)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
 ContentArt.store = ContentArt.store_bundles
