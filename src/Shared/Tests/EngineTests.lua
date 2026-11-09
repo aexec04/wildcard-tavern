@@ -6639,6 +6639,51 @@ table.insert(tests, { name = "Tutorial spotlight: every step target is a known n
 	expectTrue(hub:find('slot:SetAttribute("HandIndex"', 1, true) ~= nil, "hand slots carry the tag")
 end })
 
+table.insert(tests, { name = "Tutorial forced input: only the scripted cards, Play only after the right pick, everything else rejected", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local m = Steps.new()
+	m:report("menu_play"); m:report("select_round")
+	expectEqual(m:current().id, "pick_pair")
+	-- during "pick sevens" any other card is rejected, the two Sevens are allowed
+	expectTrue(m:allows("card", { index = 1, scripted = true }))
+	expectTrue(m:allows("card", { index = 2, scripted = true }))
+	expectFalse(m:allows("card", { index = 3, scripted = true }), "a different card")
+	expectFalse(m:allows("card", { index = 8, scripted = true }))
+	-- Play Hand, Discard, Sort, Reroll, buys, packs and Next Round are rejected until their step
+	for _, kind in ipairs({ "play", "discard", "sort", "reroll", "buy", "pack", "nextRound", "menuPlay", "select" }) do
+		expectFalse(m:allows(kind), kind .. " must be rejected while picking")
+	end
+	-- selecting the two Sevens advances to Play Hand, which is then (and only then) allowed
+	expectEqual(m:report("pick", { selected = { [1] = true, [2] = true }, scripted = true }), "advanced")
+	expectEqual(m:current().id, "play_pair")
+	expectTrue(m:allows("play"))
+	expectFalse(m:allows("card", { index = 1, scripted = true }), "no card clicks during the play step")
+	expectFalse(m:allows("discard"))
+	-- the wrong pick does not advance
+	local m2 = Steps.new()
+	m2:report("menu_play"); m2:report("select_round")
+	expectEqual(m2:report("pick", { selected = { [3] = true, [4] = true }, scripted = true }), "ignored")
+	expectEqual(m2:current().id, "pick_pair")
+	-- every step names exactly what it allows
+	for _, step in ipairs(Steps.Steps) do
+		expectTrue(type(step.allow) == "table" and #step.allow >= 1, "step " .. step.id .. " has an allow list")
+	end
+	-- finished tutorial allows everything
+	local m3 = Steps.new(); m3:skip()
+	expectTrue(m3:allows("discard"))
+	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local hub = f:read("*a"); f:close()
+	for _, kind in ipairs({ "card", "play", "discard", "nextRound", "sort" }) do
+		expectTrue(hub:find('tutorial.allows("' .. kind .. '"', 1, true) ~= nil, "hub gates " .. kind)
+	end
+	local sf = io.open("src/Client/Shop.lua", "r")
+	local shop = sf:read("*a"); sf:close()
+	for _, kind in ipairs({ "reroll", "buy", "pack" }) do
+		expectTrue(shop:find('tutorialAllows("' .. kind .. '"', 1, true) ~= nil, "shop gates " .. kind)
+	end
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)

@@ -9,7 +9,7 @@
 	  * the pick steps name an exact combo from the scripted hands (Engine/TutorialScript): a pair, two pair,
 	    a flush, then a straight flush. The target cards are the first `count` cards of the hand.
 
-	Step fields: id, action, target, text, [expect = "pair"|..., count]
+	Step fields: id, action, target, allow, text, [expect = "pair"|..., count]
 	  actions: menu_play, select_round, pick, play_hand, next_round, ok
 
 	machine = TutorialSteps.new()
@@ -35,18 +35,18 @@ TutorialSteps.MAX_WORDS = 12
 TutorialSteps.TargetNames = { menuPlay = true, selectButton = true, handCards = true, play = true, nextRound = true }
 
 TutorialSteps.Steps = {
-	{ id = "menu_play", action = "menu_play", target = "menuPlay", text = "Press Play to start your first run." },
-	{ id = "select_round", action = "select_round", target = "selectButton", text = "Press Select to play this round." },
-	{ id = "pick_pair", action = "pick", target = "handCards", expect = "pair", count = 2, text = "Pick the two matching Sevens." },
-	{ id = "play_pair", action = "play_hand", target = "play", text = "Press Play Hand to score your pair." },
-	{ id = "pick_two_pair", action = "pick", target = "handCards", expect = "two_pair", count = 4, text = "Pick both pairs: Kings and Fours." },
-	{ id = "play_two_pair", action = "play_hand", target = "play", text = "Press Play Hand. Two pair scores more." },
-	{ id = "pick_flush", action = "pick", target = "handCards", expect = "flush", count = 5, text = "Pick the five Diamonds for a flush." },
-	{ id = "play_flush", action = "play_hand", target = "play", text = "Press Play Hand. A flush scores big." },
-	{ id = "pick_straight_flush", action = "pick", target = "handCards", expect = "straight_flush", count = 5, text = "Pick the straight in Clubs, five to nine." },
-	{ id = "play_straight_flush", action = "play_hand", target = "play", text = "Press Play Hand for the biggest score." },
-	{ id = "next_round", action = "next_round", target = "nextRound", text = "Press Next Round to keep going." },
-	{ id = "done", action = "ok", target = nil, text = "Title unlocked: Newcomer. Equip it in Collection.", button = "Nice!" },
+	{ id = "menu_play", action = "menu_play", target = "menuPlay", allow = { "menuPlay" }, text = "Press Play to start your first run." },
+	{ id = "select_round", action = "select_round", target = "selectButton", allow = { "select" }, text = "Press Select to play this round." },
+	{ id = "pick_pair", action = "pick", target = "handCards", allow = { "card" }, expect = "pair", count = 2, text = "Pick the two matching Sevens." },
+	{ id = "play_pair", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand to score your pair." },
+	{ id = "pick_two_pair", action = "pick", target = "handCards", allow = { "card" }, expect = "two_pair", count = 4, text = "Pick both pairs: Kings and Fours." },
+	{ id = "play_two_pair", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand. Two pair scores more." },
+	{ id = "pick_flush", action = "pick", target = "handCards", allow = { "card" }, expect = "flush", count = 5, text = "Pick the five Diamonds for a flush." },
+	{ id = "play_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand. A flush scores big." },
+	{ id = "pick_straight_flush", action = "pick", target = "handCards", allow = { "card" }, expect = "straight_flush", count = 5, text = "Pick the straight in Clubs, five to nine." },
+	{ id = "play_straight_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand for the biggest score." },
+	{ id = "next_round", action = "next_round", target = "nextRound", allow = { "nextRound" }, text = "Press Next Round to keep going." },
+	{ id = "done", action = "ok", target = nil, allow = { "ok" }, text = "Title unlocked: Newcomer. Equip it in Collection.", button = "Nice!" },
 }
 
 -- selected = { [handIndex] = true }; the target cards are hand slots 1..count.
@@ -63,6 +63,24 @@ function TutorialSteps.pickSatisfied(step, detail)
 		if not selected[i] then return false end
 	end
 	return true
+end
+
+-- INPUT ALLOW LIST. Every step lists the ONE kind of input it accepts in `allow`; everything else
+-- (sort, discard, corner icons, deck pile, buys, reroll, other cards, other menu buttons) is rejected.
+-- kinds: menuPlay, select, card, play, discard, sort, nextRound, reroll, buy, pack, ok
+-- A `card` allow on a scripted pick step only accepts hand indices 1..count (the scripted combo).
+function TutorialSteps.stepAllows(step, kind, detail)
+	if not step then return true end
+	for _, k in ipairs(step.allow or {}) do
+		if k == kind then
+			if kind == "card" and step.count and detail and detail.scripted then
+				local idx = detail.index
+				return type(idx) == "number" and idx >= 1 and idx <= step.count
+			end
+			return true
+		end
+	end
+	return false
 end
 
 local DELIBERATE = { menu_play = true, select_round = true, play_hand = true, next_round = true }
@@ -112,6 +130,11 @@ function Machine:report(action, detail)
 		return "wrong"
 	end
 	return "ignored"
+end
+
+-- Is this input allowed on the current step? True when the tutorial is over.
+function Machine:allows(kind, detail)
+	return TutorialSteps.stepAllows(self:current(), kind, detail)
 end
 
 function Machine:catchUp(action)

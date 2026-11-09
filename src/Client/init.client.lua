@@ -653,10 +653,12 @@ local function applyHandSortMode(mode)
 end
 
 sortByRankButton.MouseButton1Click:Connect(function()
+	if not Shop.tutorial.allows("sort") then return end
 	playClickSfx(0.35)
 	applyHandSortMode("rank")
 end)
 sortBySuitButton.MouseButton1Click:Connect(function()
+	if not Shop.tutorial.allows("sort") then return end
 	playClickSfx(0.35)
 	applyHandSortMode("suit")
 end)
@@ -1958,6 +1960,9 @@ local function onCardClicked(index)
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
+	if not Shop.tutorial.allows("card", { index = index }) then
+		return -- tutorial: only the scripted cards can be picked
+	end
 	if selected[index] then
 		selected[index] = nil
 	else
@@ -2644,6 +2649,7 @@ playButton.MouseButton1Click:Connect(function()
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
+	if not Shop.tutorial.allows("play") then return end
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
 		showWarning("Select 1-5 cards first.")
@@ -2740,6 +2746,7 @@ discardButton.MouseButton1Click:Connect(function()
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
+	if not Shop.tutorial.allows("discard") then return end
 	if latestState.discardsRemaining <= 0 then
 		showWarning("No discards left this round.")
 		return
@@ -2765,6 +2772,7 @@ discardButton.MouseButton1Click:Connect(function()
 end)
 
 nextRoundButton.MouseButton1Click:Connect(function()
+	if not Shop.tutorial.allows("nextRound") then return end
 	playClickSfx()
 	AdvanceRoundRemote:FireServer()
 	Shop.tutorial.notifyNextRoundClicked()

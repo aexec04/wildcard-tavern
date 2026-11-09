@@ -237,8 +237,12 @@ return function(deps)
 		return minX - gp.X - PAD, minY - gp.Y - PAD, (maxX - minX) + PAD * 2, (maxY - minY) + PAD * 2
 	end
 
+	-- No spotlight (target missing or not on screen yet): keep ONE full-screen sink so nothing underneath can
+	-- be clicked, without drawing a wrong highlight.
 	local function setChromeHidden()
 		for _, f in ipairs(dims) do f.Visible = false end
+		dims[1].Position, dims[1].Size = UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1)
+		dims[1].Visible = true
 		highlight.Visible = false
 		arrow.Visible = false
 	end
@@ -354,8 +358,7 @@ return function(deps)
 		ribbon.Visible = true
 		if not list then
 			-- nothing to point at right now (for example while a hand is being dealt): wait and retry
-			setChrome(false)
-			dims[1].Visible = false
+			setChromeHidden()
 			currentList = nil
 			currentStep = nil
 			stopFollowing()
@@ -413,6 +416,17 @@ return function(deps)
 		local menu = screenGui:FindFirstChild("MenuRoot", true)
 		root.Visible = false
 		if menu then menu.Visible = true end
+	end
+
+	-- The logic half of forced input: the hub, Shop and buttons ask before acting. A rejected input wiggles
+	-- the target and does nothing else. Always true when the tutorial is not running.
+	local function allows(kind, detail)
+		if not active then return true end
+		detail = detail or {}
+		detail.scripted = scripted
+		if machine:allows(kind, detail) then return true end
+		wiggle()
+		return false
 	end
 
 	local function report(action, detail)
@@ -511,6 +525,7 @@ return function(deps)
 	return {
 		start = start,
 		replay = replay,
+		allows = allows,
 		onRender = onRender,
 		notifySelectionChanged = function(count, weakHand, selectedSet)
 			lastSelected = selectedSet or {}

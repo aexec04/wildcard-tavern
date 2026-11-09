@@ -143,6 +143,8 @@ return function(deps)
 	local UseRecipeRemote = deps.UseRecipeRemote
 	local RerollShopRemote = deps.RerollShopRemote
 	local BuyPackRemote = deps.BuyPackRemote
+	-- TUTORIAL forced input: assigned once the walkthrough module exists (end of this file). Always true outside it.
+	local tutorialAllows = function() return true end
 	local ResolvePackRemote = deps.ResolvePackRemote
 	local BuyHousePassRemote = deps.BuyHousePassRemote
 	local RANK_NAMES = deps.RANK_NAMES
@@ -1143,6 +1145,7 @@ return function(deps)
 		tableLabel.Parent = rerollRow
 
 		rerollButton.MouseButton1Click:Connect(function()
+			if not tutorialAllows("reroll") then return end
 			local latestState = getLatestState()
 			if not latestState or latestState.tips < (latestState.rerollCost or 0) then
 				showWarning("Not enough tips to reroll.")
@@ -1178,6 +1181,7 @@ return function(deps)
 			return true
 		end
 		local function buyPatron(offer)
+			if not tutorialAllows("buy") then return false end
 			local latestState = getLatestState()
 			if not latestState or latestState.tips < offer.price then
 				showWarning("Not enough tips for that.")
@@ -1195,6 +1199,7 @@ return function(deps)
 			return true
 		end
 		local function buyPack(pack)
+			if not tutorialAllows("pack") then return false end
 			local latestState = getLatestState()
 			if not latestState or latestState.tips < pack.price then
 				showWarning("Not enough tips for that.")
@@ -1493,6 +1498,8 @@ return function(deps)
 		sidebarHandsDiscardsBox = tutorialSidebarHandsDiscardsBox,
 		shopBuyListFrame = shopBuyListFrame,
 	})
+
+	tutorialAllows = TutorialWalkthroughModule.allows
 
 	return {
 		shopFrame = shopFrame,
