@@ -11,6 +11,8 @@
 
 	Options:
 		--bot random|greedy|decent   (default decent)
+		--stake N                    run on stake 1 to 8 (default 1)
+		--stakes                     every stake x every bot, one summary line each
 		--ladder                     all three bots, one summary line each
 		--variants                   decent bot on every deck and difficulty
 		--bosses                     force each boss on --boss-night, report clear rates
@@ -53,11 +55,11 @@ local function parseArgs(argv)
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
-		["--first-run"] = "firstRun", ["--night-one-discards"] = "nightOneDiscards",
+		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
-		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--endless"] = "endless",
+		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
 	}
 	local i = 1
 	while i <= #argv do
@@ -119,6 +121,7 @@ local function workerArgs(run, firstRun, count, outPath)
 	if run.nightOneDiscards then
 		table.insert(parts, "--night-one-discards"); table.insert(parts, run.nightOneDiscards)
 	end
+	if run.stake then table.insert(parts, "--stake"); table.insert(parts, run.stake) end
 	if run.endless then table.insert(parts, "--endless") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
 	if run.packOffers then table.insert(parts, "--pack-offers"); table.insert(parts, run.packOffers) end
@@ -199,6 +202,13 @@ if cfg.patronTable then
 	print(string.format("%-22s %5s %8s %10s %8s", "patron", "price", "gain", "gain/price", "x median"))
 	for _, row in ipairs(rows) do
 		print(string.format("%-22s %5d %7.1f%% %9.2f%% %8.2f", row.id, row.price, 100 * row.gain, 100 * row.gainPerPrice, row.gainPerPrice / median))
+	end
+elseif cfg.stakes then
+	-- every stake x every bot, one summary line each
+	for stake = 1, engine.Stakes.MAX do
+		for _, bot in ipairs({ "random", "greedy", "decent" }) do
+			runAndSummarize(string.format("stake %d %s", stake, bot), { bot = bot, stake = stake })
+		end
 	end
 elseif cfg.ladder then
 	local summaries = {}

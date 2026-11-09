@@ -84,5 +84,20 @@ check("chooseKeep keeps the 3 highest", #Sim.chooseKeep(loose) == 3)
 local forced = Sim.runOne(config({ forceBoss = "lights_out", bossNight = 1 }), 4)
 check("forced boss appears on its Night", forced.bosses[1] and forced.bosses[1].id == "lights_out")
 
+-- Balance regression (50 runs, fixed seeds): the decent bot's median death Night stays in its band on stakes 1 and 8
+-- and nothing soft-locks. Measured 2026-11-08 (300 runs): stake 1 median N7, stake 8 median N6.
+for _, stake in ipairs({ 1, 8 }) do
+	local nights, softLocks = {}, 0
+	for seed = 1, 50 do
+		local r = Sim.runOne(config({ stake = stake }), seed)
+		nights[#nights + 1] = r.won and 99 or (r.deathNight or r.nightReached)
+		softLocks = softLocks + r.softLocks
+	end
+	table.sort(nights)
+	local median = nights[25]
+	check("decent bot median Night in band on stake " .. stake, median >= 5 and median <= 8, "median " .. median)
+	check("no soft locks on stake " .. stake, softLocks == 0, tostring(softLocks))
+end
+
 print(failed == 0 and "\nAll simulator checks passed" or ("\n" .. failed .. " simulator check(s) failed"))
 os.exit(failed == 0 and 0 or 1)

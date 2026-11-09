@@ -211,9 +211,10 @@ function Sim.bestPlay(state)
 	local bySize = combosFor(#hand)
 	local boss = state.bossModifier
 	local required = boss and boss.requiredCardsPerHand
+	local minCards = (boss and boss.minCardsPerHand) or (state.challenge and state.challenge.minCardsPerHand) or 1
 	state.simCounters = E.RunState.runCounters(state)
 	local bestScore, bestCombo = -1, nil
-	for size = 1, math.min(5, #hand) do
+	for size = math.min(minCards, #hand), math.min(5, #hand) do
 		if not required or size == required then
 			for _, combo in ipairs(bySize[size]) do
 				local score = scorePlay(state, hand, combo, state.ownedPatrons)
@@ -304,6 +305,10 @@ end
 local function randomPlay(state, rng)
 	local boss = state.bossModifier
 	local size = boss and boss.requiredCardsPerHand or rng(math.min(5, #state.hand))
+	local minCards = (boss and boss.minCardsPerHand) or (state.challenge and state.challenge.minCardsPerHand)
+	if minCards and size < minCards then
+		size = math.min(minCards, #state.hand) -- the random bot still has to follow "play at least N cards"
+	end
 	local pool = {}
 	for i = 1, #state.hand do
 		pool[i] = i
@@ -813,6 +818,7 @@ function Sim.runOne(cfg, seed)
 		deckVariantId = cfg.deck,
 		difficultyId = cfg.difficulty,
 		nightOneBonusDiscards = cfg.nightOneDiscards,
+		stakeId = cfg.stake,
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec
