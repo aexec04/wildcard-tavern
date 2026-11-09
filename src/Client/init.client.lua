@@ -8,7 +8,7 @@
 
 	This version adds: a menu screen, a How to Play overlay, card
 	hover/select animations, and sound hooks (menu + card clicks + a
-	looping background track). See the SOUND_IDS block below -- you need
+	looping background track). See the SoundModule.SOUND_IDS block below -- you need
 	to plug in real asset IDs from Roblox's audio library before you'll
 	hear anything; the code is ready, the actual sounds are a content
 	choice that's up to you two.
@@ -122,64 +122,38 @@ local SUIT_DISPLAY_ORDER = { "Spades", "Hearts", "Clubs", "Diamonds" }
 -- ===== Sound =====
 -- Extracted into Client/Sound.lua (asset IDs and the "why this default
 -- track" note now live there too). Nearly everything below takes
--- playSfx/playClickSfx/SOUND_IDS as deps, so this is required first.
+-- SoundModule.playSfx/SoundModule.playClickSfx/SoundModule.SOUND_IDS as deps, so this is required first.
 local SoundModule = require(script.Sound)({
 	SoundService = SoundService,
 })
-local SOUND_IDS = SoundModule.SOUND_IDS
 require(script.Cue).set(SoundModule.playCue) -- named cues (Engine/SoundIds) for any module
-local backgroundMusic = SoundModule.backgroundMusic
-local setMusicTrack = SoundModule.setMusicTrack
-local playSfx = SoundModule.playSfx
-local playClickSfx = SoundModule.playClickSfx
-local playPitched = SoundModule.playPitched
-local chipTickSound = SoundModule.chipTickSound
-local multTickSound = SoundModule.multTickSound
-local xmultTickSound = SoundModule.xmultTickSound
-local payoutThudSound = SoundModule.payoutThudSound
 -- VOLUME_STEPS (the old loud/quiet/mute click-to-cycle table) is gone --
 -- volumeButton opens VolumePanel.lua's real slider panel now instead of
 -- cycling, so only the icon table + its initial index are still needed
 -- (for the button's starting glyph; VolumePanel.lua takes it from here).
-local VOLUME_ICONS = SoundModule.VOLUME_ICONS
-local volumeStepIndex = SoundModule.volumeStepIndex
 
 -- Title theme starts the instant the game loads (the main menu is visible
 -- from the very first frame -- see Client/Menu.lua) -- everything after
 -- this point that leaves the menu (either button below) hands music
--- control off to render()'s own setMusicTrack call, which switches to
+-- control off to render()'s own SoundModule.setMusicTrack call, which switches to
 -- gameplay/boss/shop based on live state every time it's called.
-setMusicTrack("title")
+SoundModule.setMusicTrack("title")
 
 -- ===== Visual + stepper-row helpers =====
 -- Extracted into Client/VisualHelpers.lua. Required right after Sound.lua
--- since makeStepperRow needs playClickSfx. Nearly every overlay module
--- below takes tweenTo/polishPanel/polishButton/roundCorner/addSoftShadow
+-- since VisualHelpersModule.makeStepperRow needs SoundModule.playClickSfx. Nearly every overlay module
+-- below takes VisualHelpersModule.tweenTo/VisualHelpersModule.polishPanel/VisualHelpersModule.polishButton/VisualHelpersModule.roundCorner/VisualHelpersModule.addSoftShadow
 -- as deps.
 local VisualHelpersModule = require(script.VisualHelpers)({
 	TweenService = TweenService,
 	UserInputService = UserInputService,
-	playClickSfx = playClickSfx,
+	playClickSfx = SoundModule.playClickSfx,
 })
-local tweenTo = VisualHelpersModule.tweenTo
-local roundCorner = VisualHelpersModule.roundCorner
-local polishButton = VisualHelpersModule.polishButton
-local polishPanel = VisualHelpersModule.polishPanel
-local addSoftShadow = VisualHelpersModule.addSoftShadow
-local makeStepperRow = VisualHelpersModule.makeStepperRow
-local makeSliderRow = VisualHelpersModule.makeSliderRow
-local screenShake = VisualHelpersModule.screenShake
 -- POLISH PASS (post-Phase-7): generic modal pop-in/out + the two small
 -- "react to a value changing" pulses, see VisualHelpers.lua's own header
 -- comment for what each is for and why they're split the way they are.
-local popIn = VisualHelpersModule.popIn
-local popOut = VisualHelpersModule.popOut
-local pulseFrame = VisualHelpersModule.pulseFrame
-local popScale = VisualHelpersModule.popScale
 -- POLISH PASS Batch 2: button hover/press feedback + a one-shot staggered
 -- reveal for a list of instances (Menu.lua's load-in, Shop.lua's offer rows).
-local addButtonHoverScale = VisualHelpersModule.addButtonHoverScale
-local revealStagger = VisualHelpersModule.revealStagger
 
 -- ===== Root UI =====
 
@@ -238,7 +212,7 @@ root.Parent = screenGui
 -- fully transparent-backed, root's own flat BackgroundColor3 above is
 -- the fallback for as long as this is still "rbxassetid://0", and
 -- ZIndex 0 guarantees it sits behind every other root-level child
--- (sidebar is ZIndex 2, everything else defaults to ZIndex 1) no
+-- (SidebarModule.sidebar is ZIndex 2, everything else defaults to ZIndex 1) no
 -- matter what order they're created in.
 local gameBackgroundArt = Instance.new("ImageLabel")
 gameBackgroundArt.Name = "GameBackgroundArt"
@@ -266,8 +240,8 @@ do
 	require(script.GameplayScene).init({
 		root = root,
 		gameBackgroundArt = gameBackgroundArt,
-		playSfx = playSfx,
-		soundId = SOUND_IDS.cardToggle, -- soft whoosh-like rub, played quietly
+		playSfx = SoundModule.playSfx,
+		soundId = SoundModule.SOUND_IDS.cardToggle, -- soft whoosh-like rub, played quietly
 	})
 end
 root.BackgroundTransparency = 1
@@ -275,31 +249,16 @@ root.BackgroundTransparency = 1
 -- this to a blurry thumbnail on "Failure" -- but PreloadAsync reports
 -- Failure even for images that load fine, so it was blanking good art.)
 
--- ----- Left sidebar: round/blind info -----
+-- ----- Left SidebarModule.sidebar: round/blind info -----
 -- Extracted into Client/Sidebar.lua (round/blind labels, Patron slot row,
--- score preview box). SIDEBAR_WIDTH/labels/patronSlots come back out since
+-- score preview box). SidebarModule.SIDEBAR_WIDTH/labels/SidebarModule.patronSlots come back out since
 -- render() and refreshScorePreview() below still drive them every frame.
 local SidebarModule = require(script.Sidebar)({
 	root = root,
-	polishPanel = polishPanel,
-	roundCorner = roundCorner,
+	polishPanel = VisualHelpersModule.polishPanel,
+	roundCorner = VisualHelpersModule.roundCorner,
 	Patrons = Patrons,
 })
-local SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH
-local sidebar = SidebarModule.sidebar
-local nightRoundLabel = SidebarModule.nightRoundLabel
-local blindInfoLabel = SidebarModule.blindInfoLabel
-local scoreLabel = SidebarModule.scoreLabel
-local tipsLabel = SidebarModule.tipsLabel
-local tipsBox = SidebarModule.tipsBox
-local handsDiscardsLabel = SidebarModule.handsDiscardsLabel
-local handsDiscardsBox = SidebarModule.handsDiscardsBox
-local patronsCountLabel = SidebarModule.patronsCountLabel
-local patronSlots = SidebarModule.patronSlots
-local MAX_SIDEBAR_PATRON_SLOTS = SidebarModule.MAX_SIDEBAR_PATRON_SLOTS
-local scorePreviewBox = SidebarModule.scorePreviewBox
-local scorePreviewLabel = SidebarModule.scorePreviewLabel
-local setRunModeBadge = SidebarModule.setRunModeBadge
 
 -- ----- Help (?) and mute buttons, top-right corner -----
 
@@ -351,8 +310,8 @@ local function makeCornerButton(text, order, iconId)
 	button.TextStrokeTransparency = 1
 	button.ZIndex = 5
 	button.Parent = row
-	polishButton(button, 27)
-	-- Ring matched to the sidebar frame (bronze outer line + the shared
+	VisualHelpersModule.polishButton(button, 27)
+	-- Ring matched to the SidebarModule.sidebar frame (bronze outer line + the shared
 	-- gold inner rim), thinner than before.
 	local rim = button:FindFirstChildOfClass("UIStroke")
 	if rim then
@@ -383,7 +342,7 @@ local function makeCornerButton(text, order, iconId)
 	return button
 end
 
-local volumeButton = makeCornerButton(VOLUME_ICONS[volumeStepIndex], 5, ArtAssetsModule.cornerIconVolume)
+local volumeButton = makeCornerButton(SoundModule.VOLUME_ICONS[SoundModule.volumeStepIndex], 5, ArtAssetsModule.cornerIconVolume)
 -- CORNER ROW CLEANUP: no "?" (How to Play) or "🏆" (Leaderboards) corner
 -- icons anymore -- both moved into the Settings panel (see Settings.lua),
 -- and everything right of Volume shifted 50px to close the gap.
@@ -391,7 +350,7 @@ local journeyButton = makeCornerButton("🗺", 4, ArtAssetsModule.cornerIconJour
 local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHandReference)
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
 -- (bottom-right) is clickable and opens it directly instead (see
--- deckWidgetButton). Settings/Collection shifted left by 50px to close
+-- DeckWidgetModule.deckWidgetButton). Settings/Collection shifted left by 50px to close
 -- the gap left behind.
 local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings)
 local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection)
@@ -422,8 +381,8 @@ end -- Generic hover tooltip
 -- roster entry -- that changes as you buy/sell, so this has to be a
 -- function (not a plain string) re-evaluated fresh every hover, via
 -- latestState, rather than bound once at construction time.
-for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
-	local slot = patronSlots[i]
+for i = 1, SidebarModule.MAX_SIDEBAR_PATRON_SLOTS do
+	local slot = SidebarModule.patronSlots[i]
 	if slot then
 		addTooltip(slot.frame, function()
 			local owned = latestState and latestState.ownedPatrons and latestState.ownedPatrons[i]
@@ -441,10 +400,10 @@ end
 -- call. (The old persistent Boss Round banner is gone -- see
 -- MessageBanner.lua's header.)
 local MessageBannerModule = require(script.MessageBanner)({
-	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
+	SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH,
 	root = root,
-	polishPanel = polishPanel,
-	tweenTo = tweenTo,
+	polishPanel = VisualHelpersModule.polishPanel,
+	tweenTo = VisualHelpersModule.tweenTo,
 })
 local showWarning = MessageBannerModule.showWarning
 
@@ -458,8 +417,8 @@ handFrame.Name = "HandFrame"
 -- REFERENCE-MATCH PASS: taller (cards are bigger now, see
 -- Client/CardFace.lua) and lifted so there's breathing room above the
 -- action buttons; 150px reserved on the right for the bigger deck widget.
-handFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 150), 0, 176)
-handFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -272)
+handFrame.Size = UDim2.new(1, -(SidebarModule.SIDEBAR_WIDTH + 40 + 150), 0, 176)
+handFrame.Position = UDim2.new(0, SidebarModule.SIDEBAR_WIDTH + 20, 1, -272)
 handFrame.BackgroundTransparency = 1
 handFrame.Parent = root
 
@@ -477,8 +436,8 @@ handLayout.Parent = handFrame
 
 local actionFrame = Instance.new("Frame")
 actionFrame.Name = "Actions"
-actionFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40 + 150), 0, 54)
-actionFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 1, -80)
+actionFrame.Size = UDim2.new(1, -(SidebarModule.SIDEBAR_WIDTH + 40 + 150), 0, 54)
+actionFrame.Position = UDim2.new(0, SidebarModule.SIDEBAR_WIDTH + 20, 1, -80)
 actionFrame.BackgroundTransparency = 1
 actionFrame.Parent = root
 
@@ -503,7 +462,7 @@ local function makeActionButton(text)
 	button.BackgroundColor3 = Color3.fromRGB(56, 37, 20)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.Parent = actionFrame
-	polishButton(button, 8)
+	VisualHelpersModule.polishButton(button, 8)
 	-- REFERENCE-MATCH PASS: carved-wood look -- thicker gold rim plus a
 	-- color-only top-to-bottom darkening gradient (multiplies the theme's
 	-- accent color).
@@ -600,7 +559,7 @@ local function makeSortButton(text, order)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.LayoutOrder = order
 	button.Parent = sortFrame
-	polishButton(button, 8)
+	VisualHelpersModule.polishButton(button, 8)
 	-- ART: same carved wood button as Play Hand/Discard (see
 	-- makeActionButton's comment for the ZIndex reasoning).
 	button.ZIndex = 2
@@ -654,12 +613,12 @@ end
 
 sortByRankButton.MouseButton1Click:Connect(function()
 	if not Shop.tutorial.allows("sort") then return end
-	playClickSfx(0.35)
+	SoundModule.playClickSfx(0.35)
 	applyHandSortMode("rank")
 end)
 sortBySuitButton.MouseButton1Click:Connect(function()
 	if not Shop.tutorial.allows("sort") then return end
-	playClickSfx(0.35)
+	SoundModule.playClickSfx(0.35)
 	applyHandSortMode("suit")
 end)
 
@@ -670,22 +629,20 @@ discardButton.LayoutOrder = 3
 -- (no tooltip: the label already says Discard)
 
 -- ===== Deck-remaining widget, bottom-right =====
--- Extracted into Client/DeckWidget.lua. deckCountLabel is driven every
--- render() call, and deckWidgetButton is passed as a dep into
+-- Extracted into Client/DeckWidget.lua. DeckWidgetModule.deckCountLabel is driven every
+-- render() call, and DeckWidgetModule.deckWidgetButton is passed as a dep into
 -- DeckTracker.lua below, so both come back out of the require() call.
 local DeckWidgetModule = require(script.DeckWidget)({
 	root = root,
-	polishPanel = polishPanel,
-	addSoftShadow = addSoftShadow,
+	polishPanel = VisualHelpersModule.polishPanel,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
 	addTooltip = addTooltip,
-	roundCorner = roundCorner,
+	roundCorner = VisualHelpersModule.roundCorner,
 	-- CARD ART: DeckWidget.lua reads cardBackTemplate off this. Inline
 	-- require(), not a new top-level local, same reasoning as everywhere
 	-- else that reads ArtAssets.lua in this file.
 	ArtAssetsModule = require(script.ArtAssets),
 })
-local deckCountLabel = DeckWidgetModule.deckCountLabel
-local deckWidgetButton = DeckWidgetModule.deckWidgetButton
 
 -- deckCounts is [suit][rank] = count (see Deck.remainingCounts) -- sum it
 -- up rather than hardcoding suit/rank names, so it stays correct even if
@@ -709,14 +666,14 @@ end
 -- module table itself, passed straight through as a dep below.
 local ParticleBurstModule = require(script.ParticleBurst)({
 	screenGui = screenGui,
-	tweenTo = tweenTo,
+	tweenTo = VisualHelpersModule.tweenTo,
 })
 
 -- Boss fight presence (portrait, HP bar, hit reactions); visual only, driven by render().
 do
 	-- Live characters (prototype): a click-through ViewportFrame under the boss plaque and the hand.
 	local okStage, stageErr = pcall(function()
-		require(script.CharacterStage).init({ root = root, SIDEBAR_WIDTH = SIDEBAR_WIDTH }).prewarm() -- build the avatar at menu time
+		require(script.CharacterStage).init({ root = root, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH }).prewarm() -- build the avatar at menu time
 	end)
 	if not okStage then
 		warn("[Client] CharacterStage failed to build: " .. tostring(stageErr))
@@ -726,18 +683,18 @@ do
 	pcall(function() require(script.SpectatePanel).init({ screenGui = screenGui, particleBurst = ParticleBurstModule.burst }) end) -- watch a friend (same server)
 	require(script.BossFight).init({
 		root = root,
-		SIDEBAR_WIDTH = SIDEBAR_WIDTH,
+		SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH,
 		burst = ParticleBurstModule.burst,
-		screenShake = screenShake,
-		playThump = function() playPitched(payoutThudSound, 0.4, 0.7) end,
+		screenShake = VisualHelpersModule.screenShake,
+		playThump = function() SoundModule.playPitched(SoundModule.payoutThudSound, 0.4, 0.7) end,
 		playFanfare = function() SoundModule.playCue("win") end,
-		music = backgroundMusic,
+		music = SoundModule.backgroundMusic,
 	})
 	require(script.EndlessChips).init({ root = root, addTooltip = addTooltip }) -- Crowd Rule chips and banner (Endless)
 end
 
 -- ===== Score popup: chips x mult animation on Play Hand =====
--- Extracted into Client/ScorePopup.lua. showScorePopup is called from
+-- Extracted into Client/ScorePopup.lua. ScorePopupModule.showScorePopup is called from
 -- playButton's click handler elsewhere in this file, so it comes back out
 -- of the require() call. SCORING JUICE: now takes the escalating-pitch SFX/
 -- screen shake/particle burst deps too, since it plays back preview.breakdown
@@ -745,20 +702,20 @@ end
 -- flashing the final numbers once.
 local ScorePopupModule = require(script.ScorePopup)({
 	root = root,
-	tweenTo = tweenTo,
-	screenShake = screenShake,
+	tweenTo = VisualHelpersModule.tweenTo,
+	screenShake = VisualHelpersModule.screenShake,
 	particleBurst = ParticleBurstModule.burst,
-	playPitched = playPitched,
-	chipTickSound = chipTickSound,
-	multTickSound = multTickSound,
-	xmultTickSound = xmultTickSound,
-	payoutThudSound = payoutThudSound,
+	playPitched = SoundModule.playPitched,
+	chipTickSound = SoundModule.chipTickSound,
+	multTickSound = SoundModule.multTickSound,
+	xmultTickSound = SoundModule.xmultTickSound,
+	payoutThudSound = SoundModule.payoutThudSound,
 	-- SCORING JUICE, full choreography pass: played-card ghosts drop off
 	-- toward this (bottom-right, see Client/DeckWidget.lua) at the end of
 	-- the reveal, mirroring how a fresh hand deals IN from the same spot
 	-- (see rebuildHand's LAYOUT FEATURE 8) -- symmetric "cards live here"
 	-- landmark instead of just flying off an arbitrary screen edge.
-	deckWidgetButton = deckWidgetButton,
+	deckWidgetButton = DeckWidgetModule.deckWidgetButton,
 	-- QoL Game Pass (Fast Forward, Phase 9): reads latestState fresh every
 	-- call (a live getter, not a one-time snapshot) -- ownership can flip
 	-- true mid-session the moment a purchase resolves (see
@@ -770,8 +727,6 @@ local ScorePopupModule = require(script.ScorePopup)({
 		return latestState ~= nil and latestState.ownedGamePassIds ~= nil and table.find(latestState.ownedGamePassIds, "fast_forward") ~= nil
 	end,
 })
-local showScorePopup = ScorePopupModule.showScorePopup
-local cancelScorePopup = ScorePopupModule.cancelScorePopup
 
 -- ===== PHASE A (Spectacle pass, see claude/mind-blowing-plan.md) =====
 -- Boss Intro (a one-shot "arrival" beat the first time a new Boss Round
@@ -782,10 +737,10 @@ local cancelScorePopup = ScorePopupModule.cancelScorePopup
 -- tipped it over (confirmed) where 1 doesn't.
 local PhaseAModule = require(script.PhaseA)({
 	root = root,
-	tweenTo = tweenTo,
-	screenShake = screenShake,
-	playPitched = playPitched,
-	payoutThudSound = payoutThudSound,
+	tweenTo = VisualHelpersModule.tweenTo,
+	screenShake = VisualHelpersModule.screenShake,
+	playPitched = SoundModule.playPitched,
+	payoutThudSound = SoundModule.payoutThudSound,
 })
 
 -- ===== PHASE B (Alive & Social pass, see claude/mind-blowing-plan.md) =====
@@ -801,19 +756,18 @@ require(script.PhaseB)({
 })
 
 -- ===== Confirm dialog (generic, reusable) =====
--- Extracted into Client/ConfirmDialog.lua. showConfirmDialog is passed as a
+-- Extracted into Client/ConfirmDialog.lua. ConfirmDialogModule.showConfirmDialog is passed as a
 -- dep into Shop.lua below, so it comes back out of the require() call.
 local ConfirmDialogModule = require(script.ConfirmDialog)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
-local showConfirmDialog = ConfirmDialogModule.showConfirmDialog
 
 -- ----- Shop overlay -----
 -- Extracted into Client/Shop.lua (see that file for the deps list and the
@@ -821,22 +775,22 @@ local showConfirmDialog = ConfirmDialogModule.showConfirmDialog
 -- as the client script gets split into smaller, per-feature files. It's a
 -- ModuleScript, so it can't see this script's locals directly; everything
 -- it needs is passed in explicitly via the deps table below. It hands back
--- shopFrame/nextRoundButton (still needed here for theme tweening and for
--- nextRoundButton's click handler, both wired further down) and the two
+-- Shop.shopFrame/Shop.nextRoundButton (still needed here for theme tweening and for
+-- Shop.nextRoundButton's click handler, both wired further down) and the two
 -- rebuild functions (called from render() whenever the shop's contents
 -- need to refresh).
 local Shop = require(script.Shop)({
 	root = root,
-	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
-	polishPanel = polishPanel,
+	SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH,
+	polishPanel = VisualHelpersModule.polishPanel,
 	shopBackgroundImage = require(script.ArtAssets).shopBackground,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
 	showWarning = showWarning,
-	showConfirmDialog = showConfirmDialog,
-	playClickSfx = playClickSfx,
-	playSfx = playSfx,
-	SOUND_IDS = SOUND_IDS,
+	showConfirmDialog = ConfirmDialogModule.showConfirmDialog,
+	playClickSfx = SoundModule.playClickSfx,
+	playSfx = SoundModule.playSfx,
+	SOUND_IDS = SoundModule.SOUND_IDS,
 	Patrons = Patrons,
 	Recipes = Recipes,
 	HousePasses = HousePasses,
@@ -854,15 +808,15 @@ local Shop = require(script.Shop)({
 	getLatestState = function()
 		return latestState
 	end,
-	addButtonHoverScale = addButtonHoverScale,
-	revealStagger = revealStagger,
-	popScale = popScale,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
+	revealStagger = VisualHelpersModule.revealStagger,
+	popScale = VisualHelpersModule.popScale,
 	particleBurst = ParticleBurstModule.burst,
 	addTooltip = addTooltip, -- art cards show their rules text in the shared hover tooltip
 	-- INTERACTIVE TUTORIAL: see this file's own "INTERACTIVE TUTORIAL"
 	-- comment further down (just above Menu.lua's require) for why TutorialWalkthrough.lua is required FROM INSIDE
 	-- Shop.lua instead of getting its own top-level local here.
-	tweenTo = tweenTo,
+	tweenTo = VisualHelpersModule.tweenTo,
 	handFrame = handFrame,
 	playButton = playButton,
 	discardButton = discardButton,
@@ -872,39 +826,31 @@ local Shop = require(script.Shop)({
 	sidebarPatronsBox = SidebarModule.patronsInset,
 	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
 })
-local shopFrame = Shop.shopFrame
-local nextRoundButton = Shop.nextRoundButton
-local rebuildShop = Shop.rebuildShop
-local rebuildMyPatronsTab = Shop.rebuildMyPatronsTab
-local rebuildMyRecipesTab = Shop.rebuildMyRecipesTab
 local closeRecipeTargetPanel = Shop.closeTargetPanel
 
 -- ===== Game over overlay + Menu screen =====
 -- Extracted into Client/GameOver.lua and Client/Menu.lua. and
--- render() further down still need gameOverFrame/playAgainButton, and the
+-- render() further down still need GameOverPanel.gameOverFrame/GameOverPanel.playAgainButton, and the
 -- menu buttons are needed both by the "Menu -> game transition" glue right
 -- below and as deps into HowToPlay.lua/Journey.lua/RunSetup.lua (which wire
 -- their own click handlers onto the menu buttons), so everything comes
 -- back out of both require() calls.
 local GameOverPanel = require(script.GameOver)({
 	root = root,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
 	gameOverWinBackgroundImage = require(script.ArtAssets).gameOverWinBackground,
-	addSoftShadow = addSoftShadow,
-	tweenTo = tweenTo,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	tweenTo = VisualHelpersModule.tweenTo,
 	-- Win/loss sound (Phase 14 fix): this panel played nothing before.
-	playSfx = playSfx,
-	SOUND_IDS = SOUND_IDS,
+	playSfx = SoundModule.playSfx,
+	SOUND_IDS = SoundModule.SOUND_IDS,
 })
-local gameOverFrame = GameOverPanel.gameOverFrame
-local playAgainButton = GameOverPanel.playAgainButton
-local refreshGameOver = GameOverPanel.refreshGameOver
 
 -- INTERACTIVE TUTORIAL (requested directly by Ahmed -- see
 -- TutorialWalkthrough.lua's own header for the full brief). No longer
 -- auto-starts for new players -- the ONLY way in is Menu.lua's "Tutorial"
--- button (wired next to menuPlayButton's click further down), which
+-- button (wired next to MenuScreen.menuPlayButton's click further down), which
 -- hides the menu and starts it straight away. The old static Tutorial.lua
 -- modal is no longer required anywhere.
 --
@@ -912,12 +858,12 @@ local refreshGameOver = GameOverPanel.refreshGameOver
 -- here (confirmed the hard way, same as PhaseA.lua's own header describes:
 -- this chunk is already right up against Lua's 200-local-per-chunk
 -- ceiling, and this feature's targets span handFrame/playButton/
--- discardButton (all available by this point) AND nextRoundButton/
+-- discardButton (all available by this point) AND Shop.nextRoundButton/
 -- shopBuyListFrame, which don't exist until Shop.lua's own require() call
 -- further up finishes -- Shop.lua already HAS those two as its own plain
 -- local variables, so merging there (purely for budget reasons, not a
 -- real coupling -- see its own "===== TUTORIAL WALKTHROUGH" section) means
--- nextRoundButton/shopBuyListFrame never have to be threaded back out
+-- Shop.nextRoundButton/shopBuyListFrame never have to be threaded back out
 -- through a deps table at all. Exposed as Shop.tutorial.<method>, called
 -- from onCardClicked, the Play/Discard/Next Round click handlers, and
 -- render() -- all further down, which costs nothing against THIS chunk's
@@ -935,37 +881,31 @@ local refreshGameOver = GameOverPanel.refreshGameOver
 -- as its own local -- nothing else client-side needs it.
 local MenuScreen = require(script.Menu)({
 	screenGui = screenGui,
-	polishButton = polishButton,
-	revealStagger = revealStagger,
-	addButtonHoverScale = addButtonHoverScale,
+	polishButton = VisualHelpersModule.polishButton,
+	revealStagger = VisualHelpersModule.revealStagger,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 	menuBackgroundImage = require(script.ArtAssets).menuBackground,
 	StartDailyChallengeRemote = remotes:WaitForChild("StartDailyChallenge"),
-	playClickSfx = playClickSfx,
+	playClickSfx = SoundModule.playClickSfx,
 	StartWeeklyChallengeRemote = remotes:WaitForChild("StartWeeklyChallenge"),
 	openSeedRunDialog = require(script.SeedRunDialog)({
 		screenGui = screenGui,
-		polishPanel = polishPanel,
-		polishButton = polishButton,
-		addSoftShadow = addSoftShadow,
-		playClickSfx = playClickSfx,
-		popIn = popIn,
-		popOut = popOut,
-		addButtonHoverScale = addButtonHoverScale,
+		polishPanel = VisualHelpersModule.polishPanel,
+		polishButton = VisualHelpersModule.polishButton,
+		addSoftShadow = VisualHelpersModule.addSoftShadow,
+		playClickSfx = SoundModule.playClickSfx,
+		popIn = VisualHelpersModule.popIn,
+		popOut = VisualHelpersModule.popOut,
+		addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 		StartSeedRunRemote = remotes:WaitForChild("StartSeedRun"),
 		SeededRng = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeededRng")),
 	}).showSeedRunDialog,
 })
-local menuFrame = MenuScreen.menuFrame
-local menuPlayButton = MenuScreen.menuPlayButton
-local menuHowToPlayButton = MenuScreen.menuHowToPlayButton
 
-local menuTutorialButton = MenuScreen.menuTutorialButton
-local menuJourneyButton = MenuScreen.menuJourneyButton
-local menuNewRunButton = MenuScreen.menuNewRunButton
 do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Over from render()
 	local ok, err = pcall(function()
 		require(script.RunSummaryUI).init(screenGui, {
-			playClick = playClickSfx,
+			playClick = SoundModule.playClickSfx,
 			restart = function() remotes:WaitForChild("RestartRun"):FireServer() end,
 			saveBadge = function() remotes:WaitForChild("SaveBadge"):FireServer() end,
 			makeSeed = function() return remotes:WaitForChild("MakeChallengeSeed"):InvokeServer() end, -- Challenge a friend
@@ -976,8 +916,8 @@ end
 do -- Start-of-run draft and between-Nights event cards (Client/ChoicePanel.lua); fed from render()
 	local ok, err = pcall(function()
 		require(script.ChoicePanel).init({
-			screenGui = screenGui, menuFrame = menuFrame, polishButton = polishButton, roundCorner = roundCorner,
-			playClickSfx = playClickSfx, choiceRemote = remotes:WaitForChild("Choice"),
+			screenGui = screenGui, menuFrame = MenuScreen.menuFrame, polishButton = VisualHelpersModule.polishButton, roundCorner = VisualHelpersModule.roundCorner,
+			playClickSfx = SoundModule.playClickSfx, choiceRemote = remotes:WaitForChild("Choice"),
 		})
 	end)
 	if not ok then warn("[Client] ChoicePanel failed: " .. tostring(err)) end
@@ -985,8 +925,8 @@ end
 do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile on the main menu
 	local ok, err = pcall(function()
 		require(script.QuestsPanel).init({
-			screenGui = screenGui, openButton = MenuScreen.menuQuestsButton, polishPanel = polishPanel, polishButton = polishButton,
-			roundCorner = roundCorner, playClickSfx = playClickSfx, popIn = popIn, popOut = popOut,
+			screenGui = screenGui, openButton = MenuScreen.menuQuestsButton, polishPanel = VisualHelpersModule.polishPanel, polishButton = VisualHelpersModule.polishButton,
+			roundCorner = VisualHelpersModule.roundCorner, playClickSfx = SoundModule.playClickSfx, popIn = VisualHelpersModule.popIn, popOut = VisualHelpersModule.popOut,
 			getLatestState = function() return latestState end,
 		})
 	end)
@@ -995,9 +935,9 @@ end
 do -- Tavern Season panel (Client/SeasonPanel.lua): the 30 day reward ladder, opened from the Season tile on the main menu
 	local ok, err = pcall(function()
 		require(script.SeasonPanel).init({
-			screenGui = screenGui, openButton = MenuScreen.menuSeasonButton, polishPanel = polishPanel, polishButton = polishButton,
-			roundCorner = roundCorner, addSoftShadow = addSoftShadow, playClickSfx = playClickSfx, addTooltip = addTooltip,
-			popIn = popIn, popOut = popOut, addButtonHoverScale = addButtonHoverScale,
+			screenGui = screenGui, openButton = MenuScreen.menuSeasonButton, polishPanel = VisualHelpersModule.polishPanel, polishButton = VisualHelpersModule.polishButton,
+			roundCorner = VisualHelpersModule.roundCorner, addSoftShadow = VisualHelpersModule.addSoftShadow, playClickSfx = SoundModule.playClickSfx, addTooltip = addTooltip,
+			popIn = VisualHelpersModule.popIn, popOut = VisualHelpersModule.popOut, addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 			getLatestState = function() return latestState end, StateUpdatedRemote = StateUpdatedRemote,
 		})
 	end)
@@ -1006,8 +946,8 @@ end
 do -- Tavern News panel (Client/NewsPanel.lua): the banner on the menu opens it
 	local ok, err = pcall(function()
 		require(script.NewsPanel).init({
-			screenGui = screenGui, polishPanel = polishPanel, polishButton = polishButton, roundCorner = roundCorner,
-			playClickSfx = playClickSfx, popIn = popIn, popOut = popOut, claimRemote = remotes:WaitForChild("ClaimLiveEvent"),
+			screenGui = screenGui, polishPanel = VisualHelpersModule.polishPanel, polishButton = VisualHelpersModule.polishButton, roundCorner = VisualHelpersModule.roundCorner,
+			playClickSfx = SoundModule.playClickSfx, popIn = VisualHelpersModule.popIn, popOut = VisualHelpersModule.popOut, claimRemote = remotes:WaitForChild("ClaimLiveEvent"),
 		})
 	end)
 	if not ok then warn("[Client] NewsPanel failed: " .. tostring(err)) end
@@ -1015,8 +955,8 @@ end
 do -- The Tavern Store (Client/StorePanel.lua): opened from the menu tile and once after the second run
 	local ok, err = pcall(function()
 		require(script.StorePanel).init({
-			screenGui = screenGui, openButton = MenuScreen.menuStoreButton, polishPanel = polishPanel, polishButton = polishButton,
-			roundCorner = roundCorner, playClickSfx = playClickSfx, popIn = popIn, popOut = popOut,
+			screenGui = screenGui, openButton = MenuScreen.menuStoreButton, polishPanel = VisualHelpersModule.polishPanel, polishButton = VisualHelpersModule.polishButton,
+			roundCorner = VisualHelpersModule.roundCorner, playClickSfx = SoundModule.playClickSfx, popIn = VisualHelpersModule.popIn, popOut = VisualHelpersModule.popOut,
 			purchaseRemote = remotes:WaitForChild("StorePurchase"), getLatestState = function() return latestState end,
 		})
 	end)
@@ -1032,7 +972,7 @@ do -- Unlock toast (Client/UnlockToast.lua); fed from render()
 end
 do -- Daily login streak popup and Next unlock strip (Client/LoginStreakUI.lua); fed from render()
 	local ok, err = pcall(function()
-		require(script.LoginStreakUI).init(menuFrame, remotes:WaitForChild("ClaimLoginReward"), playClickSfx)
+		require(script.LoginStreakUI).init(MenuScreen.menuFrame, remotes:WaitForChild("ClaimLoginReward"), SoundModule.playClickSfx)
 	end)
 	if not ok then warn("[Client] LoginStreakUI failed: " .. tostring(err)) end
 end
@@ -1048,22 +988,22 @@ end)
 
 -- Menu buttons connect BEFORE any optional panel is built, so a broken
 -- panel can never leave the menu dead.
-menuPlayButton.MouseButton1Click:Connect(function()
-	playClickSfx()
+MenuScreen.menuPlayButton.MouseButton1Click:Connect(function()
+	SoundModule.playClickSfx()
 	require(script.TutorialBus).fire("menu_play")
-	menuFrame.Visible = false
+	MenuScreen.menuFrame.Visible = false
 	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-		backgroundMusic:Play()
+	if SoundModule.backgroundMusic.SoundId ~= "rbxassetid://0" and SoundModule.backgroundMusic.Volume > 0 then
+		SoundModule.backgroundMusic:Play()
 	end
 end)
 
-menuTutorialButton.MouseButton1Click:Connect(function()
-	playClickSfx()
-	menuFrame.Visible = false
+MenuScreen.menuTutorialButton.MouseButton1Click:Connect(function()
+	SoundModule.playClickSfx()
+	MenuScreen.menuFrame.Visible = false
 	root.Visible = true
-	if backgroundMusic.SoundId ~= "rbxassetid://0" and backgroundMusic.Volume > 0 then
-		backgroundMusic:Play()
+	if SoundModule.backgroundMusic.SoundId ~= "rbxassetid://0" and SoundModule.backgroundMusic.Volume > 0 then
+		SoundModule.backgroundMusic:Play()
 	end
 	Shop.tutorial.replay()
 end)
@@ -1079,17 +1019,17 @@ local settingsHowToPlayButton, settingsLeaderboardButton, SettingsOverlay
 do
 	local SettingsModule = require(script.Settings)({
 		screenGui = screenGui,
-		polishPanel = polishPanel,
-		polishButton = polishButton,
-		addSoftShadow = addSoftShadow,
-		playClickSfx = playClickSfx,
+		polishPanel = VisualHelpersModule.polishPanel,
+		polishButton = VisualHelpersModule.polishButton,
+		addSoftShadow = VisualHelpersModule.addSoftShadow,
+		playClickSfx = SoundModule.playClickSfx,
 		settingsButton = settingsButton,
 		menuSettingsButton = MenuScreen.menuSettingsButton,
-		popIn = popIn,
-		popOut = popOut,
-		addButtonHoverScale = addButtonHoverScale,
+		popIn = VisualHelpersModule.popIn,
+		popOut = VisualHelpersModule.popOut,
+		addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 		-- BUGFIX (Oct 29 2026): Settings.lua's 2 icon badges need
-		-- roundCorner to clip them into circles (see that file's own
+		-- VisualHelpersModule.roundCorner to clip them into circles (see that file's own
 		-- comment) -- deps, not a second require(VisualHelpers) in
 		-- there, since VisualHelpers.lua's require() returns a FACTORY
 		-- FUNCTION (return function(deps) ... end), not the helpers
@@ -1098,12 +1038,12 @@ do
 		-- above). Settings.lua's own require(script.Parent.VisualHelpers)
 		-- skipped that call and indexed .roundCorner straight off the
 		-- function, which threw "attempt to index a function value" and
-		-- aborted this whole script before it reached menuPlayButton's
+		-- aborted this whole script before it reached MenuScreen.menuPlayButton's
 		-- own click wiring further down -- why Play stopped responding.
-		roundCorner = roundCorner,
+		roundCorner = VisualHelpersModule.roundCorner,
 		-- Main Menu button (requested fix): the only place in the whole game
 		-- that lets a player back out of an in-progress run to the menu.
-		menuFrame = menuFrame,
+		menuFrame = MenuScreen.menuFrame,
 		root = root,
 	})
 	settingsHowToPlayButton = SettingsModule.settingsHowToPlayButton
@@ -1118,23 +1058,23 @@ end
 xpcall(function()
 require(script.HowToPlay)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
 	RED_SUITS = RED_SUITS,
 	RANK_NAMES = RANK_NAMES,
 	SUIT_SYMBOLS = SUIT_SYMBOLS,
 	HandEvaluator = HandEvaluator,
 	Scoring = Scoring,
-	menuHowToPlayButton = menuHowToPlayButton,
+	menuHowToPlayButton = MenuScreen.menuHowToPlayButton,
 	helpButton = settingsHowToPlayButton,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 	replayTutorial = function()
-		menuFrame.Visible = false
+		MenuScreen.menuFrame.Visible = false
 		root.Visible = true
 		Shop.tutorial.replay()
 	end,
@@ -1150,19 +1090,19 @@ end)
 xpcall(function()
 require(script.PokerHandsReference)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
 	handRefButton = handRefButton,
 	HandEvaluator = HandEvaluator,
 	Scoring = Scoring,
 	getLatestState = function()
 		return latestState
 	end,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
 end, function(e)
 	warn("[Client] PokerHandsReference panel failed to build: " .. tostring(e))
@@ -1170,17 +1110,17 @@ end)
 
 -- ===== Deck Tracker overlay =====
 -- Extracted into Client/DeckTracker.lua. Fully self-contained (only opened
--- from deckWidgetButton, which is passed in as a dep), so nothing needs to
+-- from DeckWidgetModule.deckWidgetButton, which is passed in as a dep), so nothing needs to
 -- come back out of the require() call.
 xpcall(function()
 require(script.DeckTracker)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	deckWidgetButton = deckWidgetButton,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
+	deckWidgetButton = DeckWidgetModule.deckWidgetButton,
 	Deck = Deck,
 	RANK_NAMES = RANK_NAMES,
 	SUIT_SYMBOLS = SUIT_SYMBOLS,
@@ -1189,9 +1129,9 @@ require(script.DeckTracker)({
 	getLatestState = function()
 		return latestState
 	end,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
 end, function(e)
 	warn("[Client] DeckTracker panel failed to build: " .. tostring(e))
@@ -1203,18 +1143,18 @@ end)
 xpcall(function()
 require(script.VolumePanel)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
 	volumeButton = volumeButton,
 	isMusicUnavailable = SoundModule.isMusicUnavailable,
 	onMusicAvailability = SoundModule.onMusicAvailability,
-	makeSliderRow = makeSliderRow,
-	VOLUME_ICONS = VOLUME_ICONS,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	makeSliderRow = VisualHelpersModule.makeSliderRow,
+	VOLUME_ICONS = SoundModule.VOLUME_ICONS,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
 end, function(e)
 	warn("[Client] VolumePanel panel failed to build: " .. tostring(e))
@@ -1228,24 +1168,24 @@ xpcall(function()
 require(script.RunSetup)({
 	screenGui = screenGui,
 	root = root,
-	menuFrame = menuFrame,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	playSfx = playSfx,
-	SOUND_IDS = SOUND_IDS,
+	menuFrame = MenuScreen.menuFrame,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
+	playSfx = SoundModule.playSfx,
+	SOUND_IDS = SoundModule.SOUND_IDS,
 	DeckVariants = DeckVariants,
 	DifficultyTiers = DifficultyTiers,
 	getLatestState = function() return latestState end, -- Stakes: highestStakeUnlocked
 	StartRunRemote = StartRunRemote,
-	backgroundMusic = backgroundMusic,
-	menuNewRunButton = menuNewRunButton,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
-	revealStagger = revealStagger,
+	backgroundMusic = SoundModule.backgroundMusic,
+	menuNewRunButton = MenuScreen.menuNewRunButton,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
+	revealStagger = VisualHelpersModule.revealStagger,
 	-- PHASE A (Spectacle pass): the OTHER "Biggest Hand" reset path --
 	-- see RunRecap.lua's own header for why this needs 2 call sites, not
 	-- just the gameover->playing transition render() already covers.
@@ -1333,11 +1273,11 @@ local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit 
 require(script.Collection)({
 	addTooltip = addTooltip,
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
 	collectionButton = collectionButton,
 	menuCollectionButton = MenuScreen.menuCollectionButton,
 	particleBurst = ParticleBurstModule.burst, -- Flair panel previews
@@ -1357,9 +1297,9 @@ require(script.Collection)({
 	getLatestState = function()
 		return latestState
 	end,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
 
 -- ===== Daily Challenge Leaderboard overlay (Phase 11) =====
@@ -1368,67 +1308,65 @@ require(script.Collection)({
 -- the require() call -- same pattern as Collection.lua just above.
 require(script.DailyLeaderboard)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
 	leaderboardButton = settingsLeaderboardButton,
 	menuTickerButton = MenuScreen.menuTickerButton,
 	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
 	GetWeeklyLeaderboardRemote = remotes:WaitForChild("GetWeeklyLeaderboard"),
 	GetEndlessLeaderboardRemote = remotes:WaitForChild("GetEndlessLeaderboard"),
 	localPlayer = player,
-	popIn = popIn,
-	popOut = popOut,
-	addButtonHoverScale = addButtonHoverScale,
+	popIn = VisualHelpersModule.popIn,
+	popOut = VisualHelpersModule.popOut,
+	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
 
 -- ===== "Unlocked!" popup + Round reward popup =====
 -- Extracted into Client/UnlockPopup.lua and Client/RoundRewardPopup.lua.
--- render() further down still needs to call showUnlockPopup()/
--- showRoundReward() (and tracks its own lastOwnedPatronIds/
+-- render() further down still needs to call UnlockPopupModule.showUnlockPopup()/
+-- RoundRewardPopupModule.showRoundReward() (and tracks its own lastOwnedPatronIds/
 -- hasRenderedOnce/lastPhase state to know when to), so
 -- both functions come back out of their require() calls.
 local UnlockPopupModule = require(script.UnlockPopup)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	tweenTo = tweenTo,
+	polishPanel = VisualHelpersModule.polishPanel,
+	tweenTo = VisualHelpersModule.tweenTo,
 })
-local showUnlockPopup = UnlockPopupModule.showUnlockPopup
 
 local RoundRewardPopupModule = require(script.RoundRewardPopup)({
 	screenGui = screenGui,
-	polishPanel = polishPanel,
-	tweenTo = tweenTo,
-	playSfx = playSfx,
-	SOUND_IDS = SOUND_IDS,
+	polishPanel = VisualHelpersModule.polishPanel,
+	tweenTo = VisualHelpersModule.tweenTo,
+	playSfx = SoundModule.playSfx,
+	SOUND_IDS = SoundModule.SOUND_IDS,
 })
-local showRoundReward = RoundRewardPopupModule.showRoundReward
 
 -- ===== Road Ahead (journey/roadmap) overlay =====
 -- Extracted into Client/Journey.lua. render() still needs to check
--- journeyBackdrop.Visible and call refreshJourney(), so both come back out
+-- JourneyOverlay.journeyBackdrop.Visible and call JourneyOverlay.refreshJourney(), so both come back out
 -- of the require() call, same pattern as Shop.lua. Purely informational
 -- now -- skipping a round lives on its own dedicated screen (ROUND SELECT
--- FEATURE, right below) -- so it no longer needs showRoundReward or a way
+-- FEATURE, right below) -- so it no longer needs RoundRewardPopupModule.showRoundReward or a way
 -- to fire SkipRound.
 local JourneyOverlay = require(script.Journey)({
 	screenGui = screenGui,
 	getBestHand = function() return PhaseAModule.getBest() end, -- Night victory recap
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	addSoftShadow = addSoftShadow,
-	playClickSfx = playClickSfx,
-	tweenTo = tweenTo,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	addSoftShadow = VisualHelpersModule.addSoftShadow,
+	playClickSfx = SoundModule.playClickSfx,
+	tweenTo = VisualHelpersModule.tweenTo,
 	DifficultyTiers = DifficultyTiers,
 	BossRounds = BossRounds,
 	RunStateEngine = RunStateEngine,
 	Players = Players,
 	player = player,
 	journeyButton = journeyButton,
-	menuJourneyButton = menuJourneyButton,
+	menuJourneyButton = MenuScreen.menuJourneyButton,
 	getLatestState = function()
 		return latestState
 	end,
@@ -1438,43 +1376,39 @@ local JourneyOverlay = require(script.Journey)({
 	addTooltip = addTooltip,
 	StateUpdatedRemote = StateUpdatedRemote,
 })
-local journeyBackdrop = JourneyOverlay.journeyBackdrop
-local refreshJourney = JourneyOverlay.refreshJourney
 
 -- ===== Round Select screen =====
 -- Extracted into Client/RoundSelect.lua. render() needs to toggle
--- roundSelectFrame.Visible and call rebuildRoundSelect() whenever
+-- RoundSelectOverlay.roundSelectFrame.Visible and call RoundSelectOverlay.rebuildRoundSelect() whenever
 -- phase == "roundSelect", so both come back out of the require() call.
--- Needs showRoundReward/showUnlockPopup as deps (for its Tag-result
+-- Needs RoundRewardPopupModule.showRoundReward/UnlockPopupModule.showUnlockPopup as deps (for its Tag-result
 -- confirmation popups), which is why this is required down here, after
 -- RoundRewardPopupModule/UnlockPopupModule above have already run.
 local RoundSelectOverlay = require(script.RoundSelect)({
 	root = root,
-	SIDEBAR_WIDTH = SIDEBAR_WIDTH,
-	polishPanel = polishPanel,
-	polishButton = polishButton,
-	roundCorner = roundCorner,
-	playClickSfx = playClickSfx,
-	tweenTo = tweenTo,
+	SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH,
+	polishPanel = VisualHelpersModule.polishPanel,
+	polishButton = VisualHelpersModule.polishButton,
+	roundCorner = VisualHelpersModule.roundCorner,
+	playClickSfx = SoundModule.playClickSfx,
+	tweenTo = VisualHelpersModule.tweenTo,
 	addTooltip = addTooltip,
 	BossRounds = BossRounds,
 	RunStateEngine = RunStateEngine,
 	SelectRoundRemote = SelectRoundRemote,
 	SkipRoundRemote = SkipRoundRemote,
-	showRoundReward = showRoundReward,
-	showUnlockPopup = showUnlockPopup,
+	showRoundReward = RoundRewardPopupModule.showRoundReward,
+	showUnlockPopup = UnlockPopupModule.showUnlockPopup,
 	showWarning = showWarning,
 	getLatestState = function()
 		return latestState
 	end,
 })
-local roundSelectFrame = RoundSelectOverlay.roundSelectFrame
-local rebuildRoundSelect = RoundSelectOverlay.rebuildRoundSelect
 do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sort); see Client/InputGuard.lua
 	local okGuard, errGuard = pcall(function()
 		require(script.InputGuard).install({
 			root = root,
-			overlays = { roundSelectFrame, shopFrame, gameOverFrame },
+			overlays = { RoundSelectOverlay.roundSelectFrame, Shop.shopFrame, GameOverPanel.gameOverFrame },
 			guarded = { root:FindFirstChild("DeckWidget"), handFrame, actionFrame },
 			tooltip = screenGui:FindFirstChild("Tooltip"),
 		})
@@ -1484,9 +1418,9 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() require(script.PlayerMedallion).install(root) end) -- headshot at the top of the left panel
 	pcall(function() -- tutorial targets owned by other modules (Client/TutorialBus.lua)
 		local bus = require(script.TutorialBus)
-		bus.register("menuPlay", menuPlayButton)
+		bus.register("menuPlay", MenuScreen.menuPlayButton)
 		bus.register("selectButton", function()
-			for _, d in ipairs(roundSelectFrame:GetDescendants()) do
+			for _, d in ipairs(RoundSelectOverlay.roundSelectFrame:GetDescendants()) do
 				if d.Name == "SelectButton" and d:IsA("TextButton") and d.Visible then return d end
 			end
 			return nil
@@ -1494,7 +1428,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	end)
 	pcall(function() -- Daily / Weekly / Seed starts from the menu (Client/ChallengeStart.lua)
 		require(script.ChallengeStart).init({
-			root = root, menuFrame = menuFrame, music = backgroundMusic,
+			root = root, menuFrame = MenuScreen.menuFrame, music = SoundModule.backgroundMusic,
 			remotes = {
 				daily = remotes:WaitForChild("StartDailyChallenge"),
 				weekly = remotes:WaitForChild("StartWeeklyChallenge"),
@@ -1505,7 +1439,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		})
 	end)
 	pcall(function() -- narrow windows and phones: stats drawer, wider hand, scaled button row (Client/CompactLayout.lua)
-		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SIDEBAR_WIDTH })
+		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH })
 	end)
 	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
 		local sortFrame = nil
@@ -1524,8 +1458,8 @@ local lastOwnedPatronIds = {}
 local hasRenderedOnce = false
 local lastPhase = nil
 
--- POLISH PASS: sidebar pulse tracking -- Tips/Hands/Discards/Patron-slot
--- flashes below (see the LAYOUT FEATURE 5 / tipsLabel/handsDiscardsLabel
+-- POLISH PASS: SidebarModule.sidebar pulse tracking -- Tips/Hands/Discards/Patron-slot
+-- flashes below (see the LAYOUT FEATURE 5 / SidebarModule.tipsLabel/SidebarModule.handsDiscardsLabel
 -- assignments in render()) only fire when a value actually changed since
 -- the last render, and never on the very first render (same
 -- `hasRenderedOnce` guard FEATURE 12 above already uses for the Unlocked
@@ -1610,7 +1544,7 @@ local function refreshCardVisual(index, usePop)
 
 	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
 
-	tweenTo(button, {
+	VisualHelpersModule.tweenTo(button, {
 		Position = UDim2.new(0.5, 0, 0.5, -lift),
 	}, 0.15)
 
@@ -1630,7 +1564,7 @@ local function refreshCardVisual(index, usePop)
 		else
 			strokeThickness, strokeTransparency = 1, 1
 		end
-		tweenTo(stroke, {
+		VisualHelpersModule.tweenTo(stroke, {
 			Color = currentTheme.colors.cardSelected,
 			Thickness = strokeThickness,
 			Transparency = strokeTransparency,
@@ -1638,9 +1572,9 @@ local function refreshCardVisual(index, usePop)
 	end
 
 	if usePop then
-		tweenTo(scaleObject, { Scale = targetScale }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		VisualHelpersModule.tweenTo(scaleObject, { Scale = targetScale }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 	else
-		tweenTo(scaleObject, { Scale = targetScale }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		VisualHelpersModule.tweenTo(scaleObject, { Scale = targetScale }, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	end
 end
 
@@ -1718,7 +1652,7 @@ local function computeHandPreview(cardIndices)
 	-- matching block. If the one True Wildcard card is part of THIS
 	-- selection and hasn't locked in yet, resolve it the exact same
 	-- deterministic way the server will for real the moment Play is
-	-- actually clicked, so this preview (both the live sidebar score AND
+	-- actually clicked, so this preview (both the live SidebarModule.sidebar score AND
 	-- the popup it drives at Play-time, below) always shows the TRUE
 	-- number, never a "whatever it happened to be dealt as" guess.
 	-- findBestChoice always restores the card's current rank/suit before
@@ -1846,7 +1780,7 @@ local function computeHandPreview(cardIndices)
 	score = chips * mult
 
 	-- extra.breakdown (see Scoring.lua) drives ScorePopup.lua's sequenced
-	-- chips/mult/xmult reveal -- see showScorePopup's call site below.
+	-- chips/mult/xmult reveal -- see ScorePopupModule.showScorePopup's call site below.
 	-- brokenCards (SCORING JUICE, full choreography pass): Brittle Garnish
 	-- cards that shattered this hand -- ScorePopup uses this to play a
 	-- shatter effect on the matching played-card ghost. Matched by the same
@@ -1860,7 +1794,7 @@ local function computeHandPreview(cardIndices)
 		brokenCards = extra and extra.brokenCards,
 		-- PHASE C: only set when THIS selection includes the unresolved
 		-- True Wildcard -- ScorePopup.lua uses this (Play-time call only;
-		-- the live sidebar preview never calls showScorePopup at all) to
+		-- the live SidebarModule.sidebar preview never calls ScorePopupModule.showScorePopup at all) to
 		-- play a one-time "locks in" reveal banner.
 		wildcardResolution = wildcardResolution,
 	}
@@ -1985,14 +1919,14 @@ local function buildScoreSourceInfo(indices)
 		return a.visualPosition < b.visualPosition
 	end)
 
-	-- Patron sidebar slot i always mirrors state.ownedPatrons[i] (see
+	-- Patron SidebarModule.sidebar slot i always mirrors state.ownedPatrons[i] (see
 	-- Sidebar.lua) -- map patronId -> that live Frame reference so
 	-- ScorePopup can pulse the right seat. These Frames are NOT cloned --
 	-- they're permanent, never destroyed/recreated, so a live reference is
 	-- safe to hand off and animate directly.
 	local patronSlotFrames = {}
 	for i, patron in ipairs(latestState.ownedPatrons or {}) do
-		local slot = patronSlots[i]
+		local slot = SidebarModule.patronSlots[i]
 		if slot then
 			patronSlotFrames[patron.id] = slot.frame
 		end
@@ -2003,7 +1937,7 @@ end
 
 local function refreshScorePreview()
 	if not latestState then
-		scorePreviewLabel.Text = "0  x  0"
+		SidebarModule.scorePreviewLabel.Text = "0  x  0"
 		return
 	end
 
@@ -2016,7 +1950,7 @@ local function refreshScorePreview()
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
 	if not preview then
-		scorePreviewLabel.Text = "Select cards..."
+		SidebarModule.scorePreviewLabel.Text = "Select cards..."
 		return
 	end
 
@@ -2025,7 +1959,7 @@ local function refreshScorePreview()
 	-- halving applied to an odd number), and Lua 5.3's %d hard-errors on
 	-- a non-integral float. (See ScorePopup.lua's same guard on the
 	-- sequenced reveal's own numbers.)
-	scorePreviewLabel.Text = string.format(
+	SidebarModule.scorePreviewLabel.Text = string.format(
 		"%s\n%d x %d = %d",
 		preview.name,
 		math.floor(preview.chips + 0.5),
@@ -2216,11 +2150,11 @@ local function rebuildHand(handData, phase)
 		-- children's render order interact.
 		button.Text = ""
 		button.Parent = slot
-		-- roundCorner, not polishButton: polishButton now also adds the
+		-- VisualHelpersModule.roundCorner, not VisualHelpersModule.polishButton: VisualHelpersModule.polishButton now also adds the
 		-- gold-chrome UIStroke, and a card already has its own
 		-- SelectionStroke below -- the card art shouldn't get a permanent
 		-- gold border, and the selection cue needs to be its only stroke.
-		roundCorner(button, 8)
+		VisualHelpersModule.roundCorner(button, 8)
 
 		-- CARD ART: the single blank-centered card-face template (see
 		-- ArtAssets.lua's header), the same image for all 52 cards --
@@ -2228,8 +2162,8 @@ local function rebuildHand(handData, phase)
 		-- Crop, so the whole template fits the portrait button. ZIndex 1 -- one
 		-- below cardRankSuitLabel and the Garnish/Special/Stamp badge
 		-- further below (both ZIndex 2) -- so it's always a backdrop,
-		-- never covering the text or badge. roundCorner matches
-		-- polishButton's own radius above so the image's corners read as
+		-- never covering the text or badge. VisualHelpersModule.roundCorner matches
+		-- VisualHelpersModule.polishButton's own radius above so the image's corners read as
 		-- rounded too, without needing button.ClipsDescendants (untouched
 		-- elsewhere).
 		local cardArt = Instance.new("ImageLabel")
@@ -2241,7 +2175,7 @@ local function rebuildHand(handData, phase)
 		cardArt.Image = cardFaceTemplate
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
-		roundCorner(cardArt, 8)
+		VisualHelpersModule.roundCorner(cardArt, 8)
 
 		-- The card's rank/suit -- always shown. Not a fallback anymore:
 		-- the face template's center is blank on purpose, so this text IS
@@ -2349,7 +2283,7 @@ local function rebuildHand(handData, phase)
 			button.Rotation = 14
 			task.delay((visualPosition - 1) * 0.05, function()
 				if button.Parent then
-					tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					VisualHelpersModule.tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 				end
 			end)
 			-- Cosmetic back-to-face flip (overlay child of the button; no input/state effect).
@@ -2405,21 +2339,21 @@ local function render(state)
 	-- stays around underneath every overlay) kept flying around ON TOP of
 	-- the Shop screen. Cancel any in-flight popup the instant we're no
 	-- longer in "playing" -- cheap and safe to call unconditionally
-	-- (cancelScorePopup no-ops visually if nothing was showing).
+	-- (ScorePopupModule.cancelScorePopup no-ops visually if nothing was showing).
 	if state.phase ~= "playing" then
-		cancelScorePopup()
+		ScorePopupModule.cancelScorePopup()
 	end
 
 	-- SCORING JUICE: background music track, picked from live state every
-	-- render -- setMusicTrack no-ops if it's already the right track, so
+	-- render -- SoundModule.setMusicTrack no-ops if it's already the right track, so
 	-- calling it unconditionally on every state push is cheap. Priority:
 	-- Shop (you're browsing, not playing a hand) beats Boss (the target-
 	-- score banner) beats plain Gameplay -- matches which one is actually
 	-- true first in RunState's own phase/round flow.
 	if state.phase == "shop" then
-		setMusicTrack("shop")
+		SoundModule.setMusicTrack("shop")
 	elseif state.bossModifier then
-		setMusicTrack("boss")
+		SoundModule.setMusicTrack("boss")
 	else
 		-- per-region track when one is set in Engine/SoundIds (else the plain gameplay track)
 		local okRegion, musicKey = pcall(function()
@@ -2428,7 +2362,7 @@ local function render(state)
 			local regionId = route and #route > 0 and require(engine:WaitForChild("WorldMap")).regionOf(route[#route])
 			return SoundModule.SoundIds.regionMusicKey(regionId)
 		end)
-		setMusicTrack(okRegion and musicKey or "gameplay")
+		SoundModule.setMusicTrack(okRegion and musicKey or "gameplay")
 	end
 
 	require(script.CosmeticSetsView).apply(state)
@@ -2458,17 +2392,17 @@ local function render(state)
 	-- "(Endless)" tag instead.
 	local nightCap = state.nightCap or 8
 	if state.night > nightCap then
-		nightRoundLabel.Text = string.format("Night %d (Endless) · Round %d", state.night, state.round)
+		SidebarModule.nightRoundLabel.Text = string.format("Night %d (Endless) · Round %d", state.night, state.round)
 	else
-		nightRoundLabel.Text = string.format("Night %d/%d · Round %d", state.night, nightCap, state.round)
+		SidebarModule.nightRoundLabel.Text = string.format("Night %d/%d · Round %d", state.night, nightCap, state.round)
 	end
 	-- DAILY CHALLENGE (Phase 11) / WEEKLY CHALLENGE + SEED CODES (Phase
-	-- 16): show/hide the sidebar badge based on whatever the server says
+	-- 16): show/hide the SidebarModule.sidebar badge based on whatever the server says
 	-- THIS run is -- state.isDaily/dailyDateKey (and their Weekly/Seeded
 	-- counterparts) are shipped fresh in every serializeState() call, so
 	-- this always reflects the actual current run, including after
 	-- "New Run..." swaps a seeded run back out for a normal one.
-	setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
+	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
 	pcall(function() -- the seed / date / week also shows in Settings
 		local info = require(ReplicatedStorage.Shared.Engine.SeedDisplay).label(state)
 		SettingsOverlay.setRunLabel(info and ("This run  |  " .. info.text) or nil)
@@ -2480,25 +2414,25 @@ local function render(state)
 	-- never flashes for state that was already true, only for something
 	-- that visibly CHANGED.
 	if hasRenderedOnce and state.tips ~= lastTipsValue then
-		pulseFrame(tipsBox, state.tips > lastTipsValue and SIDEBAR_TIPS_GAIN_COLOR or SIDEBAR_SPEND_COLOR)
+		VisualHelpersModule.pulseFrame(SidebarModule.tipsBox, state.tips > lastTipsValue and SIDEBAR_TIPS_GAIN_COLOR or SIDEBAR_SPEND_COLOR)
 	end
 	lastTipsValue = state.tips
 	do
 		local tipsText = string.format("Tips: %d", state.tips)
-		SidebarModule.setIconText("tips", tipsText, "💰 " .. tipsText, tipsText, tipsLabel.TextSize)
+		SidebarModule.setIconText("tips", tipsText, "💰 " .. tipsText, tipsText, SidebarModule.tipsLabel.TextSize)
 	end
 
 	if hasRenderedOnce
 		and (state.handsRemaining < lastHandsRemaining or state.discardsRemaining < lastDiscardsRemaining) then
-		pulseFrame(handsDiscardsBox, SIDEBAR_SPEND_COLOR)
+		VisualHelpersModule.pulseFrame(SidebarModule.handsDiscardsBox, SIDEBAR_SPEND_COLOR)
 	end
 	lastHandsRemaining = state.handsRemaining
 	lastDiscardsRemaining = state.discardsRemaining
 	do
 		local handsText = string.format("Hands: %d   Discards: %d", state.handsRemaining, state.discardsRemaining)
-		SidebarModule.setIconText("hands", handsText, "🃏 " .. handsText, handsText, handsDiscardsLabel.TextSize)
+		SidebarModule.setIconText("hands", handsText, "🃏 " .. handsText, handsText, SidebarModule.handsDiscardsLabel.TextSize)
 	end
-	deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
+	DeckWidgetModule.deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
 
 	-- LAYOUT FEATURE 5: fill in the Patron slot icons. Since the Patron
 	-- slot cap (RunState.patronSlotLimit, default 5) went in, this row
@@ -2512,9 +2446,9 @@ local function render(state)
 	do
 		local PatronPlaqueModule = require(script.PatronPlaque)
 		local ownedPatrons = state.ownedPatrons or {}
-		local slotLimit = math.min(state.patronSlotLimit or #ownedPatrons, MAX_SIDEBAR_PATRON_SLOTS)
-		for i = 1, MAX_SIDEBAR_PATRON_SLOTS do
-			local slot = patronSlots[i]
+		local slotLimit = math.min(state.patronSlotLimit or #ownedPatrons, SidebarModule.MAX_SIDEBAR_PATRON_SLOTS)
+		for i = 1, SidebarModule.MAX_SIDEBAR_PATRON_SLOTS do
+			local slot = SidebarModule.patronSlots[i]
 			if slot then
 				if i > slotLimit then
 					slot.frame.Visible = false
@@ -2536,12 +2470,12 @@ local function render(state)
 							end
 						end)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
-						-- one-off scale pop (popScale -- NOT pulseFrame, since
+						-- one-off scale pop (VisualHelpersModule.popScale -- NOT VisualHelpersModule.pulseFrame, since
 						-- this frame's BackgroundColor3 is already meaningful
 						-- state that flips every render between owned/empty;
-						-- pulseFrame's color-revert-on-settle would fight that).
+						-- VisualHelpersModule.pulseFrame's color-revert-on-settle would fight that).
 						if hasRenderedOnce and not lastPatronSlotOwned[i] then
-							popScale(slot.frame, 1.35, 0.3)
+							VisualHelpersModule.popScale(slot.frame, 1.35, 0.3)
 						end
 					else
 						PatronPlaqueModule.updateSlot(slot, nil)
@@ -2557,22 +2491,22 @@ local function render(state)
 				end
 			end
 		end
-		patronsCountLabel.Text = string.format("%d/%d", #ownedPatrons, slotLimit)
+		SidebarModule.patronsCountLabel.Text = string.format("%d/%d", #ownedPatrons, slotLimit)
 	end
 
 	-- LAYOUT FEATURE 2: reward mirrors RunState.lua's playHand payout exactly
-	-- (tipsPerRoundWin, doubled on a Boss Round) so the sidebar never shows a
+	-- (tipsPerRoundWin, doubled on a Boss Round) so the SidebarModule.sidebar never shows a
 	-- number that doesn't match what you actually get paid.
 	local reward = RunStateEngine.DefaultConfig.tipsPerRoundWin
 	if state.bossModifier or state.isBossRound then
 		reward = reward + RunStateEngine.DefaultConfig.tipsPerRoundWin
 	end
-	scoreLabel.Text = string.format("Score: %d / %d\nReward: $%d", state.roundScore, state.targetScore, reward)
+	SidebarModule.scoreLabel.Text = string.format("Score: %d / %d\nReward: $%d", state.roundScore, state.targetScore, reward)
 	SidebarModule.placeRewardIcon(string.format("Reward: $%d", reward))
 
 	if state.bossModifier then
 		-- REFERENCE-MATCH PASS: name on a bigger first line, rule text
-		-- smaller underneath (blindInfoLabel has RichText on -- escape so
+		-- smaller underneath (SidebarModule.blindInfoLabel has RichText on -- escape so
 		-- a "&" or "<" in a description can't break the markup).
 		local function esc(text)
 			return (tostring(text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
@@ -2594,7 +2528,7 @@ local function render(state)
 		-- (see RunState.blindMultiplierFor).
 		-- No crown on a normal round: set the text directly, and make sure
 		-- a crown left over from a Boss Round is hidden.
-		blindInfoLabel.Text = string.format(
+		SidebarModule.blindInfoLabel.Text = string.format(
 			'<font size="17">%s</font>\n<font size="13" color="#E6D2AA">No special rules this round.</font>',
 			state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)
 		)
@@ -2623,8 +2557,8 @@ local function render(state)
 	-- either way, recomputing here keeps the preview in sync.
 	refreshScorePreview()
 
-	if journeyBackdrop.Visible then
-		refreshJourney() -- keep "you are here" accurate if it's open across a round change
+	if JourneyOverlay.journeyBackdrop.Visible then
+		JourneyOverlay.refreshJourney() -- keep "you are here" accurate if it's open across a round change
 	end
 
 	-- FEATURE 12: detect newly-owned Patrons and celebrate the first
@@ -2645,7 +2579,7 @@ local function render(state)
 			local okTier, tier = pcall(function()
 				return require(ReplicatedStorage.Shared.Engine.CollectionBook).rarityForId("patrons", newPatron.id)
 			end)
-			showUnlockPopup(newPatron.name, newPatron.description, okTier and tier or nil)
+			UnlockPopupModule.showUnlockPopup(newPatron.name, newPatron.description, okTier and tier or nil)
 		end
 
 		lastOwnedPatronIds = ownedPatronIds
@@ -2653,16 +2587,16 @@ local function render(state)
 	end
 
 	-- INTERACTIVE TUTORIAL: captured here, BEFORE lastPhase gets reassigned
-	-- just below (same "true previous phase" need as rebuildRoundSelect's
+	-- just below (same "true previous phase" need as RoundSelectOverlay.rebuildRoundSelect's
 	-- own comment a few lines down) -- notifyEnteredShop() itself fires
-	-- later, after rebuildShop(state) actually builds shopBuyListFrame's
+	-- later, after Shop.rebuildShop(state) actually builds shopBuyListFrame's
 	-- rows, not here.
 	local justEnteredShop = state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce
 
 	-- Round reward popup: fire once, right on the transition INTO "shop"
 	-- (i.e. the round was just won), not on every re-render while already
 	-- shopping (e.g. after buying a Patron, phase is still "shop").
-	if state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce and showRoundReward then
+	if state.phase == "shop" and lastPhase ~= "shop" and hasRenderedOnce and RoundRewardPopupModule.showRoundReward then
 		-- BUGFIX: `reward` above only ever mirrored the flat/boss-doubled
 		-- payout, so it silently under-reported Patron onRoundWin bonuses
 		-- and the universal interest rule -- state.lastRoundReward (set by
@@ -2679,16 +2613,16 @@ local function render(state)
 		if state.wonRun and state.night == (state.nightCap or 8) then
 			title = string.format("🏆 Night %d Cleared -- Endless Mode Unlocked!", state.night)
 		end
-		showRoundReward(actualReward, title)
+		RoundRewardPopupModule.showRoundReward(actualReward, title)
 	end
 
 	-- ROUND SELECT FEATURE: rebuild BEFORE `lastPhase` gets reassigned just
-	-- below, so rebuildRoundSelect receives the TRUE previous phase (see its
+	-- below, so RoundSelectOverlay.rebuildRoundSelect receives the TRUE previous phase (see its
 	-- own header comment for why it needs that to tell a confirmed skip
 	-- apart from a normal play-through that also ends up back on this
 	-- screen).
 	if state.phase == "roundSelect" then
-		rebuildRoundSelect(state, lastPhase)
+		RoundSelectOverlay.rebuildRoundSelect(state, lastPhase)
 	end
 	-- PHASE A (Spectacle pass): a fresh run starting right after a
 	-- gameover screen (by far the common "Play Again" path) clears last
@@ -2702,14 +2636,14 @@ local function render(state)
 	end
 	lastPhase = state.phase
 
-	roundSelectFrame.Visible = (state.phase == "roundSelect")
-	pcall(require(script.SidebarSlide).set, root, SIDEBAR_WIDTH, state.phase == "roundSelect") -- stats panel away on Round Select
-	shopFrame.Visible = (state.phase == "shop")
-	gameOverFrame.Visible = (state.phase == "gameover")
+	RoundSelectOverlay.roundSelectFrame.Visible = (state.phase == "roundSelect")
+	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect") -- stats panel away on Round Select
+	Shop.shopFrame.Visible = (state.phase == "shop")
+	GameOverPanel.gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then
-		rebuildShop(state)
-		rebuildMyPatronsTab(state)
-		rebuildMyRecipesTab(state)
+		Shop.rebuildShop(state)
+		Shop.rebuildMyPatronsTab(state)
+		Shop.rebuildMyRecipesTab(state)
 		if justEnteredShop then
 			Shop.tutorial.notifyEnteredShop()
 		end
@@ -2729,9 +2663,9 @@ local function render(state)
 	-- managed to draw stayed frozen (in practice, the panel's original
 	-- build-time static text, never the dynamic Night/Round line). Fixed by
 	-- moving this panel's own text/stats/reveal-animation logic into
-	-- GameOver.lua's refreshGameOver, which owns its own labels directly.
+	-- GameOver.lua's GameOverPanel.refreshGameOver, which owns its own labels directly.
 	if state.phase == "gameover" then
-		refreshGameOver(state, PhaseAModule.getBest())
+		GameOverPanel.refreshGameOver(state, PhaseAModule.getBest())
 	end
 end
 
@@ -2750,7 +2684,7 @@ playButton.MouseButton1Click:Connect(function()
 	SoundModule.playCue("card_play")
 
 	-- LAYOUT FEATURE 7: pop the score BEFORE firing the remote, off the same
-	-- preview computation the sidebar already uses -- see computeHandPreview.
+	-- preview computation the SidebarModule.sidebar already uses -- see computeHandPreview.
 	local preview = computeHandPreview(indices)
 
 	if preview then
@@ -2792,7 +2726,7 @@ playButton.MouseButton1Click:Connect(function()
 
 		-- BUGFIX (Ahmed's report, "SFX doesn't work anymore and when you
 		-- play a card, nothing shows" -- right after the card-art rollout):
-		-- buildScoreSourceInfo/showScorePopup is pure animation/choreography
+		-- buildScoreSourceInfo/ScorePopupModule.showScorePopup is pure animation/choreography
 		-- -- the card-art rollout added a Clone() of a now-more-complex card
 		-- button (CardArt image, RankSuit label, SelectionStroke) plus new
 		-- overlay-Frame logic in ScorePopup.lua, any one of which erroring
@@ -2814,9 +2748,9 @@ playButton.MouseButton1Click:Connect(function()
 		-- permanently hidden with nothing showing in its place.
 		local ok, sourceInfoOrErr = pcall(buildScoreSourceInfo, indices)
 		if ok then
-			local ok2, err2 = pcall(showScorePopup, preview, sourceInfoOrErr)
+			local ok2, err2 = pcall(ScorePopupModule.showScorePopup, preview, sourceInfoOrErr)
 			if not ok2 then
-				warn("[WildcardTavern] showScorePopup errored, hand still playing normally: " .. tostring(err2))
+				warn("[WildcardTavern] ScorePopupModule.showScorePopup errored, hand still playing normally: " .. tostring(err2))
 			end
 		else
 			warn("[WildcardTavern] buildScoreSourceInfo errored, hand still playing normally: " .. tostring(sourceInfoOrErr))
@@ -2849,7 +2783,7 @@ discardButton.MouseButton1Click:Connect(function()
 		return
 	end
 	local function doDiscard()
-		playSfx(SOUND_IDS.discard)
+		SoundModule.playSfx(SoundModule.SOUND_IDS.discard)
 		pendingNewCardCount = #indices -- see the matching comment on Play Hand above
 		DiscardRemote:FireServer(indices)
 		Shop.tutorial.notifyDiscardUsed()
@@ -2857,21 +2791,21 @@ discardButton.MouseButton1Click:Connect(function()
 	-- Settings > Gameplay > Confirm Before Discard.
 	if require(script.ClientSettings).get("confirmDiscard") then
 		local count = math.floor(#indices)
-		showConfirmDialog(string.format("Discard %d card%s?", count, count == 1 and "" or "s"), doDiscard)
+		ConfirmDialogModule.showConfirmDialog(string.format("Discard %d card%s?", count, count == 1 and "" or "s"), doDiscard)
 	else
 		doDiscard()
 	end
 end)
 
-nextRoundButton.MouseButton1Click:Connect(function()
+Shop.nextRoundButton.MouseButton1Click:Connect(function()
 	if not Shop.tutorial.allows("nextRound") then return end
-	playClickSfx()
+	SoundModule.playClickSfx()
 	AdvanceRoundRemote:FireServer()
 	Shop.tutorial.notifyNextRoundClicked()
 end)
 
-playAgainButton.MouseButton1Click:Connect(function()
-	playClickSfx()
+GameOverPanel.playAgainButton.MouseButton1Click:Connect(function()
+	SoundModule.playClickSfx()
 	RestartRunRemote:FireServer()
 end)
 
@@ -2880,7 +2814,7 @@ end)
 -- No new top-level locals here: this script's main chunk is at Luau's
 -- 200-local limit.
 GameOverPanel.continueButton.MouseButton1Click:Connect(function()
-	playClickSfx()
+	SoundModule.playClickSfx()
 	remotes:WaitForChild("RequestContinue"):FireServer()
 end)
 
@@ -2919,8 +2853,8 @@ do
 			end)
 		end)
 	end
-	guard(menuPlayButton, false)
-	guard(menuJourneyButton, false)
+	guard(MenuScreen.menuPlayButton, false)
+	guard(MenuScreen.menuJourneyButton, false)
 	guard(MenuScreen.menuDailyChallengeButton, true)
 	guard(MenuScreen.menuWeeklyChallengeButton, true)
 end
