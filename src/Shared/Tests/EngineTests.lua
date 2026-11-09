@@ -11345,6 +11345,12 @@ table.insert(tests, { name = "MapSeams: every join overlaps by 18 percent of the
 	for k = 2, #stops do expectTrue(stops[k].t > stops[k - 1].t, "ramp stops increase") end
 	expectTrue(#stops >= #regions, "every region contributes a colour")
 	expectEqual(nil, MapSeams.fallbackSource(regions, 1, function() return false end), "no art anywhere means no fallback")
+	-- Color3-like tints (userdata in Roblox: indexing with a number throws) must work too
+	local c3 = {}
+	local function fakeColor(r, g, b) return setmetatable({ R = r / 255, G = g / 255, B = b / 255 }, { __index = function(_, k) if type(k) == "number" then error("invalid argument #2 (string expected, got number)") end end }) end
+	for i, r in ipairs(regions) do c3[i] = { key = r.key, tint = fakeColor(200, 180, 150) } end
+	local s3 = MapSeams.underlayStops(c3, plan.edges, 4072)
+	expectEqual(200, math.floor(s3[1].r + 0.5), "Color3 tint converted to 0..255")
 end })
 
 return tests

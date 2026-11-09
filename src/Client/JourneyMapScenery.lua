@@ -219,11 +219,15 @@ return function(deps)
 		end
 		seamLayer:ClearAllChildren()
 		base.Size = UDim2.fromOffset(math.floor(canvasW), canvasH)
-		local keypoints = {}
-		for _, stop in ipairs(MapSeams.underlayStops(REGIONS, edges, canvasW)) do
-			keypoints[#keypoints + 1] = ColorSequenceKeypoint.new(stop.t, Color3.fromRGB(stop.r, stop.g, stop.b))
-		end
-		if #keypoints >= 2 then baseRamp.Color = ColorSequence.new(keypoints) end
+		-- Decorative ramp: a failure here must never stop the painted strips below from drawing.
+		local okRamp, rampErr = pcall(function()
+			local keypoints = {}
+			for _, stop in ipairs(MapSeams.underlayStops(REGIONS, edges, canvasW)) do
+				keypoints[#keypoints + 1] = ColorSequenceKeypoint.new(stop.t, Color3.fromRGB(stop.r, stop.g, stop.b))
+			end
+			if #keypoints >= 2 then baseRamp.Color = ColorSequence.new(keypoints) end
+		end)
+		if not okRamp then warn("[JourneyMapScenery] colour ramp failed: " .. tostring(rampErr)) end
 		fadeLayer:ClearAllChildren()
 		for i, f in ipairs(regionFrames) do
 			local x0 = edges[i] - (i > 1 and joinW[i] / 2 or 0)

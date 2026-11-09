@@ -81,13 +81,20 @@ function MapSeams.plan(regions, canvasW, canvasH, nodeXs, hasArt)
 	return out
 end
 
--- A smooth colour ramp across the canvas: one stop at the centre of every region, tints given as {r, g, b} 0..255.
+-- A smooth colour ramp across the canvas: one stop at the centre of every region, tints given as {r, g, b} 0..255 tables or Color3 values.
 function MapSeams.underlayStops(regions, edges, canvasW)
 	local stops = {}
 	for i, region in ipairs(regions) do
 		local centre = (edges[i] + edges[i + 1]) / 2
 		local t = math.max(0, math.min(1, centre / math.max(1, canvasW)))
-		stops[#stops + 1] = { t = t, r = region.tint[1], g = region.tint[2], b = region.tint[3] }
+		local tint = region.tint
+		local r, g, b
+		if type(tint) ~= "table" or tint.R then -- a Color3 (userdata): indexing it with a number throws, so read R/G/B
+			r, g, b = tint.R * 255, tint.G * 255, tint.B * 255
+		else
+			r, g, b = tint[1], tint[2], tint[3]
+		end
+		stops[#stops + 1] = { t = t, r = r, g = g, b = b }
 	end
 	table.sort(stops, function(a, b) return a.t < b.t end)
 	-- ColorSequence keypoints must start at 0 and end at 1 with strictly increasing times

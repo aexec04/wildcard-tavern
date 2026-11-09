@@ -169,6 +169,7 @@ return function(deps)
 			TextSize = 14, Text = "Badges",
 		})
 		polishButton(badgesButton, 8)
+			badgesButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
 		require(script.Parent.BadgesPanel)({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
@@ -193,6 +194,7 @@ return function(deps)
 			TextSize = 14, Text = "Rewards",
 		})
 		polishButton(rewardsButton, 8)
+			rewardsButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
 		require(script.Parent.CollectionRewardsPanel).init({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
@@ -217,6 +219,7 @@ return function(deps)
 			TextSize = 14, Text = "Flair",
 		})
 		polishButton(flairButton, 8)
+			flairButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
 		require(script.Parent.FlairPanel).init({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
@@ -242,6 +245,7 @@ return function(deps)
 			TextSize = 14, Text = "Legend",
 		})
 		polishButton(legendButton, 8)
+			legendButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
 		require(script.Parent.LegendPanel).init({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
@@ -266,6 +270,7 @@ return function(deps)
 			TextSize = 14, Text = "Stats",
 		})
 		polishButton(statsButton, 8)
+			statsButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
 		require(script.Parent.StatsPanel)({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
