@@ -14,6 +14,7 @@ local Card = require(script.Parent.Card)
 local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
+local EndlessRules = require(script.Parent.EndlessRules)
 local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
@@ -171,6 +172,8 @@ function RunState.new(options, rng)
 		rng = rng,
 		stake = stake,
 		stakeRules = stakeRules,
+		-- ENDLESS (Engine/EndlessRules.lua): Crowd Rules after the Night cap, normal runs only.
+		endlessRulesEnabled = options.endlessRules == true,
 		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
 		unlockedContent = options.unlockedContent,
 		deckVariantId = deckVariant.id,
@@ -339,6 +342,11 @@ end
 -- together, reshuffles, picks this round's Boss modifier (if any), and
 -- deals a new starting hand. Cards are never regenerated -- this is what
 -- lets a Garnish/Special/Stamp persist across rounds (see RunState.new).
+-- One Crowd Rule number (0 when Endless rules are off or not active yet).
+local function endlessField(state, field)
+	return state.endlessRules and state.endlessRules[field] or 0
+end
+
 function RunState.startRound(state)
 	for _, card in ipairs(state.hand) do
 		table.insert(state.deck, card)
@@ -371,6 +379,13 @@ function RunState.startRound(state)
 		state.nightBossModifier = nil
 	end
 
+	-- CROWD RULES: recomputed every round from the Night (nil when off), plus the rule that joins this Night.
+	if state.endlessRulesEnabled then
+		state.endlessRules = EndlessRules.combined(EndlessRules.activeFor(state.night, state.config.nightCap))
+		state.endlessNewRule = EndlessRules.newAt(state.night, state.config.nightCap)
+	else
+		state.endlessRules, state.endlessNewRule = nil, nil
+	end
 	state.isBossRound = BossRounds.isBossRound(state.round, state.config.roundsPerNight)
 	local isBoss = state.bossRoundsEnabled and state.isBossRound
 	state.bossModifier = isBoss and state.nightBossModifier or nil
@@ -390,14 +405,19 @@ function RunState.startRound(state)
 	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
 		+ Patrons.sum(state.ownedPatrons, "handSizeDelta") -- Extra Chair, Overtime
 		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
+		+ endlessField(state, "handSizeDelta")
 	handSize = math.max(1, handSize)
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)
 		+ Patrons.sum(state.ownedPatrons, "discardsDelta") -- Second Helpings
+		+ endlessField(state, "discardsDelta")
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
 	if state.isBossRound and state.housePasses.boss_prep then
 		discards = discards + 1 -- Boss Prep
+	end
+	if state.isBossRound then
+		discards = discards + endlessField(state, "bossExtraDiscards")
 	end
 	if state.isBossRound and state.stakeRules then
 		discards = discards + state.stakeRules.bossExtraDiscards -- Legend stake: a second small boss debuff
@@ -413,6 +433,7 @@ function RunState.startRound(state)
 	-- everything else here layering on top of the boss's base number.
 	handsPerRound = handsPerRound + (state.housePasses.double_shift and 1 or 0)
 	handsPerRound = handsPerRound + Patrons.sum(state.ownedPatrons, "handsDelta") -- Overtime
+	handsPerRound = handsPerRound + endlessField(state, "handsDelta")
 	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
 	if state.bonusHandsNight and state.bonusHandsNight == state.night then
 		handsPerRound = handsPerRound + 1
@@ -448,8 +469,11 @@ function RunState.startRound(state)
 	if state.isBossRound and state.housePasses.warm_welcome then
 		bossMultiplier = bossMultiplier * 0.9 -- Warm Welcome
 	end
+	if state.isBossRound then
+		bossMultiplier = bossMultiplier * (1 + endlessField(state, "bossTargetPct") / 100)
+	end
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
-	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
+	state.targetScore = math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
 
 	-- Cold Start Boss Round: Tips are lost as the round begins
 	if bossModifier and bossModifier.tipsLostAtStart then
@@ -861,6 +885,7 @@ function RunState.playHand(state, cardIndices)
 				break
 			end
 		end
+		interestCap = math.max(0, interestCap + endlessField(state, "interestCapDelta")) -- Thin Interest
 		if not (state.stakeRules and state.stakeRules.noInterest) then -- Final Bell stake: no interest
 			state.tips = state.tips + BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
 		end
@@ -880,7 +905,7 @@ function RunState.playHand(state, cardIndices)
 		end
 
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
-		local reward = state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) -- Tip Stand
+		local reward = math.max(1, state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) + endlessField(state, "tipsDelta")) -- Tip Stand, Lean Tips
 		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
 		end
@@ -1004,7 +1029,7 @@ end
 -- so a future Recipe-slot-raising House Pass/Special has one obvious place
 -- to hook into instead of every call site re-reading state.config directly.
 function RunState.recipeSlotLimit(state)
-	return state.config.recipeSlotLimit + (state.housePasses.pantry_shelf and 1 or 0) -- Pantry Shelf
+	return math.max(0, state.config.recipeSlotLimit + (state.housePasses.pantry_shelf and 1 or 0) + endlessField(state, "recipeSlotDelta")) -- Pantry Shelf, Packed Shelf
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'
@@ -1021,7 +1046,12 @@ function RunState.patronPrice(state, patron)
 		price = price - 2
 	end
 	price = price - (state.nextShopDiscount or 0)
-	return math.max(1, price)
+	price = math.max(1, price)
+	local pct = endlessField(state, "patronPricePct")
+	if pct ~= 0 then
+		price = math.ceil(price * (1 + pct / 100)) -- Pricey Patrons
+	end
+	return price
 end
 
 -- Same idea for Packs -- Wholesale Pricing + a Sale Day Tag both apply.
@@ -1047,6 +1077,7 @@ function RunState.rerollCost(state, baseCost)
 	if state.stakeRules then
 		cost = cost + state.stakeRules.rerollExtra -- Rush Hour stake
 	end
+	cost = cost + endlessField(state, "rerollExtra") -- Costly Rerolls
 	return math.max(1, cost)
 end
 

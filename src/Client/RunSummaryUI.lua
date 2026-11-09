@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 
 local SeedDisplay = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedDisplay"))
 local ShareResult = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ShareResult"))
+local EndlessRules = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("EndlessRules"))
 local RunSummaryUI = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -94,7 +95,7 @@ function RunSummaryUI.init(screenGui, deps)
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.new(0, 760, 0, 470)
+	panel.Size = UDim2.new(0, 760, 0, 516)
 	panel.BackgroundColor3 = PARCHMENT
 	panel.BorderSizePixel = 0
 	panel.ZIndex = 71
@@ -158,6 +159,12 @@ function RunSummaryUI.init(screenGui, deps)
 	ui.noPatrons = label(panel, {
 		Position = UDim2.new(0, 322, 0, 250), Size = UDim2.new(1, -354, 0, 40), Text = "No Patrons this time.",
 		TextSize = 15, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left,
+	})
+
+	-- personal best Endless Night per stake (set in update); a one-line strip along the bottom
+	ui.bestEndless = label(panel, {
+		Position = UDim2.new(0, 22, 1, -48), Size = UDim2.new(1, -44, 0, 30), Text = "", TextSize = 15,
+		Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 
 	ui.save = button(panel, "Save as my badge", GREEN, {
@@ -369,6 +376,9 @@ function RunSummaryUI.update(state)
 			summary.bestHand and string.format("%s (%d)", summary.bestHand.name, summary.bestHand.score) or "none",
 			#summary.route, #summary.route == 1 and "" or "s"
 		) .. ((state.nextUnlock and state.nextUnlock.label) and ("\nNext unlock: " .. state.nextUnlock.label) or "")
+		-- personal best Endless Night per stake (normal runs that went past the Night cap)
+		local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)
+		ui.bestEndless.Text = #bestLines > 0 and ("Best Endless Night   " .. table.concat(bestLines, "   |   ")) or ""
 		-- the seed of this run: a Seed Run can be shared, a Daily or Weekly shows its date or week instead
 		local seedInfo = SeedDisplay.label(state)
 		if seedInfo then

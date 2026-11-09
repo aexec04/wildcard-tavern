@@ -182,6 +182,7 @@ function PlayerProfile.new()
 		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
 		highestStakeUnlocked = 1, -- Engine/Stakes.lua: the highest stake a run may start on
 		stakeStamps = {}, -- [region id] = highest stake won on a run through that road
+		endlessBestByStake = {}, -- [stake number as text] = best Endless Night reached on that stake
 		unlockedContent = {}, -- ["patron:id" / "recipe:id"] = true, gated content already opened (Engine/Unlocks.lua)
 		badgeIds = {}, -- [Badges id] = true, earned once (Engine/Badges.lua)
 		equippedBadgeId = nil, -- one Badges id shown beside the name on leaderboards and the results screen
@@ -328,6 +329,14 @@ function PlayerProfile.migrate(raw)
 	profile.highestStakeUnlocked, profile.stakeStamps = Stakes.cleanSaved(raw.highestStakeUnlocked, raw.stakeStamps, function(region)
 		return WorldMap.Regions[region] ~= nil
 	end)
+	if type(raw.endlessBestByStake) == "table" then
+		for k, v in pairs(raw.endlessBestByStake) do
+			local stake = tonumber(k)
+			if stake and stake >= 1 and stake <= 8 and stake == math.floor(stake) and type(v) == "number" and v == v and v >= 1 and v <= 500 then
+				profile.endlessBestByStake[tostring(stake)] = math.floor(v)
+			end
+		end
+	end
 	if type(raw.keys) == "number" and raw.keys == raw.keys then
 		profile.keys = math.max(0, math.min(Keys.MAX_KEYS, math.floor(raw.keys)))
 	end
@@ -581,6 +590,21 @@ end
 function PlayerProfile.recordNightReached(profile, night)
 	if type(night) == "number" and night > profile.stats.bestNightReached then
 		profile.stats.bestNightReached = night
+		return true
+	end
+	return false
+end
+
+-- Personal best Endless Night per stake. Idempotent high-water mark; returns true when it moved.
+function PlayerProfile.recordEndlessBest(profile, stake, night)
+	if type(stake) ~= "number" or type(night) ~= "number" or night ~= night or night < 1 or night > 500 then
+		return false
+	end
+	profile.endlessBestByStake = profile.endlessBestByStake or {}
+	local key = tostring(math.floor(stake))
+	night = math.floor(night)
+	if night > (profile.endlessBestByStake[key] or 0) then
+		profile.endlessBestByStake[key] = night
 		return true
 	end
 	return false

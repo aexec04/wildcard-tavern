@@ -106,10 +106,10 @@ function Leaderboards.friendRows(entries, friendIds, selfId, limit)
 end
 
 -- ===== Endless board =====
--- Highest Night reached in Endless Mode, then the run's best single hand as the tiebreak. One all-time board per
+-- Highest Night reached in Endless Mode, then the run's total score as the tiebreak. One all-time board per
 -- Standard / Revived. Scores are computed from the server's own run state, never sent by a client.
 Leaderboards.ENDLESS_PERIOD = "alltime"
-Leaderboards.SCORE_MULTIPLIER = 1000000 -- combined = night * this + best hand (the hand is clamped below it)
+Leaderboards.SCORE_MULTIPLIER = 1000000000 -- combined = night * this + total score (the score is clamped below it)
 Leaderboards.MAX_ENDLESS_NIGHT = 500 -- a sanity ceiling: nothing above it is ever written
 
 function Leaderboards.combine(night, score)
@@ -137,7 +137,7 @@ function Leaderboards.endlessEntry(state, flags)
 	if type(night) ~= "number" or night ~= night or night <= cap or night > Leaderboards.MAX_ENDLESS_NIGHT then
 		return nil
 	end
-	local best = state.bestHand and state.bestHand.score or 0
+	local best = state.totalScore or (state.bestHand and state.bestHand.score) or 0 -- total score of the run (older states: best hand)
 	if type(best) ~= "number" or best ~= best or best < 0 then
 		return nil
 	end

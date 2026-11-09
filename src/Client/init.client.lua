@@ -730,6 +730,7 @@ do
 		playFanfare = function() SoundModule.playCue("win") end,
 		music = backgroundMusic,
 	})
+	require(script.EndlessChips).init({ root = root, addTooltip = addTooltip }) -- Crowd Rule chips and banner (Endless)
 end
 
 -- ===== Score popup: chips x mult animation on Play Hand =====
@@ -2418,6 +2419,7 @@ local function render(state)
 	require(script.GameplayScene).get().update(state)
 	pcall(function() require(script.CharacterStage).get().update(state) end) -- live characters (before BossFight so it can hide the portrait)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
+	pcall(require(script.EndlessChips).update, state) -- Crowd Rule chips and banner, display only
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only

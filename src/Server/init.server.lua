@@ -51,6 +51,7 @@ local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toas
 local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
 local storePrompts = {} -- [player] = seq: opens the Store on the Starter Pack once, after the second run
 local rewardSeqCounter = 0
+local EndlessRules = require(Engine.EndlessRules)
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
@@ -822,6 +823,9 @@ local function serializeState(session, player)
 		local _, badgeIcon = Badges.equippedText(profile)
 		summary.badgeIcon = badgeIcon
 			local saved = profile and profile.equippedBadge
+			summary.stake = state.stake
+			summary.endlessBestByStake = profile and profile.endlessBestByStake or nil
+			summary.totalScore = math.floor(state.totalScore or 0)
 			summary.badgeSaved = saved ~= nil and saved.night == math.floor(summary.night)
 				and saved.rarity == summary.rarity and saved.won == summary.won
 				and saved.bestHandScore == (summary.bestHand and summary.bestHand.score or nil)
@@ -918,6 +922,15 @@ local function serializeState(session, player)
 			end,
 		}) or nil,
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
+		-- CROWD RULES (Endless): the active rules as display data, and the one that joined this Night (nil when none)
+		crowdRules = state.endlessRulesEnabled and (function()
+			local out = {}
+			for i, r in ipairs(EndlessRules.activeFor(state.night, state.config.nightCap)) do
+				out[i] = { id = r.id, name = r.name, icon = r.icon, text = r.text }
+			end
+			return out
+		end)() or nil,
+		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
 		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
@@ -1097,6 +1110,10 @@ local function syncProfileFromSession(player)
 	local countsForRecords = RunState.countsForRecords(session.state)
 	if countsForRecords and PlayerProfile.recordNightReached(profile, session.state.night) then
 		changed = true
+	end
+	if countsForRecords and session.state.endlessRulesEnabled and session.state.night > session.state.config.nightCap
+		and PlayerProfile.recordEndlessBest(profile, session.state.stake, session.state.night) then
+		changed = true -- personal best Endless Night per stake (Run Summary)
 	end
 	local justWon = false -- this sync saw a counted run flip to won (Tavern Rank win XP)
 	if session.state.wonRun and not session.lastKnownWonRun then
@@ -1577,6 +1594,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
 			stakeId = stake,
+			endlessRules = seededRng == nil and isTutorial ~= true and not rush and challengeId == nil, -- Crowd Rules: normal runs only
 			rush = rush,
 			challengeId = challengeId,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)

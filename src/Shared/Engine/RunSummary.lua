@@ -37,6 +37,7 @@ function RunSummary.recordHand(state, handName, score)
 	if not state.bestHand or score > state.bestHand.score then
 		state.bestHand = { name = handName, score = score }
 	end
+	state.totalScore = (state.totalScore or 0) + score -- Endless board tiebreak: the whole run's score
 	state.patronsUsedIds = state.patronsUsedIds or {}
 	for _, patron in ipairs(state.ownedPatrons or {}) do
 		if patron.id and not state.patronsUsedIds[patron.id] then

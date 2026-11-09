@@ -9056,6 +9056,88 @@ table.insert(tests, { name = "Depth House Passes: 6 new, gated, each effect chan
 	expectEqual(#Unlocks.filter(locked, "housePass", { { id = "tip_stand" } }), 1)
 end })
 
+table.insert(tests, { name = "EndlessRules: one new Crowd Rule every 3 Nights past the cap, fixed order, applied only to normal runs, targets never overflow", fn = function()
+	local ER = require(script.Parent.Parent.Engine.EndlessRules)
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	expectEqual(#ER.Rules, 10)
+	local seen = {}
+	for _, r in ipairs(ER.Rules) do
+		expectTrue(not seen[r.id] and #r.name > 0 and #r.text > 0 and r.icon ~= nil, r.id)
+		seen[r.id] = true
+		local words = 0
+		for _ in r.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= 12)
+	end
+	-- order and timing are the same every time
+	expectEqual(ER.countFor(8, 8), 0)
+	expectEqual(ER.countFor(10, 8), 0)
+	expectEqual(ER.countFor(11, 8), 1)
+	expectEqual(ER.countFor(13, 8), 1)
+	expectEqual(ER.countFor(14, 8), 2)
+	expectEqual(ER.countFor(38, 8), 10)
+	expectEqual(ER.countFor(500, 8), 10, "never more than the registry")
+	expectEqual(ER.newAt(11, 8).id, ER.Rules[1].id)
+	expectEqual(ER.newAt(14, 8).id, ER.Rules[2].id)
+	expectEqual(ER.newAt(12, 8), nil)
+	expectEqual(ER.newAt(41, 8), nil, "no rule joins after the last one")
+	expectEqual(ER.activeFor(20, 8)[3].id, ER.Rules[3].id)
+	-- sums
+	local sum = ER.combined(ER.activeFor(38, 8))
+	expectEqual(sum.bossTargetPct, 10)
+	expectEqual(sum.handsDelta, -1)
+	-- applied to a normal Endless run, never to a fixed one
+	local function run(enabled, night)
+		local st = RunState.new({ endlessRules = enabled }, function(n) return 1 end)
+		st.night = night
+		st.round = 1
+		RunState.startRound(st)
+		return st
+	end
+	local plain, ruled = run(false, 17), run(true, 17)
+	expectEqual(plain.endlessRules, nil)
+	expectEqual(RunState.rerollCost(ruled, 5), RunState.rerollCost(plain, 5) + 1)
+	expectTrue(RunState.patronPrice(ruled, { price = 10 }) > RunState.patronPrice(plain, { price = 10 }))
+	local early = run(true, 9)
+	expectEqual(early.endlessRules.rerollExtra, 0, "no rule before Night 11")
+	local late, lateBase = run(true, 40), run(false, 40)
+	expectEqual(#late.hand, #lateBase.hand - 1)
+	expectEqual(late.handsRemaining, math.max(1, lateBase.handsRemaining - 1))
+	expectEqual(late.endlessNewRule, nil)
+	expectEqual(run(true, 11).endlessNewRule.id, ER.Rules[1].id)
+	-- targets stay finite whole numbers and fit "%d" through Night 60 and far beyond
+	for _, night in ipairs({ 9, 20, 40, 60, 200, 500 }) do
+		for round = 1, 3 do
+			local t = RunState.targetScoreFor(night, round, 3, 8)
+			local clamped = ER.clampTarget(t)
+			expectTrue(clamped == clamped and clamped > 0 and clamped <= ER.TARGET_CAP, "Night " .. night)
+			expectEqual(#string.format("%d", math.floor(clamped)) > 0, true)
+		end
+	end
+	expectEqual(ER.clampTarget(1 / 0), ER.TARGET_CAP)
+	-- targets grow every Night until the cap
+	expectTrue(RunState.targetScoreFor(21, 1, 3, 8) > RunState.targetScoreFor(20, 1, 3, 8))
+	-- the board: Night first, then total score
+	local st = RunState.new(nil, function(n) return 1 end)
+	st.night, st.wonRun, st.totalScore = 12, true, 123456
+	local n, sc = Leaderboards.endlessEntry(st, {})
+	expectEqual(n, 12)
+	expectEqual(sc, 123456)
+	-- personal best card lines: current stake first, then the rest in stake order
+	local lines = ER.bestLines({ ["1"] = 9, ["3"] = 14 }, 3)
+	expectEqual(#lines, 2)
+	expectTrue(lines[1]:find("Night 14", 1, true) ~= nil and lines[2]:find("Night 9", 1, true) ~= nil)
+	expectEqual(#ER.bestLines(nil, 1), 0)
+	-- personal best per stake
+	local profile = PlayerProfile.new()
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 3, 12))
+	expectEqual(PlayerProfile.recordEndlessBest(profile, 3, 11), false)
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 3, 14))
+	expectTrue(PlayerProfile.recordEndlessBest(profile, 1, 9))
+	expectEqual(profile.endlessBestByStake["3"], 14)
+	expectEqual(profile.endlessBestByStake["1"], 9)
+	expectEqual(PlayerProfile.recordEndlessBest(profile, 3, 0 / 0), false)
+end })
+
 -- ===== Map discoveries =====
 
 table.insert(tests, { name = "Discoveries: fixed placement, stable ids, kinds, counter total follows the per-region constant", fn = function()
