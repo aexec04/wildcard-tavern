@@ -79,7 +79,7 @@ RunState.DefaultConfig = {
 	its own without re-deriving the formula.
 ]]
 local TARGET_BASE_SCORE = 65
-local TARGET_NIGHT_GROWTH = 2.26
+local TARGET_NIGHT_GROWTH = 2.15
 local BLIND_MULTIPLIER_SMALL = 1
 local BLIND_MULTIPLIER_BIG = 2
 local BOSS_BLIND_MULTIPLIER_MIN = 2

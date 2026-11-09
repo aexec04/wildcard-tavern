@@ -25,10 +25,10 @@ Stakes.MAX = 8
 Stakes.Definitions = {
 	{ id = "regular", name = "Regular", icon = "🍞", hint = "The tavern as it is.", rule = {} },
 	{ id = "busy_night", name = "Busy Night", icon = "🕯️", hint = "One fewer discard each round.", rule = { discardsDelta = -1 } },
-	{ id = "rowdy_crowd", name = "Rowdy Crowd", icon = "🎻", hint = "Boss targets are 10% higher.", rule = { bossTargetPct = 10 } },
-	{ id = "rush_hour", name = "Rush Hour", icon = "⏱️", hint = "Shop rerolls cost 1 more.", rule = { rerollExtra = 1 } },
+	{ id = "rowdy_crowd", name = "Rowdy Crowd", icon = "🎻", hint = "Boss targets are 14% higher.", rule = { bossTargetPct = 14 } },
+	{ id = "rush_hour", name = "Rush Hour", icon = "⏱️", hint = "Rerolls cost 1 more. Boss targets rise 5%.", rule = { rerollExtra = 1, bossTargetPct = 5 } },
 	{ id = "final_bell", name = "Final Bell", icon = "🔔", hint = "No interest on your Tips.", rule = { noInterest = true } },
-	{ id = "packed_house", name = "Packed House", icon = "🪑", hint = "The recipe box holds 1 less.", rule = { recipeSlotDelta = -1 } },
+	{ id = "packed_house", name = "Packed House", icon = "🪑", hint = "Recipe box holds 1 less. Boss targets rise 5%.", rule = { recipeSlotDelta = -1, bossTargetPct = 5 } },
 	{ id = "closing_time", name = "Closing Time", icon = "🌙", hint = "Rounds pay 1 less Tip.", rule = { tipsPerRoundDelta = -1 } },
 	{ id = "legend", name = "Legend", icon = "👑", hint = "Boss rounds give 1 fewer discard.", rule = { bossExtraDiscards = -1 } },
 }

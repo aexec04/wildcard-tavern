@@ -3717,7 +3717,7 @@ table.insert(tests, { name = "Balance: the target curve matches the tuned number
 	expectEqual(RunState.targetScoreFor(1, 1, 3), 65)
 	expectEqual(RunState.targetScoreFor(1, 2, 3), 130)
 	expectEqual(RunState.targetScoreFor(1, 3, 3), 130)
-	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.26 ^ 7 * 2.5))
+	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.15 ^ 7 * 2.5))
 	-- Targets keep rising Night over Night on the same blind.
 	for night = 1, 12 do
 		for round = 1, 3 do
@@ -8244,7 +8244,7 @@ table.insert(tests, { name = "Stakes in RunState: each rule changes only what it
 	expectEqual(s4.tips, 12 + 2 + s4.config.tipsPerRoundWin, "interest still paid below Final Bell")
 end })
 
-table.insert(tests, { name = "Stakes balance: targets and hands never change, boss rounds only 10% higher, discards never negative", fn = function()
+table.insert(tests, { name = "Stakes balance: targets and hands never change, boss rounds only as much higher as the stake says, discards never negative", fn = function()
 	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
 	local route = WorldMap.defaultRoute()
 	local _, baseline = walkRoute(route, { stakeId = 1 })
@@ -8255,9 +8255,9 @@ table.insert(tests, { name = "Stakes balance: targets and hands never change, bo
 			expectEqual(row.hands, baseline[i].hands, "hands unchanged at stake " .. stake)
 			expectTrue(row.discards >= 0, "discards never negative")
 			if row.boss then
-				local lift = (stake >= 3) and 1.1 or 1
+				local lift = 1 + require(script.Parent.Parent.Engine.Stakes).rulesFor(stake).bossTargetPct / 100
 				expectEqual(row.target, math.floor(baseline[i].target * lift), "boss target at stake " .. stake .. " night " .. row.night)
-				expectTrue(row.target <= baseline[i].target * 1.1 + 1, "boss target within 10%")
+				expectTrue(row.target <= baseline[i].target * 1.25 + 1, "boss target within 25%")
 			else
 				expectEqual(row.target, baseline[i].target, "non-boss target unchanged at stake " .. stake)
 			end
