@@ -125,7 +125,7 @@ return function(deps)
 	-- Painted alcove behind everything; a dark scrim keeps the tile grid readable.
 	require(script.Parent.PanelArt).add(panel, {
 		key = "collection_bg",
-		scrim = { position = UDim2.fromOffset(15, 156), size = UDim2.new(1, -30, 1, -214) },
+		scrim = { position = UDim2.fromOffset(15, 138), size = UDim2.new(1, -30, 1, -196) },
 	})
 
 	local titleLabel = label(panel, {
@@ -288,15 +288,12 @@ return function(deps)
 		})
 	end
 
-	local statsLabel = label(panel, {
-		Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(15, 35),
-		TextSize = 14, TextColor3 = SOFT_CREAM, Text = "",
-	})
+	-- Run numbers (runs, wins, best Night, title) live in the Tavern Ledger (StatsPanel); Collection shows collection progress only.
 
 	-- Overall completion bar + next milestone.
 	local overallBar = Instance.new("Frame")
 	overallBar.Size = UDim2.new(1, -30, 0, 22)
-	overallBar.Position = UDim2.fromOffset(15, 54)
+	overallBar.Position = UDim2.fromOffset(15, 36)
 	overallBar.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 	overallBar.ZIndex = 21
 	overallBar.Parent = panel
@@ -318,7 +315,7 @@ return function(deps)
 	-- Tabs.
 	local tabRow = Instance.new("Frame")
 	tabRow.Size = UDim2.new(1, -30, 0, 38)
-	tabRow.Position = UDim2.fromOffset(15, 82)
+	tabRow.Position = UDim2.fromOffset(15, 64)
 	tabRow.BackgroundTransparency = 1
 	tabRow.ZIndex = 21
 	tabRow.Parent = panel
@@ -333,7 +330,7 @@ return function(deps)
 	local legendRow = Instance.new("Frame")
 	legendRow.Name = "RarityLegend"
 	legendRow.Size = UDim2.new(1, -30, 0, 26)
-	legendRow.Position = UDim2.fromOffset(15, 126)
+	legendRow.Position = UDim2.fromOffset(15, 108)
 	legendRow.BackgroundTransparency = 1
 	legendRow.ZIndex = 21
 	legendRow.Parent = panel
@@ -394,8 +391,8 @@ return function(deps)
 	end
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -214)
-	scroll.Position = UDim2.fromOffset(15, 156)
+	scroll.Size = UDim2.new(1, -30, 1, -196)
+	scroll.Position = UDim2.fromOffset(15, 138)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
@@ -846,25 +843,6 @@ return function(deps)
 		local view = currentView()
 		local completion = view.completion
 
-		-- Header stats.
-		local stats = view.state and view.state.profileStats
-		if stats then
-			local equipped = view.equippedTitleId and Achievements.getById(view.equippedTitleId)
-			statsLabel.Text = string.format(
-				"Runs played: %d  |  Runs won: %d  |  Best Night: %d  |  Title: %s",
-				math.floor(stats.runsStarted), math.floor(stats.runsWon), math.floor(stats.bestNightReached),
-				equipped and ('"' .. equipped.title .. '"') or "none"
-			)
-			-- Next unlock (moved here from the main menu strip)
-			local pick = view.state and view.state.nextUnlock
-			if pick and pick.label then
-				statsLabel.Text = statsLabel.Text .. "  |  Next unlock: " .. pick.label
-			end
-			statsLabel.TextTruncate = Enum.TextTruncate.AtEnd
-		else
-			statsLabel.Text = ""
-		end
-
 		-- Overall bar.
 		overallFill.Size = UDim2.fromScale(completion.total > 0 and completion.found / completion.total or 0, 1)
 		local nextMilestone = CollectionBook.nextMilestone(view.claimed)
@@ -878,6 +856,12 @@ return function(deps)
 		else
 			nextText = "Every milestone claimed!"
 		end
+		-- Next unlock (moved here from the main menu strip)
+		local pick = view.state and view.state.nextUnlock
+		if pick and pick.label then
+			nextText = nextText .. "   --   Next unlock: " .. pick.label
+		end
+		overallText.TextTruncate = Enum.TextTruncate.AtEnd
 		overallText.Text = string.format("Overall %d%%  (%d / %d)   --   %s",
 			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
 

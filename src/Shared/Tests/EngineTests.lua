@@ -11689,4 +11689,18 @@ table.insert(tests, { name = "PanelLayout: the Expand button never sits under th
 	expectTrue(src:find("math.max(panel.ZIndex, 70)", 1, true) ~= nil, "toggle above the strip")
 end })
 
+table.insert(tests, { name = "Collection no longer lists run stats; the Tavern Ledger shows every number that moved", fn = function()
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if not f then return end -- Studio has no io
+	local collection = f:read("*a"); f:close()
+	local stats = io.open("src/Client/StatsPanel.lua", "r"):read("*a")
+	for _, gone in ipairs({ "Runs played", "Runs won", "Best Night:", "profileStats.runs", "statsLabel", "runsStarted", "bestNightReached" }) do
+		expectFalse(collection:find(gone, 1, true) ~= nil, "Collection still has: " .. gone)
+	end
+	expectTrue(collection:find("Overall %d%%", 1, true) ~= nil, "collection progress stays")
+	for _, kept in ipairs({ "Runs won", "Runs started", "Best Night", "Win rate", "equippedTitleId", '"Title"' }) do
+		expectTrue(stats:find(kept, 1, true) ~= nil, "Ledger shows: " .. kept)
+	end
+end })
+
 return tests

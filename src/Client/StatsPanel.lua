@@ -485,6 +485,8 @@ return function(deps)
 			order = order + 1
 			lifeTile(order, icon, value, name, tip, cat, key)
 		end
+		local titleDef = state.equippedTitleId and require(Engine:WaitForChild("Achievements")).getById(state.equippedTitleId)
+		add("🎖️", titleDef and titleDef.title or "None", "Title", "The Title you have equipped. Change it in Collection.")
 		add("🃏", fmt(stats.hands), "Hands played", "Hands played over every run.")
 		add("💥", fmt(stats.bestHandScore), "Best hand score", "Your best scoring hand ever.")
 		add("🪙", fmt(stats.tipsEarned), "Tips earned", "Tips earned over every run.", "hud", "coin_purse")
