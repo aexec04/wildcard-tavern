@@ -2487,6 +2487,14 @@ AdvanceRoundRemote.OnServerEvent:Connect(function(player)
 	if session.state.round == 1 and session.state.night >= 2 then
 		session.choice = RunChoice.rollEvent(session.state, not fixedRun)
 	end
+	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
+	if RunService:IsStudio() and not session.choice and not fixedRun then
+		local forced = player:GetAttribute("ForceEvent")
+		if forced then
+			player:SetAttribute("ForceEvent", nil)
+			session.choice = RunChoice.forceEvent(forced)
+		end
+	end
 	pushState(player)
 end)
 
@@ -2579,7 +2587,7 @@ end)
 -- RUN CHOICES: the player answers the open start-of-run draft or between-Nights event card.
 ChoiceRemote.OnServerEvent:Connect(function(player, optionId)
 	local session = sessions[player]
-	if not session or not session.choice or session.phase ~= "roundSelect" or type(optionId) ~= "string" then
+	if not session or not RunChoice.canAnswer(session.phase, session.choice, optionId) then
 		return
 	end
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)

@@ -142,6 +142,17 @@ function RunChoice.rollEvent(state, allowed)
 	return eventChoice(list[rng(#list)])
 end
 
+-- Dev preview: builds the card for one event id whatever the roll or Night (Studio only, the server gates it). nil if unknown.
+function RunChoice.forceEvent(eventId)
+	local event = type(eventId) == "string" and RunEvents.getById(eventId) or nil
+	return event and eventChoice(event) or nil
+end
+
+-- A choice can only be answered while Round Select is up, a choice is open and the id is a string.
+function RunChoice.canAnswer(phase, choice, optionId)
+	return phase == "roundSelect" and type(choice) == "table" and type(optionId) == "string"
+end
+
 -- Applies the player's pick to the run. Returns ok, message, nextChoice (the modifier step after the Patron step).
 -- A failed pick (not an offered id, or an event that cannot be paid) changes nothing and keeps the choice open.
 function RunChoice.pick(state, choice, optionId)

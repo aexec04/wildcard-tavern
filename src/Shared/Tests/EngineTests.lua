@@ -8912,6 +8912,33 @@ table.insert(tests, { name = "RunEvents: every event has a safe Decline, every o
 	end
 end })
 
+table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wrong phase and forced preview are all safe", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local state = RunState.new(nil, function(n) return 1 end)
+	state.night = 3
+	state.tips = 10
+	local card = RunChoice.forceEvent("hungry_cook")
+	expectEqual(card.kind, "event")
+	expectEqual(RunChoice.forceEvent("nope"), nil)
+	-- wrong phase / nothing open / bad id type
+	expectEqual(RunChoice.canAnswer("playing", card, "decline"), false)
+	expectEqual(RunChoice.canAnswer("shop", card, "decline"), false)
+	expectEqual(RunChoice.canAnswer("roundSelect", nil, "decline"), false)
+	expectEqual(RunChoice.canAnswer("roundSelect", card, 5), false)
+	expectEqual(RunChoice.canAnswer("roundSelect", card, "decline"), true)
+	-- wrong option changes nothing
+	local ok = RunChoice.pick(state, card, "made_up")
+	expectEqual(ok, false)
+	expectEqual(state.tips, 10)
+	-- a resolved card is cleared by the server, so a second answer finds no choice and does nothing
+	local ok2 = RunChoice.pick(state, card, "decline")
+	expectEqual(ok2, true)
+	local choice = nil
+	expectEqual((RunChoice.pick(state, choice, "decline")), false)
+	expectEqual(RunChoice.canAnswer("roundSelect", choice, "decline"), false)
+	expectEqual(state.tips, 10)
+end })
+
 -- ===== Map discoveries =====
 
 table.insert(tests, { name = "Discoveries: fixed placement, stable ids, kinds, counter total follows the per-region constant", fn = function()
