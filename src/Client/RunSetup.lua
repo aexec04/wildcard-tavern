@@ -200,15 +200,16 @@ return function(deps)
 	-- CHALLENGE RUNS and BOSS RUSH (Engine/Challenges.lua, BossRush.lua): optional extras after the stakes.
 	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 	local Challenges = require(Engine:WaitForChild("Challenges"))
+	local RunModes = require(Engine:WaitForChild("RunModes"))
 	local CHALLENGE_HEADER_ORDER, CHALLENGE_CARD_BASE = 3000, 3000
 	local RUSH_HEADER_ORDER, RUSH_CARD_BASE = 4000, 4000
 	local CHALLENGE_ACCENT = Color3.fromRGB(150, 110, 210)
 	local RUSH_ACCENT = Color3.fromRGB(220, 90, 70)
 	local selectedChallengeId = nil -- nil = a normal run
-	local selectedMode = nil -- "rush" = Boss Rush
+	local selectedMode = nil -- "rush" = Boss Rush, "quick" = Quick Run (Engine/RunModes.lua)
 	local challengeCards, rushCards = {}, {}
 	makeRunSetupSectionLabel("Challenge", "🎭", CHALLENGE_HEADER_ORDER, CHALLENGE_ACCENT)
-	makeRunSetupSectionLabel("Boss Rush", "⚔️", RUSH_HEADER_ORDER, RUSH_ACCENT)
+	makeRunSetupSectionLabel("Special Modes", "⚔️", RUSH_HEADER_ORDER, RUSH_ACCENT)
 	local function highestStake()
 		local state = deps.getLatestState and deps.getLatestState()
 		return Stakes.clamp(state and state.highestStakeUnlocked)
@@ -348,6 +349,7 @@ return function(deps)
 				clickCatcher.MouseButton1Click:Connect(function()
 					playClickSfx(0.4)
 					selectedStake = n
+					if selectedMode == "quick" then selectedMode = nil end -- Quick Run is always stake 1
 					refreshRunSetupCards()
 				end)
 			end
@@ -364,7 +366,7 @@ return function(deps)
 			if row.cleared then clearedSet[row.id] = true end
 		end
 		local function addChallengeCard(order, id, name, text)
-			local isSelected = selectedMode ~= "rush" and selectedChallengeId == id
+			local isSelected = selectedMode == nil and selectedChallengeId == id
 			local card, clickCatcher = makePickCard(runSetupScroll, CHALLENGE_CARD_BASE + order, name, text, isSelected, CHALLENGE_ACCENT, false, id and { "challenges", id } or nil)
 			table.insert(challengeCards, card)
 			table.insert(newlyBuiltCards, card)
@@ -402,6 +404,24 @@ return function(deps)
 		else
 			rushClick.Active = false
 		end
+
+		-- Quick Run (Engine/RunModes.lua): 4 Nights for short sessions. Always stake 1; picking it drops the stake,
+		-- the challenge and the Boss Rush (the server enforces the same).
+		local quickDef = RunModes.get("quick")
+		local quickCard, quickClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 2,
+			(ArtIcon.has("challenges", "quick_run") and "" or (quickDef.icon .. " ")) .. quickDef.name,
+			quickDef.hint .. " Always stake 1. Half rewards.", selectedMode == "quick", RUSH_ACCENT, false, { "challenges", "quick_run" })
+		table.insert(rushCards, quickCard)
+		table.insert(newlyBuiltCards, quickCard)
+		quickClick.MouseButton1Click:Connect(function()
+			playClickSfx(0.4)
+			selectedMode = (selectedMode == "quick") and nil or "quick"
+			if selectedMode == "quick" then
+				selectedChallengeId = nil
+				selectedStake = 1
+			end
+			refreshRunSetupCards()
+		end)
 
 		if reveal then
 			revealStagger(newlyBuiltCards, { stagger = 0.05, duration = 0.25, fromScale = 0.85 })

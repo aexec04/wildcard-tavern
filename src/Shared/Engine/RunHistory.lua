@@ -172,6 +172,34 @@ function RunHistory.record(profile, entry, tipsEarned)
 	return true
 end
 
+-- Quick Run personal best (its own board-free record): a win beats any loss, then the higher Night, then the score.
+function RunHistory.cleanQuickBest(raw)
+	if type(raw) ~= "table" then
+		return nil
+	end
+	local night, score = whole(raw.night, 1, 500), whole(raw.score, 0, 9e15)
+	if not night or not score then
+		return nil
+	end
+	return { won = raw.won == true, night = night, score = score }
+end
+
+-- Updates profile.quickBest from a finished Quick Run entry. Returns true when it improved.
+function RunHistory.recordQuickBest(profile, entry)
+	entry = RunHistory.cleanEntry(entry)
+	if not entry or entry.mode ~= "quick" then
+		return false
+	end
+	local old = RunHistory.cleanQuickBest(profile.quickBest)
+	local better = not old
+		or (entry.won and not old.won)
+		or (entry.won == old.won and (entry.night > old.night or (entry.night == old.night and entry.score > old.score)))
+	if better then
+		profile.quickBest = { won = entry.won, night = entry.night, score = entry.score }
+	end
+	return better
+end
+
 -- Most wins with one Patron (ties: the alphabetically first id so the answer is stable). nil when no wins yet.
 function RunHistory.favoritePatron(lifetime)
 	local bestId, bestWins
@@ -208,6 +236,7 @@ function RunHistory.view(profile)
 		bestNightByStake = life.bestNightByStake,
 		bestNight = math.max(bestNight, stats.bestNightReached or 0),
 		favoritePatron = RunHistory.favoritePatron(life),
+		quickBest = RunHistory.cleanQuickBest(profile.quickBest),
 		recent = runs,
 	}
 end

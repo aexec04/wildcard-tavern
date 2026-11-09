@@ -100,5 +100,18 @@ for _, stake in ipairs({ 1, 4, 7, 8 }) do
 	check("no soft locks on stake " .. stake, softLocks == 0, tostring(softLocks))
 end
 
+-- Quick Run (Engine/RunModes.lua): the decent bot wins 35 to 45 percent at stake 1 (measured 38.3 over 600 runs); this
+-- 50 run check uses a wide band so it only trips on a real shift, and nothing soft-locks.
+do
+	local wins, softLocks = 0, 0
+	for seed = 1, 50 do
+		local r = Sim.runOne(config({ mode = "quick", stake = 1 }), seed)
+		wins = wins + (r.won and 1 or 0)
+		softLocks = softLocks + r.softLocks
+	end
+	check("decent bot Quick Run win rate in band", wins >= 12 and wins <= 33, wins .. " of 50")
+	check("no soft locks in Quick Runs", softLocks == 0, tostring(softLocks))
+end
+
 print(failed == 0 and "\nAll simulator checks passed" or ("\n" .. failed .. " simulator check(s) failed"))
 os.exit(failed == 0 and 0 or 1)

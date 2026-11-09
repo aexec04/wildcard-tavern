@@ -15,6 +15,7 @@ local HandEvaluator = require(script.Parent.HandEvaluator)
 local Scoring = require(script.Parent.Scoring)
 local Patrons = require(script.Parent.Patrons)
 local EndlessRules = require(script.Parent.EndlessRules)
+local RunModes = require(script.Parent.RunModes) -- Quick Run (4 Nights)
 local DeckVariants = require(script.Parent.DeckVariants)
 local DifficultyTiers = require(script.Parent.DifficultyTiers)
 local BossRounds = require(script.Parent.BossRounds)
@@ -119,9 +120,11 @@ function RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
 	end
 end
 
-function RunState.targetScoreFor(night, round, roundsPerNight, nightCap)
+-- `baseNight` (optional) is the Night the BASE score is read at (a Quick Run compresses its curve); the Blind
+-- multiplier always follows the real `night` and `nightCap`.
+function RunState.targetScoreFor(night, round, roundsPerNight, nightCap, baseNight)
 	roundsPerNight = roundsPerNight or RunState.DefaultConfig.roundsPerNight
-	local base = RunState.nightBaseScoreFor(night)
+	local base = RunState.nightBaseScoreFor(baseNight or night)
 	local blindMultiplier = RunState.blindMultiplierFor(night, round, roundsPerNight, nightCap)
 	return math.floor(base * blindMultiplier)
 end
@@ -159,6 +162,13 @@ function RunState.new(options, rng)
 	config.patronSlotLimit = math.max(1, config.patronSlotLimit)
 	config.recipeSlotLimit = math.max(0, config.recipeSlotLimit)
 	config.nightCap = math.max(1, config.nightCap)
+	-- RUN MODE (Engine/RunModes.lua): a Quick Run is 4 Nights, always stake 1, no Crowd Rules. Normal runs pass no mode.
+	local quick = options.mode == "quick"
+	if quick then
+		config.nightCap = RunModes.get("quick").nights
+		options.stakeId = 1
+		options.endlessRules = false
+	end
 
 	-- STAKES (Engine/Stakes.lua): each stake adds one rule; stake 1 changes nothing.
 	local stake = Stakes.clamp(options.stakeId)
@@ -175,6 +185,8 @@ function RunState.new(options, rng)
 		stakeRules = stakeRules,
 		-- ENDLESS (Engine/EndlessRules.lua): Crowd Rules after the Night cap, normal runs only.
 		endlessRulesEnabled = options.endlessRules == true,
+		quickRun = quick, -- Engine/RunModes.lua
+		runMode = quick and "quick" or nil,
 		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
 		unlockedContent = options.unlockedContent,
 		deckVariantId = deckVariant.id,
@@ -374,7 +386,8 @@ function RunState.startRound(state)
 			-- comment. Previously this picked uniformly across ALL 24
 			-- modifiers regardless of Night, so a run-ending "1 hand only"
 			-- boss was exactly as likely on Night 1 as Night 10.
-			state.nightBossModifier = BossRounds.pick(state.rng, state.night)
+			-- (a Quick Run picks by the full-run Night its Night is scored like, see Engine/RunModes.lua)
+			state.nightBossModifier = BossRounds.pick(state.rng, state.quickRun and math.floor(RunModes.equivalentNight("quick", state.night)) or state.night)
 		end
 	else
 		state.nightBossModifier = nil
@@ -473,7 +486,14 @@ function RunState.startRound(state)
 	if state.isBossRound then
 		bossMultiplier = bossMultiplier * (1 + endlessField(state, "bossTargetPct") / 100)
 	end
-	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
+	local baseTarget
+	if state.quickRun then
+		-- Quick Run: the compressed curve (Night n of 4 scores like Night 1 + (n - 1) * 7 / 3), gentle first Night
+		baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap,
+			RunModes.equivalentNight("quick", state.night)) * RunModes.targetScale("quick", state.night)
+	else
+		baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
+	end
 	state.targetScore = math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
 
 	-- Cold Start Boss Round: Tips are lost as the round begins
@@ -1671,7 +1691,7 @@ end
 -- Whether this run's progress still counts toward the player's permanent
 -- high score records (bestNightReached, runsWon). A revived run doesn't.
 function RunState.countsForRecords(state)
-	return not state.revived and not state.rush -- a Boss Rush never moves Night records or wins
+	return not state.revived and not state.rush and not state.quickRun -- a Boss Rush or Quick Run never moves Night records, wins, stamps or titles
 end
 
 --[[

@@ -1282,6 +1282,9 @@ local function syncProfileFromSession(player)
 				local entry = RunHistory.entryFromState(runState, mode, WorldMap.regionOf(route[#route]), os.time())
 				if entry and RunHistory.record(profile, entry, runState.tipsEarnedTotal) then
 					changed = true
+					if RunHistory.recordQuickBest(profile, entry) then
+						pushRewardNotice(player, { icon = "⚡", text = "New Quick Run best!" })
+					end
 				end
 			end)
 		end
@@ -1639,9 +1642,10 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 	local stake = Stakes.resolveStart(profile, stakeId, seededRng ~= nil or isTutorial == true)
 	extra = (seededRng == nil and isTutorial ~= true and extra) or {}
 	local rush = extra.rush == true and BossRush.isUnlocked(profile)
-	local challengeId = (not rush and Challenges.getById(extra.challengeId)) and extra.challengeId or nil
-	if rush then
-		stake = 1 -- a Boss Rush ignores the stake and the challenge
+	local quick = extra.quick == true and not rush -- Quick Run (Engine/RunModes.lua): 4 Nights, stake 1, no challenge
+	local challengeId = (not rush and not quick and Challenges.getById(extra.challengeId)) and extra.challengeId or nil
+	if rush or quick then
+		stake = 1 -- a Boss Rush or Quick Run ignores the stake and the challenge
 	end
 
 	local isDaily = seedMode == "daily"
@@ -1656,6 +1660,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			stakeId = stake,
 			endlessRules = seededRng == nil and isTutorial ~= true and not rush and challengeId == nil, -- Crowd Rules: normal runs only
 			rush = rush,
+			mode = quick and "quick" or nil,
 			challengeId = challengeId,
 			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
 			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,
@@ -2818,7 +2823,7 @@ RestartRunRemote.OnServerEvent:Connect(function(player)
 	-- Quick restart: keep whatever Deck Variant/Difficulty this player last
 	-- used. Use StartRun instead to pick fresh ones via the Run Setup screen.
 	startNewSession(player, session.state.deckVariantId, session.state.difficultyId, nil, nil, nil, nil, session.state.stake,
-		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil })
+		{ challengeId = session.state.challenge and session.state.challenge.id, rush = session.state.rush ~= nil, quick = session.state.quickRun == true })
 end)
 
 -- Settings > Restart Run: the client confirmed with a hold. Counted as abandoned (stats.runsAbandoned),
@@ -2862,7 +2867,7 @@ StartRunRemote.OnServerEvent:Connect(function(player, deckVariantId, difficultyI
 	if type(challengeId) ~= "string" then
 		challengeId = nil
 	end
-	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush" })
+	startNewSession(player, deckVariantId, difficultyId, nil, nil, nil, nil, stakeId, { challengeId = challengeId, rush = mode == "rush", quick = mode == "quick" })
 end)
 
 -- ===== One More Round (see the section next to ProcessReceipt) =====

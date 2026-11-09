@@ -819,6 +819,7 @@ function Sim.runOne(cfg, seed)
 		difficultyId = cfg.difficulty,
 		nightOneBonusDiscards = cfg.nightOneDiscards,
 		stakeId = cfg.stake,
+		mode = cfg.mode,
 	}, rng)
 	local rec = newRecord(seed)
 	state.simRecord = rec

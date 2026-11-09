@@ -8831,6 +8831,49 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "RunModes Quick Run: 4 Nights on the compressed curve, stake 1, half XP, no records; normal runs unchanged", fn = function()
+	local RunModes = require(script.Parent.Parent.Engine.RunModes)
+	local quick = RunModes.get("quick")
+	expectEqual(quick.nights, 4)
+	expectEqual(RunModes.equivalentNight("quick", 1), 1); expectEqual(RunModes.equivalentNight("quick", 4), 8)
+	expectTrue(math.abs(RunModes.equivalentNight("quick", 2) - (1 + 7 / 3)) < 1e-9)
+	expectEqual(RunModes.equivalentNight(nil, 3), 3, "no mode leaves the Night alone")
+	expectEqual(RunModes.targetScale(nil, 1), 1)
+	expectTrue(RunModes.targetScale("quick", 1) < RunModes.targetScale("quick", 2), "Night 1 is the gentle opener")
+	expectEqual(RunModes.xpScale("quick"), 0.5); expectEqual(RunModes.xpScale(nil), 1)
+	expectTrue(RunModes.isValid("quick")); expectFalse(RunModes.isValid("nope")); expectFalse(RunModes.isValid(5))
+	-- normal runs: identical to the plain formula and 8 Nights
+	local normal = RunState.new({ stakeId = 3 }, SeededRng.new(11))
+	expectEqual(normal.config.nightCap, 8); expectFalse(normal.quickRun); expectEqual(normal.stake, 3)
+	expectEqual(normal.targetScore, RunState.targetScoreFor(1, 1, normal.config.roundsPerNight, 8))
+	-- a Quick Run
+	local q = RunState.new({ mode = "quick", stakeId = 5, endlessRules = true }, SeededRng.new(11))
+	expectEqual(q.config.nightCap, 4); expectTrue(q.quickRun); expectEqual(q.runMode, "quick")
+	expectEqual(q.stake, 1, "always stake 1"); expectFalse(q.endlessRulesEnabled)
+	expectFalse(RunState.countsForRecords(q), "no records, stamps or titles"); expectTrue(RunState.countsForRecords(normal))
+	expectTrue(q.targetScore < normal.targetScore, "the opener is gentler than a full run's Night 1")
+	-- Night 4 boss: the compressed curve reaches the Night 8 base, scaled by the mode's ease factor
+	local last = RunState.targetScoreFor(4, 3, q.config.roundsPerNight, 4, RunModes.equivalentNight("quick", 4))
+	expectEqual(last, RunState.targetScoreFor(8, 3, q.config.roundsPerNight, 8), "Night 4 of 4 matches Night 8 of 8 before the ease factor")
+	for night = 2, 4 do
+		local s = RunState.new({ mode = "quick" }, SeededRng.new(3))
+		s.night, s.round = night, 1
+		RunState.startRound(s)
+		expectTrue(s.targetScore > 0)
+	end
+	-- Quick Run personal best: a win beats a loss, then the Night, then the score
+	local RunHistory = require(script.Parent.Parent.Engine.RunHistory)
+	local profile = PlayerProfile.new()
+	local function finish(won, night, score)
+		return RunHistory.recordQuickBest(profile, { t = 5, mode = "quick", won = won, night = night, score = score })
+	end
+	expectTrue(finish(false, 2, 500)); expectFalse(finish(false, 2, 400)); expectTrue(finish(false, 3, 100))
+	expectTrue(finish(true, 4, 50)); expectFalse(finish(false, 4, 9999)); expectTrue(finish(true, 4, 60))
+	expectEqual(profile.quickBest.score, 60)
+	expectFalse(RunHistory.recordQuickBest(profile, { t = 5, mode = "standard", won = true, night = 8, score = 1 }), "only Quick Runs")
+	expectEqual(PlayerProfile.migrate(profile).quickBest.night, 4); expectEqual(PlayerProfile.migrate({ quickBest = "x" }).quickBest, nil)
+end })
+
 table.insert(tests, { name = "RunState counts Tips earned over a run for the Tavern Stats page", fn = function()
 	local s = RunState.new(nil, SeededRng.new(5))
 	s.targetScore = 0

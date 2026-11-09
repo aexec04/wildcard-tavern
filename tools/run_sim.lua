@@ -48,7 +48,7 @@ local function parseArgs(argv)
 	}
 	local names = {
 		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--src"] = "src",
-		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss",
+		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss", ["--mode"] = "mode",
 		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
 	}
 	local numbers = {
@@ -122,6 +122,7 @@ local function workerArgs(run, firstRun, count, outPath)
 		table.insert(parts, "--night-one-discards"); table.insert(parts, run.nightOneDiscards)
 	end
 	if run.stake then table.insert(parts, "--stake"); table.insert(parts, run.stake) end
+	if run.mode then table.insert(parts, "--mode"); table.insert(parts, run.mode) end
 	if run.endless then table.insert(parts, "--endless") end
 	if run.patronOffers then table.insert(parts, "--patron-offers"); table.insert(parts, run.patronOffers) end
 	if run.packOffers then table.insert(parts, "--pack-offers"); table.insert(parts, run.packOffers) end

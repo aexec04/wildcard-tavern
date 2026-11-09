@@ -453,6 +453,7 @@ function PlayerProfile.migrate(raw)
 	profile.bossRushBest = require(script.Parent.BossRush).cleanSaved(raw.bossRushBest)
 	profile.runHistory, profile.lifetime = require(script.Parent.RunHistory).cleanSaved(raw.runHistory, raw.lifetime)
 	require(script.Parent.Invites).cleanSaved(profile, raw)
+	profile.quickBest = require(script.Parent.RunHistory).cleanQuickBest(raw.quickBest) -- Quick Run personal best (Engine/RunModes.lua)
 	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)
 	profile.starterPrompted = raw.starterPrompted == true
 	profile.liveEventClaims = require(script.Parent.LiveEvents).cleanSaved(raw.liveEventClaims)
