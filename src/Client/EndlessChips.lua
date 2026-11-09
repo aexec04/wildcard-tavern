@@ -14,6 +14,7 @@
 local TweenService = game:GetService("TweenService")
 
 local ClientSettings = require(script.Parent.ClientSettings)
+local ArtIcon = require(script.Parent.ArtIcon)
 
 local EndlessChips = {}
 
@@ -113,6 +114,8 @@ local function rebuild(rules)
 		ring.Color = GOLD
 		ring.Thickness = 1.5
 		ring.Parent = chip
+		-- painted chip art when an id is recorded (endless_rules), emoji otherwise
+		pcall(ArtIcon.apply, chip, "endless_rules", rule.id, chip, { cornerRadius = CHIP // 2 })
 		ui.addTooltip(chip, rule.name .. ": " .. rule.text, "left")
 	end
 end

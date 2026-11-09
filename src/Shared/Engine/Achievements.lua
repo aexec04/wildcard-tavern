@@ -676,6 +676,109 @@ Achievements.Definitions = {
 	},
 }
 
+-- SECOND WAVE (30): all computed from monotonic profile fields, so they stay stateless like the rest.
+-- Themes: hands, runs, stakes, Endless, daily streaks, quests, rank, bosses, challenges, collection, exploration.
+-- Every one has a title (prompts in tools/patron_art/prompts.json `title_subjects`, art ids recorded later).
+local function countOf(t)
+	local n = 0
+	if type(t) == "table" then
+		for _ in pairs(t) do n = n + 1 end
+	end
+	return n
+end
+local function bestEndless(profile)
+	local best = 0
+	for _, night in pairs(profile.endlessBestByStake or {}) do
+		if type(night) == "number" and night > best then best = night end
+	end
+	return best
+end
+local function stat(profile, key) return (profile.stats and profile.stats[key]) or 0 end
+
+-- Rarity of the wave (explicit, edit me; anything not listed is common). Harder goal, higher tier.
+local WAVE_RARITY = {
+	fifty_runs = "uncommon", stake_four = "uncommon", endless_fifteen = "uncommon", streak_seven = "uncommon",
+	quests_twentyfive = "uncommon", rank_ten = "uncommon", hand_five_hundred = "uncommon",
+	hand_thousand = "rare", stake_six = "rare", streak_fourteen = "rare", rank_fifteen = "rare",
+	rush_six = "rare", challenge_many = "rare", endless_thirty = "rare",
+	stake_eight = "epic", streak_thirty = "epic", quests_hundred = "epic", hand_two_thousand = "epic",
+}
+
+local function addWave(id, name, icon, title, description, flavorText, requirement)
+	table.insert(Achievements.Definitions, {
+		id = id, name = name, icon = icon, title = title, rarity = WAVE_RARITY[id] or "common",
+		description = description, flavorText = flavorText, requirement = requirement,
+	})
+end
+
+-- hands and runs
+addWave("hand_hundred", "Hundred Hands", "🃏", "Hand Hundred", "Play 100 hands.", "The cards are warm from your fingers.",
+	function(p) return stat(p, "handsPlayedTotal") >= 100 end)
+addWave("hand_five_hundred", "Card Shark Pup", "🦈", "Card Shark Pup", "Play 500 hands.", "You shuffle in your sleep now.",
+	function(p) return stat(p, "handsPlayedTotal") >= 500 end)
+addWave("hand_two_thousand", "Dealer Supreme", "🎩", "Dealer Supreme", "Play 2000 hands.", "The deck knows your name.",
+	function(p) return stat(p, "handsPlayedTotal") >= 2000 end)
+addWave("ten_runs", "Familiar Face", "🙂", "Familiar Face", "Start 10 runs.", "The keeper nods when you walk in.",
+	function(p) return stat(p, "runsStarted") >= 10 end)
+addWave("fifty_runs", "Tavern Fixture", "🪑", "Tavern Fixture", "Start 50 runs.", "Your stool has your name on it.",
+	function(p) return stat(p, "runsStarted") >= 50 end)
+-- stakes
+addWave("stake_two", "Rowdier Crowd", "📈", "Crowd Pleaser", "Unlock stake 2.", "The crowd wants a better show.",
+	function(p) return (p.highestStakeUnlocked or 1) >= 2 end)
+addWave("stake_four", "Rush Hour Regular", "⏰", "Rush Hour Regular", "Unlock stake 4.", "Busy nights are your kind of night.",
+	function(p) return (p.highestStakeUnlocked or 1) >= 4 end)
+addWave("stake_six", "Packed House Pro", "🎪", "Packed House Pro", "Unlock stake 6.", "Standing room only, and you still shine.",
+	function(p) return (p.highestStakeUnlocked or 1) >= 6 end)
+addWave("stake_eight", "Closing Time Hero", "🌟", "Closing Time Hero", "Unlock stake 8.", "The last lantern is yours to blow out.",
+	function(p) return (p.highestStakeUnlocked or 1) >= 8 end)
+-- Endless Nights
+addWave("endless_twelve", "Past the Ninth", "🌒", "Past the Ninth", "Reach Night 12.", "The map ran out, the road did not.",
+	function(p) return stat(p, "bestNightReached") >= 12 end)
+addWave("endless_fifteen", "Long Haul", "🧭", "Long Haul", "Reach Night 15 in any run.", "You stopped counting the lanterns.",
+	function(p) return math.max(stat(p, "bestNightReached"), bestEndless(p)) >= 15 end)
+addWave("endless_thirty", "Marathon Keeper", "♾️", "Marathon Keeper", "Reach Night 30 in Endless.", "Dawn came and went. You stayed.",
+	function(p) return math.max(stat(p, "bestNightReached"), bestEndless(p)) >= 30 end)
+-- daily streaks
+addWave("streak_three", "Three Day Guest", "📅", "Three Day Guest", "Visit three days in a row.", "Back again, and glad of it.",
+	function(p) return (p.bestLoginStreak or 0) >= 3 end)
+addWave("streak_seven", "Week at the Table", "🗓️", "Week at the Table", "Visit seven days in a row.", "A whole week of warm welcomes.",
+	function(p) return (p.bestLoginStreak or 0) >= 7 end)
+addWave("streak_fourteen", "Fortnight Friend", "🔥", "Fortnight Friend", "Visit fourteen days in a row.", "The fire stays lit for you.",
+	function(p) return (p.bestLoginStreak or 0) >= 14 end)
+addWave("streak_thirty", "Moon After Moon", "🌕", "Moon After Moon", "Visit thirty days in a row.", "A full moon of mornings.",
+	function(p) return (p.bestLoginStreak or 0) >= 30 end)
+-- quests and rank
+addWave("quests_five", "Errand Runner", "📜", "Errand Runner", "Finish 5 daily quests.", "Small jobs, tidy work.",
+	function(p) return (p.questsDone or 0) >= 5 end)
+addWave("quests_twentyfive", "Quest Regular", "🗒️", "Quest Regular", "Finish 25 daily quests.", "The board is never empty when you are around.",
+	function(p) return (p.questsDone or 0) >= 25 end)
+addWave("quests_hundred", "Board Master", "🏅", "Board Master", "Finish 100 daily quests.", "You could read the quest board blindfolded.",
+	function(p) return (p.questsDone or 0) >= 100 end)
+addWave("rank_five", "Rising Host", "⭐", "Rising Host", "Reach Tavern Rank 5.", "Word of your table is spreading.",
+	function(p) return (p.tavernRank or 1) >= 5 end)
+addWave("rank_fifteen", "Beloved Host", "💛", "Beloved Host", "Reach Tavern Rank 15.", "Everyone asks for your table.",
+	function(p) return (p.tavernRank or 1) >= 15 end)
+-- bosses and challenges
+addWave("rush_three", "Boss Dodger", "🥊", "Boss Dodger", "Beat 3 bosses in one Boss Rush.", "Three big guests, three polite goodbyes.",
+	function(p) return (p.bossRushBest or 0) >= 3 end)
+addWave("rush_six", "Boss Wrangler", "🐂", "Boss Wrangler", "Beat 6 bosses in one Boss Rush.", "Even the grumpy ones tip their hats.",
+	function(p) return (p.bossRushBest or 0) >= 6 end)
+addWave("challenge_first", "Twist Taker", "🌀", "Twist Taker", "Clear a challenge run.", "You like your nights with a twist.",
+	function(p) return countOf(p.challengesCleared) >= 1 end)
+addWave("challenge_many", "Twist Master", "🎭", "Twist Master", "Clear 4 different challenge runs.", "No twist can surprise you now.",
+	function(p) return countOf(p.challengesCleared) >= 4 end)
+-- collection and exploration
+addWave("rank_ten", "Trusted Host", "🧡", "Trusted Host", "Reach Tavern Rank 10.", "Regulars save your table a seat.",
+	function(p) return (p.tavernRank or 1) >= 10 end)
+addWave("hat_trick", "Hat Trick", "🎩", "Hat Trick", "Win 3 runs.", "Three nights, three cheers.",
+	function(p) return stat(p, "runsWon") >= 3 end)
+addWave("hand_thousand", "Thousand Hands", "🎴", "Thousand Hands", "Play 1000 hands.", "A thousand hands, a thousand little stories.",
+	function(p) return stat(p, "handsPlayedTotal") >= 1000 end)
+addWave("map_spots", "Corner Peeker", "🔍", "Corner Peeker", "Find 3 hidden spots on the Tavern Map.", "You always check behind the barrel.",
+	function(p) return countOf(p.discoveries) >= 3 end)
+addWave("nights_cleared", "Road Regular", "🛤️", "Road Regular", "Clear 4 different Nights.", "The road knows your footsteps.",
+	function(p) return countOf(p.clearedNightIds) >= 4 end)
+
 function Achievements.getById(id)
 	for _, achievement in ipairs(Achievements.Definitions) do
 		if achievement.id == id then

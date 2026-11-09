@@ -67,6 +67,7 @@ CATEGORIES = {
     "events": ("event_subjects", "events", "EventArt.lua", "Event"),
     "discoveries": ("discovery_subjects", "discoveries", "DiscoveryArt.lua", "Discovery"),
     "challenges": ("challenge_subjects", "challenges", "ChallengeArt.lua", "Challenge"),
+    "endless_rules": ("endless_rule_subjects", "endless_rules", "EndlessRuleArt.lua", "Endless Rule"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -96,6 +97,7 @@ CATEGORY_OPTS = {
         "news_lantern_weekend": "1536x1024", "news_harvest_week": "1536x1024", "news_feast_week": "1536x1024"}},
     "discoveries": {"quality": "low", "style_key": "house_style"},
     "challenges": {"quality": "low", "style_key": "house_style"},
+    "endless_rules": {"quality": "low", "style_key": "house_style"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

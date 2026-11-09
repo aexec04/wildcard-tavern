@@ -4477,9 +4477,18 @@ end
 
 -- Unlocks every non-reward title (they're computed from stats/sets).
 local function unlockAllRegularTitles(profile)
-	profile.stats.runsStarted = 1
+	profile.stats.runsStarted = 100
 	profile.stats.runsWon = 20
-	profile.stats.bestNightReached = 9
+	profile.stats.bestNightReached = 40
+	profile.stats.handsPlayedTotal = 5000
+	profile.highestStakeUnlocked = 8
+	profile.bestLoginStreak = 30
+	profile.questsDone = 100
+	profile.tavernRank = 20
+	profile.bossRushBest = 10
+	profile.challengesCleared = { a = true, b = true, c = true, d = true }
+	profile.discoveries = { a = true, b = true, c = true }
+	profile.clearedNightIds = { [1] = true, [2] = true, [3] = true, [4] = true }
 	for _, patron in ipairs(Patrons.Definitions) do
 		profile.discoveredPatronIds[patron.id] = true
 	end
@@ -8550,6 +8559,30 @@ table.insert(tests, { name = "Quests: the same three quests for a given UTC day,
 		expectTrue(counters[def.counter] ~= nil, def.id .. " reads a real counter")
 		expectTrue(def.goal >= 1 and def.xp > 0 and def.tips >= 0)
 	end
+	-- 20 quest types, unique ids, never two quests on one counter in a day, deterministic
+	expectEqual(#Quests.Definitions, 20, "20 quest types")
+	local questIds = {}
+	for _, def in ipairs(Quests.Definitions) do
+		expectTrue(not questIds[def.id], "unique quest id " .. def.id)
+		questIds[def.id] = true
+		expectTrue(def.name ~= "" and def.desc ~= "" and def.icon ~= "", def.id .. " has text and an icon")
+		expectTrue(def.xp >= 40 and def.xp <= 120, def.id .. " xp in range")
+	end
+	for d = 20000, 20400 do
+		local rolled, again, counterSeen = Quests.rollFor(d), Quests.rollFor(d), {}
+		expectEqual(table.concat(rolled, ","), table.concat(again, ","), "deterministic roll")
+		expectEqual(#rolled, Quests.PER_DAY)
+		for _, id in ipairs(rolled) do
+			local counter = Quests.getById(id).counter
+			expectTrue(not counterSeen[counter], "day " .. d .. " repeats counter " .. counter)
+			counterSeen[counter] = true
+		end
+	end
+	-- counters read real state fields
+	local fake = Quests.countersOf({ handStats = { Straight = 2, ["Full House"] = 1, ["Three of a Kind"] = 4 },
+		bigHands = 3, richClears = 1, quickClears = 2, housePassesBought = 1, recipesUsed = 2, cardsDiscarded = 12, night = 3, roundsCleared = 5 })
+	expectEqual(fake.straights, 2); expectEqual(fake.fullHouses, 1); expectEqual(fake.trips, 4)
+	expectEqual(fake.bigHands, 3); expectEqual(fake.cardsDiscarded, 12); expectEqual(fake.night, 3); expectEqual(fake.rounds, 5)
 	-- progress: partial, capped, completes once, pays XP and Tips
 	local profile = PlayerProfile.new()
 	local day = 20000
@@ -8617,7 +8650,9 @@ table.insert(tests, { name = "AccountProgress: counters become XP and quest prog
 		if profile.quests.done[id] then completedAny = true end
 	end
 	state.handsPlayedTotal, state.bossesCleared, state.packsBought, state.flushClears, state.discardsUsedTotal = 40, 3, 3, 3, 40
-	state.handStats = { Pair = 20 }
+	state.handStats = { Pair = 20, Straight = 20, ["Full House"] = 20, ["Three of a Kind"] = 20 }
+	state.bigHands, state.richClears, state.quickClears, state.housePassesBought = 5, 5, 5, 5
+	state.recipesUsed, state.cardsDiscarded, state.night, state.roundsCleared = 5, 40, 5, 40
 	local r3 = AccountProgress.sync(profile, snap, state, 20000, false)
 	for _, id in ipairs(ids) do
 		expectTrue(profile.quests.done[id], id .. " completes once its counter is high enough")
@@ -8626,6 +8661,63 @@ table.insert(tests, { name = "AccountProgress: counters become XP and quest prog
 	-- the Unlocks rule that reads questsDone / tavernRank sees the new fields
 	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
 	expectTrue(Unlocks.ruleMet(profile, { kind = "quests", n = 3 }) and Unlocks.ruleMet(profile, { kind = "rank", n = profile.tavernRank }))
+end })
+
+table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, stateless, unlock at their thresholds", fn = function()
+	local Defs = Achievements.Definitions
+	expectEqual(#Defs, 83, "53 original + 30 new")
+	local ids, titles, titled = {}, {}, 0
+	for index, a in ipairs(Defs) do
+		expectTrue(not ids[a.id], "unique achievement id " .. a.id)
+		ids[a.id] = true
+		expectTrue(type(a.name) == "string" and a.name ~= "" and type(a.description) == "string" and a.description ~= "", a.id .. " has text")
+		expectTrue(type(a.flavorText) == "string" and a.flavorText ~= "", a.id .. " has flavor text")
+		if a.title then
+			titled = titled + 1
+			if index > 53 then -- (two of the original 53 share "Tavern Keeper"; the new ones are all distinct)
+				expectTrue(not titles[a.title], "unique title " .. a.title)
+				titles[a.title] = true
+			end
+		end
+	end
+	expectTrue(titled >= 15 + 53, "at least 15 of the 30 new achievements carry a title")
+	local profile = PlayerProfile.new()
+	local function isUnlocked(id) return Achievements.isUnlocked(profile, id) end
+	expectFalse(isUnlocked("hand_hundred") or isUnlocked("stake_two") or isUnlocked("streak_three") or isUnlocked("quests_five"), "a new profile has none")
+	profile.stats.handsPlayedTotal = 100
+	expectTrue(isUnlocked("hand_hundred")); expectFalse(isUnlocked("hand_five_hundred"))
+	profile.highestStakeUnlocked = 4
+	expectTrue(isUnlocked("stake_two") and isUnlocked("stake_four")); expectFalse(isUnlocked("stake_six"))
+	profile.bestLoginStreak = 7
+	expectTrue(isUnlocked("streak_three") and isUnlocked("streak_seven")); expectFalse(isUnlocked("streak_fourteen"))
+	-- the streak achievements read the best streak, so a broken streak never takes them back
+	profile.loginStreak = 1
+	expectTrue(isUnlocked("streak_seven"), "a reset login streak keeps the achievement")
+	profile.questsDone = 25
+	expectTrue(isUnlocked("quests_five") and isUnlocked("quests_twentyfive")); expectFalse(isUnlocked("quests_hundred"))
+	profile.endlessBestByStake = { ["1"] = 16, ["3"] = 31 }
+	expectTrue(isUnlocked("endless_fifteen") and isUnlocked("endless_thirty"))
+	profile.challengesCleared = { pairs_only = true }
+	expectTrue(isUnlocked("challenge_first")); expectFalse(isUnlocked("challenge_many"))
+	-- bestLoginStreak is a high-water mark in LoginStreak and survives a save
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	local p2 = PlayerProfile.new()
+	LoginStreak.checkIn(p2, 100); LoginStreak.checkIn(p2, 101); LoginStreak.checkIn(p2, 102)
+	expectEqual(p2.bestLoginStreak, 3)
+	LoginStreak.checkIn(p2, 200)
+	expectEqual(p2.loginStreak, 1); expectEqual(p2.bestLoginStreak, 3, "best streak never drops")
+	expectEqual(PlayerProfile.migrate(p2).bestLoginStreak, 3)
+	expectEqual(PlayerProfile.migrate({ bestLoginStreak = "x" }).bestLoginStreak, 0, "junk is dropped")
+end })
+
+table.insert(tests, { name = "Endless Crowd Rules art: category wired, empty map, every rule has an icon", fn = function()
+	local EndlessRules = require(script.Parent.Parent.Engine.EndlessRules)
+	local Art = require(script.Parent.Parent.Engine.EndlessRuleArt)
+	expectEqual(type(Art), "table")
+	for _, rule in ipairs(EndlessRules.Rules) do
+		expectTrue(type(rule.icon) == "string" and rule.icon ~= "", rule.id .. " has an emoji fallback icon")
+		expectTrue(Art[rule.id] == nil or Art[rule.id]:match("^rbxassetid://%d+$") ~= nil, rule.id .. " art id is well formed")
+	end
 end })
 
 table.insert(tests, { name = "Tutorial stays under 2 minutes: the time budget of all steps, every step one short action", fn = function()

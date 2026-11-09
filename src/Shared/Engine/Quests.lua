@@ -11,6 +11,12 @@
 		flushWins rounds cleared with a Flush        state.flushClears
 		packs     Packs bought                       state.packsBought
 		bosses    Boss Rounds cleared                state.bossesCleared
+		straights / fullHouses / trips  hands of that type          state.handStats
+		bigHands  hands scoring 500+                 state.bigHands
+		richClears / quickClears  rounds cleared with 3+ Tips / in 2 or fewer hands
+		housePasses / recipes / cardsDiscarded  bought / used / cards thrown away
+		night     highest Night of the run           state.night
+		rounds    rounds cleared                     state.roundsCleared
 	Daily, Weekly and Seed runs count too.
 
 	Profile: quests = { day, ids = { questId x3 }, progress = { [questId] = n }, done = { [questId] = true } },
@@ -32,6 +38,21 @@ Quests.Definitions = {
 	{ id = "discard_5", name = "Fresh Draw", icon = "♻️", desc = "Use 5 discards.", counter = "discards", goal = 5, xp = 40, tips = 2 },
 	{ id = "boss_win", name = "Boss Beater", icon = "🥊", desc = "Win a Boss Round.", counter = "bosses", goal = 1, xp = 80, tips = 4 },
 	{ id = "hands_10", name = "Busy Hands", icon = "🃏", desc = "Play 10 hands.", counter = "hands", goal = 10, xp = 50, tips = 2 },
+	-- Second batch (every id has a quest_subjects prompt in tools/patron_art/prompts.json, emoji until art is recorded).
+	{ id = "straight_play", name = "Straight Shooter", icon = "📏", desc = "Play a Straight.", counter = "straights", goal = 1, xp = 50, tips = 2 },
+	{ id = "full_house_play", name = "Full House Party", icon = "🏠", desc = "Play a Full House.", counter = "fullHouses", goal = 1, xp = 60, tips = 3 },
+	{ id = "trips_play", name = "Triple Threat", icon = "3️⃣", desc = "Play 2 Three of a Kind hands.", counter = "trips", goal = 2, xp = 50, tips = 2 },
+	{ id = "big_swing", name = "Big Swing", icon = "💥", desc = "Score 500 in one hand.", counter = "bigHands", goal = 1, xp = 70, tips = 3 },
+	{ id = "tips_left", name = "Coin Purse", icon = "👛", desc = "Finish a round with 3 Tips left.", counter = "richClears", goal = 1, xp = 50, tips = 2 },
+	{ id = "quick_win", name = "Swift Win", icon = "⚡", desc = "Win a round using 2 or fewer hands.", counter = "quickClears", goal = 1, xp = 60, tips = 3 },
+	{ id = "buy_pass", name = "Pass Collector", icon = "🎟️", desc = "Buy a House Pass.", counter = "housePasses", goal = 1, xp = 50, tips = 2 },
+	{ id = "use_recipe", name = "Home Cook", icon = "🍲", desc = "Use a Recipe.", counter = "recipes", goal = 1, xp = 40, tips = 2 },
+	{ id = "discard_cards_10", name = "Clean Sweep", icon = "🧹", desc = "Discard 10 cards.", counter = "cardsDiscarded", goal = 10, xp = 40, tips = 2 },
+	{ id = "boss_streak", name = "Giant Slayer", icon = "🗡️", desc = "Clear 2 Boss Rounds.", counter = "bosses", goal = 2, xp = 120, tips = 5 },
+	{ id = "hands_15", name = "Marathon Hands", icon = "🏃", desc = "Play 15 hands.", counter = "hands", goal = 15, xp = 70, tips = 3 },
+	{ id = "reach_night_3", name = "Third Night", icon = "🌙", desc = "Reach Night 3.", counter = "night", goal = 3, xp = 80, tips = 3 },
+	{ id = "rounds_5", name = "Round Runner", icon = "🔔", desc = "Clear 5 rounds.", counter = "rounds", goal = 5, xp = 60, tips = 3 },
+	{ id = "pairs_8", name = "Pair Parade", icon = "🎎", desc = "Play 8 Pair hands.", counter = "pairs", goal = 8, xp = 60, tips = 3 },
 }
 
 function Quests.getById(id)
@@ -58,7 +79,15 @@ function Quests.rollFor(day)
 	end
 	local ids = {}
 	for _ = 1, math.min(Quests.PER_DAY, #pool) do
-		ids[#ids + 1] = table.remove(pool, nextInt(#pool))
+		local picked = table.remove(pool, nextInt(#pool))
+		ids[#ids + 1] = picked
+		-- never two quests that read the same counter on one day (Busy Hands + Marathon Hands)
+		local counter = Quests.getById(picked).counter
+		for i = #pool, 1, -1 do
+			if Quests.getById(pool[i]).counter == counter then
+				table.remove(pool, i)
+			end
+		end
 	end
 	return ids
 end
@@ -153,6 +182,17 @@ function Quests.countersOf(state)
 		flushWins = state.flushClears or 0,
 		packs = state.packsBought or 0,
 		bosses = state.bossesCleared or 0,
+		straights = stats["Straight"] or 0,
+		fullHouses = stats["Full House"] or 0,
+		trips = stats["Three of a Kind"] or 0,
+		bigHands = state.bigHands or 0,
+		richClears = state.richClears or 0,
+		quickClears = state.quickClears or 0,
+		housePasses = state.housePassesBought or 0,
+		recipes = state.recipesUsed or 0,
+		cardsDiscarded = state.cardsDiscarded or 0,
+		night = state.night or 0, -- highest Night reached; deltas add up to the Night number
+		rounds = state.roundsCleared or 0,
 	}
 end
 

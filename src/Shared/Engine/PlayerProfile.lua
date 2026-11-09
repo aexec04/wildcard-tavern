@@ -203,6 +203,7 @@ function PlayerProfile.new()
 		-- LOGIN STREAK (Engine/LoginStreak.lua)
 		lastLoginDay = nil, -- UTC day number of the last check-in
 		loginStreak = 0,
+		bestLoginStreak = 0, -- longest login streak ever (Engine/Achievements reads it; never goes down)
 		claimedLoginDays = {}, -- [reward day] = true
 		loginClaimedDay = nil, -- the lastLoginDay whose ladder reward was claimed (Engine/LoginStreak.lua)
 		-- TAVERN RANK (Engine/TavernRank.lua)
@@ -411,6 +412,10 @@ function PlayerProfile.migrate(raw)
 	if type(raw.loginStreak) == "number" and raw.loginStreak == raw.loginStreak then
 		profile.loginStreak = math.max(0, math.min(9999, math.floor(raw.loginStreak)))
 	end
+	if type(raw.bestLoginStreak) == "number" and raw.bestLoginStreak == raw.bestLoginStreak then
+		profile.bestLoginStreak = math.max(0, math.min(9999, math.floor(raw.bestLoginStreak)))
+	end
+	profile.bestLoginStreak = math.max(profile.bestLoginStreak or 0, profile.loginStreak or 0)
 	if type(raw.claimedLoginDays) == "table" then
 		for day, flag in pairs(raw.claimedLoginDays) do
 			if type(day) == "number" and flag == true then

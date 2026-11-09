@@ -794,6 +794,9 @@ function RunState.playHand(state, cardIndices)
 	end
 
 	state.handsPlayedTotal = state.handsPlayedTotal + 1
+	if score >= 500 then
+		state.bigHands = (state.bigHands or 0) + 1 -- daily quest: score 500 in one hand
+	end
 	RunSummary.recordHand(state, handResult.name, score) -- best hand + Patrons used, for the end-of-run summary
 	state.roundScore = state.roundScore + score
 	state.tips = state.tips + (extra.tipsEarned or 0)
@@ -860,6 +863,13 @@ function RunState.playHand(state, cardIndices)
 		state.roundsCleared = state.roundsCleared + 1
 			if handResult.name == "Flush" or handResult.name == "Straight Flush" then
 				state.flushClears = (state.flushClears or 0) + 1 -- daily quest: clear a round with a Flush
+			end
+			-- daily quests: clear with 3+ Tips in hand, clear using 2 or fewer hands
+			if state.tips >= 3 then
+				state.richClears = (state.richClears or 0) + 1
+			end
+			if (state.roundStartHands or 0) - state.handsRemaining <= 2 then
+				state.quickClears = (state.quickClears or 0) + 1
 			end
 		if RunState.isBossRound(state) then
 			state.bossesCleared = state.bossesCleared + 1
@@ -975,6 +985,7 @@ function RunState.discard(state, cardIndices)
 	local discarded = removeIndicesFromHand(state, cardIndices)
 	state.discardsRemaining = state.discardsRemaining - 1
 	state.discardsUsedTotal = state.discardsUsedTotal + 1
+	state.cardsDiscarded = (state.cardsDiscarded or 0) + #cardIndices -- daily quest: discard 10 cards
 
 	-- Purple Stamp: discarding this card creates a random House Recipe.
 	-- RECIPE CAP: same silent-skip-if-full rule as the Blue Stamp reward in
@@ -1133,6 +1144,7 @@ function RunState.buyHousePass(state, passId)
 	end
 	state.tips = state.tips - pass.price
 	state.housePasses[passId] = true
+	state.housePassesBought = (state.housePassesBought or 0) + 1 -- daily quest: buy a House Pass
 	if pass.onBuy then
 		pass.onBuy(state)
 	end
@@ -1553,6 +1565,7 @@ local function useRecipe(state, inventory, catalog, id, opts, category)
 		-- inventory (and refuse cleanly for a Secret Recipe, matching its
 		-- own "House or Menu" description) instead of guessing "House".
 		state.lastRecipeUsedCategory = category
+		state.recipesUsed = (state.recipesUsed or 0) + 1 -- daily quest: use a Recipe
 	end
 	return ok, message
 end

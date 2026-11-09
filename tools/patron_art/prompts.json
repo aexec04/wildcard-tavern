@@ -193,12 +193,12 @@
       "double_shift": "a tired but proud Roblox avatar server wearing two name badges, running two full trays",
       "frequent_visitor": "a loyal Roblox avatar guest happily punching their nearly-full loyalty card at the counter",
       "grand_opening": "a cheerful Roblox avatar cutting a ribbon at a grand opening ceremony with a crowd cheering",
-    "pantry_shelf": "an avatar cook stacking jars on a tall wooden pantry shelf with a proud smile",
-    "tip_stand": "an avatar greeter standing beside a small wooden stand with a dish of shiny coins",
-    "card_cart": "an avatar dealer pushing a little wooden cart piled high with playing cards",
-    "savings_account": "an avatar banker locking a sturdy wooden coin chest with a golden key",
-    "warm_welcome": "an avatar innkeeper greeting a grumpy guest at the door with a warm hug and balloons",
-    "boss_prep": "an avatar cook pinning a long checklist on a kitchen door before a big night"
+      "pantry_shelf": "an avatar cook stacking jars on a tall wooden pantry shelf with a proud smile",
+      "tip_stand": "an avatar greeter standing beside a small wooden stand with a dish of shiny coins",
+      "card_cart": "an avatar dealer pushing a little wooden cart piled high with playing cards",
+      "savings_account": "an avatar banker locking a sturdy wooden coin chest with a golden key",
+      "warm_welcome": "an avatar innkeeper greeting a grumpy guest at the door with a warm hug and balloons",
+      "boss_prep": "an avatar cook pinning a long checklist on a kitchen door before a big night"
     }
   },
   "titles": {
@@ -397,7 +397,37 @@
     "cove_sailor": "an avatar in a striped sailor top and a little captain's cap waving from a small rowboat near a glowing lighthouse at dusk",
     "coast_master": "an avatar in a navy captain's coat with gold buttons standing at the helm of a little sailboat, the lighthouse beam sweeping golden waves",
     "tavern_guest": "an avatar in a cozy sweater sitting at a candlelit tavern table with a steaming bowl of soup, a warm fireplace glowing behind",
-    "tavern_master": "an avatar in a festive golden vest raising a steaming mug of cocoa at a grand tavern feast, lanterns and banners glowing overhead"
+    "tavern_master": "an avatar in a festive golden vest raising a steaming mug of cocoa at a grand tavern feast, lanterns and banners glowing overhead",
+    "hand_hundred": "an avatar proudly fanning a hundred playing cards in a wide arc, happy",
+    "hand_five_hundred": "an avatar in a tiny shark-fin hat dealing cards at lightning speed on a tavern table",
+    "hand_two_thousand": "an avatar in a gold top hat dealing a glowing river of cards between both hands",
+    "ten_runs": "an avatar waving hello beside a tavern door with a friendly smile, a name tag on the apron",
+    "fifty_runs": "an avatar sitting comfortably on a worn wooden stool with a brass nameplate, relaxed",
+    "stake_two": "an avatar bowing to a cheering crowd of small blocky guests, a gold star above",
+    "stake_four": "an avatar carrying a tray through a busy tavern with a big wall clock behind",
+    "stake_six": "an avatar squeezing happily between a packed crowd of blocky guests at a crowded tavern",
+    "stake_eight": "an avatar holding the very last glowing lantern in an empty tavern at closing time, heroic pose",
+    "endless_twelve": "an avatar walking a winding lantern-lit road that goes past a tavern sign into the stars",
+    "endless_fifteen": "an avatar with a travel pack and walking stick far along a long moonlit road",
+    "endless_thirty": "an avatar holding a glowing infinity symbol made of lantern light over a night road",
+    "streak_three": "an avatar waving from a window with three lit candles in a row",
+    "streak_seven": "an avatar beside a calendar page with seven gold stars, cheerful",
+    "streak_fourteen": "an avatar warming hands at a roaring hearth with fourteen tiny flames above it",
+    "streak_thirty": "an avatar looking up at a huge full moon over the tavern roof, peaceful",
+    "quests_five": "an avatar running with a rolled scroll and a happy grin through a tavern door",
+    "quests_twentyfive": "an avatar pinning a stack of finished notes to a wooden quest board",
+    "quests_hundred": "an avatar standing before a huge quest board covered in gold stamps, proud",
+    "rank_five": "an avatar polishing a small bronze tavern star badge, smiling",
+    "rank_ten": "an avatar in a nice apron holding a silver tavern star badge with a warm smile",
+    "rank_fifteen": "an avatar holding a golden heart-shaped badge while guests cheer nearby",
+    "rush_three": "an avatar ducking and grinning past three big shadowy guests with oversize hats",
+    "rush_six": "an avatar holding a golden lasso beside six huge friendly shadow guests",
+    "challenge_first": "an avatar balancing happily on one leg with a spinning swirl symbol overhead",
+    "challenge_many": "an avatar wearing four different funny masks stacked up, performing a bow",
+    "hat_trick": "an avatar tossing a top hat into the air with three gold stars trailing it",
+    "hand_thousand": "an avatar surrounded by a tall swirl of a thousand floating playing cards, amazed",
+    "map_spots": "an avatar peeking behind a wooden barrel with a magnifying glass, curious",
+    "nights_cleared": "an avatar walking a glowing path with four lanterns lit along it, content"
   },
   "room_subjects": {
     "corner_table": "a cozy corner table in a warm tavern with two stools, a low hanging lantern casting golden light, playing cards and poker chips on the table, intimate atmosphere",
@@ -706,7 +736,21 @@
     "buy_pack": "a wrapped gift pack of cards tied with a gold ribbon and bow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "discard_5": "a small pile of cards swirling into a wooden bin with a green refresh arrow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "boss_win": "a gold trophy cup with a small crown above a cracked dark mask, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
-    "hands_10": "a hand of five playing cards held up with a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+    "hands_10": "a hand of five playing cards held up with a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "straight_play": "five playing cards in a rising row with a gold ruler beside them, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "full_house_play": "a tiny cozy wooden house built from playing cards with a glowing window, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "trips_play": "three matching playing cards fanned out with three small gold stars, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "big_swing": "a playing card with a big gold starburst explosion behind it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tips_left": "a small leather coin purse with three gold coins spilling out, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "quick_win": "a playing card with a golden lightning bolt and a tiny stopwatch, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "buy_pass": "a gold-edged parchment house pass ticket with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "use_recipe": "a steaming cooking pot with a recipe card tucked beside it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "discard_cards_10": "a broom sweeping a pile of playing cards into a wooden bin, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "boss_streak": "two crossed small swords over a cracked dark mask with a gold crown, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "hands_15": "two hands holding up a long fan of playing cards with a small gold ribbon, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "reach_night_3": "a crescent moon above a lantern with three small gold stars, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "rounds_5": "five small brass bells in a row with a gold ribbon, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "pairs_8": "four pairs of matching playing cards lined up in a parade with a gold banner, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "rank_medal_subjects": {
     "tier_1": "a round wooden medal with a single bronze ring and a plain lantern emblem, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
@@ -728,5 +772,17 @@
     "glass_deck": "a playing card made of glass with a small crack and sparkles, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "speed_run": "a brass pocket watch with a small flame trailing behind it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "tight_wallet": "a small leather coin purse tied tightly with a string, a single coin beside it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "endless_rule_subjects": {
+    "rowdy_bosses": "a small wooden drum with crossed drumsticks and a cracked dark mask behind it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "pricey_patrons": "a wooden price tag with a gold coin on a string and a tiny upward arrow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "costly_rerolls": "two circling arrows around a gold coin on a wooden plaque, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "thin_interest": "a leather coin purse with a few gold coins and a small downward arrow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "second_sting": "a small friendly scorpion made of dark wood holding a playing card, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "tight_seats": "a tiny wooden chair squeezed between two stacked chairs, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "lean_tips": "a small wooden bowl with only one gold coin in it, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "packed_shelf": "a crowded wooden shelf of jars and recipe cards packed tight, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "short_rations": "a small plate with a single crumb and a tiny bread loaf next to a playing card, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "short_shift": "a brass hourglass nearly out of sand on a wooden table, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   }
 }

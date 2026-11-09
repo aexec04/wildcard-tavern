@@ -60,6 +60,7 @@ function LoginStreak.checkIn(profile, day)
 		-- First login, a long gap, or a clock that went backwards: start over.
 		profile.loginStreak = 1
 	end
+	profile.bestLoginStreak = math.max(profile.bestLoginStreak or 0, profile.loginStreak) -- high-water mark for achievements
 	profile.lastLoginDay = day
 	return true
 end
