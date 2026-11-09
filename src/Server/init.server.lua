@@ -51,6 +51,7 @@ local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toas
 local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
 local rewardSeqCounter = 0
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
+local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
@@ -122,6 +123,8 @@ local ClaimLoginRewardRemote = newRemote("ClaimLoginReward") -- (player, rewardD
 local SaveBadgeRemote = newRemote("SaveBadge") -- (player): saves the finished run's badge as the profile badge
 local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil to follow the set)
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
+local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
+local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
 local ChoiceRemote = newRemote("Choice") -- (player, optionId): answers the open draft or event card
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
@@ -847,6 +850,7 @@ local function serializeState(session, player)
 			end,
 		}) or nil,
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
+		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
@@ -1455,6 +1459,10 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		-- TAVERN RANK / QUESTS / LOGIN: Tips banked for the next run are paid out here (normal runs only; seeded boards stay fair).
 		if seededRng == nil then
 			sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
+			local merchant = Discoveries.takeMerchantDiscount(profile) -- a map merchant: Tips off the first shop visit
+			if merchant > 0 then
+				sessions[player].state.nextShopDiscount = (sessions[player].state.nextShopDiscount or 0) + merchant
+			end
 			local bank = TavernRank.takeStartTips(profile)
 			if bank > 0 then
 				sessions[player].state.tips = sessions[player].state.tips + bank
@@ -2289,6 +2297,36 @@ end)
 -- there's nothing to Select/Skip once you've already committed to playing
 -- (or you're mid-shop/game-over). See RunState.canSkipRound/skipRound and
 -- Tags.lua for the actual rules/rewards.
+
+-- MAP DISCOVERIES: claim a revealed spot once; reveal a region's spots with a compass charge.
+ClaimDiscoveryRemote.OnServerEvent:Connect(function(player, spotId)
+	local profile = profiles[player]
+	if not profile or type(spotId) ~= "string" then
+		return
+	end
+	local ok, result = Discoveries.claim(profile, spotId, {
+		patron = function(id) local d = PatronsData.getById(id) return d and d.name end,
+		cardBack = function(id) local d = CardBacks.getById(id) return d and d.name end,
+	})
+	if ok then
+		profileDirty[player] = true
+		pushRewardNotice(player, { icon = result.icon, text = result.text })
+	end
+	pushState(player)
+end)
+
+RevealDiscoveriesRemote.OnServerEvent:Connect(function(player, region)
+	local profile = profiles[player]
+	if not profile or type(region) ~= "string" then
+		return
+	end
+	local ok, message = Discoveries.reveal(profile, region)
+	if ok then
+		profileDirty[player] = true
+	end
+	pushRewardNotice(player, { icon = ok and "🧭" or "❗", text = message })
+	pushState(player)
+end)
 
 -- RUN CHOICES: the player answers the open start-of-run draft or between-Nights event card.
 ChoiceRemote.OnServerEvent:Connect(function(player, optionId)

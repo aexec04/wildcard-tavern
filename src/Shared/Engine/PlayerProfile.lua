@@ -213,6 +213,10 @@ function PlayerProfile.new()
 		-- DAILY QUESTS (Engine/Quests.lua)
 		quests = nil, -- { day, ids, progress, done } for today
 		questsDone = 0,
+		-- MAP DISCOVERIES (Engine/Discoveries.lua)
+		discoveries = {}, -- [spot id] = true, claimed
+		discoveryRevealed = {}, -- [region] = true, revealed with a compass charge
+		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		-- FIRST 5 MINUTES (Engine/Funnel.lua, NextGoal.lua)
 		funnelSeen = {}, -- [funnel step id] = true, each analytics funnel step is sent once per player
 		tutorialRewardClaimed = false, -- the card back and the Newcomer title for finishing the tutorial
@@ -416,6 +420,8 @@ function PlayerProfile.migrate(raw)
 	end
 	profile.tavernRank = TavernRank.rankFor(profile.tavernXp)
 	profile.funnelSeen = require(script.Parent.Funnel).clean(raw.funnelSeen)
+	profile.discoveries, profile.discoveryRevealed, profile.merchantDiscount =
+		require(script.Parent.Discoveries).cleanSaved(raw.discoveries, raw.discoveryRevealed, raw.merchantDiscount)
 	profile.tutorialRewardClaimed = raw.tutorialRewardClaimed == true
 	profile.firstWinRewardClaimed = raw.firstWinRewardClaimed == true
 	profile.followPrompted = raw.followPrompted == true

@@ -144,6 +144,11 @@ return function(deps)
 			return BiomeRewardsJMV.label(reward) .. (more > 0 and (" +" .. more) or "")
 		end,
 	})
+	-- Hidden discovery spots (chests, merchants, secret Patrons) per region; see JourneyMapDiscoveries.
+	local worldDiscoveries = require(script.Parent.JourneyMapDiscoveries)({
+		canvas = canvas, scroll = scroll, roundCorner = deps.roundCorner, TweenService = TweenService, Engine = Engine,
+		calm = calm, graph = worldGraph,
+	})
 	-- Compass icon and wheel overlay (turns the map view toward the pointed road).
 	local worldCompass = require(script.Parent.JourneyMapCompass)({
 		parent = frame, roundCorner = deps.roundCorner, ReplicatedStorage = ReplicatedStorage, Engine = Engine,
@@ -789,6 +794,7 @@ return function(deps)
 		scenery.layout(canvasW, canvasH, minY - nodeSize / 2 - LABEL_GAP - 2 * 21 - 12, maxY + nodeSize / 2 + LABEL_GAP + 2 * 21 + 8 + TAG_H + 16, nodeXs)
 		fogBand.layout(canvasW, canvasH)
 		worldGraph.layout(canvasW, canvasH, nodeSize, nodePixel)
+		worldDiscoveries.layout(canvasW, canvasH, nodeSize)
 		updateFog(false)
 		placeMarker()
 	end
@@ -1787,6 +1793,7 @@ return function(deps)
 		local view = currentView()
 		render(view, view.cleared, false)
 		worldGraph.refresh(view.state)
+		worldDiscoveries.refresh(view.state)
 		worldCompass.refresh(view.state)
 		-- WORLD MAP: Nights whose road is already picked show the chosen stop's name and icon.
 		local route = view.state and view.state.worldRoute
@@ -1825,6 +1832,10 @@ return function(deps)
 			hint = "Every reward earned. Well played, Keeper!"
 		end
 		local progress = string.format("Journey %d%% (%d/%d)", percent, done, total)
+		local discoveryInfo = view.state and view.state.discoveries
+		if discoveryInfo then
+			progress = progress .. string.format(". Discovered %d of %d", discoveryInfo.found, discoveryInfo.total)
+		end
 		local seenInfo = view.state and view.state.placesSeen
 		if seenInfo and seenInfo.total > 0 then
 			progress = progress .. string.format(". Places seen: %d of %d", seenInfo.seen, seenInfo.total)
@@ -1850,6 +1861,7 @@ return function(deps)
 		setShown = function(shown)
 			frame.Visible = shown
 			worldGraph.setShown(shown)
+			worldDiscoveries.setShown(shown)
 			worldCompass.setShown(shown)
 			if not shown then
 				playing = playing + 1 -- cancel any unlock in progress

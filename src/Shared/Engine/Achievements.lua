@@ -258,6 +258,31 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.grand_host == true
 		end,
 	},
+	-- DISCOVERY TITLES: granted (and saved in profile.rewardTitleIds) by Engine/Discoveries.lua at half and all of the map's spots.
+	{
+		id = "curious_explorer",
+		name = "Curious Explorer",
+		icon = "🔭",
+		title = "Curious Explorer",
+		description = "Find half of the Tavern Map's hidden spots.",
+		flavorText = "You always look behind the signpost.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.curious_explorer == true
+		end,
+	},
+	{
+		id = "grand_explorer",
+		name = "Grand Explorer",
+		icon = "🗺️",
+		title = "Grand Explorer",
+		description = "Find every hidden spot on the Tavern Map.",
+		flavorText = "There is no corner of the map you have not poked.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.grand_explorer == true
+		end,
+	},
 	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
 	{
 		id = "dune_wanderer",

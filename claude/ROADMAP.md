@@ -25,7 +25,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Follow prompt so players get Roblox reminders
 
 ## Phase 3: Variety and exploration
-- [ ] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter
+- [x] Map discoveries: hidden chests, merchants and secret Patrons per region; regions discovered counter
 - [x] Start-of-run choices: starting deck, starting Patron, one curse or blessing
 - [x] Random events between Nights
 - [ ] Challenge runs with a twist (Pairs Only, No Discards)

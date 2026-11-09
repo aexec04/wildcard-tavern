@@ -4654,6 +4654,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
 		rewardedTitles[season.rewards.titleId] = true
 	end
+	-- Titles handed out by map discovery milestones count too.
+	for _, m in ipairs(require(script.Parent.Parent.Engine.Discoveries).Milestones) do
+		rewardedTitles[m.titleId] = true
+	end
 	-- Titles handed out by Tavern Rank rewards count too.
 	for _, reward in pairs(require(script.Parent.Parent.Engine.TavernRank).Rewards) do
 		if reward.kind == "title" then
@@ -8891,6 +8895,115 @@ table.insert(tests, { name = "RunEvents: every event has a safe Decline, every o
 		for _, e in ipairs(RunEvents.Definitions) do
 			expectTrue(json:find('"' .. e.id .. '"', 1, true) ~= nil, e.id .. " has an event_subjects prompt")
 		end
+	end
+end })
+
+-- ===== Map discoveries =====
+
+table.insert(tests, { name = "Discoveries: fixed placement, stable ids, kinds, counter total follows the per-region constant", fn = function()
+	local Discoveries = require(script.Parent.Parent.Engine.Discoveries)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local spots = Discoveries.spots()
+	expectEqual(#spots, #WorldMap.RegionOrder * Discoveries.SPOTS_PER_REGION)
+	expectEqual(Discoveries.total(), #spots)
+	local ids, kinds = {}, {}
+	for _, spot in ipairs(spots) do
+		expectTrue(not ids[spot.id], "unique id " .. spot.id)
+		ids[spot.id] = true
+		kinds[spot.kind] = true
+		local a, b = Discoveries.place(spot.region, spot.index), Discoveries.place(spot.region, spot.index)
+		expectEqual(a.dx, b.dx); expectEqual(a.lift, b.lift); expectEqual(a.side, b.side)
+		expectTrue(a.dx >= -0.8 and a.dx <= 0.8 and a.lift >= 0.18 and a.lift <= 0.4 and (a.side == 1 or a.side == -1))
+	end
+	expectTrue(kinds.chest and kinds.merchant and kinds.secret_patron, "all three kinds are used")
+	-- the two spots of one region lie on opposite sides of the road
+	for _, region in ipairs(WorldMap.RegionOrder) do
+		if Discoveries.SPOTS_PER_REGION >= 2 then
+			expectTrue(Discoveries.place(region, 1).side ~= Discoveries.place(region, 2).side, region .. " spots are on both sides")
+		end
+	end
+	expectEqual(Discoveries.milestoneCount(Discoveries.Milestones[1]), math.ceil(Discoveries.total() / 2))
+	expectEqual(Discoveries.milestoneCount(Discoveries.Milestones[2]), Discoveries.total())
+	for _, m in ipairs(Discoveries.Milestones) do
+		expectTrue(Achievements.getById(m.titleId) ~= nil and Achievements.getById(m.titleId).milestoneReward, m.titleId .. " is a real reward title")
+	end
+end })
+
+table.insert(tests, { name = "Discoveries: hidden until the road is played or a compass charge is spent, claim once, each kind pays", fn = function()
+	local Discoveries = require(script.Parent.Parent.Engine.Discoveries)
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local profile = PlayerProfile.new()
+	local spot = Discoveries.spots()[1] -- road chest
+	local ok, why = Discoveries.claim(profile, spot.id)
+	expectEqual(ok, false); expectEqual(why, "Not revealed yet.")
+	expectEqual(Discoveries.claim(profile, "nowhere#9"), false)
+	-- playing the road reveals it
+	profile.worldBiomeClears = { road = 1 }
+	expectTrue(Discoveries.isRevealed(profile, "road") and not Discoveries.isRevealed(profile, "meadow"))
+	local okClaim, result = Discoveries.claim(profile, spot.id)
+	expectTrue(okClaim and #result.text > 0 and result.kind == "chest")
+	expectEqual(profile.pendingStartTips, Discoveries.CHEST_TIPS, "an odd region's chest holds Tips")
+	expectEqual(Discoveries.claim(profile, spot.id), false, "claim once")
+	expectEqual(Discoveries.foundCount(profile), 1)
+	-- a compass charge reveals another region, and only if there is one
+	expectEqual(Discoveries.reveal(profile, "meadow"), false)
+	profile.compassCharges = 1
+	expectTrue((Discoveries.reveal(profile, "meadow")))
+	expectEqual(profile.compassCharges, 0)
+	expectEqual(Discoveries.reveal(profile, "meadow"), false, "no second reveal")
+	expectEqual(Discoveries.reveal(profile, "mars"), false)
+	-- each kind pays: meadow (even): chest = card back, second spot = secret Patron; river (odd): merchant
+	local meadowChest = Discoveries.claim(profile, "meadow#1")
+	expectTrue(meadowChest)
+	local backCount = 0
+	for _ in pairs(profile.unlockedCardBackIds) do backCount = backCount + 1 end
+	expectTrue(backCount >= 1, "an even region's chest holds a card back")
+	if Discoveries.SPOTS_PER_REGION >= 2 then
+		local okSecret, secret = Discoveries.claim(profile, "meadow#2")
+		expectTrue(okSecret and secret.kind == "secret_patron")
+		local opened = false
+		for key in pairs(profile.unlockedContent) do
+			local id = key:match("^patron:(.+)$")
+			if id and Unlocks.isUnlocked(profile, "patron", id) then opened = true end
+		end
+		expectTrue(opened, "a closed Patron opened")
+		profile.discoveryRevealed.river = true
+		local okMerchant, merchant = Discoveries.claim(profile, "river#2")
+		expectTrue(okMerchant and merchant.kind == "merchant")
+		expectEqual(profile.merchantDiscount, Discoveries.MERCHANT_DISCOUNT)
+		expectEqual(Discoveries.takeMerchantDiscount(profile), Discoveries.MERCHANT_DISCOUNT)
+		expectEqual(Discoveries.takeMerchantDiscount(profile), 0, "the discount is taken once")
+	end
+	-- the discount is capped
+	profile.merchantDiscount = 99
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.merchantDiscount <= Discoveries.MAX_MERCHANT_DISCOUNT)
+	expectTrue(loaded.discoveries["road#1"] and loaded.discoveryRevealed.meadow, "claims and reveals survive a save")
+	local junk = PlayerProfile.migrate({ discoveries = { ["road#1"] = true, ["x#1"] = true, bad = 1 }, discoveryRevealed = { road = true, mars = true } })
+	expectTrue(junk.discoveries["road#1"] and junk.discoveries["x#1"] == nil and junk.discoveryRevealed.mars == nil)
+end })
+
+table.insert(tests, { name = "Discoveries: bonus titles at half and at all of the spots, counter in the view", fn = function()
+	local Discoveries = require(script.Parent.Parent.Engine.Discoveries)
+	local WorldMap = require(script.Parent.Parent.Engine.WorldMap)
+	local profile = PlayerProfile.new()
+	for _, region in ipairs(WorldMap.RegionOrder) do profile.discoveryRevealed[region] = true end
+	local half = Discoveries.milestoneCount(Discoveries.Milestones[1])
+	local total = Discoveries.total()
+	for i, spot in ipairs(Discoveries.spots()) do
+		local ok = Discoveries.claim(profile, spot.id)
+		expectTrue(ok, spot.id .. " claims")
+		local view = Discoveries.view(profile)
+		expectEqual(view.found, i)
+		expectEqual(view.total, total)
+		expectEqual(profile.rewardTitleIds.curious_explorer == true, i >= half, "half title at " .. half .. ", checked at " .. i)
+		expectEqual(profile.rewardTitleIds.grand_explorer == true, i >= total, "all title at " .. total .. ", checked at " .. i)
+	end
+	expectTrue(Achievements.isUnlocked(profile, "curious_explorer") and Achievements.isUnlocked(profile, "grand_explorer"))
+	local json = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if json then
+		local text = json:read("*a"); json:close()
+		expectTrue(text:find('"curious_explorer"', 1, true) ~= nil and text:find('"grand_explorer"', 1, true) ~= nil, "title prompts exist")
 	end
 end })
 
