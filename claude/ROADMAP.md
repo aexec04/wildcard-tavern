@@ -62,6 +62,37 @@ Everything below is cosmetic or a tiny convenience, never pay to win. In Studio 
 - [ ] Store icons: generate `store_subjects` images (4 bundle cards) and the `menu_icons` `store` icon with the art task, then wire them (emoji until then).
 - [ ] Roblox Badges: create them in Creator Hub and paste the ids into `src/Shared/Engine/BadgeIds.lua` (list in that file).
 
+## Next ideas after launch
+Each serves first 5 minutes, daily return, variety, social spread or fair monetization. None is started.
+1. Cross server spectate (watch any friend, not only those in your server). Social spread.
+2. Ghost of a friend's best build: race their saved Patron line-up on a seeded run. Social spread, daily return.
+3. Cosmetic gifts and trading of duplicate card backs and Flair between friends (no Tips, no gameplay items). Social spread.
+4. A second premium Season theme every season, with a short free-only mini ladder for new players. Fair monetization, daily return.
+5. New roads on the Tavern Map (a desert caravan, a harbor town) each with its own boss set and biome Patrons. Variety.
+6. Co-op Boss Rush: two players share one boss HP bar and take turns playing hands. Social spread, variety.
+7. A 60 second "first hand" demo on the game page and in the first run: one guided hand with a big score pop. First 5 minutes.
+8. Weekly community goal: all players together fill a bar that unlocks a limited card back. Daily return, social spread.
+
+## Known gaps
+Not checked in Studio (code and tests only):
+- Stats panel, Invites (needs a published place and real invites), Accessibility at 1366x768 and 360x640, First time hint arrows, Spectate (needs two players), Boss Scout banner on short screens (may overlap the cards at 1280x720).
+- World map: RoadChoice, CompassWheel, SideStopPanel, MinigamePanel, CharacterStage, hidden side stops.
+- Server startup after the `Server/Remotes.lua` split (restart Studio and play a run).
+- The Rule Ban and Legend flows, Flair store buttons and Season premium row.
+
+Ambiguity decisions to confirm:
+- Rule Ban removes the boss rule including its own target change; the Night's base target stays.
+- Discoveries are 2 per region, 18 spots in total (not 36), so the counter and titles follow that.
+- VIP "extra cosmetic slot" is a second badge slot.
+- Random event cards (`events` art) have no client screen yet; Boss Rush is a Run Setup card, not a menu tile.
+- Season panel banners are not wired to `seasons` art yet.
+
+Art: 88 images were generated and uploaded on 2026-11-09 and wait for decal to Image id resolution (ids are in the OUTBOX). The `store_bundles`, `events` and `store` icon wiring is partial.
+
+Cleanup for the user: delete the untracked one off scripts under `tools/` (`_add_*.py`, `_boss_counterplay_data.py`, `_check_boss_counters.lua`, `_move_hp.py`, `_patch_*.py`, `_record_84.py`, `_shrink_locals.py`, `_split_remotes.py`) and the unused `src/Shared/Engine/StorePageArt.lua`. I cannot delete files in the unattended run.
+
+User only: Creator Hub assets (thumbnail, icon, video, Game Passes, Developer Products, Badges), real phone test, audio ids, and pushing to GitHub.
+
 ## Adding a live event in 5 lines
 Open `src/Shared/Engine/LiveEvents.lua` and append one entry to `LiveEvents.Definitions`:
 1. `id = "my_event", name = "My Event", icon = "🎉", bannerKey = "news_my_event", blurb = "One short line for the banner."`
