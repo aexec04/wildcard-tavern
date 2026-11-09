@@ -8,7 +8,7 @@
 return {
 	["busy_night"] = "rbxassetid://134435173127422",
 	["closing_time"] = "rbxassetid://117888214233842",
-	["last_call"] = "rbxassetid://94782443754441",
+	["final_bell"] = "rbxassetid://94782443754441",
 	["legend"] = "rbxassetid://132111792529863",
 	["packed_house"] = "rbxassetid://92377055032637",
 	["regular"] = "rbxassetid://119622178833570",

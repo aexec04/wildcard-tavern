@@ -8231,17 +8231,17 @@ table.insert(tests, { name = "Stakes in RunState: each rule changes only what it
 	expectEqual(RunState.new({ stakeId = 7 }, rng).config.tipsPerRoundWin, plain.config.tipsPerRoundWin - 1, "Closing Time")
 	expectEqual(RunState.new({ stakeId = 99 }, rng).stake, 8, "clamped")
 
-	-- Last Call: no interest
+	-- Final Bell: no interest
 	local s5 = RunState.new({ stakeId = 5 }, rng)
 	s5.targetScore = 0
 	s5.tips = 12
 	RunState.playHand(s5, { 1 })
-	expectEqual(s5.tips, 12 + s5.config.tipsPerRoundWin, "no interest at Last Call")
+	expectEqual(s5.tips, 12 + s5.config.tipsPerRoundWin, "no interest at Final Bell")
 	local s4 = RunState.new({ stakeId = 4 }, rng)
 	s4.targetScore = 0
 	s4.tips = 12
 	RunState.playHand(s4, { 1 })
-	expectEqual(s4.tips, 12 + 2 + s4.config.tipsPerRoundWin, "interest still paid below Last Call")
+	expectEqual(s4.tips, 12 + 2 + s4.config.tipsPerRoundWin, "interest still paid below Final Bell")
 end })
 
 table.insert(tests, { name = "Stakes balance: targets and hands never change, boss rounds only 10% higher, discards never negative", fn = function()
@@ -9694,7 +9694,7 @@ table.insert(tests, { name = "Roadmap art: every registry entry has a prompt, ne
 		expectTrue(type(ContentArt[cat]) == "table", cat .. " is a ContentArt category")
 	end
 	expectTrue(ContentArt.store == ContentArt.store_bundles and ContentArt.news == ContentArt.events, "old store/news names still resolve")
-	expectEqual(ContentArt.getImageId("quests", "pairs_3"), nil) -- empty map: nil, never an error
+	expectEqual(ContentArt.getImageId("quests", "no_such_quest"), nil) -- unknown key: nil, never an error
 	-- 30 ranks -> 6 medal tiers of 5 ranks
 	expectEqual(TavernRank.medalKey(1), "tier_1"); expectEqual(TavernRank.medalKey(5), "tier_1")
 	expectEqual(TavernRank.medalKey(6), "tier_2"); expectEqual(TavernRank.medalKey(30), "tier_6")

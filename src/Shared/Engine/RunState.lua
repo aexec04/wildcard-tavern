@@ -851,7 +851,7 @@ function RunState.playHand(state, cardIndices)
 				break
 			end
 		end
-		if not (state.stakeRules and state.stakeRules.noInterest) then -- Last Call stake: no interest
+		if not (state.stakeRules and state.stakeRules.noInterest) then -- Final Bell stake: no interest
 			state.tips = state.tips + BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
 		end
 
