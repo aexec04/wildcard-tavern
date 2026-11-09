@@ -60,7 +60,9 @@ function MenuScene.build(parent)
 	rope.Active = false
 	rope.ZIndex = Z
 	rope.Parent = lantern
-	local artId = ContentArt.getImageId("menu_icons", "menu_lantern_fg")
+	-- The painted lantern has an opaque dark background (no alpha from the generator),
+	-- so it would show as a dark square over the backdrop. Keep the emoji until it is cut out.
+	local artId = nil -- ContentArt.getImageId("menu_icons", "menu_lantern_fg")
 	if artId then
 		local img = Instance.new("ImageLabel")
 		img.AnchorPoint = Vector2.new(0.5, 0)

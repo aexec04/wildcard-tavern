@@ -6,4 +6,9 @@
 ]]
 
 return {
+	["shop_counter"] = "rbxassetid://108540056390119",
+	["shop_crate"] = "rbxassetid://74144717825758",
+	["shop_peddler"] = "rbxassetid://72369354497955",
+	["shop_stranger"] = "rbxassetid://99721590644109",
+	["shop_tag"] = "rbxassetid://127612092472866",
 }
