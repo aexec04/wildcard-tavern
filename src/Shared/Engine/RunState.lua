@@ -801,6 +801,7 @@ function RunState.playHand(state, cardIndices)
 	RunSummary.recordHand(state, handResult.name, score) -- best hand + Patrons used, for the end-of-run summary
 	state.roundScore = state.roundScore + score
 	state.tips = state.tips + (extra.tipsEarned or 0)
+	state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, extra.tipsEarned or 0) -- Tavern Stats: lifetime Tips earned
 
 	-- Brittle Garnish cards that shattered leave the run's card pool for
 	-- good -- everything else goes to the discard pile to reshuffle back
@@ -898,7 +899,9 @@ function RunState.playHand(state, cardIndices)
 		end
 		interestCap = math.max(0, interestCap + endlessField(state, "interestCapDelta")) -- Thin Interest
 		if not (state.stakeRules and state.stakeRules.noInterest) then -- Final Bell stake: no interest
-			state.tips = state.tips + BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
+			local interest = BossRules.applyPercent(math.min(interestCap, math.floor(state.tips / 5)), BossRules.tipsPercent(state.challenge))
+			state.tips = state.tips + interest
+			state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, interest)
 		end
 
 		-- GENRE PARITY: clearing the Boss Round of the final capped Night
@@ -933,6 +936,7 @@ function RunState.playHand(state, cardIndices)
 		end
 		reward = BossRules.applyPercent(reward, BossRules.tipsPercent(state.challenge)) -- Tight Wallet
 		state.tips = state.tips + reward
+		state.tipsEarnedTotal = (state.tipsEarnedTotal or 0) + math.max(0, reward)
 
 		-- Actual total Tips gained this round-win (flat reward + boss
 		-- double + every Patron onRoundWin bonus + the interest above) --

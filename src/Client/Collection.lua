@@ -186,6 +186,30 @@ return function(deps)
 		})
 	end
 
+	-- Tavern Stats (run history and lifetime numbers) opens from a third header button.
+	do
+		local statsButton = button(panel, {
+			Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(235, 4),
+			TextSize = 14, Text = "Stats",
+		})
+		polishButton(statsButton, 8)
+		require(script.Parent.StatsPanel)({
+			screenGui = screenGui,
+			polishPanel = polishPanel,
+			polishButton = polishButton,
+			roundCorner = roundCorner,
+			addSoftShadow = addSoftShadow,
+			playClickSfx = playClickSfx,
+			openButton = statsButton,
+			addTooltip = addTooltip,
+			getLatestState = getLatestState,
+			popIn = popIn,
+			popOut = popOut,
+			addButtonHoverScale = addButtonHoverScale,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+		})
+	end
+
 	local statsLabel = label(panel, {
 		Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(15, 35),
 		TextSize = 14, TextColor3 = SOFT_CREAM, Text = "",

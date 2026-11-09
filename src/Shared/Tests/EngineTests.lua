@@ -8723,6 +8723,70 @@ table.insert(tests, { name = "Achievements second wave: 30 new, unique, titled, 
 	expectEqual(PlayerProfile.migrate({ bestLoginStreak = "x" }).bestLoginStreak, 0, "junk is dropped")
 end })
 
+table.insert(tests, { name = "RunHistory: capped at 20 newest first, tagged by mode, lifetime math, favorite Patron, safe migration", fn = function()
+	local RunHistory = require(script.Parent.Parent.Engine.RunHistory)
+	local profile = PlayerProfile.new()
+	expectEqual(#profile.runHistory, 0)
+	expectEqual(profile.lifetime.bestHandScore, 0)
+	for i = 1, 25 do
+		local ok = RunHistory.record(profile, {
+			t = 1000 + i, mode = i % 2 == 0 and "daily" or "standard", road = "meadow", stake = (i % 3) + 1, night = (i % 8) + 1,
+			won = i % 5 == 0, score = i * 100, hands = i, patrons = { "warm_hearth", "flush_fan" },
+			bestHand = { name = "Flush", score = i * 10 },
+		}, 5)
+		expectTrue(ok)
+	end
+	expectEqual(#profile.runHistory, 20, "capped at 20")
+	expectEqual(profile.runHistory[1].t, 1025, "newest first")
+	expectEqual(profile.runHistory[20].t, 1006, "the oldest 5 fell off")
+	expectEqual(profile.runHistory[1].mode, "standard"); expectEqual(profile.runHistory[2].mode, "daily")
+	expectEqual(profile.lifetime.bestHandScore, 250); expectEqual(profile.lifetime.tipsEarned, 125)
+	expectEqual(profile.lifetime.bestNightByStake["1"], 8, "best Night per stake over all 25 runs")
+	expectEqual(profile.lifetime.patronWins.warm_hearth, 5, "5 won runs (every 5th)")
+	local fav = RunHistory.favoritePatron(profile.lifetime)
+	expectEqual(fav.id, "flush_fan"); expectEqual(fav.wins, 5) -- tie: alphabetical
+	expectEqual(RunHistory.favoritePatron(RunHistory.newLifetime()), nil)
+	profile.stats.runsStarted, profile.stats.runsWon, profile.stats.handsPlayedTotal = 25, 5, 400
+	local view = RunHistory.view(profile)
+	expectEqual(#view.recent, 10, "the page shows the last 10"); expectEqual(view.runs, 25); expectEqual(view.wins, 5); expectEqual(view.hands, 400)
+	expectEqual(view.bestHandScore, 250)
+	-- junk entries and junk numbers are refused
+	expectFalse(RunHistory.record(profile, { night = "x", t = 5 }))
+	expectFalse(RunHistory.record(profile, nil))
+	expectEqual(#profile.runHistory, 20)
+	-- save and load: cleaned, capped, bad rows dropped
+	local raw = { runHistory = { { t = 5, night = 3, mode = "nope", stake = 99, patrons = { 5, "a" } }, "junk", { t = 6 } },
+		lifetime = { bestHandScore = -5, tipsEarned = "x", bestNightByStake = { ["9"] = 3, ["2"] = 4 }, patronWins = { a = 2, b = -1 } } }
+	local loaded = PlayerProfile.migrate(raw)
+	expectEqual(#loaded.runHistory, 1)
+	expectEqual(loaded.runHistory[1].mode, "standard"); expectEqual(loaded.runHistory[1].stake, 8); expectEqual(#loaded.runHistory[1].patrons, 1)
+	expectEqual(loaded.lifetime.bestNightByStake["2"], 4); expectEqual(loaded.lifetime.bestNightByStake["9"], nil)
+	expectEqual(loaded.lifetime.patronWins.a, 2); expectEqual(loaded.lifetime.patronWins.b, 1)
+	expectEqual(PlayerProfile.migrate({}).lifetime.tipsEarned, 0, "old saves get safe defaults")
+	local big = {}
+	for i = 1, 50 do big[i] = { t = i, night = 2 } end
+	expectEqual(#PlayerProfile.migrate({ runHistory = big }).runHistory, 20, "a long saved list is capped on load")
+	-- mode tags
+	expectEqual(RunHistory.modeOf({ rush = true, daily = true }), "rush")
+	expectEqual(RunHistory.modeOf({ challenge = true }), "challenge"); expectEqual(RunHistory.modeOf({ weekly = true }), "weekly")
+	expectEqual(RunHistory.modeOf({ seeded = true }), "seed"); expectEqual(RunHistory.modeOf({}), "standard")
+	-- an entry from a RunState
+	local state = RunState.new(nil, SeededRng.new(3))
+	state.wonRun, state.night, state.totalScore, state.handsPlayedTotal = true, 8, 123456, 40
+	state.bestHand = { name = "Full House", score = 9000 }
+	state.patronsUsedOrder = { "a", "b" }
+	local entry = RunHistory.entryFromState(state, "standard", "tavern", 42)
+	expectTrue(entry.won and entry.night == 8 and entry.score == 123456 and entry.bestHand.score == 9000 and #entry.patrons == 2)
+end })
+
+table.insert(tests, { name = "RunState counts Tips earned over a run for the Tavern Stats page", fn = function()
+	local s = RunState.new(nil, SeededRng.new(5))
+	s.targetScore = 0
+	s.tips = 0
+	RunState.playHand(s, { 1 })
+	expectTrue((s.tipsEarnedTotal or 0) >= s.config.tipsPerRoundWin, "the round reward is counted")
+end })
+
 table.insert(tests, { name = "Endless Crowd Rules art: category wired, empty map, every rule has an icon", fn = function()
 	local EndlessRules = require(script.Parent.Parent.Engine.EndlessRules)
 	local Art = require(script.Parent.Parent.Engine.EndlessRuleArt)

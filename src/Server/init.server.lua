@@ -977,6 +977,7 @@ local function serializeState(session, player)
 		storePrompt = storePrompts[player], -- seq: open the Store on the Starter Pack once
 		equippedBadgeId2 = profiles[player] and profiles[player].equippedBadgeId2 or nil, -- VIP second badge slot
 		bossRush = profiles[player] and BossRush.view(profiles[player]) or nil,
+		runStats = profiles[player] and require(Engine.RunHistory).view(profiles[player]) or nil, -- Tavern Stats page
 		isRush = state.rush ~= nil,
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
@@ -1265,6 +1266,24 @@ local function syncProfileFromSession(player)
 			session.runEndLogged = true
 			local route = runState.worldRoute or {}
 			Analytics.runEnd(player, runState.stake, WorldMap.regionOf(route[#route]), runState.night, runState.wonRun)
+		end
+		-- RUN HISTORY (Engine/RunHistory.lua): once per run, only when it ends normally at Game Over (tutorial runs
+		-- never get here: they return at the top). Tagged by mode so Daily, Weekly, Seed, Boss Rush and challenges show.
+		if not session.historyRecorded then
+			session.historyRecorded = true
+			pcall(function()
+				local RunHistory = require(Engine.RunHistory)
+				local route = runState.worldRoute or {}
+				local mode = RunHistory.modeOf({
+					rush = runState.rush ~= nil, challenge = runState.challenge ~= nil,
+					daily = session.isDaily, weekly = session.isWeekly, seeded = session.isSeeded,
+					quick = runState.quickRun == true,
+				})
+				local entry = RunHistory.entryFromState(runState, mode, WorldMap.regionOf(route[#route]), os.time())
+				if entry and RunHistory.record(profile, entry, runState.tipsEarnedTotal) then
+					changed = true
+				end
+			end)
 		end
 	end
 	if justWon and profile.stats.runsWon == 1 then

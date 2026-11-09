@@ -221,6 +221,8 @@ function PlayerProfile.new()
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
 		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
+		runHistory = {}, -- the last 20 finished runs, newest first (Engine/RunHistory.lua)
+		lifetime = { bestHandScore = 0, tipsEarned = 0, bestNightByStake = {}, patronWins = {} }, -- Tavern Stats
 		-- STORE (Engine/Store.lua)
 		storePurchases = {}, -- [one-time item id] = true
 		receiptIds = {}, -- recent Developer Product purchase ids, so a repeated receipt never grants twice
@@ -446,6 +448,7 @@ function PlayerProfile.migrate(raw)
 	profile.funnelSeen = require(script.Parent.Funnel).clean(raw.funnelSeen)
 	profile.challengesCleared = require(script.Parent.Challenges).cleanSaved(raw.challengesCleared)
 	profile.bossRushBest = require(script.Parent.BossRush).cleanSaved(raw.bossRushBest)
+	profile.runHistory, profile.lifetime = require(script.Parent.RunHistory).cleanSaved(raw.runHistory, raw.lifetime)
 	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)
 	profile.starterPrompted = raw.starterPrompted == true
 	profile.liveEventClaims = require(script.Parent.LiveEvents).cleanSaved(raw.liveEventClaims)
