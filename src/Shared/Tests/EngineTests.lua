@@ -9242,9 +9242,11 @@ table.insert(tests, { name = "Boss Rush: unlocks after the first win, 3 picked P
 	for k = 1, 9 do
 		expectTrue(state.isBossRound and state.bossModifier ~= nil, "boss " .. k)
 		expectEqual(state.night, k)
-		expectTrue(state.targetScore > lastTarget, "targets climb")
+		-- the base target (without the boss's own target multiplier, which is random) climbs every Night
+		local baseTarget = state.targetScore / (state.bossModifier.targetScoreMultiplier or 1)
+		expectTrue(baseTarget > lastTarget * 0.999, "targets climb: " .. baseTarget .. " after " .. lastTarget)
 		expectTrue(state.bossModifier.minNight <= state.night, "tier is open for this Night")
-		lastTarget = state.targetScore
+		lastTarget = baseTarget
 		state.targetScore = 0 -- win this boss at once
 		state.bossModifier = nil -- keep the test hand simple
 		RunState.playHand(state, { 1 })
