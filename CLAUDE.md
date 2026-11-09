@@ -2,6 +2,8 @@
 
 Roblox poker-hand roguelike deckbuilder. Read `claude/STATUS.md` first for current state.
 
+Goal: a solo project aiming for the Roblox Home front page, with a reason for players to return every day and about 3 hours of average content. Read `claude/ROADMAP.md` for the phases; tick its boxes when a feature lands. Every feature must serve first-5-minutes, daily return, run variety, social spread or fair monetization. Never pay to win.
+
 ## Rules for every task
 - Run `lua5.3 tools/run_tests_local.lua` before and after your changes. Do not finish with failing tests. Add tests for any new engine logic.
 - Work in small steps. If something is ambiguous, pick the simplest option and note it in your summary.
