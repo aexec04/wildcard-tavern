@@ -74,6 +74,7 @@ CATEGORIES = {
     "spectate": ("spectate_subjects", "spectate", "SpectateArt.lua", "Spectate"),
     "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
     "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
+    "bonds": ("bond_subjects", "bonds", "BondArt.lua", "Bond"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -112,6 +113,7 @@ CATEGORY_OPTS = {
     "spectate": {"quality": "low", "style_key": "house_style"},
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
+    "bonds": {"quality": "low", "style_key": "house_style"},
     # Menu tavern layers and props. `transparent` = generated on flat magenta, then cut out to real alpha (cutout.py, checked in qa());
     # `opaque` lists the ids that stay opaque. The model has no wide strip size, so menu_counter is 1536x1024 with the
     # bar drawn in the lower part of the canvas (the UI crops it).

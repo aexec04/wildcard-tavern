@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Bonds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Bonds"))
 local ClientSettings = require(script.Parent.ClientSettings)
+local ContentArt = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
 
 local BondThreads = {}
 
@@ -59,6 +60,17 @@ function BondThreads.new(sidebar, patronSlots)
 		p.PaddingTop, p.PaddingBottom = UDim.new(0, 3), UDim.new(0, 3)
 		p.Parent = tip
 	end
+
+	-- Painted Bond medallion beside the hover label (ContentArt "bonds"); hidden while no art exists for the bond.
+	local tipIcon = Instance.new("ImageLabel")
+	tipIcon.Name = "BondIcon"
+	tipIcon.AnchorPoint = Vector2.new(1, 0.5)
+	tipIcon.Position = UDim2.new(0, -4, 0.5, 0)
+	tipIcon.Size = UDim2.fromOffset(24, 24)
+	tipIcon.BackgroundTransparency = 1
+	tipIcon.Visible = false
+	tipIcon.ZIndex = 33
+	tipIcon.Parent = tip
 
 	local threads = {}
 	local lastScore = nil
@@ -109,6 +121,9 @@ function BondThreads.new(sidebar, patronSlots)
 					g.Parent = frame
 					frame.MouseEnter:Connect(function()
 						tip.Text = bond.name
+						local artId = ContentArt.getImageId("bonds", bond.tag)
+						tipIcon.Visible = artId ~= nil
+						if artId then tipIcon.Image = artId end
 						tip.Position = UDim2.fromOffset((pa.X + pb.X) / 2, math.min(pa.Y, pb.Y) - 6)
 						tip.Visible = true
 					end)

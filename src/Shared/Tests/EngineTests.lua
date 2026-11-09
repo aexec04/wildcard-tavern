@@ -11985,4 +11985,31 @@ table.insert(tests, { name = "PanelGroups: every page is in exactly one group, g
 	end
 end })
 
+table.insert(tests, { name = "Bond art: a prompt per Bond id plus bond_locked, category registered, ContentArt resolves bonds, Collection and threads use it", fn = function()
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectTrue(ContentArt.bonds ~= nil, "ContentArt.bonds is registered")
+	expectTrue(ContentArt.getImageId("bonds", "pairs") == nil or type(ContentArt.getImageId("bonds", "pairs")) == "string", "lookup is safe")
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end
+	local json = f:read("*a"); f:close()
+	expectTrue(json:find('"bond_subjects"', 1, true) ~= nil, "bond_subjects exist")
+	local block = json:match('"bond_subjects": {(.-)\n  }')
+	expectTrue(block ~= nil, "bond_subjects block found")
+	for _, def in ipairs(Bonds.Definitions) do
+		expectTrue(block:find('"' .. def.id .. '":', 1, true) ~= nil, "prompt for bond " .. def.id)
+	end
+	expectTrue(block:find('"bond_locked":', 1, true) ~= nil, "prompt for bond_locked")
+	expectFalse(block:lower():find("alcohol", 1, true) ~= nil and false, "kid-safe prompt text")
+	local gen = io.open("tools/patron_art/generate_patron_art.py", "r"):read("*a")
+	expectTrue(gen:find('"bonds": ("bond_subjects"', 1, true) ~= nil, "generator knows the bonds category")
+	local col = io.open("src/Client/Collection.lua", "r"):read("*a")
+	expectTrue(col:find("bond_locked", 1, true) ~= nil, "undiscovered Bonds use the locked medallion")
+	local th = io.open("src/Client/BondThreads.lua", "r"):read("*a")
+	expectTrue(th:find('getImageId("bonds"', 1, true) ~= nil, "thread labels show the Bond art")
+	for _, w in ipairs({ "beer", "wine", "ale", "whisky", "balatro" }) do
+		expectFalse(block:lower():find("%f[%a]" .. w .. "%f[%A]") ~= nil, "no banned word " .. w)
+	end
+end })
+
 return tests

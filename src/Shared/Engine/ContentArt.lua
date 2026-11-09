@@ -49,6 +49,7 @@ local ContentArt = {
 	legend       = require(Engine:WaitForChild("LegendArt")),         -- Legend trinket ids (Legend panel)
 	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)
 	shop         = require(Engine:WaitForChild("ShopArt")),           -- shop_peddler, shop_stranger, shop_counter, shop_crate, shop_tag (Counter scene)
+	bonds        = require(Engine:WaitForChild("BondArt")),           -- keyed by Bonds id plus bond_locked (Collection Bonds tab, Bond threads)
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.

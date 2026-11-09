@@ -662,7 +662,7 @@ return function(deps)
 		local prevArt = portrait:FindFirstChild("ContentDetailArt")
 		if prevArt then prevArt:Destroy() end
 		do
-			local artId = ContentArt.getImageId(item.tab, item.id)
+			local artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id)
 			local detailArt = artId and PatronPlaqueModule.applyById(portrait, artId, {
 				emojiLabel = cardIcon,
 				dim = not found,
@@ -789,7 +789,7 @@ return function(deps)
 			icon.TextStrokeTransparency = 1
 		end
 		do
-			local artId = ContentArt.getImageId(item.tab, item.id)
+			local artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id)
 			if artId then
 				PatronPlaqueModule.applyById(iconWell, artId, {
 					emojiLabel = icon,
