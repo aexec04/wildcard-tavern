@@ -31,6 +31,25 @@ function CardShape.scaleFor(vpX, vpY)
 	return math.max(CardShape.MIN_SCALE, math.min(CardShape.MAX_SCALE, s))
 end
 
+-- Counter layout: the largest scale (never above scaleFor, never below FIT_MIN) at which the strip, two
+-- section labels, the Patron/Voucher row and the Pack row all fit availH, and the widest row fits availW.
+-- 252 + 460 * s is the stacked height at scale s (strip 44 + labels 48 + 4 gaps of 8 = 124; rows add 64 each
+-- on top of the art heights 250 and 210).
+CardShape.FIT_MIN = 0.6
+CardShape.FIT_FIXED_H = 252
+CardShape.FIT_PER_SCALE_H = 460
+function CardShape.fitScale(availW, availH, vpX, vpY, widestRow)
+	local s = CardShape.scaleFor(vpX, vpY)
+	if availH and availH > 0 then
+		s = math.min(s, (availH - CardShape.FIT_FIXED_H) / CardShape.FIT_PER_SCALE_H)
+	end
+	local n = math.max(widestRow or 1, 1)
+	if availW and availW > 0 then
+		s = math.min(s, (availW - 28 - (n - 1) * 16) / (n * BASE.patron.w))
+	end
+	return math.max(CardShape.FIT_MIN, s)
+end
+
 function CardShape.shape(kind, scale, noAction)
 	local b = BASE[kind] or BASE.patron
 	scale = scale or 1

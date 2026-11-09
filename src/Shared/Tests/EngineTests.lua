@@ -7621,6 +7621,26 @@ table.insert(tests, { name = "Pile style: the draw pile frame follows the equipp
 	expectTrue(CosmeticSets.pileStyleOf(gala, winterBack).rim[1] > frost.rim[1], "Gala nudges the rim toward gold")
 end })
 
+table.insert(tests, { name = "CardShape.fitScale: both Counter rows fit the panel at 1920x1080, 1366x768 and phone sizes", fn = function()
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	local ROW_EXTRA = 16 + 4 + 8 -- ShopCards.rowHeight headroom
+	for _, vp in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 1280, 720 }, { 800, 600 }, { 390, 844 } }) do
+		local availW, availH = vp[1] - 20, vp[2] - 148
+		local s = CardShape.fitScale(availW, availH, vp[1], vp[2], 4)
+		expectTrue(s >= CardShape.FIT_MIN and s <= CardShape.MAX_SCALE, "scale in range at " .. vp[1])
+		local total = 44 + 2 * 24 + 4 * 8
+			+ (CardShape.shape("patron", s).h + ROW_EXTRA) + (CardShape.shape("pack", s).h + ROW_EXTRA)
+		if s > CardShape.FIT_MIN then
+			expectTrue(total <= availH, string.format("both rows fit %dx%d (need %d of %d)", vp[1], vp[2], total, availH))
+		end
+		local wide = CardShape.shape("patron", s)
+		if s > CardShape.FIT_MIN then
+			expectTrue(CardShape.fitsRow(4, availW, wide, 16, 14), "four cards fit the width at " .. vp[1])
+		end
+	end
+	expectTrue(CardShape.fitScale(1900, 940, 1920, 1080, 3) == CardShape.MAX_SCALE, "roomy panel keeps the biggest cards")
+end })
+
 table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with the screen and fit the rows", fn = function()
 	local CardShape = require(script.Parent.Parent.Engine.CardShape)
 	expectTrue(CardShape.scaleFor(1920, 1080) == CardShape.MAX_SCALE, "big screens get the biggest cards")

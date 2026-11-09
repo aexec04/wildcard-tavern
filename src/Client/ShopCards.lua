@@ -66,7 +66,11 @@ local BANNER_H = CardShape.BANNER_H
 local BUTTON_H = CardShape.BUTTON_H
 
 -- Shape of a card for the current viewport (cards grow on big screens, shrink on phones).
+local scaleOverride = nil -- the Counter sets this so both rows fit the panel (CardShape.fitScale)
+function ShopCards.setScale(s) scaleOverride = s end
+
 local function currentScale()
+	if scaleOverride then return scaleOverride end
 	local cam = workspace.CurrentCamera
 	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 	return CardShape.scaleFor(vp.X, vp.Y)

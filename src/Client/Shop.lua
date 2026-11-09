@@ -356,7 +356,7 @@ return function(deps)
 		shopTabBarLayout.Parent = shopTabBar
 
 		local shopContentArea = Instance.new("Frame")
-		shopContentArea.Size = UDim2.new(1, -20, 1, -140)
+		shopContentArea.Size = UDim2.new(1, -20, 1, -148) -- 84 top + 64 reserved footer (Next Round sits in it)
 		shopContentArea.Position = UDim2.new(0, 10, 0, 84)
 		shopContentArea.BackgroundTransparency = 1
 		shopContentArea.ZIndex = SHOP_ZINDEX
@@ -1119,7 +1119,19 @@ return function(deps)
 			return nextOrder
 		end
 
-		-- ----- Reroll (a wooden bell-pull) and the table count -----
+		-- Size the cards so the strip, both rows and their labels fit the panel (CardShape.fitScale);
+		-- the footer with Next Round is reserved outside this scroll area, so no card sits under it.
+		do
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+			local area = shopBuyListFrame.AbsoluteSize
+			local availW = area.X > 0 and area.X or (vp.X - 20)
+			local availH = area.Y > 0 and area.Y or (vp.Y - 148)
+			local widest = math.max(#(state.shopOffers or {}) + (state.voucherOffer and 1 or 0), #(state.packOffers or {}), 1)
+			ShopCardsModule.setScale(require(Engine:WaitForChild("CardShape")).fitScale(availW, availH, vp.X, vp.Y, widest))
+		end
+
+		-- ----- Slim top strip: Reroll and the table count -----
 		local rerollRow = Instance.new("Frame")
 		rerollRow.LayoutOrder = order()
 		rerollRow.Size = UDim2.new(1, 0, 0, 44)
@@ -1238,6 +1250,7 @@ return function(deps)
 		lastCardSlots = reconcileSlots(lastCardSlots, current)
 
 		local offerCardsThisRebuild = {}
+		addSectionHeader(shopBuyListFrame, order(), "Patrons")
 		if #lastCardSlots == 0 then
 			shopCards.emptyScene(shopBuyListFrame, order(), "offers")
 		else
