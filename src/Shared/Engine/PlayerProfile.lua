@@ -63,6 +63,7 @@ local WorldMap = require(script.Parent.WorldMap)
 local Keys = require(script.Parent.Keys) -- locked roads on the world map
 local Badges = require(script.Parent.Badges)
 local Stakes = require(script.Parent.Stakes) -- difficulty ladder
+local Unlocks = require(script.Parent.Unlocks) -- unlock drip
 
 local PlayerProfile = {}
 
@@ -179,6 +180,7 @@ function PlayerProfile.new()
 		unlockedRoadIds = {}, -- [stop id] = true, roads opened with a Key
 		highestStakeUnlocked = 1, -- Engine/Stakes.lua: the highest stake a run may start on
 		stakeStamps = {}, -- [region id] = highest stake won on a run through that road
+		unlockedContent = {}, -- ["patron:id" / "recipe:id"] = true, gated content already opened (Engine/Unlocks.lua)
 		badgeIds = {}, -- [Badges id] = true, earned once (Engine/Badges.lua)
 		equippedBadgeId = nil, -- one Badges id shown beside the name on leaderboards and the results screen
 		minigameWins = 0, -- map minigames won (feeds the minigame badges)
@@ -189,6 +191,7 @@ function PlayerProfile.new()
 			runsAbandoned = 0, -- runs given up from Settings > Restart Run
 			runsWon = 0,
 			bestNightReached = 0,
+			handsPlayedTotal = 0, -- hands played over all runs (feeds the unlock drip)
 		},
 		equippedTitleId = nil, -- ACHIEVEMENTS + TITLES (Phase 16): an Achievements.Definitions id, or nil for no title equipped
 		hasSeenTutorial = false, -- TUTORIAL (Phase 16)
@@ -282,6 +285,15 @@ function PlayerProfile.migrate(raw)
 	if type(raw.equippedBadgeId) == "string" and profile.badgeIds[raw.equippedBadgeId] then
 		profile.equippedBadgeId = raw.equippedBadgeId -- only an owned badge stays equipped
 	end
+	-- UNLOCK DRIP: only keys of content that is still gated survive a load (content can be renamed freely).
+	if type(raw.unlockedContent) == "table" then
+		for k, flag in pairs(raw.unlockedContent) do
+			local kind, id = tostring(k):match("^(%a+):(.+)$")
+			if flag == true and kind and Unlocks.isGated(kind, id) then
+				profile.unlockedContent[k] = true
+			end
+		end
+	end
 	profile.highestStakeUnlocked, profile.stakeStamps = Stakes.cleanSaved(raw.highestStakeUnlocked, raw.stakeStamps, function(region)
 		return WorldMap.Regions[region] ~= nil
 	end)
@@ -322,6 +334,9 @@ function PlayerProfile.migrate(raw)
 		end
 		if type(rawStats.bestNightReached) == "number" then
 			profile.stats.bestNightReached = math.max(0, math.floor(rawStats.bestNightReached))
+			end
+			if type(rawStats.handsPlayedTotal) == "number" and rawStats.handsPlayedTotal == rawStats.handsPlayedTotal then
+				profile.stats.handsPlayedTotal = math.max(0, math.min(99999999, math.floor(rawStats.handsPlayedTotal)))
 		end
 	end
 

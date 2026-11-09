@@ -18,6 +18,7 @@
 local Patrons = require(script.Parent.Patrons)
 local Packs = require(script.Parent.Packs)
 local HousePasses = require(script.Parent.HousePasses)
+local Unlocks = require(script.Parent.Unlocks) -- the unlock drip filters the Patron pool
 
 local Shop = {}
 
@@ -31,7 +32,7 @@ local function rollPatronOffers(state)
 	local rng = state.rng or math.random
 
 	local available = {}
-	for _, patron in ipairs(Patrons.Definitions) do
+	for _, patron in ipairs(Unlocks.filter(state, "patron", Patrons.Definitions)) do
 		local alreadyOwned = false
 		for _, owned in ipairs(state.ownedPatrons) do
 			if owned.id == patron.id then

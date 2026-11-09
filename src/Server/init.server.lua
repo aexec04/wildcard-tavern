@@ -37,6 +37,8 @@ local WorldMap = require(Engine.WorldMap) -- branching adventure map: the road o
 local BiomeRewards = require(Engine.BiomeRewards) -- biome rewards granted at branch ends
 local Keys = require(Engine.Keys) -- locked roads and Keys
 local Stakes = require(Engine.Stakes) -- difficulty ladder
+local Unlocks = require(Engine.Unlocks) -- unlock drip (shop and pack pools, Collection hints)
+local unlockSeqCounter = 0 -- ids unlock toasts across runs (see syncProfileFromSession)
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -805,6 +807,8 @@ local function serializeState(session, player)
 		badgeIds = Badges.list(profiles[player]),
 		equippedBadgeId = profiles[player] and profiles[player].equippedBadgeId or nil,
 		badgeNotice = session.badgeNotice,
+		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
+		unlockHints = Unlocks.lockedHints(profiles[player]), -- Collection: hint per still-locked Patron and Recipe
 		-- every road that still needs a Key, so the whole map can show padlocks (nil on fixed Daily/Weekly/Seed routes)
 		lockedRoads = not state.worldPlan and (function()
 			local list = {}
@@ -1037,6 +1041,23 @@ local function syncProfileFromSession(player)
 	-- BADGES: rule badges, then award every badge earned since the start of this sync.
 	Badges.evaluate(profile)
 	local earned = Badges.newlyEarned(badgesBefore, profile.badgeIds)
+	-- UNLOCK DRIP: count this run's new hands, then open anything whose rule now passes (toast via state.unlockNotice).
+	local handsNow = session.state.handsPlayedTotal or 0
+	if handsNow > (session.handsSynced or 0) then
+		profile.stats.handsPlayedTotal = (profile.stats.handsPlayedTotal or 0) + (handsNow - (session.handsSynced or 0))
+		session.handsSynced = handsNow
+		changed = true
+	end
+	local freshUnlocks, unlockSaved = Unlocks.evaluate(profile)
+	if unlockSaved then
+		changed = true
+	end
+	if #freshUnlocks > 0 then
+		-- one counter for the whole server, so a new run's first notice still counts as new on the client
+		unlockSeqCounter = unlockSeqCounter + 1
+		session.unlockNotice = { seq = unlockSeqCounter, items = freshUnlocks }
+	end
+
 	if #earned > 0 then
 		changed = true
 		session.badgeNotice = earned
@@ -1285,6 +1306,8 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			deckVariantId = forceStandard and "standard" or deckVariantId,
 			difficultyId = forceStandard and "standard" or difficultyId,
 			stakeId = stake,
+			-- UNLOCK DRIP: normal runs only; Daily, Weekly, Seed and the tutorial see every Patron and Recipe (fair boards)
+			unlockedContent = (profile and seededRng == nil and isTutorial ~= true) and Unlocks.setFor(profile) or nil,
 				nightOneBonusDiscards = Onboarding.bonusDiscards(profile and profile.stats.runsStarted, seededRng ~= nil),
 			-- Ranked and shared boards walk a fixed road derived from the date key / seed code.
 			worldPlan = seededRng ~= nil and WorldMap.routeFromSeed(tostring(seedMode) .. ":" .. tostring(seedLabel)) or nil,

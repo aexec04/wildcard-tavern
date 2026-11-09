@@ -8273,4 +8273,147 @@ table.insert(tests, { name = "Stakes: every stake has a stake_subjects art promp
 	end
 end })
 
+-- ===== Unlock drip =====
+
+table.insert(tests, { name = "Unlocks: every rule names real content, hints are short, Menu Recipes are never gated", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	for id, rule in pairs(Unlocks.Rules.patron) do
+		expectTrue(Patrons.getById(id) ~= nil, "patron " .. id .. " exists")
+		local words = 0
+		for _ in rule.hint:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= 12, id .. " hint is 12 words or fewer")
+	end
+	for id, rule in pairs(Unlocks.Rules.recipe) do
+		expectTrue(Recipes.getHouseRecipeById(id) ~= nil or Recipes.getSecretRecipeById(id) ~= nil, "recipe " .. id .. " exists and is not a Menu Recipe")
+		expectTrue(#rule.hint > 0)
+	end
+end })
+
+table.insert(tests, { name = "Unlocks: a fresh profile starts with about half of the Patrons and Recipes open", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local set = Unlocks.setFor(PlayerProfile.new())
+	local openPatrons, totalPatrons = 0, #Patrons.Definitions
+	for _, patron in ipairs(Patrons.Definitions) do
+		if not Unlocks.isGated("patron", patron.id) or set["patron:" .. patron.id] then openPatrons = openPatrons + 1 end
+	end
+	expectTrue(openPatrons / totalPatrons >= 0.35 and openPatrons / totalPatrons <= 0.6, "about half of the Patrons: " .. openPatrons .. " of " .. totalPatrons)
+	local openRecipes, totalRecipes = 0, 0
+	for _, list in ipairs({ Recipes.HouseRecipes, Recipes.SecretRecipes }) do
+		for _, r in ipairs(list) do
+			totalRecipes = totalRecipes + 1
+			if not Unlocks.isGated("recipe", r.id) or set["recipe:" .. r.id] then openRecipes = openRecipes + 1 end
+		end
+	end
+	expectTrue(openRecipes / totalRecipes >= 0.35 and openRecipes / totalRecipes <= 0.6, "about half of the Recipes: " .. openRecipes .. " of " .. totalRecipes)
+end })
+
+table.insert(tests, { name = "Unlocks: shop offers and pack reveals only use open content, seeded and test runs see everything", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local set = Unlocks.setFor(PlayerProfile.new())
+	local state = RunState.new({ unlockedContent = set }, math.random)
+	for _ = 1, 60 do
+		local offers = Shop.rollOffers(state)
+		expectEqual(#offers.patrons, Shop.OFFER_COUNT, "the starting pool always fills the shelf")
+		for _, patron in ipairs(offers.patrons) do
+			expectTrue(Unlocks.available(state, "patron", patron.id), patron.id .. " is open")
+		end
+	end
+	for _, packId in ipairs({ "buffoon_pack", "jumbo_buffoon_pack" }) do
+		if Packs.getById(packId) then
+			for _ = 1, 20 do
+				state.tips = 100
+				state.pendingPack = nil
+				local pending = RunState.openPack(state, packId)
+				if pending then
+					for _, item in ipairs(pending.items) do
+						expectTrue(Unlocks.available(state, "patron", item.id), "pack reveals only open Patrons")
+					end
+				end
+			end
+		end
+	end
+	for _, pack in ipairs(Packs.Definitions) do
+		for _ = 1, 15 do
+			state.tips = 100
+			state.pendingPack = nil
+			local pending = RunState.openPack(state, pack.id)
+			expectTrue(pending ~= nil, pack.id .. " opens")
+			for _, item in ipairs(pending.items) do
+				if item.category == "patron" then
+					expectTrue(Unlocks.available(state, "patron", item.id), "open Patron only")
+				elseif item.category == "house" or item.category == "secret" then
+					expectTrue(Unlocks.available(state, "recipe", item.id), "open Recipe only")
+				end
+			end
+		end
+	end
+	local open = RunState.new(nil, math.random)
+	expectTrue(Unlocks.available(open, "patron", "nest_egg"), "a run without a set has everything")
+	expectTrue(not Unlocks.available(state, "patron", "nest_egg"), "but a fresh profile does not")
+end })
+
+table.insert(tests, { name = "Unlocks: rules open content once, toasts fire once, discovered content carries over, nothing re-locks", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local profile = PlayerProfile.new()
+	local fresh, saved = Unlocks.evaluate(profile)
+	expectEqual(#fresh, 0, "nothing opens for a new player")
+	expectTrue(not saved)
+	profile.stats.runsWon = 1
+	profile.stats.bestNightReached = 3
+	fresh, saved = Unlocks.evaluate(profile)
+	expectTrue(saved and #fresh > 0)
+	local ids = {}
+	for _, item in ipairs(fresh) do ids[item.kind .. ":" .. item.id] = true end
+	expectTrue(ids["patron:curtain_call"] and ids["patron:boss_bane"] and ids["recipe:copy_the_order"], "first win and Night 3 rules open")
+	expectTrue(not ids["patron:the_bard"] and not ids["patron:meadow_bee"], "later and granted-only content stays closed")
+	local again = Unlocks.evaluate(profile)
+	expectEqual(#again, 0, "no second toast")
+	-- once open, stays open even if stats were somehow lower
+	profile.stats.runsWon = 0
+	expectTrue(Unlocks.isUnlocked(profile, "patron", "curtain_call"), "saved unlocks stay")
+	-- discovered content counts as open and gives no toast
+	local old = PlayerProfile.new()
+	old.discoveredPatronIds.nest_egg = true
+	old.discoveredRecipeIds.honey_drizzle = true
+	expectTrue(Unlocks.isUnlocked(old, "patron", "nest_egg") and Unlocks.isUnlocked(old, "recipe", "honey_drizzle"))
+	for _, item in ipairs(Unlocks.evaluate(old)) do
+		expectTrue(item.id ~= "nest_egg" and item.id ~= "honey_drizzle", "carried-over content is not a toast")
+	end
+	-- stake, quests and rank rules read the profile fields the later features set
+	expectTrue(Unlocks.ruleMet({ highestStakeUnlocked = 2 }, { kind = "stake", n = 1 }))
+	expectTrue(not Unlocks.ruleMet({ highestStakeUnlocked = 1 }, { kind = "stake", n = 1 }))
+	expectTrue(Unlocks.ruleMet({ questsDone = 5 }, { kind = "quests", n = 5 }) and Unlocks.ruleMet({ tavernRank = 4 }, { kind = "rank", n = 3 }))
+	-- hints for the Collection list only what is still closed
+	local hints = Unlocks.lockedHints(PlayerProfile.new())
+	expectTrue(hints.patron.nest_egg ~= nil and hints.patron.the_regular == nil)
+	-- save / load keeps valid keys and drops junk
+	local loaded = PlayerProfile.migrate({ unlockedContent = { ["patron:nest_egg"] = true, ["patron:the_regular"] = true, ["recipe:nope"] = true, junk = true }, stats = { handsPlayedTotal = 42 } })
+	expectTrue(loaded.unlockedContent["patron:nest_egg"] == true and loaded.unlockedContent["patron:the_regular"] == nil and loaded.unlockedContent.junk == nil)
+	expectEqual(loaded.stats.handsPlayedTotal, 42)
+end })
+
+table.insert(tests, { name = "Unlocks balance: the starting Patrons alone can carry a flush past a Night 3 Big round", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local set = Unlocks.setFor(PlayerProfile.new())
+	local cards = { C(2, "Hearts"), C(5, "Hearts"), C(8, "Hearts"), C(11, "Hearts"), C(13, "Hearts") }
+	local hand = HandEvaluator.evaluate(cards)
+	local ctx = function()
+		return { allPlayedCards = cards, heldCards = {}, handsRemaining = 2, discardsRemaining = 2, isLastHand = false,
+			night = 3, round = 2, tips = 10, handLevels = {}, rng = function(_n) return 1 end }
+	end
+	local base = Scoring.calculate(hand, {}, ctx())
+	local ranked = {}
+	for _, patron in ipairs(Patrons.Definitions) do
+		if not Unlocks.isGated("patron", patron.id) or set["patron:" .. patron.id] then
+			ranked[#ranked + 1] = { patron = patron, gain = Scoring.calculate(hand, { patron }, ctx()) - base }
+		end
+	end
+	table.sort(ranked, function(a, b) return a.gain > b.gain end)
+	local build = {}
+	for i = 1, RunState.DefaultConfig.patronSlotLimit do build[i] = ranked[i].patron end
+	local score = Scoring.calculate(hand, build, ctx())
+	local target = RunState.targetScoreFor(3, 2)
+	expectTrue(score >= target, "a starting-pool build scores " .. score .. " vs the Night 3 Big target " .. target)
+end })
+
 return tests

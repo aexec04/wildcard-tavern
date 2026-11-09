@@ -25,6 +25,7 @@ local TrueWildcard = require(script.Parent.TrueWildcard)
 local WorldMap = require(script.Parent.WorldMap)
 local RunSummary = require(script.Parent.RunSummary)
 local Stakes = require(script.Parent.Stakes)
+local Unlocks = require(script.Parent.Unlocks)
 
 local RunState = {}
 
@@ -167,6 +168,8 @@ function RunState.new(options, rng)
 		rng = rng,
 		stake = stake,
 		stakeRules = stakeRules,
+		-- UNLOCK DRIP (Engine/Unlocks.lua): set of open gated content, nil = everything is available.
+		unlockedContent = options.unlockedContent,
 		deckVariantId = deckVariant.id,
 		difficultyId = difficulty.id,
 		targetMultiplier = (deckVariant.targetScoreMultiplier or 1) * (difficulty.targetScoreMultiplier or 1),
@@ -1026,15 +1029,23 @@ function RunState.buyHousePass(state, passId)
 	return true, pass.name .. " is now permanent for this run."
 end
 
-local function recipeCatalogForCategory(category)
+-- `state` (optional) applies the unlock drip: a run with state.unlockedContent only reveals open Recipes.
+local function recipeCatalogForCategory(category, state)
+	local catalog
 	if category == "house" then
-		return Recipes.HouseRecipes
+		catalog = Recipes.HouseRecipes
 	elseif category == "menu" then
-		return Recipes.MenuRecipes
+		catalog = Recipes.MenuRecipes
 	elseif category == "secret" then
-		return Recipes.SecretRecipes
+		catalog = Recipes.SecretRecipes
 	end
-	return nil
+	if catalog and state then
+		local open = Unlocks.filter(state, "recipe", catalog)
+		if #open > 0 then
+			return open
+		end
+	end
+	return catalog
 end
 
 local function inventoryForCategory(state, category)
@@ -1138,7 +1149,7 @@ function RunState.openPack(state, packId, rng)
 
 	if pack.category == "patron" then
 		local available = {}
-		for _, patron in ipairs(Patrons.Definitions) do
+		for _, patron in ipairs(Unlocks.filter(state, "patron", Patrons.Definitions)) do
 			local owned = false
 			for _, o in ipairs(state.ownedPatrons) do
 				if o.id == patron.id then
@@ -1169,7 +1180,7 @@ function RunState.openPack(state, packId, rng)
 		-- "patron" roll falls back to "standard" instead of producing
 		-- nothing.
 		local availablePatrons = {}
-		for _, patron in ipairs(Patrons.Definitions) do
+		for _, patron in ipairs(Unlocks.filter(state, "patron", Patrons.Definitions)) do
 			local owned = false
 			for _, o in ipairs(state.ownedPatrons) do
 				if o.id == patron.id then
@@ -1193,13 +1204,13 @@ function RunState.openPack(state, packId, rng)
 			elseif sub == "standard" then
 				table.insert(items, randomStandardPackItem(rng, i))
 			else
-				local catalog = recipeCatalogForCategory(sub)
+				local catalog = recipeCatalogForCategory(sub, state)
 				local picked = catalog[rng(#catalog)]
 				table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = sub })
 			end
 		end
 	else
-		local catalog = recipeCatalogForCategory(pack.category)
+		local catalog = recipeCatalogForCategory(pack.category, state)
 		for _ = 1, pack.revealCount do
 			local picked = catalog[rng(#catalog)]
 			table.insert(items, { id = picked.id, name = picked.name, icon = picked.icon, description = picked.description, category = pack.category })

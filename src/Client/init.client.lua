@@ -968,6 +968,10 @@ do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Ov
 	end)
 	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
 end
+do -- Unlock toast (Client/UnlockToast.lua); fed from render()
+	local ok, err = pcall(function() require(script.UnlockToast).init(screenGui) end)
+	if not ok then warn("[Client] UnlockToast failed: " .. tostring(err)) end
+end
 do -- Daily login streak popup and Next unlock strip (Client/LoginStreakUI.lua); fed from render()
 	local ok, err = pcall(function()
 		require(script.LoginStreakUI).init(menuFrame, remotes:WaitForChild("ClaimLoginReward"), playClickSfx)
@@ -2361,6 +2365,7 @@ local function render(state)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
+	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no

@@ -512,7 +512,19 @@ return function(deps)
 		return nil
 	end
 
-	local function undiscoveredHint(item)
+	-- UNLOCK DRIP: gated Patrons and Recipes that are still closed carry a short "how to open" hint (state.unlockHints).
+	local HINT_KIND = { patrons = "patron", recipes = "recipe" }
+	local function unlockRuleHint(item, view)
+		local hints = view and view.state and view.state.unlockHints
+		local kind = HINT_KIND[item.tab]
+		return hints and kind and hints[kind] and hints[kind][item.id] or nil
+	end
+
+	local function undiscoveredHint(item, view)
+		local ruleHint = unlockRuleHint(item, view)
+		if ruleHint then
+			return "Locked. " .. ruleHint
+		end
 		if item.tab == "titles" then
 			local milestone = item.def.milestoneReward and milestoneFor(item.id)
 			if milestone then
@@ -583,7 +595,7 @@ return function(deps)
 		else
 			cardName.Text = "???"
 			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
-			cardEffect.Text = undiscoveredHint(item)
+			cardEffect.Text = undiscoveredHint(item, view)
 			cardFlavor.Text = ""
 		end
 
@@ -709,6 +721,15 @@ return function(deps)
 			playClickSfx()
 			showDetail(item, view)
 		end)
+		-- Locked tiles with an unlock rule: the hint in the shared tooltip (padlock and dark silhouette stay on the tile).
+		if not found and addTooltip then
+			local ruleHint = unlockRuleHint(item, view)
+			if ruleHint then
+				addTooltip(tile, function()
+					return "Locked\n" .. ruleHint
+				end)
+			end
+		end
 		-- Discovered tiles: name and effect in the shared hover tooltip (the tile itself stays art and a name).
 		if found and addTooltip and item.def and item.def.description then
 			addTooltip(tile, function()
