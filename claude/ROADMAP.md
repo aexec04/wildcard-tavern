@@ -42,6 +42,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [ ] Real Game Passes, Developer Products and Badges created in Creator Hub (user-only)
 
 ## Phase 6: Live ops after launch
+- [x] Live ops tables (`Engine/LiveEvents.lua`) and a News banner and panel on the menu
 - [ ] An update every 1 to 2 weeks (new road, Patrons or a seasonal event)
 - [ ] Weekly look at Home Recommendations analytics
 
@@ -53,4 +54,13 @@ Everything below is cosmetic or a tiny convenience, never pay to win. In Studio 
 - [x] Developer Product "One More Round" is already set (`GamePasses.DeveloperProducts`). Game Passes Fast Forward and Golden Gala Set are already set.
 - [ ] Store icons: generate `store_subjects` images (4 bundle cards) and the `menu_icons` `store` icon with the art task, then wire them (emoji until then).
 - [ ] Roblox Badges: create them in Creator Hub and paste the ids into `src/Shared/Engine/BadgeIds.lua` (list in that file).
+
+## Adding a live event in 5 lines
+Open `src/Shared/Engine/LiveEvents.lua` and append one entry to `LiveEvents.Definitions`:
+1. `id = "my_event", name = "My Event", icon = "🎉", bannerKey = "news_my_event", blurb = "One short line for the banner."`
+2. `startDate = "2026-12-05", endDate = "2026-12-07"` (UTC, both days count)
+3. `modifier = { kind = "xpMultiplier", value = 2 }` or `{ kind = "dailyLabel", text = "Theme Name" }` or `{ kind = "none" }`
+4. `rewards = { { kind = "title", id = "..." }, { kind = "cardBack", id = "..." }, { kind = "tips", amount = 5 } }` (optional; claimed once while it runs)
+5. Run `lua tools/run_tests_local.lua`: a test checks dates, ids and reward ids. Add a `news_subjects` prompt in `tools/patron_art/prompts.json` for the banner art (an emoji shows until it exists).
+Events never change the Daily, Weekly or Seed boards: the modifier only affects account XP or adds text beside the Daily date.
 

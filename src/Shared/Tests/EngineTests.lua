@@ -4654,6 +4654,12 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
 		rewardedTitles[season.rewards.titleId] = true
 	end
+	-- Titles handed out by live events count too.
+	for _, event in ipairs(require(script.Parent.Parent.Engine.LiveEvents).Definitions) do
+		for _, reward in ipairs(event.rewards or {}) do
+			if reward.kind == "title" then rewardedTitles[reward.id] = true end
+		end
+	end
 	-- Titles handed out by the Store (Starter Pack) count too.
 	for _, item in ipairs(require(script.Parent.Parent.Engine.Store).Items) do
 		for _, id in ipairs(item.contents and item.contents.titles or {}) do rewardedTitles[id] = true end
@@ -9553,6 +9559,129 @@ table.insert(tests, { name = "Store VIP: a daily gift of a few Tips once per day
 	if panel then
 		local src = panel:read("*a"); panel:close()
 		expectTrue(src:find("Nothing here helps you win", 1, true) ~= nil, "the Store says it is fair")
+	end
+end })
+
+-- ===== Phase 6: live events =====
+
+table.insert(tests, { name = "LiveEvents dates: civil dates map to UTC day numbers, bad dates are refused, the table validates", fn = function()
+	local L = require(script.Parent.Parent.Engine.LiveEvents)
+	expectEqual(L.dayNumberOf("1970-01-01"), 0)
+	expectEqual(L.dayNumberOf("2000-02-29"), 11016, "leap day")
+	expectEqual(L.dayNumberOf("2026-11-08"), 20765)
+	expectEqual(L.dayNumberOf("2026-11-13"), 20770)
+	expectEqual(L.dayNumberOf("2027-01-01"), 20819)
+	expectEqual(L.dayNumberOf("2026-11-09") - L.dayNumberOf("2026-11-08"), 1)
+	expectEqual(L.dayNumberOf("2026-02-31"), nil, "no 31st of February")
+	expectEqual(L.dayNumberOf("2026-13-01"), nil); expectEqual(L.dayNumberOf("2026-1-1"), nil)
+	expectEqual(L.dayNumberOf("soon"), nil); expectEqual(L.dayNumberOf(nil), nil)
+	-- the same numbering as the login streak
+	local LoginStreak = require(script.Parent.Parent.Engine.LoginStreak)
+	expectEqual(LoginStreak.dayNumber(20765 * 86400 + 3600), L.dayNumberOf("2026-11-08"))
+	local problems = L.validate()
+	expectEqual(#problems, 0, table.concat(problems, "; "))
+	for _, event in ipairs(L.Definitions) do
+		for _, reward in ipairs(event.rewards or {}) do
+			if reward.kind == "title" then expectTrue(Achievements.getById(reward.id) ~= nil, reward.id .. " is a real title") end
+			if reward.kind == "cardBack" then expectTrue(CardBacks.getById(reward.id) ~= nil, reward.id .. " is a real card back") end
+			if reward.kind == "set" then expectTrue(CosmeticSets.getById(reward.id) ~= nil) end
+		end
+	end
+end })
+
+table.insert(tests, { name = "LiveEvents windows: both end days count, active and upcoming lists, modifiers apply only inside the window", fn = function()
+	local L = require(script.Parent.Parent.Engine.LiveEvents)
+	local first, last = L.dayNumberOf("2026-11-13"), L.dayNumberOf("2026-11-15")
+	local function ids(list) local out = {} for _, e in ipairs(list) do out[#out + 1] = e.id end return table.concat(out, ",") end
+	expectEqual(ids(L.active(first - 1)), "")
+	expectEqual(ids(L.active(first)), "lantern_weekend", "the first day counts")
+	expectEqual(ids(L.active(last)), "lantern_weekend", "the last day counts")
+	expectEqual(ids(L.active(last + 1)), "harvest_week", "the next event starts the day after")
+	expectEqual(L.xpMultiplier(first - 1), 1); expectEqual(L.xpMultiplier(first), 2); expectEqual(L.xpMultiplier(last), 2); expectEqual(L.xpMultiplier(last + 1), 1)
+	expectEqual(L.dailyLabel(first), nil); expectEqual(L.dailyLabel(last + 1), "Harvest Week")
+	-- upcoming: soonest first, only inside the look-ahead
+	local today = L.dayNumberOf("2026-11-08")
+	expectEqual(ids(L.upcoming(today)), "lantern_weekend,harvest_week")
+	expectEqual(ids(L.upcoming(today, 3)), "", "nothing inside 3 days")
+	expectEqual(ids(L.upcoming(today, 5)), "lantern_weekend")
+	expectEqual(ids(L.upcoming(L.dayNumberOf("2030-01-01"))), "")
+	-- the multiplier never goes above its cap
+	table.insert(L.Definitions, { id = "t1", name = "t", icon = "x", blurb = "t", startDate = "2026-11-13", endDate = "2026-11-13", modifier = { kind = "xpMultiplier", value = 50 } })
+	expectEqual(L.xpMultiplier(first), L.MAX_XP_MULTIPLIER)
+	table.remove(L.Definitions)
+	expectEqual(L.xpMultiplier(first), 2)
+	-- a double XP weekend doubles account XP and nothing else
+	local AccountProgress = require(script.Parent.Parent.Engine.AccountProgress)
+	local normal, doubled = PlayerProfile.new(), PlayerProfile.new()
+	local function runDay(profile, day)
+		local state = { handsPlayedTotal = 10, roundsCleared = 0, bossesCleared = 0, discardsUsedTotal = 0, handStats = {} }
+		AccountProgress.sync(profile, {}, state, day, false)
+	end
+	runDay(normal, L.dayNumberOf("2026-11-10")); runDay(doubled, first)
+	expectEqual(doubled.tavernXp, normal.tavernXp * 2, "double XP on a double XP day")
+	-- Daily: the label is text only
+	local SeedDisplay = require(script.Parent.Parent.Engine.SeedDisplay)
+	local plain = SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-16" })
+	local themed = SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-16", dailyTheme = "Harvest Week" })
+	expectEqual(plain.text, "Daily: 2026-11-16"); expectEqual(themed.text, "Daily: 2026-11-16 (Harvest Week)"); expectEqual(themed.value, plain.value)
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	expectEqual(SeededRng.dailySeed(first * 86400), SeededRng.dailySeed(first * 86400), "the daily seed is a pure function of the day")
+end })
+
+table.insert(tests, { name = "LiveEvents rewards: claimed once, only while the event runs, banked Tips capped, the view shows the right rows", fn = function()
+	local L = require(script.Parent.Parent.Engine.LiveEvents)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local start, finish = L.dayNumberOf("2026-11-25"), L.dayNumberOf("2026-12-02")
+	local profile = PlayerProfile.new()
+	local ok, why = L.claim(profile, "feast_week", start - 1)
+	expectEqual(ok, false); expectEqual(why, "Not running.")
+	ok, why = L.claim(profile, "lantern_weekend", L.dayNumberOf("2026-11-14"))
+	expectEqual(ok, false); expectEqual(why, "Nothing to claim.", "an event with no rewards")
+	expectEqual((L.claim(profile, "nope", start)), false)
+	local claimed, result = L.claim(profile, "feast_week", start + 2, { titleName = function(id) return "T-" .. id end })
+	expectTrue(claimed and #result.texts == 3 and result.texts[1] == "Title: T-feast_guest")
+	expectTrue(profile.rewardTitleIds.feast_guest and profile.unlockedCardBackIds.kitchen_checks and profile.pendingStartTips == 6)
+	expectTrue(Achievements.isUnlocked(profile, "feast_guest"))
+	ok, why = L.claim(profile, "feast_week", start + 3)
+	expectEqual(ok, false); expectEqual(why, "Already claimed.")
+	expectEqual(profile.pendingStartTips, 6, "nothing paid twice")
+	-- last day still works for someone who has not claimed
+	expectTrue((L.claim(PlayerProfile.new(), "feast_week", finish)))
+	expectEqual((L.claim(PlayerProfile.new(), "feast_week", finish + 1)), false, "too late")
+	local capped = PlayerProfile.new()
+	capped.pendingStartTips = TavernRank.MAX_PENDING_TIPS - 1
+	L.claim(capped, "feast_week", start)
+	expectEqual(capped.pendingStartTips, TavernRank.MAX_PENDING_TIPS)
+	-- the view
+	local view = L.view(PlayerProfile.new(), start)
+	expectEqual(view.banner.id, "feast_week"); expectEqual(#view.active, 1); expectTrue(view.active[1].claimable and view.active[1].daysLeft == 8 and #view.active[1].rewards == 3)
+	local after = L.view(profile, start + 1)
+	expectTrue(after.active[1].claimed and not after.active[1].claimable)
+	local quiet = L.view(PlayerProfile.new(), L.dayNumberOf("2026-12-20"))
+	expectEqual(quiet.banner, nil); expectEqual(#quiet.active, 0)
+	local soon = L.view(PlayerProfile.new(), L.dayNumberOf("2026-11-08"))
+	expectEqual(soon.banner, nil); expectEqual(soon.upcoming[1].id, "lantern_weekend"); expectEqual(soon.upcoming[1].startsIn, 5)
+	-- save / load
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.liveEventClaims.feast_week)
+	local junk = PlayerProfile.migrate({ liveEventClaims = { feast_week = true, gone_event = true }, liveEventsSeen = { lantern_weekend = 1 } })
+	expectTrue(junk.liveEventClaims.feast_week and junk.liveEventClaims.gone_event == nil and junk.liveEventsSeen.lantern_weekend == nil)
+	-- analytics for seen and claimed (with a fake service), then the client files exist with the fair-play line
+	local Analytics = require(script.Parent.Parent.Engine.Analytics)
+	local logged = {}
+	Analytics.setService({ LogCustomEvent = function(_, _, name, _, fields) logged[#logged + 1] = name .. ":" .. tostring(fields.event) end, LogFunnelStepEvent = function() end })
+	Analytics.eventSeen("p", "feast_week"); Analytics.eventClaimed("p", "feast_week")
+	Analytics.setService(nil)
+	expectEqual(logged[1], "live_event_seen:feast_week"); expectEqual(logged[2], "live_event_reward_claimed:feast_week")
+	local f = io and io.open and io.open("src/Client/NewsPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("never change the Daily, Weekly or Seed boards", 1, true) ~= nil)
+	end
+	local server = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if server then
+		local src = server:read("*a"); server:close()
+		expectTrue(src:find("Analytics.eventSeen", 1, true) ~= nil and src:find("Analytics.eventClaimed", 1, true) ~= nil and src:find("LiveEvents.claim", 1, true) ~= nil)
 	end
 end })
 

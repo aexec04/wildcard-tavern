@@ -450,6 +450,7 @@ return function(deps)
 		return button
 	end
 
+	require(script.Parent.NewsPanel).attach(menuButtonHolder, -3) -- News banner for the running live event (state.news), top of the menu
 	require(script.Parent.MenuRank).attach(menuButtonHolder, -2) -- Tavern Rank bar (state.rank), above Play
 	require(script.Parent.NextGoalBanner).attach(menuButtonHolder, -1) -- Next Goal line (state.nextGoal), above Play
 	local menuPlayButton = makeFrameButton({

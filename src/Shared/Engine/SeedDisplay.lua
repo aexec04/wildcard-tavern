@@ -17,7 +17,9 @@ function SeedDisplay.label(state)
 		return { kind = "seed", title = "Seed", value = value, text = "Seed: " .. value, shareable = true }
 	elseif state.isDaily then
 		local value = tostring(state.dailyDateKey or "today")
-		return { kind = "daily", title = "Daily", value = value, text = "Daily: " .. value, shareable = false }
+		-- a live event may theme the label (text only; the seed, rules and board are untouched)
+		local theme = type(state.dailyTheme) == "string" and state.dailyTheme ~= "" and (" (" .. state.dailyTheme .. ")") or ""
+		return { kind = "daily", title = "Daily", value = value, text = "Daily: " .. value .. theme, shareable = false }
 	elseif state.isWeekly then
 		local value = tostring(state.weeklyDateKey or "this week")
 		return { kind = "weekly", title = "Weekly", value = value, text = "Weekly: " .. value, shareable = false }

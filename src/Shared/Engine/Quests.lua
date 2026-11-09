@@ -18,6 +18,7 @@
 ]]
 
 local TavernRank = require(script.Parent.TavernRank)
+local LiveEvents = require(script.Parent.LiveEvents) -- a double XP weekend also doubles quest XP
 
 local Quests = {}
 
@@ -96,7 +97,7 @@ function Quests.apply(profile, day, deltas)
 				q.done[id] = true
 				profile.questsDone = (profile.questsDone or 0) + 1
 				profile.pendingStartTips = math.min(Quests.MAX_PENDING_TIPS, (profile.pendingStartTips or 0) + def.tips)
-				local _, ups, rewards = TavernRank.addXp(profile, def.xp)
+				local _, ups, rewards = TavernRank.addXp(profile, math.floor(def.xp * LiveEvents.xpMultiplier(day)))
 				for _, r in ipairs(ups) do rankUps[#rankUps + 1] = r end
 				for _, r in ipairs(rewards) do granted[#granted + 1] = r end
 				completed[#completed + 1] = def

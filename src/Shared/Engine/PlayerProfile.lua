@@ -225,6 +225,8 @@ function PlayerProfile.new()
 		vipBonusDay = nil, -- UTC day of the last VIP daily gift
 		starterPrompted = false, -- the one-time Starter Pack prompt was shown
 		equippedBadgeId2 = nil, -- VIP second badge slot
+		liveEventClaims = {}, -- [event id] = true, rewards already claimed (Engine/LiveEvents.lua)
+		liveEventsSeen = {}, -- [event id] = true, the News banner already reported to analytics
 		-- FIRST 5 MINUTES (Engine/Funnel.lua, NextGoal.lua)
 		funnelSeen = {}, -- [funnel step id] = true, each analytics funnel step is sent once per player
 		tutorialRewardClaimed = false, -- the card back and the Newcomer title for finishing the tutorial
@@ -432,6 +434,8 @@ function PlayerProfile.migrate(raw)
 	profile.bossRushBest = require(script.Parent.BossRush).cleanSaved(raw.bossRushBest)
 	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)
 	profile.starterPrompted = raw.starterPrompted == true
+	profile.liveEventClaims = require(script.Parent.LiveEvents).cleanSaved(raw.liveEventClaims)
+	profile.liveEventsSeen = require(script.Parent.LiveEvents).cleanSaved(raw.liveEventsSeen)
 	if type(raw.equippedBadgeId2) == "string" and profile.badgeIds[raw.equippedBadgeId2] then
 		profile.equippedBadgeId2 = raw.equippedBadgeId2
 	end

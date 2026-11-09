@@ -56,7 +56,13 @@ local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
 local BossRush = require(Engine.BossRush) -- back-to-back boss rounds
 local Store = require(Engine.Store) -- the Tavern Store: cosmetics and convenience only
+local LiveEvents = require(Engine.LiveEvents) -- timed events (News banner, double XP weekends); never changes fair boards
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
+local liveLookup = { -- display names for event reward text
+	cardBackName = function(id) local d = CardBacks.getById(id) return d and d.name end,
+	setName = function(id) local d = CosmeticSets.getById(id) return d and d.name end,
+	titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
+}
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
 local SideStops = require(Engine.SideStops) -- shop, shrine and rest stops off the main road
@@ -129,6 +135,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local ClaimLiveEventRemote = newRemote("ClaimLiveEvent") -- (player, eventId): claims the rewards of a running event once
 local StorePurchaseRemote = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
 local ChoiceRemote = newRemote("Choice") -- (player, optionId): answers the open draft or event card
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
@@ -913,6 +920,8 @@ local function serializeState(session, player)
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		news = profiles[player] and LiveEvents.view(profiles[player], LoginStreak.dayNumber(os.time()), liveLookup) or nil,
+		dailyTheme = LiveEvents.dailyLabel(LoginStreak.dayNumber(os.time())), -- text beside the Daily date only
 		store = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio()) or nil,
 		storePrompt = storePrompts[player], -- seq: open the Store on the Starter Pack once
 		equippedBadgeId2 = profiles[player] and profiles[player].equippedBadgeId2 or nil, -- VIP second badge slot
@@ -1217,6 +1226,15 @@ local function syncProfileFromSession(player)
 	end
 	for _, q in ipairs(progress.quests) do Analytics.questDone(player, q.id) end
 	for _, rank in ipairs(progress.rankUps) do Analytics.rankUp(player, rank) end
+	-- LIVE EVENTS: report each running event to analytics once per player (the News banner is on the menu).
+	for _, event in ipairs(LiveEvents.active(LoginStreak.dayNumber(os.time()))) do
+		profile.liveEventsSeen = profile.liveEventsSeen or {}
+		if not profile.liveEventsSeen[event.id] then
+			profile.liveEventsSeen[event.id] = true
+			changed = true
+			Analytics.eventSeen(player, event.id)
+		end
+	end
 	-- STORE: a one-time Starter Pack prompt once the second run has ended (never again, never when already bought).
 	if session.phase == "gameover" and (profile.stats.runsStarted or 0) >= 2 and not profile.starterPrompted
 		and not (profile.storePurchases and profile.storePurchases.starter_pack) then
@@ -2509,6 +2527,23 @@ RevealDiscoveriesRemote.OnServerEvent:Connect(function(player, region)
 		profileDirty[player] = true
 	end
 	pushRewardNotice(player, { icon = ok and "🧭" or "❗", text = message })
+	pushState(player)
+end)
+
+-- LIVE EVENTS: claim a running event's rewards once (Engine/LiveEvents.lua); the News panel's Claim button.
+ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
+	local profile = profiles[player]
+	if not profile or type(eventId) ~= "string" then
+		return
+	end
+	local ok, result = LiveEvents.claim(profile, eventId, LoginStreak.dayNumber(os.time()), liveLookup)
+	if ok then
+		profileDirty[player] = true
+		Analytics.eventClaimed(player, eventId)
+		pushRewardNotice(player, { icon = result.event.icon, text = result.event.name .. ": " .. table.concat(result.texts, ", ") })
+	else
+		pushRewardNotice(player, { icon = "❗", text = result })
+	end
 	pushState(player)
 end)
 

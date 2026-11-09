@@ -369,6 +369,19 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.founding_guest == true
 		end,
 	},
+	-- LIVE EVENT TITLE: a limited reward from Engine/LiveEvents.lua (The Founders' Feast), kept for good once claimed.
+	{
+		id = "feast_guest",
+		name = "Feast Guest",
+		icon = "🍲",
+		title = "Feast Guest",
+		description = "Claimed during The Founders' Feast.",
+		flavorText = "You sat at the long table when the first stew was served.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.feast_guest == true
+		end,
+	},
 	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
 	{
 		id = "dune_wanderer",

@@ -10,6 +10,7 @@
 
 local Quests = require(script.Parent.Quests)
 local TavernRank = require(script.Parent.TavernRank)
+local LiveEvents = require(script.Parent.LiveEvents) -- a double XP weekend multiplies account XP only
 
 local AccountProgress = {}
 
@@ -49,7 +50,7 @@ function AccountProgress.sync(profile, snap, state, day, justWon)
 	if justWon then
 		xp = xp + TavernRank.firstWinBonus(profile, day)
 	end
-	addXp(xp)
+	addXp(math.floor(xp * LiveEvents.xpMultiplier(day)))
 
 	local completed, ups, granted = Quests.apply(profile, day, deltas)
 	if #completed > 0 then

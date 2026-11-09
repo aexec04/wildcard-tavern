@@ -315,6 +315,7 @@
     "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons"
   },
   "title_subjects": {
+    "feast_guest": "an avatar at a long candlelit banquet table lifting a steaming bowl, a paper crown on the head, happy",
     "founding_guest": "an avatar hanging the very first glowing lantern above a tavern door, proud smile, a small gold key on the belt",
     "pair_master": "an avatar holding up two matching playing cards with a proud grin on a tavern stage",
     "steady_dealer": "an avatar with a calm steady hand dealing cards slowly across a wooden table",
@@ -663,5 +664,10 @@
     "card_set_bundle": "a painted bundle card: two fanned tavern card backs, one festival red and one midnight blue, with tiny lanterns, warm candlelight, no text, no letters, kid-friendly",
     "vip": "a painted bundle card: a glowing gold star badge on a velvet cushion beside a small coin purse, warm candlelight, no text, no letters, kid-friendly",
     "continue": "a painted bundle card: an hourglass with golden sand turning back, a playing card behind it, warm candlelight, no text, no letters, kid-friendly"
+  },
+  "news_subjects": {
+    "news_lantern_weekend": "a wide painted news banner: a tavern street strung with glowing paper lanterns at dusk, festive, no text, no letters, kid-friendly",
+    "news_harvest_week": "a wide painted news banner: hay bales, pumpkins and golden wheat around a tavern door, warm light, no text, no letters, kid-friendly",
+    "news_feast_week": "a wide painted news banner: a long banquet table loaded with steaming dishes under hanging lanterns, no text, no letters, kid-friendly"
   }
 }

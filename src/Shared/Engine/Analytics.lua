@@ -98,6 +98,14 @@ function Analytics.questDone(player, questId)
 	return Analytics.event(player, "quest_done", 1, { quest = questId })
 end
 
+function Analytics.eventSeen(player, eventId)
+	return Analytics.event(player, "live_event_seen", 1, { event = eventId })
+end
+
+function Analytics.eventClaimed(player, eventId)
+	return Analytics.event(player, "live_event_reward_claimed", 1, { event = eventId })
+end
+
 function Analytics.rankUp(player, rank)
 	return Analytics.event(player, "rank_up", rank, {})
 end
