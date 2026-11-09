@@ -512,10 +512,83 @@ def cmd_estimate(_args):
     print(f"  {'TOTAL':12} {total_all:3} prompts, {todo_all:3} to generate (~${cost_all:.2f})")
 
 
+STORE_DIR = ROOT / "art-wip" / "store_page"
+
+
+def _fit_image(src, dst, width, height, crop_ratio=None):
+    """Center-crop src to `crop_ratio` (w/h) then resize to width x height. Pillow if installed, else macOS sips."""
+    try:
+        from PIL import Image
+        im = Image.open(src).convert("RGB")
+        w, h = im.size
+        if crop_ratio:
+            want_w = min(w, int(h * crop_ratio))
+            want_h = int(want_w / crop_ratio)
+            left, top = (w - want_w) // 2, (h - want_h) // 2
+            im = im.crop((left, top, left + want_w, top + want_h))
+        im.resize((width, height), Image.LANCZOS).save(dst)
+        return
+    except ImportError:
+        pass
+    import shutil, subprocess
+    if not shutil.which("sips"):
+        sys.exit("Need Pillow (pip install Pillow) or macOS sips to crop and resize.")
+    tmp = str(dst) + ".tmp.png"
+    shutil.copyfile(src, tmp)
+    if crop_ratio:
+        out = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", tmp], capture_output=True, text=True).stdout
+        w = int(out.split("pixelWidth:")[1].split()[0])
+        h = int(out.split("pixelHeight:")[1].split()[0])
+        want_w = min(w, int(h * crop_ratio))
+        want_h = int(want_w / crop_ratio)
+        subprocess.run(["sips", "-c", str(want_h), str(want_w), tmp], capture_output=True, check=True)
+    subprocess.run(["sips", "-z", str(height), str(width), tmp, "--out", str(dst)], capture_output=True, check=True)
+    os.remove(tmp)
+
+
+def cmd_store_page(args):
+    """Generate-only: 6 thumbnail candidates (1920x1080) and 3 icon candidates (512x512) into art-wip/store_page/.
+    Never uploads. The title is added by hand in an editor."""
+    key = need("OPENAI_API_KEY")
+    data = load_prompts()
+    subs = data["store_page_subjects"]
+    style = data["store_page_style"]
+    model = os.environ.get("IMAGE_MODEL", "gpt-image-1")
+    quality = "medium"
+    raw_dir = STORE_DIR / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    only = set(args.only.split(",")) if args.only else None
+    for pid, subject in subs.items():
+        if only and pid not in only:
+            continue
+        final = STORE_DIR / (pid + ".png")
+        if final.exists() and not args.force:
+            print(f"skip {pid} (exists)")
+            continue
+        is_icon = pid.startswith("icon_")
+        size = "1024x1024" if is_icon else "1536x1024"
+        r = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": model, "prompt": f"{style}. Subject: {subject}.", "size": size, "quality": quality, "n": 1},
+            timeout=300,
+        )
+        if r.status_code != 200:
+            body = r.text[:400]
+            sys.exit(f"STOPPED at {pid}: HTTP {r.status_code}: {body}")
+        raw_path = raw_dir / (pid + ".png")
+        raw_path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
+        if is_icon:
+            _fit_image(raw_path, final, 512, 512)
+        else:
+            _fit_image(raw_path, final, 1920, 1080, crop_ratio=16 / 9)
+        print(f"made {pid}", flush=True)
+
+
 def main():
     load_env()
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate"])
+    ap.add_argument("cmd", choices=["generate", "upload", "lua", "all", "import-ids", "status", "queue", "record", "record-image", "estimate", "store_page"])
     ap.add_argument("file", nargs="?")
     ap.add_argument("extra", nargs="?")
     ap.add_argument("--category", "-c", default="patrons", choices=list(CATEGORIES),
@@ -540,6 +613,8 @@ def main():
         cmd_lua(a)
     elif a.cmd == "estimate":
         cmd_estimate(a)
+    elif a.cmd == "store_page":
+        cmd_store_page(a)
     elif a.cmd == "status":
         cmd_status(a)
     elif a.cmd == "queue":
