@@ -181,6 +181,7 @@ return function(deps)
 		end)
 	end
 
+	local vipOn, secondId = false, nil -- VIP second badge slot (state.store.vip, state.equippedBadgeId2)
 	local function tile(def, owned, equipped, order)
 		local w = TILE_W
 		local artH = math.floor(w * 0.9)
@@ -287,6 +288,30 @@ return function(deps)
 			end)
 		end
 
+		if owned and vipOn and not equipped then
+			-- VIP: a small star pins this badge in the second slot (tap again to unpin)
+			local star = Instance.new("TextButton")
+			star.Name = "SecondSlot"
+			star.Size = UDim2.fromOffset(28, 28)
+			star.Position = UDim2.new(1, -32, 0, 4)
+			star.Font = Enum.Font.GothamBold
+			star.TextSize = 18
+			star.Text = "\u{2605}"
+			star.TextColor3 = secondId == def.id and INK or CREAM
+			star.BackgroundColor3 = secondId == def.id and GOLD or Color3.fromRGB(86, 58, 34)
+			star.ZIndex = 52
+			star.Parent = t
+			roundCorner(star, 14)
+			star.MouseButton1Click:Connect(function()
+				playClickSfx()
+				if secondId == def.id then
+					EquipRemote:FireServer(nil, 2) -- unpin
+				else
+					EquipRemote:FireServer(def.id, 2)
+				end
+			end)
+		end
+
 		if equipped then
 			local ribbon = Instance.new("Frame")
 			ribbon.Name = "EquippedRibbon"
@@ -345,6 +370,8 @@ return function(deps)
 			have[id] = true
 		end
 		local equippedId = state and state.equippedBadgeId or nil
+		vipOn = state ~= nil and state.store ~= nil and state.store.vip == true
+		secondId = state and state.equippedBadgeId2 or nil
 		-- Earned badges first (rarest first), then the locked ones in registry order.
 		local order = {}
 		for i, def in ipairs(Badges.Definitions) do

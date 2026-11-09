@@ -4654,6 +4654,10 @@ table.insert(tests, { name = "CollectionBook.Milestones: ordered, unique, and ev
 	for _, season in ipairs(require(script.Parent.Parent.Engine.Seasons).Definitions) do
 		rewardedTitles[season.rewards.titleId] = true
 	end
+	-- Titles handed out by the Store (Starter Pack) count too.
+	for _, item in ipairs(require(script.Parent.Parent.Engine.Store).Items) do
+		for _, id in ipairs(item.contents and item.contents.titles or {}) do rewardedTitles[id] = true end
+	end
 	-- Titles handed out by Challenge Runs count too.
 	for _, def in ipairs(require(script.Parent.Parent.Engine.Challenges).Definitions) do
 		rewardedTitles[def.titleId] = true
@@ -9446,6 +9450,109 @@ table.insert(tests, { name = "SoundIds: biome tracks crossfade only between game
 	if sound then
 		local src = sound:read("*a"); sound:close()
 		expectTrue(src:find("shouldCrossfade", 1, true) ~= nil and src:find("SoundGroup", 1, true) ~= nil, "Sound.lua crossfades on a SoundGroup")
+	end
+end })
+
+-- ===== Phase 5: Store =====
+
+table.insert(tests, { name = "Store: every item is cosmetic or convenience, placeholders are id 0, the contents are real, nothing touches gameplay", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	local ids = {}
+	for _, item in ipairs(Store.Items) do
+		expectTrue(not ids[item.id], "unique " .. item.id); ids[item.id] = true
+		expectTrue(#item.name > 0 and #item.description > 0 and item.icon ~= nil and #(item.perks or {}) >= 1)
+		for _, id in ipairs(item.contents and item.contents.cardBacks or {}) do expectTrue(CardBacks.getById(id) ~= nil, id .. " is a real card back") end
+		for _, id in ipairs(item.contents and item.contents.sets or {}) do expectTrue(CosmeticSets.getById(id) ~= nil, id .. " is a real set") end
+		for _, id in ipairs(item.contents and item.contents.titles or {}) do expectTrue(Achievements.getById(id) ~= nil, id .. " is a real title") end
+		-- a contents table only holds cosmetics
+		for key in pairs(item.contents or {}) do expectTrue(key == "cardBacks" or key == "sets" or key == "titles", item.id .. " holds only cosmetics: " .. key) end
+	end
+	expectEqual(Store.getById("starter_pack").productId, 0, "placeholder until the product exists")
+	expectEqual(Store.getById("card_set_bundle").productId, 0)
+	expectEqual(GamePasses.getById("vip").gamePassId, 0)
+	expectTrue(not Store.isConfigured(Store.getById("starter_pack")) and not Store.isConfigured(Store.getById("vip")))
+	expectTrue(Store.isConfigured(Store.getById("continue")), "One More Round already has its real product")
+	expectEqual(Store.getByProductId(0), nil, "id 0 never matches a receipt")
+end })
+
+table.insert(tests, { name = "Store grants are idempotent: a one-time pack grants once, a repeated receipt changes nothing, the cap holds", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local profile = PlayerProfile.new()
+	expectTrue(Store.grant(profile, "starter_pack"))
+	expectTrue(profile.unlockedCardBackIds.gilded_ledger and profile.ownedSetIds.winter_evening and profile.rewardTitleIds.founding_guest)
+	expectTrue(Achievements.isUnlocked(profile, "founding_guest"))
+	expectTrue(CosmeticSets.isUnlocked(profile, "winter_evening"), "the set can be equipped")
+	expectTrue(profile.storePurchases.starter_pack)
+	expectEqual(Store.grant(profile, "starter_pack"), false, "never twice")
+	expectEqual(Store.grant(profile, "vip"), false, "a pass is not a product grant")
+	expectEqual(Store.grant(profile, "nope"), false)
+	-- receipts: a stub product id stands in for the real one
+	local item = Store.getById("card_set_bundle")
+	item.productId = 777
+	local profile2 = PlayerProfile.new()
+	expectEqual(Store.processReceipt(profile2, 777, "P-1"), "granted")
+	expectTrue(profile2.ownedSetIds.festival_night and profile2.ownedSetIds.closing_time)
+	local sets = 0
+	for _ in pairs(profile2.ownedSetIds) do sets = sets + 1 end
+	expectEqual(Store.processReceipt(profile2, 777, "P-1"), "granted", "the same purchase id again is acknowledged")
+	expectEqual(Store.processReceipt(profile2, 777, "P-2"), "granted", "a second purchase of a one-time item is acknowledged but grants nothing new")
+	local after = 0
+	for _ in pairs(profile2.ownedSetIds) do after = after + 1 end
+	expectEqual(after, sets)
+	expectEqual(Store.processReceipt(profile2, 424242, "P-3"), "unknown", "a product that is not in the Store")
+	for i = 1, Store.MAX_RECEIPTS + 20 do Store.processReceipt(profile2, 777, "P-x" .. i) end
+	expectTrue(#profile2.receiptIds <= Store.MAX_RECEIPTS, "the receipt list stays small")
+	item.productId = 0
+	-- save / load keeps purchases and drops junk
+	local loaded = PlayerProfile.migrate(profile)
+	expectTrue(loaded.storePurchases.starter_pack and loaded.rewardTitleIds.founding_guest)
+	local junk = PlayerProfile.migrate({ storePurchases = { starter_pack = true, vip = true, nope = true }, receiptIds = { "a", 5, string.rep("x", 100) }, vipBonusDay = "x", equippedBadgeId2 = "nope" })
+	expectTrue(junk.storePurchases.starter_pack and junk.storePurchases.vip == nil and junk.storePurchases.nope == nil)
+	expectEqual(#junk.receiptIds, 1); expectEqual(junk.vipBonusDay, nil); expectEqual(junk.equippedBadgeId2, nil)
+end })
+
+table.insert(tests, { name = "Store VIP: a daily gift of a few Tips once per day (capped), a second badge slot only for VIP, view shows owned state", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local profile = PlayerProfile.new()
+	expectEqual(Store.claimVipDaily(profile, 100), Store.VIP_DAILY_TIPS)
+	expectEqual(Store.claimVipDaily(profile, 100), 0, "once per day")
+	expectEqual(Store.claimVipDaily(profile, 101), Store.VIP_DAILY_TIPS)
+	profile.vipBonusDay = nil
+	profile.pendingStartTips = TavernRank.MAX_PENDING_TIPS - 1
+	expectEqual(Store.claimVipDaily(profile, 102), 1, "capped with the other banked Tips")
+	expectEqual(Store.claimVipDaily(profile, "x"), 0)
+	expectTrue(Store.VIP_DAILY_TIPS <= 5, "the gift stays small")
+	-- second badge slot
+	profile.badgeIds.wins_1 = true
+	expectEqual(Store.equipSecondBadge(profile, "wins_1", false, true), false, "not for non-VIP")
+	expectEqual(Store.equipSecondBadge(profile, "wins_1", true, false), false, "only an owned badge")
+	expectEqual(Store.equipSecondBadge(profile, "wins_1", true, true), true)
+	expectEqual(profile.equippedBadgeId2, "wins_1")
+	expectEqual(PlayerProfile.migrate(profile).equippedBadgeId2, "wins_1")
+	expectEqual(Store.equipSecondBadge(profile, nil, false, false), true, "anyone can clear it")
+	expectEqual(profile.equippedBadgeId2, nil)
+	-- the view: owned state, Studio is free, the live game says coming soon
+	local live = Store.view(PlayerProfile.new(), {}, false)
+	local studio = Store.view(PlayerProfile.new(), { vip = true }, true)
+	local function row(view, id) for _, r in ipairs(view.items) do if r.id == id then return r end end end
+	expectTrue(row(live, "starter_pack").comingSoon and not row(live, "starter_pack").available and not live.vip)
+	expectTrue(row(studio, "starter_pack").studioFree and row(studio, "starter_pack").available and studio.vip and row(studio, "vip").owned)
+	expectTrue(row(live, "continue").listOnly and not row(live, "continue").available)
+	local owner = PlayerProfile.new()
+	Store.grant(owner, "starter_pack")
+	expectTrue(row(Store.view(owner, {}, true), "starter_pack").owned and not row(Store.view(owner, {}, true), "starter_pack").available)
+	-- source checks: the server grants through ProcessReceipt and stays out of gameplay
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("Store.processReceipt", 1, true) ~= nil and src:find("PromptProductPurchase", 1, true) ~= nil and src:find("PromptGamePassPurchase", 1, true) ~= nil)
+	end
+	local panel = io and io.open and io.open("src/Client/StorePanel.lua", "r")
+	if panel then
+		local src = panel:read("*a"); panel:close()
+		expectTrue(src:find("Nothing here helps you win", 1, true) ~= nil, "the Store says it is fair")
 	end
 end })
 

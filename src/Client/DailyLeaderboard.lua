@@ -378,7 +378,7 @@ return function(deps)
 				if entry.titleText then table.insert(flairParts, entry.titleText) end
 				if entry.cardBackName then table.insert(flairParts, entry.cardBackName .. " back") end
 					if entry.tavernRank then table.insert(flairParts, "Rank " .. tostring(entry.tavernRank)) end
-				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), entry.name or "???", entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
+				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), (entry.vip and "\u{2605} " or "") .. (entry.name or "???"), entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
 			end
 		end)
 	end

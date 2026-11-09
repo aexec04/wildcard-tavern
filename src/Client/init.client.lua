@@ -988,6 +988,16 @@ do -- Daily Quests panel (Client/QuestsPanel.lua), opened from the Quests tile o
 	end)
 	if not ok then warn("[Client] QuestsPanel failed: " .. tostring(err)) end
 end
+do -- The Tavern Store (Client/StorePanel.lua): opened from the menu tile and once after the second run
+	local ok, err = pcall(function()
+		require(script.StorePanel).init({
+			screenGui = screenGui, openButton = MenuScreen.menuStoreButton, polishPanel = polishPanel, polishButton = polishButton,
+			roundCorner = roundCorner, playClickSfx = playClickSfx, popIn = popIn, popOut = popOut,
+			purchaseRemote = remotes:WaitForChild("StorePurchase"), getLatestState = function() return latestState end,
+		})
+	end)
+	if not ok then warn("[Client] StorePanel failed: " .. tostring(err)) end
+end
 do -- Combo counter (Client/ComboCounter.lua), driven by the score popup
 	local ok, err = pcall(function() require(script.ComboCounter).init(screenGui) end)
 	if not ok then warn("[Client] ComboCounter failed: " .. tostring(err)) end
@@ -2404,6 +2414,7 @@ local function render(state)
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.NextGoalBanner).update, state) -- Next Goal line on the menu, display only
+	pcall(require(script.StorePanel).update, state) -- keeps an open Store current; opens it once after the second run
 	pcall(require(script.FeelHooks).update, state) -- coin, discard and shuffle sounds from state changes, audio only
 	pcall(require(script.ChoicePanel).update, state) -- start-of-run draft and event cards, display only
 	pcall(require(script.FollowPrompt).update, state) -- one-time experience notifications prompt after the first win

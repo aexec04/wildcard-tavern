@@ -219,6 +219,12 @@ function PlayerProfile.new()
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
 		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
+		-- STORE (Engine/Store.lua)
+		storePurchases = {}, -- [one-time item id] = true
+		receiptIds = {}, -- recent Developer Product purchase ids, so a repeated receipt never grants twice
+		vipBonusDay = nil, -- UTC day of the last VIP daily gift
+		starterPrompted = false, -- the one-time Starter Pack prompt was shown
+		equippedBadgeId2 = nil, -- VIP second badge slot
 		-- FIRST 5 MINUTES (Engine/Funnel.lua, NextGoal.lua)
 		funnelSeen = {}, -- [funnel step id] = true, each analytics funnel step is sent once per player
 		tutorialRewardClaimed = false, -- the card back and the Newcomer title for finishing the tutorial
@@ -424,6 +430,11 @@ function PlayerProfile.migrate(raw)
 	profile.funnelSeen = require(script.Parent.Funnel).clean(raw.funnelSeen)
 	profile.challengesCleared = require(script.Parent.Challenges).cleanSaved(raw.challengesCleared)
 	profile.bossRushBest = require(script.Parent.BossRush).cleanSaved(raw.bossRushBest)
+	profile.storePurchases, profile.receiptIds, profile.vipBonusDay = require(script.Parent.Store).cleanSaved(raw.storePurchases, raw.receiptIds, raw.vipBonusDay)
+	profile.starterPrompted = raw.starterPrompted == true
+	if type(raw.equippedBadgeId2) == "string" and profile.badgeIds[raw.equippedBadgeId2] then
+		profile.equippedBadgeId2 = raw.equippedBadgeId2
+	end
 	profile.discoveries, profile.discoveryRevealed, profile.merchantDiscount =
 		require(script.Parent.Discoveries).cleanSaved(raw.discoveries, raw.discoveryRevealed, raw.merchantDiscount)
 	profile.tutorialRewardClaimed = raw.tutorialRewardClaimed == true

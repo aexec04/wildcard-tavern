@@ -315,6 +315,7 @@
     "grand_opening": "an avatar cutting a big red ribbon in front of the tavern door with giant scissors, confetti and balloons"
   },
   "title_subjects": {
+    "founding_guest": "an avatar hanging the very first glowing lantern above a tavern door, proud smile, a small gold key on the belt",
     "pair_master": "an avatar holding up two matching playing cards with a proud grin on a tavern stage",
     "steady_dealer": "an avatar with a calm steady hand dealing cards slowly across a wooden table",
     "solo_star": "an avatar alone in a single golden armchair with a glowing star above, confident pose",
@@ -476,6 +477,7 @@
     "tutorial": "a feathered quill and scroll, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "road_ahead": "a rolled treasure map with a wax seal, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "how_to_play": "an open leather rulebook with blank pages, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "store": "a wooden market stall with a striped awning, a small brass scale and a few wrapped gifts, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "quests": "a rolled parchment quest scroll tied with a red ribbon and a small gold star, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   },
   "hud_subjects": {
@@ -655,5 +657,11 @@
     "traveling_patron": "a painted event card: a traveler with a backpack and a walking stick entering a tavern with a friendly smile, warm light, no text, no letters, kid-friendly",
     "kind_donation": "a painted event card: villagers carrying a woven basket of gold coins and flowers to a tavern door, warm light, no text, no letters, kid-friendly",
     "lantern_stall": "a painted event card: a night market stall hung with glowing paper lanterns, a seller smiling, warm light, no text, no letters, kid-friendly"
+  },
+  "store_subjects": {
+    "starter_pack": "a painted bundle card: a wrapped gift box with a gold ribbon, a card back and a small trophy peeking out, warm candlelight, no text, no letters, kid-friendly",
+    "card_set_bundle": "a painted bundle card: two fanned tavern card backs, one festival red and one midnight blue, with tiny lanterns, warm candlelight, no text, no letters, kid-friendly",
+    "vip": "a painted bundle card: a glowing gold star badge on a velvet cushion beside a small coin purse, warm candlelight, no text, no letters, kid-friendly",
+    "continue": "a painted bundle card: an hourglass with golden sand turning back, a playing card behind it, warm candlelight, no text, no letters, kid-friendly"
   }
 }

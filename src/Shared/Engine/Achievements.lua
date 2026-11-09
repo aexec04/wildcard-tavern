@@ -356,6 +356,19 @@ Achievements.Definitions = {
 			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.coin_keeper == true
 		end,
 	},
+	-- STORE TITLE: granted (and saved in profile.rewardTitleIds) by the Starter Pack (Engine/Store.lua).
+	{
+		id = "founding_guest",
+		name = "Founding Guest",
+		icon = "🏮",
+		title = "Founding Guest",
+		description = "Part of the Starter Pack.",
+		flavorText = "You were here when the first lanterns were lit.",
+		milestoneReward = true,
+		requirement = function(profile)
+			return profile.rewardTitleIds ~= nil and profile.rewardTitleIds.founding_guest == true
+		end,
+	},
 	-- MAP BONUS TITLES: granted by Engine/BiomeRewards.lua when every stop of a biome has been seen.
 	{
 		id = "dune_wanderer",

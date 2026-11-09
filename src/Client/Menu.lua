@@ -222,7 +222,7 @@ return function(deps)
 	menuButtonScroll.Name = "MenuButtonScroll"
 	menuButtonScroll.Position = UDim2.new(0.5, 0, 0, 160)
 	menuButtonScroll.AnchorPoint = Vector2.new(0.5, 0)
-	menuButtonScroll.Size = UDim2.new(0, 640, 1, -172)
+	menuButtonScroll.Size = UDim2.new(0, 700, 1, -172) -- six bottom tiles: 6 * 106 + 5 * 8 = 676
 	menuButtonScroll.BackgroundTransparency = 1
 	menuButtonScroll.BorderSizePixel = 0
 	menuButtonScroll.ScrollBarThickness = 0 -- everything fits; only scrolls on genuinely tiny screens
@@ -477,17 +477,17 @@ return function(deps)
 		iconKey = "quests", emoji = "\240\159\147\156", iconSize = 70,
 	})
 	-- One row of five equal 114px tiles (5*114 + 4*10 = 610 <= 640 wide scroll).
-	local bottomRow = makeRow(4, 114, 10)
+	local bottomRow = makeRow(4, 114, 8)
 	local menuJourneyButton = makeFrameButton({
-		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 114, height = 114,
+		text = "Road Ahead", textSize = 14, parent = bottomRow, order = 1, width = 106, height = 114,
 		iconKey = "road_ahead", emoji = "\240\159\151\186", iconSize = 46,
 	})
 	local menuHowToPlayButton = makeFrameButton({
-		text = "How to Play", textSize = 14, parent = bottomRow, order = 2, width = 114, height = 114,
+		text = "How to Play", textSize = 14, parent = bottomRow, order = 2, width = 106, height = 114,
 		iconKey = "how_to_play", emoji = "\240\159\147\150", iconSize = 46,
 	})
 	local menuTutorialButton = makeFrameButton({
-		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 114, height = 114,
+		text = "Tutorial", textSize = 14, parent = bottomRow, order = 3, width = 106, height = 114,
 		iconKey = "tutorial", emoji = "\240\159\148\176", iconSize = 46,
 	})
 	-- "New" ribbon + soft pulsing rim until the tutorial has been completed once or dismissed. Children of the
@@ -537,12 +537,17 @@ return function(deps)
 	-- open from Collection.lua / Settings.lua.
 	local accountRow = bottomRow
 	local menuCollectionButton = makeFrameButton({
-		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 114, height = 114,
+		text = "Collection", textSize = 14, parent = accountRow, order = 4, width = 106, height = 114,
 		iconKey = "collection", iconImage = ArtAssets.cornerIconCollection, emoji = "\240\159\147\148", iconSize = 46,
 	})
 	local menuSettingsButton = makeFrameButton({
-		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 114, height = 114,
+		text = "Settings", textSize = 14, parent = accountRow, order = 5, width = 106, height = 114,
 		iconKey = "settings", iconImage = ArtAssets.cornerIconSettings, emoji = "\226\154\153", iconSize = 46,
+	})
+	-- The Tavern Store (Client/StorePanel.lua opens from it): painted icon key "store", market emoji until it exists.
+	local menuStoreButton = makeFrameButton({
+		text = "Store", textSize = 14, parent = accountRow, order = 6, width = 106, height = 114,
+		iconKey = "store", emoji = "\240\159\155\146", iconSize = 46,
 	})
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()
@@ -642,5 +647,6 @@ return function(deps)
 		menuCollectionButton = menuCollectionButton,
 		menuSettingsButton = menuSettingsButton,
 		menuQuestsButton = menuQuestsButton,
+		menuStoreButton = menuStoreButton,
 	}
 end

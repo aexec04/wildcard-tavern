@@ -49,11 +49,13 @@ local FirstRewards = require(Engine.FirstRewards) -- tutorial and first-win rewa
 local PatronsData = require(Engine.Patrons) -- display names for the Next Goal line
 local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toasts that outlive a run
 local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
+local storePrompts = {} -- [player] = seq: opens the Store on the Starter Pack once, after the second run
 local rewardSeqCounter = 0
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
 local BossRush = require(Engine.BossRush) -- back-to-back boss rounds
+local Store = require(Engine.Store) -- the Tavern Store: cosmetics and convenience only
 local funnelSessions = {} -- [player] = id of this visit, for the analytics funnel
 local Badges = require(Engine.Badges) -- badges (biome first clear and Master)
 local BadgeIds = require(Engine.BadgeIds) -- game badge id -> real Roblox badge id (empty until created)
@@ -127,6 +129,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local StorePurchaseRemote = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
 local ChoiceRemote = newRemote("Choice") -- (player, optionId): answers the open draft or event card
 local ChooseRoadRemote = newRemote("ChooseRoad") -- WORLD MAP: (player, stopId) picks the next road at a fork, roundSelect only
 local MinigameRemote = newRemote("Minigame") -- WORLD MAP: (player, stopId, action, arg) map minigames, scored on the server
@@ -910,6 +913,9 @@ local function serializeState(session, player)
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		store = profiles[player] and Store.view(profiles[player], ownedGamePasses[player], RunService:IsStudio()) or nil,
+		storePrompt = storePrompts[player], -- seq: open the Store on the Starter Pack once
+		equippedBadgeId2 = profiles[player] and profiles[player].equippedBadgeId2 or nil, -- VIP second badge slot
 		bossRush = profiles[player] and BossRush.view(profiles[player]) or nil,
 		isRush = state.rush ~= nil,
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
@@ -1211,6 +1217,14 @@ local function syncProfileFromSession(player)
 	end
 	for _, q in ipairs(progress.quests) do Analytics.questDone(player, q.id) end
 	for _, rank in ipairs(progress.rankUps) do Analytics.rankUp(player, rank) end
+	-- STORE: a one-time Starter Pack prompt once the second run has ended (never again, never when already bought).
+	if session.phase == "gameover" and (profile.stats.runsStarted or 0) >= 2 and not profile.starterPrompted
+		and not (profile.storePurchases and profile.storePurchases.starter_pack) then
+		profile.starterPrompted = true
+		changed = true
+		rewardSeqCounter = rewardSeqCounter + 1
+		storePrompts[player] = rewardSeqCounter
+	end
 	-- CHALLENGE RUNS / BOSS RUSH results live in the profile only (no boards).
 	if justWon and session.state.challenge then
 		local cleared = Challenges.recordClear(profile, session.state.challenge.id, os.time() - (session.startedAt or os.time()))
@@ -1365,6 +1379,14 @@ end
 -- unblocks local testing. The moment a real gamePassId is pasted into
 -- GamePasses.lua, that pass falls out of this branch entirely and goes
 -- through the real MarketplaceService check below like normal.
+-- VIP daily gift: +3 banked Tips once per UTC day, whenever the VIP pass is known to be owned (Engine/Store.lua).
+local function grantVipDaily(player)
+	local profile = profiles[player]
+	if profile and Store.claimVipDaily(profile, LoginStreak.dayNumber(os.time())) > 0 then
+		profileDirty[player] = true
+	end
+end
+
 local function refreshOwnedGamePasses(player)
 	ownedGamePasses[player] = ownedGamePasses[player] or {}
 	for _, pass in ipairs(GamePasses.Definitions) do
@@ -1387,6 +1409,7 @@ local function refreshOwnedGamePasses(player)
 		if (not pass.gamePassId or pass.gamePassId <= 0) and pass.id ~= "fast_forward" and RunService:IsStudio() then
 			local alreadyKnown = ownedGamePasses[player][pass.id] == true
 			ownedGamePasses[player][pass.id] = true
+			if pass.id == "vip" then grantVipDaily(player) end
 			if not alreadyKnown then
 				pushState(player)
 			end
@@ -1406,6 +1429,7 @@ local function refreshOwnedGamePasses(player)
 						-- re-checks of an already-known pass.
 						local alreadyKnown = ownedGamePasses[player][pass.id] == true
 						ownedGamePasses[player][pass.id] = true
+						if pass.id == "vip" then grantVipDaily(player) end
 						if not alreadyKnown then
 							pushState(player)
 						end
@@ -1463,6 +1487,23 @@ local grantedReceipts = {}
 MarketplaceService.ProcessReceipt = function(receiptInfo)
 	if grantedReceipts[receiptInfo.PurchaseId] then
 		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	-- STORE products (Starter Pack, Card Set Bundle): idempotent by purchase id, kept in the profile, saved before acknowledging.
+	if Store.getByProductId(receiptInfo.ProductId) then
+		local buyer = Players:GetPlayerByUserId(receiptInfo.PlayerId)
+		local buyerProfile = buyer and profiles[buyer]
+		if not buyerProfile then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		local okGrant, status = pcall(Store.processReceipt, buyerProfile, receiptInfo.ProductId, receiptInfo.PurchaseId)
+		if okGrant and status == "granted" then
+			profileDirty[buyer] = true
+			pcall(saveProfile, buyer)
+			grantedReceipts[receiptInfo.PurchaseId] = true
+			pushState(buyer)
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local product = DeveloperProducts.getByProductId(receiptInfo.ProductId)
 	if not product then
@@ -1644,6 +1685,7 @@ Players.PlayerRemoving:Connect(function(player)
 	profiles[player] = nil
 	rewardNotices[player] = nil
 	followPrompts[player] = nil
+	storePrompts[player] = nil
 	funnelSessions[player] = nil
 	profileDirty[player] = nil
 	dailyPending[player] = nil
@@ -2170,7 +2212,19 @@ ChooseRoadRemote.OnServerEvent:Connect(function(player, stopId)
 end)
 
 -- BADGES: equip an owned badge (nil clears); Badges.equip refuses anything not owned.
-EquipBadgeRemote.OnServerEvent:Connect(function(player, badgeId)
+EquipBadgeRemote.OnServerEvent:Connect(function(player, badgeId, slot)
+	if slot == 2 then
+		-- VIP second badge slot (Engine/Store.lua): only VIP, only an owned badge
+		local vipProfile = profiles[player]
+		if vipProfile and (badgeId == nil or type(badgeId) == "string") and Store.equipSecondBadge(
+			vipProfile, badgeId, ownedGamePasses[player] ~= nil and ownedGamePasses[player].vip == true,
+			badgeId ~= nil and Badges.has(vipProfile, badgeId)
+		) then
+			profileDirty[player] = true
+			pushState(player)
+		end
+		return
+	end
 	local profile = profiles[player]
 	if not profile or (badgeId ~= nil and type(badgeId) ~= "string") then
 		return
@@ -2458,6 +2512,35 @@ RevealDiscoveriesRemote.OnServerEvent:Connect(function(player, region)
 	pushState(player)
 end)
 
+-- STORE: prompt a purchase (Roblox shows the real price; the grant happens in ProcessReceipt or on pass ownership).
+-- A placeholder item (id 0) is "coming soon" in the live game and free in Studio so it can be playtested.
+StorePurchaseRemote.OnServerEvent:Connect(function(player, itemId)
+	local profile = profiles[player]
+	local item = type(itemId) == "string" and Store.getById(itemId) or nil
+	if not profile or not item or item.listOnly then
+		return
+	end
+	if Store.owned(profile, item, ownedGamePasses[player]) then
+		pushRewardNotice(player, { icon = "✔", text = item.name .. " is already yours." })
+	elseif Store.isConfigured(item) then
+		pcall(function()
+			if item.kind == "pass" then
+				MarketplaceService:PromptGamePassPurchase(player, Store.robloxId(item))
+			else
+				MarketplaceService:PromptProductPurchase(player, Store.robloxId(item))
+			end
+		end)
+	elseif RunService:IsStudio() then
+		if item.kind == "product" and Store.grant(profile, item.id) then
+			profileDirty[player] = true
+			pushRewardNotice(player, { icon = item.icon, text = item.name .. " added (free in Studio)." })
+		end
+	else
+		pushRewardNotice(player, { icon = "🕯️", text = item.name .. " is coming soon." })
+	end
+	pushState(player)
+end)
+
 -- RUN CHOICES: the player answers the open start-of-run draft or between-Nights event card.
 ChoiceRemote.OnServerEvent:Connect(function(player, optionId)
 	local session = sessions[player]
@@ -2643,12 +2726,22 @@ Players.PlayerRemoving:Connect(function(p)
 	friendListCache.entries[p.UserId] = nil
 end)
 
+-- VIP second badge slot: its icon follows the first one on the boards.
+local function joinBadgeIcons(first, profile)
+	local def2 = profile.equippedBadgeId2 and Badges.getById(profile.equippedBadgeId2)
+	if def2 and Badges.has(profile, def2.id) then
+		return (first and (first .. " ") or "") .. def2.icon
+	end
+	return first
+end
+
 local function friendFlair(userId)
 	for p, profile in pairs(profiles) do
 		if p.UserId == userId and profile then
 			local backDef = profile.equippedCardBackId and CardBacks.getById(profile.equippedCardBackId)
 			local titleDef = profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
-			return backDef and backDef.name or nil, titleDef and titleDef.title or nil, select(2, Badges.equippedText(profile)), TavernRank.rankFor(profile.tavernXp or 0)
+			return backDef and backDef.name or nil, titleDef and titleDef.title or nil, joinBadgeIcons(select(2, Badges.equippedText(profile)), profile), TavernRank.rankFor(profile.tavernXp or 0),
+				ownedGamePasses[p] ~= nil and ownedGamePasses[p].vip == true
 		end
 	end
 	return nil, nil
@@ -2682,12 +2775,12 @@ local function friendsBoardResult(player, store, storeName, board, dateKey)
 			yourBest = { depth = row.depth, tips = row.tips }
 		else
 			row.name = friends.names[row.userId] or "???"
-			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(row.userId)
+			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank, row.vip = friendFlair(row.userId)
 		end
 		-- the player's own row gets their own name and flair too
 		if row.userId == player.UserId then
 			row.name = player.Name
-			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(player.UserId)
+			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank, row.vip = friendFlair(player.UserId)
 		end
 	end
 	return {
@@ -2732,7 +2825,7 @@ local function globalBoardResult(player, store, storeName, board, periodKey, pen
 			if nameOk then nameCache.set(row.userId, name) end
 		end
 		row.name = name
-		row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(row.userId) -- only players in this server have flair
+		row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank, row.vip = friendFlair(row.userId) -- only players in this server have flair
 	end
 	local yourKey = storeName .. ":" .. player.UserId
 	local yourBest = yourBestCache.get(yourKey)
