@@ -668,6 +668,7 @@ return function(deps)
 		handsDiscardsLabel = handsDiscardsLabel,
 		handsDiscardsBox = handsDiscardsBox,
 		patronsCountLabel = patronsCountLabel,
+		patronsInset = patronsSlotRow, -- TUTORIAL: spotlight target for the Patron seats
 		patronSlots = patronSlots,
 		MAX_SIDEBAR_PATRON_SLOTS = MAX_SIDEBAR_PATRON_SLOTS,
 		scorePreviewBox = scorePreviewBox,

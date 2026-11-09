@@ -6698,6 +6698,104 @@ table.insert(tests, { name = "Tutorial Skip button: 24px inside the edge, below 
 	expectTrue(TS.skipLayout(800, 450).scale < 1)
 end })
 
+table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy a Patron and a Pack, tabs, Reroll, then Next Round and Finish", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local ids = {}
+	for i, step in ipairs(Steps.Steps) do ids[step.id] = i end
+	local order = { "play_straight_flush", "panel_target", "panel_tips", "panel_hands", "panel_discards", "panel_patrons",
+		"shop_patrons", "buy_patron", "see_patron", "buy_pack", "pick_pack_item", "confirm_pack", "tab_patrons", "tab_recipes",
+		"tab_shop", "reroll", "next_round", "done" }
+	local last = 0
+	for _, id in ipairs(order) do
+		expectTrue(ids[id] ~= nil and ids[id] > last, "step order: " .. id)
+		last = ids[id]
+	end
+	-- the last card is the celebration with a Finish button
+	local done = Steps.Steps[#Steps.Steps]
+	expectEqual(done.id, "done"); expectEqual(done.button, "Finish"); expectTrue(done.celebrate)
+	-- jumping into the Shop section lands on the first Shop step, never past it
+	local m = Steps.new()
+	m:report("menu_play"); m:report("select_round")
+	expectTrue(m:catchUpShop())
+	expectEqual(m:current().id, "panel_target")
+	-- tapping the spotlighted piece is the only way on; the wrong thing wiggles
+	expectEqual(m:report("reroll"), "wrong")
+	expectFalse(m:allows("buy")); expectFalse(m:allows("reroll")); expectFalse(m:allows("nextRound"))
+	expectTrue(m:allows("tap"))
+	for _, id in ipairs({ "panel_target", "panel_tips", "panel_hands", "panel_discards", "panel_patrons", "shop_patrons" }) do
+		expectEqual(m:current().id, id)
+		expectEqual(m:report("tap"), "advanced")
+	end
+	expectEqual(m:current().id, "buy_patron")
+	expectTrue(m:allows("buy")); expectFalse(m:allows("pack")); expectFalse(m:allows("packSkip"))
+	expectEqual(m:report("buy_patron"), "advanced")
+	expectEqual(m:report("tap"), "advanced") -- see_patron
+	expectEqual(m:current().id, "buy_pack")
+	expectEqual(m:report("buy_pack"), "advanced")
+	expectEqual(m:current().id, "pick_pack_item")
+	expectTrue(m:allows("packItem")); expectFalse(m:allows("packConfirm"))
+	expectEqual(m:report("pack_item"), "advanced")
+	expectTrue(m:allows("packConfirm"))
+	expectEqual(m:report("pack_confirm"), "advanced")
+	-- tabs: only the named tab opens, each tapped once
+	expectEqual(m:current().id, "tab_patrons")
+	expectTrue(m:allows("tab", { key = "mypatrons" })); expectFalse(m:allows("tab", { key = "myrecipes" }))
+	expectEqual(m:report("tab_mypatrons"), "advanced")
+	expectTrue(m:allows("tab", { key = "myrecipes" }))
+	expectEqual(m:report("tab_myrecipes"), "advanced")
+	expectTrue(m:allows("tab", { key = "buy" }))
+	expectEqual(m:report("tab_buy"), "advanced")
+	expectEqual(m:current().id, "reroll")
+	expectEqual(m:report("reroll"), "advanced")
+	expectEqual(m:current().id, "next_round")
+	expectEqual(m:report("next_round"), "advanced")
+	expectEqual(m:report("ok"), "advanced")
+	expectTrue(m:finished())
+	-- every target name is registered somewhere in the client
+	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local shop = io.open("src/Client/Shop.lua", "r"):read("*a")
+	local menu = io.open("src/Client/Menu.lua", "r"):read("*a")
+	local hub = io.open("src/Client/init.client.lua", "r"):read("*a")
+	for name in pairs(Steps.TargetNames) do
+		if name ~= "handCards" then
+			local found = src:find('register("' .. name .. '"', 1, true) or shop:find('register("' .. name .. '"', 1, true)
+				or shop:find('"' .. name .. '"', 1, true) or hub:find('register("' .. name .. '"', 1, true) or menu:find('"' .. name .. '"', 1, true)
+			expectTrue(found ~= nil, "target registered: " .. name)
+		end
+	end
+end })
+
+table.insert(tests, { name = "TutorialScript.shopFor: a cheap Patron and Pack are always on the shelf and the player can afford them plus a Reroll", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialScript)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	local state = { tips = 0, ownedPatrons = {} }
+	local offers = { patrons = { Patrons.Definitions[#Patrons.Definitions] }, packs = {}, voucher = { id = "x" } }
+	local need = TS.shopFor(state, offers, 5)
+	local cheapest = math.huge
+	for _, p in ipairs(Patrons.Definitions) do cheapest = math.min(cheapest, p.price) end
+	expectEqual(offers.patrons[1].price, cheapest)
+	local cheapPack = math.huge
+	for _, p in ipairs(Packs.Definitions) do cheapPack = math.min(cheapPack, p.price) end
+	expectEqual(offers.packs[1].price, cheapPack)
+	expectEqual(offers.voucher, nil)
+	expectTrue(state.tips >= cheapest + cheapPack + 5, "enough Tips for Patron, Pack and one Reroll")
+	expectEqual(state.tips, need)
+	expectTrue(#offers.patrons <= 2 and #offers.packs <= 2)
+	-- after buying that Patron the next roll offers the next cheapest one, never a duplicate
+	state.ownedPatrons = { offers.patrons[1] }
+	local again = { patrons = {}, packs = {} }
+	TS.shopFor(state, again, 5)
+	expectTrue(again.patrons[1].id ~= state.ownedPatrons[1].id)
+	-- the server applies it only to a tutorial session
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local server = f:read("*a"); f:close()
+	expectTrue(server:find("if session.isTutorial then\n\t\tTutorialScript.shopFor", 1, true) ~= nil)
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)
@@ -7796,7 +7894,7 @@ table.insert(tests, { name = "Tutorial: one action per step, short text, cannot 
 			local sel = {}
 			for i = 1, step.count do sel[i] = true end
 			expectEqual(full:report("pick", { scripted = true, selected = sel }), "advanced", step.id)
-		elseif step.action == "play_hand" or step.action == "next_round" or step.action == "ok" then
+		elseif step.id ~= "menu_play" and step.id ~= "select_round" then
 			expectEqual(full:report(step.action), "advanced", step.id)
 		end
 	end

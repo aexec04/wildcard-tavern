@@ -288,6 +288,9 @@ function ShopCards.new(deps)
 			Size = UDim2.fromOffset(W, shape.h + HEAD + 4), BackgroundTransparency = 1 })
 		card.slot = slot
 		card.spec = spec
+		-- stable tags for the tutorial spotlight (cards are rebuilt on every refresh)
+		slot:SetAttribute("TutorialKind", spec.kind)
+		slot:SetAttribute("TutorialPrice", spec.price or 0)
 
 		-- Shadow stays put while the card lifts, so the gap reads as height.
 		local shadow = frame(slot, { Position = UDim2.fromOffset(2, HEAD + 6), Size = UDim2.fromOffset(W - 4, shape.h),

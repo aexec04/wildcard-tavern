@@ -32,7 +32,12 @@ local TutorialSteps = {}
 TutorialSteps.MAX_WORDS = 12
 
 -- Every step target must be one of these names; Client/TutorialWalkthrough resolves each live, every frame.
-TutorialSteps.TargetNames = { menuPlay = true, selectButton = true, handCards = true, play = true, nextRound = true }
+TutorialSteps.TargetNames = {
+	menuPlay = true, selectButton = true, handCards = true, play = true, nextRound = true,
+	sidebarScore = true, sidebarTips = true, sidebarHands = true, sidebarPatrons = true,
+	shopPatronsRow = true, cheapestPatron = true, cheapestPack = true, packItems = true, packConfirm = true,
+	shopTabMyPatrons = true, shopTabMyRecipes = true, shopTabBuy = true, reroll = true,
+}
 
 TutorialSteps.Steps = {
 	{ id = "menu_play", action = "menu_play", target = "menuPlay", allow = { "menuPlay" }, text = "Press Play to start your first run." },
@@ -45,8 +50,25 @@ TutorialSteps.Steps = {
 	{ id = "play_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand. A flush scores big." },
 	{ id = "pick_straight_flush", action = "pick", target = "handCards", allow = { "card" }, expect = "straight_flush", count = 5, text = "Pick the straight in Clubs, five to nine." },
 	{ id = "play_straight_flush", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand for the biggest score." },
+	-- After the combos the round is cleared and the Shop opens (`shop = true` marks this section). Each step is
+	-- ONE action: tap the spotlighted piece ("tap") or do the named thing.
+	{ id = "panel_target", action = "tap", target = "sidebarScore", allow = { "tap" }, shop = true, text = "Reach this target to clear a round and earn Tips." },
+	{ id = "panel_tips", action = "tap", target = "sidebarTips", allow = { "tap" }, shop = true, text = "Tips are your money. Spend them at the Counter." },
+	{ id = "panel_hands", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Hands: how many times you can play cards." },
+	{ id = "panel_discards", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Discards: swap cards you do not want." },
+	{ id = "panel_patrons", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Patron slots hold the helpers you hire." },
+	{ id = "shop_patrons", action = "tap", target = "shopPatronsRow", allow = { "tap" }, shop = true, text = "Patrons give you bonuses every hand." },
+	{ id = "buy_patron", action = "buy_patron", target = "cheapestPatron", allow = { "buy" }, shop = true, text = "Buy the cheapest Patron." },
+	{ id = "see_patron", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Your new Patron works for you every hand." },
+	{ id = "buy_pack", action = "buy_pack", target = "cheapestPack", allow = { "pack" }, shop = true, text = "Buy a Pack and open it." },
+	{ id = "pick_pack_item", action = "pack_item", target = "packItems", allow = { "packItem" }, shop = true, text = "Tap one card to keep." },
+	{ id = "confirm_pack", action = "pack_confirm", target = "packConfirm", allow = { "packConfirm" }, shop = true, text = "Press Confirm to keep it." },
+	{ id = "tab_patrons", action = "tab_mypatrons", target = "shopTabMyPatrons", allow = { "tab" }, tab = "mypatrons", shop = true, text = "Open the My Patrons tab." },
+	{ id = "tab_recipes", action = "tab_myrecipes", target = "shopTabMyRecipes", allow = { "tab" }, tab = "myrecipes", shop = true, text = "Now open the My Recipes tab." },
+	{ id = "tab_shop", action = "tab_buy", target = "shopTabBuy", allow = { "tab" }, tab = "buy", shop = true, text = "Go back to the Shop tab." },
+	{ id = "reroll", action = "reroll", target = "reroll", allow = { "reroll" }, shop = true, text = "Reroll costs Tips and shows new offers." },
 	{ id = "next_round", action = "next_round", target = "nextRound", allow = { "nextRound" }, text = "Press Next Round to keep going." },
-	{ id = "done", action = "ok", target = nil, allow = { "ok" }, text = "Title unlocked: Newcomer. Equip it in Collection.", button = "Nice!" },
+	{ id = "done", action = "ok", target = nil, allow = { "ok" }, celebrate = true, text = "You did it! Ready to play for real?", button = "Finish" },
 }
 
 -- selected = { [handIndex] = true }; the target cards are hand slots 1..count.
@@ -73,6 +95,9 @@ function TutorialSteps.stepAllows(step, kind, detail)
 	if not step then return true end
 	for _, k in ipairs(step.allow or {}) do
 		if k == kind then
+			if kind == "tab" then
+				return detail ~= nil and detail.key == step.tab -- only the named Shop tab
+			end
 			if kind == "card" and step.count and detail and detail.scripted then
 				local idx = detail.index
 				return type(idx) == "number" and idx >= 1 and idx <= step.count
@@ -83,7 +108,11 @@ function TutorialSteps.stepAllows(step, kind, detail)
 	return false
 end
 
-local DELIBERATE = { menu_play = true, select_round = true, play_hand = true, next_round = true }
+local DELIBERATE = {
+	menu_play = true, select_round = true, play_hand = true, next_round = true, tap = true,
+	buy_patron = true, buy_pack = true, pack_confirm = true, reroll = true,
+	tab_mypatrons = true, tab_myrecipes = true, tab_buy = true,
+}
 
 local Machine = {}
 Machine.__index = Machine
@@ -135,6 +164,17 @@ end
 -- Is this input allowed on the current step? True when the tutorial is over.
 function Machine:allows(kind, detail)
 	return TutorialSteps.stepAllows(self:current(), kind, detail)
+end
+
+-- The Shop appeared (the last combo cleared the round): jump to the first Shop-section step.
+function Machine:catchUpShop()
+	for i = self.index, #TutorialSteps.Steps do
+		if TutorialSteps.Steps[i].shop then
+			self.index = i
+			return true
+		end
+	end
+	return false
 end
 
 function Machine:catchUp(action)

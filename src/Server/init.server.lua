@@ -401,6 +401,9 @@ local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 -- headless simulator rolls offers through the same code).
 local function rollShopOffers(session)
 	local offers = Shop.rollOffers(session.state)
+	if session.isTutorial then
+		TutorialScript.shopFor(session.state, offers, session.rerollCost or Shop.REROLL_BASE_COST) -- scripted, affordable
+	end
 	session.shopOffers = offers.patrons
 	session.packOffers = offers.packs
 	session.voucherOffer = offers.voucher

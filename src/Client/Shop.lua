@@ -145,6 +145,7 @@ return function(deps)
 	local BuyPackRemote = deps.BuyPackRemote
 	-- TUTORIAL forced input: assigned once the walkthrough module exists (end of this file). Always true outside it.
 	local tutorialAllows = function() return true end
+	local tutorialReport = function() end -- tutorialReport(action): the walkthrough advances its step on a real action
 	local ResolvePackRemote = deps.ResolvePackRemote
 	local BuyHousePassRemote = deps.BuyHousePassRemote
 	local RANK_NAMES = deps.RANK_NAMES
@@ -164,6 +165,7 @@ return function(deps)
 	local tutorialSidebarScoreBox = deps.sidebarScoreBox
 	local tutorialSidebarTipsBox = deps.sidebarTipsBox
 	local tutorialSidebarHandsDiscardsBox = deps.sidebarHandsDiscardsBox
+	local tutorialSidebarPatronsBox = deps.sidebarPatronsBox
 	local MarkTutorialSeenRemote = deps.MarkTutorialSeenRemote
 
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
@@ -424,9 +426,14 @@ return function(deps)
 			addButtonHoverScale(tabButton)
 			table.insert(shopTabButtons, { key = def.key, button = tabButton })
 
+			-- TUTORIAL spotlight targets (cleared with the button when the Shop is rebuilt)
+			local busNames = { buy = "shopTabBuy", mypatrons = "shopTabMyPatrons", myrecipes = "shopTabMyRecipes" }
+			require(script.Parent.TutorialBus).register(busNames[def.key], tabButton)
 			tabButton.MouseButton1Click:Connect(function()
+				if not tutorialAllows("tab", { key = def.key }) then return end
 				playClickSfx(0.4)
 				setShopTab(def.key)
+				tutorialReport("tab_" .. def.key)
 			end)
 		end
 
@@ -850,6 +857,7 @@ return function(deps)
 					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
 					rarity = standardCard and "common" or nil,
 					onClick = function(c)
+						if not tutorialAllows("packItem") then return end
 						local pend = getLatestState() and getLatestState().pendingPack
 						local limit = pend and pend.pickCount or 1
 						if pendingPackSelected[index] then
@@ -861,6 +869,7 @@ return function(deps)
 							pendingPackSelected[index] = true
 						end
 						refreshPackPanel(getLatestState())
+						if selectedPackCount() >= 1 then tutorialReport("pack_item") end
 					end,
 				})
 				packCards[index] = card
@@ -929,6 +938,7 @@ return function(deps)
 	end
 
 	packConfirmButton.MouseButton1Click:Connect(function()
+		if not tutorialAllows("packConfirm") then return end
 		local state = getLatestState()
 		local pending = state and state.pendingPack
 		if not pending then
@@ -945,9 +955,11 @@ return function(deps)
 		require(script.Parent.Cue).play("buy")
 		ResolvePackRemote:FireServer(chosen)
 		pendingPackSelected = {}
+		tutorialReport("pack_confirm")
 	end)
 
 	packSkipButton.MouseButton1Click:Connect(function()
+		if not tutorialAllows("packSkip") then return end -- never allowed in the tutorial
 		playClickSfx(0.4)
 		ResolvePackRemote:FireServer({})
 		pendingPackSelected = {}
@@ -1116,6 +1128,7 @@ return function(deps)
 		rerollRow.Parent = shopBuyListFrame
 
 		local rerollButton = Instance.new("TextButton")
+		require(script.Parent.TutorialBus).register("reroll", rerollButton) -- TUTORIAL target (rebuilt with the shop)
 		rerollButton.Size = UDim2.new(0, 190, 0, 38)
 		rerollButton.Position = UDim2.new(0, 14, 0, 3)
 		rerollButton.Font = Enum.Font.GothamBold
@@ -1166,6 +1179,7 @@ return function(deps)
 				end)
 			end
 			RerollShopRemote:FireServer()
+			tutorialReport("reroll")
 		end)
 
 		-- Buy handlers: same checks and remotes as the old rows. They return true when a remote fired.
@@ -1196,6 +1210,7 @@ return function(deps)
 			end
 			require(script.Parent.Cue).play("buy")
 			BuyPatronRemote:FireServer(offer.id)
+			tutorialReport("buy_patron")
 			return true
 		end
 		local function buyPack(pack)
@@ -1208,6 +1223,7 @@ return function(deps)
 			end
 			require(script.Parent.Cue).play("buy")
 			BuyPackRemote:FireServer(pack.id)
+			tutorialReport("buy_pack")
 			return true
 		end
 
@@ -1496,10 +1512,50 @@ return function(deps)
 		sidebarScoreBox = tutorialSidebarScoreBox,
 		sidebarTipsBox = tutorialSidebarTipsBox,
 		sidebarHandsDiscardsBox = tutorialSidebarHandsDiscardsBox,
+		sidebarPatronsBox = tutorialSidebarPatronsBox,
 		shopBuyListFrame = shopBuyListFrame,
 	})
 
 	tutorialAllows = TutorialWalkthroughModule.allows
+	tutorialReport = TutorialWalkthroughModule.report
+
+	-- TUTORIAL spotlight targets that need a live scan (offer cards and the pack panel are rebuilt often).
+	do
+		local TB = require(script.Parent.TutorialBus)
+		local function cards(root, kind)
+			local found = {}
+			if not root then return found end
+			for _, d in ipairs(root:GetDescendants()) do
+				if d:IsA("Frame") and d:GetAttribute("TutorialKind") == kind and d.Visible and d.AbsoluteSize.X > 0 then
+					found[#found + 1] = d
+				end
+			end
+			return found
+		end
+		local function cheapest(kind)
+			local best
+			for _, d in ipairs(cards(shopBuyListFrame, kind)) do
+				if not best or (d:GetAttribute("TutorialPrice") or 0) < (best:GetAttribute("TutorialPrice") or 0) then best = d end
+			end
+			return best
+		end
+		TB.register("shopPatronsRow", function()
+			local list = cards(shopBuyListFrame, "patron")
+			return #list > 0 and list or nil
+		end)
+		TB.register("cheapestPatron", function() return cheapest("patron") end)
+		TB.register("cheapestPack", function() return cheapest("pack") end)
+		TB.register("packItems", function()
+			local list = {}
+			if shopPackPanel and shopPackPanel.Visible then
+				for _, d in ipairs(shopPackPanel:GetDescendants()) do
+					if d:IsA("Frame") and d:GetAttribute("TutorialKind") ~= nil and d.AbsoluteSize.X > 0 then list[#list + 1] = d end
+				end
+			end
+			return #list > 0 and list or nil
+		end)
+		TB.register("packConfirm", function() return packConfirmButton end)
+	end
 
 	return {
 		shopFrame = shopFrame,

@@ -865,6 +865,7 @@ local Shop = require(script.Shop)({
 	sidebarScoreBox = SidebarModule.scoreBox,
 	sidebarTipsBox = SidebarModule.tipsBox,
 	sidebarHandsDiscardsBox = SidebarModule.handsDiscardsBox,
+	sidebarPatronsBox = SidebarModule.patronsInset,
 	MarkTutorialSeenRemote = remotes:WaitForChild("MarkTutorialSeen"),
 })
 local shopFrame = Shop.shopFrame

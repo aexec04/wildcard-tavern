@@ -54,6 +54,10 @@ return function(deps)
 	-- targets owned by the hub; the others come from TutorialBus (registered by Menu / RoundSelect)
 	TutorialBus.register("play", deps.playButton)
 	TutorialBus.register("nextRound", deps.nextRoundButton)
+	TutorialBus.register("sidebarScore", deps.sidebarScoreBox)
+	TutorialBus.register("sidebarTips", deps.sidebarTipsBox)
+	TutorialBus.register("sidebarHands", deps.sidebarHandsDiscardsBox)
+	TutorialBus.register("sidebarPatrons", deps.sidebarPatronsBox)
 
 	local machine = Steps.new()
 	local active, completed = false, false
@@ -149,6 +153,16 @@ return function(deps)
 	okButton.Visible = false
 	okButton.Parent = gui
 
+	-- "tap" steps: a clear Active button exactly over the spotlight hole. Tapping the highlighted piece is the action.
+	local tapButton = Instance.new("TextButton")
+	tapButton.Name = "TutorialTap"
+	tapButton.BackgroundTransparency = 1
+	tapButton.Text = ""
+	tapButton.AutoButtonColor = false
+	tapButton.ZIndex = Z + 2
+	tapButton.Visible = false
+	tapButton.Parent = gui
+
 	-- Skip: small, top right, away from the text; needs a hold to confirm
 	local skipButton = Instance.new("TextButton")
 	skipButton.Name = "TutorialSkip"
@@ -240,7 +254,12 @@ return function(deps)
 			end
 		elseif step.target then
 			local inst = TutorialBus.resolve(step.target)
-			if inst and visible(inst) then return { inst }, step.text end
+			if typeof(inst) == "table" then
+				-- a getter may return a LIST (the union of the named elements, e.g. every Patron card on the shelf)
+				local list = {}
+				for _, one in ipairs(inst) do if visible(one) then list[#list + 1] = one end end
+				if #list > 0 then return list, step.text end
+			elseif inst and visible(inst) then return { inst }, step.text end
 		end
 		-- not on this screen: point back at the menu's Play button when the menu is up
 		if menuPlay and visible(menuPlay) then
@@ -263,6 +282,7 @@ return function(deps)
 	-- No spotlight (target missing or not on screen yet): keep ONE full-screen sink so nothing underneath can
 	-- be clicked, without drawing a wrong highlight.
 	local function setChromeHidden()
+		tapButton.Visible = false
 		for _, f in ipairs(dims) do f.Visible = false end
 		dims[1].Position, dims[1].Size = UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1)
 		dims[1].Visible = true
@@ -298,6 +318,8 @@ return function(deps)
 			dims[3].Position, dims[3].Size = UDim2.fromOffset(0, y), UDim2.fromOffset(x, h)
 			dims[4].Position, dims[4].Size = UDim2.fromOffset(x + w, y), UDim2.fromOffset(math.max(0, size.X - x - w), h)
 			highlight.Position, highlight.Size = UDim2.fromOffset(x, y), UDim2.fromOffset(w, h)
+			tapButton.Position, tapButton.Size = highlight.Position, highlight.Size
+			tapButton.Visible = currentStep ~= nil and currentStep.action == "tap"
 			-- ribbon below the cutout (above when there is no room), centred on it, kept on screen; the arrow
 			-- sits between the ribbon and the target, pointing at it
 			local rw, rh = ribbon.AbsoluteSize.X, 56
@@ -333,6 +355,7 @@ return function(deps)
 	end
 
 	local function hideAll()
+		tapButton.Visible = false
 		stopFollowing()
 		setChrome(false)
 		ribbon.Visible = false
@@ -367,10 +390,15 @@ return function(deps)
 			highlight.Visible = false
 			arrow.Visible = false
 			ribbonText.Text = step.text
+			-- the final card is a bigger celebration card
+			local big = step.celebrate == true
+			ribbon.Size = big and UDim2.fromOffset(520, 90) or UDim2.fromOffset(380, 56)
+			ribbonText.TextSize = big and 28 or 20
 			ribbon.Visible = true
 			local size = gui.AbsoluteSize
-			ribbon.Position = UDim2.fromOffset(size.X / 2 - 190, size.Y / 2 - 60)
-			okButton.Position = UDim2.fromOffset(size.X / 2, size.Y / 2 + 14)
+			local halfW = big and 260 or 190
+			ribbon.Position = UDim2.fromOffset(size.X / 2 - halfW, size.Y / 2 - (big and 80 or 60))
+			okButton.Position = UDim2.fromOffset(size.X / 2, size.Y / 2 + (big and 26 or 14))
 			okButton.Text = step.button or "Nice!"
 			okButton.Visible = true
 			return
@@ -466,6 +494,11 @@ return function(deps)
 		end
 	end
 
+	tapButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		report("tap")
+	end)
+
 	okButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		report("ok")
@@ -512,10 +545,10 @@ return function(deps)
 			step = machine:current()
 		end
 		if step and step.action == "select_round" and state.phase ~= "roundSelect" and root.Visible then
-			if state.phase == "playing" then machine:catchUp("pick") elseif state.phase == "shop" then machine:catchUp("next_round") end
+			if state.phase == "playing" then machine:catchUp("pick") elseif state.phase == "shop" then machine:catchUpShop() end
 		end
 		if step and (step.action == "pick" or step.action == "play_hand") and state.phase == "shop" then
-			machine:catchUp("next_round")
+			machine:catchUpShop() -- the round was cleared: carry on with the Shop steps
 		end
 	end
 
@@ -557,11 +590,14 @@ return function(deps)
 		notifyHandPlayed = function() report("play_hand") end,
 		notifyDiscardUsed = function() end,
 		notifyEnteredShop = function()
-			if active and machine:current() and machine:current().action ~= "next_round" and machine:current().action ~= "ok" then
-				machine:catchUp("next_round")
+			local cur = machine:current()
+			if active and cur and not cur.shop and cur.action ~= "next_round" and cur.action ~= "ok" then
+				machine:catchUpShop()
 				show()
 			end
 		end,
+		-- generic feed for the Shop: buy_patron, buy_pack, pack_item, pack_confirm, tab_*, reroll
+		report = function(action, detail) report(action, detail) end,
 		notifyNextRoundClicked = function() report("next_round") end,
 	}
 end

@@ -11,6 +11,9 @@
 	targetCount(stage) -> number
 ]]
 
+local Patrons = require(script.Parent.Patrons)
+local Packs = require(script.Parent.Packs)
+
 local TutorialScript = {}
 
 TutorialScript.Stages = {
@@ -103,6 +106,42 @@ function TutorialScript.applyStage(state, stage, handSize)
 	state.hand = newHand
 	state.deck = pool
 	return true
+end
+
+-- SCRIPTED SHOP for the tutorial run (server, applied on every roll including a reroll): a cheap Patron and a
+-- cheap Pack are always on the shelf (the cheapest the run does not own), no House Pass, and the player has
+-- enough Tips for a Patron, a Pack and one Reroll. Mutates `offers` and state.tips, returns the cost it covers.
+function TutorialScript.shopFor(state, offers, rerollCost)
+	local owned = {}
+	for _, p in ipairs(state.ownedPatrons or {}) do owned[p.id] = true end
+	local cheapPatron
+	for _, p in ipairs(Patrons.Definitions) do
+		if not owned[p.id] and (not cheapPatron or p.price < cheapPatron.price) then cheapPatron = p end
+	end
+	local cheapPack
+	for _, pk in ipairs(Packs.Definitions) do
+		if not cheapPack or pk.price < cheapPack.price then cheapPack = pk end
+	end
+	offers.voucher = nil
+	if cheapPatron then
+		offers.patrons = offers.patrons or {}
+		for i = #offers.patrons, 1, -1 do
+			if offers.patrons[i].id == cheapPatron.id then table.remove(offers.patrons, i) end
+		end
+		table.insert(offers.patrons, 1, cheapPatron)
+		while #offers.patrons > 2 do table.remove(offers.patrons) end
+	end
+	if cheapPack then
+		offers.packs = offers.packs or {}
+		for i = #offers.packs, 1, -1 do
+			if offers.packs[i].id == cheapPack.id then table.remove(offers.packs, i) end
+		end
+		table.insert(offers.packs, 1, cheapPack)
+		while #offers.packs > 2 do table.remove(offers.packs) end
+	end
+	local need = (cheapPatron and cheapPatron.price or 0) + (cheapPack and cheapPack.price or 0) + (rerollCost or 5) + 2
+	if (state.tips or 0) < need then state.tips = need end
+	return need
 end
 
 return TutorialScript
