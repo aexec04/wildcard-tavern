@@ -111,7 +111,27 @@ Events live in `Engine/LiveEvents.lua` (UTC dates, both days count). Edit the ta
 - **Week 6:** Season track (monthly ladder) and the first Legend prestige reward. Review all retention numbers and plan the next six weeks.
 - Rule of thumb: one thing players can see on the first screen, every week.
 
-## 6. Last checks before you press Publish
+## 6. Reading the tuning events (Creator Hub > Analytics > Custom events)
+
+The server sends a small set of events so you can tune the game after launch. A run sends about 15 events at most (kept in memory and sent once at Game Over). Each player is capped at 120 events per hour, so nothing here can flood your quota or slow the game.
+Fields are filters ("breakdown by"). Value is the number in brackets.
+
+| Question | Event (value) | Fields | How to read it |
+|---|---|---|---|
+| Which Patrons do players actually buy? | `patron_bought` (times bought) | patron, stake, night | Sort by total. Top few may be too strong, bottom few too weak or too hard to unlock. Split by night to see early versus late picks. |
+| Which Patrons are on winning tables? | `patron_end` (1) | patron, won | Compare won yes against won no for each Patron. A Patron that is on most wins and most losses is just popular, one that is only on wins is a power pick. |
+| Which bosses end runs? | `boss_result` (hands used) | boss, won, night | Win rate per boss. Under about 50 percent on an early Night means that boss is too harsh. Average hands used shows how close the fight was. |
+| Where do players leave? | `run_quit` (Night) | phase, stake | Phase tells you the screen (roundSelect, playing, shop). A spike at one Night and phase is where the run feels bad. |
+| How do runs end overall? | `run_end` (Night reached) | stake, road, won | Win rate and median Night per stake and per road. Compare with the bot table in claude/OUTBOX.md (stake 1 about 29 percent for a skilled player). |
+| Are quests worth it? | `quest_done` (1) | quest | Quests nobody finishes are too hard or too dull. |
+| Is the rank ladder moving? | `rank_up` (rank) | none | The drop off between ranks shows where players stop returning. |
+| Is the Store working? | `store_opened`, `store_prompt`, `store_bought` (1) | item | Opened to prompt to bought is your funnel. Many opens and no prompts means the cards are not clear. Many prompts and no buys means price or trust. |
+| Are live events seen and claimed? | `live_event_seen`, `live_event_reward_claimed` | event | Claimed divided by seen tells you if the reward is worth the trip. |
+
+Tips: change one thing per update, then compare the same event for the 3 days before and after. Ignore any breakdown with fewer than about 30 events, it is noise.
+The funnel steps (first_hand_played, first_round_won, first_shop_visit, first_run_ended) live under Funnels, not Custom events.
+
+## 7. Last checks before you press Publish
 
 - [ ] Tests pass: `lua tools/run_tests_local.lua`, and `lua tools/test_sim.lua`.
 - [ ] No red text in Output during a full run in Studio Play.

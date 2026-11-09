@@ -8835,6 +8835,60 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "RunTelemetry: per run aggregate, one flush, caps, hourly budget, Analytics batches never throw", fn = function()
+	local RT = require(script.Parent.Parent.Engine.RunTelemetry)
+	local Analytics = require(script.Parent.Parent.Engine.Analytics)
+	local agg = RT.new()
+	expectTrue(RT.recordPatronBought(agg, "tip_jar", 1, 2)); expectTrue(RT.recordPatronBought(agg, "tip_jar", 1, 2)); expectTrue(RT.recordPatronBought(agg, "tip_jar", 1, 3))
+	expectTrue(RT.recordPatronBought(agg, "flush_fan", 4, 5))
+	expectFalse(RT.recordPatronBought(agg, 5, 1, 1)); expectFalse(RT.recordPatronBought(agg, string.rep("x", 60), 1, 1))
+	expectTrue(RT.recordBoss(agg, "no_repeats", true, 3, 2)); expectFalse(RT.recordBoss(agg, "no_repeats", true, 3, 2), "once per boss and Night")
+	expectTrue(RT.recordBoss(agg, "no_repeats", false, 4, 6)); expectFalse(RT.recordBoss(agg, nil, true, 1, 1))
+	for i = 1, 20 do RT.recordBoss(agg, "boss" .. i, true, 1, 100 + i) end
+	expectEqual(#agg.bosses, RT.MAX_BOSSES, "boss results are capped per run")
+	local events = RT.flush(agg, { "tip_jar", "flush_fan", "a", "b", "c", "d", "e", "f", "g", "h" }, true)
+	local counts = {}
+	for _, e in ipairs(events) do counts[e.name] = (counts[e.name] or 0) + 1 end
+	expectEqual(counts.boss_result, RT.MAX_BOSSES); expectEqual(counts.patron_end, RT.MAX_PATRONS, "owned Patrons are capped")
+	expectEqual(counts.patron_bought, 3, "three distinct (patron, stake, night) keys")
+	expectEqual(events[1].name, "boss_result", "most important events come first")
+	local bought = {}
+	for _, e in ipairs(events) do if e.name == "patron_bought" and e.fields.patron == "tip_jar" and e.fields.night == 2 then bought = e end end
+	expectEqual(bought.value, 2, "two buys of the same key are one event with a count")
+	expectEqual(#RT.flush(agg, {}, true), 0, "a run flushes once")
+	local many = RT.new()
+	for i = 1, 100 do RT.recordPatronBought(many, "p" .. i, 1, 1) end
+	expectEqual(many.boughtKeys, RT.MAX_BOUGHT_KEYS, "bought keys are capped")
+	-- budget: 120 per rolling hour per player, refilled after the hour, players are independent
+	local budget = {}
+	expectEqual(RT.allow(budget, 1, 0, 100), 100); expectEqual(RT.allow(budget, 1, 10, 50), 20, "only 20 left this hour")
+	expectEqual(RT.allow(budget, 1, 20, 5), 0); expectEqual(RT.allow(budget, 2, 20, 5), 5, "another player has their own budget")
+	expectEqual(RT.allow(budget, 1, RT.HOUR + 1, 30), 30, "the first 100 aged out of the hour")
+	expectEqual(RT.allow(budget, 1, RT.HOUR + 2, -4), 0); expectEqual(RT.allow(budget, 1, RT.HOUR + 3, "x"), 0)
+	RT.forget(budget, 1); expectEqual(budget[1], nil)
+	-- dispatch: the budget cuts a big run, a throwing sender never escapes
+	local sent = {}
+	local list = {}
+	for i = 1, 150 do list[i] = { name = "e" .. i, value = 1, fields = {} } end
+	expectEqual(RT.dispatch(list, {}, 9, 0, function(e) sent[#sent + 1] = e.name end), 120); expectEqual(sent[1], "e1"); expectEqual(#sent, 120)
+	expectEqual(RT.dispatch(list, {}, 9, 0, function() error("boom") end), 0, "a failing send is swallowed")
+	-- Analytics.sendBatch / single use the same budget and call the service
+	local logged = {}
+	Analytics.setService({ LogCustomEvent = function(_, _, name, value, fields) logged[#logged + 1] = { name = name, value = value, fields = fields } end })
+	local fakePlayer = { UserId = 777 }
+	expectEqual(Analytics.sendBatch(fakePlayer, { { name = "boss_result", value = 3, fields = { boss = "x", won = "yes" } } }, 5), 1)
+	expectEqual(logged[1].name, "boss_result"); expectEqual(logged[1].fields.boss, "x"); expectEqual(logged[1].value, 3)
+	expectTrue(Analytics.single(fakePlayer, "run_quit", 4, { phase = "shop" }, 6)); expectEqual(logged[2].name, "run_quit")
+	for _ = 1, 200 do Analytics.single(fakePlayer, "store_opened", 1, {}, 7) end
+	expectEqual(#logged, 120, "the hourly cap holds across calls")
+	Analytics.forgetPlayer(fakePlayer)
+	expectTrue(Analytics.single(fakePlayer, "run_quit", 1, {}, 8), "a new budget after the player left")
+	Analytics.setService(nil)
+	expectFalse(Analytics.single(fakePlayer, "run_quit", 1, {}, 9), "no service, no send, no error")
+	Analytics.forgetPlayer(fakePlayer)
+	expectEqual(Analytics.sendBatch(nil, { { name = "x", value = 1, fields = {} } }, 1), 0)
+end })
+
 table.insert(tests, { name = "Synergy: every Patron has 1 to 3 valid tags, owned tags, dominant hand, economy gap, at most 2 tags shown", fn = function()
 	local Synergy = require(script.Parent.Parent.Engine.Synergy)
 	expectEqual(table.concat(Synergy.validate(), "; "), "", "every Patron has 1 to 3 valid unique tags")

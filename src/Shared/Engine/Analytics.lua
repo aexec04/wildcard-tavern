@@ -110,4 +110,28 @@ function Analytics.rankUp(player, rank)
 	return Analytics.event(player, "rank_up", rank, {})
 end
 
+-- Post launch tuning events (Engine/RunTelemetry.lua): one budgeted dispatch of a list of { name, value, fields }.
+-- `budget` is the server's per-player rolling hour table. Returns how many were sent.
+local budgets = {}
+function Analytics.sendBatch(player, events, now)
+	local RunTelemetry = require(script.Parent.RunTelemetry)
+	local userId = player and player.UserId or 0
+	local sent = 0
+	local ok = pcall(function()
+		sent = RunTelemetry.dispatch(events, budgets, userId, now or os.time(), function(e)
+			return Analytics.event(player, e.name, e.value, e.fields)
+		end)
+	end)
+	return ok and sent or 0
+end
+
+function Analytics.forgetPlayer(player)
+	budgets[player and player.UserId or 0] = nil
+end
+
+-- One tuning event that is not part of a run aggregate (store panel, quit point). Counts against the same hourly budget.
+function Analytics.single(player, name, value, fields, now)
+	return Analytics.sendBatch(player, { { name = name, value = value or 1, fields = fields or {} } }, now) > 0
+end
+
 return Analytics

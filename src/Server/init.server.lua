@@ -138,6 +138,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local StoreOpenedRemote = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
 local HintSeenRemote = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
 local ResetHintsRemote = newRemote("ResetHints") -- (player): Settings > Replay Hints
 local SeasonClaimRemote = newRemote("ClaimSeason") -- (player, tier number or "all"): Tavern Season track rewards
@@ -1263,6 +1264,16 @@ local function syncProfileFromSession(player)
 	end
 	-- FIRST 5 MINUTES: funnel steps, run_end, the one-time first-win reward and follow prompt.
 	local runState = session.state
+	-- TUNING DATA (Engine/RunTelemetry.lua): a Boss Round that just ended is recorded in memory (a clear shows up as
+	-- bossesCleared going up while its modifier is still current; a loss is recorded at Game Over below).
+	if session.telemetry and (runState.bossesCleared or 0) > (session.telemetryBosses or 0) then
+		session.telemetryBosses = runState.bossesCleared
+		pcall(function()
+			local mod = runState.bossModifier
+			require(Engine.RunTelemetry).recordBoss(session.telemetry, mod and mod.id or "unknown", true,
+				(runState.roundStartHands or 0) - (runState.handsRemaining or 0), runState.night)
+		end)
+	end
 	if (runState.handsPlayedTotal or 0) >= 1 then logStep(player, "first_hand_played") end
 	if (runState.roundsCleared or 0) >= 1 then logStep(player, "first_round_won") end
 	if session.phase == "shop" then logStep(player, "first_shop_visit") end
@@ -1272,6 +1283,21 @@ local function syncProfileFromSession(player)
 			session.runEndLogged = true
 			local route = runState.worldRoute or {}
 			Analytics.runEnd(player, runState.stake, WorldMap.regionOf(route[#route]), runState.night, runState.wonRun)
+		end
+		-- TUNING DATA: flush the run's aggregate once (a lost Boss Round is recorded first, then Patrons owned and bought).
+		if session.telemetry and not session.telemetryFlushed then
+			session.telemetryFlushed = true
+			pcall(function()
+				local RunTelemetry = require(Engine.RunTelemetry)
+				if not runState.wonRun and RunState.isBossRound(runState) then
+					local mod = runState.bossModifier
+					RunTelemetry.recordBoss(session.telemetry, mod and mod.id or "unknown", false,
+						(runState.roundStartHands or 0) - (runState.handsRemaining or 0), runState.night)
+				end
+				local ownedIds = {}
+				for _, p in ipairs(runState.ownedPatrons or {}) do ownedIds[#ownedIds + 1] = p.id end
+				Analytics.sendBatch(player, RunTelemetry.flush(session.telemetry, ownedIds, runState.wonRun == true), os.time())
+			end)
 		end
 		-- RUN HISTORY (Engine/RunHistory.lua): once per run, only when it ends normally at Game Over (tutorial runs
 		-- never get here: they return at the top). Tagged by mode so Daily, Weekly, Seed, Boss Rush and challenges show.
@@ -1549,6 +1575,7 @@ end
 -- rejoin. Fires on the server regardless of which client (if any) prompted it.
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
 	if wasPurchased then
+		Analytics.single(player, "store_bought", 1, { item = "pass_" .. tostring(gamePassId) }) -- tuning data
 		refreshOwnedGamePasses(player)
 	end
 end)
@@ -1598,6 +1625,8 @@ MarketplaceService.ProcessReceipt = function(receiptInfo)
 		end
 		local okGrant, status = pcall(Store.processReceipt, buyerProfile, receiptInfo.ProductId, receiptInfo.PurchaseId)
 		if okGrant and status == "granted" then
+			local boughtItem = Store.getByProductId(receiptInfo.ProductId)
+			Analytics.single(buyer, "store_bought", 1, { item = boughtItem and boughtItem.id or "unknown" }) -- tuning data
 			profileDirty[buyer] = true
 			pcall(saveProfile, buyer)
 			if profileDirty[buyer] then
@@ -1679,6 +1708,7 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		-- Select even before the very first blind), not straight into
 		-- "playing".
 		phase = "roundSelect",
+		telemetry = require(Engine.RunTelemetry).new(), -- per-run tuning aggregate, flushed once at Game Over
 		shopOffers = {},
 		packOffers = {},
 		voucherOffer = nil,
@@ -1836,6 +1866,13 @@ Players.PlayerRemoving:Connect(function(player)
 	-- Final save attempt before this player's data goes away -- on top of
 	-- the AUTOSAVE_INTERVAL safety net, this is the normal/expected save
 	-- path for a player who just leaves normally.
+	pcall(function() -- QUIT POINT (tuning data): left in the middle of a real run
+		local s = sessions[player]
+		if s and s.phase ~= "gameover" and not s.isTutorial and (s.state.handsPlayedTotal or 0) > 0 then
+			Analytics.single(player, "run_quit", s.state.night or 0, { phase = s.phase, stake = s.state.stake or 1 })
+		end
+		Analytics.forgetPlayer(player)
+	end)
 	saveProfile(player, true) -- final save also releases the session lease
 	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
 	saveWeeklyScore(player) -- WEEKLY CHALLENGE (Phase 16)
@@ -1899,6 +1936,12 @@ end)
 game:BindToClose(function()
 	local pending = 0
 	for _, player in ipairs(Players:GetPlayers()) do
+		pcall(function() -- QUIT POINT (tuning data): the server is closing in the middle of a real run
+			local s = sessions[player]
+			if s and s.phase ~= "gameover" and not s.isTutorial and (s.state.handsPlayedTotal or 0) > 0 then
+				Analytics.single(player, "run_quit", s.state.night or 0, { phase = s.phase, stake = s.state.stake or 1 })
+			end
+		end)
 		if profiles[player] then
 			pending = pending + 1
 			task.spawn(function()
@@ -2052,6 +2095,9 @@ BuyPatronRemote.OnServerEvent:Connect(function(player, patronId)
 
 	local ok = RunState.buyPatron(session.state, patronId)
 	if ok then
+		pcall(function() -- tuning data: counted in memory, sent once at Game Over (Engine/RunTelemetry.lua)
+			require(Engine.RunTelemetry).recordPatronBought(session.telemetry, patronId, session.state.stake, session.state.night)
+		end)
 		-- Remove the bought offer so it can't be bought twice this visit.
 		for i, patron in ipairs(session.shopOffers) do
 			if patron.id == patronId then
@@ -2728,6 +2774,11 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 	pushState(player)
 end)
 
+StoreOpenedRemote.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "StoreOpenedRemote", os.clock()) then return end
+	Analytics.single(player, "store_opened", 1, {}) -- budgeted per player per hour like every tuning event
+end)
+
 -- FIRST TIME HINTS (Engine/Hints.lua): the client reports a hint it showed; unknown ids are refused. No state push:
 -- the client already knows, and an echo could re-trigger a bubble.
 HintSeenRemote.OnServerEvent:Connect(function(player, hintId)
@@ -2784,6 +2835,7 @@ StorePurchaseRemote.OnServerEvent:Connect(function(player, itemId)
 	if not profile or not item or item.listOnly then
 		return
 	end
+	Analytics.single(player, "store_prompt", 1, { item = item.id }) -- tuning data: a purchase prompt was requested
 	if Store.owned(profile, item, ownedGamePasses[player]) then
 		pushRewardNotice(player, { icon = "✔", text = item.name .. " is already yours." })
 	elseif Store.isConfigured(item) then

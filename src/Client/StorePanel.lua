@@ -237,6 +237,13 @@ function StorePanel.init(deps)
 		deps.playClickSfx()
 		StorePanel.refresh()
 		deps.popIn(backdrop, panel)
+		pcall(function() -- tuning data: the Store panel was opened (server counts it against the hourly event budget)
+			local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+			local remote = remotes and remotes:FindFirstChild("StoreOpened")
+			if remote then
+				remote:FireServer()
+			end
+		end)
 	end
 	ui.open = open
 	deps.openButton.MouseButton1Click:Connect(open)
