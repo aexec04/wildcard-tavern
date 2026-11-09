@@ -404,15 +404,18 @@ function SeasonPanel.init(deps)
 		end
 	end)
 
+	require(script.Parent.PanelTabs).attach(backdrop, "season", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("season", function()
 		deps.popOut(backdrop, panel)
 	end)
-	deps.openButton.MouseButton1Click:Connect(function()
+	local function openThisPanel()
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("season")
 		refresh()
 		deps.popIn(backdrop, panel)
-	end)
+	end
+	OverlayManager.registerOpener("season", openThisPanel)
+	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)

@@ -234,15 +234,18 @@ function CollectionRewardsPanel.init(deps)
 		end
 	end)
 
+	require(script.Parent.PanelTabs).attach(backdrop, "collectionRewards", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("collectionRewards", function()
 		deps.popOut(backdrop, panel)
 	end)
-	deps.openButton.MouseButton1Click:Connect(function()
+	local function openThisPanel()
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("collectionRewards")
 		refresh()
 		deps.popIn(backdrop, panel)
-	end)
+	end
+	OverlayManager.registerOpener("collectionRewards", openThisPanel)
+	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)

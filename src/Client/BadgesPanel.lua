@@ -438,12 +438,13 @@ return function(deps)
 		end
 	end)
 
+	require(script.Parent.PanelTabs).attach(backdrop, "badges", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("badges", function()
 		stopShine()
 		popOut(backdrop, panel)
 	end)
 
-	deps.openButton.MouseButton1Click:Connect(function()
+	local function openThisPanel()
 		playClickSfx()
 		OverlayManager.closeAllExcept("badges")
 		task.spawn(function()
@@ -451,7 +452,9 @@ return function(deps)
 		end)
 		refresh()
 		popIn(backdrop, panel)
-	end)
+	end
+	OverlayManager.registerOpener("badges", openThisPanel)
+	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		stopShine()

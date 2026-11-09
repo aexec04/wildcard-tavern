@@ -8,6 +8,8 @@
 -- update(state): called from render in a pcall; keeps an open panel current and opens it once per state.storePrompt.
 local MarketplaceService = game:GetService("MarketplaceService")
 
+local OverlayManager = require(script.Parent.OverlayManager)
+
 local StorePanel = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -235,6 +237,7 @@ function StorePanel.init(deps)
 
 	local function open()
 		deps.playClickSfx()
+		OverlayManager.closeAllExcept("store")
 		StorePanel.refresh()
 		deps.popIn(backdrop, panel)
 		pcall(function() -- tuning data: the Store panel was opened (server counts it against the hourly event budget)
@@ -246,6 +249,9 @@ function StorePanel.init(deps)
 		end)
 	end
 	ui.open = open
+	require(script.Parent.PanelTabs).attach(backdrop, "store", deps.playClickSfx) -- shared tab strip + Back
+	OverlayManager.register("store", function() deps.popOut(backdrop, panel) end)
+	OverlayManager.registerOpener("store", open)
 	deps.openButton.MouseButton1Click:Connect(open)
 	close.MouseButton1Click:Connect(function()
 		deps.playClickSfx()

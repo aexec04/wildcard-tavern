@@ -963,6 +963,7 @@ return function(deps)
 		end)
 	end
 
+	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("collection", function()
 		hideDetail()
 		popOut(backdrop, panel)
@@ -975,6 +976,7 @@ return function(deps)
 		refresh()
 		popIn(backdrop, panel)
 	end
+	OverlayManager.registerOpener("collection", openCollection)
 	deps.collectionButton.MouseButton1Click:Connect(openCollection)
 	if deps.menuCollectionButton then
 		deps.menuCollectionButton.MouseButton1Click:Connect(openCollection)

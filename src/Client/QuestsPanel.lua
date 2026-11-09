@@ -4,6 +4,8 @@
 --
 -- init(deps): { screenGui, openButton, polishPanel, polishButton, roundCorner, playClickSfx, popIn, popOut,
 --               getLatestState }.  update(state) is called from render in a pcall to keep an open panel live.
+local OverlayManager = require(script.Parent.OverlayManager)
+
 local QuestsPanel = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -210,6 +212,7 @@ function QuestsPanel.init(deps)
 
 	local function open()
 		deps.playClickSfx()
+		OverlayManager.closeAllExcept("quests")
 		refresh()
 		deps.popIn(backdrop, panel)
 	end
@@ -217,6 +220,9 @@ function QuestsPanel.init(deps)
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end
+	require(script.Parent.PanelTabs).attach(backdrop, "quests", deps.playClickSfx) -- shared tab strip + Back
+	OverlayManager.register("quests", function() deps.popOut(backdrop, panel) end)
+	OverlayManager.registerOpener("quests", open)
 	deps.openButton.MouseButton1Click:Connect(open)
 	close.MouseButton1Click:Connect(closePanel)
 	-- a click on the dim area closes it too

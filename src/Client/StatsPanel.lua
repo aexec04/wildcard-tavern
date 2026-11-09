@@ -353,15 +353,18 @@ return function(deps)
 		end
 	end
 
+	require(script.Parent.PanelTabs).attach(backdrop, "stats", deps.playClickSfx) -- shared tab strip + Back
 	OverlayManager.register("stats", function()
 		deps.popOut(backdrop, panel)
 	end)
-	deps.openButton.MouseButton1Click:Connect(function()
+	local function openThisPanel()
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("stats")
 		refresh()
 		deps.popIn(backdrop, panel)
-	end)
+	end
+	OverlayManager.registerOpener("stats", openThisPanel)
+	deps.openButton.MouseButton1Click:Connect(openThisPanel)
 	closeButton.MouseButton1Click:Connect(function()
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)

@@ -9,6 +9,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LoginStreak = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LoginStreak"))
 local QuestsPanel = require(script.Parent.QuestsPanel) -- timeLeftText
 
+local OverlayManager = require(script.Parent.OverlayManager)
+
 local DailyRewardsPanel = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -204,6 +206,9 @@ function DailyRewardsPanel.init(deps)
 			end
 		end
 	end)
+	require(script.Parent.PanelTabs).attach(backdrop, "dailyRewards", deps.playClickSfx) -- shared tab strip + Back
+	OverlayManager.register("dailyRewards", function() deps.popOut(backdrop, panel) end)
+	OverlayManager.registerOpener("dailyRewards", DailyRewardsPanel.open)
 	task.spawn(function() -- live countdown, only while visible
 		while backdrop.Parent do
 			if backdrop.Visible then pcall(DailyRewardsPanel.tick) end
@@ -215,6 +220,7 @@ end
 function DailyRewardsPanel.open()
 	if not ui then return end
 	ui.playClickSfx()
+	OverlayManager.closeAllExcept("dailyRewards")
 	refresh()
 	ui.popIn(ui.backdrop, ui.panel)
 end

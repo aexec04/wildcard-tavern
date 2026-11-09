@@ -60,7 +60,25 @@ local function closeAllExcept(exceptName)
 	end
 end
 
+-- Openers (PanelTabs): the account panels also register how to open themselves, so a tab strip can switch
+-- straight from one panel to another. open(name) closes every other overlay first, then runs that opener.
+local openFns = {}
+
+local function registerOpener(name, openFn)
+	openFns[name] = openFn
+end
+
+local function open(name)
+	local openFn = openFns[name]
+	if not openFn then return false end
+	closeAllExcept(name)
+	openFn()
+	return true
+end
+
 return {
 	register = register,
 	closeAllExcept = closeAllExcept,
+	registerOpener = registerOpener,
+	open = open,
 }
