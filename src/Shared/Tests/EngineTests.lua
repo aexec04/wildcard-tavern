@@ -8831,6 +8831,92 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "Recipes second batch: 16 registered with unlock rules and prompts, every effect works", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local ids = { "pair_platter", "suit_platter", "row_platter", "feast_platter", "single_serving", "fresh_menu",
+		"cooks_choice", "stamp_collector", "family_style", "silver_platter", "gold_leaf",
+		"patron_echo", "twin_card", "swap_out", "suit_flip", "patron_shuffle" }
+	local function find(id)
+		return Recipes.getHouseRecipeById(id) or Recipes.getSecretRecipeById(id)
+	end
+	local kinds, seen = {}, {}
+	for _, id in ipairs(ids) do
+		local def = find(id)
+		expectTrue(def ~= nil, id .. " is registered")
+		expectTrue(not seen[id], "unique " .. id); seen[id] = true
+		local words = 0
+		for _ in def.description:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= 14, id .. " description is 14 words or fewer, got " .. words)
+		expectTrue(def.flavorText ~= "" and def.price >= 3 and def.price <= 10, id .. " has flavor and a sane price")
+		expectTrue(Unlocks.isGated("recipe", id), id .. " is gated")
+		kinds[Unlocks.ruleOf("recipe", id).kind] = true
+	end
+	expectTrue(kinds.wins and kinds.rank and kinds.stake and kinds.bestNight and kinds.hands and kinds.quests, "rules spread over every kind")
+	-- hand level ups
+	local state = RunState.new(nil, SeededRng.new(21))
+	local function use(id, opts) return find(id).apply(state, opts or {}, { Patrons = Patrons, patronSlotLimit = 5 }) end
+	expectTrue(use("pair_platter")); expectEqual(state.handLevels["Pair"], 1); expectEqual(state.handLevels["Two Pair"], 1)
+	expectTrue(use("suit_platter")); expectEqual(state.handLevels["Flush"], 1); expectEqual(state.handLevels["Straight Flush"], 1)
+	expectTrue(use("row_platter")); expectEqual(state.handLevels["Straight"], 1); expectEqual(state.handLevels["Three of a Kind"], 1)
+	expectTrue(use("feast_platter")); expectEqual(state.handLevels["Full House"], 1); expectEqual(state.handLevels["Four of a Kind"], 1)
+	expectTrue(use("single_serving")); expectEqual(state.handLevels["High Card"], 3)
+	state.handStats = {}
+	expectFalse((use("fresh_menu")), "needs a played hand")
+	state.handStats = { Pair = 5, Flush = 2, ["High Card"] = 2, Straight = 0 }
+	expectTrue(use("fresh_menu")); expectEqual(state.handLevels["Flush"], 2, "least played, ties by name: Flush before High Card")
+	-- card modifiers
+	local C = Card.new
+	state.hand = { C(5, "Hearts"), C(6, "Spades"), C(7, "Clubs"), C(8, "Diamonds") }
+	expectTrue(use("cooks_choice", { cardIndices = { 1, 2 } }))
+	expectTrue(Card.Specials[state.hand[1].special] ~= nil and Card.Specials[state.hand[2].special] ~= nil)
+	expectFalse((use("cooks_choice", { cardIndices = { 1, 2, 3 } })), "max 2")
+	expectFalse((use("cooks_choice", { cardIndices = {} })), "at least 1")
+	expectTrue(use("stamp_collector", { cardIndices = { 3, 4 } }))
+	expectTrue(Card.Stamps[state.hand[3].stamp] ~= nil and Card.Stamps[state.hand[4].stamp] ~= nil)
+	expectTrue(use("family_style", { cardIndices = { 1, 2, 3 } }))
+	for i = 1, 3 do expectTrue(Card.Garnishes[state.hand[i].garnish] ~= nil, "garnish " .. i) end
+	expectFalse((use("family_style", { cardIndices = { 1, 2, 3, 4 } })))
+	expectTrue(use("silver_platter", { cardIndices = { 1, 4 } })); expectEqual(state.hand[1].special, "silver"); expectEqual(state.hand[4].special, "silver")
+	expectTrue(use("gold_leaf", { cardIndices = { 2 } })); expectEqual(state.hand[2].stamp, "gold")
+	-- strategic
+	state.ownedPatrons = {}
+	expectFalse((use("patron_echo")), "no Patron to echo"); expectFalse((use("patron_shuffle")), "no Patron to swap")
+	state.ownedPatrons = { Patrons.Definitions[1] }
+	expectTrue(use("patron_echo")); expectEqual(#state.ownedPatrons, 2)
+	expectEqual(state.ownedPatrons[1].id, state.ownedPatrons[2].id, "an exact copy")
+	expectTrue(RunState.sellPatron(state, state.ownedPatrons[1].id)); expectEqual(#state.ownedPatrons, 1, "selling removes one copy")
+	state.ownedPatrons = { Patrons.Definitions[1], Patrons.Definitions[2], Patrons.Definitions[3], Patrons.Definitions[4], Patrons.Definitions[5] }
+	expectFalse((use("patron_echo")), "a full table refuses")
+	state.tips = 3
+	expectFalse((use("patron_shuffle")), "needs 4 Tips")
+	state.tips = 10
+	local before = {}
+	for _, p in ipairs(state.ownedPatrons) do before[#before + 1] = p.id end
+	expectTrue(use("patron_shuffle")); expectEqual(state.tips, 6); expectEqual(#state.ownedPatrons, 5)
+	local changed = 0
+	for i, p in ipairs(state.ownedPatrons) do if p.id ~= before[i] then changed = changed + 1 end end
+	expectEqual(changed, 1, "exactly one Patron swapped")
+	state.hand = { C(5, "Hearts", { garnish = "sweet", stamp = "gold" }), C(6, "Spades"), C(7, "Clubs"), C(8, "Diamonds") }
+	local discardBefore = #state.discardPile
+	expectTrue(use("twin_card", { cardIndices = { 1 } }))
+	local twin = state.discardPile[#state.discardPile]
+	expectEqual(#state.discardPile, discardBefore + 1)
+	expectTrue(twin.rank == 5 and twin.suit == "Hearts" and twin.garnish == "sweet" and twin.stamp == "gold" and twin ~= state.hand[1], "a distinct exact copy")
+	local oldCard = state.hand[2]
+	expectTrue(use("swap_out", { cardIndices = { 2 } }))
+	expectTrue(state.hand[2] ~= oldCard and #state.hand == 4 and state.hand[2].garnish == nil, "replaced by a plain card")
+	expectFalse((use("swap_out", { cardIndices = { 1, 2 } })))
+	state.hand = { C(5, "Hearts"), C(6, "Spades"), C(7, "Clubs"), C(8, "Diamonds") }
+	expectTrue(use("suit_flip"))
+	expectEqual(state.hand[1].suit, "Spades"); expectEqual(state.hand[2].suit, "Hearts"); expectEqual(state.hand[3].suit, "Diamonds"); expectEqual(state.hand[4].suit, "Clubs")
+	state.hand = {}
+	expectFalse((use("suit_flip")), "an empty hand")
+	-- through the real inventory flow too
+	local s2 = RunState.new(nil, SeededRng.new(22))
+	table.insert(s2.secretRecipeInventory, "pair_platter")
+	expectTrue(RunState.useSecretRecipe(s2, "pair_platter")); expectEqual(s2.handLevels["Pair"], 1)
+end })
+
 table.insert(tests, { name = "RunModes Quick Run: 4 Nights on the compressed curve, stake 1, half XP, no records; normal runs unchanged", fn = function()
 	local RunModes = require(script.Parent.Parent.Engine.RunModes)
 	local quick = RunModes.get("quick")

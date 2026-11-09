@@ -971,6 +971,193 @@ garnishRecipe({ id = "sea_biscuit", name = "Sea Biscuit", icon = "🥨", price =
 	description = "Adds a Zesty Garnish (+4 Mult) to 1 selected card.",
 	flavorText = "Salty, crunchy and loved by every lighthouse cat." }, "zesty", "Salty and bright.")
 
+-- ===== Second batch: 16 Recipes for build variety =====
+-- 6 hand level-ups (Secret: the multi-hand ones are stronger than a plain Menu Recipe, and Menu Recipes are never
+-- gated), 5 card modifiers and 5 strategic ones (House). Every id has a `recipe_subjects` prompt in
+-- tools/patron_art/prompts.json and an unlock rule in Engine/Unlocks.lua; descriptions are 14 words or fewer.
+do
+	local function levelRecipe(def, hands, amount)
+		def.hands, def.amount = hands, amount
+		def.apply = function(state)
+			for _, handName in ipairs(hands) do
+				state.handLevels[handName] = (state.handLevels[handName] or 0) + amount
+			end
+			return true, table.concat(hands, " and ") .. " level up!"
+		end
+		table.insert(Recipes.SecretRecipes, def)
+	end
+	levelRecipe({ id = "pair_platter", name = "Pair Platter", icon = "🍽️", price = 5,
+		description = "Levels up Pair and Two Pair by 1.", flavorText = "Two plates side by side." }, { "Pair", "Two Pair" }, 1)
+	levelRecipe({ id = "suit_platter", name = "Suit Platter", icon = "🥗", price = 5,
+		description = "Levels up Flush and Straight Flush by 1.", flavorText = "Everything on the plate matches." }, { "Flush", "Straight Flush" }, 1)
+	levelRecipe({ id = "row_platter", name = "Row Platter", icon = "🍱", price = 5,
+		description = "Levels up Straight and Three of a Kind by 1.", flavorText = "Neat rows and hearty thirds." }, { "Straight", "Three of a Kind" }, 1)
+	levelRecipe({ id = "feast_platter", name = "Feast Platter", icon = "🍖", price = 5,
+		description = "Levels up Full House and Four of a Kind by 1.", flavorText = "The big table finally gets its feast." }, { "Full House", "Four of a Kind" }, 1)
+	levelRecipe({ id = "single_serving", name = "Single Serving", icon = "🥣", price = 4,
+		description = "Levels up High Card by 3.", flavorText = "One small bowl, made very well." }, { "High Card" }, 3)
+	table.insert(Recipes.SecretRecipes, {
+		id = "fresh_menu", name = "Fresh Menu", icon = "🌱", price = 4,
+		description = "Levels up the hand you have played the fewest times.",
+		flavorText = "Time to give the quiet dishes some love.",
+		apply = function(state)
+			local worst, worstCount
+			for handName, count in pairs(state.handStats) do
+				if count > 0 and (not worst or count < worstCount or (count == worstCount and handName < worst)) then
+					worst, worstCount = handName, count
+				end
+			end
+			if not worst then
+				return false, "You haven't played a hand yet this run"
+			end
+			state.handLevels[worst] = (state.handLevels[worst] or 0) + 1
+			return true, worst .. " levels up!"
+		end,
+	})
+
+	local SPECIAL_IDS = { "silver", "gold", "rainbow" }
+	local STAMP_IDS = { "gold", "encore", "blue", "purple" }
+	local GARNISH_IDS = { "sweet", "zesty", "houseBlend", "brittle", "iron", "houseToken", "golden", "lucky" }
+	-- puts a modifier on 1..maxCards selected cards; `pick(rng)` returns the id for each card
+	local function modifierRecipe(def, maxCards, field, pick, message)
+		def.cardCount = { min = 1, max = maxCards }
+		def.apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards < 1 or #cards > maxCards then
+				return false, maxCards == 1 and "Select exactly 1 card" or ("Select 1-" .. maxCards .. " cards")
+			end
+			local rng = (opts and opts.rng) or math.random
+			for _, card in ipairs(cards) do
+				card[field] = pick(rng)
+			end
+			return true, message
+		end
+		table.insert(Recipes.HouseRecipes, def)
+	end
+	modifierRecipe({ id = "cooks_choice", name = "Cook's Choice", icon = "🥘", price = 5,
+		description = "Adds a random Special to up to 2 selected cards.", flavorText = "The cook picks the finest for you." },
+		2, "special", function(rng) return randomChoice(SPECIAL_IDS, rng) end, "Chef's pick, applied.")
+	modifierRecipe({ id = "stamp_collector", name = "Stamp Collector", icon = "📮", price = 5,
+		description = "Adds a random Stamp to up to 2 selected cards.", flavorText = "Every card deserves a little postmark." },
+		2, "stamp", function(rng) return randomChoice(STAMP_IDS, rng) end, "Stamped and sent.")
+	modifierRecipe({ id = "family_style", name = "Family Style", icon = "🍛", price = 4,
+		description = "Adds a random Garnish to up to 3 selected cards.", flavorText = "One big bowl, passed around the table." },
+		3, "garnish", function(rng) return randomChoice(GARNISH_IDS, rng) end, "Served family style.")
+	modifierRecipe({ id = "silver_platter", name = "Silver Platter", icon = "🍴", price = 7,
+		description = "Adds a Silver Special (+50 Chips) to up to 2 selected cards.", flavorText = "Served on the good tray." },
+		2, "special", function() return "silver" end, "Polished and shining.")
+	modifierRecipe({ id = "gold_leaf", name = "Gold Leaf", icon = "🏵️", price = 6,
+		description = "Adds a Gold Stamp (3 Tips when it scores) to up to 2 cards.", flavorText = "A thin sheet of shine on top." },
+		2, "stamp", function() return "gold" end, "Gilded and grand.")
+
+	-- strategic recipes
+	table.insert(Recipes.HouseRecipes, {
+		id = "patron_echo", name = "Patron Echo", icon = "🪞", price = 9,
+		description = "A random Patron at your table gets a copy of itself.",
+		flavorText = "Same smile, same stool, and one more of them.",
+		apply = function(state, opts, deps)
+			if #state.ownedPatrons == 0 then
+				return false, "You have no Patron to echo"
+			end
+			if deps and deps.patronSlotLimit and #state.ownedPatrons >= deps.patronSlotLimit then
+				return false, "Your table is full -- sell a Patron to make room"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local original = randomChoice(state.ownedPatrons, rng)
+			local copy = {}
+			for key, value in pairs(original) do
+				copy[key] = value
+			end
+			table.insert(state.ownedPatrons, copy)
+			return true, original.name .. " has an echo."
+		end,
+	})
+	table.insert(Recipes.HouseRecipes, {
+		id = "twin_card", name = "Twin Card", icon = "👯", price = 5,
+		cardCount = { min = 1, max = 1 },
+		description = "Adds an exact copy of 1 selected card to your deck.",
+		flavorText = "Two of the very same, down to the stain.",
+		apply = function(state, opts)
+			local cards = cardsAt(state, opts and opts.cardIndices)
+			if not cards or #cards ~= 1 then
+				return false, "Select exactly 1 card"
+			end
+			local c = cards[1]
+			table.insert(state.discardPile, Card.new(c.rank, c.suit, { garnish = c.garnish, special = c.special, stamp = c.stamp }))
+			return true, "A twin joins the deck."
+		end,
+	})
+	table.insert(Recipes.HouseRecipes, {
+		id = "swap_out", name = "Swap Out", icon = "🔃", price = 4,
+		cardCount = { min = 1, max = 1 },
+		description = "Destroys 1 selected card and replaces it with a random plain card.",
+		flavorText = "Out with the old, in with something fresh.",
+		apply = function(state, opts)
+			local indices = (opts and opts.cardIndices) or {}
+			if #indices ~= 1 or not state.hand[indices[1]] then
+				return false, "Select exactly 1 card"
+			end
+			local rng = (opts and opts.rng) or math.random
+			state.hand[indices[1]] = Card.new(1 + rng(13), randomChoice(Card.Suits, rng))
+			return true, "Swapped out."
+		end,
+	})
+	table.insert(Recipes.HouseRecipes, {
+		id = "suit_flip", name = "Suit Flip", icon = "🪁", price = 5,
+		description = "Hearts and Spades trade places in your hand, and so do Diamonds and Clubs.",
+		flavorText = "Turn the whole table inside out.",
+		apply = function(state)
+			local flip = { Hearts = "Spades", Spades = "Hearts", Diamonds = "Clubs", Clubs = "Diamonds" }
+			local changed = 0
+			for _, card in ipairs(state.hand) do
+				local to = flip[card.suit]
+				if to then
+					card.suit = to
+					changed = changed + 1
+				end
+			end
+			if changed == 0 then
+				return false, "No cards in your hand"
+			end
+			return true, "Suits flipped."
+		end,
+	})
+	table.insert(Recipes.HouseRecipes, {
+		id = "patron_shuffle", name = "Patron Shuffle", icon = "🎰", price = 6,
+		description = "Pay 4 Tips: a random Patron swaps for a new one.",
+		flavorText = "A fresh face walks in as the old one leaves.",
+		apply = function(state, opts, deps)
+			local Patrons = deps and deps.Patrons
+			if not Patrons or #state.ownedPatrons == 0 then
+				return false, "You have no Patron to swap"
+			end
+			if state.tips < 4 then
+				return false, "Needs 4 Tips"
+			end
+			local owned = {}
+			for _, p in ipairs(state.ownedPatrons) do
+				owned[p.id] = true
+			end
+			local available = {}
+			for _, p in ipairs(Patrons.Definitions) do
+				if not owned[p.id] then
+					table.insert(available, p)
+				end
+			end
+			if #available == 0 then
+				return false, "Every Patron is already at your table"
+			end
+			local rng = (opts and opts.rng) or math.random
+			local index = rng(#state.ownedPatrons)
+			local old = state.ownedPatrons[index]
+			local new = randomChoice(available, rng)
+			state.ownedPatrons[index] = new
+			state.tips = state.tips - 4
+			return true, old.name .. " leaves, " .. new.name .. " sits down."
+		end,
+	})
+end
+
 function Recipes.getHouseRecipeById(id)
 	for _, r in ipairs(Recipes.HouseRecipes) do
 		if r.id == id then return r end

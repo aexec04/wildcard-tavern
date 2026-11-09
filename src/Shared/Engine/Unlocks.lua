@@ -98,6 +98,12 @@ Unlocks.Rules = {
 		-- Secret Recipes
 		whole_menu_upgrade = wins(2), fresh_start = night(4), sugar_shield = night(5), crowd_favorite = wins(1), gold_standard = night(5),
 		rainbow_sprinkle = wins(3), prime_reservation = wins(2), everybodys_favorite = wins(5), bedtime_bonus = night(6),
+		-- second batch (16): level-ups, card modifiers and strategic Recipes, spread over every rule kind
+		single_serving = night(2), swap_out = night(2), cooks_choice = rank(2), family_style = night(3),
+		pair_platter = hands(150), stamp_collector = hands(200), fresh_menu = quests(5), suit_flip = quests(8),
+		suit_platter = wins(2), silver_platter = wins(3), patron_echo = wins(4),
+		row_platter = night(4), feast_platter = rank(4), patron_shuffle = rank(6),
+		gold_leaf = stake(1), twin_card = stake(2),
 		-- road Recipes arrive with the biome reward
 		honey_drizzle = grant("Clear the Wildflower Meadow."), riverside_chowder = grant("Clear the Willow River."),
 		summit_stew = grant("Clear the Mountain Peaks."), date_cake = grant("Clear the Golden Dunes."),
