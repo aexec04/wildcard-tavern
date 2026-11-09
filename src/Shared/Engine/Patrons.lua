@@ -881,6 +881,240 @@ for _, patron in ipairs(biomePatrons) do
 	table.insert(Patrons.Definitions, patron)
 end
 
+-- ===== More Patrons: suit, pair, straight, economy, scaling and rule benders (24). Gated in Engine/Unlocks.lua. =====
+-- Rule benders use data fields read by RunState: handSizeDelta, discardsDelta, handsDelta, rerollDelta (see Patrons.sum).
+local depthPatrons = {
+	{
+		id = "flush_fan", name = "Flush Fan", icon = "🪭", price = 6,
+		description = "+30 Chips if the hand is a Flush or Straight Flush.",
+		flavorText = "Fans the whole table in one color.",
+		effect = function(handResult, context)
+			return (handResult.name == "Flush" or handResult.name == "Straight Flush") and { chips = 30 } or nil
+		end,
+	},
+	{
+		id = "suit_sampler", name = "Suit Sampler", icon = "🍬", price = 6,
+		description = "+2 Mult for each different suit among the scoring cards.",
+		flavorText = "Tries one of every flavor.",
+		effect = function(handResult, context)
+			local seen, n = {}, 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if not seen[card.suit] then seen[card.suit] = true; n = n + 1 end
+			end
+			return n > 0 and { mult = 2 * n } or nil
+		end,
+	},
+	{
+		id = "warm_hearth", name = "Warm Hearth", icon = "🔥", price = 6,
+		description = "+2 Mult for each Heart held in your hand, not played.",
+		flavorText = "Keeps the best seats by the fire.",
+		effect = function(handResult, context)
+			local n = 0
+			for _, card in ipairs(context.heldCards or {}) do
+				if Card.hasSuit(card, "Hearts") then n = n + 1 end
+			end
+			return n > 0 and { mult = 2 * n } or nil
+		end,
+	},
+	{
+		id = "color_matcher", name = "Color Matcher", icon = "🎨", price = 5,
+		description = "+20 Chips if all scoring cards are red or all are black.",
+		flavorText = "Never mixes the red paint with the black.",
+		effect = function(handResult, context)
+			local red, black = 0, 0
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.suit == "Hearts" or card.suit == "Diamonds" then red = red + 1 else black = black + 1 end
+			end
+			return ((red > 0) ~= (black > 0)) and { chips = 20 } or nil
+		end,
+	},
+	{
+		id = "full_suit_feast", name = "Full Suit Feast", icon = "🍛", price = 8,
+		description = "x1.5 Mult if 4 or more scoring cards share one suit.",
+		flavorText = "Orders everything in a single color.",
+		effect = function(handResult, context)
+			local counts, best = {}, 0
+			for _, card in ipairs(handResult.scoringCards) do
+				counts[card.suit] = (counts[card.suit] or 0) + 1
+				best = math.max(best, counts[card.suit])
+			end
+			return best >= 4 and { multMultiplier = 1.5 } or nil
+		end,
+	},
+	{
+		id = "twin_spoons", name = "Twin Spoons", icon = "🥄", price = 5,
+		description = "+6 Mult if the hand is a Two Pair.",
+		flavorText = "Two of everything, always.",
+		effect = function(handResult, context)
+			return handResult.name == "Two Pair" and { mult = 6 } or nil
+		end,
+	},
+	{
+		id = "triple_treat", name = "Triple Treat", icon = "🍰", price = 6,
+		description = "+12 Mult if the hand is a Three of a Kind.",
+		flavorText = "Three slices, one happy guest.",
+		effect = function(handResult, context)
+			return handResult.name == "Three of a Kind" and { mult = 12 } or nil
+		end,
+	},
+	{
+		id = "foursome_table", name = "Foursome Table", icon = "🎴", price = 8,
+		description = "x2 Mult if the hand is a Four of a Kind.",
+		flavorText = "The corner table seats four, always.",
+		effect = function(handResult, context)
+			return handResult.name == "Four of a Kind" and { multMultiplier = 2 } or nil
+		end,
+	},
+	{
+		id = "kitchen_duo", name = "Kitchen Duo", icon = "👩‍🍳", price = 6,
+		description = "+40 Chips if the hand is a Full House.",
+		flavorText = "One chops, one stirs, nobody argues.",
+		effect = function(handResult, context)
+			return handResult.name == "Full House" and { chips = 40 } or nil
+		end,
+	},
+	{
+		id = "pair_parade", name = "Pair Parade", icon = "🎺", price = 6,
+		description = "+2 Mult for each scoring card in a Pair or better.",
+		flavorText = "Marches in twos, trumpets and all.",
+		effect = function(handResult, context)
+			if (handResult.name == "High Card" or handResult.name == "Straight" or handResult.name == "Flush" or handResult.name == "Straight Flush") then return nil end
+			return { mult = 2 * #handResult.scoringCards }
+		end,
+	},
+	{
+		id = "stair_climber", name = "Stair Climber", icon = "🪜", price = 6,
+		description = "+30 Chips if the hand is a Straight or Straight Flush.",
+		flavorText = "Takes the stairs, one rank at a time.",
+		effect = function(handResult, context)
+			return (handResult.name == "Straight" or handResult.name == "Straight Flush") and { chips = 30 } or nil
+		end,
+	},
+	{
+		id = "long_road", name = "Long Road", icon = "🛤️", price = 6,
+		description = "+8 Mult if the hand is a Straight.",
+		flavorText = "Has walked every road in order.",
+		effect = function(handResult, context)
+			return handResult.name == "Straight" and { mult = 8 } or nil
+		end,
+	},
+	{
+		id = "ladder_builder", name = "Ladder Builder", icon = "🏗️", price = 6,
+		description = "+2 Mult for each scoring card in a Straight.",
+		flavorText = "Adds one more rung every night.",
+		effect = function(handResult, context)
+			if handResult.name ~= "Straight" and handResult.name ~= "Straight Flush" then return nil end
+			return { mult = 2 * #handResult.scoringCards }
+		end,
+	},
+	{
+		id = "royal_road", name = "Royal Road", icon = "🏰", price = 8,
+		description = "x1.5 Mult if a Straight has an Ace.",
+		flavorText = "Rolls out the red carpet for the high card.",
+		effect = function(handResult, context)
+			if handResult.name ~= "Straight" and handResult.name ~= "Straight Flush" then return nil end
+			for _, card in ipairs(handResult.scoringCards) do
+				if card.rank == 14 then return { multMultiplier = 1.5 } end
+			end
+			return nil
+		end,
+	},
+	{
+		id = "savings_club", name = "Savings Club", icon = "🏦", price = 7,
+		description = "After a round win, earn 1 Tip per 4 held (up to 4).",
+		flavorText = "Everyone chips in a little.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			state.tips = state.tips + math.min(4, math.floor(state.tips / 4))
+		end,
+	},
+	{
+		id = "bargain_hunter", name = "Bargain Hunter", icon = "🔍", price = 6,
+		description = "Shop rerolls cost 1 less (minimum 1).",
+		flavorText = "Can smell a good deal from the doorway.",
+		rerollDelta = -1,
+		effect = function() return nil end,
+	},
+	{
+		id = "quick_service", name = "Quick Service", icon = "⚡", price = 6,
+		description = "Earn 5 Tips when you win a round using only 1 Hand.",
+		flavorText = "Plates are out before you finish asking.",
+		effect = function() return nil end,
+		onRoundWin = function(state)
+			if (state.roundStartHands or 0) - (state.handsRemaining or 0) == 1 then state.tips = state.tips + 5 end
+		end,
+	},
+	{
+		id = "lucky_penny_jar", name = "Lucky Penny Jar", icon = "🍯", price = 6,
+		description = "Earn 1 Tip each time you play a Pair or better.",
+		flavorText = "Every pair earns a clink.",
+		effect = function(handResult, context)
+			if (handResult.name == "High Card" or handResult.name == "Straight" or handResult.name == "Flush" or handResult.name == "Straight Flush") then return nil end
+			return { tips = 1 }
+		end,
+	},
+	{
+		id = "rising_dough", name = "Rising Dough", icon = "🥖", price = 6,
+		description = "+1 Mult for every round cleared this run (up to +12).",
+		flavorText = "Gets bigger the longer you wait.",
+		effect = function(handResult, context)
+			local bonus = math.min(12, context.roundsCleared or 0)
+			return bonus > 0 and { mult = bonus } or nil
+		end,
+	},
+	{
+		id = "stack_of_plates", name = "Stack of Plates", icon = "🥞", price = 6,
+		description = "+2 Chips for every hand played this run (up to +100).",
+		flavorText = "One more plate on the pile each time.",
+		effect = function(handResult, context)
+			local bonus = math.min(100, 2 * (context.handsPlayedTotal or 0))
+			return bonus > 0 and { chips = bonus } or nil
+		end,
+	},
+	{
+		id = "bread_starter", name = "Bread Starter", icon = "🫓", price = 8,
+		description = "x0.02 more Mult for every hand played this run (up to x2).",
+		flavorText = "Fed every night since the first.",
+		effect = function(handResult, context)
+			local hands = context.handsPlayedTotal or 0
+			return hands > 0 and { multMultiplier = 1 + math.min(1, 0.02 * hands) } or nil
+		end,
+	},
+	{
+		id = "extra_chair", name = "Extra Chair", icon = "💺", price = 7,
+		description = "Draw 1 more card at the start of each round.",
+		flavorText = "Always pulls up one more seat.",
+		handSizeDelta = 1,
+		effect = function() return nil end,
+	},
+	{
+		id = "second_helpings", name = "Second Helpings", icon = "🥣", price = 7,
+		description = "+1 Discard each round.",
+		flavorText = "Never says no to a refill.",
+		discardsDelta = 1,
+		effect = function() return nil end,
+	},
+	{
+		id = "overtime", name = "Overtime", icon = "🕰️", price = 8,
+		description = "+1 Hand each round, but draw 1 fewer card.",
+		flavorText = "Works late, travels light.",
+		handsDelta = 1, handSizeDelta = -1,
+		effect = function() return nil end,
+	},
+}
+for _, patron in ipairs(depthPatrons) do
+	table.insert(Patrons.Definitions, patron)
+end
+
+-- Sum of a numeric rule field (handSizeDelta, discardsDelta, handsDelta, rerollDelta) over the owned Patrons.
+function Patrons.sum(owned, field)
+	local total = 0
+	for _, patron in ipairs(owned or {}) do
+		total = total + (patron[field] or 0)
+	end
+	return total
+end
+
 function Patrons.getById(id)
 	for _, patron in ipairs(Patrons.Definitions) do
 		if patron.id == id then

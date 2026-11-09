@@ -8342,7 +8342,7 @@ table.insert(tests, { name = "Unlocks: a fresh profile starts with about half of
 	for _, patron in ipairs(Patrons.Definitions) do
 		if not Unlocks.isGated("patron", patron.id) or set["patron:" .. patron.id] then openPatrons = openPatrons + 1 end
 	end
-	expectTrue(openPatrons / totalPatrons >= 0.35 and openPatrons / totalPatrons <= 0.6, "about half of the Patrons: " .. openPatrons .. " of " .. totalPatrons)
+	expectTrue(openPatrons / totalPatrons >= 0.3 and openPatrons / totalPatrons <= 0.6, "about half of the Patrons: " .. openPatrons .. " of " .. totalPatrons)
 	local openRecipes, totalRecipes = 0, 0
 	for _, list in ipairs({ Recipes.HouseRecipes, Recipes.SecretRecipes }) do
 		for _, r in ipairs(list) do
@@ -8687,6 +8687,8 @@ table.insert(tests, { name = "Unlocks.closest: picks the nearest measurable clos
 	profile.stats.bestNightReached = 100
 	profile.stats.handsPlayedTotal = 100000
 	profile.highestStakeUnlocked = 8
+	profile.questsDone = 100
+	profile.tavernRank = 100
 	expectEqual(Unlocks.closest(profile), nil)
 end })
 
@@ -8937,6 +8939,121 @@ table.insert(tests, { name = "RunChoice events: wrong option, double resolve, wr
 	expectEqual((RunChoice.pick(state, choice, "decline")), false)
 	expectEqual(RunChoice.canAnswer("roundSelect", choice, "decline"), false)
 	expectEqual(state.tips, 10)
+end })
+
+table.insert(tests, { name = "Depth Patrons: 24 new, gated, every effect fires, rule benders change the round, prompts exist", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local ids = { "flush_fan", "suit_sampler", "warm_hearth", "color_matcher", "full_suit_feast", "twin_spoons", "triple_treat", "foursome_table",
+		"kitchen_duo", "pair_parade", "stair_climber", "long_road", "ladder_builder", "royal_road", "savings_club", "bargain_hunter",
+		"quick_service", "lucky_penny_jar", "rising_dough", "stack_of_plates", "bread_starter", "extra_chair", "second_helpings", "overtime" }
+	expectEqual(#ids, 24)
+	local function hand(spec)
+		local cards = {}
+		for i, c in ipairs(spec) do cards[i] = Card.new(c[1], c[2]) end
+		return cards, HE.evaluate(cards)
+	end
+	local H, S, D, C = "Hearts", "Spades", "Diamonds", "Clubs"
+	local flush = { { 2, H }, { 5, H }, { 9, H }, { 11, H }, { 13, H } }
+	local twoPair = { { 5, H }, { 5, S }, { 9, H }, { 9, C }, { 2, D } }
+	local trips = { { 7, H }, { 7, S }, { 7, C }, { 2, D }, { 9, H } }
+	local quads = { { 7, H }, { 7, S }, { 7, C }, { 7, D }, { 9, H } }
+	local house = { { 7, H }, { 7, S }, { 7, C }, { 9, D }, { 9, H } }
+	local straight = { { 5, H }, { 6, S }, { 7, C }, { 8, D }, { 9, H } }
+	local aceStraight = { { 10, H }, { 11, S }, { 12, C }, { 13, D }, { 14, H } }
+	local mixedPair = { { 5, H }, { 5, S }, { 9, D }, { 2, C }, { 13, H } }
+	local fires = {
+		flush_fan = flush, suit_sampler = flush, color_matcher = flush, full_suit_feast = flush, twin_spoons = twoPair,
+		triple_treat = trips, foursome_table = quads, kitchen_duo = house, pair_parade = mixedPair, stair_climber = straight,
+		long_road = straight, ladder_builder = straight, royal_road = aceStraight, lucky_penny_jar = mixedPair,
+		warm_hearth = mixedPair, rising_dough = mixedPair, stack_of_plates = mixedPair, bread_starter = mixedPair,
+	}
+	for _, id in ipairs(ids) do
+		local p = Patrons.getById(id)
+		expectTrue(p ~= nil, id .. " exists")
+		expectTrue(p.price >= 1 and p.price <= 12 and #p.description > 0 and #p.flavorText > 0)
+		local words = 0
+		for _ in p.description:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= 14, id .. " effect is 14 words or fewer")
+		expectTrue(Unlocks.isGated("patron", id), id .. " starts gated")
+		expectTrue(#Unlocks.ruleOf("patron", id).hint > 0)
+		local spec = fires[id]
+		if spec then
+			local cards, result = hand(spec)
+			local ctx = { allPlayedCards = cards, heldCards = { Card.new(3, H), Card.new(4, H) }, roundsCleared = 3, handsPlayedTotal = 10, tips = 8 }
+			local bonus = p.effect(result, ctx)
+			expectTrue(bonus ~= nil and (bonus.chips or bonus.mult or bonus.multMultiplier or bonus.tips), id .. " fires")
+		end
+	end
+	-- a non-matching hand does nothing
+	local _, hc = hand({ { 2, H }, { 5, S }, { 9, D }, { 11, C }, { 13, H } })
+	expectEqual(Patrons.getById("flush_fan").effect(hc, {}), nil)
+	-- economy
+	local s = RunState.new(nil, function(n) return 1 end)
+	s.tips = 17
+	Patrons.getById("savings_club").onRoundWin(s)
+	expectEqual(s.tips, 21)
+	s.roundStartHands, s.handsRemaining, s.tips = 4, 3, 0
+	Patrons.getById("quick_service").onRoundWin(s)
+	expectEqual(s.tips, 5)
+	s.roundStartHands, s.handsRemaining, s.tips = 4, 2, 0
+	Patrons.getById("quick_service").onRoundWin(s)
+	expectEqual(s.tips, 0)
+	-- rule benders
+	local base = RunState.new(nil, function(n) return 1 end)
+	local h0, d0, hs0 = base.handsRemaining, base.discardsRemaining, #base.hand
+	local cost0 = RunState.rerollCost(base, 5)
+	local bent = RunState.new(nil, function(n) return 1 end)
+	for _, id in ipairs({ "extra_chair", "second_helpings", "overtime", "bargain_hunter" }) do
+		table.insert(bent.ownedPatrons, Patrons.getById(id))
+	end
+	RunState.startRound(bent)
+	expectEqual(bent.handsRemaining, h0 + 1)
+	expectEqual(bent.discardsRemaining, d0 + 1)
+	expectEqual(#bent.hand, hs0) -- Extra Chair +1, Overtime -1
+	expectEqual(RunState.rerollCost(bent, 5), cost0 - 1)
+	expectEqual(RunState.rerollCost(bent, 1), 1) -- never below 1
+	-- every new Patron has an art prompt
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if f then
+		local json = f:read("*a"); f:close()
+		for _, id in ipairs(ids) do
+			expectTrue(json:find('"' .. id .. '"', 1, true) ~= nil, id .. " has a subjects prompt")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Depth House Passes: 6 new, gated, each effect changes the run", fn = function()
+	local Unlocks = require(script.Parent.Parent.Engine.Unlocks)
+	local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
+	local ids = { "pantry_shelf", "tip_stand", "card_cart", "savings_account", "warm_welcome", "boss_prep" }
+	for _, id in ipairs(ids) do
+		local pass = HousePasses.getById(id)
+		expectTrue(pass ~= nil and pass.price >= 1 and #pass.description > 0 and #pass.flavorText > 0, id)
+		expectTrue(Unlocks.isGated("housePass", id) and #Unlocks.ruleOf("housePass", id).hint > 0, id .. " gated")
+	end
+	local function fresh() return RunState.new(nil, function(n) return 1 end) end
+	local base = fresh()
+	local s = fresh()
+	s.housePasses.pantry_shelf = true
+	expectEqual(RunState.recipeSlotLimit(s), RunState.recipeSlotLimit(base) + 1)
+	s = fresh(); s.housePasses.card_cart = true; RunState.startRound(s)
+	expectEqual(#s.hand, #base.hand + 1)
+	s = fresh(); s.housePasses.boss_prep = true; s.round = s.config.roundsPerNight; RunState.startRound(s)
+	local b2 = fresh(); b2.round = b2.config.roundsPerNight; RunState.startRound(b2)
+	expectEqual(s.discardsRemaining, b2.discardsRemaining + 1)
+	s = fresh(); s.housePasses.warm_welcome = true; s.round = s.config.roundsPerNight; RunState.startRound(s)
+	expectTrue(s.targetScore < b2.targetScore, "boss target is lower")
+	-- a gated pass stays out of the voucher pool until opened
+	local Shop = require(script.Parent.Parent.Engine.Shop)
+	local locked = fresh()
+	locked.unlockedContent = {}
+	for _, id in ipairs(ids) do
+		expectEqual(#Unlocks.filter(locked, "housePass", { { id = id } }), 0)
+	end
+	locked.unlockedContent["housePass:tip_stand"] = true
+	expectEqual(#Unlocks.filter(locked, "housePass", { { id = "tip_stand" } }), 1)
 end })
 
 -- ===== Map discoveries =====

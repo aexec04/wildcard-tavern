@@ -513,7 +513,7 @@ return function(deps)
 	end
 
 	-- UNLOCK DRIP: gated Patrons and Recipes that are still closed carry a short "how to open" hint (state.unlockHints).
-	local HINT_KIND = { patrons = "patron", recipes = "recipe" }
+	local HINT_KIND = { patrons = "patron", recipes = "recipe", housePasses = "housePass" }
 	local function unlockRuleHint(item, view)
 		local hints = view and view.state and view.state.unlockHints
 		local kind = HINT_KIND[item.tab]

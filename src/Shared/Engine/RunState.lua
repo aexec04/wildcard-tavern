@@ -388,11 +388,17 @@ function RunState.startRound(state)
 	end
 
 	local handSize = state.config.handSize + ((bossModifier and bossModifier.handSizeDelta) or 0)
+		+ Patrons.sum(state.ownedPatrons, "handSizeDelta") -- Extra Chair, Overtime
+		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
 	handSize = math.max(1, handSize)
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)
+		+ Patrons.sum(state.ownedPatrons, "discardsDelta") -- Second Helpings
 		+ (state.night == 1 and state.nightOneBonusDiscards or 0)
+	if state.isBossRound and state.housePasses.boss_prep then
+		discards = discards + 1 -- Boss Prep
+	end
 	if state.isBossRound and state.stakeRules then
 		discards = discards + state.stakeRules.bossExtraDiscards -- Legend stake: a second small boss debuff
 	end
@@ -406,6 +412,7 @@ function RunState.startRound(state)
 	-- applies even on a Boss Round that overrides handsPerRound, same as
 	-- everything else here layering on top of the boss's base number.
 	handsPerRound = handsPerRound + (state.housePasses.double_shift and 1 or 0)
+	handsPerRound = handsPerRound + Patrons.sum(state.ownedPatrons, "handsDelta") -- Overtime
 	-- Rest stop on the world map (Engine/SideStops.lua): +1 Hand for every round of the Night after the visit.
 	if state.bonusHandsNight and state.bonusHandsNight == state.night then
 		handsPerRound = handsPerRound + 1
@@ -437,6 +444,9 @@ function RunState.startRound(state)
 	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
 	if state.isBossRound and state.stakeRules then
 		bossMultiplier = bossMultiplier * (1 + state.stakeRules.bossTargetPct / 100) -- Rowdy Crowd stake
+	end
+	if state.isBossRound and state.housePasses.warm_welcome then
+		bossMultiplier = bossMultiplier * 0.9 -- Warm Welcome
 	end
 	local baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
 	state.targetScore = math.floor(baseTarget * state.targetMultiplier * bossMultiplier)
@@ -844,10 +854,10 @@ function RunState.playHand(state, cardIndices)
 		-- for why it was reworked to raise this cap to +10 instead of
 		-- keeping its own onRoundWin doing the identical math -- that would
 		-- have silently double-dipped once this base rule shipped.
-		local interestCap = 5
+		local interestCap = 5 + (state.housePasses.savings_account and 3 or 0) -- Savings Account
 		for _, patron in ipairs(state.ownedPatrons) do
 			if patron.id == "nest_egg" then
-				interestCap = 10
+				interestCap = 10 + (state.housePasses.savings_account and 3 or 0)
 				break
 			end
 		end
@@ -870,7 +880,7 @@ function RunState.playHand(state, cardIndices)
 		end
 
 		-- Clearing a Boss Round pays double -- it's the harder ask each Night.
-		local reward = state.config.tipsPerRoundWin
+		local reward = state.config.tipsPerRoundWin + (state.housePasses.tip_stand and 1 or 0) -- Tip Stand
 		if RunState.isBossRound(state) then
 			reward = reward + state.config.tipsPerRoundWin
 		end
@@ -994,7 +1004,7 @@ end
 -- so a future Recipe-slot-raising House Pass/Special has one obvious place
 -- to hook into instead of every call site re-reading state.config directly.
 function RunState.recipeSlotLimit(state)
-	return state.config.recipeSlotLimit
+	return state.config.recipeSlotLimit + (state.housePasses.pantry_shelf and 1 or 0) -- Pantry Shelf
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'
@@ -1033,6 +1043,7 @@ function RunState.rerollCost(state, baseCost)
 	if state.housePasses.frequent_visitor then
 		cost = cost - 2
 	end
+	cost = cost + Patrons.sum(state.ownedPatrons, "rerollDelta") -- Bargain Hunter
 	if state.stakeRules then
 		cost = cost + state.stakeRules.rerollExtra -- Rush Hour stake
 	end

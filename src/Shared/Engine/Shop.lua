@@ -85,7 +85,7 @@ local function rollVoucherOffer(state)
 		return nil
 	end
 	local available = {}
-	for _, pass in ipairs(HousePasses.Definitions) do
+	for _, pass in ipairs(Unlocks.filter(state, "housePass", HousePasses.Definitions)) do
 		if not state.housePasses[pass.id] then
 			table.insert(available, pass)
 		end

@@ -29,6 +29,8 @@ local function wins(n) return { kind = "wins", n = n, hint = n == 1 and "Win a r
 local function night(n) return { kind = "bestNight", n = n, hint = "Reach Night " .. n .. "." } end
 local function hands(n) return { kind = "hands", n = n, hint = "Play " .. n .. " hands." } end
 local function stake(n) return { kind = "stake", n = n, hint = "Clear stake " .. n .. "." } end
+local function quests(n) return { kind = "quests", n = n, hint = "Finish " .. n .. " daily quests." } end
+local function rank(n) return { kind = "rank", n = n, hint = "Reach Tavern Rank " .. n .. "." } end
 local function grant(hint) return { kind = "grant", hint = hint } end
 
 -- [contentKind][id] = rule. contentKind is "patron" or "recipe" (House and Secret Recipes; Menu Recipes are free).
@@ -49,11 +51,44 @@ Unlocks.Rules = {
 		house_tab = wins(2), tasting_menu = wins(2), veterans_table = wins(2),
 		the_bard = wins(5),
 		penny_pincher = stake(1),
+		-- depth Patrons (suit, pair, straight, economy, scaling, rule benders)
+		flush_fan = night(4),
+		suit_sampler = hands(250),
+		warm_hearth = quests(5),
+		color_matcher = rank(2),
+		full_suit_feast = wins(3),
+		twin_spoons = night(2),
+		triple_treat = hands(200),
+		foursome_table = stake(2),
+		kitchen_duo = wins(1),
+		pair_parade = quests(10),
+		stair_climber = night(3),
+		long_road = rank(3),
+		ladder_builder = hands(300),
+		royal_road = wins(4),
+		savings_club = night(4),
+		bargain_hunter = quests(3),
+		quick_service = rank(4),
+		lucky_penny_jar = hands(120),
+		rising_dough = wins(2),
+		stack_of_plates = quests(8),
+		bread_starter = stake(3),
+		extra_chair = rank(5),
+		second_helpings = night(6),
+		overtime = wins(6),
 		-- road Patrons arrive with the biome reward
 		meadow_bee = grant("Clear the Wildflower Meadow."), ferry_captain = grant("Clear the Willow River."),
 		summit_guide = grant("Clear the Mountain Peaks."), sand_merchant = grant("Clear the Golden Dunes."),
 		marsh_gardener = grant("Clear the Misty Marsh."), lantern_lighter = grant("Clear the Frosty Hills."),
 		lighthouse_keeper = grant("Clear the Lantern Coast."),
+	},
+	housePass = {
+		pantry_shelf = wins(1),
+		tip_stand = night(4),
+		card_cart = wins(3),
+		savings_account = quests(6),
+		warm_welcome = stake(2),
+		boss_prep = rank(3),
 	},
 	recipe = {
 		house_token_order = night(2), golden_hour = night(2),
@@ -71,7 +106,7 @@ Unlocks.Rules = {
 	},
 }
 
-local DISCOVERED_FIELD = { patron = "discoveredPatronIds", recipe = "discoveredRecipeIds" }
+local DISCOVERED_FIELD = { patron = "discoveredPatronIds", recipe = "discoveredRecipeIds", housePass = "discoveredHousePassIds" }
 
 local function key(kind, id)
 	return kind .. ":" .. id
@@ -129,7 +164,7 @@ function Unlocks.evaluate(profile)
 	profile.unlockedContent = profile.unlockedContent or {}
 	local fresh = {}
 	local saved = false -- true when the profile changed, even for silently carried-over content
-	for _, kind in ipairs({ "patron", "recipe" }) do
+	for _, kind in ipairs({ "patron", "recipe", "housePass" }) do
 		local ids = {}
 		for id in pairs(Unlocks.Rules[kind]) do
 			ids[#ids + 1] = id
@@ -211,7 +246,7 @@ end
 -- { kind, id, hint, current, needed, ratio } or nil when nothing measurable is left.
 function Unlocks.closest(profile)
 	local best
-	for _, kind in ipairs({ "patron", "recipe" }) do
+	for _, kind in ipairs({ "patron", "recipe", "housePass" }) do
 		local ids = {}
 		for id in pairs(Unlocks.Rules[kind]) do
 			ids[#ids + 1] = id
@@ -235,7 +270,7 @@ end
 
 -- Hints for the Collection: [kind][id] = hint for gated content this profile has NOT opened yet.
 function Unlocks.lockedHints(profile)
-	local out = { patron = {}, recipe = {} }
+	local out = { patron = {}, recipe = {}, housePass = {} }
 	for kind, rules in pairs(Unlocks.Rules) do
 		for id, rule in pairs(rules) do
 			if not Unlocks.isUnlocked(profile, kind, id) then

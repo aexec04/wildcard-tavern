@@ -57,7 +57,31 @@
     "sand_merchant": "an avatar desert merchant in a wide hat beside a friendly camel loaded with colorful cloth bundles",
     "marsh_gardener": "an avatar gardener in rubber boots tending glowing mushrooms in a misty marsh",
     "lantern_lighter": "an avatar in a thick scarf lighting a row of lanterns along a snowy path",
-    "lighthouse_keeper": "an avatar lighthouse keeper in a yellow raincoat holding a glowing lantern beside a small striped lighthouse"
+    "lighthouse_keeper": "an avatar lighthouse keeper in a yellow raincoat holding a glowing lantern beside a small striped lighthouse",
+    "flush_fan": "a cheerful avatar in a rainbow-trimmed coat fanning out a hand of all-matching cards with a big smile",
+    "suit_sampler": "a happy avatar waiter carrying a tray of four differently colored treats shaped like card suits",
+    "warm_hearth": "a cozy avatar in a red scarf warming hands by a crackling fireplace with heart-shaped sparks",
+    "color_matcher": "an avatar painter in a smock sorting red and black paint pots into two neat rows",
+    "full_suit_feast": "a grand avatar host lifting a silver dome over a feast where every dish is the same color",
+    "twin_spoons": "a smiling avatar cook holding two matching silver spoons crossed in front of an apron",
+    "triple_treat": "an avatar baker proudly showing a plate of three identical frosted cakes",
+    "foursome_table": "four identical avatar friends squeezed around a small square table laughing together",
+    "kitchen_duo": "two avatar cooks side by side, one chopping vegetables and one stirring a big pot",
+    "pair_parade": "a little parade of avatar musicians marching two by two with trumpets and a drum",
+    "stair_climber": "an avatar adventurer climbing a tall wooden staircase carrying a lantern",
+    "long_road": "a traveling avatar with a walking stick and backpack on a winding lantern-lit road",
+    "ladder_builder": "an avatar carpenter in a tool belt hammering the last rung onto a tall wooden ladder",
+    "royal_road": "a regal avatar herald unrolling a long red carpet toward a golden ace banner",
+    "savings_club": "an avatar treasurer behind a wooden counter stacking neat towers of coins into a tin box",
+    "bargain_hunter": "an avatar shopper with a magnifying glass inspecting a tiny price tag with a big grin",
+    "quick_service": "a speedy avatar waiter with three plates on one arm dashing past a swirl of dust",
+    "lucky_penny_jar": "an avatar holding a glass jar of shiny pennies with a four-leaf clover tied on the lid",
+    "rising_dough": "an avatar baker watching a huge round loaf of dough puffing up out of a wooden bowl",
+    "stack_of_plates": "a wobbly avatar waiter carrying a towering stack of plates up to the ceiling beams",
+    "bread_starter": "an avatar baker lovingly feeding a bubbling jar of sourdough starter with a wooden spoon",
+    "extra_chair": "an avatar innkeeper carrying an extra wooden chair over their head toward a crowded table",
+    "second_helpings": "a hungry avatar guest holding up an empty bowl and a spoon for a refill, cheerful",
+    "overtime": "an avatar cook in a night cap working beside a big clock striking midnight with a lantern"
   },
   "boss_rounds": {
     "subjects": {
@@ -168,7 +192,13 @@
       "late_kitchen": "a Roblox avatar cook still happily working at the stove late at night, moon outside the window",
       "double_shift": "a tired but proud Roblox avatar server wearing two name badges, running two full trays",
       "frequent_visitor": "a loyal Roblox avatar guest happily punching their nearly-full loyalty card at the counter",
-      "grand_opening": "a cheerful Roblox avatar cutting a ribbon at a grand opening ceremony with a crowd cheering"
+      "grand_opening": "a cheerful Roblox avatar cutting a ribbon at a grand opening ceremony with a crowd cheering",
+    "pantry_shelf": "an avatar cook stacking jars on a tall wooden pantry shelf with a proud smile",
+    "tip_stand": "an avatar greeter standing beside a small wooden stand with a dish of shiny coins",
+    "card_cart": "an avatar dealer pushing a little wooden cart piled high with playing cards",
+    "savings_account": "an avatar banker locking a sturdy wooden coin chest with a golden key",
+    "warm_welcome": "an avatar innkeeper greeting a grumpy guest at the door with a warm hug and balloons",
+    "boss_prep": "an avatar cook pinning a long checklist on a kitchen door before a big night"
     }
   },
   "titles": {

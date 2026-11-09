@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Patrons = require(Engine:WaitForChild("Patrons"))
 local Recipes = require(Engine:WaitForChild("Recipes"))
+local HousePasses = require(Engine:WaitForChild("HousePasses"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -37,6 +38,9 @@ local busy = false
 local function defOf(item)
 	if item.kind == "patron" then
 		return Patrons.getById(item.id), "patrons"
+	end
+	if item.kind == "housePass" then
+		return HousePasses.getById(item.id), "housePasses"
 	end
 	return Recipes.getHouseRecipeById(item.id) or Recipes.getSecretRecipeById(item.id), "recipes"
 end

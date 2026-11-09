@@ -54,6 +54,36 @@ HousePasses.Definitions = {
 			state.tips = state.tips + 15
 		end,
 	},
+	{
+		id = "pantry_shelf", name = "Pantry Shelf", icon = "🗄️", price = 9,
+		description = "Permanently +1 Recipe slot.",
+		flavorText = "A deeper shelf means room for one more jar.",
+	},
+	{
+		id = "tip_stand", name = "Tip Stand", icon = "🪙", price = 10,
+		description = "Earn 1 extra Tip for every round you win.",
+		flavorText = "A little dish by the door fills up fast.",
+	},
+	{
+		id = "card_cart", name = "Card Cart", icon = "🛒", price = 12,
+		description = "Permanently draw 1 more card each round.",
+		flavorText = "Rolls a fresh stack to every table.",
+	},
+	{
+		id = "savings_account", name = "Savings Account", icon = "🏦", price = 8,
+		description = "Raises the round-win interest cap by 3 Tips.",
+		flavorText = "The coin box has a bigger lid now.",
+	},
+	{
+		id = "warm_welcome", name = "Warm Welcome", icon = "🎈", price = 12,
+		description = "Boss Round targets are 10% lower.",
+		flavorText = "Even the grumpiest guest cheers up at the door.",
+	},
+	{
+		id = "boss_prep", name = "Boss Prep", icon = "📋", price = 8,
+		description = "+1 Discard in every Boss Round.",
+		flavorText = "A checklist taped inside the kitchen door.",
+	},
 }
 
 function HousePasses.getById(id)
