@@ -9262,4 +9262,116 @@ table.insert(tests, { name = "Boss Rush: unlocks after the first win, 3 picked P
 	expectTrue(normal.rush == nil and normal.config.roundsPerNight == 3 and RunState.countsForRecords(normal))
 end })
 
+-- ===== Phase 4: Endless board, global scope, sharing =====
+
+table.insert(tests, { name = "Leaderboards Endless: score packs Night then best hand, decodes back, ordering and improvement rules", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local c = Leaderboards.combine(12, 4500)
+	local night, hand = Leaderboards.decode(c)
+	expectEqual(night, 12); expectEqual(hand, 4500)
+	expectTrue(Leaderboards.combine(13, 0) > Leaderboards.combine(12, 999999), "a higher Night always wins")
+	expectEqual(Leaderboards.combine(9, 10 ^ 12), 9 * Leaderboards.SCORE_MULTIPLIER + Leaderboards.SCORE_MULTIPLIER - 1, "the hand is clamped below the Night digits")
+	expectEqual(Leaderboards.combine(9, -5), 9 * Leaderboards.SCORE_MULTIPLIER)
+	expectEqual(Leaderboards.storeName("endless", "Standard", Leaderboards.ENDLESS_PERIOD, 2), "EndlessMode_Standard_v2_alltime")
+	expectEqual(Leaderboards.storeName("endless", "Revived", "alltime", 2), "EndlessMode_Revived_v2_alltime")
+	-- improvement
+	expectTrue(Leaderboards.improves(nil, 9, 1))
+	expectTrue(Leaderboards.improves({ depth = 9, tips = 100 }, 10, 0))
+	expectTrue(Leaderboards.improves({ depth = 9, tips = 100 }, 9, 101))
+	expectTrue(not Leaderboards.improves({ depth = 9, tips = 100 }, 9, 100))
+	expectTrue(not Leaderboards.improves({ depth = 10, tips = 5 }, 9, 9999))
+	-- sorting: Night first, then best hand; ties keep their order
+	local rows = { { id = "a", depth = 9, tips = 50 }, { id = "b", depth = 11, tips = 1 }, { id = "c", depth = 9, tips = 90 }, { id = "d", depth = 9, tips = 90 } }
+	local sorted = Leaderboards.sortRows(rows)
+	expectEqual(sorted[1].id, "b"); expectEqual(sorted[2].id, "c"); expectEqual(sorted[3].id, "d"); expectEqual(sorted[4].id, "a")
+	local top = Leaderboards.topRows(sorted, 2)
+	expectEqual(#top, 2); expectEqual(top[1].rank, 1); expectEqual(top[2].rank, 2)
+	expectEqual(sorted[1].rank, nil, "topRows copies, the page cache is untouched")
+	-- scopes
+	expectTrue(Leaderboards.isScope("global") and Leaderboards.isScope("friends") and Leaderboards.isScope("everyone") and not Leaderboards.isScope("moon"))
+	expectEqual(Leaderboards.normalizeScope("friends"), "friends")
+	expectEqual(Leaderboards.normalizeScope("anything"), "global")
+	expectEqual(Leaderboards.normalizeScope(nil), "global")
+end })
+
+table.insert(tests, { name = "Leaderboards Endless validation: only a won, normal run past the Night cap counts, scores come from the run state", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local function run(night)
+		local state = RunState.new(nil, function(_n) return 1 end)
+		state.wonRun = true
+		state.night = night
+		state.bestHand = { name = "Flush", score = 1234.7 }
+		return state
+	end
+	local n, score = Leaderboards.endlessEntry(run(11), {})
+	expectEqual(n, 11); expectEqual(score, 1234)
+	expectEqual(Leaderboards.endlessEntry(run(8), {}), nil, "Night 8 is not Endless yet")
+	local notWon = run(11); notWon.wonRun = false
+	expectEqual(Leaderboards.endlessEntry(notWon, {}), nil)
+	expectEqual(Leaderboards.endlessEntry(run(11), { isDaily = true }), nil)
+	expectEqual(Leaderboards.endlessEntry(run(11), { isWeekly = true }), nil)
+	expectEqual(Leaderboards.endlessEntry(run(11), { isSeeded = true }), nil)
+	expectEqual(Leaderboards.endlessEntry(run(11), { isTutorial = true }), nil)
+	local rush = run(11); rush.rush = { started = true }
+	expectEqual(Leaderboards.endlessEntry(rush, {}), nil, "a Boss Rush is not an Endless run")
+	local challenge = run(11); challenge.challenge = { id = "pairs_only" }
+	expectEqual(Leaderboards.endlessEntry(challenge, {}), nil, "a Challenge run is not on the board")
+	expectEqual(Leaderboards.endlessEntry(run(Leaderboards.MAX_ENDLESS_NIGHT + 1), {}), nil, "an impossible Night is refused")
+	local weird = run(11); weird.bestHand = { name = "x", score = 0 / 0 }
+	expectEqual(Leaderboards.endlessEntry(weird, {}), nil)
+	local huge = run(11); huge.bestHand = { name = "x", score = 10 ^ 12 }
+	local _, clamped = Leaderboards.endlessEntry(huge, {})
+	expectEqual(clamped, Leaderboards.SCORE_MULTIPLIER - 1)
+	local none = run(11); none.bestHand = nil
+	local _, zero = Leaderboards.endlessEntry(none, {})
+	expectEqual(zero, 0)
+	expectEqual(Leaderboards.endlessEntry(nil, {}), nil)
+end })
+
+table.insert(tests, { name = "Leaderboards cache: a second open inside the window reads nothing, the page is read again after it", fn = function()
+	local Leaderboards = require(script.Parent.Parent.Engine.Leaderboards)
+	local now = 0
+	local cache = Leaderboards.newCache(Leaderboards.FRIENDS_CACHE_SECONDS, function() return now end)
+	local reads = 0
+	local function board()
+		local rows = cache.get("store")
+		if not rows then
+			reads = reads + 1
+			rows = cache.set("store", { { userId = 1, depth = 9, tips = 1 } })
+		end
+		return rows
+	end
+	board(); board(); board()
+	expectEqual(reads, 1, "three opens, one read")
+	now = 59
+	board()
+	expectEqual(reads, 1, "still cached at 59 seconds")
+	now = 61
+	board()
+	expectEqual(reads, 2, "read again after 60 seconds")
+	-- Friends and Global share the same page: friendRows works on the cached rows
+	local rows = { { userId = 5, depth = 9, tips = 1 }, { userId = 6, depth = 9, tips = 0 }, { userId = 7, depth = 8, tips = 9 } }
+	local friends = Leaderboards.friendRows(rows, { [6] = true }, 7, 10)
+	expectEqual(#friends, 2); expectEqual(friends[1].userId, 6); expectEqual(friends[2].userId, 7)
+end })
+
+table.insert(tests, { name = "ShareResult: a short result line and a challenge line, each within the 200 character chat limit", fn = function()
+	local ShareResult = require(script.Parent.Parent.Engine.ShareResult)
+	local summary = { night = 6, won = false, bestHand = { name = "Flush", score = 1240 } }
+	local line = ShareResult.line(summary, "ABC234")
+	expectTrue(line:find("Night 6", 1, true) and line:find("Flush (1240)", 1, true) and line:find("Seed: ABC234", 1, true) and line:find("beat me", 1, true))
+	expectTrue(#line <= ShareResult.MAX_LENGTH)
+	expectTrue(not ShareResult.line(summary, nil):find("Seed", 1, true), "no seed for an ordinary run")
+	expectTrue(ShareResult.line({ night = 8, won = true }, nil):find("won and reached Night 8", 1, true))
+	local long = ShareResult.line({ night = 9, bestHand = { name = string.rep("x", 400), score = 1 } }, "ABC234")
+	expectEqual(#long, ShareResult.MAX_LENGTH)
+	local challenge = ShareResult.challengeLine(summary, "QWE789")
+	expectTrue(challenge:find("QWE789", 1, true) and challenge:find("Night 6", 1, true) and challenge:find("Seed Run", 1, true) and #challenge <= ShareResult.MAX_LENGTH)
+	expectTrue(ShareResult.line(nil, nil) ~= nil and ShareResult.challengeLine(nil, nil) ~= nil, "junk input never errors")
+	-- the codes the server hands out are valid seed codes
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	local code = SeededRng.randomCode()
+	expectTrue(SeededRng.validateCode(code) ~= nil)
+end })
+
 return tests

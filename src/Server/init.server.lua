@@ -173,6 +173,12 @@ GetDailyLeaderboardRemote.Parent = remotes
 -- instead of calendar days -- gives the two of you a longer-running
 -- comparison than the Daily board resets away every midnight.
 local StartWeeklyChallengeRemote = newRemote("StartWeeklyChallenge") -- (player)
+local GetEndlessLeaderboardRemote = Instance.new("RemoteFunction") -- ENDLESS board: highest Night reached, then best hand
+GetEndlessLeaderboardRemote.Name = "GetEndlessLeaderboard"
+GetEndlessLeaderboardRemote.Parent = remotes
+local MakeChallengeSeedRemote = Instance.new("RemoteFunction") -- run summary: a fresh seed code to challenge a friend with
+MakeChallengeSeedRemote.Name = "MakeChallengeSeed"
+MakeChallengeSeedRemote.Parent = remotes
 local GetWeeklyLeaderboardRemote = Instance.new("RemoteFunction")
 GetWeeklyLeaderboardRemote.Name = "GetWeeklyLeaderboard"
 GetWeeklyLeaderboardRemote.Parent = remotes
@@ -405,6 +411,54 @@ end
 
 local function saveWeeklyScore(player)
 	flushBoardScores(player, weeklyPending, weeklyDirty, getWeeklyStore, "weekKey", "Weekly")
+end
+
+-- ===== 4c. Endless board (Phase 4) =====
+-- All-time board per Standard / Revived: highest Night reached in Endless Mode, then the run's best single hand
+-- (Leaderboards.combine). Entries come only from the server's own run state (Leaderboards.endlessEntry validates
+-- it: a normal, won run past the Night cap), never from a client. Saved with UpdateAsync keeping the higher value,
+-- because this board is not reset per day and an older, lower run must never overwrite a better one.
+local endlessPending = {} -- [player] = { [board] = { periodKey, depth (Night), tips (best hand) } }
+local endlessDirty = {} -- [player] = { [board] = true }
+local lastEndlessRequest = {} -- [player] = os.clock() of their last GetEndlessLeaderboard call
+
+local function getEndlessStore(_periodKey, board)
+	return getBoardStore("endless", board or Leaderboards.STANDARD, Leaderboards.ENDLESS_PERIOD)
+end
+
+local function saveEndlessScore(player)
+	local dirty, pendingByBoard = endlessDirty[player], endlessPending[player]
+	if not dirty or not pendingByBoard then
+		return
+	end
+	local boards = {}
+	for board in pairs(dirty) do boards[#boards + 1] = board end
+	for _, board in ipairs(boards) do
+		local pending = pendingByBoard[board]
+		if pending then
+			local combined = Leaderboards.combine(pending.depth, pending.tips)
+			local ok, err = pcall(function()
+				getEndlessStore(nil, board):UpdateAsync(tostring(player.UserId), function(old)
+					if type(old) == "number" and old >= combined then
+						return nil -- keep the better stored run
+					end
+					return combined
+				end)
+			end)
+			if ok then
+				if endlessDirty[player] and endlessPending[player] and endlessPending[player][board] == pending then
+					endlessDirty[player][board] = nil
+				end
+			else
+				warn(string.format("Endless %s leaderboard save failed for %s: %s", board, player.Name, tostring(err)))
+			end
+		elseif endlessDirty[player] then
+			endlessDirty[player][board] = nil
+		end
+	end
+	if endlessDirty[player] and next(endlessDirty[player]) == nil then
+		endlessDirty[player] = nil
+	end
 end
 
 -- trackDailyProgress/trackWeeklyProgress (need `sessions`, declared just
@@ -1226,6 +1280,28 @@ end
 
 -- WEEKLY CHALLENGE (Phase 16): same idea as trackDailyProgress just
 -- above, gated on session.isWeekly/session.weeklyDateKey instead.
+-- ENDLESS BOARD: queue this run's entry when it beats what this player already queued.
+local function trackEndlessProgress(player)
+	local session = sessions[player]
+	if not session then
+		return
+	end
+	local night, score = Leaderboards.endlessEntry(session.state, {
+		isDaily = session.isDaily, isWeekly = session.isWeekly, isSeeded = session.isSeeded, isTutorial = session.isTutorial,
+	})
+	if not night then
+		return
+	end
+	local board = Leaderboards.boardFor(session.state)
+	endlessPending[player] = endlessPending[player] or {}
+	if not Leaderboards.improves(endlessPending[player][board], night, score) then
+		return
+	end
+	endlessPending[player][board] = { periodKey = Leaderboards.ENDLESS_PERIOD, depth = night, tips = score }
+	endlessDirty[player] = endlessDirty[player] or {}
+	endlessDirty[player][board] = true
+end
+
 local function trackWeeklyProgress(player)
 	local session = sessions[player]
 	if not session or not session.isWeekly then
@@ -1257,6 +1333,7 @@ local function pushState(player)
 	syncProfileFromSession(player)
 	trackDailyProgress(player)
 	trackWeeklyProgress(player)
+	trackEndlessProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
 	session.onboardingHint = nil -- one-shot: only the push right after it's set carries it
 	session.collectionMilestoneNotice = nil -- one-shot, same as onboardingHint
@@ -1561,6 +1638,7 @@ Players.PlayerRemoving:Connect(function(player)
 	saveProfile(player)
 	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
 	saveWeeklyScore(player) -- WEEKLY CHALLENGE (Phase 16)
+	saveEndlessScore(player)
 	sessions[player] = nil
 	ownedGamePasses[player] = nil
 	profiles[player] = nil
@@ -1599,8 +1677,9 @@ task.spawn(function()
 			if dailyDirty[player] then
 				saveDailyScore(player)
 			end
-			if weeklyDirty[player] then
+			if weeklyDirty[player] or endlessDirty[player] then
 				saveWeeklyScore(player)
+				saveEndlessScore(player)
 			end
 		end
 	end
@@ -1630,10 +1709,11 @@ game:BindToClose(function()
 				pending = pending - 1
 			end)
 		end
-		if weeklyDirty[player] then
+		if weeklyDirty[player] or endlessDirty[player] then
 			pending = pending + 1
 			task.spawn(function()
 				saveWeeklyScore(player)
+				saveEndlessScore(player)
 				pending = pending - 1
 			end)
 		end
@@ -2568,7 +2648,7 @@ local function friendFlair(userId)
 		if p.UserId == userId and profile then
 			local backDef = profile.equippedCardBackId and CardBacks.getById(profile.equippedCardBackId)
 			local titleDef = profile.equippedTitleId and Achievements.getById(profile.equippedTitleId)
-			return backDef and backDef.name or nil, titleDef and titleDef.title or nil, select(2, Badges.equippedText(profile))
+			return backDef and backDef.name or nil, titleDef and titleDef.title or nil, select(2, Badges.equippedText(profile)), TavernRank.rankFor(profile.tavernXp or 0)
 		end
 	end
 	return nil, nil
@@ -2602,12 +2682,12 @@ local function friendsBoardResult(player, store, storeName, board, dateKey)
 			yourBest = { depth = row.depth, tips = row.tips }
 		else
 			row.name = friends.names[row.userId] or "???"
-			row.cardBackName, row.titleText, row.badgeIcon = friendFlair(row.userId)
+			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(row.userId)
 		end
 		-- the player's own row gets their own name and flair too
 		if row.userId == player.UserId then
 			row.name = player.Name
-			row.cardBackName, row.titleText, row.badgeIcon = friendFlair(player.UserId)
+			row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(player.UserId)
 		end
 	end
 	return {
@@ -2619,6 +2699,87 @@ local function friendsBoardResult(player, store, storeName, board, dateKey)
 		yourBest = yourBest,
 		yourBestOk = ok,
 	}
+end
+
+-- GLOBAL scope (everyone in the game): the same cached sorted page the Friends board reads (one GetSortedAsync of the
+-- top FRIENDS_PAGE_SIZE per store per FRIENDS_CACHE_SECONDS), so reopening the board costs no extra reads. Names are
+-- cached for 10 minutes and "your best" for the same 60 seconds as the page. `pending` is this player's unsaved entry.
+local nameCache = Leaderboards.newCache(600, os.clock) -- [userId] = name
+local yourBestCache = Leaderboards.newCache(Leaderboards.FRIENDS_CACHE_SECONDS, os.clock) -- [store name .. userId] = { depth, tips } | false
+
+local function globalBoardResult(player, store, storeName, board, periodKey, pending)
+	local rows = friendsPageCache.get(storeName)
+	local ok = true
+	if not rows then
+		rows = {}
+		ok = pcall(function()
+			local pages = store:GetSortedAsync(false, Leaderboards.FRIENDS_PAGE_SIZE)
+			for _, entry in ipairs(pages:GetCurrentPage()) do
+				local userId = tonumber(entry.key)
+				if userId then
+					table.insert(rows, { userId = userId, depth = math.floor(entry.value / DAILY_SCORE_MULTIPLIER), tips = entry.value % DAILY_SCORE_MULTIPLIER })
+				end
+			end
+		end)
+		if ok then friendsPageCache.set(storeName, rows) end
+	end
+	local top = Leaderboards.topRows(rows, 10)
+	for _, row in ipairs(top) do
+		local name = nameCache.get(row.userId)
+		if not name then
+			local nameOk, resolved = pcall(function() return Players:GetNameFromUserIdAsync(row.userId) end)
+			name = nameOk and resolved or "???"
+			if nameOk then nameCache.set(row.userId, name) end
+		end
+		row.name = name
+		row.cardBackName, row.titleText, row.badgeIcon, row.tavernRank = friendFlair(row.userId) -- only players in this server have flair
+	end
+	local yourKey = storeName .. ":" .. player.UserId
+	local yourBest = yourBestCache.get(yourKey)
+	local yourBestOk = true
+	if yourBest == nil then
+		yourBest = false
+		yourBestOk = pcall(function()
+			local raw = store:GetAsync(tostring(player.UserId))
+			if type(raw) == "number" then
+				yourBest = { depth = math.floor(raw / DAILY_SCORE_MULTIPLIER), tips = raw % DAILY_SCORE_MULTIPLIER }
+			end
+		end)
+		if yourBestOk then yourBestCache.set(yourKey, yourBest) end
+	end
+	yourBest = yourBest or nil
+	if pending and pending.periodKey == periodKey and Leaderboards.improves(yourBest and { depth = yourBest.depth, tips = yourBest.tips } or nil, pending.depth, pending.tips) then
+		yourBest = { depth = pending.depth, tips = pending.tips }
+	end
+	return { ok = ok, board = board, scope = Leaderboards.GLOBAL, dateKey = periodKey, top = top, yourBest = yourBest, yourBestOk = yourBestOk }
+end
+
+GetEndlessLeaderboardRemote.OnServerInvoke = function(player, board, scope)
+	if not Leaderboards.isBoard(board) then
+		board = Leaderboards.STANDARD
+	end
+	local now = os.clock()
+	if lastEndlessRequest[player] and now - lastEndlessRequest[player] < LEADERBOARD_COOLDOWN then
+		return { ok = false, board = board, dateKey = Leaderboards.ENDLESS_PERIOD, top = {}, yourBest = nil, yourBestOk = false }
+	end
+	lastEndlessRequest[player] = now
+	local store = getEndlessStore(nil, board)
+	local storeName = Leaderboards.storeName("endless", board, Leaderboards.ENDLESS_PERIOD)
+	if Leaderboards.normalizeScope(scope) == Leaderboards.FRIENDS then
+		return friendsBoardResult(player, store, storeName, board, Leaderboards.ENDLESS_PERIOD)
+	end
+	return globalBoardResult(player, store, storeName, board, Leaderboards.ENDLESS_PERIOD, endlessPending[player] and endlessPending[player][board])
+end
+
+-- CHALLENGE A FRIEND: a fresh seed code (the run summary shows it so a friend can enter it in Seed Run).
+local lastSeedRequest = {}
+MakeChallengeSeedRemote.OnServerInvoke = function(player)
+	local now = os.clock()
+	if lastSeedRequest[player] and now - lastSeedRequest[player] < 1 then
+		return nil
+	end
+	lastSeedRequest[player] = now
+	return SeededRng.randomCode()
 end
 
 -- RemoteFunction, not RemoteEvent -- the client needs the actual
@@ -2648,6 +2809,10 @@ GetDailyLeaderboardRemote.OnServerInvoke = function(player, board, scope)
 	local store = getDailyStore(dateKey, board)
 	if scope == Leaderboards.FRIENDS then
 		return friendsBoardResult(player, store, Leaderboards.storeName("daily", board, dateKey), board, dateKey)
+	end
+	if scope == Leaderboards.GLOBAL then
+		local pending = dailyPending[player] and dailyPending[player][board]
+		return globalBoardResult(player, store, Leaderboards.storeName("daily", board, dateKey), board, dateKey, pending and { periodKey = pending.dateKey, depth = pending.depth, tips = pending.tips } or nil)
 	end
 
 	local top = {}
@@ -2738,6 +2903,10 @@ GetWeeklyLeaderboardRemote.OnServerInvoke = function(player, board, scope)
 	local store = getWeeklyStore(weekKey, board)
 	if scope == Leaderboards.FRIENDS then
 		return friendsBoardResult(player, store, Leaderboards.storeName("weekly", board, weekKey), board, weekKey)
+	end
+	if scope == Leaderboards.GLOBAL then
+		local pending = weeklyPending[player] and weeklyPending[player][board]
+		return globalBoardResult(player, store, Leaderboards.storeName("weekly", board, weekKey), board, weekKey, pending and { periodKey = pending.weekKey, depth = pending.depth, tips = pending.tips } or nil)
 	end
 
 	local top = {}

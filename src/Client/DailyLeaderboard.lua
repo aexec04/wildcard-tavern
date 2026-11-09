@@ -71,6 +71,7 @@ return function(deps)
 	local leaderboardButton = deps.leaderboardButton
 	local GetDailyLeaderboardRemote = deps.GetDailyLeaderboardRemote
 	local GetWeeklyLeaderboardRemote = deps.GetWeeklyLeaderboardRemote
+	local GetEndlessLeaderboardRemote = deps.GetEndlessLeaderboardRemote -- Endless board: highest Night, then best hand
 	local popIn = deps.popIn
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
@@ -127,7 +128,9 @@ return function(deps)
 	local standardTabButton = makeTabButton("Standard", -186, 1)
 	local revivedTabButton = makeTabButton("\u{1F4AB} Revived", -90, 1)
 	-- FRIENDS: toggles the board between everyone and only your Roblox friends (plus you).
-	local friendsTabButton = makeTabButton("\u{1F465} Friends", 192)
+	-- ENDLESS board tab, and the scope toggle (it shows the scope you are on: Global or Friends).
+	local endlessTabButton = makeTabButton("\u{267E} Endless", 192)
+	local friendsTabButton = makeTabButton("\u{1F30D} Global", 288)
 	friendsTabButton.TextSize = 15
 
 	local leaderboardTitle = Instance.new("TextLabel")
@@ -209,6 +212,7 @@ return function(deps)
 		end
 	end
 
+	local statsFormat = "Depth %d  |  %d Tips" -- the Endless board reads "Night %d  |  Best hand %d"
 	local function makeLeaderboardRow(order, rankText, name, depth, tips, isYou, flair)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 34)
@@ -254,7 +258,7 @@ return function(deps)
 		statsLabel.TextSize = 13
 		statsLabel.TextXAlignment = Enum.TextXAlignment.Right
 		statsLabel.TextColor3 = Color3.fromRGB(200, 185, 165)
-		statsLabel.Text = string.format("Depth %d  |  %d Tips", math.floor(depth), math.floor(tips))
+		statsLabel.Text = string.format(statsFormat, math.floor(depth), math.floor(tips))
 		statsLabel.ZIndex = 21
 		statsLabel.Parent = row
 	end
@@ -277,14 +281,16 @@ return function(deps)
 	local activeBoard = "daily"
 	-- ONE MORE ROUND: Leaderboards.STANDARD or Leaderboards.REVIVED.
 	local activeBucket = Leaderboards.STANDARD
-	-- FRIENDS: Leaderboards.EVERYONE or Leaderboards.FRIENDS.
-	local activeScope = Leaderboards.EVERYONE
+	-- GLOBAL (everyone, cached on the server) or FRIENDS.
+	local activeScope = Leaderboards.GLOBAL
 
 	local ACTIVE_TAB = Color3.fromRGB(110, 80, 40)
 	local IDLE_TAB = Color3.fromRGB(70, 55, 40)
 	local function updateTabHighlight()
 		dailyTabButton.BackgroundColor3 = (activeBoard == "daily") and ACTIVE_TAB or IDLE_TAB
 		weeklyTabButton.BackgroundColor3 = (activeBoard == "weekly") and ACTIVE_TAB or IDLE_TAB
+		endlessTabButton.BackgroundColor3 = (activeBoard == "endless") and ACTIVE_TAB or IDLE_TAB
+		friendsTabButton.Text = (activeScope == Leaderboards.FRIENDS) and "\u{1F465} Friends" or "\u{1F30D} Global"
 		standardTabButton.BackgroundColor3 = (activeBucket == Leaderboards.STANDARD) and ACTIVE_TAB or IDLE_TAB
 		revivedTabButton.BackgroundColor3 = (activeBucket == Leaderboards.REVIVED) and ACTIVE_TAB or IDLE_TAB
 		friendsTabButton.BackgroundColor3 = (activeScope == Leaderboards.FRIENDS) and ACTIVE_TAB or IDLE_TAB
@@ -301,6 +307,11 @@ return function(deps)
 		local icon = (activeBoard == "weekly") and "\240\159\151\147" or "\240\159\143\134"
 		local label = (activeBoard == "weekly") and "Weekly Challenge" or "Daily Challenge"
 		local period = (activeBoard == "weekly") and "this week" or "today"
+		statsFormat = "Depth %d  |  %d Tips"
+		if activeBoard == "endless" then
+			remote, icon, label, period = GetEndlessLeaderboardRemote, "\u{267E}", "Endless Mode", "so far"
+			statsFormat = "Night %d  |  Best hand %d"
+		end
 		-- Captured up front so a late-returning InvokeServer for a board
 		-- the player has since tabbed AWAY from doesn't paint its result
 		-- into the other tab's UI.
@@ -333,12 +344,12 @@ return function(deps)
 				return
 			end
 
-			leaderboardTitle.Text = icon .. " " .. label .. " -- " .. tostring(result.dateKey or "")
+			leaderboardTitle.Text = icon .. " " .. label .. ((result.dateKey and result.dateKey ~= "alltime") and (" -- " .. tostring(result.dateKey)) or "")
 			revivedBadge.Visible = requestedBucket == Leaderboards.REVIVED
 
 			if result.yourBestOk and result.yourBest then
 				yourBestLabel.Text = string.format(
-					"Your best %s: Depth %d, %d Tips",
+					activeBoard == "endless" and "Your best %s: Night %d, best hand %d" or "Your best %s: Depth %d, %d Tips",
 					period, math.floor(result.yourBest.depth or 0), math.floor(result.yourBest.tips or 0)
 				)
 			elseif result.yourBestOk then
@@ -366,6 +377,7 @@ return function(deps)
 				if entry.badgeIcon then table.insert(flairParts, entry.badgeIcon) end
 				if entry.titleText then table.insert(flairParts, entry.titleText) end
 				if entry.cardBackName then table.insert(flairParts, entry.cardBackName .. " back") end
+					if entry.tavernRank then table.insert(flairParts, "Rank " .. tostring(entry.tavernRank)) end
 				makeLeaderboardRow(i, "#" .. tostring(entry.rank or i), entry.name or "???", entry.depth or 0, entry.tips or 0, entry.userId ~= nil and entry.userId == localUserId, table.concat(flairParts, ", "))
 			end
 		end)
@@ -403,9 +415,17 @@ return function(deps)
 		end
 	end)
 
+	endlessTabButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		if activeBoard ~= "endless" then
+			activeBoard = "endless"
+			refreshLeaderboard()
+		end
+	end)
+
 	friendsTabButton.MouseButton1Click:Connect(function()
 		playClickSfx()
-		activeScope = (activeScope == Leaderboards.FRIENDS) and Leaderboards.EVERYONE or Leaderboards.FRIENDS
+		activeScope = (activeScope == Leaderboards.FRIENDS) and Leaderboards.GLOBAL or Leaderboards.FRIENDS
 		refreshLeaderboard()
 	end)
 
@@ -417,7 +437,7 @@ return function(deps)
 		playClickSfx()
 		OverlayManager.closeAllExcept("dailyLeaderboard")
 		activeBucket = Leaderboards.STANDARD -- every open starts on Standard
-		activeScope = Leaderboards.EVERYONE -- and on the Everyone board
+		activeScope = Leaderboards.GLOBAL -- and on the Global board
 		refreshLeaderboard()
 		popIn(leaderboardBackdrop, leaderboardPanel)
 	end)

@@ -28,6 +28,7 @@ Leaderboards.Boards = { Leaderboards.STANDARD, Leaderboards.REVIVED }
 local STORE_PREFIX = {
 	daily = "DailyChallenge",
 	weekly = "WeeklyChallenge",
+	endless = "EndlessMode", -- all-time board, one store per board, period key "alltime"
 }
 
 -- The board a run's progress belongs on right now.
@@ -58,13 +59,14 @@ end
 -- the Everyone board reads. To stay cheap on the DataStore budget the server reads one sorted
 -- page per store and one friend list per player, each cached for FRIENDS_CACHE_SECONDS.
 Leaderboards.EVERYONE = "everyone"
+Leaderboards.GLOBAL = "global" -- the whole game; same data as EVERYONE, but read through the 60s page cache
 Leaderboards.FRIENDS = "friends"
 Leaderboards.FRIENDS_CACHE_SECONDS = 60
 Leaderboards.FRIENDS_PAGE_SIZE = 100 -- how deep into the sorted board friends are looked up
 Leaderboards.MAX_FRIENDS = 200 -- friend list cap per lookup
 
 function Leaderboards.isScope(scope)
-	return scope == Leaderboards.EVERYONE or scope == Leaderboards.FRIENDS
+	return scope == Leaderboards.EVERYONE or scope == Leaderboards.GLOBAL or scope == Leaderboards.FRIENDS
 end
 
 -- Tiny time-to-live cache. `clock` is a function returning seconds (os.clock on the server).
@@ -101,6 +103,92 @@ function Leaderboards.friendRows(entries, friendIds, selfId, limit)
 		end
 	end
 	return out
+end
+
+-- ===== Endless board =====
+-- Highest Night reached in Endless Mode, then the run's best single hand as the tiebreak. One all-time board per
+-- Standard / Revived. Scores are computed from the server's own run state, never sent by a client.
+Leaderboards.ENDLESS_PERIOD = "alltime"
+Leaderboards.SCORE_MULTIPLIER = 1000000 -- combined = night * this + best hand (the hand is clamped below it)
+Leaderboards.MAX_ENDLESS_NIGHT = 500 -- a sanity ceiling: nothing above it is ever written
+
+function Leaderboards.combine(night, score)
+	score = math.max(0, math.min(Leaderboards.SCORE_MULTIPLIER - 1, math.floor(score or 0)))
+	return night * Leaderboards.SCORE_MULTIPLIER + score
+end
+
+function Leaderboards.decode(combined)
+	return math.floor(combined / Leaderboards.SCORE_MULTIPLIER), combined % Leaderboards.SCORE_MULTIPLIER
+end
+
+-- The Endless entry of a run, or nil when the run does not qualify. `flags` = { isDaily, isWeekly, isSeeded, isTutorial }.
+-- Qualifies: a normal run (no seed, no tutorial, no Boss Rush, no Challenge twist) that has won and is now past the
+-- Night cap, with sane numbers. Returns night, score.
+function Leaderboards.endlessEntry(state, flags)
+	flags = flags or {}
+	if type(state) ~= "table" or flags.isDaily or flags.isWeekly or flags.isSeeded or flags.isTutorial then
+		return nil
+	end
+	if state.rush or state.challenge or not state.wonRun then
+		return nil
+	end
+	local cap = state.config and state.config.nightCap or 8
+	local night = state.night
+	if type(night) ~= "number" or night ~= night or night <= cap or night > Leaderboards.MAX_ENDLESS_NIGHT then
+		return nil
+	end
+	local best = state.bestHand and state.bestHand.score or 0
+	if type(best) ~= "number" or best ~= best or best < 0 then
+		return nil
+	end
+	return math.floor(night), math.min(Leaderboards.SCORE_MULTIPLIER - 1, math.floor(best))
+end
+
+-- True when (night, score) beats the pending entry (higher Night, or the same Night and a higher hand).
+function Leaderboards.improves(pending, night, score)
+	if not pending then
+		return true
+	end
+	return night > pending.depth or (night == pending.depth and score > pending.tips)
+end
+
+-- Sorts board rows best first: higher depth, then higher tips. Returns a new list, ties keep their order.
+function Leaderboards.sortRows(rows)
+	local indexed = {}
+	for i, row in ipairs(rows) do
+		indexed[i] = { row = row, i = i }
+	end
+	table.sort(indexed, function(a, b)
+		if a.row.depth ~= b.row.depth then return a.row.depth > b.row.depth end
+		if a.row.tips ~= b.row.tips then return a.row.tips > b.row.tips end
+		return a.i < b.i
+	end)
+	local out = {}
+	for i, entry in ipairs(indexed) do
+		out[i] = entry.row
+	end
+	return out
+end
+
+-- The first `limit` rows of a cached sorted page, each with its rank. Returns copies.
+function Leaderboards.topRows(rows, limit)
+	local out = {}
+	for i, entry in ipairs(rows or {}) do
+		if limit and i > limit then break end
+		local row = {}
+		for k, v in pairs(entry) do row[k] = v end
+		row.rank = i
+		out[#out + 1] = row
+	end
+	return out
+end
+
+-- Normalises a scope string from a client: anything unknown means the global board.
+function Leaderboards.normalizeScope(scope)
+	if scope == Leaderboards.FRIENDS then
+		return Leaderboards.FRIENDS
+	end
+	return Leaderboards.GLOBAL
 end
 
 return Leaderboards

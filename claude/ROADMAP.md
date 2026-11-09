@@ -32,8 +32,8 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] More bosses with distinct rules; Boss Rush after the first win
 
 ## Phase 4: Social
-- [ ] Friends and global leaderboards for Daily, Weekly and Endless
-- [ ] Share a seed or run result, "beat my score" challenge
+- [x] Friends and global leaderboards for Daily, Weekly and Endless
+- [x] Share a seed or run result, "beat my score" challenge
 - [ ] Later: co-op or versus
 
 ## Phase 5: Game feel and monetization

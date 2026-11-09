@@ -4,6 +4,7 @@
 local TweenService = game:GetService("TweenService")
 
 local SeedDisplay = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeedDisplay"))
+local ShareResult = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ShareResult"))
 local RunSummaryUI = {}
 
 local INK = Color3.fromRGB(60, 40, 22)
@@ -170,10 +171,14 @@ function RunSummaryUI.init(screenGui, deps)
 	})
 
 	-- Share seed (Seed Runs only): the code and a ready-to-send line in a selectable box (Ctrl+C copies it).
-	ui.share = button(panel, "Share seed", WOOD, {
-		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(1, -334, 0, 38),
+	ui.share = button(panel, "Share result", WOOD, {
+		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(0.5, -176, 0, 38),
 	})
 	ui.share.Visible = false
+	ui.challenge = button(panel, "Challenge a friend", WOOD, {
+		Position = UDim2.new(0.5, -22, 0, 300), Size = UDim2.new(0.5, -171, 0, 38),
+	})
+	ui.challenge.Visible = false
 	ui.shareBox = Instance.new("TextBox")
 	ui.shareBox.Name = "ShareSeedBox"
 	ui.shareBox.Position = UDim2.new(0, 312, 0, 300)
@@ -204,12 +209,31 @@ function RunSummaryUI.init(screenGui, deps)
 			deps.playClick()
 		end
 	end
-	ui.share.MouseButton1Click:Connect(function()
-		click()
+	local function showBox(text)
+		ui.shareBox.Text = text
 		ui.share.Visible = false
+		ui.challenge.Visible = false
 		ui.shareBox.Visible = true
 		ui.shareHint.Visible = true
 		ui.shareBox:CaptureFocus()
+	end
+	ui.share.MouseButton1Click:Connect(function()
+		click()
+		local seedInfo = SeedDisplay.label(ui.lastState)
+		showBox(ShareResult.line(ui.lastSummary, seedInfo and seedInfo.kind == "seed" and seedInfo.value or nil))
+	end)
+	ui.challenge.MouseButton1Click:Connect(function()
+		click()
+		-- a Seed Run challenges with its own code; any other run asks the server for a fresh one to play together
+		local seedInfo = SeedDisplay.label(ui.lastState)
+		local code = seedInfo and seedInfo.kind == "seed" and seedInfo.value or nil
+		if not code and deps.makeSeed then
+			local ok, made = pcall(deps.makeSeed)
+			code = ok and made or nil
+		end
+		if code then
+			showBox(ShareResult.challengeLine(ui.lastSummary, code))
+		end
 	end)
 	ui.save.MouseButton1Click:Connect(function()
 		if ui.save.Active then
@@ -350,9 +374,12 @@ function RunSummaryUI.update(state)
 		if seedInfo then
 			ui.stats.Text = ui.stats.Text .. "\n" .. seedInfo.text
 		end
-		local shareText = SeedDisplay.shareText(state)
-		ui.share.Visible = shareText ~= nil and not ui.shareBox.Visible
-		if shareText then ui.shareBox.Text = shareText elseif ui.shareBox.Visible then ui.shareBox.Visible = false ui.shareHint.Visible = false end
+		-- every run can share its result and challenge a friend; the box shows the chosen line (select, then Ctrl+C)
+		ui.lastState, ui.lastSummary = state, summary
+		ui.shareBox.Visible = false
+		ui.shareHint.Visible = false
+		ui.share.Visible = true
+		ui.challenge.Visible = true
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)

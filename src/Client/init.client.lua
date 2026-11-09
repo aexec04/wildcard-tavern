@@ -964,6 +964,7 @@ do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Ov
 			playClick = playClickSfx,
 			restart = function() remotes:WaitForChild("RestartRun"):FireServer() end,
 			saveBadge = function() remotes:WaitForChild("SaveBadge"):FireServer() end,
+			makeSeed = function() return remotes:WaitForChild("MakeChallengeSeed"):InvokeServer() end, -- Challenge a friend
 		})
 	end)
 	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
@@ -1336,6 +1337,7 @@ require(script.DailyLeaderboard)({
 	leaderboardButton = settingsLeaderboardButton,
 	GetDailyLeaderboardRemote = remotes:WaitForChild("GetDailyLeaderboard"),
 	GetWeeklyLeaderboardRemote = remotes:WaitForChild("GetWeeklyLeaderboard"),
+	GetEndlessLeaderboardRemote = remotes:WaitForChild("GetEndlessLeaderboard"),
 	localPlayer = player,
 	popIn = popIn,
 	popOut = popOut,
