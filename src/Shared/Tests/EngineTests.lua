@@ -11669,4 +11669,24 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	expectTrue(sp:find(".finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget", 1, true) ~= nil, "finisher gets the clear flag")
 end })
 
+table.insert(tests, { name = "PanelLayout: the Expand button never sits under the tab strip, collapsed or expanded, at desktop and phone sizes", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 360, 640 } }) do
+		local h = sz[2]
+		for _, nudged in ipairs({ false, true }) do
+			expectFalse(PL.hitsStrip(PL.toggleTop(h, h * 0.78, nudged), PL.TOGGLE_SIZE), "collapsed toggle clear at " .. h)
+			local expandedTop = PL.toggleTop(h, PL.expandedHeight(h), nudged)
+			expectFalse(PL.hitsStrip(expandedTop, PL.TOGGLE_SIZE), "expanded toggle clear at " .. h)
+			expectTrue(expandedTop >= 40, "expanded toggle at least 40px down at " .. h)
+		end
+		expectTrue((h - PL.expandedHeight(h)) / 2 > PL.STRIP_BOTTOM + 8, "expanded panel starts below the strip")
+	end
+	expectTrue(PL.hitsStrip(8, 30)) -- the old top-edge placement was under the strip
+	local f = io and io.open and io.open("src/Client/ExpandToggle.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("PanelLayout.EXPANDED_MARGIN", 1, true) ~= nil)
+	expectTrue(src:find("math.max(panel.ZIndex, 70)", 1, true) ~= nil, "toggle above the strip")
+end })
+
 return tests

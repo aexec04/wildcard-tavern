@@ -32,7 +32,9 @@
 
 local TweenService = game:GetService("TweenService")
 
-local DEFAULT_EXPANDED_SIZE = UDim2.fromScale(0.95, 0.92)
+local PanelLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout"))
+-- tall enough to fill the screen but always clear of the PanelTabs strip (top 37px) once nudged down
+local DEFAULT_EXPANDED_SIZE = UDim2.new(0.95, 0, 1, -PanelLayout.EXPANDED_MARGIN)
 local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 -- Glyphs read as "grow" / "shrink" -- plain arrows from the basic Arrows
 -- block, which every Roblox font's fallback covers.
@@ -50,13 +52,13 @@ return function(panel, opts)
 	button.Name = "ExpandToggle"
 	button.Size = UDim2.new(0, 30, 0, 30)
 	button.AnchorPoint = Vector2.new(1, 0)
-	button.Position = UDim2.new(1, -8, 0, 8)
+	button.Position = UDim2.new(1, -8, 0, PanelLayout.TOGGLE_INSET)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 18
 	button.Text = EXPAND_GLYPH
 	button.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
-	button.ZIndex = opts.zIndex or panel.ZIndex
+	button.ZIndex = opts.zIndex or math.max(panel.ZIndex, 70) -- above the PanelTabs strip (60) so clicks always reach it
 	button.Parent = panel
 	if opts.polishButton then
 		opts.polishButton(button, 8)
