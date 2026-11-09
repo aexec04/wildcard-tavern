@@ -7641,6 +7641,34 @@ table.insert(tests, { name = "CardShape.fitScale: both Counter rows fit the pane
 	expectTrue(CardShape.fitScale(1900, 940, 1920, 1080, 3) == CardShape.MAX_SCALE, "roomy panel keeps the biggest cards")
 end })
 
+table.insert(tests, { name = "CardShape.pickLayout: every pack choice gets a nonzero card, wrapping to rows on narrow screens", fn = function()
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	for _, vp in ipairs({ { 1920, 1080 }, { 1366, 768 }, { 800, 600 }, { 390, 844 } }) do
+		for _, count in ipairs({ 2, 3, 5 }) do -- Patron/Recipe packs and card packs reveal 2 to 5 choices
+			local s, rows = CardShape.pickLayout(vp[1] - 40, vp[2] - 40, count, vp[1], vp[2])
+			local shape = CardShape.shape("patron", s, true)
+			expectTrue(shape.w > 0 and shape.h > 0, "nonzero card size")
+			expectTrue(rows >= 1 and rows * math.ceil(count / rows) >= count, "rows hold every choice")
+			local perRow = math.ceil(count / rows)
+			if s > CardShape.FIT_MIN then
+				expectTrue(CardShape.fitsRow(perRow, vp[1] - 40, shape, 16, 14), string.format("%d cards fit %d per row at %d", count, perRow, vp[1]))
+			end
+		end
+	end
+	local _, rowsWide = CardShape.pickLayout(1880, 1040, 5, 1920, 1080)
+	expectEqual(rowsWide, 1, "five choices fit one row on a big screen")
+end })
+
+table.insert(tests, { name = "Pack pick screen: cards are raised above the panel and missing art warns (source check)", fn = function()
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("zDelta", 1, true) ~= nil, "pick cards are raised above the opaque pack panel")
+	expectTrue(src:find("[PackPick] no art", 1, true) ~= nil, "a choice with no art warns")
+	expectTrue(src:find("pickLayout", 1, true) ~= nil, "pick cards are sized by CardShape.pickLayout")
+end })
+
 table.insert(tests, { name = "CardShape: Counter cards are art-first, scale with the screen and fit the rows", fn = function()
 	local CardShape = require(script.Parent.Parent.Engine.CardShape)
 	expectTrue(CardShape.scaleFor(1920, 1080) == CardShape.MAX_SCALE, "big screens get the biggest cards")

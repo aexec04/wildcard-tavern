@@ -609,7 +609,8 @@ return function(deps)
 		packPanelHintLabel.Parent = shopPackPanel
 
 		packItemsRow = Instance.new("Frame")
-		packItemsRow.Size = UDim2.new(1, -20, 0, ShopCardsModule.rowHeight("patron", true))
+		packItemsRow.Size = UDim2.new(1, -20, 0, 0)
+		packItemsRow.AutomaticSize = Enum.AutomaticSize.Y -- grows with wrapped rows
 		packItemsRow.Position = UDim2.new(0, 10, 0, 78)
 		packItemsRow.BackgroundTransparency = 1
 		packItemsRow.ZIndex = PANEL_ZINDEX
@@ -620,6 +621,7 @@ return function(deps)
 		packItemsLayout.Padding = UDim.new(0, 16)
 		packItemsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		packItemsLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+		packItemsLayout.Wraps = true -- a second row on narrow screens (CardShape.pickLayout)
 		packItemsLayout.Parent = packItemsRow
 
 		packConfirmButton = Instance.new("TextButton")
@@ -866,6 +868,18 @@ return function(deps)
 				if not child:IsA("UIListLayout") then child:Destroy() end
 			end
 			packCards = {}
+			-- Size the pick cards from the panel (as big as possible, wrapping to a second row if needed).
+			do
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+				local area = shopPackPanel.AbsoluteSize
+				local pickScale = require(Engine:WaitForChild("CardShape")).pickLayout(
+					area.X > 0 and area.X - 20 or (vp.X - 40), area.Y > 0 and area.Y or (vp.Y - 40), #pending.items, vp.X, vp.Y)
+				ShopCardsModule.setScale(pickScale)
+			end
+			-- Cards are built at ShopCards' ZIndex 6, which is UNDER this panel's opaque background (ZIndex 7)
+			-- in Global ZIndex mode: that is why the picks were invisible. Raise every card above the panel.
+			local zDelta = shopPackPanel.ZIndex + 1 - 6
 			for index, item in ipairs(pending.items) do
 				local packArtCategory = (item.category == "patron" and "patrons")
 					or ((item.category == "house" or item.category == "menu" or item.category == "secret") and "recipes")
@@ -898,6 +912,9 @@ return function(deps)
 					end,
 				})
 				packCards[index] = card
+				if packArtCategory and not ContentArt.getImageId(packArtCategory, item.id) then
+					warn(string.format("[PackPick] no art for %s '%s' (emoji fallback shown)", tostring(item.category), tostring(item.id)))
+				end
 				if standardCard then
 					-- a real card face (with its special pattern) instead of a picture
 					local host = Instance.new("Frame")
@@ -949,6 +966,10 @@ return function(deps)
 						end)
 					end
 				end
+				for _, d in ipairs(card.slot:GetDescendants()) do
+					if d:IsA("GuiObject") then d.ZIndex = d.ZIndex + zDelta end
+				end
+				card.slot.ZIndex = card.slot.ZIndex + zDelta
 			end
 		end
 		for index, card in pairs(packCards) do

@@ -50,6 +50,25 @@ function CardShape.fitScale(availW, availH, vpX, vpY, widestRow)
 	return math.max(CardShape.FIT_MIN, s)
 end
 
+-- Pack pick screen: one centered row when it fits, else 2 or 3 wrapped rows, picking the layout with the
+-- biggest cards. Reserves 78px for the title/hint and 64px for the Confirm / Skip row. Returns scale, rows.
+CardShape.PICK_TOP, CardShape.PICK_BOTTOM = 78, 64
+function CardShape.pickLayout(availW, availH, count, vpX, vpY)
+	local s0 = CardShape.scaleFor(vpX, vpY)
+	local n = math.max(count or 1, 1)
+	local bestS, bestRows = 0, 1
+	for rows = 1, math.min(3, n) do
+		local perRow = math.ceil(n / rows)
+		local sW = (availW - 28 - (perRow - 1) * 16) / (perRow * BASE.patron.w)
+		local sH = (availH - CardShape.PICK_TOP - CardShape.PICK_BOTTOM - (rows - 1) * 8 - rows * 64) / (rows * BASE.patron.artH)
+		local s = math.min(s0, sW, sH)
+		if s > bestS + 0.001 then
+			bestS, bestRows = s, rows
+		end
+	end
+	return math.max(CardShape.FIT_MIN, bestS), bestRows
+end
+
 function CardShape.shape(kind, scale, noAction)
 	local b = BASE[kind] or BASE.patron
 	scale = scale or 1
