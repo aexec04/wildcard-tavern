@@ -723,6 +723,7 @@ do
 	end
 	pcall(function() require(script.AccessibilityFX).init(screenGui) end) -- Larger Text (Settings), no new locals here
 	pcall(function() require(script.FirstTimeHints).init(screenGui) end) -- first time hint bubbles
+	pcall(function() require(script.SpectatePanel).init({ screenGui = screenGui, particleBurst = ParticleBurstModule.burst }) end) -- watch a friend (same server)
 	require(script.BossFight).init({
 		root = root,
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,

@@ -79,6 +79,7 @@ Screenshot anything that looks wrong and write the screen name on it.
 **Notifications, age and safety**
 - Experience notifications: the game offers them once after the first win. Turn them on in Creator Hub (Communication) and write one friendly default message.
 - Age guidelines questionnaire: answer honestly, no chat features are added by the game, no user content.
+- Max players per server: raise it (Creator Hub > Experience Settings > Places > Max Players, for example 12 to 20) so friends actually land in one server and can use Spectate. A watched player can have up to 8 spectators.
 - Private servers: leave off for launch.
 - To test saving inside Studio, turn on "Enable Studio Access to API Services" in Game Settings > Security (your test place). The live place does not need it.
 

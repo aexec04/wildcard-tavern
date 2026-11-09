@@ -115,6 +115,38 @@ return function(deps)
 		friendsPanel.Visible = true
 		for i, row in ipairs(friendRows) do
 			local friend = friendsList[i]
+			-- SPECTATE: a Watch button on a friend who is in a run (the server re-checks every request)
+			local watch = row:FindFirstChild("WatchButton")
+			if not watch then
+				watch = Instance.new("TextButton")
+				watch.Name = "WatchButton"
+				watch.Size = UDim2.fromOffset(58, 22)
+				watch.AnchorPoint = Vector2.new(1, 0.5)
+				watch.Position = UDim2.new(1, 0, 0.5, 0)
+				watch.Font = Enum.Font.GothamBold
+				watch.TextSize = 14
+				watch.TextColor3 = Color3.fromRGB(250, 235, 200)
+				watch.BackgroundColor3 = Color3.fromRGB(70, 110, 150)
+				watch.ZIndex = 22
+				watch.Visible = false
+				watch.Parent = row
+				local wc = Instance.new("UICorner")
+				wc.CornerRadius = UDim.new(0, 6)
+				wc.Parent = watch
+				watch.MouseButton1Click:Connect(function()
+					local spectateRemote = remotes:FindFirstChild("SpectateAction")
+					local id = watch:GetAttribute("UserId")
+					if spectateRemote and type(id) == "number" then
+						spectateRemote:FireServer(watch:GetAttribute("Watching") == true and "stop" or "watch", id)
+					end
+				end)
+			end
+			watch.Visible = friend ~= nil and friend.canWatch == true
+			if friend then
+				watch:SetAttribute("UserId", friend.userId)
+				watch:SetAttribute("Watching", friend.watching == true)
+				watch.Text = friend.watching and "Stop" or "Watch"
+			end
 			if friend then
 				row.Visible = true
 				if friend.night then

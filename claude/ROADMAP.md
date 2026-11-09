@@ -37,6 +37,7 @@ Long-term retention, engagement and monetization of players who find the game or
 ## Phase 4: Social
 - [x] Friends and global leaderboards for Daily, Weekly and Endless
 - [x] Share a seed or run result, "beat my score" challenge
+- [x] Spectate a friend in the same server: watcher badge, six preset reactions, Allow Spectators and block (`Engine/Spectate.lua`, `Client/SpectatePanel.lua`)
 - [ ] Later: co-op or versus
 
 ## Phase 5: Game feel and monetization

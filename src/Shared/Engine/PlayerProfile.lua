@@ -91,6 +91,7 @@ PlayerProfile.SETTING_SPECS = {
 	reduceMotion = { default = false, kind = "boolean" },
 	largerText = { default = false, kind = "boolean" },
 	holdConfirmSeconds = { default = 1.5, kind = "range", min = 0.5, max = 3 },
+	allowSpectators = { default = true, kind = "boolean" }, -- friends in the same server may watch your run (Engine/Spectate.lua)
 }
 
 -- Animation pace divisors. The free "fast" speed is milder than the
@@ -236,6 +237,7 @@ function PlayerProfile.new()
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
 		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
+		blockedSpectators = {}, -- [user id as text] = true, players who may not watch my runs (Engine/Spectate.lua)
 		flairOwned = {}, -- [flair id] = true, Flair bought in the Store (Engine/Flair.lua)
 		flairEquipped = {}, -- [slot] = flair id
 		legendPoints = 0, -- Legend prestige (Engine/Legend.lua): level = points, capped at 10
@@ -478,6 +480,7 @@ function PlayerProfile.migrate(raw)
 	profile.hintsSeen = require(script.Parent.Hints).cleanSaved(raw.hintsSeen)
 	profile.collectionRewardsClaimed = require(script.Parent.CollectionRewards).cleanSaved(raw.collectionRewardsClaimed)
 	profile.flairOwned, profile.flairEquipped = require(script.Parent.Flair).cleanSaved(raw.flairOwned, raw.flairEquipped)
+	profile.blockedSpectators = require(script.Parent.Spectate).cleanSaved(raw.blockedSpectators)
 	do
 		local Legend = require(script.Parent.Legend)
 		profile.legendPoints, profile.legendRoads, profile.legendRewardIds = Legend.cleanSaved(raw.legendPoints, raw.legendRoads, raw.legendRewardIds, function(region)

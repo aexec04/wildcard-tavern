@@ -126,6 +126,7 @@ local function newRemote(name)
 	return r
 end
 
+local Rem = {} -- remotes added late (a table keeps the main chunk under 200 locals)
 local PlayHandRemote = newRemote("PlayHand")
 local DiscardRemote = newRemote("Discard")
 local BuyPatronRemote = newRemote("BuyPatron")
@@ -138,11 +139,12 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
-local EquipFlairRemote = newRemote("EquipFlair") -- (player, slot id, flair id): Engine/Flair.lua, validated and saved
-local ClaimCollectionRewardRemote = newRemote("ClaimCollectionReward") -- (player, group id, percent) or (player, "all")
-local StoreOpenedRemote = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
-local HintSeenRemote = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
-local ResetHintsRemote = newRemote("ResetHints") -- (player): Settings > Replay Hints
+Rem.SpectateAction = newRemote("SpectateAction") -- (player, action "watch"|"stop"|"react"|"block"|"unblock", argument)
+Rem.EquipFlair = newRemote("EquipFlair") -- (player, slot id, flair id): Engine/Flair.lua, validated and saved
+Rem.ClaimCollectionReward = newRemote("ClaimCollectionReward") -- (player, group id, percent) or (player, "all")
+Rem.StoreOpened = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
+Rem.HintSeen = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
+Rem.ResetHints = newRemote("ResetHints") -- (player): Settings > Replay Hints
 local SeasonClaimRemote = newRemote("ClaimSeason") -- (player, tier number or "all"): Tavern Season track rewards
 local ClaimLiveEventRemote = newRemote("ClaimLiveEvent") -- (player, eventId): claims the rewards of a running event once
 local StorePurchaseRemote = newRemote("StorePurchase") -- (player, itemId): prompts the purchase, or grants a placeholder free in Studio
@@ -1496,6 +1498,86 @@ local function trackWeeklyProgress(player)
 	weeklyDirty[player][board] = true
 end
 
+-- ===== SPECTATE (Engine/Spectate.lua): watch a friend's run live, same server only =====
+-- The server relays a compact, whitelisted event stream from the watched player's run to their spectators through the
+-- `SpectateStream` remote (at most 4 snapshots a second per watched player). Spectators can only send a reaction
+-- (preset, 3 s cooldown) and watch/stop/block requests; they have no way to send game input, and the watched player's
+-- deck order, draw pile, rng seed, shop and profile are never part of any event (Spectate.snapshot is a whitelist).
+local Spec = { M = require(Engine.Spectate) } -- one table: the main chunk is near Lua's 200 local limit
+Spec.state = Spec.M.new()
+Rem.SpectateStream = newRemote("SpectateStream") -- (server to spectator and watched player) whitelisted events only
+
+function Spec.name(player)
+	return player.DisplayName ~= "" and player.DisplayName or player.Name
+end
+
+function Spec.send(viewers, event)
+	event = Spec.M.outgoing(event)
+	if not event or not Rem.SpectateStream then return end
+	for _, viewerId in ipairs(viewers) do
+		local viewer = Players:GetPlayerByUserId(viewerId)
+		if viewer then
+			pcall(function() Rem.SpectateStream:FireClient(viewer, event) end)
+		end
+	end
+end
+
+-- The watcher count for the watched player's own screen ("3 watching" with a tiny name row).
+function Spec.notifyCount(target)
+	local viewers = Spec.M.watchersOf(Spec.state, target.UserId)
+	local names, rows = {}, {}
+	for _, id in ipairs(viewers) do
+		local v = Players:GetPlayerByUserId(id)
+		if v then
+			names[#names + 1] = Spec.name(v)
+			rows[#rows + 1] = { id = id, name = Spec.name(v) } -- the watched player may block any of them
+		end
+	end
+	if Rem.SpectateStream then
+		pcall(function() Rem.SpectateStream:FireClient(target, { kind = "watchers", count = #viewers, names = names, viewers = rows }) end)
+	end
+end
+
+function Spec.snapshotFor(player)
+	local session, profile = sessions[player], profiles[player]
+	if not session or not profile then return nil end
+	local state = session.state
+	local hand = {}
+	for i, c in ipairs(state.hand or {}) do hand[i] = c end
+	local patrons = {}
+	for i, p in ipairs(state.ownedPatrons or {}) do patrons[i] = p.id end
+	local mod = state.bossModifier
+	local route = state.worldRoute or {}
+	local region = WorldMap.regionOf(route[#route])
+	local flairSet = require(Engine.Flair).equippedSet(profile)
+	local auraOption = require(Engine.Flair).getById(flairSet.nameAura)
+	local stakeDef = Stakes.get(state.stake or 1)
+	return Spec.M.snapshot({
+		name = Spec.name(player), crest = auraOption and auraOption.crest or nil,
+		badge = profile.equippedBadge and profile.equippedBadge.rarity or nil,
+		stake = state.stake, stakeName = stakeDef and stakeDef.name or nil,
+		road = region, roadName = region and WorldMap.Regions[region] and WorldMap.Regions[region].name or nil,
+		phase = session.phase, night = state.night, round = state.round, tips = state.tips,
+		targetScore = state.targetScore, roundScore = state.roundScore,
+		handsRemaining = state.handsRemaining, discardsRemaining = state.discardsRemaining,
+		hand = hand, patrons = patrons, flair = flairSet,
+		boss = mod and { id = mod.id, name = mod.name, text = mod.description } or nil,
+	})
+end
+
+-- Called after a state push of `player`: spectators get a fresh snapshot (rate limited per watched player).
+function Spec.pushed(player)
+	if Spec.M.count(Spec.state, player.UserId) == 0 then return end
+	if not Spec.M.streamAllowed(Spec.state, player.UserId, os.clock()) then return end
+	local snap = Spec.snapshotFor(player)
+	if snap then Spec.send(Spec.M.watchersOf(Spec.state, player.UserId), snap) end
+end
+
+function Spec.release(target, released, reason)
+	Spec.send(released, { kind = "ended", reason = reason })
+	Spec.notifyCount(target)
+end
+
 local function pushState(player)
 	local session = sessions[player]
 	if not session then
@@ -1506,6 +1588,15 @@ local function pushState(player)
 	trackWeeklyProgress(player)
 	trackEndlessProgress(player)
 	StateUpdatedRemote:FireClient(player, serializeState(session, player))
+	pcall(Spec.pushed, player) -- spectators see the same table a moment later
+	-- a run that just ended frees its watchers (they can watch the next run)
+	if session.phase == "gameover" and Spec.M.count(Spec.state, player.UserId) > 0 then
+		pcall(function()
+			local released = Spec.M.runEnded(Spec.state, player.UserId)
+			Analytics.single(player, "spectator_count_peak", Spec.M.takePeak(Spec.state, player.UserId), {}) -- tuning data
+			Spec.release(player, released, "The run ended.")
+		end)
+	end
 	session.onboardingHint = nil -- one-shot: only the push right after it's set carries it
 	session.collectionMilestoneNotice = nil -- one-shot, same as onboardingHint
 	session.journeyNotice = nil -- one-shot
@@ -1906,6 +1997,12 @@ Players.PlayerRemoving:Connect(function(player)
 			Analytics.single(player, "run_quit", s.state.night or 0, { phase = s.phase, stake = s.state.stake or 1 })
 		end
 		Analytics.forgetPlayer(player)
+		-- SPECTATE: a leaving watcher frees the table, a leaving player releases everyone watching them
+		local watchedBefore = Spec.M.watching(Spec.state, player.UserId)
+		local released = Spec.M.leave(Spec.state, player.UserId)
+		Spec.send(released, { kind = "ended", reason = "That player left." })
+		local watchedPlayer = watchedBefore and Players:GetPlayerByUserId(watchedBefore)
+		if watchedPlayer then Spec.notifyCount(watchedPlayer) end
 	end)
 	saveProfile(player, true) -- final save also releases the session lease
 	saveDailyScore(player) -- DAILY CHALLENGE (Phase 11)
@@ -2034,10 +2131,30 @@ PlayHandRemote.OnServerEvent:Connect(function(player, cardIndices)
 		return
 	end
 
+	local spectated = Spec.M.count(Spec.state, player.UserId) > 0
+	local playedCards = {}
+	if spectated then
+		for _, index in ipairs(cardIndices) do playedCards[#playedCards + 1] = session.state.hand[index] end
+	end
 	local ok, result = pcall(RunState.playHand, session.state, cardIndices)
 	if not ok then
 		warn("PlayHand error for " .. player.Name .. ": " .. tostring(result))
 		return
+	end
+	if spectated then -- spectators see the hand, its type and score (never anything hidden)
+		pcall(function()
+			local viewers = Spec.M.watchersOf(Spec.state, player.UserId)
+			Spec.send(viewers, Spec.M.handPlayed({
+				cards = playedCards, handName = result.handName, score = result.score,
+				legendary = result.isLegendary == true,
+			}))
+			if result.roundWon or result.runOver then
+				Spec.send(viewers, Spec.M.roundResult({
+					won = result.roundWon == true, night = session.state.night, round = session.state.round,
+					banner = result.roundWon and "Round cleared" or "Run over",
+				}))
+			end
+		end)
 	end
 
 	if result.roundWon and session.state.rush then
@@ -2671,6 +2788,12 @@ SetSettingRemote.OnServerEvent:Connect(function(player, key, value)
 	local didNotError, ok = pcall(PlayerProfile.setSetting, profile, key, value)
 	if didNotError and ok then
 		profileDirty[player] = true
+		if key == "allowSpectators" and value == false then -- turning spectators off removes everyone watching now
+			pcall(function()
+				local removed = Spec.M.enforce(Spec.state, player.UserId, false)
+				Spec.release(player, removed, "That player turned spectators off.")
+			end)
+		end
 	end
 end)
 
@@ -2808,10 +2931,68 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 	pushState(player)
 end)
 
+-- SPECTATE (Engine/Spectate.lua): watch, stop, react, block, unblock. Everything is validated here: same server only, the
+-- target must be in a run and allow spectators, blocks and the cap of 8 apply, reactions are presets with a cooldown.
+Rem.SpectateAction.OnServerEvent:Connect(function(player, action, arg)
+	if not RateLimit.allow(player.UserId, "Rem.SpectateAction", os.clock()) then return end
+	if type(action) ~= "string" then return end
+	local profile = profiles[player]
+	if not profile then return end
+	if action == "watch" then
+		local target = type(arg) == "number" and Players:GetPlayerByUserId(arg) or nil -- same server only
+		local targetProfile = target and profiles[target]
+		local targetSession = target and sessions[target]
+		if not target or not targetProfile or not targetSession or targetSession.phase == "gameover" or targetSession.isTutorial then
+			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = "That player is not in a run." })
+			return
+		end
+		local previous = Spec.M.watching(Spec.state, player.UserId)
+		local ok, reason = Spec.M.watch(Spec.state, player.UserId, target.UserId, {
+			allows = Spec.M.allows(targetProfile), blocked = Spec.M.isBlocked(targetProfile, player.UserId),
+		})
+		if not ok then
+			Rem.SpectateStream:FireClient(player, { kind = "ended", reason = reason })
+			return
+		end
+		Analytics.single(player, "spectate_started", 1, {}) -- tuning data (capped)
+		local previousPlayer = previous and Players:GetPlayerByUserId(previous)
+		if previousPlayer then Spec.notifyCount(previousPlayer) end
+		Spec.notifyCount(target)
+		local snap = Spec.snapshotFor(target)
+		if snap then Spec.send({ player.UserId }, snap) end
+	elseif action == "stop" then
+		local target = Spec.M.stop(Spec.state, player.UserId)
+		local targetPlayer = target and Players:GetPlayerByUserId(target)
+		if targetPlayer then Spec.notifyCount(targetPlayer) end
+		Spec.send({ player.UserId }, { kind = "ended", reason = "Stopped watching." })
+	elseif action == "react" then
+		local ok, targetId = Spec.M.reaction(Spec.state, player.UserId, arg, os.clock())
+		if ok then
+			local event = Spec.M.reactionEvent(arg, Spec.name(player))
+			local viewers = Spec.M.watchersOf(Spec.state, targetId)
+			viewers[#viewers + 1] = targetId -- shown on both screens
+			Spec.send(viewers, event)
+		end
+	elseif action == "block" or action == "unblock" then
+		local targetId = type(arg) == "number" and arg or nil
+		if targetId then
+			if action == "block" then
+				if Spec.M.block(profile, targetId) then
+					profileDirty[player] = true
+					local removed = Spec.M.enforce(Spec.state, player.UserId, true, function(id) return id == targetId end)
+					Spec.release(player, removed, "You were removed from this table.")
+				end
+			elseif Spec.M.unblock(profile, targetId) then
+				profileDirty[player] = true
+			end
+		end
+	end
+end)
+
 -- FLAIR (Engine/Flair.lua): equip one option into its slot. The server checks the slot, the option and that the player
 -- owns it (free unlock rules are recomputed here, store ones come from flairOwned); the client only asks.
-EquipFlairRemote.OnServerEvent:Connect(function(player, slot, flairId)
-	if not RateLimit.allow(player.UserId, "EquipFlairRemote", os.clock()) then return end
+Rem.EquipFlair.OnServerEvent:Connect(function(player, slot, flairId)
+	if not RateLimit.allow(player.UserId, "Rem.EquipFlair", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or type(slot) ~= "string" or type(flairId) ~= "string" then
 		return
@@ -2827,8 +3008,8 @@ EquipFlairRemote.OnServerEvent:Connect(function(player, slot, flairId)
 end)
 
 -- COLLECTION COMPLETION REWARDS (Engine/CollectionRewards.lua): the server re-checks the progress before paying; once each.
-ClaimCollectionRewardRemote.OnServerEvent:Connect(function(player, group, pct)
-	if not RateLimit.allow(player.UserId, "ClaimCollectionRewardRemote", os.clock()) then return end
+Rem.ClaimCollectionReward.OnServerEvent:Connect(function(player, group, pct)
+	if not RateLimit.allow(player.UserId, "Rem.ClaimCollectionReward", os.clock()) then return end
 	local profile = profiles[player]
 	if not profile or (group ~= "all" and (type(group) ~= "string" or type(pct) ~= "number")) then
 		return
@@ -2852,22 +3033,22 @@ ClaimCollectionRewardRemote.OnServerEvent:Connect(function(player, group, pct)
 	pushState(player)
 end)
 
-StoreOpenedRemote.OnServerEvent:Connect(function(player)
-	if not RateLimit.allow(player.UserId, "StoreOpenedRemote", os.clock()) then return end
+Rem.StoreOpened.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.StoreOpened", os.clock()) then return end
 	Analytics.single(player, "store_opened", 1, {}) -- budgeted per player per hour like every tuning event
 end)
 
 -- FIRST TIME HINTS (Engine/Hints.lua): the client reports a hint it showed; unknown ids are refused. No state push:
 -- the client already knows, and an echo could re-trigger a bubble.
-HintSeenRemote.OnServerEvent:Connect(function(player, hintId)
-	if not RateLimit.allow(player.UserId, "HintSeenRemote", os.clock()) then return end
+Rem.HintSeen.OnServerEvent:Connect(function(player, hintId)
+	if not RateLimit.allow(player.UserId, "Rem.HintSeen", os.clock()) then return end
 	local profile = profiles[player]
 	if profile and require(Engine.Hints).markSeen(profile, hintId) then
 		profileDirty[player] = true
 	end
 end)
-ResetHintsRemote.OnServerEvent:Connect(function(player)
-	if not RateLimit.allow(player.UserId, "ResetHintsRemote", os.clock()) then return end
+Rem.ResetHints.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.ResetHints", os.clock()) then return end
 	local profile = profiles[player]
 	if profile then
 		require(Engine.Hints).reset(profile)
@@ -3675,6 +3856,11 @@ local function getFriendPresenceList(player)
 					night = otherState and otherState.night or nil,
 					round = otherState and otherState.round or nil,
 					tips = otherState and otherState.tips or nil,
+					-- SPECTATE: a Watch button shows for a friend in a run who allows it (the server re-checks on watch)
+					canWatch = otherSession ~= nil and not otherSession.isTutorial and otherSession.phase ~= "gameover"
+						and profiles[other] ~= nil and Spec.M.allows(profiles[other])
+						and not Spec.M.isBlocked(profiles[other], player.UserId),
+					watching = Spec.M.watching(Spec.state, player.UserId) == other.UserId,
 					bestNightReached = profiles[other] and profiles[other].stats and profiles[other].stats.bestNightReached or nil,
 				})
 			end

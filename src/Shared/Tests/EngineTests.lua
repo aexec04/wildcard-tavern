@@ -9329,6 +9329,105 @@ table.insert(tests, { name = "SeasonTrack: dates and edges, XP, reset on a new s
 	expectEqual(outside.seasonXp, 0, "no season, no season XP"); expectTrue(outside.tavernXp > 0)
 end })
 
+table.insert(tests, { name = "Spectate: cap, duplicates, self, one target at a time, leave cleanup, block, toggle, reactions, whitelisted stream, rate limit", fn = function()
+	local Sp = require(script.Parent.Parent.Engine.Spectate)
+	local state = Sp.new()
+	-- basics: no self watch, no junk ids, no duplicates
+	expectFalse((Sp.watch(state, 1, 1))); expectFalse((Sp.watch(state, "x", 2))); expectFalse((Sp.watch(state, 1, -2))); expectFalse((Sp.watch(state, 0 / 0, 2)))
+	expectTrue((Sp.watch(state, 1, 2))); expectEqual(Sp.count(state, 2), 1); expectEqual(Sp.watching(state, 1), 2)
+	local ok, why = Sp.watch(state, 1, 2); expectFalse(ok); expectEqual(why, "Already watching.")
+	expectEqual(Sp.count(state, 2), 1, "no duplicates")
+	-- one target at a time: moving releases the old table
+	expectTrue((Sp.watch(state, 1, 3))); expectEqual(Sp.count(state, 2), 0); expectEqual(Sp.count(state, 3), 1)
+	local _, previous = Sp.watch(state, 1, 4); expectEqual(previous, 3)
+	-- cap of 8
+	for viewer = 10, 17 do expectTrue((Sp.watch(state, viewer, 5))) end
+	local fullOk, fullWhy = Sp.watch(state, 18, 5); expectFalse(fullOk); expectEqual(fullWhy, "That table is full."); expectEqual(Sp.count(state, 5), 8)
+	expectEqual(#Sp.watchersOf(state, 5), 8); expectEqual(Sp.takePeak(state, 5), 8); expectEqual(Sp.takePeak(state, 5), 0, "peak is taken once")
+	-- a spot frees up when somebody stops
+	expectEqual(Sp.stop(state, 10), 5); expectEqual(Sp.stop(state, 10), nil); expectTrue((Sp.watch(state, 18, 5)))
+	-- the target's setting and blocks
+	local owner = PlayerProfile.new()
+	expectTrue(Sp.allows(owner)); owner.settings.allowSpectators = false; expectFalse(Sp.allows(owner))
+	expectFalse((Sp.watch(state, 30, 31, { allows = false })), "spectators turned off"); expectFalse((Sp.watch(state, 30, 31, { blocked = true })), "blocked")
+	expectTrue(Sp.block(owner, 99)); expectTrue(Sp.isBlocked(owner, 99)); expectFalse(Sp.isBlocked(owner, 98)); expectFalse(Sp.block(owner, "x"))
+	expectTrue(Sp.unblock(owner, 99)); expectFalse(Sp.unblock(owner, 99)); expectFalse(Sp.isBlocked(owner, 99))
+	for i = 1, Sp.MAX_BLOCKED + 20 do Sp.block(owner, i) end
+	local n = 0
+	for _ in pairs(owner.blockedSpectators) do n = n + 1 end
+	expectEqual(n, Sp.MAX_BLOCKED, "the block list is capped")
+	-- turning spectators off or blocking someone removes the right watchers
+	local s2 = Sp.new()
+	Sp.watch(s2, 1, 9); Sp.watch(s2, 2, 9); Sp.watch(s2, 3, 9)
+	expectEqual(#Sp.enforce(s2, 9, true, function(id) return id == 2 end), 1); expectEqual(Sp.count(s2, 9), 2); expectEqual(Sp.watching(s2, 2), nil)
+	expectEqual(#Sp.enforce(s2, 9, false), 2); expectEqual(Sp.count(s2, 9), 0)
+	-- leaving: a watcher leaving frees the table, a watched player leaving frees the watchers
+	local s3 = Sp.new()
+	Sp.watch(s3, 1, 7); Sp.watch(s3, 2, 7); Sp.watch(s3, 7, 8)
+	local released = Sp.leave(s3, 7)
+	expectEqual(#released, 2); expectEqual(Sp.watching(s3, 1), nil); expectEqual(Sp.watching(s3, 2), nil); expectEqual(Sp.count(s3, 8), 0, "the leaver stopped watching too")
+	Sp.watch(s3, 1, 8); Sp.leave(s3, 1); expectEqual(Sp.count(s3, 8), 0)
+	-- the run ending releases the watchers
+	Sp.watch(s3, 1, 8); Sp.watch(s3, 2, 8)
+	expectEqual(#Sp.runEnded(s3, 8), 2); expectEqual(Sp.count(s3, 8), 0); expectEqual(Sp.watching(s3, 1), nil)
+	-- reactions: preset only, must be watching, 3 second cooldown per spectator
+	local s4 = Sp.new()
+	expectFalse((Sp.reaction(s4, 1, "cheer", 0)), "not watching")
+	Sp.watch(s4, 1, 2)
+	expectEqual(#Sp.Emotes, 6)
+	for _, e in ipairs(Sp.Emotes) do expectTrue(e.icon ~= "" and e.name ~= "", e.id) end
+	expectFalse((Sp.reaction(s4, 1, "free text here", 0))); expectFalse((Sp.reaction(s4, 1, 5, 0))); expectFalse((Sp.reaction(s4, 1, nil, 0)))
+	local rOk, target = Sp.reaction(s4, 1, "fire", 10); expectTrue(rOk); expectEqual(target, 2)
+	local fast, fastWhy = Sp.reaction(s4, 1, "clap", 12.9); expectFalse(fast); expectEqual(fastWhy, "Too fast.")
+	expectTrue((Sp.reaction(s4, 1, "clap", 13.1)))
+	Sp.watch(s4, 5, 2); expectTrue((Sp.reaction(s4, 5, "heart", 13.2)), "another spectator has their own cooldown")
+	local ev = Sp.reactionEvent("laugh", "Maple"); expectEqual(ev.kind, "reaction"); expectEqual(ev.icon, "😂"); expectEqual(Sp.reactionEvent("nope", "x"), nil)
+	-- the stream is rate limited per watched player
+	expectTrue(Sp.streamAllowed(s4, 2, 0)); expectFalse(Sp.streamAllowed(s4, 2, 0.1)); expectTrue(Sp.streamAllowed(s4, 2, 0.3)); expectTrue(Sp.streamAllowed(s4, 3, 0.3))
+	-- THE WHITELIST: only what the player sees on their own table. Hidden state never leaves, even when it is in the input.
+	local secret = {
+		name = "Maple", stake = 3, road = "meadow", phase = "playing", night = 4, round = 2, tips = 11, targetScore = 900, roundScore = 300,
+		handsRemaining = 2, discardsRemaining = 1,
+		hand = { { rank = 14, suit = "Hearts", garnish = "sweet", deck = "SECRET" }, { rank = 5, suit = "Clubs" }, "junk" },
+		selected = { 1, 2, 99, "x" }, patrons = { "tip_jar", "flush_fan" },
+		boss = { id = "no_repeats", name = "No Repeats", text = "Each hand type once.", secretField = 1 },
+		flair = { nameAura = "legend_aura", scoreNumbers = "gold_numbers" },
+		deck = { 1, 2, 3 }, deckCounts = { Hearts = {} }, discardPile = { 1 }, rng = {}, seed = 12345, rngSeed = 99, shopOffers = { 1 }, profile = { tips = 5 },
+		nextCards = { { rank = 2, suit = "Spades" } }, trueWildcard = { rank = 7 }, houseRecipeInventory = { "x" }, receiptIds = { "a" },
+	}
+	local snap = Sp.snapshot(secret)
+	expectEqual(snap.kind, "snapshot"); expectEqual(snap.night, 4); expectEqual(#snap.hand, 2, "junk cards dropped"); expectEqual(snap.hand[1].garnish, "sweet")
+	expectEqual(snap.hand[1].deck, nil); expectEqual(#snap.selected, 2); expectEqual(#snap.patrons, 2); expectEqual(snap.boss.secretField, nil)
+	expectEqual(snap.flair.nameAura, "legend_aura")
+	for _, forbidden in ipairs({ "deck", "deckCounts", "discardPile", "rng", "seed", "rngSeed", "shopOffers", "profile", "nextCards", "trueWildcard", "houseRecipeInventory", "receiptIds" }) do
+		expectEqual(snap[forbidden], nil, "never sent: " .. forbidden)
+	end
+	local allowedKeys = { kind = 1, name = 1, crest = 1, badge = 1, stake = 1, stakeName = 1, road = 1, roadName = 1, phase = 1, night = 1, round = 1, tips = 1,
+		targetScore = 1, roundScore = 1, handsRemaining = 1, discardsRemaining = 1, hand = 1, selected = 1, patrons = 1, boss = 1, flair = 1 }
+	for key in pairs(snap) do expectTrue(allowedKeys[key] == 1, "snapshot key is whitelisted: " .. key) end
+	expectEqual(Sp.snapshot(nil).kind, "snapshot"); expectEqual(#Sp.snapshot("x").hand, 0)
+	local longName = Sp.snapshot({ name = string.rep("x", 500), road = string.rep("y", 500), patrons = { string.rep("z", 500) } })
+	expectEqual(#longName.name, 30); expectEqual(#longName.road, 40); expectEqual(#longName.patrons[1], 40)
+	expectEqual(Sp.snapshot({ night = 0 / 0, tips = math.huge }).night, nil, "NaN and infinity are dropped")
+	local played = Sp.handPlayed({ cards = { { rank = 9, suit = "Spades" }, { rank = 9, suit = "Clubs" } }, handName = "Pair", chips = 30, mult = 4, score = 120, deck = { 1 }, legendary = true })
+	expectEqual(played.kind, "handPlayed"); expectEqual(#played.cards, 2); expectEqual(played.score, 120); expectTrue(played.legendary); expectEqual(played.deck, nil)
+	expectEqual(Sp.roundResult({ won = true, night = 4, round = 3, banner = "Night cleared" }).won, true)
+	-- the gate every event passes
+	expectTrue(Sp.outgoing(snap) ~= nil); expectTrue(Sp.outgoing(played) ~= nil); expectTrue(Sp.outgoing(ev) ~= nil)
+	expectEqual(Sp.outgoing({ kind = "deckOrder", deck = { 1 } }), nil); expectEqual(Sp.outgoing({ kind = "profile" }), nil); expectEqual(Sp.outgoing("x"), nil); expectEqual(Sp.outgoing(nil), nil)
+	-- spectators have no input path: the module exposes no function that changes a run
+	for name in pairs(Sp) do
+		expectTrue(not name:lower():find("play") or name == "handPlayed", "no input function: " .. name)
+	end
+	-- save and load: the block list survives, junk is dropped, the setting defaults on
+	local loaded = PlayerProfile.migrate(owner)
+	expectTrue(loaded.blockedSpectators["1"]); expectTrue(Sp.allows(PlayerProfile.migrate({})))
+	local junk = PlayerProfile.migrate({ blockedSpectators = { ["12"] = true, x = true, ["13"] = "yes", ["99999999999999999999"] = true }, settings = { allowSpectators = false } })
+	expectTrue(junk.blockedSpectators["12"]); expectEqual(junk.blockedSpectators.x, nil); expectEqual(junk.blockedSpectators["13"], nil)
+	expectFalse(Sp.allows(junk)); expectEqual(next(PlayerProfile.migrate({}).blockedSpectators), nil)
+	expectTrue((PlayerProfile.setSetting(PlayerProfile.new(), "allowSpectators", false))); expectFalse((PlayerProfile.setSetting(PlayerProfile.new(), "allowSpectators", "no")))
+end })
+
 table.insert(tests, { name = "Premium Season track and Flair store items: tier grants, mid season purchase, idempotency, ownership, cosmetic only", fn = function()
 	local ST = require(script.Parent.Parent.Engine.SeasonTrack)
 	local Store = require(script.Parent.Parent.Engine.Store)

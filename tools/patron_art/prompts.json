@@ -887,5 +887,14 @@
     "frost_aura": "a round name badge ringed with pale blue frost, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "legend_aura": "a round name badge with a bright golden crown and gold glow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
     "star_aura": "a round name badge surrounded by glowing yellow stars, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
+  },
+  "spectate_subjects": {
+    "eye": "a friendly golden eye icon with long lashes inside a round wooden badge, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "cheer": "a colorful party popper bursting with confetti and ribbons, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "gasp": "a round surprised face with wide eyes and a small open mouth, golden glow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "clap": "two hands clapping with golden sparkles around them, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "fire": "a cheerful orange flame with a yellow center and small sparks, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "heart": "a bright red heart with a golden shine and tiny sparkles, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly",
+    "laugh": "a round laughing face with a big smile and happy tears, golden glow, single centered subject with generous margin on a plain dark brown background, square composition, painterly, no text, no letters, no numbers, kid-friendly"
   }
 }
