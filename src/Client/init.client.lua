@@ -2298,11 +2298,11 @@ local function rebuildHand(handData, phase)
 			local badge = Instance.new("TextLabel")
 			badge.AnchorPoint = Vector2.new(1, 0)
 			badge.Position = UDim2.new(1, -2, 0, 2)
-			badge.Size = UDim2.new(0, 0, 0, 16)
+			badge.Size = UDim2.new(0, 0, 0, 18)
 			badge.AutomaticSize = Enum.AutomaticSize.X
 			badge.BackgroundTransparency = 1
 			badge.Font = Enum.Font.GothamBold
-			badge.TextSize = 12
+			badge.TextSize = 14
 			badge.TextColor3 = Color3.fromRGB(255, 255, 255)
 			badge.TextStrokeTransparency = 0.3
 			badge.Text = table.concat(icons, "")

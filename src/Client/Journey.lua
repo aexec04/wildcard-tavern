@@ -677,7 +677,7 @@ return function(deps)
 			tagLabel.Position = UDim2.new(0.5, 0, 1, 4)
 			tagLabel.BackgroundTransparency = 1
 			tagLabel.Font = Enum.Font.GothamBold
-			tagLabel.TextSize = 12
+			tagLabel.TextSize = 12 -- small: old "This Night" road UI, permanently hidden
 			tagLabel.TextColor3 = Color3.fromRGB(230, 215, 195)
 			tagLabel.Text = string.format("R%d", round)
 			tagLabel.ZIndex = 23

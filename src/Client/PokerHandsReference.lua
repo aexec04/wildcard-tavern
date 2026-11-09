@@ -452,11 +452,11 @@ return function(deps)
 				local badge = Instance.new("TextLabel")
 				badge.AnchorPoint = Vector2.new(1, 0.5)
 				badge.Position = UDim2.new(COL.name[2], -4, 0.5, 0)
-				badge.Size = UDim2.new(0, 34, 0, 16)
+				badge.Size = UDim2.new(0, 40, 0, 20)
 				badge.BackgroundColor3 = GOLD
 				badge.BackgroundTransparency = 0.1
 				badge.Font = Enum.Font.GothamBold
-				badge.TextSize = 11
+				badge.TextSize = 14
 				badge.TextColor3 = Color3.fromRGB(50, 32, 14)
 				badge.TextTransparency = 0
 				badge.TextStrokeTransparency = 1

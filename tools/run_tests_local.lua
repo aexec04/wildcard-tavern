@@ -103,4 +103,11 @@ if lintOk and lintFails and lintFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: no player-facing text under 14px.
+local textOk, textFails = pcall(dofile, "tools/lint_text_size.lua")
+if textOk and textFails and textFails > 0 then
+	print("FAILED: " .. textFails .. " label(s) under 14px")
+	os.exit(1)
+end
+
 os.exit(results.failed == 0 and 0 or 1)

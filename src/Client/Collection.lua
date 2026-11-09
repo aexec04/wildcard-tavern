@@ -142,8 +142,8 @@ return function(deps)
 
 	-- Card Sets (cosmetic card back + backdrop) live in their own panel.
 	local setsButton = button(panel, {
-		Size = UDim2.fromOffset(96, 24), Position = UDim2.fromOffset(15, 6),
-		TextSize = 12, Text = "Card Sets",
+		Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(15, 4),
+		TextSize = 14, Text = "Card Sets",
 	})
 	polishButton(setsButton, 8)
 	require(script.Parent.CosmeticSetsPanel)({
@@ -165,8 +165,8 @@ return function(deps)
 	-- Badges (earned collectibles, one can be equipped beside your name) have their own shelf panel.
 	do -- (a do-block keeps this chunk's local count down)
 		local badgesButton = button(panel, {
-			Size = UDim2.fromOffset(96, 24), Position = UDim2.fromOffset(121, 6),
-			TextSize = 12, Text = "Badges",
+			Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(125, 4),
+			TextSize = 14, Text = "Badges",
 		})
 		polishButton(badgesButton, 8)
 		require(script.Parent.BadgesPanel)({
@@ -187,8 +187,8 @@ return function(deps)
 	end
 
 	local statsLabel = label(panel, {
-		Size = UDim2.new(1, -30, 0, 16), Position = UDim2.fromOffset(15, 34),
-		TextSize = 12, TextColor3 = SOFT_CREAM, Text = "",
+		Size = UDim2.new(1, -30, 0, 18), Position = UDim2.fromOffset(15, 35),
+		TextSize = 14, TextColor3 = SOFT_CREAM, Text = "",
 	})
 
 	-- Overall completion bar + next milestone.
@@ -703,16 +703,16 @@ return function(deps)
 		end
 
 		label(tile, {
-			Size = UDim2.new(1, -8, 0, 32), Position = UDim2.new(0, 4, 0, 70),
-			Font = Enum.Font.GothamBold, TextSize = 11, TextWrapped = true, ZIndex = 22,
+			Size = UDim2.new(1, -8, 0, 36), Position = UDim2.new(0, 4, 0, 68),
+			Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 22,
 			TextColor3 = found and CREAM or DIM,
 			Text = found and (item.tab == "titles" and item.def.title or item.def.name) or "???",
 		})
 
 		if found and item.tab == "titles" and view.equippedTitleId == item.id then
 			label(tile, {
-				Size = UDim2.new(1, 0, 0, 14), Position = UDim2.fromOffset(0, 2),
-				Font = Enum.Font.GothamBold, TextSize = 10, ZIndex = 25, TextColor3 = GOLD,
+				Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 2),
+				Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 25, TextColor3 = GOLD,
 				Text = "EQUIPPED",
 			})
 		end
@@ -824,7 +824,7 @@ return function(deps)
 	for i, tab in ipairs(CollectionBook.Tabs) do
 		local tabButton = button(tabRow, {
 			Size = UDim2.new(1 / #CollectionBook.Tabs, -5, 1, 0),
-			TextSize = 12, LayoutOrder = i, Text = tab.name,
+			TextSize = 14, LayoutOrder = i, Text = tab.name,
 		})
 		polishButton(tabButton, 8)
 		tabButtons[tab.id] = tabButton

@@ -132,7 +132,7 @@ return function(deps)
 	-- right. `choices` is a list of { value, text }; clicking cycles them.
 	local function makeChoiceRow(key, labelText, description, choices)
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 46)
+		row.Size = UDim2.new(1, 0, 0, 62) -- 14px description may wrap to 2 lines
 		row.LayoutOrder = order()
 		row.BackgroundTransparency = 1
 		row.ZIndex = 21
@@ -150,11 +150,12 @@ return function(deps)
 		label.Parent = row
 
 		local desc = Instance.new("TextLabel")
-		desc.Size = UDim2.new(1, -130, 0, 20)
+		desc.Size = UDim2.new(1, -130, 0, 36)
+		desc.TextYAlignment = Enum.TextYAlignment.Top
 		desc.Position = UDim2.new(0, 0, 0, 22)
 		desc.BackgroundTransparency = 1
 		desc.Font = Enum.Font.Gotham
-		desc.TextSize = 12
+		desc.TextSize = 14
 		desc.TextWrapped = true
 		desc.TextXAlignment = Enum.TextXAlignment.Left
 		desc.TextColor3 = SUBTLE

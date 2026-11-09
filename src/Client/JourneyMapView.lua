@@ -271,7 +271,7 @@ return function(deps)
 		deps.roundCorner(dot, 4)
 		local foot = text(dot, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16),
-			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 25, TextTransparency = 1, Visible = false,
+			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 25, TextTransparency = 1, Visible = false, -- small: decorative footprint glyph
 		})
 		return { frame = dot, foot = foot }
 	end
@@ -1001,13 +1001,13 @@ return function(deps)
 	local cardIcon = cardText({ Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(10, 8), TextSize = 30, TextWrapped = false })
 	local cardName = cardText({ Size = UDim2.new(1, -150, 0, 22), Position = UDim2.fromOffset(54, 8), Font = Enum.Font.GothamBold,
 		TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardBoss = cardText({ Size = UDim2.new(1, -150, 0, 16), Position = UDim2.fromOffset(54, 30), TextSize = 11,
+	local cardBoss = cardText({ Size = UDim2.new(1, -150, 0, 18), Position = UDim2.fromOffset(54, 28), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardDesc = cardText({ Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 54), TextSize = 11,
+	local cardDesc = cardText({ Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, 48), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local cardReward = cardText({ Size = UDim2.new(1, -110, 0, 18), Position = UDim2.fromOffset(10, 92), Font = Enum.Font.GothamBold,
-		TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left })
-	local cardHow = cardText({ Size = UDim2.new(1, -110, 0, 30), Position = UDim2.fromOffset(10, 112), TextSize = 10,
+	local cardReward = cardText({ Size = UDim2.new(1, -110, 0, 18), Position = UDim2.fromOffset(10, 88), Font = Enum.Font.GothamBold,
+		TextSize = 14, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left })
+	local cardHow = cardText({ Size = UDim2.new(1, -110, 0, 36), Position = UDim2.fromOffset(10, 108), TextSize = 14,
 		TextColor3 = SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 
 	-- Reward preview swatch (right side): card-back colors, or an icon tile.
@@ -1192,7 +1192,7 @@ return function(deps)
 		end
 		for index, node in ipairs(nodes) do
 			local label = text(canvas, {
-				AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(110, 14), TextSize = 10, TextWrapped = false,
+				AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(110, 14), TextSize = 10, TextWrapped = false, -- small: Studio-only Nudge readout
 				Font = Enum.Font.Code, Text = "", Visible = false, TextColor3 = Color3.fromRGB(120, 255, 160),
 				BackgroundTransparency = 0.3, BackgroundColor3 = INK, ZIndex = 50,
 			})
@@ -1251,7 +1251,7 @@ return function(deps)
 		nudge.Position = UDim2.new(1, -14, 0, 8)
 		nudge.Size = UDim2.fromOffset(86, 24)
 		nudge.Font = Enum.Font.GothamBold
-		nudge.TextSize = 11
+		nudge.TextSize = 11 -- small: Studio-only Nudge button
 		nudge.TextColor3 = CREAM
 		nudge.BackgroundColor3 = Color3.fromRGB(40, 90, 60)
 		nudge.Text = "🛠 Nudge: off"

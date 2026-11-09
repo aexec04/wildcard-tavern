@@ -158,11 +158,11 @@ return function(deps)
 	local revivedBadge = Instance.new("TextLabel")
 	revivedBadge.Name = "RevivedBadge"
 	revivedBadge.AnchorPoint = Vector2.new(1, 0)
-	revivedBadge.Size = UDim2.new(0, 84, 0, 18)
+	revivedBadge.Size = UDim2.new(0, 100, 0, 20)
 	revivedBadge.Position = UDim2.new(1, -15, 0, 58)
 	revivedBadge.BackgroundColor3 = Color3.fromRGB(70, 120, 150)
 	revivedBadge.Font = Enum.Font.GothamBold
-	revivedBadge.TextSize = 12
+	revivedBadge.TextSize = 14
 	revivedBadge.TextColor3 = Color3.fromRGB(250, 240, 220)
 	revivedBadge.Text = "\u{1F4AB} Revived"
 	revivedBadge.Visible = false

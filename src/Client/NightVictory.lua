@@ -100,7 +100,7 @@ return function(deps)
 		cap.Position = UDim2.fromOffset(4, 52)
 		cap.BackgroundTransparency = 1
 		cap.Font = Enum.Font.Gotham
-		cap.TextSize = 11
+		cap.TextSize = 14
 		cap.TextColor3 = Color3.fromRGB(215, 200, 178)
 		cap.TextTransparency = 0
 		cap.TextStrokeTransparency = 1
