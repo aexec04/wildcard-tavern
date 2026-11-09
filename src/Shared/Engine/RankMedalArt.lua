@@ -6,4 +6,10 @@
 ]]
 
 return {
+	["tier_1"] = "rbxassetid://122279968070297",
+	["tier_2"] = "rbxassetid://116747853053413",
+	["tier_3"] = "rbxassetid://91254376607591",
+	["tier_4"] = "rbxassetid://90464095112786",
+	["tier_5"] = "rbxassetid://94361962813044",
+	["tier_6"] = "rbxassetid://75588013379601",
 }

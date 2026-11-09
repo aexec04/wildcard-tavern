@@ -6,4 +6,10 @@
 ]]
 
 return {
+	["boss_win"] = "rbxassetid://84501764472708",
+	["buy_pack"] = "rbxassetid://132769021310255",
+	["discard_5"] = "rbxassetid://77173019803089",
+	["flush_clear"] = "rbxassetid://87795395778698",
+	["hands_10"] = "rbxassetid://87779682247431",
+	["pairs_3"] = "rbxassetid://105808644124034",
 }

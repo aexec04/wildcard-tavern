@@ -6,4 +6,7 @@
 ]]
 
 return {
+	["chest"] = "rbxassetid://123057406051442",
+	["merchant"] = "rbxassetid://121212267529087",
+	["secret_patron"] = "rbxassetid://139930435965818",
 }

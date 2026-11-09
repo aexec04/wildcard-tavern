@@ -154,9 +154,12 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] wildcard_swap
 - [x] wipe_the_slate
 
-## Title portraits (incl. 16 biome titles, Winter Lanterns)  (38/38 done) - category titles
+## Title portraits (incl. 16 biome titles, Winter Lanterns)  (53/53 done) - category titles
+- [x] careful_hands
 - [x] coast_master
+- [x] coin_keeper
 - [x] cove_sailor
+- [x] curious_explorer
 - [x] curious_guest
 - [x] deep_cuts
 - [x] dune_crosser
@@ -164,9 +167,16 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] dune_wanderer
 - [x] endless_legend
 - [x] every_patron
+- [x] favorite_guest
+- [x] feast_guest
 - [x] first_steps
+- [x] founding_guest
 - [x] full_house
+- [x] grand_explorer
 - [x] grand_finale
+- [x] grand_host
+- [x] hall_warden
+- [x] house_captain
 - [x] into_the_endless
 - [x] keeper_of_tales
 - [x] lantern_keeper
@@ -178,27 +188,34 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] meadow_master
 - [x] meadow_walker
 - [x] night_walker
+- [x] pair_master
 - [x] patron_saint
 - [x] peak_climber
 - [x] peak_master
 - [x] porch_regular
+- [x] quick_draw
 - [x] regular
 - [x] river_crosser
 - [x] river_master
 - [x] snow_master
 - [x] snow_scout
 - [x] snow_trekker
+- [x] solo_star
+- [x] steady_dealer
+- [x] table_regular
 - [x] tavern_guest
 - [x] tavern_keeper
 - [x] tavern_legend
 - [x] tavern_master
 - [x] trailblazer
 
-## Boss portraits  (35/35 done) - category bosses
+## Boss portraits  (43/43 done) - category bosses
 - [x] bare_bones
 - [x] big_tab
 - [x] bouncer
 - [x] clubs_are_out
+- [x] cold_start
+- [x] crowded_counter
 - [x] diamonds_are_out
 - [x] double_tab
 - [x] empty_handed
@@ -208,6 +225,7 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] four_top
 - [x] full_table
 - [x] hearts_are_out
+- [x] heavy_hands
 - [x] house_minimum
 - [x] house_rules
 - [x] last_chance
@@ -215,12 +233,17 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] no_repeats
 - [x] no_vips
 - [x] one_at_a_time
+- [x] pair_patrol
+- [x] penny_wise
 - [x] picked_over
+- [x] picky_eater
 - [x] quick_service
+- [x] quiet_corner
 - [x] rowdy_crowd
 - [x] rushed_order
 - [x] short_notice
 - [x] short_staffed
+- [x] sleepy_cook
 - [x] slow_night
 - [x] slow_simmer
 - [x] spades_are_out
@@ -396,11 +419,15 @@ A missing item is tagged `prompt` (a prompt exists: just generate it) or `NO PRO
 - [x] target_score
 - [x] token_icon
 
-## Menu icons  (6/6 done) - category menu_icons
+## Menu icons  (10/10 done) - category menu_icons
+- [x] boss_rush
 - [x] daily
 - [x] how_to_play
+- [x] news
+- [x] quests
 - [x] road_ahead
 - [x] seed
+- [x] store
 - [x] tutorial
 - [x] weekly
 

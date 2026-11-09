@@ -6,4 +6,12 @@
 ]]
 
 return {
+	["hungry_cook"] = "rbxassetid://90533102190614",
+	["kind_donation"] = "rbxassetid://129558851480004",
+	["lantern_stall"] = "rbxassetid://118703943762200",
+	["news_feast_week"] = "rbxassetid://106311250246378",
+	["news_harvest_week"] = "rbxassetid://108749915333116",
+	["news_lantern_weekend"] = "rbxassetid://83194069914526",
+	["stranger_wager"] = "rbxassetid://130983566176969",
+	["traveling_patron"] = "rbxassetid://72554368402777",
 }

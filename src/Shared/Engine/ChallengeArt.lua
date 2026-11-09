@@ -6,4 +6,10 @@
 ]]
 
 return {
+	["glass_deck"] = "rbxassetid://125953883073679",
+	["no_discards"] = "rbxassetid://131424531994862",
+	["one_seat"] = "rbxassetid://76854703066135",
+	["pairs_only"] = "rbxassetid://88564302160759",
+	["speed_run"] = "rbxassetid://94630215263982",
+	["tight_wallet"] = "rbxassetid://121440965210796",
 }
