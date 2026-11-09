@@ -139,7 +139,7 @@ function LegendPanel.init(deps)
 		deps.roundCorner(well, 8)
 		local emoji = row.icon or (row.kind == "cardBack" and "🂠" or "🏷️")
 		local glyph = label(well, { Size = UDim2.fromScale(1, 1), TextSize = 24, TextColor3 = CREAM, Text = emoji, ZIndex = 44 })
-		local category = (row.kind == "cardBack" and "card_backs") or (row.kind == "title" and "titles") or nil
+		local category = (row.kind == "cardBack" and "card_backs") or (row.kind == "title" and "titles") or (row.kind == "trinket" and "legend") or nil
 		if category then
 			pcall(ArtIcon.apply, well, category, row.id, glyph, { cornerRadius = 8, zIndex = 45, dim = not row.reached })
 		end

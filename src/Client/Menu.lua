@@ -562,6 +562,7 @@ return function(deps)
 	local menuSeasonButton = makeFrameButton({
 		text = "Season", textSize = 14, parent = accountRow, order = 8, width = 106, height = 114,
 		iconKey = "season", emoji = "\240\159\142\171", iconSize = 46,
+		iconImage = ContentArt.getImageId("seasons", "menu_season"), -- painted ticket once generated; ticket emoji until then
 	})
 
 	menuDailyChallengeButton.MouseButton1Click:Connect(function()

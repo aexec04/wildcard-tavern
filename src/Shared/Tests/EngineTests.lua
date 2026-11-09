@@ -11190,4 +11190,32 @@ table.insert(tests, { name = "Roadmap art: every registry entry has a prompt, ne
 	end
 end })
 
+table.insert(tests, { name = "Newest features art: seasons, legend and spectate maps are registered and every registry id has a prompt", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local ContentArt = require(Engine.ContentArt)
+	for _, cat in ipairs({ "seasons", "legend", "spectate", "flair" }) do
+		expectTrue(type(ContentArt[cat]) == "table", cat .. " is a ContentArt category")
+	end
+	local Legend = require(Engine.Legend)
+	local Spectate = require(Engine.Spectate)
+	local SeasonTrack = require(Engine.SeasonTrack)
+	local Flair = require(Engine.Flair)
+	local f = io and io.open and io.open("tools/patron_art/prompts.json", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a"); f:close()
+	local function need(key, what) expectTrue(src:find('"' .. key .. '":', 1, true) ~= nil, what .. " " .. key .. " has a prompt") end
+	for _, r in pairs(Legend.Rewards) do
+		if r.kind == "trinket" or r.kind == "cardBack" or r.kind == "title" then need(r.id, "legend reward") end
+	end
+	for _, e in ipairs(Spectate.Emotes) do need(e.id, "spectate reaction") end
+	need("eye", "spectate badge")
+	for _, s in ipairs(SeasonTrack.Seasons) do need(s.bannerKey, "season banner") end
+	need("menu_season", "season menu icon")
+	for _, o in ipairs(Flair.Options) do need(o.id, "flair option") end
+	for _, d in ipairs(require(Engine.CardBacks).Definitions) do need(d.id, "card back") end
+	for _, d in ipairs(require(Engine.Recipes).HouseRecipes) do need(d.id, "house recipe") end
+	for _, d in ipairs(require(Engine.Recipes).SecretRecipes) do need(d.id, "secret recipe") end
+	for _, k in ipairs({ "boss_scout", "rule_ban", "quick_run" }) do need(k, "icon") end
+end })
+
 return tests

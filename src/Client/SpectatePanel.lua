@@ -173,9 +173,22 @@ function SpectatePanel.init(deps)
 		b.TextSize = 22
 		b.TextColor3 = CREAM
 		b.BackgroundColor3 = WOOD
-		b.Text = emote.icon
+		b.Text = ""
 		b.ZIndex = 132
 		b.Parent = reactRow
+		-- emoji glyph in its own label so painted art (SpectateArt, category "spectate") can replace it once generated
+		local glyph = Instance.new("TextLabel")
+		glyph.Size = UDim2.fromScale(1, 1)
+		glyph.BackgroundTransparency = 1
+		glyph.Font = Enum.Font.GothamBold
+		glyph.TextSize = 22
+		glyph.TextColor3 = CREAM
+		glyph.Text = emote.icon
+		glyph.ZIndex = 133
+		glyph.Parent = b
+		pcall(function()
+			require(script.Parent.ArtIcon).apply(b, "spectate", emote.id, glyph, { cornerRadius = 8, zIndex = 134 })
+		end)
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0, 8)
 		c.Parent = b

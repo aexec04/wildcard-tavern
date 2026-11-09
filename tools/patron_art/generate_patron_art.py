@@ -69,6 +69,9 @@ CATEGORIES = {
     "challenges": ("challenge_subjects", "challenges", "ChallengeArt.lua", "Challenge"),
     "endless_rules": ("endless_rule_subjects", "endless_rules", "EndlessRuleArt.lua", "Endless Rule"),
     "flair": ("flair_subjects", "flair", "FlairArt.lua", "Flair"),
+    "seasons": ("season_subjects", "seasons", "SeasonArt.lua", "Season"),
+    "legend": ("legend_subjects", "legend", "LegendArt.lua", "Legend"),
+    "spectate": ("spectate_subjects", "spectate", "SpectateArt.lua", "Spectate"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -100,6 +103,11 @@ CATEGORY_OPTS = {
     "challenges": {"quality": "low", "style_key": "house_style"},
     "endless_rules": {"quality": "low", "style_key": "house_style"},
     "flair": {"quality": "low", "style_key": "house_style"},
+    # season banners are wide; menu_season is a single object icon
+    "seasons": {"quality": "low", "style_key": "house_style", "sizes": {
+        "season_harvest_moon": "1536x1024", "season_winter_welcome": "1536x1024"}},
+    "legend": {"quality": "low", "style_key": "house_style"},
+    "spectate": {"quality": "low", "style_key": "house_style"},
 }
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
@@ -512,6 +520,11 @@ def cmd_estimate(_args):
         cost_all += todo * per
         print(f"  {name:12} {len(subs):3} prompts, {todo:3} to generate (~${todo * per:.2f}), {stale} stale")
     print(f"  {'TOTAL':12} {total_all:3} prompts, {todo_all:3} to generate (~${cost_all:.2f})")
+    # store_page is generate-only (its own command, medium quality, never uploaded), so it sits outside CATEGORIES.
+    sp = data.get("store_page_subjects", {})
+    sp_todo = sum(1 for pid in sp if not (STORE_DIR / f"{pid}.png").exists())
+    sp_per = COST_PER_IMAGE["medium"]
+    print(f"  {'store_page':12} {len(sp):3} prompts, {sp_todo:3} to generate (~${sp_todo * sp_per:.2f}), separate command, not in TOTAL")
 
 
 STORE_DIR = ROOT / "art-wip" / "store_page"

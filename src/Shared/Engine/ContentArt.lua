@@ -45,6 +45,9 @@ local ContentArt = {
 	challenges   = require(Engine:WaitForChild("ChallengeArt")),      -- keyed by Challenges id
 	endless_rules = require(Engine:WaitForChild("EndlessRuleArt")),   -- keyed by EndlessRules id (Crowd Rule chips)
 	flair        = require(Engine:WaitForChild("FlairArt")),          -- keyed by Flair id (Flair panel tiles)
+	seasons      = require(Engine:WaitForChild("SeasonArt")),         -- SeasonTrack bannerKey and menu_season (Season panel, Menu tile)
+	legend       = require(Engine:WaitForChild("LegendArt")),         -- Legend trinket ids (Legend panel)
+	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
 ContentArt.store = ContentArt.store_bundles
@@ -76,7 +79,7 @@ ContentArt.PreloadPlan = {
 	{ name = "menu",     delay = 0, items = { { "backgrounds", "menu_bg" }, { "menu_icons" } } },
 	{ name = "gameplay", delay = 2, items = { { "hud" }, { "backgrounds" } } },
 	{ name = "cosmetics", delay = 3, items = { { "card_backs" }, { "packs" }, { "tutorial_icons" } } },
-	{ name = "account", delay = 5, items = { { "rank_medals" }, { "quests" }, { "stakes" }, { "challenges" }, { "store_bundles" }, { "events" }, { "discoveries" }, { "endless_rules" } } },
+	{ name = "account", delay = 5, items = { { "rank_medals" }, { "quests" }, { "stakes" }, { "challenges" }, { "store_bundles" }, { "events" }, { "discoveries" }, { "endless_rules" }, { "seasons" }, { "legend" }, { "spectate" } } },
 	{ name = "collection", delay = 4, items = { { "patrons" }, { "recipes" }, { "boss_rounds" }, { "house_passes" }, { "titles" } } },
 }
 -- Categories left out of the plan on purpose: scenes (39 large images), map_* and fx
