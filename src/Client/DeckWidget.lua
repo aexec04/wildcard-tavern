@@ -150,6 +150,7 @@ return function(deps)
 			return ClientSettings.get("reduceShake") ~= true
 		end
 		deckWidgetButton.MouseEnter:Connect(function()
+			if require(script.Parent.ModalStage).blocks(deckWidgetButton) then return end -- a modal is open: nothing behind it reacts
 			TweenService:Create(glowStroke, TweenInfo.new(0.15), { Transparency = 0.2 }):Play()
 			if motion() then
 				if liftTween then liftTween:Cancel() end

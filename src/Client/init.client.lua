@@ -2313,6 +2313,7 @@ local function rebuildHand(handData, phase)
 			onCardClicked(index)
 		end)
 		button.MouseEnter:Connect(function()
+			if require(script.ModalStage).blocks(button) then return end -- a modal is open: hand cards ignore hover
 			hoveredIndex = index
 			refreshAllCardVisuals()
 		end)

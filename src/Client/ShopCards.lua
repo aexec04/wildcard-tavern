@@ -474,6 +474,7 @@ function ShopCards.new(deps)
 			show(over > 0 or pinned)
 		end
 		local function enter()
+			if require(script.Parent.ModalStage).blocks(hit) then return end -- a modal is open: nothing behind it reacts
 			over += 1
 			refresh()
 		end

@@ -249,6 +249,7 @@ function FX.new(deps)
 		end
 
 		connect(button.MouseEnter, function()
+			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			hoverIn(card)
 			if not enabled() then return end
 			hovering = true
@@ -378,7 +379,10 @@ function FX.new(deps)
 			img.Size = UDim2.new(k, 0, k, 0)
 		end)
 
-		connect(panel.MouseEnter, function() hoverIn(card) end)
+		connect(panel.MouseEnter, function()
+			if require(script.Parent.ModalStage).blocks(panel) then return end -- a modal is open: nothing behind it reacts
+			hoverIn(card)
+		end)
 		connect(panel.MouseLeave, function() hoverOut(card) end)
 		wireButton(card, entry.selectButton, true)
 		wireButton(card, entry.skipButton, false)

@@ -16,6 +16,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local ClientSettings = require(script.Parent.ClientSettings)
+local ModalStage = require(script.Parent.ModalStage)
 
 local ChoicePanel = {}
 
@@ -158,6 +159,7 @@ local function render()
 	local key = ChoicePanel.keyOf(choice)
 	if key ~= builtKey then
 		builtKey = key
+		pcall(ModalStage.setKind, ui.backdrop, choice.kind) -- blessing altar, card table or map desk
 		clearCards()
 		ui.title.Text = choice.title or ""
 		ui.text.Text = choice.text or ""
@@ -187,6 +189,7 @@ function ChoicePanel.init(deps)
 	backdrop.Visible = false
 	backdrop.ZIndex = 60
 	backdrop.Parent = deps.screenGui
+	pcall(ModalStage.mount, backdrop, "event") -- own opaque stage + modal gate; render() re-themes per choice kind
 
 	local holder = Instance.new("Frame")
 	holder.Name = "Holder"

@@ -469,6 +469,7 @@ return function(deps)
 	detailShade.ZIndex = 30
 	detailShade.Parent = panel
 	roundCorner(detailShade, 16)
+	pcall(require(script.Parent.ModalStage).mount, detailShade, "detail") -- pinned card on a cork wall + modal gate
 
 	local card = Instance.new("TextButton") -- a button so clicks on it don't close it
 	card.Text = ""

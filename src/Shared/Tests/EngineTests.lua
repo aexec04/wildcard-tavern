@@ -11911,4 +11911,39 @@ table.insert(tests, { name = "Round Select: no Scout bar, no reserved space, rul
 	expectFalse(mb:find("1, -126", 1, true) ~= nil, "warning strip is not pinned to the bottom")
 end })
 
+table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
+	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
+	local g = ModalGate.new()
+	expectFalse(g:isModalOpen(), "starts closed")
+	g:close("a")
+	expectEqual(g:count(), 0, "closing nothing stays at 0")
+	g:open("a"); g:open("a"); g:open("b")
+	expectEqual(g:count(), 2, "opening twice counts once")
+	g:close("a"); g:close("a")
+	expectEqual(g:count(), 1, "repeated close is ignored")
+	local function inside(target, owner) return target.parent == owner end
+	expectTrue(g:blocks({ parent = "x" }, inside), "an outside hover is blocked while a modal is open")
+	expectFalse(g:blocks({ parent = "b" }, inside), "a hover inside the open modal still works")
+	g:close("b")
+	expectFalse(g:blocks({ parent = "x" }, inside), "nothing is blocked once closed")
+	for _, kind in ipairs({ "modifier", "patron", "rushPatron", "event", "road", "pack", "detail", "unknown" }) do
+		local def = ModalGate.STAGES[ModalGate.stageFor(kind)]
+		expectTrue(def ~= nil and def.top ~= nil and def.decor ~= nil, "stage theme for " .. kind)
+	end
+	expectEqual(ModalGate.stageFor("modifier"), "blessing", "blessings use the altar")
+	local f = io and io.open and io.open("src/Client/ModalStage.lua", "r")
+	if not f then return end
+	local ms = f:read("*a"); f:close()
+	expectTrue(ms:find("TextButton", 1, true) ~= nil and ms:find("Active = true", 1, true) ~= nil, "the sink exists")
+	expectTrue(ms:find("BackgroundTransparency = 0 ", 1, true) ~= nil, "the stage is opaque")
+	for _, file in ipairs({ "VisualHelpers", "Tooltip", "ShopCards", "RoundSelectFX", "DeckWidget", "Shop", "init.client" }) do
+		local h = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
+		expectTrue(h:find("ModalStage", 1, true) ~= nil, file .. " checks the modal gate")
+	end
+	for _, file in ipairs({ "ChoicePanel", "RoadChoice", "Collection", "Shop" }) do
+		local h = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
+		expectTrue(h:find("ModalStage", 1, true) ~= nil and h:find("mount", 1, true) ~= nil, file .. " mounts a stage")
+	end
+end })
+
 return tests

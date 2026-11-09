@@ -815,6 +815,7 @@ return function(deps)
 		end
 
 		button.MouseEnter:Connect(function()
+			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			hovering = true
 			settle()
 		end)

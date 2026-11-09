@@ -21,6 +21,7 @@ local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local Achievements = require(Engine:WaitForChild("Achievements"))
 local CompassWheel = require(script.Parent.CompassWheel)
 local RoadLock = require(script.Parent.RoadLock)
+local ModalStage = require(script.Parent.ModalStage)
 
 -- "Dune Gold card back, Dune Wanderer title": the exact rewards at the end of a road (shown after the compass).
 local function rewardText(region)
@@ -80,6 +81,7 @@ return function(deps)
 	backdrop.ZIndex = 20
 	backdrop.Visible = false
 	backdrop.Parent = root
+	pcall(ModalStage.mount, backdrop, "road") -- map desk stage + modal gate
 
 	local panel = Instance.new("Frame")
 	panel.Name = "RoadChoicePanel"

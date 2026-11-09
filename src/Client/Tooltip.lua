@@ -87,6 +87,7 @@ function Tooltip.new(screenGui)
 
 	function T.attach(button, text, align)
 		button.MouseEnter:Connect(function()
+			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			label.Text = (type(text) == "function") and text() or text
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local function place()

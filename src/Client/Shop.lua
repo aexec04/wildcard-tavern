@@ -619,6 +619,7 @@ return function(deps)
 		shopPackPanel.ZIndex = PANEL_ZINDEX
 		shopPackPanel.Parent = shopFrame
 		polishPanel(shopPackPanel, 12, "wood")
+		pcall(require(script.Parent.ModalStage).mount, shopPackPanel, "pack") -- card table stage + modal gate
 
 		packPanelTitleLabel = Instance.new("TextLabel")
 		packPanelTitleLabel.Size = UDim2.new(1, -20, 0, 30)
@@ -977,6 +978,7 @@ return function(deps)
 					if match then
 						local ghost
 						card.hit.MouseEnter:Connect(function()
+							if require(script.Parent.ModalStage).blocks(card.hit) then return end -- a modal is open: nothing behind it reacts
 							if ghost then ghost:Destroy() end
 							local slotPos = card.slot.AbsolutePosition - shopPackPanel.AbsolutePosition
 							ghost = Instance.new("Frame")
