@@ -136,8 +136,8 @@ return function(deps)
 	end
 
 	local sidebarPadding = Instance.new("UIPadding")
-	-- 76px: Roblox's own top-left system UI lives in roughly that space.
-	sidebarPadding.PaddingTop = UDim.new(0, 76)
+	-- Top 70px is Roblox's own system UI; the player medallion sits just under it (74..135).
+	sidebarPadding.PaddingTop = UDim.new(0, 140)
 	sidebarPadding.PaddingLeft = UDim.new(0, 12)
 	sidebarPadding.PaddingRight = UDim.new(0, 12)
 	sidebarPadding.Parent = sidebar

@@ -28,10 +28,13 @@ function BondThreads.new(sidebar, patronSlots)
 	local layer = Instance.new("Frame")
 	layer.Name = "BondThreads"
 	layer.BackgroundTransparency = 1
-	layer.Size = UDim2.fromScale(1, 1)
+	-- A sibling overlay, never a child of the sidebar: the sidebar has a UIListLayout
+	-- that would lay this frame out first and push the real content off the bottom.
+	layer.Position = sidebar.Position
+	layer.Size = sidebar.Size
 	layer.Active = false
 	layer.ZIndex = 30
-	layer.Parent = sidebar
+	layer.Parent = sidebar.Parent or sidebar
 
 	local tip = Instance.new("TextLabel")
 	tip.Name = "BondTip"

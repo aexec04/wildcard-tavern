@@ -11883,4 +11883,18 @@ table.insert(tests, { name = "HandLedger: every hand once weakest first, formula
 	expectFalse(src:find("SkinArt", 1, true) ~= nil, "old ornate frame art is gone")
 end })
 
+table.insert(tests, { name = "Sidebar: BondThreads is a sibling overlay, not a child of the list-layout Sidebar; top 70px stays free", fn = function()
+	local f = io and io.open and io.open("src/Client/BondThreads.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectFalse(src:find("layer.Parent = sidebar\n", 1, true) ~= nil, "layer is not parented straight to the sidebar")
+	expectTrue(src:find("sidebar.Parent", 1, true) ~= nil, "layer parents to the sidebar's parent")
+	local sb = io.open("src/Client/Sidebar.lua", "r"):read("*a")
+	local pad = tonumber(sb:match("sidebarPadding%.PaddingTop = UDim%.new%(0, (%d+)%)"))
+	local md = io.open("src/Client/PlayerMedallion.lua", "r"):read("*a")
+	local y = tonumber(md:match("holder%.Position = UDim2%.new%(1, %-12, 0, (%d+)%)"))
+	expectTrue(y and y >= 70, "medallion clears the Roblox top bar")
+	expectTrue(pad and y and pad >= y + 42 + 2 + 17 - 1, "sidebar content starts below the medallion")
+end })
+
 return tests

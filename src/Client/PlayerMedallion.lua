@@ -16,7 +16,7 @@ local Players = game:GetService("Players")
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
-local SIZE = 42 -- 14 + 42 + 2 + 17 = 75: ends just above where the sidebar content starts (PaddingTop 76), so the name is never cut off
+local SIZE = 42 -- 74 + 42 + 2 + 17 = 135: ends just above where the sidebar content starts (PaddingTop 140)
 
 local PlayerMedallion = {}
 
@@ -29,7 +29,7 @@ function PlayerMedallion.install(root)
 	local holder = Instance.new("Frame")
 	holder.Name = "PlayerMedallion"
 	holder.AnchorPoint = Vector2.new(1, 0)
-	holder.Position = UDim2.new(1, -12, 0, 14)
+	holder.Position = UDim2.new(1, -12, 0, 74) -- below the Roblox top bar icons (top 70px stays free)
 	holder.Size = UDim2.new(0, SIZE + 16, 0, SIZE + 22)
 	holder.BackgroundTransparency = 1
 	holder.BorderSizePixel = 0
