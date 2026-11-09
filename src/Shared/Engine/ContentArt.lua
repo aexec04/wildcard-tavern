@@ -44,6 +44,7 @@ local ContentArt = {
 	discoveries  = require(Engine:WaitForChild("DiscoveryArt")),      -- chest, merchant, secret_patron
 	challenges   = require(Engine:WaitForChild("ChallengeArt")),      -- keyed by Challenges id
 	endless_rules = require(Engine:WaitForChild("EndlessRuleArt")),   -- keyed by EndlessRules id (Crowd Rule chips)
+	flair        = require(Engine:WaitForChild("FlairArt")),          -- keyed by Flair id (Flair panel tiles)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
 ContentArt.store = ContentArt.store_bundles

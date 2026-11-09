@@ -210,6 +210,31 @@ return function(deps)
 		})
 	end
 
+	-- Flair (score numbers, play trail, finisher, name aura) opens from a sixth header button.
+	do
+		local flairButton = button(panel, {
+			Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(565, 4),
+			TextSize = 14, Text = "Flair",
+		})
+		polishButton(flairButton, 8)
+		require(script.Parent.FlairPanel).init({
+			screenGui = screenGui,
+			polishPanel = polishPanel,
+			polishButton = polishButton,
+			roundCorner = roundCorner,
+			addSoftShadow = addSoftShadow,
+			playClickSfx = playClickSfx,
+			openButton = flairButton,
+			addTooltip = addTooltip,
+			getLatestState = getLatestState,
+			popIn = popIn,
+			popOut = popOut,
+			addButtonHoverScale = addButtonHoverScale,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+			particleBurst = deps.particleBurst,
+		})
+	end
+
 	-- Legend prestige (levels after stake 8, cosmetic rewards) opens from a fifth header button.
 	do
 		local legendButton = button(panel, {

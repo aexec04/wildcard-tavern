@@ -138,6 +138,7 @@ local EquipCardBackRemote = newRemote("EquipCardBack") -- (player, backId or nil
 local EquipJourneyRewardRemote = newRemote("EquipJourneyReward") -- JOURNEY: (player, night) equips that node's earned reward
 local ClaimDiscoveryRemote = newRemote("ClaimDiscovery") -- (player, spotId): claims a revealed map spot
 local RevealDiscoveriesRemote = newRemote("RevealDiscoveries") -- (player, region): spends a compass charge to reveal a region's spots
+local EquipFlairRemote = newRemote("EquipFlair") -- (player, slot id, flair id): Engine/Flair.lua, validated and saved
 local ClaimCollectionRewardRemote = newRemote("ClaimCollectionReward") -- (player, group id, percent) or (player, "all")
 local StoreOpenedRemote = newRemote("StoreOpened") -- (player): the Store panel was opened (tuning data only)
 local HintSeenRemote = newRemote("HintSeen") -- (player, hint id): a first time hint was shown, never show it again
@@ -386,6 +387,7 @@ local lastLeaderboardRequest = {} -- [player] = os.clock() of their last GetDail
 -- MENU TICKER (Engine/MenuTicker.lua): today's best run and a rounded run count, cached so every server reads the board and
 -- the counter at most once a minute. `pending` runs are added to the shared DataStore counter on the same cadence.
 local menuTicker = { at = -1e9, data = nil, pending = 0, flushedAt = -1e9 }
+local FlairBoards = {} -- Name Aura on board rows (functions are attached further down, see "FLAIR NAME AURA ON BOARDS")
 
 local function getBoardStore(kind, board, periodKey)
 	local name = Leaderboards.storeName(kind, board, periodKey)
@@ -979,6 +981,10 @@ local function serializeState(session, player)
 		crowdRuleNew = state.endlessNewRule and { id = state.endlessNewRule.id, name = state.endlessNewRule.name, icon = state.endlessNewRule.icon, text = state.endlessNewRule.text, night = state.night } or nil,
 		discoveries = profiles[player] and Discoveries.view(profiles[player]) or nil,
 		challenges = profiles[player] and Challenges.view(profiles[player]) or nil,
+		flair = profiles[player] and (function()
+			local ok, view = pcall(function() return require(Engine.Flair).view(profiles[player]) end)
+			return ok and view or nil
+		end)() or nil, -- Flair slots, options and what is equipped (display only)
 		legend = profiles[player] and (function()
 			local ok, view = pcall(function() return require(Engine.Legend).view(profiles[player], liveLookup) end)
 			return ok and view or nil
@@ -1871,6 +1877,9 @@ local function onPlayerAdded(player)
 		local okInv, errInv = pcall(processInvites, player)
 		if not okInv then
 			warn("[Startup] invites failed for " .. player.Name .. ": " .. tostring(errInv))
+		end
+		if FlairBoards.publish then
+			pcall(FlairBoards.publish, player) -- put this player's Name Aura where the boards can read it
 		end
 	end)
 	logStep(player, "menu_shown")
@@ -2797,6 +2806,24 @@ ClaimLiveEventRemote.OnServerEvent:Connect(function(player, eventId)
 	pushState(player)
 end)
 
+-- FLAIR (Engine/Flair.lua): equip one option into its slot. The server checks the slot, the option and that the player
+-- owns it (free unlock rules are recomputed here, store ones come from flairOwned); the client only asks.
+EquipFlairRemote.OnServerEvent:Connect(function(player, slot, flairId)
+	if not RateLimit.allow(player.UserId, "EquipFlairRemote", os.clock()) then return end
+	local profile = profiles[player]
+	if not profile or type(slot) ~= "string" or type(flairId) ~= "string" then
+		return
+	end
+	local ok = require(Engine.Flair).equip(profile, slot, flairId)
+	if ok then
+		profileDirty[player] = true
+		if slot == "nameAura" and FlairBoards.publish then
+			task.spawn(function() FlairBoards.publish(player) end)
+		end
+	end
+	pushState(player)
+end)
+
 -- COLLECTION COMPLETION REWARDS (Engine/CollectionRewards.lua): the server re-checks the progress before paying; once each.
 ClaimCollectionRewardRemote.OnServerEvent:Connect(function(player, group, pct)
 	if not RateLimit.allow(player.UserId, "ClaimCollectionRewardRemote", os.clock()) then return end
@@ -3483,6 +3510,72 @@ local function broadcastLeaderboardTicker()
 	local top = fetchDailyTickerTop(dateKey)
 	if top then
 		LeaderboardTickerRemote:FireAllClients({ dateKey = dateKey, top = top })
+	end
+end
+
+-- FLAIR NAME AURA ON BOARDS (Engine/Flair.lua): every board row carries the Name Aura id of that player (`flair`) and the
+-- aura's crest in front of the name, so other players' crests show on the Daily, Weekly, Endless and Friends boards.
+-- The public tag of players in this server is read from their profile; everyone else from a small DataStore
+-- (`WildcardTavernFlair_v1`, key u<userId>, written when the aura is equipped) through a 5 minute cache. Rows are copied,
+-- never edited in place (the page caches are shared). Every call is pcall'd; a miss just means no crest.
+do -- (FlairBoards is declared near the top of the file so the EquipFlair handler can reach it)
+	local FlairModule = require(Engine.Flair)
+	local tagCache = Leaderboards.newCache(300, os.clock)
+	local function store()
+		return DataStoreService:GetDataStore("WildcardTavernFlair_v1")
+	end
+	function FlairBoards.tagFor(userId)
+		local inServer = Players:GetPlayerByUserId(userId)
+		if inServer then
+			local profile = profiles[inServer]
+			return profile and FlairModule.publicTag(profile) or nil
+		end
+		local cached = tagCache.get(tostring(userId))
+		if cached ~= nil then
+			return cached or nil
+		end
+		local tag = false
+		local ok = pcall(function()
+			tag = FlairModule.cleanPublicTag(store():GetAsync("u" .. tostring(userId))) or false
+		end)
+		if ok then tagCache.set(tostring(userId), tag) end
+		return tag or nil
+	end
+	function FlairBoards.publish(player)
+		local profile = profiles[player]
+		if not profile then return end
+		local tag = FlairModule.publicTag(profile) or ""
+		tagCache.set(tostring(player.UserId), tag ~= "" and tag or false)
+		pcall(function() store():SetAsync("u" .. tostring(player.UserId), tag) end)
+	end
+	function FlairBoards.decorate(result)
+		if type(result) ~= "table" or type(result.top) ~= "table" then return result end
+		local rows = {}
+		for i, row in ipairs(result.top) do
+			local copy = {}
+			for k, v in pairs(row) do copy[k] = v end
+			local tag = type(row.userId) == "number" and FlairBoards.tagFor(row.userId) or nil
+			local option = tag and FlairModule.getById(tag)
+			if option then
+				copy.flair = tag
+				if option.crest and option.crest ~= "" then
+					copy.name = option.crest .. " " .. tostring(copy.name)
+				end
+			end
+			rows[i] = copy
+		end
+		local out = {}
+		for k, v in pairs(result) do out[k] = v end
+		out.top = rows
+		return out
+	end
+	for _, remote in ipairs({ GetDailyLeaderboardRemote, GetWeeklyLeaderboardRemote, GetEndlessLeaderboardRemote }) do
+		local inner = remote.OnServerInvoke
+		remote.OnServerInvoke = function(...)
+			local result = inner(...)
+			local ok, decorated = pcall(FlairBoards.decorate, result)
+			return ok and decorated or result
+		end
 	end
 end
 

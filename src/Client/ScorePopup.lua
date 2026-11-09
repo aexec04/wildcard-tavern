@@ -131,7 +131,8 @@ return function(deps)
 		xmult = Color3.fromRGB(200, 130, 255),
 		tips = Color3.fromRGB(130, 230, 150),
 	}
-	local FINALE_COLOR = Color3.fromRGB(255, 214, 130)
+	local FINALE_DEFAULT = Color3.fromRGB(255, 214, 130)
+	local FINALE_COLOR = FINALE_DEFAULT -- reassigned per hand from the equipped Flair (Engine/Flair.lua Score Numbers)
 	local SHATTER_COLOR = Color3.fromRGB(210, 230, 255)
 
 	-- PHASE A (Spectacle pass, Oct 2026, see claude/mind-blowing-plan.md):
@@ -906,6 +907,12 @@ return function(deps)
 			end
 		end
 
+		-- FLAIR (visual only, Engine/Flair.lua): the Score Numbers color and a few Play Trail particles
+		pcall(function()
+			local FlairFX = require(script.Parent.FlairFX)
+			FINALE_COLOR = FlairFX.scoreColor() or FINALE_DEFAULT
+			FlairFX.playTrail(particleBurst, centerOf(scorePopup))
+		end)
 		scorePopupHandName.Text = preview.name
 		scorePopupEventLabel.Text = ""
 		chipsLabel.Text = "0"
@@ -1251,6 +1258,7 @@ return function(deps)
 			local finalMagnitude = math.min(10, preview.score / 40)
 			screenShake(root, math.min(10, 3 + finalMagnitude), 0.3)
 			particleBurst(centerOf(scorePopup), FINALE_COLOR, math.min(24, 8 + math.floor(finalMagnitude)), { spread = 110, duration = 0.6 })
+			pcall(function() require(script.Parent.FlairFX).finisher(particleBurst, centerOf(scorePopup), preview) end) -- equipped Finisher (big hands only)
 
 			-- POLISH 1: record hand flourish + target-cleared pulse (rules in
 			-- Engine/ScoreJuice). Slow-motion beat is a short hold with the

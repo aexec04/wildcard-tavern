@@ -8845,6 +8845,90 @@ table.insert(tests, { name = "Invites: join data parsing, each invitee credited 
 	expectEqual(PlayerProfile.migrate(guest).inviteeRewardClaimed, true)
 end })
 
+table.insert(tests, { name = "Flair: registry valid, unlock rules, equip validation, store grants, migration, never touches scoring", fn = function()
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	expectEqual(#Flair.Slots, 4)
+	local ids = {}
+	for _, slot in ipairs(Flair.Slots) do
+		local options = Flair.optionsFor(slot.id)
+		expectTrue(#options >= 4 and #options <= 7, slot.id .. " has 4 to 6 options plus the default, got " .. #options)
+		expectTrue(Flair.defaultFor(slot.id) ~= nil, slot.id .. " has a default")
+		local defaults = 0
+		for _, o in ipairs(options) do
+			expectTrue(not ids[o.id], "unique " .. o.id); ids[o.id] = true
+			expectTrue(CollectionBook.Rarities[o.rarity] ~= nil, o.id .. " rarity")
+			expectTrue(o.name ~= "" and o.icon ~= "", o.id .. " has a name and an icon")
+			if o.default then
+				defaults = defaults + 1
+				expectEqual(o.unlock, nil, "a default needs no unlock")
+			else
+				expectTrue(o.unlock ~= nil and type(o.unlock.hint) == "string" and o.unlock.hint ~= "", o.id .. " has an unlock hint")
+				expectTrue(({ rank = 1, stake = 1, quests = 1, achievement = 1, legend = 1, store = 1 })[o.unlock.kind], o.id .. " unlock kind")
+				if o.unlock.kind == "achievement" then expectTrue(Achievements.getById(o.unlock.id) ~= nil, o.id .. " achievement exists") end
+			end
+			if slot.id == "scoreNumbers" then expectEqual(#o.color, 3) end
+		end
+		expectEqual(defaults, 1, slot.id .. " has exactly one default")
+	end
+	-- a new profile owns only the defaults, equips them, and cannot equip anything else
+	local p = PlayerProfile.new()
+	for _, slot in ipairs(Flair.Slots) do
+		expectEqual(Flair.equippedId(p, slot.id), Flair.defaultFor(slot.id))
+		expectTrue((Flair.equip(p, slot.id, Flair.defaultFor(slot.id))))
+	end
+	expectFalse((Flair.equip(p, "scoreNumbers", "ember_numbers")), "locked: rank 5")
+	local _, why = Flair.equip(p, "scoreNumbers", "ember_numbers"); expectEqual(why, "Not unlocked yet.")
+	-- free unlock rules open as the profile earns them
+	p.tavernRank = 5
+	expectTrue(Flair.isOwned(p, "ember_numbers")); expectTrue((Flair.equip(p, "scoreNumbers", "ember_numbers"))); expectEqual(Flair.equippedId(p, "scoreNumbers"), "ember_numbers")
+	expectFalse(Flair.isOwned(p, "frost_numbers"))
+	p.highestStakeUnlocked = 5 -- stake N is "cleared" once N + 1 is open
+	expectTrue(Flair.isOwned(p, "gold_numbers")); expectTrue(Flair.isOwned(p, "ember_aura")); expectFalse(Flair.isOwned(p, "star_trail"))
+	p.questsDone = 10; expectTrue(Flair.isOwned(p, "sparkle_trail")); expectFalse(Flair.isOwned(p, "confetti_finisher"))
+	p.rewardTitleIds.season_harvest_moon = true; expectTrue(Flair.isOwned(p, "petal_trail"))
+	p.legendPoints = 2; expectTrue(Flair.isOwned(p, "legend_aura"))
+	-- validation: wrong slot, unknown ids, junk types
+	expectFalse((Flair.equip(p, "playTrail", "ember_numbers")), "wrong slot")
+	expectFalse((Flair.equip(p, "nope", "ember_numbers"))); expectFalse((Flair.equip(p, "playTrail", "nope")))
+	expectFalse((Flair.equip(p, nil, "ember_numbers"))); expectFalse((Flair.equip(p, "playTrail", 5))); expectFalse((Flair.equip(p, 5, 5)))
+	-- store Flair: not free, granted once, then equippable
+	expectFalse(Flair.isOwned(p, "rainbow_numbers")); expectFalse((Flair.equip(p, "scoreNumbers", "rainbow_numbers")))
+	expectTrue(Flair.grantOwned(p, "rainbow_numbers")); expectFalse(Flair.grantOwned(p, "rainbow_numbers"), "idempotent")
+	expectFalse(Flair.grantOwned(p, "ember_numbers"), "free Flair is not a store item"); expectFalse(Flair.grantOwned(p, "nope"))
+	expectTrue((Flair.equip(p, "scoreNumbers", "rainbow_numbers")))
+	-- an equipped option that is no longer owned falls back to the default (never an unowned look)
+	p.flairEquipped.scoreNumbers = "frost_numbers"
+	expectEqual(Flair.equippedId(p, "scoreNumbers"), "classic_numbers")
+	-- public tag: only a real Name Aura id travels, cleaned on the way back
+	p.flairEquipped.nameAura = "legend_aura"
+	expectEqual(Flair.publicTag(p), "legend_aura"); expectEqual(Flair.cleanPublicTag("legend_aura"), "legend_aura")
+	expectEqual(Flair.cleanPublicTag("ember_numbers"), nil); expectEqual(Flair.cleanPublicTag("no_aura"), nil); expectEqual(Flair.cleanPublicTag(5), nil); expectEqual(Flair.cleanPublicTag("<b>x"), nil)
+	p.flairEquipped.nameAura = nil; expectEqual(Flair.publicTag(p), nil)
+	-- the view carries owned, equipped and the unlock hint
+	local view = Flair.view(p)
+	expectEqual(#view.slots, 4)
+	local classic
+	for _, o in ipairs(view.slots[1].options) do if o.id == "classic_numbers" then classic = o end end
+	expectTrue(classic.owned and classic.equipped)
+	-- save and load: store grants and equips survive, junk is dropped, free ones are not saved
+	local loaded = PlayerProfile.migrate(p)
+	expectTrue(loaded.flairOwned.rainbow_numbers); expectEqual(loaded.flairOwned.ember_numbers, nil)
+	local junk = PlayerProfile.migrate({ flairOwned = { rainbow_numbers = true, ember_numbers = true, nope = true, star_trail = "yes" },
+		flairEquipped = { scoreNumbers = "rainbow_numbers", playTrail = "ember_numbers", ["x"] = "y", nameAura = 5 } })
+	expectTrue(junk.flairOwned.rainbow_numbers); expectEqual(junk.flairOwned.ember_numbers, nil); expectEqual(junk.flairOwned.nope, nil)
+	expectEqual(junk.flairEquipped.scoreNumbers, "rainbow_numbers"); expectEqual(junk.flairEquipped.playTrail, nil, "an option in the wrong slot is dropped"); expectEqual(junk.flairEquipped.x, nil)
+	expectEqual(next(PlayerProfile.migrate({}).flairOwned), nil, "old saves get safe defaults")
+	-- Flair is display data: equipping changes nothing that scoring reads
+	local s1 = RunState.new(nil, SeededRng.new(31)); local s2 = RunState.new(nil, SeededRng.new(31))
+	Flair.equip(p, "finisher", "pop_finisher")
+	expectEqual(s1.targetScore, s2.targetScore); expectEqual(s1.config.handsPerRound, s2.config.handsPerRound)
+	local flairKeys = {}
+	for _, o in ipairs(Flair.Options) do for k in pairs(o) do flairKeys[k] = true end end
+	for _, forbidden in ipairs({ "chips", "mult", "xmult", "target", "price", "effect", "handsDelta", "discardsDelta" }) do
+		expectFalse(flairKeys[forbidden], "Flair has no gameplay field: " .. forbidden)
+	end
+end })
+
 table.insert(tests, { name = "Legend: level math, new road bonus, rewards once, no gameplay power, safe migration", fn = function()
 	local Legend = require(script.Parent.Parent.Engine.Legend)
 	local Stakes = require(script.Parent.Parent.Engine.Stakes)

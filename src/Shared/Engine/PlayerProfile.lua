@@ -234,6 +234,8 @@ function PlayerProfile.new()
 		merchantDiscount = 0, -- Tips off the first shop visit of the next normal run
 		challengesCleared = {}, -- [challenge id] = true (Engine/Challenges.lua)
 		bossRushBest = 0, -- most bosses beaten in one Boss Rush (Engine/BossRush.lua)
+		flairOwned = {}, -- [flair id] = true, Flair bought in the Store (Engine/Flair.lua)
+		flairEquipped = {}, -- [slot] = flair id
 		legendPoints = 0, -- Legend prestige (Engine/Legend.lua): level = points, capped at 10
 		legendRoads = {}, -- [region] = true, roads already cleared on stake 8 (the new-road bonus is paid once)
 		legendRewardIds = {}, -- [level] = true, Legend rewards already granted
@@ -473,6 +475,7 @@ function PlayerProfile.migrate(raw)
 	require(script.Parent.Invites).cleanSaved(profile, raw)
 	profile.hintsSeen = require(script.Parent.Hints).cleanSaved(raw.hintsSeen)
 	profile.collectionRewardsClaimed = require(script.Parent.CollectionRewards).cleanSaved(raw.collectionRewardsClaimed)
+	profile.flairOwned, profile.flairEquipped = require(script.Parent.Flair).cleanSaved(raw.flairOwned, raw.flairEquipped)
 	do
 		local Legend = require(script.Parent.Legend)
 		profile.legendPoints, profile.legendRoads, profile.legendRewardIds = Legend.cleanSaved(raw.legendPoints, raw.legendRoads, raw.legendRewardIds, function(region)

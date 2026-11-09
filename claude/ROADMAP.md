@@ -42,6 +42,7 @@ Long-term retention, engagement and monetization of players who find the game or
 ## Phase 5: Game feel and monetization
 - [x] Score pops, screen shake, combo chains, card sounds, one music track per biome (user-only: pick audio ids)
 - [x] Cosmetic sales: Card Sets, backdrops, titles; Starter Pack; VIP pass; paid continue with separate boards
+- [x] Flair: equippable Score Numbers, Play Trail, Finisher and Name Aura (`Engine/Flair.lua`, Flair panel in the Collection); store pieces come with the premium track task
 - [ ] Real Game Passes, Developer Products and Badges created in Creator Hub (user-only)
 
 ## Phase 6: Live ops after launch

@@ -1339,6 +1339,7 @@ require(script.Collection)({
 	playClickSfx = playClickSfx,
 	collectionButton = collectionButton,
 	menuCollectionButton = MenuScreen.menuCollectionButton,
+	particleBurst = ParticleBurstModule.burst, -- Flair panel previews
 	-- ACHIEVEMENTS + TITLES (Phase 16): required inline rather than as
 	-- its own top-level local -- init.client.lua is already right up
 	-- against Lua's 200-local-per-chunk ceiling (Menu.lua's header
@@ -2447,6 +2448,7 @@ local function render(state)
 	pcall(require(script.QuestsPanel).update, state) -- keeps an open Quests panel current, display only
 	pcall(require(script.FirstTimeHints).update, state) -- one shot hint bubbles (Engine/Hints.lua), display only
 	pcall(require(script.LegendCrest).update, screenGui, state) -- Legend crest and gold aura on the name medallion, display only
+	pcall(require(script.FlairFX).setState, state) -- equipped Flair for the popups (visual only)
 
 	-- GENRE PARITY: an "Ante counter" (1/8, then Endless Mode) -- once
 	-- state.night passes the server's nightCap (default 8), there's no
