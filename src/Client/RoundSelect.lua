@@ -156,6 +156,13 @@ return function(deps)
 		sink.Parent = root
 		local function sync()
 			sink.Visible = roundSelectFrame.Visible
+			-- Real modal: the corner icon row (and its hover tooltips) is hidden while Round Select is up,
+			-- so nothing behind the window can be reached. It returns when the window closes.
+			local gui = root:FindFirstAncestorWhichIsA("LayerCollector") or root
+			local row = gui:FindFirstChild("CornerIconRow", true)
+			if row and row:IsA("GuiObject") then row.Visible = not roundSelectFrame.Visible end
+			local tip = gui:FindFirstChild("Tooltip", true)
+			if tip and tip:IsA("GuiObject") and roundSelectFrame.Visible then tip.Visible = false end
 		end
 		roundSelectFrame:GetPropertyChangedSignal("Visible"):Connect(sync)
 		sync()
@@ -318,6 +325,36 @@ return function(deps)
 			panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			-- The Boss card's pulsing glow is driven by RoundSelectFX (paused while hidden).
 		end
+
+		-- Cleared rounds: gold tint over the art and a gold check medal (shown by rebuildRoundSelect).
+		local goldTint = Instance.new("Frame")
+		goldTint.Name = "ClearedTint"
+		goldTint.Size = UDim2.fromScale(1, 1)
+		goldTint.BackgroundColor3 = Color3.fromRGB(230, 184, 70)
+		goldTint.BackgroundTransparency = 0.78
+		goldTint.BorderSizePixel = 0
+		goldTint.Active = false
+		goldTint.Visible = false
+		goldTint.ZIndex = 10
+		goldTint.Parent = panel
+		Instance.new("UICorner", goldTint).CornerRadius = UDim.new(0, 14)
+		local medal = Instance.new("TextLabel")
+		medal.Name = "ClearedMedal"
+		medal.Size = UDim2.new(0, 40, 0, 40)
+		medal.Position = UDim2.new(1, -50, 0, 10)
+		medal.BackgroundColor3 = Color3.fromRGB(230, 184, 70)
+		medal.Text = "✓"
+		medal.Font = Enum.Font.GothamBold
+		medal.TextSize = 24
+		medal.TextColor3 = Color3.fromRGB(70, 44, 10)
+		medal.Visible = false
+		medal.ZIndex = 13
+		medal.Parent = panel
+		Instance.new("UICorner", medal).CornerRadius = UDim.new(1, 0)
+		local medalStroke = Instance.new("UIStroke")
+		medalStroke.Color = Color3.fromRGB(255, 240, 180)
+		medalStroke.Thickness = 2
+		medalStroke.Parent = medal
 
 		-- Scene image: top 280px, full card width, rounded corners.
 		-- For the boss panel this is the boss portrait (set by setBossArt);
@@ -563,6 +600,9 @@ return function(deps)
 
 		local entryRef = {
 			round = round,
+			accent = accent,
+			goldTint = goldTint,
+			medal = medal,
 			isBossRound = isBossPanel,
 			cardScale = cardScale,
 			panel = panel,
@@ -812,7 +852,23 @@ return function(deps)
 			-- Cleared / Up next cards have no buttons: drop the text block by NO_BUTTON_DROP
 			-- and make the card that much shorter so it ends just under the Target plaque
 			-- (the active card keeps the full 620px for Select and Skip).
-			local drop = isCurrent and 0 or NO_BUTTON_DROP
+			-- All three cards share ONE size (user feedback); state shows through stroke, tint and medal.
+			local drop = 0
+			local stroke = entry.panel:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				if isCurrent then
+					stroke.Color = Color3.fromRGB(255, 244, 200)
+					stroke.Thickness = 6
+				elseif isPast then
+					stroke.Color = Color3.fromRGB(230, 184, 70)
+					stroke.Thickness = 4
+				else
+					stroke.Color = entry.accent
+					stroke.Thickness = entry.isBossRound and 4 or 3
+				end
+			end
+			entry.goldTint.Visible = isPast
+			entry.medal.Visible = isPast
 			entry.panel.Size = UDim2.new(0, 220, 0, 620 - drop)
 			for i, obj in ipairs(entry.shiftables) do
 				local p = obj.Position
