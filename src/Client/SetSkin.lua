@@ -193,7 +193,7 @@ local function style(inst, kind, skin)
 	local images, colors = skin.images, skin.colors
 	-- Panels never use the illustrated panelFrame art (its asymmetric corners cannot be sliced): they get the code border,
 	-- or slice-friendly panelFrame9 art when a set has it.
-	local image = (kind == "panel" and images.panelFrame9) or (kind == "button" and images.buttonPlate) or (kind == "tab" and images.tabPlate) or nil
+	local image = (kind == "panel" and nil) or (kind == "button" and images.buttonPlate) or (kind == "tab" and images.tabPlate) or nil
 	-- Borders frame, they do not dominate: lighter plates, and the older gold frame pieces (inner rim, brackets, carved
 	-- holder art) step aside while a set plate is drawn so there is one frame, not two.
 	if kind == "panel" and nestedPanel(inst) then image = nil end -- only top-level panels get a frame

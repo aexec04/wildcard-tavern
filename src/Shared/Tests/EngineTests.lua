@@ -12209,6 +12209,22 @@ table.insert(tests, { name = "PanelBorder: same thickness at every normal size, 
 	expectEqual(PB.sliceable({ panelFrame9 = "rbxassetid://1" }), true, "slice art present")
 end })
 
+table.insert(tests, { name = "PanelBorder: no border piece overlaps the content rect or the Close button at 1920x1080, 1280x720 and phone", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PanelBorder)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 360, 640 } }) do
+		local w, h = size[1], size[2]
+		local c = PB.content(w, h)
+		local l = PB.layout(w, h)
+		-- Close sits in the content area, top right, inset 8 px from the content edge
+		local close = { x = c.x + c.w - 8 - 90, y = c.y + 8, w = 90, h = 36 }
+		for i, b in ipairs(l.brackets) do
+			expectTrue(not hit(b, c), "bracket " .. i .. " stays out of the content rect at " .. w .. "x" .. h)
+			expectTrue(not hit(b, close), "bracket " .. i .. " stays off Close at " .. w .. "x" .. h)
+		end
+	end
+end })
+
 table.insert(tests, { name = "LedgerPages: stats map to story, hall and records content; empty state; beaten records; count-up", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(#LP.PAGES, 3, "three pages")
