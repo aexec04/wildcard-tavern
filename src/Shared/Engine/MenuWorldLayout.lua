@@ -13,18 +13,18 @@
 
 local MenuWorldLayout = {}
 
-MenuWorldLayout.hub = { x = 0.50, y = 0.50, h = 0.40, asp = 4 / 3 }   -- tavern building, three-quarter view
+-- The hub sits a little high and smaller so the Deal Me In block stands on the ground in front of the door, never over the roof.
+MenuWorldLayout.hub = { x = 0.50, y = 0.44, h = 0.36, asp = 4 / 3 }   -- tavern building, three-quarter view
 MenuWorldLayout.road = { x = 0.50, y = 0.80, h = 0.40, asp = 1.5 }    -- dirt road from the door toward the bottom
-MenuWorldLayout.door = { x = 0.50, y = 0.66 }                         -- where the door glows and the road starts
-MenuWorldLayout.chimney = { x = 0.56, y = 0.31 }                      -- smoke starts here
-MenuWorldLayout.hero = { x0 = 0.50, y0 = 0.68, y1 = 0.93, period = 30, size = 28 } -- walks out and back, pixels for size
+MenuWorldLayout.door = { x = 0.50, y = 0.584 }                        -- where the door glows and the road starts
+MenuWorldLayout.chimney = { x = 0.554, y = 0.27 }                     -- smoke starts here
+MenuWorldLayout.hero = { x0 = 0.50, y0 = 0.62, y1 = 0.93, period = 30, size = 28 } -- walks out and back, pixels for size
 MenuWorldLayout.drift = { panPx = 6, baseZoom = 1.03, zoomAmp = 0.01, period = 40 }
 MenuWorldLayout.fireflies = 4
 -- The parchment frame is only a thin edge: at most this share of the width per side and of the height top and bottom.
 MenuWorldLayout.frameBand = { side = 0.08, vert = 0.06 }
-MenuWorldLayout.clouds = 2
--- drift + smoke + door glow + cloud shadows + hero + fireflies
-MenuWorldLayout.animated = 5 + MenuWorldLayout.fireflies
+-- drift + smoke + door glow + hero + fireflies (the cloud shadows were removed: they read as ghost circles and a light band)
+MenuWorldLayout.animated = 4 + MenuWorldLayout.fireflies
 
 -- Menu layout v2: a strict grid over the quiet painted map. Top centre the Wordmark, centre the Deal Me In block (New Run sits
 -- under it inside the same frame), one bottom row of six identical tiles on one baseline with equal gaps, and the slim Notice
@@ -32,7 +32,7 @@ MenuWorldLayout.animated = 5 + MenuWorldLayout.fireflies
 -- Hotspot id -> { x, y, s, asp } (s is the height as a fraction of the screen, width = s * asp of the height).
 MenuWorldLayout.grid = { rowY = 0.84, tileS = 0.11, gap = 0.125, order = { "questscroll", "maptable", "tome", "coinjar", "rulebook", "jukebox" } }
 MenuWorldLayout.spots = {
-	play = { x = 0.50, y = 0.46, s = 0.16, asp = 1.5 }, -- the Deal Me In sign hangs over the door, New Run on its lower edge
+	play = { x = 0.50, y = 0.70, s = 0.13, asp = 2.2 }, -- the Deal Me In block stands on the ground in front of the door, New Run under the sign
 }
 for i, id in ipairs(MenuWorldLayout.grid.order) do
 	local G = MenuWorldLayout.grid
@@ -65,7 +65,7 @@ MenuWorldLayout.art = {
 -- Every key MenuWorldArt may hold (the generated map only ever contains these).
 MenuWorldLayout.artKeys = {
 	"menu_tavern_hub", "menu_road_out", "menu_quest_board", "menu_tome_library", "menu_coin_jar_shop", "menu_rulebook_stand",
-	"menu_jukebox_stage", "menu_map_table_tent", "menu_notice_post", "menu_cloud_wisp", "menu_fog_edge", "menu_map_frame",
+	"menu_jukebox_stage", "menu_map_table_tent", "menu_notice_post", "menu_cloud_wisp", "menu_fog_edge", "menu_fog_edge_clean", "menu_map_frame",
 }
 
 -- The four edge strips of the frame art as fractions { name, x, y, w, h }. Each strip shows only that edge of the full-screen art

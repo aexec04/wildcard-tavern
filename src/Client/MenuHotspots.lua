@@ -443,9 +443,10 @@ function Hotspots.build(opts)
 	allButton.Name = "AllActionsButton"
 	allButton.AnchorPoint = Vector2.new(1, 1)
 	allButton.Position = UDim2.new(1, -16, 1, -16)
-	allButton.Size = UDim2.fromOffset(150, 38)
+	allButton.Size = UDim2.fromOffset(168, 42)
 	allButton.AutoButtonColor = false
-	allButton.BackgroundColor3 = WOOD
+	allButton.BackgroundColor3 = Color3.fromRGB(34, 24, 16) -- a solid dark plate like the tile labels (cream on it is over 10:1)
+	allButton.BackgroundTransparency = 0
 	allButton.Font = Enum.Font.GothamBold
 	allButton.TextSize = 16
 	allButton.TextColor3 = CREAM
@@ -723,6 +724,7 @@ function Hotspots.build(opts)
 			-- the real Play button is the click surface of the sign; New Run is a small plaque on it
 			local primary = buttons.play
 			ui.surface = primary
+			if Layout.world then object.Visible = false end -- the sign is the plaque itself: no dark medallion (its top edge was cut off) behind it
 			homes.play = function(button)
 				setMode(button, "surface", Z_SCENE)
 				button.Parent = frame

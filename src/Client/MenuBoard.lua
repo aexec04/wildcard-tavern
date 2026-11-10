@@ -93,8 +93,23 @@ function MenuBoard.build(parent)
 	scale.Parent = list
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 12)
+	layout.Padding = UDim.new(0, 16)
 	layout.Parent = list
+	local listPad = Instance.new("UIPadding") -- room above the first note for its pin
+	listPad.PaddingTop = UDim.new(0, 10)
+	listPad.Parent = list
+
+	-- The board is only as tall as its notes (never taller than its layout rect), so no empty wood hangs under them.
+	local function fit()
+		local screenH = parent.AbsoluteSize.Y
+		if screenH < 1 then return end
+		local content = list.AbsoluteSize.Y -- includes the UIScale
+		local h = math.min(N.h * screenH, 28 + content + 14)
+		frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))
+	end
+	list:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+	parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+	task.defer(fit)
 
 	local board = { frame = frame, list = list }
 
@@ -114,8 +129,8 @@ function MenuBoard.build(parent)
 		local pin = Instance.new("Frame") -- the pin holding the note to the board
 		pin.Name = "Pin"
 		pin.AnchorPoint = Vector2.new(0.5, 0.5)
-		pin.Position = UDim2.new(0.5, 0, 0, 0)
-		pin.Size = UDim2.fromOffset(12, 12)
+		pin.Position = UDim2.new(0.5, 0, 0, -4) -- on the note's top edge only, clear of its text rows
+		pin.Size = UDim2.fromOffset(10, 10)
 		pin.BackgroundColor3 = Color3.fromRGB(176, 52, 40)
 		pin.BorderSizePixel = 0
 		pin.Active = false

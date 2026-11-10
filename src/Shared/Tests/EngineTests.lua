@@ -11914,15 +11914,21 @@ table.insert(tests, { name = "MenuWorldLayout: every action has a landmark, noth
 				expectTrue(ML.overlapFraction(a, b) <= 0.02, "no overlap: " .. a.id .. " " .. a.kind .. " vs " .. b.id .. " " .. b.kind .. " at " .. w)
 			end
 		end
-		-- the hub holds the Play sign and the road starts at its door
+		-- the Play block stands on the ground in front of the door: under the hub (never over its roof), above the tile row
 		local hl, ht, hr, hb = WL.hubRect(w, h)
 		local play = WL.spots.play
-		expectTrue(play.x * w > hl and play.x * w < hr and play.y * h > ht and play.y * h < hb, "Play sign hangs on the hub")
+		local pl, pt, pr, pb = ML.rect({ x = play.x, y = play.y, s = play.s, asp = play.asp }, w, h)
+		expectTrue(play.x * w > hl and play.x * w < hr, "Play block is centred under the tavern")
+		expectTrue(pt >= hb - 0.005 * h, "Play block never covers the tavern or its roof at " .. w)
+		local tileTop = math.huge
+		for _, r in ipairs(rects) do if r.kind == "landmark" and r.id ~= "play" then tileTop = math.min(tileTop, r[2]) end end
+		expectTrue(pb <= tileTop, "Play block sits above the tile row at " .. w)
 		expectTrue(WL.door.y * h < hb and WL.door.y * h > ht, "door inside the hub")
+		expectTrue(WL.door.y * h <= pt, "the sign stands below the door")
 	end
 	expectTrue(ML.isPhone(640), "phones use the list (landmarks are hidden, the list stays)")
 	expectTrue(WL.animated + 1 <= ML.MAX_ANIMATED, "map life plus the lantern stays under the animated cap")
-	expectEqual(WL.animated, 5 + WL.fireflies, "drift, smoke, door glow, cloud shadows, hero plus fireflies")
+	expectEqual(WL.animated, 4 + WL.fireflies, "drift, smoke, door glow, hero plus fireflies (no cloud shadows)")
 	local known = {}
 	for _, key in ipairs(WL.artKeys) do known[key] = true end
 	for id in pairs(require(script.Parent.Parent.Engine.MenuWorldArt)) do expectTrue(known[id], "MenuWorldArt only holds known keys: " .. id) end
@@ -12016,6 +12022,29 @@ table.insert(tests, { name = "MenuWorldLayout: one rigid drift, hero walks out a
 		expectTrue(src:find("world.Position = UDim2.new(0.5, dx, 0.5, dy)", 1, true) ~= nil, "the whole map moves as one frame")
 		expectTrue(src:find("Bayou", 1, true) == nil, "no bayou layers")
 	end
+end })
+
+table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or hard band, Notice Board fits its notes with pins on the top edge, All actions is a solid legible plate", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local world, board, hot = read("src/Client/MenuWorld.lua"), read("src/Client/MenuBoard.lua"), read("src/Client/MenuHotspots.lua")
+	if not (world and board and hot) then return end
+	expectTrue(world:find("menu_map_frame", 1, true) == nil and world:find("WL.frameStrips", 1, true) == nil, "the scroll frame's roller ends (the four corner blobs) are not drawn")
+	expectTrue(world:find("CloudShadow", 1, true) == nil and world:find("menu_cloud_wisp", 1, true) == nil, "no cloud shadows (ghost circles and a light band)")
+	expectTrue(world:find('"TitleScrim" .. i', 1, true) ~= nil and world:find('frame(container, "TitleScrim",', 1, true) == nil, "the title backing fades in steps, no hard band edge")
+	expectTrue(world:find("menu_fog_edge_clean", 1, true) ~= nil, "the despilled fog edge is preferred when recorded")
+	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
+	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
+	expectTrue(hot:find("if Layout.world then object.Visible = false end", 1, true) ~= nil, "the Deal Me In block has no cut-off dark medallion on the map")
+	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(34, 24, 16)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid dark plate")
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	expectTrue(LL.contrast({ 250, 240, 220 }, { 34, 24, 16 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
+	expectTrue(ML.NoticeBoard.h <= 0.3, "the board's layout rect is the cap, the fit makes it shorter")
 end })
 
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()

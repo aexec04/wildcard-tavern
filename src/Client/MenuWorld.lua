@@ -5,7 +5,7 @@
 	looks fine before any art is recorded: a meadow ground, a block tavern with a glowing door, a dirt road, a parchment border.
 
 	Motion: everything that belongs to the map lives in ONE `World` frame and only that frame moves (a tiny pan and 1 percent zoom
-	breath over 40 s), so no landmark slides against another. Local life only: chimney smoke, door glow, cloud shadows, fireflies,
+	breath over 40 s), so no landmark slides against another. Local life only: chimney smoke, door glow, fireflies,
 	the hero token walking the road out and back every 30 s. Calm mode holds the map still and hides the life.
 
 	build(parent) returns { active = true, layers = {}, update(nx, ny, t, calm), animatedCount, world }.
@@ -171,25 +171,6 @@ function MenuWorld.build(parent)
 	end
 	scene.animatedCount += 1
 
-	-- cloud shadows: soft dark ellipses drifting across the ground (shadow only, never a bright cloud over the buttons)
-	local wispArt = ContentArt.getImageId("menu_world", "menu_cloud_wisp")
-	local clouds = {}
-	for i = 1, WL.clouds do
-		local c
-		if wispArt then
-			c = image(world, "CloudShadow", wispArt)
-			c.ImageColor3 = Color3.fromRGB(20, 30, 24)
-			c.ImageTransparency = 0.86
-		else
-			c = frame(world, "CloudShadow", Color3.fromRGB(20, 30, 24), 0.9)
-			round(c, UDim.new(0.5, 0))
-		end
-		c.AnchorPoint = Vector2.new(0.5, 0.5)
-		c.Size = UDim2.fromScale(0.26 + i * 0.04, 0.09)
-		clouds[i] = { inst = c, y = 0.26 + i * 0.22, speed = 1 / (70 + i * 25), phase = i * 0.37 }
-	end
-	scene.animatedCount += 1
-
 	-- a signpost beside the Notice Board, only when its art exists
 	local postArt = ContentArt.getImageId("menu_world", "menu_notice_post")
 	if postArt then
@@ -230,36 +211,21 @@ function MenuWorld.build(parent)
 	end
 	scene.animatedCount += #flies
 
-	-- soft backing under the title so the gold lettering reads on the grass
-	local scrim = frame(container, "TitleScrim", Color3.fromRGB(14, 20, 12), 0.62)
-	scrim.Size = UDim2.fromScale(1, 0.2)
-
-	-- the parchment map edge frames the screen: painted fog and roller frame when recorded, a drawn parchment border otherwise
-	local fogArt = ContentArt.getImageId("menu_world", "menu_fog_edge")
-	local frameArt = ContentArt.getImageId("menu_world", "menu_map_frame")
-	if fogArt then image(container, "FogEdge", fogArt, Enum.ScaleType.Stretch).Size = UDim2.fromScale(1, 1) end
-	if frameArt then
-		-- only the thin edge of the art is shown: four clipping strips, each holding the full-screen art positioned to reveal its edge
-		local holder = Instance.new("Folder")
-		holder.Name = "MapFrame"
-		holder.Parent = container
-		for _, st in ipairs(WL.frameStrips()) do
-			local clip = Instance.new("Frame")
-			clip.Name = st.name
-			clip.BackgroundTransparency = 1
-			clip.BorderSizePixel = 0
-			clip.ClipsDescendants = true
-			clip.Active = false
-			clip.Position = UDim2.fromScale(st.x, st.y)
-			clip.Size = UDim2.fromScale(st.w, st.h)
-			clip.ZIndex = 10
-			clip.Parent = holder
-			local art = image(clip, "Art", frameArt, Enum.ScaleType.Stretch)
-			art.AnchorPoint = Vector2.new(0, 0)
-			art.Position = UDim2.fromScale(-st.x / st.w, -st.y / st.h)
-			art.Size = UDim2.fromScale(1 / st.w, 1 / st.h)
+	-- soft backing under the title so the gold lettering reads on the grass: eight thin steps that fade out, so there is no
+	-- visible band edge anywhere on the map
+	do
+		local steps, height = 8, 0.16
+		for i = 1, steps do
+			local step = frame(container, "TitleScrim" .. i, Color3.fromRGB(14, 20, 12), 0.7 + (i - 1) * 0.04)
+			step.Size = UDim2.fromScale(1, height * (steps - i + 1) / steps)
 		end
-	else
+	end
+
+	-- the painted fog edge softens the screen border and a thin drawn parchment line frames it. The scroll-frame art is not used:
+	-- its roller ends showed up as four flat blobs in the corners. The despilled fog (menu_fog_edge_clean) is preferred when recorded.
+	local fogArt = ContentArt.getImageId("menu_world", "menu_fog_edge_clean") or ContentArt.getImageId("menu_world", "menu_fog_edge")
+	if fogArt then image(container, "FogEdge", fogArt, Enum.ScaleType.Stretch).Size = UDim2.fromScale(1, 1) end
+	do
 		local border = Instance.new("Frame")
 		border.Name = "ParchmentBorder"
 		border.Size = UDim2.fromScale(1, 1)
@@ -281,7 +247,6 @@ function MenuWorld.build(parent)
 			world.Position = UDim2.fromScale(0.5, 0.5)
 			world.Size = UDim2.fromScale(D.baseZoom, D.baseZoom)
 			glow.BackgroundTransparency = 0.82
-			for _, c in ipairs(clouds) do c.inst.Position = UDim2.fromScale(0.3 + c.phase, c.y) end
 			return
 		end
 		local dx, dy, z = WL.driftAt(t)
@@ -294,10 +259,6 @@ function MenuWorld.build(parent)
 			p.Size = UDim2.fromScale(s, s * 1.7)
 			p.Position = UDim2.fromScale(WL.chimney.x + math.sin(t * 0.8 + i) * 0.008 + k * 0.02, WL.chimney.y - k * 0.12)
 			p.BackgroundTransparency = 0.55 + k * 0.45
-		end
-		for _, c in ipairs(clouds) do
-			local x = (t * c.speed + c.phase) % 1.5 - 0.25
-			c.inst.Position = UDim2.fromScale(x, c.y)
 		end
 		local hx, hy = WL.heroAt(t)
 		hero.Position = UDim2.fromScale(hx, hy)
