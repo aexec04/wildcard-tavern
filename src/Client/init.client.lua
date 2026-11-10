@@ -693,6 +693,7 @@ do
 		music = SoundModule.backgroundMusic,
 	})
 	require(script.EndlessChips).init({ root = root, addTooltip = addTooltip }) -- Crowd Rule chips and banner (Endless)
+	require(script.BlessingChip).init({ root = root, addTooltip = addTooltip }) -- blessing and curse chip under the sidebar
 end
 
 -- ===== Score popup: chips x mult animation on Play Hand =====
@@ -2383,6 +2384,7 @@ local function render(state)
 	pcall(function() require(script.CharacterStage).get().update(state) end) -- live characters (before BossFight so it can hide the portrait)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 	pcall(require(script.EndlessChips).update, state) -- Crowd Rule chips and banner, display only
+	pcall(require(script.BlessingChip).update, state) -- blessing and curse chip, display only
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
 	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
@@ -2418,6 +2420,8 @@ local function render(state)
 	-- this always reflects the actual current run, including after
 	-- "New Run..." swaps a seeded run back out for a normal one.
 	SidebarModule.setRunModeBadge(state.isDaily, state.dailyDateKey, state.isWeekly, state.weeklyDateKey, state.isSeeded, state.seedCode)
+	root:SetAttribute("ToastScreen", require(ReplicatedStorage.Shared.Engine.ToastPlacement).screenOf(state)) -- toasts never cover titles
+	pcall(SettingsOverlay.setBlessing, state.runModifier) -- "This run: <blessing>" row in Settings
 	pcall(function() -- the seed / date / week also shows in Settings
 		local info = require(ReplicatedStorage.Shared.Engine.SeedDisplay).label(state)
 		SettingsOverlay.setRunLabel(info and ("This run  |  " .. info.text) or nil)

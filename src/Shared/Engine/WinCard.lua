@@ -70,13 +70,20 @@ function WinCard.build(summary, extras)
 		text = text:sub(1, ShareResult.MAX_LENGTH - 3) .. "..."
 	end
 
+	local blessing = summary.blessing
+	local blessingText = ""
+	if type(blessing) == "table" and blessing.name then
+		blessingText = WinCard.clean(string.format("Blessing: %s, curse: %s", blessing.name, string.lower(tostring(blessing.curse or ""))))
+	end
+
 	return {
+		blessingText = blessingText,
 		title = title,
 		subtitle = won and "You beat the tavern!" or "A fine run!",
 		nightText = "Night " .. night,
 		bestHandText = bestHandText,
 		stakeText = "Stake " .. stake,
-		footer = seedText ~= "" and seedText or "Wildcard Tavern",
+		footer = blessingText ~= "" and blessingText or (seedText ~= "" and seedText or "Wildcard Tavern"),
 		patrons = patrons,
 		cardBackId = extras.cardBackId,
 		shareText = text,

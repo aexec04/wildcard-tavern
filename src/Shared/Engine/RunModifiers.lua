@@ -56,6 +56,18 @@ function RunModifiers.getById(id)
 	return nil
 end
 
+-- Display data for the blessing a run picked (nil when none): { id, name, icon, blessing, curse, line }.
+function RunModifiers.view(id)
+	local def = id and RunModifiers.getById(id)
+	if not def then
+		return nil
+	end
+	return {
+		id = def.id, name = def.name, icon = def.icon, blessing = def.blessing, curse = def.curse,
+		line = def.name .. ": " .. def.blessing .. " / " .. def.curse,
+	}
+end
+
 -- Applies a modifier to a run that is at the start of its first round. Returns true, message.
 function RunModifiers.apply(state, id)
 	local def = RunModifiers.getById(id)

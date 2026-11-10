@@ -88,6 +88,7 @@ function RunSummary.build(state, titleText)
 		patrons = patrons,
 		rarity = RunSummary.badgeRarity(night, won),
 		titleText = titleText,
+		blessing = require(script.Parent.RunModifiers).view(state.runModifierId), -- the start-of-run blessing and curse
 	}
 end
 

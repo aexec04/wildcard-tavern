@@ -922,6 +922,7 @@ local function serializeState(session, player)
 		regulars = profiles[player] and profiles[player].lifetime
 			and require(Engine.Regulars).view(profiles[player].lifetime, math.floor(os.time() / 86400)) or nil, -- Menu Regulars
 		isRush = state.rush ~= nil,
+		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
 		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast

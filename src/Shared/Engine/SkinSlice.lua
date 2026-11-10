@@ -13,6 +13,10 @@ local SkinSlice = {}
 SkinSlice.CAP_FRACTION = 0.17 -- button / tab caps: share of the cropped width on each side
 SkinSlice.RAIL_FRACTION = 0.25 -- top and bottom rail: share of the cropped height
 SkinSlice.PANEL_EDGE_FRACTION = 0.125 -- panel frame border: share of the short side of the crop
+SkinSlice.WIDE_PX = 160 -- plates wider than this show only the plain middle rails (no lantern end, no smudged end)
+SkinSlice.WIDE_FROM = 0.26 -- plain-rail crop of a wide plate: share of the cropped width where it starts
+SkinSlice.WIDE_TO = 0.80 -- and where it ends
+SkinSlice.WIDE_CAP = 6 -- source px kept as an end cap on a wide plate (the button is rounded with a corner instead)
 SkinSlice.MIN_CAPS_WIDE = 3 -- narrower than this many caps and the plate falls back to flat colour
 SkinSlice.MAX_FRAME_SHRINK = 0.08 -- per side, used when a frame's inner window is too small for the index
 SkinSlice.INDEX_PAD = 0.02 -- card fraction between the window edge and the index
@@ -34,6 +38,19 @@ end
 function SkinSlice.plateSlice(m, btnW, btnH)
 	if not m or btnW <= 0 or btnH <= 0 then return nil end
 	local scale = btnH / m.ch
+	if btnW > SkinSlice.WIDE_PX then
+		local x0 = math.floor(m.cw * SkinSlice.WIDE_FROM)
+		local x1 = math.floor(m.cw * SkinSlice.WIDE_TO)
+		local w = x1 - x0
+		local rail = math.floor(m.ch * SkinSlice.RAIL_FRACTION)
+		return {
+			center = { l = SkinSlice.WIDE_CAP, t = rail, r = w - SkinSlice.WIDE_CAP, b = m.ch - rail },
+			scale = scale,
+			capW = SkinSlice.WIDE_CAP * scale,
+			crop = { x = m.x + x0, y = m.y, w = w, h = m.ch },
+			wide = true,
+		}
+	end
 	local capSrc = math.floor(m.cw * SkinSlice.CAP_FRACTION)
 	local capW = capSrc * scale
 	if btnW < capW * SkinSlice.MIN_CAPS_WIDE then return nil end

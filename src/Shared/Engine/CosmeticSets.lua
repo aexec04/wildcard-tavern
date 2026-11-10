@@ -593,6 +593,13 @@ function CosmeticSets.skinOf(set)
 	end
 	local accent = CosmeticSets.accentOf(set) or face.border
 	local dark = { 28, 20, 14 }
+	-- button fill dark enough that cream button text reads at 4.5:1 (mid-tone accents otherwise fail both colours)
+	local buttonFill = mix(accent, dark, 0.3)
+	local fillSteps = 0
+	while CosmeticSets.contrastRatio({ 250, 244, 226 }, buttonFill) < 4.5 and fillSteps < 12 do
+		buttonFill = mix(buttonFill, dark, 0.15)
+		fillSteps = fillSteps + 1
+	end
 	return {
 		id = set and set.id,
 		images = images,
@@ -601,7 +608,7 @@ function CosmeticSets.skinOf(set)
 		colors = {
 			paper = face.paper, border = face.border, pip = face.pip,
 			panel = mix(accent, dark, 0.45),
-			button = mix(accent, dark, 0.3),
+			button = buttonFill,
 			tab = mix(accent, dark, 0.55),
 		},
 	}
@@ -650,6 +657,16 @@ function CosmeticSets.indexStyle(set, isRed)
 		steps = steps + 1
 	end
 	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
+end
+
+-- Text colour for a button whose plate fill is `fill` ({r,g,b}): cream or near-black, whichever reads better (4.5:1 or more
+-- for every fill the sets use; the larger of the two is returned when neither reaches it).
+function CosmeticSets.buttonTextColor(fill)
+	local cream, dark = { 250, 244, 226 }, { 30, 20, 12 }
+	if CosmeticSets.contrastRatio(cream, fill) >= CosmeticSets.contrastRatio(dark, fill) then
+		return cream
+	end
+	return dark
 end
 
 -- Worst ink-vs-plate contrast over both suit colours.

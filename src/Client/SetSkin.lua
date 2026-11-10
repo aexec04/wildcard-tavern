@@ -17,6 +17,7 @@
 
 local PanelBand = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBand"))
 
+local CosmeticSets = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
 local SkinSlice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SkinSlice"))
 
 local SetSkin = {}
@@ -93,6 +94,14 @@ local function fitArt(inst, kind, label, m)
 		end
 		label.Visible = sl ~= nil
 		if sl then
+			local c = sl.crop or crop -- wide plates show only the plain rails
+			label.ImageRectOffset = Vector2.new(c.x, c.y)
+			label.ImageRectSize = Vector2.new(c.w, c.h)
+			if sl.wide and not label:FindFirstChildOfClass("UICorner") then
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 8)
+				corner.Parent = label
+			end
 			label.SliceCenter = Rect.new(sl.center.l, sl.center.t, sl.center.r, sl.center.b)
 			label.SliceScale = sl.scale
 		end
@@ -157,6 +166,15 @@ local function style(inst, kind, skin)
 			wash:Destroy()
 		end
 		return
+	end
+
+	if kind == "button" and colors and inst:IsA("TextButton") and image then
+		-- readable on the plate: cream or ink by contrast with the set's button colour, plus a thin dark stroke
+		local t = CosmeticSets.buttonTextColor(colors.button)
+		inst.TextColor3 = rgb(t)
+		inst.TextTransparency = 0
+		inst.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+		inst.TextStrokeTransparency = t[1] > 128 and 0.6 or 1
 	end
 
 	local stroke = ring(inst)

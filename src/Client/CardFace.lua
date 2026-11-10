@@ -296,11 +296,13 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 			lab.TextStrokeTransparency = 0.55
 		end
 	else
-		makeLabel(face, "CornerRank", rankText, indexInk, UDim2.fromScale(0.32, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex)
-		makeLabel(face, "CornerSuit", suitText, indexInk, UDim2.fromScale(0.16, 0.1), UDim2.fromScale(0.2, 0.27), nil, Enum.TextXAlignment.Left, zIndex)
-		makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(0.14, 0.09), UDim2.fromScale(0.81, 0.87), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
+		-- default set: index about 25 percent larger and inset from the inner border; stacked rank, suit and the centre pip
+		-- never overlap (rank 0.14 to 0.32, suit 0.32 to 0.43, centre pip 0.42 to 0.74, bottom suit 0.74 to 0.85)
+		makeLabel(face, "CornerRank", rankText, indexInk, UDim2.fromScale(0.36, 0.18), UDim2.fromScale(0.22, 0.14), nil, Enum.TextXAlignment.Left, zIndex)
+		makeLabel(face, "CornerSuit", suitText, indexInk, UDim2.fromScale(0.2, 0.11), UDim2.fromScale(0.22, 0.32), nil, Enum.TextXAlignment.Left, zIndex)
+		makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(0.18, 0.11), UDim2.fromScale(0.78, 0.85), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
 	end
-	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(0.5, 0.36), UDim2.fromScale(0.5, 0.53), Vector2.new(0.5, 0.5), nil, zIndex)
+	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(0.5, 0.32), UDim2.fromScale(0.5, 0.58), Vector2.new(0.5, 0.5), nil, zIndex)
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
 	end

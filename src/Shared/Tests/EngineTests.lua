@@ -11982,6 +11982,84 @@ table.insert(tests, { name = "SkinSlice: caps never exceed half the button, cap 
 	expectEqual(SS.plateSlice(nil, 100, 40), nil, "no metrics, no art")
 end })
 
+table.insert(tests, { name = "SkinSlice: wide plates show only the plain rails (no lantern end), still inside the art box", fn = function()
+	local SS = require(script.Parent.Parent.Engine.SkinSlice)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local m = SS.metrics(set.id, "button_plate")
+		if m then
+			local sl = SS.plateSlice(m, SS.WIDE_PX + 40, 50)
+			expectTrue(sl ~= nil and sl.wide == true, set.id .. " wide plate uses the plain rails")
+			expectTrue(sl.crop.x > m.x and sl.crop.x + sl.crop.w < m.x + m.cw, set.id .. " crop leaves out both ends")
+			expectTrue(sl.center.l < sl.center.r, set.id .. " wide slice centre is non-empty")
+			expectTrue(math.abs(sl.scale * sl.crop.h - 50) < 0.001, set.id .. " wide art height equals button height")
+			local narrow = SS.plateSlice(m, SS.WIDE_PX, 50)
+			expectTrue(narrow == nil or narrow.wide == nil, set.id .. " at the limit keeps the capped plate")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Button text: cream or ink reads at 4.5:1 on every set's button colour", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local skin = CS.skinOf(set)
+		if skin.colors then
+			local t = CS.buttonTextColor(skin.colors.button)
+			expectTrue(CS.contrastRatio(t, skin.colors.button) >= 4.5, set.id .. " button text contrast")
+		end
+	end
+end })
+
+table.insert(tests, { name = "Blessing chip: view carries both lines, layout never overlaps the sidebar stack, toasts avoid titles", fn = function()
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local Layout = require(script.Parent.Parent.Engine.BlessingChipLayout)
+	local TP = require(script.Parent.Parent.Engine.ToastPlacement)
+	for _, def in ipairs(RM.Definitions) do
+		local v = RM.view(def.id)
+		expectEqual(v.name, def.name)
+		expectTrue(v.blessing ~= "" and v.curse ~= "", def.id .. " view has blessing and curse")
+	end
+	expectEqual(RM.view(nil), nil)
+	expectEqual(RM.view("nope"), nil)
+	for _, h in ipairs({ 360, 640, 720, 900, 1080, 1440 }) do
+		for _, reserve in ipairs({ 0, 110 }) do
+			local plan = Layout.plan(h, reserve)
+			if plan.mode ~= "hidden" then
+				local top = Layout.top(h, plan)
+				expectTrue(top >= Layout.STACK_HEIGHT, "chip starts below the sidebar stack at height " .. h)
+				expectTrue(top + plan.height <= h - reserve, "chip stays above Crowd Rule chips and the column foot at " .. h)
+			end
+		end
+	end
+	expectEqual(Layout.plan(1080, 0).mode, "full")
+	expectEqual(Layout.plan(640, 0).mode, "hidden")
+	for _, screen in ipairs({ "roundSelect", "choice", "shop" }) do
+		expectEqual(TP.plan(screen).anchor, "top", screen .. " toast sits under the title")
+		expectTrue(TP.plan(screen).y >= TP.TITLE_BLOCK, screen .. " toast below the title block")
+	end
+	expectEqual(TP.plan("table").anchor, "bottom")
+	expectTrue(TP.plan("table").y <= -TP.TRAY_CLEARANCE, "table toast above the hand tray")
+	expectEqual(TP.screenOf({ phase = "shop" }), "shop")
+	expectEqual(TP.screenOf({ phase = "play", choice = {} }), "choice")
+	expectEqual(TP.screenOf({ phase = "play" }), "table")
+end })
+
+table.insert(tests, { name = "Blessing shows in the run summary and the Win Card", fn = function()
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local WC = require(script.Parent.Parent.Engine.WinCard)
+	local RS = require(script.Parent.Parent.Engine.RunSummary)
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local state = RunState.new(nil, function(_n) return 1 end)
+	expectEqual(RS.build(state, "x").blessing, nil)
+	RM.apply(state, "sharp_eyes")
+	local summary = RS.build(state, "x")
+	expectEqual(summary.blessing.id, "sharp_eyes")
+	local card = WC.build(summary, {})
+	expectTrue(card.blessingText:find("Sharp Eyes", 1, true) ~= nil, "win card names the blessing")
+	expectTrue(card.footer:find("Sharp Eyes", 1, true) ~= nil, "win card footer shows it")
+	expectFalse(card.blessingText:find("-", 1, true) ~= nil, "no dashes")
+end })
+
 table.insert(tests, { name = "SkinSlice: every set has measured metrics for all four slots and a usable card index window", fn = function()
 	local SS = require(script.Parent.Parent.Engine.SkinSlice)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

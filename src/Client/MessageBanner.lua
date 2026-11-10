@@ -38,6 +38,8 @@
 	clear) when its timer or a newer warning replaces it.
 ]]
 
+local ToastPlacement = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ToastPlacement"))
+
 return function(deps)
 	local SIDEBAR_WIDTH = deps.SIDEBAR_WIDTH
 	local root = deps.root
@@ -89,11 +91,14 @@ return function(deps)
 		messageBar:SetAttribute("MessageToken", myToken)
 
 		messageBar.Visible = true
-		-- Round Select sets BannerAtBottom so the strip sits just under its subtitle, never over the title.
-		local atBottom = root:GetAttribute("BannerAtBottom") == true
+		-- Never over a title: Round Select, Choice and Shop sit under the title block, table screens sit above the
+		-- hand tray (Engine/ToastPlacement.lua; render() sets the ToastScreen attribute).
+		local place = ToastPlacement.plan(root:GetAttribute("ToastScreen") or (root:GetAttribute("BannerAtBottom") and "roundSelect") or "table")
+		messageBar.AnchorPoint = Vector2.new(0, place.anchor == "bottom" and 1 or 0)
 		local function pos(y)
-			if atBottom then return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 90 + (y - RESTING_Y)) end
-			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, y)
+			local drift = y - RESTING_Y
+			if place.anchor == "bottom" then return UDim2.new(0, SIDEBAR_WIDTH + 20, 1, place.y - drift) end
+			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, place.y + drift)
 		end
 		messageBar.Position = pos(START_Y)
 		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = pos(RESTING_Y) }, 0.18)

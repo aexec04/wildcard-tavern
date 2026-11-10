@@ -332,6 +332,13 @@ local function buildCard(summary)
 		})
 		chip.TextWrapped = false
 	end
+	if summary.blessing then
+		local blessingLine = label(parent, {
+			Position = UDim2.new(0, 10, 0, 342), Size = UDim2.new(1, -20, 0, 20),
+			Text = "Blessing: " .. summary.blessing.name, TextSize = 14, Font = Enum.Font.GothamMedium,
+		})
+		blessingLine.TextTruncate = Enum.TextTruncate.AtEnd
+	end
 	label(parent, {
 		Position = UDim2.new(0, 10, 1, -64), Size = UDim2.new(1, -20, 0, 40),
 		Text = string.upper(rarityDef and rarityDef.name or summary.rarity), TextSize = 20,

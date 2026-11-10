@@ -410,7 +410,34 @@ return function(deps)
 		scroll.Size = UDim2.new(1, -40, 1, text and -128 or -110)
 	end
 
+	-- "This run: <blessing>" with both lines, first row of the list while a run has a blessing.
+	local blessingRow = Instance.new("TextLabel")
+	blessingRow.Name = "RunBlessing"
+	blessingRow.Size = UDim2.new(1, 0, 0, 62)
+	blessingRow.LayoutOrder = 0
+	blessingRow.BackgroundTransparency = 1
+	blessingRow.Font = Enum.Font.GothamMedium
+	blessingRow.TextSize = 14
+	blessingRow.RichText = true
+	blessingRow.TextWrapped = true
+	blessingRow.TextXAlignment = Enum.TextXAlignment.Left
+	blessingRow.TextYAlignment = Enum.TextYAlignment.Top
+	blessingRow.TextColor3 = TEXT
+	blessingRow.TextTransparency = 0
+	blessingRow.TextStrokeTransparency = 1
+	blessingRow.Visible = false
+	blessingRow.ZIndex = 21
+	blessingRow.Parent = scroll
+	local function setBlessing(view)
+		blessingRow.Visible = type(view) == "table"
+		if blessingRow.Visible then
+			blessingRow.Text = string.format("<b>This run: %s</b>\n<font color=\"#7BD389\">Blessing: %s</font>\n<font color=\"#FF9C8A\">Curse: %s</font>",
+				view.name, view.blessing, view.curse)
+		end
+	end
+
 	return {
+		setBlessing = setBlessing,
 		setRunLabel = setRunLabel,
 		settingsBackdrop = settingsBackdrop,
 		settingsHowToPlayButton = settingsHowToPlayButton,
