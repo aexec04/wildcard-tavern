@@ -296,6 +296,9 @@ function FlairDressingRoom.build(deps, panel)
 	local unequipButton = cardButton("Unequip", Color3.fromRGB(110, 70, 50))
 	local previewButton = cardButton("Preview", Color3.fromRGB(80, 62, 44))
 	local buyButton = cardButton("Buy", GOLD, INK)
+	local statusLabel = make("TextLabel", card, { Name = "StatusLabel", Text = "", TextSize = 16, Font = Enum.Font.GothamBold, ZIndex = Z + 5, Visible = false,
+		BackgroundColor3 = Color3.fromRGB(46, 38, 32), BackgroundTransparency = 0, TextColor3 = Color3.fromRGB(176, 164, 140) })
+	round(statusLabel, 6)
 
 	local chosenItem = nil
 	local function findItem(id)
@@ -321,6 +324,9 @@ function FlairDressingRoom.build(deps, panel)
 				slot = slot + 1
 			end
 		end
+		statusLabel.Text = d.status or ""
+		statusLabel.TextColor3 = d.status == "Equipped" and Color3.fromRGB(150, 214, 140) or Color3.fromRGB(176, 164, 140)
+		put(statusLabel, d.status ~= nil)
 		put(equipButton, d.canEquip)
 		put(unequipButton, d.canUnequip)
 		put(buyButton, d.canBuy)
@@ -348,7 +354,7 @@ function FlairDressingRoom.build(deps, panel)
 		end
 	end)
 	previewButton.MouseButton1Click:Connect(function()
-		if chosenItem and chosenItem.state ~= "locked" then
+		if chosenItem then
 			deps.playClickSfx()
 			previewSample(chosenItem)
 		end
@@ -404,7 +410,7 @@ function FlairDressingRoom.build(deps, panel)
 		stroke(f, item.state == "equipped" and GOLD or Color3.fromRGB(86, 66, 44), item.state == "equipped" and 2.5 or 1)
 		local sel = stroke(f, CREAM, 2)
 		sel.Enabled = false
-		local ic = make("Frame", f, { Name = "Icon", Position = UDim2.fromOffset(math.floor((cellSize.w - med) / 2), 6), Size = UDim2.fromOffset(med, med),
+		local ic = make("Frame", f, { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(med, med),
 			BackgroundColor3 = locked and Color3.fromRGB(34, 28, 28) or VELVET, ZIndex = Z + 2 })
 		circle(ic)
 		local glyph = make("TextLabel", ic, { Size = UDim2.fromScale(1, 1), TextSize = math.floor(med * 0.5), Text = item.icon, ZIndex = Z + 3,
@@ -415,7 +421,7 @@ function FlairDressingRoom.build(deps, panel)
 			circle(shade)
 			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
-		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.fromOffset(cellSize.w - 8, cellSize.nameH), Text = item.name,
+		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.new(1, -8, 0, cellSize.nameH), Text = item.name,
 			TextSize = 14, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
 			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
 		local status, statusColor
@@ -426,13 +432,14 @@ function FlairDressingRoom.build(deps, panel)
 		else
 			status, statusColor = item.tag or "Locked", Color3.fromRGB(190, 160, 110)
 		end
-		make("TextLabel", f, { Name = "Status", Position = UDim2.fromOffset(4, 6 + med + 4 + cellSize.nameH + 2), Size = UDim2.fromOffset(cellSize.w - 8, cellSize.tagH), Text = status,
+		make("TextLabel", f, { Name = "Status", Position = UDim2.fromOffset(4, 6 + med + 4 + cellSize.nameH + 2), Size = UDim2.new(1, -8, 0, cellSize.tagH), Text = status,
 			TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = statusColor, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 })
 		f.MouseButton1Click:Connect(function()
 			deps.playClickSfx()
 			chosenId = item.id
 			layoutGrid()
 			paintCard()
+			previewSample(item) -- any tile, locked or not, plays right away (cosmetic only, never equips)
 		end)
 		hoverTip(f, function()
 			if locked then return item.name .. ": " .. (item.store and "Sold in the Tavern Store." or item.hint) end
@@ -443,7 +450,7 @@ function FlairDressingRoom.build(deps, panel)
 			if lastEquipped[item.slotId] ~= nil and deps.particleBurst and ClientSettings.get("reduceShake") ~= true then
 				task.defer(function()
 					if f.Parent then
-						pcall(deps.particleBurst, UDim2.fromOffset(f.AbsolutePosition.X + cellSize.w / 2, f.AbsolutePosition.Y + 6 + med / 2), GOLD, 10, { size = 7, spread = 60, duration = 0.6 })
+						pcall(deps.particleBurst, UDim2.fromOffset(f.AbsolutePosition.X + f.AbsoluteSize.X / 2, f.AbsolutePosition.Y + 6 + med / 2), GOLD, 10, { size = 7, spread = 60, duration = 0.6 })
 					end
 				end)
 			end

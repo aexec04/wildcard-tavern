@@ -35,6 +35,18 @@ function FlairPanel.init(deps)
 	deps.polishPanel(panel, 16, "wood")
 	deps.addSoftShadow(panel, 18)
 
+	local function fitPanel() -- keeps the panel off the HUD sidebar (Engine/FlairRoomLayout.panelRect)
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local vp = cam.ViewportSize
+		local r = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("FlairRoomLayout")).panelRect(vp.X, vp.Y)
+		panel.AnchorPoint = Vector2.new(0, 0.5)
+		panel.Size = UDim2.new(0, r.w, 0, r.h)
+		panel.Position = UDim2.new(0, r.x, 0.5, 0)
+	end
+	fitPanel()
+	if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitPanel) end
+
 	local room = FlairDressingRoom.build(deps, panel)
 
 	local function refresh()

@@ -12852,9 +12852,11 @@ table.insert(tests, { name = "FlairRoomLayout: drawers map every Flair slot, loc
 	expectTrue(find("leaf_numbers").tag == "Achievement", "achievement pieces name their kind")
 	-- detail card
 	local dFrost, dStore, dOwned, dEquipped = L.detail(frost), L.detail(store), L.detail(find("ember_numbers")), L.detail(find("classic_numbers"))
-	expectFalse(dFrost.canEquip or dFrost.canPreview or dFrost.canBuy, "a locked free piece offers nothing")
+	expectFalse(dFrost.canEquip or dFrost.canBuy, "a locked free piece cannot be equipped or bought")
+	expectTrue(dFrost.canPreview and dFrost.status == "Locked", "a locked piece can be previewed and shows a Locked label")
+	expectTrue(dFrost.how:find("Rank 6 of 10", 1, true) ~= nil, "locked piece names its unlock progress")
 	expectTrue(dFrost.how:find("Tavern Rank 10", 1, true) ~= nil, "locked piece says how to get it")
-	expectTrue(dStore.canBuy and not dStore.canEquip and not dStore.canPreview, "store piece offers Buy")
+	expectTrue(dStore.canBuy and not dStore.canEquip and dStore.canPreview, "store piece offers Buy and Preview")
 	expectTrue(dOwned.canEquip and dOwned.canPreview and not dOwned.canBuy, "owned piece offers Equip and Preview")
 	expectTrue(not dEquipped.canEquip and dEquipped.canPreview, "equipped piece offers Preview only")
 	expectFalse(L.detail(nil).canEquip, "empty detail offers nothing")
@@ -12868,6 +12870,43 @@ table.insert(tests, { name = "FlairRoomLayout: drawers map every Flair slot, loc
 	expectTrue(ok ~= false, "equip works")
 	expectEqual(L.equippedSlots(Flair.view(profile))[1].optionId, "ember_numbers", "slot follows the equipped piece")
 	expectEqual(#L.drawers(nil), 0, "no view means no drawers")
+end })
+
+table.insert(tests, { name = "Flair preview: every Flair id previews without touching equip or ownership; grid fills the width; panel clears the sidebar", fn = function()
+	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local profile = Flair.newProfile and Flair.newProfile() or nil
+	local view = Flair.view(profile or {})
+	local before = {}
+	for _, slot in ipairs(view.slots) do
+		for _, o in ipairs(slot.options) do before[o.id] = { o.owned, o.equipped } end
+	end
+	local n = 0
+	for _, d in ipairs(L.drawers(view)) do
+		for _, it in ipairs(d.items) do
+			n = n + 1
+			expectTrue(L.detail(it).canPreview, it.id .. " can be previewed in any state")
+		end
+	end
+	expectTrue(n > 0, "there are Flair ids")
+	for _, slot in ipairs(Flair.view(profile or {}).slots) do
+		for _, o in ipairs(slot.options) do
+			expectEqual(o.owned, before[o.id][1], o.id .. " ownership unchanged")
+			expectEqual(o.equipped, before[o.id][2], o.id .. " equip unchanged")
+		end
+	end
+	for _, W in ipairs({ 1920, 1280 }) do
+		local H = W == 1920 and 1080 or 720
+		local pr = L.panelRect(W, H)
+		expectTrue(pr.x >= 260 and pr.x + pr.w <= W, "panel clears the 240 px sidebar at " .. W)
+		local R = L.rects(pr.w, pr.h)
+		local cell = L.cell(R.compact)
+		local g = L.grid(R.grid.w - 8, 11, cell)
+		local last = g.cells[math.min(g.cols, 11)]
+		expectEqual(g.cells[1].x, 8, "grid is left aligned to its padding")
+		expectTrue((R.grid.w - 8) - (last.x + last.w) <= 8 + g.cols, "first row fills the grid width")
+		for _, c in ipairs(g.cells) do expectEqual(c.w, g.cells[1].w, "tiles share one width") end
+	end
 end })
 
 table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, detail card and buttons never overlap or leave the panel (1920x1080, 1280x720, phone)", fn = function()

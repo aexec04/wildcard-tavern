@@ -77,17 +77,32 @@ end
 
 function FlairRoomLayout.detail(item)
 	if not item then
-		return { title = "Pick a piece", how = "Open a drawer and tap a piece to see how to get it.", canEquip = false, canPreview = false, canBuy = false }
+		return { title = "Pick a piece", how = "Open a drawer and tap a piece to see how to get it.", canEquip = false, canUnequip = false, canPreview = false, canBuy = false, status = nil }
 	end
-	local how
-	if item.state == "equipped" then how = "Equipped right now."
+	local how, status
+	if item.state == "equipped" then how, status = "Equipped right now.", "Equipped"
 	elseif item.state == "owned" then how = "Unlocked. Tap Equip to wear it."
-	elseif item.store then how = "Sold in the Tavern Store."
-	else how = item.hint ~= "" and item.hint or "Keep playing to unlock it." end
+	else
+		status = "Locked"
+		local line = item.hint ~= "" and item.hint or "Keep playing to unlock it."
+		if item.store then line = "Sold in the Tavern Store." end
+		how = (item.tag and (item.tag .. ". ") or "") .. line
+	end
 	return {
-		title = item.name, how = how,
-		canEquip = item.state == "owned", canPreview = item.state ~= "locked", canBuy = item.state == "locked" and item.store,
+		title = item.name, how = how, status = status,
+		canEquip = item.state == "owned", canUnequip = item.state == "equipped" and not item.default,
+		canPreview = true, -- preview is cosmetic only, so locked pieces can be tried too
+		canBuy = item.state == "locked" and item.store,
 	}
+end
+
+-- The Flair panel sits right of the HUD sidebar (240 px plus a gap), like the Tavern Ledger desk.
+function FlairRoomLayout.panelRect(vpX, vpY)
+	local compact = vpX < 900
+	local left = compact and 12 or 260
+	local right = compact and 12 or 20
+	local h = vpY * 0.9
+	return { x = left, y = (vpY - h) / 2, w = math.max(200, vpX - left - right), h = h }
 end
 
 -- ===== layout =====
@@ -180,16 +195,17 @@ function FlairRoomLayout.cell(compact)
 	return { med = med, w = compact and 108 or 128, h = 6 + med + 4 + 34 + 2 + 18 + 6, nameH = 34, tagH = 18 }
 end
 
+-- Tiles share the grid width evenly: as many columns as fit at the base width, then every tile grows to the same
+-- width so the row fills the grid, left aligned to the grid padding.
 function FlairRoomLayout.grid(areaW, count, cell)
-	local gap = 8
-	local usable = areaW - 16
+	local gap, pad = 8, 8
+	local usable = areaW - 2 * pad
 	local cols = math.max(1, math.floor((usable + gap) / (cell.w + gap)))
-	local used = cols * cell.w + (cols - 1) * gap
-	local x0 = math.floor((areaW - used) / 2)
+	local w = math.floor((usable - (cols - 1) * gap) / cols)
 	local out = {}
 	for i = 1, count do
 		local c, r = (i - 1) % cols, math.floor((i - 1) / cols)
-		out[i] = { x = x0 + c * (cell.w + gap), y = 8 + r * (cell.h + gap), w = cell.w, h = cell.h }
+		out[i] = { x = pad + c * (w + gap), y = 8 + r * (cell.h + gap), w = w, h = cell.h }
 	end
 	local rows = math.ceil(count / cols)
 	return { cells = out, cols = cols, canvasH = 8 + rows * (cell.h + gap) }
