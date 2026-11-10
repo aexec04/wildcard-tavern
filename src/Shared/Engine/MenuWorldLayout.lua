@@ -13,7 +13,7 @@
 
 local MenuWorldLayout = {}
 
-MenuWorldLayout.hub = { x = 0.50, y = 0.50, h = 0.46, asp = 4 / 3 }   -- tavern building, three-quarter view
+MenuWorldLayout.hub = { x = 0.50, y = 0.50, h = 0.40, asp = 4 / 3 }   -- tavern building, three-quarter view
 MenuWorldLayout.road = { x = 0.50, y = 0.80, h = 0.40, asp = 1.5 }    -- dirt road from the door toward the bottom
 MenuWorldLayout.door = { x = 0.50, y = 0.66 }                         -- where the door glows and the road starts
 MenuWorldLayout.chimney = { x = 0.56, y = 0.31 }                      -- smoke starts here
@@ -26,16 +26,31 @@ MenuWorldLayout.clouds = 2
 -- drift + smoke + door glow + cloud shadows + hero + fireflies
 MenuWorldLayout.animated = 5 + MenuWorldLayout.fireflies
 
+-- Menu layout v2: a strict grid over the quiet painted map. Top centre the Wordmark, centre the Deal Me In block (New Run sits
+-- under it inside the same frame), one bottom row of six identical tiles on one baseline with equal gaps, and the slim Notice
+-- Board in the left column whose left edge matches the row's left tile edge. Row order is how often the actions are used.
 -- Hotspot id -> { x, y, s, asp } (s is the height as a fraction of the screen, width = s * asp of the height).
+MenuWorldLayout.grid = { rowY = 0.84, tileS = 0.11, gap = 0.125, order = { "questscroll", "maptable", "tome", "coinjar", "rulebook", "jukebox" } }
 MenuWorldLayout.spots = {
-	play        = { x = 0.50, y = 0.50, s = 0.16, asp = 1.5 }, -- the Deal Me In sign hangs over the door
-	questscroll = { x = 0.30, y = 0.70, s = 0.13, asp = 1.0 },
-	tome        = { x = 0.41, y = 0.84, s = 0.13, asp = 1.0 },
-	maptable    = { x = 0.70, y = 0.70, s = 0.13, asp = 1.0 },
-	coinjar     = { x = 0.59, y = 0.84, s = 0.13, asp = 1.0 },
-	rulebook    = { x = 0.18, y = 0.84, s = 0.13, asp = 1.0 },
-	jukebox     = { x = 0.82, y = 0.84, s = 0.13, asp = 1.0 },
+	play = { x = 0.50, y = 0.46, s = 0.16, asp = 1.5 }, -- the Deal Me In sign hangs over the door, New Run on its lower edge
 }
+for i, id in ipairs(MenuWorldLayout.grid.order) do
+	local G = MenuWorldLayout.grid
+	MenuWorldLayout.spots[id] = { x = 0.5 + (i - 3.5) * G.gap, y = G.rowY, s = G.tileS, asp = 1.0 }
+end
+
+-- Tile centres for a screen width as { id, x, y } fractions: one row of six, or two rows of three on narrow screens.
+function MenuWorldLayout.tileSpots(w)
+	local out = {}
+	for i, id in ipairs(MenuWorldLayout.grid.order) do
+		if w < 700 then
+			out[#out + 1] = { id = id, x = 0.5 + ((i - 1) % 3 - 1) * 0.3, y = 0.62 + math.floor((i - 1) / 3) * 0.2 }
+		else
+			out[#out + 1] = { id = id, x = MenuWorldLayout.spots[id].x, y = MenuWorldLayout.grid.rowY }
+		end
+	end
+	return out
+end
 
 -- Painted piece (category menu_world) used for each action landmark when its art is recorded.
 MenuWorldLayout.art = {

@@ -11955,6 +11955,39 @@ table.insert(tests, { name = "MenuWorldLayout: the parchment frame is a thin edg
 	end
 end })
 
+table.insert(tests, { name = "MenuWorldLayout v2: six tiles share one baseline with equal gaps, board aligned to the row, nothing overlaps", fn = function()
+	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = size[1], size[2]
+		local tiles = {}
+		for _, r in ipairs(WL.rects(ML, w, h)) do
+			if r.kind == "landmark" and r.id ~= "play" then tiles[#tiles + 1] = r end
+		end
+		expectEqual(#tiles, 6, "six tiles")
+		table.sort(tiles, function(a, b) return a[1] < b[1] end)
+		for i = 2, 6 do
+			expectTrue(math.abs(tiles[i][4] - tiles[1][4]) < 0.5, "shared baseline")
+			expectTrue(math.abs((tiles[i][1] - tiles[i - 1][1]) - (tiles[2][1] - tiles[1][1])) < 0.5, "equal gaps")
+			expectTrue(math.abs((tiles[i][3] - tiles[i][1]) - (tiles[1][3] - tiles[1][1])) < 0.5, "identical size")
+		end
+		local nl, nt, nr, nb = ML.noticeRect(w, h)
+		expectTrue(math.abs(nl - tiles[1][1]) < 0.01 * w, "board left edge matches the row's left edge at " .. w)
+		expectTrue(nr <= WL.hubRect(w, h), "board clear of the hub")
+		local rows = {}
+		for _, t in ipairs(tiles) do rows[#rows + 1] = t end
+		local all = WL.rects(ML, w, h)
+		for i, a in ipairs(all) do
+			expectTrue(ML.overlapFraction(a, { nl, nt, nr, nb }) == 0, "clear of the board: " .. a.id)
+			for j = i + 1, #all do expectTrue(ML.overlapFraction(a, all[j]) <= 0.02, "no overlap: " .. a.id .. " " .. all[j].id) end
+		end
+	end
+	local phone = WL.tileSpots(640)
+	expectEqual(#phone, 6, "six phone tiles")
+	expectTrue(phone[1].y == phone[3].y and phone[4].y == phone[6].y and phone[4].y > phone[1].y, "two rows of three on phones")
+	expectEqual(WL.grid.order[1], "questscroll", "Quest Scroll first")
+end })
+
 table.insert(tests, { name = "MenuWorldLayout: one rigid drift, hero walks out and back, apply moves the hotspots", fn = function()
 	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
 	local D = WL.drift
