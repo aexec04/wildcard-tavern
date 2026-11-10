@@ -35,7 +35,10 @@ function PopupRules.isPopupName(name)
 end
 
 function PopupRules.shouldShield(name)
-	-- Popups that make a sound: every shielded popup root plus the Menu scroll layers (not the Fan catcher, which only catches clicks).
+	return PopupRules.isPopupName(name) and not PopupRules.SKIP[name]
+end
+
+-- Popups that make a sound: every shielded popup root plus the Menu scroll layers (not the Fan catcher, which only catches clicks).
 function PopupRules.makesSound(name)
 	if type(name) ~= "string" then return false end
 	return PopupRules.shouldShield(name) or name:sub(1, 7) == "Scroll_" or name == "AllActions"
@@ -51,9 +54,6 @@ function PopupRules.newCueGate(minGap)
 		last = now
 		return isOpen and "scroll_open" or "scroll_close"
 	end
-end
-
-return PopupRules.isPopupName(name) and not PopupRules.SKIP[name]
 end
 
 return PopupRules
