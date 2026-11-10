@@ -13833,6 +13833,8 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 		local src = c:read("*a"); c:close()
 		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) ~= nil, "locked frames hide the portrait and the padlock")
 		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
+		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) ~= nil and src:find("hungSign.bind(titleLabel)", 1, true) ~= nil, "the title hangs as a brass sign")
+		expectTrue(src:find("plaque.Thickness = 2", 1, true) ~= nil, "the progress line sits on a brass-edged plaque")
 	end
 	local w = io and io.open and io.open("src/Client/CollectionWall.lua", "r")
 	if w then

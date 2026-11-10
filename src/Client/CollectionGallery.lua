@@ -146,6 +146,44 @@ function CollectionGallery.bindHover(tile, hang)
 	tile.MouseLeave:Connect(function() go(false) end)
 end
 
+-- The panel title becomes a brass sign hung from the top edge on two short chains (created before the title label so the text
+-- draws over it; follows the label's size and text). Returns { bind = function(titleLabel) }.
+function CollectionGallery.hangSign(panel)
+	local sign = box(panel, { Name = "TitleSign", BackgroundColor3 = BRASS, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.fromOffset(160, 30), ZIndex = 21 }, 6)
+	local rim = Instance.new("UIStroke")
+	rim.Color = BRASS_RIM
+	rim.Thickness = 2
+	rim.Parent = sign
+	for _, fx in ipairs({ 0.2, 0.8 }) do
+		box(panel, { Name = "SignChain", BackgroundColor3 = Color3.fromRGB(122, 98, 62), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(2, 6),
+			Position = UDim2.fromOffset(0, -2), ZIndex = 21 }).Visible = false -- placed by the sign below
+	end
+	local api = {}
+	function api.bind(titleLabel)
+		titleLabel.TextColor3 = ENGRAVE
+		local function fit()
+			local w = math.max(150, math.floor(titleLabel.TextBounds.X) + 48)
+			sign.Size = UDim2.fromOffset(w, 30)
+			local cx = titleLabel.AbsolutePosition.X - panel.AbsolutePosition.X + titleLabel.AbsoluteSize.X / 2
+			sign.Position = UDim2.fromOffset(cx, 4)
+			local i = 0
+			for _, c in ipairs(panel:GetChildren()) do
+				if c.Name == "SignChain" then
+					i = i + 1
+					c.Visible = true
+					c.Position = UDim2.fromOffset(cx + (i == 1 and -1 or 1) * w * 0.3, -2)
+				end
+			end
+		end
+		titleLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+		titleLabel:GetPropertyChangedSignal("AbsolutePosition"):Connect(fit)
+		titleLabel:GetPropertyChangedSignal("TextBounds"):Connect(fit)
+		task.defer(fit)
+	end
+	return api
+end
+
 -- a small brass "New" tag at the top left of a tile
 function CollectionGallery.newTag(tile)
 	local tag = Instance.new("TextLabel")

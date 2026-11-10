@@ -136,10 +136,12 @@ return function(deps)
 		if wall then Gallery.mountAlive(wall, panel, backdrop) end -- lantern flicker and the moth (off in calm mode)
 	end)
 
+	local hungSign = Gallery.hangSign(panel) -- brass sign behind the title, hung on two short chains (made first so the text draws over it)
 	local titleLabel = label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",
 	})
+	hungSign.bind(titleLabel)
 
 	local expandToggle = require(script.Parent.ExpandToggle)(panel, {
 		collapsedSize = PANEL_SIZE,
@@ -307,6 +309,12 @@ return function(deps)
 	overallBar.ZIndex = 21
 	overallBar.Parent = panel
 	roundCorner(overallBar, 6)
+	do -- the progress line sits on a brass-edged plaque under the sign (dark inside, so the text keeps its contrast)
+		local plaque = Instance.new("UIStroke")
+		plaque.Color = Color3.fromRGB(190, 146, 64)
+		plaque.Thickness = 2
+		plaque.Parent = overallBar
+	end
 
 	local overallFill = Instance.new("Frame")
 	overallFill.Size = UDim2.fromScale(0, 1)
