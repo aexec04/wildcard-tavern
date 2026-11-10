@@ -55,6 +55,7 @@ local ContentArt = {
 	blessing_icons = require(Engine:WaitForChild("BlessingIconArt")), -- keyed by RunModifiers id (Choice cards, Blessing chip)
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
 	menu_bayou   = require(Engine:WaitForChild("BayouArt")),          -- bayou_sky ... bayou_willow_fg (Menu bayou backdrop, empty until Image ids are recorded)
+	menu_world   = require(Engine:WaitForChild("MenuWorldArt")),      -- menu_tavern_hub ... menu_map_frame (Living Map menu, empty until Image ids are recorded)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
 ContentArt.store = ContentArt.store_bundles

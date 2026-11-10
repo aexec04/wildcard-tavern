@@ -11888,6 +11888,77 @@ table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, no p
 	end
 end })
 
+table.insert(tests, { name = "MenuWorldLayout: every action has a landmark, nothing overlaps, tags stay on screen at 1920x1080 and 1280x720, motion budget fits", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
+	-- every Menu action is owned by a hotspot that has a landmark spot (reachable)
+	for _, action in ipairs(ML.Actions) do
+		local owner = ML.hotspotOf(action.id)
+		expectTrue(owner ~= nil and WL.spots[owner.id] ~= nil, "action has a landmark: " .. action.id)
+	end
+	for _, hotspot in ipairs(ML.Hotspots) do
+		expectTrue(WL.spots[hotspot.id] ~= nil, "hotspot has a spot: " .. hotspot.id)
+		if hotspot.item then expectTrue(WL.art[hotspot.id] ~= nil, "landmark has a menu_world art key: " .. hotspot.id) end
+	end
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = size[1], size[2]
+		local rects = WL.rects(ML, w, h)
+		expectTrue(#rects >= 13, "six landmarks with tags plus Play")
+		local nl, nt, nr, nb = ML.noticeRect(w, h)
+		for i, a in ipairs(rects) do
+			expectTrue(a[1] >= 0 and a[3] <= w and a[2] >= 0 and a[4] <= h, a.kind .. " inside the screen: " .. a.id .. " " .. w)
+			expectTrue(a[2] >= 0.2 * h or a.id == "play" and a[2] >= 0.3 * h, "clear of the title band: " .. a.id)
+			expectTrue(ML.overlapFraction(a, { nl, nt, nr, nb }) == 0, "clear of the Notice Board: " .. a.id)
+			for j = i + 1, #rects do
+				local b = rects[j]
+				expectTrue(ML.overlapFraction(a, b) <= 0.02, "no overlap: " .. a.id .. " " .. a.kind .. " vs " .. b.id .. " " .. b.kind .. " at " .. w)
+			end
+		end
+		-- the hub holds the Play sign and the road starts at its door
+		local hl, ht, hr, hb = WL.hubRect(w, h)
+		local play = WL.spots.play
+		expectTrue(play.x * w > hl and play.x * w < hr and play.y * h > ht and play.y * h < hb, "Play sign hangs on the hub")
+		expectTrue(WL.door.y * h < hb and WL.door.y * h > ht, "door inside the hub")
+	end
+	expectTrue(ML.isPhone(640), "phones use the list (landmarks are hidden, the list stays)")
+	expectTrue(WL.animated + 1 <= ML.MAX_ANIMATED, "map life plus the lantern stays under the animated cap")
+	expectEqual(WL.animated, 5 + WL.fireflies, "drift, smoke, door glow, cloud shadows, hero plus fireflies")
+	local known = {}
+	for _, key in ipairs(WL.artKeys) do known[key] = true end
+	for id in pairs(require(script.Parent.Parent.Engine.MenuWorldArt)) do expectTrue(known[id], "MenuWorldArt only holds known keys: " .. id) end
+	for _, key in pairs(WL.art) do expectTrue(known[key], "landmark art key is known: " .. key) end
+end })
+
+table.insert(tests, { name = "MenuWorldLayout: one rigid drift, hero walks out and back, apply moves the hotspots", fn = function()
+	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
+	local D = WL.drift
+	expectTrue(D.panPx <= 8 and D.zoomAmp <= 0.02 and D.period >= 40, "tiny slow drift")
+	expectTrue(D.baseZoom - D.zoomAmp - 1 >= 2 * D.panPx / 1280, "zoom margin covers the pan so no edge shows")
+	for t = 0, 80, 3.7 do
+		local dx, dy, z = WL.driftAt(t)
+		expectTrue(math.abs(dx) <= D.panPx and math.abs(dy) <= D.panPx and z >= D.baseZoom - D.zoomAmp - 1e-9 and z <= D.baseZoom + D.zoomAmp + 1e-9, "drift stays inside its budget")
+	end
+	local hx0, hy0 = WL.heroAt(0)
+	local _, hyMid = WL.heroAt(WL.hero.period / 2)
+	local _, hyEnd = WL.heroAt(WL.hero.period)
+	expectEqual(hx0, WL.hero.x0, "hero walks the road")
+	expectTrue(math.abs(hy0 - WL.hero.y0) < 1e-9 and math.abs(hyMid - WL.hero.y1) < 1e-9 and math.abs(hyEnd - hy0) < 1e-9, "out to the end of the road and back every period")
+	-- apply works on a copy so the shared MenuLayout is left alone
+	local fake = { Hotspots = { { id = "tome", x = 0, y = 0, s = 1, asp = 2 }, { id = "other", x = 7, y = 7, s = 1, asp = 1 } } }
+	expectEqual(WL.apply(fake), 1, "only hotspots with a spot move")
+	expectEqual(fake.Hotspots[1].x, WL.spots.tome.x, "moved to the landmark spot")
+	expectEqual(fake.Hotspots[2].x, 7, "unknown hotspots untouched")
+	expectTrue(fake.world == true, "world flag set")
+	local f = io and io.open and io.open("src/Client/MenuWorld.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("Transparency = ColorSequence", 1, true) == nil, "no gradient Transparency")
+		expectTrue(src:find("calm", 1, true) ~= nil, "map life honours calm mode")
+		expectTrue(src:find("world.Position = UDim2.new(0.5, dx, 0.5, dy)", 1, true) ~= nil, "the whole map moves as one frame")
+		expectTrue(src:find("Bayou", 1, true) == nil, "no bayou layers")
+	end
+end })
+
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
 	local HL = require(script.Parent.Parent.Engine.HandLedger)
 	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)

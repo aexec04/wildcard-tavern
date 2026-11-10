@@ -478,8 +478,8 @@ function Hotspots.build(opts)
 		end
 	end)
 
-	-- ===== The counter and the beam =====
-	do
+	-- ===== The counter and the beam (the tavern layout only; the Living Map has none) =====
+	if not Layout.world then
 		local C = Layout.Counter
 		local counter = solid(layer, "Counter", Color3.fromRGB(88, 58, 34), Z_COUNTER)
 		counter.AnchorPoint = Vector2.new(0.5, 0)
@@ -521,6 +521,10 @@ function Hotspots.build(opts)
 		TweenService:Create(ui.rim, TweenInfo.new(0.15), { Transparency = on and 0.1 or (hotspot.lit and 0.4 or 0.7) }):Play()
 		if not calm() then
 			TweenService:Create(ui.lift, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Scale = on and 1.04 or 1 }):Play()
+			local plate = ui.frame:FindFirstChild("NamePlate")
+			if plate and Layout.world then -- the name tag rises 4 px with the landmark
+				TweenService:Create(plate, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Position = UDim2.new(0.5, 0, 1, on and -2 or 2) }):Play()
+			end
 		end
 		if opts.onHover then opts.onHover(on) end
 	end
@@ -673,6 +677,10 @@ function Hotspots.build(opts)
 		-- counter items prefer their painted object (menu_scene) and sit straight on the counter; the older medallion art and the
 		-- emoji are the fallbacks
 		local itemId = hotspot.item and ContentArt.getImageId("menu_scene", Layout.SceneArt.items[hotspot.item]) or nil
+		if Layout.world and hotspot.item then
+			-- the painted landmark; without it the medallion or emoji below stands in (the counter painting is not used on the map)
+			itemId = Layout.WorldArt[hotspot.id] and ContentArt.getImageId("menu_world", Layout.WorldArt[hotspot.id]) or nil
+		end
 		local artId = itemId or (hotspot.art and ContentArt.getImageId("menu_icons", hotspot.art) or nil)
 		if itemId then
 			object.BackgroundTransparency = 1
@@ -738,7 +746,7 @@ function Hotspots.build(opts)
 				primary.MouseEnter:Connect(function() hover(hotspot, true) end)
 				primary.MouseLeave:Connect(function() hover(hotspot, false) end)
 			end
-			for i = 0, 1 do -- two chains from the ceiling beam
+			for i = 0, Layout.world and -1 or 1 do -- two chains from the ceiling beam (none on the Living Map)
 				local chain = solid(frame, "Chain", Color3.fromRGB(120, 100, 70), 13)
 				chain.AnchorPoint = Vector2.new(0.5, 1)
 				chain.Position = UDim2.fromScale(0.22 + i * 0.56, 0.02)

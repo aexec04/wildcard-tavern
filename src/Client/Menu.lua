@@ -68,9 +68,10 @@ return function(deps)
 		require(script.Parent.PanelArt).vignette(menuFrame, 10) -- dark edge vignette (stepped Frames, Color stops only)
 	end
 
-	-- The bayou backdrop (menu_bayou art) sits on top of the wall and replaces it once its sky art is recorded; no art, no change.
-	local bayou = require(script.Parent.MenuBayou).build(menuFrame)
-	if bayou.active then menuBackgroundArt.Visible = false end
+	-- The Living Map (Client/MenuWorld.lua) replaces the tavern wall and the bayou: the hotspots move to their landmark spots on it.
+	require(Engine:WaitForChild("MenuWorldLayout")).apply(Layout)
+	local mapWorld = require(script.Parent.MenuWorld).build(menuFrame)
+	menuBackgroundArt.Visible = false
 
 	-- Hovering a hotspot dims the rest of the scene by 20 percent.
 	local sceneDim = Instance.new("Frame")
@@ -319,7 +320,7 @@ return function(deps)
 
 	-- ===== Foreground and parallax =====
 	local scene = require(script.Parent.MenuScene).build(menuFrame)
-	scene.setBayou(bayou.active)
+	scene.setBayou(mapWorld.active) -- hides the wall-bound life (fire, shaft, candle, steam, embers); the map has its own
 	local P = Layout.Parallax
 	local parallaxLayers = {
 		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
@@ -330,14 +331,14 @@ return function(deps)
 		{ inst = titleGroup, base = UDim2.new(), px = P.near },
 		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
 	}
-	for _, layer in ipairs(bayou.layers) do table.insert(parallaxLayers, layer) end
+	for _, layer in ipairs(mapWorld.layers) do table.insert(parallaxLayers, layer) end
 	local parallax = require(script.Parent.MenuParallax).new({
 		screenGui = screenGui,
 		calm = calm,
 		layers = parallaxLayers,
 		onStep = function(nx, ny, t, isCalm)
 			scene.update(nx, ny, t, isCalm)
-			if bayou.active then bayou.update(nx, ny, t, isCalm) end
+			if mapWorld.active then mapWorld.update(nx, ny, t, isCalm) end
 		end,
 	})
 
