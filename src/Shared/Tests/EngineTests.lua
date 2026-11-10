@@ -7460,6 +7460,23 @@ table.insert(tests, { name = "CardFit: card row gap stays at least 28px on scree
 	expectTrue(CardFit.shortfall(-13) == 41 and CardFit.shortfall(30) == 0, "shortfall tops the gap up to 28")
 end })
 
+table.insert(tests, { name = "InputLock.effectivelyVisible: hidden ancestor keeps the lock off; open/close cycles leave no stuck count", fn = function()
+	local InputLock = require(script.Parent.Parent.Engine.InputLock)
+	assert(InputLock.effectivelyVisible(true, { true, true }) == true)
+	assert(InputLock.effectivelyVisible(true, { true, false }) == false, "hidden GameRoot")
+	assert(InputLock.effectivelyVisible(false, {}) == false)
+	local menuLock = InputLock.new()
+	local btn = true
+	menuLock:guard(function(i) btn = i end)
+	menuLock:setOpen("RoundSelect", InputLock.effectivelyVisible(true, { false }))
+	assert(btn == true, "Menu buttons stay interactable under hidden GameRoot")
+	for _ = 1, 5 do
+		menuLock:setOpen("CollectionBackdrop", true)
+		assert(btn == false, "visible Backdrop disables")
+		menuLock:setOpen("CollectionBackdrop", false)
+		assert(btn == true and not menuLock:isLocked(), "closing restores")
+	end
+end })
 table.insert(tests, { name = "InputLock: opening an overlay disables gameplay hit areas, closing restores them", fn = function()
 	local InputLock = require(script.Parent.Parent.Engine.InputLock)
 	local lock = InputLock.new()
@@ -12793,7 +12810,7 @@ table.insert(tests, { name = "Popups block clicks behind them: popup roots are s
 	local hub = read("src/Client/init.client.lua")
 	if hub then
 		expectTrue(hub:find("PopupShield", 1, true) ~= nil, "the hub installs PopupShield")
-		expectTrue(hub:find("MenuScreen.menuFrame }", 1, true) ~= nil, "the Menu is switched off while a popup is open")
+		expectTrue(hub:find("menuGuarded = MenuScreen.menuFrame", 1, true) ~= nil, "the Menu is switched off only by real popup backdrops (own lock)")
 	end
 	for _, name in ipairs({ "SeedRunDialog", "QuestsPanel", "DailyLeaderboard", "Settings", "Collection", "CosmeticSetsPanel", "StorePanel", "StatsPanel" }) do
 		local src = read("src/Client/" .. name .. ".lua")

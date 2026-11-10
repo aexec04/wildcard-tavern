@@ -47,4 +47,14 @@ function InputLock:guard(setFn)
 	end
 end
 
+-- Pure rule: an overlay counts as open only when it and every ancestor up to the ScreenGui is visible.
+-- ancestors = list of Visible booleans (nil entries are ignored, e.g. non-GuiObject ancestors).
+function InputLock.effectivelyVisible(selfVisible, ancestors)
+	if selfVisible ~= true then return false end
+	for _, v in pairs(ancestors or {}) do
+		if v == false then return false end
+	end
+	return true
+end
+
 return InputLock

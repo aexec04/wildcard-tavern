@@ -25,26 +25,44 @@ local SKIP = { DeckTrackerBackdrop = true }
 
 function InputGuard.install(opts)
 	local root = opts.root
-	local lock = InputLock.new()
+	local lock = InputLock.new() -- gameplay hit areas: any open overlay
+	local menuLock = InputLock.new() -- Menu buttons: only real "...Backdrop" panels, never gameplay overlays
 	local watched = {}
 
-	local function watch(frame)
+	local function effective(frame)
+		local ancestors = {}
+		local p = frame.Parent
+		while p and p:IsA("GuiObject") do
+			ancestors[#ancestors + 1] = p.Visible
+			p = p.Parent
+		end
+		return InputLock.effectivelyVisible(frame.Visible, ancestors)
+	end
+
+	local function watch(frame, isBackdrop)
 		if watched[frame] or not frame:IsA("GuiObject") or SKIP[frame.Name] then return end
 		watched[frame] = true
 		local function sync()
-			lock:setOpen(frame, frame.Visible)
-			if frame.Visible and opts.tooltip then opts.tooltip.Visible = false end
+			local open = effective(frame)
+			lock:setOpen(frame, open)
+			if isBackdrop then menuLock:setOpen(frame, open) end
+			if open and opts.tooltip then opts.tooltip.Visible = false end
 		end
 		frame:GetPropertyChangedSignal("Visible"):Connect(sync)
+		local p = frame.Parent
+		while p and p:IsA("GuiObject") do -- a hidden ancestor (GameRoot) hides the overlay too
+			p:GetPropertyChangedSignal("Visible"):Connect(sync)
+			p = p.Parent
+		end
 		sync()
 	end
 
 	local function scan(parent)
 		for _, child in ipairs(parent:GetChildren()) do
-			if child.Name:sub(-8) == "Backdrop" then watch(child) end
+			if child.Name:sub(-8) == "Backdrop" then watch(child, true) end
 		end
 		parent.ChildAdded:Connect(function(child)
-			if child.Name:sub(-8) == "Backdrop" then watch(child) end
+			if child.Name:sub(-8) == "Backdrop" then watch(child, true) end
 		end)
 	end
 
@@ -52,9 +70,21 @@ function InputGuard.install(opts)
 	scan(root)
 	if root.Parent and root.Parent:IsA("LayerCollector") then scan(root.Parent) end
 
-	local function guardContainer(container)
+	-- Menu popups that must stay clickable while open (they sit above the Notice Board by ZIndex)
+	local function exempt(btn)
+		local p = btn
+		while p do
+			local n = p.Name
+			if n == "FanCatcher" or n == "AllActions" or n:sub(1, 7) == "Scroll_" then return true end
+			p = p.Parent
+		end
+		return false
+	end
+
+	local function guardContainer(container, useLock)
 		local disabled = {} -- buttons we turned off (so closing only restores those)
 		local function setButton(btn, interactable)
+			if exempt(btn) then return end
 			if interactable then
 				if disabled[btn] then
 					disabled[btn] = nil
@@ -73,16 +103,17 @@ function InputGuard.install(opts)
 				if d:IsA("GuiButton") then fn(d) end
 			end
 		end
-		lock:guard(function(interactable)
+		useLock:guard(function(interactable)
 			each(function(btn) setButton(btn, interactable) end)
 		end)
 		container.DescendantAdded:Connect(function(d)
-			if d:IsA("GuiButton") and lock:isLocked() then setButton(d, false) end
+			if d:IsA("GuiButton") and useLock:isLocked() then setButton(d, false) end
 		end)
 	end
 	for _, container in ipairs(opts.guarded or {}) do
-		if container then guardContainer(container) end
+		if container then guardContainer(container, lock) end
 	end
+	if opts.menuGuarded then guardContainer(opts.menuGuarded, menuLock) end
 
 	return lock
 end
