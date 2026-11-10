@@ -14188,4 +14188,43 @@ table.insert(tests, { name = "Tutorial captions: always the step's own text, the
 	print("[Tutorial walk]\n" .. table.concat(lines, "\n"))
 end })
 
+table.insert(tests, { name = "RewardsLayout: tiles spread across the row with no dead space, stack on narrow rows, panel clears the HUD, pouches and emblems map", fn = function()
+	local L = require(script.Parent.Parent.Engine.RewardsLayout)
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	for _, w in ipairs({ 1100, 760, 560, 420, 300 }) do
+		local g = L.row(w, 4)
+		expectEqual(#g.chips, 4, "four tiles at " .. w)
+		for i, c in ipairs(g.chips) do
+			expectTrue(c.x >= 0 and c.x + c.w <= w and c.y >= 0 and c.y + c.h <= g.rowH, "tile " .. i .. " inside the row at " .. w)
+			if i > 1 and g.chips[i].y == g.chips[i - 1].y then expectTrue(c.x >= g.chips[i - 1].x + g.chips[i - 1].w + L.MIN_GAP - 1, "tiles do not touch at " .. w) end
+		end
+		local last = g.chips[4]
+		if not g.stacked then
+			expectTrue(w - L.PAD - (last.x + last.w) <= 2, "the last tile reaches the row edge at " .. w .. ", no dead space")
+			expectTrue(g.chips[1].x >= g.name.x + g.name.w, "tiles start right of the name at " .. w)
+		else
+			expectTrue(g.chips[1].y >= g.plate.y + g.plate.h, "stacked tiles sit under the emblem at " .. w)
+		end
+		expectTrue(g.plate.y + g.plate.h <= g.rowH and g.emblem.x + g.emblem.w <= w, "emblem and plate inside at " .. w)
+	end
+	expectTrue(not L.row(1100, 4).stacked and L.row(420, 4).stacked, "wide rows spread, narrow rows stack")
+	expectEqual(L.pouchKey({ kind = "tips", amount = 2 }), "rewards_pouch_small")
+	expectEqual(L.pouchKey({ kind = "tips", amount = 3 }), "rewards_pouch_full")
+	expectEqual(L.pouchKey({ kind = "title", id = "x" }), nil)
+	expectEqual(L.emblemKey("sets"), "rewards_emblem_cardsets")
+	expectEqual(L.litDots(50, 36), 18)
+	expectEqual(L.litDots(150, 36), 36)
+	expectEqual(#L.ringDots(36, 50, 50, 45), 36)
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		expectTrue(RL.badgesPanel(vp[1], vp[2]).x >= 252, "Rewards panel clear of the HUD at " .. vp[1])
+	end
+	local f = io and io.open and io.open("src/Client/CollectionRewardsPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("badgesPanel(vp.X, vp.Y)", 1, true) ~= nil, "the panel uses the shared HUD-clear placement")
+		expectTrue(src:find('Text = "Collection Rewards", TextColor3 = CREAM', 1, true) ~= nil, "cream title on a brass sign")
+		expectTrue(src:find("rewards_emblems", 1, true) ~= nil, "emblems and pouches come from RewardsEmblemArt")
+	end
+end })
+
 return tests
