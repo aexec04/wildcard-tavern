@@ -77,6 +77,7 @@ CATEGORIES = {
     "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
     "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
     "bonds": ("bond_subjects", "bonds", "BondArt.lua", "Bond"),
+    "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
@@ -118,6 +119,7 @@ CATEGORY_OPTS = {
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
+    "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # Card Set UI skins: 6 slots per set. face_paper is an opaque tile; the rest are cut out from magenta.
     "set_skins": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": [], "sizes": {}},  # filled below
     # Bayou tavern menu layers (back to front). Transparent layers are cut out from magenta; sky and water stay opaque.
