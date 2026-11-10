@@ -78,6 +78,7 @@ CATEGORIES = {
     "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
     "bonds": ("bond_subjects", "bonds", "BondArt.lua", "Bond"),
     "set_panels": ("set_panel_subjects", "set_panels", "SetPanelArt.lua", "Set Panel"),
+    "flair_ui": ("flair_ui_subjects", "flair_ui", "FlairUiArt.lua", "Flair UI"),
     "ledger_ui": ("ledger_ui_subjects", "ledger_ui", "LedgerArt.lua", "Ledger"),
     "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
@@ -125,6 +126,9 @@ CATEGORY_OPTS = {
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # 9-slice panel borders: 3:2 canvas, transparent centre (cut out from magenta)
     "set_panels": {"size": "1536x1024", "quality": "low", "style_key": "house_style", "transparent": True},
+    "flair_ui": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["flair_stage"],
+                 "sizes": {"flair_stage": "1536x1024", "flair_drawer_front": "1536x1024", "flair_velvet_tray": "1536x1024",
+                           "flair_cabinet": "1024x1536"}},
     "ledger_ui": {"quality": "low", "style_key": "house_style", "transparent": True,
                   "opaque": ["ledger_desk"],
                   "sizes": {"ledger_desk": "1536x1024", "ledger_book_open": "1536x1024", "ledger_bookmark_ribbon": "1024x1536"}},
