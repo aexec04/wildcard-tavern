@@ -12,13 +12,40 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PopupRules"))
 
+local Cue = require(script.Parent.Cue)
+
 local PopupShield = {}
+
+-- One shared gate: scroll_open when a popup becomes visible, scroll_close when it hides or goes away (never both in one
+-- debounce window). Ledger page turns use their own cue and are not popups.
+local gate = Rules.newCueGate()
+local function isOpen(popup)
+	return popup.Parent ~= nil and popup:IsA("GuiObject") and popup.Visible
+end
+local function watchSound(popup)
+	if not Rules.makesSound(popup.Name) then return end
+	local open = isOpen(popup)
+	local function changed()
+		local now = isOpen(popup)
+		if now == open then return end
+		open = now
+		local cue = gate(now, os.clock())
+		if cue then Cue.play(cue) end
+	end
+	popup:GetPropertyChangedSignal("Visible"):Connect(changed)
+	popup.AncestryChanged:Connect(changed)
+	if open then
+		local cue = gate(true, os.clock())
+		if cue then Cue.play(cue) end
+	end
+end
 
 local function sinks(obj)
 	return obj:IsA("Frame") or obj:IsA("ImageLabel") or obj:IsA("ScrollingFrame")
 end
 
 local function shield(popup)
+	watchSound(popup)
 	if sinks(popup) then popup.Active = true end
 	for _, child in ipairs(popup:GetChildren()) do
 		if sinks(child) then child.Active = true end
@@ -27,6 +54,9 @@ local function shield(popup)
 		if sinks(child) then child.Active = true end
 	end)
 end
+
+-- Menu scroll layers live inside the Menu, not at the root, so MenuHotspots registers them here.
+PopupShield.watchSound = watchSound
 
 function PopupShield.install(screenGui, root)
 	local seen = {}

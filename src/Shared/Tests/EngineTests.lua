@@ -5196,7 +5196,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
-		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn" }
+		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(required) do
 		local cue = S.Cues[name]
@@ -12951,6 +12951,41 @@ table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows;
 			expectEqual(it.y, roads.items[1].y, "Roads badges sit on one straight row")
 			expectEqual(it.size, roads.items[1].size, "Roads badges share one size")
 		end
+	end
+end })
+
+table.insert(tests, { name = "Popup sounds: scroll_open and scroll_close cues exist, the shared gate debounces, and PopupShield plays them", fn = function()
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local R = require(script.Parent.Parent.Engine.PopupRules)
+	expectEqual(S.Cues.scroll_open.id, "rbxassetid://9118835650", "scroll_open id")
+	expectEqual(S.Cues.scroll_open.volume, 0.45, "scroll_open volume")
+	expectEqual(S.Cues.scroll_open.maxLength, 1.9, "scroll_open length")
+	expectEqual(S.Cues.scroll_close.id, "rbxassetid://9118838541", "scroll_close id")
+	expectEqual(S.Cues.scroll_close.volume, 0.35, "scroll_close volume")
+	expectEqual(S.Cues.scroll_close.maxLength, 0.7, "scroll_close length")
+	local listed = {}
+	for _, n in ipairs(S.CueOrder) do listed[n] = true end
+	expectTrue(listed.scroll_open and listed.scroll_close, "both cues are in CueOrder")
+	local gate = R.newCueGate()
+	expectEqual(gate(true, 10), "scroll_open", "first open plays")
+	expectEqual(gate(false, 10.05), nil, "a close inside 0.15 s is silent (no open and close together)")
+	expectEqual(gate(false, 10.2), "scroll_close", "a close after the gap plays")
+	expectEqual(gate(true, 10.25), nil, "rapid toggle does not stack")
+	expectEqual(gate(true, 10.5), "scroll_open", "later open plays")
+	expectTrue(R.makesSound("SettingsBackdrop") and R.makesSound("Scroll_questscroll") and R.makesSound("AllActions"), "popups make sound")
+	expectFalse(R.makesSound("DeckTrackerBackdrop") or R.makesSound("FanCatcher") or R.makesSound("NoticeBoard"), "toggles and catchers stay silent")
+	local f = io.open("src/Client/PopupShield.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('"scroll_open"', 1, true) ~= nil or src:find("newCueGate", 1, true) ~= nil, "PopupShield uses the shared gate")
+		expectTrue(src:find("Cue.play(cue)", 1, true) ~= nil, "PopupShield plays the cue")
+		expectTrue(src:find("page_turn", 1, true) == nil, "ledger page turns are not popup sounds")
+	end
+	local h = io.open("src/Client/MenuHotspots.lua", "r")
+	if h then
+		local src = h:read("*a"); h:close()
+		local _, n = src:gsub("watchSound", "")
+		expectEqual(n, 2, "Menu scrolls and the All actions list register with the popup sound path")
 	end
 end })
 

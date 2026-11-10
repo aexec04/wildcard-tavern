@@ -35,7 +35,25 @@ function PopupRules.isPopupName(name)
 end
 
 function PopupRules.shouldShield(name)
-	return PopupRules.isPopupName(name) and not PopupRules.SKIP[name]
+	-- Popups that make a sound: every shielded popup root plus the Menu scroll layers (not the Fan catcher, which only catches clicks).
+function PopupRules.makesSound(name)
+	if type(name) ~= "string" then return false end
+	return PopupRules.shouldShield(name) or name:sub(1, 7) == "Scroll_" or name == "AllActions"
+end
+
+-- One gate for every popup: gate(isOpen, now) returns the cue to play ("scroll_open" or "scroll_close") or nil. A change of state
+-- inside `minGap` seconds of the last sound is silent, so rapid toggles never stack and an open and a close never both play at once.
+PopupRules.CUE_GAP = 0.15
+function PopupRules.newCueGate(minGap)
+	local last = -math.huge
+	return function(isOpen, now)
+		if now - last < (minGap or PopupRules.CUE_GAP) then return nil end
+		last = now
+		return isOpen and "scroll_open" or "scroll_close"
+	end
+end
+
+return PopupRules.isPopupName(name) and not PopupRules.SKIP[name]
 end
 
 return PopupRules

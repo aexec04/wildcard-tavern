@@ -39,13 +39,15 @@ SoundIds.Cues = {
 	shop_reroll = { id = "", volume = 0.4 },
 	shop_cant = { id = "", volume = 0.3 },
 	page_turn = { id = "rbxassetid://9118835414", volume = 0.5, maxLength = 1.8 }, -- Tavern Ledger page or tab change (ProSoundEffects "Scrapbook Open And Turn Pages 2")
+	scroll_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.9 }, -- any scroll or panel popup opens (Client/PopupShield.lua; ProSoundEffects "Scrapbook Open And Turn Pages 6")
+	scroll_close = { id = "rbxassetid://9118838541", volume = 0.35, maxLength = 0.7 }, -- it closes (ProSoundEffects "Scraping Brisk Plastic Wood 1")
 }
 
 -- Display/iteration order (pairs order is not stable).
 SoundIds.CueOrder = {
 	"card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
-	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn",
+	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
 }
 
 -- Music tracks by key. `region_<id>` plays on the gameplay table while the Night's stop is in that region

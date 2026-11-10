@@ -354,6 +354,7 @@ function Hotspots.build(opts)
 	list.Active = true -- sinks clicks so the Notice Board behind never gets them
 	list.ZIndex = Z_LIST - 1
 	list.Parent = menuFrame
+	require(script.Parent.PopupShield).watchSound(list)
 	do
 		round(list, UDim.new(0, 10))
 		local ls = Instance.new("UIStroke")
@@ -576,6 +577,7 @@ function Hotspots.build(opts)
 		frame.Active = true -- sinks clicks over the whole scroll
 		frame.ZIndex = Z_FAN
 		frame.Parent = layer
+		require(script.Parent.PopupShield).watchSound(frame) -- scroll_open / scroll_close through the shared popup gate
 		local paper = solid(frame, "Parchment", PARCHMENT, Z_FAN)
 		paper.Active = true
 		paper.Position = UDim2.fromOffset(0, S.rod)
