@@ -145,12 +145,15 @@ end
 -- a title line on top; the two pages share the book with a spine between them.
 LedgerPages.LAYOUT = {
 	title = { x = 0, y = 0.012, w = 1, h = 0.07 },
-	book = { x = 0.04, y = 0.10, w = 0.86, h = 0.76 },
+	-- The slot the book sits in (the book keeps its art's aspect ratio inside it, bottom centred on the table line). About 62
+	-- percent of the panel width; compact screens use bookCompact so the pages stay readable.
+	book = { x = 0.19, y = 0.10, w = 0.62, h = 0.76 },
+	bookCompact = { x = 0.02, y = 0.12, w = 0.90, h = 0.74 },
 	table = { y = 0.86 }, -- the table surface: the book's bottom edge and its contact shadow rest on this line
-	-- inside the book (fractions of the book)
-	left = { x = 0.03, y = 0.04, w = 0.455, h = 0.92 },
-	right = { x = 0.515, y = 0.04, w = 0.455, h = 0.92 },
-	tabs = { x = 0.885, y = 0.14, w = 0.055, h = 0.36 }, -- slim bookmark ribbons at the book edge
+	-- page boxes inside the book (fractions of the book; the measured quads are in Engine/LedgerBookGeometry.lua)
+	left = { x = 0.14, y = 0.15, w = 0.29, h = 0.61 },
+	right = { x = 0.565, y = 0.15, w = 0.29, h = 0.61 },
+	-- the ribbon tabs live in Engine/LedgerLayout.TABS (fractions of the book, level with the top of the pages)
 	margin = 0.07, -- page text margin as a fraction of the page width (6 to 8 percent)
 	marginY = 0.08, -- top and bottom text margin as a fraction of the page height
 	spine = 0.03, -- extra margin on the spine side so ink clears the binding rings
@@ -184,7 +187,7 @@ function LedgerPages.rects(w, h)
 	local function abs(r) return { x = r.x * w, y = r.y * h, w = r.w * w, h = r.h * h } end
 	local book = abs(L.book)
 	local function inBook(r) return { x = book.x + r.x * book.w, y = book.y + r.y * book.h, w = r.w * book.w, h = r.h * book.h } end
-	return { title = abs(L.title), book = book, left = inBook(L.left), right = inBook(L.right), tabs = abs(L.tabs), tableY = L.table.y * h }
+	return { title = abs(L.title), book = book, left = inBook(L.left), right = inBook(L.right), tableY = L.table.y * h }
 end
 
 return LedgerPages

@@ -12358,12 +12358,17 @@ table.insert(tests, { name = "LedgerPages: layout keeps pages inside the book, t
 		local r = LP.rects(size[1], size[2])
 		local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
 		local panel = { x = 0, y = 0, w = size[1], h = size[2] }
-		expectTrue(inside(r.book, panel) and inside(r.tabs, panel) and inside(r.title, panel), "book, tabs and title inside the panel")
+		expectTrue(inside(r.book, panel) and inside(r.title, panel), "book and title inside the panel")
 		expectTrue(inside(r.left, r.book) and inside(r.right, r.book), "pages inside the book")
 		expectTrue(r.left.x + r.left.w <= r.right.x, "left page ends before the right page starts")
-		expectTrue(r.tabs.x >= r.book.x + r.book.w - r.book.w * 0.02 - 1, "tabs sit on the right edge of the book")
 		expectTrue(r.title.y + r.title.h <= r.book.y + 0.001, "title clears the book")
-		expectTrue(r.tabs.y + r.tabs.h <= size[2] * (1 - LP.LAYOUT.close.h), "tabs clear the Close button row")
+		-- the ribbon tabs hang off the right edge of the book, level with the top of the pages, and stay in the panel
+		local T = require(script.Parent.Parent.Engine.LedgerLayout).TABS
+		local bookW = r.book.w
+		local tabsRight = r.book.x + (T.x + T.w) * bookW
+		expectTrue(tabsRight <= size[1] + 0.001, "tabs inside the panel")
+		expectTrue(T.x >= 0.95 and T.w <= 0.1, "slim tabs on the right edge of the book")
+		expectTrue(math.abs(T.y - require(script.Parent.Parent.Engine.LedgerLayout).pageBox("right").y) < 0.01, "tabs level with the page top")
 	end
 end })
 
@@ -13361,19 +13366,72 @@ table.insert(tests, { name = "Ledger page turn: the page_turn cue exists with it
 	local flipPos = goBody:find("flip(", 1, true)
 	expectTrue(cuePos ~= nil and flipPos ~= nil and cuePos < flipPos, "the cue starts before (or with) the flip animation")
 	expectTrue(src:find('Name = "PageFlip"', 1, true) ~= nil and src:find("Enum.EasingStyle.Quad", 1, true) ~= nil, "a paper sheet flips with Quad easing")
-	expectTrue(src:find("FLIP_TIME = 0.4", 1, true) ~= nil and src:find("PageSweep", 1, true) == nil, "0.4 s flip, no grey sweep")
+	expectTrue(src:find("FLIP_TIME = 0.44", 1, true) ~= nil and src:find("PageSweep", 1, true) == nil, "0.22 s in, 0.22 s out, no grey sweep")
 	expectTrue(src:find('Name = "PageVeil"', 1, true) ~= nil and src:find("TweenInfo.new(0.12)", 1, true) ~= nil, "calm mode crossfades in 0.12 s")
 	expectTrue(src:find("flip(i > previous, state)", 1, true) ~= nil, "forward turns right to left, backward left to right")
 end })
 
 table.insert(tests, { name = "LedgerBook: the painted book is the page surface, pages are transparent over it, tabs are slim ribbons at the book edge", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
-	expectTrue(LP.LAYOUT.tabs.w <= 0.06, "slim tabs")
+	expectTrue(require(script.Parent.Parent.Engine.LedgerLayout).TABS.w <= 0.1, "slim tabs")
 	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("p.BackgroundTransparency = 1", 1, true) ~= nil and src:find("local bookArt = artOver(book", 1, true) ~= nil, "page frames go transparent over the book art")
 	expectTrue(src:find('"ledger_bookmark_ribbon"', 1, true) == nil, "no oversized ribbon art under the tab text")
+end })
+
+table.insert(tests, { name = "Ledger v5: text rows sit on the book's own sloped lines, inside the page quads, in readable ink; the flip sheet is cut from the page", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	expectEqual(#LL.lines("left"), 9, "nine ruled lines on the left page")
+	expectEqual(#LL.lines("right"), 9, "nine ruled lines on the right page")
+	expectTrue(LL.pageAngle("left") < 0 and LL.pageAngle("right") > -0.5, "the pages are tilted differently (left rises toward the gutter)")
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 600, 800 } }) do
+		local pr = LP.panelRect(vp[1], vp[2])
+		local r = (pr.w < 700) and LP.LAYOUT.bookCompact or LP.LAYOUT.book
+		local bw = math.min(pr.w * r.w, pr.h * r.h * LL.ASPECT)
+		local bh = bw / LL.ASPECT
+		local sz = LL.sizes(bh)
+		expectTrue(sz.body >= 14, "body text never below 14 px")
+		if vp[1] == 1920 then expectTrue(sz.body >= 20 and sz.head >= 24, "20 px body and 24+ px headings at 1920x1080") end
+		for _, side in ipairs({ "left", "right" }) do
+			local box = LL.pageBox(side)
+			for i = 1, LL.LINE_COUNT do
+				for _, t in ipairs({ 0, 0.5, 1 }) do
+					local lift = LL.liftPx(side, i, t, bw, bh)
+					expectTrue(math.abs(lift - LL.UP_PX) <= 0.01, "baseline lifted 3 px off its line (" .. side .. i .. ")")
+					local ax, ay, lx, ly = LL.anchorPx(side, i, t, bw, bh)
+					expectTrue(math.abs(ax - lx) <= 3.01 and math.abs(ay - ly) <= 3.01, "anchor within 3 px of the line point")
+					local x, y = LL.point(side, i, t)
+					expectTrue(LL.insideQuad(side, x, y, 0.05 * box.w), "row end inside the page quad with a margin (" .. side .. i .. ")")
+				end
+			end
+		end
+	end
+	expectTrue(LL.liftPx("left", 3, 0.5, 951, 634) > 0, "text sits above the line")
+	for _, side in ipairs({ "left", "right" }) do
+		local paper = LL.paperRgb(side)
+		expectTrue(LL.contrast(LL.INK, paper) >= 7, "ink contrast 7:1 on the " .. side .. " paper")
+		expectTrue(LL.contrast(LL.INK_DIM, paper) >= 7, "soft ink contrast 7:1 on the " .. side .. " paper")
+	end
+	-- page box = the quad's bounding box, the sheet is cut from it, and the tabs sit level with the page top
+	for _, side in ipairs({ "left", "right" }) do
+		local box = LL.pageBox(side)
+		for _, c in ipairs(LL.quad(side)) do
+			expectTrue(c[1] >= box.x - 1e-9 and c[1] <= box.x + box.w + 1e-9 and c[2] >= box.y - 1e-9 and c[2] <= box.y + box.h + 1e-9, "quad corner inside its page box")
+		end
+	end
+	expectTrue(LL.pageBox("left").x + LL.pageBox("left").w < LL.GEOMETRY.gutterX and LL.pageBox("right").x > LL.GEOMETRY.gutterX, "the pages sit either side of the gutter")
+	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("TextTransparency = 0.", 1, true) == nil and src:find("TextTransparency = 1", 1, true) == nil, "no see-through ledger text")
+	expectTrue(src:find("UIAspectRatioConstraint", 1, true) ~= nil and src:find("ar.AspectRatio = Layout.ASPECT", 1, true) ~= nil, "the book keeps the art's aspect so the measured angles hold")
+	expectTrue(src:find("Rotation = p.angle", 1, true) ~= nil, "text rows are rotated to the measured line angle")
+	expectTrue(src:find("sheet.Rotation = Layout.pageAngle(side)", 1, true) ~= nil and src:find("image.Size = UDim2.fromScale(1 / box.w, 1 / box.h)", 1, true) ~= nil, "the flip sheet is a crop of the page art tilted like the page")
+	expectTrue(src:find("Fold", 1, true) == nil and src:find("Enum.EasingStyle.Quad", 1, true) ~= nil, "no stray cream rectangle, Quad easing")
+	expectTrue(src:find("tab.Parent = book", 1, true) ~= nil, "the ribbon tabs hang off the book edge")
 end })
 
 table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf rails use their art ids and keep the drawn fallback", fn = function()

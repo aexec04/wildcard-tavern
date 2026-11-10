@@ -1,15 +1,17 @@
 --[[
 	Client/LedgerBook.lua
 	The Tavern Ledger as an open leather book on a tavern desk (used by Client/StatsPanel.lua). Three spreads, picked
-	with red silk bookmark tabs on the right edge:
-	  Story         left: Runs won (big inked number on a wax seal), Runs started, Best Night as a chalk tally on a
-	                chalkboard, win rate as an ink ring; right: favourite Patron in a photo frame and the lifetime lines
-	  Hall of Fame  left: up to three best runs as pinned notes with a win or loss stamp; right: best Night per stake
+	with red silk bookmark tabs on the right edge of the book, level with the top of the pages:
+	  Story         left: Runs won, Runs started and Best Night as inked numbers, win rate as an ink bar; right: favourite
+	                Patron and the lifetime lines
+	  Hall of Fame  left: up to three best runs as notes with a win or loss stamp; right: best Night per stake
 	  Records       left: bars of the last runs; right: the run list (tap a row for details and the Seed code)
-	Every piece is drawn from Frames first (desk, leather, cream pages, ribbons, ink) so it looks right with
-	Engine/LedgerArt.lua empty; recorded ids are laid over the fallbacks piece by piece. Page turns are a 0.25 s shadow
-	sweep; numbers count up when the ledger opens and a newly beaten record stamps in. "Reduce screen shake" skips every
-	animation. Data mapping and layout maths live in Engine/LedgerPages.lua (tested).
+	The painted book (ledger_book_open) is the page surface and is never redrawn. Every line of writing sits ON the
+	book's own ruled lines at their measured angle (Engine/LedgerBookGeometry.lua, maths in Engine/LedgerLayout.lua), in dark
+	brown ink at full opacity. The book rests on the table at about 62 percent of the panel width, keeping the art's aspect.
+	Page turns flip a sheet cut from the same art (0.22 s in, 0.22 s out); calm mode crossfades in 0.12 s. Numbers count up
+	when the ledger opens and a newly beaten record stamps in. "Reduce screen shake" skips every animation. Data mapping
+	lives in Engine/LedgerPages.lua (tested). Without the art the drawn leather, cream pages and ruled lines show instead.
 	deps: roundCorner, playClickSfx, addTooltip, getLatestState
 ]]
 
@@ -21,6 +23,7 @@ local LedgerBook = {}
 function LedgerBook.build(deps, desk)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local Pages = require(Engine:WaitForChild("LedgerPages"))
+	local Layout = require(Engine:WaitForChild("LedgerLayout"))
 	local LedgerArt = require(Engine:WaitForChild("LedgerArt"))
 	local Stakes = require(Engine:WaitForChild("Stakes"))
 	local Patrons = require(Engine:WaitForChild("Patrons"))
@@ -29,15 +32,13 @@ function LedgerBook.build(deps, desk)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local Cue = require(script.Parent.Cue)
 
-	local INK = Color3.fromRGB(52, 34, 20)
-	local INK_DIM = Color3.fromRGB(104, 80, 56)
+	local INK = Color3.fromRGB(Layout.INK[1], Layout.INK[2], Layout.INK[3])
+	local INK_DIM = Color3.fromRGB(Layout.INK_DIM[1], Layout.INK_DIM[2], Layout.INK_DIM[3])
 	local PAGE = Color3.fromRGB(244, 232, 204)
 	local LEATHER = Color3.fromRGB(88, 52, 30)
 	local BRASS = Color3.fromRGB(200, 160, 70)
-	local RIBBON = Color3.fromRGB(150, 36, 36)
 	local WIN_INK = Color3.fromRGB(176, 48, 40)
 	local LOSS_INK = Color3.fromRGB(70, 96, 150)
-	local CHALK = Color3.fromRGB(240, 236, 220)
 	local Z = 42
 	local MODE_TAGS = { daily = "Daily", weekly = "Weekly", seed = "Seed", challenge = "Twist", rush = "Rush", quick = "Quick" }
 
@@ -106,23 +107,56 @@ function LedgerBook.build(deps, desk)
 	artOver(deskTop, "ledger_quill_inkwell", { Size = UDim2.fromOffset(70, 70), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(0.99, 0, 0.995, 0) })
 
 	local R = Pages.LAYOUT
-	-- the scene darkens a little behind the book so the pages are the brightest thing, and the book rests on the table
+	-- the scene darkens a little behind the book so the pages are the brightest thing
 	piece(desk, { Name = "DeskDim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.7, Active = false }, 14)
-	piece(desk, { Name = "ContactShadow", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(R.book.x + R.book.w / 2, R.table.y + 0.004), Size = UDim2.fromScale(R.book.w * 1.01, 0.03), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.55, Active = false }, 40)
-	local book = piece(desk, { Name = "Book", Position = UDim2.fromScale(R.book.x, R.book.y), Size = UDim2.fromScale(R.book.w, R.book.h), BackgroundColor3 = LEATHER }, 10)
+
+	-- The book sits on the table: a slot (about 62 percent of the panel width, bottom on the table line) holds the book at the
+	-- art's own aspect ratio, bottom centred, with a soft contact shadow under it that is a little wider than the book.
+	local slot = piece(desk, { Name = "BookSlot", BackgroundTransparency = 1, Active = false })
+	local function fitSlot()
+		local r = (desk.AbsoluteSize.X > 0 and desk.AbsoluteSize.X < 700) and R.bookCompact or R.book
+		slot.Position = UDim2.fromScale(r.x, r.y)
+		slot.Size = UDim2.fromScale(r.w, r.h)
+	end
+	fitSlot()
+	desk:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitSlot)
+	local holder = piece(slot, { Name = "BookHolder", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 1), Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Active = false })
+	do
+		local ar = Instance.new("UIAspectRatioConstraint")
+		ar.AspectRatio = Layout.ASPECT
+		ar.AspectType = Enum.AspectType.FitWithinMaxSize
+		ar.DominantAxis = Enum.DominantAxis.Width
+		ar.Parent = holder
+	end
+	piece(holder, { Name = "ContactShadow", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1.0), Size = UDim2.fromScale(1.06, 0.06), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.65, Active = false }, 40)
+	local book = piece(holder, { Name = "Book", Size = UDim2.fromScale(1, 1), BackgroundColor3 = LEATHER, ZIndex = Z + 1 }, 10)
 	local bookStroke = stroke(book, BRASS, 3)
 	-- The painted open book is the page surface: its leather and pages show through, and the page frames below are
 	-- transparent (text is written straight onto the paper). Without the art the drawn leather, cream pages and spine show.
 	local bookArt = artOver(book, "ledger_book_open")
-	local spine = piece(book, { Name = "Spine", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.02), Size = UDim2.new(0, 10, 0.96, 0), BackgroundColor3 = Color3.fromRGB(60, 36, 20), ZIndex = Z + 2 })
+	local spine = piece(book, { Name = "Spine", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(Layout.GEOMETRY.gutterX, 0.02), Size = UDim2.new(0, 10, 0.96, 0), BackgroundColor3 = Color3.fromRGB(60, 36, 20), ZIndex = Z + 2 })
 	if bookArt then
 		book.BackgroundTransparency = 1
 		bookStroke.Enabled = false
 		spine.Visible = false
 	end
 
-	local function pageFrame(name, r)
-		local p = piece(book, { Name = name, Position = UDim2.fromScale(r.x, r.y), Size = UDim2.fromScale(r.w, r.h), BackgroundColor3 = PAGE, ClipsDescendants = true, ZIndex = Z + 1 }, 6)
+	-- the book's real pixel height drives the text sizes (falls back to the viewport before the first layout)
+	local function metrics()
+		local h = book.AbsoluteSize.Y
+		if h < 60 then
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+			local pr = Pages.panelRect(vp.X, vp.Y)
+			local r = (pr.w < 700) and R.bookCompact or R.book
+			h = math.min(pr.w * r.w, pr.h * r.h * Layout.ASPECT) / Layout.ASPECT
+		end
+		return Layout.sizes(h)
+	end
+
+	local function pageFrame(name, side)
+		local box = Layout.pageBox(side)
+		local p = piece(book, { Name = name, Position = UDim2.fromScale(box.x, box.y), Size = UDim2.fromScale(box.w, box.h), BackgroundColor3 = PAGE, ClipsDescendants = true, ZIndex = Z + 1 }, 6)
 		if bookArt then
 			p.BackgroundTransparency = 1
 		else
@@ -130,39 +164,64 @@ function LedgerBook.build(deps, desk)
 		end
 		return p
 	end
-	local function ruledLines(page) -- faint ruled lines (the painted pages have their own)
+	local leftPage = pageFrame("LeftPage", "left")
+	local rightPage = pageFrame("RightPage", "right")
+	local function pageOf(side) return side == "left" and leftPage or rightPage end
+
+	-- ===== writing on the ruled lines =====
+	-- One text row on ruled line i from t0 to t1 of its usable span: bottom-left anchored, rotated to the line's angle and lifted 3 px.
+	local function row(side, i, t0, t1, props, tall)
+		local sz = metrics()
+		local p = Layout.place(side, i, t0, t1)
+		local base = {
+			AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(p.xs, p.xo, p.ys, p.yo), Size = UDim2.new(p.ws, 0, 0, math.floor(sz.spacing * (tall or 0.95))),
+			Rotation = p.angle, Font = Enum.Font.GothamMedium, TextSize = sz.body, TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Bottom, TextTruncate = Enum.TextTruncate.AtEnd,
+		}
+		for k, v in pairs(props) do base[k] = v end
+		return text(pageOf(side), base)
+	end
+
+	-- a rotated, page-tilted region between ruled lines k1-1 and k2 (k1 = 1 starts one line spacing above line 1) for widgets
+	local function band(side, k1, k2, props)
+		local box = Layout.pageBox(side)
+		local sp = Layout.spacing()
+		local first = Layout.span(side, 1)
+		local _, topY = Layout.point(side, k1 == 1 and 1 or (k1 - 1), 0)
+		if k1 == 1 then topY = topY - sp end
+		local _, botY = Layout.point(side, k2, 0)
+		local base = {
+			Name = "Band", BackgroundTransparency = 1, Active = false, Rotation = Layout.pageAngle(side),
+			Position = UDim2.fromScale((first.x0 - box.x) / box.w, (topY - box.y) / box.h),
+			Size = UDim2.fromScale((first.x1 - first.x0) / box.w, (botY - topY) / box.h),
+		}
+		for k, v in pairs(props or {}) do base[k] = v end
+		return piece(pageOf(side), base)
+	end
+
+	local function ruledLines(side) -- the painted pages have their own; the drawn fallback follows the same measured lines
 		if bookArt then return end
-		for i = 1, 9 do
-			piece(page, { Position = UDim2.new(0.05, 0, 0.1 * i, 0), Size = UDim2.new(0.9, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(222, 205, 172), ZIndex = Z + 1 })
+		for i = 1, Layout.LINE_COUNT do
+			local p = Layout.place(side, i, 0, 1)
+			piece(pageOf(side), { Position = UDim2.new(p.xs, 0, p.ys, 0), Size = UDim2.new(p.ws, 0, 0, 1), Rotation = p.angle, BackgroundColor3 = Color3.fromRGB(222, 205, 172), ZIndex = Z + 1 })
 		end
 	end
-	local leftPage = pageFrame("LeftPage", R.left)
-	local rightPage = pageFrame("RightPage", R.right)
 
 	-- ===== small pieces =====
 	local function stamp(parent, pos, won, size)
 		local s = piece(parent, { Size = UDim2.fromOffset(size, size), Position = pos, BackgroundTransparency = 1, Rotation = won and -12 or 9, ZIndex = Z + 4 }, size // 2)
 		local col = won and WIN_INK or LOSS_INK
-		stroke(s, col, 4)
+		stroke(s, col, 3)
 		text(s, { Size = UDim2.fromScale(1, 1), Text = won and "WON" or "LOST", TextSize = math.max(14, size // 4), TextColor3 = col, ZIndex = Z + 5 })
 		artOver(s, won and "ledger_stamp_win" or "ledger_stamp_loss", { Size = UDim2.fromScale(1.1, 1.1), Position = UDim2.fromScale(-0.05, -0.05), ZIndex = Z + 6 })
 		return s
 	end
 
-	local function leader(parent, y, name, value)
-		local n = text(parent, { Size = UDim2.new(0.5, 0, 0, 22), Position = UDim2.new(0, 0, 0, y), Text = name, TextXAlignment = Enum.TextXAlignment.Left, TextSize = 16 })
-		local v = text(parent, { Size = UDim2.new(0.4, 0, 0, 22), Position = UDim2.new(0.6, 0, 0, y), Text = value, TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, TextSize = 16 })
-		-- dotted leader between the name and the value
-		local left = n.TextBounds.X + 8
-		local right = math.min(v.TextBounds.X, v.AbsoluteSize.X) + 8
-		text(parent, { Size = UDim2.new(1, -(left + right), 0, 22), Position = UDim2.new(0, left, 0, y + 3), Text = string.rep(". ", 40), TextColor3 = INK_DIM, Font = Enum.Font.Gotham, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTransparency = 0.4, ClipsDescendants = true })
-	end
-
 	local function artSquare(parent, size, position, category, key, emoji, radius)
-		local holder = piece(parent, { Size = UDim2.fromOffset(size, size), Position = position, BackgroundColor3 = Color3.fromRGB(226, 208, 170), ZIndex = Z + 3 }, radius or 8)
-		local glyph = text(holder, { Size = UDim2.fromScale(1, 1), TextSize = math.max(14, size - 14), Text = emoji or "?" })
-		if category then pcall(ArtIcon.apply, holder, category, key, glyph, { cornerRadius = radius or 8, zIndex = Z + 6 }) end
-		return holder
+		local holderFrame = piece(parent, { Size = UDim2.fromOffset(size, size), Position = position, BackgroundColor3 = Color3.fromRGB(226, 208, 170), ZIndex = Z + 3 }, radius or 8)
+		local glyph = text(holderFrame, { Size = UDim2.fromScale(1, 1), TextSize = math.max(14, size - 14), Text = emoji or "?" })
+		if category then pcall(ArtIcon.apply, holderFrame, category, key, glyph, { cornerRadius = radius or 8, zIndex = Z + 6 }) end
+		return holderFrame
 	end
 
 	local function clear(frame)
@@ -178,205 +237,199 @@ function LedgerBook.build(deps, desk)
 	local lastSeen -- stats snapshot for "newly beaten" stamps
 	local expandedOrder
 
-	-- All ink sits inside Pages.inkRect: 7 percent side margins (a little more on the spine side), 8 percent top and bottom.
-	local function pad(page)
-		local side = (page == leftPage) and "left" or "right"
-		local L = R
-		local m, my, sp = L.margin, L.marginY, L.spine
-		local holder = Instance.new("Frame")
-		holder.Name = "Ink"
-		holder.BackgroundTransparency = 1
-		holder.Size = UDim2.fromScale(1 - 2 * m - sp, 1 - 2 * my)
-		holder.Position = UDim2.fromScale(side == "left" and m or (m + sp), my)
-		holder.ZIndex = Z + 2
-		holder.Parent = page
-		return holder
+	-- heading on the first ruled line of its page
+	local function heading(side, str)
+		row(side, 1, 0, 1, { Text = str, Font = Enum.Font.Fondamento, TextSize = metrics().head }, 1.2)
 	end
 
-	-- A calligraphic heading on the top margin with a thin hand-drawn underline rule.
-	local function heading(h, str)
-		text(h, { Size = UDim2.new(1, 0, 0, 30), Text = str, Font = Enum.Font.Fondamento, TextSize = 26, TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Left })
-		piece(h, { Name = "HeadingRule", Position = UDim2.fromOffset(0, 33), Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = INK_DIM, BackgroundTransparency = 0.25, ZIndex = Z + 2 })
-		piece(h, { Name = "HeadingRuleTail", Position = UDim2.fromOffset(0, 36), Size = UDim2.new(0.55, 0, 0, 1), BackgroundColor3 = INK_DIM, BackgroundTransparency = 0.55, ZIndex = Z + 2 })
+	-- label on the left, value on the right of one ruled line, dotted leader between them along the same line
+	local function leader(side, i, name, value)
+		local sz = metrics()
+		local small = math.max(14, sz.body - 3) -- label and value share one short line, so they are a little smaller
+		local n = row(side, i, 0, 1, { Text = name, TextSize = small })
+		local v = row(side, i, 0, 1, { Text = value, TextXAlignment = Enum.TextXAlignment.Right, TextSize = small })
+		local full = n.AbsoluteSize.X
+		if full > 0 then
+			local lo = (n.TextBounds.X + 8) / full
+			local hi = 1 - (v.TextBounds.X + 8) / full
+			if hi - lo > 0.08 then
+				row(side, i, lo, hi, { Text = string.rep(". ", 40), TextColor3 = INK_DIM, Font = Enum.Font.Gotham, TextSize = math.max(14, sz.body - 4), TextTruncate = Enum.TextTruncate.None, ClipsDescendants = true })
+			end
+		end
 	end
 
-	-- dotted ledger rule across the ink area
-	local function dots(parent, y)
-		text(parent, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, y), Text = string.rep(". ", 60), TextColor3 = INK_DIM, Font = Enum.Font.Gotham, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTransparency = 0.45, ClipsDescendants = true })
-	end
-
-	local function counter(parent, props, target)
-		local l = text(parent, props)
+	local function counter(side, i, target)
+		local sz = metrics()
+		local l = row(side, i, 0, 1, { Font = Enum.Font.GothamBold, TextSize = sz.big, Text = fmt(target) }, 1.5)
 		counters[#counters + 1] = { label = l, target = target }
-		l.Text = fmt(target)
 		return l
 	end
 
-	local function emptyNote(page)
-		local h = pad(page)
-		text(h, {
-			Size = UDim2.new(1, 0, 0, 90), Position = UDim2.fromScale(0, 0.35), Rotation = -3, Font = Enum.Font.Antique, TextSize = 26,
-			TextWrapped = true, Text = Pages.EMPTY_NOTE, TextColor3 = INK_DIM,
-		})
+	local function emptyNote(side)
+		local b = band(side, 4, 6)
+		text(b, { Size = UDim2.fromScale(1, 1), Rotation = -3, Font = Enum.Font.Antique, TextSize = metrics().head, TextWrapped = true, Text = Pages.EMPTY_NOTE, TextColor3 = INK_DIM })
 	end
 
-	-- one ledger stat: big number in dark brown ink, its label beneath, a dotted rule under both
-	local function inkStat(h, y, target, label)
-		counter(h, { Size = UDim2.new(1, 0, 0, 44), Position = UDim2.fromOffset(0, y), TextSize = 40, TextXAlignment = Enum.TextXAlignment.Left }, target)
-		text(h, { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, y + 44), Text = label, TextColor3 = INK_DIM, Font = Enum.Font.GothamMedium, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left })
-		dots(h, y + 62)
+	-- one ledger stat: its label on one ruled line, the inked number on the next
+	local function inkStat(side, i, target, label)
+		row(side, i, 0, 1, { Text = label, TextColor3 = INK_DIM })
+		counter(side, i + 1, target)
 	end
 
 	local function storyLeft(stats)
-		local h = pad(leftPage)
 		local s = Pages.story(stats)
-		heading(h, "My Story")
-		inkStat(h, 46, s.wins, "Runs won")
-		inkStat(h, 128, s.runs, "Runs started")
-		inkStat(h, 210, s.bestNight, "Best Night")
-		-- win rate: an ink line and a small hand-drawn bar
+		heading("left", "My Story")
+		inkStat("left", 2, s.wins, "Runs won")
+		inkStat("left", 4, s.runs, "Runs started")
+		inkStat("left", 6, s.bestNight, "Best Night")
+		-- win rate: an ink line and a small hand-drawn bar along the ninth ruled line
 		local pct = math.floor(s.winRate * 100 + 0.5)
-		text(h, { Size = UDim2.new(0.6, 0, 0, 24), Position = UDim2.fromOffset(0, 292), Text = "Win rate", TextXAlignment = Enum.TextXAlignment.Left })
-		text(h, { Size = UDim2.new(0.4, 0, 0, 24), Position = UDim2.new(0.6, 0, 0, 292), Text = string.format("%d%%", pct), TextXAlignment = Enum.TextXAlignment.Right })
-		local track = piece(h, { Name = "WinRateBar", Position = UDim2.fromOffset(0, 320), Size = UDim2.new(1, 0, 0, 10), BackgroundTransparency = 1, ZIndex = Z + 2 }, 3)
-		stroke(track, INK_DIM, 1.5)
+		row("left", 8, 0, 1, { Text = "Win rate" })
+		row("left", 8, 0, 1, { Text = string.format("%d%%", pct), TextXAlignment = Enum.TextXAlignment.Right })
+		local p = Layout.place("left", 9, 0, 1)
+		local track = piece(leftPage, { Name = "WinRateBar", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(p.xs, p.xo, p.ys, p.yo - 2), Size = UDim2.new(p.ws, 0, 0, 10), Rotation = p.angle, BackgroundTransparency = 1, ZIndex = Z + 2 }, 3)
+		stroke(track, INK, 1.5)
 		if pct > 0 then piece(track, { Size = UDim2.new(s.winRate, 0, 1, 0), BackgroundColor3 = INK, BackgroundTransparency = 0.15, ZIndex = Z + 3 }, 3) end
 	end
 
 	local function storyRight(stats, state)
-		local h = pad(rightPage)
 		local hall = Pages.hall(stats, nil)
-		heading(h, "Regulars' Corner")
+		local sz = metrics()
+		heading("right", "Regulars' Corner")
 		local fav = hall.favorite
 		local def = fav and Patrons.getById(fav.id)
-		local textX = 0
-		if def then -- a small inked vignette with a soft paper-coloured edge, no frame
-			local vignette = piece(h, { Name = "PatronVignette", Size = UDim2.fromOffset(84, 84), Position = UDim2.fromOffset(0, 48), BackgroundTransparency = 1, ZIndex = Z + 3 }, 42)
-			local glyph = text(vignette, { Size = UDim2.fromScale(1, 1), TextSize = 44, Text = def.icon or "?" })
-			pcall(ArtIcon.apply, vignette, "patrons", fav.id, glyph, { cornerRadius = 42, zIndex = Z + 6 })
-			local edge = stroke(vignette, PAGE, 8)
+		local t0 = 0
+		if def then -- a small inked vignette with a soft paper-coloured edge, no frame, beside lines 2 to 4
+			local size = math.floor(sz.spacing * 2.3)
+			local p = Layout.place("right", 4, 0, 1)
+			local vignette = piece(rightPage, { Name = "PatronVignette", AnchorPoint = Vector2.new(0, 1), Size = UDim2.fromOffset(size, size), Position = UDim2.new(p.xs, 0, p.ys, -4), BackgroundTransparency = 1, ZIndex = Z + 3 }, size // 2)
+			local glyph = text(vignette, { Size = UDim2.fromScale(1, 1), TextSize = math.max(14, size - 24), Text = def.icon or "?" })
+			pcall(ArtIcon.apply, vignette, "patrons", fav.id, glyph, { cornerRadius = size // 2, zIndex = Z + 6 })
+			local edge = stroke(vignette, PAGE, 6)
 			edge.Transparency = 0.2
-			textX = 100
+			t0 = 0.36
 		end
-		text(h, { Size = UDim2.new(1, -textX, 0, 22), Position = UDim2.fromOffset(textX, 48), Text = "Favorite Patron", TextColor3 = INK_DIM, Font = Enum.Font.GothamMedium, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left })
-		text(h, { Size = UDim2.new(1, -textX, 0, 30), Position = UDim2.fromOffset(textX, 70), Text = def and def.name or "None yet", Font = Enum.Font.Fondamento, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
-		text(h, {
-			Size = UDim2.new(1, -textX, 0, 40), Position = UDim2.fromOffset(textX, 102), Font = Enum.Font.GothamMedium, TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-			Text = fav and string.format("Won %d run%s with it", fav.wins, fav.wins == 1 and "" or "s") or "Win a run to find your favorite.", TextColor3 = INK_DIM,
-		})
+		row("right", 2, t0, 1, { Text = "Favorite Patron", TextColor3 = INK_DIM })
+		row("right", 3, t0, 1, { Text = def and def.name or "None yet", Font = Enum.Font.Fondamento, TextSize = sz.head })
+		row("right", 4, t0, 1, { Text = fav and string.format("Won %d run%s with it", fav.wins, fav.wins == 1 and "" or "s") or "Win a run to find your favorite.", TextColor3 = INK_DIM, TextSize = math.max(14, sz.body - 2) })
 		local titleDef = state and state.equippedTitleId and Achievements.getById(state.equippedTitleId)
-		local lines = Pages.lifeLines(stats, titleDef and titleDef.title or nil)
-		text(h, { Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 160), Text = "Lifetime", Font = Enum.Font.Fondamento, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left })
-		for i, line in ipairs(lines) do leader(h, 194 + (i - 1) * 34, line.label, line.value) end
+		row("right", 5, 0, 1, { Text = "Lifetime", Font = Enum.Font.Fondamento, TextSize = sz.head })
+		for i, line in ipairs(Pages.lifeLines(stats, titleDef and titleDef.title or nil)) do leader("right", 5 + i, line.label, line.value) end
 	end
 
 	local function hallLeft(stats)
-		local h = pad(leftPage)
-		heading(h, "Hall of Fame")
+		heading("left", "Hall of Fame")
+		local sz = metrics()
 		local bests = Pages.bests(stats.recent, Pages.BESTS_SHOWN)
 		for i, e in ipairs(bests) do
-			local y = 48 + (i - 1) * 104
-			-- a note written onto the page: the page's own paper tone, a hairline edge and a faint shadow, no tilt
-			piece(h, { Name = "NoteShadow", Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(8, y + 3), BackgroundColor3 = Color3.fromRGB(70, 48, 28), BackgroundTransparency = 0.85, ZIndex = Z + 2 }, 4)
-			local note = piece(h, { Name = "Note", Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(6, y), BackgroundColor3 = Color3.fromRGB(240, 226, 192), ZIndex = Z + 2 }, 4)
+			local k = 2 + (i - 1) * 2 -- each note fills two ruled lines
+			local b = band("left", k, k + 1)
+			-- a note written onto the page: the page's own paper tone, a hairline edge and a faint shadow
+			piece(b, { Name = "NoteShadow", Size = UDim2.new(1, -6, 1, -8), Position = UDim2.fromOffset(5, 6), BackgroundColor3 = Color3.fromRGB(70, 48, 28), BackgroundTransparency = 0.85, ZIndex = Z + 2 }, 4)
+			local note = piece(b, { Name = "Note", Size = UDim2.new(1, -6, 1, -8), Position = UDim2.fromOffset(2, 3), BackgroundColor3 = Color3.fromRGB(240, 226, 192), ZIndex = Z + 2 }, 4)
 			stroke(note, Color3.fromRGB(214, 194, 156), 1)
-			piece(note, { Size = UDim2.fromOffset(10, 10), Position = UDim2.fromOffset(8, 6), BackgroundColor3 = BRASS, ZIndex = Z + 4 }, 5)
+			piece(note, { Size = UDim2.fromOffset(8, 8), Position = UDim2.fromOffset(6, 5), BackgroundColor3 = BRASS, ZIndex = Z + 4 }, 4)
 			local stakeDef = Stakes.get(e.stake)
-			text(note, { Size = UDim2.new(1, -110, 0, 26), Position = UDim2.fromOffset(24, 8), Text = string.format("Night %d", e.night), Font = Enum.Font.Antique, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left })
+			local stampSize = math.max(36, math.floor(sz.spacing * 2 - 22))
+			text(note, { Size = UDim2.new(1, -(stampSize + 28), 0, sz.body + 4), Position = UDim2.fromOffset(20, 4), Text = string.format("Night %d", e.night), Font = Enum.Font.Antique, TextSize = sz.body + 2, TextXAlignment = Enum.TextXAlignment.Left })
 			text(note, {
-				Size = UDim2.new(1, -110, 0, 44), Position = UDim2.fromOffset(24, 36), TextSize = 15, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextWrapped = true,
-				TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-				Text = string.format("%s stake, score %s%s", stakeDef and stakeDef.name or "Regular", fmt(e.score), e.bestHand and (", best hand " .. e.bestHand.name) or ""),
+				Size = UDim2.new(1, -(stampSize + 28), 1, -(sz.body + 12)), Position = UDim2.fromOffset(20, sz.body + 8), TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextWrapped = true,
+				TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextTruncate = Enum.TextTruncate.AtEnd,
+				Text = string.format("%s stake, score %s%s", stakeDef and stakeDef.name or "Regular", fmt(e.score), e.bestHand and (", " .. e.bestHand.name) or ""),
 			})
-			stamp(note, UDim2.new(1, -84, 0, 8), e.won, 74)
+			stamp(note, UDim2.new(1, -(stampSize + 4), 0.5, -stampSize // 2), e.won, stampSize)
 		end
-		if #bests == 0 then emptyNote(leftPage) end
+		if #bests == 0 then emptyNote("left") end
 	end
 
 	local function hallRight(stats)
-		local h = pad(rightPage)
-		heading(h, "Best Night by stake")
-		local y, n = 50, 0
+		heading("right", "Best Night by stake")
+		local sz = metrics()
+		local n = 0
 		for stake = 1, 8 do
 			local best = stats.bestNightByStake and stats.bestNightByStake[tostring(stake)]
 			if best then
-				local def = Stakes.get(stake)
-				local ribbon = piece(h, { Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, y), BackgroundColor3 = Color3.fromRGB(150, 36, 36), ZIndex = Z + 2 }, 4)
-				artSquare(ribbon, 28, UDim2.fromOffset(6, 4), "stakes", def.id, def.icon, 14)
-				text(ribbon, { Size = UDim2.new(1, -110, 1, 0), Position = UDim2.fromOffset(42, 0), Text = def.name, TextColor3 = Color3.fromRGB(250, 236, 200), TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
-				text(ribbon, { Size = UDim2.fromOffset(90, 36), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 0), Text = "Night " .. best, TextColor3 = Color3.fromRGB(250, 214, 140), TextXAlignment = Enum.TextXAlignment.Right })
-				y = y + 42
 				n = n + 1
+				local def = Stakes.get(stake)
+				local b = band("right", 1 + n, 1 + n)
+				local ribbon = piece(b, { Size = UDim2.new(1, 0, 1, -6), Position = UDim2.fromOffset(0, 3), BackgroundColor3 = Color3.fromRGB(150, 36, 36), ZIndex = Z + 2 }, 4)
+				local iconSize = math.max(20, math.floor(sz.spacing - 14))
+				artSquare(ribbon, iconSize, UDim2.new(0, 4, 0.5, -iconSize // 2), "stakes", def.id, def.icon, iconSize // 2)
+				text(ribbon, { Size = UDim2.new(1, -(iconSize + 70), 1, 0), Position = UDim2.fromOffset(iconSize + 10, 0), Text = def.name, TextColor3 = Color3.fromRGB(250, 236, 200), TextSize = sz.body - 2, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
+				text(ribbon, { Size = UDim2.new(0, 64, 1, 0), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 0), Text = "Night " .. best, TextColor3 = Color3.fromRGB(250, 214, 140), TextSize = sz.body - 2, TextXAlignment = Enum.TextXAlignment.Right })
 			end
 		end
-		if n == 0 then emptyNote(rightPage) end
+		if n == 0 then emptyNote("right") end
 	end
 
 	local function recordsLeft(stats)
-		local h = pad(leftPage)
 		local rec = Pages.records(stats)
-		heading(h, "Night reached, last runs")
-		local bars = piece(h, { Position = UDim2.fromOffset(0, 90), Size = UDim2.new(1, 0, 0, 180), BackgroundTransparency = 1, ZIndex = Z + 2 })
+		heading("left", "Night reached, last runs")
+		local sz = metrics()
+		local bars = band("left", 2, 6)
 		local slots = Pages.SPARK_SLOTS
+		local maxH = math.max(24, math.floor(sz.spacing * 5 - 26))
 		for i, b in ipairs(rec.bars) do
-			local bh = math.max(8, math.floor(150 * b.height))
-			local bar = piece(bars, { AnchorPoint = Vector2.new(0, 1), Size = UDim2.new(1 / slots, -4, 0, bh), Position = UDim2.new((i - 1) / slots, 2, 1, 0), BackgroundColor3 = b.won and Color3.fromRGB(190, 140, 40) or Color3.fromRGB(140, 100, 70), ZIndex = Z + 3 }, 3)
+			local bh = math.max(8, math.floor(maxH * b.height))
+			local bar = piece(bars, { AnchorPoint = Vector2.new(0, 1), Size = UDim2.new(1 / slots, -4, 0, bh), Position = UDim2.new((i - 1) / slots, 2, 1, -2), BackgroundColor3 = b.won and Color3.fromRGB(190, 140, 40) or Color3.fromRGB(140, 100, 70), ZIndex = Z + 3 }, 3)
 			text(bar, { Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, -18), Text = tostring(b.night), TextSize = 14, TextColor3 = INK_DIM })
 		end
-		text(h, { Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 282), Text = "Gold bar = won, brown = lost. Oldest on the left.", Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-		if #rec.bars == 0 then emptyNote(leftPage) end
+		local cap = band("left", 7, 9)
+		text(cap, { Size = UDim2.fromScale(1, 1), Text = "Gold bar = won, brown = lost. Oldest on the left.", Font = Enum.Font.GothamMedium, TextSize = 14, TextColor3 = INK_DIM, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
+		if #rec.bars == 0 then emptyNote("left") end
 	end
 
 	local rebuildRight
 
 	local function runRow(listParent, entry, order, stats)
+		local sz = metrics()
+		local rowH = math.max(44, math.floor(sz.spacing * 1.5))
 		local open = expandedOrder == order
-		local row = piece(listParent, { Name = "Run_" .. order, LayoutOrder = order, Size = UDim2.new(1, -8, 0, open and 150 or 54), BackgroundColor3 = open and Color3.fromRGB(232, 214, 172) or Color3.fromRGB(238, 222, 184), ClipsDescendants = true }, 6)
-		stroke(row, entry.won and BRASS or Color3.fromRGB(190, 170, 130), 1.5)
+		local row0 = piece(listParent, { Name = "Run_" .. order, LayoutOrder = order, Size = UDim2.new(1, -8, 0, open and (rowH + 100) or rowH), BackgroundColor3 = open and Color3.fromRGB(232, 214, 172) or Color3.fromRGB(238, 222, 184), ClipsDescendants = true }, 6)
+		stroke(row0, entry.won and BRASS or Color3.fromRGB(190, 170, 130), 1.5)
 		local hit = Instance.new("TextButton")
-		hit.Size = UDim2.new(1, 0, 0, 54)
+		hit.Size = UDim2.new(1, 0, 0, rowH)
 		hit.BackgroundTransparency = 1
 		hit.Text = ""
 		hit.ZIndex = Z + 8
-		hit.Parent = row
+		hit.Parent = row0
 		hit.MouseButton1Click:Connect(function()
 			deps.playClickSfx()
 			expandedOrder = (expandedOrder == order) and nil or order
 			rebuildRight(stats)
 		end)
 		local stakeDef = Stakes.get(entry.stake)
-		local tag = text(row, { Size = UDim2.fromOffset(56, 24), Position = UDim2.fromOffset(8, 15), Text = entry.won and "Won" or "Lost", TextColor3 = Color3.fromRGB(250, 244, 226), BackgroundTransparency = 0, BackgroundColor3 = entry.won and Color3.fromRGB(70, 124, 66) or Color3.fromRGB(128, 86, 54) })
+		local tag = text(row0, { Size = UDim2.fromOffset(44, 22), Position = UDim2.fromOffset(6, (rowH - 22) // 2), Text = entry.won and "Won" or "Lost", TextSize = 14, TextColor3 = Color3.fromRGB(250, 244, 226), BackgroundTransparency = 0, BackgroundColor3 = entry.won and Color3.fromRGB(70, 124, 66) or Color3.fromRGB(128, 86, 54) })
 		deps.roundCorner(tag, 6)
-		text(row, { Size = UDim2.fromOffset(120, 22), Position = UDim2.fromOffset(72, 6), Text = "Night " .. tostring(entry.night), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 17 })
-		text(row, { Size = UDim2.fromOffset(120, 20), Position = UDim2.fromOffset(72, 28), Text = MODE_TAGS[entry.mode] or "Standard", Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextSize = 14 })
-		text(row, { Size = UDim2.new(1, -250, 0, 24), Position = UDim2.fromOffset(190, 15), Text = "Score " .. fmt(entry.score), TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
-		text(row, { Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 15), Text = open and "▲" or "▼", TextColor3 = INK_DIM })
+		text(row0, { Size = UDim2.new(1, -86, 0, sz.body + 2), Position = UDim2.fromOffset(58, 4), Text = "Night " .. tostring(entry.night), TextXAlignment = Enum.TextXAlignment.Left, TextSize = sz.body })
+		text(row0, { Size = UDim2.new(1, -86, 0, 16), Position = UDim2.fromOffset(58, rowH - 20), Text = (MODE_TAGS[entry.mode] or "Standard") .. ", score " .. fmt(entry.score), Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, TextSize = 14 })
+		text(row0, { Size = UDim2.fromOffset(22, 22), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, (rowH - 22) // 2), Text = open and "▲" or "▼", TextColor3 = INK_DIM, TextSize = 14 })
 		if open then
 			local names = {}
 			for _, id in ipairs(entry.patrons or {}) do
 				local def = Patrons.getById(id)
 				names[#names + 1] = def and def.name or id
 			end
-			text(row, { Size = UDim2.new(1, -20, 0, 40), Position = UDim2.fromOffset(10, 56), TextSize = 15, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "Patrons: " .. (#names > 0 and table.concat(names, ", ") or "none") })
-			text(row, {
-				Size = UDim2.new(1, -20, 0, 22), Position = UDim2.fromOffset(10, 96), TextSize = 15, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-				Text = string.format("%s stake, %d hands%s", stakeDef and stakeDef.name or "Regular", entry.hands or 0, entry.bestHand and (", best hand " .. entry.bestHand.name .. " for " .. fmt(entry.bestHand.score)) or ""),
+			text(row0, { Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, rowH + 2), TextSize = 14, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Text = "Patrons: " .. (#names > 0 and table.concat(names, ", ") or "none") })
+			text(row0, {
+				Size = UDim2.new(1, -20, 0, 20), Position = UDim2.fromOffset(10, rowH + 40), TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+				Text = string.format("%s stake, %d hands%s", stakeDef and stakeDef.name or "Regular", entry.hands or 0, entry.bestHand and (", best " .. entry.bestHand.name .. " " .. fmt(entry.bestHand.score)) or ""),
 			})
 			if entry.seed then
-				text(row, { Size = UDim2.fromOffset(46, 22), Position = UDim2.fromOffset(10, 122), Text = "Seed", TextXAlignment = Enum.TextXAlignment.Left })
+				text(row0, { Size = UDim2.fromOffset(40, 22), Position = UDim2.fromOffset(10, rowH + 66), Text = "Seed", TextXAlignment = Enum.TextXAlignment.Left, TextSize = 14 })
 				local seedBox = Instance.new("TextBox") -- read-only: select, then Ctrl+C (games cannot write the clipboard)
-				seedBox.Size = UDim2.fromOffset(170, 24)
-				seedBox.Position = UDim2.fromOffset(58, 121)
+				seedBox.Size = UDim2.fromOffset(120, 24)
+				seedBox.Position = UDim2.fromOffset(52, rowH + 65)
 				seedBox.BackgroundColor3 = Color3.fromRGB(34, 48, 40)
 				seedBox.BorderSizePixel = 0
 				seedBox.Font = Enum.Font.GothamBold
-				seedBox.TextSize = 16
+				seedBox.TextSize = 14
 				seedBox.TextColor3 = Color3.fromRGB(232, 190, 108)
 				seedBox.ClearTextOnFocus = false
 				seedBox.TextEditable = false
 				seedBox.Text = entry.seed
 				seedBox.ZIndex = Z + 9
-				seedBox.Parent = row
+				seedBox.Parent = row0
 				deps.roundCorner(seedBox, 6)
 			end
 		end
@@ -391,36 +444,35 @@ function LedgerBook.build(deps, desk)
 	end
 
 	local function recordsRight(stats)
-		local h = pad(rightPage)
-		heading(h, "Run list")
+		heading("right", "Run list")
+		local b = band("right", 2, 9)
 		local scroll = Instance.new("ScrollingFrame")
-		scroll.Position = UDim2.fromOffset(0, 48)
-		scroll.Size = UDim2.new(1, 0, 1, -48)
+		scroll.Size = UDim2.fromScale(1, 1)
 		scroll.BackgroundTransparency = 1
 		scroll.BorderSizePixel = 0
-		scroll.ScrollBarThickness = 8
+		scroll.ScrollBarThickness = 6
 		scroll.ScrollBarImageColor3 = BRASS
 		scroll.ScrollBarImageTransparency = 0
 		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		scroll.CanvasSize = UDim2.new()
 		scroll.ZIndex = Z + 2
-		scroll.Parent = h
+		scroll.Parent = b
 		local layout = Instance.new("UIListLayout")
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0, 6)
+		layout.Padding = UDim.new(0, 5)
 		layout.Parent = scroll
 		listHolder = scroll
 		rebuildRight(stats)
-		if #Pages.records(stats).rows == 0 then emptyNote(rightPage) end
+		if #Pages.records(stats).rows == 0 then emptyNote("right") end
 	end
 
 	-- ===== page painting, tabs, turning =====
 	local tabButtons = {}
 	local function paintSide(side, state)
 		local stats = state and state.runStats or {}
-		local page = side == "left" and leftPage or rightPage
+		local page = pageOf(side)
 		clear(page)
-		ruledLines(page)
+		ruledLines(side)
 		local kept = {}
 		for _, c in ipairs(counters) do
 			if c.label.Parent then kept[#kept + 1] = c end -- drop the counters of the page just cleared
@@ -428,8 +480,8 @@ function LedgerBook.build(deps, desk)
 		counters = kept
 		if side == "right" then listHolder = nil end
 		if Pages.isEmpty(stats) then
-			emptyNote(page)
-			if side == "left" then heading(pad(page), Pages.PAGES[pageIndex]) end
+			emptyNote(side)
+			if side == "left" then heading("left", Pages.PAGES[pageIndex]) end
 			return
 		end
 		if side == "left" then
@@ -443,66 +495,72 @@ function LedgerBook.build(deps, desk)
 		paintSide("right", state)
 	end
 
-	-- the open page's ribbon sticks out a little further to the left and is brighter
+	-- the open page's ribbon sticks out a little further and is brighter; the ribbons hang off the right edge of the book
+	local T = Layout.TABS
 	local function paintTabs()
 		for i, b in ipairs(tabButtons) do
 			local on = i == pageIndex
 			b.BackgroundColor3 = on and Color3.fromRGB(150, 44, 44) or Color3.fromRGB(108, 34, 34)
 			b.TextColor3 = on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(224, 196, 168)
-			b.Size = UDim2.fromScale(R.tabs.w + (on and 0.008 or 0), 0.105)
-			b.Position = UDim2.fromScale(R.tabs.x - (on and 0.008 or 0), R.tabs.y + (i - 1) * 0.125)
+			b.Size = UDim2.fromScale(T.w + (on and 0.012 or 0), T.h)
+			b.Position = UDim2.fromScale(T.x, T.y + (i - 1) * T.step)
 		end
 	end
 
-	-- A real page flip: a paper sheet anchored at the spine squashes its width from full to 0 on one side, then grows on the
-	-- other (Quad easing, FLIP_TIME in total) with a soft moving shadow on its free edge and a brighter fold at the spine.
-	-- Forward turns go right to left, backward turns left to right. Each page's new content is painted while the sheet
-	-- covers it, so it appears as the sheet passes.
-	local FLIP_TIME = 0.4
+	-- A real page flip: a sheet cut from the SAME art as the pages (the page box of ledger_book_open, so colour, texture
+	-- and ruled lines match exactly) squashes its width to 0 about the gutter over 0.22 s (Quad in), then the destination
+	-- page's sheet grows from the gutter over 0.22 s (Quad out) with a soft shadow strip on its free edge. Forward turns go
+	-- right to left, backward turns left to right. The sheet is tilted like the page and never leaves the page box.
+	local FLIP_TIME = 0.44
 	local flipToken = 0
 	local activeSheet
-	local function buildSheet(startAnchor)
-		local W = 0.47
-		local sheet = piece(book, {
-			Name = "PageFlip", AnchorPoint = Vector2.new(startAnchor, 0), Position = UDim2.fromScale(0.5, R.right.y), Size = UDim2.fromScale(W, R.right.h),
-			BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false,
-		}, 4)
-		stroke(sheet, Color3.fromRGB(205, 186, 150), 1)
-		for i = 1, 8 do -- faint ruled lines
-			piece(sheet, { Position = UDim2.new(0.07, 0, 0.1 * i, 0), Size = UDim2.new(0.86, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(222, 205, 172), ZIndex = Z + 10 })
+	local function placeSheet(sheet, image, shadow, side, width)
+		local box = Layout.pageBox(side)
+		local gutterAnchor = side == "right" and 0 or 1 -- the sheet is hinged on the page edge nearest the gutter
+		sheet.AnchorPoint = Vector2.new(gutterAnchor, 0)
+		sheet.Position = UDim2.fromScale(gutterAnchor == 0 and box.x or (box.x + box.w), box.y)
+		sheet.Size = UDim2.fromScale(width * box.w, box.h)
+		sheet.Rotation = Layout.pageAngle(side)
+		if image then
+			-- the image is the whole book scaled so its page box fills the sheet; anchoring it on the hinge edge keeps the
+			-- page art glued to the sheet while the sheet squashes
+			image.Size = UDim2.fromScale(1 / box.w, 1 / box.h)
+			image.AnchorPoint = Vector2.new(gutterAnchor == 0 and box.x or (box.x + box.w), box.y)
+			image.Position = UDim2.fromScale(gutterAnchor, 0)
 		end
-		piece(sheet, { Name = "Fold", AnchorPoint = Vector2.new(startAnchor, 0), Position = UDim2.fromScale(startAnchor, 0), Size = UDim2.fromScale(0.07, 1), BackgroundColor3 = Color3.fromRGB(255, 250, 235), BackgroundTransparency = 0.45, ZIndex = Z + 10 })
-		local shadow = piece(sheet, { Name = "FlipShadow", AnchorPoint = Vector2.new(1 - startAnchor, 0), Position = UDim2.fromScale(1 - startAnchor, 0), Size = UDim2.new(0, 28, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 0.72, ZIndex = Z + 8 }, 10)
-		return sheet, shadow, W
+		shadow.AnchorPoint = Vector2.new(1 - gutterAnchor, 0)
+		shadow.Position = UDim2.fromScale(1 - gutterAnchor, 0)
+	end
+	local function buildSheet()
+		local sheet = piece(book, { Name = "PageFlip", BackgroundColor3 = PAGE, BackgroundTransparency = bookArt and 1 or 0, ClipsDescendants = true, ZIndex = Z + 9, Active = false }, 4)
+		local image = bookArt and artOver(sheet, "ledger_book_open", { ZIndex = Z + 10 }) or nil
+		local shadow = piece(sheet, { Name = "FlipShadow", Size = UDim2.new(0, 22, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 0.7, ZIndex = Z + 11 }, 8)
+		return sheet, image, shadow
 	end
 
 	local function flip(forward, state)
 		flipToken = flipToken + 1
 		local token = flipToken
-		local startAnchor = forward and 0 or 1
 		local firstSide, secondSide = forward and "right" or "left", forward and "left" or "right"
-		local sheet, shadow, W = buildSheet(startAnchor)
+		local sheet, image, shadow = buildSheet()
+		placeSheet(sheet, image, shadow, firstSide, 1)
 		activeSheet = sheet
-		paintSide(firstSide, state) -- hidden under the sheet
+		paintSide(firstSide, state) -- the new page under the departing sheet
 		local half = FLIP_TIME / 2
-		TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromScale(0, R.right.h) }):Play()
+		local box1 = Layout.pageBox(firstSide)
+		TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromScale(0, box1.h) }):Play()
 		task.delay(half, function()
 			if token ~= flipToken or not sheet.Parent then return end
-			local a = 1 - startAnchor -- cross the spine: the sheet now grows from it over the other page
-			sheet.AnchorPoint = Vector2.new(a, 0)
-			shadow.AnchorPoint = Vector2.new(1 - a, 0)
-			shadow.Position = UDim2.fromScale(1 - a, 0)
-			local fold = sheet:FindFirstChild("Fold")
-			if fold then fold.AnchorPoint = Vector2.new(a, 0); fold.Position = UDim2.fromScale(a, 0) end
-			TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(W, R.right.h) }):Play()
+			placeSheet(sheet, image, shadow, secondSide, 0) -- across the gutter: the sheet now grows over the other page
+			local box2 = Layout.pageBox(secondSide)
+			TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(box2.w, box2.h) }):Play()
 			task.delay(half, function()
 				if token ~= flipToken or not sheet.Parent then return end
-				paintSide(secondSide, state) -- the sheet has landed on it; the new page shows as the sheet fades
-				TweenService:Create(sheet, TweenInfo.new(0.08), { BackgroundTransparency = 1 }):Play()
-				for _, c in ipairs(sheet:GetDescendants()) do
-					if c:IsA("Frame") then TweenService:Create(c, TweenInfo.new(0.08), { BackgroundTransparency = 1 }):Play() end
-				end
-				task.delay(0.1, function()
+				paintSide(secondSide, state) -- the sheet has landed; the new text fades in as it lifts
+				TweenService:Create(sheet, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
+				if image then TweenService:Create(image, TweenInfo.new(0.1), { ImageTransparency = 1 }):Play() end
+				TweenService:Create(shadow, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
+				task.delay(0.12, function()
 					if activeSheet == sheet then activeSheet = nil end
 					sheet:Destroy()
 				end)
@@ -513,7 +571,8 @@ function LedgerBook.build(deps, desk)
 	-- calm mode: paint now and fade a paper veil off the pages in 0.12 s
 	local function crossfade(state)
 		paint(state)
-		local veil = piece(book, { Name = "PageVeil", Position = UDim2.fromScale(R.left.x, R.left.y), Size = UDim2.fromScale(R.right.x + R.right.w - R.left.x, R.left.h), BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false }, 6)
+		local l, r = Layout.pageBox("left"), Layout.pageBox("right")
+		local veil = piece(book, { Name = "PageVeil", Position = UDim2.fromScale(l.x, l.y), Size = UDim2.fromScale(r.x + r.w - l.x, l.h), BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false }, 6)
 		TweenService:Create(veil, TweenInfo.new(0.12), { BackgroundTransparency = 1 }):Play()
 		task.delay(0.14, function() veil:Destroy() end)
 	end
@@ -537,7 +596,7 @@ function LedgerBook.build(deps, desk)
 
 	local function stampIn(kinds)
 		if #kinds == 0 or pageIndex ~= 1 then return end
-		local mark = stamp(leftPage, UDim2.new(1, -120, 0, 60), true, 90)
+		local mark = stamp(leftPage, UDim2.new(1, -84, 0, 8), true, 70)
 		local s = Instance.new("UIScale")
 		s.Parent = mark
 		if calm() then return end
@@ -580,9 +639,7 @@ function LedgerBook.build(deps, desk)
 		tab.BorderSizePixel = 0
 		tab.AutoButtonColor = true
 		tab.ZIndex = Z + 3
-		tab.Parent = desk
-		tab.Size = UDim2.fromScale(R.tabs.w, 0.105)
-		tab.Position = UDim2.fromScale(R.tabs.x, R.tabs.y + (i - 1) * 0.125)
+		tab.Parent = book
 		deps.roundCorner(tab, 6)
 		tab.MouseButton1Click:Connect(function()
 			if i == pageIndex then return end
