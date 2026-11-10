@@ -74,10 +74,15 @@ end
 -- Horizontal mask for a painting `width` px wide: transparency keypoints { t, transparency } for a UIGradient
 -- (NumberSequence). Fully clear (1) at a faded edge easing to opaque (0) over fadeL px on the left and fadeR px on the
 -- right (smootherstep, `perSide` keypoints per faded side, default 10). t runs 0..1 and never decreases.
+-- Roblox allows at most 20 keypoints in a NumberSequence or ColorSequence, so perSide is capped to keep the total at 20 or less
+-- (a faded side has perSide + 1 points and an unfaded side one: both faded gives at most 10 + 10, one faded at most 19 + 1).
+RegionTiles.MAX_KEYPOINTS = 20
+
 function RegionTiles.maskStops(width, fadeL, fadeR, perSide)
-	perSide = math.max(8, math.floor(perSide or 10))
 	width = math.max(1, width)
 	fadeL, fadeR = math.max(0, fadeL or 0), math.max(0, fadeR or 0)
+	local both = fadeL > 0 and fadeR > 0
+	perSide = math.max(8, math.min(math.floor(perSide or 10), both and (RegionTiles.MAX_KEYPOINTS // 2 - 1) or (RegionTiles.MAX_KEYPOINTS - 2)))
 	local total = fadeL + fadeR
 	if total > width then -- the two fades share the width when it is too small for both
 		fadeL, fadeR = fadeL * width / total, fadeR * width / total

@@ -22,6 +22,7 @@ M.GAP = { -- { x, y } between cells (the grid's CellPadding)
 	cork = { x = 10, y = 10 }, trophy = { x = 10, y = 14 }, key = { x = 10, y = 14 }, plate = { x = 10, y = 18 },
 }
 M.TAB_KIND = { recipes = "cork", bonds = "cork", bosses = "trophy", housePasses = "key", titles = "plate" }
+M.PLAIN = { patrons = true } -- tabs that deliberately draw plain cells (the Patrons tab hangs on the gallery wall instead)
 M.MARGIN = 14 -- the cork board shows this far past its outer cards
 M.EDGE = 6 -- wooden frame strip on the board's outer edges
 M.PLANK_H = 20

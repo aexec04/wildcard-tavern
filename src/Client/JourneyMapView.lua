@@ -596,24 +596,9 @@ return function(deps)
 	sparkleLayer.ZIndex = 32
 	sparkleLayer.Parent = canvas
 
-	-- ===== Edge fades: stepped black strips so the horizontal scroll is obvious =====
-	-- (Frame transparencies only; no UIGradient transparency.)
-	local FADE_STEPS = { 0.2, 0.4, 0.55, 0.7, 0.8, 0.88, 0.94, 0.98 }
-	for side = 1, 2 do
-		for i, tr in ipairs(FADE_STEPS) do
-			local strip = Instance.new("Frame")
-			strip.Name = side == 1 and "FadeLeft" or "FadeRight"
-			strip.AnchorPoint = Vector2.new(side == 1 and 0 or 1, 0)
-			strip.Position = UDim2.new(side == 1 and 0 or 1, side == 1 and (8 + (i - 1) * 6) or -(8 + (i - 1) * 6), 0, 6)
-			strip.Size = UDim2.new(0, 6, 1, -12)
-			strip.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			strip.BackgroundTransparency = tr
-			strip.BorderSizePixel = 0
-			strip.Active = false
-			strip.ZIndex = 36
-			strip.Parent = frame
-		end
-	end
+	-- ===== Edge fades so the horizontal scroll is obvious: ONE smooth gradient frame per side (no stepped strips) =====
+	require(script.Parent.SmoothVignette).build(frame, { zIndex = 36, color = Color3.fromRGB(0, 0, 0), name = "MapEdgeFade",
+		left = { strength = 0.7, extent = 0.04 }, right = { strength = 0.7, extent = 0.04 } })
 
 	-- ===== Layout: one winding trail left to right =====
 	-- Nodes sit at least MIN_SPACING apart on a gentle zig-zag; even nodes ride high

@@ -137,6 +137,21 @@ return function(deps)
 		regionHolders[i] = h
 	end
 
+	-- RegionTiles.maskStops points -> NumberSequence. Roblox allows at most 20 keypoints, so anything longer is resampled evenly.
+	local function maskSequence(pts)
+		local max = RegionTiles.MAX_KEYPOINTS
+		local kps = {}
+		if #pts <= max then
+			for _, p in ipairs(pts) do kps[#kps + 1] = NumberSequenceKeypoint.new(p.t, p.transparency) end
+		else
+			for i = 1, max do
+				local p = pts[1 + math.floor((i - 1) * (#pts - 1) / (max - 1) + 0.5)]
+				kps[#kps + 1] = NumberSequenceKeypoint.new(i == 1 and 0 or (i == max and 1 or p.t), p.transparency)
+			end
+		end
+		return NumberSequence.new(kps)
+	end
+
 	-- Top and bottom feathers: one full-width parchment frame per edge fading to clear, so a painting never ends in a straight cut.
 	local function feather(name, up)
 		local f = Instance.new("Frame")
@@ -147,10 +162,7 @@ return function(deps)
 		f.Parent = layer
 		local g = Instance.new("UIGradient")
 		g.Rotation = 90
-		local pts = RegionTiles.maskStops(1, up and 0 or 1, up and 1 or 0, 10) -- fully parchment at the canvas edge, clear inward
-		local kps = {}
-		for _, p in ipairs(pts) do kps[#kps + 1] = NumberSequenceKeypoint.new(p.t, p.transparency) end
-		g.Transparency = NumberSequence.new(kps)
+		g.Transparency = maskSequence(RegionTiles.maskStops(1, up and 0 or 1, up and 1 or 0, 10)) -- fully parchment at the canvas edge, clear inward
 		g.Parent = f
 		return f
 	end
@@ -181,11 +193,7 @@ return function(deps)
 		img.ZIndex = z
 		img.Parent = parent
 		local mask = Instance.new("UIGradient") -- the mask: smootherstep from clear to opaque, at least 8 keypoints per faded side
-		local kps = {}
-		for _, p in ipairs(RegionTiles.maskStops(w, fadeL, fadeR, 10)) do
-			kps[#kps + 1] = NumberSequenceKeypoint.new(p.t, p.transparency)
-		end
-		mask.Transparency = NumberSequence.new(kps)
+		mask.Transparency = maskSequence(RegionTiles.maskStops(w, fadeL, fadeR, 10))
 		mask.Parent = img
 		return img
 	end

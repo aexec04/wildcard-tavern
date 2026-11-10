@@ -131,6 +131,12 @@ return function(deps)
 
 	-- Gallery back wall (Client/CollectionWall.lua): mounts only once the collection_scene Image ids are recorded.
 	local Gallery = require(script.Parent.CollectionGallery)
+	-- Per-cell furniture (Client/CollectionFurniture.lua). Always a table: if the require fails, kind() is nil and every tab draws plain cells.
+	local Furn
+	do
+		local okFurn, mod = pcall(require, script.Parent.CollectionFurniture)
+		Furn = okFurn and type(mod) == "table" and mod or { kind = function() return nil end }
+	end
 	pcall(function()
 		local wall = require(script.Parent.CollectionWall).mount(panel)
 		if wall then Gallery.mountAlive(wall, panel, backdrop) end -- lantern flicker and the moth (off in calm mode)
