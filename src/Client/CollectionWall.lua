@@ -38,7 +38,7 @@ function CollectionWall.mount(panel)
 	local scrim = Instance.new("Frame")
 	scrim.Name = "CollectionWallScrim"
 	scrim.BackgroundColor3 = Color3.fromRGB(14, 8, 4)
-	scrim.BackgroundTransparency = 0.45
+	scrim.BackgroundTransparency = 0.85 -- the wall shows at about 85 percent; the grid reads on the plates and frames, not on a dark slab
 	scrim.BorderSizePixel = 0
 	scrim.Active = false
 	scrim.ZIndex = panel.ZIndex
@@ -54,6 +54,8 @@ function CollectionWall.mount(panel)
 	end
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(relayout)
 	relayout()
+	-- soft stepped vignette at the edges only (Frames, no gradients)
+	pcall(function() require(script.Parent.PanelArt).vignette(wall, panel.ZIndex) end)
 	return wall
 end
 

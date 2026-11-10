@@ -789,7 +789,7 @@ return function(deps)
 		local parts
 		if framed then
 			tile.AutoButtonColor = false
-			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???", found and CREAM or SOFT_CREAM)
+			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???")
 		else
 			roundCorner(tile, 8)
 			-- Rarity glow: a colored stroke plus a soft wash behind the icon.
@@ -809,6 +809,8 @@ return function(deps)
 		iconWell.ZIndex = 23
 		iconWell.Parent = tile
 		roundCorner(iconWell, wellRadius)
+		-- a locked frame hangs under its dust cloth: the portrait and the padlock are hidden (the tooltip still says locked)
+		if framed and not found then iconWell.Visible = false end
 
 		local icon = label(iconWell, {
 			Size = UDim2.fromScale(1, 1), TextSize = framed and 28 or 34, ZIndex = 23, Text = iconFor(item),
@@ -845,6 +847,9 @@ return function(deps)
 			})
 		end
 
+		-- hand-hung: a fixed tiny tilt and offset per Patron (the "New" tag and the drop-in follow it)
+		local hang = framed and Gallery.hangTile(tile, item.id) or nil
+
 		-- newly found since the Collection was last opened: a brass "New" tag, and (once) a drop-in
 		local freshKey = item.tab .. ":" .. tostring(item.id)
 		if found and freshKeys[freshKey] then
@@ -854,6 +859,7 @@ return function(deps)
 				Gallery.dropIn(tile)
 			end
 		end
+		if hang then Gallery.bindHover(tile, hang) end -- hover straightens, lifts 3 px and sways once
 
 		if found and item.tab == "titles" and view.equippedTitleId == item.id then
 			label(tile, {
@@ -931,6 +937,9 @@ return function(deps)
 		buildToken = buildToken + 1
 		local mine = buildToken
 		grid.CellSize = Gallery.cellSize(activeTabId) -- framed portraits are taller than the plain tiles
+		local hungGap = Gallery.framed(activeTabId) and SceneLayout.FRAMED_GAP or nil -- wider gaps so chains and shadows fit
+		grid.CellPadding = hungGap and UDim2.fromOffset(hungGap.x, hungGap.y) or UDim2.fromOffset(10, 10)
+		gridPadding.PaddingTop = UDim.new(0, hungGap and (SceneLayout.CHAIN_H + 8) or 4)
 		local items = CollectionBook.displayItems(activeTabId, hiddenRarities)
 		for i = 1, math.min(#items, TILE_BATCH) do
 			makeTile(items[i], i, view)

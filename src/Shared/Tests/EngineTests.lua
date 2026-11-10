@@ -13789,6 +13789,58 @@ table.insert(tests, { name = "CollectionSceneLayout: New ids diff, lantern flick
 	end
 end })
 
+table.insert(tests, { name = "Collection Patrons wall: frames hang on chains with shadows, wide gaps, a stable hand-hung offset and tilt, locked frames differ, wall shows through", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
+	local gap, cell = L.FRAMED_GAP, L.FRAMED_CELL
+	expectTrue(gap.x >= 14 and gap.y >= 26, "gaps at least 14 px across and 26 px down")
+	expectTrue(L.CHAIN_H + 8 <= gap.y + 8 + 6, "the nail and chain fit the vertical gap plus the scroll's top padding")
+	local ch = L.chain()
+	expectEqual(#ch.lines, 2, "two short chains in a V")
+	for _, ln in ipairs(ch.lines) do
+		expectTrue(ln.cy < 4 and ln.len > 10 and math.abs(ln.angle) < 90, "each chain runs from the nail down to a top corner of the frame")
+	end
+	expectTrue(ch.nail.y == -L.CHAIN_H and ch.nail.x == cell.w / 2, "one brass nail centred above the frame")
+	expectTrue(L.SHADOW.dx == 3 and L.SHADOW.dy == 5 and math.abs(L.SHADOW.transparency - 0.65) < 1e-9, "shadow 3 px right, 5 px down, 35 percent dark")
+	local seen = {}
+	for _, id in ipairs({ "dealer", "lucky_pete", "sly_fox", "marlo", "pit_boss", "wildcard", "the_baron", "x1", "x2", "x3" }) do
+		local h = L.hang(id)
+		local again = L.hang(id)
+		expectTrue(h.dy == again.dy and h.tilt == again.tilt, "hang is stable per id: " .. id)
+		expectTrue(h.dy >= 0 and h.dy <= 3 and math.abs(h.tilt) <= 1.5 + 1e-9, "offset within 3 px and tilt within 1.5 degrees: " .. id)
+		seen[h.tilt] = true
+	end
+	local distinct = 0
+	for _ in pairs(seen) do distinct = distinct + 1 end
+	expectTrue(distinct >= 4, "different Patrons hang differently")
+	-- a row of frames inside the panel at the three screen sizes, plate attached to the frame, locked crop differs from owned
+	for _, w in ipairs({ 1500, 900, 360 }) do
+		local cols = math.max(1, math.floor((w - 30 - 16 + gap.x) / (cell.w + gap.x)))
+		expectTrue(cols * cell.w + (cols - 1) * gap.x <= w, "a row of frames fits at width " .. w)
+	end
+	local owned, empty = L.framedParts("owned"), L.framedParts("empty")
+	expectTrue(owned.plate.y < owned.frame.h and owned.plate.y + owned.plate.h > owned.frame.h, "the brass plate overlaps the bottom edge of the frame (attached)")
+	expectTrue(owned.plate.y + owned.plate.h <= cell.h, "plate inside the cell")
+	expectTrue(L.FRAMES.owned.w ~= L.FRAMES.empty.w and empty.icon.w > 0, "owned and locked frames use their own crops")
+	local f = io and io.open and io.open("src/Client/CollectionGallery.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('Name = "WallShadow"', 1, true) ~= nil and src:find('Name = "Nail"', 1, true) ~= nil and src:find('Name = "Chain"', 1, true) ~= nil, "shadow, nail and chain are drawn")
+		expectTrue(src:find("function CollectionGallery.hangTile", 1, true) ~= nil and src:find("function CollectionGallery.bindHover", 1, true) ~= nil, "hand-hung tilt and hover")
+		expectTrue(src:find("if calm() then\n\t\t\ttile.Rotation = rot", 1, true) ~= nil, "calm mode hovers without tweens")
+	end
+	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if c then
+		local src = c:read("*a"); c:close()
+		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) ~= nil, "locked frames hide the portrait and the padlock")
+		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
+	end
+	local w = io and io.open and io.open("src/Client/CollectionWall.lua", "r")
+	if w then
+		local src = w:read("*a"); w:close()
+		expectTrue(src:find("scrim.BackgroundTransparency = 0.85", 1, true) ~= nil and src:find("PanelArt).vignette", 1, true) ~= nil, "light scrim and a soft edge vignette")
+	end
+end })
+
 table.insert(tests, { name = "Collection Gallery: framed portraits fit their cell, lanterns land on the wall art, moth is rare and off in calm mode, New tags and drop-in wired, calm mode skips every loop", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
 	local parts = L.framedParts()

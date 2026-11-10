@@ -37,30 +37,44 @@ function CollectionGallery.cellSize(tabId)
 	return UDim2.fromOffset(92, 108)
 end
 
-function CollectionGallery.frameTile(tile, found, rarityColor, nameText, nameColor)
-	local parts = Layout.framedParts()
+local BRASS, BRASS_RIM, ENGRAVE = Color3.fromRGB(190, 146, 64), Color3.fromRGB(112, 80, 30), Color3.fromRGB(52, 32, 10)
+
+local function box(parent, props, radius)
+	local f = Instance.new("Frame")
+	f.BorderSizePixel = 0
+	f.Active = false
+	for k, v in pairs(props) do f[k] = v end
+	f.Parent = parent
+	if radius then
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, radius)
+		c.Parent = f
+	end
+	return f
+end
+
+-- A Patron hung on the wall: a soft shadow on the wall behind it, a brass nail with two short chains, the gilt frame (lit when
+-- owned, under its grey dust cloth when locked) and a brass plate attached across the frame's bottom edge. Returns the cell parts.
+function CollectionGallery.frameTile(tile, found, rarityColor, nameText)
+	local kind = found and "owned" or "empty"
+	local parts = Layout.framedParts(kind)
 	tile.BackgroundTransparency = 1
-	local f = parts.frame
-	local clip = Instance.new("Frame")
-	clip.Name = "FrameCrop"
-	clip.BackgroundTransparency = 1
-	clip.BorderSizePixel = 0
-	clip.Active = false
-	clip.ClipsDescendants = true
-	clip.Position = UDim2.fromOffset(f.x, f.y)
-	clip.Size = UDim2.fromOffset(f.w, f.h)
-	clip.ZIndex = 22
-	clip.Parent = tile
-	local o = Layout.FRAME_OPENING
-	local back = Instance.new("Frame") -- dark canvas in the opening (the empty frame art is see-through there)
-	back.BackgroundColor3 = found and Color3.fromRGB(44, 30, 20) or Color3.fromRGB(22, 17, 14)
-	back.BorderSizePixel = 0
-	back.Active = false
-	back.Position = UDim2.fromScale(o.x, o.y)
-	back.Size = UDim2.fromScale(o.w, o.h)
-	back.ZIndex = 22
-	back.Parent = clip
-	local p = Layout.cropPlacement()
+	local f, sh = parts.frame, Layout.SHADOW
+	box(tile, { Name = "WallShadow", BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = sh.transparency,
+		Position = UDim2.fromOffset(f.x + sh.dx, f.y + sh.dy), Size = UDim2.fromOffset(f.w, f.h), ZIndex = 21 }, 8)
+	local chain = Layout.chain()
+	for _, ln in ipairs(chain.lines) do
+		box(tile, { Name = "Chain", BackgroundColor3 = Color3.fromRGB(122, 98, 62), AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(ln.cx, ln.cy), Size = UDim2.fromOffset(ln.len, 2), Rotation = ln.angle, ZIndex = 22 })
+	end
+	box(tile, { Name = "Nail", BackgroundColor3 = BRASS, AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(chain.nail.x, chain.nail.y), Size = UDim2.fromOffset(9, 9), ZIndex = 23 }, 4)
+	local clip = box(tile, { Name = "FrameCrop", BackgroundTransparency = 1, ClipsDescendants = true,
+		Position = UDim2.fromOffset(f.x, f.y), Size = UDim2.fromOffset(f.w, f.h), ZIndex = 22 })
+	local o = Layout.FRAMES[kind].opening
+	box(clip, { BackgroundColor3 = found and Color3.fromRGB(44, 30, 20) or Color3.fromRGB(26, 20, 16),
+		Position = UDim2.fromScale(o.x, o.y), Size = UDim2.fromScale(o.w, o.h), ZIndex = 22 }) -- canvas in the opening
+	local p = Layout.cropPlacement(kind)
 	local img = Instance.new("ImageLabel")
 	img.Name = found and "FrameOwned" or "FrameEmpty"
 	img.BackgroundTransparency = 1
@@ -70,37 +84,66 @@ function CollectionGallery.frameTile(tile, found, rarityColor, nameText, nameCol
 	img.Position = UDim2.fromScale(p.posX, p.posY)
 	img.ZIndex = 22
 	img.Parent = clip
-	-- brass name plate on a solid plate (readable text), rim in the rarity colour but soft
+	-- the brass plate is part of the frame: brass colour, dark engraved text, a soft rarity rim when owned
 	local pl = parts.plate
-	local plate = Instance.new("Frame")
-	plate.Name = "NamePlate"
-	plate.BackgroundColor3 = Color3.fromRGB(52, 36, 20)
-	plate.BorderSizePixel = 0
-	plate.Position = UDim2.fromOffset(pl.x, pl.y)
-	plate.Size = UDim2.fromOffset(pl.w, pl.h)
-	plate.ZIndex = 23
-	plate.Parent = tile
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 5)
-	corner.Parent = plate
+	local plate = box(tile, { Name = "NamePlate", BackgroundColor3 = BRASS, Position = UDim2.fromOffset(pl.x, pl.y),
+		Size = UDim2.fromOffset(pl.w, pl.h), ZIndex = 25 }, 4)
 	local rim = Instance.new("UIStroke")
-	rim.Color = found and rarityColor or Color3.fromRGB(96, 76, 52)
+	rim.Color = found and rarityColor or BRASS_RIM
 	rim.Thickness = 1.5
-	rim.Transparency = found and 0.3 or 0.5
+	rim.Transparency = found and 0.35 or 0.2
 	rim.Parent = plate
+	for _, side in ipairs({ 0, 1 }) do
+		box(plate, { BackgroundColor3 = BRASS_RIM, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(side, side == 0 and 5 or -5, 0.5, 0),
+			Size = UDim2.fromOffset(4, 4), ZIndex = 26 }, 2)
+	end
 	local name = Instance.new("TextLabel")
 	name.BackgroundTransparency = 1
-	name.Size = UDim2.fromScale(1, 1)
+	name.Size = UDim2.new(1, -16, 1, 0)
+	name.Position = UDim2.fromOffset(8, 0)
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 14
-	name.TextColor3 = nameColor
+	name.TextColor3 = ENGRAVE
 	name.TextTransparency = 0
 	name.TextStrokeTransparency = 1
 	name.TextTruncate = Enum.TextTruncate.AtEnd
 	name.Text = nameText
-	name.ZIndex = 24
+	name.ZIndex = 27
 	name.Parent = plate
 	return parts
+end
+
+-- Hand-hung look, stable per Patron id: a tiny fixed tilt and a few px of vertical offset (applied to every piece of the tile,
+-- the grid owns the tile's own position). Hover straightens the frame, lifts it 3 px and sways it once; calm mode does it instantly.
+function CollectionGallery.hangTile(tile, id)
+	local h = Layout.hang(id)
+	tile.Rotation = h.tilt
+	for _, c in ipairs(tile:GetChildren()) do
+		if c:IsA("GuiObject") then c.Position = c.Position + UDim2.fromOffset(0, h.dy) end
+	end
+	return h
+end
+
+function CollectionGallery.bindHover(tile, hang)
+	local pieces = {}
+	for _, c in ipairs(tile:GetChildren()) do
+		if c:IsA("GuiObject") then pieces[#pieces + 1] = { c = c, home = c.Position } end
+	end
+	local function go(on)
+		local lift = on and UDim2.fromOffset(0, -3) or UDim2.new()
+		local rot = on and 0 or hang.tilt
+		if calm() then
+			tile.Rotation = rot
+			for _, p in ipairs(pieces) do p.c.Position = p.home + lift end
+			return
+		end
+		TweenService:Create(tile, TweenInfo.new(on and 0.5 or 0.15, on and Enum.EasingStyle.Elastic or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Rotation = rot }):Play()
+		for _, p in ipairs(pieces) do
+			TweenService:Create(p.c, TweenInfo.new(0.12), { Position = p.home + lift }):Play()
+		end
+	end
+	tile.MouseEnter:Connect(function() go(true) end)
+	tile.MouseLeave:Connect(function() go(false) end)
 end
 
 -- a small brass "New" tag at the top left of a tile
