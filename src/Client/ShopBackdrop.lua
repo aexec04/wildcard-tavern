@@ -6,7 +6,7 @@
 	whole backdrop only mounts when shop_wall has an id, so until the art is recorded the Shop looks exactly as before.
 	Geometry comes from Engine/ShopSceneLayout.lua. Everything sits at ZIndex 5 under the offer cards and controls.
 
-	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout }   (nil when the art is not recorded yet)
+	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout(counts), marlo, marloId, marloWaveId }   (nil when the art is not recorded yet)
 ]]
 
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
@@ -86,6 +86,24 @@ function ShopBackdrop.new(deps)
 		c.Parent = light
 	end
 
+	-- Marlo stands behind the counter (painted shop_marlo_behind; ShopScene animates him and swaps in the wave piece).
+	local marloId = ContentArt.getImageId("shop_scene", "shop_marlo_behind")
+	local marlo = marloId and image(root, "Marlo", marloId, 5) or nil
+	if marlo then
+		marlo.ScaleType = Enum.ScaleType.Fit
+	end
+	self.marlo = marlo
+	self.marloId = marloId
+	self.marloWaveId = ContentArt.getImageId("shop_scene", "shop_marlo_wave")
+	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")
+	if poolId then
+		light.BackgroundTransparency = 1
+		local pool = image(root, "LightPoolArt", poolId, 5)
+		pool.ScaleType = Enum.ScaleType.Stretch
+		pool.ImageTransparency = 0.35
+		self.pool = pool
+	end
+
 	local counter = topId and image(root, "CounterTop", topId, 5) or nil
 	if counter then
 		crop(counter, Layout.COUNTER_CROP)
@@ -99,13 +117,17 @@ function ShopBackdrop.new(deps)
 		end
 	end
 
-	function self.relayout()
+	local counts = nil
+	function self.relayout(newCounts)
+		if type(newCounts) == "table" then counts = newCounts end
 		local size = shopFrame.AbsoluteSize
 		if size.X < 1 or size.Y < 1 then
 			return
 		end
-		local r = Layout.rects(size.X, size.Y)
+		local r = Layout.rects(size.X, size.Y, counts)
 		place(light, r.light)
+		if self.pool then place(self.pool, r.light) end
+		if marlo then place(marlo, r.marlo) end
 		if counter then
 			place(counter, r.counter)
 		end
@@ -118,7 +140,7 @@ function ShopBackdrop.new(deps)
 			end
 		end
 	end
-	shopFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(self.relayout)
+	shopFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() self.relayout() end)
 	self.relayout()
 	return self
 end

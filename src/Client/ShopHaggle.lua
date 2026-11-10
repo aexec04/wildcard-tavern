@@ -60,7 +60,7 @@ local function button(parent, text, color, size, position)
 	b.TextSize = 16
 	b.TextColor3 = CREAM
 	b.TextTransparency = 0
-	b.TextStrokeTransparency = 0.6
+	b.TextStrokeTransparency = 1 -- crisp: a stroke made the letters look squeezed together
 	b.Text = text
 	b.Size = size
 	b.Position = position or UDim2.new()

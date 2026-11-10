@@ -23,6 +23,10 @@ local MAX_AMBIENT = 12
 local INK = Color3.fromRGB(60, 40, 22)
 local PARCHMENT = Color3.fromRGB(235, 215, 170)
 
+local function ClientSettingsFast()
+	return require(script.Parent.ClientSettings).get("animSpeed") == "fast"
+end
+
 local function tween(obj, props, t, style, dir)
 	if obj and obj.Parent then
 		TweenService:Create(obj, TweenInfo.new(t, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
@@ -54,26 +58,14 @@ function ShopScene.new(deps)
 	scene.ClipsDescendants = true
 	scene.Parent = shopFrame
 
-	-- Warm vignette: four dark edge strips (Color stops only, no Transparency gradient).
-	local function edge(name, pos, size, rotation)
-		local f = Instance.new("Frame")
-		f.Name = name
-		f.Position = pos
-		f.Size = size
-		f.BackgroundColor3 = Color3.fromRGB(30, 18, 8)
-		f.BackgroundTransparency = 0.78
-		f.BorderSizePixel = 0
-		f.Active = false
-		f.ZIndex = 5
-		f.Parent = scene
-		local g = Instance.new("UIGradient")
-		g.Color = ColorSequence.new(Color3.fromRGB(40, 22, 10), Color3.fromRGB(120, 70, 30))
-		g.Rotation = rotation
-		g.Parent = f
+	-- Warm vignette: one smooth gradient frame per edge (the painted backdrop brings its own).
+	local painted = deps.backdrop ~= nil and deps.backdrop.marlo ~= nil
+	if not deps.backdrop then
+		local edge = { strength = 0.5, extent = 0.08 }
+		require(script.Parent.SmoothVignette).build(scene, {
+			name = "Vignette", zIndex = 5, color = Color3.fromRGB(30, 18, 8), top = edge, left = edge, right = edge,
+		})
 	end
-	edge("VignetteTop", UDim2.fromScale(0, 0), UDim2.new(1, 0, 0, 40), 90)
-	edge("VignetteLeft", UDim2.fromScale(0, 0), UDim2.new(0, 36, 1, 0), 0)
-	edge("VignetteRight", UDim2.new(1, -36, 0, 0), UDim2.new(0, 36, 1, 0), 180)
 
 	-- Counter strip across the lower third: dark plank with a lighter lip on top.
 	local counter = Instance.new("Frame")
@@ -196,6 +188,14 @@ function ShopScene.new(deps)
 	lid.Visible = false
 	lid.Parent = peddler
 
+	-- Painted Marlo behind the painted counter: the old flat dressing (counter strip, rail, portrait, glow) is not drawn.
+	local marlo = deps.backdrop and deps.backdrop.marlo or nil
+	if painted then
+		counter.Visible = false
+		rail.Visible = false
+		peddler.Visible = false
+	end
+
 	-- Speech bubble (parchment, 2 lines max).
 	local bubble = Instance.new("TextLabel")
 	bubble.Name = "PeddlerBubble"
@@ -264,6 +264,26 @@ function ShopScene.new(deps)
 		end)
 	end
 
+	-- Counter v2: park the speech plate near Marlo's shoulder (rect from Engine/ShopSceneLayout.rects).
+	function self.placeBubble(r)
+		if not painted or not r.bubble then return end
+		bubble.AnchorPoint = Vector2.new(0, 0)
+		bubble.Position = UDim2.fromOffset(r.bubble.x, r.bubble.y)
+		bubble.Size = UDim2.fromOffset(r.bubble.w, r.bubble.h)
+	end
+
+	-- Marlo's small reactions: rotation only, never flashing or red; skipped in calm mode.
+	local function marloMove(angles, step)
+		if not marlo or calm() then return end
+		task.spawn(function()
+			for _, angle in ipairs(angles) do
+				if not marlo.Parent then return end
+				tween(marlo, { Rotation = angle }, step)
+				task.wait(step)
+			end
+		end)
+	end
+
 	function self.say(event)
 		lineCount += 1
 		show(Lines.pick(event, seedFor(event)))
@@ -311,14 +331,19 @@ function ShopScene.new(deps)
 			local origin = shopFrame.AbsolutePosition
 			coin.Position = UDim2.fromOffset(mouse.X - origin.X, mouse.Y - origin.Y - 36)
 			coin.Parent = shopFrame
-			local target = peddler.AbsolutePosition - origin
+			local anchor = painted and marlo or peddler
+			local target = anchor.AbsolutePosition - origin
+			if painted then target = target + anchor.AbsoluteSize / 2 - Vector2.new(56, 40) end
 			tween(coin, { Position = UDim2.fromOffset(target.X + 56, target.Y + 40) }, 0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 			tween(coin, { Rotation = 360 }, 0.45)
 			task.delay(0.5, function()
 				coin:Destroy()
 			end)
 		end)
-		if ok then
+		if ok and painted then
+			marloMove({ 1.5, 0 }, 0.12) -- Marlo nods
+			if event == "buyPatron" then self.flyToken() end
+		elseif ok then
 			tween(peddler, { Position = UDim2.new(1, -16, 1, -56) }, 0.1)
 			task.delay(0.12, function()
 				tween(peddler, { Position = UDim2.new(1, -16, 1, -62) }, 0.15, Enum.EasingStyle.Back)
@@ -326,16 +351,47 @@ function ShopScene.new(deps)
 		end
 	end
 
+	-- A small gold Patron token flies from the click toward the sidebar Patron slots on the left (look only; skipped on
+	-- Fast speed and in calm mode).
+	function self.flyToken()
+		if not painted or calm() or ClientSettingsFast() then return end
+		pcall(function()
+			local mouse = UserInputService:GetMouseLocation()
+			local origin = shopFrame.AbsolutePosition
+			local token = Instance.new("Frame")
+			token.Name = "PatronToken"
+			token.AnchorPoint = Vector2.new(0.5, 0.5)
+			token.Size = UDim2.fromOffset(28, 28)
+			token.BackgroundColor3 = Color3.fromRGB(246, 208, 96)
+			token.BorderSizePixel = 0
+			token.Active = false
+			token.ZIndex = 10
+			token.Position = UDim2.fromOffset(mouse.X - origin.X, mouse.Y - origin.Y - 36)
+			token.Parent = shopFrame
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0.5, 0)
+			c.Parent = token
+			local s = Instance.new("UIStroke")
+			s.Color = Color3.fromRGB(150, 100, 30)
+			s.Thickness = 2
+			s.Parent = token
+			tween(token, { Position = UDim2.fromOffset(-math.floor(origin.X * 0.5), 160), BackgroundTransparency = 0.6 }, 0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			task.delay(0.6, function() token:Destroy() end)
+		end)
+	end
+
 	function self.onReroll()
 		Cue.play("shop_reroll")
 		self.say("reroll")
 		self.railShake()
+		marloMove({ -3, 2, 0 }, 0.09) -- Marlo sweeps his arm
 	end
 
 	-- Never red flashing: Marlo answers and the rail ropes give a small wobble.
 	function self.onCantAfford()
 		Cue.play("shop_cant")
 		self.say("cantAfford")
+		marloMove({ -2, 2, -1.5, 0 }, 0.07) -- a small shake of the head, no red
 		if not calm() then
 			for _, rope in ipairs(ropes) do
 				rope.Rotation = 0
@@ -398,6 +454,33 @@ function ShopScene.new(deps)
 		end)
 	end
 
+	-- Marlo breathes (1 percent scale, 4 s) while the shop is open; one wave per visit if shop_marlo_wave exists.
+	local breath
+	local function startMarlo()
+		if not marlo then return end
+		local scale = marlo:FindFirstChildOfClass("UIScale")
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Parent = marlo
+		end
+		scale.Scale = 1
+		if breath then breath:Cancel() end
+		if not calm() then
+			breath = TweenService:Create(scale, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.01 })
+			breath:Play()
+		end
+		local waveId = deps.backdrop.marloWaveId
+		if waveId and not calm() then
+			marlo.Image = waveId
+			task.delay(1.4, function()
+				if marlo.Parent then marlo.Image = deps.backdrop.marloId end
+			end)
+		end
+	end
+	local function stopMarlo()
+		if breath then breath:Cancel() breath = nil end
+	end
+
 	local running = false
 	local function loop()
 		if running then
@@ -453,7 +536,9 @@ function ShopScene.new(deps)
 			end
 			self.say(event)
 			loop()
+			startMarlo()
 		else
+			stopMarlo()
 			bubbleToken += 1
 			bubble.Visible = false
 			for _, mote in ipairs(motes) do
@@ -464,6 +549,7 @@ function ShopScene.new(deps)
 	end)
 	if shopFrame.Visible then
 		loop()
+		startMarlo()
 	end
 
 	return self

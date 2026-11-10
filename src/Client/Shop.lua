@@ -206,6 +206,7 @@ return function(deps)
 
 	local shopFrame
 	local shopScene -- ShopScene instance (nil if it failed to build)
+	local shopBackdrop, shopStage -- Counter v2 painted scene and its stage director (nil until the art is recorded)
 	local shopHaggle -- Haggle button, timing bar and Stranger card (Client/ShopHaggle.lua)
 	local nextRoundButton
 	local shopBuyListFrame
@@ -302,13 +303,13 @@ return function(deps)
 		-- Counter v2 back layers (Client/ShopBackdrop.lua): painted wall, vignette, counter top and props. Mounts only once
 		-- the shop_scene Image ids are recorded, so nothing changes before then. Look only.
 		pcall(function()
-			require(script.Parent.ShopBackdrop).new({ shopFrame = shopFrame })
+			shopBackdrop = require(script.Parent.ShopBackdrop).new({ shopFrame = shopFrame })
 		end)
 
 		-- Peddler's Wagon dressing (Client/ShopScene.lua): counter strip, rail, Marlo and ambient motes. Look only.
 		do
 			local ok, built = pcall(function()
-				return require(script.Parent.ShopScene).new({ shopFrame = shopFrame, getState = getLatestState })
+				return require(script.Parent.ShopScene).new({ shopFrame = shopFrame, getState = getLatestState, backdrop = shopBackdrop })
 			end)
 			shopScene = ok and built or nil
 			local okH, haggle = pcall(function()
@@ -473,6 +474,7 @@ return function(deps)
 			end
 			local chipRef = shopFrame:FindFirstChild("RecipeBoxChip")
 			if chipRef then chipRef.Visible = (key == "myrecipes") end
+			if shopStage then shopStage.setTab(key) end
 			for _, entry in ipairs(shopTabButtons) do
 				entry.button.BackgroundColor3 = (entry.key == key) and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
 			end
@@ -518,6 +520,18 @@ return function(deps)
 		nextRoundButton.Parent = shopFrame
 		polishButton(nextRoundButton, 10)
 		addButtonHoverScale(nextRoundButton)
+
+		-- Counter v2 stage director (Client/ShopStage.lua): nil until the painted scene art is recorded.
+		do
+			local okStage, built = pcall(function()
+				return require(script.Parent.ShopStage).new({
+					shopFrame = shopFrame, buyList = shopBuyListFrame, contentArea = shopContentArea,
+					tabBar = shopTabBar, plaque = shopTitle, nextRoundButton = nextRoundButton, backdrop = shopBackdrop,
+					onLayout = function(r) if shopScene and shopScene.placeBubble then shopScene.placeBubble(r) end end,
+				})
+			end)
+			shopStage = okStage and built or nil
+		end
 
 		-- ----- Recipe target picker panel -----
 		-- Sits directly on shopFrame (a sibling of the tab bar/content area,
@@ -1215,6 +1229,8 @@ return function(deps)
 			return nextOrder
 		end
 
+		local fitScaleValue, stageScales, patronRow, packRow, emptyScene -- Counter v2 stage (stageScales stays nil when the art is missing)
+
 		-- Size the cards so the strip, both rows and their labels fit the panel (CardShape.fitScale);
 		-- the footer with Next Round is reserved outside this scroll area, so no card sits under it.
 		do
@@ -1224,7 +1240,12 @@ return function(deps)
 			local availW = area.X > 0 and area.X or (vp.X - 20)
 			local availH = area.Y > 0 and area.Y or (vp.Y - 148)
 			local widest = math.max(#(state.shopOffers or {}) + (state.voucherOffer and 1 or 0), #(state.packOffers or {}), 1)
-			ShopCardsModule.setScale(require(Engine:WaitForChild("CardShape")).fitScale(availW, availH, vp.X, vp.Y, widest))
+			fitScaleValue = require(Engine:WaitForChild("CardShape")).fitScale(availW, availH, vp.X, vp.Y, widest)
+			ShopCardsModule.setScale(fitScaleValue)
+			if shopStage then
+				stageScales = shopStage.scales(state)
+				ShopCardsModule.setScale(stageScales.patron)
+			end
 		end
 
 		-- ----- Slim top strip: Reroll and the table count -----
@@ -1356,9 +1377,10 @@ return function(deps)
 		local offerCardsThisRebuild = {}
 		addSectionHeader(shopBuyListFrame, order(), "Patrons")
 		if #lastCardSlots == 0 then
-			shopCards.emptyScene(shopBuyListFrame, order(), "offers")
+			emptyScene = shopCards.emptyScene(shopBuyListFrame, order(), "offers")
 		else
 			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("patron"))
+			patronRow = row
 			for index, slotInfo in ipairs(lastCardSlots) do
 				local offer = slotInfo.offer
 				if slotInfo.sold then
@@ -1408,7 +1430,9 @@ return function(deps)
 		end
 		lastPackSlots = reconcileSlots(lastPackSlots, currentPacks)
 		if #lastPackSlots > 0 then
+			if stageScales then ShopCardsModule.setScale(stageScales.pack) end
 			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("pack"))
+			packRow = row
 			for index, slotInfo in ipairs(lastPackSlots) do
 				local pack = slotInfo.offer
 				if slotInfo.sold then
@@ -1437,6 +1461,8 @@ return function(deps)
 			end
 		end
 
+		if stageScales then ShopCardsModule.setScale(fitScaleValue) end -- My Patrons / My Recipes cards use the fit scale again
+
 		-- Only pop the cards in when the offer SET actually changed (fresh visit / Reroll).
 		local offerSignature = buildOfferSignature(state)
 		if offerSignature ~= lastShopOfferSignature then
@@ -1444,6 +1470,16 @@ return function(deps)
 			revealStagger(offerCardsThisRebuild, { stagger = 0.06, duration = 0.24, fromScale = 0.85 })
 		end
 		lastShopOfferSignature = offerSignature
+
+		if shopStage then
+			shopStage.arrange({
+				patronRow = patronRow, packRow = packRow, rerollRow = rerollRow, rerollButton = rerollButton, tableLabel = tableLabel,
+				emptyScene = emptyScene,
+				patronRowHeight = patronRow and patronRow.Size.Y.Offset or 0,
+				packRowHeight = packRow and packRow.Size.Y.Offset or 0,
+				counts = { offers = math.max(#lastCardSlots, 1), packs = #lastPackSlots },
+			})
+		end
 
 		refreshPackPanel(state)
 	end

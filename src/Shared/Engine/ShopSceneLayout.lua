@@ -102,6 +102,7 @@ function ShopSceneLayout.rects(W, H, counts)
 
 		local x0 = out.marlo.x + out.marlo.w * (1 - ShopSceneLayout.HOVER_OVERLAP * 0.9)
 		local x1 = W * 0.86
+		out.bandX0, out.bandX1 = math.floor(x0 + 0.5), math.floor(x1 + 0.5)
 		local gap = clamp(W * 0.012, 8, 24)
 		local maxCardH = H * 0.36
 		local n = math.max(nOffers, 1)
@@ -143,6 +144,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
 		out.marlo = rect(8, counterY + counterH * 0.04 - marloH, marloW, marloH)
 		-- two wrapped rows of items on the counter (Patrons first, then packs)
+		out.bandX0, out.bandX1 = 8, math.floor(W - 8)
 		local total = nOffers + nPacks
 		local perRow = 3
 		local rows = math.max(1, math.ceil(total / perRow))
@@ -176,6 +178,36 @@ function ShopSceneLayout.rects(W, H, counts)
 		out.light = rect(8, out.surfaceY, W - 16, counterH * 0.4)
 		local bx = out.marlo.x + out.marlo.w + 8
 		out.bubble = rect(bx, out.marlo.y, W - bx - 8, 54)
+	end
+	return out
+end
+
+-- Card sizes (Engine/CardShape numbers at scale 1: patron 220 x (250 + 36), pack 220 x (210 + 36)) that fit the
+-- offer and pack rects. Patrons and packs get their own scale because packs rest smaller on the counter.
+ShopSceneLayout.SCALE_MIN, ShopSceneLayout.SCALE_MAX = 0.35, 1.35
+function ShopSceneLayout.cardScales(r)
+	local function fit(rc, baseW, baseArt)
+		if not rc then return nil end
+		local s = math.min(rc.w / baseW, (rc.h - 36) / baseArt)
+		return clamp(s, ShopSceneLayout.SCALE_MIN, ShopSceneLayout.SCALE_MAX)
+	end
+	local patron = fit(r.offers[1], 220, 250) or 1
+	local pack = fit(r.packs[1], 220, 210) or patron
+	return { patron = patron, pack = pack }
+end
+
+-- Rects of the two scrolling card rows (transparent containers; the cards inside are centred). A row is the cards
+-- plus 16 px headroom above and 12 below (Client/ShopCards). Patron cards float HOVER_PX above the surface.
+-- hP and hK are the row heights ShopCards.rowHeight reports.
+function ShopSceneLayout.rows(r, hP, hK)
+	local out = {}
+	local x0, x1 = r.bandX0 or 8, r.bandX1 or (r.area.w - 8)
+	if r.offers[1] then
+		local y = r.phone and (r.offers[1].y - 16) or (r.surfaceY - ShopSceneLayout.HOVER_PX - (hP - 12))
+		out.patron = rect(x0, y, x1 - x0, hP)
+	end
+	if r.packs[1] then
+		out.pack = rect(x0, r.packs[1].y - 16, x1 - x0, hK)
 	end
 	return out
 end

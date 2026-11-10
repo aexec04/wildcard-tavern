@@ -14533,4 +14533,66 @@ table.insert(tests, { name = "Vignette: smooth curve, one gradient frame per edg
 	end
 end })
 
+table.insert(tests, { name = "Counter v2 stage: card scales fit the rects, rows sit on the counter at four sizes, stage keeps handlers and gates on the art", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 800, 450 }, { 360, 640 } }
+	for _, sz in ipairs(sizes) do
+		local W, H = sz[1], sz[2]
+		for _, counts in ipairs({ { offers = 3, packs = 2 }, { offers = 5, packs = 3 }, { offers = 2, packs = 0 } }) do
+			local tag = W .. "x" .. H .. " " .. counts.offers .. "/" .. counts.packs
+			local r = L.rects(W, H, counts)
+			local sc = L.cardScales(r)
+			expectTrue(sc.patron >= L.SCALE_MIN and sc.patron <= L.SCALE_MAX, "patron scale in range " .. tag)
+			local ps = CardShape.shape("patron", sc.patron)
+			if sc.patron > L.SCALE_MIN + 1e-9 then
+				expectTrue(ps.w <= r.offers[1].w + 1, "patron card fits its rect width " .. tag)
+				expectTrue(ps.h <= r.offers[1].h + 1, "patron card fits its rect height " .. tag)
+			end
+			local rows = L.rows(r, CardShape.shape("patron", sc.patron).h + 32, CardShape.shape("pack", sc.pack).h + 32)
+			expectTrue(rows.patron.x >= 0 and rows.patron.x + rows.patron.w <= W, "patron row inside horizontally " .. tag)
+			if not r.phone then
+				local bodyBottom = rows.patron.y + rows.patron.h - 12
+				expectEqual(bodyBottom, r.surfaceY - L.HOVER_PX, "patron cards float above the surface " .. tag)
+				expectTrue(r.bandX0 > r.marlo.x + r.marlo.w * 0.5, "card band starts right of Marlo " .. tag)
+			end
+			if counts.packs > 0 then expectTrue(rows.pack ~= nil, "pack row " .. tag) end
+		end
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local stage = read("src/Client/ShopStage.lua")
+	if stage then
+		expectTrue(stage:find("if not backdrop then", 1, true) ~= nil, "no art, no stage: the old Shop shows unchanged")
+		expectTrue(stage:find("FireServer", 1, true) == nil and stage:find("MouseButton1Click", 1, true) == nil, "the stage adds no handlers and fires no remotes")
+		expectTrue(stage:find("calm()", 1, true) ~= nil and stage:find("reduceShake", 1, true) ~= nil, "calm mode creates no bob tweens")
+		expectTrue(stage:find("Cancel", 1, true) ~= nil and stage:find("Visible", 1, true) ~= nil, "loops stop when the shop is hidden")
+	end
+	local shop = read("src/Client/Shop.lua")
+	if shop then
+		expectTrue(shop:find("ShopStage", 1, true) ~= nil and shop:find("shopStage.arrange", 1, true) ~= nil, "Shop mounts the stage and arranges after each rebuild")
+		for _, h in ipairs({ "RerollShopRemote:FireServer", "BuyPatronRemote:FireServer", "BuyPackRemote:FireServer", "BuyHousePassRemote:FireServer" }) do
+			expectTrue(shop:find(h, 1, true) ~= nil, "handler kept: " .. h)
+		end
+		expectTrue(shop:find("shopStage.setTab", 1, true) ~= nil, "My Patrons / My Recipes tabs switch the plate")
+	end
+	local scene = read("src/Client/ShopScene.lua")
+	if scene then
+		expectTrue(scene:find("painted", 1, true) ~= nil and scene:find("placeBubble", 1, true) ~= nil, "ShopScene hides its flat dressing under the painted scene")
+		expectTrue(scene:find("if not marlo or calm() then return end", 1, true) ~= nil, "Marlo reactions are skipped in calm mode")
+	end
+	local haggle = read("src/Client/ShopHaggle.lua")
+	if haggle then
+		expectTrue(haggle:find("b.TextStrokeTransparency = 1", 1, true) ~= nil, "Haggle label has no squeezing text stroke")
+	end
+	local bd = read("src/Client/ShopBackdrop.lua")
+	if bd then
+		expectTrue(bd:find("shop_marlo_behind", 1, true) ~= nil and bd:find("shop_light_pool", 1, true) ~= nil, "backdrop draws Marlo and the light pool from the scene art")
+	end
+end })
+
 return tests
