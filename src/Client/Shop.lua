@@ -299,6 +299,12 @@ return function(deps)
 			end
 		end
 
+		-- Counter v2 back layers (Client/ShopBackdrop.lua): painted wall, vignette, counter top and props. Mounts only once
+		-- the shop_scene Image ids are recorded, so nothing changes before then. Look only.
+		pcall(function()
+			require(script.Parent.ShopBackdrop).new({ shopFrame = shopFrame })
+		end)
+
 		-- Peddler's Wagon dressing (Client/ShopScene.lua): counter strip, rail, Marlo and ambient motes. Look only.
 		do
 			local ok, built = pcall(function()

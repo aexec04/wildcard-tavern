@@ -13310,4 +13310,111 @@ table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave
 	expectTrue(type(LogoArt) == "table", "LogoArt hook exists")
 end })
 
+table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it
+	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 800, 450 }, { 360, 640 } }
+	for _, sz in ipairs(sizes) do
+		local W, H = sz[1], sz[2]
+		for _, counts in ipairs({ { offers = 3, packs = 2 }, { offers = 5, packs = 3 }, { offers = 2, packs = 0 } }) do
+			local tag = W .. "x" .. H .. " " .. counts.offers .. "/" .. counts.packs
+			local r = L.rects(W, H, counts)
+			expectEqual(r.phone, W < 600, "phone flag " .. tag)
+			expectEqual(#r.offers, counts.offers, "offer count " .. tag)
+			expectEqual(#r.packs, counts.packs, "pack count " .. tag)
+			local all = { r.counter, r.marlo, r.tabs, r.nextBoss, r.leave, r.bubble, r.light }
+			for _, o in ipairs(r.offers) do all[#all + 1] = o end
+			for _, o in ipairs(r.shadows) do all[#all + 1] = o end
+			for _, o in ipairs(r.packs) do all[#all + 1] = o end
+			for k, o in pairs(r.props) do all[#all + 1] = o end
+			for i, rc in ipairs(all) do
+				expectTrue(L.inside(rc, r.area), "inside the area " .. tag .. " #" .. i)
+			end
+			-- Marlo sits on the counter's back edge and his feet are hidden by it
+			expectTrue(r.marlo.y + r.marlo.h > r.counter.y, "Marlo's feet are behind the counter " .. tag)
+			if not r.phone then
+				expectTrue(r.marlo.h >= H * 0.6 and r.marlo.h <= H * 0.64, "Marlo is about 62 percent of the height " .. tag)
+				expectTrue(r.counter.h >= H * 0.29 and r.counter.h <= H * 0.31, "counter band is about 30 percent " .. tag)
+				expectTrue(r.marlo.x + r.marlo.w <= W * 0.5, "Marlo stays on the left half " .. tag)
+			else
+				expectTrue(r.marlo.x < W * 0.1 and r.marlo.y < H * 0.4, "phone Marlo sits top left " .. tag)
+			end
+			-- Marlo and the offers overlap only by the allowed hover share of his width
+			for i, o in ipairs(r.offers) do
+				expectTrue(L.overlapArea(r.marlo, o) <= r.marlo.w * L.HOVER_OVERLAP * o.h + 1, "offer " .. i .. " barely touches Marlo " .. tag)
+				expectTrue(o.y + o.h <= r.surfaceY - L.HOVER_PX + math.floor(H * 0.015) + 2 or r.phone, "offer " .. i .. " floats above the surface " .. tag)
+				for j, o2 in ipairs(r.offers) do
+					if j > i then expectTrue(not L.intersects(o, o2), "offers " .. i .. "/" .. j .. " apart " .. tag) end
+				end
+				for j, pk in ipairs(r.packs) do
+					expectTrue(not L.intersects(o, pk), "offer " .. i .. " clear of pack " .. j .. " " .. tag)
+				end
+				-- the speech plate, controls and props never sit on an offer
+				expectTrue(not L.intersects(o, r.bubble), "bubble clear of offer " .. i .. " " .. tag)
+				for _, c in ipairs({ r.tabs, r.nextBoss, r.leave }) do
+					expectTrue(not L.intersects(o, c), "controls clear of offer " .. i .. " " .. tag)
+				end
+				for name, pr in pairs(r.props) do
+					expectTrue(not L.intersects(o, pr), name .. " clear of offer " .. i .. " " .. tag)
+				end
+			end
+			for j, pk in ipairs(r.packs) do
+				expectTrue(not L.intersects(pk, r.leave), "pack " .. j .. " clear of Leave " .. tag)
+				for name, pr in pairs(r.props) do
+					expectTrue(not L.intersects(pk, pr), name .. " clear of pack " .. j .. " " .. tag)
+				end
+			end
+			expectTrue(not L.intersects(r.props.bell, r.props.ledger), "bell and ledger apart " .. tag)
+			expectTrue(not L.intersects(r.props.bell, r.leave), "bell clear of Leave " .. tag)
+			expectTrue(not L.intersects(r.bubble, r.tabs) and not L.intersects(r.bubble, r.nextBoss) or r.phone, "bubble clear of the tabs " .. tag)
+			if not r.phone then
+				expectTrue(r.props.mug and r.props.candle, "decor props on wide screens " .. tag)
+			end
+		end
+	end
+	-- phones wrap the offers into two rows on the counter
+	local ph = L.rects(360, 640, { offers = 3, packs = 2 })
+	local rowsSeen = {}
+	for _, o in ipairs(ph.offers) do rowsSeen[o.y] = true end
+	for _, o in ipairs(ph.packs) do rowsSeen[o.y] = true end
+	local n = 0
+	for _ in pairs(rowsSeen) do n = n + 1 end
+	expectEqual(n, 2, "phone wraps into two rows")
+end })
+
+table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off in calm mode; shadow shrinks as the card rises; shop_scene art hooks keep fallbacks", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for i = 1, 5 do
+		for step = 0, 40 do
+			local b = L.bob(i, step * 0.2, false)
+			expectTrue(b >= 0 and b <= L.BOB_PX + 1e-9, "bob within 5 px")
+			expectEqual(L.bob(i, step * 0.2, true), 0, "calm mode has no bob")
+		end
+	end
+	expectTrue(L.bob(1, 0.7, false) ~= L.bob(2, 0.7, false), "bob is staggered")
+	expectEqual(L.BOB_PERIOD, 3.5, "slow 3.5 s bob")
+	local rest, high = L.shadowFor(0), L.shadowFor(L.BOB_PX)
+	expectTrue(high.scale < rest.scale and high.transparency > rest.transparency, "shadow grows and fades as the card bobs")
+	expectTrue(L.MAX_AMBIENT <= 14, "at most 14 ambient objects")
+	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
+	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
+	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true }
+	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
+	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("UIGradient", 1, true) == nil, "backdrop uses flat vignette bands, no gradient")
+		expectTrue(src:find("task.spawn", 1, true) == nil and src:find("TweenService", 1, true) == nil, "backdrop is static: no loops or tweens, so calm mode needs nothing")
+		expectTrue(src:find("if not wallId then", 1, true) ~= nil, "backdrop mounts only when shop_wall has an Image id")
+	end
+	local sh = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if sh then
+		local src = sh:read("*a"); sh:close()
+		expectTrue(src:find("ShopBackdrop", 1, true) ~= nil and src:find("ShopScene).new", 1, true) ~= nil, "Shop mounts the backdrop and keeps ShopScene, ShopHaggle and the handlers")
+	end
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectEqual(ContentArt.getImageId("shop_scene", "shop_wall"), Art.shop_wall and ContentArt.getImageId("shop_scene", "shop_wall") or nil, "missing ids resolve to nil, not an error")
+end })
+
 return tests
