@@ -13938,8 +13938,8 @@ table.insert(tests, { name = "Collection Gallery: framed portraits fit their cel
 	if g then
 		local src = g:read("*a"); g:close()
 		expectTrue(src:find("if calm() or fast() or animated >= 6 then return end", 1, true) ~= nil, "drop-in skipped in calm mode and on Fast, capped at six")
-		expectTrue(src:find("if not backdrop.Visible then return end", 1, true) ~= nil, "the loop does nothing while the Collection is hidden")
-		expectTrue(src:find("Layout.flicker(t, isCalm)", 1, true) ~= nil and src:find("Layout.mothVisible(t, isCalm)", 1, true) ~= nil, "flicker and moth follow calm mode")
+		expectTrue(src:find("if not backdrop.Visible then", 1, true) ~= nil, "the loop does nothing while the Collection is hidden")
+		expectTrue(src:find("Layout.flicker(t, isCalm)", 1, true) ~= nil and src:find("calm = isCalm", 1, true) ~= nil, "flicker and moth follow calm mode")
 		expectTrue(src:find("UIGradient", 1, true) == nil, "no gradients")
 	end
 	local col = io and io.open and io.open("src/Client/Collection.lua", "r")
@@ -14022,6 +14022,79 @@ table.insert(tests, { name = "Badges: nameplates fit two lines inside their colu
 		expectTrue(f.x + f.w <= vp[1], "panel on screen at " .. vp[1])
 	end
 	expectEqual(RL.badgesPanel(1920, 1080).x, math.floor((1920 - math.floor(RL.collectionPanel(1920, 1080).w * 1920)) / 2), "same left edge as Collection where it fits")
+end })
+
+table.insert(tests, { name = "MothFlight: cooldown, approach with fade in, circle, land, rest, takeoff with fade out, one moth, calm and hidden reset", fn = function()
+	local M = require(script.Parent.Parent.Engine.MothFlight)
+	local seed = 7
+	local function rng(lo, hi)
+		seed = (seed * 16807) % 2147483647
+		return lo + (seed / 2147483647) * (hi - lo)
+	end
+	local ctx = { w = 900, h = 600, lx = 300, ly = 120 }
+	local moth = M.new(rng)
+	local order, seen = {}, {}
+	local fullAppear, fullVanish, inGlow = false, false, false
+	local prevVisible, prevAlpha = false, 0
+	local t = 0
+	for _ = 1, 20000 do
+		local s = moth:step(0.05, ctx)
+		t = t + 0.05
+		if not seen[s.phase] then seen[s.phase] = true order[#order + 1] = s.phase end
+		if s.visible and not prevVisible and s.alpha > 0.2 then fullAppear = true end
+		if not s.visible and prevVisible and prevAlpha > 0.2 then fullVanish = true end
+		if s.visible and s.phase == "approach" and s.alpha < 0.05 then
+			local d = math.sqrt((s.x - ctx.lx) ^ 2 + (s.y - ctx.ly) ^ 2)
+			if d < M.GLOW_RADIUS then inGlow = true end
+		end
+		expectTrue(s.flap >= 0.549 and s.flap <= 1.001, "wing scale stays between 0.55 and 1")
+		expectTrue(s.alpha >= 0 and s.alpha <= 1, "alpha in range")
+		prevVisible, prevAlpha = s.visible, s.alpha
+	end
+	expectEqual(table.concat(order, ","), "cooldown,approach,circle,land,rest,takeoff", "phases in order")
+	expectFalse(fullAppear, "it fades in, never pops in at more than 20 percent")
+	expectFalse(fullVanish, "it fades out, never pops out")
+	expectFalse(inGlow, "it never starts inside the lantern glow")
+	-- the first cooldown is 15 to 30 s with nothing visible
+	local m2 = M.new(rng)
+	local quiet = 0
+	while true do
+		local s = m2:step(0.05, ctx)
+		if s.visible then break end
+		quiet = quiet + 0.05
+		if quiet > 40 then break end
+	end
+	expectTrue(quiet >= 14.9 and quiet <= 30.5, "cooldown between 15 and 30 s")
+	-- calm mode and a hidden Collection never show it and reset the cycle
+	local m3 = M.new(rng)
+	for _ = 1, 3000 do
+		local s = m3:step(0.05, { w = 900, h = 600, lx = 300, ly = 120, calm = true })
+		expectFalse(s.visible, "no moth in calm mode")
+	end
+	local m4 = M.new(rng)
+	for _ = 1, 600 do m4:step(0.05, ctx) end
+	local s = m4:step(0.05, { w = 1, h = 1, lx = 0, ly = 0, hidden = true })
+	expectFalse(s.visible, "nothing while hidden")
+	expectEqual(m4.phase, "cooldown", "hidden Collection resets to cooldown")
+	-- a tiny panel still spawns away from the glow (farthest corner)
+	local m5 = M.new(rng)
+	local tiny = { w = 120, h = 80, lx = 60, ly = 40 }
+	for _ = 1, 2000 do m5:step(0.05, tiny) end
+end })
+
+table.insert(tests, { name = "BannerVisibility: the rules banner hides behind every non-run screen and returns at the table", fn = function()
+	local B = require(script.Parent.Parent.Engine.BannerVisibility)
+	for _, name in ipairs({ "CollectionBackdrop", "CosmeticSetsBackdrop", "BadgesBackdrop", "LegendBackdrop", "FlairBackdrop", "StatsBackdrop", "LedgerBackdrop" }) do
+		expectFalse(B.shouldShow(true, { "Sidebar", name }), name .. " hides the banner")
+	end
+	expectTrue(B.shouldShow(true, { "Sidebar", "MessageBar" }), "shown at the table")
+	expectTrue(B.shouldShow(true, { "DeckTrackerBackdrop" }), "the deck tracker is opened from the table and keeps it")
+	expectFalse(B.shouldShow(false, {}), "no banner outside a fight")
+	local f = io and io.open and io.open("src/Client/BossFight.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("BannerVisibility.isScreenOpen(names)", 1, true) ~= nil, "BossFight uses the shared rule")
+	end
 end })
 
 return tests

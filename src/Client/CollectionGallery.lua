@@ -17,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local Layout = require(Engine:WaitForChild("CollectionSceneLayout"))
+local MothFlight = require(Engine:WaitForChild("MothFlight"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local CollectionGallery = {}
@@ -298,7 +299,8 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 	local glows = {}
 	for i = 1, 2 do
 		local rings = {}
-		for k, spec in ipairs({ { 150, 0.93 }, { 100, 0.9 }, { 56, 0.86 } }) do
+		-- seven stacked discs at 3 to 4 percent each: a soft falloff with no visible edge
+		for k, spec in ipairs({ { 150, 0.97 }, { 128, 0.965 }, { 106, 0.96 }, { 86, 0.96 }, { 68, 0.955 }, { 52, 0.955 }, { 38, 0.95 } }) do
 			local g = Instance.new("Frame")
 			g.Name = "LanternGlow" .. i .. "_" .. k
 			g.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -324,18 +326,23 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 		moth.Image = mothId
 		moth.BackgroundTransparency = 1
 		moth.AnchorPoint = Vector2.new(0.5, 0.5)
-		moth.Size = UDim2.fromOffset(22, 22)
+		moth.Size = UDim2.fromOffset(14, 14)
 		moth.Visible = false
 		moth.Active = false
 		moth.ZIndex = wall.ZIndex
 		moth.Parent = wall
 	end
+	local flight = MothFlight.new()
 	local last = 0
 	local t0 = os.clock()
 	RunService.Heartbeat:Connect(function()
-		if not backdrop.Visible then return end -- loops stop when hidden
+		if not backdrop.Visible then
+			flight:step(0, { w = 1, h = 1, lx = 0, ly = 0, hidden = true }) -- loops stop when hidden; the moth starts over
+			return
+		end
 		local now = os.clock()
-		if now - last < 0.05 then return end
+		local dt = math.min(now - last, 0.25)
+		if dt < 0.05 then return end
 		last = now
 		local size = panel.AbsoluteSize
 		if size.X < 1 or size.Y < 1 then return end
@@ -352,11 +359,13 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 			end
 		end
 		if moth then
-			if Layout.mothVisible(t, isCalm) then
-				local lx, ly = Layout.lanternPx(size.X, size.Y, 1)
-				local mx, my = Layout.mothPos(t, lx, ly, 46)
-				moth.Position = UDim2.fromOffset(mx, my)
-				moth.Rotation = math.deg(math.sin(t * 3)) * 0.2
+			local lx, ly = Layout.lanternPx(size.X, size.Y, 1)
+			local m = flight:step(dt, { w = size.X, h = size.Y, lx = lx, ly = ly, calm = isCalm })
+			if m.visible then
+				moth.Position = UDim2.fromOffset(m.x, m.y)
+				moth.Rotation = m.rot
+				moth.Size = UDim2.fromOffset(math.floor(14 * m.flap + 0.5), 14) -- wings flap by scaling X between 1 and 0.55
+				moth.ImageTransparency = 1 - 0.8 * m.alpha -- low contrast, never fully opaque
 				moth.Visible = true
 			else
 				moth.Visible = false

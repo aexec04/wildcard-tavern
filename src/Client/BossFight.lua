@@ -37,6 +37,7 @@ local BossRounds = require(Engine:WaitForChild("BossRounds"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local BossStage = require(Engine:WaitForChild("BossStage"))
+local BannerVisibility = require(Engine:WaitForChild("BannerVisibility"))
 
 local ENRAGE_GOLD = Color3.fromRGB(235, 180, 40)
 local BUBBLE_GAP = 3.5 -- seconds between taunts (intro and the ending lines ignore it)
@@ -699,6 +700,33 @@ local function build(deps)
 		arrange()
 		host.Visible = false
 		visible = false
+	end
+
+	-- The banner belongs to the table: hidden while Collection, Card Sets, Badges, Legend, Flair, Stats or the Ledger are open
+	-- (any visible "...Backdrop" frame, see Engine/BannerVisibility), back when they close.
+	do
+		local acc, covered = 0, false
+		RunService.Heartbeat:Connect(function(dt)
+			acc = acc + dt
+			if acc < 0.25 then return end
+			acc = 0
+			local names = {}
+			local gui = root:FindFirstAncestorOfClass("ScreenGui")
+			for _, parent in ipairs({ root, gui }) do
+				if parent then
+					for _, c in ipairs(parent:GetChildren()) do
+						if c:IsA("GuiObject") and c.Visible then names[#names + 1] = c.Name end
+					end
+				end
+			end
+			local now = BannerVisibility.isScreenOpen(names)
+			if now then
+				if host.Visible then host.Visible = false end
+			elseif covered and visible then
+				host.Visible = true
+			end
+			covered = now
+		end)
 	end
 
 	-- ===== public =====
