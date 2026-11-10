@@ -223,6 +223,7 @@ function ShopScene.new(deps)
 		local s = Instance.new("UIStroke")
 		s.Color = Color3.fromRGB(110, 76, 40)
 		s.Thickness = 1.5
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = bubble
 		local p = Instance.new("UIPadding")
 		p.PaddingLeft = UDim.new(0, 8)

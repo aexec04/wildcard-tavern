@@ -85,6 +85,7 @@ function MenuBoard.build(parent)
 		local hs = Instance.new("UIStroke")
 		hs.Color = Color3.fromRGB(176, 140, 60)
 		hs.Thickness = 1.5
+		hs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		hs.Parent = head
 	end
 

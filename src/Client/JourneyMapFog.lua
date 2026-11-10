@@ -82,6 +82,7 @@ return function(deps)
 	local hintStroke = Instance.new("UIStroke")
 	hintStroke.Color = Color3.fromRGB(110, 80, 45)
 	hintStroke.Thickness = 1.5
+	hintStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	hintStroke.Parent = hint
 
 	-- Teaser: dim "???" lantern glow, drawn UNDER the fog so it sits half inside.

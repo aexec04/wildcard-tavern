@@ -76,6 +76,7 @@ function NewsPanel.attach(parent, layoutOrder)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = frame
 	local icon = label(frame, { Name = "Icon", Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(4, 1), Text = "📰", TextSize = 26, TextColor3 = CREAM, ZIndex = 11 })
 	-- Painted news scroll (menu_icons "news") covers the emoji once loaded; the emoji stays if the id is missing.

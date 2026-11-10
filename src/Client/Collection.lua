@@ -540,6 +540,7 @@ return function(deps)
 	local bannerStroke = Instance.new("UIStroke")
 	bannerStroke.Color = Color3.fromRGB(222, 182, 104)
 	bannerStroke.Thickness = 1.5
+	bannerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	bannerStroke.Parent = cardName
 
 	local RIGHT_X = 22 + PORTRAIT_W + 24

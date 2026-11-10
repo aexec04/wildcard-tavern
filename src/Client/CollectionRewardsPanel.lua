@@ -168,6 +168,7 @@ function CollectionRewardsPanel.init(deps)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = claimable and GOLD or Color3.fromRGB(40, 28, 18)
 		stroke.Thickness = claimable and 3 or 1.5
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = c
 		if claimable then -- a soft warm glow behind a claimable tile
 			local glow = Instance.new("Frame")

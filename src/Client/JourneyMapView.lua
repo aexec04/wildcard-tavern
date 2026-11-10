@@ -341,6 +341,7 @@ return function(deps)
 		deps.roundCorner(button, 60)
 		local stroke = Instance.new("UIStroke")
 		stroke.Thickness = 3
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = button
 		local scale = Instance.new("UIScale")
 		scale.Parent = button

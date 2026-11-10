@@ -260,6 +260,7 @@ return function(deps)
 					local ring = Instance.new("UIStroke")
 					ring.Color = Color3.fromRGB(86, 58, 34)
 					ring.Thickness = 2
+					ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 					ring.Parent = medal
 				end
 				-- Take-this-road chip on a pending fork.
@@ -281,6 +282,7 @@ return function(deps)
 				local st = Instance.new("UIStroke")
 				st.Color = GOLD
 				st.Thickness = 1.5
+				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				st.Parent = chip
 				chip.Activated:Connect(function()
 					takeRoad(id, stop)
@@ -307,6 +309,7 @@ return function(deps)
 				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
 				st.Thickness = id == highlighted and 5 or (choices[id] and 3 or 2)
 				st.Transparency = glow and 0 or 0.35
+				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				st.Parent = btn
 				if choices[id] then
 					btn.Activated:Connect(function()
@@ -387,6 +390,7 @@ return function(deps)
 				local st = Instance.new("UIStroke")
 				st.Color = glow and GOLD or Color3.fromRGB(110, 80, 45)
 				st.Thickness = glow and 3 or 2
+				st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				st.Parent = btn
 				local lab = textLabel(stub and "???" or (stop.name .. (visited[id] and " (done)" or "")), p.x + sideSize / 2 + 4, p.y, 150, 40, 15, 27)
 				-- label sits to the right of the node (WorldMapLayout.box "side")

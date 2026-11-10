@@ -81,6 +81,7 @@ local function build()
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = bubble
 
 	local icon = Instance.new("TextLabel")

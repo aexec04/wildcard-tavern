@@ -262,6 +262,7 @@ return function(deps)
 			local edge = Instance.new("UIStroke")
 			edge.Color = GOLD
 			edge.Thickness = 1.5
+			edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			edge.Parent = card
 		else
 			local base = Palette.colors.cardBase
@@ -270,6 +271,7 @@ return function(deps)
 			local edge = Instance.new("UIStroke")
 			edge.Color = Color3.fromRGB(90, 60, 30)
 			edge.Thickness = 1
+			edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			edge.Parent = card
 			CardFace.build(
 				card,
@@ -320,6 +322,7 @@ return function(deps)
 			ring.Name = "HandRing"
 			ring.Color = GOLD
 			ring.Thickness = 3
+			ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			ring.Parent = card
 			label(card, {
 				Size = UDim2.fromOffset(22, 22), Position = UDim2.new(1, -23, 0, 1), ZIndex = 27,

@@ -143,6 +143,7 @@ local function buildChip(parent)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 1.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = chip
 end
 
@@ -166,6 +167,7 @@ local function buildTokenChip(parent)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 1.5
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = tokenChip
 	-- Painted Rule Ban token (menu_icons "rule_ban") on the left; the no-entry emoji stays if the id is missing.
 	tokenChip.TextXAlignment = Enum.TextXAlignment.Right

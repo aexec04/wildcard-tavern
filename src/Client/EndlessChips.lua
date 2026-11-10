@@ -74,6 +74,7 @@ function EndlessChips.init(deps)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = banner
 
 	ui = { holder = holder, banner = banner, addTooltip = deps.addTooltip, root = deps.root, token = 0 }
@@ -113,6 +114,7 @@ local function rebuild(rules)
 		local ring = Instance.new("UIStroke")
 		ring.Color = GOLD
 		ring.Thickness = 1.5
+		ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		ring.Parent = chip
 		-- painted chip art when an id is recorded (endless_rules), emoji otherwise
 		pcall(ArtIcon.apply, chip, "endless_rules", rule.id, chip, { cornerRadius = CHIP // 2 })

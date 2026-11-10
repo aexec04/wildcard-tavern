@@ -72,6 +72,7 @@ local function tag(parent, name, text, width)
 		local s = Instance.new("UIStroke")
 		s.Color = Color3.fromRGB(110, 76, 34)
 		s.Thickness = 1.5
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = t
 	end
 	t.Text = text

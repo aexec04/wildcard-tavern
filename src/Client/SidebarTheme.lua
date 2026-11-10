@@ -49,6 +49,23 @@ local function layoutParent(inst)
 	return inst:FindFirstChildOfClass("UIListLayout") or inst:FindFirstChildOfClass("UIGridLayout") or inst:FindFirstChildOfClass("UIPageLayout")
 end
 
+-- Under ZIndexBehavior Global a later sibling at equal z draws on top, so content is lifted one step above its plate once
+-- (attribute HudKitZBumped) and lowered again when the plate goes away.
+local function bumpContent(inst, on)
+	for _, d in ipairs(inst:GetDescendants()) do
+		if d:IsA("GuiObject") and d.Name ~= "HudKitPlate" then
+			local bumped = d:GetAttribute("HudKitZBumped")
+			if on and not bumped then
+				d.ZIndex += 1
+				d:SetAttribute("HudKitZBumped", true)
+			elseif not on and bumped then
+				d.ZIndex -= 1
+				d:SetAttribute("HudKitZBumped", nil)
+			end
+		end
+	end
+end
+
 -- Draws or removes the painted plate on a role frame. The flat fill hides under it (BackgroundTransparency) and returns on removal.
 local function kitPlate(inst, piece, kit)
 	local plate = inst:FindFirstChild("HudKitPlate")
@@ -64,7 +81,8 @@ local function kitPlate(inst, piece, kit)
 			plate.Size = UDim2.fromScale(1, 1)
 			plate.Parent = inst
 		end
-		plate.ZIndex = inst.ZIndex -- equal z draws above the parent's own fill, below its labels
+		plate.ZIndex = inst.ZIndex -- above the parent's own (hidden) fill; content is lifted above it
+		bumpContent(inst, true)
 		plate.Image = id
 		if inst:GetAttribute("HudKitBgT") == nil then inst:SetAttribute("HudKitBgT", inst.BackgroundTransparency) end
 		inst.BackgroundTransparency = 1
@@ -73,6 +91,7 @@ local function kitPlate(inst, piece, kit)
 		end
 	elseif plate or inst:GetAttribute("HudKitBgT") ~= nil then
 		if plate then plate:Destroy() end
+		bumpContent(inst, false)
 		local bg = inst:GetAttribute("HudKitBgT")
 		if bg ~= nil then
 			inst.BackgroundTransparency = bg

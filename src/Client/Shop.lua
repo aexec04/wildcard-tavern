@@ -368,6 +368,7 @@ return function(deps)
 			local rim = Instance.new("UIStroke")
 			rim.Color = Color3.fromRGB(222, 182, 104)
 			rim.Thickness = 2
+			rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			rim.Parent = shopTitle
 			for _, xScale in ipairs({ 0, 1 }) do
 				local nail = Instance.new("Frame")
@@ -418,6 +419,7 @@ return function(deps)
 			local chipStroke = Instance.new("UIStroke")
 			chipStroke.Color = Color3.fromRGB(222, 182, 104)
 			chipStroke.Thickness = 1.5
+			chipStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			chipStroke.Parent = chip
 		end
 

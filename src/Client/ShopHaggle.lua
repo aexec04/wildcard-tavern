@@ -72,6 +72,7 @@ local function button(parent, text, color, size, position)
 	local s = Instance.new("UIStroke")
 	s.Color = GOLD
 	s.Thickness = 1.5
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = b
 	return b
 end

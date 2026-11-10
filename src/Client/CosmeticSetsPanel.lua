@@ -402,6 +402,7 @@ return function(deps)
 		local sampleStroke = Instance.new("UIStroke")
 		sampleStroke.Color = Color3.fromRGB(200, 165, 90)
 		sampleStroke.Thickness = 2
+		sampleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		sampleStroke.Parent = sampleButton
 		SetSkin.sample(sampleButton, "button", theme.skin)
 		local samplePanel = Instance.new("Frame")

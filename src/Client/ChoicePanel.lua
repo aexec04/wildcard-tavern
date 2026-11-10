@@ -313,6 +313,7 @@ function ChoicePanel.init(deps)
 	local textStroke = Instance.new("UIStroke") -- brass hairline like the title plate
 	textStroke.Color = GOLD
 	textStroke.Thickness = 1
+	textStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	textStroke.Parent = text
 
 	local row = Instance.new("Frame")

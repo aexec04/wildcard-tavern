@@ -46,6 +46,7 @@ function CompactLayout.install(deps)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(222, 182, 104)
 	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = tab
 
 	local compact, drawerOpen = false, false

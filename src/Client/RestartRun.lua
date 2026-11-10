@@ -132,6 +132,7 @@ local function build(deps)
 	local cancelStroke = Instance.new("UIStroke")
 	cancelStroke.Color = GOLD
 	cancelStroke.Thickness = 3
+	cancelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	cancelStroke.Parent = cancel
 
 	-- Restart: hold to confirm, with a fill bar

@@ -287,6 +287,7 @@ function SeasonPanel.init(deps)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = (row.reached and not row.claimed) and GOLD or INK
 		stroke.Thickness = (row.reached and not row.claimed) and 3 or 1.5
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Parent = t
 
 		label(t, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), TextSize = 17, Text = tostring(row.tier) })

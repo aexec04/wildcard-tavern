@@ -343,6 +343,7 @@ function SpectatePanel.init(deps)
 	local bds = Instance.new("UIStroke")
 	bds.Color = GOLD
 	bds.Thickness = 1.5
+	bds.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	bds.Parent = badge
 	local namesLabel = Instance.new("TextLabel")
 	namesLabel.Size = UDim2.fromOffset(190, 22)

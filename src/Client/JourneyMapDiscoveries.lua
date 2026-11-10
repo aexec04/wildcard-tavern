@@ -150,6 +150,7 @@ return function(deps)
 					local stroke = Instance.new("UIStroke")
 					stroke.Color = GOLD
 					stroke.Thickness = 2.5
+					stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 					stroke.Parent = button
 					items[#items + 1] = button
 					if not claimed then -- painted mark over the emoji (art is a child, so the button text is blanked, not hidden)
@@ -192,6 +193,7 @@ return function(deps)
 				local stroke = Instance.new("UIStroke")
 				stroke.Color = GOLD
 				stroke.Thickness = 1.5
+				stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				stroke.Parent = chip
 				items[#items + 1] = chip
 				chip.MouseButton1Click:Connect(function()

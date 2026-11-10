@@ -14975,4 +14975,41 @@ table.insert(tests, { name = "Notice Board: every note rect sits inside the cork
 	expectTrue(seg:find("ApplyStrokeMode.Border", 1, true) ~= nil, "the brass edge strokes the border, not the letters")
 end })
 
+tests[#tests + 1] = ({ name = "Kit plates sit under their labels and text strokes use Border mode", fn = function()
+	local f = io and io.open and io.open("src/Client/SidebarTheme.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("bumpContent(inst, true)", 1, true) ~= nil, "kitPlate lifts content above the plate")
+	expectTrue(src:find("bumpContent(inst, false)", 1, true) ~= nil, "removing the plate lowers content again")
+	expectTrue(src:find("HudKitZBumped", 1, true) ~= nil, "the lift is recorded so repeats do not stack")
+	local c = io.open("src/Client/ChoicePanel.lua", "r")
+	local cs = c:read("*a"); c:close()
+	local a = cs:find("local textStroke = Instance.new", 1, true)
+	expectTrue(cs:sub(a, a + 300):find("ApplyStrokeMode.Border", 1, true) ~= nil, "Choice subtitle stroke is Border mode")
+	local p = io.popen and io.popen("ls src/Client/*.lua 2>/dev/null")
+	if not p then return end
+	for path in p:lines() do
+		local h = io.open(path, "r")
+		local text = h:read("*a"); h:close()
+		local pos = 1
+		while true do
+			local s, e, sv = text:find('local (%w+) = Instance%.new%("UIStroke"%)', pos)
+			if not s then break end
+			pos = e + 1
+			local blk = text:sub(s, s + 600)
+			local pv = blk:match(sv .. "%.Parent = (%w+)")
+			if pv then
+				local before = text:sub(math.max(1, s - 4000), s)
+				local def
+				for d in before:gmatch(pv .. " = ([^\n]*)") do def = d end
+				if def and def:find('Instance.new("Text', 1, true) then
+					local cut = blk:find(sv .. "%.Parent = " .. pv)
+					expectTrue(blk:sub(1, cut):find("ApplyStrokeMode", 1, true) ~= nil, path .. ": stroke on text object " .. pv .. " needs Border mode")
+				end
+			end
+		end
+	end
+	p:close()
+end })
+
 return tests

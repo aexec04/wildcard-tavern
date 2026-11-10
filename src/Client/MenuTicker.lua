@@ -85,6 +85,7 @@ function Ticker.attach(parent, layoutOrder)
 	local bs = Instance.new("UIStroke")
 	bs.Color = GOLD
 	bs.Thickness = 1.5
+	bs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	bs.Parent = boardButton
 
 	-- refresh whenever the menu strip becomes visible and the last answer is old

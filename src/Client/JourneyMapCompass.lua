@@ -59,6 +59,7 @@ return function(deps)
 	local iconStroke = Instance.new("UIStroke")
 	iconStroke.Color = Color3.fromRGB(110, 80, 45)
 	iconStroke.Thickness = 3
+	iconStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	iconStroke.Parent = icon
 
 	local badge = Instance.new("TextLabel")

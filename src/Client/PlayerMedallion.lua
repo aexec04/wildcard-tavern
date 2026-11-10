@@ -84,10 +84,11 @@ function PlayerMedallion.install(root)
 	name.AnchorPoint = Vector2.new(0.5, 0)
 	name.Position = UDim2.new(0.5, 0, 0, SIZE + 2)
 	name.Size = UDim2.new(1, 0, 0, 17)
-	name.BackgroundTransparency = 1
+	name.BackgroundTransparency = 0.2 -- small dark plate so painted frame art behind it never hurts legibility
+	name.BackgroundColor3 = Color3.fromRGB(44, 30, 18)
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 15
-	name.TextColor3 = Color3.fromRGB(60, 40, 22) -- dark ink on the parchment board
+	name.TextColor3 = Color3.fromRGB(250, 236, 200)
 	name.TextTruncate = Enum.TextTruncate.AtEnd
 	name.Text = player and (player.DisplayName ~= "" and player.DisplayName or player.Name) or ""
 	name.ZIndex = 5

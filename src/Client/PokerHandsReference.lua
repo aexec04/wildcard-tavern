@@ -154,6 +154,7 @@ return function(deps)
 		local s = Instance.new("UIStroke")
 		s.Color = BRASS
 		s.Thickness = 2
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = b
 		b.MouseEnter:Connect(function() s.Color = GOLD end)
 		b.MouseLeave:Connect(function() s.Color = BRASS end)
@@ -330,6 +331,7 @@ return function(deps)
 			local stroke = Instance.new("UIStroke")
 			stroke.Color = BRASS
 			stroke.Thickness = 1.5
+			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			stroke.Parent = button
 			local tint = Instance.new("Frame") -- strength tint on the left edge
 			tint.Size = UDim2.new(0, 8, 1, -8)

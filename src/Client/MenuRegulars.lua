@@ -154,6 +154,7 @@ local function addSeat(entry, order)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = GOLD
 	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = seat
 	local emoji = Instance.new("TextLabel")
 	emoji.Size = UDim2.fromScale(1, 1)

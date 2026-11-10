@@ -356,6 +356,7 @@ return function(deps)
 		local medalStroke = Instance.new("UIStroke")
 		medalStroke.Color = Color3.fromRGB(255, 240, 180)
 		medalStroke.Thickness = 2
+		medalStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		medalStroke.Parent = medal
 
 		-- Scene image: top 280px, full card width, rounded corners.
