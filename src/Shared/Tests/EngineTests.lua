@@ -12075,6 +12075,9 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 		end
 		expectTrue(CS.themeOf(set).skin ~= nil, set.id .. " theme carries the skin")
 		expectTrue(CS.indexContrast(set) >= 4.5, set.id .. " card index ink reads at 4.5:1 on its plate")
+		if skin.images.faceFrame or skin.images.faceCourt then
+			expectTrue(skin.index ~= nil and skin.index.red ~= nil and skin.index.black ~= nil, set.id .. " has index plates when it has frame or court art")
+		end
 	end
 	local distinct = 0
 	for _ in pairs(seenPanel) do distinct = distinct + 1 end

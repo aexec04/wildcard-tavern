@@ -577,7 +577,12 @@ function CosmeticSets.skinOf(set)
 	end
 	local face = CosmeticSets.faceStyleOf(set)
 	if face.neutral then
-		return { images = images, colors = nil, neutral = true }
+		-- plates only when frame or court art exists (otherwise the default look is untouched)
+		local index = nil
+		if images.faceFrame or images.faceCourt then
+			index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) }
+		end
+		return { images = images, colors = nil, neutral = true, index = index }
 	end
 	local accent = CosmeticSets.accentOf(set) or face.border
 	local dark = { 28, 20, 14 }

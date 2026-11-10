@@ -197,8 +197,8 @@ function SetSkin.indexLayers(face, zIndex, isRed, skin)
 	local style = skin.index and (isRed and skin.index.red or skin.index.black)
 	if not style then return nil, zIndex end
 	local color = rgb(style.plate)
-	indexPlate(face, "IndexPlate", zIndex + 1, color, UDim2.fromScale(0.1, 0.08), UDim2.fromScale(0.3, 0.3))
-	indexPlate(face, "IndexPlateBottom", zIndex + 1, color, UDim2.fromScale(0.62, 0.74), UDim2.fromScale(0.24, 0.17))
+	indexPlate(face, "IndexPlate", zIndex + 1, color, UDim2.fromScale(0.09, 0.07), UDim2.fromScale(0.34, 0.32))
+	indexPlate(face, "IndexPlateBottom", zIndex + 1, color, UDim2.fromScale(0.58, 0.72), UDim2.fromScale(0.3, 0.2))
 	return rgb(style.ink), zIndex + 2
 end
 
