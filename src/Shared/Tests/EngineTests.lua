@@ -13979,14 +13979,14 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find('Name = "WallShadow"', 1, true) ~= nil and src:find('Name = "Nail"', 1, true) ~= nil and src:find('Name = "Chain"', 1, true) ~= nil, "shadow, nail and chain are drawn")
 		expectTrue(src:find("function CollectionGallery.hangTile", 1, true) ~= nil and src:find("function CollectionGallery.bindHover", 1, true) ~= nil, "hand-hung tilt and hover")
-		expectTrue(src:find("if calm() then\n\t\t\ttile.Rotation = rot", 1, true) ~= nil, "calm mode hovers without tweens")
+		expectTrue(src:find("if calm() then\n\t\t\ttarget.Rotation = rot", 1, true) ~= nil, "calm mode hovers without tweens")
 	end
 	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
 	if c then
 		local src = c:read("*a"); c:close()
 		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) ~= nil, "locked frames hide the portrait and the padlock")
 		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
-		expectTrue(src:find("Gallery.pinCard(tile, found, item.id, nameLabel)", 1, true) ~= nil and src:find("furniture.setTab(activeTabId)", 1, true) ~= nil, "Recipes are pinned on the cork board behind the grid")
+		expectTrue(src:find("Furn.style(fxKind", 1, true) ~= nil and src:find("furniture.setTab(activeTabId)", 1, true) ~= nil, "Recipes are pinned on a cork board built from their cells")
 		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) ~= nil and src:find("hungSign.bind(titleLabel)", 1, true) ~= nil, "the title hangs as a brass sign")
 		expectTrue(src:find("plaque.Thickness = 2", 1, true) ~= nil, "the progress line sits on a brass-edged plaque")
 	end
@@ -14238,8 +14238,8 @@ table.insert(tests, { name = "Collection shelves: trophy, key and plate cells ke
 	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
 	if c then
 		local src = c:read("*a"); c:close()
-		expectTrue(src:find("Gallery.shelfTile(shelfKind", 1, true) ~= nil, "Collection builds shelf tabs through the Gallery")
-		expectTrue(src:find("Gallery.pinString(tile", 1, true) ~= nil and src:find("Gallery.chestApi.open()", 1, true) ~= nil, "Bonds strings and the chest are wired")
+		expectTrue(src:find("Furn.style(fxKind", 1, true) ~= nil and src:find("Furn.furnish(", 1, true) ~= nil, "Collection builds furniture tabs from the cells")
+		expectTrue(src:find("Gallery.chestApi.open()", 1, true) ~= nil, "the chest is wired")
 	end
 end })
 
@@ -14317,6 +14317,103 @@ table.insert(tests, { name = "RewardsLayout: tiles spread across the row with no
 		expectTrue(src:find('Text = "Collection Rewards", TextColor3 = CREAM', 1, true) ~= nil, "cream title on a brass sign")
 		expectTrue(src:find("rewards_emblems", 1, true) ~= nil, "emblems and pouches come from RewardsEmblemArt")
 	end
+end })
+
+-- ===== Collection furniture derived from the cells =====
+local function furnitureCases(F)
+	local out = {}
+	for kind in pairs(F.CELL) do
+		for _, n in ipairs({ 1, 3, 8, 13 }) do
+			for _, width in ipairs({ 1000, 640, 300 }) do
+				local cols = F.cols(width, kind)
+				for i = 1, n do out[#out + 1] = { kind = kind, ctx = { index = i, n = n, cols = cols } } end
+			end
+		end
+	end
+	return out
+end
+local function near(a, b) return math.abs(a - b) <= 4 end
+
+table.insert(tests, { name = "CollectionFurnitureLayout (cork): furniture aligned - the pin sits at the card's top centre and the board covers every card with a 14 px margin", fn = function()
+	local F = require(script.Parent.Parent.Engine.CollectionFurnitureLayout)
+	for _, c in ipairs(furnitureCases(F)) do
+		if c.kind == "cork" then
+			local p = F.cell("cork", c.ctx)
+			expectTrue(near(p.pinCentre.x, p.anchor.x) and near(p.pinCentre.y, p.anchor.y), "pin within 4 px of the card top centre")
+			expectTrue(p.segment.x <= 0 and p.segment.y <= 0 and p.segment.x + p.segment.w >= p.cell.w and p.segment.y + p.segment.h >= p.cell.h, "board covers its card")
+			if p.col == 0 then expectEqual(p.segment.x, -F.MARGIN) end
+			if p.row == 0 then expectEqual(p.segment.y, -F.MARGIN) end
+			expectTrue(p.pin.w <= 12 and p.pin.h <= 12, "pin is small")
+		end
+	end
+	-- neighbouring segments meet exactly in the gap: no seam and no overlap
+	local a = F.cell("cork", { index = 1, n = 4, cols = 2 })
+	local b = F.cell("cork", { index = 2, n = 4, cols = 2 })
+	expectEqual(a.segment.x + a.segment.w + F.CELL.cork.w + F.GAP.cork.x - F.CELL.cork.w - F.GAP.cork.x, a.segment.x + a.segment.w)
+	expectEqual(a.segment.x + a.segment.w - (F.CELL.cork.w + F.GAP.cork.x) , b.segment.x)
+	-- the board is exactly as tall as its rows plus the margin: sum of segment heights down column 0
+	local total, rows = 0, 3
+	for i = 0, rows - 1 do total = total + F.cell("cork", { index = i * 2 + 1, n = 6, cols = 2 }).segment.h end
+	expectEqual(total, rows * F.CELL.cork.h + (rows - 1) * F.GAP.cork.y + 2 * F.MARGIN)
+end })
+
+table.insert(tests, { name = "CollectionFurnitureLayout (trophy): furniture aligned - base bottom is the plank top, trophy and plate centred on the cell, every cell has its plank", fn = function()
+	local F = require(script.Parent.Parent.Engine.CollectionFurnitureLayout)
+	local brackets = 0
+	for _, c in ipairs(furnitureCases(F)) do
+		if c.kind == "trophy" then
+			local p = F.cell("trophy", c.ctx)
+			expectEqual(p.base.y + p.base.h, p.plank.y, "base stands on the plank top")
+			expectTrue(near(p.base.x + p.base.w / 2, p.anchor.x), "base centred")
+			expectTrue(near(p.plate.x + p.plate.w / 2, p.anchor.x), "plate centred")
+			expectTrue(p.plank.x <= 0 and p.plank.x + p.plank.w >= p.cell.w, "plank spans its cell")
+			expectEqual(p.plank.h, 20)
+			expectTrue(p.plate.y >= p.plank.y + p.plank.h and p.plate.y + p.plate.h <= p.cell.h, "plate sits under the plank inside the cell")
+			expectTrue(p.plate.h >= 30, "two 14 px lines fit on the plate")
+			expectTrue(p.shadow ~= nil, "contact shadow")
+			if p.bracket then brackets = brackets + 1; expectEqual(p.col % 4, 3, "bracket under every fourth cell") end
+		end
+	end
+	expectTrue(brackets > 0, "brackets exist")
+end })
+
+table.insert(tests, { name = "CollectionFurnitureLayout (key and plate): furniture aligned - hook centred on its rail and tag, plates on a rail 10 px taller with four screws", fn = function()
+	local F = require(script.Parent.Parent.Engine.CollectionFurnitureLayout)
+	for _, c in ipairs(furnitureCases(F)) do
+		if c.kind == "key" then
+			local p = F.cell("key", c.ctx)
+			expectTrue(near(p.hookCentre.x, p.anchor.x) and near(p.hookCentre.y, p.anchor.y), "hook centred on the rail")
+			expectTrue(near(p.ticket.x + p.ticket.w / 2, p.hookCentre.x), "ticket hangs under the hook")
+			expectEqual(p.chain.y, p.hook.y + p.hook.h)
+			expectEqual(p.ticket.y, p.chain.y + p.chain.h)
+			expectTrue(p.ticket.y + p.ticket.h <= p.plate.y and p.plate.y + p.plate.h <= p.cell.h, "plate below the ticket, inside the cell")
+			expectEqual(p.sway.degrees, 1.5)
+		elseif c.kind == "plate" then
+			local p = F.cell("plate", c.ctx)
+			expectEqual(p.rail.h, p.plate.h + 10, "rail 10 px taller than the plate")
+			expectTrue(p.rail.x <= 0 and p.rail.x + p.rail.w >= p.cell.w, "rail spans the plate")
+			expectEqual(#p.screws, 4)
+			for _, s in ipairs(p.screws) do
+				expectTrue(s.x >= 0 and s.y >= 0 and s.x + s.w <= p.plate.w and s.y + s.h <= p.plate.h, "screw on the plate")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "CollectionFurnitureLayout: no cell is drawn without its furniture; strings sag between pins; every Collection furniture tab has a kind", fn = function()
+	local F = require(script.Parent.Parent.Engine.CollectionFurnitureLayout)
+	for _, c in ipairs(furnitureCases(F)) do
+		local p = F.cell(c.kind, c.ctx)
+		expectTrue(p.anchor ~= nil and (p.segment or p.plank or p.rail) ~= nil, c.kind .. " cell has furniture")
+	end
+	for _, tab in ipairs({ "recipes", "bonds", "bosses", "housePasses", "titles" }) do expectTrue(F.TAB_KIND[tab] ~= nil, tab) end
+	local pts = F.string(0, 0, 100, 0, 8, 10)
+	expectEqual(#pts, 9)
+	expectTrue(pts[1].y == 0 and pts[9].y == 0 and pts[5].y == 10, "ends on the pins, 10 px sag at the middle")
+	local dx, dy = F.pinOffset(1, 2, 3)
+	expectEqual(dx, F.CELL.cork.w + F.GAP.cork.x + F.CELL.cork.w / 2, "target pin centre in the source cell's pixels")
+	expectEqual(dy, 4)
+	expectEqual(F.cols(1000, "cork"), 9)
 end })
 
 return tests

@@ -797,15 +797,15 @@ return function(deps)
 		tile.ZIndex = 21
 		tile.Parent = scroll
 		local framed = Gallery.framed(item.tab) -- Patrons hang as framed portraits on the Gallery wall
-		local shelfKind = Gallery.shelfKind(item.tab) -- Boss trophy stands, House Pass hooks, Title plates
+		local fxKind = Furn.kind(item.tab) -- cork cards, trophy planks, key rails, title rails: furniture drawn from the cells
 		local parts
-		if shelfKind then
+		if fxKind then
 			tile.AutoButtonColor = false
 		elseif framed then
 			tile.AutoButtonColor = false
 			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???")
 		end
-		if not framed and not shelfKind then
+		if not framed and not fxKind then
 			roundCorner(tile, 8)
 			-- Rarity glow: a colored stroke plus a soft wash behind the icon.
 			-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
@@ -865,26 +865,18 @@ return function(deps)
 
 		-- hand-hung: a fixed tiny tilt and offset per Patron (the "New" tag and the drop-in follow it)
 		local hang = framed and Gallery.hangTile(tile, item.id) or nil
-		if shelfKind then
-			hang = Gallery.shelfTile(shelfKind, tile, found, iconWell, nameLabel, rgb(rarity.color))
-		end
-		if item.tab == "bonds" and Gallery.furnitureKey("bonds") then
-			-- a pinned card with its own name, and a string to the next card in the row
-			hang = Gallery.pinCard(tile, found, item.id, nameLabel, item.def.name)
-			if not found then
-				iconWell.Visible = false
-				if nameLabel then nameLabel.Visible = false end
-			end
-			local cols = math.max(1, math.floor((scroll.AbsoluteSize.X + 10) / (92 + 10)))
-			if (order - 1) % cols < cols - 1 then Gallery.pinString(tile, 92 + 10) end
-		end
-		if item.tab == "recipes" and Gallery.furnitureKey("recipes") then
-			-- recipe cards are pinned on the cork board; a locked recipe is an empty pin dot with a ??? plate
-			hang = Gallery.pinCard(tile, found, item.id, nameLabel)
-			if not found then
-				iconWell.Visible = false
-				if nameLabel then nameLabel.Visible = false end
-			end
+		local fx
+		if fxKind then
+			local nextFound = currentItems[order + 1] and CollectionBook.isDiscovered(view.sets, currentItems[order + 1])
+			fx = Furn.style(fxKind, tile, {
+				found = found, iconWell = iconWell, nameLabel = nameLabel, rarityColor = rgb(rarity.color), id = item.id,
+				equipped = found and item.tab == "titles" and view.equippedTitleId == item.id,
+				lockedText = item.tab == "bonds" and item.def.name or nil,
+			})
+			hang = fx.hang
+			local rec = { tile = tile, kind = fxKind, index = order, tie = item.tab == "bonds" and found and nextFound == true }
+			furnRecords[#furnRecords + 1] = rec
+			Furn.furnish(fxKind, tile, { index = order, n = #currentItems, cols = furnCols(), tie = rec.tie })
 		end
 
 		-- newly found since the Collection was last opened: a brass "New" tag, and (once) a drop-in
@@ -896,9 +888,9 @@ return function(deps)
 				Gallery.dropIn(tile)
 			end
 		end
-		if hang then Gallery.bindHover(tile, hang) end -- hover straightens, lifts 3 px and sways once
+		if hang then Gallery.bindHover(tile, hang, fx and fx.target) end -- hover straightens, lifts 3 px and sways once
 
-		if found and item.tab == "titles" and view.equippedTitleId == item.id then
+		if found and not fxKind and item.tab == "titles" and view.equippedTitleId == item.id then
 			label(tile, {
 				Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 2),
 				Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 25, TextColor3 = GOLD,
@@ -980,6 +972,15 @@ return function(deps)
 		grid.CellPadding = hungGap and UDim2.fromOffset(hungGap.x, hungGap.y) or UDim2.fromOffset(10, 10)
 		gridPadding.PaddingTop = UDim.new(0, hungGap and (SceneLayout.CHAIN_H + 8) or 4)
 		local items = CollectionBook.displayItems(activeTabId, hiddenRarities)
+		currentItems, furnRecords, currentKind = items, {}, Furn.kind(activeTabId)
+		do -- furniture tabs: the grid takes the kind's cell size and gap, and room for the board's outer margin
+			local pad = currentKind and Furn.padding(currentKind)
+			if currentKind then grid.CellSize, grid.CellPadding = Furn.cellSize(currentKind), Furn.gap(currentKind) end
+			gridPadding.PaddingTop = UDim.new(0, pad and pad.top or gridPadding.PaddingTop.Offset)
+			gridPadding.PaddingBottom = UDim.new(0, pad and pad.top or 4)
+			gridPadding.PaddingLeft = UDim.new(0, pad and pad.side or 0)
+			gridPadding.PaddingRight = UDim.new(0, pad and pad.side or 0)
+		end
 		for i = 1, math.min(#items, TILE_BATCH) do
 			makeTile(items[i], i, view)
 		end

@@ -37,6 +37,8 @@ function CollectionGallery.shelfKind(tabId)
 end
 
 function CollectionGallery.cellSize(tabId)
+	local FX = require(script.Parent.CollectionFurniture)
+	if FX.kind(tabId) then return FX.cellSize(FX.kind(tabId)) end
 	local shelf = CollectionGallery.shelfKind(tabId)
 	if shelf then
 		local c = Layout.SHELF_CELL[shelf]
@@ -136,20 +138,21 @@ function CollectionGallery.hangTile(tile, id)
 	return h
 end
 
-function CollectionGallery.bindHover(tile, hang)
+function CollectionGallery.bindHover(tile, hang, target)
+	target = target or tile
 	local pieces = {}
-	for _, c in ipairs(tile:GetChildren()) do
-		if c:IsA("GuiObject") then pieces[#pieces + 1] = { c = c, home = c.Position } end
+	for _, c in ipairs(target:GetChildren()) do
+		if c:IsA("GuiObject") and not c:GetAttribute("Static") then pieces[#pieces + 1] = { c = c, home = c.Position } end
 	end
 	local function go(on)
 		local lift = on and UDim2.fromOffset(0, -3) or UDim2.new()
 		local rot = on and 0 or hang.tilt
 		if calm() then
-			tile.Rotation = rot
+			target.Rotation = rot
 			for _, p in ipairs(pieces) do p.c.Position = p.home + lift end
 			return
 		end
-		TweenService:Create(tile, TweenInfo.new(on and 0.5 or 0.15, on and Enum.EasingStyle.Elastic or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Rotation = rot }):Play()
+		TweenService:Create(target, TweenInfo.new(on and 0.5 or 0.15, on and Enum.EasingStyle.Elastic or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Rotation = rot }):Play()
 		for _, p in ipairs(pieces) do
 			TweenService:Create(p.c, TweenInfo.new(0.12), { Position = p.home + lift }):Play()
 		end
@@ -228,9 +231,7 @@ function CollectionGallery.mountFurniture(panel)
 		fit()
 	end
 	function api.setTab(tabId)
-		local key = CollectionGallery.furnitureKey(tabId)
-		img.Visible = key ~= nil
-		if key then img.Image = art(key) end
+		img.Visible = false -- furniture is drawn from the cells now (Client/CollectionFurniture.lua), never stretched behind the grid
 	end
 	return api
 end
