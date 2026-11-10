@@ -12696,4 +12696,46 @@ table.insert(tests, { name = "Flair dressing room: flair_ui art map is registere
 	expectTrue(src:find("Layout.drawers(view)", 1, true) ~= nil, "drawers come from the Flair view")
 end })
 
+table.insert(tests, { name = "Popups block clicks behind them: popup roots are shielded, Menu scrolls are Active and layered above the Notice Board", fn = function()
+	local Rules = require(script.Parent.Parent.Engine.PopupRules)
+	expectTrue(Rules.shouldShield("SeedRunBackdrop"), "Backdrop names are shielded")
+	expectTrue(Rules.shouldShield("SpectateOverlay"), "Spectate overlay is shielded")
+	expectFalse(Rules.shouldShield("DeckTrackerBackdrop"), "the deck pile toggles its own backdrop")
+	expectFalse(Rules.isPopupName("NoticeBoard"), "the Notice Board is not a popup")
+	expectFalse(Rules.isPopupName(nil), "nil is not a popup")
+	expectTrue(Rules.MENU_SCROLL_MIN_Z > Rules.MENU_AMBIENT_MAX_Z, "scroll layer above the Menu decoration")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a"); f:close()
+		return src
+	end
+	local hot = read("src/Client/MenuHotspots.lua")
+	if hot then
+		local fan, list = hot:match("Z_COUNTER, Z_SCENE, Z_FAN, Z_LIST = %d+, %d+, (%d+), (%d+)")
+		expectTrue(fan ~= nil and tonumber(fan) - 2 > Rules.MENU_AMBIENT_MAX_Z, "the click catcher sits above every Notice Board layer")
+		expectTrue(list ~= nil and tonumber(list) > tonumber(fan), "All actions list sits above the scrolls")
+		for _, needle in ipairs({ "catcher.Active = true", "list.Active = true", "frame.Active = true -- sinks", "paper.Active = true" }) do
+			expectTrue(hot:find(needle, 1, true) ~= nil, "Menu popup layer is Active: " .. needle)
+		end
+	end
+	local board = read("src/Client/MenuBoard.lua")
+	if board then
+		local top = 0
+		for z in board:gmatch("ZIndex = Z %+ (%d+)") do top = math.max(top, tonumber(z)) end
+		expectTrue(14 + top <= Rules.MENU_AMBIENT_MAX_Z, "Notice Board pins stay within MENU_AMBIENT_MAX_Z")
+	end
+	local hub = read("src/Client/init.client.lua")
+	if hub then
+		expectTrue(hub:find("PopupShield", 1, true) ~= nil, "the hub installs PopupShield")
+		expectTrue(hub:find("MenuScreen.menuFrame }", 1, true) ~= nil, "the Menu is switched off while a popup is open")
+	end
+	for _, name in ipairs({ "SeedRunDialog", "QuestsPanel", "DailyLeaderboard", "Settings", "Collection", "CosmeticSetsPanel", "StorePanel", "StatsPanel" }) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			expectTrue(src:find('Backdrop"', 1, true) ~= nil, name .. " mounts a ...Backdrop popup root that PopupShield covers")
+		end
+	end
+end })
+
 return tests

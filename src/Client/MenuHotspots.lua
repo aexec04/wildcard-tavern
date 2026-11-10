@@ -36,7 +36,8 @@ local INK_DIM = Color3.fromRGB(110, 88, 62)
 local GOLD = Color3.fromRGB(214, 160, 40)
 local WAX = Color3.fromRGB(150, 44, 36)
 
-local Z_COUNTER, Z_SCENE, Z_FAN, Z_LIST = 11, 16, 32, 46
+-- Z_FAN and Z_LIST stay above every Notice Board pin and hit area (Engine/PopupRules.MENU_AMBIENT_MAX_Z = 44).
+local Z_COUNTER, Z_SCENE, Z_FAN, Z_LIST = 11, 16, 50, 64
 local ROW_H = Layout.SCROLL.rowH - 6
 
 -- Small icon on each row's wax seal until the painted seals exist.
@@ -336,6 +337,7 @@ function Hotspots.build(opts)
 	catcher.BackgroundTransparency = 1
 	catcher.Size = UDim2.fromScale(1, 1)
 	catcher.Visible = false
+	catcher.Active = true
 	catcher.ZIndex = Z_FAN - 2
 	catcher.Parent = menuFrame
 
@@ -349,6 +351,7 @@ function Hotspots.build(opts)
 	list.CanvasSize = UDim2.new()
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	list.Visible = false
+	list.Active = true -- sinks clicks so the Notice Board behind never gets them
 	list.ZIndex = Z_LIST - 1
 	list.Parent = menuFrame
 	do
@@ -566,9 +569,11 @@ function Hotspots.build(opts)
 		frame.AnchorPoint = Vector2.new(0.5, 1)
 		frame.BackgroundTransparency = 1
 		frame.Visible = false
+		frame.Active = true -- sinks clicks over the whole scroll
 		frame.ZIndex = Z_FAN
 		frame.Parent = layer
 		local paper = solid(frame, "Parchment", PARCHMENT, Z_FAN)
+		paper.Active = true
 		paper.Position = UDim2.fromOffset(0, S.rod)
 		paper.Size = UDim2.new(1, 0, 1, -S.rod * 2)
 		paper.ClipsDescendants = true

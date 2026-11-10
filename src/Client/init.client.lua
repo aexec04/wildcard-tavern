@@ -1339,9 +1339,10 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		require(script.InputGuard).install({
 			root = root,
 			overlays = { RoundSelectOverlay.roundSelectFrame, Shop.shopFrame, GameOverPanel.gameOverFrame },
-			guarded = { root:FindFirstChild("DeckWidget"), handFrame, actionFrame },
+			guarded = { root:FindFirstChild("DeckWidget"), handFrame, actionFrame, MenuScreen.menuFrame },
 			tooltip = screenGui:FindFirstChild("Tooltip"),
 		})
+		require(script.PopupShield).install(screenGui, root) -- popup roots are Active: nothing behind them gets clicks
 	end)
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 
