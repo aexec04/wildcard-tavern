@@ -146,7 +146,7 @@ local profileDirty = {} -- [player] = true once something's changed since the la
 -- FIRST 5 MINUTES: a one-time reward toast (survives the run that earned it) and the funnel logger.
 local function pushRewardNotice(player, notice)
 	rewardSeqCounter = rewardSeqCounter + 1
-	rewardNotices[player] = { seq = rewardSeqCounter, icon = notice.icon, text = notice.text }
+	rewardNotices[player] = { seq = rewardSeqCounter, icon = notice.icon, text = notice.text, blessingId = notice.blessingId }
 end
 local function logStep(player, stepId)
 	local profile = profiles[player]
@@ -3129,13 +3129,15 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	if not session or not RunChoice.canAnswer(session.phase, session.choice, optionId) then
 		return
 	end
+	local wasModifier = session.choice.kind == "modifier"
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
 	if ok then
 		session.choice = nextChoice
 		RunState.refreshSnapshot(session.state) -- One More Round must not undo the pick
 	end
 	if message and message ~= "" then
-		pushRewardNotice(player, { icon = ok and "✨" or "❗", text = message })
+		-- a picked blessing shows its painted icon on the plate (Client/UnlockToast), not an emoji
+		pushRewardNotice(player, { icon = (ok and wasModifier) and "" or (ok and "✨" or "❗"), text = message, blessingId = (ok and wasModifier) and optionId or nil })
 	end
 	pushState(player)
 end)

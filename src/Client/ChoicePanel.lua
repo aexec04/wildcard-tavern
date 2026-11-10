@@ -17,16 +17,18 @@ local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local ClientSettings = require(script.Parent.ClientSettings)
 local ModalStage = require(script.Parent.ModalStage)
+local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
+local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
+local SmoothVignette = require(script.Parent.SmoothVignette)
 
 local ChoicePanel = {}
 
-local INK = Color3.fromRGB(60, 40, 22)
-local CURSE = Color3.fromRGB(140, 50, 40)
-local BLESS = Color3.fromRGB(50, 100, 50)
-local PARCHMENT = Color3.fromRGB(222, 198, 150)
-local GOLD = Color3.fromRGB(222, 182, 104)
-local CREAM = Color3.fromRGB(250, 235, 200)
-local WOOD = Color3.fromRGB(86, 58, 34)
+local function rgb(key)
+	local c = Layout.PALETTE[key]
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+local INK, CURSE, BLESS = rgb("ink"), rgb("curse"), rgb("bless")
+local PARCHMENT, GOLD, CREAM, WOOD = rgb("paper"), rgb("brass"), rgb("plateText"), rgb("plate")
 
 local CARD_W, CARD_H = 230, 300
 
@@ -72,17 +74,35 @@ end
 
 local function buildCard(choice, option, order)
 	local isDecline = option.id == "decline"
+	local slot = Instance.new("Frame") -- the layout owns the slot; the card inside bobs on hover
+	slot.Name = "Slot_" .. option.id
+	slot.Size = UDim2.fromOffset(CARD_W, CARD_H)
+	slot.LayoutOrder = order
+	slot.BackgroundTransparency = 1
+	slot.ZIndex = 61
+	slot.Parent = ui.row
+	local shadow = Instance.new("Frame") -- soft contact shadow where the card stands on the table
+	shadow.Name = "ContactShadow"
+	shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+	shadow.Position = UDim2.new(0.5, 0, 1, -2)
+	shadow.Size = UDim2.new(1, -24, 0, 18)
+	shadow.BackgroundColor3 = Color3.new(0, 0, 0)
+	shadow.BackgroundTransparency = 0.7
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 61
+	shadow.Parent = slot
+	ui.roundCorner(shadow, 9)
 	local card = Instance.new("Frame")
 	card.Name = "Option_" .. option.id
-	card.Size = UDim2.fromOffset(CARD_W, CARD_H)
-	card.LayoutOrder = order
-	card.BackgroundColor3 = isDecline and Color3.fromRGB(190, 172, 135) or PARCHMENT
+	card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = isDecline and rgb("paperDecline") or PARCHMENT
+	card.BorderSizePixel = 0
 	card.ZIndex = 62
-	card.Parent = ui.row
+	card.Parent = slot
 	ui.roundCorner(card, 12)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = isDecline and INK or GOLD
-	stroke.Thickness = isDecline and 1.5 or 2.5
+	stroke.Thickness = isDecline and 1.5 or 3
 	stroke.Parent = card
 
 	local well = Instance.new("Frame")
@@ -133,8 +153,8 @@ local function buildCard(choice, option, order)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 17
 	button.Text = isDecline and "No, thanks" or "Choose"
-	button.TextColor3 = CREAM
-	button.BackgroundColor3 = isDecline and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 110, 65)
+	button.TextColor3 = rgb("buttonText")
+	button.BackgroundColor3 = isDecline and rgb("buttonBrown") or rgb("buttonGreen")
 	button.ZIndex = 64
 	button.Parent = card
 	ui.polishButton(button, 10)
@@ -147,6 +167,17 @@ local function buildCard(choice, option, order)
 		ui.playClickSfx()
 		ui.choiceRemote:FireServer(option.id)
 	end)
+	-- hover: the card rises a little (skipped in calm mode)
+	local base = card.Position
+	local function bob(up)
+		if ClientSettings.get("animSpeed") == "fast" or ClientSettings.get("reduceShake") == true then
+			return
+		end
+		TweenService:Create(card, TweenInfo.new(0.12), { Position = base + UDim2.fromOffset(0, up and -8 or 0) }):Play()
+	end
+	card.Active = true
+	card.MouseEnter:Connect(function() bob(true) end)
+	card.MouseLeave:Connect(function() bob(false) end)
 	return card
 end
 
@@ -168,6 +199,7 @@ local function render()
 		clearCards()
 		ui.title.Text = choice.title or ""
 		ui.text.Text = choice.text or ""
+		ui.text.Visible = ui.text.Text ~= ""
 		for i, option in ipairs(choice.options or {}) do
 			buildCard(choice, option, i)
 		end
@@ -194,7 +226,75 @@ function ChoicePanel.init(deps)
 	backdrop.Visible = false
 	backdrop.ZIndex = 60
 	backdrop.Parent = deps.screenGui
-	pcall(ModalStage.mount, backdrop, "event") -- own opaque stage + modal gate; render() re-themes per choice kind
+	local stage = ModalStage.mount(backdrop, "event") -- own opaque stage + modal gate; render() re-themes per choice kind
+	local decor = stage and stage:FindFirstChild("Decor")
+	if decor then
+		decor.Visible = false -- the old stage decor (ghost chair squares along the bottom) is replaced by the painted scene
+		decor:GetPropertyChangedSignal("Visible"):Connect(function() decor.Visible = false end)
+	end
+
+	-- Painted scene: the tavern room under ONE smooth scrim, a candle glow at each side. The stage stays under it
+	-- (opaque) so nothing behind ever shows through.
+	local scene = Instance.new("Frame")
+	scene.Name = "Scene"
+	scene.Size = UDim2.fromScale(1, 1)
+	scene.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	scene.BorderSizePixel = 0
+	scene.ZIndex = 60
+	scene.Parent = backdrop
+	local wood = Instance.new("UIGradient") -- colour stops only; the fallback when the painting has no Image id
+	wood.Rotation = 90
+	wood.Color = ColorSequence.new(Color3.fromRGB(58, 40, 26), Color3.fromRGB(22, 15, 10))
+	wood.Parent = scene
+	local art = MenuSceneArt["menu_scene_a"]
+	if type(art) == "string" and art ~= "" then
+		local painting = Instance.new("ImageLabel")
+		painting.Name = "Painting"
+		painting.Size = UDim2.fromScale(1, 1)
+		painting.BackgroundTransparency = 1
+		painting.Image = art
+		painting.ScaleType = Enum.ScaleType.Crop
+		painting.ZIndex = 60
+		painting.Parent = scene
+	end
+	local scrim = Instance.new("Frame") -- ONE dim layer, soft at the edges through SmoothVignette
+	scrim.Name = "Scrim"
+	scrim.Size = UDim2.fromScale(1, 1)
+	scrim.BackgroundColor3 = rgb("scrim")
+	scrim.BackgroundTransparency = 0.42
+	scrim.BorderSizePixel = 0
+	scrim.ZIndex = 60
+	scrim.Parent = scene
+	SmoothVignette.build(scene, {
+		zIndex = 60, color = rgb("scrim"), name = "SceneVignette",
+		top = { strength = 0.7, extent = 0.3 }, bottom = { strength = 0.7, extent = 0.3 },
+		left = { strength = 0.5, extent = 0.2 }, right = { strength = 0.5, extent = 0.2 },
+	})
+	for _, side in ipairs({ 0.1, 0.9 }) do -- candle glow: stacked faint rings, no visible disc edge
+		local glow = Instance.new("Frame")
+		glow.Name = "CandleGlow"
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.fromScale(side, 0.34)
+		glow.Size = UDim2.fromOffset(420, 420)
+		glow.BackgroundTransparency = 1
+		glow.ZIndex = 60
+		glow.Parent = scene
+		for i, ring in ipairs(Layout.glowRings(12)) do
+			local disc = Instance.new("Frame")
+			disc.Name = "Ring" .. i
+			disc.AnchorPoint = Vector2.new(0.5, 0.5)
+			disc.Position = UDim2.fromScale(0.5, 0.5)
+			disc.Size = UDim2.fromScale(ring.size, ring.size)
+			disc.BackgroundColor3 = Color3.fromRGB(255, 190, 100)
+			disc.BackgroundTransparency = ring.alpha
+			disc.BorderSizePixel = 0
+			disc.ZIndex = 60
+			disc.Parent = glow
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0.5, 0)
+			c.Parent = disc
+		end
+	end
 
 	local holder = Instance.new("Frame")
 	holder.Name = "Holder"
@@ -211,23 +311,25 @@ function ChoicePanel.init(deps)
 	titlePlaque.Name = "TitlePlaque"
 	titlePlaque.AnchorPoint = Vector2.new(0.5, 0)
 	titlePlaque.Position = UDim2.new(0.5, 0, 0, 0)
-	titlePlaque.Size = UDim2.new(0, 520, 0, 42)
+	titlePlaque.Size = UDim2.new(0, 520, 0, 44)
 	titlePlaque.BackgroundColor3 = WOOD
 	titlePlaque.ZIndex = 62
 	titlePlaque.Parent = holder
 	deps.roundCorner(titlePlaque, 10)
 	local plaqueStroke = Instance.new("UIStroke")
 	plaqueStroke.Color = GOLD
-	plaqueStroke.Thickness = 2
+	plaqueStroke.Thickness = 3
 	plaqueStroke.Parent = titlePlaque
 	local title = label(titlePlaque, {
 		Name = "Title", Size = UDim2.fromScale(1, 1), Text = "", TextSize = 28, TextColor3 = CREAM,
 		ZIndex = 63,
 	})
 	local text = label(holder, {
-		Name = "Text", Size = UDim2.new(1, -40, 0, 44), Position = UDim2.fromOffset(20, 42), Text = "", TextSize = 17, TextColor3 = CREAM,
+		Name = "Text", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.new(0, 520, 0, 34), Position = UDim2.new(0.5, 0, 0, 52),
+		Text = "", TextSize = 17, TextColor3 = CREAM, BackgroundColor3 = WOOD, BackgroundTransparency = 0.12,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, ZIndex = 62,
 	})
+	deps.roundCorner(text, 8)
 
 	local row = Instance.new("Frame")
 	row.Name = "Row"

@@ -14870,4 +14870,38 @@ table.insert(tests, { name = "Menu room polish: one gradient title scrim, soft s
 	end
 end })
 
+table.insert(tests, { name = "Choice scene: painted backdrop, one smooth scrim, no ghost placeholders, 4.5:1 on every plate, blessing confirmation uses the painted icon", fn = function()
+	local CS = require(script.Parent.Parent.Engine.ChoiceSceneLayout)
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	for _, plate in ipairs(CS.PLATES) do
+		expectTrue(LL.contrast(CS.PALETTE[plate[2]], CS.PALETTE[plate[3]]) >= 4.5, plate[1] .. " text is at least 4.5:1 on its plate")
+	end
+	local rings = CS.glowRings(12)
+	expectTrue(#rings >= 8, "the glow is at least 8 soft rings")
+	for i = 2, #rings do
+		expectTrue(rings[i].size < rings[i - 1].size and rings[i].alpha < rings[i - 1].alpha, "ring " .. i .. " is smaller and brighter than the one outside it")
+	end
+	expectTrue(rings[1].alpha > 0.9, "the outermost ring is nearly clear, so no disc edge shows")
+	local spots = CS.cardSpots(1920, 1080, 3, 230, 300)
+	expectEqual(#spots, 3, "three cards stand in a row")
+	expectEqual(spots[2].x, 960, "the middle card is centred")
+	expectTrue(spots[1].y + 150 <= 1080, "cards stay on screen")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local panel, overlay, toast, rs = read("src/Client/ChoicePanel.lua"), read("src/Client/OverlayQueue.lua"), read("src/Client/UnlockToast.lua"), read("src/Client/RoundSelect.lua")
+	if not (panel and overlay and toast and rs) then return end
+	expectTrue(panel:find('MenuSceneArt["menu_scene_a"]', 1, true) ~= nil, "the tavern room painting is the backdrop")
+	expectTrue(panel:find("UIGradient", 1, true) ~= nil and panel:find("SmoothVignette.build", 1, true) ~= nil, "the fallback and the scrim are gradients, never a bare flat frame")
+	expectTrue(panel:find('"Scrim" .. i', 1, true) == nil and panel:find("Chair", 1, true) == nil, "no stacked scrim strips and no ghost chair squares")
+	expectTrue(panel:find("decor.Visible = false", 1, true) ~= nil, "the stage's ghost placeholder decor is hidden")
+	expectTrue(panel:find("ContactShadow", 1, true) ~= nil and panel:find("MouseEnter", 1, true) ~= nil, "cards stand on the table with a contact shadow and bob on hover")
+	expectTrue(overlay:find("item.artId", 1, true) ~= nil and toast:find('"blessing_icons"', 1, true) ~= nil, "the blessing confirmation shows the painted blessing icon")
+	expectTrue(rs:find("plateOn(roomLabel)", 1, true) ~= nil and rs:find("plateOn(bossLabel)", 1, true) ~= nil and rs:find("plateOn(bossNameLabel)", 1, true) ~= nil and rs:find("plateOn(tagLabel)", 1, true) ~= nil, "Round Select text over portraits sits on solid plates")
+	expectTrue(LL.contrast({ 230, 180, 170 }, { 30, 22, 16 }) >= 4.5 and LL.contrast({ 200, 220, 170 }, { 38, 44, 26 }) >= 4.5 and LL.contrast({ 250, 235, 200 }, { 30, 22, 16 }) >= 4.5, "Round Select plate text is at least 4.5:1")
+end })
+
 return tests

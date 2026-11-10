@@ -417,7 +417,7 @@ return function(deps)
 		statusChip.Size = UDim2.new(0, 130, 0, 22)
 		statusChip.Position = UDim2.new(0, 8, 0, 8)
 		statusChip.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-		statusChip.BackgroundTransparency = 0.1
+		statusChip.BackgroundTransparency = 0
 		statusChip.Font = Enum.Font.GothamBold
 		statusChip.TextSize = 14
 		statusChip.TextColor3 = Color3.fromRGB(200, 200, 215)
@@ -427,6 +427,19 @@ return function(deps)
 		statusChip.Parent = sceneImage
 		roundCorner(statusChip, 6)
 
+		-- Text over a painted portrait always sits on a solid dark parchment plate (4.5:1 or better), never bare on the art.
+		local function plateOn(lbl)
+			lbl.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+			lbl.BackgroundTransparency = 0.06
+			lbl.BorderSizePixel = 0
+			lbl.TextStrokeTransparency = 1
+			roundCorner(lbl, 8)
+			local edge = Instance.new("UIStroke")
+			edge.Color = Color3.fromRGB(150, 118, 66)
+			edge.Thickness = 1.5
+			edge.Name = "PlateEdge"
+			edge.Parent = lbl
+		end
 		-- Room name: larger accent-colored header just below the scene image.
 		local roomLabel = Instance.new("TextLabel")
 		roomLabel.Name = "RoomLabel"
@@ -443,6 +456,7 @@ return function(deps)
 		roomLabel.TextStrokeTransparency = 0.3
 		roomLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		roomLabel.Parent = panel
+		plateOn(roomLabel)
 
 		-- Boss name: large gold text, boss panel only (y=324).
 		local bossNameLabel = Instance.new("TextLabel")
@@ -461,6 +475,7 @@ return function(deps)
 		bossNameLabel.TextStrokeTransparency = 0.3
 		bossNameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		bossNameLabel.Parent = panel
+		plateOn(bossNameLabel)
 
 		-- Boss rule text: readable 16px, up to 2 lines, boss panel only (y=358).
 		local bossLabel = Instance.new("TextLabel")
@@ -481,6 +496,7 @@ return function(deps)
 		bossLabel.TextStrokeTransparency = 0.35
 		bossLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		bossLabel.Parent = panel
+		plateOn(bossLabel)
 
 		-- Tag chip: non-boss panels only (y=324), shown for the current round.
 		local tagLabel = Instance.new("TextLabel")
@@ -500,7 +516,9 @@ return function(deps)
 		tagLabel.TextStrokeTransparency = 0.35
 		tagLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 		tagLabel.Parent = panel
-		roundCorner(tagLabel, 8)
+		plateOn(tagLabel)
+		tagLabel.BackgroundColor3 = Color3.fromRGB(38, 44, 26)
+		tagLabel.BackgroundTransparency = 1
 
 		-- Target plaque: y=418 for boss (after rule text), y=356 for non-boss (after tag).
 		local targetLabel = Instance.new("TextLabel")
@@ -832,9 +850,9 @@ return function(deps)
 					entry.bossLabel.Text = "Boss Rounds are off this run."
 				end
 				entry.bossNameLabel.TextTransparency = 0
-				entry.bossNameLabel.TextStrokeTransparency = 0.3
+				entry.bossNameLabel.TextStrokeTransparency = 1
 				entry.bossLabel.TextTransparency = 0
-				entry.bossLabel.TextStrokeTransparency = 0.35
+				entry.bossLabel.TextStrokeTransparency = 1
 			else
 				entry.bossLabel.Visible = false
 				entry.bossNameLabel.Visible = false
@@ -842,16 +860,17 @@ return function(deps)
 				if isCurrent and state.currentRoundSkipTag then
 					local tag = state.currentRoundSkipTag
 					entry.tagLabel.Text = (tag.icon or "🏷") .. " " .. tag.name
-					entry.tagLabel.BackgroundTransparency = 0
+					entry.tagLabel.BackgroundTransparency = 0.06
 				elseif isPast then
 					entry.tagLabel.Text = ""
 					entry.tagLabel.BackgroundTransparency = 1
 				else
 					entry.tagLabel.Text = "Tag on arrival"
-					entry.tagLabel.BackgroundTransparency = 0.65
+					entry.tagLabel.BackgroundTransparency = 0.12
 				end
 				entry.tagLabel.TextTransparency = 0
-				entry.tagLabel.TextStrokeTransparency = 0.35
+				entry.tagLabel.TextStrokeTransparency = 1
+				entry.tagLabel.PlateEdge.Enabled = entry.tagLabel.Text ~= ""
 			end
 
 			fx.setKind(entry, isCurrent and "current" or (isPast and "past" or "future"))

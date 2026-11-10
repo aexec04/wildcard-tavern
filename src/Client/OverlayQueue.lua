@@ -29,7 +29,7 @@ local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
 local SETTLE = 0.3 -- seconds to wait for sibling items so the priority order holds
 
 local q = Rules.new()
-local gui, backdrop, plate, title, body, button, iconLabel, rowsHolder
+local gui, backdrop, plate, title, body, button, iconLabel, rowsHolder, iconArt
 local token = 0
 local idleFns = {}
 local idleOrder = {}
@@ -99,6 +99,15 @@ local function build()
 	iconLabel = label(plate, "Icon", 34, Enum.Font.GothamBold, CREAM, 152)
 	iconLabel.LayoutOrder = 1
 	iconLabel.Size = UDim2.new(1, 0, 0, 40)
+	iconArt = Instance.new("ImageLabel") -- painted icon (item.artId), used instead of an emoji
+	iconArt.Name = "IconArt"
+	iconArt.LayoutOrder = 1
+	iconArt.Size = UDim2.fromOffset(56, 56)
+	iconArt.BackgroundTransparency = 1
+	iconArt.ScaleType = Enum.ScaleType.Fit
+	iconArt.Visible = false
+	iconArt.ZIndex = 152
+	iconArt.Parent = plate
 	title = label(plate, "Title", 22, Enum.Font.GothamBold, GOLD_TEXT, 152)
 	title.LayoutOrder = 2
 	title.Size = UDim2.new(1, 0, 0, 30)
@@ -169,6 +178,8 @@ local function show(item)
 	local mine = token
 	iconLabel.Text = item.icon or ""
 	iconLabel.Visible = item.icon ~= nil and item.icon ~= ""
+	iconArt.Visible = type(item.artId) == "string" and item.artId ~= ""
+	iconArt.Image = iconArt.Visible and item.artId or ""
 	title.Text = item.title or ""
 	title.Visible = item.title ~= nil and item.title ~= ""
 	body.Text = item.text or ""

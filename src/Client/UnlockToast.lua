@@ -11,6 +11,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Patrons = require(Engine:WaitForChild("Patrons"))
 local Recipes = require(Engine:WaitForChild("Recipes"))
 local HousePasses = require(Engine:WaitForChild("HousePasses"))
+local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local OverlayQueue = require(script.Parent.OverlayQueue)
 
 local UnlockToast = {}
@@ -99,7 +100,8 @@ function UnlockToast.update(state)
 	local reward = state.rewardNotice
 	if reward and type(reward.seq) == "number" and reward.seq > lastRewardSeq then
 		lastRewardSeq = reward.seq
-		push({ icon = reward.icon, text = reward.text })
+		local artId = reward.blessingId and ContentArt.getImageId("blessing_icons", reward.blessingId) or nil
+		push({ icon = reward.icon, text = reward.text, artId = artId, title = reward.blessingId and "Blessing chosen" or nil })
 	end
 	local progress = state.progressNotice
 	if progress and type(progress.seq) == "number" and progress.seq > lastProgressSeq then
