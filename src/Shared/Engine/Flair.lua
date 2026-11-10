@@ -200,6 +200,7 @@ function Flair.view(profile)
 				progress = progress, goal = goal,
 				id = option.id, name = option.name, icon = option.icon, rarity = option.rarity,
 				owned = Flair.isOwned(profile, option.id), equipped = option.id == equipped,
+				unlockKind = option.unlock and option.unlock.kind or nil,
 				hint = option.unlock and option.unlock.hint or "", store = option.unlock ~= nil and option.unlock.kind == "store",
 				color = option.color, glow = option.glow, style = option.style, crest = option.crest,
 			}

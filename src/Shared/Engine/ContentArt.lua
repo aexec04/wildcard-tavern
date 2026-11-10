@@ -46,6 +46,7 @@ local ContentArt = {
 	challenges   = require(Engine:WaitForChild("ChallengeArt")),      -- keyed by Challenges id
 	endless_rules = require(Engine:WaitForChild("EndlessRuleArt")),   -- keyed by EndlessRules id (Crowd Rule chips)
 	flair        = require(Engine:WaitForChild("FlairArt")),          -- keyed by Flair id (Flair panel tiles)
+	flair_ui     = require(Engine:WaitForChild("FlairUiArt")),        -- flair_stage, flair_drawer_front ... (Flair dressing room, empty until Image ids are recorded)
 	seasons      = require(Engine:WaitForChild("SeasonArt")),         -- SeasonTrack bannerKey and menu_season (Season panel, Menu tile)
 	legend       = require(Engine:WaitForChild("LegendArt")),         -- Legend trinket ids (Legend panel)
 	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)

@@ -11655,7 +11655,7 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	if not f then return end -- Studio has no io
 	local fx = f:read("*a"); f:close()
 	local pb = io.open("src/Client/ParticleBurst.lua", "r"):read("*a")
-	local panel = io.open("src/Client/FlairPanel.lua", "r"):read("*a")
+	local panel = io.open("src/Client/FlairPanel.lua", "r"):read("*a") .. io.open("src/Client/FlairDressingRoom.lua", "r"):read("*a")
 	expectTrue(pb:find("options.zIndex or 30", 1, true) ~= nil, "default zIndex stays 30")
 	expectTrue(pb:find("particle.ZIndex = zIndex", 1, true) ~= nil, "particles use the zIndex option")
 	local panelZ = tonumber(fx:match("FlairFX%.PANEL_Z = (%d+)"))
@@ -12538,6 +12538,162 @@ table.insert(tests, { name = "HudStyle: pile look is stable per set and differen
 	end
 	local deck = read("src/Client/DeckWidget.lua")
 	if deck then expectTrue(deck:find("DeckWidgetSkin", 1, true) ~= nil, "the draw pile is skinned per set") end
+end })
+
+table.insert(tests, { name = "FlairRoomLayout: drawers map every Flair slot, locked/owned/equipped states, unlock progress, one equipped slot per category, detail actions", fn = function()
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
+	local profile = { tavernRank = 6, highestStakeUnlocked = 1, questsDone = 0 }
+	local view = Flair.view(profile)
+	local drawers = L.drawers(view)
+	expectEqual(#drawers, #Flair.Slots, "one drawer per Flair category")
+	for i, d in ipairs(drawers) do
+		expectEqual(d.id, Flair.Slots[i].id, "drawer order follows the registry")
+		expectEqual(d.total, #Flair.optionsFor(d.id), d.id .. " holds every option")
+		local equipped, owned = 0, 0
+		for _, item in ipairs(d.items) do
+			if item.state == "equipped" then equipped = equipped + 1 end
+			if item.state ~= "locked" then owned = owned + 1 end
+			if item.state == "locked" then
+				expectTrue(type(item.tag) == "string" and item.tag ~= "", item.id .. " has a brass tag")
+				expectTrue(item.ratio == nil or (item.ratio >= 0 and item.ratio <= 1), "progress rail is 0 to 1")
+			else
+				expectTrue(item.tag == nil, "unlocked pieces have no tag")
+			end
+		end
+		expectEqual(equipped, 1, d.id .. " has exactly one equipped piece")
+		expectEqual(d.ownedCount, owned, d.id .. " counts unlocked pieces")
+	end
+	-- unlock progress: Ember Numbers needs rank 5 (owned at rank 6), Frost Numbers rank 10 shows 6 of 10
+	local function find(id) for _, d in ipairs(drawers) do for _, it in ipairs(d.items) do if it.id == id then return it end end end end
+	expectEqual(find("ember_numbers").state, "owned", "rank 6 unlocks the rank 5 piece")
+	local frost = find("frost_numbers")
+	expectEqual(frost.state, "locked", "rank 10 piece is locked at rank 6")
+	expectEqual(frost.tag, "Rank 6 of 10", "tag shows progress toward the goal")
+	expectTrue(math.abs(frost.ratio - 0.6) < 0.001, "progress rail ratio")
+	local store = find("rainbow_numbers")
+	expectEqual(store.tag, "Tavern Store", "store pieces say so")
+	expectTrue(store.ratio == nil, "store pieces have no rail")
+	expectTrue(find("leaf_numbers").tag == "Achievement", "achievement pieces name their kind")
+	-- detail card
+	local dFrost, dStore, dOwned, dEquipped = L.detail(frost), L.detail(store), L.detail(find("ember_numbers")), L.detail(find("classic_numbers"))
+	expectFalse(dFrost.canEquip or dFrost.canPreview or dFrost.canBuy, "a locked free piece offers nothing")
+	expectTrue(dFrost.how:find("Tavern Rank 10", 1, true) ~= nil, "locked piece says how to get it")
+	expectTrue(dStore.canBuy and not dStore.canEquip and not dStore.canPreview, "store piece offers Buy")
+	expectTrue(dOwned.canEquip and dOwned.canPreview and not dOwned.canBuy, "owned piece offers Equip and Preview")
+	expectTrue(not dEquipped.canEquip and dEquipped.canPreview, "equipped piece offers Preview only")
+	expectFalse(L.detail(nil).canEquip, "empty detail offers nothing")
+	-- equipped slots: one per category, showing the default when nothing else is equipped
+	local eq = L.equippedSlots(view)
+	expectEqual(#eq, #Flair.Slots, "one equipped slot per category")
+	for i, e in ipairs(eq) do
+		expectEqual(e.optionId, Flair.defaultFor(Flair.Slots[i].id), "default is equipped at first")
+	end
+	local ok = Flair.equip(profile, "scoreNumbers", "ember_numbers")
+	expectTrue(ok ~= false, "equip works")
+	expectEqual(L.equippedSlots(Flair.view(profile))[1].optionId, "ember_numbers", "slot follows the equipped piece")
+	expectEqual(#L.drawers(nil), 0, "no view means no drawers")
+end })
+
+table.insert(tests, { name = "FlairRoomLayout: stage, mirror, detail card, slots, cabinet, drawers and tooltip never overlap (1920x1080 and compact)", fn = function()
+	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	for _, size in ipairs({ { 1651, 972 }, { 880, 518 }, { 700, 420 } }) do
+		local W, H = size[1], size[2]
+		local r = L.rects(W, H)
+		local panel = { x = 0, y = 0, w = W, h = H }
+		for _, name in ipairs({ "title", "bundle", "stage", "mirror", "detail", "slots", "cabinet", "close" }) do
+			expectTrue(inside(r[name], panel), name .. " inside the panel at " .. W .. "x" .. H)
+			expectTrue(r[name].w > 0 and r[name].h > 0, name .. " has size")
+		end
+		local blocks = { "title", "bundle", "stage", "slots", "cabinet", "close" }
+		for i = 1, #blocks do
+			for j = i + 1, #blocks do
+				expectFalse(L.intersects(r[blocks[i]], r[blocks[j]]), blocks[i] .. " and " .. blocks[j] .. " overlap at " .. W .. "x" .. H)
+			end
+		end
+		expectTrue(inside(r.mirror, r.stage) and inside(r.detail, r.stage), "mirror and detail card sit inside the stage")
+		expectFalse(L.intersects(r.mirror, r.detail), "detail card never covers the live preview")
+		expectFalse(L.intersects(r.mirror, r.curtainL) or L.intersects(r.mirror, r.curtainR), "curtains frame the mirror")
+		expectTrue(r.mirror.h >= 120, "the preview keeps a usable height")
+		-- detail card parts
+		local parts = L.detailParts(r.detail)
+		local cardBox = { x = 0, y = 0, w = r.detail.w, h = r.detail.h }
+		expectTrue(inside(parts.name, cardBox) and inside(parts.how, cardBox), "card text inside the card")
+		expectFalse(L.intersects(parts.name, parts.how), "card name and how line do not overlap")
+		for i, b in ipairs(parts.buttons) do
+			expectTrue(inside(b, cardBox), "card button " .. i .. " inside the card")
+			expectFalse(L.intersects(b, parts.how), "card button clears the how line")
+			if i > 1 then expectFalse(L.intersects(b, parts.buttons[i - 1]), "card buttons do not overlap") end
+		end
+		-- equipped slots
+		for _, n in ipairs({ 3, 4 }) do
+			local rects = L.splitRow(r.slots, n, r.gap)
+			for i, s in ipairs(rects) do
+				expectTrue(inside(s, r.slots), "slot inside the slots row")
+				if i > 1 then expectFalse(L.intersects(s, rects[i - 1]), "slots do not overlap") end
+			end
+		end
+		-- drawers: closed and with each drawer open
+		local cabLocal = { x = 0, y = 0, w = r.cabinet.w, h = r.cabinet.h }
+		for open = 0, 4 do
+			local dr = L.drawerRects(cabLocal, 4, open > 0 and open or nil)
+			local boxes = {}
+			for i = 1, 4 do
+				boxes[#boxes + 1] = dr.fronts[i]
+				if i == open then
+					boxes[#boxes + 1] = dr.trays[i]
+					expectTrue(dr.trays[i].h >= 110, "the open tray is tall enough at " .. W .. "x" .. H)
+				else
+					expectEqual(dr.trays[i].h, 0, "closed trays have no height")
+				end
+			end
+			for i = 1, #boxes do
+				expectTrue(inside(boxes[i], cabLocal), "drawer piece inside the cabinet")
+				for j = i + 1, #boxes do expectFalse(L.intersects(boxes[i], boxes[j]), "drawer pieces overlap") end
+			end
+		end
+		-- medallion grid fits the tray width
+		local dr = L.drawerRects(cabLocal, 4, 1)
+		local cell = L.cell(r.compact)
+		local g = L.grid(dr.trays[1].w, 6, cell)
+		for i, c in ipairs(g.cells) do
+			expectTrue(c.x >= 0 and c.x + c.w <= dr.trays[1].w, "medallion cell inside the tray width")
+			for j = i + 1, #g.cells do expectFalse(L.intersects(c, g.cells[j]), "medallion cells overlap") end
+		end
+		expectTrue(g.canvasH >= cell.h, "canvas holds a row")
+		-- tooltip: anchored on a medallion in the cabinet, on screen and clear of the preview, for a spread of anchors
+		local screen = { w = W + 140, h = H + 108 }
+		local origin = { x = 70, y = 54 }
+		local avoid = { x = r.mirror.x + origin.x, y = r.mirror.y + origin.y, w = r.mirror.w, h = r.mirror.h }
+		local tipSize = { w = 280, h = 64 }
+		local anchors = {
+			{ x = r.cabinet.x + origin.x + 20, y = r.cabinet.y + origin.y + 60, w = cell.med, h = cell.med },
+			{ x = r.cabinet.x + origin.x + r.cabinet.w - cell.med - 20, y = r.cabinet.y + origin.y + r.cabinet.h - cell.med - 10, w = cell.med, h = cell.med },
+			{ x = r.slots.x + origin.x, y = r.slots.y + origin.y, w = 100, h = r.slots.h },
+			{ x = 0, y = 0, w = 20, h = 20 },
+		}
+		for _, a in ipairs(anchors) do
+			local x, y = L.placeTooltip(a, tipSize, screen, avoid)
+			local rect = { x = x, y = y, w = tipSize.w, h = tipSize.h }
+			expectTrue(inside(rect, { x = 0, y = 0, w = screen.w, h = screen.h }), "tooltip stays on screen")
+			if a.x > 20 then expectFalse(L.intersects(rect, avoid), "tooltip never covers the live preview") end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Flair dressing room: flair_ui art map is registered and safe, room honours Reduce screen shake, one tooltip, drawers come from the Flair view", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	expectTrue(ContentArt.flair_ui ~= nil, "ContentArt.flair_ui is registered")
+	expectTrue(ContentArt.getImageId("flair_ui", "flair_stage") == nil or type(ContentArt.getImageId("flair_ui", "flair_stage")) == "string", "lookup is safe")
+	local f = io and io.open and io.open("src/Client/FlairDressingRoom.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("reduceShake", 1, true) ~= nil, "animations honour Reduce screen shake")
+	expectTrue(src:find("tween(p.front, 0.2", 1, true) ~= nil, "drawers slide in 0.2 s")
+	local _, tips = src:gsub('Name = "FlairTooltip"', "")
+	expectEqual(tips, 1, "exactly one tooltip frame")
+	expectTrue(src:find("Layout.drawers(view)", 1, true) ~= nil, "drawers come from the Flair view")
 end })
 
 return tests
