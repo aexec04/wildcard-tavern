@@ -11946,6 +11946,23 @@ table.insert(tests, { name = "Round Select: no Scout bar, no reserved space, rul
 	expectFalse(mb:find("1, -126", 1, true) ~= nil, "warning strip is not pinned to the bottom")
 end })
 
+table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
+	local PanelBand = require(script.Parent.Parent.Engine.PanelBand)
+	expectEqual(PanelBand.band(1385, 690), 21, "map panel band is about 3 percent of the short side")
+	expectEqual(PanelBand.band(3000, 2000), 24, "capped")
+	expectEqual(PanelBand.band(200, 100), 8, "floor")
+	expectEqual(PanelBand.band(20, 20), 5, "tiny panels cap at a quarter")
+	local r = PanelBand.inset(1385, 690, 24)
+	expectEqual(r.left, 24, "left inset")
+	expectEqual(r.width, 1337, "inner width")
+	expectEqual(r.height, 642, "inner height")
+	expectEqual(PanelBand.intersectsBand(400, 300, 24, 10, 10, 100, 30), true, "title on the border is flagged")
+	expectEqual(PanelBand.intersectsBand(400, 300, 24, 30, 30, 100, 30), false, "inset content is clear")
+	for _, w in ipairs({ 360, 640, 1385, 1920 }) do
+		expectEqual(PanelBand.band(w, 480) <= PanelBand.MAX_BAND, true, "band within cap at " .. w)
+	end
+end })
+
 table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
 	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
 	local g = ModalGate.new()

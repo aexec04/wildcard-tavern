@@ -15,6 +15,8 @@
 	(so Clone() keeps them) and are skipped for ScrollingFrames and anything holding a UIListLayout or UIGridLayout.
 ]]
 
+local PanelBand = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBand"))
+
 local SetSkin = {}
 
 local current = { images = {}, colors = nil, neutral = true }
@@ -57,6 +59,32 @@ local function plate(inst, name, image, z, transparency)
 	return label
 end
 
+-- True when an ancestor is itself a registered panel (nested sub-frames get no plate of their own).
+local function nestedPanel(inst)
+	local p = inst.Parent
+	while p do
+		if registry[p] == "panel" then return true end
+		p = p.Parent
+	end
+	return false
+end
+
+-- 9-slice the frame so its border draws at most PanelBand.MAX_BAND px thick whatever the panel size.
+local function thinBand(inst, label)
+	local function apply()
+		local size = inst.AbsoluteSize
+		local band = PanelBand.band(size.X > 0 and size.X or 400, size.Y > 0 and size.Y or 300)
+		label.ScaleType = Enum.ScaleType.Slice
+		label.SliceCenter = Rect.new(PanelBand.SLICE_EDGE, PanelBand.SLICE_EDGE, PanelBand.SOURCE - PanelBand.SLICE_EDGE, PanelBand.SOURCE - PanelBand.SLICE_EDGE)
+		label.SliceScale = PanelBand.sliceScale(band)
+	end
+	apply()
+	if not label:GetAttribute("BandHooked") then
+		label:SetAttribute("BandHooked", true)
+		inst:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
+	end
+end
+
 -- Restyle one registered element for the current skin. Safe to call repeatedly.
 local function style(inst, kind, skin)
 	if not inst.Parent or inst:IsA("ScrollingFrame") or hasLayout(inst) then return end
@@ -65,7 +93,10 @@ local function style(inst, kind, skin)
 	local image = (kind == "panel" and images.panelFrame) or (kind == "button" and images.buttonPlate) or (kind == "tab" and images.tabPlate) or nil
 	-- Borders frame, they do not dominate: lighter plates, and the older gold frame pieces (inner rim, brackets, carved
 	-- holder art) step aside while a set plate is drawn so there is one frame, not two.
-	local label = plate(inst, OVERLAY, image, inst.ZIndex + 1, kind == "panel" and 0.35 or 0.25)
+	if kind == "panel" and nestedPanel(inst) then image = nil end -- only top-level panels get a frame
+	-- Plates sit at the element's own ZIndex (behind its content), never above text, buttons or maps.
+	local label = plate(inst, OVERLAY, image, inst.ZIndex, kind == "panel" and 0.35 or 0.25)
+	if label and kind == "panel" then thinBand(inst, label) end
 	local hide = label ~= nil
 	for _, child in ipairs(inst:GetChildren()) do
 		local n = child.Name
