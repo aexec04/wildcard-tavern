@@ -8016,7 +8016,7 @@ table.insert(tests, { name = "Seeds: 6 character codes (A-Z without I and O, 2-9
 	-- display text
 	local l = SeedDisplay.label({ isSeeded = true, seedCode = "STAR27" })
 	expectEqual(l.text, "Seed: STAR27"); expectTrue(l.shareable)
-	expectEqual(SeedDisplay.shareText({ isSeeded = true, seedCode = "STAR27" }), "Play my Wildcard Tavern seed: STAR27")
+	expectEqual(SeedDisplay.shareText({ isSeeded = true, seedCode = "STAR27" }), "Play my The Gilded Knave seed: STAR27")
 	l = SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-08" })
 	expectEqual(l.text, "Daily: 2026-11-08"); expectFalse(l.shareable)
 	l = SeedDisplay.label({ isWeekly = true, weeklyDateKey = "2026-W45" })
@@ -12906,6 +12906,50 @@ table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf ra
 	expectTrue(select(2, wall:gsub('"badge_shelf_rail"', "")) >= 2, "cabinet and curio planks use the shelf rail")
 	expectTrue(panel:find("badge_ribbon_banner", 1, true) ~= nil and panel:find("RibbonArt", 1, true) ~= nil, "header uses the ribbon banner")
 	expectTrue(panel:find('type(ribbonId) == "string"', 1, true) ~= nil, "ribbon is skipped when the id is missing")
+end })
+
+table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave, no tagline, old name gone, banned word absent", fn = function()
+	local GameName = require(script.Parent.Parent.Engine.GameName)
+	local ShareResult = require(script.Parent.Parent.Engine.ShareResult)
+	local WinCard = require(script.Parent.Parent.Engine.WinCard)
+	local SeedDisplay = require(script.Parent.Parent.Engine.SeedDisplay)
+	expectEqual("The Gilded Knave", GameName.NAME)
+	expectEqual("", GameName.TAGLINE)
+	local old = "Wildcard" .. " Tavern"
+	local texts = {
+		ShareResult.line({ night = 3, won = true, bestHand = { name = "Flush", score = 900 } }, "ABC234"),
+		ShareResult.challengeLine({ night = 3 }, "ABC234"),
+		SeedDisplay.shareText({ isSeeded = true, seedCode = "ABC234" }),
+	}
+	local card = WinCard.build({ night = 4, won = true, bestHand = { name = "Pair", score = 10 }, patrons = {} }, {})
+	texts[#texts + 1] = card.shareText
+	texts[#texts + 1] = card.footer
+	for _, t in ipairs(texts) do
+		expectTrue(t:find(GameName.NAME, 1, true) ~= nil, "uses GameName: " .. t)
+		expectTrue(t:find(old, 1, true) == nil, "old name gone: " .. t)
+		expectTrue(#t <= 200, "within 200 chars")
+		expectTrue(t:lower():find("balatro", 1, true) == nil, "banned word absent")
+		expectTrue(t:find("\226\128[\147\148]") == nil and t:find("%-") == nil, "no dashes")
+	end
+	-- source scan: no player-facing file still shows the old name, and the Menu, Win Card and invite use GameName
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a"); f:close()
+		return text
+	end
+	local menu, wordmark = read("src/Client/Menu.lua"), read("src/Client/Wordmark.lua")
+	if menu and wordmark then
+		expectTrue(menu:find("Wordmark", 1, true) ~= nil, "Menu draws the title through Wordmark")
+		expectTrue(menu:find(old, 1, true) == nil, "Menu has no old name")
+		expectTrue(menu:find("MenuRibbon", 1, true) == nil, "Menu title has no tagline ribbon")
+		expectTrue(wordmark:find("GameName", 1, true) ~= nil, "Wordmark takes its text from GameName")
+		expectTrue(wordmark:find("UIGradient.Transparency", 1, true) == nil, "gradient is Color only")
+		expectTrue(read("src/Shared/Engine/WinCard.lua"):find("GameName", 1, true) ~= nil, "Win Card uses GameName")
+		expectTrue(read("src/Client/InvitePrompt.lua"):find("GameName", 1, true) ~= nil, "invite prompt uses GameName")
+	end
+	local LogoArt = require(script.Parent.Parent.Engine.LogoArt)
+	expectTrue(type(LogoArt) == "table", "LogoArt hook exists")
 end })
 
 return tests

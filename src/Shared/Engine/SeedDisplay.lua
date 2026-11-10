@@ -5,8 +5,10 @@
 
 	label(state) -> { kind = "seed"|"daily"|"weekly", title = "Seed", value = "ABC234", text = "Seed: ABC234",
 	                  shareable = bool } | nil
-	shareText(state) -> "Play my Wildcard Tavern seed: ABC234" | nil     (only Seed Runs can be shared)
+	shareText(state) -> "Play my The Gilded Knave seed: ABC234" | nil     (only Seed Runs can be shared)
 ]]
+
+local GameName = require(script.Parent.GameName)
 
 local SeedDisplay = {}
 
@@ -30,7 +32,7 @@ end
 function SeedDisplay.shareText(state)
 	local l = SeedDisplay.label(state)
 	if l and l.shareable then
-		return "Play my Wildcard Tavern seed: " .. l.value
+		return "Play my " .. GameName.NAME .. " seed: " .. l.value
 	end
 	return nil
 end

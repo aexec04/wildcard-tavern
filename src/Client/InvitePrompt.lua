@@ -16,6 +16,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Invites = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Invites"))
 
+local GameName = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName"))
+
 local InvitePrompt = {}
 
 local busy = false
@@ -76,7 +78,7 @@ function InvitePrompt.prompt(anchor)
 		end
 		local okSend, err = pcall(function()
 			local options = Instance.new("ExperienceInviteOptions")
-			options.PromptMessage = "Come play Wildcard Tavern with me!"
+			options.PromptMessage = "Come play " .. GameName.NAME .. " with me!"
 			options.LaunchData = Invites.launchData(player.UserId)
 			SocialService:PromptGameInvite(player, options)
 		end)

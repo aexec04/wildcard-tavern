@@ -94,7 +94,7 @@ do
 		local okTests, errTests = pcall(function()
 			local TestRunner = require(Tests.TestRunner)
 			local engineTests = require(Tests.EngineTests)
-			print("===== Wildcard Tavern: running engine tests =====")
+			print("===== The Gilded Knave: running engine tests =====")
 			local results = TestRunner.run(engineTests)
 			if results.failed > 0 then
 				warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))

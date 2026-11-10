@@ -84,8 +84,6 @@ return function(deps)
 	sceneDim.ZIndex = 10
 	sceneDim.Parent = menuFrame
 
-	local GOLD = Color3.fromRGB(255, 214, 130)
-	local CREAM = Color3.fromRGB(250, 240, 220)
 
 	-- ===== Near layer: the carved gold title and the ribbon =====
 	local titleGroup = Instance.new("Frame")
@@ -96,69 +94,11 @@ return function(deps)
 	titleGroup.ZIndex = 11
 	titleGroup.Parent = menuFrame
 
-	local menuTitleShadow = Instance.new("TextLabel")
-	menuTitleShadow.Name = "MenuTitleShadow"
-	menuTitleShadow.Size = UDim2.new(1, 0, 0, 80)
-	menuTitleShadow.Position = UDim2.new(0, 3, 0, 23)
-	menuTitleShadow.BackgroundTransparency = 1
-	menuTitleShadow.Font = Enum.Font.GothamBold
-	menuTitleShadow.TextSize = 58
-	menuTitleShadow.TextColor3 = Color3.fromRGB(0, 0, 0)
-	menuTitleShadow.TextTransparency = 0.6
-	menuTitleShadow.TextStrokeTransparency = 1
-	menuTitleShadow.Text = "Wildcard Tavern"
-	menuTitleShadow.ZIndex = 10
-	menuTitleShadow.Parent = titleGroup
-
-	local menuTitle = Instance.new("TextLabel")
-	menuTitle.Name = "MenuTitle"
-	menuTitle.Size = UDim2.new(1, 0, 0, 80)
-	menuTitle.Position = UDim2.new(0, 0, 0, 20)
-	menuTitle.BackgroundTransparency = 1
-	menuTitle.Font = Enum.Font.GothamBold
-	menuTitle.TextSize = 58
-	menuTitle.TextColor3 = GOLD
-	menuTitle.TextTransparency = 0
-	menuTitle.TextStrokeColor3 = Color3.fromRGB(60, 36, 14)
-	menuTitle.TextStrokeTransparency = 0.1
-	menuTitle.Text = "Wildcard Tavern"
-	menuTitle.ZIndex = 11
-	menuTitle.Parent = titleGroup
-
-	local menuSubtitle = Instance.new("TextLabel")
-	menuSubtitle.Name = "MenuRibbon"
-	menuSubtitle.AnchorPoint = Vector2.new(0.5, 0)
-	menuSubtitle.Size = UDim2.fromOffset(340, 32)
-	menuSubtitle.Position = UDim2.new(0.5, 0, 0, 108)
-	menuSubtitle.BackgroundColor3 = Color3.fromRGB(150, 48, 40)
-	menuSubtitle.Font = Enum.Font.GothamBold
-	menuSubtitle.TextSize = 16
-	menuSubtitle.TextColor3 = CREAM
-	menuSubtitle.TextTransparency = 0
-	menuSubtitle.TextStrokeTransparency = 1
-	menuSubtitle.Text = "a poker hand deckbuilder game!"
-	menuSubtitle.ZIndex = 11
-	menuSubtitle.Parent = titleGroup
-	do
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 4)
-		c.Parent = menuSubtitle
-		local st = Instance.new("UIStroke")
-		st.Color = Color3.fromRGB(214, 172, 88)
-		st.Thickness = 1.5
-		st.Parent = menuSubtitle
-		for side = 1, 2 do -- ribbon tails
-			local tail = Instance.new("Frame")
-			tail.AnchorPoint = Vector2.new(0.5, 0)
-			tail.Size = UDim2.fromOffset(26, 24)
-			tail.Position = UDim2.new(0.5, (side == 1 and -1 or 1) * 182, 0, 114)
-			tail.BackgroundColor3 = Color3.fromRGB(110, 34, 30)
-			tail.BorderSizePixel = 0
-			tail.Rotation = side == 1 and -8 or 8
-			tail.ZIndex = 10
-			tail.Parent = titleGroup
-		end
-	end
+	local wordmark = require(script.Parent.Wordmark).build(titleGroup, {
+		imageId = ContentArt.getImageId("logo", "logo_wordmark"),
+		zIndex = 11,
+	})
+	local menuTitleShadow, menuTitle = wordmark.shadow, wordmark.title
 
 	-- ===== Notice Board: pinned notes on the left wall (rank, next goal, news, today's board) =====
 	local hotspots -- built below; the note handlers need it
@@ -342,8 +282,8 @@ return function(deps)
 		end,
 	})
 
-	-- One-shot load-in: title and ribbon fade up, the hotspots drop in with a 0.06s stagger.
-	revealStagger({ menuTitleShadow, menuTitle, menuSubtitle }, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
+	-- One-shot load-in: the title fades up, the hotspots drop in with a 0.06s stagger.
+	revealStagger({ menuTitleShadow, menuTitle }, { stagger = 0.08, duration = 0.35, fromScale = 0.7 })
 
 	-- ===== Loops (only while the menu is open; skipped under Reduce Shake) =====
 	local loopToken = 0
@@ -352,7 +292,6 @@ return function(deps)
 		hotspots.stopLoops()
 		hotspots.closeAll()
 		parallax.stop()
-		menuTitle.TextTransparency = 0
 	end
 	local function startLoops()
 		stopLoops()
@@ -361,17 +300,7 @@ return function(deps)
 		if calm() then
 			return
 		end
-		local my = loopToken
-		hotspots.startLoops()
-		task.spawn(function()
-			task.wait(1.5) -- let the load-in finish first
-			while loopToken == my and menuFrame.Visible do
-				local d = 0.2 + math.random() * 0.3
-				local info = TweenInfo.new(d, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-				TweenService:Create(menuTitle, info, { TextTransparency = math.random() * 0.12 }):Play()
-				task.wait(d)
-			end
-		end)
+		hotspots.startLoops() -- the title no longer flickers (calm direction)
 	end
 	menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
 		if menuFrame.Visible then

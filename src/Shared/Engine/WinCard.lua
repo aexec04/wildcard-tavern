@@ -14,6 +14,7 @@
 ]]
 
 local ShareResult = require(script.Parent.ShareResult)
+local GameName = require(script.Parent.GameName)
 
 local WinCard = {}
 
@@ -53,7 +54,7 @@ function WinCard.build(summary, extras)
 		patrons[#patrons + 1] = { id = p.id, name = WinCard.clean(p.name), icon = p.icon }
 	end
 
-	local parts = { string.format("%s in Wildcard Tavern!", won and ("I won and reached Night " .. night) or ("I reached Night " .. night)) }
+	local parts = { string.format("%s in " .. GameName.NAME .. "!", won and ("I won and reached Night " .. night) or ("I reached Night " .. night)) }
 	if hand and hand.name then
 		parts[#parts + 1] = string.format("Best hand: %s (%d).", WinCard.clean(hand.name), math.floor(tonumber(hand.score) or 0))
 	end
@@ -83,7 +84,7 @@ function WinCard.build(summary, extras)
 		nightText = "Night " .. night,
 		bestHandText = bestHandText,
 		stakeText = "Stake " .. stake,
-		footer = blessingText ~= "" and blessingText or (seedText ~= "" and seedText or "Wildcard Tavern"),
+		footer = blessingText ~= "" and blessingText or (seedText ~= "" and seedText or GameName.NAME),
 		patrons = patrons,
 		cardBackId = extras.cardBackId,
 		shareText = text,
