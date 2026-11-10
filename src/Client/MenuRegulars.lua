@@ -42,7 +42,7 @@ local function build(menuFrame)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextColor3 = CREAM
 	title.TextTransparency = 0
-	title.TextStrokeTransparency = 0.3
+	title.TextStrokeTransparency = 0.8
 	title.Text = "Your Regulars"
 	title.ZIndex = 12
 	title.Parent = root

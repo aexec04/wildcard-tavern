@@ -100,7 +100,7 @@ return function(deps)
 		Size = UDim2.new(1, -190, 0, 34), Position = UDim2.fromOffset(20, 12), Text = "Choose your road",
 		TextSize = 26, TextColor3 = CREAM, ZIndex = 22,
 	})
-	title.TextStrokeTransparency = 0.3
+	title.TextStrokeTransparency = 0.8
 	title.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 	local subtitle = label(panel, {
 		Size = UDim2.new(1, -190, 0, 36), Position = UDim2.fromOffset(20, 44), Text = "",

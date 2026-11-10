@@ -12044,7 +12044,7 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	if not (world and board and hot) then return end
 	expectTrue(world:find("menu_map_frame", 1, true) == nil and world:find("WL.frameStrips", 1, true) == nil, "the scroll frame's roller ends (the four corner blobs) are not drawn")
 	expectTrue(world:find("CloudShadow", 1, true) == nil and world:find("menu_cloud_wisp", 1, true) == nil, "no cloud shadows (ghost circles and a light band)")
-	expectTrue(world:find('"TitleScrim" .. i', 1, true) ~= nil and world:find('frame(container, "TitleScrim",', 1, true) == nil, "the title backing fades in steps, no hard band edge")
+	expectTrue(world:find('name = "TitleScrim"', 1, true) ~= nil and world:find('"TitleScrim" .. i', 1, true) == nil, "the title backing is one gradient frame, no hard band edge")
 	expectTrue(world:find("menu_fog_edge_clean", 1, true) ~= nil, "the despilled fog edge is preferred when recorded")
 	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
 	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
@@ -14826,6 +14826,45 @@ table.insert(tests, { name = "HudKit: prompts.json has every piece for every pha
 			f:close()
 			for key in pairs(known) do
 				expectTrue(text:find('"' .. key .. '"', 1, true) ~= nil, key .. " has a prompts.json entry")
+			end
+		end
+	end
+end })
+
+
+table.insert(tests, { name = "Menu room polish: one gradient title scrim, soft stacked glows, notes on the cork board, no heavy text strokes, no stacked equal frames", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local room, board, menu, hot = read("src/Client/MenuRoom.lua"), read("src/Client/MenuBoard.lua"), read("src/Client/Menu.lua"), read("src/Client/MenuHotspots.lua")
+	if not (room and board and menu and hot) then return end
+	-- no stacked equal full-width frames ("Scrim1..N" or "Step" loops) anywhere in the Menu scenes
+	for _, name in ipairs({ "MenuRoom", "MenuWorld", "MenuBayou" }) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			expectTrue(src:find('Scrim" .. i', 1, true) == nil and src:find('Step" .. i', 1, true) == nil, name .. " builds no stacked Scrim/Step frames")
+		end
+	end
+	expectTrue(room:find('name = "TitleScrim"', 1, true) ~= nil and room:find("SmoothVignette", 1, true) ~= nil, "the title scrim is one SmoothVignette gradient frame")
+	-- glows are concentric soft rings, never one plain disc
+	expectTrue(room:find("GLOW_STEPS = 12", 1, true) ~= nil and room:find('glow(host, "FireGlow"', 1, true) ~= nil and room:find('glow(host, "LanternGlow"', 1, true) ~= nil, "fire and lantern glows are soft radials")
+	expectTrue(room:find('disc(host, "FireGlow"', 1, true) == nil and room:find('disc(host, "LanternGlow"', 1, true) == nil, "no plain disc glow")
+	-- the board sits on the cork rectangle (not reset to the top left by the parallax) and the old widget is not a parallax layer
+	expectTrue(menu:find("inst = board.frame", 1, true) == nil, "the Notice Board is not a parallax layer (it would be reset to the top left)")
+	expectTrue(board:find("NOTE_W = 350", 1, true) ~= nil and board:find("TILTS", 1, true) ~= nil, "notes are narrower than the cork and tilted by at most 2 degrees")
+	for _, tilt in ipairs({ -1.5, 1.2, -0.8, 1.6 }) do expectTrue(math.abs(tilt) <= 2, "tilt at most 2 degrees") end
+	expectTrue(board:find("limit = (sc < 0.9) and 2 or 4", 1, true) ~= nil, "4 notes, 2 when the cork is small")
+	-- the 19 action plaques are not parented to the live menu until a list or scroll shows them
+	expectTrue(hot:find("stash.Parent = menuFrame", 1, true) == nil, "the action stash is not part of the live GUI")
+	-- label strokes in the Menu room, Shop and Journey map are thin (0.7 or more) or off
+	for _, name in ipairs({ "MenuRoom", "MenuHotspots", "MenuBoard", "MenuRank", "MenuRegulars", "MenuTicker", "Shop", "ShopCards", "ShopScene", "ShopStage", "JourneyMapView", "JourneyMapFog", "JourneyMapGraph", "CompassWheel", "TravelTransition", "RoadChoice" }) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			for value in src:gmatch("TextStrokeTransparency%s*=%s*([%d%.]+)") do
+				expectTrue((tonumber(value) or 1) >= 0.7, name .. " stroke " .. value .. " is under 0.7")
 			end
 		end
 	end

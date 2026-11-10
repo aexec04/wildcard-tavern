@@ -321,7 +321,7 @@ function Hotspots.build(opts)
 	stash.Visible = false
 	stash.BackgroundTransparency = 1
 	stash.Size = UDim2.fromOffset(1, 1)
-	stash.Parent = menuFrame
+	-- never parented: the 19 action plaques exist (handlers stay wired) but are not part of the live GUI until a list or scroll shows them
 
 	local state = { phone = false, openScroll = nil, listOpen = false, w = 1920, h = 1080 }
 	local homes = {} -- actionId -> function(button) that puts it where it lives when nothing is open
@@ -864,8 +864,8 @@ function Hotspots.build(opts)
 		noticeHit.ZIndex = 12
 		noticeHit.Parent = layer
 		noticeHit.MouseButton1Click:Connect(toggleList)
-		noticeHit.MouseEnter:Connect(function() if opts.onHover then opts.onHover(true) end end)
-		noticeHit.MouseLeave:Connect(function() if opts.onHover then opts.onHover(false) end end)
+		noticeHit.MouseEnter:Connect(function() if opts.onHover then opts.onHover(true) end if opts.onNoticeHover then opts.onNoticeHover(true) end end)
+		noticeHit.MouseLeave:Connect(function() if opts.onHover then opts.onHover(false) end if opts.onNoticeHover then opts.onNoticeHover(false) end end)
 	end
 
 	-- Tavern Room: place every prop frame on its rectangle of the picture (mapped through the crop). Hotspots that fall outside the

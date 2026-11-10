@@ -52,6 +52,35 @@ local function disc(parent, name, color, cx, cy, w, h, transparency)
 	return g
 end
 
+-- A soft radial glow: GLOW_STEPS concentric discs, each very faint, so the middle is warmest and no ring has a visible edge.
+local GLOW_STEPS = 12
+local function glow(parent, name, color, cx, cy, w, h, transparency)
+	local g = frame(parent, name, color, 1)
+	g.BackgroundTransparency = 1
+	g.AnchorPoint = Vector2.new(0.5, 0.5)
+	g.Position = UDim2.fromScale(cx, cy)
+	g.Size = UDim2.fromScale(w, h)
+	g.ClipsDescendants = false
+	local rings = {}
+	for i = 1, GLOW_STEPS do
+		local k = (GLOW_STEPS - i + 1) / GLOW_STEPS -- 1 for the widest ring down to 1/N for the core
+		local ring = frame(g, "Ring" .. i, color, 1)
+		ring.AnchorPoint = Vector2.new(0.5, 0.5)
+		ring.Position = UDim2.fromScale(0.5, 0.5)
+		ring.Size = UDim2.fromScale(k, k)
+		round(ring, UDim.new(0.5, 0))
+		rings[i] = ring
+	end
+	g:SetAttribute("rings", GLOW_STEPS)
+	return { root = g, rings = rings, set = nil }
+end
+
+-- Sets a glow's centre transparency (the old single-disc value); every ring gets an equal share so edges stay invisible.
+local function setGlow(gl, transparency)
+	local per = 1 - math.clamp(transparency, 0, 1) ^ (1 / GLOW_STEPS) -- stacked, the centre ends at `transparency`
+	for _, ring in ipairs(gl.rings) do ring.BackgroundTransparency = 1 - per end
+end
+
 local function gradient(inst, top, bottom)
 	local g = Instance.new("UIGradient")
 	g.Rotation = 90
@@ -138,10 +167,10 @@ function MenuRoom.build(parent)
 
 	-- life: the eight kinds below (fire, lanterns, motes, candles, stars, notes, glint, deck ring)
 	local F = RL.fireRect
-	local fireGlow = disc(host, "FireGlow", Color3.fromRGB(255, 150, 60), (F.l + F.r) / 2, (F.t + F.b) / 2, F.r - F.l, F.b - F.t, 0.85)
+	local fireGlow = glow(host, "FireGlow", Color3.fromRGB(255, 150, 60), (F.l + F.r) / 2, (F.t + F.b) / 2, F.r - F.l, F.b - F.t, 0.85)
 	local lanternGlows = {}
 	for i, r in ipairs(RL.lanternRects) do
-		lanternGlows[i] = disc(host, "LanternGlow" .. i, Color3.fromRGB(255, 190, 90), (r.l + r.r) / 2, (r.t + r.b) / 2, (r.r - r.l) * 1.6, (r.b - r.t) * 1.2, 0.86)
+		lanternGlows[i] = glow(host, "LanternGlow" .. i, Color3.fromRGB(255, 190, 90), (r.l + r.r) / 2, (r.t + r.b) / 2, (r.r - r.l) * 1.6, (r.b - r.t) * 1.2, 0.86)
 	end
 	local motes = {}
 	for i = 1, RL.motes do
@@ -174,14 +203,8 @@ function MenuRoom.build(parent)
 	ringStroke.Parent = ring
 	scene.animatedCount = RL.ambientKinds
 
-	-- soft dark plate behind the title at the top centre, over the ceiling beams: eight thin steps that fade out, no band edge
-	do
-		local steps, height = 8, 0.16
-		for i = 1, steps do
-			local step = frame(container, "TitleScrim" .. i, Color3.fromRGB(14, 10, 6), 0.7 + (i - 1) * 0.04)
-			step.Size = UDim2.fromScale(1, height * (steps - i + 1) / steps)
-		end
-	end
+	-- soft dark fade behind the title at the top centre, over the ceiling beams: ONE eased gradient frame, no stacked steps
+	require(script.Parent.SmoothVignette).build(container, { zIndex = 10, color = Color3.fromRGB(14, 10, 6), name = "TitleScrim", top = { strength = 0.72, extent = 0.16 } })
 
 	function scene.update(_nx, _ny, t, calm)
 		for _, list in ipairs({ motes, flames, stars, notes }) do
@@ -190,13 +213,13 @@ function MenuRoom.build(parent)
 		glint.Visible = not calm
 		ring.Visible = not calm
 		if calm then
-			fireGlow.BackgroundTransparency = 0.85
-			for _, g in ipairs(lanternGlows) do g.BackgroundTransparency = 0.86 end
+			setGlow(fireGlow, 0.85)
+			for _, g in ipairs(lanternGlows) do setGlow(g, 0.86) end
 			return
 		end
-		fireGlow.BackgroundTransparency = 0.85 + RL.flickerAt(t) * 0.5
+		setGlow(fireGlow, 0.85 + RL.flickerAt(t) * 0.5)
 		for i, g in ipairs(lanternGlows) do
-			g.BackgroundTransparency = 0.86 + math.sin(t * 0.7 + i * 2.4) * 0.03 -- slow breathing halo
+			setGlow(g, 0.86 + math.sin(t * 0.7 + i * 2.4) * 0.03) -- slow breathing halo
 		end
 		for i, m in ipairs(motes) do
 			local x, y, a = RL.moteAt(i, t)

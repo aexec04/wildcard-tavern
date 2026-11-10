@@ -173,7 +173,7 @@ function ShopScene.new(deps)
 	nameTag.TextSize = 15
 	nameTag.TextColor3 = Color3.fromRGB(250, 235, 200)
 	nameTag.TextTransparency = 0
-	nameTag.TextStrokeTransparency = 0.5
+	nameTag.TextStrokeTransparency = 0.8
 	nameTag.ZIndex = 8
 	nameTag.Parent = peddler
 	-- A blink overlay (dark lid strip) over the emoji eyes row; harmless over painted art.

@@ -211,15 +211,8 @@ function MenuWorld.build(parent)
 	end
 	scene.animatedCount += #flies
 
-	-- soft backing under the title so the gold lettering reads on the grass: eight thin steps that fade out, so there is no
-	-- visible band edge anywhere on the map
-	do
-		local steps, height = 8, 0.16
-		for i = 1, steps do
-			local step = frame(container, "TitleScrim" .. i, Color3.fromRGB(14, 20, 12), 0.7 + (i - 1) * 0.04)
-			step.Size = UDim2.fromScale(1, height * (steps - i + 1) / steps)
-		end
-	end
+	-- soft backing under the title so the gold lettering reads on the grass: ONE eased gradient frame, no stacked steps
+	require(script.Parent.SmoothVignette).build(container, { zIndex = 10, color = Color3.fromRGB(14, 20, 12), name = "TitleScrim", top = { strength = 0.72, extent = 0.16 } })
 
 	-- the painted fog edge softens the screen border and a thin drawn parchment line frames it. The scroll-frame art is not used:
 	-- its roller ends showed up as four flat blobs in the corners. The despilled fog (menu_fog_edge_clean) is preferred when recorded.

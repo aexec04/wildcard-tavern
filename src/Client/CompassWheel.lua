@@ -240,7 +240,7 @@ function CompassWheel.new(opts)
 	pips.TextSize = 16
 	pips.TextColor3 = GOLD
 	pips.TextTransparency = 0
-	pips.TextStrokeTransparency = 0.4
+	pips.TextStrokeTransparency = 0.8
 	pips.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 	pips.Text = ""
 	pips.Parent = frame

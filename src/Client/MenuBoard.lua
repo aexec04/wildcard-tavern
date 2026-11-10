@@ -17,7 +17,8 @@ local ContentArt = require(Engine:WaitForChild("ContentArt"))
 
 local MenuBoard = {}
 
-local NOTE_W = 460
+local NOTE_W = 350 -- notes are re-sized to this when pinned so they fit the cork board at full scale (text stays 14 px or more)
+local TILTS = { -1.5, 1.2, -0.8, 1.6 } -- degrees, at most 2
 local Z = 14 -- notes are drawn at z 10 to 12 by their modules; lift them above the board and the backdrop
 
 local function lift(root, n)
@@ -59,10 +60,13 @@ function MenuBoard.build(parent)
 		ic.CornerRadius = UDim.new(0, 10)
 		ic.Parent = img
 	end
-	local head = Instance.new("TextLabel")
+	local head = Instance.new("TextLabel") -- name plate above the board, shown on hover (and always on the unpainted board)
 	head.Name = "Head"
-	head.Size = UDim2.new(1, 0, 0, 26)
-	head.BackgroundTransparency = 1
+	head.AnchorPoint = Vector2.new(0.5, 1)
+	head.Position = UDim2.new(0.5, 0, 0, -4)
+	head.Size = UDim2.fromOffset(150, 28)
+	head.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	head.BackgroundTransparency = 0
 	head.Font = Enum.Font.GothamBold
 	head.TextSize = 16
 	head.TextColor3 = Color3.fromRGB(250, 235, 200)
@@ -70,13 +74,23 @@ function MenuBoard.build(parent)
 	head.TextStrokeTransparency = 1
 	head.Text = "Notice Board"
 	head.Active = false
-	head.ZIndex = 13
+	head.Visible = false
+	head.ZIndex = 60
 	head.Parent = frame
+	do
+		local hc = Instance.new("UICorner")
+		hc.CornerRadius = UDim.new(0, 6)
+		hc.Parent = head
+		local hs = Instance.new("UIStroke")
+		hs.Color = Color3.fromRGB(176, 140, 60)
+		hs.Thickness = 1.5
+		hs.Parent = head
+	end
 
 	local holder = Instance.new("Frame") -- clips the scaled notes to the board
 	holder.Name = "Notes"
-	holder.Position = UDim2.fromOffset(8, 28)
-	holder.Size = UDim2.new(1, -16, 1, -36)
+	holder.Position = UDim2.fromOffset(8, 8)
+	holder.Size = UDim2.new(1, -16, 1, -16)
 	holder.BackgroundTransparency = 1
 	holder.ClipsDescendants = true
 	holder.ZIndex = 13
@@ -104,34 +118,38 @@ function MenuBoard.build(parent)
 		local screenH = parent.AbsoluteSize.Y
 		if screenH < 1 then return end
 		local content = list.AbsoluteSize.Y -- includes the UIScale
-		local h = math.min(N.h * screenH, 28 + content + 14)
+		local h = math.min(N.h * screenH, 8 + content + 14)
 		frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))
 	end
 	list:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	parent:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	task.defer(fit)
 
-	local board = { frame = frame, list = list }
+	local slots = {}
+	local board = { frame = frame, list = list, head = head, slots = slots }
 
 	function board.pin(note, onClick)
 		local slot = Instance.new("Frame")
 		slot.Name = "Slot_" .. note.Name
+		note.Size = UDim2.fromOffset(NOTE_W, note.Size.Y.Offset) -- narrower than the old 460 so it fits the cork at full size
 		slot.Size = note.Size
 		slot.LayoutOrder = note.LayoutOrder
 		slot.BackgroundTransparency = 1
 		slot.Visible = note.Visible
+		slots[#slots + 1] = slot
+		note.Rotation = TILTS[((#slots - 1) % #TILTS) + 1]
 		slot.ZIndex = 13
 		slot.Parent = list
 		note.Position = UDim2.new()
 		note.Parent = slot
 		lift(note, Z - note.ZIndex)
-		note:GetPropertyChangedSignal("Visible"):Connect(function() slot.Visible = note.Visible end)
+		note:GetPropertyChangedSignal("Visible"):Connect(function() slot.Visible = note.Visible and slot:GetAttribute("Crowded") ~= true end)
 		local pin = Instance.new("Frame") -- the pin holding the note to the board
 		pin.Name = "Pin"
 		pin.AnchorPoint = Vector2.new(0.5, 0.5)
 		pin.Position = UDim2.new(0.5, 0, 0, -4) -- on the note's top edge only, clear of its text rows
 		pin.Size = UDim2.fromOffset(10, 10)
-		pin.BackgroundColor3 = Color3.fromRGB(176, 52, 40)
+		pin.BackgroundColor3 = Color3.fromRGB(190, 150, 62) -- brass
 		pin.BorderSizePixel = 0
 		pin.Active = false
 		pin.ZIndex = Z + 30
@@ -164,7 +182,25 @@ function MenuBoard.build(parent)
 	function board.place(l, t, r, b, painted)
 		frame.Position = UDim2.fromOffset(l, t)
 		frame.Size = UDim2.fromOffset(r - l, b - t)
-		scale.Scale = math.clamp((r - l - 16) / NOTE_W, 0.4, 1)
+		local sc = math.clamp((r - l - 16) / NOTE_W, 0.4, 1)
+		scale.Scale = sc
+		-- show at most 4 notes; when the cork is small (notes would shrink under 90 percent or run past the board) show the first 2
+		local avail, need, shown = b - t - 16, 10, 0
+		local visibleSlots = {}
+		for _, slot in ipairs(slots) do slot:SetAttribute("Crowded", false) end
+		for _, slot in ipairs(slots) do
+			local note = slot:FindFirstChildWhichIsA("GuiObject")
+			if note and note.Visible then visibleSlots[#visibleSlots + 1] = slot end
+		end
+		local limit = (sc < 0.9) and 2 or 4
+		for i, slot in ipairs(visibleSlots) do
+			need += (slot.Size.Y.Offset + 16) * sc
+			local crowd = i > limit or need > avail
+			slot:SetAttribute("Crowded", crowd)
+			slot.Visible = not crowd
+			shown += crowd and 0 or 1
+		end
+		head.Visible = not painted
 		if painted then
 			frame.BackgroundTransparency = 1
 			edge.Enabled = false
@@ -173,10 +209,14 @@ function MenuBoard.build(parent)
 		end
 	end
 
+	function board.setHover(on)
+		head.Visible = on
+	end
+
 	function board.apply(w, h, phone)
 		frame.Visible = not phone
 		local pxW = N.w * w - 16
-		scale.Scale = math.clamp(pxW / NOTE_W, 0.4, 1)
+		scale.Scale = math.clamp(pxW / NOTE_W, 0.4, 1) -- board.place sets the final scale on the cork rectangle
 	end
 
 	return board

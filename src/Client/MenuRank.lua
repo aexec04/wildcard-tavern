@@ -96,7 +96,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	num.TextSize = 18
 	num.TextColor3 = INK
 	num.TextStrokeColor3 = Color3.fromRGB(255, 235, 190)
-	num.TextStrokeTransparency = 0.6
+	num.TextStrokeTransparency = 0.8
 	num.Text = "1"
 	num.ZIndex = 13
 	num.Parent = frame

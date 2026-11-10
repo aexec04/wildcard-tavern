@@ -1280,7 +1280,7 @@ return function(deps)
 		tableLabel.TextXAlignment = Enum.TextXAlignment.Left
 		tableLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		tableLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
-		tableLabel.TextStrokeTransparency = 0.4
+		tableLabel.TextStrokeTransparency = 0.8
 		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
 			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6

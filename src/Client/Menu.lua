@@ -240,6 +240,7 @@ return function(deps)
 		buttons = buttons,
 		calm = calm,
 		tutorialRibbon = ribbon,
+		onNoticeHover = function(on) board.setHover(on) end,
 		onHover = function(on)
 			TweenService:Create(sceneDim, TweenInfo.new(0.12), { BackgroundTransparency = on and 0.8 or 1 }):Play()
 		end,
@@ -271,7 +272,6 @@ return function(deps)
 		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = 0 },
 		{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
 		{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
-		{ inst = board.frame, base = UDim2.new(), px = 0 }, -- the picture, its props and the hotspots hold still together
 		{ inst = hotspotLayer, base = UDim2.new(), px = 0 },
 		{ inst = titleGroup, base = UDim2.new(), px = P.near },
 		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },

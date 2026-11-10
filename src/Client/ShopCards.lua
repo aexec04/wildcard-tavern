@@ -227,7 +227,7 @@ function ShopCards.new(deps)
 		end
 		label(scene, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4), Size = UDim2.new(1, -20, 0, 30),
 			Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(30, 20, 12),
-			TextStrokeTransparency = 0.5, Text = EmptyStates.line(key) })
+			TextStrokeTransparency = 0.8, Text = EmptyStates.line(key) })
 		if addTooltip then
 			local hint = EmptyStates.hint(key)
 			if hint ~= "" then
@@ -255,7 +255,7 @@ function ShopCards.new(deps)
 		stroke(spot, Color3.fromRGB(120, 88, 56), 2, 0.4)
 		local stamp = label(spot, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(shape.w - 30, 48), Text = "SOLD", TextSize = 34, Rotation = -12,
-			TextColor3 = Color3.fromRGB(214, 70, 56), TextStrokeColor3 = Color3.fromRGB(40, 12, 8), TextStrokeTransparency = 0.3 })
+			TextColor3 = Color3.fromRGB(214, 70, 56), TextStrokeColor3 = Color3.fromRGB(40, 12, 8), TextStrokeTransparency = 0.8 })
 		if animate and not slow() then
 			local scale = Instance.new("UIScale")
 			scale.Scale = 2.4
@@ -263,7 +263,7 @@ function ShopCards.new(deps)
 			stamp.TextTransparency = 1
 			stamp.TextStrokeTransparency = 1
 			tween(scale, { Scale = 1 }, 0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-			tween(stamp, { TextTransparency = 0, TextStrokeTransparency = 0.3 }, 0.14)
+			tween(stamp, { TextTransparency = 0, TextStrokeTransparency = 0.8 }, 0.14)
 		end
 		return slot
 	end

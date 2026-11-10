@@ -91,7 +91,7 @@ function TravelTransition.show(opts)
 	caption.TextSize = 30
 	caption.TextColor3 = CREAM
 	caption.TextStrokeColor3 = INK
-	caption.TextStrokeTransparency = 0.3
+	caption.TextStrokeTransparency = 0.8
 	caption.Text = toName
 	caption.ZIndex = 5
 	caption.Parent = cover
@@ -106,7 +106,7 @@ function TravelTransition.show(opts)
 	hint.TextSize = 16
 	hint.TextColor3 = CREAM
 	hint.TextStrokeColor3 = INK
-	hint.TextStrokeTransparency = 0.3
+	hint.TextStrokeTransparency = 0.8
 	hint.Text = "Tap to skip"
 	hint.TextTransparency = 1
 	hint.TextStrokeTransparency = 1
@@ -161,7 +161,7 @@ function TravelTransition.show(opts)
 			t.TextSize = 16
 			t.TextColor3 = CREAM
 			t.TextStrokeColor3 = INK
-			t.TextStrokeTransparency = 0.3
+			t.TextStrokeTransparency = 0.8
 			t.Text = label
 			t.ZIndex = 4
 			t.Parent = m
@@ -229,7 +229,7 @@ function TravelTransition.show(opts)
 			end
 			if elapsed >= TravelTiming.SKIP_AFTER and not reduced then
 				hint.TextTransparency = 0
-				hint.TextStrokeTransparency = 0.3
+				hint.TextStrokeTransparency = 0.8
 			end
 			if TravelTiming.shouldReveal(elapsed, readyAt, reduced, skipRequested) then
 				print(string.format("[Transition] %s -> %s: ready after %s, revealed after %.2fs",

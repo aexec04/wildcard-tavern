@@ -70,7 +70,7 @@ return function(deps)
 	hint.TextColor3 = INK
 	hint.TextTransparency = 0
 	hint.TextStrokeColor3 = STROKE
-	hint.TextStrokeTransparency = 0.5
+	hint.TextStrokeTransparency = 0.8
 	hint.Text = "Something stirs in the fog..."
 	hint.ZIndex = Z_FOG + 2
 	hint.Parent = band
@@ -119,7 +119,7 @@ return function(deps)
 	teaserText.TextColor3 = Color3.fromRGB(120, 88, 48)
 	teaserText.TextTransparency = 0.15
 	teaserText.TextStrokeColor3 = STROKE
-	teaserText.TextStrokeTransparency = 0.6
+	teaserText.TextStrokeTransparency = 0.8
 	teaserText.ZIndex = Z_FOG - 1
 	teaserText.Parent = teaser
 
@@ -311,13 +311,13 @@ return function(deps)
 			edgeTween = TweenService:Create(band, TweenInfo.new(d, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Position = goal })
 			edgeTween:Play()
 			local fadeIn = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, false, d * 0.7)
-			TweenService:Create(hint, fadeIn, { TextTransparency = 0, BackgroundTransparency = 0.1, TextStrokeTransparency = 0.5 }):Play()
+			TweenService:Create(hint, fadeIn, { TextTransparency = 0, BackgroundTransparency = 0.1, TextStrokeTransparency = 0.8 }):Play()
 			TweenService:Create(hintStroke, fadeIn, { Transparency = 0 }):Play()
 		else
 			band.Position = goal
 			hint.TextTransparency = 0
 			hint.BackgroundTransparency = 0.1
-			hint.TextStrokeTransparency = 0.5
+			hint.TextStrokeTransparency = 0.8
 			hintStroke.Transparency = 0
 		end
 		edgeTarget = edgeX

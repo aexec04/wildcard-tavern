@@ -473,7 +473,7 @@ return function(deps)
 		local name = text(canvas, {
 			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = true,
 			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 26, -- under popups (30+) and node icons
-			TextColor3 = NAME_CREAM, TextStrokeColor3 = NAME_STROKE, TextStrokeTransparency = 0.3,
+			TextColor3 = NAME_CREAM, TextStrokeColor3 = NAME_STROKE, TextStrokeTransparency = 0.8,
 		})
 		-- Reward on a small hanging tag.
 		local tag = Instance.new("Frame")
@@ -1634,7 +1634,7 @@ return function(deps)
 		end
 		local info = TweenInfo.new(0.6 / pace(), Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 		node.name.TextTransparency, node.name.TextStrokeTransparency = 1, 1
-		TweenService:Create(node.name, info, { TextTransparency = 0, TextStrokeTransparency = 0.3 }):Play()
+		TweenService:Create(node.name, info, { TextTransparency = 0, TextStrokeTransparency = 0.8 }):Play()
 		node.preview.TextTransparency = 1
 		node.tag.BackgroundTransparency = 1
 		node.tagStroke.Transparency = 1
@@ -1874,7 +1874,8 @@ return function(deps)
 				for _, node in ipairs(nodes) do
 					setPulse(node, false)
 					-- undo any half-finished reveal fade
-					node.name.TextTransparency, node.name.TextStrokeTransparency = 0, 0.3
+					node.name.TextTransparency = 0
+					node.name.TextStrokeTransparency = 0.8
 					node.preview.TextTransparency = 0
 					node.tag.BackgroundTransparency, node.tagStroke.Transparency = 0, 0
 					node.scale.Scale = 1

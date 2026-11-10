@@ -137,7 +137,7 @@ return function(deps)
 		l.TextSize = size
 		l.TextColor3 = CREAM
 		l.TextStrokeColor3 = Color3.fromRGB(30, 22, 16)
-		l.TextStrokeTransparency = 0.2
+		l.TextStrokeTransparency = 0.8
 		l.TextTransparency = 0
 		l.TextWrapped = true
 		l.Active = false
@@ -399,7 +399,7 @@ return function(deps)
 					btn.MouseLeave:Connect(function() lab.Visible = false end)
 				end
 				lab.TextTransparency = visited[id] and 0.25 or 0
-				lab.TextStrokeTransparency = 0.1
+				lab.TextStrokeTransparency = 0.8
 				if revealed[id] and not popped[id] then
 					popped[id] = true
 					local sc = Instance.new("UIScale")
