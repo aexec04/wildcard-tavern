@@ -407,6 +407,7 @@ return function(deps)
 		end)
 	end
 
+	local furniture = Gallery.mountFurniture(panel) -- the tab's painted board or shelf, behind the grid (made before it)
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -30, 1, -196)
 	scroll.Position = UDim2.fromOffset(15, 138)
@@ -417,6 +418,7 @@ return function(deps)
 	scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	scroll.ZIndex = 21
 	scroll.Parent = panel
+	furniture.follow(scroll)
 
 	local grid = Instance.new("UIGridLayout")
 	grid.CellSize = UDim2.fromOffset(92, 108)
@@ -846,8 +848,9 @@ return function(deps)
 			})
 		end
 
+		local nameLabel
 		if not framed then -- framed portraits carry their name on the frame's brass plate
-			label(tile, {
+			nameLabel = label(tile, {
 				Size = UDim2.new(1, -8, 0, 36), Position = UDim2.new(0, 4, 0, 68),
 				Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 22,
 				TextColor3 = found and CREAM or DIM,
@@ -857,6 +860,14 @@ return function(deps)
 
 		-- hand-hung: a fixed tiny tilt and offset per Patron (the "New" tag and the drop-in follow it)
 		local hang = framed and Gallery.hangTile(tile, item.id) or nil
+		if item.tab == "recipes" and Gallery.furnitureKey("recipes") then
+			-- recipe cards are pinned on the cork board; a locked recipe is an empty pin dot with a ??? plate
+			hang = Gallery.pinCard(tile, found, item.id, nameLabel)
+			if not found then
+				iconWell.Visible = false
+				if nameLabel then nameLabel.Visible = false end
+			end
+		end
 
 		-- newly found since the Collection was last opened: a brass "New" tag, and (once) a drop-in
 		local freshKey = item.tab .. ":" .. tostring(item.id)
@@ -944,6 +955,7 @@ return function(deps)
 		-- refresh bumps buildToken and the old batch loop stops.
 		buildToken = buildToken + 1
 		local mine = buildToken
+		furniture.setTab(activeTabId)
 		grid.CellSize = Gallery.cellSize(activeTabId) -- framed portraits are taller than the plain tiles
 		local hungGap = Gallery.framed(activeTabId) and SceneLayout.FRAMED_GAP or nil -- wider gaps so chains and shadows fit
 		grid.CellPadding = hungGap and UDim2.fromOffset(hungGap.x, hungGap.y) or UDim2.fromOffset(10, 10)

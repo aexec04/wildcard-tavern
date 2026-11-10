@@ -184,6 +184,78 @@ function CollectionGallery.hangSign(panel)
 	return api
 end
 
+-- ===== furniture per tab: a painted piece behind the scrolling grid (the grid lives in a layout-managed ScrollingFrame, so the
+-- decoration is a sibling behind it that mirrors its rect) =====
+local FURNITURE = { recipes = "collection_corkboard" }
+
+function CollectionGallery.furnitureKey(tabId)
+	local key = FURNITURE[tabId]
+	return key and art(key) and key or nil
+end
+
+-- creates the backdrop (call before the scroll is created so it draws under it; then api.follow(scroll)); returns { follow, setTab }
+function CollectionGallery.mountFurniture(panel)
+	local img = Instance.new("ImageLabel")
+	img.Name = "TabFurniture"
+	img.BackgroundTransparency = 1
+	img.ScaleType = Enum.ScaleType.Stretch
+	img.Active = false
+	img.Visible = false
+	img.ZIndex = 21
+	img.Parent = panel
+	local api = {}
+	function api.follow(scroll)
+		local function fit()
+			local p, s, m = scroll.Position, scroll.Size, Layout.FURNITURE_MARGIN
+			img.Position = UDim2.new(p.X.Scale, p.X.Offset - m, p.Y.Scale, p.Y.Offset - m)
+			img.Size = UDim2.new(s.X.Scale, s.X.Offset + 2 * m, s.Y.Scale, s.Y.Offset + 2 * m)
+		end
+		scroll:GetPropertyChangedSignal("Position"):Connect(fit)
+		scroll:GetPropertyChangedSignal("Size"):Connect(fit)
+		fit()
+	end
+	function api.setTab(tabId)
+		local key = CollectionGallery.furnitureKey(tabId)
+		img.Visible = key ~= nil
+		if key then img.Image = art(key) end
+	end
+	return api
+end
+
+-- Recipe cards pinned on the cork board: owned cards hang straight-ish (tilt of at most 2 degrees fixed per card) on a pin; a locked
+-- recipe is an empty pin dot with a ??? plate. `tile` is already built; this restyles it.
+function CollectionGallery.pinCard(tile, found, id, nameLabel)
+	tile.BackgroundTransparency = found and 0 or 1
+	if found then
+		tile.BackgroundColor3 = Color3.fromRGB(236, 220, 182)
+		if nameLabel then nameLabel.TextColor3 = ENGRAVE end
+	end
+	local pin = box(tile, { Name = "Pin", BackgroundColor3 = found and Color3.fromRGB(176, 52, 40) or Color3.fromRGB(64, 46, 30),
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, found and 2 or 8), Size = UDim2.fromOffset(found and 12 or 10, found and 12 or 10), ZIndex = 32 }, 6)
+	local rim = Instance.new("UIStroke")
+	rim.Color = Color3.fromRGB(40, 26, 14)
+	rim.Thickness = 1
+	rim.Parent = pin
+	if not found then
+		local plate = box(tile, { Name = "UnknownPlate", BackgroundColor3 = Color3.fromRGB(52, 36, 20), AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromOffset(52, 24), ZIndex = 28 }, 5)
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Size = UDim2.fromScale(1, 1)
+		t.Font = Enum.Font.GothamBold
+		t.TextSize = 14
+		t.TextColor3 = Color3.fromRGB(250, 240, 220)
+		t.TextTransparency = 0
+		t.TextStrokeTransparency = 1
+		t.Text = "???"
+		t.ZIndex = 29
+		t.Parent = plate
+	end
+	local h = Layout.hang(id)
+	tile.Rotation = math.max(-Layout.CARD_TILT, math.min(Layout.CARD_TILT, h.tilt))
+	return { dy = 0, tilt = tile.Rotation }
+end
+
 -- a small brass "New" tag at the top left of a tile
 function CollectionGallery.newTag(tile)
 	local tag = Instance.new("TextLabel")

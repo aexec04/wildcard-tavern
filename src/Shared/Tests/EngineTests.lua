@@ -13817,6 +13817,8 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 		local cols = math.max(1, math.floor((w - 30 - 16 + gap.x) / (cell.w + gap.x)))
 		expectTrue(cols * cell.w + (cols - 1) * gap.x <= w, "a row of frames fits at width " .. w)
 	end
+	expectTrue(L.CARD_TILT <= 2 and L.FURNITURE_MARGIN >= 0, "cork-board cards tilt at most 2 degrees")
+	for _, id in ipairs({ "a", "b", "c", "d", "e", "f" }) do expectTrue(math.abs(L.hang(id).tilt) <= L.CARD_TILT, "card tilt stays within 2 degrees") end
 	local owned, empty = L.framedParts("owned"), L.framedParts("empty")
 	expectTrue(owned.plate.y < owned.frame.h and owned.plate.y + owned.plate.h > owned.frame.h, "the brass plate overlaps the bottom edge of the frame (attached)")
 	expectTrue(owned.plate.y + owned.plate.h <= cell.h, "plate inside the cell")
@@ -13833,6 +13835,7 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 		local src = c:read("*a"); c:close()
 		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) ~= nil, "locked frames hide the portrait and the padlock")
 		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
+		expectTrue(src:find("Gallery.pinCard(tile, found, item.id, nameLabel)", 1, true) ~= nil and src:find("furniture.setTab(activeTabId)", 1, true) ~= nil, "Recipes are pinned on the cork board behind the grid")
 		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) ~= nil and src:find("hungSign.bind(titleLabel)", 1, true) ~= nil, "the title hangs as a brass sign")
 		expectTrue(src:find("plaque.Thickness = 2", 1, true) ~= nil, "the progress line sits on a brass-edged plaque")
 	end

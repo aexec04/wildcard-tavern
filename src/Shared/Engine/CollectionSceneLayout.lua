@@ -153,6 +153,9 @@ function CollectionSceneLayout.hang(id)
 	return { dy = math.floor(a * H.dyMax + 0.5), tilt = math.floor((b * 2 - 1) * H.tiltMax * 10 + 0.5) / 10 }
 end
 
+CollectionSceneLayout.FURNITURE_MARGIN = 10 -- the board or shelf shows this far outside the scrolling grid on every side
+CollectionSceneLayout.CARD_TILT = 2 -- cork-board cards tilt at most 2 degrees, fixed per card
+
 -- orbit of the one moth around a lantern: only seen for MOTH_SHOW seconds of every MOTH_CYCLE, never in calm mode
 CollectionSceneLayout.MOTH_CYCLE, CollectionSceneLayout.MOTH_SHOW = 40, 12
 function CollectionSceneLayout.mothVisible(t, calm)
