@@ -12902,6 +12902,32 @@ table.insert(tests, { name = "Popups block clicks behind them: popup roots are s
 	end
 end })
 
+table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows; the Roads row is straight; nameplates stay inside their cell (three sizes)", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	for _, size in ipairs({ { 1400, 700 }, { 1000, 560 }, { 330, 300 } }) do
+		for _, chip in ipairs({ "All", "Special" }) do
+			local lay = W.layout(chip, nil, size[1], size[2])
+			local cols, rowsY = {}, {}
+			for _, it in ipairs(lay.items) do
+				cols[it.x] = true
+				rowsY[it.y] = true
+				expectEqual(it.size, lay.items[1].size, chip .. " badges share one size")
+			end
+			local nCols, nRows = 0, 0
+			for _ in pairs(cols) do nCols = nCols + 1 end
+			for _ in pairs(rowsY) do nRows = nRows + 1 end
+			local rows = chip == "All" and 3 or 2
+			expectTrue(nRows <= rows, chip .. " uses at most " .. rows .. " aligned rows at " .. size[1] .. "x" .. size[2])
+			expectTrue(nCols <= math.ceil(#lay.items / rows), chip .. " rows share the same columns at " .. size[1] .. "x" .. size[2])
+		end
+		local roads = W.layout("Roads", nil, size[1], size[2])
+		for _, it in ipairs(roads.items) do
+			expectEqual(it.y, roads.items[1].y, "Roads badges sit on one straight row")
+			expectEqual(it.size, roads.items[1].size, "Roads badges share one size")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf rails use their art ids and keep the drawn fallback", fn = function()
 	local LedgerArt = require(script.Parent.Parent.Engine.LedgerArt)
 	local WallArt = require(script.Parent.Parent.Engine.BadgeWallArt)
@@ -12913,7 +12939,9 @@ table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf ra
 	local wall = io.open("src/Client/BadgeWall.lua", "r"):read("*a")
 	local panel = io.open("src/Client/BadgesPanel.lua", "r"):read("*a")
 	expectTrue(ledger:find('artOver(note, "ledger_paper_note"', 1, true) ~= nil, "Hall of Fame notes use the paper note")
-	expectTrue(select(2, wall:gsub('"badge_shelf_rail"', "")) >= 2, "cabinet and curio planks use the shelf rail")
+	expectTrue(wall:find('"badge_shelf_rail"', 1, true) == nil, "no shelf rails: badges sit on a strict grid over a calm plate")
+	expectTrue(wall:find('Name = "GridScrim"', 1, true) ~= nil, "a calm scrim plate sits behind the grid")
+	expectTrue(wall:find("math.floor(size / 2))", 1, true) ~= nil, "badge medals are circles, no square backing")
 	expectTrue(panel:find("badge_ribbon_banner", 1, true) ~= nil and panel:find("RibbonArt", 1, true) ~= nil, "header uses the ribbon banner")
 	expectTrue(panel:find('type(ribbonId) == "string"', 1, true) ~= nil, "ribbon is skipped when the id is missing")
 end })

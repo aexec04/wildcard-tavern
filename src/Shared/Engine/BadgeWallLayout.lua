@@ -3,7 +3,7 @@
 	Pure layout and ordering maths for the Badges trophy wall (Client/BadgeWall.lua, Client/BadgesPanel.lua). No Roblox
 	APIs, unit tested. Each shelf tab has its own furniture and its own badge arrangement:
 	  All      glass trophy cabinet: three shelves, every badge
-	  Roads    map board: first-clear road badges pinned in road order, string lines between neighbours
+	  Roads    map board: first-clear road badges pinned in one straight row in road order, string lines between neighbours
 	  Masters  velvet board: seven road masters in a row on brass pins, the Master Tavern badge larger at the centre
 	  Night    night sky: each Night badge is a star in a constellation line
 	  Special  curio shelf: two rows of hooks
@@ -50,9 +50,7 @@ local function rowsLayout(n, rows, w, h, top, bottom)
 	for i = 1, n do
 		local r = (i - 1) // perRow
 		local c = (i - 1) % perRow
-		local inRow = math.min(perRow, n - r * perRow)
-		local rowW = inRow * cellW
-		local x0 = (w - rowW) / 2
+		local x0 = (w - perRow * cellW) / 2 -- every row shares the same columns
 		out[i] = { x = math.floor(x0 + c * cellW + (cellW - size) / 2), y = math.floor(top + r * rowH + 4), size = size }
 	end
 	return out
@@ -67,10 +65,10 @@ function Wall.layout(chip, defs, w, h)
 	if chip == "Roads" then
 		local n = #list
 		local step = (w * 0.94) / math.max(1, n)
-		local size = math.floor(math.min(step * 0.88, h * 0.3))
+		local size = math.floor(math.max(16, math.min(step * 0.88, h - Wall.NAMEPLATE_H - 24)))
+		local y = math.floor((h - size - Wall.NAMEPLATE_H) / 2) -- one straight row, centred
 		for i, d in ipairs(list) do
-			local y = (i % 2 == 1) and h * 0.16 or h * 0.54
-			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = math.floor(y), size = size }
+			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = y, size = size }
 		end
 	elseif chip == "Masters" then
 		local row = {}
