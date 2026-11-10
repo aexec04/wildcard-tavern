@@ -136,8 +136,8 @@ return function(deps)
 	-- centre, so the edge fades out softly instead of ending in one hard circle. The
 	-- `base` transparency (0..1) is the patch's outermost ring; the inner rings step
 	-- down from it. Warm cream only, Color + BackgroundTransparency, no gradients.
-	local RING_SCALES = { 1, 0.82, 0.62, 0.4 }
-	local RING_STEPS = { 0, 0.08, 0.18, 0.28 } -- how much more opaque each inner ring is
+	local RING_SCALES = { 1, 0.9, 0.8, 0.7, 0.58, 0.46, 0.34, 0.22 } -- eight eased rings: a feathered cloud, never one hard disc
+	local RING_STEPS = { 0, 0.03, 0.07, 0.11, 0.16, 0.21, 0.26, 0.3 } -- how much more opaque each inner ring is
 	-- Image puffs: fog_puff / fog_puff_b alternate. `fade` (0..0.5) thins the patch near
 	-- the revealed side. Returns false when no art id is recorded (caller uses discs).
 	local PUFF_KEYS = { "fog_puff", "fog_puff_b" }
@@ -174,7 +174,7 @@ return function(deps)
 		holder.Parent = puffHolder
 		for i, scale in ipairs(RING_SCALES) do
 			local tr = math.min(base - RING_STEPS[i] * (1 - math.max(0, base - 0.9)), 0.985)
-			disc(holder, scale, i >= 3 and FOG_CORE or FOG, math.max(tr, 0.4))
+			disc(holder, scale, i >= 5 and FOG_CORE or FOG, math.max(tr, 0.4))
 		end
 		table.insert(puffs, { frame = holder, cx = cx, cy = cy, layer = layerIndex })
 	end
@@ -218,7 +218,8 @@ return function(deps)
 		-- Fewer, larger patches than before. The first columns (next to the revealed
 		-- part of the map) are fainter so the mist thins out near the nodes.
 		local function thin(col)
-			return col == 1 and 0.3 or (col == 2 and 0.18 or (col == 3 and 0.08 or 0))
+			local steps = { 0.5, 0.36, 0.25, 0.16, 0.09, 0.04 } -- the mist thins out gradually next to the revealed map
+			return steps[col] or 0
 		end
 		-- Image mist: fewer, much larger overlapping puffs (about 2x the disc size).
 		if deps.ContentArt and deps.ContentArt.getImageId("fx", "fog_puff") then
@@ -232,7 +233,7 @@ return function(deps)
 						n += 1
 						local cy = (r - 0.5) * canvasH / rows + (((c + r) % 3) - 1) * 40
 						local t = t0 + ((n * 7) % 5) * 0.05
-						local fade = c == 1 and 0.4 or (c == 2 and 0.22 or (c == 3 and 0.1 or 0))
+						local fade = ({ 0.55, 0.42, 0.3, 0.2, 0.12, 0.05 })[c] or 0
 						imagePuff(layerIndex, n, x + ((r % 2) * 140), cy, d, t, fade)
 					end
 					x += step

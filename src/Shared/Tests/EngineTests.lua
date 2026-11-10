@@ -14595,4 +14595,58 @@ table.insert(tests, { name = "Counter v2 stage: card scales fit the rects, rows 
 	end
 end })
 
+table.insert(tests, { name = "RegionTiles.maskStops: smootherstep masks with at least 8 keypoints per faded side, valid for a NumberSequence", fn = function()
+	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
+	for _, c in ipairs({ { 800, 200, 0 }, { 800, 0, 200 }, { 800, 300, 300 }, { 100, 400, 400 }, { 1, 1, 0 }, { 500, 0, 0 } }) do
+		local pts = RegionTiles.maskStops(c[1], c[2], c[3], 10)
+		expectEqual(0, pts[1].t, "starts at 0")
+		expectEqual(1, pts[#pts].t, "ends at 1")
+		for k = 2, #pts do
+			expectTrue(pts[k].t >= pts[k - 1].t, "times never decrease")
+			expectTrue(pts[k].transparency >= 0 and pts[k].transparency <= 1, "transparency in range")
+		end
+		if c[2] > 0 then
+			expectEqual(1, pts[1].transparency, "a faded left edge starts clear")
+		end
+		if c[3] > 0 then
+			expectEqual(1, pts[#pts].transparency, "a faded right edge ends clear")
+		end
+		local want = ((c[2] > 0) and 11 or 1) + ((c[3] > 0) and 11 or 1)
+		expectEqual(want, #pts, "keypoint count")
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map backdrop: no flat or sliced layers, every painting has a gradient mask, roads join every node pair", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local c = f:read("*a")
+		f:close()
+		return c
+	end
+	local sc = read("src/Client/JourneyMapScenery.lua")
+	if sc then
+		-- code only, comments stripped
+		local code = sc:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+		expectTrue(code:find("fadeSlices", 1, true) == nil, "no stacked cross-fade slices")
+		expectTrue(code:find("ClipsDescendants", 1, true) == nil, "no clip windows (their edges were hard vertical lines)")
+		expectTrue(code:find("SeamTint", 1, true) == nil, "no tint bands over joins")
+		expectTrue(code:find("BackgroundColor3 = region.tint", 1, true) == nil, "no flat tint frame per region")
+		-- every region painting goes through paintTile, which attaches a UIGradient mask
+		local tile = code:match("local function paintTile.-\n\tend\n")
+		expectTrue(tile ~= nil and tile:find('Instance.new("UIGradient")', 1, true) ~= nil and tile:find("maskStops", 1, true) ~= nil, "paintTile masks the image with a UIGradient")
+		local _, imageLabels = code:gsub('Instance%.new%("ImageLabel"%)', "")
+		local _, tileLabels = (tile or ""):gsub('Instance%.new%("ImageLabel"%)', "")
+		expectEqual(1, tileLabels, "one region painting builder")
+		expectTrue(imageLabels - tileLabels <= 2, "other ImageLabels are only landmark doodles")
+		-- the only full-width frames are the base and the top/bottom feathers (edges on the canvas ends, with gradients)
+		expectTrue(code:find('feather("FeatherTop"', 1, true) ~= nil and code:find('feather("FeatherBottom"', 1, true) ~= nil, "top and bottom feathers")
+	end
+	local view = read("src/Client/JourneyMapView.lua")
+	if view then
+		expectTrue(view:find("seg.ax, seg.ay = x, y", 1, true) ~= nil and view:find("seg.bx, seg.by = nx, ny", 1, true) ~= nil, "each road segment runs from node i to node i + 1")
+		expectTrue(view:find("seg.roadCount = math.max(8", 1, true) ~= nil, "every segment builds road pieces")
+	end
+end })
+
 return tests

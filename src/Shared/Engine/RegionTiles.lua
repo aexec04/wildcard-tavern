@@ -71,4 +71,38 @@ function RegionTiles.seamColor(a, b, i, n)
 	return out
 end
 
+-- Horizontal mask for a painting `width` px wide: transparency keypoints { t, transparency } for a UIGradient
+-- (NumberSequence). Fully clear (1) at a faded edge easing to opaque (0) over fadeL px on the left and fadeR px on the
+-- right (smootherstep, `perSide` keypoints per faded side, default 10). t runs 0..1 and never decreases.
+function RegionTiles.maskStops(width, fadeL, fadeR, perSide)
+	perSide = math.max(8, math.floor(perSide or 10))
+	width = math.max(1, width)
+	fadeL, fadeR = math.max(0, fadeL or 0), math.max(0, fadeR or 0)
+	local total = fadeL + fadeR
+	if total > width then -- the two fades share the width when it is too small for both
+		fadeL, fadeR = fadeL * width / total, fadeR * width / total
+	end
+	local function ease(u) return u * u * u * (u * (u * 6 - 15) + 10) end
+	local out = {}
+	local function add(t, tr)
+		local last = out[#out]
+		if last and t <= last.t then t = math.min(1, last.t + 1e-4) end
+		out[#out + 1] = { t = math.min(t, 1), transparency = tr }
+	end
+	if fadeL > 0 then
+		for k = 0, perSide do add(fadeL / width * (k / perSide), 1 - ease(k / perSide)) end
+	else
+		add(0, 0)
+	end
+	if fadeR > 0 then
+		local start = 1 - fadeR / width
+		for k = 0, perSide do add(start + fadeR / width * (k / perSide), ease(k / perSide)) end
+	else
+		add(1, 0)
+	end
+	out[1].t = 0
+	out[#out].t = 1
+	return out
+end
+
 return RegionTiles
