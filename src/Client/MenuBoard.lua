@@ -14,10 +14,11 @@ local TweenService = game:GetService("TweenService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("MenuLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local RoomLayout = require(Engine:WaitForChild("MenuRoomLayout"))
 
 local MenuBoard = {}
 
-local NOTE_W = 350 -- notes are re-sized to this when pinned so they fit the cork board at full scale (text stays 14 px or more)
+local NOTE_W = 300 -- notes are re-sized to this when pinned (Engine/MenuRoomLayout.NOTE_W) so they fit the cork at full scale
 local TILTS = { -1.5, 1.2, -0.8, 1.6 } -- degrees, at most 2
 local Z = 14 -- notes are drawn at z 10 to 12 by their modules; lift them above the board and the backdrop
 
@@ -89,8 +90,8 @@ function MenuBoard.build(parent)
 
 	local holder = Instance.new("Frame") -- clips the scaled notes to the board
 	holder.Name = "Notes"
-	holder.Position = UDim2.fromOffset(8, 8)
-	holder.Size = UDim2.new(1, -16, 1, -16)
+	holder.Position = UDim2.fromOffset(10, 10)
+	holder.Size = UDim2.new(1, -20, 1, -20)
 	holder.BackgroundTransparency = 1
 	holder.ClipsDescendants = true
 	holder.ZIndex = 13
@@ -98,6 +99,8 @@ function MenuBoard.build(parent)
 
 	local list = Instance.new("Frame")
 	list.Name = "NoteList"
+	list.AnchorPoint = Vector2.new(0.5, 0)
+	list.Position = UDim2.fromScale(0.5, 0)
 	list.Size = UDim2.fromOffset(NOTE_W, 0)
 	list.AutomaticSize = Enum.AutomaticSize.Y
 	list.BackgroundTransparency = 1
@@ -114,7 +117,9 @@ function MenuBoard.build(parent)
 	listPad.Parent = list
 
 	-- The board is only as tall as its notes (never taller than its layout rect), so no empty wood hangs under them.
+	local placed = false
 	local function fit()
+		if placed then return end -- on the painted room the cork rectangle decides the size
 		local screenH = parent.AbsoluteSize.Y
 		if screenH < 1 then return end
 		local content = list.AbsoluteSize.Y -- includes the UIScale
@@ -143,6 +148,9 @@ function MenuBoard.build(parent)
 		note.Position = UDim2.new()
 		note.Parent = slot
 		lift(note, Z - note.ZIndex)
+		for _, d in ipairs(note:GetDescendants()) do
+			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.AtEnd end -- never run past the cork
+		end
 		note:GetPropertyChangedSignal("Visible"):Connect(function() slot.Visible = note.Visible and slot:GetAttribute("Crowded") ~= true end)
 		local pin = Instance.new("Frame") -- the pin holding the note to the board
 		pin.Name = "Pin"
@@ -180,25 +188,24 @@ function MenuBoard.build(parent)
 
 	-- Tavern Room: sit on a pixel rectangle (the painted cork board). When the picture is painted the wood and stroke are dropped.
 	function board.place(l, t, r, b, painted)
+		placed = painted == true
 		frame.Position = UDim2.fromOffset(l, t)
 		frame.Size = UDim2.fromOffset(r - l, b - t)
-		local sc = math.clamp((r - l - 16) / NOTE_W, 0.4, 1)
-		scale.Scale = sc
-		-- show at most 4 notes; when the cork is small (notes would shrink under 90 percent or run past the board) show the first 2
-		local avail, need, shown = b - t - 16, 10, 0
-		local visibleSlots = {}
-		for _, slot in ipairs(slots) do slot:SetAttribute("Crowded", false) end
+		local visibleSlots, heights = {}, {}
 		for _, slot in ipairs(slots) do
+			slot:SetAttribute("Crowded", false)
 			local note = slot:FindFirstChildWhichIsA("GuiObject")
-			if note and note.Visible then visibleSlots[#visibleSlots + 1] = slot end
+			if note and note.Visible then
+				visibleSlots[#visibleSlots + 1] = slot
+				heights[#heights + 1] = slot.Size.Y.Offset
+			end
 		end
-		local limit = (sc < 0.9) and 2 or 4
+		local fitted = RoomLayout.noteSlots(r - l, b - t, heights)
+		scale.Scale = fitted.scale
 		for i, slot in ipairs(visibleSlots) do
-			need += (slot.Size.Y.Offset + 16) * sc
-			local crowd = i > limit or need > avail
+			local crowd = i > fitted.shown
 			slot:SetAttribute("Crowded", crowd)
 			slot.Visible = not crowd
-			shown += crowd and 0 or 1
 		end
 		head.Visible = not painted
 		if painted then
@@ -216,7 +223,7 @@ function MenuBoard.build(parent)
 	function board.apply(w, h, phone)
 		frame.Visible = not phone
 		local pxW = N.w * w - 16
-		scale.Scale = math.clamp(pxW / NOTE_W, 0.4, 1) -- board.place sets the final scale on the cork rectangle
+		if not placed then scale.Scale = math.clamp(pxW / NOTE_W, 0.4, 1) end -- board.place sets the final scale on the cork rectangle
 	end
 
 	return board

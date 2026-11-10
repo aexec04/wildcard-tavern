@@ -23,6 +23,9 @@ MenuRoomLayout.pic = {
 	jukebox     = { l = 0.80,  t = 0.40,  r = 0.983, b = 0.82 },   -- top trimmed from 0.37 so it clears the board by 8 percent or less
 	noticeboard = { l = 0.775, t = 0.137, r = 0.97,  b = 0.41 },   -- cork board on the right wall: opens the All actions list
 }
+-- The cork surface itself (inside the wooden frame of noticeboard): the Notice Board notes are laid out inside it.
+MenuRoomLayout.cork = { l = 0.79, t = 0.17, r = 0.955, b = 0.39 }
+MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 16, 10, 10, 4
 MenuRoomLayout.deck = { l = 0.49, t = 0.67, r = 0.56, b = 0.73 }   -- gentle pulse ring on the primary
 MenuRoomLayout.stripOrder = { "play", "questscroll", "maptable", "tome", "coinjar", "rulebook", "jukebox", "noticeboard" }
 MenuRoomLayout.STRIP_H = 44
@@ -100,6 +103,31 @@ function MenuRoomLayout.layout(W, H)
 	return out
 end
 
+-- The cork rectangle in pixels on a W x H screen.
+function MenuRoomLayout.corkRect(W, H)
+	return MenuRoomLayout.toPixels(MenuRoomLayout.cork, W, H)
+end
+
+-- Notes on the cork. heights = the unscaled heights of the visible notes in order. The notes keep NOTE_W wide, shrink with one
+-- scale (never above 1) to fit the cork minus a margin and a little extra for their tilt, and as many as fit are shown, at most
+-- MAX_NOTES, with equal gaps. Returns { scale, shown, rects = { {x, y, w, h} } } in pixels inside the cork (0,0 = cork top left).
+function MenuRoomLayout.noteSlots(corkW, corkH, heights)
+	local M, tilt = MenuRoomLayout.CORK_MARGIN, 10 -- 10 px of slack for a 2 degree tilt
+	local w = MenuRoomLayout.NOTE_W
+	local scale = math.max(0.1, math.min(1, (corkW - 2 * M - tilt) / w))
+	local availH = corkH - 2 * M - tilt
+	local rects, y, shown = {}, MenuRoomLayout.NOTE_TOP * scale, 0
+	for i, h in ipairs(heights) do
+		if i > MenuRoomLayout.MAX_NOTES then break end
+		local bottom = y + h * scale
+		if bottom > availH then break end
+		rects[#rects + 1] = { x = (corkW - w * scale) / 2, y = M + tilt / 2 + y, w = w * scale, h = h * scale }
+		shown = shown + 1
+		y = bottom + MenuRoomLayout.NOTE_GAP * scale
+	end
+	return { scale = scale, shown = shown, rects = rects }
+end
+
 -- Rectangles (pixels) the layout test checks: { id, kind, l, t, r, b }.
 function MenuRoomLayout.rects(W, H)
 	local out = {}
@@ -128,6 +156,7 @@ function MenuRoomLayout.apply(MenuLayout)
 		local r = MenuRoomLayout.layout(W, H)[id]
 		return r ~= nil and r.strip
 	end
+	MenuLayout.corkRect = MenuRoomLayout.corkRect
 	MenuLayout.noticeSpot = { id = "noticeboard", pic = MenuRoomLayout.pic.noticeboard }
 	MenuLayout.world = true
 	MenuLayout.WorldArt = {} -- the old per-prop pieces are not drawn: the props are part of the one picture

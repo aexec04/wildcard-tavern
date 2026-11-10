@@ -445,11 +445,11 @@ function Hotspots.build(opts)
 	allButton.Position = UDim2.new(1, -16, 1, -16)
 	allButton.Size = UDim2.fromOffset(168, 42)
 	allButton.AutoButtonColor = false
-	allButton.BackgroundColor3 = Color3.fromRGB(34, 24, 16) -- a solid dark plate like the tile labels (cream on it is over 10:1)
+	allButton.BackgroundColor3 = Color3.fromRGB(238, 222, 186) -- a solid parchment plate with a brass edge (ink on it is over 10:1)
 	allButton.BackgroundTransparency = 0
 	allButton.Font = Enum.Font.GothamBold
 	allButton.TextSize = 16
-	allButton.TextColor3 = CREAM
+	allButton.TextColor3 = Color3.fromRGB(48, 32, 18)
 	allButton.TextTransparency = 0
 	allButton.TextStrokeTransparency = 1
 	allButton.Text = "All actions"
@@ -460,6 +460,7 @@ function Hotspots.build(opts)
 		local s = Instance.new("UIStroke")
 		s.Color = BRASS
 		s.Thickness = 2
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- the default (Contextual) strokes the button's TEXT too, which crushed the letters
 		s.Parent = allButton
 	end
 	local function toggleList()

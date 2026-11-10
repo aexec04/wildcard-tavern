@@ -12049,7 +12049,7 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
 	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
 	expectTrue(hot:find("if Layout.world then object.Visible = false end", 1, true) ~= nil, "the Deal Me In block has no cut-off dark medallion on the map")
-	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(34, 24, 16)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid dark plate")
+	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(238, 222, 186)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid parchment plate")
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
 	expectTrue(LL.contrast({ 250, 240, 220 }, { 34, 24, 16 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
@@ -14856,9 +14856,9 @@ table.insert(tests, { name = "Menu room polish: one gradient title scrim, soft s
 	expectTrue(room:find('disc(host, "FireGlow"', 1, true) == nil and room:find('disc(host, "LanternGlow"', 1, true) == nil, "no plain disc glow")
 	-- the board sits on the cork rectangle (not reset to the top left by the parallax) and the old widget is not a parallax layer
 	expectTrue(menu:find("inst = board.frame", 1, true) == nil, "the Notice Board is not a parallax layer (it would be reset to the top left)")
-	expectTrue(board:find("NOTE_W = 350", 1, true) ~= nil and board:find("TILTS", 1, true) ~= nil, "notes are narrower than the cork and tilted by at most 2 degrees")
+	expectTrue(board:find("NOTE_W = 300", 1, true) ~= nil and board:find("TILTS", 1, true) ~= nil, "notes are narrower than the cork and tilted by at most 2 degrees")
 	for _, tilt in ipairs({ -1.5, 1.2, -0.8, 1.6 }) do expectTrue(math.abs(tilt) <= 2, "tilt at most 2 degrees") end
-	expectTrue(board:find("limit = (sc < 0.9) and 2 or 4", 1, true) ~= nil, "4 notes, 2 when the cork is small")
+	expectTrue(board:find("RoomLayout.noteSlots", 1, true) ~= nil, "the notes are fitted to the cork by the tested layout")
 	-- the 19 action plaques are not parented to the live menu until a list or scroll shows them
 	expectTrue(hot:find("stash.Parent = menuFrame", 1, true) == nil, "the action stash is not part of the live GUI")
 	-- label strokes in the Menu room, Shop and Journey map are thin (0.7 or more) or off
@@ -14927,6 +14927,32 @@ table.insert(tests, { name = "GlowCurve: every glow has 24+ eased steps, smooth 
 			expectTrue(src:find('"Ring" ..', 1, true) == nil and src:find("GLOW_STEPS", 1, true) == nil and src:find("glowRings", 1, true) == nil, name .. " builds no stacked-disc glow of its own")
 		end
 	end
+end })
+
+table.insert(tests, { name = "Notice Board: every note rect sits inside the cork with 10 px margins at 1920x1080, 1280x720 and 800x450; All actions plate is stroked on its border only", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local W, H = size[1], size[2]
+		local l, t, r, b = RL.corkRect(W, H)
+		local cw, ch = r - l, b - t
+		local fitted = RL.noteSlots(cw, ch, { 70, 80, 70, 90 })
+		expectTrue(fitted.scale <= 1 and fitted.scale > 0, W .. ": scale in range")
+		expectTrue(fitted.shown <= RL.MAX_NOTES, W .. ": at most four notes")
+		expectTrue(fitted.shown >= 1 or ch < 90, W .. ": at least one note unless the cork is tiny")
+		local prevBottom
+		for i, n in ipairs(fitted.rects) do
+			expectTrue(n.x >= RL.CORK_MARGIN and n.x + n.w <= cw - RL.CORK_MARGIN, W .. ": note " .. i .. " is inside the cork sideways")
+			expectTrue(n.y >= RL.CORK_MARGIN and n.y + n.h <= ch - RL.CORK_MARGIN, W .. ": note " .. i .. " is inside the cork vertically")
+			if prevBottom then expectTrue(n.y > prevBottom, W .. ": notes do not overlap") end
+			prevBottom = n.y + n.h
+		end
+	end
+	local f = io and io.open and io.open("src/Client/MenuHotspots.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local a = src:find('allButton.Name = "AllActionsButton"', 1, true)
+	local seg = src:sub(a, a + 1800)
+	expectTrue(seg:find("ApplyStrokeMode.Border", 1, true) ~= nil, "the brass edge strokes the border, not the letters")
 end })
 
 return tests

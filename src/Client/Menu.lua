@@ -258,6 +258,7 @@ return function(deps)
 		hotspots.applyViewport(v.X, v.Y)
 		board.apply(v.X, v.Y, Layout.isPhone(v.X))
 		local nl, nt, nr, nb = Layout.rect(Layout.noticeSpot, v.X, v.Y) -- the notes sit on the painted cork board
+		if Layout.roomPainted and Layout.corkRect then nl, nt, nr, nb = Layout.corkRect(v.X, v.Y) end -- the cork surface inside the frame
 		board.place(nl, nt, nr, nb, Layout.roomPainted)
 	end
 	applyViewport()
