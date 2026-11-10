@@ -417,25 +417,8 @@ return function(deps)
 		panelStroke.Thickness = 2
 		panelStroke.Parent = samplePanel
 		SetSkin.sample(samplePanel, "panel", theme.skin)
-		if not colors then
-			-- Classic Tavern only: the chip is a mini card wrapped edge to edge by the same oak and brass frame as the real cards
-			samplePanel.Name = "SampleCardChip"
-			samplePanel.BackgroundTransparency = 1
-			panelStroke.Enabled = false
-			samplePanel.Size = UDim2.fromOffset(148, 52)
-			local mini = Instance.new("Frame")
-			mini.Name = "MiniCard"
-			mini.Size = UDim2.fromOffset(38, 52)
-			mini.BackgroundColor3 = Color3.fromRGB(240, 230, 208)
-			mini.BorderSizePixel = 0
-			mini.ZIndex = 42
-			mini.Parent = samplePanel
-			roundCorner(mini, 6)
-			require(script.Parent.ClassicCardFrame).draw(mini, 42)
-			label(samplePanel, { Position = UDim2.fromOffset(46, 0), Size = UDim2.new(1, -46, 1, 0), TextSize = 14, TextColor3 = SOFT_CREAM, Text = "Card border", ZIndex = 44 })
-		else
-			label(samplePanel, { Size = UDim2.fromScale(1, 1), TextSize = 14, TextColor3 = SOFT_CREAM, Text = "Panel border", ZIndex = 44 })
-		end
+		-- every set, Classic Tavern included, shows the same "Panel border" chip
+		label(samplePanel, { Size = UDim2.fromScale(1, 1), TextSize = 14, TextColor3 = SOFT_CREAM, Text = "Panel border", ZIndex = 44 })
 	end
 
 	refresh = function()
