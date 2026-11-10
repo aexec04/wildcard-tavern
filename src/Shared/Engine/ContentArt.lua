@@ -52,6 +52,7 @@ local ContentArt = {
 	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)
 	shop         = require(Engine:WaitForChild("ShopArt")),           -- shop_peddler, shop_stranger, shop_counter, shop_crate, shop_tag (Counter scene)
 	shop_scene   = require(Engine:WaitForChild("ShopSceneArt")),      -- shop_wall, shop_marlo_behind, shop_marlo_wave, shop_counter_top, shop_counter_props, shop_light_pool (Counter v2, empty until Image ids are recorded)
+	ambient      = require(Engine:WaitForChild("AmbientArt")),        -- ambient_butterfly_*, ambient_cloud_*, leaves, petals, snow, fireflies, ... (living backdrops, empty until Image ids are recorded)
 	bonds        = require(Engine:WaitForChild("BondArt")),           -- keyed by Bonds id plus bond_locked (Collection Bonds tab, Bond threads)
 	blessing_icons = require(Engine:WaitForChild("BlessingIconArt")), -- keyed by RunModifiers id (Choice cards, Blessing chip)
 	menu_scene   = require(Engine:WaitForChild("MenuSceneArt")),      -- menu_wall_far, menu_counter, menu_item_*, scrolls, seals (Menu tavern)
