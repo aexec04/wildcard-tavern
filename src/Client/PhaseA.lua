@@ -96,8 +96,15 @@ return function(deps)
 	local ContentArtPA = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
 	local bossPortrait = nil -- the boss art shown above the banner, if an id exists
 
-	local function announceBossIfNew(state)
+	local announceBossIfNew
+	announceBossIfNew = function(state)
 		if not state or not state.bossModifier then
+			return
+		end
+		-- The boss intro waits for the post-round overlay queue so it never prints over "Round Complete!".
+		local OQ = require(script.Parent.OverlayQueue)
+		if OQ.isBusy() then
+			OQ.onIdle("bossIntro", function() announceBossIfNew(state) end)
 			return
 		end
 		local key = tostring(state.night) .. "-" .. tostring(state.round) .. "-" .. tostring(state.bossModifier.id)

@@ -14460,4 +14460,45 @@ table.insert(tests, { name = "Badge sockets fit: diameter is the medal times 1.1
 	end
 end })
 
+table.insert(tests, { name = "OverlayQueue: one plate at a time, by priority, dedupe, merge, auto only for toasts", fn = function()
+	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
+	local q = R.new()
+	expectTrue(q:enqueue({ id = "rank", priority = 3 }), "rank queued")
+	expectTrue(q:enqueue({ id = "unlockA", priority = 2, group = "unlock", rows = { "A" }, button = true }), "unlock queued")
+	expectTrue(q:enqueue({ id = "round", priority = 1, button = true }), "round queued")
+	expectTrue(q:enqueue({ id = "unlockB", priority = 2, group = "unlock", rows = { "B" } }), "second unlock merges")
+	expectTrue(not q:enqueue({ id = "round", priority = 1 }), "duplicate id dropped")
+	expectEqual(q:advance().id, "round", "Round Complete first")
+	expectEqual(q:current().id, "round", "only one is current")
+	local u = q:advance()
+	expectEqual(u.id, "unlockA", "unlocks second")
+	expectEqual(#u.rows, 2, "unlocks combine into one box with rows")
+	expectEqual(q:advance().id, "rank", "rank third")
+	expectEqual(q:advance(), nil, "queue empties")
+	expectTrue(not q:isBusy(), "idle when empty")
+	expectTrue(not q:enqueue({ id = "round", priority = 1 }), "each id once per round")
+	q:newRound()
+	expectTrue(q:enqueue({ id = "round", priority = 1 }), "a new round shows it again")
+	expectEqual(R.autoSeconds({ button = true }), nil, "a plate with a button never auto-advances")
+	expectEqual(R.autoSeconds({}), 4.5, "a pure toast advances after 4.5 s")
+end })
+
+table.insert(tests, { name = "OverlayQueue: plate stays centred, 520 wide at most, 24 px from every edge", fn = function()
+	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 390, 844 } }) do
+		local r = R.plateRect(size[1], size[2], 400)
+		expectTrue(r.w <= 520 and r.x >= 24 and r.y >= 24, "inside margins at " .. size[1] .. "x" .. size[2])
+		expectTrue(math.abs(r.x * 2 + r.w - size[1]) < 0.01 and math.abs(r.y * 2 + r.h - size[2]) < 0.01, "centred at " .. size[1])
+	end
+end })
+
+table.insert(tests, { name = "OverlayQueue: converted popups enqueue instead of parenting their own frame", fn = function()
+	if not (io and io.open) then return end
+	for _, name in ipairs({ "RoundRewardPopup", "UnlockPopup", "UnlockToast" }) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("OverlayQueue", 1, true) ~= nil and src:find("Instance.new", 1, true) == nil, name .. " uses the queue and builds no frame")
+	end
+end })
+
 return tests

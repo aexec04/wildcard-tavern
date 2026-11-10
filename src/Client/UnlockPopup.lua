@@ -31,101 +31,20 @@
 ]]
 
 return function(deps)
-	local screenGui = deps.screenGui
-	local polishPanel = deps.polishPanel
-	local tweenTo = deps.tweenTo
-
-	local unlockPopup = Instance.new("Frame")
-	unlockPopup.Name = "UnlockPopup"
-	unlockPopup.Size = UDim2.new(0, 280, 0, 140)
-	unlockPopup.AnchorPoint = Vector2.new(0.5, 0.5)
-	unlockPopup.Position = UDim2.fromScale(0.5, 0.5)
-	unlockPopup.BackgroundColor3 = Color3.fromRGB(50, 40, 26)
-	unlockPopup.Visible = false
-	unlockPopup.ZIndex = 30
-	unlockPopup.Parent = screenGui
-	polishPanel(unlockPopup, 18, "wood")
-
-	local unlockPopupHeader = Instance.new("TextLabel")
-	unlockPopupHeader.Size = UDim2.new(1, 0, 0, 34)
-	unlockPopupHeader.Position = UDim2.new(0, 0, 0, 12)
-	unlockPopupHeader.BackgroundTransparency = 1
-	unlockPopupHeader.Font = Enum.Font.GothamBold
-	unlockPopupHeader.TextSize = 20
-	unlockPopupHeader.TextColor3 = Color3.fromRGB(255, 214, 130)
-	unlockPopupHeader.Text = "Unlocked!"
-	unlockPopupHeader.ZIndex = 30
-	unlockPopupHeader.Parent = unlockPopup
-
-	local unlockPopupName = Instance.new("TextLabel")
-	unlockPopupName.Size = UDim2.new(1, -30, 0, 26)
-	unlockPopupName.Position = UDim2.new(0, 15, 0, 48)
-	unlockPopupName.BackgroundTransparency = 1
-	unlockPopupName.Font = Enum.Font.GothamBold
-	unlockPopupName.TextSize = 17
-	unlockPopupName.TextColor3 = Color3.fromRGB(250, 240, 220)
-	unlockPopupName.Text = ""
-	unlockPopupName.ZIndex = 30
-	unlockPopupName.Parent = unlockPopup
-
-	local unlockPopupDescription = Instance.new("TextLabel")
-	unlockPopupDescription.Size = UDim2.new(1, -30, 0, 40)
-	unlockPopupDescription.Position = UDim2.new(0, 15, 0, 76)
-	unlockPopupDescription.BackgroundTransparency = 1
-	unlockPopupDescription.Font = Enum.Font.Gotham
-	unlockPopupDescription.TextSize = 14
-	unlockPopupDescription.TextWrapped = true
-	unlockPopupDescription.TextColor3 = Color3.fromRGB(215, 200, 180)
-	unlockPopupDescription.Text = ""
-	unlockPopupDescription.ZIndex = 30
-	unlockPopupDescription.Parent = unlockPopup
-
-	local unlockPopupScale = Instance.new("UIScale")
-	unlockPopupScale.Scale = 1
-	unlockPopupScale.Parent = unlockPopup
-
-	local unlockPopupDismissCatcher = Instance.new("TextButton")
-	unlockPopupDismissCatcher.Size = UDim2.fromScale(1, 1)
-	unlockPopupDismissCatcher.BackgroundTransparency = 1
-	unlockPopupDismissCatcher.Text = ""
-	unlockPopupDismissCatcher.ZIndex = 30
-	unlockPopupDismissCatcher.Parent = unlockPopup
-
-	local unlockPopupToken = 0
-
-	-- Connected ONCE (it used to be re-connected on every popup, piling up
-	-- a new connection each time for the whole session). Bumping the token
-	-- also cancels the pending timed dismiss below.
-	unlockPopupDismissCatcher.MouseButton1Click:Connect(function()
-		unlockPopupToken = unlockPopupToken + 1
-		unlockPopup.Visible = false
-	end)
-
-	local function showUnlockPopup(name, description, rarityId)
-		unlockPopupToken = unlockPopupToken + 1
-		local myToken = unlockPopupToken
-
-		-- Tier frame around the card (optional third argument).
-		if rarityId then
-			pcall(function()
-				require(script.Parent.RarityFrame).apply(unlockPopup, rarityId, { thickness = 3, radius = 18, zIndex = 31 })
-			end)
-		end
-
-		unlockPopupName.Text = name
-		unlockPopupDescription.Text = description or ""
-		unlockPopup.Visible = true
-		unlockPopupScale.Scale = 0.7
-		tweenTo(unlockPopupScale, { Scale = 1 }, 0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-		local function dismiss()
-			if unlockPopupToken ~= myToken then
-				return
-			end
-			unlockPopup.Visible = false
-		end
-
-		task.delay(2.4, dismiss)
+	-- Plates now come from Client/OverlayQueue: several unlocks merge into one box with a row each.
+	local function showUnlockPopup(name, description)
+		local OverlayQueue = require(script.Parent.OverlayQueue)
+		local row = name
+		if description and description ~= "" then row = name .. ": " .. description end
+		OverlayQueue.enqueue({
+			id = "unlockPatron:" .. tostring(name),
+			priority = OverlayQueue.rules.PRIORITY.unlock,
+			group = "unlock",
+			icon = "🔓",
+			title = "Unlocked!",
+			rows = { row },
+			button = "Continue",
+		})
 	end
 
 	return {
