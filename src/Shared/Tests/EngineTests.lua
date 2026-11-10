@@ -14515,6 +14515,26 @@ table.insert(tests, { name = "OverlayQueue: converted popups enqueue instead of 
 	end
 end })
 
+table.insert(tests, { name = "OverlayQueue: icons are kit pieces never emoji, plate is the kit reward piece with parchment padding", fn = function()
+	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
+	local Kit = require(script.Parent.Parent.Engine.HudKit)
+	expectEqual(R.iconPiece("\u{1F513}"), "icon_slot", "unlock glyph maps to the seat icon")
+	expectEqual(R.iconPiece("\u{1F4B0}"), "icon_tips", "tips glyph maps to the tips icon")
+	expectEqual(R.iconPiece("\u{1F389}"), nil, "unknown glyph shows nothing")
+	for _, piece in pairs(R.ICON_PIECE) do
+		local known = false
+		for _, p in ipairs(Kit.PIECES) do if p == piece then known = true end end
+		expectTrue(known, "piece " .. piece .. " exists in the kit")
+	end
+	expectTrue(Kit.piece("classic_tavern", R.KIT_PLATE) ~= nil, "the default set has the plate art")
+	expectTrue(R.KIT_PAD.x >= 60 and R.KIT_PAD.top >= 36, "text clears the wood frame")
+	if io and io.open then
+		local f = io.open("src/Client/OverlayQueue.lua", "r")
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("iconLabel", 1, true) == nil, "no emoji icon label in the queue")
+	end
+end })
+
 table.insert(tests, { name = "Vignette: smooth curve, one gradient frame per edge, no stacked same-colour strips in client sources", fn = function()
 	local V = require(script.Parent.Parent.Engine.VignetteCurve)
 	local pts = V.keypoints()

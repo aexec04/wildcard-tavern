@@ -95,4 +95,18 @@ function OverlayQueueRules.plateRect(areaW, areaH, wantH)
 	return { x = (areaW - w) / 2, y = (areaH - h) / 2, w = w, h = h }
 end
 
+-- Overlay plates never show emoji: a plate icon is a kit piece (Engine/HudKit) chosen by the caller's glyph, or nothing.
+OverlayQueueRules.ICON_PIECE = {
+	["\u{1F513}"] = "icon_slot", -- unlock
+	["\u{1F4B0}"] = "icon_tips", -- tips earned
+	["\u{1F3C5}"] = "icon_target", -- rank up
+}
+function OverlayQueueRules.iconPiece(icon)
+	return OverlayQueueRules.ICON_PIECE[icon]
+end
+
+-- Painted plate: the kit's `reward` piece; padding keeps text on its parchment, clear of the wood.
+OverlayQueueRules.KIT_PLATE = "reward"
+OverlayQueueRules.KIT_PAD = { x = 76, top = 44, bottom = 44, minH = 190 }
+
 return OverlayQueueRules

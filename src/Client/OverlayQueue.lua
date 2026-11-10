@@ -19,6 +19,8 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Rules = require(Engine:WaitForChild("OverlayQueueRules"))
 local ClientSettings = require(script.Parent.ClientSettings)
+local HudKit = require(Engine:WaitForChild("HudKit"))
+local HudTheme = require(script.Parent.HudTheme)
 
 local OverlayQueue = {}
 
@@ -26,10 +28,12 @@ local PARCHMENT = Color3.fromRGB(46, 34, 24)
 local BRASS = Color3.fromRGB(200, 160, 84)
 local CREAM = Color3.fromRGB(250, 238, 212)
 local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
+local INK = Color3.fromRGB(52, 34, 18) -- text on the painted parchment
+local INK_TITLE = Color3.fromRGB(104, 54, 12)
 local SETTLE = 0.3 -- seconds to wait for sibling items so the priority order holds
 
 local q = Rules.new()
-local gui, backdrop, plate, title, body, button, iconLabel, rowsHolder, iconArt
+local gui, backdrop, plate, title, body, button, rowsHolder, iconArt, plateStroke, plateCorner, platePad, plateLimit
 local token = 0
 local idleFns = {}
 local idleOrder = {}
@@ -66,8 +70,9 @@ local function build()
 	backdrop.ZIndex = 150
 	backdrop.Parent = gui
 
-	plate = Instance.new("Frame")
+	plate = Instance.new("ImageLabel") -- Image is the kit plate when the set has one, else the parchment fill shows
 	plate.Name = "Plate"
+	plate.ScaleType = Enum.ScaleType.Stretch
 	plate.AnchorPoint = Vector2.new(0.5, 0.5)
 	plate.Position = UDim2.fromScale(0.5, 0.5)
 	plate.BackgroundColor3 = PARCHMENT
@@ -75,31 +80,28 @@ local function build()
 	plate.Active = true
 	plate.ZIndex = 151
 	plate.Parent = backdrop
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = plate
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = BRASS
-	stroke.Thickness = 3
-	stroke.Parent = plate
-	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(Rules.MAX_WIDTH, math.huge)
-	limit.Parent = plate
+	plateCorner = Instance.new("UICorner")
+	plateCorner.CornerRadius = UDim.new(0, 14)
+	plateCorner.Parent = plate
+	plateStroke = Instance.new("UIStroke")
+	plateStroke.Color = BRASS
+	plateStroke.Thickness = 3
+	plateStroke.Parent = plate
+	plateLimit = Instance.new("UISizeConstraint")
+	plateLimit.MaxSize = Vector2.new(Rules.MAX_WIDTH, math.huge)
+	plateLimit.Parent = plate
 
-	local pad = Instance.new("UIPadding")
-	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 18), UDim.new(0, 18)
-	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 20), UDim.new(0, 20)
-	pad.Parent = plate
+	platePad = Instance.new("UIPadding")
+	platePad.PaddingTop, platePad.PaddingBottom = UDim.new(0, 18), UDim.new(0, 18)
+	platePad.PaddingLeft, platePad.PaddingRight = UDim.new(0, 20), UDim.new(0, 20)
+	platePad.Parent = plate
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.Padding = UDim.new(0, 8)
 	list.Parent = plate
 
-	iconLabel = label(plate, "Icon", 34, Enum.Font.GothamBold, CREAM, 152)
-	iconLabel.LayoutOrder = 1
-	iconLabel.Size = UDim2.new(1, 0, 0, 40)
-	iconArt = Instance.new("ImageLabel") -- painted icon (item.artId), used instead of an emoji
+	iconArt = Instance.new("ImageLabel") -- painted icon (item.artId or a kit icon), never an emoji
 	iconArt.Name = "IconArt"
 	iconArt.LayoutOrder = 1
 	iconArt.Size = UDim2.fromOffset(56, 56)
@@ -172,14 +174,37 @@ local function close(mine)
 	end
 end
 
+-- Dress the plate for the equipped Card Set: kit plate art with dark ink on its parchment, or the dark code-drawn plate.
+local function dress(kitId)
+	local painted = kitId ~= nil
+	plate.Image = kitId or ""
+	plate.BackgroundTransparency = painted and 1 or 0
+	plateStroke.Enabled = not painted
+	plateCorner.CornerRadius = UDim.new(0, painted and 0 or 14)
+	local k = Rules.KIT_PAD
+	platePad.PaddingTop, platePad.PaddingBottom = UDim.new(0, painted and k.top or 18), UDim.new(0, painted and k.bottom or 18)
+	platePad.PaddingLeft, platePad.PaddingRight = UDim.new(0, painted and k.x or 20), UDim.new(0, painted and k.x or 20)
+	plateLimit.MinSize = Vector2.new(0, painted and k.minH or 0)
+	title.TextColor3 = painted and INK_TITLE or GOLD_TEXT
+	body.TextColor3 = painted and INK or CREAM
+	for _, c in ipairs(rowsHolder:GetChildren()) do
+		if c:IsA("TextLabel") then c.TextColor3 = painted and INK or CREAM end
+	end
+end
+
 local function show(item)
 	if not backdrop then build() end
 	token += 1
 	local mine = token
-	iconLabel.Text = item.icon or ""
-	iconLabel.Visible = item.icon ~= nil and item.icon ~= ""
-	iconArt.Visible = type(item.artId) == "string" and item.artId ~= ""
-	iconArt.Image = iconArt.Visible and item.artId or ""
+	local setId = (HudTheme.skin() or {}).id
+	local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
+	local iconId = type(item.artId) == "string" and item.artId ~= "" and item.artId or nil
+	if not iconId and setId then
+		local piece = Rules.iconPiece(item.icon)
+		iconId = piece and HudKit.piece(setId, piece) or nil
+	end
+	iconArt.Visible = iconId ~= nil
+	iconArt.Image = iconId or ""
 	title.Text = item.title or ""
 	title.Visible = item.title ~= nil and item.title ~= ""
 	body.Text = item.text or ""
@@ -198,6 +223,7 @@ local function show(item)
 	if item.button then
 		button.Text = type(item.button) == "string" and item.button or "Continue"
 	end
+	dress(kitId)
 	plate.Size = UDim2.new(1, -2 * Rules.MIN_EDGE, 0, 0)
 	plate.AutomaticSize = Enum.AutomaticSize.Y
 	backdrop.Visible = true

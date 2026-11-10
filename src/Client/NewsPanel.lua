@@ -178,20 +178,47 @@ function NewsPanel.refresh()
 		end
 	end
 	local order = 1
+	local content = 0 -- list height, for sizing the panel to what it shows
 	if #lastNews.active > 0 then
+		content += 34 + #lastNews.active * 112
 		heading("Happening now", order); order += 1
 		for _, row in ipairs(lastNews.active) do
 			buildActive(row, order); order += 1
 		end
 	end
 	if #lastNews.upcoming > 0 then
+		content += 34 + #lastNews.upcoming * 38
 		heading("Coming up", order); order += 1
 		for _, row in ipairs(lastNews.upcoming) do
 			buildUpcoming(row, order); order += 1
 		end
 	end
 	if order == 1 then
+		content += 34
 		heading("Nothing is on right now. Check back soon!", order)
+	end
+	-- header 74 + list + Close row 76, between 240 and the 440 cap (the list scrolls past that)
+	local h = math.clamp(content + 150, 240, 440)
+	ui.panel.Size = UDim2.fromOffset(600, h)
+	ui.constraint.MaxSize = Vector2.new(600, h)
+	local kit = require(script.Parent.HudTheme).skin()
+	local art = kit and kit.id and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudKit")).piece(kit.id, "panel_frame")
+	local frame = ui.panel:FindFirstChild("HudKitFrame")
+	if art then
+		if not frame then
+			frame = Instance.new("ImageLabel")
+			frame.Name = "HudKitFrame"
+			frame.BackgroundTransparency = 1
+			frame.BorderSizePixel = 0
+			frame.Active = false
+			frame.ScaleType = Enum.ScaleType.Stretch
+			frame.Size = UDim2.fromScale(1, 1)
+			frame.ZIndex = 32 -- Global layering: above the panel fill (31), level with the cards (32), below labels and Close (33)
+			frame.Parent = ui.panel
+		end
+		frame.Image = art
+	elseif frame then
+		frame:Destroy()
 	end
 end
 
@@ -263,7 +290,7 @@ function NewsPanel.init(deps)
 	deps.polishButton(close, 10)
 
 	ui = {
-		backdrop = backdrop, panel = panel, list = list, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
+		backdrop = backdrop, panel = panel, list = list, constraint = constraint, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, popIn = deps.popIn, popOut = deps.popOut, claimRemote = deps.claimRemote,
 	}
 	close.MouseButton1Click:Connect(function()
