@@ -23,11 +23,11 @@ HudKit.PIECES = {
 }
 
 -- Sets whose kit is generated (phase 1). Frosted Garden is the set with id winter_evening.
-HudKit.KIT_SETS = { "meadow_picnic", "winter_evening" }
+HudKit.KIT_SETS = { "meadow_picnic", "winter_evening", "classic_tavern" }
 
 -- Sets still waiting for a kit (explicit, so a new set cannot silently lack one). Tests keep this and KIT_SETS in step with CosmeticSets.
 HudKit.PENDING = {
-	"classic_tavern", "festival_night", "closing_time", "golden_gala", "riverside_evening", "summit_camp",
+	"festival_night", "closing_time", "golden_gala", "riverside_evening", "summit_camp",
 	"dune_market", "marsh_lanterns", "snowy_hearth", "harbor_lights", "tavern_feast", "harvest_table", "winter_table",
 }
 

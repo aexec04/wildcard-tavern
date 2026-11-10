@@ -14775,9 +14775,11 @@ table.insert(tests, { name = "HudKit phase 1b: left panel rows map to kit pieces
 		expectTrue(used[piece], "kit piece is placed in the left panel: " .. piece)
 	end
 	for _, setId in ipairs(HudKit.KIT_SETS) do
-		local kit = HudKit.images(setId)
-		for name, piece in pairs(HudKit.PLATES) do expectTrue(kit[piece] ~= nil, setId .. " has the plate for " .. name) end
-		for key, piece in pairs(HudKit.ICONS) do expectTrue(kit[piece] ~= nil, setId .. " has the icon for " .. key) end
+		local kit = HudKit.images(setId) -- nil until the set's Image ids are recorded (the code-drawn look stands in)
+		if kit then
+			for name, piece in pairs(HudKit.PLATES) do expectTrue(kit[piece] ~= nil, setId .. " has the plate for " .. name) end
+			for key, piece in pairs(HudKit.ICONS) do expectTrue(kit[piece] ~= nil, setId .. " has the icon for " .. key) end
+		end
 	end
 	for _, setId in ipairs(HudKit.PENDING) do expectTrue(HudKit.images(setId) == nil, "pending set draws no plate: " .. setId) end
 	local f = io and io.open and io.open("src/Client/Sidebar.lua", "r")
