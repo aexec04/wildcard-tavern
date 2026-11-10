@@ -89,6 +89,8 @@ CATEGORIES = {
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
     "logo": ("logo_subjects", "logo", "LogoArt.lua", "Logo"),
+    "menu_room": ("menu_room_subjects", "menu_room", "MenuRoomArt.lua", "Menu Room"),
+    "rewards_emblems": ("rewards_emblem_subjects", "rewards_emblems", "RewardsEmblemArt.lua", "Rewards Emblem"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -163,6 +165,11 @@ CATEGORY_OPTS = {
                    "sizes": {"bayou_sky": "1536x1024", "bayou_far_trees": "1536x1024", "bayou_water": "1536x1024",
                              "bayou_tavern_stilts": "1536x1024", "bayou_mist": "1536x1024",
                              "bayou_cypress_knees": "1536x1024", "bayou_willow_fg": "1024x1536"}},
+    # Menu Tavern Room: wall is opaque 16:9, props are cut out from magenta. High quality (category value beats IMAGE_QUALITY).
+    "menu_room": {"quality": "high", "style_key": "house_style", "transparent": True, "opaque": ["menu_room_wall"],
+                  "sizes": {"menu_room_wall": "1536x1024", "menu_room_jukebox": "1024x1536", "menu_room_noticeboard": "1536x1024",
+                            "menu_room_cardtable": "1536x1024", "menu_room_lantern": "1024x1536", "menu_room_sign": "1536x1024"}},
+    "rewards_emblems": {"quality": "high", "style_key": "house_style", "transparent": True},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
     "logo": {"quality": "medium", "style_key": "logo_style", "transparent": True,

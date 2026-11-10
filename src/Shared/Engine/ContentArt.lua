@@ -60,6 +60,7 @@ local ContentArt = {
 	menu_bayou   = require(Engine:WaitForChild("BayouArt")),          -- bayou_sky ... bayou_willow_fg (Menu bayou backdrop, empty until Image ids are recorded)
 	logo         = require(Engine:WaitForChild("LogoArt")),           -- logo_wordmark, logo_emblem (Menu title; empty until Image ids are recorded)
 	rewards_emblems = require(Engine:WaitForChild("RewardsEmblemArt")), -- rewards_emblem_*, rewards_pouch_small/full (Collection Rewards, empty until Image ids are recorded)
+	menu_room    = require(Engine:WaitForChild("MenuRoomArt")),       -- menu_room_wall, props (Menu Tavern Room, empty until Image ids are recorded)
 	menu_world   = require(Engine:WaitForChild("MenuWorldArt")),      -- menu_tavern_hub ... menu_map_frame (Living Map menu, empty until Image ids are recorded)
 }
 -- Older callers asked for "store" and "news"; both resolve to the new maps.
