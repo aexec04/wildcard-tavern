@@ -12186,6 +12186,77 @@ table.insert(tests, { name = "LedgerPages: layout keeps pages inside the book, t
 	end
 end })
 
+table.insert(tests, { name = "BadgeWallLayout: every tab has its badges, nothing overlaps or leaves the board (wide and compact), lines, next up, fresh, progress", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local B = require(script.Parent.Parent.Engine.Badges)
+	expectEqual(#B.Definitions, 32, "32 badges")
+	expectEqual(#W.members("All"), 32, "All holds every badge")
+	local seen, total = {}, 0
+	for _, chip in ipairs({ "Roads", "Masters", "Night", "Special" }) do
+		for _, d in ipairs(W.members(chip)) do
+			expectFalse(seen[d.id], d.id .. " is on exactly one tab")
+			seen[d.id] = true
+			total = total + 1
+		end
+	end
+	expectEqual(total, 32, "the four tabs together hold every badge once")
+	expectEqual(#W.members("Roads"), 8, "eight road badges")
+	expectEqual(W.members("Roads")[1].region, "meadow", "road order starts at the meadow")
+	expectEqual(W.members("Roads")[8].region, "tavern", "road order ends at the tavern")
+	expectEqual(#W.members("Masters"), 8, "eight master badges")
+	expectEqual(#W.members("Night"), 4, "four Night badges")
+	for _, chip in ipairs(B.Chips) do
+		expectTrue(W.FURNITURE[chip] ~= nil and W.FURNITURE_ART[W.FURNITURE[chip]] ~= nil, chip .. " has its own furniture and art key")
+	end
+	for _, size in ipairs({ { 1000, 560 }, { 1400, 700 }, { 520, 300 } }) do
+		for _, chip in ipairs(B.Chips) do
+			local lay = W.layout(chip, nil, size[1], size[2])
+			expectEqual(#lay.items, #W.members(chip), chip .. " lays out every badge")
+			for i, a in ipairs(lay.items) do
+				local fa = W.footprint(a)
+				expectTrue(fa.x >= 0 and fa.y >= 0 and fa.x + fa.w <= size[1] and fa.y + fa.h <= size[2], chip .. " item " .. a.id .. " stays on the board at " .. size[1] .. "x" .. size[2])
+				for j = i + 1, #lay.items do
+					local fb = W.footprint(lay.items[j])
+					local apart = fa.x + fa.w <= fb.x or fb.x + fb.w <= fa.x or fa.y + fa.h <= fb.y or fb.y + fb.h <= fa.y
+					expectTrue(apart, chip .. " items " .. a.id .. " and " .. lay.items[j].id .. " do not overlap at " .. size[1] .. "x" .. size[2])
+				end
+			end
+		end
+	end
+	-- Masters: the Master Tavern badge is larger and centred
+	local m = W.layout("Masters", nil, 1000, 560)
+	local bigItem
+	for _, it in ipairs(m.items) do if it.big then bigItem = it end end
+	expectTrue(bigItem ~= nil and bigItem.id == "master_tavern", "Master Tavern is the big one")
+	expectTrue(math.abs(bigItem.x + bigItem.size / 2 - 500) <= 1, "Master Tavern is centred")
+	for _, it in ipairs(m.items) do if not it.big then expectTrue(it.size < bigItem.size, "seven masters are smaller than the centre badge") end end
+	-- lines
+	expectEqual(#W.lines("Roads", nil, {}), 7, "seven strings between eight road badges")
+	expectEqual(#W.lines("Night", nil, {}), 3, "three constellation lines between four stars")
+	expectEqual(#W.lines("All", nil, {}), 0, "no lines on the cabinet")
+	local have = { biome_meadow = true, biome_river = true, biome_peaks = false }
+	local lines = W.lines("Roads", nil, have)
+	expectEqual(lines[1].lit, true, "meadow to river is lit")
+	expectEqual(lines[2].lit, false, "river to peaks is not")
+	-- next up and fresh
+	expectEqual(W.nextUp("Night", nil, {}), "night_3", "the easiest locked Night badge is next")
+	expectEqual(W.nextUp("Night", nil, { night_3 = true }), "night_5", "then the next one")
+	local allNight = { night_3 = true, night_5 = true, night_8 = true, night_10 = true }
+	expectEqual(W.nextUp("Night", nil, allNight), nil, "nothing left to nudge")
+	expectEqual(#W.fresh(nil, { wins_1 = true }), 0, "first view sparkles nothing")
+	expectEqual(W.fresh({ wins_1 = true }, { wins_1 = true, wins_5 = true })[1], "wins_5", "a newly earned badge sparkles")
+	local e, t, f = W.progress({ wins_1 = true, wins_5 = true })
+	expectEqual(e, 2, "earned count")
+	expectEqual(t, 32, "total count")
+	expectEqual(f, 2 / 32, "progress fraction")
+	local d1 = B.getById("wins_1")
+	expectEqual(W.plateText(d1, true), "First Win", "earned nameplate shows the name")
+	expectEqual(W.plateText(d1, false), "Win a run.", "locked nameplate shows the requirement")
+	local seg = W.segment(0, 0, 3, 4)
+	expectEqual(seg.length, 5, "segment length")
+	expectEqual(seg.x, 1.5, "segment midpoint")
+end })
+
 table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
 	local PanelBand = require(script.Parent.Parent.Engine.PanelBand)
 	expectEqual(PanelBand.band(1385, 690), 21, "map panel band is about 3 percent of the short side")
