@@ -128,6 +128,11 @@ return function(deps)
 		scrim = { position = UDim2.fromOffset(15, 138), size = UDim2.new(1, -30, 1, -196) },
 	})
 
+	-- Gallery back wall (Client/CollectionWall.lua): mounts only once the collection_scene Image ids are recorded.
+	pcall(function()
+		require(script.Parent.CollectionWall).mount(panel)
+	end)
+
 	local titleLabel = label(panel, {
 		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Collection",

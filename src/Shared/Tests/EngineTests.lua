@@ -13646,4 +13646,60 @@ table.insert(tests, { name = "PlayRules: exact and minimum card counts read from
 	end
 end })
 
+table.insert(tests, { name = "CollectionSceneLayout: grid cells stay inside the content area at 1920x1080, 1280x720 and compact, never overlap, chest clear of the first row", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
+	for _, size in ipairs({ { 1267, 842 }, { 845, 562 }, { 560, 420 } }) do
+		local W, H = size[1], size[2]
+		local c = L.content(W, H)
+		for _, kind in ipairs({ "frames", "cork", "shelf", "rack", "plates" }) do
+			local g = L.grid(W, H, kind, 12)
+			expectEqual(#g.cells, 12, kind .. " has one cell per item")
+			for i, r in ipairs(g.cells) do
+				expectTrue(r.x >= c.x and r.x + r.w <= c.x + c.w, kind .. " cell inside content horizontally at " .. W)
+				expectTrue(r.y >= c.y, kind .. " cell below the header at " .. W)
+				for j = i + 1, #g.cells do
+					local o = g.cells[j]
+					local apart = r.x + r.w <= o.x or o.x + o.w <= r.x or r.y + r.h <= o.y or o.y + o.h <= r.y
+					expectTrue(apart, kind .. " cells never overlap")
+				end
+			end
+			expectTrue(g.plate.x + g.plate.w <= g.frame.w and g.plate.y + g.plate.h <= g.frame.h, kind .. " name plate inside its cell")
+		end
+		local ch = L.chest(W, H)
+		expectTrue(ch.x >= c.x and ch.x + ch.w <= c.x + c.w and ch.y >= c.y and ch.y + ch.h <= c.y + c.h, "chest inside the content area")
+	end
+end })
+
+table.insert(tests, { name = "CollectionSceneLayout: New ids diff, lantern flicker and drop-in are gentle and off in calm or Fast mode; Collection wall mounts only with art", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
+	local n = L.newIds({ "a", "b" }, { "a", "b", "c", "d" })
+	expectEqual(#n, 2, "two new ids")
+	expectEqual(n[1], "c", "first new id")
+	expectEqual(#L.newIds(nil, {}), 0, "nothing new from nothing")
+	for i = 0, 200 do
+		local f = L.flicker(i * 0.37, false)
+		expectTrue(f >= 0.97 and f <= 1.03, "flicker within 3 percent")
+		expectEqual(L.flicker(i * 0.37, true), 1, "calm mode never flickers")
+	end
+	expectEqual(L.dropOffset(0.1, true, false), 0, "no drop in calm mode")
+	expectEqual(L.dropOffset(0.1, false, true), 0, "no drop on Fast speed")
+	expectEqual(L.dropOffset(L.DROP_TIME + 0.1, false, false), 0, "drop ends at rest")
+	expectTrue(math.abs(L.dropOffset(0.01, false, false)) <= L.DROP_PX, "drop starts within 24 px")
+	expectTrue(L.MAX_ANIMATED <= 10, "at most 10 animated objects")
+	local Art = require(script.Parent.Parent.Engine.CollectionSceneArt)
+	local known = { collection_wall = true, collection_frame_owned = true, collection_frame_empty = true, collection_corkboard = true, collection_trophy_shelf = true, collection_key_rack = true, collection_nameplate_shelf = true, collection_chest_closed = true, collection_chest_open = true, collection_moth = true, collection_dust_cloth = true }
+	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
+	local f = io and io.open and io.open("src/Client/CollectionWall.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("if not id then", 1, true) ~= nil, "wall mounts only when collection_wall has an Image id")
+		expectTrue(src:find("UIGradient", 1, true) == nil and src:find("TweenService", 1, true) == nil, "wall is static: no gradient, loops or tweens")
+	end
+	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if c then
+		local src = c:read("*a"); c:close()
+		expectTrue(src:find("CollectionWall", 1, true) ~= nil, "Collection mounts the wall")
+	end
+end })
+
 return tests
