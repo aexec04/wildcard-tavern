@@ -189,9 +189,14 @@ CATEGORY_OPTS = {
     # `opaque` lists the ids that stay opaque. The model has no wide strip size, so menu_counter is 1536x1024 with the
     # bar drawn in the lower part of the canvas (the UI crops it).
     "menu_scene": {"quality": "low", "style_key": "house_style", "transparent": True,
-                   "opaque": ["menu_wall_far", "menu_parchment"],
+                   "opaque": ["menu_wall_far", "menu_parchment", "menu_scene_a", "menu_scene_b", "menu_scene_c"],
                    "sizes": {"menu_wall_far": "1536x1024", "menu_mid_beams": "1536x1024", "menu_counter": "1536x1024",
-                             "menu_noticeboard_wall": "1024x1024"}},
+                             "menu_noticeboard_wall": "1024x1024",
+                             "menu_scene_a": "1536x1024", "menu_scene_b": "1536x1024", "menu_scene_c": "1536x1024"},
+                   # v2 candidates: one painted room, styled toward the room wall (same tavern)
+                   "references": {"menu_scene_a": "art-wip/menu_room/menu_room_wall.png",
+                                  "menu_scene_b": "art-wip/menu_room/menu_room_wall.png",
+                                  "menu_scene_c": "art-wip/menu_room/menu_room_wall.png"}},
 }
 
 # set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
