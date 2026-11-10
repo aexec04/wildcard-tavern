@@ -74,50 +74,44 @@ return function(deps)
 
 	-- ribbon banner header: title, "x of 32 earned" and a thin progress rail
 	local banner = Instance.new("Frame")
-	banner.Name = "RibbonBanner"
-	banner.AnchorPoint = Vector2.new(0.5, 0)
-	banner.Position = UDim2.new(0.5, 0, 0, 8)
-	banner.Size = UDim2.new(0.6, 0, 0, 44)
-	banner.BackgroundColor3 = Color3.fromRGB(150, 36, 36)
+	banner.Name = "HeaderPlate" -- solid warm plate with a thin gold line; positioned by BadgeWallLayout.header (placeHeader)
+	banner.Position = UDim2.fromOffset(0, 6)
+	banner.Size = UDim2.new(0.6, 0, 0, 62)
+	banner.BackgroundColor3 = Color3.fromRGB(46, 34, 24)
 	banner.BorderSizePixel = 0
 	banner.ZIndex = 44
 	banner.Parent = panel
 	roundCorner(banner, 6)
 	local bannerStroke = Instance.new("UIStroke")
 	bannerStroke.Color = GOLD
-	bannerStroke.Thickness = 2
+	bannerStroke.Thickness = 1.5
 	bannerStroke.Parent = banner
-	do -- painted ribbon behind the text; the drawn red banner shows when the id is missing
-		local ribbonId = require(Engine:WaitForChild("BadgeWallArt")).badge_ribbon_banner
-		if type(ribbonId) == "string" and ribbonId ~= "" then
-			local img = Instance.new("ImageLabel")
-			img.Name = "RibbonArt"
-			img.BackgroundTransparency = 1
-			img.Image = ribbonId
-			img.Active = false
-			img.Size = UDim2.fromScale(1, 1)
-			img.ZIndex = 45
-			img.Parent = banner
-		end
-	end
-	label(banner, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 2), Font = Enum.Font.GothamBold, TextSize = 20, Text = "Badges", ZIndex = 46 })
-	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 22), Font = Enum.Font.GothamBold, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(250, 214, 140) })
-	local rail = Instance.new("Frame")
-	rail.AnchorPoint = Vector2.new(0.5, 0)
-	rail.Position = UDim2.new(0.5, 0, 0, 56)
-	rail.Size = UDim2.new(0.6, 0, 0, 6)
-	rail.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+	local titleLabel = label(banner, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), Font = Enum.Font.GothamBold, TextSize = 20, Text = "Badges", ZIndex = 46 })
+	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 28), Font = Enum.Font.GothamMedium, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(214, 198, 164) })
+	local rail = Instance.new("Frame") -- slim progress bar inside the plate: gold fill on a dark track
+	rail.Name = "ProgressTrack"
+	rail.Position = UDim2.fromOffset(14, 50)
+	rail.Size = UDim2.new(1, -28, 0, 6)
+	rail.BackgroundColor3 = Color3.fromRGB(24, 17, 12)
 	rail.BorderSizePixel = 0
-	rail.ZIndex = 44
-	rail.Parent = panel
+	rail.ZIndex = 45
+	rail.Parent = banner
 	roundCorner(rail, 3)
 	local railFill = Instance.new("Frame")
 	railFill.Size = UDim2.fromScale(0, 1)
 	railFill.BackgroundColor3 = GOLD
 	railFill.BorderSizePixel = 0
-	railFill.ZIndex = 45
+	railFill.ZIndex = 46
 	railFill.Parent = rail
 	roundCorner(railFill, 3)
+	local function placeHeader()
+		local sz = panel.AbsoluteSize
+		if sz.X < 100 then return end
+		local H = Wall.header(sz.X, sz.Y)
+		banner.Position, banner.Size = UDim2.fromOffset(H.plate.x, H.plate.y), UDim2.fromOffset(H.plate.w, H.plate.h)
+	end
+	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeHeader)
+	placeHeader()
 
 	-- filter tabs
 	local activeChip = "All"

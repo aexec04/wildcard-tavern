@@ -171,4 +171,19 @@ function Wall.segment(ax, ay, bx, by)
 	return { x = (ax + bx) / 2, y = (ay + by) / 2, length = math.sqrt(dx * dx + dy * dy), rotation = math.deg(math.atan(dy, dx)) }
 end
 
+-- Header plate of the Badges panel: a solid plate with the title, the count line and a slim progress bar inside it.
+-- Rects are in the panel's local pixels; no art is stretched (the plate is a flat colour with a gold line).
+function Wall.header(panelW, panelH)
+	local plateW = math.floor(panelW * 0.6)
+	local plateH = 62
+	local pad = 14
+	return {
+		plate = { x = math.floor((panelW - plateW) / 2), y = 6, w = plateW, h = plateH },
+		title = { x = 0, y = 4, w = plateW, h = 24 },
+		count = { x = 0, y = 28, w = plateW, h = 18 },
+		bar = { x = pad, y = 50, w = plateW - 2 * pad, h = 6 },
+		heightFraction = plateH / panelH,
+	}
+end
+
 return Wall

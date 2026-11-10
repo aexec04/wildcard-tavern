@@ -13032,6 +13032,28 @@ table.insert(tests, { name = "Popups block clicks behind them: popup roots are s
 	end
 end })
 
+table.insert(tests, { name = "Badges header: a flat plate at most 12 percent of the panel, bar and text inside it, no red banner art", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	for _, size in ipairs({ { 1500, 950 }, { 980, 633 }, { 700, 560 } }) do
+		local H = W.header(size[1], size[2])
+		expectTrue(H.heightFraction <= 0.12, "header height fraction at " .. size[1])
+		expectTrue(H.plate.x >= 0 and H.plate.x + H.plate.w <= size[1], "plate inside the panel")
+		expectTrue(H.bar.x >= 0 and H.bar.x + H.bar.w <= H.plate.w and H.bar.y + H.bar.h <= H.plate.h, "progress bar inside the plate")
+		expectTrue(H.count.y + H.count.h <= H.bar.y, "count line sits above the bar")
+		expectTrue(H.title.y + H.title.h <= H.count.y, "title sits above the count line")
+	end
+	if io then
+		local f = io.open("src/Client/BadgesPanel.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(src:find("badge_ribbon_banner", 1, true) == nil, "no stretched ribbon art in the header")
+			expectTrue(src:find("RibbonBanner", 1, true) == nil, "old banner is gone")
+			expectTrue(src:find("150, 36, 36", 1, true) == nil, "no red")
+		end
+	end
+end })
+
 table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows; the Roads row is straight; nameplates stay inside their cell (three sizes)", fn = function()
 	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
 	for _, size in ipairs({ { 1400, 700 }, { 1000, 560 }, { 330, 300 } }) do
@@ -13179,8 +13201,8 @@ table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf ra
 	expectTrue(wall:find('"badge_shelf_rail"', 1, true) == nil, "no shelf rails: badges sit on a strict grid over a calm plate")
 	expectTrue(wall:find('Name = "GridScrim"', 1, true) ~= nil, "a calm scrim plate sits behind the grid")
 	expectTrue(wall:find("math.floor(size / 2))", 1, true) ~= nil, "badge medals are circles, no square backing")
-	expectTrue(panel:find("badge_ribbon_banner", 1, true) ~= nil and panel:find("RibbonArt", 1, true) ~= nil, "header uses the ribbon banner")
-	expectTrue(panel:find('type(ribbonId) == "string"', 1, true) ~= nil, "ribbon is skipped when the id is missing")
+	expectTrue(panel:find("badge_ribbon_banner", 1, true) == nil, "header is a drawn plate, the stretched ribbon art is not used")
+	expectTrue(panel:find("ribbonId", 1, true) == nil, "no ribbon art lookup remains in the header")
 end })
 
 table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave, no tagline, old name gone, banned word absent", fn = function()
