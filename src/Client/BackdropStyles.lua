@@ -258,8 +258,13 @@ function M.attach(host, opts)
 	opts = opts or {}
 	local controller = { host = host, layers = {}, running = false }
 	local fx = nil
+	local ambient = nil -- Client/AmbientLife scene (butterflies, clouds, snow ...), rebuilt with every style
 
 	local function clear()
+		if ambient then
+			pcall(ambient.destroy)
+			ambient = nil
+		end
 		unregister(controller)
 		controller.layers = {}
 		controller.running = false
@@ -321,6 +326,20 @@ function M.attach(host, opts)
 		if #controller.layers > 0 then
 			register(controller)
 		end
+	end
+
+	-- Living backdrop: gentle ambient motion for the set (Engine/AmbientLayout). Call after setStyle; safe when it fails.
+	function controller.setAmbient(setId)
+		if ambient then
+			pcall(ambient.destroy)
+			ambient = nil
+		end
+		if not setId then return end
+		pcall(function()
+			if not fx then newFx() end
+			ambient = require(script.Parent.AmbientLife).attach(fx, host)
+			ambient.setSet(setId)
+		end)
 	end
 
 	return controller

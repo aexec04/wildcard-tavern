@@ -27,7 +27,7 @@ local TweenService = game:GetService("TweenService")
 -- Backdrops that show the equipped set's style: gameplay, Shop, Round
 -- Select and the Journey map. defaultTint is restored when a set has no style.
 local HOSTS = {
-	{ name = "GameBackgroundArt", defaultTint = Color3.fromRGB(215, 205, 195) },
+	{ name = "GameBackgroundArt", defaultTint = Color3.fromRGB(215, 205, 195), noAmbient = true }, -- TableLook carries the gameplay ambient motion
 	{ name = "TableLook", defaultTint = Color3.new(1, 1, 1) }, -- the style host above the gameplay scene painting (Client/TableLook.lua)
 	{ name = "ShopBackgroundArt", defaultTint = Color3.new(1, 1, 1) },
 	{ name = "RoundSelect", defaultTint = Color3.new(1, 1, 1) },
@@ -222,6 +222,7 @@ function M.apply(state)
 		end
 		if entry and entry.styledSetId ~= set.id then
 			local ok = pcall(entry.controller.setStyle, CosmeticSets.backdropStyleOf(set))
+			if not host.noAmbient then pcall(entry.controller.setAmbient, set.id) end -- living backdrop: butterflies, clouds, snow ...
 			entry.styledSetId = set.id -- even on failure: don't retry every render
 			if not ok then
 				warn("Backdrop style failed for " .. host.name)

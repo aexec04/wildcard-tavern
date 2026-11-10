@@ -12767,6 +12767,106 @@ table.insert(tests, { name = "Corner dock: every set tints the painted icons, ke
 	end
 end })
 
+table.insert(tests, { name = "AmbientLayout: every Card Set has a living backdrop, at most 14 objects, bands inside 0 to 1, calm mode creates none", fn = function()
+	local AL = require(script.Parent.Parent.Engine.AmbientLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectEqual(AL.MAX_OBJECTS, 14, "cap")
+	for _, set in ipairs(CS.Definitions) do
+		expectTrue(AL.SETS[set.id] ~= nil, set.id .. " has an ambient entry")
+		local n = AL.objectCount(set.id, false)
+		expectTrue(n >= 1 and n <= 14, set.id .. " has 1 to 14 animated objects, got " .. n)
+		expectEqual(AL.objectCount(set.id, true), 0, set.id .. " calm mode creates zero animated objects")
+		for _, spec in ipairs(AL.SETS[set.id]) do
+			expectTrue(AL.SPRITES[spec.kind] ~= nil, set.id .. " kind " .. spec.kind .. " is known")
+			expectTrue(spec.band[1] >= 0 and spec.band[2] <= 1 and spec.band[1] < spec.band[2], set.id .. " band inside 0 to 1")
+		end
+	end
+	expectEqual(AL.objectCount("not_a_set", false), 0, "unknown set has no objects")
+end })
+
+table.insert(tests, { name = "AmbientLayout: motion is deterministic, butterflies swap sprites and stay inside, wind and breath stay in range", fn = function()
+	local AL = require(script.Parent.Parent.Engine.AmbientLayout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local sawA, sawB = false, false
+	local items = AL.list("meadow_picnic", false)
+	local butterflies = 0
+	for _, item in ipairs(items) do
+		if item.kind == "butterfly" then
+			butterflies = butterflies + 1
+			for k = 0, 600 do
+				local t = k * 0.1
+				local w = AL.wind(t, 0)
+				local a = AL.state(item, t, w)
+				local b = AL.state(item, t, w)
+				expectTrue(a.x == b.x and a.y == b.y and a.rot == b.rot and a.frame == b.frame, "same time and wind gives the same state")
+				expectTrue(a.x >= 0.02 and a.x <= 0.98 and a.y >= 0.02 and a.y <= 0.98, "butterfly stays inside the area")
+				expectTrue(math.abs(a.rot) <= 12, "banks only a few degrees")
+				if a.sprite == "ambient_butterfly_open" then sawA = true end
+				if a.sprite == "ambient_butterfly_closed" then sawB = true end
+			end
+		end
+	end
+	expectEqual(butterflies, 3, "Meadow Picnic has 3 butterflies")
+	expectTrue(sawA and sawB, "butterflies swap between the open and closed sprites")
+	-- wind in 0..1 with gusts that come every 8 to 14 seconds
+	local peaks, last, prev = 0, nil, nil
+	for k = 0, 2400 do
+		local w = AL.wind(k * 0.05, 0)
+		expectTrue(w >= 0 and w <= 1, "wind in range")
+		if prev and w > 0.97 and prev <= 0.97 then
+			if last then
+				local gap = k * 0.05 - last
+				expectTrue(gap >= 7 and gap <= 15, "gust gap " .. gap)
+			end
+			last = k * 0.05
+			peaks = peaks + 1
+		end
+		prev = w
+	end
+	expectTrue(peaks >= 6, "gusts keep coming")
+	-- breath: zoom stays big enough that the drift never shows an edge
+	for k = 0, 2000 do
+		local b = AL.breath(k * 0.1)
+		expectTrue(b.scale >= 1.03 and b.scale <= 1.05, "zoom about 1.5 percent over the base")
+		expectTrue(math.abs(b.dx) <= (b.scale - 1) / 2 and math.abs(b.dy) <= (b.scale - 1) / 2, "no edge shows")
+	end
+	-- every object of every set gives finite, in-range values over time
+	for _, set in ipairs(CS.Definitions) do
+		for _, item in ipairs(AL.list(set.id, false)) do
+			for k = 0, 120 do
+				local st = AL.state(item, k * 2.5, AL.wind(k * 2.5, 0))
+				expectTrue(st.x == st.x and st.y == st.y and st.alpha >= 0 and st.alpha <= 1, set.id .. " " .. item.kind .. " finite and visible range")
+				expectTrue(st.x >= -0.01 and st.x <= 1.01 and st.y >= -0.2 and st.y <= 1.05, set.id .. " " .. item.kind .. " stays in the scene")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Living backdrops: one 30 Hz Heartbeat, pooled frames, calm mode removes objects, wired into BackdropStyles and the set view", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local life = read("src/Client/AmbientLife.lua")
+	if not life then return end
+	expectTrue(select(2, life:gsub("Heartbeat:Connect", "")) == 1, "a single Heartbeat connection")
+	expectTrue(life:find("TICK", 1, true) ~= nil, "capped by the 30 Hz tick")
+	expectTrue(life:find("reduceShake", 1, true) ~= nil and life:find("clearObjects", 1, true) ~= nil, "calm mode destroys the objects")
+	expectTrue(life:find("Visible", 1, true) ~= nil and life:find("covered", 1, true) ~= nil, "stops while hidden or covered by a popup")
+	expectTrue(life:find("Instance.new%("), "frames are created")
+	local step = life:match("local function step%(dt%).-\nend\n") or ""
+	expectTrue(step:find("Instance.new", 1, true) == nil, "no frames are created inside the per-frame step")
+	local bs = read("src/Client/BackdropStyles.lua")
+	expectTrue(bs:find("setAmbient", 1, true) ~= nil and bs:find("AmbientLife", 1, true) ~= nil, "BackdropStyles hosts the ambient scene")
+	local view = read("src/Client/CosmeticSetsView.lua")
+	expectTrue(view:find("setAmbient", 1, true) ~= nil, "the set view starts it on every equip")
+	local art = read("src/Shared/Engine/ContentArt.lua")
+	expectTrue(art:find("AmbientArt", 1, true) ~= nil, "ambient art is registered")
+end })
+
 table.insert(tests, { name = "HudStyle: pile look is stable per set and different for every set; HUD wiring is present", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HudStyle)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
