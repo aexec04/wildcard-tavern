@@ -83,6 +83,7 @@ CATEGORIES = {
     "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
+    "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -145,6 +146,10 @@ CATEGORY_OPTS = {
                    "sizes": {"bayou_sky": "1536x1024", "bayou_far_trees": "1536x1024", "bayou_water": "1536x1024",
                              "bayou_tavern_stilts": "1536x1024", "bayou_mist": "1536x1024",
                              "bayou_cypress_knees": "1536x1024", "bayou_willow_fg": "1024x1536"}},
+    # Living Map menu landmarks: cut out from magenta; wide pieces use the landscape size.
+    "menu_world": {"quality": "low", "style_key": "house_style", "transparent": True,
+                   "sizes": {"menu_tavern_hub": "1536x1024", "menu_road_out": "1536x1024", "menu_cloud_wisp": "1536x1024",
+                             "menu_fog_edge": "1536x1024", "menu_map_frame": "1536x1024"}},
     # Menu tavern layers and props. `transparent` = generated on flat magenta, then cut out to real alpha (cutout.py, checked in qa());
     # `opaque` lists the ids that stay opaque. The model has no wide strip size, so menu_counter is 1536x1024 with the
     # bar drawn in the lower part of the canvas (the UI crops it).
