@@ -5,8 +5,10 @@
 	the painted tavern wall, so nothing is ever blank. Layer order, back to front: sky, far trees, water, tavern on stilts, boat and
 	post, mist, cypress knees, willow foreground. All layers share ZIndex 10 and stack by creation order.
 
-	Life (11 animated objects, all off under calm mode): water shimmer (UIGradient Offset), drifting mist, tavern window glow pulse,
-	rowboat bob (3 px, 4 s sine), willow moss sway (1 degree), 6 fireflies on slow drifts.
+	Motion: every layer sits in one `World` frame, and only that frame moves (a tiny pan and 1 percent zoom breath over 40 s), so the
+	house, boat, posts and trees stay perfectly still relative to each other. No per-layer parallax or bob.
+	Local life (10 animated objects, all off under calm mode): water shimmer (UIGradient Offset, inside the water layer only),
+	drifting mist, tavern window glow pulse, the whole-scene drift, 6 fireflies on slow drifts.
 
 	build(parent) returns { active, layers = { { inst, base, px } }, update(nx, ny, t, calm), animatedCount }
 	Menu adds `layers` to MenuParallax and calls update from the same frame step (layer.base is mutated by the bob and drift).
@@ -31,6 +33,17 @@ function MenuBayou.build(parent)
 	container.Visible = false
 	container.Parent = parent
 
+	local world = Instance.new("Frame")
+	world.Name = "World"
+	world.AnchorPoint = Vector2.new(0.5, 0.5)
+	world.Position = UDim2.fromScale(0.5, 0.5)
+	world.Size = UDim2.fromScale(B.drift.baseZoom, B.drift.baseZoom)
+	world.BackgroundTransparency = 1
+	world.Active = false
+	world.ZIndex = 10
+	world.Parent = container
+	scene.world = world
+
 	local byKey = {}
 	for _, def in ipairs(B.layers) do
 		local art = ContentArt.getImageId("menu_bayou", def.id)
@@ -47,7 +60,7 @@ function MenuBayou.build(parent)
 		img.ZIndex = 10
 		if art then img.Image = art end
 		img.Visible = art ~= nil
-		img.Parent = container
+		img.Parent = world
 		local layer = { inst = img, base = base, px = def.px, baseX = def.x, baseY = def.y }
 		byKey[def.key] = layer
 		table.insert(scene.layers, layer)
@@ -88,7 +101,7 @@ function MenuBayou.build(parent)
 	local gc = Instance.new("UICorner")
 	gc.CornerRadius = UDim.new(0.5, 0)
 	gc.Parent = glow
-	scene.animatedCount += 3 -- mist drift, rowboat bob and moss sway share the count with the glow below
+	scene.animatedCount += 2 -- mist drift and the whole-scene drift
 	scene.animatedCount += 1 -- window glow
 
 	-- fireflies: small warm dots on slow drifts, over the water and under the foreground
@@ -103,7 +116,7 @@ function MenuBayou.build(parent)
 		f.BorderSizePixel = 0
 		f.Active = false
 		f.ZIndex = 10
-		f.Parent = container
+		f.Parent = world
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(1, 0)
 		c.Parent = f
@@ -127,22 +140,25 @@ function MenuBayou.build(parent)
 	scrim("TitleScrim", 0, 0.22)
 	scrim("CounterScrim", Layout.Counter.top, 1 - Layout.Counter.top)
 
-	local boat, mistLayer, willow = byKey.boat, byKey.mist, byKey.willow
+	local mistLayer = byKey.mist
+	local D = B.drift
 	function scene.update(_nx, _ny, t, calm)
 		for _, f in ipairs(flies) do f.frame.Visible = not calm end
 		if calm then
 			waterGrad.Offset = Vector2.new(0, 0)
-			willow.inst.Rotation = 0
-			boat.base = UDim2.fromScale(boat.baseX, boat.baseY)
+			world.Position = UDim2.fromScale(0.5, 0.5)
+			world.Size = UDim2.fromScale(D.baseZoom, D.baseZoom)
 			mistLayer.base = UDim2.fromScale(mistLayer.baseX, mistLayer.baseY)
 			glow.BackgroundTransparency = 0.86
 			return
 		end
 		waterGrad.Offset = Vector2.new(math.sin(t * 0.18) * 0.35, 0)
 		mistLayer.base = UDim2.new(mistLayer.baseX + math.sin(t * 0.05) * 0.06, 0, mistLayer.baseY, math.sin(t * 0.3) * 3)
-		boat.base = UDim2.new(boat.baseX, 0, boat.baseY, math.sin(t * math.pi * 2 / 4) * 3)
+		local ph = t * math.pi * 2 / D.period
+		world.Position = UDim2.new(0.5, math.sin(ph) * D.panPx, 0.5, math.cos(ph) * D.panPx * 0.6)
+		local z = D.baseZoom + math.sin(ph + 1) * D.zoomAmp
+		world.Size = UDim2.fromScale(z, z)
 		glow.BackgroundTransparency = 0.86 + math.sin(t * 1.3) * 0.05
-		willow.inst.Rotation = math.sin(t * 0.6) * 1
 		for _, f in ipairs(flies) do
 			f.frame.Position = UDim2.fromScale(f.fx + math.sin(t * f.speed + f.phase) * 0.04, f.fy + math.cos(t * f.speed * 0.7 + f.phase) * 0.03)
 			f.frame.BackgroundTransparency = 0.25 + (math.sin(t * 1.1 + f.phase * 2) * 0.5 + 0.5) * 0.6

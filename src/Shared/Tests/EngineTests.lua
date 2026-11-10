@@ -11863,19 +11863,19 @@ table.insert(tests, { name = "MenuLayout: six evenly spaced counter items, scrol
 	for _, id in ipairs(ML.SceneArt.items) do expectTrue(ContentArt.getImageId("menu_scene", id) ~= nil, "menu_scene art recorded: " .. id) end
 end })
 
-table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, depths rise and stay under 32px, animated budget fits, art map only holds layer ids", fn = function()
+table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, no per-layer parallax, one rigid drift, animated budget fits, art map only holds layer ids", fn = function()
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local B = ML.Bayou
 	local want = { "bayou_sky", "bayou_far_trees", "bayou_water", "bayou_tavern_stilts", "bayou_boat_post", "bayou_mist", "bayou_cypress_knees", "bayou_willow_fg" }
 	expectEqual(#B.layers, #want, "eight bayou layers")
-	local prev = 0
 	for i, def in ipairs(B.layers) do
 		expectEqual(def.id, want[i], "layer order back to front")
-		expectTrue(def.px > prev and def.px <= ML.Parallax.maxOffset, "depth rises toward the front and stays within the clamp: " .. def.id)
-		prev = def.px
+		expectEqual(def.px, 0, "no per-layer parallax, so nothing slides against the rest: " .. def.id)
 	end
+	expectTrue(B.drift.panPx <= 8 and B.drift.zoomAmp <= 0.02 and B.drift.period >= 40, "one slow tiny whole-scene drift")
+	expectTrue(B.drift.baseZoom - B.drift.zoomAmp - 1 >= 2 * B.drift.panPx / 1280, "zoom margin covers the pan so no edge shows")
 	expectTrue(B.animated + 1 <= ML.MAX_ANIMATED, "bayou life plus the lantern stays under the animated cap")
-	expectEqual(B.animated, 5 + B.fireflies, "water, mist, window glow, boat, moss plus fireflies")
+	expectEqual(B.animated, 4 + B.fireflies, "water, mist, window glow, whole-scene drift plus fireflies")
 	local known = {}
 	for _, id in ipairs(want) do known[id] = true end
 	for id in pairs(require(script.Parent.Parent.Engine.BayouArt)) do expectTrue(known[id], "BayouArt only holds bayou layer ids: " .. id) end
@@ -11884,6 +11884,7 @@ table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, dept
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("UIGradient", 1, true) ~= nil and src:find("Transparency = ColorSequence", 1, true) == nil, "water shimmer only touches gradient Color and Offset")
 		expectTrue(src:find("calm", 1, true) ~= nil, "bayou life honours calm mode")
+		expectTrue(src:find("boat.base", 1, true) == nil and src:find("Rotation", 1, true) == nil, "no boat bob or moss sway")
 	end
 end })
 
