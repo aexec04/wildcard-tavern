@@ -6,6 +6,23 @@
 ]]
 
 return {
+	["classic_tavern__banner"] = "rbxassetid://93692549634362",
+	["classic_tavern__btn_collection"] = "rbxassetid://139422572746473",
+	["classic_tavern__btn_hand_ref"] = "rbxassetid://71406618953292",
+	["classic_tavern__btn_journey"] = "rbxassetid://98930045533850",
+	["classic_tavern__btn_settings"] = "rbxassetid://118111179819648",
+	["classic_tavern__btn_volume"] = "rbxassetid://133196926234984",
+	["classic_tavern__icon_discards"] = "rbxassetid://133562335722209",
+	["classic_tavern__icon_hands"] = "rbxassetid://92288591547383",
+	["classic_tavern__icon_slot"] = "rbxassetid://116777082539724",
+	["classic_tavern__icon_target"] = "rbxassetid://106537379353951",
+	["classic_tavern__icon_tips"] = "rbxassetid://86039465054573",
+	["classic_tavern__panel_frame"] = "rbxassetid://129612972741484",
+	["classic_tavern__patron_tray"] = "rbxassetid://89000468078711",
+	["classic_tavern__purse_row"] = "rbxassetid://97428259550307",
+	["classic_tavern__reward"] = "rbxassetid://100689569090372",
+	["classic_tavern__score_track"] = "rbxassetid://104747598718870",
+	["classic_tavern__tile"] = "rbxassetid://133322371424659",
 	["meadow_picnic__banner"] = "rbxassetid://123671604687113",
 	["meadow_picnic__btn_collection"] = "rbxassetid://86598636260425",
 	["meadow_picnic__btn_hand_ref"] = "rbxassetid://97915890027149",
