@@ -37,6 +37,7 @@ local lastSearch = {} -- [host name] = os.clock() of the last PlayerGui search
 local controllers = {} -- [host name] = { controller, hostInstance, styledSetId }
 
 local lastBackId = nil
+local lastSceneSet = nil
 local gui = nil
 
 local function find(name)
@@ -175,6 +176,13 @@ end
 
 function M.apply(state)
 	lastState = state
+	local sceneSet = M.currentSet(state).id
+	if sceneSet ~= lastSceneSet then
+		lastSceneSet = sceneSet
+		-- The scene painting (GameplayScene) follows the set; Preview only calls apply(), so refresh it here.
+		local ok, scene = pcall(function() return require(script.Parent.GameplayScene).get() end)
+		if ok and scene then pcall(scene.update, state) end
+	end
 	local cosmetics = state.cosmetics
 	local setId = cosmetics and cosmetics.equippedSetId or CosmeticSets.DefaultId
 	local backId = cosmetics and cosmetics.cardBackId or CardBacks.DefaultId
@@ -187,7 +195,8 @@ function M.apply(state)
 	-- Base image (gameplay only: the other backdrops have no set art yet).
 	local backdrop = find("GameBackgroundArt")
 	if backdrop and backdrop:GetAttribute("AppliedSetId") ~= set.id then
-		local image = set.backdropImage
+		local image = set.scenery
+		if not image or image == "rbxassetid://0" then image = set.backdropImage end
 		if image and image ~= "rbxassetid://0" then
 			backdrop.Image = image
 		else

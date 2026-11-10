@@ -53,7 +53,9 @@ function TableStyle.resolve(opts)
 	local set = opts.set
 
 	local image, source = nil, "default"
-	if set and realImage(set.backdropImage) then
+	if set and realImage(set.scenery) then
+		image, source = set.scenery, "set"
+	elseif set and realImage(set.backdropImage) then
 		image, source = set.backdropImage, "set"
 	elseif realImage(BiomeBackdrops.Images[region]) then
 		image, source = BiomeBackdrops.Images[region], "biome"
@@ -65,6 +67,11 @@ function TableStyle.resolve(opts)
 	if isBoss then
 		mood.darken = mood.darken + 0.10
 		vignette = { bottom = 0.62, sides = 0.35 }
+	end
+
+	if source == "set" then
+		-- Set scenery can be bright anywhere: keep a soft dark vignette behind the hand tray and side panel.
+		vignette = { bottom = math.max(vignette.bottom, 0.8), sides = math.max(vignette.sides, 0.4) }
 	end
 
 	return {

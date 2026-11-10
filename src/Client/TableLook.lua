@@ -21,7 +21,14 @@ local ClientSettings = require(script.Parent.ClientSettings)
 
 local TableLook = {}
 
-local BOTTOM_STEPS, SIDE_STEPS = 8, 4
+-- More, thinner layers give the same darkness as the tuned 8 and 4 without visible bands.
+local BOTTOM_STEPS, SIDE_STEPS = 24, 12
+local BASE_BOTTOM_STEPS, BASE_SIDE_STEPS = 8, 4
+
+-- Transparency of one of `steps` stacked layers so the stack darkens like `base` layers of transparency t.
+local function layerTransparency(t, base, steps)
+	return t ^ (base / steps)
+end
 local FADE = 0.7
 
 local function solid(parent, name, color)
@@ -102,8 +109,8 @@ function TableLook.new(root)
 		set(grade, { BackgroundTransparency = 1 - look.grade.strength }, instant)
 		set(warm, { BackgroundTransparency = 1 - look.mood.warm }, instant)
 		set(darken, { BackgroundTransparency = 1 - look.mood.darken }, instant)
-		local bottomT = 1 - look.vignette.bottom * 0.22
-		local sideT = 1 - look.vignette.sides * 0.25
+		local bottomT = layerTransparency(1 - look.vignette.bottom * 0.22, BASE_BOTTOM_STEPS, BOTTOM_STEPS)
+		local sideT = layerTransparency(1 - look.vignette.sides * 0.25, BASE_SIDE_STEPS, SIDE_STEPS)
 		for _, f in ipairs(bottomStrips) do set(f, { BackgroundTransparency = bottomT }, instant) end
 		for _, f in ipairs(sideStrips) do set(f, { BackgroundTransparency = sideT }, instant) end
 	end

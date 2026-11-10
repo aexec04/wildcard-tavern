@@ -31,5 +31,6 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - **Studio check, Classic Tavern cards:** rank on plate, preview redraws hand.
 - **Studio check, panel frames:** panel titles and Close readable, frame behind content (Tavern Map, Collection, Store, Settings, Season, Shop, DeckTracker, HowToPlay at 1920x1080 and compact); run `tools/check_panel_overlap.lua` in Play.
 - **Studio check, set skins:** all 15 sets: card numbers readable, borders light, banner not covering buttons (also confirm no backdrop banding and the Play Hand button is visible).
+- **Studio check, set scenery:** each set shows its own scenery in gameplay (Preview and equip crossfade 0.4 s, Classic keeps the sunset road, no horizontal banding stripes). Scenery slot: `set.scenery` from `Engine/SetSceneryArt.lua` (empty until the `set_scenery` art is recorded).
 - **Untracked helper scripts:** `tools/_*.py` and `tools/_check_boss_counters.lua` are one-off migration helpers (listed in OUTBOX); delete or commit them yourself.
 - **Content rules:** kid-safe names, no alcohol, never the banned B-word in game text (it appears only in banned-word test lists and design docs).

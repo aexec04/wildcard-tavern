@@ -7558,6 +7558,15 @@ table.insert(tests, { name = "TableStyle: backdrop resolves per region and route
 	expectTrue(override.source == "set" and override.image == "rbxassetid://999", "a set image replaces the biome image")
 	local styled = TableStyle.resolve({ region = "meadow", night = 1, set = { backdropImage = "rbxassetid://0", backdropStyle = { tint = { 255, 255, 255 } } } })
 	expectTrue(styled.source == "biome" and styled.setStyle ~= nil, "a placeholder-image set keeps the biome image and layers its style")
+	-- set scenery beats the set backdrop, and darkens the vignette behind the tray and side panel
+	local scenic = TableStyle.resolve({ region = "meadow", night = 1, set = { scenery = "rbxassetid://777", backdropImage = "rbxassetid://999" } })
+	expectTrue(scenic.source == "set" and scenic.image == "rbxassetid://777", "set scenery wins over backdropImage")
+	expectTrue(scenic.vignette.bottom >= 0.8 and scenic.vignette.sides >= 0.4, "scenery keeps a soft vignette behind the UI")
+	local noScenery = TableStyle.resolve({ region = "meadow", night = 1, set = { scenery = "rbxassetid://0", backdropImage = "rbxassetid://999" } })
+	expectTrue(noScenery.image == "rbxassetid://999", "placeholder scenery falls back to backdropImage")
+	for _, set in ipairs(require(script.Parent.Parent.Engine.CosmeticSets).Definitions) do
+		expectTrue(type(set.scenery) == "string", set.id .. " has a scenery slot")
+	end
 	BiomeBackdrops.Images.meadow = savedMeadow
 	-- Night and boss moods
 	local n1 = TableStyle.resolve({ region = "tavern", night = 1 })

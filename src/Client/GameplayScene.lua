@@ -35,10 +35,11 @@ local ClientSettings = require(script.Parent.ClientSettings)
 
 local ROUNDS_PER_NIGHT = 3 -- same client-side assumption RoundSelect.lua makes
 local CROSSFADE = 0.7
+local SET_CROSSFADE = 0.4 -- equip and Preview of a Card Set
 local PUSH_IN_TO = 1.06
 local PUSH_IN_SECONDS = 90
 local DIM = Color3.fromRGB(215, 205, 195) -- same dimming the hub gives the default backdrop
-local SHADE_STEPS = 10
+local SHADE_STEPS = 24
 
 local function tween(inst, props, time, style, dir)
 	local t = TweenService:Create(inst, TweenInfo.new(time, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
@@ -95,7 +96,7 @@ local function build(deps)
 	shade.Parent = root
 	for i = 1, SHADE_STEPS do
 		local strip = Instance.new("Frame")
-		strip.Size = UDim2.new(1, 0, 1 / SHADE_STEPS, 1)
+		strip.Size = UDim2.fromScale(1, 1 / SHADE_STEPS) -- no +1 px overlap: overlapping rows doubled the shade into lines
 		strip.Position = UDim2.new(0, 0, (i - 1) / SHADE_STEPS, 0)
 		strip.BackgroundColor3 = Color3.fromRGB(10, 6, 4)
 		strip.BackgroundTransparency = 1 - 0.55 * (i / SHADE_STEPS) ^ 1.3
@@ -133,6 +134,7 @@ local function build(deps)
 	local currentKey = nil -- key shown (or wanted) right now
 	local lastBossKey = nil
 	local lastLookSig = nil
+	local lastSetId = nil
 	local lastState = nil
 	local fadeToken = 0
 	local pushTween = nil
@@ -158,7 +160,7 @@ local function build(deps)
 	end
 
 	-- Publish the shown image so CosmeticSetsView does not fight it (it keeps its own backdrop swap).
-	local function show(key, instant)
+	local function show(key, instant, fadeTime)
 		-- "img:<id>" keys come from TableStyle (a recorded biome painting, or an equipped set's own backdrop).
 		local image = nil
 		if key then
@@ -166,7 +168,7 @@ local function build(deps)
 		end
 		fadeToken = fadeToken + 1
 		local mine = fadeToken
-		local duration = (instant or fast()) and 0 or CROSSFADE
+		local duration = (instant or fast()) and 0 or (fadeTime or CROSSFADE)
 		if not image then
 			-- No art yet: fade the scenes out, the old backdrop shows.
 			for _, l in ipairs(labels) do
@@ -316,7 +318,10 @@ local function build(deps)
 		end
 		if key ~= currentKey and not walking then
 			currentKey = key
-			show(key)
+			local setId = CosmeticSetsView.currentSet(state).id
+			local setChanged = lastSetId ~= nil and setId ~= lastSetId
+			lastSetId = setId
+			show(key, false, setChanged and SET_CROSSFADE or nil)
 		end
 	end
 

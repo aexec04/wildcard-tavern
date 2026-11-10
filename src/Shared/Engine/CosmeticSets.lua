@@ -44,6 +44,7 @@ local CardBacks = require(script.Parent.CardBacks)
 local BackgroundArt = require(script.Parent.BackgroundArt)
 local SetBackdropArt = require(script.Parent.SetBackdropArt) -- biome sets: generated map, empty until recorded
 local SetSkinArt = require(script.Parent.SetSkinArt) -- per-set UI skin images: generated map, empty until recorded
+local SetSceneryArt = require(script.Parent.SetSceneryArt) -- per-set gameplay scenery: generated map, empty until recorded
 
 local CosmeticSets = {}
 
@@ -296,6 +297,12 @@ CosmeticSets.Definitions = {
 		unlock = { kind = "season", seasonId = "winter_welcome" },
 	},
 }
+
+-- Every set gets a `scenery` slot (SetSceneryArt[id], "rbxassetid://0" while missing). In gameplay it wins
+-- over backdropImage, which wins over the biome painting (Engine/TableStyle).
+for _, set in ipairs(CosmeticSets.Definitions) do
+	set.scenery = SetSceneryArt[set.id] or "rbxassetid://0"
+end
 
 local function isRgb(t)
 	if type(t) ~= "table" or #t ~= 3 then
