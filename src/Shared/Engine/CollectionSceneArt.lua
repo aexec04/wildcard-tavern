@@ -6,4 +6,15 @@
 ]]
 
 return {
+	["collection_chest_closed"] = "rbxassetid://104436510341754",
+	["collection_chest_open"] = "rbxassetid://86214738084275",
+	["collection_corkboard"] = "rbxassetid://112799926847161",
+	["collection_dust_cloth"] = "rbxassetid://83104373947506",
+	["collection_frame_empty"] = "rbxassetid://99243166072737",
+	["collection_frame_owned"] = "rbxassetid://116699927137957",
+	["collection_key_rack"] = "rbxassetid://93971711987710",
+	["collection_moth"] = "rbxassetid://116550021577095",
+	["collection_nameplate_shelf"] = "rbxassetid://135244707665753",
+	["collection_trophy_shelf"] = "rbxassetid://119862281413783",
+	["collection_wall"] = "rbxassetid://97780361861033",
 }

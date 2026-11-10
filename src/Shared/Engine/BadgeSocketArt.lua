@@ -6,4 +6,6 @@
 ]]
 
 return {
+	["badge_path_dash"] = "rbxassetid://78533004156637",
+	["badge_socket_star"] = "rbxassetid://118178679117194",
 }
