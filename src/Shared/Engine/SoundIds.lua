@@ -38,7 +38,7 @@ SoundIds.Cues = {
 	shop_buy = { id = "", volume = 0.5 },
 	shop_reroll = { id = "", volume = 0.4 },
 	shop_cant = { id = "", volume = 0.3 },
-	page_turn = { id = "rbxassetid://9118835414", volume = 0.5, maxLength = 1.8 }, -- Tavern Ledger page or tab change (ProSoundEffects "Scrapbook Open And Turn Pages 2")
+	page_turn = { id = "rbxassetid://9118835414", volume = 0.5, maxLength = 1.0, startAt = 0.8, fade = 0.25 }, -- Tavern Ledger page or tab change (ProSoundEffects "Scrapbook Open And Turn Pages 2")
 	scroll_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.9 }, -- any scroll or panel popup opens (Client/PopupShield.lua; ProSoundEffects "Scrapbook Open And Turn Pages 6")
 	scroll_close = { id = "rbxassetid://9118838541", volume = 0.35, maxLength = 0.7 }, -- it closes (ProSoundEffects "Scraping Brisk Plastic Wood 1")
 }

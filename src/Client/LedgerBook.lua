@@ -416,23 +416,31 @@ function LedgerBook.build(deps, desk)
 
 	-- ===== page painting, tabs, turning =====
 	local tabButtons = {}
-	local function paint(state)
+	local function paintSide(side, state)
 		local stats = state and state.runStats or {}
-		clear(leftPage)
-		clear(rightPage)
-		ruledLines(leftPage)
-		ruledLines(rightPage)
-		counters = {}
-		listHolder = nil
+		local page = side == "left" and leftPage or rightPage
+		clear(page)
+		ruledLines(page)
+		local kept = {}
+		for _, c in ipairs(counters) do
+			if c.label.Parent then kept[#kept + 1] = c end -- drop the counters of the page just cleared
+		end
+		counters = kept
+		if side == "right" then listHolder = nil end
 		if Pages.isEmpty(stats) then
-			emptyNote(leftPage)
-			emptyNote(rightPage)
-			heading(pad(leftPage), Pages.PAGES[pageIndex])
+			emptyNote(page)
+			if side == "left" then heading(pad(page), Pages.PAGES[pageIndex]) end
 			return
 		end
-		if pageIndex == 1 then storyLeft(stats); storyRight(stats, state)
-		elseif pageIndex == 2 then hallLeft(stats); hallRight(stats)
-		else recordsLeft(stats); recordsRight(stats) end
+		if side == "left" then
+			if pageIndex == 1 then storyLeft(stats) elseif pageIndex == 2 then hallLeft(stats) else recordsLeft(stats) end
+		else
+			if pageIndex == 1 then storyRight(stats, state) elseif pageIndex == 2 then hallRight(stats) else recordsRight(stats) end
+		end
+	end
+	local function paint(state)
+		paintSide("left", state)
+		paintSide("right", state)
 	end
 
 	-- the open page's ribbon sticks out a little further to the left and is brighter
@@ -446,13 +454,68 @@ function LedgerBook.build(deps, desk)
 		end
 	end
 
-	local function sweep()
-		local shade = piece(book, { Name = "PageSweep", Size = UDim2.fromScale(0.14, 0.92), Position = UDim2.fromScale(0.03, 0.04), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, ZIndex = Z + 9, Active = false })
-		TweenService:Create(shade, TweenInfo.new(0.125), { BackgroundTransparency = 0.6, Position = UDim2.fromScale(0.42, 0.04) }):Play()
-		task.delay(0.125, function()
-			TweenService:Create(shade, TweenInfo.new(0.125), { BackgroundTransparency = 1, Position = UDim2.fromScale(0.83, 0.04) }):Play()
-			task.delay(0.13, function() shade:Destroy() end)
+	-- A real page flip: a paper sheet anchored at the spine squashes its width from full to 0 on one side, then grows on the
+	-- other (Quad easing, FLIP_TIME in total) with a soft moving shadow on its free edge and a brighter fold at the spine.
+	-- Forward turns go right to left, backward turns left to right. Each page's new content is painted while the sheet
+	-- covers it, so it appears as the sheet passes.
+	local FLIP_TIME = 0.4
+	local flipToken = 0
+	local activeSheet
+	local function buildSheet(startAnchor)
+		local W = 0.47
+		local sheet = piece(book, {
+			Name = "PageFlip", AnchorPoint = Vector2.new(startAnchor, 0), Position = UDim2.fromScale(0.5, R.right.y), Size = UDim2.fromScale(W, R.right.h),
+			BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false,
+		}, 4)
+		stroke(sheet, Color3.fromRGB(205, 186, 150), 1)
+		for i = 1, 8 do -- faint ruled lines
+			piece(sheet, { Position = UDim2.new(0.07, 0, 0.1 * i, 0), Size = UDim2.new(0.86, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(222, 205, 172), ZIndex = Z + 10 })
+		end
+		piece(sheet, { Name = "Fold", AnchorPoint = Vector2.new(startAnchor, 0), Position = UDim2.fromScale(startAnchor, 0), Size = UDim2.fromScale(0.07, 1), BackgroundColor3 = Color3.fromRGB(255, 250, 235), BackgroundTransparency = 0.45, ZIndex = Z + 10 })
+		local shadow = piece(sheet, { Name = "FlipShadow", AnchorPoint = Vector2.new(1 - startAnchor, 0), Position = UDim2.fromScale(1 - startAnchor, 0), Size = UDim2.new(0, 28, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 0.72, ZIndex = Z + 8 }, 10)
+		return sheet, shadow, W
+	end
+
+	local function flip(forward, state)
+		flipToken = flipToken + 1
+		local token = flipToken
+		local startAnchor = forward and 0 or 1
+		local firstSide, secondSide = forward and "right" or "left", forward and "left" or "right"
+		local sheet, shadow, W = buildSheet(startAnchor)
+		activeSheet = sheet
+		paintSide(firstSide, state) -- hidden under the sheet
+		local half = FLIP_TIME / 2
+		TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromScale(0, R.right.h) }):Play()
+		task.delay(half, function()
+			if token ~= flipToken or not sheet.Parent then return end
+			local a = 1 - startAnchor -- cross the spine: the sheet now grows from it over the other page
+			sheet.AnchorPoint = Vector2.new(a, 0)
+			shadow.AnchorPoint = Vector2.new(1 - a, 0)
+			shadow.Position = UDim2.fromScale(1 - a, 0)
+			local fold = sheet:FindFirstChild("Fold")
+			if fold then fold.AnchorPoint = Vector2.new(a, 0); fold.Position = UDim2.fromScale(a, 0) end
+			TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(W, R.right.h) }):Play()
+			task.delay(half, function()
+				if token ~= flipToken or not sheet.Parent then return end
+				paintSide(secondSide, state) -- the sheet has landed on it; the new page shows as the sheet fades
+				TweenService:Create(sheet, TweenInfo.new(0.08), { BackgroundTransparency = 1 }):Play()
+				for _, c in ipairs(sheet:GetDescendants()) do
+					if c:IsA("Frame") then TweenService:Create(c, TweenInfo.new(0.08), { BackgroundTransparency = 1 }):Play() end
+				end
+				task.delay(0.1, function()
+					if activeSheet == sheet then activeSheet = nil end
+					sheet:Destroy()
+				end)
+			end)
 		end)
+	end
+
+	-- calm mode: paint now and fade a paper veil off the pages in 0.12 s
+	local function crossfade(state)
+		paint(state)
+		local veil = piece(book, { Name = "PageVeil", Position = UDim2.fromScale(R.left.x, R.left.y), Size = UDim2.fromScale(R.right.x + R.right.w - R.left.x, R.left.h), BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false }, 6)
+		TweenService:Create(veil, TweenInfo.new(0.12), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.14, function() veil:Destroy() end)
 	end
 
 	local function countUp()
@@ -488,13 +551,23 @@ function LedgerBook.build(deps, desk)
 	end
 
 	local function go(i, animate)
+		local previous = pageIndex
 		pageIndex = i
-		if animate then Cue.play("page_turn") end -- respects the SFX slider and Mute, and plays in calm mode too
-		paintTabs()
-		if animate and not calm() then sweep() end
 		local state = deps.getLatestState and deps.getLatestState() or nil
-		local delay = (animate and not calm()) and 0.125 or 0
-		task.delay(delay, function() paint(state) end)
+		if activeSheet then -- a turn is still running: end it at once
+			flipToken = flipToken + 1
+			activeSheet:Destroy()
+			activeSheet = nil
+		end
+		if animate then Cue.play("page_turn", calm() and 0.5 or 1) end -- starts with the flip; respects the SFX slider and Mute
+		paintTabs()
+		if animate and not calm() and i ~= previous then
+			flip(i > previous, state)
+		elseif animate and calm() then
+			crossfade(state)
+		else
+			paint(state)
+		end
 	end
 
 	for i, name in ipairs(Pages.PAGES) do

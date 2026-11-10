@@ -577,7 +577,7 @@ return function(deps)
 	-- overlapping play of the SAME pooled sound, so rapid-fire clicks can't
 	-- have an old click's delayed Stop() cut off a brand new click's playback
 	-- early.
-	local function playSfx(soundId, volume, maxLength)
+	local function playSfx(soundId, volume, maxLength, startAt, fade)
 		if not soundId or soundId == "" or soundId == "rbxassetid://0" then
 			return -- placeholder id, nothing to play yet
 		end
@@ -594,11 +594,19 @@ return function(deps)
 		-- used anyway by this specific sound's own slider (Settings.lua),
 		-- same shape as Master Volume scales backgroundMusic.
 		sfx.Volume = (volume or 0.6) * getSfxVolume(soundId)
-		sfx.TimePosition = 0
+		sfx.TimePosition = startAt or 0 -- startAt skips a silent lead-in so the sound lands with the visual
 		sfx:Play()
 		if maxLength then
 			local myToken = (sfx:GetAttribute("StopToken") or 0) + 1
 			sfx:SetAttribute("StopToken", myToken)
+			if fade and fade > 0 and fade < maxLength then -- fade the tail instead of a hard cut
+				local startVol = sfx.Volume
+				task.delay(maxLength - fade, function()
+					if sfx:GetAttribute("StopToken") == myToken then
+						pcall(function() TweenService:Create(sfx, TweenInfo.new(fade), { Volume = 0 }):Play() end)
+					end
+				end)
+			end
 			task.delay(maxLength, function()
 				if sfx:GetAttribute("StopToken") == myToken then
 					sfx:Stop()
@@ -624,7 +632,7 @@ return function(deps)
 			lastHoverAt = now
 		end
 		local cue = SoundIds.Cues[name]
-		playSfx(id, (cue.volume or 0.5) * (scale or 1), cue.maxLength)
+		playSfx(id, (cue.volume or 0.5) * (scale or 1), cue.maxLength, cue.startAt, cue.fade)
 	end
 
 	-- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
