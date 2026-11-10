@@ -12225,6 +12225,20 @@ table.insert(tests, { name = "PanelBorder: no border piece overlaps the content 
 	end
 end })
 
+table.insert(tests, { name = "ShadowFit: shadow bounds equal panel bounds plus padding on both axes, clamped or not", fn = function()
+	local SF = require(script.Parent.Parent.Engine.ShadowFit)
+	for _, screen in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 360, 640 }, { 3840, 2160 } }) do
+		local pw = SF.panelAxis(screen[1], 0.8, 0, 640, 980)
+		local ph = SF.panelAxis(screen[2], 0.88, 0, 520, 640)
+		local sw = SF.shadowAxis(screen[1], 0.8, 0, 640, 980)
+		local sh = SF.shadowAxis(screen[2], 0.88, 0, 520, 640)
+		expectEqual(sw, pw + SF.PAD, "shadow width = panel + pad at " .. screen[1] .. "x" .. screen[2])
+		expectEqual(sh, ph + SF.PAD, "shadow height = panel + pad at " .. screen[1] .. "x" .. screen[2])
+	end
+	local a, b, c, d = SF.limits(640, 520, 980, 640)
+	expectTrue(a == 654 and b == 534 and c == 994 and d == 654, "constraint grown by pad")
+end })
+
 table.insert(tests, { name = "LedgerPages: stats map to story, hall and records content; empty state; beaten records; count-up", fn = function()
 	local LP = require(script.Parent.Parent.Engine.LedgerPages)
 	expectEqual(#LP.PAGES, 3, "three pages")

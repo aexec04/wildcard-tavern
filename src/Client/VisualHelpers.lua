@@ -359,6 +359,27 @@ return function(deps)
 		shadow.ZIndex = math.max(0, panel.ZIndex - 1)
 		shadow.Parent = panel.Parent
 		roundCorner(shadow, styleRadius(radius, PANEL_RADIUS + 2))
+		-- A clamped panel (UISizeConstraint) needs the same clamp grown by the shadow padding, or the shadow overshoots it.
+		local function syncLimit()
+			local src = panel:FindFirstChildOfClass("UISizeConstraint")
+			local dst = shadow:FindFirstChildOfClass("UISizeConstraint")
+			if not src then
+				if dst then dst:Destroy() end
+				return
+			end
+			if not dst then
+				dst = Instance.new("UISizeConstraint")
+				dst.Parent = shadow
+			end
+			local ShadowFit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ShadowFit"))
+			local a, b, c, d = ShadowFit.limits(src.MinSize.X, src.MinSize.Y, src.MaxSize.X, src.MaxSize.Y)
+			dst.MinSize = Vector2.new(a, b)
+			dst.MaxSize = Vector2.new(c, d)
+		end
+		syncLimit()
+		panel.ChildAdded:Connect(function(child)
+			if child:IsA("UISizeConstraint") then syncLimit() end
+		end)
 		-- BUGFIX (reference-match pass): the shadow is a SIBLING of the
 		-- panel, so hiding the panel never hid it. GameOver's panel sits
 		-- straight on the game screen (no backdrop to hide it), so its
