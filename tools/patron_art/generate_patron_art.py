@@ -77,6 +77,9 @@ CATEGORIES = {
     "shop": ("shop_subjects", "shop", "ShopArt.lua", "Shop"),
     "menu_scene": ("menu_scene_subjects", "menu_scene", "MenuSceneArt.lua", "Menu Scene"),
     "bonds": ("bond_subjects", "bonds", "BondArt.lua", "Bond"),
+    "set_panels": ("set_panel_subjects", "set_panels", "SetPanelArt.lua", "Set Panel"),
+    "ledger_ui": ("ledger_ui_subjects", "ledger_ui", "LedgerArt.lua", "Ledger"),
+    "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
@@ -120,6 +123,16 @@ CATEGORY_OPTS = {
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
+    # 9-slice panel borders: 3:2 canvas, transparent centre (cut out from magenta)
+    "set_panels": {"size": "1536x1024", "quality": "low", "style_key": "house_style", "transparent": True},
+    "ledger_ui": {"quality": "low", "style_key": "house_style", "transparent": True,
+                  "opaque": ["ledger_desk"],
+                  "sizes": {"ledger_desk": "1536x1024", "ledger_book_open": "1536x1024", "ledger_bookmark_ribbon": "1024x1536"}},
+    "badge_wall": {"quality": "low", "style_key": "house_style", "transparent": True,
+                   "opaque": ["badge_cabinet", "badge_velvet_board", "badge_map_board", "badge_night_sky", "badge_curio_shelf"],
+                   "sizes": {"badge_cabinet": "1536x1024", "badge_velvet_board": "1536x1024", "badge_map_board": "1536x1024",
+                             "badge_night_sky": "1536x1024", "badge_curio_shelf": "1536x1024",
+                             "badge_shelf_rail": "1536x1024", "badge_ribbon_banner": "1536x1024"}},
     # Card Set UI skins: 6 slots per set. face_paper is an opaque tile; the rest are cut out from magenta.
     "set_skins": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": [], "sizes": {}},  # filled below
     # Bayou tavern menu layers (back to front). Transparent layers are cut out from magenta; sky and water stay opaque.
