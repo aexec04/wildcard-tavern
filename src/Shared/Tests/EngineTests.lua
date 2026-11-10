@@ -14649,4 +14649,73 @@ table.insert(tests, { name = "Tavern Map backdrop: no flat or sliced layers, eve
 	end
 end })
 
+table.insert(tests, { name = "HudKit: every set has a full kit or is listed in PENDING, phase 1 sets are not pending", fn = function()
+	local HK = require(script.Parent.Parent.Engine.HudKit)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local kit, pending = {}, {}
+	for _, id in ipairs(HK.KIT_SETS) do kit[id] = true end
+	for _, id in ipairs(HK.PENDING) do
+		pending[id] = true
+		expectFalse(kit[id] == true, id .. " is not both phase 1 and pending")
+	end
+	expectEqual(#HK.PIECES, 17, "17 pieces per kit")
+	for _, set in ipairs(CS.Definitions) do
+		expectTrue(kit[set.id] == true or pending[set.id] == true, set.id .. " is a phase 1 set or explicitly pending")
+		local status = HK.status(set.id)
+		if pending[set.id] then
+			-- pending sets keep the code-drawn look: no art, so every lookup falls back
+			expectEqual(status, "pending", set.id .. " has no kit art yet")
+			expectEqual(HK.piece(set.id, "btn_volume"), nil, set.id .. " falls back")
+		else
+			-- a kit set has all 17 ids or none yet (ids are recorded in one batch); never a partial kit
+			expectTrue(status == "kit" or status == "pending", set.id .. " is not a partial kit")
+		end
+	end
+	for id in pairs(kit) do
+		local found = false
+		for _, set in ipairs(CS.Definitions) do if set.id == id then found = true end end
+		expectTrue(found, id .. " is a real set id")
+	end
+end })
+
+table.insert(tests, { name = "HudKit: no art id is shared between two sets or two pieces, top right buttons differ per set", fn = function()
+	local HK = require(script.Parent.Parent.Engine.HudKit)
+	local seen = {}
+	for _, setId in ipairs(HK.KIT_SETS) do
+		for _, piece in ipairs(HK.PIECES) do
+			local id = HK.piece(setId, piece)
+			if id then
+				expectTrue(seen[id] == nil, HK.key(setId, piece) .. " does not reuse an id")
+				seen[id] = HK.key(setId, piece)
+			end
+		end
+	end
+	local a, b = HK.KIT_SETS[1], HK.KIT_SETS[2]
+	for _, piece in ipairs({ "btn_volume", "btn_journey", "btn_hand_ref", "btn_settings", "btn_collection" }) do
+		local x, y = HK.piece(a, piece), HK.piece(b, piece)
+		if x and y then expectTrue(x ~= y, piece .. " differs between " .. a .. " and " .. b) end
+	end
+	expectEqual(HK.key("meadow_picnic", "banner"), "meadow_picnic__banner", "key format")
+end })
+
+table.insert(tests, { name = "HudKit: prompts.json has every piece for every phase 1 set and every kit art key is a known piece", fn = function()
+	local HK = require(script.Parent.Parent.Engine.HudKit)
+	local Art = require(script.Parent.Parent.Engine.HudKitArt)
+	local known = {}
+	for _, setId in ipairs(HK.KIT_SETS) do
+		for _, piece in ipairs(HK.PIECES) do known[HK.key(setId, piece)] = true end
+	end
+	for key in pairs(Art) do expectTrue(known[key] == true, key .. " is a known kit key") end
+	if io and io.open then
+		local f = io.open("tools/patron_art/prompts.json", "r")
+		if f then
+			local text = f:read("*a")
+			f:close()
+			for key in pairs(known) do
+				expectTrue(text:find('"' .. key .. '"', 1, true) ~= nil, key .. " has a prompts.json entry")
+			end
+		end
+	end
+end })
+
 return tests

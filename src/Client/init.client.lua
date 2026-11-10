@@ -354,8 +354,8 @@ local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHand
 -- the gap left behind.
 local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings)
 local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection)
-for _, b in ipairs({ volumeButton, journeyButton, handRefButton, settingsButton, collectionButton }) do
-	pcall(require(script.HudTheme).styleIcon, b) -- ring, glow, disc tint and motif follow the equipped Card Set
+for piece, b in pairs({ btn_volume = volumeButton, btn_journey = journeyButton, btn_hand_ref = handRefButton, btn_settings = settingsButton, btn_collection = collectionButton }) do
+	pcall(require(script.HudTheme).styleIcon, b, piece) -- ring, glow, disc tint and motif (or the painted kit button) follow the equipped Card Set
 end
 
 -- ----- Generic hover tooltip -----

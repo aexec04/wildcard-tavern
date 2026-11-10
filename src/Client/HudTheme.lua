@@ -17,6 +17,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local HudStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudStyle"))
+local HudKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudKit"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local HudTheme = {}
@@ -156,7 +157,52 @@ function HudTheme.styleAction(button, role)
 	paintAction(button, entry)
 end
 
+-- Painted per-set kit button (Engine/HudKit piece btn_*): replaces the tinted disc, ring, glow and motif. Hover and pressed are
+-- brightness and scale only (no tween in calm mode). Returns true when the kit button is showing.
+local function paintKitButton(button, piece)
+	local art = type(piece) == "string" and HudKit.piece(current.id, piece) or nil
+	local face = button:FindFirstChild("HudKitBtn")
+	local rim = button:FindFirstChildOfClass("UIStroke")
+	local pic = button:FindFirstChild("Icon")
+	local glow, motif = button:FindFirstChild("HudGlow"), button:FindFirstChild("HudMotif")
+	if not art then
+		if face then
+			face:Destroy()
+			local bg = button:GetAttribute("HudKitBgT")
+			if bg ~= nil then button.BackgroundTransparency = bg end
+			if rim then rim.Enabled = true end
+			if pic then pic.Visible = true end
+			if glow then glow.Visible = true end
+			if motif then motif.Visible = true end
+		end
+		return false
+	end
+	if not face then
+		face = child(button, "ImageLabel", "HudKitBtn", button.ZIndex + 1)
+		face.AnchorPoint = Vector2.new(0.5, 0.5)
+		face.Position = UDim2.fromScale(0.5, 0.5)
+		face.BackgroundTransparency = 1
+		face.ScaleType = Enum.ScaleType.Fit
+		face.Size = UDim2.fromScale(1, 1)
+	end
+	if button:GetAttribute("HudKitBgT") == nil then button:SetAttribute("HudKitBgT", button.BackgroundTransparency) end
+	face.Image = art
+	button.BackgroundTransparency = 1
+	button.TextTransparency = 1
+	button.TextStrokeTransparency = 1
+	if rim then rim.Enabled = false end
+	if pic then pic.Visible = false end
+	if glow then glow.Visible = false end
+	if motif then motif.Visible = false end
+	local hover, pressed = button:GetAttribute("HudHover") == true, button:GetAttribute("HudPressed") == true
+	local scale = pressed and 0.95 or (hover and 1.1 or 1)
+	local shade = pressed and 200 or (hover and 255 or 238)
+	ease(face, { Size = UDim2.fromScale(scale, scale), ImageColor3 = Color3.fromRGB(shade, shade, shade) })
+	return true
+end
+
 local function paintIcon(button)
+	if paintKitButton(button, icons[button]) then return end
 	local p = HudStyle.iconPalette(current.colors)
 	button.BackgroundColor3 = c3(p.disc)
 	button.TextColor3 = c3(p.text)
@@ -185,9 +231,9 @@ local function paintIcon(button)
 	end
 end
 
-function HudTheme.styleIcon(button)
+function HudTheme.styleIcon(button, piece)
 	if icons[button] then return end
-	icons[button] = true
+	icons[button] = piece or true -- piece (btn_volume ...) picks the painted kit button; none = the tinted disc only
 	button:SetAttribute("HudThemed", true)
 	local plate = button:FindFirstChild("SetSkinPlate")
 	if plate then plate:Destroy() end
@@ -212,7 +258,9 @@ function HudTheme.styleIcon(button)
 	ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	ms.Parent = motif
 	button.MouseEnter:Connect(function() button:SetAttribute("HudHover", true) paintIcon(button) end)
-	button.MouseLeave:Connect(function() button:SetAttribute("HudHover", nil) paintIcon(button) end)
+	button.MouseLeave:Connect(function() button:SetAttribute("HudHover", nil) button:SetAttribute("HudPressed", nil) paintIcon(button) end)
+	button.MouseButton1Down:Connect(function() button:SetAttribute("HudPressed", true) paintIcon(button) end)
+	button.MouseButton1Up:Connect(function() button:SetAttribute("HudPressed", nil) paintIcon(button) end)
 	paintIcon(button)
 end
 

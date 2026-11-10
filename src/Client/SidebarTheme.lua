@@ -10,6 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HudStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudStyle"))
+local HudKit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudKit"))
 local HudTheme = require(script.Parent.HudTheme)
 
 local SidebarTheme = {}
@@ -41,16 +42,61 @@ local STROKE = {
 	["222,182,104"] = "accent", ["240,222,180"] = "stroke",
 }
 
+-- sidebar pieces (by their fill role) that wear a painted kit plate when the set has one (Engine/HudKit); layout parents are skipped
+local KIT_PLATE = { header = "banner", track = "score_track" }
+
+local function layoutParent(inst)
+	return inst:FindFirstChildOfClass("UIListLayout") or inst:FindFirstChildOfClass("UIGridLayout") or inst:FindFirstChildOfClass("UIPageLayout")
+end
+
+-- Draws or removes the painted plate on a role frame. The flat fill hides under it (BackgroundTransparency) and returns on removal.
+local function kitPlate(inst, piece, kit)
+	local plate = inst:FindFirstChild("HudKitPlate")
+	local id = kit and kit[piece]
+	if id and not layoutParent(inst) then
+		if not plate then
+			plate = Instance.new("ImageLabel")
+			plate.Name = "HudKitPlate"
+			plate.BackgroundTransparency = 1
+			plate.BorderSizePixel = 0
+			plate.Active = false
+			plate.ScaleType = Enum.ScaleType.Stretch
+			plate.Size = UDim2.fromScale(1, 1)
+			plate.Parent = inst
+		end
+		plate.ZIndex = inst.ZIndex -- equal z draws above the parent's own fill, below its labels
+		plate.Image = id
+		if inst:GetAttribute("HudKitBgT") == nil then inst:SetAttribute("HudKitBgT", inst.BackgroundTransparency) end
+		inst.BackgroundTransparency = 1
+		for _, d in ipairs(inst:GetChildren()) do
+			if d:IsA("UIStroke") then d.Enabled = false end
+		end
+	elseif plate or inst:GetAttribute("HudKitBgT") ~= nil then
+		if plate then plate:Destroy() end
+		local bg = inst:GetAttribute("HudKitBgT")
+		if bg ~= nil then
+			inst.BackgroundTransparency = bg
+			inst:SetAttribute("HudKitBgT", nil)
+		end
+		for _, d in ipairs(inst:GetChildren()) do
+			if d:IsA("UIStroke") then d.Enabled = true end
+		end
+	end
+end
+
 local function remember(inst, attr, value)
 	if inst:GetAttribute(attr) == nil then inst:SetAttribute(attr, value) end
 	return inst:GetAttribute(attr)
 end
 
-local function paint(inst, p)
-	if inst:IsA("GuiObject") and inst.BackgroundTransparency < 1 then
+local function paint(inst, p, kit)
+	if inst:IsA("GuiObject") and (inst.BackgroundTransparency < 1 or inst:GetAttribute("HudKitBgT") ~= nil) then
 		local orig = remember(inst, "HudOrigBg", inst.BackgroundColor3)
 		local role = FILL[key(orig)]
-		if role then inst.BackgroundColor3 = p and c3(p[role]) or orig end
+		if role then
+			inst.BackgroundColor3 = p and c3(p[role]) or orig
+			if KIT_PLATE[role] then kitPlate(inst, KIT_PLATE[role], p and kit or nil) end
+		end
 	end
 	if inst:IsA("TextLabel") or inst:IsA("TextButton") then
 		local orig = remember(inst, "HudOrigText", inst.TextColor3)
@@ -84,14 +130,16 @@ local function apply(skin)
 	local p = HudStyle.panelPalette(skin and skin.colors)
 	local board = root:FindFirstChild("SidebarBoard")
 	local side = root:FindFirstChild("Sidebar")
+	local kit = HudKit.images(skin and skin.id)
 	for _, top in ipairs({ board, side }) do
 		if top then
-			paint(top, p)
+			paint(top, p, kit)
 			for _, d in ipairs(top:GetDescendants()) do
-				paint(d, p)
+				paint(d, p, kit)
 			end
 		end
 	end
+	if board then SidebarTheme.paintBoardDepth(board, p, kit) end
 	-- the round header's red tail tabs and side bars take the accent; the plate itself stays dark
 	local ribbon = side and side:FindFirstChild("HeaderRibbon", true)
 	if ribbon then
@@ -100,6 +148,55 @@ local function apply(skin)
 				d.TextColor3 = p and c3(p.headerText) or Color3.fromRGB(240, 222, 180)
 			end
 		end
+	end
+end
+
+-- Panel depth, drawn in code for every themed set: soft inner shade (one gradient frame per edge), an inner highlight stroke, and
+-- the painted kit frame when the set has one. All are children of the board; Classic (p == nil) gets none of it.
+function SidebarTheme.paintBoardDepth(board, p, kit)
+	local depth = board:FindFirstChild("HudDepth")
+	local frame = board:FindFirstChild("HudKitFrame")
+	if not p then
+		if depth then depth:Destroy() end
+		if frame then frame:Destroy() end
+		return
+	end
+	if not depth then
+		depth = Instance.new("Frame")
+		depth.Name = "HudDepth"
+		depth.Size = UDim2.fromScale(1, 1)
+		depth.BackgroundTransparency = 1
+		depth.BorderSizePixel = 0
+		depth.Active = false
+		depth.ZIndex = 1
+		depth.Parent = board
+		local hi = Instance.new("UIStroke") -- inner highlight
+		hi.Name = "InnerHighlight"
+		hi.Thickness = 2
+		hi.Transparency = 0.6
+		hi.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		hi.Parent = depth
+		require(script.Parent.SmoothVignette).build(depth, { zIndex = 1, color = Color3.fromRGB(20, 14, 8), name = "HudInnerShade",
+			top = { strength = 0.18, extent = 0.06 }, bottom = { strength = 0.26, extent = 0.08 },
+			left = { strength = 0.18, extent = 0.1 }, right = { strength = 0.22, extent = 0.1 } })
+	end
+	depth:FindFirstChild("InnerHighlight").Color = c3(p.stroke)
+	local id = kit and kit.panel_frame
+	if id then
+		if not frame then
+			frame = Instance.new("ImageLabel")
+			frame.Name = "HudKitFrame"
+			frame.BackgroundTransparency = 1
+			frame.BorderSizePixel = 0
+			frame.Active = false
+			frame.ScaleType = Enum.ScaleType.Stretch
+			frame.Size = UDim2.fromScale(1, 1)
+			frame.ZIndex = 1
+			frame.Parent = board
+		end
+		frame.Image = id
+	elseif frame then
+		frame:Destroy()
 	end
 end
 

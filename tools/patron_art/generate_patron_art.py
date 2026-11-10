@@ -91,6 +91,7 @@ CATEGORIES = {
     "logo": ("logo_subjects", "logo", "LogoArt.lua", "Logo"),
     "menu_room": ("menu_room_subjects", "menu_room", "MenuRoomArt.lua", "Menu Room"),
     "rewards_emblems": ("rewards_emblem_subjects", "rewards_emblems", "RewardsEmblemArt.lua", "Rewards Emblem"),
+    "hud_kit": ("hud_kit_subjects", "hud_kit", "HudKitArt.lua", "HUD Kit"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -176,6 +177,9 @@ CATEGORY_OPTS = {
                   "sizes": {"menu_room_wall": "1536x1024", "menu_room_jukebox": "1024x1536", "menu_room_noticeboard": "1536x1024",
                             "menu_room_cardtable": "1536x1024", "menu_room_lantern": "1024x1536", "menu_room_sign": "1536x1024"}},
     "rewards_emblems": {"quality": "high", "style_key": "house_style", "transparent": True},
+    # Per-Card-Set HUD kit (keys <setid>__<piece>): medium quality, cut out from magenta; panel frames are made with --quality high.
+    # Wide plates use the 3:2 canvas and are trimmed to their alpha box by tools/patron_art/_crop_hud_kit.py before upload.
+    "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
     "logo": {"quality": "medium", "style_key": "logo_style", "transparent": True,
@@ -219,6 +223,15 @@ def wants_alpha(pid):
     return bool(opts.get("transparent")) and pid not in opts.get("opaque", [])
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}
+
+_KIT_PIECES = ("panel_frame", "banner", "score_track", "reward", "tile", "patron_tray", "purse_row", "icon_target", "icon_tips",
+               "icon_hands", "icon_discards", "icon_slot", "btn_volume", "btn_journey", "btn_hand_ref", "btn_settings", "btn_collection")
+for _sid, _card in (("meadow_picnic", "kitchen_checks"), ("winter_evening", "winter_frost")):
+    for _p in ("banner", "score_track", "reward", "tile", "patron_tray", "purse_row"):
+        CATEGORY_OPTS["hud_kit"]["sizes"][_sid + "__" + _p] = "1536x1024"
+    CATEGORY_OPTS["hud_kit"]["sizes"][_sid + "__panel_frame"] = "1024x1536"
+    for _p in _KIT_PIECES:  # style anchor: the set's own card back (palette and motifs only)
+        CATEGORY_OPTS["hud_kit"]["references"][_sid + "__" + _p] = "art-wip/card_backs/" + _card + ".png"
 
 # Rebound by set_category(); every function reads these at call time.
 CATEGORY = "patrons"
