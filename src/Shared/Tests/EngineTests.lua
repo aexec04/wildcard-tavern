@@ -12403,9 +12403,30 @@ table.insert(tests, { name = "Bond art: a prompt per Bond id plus bond_locked, c
 	end
 end })
 
+table.insert(tests, { name = "Set panels: art ids exist for all 15 sets and only sets that pass the fit test get panelFrame9", fn = function()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local PanelArt = require(script.Parent.Parent.Engine.SetPanelArt)
+	local PanelFit = require(script.Parent.Parent.Engine.SetPanelFit)
+	local passing = 0
+	for _, set in ipairs(CS.Definitions) do
+		expectTrue(PanelArt[set.id] ~= nil, set.id .. " has a panel Image id")
+		expectTrue(PanelFit[set.id] ~= nil, set.id .. " was fit tested")
+		local got = CS.skinOf(set).images.panelFrame9
+		if PanelFit[set.id].pass then
+			passing = passing + 1
+			expectEqual(got, PanelArt[set.id], set.id .. " uses its panel art")
+		else
+			expectTrue(got == nil, set.id .. " falls back to the code border")
+		end
+	end
+	expectTrue(passing >= 5, "most sets pass the fit test")
+end })
+
 table.insert(tests, { name = "Set skins: every set has colour fallbacks, the default stays neutral, missing art leaves image slots empty, wiring is present", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	local SkinArt = require(script.Parent.Parent.Engine.SetSkinArt)
+	local PanelArt = require(script.Parent.Parent.Engine.SetPanelArt)
+	local PanelFit = require(script.Parent.Parent.Engine.SetPanelFit)
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	expectTrue(ContentArt.set_skins == SkinArt, "ContentArt exposes set_skins")
 	expectEqual(#CS.SKIN_SLOTS, 7, "seven skin slots (six plus the optional panelFrame9)")
@@ -12415,6 +12436,11 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 		expectTrue(type(skin.images) == "table", set.id .. " has an images table")
 		for _, def in ipairs(CS.SKIN_SLOTS) do
 			local mapped = SkinArt[set.id .. "_" .. def.key]
+			if def.slot == "panelFrame9" and mapped == nil then
+				-- set_panels art is used only when the set passed the slice fit test
+				local art, fit = PanelArt[set.id], PanelFit[set.id]
+				mapped = (art and fit and fit.pass) and art or nil
+			end
 			expectTrue(skin.images[def.slot] == mapped or (mapped == nil and skin.images[def.slot] == nil), set.id .. " " .. def.slot .. " follows SetSkinArt")
 		end
 		if set.id == CS.DefaultId then

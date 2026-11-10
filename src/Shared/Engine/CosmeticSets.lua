@@ -43,6 +43,8 @@ local Achievements = require(script.Parent.Achievements)
 local CardBacks = require(script.Parent.CardBacks)
 local BackgroundArt = require(script.Parent.BackgroundArt)
 local SetBackdropArt = require(script.Parent.SetBackdropArt) -- biome sets: generated map, empty until recorded
+local SetPanelArt = require(script.Parent.SetPanelArt) -- slice-friendly panel borders, one per set (generated)
+local SetPanelFit = require(script.Parent.SetPanelFit) -- which of them pass the slice fit test (generated)
 local SetSkinArt = require(script.Parent.SetSkinArt) -- per-set UI skin images: generated map, empty until recorded
 local SetSceneryArt = require(script.Parent.SetSceneryArt) -- per-set gameplay scenery: generated map, empty until recorded
 
@@ -581,6 +583,11 @@ function CosmeticSets.skinOf(set)
 		for _, def in ipairs(CosmeticSets.SKIN_SLOTS) do
 			local id = SetSkinArt[set.id .. "_" .. def.key]
 			if type(id) == "string" and id ~= "" and id ~= "rbxassetid://0" then images[def.slot] = id end
+		end
+		-- slice-friendly panel border (set_panels): only for sets whose art passed the fit test (SetPanelFit)
+		local panel, fit = SetPanelArt[set.id], SetPanelFit[set.id]
+		if not images.panelFrame9 and type(panel) == "string" and panel ~= "" and fit and fit.pass then
+			images.panelFrame9 = panel
 		end
 	end
 	local face = CosmeticSets.faceStyleOf(set)
