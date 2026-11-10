@@ -4,7 +4,7 @@
 	it is unit tested. Rects are { x, y, w, h } in the panel's local pixels.
 
 	Data (from Flair.view, never a hardcoded list):
-	  drawers(view)          one drawer per Flair slot: id, name, icon, ownedCount, total, items
+	  drawers(view)          one category per Flair slot: id, name, icon, ownedCount, total, items
 	                         item.state = "equipped" | "owned" | "locked"; locked items carry tag (brass tag text) and ratio
 	  equippedSlots(view)    one entry per slot: the equipped option (or the slot default)
 	  detail(item)           what the detail card says and which of Equip / Preview / Buy it offers
@@ -49,7 +49,7 @@ function FlairRoomLayout.drawers(view)
 			end
 			items[#items + 1] = {
 				id = option.id, slotId = slot.id, name = option.name, icon = option.icon, rarity = option.rarity or "common",
-				state = state, hint = option.hint or "", store = option.store == true,
+				state = state, hint = option.hint or "", store = option.store == true, default = option.default == true,
 				tag = state == "locked" and tagText(option) or nil, ratio = ratio, option = option,
 			}
 		end
@@ -91,52 +91,81 @@ function FlairRoomLayout.detail(item)
 end
 
 -- ===== layout =====
+-- Three calm columns: category tabs (left), a grid of flair tiles (centre), a preview plate (right) holding the live
+-- preview and the detail card with Equip, Unequip, Preview and Buy. On narrow panels (phones) the tabs become a row
+-- on top, the grid sits in the middle and the preview plate sits at the bottom. Nothing overlaps anything else.
+
+local NARROW_W = 760
 
 function FlairRoomLayout.isCompact(W, H)
 	return W < 1100 or H < 640
 end
 
+function FlairRoomLayout.isNarrow(W)
+	return W < NARROW_W
+end
+
 function FlairRoomLayout.rects(W, H)
 	local compact = FlairRoomLayout.isCompact(W, H)
+	local narrow = FlairRoomLayout.isNarrow(W)
 	local m = compact and 10 or 16
 	local gap = compact and 8 or 12
 	local topH = compact and 58 or 68
 	local bottomH = compact and 46 or 54
 	local cy, ch, cw = topH, H - topH - bottomH, W - 2 * m
-	local stageW = math.floor((cw - gap) * 0.58)
-	local slotsH = compact and 60 or 72
-	local stage = { x = m, y = cy, w = stageW, h = ch - slotsH - gap }
-	local slots = { x = m, y = cy + stage.h + gap, w = stageW, h = slotsH }
-	local cabinet = { x = m + stageW + gap, y = cy, w = cw - gap - stageW, h = ch }
-	local pad = compact and 6 or 10
-	local detailH = compact and (H < 480 and 96 or 112) or 132
-	local detail = { x = stage.x + pad, y = stage.y + stage.h - detailH - pad, w = stage.w - 2 * pad, h = detailH }
-	local curtainW = math.floor(stage.w * 0.07)
-	local mirrorTop = stage.y + pad
-	local mirror = {
-		x = stage.x + curtainW + pad, y = mirrorTop,
-		w = stage.w - 2 * (curtainW + pad), h = detail.y - pad - mirrorTop,
-	}
+	local pad = compact and 8 or 10
+	local tabs, grid, plate
+	if narrow then
+		local tabsH = 44
+		local plateH = math.max(200, math.floor(ch * 0.42))
+		tabs = { x = m, y = cy, w = cw, h = tabsH }
+		plate = { x = m, y = cy + ch - plateH, w = cw, h = plateH }
+		grid = { x = m, y = cy + tabsH + gap, w = cw, h = math.max(40, plate.y - gap - (cy + tabsH + gap)) }
+	else
+		local tabsW = compact and 140 or 190
+		local plateW = math.max(260, math.min(460, math.floor(cw * 0.34)))
+		tabs = { x = m, y = cy, w = tabsW, h = ch }
+		plate = { x = W - m - plateW, y = cy, w = plateW, h = ch }
+		grid = { x = m + tabsW + gap, y = cy, w = plate.x - gap - (m + tabsW + gap), h = ch }
+	end
+	-- preview plate: live preview on top, detail card below it
+	local detailH = narrow and 108 or (compact and 124 or 140)
+	local mirrorH = math.max(narrow and 70 or 120, plate.h - 2 * pad - gap - detailH)
+	local mirror = { x = plate.x + pad, y = plate.y + pad, w = plate.w - 2 * pad, h = mirrorH }
+	local detail = { x = plate.x + pad, y = mirror.y + mirror.h + gap, w = plate.w - 2 * pad, h = plate.y + plate.h - pad - (mirror.y + mirror.h + gap) }
 	local btnW, btnH = 190, 30
 	return {
-		compact = compact, margin = m, gap = gap, pad = pad,
+		compact = compact, narrow = narrow, margin = m, gap = gap, pad = pad,
 		title = { x = m, y = 4, w = W - 2 * m - btnW - 10, h = topH - 6 },
 		bundle = { x = W - m - btnW, y = math.floor((topH - btnH) / 2), w = btnW, h = btnH },
-		stage = stage, mirror = mirror, detail = detail, slots = slots, cabinet = cabinet,
-		curtainL = { x = stage.x, y = stage.y, w = curtainW, h = stage.h },
-		curtainR = { x = stage.x + stage.w - curtainW, y = stage.y, w = curtainW, h = stage.h },
+		tabs = tabs, grid = grid, plate = plate, mirror = mirror, detail = detail,
 		close = { x = math.floor((W - 110) / 2), y = H - bottomH + math.floor((bottomH - 34) / 2), w = 110, h = 34 },
 	}
 end
 
--- Inner layout of the detail card: name, how-to line and one row of buttons.
+-- n category tabs inside the tabs rect: stacked in a column, or side by side in a row when narrow.
+function FlairRoomLayout.tabRects(tabs, n, narrow)
+	local out = {}
+	if n < 1 then return out end
+	local g = 6
+	if narrow then
+		local w = math.floor((tabs.w - (n - 1) * g) / n)
+		for i = 1, n do out[i] = { x = tabs.x + (i - 1) * (w + g), y = tabs.y, w = w, h = tabs.h } end
+	else
+		local h = math.min(64, math.floor((tabs.h - (n - 1) * g) / n))
+		for i = 1, n do out[i] = { x = tabs.x, y = tabs.y + (i - 1) * (h + g), w = tabs.w, h = h } end
+	end
+	return out
+end
+
+-- Inner layout of the detail card: name, how-to line and one row of buttons that share the width.
 function FlairRoomLayout.detailParts(card)
-	local pad, btnH = 10, 34
-	local btnW, bgap = 100, 8
+	local pad, btnH, bgap = 10, 34, 6
+	local btnW = math.floor((card.w - 2 * pad - 2 * bgap) / 3)
 	local by = card.h - btnH - 8
 	return {
 		name = { x = pad, y = 6, w = card.w - 2 * pad, h = 24 },
-		how = { x = pad, y = 32, w = card.w - 2 * pad, h = by - 32 - 4 },
+		how = { x = pad, y = 32, w = card.w - 2 * pad, h = math.max(16, by - 32 - 4) },
 		buttons = {
 			{ x = pad, y = by, w = btnW, h = btnH },
 			{ x = pad + btnW + bgap, y = by, w = btnW, h = btnH },
@@ -145,52 +174,18 @@ function FlairRoomLayout.detailParts(card)
 	}
 end
 
-function FlairRoomLayout.splitRow(row, n, gap)
-	local out = {}
-	if n < 1 then return out end
-	local w = math.floor((row.w - (n - 1) * gap) / n)
-	for i = 1, n do
-		out[i] = { x = row.x + (i - 1) * (w + gap), y = row.y, w = w, h = row.h }
-	end
-	return out
-end
-
--- Cabinet: n drawer fronts stacked; the open drawer's tray sits right under its front, the fronts after it move down.
--- Closed drawers get a tray of height 0 so the client can tween the 0.2 s slide.
-function FlairRoomLayout.drawerRects(cab, n, openIndex)
-	local compact = cab.w < 420
-	local p = compact and 6 or 10
-	local frontH = compact and 40 or 48
-	local dg = 6
-	local inner = { x = cab.x + p, y = cab.y + p, w = cab.w - 2 * p, h = cab.h - 2 * p }
-	local trayH = math.max(0, inner.h - (n * frontH + (n - 1) * dg) - (openIndex and dg or 0))
-	local fronts, trays = {}, {}
-	local y = inner.y
-	for i = 1, n do
-		fronts[i] = { x = inner.x, y = y, w = inner.w, h = frontH }
-		y = y + frontH + dg
-		if i == openIndex then
-			trays[i] = { x = inner.x, y = y, w = inner.w, h = trayH }
-			y = y + trayH + dg
-		else
-			trays[i] = { x = inner.x, y = y, w = inner.w, h = 0 }
-		end
-	end
-	return { fronts = fronts, trays = trays, inner = inner, frontH = frontH }
-end
-
--- Medallion cell: round medallion, name (two lines) and a brass tag line plus progress rail.
+-- Flair tile: a solid plate with a round icon on top and the name plus a status line on the plate below it.
 function FlairRoomLayout.cell(compact)
-	local med = compact and 64 or 84
-	return { med = med, w = med + 40, h = med + 4 + 34 + 4 + 22 + 4 + 6, nameH = 34, tagH = 22, railH = 6 }
+	local med = compact and 56 or 68
+	return { med = med, w = compact and 108 or 128, h = 6 + med + 4 + 34 + 2 + 18 + 6, nameH = 34, tagH = 18 }
 end
 
-function FlairRoomLayout.grid(trayW, count, cell)
+function FlairRoomLayout.grid(areaW, count, cell)
 	local gap = 8
-	local usable = trayW - 12
+	local usable = areaW - 16
 	local cols = math.max(1, math.floor((usable + gap) / (cell.w + gap)))
 	local used = cols * cell.w + (cols - 1) * gap
-	local x0 = math.floor((trayW - used) / 2)
+	local x0 = math.floor((areaW - used) / 2)
 	local out = {}
 	for i = 1, count do
 		local c, r = (i - 1) % cols, math.floor((i - 1) / cols)

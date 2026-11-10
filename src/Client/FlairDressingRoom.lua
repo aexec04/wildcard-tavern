@@ -1,15 +1,15 @@
 --[[
 	Client/FlairDressingRoom.lua
-	The inside of the Flair panel: a tavern dressing room. Left, a curtained mirror stage that loops a live preview of the
-	name plate (Name Aura), score numbers and pop effect; a detail card at the foot of the stage (name, how to get it,
-	Equip, Preview, Buy); and one small slot per Flair category under the stage showing what is equipped. Right, a tall
-	cabinet with one drawer per Flair category (taken from Flair.view, nothing hardcoded); a drawer slides open like a tray
-	(0.2 s) with round medallions on velvet and the name below. Locked pieces are dark silhouettes with a lock, a brass
-	tag with the unlock goal and a thin progress rail; the equipped piece has a gold ring and an "On" ribbon.
-	One reusable tooltip lives on the ScreenGui, clamped on screen and kept off the live preview.
-	Every piece is drawn from Frames first; Engine/FlairUiArt.lua ids are laid over the fallbacks when recorded.
+	The inside of the Flair panel, v2: three calm columns. Left, one tab per Flair category (taken from Flair.view, nothing
+	hardcoded). Centre, a grid of solid flair tiles for the open category: one round icon each, the name and a status line
+	on the tile (Equipped, Unlocked, or the unlock goal), locked pieces as muted silhouettes. Right, a preview plate with a
+	live preview (name plate, score numbers, pop effect) and a detail card with Equip, Unequip, Preview and Buy. On phones
+	the tabs become a row on top and the preview plate drops to the bottom. Nothing overlaps; text never sits on art.
+	One art layer (flair_stage) sits behind the preview plate at very low opacity. One reusable tooltip lives on the
+	ScreenGui, clamped on screen and kept off the live preview.
 	"Reduce screen shake" skips every tween and loop. Data mapping and layout maths: Engine/FlairRoomLayout.lua (tested).
-	Display only: the server validates equip and purchase (remotes EquipFlair, StorePurchase).
+	Display only: the server validates equip and purchase (remotes EquipFlair, StorePurchase). Unequip equips the
+	category's default piece.
 
 	FlairDressingRoom.build(deps, panel) -> { closeButton, bundleButton, refresh(state), reset(), startStage(), stopStage(), hideTip() }
 	deps: screenGui, roundCorner, polishButton, playClickSfx, particleBurst
@@ -28,7 +28,6 @@ function FlairDressingRoom.build(deps, panel)
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local FlairFX = require(script.Parent.FlairFX)
 	local ClientSettings = require(script.Parent.ClientSettings)
-	local SetSkin = require(script.Parent.SetSkin)
 	local StorePanel = require(script.Parent.StorePanel)
 	local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local EquipRemote = Remotes:WaitForChild("EquipFlair")
@@ -39,8 +38,9 @@ function FlairDressingRoom.build(deps, panel)
 	local GOLD = Color3.fromRGB(222, 182, 104)
 	local BRASS = Color3.fromRGB(176, 138, 70)
 	local VELVET = Color3.fromRGB(96, 26, 46)
-	local VELVET_DARK = Color3.fromRGB(58, 16, 30)
 	local GREEN = Color3.fromRGB(86, 140, 80)
+	local PLATE = Color3.fromRGB(38, 28, 22)
+	local TILE = Color3.fromRGB(52, 38, 28)
 	local Z = 43
 
 	local function tween(inst, seconds, props, style)
@@ -63,8 +63,8 @@ function FlairDressingRoom.build(deps, panel)
 				o.TextStrokeTransparency = 1
 				o.TextSize = 14
 			end
+			o.ZIndex = Z
 		end
-		if o:IsA("GuiObject") then o.ZIndex = Z end
 		for k, v in pairs(props or {}) do o[k] = v end
 		o.Parent = parent
 		return o
@@ -92,19 +92,13 @@ function FlairDressingRoom.build(deps, panel)
 		s.Parent = inst
 		return s
 	end
-	local function gradient(inst, a, b, rotation) -- Color stops only
-		local g = Instance.new("UIGradient")
-		g.Color = ColorSequence.new(a, b)
-		g.Rotation = rotation or 90
-		g.Parent = inst
-	end
 
-	-- A recorded flair_ui Image id is laid over its code-drawn fallback (parented to the piece so Clone() keeps it).
+	-- A recorded flair_ui Image id is laid behind the content (parented to the piece so Clone() keeps it).
 	local function artOver(parent, key, props)
 		local id = ContentArt.getImageId("flair_ui", key)
 		if not id then return nil end
 		local img = make("ImageLabel", parent, { Name = "Art_" .. key, BackgroundTransparency = 1, Image = id, Size = UDim2.fromScale(1, 1),
-			ScaleType = Enum.ScaleType.Fit, ZIndex = Z + 1, Active = false })
+			ScaleType = Enum.ScaleType.Fit, ZIndex = Z, Active = false })
 		for k, v in pairs(props or {}) do img[k] = v end
 		return img
 	end
@@ -118,8 +112,8 @@ function FlairDressingRoom.build(deps, panel)
 
 	-- ===== state =====
 	local view = nil
-	local drawers = {}
-	local openSlot = nil -- slot id of the open drawer
+	local drawers = {} -- categories: { id, name, icon, ownedCount, total, items }
+	local openSlot = nil -- slot id of the open category
 	local chosenId = nil -- piece shown in the detail card
 	local previewed = {} -- slotId -> option row (Preview taps)
 	local equippedBySlot = {}
@@ -179,40 +173,27 @@ function FlairDressingRoom.build(deps, panel)
 		gui.MouseLeave:Connect(hideTip)
 	end
 
-	-- ===== stage: curtains, mirror, live preview =====
-	local stage = bind(make("Frame", panel, { Name = "Stage", BackgroundColor3 = Color3.fromRGB(26, 19, 14), ClipsDescendants = true }), function(r) return r.stage end)
-	round(stage, 12)
-	stroke(stage, GOLD, 2)
-	artOver(stage, "flair_stage", { ScaleType = Enum.ScaleType.Crop })
+	-- ===== preview plate: live preview on top, detail card below =====
+	local plate = bind(make("Frame", panel, { Name = "PreviewPlate", BackgroundColor3 = PLATE, ClipsDescendants = true }), function(r) return r.plate end)
+	round(plate, 12)
+	stroke(plate, BRASS, 1.5)
+	artOver(plate, "flair_stage", { ScaleType = Enum.ScaleType.Crop, ImageTransparency = 0.9 }) -- the one art layer, barely there
 
-	local function curtain(name, fn)
-		local c = bind(make("Frame", stage, { Name = name, BackgroundColor3 = VELVET }), function(r) local q = fn(r) return { x = q.x - r.stage.x, y = q.y - r.stage.y, w = q.w, h = q.h } end)
-		gradient(c, Color3.fromRGB(128, 34, 58), Color3.fromRGB(70, 18, 34), 0)
-		for i = 1, 3 do -- velvet folds
-			make("Frame", c, { BackgroundColor3 = VELVET_DARK, Position = UDim2.fromScale(i / 4 - 0.04, 0), Size = UDim2.fromScale(0.08, 1) })
-		end
-		return c
-	end
-	curtain("CurtainL", function(r) return r.curtainL end)
-	curtain("CurtainR", function(r) return r.curtainR end)
-
-	mirror = bind(make("Frame", stage, { Name = "Mirror", BackgroundColor3 = Color3.fromRGB(34, 40, 52), ClipsDescendants = true }),
-		function(r) return { x = r.mirror.x - r.stage.x, y = r.mirror.y - r.stage.y, w = r.mirror.w, h = r.mirror.h } end)
-	gradient(mirror, Color3.fromRGB(52, 60, 78), Color3.fromRGB(16, 18, 26), 90)
+	mirror = bind(make("Frame", plate, { Name = "Mirror", BackgroundColor3 = Color3.fromRGB(26, 30, 40), ClipsDescendants = true }),
+		function(r) return { x = r.mirror.x - r.plate.x, y = r.mirror.y - r.plate.y, w = r.mirror.w, h = r.mirror.h } end)
 	round(mirror, 10)
-	stroke(mirror, GOLD, 4)
-	artOver(mirror, "flair_sparkle_burst", { ImageTransparency = 0.5, Size = UDim2.fromScale(0.6, 0.9), Position = UDim2.fromScale(0.2, 0.05) })
+	stroke(mirror, GOLD, 2)
 
 	make("TextLabel", mirror, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(0.4, -10, 0, 20), Text = "Live preview", TextColor3 = GOLD,
 		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = Z + 3 })
 	local previewingLabel = make("TextLabel", mirror, { Position = UDim2.new(0.4, 0, 0, 4), Size = UDim2.new(0.6, -10, 0, 20), Text = "",
 		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 3 })
-	local stageScore = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromScale(1, 0.3),
+	local stageScore = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(1, 0.3),
 		Text = "12,480", ZIndex = Z + 3 })
 	local stageScoreStroke = stroke(stageScore, CREAM, 0)
-	local stageName = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.7), Size = UDim2.fromScale(1, 0.16),
+	local stageName = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.74), Size = UDim2.fromScale(1, 0.16),
 		Text = "You", ZIndex = Z + 3 })
-	local auraRing = make("Frame", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.7), Size = UDim2.fromOffset(90, 30),
+	local auraRing = make("Frame", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.74), Size = UDim2.fromOffset(90, 30),
 		BackgroundTransparency = 1, Visible = false, ZIndex = Z + 2 })
 	round(auraRing, 15)
 	local auraRingStroke = stroke(auraRing, CREAM, 3)
@@ -220,8 +201,8 @@ function FlairDressingRoom.build(deps, panel)
 
 	local scoreBase, nameBase = 40, 20
 	local function sizeStageText()
-		scoreBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.2), 28, 56)
-		nameBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.09), 18, 26)
+		scoreBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.2), 24, 56)
+		nameBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.09), 16, 26)
 		stageScore.TextSize = scoreBase
 		stageName.TextSize = nameBase
 	end
@@ -299,12 +280,10 @@ function FlairDressingRoom.build(deps, panel)
 		end
 	end
 
-	-- ===== detail card (bottom of the stage) =====
-	local card = bind(make("Frame", stage, { Name = "DetailCard", BackgroundColor3 = Color3.fromRGB(44, 31, 22), ZIndex = Z + 4 }),
-		function(r) return { x = r.detail.x - r.stage.x, y = r.detail.y - r.stage.y, w = r.detail.w, h = r.detail.h } end)
+	-- ===== detail card (below the preview) =====
+	local card = bind(make("Frame", plate, { Name = "DetailCard", BackgroundColor3 = TILE, ZIndex = Z + 4 }),
+		function(r) return { x = r.detail.x - r.plate.x, y = r.detail.y - r.plate.y, w = r.detail.w, h = r.detail.h } end)
 	round(card, 10)
-	stroke(card, BRASS, 2)
-	SetSkin.register(card, "panel")
 	local cardName = make("TextLabel", card, { TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 5 })
 	local cardHow = make("TextLabel", card, { Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 5 })
@@ -314,6 +293,7 @@ function FlairDressingRoom.build(deps, panel)
 		return b
 	end
 	local equipButton = cardButton("Equip", GREEN)
+	local unequipButton = cardButton("Unequip", Color3.fromRGB(110, 70, 50))
 	local previewButton = cardButton("Preview", Color3.fromRGB(80, 62, 44))
 	local buyButton = cardButton("Buy", GOLD, INK)
 
@@ -330,7 +310,7 @@ function FlairDressingRoom.build(deps, panel)
 		local d = Layout.detail(chosenItem)
 		cardName.Text = d.title
 		cardHow.Text = d.how
-		local parts = Layout.detailParts(R.detail)
+		local parts = Layout.detailParts({ w = R.detail.w, h = R.detail.h })
 		setRect(cardName, parts.name)
 		setRect(cardHow, parts.how)
 		local slot = 1
@@ -342,6 +322,7 @@ function FlairDressingRoom.build(deps, panel)
 			end
 		end
 		put(equipButton, d.canEquip)
+		put(unequipButton, d.canUnequip)
 		put(buyButton, d.canBuy)
 		put(previewButton, d.canPreview)
 	end
@@ -349,6 +330,21 @@ function FlairDressingRoom.build(deps, panel)
 		if chosenItem and chosenItem.state == "owned" then
 			deps.playClickSfx()
 			EquipRemote:FireServer(chosenItem.slotId, chosenItem.id)
+		end
+	end)
+	unequipButton.MouseButton1Click:Connect(function()
+		if chosenItem and chosenItem.state == "equipped" and not chosenItem.default then
+			deps.playClickSfx()
+			for _, d in ipairs(drawers) do
+				if d.id == chosenItem.slotId then
+					for _, it in ipairs(d.items) do
+						if it.default then
+							chosenId = it.id
+							EquipRemote:FireServer(it.slotId, it.id) -- the default piece is the plain look
+						end
+					end
+				end
+			end
 		end
 	end)
 	previewButton.MouseButton1Click:Connect(function()
@@ -364,210 +360,141 @@ function FlairDressingRoom.build(deps, panel)
 		end
 	end)
 
-	-- ===== equipped slots under the stage =====
-	local slotsHolder = bind(make("Frame", panel, { Name = "EquippedSlots", BackgroundTransparency = 1 }), function(r) return r.slots end)
-	local slotFrames = {}
-	local function buildSlots(eq)
-		for _, f in ipairs(slotFrames) do f:Destroy() end
-		slotFrames = {}
-		local rects = Layout.splitRow({ x = 0, y = 0, w = R.slots.w, h = R.slots.h }, #eq, R.gap)
-		for i, entry in ipairs(eq) do
-			local r = rects[i]
-			local f = make("TextButton", slotsHolder, { Name = "Slot_" .. entry.slotId, Text = "", BackgroundColor3 = VELVET_DARK, BackgroundTransparency = 0, AutoButtonColor = false })
-			setRect(f, r)
-			round(f, 10)
-			stroke(f, BRASS, 1.5)
-			local med = math.min(40, r.h - 12)
-			local well = make("Frame", f, { Position = UDim2.fromOffset(6, math.floor((r.h - med) / 2)), Size = UDim2.fromOffset(med, med), BackgroundColor3 = VELVET })
-			circle(well)
-			stroke(well, GOLD, 2)
-			local glyph = make("TextLabel", well, { Size = UDim2.fromScale(1, 1), TextSize = 20, Text = entry.optionIcon or "" })
-			if entry.optionId then pcall(ArtIcon.apply, well, "flair", entry.optionId, glyph, { cornerRadius = med / 2, zIndex = Z + 2 }) end
-			local tx = 6 + med + 6
-			make("TextLabel", f, { Position = UDim2.fromOffset(tx, math.floor(r.h / 2) - 20), Size = UDim2.new(1, -tx - 4, 0, 20), Text = entry.slotName, TextColor3 = GOLD,
-				TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
-			make("TextLabel", f, { Position = UDim2.fromOffset(tx, math.floor(r.h / 2)), Size = UDim2.new(1, -tx - 4, 0, 20), Text = entry.optionName,
-				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
-			hoverTip(f, function() return entry.slotName .. ": " .. entry.optionName end)
-			f.MouseButton1Click:Connect(function()
-				deps.playClickSfx()
-				openSlot = entry.slotId
-				chosenId = entry.optionId
-				FlairDressingRoom._layoutCabinet(true)
-			end)
-			slotFrames[#slotFrames + 1] = f
+	-- ===== category tabs (left column, or a row on phones) =====
+	local tabsHolder = bind(make("Frame", panel, { Name = "CategoryTabs", BackgroundTransparency = 1 }), function(r) return r.tabs end)
+	local tabButtons = {}
+
+	local function layoutTabs()
+		local rects = Layout.tabRects({ x = 0, y = 0, w = R.tabs.w, h = R.tabs.h }, #tabButtons, R.narrow)
+		for i, t in ipairs(tabButtons) do
+			setRect(t.button, rects[i])
+			t.sub.Visible = not R.narrow
+			t.name.Size = R.narrow and UDim2.new(1, -8, 1, 0) or UDim2.new(1, -16, 0, 22)
+			t.name.Position = R.narrow and UDim2.fromOffset(4, 0) or UDim2.fromOffset(10, 8)
+			t.name.TextXAlignment = R.narrow and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+			t.name.TextSize = R.narrow and 14 or 16
 		end
 	end
 
-	-- ===== cabinet of drawers =====
-	local cabinet = bind(make("Frame", panel, { Name = "Cabinet", BackgroundColor3 = Color3.fromRGB(82, 56, 34) }), function(r) return r.cabinet end)
-	round(cabinet, 12)
-	gradient(cabinet, Color3.fromRGB(104, 72, 44), Color3.fromRGB(62, 42, 26), 90)
-	stroke(cabinet, BRASS, 2)
-	SetSkin.register(cabinet, "panel")
-	artOver(cabinet, "flair_cabinet", { ScaleType = Enum.ScaleType.Crop })
+	-- ===== tile grid (centre) =====
+	local gridFrame = bind(make("ScrollingFrame", panel, { Name = "FlairGrid", BackgroundColor3 = PLATE, BackgroundTransparency = 0, ScrollBarThickness = 8,
+		ScrollBarImageColor3 = GOLD, ScrollBarImageTransparency = 0, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y }), function(r) return r.grid end)
+	round(gridFrame, 12)
+	stroke(gridFrame, BRASS, 1.5)
 
-	local cabinetParts = {} -- rebuilt each refresh: { front, tray, slotId, cells = { {frame, item} } }
+	local tiles = {} -- { frame, itemId, ring }
 
-	local function clearCabinet()
-		for _, p in ipairs(cabinetParts) do
-			p.front:Destroy()
-			p.tray:Destroy()
+	local function layoutGrid()
+		local g = Layout.grid(R.grid.w - 8, #tiles, Layout.cell(R.compact))
+		for k, t in ipairs(tiles) do setRect(t.frame, g.cells[k]) end
+		gridFrame.CanvasSize = UDim2.fromOffset(0, g.canvasH)
+		for _, t in ipairs(tiles) do
+			local sel = t.itemId == chosenId
+			t.ring.Enabled = sel
+			t.frame.BackgroundColor3 = sel and Color3.fromRGB(74, 54, 36) or TILE
 		end
-		cabinetParts = {}
 	end
 
-	function FlairDressingRoom._layoutCabinet(animate)
-		local n = #cabinetParts
-		if n == 0 then return end
-		local openIndex = nil
-		for i, p in ipairs(cabinetParts) do
-			if p.slotId == openSlot then openIndex = i end
-		end
-		local rects = Layout.drawerRects({ x = 0, y = 0, w = R.cabinet.w, h = R.cabinet.h }, n, openIndex)
-		local anim = animate and ClientSettings.get("reduceShake") ~= true
-		for i, p in ipairs(cabinetParts) do
-			local isOpen = i == openIndex
-			local fp, fs = rectUdim(rects.fronts[i])
-			local tp, ts = rectUdim(rects.trays[i])
-			if isOpen then p.tray.Visible = true end
-			if anim then
-				tween(p.front, 0.2, { Position = fp, Size = fs })
-				tween(p.tray, 0.2, { Position = tp, Size = ts })
-				if not isOpen then
-					task.delay(0.22, function() if p.tray.Parent and p.slotId ~= openSlot then p.tray.Visible = false end end)
-				end
-			else
-				p.front.Position, p.front.Size = fp, fs
-				p.tray.Position, p.tray.Size = tp, ts
-				p.tray.Visible = isOpen
-			end
-			p.handle.BackgroundColor3 = isOpen and GOLD or BRASS
-			p.frontStroke.Color = isOpen and GOLD or BRASS
-			p.frontStroke.Thickness = isOpen and 3 or 1.5
-			p.front.BackgroundColor3 = isOpen and Color3.fromRGB(122, 86, 52) or Color3.fromRGB(96, 66, 40)
-			if isOpen then
-				local g = Layout.grid(rects.trays[i].w, #p.cells, Layout.cell(R.compact))
-				for k, c in ipairs(p.cells) do setRect(c, g.cells[k]) end
-				p.tray.CanvasSize = UDim2.fromOffset(0, g.canvasH)
-				for _, c in ipairs(p.cells) do
-					c:SetAttribute("Selected", c.Name == "Cell_" .. tostring(chosenId))
-					local ring = c:FindFirstChild("Medallion") and c.Medallion:FindFirstChild("SelectRing")
-					if ring then ring.Visible = c:GetAttribute("Selected") == true end
-				end
-			end
-		end
-		paintCard()
-	end
-
-	local function buildMedallion(part, item, index)
+	local function buildTile(item)
 		local cellSize = Layout.cell(R.compact)
 		local med = cellSize.med
 		local locked = item.state == "locked"
-		local c = make("Frame", part.tray, { Name = "Cell_" .. item.id, BackgroundTransparency = 1 })
-		local mb = make("TextButton", c, { Name = "Medallion", Text = "", AutoButtonColor = false, BackgroundColor3 = locked and Color3.fromRGB(28, 20, 22) or VELVET,
-			BackgroundTransparency = 0, Position = UDim2.fromOffset(math.floor((cellSize.w - med) / 2), 0), Size = UDim2.fromOffset(med, med) })
-		circle(mb)
-		gradient(mb, locked and Color3.fromRGB(44, 32, 34) or Color3.fromRGB(150, 50, 78), locked and Color3.fromRGB(16, 12, 14) or Color3.fromRGB(70, 18, 36), 90)
-		stroke(mb, item.state == "equipped" and GOLD or (locked and Color3.fromRGB(70, 60, 56) or BRASS), item.state == "equipped" and 4 or 2)
-		artOver(mb, locked and "flair_medallion_ring_locked" or "flair_medallion_ring")
-		local glyph = make("TextLabel", mb, { Size = UDim2.fromScale(1, 1), TextSize = math.floor(med * 0.48), Text = item.icon, ZIndex = Z + 2,
-			TextColor3 = locked and Color3.fromRGB(10, 8, 8) or CREAM })
-		pcall(ArtIcon.apply, mb, "flair", item.id, glyph, { cornerRadius = med / 2, zIndex = Z + 2, dim = locked })
+		local f = make("TextButton", gridFrame, { Name = "Tile_" .. item.id, Text = "", AutoButtonColor = false, BackgroundColor3 = TILE, BackgroundTransparency = 0, ZIndex = Z + 1 })
+		round(f, 10)
+		stroke(f, item.state == "equipped" and GOLD or Color3.fromRGB(86, 66, 44), item.state == "equipped" and 2.5 or 1)
+		local sel = stroke(f, CREAM, 2)
+		sel.Enabled = false
+		local ic = make("Frame", f, { Name = "Icon", Position = UDim2.fromOffset(math.floor((cellSize.w - med) / 2), 6), Size = UDim2.fromOffset(med, med),
+			BackgroundColor3 = locked and Color3.fromRGB(34, 28, 28) or VELVET, ZIndex = Z + 2 })
+		circle(ic)
+		local glyph = make("TextLabel", ic, { Size = UDim2.fromScale(1, 1), TextSize = math.floor(med * 0.5), Text = item.icon, ZIndex = Z + 3,
+			TextColor3 = locked and Color3.fromRGB(110, 100, 96) or CREAM })
+		pcall(ArtIcon.apply, ic, "flair", item.id, glyph, { cornerRadius = med / 2, zIndex = Z + 3, dim = locked })
 		if locked then
-			local shade = make("Frame", mb, { Name = "Silhouette", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(8, 6, 8), BackgroundTransparency = 0.35, ZIndex = Z + 3 })
+			local shade = make("Frame", ic, { Name = "Silhouette", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(10, 8, 8), BackgroundTransparency = 0.45, ZIndex = Z + 4 })
 			circle(shade)
-			local badge = make("Frame", mb, { Name = "Lock", Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, -24, 1, -24), BackgroundColor3 = Color3.fromRGB(30, 24, 24), BackgroundTransparency = 0, ZIndex = Z + 4 })
-			circle(badge)
-			stroke(badge, BRASS, 1.5)
-			make("TextLabel", badge, { Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
+			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
-		local sel = make("Frame", mb, { Name = "SelectRing", Position = UDim2.fromOffset(-4, -4), Size = UDim2.new(1, 8, 1, 8), BackgroundTransparency = 1, Visible = false, ZIndex = Z + 3 })
-		circle(sel)
-		stroke(sel, CREAM, 2)
+		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.fromOffset(cellSize.w - 8, cellSize.nameH), Text = item.name,
+			TextSize = 14, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
+			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
+		local status, statusColor
 		if item.state == "equipped" then
-			local ribbon = make("Frame", mb, { Name = "OnRibbon", Position = UDim2.new(0, -4, 0, 2), Size = UDim2.fromOffset(34, 18), BackgroundColor3 = GREEN, BackgroundTransparency = 0, ZIndex = Z + 6 })
-			round(ribbon, 4)
-			stroke(ribbon, GOLD, 1.5)
-			artOver(ribbon, "flair_on_ribbon", { ZIndex = Z + 6 })
-			make("TextLabel", ribbon, { Size = UDim2.fromScale(1, 1), Text = "On", ZIndex = Z + 7 })
-		elseif item.state == "owned" and firstSightOwned and not firstSightOwned[item.id] then
-			local new = make("TextLabel", mb, { Name = "NewRibbon", Position = UDim2.new(1, -36, 0, 2), Size = UDim2.fromOffset(40, 18), Text = "NEW", TextColor3 = INK,
-				BackgroundTransparency = 0, BackgroundColor3 = GOLD, ZIndex = Z + 6 })
-			round(new, 4)
+			status, statusColor = "Equipped", Color3.fromRGB(150, 214, 140)
+		elseif item.state == "owned" then
+			status, statusColor = (firstSightOwned and not firstSightOwned[item.id]) and "New" or "Unlocked", GOLD
+		else
+			status, statusColor = item.tag or "Locked", Color3.fromRGB(190, 160, 110)
 		end
-		make("TextLabel", c, { Name = "ItemName", Position = UDim2.fromOffset(0, med + 4), Size = UDim2.fromOffset(cellSize.w, cellSize.nameH), Text = item.name,
-			TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = locked and Color3.fromRGB(190, 176, 150) or CREAM })
-		if locked then
-			local tag = make("Frame", c, { Name = "BrassTag", Position = UDim2.fromOffset(2, med + 4 + cellSize.nameH + 4), Size = UDim2.fromOffset(cellSize.w - 4, cellSize.tagH),
-				BackgroundColor3 = BRASS, BackgroundTransparency = 0 })
-			round(tag, 5)
-			artOver(tag, "flair_brass_tag")
-			make("TextLabel", tag, { Size = UDim2.fromScale(1, 1), Text = item.tag or "Locked", TextColor3 = INK, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 })
-			if item.ratio then
-				local track = make("Frame", c, { Name = "Rail", Position = UDim2.fromOffset(6, med + 4 + cellSize.nameH + 4 + cellSize.tagH + 4), Size = UDim2.fromOffset(cellSize.w - 12, cellSize.railH),
-					BackgroundColor3 = Color3.fromRGB(60, 46, 40) })
-				round(track, 3)
-				local fill = make("Frame", track, { Size = UDim2.fromScale(item.ratio, 1), BackgroundColor3 = GOLD, ZIndex = Z + 1 })
-				round(fill, 3)
-			end
-		end
-		mb.MouseButton1Click:Connect(function()
+		make("TextLabel", f, { Name = "Status", Position = UDim2.fromOffset(4, 6 + med + 4 + cellSize.nameH + 2), Size = UDim2.fromOffset(cellSize.w - 8, cellSize.tagH), Text = status,
+			TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = statusColor, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 })
+		f.MouseButton1Click:Connect(function()
 			deps.playClickSfx()
 			chosenId = item.id
-			FlairDressingRoom._layoutCabinet(false)
+			layoutGrid()
+			paintCard()
 		end)
-		hoverTip(mb, function()
+		hoverTip(f, function()
 			if locked then return item.name .. ": " .. (item.store and "Sold in the Tavern Store." or item.hint) end
 			return item.name .. (item.state == "equipped" and " (equipped)" or "")
 		end)
-		-- sparkle on a newly equipped medallion
+		-- sparkle on a newly equipped tile
 		if item.state == "equipped" and lastEquipped[item.slotId] ~= item.id then
 			if lastEquipped[item.slotId] ~= nil and deps.particleBurst and ClientSettings.get("reduceShake") ~= true then
 				task.defer(function()
-					if mb.Parent then
-						pcall(deps.particleBurst, UDim2.fromOffset(mb.AbsolutePosition.X + med / 2, mb.AbsolutePosition.Y + med / 2), GOLD, 10, { size = 7, spread = 60, duration = 0.6 })
+					if f.Parent then
+						pcall(deps.particleBurst, UDim2.fromOffset(f.AbsolutePosition.X + cellSize.w / 2, f.AbsolutePosition.Y + 6 + med / 2), GOLD, 10, { size = 7, spread = 60, duration = 0.6 })
 					end
 				end)
 			end
 			lastEquipped[item.slotId] = item.id
 		end
-		part.cells[#part.cells + 1] = c
+		tiles[#tiles + 1] = { frame = f, itemId = item.id, ring = sel }
 	end
 
-	local function buildCabinet()
-		for _, p in ipairs(cabinetParts) do
-			if p.tray and p.tray.Parent then scrollMemory[p.slotId] = p.tray.CanvasPosition.Y end
-		end
-		clearCabinet()
+	local function buildTabs()
+		for _, t in ipairs(tabButtons) do t.button:Destroy() end
+		tabButtons = {}
 		for _, d in ipairs(drawers) do
-			local part = { slotId = d.id, cells = {} }
-			part.front = make("TextButton", cabinet, { Name = "Drawer_" .. d.id, Text = "", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(96, 66, 40), BackgroundTransparency = 0 })
-			round(part.front, 8)
-			part.frontStroke = stroke(part.front, BRASS, 1.5)
-			gradient(part.front, Color3.fromRGB(255, 235, 210), Color3.fromRGB(190, 170, 150), 90)
-			artOver(part.front, "flair_drawer_front")
-			make("TextLabel", part.front, { Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -88, 1, 0), Text = d.icon .. " " .. d.name .. "   " .. d.ownedCount .. " of " .. d.total,
-				TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 })
-			part.handle = make("Frame", part.front, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(52, 10), BackgroundColor3 = BRASS, ZIndex = Z + 2 })
-			round(part.handle, 5)
-			part.tray = make("ScrollingFrame", cabinet, { Name = "Tray_" .. d.id, BackgroundColor3 = VELVET_DARK, BackgroundTransparency = 0, ScrollBarThickness = 8,
-				ScrollBarImageColor3 = GOLD, ScrollBarImageTransparency = 0, CanvasSize = UDim2.new(), Visible = false, ZIndex = Z })
-			part.tray.ScrollingDirection = Enum.ScrollingDirection.Y
-			round(part.tray, 8)
-			artOver(part.tray, "flair_velvet_tray")
-			for i, item in ipairs(d.items) do buildMedallion(part, item, i) end
-			cabinetParts[#cabinetParts + 1] = part
-			part.front.MouseButton1Click:Connect(function()
+			local on = d.id == openSlot
+			local b = make("TextButton", tabsHolder, { Name = "Tab_" .. d.id, Text = "", AutoButtonColor = false, BackgroundColor3 = on and Color3.fromRGB(86, 62, 38) or TILE, BackgroundTransparency = 0 })
+			round(b, 8)
+			stroke(b, on and GOLD or Color3.fromRGB(86, 66, 44), on and 2.5 or 1)
+			local name = make("TextLabel", b, { Text = d.icon .. " " .. d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
+				TextColor3 = on and CREAM or Color3.fromRGB(210, 194, 164) })
+			local sub = make("TextLabel", b, { Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -16, 0, 18), Font = Enum.Font.GothamMedium, TextSize = 14,
+				Text = d.ownedCount .. " of " .. d.total .. " unlocked", TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+				TextColor3 = GOLD, ZIndex = Z + 1 })
+			b.MouseButton1Click:Connect(function()
 				deps.playClickSfx()
 				openSlot = d.id
-				local item = findItem(chosenId or "")
-				if not item or item.slotId ~= d.id then
-					for _, it in ipairs(d.items) do if it.state == "equipped" then chosenId = it.id end end
-				end
-				FlairDressingRoom._layoutCabinet(true)
+				chosenId = nil
+				for _, it in ipairs(d.items) do if it.state == "equipped" then chosenId = it.id end end
+				FlairDressingRoom._rebuild()
 			end)
+			tabButtons[#tabButtons + 1] = { button = b, name = name, sub = sub }
 		end
+		layoutTabs()
+	end
+
+	local function buildGrid()
+		if openSlot then scrollMemory[openSlot] = gridFrame.CanvasPosition.Y end
+		for _, t in ipairs(tiles) do t.frame:Destroy() end
+		tiles = {}
+		for _, d in ipairs(drawers) do
+			if d.id == openSlot then
+				for _, item in ipairs(d.items) do buildTile(item) end
+			end
+		end
+	end
+
+	-- one full redraw of the parts that depend on the open category and the chosen piece
+	function FlairDressingRoom._rebuild()
+		buildTabs()
+		buildGrid()
+		layoutGrid()
+		paintCard()
+		if openSlot and scrollMemory[openSlot] then gridFrame.CanvasPosition = Vector2.new(0, scrollMemory[openSlot]) end
 	end
 
 	-- ===== relayout when the panel size changes =====
@@ -582,8 +509,7 @@ function FlairDressingRoom.build(deps, panel)
 		for _, entry in ipairs(placed) do setRect(entry.inst, entry.fn(R)) end
 		titleLabel.TextSize = R.compact and 24 or 28
 		sizeStageText()
-		FlairDressingRoom._layoutCabinet(false)
-		if #drawers > 0 then buildSlots(Layout.equippedSlots(view)) end
+		if #drawers > 0 then FlairDressingRoom._rebuild() end
 	end
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() relayout(false) end)
 
@@ -630,12 +556,8 @@ function FlairDressingRoom.build(deps, panel)
 			end
 		end
 		paintStage()
-		buildCabinet()
-		buildSlots(eq)
 		relayout(true)
-		for _, p in ipairs(cabinetParts) do
-			if scrollMemory[p.slotId] then p.tray.CanvasPosition = Vector2.new(0, scrollMemory[p.slotId]) end
-		end
+		FlairDressingRoom._rebuild()
 	end
 
 	relayout(true)

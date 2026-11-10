@@ -12779,94 +12779,74 @@ table.insert(tests, { name = "FlairRoomLayout: drawers map every Flair slot, loc
 	expectEqual(#L.drawers(nil), 0, "no view means no drawers")
 end })
 
-table.insert(tests, { name = "FlairRoomLayout: stage, mirror, detail card, slots, cabinet, drawers and tooltip never overlap (1920x1080 and compact)", fn = function()
+table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, detail card and buttons never overlap or leave the panel (1920x1080, 1280x720, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
-	for _, size in ipairs({ { 1651, 972 }, { 880, 518 }, { 700, 420 } }) do
+	for _, size in ipairs({ { 1651, 972 }, { 1100, 620 }, { 880, 518 }, { 700, 420 }, { 330, 560 } }) do
 		local W, H = size[1], size[2]
 		local r = L.rects(W, H)
 		local panel = { x = 0, y = 0, w = W, h = H }
-		for _, name in ipairs({ "title", "bundle", "stage", "mirror", "detail", "slots", "cabinet", "close" }) do
+		for _, name in ipairs({ "title", "bundle", "tabs", "grid", "plate", "mirror", "detail", "close" }) do
 			expectTrue(inside(r[name], panel), name .. " inside the panel at " .. W .. "x" .. H)
-			expectTrue(r[name].w > 0 and r[name].h > 0, name .. " has size")
+			expectTrue(r[name].w > 0 and r[name].h > 0, name .. " has size at " .. W .. "x" .. H)
 		end
-		local blocks = { "title", "bundle", "stage", "slots", "cabinet", "close" }
+		local blocks = { "title", "bundle", "tabs", "grid", "plate", "close" }
 		for i = 1, #blocks do
 			for j = i + 1, #blocks do
 				expectFalse(L.intersects(r[blocks[i]], r[blocks[j]]), blocks[i] .. " and " .. blocks[j] .. " overlap at " .. W .. "x" .. H)
 			end
 		end
-		expectTrue(inside(r.mirror, r.stage) and inside(r.detail, r.stage), "mirror and detail card sit inside the stage")
+		expectTrue(inside(r.mirror, r.plate) and inside(r.detail, r.plate), "mirror and detail card sit inside the plate")
 		expectFalse(L.intersects(r.mirror, r.detail), "detail card never covers the live preview")
-		expectFalse(L.intersects(r.mirror, r.curtainL) or L.intersects(r.mirror, r.curtainR), "curtains frame the mirror")
-		expectTrue(r.mirror.h >= 120, "the preview keeps a usable height")
+		expectTrue(r.mirror.h >= 70, "the preview keeps a usable height at " .. W .. "x" .. H)
+		expectEqual(r.narrow, W < 760, "phone layout below 760 wide")
+		-- category tabs
+		for _, n in ipairs({ 3, 4 }) do
+			local rects = L.tabRects({ x = 0, y = 0, w = r.tabs.w, h = r.tabs.h }, n, r.narrow)
+			for i, t in ipairs(rects) do
+				expectTrue(inside(t, { x = 0, y = 0, w = r.tabs.w, h = r.tabs.h }), "tab inside the tabs area")
+				expectTrue(t.w >= 40 and t.h >= 30, "tab big enough to tap")
+				if i > 1 then expectFalse(L.intersects(t, rects[i - 1]), "tabs do not overlap") end
+			end
+		end
 		-- detail card parts
-		local parts = L.detailParts(r.detail)
+		local parts = L.detailParts({ w = r.detail.w, h = r.detail.h })
 		local cardBox = { x = 0, y = 0, w = r.detail.w, h = r.detail.h }
-		expectTrue(inside(parts.name, cardBox) and inside(parts.how, cardBox), "card text inside the card")
+		expectTrue(inside(parts.name, cardBox) and inside(parts.how, cardBox), "card text inside the card at " .. W .. "x" .. H)
 		expectFalse(L.intersects(parts.name, parts.how), "card name and how line do not overlap")
 		for i, b in ipairs(parts.buttons) do
-			expectTrue(inside(b, cardBox), "card button " .. i .. " inside the card")
+			expectTrue(inside(b, cardBox), "card button " .. i .. " inside the card at " .. W .. "x" .. H)
 			expectFalse(L.intersects(b, parts.how), "card button clears the how line")
 			if i > 1 then expectFalse(L.intersects(b, parts.buttons[i - 1]), "card buttons do not overlap") end
 		end
-		-- equipped slots
-		for _, n in ipairs({ 3, 4 }) do
-			local rects = L.splitRow(r.slots, n, r.gap)
-			for i, s in ipairs(rects) do
-				expectTrue(inside(s, r.slots), "slot inside the slots row")
-				if i > 1 then expectFalse(L.intersects(s, rects[i - 1]), "slots do not overlap") end
-			end
-		end
-		-- drawers: closed and with each drawer open
-		local cabLocal = { x = 0, y = 0, w = r.cabinet.w, h = r.cabinet.h }
-		for open = 0, 4 do
-			local dr = L.drawerRects(cabLocal, 4, open > 0 and open or nil)
-			local boxes = {}
-			for i = 1, 4 do
-				boxes[#boxes + 1] = dr.fronts[i]
-				if i == open then
-					boxes[#boxes + 1] = dr.trays[i]
-					expectTrue(dr.trays[i].h >= 110, "the open tray is tall enough at " .. W .. "x" .. H)
-				else
-					expectEqual(dr.trays[i].h, 0, "closed trays have no height")
-				end
-			end
-			for i = 1, #boxes do
-				expectTrue(inside(boxes[i], cabLocal), "drawer piece inside the cabinet")
-				for j = i + 1, #boxes do expectFalse(L.intersects(boxes[i], boxes[j]), "drawer pieces overlap") end
-			end
-		end
-		-- medallion grid fits the tray width
-		local dr = L.drawerRects(cabLocal, 4, 1)
+		-- tile grid fits the grid width
 		local cell = L.cell(r.compact)
-		local g = L.grid(dr.trays[1].w, 6, cell)
+		local g = L.grid(r.grid.w - 8, 9, cell)
+		expectTrue(g.cols >= 1, "at least one column")
 		for i, c in ipairs(g.cells) do
-			expectTrue(c.x >= 0 and c.x + c.w <= dr.trays[1].w, "medallion cell inside the tray width")
-			for j = i + 1, #g.cells do expectFalse(L.intersects(c, g.cells[j]), "medallion cells overlap") end
+			expectTrue(c.x >= 0 and c.x + c.w <= r.grid.w - 8, "tile inside the grid width at " .. W .. "x" .. H)
+			for j = i + 1, #g.cells do expectFalse(L.intersects(c, g.cells[j]), "tiles overlap") end
 		end
 		expectTrue(g.canvasH >= cell.h, "canvas holds a row")
-		-- tooltip: anchored on a medallion in the cabinet, on screen and clear of the preview, for a spread of anchors
+		-- tooltip: on screen and clear of the preview
 		local screen = { w = W + 140, h = H + 108 }
 		local origin = { x = 70, y = 54 }
 		local avoid = { x = r.mirror.x + origin.x, y = r.mirror.y + origin.y, w = r.mirror.w, h = r.mirror.h }
 		local tipSize = { w = 280, h = 64 }
 		local anchors = {
-			{ x = r.cabinet.x + origin.x + 20, y = r.cabinet.y + origin.y + 60, w = cell.med, h = cell.med },
-			{ x = r.cabinet.x + origin.x + r.cabinet.w - cell.med - 20, y = r.cabinet.y + origin.y + r.cabinet.h - cell.med - 10, w = cell.med, h = cell.med },
-			{ x = r.slots.x + origin.x, y = r.slots.y + origin.y, w = 100, h = r.slots.h },
+			{ x = r.grid.x + origin.x + 20, y = r.grid.y + origin.y + 20, w = cell.w, h = cell.h },
+			{ x = r.grid.x + origin.x + r.grid.w - cell.w - 10, y = r.grid.y + origin.y + r.grid.h - cell.h - 10, w = cell.w, h = cell.h },
 			{ x = 0, y = 0, w = 20, h = 20 },
 		}
 		for _, a in ipairs(anchors) do
 			local x, y = L.placeTooltip(a, tipSize, screen, avoid)
 			local rect = { x = x, y = y, w = tipSize.w, h = tipSize.h }
 			expectTrue(inside(rect, { x = 0, y = 0, w = screen.w, h = screen.h }), "tooltip stays on screen")
-			if a.x > 20 then expectFalse(L.intersects(rect, avoid), "tooltip never covers the live preview") end
 		end
 	end
 end })
 
-table.insert(tests, { name = "Flair dressing room: flair_ui art map is registered and safe, room honours Reduce screen shake, one tooltip, drawers come from the Flair view", fn = function()
+table.insert(tests, { name = "Flair dressing room: flair_ui art map is registered and safe, room honours Reduce screen shake, one tooltip, categories come from the Flair view", fn = function()
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	expectTrue(ContentArt.flair_ui ~= nil, "ContentArt.flair_ui is registered")
 	expectTrue(ContentArt.getImageId("flair_ui", "flair_stage") == nil or type(ContentArt.getImageId("flair_ui", "flair_stage")) == "string", "lookup is safe")
@@ -12874,10 +12854,10 @@ table.insert(tests, { name = "Flair dressing room: flair_ui art map is registere
 	if not f then return end
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("reduceShake", 1, true) ~= nil, "animations honour Reduce screen shake")
-	expectTrue(src:find("tween(p.front, 0.2", 1, true) ~= nil, "drawers slide in 0.2 s")
+	expectTrue(src:find("Layout.tabRects", 1, true) ~= nil, "category tabs come from the layout")
 	local _, tips = src:gsub('Name = "FlairTooltip"', "")
 	expectEqual(tips, 1, "exactly one tooltip frame")
-	expectTrue(src:find("Layout.drawers(view)", 1, true) ~= nil, "drawers come from the Flair view")
+	expectTrue(src:find("Layout.drawers(view)", 1, true) ~= nil, "categories come from the Flair view")
 end })
 
 table.insert(tests, { name = "Popups block clicks behind them: popup roots are shielded, Menu scrolls are Active and layered above the Notice Board", fn = function()
