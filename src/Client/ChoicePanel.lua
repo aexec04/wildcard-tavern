@@ -100,6 +100,11 @@ local function buildCard(choice, option, order)
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
 	if choice.kind == "patron" or choice.kind == "rushPatron" then
 		PatronPlaque.apply(well, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+	elseif choice.kind == "modifier" then
+		local artId = ContentArt.getImageId("blessing_icons", option.id)
+		if artId then
+			PatronPlaque.applyById(well, artId, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
+		end
 	elseif choice.kind == "event" and not isDecline then
 		local artId = ContentArt.getImageId("events", choice.eventId)
 		if artId then

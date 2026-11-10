@@ -12258,6 +12258,20 @@ table.insert(tests, { name = "BadgeWallLayout: every tab has its badges, nothing
 	expectEqual(seg.x, 1.5, "segment midpoint")
 end })
 
+table.insert(tests, { name = "Art maps: every blessing has a painted icon and every non-default Card Set has scenery", fn = function()
+	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
+	local RunModifiers = require(script.Parent.Parent.Engine.RunModifiers)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, def in ipairs(RunModifiers.Definitions) do
+		expectTrue(ContentArt.getImageId("blessing_icons", def.id) ~= nil, def.id .. " has a blessing icon")
+	end
+	for _, set in ipairs(CS.Definitions) do
+		if set.id ~= "classic_tavern" then
+			expectTrue(type(set.scenery) == "string" and set.scenery:find("rbxassetid://%d+") ~= nil and set.scenery ~= "rbxassetid://0", set.id .. " has gameplay scenery")
+		end
+	end
+end })
+
 table.insert(tests, { name = "Bonds: every Bond and the locked tile resolve to a painted image id", fn = function()
 	local Bonds = require(script.Parent.Parent.Engine.Bonds)
 	local BondArt = require(script.Parent.Parent.Engine.BondArt)
