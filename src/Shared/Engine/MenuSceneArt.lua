@@ -17,6 +17,7 @@ return {
 	["menu_mid_beams"] = "rbxassetid://91588257173177",
 	["menu_noticeboard_wall"] = "rbxassetid://112141351415626",
 	["menu_parchment"] = "rbxassetid://73255374411713",
+	["menu_scene_a"] = "rbxassetid://88977721670878",
 	["menu_scroll_bottom"] = "rbxassetid://86774983007853",
 	["menu_scroll_top"] = "rbxassetid://90773005864173",
 	["menu_seal_gold"] = "rbxassetid://103552665609453",
