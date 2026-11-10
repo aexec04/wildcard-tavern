@@ -4,7 +4,7 @@
 -- limit is a ratchet: lower CLIENT_LIMIT whenever locals are moved out, never raise it.
 local LIMITS = {
 	{ path = "src/Server/init.server.lua", limit = 150 },
-	{ path = "src/Client/init.client.lua", limit = 131 },
+	{ path = "src/Client/init.client.lua", limit = 127 },
 }
 
 local function countLocals(path)

@@ -354,6 +354,9 @@ local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHand
 -- the gap left behind.
 local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings)
 local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection)
+for _, b in ipairs({ volumeButton, journeyButton, handRefButton, settingsButton, collectionButton }) do
+	pcall(require(script.HudTheme).styleIcon, b) -- ring, glow, disc tint and motif follow the equipped Card Set
+end
 
 -- ----- Generic hover tooltip -----
 -- Ahmed: "whenever you hover over a button any UI, it should give you the
@@ -453,7 +456,7 @@ actionLayout.Padding = UDim.new(0, 20)
 actionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 actionLayout.Parent = actionFrame
 
-local function makeActionButton(text)
+local function makeActionButton(text, role)
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(0, 200, 1, 0)
 	button.Font = Enum.Font.GothamBold
@@ -463,42 +466,14 @@ local function makeActionButton(text)
 	button.TextColor3 = Color3.fromRGB(250, 240, 220)
 	button.Parent = actionFrame
 	VisualHelpersModule.polishButton(button, 8)
-	-- REFERENCE-MATCH PASS: carved-wood look -- thicker gold rim plus a
-	-- color-only top-to-bottom darkening gradient (multiplies the theme's
-	-- accent color).
-	local rim = button:FindFirstChildOfClass("UIStroke")
-	if rim then
-		rim.Color = Color3.fromRGB(214, 172, 88)
-		rim.Thickness = 2
-		rim.Transparency = 0
-	end
-	-- (No UIGradient here: a gradient on a TextButton tints its TEXT too,
-	-- which made "Play Hand"/"Discard" look grayed out.)
-	--
-	-- ART: carved wood button image (ArtAssets.actionButtonArt). It has to
-	-- sit UNDER the button's own text, and a child normally draws over its
-	-- parent's text -- so the button goes up to ZIndex 2 and the art sits
-	-- at ZIndex 1 (this ScreenGui uses Global layering, where a lower
-	-- ZIndex draws first even for a child). The button's own fill goes
-	-- see-through once the art has loaded.
+	-- Code-drawn themed base (Client/HudTheme.lua): solid rounded fill, two rings in the Card Set accent, Color-only
+	-- gradient, hover and pressed states; text always sits on the solid base. The painted plate is no longer used here.
 	button.ZIndex = 2
-	do
-		local SkinArt = require(script.SkinArt)
-		local slice = SkinArt.Slices.button
-		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
-			tint = SkinArt.Tints.button,
-			zIndex = 1,
-			sliceCenter = slice.center,
-			sliceScale = slice.scale,
-			onLoaded = function()
-				SkinArt.hideCodeChrome(button)
-			end,
-		})
-	end
+	require(script.HudTheme).styleAction(button, role)
 	return button
 end
 
-local playButton = makeActionButton("Play Hand")
+local playButton = makeActionButton("Play Hand", "play")
 playButton.LayoutOrder = 1
 -- (no tooltip: the label already says Play Hand)
 
@@ -520,7 +495,7 @@ local Shop -- forward declaration: the sort handlers below use it; assigned wher
 do
 
 local sortFrame = Instance.new("Frame")
-sortFrame.Size = UDim2.new(0, 230, 1, 0)
+sortFrame.Size = UDim2.new(0, 214, 1, 0)
 sortFrame.BackgroundTransparency = 1
 sortFrame.LayoutOrder = 0
 sortFrame.Parent = actionFrame
@@ -546,63 +521,10 @@ sortCaptionLabel.Text = "Sort:"
 sortCaptionLabel.LayoutOrder = 1
 sortCaptionLabel.Parent = sortFrame
 
-local SORT_BUTTON_DEFAULT_COLOR = Color3.fromRGB(42, 29, 18)
-local SORT_BUTTON_ACTIVE_COLOR = Color3.fromRGB(120, 90, 45)
-
-local function makeSortButton(text, order)
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 80, 1, 0)
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 15 -- 15 keeps the label off the ornate frame edge
-	button.TextTruncate = Enum.TextTruncate.AtEnd
-	button.Text = text
-	button.Name = "Sort" .. text -- found by Client/ActionButtonFX
-	button.BackgroundColor3 = SORT_BUTTON_DEFAULT_COLOR
-	button.TextColor3 = Color3.fromRGB(250, 240, 220)
-	button.LayoutOrder = order
-	button.Parent = sortFrame
-	VisualHelpersModule.polishButton(button, 8)
-	-- ART: same carved wood button as Play Hand/Discard (see
-	-- makeActionButton's comment for the ZIndex reasoning).
-	button.ZIndex = 2
-	do
-		local SkinArt = require(script.SkinArt)
-		local slice = SkinArt.Slices.button
-		SkinArt.apply(button, require(script.ArtAssets).actionButtonArt, {
-			tint = SkinArt.Tints.button,
-			zIndex = 1,
-			sliceCenter = slice.center,
-			sliceScale = slice.scale,
-			onLoaded = function()
-				SkinArt.hideCodeChrome(button)
-			end,
-		})
-	end
-	return button
-end
-
-local sortByRankButton = makeSortButton("Rank", 2)
-local sortBySuitButton = makeSortButton("Suit", 3)
--- (no tooltips on the labeled Rank / Suit sort buttons)
-
--- Highlights whichever sort mode is currently active, so the buttons also
--- double as a status readout ("Rank" lit up = your hand is sorted by rank).
+-- One segmented Rank | Suit toggle in the Card Set colours (Client/SortToggle.lua) replaces the two old buttons.
+local sortToggle
 local function refreshSortButtonHighlight()
-	pcall(function() require(script.ActionButtonFX).setSort(handSortMode) end) -- lit edge on the active sort tag
-	sortByRankButton.BackgroundColor3 = (handSortMode == "rank") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
-	sortBySuitButton.BackgroundColor3 = (handSortMode == "suit") and SORT_BUTTON_ACTIVE_COLOR or SORT_BUTTON_DEFAULT_COLOR
-	-- With the wood button art showing, the fill color above is hidden --
-	-- so show the active sort by leaving its art at full brightness and
-	-- dimming the other one (and brightening the active one's text).
-	for _, pair in ipairs({ { sortByRankButton, "rank" }, { sortBySuitButton, "suit" } }) do
-		local isActive = handSortMode == pair[2]
-		local art = pair[1]:FindFirstChild("SkinArt")
-		if art then
-			local tints = require(script.SkinArt).Tints
-			art.ImageColor3 = isActive and tints.button or tints.buttonDimmed
-		end
-		pair[1].TextColor3 = isActive and Color3.fromRGB(255, 222, 150) or Color3.fromRGB(250, 240, 220)
-	end
+	if sortToggle then sortToggle.setMode(handSortMode) end
 end
 
 local function applyHandSortMode(mode)
@@ -613,20 +535,15 @@ local function applyHandSortMode(mode)
 	end
 end
 
-sortByRankButton.MouseButton1Click:Connect(function()
+sortToggle = require(script.SortToggle).build(sortFrame, function(mode)
 	if not Shop.tutorial.allows("sort") then return end
 	SoundModule.playClickSfx(0.35)
-	applyHandSortMode("rank")
-end)
-sortBySuitButton.MouseButton1Click:Connect(function()
-	if not Shop.tutorial.allows("sort") then return end
-	SoundModule.playClickSfx(0.35)
-	applyHandSortMode("suit")
+	applyHandSortMode(mode)
 end)
 
 end -- do (Sort Hand buttons)
 
-local discardButton = makeActionButton("Discard")
+local discardButton = makeActionButton("Discard", "discard")
 discardButton.LayoutOrder = 3
 -- (no tooltip: the label already says Discard)
 
@@ -1461,7 +1378,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		end
 		require(script.ActionButtonFX).install({
 			play = playButton, discard = discardButton,
-			rank = sortFrame:FindFirstChild("SortRank"), suit = sortFrame:FindFirstChild("SortSuit"),
+			rank = sortFrame:FindFirstChild("SortRank", true), suit = sortFrame:FindFirstChild("SortSuit", true),
 			burst = ParticleBurstModule.burst,
 		})
 	end)

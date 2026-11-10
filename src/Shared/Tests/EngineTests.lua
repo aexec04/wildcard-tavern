@@ -12446,4 +12446,84 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	expectTrue(listed, "All actions lists Card Sets")
 end })
 
+table.insert(tests, { name = "HudStyle: Classic frame covers at least 6 percent of the card width on every side", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	for _, size in ipairs({ { 100, 140 }, { 120, 168 }, { 80, 112 }, { 200, 280 }, { 64, 90 } }) do
+		local w, h = size[1], size[2]
+		local l = HS.classicFrame(w, h)
+		expectTrue(l.band.left.w >= w * 0.06, "left band at width " .. w)
+		expectTrue(l.band.right.w >= w * 0.06, "right band at width " .. w)
+		expectTrue(l.band.top.h >= w * 0.06, "top band at width " .. w)
+		expectTrue(l.band.bottom.h >= w * 0.06, "bottom band at width " .. w)
+		expectEqual(l.band.right.x + l.band.right.w, w, "right band reaches the card edge")
+		expectEqual(l.band.bottom.y + l.band.bottom.h, h, "bottom band reaches the card edge")
+		expectTrue(l.line.left.x == l.t and l.line.top.y == l.t, "brass line sits just inside the oak band")
+		expectEqual(#l.caps, 4, "four brass corner caps")
+	end
+end })
+
+table.insert(tests, { name = "HudStyle: every set and role keeps button text at 4.5:1 on every fill, plates and icons too", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function check(colors, label)
+		for _, role in ipairs({ "play", "discard", "sort" }) do
+			local p = HS.buttonPalette(colors, role)
+			for _, fill in ipairs({ p.fill, p.hover, p.bottom }) do
+				expectTrue(CS.contrastRatio(p.text, fill) >= 4.5, label .. " " .. role .. " button text contrast")
+			end
+			expectTrue(CS.contrastRatio(p.activeText, p.active) >= 4.5, label .. " " .. role .. " lit half contrast")
+		end
+		local d = HS.deckPalette(colors)
+		expectTrue(CS.contrastRatio(d.text, d.plate) >= 4.5, label .. " count plate contrast")
+		local i = HS.iconPalette(colors)
+		expectTrue(CS.contrastRatio(i.text, i.disc) >= 4.5, label .. " icon disc contrast")
+	end
+	check(nil, "neutral")
+	local sets = 0
+	for _, set in ipairs(CS.Definitions) do
+		sets = sets + 1
+		check(CS.skinOf(set).colors, set.id)
+	end
+	expectTrue(sets >= 15, "all sets covered")
+end })
+
+table.insert(tests, { name = "HudStyle: pile look is stable per set and different for every set; HUD wiring is present", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local seen, count = {}, 0
+	for _, set in ipairs(CS.Definitions) do
+		local a, b = HS.pileLook(set.id), HS.pileLook(set.id)
+		expectEqual(#a, 3, "three cards behind the pile")
+		local sig = {}
+		for i = 1, 3 do
+			expectEqual(a[i].rot, b[i].rot, "stable tilt")
+			expectTrue(a[i].rot ~= 0 and math.abs(a[i].rot) <= 6, "tilt within 6 degrees and never flat")
+			sig[#sig + 1] = a[i].rot .. "," .. a[i].dx .. "," .. a[i].dy
+		end
+		local key = table.concat(sig, "|")
+		expectFalse(seen[key], set.id .. " has its own pile look")
+		seen[key] = true
+		count = count + 1
+	end
+	expectTrue(count >= 15, "all sets covered")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local hub = read("src/Client/init.client.lua")
+	if hub then
+		expectTrue(hub:find("HudTheme", 1, true) ~= nil and hub:find("SortToggle", 1, true) ~= nil, "hub uses the themed action buttons and the sort toggle")
+		expectFalse(hub:find("makeSortButton", 1, true) ~= nil, "the old Sort Rank and Suit buttons are gone")
+	end
+	local skin = read("src/Client/SetSkin.lua")
+	if skin then
+		expectTrue(skin:find("ClassicCardFrame", 1, true) ~= nil and skin:find("HudTheme", 1, true) ~= nil, "SetSkin drives the Classic frame and the HUD theme")
+	end
+	local deck = read("src/Client/DeckWidget.lua")
+	if deck then expectTrue(deck:find("DeckWidgetSkin", 1, true) ~= nil, "the draw pile is skinned per set") end
+end })
+
 return tests

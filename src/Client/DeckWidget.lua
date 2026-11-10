@@ -300,6 +300,13 @@ return function(deps)
 	deckCardBack:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncStack)
 	syncStack()
 
+	-- per-set brackets, count plate and card-back pile tilt (Client/DeckWidgetSkin)
+	pcall(function()
+		require(script.Parent.DeckWidgetSkin).install({
+			widget = deckWidget, cardBack = deckCardBack, stackCards = stackCards, count = deckCountLabel, syncStack = syncStack,
+		})
+	end)
+
 	return {
 		deckCountLabel = deckCountLabel,
 		deckWidgetButton = deckWidgetButton,

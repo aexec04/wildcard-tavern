@@ -100,6 +100,8 @@ local function setDim(entry, dim)
 		entry.artColor = entry.artColor or art.ImageColor3
 		art.ImageColor3 = dim and entry.artColor:Lerp(Color3.fromRGB(70, 70, 70), 0.45) or entry.artColor
 	end
+	local face = btn:FindFirstChild("HudFace") -- code-drawn themed base
+	if face then face.BackgroundTransparency = dim and 0.45 or 0 end
 	btn.TextTransparency = dim and 0.35 or 0
 	for _, child in ipairs(btn:GetChildren()) do
 		if child.Name == "FXIcon" then child.TextTransparency = dim and 0.55 or 0 end
@@ -230,7 +232,11 @@ function ActionButtonFX.install(opts)
 	end
 
 	-- ===== Rank / Suit: brass tags with a swivel and a lit edge =====
+	local tags = {}
 	for _, spec in ipairs({ { key = "rank", btn = opts.rank }, { key = "suit", btn = opts.suit } }) do
+		if not spec.btn:GetAttribute("Segment") then table.insert(tags, spec) end -- the segmented Rank | Suit toggle (Client/SortToggle) lights itself
+	end
+	for _, spec in ipairs(tags) do
 		local btn = spec.btn
 		local entry = { button = btn, scale = addScale(btn), hover = false, pressed = false, key = spec.key }
 		state.buttons[spec.key] = entry
@@ -269,7 +275,7 @@ function ActionButtonFX.setSort(mode)
 	state.sort = mode
 	for _, key in ipairs({ "rank", "suit" }) do
 		local entry = state.buttons[key]
-		if entry then
+		if entry and entry.litStroke then
 			entry.litStroke.Transparency = (mode == key) and 0.1 or 1
 		end
 	end

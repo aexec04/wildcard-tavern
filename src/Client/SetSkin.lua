@@ -187,6 +187,7 @@ end
 
 -- Restyle one registered element for the current skin. Safe to call repeatedly.
 local function style(inst, kind, skin)
+	if kind == "button" and inst:GetAttribute("HudThemed") then return end -- code-drawn by Client/HudTheme
 	if not inst.Parent or inst:IsA("ScrollingFrame") or hasLayout(inst) then return end
 	skin = skin or current
 	local images, colors = skin.images, skin.colors
@@ -291,6 +292,7 @@ end
 function SetSkin.set(skin)
 	if skin == current then return end
 	current = skin or { images = {}, colors = nil, neutral = true }
+	pcall(function() require(script.Parent.HudTheme).setSkin(current) end) -- Play/Discard, Sort toggle, round icons, draw pile
 	for inst, kind in pairs(registry) do
 		if inst.Parent then style(inst, kind) else registry[inst] = nil end
 	end
@@ -313,6 +315,9 @@ local COURT = { J = true, Q = true, K = true }
 function SetSkin.cardLayers(face, zIndex, rankText, skin)
 	skin = skin or current
 	local images = skin.images
+	if skin.neutral and not images.faceFrame then
+		pcall(function() require(script.Parent.ClassicCardFrame).draw(face, zIndex) end) -- the default set's real border
+	end
 	if images.facePaper then
 		local paper = plate(face, "SetSkinPaper", images.facePaper, zIndex, 0.7)
 		if paper then

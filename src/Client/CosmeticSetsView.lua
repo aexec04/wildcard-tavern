@@ -252,7 +252,7 @@ function M.apply(state)
 					end
 				end
 			end
-			for _, name in ipairs({ "StackBackA", "StackBackB" }) do
+			for _, name in ipairs({ "StackBackA", "StackBackB", "StackBackC" }) do
 				local stack = find(name)
 				if stack then
 					applyArt(stack)
