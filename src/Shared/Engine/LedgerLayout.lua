@@ -130,6 +130,64 @@ function LedgerLayout.liftPx(side, i, t0, bookW, bookH)
 	return dx * math.sin(a) - dy * math.cos(a) -- component along the upward normal
 end
 
+-- ===== turning one sheet (Ledger v6) =====
+LedgerLayout.LIFT_PX = 6 -- the free edge lifts this far at the middle of a turn
+LedgerLayout.GRAB = { edge = 0.12, corner = 0.22 } -- the outer edge strip (of the page width) and the bottom corner square
+LedgerLayout.DRAG_START_PX = 8 -- the sheet leaves the page after this much travel, or at once on a click
+LedgerLayout.COMPLETE_AT = 0.4 -- let go past this and the turn completes
+LedgerLayout.FAST_PX_PER_S = 700 -- a quick flick completes the turn whatever the progress
+LedgerLayout.TURN_TIME = 0.25 -- completing or springing back, seconds
+LedgerLayout.END_LIFT = 0.12 -- first and last page: the sheet only lifts this far (progress) and falls back
+
+-- The sheet at progress p (0 to 1). It is hinged on the spine: its width follows |cos(p * pi)|, it starts on the page being
+-- turned (front face), crosses the spine at p = 0.5 and ends on the other page (back face). forward = right page to left page.
+function LedgerLayout.sheetState(p, forward)
+	p = math.max(0, math.min(1, p))
+	local second = p >= 0.5
+	local s = math.sin(math.pi * p)
+	return {
+		side = (forward == second) and "left" or "right", -- forward: right then left; backward: left then right
+		width = math.abs(math.cos(math.pi * p)),
+		face = second and "back" or "front",
+		lift = LedgerLayout.LIFT_PX * s,
+		shade = 0.35 * s, -- how dark the spine side of the sheet gets
+		shadow = 0.3 * s, -- opacity of the shadow cast on the page underneath
+	}
+end
+
+-- progress from the pointer's travel toward the spine (px, positive = toward it) and the page width in px
+function LedgerLayout.dragProgress(dx, pageW)
+	if pageW <= 0 then return 0 end
+	return math.max(0, math.min(1, dx / pageW))
+end
+
+-- what letting go does: "complete" past COMPLETE_AT or on a fast flick, otherwise "back"
+function LedgerLayout.release(p, velocity)
+	if p > LedgerLayout.COMPLETE_AT or (velocity or 0) > LedgerLayout.FAST_PX_PER_S then return "complete" end
+	return "back"
+end
+
+-- can the book turn from section `index` in direction dir (+1 forward, -1 back) among `count` sections
+function LedgerLayout.canTurn(index, dir, count)
+	local target = index + dir
+	return target >= 1 and target <= count, target
+end
+
+-- the largest progress a drag may reach: the whole turn, or only a small lift at the first and last page
+function LedgerLayout.maxProgress(canTurn)
+	return canTurn and 1 or LedgerLayout.END_LIFT
+end
+
+-- grab hotspots of a page as fractions of its page box: the outer edge strip and the bottom corner square
+function LedgerLayout.hotspots(side)
+	local G = LedgerLayout.GRAB
+	local outerLeft = side == "left"
+	return {
+		edge = { x = outerLeft and 0 or (1 - G.edge), y = 0, w = G.edge, h = 1 },
+		corner = { x = outerLeft and 0 or (1 - G.corner), y = 1 - G.corner, w = G.corner, h = G.corner },
+	}
+end
+
 -- WCAG contrast ratio between two { r, g, b } colours (0..255)
 function LedgerLayout.contrast(c1, c2)
 	local function lum(c)

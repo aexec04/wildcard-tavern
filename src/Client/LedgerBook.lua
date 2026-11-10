@@ -17,6 +17,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local LedgerBook = {}
 
@@ -24,6 +25,7 @@ function LedgerBook.build(deps, desk)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local Pages = require(Engine:WaitForChild("LedgerPages"))
 	local Layout = require(Engine:WaitForChild("LedgerLayout"))
+	local PopupRules = require(Engine:WaitForChild("PopupRules"))
 	local LedgerArt = require(Engine:WaitForChild("LedgerArt"))
 	local Stakes = require(Engine:WaitForChild("Stakes"))
 	local Patrons = require(Engine:WaitForChild("Patrons"))
@@ -152,6 +154,30 @@ function LedgerBook.build(deps, desk)
 			h = math.min(pr.w * r.w, pr.h * r.h * Layout.ASPECT) / Layout.ASPECT
 		end
 		return Layout.sizes(h)
+	end
+
+	-- Drag-to-turn hotspots: the outer edge strip (12 percent of the page width, full height) and the bottom corner of each page.
+	-- They sit under the page content, so rows and buttons on the page keep their clicks; Active ones above always win.
+	local onGrab -- set below
+	for _, side in ipairs({ "left", "right" }) do
+		local box = Layout.pageBox(side)
+		for kind, r in pairs(Layout.hotspots(side)) do
+			local hit = Instance.new("TextButton")
+			hit.Name = "Grab_" .. side .. "_" .. kind
+			hit.Text = ""
+			hit.AutoButtonColor = false
+			hit.BackgroundTransparency = 1
+			hit.BorderSizePixel = 0
+			hit.Position = UDim2.fromScale(box.x + r.x * box.w, box.y + r.y * box.h)
+			hit.Size = UDim2.fromScale(r.w * box.w, r.h * box.h)
+			hit.ZIndex = Z + 1
+			hit.Parent = book
+			hit.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					if onGrab then onGrab(side, input) end
+				end
+			end)
+		end
 	end
 
 	local function pageFrame(name, side)
@@ -450,9 +476,9 @@ function LedgerBook.build(deps, desk)
 		scroll.Size = UDim2.fromScale(1, 1)
 		scroll.BackgroundTransparency = 1
 		scroll.BorderSizePixel = 0
-		scroll.ScrollBarThickness = 6
-		scroll.ScrollBarImageColor3 = BRASS
-		scroll.ScrollBarImageTransparency = 0
+		scroll.ScrollBarThickness = 4
+		scroll.ScrollBarImageColor3 = Color3.fromRGB(112, 80, 56)
+		scroll.ScrollBarImageTransparency = 0.5
 		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		scroll.CanvasSize = UDim2.new()
 		scroll.ZIndex = Z + 2
@@ -507,69 +533,231 @@ function LedgerBook.build(deps, desk)
 		end
 	end
 
-	-- A real page flip: a sheet cut from the SAME art as the pages (the page box of ledger_book_open, so colour, texture
-	-- and ruled lines match exactly) squashes its width to 0 about the gutter over 0.22 s (Quad in), then the destination
-	-- page's sheet grows from the gutter over 0.22 s (Quad out) with a soft shadow strip on its free edge. Forward turns go
-	-- right to left, backward turns left to right. The sheet is tilted like the page and never leaves the page box.
-	local FLIP_TIME = 0.44
-	local flipToken = 0
-	local activeSheet
-	local function placeSheet(sheet, image, shadow, side, width)
-		local box = Layout.pageBox(side)
-		local gutterAnchor = side == "right" and 0 or 1 -- the sheet is hinged on the page edge nearest the gutter
-		sheet.AnchorPoint = Vector2.new(gutterAnchor, 0)
-		sheet.Position = UDim2.fromScale(gutterAnchor == 0 and box.x or (box.x + box.w), box.y)
-		sheet.Size = UDim2.fromScale(width * box.w, box.h)
-		sheet.Rotation = Layout.pageAngle(side)
-		if image then
-			-- the image is the whole book scaled so its page box fills the sheet; anchoring it on the hinge edge keeps the
-			-- page art glued to the sheet while the sheet squashes
-			image.Size = UDim2.fromScale(1 / box.w, 1 / box.h)
-			image.AnchorPoint = Vector2.new(gutterAnchor == 0 and box.x or (box.x + box.w), box.y)
-			image.Position = UDim2.fromScale(gutterAnchor, 0)
-		end
-		shadow.AnchorPoint = Vector2.new(1 - gutterAnchor, 0)
-		shadow.Position = UDim2.fromScale(1 - gutterAnchor, 0)
+	local crossfade -- set below (calm mode)
+	-- ===== turning pages: ONE sheet hinged at the spine; nothing else on the book moves =====
+	-- The sheet is cut from the same painted page art (front face = the page being turned, back face = the page it lands on, not
+	-- mirrored: Roblox cannot flip an image). Its width follows |cos(p * pi)| about the spine, its free edge lifts 6 px at the
+	-- middle, the spine side darkens and a soft shadow falls on the page underneath. The sheet is never rotated: Roblox ignores
+	-- ClipsDescendants on a rotated frame, which made the whole book appear to flip. The page_turn cue plays when the sheet
+	-- leaves the page, a soft tick when it settles, never more than one sound per 0.15 s. Calm mode crossfades instead.
+	local cueGate = PopupRules.newCueGate(0.15)
+	local function cueOnce(name, scale)
+		if cueGate(true, os.clock()) then Cue.play(name, scale) end
 	end
-	local function buildSheet()
+	local turn -- the sheet in flight: { forward, from, target, sheet, faces, shade, cast, p }
+	local turnToken = 0
+
+	local function buildSheet(forward)
 		local sheet = piece(book, { Name = "PageFlip", BackgroundColor3 = PAGE, BackgroundTransparency = bookArt and 1 or 0, ClipsDescendants = true, ZIndex = Z + 9, Active = false }, 4)
-		local image = bookArt and artOver(sheet, "ledger_book_open", { ZIndex = Z + 10 }) or nil
-		local shadow = piece(sheet, { Name = "FlipShadow", Size = UDim2.new(0, 22, 1, 0), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 0.7, ZIndex = Z + 11 }, 8)
-		return sheet, image, shadow
+		local faces = {}
+		if bookArt then
+			for _, face in ipairs({ "front", "back" }) do
+				faces[face] = artOver(sheet, "ledger_book_open", { ZIndex = Z + 10 })
+			end
+		end
+		local shade = piece(sheet, { Name = "SpineShade", Size = UDim2.fromScale(0.32, 1), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 1, ZIndex = Z + 11, Active = false })
+		local cast = piece(book, { Name = "CastShadow", Size = UDim2.fromScale(0.03, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, ZIndex = Z + 8, Active = false }, 6)
+		return { forward = forward, sheet = sheet, faces = faces, shade = shade, cast = cast, p = 0 }
 	end
 
-	local function flip(forward, state)
-		flipToken = flipToken + 1
-		local token = flipToken
-		local firstSide, secondSide = forward and "right" or "left", forward and "left" or "right"
-		local sheet, image, shadow = buildSheet()
-		placeSheet(sheet, image, shadow, firstSide, 1)
-		activeSheet = sheet
-		paintSide(firstSide, state) -- the new page under the departing sheet
-		local half = FLIP_TIME / 2
-		local box1 = Layout.pageBox(firstSide)
-		TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromScale(0, box1.h) }):Play()
-		task.delay(half, function()
-			if token ~= flipToken or not sheet.Parent then return end
-			placeSheet(sheet, image, shadow, secondSide, 0) -- across the gutter: the sheet now grows over the other page
-			local box2 = Layout.pageBox(secondSide)
-			TweenService:Create(sheet, TweenInfo.new(half, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromScale(box2.w, box2.h) }):Play()
-			task.delay(half, function()
-				if token ~= flipToken or not sheet.Parent then return end
-				paintSide(secondSide, state) -- the sheet has landed; the new text fades in as it lifts
-				TweenService:Create(sheet, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
-				if image then TweenService:Create(image, TweenInfo.new(0.1), { ImageTransparency = 1 }):Play() end
-				TweenService:Create(shadow, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
-				task.delay(0.12, function()
-					if activeSheet == sheet then activeSheet = nil end
-					sheet:Destroy()
-				end)
-			end)
+	local function setSheet(t, p)
+		t.p = p
+		local st = Layout.sheetState(p, t.forward)
+		local box = Layout.pageBox(st.side)
+		local anchor = st.side == "right" and 0 or 1 -- hinged on the page edge nearest the spine
+		local spineX = anchor == 0 and box.x or (box.x + box.w)
+		t.sheet.Visible = st.width > 0.015
+		t.sheet.AnchorPoint = Vector2.new(anchor, 0)
+		t.sheet.Position = UDim2.new(spineX, 0, box.y, -math.floor(st.lift))
+		t.sheet.Size = UDim2.fromScale(st.width * box.w, box.h)
+		for name, img in pairs(t.faces) do
+			img.Visible = name == st.face
+			-- each face shows the page it is cut from, glued to the hinge so the art squashes with the sheet
+			local srcSide = (name == "front") == t.forward and "right" or "left"
+			local sb = Layout.pageBox(srcSide)
+			img.Size = UDim2.fromScale(1 / sb.w, 1 / sb.h)
+			img.AnchorPoint = Vector2.new(srcSide == "right" and sb.x or (sb.x + sb.w), sb.y)
+			img.Position = UDim2.fromScale(anchor, 0)
+		end
+		t.shade.AnchorPoint = Vector2.new(anchor, 0)
+		t.shade.Position = UDim2.fromScale(anchor, 0)
+		t.shade.BackgroundTransparency = 1 - st.shade
+		local edge = anchor == 0 and (spineX + st.width * box.w) or (spineX - st.width * box.w)
+		local castW = 0.03
+		t.cast.Position = UDim2.fromScale(anchor == 0 and edge or (edge - castW), box.y)
+		t.cast.Size = UDim2.fromScale(castW, box.h)
+		t.cast.Visible = st.width < 0.98 and st.width > 0.02
+		t.cast.BackgroundTransparency = 1 - st.shadow
+	end
+
+	local function endTurn()
+		if turn then
+			turn.sheet:Destroy()
+			turn.cast:Destroy()
+			turn = nil
+		end
+	end
+
+	local function latest() return deps.getLatestState and deps.getLatestState() or nil end
+
+	local function landTurn(t) -- p reached 1: the new page is under the sheet, then the sheet lifts off it
+		paintSide(t.forward and "left" or "right", latest())
+		cueOnce("hover", 0.5)
+		if turn ~= t then return end
+		TweenService:Create(t.sheet, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
+		for _, img in pairs(t.faces) do TweenService:Create(img, TweenInfo.new(0.1), { ImageTransparency = 1 }):Play() end
+		TweenService:Create(t.shade, TweenInfo.new(0.1), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.12, function()
+			if turn == t then endTurn() end
 		end)
 	end
 
-	-- calm mode: paint now and fade a paper veil off the pages in 0.12 s
-	local function crossfade(state)
+	local function springBack(t) -- the turn was dropped: the old section comes back
+		if t.target then
+			pageIndex = t.from
+			paintTabs()
+			paintSide(t.forward and "right" or "left", latest())
+		end
+		if turn == t then endTurn() end
+	end
+
+	-- progress animation of the sheet (Quad out); a newer animation or turn cancels an older one
+	local function animate(t, from, to, dur, done)
+		turnToken = turnToken + 1
+		local token = turnToken
+		task.spawn(function()
+			local t0 = os.clock()
+			while true do
+				if token ~= turnToken or not t.sheet.Parent then return end
+				local u = math.min(1, (os.clock() - t0) / dur)
+				setSheet(t, from + (to - from) * (1 - (1 - u) * (1 - u)))
+				if u >= 1 then break end
+				task.wait()
+			end
+			if done then done() end
+		end)
+	end
+
+	-- a turn still in flight ends at once: committed turns land, dropped ones come back
+	local function finishNow()
+		turnToken = turnToken + 1
+		local t = turn
+		if not t then return end
+		if t.target then
+			paintSide(t.forward and "left" or "right", latest())
+		end
+		endTurn()
+	end
+
+	-- the sheet leaves its page: the uncovered page already shows the target section, the tabs follow
+	local function beginTurn(forward, target)
+		finishNow()
+		local t = buildSheet(forward)
+		t.from, t.target = pageIndex, target
+		turn = t
+		setSheet(t, 0)
+		if target then
+			pageIndex = target
+			paintTabs()
+			paintSide(forward and "right" or "left", latest())
+		end
+		return t
+	end
+
+	local function quickTurn(target) -- one sheet to the chosen section, whatever the distance
+		if target == pageIndex then return end
+		if calm() then
+			finishNow()
+			pageIndex = target
+			paintTabs()
+			cueOnce("page_turn", 0.5)
+			crossfade(latest())
+			return
+		end
+		cueOnce("page_turn", 1)
+		local t = beginTurn(target > pageIndex, target)
+		animate(t, 0, 1, 0.22, function() landTurn(t) end)
+	end
+
+	local function liftAndDrop(forward) -- first or last page: the sheet only lifts a little and falls back, silently
+		if calm() then return end
+		local t = beginTurn(forward, nil)
+		animate(t, 0, Layout.END_LIFT, 0.12, function()
+			animate(t, Layout.END_LIFT, 0, 0.14, function() if turn == t then endTurn() end end)
+		end)
+	end
+
+	local function step(dir)
+		local ok, target = Layout.canTurn(pageIndex, dir, #Pages.PAGES)
+		if ok then quickTurn(target) else liftAndDrop(dir > 0) end
+	end
+
+	-- ===== drag to turn =====
+	local drag -- { forward, ok, target, side, startX, started, t, lastDx, lastT, vel }
+	onGrab = function(side, input)
+		if drag then return end
+		local forward = side == "right"
+		local ok, target = Layout.canTurn(pageIndex, forward and 1 or -1, #Pages.PAGES)
+		drag = { forward = forward, ok = ok, target = target, side = side, startX = input.Position.X, started = false, lastDx = 0, lastT = os.clock(), vel = 0 }
+	end
+	UserInputService.InputChanged:Connect(function(input)
+		local d = drag
+		if not d or (input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch) then return end
+		local dx = (d.startX - input.Position.X) * (d.forward and 1 or -1) -- toward the spine
+		local now = os.clock()
+		if now > d.lastT then d.vel = (dx - d.lastDx) / (now - d.lastT) end
+		d.lastDx, d.lastT = dx, now
+		if not d.started and math.abs(dx) > Layout.DRAG_START_PX then
+			d.started = true
+			if not calm() then
+				if d.ok then cueOnce("page_turn", 1) end -- the sound starts as the sheet leaves the page
+				d.t = beginTurn(d.forward, d.ok and d.target or nil)
+			end
+		end
+		if d.started and d.t then
+			local pageW = Layout.pageBox(d.side).w * math.max(1, book.AbsoluteSize.X)
+			setSheet(d.t, math.min(Layout.maxProgress(d.ok), Layout.dragProgress(dx, pageW)))
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		local d = drag
+		if not d or (input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch) then return end
+		drag = nil
+		if not d.started then -- a plain click or tap on the corner turns the page
+			if d.ok then quickTurn(d.target) else liftAndDrop(d.forward) end
+			return
+		end
+		if calm() then
+			if d.ok and d.lastDx > Layout.COMPLETE_AT * Layout.pageBox(d.side).w * math.max(1, book.AbsoluteSize.X) then quickTurn(d.target) end
+			return
+		end
+		local t = d.t
+		if not t then return end
+		if not d.ok then
+			animate(t, t.p, 0, 0.18, function() if turn == t then endTurn() end end)
+		elseif Layout.release(t.p, d.vel) == "complete" then
+			animate(t, t.p, 1, Layout.TURN_TIME, function() landTurn(t) end)
+		else
+			animate(t, t.p, 0, Layout.TURN_TIME, function() springBack(t) end)
+		end
+	end)
+
+	-- Left and Right arrow keys turn pages while the ledger is open
+	local function showing()
+		local node = desk
+		while node and not node:IsA("LayerCollector") do
+			if node:IsA("GuiObject") and not node.Visible then return false end
+			node = node.Parent
+		end
+		return node ~= nil and desk.AbsoluteSize.X > 0
+	end
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed or not showing() then return end
+		if input.KeyCode == Enum.KeyCode.Right then step(1) elseif input.KeyCode == Enum.KeyCode.Left then step(-1) end
+	end)
+
+	-- calm mode: paint now and fade a paper veil off the pages in 0.12 s (no sheet, no tweens on the book)
+	crossfade = function(state)
 		paint(state)
 		local l, r = Layout.pageBox("left"), Layout.pageBox("right")
 		local veil = piece(book, { Name = "PageVeil", Position = UDim2.fromScale(l.x, l.y), Size = UDim2.fromScale(r.x + r.w - l.x, l.h), BackgroundColor3 = PAGE, ZIndex = Z + 9, Active = false }, 6)
@@ -609,26 +797,6 @@ function LedgerBook.build(deps, desk)
 		end)
 	end
 
-	local function go(i, animate)
-		local previous = pageIndex
-		pageIndex = i
-		local state = deps.getLatestState and deps.getLatestState() or nil
-		if activeSheet then -- a turn is still running: end it at once
-			flipToken = flipToken + 1
-			activeSheet:Destroy()
-			activeSheet = nil
-		end
-		if animate then Cue.play("page_turn", calm() and 0.5 or 1) end -- starts with the flip; respects the SFX slider and Mute
-		paintTabs()
-		if animate and not calm() and i ~= previous then
-			flip(i > previous, state)
-		elseif animate and calm() then
-			crossfade(state)
-		else
-			paint(state)
-		end
-	end
-
 	for i, name in ipairs(Pages.PAGES) do
 		local tab = Instance.new("TextButton")
 		tab.Name = "Tab_" .. i
@@ -644,9 +812,23 @@ function LedgerBook.build(deps, desk)
 		tab.MouseButton1Click:Connect(function()
 			if i == pageIndex then return end
 			deps.playClickSfx()
-			go(i, true)
+			quickTurn(i) -- one sheet to that section, never a whole-book motion
 		end)
 		tabButtons[i] = tab
+	end
+
+	-- the page content is sized from the book's real pixels: repaint once the book has been laid out or resized
+	do
+		local repaintToken = 0
+		book:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			repaintToken = repaintToken + 1
+			local mine = repaintToken
+			task.delay(0.15, function()
+				if mine ~= repaintToken or turn or drag or not showing() then return end
+				local state = latest()
+				if state and state.runStats then paint(state) end
+			end)
+		end)
 	end
 	local api = {}
 
