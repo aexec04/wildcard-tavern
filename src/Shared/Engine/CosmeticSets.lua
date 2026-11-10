@@ -625,18 +625,23 @@ end
 function CosmeticSets.indexStyle(set, isRed)
 	local face = CosmeticSets.faceStyleOf(set)
 	local base = isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK
+	local cream = { 250, 244, 226 }
+	local plate, ink
 	if face.neutral then
-		return { plate = { 250, 244, 226 }, ink = base }
+		-- warm the near-white plate about 25 percent toward parchment so it reads as printed on the card
+		plate = mix(cream, { 226, 208, 170 }, 0.25)
+		ink = base
+	else
+		plate = mix(face.paper, cream, 0.5)
+		ink = mix(base, face.pip, isRed and 0.2 or 0.5)
 	end
-	local plate = mix(face.paper, { 250, 244, 226 }, 0.6)
-	local ink = mix(base, face.pip, isRed and 0.2 or 0.5)
 	local dark = CosmeticSets.BLACK_INK
 	local steps = 0
 	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
 		ink = mix(ink, dark, 0.25)
 		steps = steps + 1
 	end
-	return { plate = plate, ink = ink }
+	return { plate = plate, ink = ink, edge = mix(plate, ink, 0.55) }
 end
 
 -- Worst ink-vs-plate contrast over both suit colours.

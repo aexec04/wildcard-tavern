@@ -174,19 +174,26 @@ function SetSkin.cardLayers(face, zIndex, rankText, skin)
 	end
 end
 
-local function indexPlate(face, name, z, color, pos, size)
+local function indexPlate(face, name, z, color, pos, size, edge)
 	local p = Instance.new("Frame")
 	p.Name = name
 	p.BackgroundColor3 = color
-	p.BackgroundTransparency = 0.12
+	p.BackgroundTransparency = 0.2
 	p.BorderSizePixel = 0
 	p.Active = false
 	p.Position = pos
 	p.Size = size
 	p.ZIndex = z
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.2, 0)
+	corner.CornerRadius = UDim.new(0.12, 0)
 	corner.Parent = p
+	-- thin printed-ink outline instead of a hard white edge
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = edge
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = p
 	p.Parent = face
 end
 
@@ -197,8 +204,9 @@ function SetSkin.indexLayers(face, zIndex, isRed, skin)
 	local style = skin.index and (isRed and skin.index.red or skin.index.black)
 	if not style then return nil, zIndex end
 	local color = rgb(style.plate)
-	indexPlate(face, "IndexPlate", zIndex + 1, color, UDim2.fromScale(0.09, 0.07), UDim2.fromScale(0.34, 0.32))
-	indexPlate(face, "IndexPlateBottom", zIndex + 1, color, UDim2.fromScale(0.58, 0.72), UDim2.fromScale(0.3, 0.2))
+	local edge = rgb(style.edge or style.ink)
+	indexPlate(face, "IndexPlate", zIndex + 1, color, UDim2.fromScale(0.09, 0.07), UDim2.fromScale(0.34, 0.32), edge)
+	indexPlate(face, "IndexPlateBottom", zIndex + 1, color, UDim2.fromScale(0.58, 0.72), UDim2.fromScale(0.3, 0.2), edge)
 	return rgb(style.ink), zIndex + 2
 end
 
