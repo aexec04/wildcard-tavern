@@ -11929,6 +11929,32 @@ table.insert(tests, { name = "MenuWorldLayout: every action has a landmark, noth
 	for _, key in pairs(WL.art) do expectTrue(known[key], "landmark art key is known: " .. key) end
 end })
 
+table.insert(tests, { name = "MenuWorldLayout: the parchment frame is a thin edge, the Notice Board is slim and the scene stays open", fn = function()
+	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local strips = WL.frameStrips()
+	expectEqual(#strips, 4, "four edge strips")
+	for _, s in ipairs(strips) do
+		expectTrue(s.w <= 1 and s.h <= 1 and s.x + s.w <= 1.0001 and s.y + s.h <= 1.0001, "strip inside the screen: " .. s.name)
+		if s.name == "Left" or s.name == "Right" then expectTrue(s.w <= 0.0801, "side strip at most 8 percent wide") end
+		if s.name == "Top" or s.name == "Bottom" then expectTrue(s.h <= 0.0601, "top and bottom strips at most 6 percent high") end
+	end
+	expectTrue(WL.openShare() >= 0.6, "at least 60 percent of the screen is open scene")
+	expectTrue(ML.NoticeBoard.w <= 0.22, "Notice Board about 22 percent of the width")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 640, 360 } }) do
+		local w, h = size[1], size[2]
+		local nl, nt, nr, nb = ML.noticeRect(w, h)
+		for _, s in ipairs(strips) do
+			if s.name == "Left" then expectTrue(nl >= s.w * w, "board clear of the left frame strip at " .. w) end
+		end
+		for _, r in ipairs(WL.rects(ML, w, h)) do
+			expectTrue(ML.overlapFraction(r, { nl, nt, nr, nb }) == 0, "landmark clear of the board: " .. r.id .. " " .. w)
+		end
+		local wl, wt, wr, wb = WL.hubRect(w, h)
+		expectTrue(ML.overlapFraction({ wl, wt, wr, wb }, { nl, nt, nr, nb }) == 0, "hub clear of the board at " .. w)
+	end
+end })
+
 table.insert(tests, { name = "MenuWorldLayout: one rigid drift, hero walks out and back, apply moves the hotspots", fn = function()
 	local WL = require(script.Parent.Parent.Engine.MenuWorldLayout)
 	local D = WL.drift

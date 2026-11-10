@@ -20,13 +20,15 @@ MenuWorldLayout.chimney = { x = 0.56, y = 0.31 }                      -- smoke s
 MenuWorldLayout.hero = { x0 = 0.50, y0 = 0.68, y1 = 0.93, period = 30, size = 28 } -- walks out and back, pixels for size
 MenuWorldLayout.drift = { panPx = 6, baseZoom = 1.03, zoomAmp = 0.01, period = 40 }
 MenuWorldLayout.fireflies = 4
+-- The parchment frame is only a thin edge: at most this share of the width per side and of the height top and bottom.
+MenuWorldLayout.frameBand = { side = 0.08, vert = 0.06 }
 MenuWorldLayout.clouds = 2
 -- drift + smoke + door glow + cloud shadows + hero + fireflies
 MenuWorldLayout.animated = 5 + MenuWorldLayout.fireflies
 
 -- Hotspot id -> { x, y, s, asp } (s is the height as a fraction of the screen, width = s * asp of the height).
 MenuWorldLayout.spots = {
-	play        = { x = 0.50, y = 0.50, s = 0.20, asp = 1.5 }, -- the Deal Me In sign hangs over the door
+	play        = { x = 0.50, y = 0.50, s = 0.16, asp = 1.5 }, -- the Deal Me In sign hangs over the door
 	questscroll = { x = 0.30, y = 0.70, s = 0.13, asp = 1.0 },
 	tome        = { x = 0.41, y = 0.84, s = 0.13, asp = 1.0 },
 	maptable    = { x = 0.70, y = 0.70, s = 0.13, asp = 1.0 },
@@ -50,6 +52,24 @@ MenuWorldLayout.artKeys = {
 	"menu_tavern_hub", "menu_road_out", "menu_quest_board", "menu_tome_library", "menu_coin_jar_shop", "menu_rulebook_stand",
 	"menu_jukebox_stage", "menu_map_table_tent", "menu_notice_post", "menu_cloud_wisp", "menu_fog_edge", "menu_map_frame",
 }
+
+-- The four edge strips of the frame art as fractions { name, x, y, w, h }. Each strip shows only that edge of the full-screen art
+-- (the art is drawn at screen size inside a clipping frame), so the opaque parchment centre is never drawn.
+function MenuWorldLayout.frameStrips()
+	local B = MenuWorldLayout.frameBand
+	return {
+		{ name = "Top", x = 0, y = 0, w = 1, h = B.vert },
+		{ name = "Bottom", x = 0, y = 1 - B.vert, w = 1, h = B.vert },
+		{ name = "Left", x = 0, y = B.vert, w = B.side, h = 1 - 2 * B.vert },
+		{ name = "Right", x = 1 - B.side, y = B.vert, w = B.side, h = 1 - 2 * B.vert },
+	}
+end
+
+-- Share of the screen left open (not under a frame strip).
+function MenuWorldLayout.openShare()
+	local B = MenuWorldLayout.frameBand
+	return (1 - 2 * B.side) * (1 - 2 * B.vert)
+end
 
 -- Pixel rectangle { left, top, right, bottom } of the hub image on a screen.
 function MenuWorldLayout.hubRect(w, h)

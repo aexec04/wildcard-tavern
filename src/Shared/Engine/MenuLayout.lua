@@ -89,7 +89,7 @@ MenuLayout.ITEM_S = 0.115       -- item height as a fraction of screen height (s
 MenuLayout.ITEM_SPACING = 0.115 -- distance between item centres, fraction of screen width
 MenuLayout.PLATE_H = 0.05       -- carved name plate under each item, fraction of screen height
 MenuLayout.PLATE_W = 1.5        -- plate width as a multiple of the item width
-MenuLayout.NoticeBoard = { x = 0.02, y = 0.28, w = 0.27, h = 0.30 } -- left wall, fractions of screen width and height
+MenuLayout.NoticeBoard = { x = 0.09, y = 0.28, w = 0.22, h = 0.28 } -- left wall, fractions of screen width and height
 MenuLayout.SCROLL = { width = 270, rowH = 46, pad = 16, rod = 14, gap = 8, minTop = 8 }
 
 -- x of counter item number i (1 to 6): evenly spaced, centred on the screen.

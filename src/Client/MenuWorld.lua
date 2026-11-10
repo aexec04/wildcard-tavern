@@ -239,7 +239,26 @@ function MenuWorld.build(parent)
 	local frameArt = ContentArt.getImageId("menu_world", "menu_map_frame")
 	if fogArt then image(container, "FogEdge", fogArt, Enum.ScaleType.Stretch).Size = UDim2.fromScale(1, 1) end
 	if frameArt then
-		image(container, "MapFrame", frameArt, Enum.ScaleType.Stretch).Size = UDim2.fromScale(1, 1)
+		-- only the thin edge of the art is shown: four clipping strips, each holding the full-screen art positioned to reveal its edge
+		local holder = Instance.new("Folder")
+		holder.Name = "MapFrame"
+		holder.Parent = container
+		for _, st in ipairs(WL.frameStrips()) do
+			local clip = Instance.new("Frame")
+			clip.Name = st.name
+			clip.BackgroundTransparency = 1
+			clip.BorderSizePixel = 0
+			clip.ClipsDescendants = true
+			clip.Active = false
+			clip.Position = UDim2.fromScale(st.x, st.y)
+			clip.Size = UDim2.fromScale(st.w, st.h)
+			clip.ZIndex = 10
+			clip.Parent = holder
+			local art = image(clip, "Art", frameArt, Enum.ScaleType.Stretch)
+			art.AnchorPoint = Vector2.new(0, 0)
+			art.Position = UDim2.fromScale(-st.x / st.w, -st.y / st.h)
+			art.Size = UDim2.fromScale(1 / st.w, 1 / st.h)
+		end
 	else
 		local border = Instance.new("Frame")
 		border.Name = "ParchmentBorder"
@@ -250,7 +269,7 @@ function MenuWorld.build(parent)
 		border.Parent = container
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = Color3.fromRGB(214, 190, 140)
-		stroke.Thickness = 10
+		stroke.Thickness = 3
 		stroke.Parent = border
 	end
 
