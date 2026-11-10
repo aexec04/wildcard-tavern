@@ -8,7 +8,7 @@
 	  Darken    a black wash that grows with the Night (and on boss rounds)
 	  TableLook the host the equipped Cosmetic Set's backdropStyle is drawn on (CosmeticSetsView attaches
 	            Client/BackdropStyles to the frame named "TableLook"), so a set is visible on the table
-	  Vignette  stepped dark strips behind the card row (bottom) and at the sides; heavier on boss rounds
+	  Vignette  smooth gradient edges (SmoothVignette) behind the card row (bottom) and at the sides; heavier on boss rounds
 
 	Changes crossfade (0.7s) so the travel transition shows no pop; Fast / Reduce shake apply at once.
 	Nothing here is ever red. Click-through (Active = false). Everything sits at ZIndex 0.
@@ -18,17 +18,13 @@
 
 local TweenService = game:GetService("TweenService")
 local ClientSettings = require(script.Parent.ClientSettings)
+local SmoothVignette = require(script.Parent.SmoothVignette)
+local VignetteCurve = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("VignetteCurve"))
 
 local TableLook = {}
 
--- More, thinner layers give the same darkness as the tuned 8 and 4 without visible bands.
-local BOTTOM_STEPS, SIDE_STEPS = 24, 12
+-- Edge darkness equals the old stack of 8 bottom / 4 side layers.
 local BASE_BOTTOM_STEPS, BASE_SIDE_STEPS = 8, 4
-
--- Transparency of one of `steps` stacked layers so the stack darkens like `base` layers of transparency t.
-local function layerTransparency(t, base, steps)
-	return t ^ (base / steps)
-end
 local FADE = 0.7
 
 local function solid(parent, name, color)
@@ -59,36 +55,14 @@ function TableLook.new(root)
 	local darken = solid(layers, "Darken", Color3.fromRGB(10, 6, 4))
 	local styleHost = solid(layers, "TableLook", Color3.new(1, 1, 1)) -- BackdropStyles host (transparent itself)
 
-	local bottomStrips, sideStrips = {}, {}
-	local vignette = Instance.new("Frame")
-	vignette.Name = "Vignette"
-	vignette.Size = UDim2.fromScale(1, 1)
-	vignette.BackgroundTransparency = 1
-	vignette.BorderSizePixel = 0
-	vignette.Active = false
-	vignette.ZIndex = 0
-	vignette.Parent = layers
-	local function strip(anchor, pos, size, list)
-		local f = Instance.new("Frame")
-		f.AnchorPoint = anchor
-		f.Position = pos
-		f.Size = size
-		f.BackgroundColor3 = Color3.fromRGB(10, 6, 4)
-		f.BackgroundTransparency = 1
-		f.BorderSizePixel = 0
-		f.Active = false
-		f.ZIndex = 0
-		f.Parent = vignette
-		table.insert(list, f)
-	end
-	for i = 1, BOTTOM_STEPS do
-		strip(Vector2.new(0, 1), UDim2.fromScale(0, 1), UDim2.fromScale(1, 0.6 * (1 - (i - 1) / BOTTOM_STEPS)), bottomStrips)
-	end
-	for i = 1, SIDE_STEPS do
-		local w = 0.16 * (1 - (i - 1) / SIDE_STEPS)
-		strip(Vector2.new(0, 0), UDim2.fromScale(0, 0), UDim2.fromScale(w, 1), sideStrips)
-		strip(Vector2.new(1, 0), UDim2.fromScale(1, 0), UDim2.fromScale(w, 1), sideStrips)
-	end
+	-- one smooth gradient frame per edge (Client/SmoothVignette); apply() sets each edge's strength
+	local edges = SmoothVignette.build(layers, {
+		name = "Vignette", zIndex = 0, color = Color3.fromRGB(10, 6, 4),
+		bottom = { strength = 0.5, extent = 0.6 },
+		left = { strength = 0.5, extent = 0.16 },
+		right = { strength = 0.5, extent = 0.16 },
+	})
+	for _, f in pairs(edges.frames) do f.BackgroundTransparency = 1 end
 
 	local M = { layers = layers, styleHost = styleHost }
 
@@ -109,10 +83,11 @@ function TableLook.new(root)
 		set(grade, { BackgroundTransparency = 1 - look.grade.strength }, instant)
 		set(warm, { BackgroundTransparency = 1 - look.mood.warm }, instant)
 		set(darken, { BackgroundTransparency = 1 - look.mood.darken }, instant)
-		local bottomT = layerTransparency(1 - look.vignette.bottom * 0.22, BASE_BOTTOM_STEPS, BOTTOM_STEPS)
-		local sideT = layerTransparency(1 - look.vignette.sides * 0.25, BASE_SIDE_STEPS, SIDE_STEPS)
-		for _, f in ipairs(bottomStrips) do set(f, { BackgroundTransparency = bottomT }, instant) end
-		for _, f in ipairs(sideStrips) do set(f, { BackgroundTransparency = sideT }, instant) end
+		local bottomOpacity = VignetteCurve.stacked(look.vignette.bottom * 0.22, BASE_BOTTOM_STEPS)
+		local sideOpacity = VignetteCurve.stacked(look.vignette.sides * 0.25, BASE_SIDE_STEPS)
+		set(edges.frames.bottom, { BackgroundTransparency = 1 - bottomOpacity }, instant)
+		set(edges.frames.left, { BackgroundTransparency = 1 - sideOpacity }, instant)
+		set(edges.frames.right, { BackgroundTransparency = 1 - sideOpacity }, instant)
 	end
 
 	return M

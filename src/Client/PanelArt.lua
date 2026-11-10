@@ -14,7 +14,7 @@
 
 	Call it right after polishPanel so the panel's UICorner exists; the art copies it
 	(Crop, Active = false, lowest ZIndex of the panel's content, created first).
-	PanelArt.vignette(parent, zIndex) adds stepped dark edges (Color stops only).
+	PanelArt.vignette(parent, zIndex) adds smooth dark edges (one gradient frame per edge).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -65,42 +65,13 @@ function PanelArt.add(panel, opts)
 	return art
 end
 
--- Dark edges on all four sides: 32 thin steps per side with small transparency
--- increments (quadratic falloff), so no visible bands. Frames only, no gradients.
-local STEP_COUNT, EDGE_SHARE = 32, 0.13
+-- Dark edges on all four sides: one smooth gradient frame per edge (Client/SmoothVignette), no stacked steps.
 function PanelArt.vignette(parent, zIndex)
-	local holder = Instance.new("Frame")
-	holder.Name = "EdgeVignette"
-	holder.Size = UDim2.fromScale(1, 1)
-	holder.BackgroundTransparency = 1
-	holder.Active = false
-	holder.ZIndex = zIndex
-	holder.Parent = parent
-	local step = EDGE_SHARE / STEP_COUNT
-	for i = 1, STEP_COUNT do
-		local o = (i - 1) * step
-		local fall = 1 - (i - 1) / STEP_COUNT
-		local tr = 1 - 0.6 * fall * fall
-		for side = 1, 4 do
-			local f = Instance.new("Frame")
-			f.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-			f.BackgroundTransparency = tr
-			f.BorderSizePixel = 0
-			f.Active = false
-			f.ZIndex = zIndex
-			if side == 1 then
-				f.Size, f.Position = UDim2.fromScale(step, 1), UDim2.fromScale(o, 0)
-			elseif side == 2 then
-				f.Size, f.Position = UDim2.fromScale(step, 1), UDim2.fromScale(1 - o - step, 0)
-			elseif side == 3 then
-				f.Size, f.Position = UDim2.fromScale(1, step), UDim2.fromScale(0, o)
-			else
-				f.Size, f.Position = UDim2.fromScale(1, step), UDim2.fromScale(0, 1 - o - step)
-			end
-			f.Parent = holder
-		end
-	end
-	return holder
+	local edge = { strength = 0.6, extent = 0.13 }
+	return require(script.Parent.SmoothVignette).build(parent, {
+		name = "EdgeVignette", zIndex = zIndex, color = Color3.new(0, 0, 0),
+		top = edge, bottom = edge, left = edge, right = edge,
+	}).holder
 end
 
 return PanelArt

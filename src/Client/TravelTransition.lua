@@ -74,23 +74,12 @@ function TravelTransition.show(opts)
 	cover.GroupTransparency = 0
 	cover.Parent = gui
 
-	-- Soft vignette: stepped dark frames at the screen edges.
-	for i = 1, 8 do
-		local inset = (i - 1) * 0.012
-		local f = Instance.new("Frame")
-		f.Name = "Vignette" .. i
-		f.Size = UDim2.new(1 - 2 * inset, 0, 1 - 2 * inset, 0)
-		f.Position = UDim2.fromScale(inset, inset)
-		f.BackgroundTransparency = 1
-		f.BorderSizePixel = 0
-		f.ZIndex = 1
-		f.Parent = cover
-		local s = Instance.new("UIStroke")
-		s.Color = Color3.fromRGB(40, 26, 14)
-		s.Thickness = 14
-		s.Transparency = 0.35 + i * 0.08
-		s.Parent = f
-	end
+	-- Soft vignette: one smooth gradient frame per edge.
+	local edge = { strength = 0.7, extent = 0.14 }
+	require(script.Parent.SmoothVignette).build(cover, {
+		name = "Vignette", zIndex = 1, color = Color3.fromRGB(40, 26, 14),
+		top = edge, bottom = edge, left = edge, right = edge,
+	})
 
 	local caption = Instance.new("TextLabel")
 	caption.Name = "Caption"

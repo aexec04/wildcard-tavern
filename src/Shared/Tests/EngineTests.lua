@@ -14501,4 +14501,36 @@ table.insert(tests, { name = "OverlayQueue: converted popups enqueue instead of 
 	end
 end })
 
+table.insert(tests, { name = "Vignette: smooth curve, one gradient frame per edge, no stacked same-colour strips in client sources", fn = function()
+	local V = require(script.Parent.Parent.Engine.VignetteCurve)
+	local pts = V.keypoints()
+	expectTrue(#pts >= 6, "at least 6 keypoints")
+	expectEqual(pts[1][1], 0, "starts at time 0")
+	expectEqual(pts[#pts][1], 1, "ends at time 1")
+	expectEqual(pts[#pts][2], 1, "fully clear at the far end")
+	expectEqual(pts[1][2], 0, "fully dark at the edge")
+	for i = 2, #pts do
+		expectTrue(pts[i][1] > pts[i - 1][1], "time increases")
+		expectTrue(pts[i][2] >= pts[i - 1][2], "transparency never decreases")
+	end
+	expectTrue(math.abs(V.stacked(0.15, 8) - (1 - 0.85 ^ 8)) < 1e-9, "stacked opacity matches the old layered darkness")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local sv = read("src/Client/SmoothVignette.lua")
+	if sv then
+		expectTrue(sv:find("UIGradient", 1, true) ~= nil and sv:find("g.Parent = f", 1, true) ~= nil, "every vignette frame gets a UIGradient")
+		for _, file in ipairs({ "BossFight", "BackdropStyles", "ShopBackdrop", "TableLook", "PanelArt", "TravelTransition" }) do
+			local src = read("src/Client/" .. file .. ".lua")
+			expectTrue(src ~= nil and src:find("SmoothVignette", 1, true) ~= nil, file .. " builds its vignette with SmoothVignette")
+			expectTrue(src:find("VIGNETTE_STEPS", 1, true) == nil, file .. " has no stepped vignette constant")
+			expectTrue(src:find("\"Vignette\" .. i", 1, true) == nil and src:find("strip(Vector2", 1, true) == nil, file .. " stacks no strips")
+		end
+	end
+end })
+
 return tests

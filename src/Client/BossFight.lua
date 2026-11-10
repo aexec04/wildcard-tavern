@@ -31,6 +31,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local StageMotion = require(Engine:WaitForChild("StageMotion"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local VignetteCurve = require(Engine:WaitForChild("VignetteCurve"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local BossRounds = require(Engine:WaitForChild("BossRounds"))
@@ -171,27 +172,14 @@ local function build(deps)
 	vignette.ZIndex = 0
 	vignette.Parent = holder
 	do
-		local stepT = 1 - BossStage.style(true, false, false).vignette * 0.3 -- 0.85 per layer, they stack
-		local function strip(anchor, pos, size)
-			local f = Instance.new("Frame")
-			f.AnchorPoint = anchor
-			f.Position = pos
-			f.Size = size
-			f.BackgroundColor3 = Color3.fromRGB(10, 7, 5)
-			f.BackgroundTransparency = stepT
-			f.BorderSizePixel = 0
-			f.Active = false
-			f.ZIndex = 0
-			f.Parent = vignette
-		end
-		for i = 1, 8 do
-			strip(Vector2.new(0, 1), UDim2.fromScale(0, 1), UDim2.fromScale(1, 0.66 * (1 - (i - 1) / 8)))
-		end
-		for i = 1, 5 do
-			local w = 0.2 * (1 - (i - 1) / 5)
-			strip(Vector2.new(0, 0), UDim2.fromScale(0, 0), UDim2.fromScale(w, 1))
-			strip(Vector2.new(1, 0), UDim2.fromScale(1, 0), UDim2.fromScale(w, 1))
-		end
+		-- one smooth gradient frame per edge (no stacked strips); edge darkness matches the old 8 / 5 layer stacks
+		local layer = BossStage.style(true, false, false).vignette * 0.3
+		require(script.Parent.SmoothVignette).build(vignette, {
+			name = "BossVignetteEdges", zIndex = 0,
+			bottom = { strength = VignetteCurve.stacked(layer, 8), extent = 0.66 },
+			left = { strength = VignetteCurve.stacked(layer, 5), extent = 0.2 },
+			right = { strength = VignetteCurve.stacked(layer, 5), extent = 0.2 },
+		})
 	end
 	local tint = Instance.new("Frame") -- cream hit flash / grey defeat wash over the art
 	tint.Name = "HitTint"

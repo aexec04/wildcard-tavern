@@ -2,7 +2,7 @@
 	Client/BackdropStyles.lua
 	Draws a Cosmetic Set's `backdropStyle` (Engine/CosmeticSets.lua) over a
 	backdrop with UI elements only: a color tint on the base image, a flat
-	tinted overlay, a stepped vignette (stacked edge strips; gradients here only
+	tinted overlay, a smooth vignette (one gradient frame per edge; Color gradients here only
 	use Color stops, never Transparency) and cheap layers (snow, sparks, dust,
 	bunting). No new image files.
 
@@ -28,8 +28,8 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local PlayerProfile = require(Engine:WaitForChild("PlayerProfile"))
 local ClientSettings = require(script.Parent.ClientSettings)
+local SmoothVignette = require(script.Parent.SmoothVignette)
 
-local VIGNETTE_STEPS = 16 -- many thin steps so the edge fade has no visible bands
 local STEP_INTERVAL = 1 / 30
 local VISIBLE_CHECK_INTERVAL = 0.25
 
@@ -202,38 +202,16 @@ local function solid(parent, zindex, color, transparency)
 	return f
 end
 
--- Stacked edge strips: where they overlap (toward the edge and in the
--- corners) the color gets stronger. Total opacity at an edge = strength.
+-- One smooth gradient frame per edge (Client/SmoothVignette): dark at the screen edge, clear toward the middle.
 local function buildVignette(fx, vignette)
-	local color = rgb(vignette.color)
 	local strength = math.clamp(vignette.strength, 0, 0.95)
-	local perStep = 1 - (1 - strength) ^ (1 / VIGNETTE_STEPS)
-	local transparency = 1 - perStep
-	local light = color:Lerp(Color3.new(1, 1, 1), 0.3)
-	for step = 1, VIGNETTE_STEPS do
-		local depth = step / VIGNETTE_STEPS
-		for edge = 1, 4 do
-			local strip = solid(fx, fx.ZIndex, color, transparency)
-			if edge == 1 then -- top
-				strip.Size = UDim2.new(1, 0, 0.22 * depth, 0)
-			elseif edge == 2 then -- bottom
-				strip.AnchorPoint = Vector2.new(0, 1)
-				strip.Position = UDim2.fromScale(0, 1)
-				strip.Size = UDim2.new(1, 0, 0.22 * depth, 0)
-			elseif edge == 3 then -- left
-				strip.Size = UDim2.new(0.14 * depth, 0, 1, 0)
-			else -- right
-				strip.AnchorPoint = Vector2.new(1, 0)
-				strip.Position = UDim2.fromScale(1, 0)
-				strip.Size = UDim2.new(0.14 * depth, 0, 1, 0)
-			end
-			-- Gradient Color stops only (Transparency is never touched).
-			local gradient = Instance.new("UIGradient")
-			gradient.Color = ColorSequence.new(color, light)
-			gradient.Rotation = edge <= 2 and 0 or 90
-			gradient.Parent = strip
-		end
-	end
+	SmoothVignette.build(fx, {
+		name = "SetVignette", zIndex = fx.ZIndex, color = rgb(vignette.color),
+		top = { strength = strength, extent = 0.22 },
+		bottom = { strength = strength, extent = 0.22 },
+		left = { strength = strength, extent = 0.14 },
+		right = { strength = strength, extent = 0.14 },
+	})
 end
 
 local function buildBunting(fx, layer)

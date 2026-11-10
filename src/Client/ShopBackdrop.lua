@@ -1,6 +1,6 @@
 --[[
 	Client/ShopBackdrop.lua
-	Counter v2 back layers for the Shop overlay: the painted back bar wall filling the area, a stepped dark vignette
+	Counter v2 back layers for the Shop overlay: the painted back bar wall filling the area, a smooth dark vignette
 	(same technique as BossFight), a warm light pool, the counter top across the lower band and four counter props.
 	Look only, static (no loops, so calm mode needs nothing). Every piece is skipped when its Image id is missing; the
 	whole backdrop only mounts when shop_wall has an id, so until the art is recorded the Shop looks exactly as before.
@@ -64,26 +64,13 @@ function ShopBackdrop.new(deps)
 	wall.Size = UDim2.fromScale(1, 1)
 	wall.ScaleType = Enum.ScaleType.Crop
 
-	-- Stepped vignette: a few flat dark edge bands, each a little denser toward the edge (no gradient objects).
-	for i = 1, 4 do
-		local t = 0.9 - i * 0.04
-		local size = 18 * (5 - i)
-		for _, spec in ipairs({
-			{ "Top", UDim2.fromScale(0, 0), UDim2.new(1, 0, 0, size) },
-			{ "Left", UDim2.fromScale(0, 0), UDim2.new(0, size, 1, 0) },
-			{ "Right", UDim2.new(1, -size, 0, 0), UDim2.new(0, size, 1, 0) },
-		}) do
-			local f = Instance.new("Frame")
-			f.Name = "Vignette" .. spec[1] .. i
-			f.Position, f.Size = spec[2], spec[3]
-			f.BackgroundColor3 = Color3.fromRGB(14, 8, 4)
-			f.BackgroundTransparency = t
-			f.BorderSizePixel = 0
-			f.Active = false
-			f.ZIndex = 5
-			f.Parent = root
-		end
-	end
+	-- Smooth vignette: one gradient frame per edge, no stacked bands.
+	require(script.Parent.SmoothVignette).build(root, {
+		name = "Vignette", zIndex = 5, color = Color3.fromRGB(14, 8, 4),
+		top = { strength = 0.59, extent = 0.1 },
+		left = { strength = 0.59, extent = 0.06 },
+		right = { strength = 0.59, extent = 0.06 },
+	})
 
 	local light = Instance.new("Frame")
 	light.Name = "LightPool"
