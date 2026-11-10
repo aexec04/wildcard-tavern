@@ -13326,7 +13326,10 @@ table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows;
 		end
 		for i = 2, #roads.items do
 			expectTrue(roads.items[i].x > roads.items[i - 1].x, "Roads badges follow one path left to right")
-			expectTrue(roads.items[i].y ~= roads.items[i - 1].y, "the Roads path winds up and down")
+			expectEqual(roads.items[i].y, roads.items[i - 1].y, "the Roads medals hang in one straight row")
+			local gapA = roads.items[i].x - roads.items[i - 1].x
+			local gapB = roads.items[2].x - roads.items[1].x
+			expectTrue(math.abs(gapA - gapB) <= 1, "equal spacing along the map")
 		end
 	end
 end })
@@ -14414,6 +14417,47 @@ table.insert(tests, { name = "CollectionFurnitureLayout: no cell is drawn withou
 	expectEqual(dx, F.CELL.cork.w + F.GAP.cork.x + F.CELL.cork.w / 2, "target pin centre in the source cell's pixels")
 	expectEqual(dy, 4)
 	expectEqual(F.cols(1000, "cork"), 9)
+end })
+
+table.insert(tests, { name = "Badge sockets fit: diameter is the medal times 1.18, Night sockets never overlap, Roads pins sit above every medal, tiny stars stay clear of sockets", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 600, 330 }, { 330, 300 } }) do
+		for _, chip in ipairs({ "Night", "Roads", "All", "Masters", "Special" }) do
+			local lay = W.layout(chip, nil, size[1], size[2])
+			for i, it in ipairs(lay.items) do
+				local d = W.socketRect(it).w
+				expectTrue(math.abs(d - it.size * 1.18) <= 1.5, chip .. ": socket is the medal times 1.18 (within a pixel)")
+				expectEqual(d, W.socketDiameter(it.size))
+				for j = i + 1, #lay.items do
+					local a, b = W.socketRect(it), W.socketRect(lay.items[j])
+					expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, chip .. ": sockets never overlap")
+				end
+				if chip == "Roads" then
+					local p = W.pinFor(it)
+					expectEqual(p.x, it.x + it.size / 2, "pin directly above the medal")
+					expectTrue(p.y >= 4 and p.y < p.y2 and p.y2 == it.y - W.pad(it.size), "pin and string end at the socket top, inside the board")
+				end
+			end
+			if chip == "Night" then
+				for _, st in ipairs(W.tinyStars(lay.items)) do
+					expectTrue(st.x >= 0 and st.y >= 0 and st.x <= size[1] and st.y <= size[2], "tiny star inside the board")
+					for _, it in ipairs(lay.items) do
+						local r = W.socketRect(it)
+						local dx, dy = st.x - (r.x + r.w / 2), st.y - (r.y + r.h / 2)
+						expectTrue(dx * dx + dy * dy >= (r.w / 2) ^ 2, "tiny star clear of every socket")
+					end
+				end
+			end
+			if chip == "All" or chip == "Special" then
+				for _, it in ipairs(lay.items) do
+					local bottom = it.y + it.size + W.pad(it.size)
+					local rests = false
+					for _, y in ipairs(lay.shelves) do if math.abs(y + 3 - bottom) <= 1 then rests = true end end
+					expectTrue(rests, chip .. ": every medal sits on a shelf plank")
+				end
+			end
+		end
+	end
 end })
 
 return tests

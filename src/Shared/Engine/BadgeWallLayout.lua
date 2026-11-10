@@ -44,6 +44,8 @@ end
 -- larger, so the rim overlaps the badge edge. SOCKET is the socket diameter divided by the badge size.
 Wall.SOCKET = 1.18
 Wall.PLANK_H = 8
+Wall.PIN_ROOM = 22 -- room above a socket for its pin and string
+Wall.PIN = 10
 Wall.SHELF_DROP = 6 -- extra room under a shelf row so the nameplate hangs below the plank
 Wall.SOCKET_KIND = { All = "shelf", Special = "shelf", Roads = "road", Masters = "niche", Night = "star" }
 -- art keys (Engine/BadgeSocketArt.lua) for each socket kind
@@ -51,7 +53,12 @@ Wall.SOCKET_ART = { road = "badge_socket_road", shelf = "badge_socket_shelf", ni
 
 -- How far a socket sticks out past its badge on every side.
 function Wall.pad(size)
-	return math.ceil(size * (Wall.SOCKET - 1) / 2)
+	return math.floor(size * (Wall.SOCKET - 1) / 2 + 0.5)
+end
+
+-- Socket diameter: the medal times 1.18, to the nearest whole pixel (a whole-pixel pad on each side).
+function Wall.socketDiameter(size)
+	return size + 2 * Wall.pad(size)
 end
 
 -- Socket square { x, y, w, h } of an item, concentric with its badge.
@@ -87,15 +94,15 @@ function Wall.layout(chip, defs, w, h)
 	local items = {}
 	local shelves = {}
 	if chip == "Roads" then
+		-- one straight row with equal spacing, low on the map so the painted figure above stays clear; a pin and a short string
+		-- hang directly above every medal (Wall.pinFor)
 		local n = #list
 		local step = (w * 0.94) / math.max(1, n)
-		local amp = math.floor(math.min(h * 0.1, 36))
-		local size = math.floor(math.max(16, math.min(step * 0.76, (h - Wall.NAMEPLATE_H - 24 - 2 * amp) / Wall.SOCKET)))
+		local size = math.floor(math.max(16, math.min(step * 0.76, (h * 0.62 - Wall.NAMEPLATE_H - Wall.PIN_ROOM) / Wall.SOCKET)))
 		local pad = Wall.pad(size)
-		local foot = size + 2 * pad + Wall.NAMEPLATE_H
-		local mid = amp + math.floor((h - foot - 2 * amp) / 2) + pad -- badge top at the middle of the winding
+		local top = math.floor(h - 14 - Wall.NAMEPLATE_H - size - pad) -- badge top: the nameplate ends 14 px above the board bottom
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = mid + (i % 2 == 1 and -amp or amp), size = size, cell = step }
+			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = top, size = size, cell = step }
 		end
 	elseif chip == "Masters" then
 		local row = {}
@@ -114,11 +121,13 @@ function Wall.layout(chip, defs, w, h)
 		end
 	elseif chip == "Night" then
 		local n = #list
-		local ys = { 0.5, 0.2, 0.46, 0.14, 0.4, 0.22 }
-		local size = math.floor(math.min(w * 0.9 / math.max(1, n) * 0.7, h * 0.3))
+		-- a gentle constellation line: the stars rise and fall along one slow wave, spaced evenly
+		local size = math.floor(math.min(w * 0.76 / math.max(1, n) * 0.7, h * 0.26))
 		for i, d in ipairs(list) do
-			local cx = w * (0.12 + 0.76 * (n > 1 and (i - 1) / (n - 1) or 0.5))
-			items[i] = { id = d.id, x = math.floor(cx - size / 2), y = math.floor(h * (ys[(i - 1) % #ys + 1]) + 0), size = size, cell = w * 0.9 / math.max(1, n) }
+			local k = n > 1 and (i - 1) / (n - 1) or 0.5
+			local cx = w * (0.12 + 0.76 * k)
+			local cy = h * (0.42 + 0.1 * math.sin(k * math.pi * 2))
+			items[i] = { id = d.id, x = math.floor(cx - size / 2), y = math.floor(cy - size / 2), size = size, cell = w * 0.76 / math.max(1, n) }
 		end
 	else
 		local rows = chip == "All" and 3 or 2
@@ -135,6 +144,30 @@ function Wall.layout(chip, defs, w, h)
 	local kind = Wall.SOCKET_KIND[chip] or "shelf"
 	for _, it in ipairs(items) do it.socket = kind end
 	return { items = items, shelves = shelves }
+end
+
+-- The pin above a Roads medal and the string from it down to the socket top: { x = centre, y = pin centre, y2 = string end }.
+function Wall.pinFor(item)
+	local top = item.y - Wall.pad(item.size)
+	return { x = item.x + item.size / 2, y = top - 14, y2 = top }
+end
+
+-- Tiny stars between neighbouring Night stars: two per gap, on the line's side, never inside a socket. { x, y, size }.
+function Wall.tinyStars(items)
+	local out = {}
+	for i = 1, #items - 1 do
+		local a, b = items[i], items[i + 1]
+		local ax, ay, bx, by = a.x + a.size / 2, a.y + a.size / 2, b.x + b.size / 2, b.y + b.size / 2
+		local ra, rb = Wall.socketDiameter(a.size) / 2, Wall.socketDiameter(b.size) / 2
+		local t = Wall.trim(ax, ay, bx, by, ra + 6, rb + 6)
+		if t then
+			for k, f in ipairs({ 0.35, 0.7 }) do
+				local x, y = t.x1 + (t.x2 - t.x1) * f, t.y1 + (t.y2 - t.y1) * f
+				out[#out + 1] = { x = x, y = y + (k == 1 and -9 or 9), size = k == 1 and 3 or 4 }
+			end
+		end
+	end
+	return out
 end
 
 -- Rectangle of an item including its socket and nameplate, { x, y, w, h }.

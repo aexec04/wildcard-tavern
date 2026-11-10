@@ -129,10 +129,11 @@ local function furniture(board, kind, w, h, shelves, items)
 	end
 	g.Parent = back
 	local art = artOver(back, Wall.FURNITURE_ART[kind], { ZIndex = Z - 1, ImageTransparency = 0.05, ScaleType = Enum.ScaleType.Crop }) -- the painted backdrop, fully visible on every tab
-	local scrim = frame(back, { Name = "GridScrim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(26, 19, 14), BackgroundTransparency = art and 0.82 or 0.3, ZIndex = Z - 1 }, 12)
+	local scrim = frame(back, { Name = "GridScrim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(26, 19, 14), BackgroundTransparency = kind == "cabinet" and 0.25 or (art and 0.82 or 0.3), ZIndex = Z - 1 }, 12) -- the red velvet cabinet is toned right down
 	scrim.Active = false
 	-- a plank under each shelf row: the sockets rest on it
-	for _, y in ipairs(art and {} or shelves) do -- the painted cabinet and shelf art carry their own shelves
+	for _, y in ipairs(shelves) do -- planks are always drawn from the rows (never the painted ones), each with a contact shadow
+		frame(back, { Name = "PlankShadow", Position = UDim2.fromOffset(math.floor(w * 0.03) + 2, y + Wall.PLANK_H), Size = UDim2.fromOffset(math.floor(w * 0.94) - 4, 6), BackgroundColor3 = Color3.fromRGB(8, 5, 3), BackgroundTransparency = 0.55, ZIndex = Z }, 3)
 		local plank = frame(back, { Name = "Plank", Position = UDim2.fromOffset(math.floor(w * 0.03), y), Size = UDim2.fromOffset(math.floor(w * 0.94), Wall.PLANK_H), BackgroundColor3 = Color3.fromRGB(104, 70, 40), ZIndex = Z }, 3)
 		stroke(plank, Color3.fromRGB(60, 40, 24), 1)
 		frame(plank, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = Color3.fromRGB(150, 108, 64), ZIndex = Z + 1 })
@@ -158,6 +159,7 @@ local function socketWidget(board, it, owned)
 	shadow.Transparency = 0.45
 	local key = Wall.SOCKET_ART[it.socket]
 	local id = SocketArt[key]
+	if key == "badge_socket_star" then id = nil end -- the painted star ring is far bigger than the medal; the drawn node is exactly 1.18x
 	if type(id) == "string" and id ~= "" then
 		local scale = ART_SCALE[key] or 1
 		local img = Instance.new("ImageLabel")
@@ -308,11 +310,24 @@ function BadgeWall.render(board, chip, have, opts)
 			local ax, ay, bx, by = a.x + a.size / 2, a.y + a.size / 2, b.x + b.size / 2, b.y + b.size / 2
 			local ra, rb = Wall.socketRect(a).w / 2, Wall.socketRect(b).w / 2
 			if chip == "Roads" then
-				pathDots(board, Wall.dots(ax, ay, bx, by, ra, rb, 16), seg.lit)
+				-- pins and strings (below) carry the Roads tab; no trail between the sockets
 			else -- Night: a thin constellation line that starts and ends on the star nodes
 				local t = Wall.trim(ax, ay, bx, by, ra, rb)
 				if t then line(board, { x = t.x1, y = t.y1 }, { x = t.x2, y = t.y2 }, seg.lit, calm()) end
 			end
+		end
+	end
+	if chip == "Roads" then
+		for _, it in ipairs(lay.items) do
+			local p = Wall.pinFor(it)
+			frame(board, { Name = "PinString", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(p.x, p.y), Size = UDim2.fromOffset(2, p.y2 - p.y), BackgroundColor3 = Color3.fromRGB(186, 156, 104), ZIndex = Z + 1 })
+			frame(board, { Name = "PinShadow", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(p.x + 2, p.y + 3), Size = UDim2.fromOffset(Wall.PIN, Wall.PIN), BackgroundColor3 = Color3.fromRGB(8, 5, 3), BackgroundTransparency = 0.6, ZIndex = Z + 1 }, Wall.PIN)
+			local pin = frame(board, { Name = "Pin", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(p.x, p.y), Size = UDim2.fromOffset(Wall.PIN, Wall.PIN), BackgroundColor3 = it and have[it.id] and GOLD or BRASS, ZIndex = Z + 2 }, Wall.PIN)
+			stroke(pin, Color3.fromRGB(60, 40, 20), 1)
+		end
+	elseif chip == "Night" then
+		for _, st in ipairs(Wall.tinyStars(lay.items)) do
+			frame(board, { Name = "TinyStar", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(st.x, st.y), Size = UDim2.fromOffset(st.size, st.size), BackgroundColor3 = Color3.fromRGB(230, 236, 255), BackgroundTransparency = 0.25, ZIndex = Z + 1 }, st.size)
 		end
 	end
 	for _, it in ipairs(lay.items) do socketWidget(board, it, have[it.id] == true) end
