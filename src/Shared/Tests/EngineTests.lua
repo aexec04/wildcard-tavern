@@ -12074,6 +12074,7 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 			seenPanel[table.concat(skin.colors.panel, ",")] = true
 		end
 		expectTrue(CS.themeOf(set).skin ~= nil, set.id .. " theme carries the skin")
+		expectTrue(CS.indexContrast(set) >= 4.5, set.id .. " card index ink reads at 4.5:1 on its plate")
 	end
 	local distinct = 0
 	for _ in pairs(seenPanel) do distinct = distinct + 1 end

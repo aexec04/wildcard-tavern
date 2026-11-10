@@ -280,10 +280,18 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	-- Corner rank/suit sit INSIDE the card art's ornate border (it's ~12%
 	-- of the card's width and ~8% of its height); they used to start at
 	-- 4-8%, right on top of the gold filigree, which made them hard to read.
-	makeLabel(face, "CornerRank", rankText, ink, UDim2.fromScale(0.32, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex)
-	makeLabel(face, "CornerSuit", suitText, ink, UDim2.fromScale(0.16, 0.1), UDim2.fromScale(0.2, 0.27), nil, Enum.TextXAlignment.Left, zIndex)
+	local okIdx, plateInk, indexZ = pcall(require(script.Parent.SetSkin).indexLayers, face, zIndex, isRed)
+	if not okIdx then plateInk, indexZ = nil, zIndex end
+	local indexInk = ink
+	if plateInk and not colorblind then indexInk = plateInk end
+	local rank = makeLabel(face, "CornerRank", rankText, indexInk, UDim2.fromScale(0.32, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, indexZ)
+	makeLabel(face, "CornerSuit", suitText, indexInk, UDim2.fromScale(0.16, 0.1), UDim2.fromScale(0.2, 0.27), nil, Enum.TextXAlignment.Left, indexZ)
 	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(0.5, 0.36), UDim2.fromScale(0.5, 0.53), Vector2.new(0.5, 0.5), nil, zIndex)
-	makeLabel(face, "BottomSuit", suitText, ink, UDim2.fromScale(0.14, 0.09), UDim2.fromScale(0.81, 0.87), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
+	makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(0.14, 0.09), UDim2.fromScale(0.81, 0.87), Vector2.new(1, 1), Enum.TextXAlignment.Right, indexZ)
+	if plateInk then
+		rank.TextStrokeColor3 = Color3.fromRGB(250, 244, 226)
+		rank.TextStrokeTransparency = 0.6
+	end
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
 	end

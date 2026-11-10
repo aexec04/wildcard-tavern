@@ -87,7 +87,7 @@ return function(deps)
 
 	-- Preview mode (local only: never sends a remote, never touches saved ids).
 	-- Preview closes this panel, applies the set/back to the live table, and shows a
-	-- bottom-center bar "Preview mode: <name>" with an X. The X (or opening Collection
+	-- top-center bar "Preview mode: <name>" with an X. The X (or opening Collection
 	-- again) restores the equipped look and reopens this panel at the same scroll spot.
 	local previewActive = false
 	local savedScroll = Vector2.new(0, 0)
@@ -95,9 +95,9 @@ return function(deps)
 	local refresh, scroll -- assigned below
 	local previewBar = Instance.new("Frame")
 	previewBar.Name = "PreviewModeBar"
-	previewBar.AnchorPoint = Vector2.new(0.5, 1)
+	previewBar.AnchorPoint = Vector2.new(0.5, 0)
 	previewBar.Size = UDim2.fromOffset(380, 44)
-	previewBar.Position = UDim2.new(0.5, 0, 1, -16)
+	previewBar.Position = UDim2.new(0.5, 0, 0, 64) -- top centre, under the PanelTabs strip; never over Sort / Play / Discard
 	previewBar.BackgroundColor3 = Color3.fromRGB(70, 48, 28)
 	previewBar.Visible = false
 	previewBar.ZIndex = 60

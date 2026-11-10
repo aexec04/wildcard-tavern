@@ -584,6 +584,7 @@ function CosmeticSets.skinOf(set)
 	return {
 		images = images,
 		neutral = false,
+		index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) },
 		colors = {
 			paper = face.paper, border = face.border, pip = face.pip,
 			panel = mix(accent, dark, 0.45),
@@ -591,6 +592,56 @@ function CosmeticSets.skinOf(set)
 			tab = mix(accent, dark, 0.55),
 		},
 	}
+end
+
+-- Card index legibility. The rank/suit corners sit on a light plate in the set's paper colour; ink is the suit colour
+-- (leaning toward the set's pip colour) darkened until it reaches 4.5:1 against that plate. Pure.
+CosmeticSets.RED_INK = { 165, 28, 28 }
+CosmeticSets.BLACK_INK = { 30, 22, 18 }
+CosmeticSets.MIN_INDEX_CONTRAST = 4.5
+
+local function channel(v)
+	v = v / 255
+	if v <= 0.03928 then return v / 12.92 end
+	return ((v + 0.055) / 1.055) ^ 2.4
+end
+
+local function luminance(c)
+	return 0.2126 * channel(c[1]) + 0.7152 * channel(c[2]) + 0.0722 * channel(c[3])
+end
+
+function CosmeticSets.contrastRatio(a, b)
+	local la, lb = luminance(a), luminance(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+
+-- { plate = {r,g,b}, ink = {r,g,b} } for one suit colour of a set (isRed true or false).
+function CosmeticSets.indexStyle(set, isRed)
+	local face = CosmeticSets.faceStyleOf(set)
+	local base = isRed and CosmeticSets.RED_INK or CosmeticSets.BLACK_INK
+	if face.neutral then
+		return { plate = { 250, 244, 226 }, ink = base }
+	end
+	local plate = mix(face.paper, { 250, 244, 226 }, 0.6)
+	local ink = mix(base, face.pip, isRed and 0.2 or 0.5)
+	local dark = CosmeticSets.BLACK_INK
+	local steps = 0
+	while CosmeticSets.contrastRatio(ink, plate) < CosmeticSets.MIN_INDEX_CONTRAST and steps < 10 do
+		ink = mix(ink, dark, 0.25)
+		steps = steps + 1
+	end
+	return { plate = plate, ink = ink }
+end
+
+-- Worst ink-vs-plate contrast over both suit colours.
+function CosmeticSets.indexContrast(set)
+	local worst = math.huge
+	for _, red in ipairs({ true, false }) do
+		local st = CosmeticSets.indexStyle(set, red)
+		worst = math.min(worst, CosmeticSets.contrastRatio(st.ink, st.plate))
+	end
+	return worst
 end
 
 function CosmeticSets.themeOf(set)

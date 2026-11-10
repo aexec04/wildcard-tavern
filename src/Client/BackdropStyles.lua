@@ -29,7 +29,7 @@ local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local PlayerProfile = require(Engine:WaitForChild("PlayerProfile"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
-local VIGNETTE_STEPS = 6
+local VIGNETTE_STEPS = 16 -- many thin steps so the edge fade has no visible bands
 local STEP_INTERVAL = 1 / 30
 local VISIBLE_CHECK_INTERVAL = 0.25
 
