@@ -12367,6 +12367,38 @@ table.insert(tests, { name = "LedgerPages: layout keeps pages inside the book, t
 	end
 end })
 
+table.insert(tests, { name = "Ledger v3: book rests on the table line, ink stays inside the page margins, desk clears the sidebar, no stickers or stray square", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	for _, size in ipairs({ { 1574, 972 }, { 1000, 600 }, { 524, 576 } }) do
+		local r = LP.rects(size[1], size[2])
+		expectTrue(math.abs(r.book.y + r.book.h - r.tableY) < 0.01, "book bottom sits on the table line")
+		expectTrue(r.tableY <= size[2] * (1 - LP.LAYOUT.close.h) + 0.001, "table line leaves the Close button row clear")
+		for _, side in ipairs({ "left", "right" }) do
+			local page = r[side]
+			local ink = LP.inkRect(page, side)
+			expectTrue(ink.x >= page.x and ink.y >= page.y and ink.x + ink.w <= page.x + page.w + 0.001 and ink.y + ink.h <= page.y + page.h + 0.001, "ink inside the page rect")
+			local outer = (side == "left") and (ink.x - page.x) or (page.x + page.w - ink.x - ink.w)
+			local inner = (side == "left") and (page.x + page.w - ink.x - ink.w) or (ink.x - page.x)
+			expectTrue(outer / page.w >= 0.06 and outer / page.w <= 0.08, "outer margin is 6 to 8 percent")
+			expectTrue(inner >= outer, "spine side clears the binding rings")
+		end
+	end
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1000, 600 } }) do
+		local p = LP.panelRect(vp[1], vp[2])
+		expectTrue(p.x >= 260 and p.x + p.w <= vp[1], "desk starts right of the 240 px sidebar and its gap")
+	end
+	local c = LP.panelRect(600, 800)
+	expectTrue(c.x == 12 and c.x + c.w <= 600, "compact desk has no sidebar margin")
+	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	for _, gone in ipairs({ "ledger_chalkboard", "ledger_photo_frame", "ledger_wax_seal", "ledger_coffee_ring", "drawRing", "drawTally", "ledger_paper_note" }) do
+		expectTrue(src:find(gone, 1, true) == nil, "no leftover: " .. gone)
+	end
+	expectTrue(src:find('Name = "ContactShadow"', 1, true) ~= nil, "soft contact shadow under the book")
+	expectTrue(src:find('Name = "PatronVignette"', 1, true) ~= nil, "patron is an inked vignette")
+end })
+
 table.insert(tests, { name = "BadgeWallLayout: every tab has its badges, nothing overlaps or leaves the board (wide and compact), lines, next up, fresh, progress", fn = function()
 	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
 	local B = require(script.Parent.Parent.Engine.Badges)

@@ -28,14 +28,23 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "LedgerDesk"
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromScale(0.82, 0.9)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.AnchorPoint = Vector2.new(0, 0.5)
+	panel.Size = UDim2.new(1, -280, 0.9, 0) -- right of the HUD sidebar (fitPanel keeps it exact)
+	panel.Position = UDim2.new(0, 260, 0.5, 0)
 	panel.BackgroundTransparency = 1
 	panel.ZIndex = 41
 	panel.Parent = backdrop
 	deps.addSoftShadow(panel, 18)
 
+	local function fitPanel() -- Engine/LedgerPages.panelRect keeps the desk off the sidebar
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local vp = cam.ViewportSize
+		local r = Pages.panelRect(vp.X, vp.Y)
+		panel.Size = UDim2.new(0, r.w, 0, r.h)
+		panel.Position = UDim2.new(0, r.x, 0.5, 0)
+	end
+	fitPanel()
 	local book = LedgerBook.build(deps, panel)
 
 	local L = Pages.LAYOUT
@@ -73,6 +82,7 @@ return function(deps)
 	local function openThisPanel()
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("stats")
+		fitPanel()
 		book.setPage(1)
 		book.refresh(true)
 		deps.popIn(backdrop, panel)
