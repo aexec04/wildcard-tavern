@@ -87,6 +87,19 @@ return function(deps)
 	bannerStroke.Color = GOLD
 	bannerStroke.Thickness = 2
 	bannerStroke.Parent = banner
+	do -- painted ribbon behind the text; the drawn red banner shows when the id is missing
+		local ribbonId = require(Engine:WaitForChild("BadgeWallArt")).badge_ribbon_banner
+		if type(ribbonId) == "string" and ribbonId ~= "" then
+			local img = Instance.new("ImageLabel")
+			img.Name = "RibbonArt"
+			img.BackgroundTransparency = 1
+			img.Image = ribbonId
+			img.Active = false
+			img.Size = UDim2.fromScale(1, 1)
+			img.ZIndex = 45
+			img.Parent = banner
+		end
+	end
 	label(banner, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 2), Font = Enum.Font.GothamBold, TextSize = 20, Text = "Badges", ZIndex = 46 })
 	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 22), Font = Enum.Font.GothamBold, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(250, 214, 140) })
 	local rail = Instance.new("Frame")

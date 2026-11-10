@@ -12803,4 +12803,20 @@ table.insert(tests, { name = "Popups block clicks behind them: popup roots are s
 	end
 end })
 
+table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf rails use their art ids and keep the drawn fallback", fn = function()
+	local LedgerArt = require(script.Parent.Parent.Engine.LedgerArt)
+	local WallArt = require(script.Parent.Parent.Engine.BadgeWallArt)
+	expectTrue(LedgerArt.ledger_paper_note ~= nil, "paper note id recorded")
+	expectTrue(WallArt.badge_ribbon_banner ~= nil and WallArt.badge_shelf_rail ~= nil, "ribbon and rail ids recorded")
+	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
+	if not f then return end
+	local ledger = f:read("*a"); f:close()
+	local wall = io.open("src/Client/BadgeWall.lua", "r"):read("*a")
+	local panel = io.open("src/Client/BadgesPanel.lua", "r"):read("*a")
+	expectTrue(ledger:find('artOver(note, "ledger_paper_note"', 1, true) ~= nil, "Hall of Fame notes use the paper note")
+	expectTrue(select(2, wall:gsub('"badge_shelf_rail"', "")) >= 2, "cabinet and curio planks use the shelf rail")
+	expectTrue(panel:find("badge_ribbon_banner", 1, true) ~= nil and panel:find("RibbonArt", 1, true) ~= nil, "header uses the ribbon banner")
+	expectTrue(panel:find('type(ribbonId) == "string"', 1, true) ~= nil, "ribbon is skipped when the id is missing")
+end })
+
 return tests

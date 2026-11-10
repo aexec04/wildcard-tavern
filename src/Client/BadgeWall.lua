@@ -102,6 +102,7 @@ local function furniture(board, kind, w, h, shelves, items)
 		for _, y in ipairs(shelves) do
 			local plank = frame(back, { Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, 0, 0, 12), BackgroundColor3 = Color3.fromRGB(110, 74, 42), ZIndex = Z })
 			frame(plank, { Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = Color3.fromRGB(150, 108, 64), ZIndex = Z })
+			artOver(plank, "badge_shelf_rail", { ZIndex = Z + 1 }) -- stretched sideways only, plank stays thin
 		end
 		frame(back, { Position = UDim2.fromScale(0.3, -0.1), Size = UDim2.fromScale(0.08, 1.3), Rotation = 18, BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.93, ZIndex = Z + 6 })
 		artOver(back, "badge_glass_glare", { ZIndex = Z + 6, ImageTransparency = 0.6 })
@@ -129,7 +130,8 @@ local function furniture(board, kind, w, h, shelves, items)
 		g.Color = ColorSequence.new(Color3.fromRGB(72, 50, 34), Color3.fromRGB(40, 28, 20))
 		stroke(back, Color3.fromRGB(96, 64, 38), 8)
 		for _, y in ipairs(shelves) do
-			frame(back, { Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = Color3.fromRGB(96, 66, 40) })
+			local rail = frame(back, { Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = Color3.fromRGB(96, 66, 40) })
+			artOver(rail, "badge_shelf_rail", { ZIndex = Z + 1 })
 		end
 		local lantern = frame(back, { Position = UDim2.new(1, -34, 0, 4), Size = UDim2.fromOffset(20, 26), BackgroundColor3 = Color3.fromRGB(244, 190, 80) }, 5)
 		stroke(lantern, Color3.fromRGB(70, 46, 24), 2)

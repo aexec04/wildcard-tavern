@@ -283,6 +283,7 @@ function LedgerBook.build(deps, desk)
 			local y = 40 + (i - 1) * 104
 			local note = piece(h, { Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(6, y), BackgroundColor3 = Color3.fromRGB(236, 218, 176), Rotation = (i % 2 == 0) and 1.2 or -1.2, ZIndex = Z + 2 }, 4)
 			stroke(note, Color3.fromRGB(190, 160, 110), 1)
+			artOver(note, "ledger_paper_note", { Size = UDim2.fromScale(1, 1), ZIndex = Z + 2 }) -- painted paper behind the text, the drawn note shows when the id is missing
 			piece(note, { Size = UDim2.fromOffset(10, 10), Position = UDim2.fromOffset(8, 6), BackgroundColor3 = BRASS, ZIndex = Z + 4 }, 5)
 			local stakeDef = Stakes.get(e.stake)
 			text(note, { Size = UDim2.new(1, -110, 0, 26), Position = UDim2.fromOffset(24, 8), Text = string.format("Night %d", e.night), Font = Enum.Font.Antique, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left })
