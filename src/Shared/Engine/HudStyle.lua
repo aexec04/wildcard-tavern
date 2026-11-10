@@ -84,6 +84,12 @@ end
 function HudStyle.iconPalette(colors)
 	local accent, base = basics(colors)
 	local disc = readableFill(mix(base, accent, 0.12), 0)
+	local tint = mix(WHITE, accent, 0.5)
+	if CosmeticSets.contrastRatio(tint, disc) < 4.5 then -- a light disc needs a darker icon
+		local text = CosmeticSets.buttonTextColor(disc) -- always 4.5:1 on the disc
+		tint = mix(text, accent, 0.25)
+		if CosmeticSets.contrastRatio(tint, disc) < 4.5 then tint = text end
+	end
 	return {
 		disc = disc,
 		ring = accent,
@@ -91,6 +97,8 @@ function HudStyle.iconPalette(colors)
 		motif = mix(accent, WHITE, 0.35),
 		outer = HudStyle.DARK_RING,
 		text = CosmeticSets.buttonTextColor(disc),
+		tint = tint, -- multiplies the painted icon so it takes the set's hue
+		tintHover = mix(tint, WHITE, 0.2),
 	}
 end
 

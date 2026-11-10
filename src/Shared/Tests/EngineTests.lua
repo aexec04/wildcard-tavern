@@ -12739,6 +12739,34 @@ table.insert(tests, { name = "HudStyle: every set and role keeps button text at 
 	expectTrue(sets >= 15, "all sets covered")
 end })
 
+table.insert(tests, { name = "Corner dock: every set tints the painted icons, keeps them readable on the disc, non-Classic sets leave the brass, dock and gift use HudTheme", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local classic = HS.iconPalette(CS.skinOf(CS.Definitions[1]).colors)
+	local differs = 0
+	for _, set in ipairs(CS.Definitions) do
+		local p = HS.iconPalette(CS.skinOf(set).colors)
+		expectTrue(#p.tint == 3 and #p.ring == 3 and #p.tintHover == 3, set.id .. " resolves ring and icon tint")
+		expectTrue(CS.contrastRatio(p.tint, p.disc) >= 4.5, set.id .. " tinted icon reads on its disc")
+		if set.id ~= "classic_tavern" and (p.ring[1] ~= classic.ring[1] or p.ring[2] ~= classic.ring[2] or p.ring[3] ~= classic.ring[3]) then
+			differs = differs + 1
+		end
+	end
+	expectTrue(differs >= 10, "most non-Classic sets have their own ring colour, not brass")
+	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if f then
+		local hub = f:read("*a")
+		f:close()
+		expectTrue(hub:find("HudTheme).styleIcon", 1, true) ~= nil, "the corner dock goes through HudTheme.styleIcon")
+	end
+	local g = io and io.open and io.open("src/Client/LoginStreakUI.lua", "r")
+	if g then
+		local src = g:read("*a")
+		g:close()
+		expectTrue(src:find("styleIcon", 1, true) ~= nil, "the gift button is styled by HudTheme")
+	end
+end })
+
 table.insert(tests, { name = "HudStyle: pile look is stable per set and different for every set; HUD wiring is present", fn = function()
 	local HS = require(script.Parent.Parent.Engine.HudStyle)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)

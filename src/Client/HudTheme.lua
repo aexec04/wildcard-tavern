@@ -168,6 +168,11 @@ local function paintIcon(button)
 		rim.Thickness = 3
 		rim.Transparency = 0
 	end
+	local pic = button:FindFirstChild("Icon")
+	if pic and pic:IsA("ImageLabel") then
+		pic.Size = UDim2.fromOffset(36, 36) -- the tinted disc shows as a ring around the painted icon
+		pic.ImageColor3 = c3(button:GetAttribute("HudHover") and p.tintHover or p.tint)
+	end
 	local glow = button:FindFirstChild("HudGlow")
 	if glow then
 		glow:FindFirstChildOfClass("UIStroke").Color = c3(p.glow)
@@ -206,6 +211,8 @@ function HudTheme.styleIcon(button)
 	ms.Thickness = 1.5
 	ms.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	ms.Parent = motif
+	button.MouseEnter:Connect(function() button:SetAttribute("HudHover", true) paintIcon(button) end)
+	button.MouseLeave:Connect(function() button:SetAttribute("HudHover", nil) paintIcon(button) end)
 	paintIcon(button)
 end
 

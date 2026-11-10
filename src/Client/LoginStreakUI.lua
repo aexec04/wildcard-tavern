@@ -282,8 +282,9 @@ local function ensureGift()
 	gift.Visible = false
 	gift.ZIndex = sibling and sibling.ZIndex or 10
 	gift.Parent = row
-	corner(gift, 10)
+	corner(gift, 27)
 	stroke(gift, GOLD, 2)
+	pcall(require(script.Parent.HudTheme).styleIcon, gift) -- same set ring, disc and diamond as the other round buttons
 	gift.MouseButton1Click:Connect(function()
 		if ui.playClick then ui.playClick() end
 		showPopup()
