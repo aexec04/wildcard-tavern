@@ -44,7 +44,7 @@ function MenuBoard.build(parent)
 	edge.Color = Color3.fromRGB(62, 40, 24)
 	edge.Thickness = 4
 	edge.Parent = frame
-	local boardArt = ContentArt.getImageId("menu_scene", Layout.SceneArt.board)
+	local boardArt = ContentArt.getImageId("menu_room", "menu_room_noticeboard") or ContentArt.getImageId("menu_scene", Layout.SceneArt.board)
 	if boardArt then -- painted wall board behind the notes (the flat wood colour is the fallback)
 		local img = Instance.new("ImageLabel")
 		img.Name = "BoardArt"

@@ -682,7 +682,7 @@ function Hotspots.build(opts)
 		local itemId = hotspot.item and ContentArt.getImageId("menu_scene", Layout.SceneArt.items[hotspot.item]) or nil
 		if Layout.world and hotspot.item then
 			-- the painted landmark; without it the medallion or emoji below stands in (the counter painting is not used on the map)
-			itemId = Layout.WorldArt[hotspot.id] and ContentArt.getImageId("menu_world", Layout.WorldArt[hotspot.id]) or nil
+			itemId = Layout.WorldArt[hotspot.id] and ContentArt.getImageId(Layout.WorldArtCategory or "menu_world", Layout.WorldArt[hotspot.id]) or nil
 		end
 		local artId = itemId or (hotspot.art and ContentArt.getImageId("menu_icons", hotspot.art) or nil)
 		if itemId then

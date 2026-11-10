@@ -12052,6 +12052,83 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	expectTrue(ML.NoticeBoard.h <= 0.3, "the board's layout rect is the cap, the fit makes it shorter")
 end })
 
+table.insert(tests, { name = "MenuRoomLayout: every action is on a prop, props never overlap the board, the title or each other, touch targets are 44 px or more", fn = function()
+	local ML = require(script.Parent.Parent.Engine.MenuLayout)
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	-- hotspot to action mapping: every Menu action is owned by a hotspot that has a prop spot, and every prop has an art key
+	for _, action in ipairs(ML.Actions) do
+		local owner = ML.hotspotOf(action.id)
+		expectTrue(owner ~= nil and RL.spots[owner.id] ~= nil, "action sits on a prop: " .. action.id)
+	end
+	local expected = { play = "play", questscroll = "questscroll", maptable = "maptable", tome = "tome", coinjar = "coinjar", rulebook = "rulebook", jukebox = "jukebox" }
+	for id in pairs(expected) do
+		expectTrue(RL.spots[id] ~= nil and RL.art[id] ~= nil, "prop and art key for " .. id)
+	end
+	expectEqual(ML.hotspotOf("play").id, "play", "Deal Me In is the card table")
+	expectEqual(ML.hotspotOf("road").id, "maptable", "Road Ahead is the map")
+	expectEqual(ML.hotspotOf("collection").id, "tome", "The Tome is the lectern book")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = size[1], size[2]
+		local rects = RL.rects(ML, w, h)
+		expectTrue(#rects >= 13, "seven props plus six tags")
+		local nl, nt, nr, nb = ML.noticeRect(w, h)
+		for i, a in ipairs(rects) do
+			expectTrue(a[1] >= 0 and a[3] <= w and a[2] >= 0 and a[4] <= h, a.kind .. " inside the screen: " .. a.id .. " " .. w)
+			expectTrue(a[2] >= 0.2 * h, "clear of the title band: " .. a.id .. " " .. a.kind)
+			expectTrue(ML.overlapFraction(a, { nl, nt, nr, nb }) == 0, "clear of the Notice Board: " .. a.id .. " " .. a.kind)
+			for j = i + 1, #rects do
+				local b = rects[j]
+				expectTrue(ML.overlapFraction(a, b) <= 0.02, "no overlap: " .. a.id .. " " .. a.kind .. " vs " .. b.id .. " " .. b.kind .. " at " .. w)
+			end
+			if a.kind == "prop" then
+				expectTrue(a[3] - a[1] >= RL.minTouch and a[4] - a[2] >= RL.minTouch, "touch target 44 px or more: " .. a.id .. " " .. w)
+			end
+		end
+	end
+	local all = ML.getHotspot("play")
+	expectTrue(all ~= nil, "play hotspot exists")
+	expectTrue(RL.animated <= RL.MAX_ROOM_ANIMATED and RL.animated + 1 <= ML.MAX_ANIMATED, "at most 10 animated objects, under the cap with the lantern")
+	local known = {}
+	for _, key in ipairs(RL.artKeys) do known[key] = true end
+	for id in pairs(require(script.Parent.Parent.Engine.MenuRoomArt)) do expectTrue(known[id], "MenuRoomArt only holds known keys: " .. id) end
+	for _, key in pairs(RL.art) do expectTrue(known[key], "prop art key is known: " .. key) end
+	expectEqual(#RL.tileSpots(640), 6, "six phone tiles")
+	expectEqual(#RL.tileSpots(1920), 6, "six prop spots on a desktop")
+end })
+
+table.insert(tests, { name = "MenuRoomLayout: apply moves the hotspots, flicker and glint stay inside their budgets, calm mode has no tweens", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local fake = { Hotspots = { { id = "tome", x = 0, y = 0, s = 1, asp = 2 }, { id = "other", x = 7, y = 7, s = 1, asp = 1 } } }
+	expectEqual(RL.apply(fake), 1, "only hotspots with a spot move")
+	expectEqual(fake.Hotspots[1].x, RL.spots.tome.x, "moved to the prop spot")
+	expectEqual(fake.Hotspots[2].x, 7, "unknown hotspots untouched")
+	expectTrue(fake.world == true and fake.room == true, "world and room flags set")
+	expectEqual(fake.WorldArtCategory, "menu_room", "props draw from the menu_room art")
+	for t = 0, 60, 0.37 do
+		expectTrue(math.abs(RL.flickerAt(t)) <= RL.flicker + 1e-9, "flicker stays at 3 percent")
+		local g = RL.glintAt(t)
+		expectTrue(g >= 0 and g <= 1, "glint phase is 0 to 1")
+		for i = 1, RL.motes do
+			local x, y, a = RL.moteAt(i, t)
+			expectTrue(x > 0 and x < 1 and y > 0 and y < 1 and a >= 0 and a <= 1, "motes stay on screen")
+		end
+	end
+	expectEqual(RL.glintAt(RL.glint.length + 1), 0, "coins glint only once in a while")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local room, menu, hot = read("src/Client/MenuRoom.lua"), read("src/Client/Menu.lua"), read("src/Client/MenuHotspots.lua")
+	if not (room and menu and hot) then return end
+	expectTrue(room:find("Transparency = ColorSequence", 1, true) == nil, "no gradient Transparency")
+	expectTrue(room:find("if calm then", 1, true) ~= nil, "room life honours calm mode")
+	expectTrue(room:find("TweenService", 1, true) == nil, "the room's life is driven by one update, no tweens, so calm mode has none")
+	expectTrue(menu:find('"MenuRoomLayout"', 1, true) ~= nil and menu:find("MenuRoom).build", 1, true) ~= nil, "the Menu builds the Tavern Room")
+	expectTrue(hot:find('Layout.WorldArtCategory or "menu_world"', 1, true) ~= nil, "props pick their art category from the layout")
+end })
+
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
 	local HL = require(script.Parent.Parent.Engine.HandLedger)
 	local HandEvaluator = require(script.Parent.Parent.Engine.HandEvaluator)

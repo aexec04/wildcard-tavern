@@ -68,9 +68,10 @@ return function(deps)
 		require(script.Parent.PanelArt).vignette(menuFrame, 10) -- dark edge vignette (stepped Frames, Color stops only)
 	end
 
-	-- The Living Map (Client/MenuWorld.lua) replaces the tavern wall and the bayou: the hotspots move to their landmark spots on it.
-	require(Engine:WaitForChild("MenuWorldLayout")).apply(Layout)
-	local mapWorld = require(script.Parent.MenuWorld).build(menuFrame)
+	-- The Tavern Room (Client/MenuRoom.lua) replaces the tavern wall, the bayou and the Living Map: the props are the buttons, so the
+	-- hotspots move to their prop spots in it. (MenuWorld.lua and MenuWorldLayout.lua stay in the repo, unused by the Menu.)
+	require(Engine:WaitForChild("MenuRoomLayout")).apply(Layout)
+	local mapWorld = require(script.Parent.MenuRoom).build(menuFrame)
 	menuBackgroundArt.Visible = false
 
 	-- Hovering a hotspot dims the rest of the scene by 20 percent.
