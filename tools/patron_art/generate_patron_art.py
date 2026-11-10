@@ -84,6 +84,7 @@ CATEGORIES = {
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "badge_sockets": ("badge_socket_subjects", "badge_sockets", "BadgeSocketArt.lua", "Badge Socket"),
     "shop_scene": ("shop_scene_subjects", "shop_scene", "ShopSceneArt.lua", "Shop Scene"),
+    "collection_scene": ("collection_scene_subjects", "collection_scene", "CollectionSceneArt.lua", "Collection Scene"),
     "ambient": ("ambient_subjects", "ambient", "AmbientArt.lua", "Ambient"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
@@ -131,6 +132,10 @@ CATEGORY_OPTS = {
     "shop_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["shop_wall"],
                    "sizes": {"shop_wall": "1536x1024", "shop_marlo_behind": "1024x1536", "shop_marlo_wave": "1024x1536",
                              "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024"}},
+    "collection_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["collection_wall"],
+                         "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",
+                                   "collection_corkboard": "1536x1024", "collection_trophy_shelf": "1536x1024", "collection_key_rack": "1536x1024",
+                                   "collection_nameplate_shelf": "1536x1024"}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,
