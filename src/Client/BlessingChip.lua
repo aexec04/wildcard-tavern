@@ -38,7 +38,7 @@ local function label(parent, name, size, color, y, h, font)
 	l.TextXAlignment = Enum.TextXAlignment.Left
 	l.TextTruncate = Enum.TextTruncate.AtEnd
 	l.Text = ""
-	l.ZIndex = 8
+	l.ZIndex = 9 -- above the painted icon
 	l.Parent = parent
 	return l
 end
@@ -136,7 +136,7 @@ function BlessingChip.update(state)
 		ui.name.Text = view.name
 		ui.blessing.Text = "+ " .. view.blessing
 		ui.curse.Text = "- " .. view.curse
-		pcall(ArtIcon.apply, ui.chip, "blessing_icons", view.id, ui.icon, { cornerRadius = 6 })
+		pcall(ArtIcon.apply, ui.chip, "blessing_icons", view.id, ui.icon, { cornerRadius = 6, size = UDim2.fromOffset(34, 34), position = UDim2.fromOffset(6, 6), anchor = Vector2.new(0, 0), zIndex = 8 })
 		ui.tip = "This run: " .. view.name .. "\nBlessing: " .. view.blessing .. "\nCurse: " .. view.curse
 		if not ui.tipped then
 			ui.tipped = true

@@ -114,6 +114,40 @@ function HudStyle.deckPalette(colors)
 	}
 end
 
+-- Left HUD panel (Client/SidebarTheme): paper surface, inset plates, header plate, score bar and ink, all derived from the
+-- set's own paper, border and panel colours. nil for the neutral set so Classic Tavern keeps the painted parchment exactly.
+-- Every ink reaches 4.5:1 on the paper and on the inset; the header text reaches it on the header plate.
+function HudStyle.panelPalette(colors)
+	if not colors then return nil end
+	local accent = colors.border
+	local paper = mix(colors.paper, accent, 0.1)
+	local inset = mix(paper, BLACK, 0.08)
+	local ink = mix(colors.panel, BLACK, 0.45)
+	local steps = 0
+	while steps < 16 and (CosmeticSets.contrastRatio(ink, inset) < HudStyle.MIN_CONTRAST
+		or CosmeticSets.contrastRatio(ink, paper) < HudStyle.MIN_CONTRAST) do
+		ink = mix(ink, BLACK, 0.2)
+		steps = steps + 1
+	end
+	local header = readableFill(mix(colors.panel, BLACK, 0.3), 0)
+	return {
+		paper = paper,
+		tag = mix(paper, WHITE, 0.15), -- small name tags
+		inset = inset,
+		edge = mix(accent, BLACK, 0.2), -- inset and ring strokes
+		accent = accent,
+		ink = ink,
+		stroke = mix(paper, WHITE, 0.35), -- faint halo behind ink text
+		header = header,
+		headerGrainTop = mix(header, WHITE, 0.08),
+		headerGrainBottom = mix(header, BLACK, 0.12),
+		headerText = CosmeticSets.buttonTextColor(header),
+		track = mix(colors.panel, BLACK, 0.25),
+		fill = mix(accent, WHITE, 0.2),
+		medallion = mix(inset, BLACK, 0.06),
+	}
+end
+
 local function hash(id)
 	local h = 5381
 	for i = 1, #tostring(id) do

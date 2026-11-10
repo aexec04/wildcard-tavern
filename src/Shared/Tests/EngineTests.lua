@@ -13951,4 +13951,26 @@ table.insert(tests, { name = "Collection Gallery: framed portraits fit their cel
 	end
 end })
 
+table.insert(tests, { name = "HudStyle: every set has a complete left HUD palette with 4.5:1 ink, Classic stays nil", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectTrue(HS.panelPalette(nil) == nil, "Classic keeps the painted parchment")
+	local keys = { "paper", "tag", "inset", "edge", "accent", "ink", "stroke", "header", "headerGrainTop", "headerGrainBottom", "headerText", "track", "fill", "medallion" }
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local colors = CS.skinOf(set).colors
+		if colors then
+			n = n + 1
+			local p = HS.panelPalette(colors)
+			for _, k in ipairs(keys) do
+				expectTrue(type(p[k]) == "table" and #p[k] == 3, set.id .. " has " .. k)
+			end
+			expectTrue(CS.contrastRatio(p.ink, p.paper) >= 4.5, set.id .. " ink on paper")
+			expectTrue(CS.contrastRatio(p.ink, p.inset) >= 4.5, set.id .. " ink on inset")
+			expectTrue(CS.contrastRatio(p.headerText, p.header) >= 4.5, set.id .. " header text")
+		end
+	end
+	expectTrue(n >= 14, "every non-default set covered")
+end })
+
 return tests

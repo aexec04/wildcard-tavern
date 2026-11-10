@@ -611,6 +611,7 @@ do
 	})
 	require(script.EndlessChips).init({ root = root, addTooltip = addTooltip }) -- Crowd Rule chips and banner (Endless)
 	require(script.BlessingChip).init({ root = root, addTooltip = addTooltip }) -- blessing and curse chip under the sidebar
+	require(script.SidebarTheme).init(root) -- left HUD panel follows the Card Set
 end
 
 -- ===== Score popup: chips x mult animation on Play Hand =====
