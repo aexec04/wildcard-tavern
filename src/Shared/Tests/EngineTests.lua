@@ -12989,6 +12989,31 @@ table.insert(tests, { name = "Popup sounds: scroll_open and scroll_close cues ex
 	end
 end })
 
+table.insert(tests, { name = "Classic card border: wraps the full card edge, centre transparent, the Card Sets chip is a mini card, other sets untouched", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	for _, size in ipairs({ { 38, 52 }, { 100, 140 }, { 200, 280 } }) do
+		local w, h = size[1], size[2]
+		local l = HS.classicFrame(w, h)
+		expectTrue(l.band.top.x == 0 and l.band.top.y == 0 and l.band.top.w == w, "top band spans the card width")
+		expectTrue(l.band.bottom.y + l.band.bottom.h == h and l.band.right.x + l.band.right.w == w, "bands end on the card rect")
+		expectTrue(l.band.left.h == h and l.band.right.h == h, "side bands span the card height")
+		expectTrue(l.t / w >= 0.06 - 0.02, "band about 6 to 8 percent of the width at " .. w)
+		expectTrue(w - 2 * l.t > w * 0.7 and h - 2 * l.t > h * 0.7, "the centre window stays open at " .. w)
+	end
+	local f = io.open("src/Client/ClassicCardFrame.lua", "r")
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("holder.BackgroundTransparency = 1", 1, true) ~= nil, "frame holder (the centre) is transparent")
+	expectTrue(src:find("FindFirstChildOfClass", 1, true) ~= nil, "frame corner radius follows the card")
+	local g = io.open("src/Client/CosmeticSetsPanel.lua", "r")
+	local panel = g:read("*a"); g:close()
+	expectTrue(panel:find("if not colors then", 1, true) ~= nil and panel:find("MiniCard", 1, true) ~= nil, "Classic chip is a mini card, only when the set has no colours")
+	expectTrue(panel:find("ClassicCardFrame", 1, true) ~= nil and panel:find('Text = "Panel border"', 1, true) ~= nil, "other sets keep the Panel border chip")
+	local k = io.open("src/Client/SetSkin.lua", "r")
+	local skin = k:read("*a"); k:close()
+	local _, n = skin:gsub("ClassicCardFrame", "")
+	expectEqual(n, 1, "SetSkin still draws the Classic frame in one place only")
+end })
+
 table.insert(tests, { name = "Ledger page turn: the page_turn cue exists with its id, volume and length, and the ledger plays it on a page or tab change", fn = function()
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local cue = S.Cues.page_turn

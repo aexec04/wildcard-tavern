@@ -40,7 +40,8 @@ function ClassicCardFrame.draw(face, zIndex)
 	holder.ZIndex = zIndex + 1
 	holder.Parent = face
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
+	local faceCorner = face:FindFirstChildOfClass("UICorner") -- match the card's own corner radius
+	corner.CornerRadius = faceCorner and faceCorner.CornerRadius or UDim.new(0, 6)
 	corner.Parent = holder
 
 	local parts = {}
