@@ -11720,7 +11720,7 @@ table.insert(tests, { name = "Collection no longer lists run stats; the Tavern L
 	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
 	if not f then return end -- Studio has no io
 	local collection = f:read("*a"); f:close()
-	local stats = io.open("src/Client/StatsPanel.lua", "r"):read("*a")
+	local stats = io.open("src/Client/StatsPanel.lua", "r"):read("*a") .. io.open("src/Client/LedgerBook.lua", "r"):read("*a") .. io.open("src/Shared/Engine/LedgerPages.lua", "r"):read("*a")
 	for _, gone in ipairs({ "Runs played", "Runs won", "Best Night:", "profileStats.runs", "statsLabel", "runsStarted", "bestNightReached" }) do
 		expectFalse(collection:find(gone, 1, true) ~= nil, "Collection still has: " .. gone)
 	end
@@ -12115,6 +12115,75 @@ table.insert(tests, { name = "PanelBorder: same thickness at every normal size, 
 	end
 	expectEqual(PB.sliceable({}), false, "no art: code border")
 	expectEqual(PB.sliceable({ panelFrame9 = "rbxassetid://1" }), true, "slice art present")
+end })
+
+table.insert(tests, { name = "LedgerPages: stats map to story, hall and records content; empty state; beaten records; count-up", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	expectEqual(#LP.PAGES, 3, "three pages")
+	expectEqual(LP.isEmpty(nil), true, "no stats is empty")
+	expectEqual(LP.isEmpty({ runs = 0, recent = {} }), true, "no runs is empty")
+	expectEqual(LP.isEmpty({ runs = 2, recent = {} }), false, "runs written")
+	expectEqual(LP.EMPTY_NOTE, "Nothing written yet. Go lose gracefully.", "empty note text")
+	expectEqual(LP.EMPTY_NOTE:find("\226\128\148", 1, true), nil, "no em dash")
+	expectEqual(LP.winRate({ runs = 4, wins = 1 }), 0.25, "win rate")
+	expectEqual(LP.winRate({ runs = 0, wins = 0 }), 0, "no runs, no rate")
+	expectEqual(LP.winRate({ runs = 1, wins = 5 }), 1, "rate capped at 1")
+	local t = LP.tally(13)
+	expectEqual(t.fives, 2, "two full tally groups")
+	expectEqual(t.loose, 3, "three loose strokes")
+	expectEqual(LP.tally(99).capped, true, "tally caps")
+	expectEqual(LP.tally(99).fives * 5 + LP.tally(99).loose, LP.TALLY_MAX, "capped tally shows the max marks")
+	local story = LP.story({ wins = 3, runs = 9, bestNight = 6 })
+	expectEqual(story.wins, 3, "story wins")
+	expectEqual(story.tally.fives, 1, "best Night 6 is one group plus one stroke")
+	local recent = {
+		{ night = 5, won = false, score = 900 }, { night = 8, won = true, score = 500 },
+		{ night = 8, won = false, score = 9000 }, { night = 8, won = true, score = 700 }, { night = 2, won = false, score = 1 },
+	}
+	local bests = LP.bests(recent, 3)
+	expectEqual(#bests, 3, "three bests")
+	expectEqual(bests[1].score, 700, "a win beats a loss on the same Night, then the higher score")
+	expectEqual(bests[2].score, 500, "second best")
+	expectEqual(bests[3].score, 9000, "the Night 8 loss is third")
+	local hall = LP.hall({ favoritePatron = { id = "x", wins = 4 }, recent = recent, hands = 12345, bestHandScore = 777, tipsEarned = 20 }, "Regular")
+	expectEqual(hall.favorite.wins, 4, "favourite Patron wins")
+	expectEqual(hall.life[1].value, "Regular", "title line")
+	expectEqual(hall.life[2].value, "12.3K", "hands played formatted")
+	expectEqual(hall.life[3].label, "Best hand score", "best hand score line")
+	expectEqual(LP.hall({}, nil).life[1].value, "None", "no title")
+	local rec = LP.records({ recent = recent })
+	expectEqual(#rec.rows, 5, "rows")
+	expectEqual(rec.bars[1].night, 2, "oldest run is the first bar")
+	expectEqual(rec.bars[#rec.bars].night, 5, "newest run is the last bar")
+	expectEqual(rec.bars[1].height, 0.25, "bar height is Night over the best Night")
+	local many = {}
+	for i = 1, 30 do many[i] = { night = 3, won = true, score = i } end
+	expectEqual(#LP.records({ recent = many }).rows, LP.RUNS_SHOWN, "ten runs listed")
+	expectEqual(#LP.records({ recent = many }).bars, LP.SPARK_SLOTS, "twenty bars")
+	expectEqual(#LP.beaten(nil, { wins = 1 }), 0, "first look stamps nothing")
+	expectEqual(LP.beaten({ wins = 1, bestNight = 3, bestHandScore = 10 }, { wins = 2, bestNight = 3, bestHandScore = 12 })[1], "wins", "a new win is a beaten record")
+	expectEqual(#LP.beaten({ wins = 1 }, { wins = 1 }), 0, "nothing new")
+	expectEqual(LP.countUp(100, 0), 0, "count starts at zero")
+	expectEqual(LP.countUp(100, 1), 100, "count ends on the target")
+	expectEqual(LP.countUp(100, 0.5) > 50 and LP.countUp(100, 0.5) < 100, true, "eased in between")
+	expectEqual(LP.step(1, -1), 1, "no page before the first")
+	expectEqual(LP.step(3, 1), 3, "no page after the last")
+	expectEqual(LP.step(1, 1), 2, "next page")
+end })
+
+table.insert(tests, { name = "LedgerPages: layout keeps pages inside the book, tabs outside it, everything inside the panel (1920x1080 and compact)", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	for _, size in ipairs({ { 1574, 972 }, { 1000, 600 }, { 524, 576 } }) do
+		local r = LP.rects(size[1], size[2])
+		local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+		local panel = { x = 0, y = 0, w = size[1], h = size[2] }
+		expectTrue(inside(r.book, panel) and inside(r.tabs, panel) and inside(r.title, panel), "book, tabs and title inside the panel")
+		expectTrue(inside(r.left, r.book) and inside(r.right, r.book), "pages inside the book")
+		expectTrue(r.left.x + r.left.w <= r.right.x, "left page ends before the right page starts")
+		expectTrue(r.tabs.x >= r.book.x + r.book.w - r.book.w * 0.02 - 1, "tabs sit on the right edge of the book")
+		expectTrue(r.title.y + r.title.h <= r.book.y + 0.001, "title clears the book")
+		expectTrue(r.tabs.y + r.tabs.h <= size[2] * (1 - LP.LAYOUT.close.h), "tabs clear the Close button row")
+	end
 end })
 
 table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
