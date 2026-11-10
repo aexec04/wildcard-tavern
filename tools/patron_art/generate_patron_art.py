@@ -133,7 +133,9 @@ CATEGORY_OPTS = {
     "bonds": {"quality": "low", "style_key": "house_style"},
     "shop_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["shop_wall"],
                    "sizes": {"shop_wall": "1536x1024", "shop_marlo_behind": "1024x1536", "shop_marlo_wave": "1024x1536",
-                             "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024"}},
+                             "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024"},
+                   "additive": ["shop_light_pool"],
+                   "references": {"shop_marlo_wave": "art-wip/shop_scene/shop_marlo_behind.png"}},
     "collection_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["collection_wall"],
                          "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",
                                    "collection_corkboard": "1536x1024", "collection_trophy_shelf": "1536x1024", "collection_key_rack": "1536x1024",
@@ -141,6 +143,10 @@ CATEGORY_OPTS = {
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,
+                "additive": ["ambient_firefly"],
+                "references": {"ambient_bird_down": "art-wip/ambient/ambient_bird.png",
+                               "ambient_butterfly_blue_open": "art-wip/ambient/ambient_butterfly_open.png",
+                               "ambient_butterfly_blue_closed": "art-wip/ambient/ambient_butterfly_closed.png"},
                 "sizes": {"ambient_cloud_a": "1536x1024", "ambient_cloud_b": "1536x1024", "ambient_sand_streak": "1536x1024"}},
     "badge_sockets": {"quality": "low", "style_key": "house_style", "transparent": True,
                       "sizes": {"badge_path_dash": "1536x1024"}},
@@ -345,8 +351,8 @@ def _generate_one(pid, data, key, model, quality, args):
     opts = CATEGORY_OPTS.get(CATEGORY, {})
     style_key = getattr(args, "style", None) or opts.get("style_key", "style")
     prompt = f"{data[style_key]}. Subject: {subjects(data)[pid]}."
-    quality = opts.get("quality", quality)
-    ref = getattr(args, "reference", None)
+    quality = os.environ.get("IMAGE_QUALITY_OVERRIDE") or opts.get("quality", quality)  # override beats the category value (one command only)
+    ref = getattr(args, "reference", None) or opts.get("references", {}).get(pid)  # per-piece reference (pairs, same character)
     if ref and not pathlib.Path(ref).exists():
         raise Stop(f"--reference file not found: {ref}")
     for attempt in range(4):
@@ -368,7 +374,10 @@ def _generate_one(pid, data, key, model, quality, args):
             )
         if r.status_code == 200:
             path.write_bytes(base64.b64decode(r.json()["data"][0]["b64_json"]))
-            if wants_alpha(pid):  # generated on flat magenta; the model has no alpha output, so key it out (tools/patron_art/cutout.py)
+            if pid in opts.get("additive", []):  # generated on flat black: luminance becomes alpha (no pink fringe)
+                import cutout
+                cutout.black_to_alpha(str(path))
+            elif wants_alpha(pid):  # generated on flat magenta; the model has no alpha output, so key it out (tools/patron_art/cutout.py)
                 import cutout
                 cutout.cutout(str(path))
             with LOCK:
@@ -715,10 +724,13 @@ def main():
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--quality", choices=["low", "medium", "high"], help="quality for this command only (beats the category value and .env)")
     ap.add_argument("--style", help="prompts.json style key to use instead of the category's (e.g. house_style)")
     ap.add_argument("--reference", nargs="?", const="art-wip/backgrounds/journey_map.png",
                     help="reference image sent to the images edit endpoint (default: art-wip/backgrounds/journey_map.png)")
     a = ap.parse_args()
+    if a.quality:
+        os.environ["IMAGE_QUALITY_OVERRIDE"] = a.quality
     if a.style and a.style not in load_prompts():
         sys.exit(f"Unknown style key {a.style!r} in prompts.json")
     set_category(a.category)

@@ -98,6 +98,26 @@ def cutout(path):
     return opaque / float(w * h)
 
 
+def black_to_alpha(path):
+    """Additive glow pieces drawn on flat black: alpha = brightest channel, colour is un-premultiplied. In place."""
+    from PIL import Image
+    im = Image.open(path).convert("RGB")
+    px = im.load()
+    w, h = im.size
+    out = Image.new("RGBA", (w, h))
+    po = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b = px[x, y]
+            a = max(r, g, b)
+            if a < 6:
+                po[x, y] = (255, 220, 140, 0)
+            else:
+                k = 255.0 / a
+                po[x, y] = (min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k)), a)
+    out.save(path)
+
+
 if __name__ == "__main__":
     for p in sys.argv[1:]:
         print(p, "opaque fraction %.2f" % cutout(p))
