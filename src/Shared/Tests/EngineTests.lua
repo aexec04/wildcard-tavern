@@ -12085,6 +12085,38 @@ table.insert(tests, { name = "SkinSlice: every set has measured metrics for all 
 	end
 end })
 
+table.insert(tests, { name = "SkinSlice: every set's card frame fills the card edge to edge (no shrink) and its measured crop covers the PNG", fn = function()
+	local SS = require(script.Parent.Parent.Engine.SkinSlice)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		local m = SS.metrics(set.id, "face_frame")
+		expectTrue(m ~= nil, set.id .. " has face_frame metrics")
+		-- 95 percent: marsh/snowy/summit/winter frames carry a few percent of transparent margin that is trimmed and cropped away
+		expectTrue(m.cw >= m.w * 0.95 and m.ch >= m.h * 0.95, set.id .. " measured crop covers at least 95 percent of the PNG in both axes")
+		expectEqual(SS.indexWindow(m).shrink, 0, set.id .. " frame is not shrunk inside the card")
+	end
+end })
+
+table.insert(tests, { name = "PanelBorder: same thickness at every normal size, brackets and inner line stay inside the panel, art hook", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PanelBorder)
+	for _, size in ipairs({ { 1920, 1080 }, { 1385, 690 }, { 600, 400 }, { 300, 260 } }) do
+		expectEqual(PB.thickness(size[1], size[2]), 8, "thickness at " .. size[1] .. "x" .. size[2])
+	end
+	expectTrue(PB.thickness(150, 100) >= 6 and PB.thickness(150, 100) <= 10, "small panels stay 6 to 10 px")
+	for _, size in ipairs({ { 1920, 1080 }, { 600, 400 }, { 150, 100 } }) do
+		local l = PB.layout(size[1], size[2])
+		expectTrue(l.inner.x >= 0 and l.inner.x + l.inner.w <= size[1] and l.inner.y + l.inner.h <= size[2], "inner line inside the panel")
+		expectEqual(#l.brackets, 8, "eight bracket bars")
+		for _, b in ipairs(l.brackets) do
+			expectTrue(b.x >= 0 and b.y >= 0 and b.x + b.w <= size[1] and b.y + b.h <= size[2], "bracket inside the panel")
+		end
+		local c = PB.content(size[1], size[2])
+		expectEqual(c.x, l.thick, "content is inset by the border thickness")
+	end
+	expectEqual(PB.sliceable({}), false, "no art: code border")
+	expectEqual(PB.sliceable({ panelFrame9 = "rbxassetid://1" }), true, "slice art present")
+end })
+
 table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
 	local PanelBand = require(script.Parent.Parent.Engine.PanelBand)
 	expectEqual(PanelBand.band(1385, 690), 21, "map panel band is about 3 percent of the short side")
@@ -12209,7 +12241,7 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	local SkinArt = require(script.Parent.Parent.Engine.SetSkinArt)
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	expectTrue(ContentArt.set_skins == SkinArt, "ContentArt exposes set_skins")
-	expectEqual(#CS.SKIN_SLOTS, 6, "six skin slots")
+	expectEqual(#CS.SKIN_SLOTS, 7, "seven skin slots (six plus the optional panelFrame9)")
 	local seenPanel = {}
 	for _, set in ipairs(CS.Definitions) do
 		local skin = CS.skinOf(set)

@@ -18,7 +18,7 @@ SkinSlice.WIDE_FROM = 0.26 -- plain-rail crop of a wide plate: share of the crop
 SkinSlice.WIDE_TO = 0.80 -- and where it ends
 SkinSlice.WIDE_CAP = 6 -- source px kept as an end cap on a wide plate (the button is rounded with a corner instead)
 SkinSlice.MIN_CAPS_WIDE = 3 -- narrower than this many caps and the plate falls back to flat colour
-SkinSlice.MAX_FRAME_SHRINK = 0.08 -- per side, used when a frame's inner window is too small for the index
+SkinSlice.MAX_FRAME_SHRINK = 0 -- the frame always fills the card edge to edge; a small window moves the index, never the frame
 SkinSlice.INDEX_PAD = 0.02 -- card fraction between the window edge and the index
 
 function SkinSlice.metrics(setId, slot)
@@ -70,20 +70,16 @@ function SkinSlice.panelSlice(m, band)
 end
 
 -- Where the corner index may sit on a card whose frame art is drawn at `shrink` per side. Returns fractions of the card:
--- { x, y, w, h, shrink }. The inner window is measured in the frame crop; a window that is too small for the index
--- shrinks the frame (up to MAX_FRAME_SHRINK per side) instead of covering it.
+-- { x, y, w, h, shrink }. The inner window is measured in the frame crop; shrink is always 0 (frames fit the card edge).
 function SkinSlice.indexWindow(m)
 	local fallback = { x = 0.14, y = 0.1, w = 0.72, h = 0.8 }
 	if not m or not m.iw then
 		return { x = fallback.x, y = fallback.y, w = fallback.w, h = fallback.h, shrink = 0 }
 	end
 	local u = { x = (m.ix - m.x) / m.cw, y = (m.iy - m.y) / m.ch, w = m.iw / m.cw, h = m.ih / m.ch }
-	local shrink = 0
-	if u.x < 0.1 or u.y < 0.07 or u.w < 0.5 or u.h < 0.55 then
-		shrink = SkinSlice.MAX_FRAME_SHRINK
-		-- a window that cannot fit even then falls back to a fixed inner box
-		if u.w < 0.4 or u.h < 0.45 then u = { x = 0.12, y = 0.08, w = 0.76, h = 0.84 } end
-	end
+	local shrink = SkinSlice.MAX_FRAME_SHRINK
+	-- a window that cannot hold the index falls back to a fixed inner box (the frame itself is never shrunk)
+	if u.w < 0.4 or u.h < 0.45 then u = { x = 0.12, y = 0.08, w = 0.76, h = 0.84 } end
 	local span = 1 - 2 * shrink
 	return { x = shrink + u.x * span, y = shrink + u.y * span, w = u.w * span, h = u.h * span, shrink = shrink }
 end

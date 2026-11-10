@@ -15,6 +15,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = os.path.join(ROOT, "art-wip", "set_skins")
 OUT = os.path.join(ROOT, "src", "Shared", "Engine", "SetSkinMetrics.lua")
 ALPHA_MIN = 24
+ALPHA_EDGE = 200  # the art bounding box ignores halos and shadows below this alpha
+EDGE_ROW_FRACTION = 0.02  # a row or column needs this share of solid pixels, else it is a halo line and is trimmed
 SLOTS = ["button_plate", "tab_plate", "panel_frame", "face_frame"]
 
 
@@ -70,20 +72,22 @@ def read_alpha(path):
     return w, h, alpha
 
 
-def bbox(w, h, alpha):
+def bbox(w, h, alpha, threshold=ALPHA_MIN):
+    """Bounding box of pixels with alpha > threshold. Rows and columns holding fewer than EDGE_ROW_FRACTION of solid
+    pixels (stray halo, shadow or noise lines) are trimmed."""
     if alpha is None:
         return 0, 0, w, h
-    x0, y0, x1, y1 = w, h, -1, -1
-    for y, row in enumerate(alpha):
-        xs = [x for x, a in enumerate(row) if a > ALPHA_MIN]
-        if xs:
-            if y < y0: y0 = y
-            y1 = y
-            if xs[0] < x0: x0 = xs[0]
-            if xs[-1] > x1: x1 = xs[-1]
-    if x1 < 0:
+    rows = [sum(1 for a in row if a > threshold) for row in alpha]
+    cols = [0] * w
+    for row in alpha:
+        for x, a in enumerate(row):
+            if a > threshold:
+                cols[x] += 1
+    ys = [y for y, n in enumerate(rows) if n >= max(1, w * EDGE_ROW_FRACTION)]
+    xs = [x for x, n in enumerate(cols) if n >= max(1, h * EDGE_ROW_FRACTION)]
+    if not ys or not xs:
         return 0, 0, w, h
-    return x0, y0, x1 - x0 + 1, y1 - y0 + 1
+    return xs[0], ys[0], xs[-1] - xs[0] + 1, ys[-1] - ys[0] + 1
 
 
 def edge_thickness(alpha, box):
@@ -142,7 +146,8 @@ def main():
             continue
         sid, slot = m.group(1), m.group(2)
         w, h, alpha = read_alpha(os.path.join(SRC, name))
-        box = bbox(w, h, alpha)
+        box = bbox(w, h, alpha, ALPHA_EDGE)
+        print("CROP %s %s %.1f%% x %.1f%%" % (sid, slot, 100.0 * box[2] / w, 100.0 * box[3] / h), file=sys.stderr)
         entry = {"w": w, "h": h, "x": box[0], "y": box[1], "cw": box[2], "ch": box[3]}
         if alpha is not None:
             if slot == "face_frame":

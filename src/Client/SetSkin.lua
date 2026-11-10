@@ -20,12 +20,15 @@ local PanelBand = require(game:GetService("ReplicatedStorage"):WaitForChild("Sha
 local CosmeticSets = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
 local SkinSlice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SkinSlice"))
 
+local PanelBorder = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBorder"))
+
 local SetSkin = {}
 
 local current = { images = {}, colors = nil, neutral = true }
 local registry = setmetatable({}, { __mode = "k" }) -- [instance] = kind
 
 local OVERLAY = "SetSkinPlate"
+local BORDER = "SetSkinBorder"
 local WASH = "SetSkinWash"
 
 local function rgb(t)
@@ -113,21 +116,111 @@ local function fitArt(inst, kind, label, m)
 	end
 end
 
+-- Code-drawn panel border (Engine/PanelBorder): dark outer line, accent inner line, tiny corner brackets. Always fits at
+-- the panel's true size; children of the panel so Clone() keeps them. Created once, recoloured on every call.
+local function codeBorder(inst, accent)
+	local holder = inst:FindFirstChild(BORDER)
+	if not accent then
+		if holder then holder:Destroy() end
+		return nil
+	end
+	if not holder then
+		holder = Instance.new("Frame")
+		holder.Name = BORDER
+		holder.Size = UDim2.fromScale(1, 1)
+		holder.BackgroundTransparency = 1
+		holder.BorderSizePixel = 0
+		holder.Active = false
+		local outer = Instance.new("UIStroke")
+		outer.Name = "Outer"
+		outer.Thickness = PanelBorder.OUTER_LINE
+		outer.Color = Color3.fromRGB(20, 12, 6)
+		outer.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		outer.Parent = holder
+		local innerLine = Instance.new("Frame")
+		innerLine.Name = "Inner"
+		innerLine.BackgroundTransparency = 1
+		innerLine.BorderSizePixel = 0
+		innerLine.Active = false
+		local innerStroke = Instance.new("UIStroke")
+		innerStroke.Thickness = PanelBorder.INNER_LINE
+		innerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		innerStroke.Parent = innerLine
+		innerLine.Parent = holder
+		for i = 1, 8 do
+			local b = Instance.new("Frame")
+			b.Name = "Bracket" .. i
+			b.BorderSizePixel = 0
+			b.Active = false
+			b.Parent = holder
+		end
+		holder.Parent = inst
+		local function layout()
+			local size = inst.AbsoluteSize
+			if size.X <= 0 or size.Y <= 0 then return end
+			local l = PanelBorder.layout(size.X, size.Y)
+			innerLine.Position = UDim2.fromOffset(l.inner.x, l.inner.y)
+			innerLine.Size = UDim2.fromOffset(l.inner.w, l.inner.h)
+			for i, r in ipairs(l.brackets) do
+				local b = holder:FindFirstChild("Bracket" .. i)
+				if b then
+					b.Position = UDim2.fromOffset(r.x, r.y)
+					b.Size = UDim2.fromOffset(r.w, r.h)
+				end
+			end
+		end
+		layout()
+		inst:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+	end
+	holder.ZIndex = inst.ZIndex
+	local inner = holder:FindFirstChild("Inner")
+	inner.ZIndex = inst.ZIndex
+	inner:FindFirstChildOfClass("UIStroke").Color = accent
+	for _, c in ipairs(holder:GetChildren()) do
+		if c.Name:sub(1, 7) == "Bracket" then
+			c.BackgroundColor3 = accent
+			c.ZIndex = inst.ZIndex
+		end
+	end
+	return holder
+end
+
 -- Restyle one registered element for the current skin. Safe to call repeatedly.
 local function style(inst, kind, skin)
 	if not inst.Parent or inst:IsA("ScrollingFrame") or hasLayout(inst) then return end
 	skin = skin or current
 	local images, colors = skin.images, skin.colors
-	local image = (kind == "panel" and images.panelFrame) or (kind == "button" and images.buttonPlate) or (kind == "tab" and images.tabPlate) or nil
+	-- Panels never use the illustrated panelFrame art (its asymmetric corners cannot be sliced): they get the code border,
+	-- or slice-friendly panelFrame9 art when a set has it.
+	local image = (kind == "panel" and images.panelFrame9) or (kind == "button" and images.buttonPlate) or (kind == "tab" and images.tabPlate) or nil
 	-- Borders frame, they do not dominate: lighter plates, and the older gold frame pieces (inner rim, brackets, carved
 	-- holder art) step aside while a set plate is drawn so there is one frame, not two.
 	if kind == "panel" and nestedPanel(inst) then image = nil end -- only top-level panels get a frame
 	-- Plates sit at the element's own ZIndex (behind its content), never above text, buttons or maps.
-	local m = image and SkinSlice.metrics(skin.id, SLOT_KEY[kind]) or nil
-	if not m then image = nil end -- no measured box: never draw unmeasured (stretched) art
+	local m = image and kind ~= "panel" and SkinSlice.metrics(skin.id, SLOT_KEY[kind]) or nil
+	if kind ~= "panel" and not m then image = nil end -- no measured box: never draw unmeasured (stretched) art
 	local label = plate(inst, OVERLAY, image, inst.ZIndex, kind == "panel" and 0.35 or 0.25)
-	if label then fitArt(inst, kind, label, m) end
-	local hide = label ~= nil and label.Visible
+	local border = nil
+	if kind == "panel" then
+		if label then
+			-- slice-friendly art: fixed 6 percent edge on a 3:2 canvas (1536x1024), band-thick on screen
+			label.ScaleType = Enum.ScaleType.Slice
+			label.SliceCenter = Rect.new(92, 61, 1444, 963)
+			local function fit() label.SliceScale = PanelBorder.thickness(inst.AbsoluteSize.X, inst.AbsoluteSize.Y) / 61 end
+			fit()
+			if not label:GetAttribute("BandHooked") then
+				label:SetAttribute("BandHooked", true)
+				inst:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+			end
+			codeBorder(inst, nil)
+		else
+			local accent = colors and rgb(colors.border) or (skin.images.panelFrame and Color3.fromRGB(200, 160, 70)) or nil
+			border = codeBorder(inst, accent)
+		end
+	elseif label then
+		fitArt(inst, kind, label, m)
+	end
+	local hide = (label ~= nil and label.Visible) or border ~= nil
 	for _, child in ipairs(inst:GetChildren()) do
 		local n = child.Name
 		if n == "InnerRim" or n == "BracketH" or n == "BracketV" or n == "SkinArt" then

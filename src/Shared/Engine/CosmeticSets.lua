@@ -569,6 +569,7 @@ CosmeticSets.SKIN_SLOTS = {
 	{ slot = "facePaper", key = "face_paper" },
 	{ slot = "faceCourt", key = "face_court" },
 	{ slot = "panelFrame", key = "panel_frame" },
+	{ slot = "panelFrame9", key = "panel_frame9" }, -- slice-friendly border art (set_panels); without it panels use the code border
 	{ slot = "buttonPlate", key = "button_plate" },
 	{ slot = "tabPlate", key = "tab_plate" },
 }
