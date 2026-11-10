@@ -7,7 +7,6 @@
 
 	  ChoiceSceneLayout.PALETTE        colours as {r,g,b}
 	  ChoiceSceneLayout.PLATES         every text-on-fill pair, so a test can check 4.5:1
-	  ChoiceSceneLayout.glowRings(n)   n soft concentric rings, outermost first: { { size = 0..1, alpha = 0..1 }, ... }
 	  ChoiceSceneLayout.cardSpots(w, h, count, cardW, cardH)   card centres standing on the table
 ]]
 
@@ -41,16 +40,6 @@ ChoiceSceneLayout.PLATES = {
 }
 
 -- Soft radial: many faint rings, never one disc with a visible edge.
-function ChoiceSceneLayout.glowRings(n)
-	n = math.max(8, math.floor(n or 12))
-	local rings = {}
-	for i = 1, n do
-		local t = (i - 1) / (n - 1) -- 0 outermost, 1 innermost
-		rings[i] = { size = 1 - 0.85 * t, alpha = 0.965 - 0.07 * (t ^ 1.5) }
-	end
-	return rings
-end
-
 -- Cards stand in one row on the table, centred, in the lower part of the screen.
 function ChoiceSceneLayout.cardSpots(w, h, count, cardW, cardH)
 	local gap = 22

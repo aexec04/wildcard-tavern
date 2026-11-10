@@ -14852,7 +14852,7 @@ table.insert(tests, { name = "Menu room polish: one gradient title scrim, soft s
 	end
 	expectTrue(room:find('name = "TitleScrim"', 1, true) ~= nil and room:find("SmoothVignette", 1, true) ~= nil, "the title scrim is one SmoothVignette gradient frame")
 	-- glows are concentric soft rings, never one plain disc
-	expectTrue(room:find("GLOW_STEPS = 12", 1, true) ~= nil and room:find('glow(host, "FireGlow"', 1, true) ~= nil and room:find('glow(host, "LanternGlow"', 1, true) ~= nil, "fire and lantern glows are soft radials")
+	expectTrue(room:find("SoftGlow.build", 1, true) ~= nil and room:find('glow(host, "FireGlow"', 1, true) ~= nil and room:find('glow(host, "LanternGlow"', 1, true) ~= nil, "fire and lantern glows are soft radials")
 	expectTrue(room:find('disc(host, "FireGlow"', 1, true) == nil and room:find('disc(host, "LanternGlow"', 1, true) == nil, "no plain disc glow")
 	-- the board sits on the cork rectangle (not reset to the top left by the parallax) and the old widget is not a parallax layer
 	expectTrue(menu:find("inst = board.frame", 1, true) == nil, "the Notice Board is not a parallax layer (it would be reset to the top left)")
@@ -14878,12 +14878,6 @@ table.insert(tests, { name = "Choice scene: painted backdrop, one smooth scrim, 
 	for _, plate in ipairs(CS.PLATES) do
 		expectTrue(LL.contrast(CS.PALETTE[plate[2]], CS.PALETTE[plate[3]]) >= 4.5, plate[1] .. " text is at least 4.5:1 on its plate")
 	end
-	local rings = CS.glowRings(12)
-	expectTrue(#rings >= 8, "the glow is at least 8 soft rings")
-	for i = 2, #rings do
-		expectTrue(rings[i].size < rings[i - 1].size and rings[i].alpha < rings[i - 1].alpha, "ring " .. i .. " is smaller and brighter than the one outside it")
-	end
-	expectTrue(rings[1].alpha > 0.9, "the outermost ring is nearly clear, so no disc edge shows")
 	local spots = CS.cardSpots(1920, 1080, 3, 230, 300)
 	expectEqual(#spots, 3, "three cards stand in a row")
 	expectEqual(spots[2].x, 960, "the middle card is centred")
@@ -14904,6 +14898,35 @@ table.insert(tests, { name = "Choice scene: painted backdrop, one smooth scrim, 
 	expectTrue(overlay:find("item.artId", 1, true) ~= nil and toast:find('"blessing_icons"', 1, true) ~= nil, "the blessing confirmation shows the painted blessing icon")
 	expectTrue(rs:find("plateOn(roomLabel)", 1, true) ~= nil and rs:find("plateOn(bossLabel)", 1, true) ~= nil and rs:find("plateOn(bossNameLabel)", 1, true) ~= nil and rs:find("plateOn(tagLabel)", 1, true) ~= nil, "Round Select text over portraits sits on solid plates")
 	expectTrue(LL.contrast({ 230, 180, 170 }, { 30, 22, 16 }) >= 4.5 and LL.contrast({ 200, 220, 170 }, { 38, 44, 26 }) >= 4.5 and LL.contrast({ 250, 235, 200 }, { 30, 22, 16 }) >= 4.5, "Round Select plate text is at least 4.5:1")
+end })
+
+
+table.insert(tests, { name = "GlowCurve: every glow has 24+ eased steps, smooth falloff, and SoftGlow is the only file that stacks discs", fn = function()
+	local GC = require(script.Parent.Parent.Engine.GlowCurve)
+	expectTrue(GC.MIN_STEPS >= 24 and GC.DEFAULT_STEPS >= 24, "at least 24 steps")
+	expectEqual(#GC.rings(3, 0.3), GC.MIN_STEPS, "a request for fewer steps is raised to the minimum")
+	local rings = GC.rings(GC.DEFAULT_STEPS, 0.3)
+	local cum = GC.cumulative(rings)
+	local maxStep = 0
+	for i = 1, #cum do
+		expectTrue(cum[i] >= (cum[i - 1] or 0) - 1e-9, "opacity never drops toward the centre")
+		maxStep = math.max(maxStep, cum[i] - (cum[i - 1] or 0))
+	end
+	expectTrue(math.abs(cum[#cum] - 0.3) < 0.02, "the centre reaches the peak")
+	expectTrue(maxStep < 0.03, "no step between rings is visible (under 3 percent opacity)")
+	expectTrue(cum[1] < 0.01, "the outermost ring is nearly clear")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	for _, name in ipairs({ "MenuRoom", "ChoicePanel", "MenuWorld", "ShopBackdrop", "AmbientLife", "CollectionGallery" }) do
+		local src = read("src/Client/" .. name .. ".lua")
+		if src then
+			expectTrue(src:find('"Ring" ..', 1, true) == nil and src:find("GLOW_STEPS", 1, true) == nil and src:find("glowRings", 1, true) == nil, name .. " builds no stacked-disc glow of its own")
+		end
+	end
 end })
 
 return tests

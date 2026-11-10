@@ -52,33 +52,14 @@ local function disc(parent, name, color, cx, cy, w, h, transparency)
 	return g
 end
 
--- A soft radial glow: GLOW_STEPS concentric discs, each very faint, so the middle is warmest and no ring has a visible edge.
-local GLOW_STEPS = 12
+-- Soft radial glows come from the one SoftGlow helper (32 eased steps). `transparency` is the old centre value; peak = 1 - it.
+local SoftGlow = require(script.Parent.SoftGlow)
 local function glow(parent, name, color, cx, cy, w, h, transparency)
-	local g = frame(parent, name, color, 1)
-	g.BackgroundTransparency = 1
-	g.AnchorPoint = Vector2.new(0.5, 0.5)
-	g.Position = UDim2.fromScale(cx, cy)
-	g.Size = UDim2.fromScale(w, h)
-	g.ClipsDescendants = false
-	local rings = {}
-	for i = 1, GLOW_STEPS do
-		local k = (GLOW_STEPS - i + 1) / GLOW_STEPS -- 1 for the widest ring down to 1/N for the core
-		local ring = frame(g, "Ring" .. i, color, 1)
-		ring.AnchorPoint = Vector2.new(0.5, 0.5)
-		ring.Position = UDim2.fromScale(0.5, 0.5)
-		ring.Size = UDim2.fromScale(k, k)
-		round(ring, UDim.new(0.5, 0))
-		rings[i] = ring
-	end
-	g:SetAttribute("rings", GLOW_STEPS)
-	return { root = g, rings = rings, set = nil }
+	return SoftGlow.build(parent, { name = name, color = color, position = UDim2.fromScale(cx, cy), size = UDim2.fromScale(w, h), peak = 1 - transparency, zIndex = parent.ZIndex })
 end
 
--- Sets a glow's centre transparency (the old single-disc value); every ring gets an equal share so edges stay invisible.
 local function setGlow(gl, transparency)
-	local per = 1 - math.clamp(transparency, 0, 1) ^ (1 / GLOW_STEPS) -- stacked, the centre ends at `transparency`
-	for _, ring in ipairs(gl.rings) do ring.BackgroundTransparency = 1 - per end
+	gl.setPeak(1 - math.clamp(transparency, 0, 1))
 end
 
 local function gradient(inst, top, bottom)

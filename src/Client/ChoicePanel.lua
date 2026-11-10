@@ -20,6 +20,7 @@ local ModalStage = require(script.Parent.ModalStage)
 local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
 local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
 local SmoothVignette = require(script.Parent.SmoothVignette)
+local SoftGlow = require(script.Parent.SoftGlow)
 
 local ChoicePanel = {}
 
@@ -270,30 +271,8 @@ function ChoicePanel.init(deps)
 		top = { strength = 0.7, extent = 0.3 }, bottom = { strength = 0.7, extent = 0.3 },
 		left = { strength = 0.5, extent = 0.2 }, right = { strength = 0.5, extent = 0.2 },
 	})
-	for _, side in ipairs({ 0.1, 0.9 }) do -- candle glow: stacked faint rings, no visible disc edge
-		local glow = Instance.new("Frame")
-		glow.Name = "CandleGlow"
-		glow.AnchorPoint = Vector2.new(0.5, 0.5)
-		glow.Position = UDim2.fromScale(side, 0.34)
-		glow.Size = UDim2.fromOffset(420, 420)
-		glow.BackgroundTransparency = 1
-		glow.ZIndex = 60
-		glow.Parent = scene
-		for i, ring in ipairs(Layout.glowRings(12)) do
-			local disc = Instance.new("Frame")
-			disc.Name = "Ring" .. i
-			disc.AnchorPoint = Vector2.new(0.5, 0.5)
-			disc.Position = UDim2.fromScale(0.5, 0.5)
-			disc.Size = UDim2.fromScale(ring.size, ring.size)
-			disc.BackgroundColor3 = Color3.fromRGB(255, 190, 100)
-			disc.BackgroundTransparency = ring.alpha
-			disc.BorderSizePixel = 0
-			disc.ZIndex = 60
-			disc.Parent = glow
-			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(0.5, 0)
-			c.Parent = disc
-		end
+	for _, side in ipairs({ 0.1, 0.9 }) do -- candle glow: SoftGlow, no visible disc edge
+		SoftGlow.build(scene, { name = "CandleGlow", color = Color3.fromRGB(255, 190, 100), position = UDim2.fromScale(side, 0.34), size = UDim2.fromOffset(420, 420), peak = 0.3, zIndex = 60 })
 	end
 
 	local holder = Instance.new("Frame")
@@ -329,7 +308,12 @@ function ChoicePanel.init(deps)
 		Text = "", TextSize = 17, TextColor3 = CREAM, BackgroundColor3 = WOOD, BackgroundTransparency = 0.12,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, ZIndex = 62,
 	})
-	deps.roundCorner(text, 8)
+	text.BackgroundTransparency = 0.05
+	deps.roundCorner(text, 14)
+	local textStroke = Instance.new("UIStroke") -- brass hairline like the title plate
+	textStroke.Color = GOLD
+	textStroke.Thickness = 1
+	textStroke.Parent = text
 
 	local row = Instance.new("Frame")
 	row.Name = "Row"
