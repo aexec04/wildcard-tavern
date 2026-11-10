@@ -8,6 +8,8 @@
 return {
 	["shop_counter_props"] = "rbxassetid://135868671588275",
 	["shop_counter_top"] = "rbxassetid://125809081130355",
+	["shop_light_pool"] = "rbxassetid://86060482506004",
 	["shop_marlo_behind"] = "rbxassetid://106144373711439",
+	["shop_marlo_wave"] = "rbxassetid://98238109368177",
 	["shop_wall"] = "rbxassetid://126299265758911",
 }

@@ -7,5 +7,8 @@
 
 return {
 	["badge_path_dash"] = "rbxassetid://78533004156637",
+	["badge_socket_niche"] = "rbxassetid://76098157881692",
+	["badge_socket_road"] = "rbxassetid://73790602533736",
+	["badge_socket_shelf"] = "rbxassetid://72195364091777",
 	["badge_socket_star"] = "rbxassetid://118178679117194",
 }

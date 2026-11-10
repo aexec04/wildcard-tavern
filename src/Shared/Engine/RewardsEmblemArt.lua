@@ -6,4 +6,13 @@
 ]]
 
 return {
+	["rewards_emblem_bonds"] = "rbxassetid://121248809473917",
+	["rewards_emblem_bosses"] = "rbxassetid://86544995296547",
+	["rewards_emblem_cardsets"] = "rbxassetid://77525572692445",
+	["rewards_emblem_passes"] = "rbxassetid://124449372596697",
+	["rewards_emblem_patrons"] = "rbxassetid://121248222625333",
+	["rewards_emblem_recipes"] = "rbxassetid://128584354477399",
+	["rewards_emblem_titles"] = "rbxassetid://101210568268068",
+	["rewards_pouch_full"] = "rbxassetid://76904398907579",
+	["rewards_pouch_small"] = "rbxassetid://137576347700388",
 }

@@ -6,12 +6,19 @@
 ]]
 
 return {
+	["ambient_bird"] = "rbxassetid://121081868768059",
+	["ambient_bird_down"] = "rbxassetid://116585644349311",
+	["ambient_butterfly_blue_closed"] = "rbxassetid://109036892517867",
+	["ambient_butterfly_blue_open"] = "rbxassetid://127988700868380",
 	["ambient_butterfly_closed"] = "rbxassetid://116106379535542",
 	["ambient_butterfly_open"] = "rbxassetid://131602607131440",
 	["ambient_cloud_a"] = "rbxassetid://86508347158507",
+	["ambient_cloud_b"] = "rbxassetid://88449042650887",
 	["ambient_ember"] = "rbxassetid://77568283723371",
+	["ambient_firefly"] = "rbxassetid://72916725244874",
 	["ambient_gold_mote"] = "rbxassetid://124659686074176",
 	["ambient_lantern_float"] = "rbxassetid://88798420996227",
+	["ambient_leaf_gold"] = "rbxassetid://99723367463671",
 	["ambient_leaf_green"] = "rbxassetid://104482437561260",
 	["ambient_petal"] = "rbxassetid://81307779268718",
 	["ambient_ribbon"] = "rbxassetid://78240858744785",

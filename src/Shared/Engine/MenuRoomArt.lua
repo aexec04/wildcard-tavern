@@ -6,4 +6,15 @@
 ]]
 
 return {
+	["menu_room_cardtable"] = "rbxassetid://82044332443450",
+	["menu_room_coinjar"] = "rbxassetid://111705740276538",
+	["menu_room_jukebox"] = "rbxassetid://103567799914466",
+	["menu_room_lantern"] = "rbxassetid://92355388674448",
+	["menu_room_map"] = "rbxassetid://104720019573577",
+	["menu_room_noticeboard"] = "rbxassetid://100593873892533",
+	["menu_room_rulebook"] = "rbxassetid://93061991496533",
+	["menu_room_scroll"] = "rbxassetid://75042969312752",
+	["menu_room_sign"] = "rbxassetid://103378525088568",
+	["menu_room_tome"] = "rbxassetid://117080286872299",
+	["menu_room_wall"] = "rbxassetid://105349495573720",
 }
