@@ -13973,4 +13973,23 @@ table.insert(tests, { name = "HudStyle: every set has a complete left HUD palett
 	expectTrue(n >= 14, "every non-default set covered")
 end })
 
+table.insert(tests, { name = "TooltipSpec: left HUD tooltips open to the right and never touch the hovered control or the HUD column", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TooltipSpec)
+	local function hit(ax, ay, aw, ah, bx, by, bw, bh)
+		return ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah
+	end
+	for _, screen in ipairs({ { X = 1920, Y = 1080 }, { X = 1280, Y = 720 }, { X = 640, Y = 360 } }) do
+		local tip = { X = 304, Y = 96 }
+		for _, y in ipairs({ 150, 300, 480, screen.Y - 120 }) do
+			local btn = { X = 12, Y = y, W = 216, H = 44 }
+			local pos, size = { X = 0, Y = y }, { X = 240, Y = 44 } -- Client/Tooltip passes the HUD column's edge
+			local x, ty = TS.place(pos, size, tip, screen, "right")
+			expectTrue(not hit(x, ty, tip.X, tip.Y, 0, 0, 240, screen.Y), "tooltip clear of the whole HUD column at " .. screen.X .. " y " .. y)
+			expectTrue(not hit(x, ty, tip.X, tip.Y, btn.X, btn.Y, btn.W, btn.H), "tooltip clear of the hovered button")
+			expectTrue(x >= TS.Spec.margin and ty >= TS.Spec.margin and x + tip.X <= screen.X and ty + tip.Y <= screen.Y, "on screen")
+			expectTrue(x - 240 >= TS.Spec.gap, "gap of at least 8 px")
+		end
+	end
+end })
+
 return tests

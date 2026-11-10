@@ -38,6 +38,16 @@ end
 
 function TooltipSpec.place(pos, size, tip, screen, align, spec)
 	spec = spec or TooltipSpec.Spec
+	if align == "right" then
+		-- left HUD tooltips: to the right of the target (gap px away), top aligned with it, clamped on screen. It never
+		-- sits over the target; with no room on the right it goes above the target's column instead.
+		local x = pos.X + size.X + spec.gap
+		if x + tip.X <= screen.X - spec.margin then
+			local y = math.max(spec.margin, math.min(pos.Y, screen.Y - tip.Y - spec.margin))
+			return x, y
+		end
+		align = nil
+	end
 	local x
 	if align == "left" then
 		x = pos.X + size.X - tip.X

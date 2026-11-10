@@ -16,6 +16,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local TooltipSpec = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TooltipSpec"))
 local Spec = TooltipSpec.Spec
@@ -87,11 +88,23 @@ function Tooltip.new(screenGui)
 
 	function T.attach(button, text, align)
 		button.MouseEnter:Connect(function()
+			local side = align
+			if side == nil and (button:FindFirstAncestor("Sidebar") or button:FindFirstAncestor("SidebarBoard")) then
+				side = "right" -- every left HUD tooltip opens beside the panel, never over its controls
+			end
 			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			label.Text = (type(text) == "function") and text() or text
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local function place()
-				local x, y = TooltipSpec.place(button.AbsolutePosition, button.AbsoluteSize, frame.AbsoluteSize, screenGui.AbsoluteSize, align)
+				local pos, size = button.AbsolutePosition, button.AbsoluteSize
+				if side == "right" then -- measure from the HUD column's edge so the tip clears the whole panel
+					local col = button:FindFirstAncestor("SidebarBoard") or button:FindFirstAncestor("Sidebar")
+					if col then
+						pos = Vector2.new(col.AbsolutePosition.X, pos.Y)
+						size = Vector2.new(col.AbsoluteSize.X, size.Y)
+					end
+				end
+				local x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
 				frame.AnchorPoint = Vector2.new(0, 0)
 				frame.Position = UDim2.fromOffset(x, y)
 			end
