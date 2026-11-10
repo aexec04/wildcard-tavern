@@ -71,6 +71,7 @@ return function(deps)
 	-- The Tavern Room (Client/MenuRoom.lua) replaces the tavern wall, the bayou and the Living Map: the props are the buttons, so the
 	-- hotspots move to their prop spots in it. (MenuWorld.lua and MenuWorldLayout.lua stay in the repo, unused by the Menu.)
 	require(Engine:WaitForChild("MenuRoomLayout")).apply(Layout)
+	Layout.roomPainted = ContentArt.getImageId("menu_room", "menu_room_scene") ~= nil -- plates stand in for the props until the picture exists
 	local mapWorld = require(script.Parent.MenuRoom).build(menuFrame)
 	menuBackgroundArt.Visible = false
 
@@ -255,6 +256,8 @@ return function(deps)
 		local v = viewport()
 		hotspots.applyViewport(v.X, v.Y)
 		board.apply(v.X, v.Y, Layout.isPhone(v.X))
+		local nl, nt, nr, nb = Layout.rect(Layout.noticeSpot, v.X, v.Y) -- the notes sit on the painted cork board
+		board.place(nl, nt, nr, nb, Layout.roomPainted)
 	end
 	applyViewport()
 	screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyViewport)
@@ -262,13 +265,14 @@ return function(deps)
 	-- ===== Foreground and parallax =====
 	local scene = require(script.Parent.MenuScene).build(menuFrame)
 	scene.setBayou(mapWorld.active) -- hides the wall-bound life (fire, shaft, candle, steam, embers); the map has its own
+	scene.setRoom(true)
 	local P = Layout.Parallax
 	local parallaxLayers = {
-		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = P.far },
+		{ inst = menuBackgroundArt, base = UDim2.fromScale(0.5, 0.5), px = 0 },
 		{ inst = scene.beams, base = scene.beamsBase, px = P.beams },
 		{ inst = scene.lantern, base = scene.lanternBase, px = P.lantern, maxPx = P.lanternMax },
-		{ inst = board.frame, base = UDim2.fromScale(Layout.NoticeBoard.x, Layout.NoticeBoard.y), px = P.wall },
-		{ inst = hotspotLayer, base = UDim2.new(), px = P.mid },
+		{ inst = board.frame, base = UDim2.new(), px = 0 }, -- the picture, its props and the hotspots hold still together
+		{ inst = hotspotLayer, base = UDim2.new(), px = 0 },
 		{ inst = titleGroup, base = UDim2.new(), px = P.near },
 		{ inst = menuTitle, base = UDim2.new(0, 0, 0, 20), px = 0, tilt = true },
 	}

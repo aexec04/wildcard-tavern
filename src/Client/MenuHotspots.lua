@@ -462,7 +462,7 @@ function Hotspots.build(opts)
 		s.Thickness = 2
 		s.Parent = allButton
 	end
-	allButton.MouseButton1Click:Connect(function()
+	local function toggleList()
 		if state.listOpen then
 			closeAll()
 			return
@@ -472,7 +472,8 @@ function Hotspots.build(opts)
 		list.Visible = true
 		catcher.Visible = true
 		fillList()
-	end)
+	end
+	allButton.MouseButton1Click:Connect(toggleList)
 
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if input.KeyCode == Enum.KeyCode.Escape and (state.openScroll or state.listOpen) and menuFrame.Visible then
@@ -520,6 +521,17 @@ function Hotspots.build(opts)
 	local function hover(hotspot, on)
 		local ui = hotspotUI[hotspot.id]
 		if not ui then return end
+		if Layout.roomPainted and not ui.strip then -- the painted room: a soft warm glow on the prop and its name plate above it, nothing at rest
+			local object = ui.frame:FindFirstChild("Object")
+			if object then
+				object.BackgroundColor3 = GLOW
+				TweenService:Create(object, TweenInfo.new(calm() and 0 or 0.15), { BackgroundTransparency = on and 0.85 or 1 }):Play()
+			end
+			local plate = ui.frame:FindFirstChild("NamePlate")
+			if plate then plate.Visible = on end
+			if opts.onHover then opts.onHover(on) end
+			return
+		end
 		TweenService:Create(ui.rim, TweenInfo.new(0.15), { Transparency = on and 0.1 or (hotspot.lit and 0.4 or 0.7) }):Play()
 		if not calm() then
 			TweenService:Create(ui.lift, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Scale = on and 1.04 or 1 }):Play()
@@ -757,10 +769,12 @@ function Hotspots.build(opts)
 				chain.Size = UDim2.new(0, 4, 0.44, 0)
 			end
 			-- lantern pulse of the primary sign
-			table.insert(lanterns, TweenService:Create(rim, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-				{ Thickness = 7, Transparency = 0.1 }))
-			rim.Transparency = 0.4
-			result.animatedCount += 1
+			if not Layout.roomPainted then -- the painted room has its own pulse ring on the deck
+				table.insert(lanterns, TweenService:Create(rim, TweenInfo.new(1.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Thickness = 7, Transparency = 0.1 }))
+				rim.Transparency = 0.4
+				result.animatedCount += 1
+			end
 		else
 			-- a counter item: a click unrolls its scroll; a carved name plate sits under it
 			local surface = Instance.new("TextButton")
@@ -839,8 +853,69 @@ function Hotspots.build(opts)
 	-- Dock everything where it lives.
 	dockAll()
 
+	-- The cork board on the right wall of the painted room opens the All actions list (the notes on it keep their own clicks).
+	local noticeHit
+	if Layout.room then
+		noticeHit = Instance.new("TextButton")
+		noticeHit.Name = "NoticeBoardHit"
+		noticeHit.Text = ""
+		noticeHit.BackgroundTransparency = 1
+		noticeHit.AutoButtonColor = false
+		noticeHit.ZIndex = 12
+		noticeHit.Parent = layer
+		noticeHit.MouseButton1Click:Connect(toggleList)
+		noticeHit.MouseEnter:Connect(function() if opts.onHover then opts.onHover(true) end end)
+		noticeHit.MouseLeave:Connect(function() if opts.onHover then opts.onHover(false) end end)
+	end
+
+	-- Tavern Room: place every prop frame on its rectangle of the picture (mapped through the crop). Hotspots that fall outside the
+	-- visible crop become plain plates in a bottom strip. With a painted picture the prop is invisible until hovered.
+	local function placeRoom(w, h)
+		for _, hs in ipairs(Layout.Hotspots) do
+			local f = result.hotspotFrames[hs.id]
+			local ui = hotspotUI[hs.id]
+			if f then
+				local l, t, r, b = Layout.rect(hs, w, h)
+				f.Position = UDim2.fromOffset((l + r) / 2, (t + b) / 2)
+				f.Size = UDim2.fromOffset(r - l, b - t)
+				local aspect = f:FindFirstChildOfClass("UIAspectRatioConstraint")
+				if aspect then aspect:Destroy() end
+				local strip = Layout.isStrip and Layout.isStrip(hs.id, w, h) or false
+				if ui then ui.strip = strip end
+				local object = f:FindFirstChild("Object")
+				local plate = f:FindFirstChild("NamePlate")
+				if Layout.roomPainted then
+					if object then
+						object.BackgroundColor3 = strip and Color3.fromRGB(84, 56, 34) or GLOW
+						object.BackgroundTransparency = strip and 0.12 or 1
+						for _, d in ipairs(object:GetChildren()) do
+							if d.Name == "Glyph" or d.Name == "Art" then d.Visible = strip end
+						end
+					end
+					if ui then ui.rim.Transparency = 1 end
+					if plate then
+						plate.AnchorPoint = Vector2.new(0.5, 1)
+						plate.Position = UDim2.new(0.5, 0, 0, -4)
+						plate.Size = UDim2.fromOffset(math.max(120, r - l), 30)
+						plate.Visible = strip
+						if strip then
+							plate.AnchorPoint = Vector2.new(0.5, 0)
+							plate.Position = UDim2.new(0.5, 0, 1, 2)
+						end
+					end
+				end
+			end
+		end
+		if noticeHit then
+			local l, t, r, b = Layout.rect(Layout.noticeSpot, w, h)
+			noticeHit.Position = UDim2.fromOffset(l, t)
+			noticeHit.Size = UDim2.fromOffset(r - l, b - t)
+		end
+	end
+
 	function result.applyViewport(w, h)
 		state.w, state.h = w, h
+		if Layout.room then placeRoom(w, h) end
 		for _, sc in pairs(scrolls) do positionScroll(sc) end
 		local phone = Layout.isPhone(w)
 		if phone == state.phone and result._applied then return end

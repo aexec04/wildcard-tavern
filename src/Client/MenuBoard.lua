@@ -160,6 +160,19 @@ function MenuBoard.build(parent)
 		return slot
 	end
 
+	-- Tavern Room: sit on a pixel rectangle (the painted cork board). When the picture is painted the wood and stroke are dropped.
+	function board.place(l, t, r, b, painted)
+		frame.Position = UDim2.fromOffset(l, t)
+		frame.Size = UDim2.fromOffset(r - l, b - t)
+		scale.Scale = math.clamp((r - l - 16) / NOTE_W, 0.4, 1)
+		if painted then
+			frame.BackgroundTransparency = 1
+			edge.Enabled = false
+			local art = frame:FindFirstChild("BoardArt")
+			if art then art.Visible = false end
+		end
+	end
+
 	function board.apply(w, h, phone)
 		frame.Visible = not phone
 		local pxW = N.w * w - 16

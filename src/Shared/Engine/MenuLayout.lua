@@ -179,6 +179,7 @@ end
 
 -- Pixel rectangle of a hotspot on a screen: left, top, right, bottom. Width is s * asp of the HEIGHT.
 function MenuLayout.rect(hotspot, screenW, screenH)
+	if hotspot.pic and MenuLayout.picRect then return MenuLayout.picRect(hotspot, screenW, screenH) end -- Tavern Room: a rectangle of the picture
 	local h = hotspot.s * screenH
 	local w = h * hotspot.asp
 	if w > screenW then

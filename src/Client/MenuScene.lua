@@ -172,10 +172,18 @@ function MenuScene.build(parent)
 		scene.animatedCount = on and (1 + #motes) or (1 + 4 + EMBERS + #motes)
 	end
 
+	-- Tavern Room: the picture has its own life, so the foreground lantern, motes and embers are off
+	local roomMode = false
+	function scene.setRoom(on)
+		roomMode = on
+		lantern.Visible = not on
+		scene.animatedCount = on and 0 or scene.animatedCount
+	end
+
 	function scene.update(nx, ny, t, calm)
-		local wallLife = not calm and not bayouMode
+		local wallLife = not calm and not bayouMode and not roomMode
 		for _, f in ipairs(animated) do f.Visible = wallLife end
-		for _, m in ipairs(motes) do m.frame.Visible = not calm end
+		for _, m in ipairs(motes) do m.frame.Visible = not calm and not roomMode end
 		for _, e in ipairs(embers) do e.frame.Visible = wallLife end
 		if calm then
 			lantern.Rotation = 0
