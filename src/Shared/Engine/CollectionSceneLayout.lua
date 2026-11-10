@@ -77,6 +77,55 @@ function CollectionSceneLayout.chest(W, H)
 	return { x = c.x + c.w - s - 6, y = c.y + c.h - s - 4, w = s, h = s }
 end
 
+-- ===== painted wall: where the two lanterns are (fractions of the 1536x1024 wall art) =====
+CollectionSceneLayout.WALL = { w = 1536, h = 1024, lanterns = { { x = 0.267, y = 0.39 }, { x = 0.865, y = 0.39 } } }
+
+-- pixel position of lantern i in a W x H panel when the wall is drawn with ScaleType Crop (cover, centred)
+function CollectionSceneLayout.lanternPx(W, H, i)
+	local wall = CollectionSceneLayout.WALL
+	local scale = math.max(W / wall.w, H / wall.h)
+	local dw, dh = wall.w * scale, wall.h * scale
+	local l = wall.lanterns[i]
+	return (W - dw) / 2 + l.x * dw, (H - dh) / 2 + l.y * dh
+end
+
+-- ===== framed portraits (Patrons tab): the gilt frame art cropped to the frame without its chain =====
+-- Crop of collection_frame_owned / collection_frame_empty (1024x1536 art) in art pixels, and the opening inside it.
+-- The crop is applied with a clipping frame and a scaled image (not ImageRect), so it holds whatever size Roblox stores.
+CollectionSceneLayout.FRAME_CROP = { imgW = 1024, imgH = 1536, x = 88, y = 350, w = 849, h = 986 }
+CollectionSceneLayout.FRAME_OPENING = { x = 0.223, y = 0.264, w = 0.553, h = 0.556 } -- fractions of the crop
+CollectionSceneLayout.FRAMED_CELL = { w = 92, h = 132, frameH = 108, plateH = 20 }
+
+-- image size and position (as scale of the clipping frame) that show only the crop
+function CollectionSceneLayout.cropPlacement()
+	local c = CollectionSceneLayout.FRAME_CROP
+	return { sizeX = c.imgW / c.w, sizeY = c.imgH / c.h, posX = -c.x / c.w, posY = -c.y / c.h }
+end
+
+-- icon well centred in the frame opening, and the name plate under the frame, in cell pixels
+function CollectionSceneLayout.framedParts()
+	local cell, o = CollectionSceneLayout.FRAMED_CELL, CollectionSceneLayout.FRAME_OPENING
+	local size = math.floor(math.min(cell.w * o.w, cell.frameH * o.h)) - 2
+	local cx = cell.w * (o.x + o.w / 2)
+	local cy = cell.frameH * (o.y + o.h / 2)
+	return {
+		icon = { x = math.floor(cx - size / 2), y = math.floor(cy - size / 2), w = size, h = size },
+		frame = { x = 0, y = 0, w = cell.w, h = cell.frameH },
+		plate = { x = 4, y = cell.h - cell.plateH - 2, w = cell.w - 8, h = cell.plateH },
+		cell = cell,
+	}
+end
+
+-- orbit of the one moth around a lantern: only seen for MOTH_SHOW seconds of every MOTH_CYCLE, never in calm mode
+CollectionSceneLayout.MOTH_CYCLE, CollectionSceneLayout.MOTH_SHOW = 40, 12
+function CollectionSceneLayout.mothVisible(t, calm)
+	return not calm and (t % CollectionSceneLayout.MOTH_CYCLE) < CollectionSceneLayout.MOTH_SHOW
+end
+function CollectionSceneLayout.mothPos(t, cx, cy, radius)
+	local a = t * 1.1
+	return cx + math.cos(a) * radius * (1 + 0.15 * math.sin(a * 2.3)), cy + math.sin(a * 1.3) * radius * 0.7
+end
+
 function CollectionSceneLayout.newIds(before, after)
 	local seen, out = {}, {}
 	for _, id in ipairs(before or {}) do

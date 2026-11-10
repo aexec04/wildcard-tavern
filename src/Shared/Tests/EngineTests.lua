@@ -13760,4 +13760,55 @@ table.insert(tests, { name = "CollectionSceneLayout: New ids diff, lantern flick
 	end
 end })
 
+table.insert(tests, { name = "Collection Gallery: framed portraits fit their cell, lanterns land on the wall art, moth is rare and off in calm mode, New tags and drop-in wired, calm mode skips every loop", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
+	local parts = L.framedParts()
+	local cell = L.FRAMED_CELL
+	local function inside(a, b) return a.x >= b.x and a.y >= b.y and a.x + a.w <= b.x + b.w and a.y + a.h <= b.y + b.h end
+	expectTrue(inside(parts.frame, { x = 0, y = 0, w = cell.w, h = cell.h }), "frame inside the cell")
+	expectTrue(inside(parts.plate, { x = 0, y = 0, w = cell.w, h = cell.h }), "plate inside the cell")
+	expectTrue(parts.plate.y >= parts.frame.y + parts.frame.h - 6, "name plate sits under the frame, not over the portrait")
+	expectTrue(inside(parts.icon, parts.frame) and parts.icon.w >= 40, "portrait well inside the frame opening and big enough to read")
+	local o = L.FRAME_OPENING
+	local open = { x = o.x * cell.w, y = o.y * cell.frameH, w = o.w * cell.w, h = o.h * cell.frameH }
+	expectTrue(inside(parts.icon, open), "portrait well sits inside the opening")
+	local c = L.FRAME_CROP
+	expectTrue(math.abs(c.w / c.h - cell.w / cell.frameH) < 0.03, "the cropped frame matches the cell's aspect (no visible stretch)")
+	local p = L.cropPlacement()
+	expectTrue(p.sizeX > 1 and p.sizeY > 1 and p.posX < 0 and p.posY < 0, "crop is a scaled image offset inside a clipping frame")
+	for _, size in ipairs({ { 1000, 600 }, { 1400, 800 }, { 520, 700 } }) do
+		for i = 1, 2 do
+			local x, y = L.lanternPx(size[1], size[2], i)
+			expectTrue(y >= 0 and y <= size[2], "lantern inside the panel vertically")
+			if size[1] >= 1000 then expectTrue(x >= 0 and x <= size[1], "lantern inside a wide panel") end -- a phone-shaped panel crops one off; its glow hides
+		end
+		local x1 = L.lanternPx(size[1], size[2], 1)
+		local x2 = L.lanternPx(size[1], size[2], 2)
+		expectTrue(x1 < x2, "left lantern is left of the right one")
+	end
+	local visible = 0
+	for t = 0, L.MOTH_CYCLE * 4, 1 do
+		expectFalse(L.mothVisible(t, true), "no moth in calm mode")
+		if L.mothVisible(t, false) then visible = visible + 1 end
+	end
+	expectTrue(visible > 0 and visible < (L.MOTH_CYCLE * 4) * 0.5, "the moth shows now and then, not all the time")
+	local mx, my = L.mothPos(3, 100, 100, 46)
+	expectTrue(math.abs(mx - 100) <= 46 * 1.2 and math.abs(my - 100) <= 46, "the moth stays near its lantern")
+	local g = io and io.open and io.open("src/Client/CollectionGallery.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find("if calm() or fast() or animated >= 6 then return end", 1, true) ~= nil, "drop-in skipped in calm mode and on Fast, capped at six")
+		expectTrue(src:find("if not backdrop.Visible then return end", 1, true) ~= nil, "the loop does nothing while the Collection is hidden")
+		expectTrue(src:find("Layout.flicker(t, isCalm)", 1, true) ~= nil and src:find("Layout.mothVisible(t, isCalm)", 1, true) ~= nil, "flicker and moth follow calm mode")
+		expectTrue(src:find("UIGradient", 1, true) == nil, "no gradients")
+	end
+	local col = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if col then
+		local src = col:read("*a"); col:close()
+		expectTrue(src:find("Gallery.frameTile(", 1, true) ~= nil and src:find("Gallery.newTag(tile)", 1, true) ~= nil and src:find("Gallery.dropIn(tile)", 1, true) ~= nil, "Collection frames portraits and tags new finds")
+		expectTrue(src:find("SceneLayout.newIds(lastKeys, keys)", 1, true) ~= nil, "New tags come from the state diff since the last open")
+		expectTrue(src:find("CollectionBook.isDiscovered(view.sets, item)", 1, true) ~= nil and src:find("showDetail(item, view)", 1, true) ~= nil, "discovery and the detail card are the same code as before")
+	end
+end })
+
 return tests

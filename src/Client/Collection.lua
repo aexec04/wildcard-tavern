@@ -56,6 +56,7 @@ return function(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
+	local SceneLayout = require(Engine:WaitForChild("CollectionSceneLayout"))
 	local RarityFrame = require(script.Parent.RarityFrame)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local StageMotion = require(Engine:WaitForChild("StageMotion"))
@@ -129,8 +130,10 @@ return function(deps)
 	})
 
 	-- Gallery back wall (Client/CollectionWall.lua): mounts only once the collection_scene Image ids are recorded.
+	local Gallery = require(script.Parent.CollectionGallery)
 	pcall(function()
-		require(script.Parent.CollectionWall).mount(panel)
+		local wall = require(script.Parent.CollectionWall).mount(panel)
+		if wall then Gallery.mountAlive(wall, panel, backdrop) end -- lantern flicker and the moth (off in calm mode)
 	end)
 
 	local titleLabel = label(panel, {
@@ -758,6 +761,19 @@ return function(deps)
 	-- Grid tiles do not animate at all (159+ tiles must cost nothing); only the open detail card levitates.
 	local TILE_BATCH = 20
 	local buildToken = 0
+	-- "New" state: the ids found since the Collection was last opened (this session; the first open marks nothing)
+	local lastKeys -- set of discovered "tab:id" keys at the previous open
+	local freshKeys, dropArmed = {}, {}
+	local function discoveredKeys(view)
+		local keys = {}
+		for _, tab in ipairs(CollectionBook.Tabs) do
+			for _, item in ipairs(CollectionBook.displayItems(tab.id, {})) do
+				if CollectionBook.isDiscovered(view.sets, item) then keys[#keys + 1] = tab.id .. ":" .. tostring(item.id) end
+			end
+		end
+		return keys
+	end
+
 	local function makeTile(item, order, view)
 		local found = CollectionBook.isDiscovered(view.sets, item)
 		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
@@ -769,25 +785,33 @@ return function(deps)
 		tile.BackgroundColor3 = found and Color3.fromRGB(58, 44, 30) or Color3.fromRGB(22, 18, 15)
 		tile.ZIndex = 21
 		tile.Parent = scroll
-		roundCorner(tile, 8)
-
-		-- Rarity glow: a colored stroke plus a soft wash behind the icon.
-		-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
-		RarityFrame.apply(tile, CollectionBook.rarityOf(item), {
-			thickness = found and 2 or 1.5, radius = 8, locked = not found, zIndex = 27,
-		})
+		local framed = Gallery.framed(item.tab) -- Patrons hang as framed portraits on the Gallery wall
+		local parts
+		if framed then
+			tile.AutoButtonColor = false
+			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???", found and CREAM or SOFT_CREAM)
+		else
+			roundCorner(tile, 8)
+			-- Rarity glow: a colored stroke plus a soft wash behind the icon.
+			-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
+			RarityFrame.apply(tile, CollectionBook.rarityOf(item), {
+				thickness = found and 2 or 1.5, radius = 8, locked = not found, zIndex = 27,
+			})
+		end
 
 		local iconWell = Instance.new("Frame")
-		iconWell.Size = UDim2.fromOffset(60, 60)
-		iconWell.Position = UDim2.new(0.5, -30, 0, 8)
+		local wellSize = framed and parts.icon.w or 60
+		local wellRadius = framed and 6 or 30
+		iconWell.Size = UDim2.fromOffset(wellSize, framed and parts.icon.h or 60)
+		iconWell.Position = framed and UDim2.fromOffset(parts.icon.x, parts.icon.y) or UDim2.new(0.5, -30, 0, 8)
 		iconWell.BackgroundColor3 = found and rgb(rarity.color) or Color3.fromRGB(35, 28, 20)
 		iconWell.BackgroundTransparency = found and 0.72 or 0.35
-		iconWell.ZIndex = 22
+		iconWell.ZIndex = 23
 		iconWell.Parent = tile
-		roundCorner(iconWell, 30)
+		roundCorner(iconWell, wellRadius)
 
 		local icon = label(iconWell, {
-			Size = UDim2.fromScale(1, 1), TextSize = 34, ZIndex = 23, Text = iconFor(item),
+			Size = UDim2.fromScale(1, 1), TextSize = framed and 28 or 34, ZIndex = 23, Text = iconFor(item),
 		})
 		if not found then
 			-- TextTransparency dims emojis even though TextColor3 doesn't.
@@ -801,7 +825,7 @@ return function(deps)
 					emojiLabel = icon,
 					dim = not found,
 					zIndex = 24,
-					cornerRadius = 30,
+					cornerRadius = wellRadius,
 				})
 			end
 		end
@@ -812,12 +836,24 @@ return function(deps)
 			})
 		end
 
-		label(tile, {
-			Size = UDim2.new(1, -8, 0, 36), Position = UDim2.new(0, 4, 0, 68),
-			Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 22,
-			TextColor3 = found and CREAM or DIM,
-			Text = found and (item.tab == "titles" and item.def.title or item.def.name) or "???",
-		})
+		if not framed then -- framed portraits carry their name on the frame's brass plate
+			label(tile, {
+				Size = UDim2.new(1, -8, 0, 36), Position = UDim2.new(0, 4, 0, 68),
+				Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 22,
+				TextColor3 = found and CREAM or DIM,
+				Text = found and (item.tab == "titles" and item.def.title or item.def.name) or "???",
+			})
+		end
+
+		-- newly found since the Collection was last opened: a brass "New" tag, and (once) a drop-in
+		local freshKey = item.tab .. ":" .. tostring(item.id)
+		if found and freshKeys[freshKey] then
+			Gallery.newTag(tile)
+			if dropArmed[freshKey] then
+				dropArmed[freshKey] = nil
+				Gallery.dropIn(tile)
+			end
+		end
 
 		if found and item.tab == "titles" and view.equippedTitleId == item.id then
 			label(tile, {
@@ -894,6 +930,7 @@ return function(deps)
 		-- refresh bumps buildToken and the old batch loop stops.
 		buildToken = buildToken + 1
 		local mine = buildToken
+		grid.CellSize = Gallery.cellSize(activeTabId) -- framed portraits are taller than the plain tiles
 		local items = CollectionBook.displayItems(activeTabId, hiddenRarities)
 		for i = 1, math.min(#items, TILE_BATCH) do
 			makeTile(items[i], i, view)
@@ -973,6 +1010,14 @@ return function(deps)
 		playClickSfx()
 		OverlayManager.closeAllExcept("collection")
 		hideDetail()
+		do -- what was found since the last open gets a "New" tag and a one-time drop-in
+			local keys = discoveredKeys(currentView())
+			freshKeys, dropArmed = {}, {}
+			if lastKeys then
+				for _, key in ipairs(SceneLayout.newIds(lastKeys, keys)) do freshKeys[key] = true; dropArmed[key] = true end
+			end
+			lastKeys = keys
+		end
 		refresh()
 		popIn(backdrop, panel)
 	end
