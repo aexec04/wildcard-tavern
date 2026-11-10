@@ -12104,7 +12104,7 @@ table.insert(tests, { name = "MenuRoomLayout: one painted picture, hotspots map 
 	expectTrue(RL.ambientKinds <= RL.MAX_AMBIENT, "at most 8 ambient kinds")
 	local known = {}
 	for _, key in ipairs(RL.artKeys) do known[key] = true end
-	expectTrue(known[RL.SCENE_KEY], "the scene key is a known art key")
+	expectEqual(RL.SCENE_KEY, "menu_scene_a", "the room painting is read from MenuSceneArt menu_scene_a")
 	for id in pairs(require(script.Parent.Parent.Engine.MenuRoomArt)) do expectTrue(known[id], "MenuRoomArt only holds known keys: " .. id) end
 end })
 

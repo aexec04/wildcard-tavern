@@ -119,7 +119,7 @@ function MenuRoom.build(parent)
 	container:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	fit()
 
-	local sceneArt = ContentArt.getImageId("menu_room", RL.SCENE_KEY)
+	local sceneArt = ContentArt.getImageId("menu_scene", RL.SCENE_KEY)
 	scene.painted = sceneArt ~= nil
 	if sceneArt then
 		local img = Instance.new("ImageLabel")

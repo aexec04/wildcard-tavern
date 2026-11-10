@@ -12,7 +12,7 @@ local MenuRoomLayout = {}
 -- ONE painted tavern interior (art key menu_room_scene, 1536x1024) fills the Menu. Hotspots are rectangles of that PICTURE
 -- (fractions l, t, r, b) mapped through the cover crop, so they stay on their props at any screen aspect.
 MenuRoomLayout.ASPECT = 1.5
-MenuRoomLayout.SCENE_KEY = "menu_room_scene"
+MenuRoomLayout.SCENE_KEY = "menu_scene_a" -- in the menu_scene art category (MenuSceneArt), filled by record-image
 MenuRoomLayout.pic = {
 	play        = { l = 0.254, t = 0.576, r = 0.755, b = 0.977 },  -- the card table and chairs; the deck is the primary button
 	tome        = { l = 0.007, t = 0.50,  r = 0.20,  b = 0.84 },   -- lectern and open book
@@ -45,7 +45,7 @@ MenuRoomLayout.MAX_AMBIENT = 8
 -- Every key MenuRoomArt may hold (the generated map only ever contains these). The old per-prop pieces stay uploaded but are not drawn.
 MenuRoomLayout.artKeys = {
 	"menu_room_wall", "menu_room_jukebox", "menu_room_coinjar", "menu_room_tome", "menu_room_scroll", "menu_room_noticeboard",
-	"menu_room_map", "menu_room_rulebook", "menu_room_cardtable", "menu_room_lantern", "menu_room_sign", "menu_room_scene",
+	"menu_room_map", "menu_room_rulebook", "menu_room_cardtable", "menu_room_lantern", "menu_room_sign",
 }
 
 -- Cover crop of the picture on a screen: drawn width, height and top-left offset (the picture is centred, never stretched).

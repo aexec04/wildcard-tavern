@@ -71,7 +71,7 @@ return function(deps)
 	-- The Tavern Room (Client/MenuRoom.lua) replaces the tavern wall, the bayou and the Living Map: the props are the buttons, so the
 	-- hotspots move to their prop spots in it. (MenuWorld.lua and MenuWorldLayout.lua stay in the repo, unused by the Menu.)
 	require(Engine:WaitForChild("MenuRoomLayout")).apply(Layout)
-	Layout.roomPainted = ContentArt.getImageId("menu_room", "menu_room_scene") ~= nil -- plates stand in for the props until the picture exists
+	Layout.roomPainted = ContentArt.getImageId("menu_scene", "menu_scene_a") ~= nil -- plates stand in for the props until the picture exists
 	local mapWorld = require(script.Parent.MenuRoom).build(menuFrame)
 	menuBackgroundArt.Visible = false
 
