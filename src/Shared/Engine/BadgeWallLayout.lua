@@ -40,24 +40,48 @@ function Wall.members(chip, defs)
 	return out
 end
 
+-- Every badge sits in a round socket (a waypost, bracket, niche or star node) that is concentric with it and a little
+-- larger, so the rim overlaps the badge edge. SOCKET is the socket diameter divided by the badge size.
+Wall.SOCKET = 1.18
+Wall.PLANK_H = 8
+Wall.SHELF_DROP = 6 -- extra room under a shelf row so the nameplate hangs below the plank
+Wall.SOCKET_KIND = { All = "shelf", Special = "shelf", Roads = "road", Masters = "niche", Night = "star" }
+-- art keys (Engine/BadgeSocketArt.lua) for each socket kind
+Wall.SOCKET_ART = { road = "badge_socket_road", shelf = "badge_socket_shelf", niche = "badge_socket_niche", star = "badge_socket_star" }
+
+-- How far a socket sticks out past its badge on every side.
+function Wall.pad(size)
+	return math.ceil(size * (Wall.SOCKET - 1) / 2)
+end
+
+-- Socket square { x, y, w, h } of an item, concentric with its badge.
+function Wall.socketRect(item)
+	local p = Wall.pad(item.size)
+	return { x = item.x - p, y = item.y - p, w = item.size + 2 * p, h = item.size + 2 * p }
+end
+
 -- Rows of items: n items spread over `rows` shelves. Returns { x, y, size } per item (top-left px).
 local function rowsLayout(n, rows, w, h, top, bottom)
 	local perRow = math.ceil(n / rows)
 	local cellW = (w * 0.9) / perRow
 	local rowH = (h - top - bottom) / rows
-	local size = math.floor(math.max(16, math.min(cellW * 0.86, rowH - Wall.NAMEPLATE_H - 10)))
+	local fit = (rowH - Wall.NAMEPLATE_H - Wall.SHELF_DROP - 8) / Wall.SOCKET
+	local size = math.floor(math.max(16, math.min(cellW * 0.76, fit)))
+	local pad = Wall.pad(size)
 	local out = {}
 	for i = 1, n do
 		local r = (i - 1) // perRow
 		local c = (i - 1) % perRow
 		local x0 = (w - perRow * cellW) / 2 -- every row shares the same columns
-		out[i] = { x = math.floor(x0 + c * cellW + (cellW - size) / 2), y = math.floor(top + r * rowH + 4), size = size }
+		out[i] = { x = math.floor(x0 + c * cellW + (cellW - size) / 2), y = math.floor(top + r * rowH + 2 + pad), size = size }
 	end
 	return out
 end
 
--- Item rectangles for a tab on a board of w x h px. Returns { items = { {id, x, y, size, big} }, shelves = {y...} }.
--- `shelves` are the y positions (px) where a plank or hook rail is drawn under a row.
+-- Item rectangles for a tab on a board of w x h px. Returns { items = { {id, x, y, size, big, socket} }, shelves = {y...} }.
+-- `shelves` are the y positions (px) of the plank top under each row of a shelf tab (the row rests on it).
+-- Roads: one winding path (badges alternate up and down), Masters: niches in a wall grid with a larger centre niche,
+-- Night: star nodes in a constellation, All and Special: strict rows on shelf planks.
 function Wall.layout(chip, defs, w, h)
 	local list = Wall.members(chip, defs)
 	local items = {}
@@ -65,10 +89,13 @@ function Wall.layout(chip, defs, w, h)
 	if chip == "Roads" then
 		local n = #list
 		local step = (w * 0.94) / math.max(1, n)
-		local size = math.floor(math.max(16, math.min(step * 0.88, h - Wall.NAMEPLATE_H - 24)))
-		local y = math.floor((h - size - Wall.NAMEPLATE_H) / 2) -- one straight row, centred
+		local amp = math.floor(math.min(h * 0.1, 36))
+		local size = math.floor(math.max(16, math.min(step * 0.76, (h - Wall.NAMEPLATE_H - 24 - 2 * amp) / Wall.SOCKET)))
+		local pad = Wall.pad(size)
+		local foot = size + 2 * pad + Wall.NAMEPLATE_H
+		local mid = amp + math.floor((h - foot - 2 * amp) / 2) + pad -- badge top at the middle of the winding
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = y, size = size }
+			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = mid + (i % 2 == 1 and -amp or amp), size = size }
 		end
 	elseif chip == "Masters" then
 		local row = {}
@@ -77,7 +104,7 @@ function Wall.layout(chip, defs, w, h)
 			if d.region == "tavern" then tavern = d else row[#row + 1] = d end
 		end
 		local step = (w * 0.94) / math.max(1, #row)
-		local size = math.floor(math.min(step * 0.88, h * 0.24))
+		local size = math.floor(math.min(step * 0.76, h * 0.24))
 		local big = math.floor(math.min(h * 0.34, w * 0.3))
 		if tavern then
 			items[#items + 1] = { id = tavern.id, x = math.floor((w - big) / 2), y = math.floor(h * 0.05), size = big, big = true }
@@ -98,19 +125,51 @@ function Wall.layout(chip, defs, w, h)
 		local pos = rowsLayout(#list, rows, w, h, h * 0.04, h * 0.04)
 		local perRow = math.ceil(#list / rows)
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = pos[i].x, y = pos[i].y, size = pos[i].size }
+			items[i] = { id = d.id, x = pos[i].x, y = pos[i].y, size = pos[i].size, drop = Wall.SHELF_DROP }
 		end
-		local rowH = (h - h * 0.08) / rows
 		for r = 1, rows do
-			if (r - 1) * perRow < #list then shelves[#shelves + 1] = math.floor(h * 0.04 + r * rowH - 6) end
+			local first = items[(r - 1) * perRow + 1]
+			if first then shelves[#shelves + 1] = first.y + first.size + Wall.pad(first.size) - 3 end
 		end
 	end
+	local kind = Wall.SOCKET_KIND[chip] or "shelf"
+	for _, it in ipairs(items) do it.socket = kind end
 	return { items = items, shelves = shelves }
 end
 
--- Rectangle of an item including its nameplate, { x, y, w, h }.
+-- Rectangle of an item including its socket and nameplate, { x, y, w, h }.
 function Wall.footprint(item)
-	return { x = item.x, y = item.y, w = item.size, h = item.size + Wall.NAMEPLATE_H }
+	local p = Wall.pad(item.size)
+	return { x = item.x - p, y = item.y - p, w = item.size + 2 * p, h = item.size + 2 * p + Wall.NAMEPLATE_H + (item.drop or 0) }
+end
+
+-- Where a nameplate hangs under a badge (relative to the badge top-left): below the socket, and below the plank on a shelf.
+function Wall.plateY(item)
+	return item.size + Wall.pad(item.size) + 3 + (item.drop or 0)
+end
+
+-- A line between two badge centres cut back to the socket edges, so it joins the sockets and never pokes through them.
+function Wall.trim(ax, ay, bx, by, ra, rb)
+	local dx, dy = bx - ax, by - ay
+	local len = math.sqrt(dx * dx + dy * dy)
+	if len <= ra + rb then return nil end
+	local ux, uy = dx / len, dy / len
+	return { x1 = ax + ux * ra, y1 = ay + uy * ra, x2 = bx - ux * rb, y2 = by - uy * rb }
+end
+
+-- Evenly spaced dots (or path tiles) along a trimmed segment; always at least two when the segment is long enough.
+function Wall.dots(ax, ay, bx, by, ra, rb, spacing)
+	local t = Wall.trim(ax, ay, bx, by, ra, rb)
+	if not t then return {} end
+	local dx, dy = t.x2 - t.x1, t.y2 - t.y1
+	local len = math.sqrt(dx * dx + dy * dy)
+	local n = math.max(2, math.floor(len / spacing))
+	local out = {}
+	for i = 0, n do
+		local k = i / n
+		out[#out + 1] = { x = t.x1 + dx * k, y = t.y1 + dy * k }
+	end
+	return out
 end
 
 -- String / constellation segments for a tab: { { a = id, b = id, lit = bool } } between consecutive badges in order.

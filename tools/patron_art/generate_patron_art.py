@@ -82,6 +82,7 @@ CATEGORIES = {
     "ledger_ui": ("ledger_ui_subjects", "ledger_ui", "LedgerArt.lua", "Ledger"),
     "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
+    "badge_sockets": ("badge_socket_subjects", "badge_sockets", "BadgeSocketArt.lua", "Badge Socket"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
     "logo": ("logo_subjects", "logo", "LogoArt.lua", "Logo"),
@@ -126,6 +127,8 @@ CATEGORY_OPTS = {
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
+    "badge_sockets": {"quality": "low", "style_key": "house_style", "transparent": True,
+                      "sizes": {"badge_path_dash": "1536x1024"}},
     # 9-slice panel borders: 3:2 canvas, transparent centre (cut out from magenta)
     "set_panels": {"size": "1536x1024", "quality": "low", "style_key": "house_style", "transparent": True},
     "flair_ui": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["flair_stage"],

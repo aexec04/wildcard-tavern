@@ -13074,10 +13074,71 @@ table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows;
 		end
 		local roads = W.layout("Roads", nil, size[1], size[2])
 		for _, it in ipairs(roads.items) do
-			expectEqual(it.y, roads.items[1].y, "Roads badges sit on one straight row")
 			expectEqual(it.size, roads.items[1].size, "Roads badges share one size")
 		end
+		for i = 2, #roads.items do
+			expectTrue(roads.items[i].x > roads.items[i - 1].x, "Roads badges follow one path left to right")
+			expectTrue(roads.items[i].y ~= roads.items[i - 1].y, "the Roads path winds up and down")
+		end
 	end
+end })
+
+table.insert(tests, { name = "Badge sockets: concentric with every badge, no overlaps, inside the board, shelf planks under rows, trimmed lines and dots", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local B = require(script.Parent.Parent.Engine.Badges)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 600, 330 } }) do
+		for _, chip in ipairs(B.Chips) do
+			local lay = W.layout(chip, nil, size[1], size[2])
+			local tag = chip .. " at " .. size[1] .. "x" .. size[2]
+			for i, it in ipairs(lay.items) do
+				local s = W.socketRect(it)
+				expectEqual(s.x + s.w / 2, it.x + it.size / 2, tag .. ": socket x is concentric")
+				expectEqual(s.y + s.h / 2, it.y + it.size / 2, tag .. ": socket y is concentric")
+				expectTrue(s.w > it.size and s.w <= it.size * 1.3, tag .. ": the rim sticks out a little past the badge")
+				expectEqual(it.socket, W.SOCKET_KIND[chip], tag .. ": socket kind follows the tab")
+				expectTrue(W.SOCKET_ART[it.socket] ~= nil, tag .. ": socket has an art key")
+				local f = W.footprint(it)
+				expectTrue(f.x >= 0 and f.y >= 0 and f.x + f.w <= size[1] and f.y + f.h <= size[2], tag .. ": socket and plate inside the board")
+				expectTrue(W.plateY(it) >= it.size + (s.w - it.size) / 2, tag .. ": nameplate hangs below the socket, never over it")
+				for j = i + 1, #lay.items do
+					local a, b = W.socketRect(it), W.socketRect(lay.items[j])
+					local apart = a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y
+					expectTrue(apart, tag .. ": sockets do not overlap")
+				end
+			end
+			if chip == "All" or chip == "Special" then
+				expectTrue(#lay.shelves >= 1, tag .. ": a plank under each row")
+				for _, y in ipairs(lay.shelves) do
+					expectTrue(y + W.PLANK_H <= size[2], tag .. ": plank inside the board")
+				end
+				for _, it in ipairs(lay.items) do
+					local bottom = it.y + it.size + W.pad(it.size)
+					local rests = false
+					for _, y in ipairs(lay.shelves) do
+						if math.abs(y + 3 - bottom) <= 1 then rests = true end
+					end
+					expectTrue(rests, tag .. ": every socket rests on a plank")
+				end
+			end
+		end
+	end
+	-- trimmed lines start and end on the socket edges
+	local t = W.trim(0, 0, 100, 0, 20, 20)
+	expectTrue(t.x1 == 20 and t.x2 == 80 and t.y1 == 0, "trim cuts back to the socket edge")
+	expectTrue(W.trim(0, 0, 30, 0, 20, 20) == nil, "overlapping sockets leave no line")
+	local dots = W.dots(0, 0, 200, 0, 20, 20, 20)
+	expectTrue(#dots >= 3 and dots[1].x == 20 and dots[#dots].x == 180, "dots run from socket edge to socket edge")
+	if io then
+		local f = io.open("src/Client/BadgeWall.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(src:find("Wall.socketRect", 1, true) ~= nil and src:find("BadgeSocketArt", 1, true) ~= nil, "the wall draws sockets from the layout, with art hooks")
+			expectTrue(src:find('"badge_hook_pin"', 1, true) == nil, "no floating pins or hooks above the badges")
+		end
+	end
+	local Art = require(script.Parent.Parent.Engine.BadgeSocketArt)
+	expectEqual(type(Art), "table", "BadgeSocketArt is a table (empty until Image ids are recorded)")
 end })
 
 table.insert(tests, { name = "Popup sounds: scroll_open and scroll_close cues exist, the shared gate debounces, and PopupShield plays them", fn = function()
