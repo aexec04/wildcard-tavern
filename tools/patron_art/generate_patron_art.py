@@ -83,6 +83,7 @@ CATEGORIES = {
     "badge_wall": ("badge_wall_subjects", "badge_wall", "BadgeWallArt.lua", "Badge Wall"),
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "badge_sockets": ("badge_socket_subjects", "badge_sockets", "BadgeSocketArt.lua", "Badge Socket"),
+    "shop_scene": ("shop_scene_subjects", "shop_scene", "ShopSceneArt.lua", "Shop Scene"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
     "logo": ("logo_subjects", "logo", "LogoArt.lua", "Logo"),
@@ -126,6 +127,9 @@ CATEGORY_OPTS = {
     # shop_counter is a wide strip; the rest are single objects or portraits
     "shop": {"quality": "low", "style_key": "house_style", "sizes": {"shop_counter": "1536x1024"}},
     "bonds": {"quality": "low", "style_key": "house_style"},
+    "shop_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["shop_wall"],
+                   "sizes": {"shop_wall": "1536x1024", "shop_marlo_behind": "1024x1536", "shop_marlo_wave": "1024x1536",
+                             "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024"}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     "badge_sockets": {"quality": "low", "style_key": "house_style", "transparent": True,
                       "sizes": {"badge_path_dash": "1536x1024"}},
