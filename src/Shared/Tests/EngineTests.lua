@@ -6778,9 +6778,9 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local ids = {}
 	for i, step in ipairs(Steps.Steps) do ids[step.id] = i end
-	local order = { "play_straight_flush", "panel_target", "panel_tips", "panel_hands", "panel_patrons",
+	local order = { "play_straight_flush", "panel_target", "panel_tips",
 		"shop_patrons", "buy_patron", "buy_pack", "pick_pack_item", "confirm_pack", "tab_patrons",
-		"tab_shop", "reroll", "next_round", "done" }
+		"mp_patrons", "mp_seats", "mp_discard", "mp_passes", "tab_shop", "reroll", "next_round", "done" }
 	local last = 0
 	for _, id in ipairs(order) do
 		expectTrue(ids[id] ~= nil and ids[id] > last, "step order: " .. id)
@@ -6798,7 +6798,7 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	expectEqual(m:report("reroll"), "wrong")
 	expectFalse(m:allows("buy")); expectFalse(m:allows("reroll")); expectFalse(m:allows("nextRound"))
 	expectTrue(m:allows("tap"))
-	for _, id in ipairs({ "panel_target", "panel_tips", "panel_hands", "panel_patrons", "shop_patrons" }) do
+	for _, id in ipairs({ "panel_target", "panel_tips", "shop_patrons" }) do
 		expectEqual(m:current().id, id)
 		expectEqual(m:report("tap"), "advanced")
 	end
@@ -6816,6 +6816,11 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	expectEqual(m:current().id, "tab_patrons")
 	expectTrue(m:allows("tab", { key = "mypatrons" })); expectFalse(m:allows("tab", { key = "myrecipes" }))
 	expectEqual(m:report("tab_mypatrons"), "advanced")
+	for _, id in ipairs({ "mp_patrons", "mp_seats", "mp_discard", "mp_passes" }) do -- My Patrons is explained before going back
+		expectEqual(m:current().id, id)
+		expectTrue(m:current().text ~= "" and Steps.screenOf(m:current()) == "shop", id .. " has a caption and lives in the Shop")
+		expectEqual(m:report("tap"), "advanced")
+	end
 	expectTrue(m:allows("tab", { key = "buy" }))
 	expectEqual(m:report("tab_buy"), "advanced")
 	expectEqual(m:current().id, "reroll")
@@ -9870,7 +9875,7 @@ table.insert(tests, { name = "Tutorial stays under 2 minutes: the time budget of
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local seconds = Steps.estimatedSeconds()
 	expectTrue(seconds <= Steps.MAX_SECONDS, "estimated " .. seconds .. "s, budget " .. Steps.MAX_SECONDS .. "s")
-	expectTrue(#Steps.Steps <= 24, "at most 24 steps, got " .. #Steps.Steps)
+	expectTrue(#Steps.Steps <= 26, "at most 26 steps, got " .. #Steps.Steps)
 	for _, step in ipairs(Steps.Steps) do
 		expectTrue(Steps.SECONDS[step.action] ~= nil, step.id .. " has a time estimate")
 	end
@@ -14144,6 +14149,43 @@ table.insert(tests, { name = "Collection shelves: trophy, key and plate cells ke
 		expectTrue(src:find("Gallery.shelfTile(shelfKind", 1, true) ~= nil, "Collection builds shelf tabs through the Gallery")
 		expectTrue(src:find("Gallery.pinString(tile", 1, true) ~= nil and src:find("Gallery.chestApi.open()", 1, true) ~= nil, "Bonds strings and the chest are wired")
 	end
+end })
+
+table.insert(tests, { name = "Tutorial captions: always the step's own text, the hand only shows on the table, the Night step is first, no plate without a target", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local lines = {}
+	for _, step in ipairs(Steps.Steps) do
+		expectEqual(Steps.captionFor(step), step.text, "caption equals the step text for " .. step.id)
+		expectTrue(#step.text > 0, step.id .. " has text")
+		local words = 0
+		for _ in step.text:gmatch("%S+") do words = words + 1 end
+		expectTrue(words <= Steps.MAX_WORDS, step.id .. " is short")
+		lines[#lines + 1] = string.format("%s | screen %s | target %s | %s", step.id, Steps.screenOf(step), tostring(step.target), step.text)
+	end
+	expectEqual(Steps.captionFor({ id = "x" }), "Follow the highlight.", "only a step without text uses the fallback")
+	expectFalse(Steps.handShowable("roundSelect", true, true, false), "no hand coach mark over the Night map")
+	expectFalse(Steps.handShowable("shop", true, true, false), "no hand coach mark in the Shop")
+	expectFalse(Steps.handShowable("playing", true, true, true), "no hand coach mark under a full-screen panel")
+	expectFalse(Steps.handShowable("playing", true, false, false), "no hand coach mark for an off-screen hand")
+	expectFalse(Steps.handShowable(nil, true, true, false), "unknown phase is not the table")
+	expectTrue(Steps.handShowable("playing", true, true, false), "the hand shows on the table")
+	expectEqual(Steps.Steps[2].id, "select_round", "the Night step comes before any hand step")
+	expectEqual(Steps.Steps[2].text, "Pick The Corner Table to start your first round.")
+	expectEqual(Steps.screenOf(Steps.Steps[2]), "roundSelect")
+	expectEqual(Steps.screenOf(Steps.Steps[3]), "table")
+	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectFalse(src:find("Pick any card to play.", 1, true) ~= nil, "no generic hand caption")
+		expectTrue(src:find("ribbon.Visible = false -- no target: no caption plate either", 1, true) ~= nil, "no caption plate when the target is missing")
+		expectTrue(src:find("Steps.handShowable(", 1, true) ~= nil, "the hand step asks whether the hand is really on screen")
+	end
+	local c = io and io.open and io.open("src/Client/BossScout.lua", "r")
+	if c then
+		local src = c:read("*a"); c:close()
+		expectTrue(src:find("UDim2.new(0.5, -145, 0, 28)", 1, true) ~= nil, "the boss chip stops left of the Counter plaque")
+	end
+	print("[Tutorial walk]\n" .. table.concat(lines, "\n"))
 end })
 
 return tests

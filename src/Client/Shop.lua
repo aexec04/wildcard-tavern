@@ -358,7 +358,7 @@ return function(deps)
 		shopTitle.TextSize = 22
 		shopTitle.TextColor3 = Color3.fromRGB(250, 235, 200)
 		shopTitle.TextStrokeColor3 = Color3.fromRGB(40, 24, 12)
-		shopTitle.TextStrokeTransparency = 0.5
+		shopTitle.TextStrokeTransparency = 1 -- crisp: one text, no stroke halo
 		shopTitle.Text = "The Counter"
 		shopTitle.ZIndex = SHOP_ZINDEX
 		shopTitle.Parent = shopFrame
@@ -1495,6 +1495,7 @@ return function(deps)
 		end
 
 		-- ----- House Passes (Vouchers): permanent for the run, nothing to click -----
+		local passesFrom = nextOrder + 1
 		addSectionHeader(shopMyPatronsListFrame, order(), "House Passes")
 		local passes = {}
 		for _, passId in ipairs(housePassIds) do
@@ -1512,6 +1513,12 @@ return function(deps)
 					kind = "owned", noAction = true, layoutOrder = index, name = pass.name, description = pass.description,
 					emoji = pass.icon, artTab = "house_passes", artId = pass.id, rarityTab = "housePasses", rarityId = pass.id,
 				})
+			end
+		end
+		-- TUTORIAL targets for the My Patrons explanation steps: tag the owned-Patron rows and the House Passes area
+		for _, child in ipairs(shopMyPatronsListFrame:GetChildren()) do
+			if child:IsA("GuiObject") and child.LayoutOrder >= 2 then
+				child:SetAttribute("TutorialKind", child.LayoutOrder >= passesFrom and "housePasses" or "myPatrons")
 			end
 		end
 	end
@@ -1654,7 +1661,30 @@ return function(deps)
 			local list = cards(shopBuyListFrame, "patron")
 			return #list > 0 and list or nil
 		end)
-		TB.register("cheapestPatron", function() return cheapest("patron") end)
+		TB.register("myPatronCards", function()
+				if not (shopMyPatronsListFrame and shopMyPatronsListFrame.Visible) then return nil end
+				local list = {}
+				for _, d in ipairs(shopMyPatronsListFrame:GetChildren()) do
+					if d:IsA("GuiObject") and d:GetAttribute("TutorialKind") == "myPatrons" and d.Visible and d.AbsoluteSize.X > 0 then list[#list + 1] = d end
+				end
+				return #list > 0 and list or nil
+			end)
+			TB.register("myPatronDiscard", function()
+				if not (shopMyPatronsListFrame and shopMyPatronsListFrame.Visible) then return nil end
+				for _, d in ipairs(shopMyPatronsListFrame:GetDescendants()) do
+					if d:IsA("TextButton") and d.Text == "Discard" and d.Visible and d.AbsoluteSize.X > 0 then return d end
+				end
+				return nil
+			end)
+			TB.register("myHousePasses", function()
+				if not (shopMyPatronsListFrame and shopMyPatronsListFrame.Visible) then return nil end
+				local list = {}
+				for _, d in ipairs(shopMyPatronsListFrame:GetChildren()) do
+					if d:IsA("GuiObject") and d:GetAttribute("TutorialKind") == "housePasses" and d.Visible and d.AbsoluteSize.X > 0 then list[#list + 1] = d end
+				end
+				return #list > 0 and list or nil
+			end)
+			TB.register("cheapestPatron", function() return cheapest("patron") end)
 		TB.register("cheapestPack", function() return cheapest("pack") end)
 		TB.register("packItems", function()
 			local list = {}

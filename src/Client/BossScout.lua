@@ -127,7 +127,7 @@ local function buildChip(parent)
 	chip.Name = "BossScoutChip"
 	chip.AnchorPoint = Vector2.new(0, 0)
 	chip.Position = UDim2.fromOffset(12, 8)
-	chip.Size = UDim2.fromOffset(300, 28)
+	chip.Size = UDim2.new(0.5, -145, 0, 28) -- left of the Counter plaque (250 px, centred), never under it
 	chip.BackgroundColor3 = WOOD
 	chip.BorderSizePixel = 0
 	chip.Font = Enum.Font.GothamBold

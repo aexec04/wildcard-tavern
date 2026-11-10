@@ -37,11 +37,12 @@ TutorialSteps.TargetNames = {
 	sidebarScore = true, sidebarTips = true, sidebarHands = true, sidebarPatrons = true,
 	shopPatronsRow = true, cheapestPatron = true, cheapestPack = true, packItems = true, packConfirm = true,
 	shopTabMyPatrons = true, shopTabMyRecipes = true, shopTabBuy = true, reroll = true,
+	myPatronCards = true, myPatronDiscard = true, myHousePasses = true,
 }
 
 TutorialSteps.Steps = {
 	{ id = "menu_play", action = "menu_play", target = "menuPlay", allow = { "menuPlay" }, text = "Press Play to start your first run." },
-	{ id = "select_round", action = "select_round", target = "selectButton", allow = { "select" }, text = "Press Select to play this round." },
+	{ id = "select_round", action = "select_round", target = "selectButton", allow = { "select" }, text = "Pick The Corner Table to start your first round." },
 	{ id = "pick_pair", action = "pick", target = "handCards", allow = { "card" }, expect = "pair", count = 2, text = "Pick the two matching Sevens." },
 	{ id = "play_pair", action = "play_hand", target = "play", allow = { "play" }, text = "Press Play Hand to score your pair." },
 	{ id = "pick_two_pair", action = "pick", target = "handCards", allow = { "card" }, expect = "two_pair", count = 4, text = "Pick both pairs: Kings and Fours." },
@@ -54,14 +55,18 @@ TutorialSteps.Steps = {
 	-- ONE action: tap the spotlighted piece ("tap") or do the named thing.
 	{ id = "panel_target", action = "tap", target = "sidebarScore", allow = { "tap" }, shop = true, text = "Reach this target to clear a round and earn Tips." },
 	{ id = "panel_tips", action = "tap", target = "sidebarTips", allow = { "tap" }, shop = true, text = "Tips are your money. Spend them at the Counter." },
-	{ id = "panel_hands", action = "tap", target = "sidebarHands", allow = { "tap" }, shop = true, text = "Hands and Discards: your plays and card swaps." },
-	{ id = "panel_patrons", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Patron slots hold the helpers you hire." },
 	{ id = "shop_patrons", action = "tap", target = "shopPatronsRow", allow = { "tap" }, shop = true, text = "Patrons give you bonuses every hand." },
 	{ id = "buy_patron", action = "buy_patron", target = "cheapestPatron", allow = { "buy" }, shop = true, text = "Buy the cheapest Patron." },
 	{ id = "buy_pack", action = "buy_pack", target = "cheapestPack", allow = { "pack" }, shop = true, text = "Buy a Pack and open it." },
 	{ id = "pick_pack_item", action = "pack_item", target = "packItems", allow = { "packItem" }, shop = true, text = "Tap one card to keep." },
 	{ id = "confirm_pack", action = "pack_confirm", target = "packConfirm", allow = { "packConfirm" }, shop = true, text = "Press Confirm to keep it." },
 	{ id = "tab_patrons", action = "tab_mypatrons", target = "shopTabMyPatrons", allow = { "tab" }, tab = "mypatrons", shop = true, text = "Open the My Patrons tab." },
+	-- What My Patrons holds (read from Client/Shop.lua rebuildMyPatronsTab): owned Patron cards with a Discard button (refunds half
+	-- the price), the seat count lives in the left panel (a full table needs a Discard before you can hire), House Passes below.
+	{ id = "mp_patrons", action = "tap", target = "myPatronCards", allow = { "tap" }, shop = true, text = "Hired Patrons live here and help every hand." },
+	{ id = "mp_seats", action = "tap", target = "sidebarPatrons", allow = { "tap" }, shop = true, text = "Each seat holds one Patron. Full seats need a Discard." },
+	{ id = "mp_discard", action = "tap", target = "myPatronDiscard", allow = { "tap" }, shop = true, text = "Discard sells a Patron back for half its price." },
+	{ id = "mp_passes", action = "tap", target = "myHousePasses", allow = { "tap" }, shop = true, text = "House Passes last the whole run. None yet." },
 	{ id = "tab_shop", action = "tab_buy", target = "shopTabBuy", allow = { "tab" }, tab = "buy", shop = true, text = "Go back to the Shop tab." },
 	{ id = "reroll", action = "reroll", target = "reroll", allow = { "reroll" }, shop = true, text = "Reroll costs Tips and shows new offers." },
 	{ id = "next_round", action = "next_round", target = "nextRound", allow = { "nextRound" }, text = "Press Next Round to keep going." },
@@ -76,6 +81,27 @@ TutorialSteps.SECONDS = {
 	menu_play = 3, select_round = 3, pick = 4, play_hand = 7, tap = 3, buy_patron = 4, buy_pack = 4, pack_item = 3,
 	pack_confirm = 3, tab_mypatrons = 3, tab_myrecipes = 3, tab_buy = 3, reroll = 4, next_round = 3, ok = 3,
 }
+
+-- Which screen a step lives on: "menu", "roundSelect", "table", "shop" or "done".
+function TutorialSteps.screenOf(step)
+	if step.action == "menu_play" then return "menu" end
+	if step.action == "select_round" then return "roundSelect" end
+	if step.action == "ok" then return "done" end
+	if step.shop or step.action == "next_round" then return "shop" end
+	return "table"
+end
+
+-- The caption is always the step's own line (never a generic fallback while a different thing is spotlighted).
+function TutorialSteps.captionFor(step)
+	if step and type(step.text) == "string" and step.text ~= "" then return step.text end
+	return "Follow the highlight."
+end
+
+-- The hand may be spotlighted only while the hand is really on screen: the run is on the table, the hand frame and its parents
+-- are visible, its rect is on screen, and no full-screen panel (RoundSelect, Shop, Menu, Collection ...) is up.
+function TutorialSteps.handShowable(phase, frameVisible, rectOnScreen, overlayOpen)
+	return phase == "playing" and frameVisible == true and rectOnScreen == true and overlayOpen ~= true
+end
 
 function TutorialSteps.estimatedSeconds()
 	local total = 0

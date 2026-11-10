@@ -249,8 +249,20 @@ return function(deps)
 		end
 		if step.target == "handCards" then
 			local slots = handSlots(scripted and step.count or nil)
-			if #slots > 0 and visible(deps.handFrame) then
-				return slots, scripted and step.text or "Pick any card to play."
+			local onScreen = false
+			if visible(deps.handFrame) then
+				local p, s, g, gs = deps.handFrame.AbsolutePosition, deps.handFrame.AbsoluteSize, gui.AbsolutePosition, gui.AbsoluteSize
+				onScreen = p.X < g.X + gs.X and p.X + s.X > g.X and p.Y < g.Y + gs.Y and p.Y + s.Y > g.Y
+			end
+			local names = {}
+			for _, parent in ipairs({ screenGui, root }) do
+				for _, c in ipairs(parent:GetChildren()) do
+					if c:IsA("GuiObject") and c.Visible then names[#names + 1] = c.Name end
+				end
+			end
+			local overlay = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BannerVisibility")).isScreenOpen(names)
+			if #slots > 0 and Steps.handShowable(lastState and lastState.phase, true, onScreen, overlay) then
+				return slots, Steps.captionFor(step) -- the caption is always this step's own line
 			end
 		elseif step.target then
 			local inst = TutorialBus.resolve(step.target)
@@ -294,9 +306,10 @@ return function(deps)
 		if not currentList then return end
 		if currentStep then
 			-- re-find the live target every frame: hand cards and the Select button are rebuilt on every render
-			local list = resolveTarget(currentStep)
+			local list, text = resolveTarget(currentStep)
 			if not list or #list == 0 then
 				setChromeHidden()
+				ribbon.Visible = false -- no target: no caption plate either
 				if not warned[currentStep.id] then
 					warned[currentStep.id] = true
 					warn("[Tutorial] target not found for step " .. tostring(currentStep.id) .. " (" .. tostring(currentStep.target) .. "): no spotlight")
@@ -304,6 +317,8 @@ return function(deps)
 				return
 			end
 			currentList = list
+			ribbonText.Text = text or Steps.captionFor(currentStep)
+			ribbon.Visible = true
 			dims[1].Visible = true
 			highlight.Visible = true
 			arrow.Visible = true
@@ -405,8 +420,8 @@ return function(deps)
 		end
 		okButton.Visible = false
 		local list, text = resolveTarget(step)
-		ribbonText.Text = text or step.text
-		ribbon.Visible = true
+		ribbonText.Text = text or Steps.captionFor(step)
+		ribbon.Visible = list ~= nil
 		if not list then
 			-- nothing to point at right now (for example while a hand is being dealt): wait and retry
 			setChromeHidden()
