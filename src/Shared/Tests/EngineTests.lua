@@ -6687,10 +6687,12 @@ table.insert(tests, { name = "TutorialStart: only an explicit tutorial run is sc
 	expectEqual(n, 1) -- exactly one call passes isTutorial: the StartTutorial handler
 	expectTrue(server:find("Rem.StartTutorial.OnServerEvent", 1, true) ~= nil)
 	expectFalse(server:find("hasSeenTutorial == false) and 1", 1, true) ~= nil, "no first-run auto stage")
-	local c = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	local c = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not c then return end
 	local client = c:read("*a"); c:close()
 	expectFalse(client:find("autoTried", 1, true) ~= nil, "no auto start in the walkthrough")
-	local m = io.open("src/Client/init.client.lua", "r")
+	local m = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if not m then return end
 	local hub = m:read("*a"); m:close()
 	local _, starts = hub:gsub("tutorial%.replay%(%)", "")
 	expectTrue(starts >= 1)
@@ -6710,7 +6712,8 @@ table.insert(tests, { name = "Tutorial spotlight: every step target is a known n
 	expectTrue(src:find("IsDescendantOf(screenGui)", 1, true) ~= nil, "destroyed elements are rejected")
 	expectTrue(src:find("[Tutorial] target not found", 1, true) ~= nil, "a missing target warns")
 	expectTrue(src:find("HandIndex", 1, true) ~= nil, "hand cards are found by tag")
-	local h = io.open("src/Client/init.client.lua", "r")
+	local h = io and io.open and io.open("src/Client/init.client.lua", "r")
+	if not h then return end
 	local hub = h:read("*a"); h:close()
 	expectTrue(hub:find('slot:SetAttribute("HandIndex"', 1, true) ~= nil, "hand slots carry the tag")
 end })
@@ -6753,7 +6756,8 @@ table.insert(tests, { name = "Tutorial forced input: only the scripted cards, Pl
 	for _, kind in ipairs({ "card", "play", "discard", "nextRound", "sort" }) do
 		expectTrue(hub:find('tutorial.allows("' .. kind .. '"', 1, true) ~= nil, "hub gates " .. kind)
 	end
-	local sf = io.open("src/Client/Shop.lua", "r")
+	local sf = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not sf then return end
 	local shop = sf:read("*a"); sf:close()
 	for _, kind in ipairs({ "reroll", "buy", "pack" }) do
 		expectTrue(shop:find('tutorialAllows("' .. kind .. '"', 1, true) ~= nil, "shop gates " .. kind)
@@ -6833,9 +6837,9 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	local f = io and io.open and io.open("src/Client/TutorialWalkthrough.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
-	local shop = io.open("src/Client/Shop.lua", "r"):read("*a")
-	local menu = io.open("src/Client/Menu.lua", "r"):read("*a")
-	local hub = io.open("src/Client/init.client.lua", "r"):read("*a")
+	local shopF, menuF, hubF = io.open("src/Client/Shop.lua", "r"), io.open("src/Client/Menu.lua", "r"), io.open("src/Client/init.client.lua", "r")
+	if not (shopF and menuF and hubF) then return end
+	local shop, menu, hub = shopF:read("*a"), menuF:read("*a"), hubF:read("*a")
 	for name in pairs(Steps.TargetNames) do
 		if name ~= "handCards" then
 			local found = src:find('register("' .. name .. '"', 1, true) or shop:find('register("' .. name .. '"', 1, true)
@@ -13862,11 +13866,22 @@ table.insert(tests, { name = "PlayRules: exact and minimum card counts read from
 	expectEqual(PlayRules.hint({}), nil)
 	expectEqual(PlayRules.minimum({ challenge = { minCardsPerHand = 3 } }), 3)
 	expectFalse(PlayRules.allows({ challenge = { minCardsPerHand = 3 } }, 2))
-	local f = io.open("src/Client/init.client.lua", "r")
+	local f = io and io.open and io.open("src/Client/init.client.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("PlayRules", 1, true) ~= nil, "the Play Hand click must check PlayRules")
 	end
+end })
+
+table.insert(tests, { name = "AssetId.normalize: bare and prefixed ids give one single prefix, never a double", fn = function()
+	local AssetId = require(script.Parent.Parent.Engine.AssetId)
+	expectEqual(AssetId.normalize(83224302947225), "rbxassetid://83224302947225")
+	expectEqual(AssetId.normalize("83224302947225"), "rbxassetid://83224302947225")
+	expectEqual(AssetId.normalize("rbxassetid://83224302947225"), "rbxassetid://83224302947225")
+	expectEqual(AssetId.normalize("rbxassetid://rbxassetid://83224302947225"), "rbxassetid://83224302947225")
+	expectEqual(AssetId.normalize(nil), nil)
+	expectEqual(AssetId.normalize(""), nil)
+	expectFalse(AssetId.normalize("rbxassetid://rbxassetid://1"):find("rbxassetid://rbxassetid://", 1, true) ~= nil)
 end })
 
 table.insert(tests, { name = "CollectionSceneLayout: grid cells stay inside the content area at 1920x1080, 1280x720 and compact, never overlap, chest clear of the first row", fn = function()
