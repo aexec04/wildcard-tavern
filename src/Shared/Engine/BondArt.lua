@@ -6,4 +6,12 @@
 ]]
 
 return {
+	["bond_locked"] = "rbxassetid://123298624777371",
+	["economy"] = "rbxassetid://134712955162811",
+	["flush"] = "rbxassetid://116958280792964",
+	["pairs"] = "rbxassetid://101310550732737",
+	["ranks"] = "rbxassetid://139142516357018",
+	["rulebender"] = "rbxassetid://92450114605951",
+	["scaling"] = "rbxassetid://129692191447291",
+	["straight"] = "rbxassetid://122578971140800",
 }

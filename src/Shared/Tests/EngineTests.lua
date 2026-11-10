@@ -4939,7 +4939,8 @@ table.insert(tests, { name = "Collection: every entry resolves to ContentArt or 
 		end
 		-- No orphan art keys (a typo'd key would silently never show).
 		for id in pairs(ContentArt[tab.id] or {}) do
-			expectTrue(ids[id] == true, "art key " .. tab.id .. "/" .. tostring(id) .. " matches no registry entry")
+			-- bond_locked is the shared placeholder medallion for Bonds not yet formed, not a registry entry
+			expectTrue(ids[id] == true or (tab.id == "bonds" and id == "bond_locked"), "art key " .. tab.id .. "/" .. tostring(id) .. " matches no registry entry")
 		end
 	end
 end })
@@ -12255,6 +12256,18 @@ table.insert(tests, { name = "BadgeWallLayout: every tab has its badges, nothing
 	local seg = W.segment(0, 0, 3, 4)
 	expectEqual(seg.length, 5, "segment length")
 	expectEqual(seg.x, 1.5, "segment midpoint")
+end })
+
+table.insert(tests, { name = "Bonds: every Bond and the locked tile resolve to a painted image id", fn = function()
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	local BondArt = require(script.Parent.Parent.Engine.BondArt)
+	for _, def in ipairs(Bonds.Definitions) do
+		expectTrue(type(BondArt[def.id]) == "string" and BondArt[def.id]:find("rbxassetid://%d+") ~= nil, def.id .. " has a painted medallion")
+	end
+	for _, tag in ipairs(Bonds.Tags) do
+		expectTrue(BondArt[tag] ~= nil, "tag " .. tag .. " resolves (BondThreads looks up by tag)")
+	end
+	expectTrue(BondArt.bond_locked ~= nil, "locked Bonds show bond_locked")
 end })
 
 table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
