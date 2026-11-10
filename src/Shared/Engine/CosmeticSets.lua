@@ -589,11 +589,12 @@ function CosmeticSets.skinOf(set)
 		if images.faceFrame or images.faceCourt then
 			index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) }
 		end
-		return { images = images, colors = nil, neutral = true, index = index }
+		return { id = set and set.id, images = images, colors = nil, neutral = true, index = index }
 	end
 	local accent = CosmeticSets.accentOf(set) or face.border
 	local dark = { 28, 20, 14 }
 	return {
+		id = set and set.id,
 		images = images,
 		neutral = false,
 		index = { red = CosmeticSets.indexStyle(set, true), black = CosmeticSets.indexStyle(set, false) },
@@ -606,8 +607,8 @@ function CosmeticSets.skinOf(set)
 	}
 end
 
--- Card index legibility. The rank/suit corners sit on a light plate in the set's paper colour; ink is the suit colour
--- (leaning toward the set's pip colour) darkened until it reaches 4.5:1 against that plate. Pure.
+-- Card index legibility. No plate is drawn: the corners sit on the card paper; ink is the suit colour (leaning toward the
+-- set's pip colour) darkened until it reaches 4.5:1 against the paper colour. Pure.
 CosmeticSets.RED_INK = { 165, 28, 28 }
 CosmeticSets.BLACK_INK = { 30, 22, 18 }
 CosmeticSets.MIN_INDEX_CONTRAST = 4.5
@@ -639,7 +640,7 @@ function CosmeticSets.indexStyle(set, isRed)
 		plate = mix(cream, { 226, 208, 170 }, 0.25)
 		ink = base
 	else
-		plate = mix(face.paper, cream, 0.5)
+		plate = face.paper -- the paper colour itself (field name kept: it is the surface the ink sits on)
 		ink = mix(base, face.pip, isRed and 0.2 or 0.5)
 	end
 	local dark = CosmeticSets.BLACK_INK

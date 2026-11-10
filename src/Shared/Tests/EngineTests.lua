@@ -11955,6 +11955,58 @@ table.insert(tests, { name = "Round Select: no Scout bar, no reserved space, rul
 	expectFalse(mb:find("1, -126", 1, true) ~= nil, "warning strip is not pinned to the bottom")
 end })
 
+table.insert(tests, { name = "SkinSlice: caps never exceed half the button, cap height equals button height, tiny buttons fall back flat", fn = function()
+	local SS = require(script.Parent.Parent.Engine.SkinSlice)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		for _, slot in ipairs({ "button_plate", "tab_plate" }) do
+			local m = SS.metrics(set.id, slot)
+			expectTrue(m ~= nil, set.id .. " has metrics for " .. slot)
+			if m then
+				for _, size in ipairs({ { 120, 36 }, { 160, 44 }, { 240, 50 }, { 400, 64 }, { 90, 30 } }) do
+					local sl = SS.plateSlice(m, size[1], size[2])
+					if sl then
+						n = n + 1
+						expectTrue(sl.capW * 2 <= size[1] + 0.001, set.id .. " " .. slot .. " caps fit in half the width at " .. size[1])
+						expectTrue(math.abs(sl.scale * m.ch - size[2]) < 0.001, set.id .. " " .. slot .. " art height equals button height")
+						expectTrue(sl.center.l < sl.center.r and sl.center.t < sl.center.b, set.id .. " slice centre is non-empty")
+					else
+						expectTrue(size[1] < SS.MIN_CAPS_WIDE * (m.cw * SS.CAP_FRACTION * size[2] / m.ch) + 0.001, set.id .. " flat fallback only when under 3 caps wide")
+					end
+				end
+			end
+		end
+	end
+	expectTrue(n > 0, "some plates are sliceable")
+	expectEqual(SS.plateSlice(nil, 100, 40), nil, "no metrics, no art")
+end })
+
+table.insert(tests, { name = "SkinSlice: every set has measured metrics for all four slots and a usable card index window", fn = function()
+	local SS = require(script.Parent.Parent.Engine.SkinSlice)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	for _, set in ipairs(CS.Definitions) do
+		for _, slot in ipairs({ "button_plate", "tab_plate", "panel_frame", "face_frame" }) do
+			local m = SS.metrics(set.id, slot)
+			expectTrue(m ~= nil and m.cw > 0 and m.ch > 0 and m.x + m.cw <= m.w and m.y + m.ch <= m.h, set.id .. " " .. slot .. " crop is inside the canvas")
+		end
+		local win = SS.indexWindow(SS.metrics(set.id, "face_frame"))
+		expectTrue(win.shrink >= 0 and win.shrink <= SS.MAX_FRAME_SHRINK, set.id .. " frame shrinks at most 8 percent per side")
+		expectTrue(win.w >= 0.3 and win.h >= 0.35 and win.x >= 0 and win.x + win.w <= 1 and win.y + win.h <= 1, set.id .. " index window fits on the card")
+		local lay = SS.indexLayout(win)
+		expectTrue(lay.rank.x >= win.x and lay.rank.y >= win.y, set.id .. " rank sits inside the window")
+		expectTrue(lay.bottom.x <= win.x + win.w and lay.bottom.y <= win.y + win.h, set.id .. " bottom suit sits inside the window")
+		local ps = SS.panelSlice(SS.metrics(set.id, "panel_frame"), 20)
+		expectTrue(ps ~= nil and ps.center.l * ps.scale <= 20.001, set.id .. " panel border draws at the requested band")
+	end
+	local f = io and io.open and io.open("src/Client/SetSkin.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("IndexPlate", 1, true) == nil, "no index plate frames behind card ranks")
+		expectTrue(src:find("ScaleType.Stretch", 1, true) ~= nil and src:find("Enum.ScaleType.Slice", 1, true) ~= nil, "plates are sliced")
+	end
+end })
+
 table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches it, content inside the inset clears the border", fn = function()
 	local PanelBand = require(script.Parent.Parent.Engine.PanelBand)
 	expectEqual(PanelBand.band(1385, 690), 21, "map panel band is about 3 percent of the short side")

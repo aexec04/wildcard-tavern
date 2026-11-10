@@ -9,13 +9,15 @@
 	  SetSkin.cardLayers(face, z, rank)    paper texture, frame overlay and court ornament for a card FRONT
 
 	With art: panels and buttons get an ImageLabel overlay (panelFrame / buttonPlate), tabs get tabPlate, card faces get
-	facePaper (tiled under the pips), faceFrame (border overlay) and faceCourt (J, Q, K centrepiece); indexLayers adds light plates so ranks stay readable. Without art the set's
+	facePaper (tiled under the pips), faceFrame (border overlay) and faceCourt (J, Q, K centrepiece); indexInfo gives the ink, stroke and inner-window layout so ranks sit inside the frame without any box. Art is cropped to its measured box (Engine/SetSkinMetrics) and 9-sliced (Engine/SkinSlice), never stretched. Without art the set's
 	colours do the work: panel and button rings take the set's border colour, tabs a tinted wash, and card faces keep
 	CardFace's own paper wash and border. The default set keeps today's look. Overlays are children of the element itself
 	(so Clone() keeps them) and are skipped for ScrollingFrames and anything holding a UIListLayout or UIGridLayout.
 ]]
 
 local PanelBand = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBand"))
+
+local SkinSlice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SkinSlice"))
 
 local SetSkin = {}
 
@@ -69,14 +71,31 @@ local function nestedPanel(inst)
 	return false
 end
 
--- 9-slice the frame so its border draws at most PanelBand.MAX_BAND px thick whatever the panel size.
-local function thinBand(inst, label)
+local SLOT_KEY = { panel = "panel_frame", button = "button_plate", tab = "tab_plate" }
+
+-- Crop the plate to its measured art box and 9-slice it for the element's size (see Engine/SkinSlice). Panels get a band
+-- of at most PanelBand.MAX_BAND px; buttons and tabs scale uniformly to their height. Too small for its caps: the plate
+-- is hidden and the flat set colours (ring, wash) show instead.
+local function fitArt(inst, kind, label, m)
+	local crop = SkinSlice.crop(m)
+	label.ImageRectOffset = Vector2.new(crop.x, crop.y)
+	label.ImageRectSize = Vector2.new(crop.w, crop.h)
+	label.ScaleType = Enum.ScaleType.Slice
 	local function apply()
 		local size = inst.AbsoluteSize
-		local band = PanelBand.band(size.X > 0 and size.X or 400, size.Y > 0 and size.Y or 300)
-		label.ScaleType = Enum.ScaleType.Slice
-		label.SliceCenter = Rect.new(PanelBand.SLICE_EDGE, PanelBand.SLICE_EDGE, PanelBand.SOURCE - PanelBand.SLICE_EDGE, PanelBand.SOURCE - PanelBand.SLICE_EDGE)
-		label.SliceScale = PanelBand.sliceScale(band)
+		local sl
+		if size.X > 0 and size.Y > 0 then
+			if kind == "panel" then
+				sl = SkinSlice.panelSlice(m, PanelBand.band(size.X, size.Y))
+			else
+				sl = SkinSlice.plateSlice(m, size.X, size.Y)
+			end
+		end
+		label.Visible = sl ~= nil
+		if sl then
+			label.SliceCenter = Rect.new(sl.center.l, sl.center.t, sl.center.r, sl.center.b)
+			label.SliceScale = sl.scale
+		end
 	end
 	apply()
 	if not label:GetAttribute("BandHooked") then
@@ -95,9 +114,11 @@ local function style(inst, kind, skin)
 	-- holder art) step aside while a set plate is drawn so there is one frame, not two.
 	if kind == "panel" and nestedPanel(inst) then image = nil end -- only top-level panels get a frame
 	-- Plates sit at the element's own ZIndex (behind its content), never above text, buttons or maps.
+	local m = image and SkinSlice.metrics(skin.id, SLOT_KEY[kind]) or nil
+	if not m then image = nil end -- no measured box: never draw unmeasured (stretched) art
 	local label = plate(inst, OVERLAY, image, inst.ZIndex, kind == "panel" and 0.35 or 0.25)
-	if label and kind == "panel" then thinBand(inst, label) end
-	local hide = label ~= nil
+	if label then fitArt(inst, kind, label, m) end
+	local hide = label ~= nil and label.Visible
 	for _, child in ipairs(inst:GetChildren()) do
 		local n = child.Name
 		if n == "InnerRim" or n == "BracketH" or n == "BracketV" or n == "SkinArt" then
@@ -201,44 +222,31 @@ function SetSkin.cardLayers(face, zIndex, rankText, skin)
 		end
 	end
 	if images.faceFrame then
-		plate(face, "SetSkinFrame", images.faceFrame, zIndex, 0.15)
+		local m = SkinSlice.metrics(skin.id, "face_frame")
+		local frame = plate(face, "SetSkinFrame", images.faceFrame, zIndex, 0.15)
+		if frame then
+			if m then
+				-- cropped to the visible art so the painted border sits on the card edge (no padding band)
+				frame.ImageRectOffset = Vector2.new(m.x, m.y)
+				frame.ImageRectSize = Vector2.new(m.cw, m.ch)
+				local shrink = SkinSlice.indexWindow(m).shrink
+				frame.Position = UDim2.fromScale(shrink, shrink)
+				frame.Size = UDim2.fromScale(1 - 2 * shrink, 1 - 2 * shrink)
+			end
+			frame.ScaleType = Enum.ScaleType.Stretch
+		end
 	end
 end
 
-local function indexPlate(face, name, z, color, pos, size, edge)
-	local p = Instance.new("Frame")
-	p.Name = name
-	p.BackgroundColor3 = color
-	p.BackgroundTransparency = 0.2
-	p.BorderSizePixel = 0
-	p.Active = false
-	p.Position = pos
-	p.Size = size
-	p.ZIndex = z
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.12, 0)
-	corner.Parent = p
-	-- thin printed-ink outline instead of a hard white edge
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = edge
-	stroke.Thickness = 1
-	stroke.Transparency = 0.7
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = p
-	p.Parent = face
-end
-
--- Light plates behind the top-left and mirrored bottom-right index. Returns the ink Color3 to use (nil when the set has
--- no index style, i.e. the default set) and the ZIndex the index labels must use.
-function SetSkin.indexLayers(face, zIndex, isRed, skin)
+-- Index (corner rank and suit) styling. No box: the ink (4.5:1 against the paper) gets a soft paper-coloured stroke.
+-- Returns nil for the default set; otherwise { ink = Color3, stroke = Color3, layout = SkinSlice.indexLayout } where the
+-- layout sits inside the frame's measured inner window.
+function SetSkin.indexInfo(isRed, skin)
 	skin = skin or current
 	local style = skin.index and (isRed and skin.index.red or skin.index.black)
-	if not style then return nil, zIndex end
-	local color = rgb(style.plate)
-	local edge = rgb(style.edge or style.ink)
-	indexPlate(face, "IndexPlate", zIndex + 1, color, UDim2.fromScale(0.09, 0.07), UDim2.fromScale(0.34, 0.32), edge)
-	indexPlate(face, "IndexPlateBottom", zIndex + 1, color, UDim2.fromScale(0.58, 0.72), UDim2.fromScale(0.3, 0.2), edge)
-	return rgb(style.ink), zIndex + 2
+	if not style then return nil end
+	local win = SkinSlice.indexWindow(skin.images.faceFrame and SkinSlice.metrics(skin.id, "face_frame") or nil)
+	return { ink = rgb(style.ink), stroke = rgb(style.plate), layout = SkinSlice.indexLayout(win) }
 end
 
 -- Targets in the table HUD that wear the panel treatment (found by name, once the instance exists).
