@@ -84,6 +84,7 @@ CATEGORIES = {
     "blessing_icons": ("blessing_icon_subjects", "blessing_icons", "BlessingIconArt.lua", "Blessing Icon"),
     "menu_bayou": ("bayou_subjects", "menu_bayou", "BayouArt.lua", "Bayou"),
     "menu_world": ("menu_world_subjects", "menu_world", "MenuWorldArt.lua", "Menu World"),
+    "logo": ("logo_subjects", "logo", "LogoArt.lua", "Logo"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -146,6 +147,11 @@ CATEGORY_OPTS = {
                    "sizes": {"bayou_sky": "1536x1024", "bayou_far_trees": "1536x1024", "bayou_water": "1536x1024",
                              "bayou_tavern_stilts": "1536x1024", "bayou_mist": "1536x1024",
                              "bayou_cypress_knees": "1536x1024", "bayou_willow_fg": "1024x1536"}},
+    # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
+    # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
+    "logo": {"quality": "medium", "style_key": "logo_style", "transparent": True,
+             "sizes": {"logo_wordmark_v1": "1536x1024", "logo_wordmark_v2": "1536x1024",
+                       "logo_wordmark_v3": "1536x1024", "logo_wordmark_v4": "1536x1024"}},
     # Living Map menu landmarks: cut out from magenta; wide pieces use the landscape size.
     "menu_world": {"quality": "low", "style_key": "house_style", "transparent": True,
                    "sizes": {"menu_tavern_hub": "1536x1024", "menu_road_out": "1536x1024", "menu_cloud_wisp": "1536x1024",

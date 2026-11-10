@@ -85,9 +85,12 @@ function Wordmark.build(parent, opts)
 		image.Name = "WordmarkImage"
 		image.AnchorPoint = Vector2.new(0.5, 0.5)
 		image.Position = UDim2.fromScale(0.5, 0.5)
-		image.Size = UDim2.fromOffset(320, 80) -- the art is a 4:1 canvas
+		image.Size = UDim2.fromOffset(480, 72) -- the crop below is about 6.6:1
 		image.BackgroundTransparency = 1
 		image.Image = "rbxassetid://" .. tostring(opts.imageId)
+		-- the painted wordmark is a 1536x1024 canvas with one centred line; show only the band that holds the lettering
+		image.ImageRectOffset = Vector2.new(40, 390)
+		image.ImageRectSize = Vector2.new(1456, 220)
 		image.ScaleType = Enum.ScaleType.Fit
 		image.ZIndex = z
 		image.Parent = title

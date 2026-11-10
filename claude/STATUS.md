@@ -46,5 +46,6 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - **Studio check, set skins:** all 15 sets: card numbers readable, borders light, banner not covering buttons (also confirm no backdrop banding and the Play Hand button is visible).
 - **Studio check, set scenery:** each set shows its own scenery in gameplay (Preview and equip crossfade 0.4 s, Classic keeps the sunset road, no horizontal banding stripes). Scenery slot: `set.scenery` from `Engine/SetSceneryArt.lua` (all 14 non-default `set_scenery` Image ids are recorded).
 - **Studio check, title:** title reads The Gilded Knave on the Menu (no tagline), hides behind popups, readable at 1920x1080 and phone; Fondamento font chosen unseen, try Almendra or IMFellEnglishSC in `Wordmark.FONT` if it reads poorly.
+- **Decal ids to resolve (logo):** logo_wordmark and logo_emblem, lines in OUTBOX; record them as Image ids and the painted wordmark replaces the code one (crop rect in `Client/Wordmark.lua`).
 - **Untracked helper scripts:** `tools/_*.py` and `tools/_check_boss_counters.lua` are one-off migration helpers (listed in OUTBOX); delete or commit them yourself.
 - **Content rules:** kid-safe names, no alcohol, never the banned B-word in game text (it appears only in banned-word test lists and design docs).
