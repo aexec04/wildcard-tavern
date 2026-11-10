@@ -27,6 +27,7 @@ function LedgerBook.build(deps, desk)
 	local Achievements = require(Engine:WaitForChild("Achievements"))
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local ClientSettings = require(script.Parent.ClientSettings)
+	local Cue = require(script.Parent.Cue)
 
 	local INK = Color3.fromRGB(52, 34, 20)
 	local INK_DIM = Color3.fromRGB(104, 80, 56)
@@ -106,16 +107,28 @@ function LedgerBook.build(deps, desk)
 
 	local R = Pages.LAYOUT
 	local book = piece(desk, { Name = "Book", Position = UDim2.fromScale(R.book.x, R.book.y), Size = UDim2.fromScale(R.book.w, R.book.h), BackgroundColor3 = LEATHER }, 10)
-	stroke(book, BRASS, 3)
-	artOver(book, "ledger_book_open")
-	piece(book, { Name = "Spine", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.02), Size = UDim2.new(0, 10, 0.96, 0), BackgroundColor3 = Color3.fromRGB(60, 36, 20), ZIndex = Z + 2 })
+	local bookStroke = stroke(book, BRASS, 3)
+	-- The painted open book is the page surface: its leather and pages show through, and the page frames below are
+	-- transparent (text is written straight onto the paper). Without the art the drawn leather, cream pages and spine show.
+	local bookArt = artOver(book, "ledger_book_open")
+	local spine = piece(book, { Name = "Spine", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.02), Size = UDim2.new(0, 10, 0.96, 0), BackgroundColor3 = Color3.fromRGB(60, 36, 20), ZIndex = Z + 2 })
+	if bookArt then
+		book.BackgroundTransparency = 1
+		bookStroke.Enabled = false
+		spine.Visible = false
+	end
 
 	local function pageFrame(name, r)
 		local p = piece(book, { Name = name, Position = UDim2.fromScale(r.x, r.y), Size = UDim2.fromScale(r.w, r.h), BackgroundColor3 = PAGE, ClipsDescendants = true, ZIndex = Z + 1 }, 6)
-		stroke(p, Color3.fromRGB(205, 186, 150), 1)
+		if bookArt then
+			p.BackgroundTransparency = 1
+		else
+			stroke(p, Color3.fromRGB(205, 186, 150), 1)
+		end
 		return p
 	end
-	local function ruledLines(page) -- faint ruled lines
+	local function ruledLines(page) -- faint ruled lines (the painted pages have their own)
+		if bookArt then return end
 		for i = 1, 9 do
 			piece(page, { Position = UDim2.new(0.05, 0, 0.1 * i, 0), Size = UDim2.new(0.9, 0, 0, 1), BackgroundColor3 = Color3.fromRGB(222, 205, 172), ZIndex = Z + 1 })
 		end
@@ -174,8 +187,8 @@ function LedgerBook.build(deps, desk)
 	local function pad(page)
 		local holder = Instance.new("Frame")
 		holder.BackgroundTransparency = 1
-		holder.Size = UDim2.new(1, -28, 1, -24)
-		holder.Position = UDim2.fromOffset(14, 12)
+		holder.Size = UDim2.new(1, -52, 1, -44)
+		holder.Position = UDim2.fromOffset(26, 22)
 		holder.ZIndex = Z + 2
 		holder.Parent = page
 		return holder
@@ -281,9 +294,10 @@ function LedgerBook.build(deps, desk)
 		local bests = Pages.bests(stats.recent, Pages.BESTS_SHOWN)
 		for i, e in ipairs(bests) do
 			local y = 40 + (i - 1) * 104
-			local note = piece(h, { Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(6, y), BackgroundColor3 = Color3.fromRGB(236, 218, 176), Rotation = (i % 2 == 0) and 1.2 or -1.2, ZIndex = Z + 2 }, 4)
-			stroke(note, Color3.fromRGB(190, 160, 110), 1)
-			artOver(note, "ledger_paper_note", { Size = UDim2.fromScale(1, 1), ZIndex = Z + 2 }) -- painted paper behind the text, the drawn note shows when the id is missing
+			-- a note written onto the page: the page's own paper tone, a hairline edge and a faint shadow, no tilt
+			piece(h, { Name = "NoteShadow", Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(8, y + 3), BackgroundColor3 = Color3.fromRGB(70, 48, 28), BackgroundTransparency = 0.85, ZIndex = Z + 2 }, 4)
+			local note = piece(h, { Name = "Note", Size = UDim2.new(1, -20, 0, 92), Position = UDim2.fromOffset(6, y), BackgroundColor3 = Color3.fromRGB(240, 226, 192), ZIndex = Z + 2 }, 4)
+			stroke(note, Color3.fromRGB(214, 194, 156), 1)
 			piece(note, { Size = UDim2.fromOffset(10, 10), Position = UDim2.fromOffset(8, 6), BackgroundColor3 = BRASS, ZIndex = Z + 4 }, 5)
 			local stakeDef = Stakes.get(e.stake)
 			text(note, { Size = UDim2.new(1, -110, 0, 26), Position = UDim2.fromOffset(24, 8), Text = string.format("Night %d", e.night), Font = Enum.Font.Antique, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left })
@@ -443,10 +457,10 @@ function LedgerBook.build(deps, desk)
 	local function paintTabs()
 		for i, b in ipairs(tabButtons) do
 			local on = i == pageIndex
-			b.BackgroundColor3 = on and Color3.fromRGB(190, 52, 52) or RIBBON
-			b.TextColor3 = on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(240, 210, 180)
-			b.Size = UDim2.fromScale(R.tabs.w + (on and 0.02 or 0), 0.18)
-			b.Position = UDim2.fromScale(R.tabs.x - (on and 0.02 or 0), R.tabs.y + (i - 1) * 0.2)
+			b.BackgroundColor3 = on and Color3.fromRGB(150, 44, 44) or Color3.fromRGB(108, 34, 34)
+			b.TextColor3 = on and Color3.fromRGB(255, 236, 190) or Color3.fromRGB(224, 196, 168)
+			b.Size = UDim2.fromScale(R.tabs.w + (on and 0.008 or 0), 0.105)
+			b.Position = UDim2.fromScale(R.tabs.x - (on and 0.008 or 0), R.tabs.y + (i - 1) * 0.125)
 		end
 	end
 
@@ -493,6 +507,7 @@ function LedgerBook.build(deps, desk)
 
 	local function go(i, animate)
 		pageIndex = i
+		if animate then Cue.play("page_turn") end -- respects the SFX slider and Mute, and plays in calm mode too
 		paintTabs()
 		if animate and not calm() then sweep() end
 		local state = deps.getLatestState and deps.getLatestState() or nil
@@ -511,10 +526,9 @@ function LedgerBook.build(deps, desk)
 		tab.AutoButtonColor = true
 		tab.ZIndex = Z + 3
 		tab.Parent = desk
-		tab.Size = UDim2.fromScale(R.tabs.w, 0.18)
-		tab.Position = UDim2.fromScale(R.tabs.x, R.tabs.y + (i - 1) * 0.2)
+		tab.Size = UDim2.fromScale(R.tabs.w, 0.105)
+		tab.Position = UDim2.fromScale(R.tabs.x, R.tabs.y + (i - 1) * 0.125)
 		deps.roundCorner(tab, 6)
-		artOver(tab, "ledger_bookmark_ribbon", { Size = UDim2.fromScale(1, 1.2), ZIndex = Z + 2 })
 		tab.MouseButton1Click:Connect(function()
 			if i == pageIndex then return end
 			deps.playClickSfx()

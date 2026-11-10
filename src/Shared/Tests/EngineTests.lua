@@ -5196,7 +5196,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	local S = require(script.Parent.Parent.Engine.SoundIds)
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
-		"shop_enter", "shop_buy", "shop_reroll", "shop_cant" }
+		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(required) do
 		local cue = S.Cues[name]
@@ -12928,6 +12928,32 @@ table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows;
 	end
 end })
 
+table.insert(tests, { name = "Ledger page turn: the page_turn cue exists with its id, volume and length, and the ledger plays it on a page or tab change", fn = function()
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local cue = S.Cues.page_turn
+	expectTrue(cue ~= nil, "page_turn is a named cue")
+	expectEqual(cue.id, "rbxassetid://9118835414", "page_turn id")
+	expectEqual(cue.volume, 0.5, "page_turn volume")
+	expectEqual(cue.maxLength, 1.8, "page_turn max length")
+	expectEqual(S.cueId("page_turn"), "rbxassetid://9118835414", "page_turn is playable")
+	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local goBody = src:match("local function go%(i, animate%)(.-)\n\tend\n")
+	expectTrue(goBody ~= nil and goBody:find('Cue.play("page_turn")', 1, true) ~= nil, "go() (every page or tab change) plays page_turn")
+	expectTrue(src:find('local Cue = require(script.Parent.Cue)', 1, true) ~= nil, "plays through the Cue bridge to Sound.playCue")
+end })
+
+table.insert(tests, { name = "LedgerBook: the painted book is the page surface, pages are transparent over it, tabs are slim ribbons at the book edge", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LedgerPages)
+	expectTrue(LP.LAYOUT.tabs.w <= 0.06, "slim tabs")
+	local f = io and io.open and io.open("src/Client/LedgerBook.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("p.BackgroundTransparency = 1", 1, true) ~= nil and src:find("local bookArt = artOver(book", 1, true) ~= nil, "page frames go transparent over the book art")
+	expectTrue(src:find('"ledger_bookmark_ribbon"', 1, true) == nil, "no oversized ribbon art under the tab text")
+end })
+
 table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf rails use their art ids and keep the drawn fallback", fn = function()
 	local LedgerArt = require(script.Parent.Parent.Engine.LedgerArt)
 	local WallArt = require(script.Parent.Parent.Engine.BadgeWallArt)
@@ -12938,7 +12964,7 @@ table.insert(tests, { name = "Art hooks: paper notes, ribbon banner and shelf ra
 	local ledger = f:read("*a"); f:close()
 	local wall = io.open("src/Client/BadgeWall.lua", "r"):read("*a")
 	local panel = io.open("src/Client/BadgesPanel.lua", "r"):read("*a")
-	expectTrue(ledger:find('artOver(note, "ledger_paper_note"', 1, true) ~= nil, "Hall of Fame notes use the paper note")
+	expectTrue(ledger:find('Name = "NoteShadow"', 1, true) ~= nil and ledger:find('artOver(note, "ledger_paper_note"', 1, true) == nil, "Hall of Fame notes are drawn onto the page with a faint shadow, no floating art card")
 	expectTrue(wall:find('"badge_shelf_rail"', 1, true) == nil, "no shelf rails: badges sit on a strict grid over a calm plate")
 	expectTrue(wall:find('Name = "GridScrim"', 1, true) ~= nil, "a calm scrim plate sits behind the grid")
 	expectTrue(wall:find("math.floor(size / 2))", 1, true) ~= nil, "badge medals are circles, no square backing")

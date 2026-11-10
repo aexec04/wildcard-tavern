@@ -149,7 +149,7 @@ LedgerPages.LAYOUT = {
 	-- inside the book (fractions of the book)
 	left = { x = 0.03, y = 0.04, w = 0.455, h = 0.92 },
 	right = { x = 0.515, y = 0.04, w = 0.455, h = 0.92 },
-	tabs = { x = 0.925, y = 0.14, w = 0.07, h = 0.6 },
+	tabs = { x = 0.925, y = 0.14, w = 0.055, h = 0.36 }, -- slim bookmark ribbons at the book edge
 	close = { x = 0.5, y = 0.93, h = 0.06 },
 }
 
