@@ -30,7 +30,18 @@ function CollectionGallery.framed(tabId)
 	return tabId == "patrons" and art("collection_frame_owned") ~= nil and art("collection_frame_empty") ~= nil
 end
 
+-- "trophy" | "key" | "plate" for the shelf tabs whose painted furniture is recorded, else nil (the plain tiles stay)
+function CollectionGallery.shelfKind(tabId)
+	local kind = Layout.SHELF_TABS[tabId]
+	return kind and CollectionGallery.furnitureKey(tabId) and kind or nil
+end
+
 function CollectionGallery.cellSize(tabId)
+	local shelf = CollectionGallery.shelfKind(tabId)
+	if shelf then
+		local c = Layout.SHELF_CELL[shelf]
+		return UDim2.fromOffset(c.w, c.h)
+	end
 	if CollectionGallery.framed(tabId) then
 		local c = Layout.FRAMED_CELL
 		return UDim2.fromOffset(c.w, c.h)
@@ -187,7 +198,8 @@ end
 
 -- ===== furniture per tab: a painted piece behind the scrolling grid (the grid lives in a layout-managed ScrollingFrame, so the
 -- decoration is a sibling behind it that mirrors its rect) =====
-local FURNITURE = { recipes = "collection_corkboard" }
+local FURNITURE = { recipes = "collection_corkboard", bonds = "collection_corkboard", bosses = "collection_trophy_shelf",
+	housePasses = "collection_key_rack", titles = "collection_nameplate_shelf" }
 
 function CollectionGallery.furnitureKey(tabId)
 	local key = FURNITURE[tabId]
@@ -225,7 +237,7 @@ end
 
 -- Recipe cards pinned on the cork board: owned cards hang straight-ish (tilt of at most 2 degrees fixed per card) on a pin; a locked
 -- recipe is an empty pin dot with a ??? plate. `tile` is already built; this restyles it.
-function CollectionGallery.pinCard(tile, found, id, nameLabel)
+function CollectionGallery.pinCard(tile, found, id, nameLabel, lockedText)
 	tile.BackgroundTransparency = found and 0 or 1
 	if found then
 		tile.BackgroundColor3 = Color3.fromRGB(236, 220, 182)
@@ -239,7 +251,7 @@ function CollectionGallery.pinCard(tile, found, id, nameLabel)
 	rim.Parent = pin
 	if not found then
 		local plate = box(tile, { Name = "UnknownPlate", BackgroundColor3 = Color3.fromRGB(52, 36, 20), AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromOffset(52, 24), ZIndex = 28 }, 5)
+			Position = UDim2.fromScale(0.5, 0.55), Size = lockedText and UDim2.fromOffset(84, 40) or UDim2.fromOffset(52, 24), ZIndex = 28 }, 5)
 		local t = Instance.new("TextLabel")
 		t.BackgroundTransparency = 1
 		t.Size = UDim2.fromScale(1, 1)
@@ -248,13 +260,143 @@ function CollectionGallery.pinCard(tile, found, id, nameLabel)
 		t.TextColor3 = Color3.fromRGB(250, 240, 220)
 		t.TextTransparency = 0
 		t.TextStrokeTransparency = 1
-		t.Text = "???"
+		t.Text = lockedText or "???"
+		t.TextWrapped = true
 		t.ZIndex = 29
 		t.Parent = plate
 	end
 	local h = Layout.hang(id)
 	tile.Rotation = math.max(-Layout.CARD_TILT, math.min(Layout.CARD_TILT, h.tilt))
 	return { dy = 0, tilt = tile.Rotation }
+end
+
+-- A string between two pinned cards (Bonds board): a thin tan line from this card's pin to the next card's pin.
+function CollectionGallery.pinString(tile, reach)
+	return box(tile, { Name = "PinString", BackgroundColor3 = Color3.fromRGB(186, 156, 104), Position = UDim2.new(0.5, 0, 0, 7),
+		Size = UDim2.fromOffset(reach, 2), ZIndex = 31 })
+end
+
+-- Boss Rounds (trophy stands), House Passes (keys and tickets on hooks) and Titles (engraved plates). The tile is already built:
+-- this restyles it from Layout.shelfParts. Locked = an empty stand, an empty hook or a blank plate; names sit on solid brass plates
+-- with a soft rarity rim. Returns the hover hang (no tilt).
+function CollectionGallery.shelfTile(kind, tile, found, iconWell, nameLabel, rarityColor)
+	local P = Layout.shelfParts(kind)
+	tile.BackgroundTransparency = 1
+	tile.AutoButtonColor = false
+	local function rect(r) return UDim2.fromOffset(r.x, r.y), UDim2.fromOffset(r.w, r.h) end
+	local function plateRim(plate)
+		local rim = Instance.new("UIStroke")
+		rim.Color = rarityColor or BRASS_RIM
+		rim.Thickness = 1.5
+		rim.Transparency = found and 0.35 or 0.7 -- a soft rim, never a loud glow
+		rim.Parent = plate
+	end
+	if kind == "trophy" then
+		local pos, size = rect(P.base)
+		box(tile, { Name = "TrophyBase", BackgroundColor3 = BRASS, Position = pos, Size = size, ZIndex = 22 }, 5)
+	elseif kind == "key" then
+		local pos, size = rect(P.hook)
+		box(tile, { Name = "Hook", BackgroundColor3 = BRASS, Position = pos, Size = size, ZIndex = 23 }, 6)
+		if found then
+			pos, size = rect(P.cord)
+			box(tile, { Name = "Cord", BackgroundColor3 = Color3.fromRGB(122, 98, 62), Position = pos, Size = size, ZIndex = 22 })
+			pos, size = rect(P.ticket)
+			box(tile, { Name = "Ticket", BackgroundColor3 = Color3.fromRGB(214, 184, 112), Position = pos, Size = size, ZIndex = 22 }, 8)
+		end
+	end
+	local plate
+	do
+		local pos, size = rect(P.plate)
+		plate = box(tile, { Name = "BrassPlate", BackgroundColor3 = found and BRASS or Color3.fromRGB(96, 74, 44), Position = pos, Size = size, ZIndex = 24 }, 5)
+		plateRim(plate)
+	end
+	if iconWell then
+		if P.icon then
+			local pos, size = rect(P.icon)
+			iconWell.Position, iconWell.Size = pos, size
+			iconWell.Visible = found
+		else
+			iconWell.Visible = false
+		end
+	end
+	if nameLabel then
+		nameLabel.Parent = tile
+		nameLabel.AnchorPoint = Vector2.new(0, 0)
+		local top = kind == "plate" and 18 or 0
+		nameLabel.Position = UDim2.fromOffset(P.plate.x + 3, P.plate.y + top)
+		nameLabel.Size = UDim2.fromOffset(P.plate.w - 6, P.plate.h - top)
+		nameLabel.TextColor3 = found and ENGRAVE or Color3.fromRGB(250, 240, 220)
+		nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+		nameLabel.TextWrapped = true
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLabel.ZIndex = 26
+		if kind == "plate" and not found then nameLabel.Text = "" end -- locked plates are blank
+	end
+	return { dy = 0, tilt = 0 }
+end
+
+-- The milestone chest on the floor at the bottom right: closed with a small "Next at N%" plate; opens (with a few gold motes) when a
+-- milestone has just been earned. Milestones are granted automatically, so there is nothing to click. api.setNext(text), api.open().
+function CollectionGallery.mountChest(panel)
+	local closedId, openId = art("collection_chest_closed"), art("collection_chest_open")
+	if not (closedId and openId) then return nil end
+	local chest = Instance.new("ImageLabel")
+	chest.Name = "MilestoneChest"
+	chest.BackgroundTransparency = 1
+	chest.Image = closedId
+	chest.ScaleType = Enum.ScaleType.Fit
+	chest.Active = false
+	chest.ZIndex = 30
+	chest.Parent = panel
+	local plate = box(panel, { Name = "ChestPlate", BackgroundColor3 = Color3.fromRGB(52, 36, 20), ZIndex = 30 }, 5)
+	local rim = Instance.new("UIStroke")
+	rim.Color = BRASS
+	rim.Thickness = 1.5
+	rim.Parent = plate
+	local text = Instance.new("TextLabel")
+	text.BackgroundTransparency = 1
+	text.Size = UDim2.fromScale(1, 1)
+	text.Font = Enum.Font.GothamBold
+	text.TextSize = 14
+	text.TextColor3 = Color3.fromRGB(250, 240, 220)
+	text.TextTransparency = 0
+	text.TextStrokeTransparency = 1
+	text.Text = ""
+	text.ZIndex = 31
+	text.Parent = plate
+	local function place()
+		local s = panel.AbsoluteSize
+		if s.X < 1 then return end
+		local r = Layout.chest(s.X, s.Y)
+		chest.Position, chest.Size = UDim2.fromOffset(r.x, r.y), UDim2.fromOffset(r.w, r.h)
+		plate.Size = UDim2.fromOffset(130, 22)
+		plate.Position = UDim2.fromOffset(r.x - 136, r.y + r.h - 24)
+	end
+	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(place)
+	place()
+	local api = {}
+	function api.setNext(str)
+		text.Text = str
+		plate.Visible = str ~= ""
+	end
+	local token = 0
+	function api.open()
+		token = token + 1
+		local mine = token
+		chest.Image = openId
+		if not calm() then
+			TweenService:Create(chest, TweenInfo.new(0.12), { Rotation = 6 }):Play()
+			task.delay(0.12, function() TweenService:Create(chest, TweenInfo.new(0.12), { Rotation = 0 }):Play() end)
+			for i = 1, 6 do -- gold motes rise from the open lid
+				local m = box(panel, { BackgroundColor3 = Color3.fromRGB(255, 214, 110), Size = UDim2.fromOffset(5, 5), ZIndex = 31,
+					Position = chest.Position + UDim2.fromOffset(chest.AbsoluteSize.X / 2 + (i - 3.5) * 6, 8) }, 3)
+				TweenService:Create(m, TweenInfo.new(0.9), { Position = m.Position + UDim2.fromOffset((i - 3.5) * 8, -34), BackgroundTransparency = 1 }):Play()
+				task.delay(1, function() m:Destroy() end)
+			end
+		end
+		task.delay(6, function() if token == mine then chest.Image = closedId end end)
+	end
+	return api
 end
 
 -- a small brass "New" tag at the top left of a tile
@@ -332,6 +474,21 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 		moth.ZIndex = wall.ZIndex
 		moth.Parent = wall
 	end
+	local motes = {}
+	for i = 1, Layout.MOTES do
+		local m = Instance.new("Frame")
+		m.Name = "Mote" .. i
+		m.AnchorPoint = Vector2.new(0.5, 0.5)
+		m.Size = UDim2.fromOffset(3, 3)
+		m.BackgroundColor3 = Color3.fromRGB(255, 226, 160)
+		m.BackgroundTransparency = 0.6
+		m.BorderSizePixel = 0
+		m.Active = false
+		m.Visible = false
+		m.ZIndex = wall.ZIndex
+		m.Parent = wall
+		motes[i] = m
+	end
 	local flight = MothFlight.new()
 	local last = 0
 	local t0 = os.clock()
@@ -356,6 +513,16 @@ function CollectionGallery.mountAlive(wall, panel, backdrop)
 				ring.frame.Visible = x >= 0 and x <= size.X -- a narrow panel crops a lantern off the wall
 				ring.frame.Position = UDim2.fromOffset(x, y)
 				ring.frame.BackgroundTransparency = math.clamp(ring.base - (f - 1) * 2, 0, 1)
+			end
+		end
+		for i, m in ipairs(motes) do -- a few motes drift in the light of the lantern they belong to (none in calm mode)
+			if isCalm then
+				m.Visible = false
+			else
+				local lx, ly = Layout.lanternPx(size.X, size.Y, (i % 2) + 1)
+				local ox, oy = Layout.moteOffset(i, t, 60)
+				m.Position = UDim2.fromOffset(lx + ox, ly + oy)
+				m.Visible = lx >= 0 and lx <= size.X
 			end
 		end
 		if moth then

@@ -14097,4 +14097,53 @@ table.insert(tests, { name = "BannerVisibility: the rules banner hides behind ev
 	end
 end })
 
+table.insert(tests, { name = "Collection shelves: trophy, key and plate cells keep every part inside, names fit two lines, motes stay in the light, animated cap holds", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSceneLayout)
+	local function inside(r, c, tag)
+		expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= c.w and r.y + r.h <= c.h, tag .. " inside the cell")
+	end
+	local function apart(a, b, tag)
+		expectTrue(a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y, tag .. " do not overlap")
+	end
+	for tab, kind in pairs(L.SHELF_TABS) do
+		local P = L.shelfParts(kind)
+		expectEqual(P.cell, L.SHELF_CELL[kind], tab .. " cell")
+		inside(P.plate, P.cell, tab .. " plate")
+		expectTrue(P.plate.h >= 2 * 14 + 2 or kind == "plate", tab .. " plate fits two 14 px lines")
+		if P.icon then
+			inside(P.icon, P.cell, tab .. " icon")
+			expectTrue(P.icon.y + P.icon.h <= P.plate.y + 4, tab .. " icon stays above the plate")
+		end
+		if kind == "trophy" then
+			inside(P.base, P.cell, "stand")
+			apart(P.base, P.plate, "stand and plate")
+		elseif kind == "key" then
+			for _, k in ipairs({ "hook", "cord", "ticket" }) do inside(P[k], P.cell, k) end
+			apart(P.ticket, P.plate, "ticket and plate")
+		end
+	end
+	expectEqual(L.SHELF_TABS.bosses, "trophy", "Boss Rounds are trophy stands")
+	expectEqual(L.SHELF_TABS.housePasses, "key", "House Passes are a key rack")
+	expectEqual(L.SHELF_TABS.titles, "plate", "Titles are plates")
+	for i = 1, L.MOTES do
+		for t = 0, 600, 7 do
+			local x, y = L.moteOffset(i, t, 60)
+			expectTrue(math.abs(x) <= 60 and math.abs(y) <= 60, "mote " .. i .. " stays within the lantern light")
+		end
+	end
+	expectTrue(2 + 1 + L.MOTES <= L.MAX_ANIMATED, "lanterns, moth and motes stay under the animated cap")
+	local g = io and io.open and io.open("src/Client/CollectionGallery.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find("if isCalm then\n\t\t\t\tm.Visible = false", 1, true) ~= nil, "motes are off in calm mode")
+		expectTrue(src:find("if not calm() then", 1, true) ~= nil, "the chest wobble and gold motes are skipped in calm mode")
+	end
+	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if c then
+		local src = c:read("*a"); c:close()
+		expectTrue(src:find("Gallery.shelfTile(shelfKind", 1, true) ~= nil, "Collection builds shelf tabs through the Gallery")
+		expectTrue(src:find("Gallery.pinString(tile", 1, true) ~= nil and src:find("Gallery.chestApi.open()", 1, true) ~= nil, "Bonds strings and the chest are wired")
+	end
+end })
+
 return tests

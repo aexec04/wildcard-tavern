@@ -166,6 +166,41 @@ function CollectionSceneLayout.mothPos(t, cx, cy, radius)
 	return cx + math.cos(a) * radius * (1 + 0.15 * math.sin(a * 2.3)), cy + math.sin(a * 1.3) * radius * 0.7
 end
 
+-- ===== shelf tabs: Boss Rounds (trophy stands), House Passes (key and ticket rack), Titles (engraved plates) =====
+-- One cell per item. Rects are { x, y, w, h } in cell pixels. Names sit on solid brass plates (two lines of 14 px fit).
+CollectionSceneLayout.SHELF_TABS = { bosses = "trophy", housePasses = "key", titles = "plate" }
+CollectionSceneLayout.SHELF_CELL = { trophy = { w = 100, h = 118 }, key = { w = 100, h = 128 }, plate = { w = 150, h = 56 } }
+
+function CollectionSceneLayout.shelfParts(kind)
+	local c = CollectionSceneLayout.SHELF_CELL[kind]
+	if kind == "trophy" then
+		local icon = { x = math.floor((c.w - 52) / 2), y = 4, w = 52, h = 52 }
+		return {
+			cell = c, icon = icon,
+			base = { x = math.floor((c.w - 68) / 2), y = icon.y + icon.h - 4, w = 68, h = 10 }, -- brass stand under the icon
+			plate = { x = 4, y = 68, w = c.w - 8, h = c.h - 68 - 4 },
+		}
+	elseif kind == "key" then
+		return {
+			cell = c,
+			hook = { x = math.floor(c.w / 2) - 6, y = 2, w = 12, h = 12 },
+			cord = { x = math.floor(c.w / 2) - 1, y = 14, w = 2, h = 8 },
+			ticket = { x = math.floor((c.w - 66) / 2), y = 22, w = 66, h = 64 },
+			icon = { x = math.floor((c.w - 52) / 2), y = 28, w = 52, h = 52 },
+			plate = { x = 4, y = 90, w = c.w - 8, h = c.h - 90 - 4 },
+		}
+	end
+	return { cell = c, plate = { x = 0, y = 0, w = c.w, h = c.h } }
+end
+
+-- a slow dust mote drifting in the lantern light: offset in px from the lantern centre, always inside `radius`
+function CollectionSceneLayout.moteOffset(i, t, radius)
+	local a = t * (0.21 + 0.05 * i) + i * 1.9
+	local r = radius * (0.55 + 0.35 * math.sin(t * 0.17 + i * 2.3))
+	return math.cos(a) * r, math.sin(a * 0.8) * r * 0.8
+end
+CollectionSceneLayout.MOTES = 4
+
 function CollectionSceneLayout.newIds(before, after)
 	local seen, out = {}, {}
 	for _, id in ipairs(before or {}) do

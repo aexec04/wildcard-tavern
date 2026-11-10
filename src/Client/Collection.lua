@@ -408,6 +408,7 @@ return function(deps)
 	end
 
 	local furniture = Gallery.mountFurniture(panel) -- the tab's painted board or shelf, behind the grid (made before it)
+	Gallery.chestApi = Gallery.mountChest(panel) -- milestone chest on the floor, bottom right
 	local scroll = Instance.new("ScrollingFrame")
 	scroll.Size = UDim2.new(1, -30, 1, -196)
 	scroll.Position = UDim2.fromOffset(15, 138)
@@ -796,11 +797,15 @@ return function(deps)
 		tile.ZIndex = 21
 		tile.Parent = scroll
 		local framed = Gallery.framed(item.tab) -- Patrons hang as framed portraits on the Gallery wall
+		local shelfKind = Gallery.shelfKind(item.tab) -- Boss trophy stands, House Pass hooks, Title plates
 		local parts
-		if framed then
+		if shelfKind then
+			tile.AutoButtonColor = false
+		elseif framed then
 			tile.AutoButtonColor = false
 			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???")
-		else
+		end
+		if not framed and not shelfKind then
 			roundCorner(tile, 8)
 			-- Rarity glow: a colored stroke plus a soft wash behind the icon.
 			-- Tier frame (RarityFrame); locked entries keep a dim silhouette of the tier color.
@@ -860,6 +865,19 @@ return function(deps)
 
 		-- hand-hung: a fixed tiny tilt and offset per Patron (the "New" tag and the drop-in follow it)
 		local hang = framed and Gallery.hangTile(tile, item.id) or nil
+		if shelfKind then
+			hang = Gallery.shelfTile(shelfKind, tile, found, iconWell, nameLabel, rgb(rarity.color))
+		end
+		if item.tab == "bonds" and Gallery.furnitureKey("bonds") then
+			-- a pinned card with its own name, and a string to the next card in the row
+			hang = Gallery.pinCard(tile, found, item.id, nameLabel, item.def.name)
+			if not found then
+				iconWell.Visible = false
+				if nameLabel then nameLabel.Visible = false end
+			end
+			local cols = math.max(1, math.floor((scroll.AbsoluteSize.X + 10) / (92 + 10)))
+			if (order - 1) % cols < cols - 1 then Gallery.pinString(tile, 92 + 10) end
+		end
 		if item.tab == "recipes" and Gallery.furnitureKey("recipes") then
 			-- recipe cards are pinned on the cork board; a locked recipe is an empty pin dot with a ??? plate
 			hang = Gallery.pinCard(tile, found, item.id, nameLabel)
@@ -928,6 +946,7 @@ return function(deps)
 		else
 			nextText = "Every milestone claimed!"
 		end
+		if Gallery.chestApi then Gallery.chestApi.setNext(nextMilestone and ("Next at " .. nextMilestone.percent .. "%") or "All claimed") end
 		-- Next unlock (moved here from the main menu strip)
 		local pick = view.state and view.state.nextUnlock
 		if pick and pick.label then
@@ -1018,6 +1037,7 @@ return function(deps)
 		if #lines == 0 then
 			return
 		end
+		if Gallery.chestApi then Gallery.chestApi.open() end -- the chest on the floor opens with gold motes
 		toastText.Text = table.concat(lines, "\n")
 		toast.Size = UDim2.fromOffset(420, 40 + 20 * #lines)
 		toast.Visible = true
