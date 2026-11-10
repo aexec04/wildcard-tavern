@@ -11862,10 +11862,12 @@ table.insert(tests, { name = "MenuLayout Bayou: eight layers back to front, dept
 	local known = {}
 	for _, id in ipairs(want) do known[id] = true end
 	for id in pairs(require(script.Parent.Parent.Engine.BayouArt)) do expectTrue(known[id], "BayouArt only holds bayou layer ids: " .. id) end
-	local f = io.open("src/Client/MenuBayou.lua", "r")
-	local src = f:read("*a"); f:close()
-	expectTrue(src:find("UIGradient", 1, true) ~= nil and src:find("Transparency = ColorSequence", 1, true) == nil, "water shimmer only touches gradient Color and Offset")
-	expectTrue(src:find("calm", 1, true) ~= nil, "bayou life honours calm mode")
+	local f = io and io.open and io.open("src/Client/MenuBayou.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("UIGradient", 1, true) ~= nil and src:find("Transparency = ColorSequence", 1, true) == nil, "water shimmer only touches gradient Color and Offset")
+		expectTrue(src:find("calm", 1, true) ~= nil, "bayou life honours calm mode")
+	end
 end })
 
 table.insert(tests, { name = "HandLedger: every hand once weakest first, formulas and highlights, layout fits desktop and phone sizes", fn = function()
@@ -12564,6 +12566,43 @@ table.insert(tests, { name = "HudStyle: pile look is stable per set and differen
 	end
 	local deck = read("src/Client/DeckWidget.lua")
 	if deck then expectTrue(deck:find("DeckWidgetSkin", 1, true) ~= nil, "the draw pile is skinned per set") end
+end })
+
+table.insert(tests, { name = "HudTheme: every palette colour is a 3-number table and every Color3 assignment in the HUD skin modules goes through c3", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local function isRgb(t)
+		if type(t) ~= "table" or #t < 3 then return false end
+		for i = 1, 3 do if type(t[i]) ~= "number" then return false end end
+		return true
+	end
+	local function checkAll(pal, label)
+		for k, v in pairs(pal) do
+			if type(v) == "table" and k ~= "gradient" then expectTrue(isRgb(v), label .. "." .. tostring(k) .. " is an rgb table") end
+		end
+	end
+	local sets = 0
+	for _, set in ipairs(CS.Definitions) do
+		sets = sets + 1
+		local skin = CS.skinOf(set)
+		local colors = skin.colors
+		for _, role in ipairs({ "play", "discard", "sort" }) do
+			checkAll(HS.buttonPalette(colors, role), set.id .. "/" .. role)
+		end
+		checkAll(HS.iconPalette(colors), set.id .. "/icon")
+		checkAll(HS.deckPalette(colors), set.id .. "/deck")
+	end
+	expectTrue(sets >= 15, "all sets checked")
+	checkAll(HS.buttonPalette(nil, "play"), "neutral/play")
+	local f = io and io.open and io.open("src/Client/HudTheme.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		for line in src:gmatch("[^\n]+") do
+			if line:find("BackgroundColor3%s*=") or line:find("TextColor3%s*=") then
+				expectTrue(line:find("c3%(") ~= nil or line:find("Color3%.") ~= nil, "HudTheme colour assignment uses c3: " .. line)
+			end
+		end
+	end
 end })
 
 table.insert(tests, { name = "FlairRoomLayout: drawers map every Flair slot, locked/owned/equipped states, unlock progress, one equipped slot per category, detail actions", fn = function()

@@ -84,7 +84,7 @@ local function paintAction(button, entry)
 	local rim = button:FindFirstChildOfClass("UIStroke")
 	local base = entry.pressed and p.pressed or (entry.hover and p.hover or p.fill)
 	if face then
-		face.BackgroundColor3 = base
+		face.BackgroundColor3 = c3(base)
 		local g = face:FindFirstChildOfClass("UIGradient")
 		if g then
 			g.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(228, 228, 228)) -- multiplies the fill; Color stops only
