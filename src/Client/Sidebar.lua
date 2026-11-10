@@ -193,6 +193,7 @@ return function(deps)
 	-- Painted icon in a small rounded tile (the art has a dark backdrop), emoji if no art.
 	local function makeIcon(parent, key, emoji, size, props)
 		local holder = Instance.new("Frame")
+		holder.Name = key or "Icon" -- SidebarTheme swaps in the kit icon by this name
 		holder.Size = UDim2.fromOffset(size, size)
 		holder.BackgroundTransparency = 1
 		holder.Active = false
@@ -456,7 +457,16 @@ return function(deps)
 	barFill.ZIndex = Z + 1
 	barFill.Parent = barTrack
 	roundCorner(barFill, 6)
-	local rewardLine = makeLabel(scoreBox, 17, { Size = UDim2.new(1, -16, 0, 26), Position = UDim2.fromOffset(8, 64), TextWrapped = false })
+	local rewardPlate = Instance.new("Frame") -- owns the painted reward plate (SidebarTheme); the line sits on it
+	rewardPlate.Name = "RewardPlate"
+	rewardPlate.Size = UDim2.new(1, -16, 0, 26)
+	rewardPlate.Position = UDim2.fromOffset(8, 64)
+	rewardPlate.BackgroundTransparency = 1
+	rewardPlate.BorderSizePixel = 0
+	rewardPlate.Active = false
+	rewardPlate.ZIndex = Z
+	rewardPlate.Parent = scoreBox
+	local rewardLine = makeLabel(rewardPlate, 17, { Size = UDim2.fromScale(1, 1), Position = UDim2.new(), TextWrapped = false })
 	scoreLabel:GetPropertyChangedSignal("Text"):Connect(function()
 		local score, target, reward = scoreLabel.Text:match("Score:%s*([%d%.%-]+)%s*/%s*([%d%.%-]+).-Reward:%s*%$?([%d%.%-]+)")
 		score, target = tonumber(score), tonumber(target)
@@ -471,6 +481,7 @@ return function(deps)
 
 	-- ===== Tips with the coin purse =====
 	local tipsBox = makeSection(content, 44, 5, true)
+	tipsBox.Name = "TipsRow"
 	local tipsLabel = makeLabel(tipsBox, 19, { Visible = false }) -- data label ("Tips: N")
 	makeIcon(tipsBox, "coin_purse", "💰", 32, { Position = UDim2.fromOffset(8, 6) })
 	local tipsShown = makeLabel(tipsBox, 19, { Size = UDim2.new(1, -52, 1, 0), Position = UDim2.fromOffset(46, 0), TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
@@ -486,6 +497,7 @@ return function(deps)
 	local handsDiscardsLabel = makeLabel(handsDiscardsBox, 18, { Visible = false }) -- data label ("Hands: N   Discards: M")
 	local function column(xScale, key, emoji)
 		local col = Instance.new("Frame")
+		col.Name = key == "hands_cards" and "HandsTile" or "DiscardsTile"
 		col.Size = UDim2.new(0.5, 0, 1, 0)
 		col.Position = UDim2.fromScale(xScale, 0)
 		col.BackgroundTransparency = 1
@@ -510,6 +522,7 @@ return function(deps)
 	-- more than 5 unlocked seats wrap to extra rows and the section grows (AutomaticSize).
 	local patronsBox = makeSection(content, 78, 8)
 	patronsBox.AutomaticSize = Enum.AutomaticSize.Y
+	patronsBox.Name = "PatronsTray"
 	local patronsCountLabel = makeLabel(patronsBox, 16, { Visible = false }) -- data label ("n/limit"), set by render()
 	local patronsHeader = makeLabel(patronsBox, 16, { Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 2), TextXAlignment = Enum.TextXAlignment.Left, Text = "Patrons", Font = Enum.Font.GothamBold })
 	patronsCountLabel:GetPropertyChangedSignal("Text"):Connect(function()

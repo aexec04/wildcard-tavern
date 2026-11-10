@@ -14758,6 +14758,39 @@ table.insert(tests, { name = "HudKit: every set has a full kit or is listed in P
 	end
 end })
 
+table.insert(tests, { name = "HudKit phase 1b: left panel rows map to kit pieces, kit sets get a plate per row and pending sets none, row heights unchanged", fn = function()
+	local HudKit = require(script.Parent.Parent.Engine.HudKit)
+	local known = {}
+	for _, piece in ipairs(HudKit.PIECES) do known[piece] = true end
+	local used = {}
+	for name, piece in pairs(HudKit.PLATES) do
+		expectTrue(known[piece], "plate piece is a kit piece: " .. name)
+		used[piece] = true
+	end
+	for key, piece in pairs(HudKit.ICONS) do
+		expectTrue(known[piece], "icon piece is a kit piece: " .. key)
+		used[piece] = true
+	end
+	for _, piece in ipairs({ "reward", "tile", "patron_tray", "purse_row", "icon_target", "icon_tips", "icon_hands", "icon_discards" }) do
+		expectTrue(used[piece], "kit piece is placed in the left panel: " .. piece)
+	end
+	for _, setId in ipairs(HudKit.KIT_SETS) do
+		local kit = HudKit.images(setId)
+		for name, piece in pairs(HudKit.PLATES) do expectTrue(kit[piece] ~= nil, setId .. " has the plate for " .. name) end
+		for key, piece in pairs(HudKit.ICONS) do expectTrue(kit[piece] ~= nil, setId .. " has the icon for " .. key) end
+	end
+	for _, setId in ipairs(HudKit.PENDING) do expectTrue(HudKit.images(setId) == nil, "pending set draws no plate: " .. setId) end
+	local f = io and io.open and io.open("src/Client/Sidebar.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	for name in pairs(HudKit.PLATES) do
+		if name ~= "BlessingChip" then expectTrue(src:find('"' .. name .. '"', 1, true) ~= nil, "Sidebar names its row " .. name) end
+	end
+	expectTrue(src:find("makeSection(content, 44, 5, true)", 1, true) and src:find("makeSection(content, 66, 6, true)", 1, true)
+		and src:find("makeSection(content, 96, 3, true)", 1, true), "tips, hands and score rows keep their heights")
+	expectTrue(src:find("rewardPlate.Size = UDim2.new(1, -16, 0, 26)", 1, true) ~= nil and src:find("rewardPlate.Position = UDim2.fromOffset(8, 64)", 1, true) ~= nil, "the reward plate keeps the old line's size and place")
+end })
+
 table.insert(tests, { name = "HudKit: no art id is shared between two sets or two pieces, top right buttons differ per set", fn = function()
 	local HK = require(script.Parent.Parent.Engine.HudKit)
 	local seen = {}

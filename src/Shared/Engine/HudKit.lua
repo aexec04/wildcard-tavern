@@ -31,6 +31,14 @@ HudKit.PENDING = {
 	"dune_market", "marsh_lanterns", "snowy_hearth", "harbor_lights", "tavern_feast", "harvest_table", "winter_table",
 }
 
+-- Left panel pieces that wear a painted plate: sidebar instance name -> kit piece (Client/SidebarTheme looks them up by name).
+HudKit.PLATES = {
+	RewardPlate = "reward", TipsRow = "tile", HandsTile = "tile", DiscardsTile = "tile",
+	PatronsTray = "patron_tray", BlessingChip = "purse_row",
+}
+-- Sidebar icon holder name (Sidebar.makeIcon key) -> kit icon piece that replaces the stock icon.
+HudKit.ICONS = { target_score = "icon_target", coin_purse = "icon_tips", hands_cards = "icon_hands", discard_bin = "icon_discards" }
+
 function HudKit.key(setId, piece)
 	return tostring(setId) .. "__" .. tostring(piece)
 end

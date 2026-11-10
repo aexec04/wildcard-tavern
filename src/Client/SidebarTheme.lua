@@ -84,6 +84,58 @@ local function kitPlate(inst, piece, kit)
 	end
 end
 
+-- Hides (or restores) a frame's own fill and strokes while a painted plate behind it does the job.
+local function hideFill(inst, on)
+	if on then
+		if inst:GetAttribute("HudKitBgT") == nil then inst:SetAttribute("HudKitBgT", inst.BackgroundTransparency) end
+		inst.BackgroundTransparency = 1
+	else
+		local bg = inst:GetAttribute("HudKitBgT")
+		if bg ~= nil then
+			inst.BackgroundTransparency = bg
+			inst:SetAttribute("HudKitBgT", nil)
+		end
+	end
+	for _, d in ipairs(inst:GetChildren()) do
+		if d:IsA("UIStroke") then d.Enabled = not on end
+	end
+end
+
+-- Swaps a stock icon holder's picture for the kit icon (the stock children hide and come back when the set has no kit).
+local function kitIcon(holder, piece, kit)
+	local id = kit and kit[piece]
+	local img = holder:FindFirstChild("HudKitIcon")
+	if id then
+		if not img then
+			img = Instance.new("ImageLabel")
+			img.Name = "HudKitIcon"
+			img.BackgroundTransparency = 1
+			img.BorderSizePixel = 0
+			img.Active = false
+			img.ScaleType = Enum.ScaleType.Fit
+			img.Size = UDim2.fromScale(1, 1)
+			img.ZIndex = holder.ZIndex + 1
+			img.Parent = holder
+		end
+		img.Image = id
+		for _, c in ipairs(holder:GetChildren()) do
+			if c ~= img and c:IsA("GuiObject") then
+				if c:GetAttribute("HudKitWasVisible") == nil then c:SetAttribute("HudKitWasVisible", c.Visible) end
+				c.Visible = false
+			end
+		end
+	else
+		if img then img:Destroy() end
+		for _, c in ipairs(holder:GetChildren()) do
+			local was = c:GetAttribute("HudKitWasVisible")
+			if was ~= nil then
+				c.Visible = was
+				c:SetAttribute("HudKitWasVisible", nil)
+			end
+		end
+	end
+end
+
 local function remember(inst, attr, value)
 	if inst:GetAttribute(attr) == nil then inst:SetAttribute(attr, value) end
 	return inst:GetAttribute(attr)
@@ -140,6 +192,18 @@ local function apply(skin)
 		end
 	end
 	if board then SidebarTheme.paintBoardDepth(board, p, kit) end
+	-- phase 1b: the rest of the left panel wears the set's painted plates and icons (themed kit sets only)
+	local themedKit = p and kit or nil
+	for name, piece in pairs(HudKit.PLATES) do
+		local inst = root:FindFirstChild(name, true)
+		if inst then kitPlate(inst, piece, themedKit) end
+	end
+	local tray = root:FindFirstChild("PatronsInset", true)
+	if tray then hideFill(tray, themedKit ~= nil and themedKit.patron_tray ~= nil) end
+	for name, piece in pairs(HudKit.ICONS) do
+		local holder = root:FindFirstChild(name, true)
+		if holder then kitIcon(holder, piece, themedKit) end
+	end
 	-- the round header's red tail tabs and side bars take the accent; the plate itself stays dark
 	local ribbon = side and side:FindFirstChild("HeaderRibbon", true)
 	if ribbon then
