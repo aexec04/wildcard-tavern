@@ -108,6 +108,19 @@ function ResponsiveLayout.collectionPanel(vpX, vpY)
 	return { w = w, h = h }
 end
 
+-- Badges panel: the Collection panel's size and (centred) left edge, pushed right so it never covers the left HUD column
+-- (sidebarW wide, default 240) and shrunk so it stays on screen. Returns { x, w, h } in pixels, x = left edge.
+function ResponsiveLayout.badgesPanel(vpX, vpY, sidebarW)
+	sidebarW = sidebarW or 240
+	local fit = ResponsiveLayout.collectionPanel(vpX, vpY)
+	local w = math.floor(fit.w * vpX)
+	local x = math.floor((vpX - w) / 2)
+	local minX = sidebarW + 12
+	if x < minX then x = minX end
+	if x + w > vpX - 12 then w = math.max(120, vpX - 12 - x) end
+	return { x = x, w = w, h = math.floor(fit.h * vpY) }
+end
+
 -- The Card Sets and Badges buttons sit at x 15..217 on the title row. On a panel narrower than 600 the title
 -- moves to the right of them (x 224) instead of centring behind them.
 function ResponsiveLayout.collectionTitle(panelW)

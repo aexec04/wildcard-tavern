@@ -12498,7 +12498,7 @@ table.insert(tests, { name = "BadgeWallLayout: every tab has its badges, nothing
 	expectEqual(f, 2 / 32, "progress fraction")
 	local d1 = B.getById("wins_1")
 	expectEqual(W.plateText(d1, true), "First Win", "earned nameplate shows the name")
-	expectEqual(W.plateText(d1, false), "Win a run.", "locked nameplate shows the requirement")
+	expectEqual(W.plateText(d1, false), "First Win", "locked nameplate shows the full name too (the requirement is in the tooltip)")
 	local seg = W.segment(0, 0, 3, 4)
 	expectEqual(seg.length, 5, "segment length")
 	expectEqual(seg.x, 1.5, "segment midpoint")
@@ -13990,6 +13990,38 @@ table.insert(tests, { name = "TooltipSpec: left HUD tooltips open to the right a
 			expectTrue(x - 240 >= TS.Spec.gap, "gap of at least 8 px")
 		end
 	end
+end })
+
+table.insert(tests, { name = "Badges: nameplates fit two lines inside their column, panel clears the left HUD", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	local B = require(script.Parent.Parent.Engine.Badges)
+	expectTrue(W.NAMEPLATE_H - 4 >= 2 * 14 + 4, "plate is tall enough for two 14 px lines")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 600, 330 } }) do
+		for _, chip in ipairs(B.Chips) do
+			local lay = W.layout(chip, nil, size[1], size[2])
+			local rects = {}
+			for _, it in ipairs(lay.items) do
+				local p = W.plateRect(it)
+				expectTrue(p.w >= it.size + 8 or chip == "Masters", "plate at least as wide as the badge")
+				expectTrue(it.x + p.x >= 0 and it.x + p.x + p.w <= size[1], chip .. " plate inside the board width")
+				expectTrue(it.y + W.plateY(it) + p.h <= size[2], chip .. " plate inside the board height")
+				rects[#rects + 1] = { x = it.x + p.x, y = it.y + W.plateY(it), w = p.w, h = p.h }
+			end
+			for a = 1, #rects do
+				for b = a + 1, #rects do
+					local r1, r2 = rects[a], rects[b]
+					expectTrue(r1.x + r1.w <= r2.x or r2.x + r2.w <= r1.x or r1.y + r1.h <= r2.y or r2.y + r2.h <= r1.y, chip .. " plates do not overlap at " .. size[1])
+				end
+			end
+		end
+	end
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local f = RL.badgesPanel(vp[1], vp[2])
+		expectTrue(f.x >= 240 + 12, "panel starts right of the HUD at " .. vp[1])
+		expectTrue(f.x + f.w <= vp[1], "panel on screen at " .. vp[1])
+	end
+	expectEqual(RL.badgesPanel(1920, 1080).x, math.floor((1920 - math.floor(RL.collectionPanel(1920, 1080).w * 1920)) / 2), "same left edge as Collection where it fits")
 end })
 
 return tests

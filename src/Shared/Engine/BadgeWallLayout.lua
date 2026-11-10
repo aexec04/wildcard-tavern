@@ -14,7 +14,7 @@ local Badges = require(script.Parent.Badges)
 
 local Wall = {}
 
-Wall.NAMEPLATE_H = 24
+Wall.NAMEPLATE_H = 38 -- two lines of 14 px name text on a solid plate
 Wall.FURNITURE = { All = "cabinet", Roads = "map_board", Masters = "velvet_board", Night = "night_sky", Special = "curio_shelf" }
 -- art keys (Engine/BadgeWallArt.lua) used by each furniture piece
 Wall.FURNITURE_ART = { cabinet = "badge_cabinet", map_board = "badge_map_board", velvet_board = "badge_velvet_board", night_sky = "badge_night_sky", curio_shelf = "badge_curio_shelf" }
@@ -73,7 +73,7 @@ local function rowsLayout(n, rows, w, h, top, bottom)
 		local r = (i - 1) // perRow
 		local c = (i - 1) % perRow
 		local x0 = (w - perRow * cellW) / 2 -- every row shares the same columns
-		out[i] = { x = math.floor(x0 + c * cellW + (cellW - size) / 2), y = math.floor(top + r * rowH + 2 + pad), size = size }
+		out[i] = { x = math.floor(x0 + c * cellW + (cellW - size) / 2), y = math.floor(top + r * rowH + 2 + pad), size = size, cell = cellW }
 	end
 	return out
 end
@@ -95,7 +95,7 @@ function Wall.layout(chip, defs, w, h)
 		local foot = size + 2 * pad + Wall.NAMEPLATE_H
 		local mid = amp + math.floor((h - foot - 2 * amp) / 2) + pad -- badge top at the middle of the winding
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = mid + (i % 2 == 1 and -amp or amp), size = size }
+			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = mid + (i % 2 == 1 and -amp or amp), size = size, cell = step }
 		end
 	elseif chip == "Masters" then
 		local row = {}
@@ -107,10 +107,10 @@ function Wall.layout(chip, defs, w, h)
 		local size = math.floor(math.min(step * 0.76, h * 0.24))
 		local big = math.floor(math.min(h * 0.34, w * 0.3))
 		if tavern then
-			items[#items + 1] = { id = tavern.id, x = math.floor((w - big) / 2), y = math.floor(h * 0.05), size = big, big = true }
+			items[#items + 1] = { id = tavern.id, x = math.floor((w - big) / 2), y = math.floor(h * 0.05), size = big, big = true, cell = big }
 		end
 		for i, d in ipairs(row) do
-			items[#items + 1] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = math.floor(h * 0.62), size = size }
+			items[#items + 1] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = math.floor(h * 0.62), size = size, cell = step }
 		end
 	elseif chip == "Night" then
 		local n = #list
@@ -118,14 +118,14 @@ function Wall.layout(chip, defs, w, h)
 		local size = math.floor(math.min(w * 0.9 / math.max(1, n) * 0.7, h * 0.3))
 		for i, d in ipairs(list) do
 			local cx = w * (0.12 + 0.76 * (n > 1 and (i - 1) / (n - 1) or 0.5))
-			items[i] = { id = d.id, x = math.floor(cx - size / 2), y = math.floor(h * (ys[(i - 1) % #ys + 1]) + 0), size = size }
+			items[i] = { id = d.id, x = math.floor(cx - size / 2), y = math.floor(h * (ys[(i - 1) % #ys + 1]) + 0), size = size, cell = w * 0.9 / math.max(1, n) }
 		end
 	else
 		local rows = chip == "All" and 3 or 2
 		local pos = rowsLayout(#list, rows, w, h, h * 0.04, h * 0.04)
 		local perRow = math.ceil(#list / rows)
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = pos[i].x, y = pos[i].y, size = pos[i].size, drop = Wall.SHELF_DROP }
+			items[i] = { id = d.id, x = pos[i].x, y = pos[i].y, size = pos[i].size, drop = Wall.SHELF_DROP, cell = pos[i].cell }
 		end
 		for r = 1, rows do
 			local first = items[(r - 1) * perRow + 1]
@@ -219,9 +219,16 @@ function Wall.progress(have)
 	return earned, total, total > 0 and earned / total or 0
 end
 
--- Short nameplate text: the badge name when earned, else the requirement hint.
+-- Nameplate text: always the full badge name (earned or not); the requirement lives in the hover tooltip.
 function Wall.plateText(def, owned)
-	return owned and def.name or def.hint
+	return def.name
+end
+
+-- Nameplate rectangle relative to the badge's top-left: as wide as the item's own column (so two lines of name fit), never
+-- narrower than the badge plus 8 px, with a 4 px gap to its neighbours. { x, w, h }.
+function Wall.plateRect(item)
+	local w = math.max(item.size + 8, math.floor((item.cell or (item.size + 8)) - 4))
+	return { x = math.floor((item.size - w) / 2), w = w, h = Wall.NAMEPLATE_H - 4 }
 end
 
 -- Constellation line between two item centres: { x, y, length, rotation } for a thin Frame centred on the midpoint.

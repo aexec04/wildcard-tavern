@@ -63,9 +63,20 @@ return function(deps)
 	backdrop.Parent = deps.screenGui
 
 	local panel = Instance.new("Frame")
-	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.AnchorPoint = Vector2.new(0, 0.5)
 	panel.Size = UDim2.fromScale(0.78, 0.88)
-	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.11, 0.5)
+	do -- same left edge as the Collection panel, clear of the left HUD at every window size
+		local function place()
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+			local fit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout")).badgesPanel(vp.X, vp.Y)
+			panel.Size = UDim2.fromOffset(fit.w, math.max(fit.h, math.floor(vp.Y * 0.84)))
+			panel.Position = UDim2.new(0, fit.x, 0.5, 0)
+		end
+		place()
+		if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(place) end
+	end
 	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	panel.ZIndex = 41
 	panel.Parent = backdrop

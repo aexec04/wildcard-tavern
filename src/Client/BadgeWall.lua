@@ -128,11 +128,11 @@ local function furniture(board, kind, w, h, shelves, items)
 		stroke(lantern, Color3.fromRGB(70, 46, 24), 2)
 	end
 	g.Parent = back
-	artOver(back, Wall.FURNITURE_ART[kind], { ZIndex = Z - 1, ImageTransparency = 0.92 }) -- furniture art is only a whisper behind the sockets
-	local scrim = frame(back, { Name = "GridScrim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(26, 19, 14), BackgroundTransparency = 0.3, ZIndex = Z - 1 }, 12)
+	local art = artOver(back, Wall.FURNITURE_ART[kind], { ZIndex = Z - 1, ImageTransparency = 0.05, ScaleType = Enum.ScaleType.Crop }) -- the painted backdrop, fully visible on every tab
+	local scrim = frame(back, { Name = "GridScrim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(26, 19, 14), BackgroundTransparency = art and 0.82 or 0.3, ZIndex = Z - 1 }, 12)
 	scrim.Active = false
 	-- a plank under each shelf row: the sockets rest on it
-	for _, y in ipairs(shelves) do
+	for _, y in ipairs(art and {} or shelves) do -- the painted cabinet and shelf art carry their own shelves
 		local plank = frame(back, { Name = "Plank", Position = UDim2.fromOffset(math.floor(w * 0.03), y), Size = UDim2.fromOffset(math.floor(w * 0.94), Wall.PLANK_H), BackgroundColor3 = Color3.fromRGB(104, 70, 40), ZIndex = Z }, 3)
 		stroke(plank, Color3.fromRGB(60, 40, 24), 1)
 		frame(plank, { Size = UDim2.new(1, 0, 0, 2), BackgroundColor3 = Color3.fromRGB(150, 108, 64), ZIndex = Z + 1 })
@@ -249,11 +249,12 @@ local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
 	end
 	-- brass nameplate: earned shows the name, locked shows the requirement
 	rimOver(holder, size, owned, it.socket)
-	local plate = frame(holder, { Name = "Nameplate", Position = UDim2.fromOffset(-4, Wall.plateY(it)), Size = UDim2.fromOffset(size + 8, Wall.NAMEPLATE_H - 4), BackgroundColor3 = Color3.fromRGB(44, 32, 24), ZIndex = Z + 4 }, 4)
+	local pr = Wall.plateRect(it)
+	local plate = frame(holder, { Name = "Nameplate", Position = UDim2.fromOffset(pr.x, Wall.plateY(it)), Size = UDim2.fromOffset(pr.w, pr.h), BackgroundColor3 = Color3.fromRGB(44, 32, 24), ZIndex = Z + 4 }, 4)
 	stroke(plate, BRASS, 1)
-	words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = Wall.plateText(def, owned), TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 6,
+	words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = Wall.plateText(def, owned), TextWrapped = true, TextSize = 14, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 6,
 		TextColor3 = owned and CREAM or Color3.fromRGB(196, 182, 156) })
-	if opts.tooltip then opts.tooltip(plate, owned and def.description or def.hint) end
+	if opts.tooltip then opts.tooltip(plate, def.name .. "\n" .. (owned and def.description or def.hint)) end
 	if opts.equippedId == def.id or opts.secondId == def.id then
 		local tag = frame(holder, { Position = UDim2.fromOffset(-2, 4), Size = UDim2.fromOffset(math.min(88, size), 20), BackgroundColor3 = GOLD, ZIndex = Z + 9 }, 3)
 		words(tag, { Size = UDim2.fromScale(1, 1), Text = "Equipped", ZIndex = Z + 10 })
