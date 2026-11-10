@@ -1877,7 +1877,12 @@ local function refreshScorePreview()
 	for index in pairs(selected) do
 		table.insert(selectedIndices, index)
 	end
-	pcall(function() require(script.ActionButtonFX).setSelection(#selectedIndices) end) -- Play/Discard light up or dim
+	pcall(function()
+		local PR = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayRules)
+		local okPlay = #selectedIndices == 0 or PR.allows(latestState, #selectedIndices)
+		require(script.ActionButtonFX).setSelection(#selectedIndices, okPlay) -- Play/Discard light up or dim (a round's card-count rule keeps Play dim)
+		if #selectedIndices > 0 and not okPlay then SidebarModule.scorePreviewLabel.Text = PR.hint(latestState) or "Select cards..." end
+	end)
 
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
@@ -2625,8 +2630,15 @@ playButton.MouseButton1Click:Connect(function()
 	if not Shop.tutorial.allows("play") then return end
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
-		showWarning("Select 1-5 cards first.")
+		showWarning(require(game:GetService("ReplicatedStorage").Shared.Engine.PlayRules).hint(latestState) or "Select 1-5 cards first.")
 		return
+	end
+	do -- the round's card-count rule (Full Table, One at a Time, Four on Top, minimums): never send a play the server refuses
+		local okCount, why = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayRules).allows(latestState, #indices)
+		if not okCount then
+			showWarning(why)
+			return
+		end
 	end
 	SoundModule.playCue("card_play")
 

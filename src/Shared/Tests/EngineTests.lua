@@ -13545,4 +13545,105 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	expectEqual(ContentArt.getImageId("shop_scene", "shop_wall"), Art.shop_wall and ContentArt.getImageId("shop_scene", "shop_wall") or nil, "missing ids resolve to nil, not an error")
 end })
 
+-- ===== Exact-card-count boss rules are enforced on every path into the boss round =====
+do
+	local EXACT = { full_table = 5, one_at_a_time = 1, four_top = 4 }
+	local function bossNightWith(id, options)
+		local state = RunState.new(options or {}, function(n) return n end)
+		state.nightBossModifier = BossRounds.getById(id)
+		state.night = math.min(state.config.nightCap, 4)
+		state.round = state.config.roundsPerNight
+		state.bannedBossNight = nil
+		RunState.startRound(state)
+		return state
+	end
+	local function expectEnforced(state, id, label)
+		local need = EXACT[id]
+		expectTrue(state.bossModifier ~= nil and state.bossModifier.id == id, label .. ": rule missing from state.bossModifier")
+		local handBefore = #state.hand
+		local wrong = need == 5 and { 1, 2 } or { 1, 2, 3, 4, 5 }
+		expectFalse(pcall(RunState.playHand, state, wrong), label .. ": wrong card count was accepted")
+		expectEqual(#state.hand, handBefore, label .. ": a refused play must not touch the hand")
+		expectEqual(state.roundScore, 0, label .. ": a refused play must not score")
+		if need == 4 or need == 5 then
+			expectFalse(pcall(RunState.playHand, state, { 1, 2 }), label .. ": 2 cards accepted")
+		end
+	end
+	for id in pairs(EXACT) do
+		table.insert(tests, { name = "Exact card count (" .. id .. ") is enforced after startRound, revive, advance, skip and run modes", fn = function()
+			expectEnforced(bossNightWith(id), id, "fresh")
+			-- revive: ONE MORE ROUND restores the snapshot taken when the boss round started
+			local s = bossNightWith(id)
+			s.runOver = true
+			RunState.useContinue(s)
+			expectEnforced(s, id, "revive")
+			-- reaching the boss round by advancing from round 2 of the Night
+			local a = RunState.new({}, function(n) return n end)
+			a.night = 4
+			a.round = a.config.roundsPerNight - 1
+			RunState.startRound(a)
+			a.nightBossModifier = BossRounds.getById(id)
+			a.roundOver = true
+			RunState.advanceToNextRound(a)
+			expectEnforced(a, id, "advance")
+			-- skip an early round, then land on the boss round
+			local k = RunState.new({}, function(n) return n end)
+			k.night = 4
+			k.round = 1
+			RunState.startRound(k)
+			k.nightBossModifier = BossRounds.getById(id)
+			if RunState.canSkipRound(k) then RunState.skipRound(k) end
+			k.round = k.config.roundsPerNight
+			RunState.startRound(k)
+			expectEnforced(k, id, "skip")
+			-- Rule Ban: the rule is gone from state.bossModifier (so the UI must say banned)
+			local b = bossNightWith(id, { ruleBans = true })
+			if b.ruleBansEnabled and RunState.useRuleBan(b, "roundSelect") then
+				expectTrue(b.bossModifier == nil, "rule ban left the rule on")
+				expectTrue(pcall(RunState.playHand, b, { 1, 2 }), "banned boss should allow any count")
+			end
+			-- Quick Run, Boss Rush, Endless
+			expectEnforced(bossNightWith(id, { quickRun = true }), id, "quick")
+			expectEnforced(bossNightWith(id, { endlessRules = true }), id, "endless")
+			-- Boss Rush picks its own boss each round: whatever it picks must be the enforced one
+			local r = RunState.new({ rush = true }, function(n) return n end)
+			for _ = 1, 12 do
+				expectTrue(r.bossModifier == r.nightBossModifier, "rush: bossModifier must be the round's boss")
+				local need = r.bossModifier and r.bossModifier.requiredCardsPerHand
+				if need and need ~= 2 then
+					expectFalse(pcall(RunState.playHand, r, { 1, 2 }), "rush: 2 cards accepted")
+				end
+				r.roundOver = true
+				pcall(RunState.advanceToNextRound, r)
+			end
+		end })
+	end
+end
+
+table.insert(tests, { name = "PlayRules: exact and minimum card counts read from the round rule (client shape too), hint and refusal text, client wiring", fn = function()
+	local PlayRules = require(script.Parent.Parent.Engine.PlayRules)
+	for id, need in pairs({ full_table = 5, one_at_a_time = 1, four_top = 4 }) do
+		local server = { bossModifier = BossRounds.getById(id) }
+		local client = { bossModifier = { id = id, name = "x", description = "y" } } -- what the server ships
+		for _, st in ipairs({ server, client }) do
+			expectEqual(PlayRules.exact(st), need)
+			expectTrue(PlayRules.allows(st, need))
+			expectFalse(PlayRules.allows(st, need == 5 and 2 or need + 1))
+			expectEqual(PlayRules.hint(st), "Pick exactly " .. (need == 1 and "1 card" or need .. " cards"))
+		end
+	end
+	local _, why = PlayRules.allows({ bossModifier = BossRounds.getById("full_table") }, 2)
+	expectEqual(why, "This round needs exactly 5 cards")
+	expectTrue(PlayRules.allows({}, 3))
+	expectFalse(PlayRules.allows({}, 0))
+	expectEqual(PlayRules.hint({}), nil)
+	expectEqual(PlayRules.minimum({ challenge = { minCardsPerHand = 3 } }), 3)
+	expectFalse(PlayRules.allows({ challenge = { minCardsPerHand = 3 } }, 2))
+	local f = io.open("src/Client/init.client.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("PlayRules", 1, true) ~= nil, "the Play Hand click must check PlayRules")
+	end
+end })
+
 return tests

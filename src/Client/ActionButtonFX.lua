@@ -259,11 +259,12 @@ function ActionButtonFX.install(opts)
 	ActionButtonFX.setSelection(state.selection)
 end
 
-function ActionButtonFX.setSelection(count)
+function ActionButtonFX.setSelection(count, playAllowed)
 	state.selection = count or 0
-	local ready = ButtonFeel.playReady(state.selection)
+	local base = ButtonFeel.playReady(state.selection)
 	for _, key in ipairs({ "play", "discard" }) do
 		local entry = state.buttons[key]
+		local ready = base and not (key == "play" and playAllowed == false) -- a round's card-count rule keeps Play dim
 		if entry and entry.ready ~= ready then
 			entry.ready = ready
 			entry.setReady(ready)
