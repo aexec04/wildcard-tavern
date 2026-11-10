@@ -13,7 +13,7 @@ return {
 	["meadow_picnic"] = "rbxassetid://140332678601762",
 	["riverside_evening"] = "rbxassetid://83886672368846",
 	["snowy_hearth"] = "rbxassetid://83273754533326",
-	["summit_camp"] = "rbxassetid://130425201456177",
+	["summit_camp"] = "rbxassetid://105637778423094",
 	["tavern_feast"] = "rbxassetid://134123093959841",
 	["winter_table"] = "rbxassetid://125985737354172",
 }

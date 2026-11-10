@@ -67,7 +67,7 @@ local function bumpContent(inst, on)
 end
 
 -- Draws or removes the painted plate on a role frame. The flat fill hides under it (BackgroundTransparency) and returns on removal.
-local function kitPlate(inst, piece, kit)
+local function kitPlate(inst, piece, kit, pad)
 	local plate = inst:FindFirstChild("HudKitPlate")
 	local id = kit and kit[piece]
 	if id and not layoutParent(inst) then
@@ -83,6 +83,27 @@ local function kitPlate(inst, piece, kit)
 		end
 		plate.ZIndex = inst.ZIndex -- above the parent's own (hidden) fill; content is lifted above it
 		bumpContent(inst, true)
+		local padFrame = inst:FindFirstChild("HudKitPad")
+		if pad and not padFrame then
+			-- soft parchment between the painted plate and its labels (created after the plate at equal z, so it draws over it)
+			padFrame = Instance.new("Frame")
+			padFrame.Name = "HudKitPad"
+			padFrame.BorderSizePixel = 0
+			padFrame.Active = false
+			padFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			padFrame.Position = UDim2.fromScale(0.5, 0.5)
+			padFrame.Size = UDim2.new(1, -8, 1, -8)
+			padFrame.ZIndex = inst.ZIndex
+			padFrame:SetAttribute("HudKitZBumped", true) -- already placed; never lifted
+			local pc = Instance.new("UICorner")
+			pc.CornerRadius = UDim.new(0, 6)
+			pc.Parent = padFrame
+			padFrame.Parent = inst
+		end
+		if padFrame then
+			padFrame.BackgroundColor3 = c3(pad or { 255, 255, 255 })
+			padFrame.BackgroundTransparency = 0.12
+		end
 		plate.Image = id
 		if inst:GetAttribute("HudKitBgT") == nil then inst:SetAttribute("HudKitBgT", inst.BackgroundTransparency) end
 		inst.BackgroundTransparency = 1
@@ -90,6 +111,8 @@ local function kitPlate(inst, piece, kit)
 			if d:IsA("UIStroke") then d.Enabled = false end
 		end
 	elseif plate or inst:GetAttribute("HudKitBgT") ~= nil then
+		local oldPad = inst:FindFirstChild("HudKitPad")
+		if oldPad then oldPad:Destroy() end
 		if plate then plate:Destroy() end
 		bumpContent(inst, false)
 		local bg = inst:GetAttribute("HudKitBgT")
@@ -215,7 +238,7 @@ local function apply(skin)
 	local themedKit = p and kit or nil
 	for name, piece in pairs(HudKit.PLATES) do
 		local inst = root:FindFirstChild(name, true)
-		if inst then kitPlate(inst, piece, themedKit) end
+		if inst then kitPlate(inst, piece, themedKit, p and p.pad or nil) end
 	end
 	local tray = root:FindFirstChild("PatronsInset", true)
 	if tray then hideFill(tray, themedKit ~= nil and themedKit.patron_tray ~= nil) end
@@ -223,13 +246,39 @@ local function apply(skin)
 		local holder = root:FindFirstChild(name, true)
 		if holder then kitIcon(holder, piece, themedKit) end
 	end
-	-- the round header's red tail tabs and side bars take the accent; the plate itself stays dark
+	-- the round header: a solid dark plate sits over the painted banner and under the text (kit sets), so the text never
+	-- competes with the ribbon art; other sets keep the stock dark wood plaque
 	local ribbon = side and side:FindFirstChild("HeaderRibbon", true)
 	if ribbon then
+		local hp = ribbon:FindFirstChild("HudHeaderPlate")
+		local show = p ~= nil and themedKit ~= nil and themedKit.banner ~= nil
+		if show and not hp then
+			hp = Instance.new("Frame")
+			hp.Name = "HudHeaderPlate"
+			hp.BorderSizePixel = 0
+			hp.Active = false
+			hp.Position = UDim2.fromOffset(6, 6)
+			hp.Size = UDim2.new(1, -12, 1, -12)
+			hp:SetAttribute("HudKitZBumped", true)
+			local hc = Instance.new("UICorner")
+			hc.CornerRadius = UDim.new(0, 8)
+			hc.Parent = hp
+			hp.Parent = ribbon
+		elseif not show and hp then
+			hp:Destroy()
+			hp = nil
+		end
+		local minText = ribbon.ZIndex + 2
 		for _, d in ipairs(ribbon:GetDescendants()) do
 			if d:IsA("TextLabel") then
-				d.TextColor3 = p and c3(p.headerText) or Color3.fromRGB(240, 222, 180)
+				d.TextColor3 = show and c3(p.headerPlateText) or (p and c3(p.headerText) or Color3.fromRGB(240, 222, 180))
+				minText = math.min(minText, d.ZIndex)
 			end
+		end
+		if hp then
+			hp.BackgroundColor3 = c3(p.headerPlate)
+			hp.BackgroundTransparency = p.headerPlateAlpha
+			hp.ZIndex = math.max(ribbon.ZIndex + 1, minText - 1)
 		end
 	end
 end

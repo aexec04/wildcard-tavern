@@ -124,7 +124,9 @@ function HudStyle.panelPalette(colors)
 	local inset = mix(paper, BLACK, 0.08)
 	local ink = mix(colors.panel, BLACK, 0.45)
 	local steps = 0
+	local padWorst = mix(paper, BLACK, 0.12) -- the label pad (12 percent see-through) over the darkest plate art
 	while steps < 16 and (CosmeticSets.contrastRatio(ink, inset) < HudStyle.MIN_CONTRAST
+		or CosmeticSets.contrastRatio(ink, padWorst) < HudStyle.MIN_CONTRAST
 		or CosmeticSets.contrastRatio(ink, paper) < HudStyle.MIN_CONTRAST) do
 		ink = mix(ink, BLACK, 0.2)
 		steps = steps + 1
@@ -145,6 +147,9 @@ function HudStyle.panelPalette(colors)
 		track = mix(colors.panel, BLACK, 0.25),
 		fill = mix(accent, WHITE, 0.2),
 		medallion = mix(inset, BLACK, 0.06),
+		-- kit sets: solid dark plate under the round header text, soft parchment pad between a painted plate and its label
+		headerPlate = { 20, 14, 8 }, headerPlateAlpha = 0.15, headerPlateText = { 250, 244, 226 },
+		pad = paper, padAlpha = 0.12, padWorst = padWorst,
 	}
 end
 

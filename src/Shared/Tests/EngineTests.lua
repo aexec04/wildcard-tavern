@@ -14087,6 +14087,48 @@ table.insert(tests, { name = "HudStyle: every set has a complete left HUD palett
 	expectTrue(n >= 14, "every non-default set covered")
 end })
 
+table.insert(tests, { name = "Kit sets: dark header plate and label pad keep text at 4.5:1 for every set", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HudStyle)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local n = 0
+	for _, set in ipairs(CS.Definitions) do
+		local colors = CS.skinOf(set).colors
+		if colors then
+			n = n + 1
+			local p = HS.panelPalette(colors)
+			expectTrue(CS.contrastRatio(p.headerPlateText, p.headerPlate) >= 4.5, set.id .. " header text on its dark plate")
+			expectTrue(CS.contrastRatio(p.ink, p.pad) >= 4.5, set.id .. " label ink on the pad")
+			expectTrue(CS.contrastRatio(p.ink, p.padWorst) >= 4.5, set.id .. " label ink on the pad over dark plate art")
+		end
+	end
+	expectTrue(n >= 14, "every non-default set covered")
+	local f = io and io.open and io.open("src/Client/SidebarTheme.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("HudKitPad", 1, true) ~= nil and src:find("HudHeaderPlate", 1, true) ~= nil, "pad and header plate are built")
+end })
+
+table.insert(tests, { name = "SetBackdropArt holds only recorded Image ids; kit images preload before a set applies", fn = function()
+	local Art = require(script.Parent.Parent.Engine.SetBackdropArt)
+	local seen = {}
+	for id, v in pairs(Art) do
+		expectTrue(type(v) == "string" and v:match("^rbxassetid://%d+$") ~= nil, id .. " is an rbxassetid")
+		expectTrue(not seen[v], id .. " id is not shared")
+		seen[v] = true
+	end
+	local f = io and io.open and io.open("art-wip/set_backdrops/image-ids.json", "r")
+	if f then -- every entry must be an id from record-image (a Decal id fails to load as an Image)
+		local json = f:read("*a"); f:close()
+		for id, v in pairs(Art) do
+			expectTrue(json:find(v:match("%d+"), 1, true) ~= nil, id .. " came from record-image")
+		end
+	end
+	local s = io and io.open and io.open("src/Client/SetSkin.lua", "r")
+	if not s then return end
+	local src = s:read("*a"); s:close()
+	expectTrue(src:find("HudKitPreload", 1, true) ~= nil, "SetSkin.set waits for kit images")
+end })
+
 table.insert(tests, { name = "TooltipSpec: left HUD tooltips open to the right and never touch the hovered control or the HUD column", fn = function()
 	local TS = require(script.Parent.Parent.Engine.TooltipSpec)
 	local function hit(ax, ay, aw, ah, bx, by, bw, bh)

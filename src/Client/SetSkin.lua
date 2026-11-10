@@ -292,7 +292,14 @@ end
 function SetSkin.set(skin)
 	if skin == current then return end
 	current = skin or { images = {}, colors = nil, neutral = true }
-	pcall(function() require(script.Parent.HudTheme).setSkin(current) end) -- Play/Discard, Sort toggle, round icons, draw pile
+	-- Play/Discard, Sort toggle, round icons, draw pile, left panel: applied once the set's kit images are loaded (old look until then)
+	local mine = current
+	pcall(function()
+		require(script.Parent.HudKitPreload).whenReady(mine.id, function()
+			if current ~= mine then return end -- another set was picked while loading
+			pcall(function() require(script.Parent.HudTheme).setSkin(mine) end)
+		end)
+	end)
 	for inst, kind in pairs(registry) do
 		if inst.Parent then style(inst, kind) else registry[inst] = nil end
 	end
