@@ -18870,6 +18870,20 @@ table.insert(tests, { name = "PlayTableLayout plates: Play Hand and Discard equa
 	end
 end })
 
+table.insert(tests, { name = "PlayBoardLayout.placement: 2:3 top-left rect, nil under 900 px, never taller than the screen", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	expectTrue(PB.placement(800, 450) == nil, "narrow window keeps the flat panel")
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 }, { 1000, 600 } }) do
+		local p = PB.placement(sz[1], sz[2])
+		expectTrue(p ~= nil, "placement at " .. sz[1])
+		if p then
+			expectTrue(p.x == 0 and p.y == 0, "top left")
+			expectTrue(p.h <= sz[2] and p.w <= sz[1] * 0.24 + 1, "inside the screen and the width cap")
+			expectTrue(math.abs(p.w / p.h - 2 / 3) < 0.02, "2:3 at " .. sz[1])
+		end
+	end
+end })
+
 table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3,width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
 	expectFalse(PB.usable(390))

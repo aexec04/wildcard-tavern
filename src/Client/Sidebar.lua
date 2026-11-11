@@ -112,6 +112,11 @@ return function(deps)
 		boardArt.Size = UDim2.new(1, 0, 1.14, 0)
 	end
 
+	-- painted play board behind the rows (Client/PlayBoardPaint.lua, step C1); the flat board stays when its art does not load
+	pcall(function()
+		require(script.Parent.PlayBoardPaint).install({ root = root, board = board, boardArt = boardArt, width = SIDEBAR_WIDTH, fill = PARCHMENT })
+	end)
+
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
 	sidebar.Size = UDim2.new(0, SIDEBAR_WIDTH, 1, 0)

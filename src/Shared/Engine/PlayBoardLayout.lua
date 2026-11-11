@@ -40,6 +40,14 @@ function M.size(screenW, screenH)
 	return math.floor(w), math.floor(h)
 end
 
+-- The painted board's rect on screen: top left, 2:3, nil when the window is too narrow (old flat panel stays).
+function M.placement(screenW, screenH)
+	if not M.usable(screenW) then return nil end
+	local w, h = M.size(screenW, screenH)
+	if w < 100 or h < 150 then return nil end
+	return { x = 0, y = 0, w = w, h = h }
+end
+
 function M.map(w, h)
 	local sx, sy = w / M.IMG_W, h / M.IMG_H
 	local function r(s)
