@@ -87,7 +87,7 @@ function ShopSceneLayout.rects(W, H, counts)
 	local leaveW, leaveH = clamp(W * 0.14, 110, 180), 44
 	out.leave = rect(W - leaveW - 12, H - leaveH - 12, leaveW, leaveH)
 
-	local counterH = H * (phone and 0.50 or 0.30)
+	local counterH = H * (phone and 0.50 or 0.34)
 	local counterY = H - counterH
 	out.counter = rect(0, counterY, W, counterH)
 	out.surfaceY = math.floor(counterY + counterH * (phone and 0.12 or 0.45) + 0.5)
@@ -104,7 +104,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		local x1 = W * 0.86
 		out.bandX0, out.bandX1 = math.floor(x0 + 0.5), math.floor(x1 + 0.5)
 		local gap = clamp(W * 0.012, 8, 24)
-		local maxCardH = H * 0.36
+		local maxCardH = H * 0.42
 		local n = math.max(nOffers, 1)
 		local cardW = math.min((x1 - x0 - gap * (n - 1)) / n, maxCardH * ShopSceneLayout.CARD_RATIO)
 		local cardH = cardW / ShopSceneLayout.CARD_RATIO
@@ -181,6 +181,36 @@ function ShopSceneLayout.rects(W, H, counts)
 	end
 	return out
 end
+
+-- Overlays on an offer card, in the card body's local pixels (Client/ShopCards uses these). The badge (MEGA, JUMBO) sits
+-- top left of the art, synergy chips stack under it, and the price tag sits at the lower right of the art just above the
+-- name ribbon, so no tag covers a ribbon or chip. chipWidths = pixel width of each synergy chip.
+ShopSceneLayout.TAG_W, ShopSceneLayout.TAG_H = 64, 28
+function ShopSceneLayout.cardOverlays(W, artTop, artH, bannerTop, badgeW, chipWidths)
+	local out = { chips = {} }
+	local y = artTop + 6
+	if badgeW and badgeW > 0 then
+		out.badge = { x = 12, y = y, w = badgeW, h = 22 }
+		y = y + 28
+	end
+	for i, cw in ipairs(chipWidths or {}) do
+		out.chips[i] = { x = 12, y = y, w = cw, h = 24 }
+		y = y + 28
+	end
+	out.price = { x = W - 12 - ShopSceneLayout.TAG_W, y = bannerTop - 4 - ShopSceneLayout.TAG_H,
+		w = ShopSceneLayout.TAG_W, h = ShopSceneLayout.TAG_H }
+	return out
+end
+
+-- Width of a chip or badge pill for a word at 15 px (a safe upper bound; the real text is never wider).
+function ShopSceneLayout.pillWidth(word)
+	return #word * 9 + 28
+end
+
+-- Fallback scene colours used when the painted wall art is missing: warm wall gradient above a wood counter band.
+ShopSceneLayout.FALLBACK = {
+	wallTop = { 38, 26, 18 }, wallBottom = { 78, 50, 28 }, counter = { 58, 38, 22 }, counterEdge = { 150, 108, 56 },
+}
 
 -- Card sizes (Engine/CardShape numbers at scale 1: patron 220 x (250 + 36), pack 220 x (210 + 36)) that fit the
 -- offer and pack rects. Patrons and packs get their own scale because packs rest smaller on the counter.

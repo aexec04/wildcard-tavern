@@ -220,7 +220,7 @@ function BossScout.update(root, state)
 		local show = scout ~= nil and (state.phase == "shop")
 		chip.Visible = show
 		if show then
-			chip.Text = "  " .. (scout.icon or "👑") .. " Next boss: " .. scout.name .. ". " .. (scout.line or "")
+			chip.Text = "  Next boss: " .. scout.name .. ". " .. (scout.line or "")
 		end
 	end
 	if tokenChip then

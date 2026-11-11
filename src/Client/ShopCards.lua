@@ -59,6 +59,7 @@ local PRICE_OK = Color3.fromRGB(60, 40, 22)
 local PRICE_BAD = Color3.fromRGB(190, 40, 34)
 
 local CardShape = require(Engine:WaitForChild("CardShape"))
+local SceneLayout = require(Engine:WaitForChild("ShopSceneLayout"))
 
 local HEAD = 16 -- headroom above a resting card so a lifted card and its price tag never clip
 local LIFT = 8
@@ -325,23 +326,33 @@ function ShopCards.new(deps)
 		})
 		grad.Parent = strip
 
-		if spec.badge then
-			local pill = frame(artClip, { Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(#spec.badge * 10 + 16, 22),
-				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.15 })
+		local synergy = spec.synergy or {}
+		local chipWidths = {}
+		for i, tag in ipairs(synergy) do chipWidths[i] = SceneLayout.pillWidth(tag.word) end
+		local ov = SceneLayout.cardOverlays(W, shape.artTop, shape.artH, shape.bannerTop,
+			spec.badge and SceneLayout.pillWidth(spec.badge) or 0, chipWidths)
+		-- overlay rects are in body pixels; artClip starts at (6, artTop)
+		local function inArt(r) return UDim2.fromOffset(r.x - 6, r.y - shape.artTop) end
+
+		if spec.badge and ov.badge then
+			local pill = frame(artClip, { Name = "BadgePill", Position = inArt(ov.badge), Size = UDim2.fromOffset(ov.badge.w, ov.badge.h),
+				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.05 })
 			corner(pill, 11)
 			stroke(pill, GOLD, 1.5, 0)
 			label(pill, { Size = UDim2.fromScale(1, 1), Text = spec.badge, TextColor3 = GOLD })
 		end
 
-		-- ===== Synergy tags (Engine/Synergy.lua): up to 2 small glowing pills, icon plus one word, top right =====
-		for i, tag in ipairs(spec.synergy or {}) do
-			local pill = frame(artClip, { Name = "Synergy_" .. tag.tag, AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -6, 0, 6 + (i - 1) * 28), Size = UDim2.fromOffset(#tag.word * 8 + 36, 24),
-				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.1 })
+		-- ===== Synergy tags (Engine/Synergy.lua): up to 2 pills, a drawn gold diamond plus one word, top left under the badge =====
+		for i, tag in ipairs(synergy) do
+			local r = ov.chips[i]
+			local pill = frame(artClip, { Name = "Synergy_" .. tag.tag, Position = inArt(r), Size = UDim2.fromOffset(r.w, r.h),
+				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.05 })
 			corner(pill, 12)
 			stroke(pill, Color3.fromRGB(255, 226, 140), 2, 0) -- gold glow ring
-			label(pill, { Size = UDim2.new(1, -4, 1, 0), Position = UDim2.fromOffset(2, 0), Text = tag.icon .. " " .. tag.word,
-				TextColor3 = Color3.fromRGB(255, 226, 140), TextSize = 14 })
+			frame(pill, { Name = "Gem", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 14, 0.5, 0),
+				Size = UDim2.fromOffset(8, 8), Rotation = 45, BackgroundColor3 = Color3.fromRGB(255, 226, 140) })
+			label(pill, { Size = UDim2.new(1, -26, 1, 0), Position = UDim2.fromOffset(24, 0), Text = tag.word,
+				TextColor3 = Color3.fromRGB(255, 226, 140), TextSize = 15, TextStrokeTransparency = 1 })
 			if addTooltip then
 				addTooltip(pill, tag.line .. " " .. (tag.reason or ""))
 			end
@@ -361,11 +372,11 @@ function ShopCards.new(deps)
 
 		-- ===== Name ribbon overlapping the bottom of the art =====
 		local banner = frame(body, { Name = "Banner", Position = UDim2.fromOffset(2, shape.bannerTop), Size = UDim2.fromOffset(W - 4, BANNER_H),
-			BackgroundColor3 = WOOD })
+			BackgroundColor3 = WOOD_DARK })
 		corner(banner, 6)
 		stroke(banner, GOLD, 1.5, 0)
 		label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.name or "",
-			TextColor3 = CREAM, TextWrapped = true, TextSize = 16 })
+			TextColor3 = CREAM, TextWrapped = true, TextSize = 16, TextStrokeTransparency = 1 })
 
 		-- ===== Dim when it cannot be afforded =====
 		local affordable = spec.affordable ~= false
@@ -375,10 +386,10 @@ function ShopCards.new(deps)
 			corner(dim, 10)
 		end
 
-		-- ===== Price tag hanging off the top-right corner =====
+		-- ===== Price tag at the lower right of the art, above the name ribbon =====
 		if spec.price then
-			local tag = frame(body, { Name = "PriceTag", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromOffset(W + 6, -6),
-				Size = UDim2.fromOffset(64, 28), BackgroundColor3 = GOLD, Rotation = 6 })
+			local tag = frame(body, { Name = "PriceTag", Position = UDim2.fromOffset(ov.price.x, ov.price.y),
+				Size = UDim2.fromOffset(ov.price.w, ov.price.h), BackgroundColor3 = GOLD, ZIndex = Z + 1 })
 			corner(tag, 8)
 			stroke(tag, Color3.fromRGB(110, 76, 34), 2, 0)
 			local coin = frame(tag, { Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Color3.fromRGB(246, 208, 96) })

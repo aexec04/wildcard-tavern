@@ -13765,7 +13765,7 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 			expectTrue(r.marlo.y + r.marlo.h > r.counter.y, "Marlo's feet are behind the counter " .. tag)
 			if not r.phone then
 				expectTrue(r.marlo.h >= H * 0.6 and r.marlo.h <= H * 0.64, "Marlo is about 62 percent of the height " .. tag)
-				expectTrue(r.counter.h >= H * 0.29 and r.counter.h <= H * 0.31, "counter band is about 30 percent " .. tag)
+				expectTrue(r.counter.h >= H * 0.33 and r.counter.h <= H * 0.35, "counter band is about 34 percent " .. tag)
 				expectTrue(r.marlo.x + r.marlo.w <= W * 0.5, "Marlo stays on the left half " .. tag)
 			else
 				expectTrue(r.marlo.x < W * 0.1 and r.marlo.y < H * 0.4, "phone Marlo sits top left " .. tag)
@@ -13813,6 +13813,34 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 	expectEqual(n, 2, "phone wraps into two rows")
 end })
 
+table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag never overlap and stay inside the card; offers sit inside the counter area", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, W in ipairs({ 120, 160, 220, 297 }) do
+		local artTop, artH, bannerTop = 6, 180, 170
+		local ov = L.cardOverlays(W, artTop, artH, bannerTop, L.pillWidth("JUMBO"), { L.pillWidth("Ranks"), L.pillWidth("Flush") })
+		local list = { ov.badge, ov.chips[1], ov.chips[2], ov.price }
+		for i = 1, #list do
+			assert(list[i].x >= 0 and list[i].x + list[i].w <= W + 40, "inside card width")
+			assert(list[i].y + list[i].h <= bannerTop, "nothing covers the name ribbon")
+			for j = i + 1, #list do
+				-- only meaningful when the card is wide enough to hold both columns
+				if W >= 220 then assert(not L.intersects(list[i], list[j]), "overlay " .. i .. " vs " .. j .. " at W " .. W) end
+			end
+		end
+		assert(ov.price.x + ov.price.w <= W, "price tag inside the right edge")
+	end
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local r = L.rects(size[1], size[2], { offers = 3, packs = 2 })
+		for _, o in ipairs(r.offers) do
+			assert(o.y >= r.nextBoss.y + r.nextBoss.h, "offers start under the boss chip")
+			assert(o.y + o.h <= r.counter.y + r.counter.h, "offers inside the counter area")
+		end
+		for _, pk in ipairs(r.packs) do
+			assert(pk.y + pk.h <= size[2], "packs inside the area")
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off in calm mode; shadow shrinks as the card rises; shop_scene art hooks keep fallbacks", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for i = 1, 5 do
@@ -13835,9 +13863,9 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
-		expectTrue(src:find("UIGradient", 1, true) == nil, "backdrop uses flat vignette bands, no gradient")
+		expectTrue(src:find("Transparency = NumberSequence", 1, true) == nil, "backdrop gradient changes Color only, never UIGradient.Transparency")
 		expectTrue(src:find("task.spawn", 1, true) == nil and src:find("TweenService", 1, true) == nil, "backdrop is static: no loops or tweens, so calm mode needs nothing")
-		expectTrue(src:find("if not wallId then", 1, true) ~= nil, "backdrop mounts only when shop_wall has an Image id")
+		expectTrue(src:find("FallbackWall", 1, true) ~= nil and src:find("FallbackCounter", 1, true) ~= nil, "backdrop draws a gradient wall and a wood counter band when the art is missing")
 	end
 	local sh = io and io.open and io.open("src/Client/Shop.lua", "r")
 	if sh then

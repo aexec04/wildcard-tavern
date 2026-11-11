@@ -3,10 +3,10 @@
 	Counter v2 back layers for the Shop overlay: the painted back bar wall filling the area, a smooth dark vignette
 	(same technique as BossFight), a warm light pool, the counter top across the lower band and four counter props.
 	Look only, static (no loops, so calm mode needs nothing). Every piece is skipped when its Image id is missing; the
-	whole backdrop only mounts when shop_wall has an id, so until the art is recorded the Shop looks exactly as before.
+	backdrop always mounts; without shop_wall or shop_counter_top it draws a warm gradient wall and a wood counter band.
 	Geometry comes from Engine/ShopSceneLayout.lua. Everything sits at ZIndex 5 under the offer cards and controls.
 
-	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout(counts), marlo, marloId, marloWaveId }   (nil when the art is not recorded yet)
+	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout(counts), marlo, marloId, marloWaveId }   
 ]]
 
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
@@ -43,9 +43,6 @@ end
 function ShopBackdrop.new(deps)
 	local shopFrame = deps.shopFrame
 	local wallId = ContentArt.getImageId("shop_scene", "shop_wall")
-	if not wallId then
-		return nil
-	end
 	local topId = ContentArt.getImageId("shop_scene", "shop_counter_top")
 	local propsId = ContentArt.getImageId("shop_scene", "shop_counter_props")
 	local self = { active = true }
@@ -60,9 +57,46 @@ function ShopBackdrop.new(deps)
 	root.Parent = shopFrame
 	self.root = root
 
-	local wall = image(root, "Wall", wallId, 5)
-	wall.Size = UDim2.fromScale(1, 1)
-	wall.ScaleType = Enum.ScaleType.Crop
+	-- Fallback scene (no painted wall yet): a warm vertical gradient wall with a darker wood counter band below it,
+	-- so the Counter never reads as an empty dark box. Color stops only, never UIGradient.Transparency.
+	local fb = Layout.FALLBACK
+	local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	if wallId then
+		local wall = image(root, "Wall", wallId, 5)
+		wall.Size = UDim2.fromScale(1, 1)
+		wall.ScaleType = Enum.ScaleType.Crop
+	else
+		local wallFrame = Instance.new("Frame")
+		wallFrame.Name = "FallbackWall"
+		wallFrame.Size = UDim2.fromScale(1, 1)
+		wallFrame.BorderSizePixel = 0
+		wallFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+		wallFrame.Active = false
+		wallFrame.ZIndex = 5
+		wallFrame.Parent = root
+		local g = Instance.new("UIGradient")
+		g.Rotation = 90
+		g.Color = ColorSequence.new(rgb(fb.wallTop), rgb(fb.wallBottom))
+		g.Parent = wallFrame
+	end
+	local fallbackCounter = nil
+	if not topId then
+		fallbackCounter = Instance.new("Frame")
+		fallbackCounter.Name = "FallbackCounter"
+		fallbackCounter.BorderSizePixel = 0
+		fallbackCounter.BackgroundColor3 = rgb(fb.counter)
+		fallbackCounter.Active = false
+		fallbackCounter.ZIndex = 5
+		fallbackCounter.Parent = root
+		local edge = Instance.new("Frame")
+		edge.Name = "Edge"
+		edge.Size = UDim2.new(1, 0, 0, 3)
+		edge.BorderSizePixel = 0
+		edge.BackgroundColor3 = rgb(fb.counterEdge)
+		edge.Active = false
+		edge.ZIndex = 5
+		edge.Parent = fallbackCounter
+	end
 
 	-- Smooth vignette: one gradient frame per edge, no stacked bands.
 	require(script.Parent.SmoothVignette).build(root, {
@@ -130,6 +164,9 @@ function ShopBackdrop.new(deps)
 		if marlo then place(marlo, r.marlo) end
 		if counter then
 			place(counter, r.counter)
+		end
+		if fallbackCounter then
+			place(fallbackCounter, r.counter)
 		end
 		for name, img in pairs(props) do
 			if r.props[name] then
