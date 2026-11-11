@@ -381,8 +381,8 @@ function ShopCards.new(deps)
 		-- ===== Dim when it cannot be afforded =====
 		local affordable = spec.affordable ~= false
 		if not affordable then
-			local dim = frame(body, { Name = "Dim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-				BackgroundTransparency = 0.72 })
+			local dim = frame(body, { Name = "Dim", Size = UDim2.new(1, 0, 0, shape.bannerTop), BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 0.72 }) -- art only, so the name plate keeps cream text on dark
 			corner(dim, 10)
 		end
 

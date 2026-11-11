@@ -13897,6 +13897,24 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 		local src = sh:read("*a"); sh:close()
 		expectTrue(src:find("ShopBackdrop", 1, true) ~= nil and src:find("ShopScene).new", 1, true) ~= nil, "Shop mounts the backdrop and keeps ShopScene, ShopHaggle and the handlers")
 	end
+	-- The Shop base frame is Color3 (40,30,22) at ZIndex 6 and Global layering draws a child under its parent when its
+	-- ZIndex is lower, so every backdrop layer must be at least 6 or the flat dark base is all that shows.
+	local bd = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
+	if bd then
+		local src = bd:read("*a"); bd:close()
+		for z in src:gmatch("[zZ][iI]ndex = (%d+)") do
+			expectTrue(tonumber(z) >= 6, "backdrop layer ZIndex " .. z .. " is above the Shop base (6)")
+		end
+		expectTrue(src:find("z or 6", 1, true) ~= nil, "backdrop image helper defaults to ZIndex 6")
+	end
+	do
+		local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+		local function lum(c) return 0.2126 * c[1] + 0.7152 * c[2] + 0.0722 * c[3] end
+		local base = { 40, 30, 22 }
+		expectTrue(lum(L.FALLBACK.wallBottom) > lum(base) + 20, "fallback wall is clearly lighter than the base")
+		expectTrue(lum(L.FALLBACK.wallTop) > lum(base) + 10, "fallback wall top is lighter than the base")
+		expectTrue(lum(L.FALLBACK.counter) > lum(L.FALLBACK.wallBottom), "counter band is lighter than the wall")
+	end
 	local ContentArt = require(script.Parent.Parent.Engine.ContentArt)
 	expectEqual(ContentArt.getImageId("shop_scene", "shop_wall"), Art.shop_wall and ContentArt.getImageId("shop_scene", "shop_wall") or nil, "missing ids resolve to nil, not an error")
 end })

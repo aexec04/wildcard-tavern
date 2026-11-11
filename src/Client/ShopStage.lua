@@ -283,7 +283,7 @@ function ShopStage.new(deps)
 					sh.BackgroundTransparency = 0.55
 					sh.BorderSizePixel = 0
 					sh.Active = false
-					sh.ZIndex = 5
+					sh.ZIndex = 6
 					sh.Parent = buyList
 					local c = Instance.new("UICorner")
 					c.CornerRadius = UDim.new(0.5, 0)

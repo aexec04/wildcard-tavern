@@ -22,7 +22,7 @@ local function image(parent, name, id, z)
 	img.BorderSizePixel = 0
 	img.Image = id
 	img.Active = false
-	img.ZIndex = z or 5
+	img.ZIndex = z or 6
 	img.Parent = parent
 	return img
 end
@@ -52,7 +52,7 @@ function ShopBackdrop.new(deps)
 	root.Size = UDim2.fromScale(1, 1)
 	root.BackgroundTransparency = 1
 	root.Active = false
-	root.ZIndex = 5
+	root.ZIndex = 6
 	root.ClipsDescendants = true
 	root.Parent = shopFrame
 	self.root = root
@@ -62,7 +62,7 @@ function ShopBackdrop.new(deps)
 	local fb = Layout.FALLBACK
 	local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 	if wallId then
-		local wall = image(root, "Wall", wallId, 5)
+		local wall = image(root, "Wall", wallId, 6)
 		wall.Size = UDim2.fromScale(1, 1)
 		wall.ScaleType = Enum.ScaleType.Crop
 	else
@@ -72,7 +72,7 @@ function ShopBackdrop.new(deps)
 		wallFrame.BorderSizePixel = 0
 		wallFrame.BackgroundColor3 = Color3.new(1, 1, 1)
 		wallFrame.Active = false
-		wallFrame.ZIndex = 5
+		wallFrame.ZIndex = 6
 		wallFrame.Parent = root
 		local g = Instance.new("UIGradient")
 		g.Rotation = 90
@@ -86,7 +86,7 @@ function ShopBackdrop.new(deps)
 		fallbackCounter.BorderSizePixel = 0
 		fallbackCounter.BackgroundColor3 = rgb(fb.counter)
 		fallbackCounter.Active = false
-		fallbackCounter.ZIndex = 5
+		fallbackCounter.ZIndex = 6
 		fallbackCounter.Parent = root
 		local edge = Instance.new("Frame")
 		edge.Name = "Edge"
@@ -94,13 +94,13 @@ function ShopBackdrop.new(deps)
 		edge.BorderSizePixel = 0
 		edge.BackgroundColor3 = rgb(fb.counterEdge)
 		edge.Active = false
-		edge.ZIndex = 5
+		edge.ZIndex = 6
 		edge.Parent = fallbackCounter
 	end
 
 	-- Smooth vignette: one gradient frame per edge, no stacked bands.
 	require(script.Parent.SmoothVignette).build(root, {
-		name = "Vignette", zIndex = 5, color = Color3.fromRGB(14, 8, 4),
+		name = "Vignette", zIndex = 6, color = Color3.fromRGB(14, 8, 4),
 		top = { strength = 0.59, extent = 0.1 },
 		left = { strength = 0.59, extent = 0.06 },
 		right = { strength = 0.59, extent = 0.06 },
@@ -112,7 +112,7 @@ function ShopBackdrop.new(deps)
 	light.BackgroundTransparency = 0.9
 	light.BorderSizePixel = 0
 	light.Active = false
-	light.ZIndex = 5
+	light.ZIndex = 6
 	light.Parent = root
 	do
 		local c = Instance.new("UICorner")
@@ -122,7 +122,7 @@ function ShopBackdrop.new(deps)
 
 	-- Marlo stands behind the counter (painted shop_marlo_behind; ShopScene animates him and swaps in the wave piece).
 	local marloId = ContentArt.getImageId("shop_scene", "shop_marlo_behind")
-	local marlo = marloId and image(root, "Marlo", marloId, 5) or nil
+	local marlo = marloId and image(root, "Marlo", marloId, 6) or nil
 	if marlo then
 		marlo.ScaleType = Enum.ScaleType.Fit
 	end
@@ -132,20 +132,20 @@ function ShopBackdrop.new(deps)
 	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")
 	if poolId then
 		light.BackgroundTransparency = 1
-		local pool = image(root, "LightPoolArt", poolId, 5)
+		local pool = image(root, "LightPoolArt", poolId, 6)
 		pool.ScaleType = Enum.ScaleType.Stretch
 		pool.ImageTransparency = 0.35
 		self.pool = pool
 	end
 
-	local counter = topId and image(root, "CounterTop", topId, 5) or nil
+	local counter = topId and image(root, "CounterTop", topId, 6) or nil
 	if counter then
 		crop(counter, Layout.COUNTER_CROP)
 	end
 	local props = {}
 	if propsId then
 		for name in pairs(Layout.PROP_CROP) do
-			local img = image(root, "Prop_" .. name, propsId, 5)
+			local img = image(root, "Prop_" .. name, propsId, 6)
 			crop(img, Layout.PROP_CROP[name])
 			props[name] = img
 		end
