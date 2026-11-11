@@ -183,10 +183,11 @@ function RunSummaryUI.init(screenGui, deps)
 		Size = UDim2.new(1, -334, 0, 40),
 	})
 	ui.continue = button(panel, "Continue", WOOD, {
-		Size = UDim2.new(0.5, -138, 0, 46),
+		-- column is x 312 to W-22; two equal buttons with a 12 px gap: (W - 334 - 12) / 2 = W/2 - 173
+		Size = UDim2.new(0.5, -173, 0, 46),
 	})
 	ui.again = button(panel, "Play Again", WOOD, {
-		AnchorPoint = Vector2.new(1, 0), Size = UDim2.new(0.5, -138, 0, 46),
+		AnchorPoint = Vector2.new(1, 0), Size = UDim2.new(0.5, -173, 0, 46),
 	})
 
 	-- Share seed (Seed Runs only): the code and a ready-to-send line in a selectable box (Ctrl+C copies it).

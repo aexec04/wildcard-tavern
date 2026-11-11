@@ -16578,6 +16578,7 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("RunSummaryUI.lua", '"StoreBackdrop"'), "result plates hide StoreBackdrop and its tab strip")
 	expectTrue(has("RunSummaryUI.lua", 'summary.rarity ~= "common"'), "Common rarity word is drawn in ink, not ghost grey")
 	expectTrue(has("RunSummaryUI.lua", "Text = patron.name or patron.id"), "run summary names each patron under its portrait")
+	expectTrue(select(2, (read("src/Client/RunSummaryUI.lua") or ""):gsub("UDim2%.new%(0%.5, %-173, 0, 46%)", "")) == 2, "run summary Continue and Play Again are equal width with a 12 px gap")
 	local setupSrc = read("src/Client/RunSetup.lua") or ""
 	expectTrue(not setupSrc:find("\240\159", 1, true) and not setupSrc:find("\226\154", 1, true) and not setupSrc:find("\226\156", 1, true), "Run Setup has no emoji in headers or labels")
 	expectTrue(has("RoadChoice.lua", 'policy = "locked"') and has("RoundSelect.lua", 'policy = "locked"'), "mid-run choices are locked: Escape opens Settings")
