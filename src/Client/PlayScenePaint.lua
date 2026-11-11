@@ -50,7 +50,11 @@ function PlayScenePaint.install(deps)
 	end
 
 	-- the painted table has its own shading: the TableLook edge vignettes would show as a hard dark strip on it
+	-- GameRoot.EdgeShadow (the old sidebar's right-edge shadow, Sidebar.lua) is the same kind of strip: bisected in Studio as the
+	-- dark band over the felt at x 0 to 240 on the painted table, so it goes too and comes back with the old sidebar
 	local function vignette(hidden)
+		local edge = root:FindFirstChild("EdgeShadow")
+		if edge then edge.Visible = not hidden end
 		local layers = root:FindFirstChild("TableLookLayers")
 		if not layers then return end
 		for _, c in ipairs(layers:GetChildren()) do

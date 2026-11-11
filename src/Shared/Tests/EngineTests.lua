@@ -19226,6 +19226,8 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 			src:close()
 			expectTrue(text:find('"Vignette_"', 1, true) ~= nil and text:find("vignette(true)", 1, true) ~= nil and text:find("vignette(false)", 1, true) ~= nil,
 				"PlayScenePaint hides the Vignette_ edges while painted and restores them after")
+			expectTrue(text:find('FindFirstChild("EdgeShadow")', 1, true) ~= nil and text:find("edge.Visible = not hidden", 1, true) ~= nil,
+				"PlayScenePaint hides GameRoot.EdgeShadow (the dark band) while painted and restores it after")
 		end
 	end
 
