@@ -17360,7 +17360,7 @@ table.insert(tests, { name = "NewsBoardLayout: every note inside the board with 
 						expectFalse(overlap(r, plan.rects[j]), "notes " .. i .. " and " .. j .. " do not overlap, " .. label)
 					end
 				end
-				if count <= 4 then expectFalse(plan.scroll, "up to four notes never scroll, " .. label) end
+				if count <= 3 or (count <= 4 and W >= 1280) then expectFalse(plan.scroll, "few notes never scroll, " .. label) end
 			end
 		end
 		-- few notes are drawn bigger so the cork never looks empty; they are centred
@@ -17433,7 +17433,7 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ NewsBoardLayout = Layout, HudKit = require(Engine.HudKit) })
+			return FakeGui.folder({ NewsBoardLayout = Layout, HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt) })
 		end }
 	end }
 	local registered = {}
@@ -17459,7 +17459,7 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 			{ id = "feast_week", name = "Feast Week", icon = "x", blurb = "Rounds pay one Tip more all week.", rewards = { "50 Tips" }, hasRewards = true, claimed = false, daysLeft = 3 },
 			{ id = "lantern", name = "Lantern Weekend", icon = "x", blurb = "Lanterns glow over the Menu.", rewards = {}, hasRewards = false, daysLeft = 1 },
 		},
-		upcoming = { { id = "harvest", name = "Harvest Moon", icon = "x", startsIn = 2 } },
+		upcoming = { { id = "harvest", name = "Harvest Moon", icon = "x", blurb = "Fields glow gold on the Menu.", startsIn = 2 } },
 	}
 	NewsPanel.update({ news = news })
 	NewsPanel.open()
@@ -17483,6 +17483,10 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	local function inside(note, name) return note:FindFirstChild("Tilt"):FindFirstChild(name) end
 	local feast = list:FindFirstChild("Note_feast_week")
 	expectEqual(inside(feast, "Title").Text, "Feast Week")
+	local title = inside(feast, "Title")
+	expectTrue(title.TextWrapped == true and title.Size.Y.Offset >= 40, "titles wrap to two lines instead of an ellipsis")
+	expectEqual(inside(feast, "Blurb").Text, "Rounds pay one Tip more all week.", "an event on now shows its one line of what it gives")
+	expectEqual(inside(list:FindFirstChild("Note_harvest"), "Blurb").Text, "Fields glow gold on the Menu.", "an event coming shows its line too")
 	expectEqual(inside(feast, "Time").Text, "Ends in 3 days", "an event on now says when it ends")
 	expectEqual(inside(list:FindFirstChild("Note_lantern"), "Time").Text, "Last day")
 	expectEqual(inside(list:FindFirstChild("Note_harvest"), "Time").Text, "Starts in 2 days", "an event coming says when it starts")

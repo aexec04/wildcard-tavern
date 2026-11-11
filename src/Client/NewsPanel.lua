@@ -16,6 +16,7 @@ local NewsPanel = {}
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("NewsBoardLayout"))
 local HudKit = require(Engine:WaitForChild("HudKit"))
+local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
 
 local INK = Color3.fromRGB(60, 40, 22)
 local INK_SOFT = Color3.fromRGB(110, 78, 40) -- on the paper about 5.6:1
@@ -212,24 +213,24 @@ local function buildNote(rect, entry, scale)
 		textX = 44
 	end
 	label(note, {
-		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 24), Position = UDim2.fromOffset(textX, 10), Text = row.name, TextSize = 17,
-		TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 42), Position = UDim2.fromOffset(textX, 8), Text = row.name, TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
 	})
 	label(note, {
-		Name = "Time", Size = UDim2.new(1, -(textX + 10), 0, 20), Position = UDim2.fromOffset(textX, 34), Text = NewsPanel.noteTime(row), TextSize = 14,
+		Name = "Time", Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 52), Text = NewsPanel.noteTime(row), TextSize = 14,
 		Font = Enum.Font.GothamMedium, TextColor3 = INK_SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
+	label(note, {
+		Name = "Blurb", Size = UDim2.new(1, -24, 0, 50), Position = UDim2.fromOffset(12, 74), Text = row.blurb or "", TextSize = 14,
+		Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+	})
 	if entry.kind == "active" then
-		label(note, {
-			Name = "Blurb", Size = UDim2.new(1, -24, 0, 36), Position = UDim2.fromOffset(12, 58), Text = row.blurb or "", TextSize = 14,
-			Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-		})
 		if entry.claim then
 			local button = Instance.new("TextButton")
 			button.Name = "Claim"
 			button.Size = UDim2.fromOffset(Layout.NOTE_W - 24, 34)
-			button.Position = UDim2.fromOffset(12, rect.h / scale - 42)
+			button.Position = UDim2.fromOffset(12, rect.h / scale - 40)
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16
 			button.TextColor3 = CREAM
@@ -312,6 +313,27 @@ function NewsPanel.init(deps)
 	backdrop.Parent = deps.screenGui
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, backdrop)
 
+	-- the Menu's painted tavern room behind the board (nothing when its Image id is missing), under one dim layer
+	local art = MenuSceneArt["menu_scene_a"]
+	if type(art) == "string" and art ~= "" then
+		local painting = Instance.new("ImageLabel")
+		painting.Name = "Painting"
+		painting.Size = UDim2.fromScale(1, 1)
+		painting.BackgroundTransparency = 1
+		painting.Image = art
+		painting.ScaleType = Enum.ScaleType.Crop
+		painting.ZIndex = 30
+		painting.Parent = backdrop
+		local scrim = Instance.new("Frame")
+		scrim.Name = "Scrim"
+		scrim.Size = UDim2.fromScale(1, 1)
+		scrim.BackgroundColor3 = Color3.fromRGB(14, 9, 5)
+		scrim.BackgroundTransparency = 0.45
+		scrim.BorderSizePixel = 0
+		scrim.ZIndex = 30
+		scrim.Parent = backdrop
+	end
+
 	-- the cork board: a warm cork fill (colour stops only) in a dark wooden frame
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
@@ -351,14 +373,19 @@ function NewsPanel.init(deps)
 	-- the subtitle on a strip of paper
 	local strip = Instance.new("Frame")
 	strip.Name = "Subtitle"
-	strip.BackgroundColor3 = PAPER
+	strip.BackgroundColor3 = WOOD
 	strip.BorderSizePixel = 0
 	strip.ZIndex = 33
 	strip.Parent = panel
-	deps.roundCorner(strip, 4)
+	deps.roundCorner(strip, 6)
+	local stripEdge = Instance.new("UIStroke")
+	stripEdge.Color = BRASS
+	stripEdge.Thickness = 1
+	stripEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stripEdge.Parent = strip
 	label(strip, {
 		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0), Text = "Events never change the Daily, Weekly or Seed boards.",
-		TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = INK, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 34,
+		TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 34,
 	})
 
 	local list = Instance.new("ScrollingFrame")

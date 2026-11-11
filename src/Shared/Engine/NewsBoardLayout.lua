@@ -17,7 +17,7 @@ local M = {}
 
 M.MARGIN = 10 -- from the board's edge to the notes
 M.GAP = 12
-M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 180, 112, 146 -- three columns fit the smallest board (800x450)
+M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 200, 132, 170 -- title (2 lines), time, a 3 line blurb; Claim adds a button row
 M.MIN_SCALE, M.MAX_SCALE = 0.9, 1.3 -- below 0.9 the 14 px text would be unreadable: the board scrolls instead
 M.HEADING_H, M.SUBTITLE_H, M.CLOSE_H = 40, 26, 44
 
@@ -32,9 +32,9 @@ end
 -- Close button at the foot, the notes between.
 function M.areas(board)
 	local top = 16 + M.HEADING_H -- the plaque starts 16 px inside the board
-	local subTop = top + 4
-	local notesTop = subTop + M.SUBTITLE_H + 8
-	local notesBottom = board.h - M.CLOSE_H - 20
+	local subTop = top + 2
+	local notesTop = subTop + M.SUBTITLE_H + 6
+	local notesBottom = board.h - M.CLOSE_H - 16
 	return {
 		heading = { x = (board.w - 280) / 2, y = 16, w = 280, h = M.HEADING_H },
 		subtitle = { x = M.MARGIN + 20, y = subTop, w = board.w - 2 * (M.MARGIN + 20), h = M.SUBTITLE_H },
