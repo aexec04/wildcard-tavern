@@ -56,7 +56,7 @@ end
 ModalGate.STAGES = {
 	blessing = { title = "Candlelit Altar", top = { 52, 34, 40 }, bottom = { 20, 12, 18 }, accent = { 255, 214, 140 }, decor = "rays", ease = 6 },
 	draft = { title = "Card Table", top = { 30, 74, 58 }, bottom = { 12, 34, 28 }, accent = { 222, 182, 104 }, decor = "chairs", ease = 6 },
-	pack = { title = "Card Table", top = { 30, 74, 58 }, bottom = { 12, 34, 28 }, accent = { 222, 182, 104 }, decor = "chairs", ease = 6 },
+	pack = { title = "Card Table", top = { 74, 50, 32 }, bottom = { 30, 20, 14 }, accent = { 222, 182, 104 }, decor = "chairs", ease = 6 },
 	event = { title = "Map Desk", top = { 96, 74, 46 }, bottom = { 44, 30, 18 }, accent = { 235, 205, 150 }, decor = "map", ease = 6 },
 	road = { title = "Map Desk", top = { 96, 74, 46 }, bottom = { 44, 30, 18 }, accent = { 235, 205, 150 }, decor = "map", ease = 6 },
 	detail = { title = "Cork Wall", top = { 128, 92, 58 }, bottom = { 74, 50, 30 }, accent = { 200, 60, 50 }, decor = "pins", ease = 6 },

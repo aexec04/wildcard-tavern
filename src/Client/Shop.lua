@@ -901,8 +901,27 @@ return function(deps)
 		return n
 	end
 
+	-- While the pack panel is open every other Counter piece (price tags, tooltip frame, Reroll, slots) is hidden;
+	-- the marker attribute lets the close restore exactly what was hidden here.
+	local function setCounterHiddenForPack(on)
+		for _, child in ipairs(shopFrame:GetChildren()) do
+			if child:IsA("GuiObject") and child ~= shopPackPanel then
+				if on then
+					if child.Visible and not child:GetAttribute("PackHidden") then
+						child:SetAttribute("PackHidden", true)
+						child.Visible = false
+					end
+				elseif child:GetAttribute("PackHidden") then
+					child:SetAttribute("PackHidden", nil)
+					child.Visible = true
+				end
+			end
+		end
+	end
+
 	local function refreshPackPanel(state)
 		local pending = state and state.pendingPack
+		setCounterHiddenForPack(pending ~= nil)
 		if not pending then
 			shopPackPanel.Visible = false
 			pendingPackSelected = {}
@@ -955,7 +974,7 @@ return function(deps)
 						local R = require(Engine:WaitForChild("Recipes"))
 						return R.getHouseRecipeById(item.id) or R.getMenuRecipeById(item.id) or R.getSecretRecipeById(item.id)
 					end)()),
-					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true,
+					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true, tipAlign = "below",
 					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
 					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
 					rarity = standardCard and "common" or nil,
@@ -1310,6 +1329,8 @@ return function(deps)
 		tableLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		tableLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 		tableLabel.TextStrokeTransparency = 0.8
+		tableLabel.BackgroundColor3 = Color3.fromRGB(40, 28, 20) -- standard dark name plate
+		tableLabel.BackgroundTransparency = 0.1
 		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
 			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6

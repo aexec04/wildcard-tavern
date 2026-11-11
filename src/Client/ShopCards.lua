@@ -456,7 +456,7 @@ function ShopCards.new(deps)
 		if addTooltip and tipText and tipText ~= "" then
 			addTooltip(hit, function()
 				return (spec.name or "") .. "\n" .. tipText
-			end)
+			end, spec.tipAlign)
 		end
 
 		local enabled = spec.enabled ~= false
@@ -466,8 +466,8 @@ function ShopCards.new(deps)
 				BackgroundTransparency = 1, ClipsDescendants = true })
 			button = Instance.new("TextButton")
 			button.Name = "Action"
-			-- leave the lower right corner to the price tag so Buy never covers it
-			button.Size = UDim2.fromOffset(W - 20 - (spec.price and (SceneLayout.TAG_W + 8) or 0), BUTTON_H)
+			-- the price tag sits above the name ribbon, the drawer below it: Buy takes the full card width (min 80 px)
+			button.Size = UDim2.fromOffset(math.max(80, W - 20), BUTTON_H)
 			button.Position = UDim2.fromOffset(10, BUTTON_H + 8) -- hidden below the drawer's clip
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16

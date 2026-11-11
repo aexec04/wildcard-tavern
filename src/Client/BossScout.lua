@@ -217,7 +217,7 @@ function BossScout.update(root, state)
 		end
 	end
 	if chip then
-		local show = scout ~= nil and (state.phase == "shop")
+		local show = scout ~= nil and (state.phase == "shop") and not state.pendingPack -- hidden while a pack is open
 		chip.Visible = show
 		if show then
 			chip.Text = "  Next boss: " .. scout.name .. ". " .. (scout.line or "")

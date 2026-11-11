@@ -13906,7 +13906,7 @@ table.insert(tests, { name = "Counter round 2: price text sits above its tag, Bu
 		if f then
 			local src = f:read("*a"); f:close()
 			expectTrue(src:find("ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable", 1, true) ~= nil, "price number draws above the tag")
-			expectTrue(src:find("SceneLayout.TAG_W + 8", 1, true) ~= nil, "Buy button leaves the price tag free")
+			expectTrue(src:find("math.max(80, W - 20)", 1, true) ~= nil, "Buy button is full card width (tag is above the ribbon, drawer below)")
 		end
 	end
 end })
@@ -15403,6 +15403,35 @@ table.insert(tests, { name = "Round Select button faces have no stray bars and t
 	if g then
 		local fx = g:read("a"); g:close()
 		expectTrue(fx:find("shineStrip.Visible = false", 1, true) ~= nil, "shine strip is hidden at rest")
+	end
+end })
+
+table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Counter pieces hide while open, pack stage is warm, tooltip goes below", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
+	local st = ModalGate.STAGES.pack
+	expectTrue(st.top[1] > st.top[3] and st.bottom[1] > st.bottom[3], "pack stage is warm (red above blue), not flat green black")
+	local x, y = TooltipSpec.place({ X = 400, Y = 300 }, { X = 200, Y = 300 }, { X = 200, Y = 80 }, { X = 1920, Y = 1080 }, "below")
+	expectTrue(y >= 300 + 300, "below-aligned tooltip sits under the target")
+	expectTrue(x >= 0, "below tooltip stays on screen")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("a"); f:close()
+		return src
+	end
+	local cards = read("src/Client/ShopCards.lua")
+	if cards then
+		expectTrue(cards:find("math.max(80, W - 20)", 1, true) ~= nil, "Buy button is at least 80 px wide")
+	end
+	local shop = read("src/Client/Shop.lua")
+	if shop then
+		expectTrue(shop:find("setCounterHiddenForPack(pending ~= nil)", 1, true) ~= nil, "Counter children hide while PackPanel is open")
+		expectTrue(shop:find('tipAlign = "below"', 1, true) ~= nil, "pack pick tooltips open below the cards")
+	end
+	local scout = read("src/Client/BossScout.lua")
+	if scout then
+		expectTrue(scout:find("not state.pendingPack", 1, true) ~= nil, "Next boss chip hides during a pack")
 	end
 end })
 
