@@ -179,7 +179,7 @@ function ShopStage.new(deps)
 	function self.tabPadLeft()
 		local W, H = shopFrame.AbsoluteSize.X, shopFrame.AbsoluteSize.Y
 		if W < 1 or H < 1 then return 0 end
-		local zone = Layout.tabZone(W, H, backdrop.marlo == nil)
+		local zone = Layout.tabZone(W, H, backdrop.marlo == nil, backdrop.roomId ~= nil)
 		return math.max(zone.x - 10, 0)
 	end
 	function self.setTab(key)
@@ -203,10 +203,10 @@ function ShopStage.new(deps)
 	local function counts(state)
 		local offers = #(state and state.shopOffers or {}) + ((state and state.voucherOffer) and 1 or 0)
 		local packs = #(state and state.packOffers or {})
-		return { offers = math.max(offers, 1), packs = packs, noMarlo = backdrop.marlo == nil }
+		return { offers = math.max(offers, 1), packs = packs, noMarlo = backdrop.marlo == nil, room = backdrop.roomId ~= nil }
 	end
 
-	local lastCounts = { offers = 3, packs = 2, noMarlo = backdrop.marlo == nil }
+	local lastCounts = { offers = 3, packs = 2, noMarlo = backdrop.marlo == nil, room = backdrop.roomId ~= nil }
 	-- Card scales for the current counts (Shop.lua sets them before building each row).
 	function self.scales(state)
 		lastCounts = counts(state)
@@ -225,6 +225,15 @@ function ShopStage.new(deps)
 		if deps.nextRoundButton then
 			deps.nextRoundButton.AnchorPoint = Vector2.new(0, 0)
 			place(deps.nextRoundButton, r.leave)
+			-- the painted stone arch is the way out: it glows while the pointer is on Next Round (not in calm mode)
+			if r.arch then
+				local g = propGlow("Arch", { x = r.arch.x + r.arch.w * 0.1, y = r.arch.y + r.arch.h * 0.35, w = r.arch.w * 0.8, h = r.arch.h * 0.6 })
+				if not deps.nextRoundButton:GetAttribute("ArchHover") then
+					deps.nextRoundButton:SetAttribute("ArchHover", true)
+					deps.nextRoundButton.MouseEnter:Connect(function() if not calm() then g.root.Visible = true end end)
+					deps.nextRoundButton.MouseLeave:Connect(function() g.root.Visible = false end)
+				end
+			end
 		end
 		local haggle = shopFrame:FindFirstChild("HaggleButton")
 		if haggle and r.props.ledger then
@@ -252,6 +261,7 @@ function ShopStage.new(deps)
 		last = parts
 		local W, H = size()
 		if parts.counts then lastCounts = parts.counts end
+		lastCounts.room = backdrop.roomId ~= nil
 		local r = Layout.rects(W, H, lastCounts)
 		backdrop.relayout(lastCounts)
 

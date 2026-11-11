@@ -6,7 +6,11 @@
 	backdrop always mounts; without shop_wall or shop_counter_top it draws a warm gradient wall and a wood counter band.
 	Geometry comes from Engine/ShopSceneLayout.lua. Everything sits at ZIndex 5 under the offer cards and controls.
 
-	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout(counts), marlo, marloId, marloWaveId }   
+	ShopBackdrop.new({ shopFrame }) -> { active, root, relayout(counts), marlo, marloId, marloWaveId, roomId, room }
+
+One painted room: with the shop_room_a Image id and counts.room set (not on phones), the whole Counter is ONE cover-cropped picture
+(`Room`), Marlo stands behind it in a frame clipped at the counter top, and the older wall, counter strip, props, table and light
+pool are hidden. Without the id, or on a phone, those older pieces show as before.
 ]]
 
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
@@ -46,7 +50,9 @@ function ShopBackdrop.new(deps)
 	local wallId = ContentArt.getImageId("shop_scene", "shop_wall")
 	local topId = ContentArt.getImageId("shop_scene", "shop_counter_top")
 	local propsId = ContentArt.getImageId("shop_scene", "shop_counter_props")
-	local self = { active = true }
+	local roomId = ContentArt.getImageId("shop_scene", "shop_room_a")
+	local self = { active = true, roomId = roomId }
+	local older = {} -- the pieces the painted room replaces
 
 	local root = Instance.new("Frame")
 	root.Name = "ShopBackdrop"
@@ -66,6 +72,7 @@ function ShopBackdrop.new(deps)
 		local wall = image(root, "Wall", wallId, 6)
 		wall.Size = UDim2.fromScale(1, 1)
 		wall.ScaleType = Enum.ScaleType.Crop
+		older[#older + 1] = wall
 	else
 		local wallFrame = Instance.new("Frame")
 		wallFrame.Name = "FallbackWall"
@@ -79,7 +86,17 @@ function ShopBackdrop.new(deps)
 		g.Rotation = 90
 		g.Color = ColorSequence.new(rgb(fb.wallTop), rgb(fb.wallBottom))
 		g.Parent = wallFrame
+		older[#older + 1] = wallFrame
 	end
+	-- the painted room: one picture, cover-cropped (never stretched), above the older wall and below everything else
+	local roomImg
+	if roomId then
+		roomImg = image(root, "Room", roomId, 6)
+		roomImg.Size = UDim2.fromScale(1, 1)
+		roomImg.ScaleType = Enum.ScaleType.Crop
+		roomImg.Visible = false
+	end
+	self.room = roomImg
 	local fallbackCounter = nil
 	if not topId then
 		fallbackCounter = Instance.new("Frame")
@@ -97,6 +114,7 @@ function ShopBackdrop.new(deps)
 		edge.Active = false
 		edge.ZIndex = 6
 		edge.Parent = fallbackCounter
+		older[#older + 1] = fallbackCounter
 	end
 
 	-- Smooth vignette: one gradient frame per edge, no stacked bands.
@@ -115,6 +133,7 @@ function ShopBackdrop.new(deps)
 	light.Active = false
 	light.ZIndex = 6
 	light.Parent = root
+	older[#older + 1] = light
 	do
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0.5, 0)
@@ -123,7 +142,17 @@ function ShopBackdrop.new(deps)
 
 	-- Marlo stands behind the counter (painted shop_marlo_behind; ShopScene animates him and swaps in the wave piece).
 	local marloId = ContentArt.getImageId("shop_scene", "shop_marlo_behind")
-	local marlo = marloId and image(root, "Marlo", marloId, 6) or nil
+	-- his frame is clipped at the counter top line in the painted room, so his feet stay behind the counter
+	local marloClip = Instance.new("Frame")
+	marloClip.Name = "MarloClip"
+	marloClip.Size = UDim2.fromScale(1, 1)
+	marloClip.BackgroundTransparency = 1
+	marloClip.BorderSizePixel = 0
+	marloClip.Active = false
+	marloClip.ClipsDescendants = true
+	marloClip.ZIndex = 6
+	marloClip.Parent = root
+	local marlo = marloId and image(marloClip, "Marlo", marloId, 6) or nil
 	if marlo then
 		marlo.ScaleType = Enum.ScaleType.Fit
 	end
@@ -142,6 +171,7 @@ function ShopBackdrop.new(deps)
 	local counter = topId and image(root, "CounterTop", topId, 6) or nil
 	if counter then
 		crop(counter, Layout.COUNTER_CROP)
+		older[#older + 1] = counter
 	end
 	local props = {}
 	if propsId then
@@ -221,6 +251,13 @@ function ShopBackdrop.new(deps)
 	end
 	self.tableTop = tableTop
 	self.tablePieces = tablePieces
+	older[#older + 1] = tableTop
+	local managed = { [tableTop] = true } -- pieces whose Visible relayout sets itself
+	for _, piece in pairs(tablePieces) do
+		older[#older + 1] = piece
+		managed[piece] = true
+	end
+	for _, img in pairs(props) do managed[img] = true end
 
 	local counts = nil
 	function self.relayout(newCounts)
@@ -243,12 +280,14 @@ function ShopBackdrop.new(deps)
 				tablePieces.glow.Size = UDim2.fromOffset(f.w * 0.62, f.h * 0.7)
 			end
 		end
-		-- no table on phones: their cards wrap in rows on the counter
-		tableTop.Visible = t ~= nil
-		for _, piece in pairs(tablePieces) do piece.Visible = t ~= nil end
+		-- no table on phones: their cards wrap in rows on the counter; in the painted room the table is part of the picture
+		local room = r.room == true and roomImg ~= nil
+		tableTop.Visible = t ~= nil and not room
+		for _, piece in pairs(tablePieces) do piece.Visible = t ~= nil and not room end
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end
+		marloClip.Size = UDim2.fromOffset(size.X, room and r.clipY or size.Y)
 		if counter then
 			place(counter, r.counter)
 		end
@@ -261,6 +300,15 @@ function ShopBackdrop.new(deps)
 				img.Visible = true
 			else
 				img.Visible = false
+			end
+		end
+		if roomImg then roomImg.Visible = room end
+		if room then
+			for _, piece in ipairs(older) do piece.Visible = false end
+		else
+			-- the older wall, counter and light come back (the table and props were set above)
+			for _, piece in ipairs(older) do
+				if not managed[piece] then piece.Visible = true end
 			end
 		end
 	end

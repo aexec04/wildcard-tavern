@@ -14007,7 +14007,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
-	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true }
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
@@ -17022,6 +17022,124 @@ table.insert(tests, { name = "ShopBackdrop draws an oval felt table with a wood 
 		local piece = root:FindFirstChild(name)
 		expectTrue(piece == nil or piece.Visible == false, name .. " is hidden on a phone")
 	end
+end })
+
+table.insert(tests, { name = "Counter room: the cover-crop mapping of the painted picture is exact on 1536x1024, a wide window and a phone portrait", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local p = SL.pic(1536, 1024)
+	expectTrue(p.x == 0 and p.y == 0 and p.w == 1536 and p.h == 1024, "the picture's own size maps one to one")
+	local wide = SL.pic(2000, 1000) -- wider than 3:2: the width fills, the height overflows evenly top and bottom
+	expectTrue(math.abs(wide.w - 2000) < 1e-6 and wide.h > 1000 and math.abs(wide.y + (wide.h - 1000) / 2) < 1e-6, "a wide window crops top and bottom")
+	local tall = SL.pic(390, 700) -- portrait: the height fills, the width overflows evenly left and right
+	expectTrue(math.abs(tall.h - 700) < 1e-6 and tall.w > 390 and math.abs(tall.x + (tall.w - 390) / 2) < 1e-6, "a portrait window crops left and right")
+	local r = SL.picRect(1536, 1024, 0.5, 0.5, 1, 1)
+	expectTrue(r.x == 768 and r.y == 512 and r.w == 768 and r.h == 512, "a fraction rect maps through the crop")
+	local ph = SL.rects(390, 700, { offers = 3, packs = 2, room = true })
+	expectTrue(ph.phone and not ph.room, "a phone keeps its own layout and never crops the room picture to a sliver")
+end })
+
+table.insert(tests, { name = "Counter room: cards lie on the painted felt and never cover the bell, ledger, arch, Marlo's wall or Next Round (four sizes)", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local R = SL.ROOM
+	for _, frame in ipairs({ { 1660, 1080 }, { 1257, 750 }, { 1020, 720 }, { 788, 450 } }) do
+		local W, H = frame[1], frame[2]
+		local where = " at " .. W .. "x" .. H
+		local r = SL.rects(W, H, { offers = 2, packs = 2, room = true })
+		expectTrue(r.room == true, "room layout" .. where)
+		local p = SL.pic(W, H)
+		local bellMid = r.props.bell.x + r.props.bell.w / 2
+		expectTrue(math.abs(bellMid - (p.x + R.bell[1] * p.w)) <= 1, "the Reroll hotspot is on the painted bell" .. where)
+		local ledgerMid = r.props.ledger.x + r.props.ledger.w / 2
+		expectTrue(math.abs(ledgerMid - (p.x + R.ledger[1] * p.w)) <= 1, "the Haggle hotspot is on the painted ledger" .. where)
+		local blockers = {
+			{ x = r.props.bell.x - 30, y = r.props.bell.y, w = r.props.bell.w + 60, h = r.props.bell.h + 32, name = "bell" },
+			{ x = r.props.ledger.x, y = r.props.ledger.y, w = r.props.ledger.w, h = r.props.ledger.h + 32, name = "ledger" },
+			{ x = r.arch.x, y = r.arch.y, w = r.arch.w, h = r.arch.h, name = "arch" },
+			{ x = r.shopkeeper.x, y = r.shopkeeper.y, w = r.shopkeeper.w, h = r.shopkeeper.h, name = "Marlo's wall" },
+			{ x = r.leave.x, y = r.leave.y, w = r.leave.w, h = r.leave.h, name = "Next Round" },
+		}
+		local index = 0
+		for _, list in ipairs({ r.offers, r.packs }) do
+			for _, card in ipairs(list) do
+				index = index + 1
+				local bx0, by0, bx1, by1 = math.huge, math.huge, -math.huge, -math.huge
+				for _, c in ipairs(SL.corners(card, SL.cardTilt(index))) do
+					bx0, by0, bx1, by1 = math.min(bx0, c.x), math.min(by0, c.y), math.max(bx1, c.x), math.max(by1, c.y)
+				end
+				local box = { x = bx0, y = by0, w = bx1 - bx0, h = by1 - by0 }
+				if r.fitted then
+					for _, b in ipairs(blockers) do
+						expectFalse(SL.intersects(box, b), "card " .. index .. " does not cover the " .. b.name .. where)
+					end
+					expectTrue(by0 >= p.y + R.surface * p.h - 1, "card " .. index .. " starts below the counter top" .. where)
+					expectTrue(SL.inside(card, r.area), "card " .. index .. " is on screen" .. where)
+				end
+			end
+		end
+		if r.fitted then
+			local foot = r.offers[1].y + r.offers[1].h
+			expectTrue(foot > r.felt.y + r.felt.h * 0.3 and foot <= r.table.y + r.table.h, "the Patron cards' lower parts lie on the felt" .. where)
+		end
+		expectTrue(r.fitted or W < 900 or H < 600, "the cards fit the painted felt" .. where)
+	end
+	local big = SL.rects(1660, 1080, { offers = 2, packs = 2, room = true })
+	expectTrue(big.offers[1].w >= SL.READABLE_SCALE * 220, "cards reach the readable scale at 1660x1080 (" .. big.offers[1].w .. " px)")
+end })
+
+table.insert(tests, { name = "Counter room: Marlo stands behind the counter with his feet clipped at the counter top, the Next Round sign hangs under the arch", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, frame in ipairs({ { 1660, 1080 }, { 1020, 720 } }) do
+		local W, H = frame[1], frame[2]
+		local r = SL.rects(W, H, { offers = 2, packs = 2, room = true })
+		local p = SL.pic(W, H)
+		expectTrue(r.marlo.y < r.clipY and r.marlo.y + r.marlo.h > r.clipY, "Marlo's rect crosses the clip line, so his feet are cut off")
+		expectTrue(math.abs(r.marlo.h - SL.ROOM.marloH * p.h) <= 1, "his height follows the picture, not the window")
+		expectTrue(r.marlo.x >= r.shopkeeper.x - 1 and r.marlo.x + r.marlo.w <= r.shopkeeper.x + r.shopkeeper.w + 1, "he stands in the clear wall zone")
+		expectTrue(r.leave.y >= r.arch.y + r.arch.h - 1 and SL.inside(r.leave, r.area), "the Next Round sign is under the arch and on screen")
+		local rows = SL.rows(r, 200, 150)
+		expectTrue(rows.patron.y == r.offers[1].y - 16, "the Patron row sits on the dealt cards")
+	end
+	local small = SL.rects(1020, 720, { offers = 2, packs = 2, room = true })
+	if small.sideBySide then
+		local rows = SL.rows(small, 200, 150)
+		expectTrue(rows.pack.x >= rows.patron.x + rows.patron.w - 2 * SL.ROW_PAD - 2, "side by side rows do not overlap")
+	end
+end })
+
+table.insert(tests, { name = "Counter room: the backdrop is ONE cropped picture, Marlo sits in a frame clipped at the counter top, the older pieces hide (and return without the room)", fn = function()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local SL = require(Engine.ShopSceneLayout)
+	local stubs = { SmoothVignette = { build = function() end } }
+	local env, st = FakeGui.env({ stubs = stubs })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve) })
+		end }
+	end }
+	stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env)
+	local ShopBackdrop = FakeGui.load("src/Client/ShopBackdrop.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	local shopFrame = FakeGui.new("Frame")
+	shopFrame.Parent = gui
+	shopFrame.AbsoluteSize = { X = 1257, Y = 750 }
+	local backdrop = ShopBackdrop.new({ shopFrame = shopFrame })
+	expectTrue(backdrop.roomId ~= nil and backdrop.room ~= nil, "the room picture is recorded and mounted")
+	expectTrue(tostring(backdrop.room.ScaleType):find("Crop") ~= nil,"the room is cover-cropped, never stretched")
+	local root = backdrop.root
+	backdrop.relayout({ offers = 2, packs = 2, room = true })
+	local want = SL.rects(1257, 750, { offers = 2, packs = 2, room = true })
+	expectTrue(backdrop.room.Visible, "the room shows")
+	local wall = root:FindFirstChild("Wall")
+	expectTrue(wall == nil or not wall.Visible, "the older wall is hidden")
+	local rim = root:FindFirstChild("TableTop")
+	expectTrue(rim == nil or not rim.Visible, "the drawn table is hidden: the table is in the picture")
+	local clip = root:FindFirstChild("MarloClip")
+	expectTrue(clip ~= nil and clip.ClipsDescendants and clip.Size.Y.Offset == want.clipY, "Marlo's frame ends at the counter top line")
+	expectTrue(backdrop.marlo == nil or backdrop.marlo.Parent == clip, "Marlo lives in the clipped frame")
+	backdrop.relayout({ offers = 2, packs = 2 })
+	expectFalse(backdrop.room.Visible, "no room picture without the flag")
+	expectTrue(wall == nil or wall.Visible, "the older wall returns")
 end })
 
 table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, the Counter shows it once, Studio traces the path", fn = function()
