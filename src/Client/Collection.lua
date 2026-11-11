@@ -1239,7 +1239,7 @@ return function(deps)
 		relayout() -- the room takes the height of the hidden tab row and rarity filter
 		room.frame.Visible = newMode == "room"
 		scroll.Visible = newMode == "section"
-		if Gallery.chestApi and Gallery.chestApi.setShown then Gallery.chestApi.setShown(newMode == "section") end -- the chest stands by the shelves
+		if Gallery.chestApi and Gallery.chestApi.setShown then Gallery.chestApi.setShown(false) end -- the chest and its plate cover the last row of a section; "Next at N%" is on the banner line
 	end
 	showSection = function(tabId)
 		activeTabId = tabId

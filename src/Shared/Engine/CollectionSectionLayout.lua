@@ -59,9 +59,10 @@ local SCENES = {
 		plate = { ys = { 349, 579, 811 }, h = 26 },
 	},
 	housePasses = {
-		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 60, 70 },
+		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 48, 60 },
 		cols = { { 388, 109 }, { 588, 111 }, { 810, 109 }, { 1026, 110 } },
 		rows = { { 240, 155 }, { 517, 151 }, { 790, 153 } },
+		plate = { ys = { 402, 674, 949 }, h = 26 }, -- the name on a brass plate under each tag; the tag itself holds the pass icon
 		inset = { 0.08, 0.28, 0.08, 0.06 }, paper = { 213, 151, 67 },
 	},
 	titles = {

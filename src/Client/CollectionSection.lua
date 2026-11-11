@@ -192,6 +192,36 @@ function CollectionSection.new(opts)
 
 	-- the text kinds: ink on a card, a tag or a nameplate, shrink-to-fit. The painted slot stays lit (no dark wash over the text); a
 	-- locked entry is told apart by softer text that still reads at 4.5:1 against the slot's own paper
+	-- a key-rack tag (House Passes): the pass icon on the paper tag, the name on the brass plate under it (shared with portraitSlot)
+	local function tagSlot(tabId, slot, item, info, z)
+		local inner = slot.inner
+		local holder = make("Frame", frame, { Name = "TagIcon", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z })
+		rect(holder, inner)
+		if info.artId then
+			make("ImageLabel", holder, {
+				Name = "ContentArt", BackgroundTransparency = 1, Image = info.artId, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromScale(1, 1),
+				ZIndex = z + ZSTEP, ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(110, 96, 78),
+			})
+		else
+			local ink, transparency = inkOf(Layout.paperOf(tabId) or BRASS_RGB, not info.found)
+			make("TextLabel", holder, {
+				Text = info.icon or "?", Font = Enum.Font.GothamBold, TextSize = 28, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
+				TextColor3 = ink, TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + ZSTEP,
+			})
+		end
+		if slot.plate then
+			local ink, transparency = inkOf(BRASS_RGB, not info.found)
+			local plate = make("TextButton", frame, {
+				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
+				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextTruncate = Enum.TextTruncate.AtEnd,
+				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
+			})
+			rect(plate, slot.plate)
+			corner(plate, 4)
+			plate.MouseButton1Click:Connect(function() pick(item) end)
+		end
+	end
+
 	local function textSlot(tabId, slot, item, info, z)
 		local kind = Layout.kind(tabId)
 		local inner = slot.inner
@@ -261,7 +291,9 @@ function CollectionSection.new(opts)
 		for i, item in ipairs(Layout.pageItems(st.items, tabId, st.page)) do
 			local slot = p.slots[i]
 			local info = st.describe(item)
-			if Layout.scene(tabId).plate then portraitSlot(tabId, slot, item, info, z) else textSlot(tabId, slot, item, info, z) end
+			if Layout.kind(tabId) == "tag" then tagSlot(tabId, slot, item, info, z)
+			elseif Layout.scene(tabId).plate then portraitSlot(tabId, slot, item, info, z)
+			else textSlot(tabId, slot, item, info, z) end
 			local hit = hitArea(frame, slot, item, info, z + 5)
 			hit.Name = "Slot_" .. tostring(item.id)
 			if info.fresh and info.found then newTag(frame, slot, z + 6) end

@@ -18553,6 +18553,24 @@ table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; 
 	expectTrue(b.step() == false, "Escape from the room steps nothing, so the panel closes")
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the painted key rack at the Studio panel size (all six sections do), brass name plate under every tag, 2 pages for 13", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local P = RL.panel(993, 585, 24, nil, "section") -- the 1920x957 capture: a 993x585 panel
+	for _, section in ipairs(RL.SECTIONS) do
+		local p = L.place(section.id, P.area.w, P.area.h, 2)
+		expectTrue(p ~= nil and p.ok, section.id .. " resolves to the painted layout, not the old grid")
+	end
+	expectEqual(L.scene("housePasses").kind, "tag")
+	expectEqual(L.pageCount(13, "housePasses"), 2, "13 passes make 2 pages")
+	local p = L.place("housePasses", P.area.w, P.area.h, 2)
+	for i, s in ipairs(p.slots) do
+		expectTrue(s.plate ~= nil, "pass tag " .. i .. " has a name plate")
+		expectTrue(s.plate.y >= s.y + s.h - 2, "plate " .. i .. " hangs under its tag, not over it")
+		expectTrue(L.inside(s.plate, p.view.w, p.view.h), "plate " .. i .. " inside the scene")
+	end
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8), paging and filtered paging, slots inside the area and apart at three sizes and a phone, the picture is never stretched", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
