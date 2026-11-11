@@ -2338,7 +2338,10 @@ local function render(state)
 	-- more "/8" to show (you're past it for good), so switch to an
 	-- "(Endless)" tag instead.
 	local nightCap = state.nightCap or 8
-	if state.night > nightCap then
+	local clearedHeader = require(ReplicatedStorage.Shared.Engine.PostBoss).sidebarHeader(state)
+	if clearedHeader then
+		SidebarModule.nightRoundLabel.Text = clearedHeader
+	elseif state.night > nightCap then
 		SidebarModule.nightRoundLabel.Text = string.format("Night %d (Endless) · Round %d", state.night, state.round)
 	else
 		SidebarModule.nightRoundLabel.Text = string.format("Night %d/%d · Round %d", state.night, nightCap, state.round)
@@ -2463,7 +2466,7 @@ local function render(state)
 	SidebarModule.scoreLabel.Text = string.format("Score: %d / %d\nReward: $%d", state.roundScore, state.targetScore, reward)
 	SidebarModule.placeRewardIcon(string.format("Reward: $%d", reward))
 
-	if state.bossModifier then
+	if state.bossModifier and not clearedHeader then
 		-- REFERENCE-MATCH PASS: name on a bigger first line, rule text
 		-- smaller underneath (SidebarModule.blindInfoLabel has RichText on -- escape so
 		-- a "&" or "<" in a description can't break the markup).
@@ -2489,7 +2492,7 @@ local function render(state)
 		-- a crown left over from a Boss Round is hidden.
 		SidebarModule.blindInfoLabel.Text = string.format(
 			'<font size="17">%s</font>\n<font size="13" color="#E6D2AA">No special rules this round.</font>',
-			state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)
+			clearedHeader and "Boss beaten" or (state.round == 1 and "Small Round" or string.format("Big Round %d", state.round))
 		)
 		SidebarModule.hideLineIcon("boss")
 	end

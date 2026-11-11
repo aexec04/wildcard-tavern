@@ -14505,6 +14505,19 @@ table.insert(tests, { name = "MothFlight: cooldown, approach with fade in, circl
 	for _ = 1, 2000 do m5:step(0.05, tiny) end
 end })
 
+table.insert(tests, { name = "PostBoss: after a cleared Boss Round the Counter and sidebar stop naming the beaten boss", fn = function()
+	local P = require(script.Parent.Parent.Engine.PostBoss)
+	local scout = { name = "Slow Simmer", line = "Mult is cut." }
+	local before = { phase = "shop", night = 1, nightCap = 8, round = 2, isBossRound = false }
+	expectEqual(P.shopBanner(before, scout), "  Next boss: Slow Simmer. Mult is cut.", "boss still ahead")
+	expectEqual(P.sidebarHeader(before), nil, "no cleared header before the boss")
+	local after = { phase = "shop", night = 1, nightCap = 8, round = 3, isBossRound = true, bossModifier = { id = "x" } }
+	expectEqual(P.shopBanner(after, scout), "Night 2 begins next.", "beaten boss is not announced")
+	expectEqual(P.sidebarHeader(after), "Night 1 cleared", "sidebar header")
+	expectTrue(P.sidebarRule(after) ~= nil, "rule lines replaced")
+	expectFalse(P.cleared({ phase = "playing", isBossRound = true }), "not cleared while playing")
+end })
+
 table.insert(tests, { name = "BannerVisibility: the rules banner hides behind every non-run screen and returns at the table", fn = function()
 	local B = require(script.Parent.Parent.Engine.BannerVisibility)
 	for _, name in ipairs({ "CollectionBackdrop", "CosmeticSetsBackdrop", "BadgesBackdrop", "LegendBackdrop", "FlairBackdrop", "StatsBackdrop", "LedgerBackdrop" }) do

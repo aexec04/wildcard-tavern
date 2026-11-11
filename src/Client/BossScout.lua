@@ -76,7 +76,7 @@ local function buildBanner(parent)
 	local ban = Instance.new("TextButton")
 	ban.Name = "BanButton"
 	ban.Size = UDim2.fromScale(1, 1)
-	ban.BackgroundColor3 = Color3.fromRGB(150, 60, 50)
+	ban.BackgroundColor3 = WOOD -- wooden plate like Haggle and Reroll, not a saturated red block
 	ban.AutoButtonColor = false
 	ban.Font = Enum.Font.GothamBold
 	ban.TextSize = 14
@@ -87,6 +87,42 @@ local function buildBanner(parent)
 	ban.ZIndex = 61
 	ban.Parent = banner
 	corner(ban, 8)
+	local plateStroke = Instance.new("UIStroke")
+	plateStroke.Color = Color3.fromRGB(38, 24, 14)
+	plateStroke.Thickness = 2
+	plateStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	plateStroke.Parent = ban
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 36)
+	pad.PaddingRight = UDim.new(0, 8)
+	pad.Parent = ban
+	-- muted red wax seal on the left (a disc with a darker rim and a cream cross), parented to the button
+	local seal = Instance.new("Frame")
+	seal.Name = "WaxSeal"
+	seal.AnchorPoint = Vector2.new(0, 0.5)
+	seal.Position = UDim2.new(0, -28, 0.5, 0)
+	seal.Size = UDim2.fromOffset(24, 24)
+	seal.BackgroundColor3 = Color3.fromRGB(128, 58, 50)
+	seal.BorderSizePixel = 0
+	seal.ZIndex = 63
+	seal.Parent = ban
+	corner(seal, 12)
+	local sealRim = Instance.new("UIStroke")
+	sealRim.Color = Color3.fromRGB(88, 36, 32)
+	sealRim.Thickness = 2
+	sealRim.Parent = seal
+	for i, rot in ipairs({ 45, -45 }) do
+		local bar = Instance.new("Frame")
+		bar.Name = "Cross" .. i
+		bar.AnchorPoint = Vector2.new(0.5, 0.5)
+		bar.Position = UDim2.fromScale(0.5, 0.5)
+		bar.Size = UDim2.fromOffset(14, 3)
+		bar.Rotation = rot
+		bar.BackgroundColor3 = Color3.fromRGB(226, 200, 170)
+		bar.BorderSizePixel = 0
+		bar.ZIndex = 64
+		bar.Parent = seal
+	end
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
@@ -220,7 +256,8 @@ function BossScout.update(root, state)
 		local show = scout ~= nil and (state.phase == "shop") and not state.pendingPack -- hidden while a pack is open
 		chip.Visible = show
 		if show then
-			chip.Text = "  Next boss: " .. scout.name .. ". " .. (scout.line or "")
+			local line = require(Engine:WaitForChild("PostBoss")).shopBanner(state, scout) or ""
+			chip.Text = (line:sub(1, 2) == "  ") and line or ("  " .. line)
 		end
 	end
 	if tokenChip then
