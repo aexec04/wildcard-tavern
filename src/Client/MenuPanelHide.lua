@@ -13,7 +13,13 @@ function M.attach(menuFrame, board, extras)
 	local watched = {}
 	local hiddenByUs = {} -- extra Menu pieces (New Run button ...) we hid, so closing restores only those
 	local function setExtras(hide)
-		for _, obj in ipairs(extras or {}) do
+		local list = {}
+		for _, obj in ipairs(extras or {}) do list[#list + 1] = obj end
+		-- Menu leftovers found by name: the All actions button and every hotspot (Jukebox label plate ...)
+		for _, obj in ipairs(menuFrame:GetDescendants()) do
+			if obj:IsA("GuiObject") and Rules.hidesWithPanel(obj.Name) then list[#list + 1] = obj end
+		end
+		for _, obj in ipairs(list) do
 			if hide and obj.Visible then
 				hiddenByUs[obj] = true
 				obj.Visible = false

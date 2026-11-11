@@ -98,8 +98,8 @@ return function(deps)
 
 	local frame = Instance.new("Frame")
 	frame.Name = "TavernMap"
-	frame.Size = UDim2.new(1, -20, 1, -124)
-	frame.Position = UDim2.new(0, 10, 0, 68)
+	frame.Size = UDim2.new(1, -20, 1, -144)
+	frame.Position = UDim2.new(0, 10, 0, 88) -- room for the two-line Journey plate above
 	frame.BackgroundColor3 = MAP_BG
 	frame.ZIndex = 21
 	frame.Visible = false
@@ -745,7 +745,17 @@ return function(deps)
 			node.icon.TextSize = math.floor(nodeSize * 0.45)
 			local lines = math.ceil(#info.name * 9.8 / labelW)
 			local labelH = lines * 21 + 2
-			node.name.Size = UDim2.fromOffset(labelW, labelH)
+			do -- plate = text plus 12 px each side, centred under the node
+				local okB, b = pcall(function()
+					return game:GetService("TextService"):GetTextSize(info.name, node.name.TextSize, node.name.Font, Vector2.new(labelW - 24, 1000))
+				end)
+				if okB and b.X > 0 then
+					node.name.Size = UDim2.fromOffset(math.min(labelW, math.ceil(b.X) + 24), labelH)
+					node.name.TextXAlignment = Enum.TextXAlignment.Center
+				else
+					node.name.Size = UDim2.fromOffset(labelW, labelH)
+				end
+			end
 			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
 			node.name.AnchorPoint = Vector2.new(0.5, 0)
 			node.name.TextYAlignment = Enum.TextYAlignment.Top
@@ -1835,8 +1845,8 @@ return function(deps)
 		local nextNode = JourneyMap.nextReward(view.cleared)
 		local hint
 		if nextNode then
-			local label = string.format("Night %d, %s: %s", nextNode.night, nextNode.info.name,
-				JourneyMap.rewardLabel(nextNode.info.reward, lookups))
+			local label = string.format("Night %d, %s, %s", nextNode.night, nextNode.info.name,
+				(JourneyMap.rewardLabel(nextNode.info.reward, lookups):gsub('^Title: "(.*)"$', 'title %1'):gsub("^(%a+) (%a+): ", "%1 %2 ")))
 			hint = "Next reward: " .. label
 		else
 			hint = "Every reward earned. Well played, Keeper!"
@@ -1858,7 +1868,7 @@ return function(deps)
 		else
 			deps.titleLabel.Text = "The Tavern Map"
 			deps.titleLabel.TextColor3 = CREAM
-			deps.subtitleLabel.Text = progress .. "   |   " .. hint
+			deps.subtitleLabel.Text = progress .. "\n" .. hint
 			deps.subtitleLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 		end
 	end

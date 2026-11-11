@@ -13501,6 +13501,8 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectTrue(R.hidesBoard({ "CollectionBackdrop" }), "a panel backdrop hides the board")
 	expectTrue(not R.hidesBoard({ "Menu", "DeckTrackerBackdrop" }), "skipped and non-popup frames do not")
+	expectTrue(R.hidesWithPanel("AllActionsButton") and R.hidesWithPanel("Hotspot_jukebox"), "All actions and hotspots hide under a panel")
+	expectTrue(not R.hidesWithPanel("Rows") and not R.hidesWithPanel(nil), "other names stay")
 	local f = io.open and io.open("src/Client/BadgeWall.lua", "r")
 	if f then
 		local src = f:read("a"); f:close()

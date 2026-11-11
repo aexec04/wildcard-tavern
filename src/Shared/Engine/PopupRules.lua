@@ -27,6 +27,11 @@ function PopupRules.hidesBoard(visibleNames)
 	return false
 end
 
+-- Menu pieces (besides the Notice Board) that must not show through an open panel: the All actions button and the hotspot frames.
+function PopupRules.hidesWithPanel(name)
+	return name == "AllActionsButton" or (type(name) == "string" and name:sub(1, 8) == "Hotspot_")
+end
+
 -- The Menu scroll layers, from Client/MenuHotspots.lua.
 PopupRules.MENU_POPUPS = { "FanCatcher", "Scroll_<hotspot>", "AllActions" }
 

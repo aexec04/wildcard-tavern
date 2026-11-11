@@ -244,7 +244,9 @@ return function(deps)
 		decorLayer:ClearAllChildren()
 		local size = math.floor(math.clamp(canvasH * 0.13, 64, 112))
 		local topRoom = topLimit - size - 12
-		local bottomRoom = canvasH - size - 12 - bottomLimit
+		-- props stay above the bottom feather so none is cut off or fades into a hard-edged square
+		local propFloor = canvasH - math.floor(canvasH * 0.14) - 8
+		local bottomRoom = propFloor - size - bottomLimit
 		local placed = 0
 		for r, region in ipairs(REGIONS) do
 			-- About one doodle per 330px of region, at least one per region.
@@ -273,13 +275,7 @@ return function(deps)
 					img.ScaleType = Enum.ScaleType.Fit
 					img.ZIndex = 23
 					img.Parent = decorLayer
-					deps.roundCorner(img, 14)
-					bindLandmark(img, key, r)
-					local stroke = Instance.new("UIStroke")
-					stroke.Color = Color3.fromRGB(110, 80, 45)
-					stroke.Thickness = 1.5
-					stroke.Transparency = 0.3
-					stroke.Parent = img
+					bindLandmark(img, key, r) -- no rounded corner or stroke: they drew the prop's art as a hard-edged square
 				end
 			end
 		end
@@ -287,7 +283,7 @@ return function(deps)
 		for i = 2, #REGIONS do
 			local key = (i % 2 == 0) and "signpost" or "lantern_post"
 			local id = ContentArt.getImageId("map_decor", key)
-			if id and bottomLimit + size + 12 <= canvasH then
+			if id and bottomLimit + 6 + size <= propFloor then
 				local img = Instance.new("ImageLabel")
 				img.Name = "Seam_" .. key
 				img.AnchorPoint = Vector2.new(0.5, 0)
@@ -295,7 +291,7 @@ return function(deps)
 				img.Size = UDim2.fromOffset(size, size)
 				img.BackgroundTransparency = 1
 				img.Image = id
-				img.ImageTransparency = 0.12
+				img.ImageTransparency = 0.2
 				img.ScaleType = Enum.ScaleType.Fit
 				img.ZIndex = 24
 				img.Parent = decorLayer

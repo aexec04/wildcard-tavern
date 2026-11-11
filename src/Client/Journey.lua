@@ -305,7 +305,7 @@ return function(deps)
 	journeyTitle.Parent = journeyPanel
 
 	local journeySubtitle = Instance.new("TextLabel")
-	journeySubtitle.Size = UDim2.new(1, -30, 0, 24)
+	journeySubtitle.Size = UDim2.new(1, -30, 0, 46) -- two lines: progress, then the next reward
 	journeySubtitle.Position = UDim2.new(0, 15, 0, 38)
 	journeySubtitle.BackgroundColor3 = Color3.fromRGB(34, 24, 16) -- dark plate: readable over any map art
 	journeySubtitle.BackgroundTransparency = 0.12
@@ -313,6 +313,7 @@ return function(deps)
 	journeySubtitle.TextSize = 15
 	journeySubtitle.TextColor3 = Color3.fromRGB(240, 228, 205)
 	journeySubtitle.TextXAlignment = Enum.TextXAlignment.Left
+	journeySubtitle.TextWrapped = true
 	journeySubtitle.Text = "Your table walks the road one Round at a time."
 	journeySubtitle.ZIndex = 21
 	journeySubtitle.Parent = journeyPanel
