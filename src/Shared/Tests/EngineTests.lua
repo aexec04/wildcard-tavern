@@ -18948,4 +18948,27 @@ table.insert(tests, { name = "ImageSpace: rects of sheets over 1024 px scale by 
 	expectTrue(x == 200 and y == 100 and w == 100 and h == 50, "rect scaled")
 end })
 
+table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the board, Tips and rule do not overlap, 1 to 7 Patron seats fit inside the ring row without touching", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	local function inside(r, w, h) return r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h end
+	local function overlap(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 }, { 1000, 600 } }) do
+		local bw, bh = PB.size(sz[1], sz[2])
+		local H = PB.hud(bw, bh)
+		for k, r in pairs(H) do expectTrue(inside(r, bw, bh), k .. " inside the board at " .. sz[1]) end
+		expectTrue(not overlap(H.tips, H.rule), "tips and rule apart")
+		expectTrue(not overlap(H.hands, H.discards), "hands and discards apart")
+		expectTrue(H.rule.h >= 30 and H.tips.h >= 30, "wide slot rows tall enough for 14 px text at " .. sz[1])
+		for n = 1, 7 do
+			local seats = PB.seats(bw, bh, n)
+			expectTrue(#seats == n, n .. " seats returned")
+			for i, a in ipairs(seats) do
+				expectTrue(inside(a, bw, bh) and a.w >= 12, "seat " .. i .. " of " .. n .. " inside the board at " .. sz[1])
+				expectTrue(a.x >= H.ringRow.x and a.x + a.w <= H.ringRow.x + H.ringRow.w and a.y >= H.ringRow.y and a.y + a.h <= H.ringRow.y + H.ringRow.h, "seat inside the ring row")
+				for j = i + 1, n do expectTrue(not overlap(a, seats[j]), "seats " .. i .. " and " .. j .. " of " .. n .. " do not touch") end
+			end
+		end
+	end
+end })
+
 return tests

@@ -1,7 +1,7 @@
 --[[
 	Client/PlayBoardPaint.lua
 	Step C1 of the painted play screen: play_board_a (the hanging wooden board) as one picture behind the left HUD rows.
-	Nothing is moved or re-parented: the Sidebar rows keep their place (C2 to C4 put them on the slots). The picture is made
+	The rows are placed on the slots by Client/PlayBoardHud (C2 to C4). The picture is made
 	right after SidebarBoard (so every later sibling, the hand included, draws above it at the same ZIndex 1) with the
 	rect from Engine/PlayBoardLayout.placement (2:3, width at most 24 percent of the screen, never stretched).
 	Painted state comes from the PreloadAsync status (Engine/ImagePreload), not IsLoaded. Missing id, failed load or a window under
@@ -16,6 +16,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
+local PlayBoardHud = require(script.Parent:WaitForChild("PlayBoardHud"))
 
 local PlayBoardPaint = {}
 
@@ -60,11 +61,13 @@ function PlayBoardPaint.install(deps)
 			filler.Visible = size.Y > p.h
 			board.BackgroundTransparency = 1
 			if deps.boardArt then deps.boardArt.Visible = false end
+			pcall(PlayBoardHud.apply, root, p) -- C2 to C4: the HUD rows onto the board's slots (the old column returns on nil)
 		elseif painted then
 			painted = false
 			image.Visible, filler.Visible = false, false
 			board.BackgroundTransparency = 0
 			if deps.boardArt then deps.boardArt.Visible = true end
+			pcall(PlayBoardHud.apply, root, nil)
 		end
 	end
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
