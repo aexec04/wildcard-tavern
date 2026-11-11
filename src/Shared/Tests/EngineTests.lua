@@ -13841,6 +13841,31 @@ table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag n
 	end
 end })
 
+table.insert(tests, { name = "Counter round 2: price text sits above its tag, Buy leaves the tag free, no-Marlo offers are centred, fallback band is lighter than the wall", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	-- offers and packs centred on the stage when Marlo is not painted
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local r = L.rects(size[1], size[2], { offers = 2, packs = 2, noMarlo = true })
+		local lo, hi = math.huge, -math.huge
+		for _, o in ipairs(r.offers) do lo = math.min(lo, o.x); hi = math.max(hi, o.x + o.w) end
+		for _, pk in ipairs(r.packs) do lo = math.min(lo, pk.x); hi = math.max(hi, pk.x + pk.w) end
+		expectTrue(math.abs((lo + hi) / 2 - size[1] / 2) < 2, "row centred at " .. size[1])
+		expectTrue(lo < size[1] * 0.45, "left side is not empty")
+	end
+	-- fallback counter band reads lighter than the wall bottom
+	local fb = L.FALLBACK
+	expectTrue(fb.counter[1] + fb.counter[2] + fb.counter[3] > fb.wallBottom[1] + fb.wallBottom[2] + fb.wallBottom[3], "counter band lighter than wall")
+	-- source scans (skipped where io is missing)
+	if io and io.open then
+		local f = io.open("src/Client/ShopCards.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable", 1, true) ~= nil, "price number draws above the tag")
+			expectTrue(src:find("SceneLayout.TAG_W + 8", 1, true) ~= nil, "Buy button leaves the price tag free")
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off in calm mode; shadow shrinks as the card rises; shop_scene art hooks keep fallbacks", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for i = 1, 5 do

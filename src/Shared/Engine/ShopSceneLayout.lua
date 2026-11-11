@@ -90,7 +90,7 @@ function ShopSceneLayout.rects(W, H, counts)
 	local counterH = H * (phone and 0.50 or 0.34)
 	local counterY = H - counterH
 	out.counter = rect(0, counterY, W, counterH)
-	out.surfaceY = math.floor(counterY + counterH * (phone and 0.12 or 0.45) + 0.5)
+	out.surfaceY = math.floor(counterY + counterH * (phone and 0.12 or 0.32) + 0.5)
 
 	local p = clamp(H * 0.08, 40, 100) -- prop size
 	out.offers, out.shadows, out.packs = {}, {}, {}
@@ -102,6 +102,10 @@ function ShopSceneLayout.rects(W, H, counts)
 
 		local x0 = out.marlo.x + out.marlo.w * (1 - ShopSceneLayout.HOVER_OVERLAP * 0.9)
 		local x1 = W * 0.86
+		if counts and counts.noMarlo then
+			-- no painted Marlo: centre offers and packs on the whole stage width
+			x0, x1 = W * 0.08, W * 0.92
+		end
 		out.bandX0, out.bandX1 = math.floor(x0 + 0.5), math.floor(x1 + 0.5)
 		local gap = clamp(W * 0.012, 8, 24)
 		local maxCardH = H * 0.42
@@ -209,7 +213,7 @@ end
 
 -- Fallback scene colours used when the painted wall art is missing: warm wall gradient above a wood counter band.
 ShopSceneLayout.FALLBACK = {
-	wallTop = { 38, 26, 18 }, wallBottom = { 78, 50, 28 }, counter = { 58, 38, 22 }, counterEdge = { 150, 108, 56 },
+	wallTop = { 70, 44, 28 }, wallBottom = { 150, 98, 52 }, counter = { 168, 118, 66 }, counterEdge = { 226, 184, 110 },
 }
 
 -- Card sizes (Engine/CardShape numbers at scale 1: patron 220 x (250 + 36), pack 220 x (210 + 36)) that fit the

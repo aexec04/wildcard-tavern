@@ -392,11 +392,11 @@ function ShopCards.new(deps)
 				Size = UDim2.fromOffset(ov.price.w, ov.price.h), BackgroundColor3 = GOLD, ZIndex = Z + 1 })
 			corner(tag, 8)
 			stroke(tag, Color3.fromRGB(110, 76, 34), 2, 0)
-			local coin = frame(tag, { Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Color3.fromRGB(246, 208, 96) })
+			local coin = frame(tag, { Position = UDim2.fromOffset(7, 6), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Color3.fromRGB(246, 208, 96), ZIndex = Z + 2 })
 			corner(coin, 8)
 			stroke(coin, Color3.fromRGB(150, 100, 30), 2, 0)
 			label(tag, { Position = UDim2.fromOffset(26, 0), Size = UDim2.new(1, -30, 1, 0), Text = tostring(math.floor(spec.price)),
-				TextSize = 18, TextColor3 = affordable and PRICE_OK or PRICE_BAD, TextXAlignment = Enum.TextXAlignment.Center })
+				TextSize = 18, ZIndex = Z + 3, TextStrokeTransparency = 1, TextColor3 = affordable and PRICE_OK or PRICE_BAD, TextXAlignment = Enum.TextXAlignment.Center })
 		end
 
 		-- ===== Input: one transparent button over the body, then the action drawer =====
@@ -438,7 +438,8 @@ function ShopCards.new(deps)
 				BackgroundTransparency = 1, ClipsDescendants = true })
 			button = Instance.new("TextButton")
 			button.Name = "Action"
-			button.Size = UDim2.fromOffset(W - 20, BUTTON_H)
+			-- leave the lower right corner to the price tag so Buy never covers it
+			button.Size = UDim2.fromOffset(W - 20 - (spec.price and (SceneLayout.TAG_W + 8) or 0), BUTTON_H)
 			button.Position = UDim2.fromOffset(10, BUTTON_H + 8) -- hidden below the drawer's clip
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16

@@ -153,10 +153,10 @@ function ShopStage.new(deps)
 	local function counts(state)
 		local offers = #(state and state.shopOffers or {}) + ((state and state.voucherOffer) and 1 or 0)
 		local packs = #(state and state.packOffers or {})
-		return { offers = math.max(offers, 1), packs = packs }
+		return { offers = math.max(offers, 1), packs = packs, noMarlo = backdrop.marlo == nil }
 	end
 
-	local lastCounts = { offers = 3, packs = 2 }
+	local lastCounts = { offers = 3, packs = 2, noMarlo = backdrop.marlo == nil }
 	-- Card scales for the current counts (Shop.lua sets them before building each row).
 	function self.scales(state)
 		lastCounts = counts(state)
