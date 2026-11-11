@@ -13460,7 +13460,17 @@ table.insert(tests, { name = "Classic card border: wraps the full card edge, cen
 		local g = io.open("src/Client/CosmeticSetsPanel.lua", "r")
 		local panel = g:read("*a"); g:close()
 		expectTrue(panel:find("MiniCard", 1, true) == nil and panel:find("SampleCardChip", 1, true) == nil and panel:find("Card border", 1, true) == nil, "no Classic-only mini card chip; every set shows the Panel border chip through SetSkin.sample")
-		expectTrue(select(2, panel:gsub('Text = "Panel border"', "")) == 1 and panel:find('SetSkin.sample(samplePanel, "panel", theme.skin)', 1, true) ~= nil, "one Panel border chip for every set, styled by SetSkin.sample")
+		expectTrue(panel:find('Text = "Panel border"', 1, true) == nil and panel:find('Text = "Button"', 1, true) == nil and panel:find('SetSkin.sample(samplePanel, "panel", theme.skin)', 1, true) ~= nil, "sample plates carry no placeholder words and are still styled by SetSkin.sample")
+		local nonAscii = false
+		for _, codepoint in utf8.codes(panel) do
+			if codepoint > 0x2000 then nonAscii = true end
+		end
+		expectTrue(not nonAscii, "CosmeticSetsPanel has no emoji (set names, lock badge)")
+		expectTrue(panel:find("set.icon", 1, true) == nil, "set names do not carry the emoji icon")
+		expectTrue(panel:find("192, 192, 192", 1, true) ~= nil and panel:find("130, 130, 130) -- never", 1, true) == nil, "locked thumbnails dim at most 25 percent")
+		local h = io.open("src/Client/MenuHotspots.lua", "r")
+		local hot = h:read("*a"); h:close()
+		expectTrue(hot:find('register("menuActions"', 1, true) ~= nil, "All actions list closes when any panel opens")
 		local k = io.open("src/Client/SetSkin.lua", "r")
 		local skin = k:read("*a"); k:close()
 		local _, n = skin:gsub("ClassicCardFrame", "")

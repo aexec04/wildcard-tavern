@@ -426,6 +426,10 @@ function Hotspots.build(opts)
 		return wasOpen
 	end
 	result.closeAll = closeAll
+	-- any panel that opens calls OverlayManager.closeAllExcept, so the All actions list and scrolls never stay over it
+	require(script.Parent.OverlayManager).register("menuActions", function()
+		if state.openScroll ~= nil or state.listOpen then closeAll(true) end
+	end)
 	catcher.MouseButton1Click:Connect(function() closeAll() end)
 
 	local function fillList()

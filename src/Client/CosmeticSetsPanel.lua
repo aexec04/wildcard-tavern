@@ -218,7 +218,27 @@ return function(deps)
 		stroke.Color = Color3.fromRGB(222, 182, 104)
 		stroke.Thickness = 1.5
 		stroke.Parent = badge
-		label(badge, { Size = UDim2.fromScale(1, 1), TextSize = 15, Text = "🔒", ZIndex = 49 })
+		-- drawn padlock: a ring shackle over a body
+		local shackle = Instance.new("Frame")
+		shackle.Size = UDim2.fromOffset(10, 10)
+		shackle.AnchorPoint = Vector2.new(0.5, 0)
+		shackle.Position = UDim2.new(0.5, 0, 0, 4)
+		shackle.BackgroundTransparency = 1
+		shackle.ZIndex = 49
+		shackle.Parent = badge
+		roundCorner(shackle, 5)
+		local shackleStroke = Instance.new("UIStroke")
+		shackleStroke.Color = Color3.fromRGB(246, 232, 200)
+		shackleStroke.Thickness = 2
+		shackleStroke.Parent = shackle
+		local body = Instance.new("Frame")
+		body.Size = UDim2.fromOffset(14, 9)
+		body.AnchorPoint = Vector2.new(0.5, 0)
+		body.Position = UDim2.new(0.5, 0, 0, 12)
+		body.BackgroundColor3 = Color3.fromRGB(246, 232, 200)
+		body.ZIndex = 50
+		body.Parent = badge
+		roundCorner(body, 2)
 	end
 
 	local function sectionHeader(order, text)
@@ -265,7 +285,7 @@ return function(deps)
 			label(thumb, {
 				Size = UDim2.new(1, -8, 1, 0), Position = UDim2.fromOffset(4, 0), TextSize = 15, TextWrapped = true,
 				Font = Enum.Font.GothamBold, TextColor3 = CREAM, TextStrokeTransparency = 0.3,
-				Text = "🔒 " .. backUnlockHint(back), ZIndex = 47,
+				Text = backUnlockHint(back), ZIndex = 47,
 			})
 		end
 
@@ -340,7 +360,7 @@ return function(deps)
 		local image = set.backdropImage
 		bd.Image = (image and image ~= "rbxassetid://0") and image or (ArtAssets.gameplayBackground or "rbxassetid://0")
 		bd.ScaleType = Enum.ScaleType.Crop
-		bd.ImageColor3 = isOwned and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 130) -- never near-black
+		bd.ImageColor3 = isOwned and Color3.new(1, 1, 1) or Color3.fromRGB(192, 192, 192) -- dim 25 percent at most, never near-black
 		bd.ZIndex = 42
 		bd.Parent = holder
 		roundCorner(bd, 8)
@@ -394,7 +414,7 @@ return function(deps)
 		sampleButton.Font = Enum.Font.GothamBold
 		sampleButton.TextSize = 15
 		sampleButton.TextColor3 = CREAM
-		sampleButton.Text = "Button"
+		sampleButton.Text = ""
 		sampleButton.BackgroundColor3 = colors and c3(colors.button) or BROWN
 		sampleButton.ZIndex = 42
 		sampleButton.Parent = holder
@@ -418,8 +438,6 @@ return function(deps)
 		panelStroke.Thickness = 2
 		panelStroke.Parent = samplePanel
 		SetSkin.sample(samplePanel, "panel", theme.skin)
-		-- every set, Classic Tavern included, shows the same "Panel border" chip
-		label(samplePanel, { Size = UDim2.fromScale(1, 1), TextSize = 14, TextColor3 = SOFT_CREAM, Text = "Panel border", ZIndex = 44 })
 	end
 
 	refresh = function()
@@ -452,7 +470,7 @@ return function(deps)
 			label(row, {
 				Size = UDim2.new(1, -490, 0, 24), Position = UDim2.fromOffset(352, 22),
 				Font = Enum.Font.GothamBold, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
-				TextColor3 = isOwned and GOLD or SOFT_CREAM, Text = set.icon .. " " .. set.name,
+				TextColor3 = isOwned and GOLD or SOFT_CREAM, Text = set.name,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 			})
 			label(row, {
