@@ -65,6 +65,15 @@ local function paint(widget, deckRect, platesId)
 		count.BackgroundTransparency = 1
 		count.TextTransparency = 0
 	end
+	-- the white corner brackets (HudBrackets on the card back) frame the whole widget: hidden while painted
+	local function brackets()
+		local hb = card:FindFirstChild("HudBrackets")
+		if hb and hb:IsA("GuiObject") then
+			hb:SetAttribute("PaintedHidden", true)
+			hb.Visible = false
+		end
+	end
+	brackets()
 	place()
 	if not widget:GetAttribute("DeckHooked") then
 		widget:SetAttribute("DeckHooked", true)
@@ -72,10 +81,13 @@ local function paint(widget, deckRect, platesId)
 		for _, prop in ipairs({ "Position", "Size", "AnchorPoint" }) do
 			card:GetPropertyChangedSignal(prop):Connect(function()
 				if widget:GetAttribute("DeckPainted") then
-					if card.Size ~= UDim2.fromOffset(rects.card.w, rects.card.h) or card.AnchorPoint ~= Vector2.new(0, 0.5) then place() end
+					-- the holder-art callback writes a scale size and a top anchor: any difference puts the painted numbers back
+					if card.Size ~= UDim2.fromOffset(rects.card.w, rects.card.h) or card.AnchorPoint ~= Vector2.new(0, 0.5)
+						or card.Position ~= UDim2.fromOffset(rects.card.x, rects.card.y + rects.card.h / 2) then place() end
 				end
 			end)
 		end
+		card.ChildAdded:Connect(function() if widget:GetAttribute("DeckPainted") then brackets() end end)
 		for _, prop in ipairs({ "Position", "Size", "BackgroundTransparency" }) do
 			count:GetPropertyChangedSignal(prop):Connect(function()
 				if widget:GetAttribute("DeckPainted") and (count.BackgroundTransparency ~= 1 or count.Size ~= UDim2.fromOffset(rects.count.w, rects.count.h)) then place() end
@@ -138,6 +150,11 @@ local function restore(widget)
 		count.BackgroundTransparency = 0
 	end
 	if card then
+		local hb = card:FindFirstChild("HudBrackets")
+		if hb and hb:GetAttribute("PaintedHidden") then
+			hb:SetAttribute("PaintedHidden", nil)
+			hb.Visible = true
+		end
 		card.AnchorPoint, card.Position, card.Size = Vector2.new(0, 0), UDim2.fromOffset(12, 12), UDim2.new(1, -24, 0, 140)
 	end
 end

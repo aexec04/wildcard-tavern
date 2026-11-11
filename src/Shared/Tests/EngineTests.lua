@@ -18870,16 +18870,17 @@ table.insert(tests, { name = "PlayTableLayout plates: Play Hand and Discard equa
 	end
 end })
 
-table.insert(tests, { name = "PlayTableLayout.deckRects: card 90 percent of the recess height, count board right of it, text fits, all inside the recess", fn = function()
+table.insert(tests, { name = "PlayTableLayout.deckRects: card 85 percent of the recess height with a margin, count board right of it, text fits, all inside the recess", fn = function()
 	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
 	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 }, { 1000, 600 } }) do
 		local p = PT.placement(sz[1], sz[2], 260, 150)
 		if p then
 			local d = p.map.deck
 			local r = PT.deckRects(d.w, d.h)
-			expectTrue(math.abs(r.card.h - d.h * 0.9) <= 1, "card is 90 percent of the recess height at " .. sz[1])
+			expectTrue(math.abs(r.card.h - d.h * 0.85) <= 1, "card is 85 percent of the recess height at " .. sz[1])
 			expectTrue(math.abs(r.card.w / r.card.h - 5 / 7) < 0.03, "card stays portrait 5:7")
 			expectTrue(r.card.x >= 0 and r.card.y >= 0 and r.card.x + r.card.w <= d.w and r.card.y + r.card.h <= d.h, "card inside the recess")
+			expectTrue(r.card.y >= 3 and d.h - (r.card.y + r.card.h) >= 3, "card keeps a margin above and below")
 			expectTrue(r.count.x >= r.card.x + r.card.w, "count board right of the card")
 			expectTrue(r.count.x + r.count.w <= d.w and r.count.y >= 0 and r.count.y + r.count.h <= d.h, "count board inside the recess at " .. sz[1])
 			expectTrue(r.count.h >= 28 and r.count.w >= 56, "board big enough for 20 px text '44/52'")
