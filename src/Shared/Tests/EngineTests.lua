@@ -15455,6 +15455,11 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 	if scout then
 		expectTrue(scout:find("not state.pendingPack", 1, true) ~= nil, "Next boss chip hides during a pack")
 	end
+	local tip = read("src/Client/Tooltip.lua")
+	if tip then
+		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
+		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
+	end
 end })
 
 return tests

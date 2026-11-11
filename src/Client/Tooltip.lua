@@ -104,7 +104,16 @@ function Tooltip.new(screenGui)
 						size = Vector2.new(col.AbsoluteSize.X, size.Y)
 					end
 				end
-				local x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
+				if side == "below" then
+						-- measure live from the lowest of the hovered object and its anchor (name plate), so a
+						-- hover lift or a small hit area can never put the tip over the plate text
+						local bottom = pos.Y + size.Y
+						if anchor and anchor.Parent then
+							bottom = math.max(bottom, anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y)
+						end
+						size = Vector2.new(size.X, bottom - pos.Y + 4) -- place() adds the 8 px gap: 12 in all
+					end
+					local x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
 				frame.AnchorPoint = Vector2.new(0, 0)
 				frame.Position = UDim2.fromOffset(x, y)
 			end
