@@ -34,8 +34,12 @@ local function ensure(parent, class, name, z)
 	if not inst then
 		inst = Instance.new(class)
 		inst.Name = name
-		inst.BorderSizePixel = 0
-		inst.Active = false
+		-- BorderSizePixel and Active exist only on GuiObjects: setting them on a UIStroke or UITextSizeConstraint throws, which
+		-- aborted paintButton halfway (Play Hand half painted, Discard and Sort never reached)
+		if inst:IsA("GuiObject") then
+			inst.BorderSizePixel = 0
+			inst.Active = false
+		end
 		inst.Parent = parent
 	end
 	if inst:IsA("GuiObject") then inst.ZIndex = z end
@@ -58,7 +62,7 @@ end
 local function paintButton(btn, imageId, box, rect)
 	btn.Size = UDim2.fromOffset(rect.w, rect.h)
 	local img = plateImage(btn, imageId, box)
-	for _, n in ipairs({ "HudFace", "HudOuter" }) do
+	for _, n in ipairs({ "HudFace", "HudOuter", "EmberGlow" }) do
 		local f = btn:FindFirstChild(n)
 		if f then f.Visible = false end
 	end
@@ -136,7 +140,7 @@ local function restoreButton(btn, w, h)
 		local o = btn:FindFirstChild(n)
 		if o then o:Destroy() end
 	end
-	for _, n in ipairs({ "HudFace", "HudOuter" }) do
+	for _, n in ipairs({ "HudFace", "HudOuter", "EmberGlow" }) do
 		local f = btn:FindFirstChild(n)
 		if f then f.Visible = true end
 	end

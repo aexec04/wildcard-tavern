@@ -18864,6 +18864,8 @@ table.insert(tests, { name = "PlayTableLayout plates: Play Hand and Discard equa
 			local src = f:read("*a")
 			f:close()
 			expectTrue(not src:find('"UIPadding"', 1, true), "no UIPadding on plate buttons (it shrinks the picture child)")
+			expectTrue(src:find('inst:IsA("GuiObject") then\n\t\t\tinst.BorderSizePixel', 1, true) ~= nil, "ensure() sets BorderSizePixel and Active only on GuiObjects (a UITextSizeConstraint has neither and threw)")
+			expectTrue(src:find('"EmberGlow"', 1, true) ~= nil, "the Play Hand ember ring is hidden under the painted plate")
 		end
 	end
 end })
