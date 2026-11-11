@@ -18553,4 +18553,122 @@ table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; 
 	expectTrue(b.step() == false, "Escape from the room steps nothing, so the panel closes")
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8), paging and filtered paging, slots inside the area and apart at three sizes and a phone, the picture is never stretched", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	for _, section in ipairs(RL.SECTIONS) do
+		expectTrue(L.has(section.id), section.id .. " has a painted scene")
+		expectEqual(L.artKey(section.id), "coll_sec_" .. (section.id == "housePasses" and "passes" or section.id) .. "_a", section.id .. " uses its chosen A scene")
+	end
+	-- paging
+	expectEqual(L.perPage("patrons"), 12)
+	expectEqual(L.perPage("bonds"), 8)
+	expectEqual(L.pageCount(0, "patrons"), 1, "an empty section still has one page")
+	expectEqual(L.pageCount(12, "patrons"), 1)
+	expectEqual(L.pageCount(13, "patrons"), 2)
+	expectEqual(L.pageCount(84, "patrons"), 7)
+	expectEqual(L.pageCount(9, "bonds"), 2)
+	expectEqual(L.pageText(2, 7), "Page 2 of 7")
+	local items = {}
+	for i = 1, 30 do items[i] = { id = i } end
+	expectEqual(#L.pageItems(items, "patrons", 1), 12, "first page is full")
+	expectEqual(#L.pageItems(items, "patrons", 3), 6, "last page holds the rest")
+	expectEqual(L.pageItems(items, "patrons", 3)[1].id, 25, "the order is kept")
+	expectEqual(#L.pageItems(items, "bonds", 4), 6, "Bonds: 8 a page, 6 left on page 4")
+	expectEqual(L.clampPage(99, 30, "patrons"), 3, "a page past the end clamps")
+	expectEqual(L.clampPage(0, 30, "patrons"), 1)
+	local filtered = {}
+	for i = 1, #items do if items[i].id % 3 == 0 then filtered[#filtered + 1] = items[i] end end
+	expectEqual(L.pageCount(#filtered, "patrons"), 1, "10 entries after a filter fit one page")
+	expectEqual(#L.pageItems(filtered, "patrons", 5), 10, "paging works on the filtered list")
+	-- geometry
+	local usableSeen = false
+	for _, size in ipairs({ { 1700, 820 }, { 1000, 430 }, { 760, 360 }, { 330, 400 } }) do
+		for _, id in ipairs({ "patrons", "recipes", "bosses", "housePasses", "titles", "bonds" }) do
+			for _, pages in ipairs({ 1, 5 }) do
+				local w, h = size[1], size[2]
+				local p = L.place(id, w, h, pages)
+				local label = id .. " at " .. w .. "x" .. h .. " pages " .. pages
+				expectEqual(#p.slots, L.perPage(id), label .. ": the painted slot count")
+				expectTrue(math.abs(p.image.w / p.image.h - 1536 / 1024) < 0.002, label .. ": the picture keeps its aspect")
+				for i, s in ipairs(p.slots) do
+					expectTrue(L.inside(s, p.view.w, p.view.h), label .. ": slot " .. i .. " inside the scene view")
+					expectTrue(L.inside(s.inner, p.view.w, p.view.h), label .. ": text rect inside the view")
+					if s.plate then expectTrue(L.inside(s.plate, p.view.w, p.view.h), label .. ": plate inside the view") end
+					for j = i + 1, #p.slots do
+						expectFalse(L.intersects(s, p.slots[j]), label .. ": slots " .. i .. " and " .. j .. " apart")
+						if s.plate and p.ok then
+							expectFalse(L.intersects(s.plate, p.slots[j]), label .. ": plate " .. i .. " clear of slot " .. j)
+							expectFalse(L.intersects(s.plate, p.slots[j].plate), label .. ": plates " .. i .. " and " .. j .. " apart")
+						end
+					end
+				end
+				if pages > 1 then
+					expectTrue(p.pager ~= nil and p.view.h + L.PAGER_H <= h + 1, label .. ": the page strip is under the scene")
+					expectTrue(L.inside(p.pager.prev, w, h) and L.inside(p.pager.next, w, h) and L.inside(p.pager.label, w, h), label .. ": arrows and plate inside the area")
+					expectFalse(L.intersects(p.pager.prev, p.pager.label) or L.intersects(p.pager.next, p.pager.label), label .. ": arrows clear of the plate")
+					for _, s in ipairs(p.slots) do expectFalse(L.intersects(s, p.pager.label), label .. ": the page plate covers no slot") end
+				else
+					expectTrue(p.pager == nil, label .. ": one page, no arrows")
+				end
+				if p.ok then usableSeen = true end
+				-- (paper tags are narrow: House Passes needs the tall desktop window, a short one keeps its grid)
+				if w >= 1000 and (id ~= "housePasses" or h >= 800) then expectTrue(p.ok, label .. ": readable slots at desktop sizes") end
+				if w < 400 then expectFalse(p.ok, label .. ": a phone keeps the old grid") end
+			end
+		end
+	end
+	expectTrue(usableSeen, "some size shows the scenes")
+end })
+
+table.insert(tests, { name = "Collection sections open as painted scenes: entries sit in slots, 12 a page, arrows and keys turn pages, a click opens the detail card, no art keeps the grid", fn = function()
+	local col, CB = collectionBuild({ painted = true })
+	if not col then return end
+	col.resize(1920, 1080) -- paper tags are narrow: the scene needs a desktop window, a small one keeps the grid
+	col.open()
+	expectTrue(col.scene ~= nil, "the section scene exists")
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local function slots() local list = {}
+		for _, c in ipairs(col.scene:GetChildren()) do if c.ClassName == "TextButton" and tostring(c.Name):match("^Slot_") then list[#list + 1] = c end end
+		return list
+	end
+	for _, tab in ipairs(CB.Tabs) do
+		col.pick(tab.id)
+		expectTrue(col.scene.Visible, tab.name .. ": the painted scene shows")
+		expectFalse(col.grid.Visible, tab.name .. ": the scrolling grid is hidden")
+		local total = #CB.displayItems(tab.id, {})
+		expectEqual(#slots(), math.min(L.perPage(tab.id), total), tab.name .. ": one slot per entry on the first page")
+		local picture = false
+		for _, c in ipairs(col.scene:GetChildren()) do if c.ClassName == "ImageLabel" and c.Name == "Scene" then picture = true end end
+		expectTrue(picture, tab.name .. ": the painted picture is drawn")
+		if total > L.perPage(tab.id) then
+			local plate, nextBtn, prevBtn = col.scene:FindFirstChild("PagePlate"), col.scene:FindFirstChild("PageNext"), col.scene:FindFirstChild("PagePrev")
+			expectEqual(plate.Text, L.pageText(1, L.pageCount(total, tab.id)), tab.name .. ": page plate")
+			nextBtn.MouseButton1Click:Fire()
+			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the arrow turns the page")
+			expectEqual(#slots(), math.min(L.perPage(tab.id), total - L.perPage(tab.id)), tab.name .. ": page 2 holds the next entries")
+			prevBtn = col.scene:FindFirstChild("PagePrev")
+			prevBtn.MouseButton1Click:Fire()
+			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(1, L.pageCount(total, tab.id)), tab.name .. ": and back")
+			col.env.game.GetService(nil, "UserInputService").InputBegan:Fire({ KeyCode = "Enum.KeyCode.Right" }, false)
+			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the Right key turns the page")
+		else
+			expectTrue(col.scene:FindFirstChild("PageNext") == nil, tab.name .. ": one page, no arrows")
+		end
+		local first = slots()[1]
+		if first then
+			first.MouseButton1Click:Fire()
+			expectTrue(col.detail.Visible, tab.name .. ": a click on a slot opens the detail card")
+			expectTrue(col.step(), "Escape closes the card first")
+		end
+		expectTrue(col.step(), tab.name .. ": Escape leaves the section for the room")
+		expectTrue(col.room.Visible and not col.scene.Visible, tab.name .. ": back in the room, the scene is hidden")
+	end
+	-- the same panel without the painted scenes keeps the grid
+	local plain = collectionBuild({ painted = false })
+	plain.open()
+	plain.pick("patrons")
+	expectTrue(plain.grid.Visible and not plain.scene.Visible, "no scene: the old grid shows")
+end })
+
 return tests

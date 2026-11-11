@@ -483,6 +483,7 @@ return function(deps)
 	local mode = "room"
 	local showSection, showRoom
 	local room
+	local Sec = { painted = false } -- the painted section scene (Client/CollectionSection.lua, built below the detail card); painted = it is on screen
 	do
 		local names = {}
 		for _, tab in ipairs(CollectionBook.Tabs) do names[tab.id] = tab.name end
@@ -527,6 +528,11 @@ return function(deps)
 		scroll.Size = UDim2.new(1, -2 * P.area.x, 1, -(P.area.y + inset))
 		room.frame.Position, room.frame.Size = scroll.Position, scroll.Size
 		room.layout(P.area.w, P.area.h)
+		if Sec.scene then -- the painted section follows the same area; a window that changes what fits swaps it with the old grid
+			Sec.scene.frame.Position, Sec.scene.frame.Size = scroll.Position, scroll.Size
+			Sec.scene.layout(P.area.w, P.area.h)
+			if mode == "section" and Sec.refit then Sec.refit() end
+		end
 		local back = panel:FindFirstChild("PanelScrim") -- the painted alcove's dark wash behind the grid follows the same area
 		if back then back.Position, back.Size = scroll.Position, scroll.Size end
 	end
@@ -1040,6 +1046,54 @@ return function(deps)
 		end
 	end
 
+	-- ===== Painted section scenes: the entries sit in the painted slots of the section's own close-up =====
+	do
+		Sec.scene = require(script.Parent.CollectionSection).new({
+			parent = panel, zIndex = 22, addTooltip = addTooltip,
+			isActive = function() return backdrop.Visible and mode == "section" end,
+		})
+		Sec.scene.frame.Position, Sec.scene.frame.Size = scroll.Position, scroll.Size
+		local function describe(item, view)
+			local found = CollectionBook.isDiscovered(view.sets, item)
+			local def = item.def
+			local info = {
+				found = found, name = shownName(item), icon = iconFor(item), rarityColor = rgb(CollectionBook.Rarities[CollectionBook.rarityOf(item)].color),
+				artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id),
+				fresh = freshKeys[item.tab .. ":" .. tostring(item.id)] == true,
+			}
+			if item.tab == "recipes" then info.line = def.description
+			elseif item.tab == "bonds" then info.line = def.flavorText
+			elseif item.tab == "titles" and found and view.equippedTitleId == item.id then info.line = "Equipped" end
+			if found then
+				info.tip = def.description and (shownName(item) .. "\n" .. def.description) or nil
+			else
+				local hint = unlockRuleHint(item, view)
+				info.tip = hint and ("Locked\n" .. hint) or nil
+			end
+			return info
+		end
+		-- show the painted scene for the section on screen; false = the old scrolling grid takes over (no art id, or slots too small)
+		function Sec.show(items, view)
+			if not Sec.scene.canShow(activeTabId, #items) then
+				Sec.painted = false
+				Sec.scene.hide()
+				scroll.Visible = true
+				return false
+			end
+			Sec.painted = true
+			scroll.Visible = false
+			Sec.scene.show(activeTabId, items, function(item) return describe(item, view) end, function(item)
+				playClickSfx()
+				showDetail(item, view)
+			end)
+			return true
+		end
+		function Sec.refit() -- the window changed: swap between the scene and the grid when what fits changed
+			if mode ~= "section" then return end
+			if Sec.scene.canShow(activeTabId, #currentItems) ~= Sec.painted then pcall(refresh) end
+		end
+	end
+
 	refresh = function()
 		tileFailed = false
 		task.spawn(ContentArt.preload, { { activeTabId } }, "collection tab " .. activeTabId) -- current tab first; urls load once
@@ -1099,7 +1153,17 @@ return function(deps)
 		local mine = buildToken
 		if mode ~= "section" then
 			currentItems, furnRecords = {}, {} -- the room is showing: no section tiles are kept
+			Sec.painted = false
+			Sec.scene.hide()
 			return
+		end
+		do -- a painted section scene replaces the scrolling grid when its art is recorded and its slots are readable at this size
+			local items = CollectionBook.displayItems(activeTabId, hiddenRarities)
+			currentItems, furnRecords = items, {}
+			if Sec.show(items, view) then
+				if openItem then showDetail(openItem, view) end
+				return
+			end
 		end
 		furniture.setTab(activeTabId)
 		grid.CellSize = Gallery.cellSize(activeTabId) -- framed portraits are taller than the plain tiles
