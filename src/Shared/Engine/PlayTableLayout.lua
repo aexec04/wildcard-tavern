@@ -32,6 +32,20 @@ M.PLATES_IMG_W, M.PLATES_IMG_H = 1536, 1024
 -- play_plates_b.png: the bar and its posts end at about 0.30, the face is the dark wood from 0.34 to 0.82.
 M.FACE = { x = 0.12, y = 0.34, w = 0.76, h = 0.48 }
 
+-- Inside the deck recess (rw x rh px, widget-local): a portrait card back at 90 percent of the height (5:7) in the left part and the
+-- count board filling the right part, text 20 px, so the board is at least 28 px tall and 56 px wide.
+M.CARD_ASPECT = 5 / 7
+function M.deckRects(rw, rh)
+	local pad = math.max(4, math.floor(rh * 0.06 + 0.5))
+	local ch = math.floor(rh * 0.9 + 0.5)
+	local cw = math.floor(ch * M.CARD_ASPECT + 0.5)
+	local card = { x = pad + 2, y = math.floor((rh - ch) / 2 + 0.5), w = cw, h = ch }
+	local cx = card.x + cw + pad
+	local bh = math.max(28, math.min(48, math.floor(rh * 0.5 + 0.5)))
+	local count = { x = cx, y = math.floor((rh - bh) / 2 + 0.5), w = math.max(56, rw - cx - pad - 2), h = bh }
+	return { card = card, count = count }
+end
+
 function M.usable(areaW)
 	return areaW >= M.MIN_W
 end

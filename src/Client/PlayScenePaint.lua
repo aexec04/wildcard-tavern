@@ -43,6 +43,11 @@ function PlayScenePaint.install(deps)
 		pcall(function() PlayPlates.apply(actionFrame, p, platesId) end) -- a failure leaves the flat buttons
 	end
 
+	local PlayDeckPaint = require(script.Parent.PlayDeckPaint)
+	local function deck(rect) -- the deck widget inside the painted recess (step D2); nil puts it back
+		if deps.deckWidget then pcall(function() PlayDeckPaint.apply(deps.deckWidget, rect, platesId) end) end
+	end
+
 	local function apply()
 		local size = root.AbsoluteSize
 		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE) or nil
@@ -58,7 +63,9 @@ function PlayScenePaint.install(deps)
 			actionFrame.Position = UDim2.fromOffset(p.actions.x, p.actions.y)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
 			plates(p)
+			deck(p.map.deck)
 		elseif painted then
+			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
 			painted = false
 			image.Visible = false

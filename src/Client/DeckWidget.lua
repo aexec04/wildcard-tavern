@@ -129,7 +129,9 @@ return function(deps)
 	do
 		local TweenService = game:GetService("TweenService")
 		local ClientSettings = require(script.Parent.ClientSettings)
-		local restPos = deckWidget.Position
+		local baseRest = deckWidget.Position
+		-- Client/PlayDeckPaint moves the widget into the painted recess and records where it rests as an attribute
+		local function restPos() return deckWidget:GetAttribute("PaintedRest") or baseRest end
 		local glowFrame = Instance.new("Frame")
 		glowFrame.Name = "PileGlow"
 		glowFrame.Size = UDim2.fromScale(1, 1)
@@ -155,14 +157,14 @@ return function(deps)
 			if motion() then
 				if liftTween then liftTween:Cancel() end
 				liftTween = TweenService:Create(deckWidget, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{ Position = restPos - UDim2.fromOffset(0, 6) })
+					{ Position = restPos() - UDim2.fromOffset(0, 6) })
 				liftTween:Play()
 			end
 		end)
 		deckWidgetButton.MouseLeave:Connect(function()
 			TweenService:Create(glowStroke, TweenInfo.new(0.2), { Transparency = 1 }):Play()
 			if liftTween then liftTween:Cancel() end
-			liftTween = TweenService:Create(deckWidget, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = restPos })
+			liftTween = TweenService:Create(deckWidget, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = restPos() })
 			liftTween:Play()
 		end)
 		deckWidgetButton.MouseButton1Click:Connect(function()
@@ -203,6 +205,7 @@ return function(deps)
 	end
 
 	local deckCardBack = Instance.new("Frame")
+	deckCardBack.Name = "DeckCardBack"
 	deckCardBack.Position = UDim2.fromOffset(12, 12)
 	deckCardBack.Size = UDim2.new(1, -24, 0, 140)
 	deckCardBack.BackgroundColor3 = Color3.fromRGB(50, 70, 110)
@@ -242,6 +245,7 @@ return function(deps)
 	deckCardBackIcon.Parent = deckCardBack
 
 	local deckCountLabel = Instance.new("TextLabel")
+	deckCountLabel.Name = "DeckCount"
 	deckCountLabel.AnchorPoint = Vector2.new(0.5, 0)
 	deckCountLabel.Size = UDim2.new(0, 72, 0, 24)
 	deckCountLabel.Position = UDim2.new(0.5, 0, 0, 158)

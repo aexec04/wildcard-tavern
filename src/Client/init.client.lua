@@ -1376,7 +1376,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH })
 	end)
 	pcall(function() -- painted table foreground, hand on the rail (Client/PlayScenePaint.lua)
-		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH })
+		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
 	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
 		local sortFrame = nil
