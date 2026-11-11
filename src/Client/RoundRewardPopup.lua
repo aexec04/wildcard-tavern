@@ -35,6 +35,7 @@ return function(deps)
 		OverlayQueue.newRound()
 		OverlayQueue.enqueue({
 			id = "roundComplete",
+			plate = true, -- a real result: it stays the big plate (everything smaller is a corner toast)
 			priority = OverlayQueue.rules.PRIORITY.roundComplete,
 			icon = "💰",
 			title = titleOverride or "Round Complete!",

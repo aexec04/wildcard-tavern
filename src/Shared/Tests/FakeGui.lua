@@ -43,6 +43,14 @@ local function newSignal()
 		self.handlers[#self.handlers + 1] = h
 		return { Connected = true, Disconnect = function() h.on = false end }
 	end
+	function s:Once(fn)
+		local conn
+		conn = self:Connect(function(...)
+			conn.Disconnect()
+			fn(...)
+		end)
+		return conn
+	end
 	function s:Fire(...)
 		for _, h in ipairs(self.handlers) do
 			if h.on then h.fn(...) end
@@ -203,7 +211,25 @@ end
 function FakeGui.env(opts)
 	opts = opts or {}
 	local stubs = opts.stubs or {}
-	local state = { warns = {}, prints = {}, studio = opts.studio == true, services = {} }
+	local state = { warns = {}, prints = {}, studio = opts.studio == true, services = {}, delays = {}, parked = {} }
+	-- resume every thread parked at a task.wait once
+	function state.runWaiting()
+		local list = state.parked
+		state.parked = {}
+		for _, co in ipairs(list) do
+			local ok, err = coroutine.resume(co)
+			if not ok then error(err, 0) end
+			if coroutine.status(co) == "suspended" then state.parked[#state.parked + 1] = co end
+		end
+		return #list
+	end
+	-- run (and clear) the task.delay callbacks queued so far; callbacks they queue wait for the next call
+	function state.runDelays()
+		local list = state.delays
+		state.delays = {}
+		for _, d in ipairs(list) do d.fn(table.unpack(d.args)) end
+		return #list
+	end
 	local services = state.services
 	services.TweenService = {
 		Create = function(_, inst, info, goal)
@@ -252,8 +278,22 @@ function FakeGui.env(opts)
 			return type(v)
 		end,
 		task = {
-			defer = function(fn, ...) fn(...) end, spawn = function(fn, ...) fn(...) end,
-			delay = function() end, wait = function() return 0 end,
+			defer = function(fn, ...) fn(...) end,
+			-- spawn runs at once until the first task.wait, where the thread parks (like Roblox) until a test calls state.runWaiting()
+			spawn = function(fn, ...)
+				local co = coroutine.create(fn)
+				local ok, err = coroutine.resume(co, ...)
+				if not ok then error(err, 0) end
+				if coroutine.status(co) == "suspended" then state.parked[#state.parked + 1] = co end
+			end,
+			-- delayed calls wait in state.delays until a test runs them with state.runDelays()
+			delay = function(t, fn, ...)
+				state.delays[#state.delays + 1] = { t = t, fn = fn, args = { ... } }
+			end,
+			wait = function(t)
+				if coroutine.isyieldable() then coroutine.yield() end
+				return t or 0
+			end,
 		},
 		warn = function(...)
 			local parts = {}

@@ -1,7 +1,8 @@
--- Good-news notices, shown as plates in Client/OverlayQueue (one at a time, never over the map title):
+-- Good-news notices, shown as corner toasts (Client/CornerToast, via OverlayQueue: one or two lines, no button, never over a card):
 --   * "Unlocked: Nest Egg"           state.unlockNotice   = { seq, items = { { kind, id, hint } } }   (Engine/Unlocks)
 --   * "Quest done: Pair Up  +40 XP"  state.progressNotice = { seq, rankUps, quests, rewards }         (Engine/AccountProgress)
 --   * "Rank 5!  Title: Table Regular"
+--   * "Blessing: Generous House"     state.rewardNotice with blessingId (the effect lives in the left HUD blessing chip)
 --   * "Tutorial complete! ..." / "First win! ..."   state.rewardNotice = { seq, icon, text } (Engine/FirstRewards)
 -- Display only. Self-contained: the hub calls init(screenGui) once and update(state) from render
 -- in a pcall.
@@ -60,10 +61,10 @@ local function pushUnlocks(items, seq)
 	local rows = {}
 	for _, item in ipairs(items) do
 		local def = defOf(item)
-		if def then rows[#rows + 1] = (def.icon and (def.icon .. " ") or "") .. def.name end
+		if def then rows[#rows + 1] = def.name end -- names only: the effect text is in the Collection
 	end
 	if #rows > 0 then
-		push({ id = "unlock:" .. tostring(seq), priority = PRI.unlock, group = "unlock", icon = "🔓", title = "Unlocked!", rows = rows, button = "Continue" })
+		push({ id = "unlock:" .. tostring(seq), priority = PRI.unlock, group = "unlock", title = "Unlocked!", rows = rows })
 	end
 end
 
@@ -92,6 +93,10 @@ function UnlockToast.update(state)
 	if not gui or type(state) ~= "table" then
 		return
 	end
+	-- the toast slot follows the screen: one compact line on Round Select (its cards start right under the corner buttons)
+	pcall(function()
+		require(script.Parent.CornerToast).setScreen(require(Engine:WaitForChild("ToastPlacement")).screenOf(state))
+	end)
 	local unlock = state.unlockNotice
 	if unlock and type(unlock.seq) == "number" and unlock.seq > lastUnlockSeq then
 		lastUnlockSeq = unlock.seq
@@ -101,7 +106,11 @@ function UnlockToast.update(state)
 	if reward and type(reward.seq) == "number" and reward.seq > lastRewardSeq then
 		lastRewardSeq = reward.seq
 		local artId = reward.blessingId and ContentArt.getImageId("blessing_icons", reward.blessingId) or nil
-		push({ icon = reward.icon, text = reward.text, artId = artId, title = reward.blessingId and "Blessing chosen" or nil })
+		local text = reward.text
+		if reward.blessingId and type(text) == "string" then
+			text = "Blessing: " .. (text:match("^(.-):") or text) -- "Generous House: Rounds pay +2 Tips, ..." becomes "Blessing: Generous House"
+		end
+		push({ icon = reward.icon, text = text, artId = artId })
 	end
 	local progress = state.progressNotice
 	if progress and type(progress.seq) == "number" and progress.seq > lastProgressSeq then

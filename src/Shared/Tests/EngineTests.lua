@@ -16654,4 +16654,301 @@ table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, t
 	expectTrue(trace ~= nil and trace:find("IsStudio()", 1, true) ~= nil, "ShopTrace prints only in Studio")
 end })
 
+-- ===== Small notices are a corner toast, the big plate is only for the daily reward and Round Complete (2026-11-10) =====
+table.insert(tests, { name = "CornerToastRules: words, the slot, and a stack of at most three (newest on top, unlocks merge, 4 seconds)", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	-- style: a plate only when asked
+	expectEqual(R.styleOf({ text = "x" }), "toast")
+	expectEqual(R.styleOf({ plate = true }), "plate")
+	expectEqual(R.styleOf({ plate = false, button = "Continue" }), "toast", "a button does not make a plate")
+	expectEqual(R.styleOf(nil), "toast")
+	-- words: no emoji, the name only, merged
+	expectEqual(R.stripEmoji("\240\159\148\147 Straight Shooter"), "Straight Shooter", "a padlock emoji goes")
+	expectEqual(R.stripEmoji("Quest done: Pair Up   +40 XP"), "Quest done: Pair Up +40 XP", "spaces are tidied")
+	expectEqual(R.stripEmoji("\226\156\148 Done \240\159\143\133"), "Done")
+	expectEqual(R.stripEmoji("Caf\195\169"), "Caf\195\169", "plain letters with accents stay")
+	expectEqual(R.mergeNames({ "A" }), "Unlocked: A")
+	expectEqual(R.mergeNames({ "A", "B" }), "Unlocked: A and B")
+	expectEqual(R.mergeNames({ "A", "B", "C", "D" }), "Unlocked: A, B and 2 more")
+	expectEqual(R.textFor({ group = "unlock", rows = { "\240\159\148\147 Straight Shooter" } }), "Unlocked: Straight Shooter")
+	expectEqual(R.textFor({ text = "Blessing: Generous House" }), "Blessing: Generous House")
+	expectEqual(R.textFor({ title = "Welcome" }), "Welcome", "a title alone still says something")
+	-- the slot: right edge, under the corner buttons (they end at y 66), compact on Round Select
+	for _, screenSize in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local w, h = screenSize[1], screenSize[2]
+		for _, screen in ipairs({ "table", "shop", "choice", "roundSelect" }) do
+			local plan = R.plan(screen)
+			for i = 1, plan.maxVisible do
+				local s = R.slot(w, h, plan, i)
+				local where = screen .. " slot " .. i .. " at " .. w .. "x" .. h
+				expectTrue(s.x >= 0 and s.x + s.w <= w - R.EDGE + 0.5 and s.y + s.h <= h, where .. " is on the screen")
+				expectEqual(s.x + s.w, w - R.EDGE, where .. " hugs the right edge")
+				expectTrue(s.w <= 320 and s.w >= 240 or w < 900, where .. " is at most 320 wide (" .. s.w .. ")")
+				expectTrue(s.y >= 66 + (screen == "roundSelect" and 2 or 8), where .. " is under the corner buttons")
+				if i > 1 then expectTrue(s.y > R.slot(w, h, plan, i - 1).y + plan.height - 1, where .. " does not overlap the one above") end
+			end
+		end
+		local compact = R.plan("roundSelect")
+		expectTrue(R.slot(w, h, compact, 1).y + compact.height <= R.CARDS_TOP, "Round Select's one compact line ends above its cards")
+		expectEqual(R.plan("table").maxVisible, 3)
+		expectEqual(compact.maxVisible, 1)
+	end
+
+	-- the stack
+	local st = R.new()
+	for i = 1, 5 do expectTrue(st:push({ id = "n" .. i, text = "Quest " .. i }, 0), "notice " .. i .. " is taken") end
+	expectFalse(st:push({ id = "n1", text = "again" }, 0), "the same id is not shown twice in a round")
+	expectFalse(st:push({ id = "empty" }, 0), "a notice with no words is dropped")
+	st:tick(0, 3)
+	expectEqual(#st.visible, 3, "never more than three stacked")
+	expectEqual(st.visible[1].text, "Quest 3", "the newest one in is on top")
+	expectEqual(#st.pending, 2, "the others wait")
+	st:tick(R.AUTO_SECONDS - 0.1, 3)
+	expectEqual(#st.visible, 3, "they stay about 4 seconds")
+	st:tick(R.AUTO_SECONDS + 0.1, 3)
+	expectEqual(st.visible[1].text, "Quest 5", "when they go, the waiting ones come in")
+	expectEqual(#st.visible, 2)
+	st:tick(2 * R.AUTO_SECONDS + 1, 3)
+	expectTrue(st:isEmpty(), "and then the stack is empty")
+	-- unlocks merge into one toast, and a repeat restarts its time
+	st = R.new()
+	st:push({ id = "u1", group = "unlock", rows = { "A", "B" } }, 0)
+	st:tick(0, 3)
+	st:push({ id = "u2", group = "unlock", rows = { "C", "D" } }, 2)
+	st:tick(2, 3)
+	expectEqual(#st.visible, 1, "later unlocks join the one on screen")
+	expectEqual(st.visible[1].text, "Unlocked: A, B and 2 more", "extras merge into 'A, B and 2 more'")
+	st:tick(R.AUTO_SECONDS + 1, 3)
+	expectEqual(#st.visible, 1, "the merge gave it a fresh 4 seconds")
+	-- a tap closes one; a smaller slot (Round Select) sends the oldest back to wait and they return when there is room
+	st = R.new()
+	for i = 1, 3 do st:push({ id = "q" .. i, text = "Quest " .. i }, 0) st:tick(0, 3) end
+	expectEqual(#st.visible, 3)
+	local top = st.visible[1].order
+	expectTrue(st:dismiss(top) and #st.visible == 2, "a tap closes that toast")
+	st:push({ id = "q4", text = "Quest 4" }, 1)
+	st:tick(1, 1)
+	expectEqual(#st.visible, 1, "Round Select shows one")
+	expectEqual(st.visible[1].text, "Quest 2", "the newest of the ones already up stays; the new notice waits for room")
+	expectEqual(#st.pending, 2, "the rest wait for room")
+	st:tick(1 + R.AUTO_SECONDS + 1, 1)
+	expectEqual(st.visible[1].text, "Quest 1", "and when it goes the oldest waiting one comes back first")
+	expectFalse(st:dismiss(99999), "an unknown toast is not closed")
+	-- a new round may show the same notice again
+	st = R.new()
+	expectTrue(st:push({ id = "same", text = "x" }, 0))
+	st:newRound()
+	expectTrue(st:push({ id = "same", text = "x" }, 0), "newRound forgets what was shown")
+end })
+
+table.insert(tests, { name = "Corner toast slot is clear of the gameplay: the Counter, the Choice cards, Round Select's cards (1920x1080 and 1280x720)", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	local CounterScene = require(script.Parent.CounterScene)
+	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
+	local function slotRect(w, h, plan, i)
+		local s = R.slot(w, h, plan, i)
+		return { X = s.x, Y = s.y, W = s.w, H = s.h }
+	end
+	for _, screenSize in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local W, H = screenSize[1], screenSize[2]
+		local where = " at " .. W .. "x" .. H
+		local table3 = R.plan("table")
+		local whole = { X = slotRect(W, H, table3, 1).X, Y = R.TOP, W = slotRect(W, H, table3, 1).W, H = 3 * table3.height + 2 * R.GAP }
+		-- the table: left HUD (260 wide), the corner buttons (y 12 to 66), the hand tray and buttons (the foot, 270 tall), the deck pile
+		local hud = { X = 0, Y = 0, W = 260, H = H }
+		local corner = { X = W - 16 - 360, Y = 12, W = 360, H = 54 }
+		local tray = { X = 0, Y = H - 270, W = W, H = 270 }
+		for name, rect in pairs({ hud = hud, corner = corner, tray = tray }) do
+			expectFalse(hit(whole, rect), "the toast stack misses the " .. name .. where)
+		end
+		-- the Counter: the frame is the screen right of the left HUD; the worst case is 4 offers and 3 packs
+		for _, counts in ipairs({ { 2, 2 }, { 4, 3 } }) do
+			local scene = CounterScene.build(W - 260, H, 260, 0, counts[1], counts[2])
+			for i, rc in ipairs(scene.blockers) do
+				expectFalse(hit(whole, rc), string.format("the toast stack (%.0f,%.0f %.0fx%.0f) misses Counter rect %d (%.0f,%.0f %.0fx%.0f; %d offers, %d packs)%s",
+					whole.X, whole.Y, whole.W, whole.H, i, rc.X, rc.Y, rc.W, rc.H, counts[1], counts[2], where))
+			end
+		end
+		-- the Choice cards: the holder is 750 x 450 scaled to fit, centred and 24 px low (ChoicePanel.fit)
+		-- inside it: the title plaque and the text strip (520 wide, centred) above the three cards (730 wide, from y 100 to 400)
+		local scale = math.max(0.5, math.min(1.2, math.min(W / 790, H / 490)))
+		local top = H / 2 + 24 - 225 * scale
+		local pieces = {
+			title = { X = W / 2 - 260 * scale, Y = top, W = 520 * scale, H = 44 * scale },
+			text = { X = W / 2 - 260 * scale, Y = top + 52 * scale, W = 520 * scale, H = 34 * scale },
+			cards = { X = W / 2 - 365 * scale, Y = top + 100 * scale, W = 730 * scale, H = 300 * scale },
+		}
+		for name, rect in pairs(pieces) do
+			expectFalse(hit(whole, rect), string.format("the toast stack (%.0f,%.0f %.0fx%.0f) misses the Choice %s (%.0f,%.0f %.0fx%.0f)%s",
+				whole.X, whole.Y, whole.W, whole.H, name, rect.X, rect.Y, rect.W, rect.H, where))
+		end
+		-- Round Select: Tips chip (right 20, y 18 to 52) above, the cards from y 104 below; one compact line between
+		local compact = slotRect(W, H, R.plan("roundSelect"), 1)
+		expectFalse(hit(compact, { X = W - 20 - 150, Y = 18, W = 150, H = 34 }), "the compact toast misses the Tips chip" .. where)
+		expectFalse(hit(compact, { X = 20, Y = 104, W = W - 40, H = H - 120 }), "the compact toast misses the Round Select cards" .. where)
+	end
+end })
+
+table.insert(tests, { name = "OverlayQueue sends small notices to the corner toast and keeps plates for the daily reward and Round Complete (real modules on a fake Roblox)", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/CornerToast.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local function setup(opts)
+		local stubs = {}
+		local env, st = FakeGui.env({ studio = opts and opts.studio, stubs = stubs })
+		st.services.ReplicatedStorage = { WaitForChild = function()
+			return { WaitForChild = function()
+				return FakeGui.folder({
+					CornerToastRules = require(Engine.CornerToastRules), OverlayQueueRules = require(Engine.OverlayQueueRules), HudKit = require(Engine.HudKit),
+				})
+			end }
+		end }
+		local calm = opts and opts.calm == true
+		stubs.ClientSettings = { get = function(key) if key == "reduceShake" then return calm end return false end }
+		stubs.HudTheme = { setId = function() return nil end }
+		stubs.PopupDismiss = { attach = function() end } -- the plate registers its Escape here; covered by the PopupDismiss test
+		local tweens = 0
+		local realCreate = st.services.TweenService.Create
+		st.services.TweenService.Create = function(...) tweens = tweens + 1 return realCreate(...) end
+		stubs.CornerToast = FakeGui.load("src/Client/CornerToast.lua", env)
+		local OverlayQueue = FakeGui.load("src/Client/OverlayQueue.lua", env)
+		local gui = FakeGui.new("ScreenGui")
+		gui.AbsoluteSize = { X = 1920, Y = 1080 }
+		OverlayQueue.init(gui)
+		return { env = env, st = st, gui = gui, Toast = stubs.CornerToast, Queue = OverlayQueue, tweens = function() return tweens end }
+	end
+
+	-- small notices become toasts, never plates
+	local s = setup({})
+	local holder = s.gui:FindFirstChild("CornerToasts")
+	expectTrue(holder ~= nil, "the toast layer exists")
+	expectFalse(holder.Active, "the layer sinks no input")
+	expectTrue(not holder.Name:find("Backdrop") and s.gui:FindFirstChild("OverlayQueueBackdrop") == nil, "nothing here is a '...Backdrop' (no shield, no modal gate)")
+	expectTrue(s.Queue.enqueue({ id = "u1", group = "unlock", title = "Unlocked!", rows = { "Straight Shooter" }, button = "Continue" }), "an unlock is taken")
+	expectTrue(s.Queue.enqueue({ id = "q1", text = "Quest done: Pair Up   +40 XP" }))
+	expectTrue(s.Queue.enqueue({ id = "r1", text = "Rank 5!  Title: Table Regular", icon = "\240\159\143\133" }))
+	expectTrue(s.Queue.enqueue({ id = "b1", text = "Blessing: Generous House" }))
+	expectTrue(s.Queue.enqueue({ id = "x1", text = "Another notice" }))
+	local rows = s.Toast.rows()
+	local shown = {}
+	for _, row in ipairs(rows) do if row.frame.Visible then shown[#shown + 1] = row end end
+	expectEqual(#shown, 3, "three toasts at most are stacked (stack: " .. #s.Toast.stack().visible .. " visible, " .. #s.Toast.stack().pending .. " waiting)")
+	expectEqual(rows[1].label.Text, "Rank 5! Title: Table Regular", "the newest of the first three is on top (the next two wait for room)")
+	expectEqual(rows[3].label.Text, "Unlocked: Straight Shooter", "the oldest is at the bottom, with no emoji and no effect text")
+	expectEqual(#s.Toast.stack().pending, 2, "the blessing and the last notice wait")
+	expectFalse(s.Queue.isBusy(), "a toast never keeps the queue busy (nothing waits on it)")
+	expectTrue(s.gui:FindFirstChild("OverlayQueueBackdrop") == nil, "no plate was built for them")
+	FakeGui.layout(s.gui, 1920, 1080)
+	local top, second = rows[1].frame, rows[2].frame
+	expectEqual(top.AbsolutePosition.X + top.AbsoluteSize.X, 1920 - 12, "the stack hugs the right edge")
+	expectTrue(top.AbsolutePosition.Y >= 74 and second.AbsolutePosition.Y > top.AbsolutePosition.Y, "under the corner buttons, the next one below")
+	expectEqual(top.ClassName, "TextButton", "a toast is a button: a tap closes it")
+	rows[1].frame.MouseButton1Click:Fire()
+	local count = 0
+	for _, row in ipairs(rows) do if row.frame.Visible and row.order then count = count + 1 end end
+	expectEqual(count, 3, "a tap closes one and the waiting notice takes its place")
+	expectFalse(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "the same notice is not shown twice in a round")
+	s.Queue.newRound()
+	expectTrue(s.Queue.enqueue({ id = "u1", group = "unlock", rows = { "Straight Shooter" } }), "a new round may show it again")
+
+	-- the two plates stay plates
+	local p = setup({})
+	expectTrue(p.Queue.enqueue({ id = "daily:1", plate = true, priority = 3, title = "Daily reward ready!", button = "Claim" }), "the daily reward is queued as a plate")
+	expectTrue(p.Queue.isBusy(), "...and the queue is busy with it")
+	expectEqual(#p.Toast.stack().pending + #p.Toast.stack().visible, 0, "...and it is not a toast")
+
+	-- a plate waits while the Choice screen is up, then opens (the gate is re-checked every 0.3 seconds)
+	local g = setup({})
+	local choice = FakeGui.new("Frame")
+	choice.Name, choice.Parent = "ChoiceBackdrop", g.gui
+	g.Queue.enqueue({ id = "roundComplete", plate = true, priority = 1, title = "Round Complete!", text = "+$5 Tips", button = "Continue" })
+	for _ = 1, 4 do g.st.runDelays() end
+	expectTrue(g.gui:FindFirstChild("OverlayQueueBackdrop") == nil, "no plate opens over the Patron and blessing cards")
+	choice.Visible = false
+	for _ = 1, 3 do g.st.runDelays() end
+	local plateBackdrop = g.gui:FindFirstChild("OverlayQueueBackdrop")
+	expectTrue(plateBackdrop ~= nil and plateBackdrop.Visible, "the plate opens once that screen is closed")
+	-- ... also over Round Select, but a Round Select under a hidden Menu does not count
+	local rsGame = FakeGui.new("Frame")
+	rsGame.Name, rsGame.Parent = "GameRoot", g.gui
+	local roundSelect = FakeGui.new("Frame")
+	roundSelect.Name, roundSelect.Parent = "RoundSelect", rsGame
+	local h = setup({})
+	local hRoot = FakeGui.new("Frame")
+	hRoot.Name, hRoot.Visible, hRoot.Parent = "GameRoot", false, h.gui
+	local hSelect = FakeGui.new("Frame")
+	hSelect.Name, hSelect.Parent = "RoundSelect", hRoot
+	h.Queue.enqueue({ id = "daily:2", plate = true, priority = 3, title = "Daily reward ready!", button = "Claim" })
+	for _ = 1, 3 do h.st.runDelays() end
+	expectTrue(h.gui:FindFirstChild("OverlayQueueBackdrop") ~= nil, "a Round Select under the hidden Menu does not hold the daily reward back")
+
+	-- calm mode: no tweens at all; otherwise the toast fades
+	local calm = setup({ calm = true })
+	calm.Queue.enqueue({ id = "c1", text = "Calm notice" })
+	expectEqual(calm.tweens(), 0, "calm mode creates no tweens")
+	expectTrue(calm.Toast.rows()[1].frame.Visible, "...and the toast is simply there")
+	local lively = setup({})
+	lively.Queue.enqueue({ id = "c1", text = "Lively notice" })
+	expectTrue(lively.tweens() >= 1, "outside calm mode the toast fades in")
+
+	-- the screen decides the slot: one compact line on Round Select
+	local r = setup({})
+	r.Toast.setScreen("roundSelect")
+	for i = 1, 3 do r.Queue.enqueue({ id = "m" .. i, text = "Notice " .. i }) end
+	local visible = 0
+	for _, row in ipairs(r.Toast.rows()) do if row.frame.Visible then visible = visible + 1 end end
+	expectEqual(visible, 1, "Round Select shows one compact toast")
+	FakeGui.layout(r.gui, 1920, 1080)
+	local one = r.Toast.rows()[1].frame
+	expectTrue(one.AbsolutePosition.Y + one.AbsoluteSize.Y <= 104, "...that ends above the cards")
+
+	-- Studio prints the first toast's rect once
+	local studio = setup({ studio = true })
+	studio.Queue.enqueue({ id = "s1", text = "First" })
+	studio.Queue.enqueue({ id = "s2", text = "Second" })
+	local lines = 0
+	for _, w in ipairs(studio.st.warns) do if w:find("[CornerToast] first toast at", 1, true) then lines = lines + 1 end end
+	expectEqual(lines, 1, "Studio warns the first toast's position once")
+end })
+
+table.insert(tests, { name = "Notice callers: every OverlayQueue item is a toast except the daily reward and Round Complete, and no toast has a button", fn = function()
+	if not (io and io.open and io.popen) then return end
+	local GlobalScan = require(script.Parent.GlobalScan)
+	local files = GlobalScan.listLua("src/Client")
+	if #files == 0 then return end
+	local plates, toasts = {}, {}
+	for _, path in ipairs(files) do
+		local f = io.open(path, "r")
+		local name = path:match("[^/]+$")
+		if f and name ~= "OverlayQueue.lua" then
+			local src = f:read("*a"); f:close()
+			local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+			-- every table passed to OverlayQueue.enqueue( or to UnlockToast's push( in this file
+			for body in code:gmatch("OverlayQueue%.enqueue%(%{(.-)\n%s*%}%)") do
+				if body:find("plate = true", 1, true) then plates[#plates + 1] = name else toasts[#toasts + 1] = { name, body } end
+			end
+			if name == "UnlockToast.lua" then
+				for body in code:gmatch("push%(%{(.-)%}%)") do toasts[#toasts + 1] = { name, body } end
+			end
+		elseif f then
+			f:close()
+		end
+	end
+	table.sort(plates)
+	expectEqual(table.concat(plates, ","), "LoginStreakUI.lua,RoundRewardPopup.lua", "only the daily reward and Round Complete are plates")
+	expectTrue(#toasts >= 5, "the scan found the small notices (" .. #toasts .. ")")
+	for _, entry in ipairs(toasts) do
+		expectTrue(not entry[2]:find("button%s*="), entry[1] .. " has a toast with a button: it must be a plate or lose the button")
+		expectTrue(not entry[2]:find("plate%s*=%s*true"), entry[1])
+	end
+	-- the words of the notices that used to be plates
+	local unlockToast = io.open("src/Client/UnlockToast.lua", "r"):read("*a")
+	expectTrue(unlockToast:find('"Blessing: "', 1, true) ~= nil, "a chosen blessing reads 'Blessing: <name>'")
+	expectTrue(unlockToast:find("Blessing chosen", 1, true) == nil or unlockToast:find('title = reward.blessingId and "Blessing chosen"', 1, true) == nil, "the big 'Blessing chosen' plate title is gone")
+	local queue = io.open("src/Client/OverlayQueue.lua", "r"):read("*a")
+	expectTrue(queue:find("ToastRules.styleOf(item) == \"toast\"", 1, true) ~= nil and queue:find("screenBlocksPlates", 1, true) ~= nil, "OverlayQueue routes by style and holds plates while a card screen is up")
+end })
+
 return tests

@@ -293,6 +293,7 @@ local function showPopup()
 	local claimDay = reward.day
 	local queued = OverlayQueue.enqueue({
 		id = id,
+		plate = true, -- the daily reward is one of the two big plates (the other is Round Complete); everything else is a corner toast
 		priority = OverlayQueue.rules.PRIORITY.daily,
 		title = "Daily reward ready!",
 		text = string.format("Day %d streak. Today: %s", math.floor(login.streak or 0), reward.label or ""),

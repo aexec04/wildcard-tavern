@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Rules = require(Engine:WaitForChild("OverlayQueueRules"))
+local ToastRules = require(Engine:WaitForChild("CornerToastRules"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local HudKit = require(Engine:WaitForChild("HudKit"))
 local HudTheme = require(script.Parent.HudTheme)
@@ -288,18 +289,51 @@ flush = function(item)
 	show(item)
 end
 
+-- A plate never opens over the Round Select cards or the first Patron and blessing cards: while one of those screens is up (and
+-- really on screen, not just flagged visible under a hidden Menu) the plate waits and is looked at again until it is gone.
+local function screenBlocksPlates()
+	if not gui then return false end
+	local function up(inst)
+		while inst and inst:IsA("GuiObject") do
+			if not inst.Visible then return false end
+			inst = inst.Parent
+		end
+		return inst ~= nil
+	end
+	local choice = gui:FindFirstChild("ChoiceBackdrop")
+	if choice and up(choice) then return true end
+	local roundSelect = gui:FindFirstChild("RoundSelect", true)
+	return roundSelect ~= nil and up(roundSelect)
+end
+
 local function startIfIdle()
 	if q:current() then return end
+	if screenBlocksPlates() then
+		if not flushScheduled then
+			flushScheduled = true
+			task.delay(0.3, function()
+				flushScheduled = false
+				startIfIdle()
+			end)
+		end
+		return
+	end
 	local nextItem = q:advance()
 	if nextItem then flush(nextItem) end
 end
 
 function OverlayQueue.init(screenGui)
 	gui = screenGui
+	pcall(function() require(script.Parent.CornerToast).init(screenGui) end)
 end
 
+-- Every item is a corner toast unless it says plate = true: only the daily reward and Round Complete are plates.
 function OverlayQueue.enqueue(item)
 	if not gui then return false end
+	if ToastRules.styleOf(item) == "toast" then
+		local okToast, taken = pcall(function() return require(script.Parent.CornerToast).show(item) end)
+		return okToast and taken == true
+	end
 	local ok = q:enqueue(item)
 	if ok and not q:current() and not flushScheduled then
 		flushScheduled = true
@@ -333,6 +367,7 @@ end
 
 function OverlayQueue.newRound()
 	q:newRound()
+	pcall(function() require(script.Parent.CornerToast).newRound() end)
 end
 
 OverlayQueue.rules = Rules

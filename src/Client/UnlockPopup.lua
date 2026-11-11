@@ -31,19 +31,16 @@
 ]]
 
 return function(deps)
-	-- Plates now come from Client/OverlayQueue: several unlocks merge into one box with a row each.
-	local function showUnlockPopup(name, description)
+	-- A corner toast now (Client/CornerToast, via OverlayQueue): "Unlocked: Straight Shooter", several merge into one. The effect text
+	-- (the description) lives in the Collection, so the toast carries the name only.
+	local function showUnlockPopup(name, _description)
 		local OverlayQueue = require(script.Parent.OverlayQueue)
-		local row = name
-		if description and description ~= "" then row = name .. ": " .. description end
 		OverlayQueue.enqueue({
 			id = "unlockPatron:" .. tostring(name),
 			priority = OverlayQueue.rules.PRIORITY.unlock,
 			group = "unlock",
-			icon = "🔓",
 			title = "Unlocked!",
-			rows = { row },
-			button = "Continue",
+			rows = { name },
 		})
 	end
 
