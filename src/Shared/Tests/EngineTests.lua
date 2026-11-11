@@ -16714,6 +16714,20 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		expectTrue(cancel ~= nil and dimmer ~= nil, "the chooser has a Cancel button and a dim catcher" .. where)
 		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()
 		expectTrue(dimmer.Visible, "the dim catcher shows with the chooser" .. where)
+		do -- ZIndexBehavior is Global: the plate and its dim sit above every other element of the Counter, and the plate is opaque
+			local top = 0
+			for _, d in ipairs(shopFrame:GetDescendants()) do
+				local inside = d == chooser or d == dimmer or d:IsDescendantOf(chooser)
+				for _, own in ipairs({ "HaggleBar", "StrangerCard", "HaggleButton" }) do -- ShopHaggle's own pieces, never shown together with the chooser
+					local o = shopFrame:FindFirstChild(own)
+					if o and (d == o or d:IsDescendantOf(o)) then inside = true end
+				end
+				if not inside and d:IsA("GuiObject") then top = math.max(top, d.ZIndex) end
+			end
+			expectTrue(dimmer.ZIndex > top, "the dim catcher is above every card element" .. where)
+			expectTrue(chooser.ZIndex > top and cancel.ZIndex > chooser.ZIndex, "the plate and Cancel are above every card element" .. where)
+			expectTrue(chooser.BackgroundTransparency == 0, "the plate is opaque parchment" .. where)
+		end
 		cancel.MouseButton1Click:Fire()
 		expectFalse(chooser.Visible or dimmer.Visible, "Cancel closes the chooser" .. where)
 		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()

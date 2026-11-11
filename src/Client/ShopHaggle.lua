@@ -28,7 +28,7 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(86, 56, 30)
 local GREEN = Color3.fromRGB(86, 140, 70)
 local CURSE = Color3.fromRGB(130, 40, 30)
-local Z = 9
+local Z = 60 -- ZIndexBehavior is Global: above every card, price tag and tilted body (ShopCards uses 6 to 10, ShopScene tokens 10)
 
 local function remote(name)
 	local folder = ReplicatedStorage:FindFirstChild("Remotes")
@@ -99,6 +99,7 @@ function ShopHaggle.new(deps)
 	chooser.Position = UDim2.fromScale(0.5, 0.5)
 	chooser.Size = UDim2.fromOffset(420, 164)
 	chooser.BackgroundColor3 = PARCHMENT
+	chooser.BackgroundTransparency = 0 -- opaque: nothing behind may show through
 	chooser.ZIndex = Z
 	chooser.Visible = false
 	chooser.Parent = shopFrame
