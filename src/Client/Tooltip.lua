@@ -95,6 +95,7 @@ function Tooltip.new(screenGui)
 			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			label.Text = (type(text) == "function") and text() or text
 			-- AutomaticSize settles a frame late, so place now and again next frame.
+			local lastLog = false -- one Studio warn per hover
 			local function place()
 				local pos, size = button.AbsolutePosition, button.AbsoluteSize
 				if side == "right" then -- measure from the HUD column's edge so the tip clears the whole panel
@@ -114,8 +115,16 @@ function Tooltip.new(screenGui)
 						size = Vector2.new(size.X, bottom - pos.Y + 4) -- place() adds the 8 px gap: 12 in all
 					end
 					local x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
+				-- x, y are in absolute screen space; Position is relative to the tooltip's parent
+				local origin = frame.Parent and frame.Parent:IsA("GuiObject") and frame.Parent.AbsolutePosition or Vector2.zero
 				frame.AnchorPoint = Vector2.new(0, 0)
-				frame.Position = UDim2.fromOffset(x, y)
+				frame.Position = UDim2.fromOffset(x - origin.X, y - origin.Y)
+				if side == "below" and RunService:IsStudio() and not lastLog then
+					lastLog = true
+					warn(string.format("[Tooltip below] tip %d,%d size %dx%d anchorBottom %s origin %d,%d",
+						x, y, frame.AbsoluteSize.X, frame.AbsoluteSize.Y,
+						anchor and tostring(math.floor(anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y)) or "none", origin.X, origin.Y))
+				end
 			end
 			place()
 			frame.Visible = true
@@ -123,6 +132,7 @@ function Tooltip.new(screenGui)
 			if activeConn then activeConn:Disconnect() end
 			if leaveConn then leaveConn:Disconnect() end
 			activeConn = RunService.Heartbeat:Connect(function()
+				if frame.Visible and side == "below" then place() end -- plates can still be sliding in or lifting
 				local alive = button.Parent ~= nil and frame.Visible
 				if alive then
 					local obj = button

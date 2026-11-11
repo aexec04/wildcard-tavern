@@ -15459,6 +15459,8 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 	if tip then
 		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
 		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
+		expectTrue(tip:find("x - origin.X, y - origin.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
+		expectTrue(tip:find('if frame.Visible and side == "below" then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
 	end
 end })
 
