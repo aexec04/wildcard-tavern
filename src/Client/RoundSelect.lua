@@ -482,7 +482,16 @@ return function(deps)
 		-- Boss rule text: readable 16px, up to 2 lines, boss panel only (y=358).
 		local bossLabel = Instance.new("TextLabel")
 		bossLabel.Name = "BossLabel"
-		bossLabel.Size = UDim2.new(1, -20, 0, 52)
+		bossLabel.Size = UDim2.new(1, -20, 0, 0) -- height follows the text (AutomaticSize) plus 12 px padding
+		bossLabel.AutomaticSize = Enum.AutomaticSize.Y
+		do
+			local pad = Instance.new("UIPadding")
+			pad.PaddingTop = UDim.new(0, 6)
+			pad.PaddingBottom = UDim.new(0, 6)
+			pad.PaddingLeft = UDim.new(0, 8)
+			pad.PaddingRight = UDim.new(0, 8)
+			pad.Parent = bossLabel
+		end
 		bossLabel.AnchorPoint = Vector2.new(0, 1)
 		bossLabel.Position = UDim2.new(0, 10, 1, -150)
 		bossLabel.BackgroundTransparency = 1
@@ -573,12 +582,18 @@ return function(deps)
 		skipButton.Visible = false
 		skipButton.Parent = panel
 		polishButton(skipButton, 10)
-		-- Clean button faces: the deferred inner rim read as a dark arc under the label.
+		-- Clean button faces: the deferred inner rim read as a dark arc under the label, and any stray thin bar
+		-- (a bracket, rim or leftover strip) is removed so only the label, stroke and gradient remain.
 		for _, b in ipairs({ selectButton, skipButton }) do
 			task.defer(function()
 				task.defer(function()
 					local rim = b:FindFirstChild("InnerRim")
 					if rim then rim:Destroy() end
+					for _, child in ipairs(b:GetChildren()) do
+						if child:IsA("Frame") and child.Name ~= "ShineClip" and child.Name ~= "HoverScale" then
+							child:Destroy()
+						end
+					end
 				end)
 			end)
 		end

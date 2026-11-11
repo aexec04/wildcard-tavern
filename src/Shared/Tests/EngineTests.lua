@@ -15333,4 +15333,19 @@ table.insert(tests, { name = "No client file sets Enabled on a layout instance (
 	end
 end })
 
+table.insert(tests, { name = "Round Select button faces have no stray bars and the boss rule box fits its text", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/RoundSelect.lua", "r")
+	if not f then return end
+	local src = f:read("a"); f:close()
+	expectTrue(src:find('child.Name ~= "ShineClip"', 1, true) ~= nil, "Select and Skip remove stray child frames")
+	expectTrue(src:find("bossLabel.AutomaticSize = Enum.AutomaticSize.Y", 1, true) ~= nil, "rule box sizes to its text")
+	expectTrue(src:find("PaddingTop = UDim.new(0, 6)", 1, true) ~= nil, "rule box has 12 px vertical padding")
+	local g = io.open("src/Client/RoundSelectFX.lua", "r")
+	if g then
+		local fx = g:read("a"); g:close()
+		expectTrue(fx:find("shineStrip.Visible = false", 1, true) ~= nil, "shine strip is hidden at rest")
+	end
+end })
+
 return tests

@@ -242,6 +242,7 @@ function FX.new(deps)
 			if roundCorner then roundCorner(holder, 10) end
 			shineStrip = makeStrip(holder, 12, 0.75)
 			shineStrip.Size = UDim2.new(0.22, 0, 2, 0)
+			shineStrip.Visible = false -- only shown while a sweep runs, so nothing rests on the button face
 		end
 
 		local function enabled()
@@ -259,7 +260,9 @@ function FX.new(deps)
 				tween(stroke, { Color = GOLD, Thickness = baseThick + 1.5 }, 0.12)
 			end
 			if shineStrip and not reducedMotion() then
-				sweep(shineStrip, -0.3, 1.3, 0.45)
+				shineStrip.Visible = true
+				local tw = sweep(shineStrip, -0.3, 1.3, 0.45)
+				if tw then tw.Completed:Connect(function() shineStrip.Visible = false end) end
 			end
 		end)
 		connect(button.MouseLeave, function()
