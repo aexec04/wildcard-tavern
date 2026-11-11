@@ -456,7 +456,7 @@ function ShopCards.new(deps)
 		if addTooltip and tipText and tipText ~= "" then
 			addTooltip(hit, function()
 				return (spec.name or "") .. "\n" .. tipText
-			end, spec.tipAlign)
+			end, spec.tipAlign, banner)
 		end
 
 		local enabled = spec.enabled ~= false

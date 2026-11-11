@@ -15406,6 +15406,25 @@ table.insert(tests, { name = "Round Select button faces have no stray bars and t
 	end
 end })
 
+table.insert(tests, { name = "Pack tooltip starts under the name plate and never overlaps a card body or plate (3 cards, 1920x960 and 1280x720)", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	for _, screen in ipairs({ { X = 1920, Y = 960 }, { X = 1280, Y = 720 } }) do
+		local sh = CardShape.shape("patron", screen.X >= 1920 and 1 or 0.8, true)
+		local gap, top = 16, math.floor(screen.Y * 0.25)
+		local total = 3 * sh.w + 2 * gap
+		for i = 0, 2 do
+			local bx = math.floor((screen.X - total) / 2) + i * (sh.w + gap)
+			local tip = { X = 280, Y = 90 }
+			-- the tooltip is placed from the Body (hit) rect, whose bottom is below the Banner (name plate)
+			local _, y = TooltipSpec.place({ X = bx, Y = top }, { X = sh.w, Y = sh.h }, tip, screen, "below")
+			local plateBottom = top + sh.bannerTop + CardShape.BANNER_H
+			expectTrue(y >= plateBottom + 12 or y + tip.Y <= top + sh.artTop, "tooltip clear of the name plate for card " .. i)
+			expectTrue(y >= top + sh.h or y + tip.Y <= top, "tooltip clear of the card body for card " .. i)
+		end
+	end
+end })
+
 table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Counter pieces hide while open, pack stage is warm, tooltip goes below", fn = function()
 	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
 	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)

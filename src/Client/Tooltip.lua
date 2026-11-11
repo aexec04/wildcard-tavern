@@ -86,7 +86,7 @@ function Tooltip.new(screenGui)
 		if leaveConn then leaveConn:Disconnect() leaveConn = nil end
 	end
 
-	function T.attach(button, text, align)
+	function T.attach(button, text, align, anchor)
 		button.MouseEnter:Connect(function()
 			local side = align
 			if side == nil and (button:FindFirstAncestor("Sidebar") or button:FindFirstAncestor("SidebarBoard")) then
