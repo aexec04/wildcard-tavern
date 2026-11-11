@@ -12824,7 +12824,7 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 	expectTrue(read("src/Client/CardFace.lua"):find("cardLayers", 1, true) ~= nil, "card fronts use the set skin")
 	expectTrue(read("src/Client/PanelTabs.lua"):find("SetSkin", 1, true) ~= nil, "tabs use the set skin")
 	expectTrue(read("src/Client/CosmeticSetsView.lua"):find("SetSkin.set", 1, true) ~= nil, "equip updates the skin live")
-	expectTrue(read("src/Client/CosmeticSetsPanel.lua"):find("SetSkin.sample", 1, true) ~= nil, "Card Sets panel previews the skin")
+	expectTrue(read("src/Client/CosmeticSetsPanel.lua"):find("SetSkin.cardLayers", 1, true) ~= nil, "Card Sets panel previews the skin on the sample card")
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	expectEqual(ML.hotspotOf("cardSets").id, "tome", "Menu furniture opens Card Sets")
 	local listed = false
@@ -13460,7 +13460,7 @@ table.insert(tests, { name = "Classic card border: wraps the full card edge, cen
 		local g = io.open("src/Client/CosmeticSetsPanel.lua", "r")
 		local panel = g:read("*a"); g:close()
 		expectTrue(panel:find("MiniCard", 1, true) == nil and panel:find("SampleCardChip", 1, true) == nil and panel:find("Card border", 1, true) == nil, "no Classic-only mini card chip; every set shows the Panel border chip through SetSkin.sample")
-		expectTrue(panel:find('Text = "Panel border"', 1, true) == nil and panel:find('Text = "Button"', 1, true) == nil and panel:find('SetSkin.sample(samplePanel, "panel", theme.skin)', 1, true) ~= nil, "sample plates carry no placeholder words and are still styled by SetSkin.sample")
+		expectTrue(panel:find("SampleButton", 1, true) == nil and panel:find("SamplePanel", 1, true) == nil and panel:find("SetSkin.sample", 1, true) == nil and panel:find("bdStroke.Color", 1, true) ~= nil, "set rows draw no empty sample bars; the set tint rides the thumbnail stroke")
 		local nonAscii = false
 		for _, codepoint in utf8.codes(panel) do
 			if codepoint > 0x2000 then nonAscii = true end

@@ -347,15 +347,15 @@ return function(deps)
 	-- 3-part preview for a set row: backdrop thumbnail, its back, a sample card face tinted by the set.
 	local function setPreview(row, set, back, isOwned)
 		local holder = Instance.new("Frame")
-		holder.Size = UDim2.fromOffset(330, 105)
-		holder.Position = UDim2.fromOffset(10, 22)
+		holder.Size = UDim2.fromOffset(330, 126)
+		holder.Position = UDim2.fromOffset(10, 19)
 		holder.BackgroundTransparency = 1
 		holder.ZIndex = 42
 		holder.Parent = row
 
 		local bd = Instance.new("ImageLabel")
-		bd.Size = UDim2.fromOffset(170, 100)
-		bd.Position = UDim2.fromOffset(0, 2)
+		bd.Size = UDim2.fromOffset(170, 126)
+		bd.Position = UDim2.fromOffset(0, 0)
 		bd.BackgroundColor3 = Color3.fromRGB(86, 70, 52)
 		local image = set.backdropImage
 		bd.Image = (image and image ~= "rbxassetid://0") and image or (ArtAssets.gameplayBackground or "rbxassetid://0")
@@ -365,8 +365,10 @@ return function(deps)
 		bd.Parent = holder
 		roundCorner(bd, 8)
 		local bdStroke = Instance.new("UIStroke")
-		bdStroke.Color = Color3.fromRGB(222, 182, 104)
-		bdStroke.Thickness = 1.5
+		local tint = CosmeticSets.themeOf(set).skin.colors
+		local tb = tint and tint.button
+		bdStroke.Color = tb and Color3.fromRGB(tb[1], tb[2], tb[3]) or Color3.fromRGB(222, 182, 104)
+		bdStroke.Thickness = 3
 		bdStroke.Parent = bd
 		if not isOwned then
 			lockBadge(bd)
@@ -375,11 +377,11 @@ return function(deps)
 		local backThumb = CardBackView.thumb(holder, back, {
 			size = Vector2.new(70, 105), locked = not isOwned, shimmer = false, zIndex = 42,
 		})
-		backThumb.Position = UDim2.fromOffset(182, 0)
+		backThumb.Position = UDim2.fromOffset(182, 10)
 
 		local face = Instance.new("Frame")
 		face.Size = UDim2.fromOffset(70, 105)
-		face.Position = UDim2.fromOffset(260, 0)
+		face.Position = UDim2.fromOffset(260, 10)
 		face.BackgroundColor3 = isOwned and Color3.fromRGB(246, 236, 214) or Color3.fromRGB(130, 130, 130)
 		face.ZIndex = 42
 		face.Parent = holder
@@ -401,43 +403,6 @@ return function(deps)
 			Size = UDim2.fromScale(1, 1), Font = Enum.Font.GothamBold, TextSize = 30,
 			TextColor3 = Color3.fromRGB(60, 40, 22), Text = "K", ZIndex = 44,
 		})
-
-		-- a sample button and panel border in the set's skin, under the backdrop and cards
-		local colors = theme.skin.colors
-		local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
-		local sampleButton = Instance.new("TextButton")
-		sampleButton.Name = "SampleButton"
-		sampleButton.Size = UDim2.fromOffset(170, 28)
-		sampleButton.Position = UDim2.fromOffset(0, 108)
-		sampleButton.AutoButtonColor = false
-		sampleButton.Active = false
-		sampleButton.Font = Enum.Font.GothamBold
-		sampleButton.TextSize = 15
-		sampleButton.TextColor3 = CREAM
-		sampleButton.Text = ""
-		sampleButton.BackgroundColor3 = colors and c3(colors.button) or BROWN
-		sampleButton.ZIndex = 42
-		sampleButton.Parent = holder
-		roundCorner(sampleButton, 6)
-		local sampleStroke = Instance.new("UIStroke")
-		sampleStroke.Color = Color3.fromRGB(200, 165, 90)
-		sampleStroke.Thickness = 2
-		sampleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		sampleStroke.Parent = sampleButton
-		SetSkin.sample(sampleButton, "button", theme.skin)
-		local samplePanel = Instance.new("Frame")
-		samplePanel.Name = "SamplePanel"
-		samplePanel.Size = UDim2.fromOffset(148, 28)
-		samplePanel.Position = UDim2.fromOffset(182, 108)
-		samplePanel.BackgroundColor3 = colors and c3(colors.panel) or Color3.fromRGB(60, 44, 30)
-		samplePanel.ZIndex = 42
-		samplePanel.Parent = holder
-		roundCorner(samplePanel, 6)
-		local panelStroke = Instance.new("UIStroke")
-		panelStroke.Color = Color3.fromRGB(200, 165, 90)
-		panelStroke.Thickness = 2
-		panelStroke.Parent = samplePanel
-		SetSkin.sample(samplePanel, "panel", theme.skin)
 	end
 
 	refresh = function()
