@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local DailyPopup = require(Engine:WaitForChild("DailyPopup"))
+local LoginStreak = require(Engine:WaitForChild("LoginStreak"))
 local HudKit = require(Engine:WaitForChild("HudKit"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -83,13 +84,13 @@ end
 
 -- Painted image id for a reward row (kit icon of the equipped set, else the shared painted art), or nil.
 local function iconId(row)
-	local setId = (HudTheme.skin() or {}).id
+	local setId = HudTheme.setId()
 	if row.art == "tips" then
 		return (setId and HudKit.piece(setId, "icon_tips")) or artId("hud", "coin_purse")
 	elseif row.art == "xp" then
-		return setId and HudKit.piece(setId, "icon_target") or nil
-	elseif row.art == "cardBack" and row.id then
-		return artId("card_backs", row.id)
+		return HudKit.piece(setId, "icon_target")
+	elseif row.art == "cardBack" then
+		return (row.id and artId("card_backs", row.id)) or HudKit.piece(setId, "icon_slot")
 	end
 	return nil
 end
@@ -208,7 +209,7 @@ local function flameDots(parent, streak, ink)
 end
 
 -- Builds the ladder inside the plate's custom holder (OverlayQueue item.custom).
-local function buildLadder(holder, painted, login, plateId)
+local function buildLadder(holder, painted, login, plateId, laterText)
 	local ink = painted and INK or CREAM
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
@@ -268,12 +269,12 @@ local function buildLadder(holder, painted, login, plateId)
 	local later = Instance.new("TextButton")
 	later.Name = "Later"
 	later.LayoutOrder = 3
-	later.Size = UDim2.fromOffset(90, 28)
+	later.Size = UDim2.fromOffset(240, 28)
 	later.BackgroundTransparency = 1
 	later.Font = Enum.Font.GothamBold
-	later.TextSize = 16
+	later.TextSize = 15
 	later.TextColor3 = ink
-	later.Text = "Later"
+	later.Text = laterText
 	later.ZIndex = 154
 	later.Parent = holder
 	later.Activated:Connect(function()
@@ -299,7 +300,7 @@ local function showPopup()
 		button = "Claim",
 		autoAfter = AUTO_DISMISS,
 		customHeight = 18 + 6 + 60 + 6 + 28,
-		custom = function(holder, painted) buildLadder(holder, painted, login, id) end,
+		custom = function(holder, painted) buildLadder(holder, painted, login, id, LoginStreak.laterLabel(claimDay)) end,
 		onButton = function()
 			if ui.remote then ui.remote:FireServer(claimDay) end
 			flyCoin()

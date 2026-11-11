@@ -47,6 +47,11 @@ function HudTheme.skin()
 	return current
 end
 
+-- Id of the set whose kit art to use: the applied skin's, else the default set (no skin is applied before the first equip).
+function HudTheme.setId()
+	return current.id or "classic_tavern"
+end
+
 function HudTheme.onSkin(fn)
 	table.insert(listeners, fn)
 end

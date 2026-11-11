@@ -14551,6 +14551,28 @@ table.insert(tests, { name = "Daily reward plate: queued above toasts, auto clos
 	end
 end })
 
+table.insert(tests, { name = "LoginStreak: every ladder slot resolves to a painted icon in every kit set, Later line names tomorrow", fn = function()
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	local HK = require(script.Parent.Parent.Engine.HudKit)
+	for _, setId in ipairs(HK.KIT_SETS) do
+		for _, r in ipairs(LS.Rewards) do
+			local piece = (r.art == "tips" and "icon_tips") or (r.art == "xp" and "icon_target") or "icon_slot"
+			expectTrue(HK.piece(setId, piece) ~= nil, setId .. " day " .. r.day .. " has painted icon " .. piece)
+		end
+	end
+	expectEqual(LS.laterLabel(1), "Tomorrow: 40 XP", "day 1 line")
+	expectEqual(LS.laterLabel(6), "Tomorrow: Card back: Festival Ribbon", "day 6 line")
+	expectEqual(LS.laterLabel(7), "Next week: a new streak starts", "day 7 line")
+	for _, path in ipairs({ "src/Client/LoginStreakUI.lua", "src/Client/OverlayQueue.lua" }) do
+		local f = io and io.open and io.open(path, "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(src:find("HudTheme.setId()", 1, true) ~= nil, path .. " falls back to the default set id")
+		end
+	end
+end })
+
 table.insert(tests, { name = "OverlayQueue: one plate at a time, by priority, dedupe, merge, auto only for toasts", fn = function()
 	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
 	local q = R.new()

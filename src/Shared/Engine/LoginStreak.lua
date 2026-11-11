@@ -29,6 +29,13 @@ LoginStreak.Rewards = {
 	{ day = 7, kind = "cardBack", id = "festival_ribbon", fallbackTips = 10, label = "Card back: Festival Ribbon", art = "cardBack" },
 }
 
+-- The line under the ladder: tomorrow's reward, or the loop note after the last slot.
+function LoginStreak.laterLabel(day)
+	if day >= LoginStreak.LADDER then return "Next week: a new streak starts" end
+	local nextReward = LoginStreak.rewardForDay(day + 1)
+	return "Tomorrow: " .. (nextReward and nextReward.label or "a new reward")
+end
+
 function LoginStreak.dayNumber(timestamp)
 	return math.floor(timestamp / SECONDS_PER_DAY)
 end

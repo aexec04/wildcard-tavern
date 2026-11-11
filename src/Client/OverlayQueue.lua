@@ -209,7 +209,7 @@ local function show(item)
 	if not backdrop then build() end
 	token += 1
 	local mine = token
-	local setId = (HudTheme.skin() or {}).id
+	local setId = HudTheme.setId()
 	local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
 	local iconId = type(item.artId) == "string" and item.artId ~= "" and item.artId or nil
 	if not iconId and setId then
