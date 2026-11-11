@@ -473,6 +473,7 @@ function RunSummaryUI.update(state)
 			if store and store:IsA("GuiObject") then
 				store.Visible = false
 			end
+			pcall(function() require(script.Parent.ResultGuard).hold(gui) end) -- keeps the Store hidden while this plate is up
 			ui.backdrop.Visible = true
 			ui.fit.Scale = base * 0.85
 			TweenService:Create(ui.fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()

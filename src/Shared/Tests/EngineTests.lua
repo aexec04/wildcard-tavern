@@ -12724,6 +12724,21 @@ table.insert(tests, { name = "Shop polish: picked badge is a drawn check (no OK 
 	expectTrue(tip:find('label.Text == ""', 1, true) ~= nil, "an empty tooltip is never shown")
 end })
 
+table.insert(tests, { name = "ResultGuard: Store stays hidden while a result plate is up, both plates wired", fn = function()
+	local R = require(script.Parent.Parent.Engine.ResultGuard)
+	expectTrue(not R.mustHide({}), "nothing up")
+	expectTrue(not R.mustHide({ RunSummaryBackdrop = false, NightVictoryBackdrop = false }), "both hidden")
+	expectTrue(R.mustHide({ RunSummaryBackdrop = true }), "run summary up")
+	expectTrue(R.mustHide({ NightVictoryBackdrop = true }), "night victory up")
+	local okio, f = pcall(function() return io.open end)
+	if not (okio and f) then return end
+	local function has(file, text)
+		local h = io.open("src/Client/" .. file, "r"); if not h then return true end
+		local c = h:read("*a"); h:close(); return c:find(text, 1, true) ~= nil
+	end
+	expectTrue(has("RunSummaryUI.lua", "ResultGuard") and has("NightVictory.lua", "ResultGuard"), "both result plates call ResultGuard.hold")
+end })
+
 table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
 	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
 	local g = ModalGate.new()

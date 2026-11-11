@@ -160,6 +160,7 @@ return function(deps)
 		if store and store:IsA("GuiObject") then
 			store.Visible = false
 		end
+		pcall(function() require(script.Parent.ResultGuard).hold(backdrop.Parent) end) -- keeps the Store hidden while this plate is up
 		backdrop.Visible = true
 		if not ClientSettings.get("reduceShake") then
 			-- Pop in (skipped when screen shake is reduced).
