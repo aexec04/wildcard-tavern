@@ -51,7 +51,11 @@ function TooltipSpec.place(pos, size, tip, screen, align, spec)
 	if align == "below" then
 		-- under the target (pack picks: free space under the name plates), clamped on screen
 		local bx = math.max(spec.margin, math.min(pos.X + size.X / 2 - tip.X / 2, screen.X - tip.X - spec.margin))
-		local by = math.max(spec.margin, math.min(pos.Y + size.Y + spec.gap, screen.Y - tip.Y - spec.margin))
+		local by = pos.Y + size.Y + spec.gap
+		if by + tip.Y > screen.Y - spec.margin then
+			-- no room under the target: go above it rather than being clamped up over its name plate
+			by = math.max(spec.margin, pos.Y - tip.Y - spec.gap)
+		end
 		return bx, by
 	end
 	local x

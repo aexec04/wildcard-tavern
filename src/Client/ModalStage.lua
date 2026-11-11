@@ -70,17 +70,6 @@ local function buildDecor(decor, stageDef, z)
 			})
 			ray.Name = "Ray" .. i
 		end
-	elseif stageDef.decor == "chairs" then
-		for i = 1, 3 do -- three chair silhouettes along the bottom edge
-			local chair = frameBit(decor, {
-				AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.2 + (i - 1) * 0.3, 1.02),
-				Size = UDim2.new(0, 120, 0, 90), BackgroundColor3 = Color3.fromRGB(8, 20, 16), BackgroundTransparency = 0.2, ZIndex = z,
-			})
-			chair.Name = "Chair" .. i
-			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(0, 18)
-			c.Parent = chair
-		end
 	elseif stageDef.decor == "map" then
 		for i = 1, 3 do -- rolled map strips across the desk
 			local strip = frameBit(decor, {

@@ -100,7 +100,6 @@ end
 
 -- Overlay plates never show emoji: a plate icon is a kit piece (Engine/HudKit) chosen by the caller's glyph, or nothing.
 OverlayQueueRules.ICON_PIECE = {
-	["\u{1F513}"] = "icon_slot", -- unlock
 	["\u{1F4B0}"] = "icon_tips", -- tips earned
 	["\u{1F3C5}"] = "icon_target", -- rank up
 }

@@ -263,8 +263,8 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	face.Parent = button
 
 	if hiddenWildcard then
-		makeLabel(face, "CornerRank", "✨", WILDCARD_INK, UDim2.fromScale(0.26, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex)
-		makeLabel(face, "CenterSuit", "???", WILDCARD_INK, UDim2.fromScale(0.6, 0.3), UDim2.fromScale(0.5, 0.52), Vector2.new(0.5, 0.5), nil, zIndex)
+		makeLabel(face, "CornerRank", "?",WILDCARD_INK, UDim2.fromScale(0.26, 0.15), UDim2.fromScale(0.19, 0.12), nil, Enum.TextXAlignment.Left, zIndex)
+		makeLabel(face, "CenterSuit", "Mystery",WILDCARD_INK, UDim2.fromScale(0.6, 0.3), UDim2.fromScale(0.5, 0.52), Vector2.new(0.5, 0.5), nil, zIndex)
 		return face
 	end
 

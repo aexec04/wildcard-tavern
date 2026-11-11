@@ -14830,7 +14830,7 @@ end })
 table.insert(tests, { name = "OverlayQueue: icons are kit pieces never emoji, plate is the kit reward piece with parchment padding", fn = function()
 	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
 	local Kit = require(script.Parent.Parent.Engine.HudKit)
-	expectEqual(R.iconPiece("\u{1F513}"), "icon_slot", "unlock glyph maps to the seat icon")
+	expectEqual(R.iconPiece("\u{1F513}"), nil, "unlock glyph shows no icon (the seat ring read as an empty circle)")
 	expectEqual(R.iconPiece("\u{1F4B0}"), "icon_tips", "tips glyph maps to the tips icon")
 	expectEqual(R.iconPiece("\u{1F389}"), nil, "unknown glyph shows nothing")
 	for _, piece in pairs(R.ICON_PIECE) do
@@ -15414,6 +15414,9 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 	local x, y = TooltipSpec.place({ X = 400, Y = 300 }, { X = 200, Y = 300 }, { X = 200, Y = 80 }, { X = 1920, Y = 1080 }, "below")
 	expectTrue(y >= 300 + 300, "below-aligned tooltip sits under the target")
 	expectTrue(x >= 0, "below tooltip stays on screen")
+	local _, y2 = TooltipSpec.place({ X = 400, Y = 300 }, { X = 200, Y = 900 }, { X = 200, Y = 120 }, { X = 1920, Y = 1080 }, "below")
+	expectTrue(y2 + 300 <= 900, "with no room below, the tooltip goes above the target, never over it")
+	expectTrue(ModalGate.STAGES.pack.decor == "none" and ModalGate.STAGES.draft.decor == "none", "pack and draft stages draw no bare Chair frames")
 	local function read(path)
 		local f = io and io.open and io.open(path, "r")
 		if not f then return nil end
