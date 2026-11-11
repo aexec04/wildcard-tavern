@@ -39,6 +39,8 @@ ShopSceneLayout.TABLE_RIM = 14       -- width of the wood rim around the felt (p
 ShopSceneLayout.TABLE_MARGIN = 18    -- clear felt between a card and the rim (px)
 ShopSceneLayout.TABLE_ASPECT = 1.5   -- table width over height: wide, never a square
 ShopSceneLayout.TABLE_EDGE = 8       -- gap between the table and the foot of the screen
+ShopSceneLayout.TABLE_FOOT = 30      -- the table's lower edge stays at least this far above the Next Round sign
+ShopSceneLayout.TABLE_WIDTH = 0.88   -- the table takes this share of the room between Marlo and the bell (it was too big, over the shelves)
 ShopSceneLayout.PACK_RATIO = 0.8     -- width / height of a pack's rect
 ShopSceneLayout.PACK_SHARE = 0.6     -- a pack is this share of a Patron card's width: packs lie smaller
 ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
@@ -191,7 +193,7 @@ local function dealOnTable(tbl, nOffers, nPacks, wMax)
 	local fitted = found ~= nil
 	if not found then -- nothing fits even at the smallest size (a tiny window): centre the smallest spread anyway
 		local _, _, total = build(minW, 0)
-		found = { build(minW, cy - total / 2) }
+		found = { build(minW, math.max(cy - total / 2, tbl.y + ShopSceneLayout.TABLE_RIM)) } -- never above the felt (Marlo's speech plate is there)
 	end
 	local function rounded(list)
 		local out = {}
@@ -247,13 +249,14 @@ function ShopSceneLayout.rects(W, H, counts)
 		local noMarlo = counts and counts.noMarlo
 		local leftLimit = noMarlo and 4 or (out.marlo.x + out.marlo.w + 2)
 		local rightLimit = out.props.bell.x - 6
-		local bottomLimit = H - ShopSceneLayout.TABLE_EDGE
-		local topLimit = tabsBottom + 6
-		if bottomLimit > out.leave.y - 4 and rightLimit > out.leave.x - 6 then
-			rightLimit = out.leave.x - 6 -- the Next Round sign stands at the table's corner: stop short of it
-		end
+		-- the foot of the table stays at least TABLE_FOOT above the Next Round sign (and always above the bottom of the screen)
+		local bottomLimit = math.min(H - ShopSceneLayout.TABLE_EDGE, out.leave.y - ShopSceneLayout.TABLE_FOOT)
+		-- Marlo's speech plate sits near his shoulder under the tabs, above the offers: the table starts below it
+		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
+		out.bubble = rect(out.marlo.x + out.marlo.w * 0.7, tabsBottom + 10, bubbleW, bubbleH)
+		local topLimit = out.bubble.y + out.bubble.h + 6
 		local avail = math.max(rightLimit - leftLimit, 80)
-		local tw = math.min(avail, W * 0.62)
+		local tw = math.min(avail, W * 0.62) * ShopSceneLayout.TABLE_WIDTH
 		local tx = leftLimit + (avail - tw) / 2
 		if noMarlo then tx = clamp(W / 2 - tw / 2, leftLimit, math.max(leftLimit, rightLimit - tw)) end -- no painted Marlo: centred on the stage
 		-- Client/ShopCards lists cards with 16 px between them and 14 px padding at each end of the row
@@ -283,9 +286,6 @@ function ShopSceneLayout.rects(W, H, counts)
 		for i, r in ipairs(out.offers) do
 			out.shadows[i] = rect(r.x + r.w * 0.1, r.y + r.h - 6, r.w * 0.8, 12) -- a soft oval under each Patron card
 		end
-		-- speech plate near Marlo's shoulder, above the offers
-		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
-		out.bubble = rect(out.marlo.x + out.marlo.w * 0.7, tabsBottom + 10, bubbleW, bubbleH)
 	else
 		local marloH = H * 0.24
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO

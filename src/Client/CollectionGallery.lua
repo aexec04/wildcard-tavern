@@ -132,17 +132,30 @@ end
 
 -- Hand-hung look, stable per Patron id: a tiny fixed tilt and a few px of vertical offset (applied to every piece of the tile,
 -- the grid owns the tile's own position). Hover straightens the frame, lifts it 3 px and sways it once; calm mode does it instantly.
+-- A tile is a direct child of the section's ScrollingFrame, and Roblox ignores Rotation there, so every piece of the tile moves into an inner
+-- full-size Tilt wrapper and the wrapper carries the angle (it is also what hover straightens). Returns { dy, tilt, target = the wrapper }.
 function CollectionGallery.hangTile(tile, id)
 	local h = Layout.hang(id)
-	tile.Rotation = h.tilt
+	local wrap = Instance.new("Frame")
+	wrap.Name = "Tilt"
+	wrap.Size = UDim2.fromScale(1, 1)
+	wrap.BackgroundTransparency = 1
+	wrap.BorderSizePixel = 0
+	wrap.Active = false
+	wrap.ZIndex = tile.ZIndex
 	for _, c in ipairs(tile:GetChildren()) do
-		if c:IsA("GuiObject") then c.Position = c.Position + UDim2.fromOffset(0, h.dy) end
+		if c:IsA("GuiObject") then
+			c.Position = c.Position + UDim2.fromOffset(0, h.dy)
+			c.Parent = wrap
+		end
 	end
-	return h
+	wrap.Parent = tile
+	wrap.Rotation = h.tilt
+	return { dy = h.dy, tilt = h.tilt, target = wrap }
 end
 
 function CollectionGallery.bindHover(tile, hang, target)
-	target = target or tile
+	target = target or hang.target or tile
 	local pieces = {}
 	for _, c in ipairs(target:GetChildren()) do
 		if c:IsA("GuiObject") and not c:GetAttribute("Static") then pieces[#pieces + 1] = { c = c, home = c.Position } end

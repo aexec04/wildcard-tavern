@@ -12,6 +12,7 @@
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("ShopSceneLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local SoftGlow = require(script.Parent.SoftGlow)
 
 local ShopBackdrop = {}
 
@@ -158,7 +159,8 @@ function ShopBackdrop.new(deps)
 	-- (colour stops only, never gradient transparency). Painted art (shop_table, from the held art task) replaces the rim and the felt
 	-- when it is recorded; the shadow stays. Created after the counter pieces, so the brass rail passes behind the table, and under the
 	-- cards.
-	local FELT_CENTER, FELT_EDGE = Color3.fromRGB(46, 74, 52), Color3.fromRGB(28, 48, 34)
+	-- a warm moss green (the first felt read as a cold teal once the set tint of the room lay over it)
+	local FELT_CENTER, FELT_EDGE = Color3.fromRGB(58, 82, 46), Color3.fromRGB(34, 54, 30)
 	local RIM_WOOD, RIM_LIGHT = Color3.fromRGB(120, 78, 44), Color3.fromRGB(176, 124, 76)
 	local function capsule(name, color, transparency)
 		local f = Instance.new("Frame")
@@ -205,7 +207,13 @@ function ShopBackdrop.new(deps)
 		horizontal.Rotation = 0
 		horizontal.Color = ramp(Color3.fromRGB(12, 22, 16), FELT_CENTER, Color3.fromRGB(12, 22, 16))
 		horizontal.Parent = tablePieces.shade
-		tablePieces.glow = capsule("TableFeltLight", Color3.fromRGB(255, 196, 110), 0.93) -- lantern light from the left
+		-- the lantern's light pool on the felt: many eased discs (Client/SoftGlow), so no edge shows, centred towards the lantern side
+		local pool = SoftGlow.build(root, {
+			name = "TableFeltLight", color = Color3.fromRGB(255, 196, 110), position = UDim2.fromOffset(0, 0), size = UDim2.fromOffset(10, 10),
+			peak = 0.12, zIndex = 6,
+		})
+		pool.root.Visible = false
+		tablePieces.glow = pool.root
 	end
 	self.tableTop = tableTop
 	self.tablePieces = tablePieces
@@ -227,7 +235,8 @@ function ShopBackdrop.new(deps)
 			if tablePieces.felt then
 				place(tablePieces.felt, f)
 				place(tablePieces.shade, f)
-				place(tablePieces.glow, { x = f.x + f.w * 0.08, y = f.y + f.h * 0.05, w = f.w * 0.5, h = f.h * 0.55 })
+				tablePieces.glow.Position = UDim2.fromOffset(f.x + f.w * 0.3, f.y + f.h * 0.4) -- centred (SoftGlow anchors at its middle)
+				tablePieces.glow.Size = UDim2.fromOffset(f.w * 0.62, f.h * 0.7)
 			end
 		end
 		-- no table on phones: their cards wrap in rows on the counter

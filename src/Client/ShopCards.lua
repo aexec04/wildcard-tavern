@@ -311,16 +311,22 @@ function ShopCards.new(deps)
 		slot:SetAttribute("TutorialKind", spec.kind)
 		slot:SetAttribute("TutorialPrice", spec.price or 0)
 
+		-- The slot is the LAYOUT root: a direct child of the row (a ScrollingFrame), where Roblox ignores Rotation. So the card is tilted on
+		-- an inner full-size wrapper, Tilt (ShopStage sets its Rotation to the card's angle; a hover turns it straight), and everything
+		-- the card is made of lives inside it.
+		local tilt = frame(slot, { Name = "Tilt", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 })
+		card.tilt = tilt
+
 		-- Shadow stays put while the card lifts, so the gap reads as height.
-		local shadow = frame(slot, { Position = UDim2.fromOffset(2, HEAD + 6), Size = UDim2.fromOffset(W - 4, shape.h),
+		local shadow = frame(tilt, { Position = UDim2.fromOffset(2, HEAD + 6), Size = UDim2.fromOffset(W - 4, shape.h),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.7 })
 		corner(shadow, 12)
 		-- a soft oval on the felt under the card's lower edge: the card lies on the table
-		local contact = frame(slot, { Name = "ContactShadow", Position = UDim2.fromOffset(math.floor(W * 0.08), HEAD + shape.h - 8),
+		local contact = frame(tilt, { Name = "ContactShadow", Position = UDim2.fromOffset(math.floor(W * 0.08), HEAD + shape.h - 8),
 			Size = UDim2.fromOffset(math.floor(W * 0.84), 18), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.62 })
 		corner(contact, 9)
 
-		local body = frame(slot, { Name = "Body", Position = UDim2.fromOffset(0, HEAD), Size = UDim2.fromOffset(W, shape.h),
+		local body = frame(tilt, { Name = "Body", Position = UDim2.fromOffset(0, HEAD), Size = UDim2.fromOffset(W, shape.h),
 			BackgroundColor3 = WOOD_DARK })
 		corner(body, 10)
 		stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
@@ -504,7 +510,7 @@ function ShopCards.new(deps)
 			if on then
 				if not still then
 					tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }, 0.14)
-					tween(slot, { Rotation = 0 }, 0.14) -- turn straight
+					tween(tilt, { Rotation = 0 }, 0.14) -- turn straight (the wrapper: a direct child of the row would ignore it)
 				end
 				tween(shadow, { BackgroundTransparency = 0.5 }, 0.14)
 				if not slow() then
@@ -514,7 +520,7 @@ function ShopCards.new(deps)
 			else
 				if not still then
 					tween(body, { Position = UDim2.fromOffset(0, HEAD) }, 0.16)
-					tween(slot, { Rotation = slot:GetAttribute("Tilt") or 0 }, 0.16) -- back to its own angle
+					tween(tilt, { Rotation = slot:GetAttribute("Tilt") or 0 }, 0.16) -- back to its own angle
 				end
 				tween(shadow, { BackgroundTransparency = 0.7 }, 0.16)
 			end

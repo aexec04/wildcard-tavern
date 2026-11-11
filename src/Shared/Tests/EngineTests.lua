@@ -43,6 +43,22 @@ local expectEqual = TestRunner.expectEqual
 local expectTrue = TestRunner.expectTrue
 local expectFalse = TestRunner.expectFalse
 
+-- Roblox ignores Rotation on a direct child of a ScrollingFrame (verified live: AbsoluteRotation stays 0). Lists "Scroll > Child (angle)" for
+-- every such child under `root` that carries a nonzero Rotation; a tilted card, tile or note must tilt an inner wrapper instead.
+local function scrollChildRotations(root)
+	local bad = {}
+	for _, d in ipairs(root:GetDescendants()) do
+		if d.ClassName == "ScrollingFrame" then
+			for _, kid in ipairs(d:GetChildren()) do
+				if kid:IsA("GuiObject") and (kid.Rotation or 0) ~= 0 then
+					bad[#bad + 1] = tostring(d.Name) .. " > " .. tostring(kid.Name) .. " (" .. tostring(kid.Rotation) .. ")"
+				end
+			end
+		end
+	end
+	return bad
+end
+
 local function C(rank, suit)
 	return Card.new(rank, suit)
 end
@@ -13779,7 +13795,7 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 				if not r.phone and r.fitted then -- (five offers cannot all keep their margin on a small table: the layout says so with fitted = false)
 					expectTrue(L.cardOnTable(r.table, o, L.cardTilt(i), L.TABLE_RIM + L.TABLE_MARGIN), "offer " .. i .. " lies on the felt with its margin " .. tag)
 				end
-				if not r.phone and counts.offers <= 3 then expectTrue(r.fitted, "up to three offers always fit the table " .. tag) end
+				if not r.phone and counts.offers <= 3 and W >= 900 then expectTrue(r.fitted, "up to three offers always fit the table " .. tag) end
 				for j, o2 in ipairs(r.offers) do
 					if j > i then expectTrue(not L.intersects(o, o2), "offers " .. i .. "/" .. j .. " apart " .. tag) end
 				end
@@ -13934,7 +13950,7 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
-	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true }
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
@@ -16558,6 +16574,8 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		for i = 1, 4 do
 			local slot = FakeGui.new("Frame")
 			slot.Name, slot.ZIndex, slot.Parent = "Card_" .. i, 6, i <= 2 and patronRow or packRow
+			local wrapper = FakeGui.new("Frame") -- the inner Tilt wrapper ShopCards builds: a direct child of a ScrollingFrame ignores Rotation
+			wrapper.Name, wrapper.ZIndex, wrapper.Parent = "Tilt", 6, slot
 			slots[i] = slot
 		end
 		local rerollRow = FakeGui.new("Frame")
@@ -16613,11 +16631,14 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 
 		-- the room: each dealt card lies at its own fixed angle; the props glow while the pointer is on them (never in calm mode)
 		local SL = require(Engine.ShopSceneLayout)
+		expectEqual(#scrollChildRotations(gui), 0, "no card is rotated directly in a ScrollingFrame row" .. where .. ": " .. table.concat(scrollChildRotations(gui), ", "))
 		for i, slot in ipairs(slots) do
-			expectEqual(slot.Rotation, SL.cardTilt(i), "card " .. i .. " lies at its fixed angle" .. where)
+			local wrapper = slot:FindFirstChild("Tilt")
+			expectTrue((slot.Rotation or 0) == 0, "card " .. i .. ": the slot (a direct child of a ScrollingFrame) is not rotated" .. where)
+			expectEqual(wrapper.Rotation, SL.cardTilt(i), "card " .. i .. " lies at its fixed angle, on its Tilt wrapper" .. where)
 			expectEqual(slot:GetAttribute("Tilt"), SL.cardTilt(i), "...and the slot remembers it for the hover" .. where)
-			expectTrue(math.abs(slot.Rotation) >= 3 and math.abs(slot.Rotation) <= 8, "...a visible angle, 3 to 8 degrees" .. where)
-			if i > 1 then expectTrue(slot.Rotation ~= slots[i - 1].Rotation, "...and not like its neighbour" .. where) end
+			expectTrue(math.abs(wrapper.Rotation) >= 3 and math.abs(wrapper.Rotation) <= 8, "...a visible angle, 3 to 8 degrees" .. where)
+			if i > 1 then expectTrue(wrapper.Rotation ~= slots[i - 1]:FindFirstChild("Tilt").Rotation, "...and not like its neighbour" .. where) end
 		end
 		local bellGlow, ledgerGlow = shopFrame:FindFirstChild("Glow_Reroll"), shopFrame:FindFirstChild("Glow_Haggle")
 		expectTrue(bellGlow ~= nil and ledgerGlow ~= nil, "both props have a glow" .. where)
@@ -16677,10 +16698,10 @@ table.insert(tests, { name = "The Counter's oval card table: a wide oval with a 
 				expectTrue(r.table ~= nil and r.felt ~= nil, "there is a table with felt" .. where)
 				expectTrue(SL.inside(r.table, r.area), "the table is inside the Counter" .. where)
 				expectTrue(r.table.w >= r.table.h * 1.2, "the table is a wide oval, not a square (" .. r.table.w .. " x " .. r.table.h .. ")" .. where)
-				-- a Counter has two Patron offers (sometimes a voucher) and two packs; more than that, or a voucher on the smallest window,
-				-- crowds the felt and the layout says so with fitted = false
-				local crowded = (W < 900 and nOffers >= 3) or nOffers >= 4 or nPacks >= 3
-				expectTrue(r.fitted or crowded, "two offers and two packs (three on a roomy window) always lie on the felt with their margin" .. where)
+				-- a Counter has two Patron offers (sometimes a voucher) and two packs; more than that crowds the felt, and so does the
+				-- smallest window (the table there is about 395 x 263): the layout says so with fitted = false
+				local crowded = W < 900 or nOffers >= 4 or nPacks >= 3
+				expectTrue(r.fitted or crowded, "two offers and two packs (three offers on a roomy window) always lie on the felt with their margin" .. where)
 				expectTrue(r.felt.x - r.table.x == SL.TABLE_RIM and r.felt.y - r.table.y == SL.TABLE_RIM, "the felt sits one rim width inside the table" .. where)
 				expectTrue(r.table.x + r.table.w - (r.felt.x + r.felt.w) == SL.TABLE_RIM, "...on the right too" .. where)
 				-- every card, turned by its own tilt, lies on the felt with its margin; a hovered one (straight, 6 px higher) stays on the table
@@ -16712,8 +16733,13 @@ table.insert(tests, { name = "The Counter's oval card table: a wide oval with a 
 				for name, other in pairs({ marlo = r.marlo, bell = r.props.bell, ledger = r.props.ledger, tabs = r.tabs, nextBoss = r.nextBoss, leave = r.leave }) do
 					expectFalse(SL.intersects(r.table, other), "the table does not touch the " .. name .. where)
 				end
-				-- the table's upper part overlaps the counter and its foot reaches the bottom band
-				expectTrue(r.table.y < r.counter.y and r.table.y + r.table.h > r.counter.y + r.counter.h * 0.5, "the table straddles the counter's back edge" .. where)
+				-- the table's upper part is over the counter's back edge, and its foot stays 30 px above the Next Round sign
+				expectTrue(r.table.y < r.counter.y and r.table.y + r.table.h > r.counter.y + 10, "the table straddles the counter's back edge" .. where)
+				expectTrue(r.table.y + r.table.h <= r.leave.y - SL.TABLE_FOOT, "the table's foot is at least 30 px above Next Round" .. where)
+				-- it is the 12 percent narrower table: well inside the room between Marlo and the bell, centred in it
+				local roomL, roomR = r.marlo.x + r.marlo.w + 2, r.props.bell.x - 6
+				expectTrue(r.table.w <= (roomR - roomL) * 0.9, "the table leaves room beside it (12 percent narrower)" .. where)
+				expectTrue(math.abs((r.table.x + r.table.w / 2) - (roomL + roomR) / 2) <= 2, "...and is centred in that room, under the offers" .. where)
 			end
 		end
 	end
@@ -16739,12 +16765,14 @@ table.insert(tests, { name = "ShopBackdrop draws an oval felt table with a wood 
 	local FakeGui = require(script.Parent.FakeGui)
 	local Engine = script.Parent.Parent.Engine
 	local SL = require(Engine.ShopSceneLayout)
-	local env, st = FakeGui.env({ stubs = { SmoothVignette = { build = function() end } } })
+	local stubs = { SmoothVignette = { build = function() end } }
+	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt) })
+			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve) })
 		end }
 	end }
+	stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env) -- the real soft light pool (many eased discs)
 	local ShopBackdrop = FakeGui.load("src/Client/ShopBackdrop.lua", env)
 	local gui = FakeGui.new("ScreenGui")
 	local shopFrame = FakeGui.new("Frame")
@@ -17293,19 +17321,25 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	for _, kid in ipairs(list:GetChildren()) do if kid.Name:sub(1, 5) == "Note_" then notes[#notes + 1] = kid end end
 	expectEqual(#notes, 3, "one pinned note per event (two on now, one coming)")
 	for _, note in ipairs(notes) do
-		local pin = note:FindFirstChild("Pin")
+		-- Roblox ignores Rotation on a direct child of a ScrollingFrame: the note in the list is an untilted layout root, its paper (Tilt) is tilted
+		expectTrue((note.Rotation or 0) == 0, note.Name .. " itself is not rotated (it is a direct child of the board's ScrollingFrame)")
+		local paper = note:FindFirstChild("Tilt")
+		expectTrue(paper ~= nil, note.Name .. " has its tilted paper")
+		local pin = paper:FindFirstChild("Pin")
 		expectTrue(pin ~= nil and pin.Position.Y.Offset < 0, note.Name .. " is held by a pin on its top edge")
-		expectTrue(math.abs(note.Rotation) <= 2, note.Name .. " hangs at a gentle angle")
-		expectEqual(note.Rotation, Layout.tiltFor(note.Name:sub(6)), note.Name .. " hangs the same way every time")
+		expectTrue(math.abs(paper.Rotation) <= 2, note.Name .. " hangs at a gentle angle")
+		expectEqual(paper.Rotation, Layout.tiltFor(note.Name:sub(6)), note.Name .. " hangs the same way every time")
 	end
+	expectEqual(#scrollChildRotations(panel), 0, "no note is rotated directly in the board's ScrollingFrame: " .. table.concat(scrollChildRotations(panel), ", "))
+	local function inside(note, name) return note:FindFirstChild("Tilt"):FindFirstChild(name) end
 	local feast = list:FindFirstChild("Note_feast_week")
-	expectEqual(feast:FindFirstChild("Title").Text, "Feast Week")
-	expectEqual(feast:FindFirstChild("Time").Text, "Ends in 3 days", "an event on now says when it ends")
-	expectEqual(list:FindFirstChild("Note_lantern"):FindFirstChild("Time").Text, "Last day")
-	expectEqual(list:FindFirstChild("Note_harvest"):FindFirstChild("Time").Text, "Starts in 2 days", "an event coming says when it starts")
-	expectTrue(list:FindFirstChild("Note_harvest"):FindFirstChild("Claim") == nil, "a coming event has no Claim")
+	expectEqual(inside(feast, "Title").Text, "Feast Week")
+	expectEqual(inside(feast, "Time").Text, "Ends in 3 days", "an event on now says when it ends")
+	expectEqual(inside(list:FindFirstChild("Note_lantern"), "Time").Text, "Last day")
+	expectEqual(inside(list:FindFirstChild("Note_harvest"), "Time").Text, "Starts in 2 days", "an event coming says when it starts")
+	expectTrue(inside(list:FindFirstChild("Note_harvest"), "Claim") == nil, "a coming event has no Claim")
 	-- Claim fires the same remote as before
-	local claim = feast:FindFirstChild("Claim")
+	local claim = inside(feast, "Claim")
 	expectTrue(claim ~= nil and claim.Text:find("Claim", 1, true) ~= nil, "an event with rewards has a Claim button")
 	claim.MouseButton1Click:Fire()
 	expectEqual(fired[1], "feast_week", "Claim fires ClaimLiveEvent with the event id")
@@ -17324,7 +17358,8 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	local only = {}
 	for _, kid in ipairs(list:GetChildren()) do if kid.Name:sub(1, 5) == "Note_" then only[#only + 1] = kid end end
 	expectEqual(#only, 1, "an empty board is still a board with one note")
-	expectTrue(only[1]:FindFirstChild("Text") ~= nil and only[1]:FindFirstChild("Text").Text:find("Nothing is on right now", 1, true) ~= nil, "...that says so")
+	local emptyText = inside(only[1], "Text")
+	expectTrue(emptyText ~= nil and emptyText.Text:find("Nothing is on right now", 1, true) ~= nil, "...that says so")
 	-- the banner line the Menu shows is unchanged
 	local icon, line, time = NewsPanel.bannerLine(news)
 	expectTrue(line == nil and icon == nil or true)
@@ -17576,6 +17611,20 @@ table.insert(tests, { name = "Collection: every section lists ALL of its entries
 		local items = CB.displayItems(tab.id, {})
 		expectEqual(#tiles, want[tab.id], tab.name .. ": one tile per definition")
 		expectEqual(#tiles, #items, tab.name .. ": one tile per listed entry")
+		-- Roblox ignores Rotation on a direct child of a ScrollingFrame: a tilted tile carries its angle on an inner Tilt wrapper
+		expectEqual(#scrollChildRotations(col.panel), 0, tab.name .. ": no tile is rotated directly in the section's ScrollingFrame: " .. table.concat(scrollChildRotations(col.panel), ", "))
+		if tab.id == "patrons" then
+			local tilted = 0
+			for _, tile in ipairs(tiles) do
+				local wrap = tile:FindFirstChild("Tilt")
+				expectTrue(wrap ~= nil, "Patron frame " .. tile.LayoutOrder .. " hangs on its Tilt wrapper")
+				if wrap then
+					expectTrue(math.abs(wrap.Rotation) <= 2, "...at a gentle angle")
+					if wrap.Rotation ~= 0 then tilted = tilted + 1 end
+				end
+			end
+			expectTrue(tilted > 0, "the Patron frames really hang at different angles")
+		end
 		local foundIds = {}
 		for _, id in ipairs(tab.id == "titles" and titles or discovered[tab.id] or {}) do foundIds[id] = true end
 		local locked, lit = 0, 0
@@ -17691,21 +17740,30 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 	end
 	local card, tweens, st = build(false)
 	local slot = card.slot
-	slot.Rotation = -5
+	-- the slot is the layout root in a ScrollingFrame row (it ignores Rotation there), the card is tilted on its inner wrapper
+	local wrapper = slot:FindFirstChild("Tilt")
+	expectTrue(wrapper ~= nil and wrapper == card.tilt and wrapper.Parent == slot, "the card has an inner Tilt wrapper")
+	expectTrue(wrapper.Size.X.Scale == 1 and wrapper.Size.Y.Scale == 1 and wrapper.BackgroundTransparency == 1, "...full size and transparent")
+	expectTrue(card.body.Parent == wrapper and slot:FindFirstChild("Body") == nil, "the card's body lives inside the wrapper, not in the row")
+	for _, kid in ipairs(slot:GetChildren()) do
+		expectTrue(kid == wrapper or kid.ClassName ~= "Frame", "nothing but the wrapper sits in the slot (a Frame beside it would not tilt)")
+	end
+	wrapper.Rotation = -5
 	slot:SetAttribute("Tilt", -5) -- ShopStage deals it like this
 	-- a soft oval shadow on the felt under the card's lower edge
-	local contact = slot:FindFirstChild("ContactShadow")
+	local contact = wrapper:FindFirstChild("ContactShadow")
 	expectTrue(contact ~= nil and contact.Active == false and contact.BackgroundTransparency >= 0.5, "the card has a soft contact shadow")
 	local c = contact:FindFirstChildOfClass("UICorner")
 	expectTrue(c ~= nil and c.CornerRadius.Offset * 2 >= contact.Size.Y.Offset, "...an oval (a pill as tall as its corners)")
 	expectTrue(contact.Size.Y.Offset <= 24 and contact.Size.X.Offset <= slot.Size.X.Offset, "...flat, and no wider than the card")
 	card.hit.MouseEnter:Fire()
-	local up, turn = lastTween(tweens, card.body), lastTween(tweens, slot)
+	local up, turn = lastTween(tweens, card.body), lastTween(tweens, wrapper)
 	expectTrue(up ~= nil and up.Position.Y.Offset == 16 - 6, "the hovered card lifts 6 px (from 16 to 10)")
-	expectTrue(turn ~= nil and turn.Rotation == 0, "...and turns straight")
+	expectTrue(turn ~= nil and turn.Rotation == 0, "...and its Tilt wrapper turns straight")
+	expectEqual(lastTween(tweens, slot), nil, "the slot itself is never tweened (a direct child of the row ignores it)")
 	card.hit.MouseLeave:Fire()
 	st.runDelays() -- the leave settles 0.06 s later
-	up, turn = lastTween(tweens, card.body), lastTween(tweens, slot)
+	up, turn = lastTween(tweens, card.body), lastTween(tweens, wrapper)
 	expectTrue(up.Position.Y.Offset == 16, "leaving puts it back down")
 	expectEqual(turn.Rotation, -5, "...and back to its own angle")
 	-- calm mode: the card stays exactly where it lies
@@ -17715,7 +17773,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 	calmCard.hit.MouseLeave:Fire()
 	calmState.runDelays()
 	expectEqual(lastTween(calmTweens, calmCard.body), nil, "calm mode: no lift")
-	expectEqual(lastTween(calmTweens, calmCard.slot), nil, "calm mode: no turn")
+	expectEqual(lastTween(calmTweens, calmCard.tilt), nil, "calm mode: no turn")
 	-- the source says the same
 	local f = io.open("src/Client/ShopCards.lua", "r")
 	local src = f:read("*a")

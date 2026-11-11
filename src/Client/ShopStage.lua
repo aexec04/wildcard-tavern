@@ -317,7 +317,8 @@ function ShopStage.new(deps)
 		placeControls(r)
 
 		-- Once the row layout has settled, every card lies on the felt at its own visible, fixed angle, as if dealt by hand (-5, +4, -3,
-		-- +6 by slot): the same each visit, calm mode included. The slot keeps its angle in the Tilt attribute, because Client/ShopCards
+		-- +6 by slot): the same each visit, calm mode included. The angle goes on the card's inner Tilt wrapper (Roblox ignores Rotation
+		-- on a direct child of a ScrollingFrame, which a Card_ slot is); the slot keeps it in its Tilt attribute, because Client/ShopCards
 		-- straightens the card while the pointer is on it and turns it back afterwards. The cards lie still (no bob): a card on a table
 		-- does not float; each one carries its own soft shadow (ShopCards).
 		task.defer(function()
@@ -325,11 +326,12 @@ function ShopStage.new(deps)
 			local dealt = 0
 			for _, row in ipairs({ parts.patronRow, parts.packRow }) do
 				for _, slot in ipairs(row and row:GetChildren() or {}) do
-					if slot:IsA("Frame") and slot.Name ~= "SoldSpot" then
+					local wrapper = slot:IsA("Frame") and slot.Name ~= "SoldSpot" and slot:FindFirstChild("Tilt") or nil
+					if wrapper then
 						dealt += 1
-						local tilt = Layout.cardTilt(dealt)
-						slot.Rotation = tilt
-						slot:SetAttribute("Tilt", tilt)
+						local angle = Layout.cardTilt(dealt)
+						wrapper.Rotation = angle
+						slot:SetAttribute("Tilt", angle)
 					end
 				end
 			end

@@ -149,16 +149,25 @@ end
 -- size and scaled about its centre, tilted by its fixed per-event angle.
 local function buildNote(rect, entry, scale)
 	local row = entry.row
+	-- The root sits in the board's ScrollingFrame, where Roblox ignores Rotation on a direct child: it only places and scales the note.
+	-- The paper is its inner Tilt frame, and the tilt is on that.
+	local root = Instance.new("Frame")
+	root.Name = "Note_" .. tostring(entry.id)
+	root.AnchorPoint = Vector2.new(0.5, 0.5)
+	root.Position = UDim2.fromOffset(rect.x + rect.w / 2, rect.y + rect.h / 2)
+	root.Size = UDim2.fromOffset(Layout.NOTE_W, rect.h / scale)
+	root.BackgroundTransparency = 1
+	root.BorderSizePixel = 0
+	root.ZIndex = 32
+	root.Parent = ui.list
 	local note = Instance.new("Frame")
-	note.Name = "Note_" .. tostring(entry.id)
-	note.AnchorPoint = Vector2.new(0.5, 0.5)
-	note.Position = UDim2.fromOffset(rect.x + rect.w / 2, rect.y + rect.h / 2)
-	note.Size = UDim2.fromOffset(Layout.NOTE_W, rect.h / scale)
+	note.Name = "Tilt"
+	note.Size = UDim2.fromScale(1, 1)
 	note.Rotation = rect.tilt
 	note.BackgroundColor3 = entry.kind == "soon" and PAPER_SOON or PAPER
 	note.BorderSizePixel = 0
 	note.ZIndex = 32
-	note.Parent = ui.list
+	note.Parent = root
 	ui.roundCorner(note, 4)
 	local edge = Instance.new("UIStroke")
 	edge.Color = Color3.fromRGB(150, 118, 72)
@@ -168,7 +177,7 @@ local function buildNote(rect, entry, scale)
 	if scale ~= 1 then
 		local s = Instance.new("UIScale")
 		s.Scale = scale
-		s.Parent = note
+		s.Parent = root
 	end
 	local pin = Instance.new("Frame") -- the pin holds the note to the cork, on its top edge, clear of the text
 	pin.Name = "Pin"
