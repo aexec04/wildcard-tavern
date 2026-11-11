@@ -11,5 +11,6 @@ return {
 	["shop_light_pool"] = "rbxassetid://86060482506004",
 	["shop_marlo_behind"] = "rbxassetid://106144373711439",
 	["shop_marlo_wave"] = "rbxassetid://98238109368177",
+	["shop_table"] = "rbxassetid://74414987897069",
 	["shop_wall"] = "rbxassetid://126299265758911",
 }

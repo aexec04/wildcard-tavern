@@ -14,6 +14,7 @@ return {
 	["badge_nameplate"] = "rbxassetid://76855750518081",
 	["badge_night_sky"] = "rbxassetid://104173162663572",
 	["badge_ribbon_banner"] = "rbxassetid://126926483756490",
+	["badge_room"] = "rbxassetid://109280517838418",
 	["badge_shelf_rail"] = "rbxassetid://84154135538816",
 	["badge_spotlight"] = "rbxassetid://86102155838929",
 	["badge_velvet_board"] = "rbxassetid://114703465757801",

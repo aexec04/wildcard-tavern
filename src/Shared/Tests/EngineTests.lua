@@ -14139,7 +14139,7 @@ table.insert(tests, { name = "CollectionSceneLayout: New ids diff, lantern flick
 	expectTrue(math.abs(L.dropOffset(0.01, false, false)) <= L.DROP_PX, "drop starts within 24 px")
 	expectTrue(L.MAX_ANIMATED <= 10, "at most 10 animated objects")
 	local Art = require(script.Parent.Parent.Engine.CollectionSceneArt)
-	local known = { collection_wall = true, collection_frame_owned = true, collection_frame_empty = true, collection_corkboard = true, collection_trophy_shelf = true, collection_key_rack = true, collection_nameplate_shelf = true, collection_chest_closed = true, collection_chest_open = true, collection_moth = true, collection_dust_cloth = true }
+	local known = { collection_wall = true, collection_frame_owned = true, collection_frame_empty = true, collection_corkboard = true, collection_trophy_shelf = true, collection_key_rack = true, collection_nameplate_shelf = true, collection_chest_closed = true, collection_chest_open = true, collection_moth = true, collection_dust_cloth = true, collection_room = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/CollectionWall.lua", "r")
 	if f then

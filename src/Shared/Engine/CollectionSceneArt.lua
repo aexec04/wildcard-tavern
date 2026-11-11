@@ -15,6 +15,7 @@ return {
 	["collection_key_rack"] = "rbxassetid://93971711987710",
 	["collection_moth"] = "rbxassetid://116550021577095",
 	["collection_nameplate_shelf"] = "rbxassetid://135244707665753",
+	["collection_room"] = "rbxassetid://120291750785295",
 	["collection_trophy_shelf"] = "rbxassetid://119862281413783",
 	["collection_wall"] = "rbxassetid://97780361861033",
 }
