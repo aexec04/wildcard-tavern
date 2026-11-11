@@ -13813,6 +13813,27 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 	expectEqual(n, 2, "phone wraps into two rows")
 end })
 
+table.insert(tests, { name = "ShopSceneLayout: 1 to 4 offers and packs sit fully inside the stage band, right of Marlo, with room for the row padding", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1560, 1080 }, { 1280, 720 }, { 1000, 720 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		for n = 1, 4 do
+			local r = L.rects(W, H, { offers = n, packs = 2 })
+			if not r.phone then
+				for i, o in ipairs(r.offers) do
+					assert(o.x >= r.bandX0 + L.ROW_PAD and o.x + o.w <= r.bandX1 - L.ROW_PAD, "offer " .. i .. " of " .. n .. " leaves the band at " .. W .. "x" .. H)
+					assert(L.inside(o, r.area), "offer outside stage")
+					assert(not L.intersects(o, r.marlo), "offer " .. i .. " of " .. n .. " overlaps Marlo at " .. W .. "x" .. H)
+				end
+				for i, k in ipairs(r.packs) do
+					assert(k.x >= r.bandX0 + L.ROW_PAD and k.x + k.w <= r.bandX1 - L.ROW_PAD, "pack " .. i .. " leaves the band")
+					assert(not L.intersects(k, r.marlo), "pack overlaps Marlo")
+				end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: My Patrons / My Recipes rows stay in the zone right of Marlo, clear of tabs, Next Round and each other", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	local expect = expectTrue

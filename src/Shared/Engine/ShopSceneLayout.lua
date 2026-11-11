@@ -24,6 +24,7 @@ ShopSceneLayout.LIFT_PX = 6          -- extra lift on hover
 ShopSceneLayout.BOB_PX = 5           -- gentle bob amplitude
 ShopSceneLayout.BOB_PERIOD = 3.5     -- seconds
 ShopSceneLayout.MARLO_RATIO = 0.75   -- width / height of shop_marlo_behind (3:4)
+ShopSceneLayout.ROW_GAP, ShopSceneLayout.ROW_PAD = 16, 14 -- Client/ShopCards row: gap between cards, padding at each end
 ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
@@ -100,17 +101,20 @@ function ShopSceneLayout.rects(W, H, counts)
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
 		out.marlo = rect(W * 0.03, counterY + counterH * 0.10 - marloH, marloW, marloH)
 
-		local x0 = out.marlo.x + out.marlo.w * (1 - ShopSceneLayout.HOVER_OVERLAP * 0.9)
+		-- offers start right of Marlo's rect (his hand reaches the edge of it), never over him
+		local x0 = out.marlo.x + out.marlo.w + 8
 		local x1 = W * 0.86
 		if counts and counts.noMarlo then
 			-- no painted Marlo: centre offers and packs on the whole stage width
 			x0, x1 = W * 0.08, W * 0.92
 		end
 		out.bandX0, out.bandX1 = math.floor(x0 + 0.5), math.floor(x1 + 0.5)
-		local gap = clamp(W * 0.012, 8, 24)
+		-- Client/ShopCards lists cards with 16 px between them and 14 px padding at each end of the row, so the cards
+		-- must fit the band minus that padding or the last one is clipped.
+		local gap, pad = ShopSceneLayout.ROW_GAP, ShopSceneLayout.ROW_PAD
 		local maxCardH = H * 0.42
 		local n = math.max(nOffers, 1)
-		local cardW = math.min((x1 - x0 - gap * (n - 1)) / n, maxCardH * ShopSceneLayout.CARD_RATIO)
+		local cardW = math.min((x1 - x0 - 2 * pad - gap * (n - 1)) / n, maxCardH * ShopSceneLayout.CARD_RATIO)
 		local cardH = cardW / ShopSceneLayout.CARD_RATIO
 		local rowW = cardW * n + gap * (n - 1)
 		local startX = x0 + ((x1 - x0) - rowW) / 2
@@ -123,7 +127,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		end
 		-- packs rest on the counter in front of the Patrons
 		local packH = counterH * 0.5
-		local packW = math.min(packH * 0.8, (x1 - x0 - gap * (math.max(nPacks, 1) - 1)) / math.max(nPacks, 1))
+		local packW = math.min(packH * 0.8, (x1 - x0 - 2 * pad - gap * (math.max(nPacks, 1) - 1)) / math.max(nPacks, 1))
 		packH = packW / 0.8
 		local packRow = packW * nPacks + gap * (math.max(nPacks, 1) - 1)
 		local px = x0 + ((x1 - x0) - packRow) / 2
