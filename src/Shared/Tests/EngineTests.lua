@@ -13353,16 +13353,19 @@ table.insert(tests, { name = "BadgeWallLayout: grid tabs share columns and rows;
 			expectTrue(nRows <= rows, chip .. " uses at most " .. rows .. " aligned rows at " .. size[1] .. "x" .. size[2])
 			expectTrue(nCols <= math.ceil(#lay.items / rows), chip .. " rows share the same columns at " .. size[1] .. "x" .. size[2])
 		end
+		-- Roads: every medal hangs ON the map at its stop (Wall.ROAD_STOPS, fractions of the board), along one road left to right
 		local roads = W.layout("Roads", nil, size[1], size[2])
-		for _, it in ipairs(roads.items) do
+		local list = W.members("Roads")
+		for i, it in ipairs(roads.items) do
 			expectEqual(it.size, roads.items[1].size, "Roads badges share one size")
-		end
-		for i = 2, #roads.items do
-			expectTrue(roads.items[i].x > roads.items[i - 1].x, "Roads badges follow one path left to right")
-			expectEqual(roads.items[i].y, roads.items[i - 1].y, "the Roads medals hang in one straight row")
-			local gapA = roads.items[i].x - roads.items[i - 1].x
-			local gapB = roads.items[2].x - roads.items[1].x
-			expectTrue(math.abs(gapA - gapB) <= 1, "equal spacing along the map")
+			local stop = W.ROAD_STOPS[list[i].region]
+			expectTrue(stop ~= nil, list[i].region .. " has a stop on the map")
+			expectTrue(math.abs(it.x + it.size / 2 - stop[1] * size[1]) <= 1 and math.abs(it.y + it.size / 2 - stop[2] * size[2]) <= 1,
+				list[i].id .. " is centred on its stop at " .. size[1] .. "x" .. size[2])
+			if i > 1 then
+				expectTrue(it.x > roads.items[i - 1].x, "Roads badges follow one path left to right")
+				expectTrue(it.y ~= roads.items[i - 1].y, "...zigzagging between an upper and a lower row, so plates never touch a neighbour")
+			end
 		end
 	end
 end })
@@ -17718,6 +17721,199 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 	local src = f:read("*a")
 	f:close()
 	expectTrue(src:find("local LIFT = 6", 1, true) ~= nil, "the lift is 6 px")
+end })
+
+-- ===== The Badges panel is a trophy room: four hotspots, the Roads medals hang on the map (2026-11-11) =====
+local function badgeWindows() -- the panel and the area under the quiet row, at the three window sizes
+	local Engine = script.Parent.Parent.Engine
+	local BRL, RS = require(Engine.BadgeRoomLayout), require(Engine.ResponsiveLayout)
+	local out = {}
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local f = RS.badgesPanel(vp[1], vp[2])
+		local W, H = f.w, math.max(f.h, math.floor(vp[2] * 0.84)) -- BadgesPanel sizes the panel like this
+		out[#out + 1] = { name = vp[1] .. "x" .. vp[2], vp = vp, W = W, H = H, P = BRL.panel(W, H) }
+	end
+	return out
+end
+
+table.insert(tests, { name = "BadgeRoomLayout: four shelves with their counts, and the plaque, quiet row, room and Close stack without overlap, hotspots inside the room and apart (three sizes)", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local BRL, B, W = require(Engine.BadgeRoomLayout), require(Engine.Badges), require(Engine.BadgeWallLayout)
+	expectEqual(#BRL.SECTIONS, #B.Chips - 1, "one hotspot per shelf: All is the room itself")
+	for i, s in ipairs(BRL.SECTIONS) do expectEqual(s.id, B.Chips[i + 1], "section " .. i .. " is the " .. tostring(s.id) .. " shelf") end
+	local none = W.sectionCounts({})
+	expectEqual(none.Roads.total, 8, "eight road badges")
+	expectEqual(none.Masters.total, 8, "eight master badges")
+	expectEqual(none.Night.total, 4, "four Night badges")
+	expectEqual(none.Special.total, 12, "twelve special badges")
+	expectEqual(none.Roads.total + none.Masters.total + none.Night.total + none.Special.total, #B.Definitions, "the four shelves hold all 32 badges")
+	local some = W.sectionCounts({ biome_meadow = true, biome_river = true, night_3 = true, wins_1 = true, wins_5 = true, wins_25 = true })
+	expectTrue(some.Roads.found == 2 and some.Night.found == 1 and some.Special.found == 3 and some.Masters.found == 0, "earned badges count on their own shelf")
+	expectEqual(BRL.plateText("Roads", 2, 8), "Roads 2/8")
+	for _, win in ipairs(badgeWindows()) do
+		local P, where = win.P, " (" .. win.name .. ", panel " .. win.W .. "x" .. win.H .. ")"
+		local list = { "plaque", "tabs", "area", "close" }
+		for _, name in ipairs(list) do
+			expectTrue(BRL.inside(P[name], win.W, win.H) and P[name].w > 0 and P[name].h > 0, name .. " is inside the panel" .. where)
+		end
+		for i = 1, #list do
+			for j = i + 1, #list do expectFalse(BRL.intersects(P[list[i]], P[list[j]]), list[i] .. " and " .. list[j] .. " do not overlap" .. where) end
+		end
+		expectTrue(P.plaque.h <= 48 and P.plaque.w <= 360, "the header is a small plaque" .. where)
+		expectTrue(P.tabs.h <= 28, "the tab row is a quiet row of small plates" .. where)
+		expectTrue(P.area.h >= 150, "the room has height to work with" .. where)
+		local R = BRL.rects(P.area.w, P.area.h)
+		expectEqual(#R.order, 4, "four hotspots" .. where)
+		for _, id in ipairs(R.order) do
+			local s = R.spots[id]
+			for _, part in ipairs({ "object", "plate", "hit" }) do
+				expectTrue(BRL.inside(s[part], P.area.w, P.area.h) and s[part].w > 0 and s[part].h > 0, id .. " " .. part .. " is inside the room" .. where)
+			end
+			expectTrue(s.object.h >= 40 and s.plate.h >= 24 and s.plate.w >= 140, id .. " object and plate are big enough" .. where)
+		end
+		for i = 1, #R.order do
+			for j = i + 1, #R.order do
+				expectFalse(BRL.intersects(R.spots[R.order[i]].hit, R.spots[R.order[j]].hit), R.order[i] .. " and " .. R.order[j] .. " do not overlap" .. where)
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Badge walls: every badge has a socket and a plate inside its wall, none overlap, and the Roads medals hang on the map at their stops (three sizes)", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local W, B = require(Engine.BadgeWallLayout), require(Engine.Badges)
+	local function apart(a, b) return a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y end
+	for _, win in ipairs(badgeWindows()) do
+		local bw, bh = win.P.area.w, win.P.area.h
+		local seen = {}
+		for _, chip in ipairs({ "Roads", "Masters", "Night", "Special" }) do
+			local lay = W.layout(chip, nil, bw, bh)
+			local where = " (" .. chip .. " wall " .. bw .. "x" .. bh .. " at " .. win.name .. ")"
+			local boxes = {}
+			for _, it in ipairs(lay.items) do
+				seen[it.id] = (seen[it.id] or 0) + 1
+				local s, pr = W.socketRect(it), W.plateRect(it)
+				local plate = { x = it.x + pr.x, y = it.y + W.plateY(it), w = pr.w, h = pr.h }
+				expectTrue(s.x >= 0 and s.y >= 0 and s.x + s.w <= bw and s.y + s.h <= bh, it.id .. " socket is inside its wall" .. where)
+				expectTrue(plate.x >= 0 and plate.y >= 0 and plate.x + plate.w <= bw and plate.y + plate.h <= bh, it.id .. " nameplate is inside its wall" .. where)
+				boxes[#boxes + 1] = { id = it.id, socket = s, plate = plate }
+				if chip == "Roads" then
+					local pin = W.pinFor(it)
+					expectTrue(pin.y - W.PIN / 2 >= 0 and pin.x >= 0 and pin.x <= bw, it.id .. " pin is on the map" .. where)
+				end
+			end
+			for i = 1, #boxes do
+				for j = i + 1, #boxes do
+					local a, b = boxes[i], boxes[j]
+					expectTrue(apart(a.socket, b.socket), a.id .. " and " .. b.id .. " sockets do not overlap" .. where)
+					expectTrue(apart(a.socket, b.plate) and apart(b.socket, a.plate), a.id .. " and " .. b.id .. ": a plate never covers a neighbour's socket" .. where)
+					expectTrue(apart(a.plate, b.plate), a.id .. " and " .. b.id .. " plates do not overlap" .. where)
+				end
+			end
+		end
+		for _, def in ipairs(B.Definitions) do expectEqual(seen[def.id], 1, def.id .. " hangs on exactly one wall at " .. win.name) end
+	end
+end })
+
+table.insert(tests, { name = "Badges panel (real, on the fake Roblox) opens on the trophy room: four hotspots with counts, a wooden plaque, quiet plates; a click zooms into the wall; Escape steps back", fn = function()
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/BadgesPanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local BS = require(script.Parent.BadgeScene)
+	local Engine = script.Parent.Parent.Engine
+	local W, B, BRL = require(Engine.BadgeWallLayout), require(Engine.Badges), require(Engine.BadgeRoomLayout)
+	local scene = BS.build({ badgeIds = { "biome_meadow", "biome_river", "wins_1" } })
+	scene.open()
+	expectTrue(scene.backdrop.Visible and scene.room.Visible, "the Badges panel opens on the trophy room")
+	expectFalse(scene.board.Visible, "the wall waits behind it")
+	local want = { Roads = "Roads 2/8", Masters = "Masters 0/8", Night = "Night 0/4", Special = "Special 1/12" }
+	for shelf, text in pairs(want) do
+		local hot = scene.hotspot(shelf)
+		expectTrue(hot ~= nil, shelf .. " has a hotspot")
+		local surface = hot:FindFirstChild("Surface")
+		expectTrue(surface ~= nil and surface.ClassName == "TextButton", shelf .. " hotspot takes the click")
+		expectEqual(hot:FindFirstChild("NamePlate"):FindFirstChild("Label").Text, text, shelf .. " plate carries its count")
+	end
+	-- the small wooden plaque
+	local plaque = scene.plaque
+	expectTrue(plaque ~= nil and plaque.Size.Y.Offset <= 48 and plaque.Size.X.Offset <= 360, "the header is a small plaque")
+	local count
+	for _, c in ipairs(plaque:GetChildren()) do
+		if c.ClassName == "TextLabel" and c.Text:find("earned", 1, true) then count = c end
+	end
+	expectTrue(count ~= nil and count.Text == "3 of 32 earned", "the plaque says how many are earned")
+	local wood = plaque.BackgroundColor3
+	expectTrue(wood.R > wood.G and wood.G > wood.B, "the plaque is wood")
+	-- the quiet row of small plates
+	local plates = {}
+	for _, c in ipairs(scene.quiet:GetChildren()) do
+		if c.ClassName == "TextButton" then plates[#plates + 1] = c end
+	end
+	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+	expectEqual(#plates, 5, "a room plate and one per shelf")
+	expectEqual(plates[1].Text, "< Room")
+	for i, name in ipairs({ "Roads", "Masters", "Night", "Special" }) do expectEqual(plates[i + 1].Text, name, "quiet plate " .. (i + 1)) end
+	for _, p in ipairs(plates) do expectTrue(p.TextSize >= 14 and p.Size.Y.Offset <= 28, p.Text .. " is a small plate") end
+	-- zoom into every wall: every badge of the shelf hangs on it, in a socket, with its plate
+	for _, win in ipairs(badgeWindows()) do
+		scene.resize(win.vp[1], win.vp[2])
+		for _, chip in ipairs({ "Roads", "Masters", "Night", "Special" }) do
+			scene.open()
+			scene.resize(win.vp[1], win.vp[2])
+			scene.pick(chip)
+			local where = " (" .. chip .. " at " .. win.name .. ")"
+			expectTrue(scene.board.Visible and not scene.room.Visible, "the wall replaces the room" .. where)
+			for _, def in ipairs(W.members(chip)) do
+				local holder = scene.board:FindFirstChild("Badge_" .. def.id)
+				expectTrue(holder ~= nil, def.id .. " hangs on the wall" .. where)
+				expectTrue(scene.board:FindFirstChild("Socket_" .. def.id) ~= nil, def.id .. " has its socket" .. where)
+				local plate = holder and holder:FindFirstChild("Nameplate")
+				expectTrue(plate ~= nil and plate:FindFirstChildOfClass("TextLabel").Text == W.plateText(def, false), def.id .. " nameplate shows the whole name" .. where)
+			end
+			if chip == "Roads" then
+				local pins, dots = 0, 0
+				for _, c in ipairs(scene.board:GetChildren()) do
+					if c.Name == "Pin" then pins = pins + 1 elseif c.Name == "PathDot" then dots = dots + 1 end
+				end
+				expectEqual(pins, 8, "one pin on the map per road stop" .. where)
+				expectTrue(dots >= 14, "a dotted road runs between the stops" .. where)
+			end
+			expectTrue(scene.step(), "Escape leaves the wall for the room" .. where)
+			expectTrue(scene.room.Visible and not scene.board.Visible, "...and shows the room" .. where)
+		end
+	end
+	expectEqual(#scene.state.warns, 0, "nothing warned: " .. table.concat(scene.state.warns, " | "))
+	-- Escape: the detail card first, then the wall, then the room, then the panel closes
+	scene.open()
+	expectFalse(scene.step(), "in the room Escape has nothing to step back from, so it closes the panel")
+	scene.pick("Special")
+	scene.board:FindFirstChild("Badge_wins_1"):FindFirstChild("Hit").MouseButton1Click:Fire()
+	expectTrue(scene.detail.Visible, "a click on a medal opens its card")
+	expectTrue(scene.step() and not scene.detail.Visible and scene.board.Visible, "Escape closes the card first")
+	expectTrue(scene.step() and scene.room.Visible, "the next Escape returns to the room")
+	-- a quiet plate zooms in, the room plate comes back
+	local function plate(text)
+		for _, c in ipairs(scene.quiet:GetChildren()) do
+			if c.ClassName == "TextButton" and c.Text == text then return c end
+		end
+	end
+	plate("Night").MouseButton1Click:Fire()
+	expectTrue(scene.board.Visible and not scene.room.Visible, "a quiet plate zooms into its wall")
+	plate("< Room").MouseButton1Click:Fire()
+	expectTrue(scene.room.Visible and not scene.board.Visible, "the room plate returns")
+	scene.pick("Roads")
+	scene.open()
+	expectTrue(scene.room.Visible and not scene.board.Visible, "the panel always opens on the room")
+	-- reading the room: a New tag on the shelf that holds a badge not yet looked at
+	scene.latest.badgeIds = { "biome_meadow", "biome_river", "wins_1", "night_3" }
+	scene.open()
+	expectTrue(scene.hotspot("Night"):FindFirstChild("NewTag").Visible, "a newly earned Night badge shows New on its shelf")
+	expectFalse(scene.hotspot("Roads"):FindFirstChild("NewTag").Visible, "...and only there")
+	local f = io.open("src/Client/BadgesPanel.lua", "r")
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('setStep("badges", stepBack)', 1, true) ~= nil, "the panel registers its Escape step")
 end })
 
 table.insert(tests, { name = "Collection room and section area: inside the panel, clear of the title, quiet row, filter plate and Close at three window sizes, hotspots match the layout", fn = function()

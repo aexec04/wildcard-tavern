@@ -310,7 +310,9 @@ function BadgeWall.render(board, chip, have, opts)
 			local ax, ay, bx, by = a.x + a.size / 2, a.y + a.size / 2, b.x + b.size / 2, b.y + b.size / 2
 			local ra, rb = Wall.socketRect(a).w / 2, Wall.socketRect(b).w / 2
 			if chip == "Roads" then
-				-- pins and strings (below) carry the Roads tab; no trail between the sockets
+				-- the road itself: a dotted trail from stop to stop across the map, lit once both ends are earned (the pins and
+				-- strings below hold the medals)
+				pathDots(board, Wall.dots(ax, ay, bx, by, ra, rb, 14), seg.lit)
 			else -- Night: a thin constellation line that starts and ends on the star nodes
 				local t = Wall.trim(ax, ay, bx, by, ra, rb)
 				if t then line(board, { x = t.x1, y = t.y1 }, { x = t.x2, y = t.y2 }, seg.lit, calm()) end
@@ -360,6 +362,11 @@ end
 
 function BadgeWall.animated()
 	return #sweeps > 0 or #pulses > 0
+end
+
+-- Earned badges the wall has not shown yet (the trophy room puts a New tag on their shelf; zooming in marks them seen).
+function BadgeWall.freshIds(have)
+	return Wall.fresh(seenIds, have)
 end
 
 return BadgeWall

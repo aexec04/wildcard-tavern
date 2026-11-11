@@ -21,6 +21,15 @@ Wall.FURNITURE_ART = { cabinet = "badge_cabinet", map_board = "badge_map_board",
 
 local ROAD_ORDER = { "meadow", "river", "peaks", "desert", "swamp", "snow", "coast", "tavern" }
 
+-- Where each road stop sits ON the pinned map, as fractions { x, y } of the board (the centre of its medal). The road runs from the
+-- Meadow at the left to the Tavern at the right, zigzagging between an upper and a lower row.
+Wall.ROAD_UPPER, Wall.ROAD_LOWER = 0.30, 0.66
+Wall.ROAD_STOPS = {
+	meadow = { 0.12, Wall.ROAD_LOWER }, river = { 0.2286, Wall.ROAD_UPPER }, peaks = { 0.3371, Wall.ROAD_LOWER },
+	desert = { 0.4457, Wall.ROAD_UPPER }, swamp = { 0.5543, Wall.ROAD_LOWER }, snow = { 0.6629, Wall.ROAD_UPPER },
+	coast = { 0.7714, Wall.ROAD_LOWER }, tavern = { 0.88, Wall.ROAD_UPPER },
+}
+
 -- Badge definitions that belong on a tab, in display order (the registry order, or road order on Roads and Masters).
 function Wall.members(chip, defs)
 	defs = defs or Badges.Definitions
@@ -94,15 +103,17 @@ function Wall.layout(chip, defs, w, h)
 	local items = {}
 	local shelves = {}
 	if chip == "Roads" then
-		-- one straight row with equal spacing, low on the map so the painted figure above stays clear; a pin and a short string
-		-- hang directly above every medal (Wall.pinFor)
+		-- The road map: every stop is a pin ON the map at its place in Wall.ROAD_STOPS (fractions of the board), the medal hanging from
+		-- it on a short string (Wall.pinFor) with its name plate under it. The stops zigzag between an upper and a lower row, so a
+		-- plate never touches a neighbour's socket, and a dotted trail runs from stop to stop.
+		local stops = {}
+		for i, d in ipairs(list) do stops[i] = Wall.ROAD_STOPS[d.region] or { 0.5, 0.5 } end
 		local n = #list
-		local step = (w * 0.94) / math.max(1, n)
-		local size = math.floor(math.max(16, math.min(step * 0.76, (h * 0.62 - Wall.NAMEPLATE_H - Wall.PIN_ROOM) / Wall.SOCKET)))
-		local pad = Wall.pad(size)
-		local top = math.floor(h - 14 - Wall.NAMEPLATE_H - size - pad) -- badge top: the nameplate ends 14 px above the board bottom
+		local stepX = n > 1 and (stops[n][1] - stops[1][1]) * w / (n - 1) or w * 0.2
+		local rowSep = h * (Wall.ROAD_LOWER - Wall.ROAD_UPPER)
+		local size = math.floor(math.max(16, math.min(stepX * 0.78, (rowSep - Wall.NAMEPLATE_H - 6) / Wall.SOCKET)))
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = math.floor(w * 0.03 + (i - 1) * step + (step - size) / 2), y = top, size = size, cell = step }
+			items[i] = { id = d.id, x = math.floor(w * stops[i][1] - size / 2), y = math.floor(h * stops[i][2] - size / 2), size = size, cell = 2 * stepX }
 		end
 	elseif chip == "Masters" then
 		local row = {}
@@ -288,19 +299,32 @@ function Wall.segment(ax, ay, bx, by)
 	return { x = (ax + bx) / 2, y = (ay + by) / 2, length = math.sqrt(dx * dx + dy * dy), rotation = math.deg(math.atan(dy, dx)) }
 end
 
--- Header plate of the Badges panel: a solid plate with the title, the count line and a slim progress bar inside it.
--- Rects are in the panel's local pixels; no art is stretched (the plate is a flat colour with a gold line).
+-- Header plaque of the Badges panel: a small wooden plaque with the title, the count line and a slim progress bar inside it.
+-- Rects are in the panel's local pixels; no art is stretched (the plaque is a flat colour with a brass line).
 function Wall.header(panelW, panelH)
-	local plateW = math.floor(panelW * 0.6)
-	local plateH = 62
+	local plateW = math.min(360, math.floor(panelW * 0.6))
+	local plateH = 48
 	local pad = 14
 	return {
 		plate = { x = math.floor((panelW - plateW) / 2), y = 6, w = plateW, h = plateH },
-		title = { x = 0, y = 4, w = plateW, h = 24 },
-		count = { x = 0, y = 28, w = plateW, h = 18 },
-		bar = { x = pad, y = 50, w = plateW - 2 * pad, h = 6 },
+		title = { x = 0, y = 1, w = plateW, h = 22 },
+		count = { x = 0, y = 23, w = plateW, h = 17 },
+		bar = { x = pad, y = 41, w = plateW - 2 * pad, h = 5 },
 		heightFraction = plateH / panelH,
 	}
+end
+
+-- Earned and total per shelf of the trophy room ("Roads 2/8"): { Roads = { found, total }, Masters, Night, Special }.
+function Wall.sectionCounts(have)
+	local out = {}
+	for _, chip in ipairs({ "Roads", "Masters", "Night", "Special" }) do
+		local list, found = Wall.members(chip), 0
+		for _, d in ipairs(list) do
+			if have[d.id] == true then found = found + 1 end
+		end
+		out[chip] = { found = found, total = #list }
+	end
+	return out
 end
 
 return Wall

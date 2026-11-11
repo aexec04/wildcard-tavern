@@ -1,8 +1,11 @@
 --[[
 	Client/BadgesPanel.lua
-	The Badge trophy wall, opened from the Collection group tabs. A ribbon banner with "x of 32 earned" and a thin
-	progress rail, filter tabs (All, Roads, Masters, Night, Special: Badges.chipOf) and a wall board whose furniture
-	changes per tab (Client/BadgeWall.lua draws it, Engine/BadgeWallLayout.lua places it). Click a badge for a detail
+	The Badge trophy room, opened from the Collection group tabs. It opens on a room (Client/BadgeRoom.lua, geometry in
+	Engine/BadgeRoomLayout.lua): a small wooden plaque with "x of 32 earned" and a thin progress rail, and four objects on the
+	walls (the pinned road map, the velvet board, the night window, the shelves; Badges.chipOf says which badge hangs where), each a
+	hotspot with a name plate and its count ("Roads 2/8"). A click zooms into that object's wall (Client/BadgeWall.lua draws the
+	medals on it, Engine/BadgeWallLayout.lua places them: the Roads medals hang on the map at their stops); the "< Room" plate in
+	the quiet row of small plates, or Escape, goes back. Click a badge for a detail
 	card (large art, requirement, how to earn it, what it does, Equip / Unequip, VIP second-slot star). One equipped badge
 	is shown beside the player's name on the leaderboards and the results screen (EquipBadge remote; the server refuses a
 	badge that is not owned).
@@ -27,6 +30,8 @@ return function(deps)
 	local RarityFrame = require(script.Parent.RarityFrame)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local BadgeWall = require(script.Parent.BadgeWall)
+	local BadgeRoom = require(script.Parent.BadgeRoom) -- the trophy room the panel opens on
+	local RoomLayout = require(Engine:WaitForChild("BadgeRoomLayout")) -- the panel's vertical order and the room's hotspots
 	local EquipRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EquipBadge")
 
 	local polishPanel, polishButton = deps.polishPanel, deps.polishButton
@@ -83,12 +88,12 @@ return function(deps)
 	polishPanel(panel, 16, "parchment")
 	deps.addSoftShadow(panel, 18)
 
-	-- ribbon banner header: title, "x of 32 earned" and a thin progress rail
+	-- the small wooden plaque in the room: title, "x of 32 earned" and a thin progress rail (BadgeWallLayout.header places it)
 	local banner = Instance.new("Frame")
-	banner.Name = "HeaderPlate" -- solid warm plate with a thin gold line; positioned by BadgeWallLayout.header (placeHeader)
+	banner.Name = "HeaderPlate" -- solid wood plaque with a thin brass line; positioned by BadgeWallLayout.header (placeHeader)
 	banner.Position = UDim2.fromOffset(0, 6)
-	banner.Size = UDim2.new(0.6, 0, 0, 62)
-	banner.BackgroundColor3 = Color3.fromRGB(46, 34, 24)
+	banner.Size = UDim2.new(0.6, 0, 0, 48)
+	banner.BackgroundColor3 = Color3.fromRGB(86, 58, 34)
 	banner.BorderSizePixel = 0
 	banner.ZIndex = 44
 	banner.Parent = panel
@@ -97,12 +102,12 @@ return function(deps)
 	bannerStroke.Color = GOLD
 	bannerStroke.Thickness = 1.5
 	bannerStroke.Parent = banner
-	local titleLabel = label(banner, { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), Font = Enum.Font.GothamBold, TextSize = 20, Text = "Badges", ZIndex = 46 })
-	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 28), Font = Enum.Font.GothamMedium, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(214, 198, 164) })
-	local rail = Instance.new("Frame") -- slim progress bar inside the plate: gold fill on a dark track
+	local titleLabel = label(banner, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 1), Font = Enum.Font.GothamBold, TextSize = 18, Text = "Badges", ZIndex = 46 })
+	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 17), Position = UDim2.fromOffset(0, 23), Font = Enum.Font.GothamMedium, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(226, 210, 176) })
+	local rail = Instance.new("Frame") -- slim progress bar inside the plaque: gold fill on a dark track
 	rail.Name = "ProgressTrack"
-	rail.Position = UDim2.fromOffset(14, 50)
-	rail.Size = UDim2.new(1, -28, 0, 6)
+	rail.Position = UDim2.fromOffset(14, 41)
+	rail.Size = UDim2.new(1, -28, 0, 5)
 	rail.BackgroundColor3 = Color3.fromRGB(24, 17, 12)
 	rail.BorderSizePixel = 0
 	rail.ZIndex = 45
@@ -124,32 +129,49 @@ return function(deps)
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeHeader)
 	placeHeader()
 
-	-- filter tabs
+	-- The panel opens on the trophy room (activeChip "All"); a click on one of its four objects zooms into that shelf's wall
+	-- (activeChip Roads, Masters, Night or Special), and the "< Room" plate or Escape returns. The quiet row of small plates is for
+	-- the keyboard and for phones.
 	local activeChip = "All"
+	local showSection, showRoom -- assigned below
 	local chipButtons = {}
 	local chipRow = Instance.new("Frame")
-	chipRow.Size = UDim2.new(1, -30, 0, 28)
-	chipRow.Position = UDim2.fromOffset(15, 70)
+	chipRow.Name = "QuietTabs"
+	chipRow.Size = UDim2.new(1, -2 * RoomLayout.SIDE, 0, RoomLayout.TABS.h)
+	chipRow.Position = UDim2.fromOffset(RoomLayout.SIDE, RoomLayout.TABS.y)
 	chipRow.BackgroundTransparency = 1
 	chipRow.ZIndex = 41
 	chipRow.Parent = panel
 	local chipLayout = Instance.new("UIListLayout")
 	chipLayout.FillDirection = Enum.FillDirection.Horizontal
 	chipLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	chipLayout.Padding = UDim.new(0, 8)
+	chipLayout.Padding = UDim.new(0, 6)
 	chipLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	chipLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	chipLayout.Parent = chipRow
 
-	-- the wall board; furniture and badges are built by BadgeWall.render
+	-- the zoomed wall board; furniture and badges are built by BadgeWall.render (hidden while the room shows)
 	local board = Instance.new("Frame")
 	board.Name = "WallBoard"
-	board.Position = UDim2.fromOffset(15, 106)
-	board.Size = UDim2.new(1, -30, 1, -152)
+	board.Position = UDim2.fromOffset(RoomLayout.SIDE, RoomLayout.AREA_TOP)
+	board.Size = UDim2.new(1, -2 * RoomLayout.SIDE, 1, -(RoomLayout.AREA_TOP + RoomLayout.FOOTER))
 	board.BackgroundTransparency = 1
 	board.BorderSizePixel = 0
 	board.ClipsDescendants = true
 	board.ZIndex = 41
+	board.Visible = false
 	board.Parent = panel
+
+	-- the trophy room: four objects, each a hotspot with its count
+	local room = BadgeRoom.new({
+		parent = panel, zIndex = 42,
+		names = { Roads = "Roads", Masters = "Masters", Night = "Night", Special = "Special" },
+		onPick = function(chip)
+			playClickSfx(0.4)
+			showSection(chip)
+		end,
+	})
+	room.frame.Position, room.frame.Size = board.Position, board.Size
 
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(110, 30)
@@ -318,32 +340,82 @@ return function(deps)
 		for _, entry in ipairs(chipButtons) do
 			entry.button.BackgroundColor3 = (entry.name == activeChip) and Color3.fromRGB(150, 115, 50) or BROWN
 		end
+		-- the room: the count on every plate, and a New tag on the shelf that holds a badge you have not looked at yet
+		local sz = panel.AbsoluteSize
+		local area = RoomLayout.panel(sz.X > 0 and sz.X or 600, sz.Y > 0 and sz.Y or 400).area
+		room.layout(area.w, area.h)
+		local fresh = {}
+		for _, id in ipairs(BadgeWall.freshIds(have)) do
+			local def = Badges.getById(id)
+			if def then
+				local chip = Badges.chipOf(def)
+				fresh[chip] = (fresh[chip] or 0) + 1
+			end
+		end
+		room.update(Wall.sectionCounts(have), fresh)
+		if activeChip == "All" then
+			stopLoop() -- nothing in the room animates
+			return
+		end
 		BadgeWall.render(board, activeChip, have, {
 			equippedId = equippedId, secondId = secondId, onPick = showDetail, tooltip = deps.addTooltip,
 		})
 		startLoop()
 	end
 
-	for i, name in ipairs(Badges.Chips) do
+	-- which view shows: "All" is the room, anything else the zoomed wall of that shelf
+	local function setView(chip)
+		activeChip = chip
+		detail.Visible = false
+		room.frame.Visible = chip == "All"
+		board.Visible = chip ~= "All"
+		refresh()
+	end
+	showSection = setView
+	showRoom = function() setView("All") end
+	-- Escape (PopupDismiss `step`): close the detail card first, then leave a wall for the room; false = nothing to step back from
+	local function stepBack()
+		if detail.Visible then
+			detail.Visible = false
+			return true
+		end
+		if activeChip ~= "All" then
+			showRoom()
+			return true
+		end
+		return false
+	end
+
+	for i, name in ipairs(Badges.Chips) do -- "All" is the room itself, so its plate reads "< Room"
 		local c = Instance.new("TextButton")
+		c.Name = "Tab_" .. name
 		c.LayoutOrder = i
-		c.Size = UDim2.fromOffset(84, 28)
+		c.AutomaticSize = Enum.AutomaticSize.X
+		c.Size = UDim2.fromOffset(0, RoomLayout.TABS.h - 2)
 		c.Font = Enum.Font.GothamBold
 		c.TextSize = 14
 		c.TextColor3 = CREAM
 		c.TextTransparency = 0
 		c.TextStrokeTransparency = 1
 		c.BackgroundColor3 = BROWN
-		c.Text = name
+		c.BorderSizePixel = 0
+		c.Text = name == "All" and "< Room" or name
 		c.ZIndex = 42
 		c.Parent = chipRow
-		roundCorner(c, 14)
+		roundCorner(c, 6)
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 10)
+		pad.PaddingRight = UDim.new(0, 10)
+		pad.Parent = c
+		local rim = Instance.new("UIStroke")
+		rim.Color = Color3.fromRGB(110, 90, 54)
+		rim.Thickness = 1
+		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		rim.Parent = c
 		table.insert(chipButtons, { name = name, button = c })
 		c.MouseButton1Click:Connect(function()
 			playClickSfx(0.4)
-			activeChip = name
-			detail.Visible = false
-			refresh()
+			if activeChip ~= name then setView(name) end
 		end)
 	end
 
@@ -360,6 +432,7 @@ return function(deps)
 	end)
 
 	require(script.Parent.PanelTabs).attach(backdrop, "badges", deps.playClickSfx, panel) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).setStep("badges", stepBack) -- Escape: detail card, then the wall, then the room, then close
 	OverlayManager.register("badges", function()
 		stopLoop()
 		detail.Visible = false
@@ -372,7 +445,10 @@ return function(deps)
 		task.spawn(function()
 			ContentArt.preload({ { "badges" } }, "badges") -- a lazy category: warm it as the wall opens
 		end)
+		activeChip = "All" -- the trophy room is always the first view
 		detail.Visible = false
+		room.frame.Visible = true
+		board.Visible = false
 		refresh()
 		popIn(backdrop, panel)
 		task.defer(function() if backdrop.Visible then refresh() end end) -- sized now that the panel is shown

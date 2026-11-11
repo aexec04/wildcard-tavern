@@ -68,6 +68,7 @@ function CollectionScene.build(opts)
 	stubs.PanelTabs = { attach = noop, setStep = function(id, fn) steps[id] = fn end }
 	stubs.CollectionGallery = FakeGui.load("src/Client/CollectionGallery.lua", env)
 	stubs.CollectionFurniture = FakeGui.load("src/Client/CollectionFurniture.lua", env)
+	stubs.RoomHotspots = FakeGui.load("src/Client/RoomHotspots.lua", env)
 	stubs.CollectionRoom = FakeGui.load("src/Client/CollectionRoom.lua", env)
 
 	local latest = {
