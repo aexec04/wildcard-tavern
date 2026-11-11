@@ -18571,6 +18571,33 @@ table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the pa
 	end
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout.plateFit: long plate names wrap to two lines at 14 px and keep their top, short ones stay on one", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	local P = RL.panel(993, 585, 24, nil, "section")
+	local names = { "Frequent Visitor Card", "Regulars' Discount", "Wholesale Pricing", "Savings Account", "Grand Opening", "Regulars' Round", "Three's Company", "House Minimum", "Tip Jar" }
+	for _, id in ipairs({ "housePasses", "patrons", "bosses" }) do
+		local p = L.place(id, P.area.w, P.area.h, 1)
+		if p and p.ok then
+			for _, s in ipairs(p.slots) do
+				if s.plate then
+					for _, n in ipairs(names) do
+						local r, lines = L.plateFit(n, s.plate)
+						expectTrue(lines == 1 or lines == 2, n .. " gets one or two lines")
+						expectEqual(r.y, s.plate.y, "plate top stays put")
+						if lines == 2 then expectTrue(r.h >= 2 * L.PLATE_TEXT, n .. " two line plate is tall enough") end
+					end
+				end
+			end
+		end
+	end
+	expectTrue(L.PLATE_TEXT >= 14, "plate text never below 14")
+	local _, l1 = L.plateFit("Tip Jar", { x = 0, y = 0, w = 120, h = 24 })
+	expectEqual(l1, 1)
+	local _, l2 = L.plateFit("Frequent Visitor Card", { x = 0, y = 0, w = 100, h = 24 })
+	expectEqual(l2, 2)
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8), paging and filtered paging, slots inside the area and apart at three sizes and a phone, the picture is never stretched", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)

@@ -176,6 +176,18 @@ function M.place(tabId, areaW, areaH, pages)
 	return out
 end
 
+-- name plates never truncate: a name that does not fit on one line at 14 px wraps to two (never below 14), the plate growing
+-- downward from its top edge. Returns the plate rect to use and the line count. Width per char is an upper estimate for GothamBold.
+M.PLATE_TEXT = 14
+function M.plateFit(name, plate)
+	local perChar = M.PLATE_TEXT * 0.62
+	local usable = math.max(1, plate.w - 8)
+	local oneLine = #tostring(name) * perChar <= usable
+	if oneLine then return plate, 1 end
+	local h = math.max(plate.h, 2 * M.PLATE_TEXT + 8)
+	return { x = plate.x, y = plate.y, w = plate.w, h = h }, 2
+end
+
 -- the picture's edges that lie INSIDE the view (the side wall shows beyond them) and so get a feather of `px` pixels:
 -- { rect = the picture clipped to the view, edges = { left = fraction of the rect's width, ... } }; nil when the picture fills the view
 function M.feather(p, px)

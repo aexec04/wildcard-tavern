@@ -181,10 +181,10 @@ function CollectionSection.new(opts)
 			local ink, transparency = inkOf(BRASS_RGB, not info.found)
 			local plate = make("TextButton", frame, {
 				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
-				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextTruncate = Enum.TextTruncate.AtEnd,
+				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextWrapped = true,
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
-			rect(plate, slot.plate)
+			rect(plate, (Layout.plateFit(info.name, slot.plate)))
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -213,10 +213,10 @@ function CollectionSection.new(opts)
 			local ink, transparency = inkOf(BRASS_RGB, not info.found)
 			local plate = make("TextButton", frame, {
 				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
-				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextTruncate = Enum.TextTruncate.AtEnd,
+				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextWrapped = true,
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
-			rect(plate, slot.plate)
+			rect(plate, (Layout.plateFit(info.name, slot.plate)))
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
