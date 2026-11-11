@@ -67,21 +67,26 @@ local function paintButton(btn, imageId, box, rect)
 	btn.BackgroundTransparency = 1
 
 	local F = PlayTableLayout.FACE
-	local pad = ensure(btn, "UIPadding", "PlateFace", 1)
+	-- No UIPadding on the button: it would also shrink the PlatePaint picture and the hidden HudFace (children of the button),
+	-- which showed only the top bar or a dark box. The label is its own child placed on the board face by hand.
 	local top, bottom = math.floor(rect.h * F.y + 0.5), math.floor(rect.h * (1 - F.y - F.h) + 0.5)
 	local side = math.floor(rect.w * F.x + 0.5)
-	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, top), UDim.new(0, bottom)
-	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, side), UDim.new(0, side)
-
-	btn.TextScaled = true
-	local cap = ensure(btn, "UITextSizeConstraint", "PlateTextSize", 1)
+	local old = btn:FindFirstChild("PlateFace")
+	if old then old:Destroy() end
+	local lab = ensure(btn, "TextLabel", "PlateLabel", 3)
+	lab.BackgroundTransparency = 1
+	lab.Font = btn.Font
+	lab.Text = btn.Text
+	lab.TextScaled = true
+	lab.TextColor3 = CREAM
+	lab.Position = UDim2.fromOffset(side, top)
+	lab.Size = UDim2.new(1, -2 * side, 1, -(top + bottom))
+	local cap = ensure(lab, "UITextSizeConstraint", "PlateTextSize", 1)
 	cap.MinTextSize, cap.MaxTextSize = 14, 26
-	local ts = ensure(btn, "UIStroke", "PlateTextStroke", 1)
+	local ts = ensure(lab, "UIStroke", "PlateTextStroke", 1)
 	ts.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	ts.Color, ts.Thickness, ts.Transparency = INK, 2, 0
-	ts.Enabled = true
-	btn.TextColor3 = CREAM
-	btn.TextStrokeTransparency = 1 -- the stroke is the UIStroke above
+	btn.TextTransparency, btn.TextStrokeTransparency = 1, 1
 
 	local hover = ensure(btn, "Frame", "PlateHover", 2)
 	hover.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -103,10 +108,10 @@ local function paintButton(btn, imageId, box, rect)
 			image.Position = UDim2.fromOffset(0, dy)
 			image.ImageColor3 = state.pressed and Color3.fromRGB(190, 190, 190) or Color3.new(1, 1, 1)
 		end
-		local pd = btn:FindFirstChild("PlateFace")
-		if pd then
-			pd.PaddingTop = UDim.new(0, top + dy)
-			pd.PaddingBottom = UDim.new(0, math.max(0, bottom - dy))
+		local lb = btn:FindFirstChild("PlateLabel")
+		if lb then
+			lb.Position = UDim2.fromOffset(side, top + dy)
+			lb.TextTransparency = dim and 0.5 or 0
 		end
 		local h = btn:FindFirstChild("PlateHover")
 		if h then
@@ -120,14 +125,14 @@ local function paintButton(btn, imageId, box, rect)
 	btn.MouseButton1Up:Connect(function() state.pressed = false look() end)
 	local face = btn:FindFirstChild("HudFace")
 	if face then face:GetPropertyChangedSignal("BackgroundTransparency"):Connect(look) end
-	-- the set theme and hover code recolour the text; keep it cream while the plate is on
-	btn:GetPropertyChangedSignal("TextColor3"):Connect(function()
-		if btn:GetAttribute("PlatePainted") and btn.TextColor3 ~= CREAM then btn.TextColor3 = CREAM end
+	btn:GetPropertyChangedSignal("Text"):Connect(function()
+		local lb = btn:FindFirstChild("PlateLabel")
+		if lb then lb.Text = btn.Text end
 	end)
 end
 
 local function restoreButton(btn, w, h)
-	for _, n in ipairs({ "PlatePaint", "PlateFace", "PlateTextSize", "PlateTextStroke", "PlateHover" }) do
+	for _, n in ipairs({ "PlatePaint", "PlateFace", "PlateLabel", "PlateHover" }) do
 		local o = btn:FindFirstChild(n)
 		if o then o:Destroy() end
 	end
@@ -138,6 +143,7 @@ local function restoreButton(btn, w, h)
 	local rim = btn:FindFirstChildOfClass("UIStroke")
 	if rim then rim.Enabled = true end
 	btn.TextScaled = false
+	btn.TextTransparency, btn.TextStrokeTransparency = 0, 0
 	btn.Size = UDim2.new(0, w, 1, 0)
 end
 

@@ -18842,7 +18842,33 @@ table.insert(tests, { name = "PlayTableLayout.placement: hand stands on the rail
 	end
 end })
 
-table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3, width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
+table.insert(tests, { name = "PlayTableLayout plates: Play Hand and Discard equal height, each rect keeps its box aspect, whole sign inside the Actions row", fn = function()
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 } }) do
+		local p = PT.placement(sz[1], sz[2], 260, 150)
+		expectTrue(p ~= nil, "placement at " .. sz[1])
+		if p then
+			local pl = p.map.plates
+			expectTrue(math.abs(pl.play.h - pl.discard.h) <= 1, "equal height at " .. sz[1])
+			for _, k in ipairs({ "sort", "play", "discard" }) do
+				local b = PT.PLATE_BOXES[k]
+				expectTrue(math.abs(pl[k].w / pl[k].h - b.w / b.h) < 0.03, k .. " keeps its aspect at " .. sz[1])
+				expectTrue(pl[k].h >= 40, k .. " is a whole sign, not a strip")
+				expectTrue(pl[k].y >= p.actions.y and pl[k].y + pl[k].h <= p.actions.y + p.actions.h, k .. " inside the Actions row")
+			end
+		end
+	end
+	if io and io.open then
+		local f = io.open("src/Client/PlayPlates.lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(not src:find('"UIPadding"', 1, true), "no UIPadding on plate buttons (it shrinks the picture child)")
+		end
+	end
+end })
+
+table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3,width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
 	expectFalse(PB.usable(390))
 	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 1000, 600 } }) do
