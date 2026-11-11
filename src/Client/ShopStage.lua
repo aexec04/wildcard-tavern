@@ -4,10 +4,10 @@
 	(Client/ShopBackdrop) using the tested rects of Engine/ShopSceneLayout. Look only: it never changes a handler, price,
 	remote or rule; it moves and restyles what Shop.lua already built.
 
-	  * Shop tab: the Buy list stops being a scrolling list. Section headers hide, the Patron row floats above the counter
-	    (one gentle shared bob, 5 px, 3.5 s, off in calm mode) with a soft oval shadow under every card on the counter,
-	    the Pack row rests on the counter, the Reroll button becomes the service bell with a brass price tag, the table
-	    count sits on the counter front.
+	  * Shop tab: the Buy list stops being a scrolling list. Section headers hide, the Patron row and the smaller Pack row lie on
+	    the oval card table (Engine/ShopSceneLayout `table`), every card at its own fixed angle (-5, +4, -3, +6 by slot; the slot
+	    keeps it in its Tilt attribute), the Reroll button becomes the service bell with a name plate, the table count sits on
+	    the counter front.
 	  * Haggle becomes the ledger on the counter, the tabs become slim plates along the top, the Next boss chip sits
 	    under them, Next Round is the sign at the bottom right.
 	  * My Patrons / My Recipes keep their panels on a calm dark plate over the dimmed scene.
@@ -20,7 +20,6 @@
 	  stage.keepOut() -> the controls a Counter tooltip must stay clear of
 ]]
 
-local TweenService = game:GetService("TweenService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("ShopSceneLayout"))
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -116,7 +115,6 @@ function ShopStage.new(deps)
 	local shopFrame, buyList = deps.shopFrame, deps.buyList
 	local self = { active = true }
 	local last = nil -- last parts handed to arrange
-	local tweens = {}
 
 	-- The warm glow behind a prop (the Menu room's hover look), made once per prop and moved with the layout; hidden until the
 	-- pointer is on the control, and never lit in calm mode.
@@ -216,11 +214,6 @@ function ShopStage.new(deps)
 		return Layout.cardScales(Layout.rects(W, H, lastCounts))
 	end
 
-	local function cancelTweens()
-		for _, t in ipairs(tweens) do pcall(function() t:Cancel() end) end
-		tweens = {}
-	end
-
 	-- Controls that live directly on shopFrame (tabs, Next Round, Haggle, boss chip, speech bubble).
 	local function placeControls(r)
 		if deps.tabBar then
@@ -257,7 +250,6 @@ function ShopStage.new(deps)
 
 	function self.arrange(parts)
 		last = parts
-		cancelTweens()
 		local W, H = size()
 		if parts.counts then lastCounts = parts.counts end
 		local r = Layout.rects(W, H, lastCounts)
@@ -324,56 +316,22 @@ function ShopStage.new(deps)
 
 		placeControls(r)
 
-		-- shadows and the gentle bob, once the row layout has settled
+		-- Once the row layout has settled, every card lies on the felt at its own visible, fixed angle, as if dealt by hand (-5, +4, -3,
+		-- +6 by slot): the same each visit, calm mode included. The slot keeps its angle in the Tilt attribute, because Client/ShopCards
+		-- straightens the card while the pointer is on it and turns it back afterwards. The cards lie still (no bob): a card on a table
+		-- does not float; each one carries its own soft shadow (ShopCards).
 		task.defer(function()
 			if not parts.patronRow or not parts.patronRow.Parent then return end
-			-- every card lies at its own small fixed angle, as if dealt by hand: the same each visit (calm mode included)
 			local dealt = 0
 			for _, row in ipairs({ parts.patronRow, parts.packRow }) do
 				for _, slot in ipairs(row and row:GetChildren() or {}) do
 					if slot:IsA("Frame") and slot.Name ~= "SoldSpot" then
 						dealt += 1
-						slot.Rotation = Layout.cardTilt(dealt)
+						local tilt = Layout.cardTilt(dealt)
+						slot.Rotation = tilt
+						slot:SetAttribute("Tilt", tilt)
 					end
 				end
-			end
-			for _, old in ipairs(buyList:GetChildren()) do
-				if old.Name == "OfferShadow" then old:Destroy() end
-			end
-			local origin = buyList.AbsolutePosition
-			local shadows = {}
-			for _, slot in ipairs(parts.patronRow:GetChildren()) do
-				if slot:IsA("Frame") and slot.Name ~= "SoldSpot" and slot.AbsoluteSize.X > 0 then
-					local sh = Instance.new("Frame")
-					sh.Name = "OfferShadow"
-					sh.AnchorPoint = Vector2.new(0.5, 0.5)
-					local cx = slot.AbsolutePosition.X - origin.X + slot.AbsoluteSize.X / 2
-					sh.Position = UDim2.fromOffset(cx, r.surfaceY - 4)
-					sh.Size = UDim2.fromOffset(slot.AbsoluteSize.X * 0.8, 14)
-					sh.BackgroundColor3 = Color3.fromRGB(8, 5, 3)
-					sh.BackgroundTransparency = 0.55
-					sh.BorderSizePixel = 0
-					sh.Active = false
-					sh.ZIndex = 6
-					sh.Parent = buyList
-					local c = Instance.new("UICorner")
-					c.CornerRadius = UDim.new(0.5, 0)
-					c.Parent = sh
-					shadows[#shadows + 1] = sh
-				end
-			end
-			if calm() or ClientSettings.get("animSpeed") == "fast" then return end
-			local info = TweenInfo.new(Layout.BOB_PERIOD / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-			local row = parts.patronRow
-			local y = row.Position.Y.Offset
-			local t = TweenService:Create(row, info, { Position = UDim2.fromOffset(row.Position.X.Offset, y - Layout.BOB_PX) })
-			t:Play()
-			tweens[#tweens + 1] = t
-			local fade = Layout.shadowFor(Layout.BOB_PX)
-			for _, sh in ipairs(shadows) do
-				local st = TweenService:Create(sh, info, { BackgroundTransparency = fade.transparency })
-				st:Play()
-				tweens[#tweens + 1] = st
 			end
 		end)
 	end
@@ -398,9 +356,7 @@ function ShopStage.new(deps)
 		if shopFrame.Visible then self.relayout() end
 	end)
 	shopFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if not shopFrame.Visible then
-			cancelTweens()
-		elseif last then
+		if shopFrame.Visible and last then
 			self.relayout()
 		end
 	end)

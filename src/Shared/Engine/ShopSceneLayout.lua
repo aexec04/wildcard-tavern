@@ -7,11 +7,13 @@
 	rects(W, H, counts) -> {
 	  phone, area, wall, counter, surfaceY,          surfaceY = the counter's worn top surface line (items rest on it)
 	  marlo,                                         painted Marlo (3:4), feet hidden behind the counter
-	  offers = { rect... },                          Patron cards, hover HOVER_PX above surfaceY, one gentle arc
-	  shadows = { rect... },                         soft oval contact shadow per offer, on the counter surface
-	  packs = { rect... },                           packs rest ON the counter in front of the Patrons (no hover)
+	  offers = { rect... },                          Patron cards lying on the table in one row (a card is turned by cardTilt)
+	  shadows = { rect... },                         soft oval contact shadow per offer, under its lower edge
+	  packs = { rect... },                           smaller packs lying on the table under the Patrons
 	  props = { bell, ledger, mug, candle },         bell = Reroll, ledger = Haggle; mug and candle are decor (nil on phones)
-	  table,                                         the round card table every offer and pack lies on (nil on phones)
+	  table, felt, fitted,                           the oval card table (its wood rim) and the felt inside it; every card, turned by its
+	                                                 tilt, is inside the felt with TABLE_MARGIN to spare, which `fitted` says (false only
+	                                                 when many cards crowd a small window). All nil on phones.
 	  light,                                         warm light pool on the counter
 	  tabs, nextBoss, leave, bubble                  controls and Marlo's speech plate
 	}
@@ -30,11 +32,21 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
-ShopSceneLayout.TABLE_PAD = 8        -- felt around the spread on the round card table
 
--- A hand-dealt look: every card lies at its own small fixed angle (degrees, at most 2), the same every visit. Offers use
--- index 1 to n, packs n + 1 on, so neighbours never lean the same way.
-local TILTS = { -1.6, 1.1, -0.7, 1.7, -1.2, 0.8, -1.9, 1.4 }
+-- The round card table: a wide oval (a rounded rectangle with half-circle ends, the same shape as the Menu room's felt table) with a
+-- wood rim; every card lies on the felt, TABLE_MARGIN clear of the rim.
+ShopSceneLayout.TABLE_RIM = 14       -- width of the wood rim around the felt (px; 12 to 16)
+ShopSceneLayout.TABLE_MARGIN = 18    -- clear felt between a card and the rim (px)
+ShopSceneLayout.TABLE_ASPECT = 1.5   -- table width over height: wide, never a square
+ShopSceneLayout.TABLE_EDGE = 8       -- gap between the table and the foot of the screen
+ShopSceneLayout.PACK_RATIO = 0.8     -- width / height of a pack's rect
+ShopSceneLayout.PACK_SHARE = 0.6     -- a pack is this share of a Patron card's width: packs lie smaller
+ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
+ShopSceneLayout.READABLE_SCALE = 0.5 -- the table grows taller on a small window until its Patron cards reach this card scale
+
+-- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +6 by slot. Offers
+-- use slot 1 to n, packs go on from n + 1, so neighbours never lean the same way.
+local TILTS = { -5, 4, -3, 6 }
 function ShopSceneLayout.cardTilt(index)
 	return TILTS[((math.max(1, math.floor(index)) - 1) % #TILTS) + 1]
 end
@@ -73,11 +85,120 @@ function ShopSceneLayout.isPhone(W, H)
 	return W < 600 or W < H
 end
 
-local function lerpArc(i, n, amp)
-	if n <= 1 then return -amp end
-	local mid = (n + 1) / 2
-	local t = (i - mid) / (mid - 1)
-	return -amp * (1 - t * t) -- centre cards ride higher, the ends sit lower
+-- The four corners of rect r turned by deg degrees about its centre (how a tilted card sits).
+function ShopSceneLayout.corners(r, deg)
+	local cx, cy = r.x + r.w / 2, r.y + r.h / 2
+	local t = math.rad(deg or 0)
+	local c, s = math.cos(t), math.sin(t)
+	local out = {}
+	for i, d in ipairs({ { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } }) do
+		local dx, dy = d[1] * r.w / 2, d[2] * r.h / 2
+		out[i] = { x = cx + dx * c - dy * s, y = cy + dx * s + dy * c }
+	end
+	return out
+end
+
+-- Is the point inside the table (a rounded rectangle whose ends are half circles of radius h / 2), shrunk by `inset` px all round?
+-- inset = TABLE_RIM gives the felt, TABLE_RIM + TABLE_MARGIN the area a card may use.
+function ShopSceneLayout.insideTable(t, inset, x, y)
+	local w, h = t.w - 2 * inset, t.h - 2 * inset
+	if w <= 0 or h <= 0 then return false end
+	local r = math.min(w, h) / 2
+	local cx, cy = t.x + t.w / 2, t.y + t.h / 2
+	local dx = math.max(math.abs(x - cx) - (w / 2 - r), 0)
+	local dy = math.max(math.abs(y - cy) - (h / 2 - r), 0)
+	return dx * dx + dy * dy <= r * r + 1e-6
+end
+
+-- True when all four corners of rect r, turned by deg, lie inside the table shrunk by `inset`.
+function ShopSceneLayout.cardOnTable(t, r, deg, inset)
+	for _, pt in ipairs(ShopSceneLayout.corners(r, deg)) do
+		if not ShopSceneLayout.insideTable(t, inset, pt.x, pt.y) then return false end
+	end
+	return true
+end
+
+-- Deals the spread onto the table: one row of Patron cards and, under it, a row of smaller packs, both centred on the table. It takes
+-- the biggest cards (width up to wMax) for which every corner of every card, turned by its own tilt, lies on the felt with
+-- TABLE_MARGIN to spare, then the vertical spot that keeps the wide Patron row nearest the middle of the table. Returns two lists of
+-- rounded rects (offers, packs).
+local function dealOnTable(tbl, nOffers, nPacks, wMax)
+	local gap, gapV = ShopSceneLayout.ROW_GAP, ShopSceneLayout.DEAL_GAP
+	local inset = ShopSceneLayout.TABLE_RIM + ShopSceneLayout.TABLE_MARGIN + 1 -- one spare pixel for the rounding below
+	local cx, cy = tbl.x + tbl.w / 2, tbl.y + tbl.h / 2
+	-- The rects are the real cards (Engine/CardShape: 220 wide, the art 250 or 210 tall at scale 1, plus a 36 px name ribbon that does not
+	-- scale). Client/ShopCards never draws a card below SCALE_MIN (see cardScales), so the layout never plans one smaller than that.
+	local minW = ShopSceneLayout.SCALE_MIN * 220
+	local function offerH(w) return 250 * w / 220 + 36 end
+	local function packH(w) return 210 * w / 220 + 36 end
+	local function build(w, yTop)
+		local ho = offerH(w)
+		local wp = math.max(w * ShopSceneLayout.PACK_SHARE, minW)
+		local hp = packH(wp)
+		local offers, packs = {}, {}
+		local rowW = w * nOffers + gap * math.max(nOffers - 1, 0)
+		for i = 1, nOffers do
+			offers[i] = { x = cx - rowW / 2 + (i - 1) * (w + gap), y = yTop, w = w, h = ho }
+		end
+		local py = yTop + (nOffers > 0 and ho + gapV or 0)
+		local packW = wp * nPacks + gap * math.max(nPacks - 1, 0)
+		for i = 1, nPacks do
+			packs[i] = { x = cx - packW / 2 + (i - 1) * (wp + gap), y = py, w = wp, h = hp }
+		end
+		local total = (nOffers > 0 and ho or 0) + ((nOffers > 0 and nPacks > 0) and gapV or 0) + (nPacks > 0 and hp or 0)
+		return offers, packs, total, (nOffers > 0 and ho or 0)
+	end
+	local function fits(offers, packs)
+		local index = 0
+		for _, list in ipairs({ offers, packs }) do
+			for _, r in ipairs(list) do
+				index = index + 1
+				if not ShopSceneLayout.cardOnTable(tbl, r, ShopSceneLayout.cardTilt(index), inset) then return false end
+			end
+		end
+		return true
+	end
+	local function attempt(w)
+		local _, _, total, ho = build(w, 0)
+		local free = tbl.h - 2 * inset - total
+		if free < 0 then return nil end
+		local best, bestScore
+		for k = 0, 12 do
+			local yTop = tbl.y + inset + free * (k / 12)
+			local offers, packs = build(w, yTop)
+			if fits(offers, packs) then
+				local score = math.abs(yTop + ho / 2 - cy)
+				if not bestScore or score < bestScore then best, bestScore = { offers, packs }, score end
+			end
+		end
+		return best
+	end
+	local top = math.floor(wMax)
+	local w, found = top, nil
+	while w >= minW and not found do
+		found = attempt(w)
+		if not found then w = w - 8 end
+	end
+	if found and w < top then -- the coarse step went past the best fit: climb back in 2 px steps
+		for up = math.min(w + 6, top), w + 2, -2 do
+			local better = attempt(up)
+			if better then
+				found = better
+				break
+			end
+		end
+	end
+	local fitted = found ~= nil
+	if not found then -- nothing fits even at the smallest size (a tiny window): centre the smallest spread anyway
+		local _, _, total = build(minW, 0)
+		found = { build(minW, cy - total / 2) }
+	end
+	local function rounded(list)
+		local out = {}
+		for i, r in ipairs(list) do out[i] = rect(r.x, r.y, r.w, r.h) end
+		return out
+	end
+	return rounded(found[1]), rounded(found[2]), fitted
 end
 
 function ShopSceneLayout.rects(W, H, counts)
@@ -110,39 +231,6 @@ function ShopSceneLayout.rects(W, H, counts)
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
 		out.marlo = rect(W * 0.03, counterY + counterH * 0.10 - marloH, marloW, marloH)
 
-		-- offers start right of Marlo's rect (his hand reaches the edge of it), never over him
-		local x0 = out.marlo.x + out.marlo.w + 8
-		local x1 = W * 0.86
-		if counts and counts.noMarlo then
-			-- no painted Marlo: centre offers and packs on the whole stage width
-			x0, x1 = W * 0.08, W * 0.92
-		end
-		out.bandX0, out.bandX1 = math.floor(x0 + 0.5), math.floor(x1 + 0.5)
-		-- Client/ShopCards lists cards with 16 px between them and 14 px padding at each end of the row, so the cards
-		-- must fit the band minus that padding or the last one is clipped.
-		local gap, pad = ShopSceneLayout.ROW_GAP, ShopSceneLayout.ROW_PAD
-		local maxCardH = H * 0.42
-		local n = math.max(nOffers, 1)
-		local cardW = math.min((x1 - x0 - 2 * pad - gap * (n - 1)) / n, maxCardH * ShopSceneLayout.CARD_RATIO)
-		local cardH = cardW / ShopSceneLayout.CARD_RATIO
-		local rowW = cardW * n + gap * (n - 1)
-		local startX = x0 + ((x1 - x0) - rowW) / 2
-		local amp = H * 0.015
-		for i = 1, nOffers do
-			local x = startX + (i - 1) * (cardW + gap)
-			local y = out.surfaceY - ShopSceneLayout.HOVER_PX - cardH + lerpArc(i, nOffers, amp)
-			out.offers[i] = rect(x, y, cardW, cardH)
-			out.shadows[i] = rect(x + cardW * 0.1, out.surfaceY - 4, cardW * 0.8, 10)
-		end
-		-- packs rest on the counter in front of the Patrons
-		local packH = counterH * 0.5
-		local packW = math.min(packH * 0.8, (x1 - x0 - 2 * pad - gap * (math.max(nPacks, 1) - 1)) / math.max(nPacks, 1))
-		packH = packW / 0.8
-		local packRow = packW * nPacks + gap * (math.max(nPacks, 1) - 1)
-		local px = x0 + ((x1 - x0) - packRow) / 2
-		for i = 1, nPacks do
-			out.packs[i] = rect(px + (i - 1) * (packW + gap), out.surfaceY - 2, packW, packH)
-		end
 		-- props: ledger and mug at the left end, bell and candle at the far right, resting on the surface
 		local propY = out.surfaceY + counterH * 0.08
 		local lw = p * 1.25
@@ -152,26 +240,48 @@ function ShopSceneLayout.rects(W, H, counts)
 			bell = rect(W * 0.875, propY - p * 0.8, p, p * 0.85),
 			candle = rect(W * 0.875 + p + 6, propY - p * 1.05, p * 0.7, p * 1.1),
 		}
-		out.light = rect(x0, out.surfaceY - counterH * 0.1, x1 - x0, counterH * 0.55)
-		-- the round card table: the whole spread (every offer and every pack) lies on it with a little felt around, between
-		-- Marlo and the bell, under the tabs and Next boss strip, above the foot of the screen
-		local top, bottom, left, right = math.huge, 0, math.huge, 0
-		for _, r in ipairs(out.offers) do
-			top, left, right = math.min(top, r.y), math.min(left, r.x), math.max(right, r.x + r.w)
+
+		-- The round card table: a wide oval lying on the counter, right of Marlo (his hand reaches the edge of his rect, never over him)
+		-- and left of the bell, under the tabs and the Next boss strip, down to just above the foot of the screen, so its upper part
+		-- overlaps the counter's back edge. The brass rail, the bell and the ledger stay clear of it.
+		local noMarlo = counts and counts.noMarlo
+		local leftLimit = noMarlo and 4 or (out.marlo.x + out.marlo.w + 2)
+		local rightLimit = out.props.bell.x - 6
+		local bottomLimit = H - ShopSceneLayout.TABLE_EDGE
+		local topLimit = tabsBottom + 6
+		if bottomLimit > out.leave.y - 4 and rightLimit > out.leave.x - 6 then
+			rightLimit = out.leave.x - 6 -- the Next Round sign stands at the table's corner: stop short of it
 		end
-		for _, r in ipairs(out.packs) do
-			bottom, left, right = math.max(bottom, r.y + r.h), math.min(left, r.x), math.max(right, r.x + r.w)
-		end
-		if #out.offers > 0 then
-			local leftLimit = (counts and counts.noMarlo) and 4 or (out.marlo.x + out.marlo.w + 2)
-			local tx0 = math.max(left - ShopSceneLayout.TABLE_PAD, leftLimit)
-			local tx1 = math.min(right + ShopSceneLayout.TABLE_PAD, out.props.bell.x - 6)
-			local ty0 = math.max(top - ShopSceneLayout.TABLE_PAD, tabsBottom + 6)
-			local ty1 = math.min(math.max(bottom, out.surfaceY) + ShopSceneLayout.TABLE_PAD, H - 6)
-			if ty1 > out.leave.y - 4 and tx1 > out.leave.x - 6 then
-				tx1 = math.max(right + 2, out.leave.x - 6) -- the Next Round sign stands at the table's corner: cut back, never through a card
+		local avail = math.max(rightLimit - leftLimit, 80)
+		local tw = math.min(avail, W * 0.62)
+		local tx = leftLimit + (avail - tw) / 2
+		if noMarlo then tx = clamp(W / 2 - tw / 2, leftLimit, math.max(leftLimit, rightLimit - tw)) end -- no painted Marlo: centred on the stage
+		-- Client/ShopCards lists cards with 16 px between them and 14 px padding at each end of the row
+		local gap, pad = ShopSceneLayout.ROW_GAP, ShopSceneLayout.ROW_PAD
+		local n = math.max(nOffers, 1)
+		local wMax = math.min((tw - 2 * pad - gap * (n - 1)) / n, H * 0.42 * ShopSceneLayout.CARD_RATIO)
+		-- A wide oval. On a small window the cards would be tiny inside it, so it grows a little taller (never rounder than 1.25 wide to
+		-- 1 tall): the most oval shape whose cards reach READABLE_SCALE wins, else the shape that gives the biggest cards.
+		local best
+		for _, aspect in ipairs({ ShopSceneLayout.TABLE_ASPECT, 1.4, 1.3, 1.25 }) do
+			local th = math.min(tw / aspect, bottomLimit - topLimit)
+			local t = rect(tx, bottomLimit - th, tw, th)
+			local offers, packs, fitted = dealOnTable(t, nOffers, nPacks, wMax)
+			local w = (offers[1] or packs[1] or { w = 0 }).w
+			if not best or (fitted and (not best.fitted or w > best.w)) then
+				best = { table = t, offers = offers, packs = packs, fitted = fitted, w = w }
 			end
-			out.table = rect(tx0, ty0, tx1 - tx0, ty1 - ty0)
+			if fitted and w >= ShopSceneLayout.READABLE_SCALE * 220 then break end
+		end
+		out.table, out.offers, out.packs = best.table, best.offers, best.packs
+		out.fitted = best.fitted -- false only when too many cards crowd a small window (they still lie on the table, centred, over the margin)
+		local rim = ShopSceneLayout.TABLE_RIM
+		out.felt = rect(out.table.x + rim, out.table.y + rim, out.table.w - 2 * rim, out.table.h - 2 * rim)
+		-- the card rows are centred on the table (Client/ShopCards centres its cards in the row), so the band IS the table's width
+		out.bandX0, out.bandX1 = out.table.x, out.table.x + out.table.w
+		out.light = rect(out.table.x, out.surfaceY - counterH * 0.1, out.table.w, counterH * 0.55)
+		for i, r in ipairs(out.offers) do
+			out.shadows[i] = rect(r.x + r.w * 0.1, r.y + r.h - 6, r.w * 0.8, 12) -- a soft oval under each Patron card
 		end
 		-- speech plate near Marlo's shoulder, above the offers
 		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
@@ -270,7 +380,7 @@ function ShopSceneLayout.rows(r, hP, hK)
 	local out = {}
 	local x0, x1 = r.bandX0 or 8, r.bandX1 or (r.area.w - 8)
 	if r.offers[1] then
-		local y = r.phone and (r.offers[1].y - 16) or (r.surfaceY - ShopSceneLayout.HOVER_PX - (hP - 12))
+		local y = r.offers[1].y - 16 -- the row's 16 px of headroom sits above the card
 		out.patron = rect(x0, y, x1 - x0, hP)
 	end
 	if r.packs[1] then

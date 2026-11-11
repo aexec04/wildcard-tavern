@@ -13773,7 +13773,10 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 			-- Marlo and the offers overlap only by the allowed hover share of his width
 			for i, o in ipairs(r.offers) do
 				expectTrue(L.overlapArea(r.marlo, o) <= r.marlo.w * L.HOVER_OVERLAP * o.h + 1, "offer " .. i .. " barely touches Marlo " .. tag)
-				expectTrue(o.y + o.h <= r.surfaceY - L.HOVER_PX + math.floor(H * 0.015) + 2 or r.phone, "offer " .. i .. " floats above the surface " .. tag)
+				if not r.phone and r.fitted then -- (five offers cannot all keep their margin on a small table: the layout says so with fitted = false)
+					expectTrue(L.cardOnTable(r.table, o, L.cardTilt(i), L.TABLE_RIM + L.TABLE_MARGIN), "offer " .. i .. " lies on the felt with its margin " .. tag)
+				end
+				if not r.phone and counts.offers <= 3 then expectTrue(r.fitted, "up to three offers always fit the table " .. tag) end
 				for j, o2 in ipairs(r.offers) do
 					if j > i then expectTrue(not L.intersects(o, o2), "offers " .. i .. "/" .. j .. " apart " .. tag) end
 				end
@@ -14899,8 +14902,7 @@ table.insert(tests, { name = "Counter v2 stage: card scales fit the rects, rows 
 			local rows = L.rows(r, CardShape.shape("patron", sc.patron).h + 32, CardShape.shape("pack", sc.pack).h + 32)
 			expectTrue(rows.patron.x >= 0 and rows.patron.x + rows.patron.w <= W, "patron row inside horizontally " .. tag)
 			if not r.phone then
-				local bodyBottom = rows.patron.y + rows.patron.h - 12
-				expectEqual(bodyBottom, r.surfaceY - L.HOVER_PX, "patron cards float above the surface " .. tag)
+				expectEqual(rows.patron.y + 16, r.offers[1].y, "the Patron row's cards start where the table layout put them " .. tag)
 				expectTrue(r.bandX0 > r.marlo.x + r.marlo.w * 0.5, "card band starts right of Marlo " .. tag)
 			end
 			if counts.packs > 0 then expectTrue(rows.pack ~= nil, "pack row " .. tag) end
@@ -14916,8 +14918,9 @@ table.insert(tests, { name = "Counter v2 stage: card scales fit the rects, rows 
 	if stage then
 		expectTrue(stage:find("if not backdrop then", 1, true) ~= nil, "no art, no stage: the old Shop shows unchanged")
 		expectTrue(stage:find("FireServer", 1, true) == nil and stage:find("MouseButton1Click", 1, true) == nil, "the stage adds no handlers and fires no remotes")
-		expectTrue(stage:find("calm()", 1, true) ~= nil and stage:find("reduceShake", 1, true) ~= nil, "calm mode creates no bob tweens")
-		expectTrue(stage:find("Cancel", 1, true) ~= nil and stage:find("Visible", 1, true) ~= nil, "loops stop when the shop is hidden")
+		expectTrue(stage:find("calm()", 1, true) ~= nil and stage:find("reduceShake", 1, true) ~= nil, "calm mode never lights the prop glow")
+		expectTrue(stage:find("TweenService", 1, true) == nil and stage:find("task.spawn", 1, true) == nil and stage:find("Layout.bob", 1, true) == nil,
+			"the stage runs no loops and no tweens: cards lie on the table, they do not float")
 	end
 	local shop = read("src/Client/Shop.lua")
 	if shop then
@@ -15560,15 +15563,10 @@ table.insert(tests, { name = "TooltipSpec.placeBeside: Counter pack tooltip sits
 		plates[i] = { X = o.X + 2, Y = o.Y + 16 + shape.bannerTop, W = o.W - 4, H = CardShape.BANNER_H }
 	end
 	local packs = { { X = 894, Y = 501, W = 96, H = 148 }, { X = 1006, Y = 501, W = 96, H = 148 } }
-	-- The controls come from the layout the Counter uses, in the frame Play had (1257 x 750 at 260,-58). That layout must
-	-- also reproduce the reported card rects (the offer row bobs up to 5 px higher live), or the fixture proves nothing.
+	-- The controls come from the layout the Counter uses, in the frame Play had (1257 x 750 at 260,-58). The cards above are what Play
+	-- reported on that commit; the Counter has since become a table scene (cards on an oval felt), so they are a fixed fixture of that
+	-- report and no longer follow the layout. The sweep test below runs the real layout instead.
 	local scene = CounterScene.build(1257, 750, 260, -58, 2, 2)
-	expectEqual(scene.offers[1].X, 764, "the layout puts the first offer where Play reported it")
-	expectEqual(scene.offers[2].X, 1006, "the layout puts the second offer where Play reported it")
-	expectTrue(math.abs(scene.offers[1].Y - 192) <= 5 and scene.offers[1].W == 226 and scene.offers[1].H == 313, "offer slots are 226 x 313 at y 192 (bob up to 5 px)")
-	expectEqual(scene.packs[1].X, 894, "the first pack slot is at x 894")
-	expectEqual(scene.packs[2].X, 1006, "the second pack slot is at x 1006")
-	expectTrue(scene.packs[1].Y == 501 and scene.packs[1].W == 96 and scene.packs[1].H == 148, "pack slots are 96 x 148 at y 501")
 	local controls = scene.controls
 	local blockers = {}
 	for _, list in ipairs({ offers, plates, controls }) do
@@ -16614,7 +16612,8 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		local SL = require(Engine.ShopSceneLayout)
 		for i, slot in ipairs(slots) do
 			expectEqual(slot.Rotation, SL.cardTilt(i), "card " .. i .. " lies at its fixed angle" .. where)
-			expectTrue(math.abs(slot.Rotation) <= 2, "...at most 2 degrees" .. where)
+			expectEqual(slot:GetAttribute("Tilt"), SL.cardTilt(i), "...and the slot remembers it for the hover" .. where)
+			expectTrue(math.abs(slot.Rotation) >= 3 and math.abs(slot.Rotation) <= 8, "...a visible angle, 3 to 8 degrees" .. where)
 			if i > 1 then expectTrue(slot.Rotation ~= slots[i - 1].Rotation, "...and not like its neighbour" .. where) end
 		end
 		local bellGlow, ledgerGlow = shopFrame:FindFirstChild("Glow_Reroll"), shopFrame:FindFirstChild("Glow_Haggle")
@@ -16660,61 +16659,87 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 	end
 end })
 
-table.insert(tests, { name = "The Counter's round card table: every offer and pack lies on it, clear of Marlo, the bell, the ledger and the controls (three sizes)", fn = function()
+table.insert(tests, { name = "The Counter's oval card table: a wide oval with a 12 to 16 px rim, every offer and pack turned by its tilt lies on the felt with 18 px to spare, clear of Marlo, the bell, the ledger and the controls (three sizes)", fn = function()
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	expectTrue(SL.TABLE_RIM >= 12 and SL.TABLE_RIM <= 16, "the wood rim is 12 to 16 px wide")
+	expectTrue(SL.TABLE_MARGIN >= 18, "cards keep at least 18 px of felt to the rim")
+	local keep = SL.TABLE_RIM + SL.TABLE_MARGIN
 	-- the Counter frame is the screen right of the 260 px HUD (the whole width on a compact screen)
 	for _, frame in ipairs({ { 1660, 1080 }, { 1020, 720 }, { 788, 450 } }) do
 		local W, H = frame[1], frame[2]
-		for nOffers = 2, 4 do
-			for nPacks = 1, 3 do
+		for nOffers = 1, 4 do
+			for nPacks = 0, 3 do
 				local r = SL.rects(W, H, { offers = nOffers, packs = nPacks })
 				local where = " (" .. nOffers .. " offers, " .. nPacks .. " packs at " .. W .. "x" .. H .. ")"
-				expectTrue(r.table ~= nil, "there is a table" .. where)
+				expectTrue(r.table ~= nil and r.felt ~= nil, "there is a table with felt" .. where)
 				expectTrue(SL.inside(r.table, r.area), "the table is inside the Counter" .. where)
-				for i, card in ipairs(r.offers) do
-					expectTrue(SL.inside(card, r.table), "Patron card " .. i .. " lies on the table" .. where)
-				end
-				for i, pack in ipairs(r.packs) do
-					expectTrue(SL.inside(pack, r.table), "pack " .. i .. " lies on the table" .. where)
+				expectTrue(r.table.w >= r.table.h * 1.2, "the table is a wide oval, not a square (" .. r.table.w .. " x " .. r.table.h .. ")" .. where)
+				-- a Counter has two Patron offers (sometimes a voucher) and two packs; more than that, or a voucher on the smallest window,
+				-- crowds the felt and the layout says so with fitted = false
+				local crowded = (W < 900 and nOffers >= 3) or nOffers >= 4 or nPacks >= 3
+				expectTrue(r.fitted or crowded, "two offers and two packs (three on a roomy window) always lie on the felt with their margin" .. where)
+				expectTrue(r.felt.x - r.table.x == SL.TABLE_RIM and r.felt.y - r.table.y == SL.TABLE_RIM, "the felt sits one rim width inside the table" .. where)
+				expectTrue(r.table.x + r.table.w - (r.felt.x + r.felt.w) == SL.TABLE_RIM, "...on the right too" .. where)
+				-- every card, turned by its own tilt, lies on the felt with its margin; a hovered one (straight, 6 px higher) stays on the table
+				-- (four offers on the smallest window are the crowded case the layout reports with fitted = false)
+				local index = 0
+				for _, list in ipairs({ r.offers, r.packs }) do
+					for k, card in ipairs(list) do
+						index = index + 1
+						local label = (list == r.offers and "Patron card " or "pack ") .. k
+						if r.fitted then
+							expectTrue(SL.cardOnTable(r.table, card, SL.cardTilt(index), keep), label .. " lies on the felt with 18 px to spare" .. where)
+							expectTrue(SL.cardOnTable(r.table, { x = card.x, y = card.y - 6, w = card.w, h = card.h }, 0, SL.TABLE_RIM + 6), label .. " stays on the table when it lifts and straightens" .. where)
+						end
+					end
 				end
 				-- cards do not overlap each other
-				local all = {}
-				for _, c in ipairs(r.offers) do all[#all + 1] = c end
-				for _, c in ipairs(r.packs) do all[#all + 1] = c end
-				-- (an offer and a pack may share a little height: packs rest in front of the Patrons)
 				for i = 1, #r.offers do
 					for j = i + 1, #r.offers do expectFalse(SL.intersects(r.offers[i], r.offers[j]), "Patron cards " .. i .. " and " .. j .. " do not overlap" .. where) end
+					for j = 1, #r.packs do expectFalse(SL.intersects(r.offers[i], r.packs[j]), "Patron card " .. i .. " and pack " .. j .. " do not overlap" .. where) end
 				end
 				for i = 1, #r.packs do
 					for j = i + 1, #r.packs do expectFalse(SL.intersects(r.packs[i], r.packs[j]), "packs " .. i .. " and " .. j .. " do not overlap" .. where) end
 				end
-				-- the table keeps clear of what is not on it
+				if nPacks > 0 and nOffers > 0 then
+					expectTrue(r.packs[1].h < r.offers[1].h and r.packs[1].w <= r.offers[1].w, "packs lie smaller than the Patron cards" .. where)
+					expectTrue(r.packs[1].y > r.offers[1].y, "...on the lower part of the felt" .. where)
+				end
+				-- the table keeps clear of what is not on it (the brass rail is a layer of the counter, behind the table)
 				for name, other in pairs({ marlo = r.marlo, bell = r.props.bell, ledger = r.props.ledger, tabs = r.tabs, nextBoss = r.nextBoss, leave = r.leave }) do
 					expectFalse(SL.intersects(r.table, other), "the table does not touch the " .. name .. where)
 				end
+				-- the table's upper part overlaps the counter and its foot reaches the bottom band
+				expectTrue(r.table.y < r.counter.y and r.table.y + r.table.h > r.counter.y + r.counter.h * 0.5, "the table straddles the counter's back edge" .. where)
 			end
 		end
 	end
 	local phone = SL.rects(390, 700, { offers = 3, packs = 2 })
 	expectEqual(phone.table, nil, "a phone has no table: its cards wrap in rows on the counter")
-	-- the dealt tilt
+	-- the dealt tilt: -5, +4, -3, +6 by slot, the same every visit, never zero, never past 8 degrees
+	for i, want in ipairs({ -5, 4, -3, 6, -5, 4 }) do expectEqual(SL.cardTilt(i), want, "slot " .. i .. " lies at " .. want .. " degrees") end
 	for i = 1, 12 do
-		expectTrue(math.abs(SL.cardTilt(i)) <= 2, "tilt " .. i .. " is at most 2 degrees")
-		expectEqual(SL.cardTilt(i), SL.cardTilt(i), "tilt " .. i .. " is the same every visit")
+		expectTrue(math.abs(SL.cardTilt(i)) >= 3 and math.abs(SL.cardTilt(i)) <= 8, "tilt " .. i .. " is visible and within 8 degrees")
 		if i > 1 then expectTrue(SL.cardTilt(i) ~= SL.cardTilt(i - 1), "neighbours lean differently (" .. i .. ")") end
 	end
+	-- a point just inside and just outside the oval's end tell the shape: a capsule, not a rectangle
+	local t = { x = 0, y = 0, w = 600, h = 400 }
+	expectTrue(SL.insideTable(t, 0, 300, 2) and SL.insideTable(t, 0, 2, 200), "the middle of the long edge and the tip of the end are on the table")
+	expectFalse(SL.insideTable(t, 0, 2, 2), "...the square corner is not")
+	expectFalse(SL.insideTable(t, 20, 300, 10), "an inset shrinks the oval")
 end })
 
-table.insert(tests, { name = "ShopBackdrop draws the table under the cards (felt in a wooden rim, or the painted art once recorded), none on a phone", fn = function()
+table.insert(tests, { name = "ShopBackdrop draws an oval felt table with a wood rim, a seam, a shadow and a calm light (colour stops only), over the counter and under the cards, none on a phone", fn = function()
 	local probe = io and io.open and load and io.open("src/Client/ShopBackdrop.lua", "r")
 	if not probe then return end
 	probe:close()
 	local FakeGui = require(script.Parent.FakeGui)
 	local Engine = script.Parent.Parent.Engine
+	local SL = require(Engine.ShopSceneLayout)
 	local env, st = FakeGui.env({ stubs = { SmoothVignette = { build = function() end } } })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ContentArt = require(Engine.ContentArt) })
+			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt) })
 		end }
 	end }
 	local ShopBackdrop = FakeGui.load("src/Client/ShopBackdrop.lua", env)
@@ -16723,26 +16748,72 @@ table.insert(tests, { name = "ShopBackdrop draws the table under the cards (felt
 	shopFrame.Parent = gui
 	shopFrame.AbsoluteSize = { X = 1020, Y = 720 }
 	local backdrop = ShopBackdrop.new({ shopFrame = shopFrame })
-	local top = backdrop.root:FindFirstChild("TableTop")
-	expectTrue(top ~= nil and top.ClassName == "Frame" or top.ClassName == "ImageLabel", "the backdrop makes a TableTop")
-	expectFalse(top.Active, "the table sinks no clicks")
-	-- laid out for the Counter, it follows the layout's table rect
-	shopFrame.AbsoluteSize = { X = 1020, Y = 720 }
+	local root = backdrop.root
+	local rim = root:FindFirstChild("TableTop")
+	expectTrue(rim ~= nil, "the backdrop makes a TableTop")
+	expectFalse(rim.Active, "the table sinks no clicks")
 	backdrop.relayout({ offers = 3, packs = 2 })
-	local want = require(Engine.ShopSceneLayout).rects(1020, 720, { offers = 3, packs = 2 }).table
-	expectTrue(top.Visible, "the table is shown on the Counter")
-	expectEqual(top.Position.X.Offset, want.x)
-	expectEqual(top.Position.Y.Offset, want.y)
-	expectEqual(top.Size.X.Offset, want.w)
-	expectEqual(top.Size.Y.Offset, want.h)
-	if top.ClassName == "Frame" then
-		local felt = top.BackgroundColor3
-		expectTrue(felt.G > felt.R and felt.G > felt.B, "the drawn top is green felt like the Menu room's card table")
+	local want = SL.rects(1020, 720, { offers = 3, packs = 2 })
+	expectTrue(rim.Visible, "the table is shown on the Counter")
+	expectTrue(rim.Position.X.Offset == want.table.x and rim.Position.Y.Offset == want.table.y and rim.Size.X.Offset == want.table.w and rim.Size.Y.Offset == want.table.h, "the rim follows the layout's table rect")
+	expectTrue(rim.Size.X.Offset > rim.Size.Y.Offset * 1.2, "wider than tall")
+	local function corner(inst)
+		local c = inst:FindFirstChildOfClass("UICorner")
+		return c and c.CornerRadius
 	end
-	-- a phone has no table
+	if rim.ClassName == "Frame" then
+		-- the shape: an oval, a UICorner at half the short side (the Menu room's felt table is made the same way)
+		local radius = corner(rim)
+		expectTrue(radius ~= nil and radius.Scale == 0.5 and radius.Offset == 0, "the rim is an oval (UICorner radius 0.5 scale)")
+		local felt = root:FindFirstChild("TableFelt")
+		expectTrue(felt ~= nil, "there is felt inside the rim")
+		radius = corner(felt)
+		expectTrue(radius ~= nil and radius.Scale == 0.5, "the felt is an oval too")
+		expectTrue(felt.Position.X.Offset == want.felt.x and felt.Position.Y.Offset == want.felt.y and felt.Size.X.Offset == want.felt.w and felt.Size.Y.Offset == want.felt.h, "the felt follows the layout's felt rect")
+		local rimWidth = felt.Position.X.Offset - rim.Position.X.Offset
+		expectTrue(rimWidth >= 12 and rimWidth <= 16, "the wood rim is 12 to 16 px wide (" .. rimWidth .. ")")
+		expectEqual(rim.Size.X.Offset - felt.Size.X.Offset, 2 * rimWidth, "...the same on both sides")
+		-- the rim is the Menu table's brown, not a dark box
+		local wood = rim.BackgroundColor3
+		expectTrue(wood.R > wood.G and wood.G > wood.B and wood.R * 255 >= 100, "the rim is wood brown")
+		-- the felt: soft green, never darker than (24, 40, 28) at any stop, lighter in the middle than at the edge
+		local gradient = felt:FindFirstChildOfClass("UIGradient")
+		expectTrue(gradient ~= nil, "the felt has a colour ramp")
+		local stops = gradient.Color.Keypoints
+		local centre, edge
+		for _, k in ipairs(stops) do
+			expectTrue(k.Value.R * 255 >= 24 and k.Value.G * 255 >= 40 and k.Value.B * 255 >= 28, "no felt stop is darker than (24, 40, 28)")
+			expectTrue(k.Value.G > k.Value.R and k.Value.G > k.Value.B, "every felt stop is green")
+			if k.Time == 0.5 then centre = k.Value end
+			if k.Time == 0 then edge = k.Value end
+		end
+		expectTrue(centre ~= nil and edge ~= nil and centre.G > edge.G, "the felt is lighter in the middle than at the edge")
+		expectTrue(felt:FindFirstChildOfClass("UIStroke") ~= nil, "a darker seam where the felt meets the rim")
+		-- calm: nothing in the table touches a gradient's Transparency, and nothing sinks a click
+		for _, d in ipairs(root:GetDescendants()) do
+			if d.ClassName == "UIGradient" then expectEqual(d.Transparency, nil, "UIGradient.Transparency is never touched") end
+		end
+		for _, name in ipairs({ "TableShadowFar", "TableShadow", "TableRimLight", "TableFelt", "TableFeltShade", "TableFeltLight" }) do
+			local piece = root:FindFirstChild(name)
+			expectTrue(piece ~= nil and piece.Active == false and piece.Visible, name .. " is drawn and sinks no click")
+		end
+		expectTrue(root:FindFirstChild("TableShadow").BackgroundTransparency >= 0.5, "the shadow is soft, not a black blot")
+		expectTrue(root:FindFirstChild("TableFeltLight").BackgroundTransparency >= 0.9, "the lantern light on the felt is faint")
+	end
+	-- layers: the shadow is under the rim, the felt over it, and all of it over the counter (the brass rail passes behind the table)
+	local _, rank = FakeGui.drawOrder(gui)
+	local counter = root:FindFirstChild("CounterTop") or root:FindFirstChild("FallbackCounter")
+	expectTrue(counter ~= nil and rank[counter] < rank[rim], "the table is drawn over the counter")
+	expectTrue(rank[root:FindFirstChild("TableShadow")] < rank[rim], "the shadow is under the table")
+	if rim.ClassName == "Frame" then expectTrue(rank[root:FindFirstChild("TableFelt")] > rank[rim], "the felt is over the rim") end
+	-- a phone has no table: nothing of it shows
 	shopFrame.AbsoluteSize = { X = 390, Y = 700 }
 	backdrop.relayout({ offers = 3, packs = 2 })
-	expectFalse(top.Visible, "no table on a phone")
+	expectFalse(rim.Visible, "no table on a phone")
+	for _, name in ipairs({ "TableShadowFar", "TableShadow", "TableFelt" }) do
+		local piece = root:FindFirstChild(name)
+		expectTrue(piece == nil or piece.Visible == false, name .. " is hidden on a phone")
+	end
 end })
 
 table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, the Counter shows it once, Studio traces the path", fn = function()
@@ -17577,6 +17648,76 @@ table.insert(tests, { name = "Collection: Escape and the Gallery plate step back
 		expectTrue(tabs:find("function PanelTabs.setStep(id, fn)", 1, true) ~= nil and tabs:find("step = function()", 1, true) ~= nil, "PanelTabs hands a panel's step to PopupDismiss")
 		expectTrue(collection:find('setStep("collection", stepBack)', 1, true) ~= nil, "the Collection registers its step")
 	end
+end })
+
+table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px and turns straight, leaving turns it back to its own angle, calm mode moves nothing, every card has a soft oval shadow", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/ShopCards.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local function build(calm)
+		local env, st = FakeGui.env({ stubs = {
+			RarityFrame = { apply = function() end },
+			PatronPlaque = { applyById = function() return nil end },
+			ClientSettings = { get = function(key) return calm == true and key == "reduceShake" end },
+			ModalStage = { blocks = function() return false end },
+		} })
+		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
+		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout) })
+		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+		local tweens = {}
+		st.services.TweenService.Create = function(_, inst, _, goal)
+			tweens[#tweens + 1] = { inst = inst, goal = goal }
+			return { Play = function() end, Cancel = function() end, Completed = FakeGui.signal() }
+		end
+		local ShopCards = FakeGui.load("src/Client/ShopCards.lua", env)
+		ShopCards.setScale(1)
+		local cards = ShopCards.new({ playClickSfx = function() end })
+		local parent = FakeGui.new("Frame")
+		local row = cards.row(parent, 1, 340)
+		local card = cards.card(row, { kind = "patron", name = "Regular's Chair", description = "A seat.", price = 5, affordable = true,
+			actionText = "Buy", enabled = true, onAction = function() return true end })
+		return card, tweens, st
+	end
+	local function lastTween(tweens, inst)
+		for i = #tweens, 1, -1 do
+			if tweens[i].inst == inst then return tweens[i].goal end
+		end
+	end
+	local card, tweens, st = build(false)
+	local slot = card.slot
+	slot.Rotation = -5
+	slot:SetAttribute("Tilt", -5) -- ShopStage deals it like this
+	-- a soft oval shadow on the felt under the card's lower edge
+	local contact = slot:FindFirstChild("ContactShadow")
+	expectTrue(contact ~= nil and contact.Active == false and contact.BackgroundTransparency >= 0.5, "the card has a soft contact shadow")
+	local c = contact:FindFirstChildOfClass("UICorner")
+	expectTrue(c ~= nil and c.CornerRadius.Offset * 2 >= contact.Size.Y.Offset, "...an oval (a pill as tall as its corners)")
+	expectTrue(contact.Size.Y.Offset <= 24 and contact.Size.X.Offset <= slot.Size.X.Offset, "...flat, and no wider than the card")
+	card.hit.MouseEnter:Fire()
+	local up, turn = lastTween(tweens, card.body), lastTween(tweens, slot)
+	expectTrue(up ~= nil and up.Position.Y.Offset == 16 - 6, "the hovered card lifts 6 px (from 16 to 10)")
+	expectTrue(turn ~= nil and turn.Rotation == 0, "...and turns straight")
+	card.hit.MouseLeave:Fire()
+	st.runDelays() -- the leave settles 0.06 s later
+	up, turn = lastTween(tweens, card.body), lastTween(tweens, slot)
+	expectTrue(up.Position.Y.Offset == 16, "leaving puts it back down")
+	expectEqual(turn.Rotation, -5, "...and back to its own angle")
+	-- calm mode: the card stays exactly where it lies
+	local calmCard, calmTweens, calmState = build(true)
+	calmCard.slot:SetAttribute("Tilt", 4)
+	calmCard.hit.MouseEnter:Fire()
+	calmCard.hit.MouseLeave:Fire()
+	calmState.runDelays()
+	expectEqual(lastTween(calmTweens, calmCard.body), nil, "calm mode: no lift")
+	expectEqual(lastTween(calmTweens, calmCard.slot), nil, "calm mode: no turn")
+	-- the source says the same
+	local f = io.open("src/Client/ShopCards.lua", "r")
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("local LIFT = 6", 1, true) ~= nil, "the lift is 6 px")
 end })
 
 table.insert(tests, { name = "Collection room and section area: inside the panel, clear of the title, quiet row, filter plate and Close at three window sizes, hotspots match the layout", fn = function()

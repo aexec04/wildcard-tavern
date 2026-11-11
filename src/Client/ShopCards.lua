@@ -30,9 +30,10 @@
 	cards.soldSpot(row, layoutOrder, kind, animate) -> Frame   empty shelf spot with a SOLD stamp
 	cards.note(parent, layoutOrder, text) -> TextLabel   short message row (empty states)
 
-	Hover (or tap) lifts the card 8px, swells its shadow, sweeps a light strip across the art and
-	slides the action button up from the bottom. Fast speed and "Reduce screen shake" skip the
-	sweep and the slides (the button just appears). All ZIndex values are 6 like the rest of the
+	Hover (or tap) lifts the card 6px and turns it straight (the Counter lays every card on the felt at its own angle, kept in
+	the slot's Tilt attribute), swells its shadow, sweeps a light strip across the art and slides the action button up from the
+	bottom. Fast speed and "Reduce screen shake" skip the sweep and the slides (the button just appears); "Reduce screen shake"
+	also skips the lift and the turn: the card stays put. All ZIndex values are 6 like the rest of the
 	Shop (Global layering, ties break by creation order, so build order below is stacking order).
 ]]
 
@@ -62,7 +63,7 @@ local CardShape = require(Engine:WaitForChild("CardShape"))
 local SceneLayout = require(Engine:WaitForChild("ShopSceneLayout"))
 
 local HEAD = 16 -- headroom above a resting card so a lifted card and its price tag never clip
-local LIFT = 8
+local LIFT = 6 -- a hovered card rises this far and straightens (ShopStage turns every card to its own fixed angle)
 local BANNER_H = CardShape.BANNER_H
 local BUTTON_H = CardShape.BUTTON_H
 
@@ -314,6 +315,10 @@ function ShopCards.new(deps)
 		local shadow = frame(slot, { Position = UDim2.fromOffset(2, HEAD + 6), Size = UDim2.fromOffset(W - 4, shape.h),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.7 })
 		corner(shadow, 12)
+		-- a soft oval on the felt under the card's lower edge: the card lies on the table
+		local contact = frame(slot, { Name = "ContactShadow", Position = UDim2.fromOffset(math.floor(W * 0.08), HEAD + shape.h - 8),
+			Size = UDim2.fromOffset(math.floor(W * 0.84), 18), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.62 })
+		corner(contact, 9)
 
 		local body = frame(slot, { Name = "Body", Position = UDim2.fromOffset(0, HEAD), Size = UDim2.fromOffset(W, shape.h),
 			BackgroundColor3 = WOOD_DARK })
@@ -495,15 +500,22 @@ function ShopCards.new(deps)
 					tween(button, { Position = UDim2.fromOffset(10, restY) }, on and 0.16 or 0.12, on and Enum.EasingStyle.Back or Enum.EasingStyle.Quad)
 				end
 			end
+			local still = ClientSettings.get("reduceShake") == true -- calm mode: the card stays where it lies
 			if on then
-				tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }, 0.14)
+				if not still then
+					tween(body, { Position = UDim2.fromOffset(0, HEAD - LIFT) }, 0.14)
+					tween(slot, { Rotation = 0 }, 0.14) -- turn straight
+				end
 				tween(shadow, { BackgroundTransparency = 0.5 }, 0.14)
 				if not slow() then
 					strip.Position = UDim2.new(-0.3, 0, 0.5, 0)
 					tween(strip, { Position = UDim2.new(1.3, 0, 0.5, 0) }, 0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 				end
 			else
-				tween(body, { Position = UDim2.fromOffset(0, HEAD) }, 0.16)
+				if not still then
+					tween(body, { Position = UDim2.fromOffset(0, HEAD) }, 0.16)
+					tween(slot, { Rotation = slot:GetAttribute("Tilt") or 0 }, 0.16) -- back to its own angle
+				end
 				tween(shadow, { BackgroundTransparency = 0.7 }, 0.16)
 			end
 		end

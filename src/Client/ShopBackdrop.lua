@@ -151,37 +151,64 @@ function ShopBackdrop.new(deps)
 		end
 	end
 
-	-- The round card table every offer and pack lies on (Engine/ShopSceneLayout `table`). Painted art (shop_table, from the held
-	-- art task) when it is recorded; otherwise a drawn top: green felt like the Menu room's card table in a dark wooden rim,
-	-- rounded to a capsule. Created after the counter pieces so it draws over them and under the cards.
+	-- The round card table every offer and pack lies on (Engine/ShopSceneLayout `table` and `felt`): a wide oval seen from above, drawn
+	-- from capsules (a UICorner at 0.5 scale, the way the Menu room's felt table is made): a soft shadow on the counter, a wood rim in
+	-- the Menu table's brown with a lighter edge along its top, and the felt inside it in a calm green that is lighter in the middle than
+	-- at the edge, a little darker towards the two ends, with a faint pool of lantern light and a darker line where felt meets rim
+	-- (colour stops only, never gradient transparency). Painted art (shop_table, from the held art task) replaces the rim and the felt
+	-- when it is recorded; the shadow stays. Created after the counter pieces, so the brass rail passes behind the table, and under the
+	-- cards.
+	local FELT_CENTER, FELT_EDGE = Color3.fromRGB(46, 74, 52), Color3.fromRGB(28, 48, 34)
+	local RIM_WOOD, RIM_LIGHT = Color3.fromRGB(120, 78, 44), Color3.fromRGB(176, 124, 76)
+	local function capsule(name, color, transparency)
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = color
+		f.BackgroundTransparency = transparency or 0
+		f.Active = false
+		f.ZIndex = 6
+		f.Visible = false
+		f.Parent = root
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.5, 0)
+		c.Parent = f
+		return f
+	end
+	local function ramp(a, b, c) -- three colour stops, never a transparency
+		return ColorSequence.new({ ColorSequenceKeypoint.new(0, a), ColorSequenceKeypoint.new(0.5, b), ColorSequenceKeypoint.new(1, c) })
+	end
 	local tableId = ContentArt.getImageId("shop_scene", "shop_table")
+	local tablePieces = {} -- every frame of the table, for showing, hiding and placing
+	tablePieces.shadowFar = capsule("TableShadowFar", Color3.fromRGB(6, 4, 2), 0.82)
+	tablePieces.shadow = capsule("TableShadow", Color3.fromRGB(6, 4, 2), 0.6)
 	local tableTop
 	if tableId then
 		tableTop = image(root, "TableTop", tableId, 6)
 		tableTop.ScaleType = Enum.ScaleType.Stretch
+		tableTop.Visible = false
 	else
-		tableTop = Instance.new("Frame")
-		tableTop.Name = "TableTop"
-		tableTop.BorderSizePixel = 0
-		tableTop.BackgroundColor3 = Color3.fromRGB(38, 68, 46)
-		tableTop.Active = false
-		tableTop.ZIndex = 6
-		tableTop.Parent = root
-		local c = Instance.new("UICorner") -- softly rounded, not a capsule: cards at the corners must not hang over the edge
-		c.CornerRadius = UDim.new(0, 36)
-		c.Parent = tableTop
-		local rim = Instance.new("UIStroke") -- the table's wooden edge
-		rim.Color = Color3.fromRGB(86, 56, 30)
-		rim.Thickness = 6
-		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		rim.Parent = tableTop
-		local felt = Instance.new("UIGradient") -- colour stops only: a little lighter at the middle of the table
-		felt.Rotation = 90
-		felt.Color = ColorSequence.new(Color3.fromRGB(52, 88, 60), Color3.fromRGB(30, 56, 38))
-		felt.Parent = tableTop
+		tablePieces.edge = capsule("TableRimLight", RIM_LIGHT, 0) -- peeks out 2 px above the rim: the light catching its top edge
+		tableTop = capsule("TableTop", RIM_WOOD, 0)
+		tablePieces.felt = capsule("TableFelt", Color3.new(1, 1, 1), 0)
+		local vertical = Instance.new("UIGradient")
+		vertical.Rotation = 90
+		vertical.Color = ramp(FELT_EDGE, FELT_CENTER, FELT_EDGE)
+		vertical.Parent = tablePieces.felt
+		local seam = Instance.new("UIStroke") -- the darker line where the felt meets the rim
+		seam.Color = Color3.fromRGB(16, 28, 20)
+		seam.Thickness = 2
+		seam.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		seam.Parent = tablePieces.felt
+		tablePieces.shade = capsule("TableFeltShade", Color3.new(1, 1, 1), 0.72) -- darkens the two ends a little
+		local horizontal = Instance.new("UIGradient")
+		horizontal.Rotation = 0
+		horizontal.Color = ramp(Color3.fromRGB(12, 22, 16), FELT_CENTER, Color3.fromRGB(12, 22, 16))
+		horizontal.Parent = tablePieces.shade
+		tablePieces.glow = capsule("TableFeltLight", Color3.fromRGB(255, 196, 110), 0.93) -- lantern light from the left
 	end
-	tableTop.Visible = false
 	self.tableTop = tableTop
+	self.tablePieces = tablePieces
 
 	local counts = nil
 	function self.relayout(newCounts)
@@ -191,10 +218,21 @@ function ShopBackdrop.new(deps)
 			return
 		end
 		local r = Layout.rects(size.X, size.Y, counts)
-		if r.table then
-			place(tableTop, r.table)
+		local t, f = r.table, r.felt
+		if t then
+			place(tablePieces.shadowFar, { x = t.x - 8, y = t.y + 8, w = t.w + 16, h = t.h + 14 })
+			place(tablePieces.shadow, { x = t.x - 3, y = t.y + 4, w = t.w + 6, h = t.h + 8 })
+			place(tableTop, t)
+			if tablePieces.edge then place(tablePieces.edge, { x = t.x, y = t.y - 2, w = t.w, h = t.h }) end
+			if tablePieces.felt then
+				place(tablePieces.felt, f)
+				place(tablePieces.shade, f)
+				place(tablePieces.glow, { x = f.x + f.w * 0.08, y = f.y + f.h * 0.05, w = f.w * 0.5, h = f.h * 0.55 })
+			end
 		end
-		tableTop.Visible = r.table ~= nil -- no table on phones: their cards wrap in rows on the counter
+		-- no table on phones: their cards wrap in rows on the counter
+		tableTop.Visible = t ~= nil
+		for _, piece in pairs(tablePieces) do piece.Visible = t ~= nil end
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end
