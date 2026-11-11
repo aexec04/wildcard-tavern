@@ -31,7 +31,7 @@
 	cards.note(parent, layoutOrder, text) -> TextLabel   short message row (empty states)
 
 	Hover (or tap) lifts the card 6px and turns it straight (the Counter lays every card on the felt at its own angle, kept in
-	the slot's Tilt attribute), swells its shadow, sweeps a light strip across the art and slides the action button up from the
+	the slot's Tilt attribute), swells its shadow, shows the action button as a full plate over the art from the
 	bottom. Fast speed and "Reduce screen shake" skip the sweep and the slides (the button just appears); "Reduce screen shake"
 	also skips the lift and the turn: the card stays put. All ZIndex values are 6 like the rest of the
 	Shop (Global layering, ties break by creation order, so build order below is stacking order).
@@ -354,16 +354,7 @@ function ShopCards.new(deps)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
 
-		-- Shine strip: Color stops only (no UIGradient.Transparency), clipped by artFrame.
-		local strip = frame(artClip, { Name = "ShineStrip", AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.new(0.16, 0, 1.8, 0),
-			Position = UDim2.new(-0.3, 0, 0.5, 0), Rotation = 20, BackgroundColor3 = CREAM, BackgroundTransparency = 0.8 })
-		local grad = Instance.new("UIGradient")
-		grad.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(235, 210, 160)),
-			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 250, 235)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(235, 210, 160)),
-		})
-		grad.Parent = strip
+		-- No shine strip: Roblox ignores ClipsDescendants under the rotated Tilt wrapper, so a moving strip escaped the card.
 
 		local synergy = spec.synergy or {}
 		local chipWidths = {}
@@ -473,20 +464,21 @@ function ShopCards.new(deps)
 		local enabled = spec.enabled ~= false
 		local button
 		if not spec.noAction then
-			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, shape.drawerTop - 2 - (spec.price and (SceneLayout.TAG_H + 4) or 0)), Size = UDim2.fromOffset(W, BUTTON_H + 4),
-				BackgroundTransparency = 1, ClipsDescendants = true })
+			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, (spec.price and ov.price.y or (shape.bannerTop - 4)) - 4 - BUTTON_H), Size = UDim2.fromOffset(W, BUTTON_H),
+				BackgroundTransparency = 1, ZIndex = Z + 4 }) -- over the art above the price tag; never clipped (clips fail under Tilt)
 			button = Instance.new("TextButton")
 			button.Name = "Action"
-			-- the price tag sits above the name ribbon, the drawer below it: Buy takes the full card width (min 80 px)
+			-- Buy is a full plate over the art just above the price tag, shown on hover or selection (Visible, no slide)
 			button.Size = UDim2.fromOffset(math.max(80, W - 20), BUTTON_H)
-			button.Position = UDim2.fromOffset(10, BUTTON_H + 8) -- hidden below the drawer's clip
+			button.Position = UDim2.fromOffset(10, 0)
+			button.Visible = false
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16
 			button.AutoButtonColor = false
 			button.Text = enabled and (spec.actionText or "Buy") or (spec.disabledText or "Full")
 			button.TextColor3 = enabled and CREAM or Color3.fromRGB(180, 170, 160)
 			button.BackgroundColor3 = enabled and Color3.fromRGB(70, 130, 60) or Color3.fromRGB(70, 60, 55)
-			button.ZIndex = Z
+			button.ZIndex = Z + 4
 			button.Parent = drawer
 			corner(button, 8)
 			stroke(button, enabled and GOLD or Color3.fromRGB(110, 96, 84), 2, 0)
@@ -499,12 +491,7 @@ function ShopCards.new(deps)
 			end
 			shown = on
 			if button then
-				local restY = on and 2 or (BUTTON_H + 8)
-				if slow() then
-					button.Position = UDim2.fromOffset(10, restY)
-				else
-					tween(button, { Position = UDim2.fromOffset(10, restY) }, on and 0.16 or 0.12, on and Enum.EasingStyle.Back or Enum.EasingStyle.Quad)
-				end
+				button.Visible = on
 			end
 			local still = ClientSettings.get("reduceShake") == true -- calm mode: the card stays where it lies
 			if on then
@@ -513,10 +500,6 @@ function ShopCards.new(deps)
 					tween(tilt, { Rotation = 0 }, 0.14) -- turn straight (the wrapper: a direct child of the row would ignore it)
 				end
 				tween(shadow, { BackgroundTransparency = 0.5 }, 0.14)
-				if not slow() then
-					strip.Position = UDim2.new(-0.3, 0, 0.5, 0)
-					tween(strip, { Position = UDim2.new(1.3, 0, 0.5, 0) }, 0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-				end
 			else
 				if not still then
 					tween(body, { Position = UDim2.fromOffset(0, HEAD) }, 0.16)

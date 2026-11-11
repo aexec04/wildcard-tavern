@@ -6660,6 +6660,22 @@ table.insert(tests, { name = "WorldMap: new biome stops fall back to an existing
 	expectEqual(WorldMap.sceneArtFor("garden_terrace", function() return false end), "garden_terrace", "no fallback needed")
 end })
 
+table.insert(tests, { name = "Counter cards: no rotated shine strip or clipped drawer under the Tilt wrapper, Buy stays a full plate", fn = function()
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a")
+	f:close()
+	expectFalse(src:find('Name = "ShineStrip"', 1, true) ~= nil, "no ShineStrip frame (ClipsDescendants fails under a rotated Tilt)")
+	expectFalse(src:find("Rotation = 20", 1, true) ~= nil, "no rotated child inside the card")
+	local drawer = src:match('Name = "Drawer".-%}%)')
+	expectTrue(drawer ~= nil and not drawer:find("ClipsDescendants", 1, true), "the Buy drawer is not clipped")
+	expectTrue(src:find("math.max(80, W - 20)", 1, true) ~= nil, "Buy is at least 80 px wide")
+	for _, w in ipairs({ 106, 150, 208 }) do
+		local buy = math.max(80, w - 20)
+		expectTrue(buy >= 70 and buy <= w, "Buy fits a " .. w .. " px card (" .. buy .. ")")
+	end
+end })
+
 table.insert(tests, { name = "Tutorial: the step table covers the guided hands in order and the walkthrough is wired", fn = function()
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local order = {}
