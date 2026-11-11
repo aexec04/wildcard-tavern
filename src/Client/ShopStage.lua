@@ -215,7 +215,7 @@ function ShopStage.new(deps)
 		buyList.CanvasSize = UDim2.new()
 		buyList.ClipsDescendants = false
 		local layout = buyList:FindFirstChildOfClass("UIListLayout")
-		if layout then layout.Enabled = false end
+		if layout then layout.Parent = nil end -- UIListLayout has no Enabled; unparent so children keep manual positions
 
 		for _, child in ipairs(buyList:GetChildren()) do
 			if child:IsA("GuiObject") and child ~= parts.patronRow and child ~= parts.packRow and child ~= parts.rerollRow

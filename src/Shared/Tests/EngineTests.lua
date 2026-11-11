@@ -13503,7 +13503,7 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 	expectTrue(not R.hidesBoard({ "Menu", "DeckTrackerBackdrop" }), "skipped and non-popup frames do not")
 	expectTrue(R.hidesWithPanel("AllActionsButton") and R.hidesWithPanel("Hotspot_jukebox"), "All actions and hotspots hide under a panel")
 	expectTrue(not R.hidesWithPanel("Rows") and not R.hidesWithPanel(nil), "other names stay")
-	local f = io.open and io.open("src/Client/BadgeWall.lua", "r")
+	local f = io and io.open and io.open("src/Client/BadgeWall.lua", "r")
 	if f then
 		local src = f:read("a"); f:close()
 		expectTrue(not src:find("TextTruncate.AtEnd", 1, true), "nameplate text is never truncated")
@@ -13511,7 +13511,7 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 end })
 
 table.insert(tests, { name = "Tavern Map sources and registries contain no emoji or symbol glyphs", fn = function()
-	if not io.open then return end
+	if not (io and io.open) then return end
 	local files = { "src/Client/JourneyMapView.lua", "src/Client/JourneyMapGraph.lua", "src/Client/JourneyMapCompass.lua",
 		"src/Client/JourneyMapDiscoveries.lua", "src/Client/JourneyMapHero.lua", "src/Client/MapHover.lua",
 		"src/Client/CompassWheel.lua", "src/Client/RoadChoice.lua", "src/Shared/Engine/WorldMap.lua", "src/Shared/Engine/JourneyMap.lua" }
@@ -15218,7 +15218,7 @@ table.insert(tests, { name = "Tavern Map: opaque props are not drawn; label plat
 	expectTrue(R.isDrawable("not_listed"), "an unlisted prop is drawable")
 	expectTrue(R.plateWidth(140) == 164 and R.plateWidth(140) <= 140 + 40, "plate is text plus 24, never text plus 40")
 	expectTrue(R.plateWidth(300, 230) == 230, "plate is capped at its max")
-	if io.open then
+	if io and io.open then
 		for _, p in ipairs({ "src/Client/JourneyMapGraph.lua", "src/Client/JourneyMapView.lua" }) do
 			local f = io.open(p, "r")
 			if f then
@@ -15246,6 +15246,19 @@ tests[#tests + 1] = ({ name = "RoundSelect: UIStrokes are Border mode and no emo
 			expectTrue(ok, "RoundSelect.lua line " .. n .. ": UIStroke must set ApplyStrokeMode Border")
 		end
 		expectTrue(not l:find("[\240-\244]"), "RoundSelect.lua line " .. n .. " has an emoji")
+	end
+end })
+
+table.insert(tests, { name = "No client file sets Enabled on a layout instance (UIListLayout has no Enabled)", fn = function()
+	if not (io and io.open) then return end
+	local files = { "src/Client/ShopStage.lua", "src/Client/Shop.lua", "src/Client/ShopBackdrop.lua", "src/Client/ShopScene.lua",
+		"src/Client/Collection.lua", "src/Client/RoundSelect.lua", "src/Client/Menu.lua", "src/Client/BadgeWall.lua" }
+	for _, p in ipairs(files) do
+		local f = io.open(p, "r")
+		if f then
+			local src = f:read("a"); f:close()
+			expectTrue(not src:find("[lL]ayout%.Enabled"), p .. " sets Enabled on a layout instance")
+		end
 	end
 end })
 
