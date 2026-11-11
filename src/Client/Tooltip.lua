@@ -96,7 +96,9 @@ function Tooltip.new(screenGui)
 			label.Text = (type(text) == "function") and text() or text
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local lastLog = false -- one Studio warn per hover
-			local function place()
+			local lastFix = false
+			local nudge = Vector2.zero -- absorbed offset between the written and the live position
+			local function placeRaw()
 				local pos, size = button.AbsolutePosition, button.AbsoluteSize
 				if side == "right" then -- measure from the HUD column's edge so the tip clears the whole panel
 					local col = button:FindFirstAncestor("SidebarBoard") or button:FindFirstAncestor("Sidebar")
@@ -109,7 +111,7 @@ function Tooltip.new(screenGui)
 						-- measure live from the lowest of the hovered object and its anchor (name plate), so a
 						-- hover lift or a small hit area can never put the tip over the plate text
 						local bottom = pos.Y + size.Y
-						if anchor and anchor.Parent then
+						if anchor and anchor.Parent and anchor:IsA("GuiObject") then
 							bottom = math.max(bottom, anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y)
 						end
 						size = Vector2.new(size.X, bottom - pos.Y + 4) -- place() adds the 8 px gap: 12 in all
@@ -136,6 +138,13 @@ function Tooltip.new(screenGui)
 					warn(string.format("[Tooltip below] tip %d,%d size %dx%d anchorBottom %s origin %d,%d",
 						x, y, frame.AbsoluteSize.X, frame.AbsoluteSize.Y,
 						anchor and tostring(math.floor(anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y)) or "none", origin.X, origin.Y))
+				end
+			end
+			local function place() -- never throws: a bad measurement must not kill the tooltip
+				local ok, err = pcall(placeRaw)
+				if not ok and RunService:IsStudio() and not lastLog then
+					lastLog = true
+					warn("[Tooltip] place failed: " .. tostring(err))
 				end
 			end
 			place()

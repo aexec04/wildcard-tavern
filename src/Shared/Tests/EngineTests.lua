@@ -15476,7 +15476,7 @@ table.insert(tests, { name = "TooltipSpec.correct absorbs an outside shift so th
 	-- applying it twice converges (a further identical miss would add, a landed rect stops)
 	ox, oy, changed = TS.correct({ X = 503, Y = 328 }, { X = 503, Y = 328.5 }, { X = ox, Y = oy })
 	expectFalse(changed, "within 1 px is left alone")
-	local f = io.open("src/Client/Tooltip.lua", "r")
+	local f = io and io.open and io.open("src/Client/Tooltip.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("TooltipSpec.correct", 1, true) ~= nil and src:find("frame.AbsolutePosition", 1, true) ~= nil, "Tooltip verifies the live AbsolutePosition after writing Position")
@@ -15502,7 +15502,7 @@ table.insert(tests, { name = "Left HUD: 5, 6 and 7 Patron seats fit one row; a l
 	expectTrue(Fit.extra(Fit.height(4, 16)) > 0, "four lines lift the name labels")
 	expectTrue(Fit.extra(Fit.height(4, 16)) >= Fit.height(4, 16) - Fit.height(2, 16), "the lift covers every extra line")
 
-	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
 	local side = read("src/Client/Sidebar.lua")
 	if side then expectTrue(side:find("SeatFit", 1, true) ~= nil and side:find("fitSeats", 1, true) ~= nil, "Sidebar sizes seats with SeatFit") end
 	local rs = read("src/Client/RoundSelect.lua")
