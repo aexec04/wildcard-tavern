@@ -35,35 +35,35 @@ JourneyMap.NightCap = 8
 -- `art` is the SceneArt / map_nodes key; x, y are rough canvas fractions (the Journey
 -- view spaces nodes itself; they only matter for the Studio Nudge tool).
 JourneyMap.Nights = {
-	{ night = 1, name = "The Dusty Road", art = "dusty_road", icon = "🛤",
+	{ night = 1, name = "The Dusty Road", art = "dusty_road", icon = "DR",
 		x = 0.05, y = 0.62,
 		description = "Sandy gravel underfoot and a long road ahead. Every journey starts somewhere.",
 		reward = { kind = "title", id = "porch_regular" } },
-	{ night = 2, name = "The Wildflower Meadow", art = "wildflower_meadow", icon = "🌼",
+	{ night = 2, name = "The Wildflower Meadow", art = "wildflower_meadow", icon = "WM",
 		x = 0.2, y = 0.3,
 		description = "Fields of bright flowers hum with bees, and the first lanterns glow far off.",
 		reward = { kind = "cardBack", id = "kitchen_checks" } },
-	{ night = 3, name = "The Lantern Garden", art = "garden_terrace", icon = "🏮",
+	{ night = 3, name = "The Lantern Garden", art = "garden_terrace", icon = "LG",
 		x = 0.33, y = 0.64,
 		description = "Fairy lights and flower beds make a calm stop before the harder road.",
 		reward = { kind = "set", id = "winter_evening" } },
-	{ night = 4, name = "The Willow Bridge", art = "willow_bridge", icon = "🌉",
+	{ night = 4, name = "The Willow Bridge", art = "willow_bridge", icon = "WB",
 		x = 0.47, y = 0.3,
 		description = "A stone bridge over a quiet river. Cross it and the road gets steeper.",
 		reward = { kind = "title", id = "loft_climber" } },
-	{ night = 5, name = "The Mountain Pass", art = "mountain_pass", icon = "⛰",
+	{ night = 5, name = "The Mountain Pass", art = "mountain_pass", icon = "MP",
 		x = 0.64, y = 0.66,
 		description = "A narrow trail over snowy peaks, with the tavern lights somewhere beyond.",
 		reward = { kind = "set", id = "festival_night" } },
-	{ night = 6, name = "The Tavern Gate", art = "tavern_gate", icon = "🚪",
+	{ night = 6, name = "The Tavern Gate", art = "tavern_gate", icon = "TG",
 		x = 0.76, y = 0.3,
 		description = "Lanterns and cobblestones. The tavern is finally in sight.",
 		reward = { kind = "cardBack", id = "hall_banner" } },
-	{ night = 7, name = "The Grand Hall", art = "grand_hall", icon = "🏛",
+	{ night = 7, name = "The Grand Hall", art = "grand_hall", icon = "GH",
 		x = 0.84, y = 0.64,
 		description = "Chandeliers, banners and a very serious crowd.",
 		reward = { kind = "set", id = "closing_time" } },
-	{ night = 8, name = "The Keeper's Table", art = "keepers_table", icon = "👑",
+	{ night = 8, name = "The Keeper's Table", art = "keepers_table", icon = "KT",
 		x = 0.91, y = 0.32,
 		description = "The last table of the tavern. Win here and it's yours.",
 		reward = { kind = "title", id = "tavern_keeper" } },
@@ -83,7 +83,7 @@ JourneyMap.Config = {
 JourneyMap.Endless = {
 	name = "Endless Nights",
 	art = "endless_portal",
-	icon = "♾",
+	icon = "oo",
 	description = "The doors never close. How far can you go?",
 	x = 0.77, y = 0.64,
 }
@@ -91,13 +91,13 @@ JourneyMap.Endless = {
 -- Extra nodes past the Endless doors. Clearing Night `night` (the boss round
 -- of that Endless Night) for the first time grants the reward.
 JourneyMap.EndlessMilestones = {
-	{ night = 10, name = "Night Ten", icon = "🌠",
+	{ night = 10, name = "Night Ten", icon = "10",
 		description = "Ten nights in. The lanterns have all burned low.",
 		x = 0.84, y = 0.32, reward = { kind = "title", id = "night_walker" } },
-	{ night = 15, name = "Night Fifteen", icon = "🔥",
+	{ night = 15, name = "Night Fifteen", icon = "15",
 		description = "Fifteen nights. Even the stars are watching your table.",
 		x = 0.91, y = 0.64, reward = { kind = "cardBack", id = "ember_hours" } },
-	{ night = 20, name = "Night Twenty", icon = "🌌",
+	{ night = 20, name = "Night Twenty", icon = "20",
 		description = "Twenty nights. They will tell stories about this one.",
 		x = 0.96, y = 0.30, reward = { kind = "title", id = "endless_legend" } },
 }
@@ -111,16 +111,16 @@ JourneyMap.EndlessTheme = {
 
 -- Icon and wording per boss tier (see bossTierFor).
 JourneyMap.BossTiers = {
-	{ icon = "⚔", label = "Boss ★" },
-	{ icon = "🛡", label = "Boss ★★" },
-	{ icon = "👑", label = "Boss ★★★" },
+	{ icon = "I", label = "Boss I" },
+	{ icon = "II", label = "Boss II" },
+	{ icon = "III", label = "Boss III" },
 }
 
 -- Icon and noun per reward kind, for previews.
 JourneyMap.RewardKinds = {
-	cardBack = { icon = "🃏", noun = "Card back" },
-	set = { icon = "🖼", noun = "Card set" },
-	title = { icon = "🏅", noun = "Title" },
+	cardBack = { icon = "", noun = "Card back" },
+	set = { icon = "", noun = "Card set" },
+	title = { icon = "", noun = "Title" },
 }
 
 function JourneyMap.getNight(night)

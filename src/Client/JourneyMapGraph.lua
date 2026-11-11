@@ -131,10 +131,14 @@ return function(deps)
 		l.AnchorPoint = Vector2.new(0.5, 0)
 		l.Position = UDim2.fromOffset(x, y)
 		l.Size = UDim2.fromOffset(w, h)
-		l.BackgroundTransparency = 1
+		l.BackgroundColor3 = Color3.fromRGB(34, 24, 16) -- dark plate: cream text stays readable over any map art
+		l.BackgroundTransparency = 0.1
+		local plateCorner = Instance.new("UICorner")
+		plateCorner.CornerRadius = UDim.new(0, 6)
+		plateCorner.Parent = l
 		l.Text = text
 		l.Font = Enum.Font.GothamBold
-		l.TextSize = size
+		l.TextSize = math.max(size, 15)
 		l.TextColor3 = CREAM
 		l.TextStrokeColor3 = Color3.fromRGB(30, 22, 16)
 		l.TextStrokeTransparency = 0.8
@@ -238,8 +242,8 @@ return function(deps)
 				local text = deps.rewardText and deps.rewardText(ends[id])
 				if text then
 					local region = ends[id]
-				local mark = haveBadge["master_" .. region] and "  ★ Master" or (haveBadge["biome_" .. region] and "  ✓ cleared" or "")
-				badge = textLabel("🎁 " .. text .. mark, p.x, top - 24, 230, 22, 15, 27)
+				local mark = haveBadge["master_" .. region] and "  Master" or (haveBadge["biome_" .. region] and "  cleared" or "")
+				badge = textLabel(text .. mark, p.x, top - 24, 230, 22, 15, 27)
 					badge.TextColor3 = Color3.fromRGB(255, 226, 150)
 					badge.Name = "RewardChip_" .. id
 					badge.Visible = (focusId == id) or (focusId == nil and nextEnd == id)
@@ -271,7 +275,7 @@ return function(deps)
 				chip.Size = UDim2.fromOffset(lockedRoad[id] and 176 or 132, 28)
 				chip.Position = UDim2.fromOffset(p.x, top - 30)
 				chip.BackgroundColor3 = lockedRoad[id] and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(60, 120, 60)
-				chip.Text = lockedRoad[id] and (keys > 0 and "🔒 Unlock with a Key" or "🔒 Locked") or "Take this road"
+				chip.Text = lockedRoad[id] and (keys > 0 and "Unlock with a Key" or "Locked") or "Take this road"
 				chip.Font = Enum.Font.GothamBold
 				chip.TextSize = 15
 				chip.TextColor3 = CREAM
@@ -329,7 +333,7 @@ return function(deps)
 					end)
 				end
 				if lockedRoad[id] and v ~= "teaser" then -- every locked road keeps a padlock, pending or not
-					local pad = textLabel("🔒", p.x + size / 2 - 2, p.y - size / 2 - 10, 30, 28, 22, 29)
+					local pad = textLabel("Lock", p.x + size / 2 - 2, p.y - size / 2 - 10, 30, 28, 22, 29)
 					pad.Name = "Padlock_" .. id
 					-- Keys cost, shown while the stop is focused (tap) or hovered
 					local cost = textLabel(keys > 0 and "Costs 1 Key" or "Needs a Key", p.x, p.y - size / 2 - 34, 130, 22, 15, 41)

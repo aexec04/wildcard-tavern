@@ -29,7 +29,7 @@ return function(deps)
 	keysPill.Position = UDim2.fromOffset(74, 54)
 	keysPill.Size = UDim2.fromOffset(86, 36)
 	keysPill.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	keysPill.Text = "🗝 0"
+	keysPill.Text = "Keys 0"
 	keysPill.Font = Enum.Font.GothamBold
 	keysPill.TextSize = 18
 	keysPill.TextColor3 = Color3.fromRGB(250, 235, 200)
@@ -47,7 +47,7 @@ return function(deps)
 	icon.Position = UDim2.fromOffset(14, 46)
 	icon.Size = UDim2.fromOffset(52, 52)
 	icon.BackgroundColor3 = PARCHMENT
-	icon.Text = "🧭"
+	icon.Text = "N"
 	icon.TextSize = 28
 	icon.Font = Enum.Font.GothamBold
 	icon.TextColor3 = INK
@@ -181,8 +181,8 @@ return function(deps)
 	wheel.frame.Position = UDim2.new(0.5, 0, 0, 48)
 	wheel.frame.ZIndex = 46
 
-	local left = button("◀", 14, 100, 44, 44)
-	local right = button("▶", 242, 100, 44, 44)
+	local left = button("<", 14, 100, 44, 44)
+	local right = button(">", 242, 100, 44, 44)
 	left.MouseButton1Click:Connect(function()
 		bearing = Layout.stepBearing(bearing, -15)
 		wheel.setBearing(bearing)
@@ -220,7 +220,7 @@ return function(deps)
 
 	local function updateButtons()
 		local charges = state and state.compassCharges or 0
-		keysPill.Text = "🗝 " .. RoadLock.keys(state)
+		keysPill.Text = "Keys " .. RoadLock.keys(state)
 		badge.Text = tostring(math.floor(charges))
 		wheel.setCharges(charges)
 		local ok = canSpend()

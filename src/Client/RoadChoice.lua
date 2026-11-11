@@ -143,7 +143,7 @@ return function(deps)
 	chip.Position = UDim2.new(0.5, 0, 0, 10)
 	chip.Size = UDim2.fromOffset(220, 38)
 	chip.BackgroundColor3 = Color3.fromRGB(222, 182, 104)
-	chip.Text = "🧭 Choose your road"
+	chip.Text = "Choose your road"
 	chip.Font = Enum.Font.GothamBold
 	chip.TextSize = 17
 	chip.TextColor3 = INK
@@ -182,7 +182,7 @@ return function(deps)
 	revealButton.Position = UDim2.fromOffset(20, 84)
 	revealButton.Size = UDim2.fromOffset(250, 38)
 	revealButton.BackgroundColor3 = GOLD
-	revealButton.Text = "🧭 Use compass: reveal rewards"
+	revealButton.Text = "Use compass: reveal rewards"
 	revealButton.Font = Enum.Font.GothamBold
 	revealButton.TextSize = 16
 	revealButton.TextColor3 = INK
@@ -242,7 +242,7 @@ return function(deps)
 		strip.Parent = card
 		roundCorner(strip, 8)
 		label(strip, {
-			Size = UDim2.fromScale(1, 1), Text = stop.icon or "🧭", TextSize = 56, ZIndex = 25,
+			Size = UDim2.fromScale(1, 1), Text = stop.icon or "?", TextSize = 56, ZIndex = 25,
 			TextWrapped = false, Font = Enum.Font.GothamBold,
 		})
 		local artId = ContentArt.getImageId("map_nodes", stop.art)
@@ -294,7 +294,7 @@ return function(deps)
 		-- padlock on the art when the road needs a Key (shown by refreshLocks)
 		local lock = label(strip, {
 			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(40, 40),
-			Text = "🔒", TextSize = 30, ZIndex = 28, BackgroundTransparency = 0.25, BackgroundColor3 = Color3.fromRGB(40, 28, 18),
+			Text = "Lock", TextSize = 20, ZIndex = 28, BackgroundTransparency = 0.25, BackgroundColor3 = Color3.fromRGB(40, 28, 18),
 		})
 		lock.Visible = false
 		roundCorner(lock, 20)
@@ -385,7 +385,7 @@ return function(deps)
 			if c and c.take then
 				local locked = RoadLock.isLocked(state, id)
 				c.lock.Visible = locked
-				c.take.Text = locked and (RoadLock.keys(state) > 0 and "🔒 Unlock with a Key" or "🔒 Locked: needs a Key") or "Take this road"
+				c.take.Text = locked and (RoadLock.keys(state) > 0 and "Unlock with a Key" or "Locked: needs a Key") or "Take this road"
 				c.take.BackgroundColor3 = locked and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(86, 140, 70)
 			end
 		end

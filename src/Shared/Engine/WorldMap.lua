@@ -49,43 +49,43 @@ WorldMap.RegionOrder = { "road", "meadow", "river", "peaks", "desert", "swamp", 
 -- `next` lists the Night stops reachable from here: 1 id is a plain road, 2 to 3 ids are a fork.
 -- The FIRST entry of every `next` list is the default road (the one today's eight Nights follow).
 WorldMap.Stops = {
-	dusty_road = { kind = "night", region = "road", art = "dusty_road", name = "The Dusty Road", icon = "🛤",
+	dusty_road = { kind = "night", region = "road", art = "dusty_road", name = "The Dusty Road", icon = "DR",
 		next = { "wildflower_meadow" }, x = 0.04, y = 0.5 },
-	wildflower_meadow = { kind = "night", region = "meadow", art = "wildflower_meadow", name = "The Wildflower Meadow", icon = "🌼",
+	wildflower_meadow = { kind = "night", region = "meadow", art = "wildflower_meadow", name = "The Wildflower Meadow", icon = "WM",
 		next = { "garden_terrace", "desert_dunes", "swamp_boardwalk" }, x = 0.12, y = 0.5 },
 
 	-- Fork A, road 1 (default): garden and river.
-	garden_terrace = { kind = "night", region = "meadow", art = "garden_terrace", name = "The Lantern Garden", icon = "🏮",
+	garden_terrace = { kind = "night", region = "meadow", art = "garden_terrace", name = "The Lantern Garden", icon = "LG",
 		hint = "Calm gardens, then a quiet river", next = { "willow_bridge" }, x = 0.22, y = 0.5 },
-	willow_bridge = { kind = "night", region = "river", art = "willow_bridge", name = "The Willow Bridge", icon = "🌉",
+	willow_bridge = { kind = "night", region = "river", art = "willow_bridge", name = "The Willow Bridge", icon = "WB",
 		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.5 },
 	-- Fork A, road 2: the dunes.
-	desert_dunes = { kind = "night", region = "desert", art = "desert_dunes", fallbackArt = "dusty_road", name = "The Singing Dunes", icon = "🏜",
+	desert_dunes = { kind = "night", region = "desert", art = "desert_dunes", fallbackArt = "dusty_road", name = "The Singing Dunes", icon = "SD",
 		hint = "Warm sands and market stalls", next = { "oasis_camp" }, x = 0.22, y = 0.18 },
-	oasis_camp = { kind = "night", region = "desert", art = "oasis_camp", fallbackArt = "dusty_road", name = "The Oasis Camp", icon = "🌴",
+	oasis_camp = { kind = "night", region = "desert", art = "oasis_camp", fallbackArt = "dusty_road", name = "The Oasis Camp", icon = "OC",
 		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.18 },
 	-- Fork A, road 3: the marsh.
-	swamp_boardwalk = { kind = "night", region = "swamp", art = "swamp_boardwalk", fallbackArt = "willow_bridge", name = "The Misty Boardwalk", icon = "🌫",
+	swamp_boardwalk = { kind = "night", region = "swamp", art = "swamp_boardwalk", fallbackArt = "willow_bridge", name = "The Misty Boardwalk", icon = "MB",
 		hint = "Foggy planks and glowing mushrooms", next = { "lilypad_pond" }, x = 0.22, y = 0.82 },
-	lilypad_pond = { kind = "night", region = "swamp", art = "lilypad_pond", fallbackArt = "willow_bridge", name = "The Lilypad Pond", icon = "🐸",
+	lilypad_pond = { kind = "night", region = "swamp", art = "lilypad_pond", fallbackArt = "willow_bridge", name = "The Lilypad Pond", icon = "LP",
 		next = { "mountain_pass", "frosty_trail", "lighthouse_cove" }, x = 0.32, y = 0.82 },
 
 	-- Fork B: one stop on Night 5, all three roads rejoin at the tavern gate.
-	mountain_pass = { kind = "night", region = "peaks", art = "mountain_pass", name = "The Mountain Pass", icon = "⛰",
+	mountain_pass = { kind = "night", region = "peaks", art = "mountain_pass", name = "The Mountain Pass", icon = "MP",
 		hint = "Rocky trails and snowy peaks", next = { "tavern_gate" }, x = 0.46, y = 0.5 },
-	frosty_trail = { kind = "night", region = "snow", art = "frosty_trail", fallbackArt = "mountain_pass", name = "The Frosty Trail", icon = "❄",
+	frosty_trail = { kind = "night", region = "snow", art = "frosty_trail", fallbackArt = "mountain_pass", name = "The Frosty Trail", icon = "FT",
 		hint = "Snowdrifts and lantern-lit pines", next = { "tavern_gate" }, x = 0.46, y = 0.18 },
-	lighthouse_cove = { kind = "night", region = "coast", art = "lighthouse_cove", fallbackArt = "willow_bridge", name = "The Lighthouse Cove", icon = "🗼",
+	lighthouse_cove = { kind = "night", region = "coast", art = "lighthouse_cove", fallbackArt = "willow_bridge", name = "The Lighthouse Cove", icon = "LC",
 		hint = "Tide pools and a friendly lighthouse", next = { "tavern_gate" }, x = 0.46, y = 0.82 },
 
 	-- The tavern region always comes last: gate, hall (or kitchen), Keeper.
-	tavern_gate = { kind = "night", region = "tavern", art = "tavern_gate", name = "The Tavern Gate", icon = "🚪",
+	tavern_gate = { kind = "night", region = "tavern", art = "tavern_gate", name = "The Tavern Gate", icon = "TG",
 		next = { "grand_hall", "warm_kitchen" }, x = 0.6, y = 0.5 },
-	grand_hall = { kind = "night", region = "tavern", art = "grand_hall", name = "The Grand Hall", icon = "🏛",
+	grand_hall = { kind = "night", region = "tavern", art = "grand_hall", name = "The Grand Hall", icon = "GH",
 		hint = "Chandeliers and banners", next = { "keepers_table" }, x = 0.74, y = 0.34 },
-	warm_kitchen = { kind = "night", region = "tavern", art = "warm_kitchen", name = "The Warm Kitchen", icon = "🍲",
+	warm_kitchen = { kind = "night", region = "tavern", art = "warm_kitchen", name = "The Warm Kitchen", icon = "WK",
 		hint = "Steam, pots and a busy stove", next = { "keepers_table" }, x = 0.74, y = 0.66 },
-	keepers_table = { kind = "night", region = "tavern", art = "keepers_table", name = "The Keeper's Table", icon = "👑",
+	keepers_table = { kind = "night", region = "tavern", art = "keepers_table", name = "The Keeper's Table", icon = "KT",
 		next = {}, x = 0.9, y = 0.5 },
 }
 
@@ -98,22 +98,22 @@ local function side(id, parent, kind, name, icon, dx, dy)
 	WorldMap.Stops[id] = { kind = "side", parent = parent, side = kind, name = name, icon = icon,
 		dx = dx or 0.02, dy = dy or 0.14 }
 end
-side("picnic_stall", "wildflower_meadow", "shop", "The Picnic Stall", "🧺")
-side("garden_shrine", "garden_terrace", "shrine", "The Garden Shrine", "⛩", 0.0, -0.14)
-side("bridge_rest", "willow_bridge", "rest", "The Bridge Rest", "🛖")
-side("summit_shrine", "mountain_pass", "shrine", "The Summit Shrine", "⛩")
-side("oasis_stall", "oasis_camp", "shop", "The Oasis Stall", "🛍")
-side("dune_rest", "desert_dunes", "rest", "The Dune Tent", "⛺", 0.0, -0.14)
-side("lantern_hut", "swamp_boardwalk", "rest", "The Lantern Hut", "🛖")
-side("mushroom_stall", "lilypad_pond", "shop", "The Mushroom Stall", "🍄")
-side("cabin_rest", "frosty_trail", "rest", "The Snow Cabin", "🏠", 0.0, -0.14)
-side("harbor_stall", "lighthouse_cove", "shop", "The Harbor Stall", "⚓")
-side("gate_shrine", "tavern_gate", "shrine", "The Gate Shrine", "⛩", 0.0, 0.14)
+side("picnic_stall", "wildflower_meadow", "shop", "The Picnic Stall", "$")
+side("garden_shrine", "garden_terrace", "shrine", "The Garden Shrine", "+", 0.0, -0.14)
+side("bridge_rest", "willow_bridge", "rest", "The Bridge Rest", "z")
+side("summit_shrine", "mountain_pass", "shrine", "The Summit Shrine", "+")
+side("oasis_stall", "oasis_camp", "shop", "The Oasis Stall", "$")
+side("dune_rest", "desert_dunes", "rest", "The Dune Tent", "z", 0.0, -0.14)
+side("lantern_hut", "swamp_boardwalk", "rest", "The Lantern Hut", "z")
+side("mushroom_stall", "lilypad_pond", "shop", "The Mushroom Stall", "$")
+side("cabin_rest", "frosty_trail", "rest", "The Snow Cabin", "z", 0.0, -0.14)
+side("harbor_stall", "lighthouse_cove", "shop", "The Harbor Stall", "$")
+side("gate_shrine", "tavern_gate", "shrine", "The Gate Shrine", "+", 0.0, 0.14)
 -- Minigame stops (Engine/Minigames.lua): a win gives a map token and maybe a compass charge.
-side("flip_bridge", "willow_bridge", "minigame", "The Card Flip Table", "🃏", 0.0, -0.14)
-side("lockpick_cave", "mountain_pass", "minigame", "The Lockbox Cave", "🔐", 0.0, -0.14)
-side("trivia_cabin", "frosty_trail", "minigame", "The Trivia Corner", "❓")
-side("dice_dock", "lighthouse_cove", "minigame", "The Dice Dock", "🎲", 0.0, -0.14)
+side("flip_bridge", "willow_bridge", "minigame", "The Card Flip Table", "*", 0.0, -0.14)
+side("lockpick_cave", "mountain_pass", "minigame", "The Lockbox Cave", "*", 0.0, -0.14)
+side("trivia_cabin", "frosty_trail", "minigame", "The Trivia Corner", "*")
+side("dice_dock", "lighthouse_cove", "minigame", "The Dice Dock", "*", 0.0, -0.14)
 -- Hidden side stops: a "?" stub on the map until revealed with a map token or compass charge (Engine/SideStops).
 for _, id in ipairs({ "lockpick_cave", "dune_rest", "lantern_hut", "cabin_rest" }) do
 	WorldMap.Stops[id].hidden = true

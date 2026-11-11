@@ -28,7 +28,7 @@ return function(deps)
 	local PARCHMENT = Color3.fromRGB(222, 198, 150)
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local SIZE = 44
-	local KIND_ICON = { chest = "🧰", merchant = "🛒", secret_patron = "🔓" }
+	local KIND_ICON = { chest = "C", merchant = "$", secret_patron = "S" }
 	local SPOT_NAMES = { chest = "Hidden chest", merchant = "Wandering merchant", secret_patron = "Secret stash" }
 	local hover = require(script.Parent.MapHover).new({ canvas = canvas, TweenService = TweenService, calm = deps.calm })
 
@@ -142,7 +142,7 @@ return function(deps)
 					button.Font = Enum.Font.GothamBold
 					button.TextSize = 22
 					button.TextColor3 = INK
-					button.Text = claimed and "✔" or (KIND_ICON[spot.kind] or "?")
+					button.Text = claimed and "OK" or (KIND_ICON[spot.kind] or "?")
 					button.AutoButtonColor = not claimed
 					button.ZIndex = 26
 					button.Parent = root
@@ -186,7 +186,7 @@ return function(deps)
 				chip.Font = Enum.Font.GothamBold
 				chip.TextSize = 15
 				chip.TextColor3 = CREAM
-				chip.Text = "🧭 Use a charge: reveal secrets here"
+				chip.Text = "Use a charge: reveal secrets here"
 				chip.ZIndex = 27
 				chip.Parent = root
 				deps.roundCorner(chip, 8)

@@ -88,7 +88,7 @@ function MapHover.new(opts)
 		if not ok or type(info) ~= "table" then return end
 		titleLabel.Text = info.title or "???"
 		biomeLabel.Text = info.biome or "???"
-		bodyLabel.Text = (info.done and "✔ Cleared. " or "") .. (info.line or "")
+		bodyLabel.Text = (info.done and "Cleared. " or "") .. (info.line or "")
 		place(target)
 		card.Visible = true
 		shownFor = target

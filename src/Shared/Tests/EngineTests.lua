@@ -13508,6 +13508,23 @@ table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; 
 	end
 end })
 
+table.insert(tests, { name = "Tavern Map sources and registries contain no emoji or symbol glyphs", fn = function()
+	if not io.open then return end
+	local files = { "src/Client/JourneyMapView.lua", "src/Client/JourneyMapGraph.lua", "src/Client/JourneyMapCompass.lua",
+		"src/Client/JourneyMapDiscoveries.lua", "src/Client/JourneyMapHero.lua", "src/Client/MapHover.lua",
+		"src/Client/CompassWheel.lua", "src/Client/RoadChoice.lua", "src/Shared/Engine/WorldMap.lua", "src/Shared/Engine/JourneyMap.lua" }
+	for _, p in ipairs(files) do
+		local f = io.open(p, "r")
+		if f then
+			local src = f:read("a"); f:close()
+			expectTrue(not src:find("[\240-\247]"), p .. " has a 4-byte emoji")
+			expectTrue(not src:find("\226[\152-\158]"), p .. " has a symbol glyph (dingbat or misc symbol)")
+			expectTrue(not src:find("\226[\134-\143]"), p .. " has an arrow or technical glyph")
+			expectTrue(not src:find("\226\151"), p .. " has a geometric shape glyph")
+		end
+	end
+end })
+
 table.insert(tests, { name = "PopupRules: newCueGate, makesSound and shouldShield are top-level functions that can be called", fn = function()
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectEqual(type(R.newCueGate), "function", "newCueGate is exported")

@@ -122,7 +122,7 @@ return function(deps)
 		emoji.BackgroundTransparency = 1
 		emoji.Font = Enum.Font.Gotham
 		emoji.TextSize = 28
-		emoji.Text = "🙂"
+		emoji.Text = ""
 		emoji.TextTransparency = 0
 		emoji.TextStrokeTransparency = 1
 		emoji.ZIndex = 35

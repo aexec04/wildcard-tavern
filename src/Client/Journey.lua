@@ -307,12 +307,13 @@ return function(deps)
 	local journeySubtitle = Instance.new("TextLabel")
 	journeySubtitle.Size = UDim2.new(1, -30, 0, 24)
 	journeySubtitle.Position = UDim2.new(0, 15, 0, 38)
-	journeySubtitle.BackgroundTransparency = 1
+	journeySubtitle.BackgroundColor3 = Color3.fromRGB(34, 24, 16) -- dark plate: readable over any map art
+	journeySubtitle.BackgroundTransparency = 0.12
 	journeySubtitle.Font = Enum.Font.Gotham
-	journeySubtitle.TextSize = 14
-	journeySubtitle.TextColor3 = Color3.fromRGB(220, 205, 185)
+	journeySubtitle.TextSize = 15
+	journeySubtitle.TextColor3 = Color3.fromRGB(240, 228, 205)
 	journeySubtitle.TextXAlignment = Enum.TextXAlignment.Left
-	journeySubtitle.Text = "Your table walks the road one Round at a time. 👑 = Boss Round."
+	journeySubtitle.Text = "Your table walks the road one Round at a time."
 	journeySubtitle.ZIndex = 21
 	journeySubtitle.Parent = journeyPanel
 

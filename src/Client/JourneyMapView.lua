@@ -273,7 +273,7 @@ return function(deps)
 		deps.roundCorner(dot, 4)
 		local foot = text(dot, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16),
-			TextSize = 12, Text = "👣", TextWrapped = false, ZIndex = 25, TextTransparency = 1, Visible = false, -- small: decorative footprint glyph
+			TextSize = 12, Text = "", TextWrapped = false, ZIndex = 25, TextTransparency = 1, Visible = false, -- small: decorative footprint glyph
 		})
 		return { frame = dot, foot = foot }
 	end
@@ -393,7 +393,7 @@ return function(deps)
 		local ribbon = text(button, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1), Size = UDim2.fromOffset(40, 20),
 			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, ZIndex = 30, BackgroundTransparency = 0,
-			BackgroundColor3 = RIBBON, Text = isEndless and "∞" or tostring(data.night),
+			BackgroundColor3 = RIBBON, Text = isEndless and "oo" or tostring(data.night),
 		})
 		deps.roundCorner(ribbon, 5)
 
@@ -408,10 +408,10 @@ return function(deps)
 			deps.roundCorner(bossBadge, 13)
 		end
 
-		-- Cleared: gold wax seal (✓ badge when the seal art is unavailable).
+		-- Cleared: gold wax seal (OK badge when the seal art is unavailable).
 		local check = text(button, {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.9, 0.86), Size = UDim2.fromOffset(26, 26),
-			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "✓", BackgroundTransparency = 0,
+			Font = Enum.Font.GothamBold, TextSize = 16, TextWrapped = false, Text = "OK", BackgroundTransparency = 0,
 			BackgroundColor3 = GOLD, TextColor3 = INK, Visible = false, ZIndex = 31,
 		})
 		deps.roundCorner(check, 13)
@@ -436,7 +436,7 @@ return function(deps)
 					requestRender()
 				end
 			end)
-			-- Hidden images are not fetched on their own; ask for it so the ✓ fallback can swap to the seal.
+			-- Hidden images are not fetched on their own; ask for it so the OK fallback can swap to the seal.
 			task.spawn(function()
 				pcall(function()
 					ContentProvider:PreloadAsync({ seal })
@@ -475,7 +475,13 @@ return function(deps)
 			AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(200, 22), TextWrapped = true,
 			Font = Enum.Font.GothamBold, TextSize = 17, Text = info.name, ZIndex = 26, -- under popups (30+) and node icons
 			TextColor3 = NAME_CREAM, TextStrokeColor3 = NAME_STROKE, TextStrokeTransparency = 0.8,
+			BackgroundColor3 = Color3.fromRGB(34, 24, 16), BackgroundTransparency = 0.12, -- dark plate keeps the name readable on any biome
 		})
+		do
+			local plateCorner = Instance.new("UICorner")
+			plateCorner.CornerRadius = UDim.new(0, 6)
+			plateCorner.Parent = name
+		end
 		-- Reward on a small hanging tag.
 		local tag = Instance.new("Frame")
 		tag.AnchorPoint = Vector2.new(0.5, 0)
@@ -630,7 +636,9 @@ return function(deps)
 	end
 
 	local function scrollTargetFor(x)
-		return math.clamp(x - scroll.AbsoluteSize.X / 2, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
+		-- Early nodes sit about 15 percent from the left edge (no blank beige before Night 1); later ones drift to the centre.
+		local frac = 0.15 + 0.35 * math.clamp(x / math.max(1, canvasW * 0.5), 0, 1)
+		return math.clamp(x - scroll.AbsoluteSize.X * frac, 0, math.max(0, canvasW - scroll.AbsoluteSize.X))
 	end
 	-- Vertical camera: centred on the road band, unless the player has panned up/down themselves.
 	local nodeBandY = nil -- nil = the canvas middle, where the road runs (set in layout)
@@ -882,7 +890,7 @@ return function(deps)
 		end
 		local def = lookups[reward.kind].getById(reward.id)
 		local kind = JourneyMap.RewardKinds[reward.kind]
-		return kind.icon .. " " .. (def and (def.title or def.name) or reward.id)
+		return kind.noun .. ": " .. (def and (def.title or def.name) or reward.id)
 	end
 
 	-- Draws every node and segment from `cleared`. `animating` leaves
@@ -1046,7 +1054,7 @@ return function(deps)
 	closeCard.TextSize = 14
 	closeCard.TextColor3 = CREAM
 	closeCard.BackgroundColor3 = Color3.fromRGB(70, 55, 40)
-	closeCard.Text = "✕"
+	closeCard.Text = "X"
 	closeCard.ZIndex = 43
 	closeCard.Parent = card
 	deps.polishButton(closeCard, 8)
@@ -1078,10 +1086,10 @@ return function(deps)
 		cardName.Text = info.name
 		cardDesc.Text = info.description
 		if data.kind == "endless" then
-			cardBoss.Text = "Boss ★★★ and beyond"
+			cardBoss.Text = "Boss III and beyond"
 			cardBoss.TextColor3 = PURPLE
 		else
-			cardBoss.Text = JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)].icon .. " "
+			cardBoss.Text = ""
 				.. JourneyMap.BossTiers[JourneyMap.bossTierFor(data.night)].label
 			cardBoss.TextColor3 = SOFT
 		end
@@ -1089,13 +1097,13 @@ return function(deps)
 		swatch.Visible = reward ~= nil
 		equipButton.Visible = false
 		if not reward then
-			cardReward.Text = locked and "🔒 Clear Night 8 to open the doors for good." or "The doors are open. Milestones wait ahead."
+			cardReward.Text = locked and "Locked: clear Night 8 to open the doors for good." or "The doors are open. Milestones wait ahead."
 			cardReward.TextColor3 = locked and DIM or PURPLE
 			cardHow.Text = "Endless Nights keep going. Clear Endless Night 10, 15 and 20 for rewards."
 			return
 		end
 
-		cardReward.Text = (isEarned and "✓ Earned: " or "🎁 Reward: ") .. JourneyMap.rewardLabel(reward, lookups)
+		cardReward.Text = (isEarned and "Earned: " or "Reward: ") .. JourneyMap.rewardLabel(reward, lookups)
 		cardReward.TextColor3 = isEarned and GOLD or SOFT
 		cardHow.Text = (isEarned and "Unlocked: " or "How to unlock: ") .. JourneyMap.unlockText(data)
 
@@ -1133,7 +1141,7 @@ return function(deps)
 		if isEarned then
 			local equipped = equippedNow(view, reward)
 			equipButton.Visible = true
-			equipButton.Text = equipped and "Equipped ✓" or "Equip"
+			equipButton.Text = equipped and "Equipped" or "Equip"
 			equipButton.Active = not equipped
 			equipButton.AutoButtonColor = not equipped
 			equipButton.BackgroundColor3 = equipped and Color3.fromRGB(70, 90, 60) or Color3.fromRGB(90, 60, 30)
@@ -1256,13 +1264,13 @@ return function(deps)
 		nudge.TextSize = 11 -- small: Studio-only Nudge button
 		nudge.TextColor3 = CREAM
 		nudge.BackgroundColor3 = Color3.fromRGB(40, 90, 60)
-		nudge.Text = "🛠 Nudge: off"
+		nudge.Text = "Nudge: off"
 		nudge.ZIndex = 50
 		nudge.Parent = frame
 		deps.roundCorner(nudge, 6)
 		nudge.MouseButton1Click:Connect(function()
 			debugOn = not debugOn
-			nudge.Text = debugOn and "🛠 Nudge: ON" or "🛠 Nudge: off"
+			nudge.Text = debugOn and "Nudge: ON" or "Nudge: off"
 			if debugOn then
 				closeDetail()
 				print("Journey nudge ON: drag nodes; coordinates print here.")
@@ -1305,7 +1313,7 @@ return function(deps)
 	findMe.TextStrokeTransparency = 1
 	findMe.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	findMe.AutoButtonColor = true
-	findMe.Text = "📍 Find me"
+	findMe.Text = "Find me"
 	findMe.ZIndex = 46
 	findMe.Parent = frame
 	deps.roundCorner(findMe, 6)
@@ -1763,7 +1771,7 @@ return function(deps)
 
 				local reward = rewardOf(index)
 				if reward then
-					showToast("🎁 " .. nodeData[index].info.name .. " cleared! " .. JourneyMap.rewardLabel(reward, lookups),
+					showToast( nodeData[index].info.name .. " cleared! " .. JourneyMap.rewardLabel(reward, lookups),
 						token, nodeData[index].kind == "milestone" and PURPLE or GOLD)
 					task.wait(1.2 / pace())
 				end
@@ -1833,24 +1841,24 @@ return function(deps)
 		else
 			hint = "Every reward earned. Well played, Keeper!"
 		end
-		local progress = string.format("Journey %d%% (%d/%d)", percent, done, total)
+		local progress = string.format("Journey %d of %d cleared", done, total)
 		local discoveryInfo = view.state and view.state.discoveries
 		if discoveryInfo then
-			progress = progress .. string.format(". Discovered %d of %d", discoveryInfo.found, discoveryInfo.total)
+			progress = progress .. string.format("   |   Discovered %d of %d", discoveryInfo.found, discoveryInfo.total)
 		end
 		local seenInfo = view.state and view.state.placesSeen
 		if seenInfo and seenInfo.total > 0 then
-			progress = progress .. string.format(". Places seen: %d of %d", seenInfo.seen, seenInfo.total)
+			progress = progress .. string.format("   |   Places seen %d of %d", seenInfo.seen, seenInfo.total)
 		end
 		if view.inEndless then
-			deps.titleLabel.Text = "♾ " .. JourneyMap.Endless.name .. " ♾"
+			deps.titleLabel.Text = JourneyMap.Endless.name
 			deps.titleLabel.TextColor3 = PURPLE
 			deps.subtitleLabel.Text = string.format("Night %d. %s. %s", math.floor(view.night), progress, hint)
 			deps.subtitleLabel.TextColor3 = rgb(JourneyMap.EndlessTheme.subtitle)
 		else
 			deps.titleLabel.Text = "The Tavern Map"
 			deps.titleLabel.TextColor3 = CREAM
-			deps.subtitleLabel.Text = progress .. ". " .. hint
+			deps.subtitleLabel.Text = progress .. "   |   " .. hint
 			deps.subtitleLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
 		end
 	end
