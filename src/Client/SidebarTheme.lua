@@ -288,6 +288,7 @@ end
 function SidebarTheme.paintBoardDepth(board, p, kit)
 	local depth = board:FindFirstChild("HudDepth")
 	local frame = board:FindFirstChild("HudKitFrame")
+	if board:GetAttribute("PlayBoardPainted") then return end -- the painted play board is the panel: no depth shade or frame over the table
 	if not p then
 		if depth then depth:Destroy() end
 		if frame then frame:Destroy() end

@@ -19063,6 +19063,56 @@ table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the boa
 	end
 end })
 
+-- polish 2: at three window sizes the title fits its slot and the plates under the board stay on screen
+table.insert(tests, { name = "Painted play screen polish 2: title fits and plates under the board stay inside the screen at 1506x751, 1920x957, 1280x720", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, size in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 } }) do
+		local stubs = {}
+		local env, state = FakeGui.env({ stubs = stubs })
+		local folder = FakeGui.folder(map)
+		local UDim2 = env.UDim2
+		state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+		stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+		local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
+		local function mk(class, name, parent, order)
+			local i = FakeGui.new(class)
+			i.Name = name
+			if order then i.LayoutOrder = order end
+			i.Parent = parent
+			return i
+		end
+		local root = mk("Frame", "Root", nil)
+		local sidebar = mk("Frame", "Sidebar", root)
+		mk("UIListLayout", "L", sidebar)
+		local ribbon = mk("Frame", "HeaderRibbon", sidebar)
+		local title = mk("TextLabel", "T", ribbon)
+		title.Text = "Night 8/8 \194\183 Round 3"
+		mk("Frame", "SidebarBoard", root)
+		local content = mk("Frame", "BoardContent", sidebar)
+		mk("UIListLayout", "L", content)
+		local tips = mk("Frame", "TipsRow", content, 5)
+		tips.Size = UDim2.fromOffset(300, 44)
+		local hint = mk("Frame", "Hint", content, 10)
+		hint.Size = UDim2.fromOffset(353, 56)
+		local chip = mk("Frame", "BlessingChip", sidebar)
+		chip.Size = UDim2.fromOffset(216, 44)
+		local rect = map.PlayBoardLayout.placement(size[1], size[2])
+		local H = map.PlayBoardLayout.hud(rect.w, rect.h)
+		local label = size[1] .. "x" .. size[2]
+		expectTrue(PlayBoardHud.apply(root, rect) == true, "applies at " .. label)
+		expectTrue(title.TextSize <= 17 and title.TextSize * #title.Text * 0.6 <= H.title.w - 16 or title.TextSize == 14, "title fits its slot at " .. label)
+		for _, f in ipairs({ tips, hint, chip }) do
+			local x, y, w, h = f.Position.X.Offset, f.Position.Y.Offset, f.Size.X.Offset, f.Size.Y.Offset
+			expectTrue(x >= 0 and x + w <= rect.w and y >= rect.h and y + h <= size[2], f.Name .. " stays under the board and on screen at " .. label)
+		end
+		expectTrue(tips.Position.Y.Offset + tips.Size.Y.Offset <= hint.Position.Y.Offset, "Tips above the hint at " .. label)
+	end
+end })
+
 -- polish 1: rows keep their bar and Reward, the title fits, the leftover frames and brackets are gone, the deck brackets stay hidden
 table.insert(tests, { name = "Painted play screen polish: score slot keeps bar and Reward, rule and Tips apart, frame decor hidden, deck brackets hidden", fn = function()
 	if not (io and io.open) then return end
@@ -19103,6 +19153,7 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	mk("UIListLayout", "L", content)
 	local rule = mk("Frame", "RoundRule", content, 1)
 	local ruleLabel = mk("TextLabel", "R", rule)
+	ruleLabel.Text = '<font size="17">Small Round</font>\n<font size="13" color="#E6D2AA">No special rules this round.</font>'
 	local score = mk("Frame", "ScoreBox", content, 3)
 	local big = mk("TextLabel", "Big", score)
 	big.TextScaled = true
@@ -19112,11 +19163,17 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local tips = mk("Frame", "TipsRow", content, 5)
 	tips.Size = UDim2.fromOffset(300, 44)
 	mk("TextLabel", "Tips", tips)
+	tips.BackgroundTransparency = 1
 	local hd = mk("Frame", "HandsDiscards", content, 6)
 	local ht = mk("Frame", "HandsTile", hd)
 	local hl = mk("TextLabel", "H", ht)
-	local hint = mk("Frame", "Hint", content, 7)
+	local hint = mk("Frame", "Hint", content, 10)
 	hint.Size = UDim2.fromOffset(353, 56)
+	hint.BackgroundTransparency = 1
+	-- the dark band: depth, kit frame and accent wash on the board, also ones the theme adds after the first paint
+	local band = {}
+	for _, n in ipairs({ "HudDepth", "HudKitFrame", "SetAccent" }) do band[n] = mk("Frame", n, board) end
+	title.Text = "Night 1/8 \194\183 Round 1"
 	local rect = map.PlayBoardLayout.placement(1506, 751)
 	local H = map.PlayBoardLayout.hud(rect.w, rect.h)
 	local called, applied = pcall(PlayBoardHud.apply, root, rect)
@@ -19129,18 +19186,31 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 
 	-- (1) the title has its full slot (about 200 px) and shrinks to fit between 14 and 19
 	expectTrue(ribbon.Size.X.Offset >= 190 and ribbon.Size.X.Offset == H.title.w, "title slot is about 200 px wide: " .. tostring(ribbon.Size.X.Offset))
-	local fitC = title:FindFirstChild("BoardFit")
-	expectTrue(fitC ~= nil and fitC.MaxTextSize <= 19 and fitC.MinTextSize >= 14 and title.TextScaled, "title shrinks to fit between 14 and 19")
+	expectTrue(title.TextSize >= 14 and title.TextSize <= 17 and not title.TextScaled and not title.TextWrapped, "title is one unscaled line of 14 to 17")
 	expectTrue(bar.Visible and plate.Visible, "the bar and the Reward plate are not hidden")
 	expectTrue(big.Position.Y.Scale < bar.Position.Y.Scale and bar.Position.Y.Scale < plate.Position.Y.Scale, "target, bar and Reward are stacked top to bottom")
 	expectTrue(rule.Size.X.Offset == H.rule.w and rule.Position.Y.Offset == H.rule.y, "the rule has the whole wide slot")
-	expectTrue(ruleLabel.Position.X.Offset == 8 and ruleLabel.Size.X.Offset == -16, "rule text is inset 8 px")
-	expectTrue(hl.Position.X.Offset == 8 and hl.Size.X.Offset == -16, "Hands text is inset 8 px")
+	local ruleName = rule:FindFirstChild("BoardRuleName")
+	expectTrue(ruleName ~= nil and ruleName.Position.X.Offset == 8 and ruleName.Size.X.Offset == -16, "rule text is inset 8 px")
+	expectTrue(hl.Position.X.Offset == 10 and hl.Size.X.Offset == -20, "Hands text is inset 10 px")
 	expectTrue(tips.Position.Y.Offset >= rect.h, "Tips sits under the board")
 
 	-- (2) the hint is clamped to the board width and sits under the board
 	expectTrue(hint.Size.X.Offset <= 230 and hint.Position.X.Offset + hint.Size.X.Offset <= rect.w, "the hint is clamped to the board width")
 	expectTrue(hint.Position.Y.Offset >= rect.h, "the hint sits under the board")
+	expectTrue(tips.BackgroundTransparency == 0 and hint.BackgroundTransparency == 0 and tips.Size.X.Offset == hint.Size.X.Offset, "Tips and the hint are two matching solid plates")
+	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the plates share a left edge, the hint under Tips")
+	for n, f in pairs(band) do expectTrue(f.Visible == false, n .. " is hidden while painted (no dark band over the table)") end
+	expectTrue(board:GetAttribute("PlayBoardPainted") == true, "the board is marked painted so the theme draws nothing over the table")
+	band.HudKitFrame.Visible = true -- the theme paints again later
+	PlayBoardHud.apply(root, rect)
+	expectTrue(band.HudKitFrame.Visible == false, "a piece the theme re-shows is hidden again")
+	-- the rule: name on the first line, the rule line only when it fits, never outside the slot
+	local rn, rl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
+	expectTrue(rn and rn.Text == "Small Round" and rl and rl.Text == "No special rules this round.", "rule slot holds the round name, then the rule")
+	expectTrue(ruleLabel.Visible == false and not rn.TextWrapped and not rl.TextWrapped, "the rich text label is replaced by one-line labels")
+	expectTrue(rn.TextSize <= 17 and (not rl.Visible or (rl.TextSize >= 13 and rl.TextSize <= 15)), "rule line is 13 to 15 px, or dropped when it does not fit")
+	expectTrue((rule:GetAttribute("RuleTooltip") or ""):find("No special rules"), "the full rule text is kept for the tooltip")
 
 	-- (3) the old frames: no parchment, no gold line, studs or brackets
 	expectTrue(sidebar.BackgroundTransparency == 1 and board.BackgroundTransparency == 1, "parchment fills are gone")

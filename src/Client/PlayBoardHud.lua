@@ -23,6 +23,9 @@ local INK = Color3.fromRGB(52, 32, 16)
 -- decoration the theme and the skin draw on the Sidebar and SidebarBoard frames themselves: gone while the board is painted
 local FRAME_DECOR = { SetSkinBorder = true, SetAccent = true, CornerStud = true, InnerRim = true, BracketH = true, BracketV = true, HudBrackets = true, Brackets = true }
 local INSET = 8 -- text keeps 8 px off a slot's edge
+local TILE_INSET = 10 -- Hands and Discards keep 10 px
+local PLATE = Color3.fromRGB(226, 202, 156)
+local EDGE = Color3.fromRGB(96, 66, 38)
 local THEME_PIECES = { HudKitPlate = true, HudKitPad = true, HudHeaderPlate = true, HudDepth = true, InnerHighlight = true, HudKitFrame = true }
 
 local states = setmetatable({}, { __mode = "k" })
@@ -67,6 +70,72 @@ local function fit(st, label, lo, hi)
 	put(st, label, { TextScaled = true, TextWrapped = true, TextColor3 = INK, TextStrokeTransparency = 1, TextTransparency = 0 })
 end
 
+-- text width in px: Roblox's TextService when it answers, else a plain estimate (the fake Roblox has no real fonts)
+local function measure(text, size, font)
+	text = text or ""
+	local ok, v = pcall(function()
+		local ts = game:GetService("TextService")
+		return ts:GetTextSize(text, size, font or Enum.Font.GothamBold, Vector2.new(10000, 10000)).X
+	end)
+	if ok and type(v) == "number" then return v end
+	return #text * size * 0.6
+end
+
+-- the largest size in lo..hi at which the text is one line inside width; second result false when even lo is too wide
+local function sizeFor(text, lo, hi, width, font)
+	for sz = hi, lo, -1 do
+		if measure(text, sz, font) <= width then return sz, true end
+	end
+	return lo, false
+end
+
+-- one line, no scaling, no truncation: shrinks until it fits the slot width
+local function fitOne(st, label, width, lo, hi)
+	local size = sizeFor(label.Text, lo, hi, width, label.Font)
+	put(st, label, { TextScaled = false, TextWrapped = false, RichText = false, TextTruncate = Enum.TextTruncate.None, TextSize = size,
+		TextColor3 = INK, TextStrokeTransparency = 1, TextTransparency = 0 })
+end
+
+local function makeLabel(st, parent, name)
+	local l = parent:FindFirstChild(name)
+	if not l then
+		l = Instance.new("TextLabel")
+		l.Name = name
+		l.BackgroundTransparency = 1
+		l.BorderSizePixel = 0
+		l.Active = false
+		l.Font = Enum.Font.GothamBold
+		l.Text = ""
+		l.Parent = parent
+		table.insert(st.made, l)
+	end
+	return l
+end
+
+local function stripTags(str) return (str:gsub("<[^>]+>", "")) end
+
+-- a solid parchment plate with a dark wood edge, for the rows that sit under the board
+local function plateStyle(st, row)
+	put(st, row, { BackgroundColor3 = PLATE, BackgroundTransparency = 0 })
+	for _, c in ipairs(row:GetChildren()) do
+		if c:IsA("UIStroke") and c.Name ~= "BoardPlateEdge" then put(st, c, { Enabled = false }) end
+	end
+	if not row:FindFirstChild("BoardPlateEdge") then
+		local e = Instance.new("UIStroke")
+		e.Name = "BoardPlateEdge"
+		e.Color = EDGE
+		e.Thickness = 3
+		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		e.Parent = row
+		table.insert(st.made, e)
+		local k = Instance.new("UICorner")
+		k.Name = "BoardPlateCorner"
+		k.CornerRadius = UDim.new(0, 6)
+		k.Parent = row
+		table.insert(st.made, k)
+	end
+end
+
 local function hideFill(st, frame)
 	put(st, frame, { BackgroundTransparency = 1 })
 	for _, c in ipairs(frame:GetChildren()) do
@@ -98,6 +167,8 @@ local function run(root, st)
 	local content = sidebar:FindFirstChild("BoardContent")
 	if not content then return end
 	local H = PlayBoardLayout.hud(rect.w, rect.h)
+	local boardFrame = root:FindFirstChild("SidebarBoard")
+	if boardFrame then boardFrame:SetAttribute("PlayBoardPainted", true) end -- the theme and the set wash read this and draw nothing over the table
 
 	-- the lists and the padding off: rows are placed in board coordinates (the sidebar and content frames start at the screen corner)
 	for _, host in ipairs({ sidebar, content }) do
@@ -119,8 +190,8 @@ local function run(root, st)
 		hideFill(st, ribbon)
 		for _, c in ipairs(ribbon:GetChildren()) do
 			if c:IsA("TextLabel") then
-				put(st, c, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
-				fit(st, c, 14, 19)
+				put(st, c, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
+				fitOne(st, c, H.title.w - 2 * INSET, 14, 17)
 			elseif c:IsA("Frame") then
 				put(st, c, { Visible = false })
 			end
@@ -154,10 +225,31 @@ local function run(root, st)
 
 	if rule then
 		placeRect(st, rule, H.rule)
-		local lab = visibleLabel(rule)
-		if lab then
-			put(st, lab, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
-			fit(st, lab, 14, 17)
+		local src
+		for _, c in ipairs(rule:GetChildren()) do
+			if c:IsA("TextLabel") and c.Name ~= "BoardRuleName" and c.Name ~= "BoardRuleLine" then src = c break end
+		end
+		if src then
+			-- the stock label is rich text of two sizes that wraps past the slot: it stays as the data source, hidden, and
+			-- two plain one-line labels are drawn instead; a rule line that does not fit at 13 px is dropped (kept as RuleTooltip)
+			put(st, src, { Visible = false })
+			local plain = stripTags(src.Text)
+			local first, second = plain:match("^([^\n]*)\n?(.*)$")
+			first, second = first or plain, second or ""
+			local w = H.rule.w - 2 * INSET
+			local nameL = makeLabel(st, rule, "BoardRuleName")
+			local lineL = makeLabel(st, rule, "BoardRuleLine")
+			lineL.Font = Enum.Font.Gotham -- the rule line is narrower in the regular weight, so more of the rules fit
+			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
+			nameL.Text, lineL.Text = first, second
+			local showLine = second ~= "" and select(2, sizeFor(second, 13, 15, w, Enum.Font.Gotham))
+			put(st, nameL, { Position = UDim2.fromOffset(INSET, 0), Size = showLine and UDim2.new(1, -2 * INSET, 0.5, 0) or UDim2.new(1, -2 * INSET, 1, 0),
+				TextXAlignment = Enum.TextXAlignment.Center, Visible = true })
+			fitOne(st, nameL, w, 13, 17)
+			put(st, lineL, { Position = UDim2.new(0, INSET, 0.5, 0), Size = UDim2.new(1, -2 * INSET, 0.5, 0),
+				TextXAlignment = Enum.TextXAlignment.Center, Visible = showLine and true or false })
+			if showLine then fitOne(st, lineL, w, 13, 15) end
+			rule:SetAttribute("RuleTooltip", (plain:gsub("\n", " - ")))
 		end
 	end
 	if score then
@@ -192,8 +284,8 @@ local function run(root, st)
 				hideIcons(st, col)
 				local lab = visibleLabel(col)
 				if lab then
-					put(st, lab, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
-					fit(st, lab, 14, 18)
+					put(st, lab, { Position = UDim2.fromOffset(TILE_INSET, 0), Size = UDim2.new(1, -2 * TILE_INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
+					fitOne(st, lab, slot.w - 2 * TILE_INSET, 14, 18)
 				end
 			end
 		end
@@ -240,6 +332,7 @@ local function run(root, st)
 		if c.Visible then
 			local h = c.Size.Y.Scale == 0 and c.Size.Y.Offset or c.AbsoluteSize.Y
 			if h > 0 then
+				if c:IsA("Frame") and (c.Name == "TipsRow" or c.LayoutOrder == 10) then plateStyle(st, c) end -- Tips and the hint: two matching plates
 				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(stackX, y), Size = UDim2.fromOffset(stackW, h) })
 				y = y + h + 4
 			end
@@ -283,8 +376,10 @@ local function unwatch(st)
 	st.conns = {}
 end
 
-local function restore(st)
+local function restore(st, root)
 	unwatch(st)
+	local b = root and root:FindFirstChild("SidebarBoard")
+	if b then b:SetAttribute("PlayBoardPainted", nil) end
 	for inst, sv in pairs(st.saved) do
 		for k, w in pairs(sv) do
 			pcall(function() inst[k] = w[1] end)
@@ -302,7 +397,7 @@ function PlayBoardHud.apply(root, rect)
 	if not rect then
 		if st.rect then
 			st.rect = nil
-			restore(st)
+			restore(st, root)
 		end
 		return false
 	end
@@ -314,7 +409,7 @@ function PlayBoardHud.apply(root, rect)
 	if not ok then
 		PlayBoardHud.lastError = tostring(why)
 		st.rect = nil
-		restore(st)
+		restore(st, root)
 		return false
 	end
 	if first then
@@ -333,6 +428,18 @@ function PlayBoardHud.apply(root, rect)
 					end
 				elseif d:IsA("TextLabel") then
 					table.insert(st.conns, d:GetPropertyChangedSignal("TextColor3"):Connect(function() schedule(root, st) end))
+				end
+			end
+			-- late theme pieces on the board (kit frame, depth, accent wash) are hidden again
+			local boardTop = root:FindFirstChild("SidebarBoard")
+			if boardTop then
+				table.insert(st.conns, boardTop.DescendantAdded:Connect(function() schedule(root, st) end))
+				for _, d in ipairs(boardTop:GetChildren()) do
+					if d:IsA("GuiObject") then
+						for _, prop in ipairs({ "Visible", "BackgroundTransparency" }) do
+							table.insert(st.conns, d:GetPropertyChangedSignal(prop):Connect(function() schedule(root, st) end))
+						end
+					end
 				end
 			end
 			for _, c in ipairs(sidebar:GetChildren()) do

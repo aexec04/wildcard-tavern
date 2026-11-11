@@ -104,6 +104,7 @@ local function applyTheme(set)
 		end
 		if accent then wash.BackgroundColor3 = accent end
 		wash.BackgroundTransparency = accent and 0.86 or 1
+		if board:GetAttribute("PlayBoardPainted") then wash.Visible = false end -- the painted board has no accent wash (it read as a dark band)
 	end
 
 	local layers = themeTarget("TableLookLayers")
