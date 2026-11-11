@@ -15459,8 +15459,27 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 	if tip then
 		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
 		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
-		expectTrue(tip:find("x - origin.X, y - origin.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
+		expectTrue(tip:find("x - origin.X + nudge.X, y - origin.Y + nudge.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
 		expectTrue(tip:find('if frame.Visible and side == "below" then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
+	end
+end })
+
+table.insert(tests, { name = "TooltipSpec.correct absorbs an outside shift so the live rect lands on the target", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TooltipSpec)
+	local ox, oy, changed = TS.correct({ X = 503, Y = 328 }, { X = 503, Y = 328 }, { X = 0, Y = 0 })
+	expectFalse(changed, "no change when the live rect matches")
+	-- the reported case: written 328, live 262 (66 px too high)
+	ox, oy, changed = TS.correct({ X = 503, Y = 328 }, { X = 503, Y = 262 }, { X = 0, Y = 0 })
+	expectTrue(changed, "a 66 px miss is corrected")
+	expectEqual(oy, 66, "the offset pushes the frame 66 px down")
+	expectEqual(ox, 0, "x untouched")
+	-- applying it twice converges (a further identical miss would add, a landed rect stops)
+	ox, oy, changed = TS.correct({ X = 503, Y = 328 }, { X = 503, Y = 328.5 }, { X = ox, Y = oy })
+	expectFalse(changed, "within 1 px is left alone")
+	local f = io.open("src/Client/Tooltip.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("TooltipSpec.correct", 1, true) ~= nil and src:find("frame.AbsolutePosition", 1, true) ~= nil, "Tooltip verifies the live AbsolutePosition after writing Position")
 	end
 end })
 

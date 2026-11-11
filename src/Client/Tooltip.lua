@@ -118,7 +118,19 @@ function Tooltip.new(screenGui)
 				-- x, y are in absolute screen space; Position is relative to the tooltip's parent
 				local origin = frame.Parent and frame.Parent:IsA("GuiObject") and frame.Parent.AbsolutePosition or Vector2.zero
 				frame.AnchorPoint = Vector2.new(0, 0)
-				frame.Position = UDim2.fromOffset(x - origin.X, y - origin.Y)
+				frame.Position = UDim2.fromOffset(x - origin.X + nudge.X, y - origin.Y + nudge.Y)
+				-- verify against the LIVE rect: whatever else shifts the frame (inset, scale, anchor) is absorbed
+				local live = frame.AbsolutePosition
+				local nx, ny, changed = TooltipSpec.correct({ X = x, Y = y }, { X = live.X, Y = live.Y }, { X = nudge.X, Y = nudge.Y })
+				if changed then
+					nudge = Vector2.new(nx, ny)
+					frame.Position = UDim2.fromOffset(x - origin.X + nudge.X, y - origin.Y + nudge.Y)
+					if RunService:IsStudio() and not lastFix then
+						lastFix = true
+						warn(string.format("[Tooltip fix] wanted %d,%d live %d,%d nudge %d,%d screen %dx%d",
+							x, y, live.X, live.Y, nudge.X, nudge.Y, screenGui.AbsoluteSize.X, screenGui.AbsoluteSize.Y))
+					end
+				end
 				if side == "below" and RunService:IsStudio() and not lastLog then
 					lastLog = true
 					warn(string.format("[Tooltip below] tip %d,%d size %dx%d anchorBottom %s origin %d,%d",

@@ -73,4 +73,17 @@ function TooltipSpec.place(pos, size, tip, screen, align, spec)
 	return x, y
 end
 
+-- correct(target, actual, offset) -> new offset (x, y), tolerance 1 px.
+-- target = where the tip should be on screen, actual = the frame's live AbsolutePosition after writing Position,
+-- offset = the offset (Position minus target) that is currently applied. If something outside our writes (an inset,
+-- a scale, a stray anchor) shifts the frame, the offset absorbs the error so the live rect lands on the target.
+-- Returns offsetX, offsetY, corrected (true when it changed).
+function TooltipSpec.correct(target, actual, offset)
+	local ex, ey = actual.X - target.X, actual.Y - target.Y
+	if math.abs(ex) <= 1 and math.abs(ey) <= 1 then
+		return offset.X, offset.Y, false
+	end
+	return offset.X - ex, offset.Y - ey, true
+end
+
 return TooltipSpec
