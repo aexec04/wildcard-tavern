@@ -36,6 +36,13 @@ function M.cols(width, kind)
 	return math.max(1, math.floor((width + g.x) / (c.w + g.x)))
 end
 
+-- Columns for a scroll whose visible width is `width` px with `side` px of grid padding on each side. A width of nil or 0 means the scroll
+-- has not been laid out yet (its panel is still hidden when the tiles are built), so `fallback` stands in. Never below 1.
+function M.colsIn(kind, width, side, fallback)
+	local w = (width and width > 0) and width or fallback or 0
+	return M.cols(math.max(0, w - 2 * (side or 0)), kind)
+end
+
 local function ctxOf(kind, ctx)
 	local cols = math.max(1, ctx.cols or 1)
 	local index = ctx.index or 1

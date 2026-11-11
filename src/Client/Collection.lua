@@ -137,6 +137,9 @@ return function(deps)
 		local okFurn, mod = pcall(require, script.Parent.CollectionFurniture)
 		Furn = okFurn and type(mod) == "table" and mod or { kind = function() return nil end }
 	end
+	-- The tab on screen: its items, the furniture records of the tiles built (for refurnish below) and its furniture kind (nil = plain
+	-- tiles). refresh() sets them; makeTile, furnCols and refurnish read them. They were never declared, so they were accidental globals.
+	local currentItems, furnRecords, currentKind, lastFurnCols = {}, {}, nil, nil
 	pcall(function()
 		local wall = require(script.Parent.CollectionWall).mount(panel)
 		if wall then Gallery.mountAlive(wall, panel, backdrop) end -- lantern flicker and the moth (off in calm mode)
@@ -792,6 +795,47 @@ return function(deps)
 		return keys
 	end
 
+	-- Columns the furniture grid lays out right now: CollectionFurnitureLayout.colsIn (the UIGridLayout rule, tested) on the scroll's visible
+	-- width less the grid's side padding. Before the first layout that width is 0 (the panel is still hidden when the tiles are built), so
+	-- the panel's responsive size stands in. Never below 1; a plain tab has no furniture and counts as one column.
+	-- (This was called by makeTile but never defined: the nil call aborted refresh(), popIn never ran and the Collection would not open.)
+	local function furnCols()
+		if not currentKind then
+			return 1
+		end
+		-- This runs in the middle of building a tile, so it must never throw: any failure counts as one column.
+		local ok, cols = pcall(function()
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+			local standIn = vp.X * ResponsiveLayout.collectionPanel(vp.X, vp.Y).w - 30 - scroll.ScrollBarThickness
+			local okWindow, window = pcall(function() return scroll.AbsoluteWindowSize.X end) -- visible width, scroll bar excluded
+			return Furn.layout.colsIn(currentKind, okWindow and window or scroll.AbsoluteSize.X, Furn.padding(currentKind).side, standIn)
+		end)
+		return ok and cols or 1
+	end
+
+	-- The panel can change width while it is open (Expand, a resized window), and then the column count can change: the board edges and the
+	-- red strings of the tiles already built are rebuilt from their records, which is what Furn.furnish is for.
+	local function refurnish()
+		if not currentKind or #furnRecords == 0 then
+			return
+		end
+		local cols = furnCols()
+		if cols == lastFurnCols then
+			return
+		end
+		lastFurnCols = cols
+		for _, rec in ipairs(furnRecords) do
+			if rec.tile.Parent then
+				pcall(Furn.furnish, rec.kind, rec.tile, { index = rec.index, n = #currentItems, cols = cols, tie = rec.tie })
+			end
+		end
+	end
+	scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(refurnish)
+	pcall(function() -- the visible width also changes when a scroll bar appears; a missing property signal must not stop the panel
+		scroll:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(refurnish)
+	end)
+
 	local function makeTile(item, order, view)
 		local found = CollectionBook.isDiscovered(view.sets, item)
 		local rarity = CollectionBook.Rarities[CollectionBook.rarityOf(item)]
@@ -883,7 +927,9 @@ return function(deps)
 			hang = fx.hang
 			local rec = { tile = tile, kind = fxKind, index = order, tie = item.tab == "bonds" and found and nextFound == true }
 			furnRecords[#furnRecords + 1] = rec
-			Furn.furnish(fxKind, tile, { index = order, n = #currentItems, cols = furnCols(), tie = rec.tie })
+			local cols = furnCols()
+			lastFurnCols = cols
+			Furn.furnish(fxKind, tile, { index = order, n = #currentItems, cols = cols, tie = rec.tie })
 		end
 
 		-- newly found since the Collection was last opened: a brass "New" tag, and (once) a drop-in
@@ -927,7 +973,19 @@ return function(deps)
 		end
 	end
 
+	-- One tile that cannot be built must not stop the other tiles or the panel opening. The first failure of a refresh is warned (not one
+	-- warning per tile).
+	local tileFailed = false
+	local function safeTile(item, order, view)
+		local ok, err = pcall(makeTile, item, order, view)
+		if not ok and not tileFailed then
+			tileFailed = true
+			warn("[Collection] tile " .. tostring(item and item.id) .. " could not be built: " .. tostring(err))
+		end
+	end
+
 	refresh = function()
+		tileFailed = false
 		task.spawn(ContentArt.preload, { { activeTabId } }, "collection tab " .. activeTabId) -- current tab first; urls load once
 		local view = currentView()
 		local completion = view.completion
@@ -989,7 +1047,7 @@ return function(deps)
 			gridPadding.PaddingRight = UDim.new(0, pad and pad.side or 0)
 		end
 		for i = 1, math.min(#items, TILE_BATCH) do
-			makeTile(items[i], i, view)
+			safeTile(items[i], i, view)
 		end
 		if #items > TILE_BATCH then
 			task.spawn(function()
@@ -998,7 +1056,7 @@ return function(deps)
 					task.wait()
 					if buildToken ~= mine or not scroll.Parent then return end
 					for j = i, math.min(#items, i + TILE_BATCH - 1) do
-						makeTile(items[j], j, view)
+						safeTile(items[j], j, view)
 					end
 					i = i + TILE_BATCH
 				end
@@ -1009,6 +1067,16 @@ return function(deps)
 		if openItem then
 			showDetail(openItem, view)
 		end
+	end
+
+	-- A tab that fails to build must never stop the panel: refresh() ran bare inside openCollection, so one error skipped popIn and the
+	-- corner button hovered but nothing opened. The error is warned once instead.
+	local function safeRefresh(what)
+		local ok, err = pcall(refresh)
+		if not ok then
+			warn("[Collection] " .. what .. " could not be built: " .. tostring(err))
+		end
+		return ok
 	end
 
 	for i, tab in ipairs(CollectionBook.Tabs) do
@@ -1024,7 +1092,7 @@ return function(deps)
 				activeTabId = tab.id
 				hideDetail()
 				scroll.CanvasPosition = Vector2.new(0, 0)
-				refresh()
+				safeRefresh("tab " .. tab.id)
 			end
 		end)
 	end
@@ -1066,16 +1134,23 @@ return function(deps)
 	local function openCollection()
 		playClickSfx()
 		OverlayManager.closeAllExcept("collection")
-		hideDetail()
-		do -- what was found since the last open gets a "New" tag and a one-time drop-in
-			local keys = discoveredKeys(currentView())
-			freshKeys, dropArmed = {}, {}
-			if lastKeys then
-				for _, key in ipairs(SceneLayout.newIds(lastKeys, keys)) do freshKeys[key] = true; dropArmed[key] = true end
+		-- Building the tab may fail (it did: an undefined function aborted refresh and the panel never opened). The panel opens regardless;
+		-- the error is warned, and a tab that failed shows whatever tiles were built.
+		local okPrep, prepErr = pcall(function()
+			hideDetail()
+			do -- what was found since the last open gets a "New" tag and a one-time drop-in
+				local keys = discoveredKeys(currentView())
+				freshKeys, dropArmed = {}, {}
+				if lastKeys then
+					for _, key in ipairs(SceneLayout.newIds(lastKeys, keys)) do freshKeys[key] = true; dropArmed[key] = true end
+				end
+				lastKeys = keys
 			end
-			lastKeys = keys
+		end)
+		if not okPrep then
+			warn("[Collection] could not read what is new: " .. tostring(prepErr))
 		end
-		refresh()
+		safeRefresh("the open tab")
 		popIn(backdrop, panel)
 	end
 	OverlayManager.registerOpener("collection", openCollection)
@@ -1092,7 +1167,7 @@ return function(deps)
 					showMilestoneToast(state.collectionMilestoneNotice)
 				end
 				if backdrop.Visible then
-					refresh()
+					safeRefresh("the open tab")
 				end
 			end)
 		end)

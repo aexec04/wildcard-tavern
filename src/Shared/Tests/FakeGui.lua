@@ -287,6 +287,8 @@ local function plainLua(src)
 	return table.concat(out, "\n")
 end
 
+FakeGui.plainLua = plainLua
+
 function FakeGui.load(path, env)
 	local f = assert(io.open(path, "r"))
 	local src = f:read("*a")

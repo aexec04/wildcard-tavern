@@ -16090,4 +16090,94 @@ table.insert(tests, { name = "Tavern Map modules give every GuiObject an explici
 	end
 end })
 
+-- ===== Collection would not open (2026-11-10): makeTile called furnCols(), which was never defined =====
+table.insert(tests, { name = "CollectionFurnitureLayout.colsIn: side padding comes off the width, a hidden scroll falls back, never below 1", fn = function()
+	local F = require(script.Parent.Parent.Engine.CollectionFurnitureLayout)
+	expectEqual(F.colsIn("cork", 1000, 0, nil), F.cols(1000, "cork"), "no padding is plain cols")
+	expectEqual(F.colsIn("cork", 1000 + 2 * 16, 16, nil), F.cols(1000, "cork"), "16 px of padding on each side comes off first")
+	expectEqual(F.colsIn("cork", 1000, 16, nil), F.cols(968, "cork"), "padding narrows the room")
+	expectEqual(F.colsIn("cork", 0, 16, 1000 + 32), F.cols(1000, "cork"), "a scroll that is not laid out yet (width 0) uses the fallback width")
+	expectEqual(F.colsIn("cork", nil, 16, 1000 + 32), F.cols(1000, "cork"), "...also when the width is nil")
+	expectEqual(F.colsIn("cork", 0, 16, nil), 1, "nothing known at all is still one column")
+	expectEqual(F.colsIn("plate", 10, 8, nil), 1, "a scroll narrower than a cell is one column")
+	for kind in pairs(F.CELL) do
+		expectTrue(F.colsIn(kind, 0, 8, 500) >= 1, kind .. " has a column while the scroll is hidden")
+		local last = 0
+		for width = 1, 2400, 37 do
+			local cols = F.colsIn(kind, width, 8, 500)
+			expectTrue(cols >= 1, kind .. " has at least one column at " .. width)
+			expectTrue(cols >= last, kind .. " never loses columns as the scroll widens (" .. width .. ")")
+			last = cols
+		end
+	end
+end })
+
+table.insert(tests, { name = "Collection.lua: furnCols and the furniture state are declared before makeTile, and the panel opens even when a tab fails to build", fn = function()
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "") -- code only
+	local state = code:find("local currentItems, furnRecords, currentKind", 1, true)
+	local define = code:find("local function furnCols()", 1, true)
+	local first = code:find("furnCols", 1, true)
+	local makeTile = code:find("local function makeTile(", 1, true)
+	expectTrue(state and define and makeTile, "the furniture state, furnCols and makeTile are all present")
+	expectEqual(first, define + #"local function ", "the first mention of furnCols is its definition, not a call")
+	expectTrue(state < makeTile and define < makeTile, "the state and furnCols are declared above makeTile")
+	-- every tile goes through the pcall wrapper; refresh never calls makeTile bare
+	expectTrue(code:find("pcall(makeTile", 1, true) ~= nil, "tiles are built through pcall")
+	expectTrue(code:find("makeTile(items", 1, true) == nil, "no bare makeTile call in refresh")
+	-- openCollection builds the tab through safeRefresh and ALWAYS reaches popIn afterwards
+	local open = code:match("local function openCollection%(%).-\n\tend\n")
+	expectTrue(open ~= nil, "openCollection found")
+	local viaSafe, pop = open:find("safeRefresh(", 1, true), open:find("popIn(backdrop, panel)", 1, true)
+	expectTrue(viaSafe ~= nil and pop ~= nil and viaSafe < pop, "openCollection refreshes through safeRefresh, then pops the panel in")
+	expectTrue(open:find("%f[%w_]refresh%(") == nil, "openCollection does not call refresh bare")
+	expectTrue(code:match("local function safeRefresh%(what%).-pcall%(refresh%)") ~= nil, "safeRefresh wraps refresh in pcall")
+	-- the state refresh sets is local, never an accidental global
+	expectTrue(code:find("currentItems, furnRecords, currentKind = items", 1, true) ~= nil, "refresh still sets the furniture state")
+end })
+
+table.insert(tests, { name = "Client modules use only declared locals and real globals (a nil global call like furnCols() fails here)", fn = function()
+	-- Local runner only: asks the luac that ships with Lua which globals each file touches.
+	if not (io and io.popen and os.tmpname) then return end
+	local GlobalScan = require(script.Parent.GlobalScan)
+	if not GlobalScan.available() then return end
+	local files = GlobalScan.listLua("src/Client")
+	if #files == 0 then return end
+	local scanned, bad = 0, {}
+	for _, path in ipairs(files) do
+		local found = GlobalScan.scan(path) -- nil = uses Luau-only syntax plain Lua cannot compile (the file is skipped)
+		if found then
+			scanned = scanned + 1
+			for _, hit in ipairs(found) do
+				if not GlobalScan.KNOWN[hit.name] then
+					bad[#bad + 1] = string.format("%s:%s %s %s", path:match("[^/]+$"), tostring(hit.line), hit.op == "SET" and "writes" or "reads", hit.name)
+				end
+			end
+		end
+	end
+	expectTrue(scanned >= 100, "the scan compiled most of src/Client (" .. scanned .. " of " .. #files .. " files); the listing format may have changed")
+	expectTrue(#bad == 0, #bad .. " undeclared global(s), each a nil call or an accidental global: " .. table.concat(bad, ", "))
+	-- the files this guard exists for must have been compiled, not skipped
+	for _, name in ipairs({ "Collection", "CollectionFurniture", "CollectionGallery", "CollectionWall", "JourneyMapScenery", "CompassWheel" }) do
+		expectTrue(GlobalScan.scan("src/Client/" .. name .. ".lua") ~= nil, name .. ".lua is compiled by the global scan")
+	end
+	-- control: the scan really sees a global read and a global write
+	local tmp = os.tmpname()
+	local w = io.open(tmp, "w")
+	if w then
+		w:write("local function f()\n\tmissingFn()\n\taccidental = 1\nend\nreturn f\n")
+		w:close()
+		local seen = GlobalScan.scan(tmp)
+		os.remove(tmp)
+		local reads, writes = false, false
+		for _, hit in ipairs(seen or {}) do
+			if hit.name == "missingFn" and hit.op == "GET" then reads = true end
+			if hit.name == "accidental" and hit.op == "SET" then writes = true end
+		end
+		expectTrue(reads and writes, "control: the scan reports an undefined call and an accidental global")
+	end
+end })
+
 return tests
