@@ -7,7 +7,7 @@
 
 local BlessingChipLayout = {}
 
-BlessingChipLayout.STACK_HEIGHT = 640 -- top padding plus every sidebar section, with margin
+BlessingChipLayout.STACK_HEIGHT = 648 -- top padding plus every sidebar section, with margin (8 px clear of the status plate)
 BlessingChipLayout.FULL_HEIGHT = 92 -- icon, name, blessing line and curse line
 BlessingChipLayout.COMPACT_HEIGHT = 44 -- icon and name; the tooltip carries both lines
 BlessingChipLayout.MARGIN = 10

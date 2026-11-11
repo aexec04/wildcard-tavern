@@ -15511,4 +15511,15 @@ table.insert(tests, { name = "Left HUD: 5, 6 and 7 Patron seats fit one row; a l
 	if pv then expectTrue(pv:find("SidebarBoard", 1, true) ~= nil, "the Patron bubble opens beside the HUD column") end
 end })
 
+table.insert(tests, { name = "Counter leftovers: Buy stops left of the price tag; blessing chip keeps 8 px more room", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local CS = require(script.Parent.Parent.Engine.CardShape)
+	local sh = CS.shape("patron", 1)
+	local tagTop = sh.bannerTop - 4 - SL.TAG_H
+	local drawerBottom = sh.drawerTop - 2 - (SL.TAG_H + 4) + CS.BUTTON_H + 4
+	expectTrue(drawerBottom <= tagTop, "the Buy drawer sits above the gold price tag")
+	local BL = require(script.Parent.Parent.Engine.BlessingChipLayout)
+	expectEqual(BL.STACK_HEIGHT, 648, "the stack reserves 8 px more above the chip")
+end })
+
 return tests

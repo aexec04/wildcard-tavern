@@ -462,7 +462,7 @@ function ShopCards.new(deps)
 		local enabled = spec.enabled ~= false
 		local button
 		if not spec.noAction then
-			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, shape.drawerTop - 2), Size = UDim2.fromOffset(W, BUTTON_H + 4),
+			local drawer = frame(body, { Name = "Drawer", Position = UDim2.fromOffset(0, shape.drawerTop - 2 - (spec.price and (SceneLayout.TAG_H + 4) or 0)), Size = UDim2.fromOffset(W, BUTTON_H + 4),
 				BackgroundTransparency = 1, ClipsDescendants = true })
 			button = Instance.new("TextButton")
 			button.Name = "Action"

@@ -1335,6 +1335,11 @@ return function(deps)
 			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6
 		tableLabel.Parent = rerollRow
+		do -- same plate as the other labels: rounded, brass edge, padded
+			local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 8) c.Parent = tableLabel
+			local s = Instance.new("UIStroke") s.Color = Color3.fromRGB(150, 110, 50) s.Thickness = 1.5 s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border s.Parent = tableLabel
+			local p = Instance.new("UIPadding") p.PaddingLeft = UDim.new(0, 8) p.PaddingRight = UDim.new(0, 8) p.Parent = tableLabel
+		end
 
 		rerollButton.MouseButton1Click:Connect(function()
 			if not tutorialAllows("reroll") then return end

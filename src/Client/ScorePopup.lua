@@ -730,7 +730,7 @@ return function(deps)
 	-- from (or block on) the authoritative number.
 	local function flyNumberToBox(fromPos, entry, color, targetBox)
 		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromOffset(96, 22)
+		label.Size = UDim2.fromOffset(200, 22) -- wide enough for "3 of Hearts  +3 Chips"
 		label.AnchorPoint = Vector2.new(0.5, 0.5)
 		label.Position = fromPos
 		label.BackgroundTransparency = 1
@@ -739,7 +739,7 @@ return function(deps)
 		label.TextColor3 = color
 		label.TextStrokeTransparency = 0.4
 		label.Text = formatEntryText(entry)
-		label.ZIndex = 32
+		label.ZIndex = 60 -- above the played cards
 		label.Parent = root
 
 		tweenTo(label, { Position = centerOf(targetBox), TextTransparency = 0.6 }, pace(FLY_DURATION), Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -772,7 +772,7 @@ return function(deps)
 		label.TextColor3 = KIND_COLORS.tips
 		label.TextStrokeTransparency = 0.4
 		label.Text = formatEntryText(entry)
-		label.ZIndex = 32
+		label.ZIndex = 60 -- above the played cards
 		label.Parent = root
 
 		local targetPos = UDim2.new(fromPos.X.Scale, fromPos.X.Offset, fromPos.Y.Scale, fromPos.Y.Offset - 46)

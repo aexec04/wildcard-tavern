@@ -241,8 +241,8 @@ function ShopScene.new(deps)
 	local function show(text)
 		bubbleToken += 1
 		local token = bubbleToken
-		bubble.Text = text
-		bubble.Visible = true
+		bubble.Text = text or ""
+		bubble.Visible = (text or "") ~= "" -- an empty bubble would show as a bare outline
 		bubble.BackgroundTransparency = 0.05
 		bubble.TextTransparency = 0
 		if not calm() then
