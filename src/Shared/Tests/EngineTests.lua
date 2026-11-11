@@ -13497,6 +13497,17 @@ table.insert(tests, { name = "Classic card border: wraps the full card edge, cen
 	end
 end })
 
+table.insert(tests, { name = "PopupRules: an open panel hides the Notice Board; badge nameplates are not truncated", fn = function()
+	local R = require(script.Parent.Parent.Engine.PopupRules)
+	expectTrue(R.hidesBoard({ "CollectionBackdrop" }), "a panel backdrop hides the board")
+	expectTrue(not R.hidesBoard({ "Menu", "DeckTrackerBackdrop" }), "skipped and non-popup frames do not")
+	local f = io.open and io.open("src/Client/BadgeWall.lua", "r")
+	if f then
+		local src = f:read("a"); f:close()
+		expectTrue(not src:find("TextTruncate.AtEnd", 1, true), "nameplate text is never truncated")
+	end
+end })
+
 table.insert(tests, { name = "PopupRules: newCueGate, makesSound and shouldShield are top-level functions that can be called", fn = function()
 	local R = require(script.Parent.Parent.Engine.PopupRules)
 	expectEqual(type(R.newCueGate), "function", "newCueGate is exported")
@@ -14181,7 +14192,7 @@ table.insert(tests, { name = "Badges: nameplates fit two lines inside their colu
 	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
 	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
 	local B = require(script.Parent.Parent.Engine.Badges)
-	expectTrue(W.NAMEPLATE_H - 4 >= 2 * 14 + 4, "plate is tall enough for two 14 px lines")
+	expectTrue(W.NAMEPLATE_H - 4 >= 2 * 15 + 4, "plate is tall enough for two 15 px lines")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 600, 330 } }) do
 		for _, chip in ipairs(B.Chips) do
 			local lay = W.layout(chip, nil, size[1], size[2])

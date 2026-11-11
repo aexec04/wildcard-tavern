@@ -14,7 +14,7 @@ local Badges = require(script.Parent.Badges)
 
 local Wall = {}
 
-Wall.NAMEPLATE_H = 38 -- two lines of 14 px name text on a solid plate
+Wall.NAMEPLATE_H = 42 -- two lines of 15 px name text on a solid plate, never truncated
 Wall.FURNITURE = { All = "cabinet", Roads = "map_board", Masters = "velvet_board", Night = "night_sky", Special = "curio_shelf" }
 -- art keys (Engine/BadgeWallArt.lua) used by each furniture piece
 Wall.FURNITURE_ART = { cabinet = "badge_cabinet", map_board = "badge_map_board", velvet_board = "badge_velvet_board", night_sky = "badge_night_sky", curio_shelf = "badge_curio_shelf" }

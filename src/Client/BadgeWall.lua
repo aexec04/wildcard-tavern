@@ -254,7 +254,7 @@ local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
 	local pr = Wall.plateRect(it)
 	local plate = frame(holder, { Name = "Nameplate", Position = UDim2.fromOffset(pr.x, Wall.plateY(it)), Size = UDim2.fromOffset(pr.w, pr.h), BackgroundColor3 = Color3.fromRGB(44, 32, 24), ZIndex = Z + 4 }, 4)
 	stroke(plate, BRASS, 1)
-	words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = Wall.plateText(def, owned), TextWrapped = true, TextSize = 14, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 6,
+	words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = Wall.plateText(def, owned), TextWrapped = true, TextSize = 15, TextTruncate = Enum.TextTruncate.None, ZIndex = Z + 6,
 		TextColor3 = owned and CREAM or Color3.fromRGB(196, 182, 156) })
 	if opts.tooltip then opts.tooltip(plate, def.name .. "\n" .. (owned and def.description or def.hint)) end
 	if opts.equippedId == def.id or opts.secondId == def.id then

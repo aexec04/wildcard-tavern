@@ -110,6 +110,7 @@ return function(deps)
 	local goalNote = require(script.Parent.NextGoalBanner).attach(board.list, -1) -- Next Goal line (state.nextGoal)
 	-- Today's best run and a rounded run count (Client/MenuTicker.lua); its button opens the Daily board (wired by the hub)
 	local menuTickerButton = require(script.Parent.MenuTicker).attach(board.list, 0)
+	require(script.Parent.MenuPanelHide).attach(menuFrame, board) -- the board never shows through an open panel
 	board.pin(newsNote) -- the banner is already a button that opens the News panel
 	board.pin(rankNote, function()
 		pcall(OverlayManager.open, "legend")

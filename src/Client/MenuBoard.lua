@@ -222,7 +222,8 @@ function MenuBoard.build(parent)
 	end
 
 	function board.apply(w, h, phone)
-		frame.Visible = not phone
+		frame:SetAttribute("Phone", phone and true or false)
+		frame.Visible = not phone and frame:GetAttribute("PanelOpen") ~= true
 		local pxW = N.w * w - 16
 		if not placed then scale.Scale = math.clamp(pxW / NOTE_W, 0.4, 1) end -- board.place sets the final scale on the cork rectangle
 	end

@@ -19,6 +19,14 @@ PopupRules.MENU_SCROLL_MIN_Z = 48
 PopupRules.EXTRA = { SpectateOverlay = true, ModalStage = true }
 PopupRules.SKIP = { DeckTrackerBackdrop = true }
 
+-- True when any visible top-level frame name is a shielded popup: the Menu Notice Board must then be hidden.
+function PopupRules.hidesBoard(visibleNames)
+	for _, name in ipairs(visibleNames or {}) do
+		if PopupRules.shouldShield(name) then return true end
+	end
+	return false
+end
+
 -- The Menu scroll layers, from Client/MenuHotspots.lua.
 PopupRules.MENU_POPUPS = { "FanCatcher", "Scroll_<hotspot>", "AllActions" }
 
