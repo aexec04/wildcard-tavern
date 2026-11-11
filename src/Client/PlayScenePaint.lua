@@ -49,11 +49,21 @@ function PlayScenePaint.install(deps)
 		if deps.deckWidget then Guard.run("deck", PlayDeckPaint.apply, deps.deckWidget, rect, platesId) end
 	end
 
+	-- the painted table has its own shading: the TableLook edge vignettes would show as a hard dark strip on it
+	local function vignette(hidden)
+		local layers = root:FindFirstChild("TableLookLayers")
+		if not layers then return end
+		for _, c in ipairs(layers:GetChildren()) do
+			if c:IsA("GuiObject") and string.sub(c.Name, 1, 9) == "Vignette_" then c.Visible = not hidden end
+		end
+	end
+
 	local function apply()
 		local size = root.AbsoluteSize
 		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE) or nil
 		if p then
 			painted = true
+			vignette(true)
 			local m = p.map.image
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
@@ -69,6 +79,7 @@ function PlayScenePaint.install(deps)
 			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
 			painted = false
+			vignette(false)
 			image.Visible = false
 			handFrame:SetAttribute("PaintedRail", nil)
 			plates(nil)

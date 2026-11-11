@@ -23,6 +23,7 @@ local INK = Color3.fromRGB(52, 32, 16)
 -- decoration the theme and the skin draw on the Sidebar and SidebarBoard frames themselves: gone while the board is painted
 local FRAME_DECOR = { SetSkinBorder = true, SetAccent = true, CornerStud = true, InnerRim = true, BracketH = true, BracketV = true, HudBrackets = true, Brackets = true }
 local INSET = 8 -- text keeps 8 px off a slot's edge
+local RULE_INSET = 12 -- the round rule box keeps 12 px each side
 local TILE_INSET = 10 -- Hands and Discards keep 10 px
 local PLATE = Color3.fromRGB(226, 202, 156)
 local EDGE = Color3.fromRGB(96, 66, 38)
@@ -236,19 +237,20 @@ local function run(root, st)
 			local plain = stripTags(src.Text)
 			local first, second = plain:match("^([^\n]*)\n?(.*)$")
 			first, second = first or plain, second or ""
-			local w = H.rule.w - 2 * INSET
+			local w = H.rule.w - 2 * RULE_INSET
 			local nameL = makeLabel(st, rule, "BoardRuleName")
 			local lineL = makeLabel(st, rule, "BoardRuleLine")
 			lineL.Font = Enum.Font.Gotham -- the rule line is narrower in the regular weight, so more of the rules fit
 			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
 			nameL.Text, lineL.Text = first, second
-			local showLine = second ~= "" and select(2, sizeFor(second, 13, 15, w, Enum.Font.Gotham))
-			put(st, nameL, { Position = UDim2.fromOffset(INSET, 0), Size = showLine and UDim2.new(1, -2 * INSET, 0.5, 0) or UDim2.new(1, -2 * INSET, 1, 0),
-				TextXAlignment = Enum.TextXAlignment.Center, Visible = true })
-			fitOne(st, nameL, w, 13, 17)
-			put(st, lineL, { Position = UDim2.new(0, INSET, 0.5, 0), Size = UDim2.new(1, -2 * INSET, 0.5, 0),
-				TextXAlignment = Enum.TextXAlignment.Center, Visible = showLine and true or false })
-			if showLine then fitOne(st, lineL, w, 13, 15) end
+			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
+			-- the two lines are one block centred in the slot: name hugs the middle from above, rule line from below
+			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.5, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),
+				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = showLine and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center, Visible = true })
+			fitOne(st, nameL, w, 12, 14)
+			put(st, lineL, { Position = UDim2.new(0, RULE_INSET, 0.5, 0), Size = UDim2.new(1, -2 * RULE_INSET, 0.5, 0),
+				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Top, Visible = showLine and true or false })
+			if showLine then fitOne(st, lineL, w, 12, 14) end
 			rule:SetAttribute("RuleTooltip", (plain:gsub("\n", " - ")))
 		end
 	end
@@ -276,6 +278,7 @@ local function run(root, st)
 	if hd then
 		placeRect(st, hd, H.handsDiscards)
 		hideFill(st, hd)
+		local tiles, shared = {}, 18
 		for _, col in ipairs(hd:GetChildren()) do
 			if col:IsA("Frame") and (col.Name == "HandsTile" or col.Name == "DiscardsTile") then
 				local slot = col.Name == "HandsTile" and H.hands or H.discards
@@ -285,10 +288,13 @@ local function run(root, st)
 				local lab = visibleLabel(col)
 				if lab then
 					put(st, lab, { Position = UDim2.fromOffset(TILE_INSET, 0), Size = UDim2.new(1, -2 * TILE_INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
-					fitOne(st, lab, slot.w - 2 * TILE_INSET, 14, 18)
+					local width = slot.w - 2 * TILE_INSET
+					shared = math.min(shared, (sizeFor(lab.Text, 14, 18, width, lab.Font)))
+					table.insert(tiles, { lab = lab, width = width })
 				end
 			end
 		end
+		for _, t in ipairs(tiles) do fitOne(st, t.lab, t.width, 14, shared) end -- Hands and Discards share one size (the smaller that fits both)
 	end
 	if patrons then
 		placeRect(st, patrons, H.ringRow)

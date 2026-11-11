@@ -19167,6 +19167,10 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local hd = mk("Frame", "HandsDiscards", content, 6)
 	local ht = mk("Frame", "HandsTile", hd)
 	local hl = mk("TextLabel", "H", ht)
+	hl.Text = "Hands 4"
+	local dt = mk("Frame", "DiscardsTile", hd)
+	local dl = mk("TextLabel", "D", dt)
+	dl.Text = "Discards 5 of 5 left"
 	local hint = mk("Frame", "Hint", content, 10)
 	hint.Size = UDim2.fromOffset(353, 56)
 	hint.BackgroundTransparency = 1
@@ -19191,7 +19195,7 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	expectTrue(big.Position.Y.Scale < bar.Position.Y.Scale and bar.Position.Y.Scale < plate.Position.Y.Scale, "target, bar and Reward are stacked top to bottom")
 	expectTrue(rule.Size.X.Offset == H.rule.w and rule.Position.Y.Offset == H.rule.y, "the rule has the whole wide slot")
 	local ruleName = rule:FindFirstChild("BoardRuleName")
-	expectTrue(ruleName ~= nil and ruleName.Position.X.Offset == 8 and ruleName.Size.X.Offset == -16, "rule text is inset 8 px")
+	expectTrue(ruleName ~= nil and ruleName.Position.X.Offset == 12 and ruleName.Size.X.Offset == -24, "rule text is inset 12 px")
 	expectTrue(hl.Position.X.Offset == 10 and hl.Size.X.Offset == -20, "Hands text is inset 10 px")
 	expectTrue(tips.Position.Y.Offset >= rect.h, "Tips sits under the board")
 
@@ -19209,8 +19213,21 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local rn, rl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
 	expectTrue(rn and rn.Text == "Small Round" and rl and rl.Text == "No special rules this round.", "rule slot holds the round name, then the rule")
 	expectTrue(ruleLabel.Visible == false and not rn.TextWrapped and not rl.TextWrapped, "the rich text label is replaced by one-line labels")
-	expectTrue(rn.TextSize <= 17 and (not rl.Visible or (rl.TextSize >= 13 and rl.TextSize <= 15)), "rule line is 13 to 15 px, or dropped when it does not fit")
+	expectTrue(rn.TextSize <= 14 and (not rl.Visible or (rl.TextSize >= 12 and rl.TextSize <= 14)), "rule text is at most 14 px, or the line is dropped when it does not fit")
+	expectTrue(rl.Visible and (rn.TextYAlignment == env.Enum.TextYAlignment.Bottom and rl.TextYAlignment == env.Enum.TextYAlignment.Top) or (not rl.Visible and rn.TextYAlignment == env.Enum.TextYAlignment.Center and rn.Size.Y.Scale == 1), "the two rule lines are one block centred in the slot")
+	expectTrue(hl.TextSize == dl.TextSize, "Hands and Discards use one text size: " .. tostring(hl.TextSize) .. " vs " .. tostring(dl.TextSize))
 	expectTrue((rule:GetAttribute("RuleTooltip") or ""):find("No special rules"), "the full rule text is kept for the tooltip")
+
+	-- the TableLook edge vignettes are hidden while the table is painted (the hard dark strip), shown again otherwise
+	do
+		local src = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
+		if src then
+			local text = src:read("*a")
+			src:close()
+			expectTrue(text:find('"Vignette_"', 1, true) ~= nil and text:find("vignette(true)", 1, true) ~= nil and text:find("vignette(false)", 1, true) ~= nil,
+				"PlayScenePaint hides the Vignette_ edges while painted and restores them after")
+		end
+	end
 
 	-- (3) the old frames: no parchment, no gold line, studs or brackets
 	expectTrue(sidebar.BackgroundTransparency == 1 and board.BackgroundTransparency == 1, "parchment fills are gone")
