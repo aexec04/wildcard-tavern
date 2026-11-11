@@ -16,7 +16,8 @@
 	ShopStage.new(deps) -> stage | nil
 	  deps: shopFrame, buyList, contentArea, tabBar, plaque, nextRoundButton, backdrop (ShopBackdrop instance or nil),
 	        cardRowHeight(kind, scale) -> number, setCardScale(s)
-	stage.active, stage.scales(state) -> { patron, pack }, stage.arrange(parts), stage.setTab(key), stage.relayout()
+	stage.active, stage.scales(state) -> { patron, pack }, stage.arrange(parts), stage.setTab(key), stage.relayout(),
+	  stage.keepOut() -> the controls a Counter tooltip must stay clear of
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -312,6 +313,19 @@ function ShopStage.new(deps)
 				tweens[#tweens + 1] = st
 			end
 		end)
+	end
+
+	-- Controls a hover tooltip on the Counter must never cover: the tabs, Next Round, Haggle (the ledger), Reroll (the
+	-- bell with its tag) and the Next boss chip. Client/ShopTips hands them to TooltipSpec.placeBeside.
+	function self.keepOut()
+		local out = {}
+		local function add(g) if g then out[#out + 1] = g end end
+		add(deps.tabBar)
+		add(deps.nextRoundButton)
+		add(shopFrame:FindFirstChild("HaggleButton"))
+		add(shopFrame:FindFirstChild("BossScoutChip", true))
+		if last then add(last.rerollRow) end
+		return out
 	end
 
 	function self.relayout()

@@ -1488,6 +1488,12 @@ return function(deps)
 			if stageScales then ShopCardsModule.setScale(stageScales.pack) end
 			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("pack"))
 			packRow = row
+			-- Pack tooltips open beside the pack row, clear of the offers and every control (Client/ShopTips.lua).
+			local packTip = require(script.Parent.ShopTips).packPlacer({
+				packRow = function() return packRow end,
+				offerRow = function() return patronRow end,
+				controls = function() return shopStage and shopStage.keepOut() or {} end,
+			})
 			for index, slotInfo in ipairs(lastPackSlots) do
 				local pack = slotInfo.offer
 				if slotInfo.sold then
@@ -1499,7 +1505,7 @@ return function(deps)
 					local definition = Packs.getById(pack.id)
 					local line = definition and string.format("See %d, keep %d", definition.revealCount or 3, definition.pickCount or 1) or pack.description
 					local card = shopCards.card(row, {
-						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price, tipAlign = "side",
+						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price, tipAlign = packTip,
 						affordable = tips >= pack.price, actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
 						artTab = "packs", artId = baseId, rarity = tierRarity,
 						glow = (sizeBadge == "MEGA" and 2) or (sizeBadge == "JUMBO" and 1) or 0,

@@ -6,7 +6,9 @@
 	Every addTooltip call in the game goes through attach().
 
 	  local tip = Tooltip.new(screenGui)
-	  tip.attach(button, textOrFn, align?)   hover shows it above the button (below if no room), clamped
+	  tip.attach(button, textOrFn, align?, anchor?)   hover shows it above the button (below if no room), clamped
+	      align: nil, "left", "right", "below", "row", or a placer function(pos, size, tipSize, screenSize) -> x, y, note
+	      (Counter packs pass Client/ShopTips.packPlacer, which measures the live rects itself and is re-run every frame)
 	  tip.hide()                            hides it now (overlays opening, phase changes)
 	  tip.frame                             the Frame (InputGuard hides it while an overlay is open)
 
@@ -24,6 +26,10 @@ local Spec = TooltipSpec.Spec
 local Tooltip = {}
 
 function Tooltip.new(screenGui)
+	if RunService:IsStudio() then
+		-- one line per Play session: if it is missing, Studio is not running this code (stop Play, resync Rojo, Play again)
+		print("[Tooltip] v4 ready: Counter pack tips use Client/ShopTips (placer functions)")
+	end
 	local frame = Instance.new("Frame")
 	frame.Name = "Tooltip"
 	frame.AutomaticSize = Enum.AutomaticSize.XY
@@ -88,8 +94,9 @@ function Tooltip.new(screenGui)
 
 	function T.attach(button, text, align, anchor)
 		button.MouseEnter:Connect(function()
-			local side = align
-			if side == nil and (button:FindFirstAncestor("Sidebar") or button:FindFirstAncestor("SidebarBoard")) then
+			local custom = type(align) == "function" and align or nil -- a placer from the caller (Counter packs)
+			local side = (not custom) and align or nil
+			if side == nil and not custom and (button:FindFirstAncestor("Sidebar") or button:FindFirstAncestor("SidebarBoard")) then
 				side = "right" -- every left HUD tooltip opens beside the panel, never over its controls
 			end
 			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
@@ -97,6 +104,8 @@ function Tooltip.new(screenGui)
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local lastLog = false -- one Studio warn per hover
 			local lastFix = false
+			local noted = false -- one placer note per hover
+			local wantX, wantY = 0, 0 -- the latest spot the placement asked for (screen space)
 			local nudge = Vector2.zero -- absorbed offset between the written and the live position
 			local function placeRaw()
 				local pos, size = button.AbsolutePosition, button.AbsoluteSize
@@ -116,43 +125,28 @@ function Tooltip.new(screenGui)
 						end
 						size = Vector2.new(size.X, bottom - pos.Y + 4) -- place() adds the 8 px gap: 12 in all
 					end
-					local x, y
+					local x, y, note
 					local rowFrame = side == "row" and button:FindFirstAncestor("CardRow") or nil
-					if rowFrame then
+					if custom then
+						-- a placer from the caller (Counter packs): it measures the live rects itself and nothing is looked up
+						-- by name here. If it fails the default spot is used and Studio says so, so a tip always shows.
+						local ok, cx, cy, cnote = pcall(custom, pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize)
+						if ok and cx and cy then
+							x, y, note = cx, cy, cnote
+						else
+							x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, nil)
+							note = "placer failed, default spot used: " .. tostring(cx)
+						end
+					elseif rowFrame then
 						local rp, rs = rowFrame.AbsolutePosition, rowFrame.AbsoluteSize
 						local tipSize = frame.AbsoluteSize
 						x, y = TooltipSpec.placeRow({ X = pos.X, W = size.X },
 							{ X = rp.X, Y = rp.Y, H = rs.Y },
 							{ X = tipSize.X, Y = tipSize.Y }, screenGui.AbsoluteSize)
-					elseif side == "side" and button:FindFirstAncestor("CardRow") then
-						-- Counter packs: open sideways into free counter space, never over a pack or an offer
-						local rowFrame = button:FindFirstAncestor("CardRow")
-						local x0, x1 = math.huge, -math.huge
-						for _, c in ipairs(rowFrame:GetChildren()) do
-							if c:IsA("GuiObject") and c.Visible and c.AbsoluteSize.X > 0 then
-								x0 = math.min(x0, c.AbsolutePosition.X)
-								x1 = math.max(x1, c.AbsolutePosition.X + c.AbsoluteSize.X)
-							end
-						end
-						if x0 > x1 then x0, x1 = pos.X, pos.X + size.X end
-						local floorY = nil
-						for _, sib in ipairs(rowFrame.Parent:GetChildren()) do
-							if sib ~= rowFrame and sib.Name == "CardRow" and sib:IsA("GuiObject") and sib.Visible
-								and sib.AbsolutePosition.Y < rowFrame.AbsolutePosition.Y then
-								floorY = math.max(floorY or 0, sib.AbsolutePosition.Y + sib.AbsoluteSize.Y)
-							end
-						end
-						local tipSize = frame.AbsoluteSize
-						x, y = TooltipSpec.placeSide({ Y = pos.Y, H = size.Y }, { X0 = x0, X1 = x1 },
-							{ X = tipSize.X, Y = tipSize.Y }, screenGui.AbsoluteSize, floorY)
-						if RunService:IsStudio() and not lastLog then
-							lastLog = true
-							warn(string.format("[Tooltip pack] tip %d,%d %dx%d packs x %d..%d offerRowBottom %s",
-								x, y, tipSize.X, tipSize.Y, x0, x1, floorY and tostring(math.floor(floorY)) or "none"))
-						end
 					else
 						x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
 					end
+				wantX, wantY = x, y
 				-- x, y are in absolute screen space; Position is relative to the tooltip's parent
 				local origin = frame.Parent and frame.Parent:IsA("GuiObject") and frame.Parent.AbsolutePosition or Vector2.zero
 				frame.AnchorPoint = Vector2.new(0, 0)
@@ -168,6 +162,18 @@ function Tooltip.new(screenGui)
 						warn(string.format("[Tooltip fix] wanted %d,%d live %d,%d nudge %d,%d screen %dx%d",
 							x, y, live.X, live.Y, nudge.X, nudge.Y, screenGui.AbsoluteSize.X, screenGui.AbsoluteSize.Y))
 					end
+				end
+				if note and RunService:IsStudio() and not noted then
+					noted = true
+					local okText, text = pcall(function() return type(note) == "function" and note() or tostring(note) end)
+					warn("[Tooltip pack] " .. (okText and text or ("note failed: " .. tostring(text))))
+					task.delay(0.4, function() -- the final live rect, to set beside the spot the placement asked for
+						if frame.Visible then
+							local lp, ls = frame.AbsolutePosition, frame.AbsoluteSize
+							warn(string.format("[Tooltip pack live] wanted %d,%d live %d,%d size %dx%d",
+								math.floor(wantX), math.floor(wantY), math.floor(lp.X), math.floor(lp.Y), math.floor(ls.X), math.floor(ls.Y)))
+						end
+					end)
 				end
 				if side == "below" and RunService:IsStudio() and not lastLog then
 					lastLog = true
@@ -189,7 +195,7 @@ function Tooltip.new(screenGui)
 			if activeConn then activeConn:Disconnect() end
 			if leaveConn then leaveConn:Disconnect() end
 			activeConn = RunService.Heartbeat:Connect(function()
-				if frame.Visible and (side == "below" or side == "row" or side == "side") then place() end -- plates can still be sliding in or lifting
+				if frame.Visible and (custom or side == "below" or side == "row") then place() end -- plates can still be sliding in or lifting
 				local alive = button.Parent ~= nil and frame.Visible
 				if alive then
 					local obj = button

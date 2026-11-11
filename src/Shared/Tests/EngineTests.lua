@@ -15460,7 +15460,7 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
 		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
 		expectTrue(tip:find("x - origin.X + nudge.X, y - origin.Y + nudge.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
-		expectTrue(tip:find('if frame.Visible and (side == "below" or side == "row" or side == "side") then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
+		expectTrue(tip:find('if frame.Visible and (custom or side == "below" or side == "row") then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
 	end
 end })
 
@@ -15545,40 +15545,333 @@ table.insert(tests, { name = "TooltipSpec.placeRow: Counter tooltip intersects n
 	end
 end })
 
-table.insert(tests, { name = "TooltipSpec.placeSide: Counter pack tooltip covers no offer, pack, plate or button (2 and 4 offers, 2 and 3 packs, 1920x1080 and 1280x720)", fn = function()
+table.insert(tests, { name = "TooltipSpec.placeBeside: Counter pack tooltip sits beside the pack row and covers nothing (live numbers from Play: Standard Pack and Mega Menu Recipe Pack)", fn = function()
 	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	local CounterScene = require(script.Parent.CounterScene)
 	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
-	for _, screen in ipairs({ { X = 1920, Y = 1080 }, { X = 1280, Y = 720 } }) do
-		local big = screen.X >= 1920
-		local ow, oh, pw, ph, gap = big and 226 or 160, big and 313 or 220, big and 96 or 70, big and 148 or 108, 16
-		for _, counts in ipairs({ { 2, 2 }, { 4, 3 } }) do
-			local nO, nP = counts[1], counts[2]
-			local offerTop = math.floor(screen.Y * 0.18)
-			local oTotal = nO * ow + (nO - 1) * gap
-			local rects = {}
-			for i = 0, nO - 1 do
-				rects[#rects + 1] = { X = math.floor((screen.X - oTotal) / 2) + i * (ow + gap), Y = offerTop, W = ow, H = oh }
-			end
-			local packTop = offerTop + oh - 4
-			local pTotal = nP * pw + (nP - 1) * (gap - 4)
-			local px0 = math.floor((screen.X - pTotal) / 2)
-			local packs = {}
-			for i = 0, nP - 1 do
-				packs[#packs + 1] = { X = px0 + i * (pw + gap - 4), Y = packTop, W = pw, H = ph }
-			end
-			local tip = { X = 286, Y = 64 }
-			for pi, pack in ipairs(packs) do
-				local x, y = TooltipSpec.placeSide({ Y = pack.Y, H = pack.H }, { X0 = px0, X1 = px0 + pTotal }, tip, screen, offerTop + oh)
-				local tr = { X = x, Y = y, W = tip.X, H = tip.Y }
-				expectTrue(x >= 0 and y >= 0 and x + tip.X <= screen.X and y + tip.Y <= screen.Y, "pack tooltip stays on screen")
-				for _, o in ipairs(rects) do expectFalse(hit(tr, o), "pack " .. pi .. " tooltip covers an offer at " .. screen.X) end
-				for _, o in ipairs(packs) do expectFalse(hit(tr, o), "pack " .. pi .. " tooltip covers a pack at " .. screen.X) end
+	-- Read in Play on 8818aee (Studio coordinates). A card slot is the Body plus 16 px above and 4 below; the name plate
+	-- (Banner) sits at the shape's bannerTop inside the Body, which starts 16 px under the slot top.
+	local offers = { { X = 764, Y = 192, W = 226, H = 313 }, { X = 1006, Y = 192, W = 226, H = 313 } }
+	local shape = CardShape.shape("patron", 226 / 220)
+	local plates = {}
+	for i, o in ipairs(offers) do
+		plates[i] = { X = o.X + 2, Y = o.Y + 16 + shape.bannerTop, W = o.W - 4, H = CardShape.BANNER_H }
+	end
+	local packs = { { X = 894, Y = 501, W = 96, H = 148 }, { X = 1006, Y = 501, W = 96, H = 148 } }
+	-- The controls come from the layout the Counter uses, in the frame Play had (1257 x 750 at 260,-58). That layout must
+	-- also reproduce the reported card rects (the offer row bobs up to 5 px higher live), or the fixture proves nothing.
+	local scene = CounterScene.build(1257, 750, 260, -58, 2, 2)
+	expectEqual(scene.offers[1].X, 764, "the layout puts the first offer where Play reported it")
+	expectEqual(scene.offers[2].X, 1006, "the layout puts the second offer where Play reported it")
+	expectTrue(math.abs(scene.offers[1].Y - 192) <= 5 and scene.offers[1].W == 226 and scene.offers[1].H == 313, "offer slots are 226 x 313 at y 192 (bob up to 5 px)")
+	expectEqual(scene.packs[1].X, 894, "the first pack slot is at x 894")
+	expectEqual(scene.packs[2].X, 1006, "the second pack slot is at x 1006")
+	expectTrue(scene.packs[1].Y == 501 and scene.packs[1].W == 96 and scene.packs[1].H == 148, "pack slots are 96 x 148 at y 501")
+	local controls = scene.controls
+	local blockers = {}
+	for _, list in ipairs({ offers, plates, controls }) do
+		for _, r in ipairs(list) do blockers[#blockers + 1] = r end
+	end
+
+	-- the reported hover: the tip must not land where the old code put it (884,453, over the Rowdy Bunch plate)
+	local screen = { X = 1517, Y = 692 }
+	for pi, tip in ipairs({ { X = 116.5, Y = 48 }, { X = 286, Y = 64 } }) do
+		local card = packs[pi]
+		local x, y, info = TooltipSpec.placeBeside(card, packs, blockers, tip, screen)
+		local tr = { X = x, Y = y, W = tip.X, H = tip.Y }
+		-- the short tip fits right of the row; the long one would reach the Reroll bell, so it opens on the left instead
+		if pi == 1 then
+			expectEqual(info.side, "right", "the short tip opens to the right of the pack row")
+			expectEqual(x, 1102 + 12, "right: left edge 12 px right of the last pack")
+		else
+			expectEqual(info.side, "left", "the long tip would cover Reroll on the right, so it opens to the left")
+			expectEqual(x + tip.X, 894 - 12, "left: right edge 12 px left of the first pack")
+		end
+		expectTrue(math.abs(y + tip.Y / 2 - (card.Y + card.H / 2)) < 0.5, "pack " .. pi .. " is centred on the hovered pack")
+		expectEqual(info.area, 0, "pack " .. pi .. " covers nothing")
+		expectFalse(info.slid, "pack " .. pi .. " needs no slide in the reported layout")
+		expectFalse(hit(tr, plates[1]), "pack " .. pi .. " tip leaves the Rowdy Bunch plate alone")
+		expectFalse(hit(tr, plates[2]), "pack " .. pi .. " tip leaves the second offer plate alone")
+		for _, b in ipairs(blockers) do expectFalse(hit(tr, b), "pack " .. pi .. " tip covers an offer, plate or control") end
+		for _, p in ipairs(packs) do expectFalse(hit(tr, p), "pack " .. pi .. " tip covers a pack") end
+		expectTrue(x >= 0 and y >= 0 and x + tip.X <= screen.X and y + tip.Y <= screen.Y, "pack " .. pi .. " tip stays on screen")
+	end
+
+	-- no room on the right (narrow screen): the same placement on the left of the first pack
+	local x, y, info = TooltipSpec.placeBeside(packs[1], packs, blockers, { X = 304, Y = 64 }, { X = 1250, Y = 1080 })
+	expectEqual(info.side, "left", "no room on the right opens to the left")
+	expectEqual(x, 894 - 12 - 304, "left: right edge 12 px left of the first pack")
+	expectEqual(info.area, 0, "left placement covers nothing")
+
+	-- something stands beside the row on both sides at the pack's height: the tip slides, never above or below the row
+	local walled = { { X = 560, Y = 530, W = 330, H = 70 }, { X = 1104, Y = 530, W = 300, H = 70 } }
+	local walls = {}
+	for _, b in ipairs(blockers) do walls[#walls + 1] = b end
+	for _, b in ipairs(walled) do walls[#walls + 1] = b end
+	x, y, info = TooltipSpec.placeBeside(packs[1], packs, walls, { X = 116.5, Y = 48 }, screen)
+	expectEqual(info.area, 0, "the slid tip covers nothing")
+	expectTrue(info.slid, "the tip slid")
+	expectEqual(x, 1114, "a slide keeps the 12 px gap to the row")
+	expectTrue(math.abs(y - (packs[1].Y + packs[1].H / 2 - 24)) <= packs[1].H, "a slide moves at most one pack height")
+
+	-- nothing clear anywhere: the less covered side wins, the result is still on screen
+	local closed = { { X = 0, Y = 0, W = 1920, H = 1080 } }
+	x, y, info = TooltipSpec.placeBeside(packs[1], packs, closed, { X = 116.5, Y = 48 }, screen)
+	expectTrue(info.area > 0 and x >= 0 and y >= 0 and x + 116.5 <= screen.X and y + 48 <= screen.Y, "a closed counter still gives an on-screen spot")
+end })
+
+table.insert(tests, { name = "Counter pack tooltips from the real layout (ShopSceneLayout, CardShape): beside the row, clear of offers, plates, packs and controls (1 to 4 offers, 1 to 3 packs, four Counter frame sizes)", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local CounterScene = require(script.Parent.CounterScene)
+	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
+	local checked, rights, lefts = 0, 0, 0
+	-- Counter frame size and position, and the screen it sits in: the Play window of 2026-11-10 first, then 3 common sizes
+	local frames = {
+		{ W = 1257, H = 750, ox = 260, oy = -58, screen = { X = 1517, Y = 692 } },
+		{ W = 1660, H = 1080, ox = 260, oy = 0, screen = { X = 1920, Y = 1080 } },
+		{ W = 1340, H = 900, ox = 260, oy = 0, screen = { X = 1600, Y = 900 } },
+		{ W = 1020, H = 720, ox = 260, oy = 0, screen = { X = 1280, Y = 720 } },
+	}
+	for _, fr in ipairs(frames) do
+		local screen = fr.screen
+		for nO = 1, 4 do
+			for nP = 1, 3 do
+				local label = screen.X .. "x" .. screen.Y .. ", " .. nO .. " offers, " .. nP .. " packs"
+				local scene = CounterScene.build(fr.W, fr.H, fr.ox, fr.oy, nO, nP)
+				local packs, blockers = scene.packs, scene.blockers
+				local x0 = packs[1].X
+				local x1 = packs[#packs].X + packs[#packs].W
+				for pi, card in ipairs(packs) do
+					for _, tip in ipairs({ { X = 117, Y = 48 }, { X = 304, Y = 64 } }) do
+						local x, y, info = TooltipSpec.placeBeside(card, packs, blockers, tip, screen)
+						local tr = { X = x, Y = y, W = tip.X, H = tip.Y }
+						local where = label .. ", pack " .. pi .. ", tip " .. tip.X .. "x" .. tip.Y
+						expectEqual(info.area, 0, "covers something at " .. where)
+						expectFalse(info.slid, "needed a slide at " .. where)
+						for _, b in ipairs(blockers) do expectFalse(hit(tr, b), "covers an offer, plate or control at " .. where) end
+						for _, p in ipairs(packs) do expectFalse(hit(tr, p), "covers a pack at " .. where) end
+						expectTrue(x >= 0 and y >= 0 and x + tip.X <= screen.X and y + tip.Y <= screen.Y, "off screen at " .. where)
+						if info.side == "right" then
+							expectEqual(x, x1 + 12, "right: 12 px from the last pack at " .. where)
+							rights = rights + 1
+						else
+							expectEqual(x + tip.X, x0 - 12, "left: 12 px from the first pack at " .. where)
+							lefts = lefts + 1
+						end
+						expectTrue(y + tip.Y / 2 >= card.Y and y + tip.Y / 2 <= card.Y + card.H, "not beside the hovered pack at " .. where)
+						checked = checked + 1
+					end
+				end
 			end
 		end
 	end
+	expectTrue(checked >= 100 and rights > 0 and lefts > 0, "the sweep covered every layout and both sides (" .. checked .. " tips, " .. rights .. " right, " .. lefts .. " left)")
+end })
+
+table.insert(tests, { name = "ShopTips.packPlacer: reads the live rows and controls (fake instances, live numbers) and opens the tip beside the pack row", fn = function()
+	-- Local runner only: Studio cannot load a Client file from here, so the test skips there.
+	local f = io and io.open and io.open("src/Client/ShopTips.lua", "r")
+	if not f or not loadfile then return end
+	f:close()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local rs = {}
+	function rs:WaitForChild(name)
+		if name == "TooltipSpec" then return { __module = TooltipSpec } end
+		return rs
+	end
+	local env = setmetatable({ game = { GetService = function() return rs end }, require = function(m) return m.__module end }, { __index = _G })
+	local chunk = loadfile("src/Client/ShopTips.lua", "t", env)
+	expectTrue(chunk ~= nil, "ShopTips loads without Roblox constructors")
+	local ShopTips = chunk()
+
+	-- a duck-typed GuiObject: the placer only reads Name, Parent, Visible, AbsolutePosition, AbsoluteSize and the child list
+	local function gui(parent, name, x, y, w, h)
+		local g = { Name = name, Parent = parent, Visible = true, AbsolutePosition = { X = x, Y = y }, AbsoluteSize = { X = w, Y = h }, kids = {} }
+		function g:GetChildren() local out = {} for i, k in ipairs(self.kids) do out[i] = k end return out end
+		function g:IsA(c) return c == "GuiObject" or c == "Frame" end
+		function g:FindFirstChild(n, deep)
+			for _, k in ipairs(self.kids) do
+				if k.Name == n then return k end
+				local d = deep and k:FindFirstChild(n, true)
+				if d then return d end
+			end
+		end
+		if parent and parent.kids then table.insert(parent.kids, g) end
+		return g
+	end
+	local root = { kids = {} }
+	local offerRow = gui(root, "CardRow", 700, 180, 700, 340)
+	for _, x in ipairs({ 764, 1006 }) do
+		local slot = gui(offerRow, "Card_Offer", x, 192, 226, 313)
+		local body = gui(slot, "Body", x, 208, 226, 293)
+		gui(body, "Banner", x + 2, 452, 222, 40) -- the name plate the old tooltip covered
+	end
+	local packRow = gui(root, "CardRow", 700, 497, 700, 160)
+	gui(packRow, "Card_Standard Pack", 894, 501, 96, 148)
+	gui(packRow, "Card_Mega Menu Recipe Pack", 1006, 501, 96, 148)
+	local haggle = gui(root, "HaggleButton", 285, 540, 72, 46)
+	gui(haggle, "HaggleTag", 285, 590, 84, 24)
+	local bell = gui(root, "RerollRow", 1500, 540, 60, 50)
+	gui(bell, "BellTag", 1470, 594, 120, 24)
+	local nextRound = gui(root, "NextRound", 1650, 955, 190, 44)
+	local tabs = gui(root, "Tabs", 700, 8, 560, 34)
+	local hidden = gui(root, "Hidden", 880, 540, 400, 200) -- invisible controls must not block anything
+	hidden.Visible = false
+
+	local placer = ShopTips.packPlacer({
+		packRow = function() return packRow end,
+		offerRow = function() return offerRow end,
+		controls = function() return { tabs, nextRound, haggle, bell, hidden } end,
+	})
+	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
+	local screen = { X = 1920, Y = 1080 }
+	-- hovering Standard Pack: the button is the Body, lifted 8 px by the hover
+	local x, y, note = placer({ X = 894, Y = 509 }, { X = 96, Y = 128 }, { X = 116.5, Y = 48 }, screen)
+	expectEqual(x, 1114, "the tip opens 12 px right of the last pack")
+	expectTrue(math.abs(y - 551) < 0.5, "centred on the Standard Pack slot (the lifted button does not move it)")
+	local tr = { X = x, Y = y, W = 116.5, H = 48 }
+	for _, r in ipairs({ { 764, 192, 226, 313 }, { 1006, 192, 226, 313 }, { 766, 452, 222, 40 }, { 1008, 452, 222, 40 },
+		{ 894, 501, 96, 148 }, { 1006, 501, 96, 148 }, { 285, 540, 72, 46 }, { 1500, 540, 60, 50 }, { 1650, 955, 190, 44 } }) do
+		expectFalse(hit(tr, { X = r[1], Y = r[2], W = r[3], H = r[4] }), "the tip covers a live rect at " .. r[1] .. "," .. r[2])
+	end
+	expectEqual(type(note), "function", "the placer returns a lazy Studio note")
+	local text = note()
+	expectTrue(text:find("side=right", 1, true) ~= nil and text:find(ShopTips.VERSION, 1, true) ~= nil, "the note names the version and the side")
+	expectTrue(text:find("offers=[764,192 226x313; 1006,192 226x313]", 1, true) ~= nil, "the note lists the offer rects it used")
+	expectTrue(text:find("plates=[766,452 222x40; 1008,452 222x40]", 1, true) ~= nil, "the note lists the name plate rects it used")
+	expectTrue(text:find("packs=[894,501 96x148; 1006,501 96x148]", 1, true) ~= nil, "the note lists the pack rects it used")
+
+	-- a missing row or control list never throws and still gives a spot beside the hovered button
+	local bare = ShopTips.packPlacer({})
+	local bx, by = bare({ X = 894, Y = 509 }, { X = 96, Y = 128 }, { X = 116.5, Y = 48 }, screen)
+	expectTrue(type(bx) == "number" and type(by) == "number", "a placer with no sources still places")
+	expectEqual(bx, 894 + 96 + 12, "with no sources the tip sits 12 px right of the hovered button")
+
+	-- ===== end to end: the real Client/Tooltip.lua on a tiny fake Roblox, hovered with the placer above =====
+	local function signal()
+		local s = { list = {} }
+		function s:Connect(fn)
+			local h = { fn = fn, on = true }
+			s.list[#s.list + 1] = h
+			return { Disconnect = function() h.on = false end }
+		end
+		function s:Fire(...) for _, h in ipairs(self.list) do if h.on then h.fn(...) end end end
+		return s
+	end
+	local function vec(a, b) return { X = a, Y = b } end
+	local studio, warns, prints, queued = true, {}, {}, {}
+	local heartbeat = signal()
+	local shift = vec(0, 0) -- pretend something outside moves the tooltip frame (the 66 px miss seen in Play)
+	local instMT = { __index = function(self, k)
+		local p = rawget(self, "Position")
+		if k == "AbsolutePosition" and p then return vec(p.X.Offset + shift.X, p.Y.Offset + shift.Y) end
+	end }
+	local runService = { Heartbeat = heartbeat, IsStudio = function() return studio end }
+	local tenv = setmetatable({
+		game = { GetService = function(_, name)
+			if name == "RunService" then return runService end
+			return (name == "ReplicatedStorage") and rs or {}
+		end },
+		script = { Parent = { ModalStage = { __module = { blocks = function() return false end } } } },
+		require = function(m) return m.__module end,
+		Instance = { new = function(class) return setmetatable({ ClassName = class, Visible = true }, instMT) end },
+		Vector2 = { new = vec, zero = vec(0, 0) },
+		UDim = { new = function(s, o) return { Scale = s, Offset = o } end },
+		UDim2 = { fromOffset = function(a, b) return { X = { Offset = a }, Y = { Offset = b } } end },
+		Color3 = { fromRGB = function() return {} end },
+		Enum = setmetatable({}, { __index = function(_, a) return setmetatable({}, { __index = function(_, b) return a .. "." .. b end }) end }),
+		task = { defer = function(fn) queued[#queued + 1] = fn end, delay = function(_, fn) queued[#queued + 1] = fn end },
+		warn = function(...) warns[#warns + 1] = table.concat({ ... }, " ") end,
+		print = function(...) prints[#prints + 1] = table.concat({ ... }, " ") end,
+	}, { __index = _G })
+	local tchunk = loadfile("src/Client/Tooltip.lua", "t", tenv)
+	expectTrue(tchunk ~= nil, "Tooltip.lua loads on the fake Roblox")
+	local Tooltip = tchunk()
+	local screenGui = { AbsoluteSize = vec(1517, 692), IsA = function(_, c) return c == "LayerCollector" end }
+	local T = Tooltip.new(screenGui)
+	expectTrue(#prints == 1 and prints[1]:find("v4", 1, true) ~= nil, "Studio prints the Tooltip version once, so a stale session is visible")
+	T.frame.AbsoluteSize = vec(116.5, 48)
+	local function flush() local q = queued; queued = {}; for _, fn in ipairs(q) do fn() end end
+	local function newButton(a, b, w, h)
+		local btn = { AbsolutePosition = vec(a, b), AbsoluteSize = vec(w, h), Parent = screenGui, Visible = true, MouseEnter = signal(), MouseLeave = signal() }
+		function btn:FindFirstAncestor() return nil end
+		function btn:IsA(c) return c == "GuiObject" or c == "TextButton" end
+		return btn
+	end
+
+	local pack1 = newButton(894, 509, 96, 128) -- Standard Pack, lifted 8 px
+	T.attach(pack1, "Standard Pack\nSee 3, keep 1", placer, nil)
+	pack1.MouseEnter:Fire()
+	expectTrue(T.frame.Visible, "hovering a pack shows the tooltip")
+	expectEqual(T.frame.Position.X.Offset, 1114, "the tip is written 12 px right of the last pack")
+	expectTrue(math.abs(T.frame.Position.Y.Offset - 551) < 0.5, "...centred on the pack, not above it")
+	flush()
+	heartbeat:Fire()
+	expectTrue(warns[1] ~= nil and warns[1]:find("[Tooltip pack]", 1, true) == 1 and warns[1]:find("v4 side=right", 1, true) ~= nil, "Studio warns the version, side and rects used")
+	expectTrue(warns[2] ~= nil and warns[2]:find("[Tooltip pack live] wanted 1114,551 live 1114,551", 1, true) == 1, "Studio warns the final live rect")
+	for _, w in ipairs(warns) do expectTrue(w:find("place failed", 1, true) == nil, "no place failure: " .. w) end
+	pack1.MouseLeave:Fire()
+	expectFalse(T.frame.Visible, "leaving hides the tooltip")
+
+	-- something outside shifts the frame by 66 px: the live rect is still driven onto the spot
+	shift = vec(0, -66)
+	warns = {}
+	pack1.MouseEnter:Fire()
+	flush()
+	heartbeat:Fire()
+	expectEqual(T.frame.AbsolutePosition.Y, 551, "an outside shift is absorbed so the live rect lands on the spot")
+	expectEqual(T.frame.AbsolutePosition.X, 1114, "x stays on the spot")
+	pack1.MouseLeave:Fire()
+	shift = vec(0, 0)
+
+	-- a placer that throws: the default spot above the button is used, Studio says so, nothing escapes
+	warns = {}
+	local pack2 = newButton(1006, 509, 96, 128)
+	T.attach(pack2, "Mega Menu Recipe Pack\nSee 5, keep 2", function() error("boom") end, nil)
+	pack2.MouseEnter:Fire()
+	flush()
+	expectTrue(T.frame.Visible, "a failing placer still shows the tooltip")
+	expectTrue(math.abs(T.frame.Position.Y.Offset - (509 - 48 - 8)) < 0.5, "...at the default spot above the button")
+	expectTrue(warns[1] ~= nil and warns[1]:find("placer failed", 1, true) ~= nil, "Studio says the placer failed")
+	pack2.MouseLeave:Fire()
+
+	-- the string aligns work as before
+	local gear = newButton(1400, 300, 40, 40)
+	T.attach(gear, "Settings", "left", nil)
+	gear.MouseEnter:Fire()
+	expectTrue(math.abs(T.frame.Position.X.Offset - (1400 + 40 - 116.5)) < 0.5 and math.abs(T.frame.Position.Y.Offset - (300 - 48 - 8)) < 0.5, "align left still lines the right edges up, above the button")
+	gear.MouseLeave:Fire()
+
+	-- with Studio off nothing is printed or warned
+	studio, warns, prints = false, {}, {}
+	pack1.MouseEnter:Fire()
+	flush()
+	expectEqual(#warns + #prints, 0, "outside Studio the tooltip is silent")
+	pack1.MouseLeave:Fire()
+end })
+
+table.insert(tests, { name = "Counter pack tooltips are wired through a placer, not a name lookup (Shop, Tooltip, ShopStage, ShopTips sources)", fn = function()
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
 	local shop = read("src/Client/Shop.lua")
-	if shop then expectTrue(shop:find('tipAlign = "side"', 1, true) ~= nil, "Counter pack cards open their tooltip sideways") end
+	if shop then
+		expectTrue(shop:find("ShopTips", 1, true) ~= nil and shop:find("tipAlign = packTip", 1, true) ~= nil, "Counter pack cards pass the ShopTips placer")
+		expectTrue(shop:find('tipAlign = "side"', 1, true) == nil, "no string side alignment is left on the pack cards")
+	end
+	local tip = read("src/Client/Tooltip.lua")
+	if tip then
+		expectTrue(tip:find('type(align) == "function"', 1, true) ~= nil, "Tooltip accepts a placer function")
+		expectTrue(tip:find('side == "side"', 1, true) == nil, "Tooltip no longer searches for a CardRow to place pack tips")
+		expectTrue(tip:find("[Tooltip pack]", 1, true) ~= nil and tip:find("[Tooltip pack live]", 1, true) ~= nil, "Studio prints the rects used and the final live rect")
+		expectTrue(tip:find("custom or side", 1, true) ~= nil, "a placer is re-measured every frame while shown")
+	end
+	local stage = read("src/Client/ShopStage.lua")
+	if stage then expectTrue(stage:find("function self.keepOut", 1, true) ~= nil, "ShopStage lists the controls a tooltip must stay clear of") end
+	local st = read("src/Client/ShopTips.lua")
+	if st then
+		expectTrue(st:find("FindFirstAncestor", 1, true) == nil, "ShopTips finds nothing by ancestor name")
+		expectTrue(st:find("Instance.new", 1, true) == nil and st:find("Vector2", 1, true) == nil, "ShopTips builds no Roblox objects")
+	end
 end })
 
 return tests

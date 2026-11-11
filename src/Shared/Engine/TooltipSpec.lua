@@ -14,6 +14,9 @@
 	    Above the target with `gap`, below when there is no room above, clamped inside the screen by `margin`.
 	    align "left": the tooltip's right edge lines up with the target's right edge (buttons on the right side).
 	textClear(spec) -> true when the padding is wider than the border plus a 4px breathing space on every side.
+	placeRow(...)    Counter offers: below or above the whole offer row.
+	placeBeside(...) Counter packs: beside the pack row, clear of the offers and every control (Client/ShopTips feeds it).
+	correct(...)     absorbs a shift between the written and the live position.
 ]]
 
 local TooltipSpec = {}
@@ -26,6 +29,7 @@ TooltipSpec.Spec = {
 	padY = 8,
 	maxWidth = 280,
 	gap = 8,
+	sideGap = 12, -- Counter pack tooltips: distance from the pack row
 	margin = 6,
 	textSize = 16,
 }
@@ -92,22 +96,69 @@ function TooltipSpec.placeRow(card, row, tip, screen, spec)
 	return x, math.max(spec.margin, math.min(below, screen.Y - tip.Y - spec.margin))
 end
 
--- placeSide(card, span, tip, screen, floorY) -> x, y
--- Counter PACKS: card = the hovered pack's rect ({Y,H}), span = {X0, X1} the left and right edge of the whole pack row,
--- floorY = bottom edge of the offer row above (nil if none). The tip opens SIDEWAYS into the free counter space: right
--- of the last pack, or left of the first pack when there is no room on the right, centred on the pack vertically but
--- never higher than floorY + gap, clamped inside the screen. It is never over any pack or offer.
-function TooltipSpec.placeSide(card, span, tip, screen, floorY, spec)
+local function overlapArea(a, b)
+	local w = math.min(a.X + a.W, b.X + b.W) - math.max(a.X, b.X)
+	local h = math.min(a.Y + a.H, b.Y + b.H) - math.max(a.Y, b.Y)
+	if w <= 0 or h <= 0 then return 0 end
+	return w * h
+end
+
+-- placeBeside(card, packs, blockers, tip, screen) -> x, y, info
+-- Counter PACKS. Every rect is { X, Y, W, H } in screen space, tip and screen are { X, Y } sizes.
+--   card     the hovered pack's slot
+--   packs    every slot in the pack row (the hovered one included)
+--   blockers rects the tip must never cover: the offer cards and their name plates, Haggle, Reroll, Next Round, the tabs
+-- The tip opens SIDEWAYS: its left edge Spec.sideGap (12) px right of the last pack, centred on the hovered pack
+-- vertically, clamped inside the screen. With no clear spot on the right it opens the same way on the left of the first
+-- pack; only then does it slide up or down (at most one pack height) to dodge something standing beside the row,
+-- right side first. It is never placed above or below the row. If nothing is clear, the spot that covers the least wins.
+-- info = { side = "right" | "left", area = px covered (0 = clear), slid = true when it moved off centre }
+function TooltipSpec.placeBeside(card, packs, blockers, tip, screen, spec)
 	spec = spec or TooltipSpec.Spec
-	local x = span.X1 + spec.gap
-	if x + tip.X > screen.X - spec.margin then
-		x = span.X0 - spec.gap - tip.X
+	local gap, margin = spec.sideGap, spec.margin
+	local x0, x1 = card.X, card.X + card.W
+	local avoid = {}
+	for _, p in ipairs(packs) do
+		x0, x1 = math.min(x0, p.X), math.max(x1, p.X + p.W)
+		avoid[#avoid + 1] = p
 	end
-	x = math.max(spec.margin, math.min(x, screen.X - tip.X - spec.margin))
-	local y = card.Y + card.H / 2 - tip.Y / 2
-	if floorY then y = math.max(y, floorY + spec.gap) end
-	y = math.max(spec.margin, math.min(y, screen.Y - tip.Y - spec.margin))
-	return x, y
+	for _, b in ipairs(blockers) do avoid[#avoid + 1] = b end
+
+	local function clampY(y) return math.max(margin, math.min(y, math.max(margin, screen.Y - tip.Y - margin))) end
+	local function xFor(side)
+		local x = (side == "right") and (x1 + gap) or (x0 - gap - tip.X)
+		return math.max(margin, math.min(x, screen.X - tip.X - margin))
+	end
+	local centre = clampY(card.Y + card.H / 2 - tip.Y / 2)
+
+	-- candidates in order: right then left at the centre, then right then left slid beside whatever stands in the column
+	local candidates = { { "right", xFor("right"), centre }, { "left", xFor("left"), centre } }
+	for _, side in ipairs({ "right", "left" }) do
+		local x = xFor(side)
+		local slides = {}
+		for _, b in ipairs(avoid) do
+			if b.X < x + tip.X and x < b.X + b.W then
+				slides[#slides + 1] = clampY(b.Y - gap - tip.Y)
+				slides[#slides + 1] = clampY(b.Y + b.H + gap)
+			end
+		end
+		table.sort(slides, function(a, c) return math.abs(a - centre) < math.abs(c - centre) end)
+		for _, y in ipairs(slides) do
+			if y ~= centre and math.abs(y - centre) <= card.H then candidates[#candidates + 1] = { side, x, y } end
+		end
+	end
+
+	local best
+	for _, c in ipairs(candidates) do
+		local rect = { X = c[2], Y = c[3], W = tip.X, H = tip.Y }
+		local area = 0
+		for _, a in ipairs(avoid) do area = area + overlapArea(rect, a) end
+		if not best or area < best.area then
+			best = { x = c[2], y = c[3], area = area, info = { side = c[1], area = area, slid = c[3] ~= centre } }
+			if area == 0 then break end
+		end
+	end
+	return best.x, best.y, best.info
 end
 
 -- correct(target, actual, offset) -> new offset (x, y), tolerance 1 px.
