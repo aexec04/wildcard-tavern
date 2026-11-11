@@ -73,6 +73,25 @@ function TooltipSpec.place(pos, size, tip, screen, align, spec)
 	return x, y
 end
 
+-- placeRow(card, row, tip, screen) -> x, y
+-- Counter offers: card = the hovered card's rect, row = the whole offer row's rect ({X,Y} tables, same space).
+-- The tip sits centred on the card but entirely BELOW the row (so it covers no neighbouring plate, price tag or Buy
+-- drawer), or entirely ABOVE the row when there is no room below, clamped inside the screen. With room on neither
+-- side it goes below the row anyway, clamped (the row's own bottom edge is the last resort).
+function TooltipSpec.placeRow(card, row, tip, screen, spec)
+	spec = spec or TooltipSpec.Spec
+	local x = math.max(spec.margin, math.min(card.X + card.W / 2 - tip.X / 2, screen.X - tip.X - spec.margin))
+	local below = row.Y + row.H + spec.gap
+	if below + tip.Y <= screen.Y - spec.margin then
+		return x, below
+	end
+	local above = row.Y - tip.Y - spec.gap
+	if above >= spec.margin then
+		return x, above
+	end
+	return x, math.max(spec.margin, math.min(below, screen.Y - tip.Y - spec.margin))
+end
+
 -- correct(target, actual, offset) -> new offset (x, y), tolerance 1 px.
 -- target = where the tip should be on screen, actual = the frame's live AbsolutePosition after writing Position,
 -- offset = the offset (Position minus target) that is currently applied. If something outside our writes (an inset,

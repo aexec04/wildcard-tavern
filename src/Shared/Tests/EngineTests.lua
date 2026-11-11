@@ -15460,7 +15460,7 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
 		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
 		expectTrue(tip:find("x - origin.X + nudge.X, y - origin.Y + nudge.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
-		expectTrue(tip:find('if frame.Visible and side == "below" then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
+		expectTrue(tip:find('if frame.Visible and (side == "below" or side == "row") then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
 	end
 end })
 
@@ -15520,6 +15520,29 @@ table.insert(tests, { name = "Counter leftovers: Buy stops left of the price tag
 	expectTrue(drawerBottom <= tagTop, "the Buy drawer sits above the gold price tag")
 	local BL = require(script.Parent.Parent.Engine.BlessingChipLayout)
 	expectEqual(BL.STACK_HEIGHT, 648, "the stack reserves 8 px more above the chip")
+end })
+
+table.insert(tests, { name = "TooltipSpec.placeRow: Counter tooltip intersects no other offer card or plate (4 offers, 1920x1080 and 1280x720)", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
+	for _, screen in ipairs({ { X = 1920, Y = 1080 }, { X = 1280, Y = 720 } }) do
+		local cw, ch, gap = screen.X >= 1920 and 220 or 170, screen.X >= 1920 and 300 or 230, 16
+		local total = 4 * cw + 3 * gap
+		for _, rowTop in ipairs({ math.floor(screen.Y * 0.2), screen.Y - ch - 20 }) do -- room below, then no room below
+			local row = { X = math.floor((screen.X - total) / 2), Y = rowTop, H = ch }
+			for i = 0, 3 do
+				local card = { X = row.X + i * (cw + gap), W = cw }
+				local tip = { X = 294, Y = 80 }
+				local x, y = TooltipSpec.placeRow(card, row, tip, screen)
+				local tipRect = { X = x, Y = y, W = tip.X, H = tip.Y }
+				expectTrue(x >= 0 and y >= 0 and x + tip.X <= screen.X and y + tip.Y <= screen.Y, "tooltip stays on screen")
+				for j = 0, 3 do
+					local other = { X = row.X + j * (cw + gap), Y = rowTop, W = cw, H = ch } -- card body, plate, tag and drawer all live inside
+					expectFalse(hit(tipRect, other), "tooltip for card " .. i .. " covers card " .. j .. " at " .. screen.X)
+				end
+			end
+		end
+	end
 end })
 
 return tests

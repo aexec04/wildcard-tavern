@@ -116,7 +116,17 @@ function Tooltip.new(screenGui)
 						end
 						size = Vector2.new(size.X, bottom - pos.Y + 4) -- place() adds the 8 px gap: 12 in all
 					end
-					local x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
+					local x, y
+					local rowFrame = side == "row" and button:FindFirstAncestor("CardRow") or nil
+					if rowFrame then
+						local rp, rs = rowFrame.AbsolutePosition, rowFrame.AbsoluteSize
+						local tipSize = frame.AbsoluteSize
+						x, y = TooltipSpec.placeRow({ X = pos.X, W = size.X },
+							{ X = rp.X, Y = rp.Y, H = rs.Y },
+							{ X = tipSize.X, Y = tipSize.Y }, screenGui.AbsoluteSize)
+					else
+						x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
+					end
 				-- x, y are in absolute screen space; Position is relative to the tooltip's parent
 				local origin = frame.Parent and frame.Parent:IsA("GuiObject") and frame.Parent.AbsolutePosition or Vector2.zero
 				frame.AnchorPoint = Vector2.new(0, 0)
@@ -153,7 +163,7 @@ function Tooltip.new(screenGui)
 			if activeConn then activeConn:Disconnect() end
 			if leaveConn then leaveConn:Disconnect() end
 			activeConn = RunService.Heartbeat:Connect(function()
-				if frame.Visible and side == "below" then place() end -- plates can still be sliding in or lifting
+				if frame.Visible and (side == "below" or side == "row") then place() end -- plates can still be sliding in or lifting
 				local alive = button.Parent ~= nil and frame.Visible
 				if alive then
 					local obj = button
