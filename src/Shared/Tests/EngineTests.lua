@@ -12709,6 +12709,21 @@ table.insert(tests, { name = "Pack opening stays on the Counter table: transluce
 	expectTrue(t:find("ResolvePackRemote:FireServer", 1, true) ~= nil, "ResolvePack is still fired")
 end })
 
+table.insert(tests, { name = "Shop polish: picked badge is a drawn check (no OK glyph), table plate is wooden, empty tooltips stay hidden", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local t = f:read("*a"); f:close()
+		return t
+	end
+	local cards, shop, tip = read("src/Client/ShopCards.lua"), read("src/Client/Shop.lua"), read("src/Client/Tooltip.lua")
+	if not (cards and shop and tip) then return end
+	expectTrue(cards:find('Text = "OK"', 1, true) == nil, "no OK glyph on the picked badge")
+	expectTrue(cards:find('"CheckLong"', 1, true) ~= nil, "the check is drawn from frames")
+	expectTrue(shop:find("wooden plate, like Reroll and Haggle", 1, true) ~= nil, "Your table plate is wooden")
+	expectTrue(tip:find('label.Text == ""', 1, true) ~= nil, "an empty tooltip is never shown")
+end })
+
 table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
 	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
 	local g = ModalGate.new()

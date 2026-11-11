@@ -101,6 +101,7 @@ function Tooltip.new(screenGui)
 			end
 			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
 			label.Text = (type(text) == "function") and text() or text
+			if label.Text == "" then T.hide() return end -- never show an empty outlined box
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local lastLog = false -- one Studio warn per hover
 			local lastFix = false

@@ -446,7 +446,15 @@ function ShopCards.new(deps)
 			BackgroundColor3 = Color3.fromRGB(86, 140, 80), Visible = false, ZIndex = Z + 2 })
 		corner(pickedBadge, 17)
 		stroke(pickedBadge, GOLD, 2, 0)
-		label(pickedBadge, { Size = UDim2.fromScale(1, 1), Text = "OK", TextSize = 16, TextColor3 = CREAM, ZIndex = Z + 3 })
+		do -- a drawn check mark (two bars), not a font glyph
+			local function bar(name, x, y, w, rot)
+				local b = frame(pickedBadge, { Name = name, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, y),
+					Size = UDim2.fromOffset(w, 4), BackgroundColor3 = CREAM, Rotation = rot, ZIndex = Z + 3 })
+				corner(b, 2)
+			end
+			bar("CheckShort", 12, 19, 10, 45)
+			bar("CheckLong", 20, 16, 18, -50)
+		end
 		local pickedStroke = stroke(body, GOLD, 4, 1)
 		function card.setSelected(on)
 			pickedBadge.Visible = on

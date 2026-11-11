@@ -1354,15 +1354,16 @@ return function(deps)
 		tableLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 		tableLabel.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 		tableLabel.TextStrokeTransparency = 0.8
-		tableLabel.BackgroundColor3 = Color3.fromRGB(40, 28, 20) -- standard dark name plate
-		tableLabel.BackgroundTransparency = 0.1
+		tableLabel.BackgroundColor3 = Color3.fromRGB(118, 82, 48) -- wooden plate, like Reroll and Haggle
+		tableLabel.BackgroundTransparency = 0.05
+		tableLabel.TextColor3 = Color3.fromRGB(250, 235, 200)
 		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
 			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6
 		tableLabel.Parent = rerollRow
 		do -- same plate as the other labels: rounded, brass edge, padded
 			local c = Instance.new("UICorner") c.CornerRadius = UDim.new(0, 8) c.Parent = tableLabel
-			local s = Instance.new("UIStroke") s.Color = Color3.fromRGB(150, 110, 50) s.Thickness = 1.5 s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border s.Parent = tableLabel
+			local s = Instance.new("UIStroke") s.Color = Color3.fromRGB(70, 46, 24) s.Thickness = 1.5 s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border s.Parent = tableLabel
 			local p = Instance.new("UIPadding") p.PaddingLeft = UDim.new(0, 8) p.PaddingRight = UDim.new(0, 8) p.Parent = tableLabel
 		end
 
