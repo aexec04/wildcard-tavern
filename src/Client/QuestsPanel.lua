@@ -220,21 +220,12 @@ function QuestsPanel.init(deps)
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end
-	require(script.Parent.PanelTabs).attach(backdrop, "quests", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "quests", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("quests", function() deps.popOut(backdrop, panel) end)
 	OverlayManager.registerOpener("quests", open)
 	deps.openButton.MouseButton1Click:Connect(open)
 	close.MouseButton1Click:Connect(closePanel)
-	-- a click on the dim area closes it too
-	backdrop.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local p = input.Position
-			local pos, size = panel.AbsolutePosition, panel.AbsoluteSize
-			if p.X < pos.X or p.X > pos.X + size.X or p.Y < pos.Y or p.Y > pos.Y + size.Y then
-				closePanel()
-			end
-		end
-	end)
+	-- a click on the dim area and Escape close it through Client/PopupDismiss (registered by PanelTabs.attach above)
 end
 
 -- Called from render() with every state push: keeps an open panel current (a quest just finished).

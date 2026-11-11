@@ -269,11 +269,8 @@ local function build(deps)
 	backdrop.MouseButton1Click:Connect(function()
 		close() -- click outside the panel
 	end)
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if isOpen and input.KeyCode == Enum.KeyCode.Escape then
-			close()
-		end
-	end)
+	-- Escape means Cancel (never Restart): Client/PopupDismiss, policy "cancel". The click on the dim area stays above (the backdrop is a button).
+	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "cancel", close = close, panel = panel, outside = false, button = true })
 
 	local function open()
 		if root.Visible ~= true or travelActive() then return end

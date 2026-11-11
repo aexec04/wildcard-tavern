@@ -378,7 +378,7 @@ function LegendPanel.init(deps)
 			{ cornerRadius = 8, zIndex = 46, dim = not bestBack })
 	end
 
-	require(script.Parent.PanelTabs).attach(backdrop, "legend", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "legend", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("legend", function()
 		stopLoops()
 		deps.popOut(backdrop, panel)

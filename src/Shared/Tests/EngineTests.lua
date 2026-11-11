@@ -16180,4 +16180,273 @@ table.insert(tests, { name = "Client modules use only declared locals and real g
 	end
 end })
 
+-- ===== Every screen can be exited (2026-11-10): Back, Escape and a click on the dark area =====
+table.insert(tests, { name = "PopupDismissRules: exits per policy, the topmost popup, dim layers, which choices can be left", fn = function()
+	local R = require(script.Parent.Parent.Engine.PopupDismissRules)
+	-- a panel and a confirm dialog close on both exits; a confirm dialog's exits are Cancel, never a press
+	for _, policy in ipairs({ "dismiss", "cancel" }) do
+		expectEqual(R.action(policy, "escape"), "close", policy .. " closes on Escape")
+		expectEqual(R.action(policy, "outside"), "close", policy .. " closes on a click on the dark area")
+	end
+	expectTrue(R.action("cancel", "escape") ~= "press" and R.action("cancel", "outside") ~= "press", "a confirm dialog never presses its Yes button")
+	-- a result screen presses its one button on Escape and ignores the dark area; a locked screen opens Settings
+	expectEqual(R.action("button", "escape"), "press")
+	expectEqual(R.action("button", "outside"), "none")
+	expectEqual(R.action("locked", "escape"), "pause")
+	expectEqual(R.action("locked", "outside"), "none", "a mid-run choice cannot be left by clicking away")
+	expectEqual(R.action("typo", "escape"), "none", "an unknown policy does nothing")
+	expectEqual(R.action("dismiss", "typo"), "none", "an unknown trigger does nothing")
+	for name in pairs(R.POLICIES) do expectTrue(R.isPolicy(name), name .. " is a policy") end
+	expectFalse(R.isPolicy("typo") or R.isPolicy(nil), "typos are not policies")
+
+	-- topmost: highest ZIndex, ties to the one opened last, hidden ones ignored
+	local list = {
+		{ id = "panel", z = 20, order = 1, visible = true },
+		{ id = "confirm", z = 20, order = 3, visible = true },
+		{ id = "older", z = 20, order = 2, visible = true },
+		{ id = "hidden", z = 99, order = 9, visible = false },
+	}
+	expectEqual(R.topmost(list).id, "confirm", "of equal ZIndex the one opened last is on top; a hidden popup never is")
+	list[#list + 1] = { id = "plate", z = 150, order = 1, visible = true }
+	expectEqual(R.topmost(list).id, "plate", "a higher ZIndex beats a later opening")
+	expectEqual(R.topmost({}), nil)
+	expectEqual(R.topmost({ { id = "x", z = 1, order = 1, visible = false } }), nil, "nothing visible, nothing on top")
+
+	-- dim layers: a scene or stage that covers the backdrop; never a shadow, a panel or a tab strip
+	expectTrue(R.isDimLayer(1920, 1080, 1920, 1080), "a full-screen scene is dark area")
+	expectTrue(R.isDimLayer(1700, 960, 1920, 1080), "88 percent in both axes still is")
+	expectFalse(R.isDimLayer(614, 454, 1920, 1080), "a panel's shadow is not")
+	expectFalse(R.isDimLayer(1920, 90, 1920, 1080), "a tab strip across the top is not")
+	expectFalse(R.isDimLayer(1600, 1080, 1920, 1080), "83 percent wide is not")
+	expectFalse(R.isDimLayer(0, 0, 0, 0) or R.isDimLayer(nil, nil, 1920, 1080), "no size, no dim layer")
+
+	-- the start-of-run draft can be left, a between-Nights event card cannot
+	for _, kind in ipairs({ "patron", "modifier", "rushPatron" }) do expectTrue(R.canAbandonChoice(kind), kind .. " can be left") end
+	expectFalse(R.canAbandonChoice("event") or R.canAbandonChoice(nil) or R.canAbandonChoice("typo"), "an event card cannot")
+	local ex = R.exits("dismiss", true)
+	expectTrue(ex.button and ex.escape and ex.outside, "a panel has all three exits")
+	ex = R.exits("locked", false)
+	expectTrue(ex.escape and not ex.outside and not ex.button, "a locked screen has Escape only")
+	for name in pairs(R.EXCEPTIONS) do expectEqual(name:sub(-8), "Backdrop", name .. " is a Backdrop name that is not a popup") end
+end })
+
+table.insert(tests, { name = "PopupDismiss on a fake Roblox: Escape reaches the topmost popup only, outside clicks, button and locked policies, Settings lifted over a locked screen", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/PopupDismiss.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local stubs = {}
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({ PopupDismissRules = require(Engine.PopupDismissRules), PopupRules = require(Engine.PopupRules) })
+		end }
+	end }
+	stubs.OverlayManager = FakeGui.load("src/Client/OverlayManager.lua", env)
+	local OverlayManager = stubs.OverlayManager
+	local PopupDismiss = FakeGui.load("src/Client/PopupDismiss.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	local log = {}
+	local function press(input) st.services.UserInputService.InputBegan:Fire(input) end
+	local function escape() press({ KeyCode = env.Enum.KeyCode.Escape, UserInputType = env.Enum.UserInputType.Keyboard }) end
+	local function click(obj, kind) obj.InputBegan:Fire({ UserInputType = env.Enum.UserInputType[kind or "MouseButton1"] }) end
+
+	-- a popup: backdrop, panel, a panel shadow and a full-screen scene (the dark area), like the real ones
+	local function popup(name, z, spec)
+		local b = FakeGui.new("Frame")
+		b.Name, b.ZIndex, b.Visible, b.Parent = name, z, false, gui
+		b.AbsoluteSize = { X = 1920, Y = 1080 }
+		local panel = FakeGui.new("Frame")
+		panel.Name, panel.ZIndex, panel.Parent, panel.AbsoluteSize = "Panel", z + 1, b, { X = 600, Y = 440 }
+		local shadow = FakeGui.new("Frame")
+		shadow.Name, shadow.Parent, shadow.AbsoluteSize = "Shadow", b, { X = 614, Y = 454 }
+		local scene = FakeGui.new("Frame")
+		scene.Name, scene.Parent, scene.AbsoluteSize = "Scene", b, { X = 1920, Y = 1080 }
+		spec = spec or {}
+		spec.panel = spec.panel == nil and panel or spec.panel
+		spec.close = spec.close or function() log[#log + 1] = name; b.Visible = false end
+		spec.button = true
+		PopupDismiss.attach(b, spec)
+		return b, panel, shadow, scene
+	end
+
+	-- 1. Escape reaches the topmost visible popup only: of equal ZIndex the one opened last, a higher ZIndex first
+	local a = popup("ABackdrop", 20)
+	local b = popup("BBackdrop", 20, { policy = "cancel" })
+	a.Visible = true
+	b.Visible = true
+	escape()
+	expectEqual(table.concat(log, ","), "BBackdrop", "Escape closes the popup opened last, not the one under it")
+	escape()
+	expectEqual(table.concat(log, ","), "BBackdrop,ABackdrop", "the next Escape closes the one under it")
+	escape()
+	expectEqual(#log, 2, "with nothing open Escape does nothing")
+	expectEqual(#st.services.UserInputService.InputBegan.handlers, 1, "one Escape listener serves every popup")
+	log = {}
+	local high = popup("HighBackdrop", 40)
+	high.Visible = true
+	a.Visible = true -- opened later but lower
+	escape()
+	expectEqual(table.concat(log, ","), "HighBackdrop", "a higher ZIndex wins over a later opening")
+	a.Visible = false
+
+	-- 2. a click on the dark area: the backdrop, a scene that covers it and touch close; the panel, its shadow and other input do not
+	log = {}
+	local d, dPanel, dShadow, dScene = popup("DBackdrop", 20)
+	d.Visible = true
+	click(dPanel)
+	click(dShadow)
+	click(d, "MouseMovement")
+	expectEqual(#log, 0, "a click on the panel, its shadow or a mouse move is not a click outside")
+	click(dScene)
+	expectEqual(table.concat(log, ","), "DBackdrop", "a click on the scene that covers the backdrop closes it")
+	log = {}
+	d.Visible = true
+	click(d, "Touch")
+	expectEqual(table.concat(log, ","), "DBackdrop", "a touch on the dark area closes it")
+	-- only the topmost popup reacts, and a popup that left its outside click to its module does not
+	log = {}
+	d.Visible = true
+	local top = popup("TopBackdrop", 20, { policy = "cancel" })
+	top.Visible = true
+	click(d)
+	expectEqual(#log, 0, "a click that reaches a popup under the topmost one is ignored")
+	top.Visible = false
+	d.Visible = false
+	local own = popup("OwnBackdrop", 20, { outside = false })
+	own.Visible = true
+	click(own)
+	expectEqual(#log, 0, "outside = false leaves the click to the module")
+	escape()
+	expectEqual(table.concat(log, ","), "OwnBackdrop", "...but Escape is still shared")
+	local bare = popup("BareBackdrop", 20, { panel = false })
+	log = {}
+	bare.Visible = true
+	click(bare)
+	expectEqual(#log, 0, "without a declared panel the outside click stays off")
+	bare.Visible = false
+
+	-- 3. a result screen: Escape presses its one button, the dark area does nothing
+	log = {}
+	local result = popup("ResultBackdrop", 60, { policy = "button", press = function() log[#log + 1] = "press" end })
+	result.Visible = true
+	click(result)
+	expectEqual(#log, 0, "the dark area does nothing on a result screen")
+	escape()
+	expectEqual(table.concat(log, ","), "press", "Escape presses the result screen's button")
+	result.Visible = false
+
+	-- 4. a locked mid-run screen: Escape opens Settings ABOVE it (ZIndex is absolute under Global), Escape again closes Settings
+	log = {}
+	local settings, sPanel = popup("SettingsBackdrop", 20, { id = "settings" })
+	local sLabel = FakeGui.new("TextLabel")
+	sLabel.ZIndex, sLabel.Parent = 22, sPanel
+	OverlayManager.register("settings", function() settings.Visible = false end)
+	OverlayManager.registerOpener("settings", function() settings.Visible = true end)
+	local locked = popup("LockedBackdrop", 60, { policy = "locked" })
+	locked.Visible = true
+	click(locked)
+	expectFalse(settings.Visible, "a click on a locked screen does nothing")
+	escape()
+	expectTrue(settings.Visible, "Escape on a locked screen opens Settings")
+	expectTrue(settings.ZIndex > 60 and sPanel.ZIndex > 60 and sLabel.ZIndex > 60, "...above it: backdrop " .. settings.ZIndex .. ", panel " .. sPanel.ZIndex .. ", label " .. sLabel.ZIndex)
+	expectTrue(locked.Visible, "the locked screen is still there")
+	escape()
+	expectFalse(settings.Visible, "Escape again closes Settings, the topmost popup")
+	expectEqual(settings.ZIndex, 20, "Settings drops back to its own level")
+	expectEqual(sPanel.ZIndex, 21)
+	expectEqual(sLabel.ZIndex, 22)
+	escape()
+	expectTrue(settings.Visible and settings.ZIndex > 60, "the locked screen opens it again")
+	settings.Visible = false
+	locked.Visible = false
+
+	-- 5. failures never reach the player: a close that errors is warned, the other popups still work; a destroyed popup is forgotten
+	local broken = popup("BrokenBackdrop", 20, { close = function() error("boom") end })
+	broken.Visible = true
+	escape()
+	expectTrue(st.warns[#st.warns] and st.warns[#st.warns]:find("could not close: ", 1, true) ~= nil, "a failing close is warned: " .. tostring(st.warns[#st.warns]))
+	broken.Destroying:Fire()
+	broken.Visible = true
+	local before = #st.warns
+	escape()
+	expectEqual(#st.warns, before, "a destroyed popup is out of the registry")
+	broken.Visible = false
+	expectTrue(PopupDismiss.attach(nil, {}) == nil, "attach(nil) is refused, not thrown")
+
+	-- 6. the Studio report lists every popup root with its exits, and flags the ones that have none
+	local orphan = FakeGui.new("Frame")
+	orphan.Name, orphan.Parent = "OrphanBackdrop", gui
+	local shopScene = FakeGui.new("Frame")
+	shopScene.Name, shopScene.Parent = "ShopBackdrop", gui
+	st.warns = {}
+	PopupDismiss.report(gui, gui)
+	local report = st.warns[1] or ""
+	expectTrue(report:find("[PopupDismiss] v1", 1, true) ~= nil, "the report names its version")
+	expectTrue(report:find("SettingsBackdrop", 1, true) ~= nil and report:find("dismiss  ", 1, true) ~= nil and report:find("button=true escape=true outside=true", 1, true) ~= nil, "a panel shows all three exits: " .. report)
+	expectTrue(report:find("ResultBackdrop%s+button%s+button=true escape=true outside=false") ~= nil, "a result screen: Escape, no outside click")
+	expectTrue(report:find("LockedBackdrop%s+locked%s+button=true escape=true outside=false") ~= nil, "a locked screen: Escape only")
+	expectTrue(report:find("OwnBackdrop%s+dismiss%s+button=true escape=true outside=module") ~= nil, "a module that keeps its own click says so")
+	expectTrue(report:find("OrphanBackdrop%s+NO EXIT") ~= nil, "a popup root without an exit is flagged")
+	expectTrue(report:find("ShopBackdrop%s+EXCEPTION") ~= nil, "an explicit exception is listed as one")
+	-- install is quiet outside Studio and never throws inside it
+	PopupDismiss.install(gui, gui)
+	expectEqual(#st.prints, 0)
+end })
+
+table.insert(tests, { name = "Every ...Backdrop the client builds is registered with PopupDismiss or an explicit exception, and Escape is handled in one place", fn = function()
+	if not (io and io.open and io.popen) then return end
+	local GlobalScan = require(script.Parent.GlobalScan)
+	local files = GlobalScan.listLua("src/Client")
+	if #files == 0 then return end
+	local R = require(script.Parent.Parent.Engine.PopupDismissRules)
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local found, unregistered, escapes = 0, {}, {}
+	for _, path in ipairs(files) do
+		local src = read(path)
+		local name = path:match("[^/]+$")
+		if src then
+			local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+			for backdropName in code:gmatch('%.Name%s*=%s*"([%w]+Backdrop)"') do
+				found = found + 1
+				-- registered in this file: directly, or through PanelTabs.attach(backdrop, id, click, panel), which registers the panel
+				local direct = code:find("PopupDismiss", 1, true) ~= nil
+				local viaTabs = code:find("PanelTabs).attach(", 1, true) ~= nil and code:find(", panel)", 1, true) ~= nil
+				if not (direct or viaTabs or R.EXCEPTIONS[backdropName]) then unregistered[#unregistered + 1] = name .. ":" .. backdropName end
+			end
+			if code:find("KeyCode.Escape", 1, true) and name ~= "PopupDismiss.lua" and name ~= "MenuHotspots.lua" then escapes[#escapes + 1] = name end
+		end
+	end
+	expectTrue(found >= 28, "the scan found the popup roots (" .. found .. "); the naming pattern may have changed")
+	expectTrue(#unregistered == 0, "popup roots with no exit: register them with PopupDismiss.attach or add an explicit exception: " .. table.concat(unregistered, ", "))
+	expectTrue(#escapes == 0, "Escape is handled by PopupDismiss (and the Menu's own scrolls), not again in: " .. table.concat(escapes, ", "))
+
+	-- the policies that matter
+	local function has(file, text) local s = read("src/Client/" .. file); return s ~= nil and s:find(text, 1, true) ~= nil end
+	expectTrue(has("ConfirmDialog.lua", 'policy = "cancel"') and has("RestartRun.lua", 'policy = "cancel"'), "confirm dialogs: Escape and a click outside mean Cancel")
+	expectTrue(has("NightVictory.lua", 'policy = "button"') and has("RunSummaryUI.lua", 'policy = "button"') and has("OverlayQueue.lua", 'policy = "button"'), "result screens and plates: Escape presses their one button")
+	expectTrue(has("RoadChoice.lua", 'policy = "locked"') and has("RoundSelect.lua", 'policy = "locked"'), "mid-run choices are locked: Escape opens Settings")
+	expectTrue(has("Settings.lua", 'registerOpener("settings"'), "Settings can be opened by id, which a locked screen's Escape needs")
+	expectTrue(has("PanelTabs.lua", "function PanelTabs.attach(backdrop, id, playClick, panel)") and has("PanelTabs.lua", "PopupDismiss"), "PanelTabs registers the account panels")
+	for _, file in ipairs({ "Collection", "CosmeticSetsPanel", "BadgesPanel", "CollectionRewardsPanel", "FlairPanel", "LegendPanel", "StatsPanel", "SeasonPanel", "StorePanel", "QuestsPanel", "DailyRewardsPanel" }) do
+		local src = read("src/Client/" .. file .. ".lua")
+		expectTrue(src ~= nil and src:find("PanelTabs).attach(backdrop, ", 1, true) ~= nil and src:find(", panel)", 1, true) ~= nil, file .. " passes its panel to PanelTabs.attach")
+	end
+
+	-- the first Patron and blessing choice: a Back plate button, 44 px high, that never talks to the server
+	local choice = read("src/Client/ChoicePanel.lua")
+	expectTrue(choice ~= nil, "ChoicePanel.lua readable")
+	expectTrue(choice:find('Text = "Back to menu"', 1, true) ~= nil and choice:find("UDim2.fromOffset(150, 44)", 1, true) ~= nil, "a 44 px Back to menu button")
+	expectTrue(choice:find("canAbandonChoice", 1, true) ~= nil and choice:find('"dismiss" or "locked"', 1, true) ~= nil, "the draft can be left, an event card is locked")
+	local back = choice:match("local function backToMenu%(%).-\n\tend\n")
+	expectTrue(back ~= nil and back:find("FireServer", 1, true) == nil and back:find("menuFrame.Visible = true", 1, true) ~= nil, "Back to menu only shows the Menu: nothing is sent to the server, so no run is abandoned")
+	expectTrue(choice:find("panel = holder", 1, true) ~= nil, "the cards' holder is the panel: a click on a card is never outside")
+end })
+
 return tests

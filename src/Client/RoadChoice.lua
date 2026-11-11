@@ -93,6 +93,9 @@ return function(deps)
 	panel.Parent = backdrop
 	roundCorner(panel, 14)
 	polishPanel(panel, 14, "wood")
+	-- A mid-run choice is not abandonable (it has its own Later button), but Escape opens Settings above it so nobody is stuck
+	-- (Client/PopupDismiss, policy "locked").
+	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "locked", panel = panel, button = true })
 	local fit = Instance.new("UIScale") -- keeps the whole panel on screen at small viewports
 	fit.Parent = panel
 

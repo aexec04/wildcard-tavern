@@ -402,6 +402,9 @@ return function(deps)
 	if deps.menuSettingsButton then
 		deps.menuSettingsButton.MouseButton1Click:Connect(openSettings)
 	end
+	-- PopupDismiss: Escape and a click on the dark area close it, and a locked screen's Escape opens it (lifted above that screen).
+	OverlayManager.registerOpener("settings", openSettings)
+	require(script.Parent.PopupDismiss).attach(settingsBackdrop, { id = "settings", panel = settingsPanel, button = true })
 
 	local function setRunLabel(text)
 		runLabel.Visible = text ~= nil

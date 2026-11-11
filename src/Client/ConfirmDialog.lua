@@ -120,11 +120,16 @@ return function(deps)
 		popOut(confirmBackdrop, confirmPanel)
 	end)
 
-	confirmNoButton.MouseButton1Click:Connect(function()
-		playClickSfx()
+	local function cancelConfirm()
 		pendingConfirmAction = nil
 		popOut(confirmBackdrop, confirmPanel)
+	end
+	confirmNoButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		cancelConfirm()
 	end)
+	-- Escape and a click on the dark area mean Cancel, never Yes (Client/PopupDismiss, policy "cancel").
+	require(script.Parent.PopupDismiss).attach(confirmBackdrop, { policy = "cancel", close = cancelConfirm, panel = confirmPanel, button = true })
 
 	local function showConfirmDialog(message, onConfirm)
 		confirmMessageLabel.Text = message

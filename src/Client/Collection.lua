@@ -1125,7 +1125,7 @@ return function(deps)
 		end)
 	end
 
-	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("collection", function()
 		hideDetail()
 		popOut(backdrop, panel)

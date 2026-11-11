@@ -148,6 +148,17 @@ function Methods.IsA(inst, class)
 	return own == class or class == "Instance" or (class == "GuiObject" and GUI[own] == true)
 end
 
+function Methods.IsAncestorOf(inst, other)
+	local p = other and rawget(other, "_parent")
+	while p do
+		if p == inst then return true end
+		p = rawget(p, "_parent")
+	end
+	return false
+end
+
+function Methods.IsDescendantOf(inst, other) return Methods.IsAncestorOf(other, inst) end
+
 function Methods.GetPropertyChangedSignal(inst, name) return signalOf(inst, "prop:" .. name) end
 function Methods.SetAttribute(inst, key, value) rawget(inst, "_attrs")[key] = value end
 function Methods.GetAttribute(inst, key) return rawget(inst, "_attrs")[key] end
@@ -236,7 +247,10 @@ function FakeGui.env(opts)
 			return setmetatable({}, { __index = function(_, b) return "Enum." .. a .. "." .. b end })
 		end }),
 		math = setmetatable({ clamp = function(x, lo, hi) return math.max(lo, math.min(hi, x)) end }, { __index = math }),
-		typeof = type,
+		typeof = function(v)
+			if type(v) == "table" and rawget(v, "_class") ~= nil then return "Instance" end
+			return type(v)
+		end,
 		task = {
 			defer = function(fn, ...) fn(...) end, spawn = function(fn, ...) fn(...) end,
 			delay = function() end, wait = function() return 0 end,

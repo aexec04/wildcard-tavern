@@ -231,6 +231,8 @@ function WinCard.show(parent, state, summary)
 		copy.Text = "Selected: press Ctrl+C"
 	end)
 	close.MouseButton1Click:Connect(WinCard.close)
+	-- Escape closes it like Close (Client/PopupDismiss); the click on the dim area stays above (the backdrop is a button).
+	require(script.Parent.PopupDismiss).attach(backdrop, { close = WinCard.close, panel = panel, outside = false, button = true })
 end
 
 return WinCard

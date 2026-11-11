@@ -266,11 +266,14 @@ function RunSummaryUI.init(screenGui, deps)
 			deps.saveBadge()
 		end
 	end)
-	ui.continue.MouseButton1Click:Connect(function()
+	local function proceed()
 		click()
 		dismissedKey = lastKey
 		backdrop.Visible = false
-	end)
+	end
+	ui.continue.MouseButton1Click:Connect(proceed)
+	-- Result screen: Continue is its exit, and Escape presses it (never Play Again) via Client/PopupDismiss, policy "button".
+	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = proceed, button = true })
 	ui.again.MouseButton1Click:Connect(function()
 		click()
 		dismissedKey = lastKey

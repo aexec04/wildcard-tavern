@@ -178,7 +178,7 @@ local function ribbon(parent, group, page, active, order)
 	return b
 end
 
-function PanelTabs.attach(backdrop, id, playClick)
+function PanelTabs.attach(backdrop, id, playClick, panel)
 	if not backdrop or backdrop:FindFirstChild("PanelTabs") then return end
 	local activeGroup = PanelGroups.groupOf(id) or PanelGroups.GROUPS[1]
 	local stripH = PanelLayout.STRIP_BOTTOM - 3
@@ -255,6 +255,11 @@ function PanelTabs.attach(backdrop, id, playClick)
 		elseif current == id then
 			current = nil
 		end
+	end)
+	-- Escape and a click on the dark area close the panel too (Client/PopupDismiss, closing through the id the panel registers
+	-- with OverlayManager). `panel` is the panel itself: a click on it is never "outside"; without it only Escape is wired.
+	pcall(function()
+		require(script.Parent.PopupDismiss).attach(backdrop, { id = id, panel = panel, button = true })
 	end)
 end
 

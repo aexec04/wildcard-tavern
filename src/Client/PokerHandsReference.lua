@@ -459,12 +459,9 @@ return function(deps)
 		end)
 	end
 	backdrop.MouseButton1Click:Connect(closePanel)
-	-- Escape is also Roblox's own menu key, so ignore gameProcessed.
-	UserInputService.InputBegan:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.Escape then
-			closePanel()
-		end
-	end)
+	-- Escape goes through Client/PopupDismiss like every other popup (it ignores gameProcessed, as this always did); the click
+	-- on the dim area stays this panel's own (the backdrop is a button).
+	require(script.Parent.PopupDismiss).attach(backdrop, { id = "pokerHandsReference", panel = panel, outside = false, button = true })
 	HandHighlight.onChange(function(handName)
 		if backdrop.Visible and ledger then
 			applyHighlight(handName)

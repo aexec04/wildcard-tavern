@@ -474,6 +474,8 @@ return function(deps)
 		playClickSfx()
 		popOut(runSetupBackdrop, runSetupPanel)
 	end)
+	-- Escape and a click on the dark area close it like Cancel (Client/PopupDismiss); nothing has started until Begin Run.
+	require(script.Parent.PopupDismiss).attach(runSetupBackdrop, { panel = runSetupPanel, close = function() popOut(runSetupBackdrop, runSetupPanel) end, button = true })
 
 	-- POLISH PASS (Batch 3) re-entrancy guard: popOut no longer hides the
 	-- backdrop SYNCHRONOUSLY the way the old bare `Visible = false` cut

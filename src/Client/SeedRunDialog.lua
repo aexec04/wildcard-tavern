@@ -186,6 +186,8 @@ return function(deps)
 		playClickSfx()
 		popOut(seedBackdrop, seedPanel)
 	end)
+	-- Escape and a click on the dark area close it like Cancel (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(seedBackdrop, { panel = seedPanel, close = function() popOut(seedBackdrop, seedPanel) end, button = true })
 
 	local function showSeedRunDialog()
 		seedCodeBox.Text = ""

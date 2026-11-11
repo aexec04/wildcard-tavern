@@ -394,6 +394,8 @@ return function(deps)
 	OverlayManager.register("howToPlay", function()
 		popOut(howToPlayBackdrop, howToPlayPanel)
 	end)
+	-- Escape and a click on the dark area close it at any page (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(howToPlayBackdrop, { id = "howToPlay", panel = howToPlayPanel, button = true })
 
 	-- Hide the dark menu title/shadow/ribbon while How to Play is open (they bled through above the panel).
 	local menuRoot = menuHowToPlayButton:FindFirstAncestor("MenuRoot")

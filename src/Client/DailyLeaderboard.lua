@@ -432,6 +432,8 @@ return function(deps)
 	OverlayManager.register("dailyLeaderboard", function()
 		popOut(leaderboardBackdrop, leaderboardPanel)
 	end)
+	-- Escape and a click on the dark area close it (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(leaderboardBackdrop, { id = "dailyLeaderboard", panel = leaderboardPanel, button = true })
 
 	local function openLeaderboard()
 		playClickSfx()

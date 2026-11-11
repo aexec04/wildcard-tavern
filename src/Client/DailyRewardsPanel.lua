@@ -198,15 +198,8 @@ function DailyRewardsPanel.init(deps)
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end)
-	backdrop.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			local p, pos, size = input.Position, panel.AbsolutePosition, panel.AbsoluteSize
-			if p.X < pos.X or p.X > pos.X + size.X or p.Y < pos.Y or p.Y > pos.Y + size.Y then
-				deps.popOut(backdrop, panel)
-			end
-		end
-	end)
-	require(script.Parent.PanelTabs).attach(backdrop, "dailyRewards", deps.playClickSfx) -- shared tab strip + Back
+	-- a click on the dim area and Escape close it through Client/PopupDismiss (registered by PanelTabs.attach below)
+	require(script.Parent.PanelTabs).attach(backdrop, "dailyRewards", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("dailyRewards", function() deps.popOut(backdrop, panel) end)
 	OverlayManager.registerOpener("dailyRewards", DailyRewardsPanel.open)
 	task.spawn(function() -- live countdown, only while visible

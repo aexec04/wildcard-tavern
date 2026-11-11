@@ -36,6 +36,7 @@ local q = Rules.new()
 local gui, backdrop, plate, title, body, button, rowsHolder, iconArt, plateStroke, plateCorner, platePad, plateLimit, customHolder
 local token = 0
 local activeItem
+local pressCurrent -- what Escape does for the plate on screen: its button, or just closing it (Client/PopupDismiss)
 local idleFns = {}
 local idleOrder = {}
 local flushScheduled = false
@@ -70,6 +71,8 @@ local function build()
 	backdrop.Visible = false
 	backdrop.ZIndex = 150
 	backdrop.Parent = gui
+	-- Escape presses the plate's Continue (or closes a notice) via Client/PopupDismiss, policy "button".
+	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = function() if pressCurrent then pressCurrent() end end, button = true })
 
 	plate = Instance.new("ImageLabel") -- Image is the kit plate when the set has one, else the parchment fill shows
 	plate.Name = "Plate"
@@ -165,6 +168,7 @@ local function close(mine)
 	token += 1
 	local closed = activeItem
 	activeItem = nil
+	pressCurrent = nil
 	if closed and closed.onClose then pcall(closed.onClose) end
 	local fade = calm() and 0 or 0.15
 	if backdrop then
@@ -252,11 +256,19 @@ local function show(item)
 		TweenService:Create(backdrop, TweenInfo.new(0.15), { BackgroundTransparency = 0.45 }):Play()
 	end
 	local function dismiss() close(mine) end
+	pressCurrent = dismiss -- Escape closes a pure toast
 	if item.button then
-		button.Activated:Once(function()
+		local conn
+		conn = button.Activated:Once(function()
 			if item.onButton then pcall(item.onButton) end
 			dismiss()
 		end)
+		-- Escape presses the plate's one button (Continue); the pending click handler is dropped so it cannot fire again on a later plate
+		pressCurrent = function()
+			if conn then conn:Disconnect() end
+			if item.onButton then pcall(item.onButton) end
+			dismiss()
+		end
 		local secs = Rules.autoSeconds(item)
 		if secs then task.delay(secs, dismiss) end
 	end

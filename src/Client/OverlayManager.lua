@@ -60,6 +60,16 @@ local function closeAllExcept(exceptName)
 	end
 end
 
+-- Close one registered overlay by name (PopupDismiss: Escape and a click on the dark area). False when nothing is registered under it.
+local function close(name)
+	local closeFn = closeFns[name]
+	if not closeFn then
+		return false
+	end
+	closeFn()
+	return true
+end
+
 -- Openers (PanelTabs): the account panels also register how to open themselves, so a tab strip can switch
 -- straight from one panel to another. open(name) closes every other overlay first, then runs that opener.
 local openFns = {}
@@ -78,6 +88,7 @@ end
 
 return {
 	register = register,
+	close = close,
 	closeAllExcept = closeAllExcept,
 	registerOpener = registerOpener,
 	open = open,

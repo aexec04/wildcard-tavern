@@ -21,6 +21,7 @@ local Layout = require(Engine:WaitForChild("ChoiceSceneLayout"))
 local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
 local SmoothVignette = require(script.Parent.SmoothVignette)
 local SoftGlow = require(script.Parent.SoftGlow)
+local DismissRules = require(Engine:WaitForChild("PopupDismissRules"))
 
 local ChoicePanel = {}
 
@@ -193,6 +194,7 @@ local function render()
 		ui.backdrop.Visible = false
 		return
 	end
+	ui.back.Visible = DismissRules.canAbandonChoice(choice.kind) -- only the start-of-run draft can be left
 	local key = ChoicePanel.keyOf(choice)
 	if key ~= builtKey then
 		builtKey = key
@@ -339,8 +341,44 @@ function ChoicePanel.init(deps)
 		if ui then ui.baseScale = base end
 	end
 
+	-- Back to menu: the start-of-run draft (first Patron, blessing, Boss Rush Patrons) can be left; a between-Nights event card cannot.
+	-- It does what Settings > Main Menu does and sends NOTHING to the server: no run is abandoned, no Tips banked for the run are
+	-- spent twice, and the draft stays pending, so the Menu's Play brings the same choice back (render() hides this screen while the
+	-- Menu is up) and New Run starts a clean run as it always did. Escape and a click on the dark area do the same.
+	local backButton = Instance.new("TextButton")
+	backButton.Name = "BackToMenu"
+	backButton.Position = UDim2.fromOffset(12, 12)
+	backButton.Size = UDim2.fromOffset(150, 44)
+	backButton.Font = Enum.Font.GothamBold
+	backButton.TextSize = 17
+	backButton.Text = "Back to menu"
+	backButton.TextColor3 = CREAM
+	backButton.BackgroundColor3 = WOOD
+	backButton.AutoButtonColor = true
+	backButton.Visible = false
+	backButton.ZIndex = 66
+	backButton.Parent = backdrop
+	deps.polishButton(backButton, 10)
+	local function backToMenu()
+		if not (lastChoice and DismissRules.canAbandonChoice(lastChoice.kind)) then
+			return
+		end
+		deps.playClickSfx()
+		if deps.root then deps.root.Visible = false end
+		if deps.menuFrame then deps.menuFrame.Visible = true end
+	end
+	backButton.MouseButton1Click:Connect(backToMenu)
+	require(script.Parent.PopupDismiss).attach(backdrop, {
+		panel = holder,
+		close = backToMenu,
+		policy = function()
+			return (lastChoice and DismissRules.canAbandonChoice(lastChoice.kind)) and "dismiss" or "locked"
+		end,
+		button = true,
+	})
+
 	ui = {
-		backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit,
+		backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit, back = backButton,
 		menuFrame = deps.menuFrame, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, choiceRemote = deps.choiceRemote,
 	}

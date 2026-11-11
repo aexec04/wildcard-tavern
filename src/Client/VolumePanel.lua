@@ -183,6 +183,8 @@ return function(deps)
 	OverlayManager.register("volume", function()
 		popOut(volumeBackdrop, volumePanel)
 	end)
+	-- Escape and a click on the dark area close it (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(volumeBackdrop, { id = "volume", panel = volumePanel, button = true })
 
 	local function openVolume()
 		playClickSfx()

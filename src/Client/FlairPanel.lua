@@ -60,7 +60,7 @@ function FlairPanel.init(deps)
 		deps.popOut(backdrop, panel)
 	end
 
-	require(script.Parent.PanelTabs).attach(backdrop, "flair", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "flair", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("flair", closePanel)
 	local function openThisPanel()
 		deps.playClickSfx()

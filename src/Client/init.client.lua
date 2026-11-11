@@ -838,7 +838,7 @@ do -- Start-of-run draft and between-Nights event cards (Client/ChoicePanel.lua)
 	local ok, err = pcall(function()
 		require(script.ChoicePanel).init({
 			screenGui = screenGui, menuFrame = MenuScreen.menuFrame, polishButton = VisualHelpersModule.polishButton, roundCorner = VisualHelpersModule.roundCorner,
-			playClickSfx = SoundModule.playClickSfx, choiceRemote = remotes:WaitForChild("Choice"),
+			playClickSfx = SoundModule.playClickSfx, choiceRemote = remotes:WaitForChild("Choice"), root = root, -- root: Back to menu
 		})
 	end)
 	if not ok then warn("[Client] ChoicePanel failed: " .. tostring(err)) end
@@ -1345,6 +1345,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 			tooltip = screenGui:FindFirstChild("Tooltip"),
 		})
 		require(script.PopupShield).install(screenGui, root) -- popup roots are Active: nothing behind them gets clicks
+		require(script.PopupDismiss).install(screenGui, root) -- Escape and a click on the dark area exit every popup; Studio lists the exits
 	end)
 	if not okGuard then warn("[Client] InputGuard failed: " .. tostring(errGuard)) end
 

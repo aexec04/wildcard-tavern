@@ -1132,6 +1132,8 @@ return function(deps)
 	OverlayManager.register("journey", function()
 		journeyBackdrop.Visible = false
 	end)
+	-- Escape and a click on the dark area close the Tavern Map like its Close button (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(journeyBackdrop, { id = "journey", panel = journeyPanel, button = true })
 
 	local function openJourney()
 		playClickSfx()

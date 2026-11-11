@@ -75,7 +75,7 @@ return function(deps)
 	deps.polishButton(closeButton, 8)
 	deps.addButtonHoverScale(closeButton)
 
-	require(script.Parent.PanelTabs).attach(backdrop, "stats", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "stats", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("stats", function()
 		deps.popOut(backdrop, panel)
 	end)

@@ -405,7 +405,7 @@ function SeasonPanel.init(deps)
 		end
 	end)
 
-	require(script.Parent.PanelTabs).attach(backdrop, "season", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "season", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("season", function()
 		deps.popOut(backdrop, panel)
 	end)

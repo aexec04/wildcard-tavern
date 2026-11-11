@@ -359,7 +359,7 @@ return function(deps)
 		end
 	end)
 
-	require(script.Parent.PanelTabs).attach(backdrop, "badges", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "badges", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("badges", function()
 		stopLoop()
 		detail.Visible = false

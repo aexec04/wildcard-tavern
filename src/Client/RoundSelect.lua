@@ -138,6 +138,8 @@ return function(deps)
 	roundSelectFrame.Visible = false
 	roundSelectFrame.ZIndex = 6 -- matches shopFrame -- see Shop.lua for why (beats the corner icon buttons)
 	roundSelectFrame.Parent = root
+	-- Picking a round is not abandonable, but Escape opens Settings above it so nobody is stuck (Client/PopupDismiss, policy "locked").
+	require(script.Parent.PopupDismiss).attach(roundSelectFrame, { policy = "locked", button = true })
 	polishPanel(roundSelectFrame, 16, "wood")
 
 	-- INPUT SINK: while Round Select is up, nothing underneath (hand cards,

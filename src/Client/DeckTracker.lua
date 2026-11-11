@@ -513,6 +513,8 @@ return function(deps)
 	OverlayManager.register("deckTracker", function()
 		popOut(backdrop, panel)
 	end)
+	-- Escape and a click on the dark area close it (Client/PopupDismiss); the deck pile still toggles it.
+	require(script.Parent.PopupDismiss).attach(backdrop, { id = "deckTracker", panel = panel, button = true })
 
 	deckWidgetButton.MouseButton1Click:Connect(function()
 		playClickSfx()

@@ -298,6 +298,8 @@ function NewsPanel.init(deps)
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end)
+	-- Escape and a click on the dark area close it like Close (Client/PopupDismiss).
+	require(script.Parent.PopupDismiss).attach(backdrop, { panel = panel, close = function() deps.popOut(backdrop, panel) end, button = true })
 end
 
 function NewsPanel.update(state)

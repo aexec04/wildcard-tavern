@@ -131,10 +131,13 @@ return function(deps)
 	button.Parent = panel
 	deps.polishButton(button, 12)
 
-	button.MouseButton1Click:Connect(function()
+	local function proceed()
 		deps.playClickSfx()
 		backdrop.Visible = false
-	end)
+	end
+	button.MouseButton1Click:Connect(proceed)
+	-- Result screen: its one button is its exit, and Escape presses it (Client/PopupDismiss, policy "button").
+	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "button", press = proceed, button = true })
 
 	local function show(state)
 		local newlyCleared = false

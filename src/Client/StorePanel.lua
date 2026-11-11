@@ -249,7 +249,7 @@ function StorePanel.init(deps)
 		end)
 	end
 	ui.open = open
-	require(script.Parent.PanelTabs).attach(backdrop, "store", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "store", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("store", function() deps.popOut(backdrop, panel) end)
 	OverlayManager.registerOpener("store", open)
 	deps.openButton.MouseButton1Click:Connect(open)

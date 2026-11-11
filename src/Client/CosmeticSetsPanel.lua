@@ -533,7 +533,7 @@ return function(deps)
 		end
 	end
 
-	require(script.Parent.PanelTabs).attach(backdrop, "cosmeticSets", deps.playClickSfx) -- shared tab strip + Back
+	require(script.Parent.PanelTabs).attach(backdrop, "cosmeticSets", deps.playClickSfx, panel) -- shared tab strip + Back
 	OverlayManager.register("cosmeticSets", function()
 		if previewActive then
 			-- Another overlay opened: end preview. If it was the Collection button, put this
