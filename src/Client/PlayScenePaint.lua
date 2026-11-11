@@ -15,6 +15,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local R = require(Engine:WaitForChild("ResponsiveLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
+local Guard = require(script.Parent:WaitForChild("PlayPaintGuard"))
 
 local PlayScenePaint = {}
 
@@ -40,12 +41,12 @@ function PlayScenePaint.install(deps)
 	local platesId = art.play_plates_b
 	local PlayPlates = require(script.Parent.PlayPlates)
 	local function plates(p)
-		pcall(function() PlayPlates.apply(actionFrame, p, platesId) end) -- a failure leaves the flat buttons
+		Guard.run("plates", PlayPlates.apply, actionFrame, p, platesId) -- a failure leaves the flat buttons (warned once)
 	end
 
 	local PlayDeckPaint = require(script.Parent.PlayDeckPaint)
 	local function deck(rect) -- the deck widget inside the painted recess (step D2); nil puts it back
-		if deps.deckWidget then pcall(function() PlayDeckPaint.apply(deps.deckWidget, rect, platesId) end) end
+		if deps.deckWidget then Guard.run("deck", PlayDeckPaint.apply, deps.deckWidget, rect, platesId) end
 	end
 
 	local function apply()

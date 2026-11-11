@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
+local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local PlayPlates = {}
 
@@ -170,7 +171,7 @@ end
 function PlayPlates.apply(actionFrame, placement, imageId)
 	local sortFrame, play, discard = find(actionFrame)
 	if not (sortFrame and play and discard) then return false end
-	local layout = actionFrame:FindFirstChildOfClass("UIListLayout")
+	local layout = actionFrame:FindFirstChildOfClass("UIListLayout") or LayoutSwitch.on(actionFrame)
 	local toggle = sortFrame:FindFirstChild("SortToggle")
 	local caption
 	for _, c in ipairs(sortFrame:GetChildren()) do
@@ -184,8 +185,7 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 		restoreButton(discard, 200)
 		local pi = sortFrame:FindFirstChild("PlatePaint")
 		if pi then pi:Destroy() end
-		local sl = sortFrame:FindFirstChildOfClass("UIListLayout")
-		if sl then sl.Enabled = true end
+		LayoutSwitch.on(sortFrame)
 		sortFrame.Size = UDim2.new(0, 214, 1, 0)
 		if caption then caption.Visible = true end
 		if toggle then
@@ -198,7 +198,7 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 		end
 		sortFrame.Position, play.Position, discard.Position = UDim2.new(), UDim2.new(), UDim2.new()
 		if layout then
-			layout.Enabled = true
+			LayoutSwitch.on(actionFrame)
 			layout.Padding = UDim.new(0, 20)
 			layout.VerticalAlignment = Enum.VerticalAlignment.Top
 		end
@@ -208,7 +208,7 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 	local pl = placement.map.plates
 	local B = PlayTableLayout.PLATE_BOXES
 	-- the three plates are placed by hand from the tested rects (a list layout let them overlap); the layout comes back with the fallback
-	if layout then layout.Enabled = false end
+	LayoutSwitch.off(actionFrame)
 	local ox, oy = pl.sort.x, pl.play.y
 	for key, c in pairs({ sort = sortFrame, play = play, discard = discard }) do
 		c.AnchorPoint = Vector2.new(0, 0)
@@ -222,8 +222,7 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 	plateImage(sortFrame, imageId, B.sort)
 	local F = PlayTableLayout.FACE
 	-- the sort frame's own layout would also lay the plate picture out as a sibling: switch it off and place by hand
-	local sl = sortFrame:FindFirstChildOfClass("UIListLayout")
-	if sl then sl.Enabled = false end
+	LayoutSwitch.off(sortFrame)
 	if caption then caption.Visible = false end
 	if toggle then
 		toggle.Position = UDim2.fromOffset(math.floor(pl.sort.w * F.x + 0.5), math.floor(pl.sort.h * F.y + 0.5))

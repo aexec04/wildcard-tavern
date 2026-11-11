@@ -17,6 +17,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
 local PlayBoardHud = require(script.Parent:WaitForChild("PlayBoardHud"))
+local Guard = require(script.Parent:WaitForChild("PlayPaintGuard"))
 
 local PlayBoardPaint = {}
 
@@ -61,13 +62,13 @@ function PlayBoardPaint.install(deps)
 			filler.Visible = size.Y > p.h
 			board.BackgroundTransparency = 1
 			if deps.boardArt then deps.boardArt.Visible = false end
-			pcall(PlayBoardHud.apply, root, p) -- C2 to C4: the HUD rows onto the board's slots (the old column returns on nil)
+			Guard.run("board HUD", PlayBoardHud.apply, root, p) -- C2 to C4: the HUD rows onto the board's slots (the old column returns on nil)
 		elseif painted then
 			painted = false
 			image.Visible, filler.Visible = false, false
 			board.BackgroundTransparency = 0
 			if deps.boardArt then deps.boardArt.Visible = true end
-			pcall(PlayBoardHud.apply, root, nil)
+			Guard.run("board HUD", PlayBoardHud.apply, root, nil)
 		end
 	end
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)

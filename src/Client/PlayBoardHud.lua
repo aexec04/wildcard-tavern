@@ -15,6 +15,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
+local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local PlayBoardHud = {}
 
@@ -26,7 +27,7 @@ local states = setmetatable({}, { __mode = "k" })
 local function stateFor(root)
 	local st = states[root]
 	if not st then
-		st = { saved = {}, conns = {}, made = {}, applying = false, pending = false, rect = nil }
+		st = { saved = {}, hosts = {}, conns = {}, made = {}, applying = false, pending = false, rect = nil }
 		states[root] = st
 	end
 	return st
@@ -43,6 +44,12 @@ local function put(st, inst, props)
 		if sv[k] == nil then sv[k] = { inst[k] } end
 		if inst[k] ~= v then inst[k] = v end
 	end
+end
+
+-- a layout has no Enabled property: it is taken out of its host and put back by restore
+local function layoutsOff(st, host)
+	LayoutSwitch.off(host)
+	st.hosts[host] = true
 end
 
 local function fit(st, label, lo, hi)
@@ -92,11 +99,11 @@ local function run(root, st)
 	-- the lists and the padding off: rows are placed in board coordinates (the sidebar and content frames start at the screen corner)
 	for _, host in ipairs({ sidebar, content }) do
 		for _, c in ipairs(host:GetChildren()) do
-			if c:IsA("UIListLayout") then put(st, c, { Enabled = false }) end
 			if c:IsA("UIPadding") then
 				put(st, c, { PaddingTop = UDim.new(0, 0), PaddingBottom = UDim.new(0, 0), PaddingLeft = UDim.new(0, 0), PaddingRight = UDim.new(0, 0) })
 			end
 		end
+		layoutsOff(st, host)
 	end
 	put(st, content, { AutomaticSize = Enum.AutomaticSize.None, Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(rect.w, rect.h) })
 
@@ -210,11 +217,11 @@ local function run(root, st)
 			put(st, inset, { AutomaticSize = Enum.AutomaticSize.None, AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(0, 0), Size = UDim2.fromScale(1, 1) })
 			hideFill(st, inset)
 			for _, c in ipairs(inset:GetChildren()) do
-				if c:IsA("UIListLayout") then put(st, c, { Enabled = false }) end
 				if c:IsA("UIPadding") then
 					put(st, c, { PaddingTop = UDim.new(0, 0), PaddingBottom = UDim.new(0, 0), PaddingLeft = UDim.new(0, 0), PaddingRight = UDim.new(0, 0) })
 				end
 			end
+			layoutsOff(st, inset)
 			local seats = {}
 			for _, c in ipairs(inset:GetChildren()) do
 				if c:IsA("Frame") and c.Visible then table.insert(seats, c) end
@@ -279,6 +286,8 @@ local function restore(st)
 		end
 	end
 	st.saved = {}
+	for host in pairs(st.hosts) do LayoutSwitch.on(host) end
+	st.hosts = {}
 	for _, c in ipairs(st.made) do pcall(function() c:Destroy() end) end
 	st.made = {}
 end

@@ -80,6 +80,8 @@ meta.__index = function(inst, key)
 	return nil
 end
 
+local NO_ENABLED = { UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true }
+
 meta.__newindex = function(inst, key, value)
 	if key == "Parent" then
 		local old = rawget(inst, "_parent")
@@ -95,6 +97,10 @@ meta.__newindex = function(inst, key, value)
 		return
 	end
 	local props = rawget(inst, "_props")
+	-- like Roblox: list, grid and page layouts have no Enabled (only UIStroke, UIGradient and the like do)
+	if key == "Enabled" and NO_ENABLED[rawget(inst, "_class")] then
+		error("Enabled is not a valid member of " .. rawget(inst, "_class"), 2)
+	end
 	if props[key] == value then return end
 	props[key] = value
 	local signal = rawget(inst, "_signals")["prop:" .. key]

@@ -15463,14 +15463,105 @@ end })
 table.insert(tests, { name = "No client file sets Enabled on a layout instance (UIListLayout has no Enabled)", fn = function()
 	if not (io and io.open) then return end
 	local files = { "src/Client/ShopStage.lua", "src/Client/Shop.lua", "src/Client/ShopBackdrop.lua", "src/Client/ShopScene.lua",
-		"src/Client/Collection.lua", "src/Client/RoundSelect.lua", "src/Client/Menu.lua", "src/Client/BadgeWall.lua" }
+		"src/Client/Collection.lua", "src/Client/RoundSelect.lua", "src/Client/Menu.lua", "src/Client/BadgeWall.lua",
+		"src/Client/PlayPlates.lua", "src/Client/PlayBoardHud.lua", "src/Client/PlayDeckPaint.lua", "src/Client/PlayScenePaint.lua",
+		"src/Client/PlayBoardPaint.lua" }
 	for _, p in ipairs(files) do
 		local f = io.open(p, "r")
 		if f then
 			local src = f:read("a"); f:close()
 			expectTrue(not src:find("[lL]ayout%.Enabled"), p .. " sets Enabled on a layout instance")
+			expectTrue(not src:find("sl%.Enabled"), p .. " sets Enabled on a sort-frame layout")
+			for line in (src .. "\n"):gmatch("(.-)\n") do
+				expectTrue(not (line:find('IsA%("UI%a*Layout"%)') and line:find("Enabled")), p .. ": " .. line)
+			end
 		end
 	end
+end })
+
+-- the painted play screen on a fake Roblox that, like Roblox, rejects Enabled on a UIListLayout: a step that throws is the bug
+table.insert(tests, { name = "Painted play screen: plates and board HUD switch layouts off and back without touching Enabled", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	local stubs = {}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local folder = FakeGui.folder(map)
+	local UDim2 = env.UDim2
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+	stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+	local PlayPlates = FakeGui.load("src/Client/PlayPlates.lua", env)
+	local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
+	local Guard = FakeGui.load("src/Client/PlayPaintGuard.lua", env)
+
+	local function mk(class, name, parent, order)
+		local i = FakeGui.new(class)
+		i.Name = name
+		if order then i.LayoutOrder = order end
+		i.Parent = parent
+		return i
+	end
+	local function layouts(host)
+		local n = 0
+		for _, c in ipairs(host:GetChildren()) do if c.ClassName == "UIListLayout" then n = n + 1 end end
+		return n
+	end
+
+	-- plates
+	local actions = mk("Frame", "Actions", nil)
+	mk("UIListLayout", "L", actions)
+	local sortFrame = mk("Frame", "SortFrame", actions, 0)
+	mk("UIListLayout", "L", sortFrame)
+	mk("TextLabel", "Caption", sortFrame)
+	local toggle = mk("Frame", "SortToggle", sortFrame)
+	mk("UIStroke", "S", toggle)
+	local play = mk("TextButton", "Play", actions, 1)
+	play.Text = "Play Hand"
+	local discard = mk("TextButton", "Discard", actions, 3)
+	discard.Text = "Discard"
+	local p = map.PlayTableLayout.placement(1506, 751, 260, 150)
+	expectTrue(p ~= nil, "painted placement exists at 1506x751")
+	expectTrue(PlayPlates.apply(actions, p, "rbxassetid://1") == true, "plates paint")
+	expectTrue(layouts(actions) == 0 and layouts(sortFrame) == 0, "both layouts are out while painted")
+	expectTrue(PlayPlates.apply(actions, nil, nil) == false, "plates restore")
+	expectTrue(layouts(actions) == 1 and layouts(sortFrame) == 1, "both layouts are back after restore")
+	expectTrue(PlayPlates.apply(actions, p, "rbxassetid://1") == true, "plates paint again")
+	expectTrue(PlayPlates.apply(actions, p, "rbxassetid://1") == true, "painting twice is fine")
+	PlayPlates.apply(actions, nil, nil)
+
+	-- board HUD
+	local root = mk("Frame", "Root", nil)
+	local sidebar = mk("Frame", "Sidebar", root)
+	mk("UIListLayout", "L", sidebar)
+	mk("UIPadding", "P", sidebar)
+	local content = mk("Frame", "BoardContent", sidebar)
+	mk("UIListLayout", "L", content)
+	local tray = mk("Frame", "PatronsTray", content, 5)
+	tray.Size = UDim2.fromOffset(100, 40)
+	local inset = mk("Frame", "PatronsInset", tray)
+	mk("UIListLayout", "L", inset)
+	local seat = mk("Frame", "Seat1", inset, 1)
+	seat.Size = UDim2.fromOffset(40, 40)
+	local rect = map.PlayBoardLayout.placement(1506, 751)
+	local ok, err = pcall(PlayBoardHud.apply, root, rect)
+	expectTrue(ok, "board HUD applies: " .. tostring(err))
+	expectTrue(layouts(sidebar) == 0 and layouts(content) == 0 and layouts(inset) == 0, "board lists are out while painted")
+	PlayBoardHud.apply(root, nil)
+	expectTrue(layouts(sidebar) == 1 and layouts(content) == 1 and layouts(inset) == 1, "board lists are back after restore")
+
+	-- the guard warns instead of hiding a failure
+	local before = #state.warns
+	local function boom() error("boom") end
+	local okG = Guard.run("probe", boom)
+	expectTrue(okG == false and #state.warns == before + 1 and state.warns[#state.warns]:find("%[PlayPaint%]") ~= nil, "guard warns once")
+	Guard.run("probe", boom)
+	expectTrue(#state.warns == before + 1, "the same failure is not warned twice")
+
+	-- the fake really rejects the bug
+	local bad = FakeGui.new("UIListLayout")
+	expectTrue(not pcall(function() bad.Enabled = false end), "FakeGui rejects Enabled on a UIListLayout")
 end })
 
 table.insert(tests, { name = "Buttons on the marked classic_tavern plate art are flat (FlatFace) and the opt-out exists", fn = function()
