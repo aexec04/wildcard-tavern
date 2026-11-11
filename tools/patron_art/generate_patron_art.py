@@ -96,6 +96,8 @@ CATEGORIES = {
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
 # Per-category overrides: image size, quality, and which prompts.json key holds the style prefix.
+COLL_SEC = ["coll_sec_%s_%s" % (s, v) for s in ("patrons", "recipes", "bosses", "passes", "titles", "bonds") for v in "ab"]
+
 CATEGORY_OPTS = {
     "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
     "tutorial_icons": {"quality": "low", "style_key": "style_icon"},
@@ -142,12 +144,15 @@ CATEGORY_OPTS = {
                                   "shop_room_a": "art-wip/menu_room/menu_room_wall.png",
                                   "shop_room_b": "art-wip/menu_room/menu_room_wall.png",
                                   "shop_room_c": "art-wip/menu_room/menu_room_wall.png"}},
-    "collection_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["collection_wall", "collection_room"],
+    "collection_scene": {"quality": "high", "style_key": "house_style", "transparent": True,
+                         "opaque": ["collection_wall", "collection_room"] + COLL_SEC,
                          "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",
                                    "collection_corkboard": "1536x1024", "collection_trophy_shelf": "1536x1024", "collection_key_rack": "1536x1024",
-                                   "collection_nameplate_shelf": "1536x1024", "collection_room": "1536x1024"},
+                                   "collection_nameplate_shelf": "1536x1024", "collection_room": "1536x1024",
+                                   **{k: "1536x1024" for k in COLL_SEC}},
                          # the gallery room is restyled toward the Menu room wall, so it reads as a room of the same tavern
-                         "references": {"collection_room": "art-wip/menu_room/menu_room_wall.png"}},
+                         "references": {"collection_room": "art-wip/menu_room/menu_room_wall.png",
+                                        **{k: "art-wip/menu_room/menu_room_wall.png" for k in COLL_SEC}}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,
