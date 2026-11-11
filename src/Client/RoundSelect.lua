@@ -530,6 +530,7 @@ return function(deps)
 		plateOn(tagLabel)
 		tagLabel.BackgroundColor3 = Color3.fromRGB(38, 44, 26)
 		tagLabel.BackgroundTransparency = 1
+		tagLabel.Rotation = 0
 
 		-- Target plaque: y=418 for boss (after rule text), y=356 for non-boss (after tag).
 		local targetLabel = Instance.new("TextLabel")
@@ -566,6 +567,7 @@ return function(deps)
 		selectButton.ZIndex = 11
 		selectButton.Visible = false
 		selectButton.Parent = panel
+		selectButton:SetAttribute("FlatFace", true)
 		polishButton(selectButton, 10)
 
 		local skipButton = Instance.new("TextButton")
@@ -581,6 +583,7 @@ return function(deps)
 		skipButton.ZIndex = 11
 		skipButton.Visible = false
 		skipButton.Parent = panel
+		skipButton:SetAttribute("FlatFace", true)
 		polishButton(skipButton, 10)
 		-- Clean button faces: the deferred inner rim read as a dark arc under the label, and any stray thin bar
 		-- (a bracket, rim or leftover strip) is removed so only the label, stroke and gradient remain.

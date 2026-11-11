@@ -200,6 +200,7 @@ local function style(inst, kind, skin)
 	-- Plates sit at the element's own ZIndex (behind its content), never above text, buttons or maps.
 	local m = image and kind ~= "panel" and SkinSlice.metrics(skin.id, SLOT_KEY[kind]) or nil
 	if kind ~= "panel" and not m then image = nil end -- no measured box: never draw unmeasured (stretched) art
+	if kind == "button" and inst:GetAttribute("FlatFace") then image = nil end -- plate art has a baked mark (classic_tavern lantern bracket): flat face
 	local label = plate(inst, OVERLAY, image, inst.ZIndex, kind == "panel" and 0.35 or 0.25)
 	local border = nil
 	if kind == "panel" then

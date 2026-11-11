@@ -15333,6 +15333,19 @@ table.insert(tests, { name = "No client file sets Enabled on a layout instance (
 	end
 end })
 
+table.insert(tests, { name = "Buttons on the marked classic_tavern plate art are flat (FlatFace) and the opt-out exists", fn = function()
+	if not (io and io.open) then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local s = f:read("a"); f:close(); return s end
+	local art, skin, rs = read("src/Shared/Engine/SetSkinArt.lua"), read("src/Client/SetSkin.lua"), read("src/Client/RoundSelect.lua")
+	if not (art and skin and rs) then return end
+	expectTrue(art:find("100288590153692", 1, true) ~= nil, "marked asset id is still the classic button plate")
+	expectTrue(skin:find('GetAttribute("FlatFace")', 1, true) ~= nil, "SetSkin honours FlatFace")
+	-- buttons known to use the marked plate and opted out:
+	for _, name in ipairs({ "selectButton", "skipButton" }) do
+		expectTrue(rs:find(name .. ':SetAttribute("FlatFace", true)', 1, true) ~= nil, name .. " is flat")
+	end
+end })
+
 table.insert(tests, { name = "Round Select button faces have no stray bars and the boss rule box fits its text", fn = function()
 	if not (io and io.open) then return end
 	local f = io.open("src/Client/RoundSelect.lua", "r")
