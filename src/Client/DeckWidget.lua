@@ -287,15 +287,27 @@ return function(deps)
 	end
 
 	local function syncStack()
-		for _, c in ipairs(stackCards) do
+		-- painted into the table's recess: a thin pile with the same top as the card back (2 px steps right, no tilt), so it never
+		-- runs below the recess; the card back is centre anchored there
+		local painted = deckWidget:GetAttribute("DeckPainted") == true
+		for i, c in ipairs(stackCards) do
 			c.frame.Visible = deckCardBack.Visible
 			c.frame.Size = deckCardBack.Size
 			local pos = deckCardBack.Position
-			c.frame.AnchorPoint = Vector2.new(0.5, 0)
+			c.frame.AnchorPoint = Vector2.new(0.5, painted and deckCardBack.AnchorPoint.Y or 0)
+			if painted then
+				if c.frame:GetAttribute("PileRot") == nil then c.frame:SetAttribute("PileRot", c.frame.Rotation) end
+				c.frame.Rotation = 0
+			elseif c.frame:GetAttribute("PileRot") ~= nil then
+				c.frame.Rotation = c.frame:GetAttribute("PileRot")
+				c.frame:SetAttribute("PileRot", nil)
+			end
+			local dx, dy = c.dx, c.dy
+			if painted then dx, dy = 2 * i, 0 end
 			-- The top card is anchored at its left edge before the holder art loads, and centered after.
 			local cx = deckCardBack.AnchorPoint.X == 0.5 and pos.X or UDim.new(pos.X.Scale, pos.X.Offset)
 			local halfW = deckCardBack.AnchorPoint.X == 0.5 and 0 or deckCardBack.AbsoluteSize.X / 2
-			c.frame.Position = UDim2.new(cx.Scale, cx.Offset + halfW + c.dx, pos.Y.Scale, pos.Y.Offset + c.dy)
+			c.frame.Position = UDim2.new(cx.Scale, cx.Offset + halfW + dx, pos.Y.Scale, pos.Y.Offset + dy)
 		end
 	end
 	for _, prop in ipairs({ "Position", "Size", "AnchorPoint", "Visible" }) do

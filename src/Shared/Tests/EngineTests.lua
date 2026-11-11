@@ -19047,9 +19047,10 @@ table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the boa
 		local bw, bh = PB.size(sz[1], sz[2])
 		local H = PB.hud(bw, bh)
 		for k, r in pairs(H) do expectTrue(inside(r, bw, bh), k .. " inside the board at " .. sz[1]) end
-		expectTrue(not overlap(H.tips, H.rule), "tips and rule apart")
+		expectTrue(H.tips == nil and H.rule.w >= 150 * bw / 361, "the rule has the whole wide slot, Tips goes under the board")
+		expectTrue(H.title.w >= math.floor(190 * bw / 361), "the title has the width of the target slot")
 		expectTrue(not overlap(H.hands, H.discards), "hands and discards apart")
-		expectTrue(H.rule.h >= 30 and H.tips.h >= 30, "wide slot rows tall enough for 14 px text at " .. sz[1])
+		expectTrue(H.rule.h >= 30, "wide slot tall enough for 14 px text at " .. sz[1])
 		for n = 1, 7 do
 			local seats = PB.seats(bw, bh, n)
 			expectTrue(#seats == n, n .. " seats returned")
@@ -19060,6 +19061,114 @@ table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the boa
 			end
 		end
 	end
+end })
+
+-- polish 1: rows keep their bar and Reward, the title fits, the leftover frames and brackets are gone, the deck brackets stay hidden
+table.insert(tests, { name = "Painted play screen polish: score slot keeps bar and Reward, rule and Tips apart, frame decor hidden, deck brackets hidden", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	local stubs = {}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local folder = FakeGui.folder(map)
+	local UDim2 = env.UDim2
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+	stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+	local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
+	local PlayDeckPaint = FakeGui.load("src/Client/PlayDeckPaint.lua", env)
+	local function mk(class, name, parent, order)
+		local i = FakeGui.new(class)
+		i.Name = name
+		if order then i.LayoutOrder = order end
+		i.Parent = parent
+		return i
+	end
+
+	local root = mk("Frame", "Root", nil)
+	local sidebar = mk("Frame", "Sidebar", root)
+	mk("UIListLayout", "L", sidebar)
+	local ribbon = mk("Frame", "HeaderRibbon", sidebar)
+	local title = mk("TextLabel", "T", ribbon)
+	local board = mk("Frame", "SidebarBoard", root)
+	local decorNames = { "SetSkinBorder", "SetAccent", "CornerStud", "InnerRim", "BracketH", "BracketV" }
+	for _, n in ipairs(decorNames) do
+		mk("Frame", n, sidebar)
+		mk("Frame", n, board)
+	end
+	sidebar.BackgroundTransparency = 0
+	board.BackgroundTransparency = 0
+	local content = mk("Frame", "BoardContent", sidebar)
+	mk("UIListLayout", "L", content)
+	local rule = mk("Frame", "RoundRule", content, 1)
+	local ruleLabel = mk("TextLabel", "R", rule)
+	local score = mk("Frame", "ScoreBox", content, 3)
+	local big = mk("TextLabel", "Big", score)
+	big.TextScaled = true
+	local bar = mk("Frame", "TargetBar", score)
+	local plate = mk("Frame", "RewardPlate", score)
+	mk("TextLabel", "Line", plate)
+	local tips = mk("Frame", "TipsRow", content, 5)
+	tips.Size = UDim2.fromOffset(300, 44)
+	mk("TextLabel", "Tips", tips)
+	local hd = mk("Frame", "HandsDiscards", content, 6)
+	local ht = mk("Frame", "HandsTile", hd)
+	local hl = mk("TextLabel", "H", ht)
+	local hint = mk("Frame", "Hint", content, 7)
+	hint.Size = UDim2.fromOffset(353, 56)
+	local rect = map.PlayBoardLayout.placement(1506, 751)
+	local H = map.PlayBoardLayout.hud(rect.w, rect.h)
+	local called, applied = pcall(PlayBoardHud.apply, root, rect)
+	expectTrue(called and applied == true, "board HUD applies: " .. tostring(PlayBoardHud.lastError))
+	if not applied then
+		local why = PlayBoardHud.lastError
+		expectTrue(false, "run failed: " .. tostring(why))
+		return
+	end
+
+	-- (1) the title has its full slot (about 200 px) and shrinks to fit between 14 and 19
+	expectTrue(ribbon.Size.X.Offset >= 190 and ribbon.Size.X.Offset == H.title.w, "title slot is about 200 px wide: " .. tostring(ribbon.Size.X.Offset))
+	local fitC = title:FindFirstChild("BoardFit")
+	expectTrue(fitC ~= nil and fitC.MaxTextSize <= 19 and fitC.MinTextSize >= 14 and title.TextScaled, "title shrinks to fit between 14 and 19")
+	expectTrue(bar.Visible and plate.Visible, "the bar and the Reward plate are not hidden")
+	expectTrue(big.Position.Y.Scale < bar.Position.Y.Scale and bar.Position.Y.Scale < plate.Position.Y.Scale, "target, bar and Reward are stacked top to bottom")
+	expectTrue(rule.Size.X.Offset == H.rule.w and rule.Position.Y.Offset == H.rule.y, "the rule has the whole wide slot")
+	expectTrue(ruleLabel.Position.X.Offset == 8 and ruleLabel.Size.X.Offset == -16, "rule text is inset 8 px")
+	expectTrue(hl.Position.X.Offset == 8 and hl.Size.X.Offset == -16, "Hands text is inset 8 px")
+	expectTrue(tips.Position.Y.Offset >= rect.h, "Tips sits under the board")
+
+	-- (2) the hint is clamped to the board width and sits under the board
+	expectTrue(hint.Size.X.Offset <= 230 and hint.Position.X.Offset + hint.Size.X.Offset <= rect.w, "the hint is clamped to the board width")
+	expectTrue(hint.Position.Y.Offset >= rect.h, "the hint sits under the board")
+
+	-- (3) the old frames: no parchment, no gold line, studs or brackets
+	expectTrue(sidebar.BackgroundTransparency == 1 and board.BackgroundTransparency == 1, "parchment fills are gone")
+	for _, n in ipairs(decorNames) do
+		expectTrue(sidebar:FindFirstChild(n).Visible == false and board:FindFirstChild(n).Visible == false, n .. " is hidden while painted")
+	end
+	PlayBoardHud.apply(root, nil)
+	expectTrue(sidebar.BackgroundTransparency == 0 and sidebar:FindFirstChild("CornerStud").Visible, "everything comes back on restore")
+
+	-- (4) deck: no brackets, studs or rim anywhere, even when the skin turns them on again
+	local widget = mk("Frame", "DeckWidget", nil)
+	widget.Size = UDim2.fromOffset(196, 93)
+	local card = mk("Frame", "DeckCardBack", widget)
+	mk("TextLabel", "DeckCount", widget)
+	mk("ImageLabel", "StackBackA", widget)
+	mk("ImageLabel", "StackBackB", widget)
+	for _, n in ipairs({ "BracketH", "BracketV", "CornerStud", "InnerRim" }) do mk("Frame", n, widget) end
+	mk("Frame", "HudBrackets", card)
+	mk("Frame", "CornerStud", card)
+	expectTrue(PlayDeckPaint.apply(widget, { x = 1250, y = 375, w = 196, h = 93 }, "rbxassetid://1"), "deck paints")
+	local rects = PlayDeckPaint.rects(196, 93)
+	expectTrue(rects.card.h <= 93 * 0.86 and rects.card.y >= 6 and rects.card.y + rects.card.h <= 93 - 6, "card back fits the recess with a margin")
+	for _, n in ipairs({ "BracketH", "BracketV", "CornerStud", "InnerRim" }) do
+		expectTrue(widget:FindFirstChild(n).Visible == false, "widget " .. n .. " hidden")
+	end
+	expectTrue(card:FindFirstChild("HudBrackets").Visible == false and card:FindFirstChild("CornerStud").Visible == false, "card back brackets hidden")
+	card:FindFirstChild("HudBrackets").Visible = true
+	expectTrue(card:FindFirstChild("HudBrackets").Visible == false, "brackets turned back on by the skin are hidden again")
 end })
 
 return tests

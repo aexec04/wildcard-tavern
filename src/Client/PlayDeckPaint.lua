@@ -20,6 +20,25 @@ local PlayDeckPaint = {}
 
 local KEEP = { ClickCatcher = true, DeckCardBack = true, DeckCount = true, StackBackA = true, StackBackB = true, StackBackC = true, PileGlow = true }
 
+-- gold corner brackets, studs and the inner rim that the skin and the ornate-frame pass put on the widget and on the card back;
+-- the skin shows them again whenever it restyles, so a hidden one is hidden again as soon as something turns it back on
+local DECOR = { HudBrackets = true, InnerRim = true, BracketH = true, BracketV = true, CornerStud = true, Brackets = true }
+
+local function hideDecor(widget, parent)
+	for _, c in ipairs(parent:GetChildren()) do
+		if DECOR[c.Name] and c:IsA("GuiObject") then
+			c:SetAttribute("PaintedHidden", true)
+			c.Visible = false
+			if not c:GetAttribute("DecorHooked") then
+				c:SetAttribute("DecorHooked", true)
+				c:GetPropertyChangedSignal("Visible"):Connect(function()
+					if widget:GetAttribute("DeckPainted") and c.Visible then c.Visible = false end
+				end)
+			end
+		end
+	end
+end
+
 local function paint(widget, deckRect, platesId)
 	local card = widget:FindFirstChild("DeckCardBack")
 	local count = widget:FindFirstChild("DeckCount")
@@ -67,11 +86,8 @@ local function paint(widget, deckRect, platesId)
 	end
 	-- the white corner brackets (HudBrackets on the card back) frame the whole widget: hidden while painted
 	local function brackets()
-		local hb = card:FindFirstChild("HudBrackets")
-		if hb and hb:IsA("GuiObject") then
-			hb:SetAttribute("PaintedHidden", true)
-			hb.Visible = false
-		end
+		hideDecor(widget, card)
+		hideDecor(widget, widget)
 	end
 	brackets()
 	place()
@@ -94,7 +110,11 @@ local function paint(widget, deckRect, platesId)
 			end)
 		end
 		widget.ChildAdded:Connect(function(c)
-			if widget:GetAttribute("DeckPainted") and c:IsA("GuiObject") and not KEEP[c.Name] then c.Visible = false end
+			if widget:GetAttribute("DeckPainted") and c:IsA("GuiObject") and not KEEP[c.Name] then
+				c:SetAttribute("PaintedHidden", true)
+				c.Visible = false
+			end
+			if widget:GetAttribute("DeckPainted") then brackets() end
 		end)
 	end
 
@@ -150,10 +170,11 @@ local function restore(widget)
 		count.BackgroundTransparency = 0
 	end
 	if card then
-		local hb = card:FindFirstChild("HudBrackets")
-		if hb and hb:GetAttribute("PaintedHidden") then
-			hb:SetAttribute("PaintedHidden", nil)
-			hb.Visible = true
+		for _, hb in ipairs(card:GetChildren()) do
+			if hb:IsA("GuiObject") and hb:GetAttribute("PaintedHidden") then
+				hb:SetAttribute("PaintedHidden", nil)
+				hb.Visible = true
+			end
 		end
 		card.AnchorPoint, card.Position, card.Size = Vector2.new(0, 0), UDim2.fromOffset(12, 12), UDim2.new(1, -24, 0, 140)
 	end

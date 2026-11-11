@@ -59,7 +59,7 @@ function PlayBoardPaint.install(deps)
 			image.Visible = true
 			filler.Position = UDim2.fromOffset(0, p.h)
 			filler.Size = UDim2.fromOffset(deps.width or 240, math.max(0, size.Y - p.h))
-			filler.Visible = size.Y > p.h
+			filler.Visible = false -- the table shows below the board; the leftover rows sit on their own plates
 			board.BackgroundTransparency = 1
 			if deps.boardArt then deps.boardArt.Visible = false end
 			Guard.run("board HUD", PlayBoardHud.apply, root, p) -- C2 to C4: the HUD rows onto the board's slots (the old column returns on nil)

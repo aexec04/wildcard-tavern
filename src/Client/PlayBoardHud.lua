@@ -20,6 +20,9 @@ local LayoutSwitch = require(script.Parent.LayoutSwitch)
 local PlayBoardHud = {}
 
 local INK = Color3.fromRGB(52, 32, 16)
+-- decoration the theme and the skin draw on the Sidebar and SidebarBoard frames themselves: gone while the board is painted
+local FRAME_DECOR = { SetSkinBorder = true, SetAccent = true, CornerStud = true, InnerRim = true, BracketH = true, BracketV = true, HudBrackets = true, Brackets = true }
+local INSET = 8 -- text keeps 8 px off a slot's edge
 local THEME_PIECES = { HudKitPlate = true, HudKitPad = true, HudHeaderPlate = true, HudDepth = true, InnerHighlight = true, HudKitFrame = true }
 
 local states = setmetatable({}, { __mode = "k" })
@@ -76,9 +79,9 @@ local function placeRect(st, inst, rc, relTo)
 	put(st, inst, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(rc.w, rc.h) })
 end
 
-local function hideIcons(st, parent)
+local function hideIcons(st, parent, keep)
 	for _, c in ipairs(parent:GetChildren()) do
-		if c:IsA("Frame") or c:IsA("ImageLabel") then put(st, c, { Visible = false }) end
+		if (c:IsA("Frame") or c:IsA("ImageLabel")) and not (keep and keep[c.Name]) then put(st, c, { Visible = false }) end
 	end
 end
 
@@ -117,7 +120,7 @@ local function run(root, st)
 		for _, c in ipairs(ribbon:GetChildren()) do
 			if c:IsA("TextLabel") then
 				put(st, c, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
-				fit(st, c, 14, 22)
+				fit(st, c, 14, 19)
 			elseif c:IsA("Frame") then
 				put(st, c, { Visible = false })
 			end
@@ -125,7 +128,7 @@ local function run(root, st)
 	end
 
 	local stack = {} -- rows the list used to stack that have no slot: they go under the board
-	local patrons, hd, tips, score, rule
+	local patrons, hd, score, rule
 	for _, c in ipairs(content:GetChildren()) do
 		if c:IsA("GuiObject") then
 			if c.Name == "Divider" then
@@ -133,7 +136,7 @@ local function run(root, st)
 			elseif c.Name == "PatronsTray" then
 				patrons = c
 			elseif c.Name == "TipsRow" then
-				tips = c
+				table.insert(stack, c) -- no slot of its own: a plate under the board with its own parchment
 			elseif c.LayoutOrder == 1 then
 				rule = c
 			elseif c.LayoutOrder == 3 then
@@ -146,21 +149,21 @@ local function run(root, st)
 		end
 	end
 	for _, c in ipairs(sidebar:GetChildren()) do
-		if c:IsA("GuiObject") and not known[c.Name] then table.insert(stack, c) end
+		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not THEME_PIECES[c.Name] then table.insert(stack, c) end
 	end
 
 	if rule then
 		placeRect(st, rule, H.rule)
 		local lab = visibleLabel(rule)
 		if lab then
-			put(st, lab, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1) })
+			put(st, lab, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
 			fit(st, lab, 14, 17)
 		end
 	end
 	if score then
 		placeRect(st, score, H.target)
 		hideFill(st, score)
-		hideIcons(st, score)
+		hideIcons(st, score, { TargetBar = true, RewardPlate = true }) -- the bar and the Reward line stay: they are stacked in this slot
 		local big = visibleLabel(score, true)
 		if big then
 			put(st, big, { Position = UDim2.fromScale(0.04, 0.02), Size = UDim2.fromScale(0.92, 0.44), TextXAlignment = Enum.TextXAlignment.Center })
@@ -178,16 +181,6 @@ local function run(root, st)
 			end
 		end
 	end
-	if tips then
-		placeRect(st, tips, H.tips)
-		hideFill(st, tips)
-		hideIcons(st, tips)
-		local lab = visibleLabel(tips)
-		if lab then
-			put(st, lab, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
-			fit(st, lab, 14, 19)
-		end
-	end
 	if hd then
 		placeRect(st, hd, H.handsDiscards)
 		hideFill(st, hd)
@@ -199,7 +192,7 @@ local function run(root, st)
 				hideIcons(st, col)
 				local lab = visibleLabel(col)
 				if lab then
-					put(st, lab, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
+					put(st, lab, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
 					fit(st, lab, 14, 18)
 				end
 			end
@@ -239,14 +232,26 @@ local function run(root, st)
 	end
 
 	-- rows with no slot: a column of plates under the board, aligned with its left edge
-	table.sort(stack, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+	table.sort(stack, function(a, b) return (a.LayoutOrder or 0) < (b.LayoutOrder or 0) end)
 	local y = rect.h + 6
+	local stackW = math.min(230, rect.w - 2 * H.target.x)
+	local stackX = H.target.x
 	for _, c in ipairs(stack) do
 		if c.Visible then
 			local h = c.Size.Y.Scale == 0 and c.Size.Y.Offset or c.AbsoluteSize.Y
 			if h > 0 then
-				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(4, y), Size = UDim2.fromOffset(math.max(120, rect.w - 8), h) })
+				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(stackX, y), Size = UDim2.fromOffset(stackW, h) })
 				y = y + h + 4
+			end
+		end
+	end
+
+	-- the old parchment fill, border line, accent wash, studs and brackets of the two frames: the table shows through below the board
+	for _, top in ipairs({ sidebar, root:FindFirstChild("SidebarBoard") }) do
+		if top then
+			hideFill(st, top)
+			for _, c in ipairs(top:GetChildren()) do
+				if FRAME_DECOR[c.Name] and c:IsA("GuiObject") then put(st, c, { Visible = false }) end
 			end
 		end
 	end
@@ -304,9 +309,10 @@ function PlayBoardHud.apply(root, rect)
 	local first = st.rect == nil
 	st.rect = rect
 	st.applying = true
-	local ok = pcall(run, root, st)
+	local ok, why = pcall(run, root, st)
 	st.applying = false
 	if not ok then
+		PlayBoardHud.lastError = tostring(why)
 		st.rect = nil
 		restore(st)
 		return false

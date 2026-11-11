@@ -63,18 +63,17 @@ function M.map(w, h)
 	return out
 end
 
--- Where the live HUD rows go on a board of w x h px (board coordinates, top left origin). Tips and the round rule share the wide
--- slot; Hands and Discards keep their two slots (their union is the box that holds both columns); the Patron seats sit on the
+-- Where the live HUD rows go on a board of w x h px (board coordinates, top left origin). The round title gets the width of the
+-- target slot (about 200 px at 1506x751), the round rule has the whole wide slot (Tips has no slot: it goes on the plate under the
+-- board), Hands and Discards keep their two slots (their union is the box that holds both columns); the Patron seats sit on the
 -- five rings, or spread over the ring span when there are more than five. Tested: everything inside the board, seats never overlap.
 function M.hud(w, h)
 	local m = M.map(w, h)
 	local s = w / M.IMG_W
 	local gap = math.max(2, math.floor(6 * s + 0.5))
-	local tipsW = math.floor(m.wide.w * 0.34 + 0.5)
 	local out = {
-		title = m.title, target = m.target,
-		tips = { x = m.wide.x, y = m.wide.y, w = tipsW, h = m.wide.h },
-		rule = { x = m.wide.x + tipsW + gap, y = m.wide.y, w = m.wide.w - tipsW - gap, h = m.wide.h },
+		title = { x = m.target.x, y = m.title.y, w = m.target.w, h = m.title.h }, target = m.target,
+		rule = m.wide,
 		hands = m.hands, discards = m.discards,
 		handsDiscards = { x = m.hands.x, y = m.hands.y, w = m.discards.x + m.discards.w - m.hands.x, h = m.hands.h },
 	}
