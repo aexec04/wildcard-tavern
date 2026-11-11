@@ -15460,7 +15460,7 @@ table.insert(tests, { name = "Pack screen: Buy drawer is at least 80 px wide, Co
 		-- the anchor (name plate) must actually be read at hover time, not just accepted as a parameter
 		expectTrue(tip:find("anchor.AbsolutePosition.Y + anchor.AbsoluteSize.Y", 1, true) ~= nil, "Tooltip below-placement measures the live anchor bottom")
 		expectTrue(tip:find("x - origin.X + nudge.X, y - origin.Y + nudge.Y", 1, true) ~= nil, "Tooltip converts screen coords to its parent's space")
-		expectTrue(tip:find('if frame.Visible and (side == "below" or side == "row") then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
+		expectTrue(tip:find('if frame.Visible and (side == "below" or side == "row" or side == "side") then place() end', 1, true) ~= nil, "Tooltip below-placement re-measures every frame")
 	end
 end })
 
@@ -15543,6 +15543,42 @@ table.insert(tests, { name = "TooltipSpec.placeRow: Counter tooltip intersects n
 			end
 		end
 	end
+end })
+
+table.insert(tests, { name = "TooltipSpec.placeSide: Counter pack tooltip covers no offer, pack, plate or button (2 and 4 offers, 2 and 3 packs, 1920x1080 and 1280x720)", fn = function()
+	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
+	local function hit(a, b) return a.X < b.X + b.W and b.X < a.X + a.W and a.Y < b.Y + b.H and b.Y < a.Y + a.H end
+	for _, screen in ipairs({ { X = 1920, Y = 1080 }, { X = 1280, Y = 720 } }) do
+		local big = screen.X >= 1920
+		local ow, oh, pw, ph, gap = big and 226 or 160, big and 313 or 220, big and 96 or 70, big and 148 or 108, 16
+		for _, counts in ipairs({ { 2, 2 }, { 4, 3 } }) do
+			local nO, nP = counts[1], counts[2]
+			local offerTop = math.floor(screen.Y * 0.18)
+			local oTotal = nO * ow + (nO - 1) * gap
+			local rects = {}
+			for i = 0, nO - 1 do
+				rects[#rects + 1] = { X = math.floor((screen.X - oTotal) / 2) + i * (ow + gap), Y = offerTop, W = ow, H = oh }
+			end
+			local packTop = offerTop + oh - 4
+			local pTotal = nP * pw + (nP - 1) * (gap - 4)
+			local px0 = math.floor((screen.X - pTotal) / 2)
+			local packs = {}
+			for i = 0, nP - 1 do
+				packs[#packs + 1] = { X = px0 + i * (pw + gap - 4), Y = packTop, W = pw, H = ph }
+			end
+			local tip = { X = 286, Y = 64 }
+			for pi, pack in ipairs(packs) do
+				local x, y = TooltipSpec.placeSide({ Y = pack.Y, H = pack.H }, { X0 = px0, X1 = px0 + pTotal }, tip, screen, offerTop + oh)
+				local tr = { X = x, Y = y, W = tip.X, H = tip.Y }
+				expectTrue(x >= 0 and y >= 0 and x + tip.X <= screen.X and y + tip.Y <= screen.Y, "pack tooltip stays on screen")
+				for _, o in ipairs(rects) do expectFalse(hit(tr, o), "pack " .. pi .. " tooltip covers an offer at " .. screen.X) end
+				for _, o in ipairs(packs) do expectFalse(hit(tr, o), "pack " .. pi .. " tooltip covers a pack at " .. screen.X) end
+			end
+		end
+	end
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local shop = read("src/Client/Shop.lua")
+	if shop then expectTrue(shop:find('tipAlign = "side"', 1, true) ~= nil, "Counter pack cards open their tooltip sideways") end
 end })
 
 return tests

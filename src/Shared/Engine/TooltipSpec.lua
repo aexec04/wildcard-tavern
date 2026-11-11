@@ -92,6 +92,24 @@ function TooltipSpec.placeRow(card, row, tip, screen, spec)
 	return x, math.max(spec.margin, math.min(below, screen.Y - tip.Y - spec.margin))
 end
 
+-- placeSide(card, span, tip, screen, floorY) -> x, y
+-- Counter PACKS: card = the hovered pack's rect ({Y,H}), span = {X0, X1} the left and right edge of the whole pack row,
+-- floorY = bottom edge of the offer row above (nil if none). The tip opens SIDEWAYS into the free counter space: right
+-- of the last pack, or left of the first pack when there is no room on the right, centred on the pack vertically but
+-- never higher than floorY + gap, clamped inside the screen. It is never over any pack or offer.
+function TooltipSpec.placeSide(card, span, tip, screen, floorY, spec)
+	spec = spec or TooltipSpec.Spec
+	local x = span.X1 + spec.gap
+	if x + tip.X > screen.X - spec.margin then
+		x = span.X0 - spec.gap - tip.X
+	end
+	x = math.max(spec.margin, math.min(x, screen.X - tip.X - spec.margin))
+	local y = card.Y + card.H / 2 - tip.Y / 2
+	if floorY then y = math.max(y, floorY + spec.gap) end
+	y = math.max(spec.margin, math.min(y, screen.Y - tip.Y - spec.margin))
+	return x, y
+end
+
 -- correct(target, actual, offset) -> new offset (x, y), tolerance 1 px.
 -- target = where the tip should be on screen, actual = the frame's live AbsolutePosition after writing Position,
 -- offset = the offset (Position minus target) that is currently applied. If something outside our writes (an inset,

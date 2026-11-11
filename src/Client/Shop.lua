@@ -1499,7 +1499,7 @@ return function(deps)
 					local definition = Packs.getById(pack.id)
 					local line = definition and string.format("See %d, keep %d", definition.revealCount or 3, definition.pickCount or 1) or pack.description
 					local card = shopCards.card(row, {
-						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price,
+						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price, tipAlign = "side",
 						affordable = tips >= pack.price, actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
 						artTab = "packs", artId = baseId, rarity = tierRarity,
 						glow = (sizeBadge == "MEGA" and 2) or (sizeBadge == "JUMBO" and 1) or 0,

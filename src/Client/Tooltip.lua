@@ -124,6 +124,32 @@ function Tooltip.new(screenGui)
 						x, y = TooltipSpec.placeRow({ X = pos.X, W = size.X },
 							{ X = rp.X, Y = rp.Y, H = rs.Y },
 							{ X = tipSize.X, Y = tipSize.Y }, screenGui.AbsoluteSize)
+					elseif side == "side" and button:FindFirstAncestor("CardRow") then
+						-- Counter packs: open sideways into free counter space, never over a pack or an offer
+						local rowFrame = button:FindFirstAncestor("CardRow")
+						local x0, x1 = math.huge, -math.huge
+						for _, c in ipairs(rowFrame:GetChildren()) do
+							if c:IsA("GuiObject") and c.Visible and c.AbsoluteSize.X > 0 then
+								x0 = math.min(x0, c.AbsolutePosition.X)
+								x1 = math.max(x1, c.AbsolutePosition.X + c.AbsoluteSize.X)
+							end
+						end
+						if x0 > x1 then x0, x1 = pos.X, pos.X + size.X end
+						local floorY = nil
+						for _, sib in ipairs(rowFrame.Parent:GetChildren()) do
+							if sib ~= rowFrame and sib.Name == "CardRow" and sib:IsA("GuiObject") and sib.Visible
+								and sib.AbsolutePosition.Y < rowFrame.AbsolutePosition.Y then
+								floorY = math.max(floorY or 0, sib.AbsolutePosition.Y + sib.AbsoluteSize.Y)
+							end
+						end
+						local tipSize = frame.AbsoluteSize
+						x, y = TooltipSpec.placeSide({ Y = pos.Y, H = size.Y }, { X0 = x0, X1 = x1 },
+							{ X = tipSize.X, Y = tipSize.Y }, screenGui.AbsoluteSize, floorY)
+						if RunService:IsStudio() and not lastLog then
+							lastLog = true
+							warn(string.format("[Tooltip pack] tip %d,%d %dx%d packs x %d..%d offerRowBottom %s",
+								x, y, tipSize.X, tipSize.Y, x0, x1, floorY and tostring(math.floor(floorY)) or "none"))
+						end
 					else
 						x, y = TooltipSpec.place(pos, size, frame.AbsoluteSize, screenGui.AbsoluteSize, side)
 					end
@@ -163,7 +189,7 @@ function Tooltip.new(screenGui)
 			if activeConn then activeConn:Disconnect() end
 			if leaveConn then leaveConn:Disconnect() end
 			activeConn = RunService.Heartbeat:Connect(function()
-				if frame.Visible and (side == "below" or side == "row") then place() end -- plates can still be sliding in or lifting
+				if frame.Visible and (side == "below" or side == "row" or side == "side") then place() end -- plates can still be sliding in or lifting
 				local alive = button.Parent ~= nil and frame.Visible
 				if alive then
 					local obj = button
