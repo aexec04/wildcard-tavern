@@ -14516,6 +14516,41 @@ table.insert(tests, { name = "Badge sockets fit: diameter is the medal times 1.1
 	end
 end })
 
+table.insert(tests, { name = "Daily reward plate: queued above toasts, auto closes after 12s, no emoji in the login files", fn = function()
+	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	expectTrue(R.PRIORITY.daily > R.PRIORITY.unlock and R.PRIORITY.daily < R.PRIORITY.rank and R.PRIORITY.rank < R.PRIORITY.other, "daily sits above rank and other toasts")
+	expectEqual(R.autoSeconds({ button = "Claim", autoAfter = R.DAILY_AUTO_SECONDS }), 12, "the daily plate closes itself after 12s")
+	expectEqual(R.autoSeconds({ button = "Continue" }), nil, "other button plates still wait for a click")
+	local q = R.new()
+	q:enqueue({ id = "toast", priority = R.PRIORITY.other })
+	q:enqueue({ id = "daily:1", priority = R.PRIORITY.daily, custom = function() end })
+	local first = q:advance()
+	expectEqual(first.id, "daily:1", "the daily plate goes before toasts")
+	expectTrue(type(first.custom) == "function", "custom content survives the queue")
+	local function noEmoji(text, what)
+		local i = 1
+		while i <= #text do
+			local cp = utf8.codepoint(text, i)
+			expectTrue(cp < 0x2000 or (cp >= 0x2000 and cp <= 0x206F), what .. " has a glyph above U+2000 (codepoint " .. cp .. ")")
+			i = utf8.offset(text, 2, i)
+		end
+	end
+	for _, r in ipairs(LS.Rewards) do
+		expectTrue(r.icon == nil, "day " .. r.day .. " has no emoji icon")
+		expectTrue(r.art == "tips" or r.art == "xp" or r.art == "cardBack", "day " .. r.day .. " names a painted piece")
+		noEmoji(r.label, "day " .. r.day .. " label")
+	end
+	for _, path in ipairs({ "src/Client/LoginStreakUI.lua", "src/Shared/Engine/LoginStreak.lua" }) do
+		local f = io and io.open and io.open(path, "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			noEmoji(src, path)
+		end
+	end
+end })
+
 table.insert(tests, { name = "OverlayQueue: one plate at a time, by priority, dedupe, merge, auto only for toasts", fn = function()
 	local R = require(script.Parent.Parent.Engine.OverlayQueueRules)
 	local q = R.new()

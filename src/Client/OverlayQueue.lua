@@ -33,8 +33,9 @@ local INK_TITLE = Color3.fromRGB(104, 54, 12)
 local SETTLE = 0.3 -- seconds to wait for sibling items so the priority order holds
 
 local q = Rules.new()
-local gui, backdrop, plate, title, body, button, rowsHolder, iconArt, plateStroke, plateCorner, platePad, plateLimit
+local gui, backdrop, plate, title, body, button, rowsHolder, iconArt, plateStroke, plateCorner, platePad, plateLimit, customHolder
 local token = 0
+local activeItem
 local idleFns = {}
 local idleOrder = {}
 local flushScheduled = false
@@ -130,9 +131,18 @@ local function build()
 	rowList.Padding = UDim.new(0, 4)
 	rowList.Parent = rowsHolder
 
+	customHolder = Instance.new("Frame") -- item.custom(holder, painted) builds extra content here (the daily ladder)
+	customHolder.Name = "Custom"
+	customHolder.BackgroundTransparency = 1
+	customHolder.LayoutOrder = 5
+	customHolder.Size = UDim2.new(1, 0, 0, 0)
+	customHolder.Visible = false
+	customHolder.ZIndex = 152
+	customHolder.Parent = plate
+
 	button = Instance.new("TextButton")
 	button.Name = "Continue"
-	button.LayoutOrder = 5
+	button.LayoutOrder = 6
 	button.Size = UDim2.new(0, 180, 0, 40)
 	button.BackgroundColor3 = BRASS
 	button.Font = Enum.Font.GothamBold
@@ -152,6 +162,9 @@ local flush
 local function close(mine)
 	if mine ~= token then return end
 	token += 1
+	local closed = activeItem
+	activeItem = nil
+	if closed and closed.onClose then pcall(closed.onClose) end
 	local fade = calm() and 0 or 0.15
 	if backdrop then
 		backdrop.Visible = false
@@ -223,7 +236,12 @@ local function show(item)
 	if item.button then
 		button.Text = type(item.button) == "string" and item.button or "Continue"
 	end
+	for _, c in ipairs(customHolder:GetChildren()) do c:Destroy() end
+	customHolder.Visible = type(item.custom) == "function"
+	customHolder.Size = UDim2.new(1, 0, 0, type(item.customHeight) == "number" and item.customHeight or 0)
 	dress(kitId)
+	activeItem = item
+	if customHolder.Visible then pcall(item.custom, customHolder, kitId ~= nil) end
 	plate.Size = UDim2.new(1, -2 * Rules.MIN_EDGE, 0, 0)
 	plate.AutomaticSize = Enum.AutomaticSize.Y
 	backdrop.Visible = true
@@ -234,7 +252,12 @@ local function show(item)
 	end
 	local function dismiss() close(mine) end
 	if item.button then
-		button.Activated:Once(dismiss)
+		button.Activated:Once(function()
+			if item.onButton then pcall(item.onButton) end
+			dismiss()
+		end)
+		local secs = Rules.autoSeconds(item)
+		if secs then task.delay(secs, dismiss) end
 	end
 	-- a click anywhere on a pure toast closes it too; plates with a button close only from the button
 	if not item.button then
@@ -286,6 +309,13 @@ function OverlayQueue.onIdle(key, fn)
 	end
 	if not idleFns[key] then idleOrder[#idleOrder + 1] = key end
 	idleFns[key] = fn
+end
+
+-- Close the visible plate when it is the item with this id (e.g. the daily reward was claimed elsewhere).
+function OverlayQueue.closeIfCurrent(id)
+	if activeItem and activeItem.id == id then
+		task.spawn(close, token)
+	end
 end
 
 function OverlayQueue.newRound()

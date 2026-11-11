@@ -18,15 +18,15 @@ local SECONDS_PER_DAY = 86400
 LoginStreak.GRACE_DAYS = 1
 LoginStreak.LADDER = 7
 
--- EDIT ME. `day` is the slot on the 7-day ladder.
+-- EDIT ME. `day` is the slot on the 7-day ladder. `art` picks the painted icon (no emoji in UI).
 LoginStreak.Rewards = {
-	{ day = 1, kind = "tips", amount = 3, label = "3 Tips", icon = "🪙" },
-	{ day = 2, kind = "xp", amount = 40, label = "40 XP", icon = "⭐" },
-	{ day = 3, kind = "tips", amount = 5, label = "5 Tips", icon = "🪙" },
-	{ day = 4, kind = "xp", amount = 60, label = "60 XP", icon = "⭐" },
-	{ day = 5, kind = "tips", amount = 6, label = "6 Tips", icon = "💰" },
-	{ day = 6, kind = "xp", amount = 80, label = "80 XP", icon = "🌟" },
-	{ day = 7, kind = "cardBack", id = "festival_ribbon", fallbackTips = 10, label = "Card back: Festival Ribbon", icon = "🎴" },
+	{ day = 1, kind = "tips", amount = 3, label = "3 Tips", art = "tips" },
+	{ day = 2, kind = "xp", amount = 40, label = "40 XP", art = "xp" },
+	{ day = 3, kind = "tips", amount = 5, label = "5 Tips", art = "tips" },
+	{ day = 4, kind = "xp", amount = 60, label = "60 XP", art = "xp" },
+	{ day = 5, kind = "tips", amount = 6, label = "6 Tips", art = "tips" },
+	{ day = 6, kind = "xp", amount = 80, label = "80 XP", art = "xp" },
+	{ day = 7, kind = "cardBack", id = "festival_ribbon", fallbackTips = 10, label = "Card back: Festival Ribbon", art = "cardBack" },
 }
 
 function LoginStreak.dayNumber(timestamp)
