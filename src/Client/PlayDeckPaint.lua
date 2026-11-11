@@ -14,6 +14,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
+local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 
 local PlayDeckPaint = {}
 
@@ -101,8 +102,9 @@ local function paint(widget, deckRect, platesId)
 	local b = PlayTableLayout.PLATE_BOXES.play
 	if type(platesId) == "string" and platesId ~= "" then
 		board.Image = platesId
-		board.ImageRectOffset = Vector2.new(b.x, b.y + math.floor(b.h * 0.3 + 0.5))
-		board.ImageRectSize = Vector2.new(b.w, math.floor(b.h * 0.7 + 0.5))
+		local x, y, w, h = ImageSpace.rect(b.x, b.y + math.floor(b.h * 0.3 + 0.5), b.w, math.floor(b.h * 0.7 + 0.5), PlayTableLayout.PLATES_IMG_W, PlayTableLayout.PLATES_IMG_H)
+		board.ImageRectOffset = Vector2.new(x, y)
+		board.ImageRectSize = Vector2.new(w, h)
 		board.Visible = true
 	else
 		board.Visible = false

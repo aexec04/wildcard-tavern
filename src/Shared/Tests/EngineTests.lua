@@ -16941,7 +16941,7 @@ table.insert(tests, { name = "ShopBackdrop draws an oval felt table with a wood 
 	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve) })
+			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve), ImageSpace = require(Engine.ImageSpace) })
 		end }
 	end }
 	stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env) -- the real soft light pool (many eased discs)
@@ -17150,7 +17150,7 @@ table.insert(tests, { name = "Counter room: the backdrop is ONE cropped picture,
 	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve) })
+			return FakeGui.folder({ ShopSceneLayout = SL, ContentArt = require(Engine.ContentArt), GlowCurve = require(Engine.GlowCurve), ImageSpace = require(Engine.ImageSpace) })
 		end }
 	end }
 	stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env)
@@ -18936,6 +18936,15 @@ table.insert(tests, { name = "ImagePreload: loaded comes from the PreloadAsync s
 	expectTrue(IP.run(provider("Failure"), img, "Success") == false, "failure keeps the old UI")
 	expectTrue(IP.run(provider(nil), img, "Success") == false, "no status keeps the old UI")
 	expectTrue(IP.run({ PreloadAsync = function() error("x") end }, img, "Success") == false, "error keeps the old UI")
+end })
+
+table.insert(tests, { name = "ImageSpace: rects of sheets over 1024 px scale by 1024 over the long side", fn = function()
+	local IS = require(script.Parent.Parent.Engine.ImageSpace)
+	expectTrue(math.abs(IS.rectScale(1536, 1024) - 2 / 3) < 1e-9, "1536x1024 -> 2/3")
+	expectTrue(IS.rectScale(1024, 1024) == 1, "1024 -> 1")
+	expectTrue(IS.rectScale(800, 600) == 1, "800 -> 1")
+	local x, y, w, h = IS.rect(300, 150, 150, 75, 1536, 1024)
+	expectTrue(x == 200 and y == 100 and w == 100 and h == 50, "rect scaled")
 end })
 
 return tests

@@ -10,7 +10,8 @@
 ]]
 
 local GameName = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameName"))
-local AssetId = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("AssetId"))
+local ImageSpace = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ImageSpace"))
+local AssetId =require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("AssetId"))
 
 local Wordmark = {}
 
@@ -90,8 +91,9 @@ function Wordmark.build(parent, opts)
 		image.BackgroundTransparency = 1
 		image.Image = AssetId.normalize(opts.imageId) or ""
 		-- the painted wordmark is a 1536x1024 canvas with one centred line; show only the band that holds the lettering
-		image.ImageRectOffset = Vector2.new(40, 390)
-		image.ImageRectSize = Vector2.new(1456, 220)
+		local rx, ry, rw, rh = ImageSpace.rect(40, 390, 1456, 220, 1536, 1024)
+		image.ImageRectOffset = Vector2.new(rx, ry)
+		image.ImageRectSize = Vector2.new(rw, rh)
 		image.ScaleType = Enum.ScaleType.Fit
 		image.ZIndex = z
 		image.Parent = title

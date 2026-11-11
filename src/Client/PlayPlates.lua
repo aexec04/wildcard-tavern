@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
+local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 
 local PlayPlates = {}
 
@@ -51,8 +52,10 @@ local function plateImage(host, imageId, box)
 	local img = ensure(host, "ImageLabel", "PlatePaint", 1)
 	img.BackgroundTransparency = 1
 	img.Image = imageId
-	img.ImageRectOffset = Vector2.new(box.x, box.y)
-	img.ImageRectSize = Vector2.new(box.w, box.h)
+	-- Roblox stores the 1536 px sheet at 1024: the rect is read in the stored texture
+	local x, y, w, h = ImageSpace.rect(box.x, box.y, box.w, box.h, PlayTableLayout.PLATES_IMG_W, PlayTableLayout.PLATES_IMG_H)
+	img.ImageRectOffset = Vector2.new(x, y)
+	img.ImageRectSize = Vector2.new(w, h)
 	img.ScaleType = Enum.ScaleType.Stretch
 	img.Size = UDim2.fromScale(1, 1)
 	img.Position = UDim2.fromOffset(0, 0)
@@ -81,12 +84,16 @@ local function paintButton(btn, imageId, box, rect)
 	lab.BackgroundTransparency = 1
 	lab.Font = btn.Font
 	lab.Text = btn.Text
-	lab.TextScaled = true
+	lab.TextScaled = false
+	lab.TextSize = 21
+	lab.TextWrapped = false
+	lab.TextXAlignment = Enum.TextXAlignment.Center
+	lab.TextYAlignment = Enum.TextYAlignment.Center
 	lab.TextColor3 = CREAM
 	lab.Position = UDim2.fromOffset(side, top)
 	lab.Size = UDim2.new(1, -2 * side, 1, -(top + bottom))
-	local cap = ensure(lab, "UITextSizeConstraint", "PlateTextSize", 1)
-	cap.MinTextSize, cap.MaxTextSize = 14, 26
+	local oldCap = lab:FindFirstChild("PlateTextSize")
+	if oldCap then oldCap:Destroy() end
 	local ts = ensure(lab, "UIStroke", "PlateTextStroke", 1)
 	ts.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	ts.Color, ts.Thickness, ts.Transparency = INK, 2, 0
@@ -100,6 +107,14 @@ local function paintButton(btn, imageId, box, rect)
 
 	if btn:GetAttribute("PlateHooked") then return end
 	btn:SetAttribute("PlateHooked", true)
+	-- one label per button: keep the button's own text invisible even if a restyle resets it
+	local function hideOwnText()
+		if btn:GetAttribute("PlatePainted") then
+			btn.TextTransparency, btn.TextStrokeTransparency = 1, 1
+		end
+	end
+	btn:GetPropertyChangedSignal("TextTransparency"):Connect(hideOwnText)
+	btn:GetPropertyChangedSignal("TextStrokeTransparency"):Connect(hideOwnText)
 	local state = { hover = false, pressed = false }
 	local function look()
 		if not btn:GetAttribute("PlatePainted") then return end
@@ -149,6 +164,7 @@ local function restoreButton(btn, w, h)
 	btn.TextScaled = false
 	btn.TextTransparency, btn.TextStrokeTransparency = 0, 0
 	btn.Size = UDim2.new(0, w, 1, 0)
+	btn.AnchorPoint = Vector2.new(0, 0)
 end
 
 function PlayPlates.apply(actionFrame, placement, imageId)
@@ -180,7 +196,9 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 			local o = toggle:FindFirstChild("ToggleOuter")
 			if o then o.Visible = true end
 		end
+		sortFrame.Position, play.Position, discard.Position = UDim2.new(), UDim2.new(), UDim2.new()
 		if layout then
+			layout.Enabled = true
 			layout.Padding = UDim.new(0, 20)
 			layout.VerticalAlignment = Enum.VerticalAlignment.Top
 		end
@@ -189,10 +207,12 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 
 	local pl = placement.map.plates
 	local B = PlayTableLayout.PLATE_BOXES
-	if layout then
-		layout.Padding = UDim.new(0, placement.gap)
-		layout.VerticalAlignment = Enum.VerticalAlignment.Center
-		layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+	-- the three plates are placed by hand from the tested rects (a list layout let them overlap); the layout comes back with the fallback
+	if layout then layout.Enabled = false end
+	local ox, oy = pl.sort.x, pl.play.y
+	for key, c in pairs({ sort = sortFrame, play = play, discard = discard }) do
+		c.AnchorPoint = Vector2.new(0, 0)
+		c.Position = UDim2.fromOffset(pl[key].x - ox, pl[key].y - oy)
 	end
 	paintButton(play, imageId, B.play, pl.play)
 	paintButton(discard, imageId, B.discard, pl.discard)

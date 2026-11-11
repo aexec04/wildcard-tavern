@@ -15,6 +15,7 @@ pool are hidden. Without the id, or on a phone, those older pieces show as befor
 
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("ShopSceneLayout"))
+local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local SoftGlow = require(script.Parent.SoftGlow)
 
@@ -36,8 +37,9 @@ end
 -- writes 1536x1024 for these pieces).
 local function crop(img, c)
 	img.ScaleType = Enum.ScaleType.Stretch
-	img.ImageRectOffset = Vector2.new(c[1] * 1536, c[2] * 1024)
-	img.ImageRectSize = Vector2.new(c[3] * 1536, c[4] * 1024)
+	local x, y, w, h = ImageSpace.rect(c[1] * 1536, c[2] * 1024, c[3] * 1536, c[4] * 1024, 1536, 1024)
+	img.ImageRectOffset = Vector2.new(x, y)
+	img.ImageRectSize = Vector2.new(w, h)
 end
 
 local function place(obj, r)

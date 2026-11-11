@@ -385,8 +385,9 @@ return function(deps)
 			img.BackgroundTransparency = 1
 			img.Image = id
 			-- the flourish sits in the middle band of the 1536x1024 art
-			img.ImageRectOffset = Vector2.new(30, 395)
-			img.ImageRectSize = Vector2.new(1476, 240)
+			local rx, ry, rw, rh = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ImageSpace")).rect(30, 395, 1476, 240, 1536, 1024)
+			img.ImageRectOffset = Vector2.new(rx, ry)
+			img.ImageRectSize = Vector2.new(rw, rh)
 			img.ScaleType = Enum.ScaleType.Stretch
 			img.Active = false
 			img.ZIndex = Z
