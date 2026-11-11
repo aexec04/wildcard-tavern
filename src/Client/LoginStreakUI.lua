@@ -259,7 +259,7 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 		else
 			local pic = paintIcon(disc, row, math.floor(slot * 0.8), 155)
 			if not row.today then
-				if pic:IsA("ImageLabel") then pic.ImageTransparency = 0.45 else pic.BackgroundTransparency = 0.45 end
+				if pic:IsA("ImageLabel") then pic.ImageTransparency = 0.3 else pic.BackgroundTransparency = 0.3 end
 			end
 		end
 		label(cell, {

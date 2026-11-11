@@ -159,6 +159,8 @@ function LoginStreak.view(profile)
 			day = reward.day,
 			label = reward.label,
 			icon = reward.icon,
+			art = reward.art,
+			id = reward.id,
 			kind = reward.kind,
 			claimed = claimed,
 			claimable = waiting and reward.day == today,

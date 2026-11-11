@@ -14551,6 +14551,17 @@ table.insert(tests, { name = "Daily reward plate: queued above toasts, auto clos
 	end
 end })
 
+table.insert(tests, { name = "LoginStreak: view rows carry art and id for all 7 slots", fn = function()
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	local v = LS.view({ loginStreak = 1 })
+	expectEqual(#v.rewards, 7, "seven rows")
+	local want = { "tips", "xp", "tips", "xp", "tips", "xp", "cardBack" }
+	for i, row in ipairs(v.rewards) do
+		expectEqual(row.art, want[i], "day " .. i .. " art")
+	end
+	expectEqual(v.rewards[7].id, "festival_ribbon", "day 7 card back id")
+end })
+
 table.insert(tests, { name = "LoginStreak: every ladder slot resolves to a painted icon in every kit set, Later line names tomorrow", fn = function()
 	local LS = require(script.Parent.Parent.Engine.LoginStreak)
 	local HK = require(script.Parent.Parent.Engine.HudKit)
