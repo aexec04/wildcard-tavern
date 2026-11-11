@@ -134,13 +134,16 @@ CATEGORY_OPTS = {
     "bonds": {"quality": "low", "style_key": "house_style"},
     "shop_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["shop_wall"],
                    "sizes": {"shop_wall": "1536x1024", "shop_marlo_behind": "1024x1536", "shop_marlo_wave": "1024x1536",
-                             "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024"},
+                             "shop_counter_top": "1536x1024", "shop_counter_props": "1536x1024", "shop_light_pool": "1536x1024",
+                             "shop_table": "1536x1024"},
                    "additive": ["shop_light_pool"],
                    "references": {"shop_marlo_wave": "art-wip/shop_scene/shop_marlo_behind.png"}},
-    "collection_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["collection_wall"],
+    "collection_scene": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": ["collection_wall", "collection_room"],
                          "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",
                                    "collection_corkboard": "1536x1024", "collection_trophy_shelf": "1536x1024", "collection_key_rack": "1536x1024",
-                                   "collection_nameplate_shelf": "1536x1024"}},
+                                   "collection_nameplate_shelf": "1536x1024", "collection_room": "1536x1024"},
+                         # the gallery room is restyled toward the Menu room wall, so it reads as a room of the same tavern
+                         "references": {"collection_room": "art-wip/menu_room/menu_room_wall.png"}},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code
     "ambient": {"quality": "low", "style_key": "house_style", "transparent": True,
@@ -160,10 +163,12 @@ CATEGORY_OPTS = {
                   "opaque": ["ledger_desk"],
                   "sizes": {"ledger_desk": "1536x1024", "ledger_book_open": "1536x1024", "ledger_bookmark_ribbon": "1024x1536"}},
     "badge_wall": {"quality": "low", "style_key": "house_style", "transparent": True,
-                   "opaque": ["badge_cabinet", "badge_velvet_board", "badge_map_board", "badge_night_sky", "badge_curio_shelf"],
+                   "opaque": ["badge_cabinet", "badge_velvet_board", "badge_map_board", "badge_night_sky", "badge_curio_shelf", "badge_room"],
                    "sizes": {"badge_cabinet": "1536x1024", "badge_velvet_board": "1536x1024", "badge_map_board": "1536x1024",
                              "badge_night_sky": "1536x1024", "badge_curio_shelf": "1536x1024",
-                             "badge_shelf_rail": "1536x1024", "badge_ribbon_banner": "1536x1024"}},
+                             "badge_shelf_rail": "1536x1024", "badge_ribbon_banner": "1536x1024", "badge_room": "1536x1024"},
+                   # the trophy room is restyled toward the Menu room wall, so it reads as a room of the same tavern
+                   "references": {"badge_room": "art-wip/menu_room/menu_room_wall.png"}},
     # Card Set UI skins: 6 slots per set. face_paper is an opaque tile; the rest are cut out from magenta.
     "set_skins": {"quality": "low", "style_key": "house_style", "transparent": True, "opaque": [], "sizes": {}},  # filled below
     # Bayou tavern menu layers (back to front). Transparent layers are cut out from magenta; sky and water stay opaque.
