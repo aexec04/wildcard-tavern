@@ -246,6 +246,28 @@ function ShopSceneLayout.rows(r, hP, hK)
 	return out
 end
 
+-- Free zone for the My Patrons / My Recipes tabs: right of Marlo, below the tab bar, above Next Round.
+-- Coordinates are in shopFrame space; the lists live in a content area at (10, 84).
+ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 84, 64
+function ShopSceneLayout.tabZone(W, H, noMarlo)
+	local r = ShopSceneLayout.rects(W, H, { offers = 1, packs = 0, noMarlo = noMarlo })
+	local x0 = 10
+	if r.marlo and not noMarlo then x0 = r.marlo.x + r.marlo.w + 12 end
+	local x1 = W - 10
+	local y0 = ShopSceneLayout.TAB_TOP
+	return rect(x0, y0, math.max(x1 - x0, 1), math.max(H - ShopSceneLayout.TAB_BOTTOM_RESERVE - y0, 1)), r
+end
+
+-- Stacks rows (heights) top down inside the zone with a gap; returns one rect per row.
+function ShopSceneLayout.stackRows(zone, heights, gap)
+	local out, y = {}, zone.y
+	for i, h in ipairs(heights) do
+		out[i] = rect(zone.x, y, zone.w, h)
+		y = y + h + (gap or 8)
+	end
+	return out
+end
+
 -- Soft oval contact shadow under an offer as it bobs: farther up means smaller, fainter and narrower.
 -- phase is the bob offset in px (0 = rest, BOB_PX = highest). Returns { scale, transparency }.
 function ShopSceneLayout.shadowFor(phase)

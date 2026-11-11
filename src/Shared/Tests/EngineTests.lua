@@ -13813,6 +13813,30 @@ table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, prop
 	expectEqual(n, 2, "phone wraps into two rows")
 end })
 
+table.insert(tests, { name = "ShopSceneLayout: My Patrons / My Recipes rows stay in the zone right of Marlo, clear of tabs, Next Round and each other", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local expect = expectTrue
+	for _, sz in ipairs({ { 1660, 1080 }, { 1020, 720 }, { 800, 450 } }) do
+		local W, H = sz[1], sz[2]
+		local zone, r = L.tabZone(W, H, false)
+		expect(zone.w > 0 and zone.h > 0, "zone has size " .. W)
+		expect(not L.intersects(zone, r.marlo), "zone clear of Marlo " .. W)
+		expect(not L.intersects(zone, r.leave), "zone clear of Next Round " .. W)
+		expect(not L.intersects(zone, r.tabs) and not L.intersects(zone, r.nextBoss), "zone clear of the tabs " .. W)
+		expect(zone.x + zone.w <= W and zone.y + zone.h <= H, "zone inside the area " .. W)
+		-- My Patrons: header + seat row + header + pass row; My Recipes: header + row
+		local rows = L.stackRows(zone, { 30, 120, 30, 120 }, 8)
+		for i = 1, #rows do
+			expect(L.inside(rows[i], { x = zone.x, y = zone.y, w = zone.w, h = 10000 }), "row inside zone width " .. i)
+			for j = i + 1, #rows do
+				expect(not L.intersects(rows[i], rows[j]), "rows " .. i .. " and " .. j .. " do not overlap")
+			end
+		end
+		local free = L.tabZone(W, H, true)
+		expect(free.x < zone.x, "no Marlo means the whole stage is free")
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag never overlap and stay inside the card; offers sit inside the counter area", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, W in ipairs({ 120, 160, 220, 297 }) do

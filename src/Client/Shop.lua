@@ -1080,17 +1080,44 @@ return function(deps)
 	-- Every element parented into shopBuyListFrame, shopMyPatronsListFrame or shopMyRecipesListFrame
 	-- must still get an explicit, sequential LayoutOrder: UIListLayout ties are broken by Name.
 	local function addSectionHeader(parent, layoutOrder, text)
-		local header = Instance.new("TextLabel")
+		-- full-width holder (hidden as one piece on the Shop tab) with a centred dark plate and cream text
+		local header = Instance.new("Frame")
+		header.Name = "SectionHeader"
 		header.LayoutOrder = layoutOrder
-		header.Size = UDim2.new(1, 0, 0, 24)
+		header.Size = UDim2.new(1, 0, 0, 30)
 		header.BackgroundTransparency = 1
-		header.Font = Enum.Font.GothamBold
-		header.TextSize = 15
-		header.TextXAlignment = Enum.TextXAlignment.Left
-		header.TextColor3 = Color3.fromRGB(255, 214, 130)
-		header.Text = text
 		header.ZIndex = 6
 		header.Parent = parent
+		local plate = Instance.new("TextLabel")
+		plate.Name = "HeaderPlate"
+		plate.AnchorPoint = Vector2.new(0.5, 0.5)
+		plate.Position = UDim2.fromScale(0.5, 0.5)
+		plate.AutomaticSize = Enum.AutomaticSize.X
+		plate.Size = UDim2.fromOffset(0, 28)
+		plate.BackgroundColor3 = Color3.fromRGB(26, 18, 12)
+		plate.BackgroundTransparency = 0.1
+		plate.BorderSizePixel = 0
+		plate.Font = Enum.Font.GothamBold
+		plate.TextSize = 16
+		plate.TextColor3 = Color3.fromRGB(250, 238, 210)
+		plate.TextStrokeTransparency = 1
+		plate.TextTransparency = 0
+		plate.Text = text
+		plate.ZIndex = 7
+		plate.Parent = header
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 16)
+		pad.PaddingRight = UDim.new(0, 16)
+		pad.Parent = plate
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 8)
+		c.Parent = plate
+		local s = Instance.new("UIStroke")
+		s.Color = Color3.fromRGB(214, 170, 90)
+		s.Thickness = 1
+		s.Transparency = 0.4
+		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		s.Parent = plate
 		return header
 	end
 
@@ -1494,10 +1521,22 @@ return function(deps)
 		end
 	end
 
+	-- keeps the My Patrons / My Recipes content clear of Marlo (the stage knows where he stands)
+	local function padForStage(listFrame)
+		local pad = listFrame:FindFirstChild("StagePad")
+		if not pad then
+			pad = Instance.new("UIPadding")
+			pad.Name = "StagePad"
+			pad.Parent = listFrame
+		end
+		pad.PaddingLeft = UDim.new(0, shopStage and shopStage.tabPadLeft() or 0)
+	end
+
 	local function rebuildMyPatronsTab(state)
 		local ownedPatrons = (state and state.ownedPatrons) or {}
 		local housePassIds = (state and state.housePassIds) or {}
 		clearTab(shopMyPatronsListFrame)
+		padForStage(shopMyPatronsListFrame)
 
 		-- Every element needs an explicit, sequential LayoutOrder (see rebuildShop).
 		local nextOrder = 0
@@ -1507,10 +1546,12 @@ return function(deps)
 		end
 
 		addSectionHeader(shopMyPatronsListFrame, order(), "Patrons")
-		if #ownedPatrons == 0 then
-			shopCards.emptyScene(shopMyPatronsListFrame, order(), "patrons")
-		else
+		do
 			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
+			local seats = math.max(math.floor(tonumber(state and state.patronSlotLimit) or #ownedPatrons), #ownedPatrons)
+			for seat = #ownedPatrons + 1, seats do
+				shopCards.seatSlot(row, seat, "owned")
+			end
 			for index, owned in ipairs(ownedPatrons) do
 				local fullPatron = Patrons.getById(owned.id)
 				local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
@@ -1563,6 +1604,7 @@ return function(deps)
 
 	local function rebuildMyRecipesTab(state)
 		clearTab(shopMyRecipesListFrame)
+		padForStage(shopMyRecipesListFrame)
 
 		local inventories = {
 			house = (state and state.houseRecipeInventory) or {},

@@ -132,6 +132,13 @@ function ShopStage.new(deps)
 	end
 
 	local tabKey = "buy"
+	-- Left padding (inside the tab lists, which start at x 10) that keeps My Patrons / My Recipes clear of Marlo.
+	function self.tabPadLeft()
+		local W, H = shopFrame.AbsoluteSize.X, shopFrame.AbsoluteSize.Y
+		if W < 1 or H < 1 then return 0 end
+		local zone = Layout.tabZone(W, H, backdrop.marlo == nil)
+		return math.max(zone.x - 10, 0)
+	end
 	function self.setTab(key)
 		tabKey = key
 		local onBuy = key == "buy"

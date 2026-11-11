@@ -226,9 +226,16 @@ function ShopCards.new(deps)
 			label(group, { Size = UDim2.fromScale(1, 1), Text = icons[i] or "", TextSize = math.floor(30 * scale), TextTransparency = 0.82,
 				TextColor3 = CREAM })
 		end
-		label(scene, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4), Size = UDim2.new(1, -20, 0, 30),
+		local msg = label(scene, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4), Size = UDim2.fromOffset(0, 30),
 			Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = CREAM, TextStrokeColor3 = Color3.fromRGB(30, 20, 12),
-			TextStrokeTransparency = 0.8, Text = EmptyStates.line(key) })
+			TextStrokeTransparency = 0.8, Text = EmptyStates.line(key), BackgroundColor3 = Color3.fromRGB(26, 18, 12),
+			BackgroundTransparency = 0.1 })
+		msg.AutomaticSize = Enum.AutomaticSize.X
+		corner(msg, 8)
+		local msgPad = Instance.new("UIPadding")
+		msgPad.PaddingLeft = UDim.new(0, 16)
+		msgPad.PaddingRight = UDim.new(0, 16)
+		msgPad.Parent = msg
 		if addTooltip then
 			local hint = EmptyStates.hint(key)
 			if hint ~= "" then
@@ -244,6 +251,27 @@ function ShopCards.new(deps)
 			end
 		end
 		return scene
+	end
+
+	-- An empty seat: a dotted outline the size of an owned card (My Patrons shows one per free seat).
+	function self.seatSlot(row, layoutOrder, kind)
+		local shape = shapeFor(kind)
+		local slot = frame(row, { Name = "SeatSlot", LayoutOrder = layoutOrder,
+			Size = UDim2.fromOffset(shape.w, shape.h + HEAD + 4), BackgroundTransparency = 1 })
+		local box = frame(slot, { Position = UDim2.fromOffset(0, HEAD), Size = UDim2.fromOffset(shape.w, shape.h),
+			BackgroundColor3 = Color3.fromRGB(20, 14, 10), BackgroundTransparency = 0.5 })
+		corner(box, 10)
+		local step = 14
+		local function dot(x, y)
+			local d = frame(box, { Position = UDim2.fromOffset(x - 2, y - 2), Size = UDim2.fromOffset(4, 4),
+				BackgroundColor3 = CREAM, BackgroundTransparency = 0.45 })
+			corner(d, 2)
+		end
+		for x = 8, shape.w - 8, step do dot(x, 4) dot(x, shape.h - 4) end
+		for y = 8, shape.h - 8, step do dot(4, y) dot(shape.w - 4, y) end
+		label(box, { Size = UDim2.fromScale(1, 1), Text = "Empty seat", TextSize = 15, TextWrapped = true,
+			TextColor3 = CREAM, TextTransparency = 0.25 })
+		return slot
 	end
 
 	function self.soldSpot(row, layoutOrder, kind, animate)
