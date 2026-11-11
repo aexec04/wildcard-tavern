@@ -37,7 +37,7 @@ function PlayScenePaint.install(deps)
 	image.Visible = false
 	image.Parent = root
 
-	local loaded, painted = false, false
+	local loaded, painted, covered = false, false, false
 	local platesId = art.play_plates_b
 	local PlayPlates = require(script.Parent.PlayPlates)
 	local function plates(p)
@@ -71,7 +71,7 @@ function PlayScenePaint.install(deps)
 			local m = p.map.image
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
-			image.Visible = handFrame.Visible
+			image.Visible = handFrame.Visible and not covered
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)
@@ -97,8 +97,17 @@ function PlayScenePaint.install(deps)
 	end
 
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
+
+	-- While the Counter is open the hand, Actions row, deck widget and painted table front are hidden (Client/ShopCover)
+	require(script.Parent.ShopCover).install({
+		root = root, frames = { handFrame, actionFrame, deps.deckWidget },
+		onChange = function(on)
+			covered = on
+			image.Visible = painted and handFrame.Visible and not covered
+		end,
+	})
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible end
+		if painted then image.Visible = handFrame.Visible and not covered end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)
