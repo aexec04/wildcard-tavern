@@ -66,4 +66,24 @@ function M.map(areaW, areaH)
 	return out
 end
 
+-- Where the live hand row and the Actions row go on the painted table. The cards (144 px tall in a 176 px frame, 16 px of
+-- padding under them) stand with their bottom edge on the middle of the rail groove; the Actions row is centred in the plate strip.
+-- Returns nil when the painted layout cannot hold them (the old layout stays). left = sidebar edge, rightReserve = the draw pile.
+M.HAND_H, M.ACTION_H, M.CARD_PAD = 176, 54, 16
+
+function M.placement(areaW, areaH, left, rightReserve)
+	if not M.usable(areaW) then return nil end
+	local m = M.map(areaW, areaH)
+	local right = math.min(areaW - rightReserve, m.deck.x - 8)
+	local w = math.min(math.floor(m.rail.w * 1.3), right - left)
+	if w < 400 then return nil end
+	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
+	x = math.floor(x + 0.5)
+	local handY = math.floor(m.rail.y + m.rail.h / 2 + M.CARD_PAD - M.HAND_H + 0.5)
+	local stripMid = m.plates.play.y + m.plates.play.h / 2
+	local actY = math.floor(stripMid - M.ACTION_H / 2 + 0.5)
+	if handY < 0 or actY + M.ACTION_H > areaH or actY < handY + M.HAND_H then return nil end
+	return { map = m, hand = { x = x, y = handY, w = w, h = M.HAND_H }, actions = { x = x, y = actY, w = w, h = M.ACTION_H } }
+end
+
 return M

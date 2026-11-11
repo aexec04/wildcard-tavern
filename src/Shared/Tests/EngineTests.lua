@@ -18820,6 +18820,25 @@ table.insert(tests, { name = "PlayTableLayout: table is bottom anchored full wid
 	end
 end })
 
+table.insert(tests, { name = "PlayTableLayout.placement: hand stands on the rail, clear of sidebar and deck, Actions row under it (1920x957, 1280x720, 1000x600, phone nil)", fn = function()
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectTrue(PT.placement(390, 844, 0, 150) == nil, "phone keeps the old layout")
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 }, { 1000, 600 } }) do
+		local w, h = sz[1], sz[2]
+		local p = PT.placement(w, h, 260, 150)
+		expectTrue(p ~= nil, "placement exists at " .. w .. "x" .. h)
+		if p then
+			expectTrue(p.hand.x >= 260 and p.hand.x + p.hand.w <= w - 150, "hand between sidebar and deck at " .. w)
+			expectTrue(p.hand.y >= 0, "hand top on screen")
+			local cardBottom = p.hand.y + p.hand.h - PT.CARD_PAD
+			expectTrue(math.abs(cardBottom - (p.map.rail.y + p.map.rail.h / 2)) <= 1, "card bottom on the rail groove at " .. w)
+			expectTrue(p.actions.y >= p.hand.y + p.hand.h, "Actions row below the hand frame")
+			expectTrue(p.actions.y + p.actions.h <= h, "Actions row on screen")
+			expectTrue(p.hand.x + p.hand.w <= p.map.deck.x + 1 or p.hand.y + p.hand.h <= p.map.deck.y + p.map.deck.h + PT.CARD_PAD, "hand does not cover the deck recess")
+		end
+	end
+end })
+
 table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3, width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
 	expectFalse(PB.usable(390))

@@ -432,7 +432,8 @@ function CardFace.layoutHand(handFrame)
 
 	local tray, host = getTray(handFrame)
 	if tray then
-		tray.Visible = count > 0 and handFrame.Visible
+		-- the painted table (Client/PlayScenePaint) has its own rail: no code-drawn tray while it is on
+		tray.Visible = count > 0 and handFrame.Visible and not handFrame:GetAttribute("PaintedRail")
 		local center = handFrame.AbsolutePosition + frameSize / 2 - host.AbsolutePosition
 		tray.Position = UDim2.fromOffset(center.X, center.Y)
 		tray.Size = UDim2.fromOffset(
