@@ -156,7 +156,7 @@ local function buildNote(rect, entry, scale)
 	root.Name = "Note_" .. tostring(entry.id)
 	root.AnchorPoint = Vector2.new(0.5, 0.5)
 	root.Position = UDim2.fromOffset(rect.x + rect.w / 2, rect.y + rect.h / 2)
-	root.Size = UDim2.fromOffset(Layout.NOTE_W, rect.h / scale)
+	root.Size = UDim2.fromOffset(rect.w / scale, rect.h / scale)
 	root.BackgroundTransparency = 1
 	root.BorderSizePixel = 0
 	root.ZIndex = 32
@@ -229,8 +229,8 @@ local function buildNote(rect, entry, scale)
 		if entry.claim then
 			local button = Instance.new("TextButton")
 			button.Name = "Claim"
-			button.Size = UDim2.fromOffset(Layout.NOTE_W - 24, 34)
-			button.Position = UDim2.fromOffset(12, rect.h / scale - 40)
+			button.Size = UDim2.fromOffset(rect.w / scale - 24, 34)
+			button.Position = UDim2.fromOffset(12, rect.h / scale - 46)
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16
 			button.TextColor3 = CREAM
@@ -354,6 +354,44 @@ function NewsPanel.init(deps)
 	woodEdge.Thickness = 6
 	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	woodEdge.Parent = panel
+	-- cork grain: a few very faint speckles at fixed spots (deterministic, no animation) and a thin inner shadow under the frame
+	local speck = Instance.new("Folder")
+	speck.Name = "Speckle"
+	speck.Parent = panel
+	local seed = 17
+	for i = 1, 70 do
+		seed = (seed * 1103515245 + 12345) % 2147483648
+		local fx = (seed % 1000) / 1000
+		seed = (seed * 1103515245 + 12345) % 2147483648
+		local fy = (seed % 1000) / 1000
+		local d = Instance.new("Frame")
+		d.Name = "Dot" .. i
+		d.Size = UDim2.fromOffset(2 + i % 3, 2 + i % 3)
+		d.Position = UDim2.new(0.02 + fx * 0.96, 0, 0.02 + fy * 0.96, 0)
+		d.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(120, 84, 50) or Color3.fromRGB(205, 165, 118)
+		d.BackgroundTransparency = 0.82
+		d.BorderSizePixel = 0
+		d.Active = false
+		d.ZIndex = 31
+		d.Parent = speck
+		deps.roundCorner(d, 3)
+	end
+	local inner = Instance.new("Frame")
+	inner.Name = "InnerShadow"
+	inner.Size = UDim2.new(1, -4, 1, -4)
+	inner.Position = UDim2.fromOffset(2, 2)
+	inner.BackgroundTransparency = 1
+	inner.BorderSizePixel = 0
+	inner.Active = false
+	inner.ZIndex = 31
+	inner.Parent = panel
+	deps.roundCorner(inner, 10)
+	local innerStroke = Instance.new("UIStroke")
+	innerStroke.Color = Color3.fromRGB(70, 46, 26)
+	innerStroke.Thickness = 3
+	innerStroke.Transparency = 0.65
+	innerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	innerStroke.Parent = inner
 
 	-- "Tavern News" on a small wooden nameplate hung on the top of the board
 	local heading = Instance.new("Frame")

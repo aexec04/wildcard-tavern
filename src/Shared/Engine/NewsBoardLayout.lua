@@ -17,12 +17,13 @@ local M = {}
 
 M.MARGIN = 10 -- from the board's edge to the notes
 M.GAP = 12
-M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 200, 132, 170 -- title (2 lines), time, a 3 line blurb; Claim adds a button row
+M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 200, 140, 178 -- title (2 lines), time, a 3 line blurb, then 12 px of paper; Claim adds a button row
+M.ROW_MAX, M.ROW_W_MIN, M.ROW_W_MAX = 3, 280, 310 -- wide boards: up to 3 notes on ONE row, each 280 to 310 wide
 M.MIN_SCALE, M.MAX_SCALE = 0.9, 1.3 -- below 0.9 the 14 px text would be unreadable: the board scrolls instead
 M.HEADING_H, M.SUBTITLE_H, M.CLOSE_H = 40, 26, 44
 
 function M.board(W, H)
-	local w = math.max(480, math.min(760, math.floor(W * 0.74)))
+	local w = math.max(480, math.min(960, math.floor(W * 0.8)))
 	local h = math.max(340, math.min(600, math.floor(H * 0.92)))
 	w, h = math.min(w, W), math.min(h, H)
 	return { x = (W - w) / 2, y = (H - h) / 2, w = w, h = h }
@@ -49,11 +50,12 @@ function M.tiltFor(id)
 	return (h % 5 - 2) * 0.8 -- -1.6, -0.8, 0, 0.8 or 1.6 degrees
 end
 
-local function gridAt(scale, areaW, notes)
+local function gridAt(scale, areaW, notes, fixed)
 	local w = M.NOTE_W * scale
 	local gap = M.GAP * scale
 	local cols = math.max(1, math.floor((areaW + gap) / (w + gap)))
 	cols = math.min(cols, math.max(1, #notes))
+	if fixed then w, cols = fixed.w, fixed.cols end
 	local rows, y = {}, 0
 	local i = 1
 	while i <= #notes do
@@ -77,20 +79,27 @@ function M.layout(areaW, areaH, notes)
 	if #notes == 0 then return { scale = 1, scroll = false, contentH = 0, rects = {} } end
 	local usableW = areaW
 	local chosen
+	-- wide board (desktop): up to ROW_MAX notes on one row at a fixed width, further notes on rows of ROW_MAX; narrow boards use the grid
+	local fixed
+	if areaW >= M.ROW_MAX * M.ROW_W_MIN + (M.ROW_MAX - 1) * M.GAP then
+		local cols = math.min(M.ROW_MAX, #notes)
+		fixed = { cols = cols, w = math.min(M.ROW_W_MAX, (areaW - (cols - 1) * M.GAP) / cols) }
+	end
 	-- the biggest scale (few notes are drawn big) at which the whole grid fits the area; below MIN_SCALE the board scrolls
-	local scale = M.MAX_SCALE
+	local scale = fixed and 1 or M.MAX_SCALE
 	while scale >= M.MIN_SCALE - 1e-9 do
-		local rows, contentH, w = gridAt(scale, usableW, notes)
+		local rows, contentH, w = gridAt(scale, usableW, notes, fixed)
 		local widest = 0
 		for _, r in ipairs(rows) do widest = math.max(widest, #r.cells) end
 		if contentH <= areaH and widest * w + (widest - 1) * M.GAP * scale <= usableW + 1e-6 then
 			chosen = { scale = scale, scroll = false }
 			break
 		end
+		if fixed then break end
 		scale = scale - 0.02
 	end
-	chosen = chosen or { scale = M.MIN_SCALE, scroll = true }
-	local rows, contentH, w, gap = gridAt(chosen.scale, usableW, notes)
+	chosen = chosen or { scale = fixed and 1 or M.MIN_SCALE, scroll = true }
+	local rows, contentH, w, gap = gridAt(chosen.scale, usableW, notes, fixed)
 	local out = { scale = chosen.scale, scroll = chosen.scroll, contentH = contentH, rects = {} }
 	local y0 = chosen.scroll and 0 or math.max(0, (areaH - contentH) / 2) -- centre the block when it fits
 	for _, row in ipairs(rows) do

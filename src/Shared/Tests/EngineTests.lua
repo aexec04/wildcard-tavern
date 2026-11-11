@@ -17365,11 +17365,26 @@ table.insert(tests, { name = "NewsBoardLayout: every note inside the board with 
 		end
 		-- few notes are drawn bigger so the cork never looks empty; they are centred
 		local one = L.layout(a.notes.w, a.notes.h, { { id = "solo" } })
-		expectTrue(one.scale > 1.05, "a single note is drawn bigger than life size" .. where)
+		local wide = a.notes.w >= L.ROW_MAX * L.ROW_W_MIN + (L.ROW_MAX - 1) * L.GAP
+		expectTrue(wide or one.scale > 1.05, "a single note is drawn bigger than life size on a narrow board" .. where)
+		if wide then
+			expectTrue(one.rects[1].w >= L.ROW_W_MIN - 1e-6 and one.rects[1].w <= L.ROW_W_MAX + 1e-6, "wide board: a note is 280 to 310 wide" .. where)
+			local three3 = L.layout(a.notes.w, a.notes.h, { { id = "a", claim = true }, { id = "b", claim = true }, { id = "c" } })
+			for _, rc in ipairs(three3.rects) do
+				expectTrue(rc.w >= L.ROW_W_MIN - 1e-6 and rc.w <= L.ROW_W_MAX + 1e-6, "wide board: three notes are 280 to 310 wide" .. where)
+				expectTrue(math.abs((rc.y + rc.h / 2) - (three3.rects[1].y + three3.rects[1].h / 2)) < 1, "wide board: three notes share ONE row" .. where)
+			end
+			expectFalse(three3.scroll, "wide board: three notes never scroll" .. where)
+			local five = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" }, { id = "d" }, { id = "e" } })
+			local rowsSeen = {}
+			for _, rc in ipairs(five.rects) do rowsSeen[math.floor(rc.y)] = (rowsSeen[math.floor(rc.y)] or 0) + 1 end
+			for _, n in pairs(rowsSeen) do expectTrue(n <= L.ROW_MAX, "wide board: at most 3 notes per row" .. where) end
+		end
+		expectTrue(L.NOTE_H >= 8 + 42 + 24 + 50 + 12 and L.NOTE_H_CLAIM >= L.NOTE_H + 34 + 4, "notes leave 12 px of paper under the last line" .. where)
 		local r = one.rects[1]
 		expectTrue(math.abs((r.x + r.w / 2) - a.notes.w / 2) < 1 and math.abs((r.y + r.h / 2) - a.notes.h / 2) < 1, "a single note is centred" .. where)
 		local four = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" }, { id = "d" } })
-		expectTrue(four.scale <= one.scale, "more notes never get bigger" .. where)
+		expectTrue(four.scale <= one.scale + 1e-6, "more notes never get bigger" .. where)
 		local three = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" } })
 		local cols = 0
 		for _, rc in ipairs(three.rects) do if math.abs(rc.y - three.rects[1].y) < 1 then cols = cols + 1 end end
