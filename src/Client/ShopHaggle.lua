@@ -97,7 +97,7 @@ function ShopHaggle.new(deps)
 	chooser.Name = "HaggleChooser"
 	chooser.AnchorPoint = Vector2.new(0.5, 0.5)
 	chooser.Position = UDim2.fromScale(0.5, 0.5)
-	chooser.Size = UDim2.fromOffset(420, 120)
+	chooser.Size = UDim2.fromOffset(420, 164)
 	chooser.BackgroundColor3 = PARCHMENT
 	chooser.ZIndex = Z
 	chooser.Visible = false
@@ -115,7 +115,7 @@ function ShopHaggle.new(deps)
 	local chooserList = Instance.new("Frame")
 	chooserList.BackgroundTransparency = 1
 	chooserList.Position = UDim2.fromOffset(10, 40)
-	chooserList.Size = UDim2.new(1, -20, 1, -50)
+	chooserList.Size = UDim2.new(1, -20, 0, 60)
 	chooserList.ZIndex = Z
 	chooserList.Parent = chooser
 	local chooserLayout = Instance.new("UIListLayout")
@@ -124,6 +124,52 @@ function ShopHaggle.new(deps)
 	chooserLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	chooserLayout.Padding = UDim.new(0, 8)
 	chooserLayout.Parent = chooserList
+
+	-- Cancel (text button under the items), plus a dim click-catcher behind the plate: both close the chooser.
+	local cancelButton = Instance.new("TextButton")
+	cancelButton.Name = "HaggleCancel"
+	cancelButton.AnchorPoint = Vector2.new(0.5, 1)
+	cancelButton.Position = UDim2.new(0.5, 0, 1, -8)
+	cancelButton.Size = UDim2.fromOffset(110, 34)
+	cancelButton.BackgroundTransparency = 1
+	cancelButton.Font = Enum.Font.GothamBold
+	cancelButton.TextSize = 16
+	cancelButton.TextColor3 = INK
+	cancelButton.TextTransparency = 0
+	cancelButton.TextStrokeTransparency = 1
+	cancelButton.Text = "Cancel"
+	cancelButton.ZIndex = Z + 1
+	cancelButton.Parent = chooser
+	local dim = Instance.new("TextButton")
+	dim.Name = "HaggleDim"
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dim.BackgroundTransparency = 0.6
+	dim.BorderSizePixel = 0
+	dim.AutoButtonColor = false
+	dim.Text = ""
+	dim.ZIndex = Z - 1
+	dim.Visible = false
+	dim.Parent = shopFrame
+	chooser:GetPropertyChangedSignal("Visible"):Connect(function()
+		dim.Visible = chooser.Visible
+	end)
+	cancelButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		chooser.Visible = false
+	end)
+	dim.MouseButton1Click:Connect(function()
+		chooser.Visible = false
+	end)
+	-- Escape and the click on the dim area go through the one shared PopupDismiss (panel = the plate, so a click on it is not outside).
+	pcall(function()
+		require(script.Parent.PopupDismiss).attach(dim, {
+			panel = chooser,
+			close = function() chooser.Visible = false end,
+			policy = "dismiss",
+			button = true,
+		})
+	end)
 
 	-- Timing bar.
 	local bar = Instance.new("Frame")
@@ -307,7 +353,7 @@ function ShopHaggle.new(deps)
 		for _, pack in ipairs(state.packOffers or {}) do
 			add("pack", pack)
 		end
-		chooser.Size = UDim2.fromOffset(math.max(260, order * 128 + 12), 120)
+		chooser.Size = UDim2.fromOffset(math.max(260, order * 128 + 12), 164)
 	end
 
 	-- Called from rebuildShop on every render while the shop is open.
