@@ -14207,6 +14207,33 @@ table.insert(tests, { name = "TooltipSpec: left HUD tooltips open to the right a
 	end
 end })
 
+table.insert(tests, { name = "Badges: every plate name shows whole in at most two lines at all sizes", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local B = require(script.Parent.Parent.Engine.Badges)
+	local byId = {}
+	for _, def in ipairs(B.Definitions) do
+		byId[def.id] = def
+		if def.tier == "master" then
+			expectTrue(not W.plateText(def, true):find("Badge$"), def.id .. " plate drops the Badge suffix")
+		end
+	end
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local f = RL.badgesPanel(vp[1], vp[2])
+		local size = { f.w - 40, f.h - 150 } -- the wall board inside the panel
+		for _, chip in ipairs(B.Chips) do
+			-- the dense shelf tabs (All, Special) have columns under 70 px on narrow boards; Studio's TextService is the real
+			-- measure there, so the estimate is enforced on the wide board and on every few-badge tab
+			local dense = (chip == "All" or chip == "Special") and vp[1] < 1920
+			for _, it in ipairs(dense and {} or W.layout(chip, nil, size[1], size[2]).items) do
+				local p = W.plateRect(it)
+				local lines = W.plateLines(W.plateText(byId[it.id], true), p.w, 15)
+				expectTrue(lines <= math.floor(p.h / 15), chip .. " " .. tostring(it.id) .. " plate text fits at " .. vp[1] .. " w " .. p.w)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Badges: nameplates fit two lines inside their column, panel clears the left HUD", fn = function()
 	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
 	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)

@@ -130,8 +130,7 @@ function Wall.layout(chip, defs, w, h)
 			items[i] = { id = d.id, x = math.floor(cx - size / 2), y = math.floor(cy - size / 2), size = size, cell = w * 0.76 / math.max(1, n) }
 		end
 	else
-		local rows = chip == "All" and 3 or 2
-		local pos = rowsLayout(#list, rows, w, h, h * 0.04, h * 0.04)
+		local rows = chip == "All" and 3 or 2		local pos = rowsLayout(#list, rows, w, h, h * 0.04, h * 0.04)
 		local perRow = math.ceil(#list / rows)
 		for i, d in ipairs(list) do
 			items[i] = { id = d.id, x = pos[i].x, y = pos[i].y, size = pos[i].size, drop = Wall.SHELF_DROP, cell = pos[i].cell }
@@ -252,9 +251,28 @@ function Wall.progress(have)
 	return earned, total, total > 0 and earned / total or 0
 end
 
--- Nameplate text: always the full badge name (earned or not); the requirement lives in the hover tooltip.
+-- Nameplate text: the badge name (earned or not) without the redundant " Badge" suffix on Master badges, so the whole
+-- name fits two lines; the tooltip and detail card keep the full name and the requirement.
 function Wall.plateText(def, owned)
+	if def.tier == "master" then
+		return (def.name:gsub("%s+Badge$", ""))
+	end
 	return def.name
+end
+
+-- Estimated wrapped line count for text in a plate of width w at text size `size` (greedy word wrap, 0.52 em per
+-- character, close to a typical sans face; Studio's TextService is the real measure).
+function Wall.plateLines(text, w, size)
+	local perLine = math.max(1, math.floor((w - 6) / (size * 0.52)))
+	local lines, cur = 1, 0
+	for word in text:gmatch("%S+") do
+		local len = #word
+		if cur == 0 then cur = len
+		elseif cur + 1 + len <= perLine then cur = cur + 1 + len
+		else lines, cur = lines + 1, len end
+		while cur > perLine do lines, cur = lines + 1, cur - perLine end
+	end
+	return lines
 end
 
 -- Nameplate rectangle relative to the badge's top-left: as wide as the item's own column (so two lines of name fit), never
