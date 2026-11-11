@@ -6,6 +6,12 @@
 ]]
 
 return {
+	["coll_sec_bonds_a"] = "rbxassetid://103402795025433",
+	["coll_sec_bosses_a"] = "rbxassetid://94570422932907",
+	["coll_sec_passes_a"] = "rbxassetid://114907596752516",
+	["coll_sec_patrons_a"] = "rbxassetid://81479005908393",
+	["coll_sec_recipes_a"] = "rbxassetid://72938288486702",
+	["coll_sec_titles_a"] = "rbxassetid://125261018731827",
 	["collection_chest_closed"] = "rbxassetid://104436510341754",
 	["collection_chest_open"] = "rbxassetid://86214738084275",
 	["collection_corkboard"] = "rbxassetid://112799926847161",
