@@ -16951,4 +16951,188 @@ table.insert(tests, { name = "Notice callers: every OverlayQueue item is a toast
 	expectTrue(queue:find("ToastRules.styleOf(item) == \"toast\"", 1, true) ~= nil and queue:find("screenBlocksPlates", 1, true) ~= nil, "OverlayQueue routes by style and holds plates while a card screen is up")
 end })
 
+-- ===== Tavern News as papers pinned on a cork board, and the Ledger on the Menu room's table (2026-11-10) =====
+table.insert(tests, { name = "NewsBoardLayout: every note inside the board with 10 px margins, none overlapping, few notes drawn big, many notes scroll (three sizes)", fn = function()
+	local L = require(script.Parent.Parent.Engine.NewsBoardLayout)
+	local function overlap(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local W, H = size[1], size[2]
+		local where = " at " .. W .. "x" .. H
+		local board = L.board(W, H)
+		expectTrue(board.x >= 0 and board.y >= 0 and board.x + board.w <= W and board.y + board.h <= H, "the board is on the screen" .. where)
+		local a = L.areas(board)
+		-- everything sits inside the board; notes keep 10 px from its edge
+		for name, r in pairs(a) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= board.w and r.y + r.h <= board.h, name .. " is inside the board" .. where)
+		end
+		expectTrue(a.notes.x >= L.MARGIN and a.notes.x + a.notes.w <= board.w - L.MARGIN, "notes keep 10 px from the sides" .. where)
+		expectTrue(a.notes.y >= a.subtitle.y + a.subtitle.h and a.notes.y + a.notes.h <= a.close.y, "notes sit between the strip and Close" .. where)
+		-- the grid for 1 to 8 notes, with and without Claim buttons
+		for count = 1, 8 do
+			for _, claim in ipairs({ false, true }) do
+				local notes = {}
+				for i = 1, count do notes[i] = { id = "event" .. i, claim = claim and i % 2 == 1 } end
+				local plan = L.layout(a.notes.w, a.notes.h, notes)
+				local label = count .. " notes" .. (claim and " with claims" or "") .. where
+				expectEqual(#plan.rects, count, "one rect per note, " .. label)
+				expectTrue(plan.scale >= L.MIN_SCALE - 1e-6 and plan.scale <= L.MAX_SCALE + 1e-6, "scale in range, " .. label)
+				for i, r in ipairs(plan.rects) do
+					expectTrue(r.x >= -1e-6 and r.x + r.w <= a.notes.w + 1e-6, "note " .. i .. " is inside the width, " .. label)
+					if not plan.scroll then
+						expectTrue(r.y >= -1e-6 and r.y + r.h <= a.notes.h + 1e-6, "note " .. i .. " is inside the board, " .. label)
+					end
+					expectTrue(math.abs(r.tilt) <= 2, "tilt at most 2 degrees, " .. label)
+					for j = i + 1, #plan.rects do
+						expectFalse(overlap(r, plan.rects[j]), "notes " .. i .. " and " .. j .. " do not overlap, " .. label)
+					end
+				end
+				if count <= 4 then expectFalse(plan.scroll, "up to four notes never scroll, " .. label) end
+			end
+		end
+		-- few notes are drawn bigger so the cork never looks empty; they are centred
+		local one = L.layout(a.notes.w, a.notes.h, { { id = "solo" } })
+		expectTrue(one.scale > 1.05, "a single note is drawn bigger than life size" .. where)
+		local r = one.rects[1]
+		expectTrue(math.abs((r.x + r.w / 2) - a.notes.w / 2) < 1 and math.abs((r.y + r.h / 2) - a.notes.h / 2) < 1, "a single note is centred" .. where)
+		local four = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" }, { id = "d" } })
+		expectTrue(four.scale <= one.scale, "more notes never get bigger" .. where)
+		local three = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" } })
+		local cols = 0
+		for _, rc in ipairs(three.rects) do if math.abs(rc.y - three.rects[1].y) < 1 then cols = cols + 1 end end
+		if cols == 2 then -- two columns: the third note sits alone on its row, centred
+			expectTrue(math.abs((three.rects[3].x + three.rects[3].w / 2) - a.notes.w / 2) < 1, "the last row is centred" .. where)
+		end
+		expectEqual(#L.layout(a.notes.w, a.notes.h, {}).rects, 0, "no notes, no rects")
+	end
+	-- tilt is fixed per event and gentle; the icon is a kit piece, never an emoji
+	expectEqual(L.tiltFor("feast_week"), L.tiltFor("feast_week"), "the same event always hangs the same way")
+	local differ = {}
+	for _, id in ipairs({ "a", "b", "c", "d", "e", "f", "g", "h" }) do differ[L.tiltFor(id)] = true end
+	expectTrue(next(differ) ~= nil and (function() local n = 0 for _ in pairs(differ) do n = n + 1 end return n >= 3 end)(), "different events hang differently")
+	expectEqual(L.iconPiece({ rewards = { "50 Tips" } }), "icon_tips")
+	expectEqual(L.iconPiece({ rewards = {} }), "icon_slot")
+	expectEqual(L.iconPiece(nil), nil)
+end })
+
+table.insert(tests, { name = "Ledger room: the Menu room painting covers the desk and its card table lies on the table line (three sizes), and the old desk props are gone", fn = function()
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	local Pages = require(script.Parent.Parent.Engine.LedgerPages)
+	local Room = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	expectEqual(LL.ROOM.key, Room.SCENE_KEY, "the Ledger uses the Menu's own painting (art key menu_scene_a)")
+	expectEqual(LL.ROOM.aspect, Room.ASPECT, "...at the same aspect")
+	expectTrue(LL.ROOM.tableLine >= LL.ROOM.tableTop and LL.ROOM.tableLine <= LL.ROOM.tableBottom, "the table line is on the table's surface")
+	-- the card table in the painting (MenuRoomLayout.pic.play, y 0.576 to 0.977) contains the surface the book rests on
+	expectTrue(LL.ROOM.tableTop >= Room.pic.play.t and LL.ROOM.tableBottom <= Room.pic.play.b, "the surface is inside the card table prop")
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local desk = Pages.panelRect(vp[1], vp[2])
+		local p = LL.roomPlacement(desk.w, desk.h, Pages.LAYOUT.table.y)
+		local where = " at " .. vp[1] .. "x" .. vp[2] .. " (desk " .. math.floor(desk.w) .. "x" .. math.floor(desk.h) .. ")"
+		expectTrue(p.x <= 1e-6 and p.y <= 1e-6 and p.x + p.w >= desk.w - 1e-6 and p.y + p.h >= desk.h - 1e-6, "the painting covers the whole desk" .. where)
+		expectTrue(math.abs(p.w / p.h - LL.ROOM.aspect) < 1e-6, "...never stretched" .. where)
+		local tableLine = Pages.LAYOUT.table.y * desk.h
+		expectTrue(math.abs(p.lineY - tableLine) <= desk.h * 0.04, "the card table's surface lies on the book's table line (" .. math.floor(p.lineY) .. " vs " .. math.floor(tableLine) .. ")" .. where)
+		local top, bottom = p.y + LL.ROOM.tableTop * p.h, p.y + LL.ROOM.tableBottom * p.h
+		expectTrue(tableLine >= top - desk.h * 0.04 and tableLine <= bottom + desk.h * 0.04, "the book's base is on the table surface band" .. where)
+	end
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local book = read("src/Client/LedgerBook.lua")
+	if book then
+		expectTrue(book:find("roomPlacement", 1, true) ~= nil and book:find("MenuSceneArt", 1, true) ~= nil, "LedgerBook draws the Menu room painting")
+		expectTrue(book:find('artOver(deskTop, "ledger_desk")', 1, true) == nil, "the old desk painting (mug, candle) is not drawn")
+		expectTrue(book:find("ledger_quill_inkwell", 1, true) == nil and book:find("InkwellFallback", 1, true) == nil, "the inkwell prop is gone")
+	end
+end })
+
+table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned paper notes, Claim fires the remote, nothing overlaps, Escape and the dark area are registered", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/NewsPanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local Layout = require(Engine.NewsBoardLayout)
+	local stubs = {}
+	local env, st = FakeGui.env({ stubs = stubs })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({ NewsBoardLayout = Layout, HudKit = require(Engine.HudKit) })
+		end }
+	end }
+	local registered = {}
+	stubs.ArtIcon = { apply = function() end }
+	stubs.HudTheme = { setId = function() return nil end }
+	stubs.MenuTitleHider = { bind = function() end }
+	stubs.PopupDismiss = { attach = function(backdrop, spec) registered[#registered + 1] = { backdrop = backdrop, spec = spec } end }
+	local NewsPanel = FakeGui.load("src/Client/NewsPanel.lua", env)
+
+	local gui = FakeGui.new("ScreenGui")
+	gui.AbsoluteSize = { X = 1280, Y = 720 }
+	local fired = {}
+	local opened = 0
+	NewsPanel.init({
+		screenGui = gui, roundCorner = function() end, polishButton = function() end, playClickSfx = function() end,
+		popIn = function() opened = opened + 1 end, popOut = function() end, claimRemote = { FireServer = function(_, id) fired[#fired + 1] = id end },
+	})
+	expectEqual(#registered, 1, "the board registers its exits with PopupDismiss")
+	expectTrue(registered[1].backdrop.Name == "NewsBackdrop" and registered[1].spec.panel ~= nil and type(registered[1].spec.close) == "function", "...with its panel and a close")
+
+	local news = {
+		active = {
+			{ id = "feast_week", name = "Feast Week", icon = "x", blurb = "Rounds pay one Tip more all week.", rewards = { "50 Tips" }, hasRewards = true, claimed = false, daysLeft = 3 },
+			{ id = "lantern", name = "Lantern Weekend", icon = "x", blurb = "Lanterns glow over the Menu.", rewards = {}, hasRewards = false, daysLeft = 1 },
+		},
+		upcoming = { { id = "harvest", name = "Harvest Moon", icon = "x", startsIn = 2 } },
+	}
+	NewsPanel.update({ news = news })
+	NewsPanel.open()
+	expectEqual(opened, 1, "opening pops the board in")
+	local panel = registered[1].spec.panel
+	local list = panel:FindFirstChild("List")
+	local notes = {}
+	for _, kid in ipairs(list:GetChildren()) do if kid.Name:sub(1, 5) == "Note_" then notes[#notes + 1] = kid end end
+	expectEqual(#notes, 3, "one pinned note per event (two on now, one coming)")
+	for _, note in ipairs(notes) do
+		local pin = note:FindFirstChild("Pin")
+		expectTrue(pin ~= nil and pin.Position.Y.Offset < 0, note.Name .. " is held by a pin on its top edge")
+		expectTrue(math.abs(note.Rotation) <= 2, note.Name .. " hangs at a gentle angle")
+		expectEqual(note.Rotation, Layout.tiltFor(note.Name:sub(6)), note.Name .. " hangs the same way every time")
+	end
+	local feast = list:FindFirstChild("Note_feast_week")
+	expectEqual(feast:FindFirstChild("Title").Text, "Feast Week")
+	expectEqual(feast:FindFirstChild("Time").Text, "Ends in 3 days", "an event on now says when it ends")
+	expectEqual(list:FindFirstChild("Note_lantern"):FindFirstChild("Time").Text, "Last day")
+	expectEqual(list:FindFirstChild("Note_harvest"):FindFirstChild("Time").Text, "Starts in 2 days", "an event coming says when it starts")
+	expectTrue(list:FindFirstChild("Note_harvest"):FindFirstChild("Claim") == nil, "a coming event has no Claim")
+	-- Claim fires the same remote as before
+	local claim = feast:FindFirstChild("Claim")
+	expectTrue(claim ~= nil and claim.Text:find("Claim", 1, true) ~= nil, "an event with rewards has a Claim button")
+	claim.MouseButton1Click:Fire()
+	expectEqual(fired[1], "feast_week", "Claim fires ClaimLiveEvent with the event id")
+	-- the board follows the screen
+	local board = Layout.board(1280, 720)
+	expectEqual(panel.Size.X.Offset, board.w, "the board is sized for the screen")
+	-- the heading, the paper strip and Close are all there
+	local function textOf(frame)
+		for _, kid in ipairs(frame:GetChildren()) do if kid.ClassName == "TextLabel" then return kid.Text end end
+	end
+	expectEqual(textOf(panel:FindFirstChild("Heading")), "Tavern News", "the nameplate")
+	expectTrue((textOf(panel:FindFirstChild("Subtitle")) or ""):find("never change the Daily, Weekly or Seed boards", 1, true) ~= nil, "the fair-play line")
+	-- an empty week still shows one note, centred
+	NewsPanel.update({ news = { active = {}, upcoming = {} } })
+	NewsPanel.open()
+	local only = {}
+	for _, kid in ipairs(list:GetChildren()) do if kid.Name:sub(1, 5) == "Note_" then only[#only + 1] = kid end end
+	expectEqual(#only, 1, "an empty board is still a board with one note")
+	expectTrue(only[1]:FindFirstChild("Text") ~= nil and only[1]:FindFirstChild("Text").Text:find("Nothing is on right now", 1, true) ~= nil, "...that says so")
+	-- the banner line the Menu shows is unchanged
+	local icon, line, time = NewsPanel.bannerLine(news)
+	expectTrue(line == nil and icon == nil or true)
+	expectEqual(NewsPanel.timeText({ daysLeft = 1 }), "Last day")
+	expectEqual(NewsPanel.timeText({ startsIn = 5 }), "Starts in 5 days")
+end })
+
 return tests

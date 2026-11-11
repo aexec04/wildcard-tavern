@@ -102,13 +102,40 @@ function LedgerBook.build(deps, desk)
 		g.Rotation = 90
 		g.Parent = deskTop
 	end
-	artOver(deskTop, "ledger_desk")
-	require(script.Parent.SetSkin).register(deskTop, "panel") -- the set skin's code border (never the old stretched art)
-	local ink = piece(deskTop, { Name = "InkwellFallback", Size = UDim2.fromOffset(18, 34), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(0.985, 0, 0.99, 0), BackgroundColor3 = Color3.fromRGB(30, 22, 18) }, 5)
-	stroke(ink, BRASS, 2)
-	artOver(deskTop, "ledger_quill_inkwell", { Size = UDim2.fromOffset(70, 70), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(0.99, 0, 0.995, 0) })
-
 	local R = Pages.LAYOUT
+	-- The backdrop is the Menu's tavern room painting (same art key as the Menu and the Choice screens: fireplace, window, the long
+	-- counter and the green card table), slid so the table's surface lies on the table line where the book's base rests. The old desk
+	-- painting with its mug, candle and inkwell is gone. Without the painting the plain wood gradient stays.
+	local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
+	local roomId = MenuSceneArt[Layout.ROOM.key]
+	if type(roomId) == "string" and roomId ~= "" then
+		local clip = piece(deskTop, { Name = "RoomClip", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Active = false }, 14)
+		clip.ClipsDescendants = true
+		local painting = Instance.new("ImageLabel")
+		painting.Name = "RoomPainting"
+		painting.BackgroundTransparency = 1
+		painting.Image = roomId
+		painting.ScaleType = Enum.ScaleType.Stretch -- roomPlacement keeps the picture's own aspect, so nothing is distorted
+		painting.Active = false
+		painting.ZIndex = Z + 1
+		painting.Parent = clip
+		local function placeRoom()
+			local d = deskTop.AbsoluteSize
+			if d.X < 1 or d.Y < 1 then return end
+			local p = Layout.roomPlacement(d.X, d.Y, R.table.y)
+			painting.Position = UDim2.fromOffset(p.x, p.y)
+			painting.Size = UDim2.fromOffset(p.w, p.h)
+		end
+		placeRoom()
+		deskTop:GetPropertyChangedSignal("AbsoluteSize"):Connect(placeRoom)
+		require(script.Parent.SmoothVignette).build(clip, {
+			zIndex = Z + 2, color = Color3.fromRGB(14, 10, 6), name = "RoomVignette",
+			top = { strength = 0.6, extent = 0.25 }, bottom = { strength = 0.6, extent = 0.2 },
+			left = { strength = 0.5, extent = 0.2 }, right = { strength = 0.5, extent = 0.2 },
+		})
+	end
+	require(script.Parent.SetSkin).register(deskTop, "panel") -- the set skin's code border (never the old stretched art)
+
 	-- the scene darkens a little behind the book so the pages are the brightest thing
 	piece(desk, { Name = "DeskDim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.7, Active = false }, 14)
 

@@ -1,18 +1,33 @@
 -- News: a slim banner at the top of the main menu for the running live event (one line, art first, emoji until the
--- news art exists) and a small panel listing what is on now and what is coming up. Display only: the data and the
--- rewards come from the server (Engine/LiveEvents.lua -> state.news); Claim fires `ClaimLiveEvent`. Events never
--- change a fair board, and the panel says so.
+-- news art exists) and the Tavern News board: a cork board like the Notice Board on the menu wall, each event a small paper
+-- note pinned to it (brass pin, a fixed hand-hung tilt per event), a wooden nameplate on top, a paper strip under it and Close
+-- below. Display only: the data and the rewards come from the server (Engine/LiveEvents.lua -> state.news); Claim fires
+-- `ClaimLiveEvent`. Events never change a fair board, and the board says so. The grid is Engine/NewsBoardLayout (tested at
+-- 1920x1080, 1280x720 and 800x450: every note inside the board with 10 px margins, none overlapping, few notes drawn bigger so
+-- the cork never looks empty, many notes scrolling). Escape and a click on the dark area close it (Client/PopupDismiss).
 --
 -- attach(parent, layoutOrder)  called by Menu.lua once, builds the banner
 -- init(deps)                   { screenGui, polishPanel, polishButton, roundCorner, playClickSfx, popIn, popOut, claimRemote }
 -- update(state)                called from render in a pcall
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local NewsPanel = {}
 
+local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local Layout = require(Engine:WaitForChild("NewsBoardLayout"))
+local HudKit = require(Engine:WaitForChild("HudKit"))
+
 local INK = Color3.fromRGB(60, 40, 22)
+local INK_SOFT = Color3.fromRGB(110, 78, 40) -- on the paper about 5.6:1
 local PARCHMENT = Color3.fromRGB(222, 198, 150)
+local PAPER = Color3.fromRGB(238, 222, 186)
+local PAPER_SOON = Color3.fromRGB(226, 208, 170)
 local GOLD = Color3.fromRGB(222, 182, 104)
+local BRASS = Color3.fromRGB(190, 150, 62)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local WOOD = Color3.fromRGB(86, 58, 34)
+local CORK = Color3.fromRGB(168, 124, 78)
+local CORK_EDGE = Color3.fromRGB(96, 64, 38)
 local GREEN = Color3.fromRGB(70, 110, 65)
 
 local banner
@@ -26,6 +41,14 @@ function NewsPanel.timeText(row)
 	end
 	local n = row.startsIn or 0
 	return n <= 1 and "Starts tomorrow" or ("Starts in " .. tostring(n) .. " days")
+end
+
+-- The line on a pinned note: "Ends in 3 days" / "Last day" for what is on now, "Starts in 5 days" for what is coming.
+function NewsPanel.noteTime(row)
+	if row.daysLeft then
+		return row.daysLeft <= 1 and "Last day" or ("Ends in " .. tostring(row.daysLeft) .. " days")
+	end
+	return NewsPanel.timeText(row)
 end
 
 -- The one line on the banner for the news view, or nil when there is nothing to show.
@@ -99,74 +122,127 @@ function NewsPanel.attach(parent, layoutOrder)
 	return frame
 end
 
-local function buildActive(row, order)
-	local card = Instance.new("Frame")
-	card.Name = "Event_" .. row.id
-	card.Size = UDim2.new(1, -10, 0, 104)
-	card.LayoutOrder = order
-	card.BackgroundColor3 = PARCHMENT
-	card.ZIndex = 32
-	card.Parent = ui.list
-	ui.roundCorner(card, 10)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = GOLD
-	stroke.Thickness = 2
-	stroke.Parent = card
-	local well = Instance.new("Frame")
-	well.Size = UDim2.fromOffset(64, 64)
-	well.Position = UDim2.fromOffset(12, 20)
-	well.BackgroundColor3 = WOOD
-	well.ZIndex = 33
-	well.Parent = card
-	ui.roundCorner(well, 32)
-	local emoji = label(well, { Size = UDim2.fromScale(1, 1), Text = row.icon, TextSize = 34, TextColor3 = CREAM, ZIndex = 34 })
-	require(script.Parent.ArtIcon).apply(well, "events", row.bannerKey, emoji, { zIndex = 35, cornerRadius = 32 })
-	label(card, { Size = UDim2.new(1, -230, 0, 24), Position = UDim2.fromOffset(88, 8), Text = row.name, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left })
-	label(card, {
-		Size = UDim2.new(1, -230, 0, 40), Position = UDim2.fromOffset(88, 32), Text = row.blurb, TextSize = 15, Font = Enum.Font.GothamMedium,
-		TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+-- ===== the board =====
+local function screenSize()
+	local s = ui.screenGui.AbsoluteSize
+	if s.X < 1 or s.Y < 1 then
+		local cam = workspace.CurrentCamera
+		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+		return vp.X, vp.Y
+	end
+	return s.X, s.Y
+end
+
+local function place(obj, r)
+	obj.Position = UDim2.fromOffset(r.x, r.y)
+	obj.Size = UDim2.fromOffset(r.w, r.h)
+end
+
+-- the small kit icon on a note (coins for rewards, a seat otherwise); nothing when the equipped set has no kit
+local function noteIcon(row)
+	local piece = Layout.iconPiece(row)
+	local setId = require(script.Parent.HudTheme).setId()
+	return (piece and setId) and HudKit.piece(setId, piece) or nil
+end
+
+-- One paper note pinned to the cork. The rect is the final (scaled) rect inside the notes area; the note is built at its natural
+-- size and scaled about its centre, tilted by its fixed per-event angle.
+local function buildNote(rect, entry, scale)
+	local row = entry.row
+	local note = Instance.new("Frame")
+	note.Name = "Note_" .. tostring(entry.id)
+	note.AnchorPoint = Vector2.new(0.5, 0.5)
+	note.Position = UDim2.fromOffset(rect.x + rect.w / 2, rect.y + rect.h / 2)
+	note.Size = UDim2.fromOffset(Layout.NOTE_W, rect.h / scale)
+	note.Rotation = rect.tilt
+	note.BackgroundColor3 = entry.kind == "soon" and PAPER_SOON or PAPER
+	note.BorderSizePixel = 0
+	note.ZIndex = 32
+	note.Parent = ui.list
+	ui.roundCorner(note, 4)
+	local edge = Instance.new("UIStroke")
+	edge.Color = Color3.fromRGB(150, 118, 72)
+	edge.Thickness = 1
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edge.Parent = note
+	if scale ~= 1 then
+		local s = Instance.new("UIScale")
+		s.Scale = scale
+		s.Parent = note
+	end
+	local pin = Instance.new("Frame") -- the pin holds the note to the cork, on its top edge, clear of the text
+	pin.Name = "Pin"
+	pin.AnchorPoint = Vector2.new(0.5, 0.5)
+	pin.Position = UDim2.new(0.5, 0, 0, -3)
+	pin.Size = UDim2.fromOffset(11, 11)
+	pin.BackgroundColor3 = BRASS
+	pin.BorderSizePixel = 0
+	pin.Active = false
+	pin.ZIndex = 36
+	pin.Parent = note
+	ui.roundCorner(pin, 6)
+
+	if entry.kind == "empty" then
+		label(note, { Name = "Text", Size = UDim2.new(1, -24, 1, -16), Position = UDim2.fromOffset(12, 8), Text = row.text, TextSize = 17, TextWrapped = true })
+		return note
+	end
+
+	local iconId = noteIcon(row)
+	local textX = 12
+	if iconId then
+		local icon = Instance.new("ImageLabel")
+		icon.Name = "Icon"
+		icon.BackgroundTransparency = 1
+		icon.Image = iconId
+		icon.ScaleType = Enum.ScaleType.Fit
+		icon.Size = UDim2.fromOffset(28, 28)
+		icon.Position = UDim2.fromOffset(10, 10)
+		icon.Active = false
+		icon.ZIndex = 34
+		icon.Parent = note
+		textX = 44
+	end
+	label(note, {
+		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 24), Position = UDim2.fromOffset(textX, 10), Text = row.name, TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
-	label(card, {
-		Size = UDim2.new(1, -230, 0, 22), Position = UDim2.fromOffset(88, 76),
-		Text = (#row.rewards > 0 and (table.concat(row.rewards, ", ") .. "  |  ") or "") .. NewsPanel.timeText(row), TextSize = 14,
-		TextColor3 = Color3.fromRGB(110, 78, 40), TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+	label(note, {
+		Name = "Time", Size = UDim2.new(1, -(textX + 10), 0, 20), Position = UDim2.fromOffset(textX, 34), Text = NewsPanel.noteTime(row), TextSize = 14,
+		Font = Enum.Font.GothamMedium, TextColor3 = INK_SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
-	if row.hasRewards then
-		local button = Instance.new("TextButton")
-		button.Name = "Claim"
-		button.Size = UDim2.fromOffset(110, 38)
-		button.Position = UDim2.new(1, -122, 0.5, -19)
-		button.Font = Enum.Font.GothamBold
-		button.TextSize = 17
-		button.TextColor3 = CREAM
-		button.ZIndex = 34
-		button.Parent = card
-		ui.polishButton(button, 10)
-		if row.claimed then
-			button.Text = "Claimed"
-			button.BackgroundColor3 = Color3.fromRGB(110, 120, 90)
-			button.Active = false
-		else
-			button.Text = "Claim"
-			button.BackgroundColor3 = GREEN
-			button.MouseButton1Click:Connect(function()
-				ui.playClickSfx()
-				ui.claimRemote:FireServer(row.id)
-			end)
+	if entry.kind == "active" then
+		label(note, {
+			Name = "Blurb", Size = UDim2.new(1, -24, 0, 36), Position = UDim2.fromOffset(12, 58), Text = row.blurb or "", TextSize = 14,
+			Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		if entry.claim then
+			local button = Instance.new("TextButton")
+			button.Name = "Claim"
+			button.Size = UDim2.fromOffset(Layout.NOTE_W - 24, 34)
+			button.Position = UDim2.fromOffset(12, rect.h / scale - 42)
+			button.Font = Enum.Font.GothamBold
+			button.TextSize = 16
+			button.TextColor3 = CREAM
+			button.ZIndex = 34
+			button.Parent = note
+			ui.polishButton(button, 8)
+			if row.claimed then
+				button.Text = "Claimed"
+				button.BackgroundColor3 = Color3.fromRGB(110, 120, 90)
+				button.Active = false
+			else
+				button.Text = (#row.rewards > 0) and ("Claim: " .. table.concat(row.rewards, ", ")) or "Claim"
+				button.TextTruncate = Enum.TextTruncate.AtEnd
+				button.BackgroundColor3 = GREEN
+				button.MouseButton1Click:Connect(function()
+					ui.playClickSfx()
+					ui.claimRemote:FireServer(row.id)
+				end)
+			end
 		end
 	end
-end
-
-local function buildUpcoming(row, order)
-	local line = label(ui.list, {
-		Name = "Soon_" .. row.id, Size = UDim2.new(1, -10, 0, 30), LayoutOrder = order, TextSize = 16, TextColor3 = CREAM,
-		Text = string.format("%s %s   %s", row.icon, row.name, NewsPanel.timeText(row)), TextXAlignment = Enum.TextXAlignment.Left,
-	})
-	line.Font = Enum.Font.GothamMedium
-end
-
-local function heading(text, order)
-	label(ui.list, { Name = "Head_" .. order, Size = UDim2.new(1, -10, 0, 26), LayoutOrder = order, Text = text, TextSize = 18, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left })
+	return note
 end
 
 function NewsPanel.refresh()
@@ -178,48 +254,33 @@ function NewsPanel.refresh()
 			child:Destroy()
 		end
 	end
-	local order = 1
-	local content = 0 -- list height, for sizing the panel to what it shows
-	if #lastNews.active > 0 then
-		content += 34 + #lastNews.active * 112
-		heading("Happening now", order); order += 1
-		for _, row in ipairs(lastNews.active) do
-			buildActive(row, order); order += 1
-		end
+	local entries = {}
+	for _, row in ipairs(lastNews.active or {}) do
+		entries[#entries + 1] = { id = row.id, kind = "active", claim = row.hasRewards == true, row = row }
 	end
-	if #lastNews.upcoming > 0 then
-		content += 34 + #lastNews.upcoming * 38
-		heading("Coming up", order); order += 1
-		for _, row in ipairs(lastNews.upcoming) do
-			buildUpcoming(row, order); order += 1
-		end
+	for _, row in ipairs(lastNews.upcoming or {}) do
+		entries[#entries + 1] = { id = row.id, kind = "soon", claim = false, row = row }
 	end
-	if order == 1 then
-		content += 34
-		heading("Nothing is on right now. Check back soon!", order)
+	if #entries == 0 then -- an empty cork is still a board: one note says so
+		entries[1] = { id = "empty", kind = "empty", claim = false, row = { text = "Nothing is on right now. Check back soon!" } }
 	end
-	-- header 74 + list + Close row 76, between 240 and the 440 cap (the list scrolls past that)
-	local h = math.clamp(content + 150, 240, 440)
-	ui.panel.Size = UDim2.fromOffset(600, h)
-	ui.constraint.MaxSize = Vector2.new(600, h)
-	local kit = require(script.Parent.HudTheme).skin()
-	local art = kit and kit.id and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HudKit")).piece(kit.id, "panel_frame")
-	local frame = ui.panel:FindFirstChild("HudKitFrame")
-	if art then
-		if not frame then
-			frame = Instance.new("ImageLabel")
-			frame.Name = "HudKitFrame"
-			frame.BackgroundTransparency = 1
-			frame.BorderSizePixel = 0
-			frame.Active = false
-			frame.ScaleType = Enum.ScaleType.Stretch
-			frame.Size = UDim2.fromScale(1, 1)
-			frame.ZIndex = 32 -- Global layering: above the panel fill (31), level with the cards (32), below labels and Close (33)
-			frame.Parent = ui.panel
-		end
-		frame.Image = art
-	elseif frame then
-		frame:Destroy()
+	local W, H = screenSize()
+	local board = Layout.board(W, H)
+	local areas = Layout.areas(board)
+	ui.panel.Size = UDim2.fromOffset(board.w, board.h)
+	place(ui.heading, areas.heading)
+	place(ui.strip, areas.subtitle)
+	place(ui.list, areas.notes)
+	place(ui.close, areas.close)
+	local plan = Layout.layout(areas.notes.w, areas.notes.h, entries)
+	ui.list.CanvasSize = UDim2.fromOffset(0, plan.scroll and (plan.contentH + 24) or 0)
+	ui.list.ScrollingEnabled = plan.scroll
+	ui.list.ScrollBarThickness = plan.scroll and 6 or 0
+	ui.list.CanvasPosition = Vector2.new(0, 0)
+	for i, rect in ipairs(plan.rects) do
+		-- in the scrolling case the rects are already top-down from 0; a 10 px gutter keeps the first pin inside the list
+		local r = plan.scroll and { x = rect.x, y = rect.y + 12, w = rect.w, h = rect.h, tilt = rect.tilt } or rect
+		buildNote(r, entries[i], plan.scale)
 	end
 end
 
@@ -242,57 +303,79 @@ function NewsPanel.init(deps)
 	backdrop.Parent = deps.screenGui
 	require(script.Parent.MenuTitleHider).bind(deps.screenGui, backdrop)
 
+	-- the cork board: a warm cork fill (colour stops only) in a dark wooden frame
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.Size = UDim2.fromOffset(600, 440)
-	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	panel.BackgroundColor3 = CORK
+	panel.BorderSizePixel = 0
 	panel.ZIndex = 31
 	panel.Parent = backdrop
-	deps.polishPanel(panel, 16, "wood")
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(600, 440)
-	constraint.Parent = panel
+	deps.roundCorner(panel, 12)
+	local shade = Instance.new("UIGradient")
+	shade.Rotation = 90
+	shade.Color = ColorSequence.new(Color3.fromRGB(186, 142, 94), Color3.fromRGB(150, 108, 66))
+	shade.Parent = panel
+	local woodEdge = Instance.new("UIStroke")
+	woodEdge.Color = CORK_EDGE
+	woodEdge.Thickness = 6
+	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	woodEdge.Parent = panel
 
-	label(panel, { Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 8), Text = "Tavern News", TextSize = 26, TextColor3 = CREAM })
-	label(panel, {
-		Size = UDim2.new(1, -40, 0, 22), Position = UDim2.fromOffset(20, 44), TextSize = 15, TextColor3 = GOLD, Font = Enum.Font.GothamMedium,
-		Text = "Events never change the Daily, Weekly or Seed boards.",
+	-- "Tavern News" on a small wooden nameplate hung on the top of the board
+	local heading = Instance.new("Frame")
+	heading.Name = "Heading"
+	heading.BackgroundColor3 = WOOD
+	heading.BorderSizePixel = 0
+	heading.ZIndex = 33
+	heading.Parent = panel
+	deps.roundCorner(heading, 8)
+	local headEdge = Instance.new("UIStroke")
+	headEdge.Color = GOLD
+	headEdge.Thickness = 2
+	headEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	headEdge.Parent = heading
+	label(heading, { Size = UDim2.fromScale(1, 1), Text = "Tavern News", TextSize = 24, TextColor3 = CREAM, ZIndex = 34 })
+
+	-- the subtitle on a strip of paper
+	local strip = Instance.new("Frame")
+	strip.Name = "Subtitle"
+	strip.BackgroundColor3 = PAPER
+	strip.BorderSizePixel = 0
+	strip.ZIndex = 33
+	strip.Parent = panel
+	deps.roundCorner(strip, 4)
+	label(strip, {
+		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0), Text = "Events never change the Daily, Weekly or Seed boards.",
+		TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = INK, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 34,
 	})
+
 	local list = Instance.new("ScrollingFrame")
 	list.Name = "List"
-	list.Size = UDim2.new(1, -40, 1, -150)
-	list.Position = UDim2.fromOffset(20, 74)
 	list.BackgroundTransparency = 1
 	list.BorderSizePixel = 0
-	list.ScrollBarThickness = 6
-	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.ScrollBarThickness = 0
 	list.CanvasSize = UDim2.new(0, 0, 0, 0)
-	list.ZIndex = 31
+	list.ZIndex = 32
 	list.Parent = panel
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0, 8)
-	layout.Parent = list
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"
-	close.Size = UDim2.fromOffset(140, 38)
-	close.AnchorPoint = Vector2.new(0.5, 1)
-	close.Position = UDim2.new(0.5, 0, 1, -12)
 	close.Font = Enum.Font.GothamBold
 	close.TextSize = 17
 	close.Text = "Close"
 	close.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	close.TextColor3 = CREAM
-	close.ZIndex = 33
+	close.ZIndex = 34
 	close.Parent = panel
 	deps.polishButton(close, 10)
 
 	ui = {
-		backdrop = backdrop, panel = panel, list = list, constraint = constraint, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
-		playClickSfx = deps.playClickSfx, popIn = deps.popIn, popOut = deps.popOut, claimRemote = deps.claimRemote,
+		backdrop = backdrop, panel = panel, heading = heading, strip = strip, list = list, close = close, screenGui = deps.screenGui,
+		roundCorner = deps.roundCorner, polishButton = deps.polishButton, playClickSfx = deps.playClickSfx, popIn = deps.popIn,
+		popOut = deps.popOut, claimRemote = deps.claimRemote,
 	}
 	close.MouseButton1Click:Connect(function()
 		deps.playClickSfx()

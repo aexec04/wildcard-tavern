@@ -207,4 +207,22 @@ function LedgerLayout.paperRgb(side)
 	return { tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16) }
 end
 
+-- The Ledger's backdrop is the Menu's tavern room painting (art key menu_scene_a, 1536 x 1024, aspect 1.5: Engine/MenuRoomLayout.SCENE_KEY),
+-- not a desk of its own. The painting covers the desk (never stretched, centred sideways) and is slid down just far enough that the green
+-- card table's top surface (picture y 0.62 to 0.80, line 0.76) lies on the desk's table line, so the book's base rests on that surface.
+LedgerLayout.ROOM = { key = "menu_scene_a", aspect = 1.5, tableTop = 0.62, tableBottom = 0.80, tableLine = 0.76 }
+
+-- deskW, deskH in pixels; tableY = the desk fraction of the table line (LedgerPages.LAYOUT.table.y).
+-- Returns { x, y, w, h } of the painting in desk pixels and lineY, where the table line lands.
+function LedgerLayout.roomPlacement(deskW, deskH, tableY)
+	local R = LedgerLayout.ROOM
+	-- the picture's height: at least enough to cover the desk, and enough that its table line can reach the desk's table line
+	-- without sliding the top edge down into view (a slightly larger picture is cropped at the sides, never stretched)
+	local s = math.max(deskW / R.aspect, deskH, tableY * deskH / R.tableLine)
+	local pw, ph = R.aspect * s, s
+	local want = tableY * deskH - R.tableLine * ph
+	local oy = math.min(0, math.max(deskH - ph, want)) -- slide up when the picture is taller, never down
+	return { x = (deskW - pw) / 2, y = oy, w = pw, h = ph, lineY = oy + R.tableLine * ph }
+end
+
 return LedgerLayout
