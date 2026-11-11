@@ -16851,7 +16851,12 @@ table.insert(tests, { name = "ShopBackdrop draws an oval felt table with a wood 
 	local _, rank = FakeGui.drawOrder(gui)
 	local counter = root:FindFirstChild("CounterTop") or root:FindFirstChild("FallbackCounter")
 	expectTrue(counter ~= nil and rank[counter] < rank[rim], "the table is drawn over the counter")
-	expectTrue(rank[root:FindFirstChild("TableShadow")] < rank[rim], "the shadow is under the table")
+	if rim.ClassName == "Frame" then
+		expectTrue(rank[root:FindFirstChild("TableShadow")] < rank[rim], "the shadow is under the table")
+	else
+		-- the painted table is taller than its oval (the pedestal hangs below), so an oval shadow of the whole rect was a smoky disc
+		expectTrue(root:FindFirstChild("TableShadow") == nil and root:FindFirstChild("TableShadowFar") == nil, "the painted table has no oversized shadow ovals")
+	end
 	if rim.ClassName == "Frame" then expectTrue(rank[root:FindFirstChild("TableFelt")] > rank[rim], "the felt is over the rim") end
 	-- a phone has no table: nothing of it shows
 	shopFrame.AbsoluteSize = { X = 390, Y = 700 }
@@ -18023,6 +18028,17 @@ table.insert(tests, { name = "Collection room and section area: inside the panel
 			expectTrue(hot:FindFirstChild("NamePlate").Size.Y.Offset >= 24, id .. " plate is tall enough for its text" .. where)
 		end
 	end
+end })
+
+table.insert(tests, { name = "Epic rarity frames (Mega packs) have no rotated shine strip and the sweep stays inside the frame", fn = function()
+	local f = io and io.open and io.open("src/Client/RarityFrame.lua", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a")
+	f:close()
+	local epic = src:match('elseif rarityId == "epic" then(.-)elseif rarityId == "legendary"')
+	expectTrue(epic ~= nil, "the epic branch is found")
+	expectFalse(epic:find("Rotation", 1, true) ~= nil, "the epic shine is not rotated (a rotated strip escapes under the tilted Counter cards)")
+	expectTrue(epic:find("fromScale(0.78, 0)", 1, true) ~= nil and epic:find("fromScale(0.22, 1)", 1, true) ~= nil, "the band ends inside the frame (0.78 + 0.22 = 1)")
 end })
 
 table.insert(tests, { name = "Painted rooms (Collection and Badges): hotspots are rectangles of the picture, inside the room, no overlap over 10 percent, every section has one, the crop never stretches and a cut object falls back to the drawing", fn = function()

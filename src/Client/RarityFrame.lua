@@ -169,20 +169,21 @@ function M.apply(frame, rarityId, opts)
 			})
 		end
 	elseif rarityId == "epic" then
+		-- A soft upright band that sweeps across INSIDE the frame. It is not rotated and never leaves the frame's bounds: Roblox ignores
+		-- ClipsDescendants under a rotated ancestor (the tilted Counter cards), so a rotated or overshooting strip escaped as a diagonal streak.
 		local strip = plain(holder, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(-0.4, 0.5),
-			Size = UDim2.new(0.22, 0, 2, 0),
-			Rotation = 20,
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromScale(0, 0),
+			Size = UDim2.fromScale(0.22, 1),
 			BackgroundColor3 = Color3.fromRGB(235, 215, 255),
 			BackgroundTransparency = 0.8,
 			ZIndex = z,
 		})
 		if not still then
 			loop(holder, 3.2, function()
-				strip.Position = UDim2.fromScale(-0.4, 0.5)
+				strip.Position = UDim2.fromScale(0, 0)
 				TweenService:Create(strip, TweenInfo.new(1.1, Enum.EasingStyle.Sine), {
-					Position = UDim2.fromScale(1.4, 0.5),
+					Position = UDim2.fromScale(0.78, 0),
 				}):Play()
 			end)
 		end

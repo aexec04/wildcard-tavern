@@ -182,8 +182,12 @@ function ShopBackdrop.new(deps)
 	end
 	local tableId = ContentArt.getImageId("shop_scene", "shop_table")
 	local tablePieces = {} -- every frame of the table, for showing, hiding and placing
-	tablePieces.shadowFar = capsule("TableShadowFar", Color3.fromRGB(6, 4, 2), 0.82)
-	tablePieces.shadow = capsule("TableShadow", Color3.fromRGB(6, 4, 2), 0.6)
+	-- The drawn table gets a soft oval shadow. The painted table (shop_table) does not: its picture is taller than the oval (the pedestal
+	-- hangs below it), so an oval the size of the whole rect showed as a big smoky disc over the shelves; the painting has its own depth.
+	if not tableId then
+		tablePieces.shadowFar = capsule("TableShadowFar", Color3.fromRGB(6, 4, 2), 0.82)
+		tablePieces.shadow = capsule("TableShadow", Color3.fromRGB(6, 4, 2), 0.6)
+	end
 	local tableTop
 	if tableId then
 		tableTop = image(root, "TableTop", tableId, 6)
@@ -228,8 +232,8 @@ function ShopBackdrop.new(deps)
 		local r = Layout.rects(size.X, size.Y, counts)
 		local t, f = r.table, r.felt
 		if t then
-			place(tablePieces.shadowFar, { x = t.x - 8, y = t.y + 8, w = t.w + 16, h = t.h + 14 })
-			place(tablePieces.shadow, { x = t.x - 3, y = t.y + 4, w = t.w + 6, h = t.h + 8 })
+			if tablePieces.shadowFar then place(tablePieces.shadowFar, { x = t.x - 8, y = t.y + 8, w = t.w + 16, h = t.h + 14 }) end
+			if tablePieces.shadow then place(tablePieces.shadow, { x = t.x - 3, y = t.y + 4, w = t.w + 6, h = t.h + 8 }) end
 			place(tableTop, t)
 			if tablePieces.edge then place(tablePieces.edge, { x = t.x, y = t.y - 2, w = t.w, h = t.h }) end
 			if tablePieces.felt then
