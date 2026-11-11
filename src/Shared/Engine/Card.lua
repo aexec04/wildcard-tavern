@@ -55,7 +55,7 @@ Card.Garnishes = {
 	},
 	brittle = {
 		name = "Brittle Garnish", icon = "🍭",
-		description = "x2 Mult when this card scores. Made of spun sugar -- 1 in 4 chance it shatters and leaves your deck for good after scoring.",
+		description = "x2 Mult when this card scores. Made of spun sugar, 1 in 4 chance it shatters and leaves your deck for good after scoring.",
 		xmult = 2,
 		breakOneInN = 4,
 	},
@@ -66,7 +66,7 @@ Card.Garnishes = {
 	},
 	houseToken = {
 		name = "House Token", icon = "🪙",
-		description = "+50 Chips. A wooden token, not a real card -- no rank or suit, fits any hand.",
+		description = "+50 Chips. A wooden token, not a real card, no rank or suit, fits any hand.",
 		chips = 50,
 		blank = true,
 	},

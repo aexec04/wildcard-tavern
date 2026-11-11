@@ -150,9 +150,9 @@ return function(deps)
 			if friend then
 				row.Visible = true
 				if friend.night then
-					row.Text = string.format("%s -- Night %d, Round %d", friend.name, friend.night, friend.round or 1)
+					row.Text = string.format("%s, Night %d, Round %d", friend.name, friend.night, friend.round or 1)
 				else
-					row.Text = (friend.name or "???") .. " -- in the tavern"
+					row.Text = (friend.name or "???") .. ", in the tavern"
 				end
 			else
 				row.Visible = false

@@ -20,7 +20,7 @@ DifficultyTiers.Definitions = {
 	{
 		id = "standard",
 		name = "Standard",
-		description = "The intended balance -- a Boss Round caps off every Night.",
+		description = "The intended balance, a Boss Round caps off every Night.",
 		targetScoreMultiplier = 1.0,
 		bossRoundsEnabled = true,
 	},

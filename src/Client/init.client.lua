@@ -2570,7 +2570,7 @@ local function render(state)
 		-- only increases, so this exact equality never holds again.
 		local title = nil
 		if state.wonRun and state.night == (state.nightCap or 8) then
-			title = string.format("🏆 Night %d Cleared -- Endless Mode Unlocked!", state.night)
+			title = string.format("🏆 Night %d Cleared: Endless Mode Unlocked!", state.night)
 		end
 		RoundRewardPopupModule.showRoundReward(actualReward, title)
 	end

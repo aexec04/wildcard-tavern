@@ -262,7 +262,7 @@ function CompassWheel.new(opts)
 
 	function self.setCharges(n)
 		n = math.floor(n or 0)
-		pips.Text = n > 0 and (string.rep("#", n) .. string.rep("-", math.max(0, 3 - n))) or "---"
+		pips.Text = n > 0 and (string.rep("#", n) .. string.rep("-", math.max(0, 3 - n))) or "-"
 	end
 
 	function self.destroy()

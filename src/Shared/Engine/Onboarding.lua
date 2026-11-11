@@ -12,7 +12,7 @@ local Onboarding = {}
 Onboarding.NEW_PLAYER_RUNS = 3
 Onboarding.NEW_PLAYER_BONUS_DISCARDS = 1
 
-Onboarding.HIGH_CARD_HINT = "Tip: High Card barely scores. Discard weak cards first -- it costs a Discard, not a Hand."
+Onboarding.HIGH_CARD_HINT = "Tip: High Card barely scores. Discard weak cards first, it costs a Discard, not a Hand."
 
 -- Extra discards per round on Night 1. Always 0 on a seeded run (Daily,
 -- Weekly, Seed Code), so those stay identical for every player.

@@ -1061,10 +1061,10 @@ return function(deps)
 		-- Next unlock (moved here from the main menu strip)
 		local pick = view.state and view.state.nextUnlock
 		if pick and pick.label then
-			nextText = nextText .. "   --   Next unlock: " .. pick.label
+			nextText = nextText .. "   |   Next unlock: " .. pick.label
 		end
 		overallText.TextTruncate = Enum.TextTruncate.AtEnd
-		overallText.Text = string.format("Overall %d%%  (%d / %d)   --   %s",
+		overallText.Text = string.format("Overall %d%%  (%d / %d)   |   %s",
 			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
 
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.

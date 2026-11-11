@@ -344,7 +344,7 @@ return function(deps)
 				return
 			end
 
-			leaderboardTitle.Text = icon .. " " .. label .. ((result.dateKey and result.dateKey ~= "alltime") and (" -- " .. tostring(result.dateKey)) or "")
+			leaderboardTitle.Text = icon .. " " .. label .. ((result.dateKey and result.dateKey ~= "alltime") and (": " .. tostring(result.dateKey)) or "")
 			revivedBadge.Visible = requestedBucket == Leaderboards.REVIVED
 
 			if result.yourBestOk and result.yourBest then

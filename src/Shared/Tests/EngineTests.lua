@@ -18255,4 +18255,26 @@ table.insert(tests, { name = "Peddler speech bubble: hidden when its text is emp
 	expectTrue(shop:find('child.Name ~= "PeddlerBubble"', 1, true) ~= nil, "setCounterHiddenForPack leaves the bubble alone")
 end })
 
+table.insert(tests, { name = "Content text: no double dash, em dash or en dash in any registry string", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local bad = {}
+	local seen = {}
+	local function scan(path, v, depth)
+		if depth > 6 or seen[v] then return end
+		if type(v) == "string" then
+			if v:find(" -- ", 1, true) or v:find("\226\128\148", 1, true) or v:find("\226\128\147", 1, true) or v == "---" then
+				bad[#bad + 1] = path .. " = " .. v
+			end
+		elseif type(v) == "table" then
+			seen[v] = true
+			for k, child in pairs(v) do scan(path .. "." .. tostring(k), child, depth + 1) end
+		end
+	end
+	for _, name in ipairs({ "Card", "Patrons", "Hints", "TutorialScript", "TutorialSteps", "BossRounds", "Quests", "Achievements", "Packs", "Recipes", "Tags", "DifficultyTiers", "Onboarding", "GamePasses", "HousePasses", "Seasons" }) do
+		local ok, mod = pcall(function() return require(Engine[name]) end)
+		if ok then scan(name, mod, 0) end
+	end
+	expectEqual(#bad, 0, "dashes in content text: " .. table.concat(bad, " | "))
+end })
+
 return tests

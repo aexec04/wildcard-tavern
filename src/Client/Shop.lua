@@ -824,7 +824,7 @@ return function(deps)
 			and tostring(recipe.cardCount.min)
 			or string.format("%d-%d", recipe.cardCount.min, recipe.cardCount.max)
 
-		targetTitleLabel.Text = string.format("%s -- %s", recipe.name, recipe.description)
+		targetTitleLabel.Text = string.format("%s: %s", recipe.name, recipe.description)
 		targetHintLabel.Text = string.format(
 			"Select %s card%s%s (%d selected)",
 			countText,
@@ -1358,7 +1358,7 @@ return function(deps)
 		tableLabel.BackgroundTransparency = 0.05
 		tableLabel.TextColor3 = Color3.fromRGB(250, 235, 200)
 		tableLabel.Text = string.format("Your table: %d/%d Patrons%s", ownedCount, slotLimit,
-			tableIsFull and " -- full! Sell one in My Patrons to make room." or "")
+			tableIsFull and " is full! Sell one in My Patrons to make room." or "")
 		tableLabel.ZIndex = 6
 		tableLabel.Parent = rerollRow
 		do -- same plate as the other labels: rounded, brass edge, padded
@@ -1426,7 +1426,7 @@ return function(deps)
 			end
 			local liveOwnedCount = latestState.ownedPatrons and #latestState.ownedPatrons or 0
 			if latestState.patronSlotLimit and liveOwnedCount >= latestState.patronSlotLimit then
-				showWarning("Your table is full -- sell a Patron in the My Patrons tab to make room.")
+				showWarning("Your table is full, sell a Patron in the My Patrons tab to make room.")
 				playClickSfx()
 				return false
 			end

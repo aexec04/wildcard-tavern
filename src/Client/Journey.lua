@@ -845,13 +845,13 @@ return function(deps)
 		local bossRoundsEnabled = bossRoundsEnabledFor(latestState)
 
 		if not bossRoundsEnabled then
-			journeyBossInfoLabel.Text = "Boss Rounds are off this run -- every round plays the same."
+			journeyBossInfoLabel.Text = "Boss Rounds are off this run, every round plays the same."
 		elseif latestState and latestState.nightBossModifier then
 			local modifier = latestState.nightBossModifier
 			local category = BossRounds.getCategoryById(BossRounds.categoryOf(BossRounds.getById(modifier.id)) or "")
 			journeyBossInfoLabel.Text = string.format(
 				"👑 This Night's Boss (Round %d): %s%s\n%s",
-				ROUNDS_PER_NIGHT, modifier.name, category and (" -- " .. category.name) or "", modifier.description
+				ROUNDS_PER_NIGHT, modifier.name, category and (", " .. category.name) or "", modifier.description
 			)
 		else
 			journeyBossInfoLabel.Text = "This Night's Boss hasn't been revealed yet."

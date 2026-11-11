@@ -97,7 +97,7 @@ do
 			print("===== The Gilded Knave: running engine tests =====")
 			local results = TestRunner.run(engineTests)
 			if results.failed > 0 then
-				warn(string.format("%d engine test(s) FAILED -- fix these before trusting the game logic!", results.failed))
+				warn(string.format("%d engine test(s) FAILED, fix these before trusting the game logic!", results.failed))
 			end
 			print("===================================================")
 		end)
@@ -198,7 +198,7 @@ local function loadProfile(player)
 		end
 	end
 	warn(string.format(
-		"PlayerProfile load failed for %s (%s) -- playing with a fresh profile that will NOT be saved this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
+		"PlayerProfile load failed for %s (%s), playing with a fresh profile that will NOT be saved this session. In Studio, this usually means \"Enable Studio Access to API Services\" is off (Game Settings -> Security).",
 		player.Name, lastErr
 	))
 	saveBlocked[player] = true

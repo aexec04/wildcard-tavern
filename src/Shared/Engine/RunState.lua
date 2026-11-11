@@ -699,7 +699,7 @@ function RunState.phaseAllowsShopActions(phase)
 end
 
 function RunState.playHand(state, cardIndices)
-	assert(not state.roundOver, "Round is already over -- advance to the next round first")
+	assert(not state.roundOver, "Round is already over, advance to the next round first")
 	local bossModifier = state.bossModifier
 	if bossModifier and bossModifier.requiredCardsPerHand then
 		assert(#cardIndices == bossModifier.requiredCardsPerHand,
@@ -1147,7 +1147,7 @@ function RunState.buyPatron(state, patronId)
 		return false, "Unknown patron: " .. tostring(patronId)
 	end
 	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then
-		return false, "Your table is full -- sell a Patron to make room"
+		return false, "Your table is full, sell a Patron to make room"
 	end
 	local price = RunState.patronPrice(state, patron)
 	if state.tips < price then
@@ -1549,7 +1549,7 @@ local function buyRecipe(state, inventory, catalog, id)
 	-- outright (same shape as RunState.buyPatron's full-table refusal)
 	-- rather than charging Tips for a Recipe that won't fit.
 	if totalHeldRecipes(state) >= RunState.recipeSlotLimit(state) then
-		return false, "Your recipe box is full -- use one to make room"
+		return false, "Your recipe box is full, use one to make room"
 	end
 	if state.tips < recipe.price then
 		return false, "Not enough tips"
@@ -1790,7 +1790,7 @@ end
 function RunState.skipRound(state)
 	assert(RunState.canSkipRound(state), "Can't skip this round")
 	local tag = state.currentRoundSkipTag
-	assert(tag, "No skip Tag available for this round -- startRound should always pick one for a skippable round")
+	assert(tag, "No skip Tag available for this round, startRound should always pick one for a skippable round")
 
 	local result = tag.apply(state, {
 		rng = state.rng,

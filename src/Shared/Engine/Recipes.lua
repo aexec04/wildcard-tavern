@@ -194,7 +194,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "copy_the_order", name = "Copy the Order", icon = "📋", price = 6,
 		cardCount = { min = 2, max = 2 },
-		description = "Select 2 cards -- the first becomes a copy of the second.",
+		description = "Select 2 cards, the first becomes a copy of the second.",
 		flavorText = "I'll have what they're having.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
@@ -265,7 +265,7 @@ Recipes.HouseRecipes = {
 				return false, "Unavailable"
 			end
 			if deps.patronSlotLimit and #state.ownedPatrons >= deps.patronSlotLimit then
-				return false, "Your table is full -- sell a Patron to make room"
+				return false, "Your table is full, sell a Patron to make room"
 			end
 			local rng = (opts and opts.rng) or math.random
 			local available = {}
@@ -444,7 +444,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "neighborhood_watch", name = "Neighborhood Watch", icon = "👀", price = 5,
 		cardCount = { min = 2, max = 2 },
-		description = "Select 2 cards -- copies the Stamp from the second onto the first (rank/suit/Garnish/Special untouched).",
+		description = "Select 2 cards, copies the Stamp from the second onto the first (rank/suit/Garnish/Special untouched).",
 		flavorText = "Keeping an eye on what the neighbors have.",
 		apply = function(state, opts)
 			local indices = (opts and opts.cardIndices) or {}
@@ -485,7 +485,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "borrow_the_recipe", name = "Borrow the Recipe", icon = "📝", price = 5,
 		cardCount = { min = 2, max = 2 },
-		description = "Select 2 cards -- copies the Garnish from the second onto the first (rank/suit/Special/Stamp untouched).",
+		description = "Select 2 cards, copies the Garnish from the second onto the first (rank/suit/Special/Stamp untouched).",
 		flavorText = "Grandma won't mind. Probably.",
 		-- GAP-FILL: mirrors Neighborhood Watch's Stamp-only copy, but for
 		-- Garnish -- previously the only way to copy a modifier between
@@ -534,7 +534,7 @@ Recipes.HouseRecipes = {
 	{
 		id = "split_the_check", name = "Split the Check", icon = "🔀", price = 5,
 		cardCount = { min = 2, max = 2 },
-		description = "Select 2 cards -- they swap rank and suit with each other (Garnish/Special/Stamp stay put).",
+		description = "Select 2 cards, they swap rank and suit with each other (Garnish/Special/Stamp stay put).",
 		flavorText = "You take mine and I'll take yours.",
 		-- Distinct from Copy the Order (makes card 1 an identical copy of
 		-- card 2) -- this exchanges the two, so both cards change and
@@ -1060,7 +1060,7 @@ do
 				return false, "You have no Patron to echo"
 			end
 			if deps and deps.patronSlotLimit and #state.ownedPatrons >= deps.patronSlotLimit then
-				return false, "Your table is full -- sell a Patron to make room"
+				return false, "Your table is full, sell a Patron to make room"
 			end
 			local rng = (opts and opts.rng) or math.random
 			local original = randomChoice(state.ownedPatrons, rng)

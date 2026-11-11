@@ -289,7 +289,7 @@ return function(deps)
 		if isWin then
 			accentBar.BackgroundColor3 = WIN_COLOR
 			iconLabel.Text = "🏆"
-			gameOverLabel.Text = "Last call -- but what a night! You beat the tavern."
+			gameOverLabel.Text = "Last call, but what a night! You beat the tavern."
 		else
 			accentBar.BackgroundColor3 = LOSS_COLOR
 			iconLabel.Text = "🕯️"
@@ -309,7 +309,7 @@ return function(deps)
 		-- hides entirely rather than showing an empty/misleading line.
 		if bestHand then
 			recapLabel.Visible = true
-			recapLabel.Text = string.format("⚡ Biggest Hand: %s -- %d", bestHand.name, bestHand.score)
+			recapLabel.Text = string.format("⚡ Biggest Hand: %s: %d", bestHand.name, bestHand.score)
 		else
 			recapLabel.Visible = false
 			recapLabel.Text = ""
