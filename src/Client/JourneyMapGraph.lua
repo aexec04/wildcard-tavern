@@ -145,14 +145,14 @@ return function(deps)
 		l.TextTransparency = 0
 		l.TextWrapped = true
 		l.Active = false
-		do -- plate = text plus 12 px each side (never wider than w)
-			local okB, b = pcall(function()
-				return game:GetService("TextService"):GetTextSize(text, l.TextSize, l.Font, Vector2.new(w - 24, 1000))
-			end)
-			if okB and b.X > 0 and #text > 4 then
-				l.Size = UDim2.fromOffset(math.min(w, math.ceil(b.X) + 24), h)
-				l.TextXAlignment = Enum.TextXAlignment.Center
-			end
+		if #text > 4 and #text <= 28 then -- plate = text plus 12 px each side, sized by the engine (AutomaticSize), centred
+			l.TextWrapped = false
+			l.TextXAlignment = Enum.TextXAlignment.Center
+			l.AutomaticSize = Enum.AutomaticSize.X
+			l.Size = UDim2.fromOffset(0, h)
+			local pad = Instance.new("UIPadding")
+			pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 12), UDim.new(0, 12)
+			pad.Parent = l
 		end
 		l.ZIndex = z or 25
 		l.Parent = root

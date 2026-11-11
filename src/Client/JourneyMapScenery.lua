@@ -38,6 +38,7 @@ return function(deps)
 	local canvas = deps.canvas
 	local ContentArt = deps.ContentArt
 	local RegionTiles = deps.RegionTiles
+	local PropRules = deps.PropRules -- Engine/MapPropRules: opaque props are not drawn
 	local MapSeams = deps.MapSeams -- Engine/MapSeams: join geometry shared with the tests and tools/map_seam_report.lua
 
 	-- lastNode = index (in JourneyMap.allNodes order) of the last node inside the region.
@@ -256,7 +257,7 @@ return function(deps)
 				placed = placed + 1
 				local i = placed
 				local key = region.decor[((j - 1) % #region.decor) + 1]
-				local id = ContentArt.getImageId("map_decor", key)
+				local id = PropRules.isDrawable(key) and ContentArt.getImageId("map_decor", key) or nil
 				local onTop = (i % 2 == 1)
 				local room = onTop and topRoom or bottomRoom
 				if id and room >= 0 then
@@ -282,7 +283,7 @@ return function(deps)
 		-- shared prop on each seam line (a sign or lantern post straddling the join)
 		for i = 2, #REGIONS do
 			local key = (i % 2 == 0) and "signpost" or "lantern_post"
-			local id = ContentArt.getImageId("map_decor", key)
+			local id = PropRules.isDrawable(key) and ContentArt.getImageId("map_decor", key) or nil
 			if id and bottomLimit + 6 + size <= propFloor then
 				local img = Instance.new("ImageLabel")
 				img.Name = "Seam_" .. key

@@ -15181,4 +15181,26 @@ tests[#tests + 1] = ({ name = "Kit plates sit under their labels and text stroke
 	p:close()
 end })
 
+table.insert(tests, { name = "Tavern Map: opaque props are not drawn; label plates are text plus 24 px", fn = function()
+	local R = require(script.Parent.Parent.Engine.MapPropRules)
+	local Art = require(script.Parent.Parent.Engine.MapDecorArt)
+	for key in pairs(Art) do
+		expectTrue(not R.isDrawable(key) or not R.OPAQUE[key], "no drawn prop is listed as opaque: " .. key)
+	end
+	expectTrue(not R.isDrawable("signpost") and not R.isDrawable("lantern_post"), "the seam props are held back")
+	expectTrue(R.isDrawable("not_listed"), "an unlisted prop is drawable")
+	expectTrue(R.plateWidth(140) == 164 and R.plateWidth(140) <= 140 + 40, "plate is text plus 24, never text plus 40")
+	expectTrue(R.plateWidth(300, 230) == 230, "plate is capped at its max")
+	if io.open then
+		for _, p in ipairs({ "src/Client/JourneyMapGraph.lua", "src/Client/JourneyMapView.lua" }) do
+			local f = io.open(p, "r")
+			if f then
+				local src = f:read("a"); f:close()
+				expectTrue(src:find("AutomaticSize = Enum.AutomaticSize.X", 1, true) and src:find("PaddingLeft, pad.PaddingRight = UDim.new(0, 12)", 1, true),
+					p .. " sizes short label plates to their text with 12 px padding")
+			end
+		end
+	end
+end })
+
 return tests

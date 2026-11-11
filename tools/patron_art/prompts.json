@@ -531,7 +531,7 @@
     "game_trivia": "a golden question mark on a parchment scroll"
   },
   "style_map_region": "Painted top-down parchment treasure-map scenery, ink-and-watercolor, warm candlelit amber tones, aged paper texture, a wide empty winding clearing across the middle left clear for a trail, the far left and far right edges fade out to plain parchment so tiles can join seamlessly, kid-friendly, no alcohol, no text, no letters, no numbers, no labels, no frame or border, no characters",
-  "style_map_decor": "Single ink-and-watercolor map doodle in warm browns and amber with soft gold highlights, centered with generous margin on a plain dark brown background, square composition, kid-friendly, no text, no letters, no numbers, no frame or border",
+  "style_map_decor": "Single ink-and-watercolor map doodle in warm browns and amber with soft gold highlights, centered with generous margin, transparent background, no backdrop, no dark square, square composition, kid-friendly, no text, no letters, no numbers, no frame or border",
   "map_region_subjects": {
     "region_orchard": "a cozy tavern, apple orchard and flowering meadow, seen from above",
     "region_village": "village rooftops, a gentle river and a stone bridge, seen from above",

@@ -129,6 +129,7 @@ return function(deps)
 		canvas = canvas, roundCorner = deps.roundCorner, ContentArt = ContentArtJMV,
 		RegionTiles = require(Engine:WaitForChild("RegionTiles")),
 		MapSeams = require(Engine:WaitForChild("MapSeams")),
+		PropRules = require(Engine:WaitForChild("MapPropRules")),
 		TweenService = TweenService, calm = calm, parentFrame = frame, addTooltip = deps.addTooltip,
 	})
 	-- The rest of the branching world (other roads, fork chips, biome reward badges); see JourneyMapGraph.
@@ -743,18 +744,21 @@ return function(deps)
 			node.button.Position = UDim2.fromOffset(x, y)
 			node.button.Size = UDim2.fromOffset(nodeSize, nodeSize)
 			node.icon.TextSize = math.floor(nodeSize * 0.45)
-			local lines = math.ceil(#info.name * 9.8 / labelW)
+			local fits = #info.name <= 28
+			local lines = fits and 1 or math.ceil(#info.name * 9.8 / labelW)
 			local labelH = lines * 21 + 2
-			do -- plate = text plus 12 px each side, centred under the node
-				local okB, b = pcall(function()
-					return game:GetService("TextService"):GetTextSize(info.name, node.name.TextSize, node.name.Font, Vector2.new(labelW - 24, 1000))
-				end)
-				if okB and b.X > 0 then
-					node.name.Size = UDim2.fromOffset(math.min(labelW, math.ceil(b.X) + 24), labelH)
-					node.name.TextXAlignment = Enum.TextXAlignment.Center
-				else
-					node.name.Size = UDim2.fromOffset(labelW, labelH)
+			if fits then -- plate = text plus 12 px each side, sized by the engine (AutomaticSize), centred
+				node.name.TextWrapped = false
+				node.name.TextXAlignment = Enum.TextXAlignment.Center
+				node.name.AutomaticSize = Enum.AutomaticSize.X
+				node.name.Size = UDim2.fromOffset(0, labelH)
+				if not node.name:FindFirstChildOfClass("UIPadding") then
+					local pad = Instance.new("UIPadding")
+					pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 12), UDim.new(0, 12)
+					pad.Parent = node.name
 				end
+			else
+				node.name.Size = UDim2.fromOffset(labelW, labelH)
 			end
 			-- Labels always sit BELOW the node (never over its icon or the detail popup above).
 			node.name.AnchorPoint = Vector2.new(0.5, 0)
