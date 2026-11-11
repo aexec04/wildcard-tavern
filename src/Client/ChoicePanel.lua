@@ -388,6 +388,14 @@ function ChoicePanel.init(deps)
 	if deps.menuFrame then
 		deps.menuFrame:GetPropertyChangedSignal("Visible"):Connect(render)
 	end
+	if deps.root then
+		deps.root:GetPropertyChangedSignal("Visible"):Connect(render) -- the table showing is also a reason to re-check
+	end
+end
+
+-- Re-evaluates what is on screen (used by the Play trace as a safety net).
+function ChoicePanel.refresh()
+	if ui then render() end
 end
 
 -- Called from render() with every state push.

@@ -3285,6 +3285,11 @@ end)
 -- placeholder product (productId 0) can't be bought, so Studio applies it
 -- directly for playtesting; the live game ignores the request until a
 -- real id is set.
+Rem.RequestState.OnServerEvent:Connect(function(player)
+	if not RateLimit.allow(player.UserId, "Rem.RequestState", os.clock()) then return end
+	if sessions[player] then pushState(player) end -- display only: re-sends the current table, changes nothing
+end)
+
 Rem.RequestContinue.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.RequestContinue", os.clock()) then return end
 	local session = sessions[player]

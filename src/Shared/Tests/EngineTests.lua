@@ -16264,6 +16264,72 @@ table.insert(tests, { name = "PopupDismissRules: exits per policy, the topmost p
 	for name in pairs(R.EXCEPTIONS) do expectEqual(name:sub(-8), "Backdrop", name .. " is a Backdrop name that is not a popup") end
 end })
 
+table.insert(tests, { name = "State resync: the client asks the server for the table (RequestState) until a state arrives, the server answers with pushState", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local src = f:read("*a")
+		f:close()
+		return src
+	end
+	local remotes, server, client = read("src/Server/Remotes.lua"), read("src/Server/init.server.lua"), read("src/Client/init.client.lua")
+	if not (remotes and server and client) then return end
+	expectTrue(remotes:find('newRemote("RequestState")', 1, true) ~= nil, "the RequestState remote exists")
+	expectTrue(server:find("Rem.RequestState.OnServerEvent", 1, true) ~= nil, "the server answers RequestState")
+	expectTrue(client:find('WaitForChild("RequestState")', 1, true) ~= nil and client:find("if latestState ~= nil then return end", 1, true) ~= nil,
+		"the client requests the state until one has arrived")
+end })
+
+table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is opened and closed, Play (menu hidden) shows the pending Choice, in either order of state and Play", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/ChoicePanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local stubs = {
+		PatronPlaque = {}, ClientSettings = { get = function() return "fast" end },
+		ModalStage = { mount = function() return nil end, setKind = function() end },
+		SmoothVignette = { add = function() end, edge = function() end }, SoftGlow = { add = function() end, new = function() end },
+		PopupDismiss = { attach = function() end },
+	}
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	setmetatable(stubs.SmoothVignette, { __index = function() return function() end end })
+	setmetatable(stubs.SoftGlow, { __index = function() return function() end end })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({
+				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules),
+			})
+		end }
+	end }
+	local ChoicePanel = FakeGui.load("src/Client/ChoicePanel.lua", env)
+	local gui, menu, root = FakeGui.new("ScreenGui"), FakeGui.new("Frame"), FakeGui.new("Frame")
+	menu.Visible, root.Visible = true, false
+	gui.AbsoluteSize = { X = 1920, Y = 1080 }
+	local ok, err = pcall(ChoicePanel.init, { screenGui = gui, menuFrame = menu, root = root, polishButton = function() end,
+		roundCorner = function() end, playClickSfx = function() end, choiceRemote = {} })
+	if not ok then error("ChoicePanel.init on the fake Roblox: " .. tostring(err), 0) end
+	local backdrop = gui:FindFirstChild("ChoiceBackdrop")
+	expectTrue(backdrop ~= nil, "the Choice backdrop is built")
+	local choice = { kind = "patron", title = "Pick a Patron", text = "", options = {} }
+
+	-- 1. the state arrives while the Menu is up (panels opened and closed before Play): nothing shows over the Menu
+	ChoicePanel.update({ choice = choice })
+	expectTrue(not backdrop.Visible, "the Choice stays hidden behind the Menu")
+	-- 2. Play: the Menu hides, the table shows; the Choice must appear
+	menu.Visible, root.Visible = false, true
+	ChoicePanel.refresh()
+	expectTrue(backdrop.Visible, "Play shows the pending Choice screen")
+	-- 3. back to the Menu and Play again: it comes back
+	menu.Visible, root.Visible = true, false
+	ChoicePanel.refresh()
+	expectTrue(not backdrop.Visible, "the Menu hides the Choice again")
+	menu.Visible, root.Visible = false, true
+	ChoicePanel.refresh()
+	expectTrue(backdrop.Visible, "Play brings the same Choice back")
+end })
+
 table.insert(tests, { name = "PopupDismiss on a fake Roblox: Escape reaches the topmost popup only, outside clicks, button and locked policies, Settings lifted over a locked screen", fn = function()
 	local probe = io and io.open and load and io.open("src/Client/PopupDismiss.lua", "r")
 	if not probe then return end

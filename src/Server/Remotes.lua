@@ -120,6 +120,10 @@ Rem.StartSeedRun = newRemote("StartSeedRun") -- (player, code)
 -- happens in ProcessReceipt (see "Paid Continue" further down).
 Rem.RequestContinue = newRemote("RequestContinue")
 
+-- STATE RESYNC: (player) -- the client asks for the current table once its StateUpdated listener is connected (the push
+-- sent at join can arrive before the client script has finished loading and is then lost, which left an empty table).
+Rem.RequestState = newRemote("RequestState")
+
 Rem._new = newRemote -- for remotes the main script creates later (init.server.lua)
 Rem._folder = remotes
 

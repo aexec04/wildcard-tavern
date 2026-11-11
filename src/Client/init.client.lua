@@ -2305,8 +2305,12 @@ local function render(state)
 		SoundModule.setMusicTrack(okRegion and musicKey or "gameplay")
 	end
 
-	require(script.CosmeticSetsView).apply(state)
-	require(script.GameplayScene).get().update(state)
+	-- visual extras never stop the HUD and the Choice screen below from updating
+	local okExtras, errExtras = pcall(function()
+		require(script.CosmeticSetsView).apply(state)
+		require(script.GameplayScene).get().update(state)
+	end)
+	if not okExtras then warn("[Client] scene update failed: " .. tostring(errExtras)) end
 	pcall(function() require(script.CharacterStage).get().update(state) end) -- live characters (before BossFight so it can hide the portrait)
 	pcall(require(script.BossFight).get().update, state) -- visual only, never break render
 	pcall(require(script.EndlessChips).update, state) -- Crowd Rule chips and banner, display only
@@ -2832,3 +2836,36 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 	end
 	render(state)
 end)
+
+do -- STATE RESYNC: the push sent at join can land before this listener exists, which left an empty table behind Play.
+	-- Ask once now, and again every 2 s until a state has arrived (the server answers with the current table).
+	local request = remotes:WaitForChild("RequestState")
+	task.spawn(function()
+		for _ = 1, 8 do
+			if latestState ~= nil then return end
+			request:FireServer()
+			task.wait(2)
+		end
+	end)
+end
+do -- Studio trace: Play pressed but the run never showed (prints the open popup stack so the blocker can be named)
+	MenuScreen.menuPlayButton.MouseButton1Click:Connect(function()
+		task.delay(2, function()
+			if latestState == nil then
+				warn("[Play trace] no table state received 2 s after Play (asking the server again)")
+				remotes:WaitForChild("RequestState"):FireServer()
+				return
+			end
+			local gui = screenGui
+			local choiceUp = gui:FindFirstChild("ChoiceBackdrop")
+			if latestState.choice and choiceUp and not choiceUp.Visible and not MenuScreen.menuFrame.Visible then
+				local open = {}
+				for _, child in ipairs(gui:GetChildren()) do
+					if child:IsA("GuiObject") and child.Visible and child.Name:sub(-8) == "Backdrop" then open[#open + 1] = child.Name end
+				end
+				warn("[Play trace] choice pending but not shown; open popups: " .. (#open > 0 and table.concat(open, ", ") or "none"))
+				pcall(require(script.ChoicePanel).refresh)
+			end
+		end)
+	end)
+end
