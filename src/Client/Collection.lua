@@ -516,7 +516,9 @@ return function(deps)
 		titleLabel.Size = head.fullWidth and UDim2.new(1, 0, 0, 28) or UDim2.fromOffset(head.w, 28)
 		local legendH = math.max(24, math.ceil(legendLayout.AbsoluteContentSize.Y))
 		local chest = Gallery.chestApi and SceneLayout.chest(panelW, panelH) or nil
-		local P = RoomLayout.panel(panelW, panelH, legendH, chest and chest.x or nil)
+		local P = RoomLayout.panel(panelW, panelH, legendH, chest and chest.x or nil, mode)
+		local chrome = RoomLayout.chrome(mode)
+		tabRow.Visible, legendRow.Visible = chrome.tabs, chrome.rarityFilter
 		legendRow.Size = UDim2.fromOffset(P.filter.w, P.filter.h)
 		legendRow.Position = UDim2.new(0.5, 0, 1, -RoomLayout.FOOTER)
 		-- bottom inset, not a height: the area follows the panel while it is resized or expanded between two layouts
@@ -1168,6 +1170,7 @@ return function(deps)
 
 	local function setMode(newMode) -- which view shows; the caller refreshes
 		mode = newMode
+		relayout() -- the room takes the height of the hidden tab row and rarity filter
 		room.frame.Visible = newMode == "room"
 		scroll.Visible = newMode == "section"
 		if Gallery.chestApi and Gallery.chestApi.setShown then Gallery.chestApi.setShown(newMode == "section") end -- the chest stands by the shelves

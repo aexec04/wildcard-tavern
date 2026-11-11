@@ -342,7 +342,9 @@ return function(deps)
 		end
 		-- the room: the count on every plate, and a New tag on the shelf that holds a badge you have not looked at yet
 		local sz = panel.AbsoluteSize
-		local area = RoomLayout.panel(sz.X > 0 and sz.X or 600, sz.Y > 0 and sz.Y or 400).area
+		local area = RoomLayout.panel(sz.X > 0 and sz.X or 600, sz.Y > 0 and sz.Y or 400, "room").area
+		room.frame.Position = UDim2.fromOffset(area.x, area.y)
+		room.frame.Size = UDim2.new(1, -2 * area.x, 1, -(area.y + RoomLayout.FOOTER))
 		room.layout(area.w, area.h)
 		local fresh = {}
 		for _, id in ipairs(BadgeWall.freshIds(have)) do
@@ -369,6 +371,7 @@ return function(deps)
 		detail.Visible = false
 		room.frame.Visible = chip == "All"
 		board.Visible = chip ~= "All"
+		chipRow.Visible = RoomLayout.chrome(chip == "All" and "room" or "wall").tabs
 		refresh()
 	end
 	showSection = setView
@@ -449,6 +452,7 @@ return function(deps)
 		detail.Visible = false
 		room.frame.Visible = true
 		board.Visible = false
+		chipRow.Visible = false
 		refresh()
 		popIn(backdrop, panel)
 		task.defer(function() if backdrop.Visible then refresh() end end) -- sized now that the panel is shown

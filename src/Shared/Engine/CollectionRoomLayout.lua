@@ -8,7 +8,8 @@
 	M.SECTIONS                          { { id, object, aspect } } in room order; ids are CollectionBook.Tabs ids
 	M.plateText(label, found, total)    "Recipes 3/24"
 	M.plateTextSize(plateW)             16, or 14 on a narrow plate (never below 14)
-	M.panel(W, H, legendH, chestX)      -> { title, bar, tabs, area, filter, close } rects in the panel's pixels
+	M.chrome(mode)                      -> { tabs, rarityFilter } booleans: shown in "section", hidden in "room"
+	M.panel(W, H, legendH, chestX, mode) -> { title, bar, tabs, area, filter, close } rects in the panel's pixels
 	M.rects(w, h)                       -> { spots = { [id] = { object, plate, hit } }, order, cols, rows } in the room's pixels
 	M.inside(r, w, h) / M.intersects(a, b)
 ]]
@@ -60,8 +61,16 @@ M.FILTER_MIN_W = 160
 
 -- legendH = the height of the rarity chips as laid out (they wrap on a narrow panel); chestX = the left edge of the milestone chest
 -- when it is on screen (the centred filter plate stays left of it), else nil.
-function M.panel(W, H, legendH, chestX)
+-- What the panel shows per view: the gallery room has its own hotspots, so the section plates and the rarity filter (nothing there can
+-- be sorted) are hidden and the room takes their height; a section shows both.
+function M.chrome(mode)
+	local section = mode == "section"
+	return { tabs = section, rarityFilter = section }
+end
+
+function M.panel(W, H, legendH, chestX, mode)
 	local side = M.SIDE
+	local chrome = M.chrome(mode or "section")
 	local chipsH = math.max(24, math.ceil(legendH or 24))
 	local filterH = chipsH + 2 * M.FILTER_PAD
 	local filterW = math.min(M.FILTER_MAX_W, math.max(M.FILTER_MIN_W, W - 2 * side))
@@ -70,12 +79,15 @@ function M.panel(W, H, legendH, chestX)
 	end
 	filterW = math.floor(filterW)
 	local filter = { x = math.floor((W - filterW) / 2), y = H - M.FOOTER - filterH, w = filterW, h = filterH }
-	local areaH = math.max(60, filter.y - M.FILTER_GAP - M.AREA_TOP)
+	local areaTop, areaBottom = M.AREA_TOP, filter.y - M.FILTER_GAP
+	if not chrome.tabs then areaTop = M.TABS.y end
+	if not chrome.rarityFilter then areaBottom = H - M.FOOTER end
+	local areaH = math.max(60, areaBottom - areaTop)
 	return {
 		title = { x = 0, y = 6, w = W, h = 28 },
 		bar = { x = side, y = M.BAR.y, w = W - 2 * side, h = M.BAR.h },
 		tabs = { x = side, y = M.TABS.y, w = W - 2 * side, h = M.TABS.h },
-		area = { x = side, y = M.AREA_TOP, w = W - 2 * side, h = areaH },
+		area = { x = side, y = areaTop, w = W - 2 * side, h = areaH },
 		filter = filter,
 		close = { x = math.floor(W / 2 - 70), y = H - 50, w = 140, h = 40 },
 	}

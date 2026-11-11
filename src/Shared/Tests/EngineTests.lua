@@ -17648,6 +17648,42 @@ table.insert(tests, { name = "CollectionRoomLayout.panel: title, progress line, 
 	end
 end })
 
+table.insert(tests, { name = "CollectionRoomLayout.chrome: the room hides the section plates and rarity filter and uses their height, a section shows both", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local RL, RS = require(Engine.CollectionRoomLayout), require(Engine.ResponsiveLayout)
+	expectEqual(RL.chrome("room").tabs, false, "room: no tab row")
+	expectEqual(RL.chrome("room").rarityFilter, false, "room: no rarity filter")
+	expectEqual(RL.chrome("section").tabs, true, "section: tab row")
+	expectEqual(RL.chrome("section").rarityFilter, true, "section: rarity filter")
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 390, 700 } }) do
+		local fit = RS.collectionPanel(vp[1], vp[2])
+		local W, H = math.floor(fit.w * vp[1]), math.floor(fit.h * vp[2])
+		local legendH = vp[1] < 500 and 62 or 24
+		local sec, room = RL.panel(W, H, legendH, nil, "section"), RL.panel(W, H, legendH, nil, "room")
+		local where = " (" .. W .. "x" .. H .. ")"
+		expectTrue(room.area.h > sec.area.h, "the room is taller than the section area" .. where)
+		expectTrue(room.area.y >= room.bar.y + room.bar.h, "the room sits under the progress line" .. where)
+		expectTrue(room.area.y + room.area.h <= room.close.y, "the room ends above Close" .. where)
+		expectFalse(RL.intersects(room.area, room.bar), "room and progress line do not overlap" .. where)
+		expectFalse(RL.intersects(room.area, room.close), "room and Close do not overlap" .. where)
+		local R = RL.rects(room.area.w, room.area.h)
+		for _, id in ipairs(R.order) do
+			expectTrue(RL.inside(R.spots[id].hit, room.area.w, room.area.h), id .. " hotspot inside the taller room" .. where)
+		end
+	end
+end })
+
+table.insert(tests, { name = "BadgeRoomLayout.chrome: the room hides the quiet row and rises, a wall keeps it", fn = function()
+	local BRL = require(script.Parent.Parent.Engine.BadgeRoomLayout)
+	expectEqual(BRL.chrome("room").tabs, false, "room: no row")
+	expectEqual(BRL.chrome("wall").tabs, true, "wall: row")
+	local room, wall = BRL.panel(900, 600, "room"), BRL.panel(900, 600, "wall")
+	expectTrue(room.area.y < wall.area.y and room.area.h > wall.area.h, "the room takes the row's height")
+	expectTrue(room.area.y >= room.plaque.y + room.plaque.h, "the room stays under the plaque")
+	expectFalse(BRL.intersects(room.area, room.plaque), "room and plaque do not overlap")
+	expectFalse(BRL.intersects(room.area, room.close), "room and Close do not overlap")
+end })
+
 table.insert(tests, { name = "CollectionRoomLayout.rects: six hotspots (object plus name plate) inside the room, none overlapping, at three sizes and a phone", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local RL, RS = require(Engine.CollectionRoomLayout), require(Engine.ResponsiveLayout)
@@ -18183,10 +18219,9 @@ table.insert(tests, { name = "Collection room and section area: inside the panel
 		local rx, ry = px(col.room.Position)
 		local rw, rh = px(col.room.Size)
 		local where = " (" .. vp[1] .. "x" .. vp[2] .. ", panel " .. W .. "x" .. H .. ")"
-		expectTrue(rx >= 0 and ry >= RL.TABS.y + RL.TABS.h and rx + rw <= W, "the room sits under the quiet row and inside the panel" .. where)
-		local filterTop = H - RL.FOOTER - col.legend.Size.Y.Offset
-		expectTrue(ry + rh <= filterTop, "the room ends above the filter plate" .. where)
-		expectTrue(H - RL.FOOTER <= H - 50, "the filter plate ends above the Close row" .. where)
+		expectTrue(rx >= 0 and ry >= RL.BAR.y + RL.BAR.h and rx + rw <= W, "the room sits under the progress line and inside the panel" .. where)
+		expectFalse(col.legend.Visible, "the rarity filter is hidden on the gallery room" .. where)
+		expectTrue(ry + rh <= H - RL.FOOTER, "the room ends above the Close row" .. where)
 		expectTrue(rh >= 150 and rw >= 300, "the room is big enough to use" .. where)
 		local gx, gy = px(col.grid.Position)
 		local gw, gh = px(col.grid.Size)

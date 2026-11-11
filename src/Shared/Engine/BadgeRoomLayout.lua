@@ -45,12 +45,19 @@ M.TABS = { y = 60, h = 26 } -- the quiet row of small plates
 M.AREA_TOP = 94 -- the room (or the zoomed wall) starts here
 M.FOOTER = 52 -- the Close row at the bottom
 
-function M.panel(W, H)
+-- The room has its own four hotspots, so the quiet row of plates is hidden there and the room rises into its place; a zoomed wall
+-- keeps the row to hop between walls.
+function M.chrome(mode)
+	return { tabs = mode == "wall" }
+end
+
+function M.panel(W, H, mode)
+	local areaTop = M.chrome(mode or "wall").tabs and M.AREA_TOP or (M.PLAQUE.y + M.PLAQUE.h + 6)
 	local plateW = math.min(M.PLAQUE.maxW, W - 2 * M.SIDE)
 	return {
 		plaque = { x = math.floor((W - plateW) / 2), y = M.PLAQUE.y, w = plateW, h = M.PLAQUE.h },
 		tabs = { x = M.SIDE, y = M.TABS.y, w = W - 2 * M.SIDE, h = M.TABS.h },
-		area = { x = M.SIDE, y = M.AREA_TOP, w = W - 2 * M.SIDE, h = math.max(60, H - M.AREA_TOP - M.FOOTER) },
+		area = { x = M.SIDE, y = areaTop, w = W - 2 * M.SIDE, h = math.max(60, H - areaTop - M.FOOTER) },
 		close = { x = math.floor(W / 2 - 55), y = H - 40, w = 110, h = 30 },
 	}
 end
