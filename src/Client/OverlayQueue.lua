@@ -99,6 +99,7 @@ local function build()
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center -- text-only plates sit in the middle of the parchment, not at its top edge
 	list.Padding = UDim.new(0, 8)
 	list.Parent = plate
 

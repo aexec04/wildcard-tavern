@@ -47,7 +47,7 @@ local Analytics = require(Engine.Analytics) -- funnel steps and custom events; e
 local NextGoal = require(Engine.NextGoal) -- the menu's Next Goal line
 local FirstRewards = require(Engine.FirstRewards) -- tutorial and first-win rewards, the one-time follow prompt
 local PatronsData = require(Engine.Patrons) -- display names for the Next Goal line
-local rewardNotices = {} -- [player] = { seq, icon, text }: one-time reward toasts that outlive a run
+local rewardNotices = {} -- [player] = { seq, text }: one-time reward toasts that outlive a run
 local followPrompts = {} -- [player] = seq: asks the client to offer experience notifications once
 local storePrompts = {} -- [player] = seq: opens the Store on the Starter Pack once, after the second run
 local rewardSeqCounter = 0
@@ -146,7 +146,7 @@ local profileDirty = {} -- [player] = true once something's changed since the la
 -- FIRST 5 MINUTES: a one-time reward toast (survives the run that earned it) and the funnel logger.
 local function pushRewardNotice(player, notice)
 	rewardSeqCounter = rewardSeqCounter + 1
-	rewardNotices[player] = { seq = rewardSeqCounter, icon = notice.icon, text = notice.text, blessingId = notice.blessingId }
+	rewardNotices[player] = { seq = rewardSeqCounter, text = notice.text, blessingId = notice.blessingId }
 end
 local function logStep(player, stepId)
 	local profile = profiles[player]
@@ -923,7 +923,7 @@ local function serializeState(session, player)
 			and require(Engine.Regulars).view(profiles[player].lifetime, math.floor(os.time() / 86400)) or nil, -- Menu Regulars
 		isRush = state.rush ~= nil,
 		runModifier = require(Engine.RunModifiers).view(state.runModifierId), -- the blessing and curse picked at run start
-		rewardNotice = rewardNotices[player], -- { seq, icon, text }, shown once per seq by Client/UnlockToast
+		rewardNotice = rewardNotices[player], -- { seq, text }, shown once per seq by Client/UnlockToast
 		followPrompt = followPrompts[player], -- seq: the client offers Roblox experience notifications once
 		unlockNotice = session.unlockNotice, -- { seq, items = { { kind, id, hint } } }, shown once per seq by Client/UnlockToast
 		unlockHints = Unlocks.lockedHints(profiles[player]), -- Collection: hint per still-locked Patron and Recipe
@@ -1119,7 +1119,7 @@ local function syncProfileFromSession(player)
 							local Legend = require(Engine.Legend)
 							local result = Legend.recordClear(profile, regions)
 							if result.levelAfter > result.levelBefore then
-								pushRewardNotice(player, { icon = "👑", text = "Legend level " .. result.levelAfter .. "!" })
+								pushRewardNotice(player, { text = "Legend level " .. result.levelAfter .. "!" })
 							end
 						end)
 					end
@@ -1270,7 +1270,7 @@ local function syncProfileFromSession(player)
 				if entry and RunHistory.record(profile, entry, runState.tipsEarnedTotal) then
 					changed = true
 					if RunHistory.recordQuickBest(profile, entry) then
-						pushRewardNotice(player, { icon = "⚡", text = "New Quick Run best!" })
+						pushRewardNotice(player, { text = "New Quick Run best!" })
 					end
 				end
 			end)
@@ -1317,7 +1317,7 @@ local function syncProfileFromSession(player)
 			local text = "Challenge cleared: " .. (def and def.name or "?")
 			if titleDef then text = text .. ". Title: " .. titleDef.title end
 			if cleared.bonusXp > 0 then text = text .. ". Speed bonus +" .. cleared.bonusXp .. " XP" end
-			pushRewardNotice(player, { icon = "🏅", text = text })
+			pushRewardNotice(player, { text = text })
 		end
 	end
 	if session.state.rush then
@@ -1326,7 +1326,7 @@ local function syncProfileFromSession(player)
 		end
 		if session.phase == "gameover" and not session.rushEndLogged then
 			session.rushEndLogged = true
-			pushRewardNotice(player, { icon = "⚔️", text = string.format("Boss Rush over: %d bosses beaten. Best: %d", session.state.bossesCleared, profile.bossRushBest or 0) })
+			pushRewardNotice(player, { text = string.format("Boss Rush over: %d bosses beaten. Best: %d", session.state.bossesCleared, profile.bossRushBest or 0) })
 		end
 	end
 	if #freshUnlocks > 0 then
@@ -1842,7 +1842,7 @@ local function processInvites(player)
 		local credited, titles = Invites.drainInbox(profile, player.UserId, inbox)
 		if credited > 0 then
 			profileDirty[player] = true
-			pushRewardNotice(player, { icon = "💌", text = string.format("%d friend%s joined through your invite. +%d Tips next run.", credited, credited == 1 and "" or "s", credited * Invites.INVITER_TIPS) })
+			pushRewardNotice(player, { text = string.format("%d friend%s joined through your invite. +%d Tips next run.", credited, credited == 1 and "" or "s", credited * Invites.INVITER_TIPS) })
 		end
 		pcall(function() store:RemoveAsync(inboxKey) end) -- credited ones are in the ledger, so a failed remove is harmless
 	end
@@ -1852,13 +1852,13 @@ local function processInvites(player)
 		return
 	end
 	profileDirty[player] = true
-	pushRewardNotice(player, { icon = "🎁", text = "A friend invited you. Here is a starter card back!" })
+	pushRewardNotice(player, { text = "A friend invited you. Here is a starter card back!" })
 	local inviter = Players:GetPlayerByUserId(inviterId)
 	local inviterProfile = inviter and profiles[inviter]
 	if inviterProfile then
 		if Invites.creditInviter(inviterProfile, inviterId, player.UserId) then
 			profileDirty[inviter] = true
-			pushRewardNotice(inviter, { icon = "💌", text = player.DisplayName .. " joined through your invite. +" .. Invites.INVITER_TIPS .. " Tips next run." })
+			pushRewardNotice(inviter, { text = player.DisplayName .. " joined through your invite. +" .. Invites.INVITER_TIPS .. " Tips next run." })
 		end
 	else
 		pcall(function()
@@ -1889,7 +1889,7 @@ local function onPlayerAdded(player)
 		warn("[Startup] login streak failed for " .. player.Name .. ": " .. tostring(streakErr))
 	end
 	if saveBlocked[player] then
-		pushRewardNotice(player, { icon = "⚠️", text = "Your progress can't be saved right now. You can still play." })
+		pushRewardNotice(player, { text = "Your progress can't be saved right now. You can still play." })
 	end
 	task.spawn(function()
 		local okInv, errInv = pcall(processInvites, player)
@@ -2087,7 +2087,7 @@ Rem.PlayHand.OnServerEvent:Connect(function(player, cardIndices)
 		pcall(RunState.advanceToNextRound, session.state)
 		session.phase = "roundSelect"
 		session.state.pendingPack = nil
-		pushRewardNotice(player, { icon = "⚔️", text = string.format("Boss %d beaten! The next one is waiting.", session.state.bossesCleared) })
+		pushRewardNotice(player, { text = string.format("Boss %d beaten! The next one is waiting.", session.state.bossesCleared) })
 	elseif result.roundWon then
 		session.phase = "shop"
 		openShop(session)
@@ -2869,7 +2869,7 @@ Rem.ClaimDiscovery.OnServerEvent:Connect(function(player, spotId)
 	})
 	if ok then
 		profileDirty[player] = true
-		pushRewardNotice(player, { icon = result.icon, text = result.text })
+		pushRewardNotice(player, { text = result.text })
 	end
 	pushState(player)
 end)
@@ -2884,7 +2884,7 @@ Rem.RevealDiscoveries.OnServerEvent:Connect(function(player, region)
 	if ok then
 		profileDirty[player] = true
 	end
-	pushRewardNotice(player, { icon = ok and "🧭" or "❗", text = message })
+	pushRewardNotice(player, { text = message })
 	pushState(player)
 end)
 
@@ -2899,9 +2899,9 @@ Rem.ClaimLiveEvent.OnServerEvent:Connect(function(player, eventId)
 	if ok then
 		profileDirty[player] = true
 		Analytics.eventClaimed(player, eventId)
-		pushRewardNotice(player, { icon = result.event.icon, text = result.event.name .. ": " .. table.concat(result.texts, ", ") })
+		pushRewardNotice(player, { text = result.event.name .. ": " .. table.concat(result.texts, ", ") })
 	else
-		pushRewardNotice(player, { icon = "❗", text = result })
+		pushRewardNotice(player, { text = result })
 	end
 	pushState(player)
 end)
@@ -2917,9 +2917,9 @@ Rem.UseRuleBan.OnServerEvent:Connect(function(player)
 	end
 	local ok, reason = RunState.useRuleBan(session.state, session.phase)
 	if ok then
-		pushRewardNotice(player, { icon = "🚫", text = "Rule banned. Good luck!" })
+		pushRewardNotice(player, { text = "Rule banned. Good luck!" })
 	else
-		pushRewardNotice(player, { icon = "❗", text = reason })
+		pushRewardNotice(player, { text = reason })
 	end
 	pushState(player)
 end)
@@ -3021,7 +3021,7 @@ Rem.ClaimCollectionReward.OnServerEvent:Connect(function(player, group, pct)
 	end
 	if #texts > 0 then
 		profileDirty[player] = true
-		pushRewardNotice(player, { icon = "🏅", text = "Collection: " .. table.concat(texts, ", ") })
+		pushRewardNotice(player, { text = "Collection: " .. table.concat(texts, ", ") })
 	end
 	pushState(player)
 end)
@@ -3081,7 +3081,7 @@ Rem.ClaimSeason.OnServerEvent:Connect(function(player, which, premium)
 	end
 	if #texts > 0 then
 		profileDirty[player] = true
-		pushRewardNotice(player, { icon = "🎟️", text = "Season: " .. table.concat(texts, ", ") })
+		pushRewardNotice(player, { text = "Season: " .. table.concat(texts, ", ") })
 	end
 	pushState(player)
 end)
@@ -3097,12 +3097,12 @@ Rem.StorePurchase.OnServerEvent:Connect(function(player, itemId)
 	end
 	Analytics.single(player, "store_prompt", 1, { item = item.id }) -- tuning data: a purchase prompt was requested
 	if not Store.canBuy(item, LoginStreak.dayNumber(os.time())) then
-		pushRewardNotice(player, { icon = "🕯️", text = item.name .. " can only be bought while its season is running." })
+		pushRewardNotice(player, { text = item.name .. " can only be bought while its season is running." })
 		pushState(player)
 		return
 	end
 	if Store.owned(profile, item, ownedGamePasses[player]) then
-		pushRewardNotice(player, { icon = "✔", text = item.name .. " is already yours." })
+		pushRewardNotice(player, { text = item.name .. " is already yours." })
 	elseif Store.isConfigured(item) then
 		pcall(function()
 			if item.kind == "pass" then
@@ -3114,10 +3114,10 @@ Rem.StorePurchase.OnServerEvent:Connect(function(player, itemId)
 	elseif RunService:IsStudio() then
 		if item.kind == "product" and Store.grant(profile, item.id) then
 			profileDirty[player] = true
-			pushRewardNotice(player, { icon = item.icon, text = item.name .. " added (free in Studio)." })
+			pushRewardNotice(player, { text = item.name .. " added (free in Studio)." })
 		end
 	else
-		pushRewardNotice(player, { icon = "🕯️", text = item.name .. " is coming soon." })
+		pushRewardNotice(player, { text = item.name .. " is coming soon." })
 	end
 	pushState(player)
 end)
@@ -3137,7 +3137,7 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 	end
 	if message and message ~= "" then
 		-- a picked blessing shows its painted icon on the plate (Client/UnlockToast), not an emoji
-		pushRewardNotice(player, { icon = (ok and wasModifier) and "" or (ok and "✨" or "❗"), text = message, blessingId = (ok and wasModifier) and optionId or nil })
+		pushRewardNotice(player, { text = message, blessingId = (ok and wasModifier) and optionId or nil })
 	end
 	pushState(player)
 end)

@@ -6878,6 +6878,25 @@ table.insert(tests, { name = "TutorialScript.shopFor: a cheap Patron and Pack ar
 	expectTrue(server:find("if session.isTutorial then\n\t\tTutorialScript.shopFor", 1, true) ~= nil)
 end })
 
+table.insert(tests, { name = "Reward notices: no pushRewardNotice call carries an icon, plate list is vertically centred", fn = function()
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local server = f:read("*a"); f:close()
+	for line in server:gmatch("[^\n]+") do
+		if line:find("pushRewardNotice(", 1, true) and not line:find("local function", 1, true) then
+			expectTrue(not line:find("icon", 1, true))
+			expectTrue(not line:find("[\xF0-\xF4]"))
+		end
+	end
+	local FR = require(script.Parent.Parent.Engine.FirstRewards)
+	local q = io.open("src/Client/OverlayQueue.lua", "r")
+	if q then
+		local src = q:read("*a"); q:close()
+		expectTrue(src:find("list.VerticalAlignment = Enum.VerticalAlignment.Center", 1, true) ~= nil)
+	end
+	expectTrue(FR ~= nil)
+end })
+
 table.insert(tests, { name = "PhoneLayout: touch minimum text and tap size, compact detection", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PhoneLayout)
 	expectEqual(PL.textSize(11, true), 14)
