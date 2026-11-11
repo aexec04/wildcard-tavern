@@ -2490,9 +2490,11 @@ local function render(state)
 		-- (see RunState.blindMultiplierFor).
 		-- No crown on a normal round: set the text directly, and make sure
 		-- a crown left over from a Boss Round is hidden.
+		local postTitle, postRule = require(ReplicatedStorage.Shared.Engine.PostBoss).sidebarRule(state)
 		SidebarModule.blindInfoLabel.Text = string.format(
-			'<font size="17">%s</font>\n<font size="13" color="#E6D2AA">No special rules this round.</font>',
-			clearedHeader and "Boss beaten" or (state.round == 1 and "Small Round" or string.format("Big Round %d", state.round))
+			'<font size="17">%s</font>\n<font size="13" color="#E6D2AA">%s</font>',
+			postTitle or (state.round == 1 and "Small Round" or string.format("Big Round %d", state.round)),
+			postRule or "No special rules this round."
 		)
 		SidebarModule.hideLineIcon("boss")
 	end

@@ -14529,7 +14529,9 @@ table.insert(tests, { name = "PostBoss: after a cleared Boss Round the Counter a
 	local after = { phase = "shop", night = 1, nightCap = 8, round = 3, isBossRound = true, bossModifier = { id = "x" } }
 	expectEqual(P.shopBanner(after, scout), "Night 2 begins next.", "beaten boss is not announced")
 	expectEqual(P.sidebarHeader(after), "Night 1 cleared", "sidebar header")
-	expectTrue(P.sidebarRule(after) ~= nil, "rule lines replaced")
+	local ruleTitle, ruleText = P.sidebarRule(after)
+	expectEqual(ruleTitle, "Boss beaten", "rule title")
+	expectEqual(ruleText, "No special rules until the next Night.", "rule line says until the next Night, not this round")
 	expectFalse(P.cleared({ phase = "playing", isBossRound = true }), "not cleared while playing")
 end })
 
