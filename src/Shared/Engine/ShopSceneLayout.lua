@@ -11,6 +11,7 @@
 	  shadows = { rect... },                         soft oval contact shadow per offer, on the counter surface
 	  packs = { rect... },                           packs rest ON the counter in front of the Patrons (no hover)
 	  props = { bell, ledger, mug, candle },         bell = Reroll, ledger = Haggle; mug and candle are decor (nil on phones)
+	  table,                                         the round card table every offer and pack lies on (nil on phones)
 	  light,                                         warm light pool on the counter
 	  tabs, nextBoss, leave, bubble                  controls and Marlo's speech plate
 	}
@@ -29,6 +30,14 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
+ShopSceneLayout.TABLE_PAD = 8        -- felt around the spread on the round card table
+
+-- A hand-dealt look: every card lies at its own small fixed angle (degrees, at most 2), the same every visit. Offers use
+-- index 1 to n, packs n + 1 on, so neighbours never lean the same way.
+local TILTS = { -1.6, 1.1, -0.7, 1.7, -1.2, 0.8, -1.9, 1.4 }
+function ShopSceneLayout.cardTilt(index)
+	return TILTS[((math.max(1, math.floor(index)) - 1) % #TILTS) + 1]
+end
 
 -- Crop rects (fractions of the generated 3:2 picture) for the pieces the model drew with empty margin.
 -- shop_counter_props is one image with four props in a row; ImageRectOffset/Size are in the picture's pixels.
@@ -144,6 +153,26 @@ function ShopSceneLayout.rects(W, H, counts)
 			candle = rect(W * 0.875 + p + 6, propY - p * 1.05, p * 0.7, p * 1.1),
 		}
 		out.light = rect(x0, out.surfaceY - counterH * 0.1, x1 - x0, counterH * 0.55)
+		-- the round card table: the whole spread (every offer and every pack) lies on it with a little felt around, between
+		-- Marlo and the bell, under the tabs and Next boss strip, above the foot of the screen
+		local top, bottom, left, right = math.huge, 0, math.huge, 0
+		for _, r in ipairs(out.offers) do
+			top, left, right = math.min(top, r.y), math.min(left, r.x), math.max(right, r.x + r.w)
+		end
+		for _, r in ipairs(out.packs) do
+			bottom, left, right = math.max(bottom, r.y + r.h), math.min(left, r.x), math.max(right, r.x + r.w)
+		end
+		if #out.offers > 0 then
+			local leftLimit = (counts and counts.noMarlo) and 4 or (out.marlo.x + out.marlo.w + 2)
+			local tx0 = math.max(left - ShopSceneLayout.TABLE_PAD, leftLimit)
+			local tx1 = math.min(right + ShopSceneLayout.TABLE_PAD, out.props.bell.x - 6)
+			local ty0 = math.max(top - ShopSceneLayout.TABLE_PAD, tabsBottom + 6)
+			local ty1 = math.min(math.max(bottom, out.surfaceY) + ShopSceneLayout.TABLE_PAD, H - 6)
+			if ty1 > out.leave.y - 4 and tx1 > out.leave.x - 6 then
+				tx1 = math.max(right + 2, out.leave.x - 6) -- the Next Round sign stands at the table's corner: cut back, never through a card
+			end
+			out.table = rect(tx0, ty0, tx1 - tx0, ty1 - ty0)
+		end
 		-- speech plate near Marlo's shoulder, above the offers
 		local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
 		out.bubble = rect(out.marlo.x + out.marlo.w * 0.7, tabsBottom + 10, bubbleW, bubbleH)

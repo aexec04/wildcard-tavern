@@ -24,6 +24,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("ShopSceneLayout"))
 local ClientSettings = require(script.Parent.ClientSettings)
+local SoftGlow = require(script.Parent.SoftGlow)
 
 local ShopStage = {}
 
@@ -56,14 +57,24 @@ end
 -- makes the pill itself clickable. (Before, only the small transparent rect over the painted prop was, and the pill did nothing.)
 local TAG_H, TAG_GAP = 24, 4
 ShopStage.TAG_H, ShopStage.TAG_GAP = TAG_H, TAG_GAP
-local GOLD_HOVER = Color3.fromRGB(246, 214, 138)
+-- Reroll and Haggle are objects in the room, so their words are a Menu-style name plate (dark, brass edge, cream text at 12:1)
+-- under the painted prop, not a gold pill. The plate and the soft warm glow behind the prop light up while the pointer is on it.
+local PLATE = Color3.fromRGB(44, 32, 22)
+local PLATE_HOVER = Color3.fromRGB(78, 58, 36)
+local CREAM = Color3.fromRGB(250, 235, 200)
+local BRASS = Color3.fromRGB(190, 150, 62)
 
--- The tag lights up with its control, so the pill reads as the button it is.
-local function bindHover(button, tagLabel)
+local function bindHover(button, tagLabel, glow)
 	if button:GetAttribute("TagHover") then return end
 	button:SetAttribute("TagHover", true)
-	button.MouseEnter:Connect(function() tagLabel.BackgroundColor3 = GOLD_HOVER end)
-	button.MouseLeave:Connect(function() tagLabel.BackgroundColor3 = GOLD end)
+	button.MouseEnter:Connect(function()
+		tagLabel.BackgroundColor3 = PLATE_HOVER
+		if glow and not calm() then glow.root.Visible = true end
+	end)
+	button.MouseLeave:Connect(function()
+		tagLabel.BackgroundColor3 = PLATE
+		if glow then glow.root.Visible = false end
+	end)
 end
 
 local function tag(parent, name, text, width, y)
@@ -72,11 +83,11 @@ local function tag(parent, name, text, width, y)
 		t = Instance.new("TextLabel")
 		t.Name = name
 		t.AnchorPoint = Vector2.new(0.5, 0)
-		t.BackgroundColor3 = GOLD
+		t.BackgroundColor3 = PLATE
 		t.BorderSizePixel = 0
 		t.Font = Enum.Font.GothamBold
 		t.TextSize = 14
-		t.TextColor3 = INK
+		t.TextColor3 = CREAM
 		t.TextTransparency = 0
 		t.TextStrokeTransparency = 1
 		t.ZIndex = 8
@@ -86,7 +97,7 @@ local function tag(parent, name, text, width, y)
 		c.CornerRadius = UDim.new(0, 7)
 		c.Parent = t
 		local s = Instance.new("UIStroke")
-		s.Color = Color3.fromRGB(110, 76, 34)
+		s.Color = BRASS
 		s.Thickness = 1.5
 		s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		s.Parent = t
@@ -106,6 +117,24 @@ function ShopStage.new(deps)
 	local self = { active = true }
 	local last = nil -- last parts handed to arrange
 	local tweens = {}
+
+	-- The warm glow behind a prop (the Menu room's hover look), made once per prop and moved with the layout; hidden until the
+	-- pointer is on the control, and never lit in calm mode.
+	local glows = {}
+	local function propGlow(key, r)
+		local g = glows[key]
+		if not g then
+			g = SoftGlow.build(shopFrame, {
+				name = "Glow_" .. key, color = Color3.fromRGB(255, 196, 110), position = UDim2.fromOffset(0, 0),
+				size = UDim2.fromOffset(10, 10), peak = 0.4, zIndex = 6,
+			})
+			g.root.Visible = false
+			glows[key] = g
+		end
+		g.root.Position = UDim2.fromOffset(r.x + r.w / 2, r.y + r.h / 2)
+		g.root.Size = UDim2.fromOffset(r.w * 2, r.h * 2)
+		return g
+	end
 
 	-- the older flat art behind the scene is not needed any more
 	for _, name in ipairs({ "ShopBackgroundArt", "ShopScrim" }) do
@@ -215,7 +244,7 @@ function ShopStage.new(deps)
 			quiet(haggle)
 			haggle.Text = ""
 			-- ShopHaggle writes the state word ("Haggle" / "Haggled") into this attribute; a relayout must not reset it
-			bindHover(haggle, tag(haggle, "HaggleTag", haggle:GetAttribute("Label") or "Haggle", w, -TAG_H))
+			bindHover(haggle, tag(haggle, "HaggleTag", haggle:GetAttribute("Label") or "Haggle", w, -TAG_H), propGlow("Haggle", l))
 		end
 		local chip = shopFrame:FindFirstChild("BossScoutChip", true)
 		if chip and chip.Parent == shopFrame then
@@ -280,7 +309,7 @@ function ShopStage.new(deps)
 			if text ~= "" then parts.rerollButton:SetAttribute("Label", text) end -- "Reroll 3"; a relayout keeps it
 			quiet(parts.rerollButton)
 			parts.rerollButton.Text = ""
-			bindHover(parts.rerollButton, tag(parts.rerollRow, "BellTag", parts.rerollButton:GetAttribute("Label") or "Reroll", tagW))
+			bindHover(parts.rerollButton, tag(parts.rerollRow, "BellTag", parts.rerollButton:GetAttribute("Label") or "Reroll", tagW), propGlow("Reroll", bell))
 			if parts.tableLabel then
 				parts.tableLabel.Parent = buyList
 				parts.tableLabel.AnchorPoint = Vector2.new(0, 0)
@@ -298,6 +327,16 @@ function ShopStage.new(deps)
 		-- shadows and the gentle bob, once the row layout has settled
 		task.defer(function()
 			if not parts.patronRow or not parts.patronRow.Parent then return end
+			-- every card lies at its own small fixed angle, as if dealt by hand: the same each visit (calm mode included)
+			local dealt = 0
+			for _, row in ipairs({ parts.patronRow, parts.packRow }) do
+				for _, slot in ipairs(row and row:GetChildren() or {}) do
+					if slot:IsA("Frame") and slot.Name ~= "SoldSpot" then
+						dealt += 1
+						slot.Rotation = Layout.cardTilt(dealt)
+					end
+				end
+			end
 			for _, old in ipairs(buyList:GetChildren()) do
 				if old.Name == "OfferShadow" then old:Destroy() end
 			end

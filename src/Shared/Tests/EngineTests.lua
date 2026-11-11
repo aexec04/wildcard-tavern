@@ -16512,13 +16512,15 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		st.services.ReplicatedStorage = setmetatable({
 			WaitForChild = function()
 				return { WaitForChild = function()
-					return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ShopRefusal = require(Engine.ShopRefusal) })
+					return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ShopRefusal = require(Engine.ShopRefusal), GlowCurve = require(Engine.GlowCurve) })
 				end }
 			end,
 			FindFirstChild = function(_, name) return name == "Remotes" and Remotes or nil end,
 		}, {})
-		stubs.ClientSettings = { get = function() return false end }
+		local calmOn = false
+		stubs.ClientSettings = { get = function(key) if key == "reduceShake" then return calmOn end return false end }
 		stubs.ShopTrace = FakeGui.load("src/Client/ShopTrace.lua", env)
+		stubs.SoftGlow = FakeGui.load("src/Client/SoftGlow.lua", env)
 		local ShopStage = FakeGui.load("src/Client/ShopStage.lua", env)
 		local ShopHaggle = FakeGui.load("src/Client/ShopHaggle.lua", env)
 		local UDim2 = env.UDim2
@@ -16550,6 +16552,12 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		-- the Reroll row exactly as Shop.lua builds it: a row in the Buy list holding the button and the table label
 		local patronRow, packRow = FakeGui.new("ScrollingFrame"), FakeGui.new("ScrollingFrame")
 		patronRow.ZIndex, packRow.ZIndex, patronRow.Parent, packRow.Parent = 6, 6, buyList, buyList
+		local slots = {} -- two Patron cards and two packs, the way ShopCards.row leaves them
+		for i = 1, 4 do
+			local slot = FakeGui.new("Frame")
+			slot.Name, slot.ZIndex, slot.Parent = "Card_" .. i, 6, i <= 2 and patronRow or packRow
+			slots[i] = slot
+		end
 		local rerollRow = FakeGui.new("Frame")
 		rerollRow.ZIndex, rerollRow.Parent = 6, buyList
 		local rerollButton = FakeGui.new("TextButton")
@@ -16601,6 +16609,35 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()
 		expectFalse(chooser.Visible, "a second click closes it" .. where)
 
+		-- the room: each dealt card lies at its own fixed angle; the props glow while the pointer is on them (never in calm mode)
+		local SL = require(Engine.ShopSceneLayout)
+		for i, slot in ipairs(slots) do
+			expectEqual(slot.Rotation, SL.cardTilt(i), "card " .. i .. " lies at its fixed angle" .. where)
+			expectTrue(math.abs(slot.Rotation) <= 2, "...at most 2 degrees" .. where)
+			if i > 1 then expectTrue(slot.Rotation ~= slots[i - 1].Rotation, "...and not like its neighbour" .. where) end
+		end
+		local bellGlow, ledgerGlow = shopFrame:FindFirstChild("Glow_Reroll"), shopFrame:FindFirstChild("Glow_Haggle")
+		expectTrue(bellGlow ~= nil and ledgerGlow ~= nil, "both props have a glow" .. where)
+		expectFalse(bellGlow.Visible or ledgerGlow.Visible, "...off until the pointer is on them" .. where)
+		rerollButton.MouseEnter:Fire()
+		expectTrue(bellGlow.Visible and bellTag.BackgroundColor3 ~= nil, "the bell glows under the pointer" .. where)
+		rerollButton.MouseLeave:Fire()
+		expectFalse(bellGlow.Visible, "...and goes out when it leaves" .. where)
+		calmOn = true
+		haggleButton.MouseEnter:Fire()
+		expectFalse(ledgerGlow.Visible, "calm mode never lights the glow" .. where)
+		haggleButton.MouseLeave:Fire()
+		calmOn = false
+		haggleButton.MouseEnter:Fire()
+		expectTrue(ledgerGlow.Visible, "the ledger glows under the pointer" .. where)
+		haggleButton.MouseLeave:Fire()
+		-- the words sit on a dark name plate, cream on dark above 4.5:1, not a gold pill
+		local LL = require(Engine.LedgerLayout)
+		local function rgb(c) return { c.R * 255, c.G * 255, c.B * 255 } end
+		for _, plate in ipairs({ bellTag, haggleTag }) do
+			expectTrue(LL.contrast(rgb(plate.TextColor3), rgb(plate.BackgroundColor3)) >= 4.5, plate.Name .. " text is at least 4.5:1 on its plate" .. where)
+		end
+
 		-- after the visit's haggle: the control stays and reads Haggled, a click says why, nothing opens
 		haggle.update({ tips = 14, shopOffers = {}, packOffers = {}, haggle = { available = false, used = true, reason = "used" } })
 		expectTrue(haggleButton.Visible, "the Haggle control stays after it is used" .. where)
@@ -16620,6 +16657,91 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		haggle.update({ shopOffers = {}, packOffers = {}, haggle = nil })
 		expectFalse(haggleButton.Visible, "no haggle state, no control" .. where)
 	end
+end })
+
+table.insert(tests, { name = "The Counter's round card table: every offer and pack lies on it, clear of Marlo, the bell, the ledger and the controls (three sizes)", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	-- the Counter frame is the screen right of the 260 px HUD (the whole width on a compact screen)
+	for _, frame in ipairs({ { 1660, 1080 }, { 1020, 720 }, { 788, 450 } }) do
+		local W, H = frame[1], frame[2]
+		for nOffers = 2, 4 do
+			for nPacks = 1, 3 do
+				local r = SL.rects(W, H, { offers = nOffers, packs = nPacks })
+				local where = " (" .. nOffers .. " offers, " .. nPacks .. " packs at " .. W .. "x" .. H .. ")"
+				expectTrue(r.table ~= nil, "there is a table" .. where)
+				expectTrue(SL.inside(r.table, r.area), "the table is inside the Counter" .. where)
+				for i, card in ipairs(r.offers) do
+					expectTrue(SL.inside(card, r.table), "Patron card " .. i .. " lies on the table" .. where)
+				end
+				for i, pack in ipairs(r.packs) do
+					expectTrue(SL.inside(pack, r.table), "pack " .. i .. " lies on the table" .. where)
+				end
+				-- cards do not overlap each other
+				local all = {}
+				for _, c in ipairs(r.offers) do all[#all + 1] = c end
+				for _, c in ipairs(r.packs) do all[#all + 1] = c end
+				-- (an offer and a pack may share a little height: packs rest in front of the Patrons)
+				for i = 1, #r.offers do
+					for j = i + 1, #r.offers do expectFalse(SL.intersects(r.offers[i], r.offers[j]), "Patron cards " .. i .. " and " .. j .. " do not overlap" .. where) end
+				end
+				for i = 1, #r.packs do
+					for j = i + 1, #r.packs do expectFalse(SL.intersects(r.packs[i], r.packs[j]), "packs " .. i .. " and " .. j .. " do not overlap" .. where) end
+				end
+				-- the table keeps clear of what is not on it
+				for name, other in pairs({ marlo = r.marlo, bell = r.props.bell, ledger = r.props.ledger, tabs = r.tabs, nextBoss = r.nextBoss, leave = r.leave }) do
+					expectFalse(SL.intersects(r.table, other), "the table does not touch the " .. name .. where)
+				end
+			end
+		end
+	end
+	local phone = SL.rects(390, 700, { offers = 3, packs = 2 })
+	expectEqual(phone.table, nil, "a phone has no table: its cards wrap in rows on the counter")
+	-- the dealt tilt
+	for i = 1, 12 do
+		expectTrue(math.abs(SL.cardTilt(i)) <= 2, "tilt " .. i .. " is at most 2 degrees")
+		expectEqual(SL.cardTilt(i), SL.cardTilt(i), "tilt " .. i .. " is the same every visit")
+		if i > 1 then expectTrue(SL.cardTilt(i) ~= SL.cardTilt(i - 1), "neighbours lean differently (" .. i .. ")") end
+	end
+end })
+
+table.insert(tests, { name = "ShopBackdrop draws the table under the cards (felt in a wooden rim, or the painted art once recorded), none on a phone", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/ShopBackdrop.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local env, st = FakeGui.env({ stubs = { SmoothVignette = { build = function() end } } })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ContentArt = require(Engine.ContentArt) })
+		end }
+	end }
+	local ShopBackdrop = FakeGui.load("src/Client/ShopBackdrop.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	local shopFrame = FakeGui.new("Frame")
+	shopFrame.Parent = gui
+	shopFrame.AbsoluteSize = { X = 1020, Y = 720 }
+	local backdrop = ShopBackdrop.new({ shopFrame = shopFrame })
+	local top = backdrop.root:FindFirstChild("TableTop")
+	expectTrue(top ~= nil and top.ClassName == "Frame" or top.ClassName == "ImageLabel", "the backdrop makes a TableTop")
+	expectFalse(top.Active, "the table sinks no clicks")
+	-- laid out for the Counter, it follows the layout's table rect
+	shopFrame.AbsoluteSize = { X = 1020, Y = 720 }
+	backdrop.relayout({ offers = 3, packs = 2 })
+	local want = require(Engine.ShopSceneLayout).rects(1020, 720, { offers = 3, packs = 2 }).table
+	expectTrue(top.Visible, "the table is shown on the Counter")
+	expectEqual(top.Position.X.Offset, want.x)
+	expectEqual(top.Position.Y.Offset, want.y)
+	expectEqual(top.Size.X.Offset, want.w)
+	expectEqual(top.Size.Y.Offset, want.h)
+	if top.ClassName == "Frame" then
+		local felt = top.BackgroundColor3
+		expectTrue(felt.G > felt.R and felt.G > felt.B, "the drawn top is green felt like the Menu room's card table")
+	end
+	-- a phone has no table
+	shopFrame.AbsoluteSize = { X = 390, Y = 700 }
+	backdrop.relayout({ offers = 3, packs = 2 })
+	expectFalse(top.Visible, "no table on a phone")
 end })
 
 table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, the Counter shows it once, Studio traces the path", fn = function()

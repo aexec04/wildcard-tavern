@@ -151,6 +151,38 @@ function ShopBackdrop.new(deps)
 		end
 	end
 
+	-- The round card table every offer and pack lies on (Engine/ShopSceneLayout `table`). Painted art (shop_table, from the held
+	-- art task) when it is recorded; otherwise a drawn top: green felt like the Menu room's card table in a dark wooden rim,
+	-- rounded to a capsule. Created after the counter pieces so it draws over them and under the cards.
+	local tableId = ContentArt.getImageId("shop_scene", "shop_table")
+	local tableTop
+	if tableId then
+		tableTop = image(root, "TableTop", tableId, 6)
+		tableTop.ScaleType = Enum.ScaleType.Stretch
+	else
+		tableTop = Instance.new("Frame")
+		tableTop.Name = "TableTop"
+		tableTop.BorderSizePixel = 0
+		tableTop.BackgroundColor3 = Color3.fromRGB(38, 68, 46)
+		tableTop.Active = false
+		tableTop.ZIndex = 6
+		tableTop.Parent = root
+		local c = Instance.new("UICorner") -- softly rounded, not a capsule: cards at the corners must not hang over the edge
+		c.CornerRadius = UDim.new(0, 36)
+		c.Parent = tableTop
+		local rim = Instance.new("UIStroke") -- the table's wooden edge
+		rim.Color = Color3.fromRGB(86, 56, 30)
+		rim.Thickness = 6
+		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		rim.Parent = tableTop
+		local felt = Instance.new("UIGradient") -- colour stops only: a little lighter at the middle of the table
+		felt.Rotation = 90
+		felt.Color = ColorSequence.new(Color3.fromRGB(52, 88, 60), Color3.fromRGB(30, 56, 38))
+		felt.Parent = tableTop
+	end
+	tableTop.Visible = false
+	self.tableTop = tableTop
+
 	local counts = nil
 	function self.relayout(newCounts)
 		if type(newCounts) == "table" then counts = newCounts end
@@ -159,6 +191,10 @@ function ShopBackdrop.new(deps)
 			return
 		end
 		local r = Layout.rects(size.X, size.Y, counts)
+		if r.table then
+			place(tableTop, r.table)
+		end
+		tableTop.Visible = r.table ~= nil -- no table on phones: their cards wrap in rows on the counter
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end
