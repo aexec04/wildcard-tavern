@@ -51,7 +51,22 @@ local function quiet(button)
 	end
 end
 
-local function tag(parent, name, text, width)
+-- The gold price tag hangs TAG_GAP under its prop and is TAG_H tall. It is only a label (Active = false), so a click on it goes
+-- to whatever is under it: the control's hit area is therefore made TAG_H + TAG_GAP taller (and as wide as the tag), which is what
+-- makes the pill itself clickable. (Before, only the small transparent rect over the painted prop was, and the pill did nothing.)
+local TAG_H, TAG_GAP = 24, 4
+ShopStage.TAG_H, ShopStage.TAG_GAP = TAG_H, TAG_GAP
+local GOLD_HOVER = Color3.fromRGB(246, 214, 138)
+
+-- The tag lights up with its control, so the pill reads as the button it is.
+local function bindHover(button, tagLabel)
+	if button:GetAttribute("TagHover") then return end
+	button:SetAttribute("TagHover", true)
+	button.MouseEnter:Connect(function() tagLabel.BackgroundColor3 = GOLD_HOVER end)
+	button.MouseLeave:Connect(function() tagLabel.BackgroundColor3 = GOLD end)
+end
+
+local function tag(parent, name, text, width, y)
 	local t = parent:FindFirstChild(name)
 	if not t then
 		t = Instance.new("TextLabel")
@@ -77,8 +92,8 @@ local function tag(parent, name, text, width)
 		s.Parent = t
 	end
 	t.Text = text
-	t.Size = UDim2.fromOffset(width or 110, 24)
-	t.Position = UDim2.new(0.5, 0, 1, 4)
+	t.Size = UDim2.fromOffset(width or 110, TAG_H)
+	t.Position = UDim2.new(0.5, 0, 1, y or TAG_GAP)
 	return t
 end
 
@@ -191,11 +206,16 @@ function ShopStage.new(deps)
 		end
 		local haggle = shopFrame:FindFirstChild("HaggleButton")
 		if haggle and r.props.ledger then
+			-- Haggle = the ledger AND its tag: one hit area, as wide as the tag and tall enough to include it
+			local l = r.props.ledger
+			local w = math.max(l.w, 84)
 			haggle.AnchorPoint = Vector2.new(0, 0)
-			place(haggle, r.props.ledger)
+			haggle.Position = UDim2.fromOffset(l.x - (w - l.w) / 2, l.y)
+			haggle.Size = UDim2.fromOffset(w, l.h + TAG_H + TAG_GAP)
 			quiet(haggle)
 			haggle.Text = ""
-			tag(haggle, "HaggleTag", "Haggle", math.max(r.props.ledger.w, 84))
+			-- ShopHaggle writes the state word ("Haggle" / "Haggled") into this attribute; a relayout must not reset it
+			bindHover(haggle, tag(haggle, "HaggleTag", haggle:GetAttribute("Label") or "Haggle", w, -TAG_H))
 		end
 		local chip = shopFrame:FindFirstChild("BossScoutChip", true)
 		if chip and chip.Parent == shopFrame then
@@ -251,12 +271,16 @@ function ShopStage.new(deps)
 			local bell = r.props.bell
 			parts.rerollRow.Position = UDim2.fromOffset(bell.x, bell.y)
 			parts.rerollRow.Size = UDim2.fromOffset(bell.w, bell.h)
-			parts.rerollButton.Position = UDim2.new()
-			parts.rerollButton.Size = UDim2.fromScale(1, 1)
+			-- the bell AND its price tag are one hit area: as wide as the tag, tall enough to include it
+			local tagW = 120
+			local extra = math.max(0, (tagW - bell.w) / 2)
+			parts.rerollButton.Position = UDim2.fromOffset(-extra, 0)
+			parts.rerollButton.Size = UDim2.new(1, 2 * extra, 1, TAG_H + TAG_GAP)
 			local text = parts.rerollButton.Text
+			if text ~= "" then parts.rerollButton:SetAttribute("Label", text) end -- "Reroll 3"; a relayout keeps it
 			quiet(parts.rerollButton)
 			parts.rerollButton.Text = ""
-			tag(parts.rerollRow, "BellTag", text ~= "" and text or "Reroll", 120)
+			bindHover(parts.rerollButton, tag(parts.rerollRow, "BellTag", parts.rerollButton:GetAttribute("Label") or "Reroll", tagW))
 			if parts.tableLabel then
 				parts.tableLabel.Parent = buyList
 				parts.tableLabel.AnchorPoint = Vector2.new(0, 0)

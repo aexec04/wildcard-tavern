@@ -811,6 +811,7 @@ local function serializeState(session, player)
 			return require(Engine.Haggle).view(state, require(Engine.Haggle).ctxFor(session), session.phase)
 		end)() or nil,
 		stranger = session.phase == "shop" and require(Engine.Strangers).view(session.strangerOffer) or nil,
+		shopNotice = session.shopNotice, -- the last one-line reason the Counter gave for a refused Reroll or Haggle
 		bargains = state.bargains,
 		-- Side stops open at this Night's stop (Round Select only): id, kind, name, icon and, for a shop, its offers.
 		sideStops = (function()
@@ -2299,17 +2300,33 @@ end)
 -- static full-catalog browse -- matches the reference game and makes the
 -- Reroll button a real decision (spend Tips now for a fresh set of offers).
 
+-- A refusal is never silent: the reason (Engine/ShopRefusal) goes to the client as state.shopNotice and the Counter shows it as
+-- one line. `seq` changes with every notice so the client shows each one once. In Studio every request is traced to the Output.
+local function counterNotice(player, session, text)
+	session.shopNotice = { seq = math.floor(os.clock() * 1000), text = text }
+	pushState(player)
+end
+local function counterTrace(...)
+	if RunService:IsStudio() then
+		print("[Shop server] " .. string.format(...))
+	end
+end
+
 Rem.RerollShop.OnServerEvent:Connect(function(player)
-	if not RateLimit.allow(player.UserId, "Rem.RerollShop", os.clock()) then return end
-	local session = sessions[player]
-	if not session or not RunState.phaseAllowsShopActions(session.phase) then
+	if not RateLimit.allow(player.UserId, "Rem.RerollShop", os.clock()) then
+		counterTrace("RerollShop from %s dropped by the rate limit", player.Name)
 		return
 	end
-	if session.state.pendingPack then
+	local session = sessions[player]
+	if not session then
 		return
 	end
 	local cost = RunState.rerollCost(session.state, session.rerollCost or Shop.REROLL_BASE_COST)
-	if session.state.tips < cost then
+	local why = require(Engine.ShopRefusal).reroll(RunState.phaseAllowsShopActions(session.phase), session.state.pendingPack, session.state.tips, cost)
+	counterTrace("RerollShop from %s: phase %s, tips %d, cost %d, pack open %s -> %s", player.Name, tostring(session.phase),
+		math.floor(session.state.tips or 0), math.floor(cost), tostring(session.state.pendingPack ~= nil), why or "rerolled")
+	if why then
+		counterNotice(player, session, why)
 		return
 	end
 	session.state.tips = session.state.tips - cost
@@ -2321,12 +2338,23 @@ end)
 -- HAGGLE: "start" opens the 3 second bar for one offered Patron or Pack, "stop" reads the needle from the
 -- server clock (the client's own angle is never sent). One per shop visit; refused on ranked boards and in the tutorial.
 Rem.Haggle.OnServerEvent:Connect(function(player, action, kind, id)
-	if not RateLimit.allow(player.UserId, "Rem.Haggle", os.clock()) then return end
+	if not RateLimit.allow(player.UserId, "Rem.Haggle", os.clock()) then
+		counterTrace("Haggle from %s dropped by the rate limit", player.Name)
+		return
+	end
 	local session = sessions[player]
-	if not session or not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+	if not session then
 		return
 	end
 	local Haggle = require(Engine.Haggle)
+	local Refusal = require(Engine.ShopRefusal)
+	if not RunState.phaseAllowsShopActions(session.phase) or session.state.pendingPack then
+		counterTrace("Haggle %s from %s refused: phase %s, pack open %s", tostring(action), player.Name, tostring(session.phase), tostring(session.state.pendingPack ~= nil))
+		if action == "start" then -- a stop after the bar timed out stays quiet; a start that goes nowhere says why
+			counterNotice(player, session, Refusal.haggle(session.state.pendingPack and "pack_open" or "wrong_phase"))
+		end
+		return
+	end
 	if action == "start" then
 		local list = (kind == "patron" and session.shopOffers) or (kind == "pack" and session.packOffers) or nil
 		local offered = false
@@ -2335,8 +2363,15 @@ Rem.Haggle.OnServerEvent:Connect(function(player, action, kind, id)
 				offered = true
 			end
 		end
-		if offered and Haggle.start(session.state, Haggle.ctxFor(session), session.phase, os.clock(), kind, id) then
+		local started, code = false, "bad_item"
+		if offered then
+			started, code = Haggle.start(session.state, Haggle.ctxFor(session), session.phase, os.clock(), kind, id)
+		end
+		counterTrace("Haggle start %s %s from %s -> %s", tostring(kind), tostring(id), player.Name, started and "bar open" or tostring(code))
+		if started then
 			pushState(player)
+		else
+			counterNotice(player, session, Refusal.haggle(code))
 		end
 	elseif action == "stop" then
 		if Haggle.stop(session.state, os.clock()) then

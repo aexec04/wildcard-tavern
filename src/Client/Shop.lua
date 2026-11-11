@@ -170,6 +170,8 @@ return function(deps)
 
 	local PatronPlaqueModule = require(script.Parent.PatronPlaque)
 	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+	local ShopRefusal = require(Engine:WaitForChild("ShopRefusal")) -- the words on Reroll and Haggle and every refusal's one line
+	local ShopTrace = require(script.Parent.ShopTrace) -- Studio only: what the Reroll click did, step by step
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 	local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 	local RarityFrame = require(script.Parent.RarityFrame)
@@ -208,6 +210,7 @@ return function(deps)
 	local shopScene -- ShopScene instance (nil if it failed to build)
 	local shopBackdrop, shopStage -- Counter v2 painted scene and its stage director (nil until the art is recorded)
 	local shopHaggle -- Haggle button, timing bar and Stranger card (Client/ShopHaggle.lua)
+	local lastNoticeSeq -- the last server notice shown on the Counter (state.shopNotice.seq): each refusal is said once
 	local nextRoundButton
 	local shopBuyListFrame
 	local shopMyPatronsListFrame
@@ -316,6 +319,7 @@ return function(deps)
 				return require(script.Parent.ShopHaggle).new({
 					shopFrame = shopFrame, playClickSfx = playClickSfx,
 					say = function(text) if shopScene then shopScene.sayText(text) end end,
+					warn = showWarning, -- a refused click says why on the Counter as well as in Marlo's bubble
 				})
 			end)
 			shopHaggle = okH and haggle or nil
@@ -1245,6 +1249,12 @@ return function(deps)
 	end
 
 	local function rebuildShop(state)
+		-- A refused Reroll or Haggle is never silent: the server sends the reason and the Counter says it once.
+		if state and type(state.shopNotice) == "table" and state.shopNotice.seq ~= lastNoticeSeq then
+			lastNoticeSeq = state.shopNotice.seq
+			ShopTrace.log("the server refused: %s", tostring(state.shopNotice.text))
+			if type(state.shopNotice.text) == "string" then showWarning(state.shopNotice.text) end
+		end
 		if shopHaggle and state then shopHaggle.update(state) end
 		local renderSignature = buildShopRenderSignature(state)
 		if state and renderSignature == lastShopRenderSignature then
@@ -1310,7 +1320,7 @@ return function(deps)
 		rerollButton.Position = UDim2.new(0, 14, 0, 3)
 		rerollButton.Font = Enum.Font.GothamBold
 		rerollButton.TextSize = 16
-		rerollButton.Text = string.format("Reroll (%d tips)", state.rerollCost or 0)
+		rerollButton.Text = ShopRefusal.rerollLabel(state.rerollCost) -- "Reroll 3": the price is on the control
 		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
 		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 		rerollButton.ZIndex = 6
@@ -1342,10 +1352,16 @@ return function(deps)
 		end
 
 		rerollButton.MouseButton1Click:Connect(function()
-			if not tutorialAllows("reroll") then return end
+			ShopTrace.log("Reroll clicked")
+			if not tutorialAllows("reroll") then
+				ShopTrace.log("Reroll blocked by the tutorial")
+				showWarning("Finish the tutorial step first.")
+				return
+			end
 			local latestState = getLatestState()
 			if not latestState or latestState.tips < (latestState.rerollCost or 0) then
-				showWarning("Not enough tips to reroll.")
+				ShopTrace.log("Reroll refused here: tips %s, cost %s", tostring(latestState and latestState.tips), tostring(latestState and latestState.rerollCost))
+				showWarning(ShopRefusal.REASONS.tips)
 				playClickSfx()
 				if shopScene then shopScene.onCantAfford() end
 				return
@@ -1364,6 +1380,7 @@ return function(deps)
 				end)
 			end
 			if shopScene then shopScene.onReroll() end
+			ShopTrace.log("Reroll sent to the server (tips %s, cost %s)", tostring(latestState.tips), tostring(latestState.rerollCost))
 			RerollShopRemote:FireServer()
 			tutorialReport("reroll")
 		end)

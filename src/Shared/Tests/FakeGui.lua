@@ -312,6 +312,54 @@ function FakeGui.load(path, env)
 	return chunk()
 end
 
+-- ===== A tiny layout: AbsolutePosition and AbsoluteSize from Position, Size and AnchorPoint (no UI constraints, no lists) =====
+function FakeGui.layout(root, width, height)
+	local function same(a, b) return a ~= nil and a.X == b.X and a.Y == b.Y end
+	local function go(node, px, py, pw, ph)
+		for _, kid in ipairs(rawget(node, "_kids")) do
+			if GUI[rawget(kid, "_class")] then
+				local size = kid.Size or { X = udim(0, 0), Y = udim(0, 0) }
+				local pos = kid.Position or { X = udim(0, 0), Y = udim(0, 0) }
+				local anchor = kid.AnchorPoint or { X = 0, Y = 0 }
+				local w = size.X.Scale * pw + size.X.Offset
+				local h = size.Y.Scale * ph + size.Y.Offset
+				local x = px + pos.X.Scale * pw + pos.X.Offset - anchor.X * w
+				local y = py + pos.Y.Scale * ph + pos.Y.Offset - anchor.Y * h
+				if not same(kid.AbsolutePosition, { X = x, Y = y }) then kid.AbsolutePosition = { X = x, Y = y } end
+				if not same(kid.AbsoluteSize, { X = w, Y = h }) then kid.AbsoluteSize = { X = w, Y = h } end
+				go(kid, x, y, w, h)
+			else
+				go(kid, px, py, pw, ph)
+			end
+		end
+	end
+	go(root, 0, 0, width, height)
+end
+
+-- ===== What a click at (x, y) reaches, the way Roblox hit-tests it =====
+-- The topmost visible GuiObject under the point that sinks input receives it: a button always does, a ScrollingFrame does unless
+-- Active = false, a Frame or label only with Active = true. A transparent object sinks just the same. nil = nothing.
+function FakeGui.hit(root, x, y)
+	local order = FakeGui.drawOrder(root)
+	for i = #order, 1, -1 do
+		local o = order[i]
+		local pos, size = o.AbsolutePosition, o.AbsoluteSize
+		if pos and size and x >= pos.X and x <= pos.X + size.X and y >= pos.Y and y <= pos.Y + size.Y then
+			local visible, p = true, o
+			while p and GUI[rawget(p, "_class")] do
+				if p.Visible == false then visible = false break end
+				p = rawget(p, "_parent")
+			end
+			if visible then
+				local class, active = rawget(o, "_class"), o.Active
+				if active == nil then active = class == "TextButton" or class == "ImageButton" or class == "ScrollingFrame" end
+				if active then return o end
+			end
+		end
+	end
+	return nil
+end
+
 -- ===== The Global draw order =====
 function FakeGui.drawOrder(root)
 	local list, n = {}, 0

@@ -3,8 +3,9 @@
 	The Counter's two extra interactions, drawn from the state payload (the server decides everything):
 	  * Haggle: a button beside Marlo. It lists the Patron and Pack offers, you pick one, a 3 second needle bar
 	    opens and Stop (or the bar timing out) asks the server to read its own clock. The picture of the needle is
-	    only measured from the moment the state arrived. Hidden when state.haggle.available is false (used, ranked
-	    board, tutorial).
+	    only measured from the moment the state arrived. Not drawn on ranked boards and in the tutorial; after the one
+	    haggle of a visit it stays and reads "Haggled", and while a pack is open it is dimmed. A click that cannot open the
+	    chooser says why in Marlo's bubble and on the Counter (Engine/ShopRefusal), never nothing.
 	  * The Wandering Stranger: a parchment card with one Dealer's Bargain, its blessing and its curse written
 	    plainly, a price, Accept and No thanks. Declining is free.
 	Remotes: Haggle (action, kind, id) and Stranger (action). Text is 15px or larger.
@@ -15,6 +16,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ShopRefusal = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ShopRefusal"))
+local ShopTrace = require(script.Parent.ShopTrace)
 
 local ShopHaggle = {}
 
@@ -258,6 +261,14 @@ function ShopHaggle.new(deps)
 
 	haggleButton.MouseButton1Click:Connect(function()
 		playClickSfx()
+		local denied = ShopRefusal.haggleDenied(view.haggle)
+		ShopTrace.log("Haggle clicked: %s", denied or "chooser toggled")
+		if denied then
+			chooser.Visible = false
+			say(denied)
+			if deps.warn then deps.warn(denied) end
+			return
+		end
 		chooser.Visible = not chooser.Visible
 	end)
 
@@ -302,7 +313,21 @@ function ShopHaggle.new(deps)
 	-- Called from rebuildShop on every render while the shop is open.
 	function self.update(state)
 		local h = state and state.haggle
-		haggleButton.Visible = h ~= nil and h.available == true
+		view.haggle = h
+		-- Not drawn on ranked boards and in the tutorial; otherwise it stays: "Haggle", or "Haggled" once the visit's haggle is used,
+		-- dimmed while it cannot be used (the label is the stage's gold tag, or the button's own text without the stage).
+		haggleButton.Visible = h ~= nil and (h.available == true or not ShopRefusal.hiddenCodes[h.reason])
+		local label = ShopRefusal.haggleLabel(h)
+		haggleButton:SetAttribute("Label", label)
+		local tagLabel = haggleButton:FindFirstChild("HaggleTag")
+		local dim = (h and h.available) and 0 or 0.4
+		if tagLabel then
+			tagLabel.Text = label
+			tagLabel.BackgroundTransparency = dim
+		else
+			haggleButton.Text = label
+			haggleButton.BackgroundTransparency = dim
+		end
 		if not (h and h.available) then
 			chooser.Visible = false
 		else

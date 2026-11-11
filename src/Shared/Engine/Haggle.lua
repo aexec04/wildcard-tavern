@@ -102,9 +102,10 @@ end
 -- What the client may see: whether it can haggle, the open bar (item and start time) or the last result.
 function Haggle.view(state, ctx, phase)
 	local h = state.haggle
-	local canStart = Haggle.canStart(state, ctx, phase)
+	local canStart, reason = Haggle.canStart(state, ctx, phase)
 	return {
 		available = canStart,
+		reason = reason, -- why not (wrong_phase, ranked, tutorial, pack_open, used), so the Counter can say it
 		open = h and h.open and { kind = h.open.kind, id = h.open.id } or nil,
 		used = h and h.used or false,
 		kind = h and h.kind, id = h and h.id, delta = h and h.delta,

@@ -16449,4 +16449,209 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(choice:find("panel = holder", 1, true) ~= nil, "the cards' holder is the panel: a click on a card is never outside")
 end })
 
+-- ===== Haggle and Reroll did nothing on the Counter (2026-11-10): the gold pill was a label, never a button =====
+table.insert(tests, { name = "ShopRefusal: every way the Counter says no has one line of text, and the Reroll and Haggle words", fn = function()
+	local R = require(script.Parent.Parent.Engine.ShopRefusal)
+	local Haggle = require(script.Parent.Parent.Engine.Haggle)
+	-- Reroll: allowed, or the first reason in the order the server checks (phase, pack, tips)
+	expectEqual(R.reroll(true, nil, 14, 3), nil, "14 tips buys a 3 tip reroll")
+	expectEqual(R.reroll(true, nil, 3, 3), nil, "exactly enough is enough")
+	expectEqual(R.reroll(true, nil, 2, 3), R.REASONS.tips)
+	expectEqual(R.reroll(true, {}, 14, 3), R.REASONS.pack_open, "a pack that is open comes first")
+	expectEqual(R.reroll(false, {}, 0, 3), R.REASONS.wrong_phase, "outside the shop comes before everything")
+	-- Haggle: every code Haggle.canStart can return has its own sentence
+	for _, code in ipairs({ "wrong_phase", "ranked", "tutorial", "pack_open", "used", "bad_item" }) do
+		expectTrue(type(R.haggle(code)) == "string" and #R.haggle(code) > 10, code .. " has a sentence")
+	end
+	expectTrue(R.haggle("surprise") ~= "" and R.haggle(nil) ~= "", "an unknown code still says something")
+	local seen = {}
+	for _, text in pairs(R.REASONS) do
+		expectFalse(seen[text], "no two reasons share a sentence: " .. text)
+		seen[text] = true
+		expectTrue(not text:find("\226\128\148", 1, true), "no em dash: " .. text)
+	end
+	-- the words on the controls
+	expectEqual(R.rerollLabel(3), "Reroll 3")
+	expectEqual(R.rerollLabel(0), "Reroll 0")
+	expectEqual(R.rerollLabel(nil), "Reroll 0")
+	expectEqual(R.haggleLabel({ used = false }), "Haggle")
+	expectEqual(R.haggleLabel({ used = true }), "Haggled")
+	expectEqual(R.haggleLabel(nil), "Haggle")
+	-- a click on Haggle: opens the chooser, or says why not
+	expectEqual(R.haggleDenied({ available = true }), nil)
+	expectEqual(R.haggleDenied({ available = false, open = { kind = "patron", id = "x" } }), nil, "with the bar already up there is nothing to refuse")
+	expectEqual(R.haggleDenied({ available = false, used = true, reason = "used" }), R.REASONS.used)
+	expectEqual(R.haggleDenied({ available = false, reason = "pack_open" }), R.REASONS.pack_open)
+	expectEqual(R.haggleDenied(nil), R.REASONS.wrong_phase)
+	-- the real engine view carries the reason, so the client never has to guess
+	local state = { haggle = { used = true } }
+	local view = Haggle.view(state, {}, "shop")
+	expectTrue(view.available == false and view.reason == "used" and view.used == true, "a used haggle says why")
+	expectEqual(R.haggleLabel(view), "Haggled")
+	view = Haggle.view({}, { ranked = true }, "shop")
+	expectTrue(not view.available and view.reason == "ranked" and R.hiddenCodes[view.reason], "a ranked board has no Haggle at all")
+	view = Haggle.view({ pendingPack = {} }, {}, "shop")
+	expectTrue(not view.available and view.reason == "pack_open" and not R.hiddenCodes[view.reason], "a pack that is open only dims it")
+	expectTrue(Haggle.view({}, {}, "shop").available and Haggle.view({}, {}, "shop").reason == nil, "an available haggle has no reason")
+end })
+
+table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage: a click on the visible gold pill reaches the control (layer order, four sizes)", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/ShopStage.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local sizes = { { 1257, 750, "your Play window" }, { 1920, 1080, "1920x1080" }, { 1280, 720, "1280x720" }, { 800, 450, "800x450" } }
+	for _, size in ipairs(sizes) do
+		local W, H, where = size[1], size[2], " at " .. size[3]
+		local stubs = {}
+		local env, st = FakeGui.env({ stubs = stubs })
+		st.services.ReplicatedStorage = FakeGui.new("Folder")
+		local Remotes = FakeGui.new("Folder")
+		Remotes.Name, Remotes.Parent = "Remotes", st.services.ReplicatedStorage
+		st.services.ReplicatedStorage = setmetatable({
+			WaitForChild = function()
+				return { WaitForChild = function()
+					return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ShopRefusal = require(Engine.ShopRefusal) })
+				end }
+			end,
+			FindFirstChild = function(_, name) return name == "Remotes" and Remotes or nil end,
+		}, {})
+		stubs.ClientSettings = { get = function() return false end }
+		stubs.ShopTrace = FakeGui.load("src/Client/ShopTrace.lua", env)
+		local ShopStage = FakeGui.load("src/Client/ShopStage.lua", env)
+		local ShopHaggle = FakeGui.load("src/Client/ShopHaggle.lua", env)
+		local UDim2 = env.UDim2
+
+		-- the Shop frame with what Shop.lua puts in it: the Buy list, the tab bar, Next Round, and the Haggle button from ShopHaggle
+		local gui = FakeGui.new("ScreenGui")
+		local shopFrame = FakeGui.new("Frame")
+		shopFrame.Name, shopFrame.ZIndex, shopFrame.Size, shopFrame.Parent = "Shop", 6, UDim2.fromOffset(W, H), gui
+		local buyList = FakeGui.new("ScrollingFrame")
+		buyList.ZIndex, buyList.Parent = 6, shopFrame
+		local tabBar = FakeGui.new("Frame")
+		tabBar.ZIndex, tabBar.Parent = 6, shopFrame
+		for i = 1, 3 do
+			local t = FakeGui.new("TextButton")
+			t.ZIndex, t.Parent = 6, tabBar
+		end
+		local nextRound = FakeGui.new("TextButton")
+		nextRound.ZIndex, nextRound.Parent = 6, shopFrame
+		local said, warned = {}, {}
+		local haggle = ShopHaggle.new({ shopFrame = shopFrame, playClickSfx = function() end,
+			say = function(t) said[#said + 1] = t end, warn = function(t) warned[#warned + 1] = t end })
+
+		local stage = ShopStage.new({
+			shopFrame = shopFrame, buyList = buyList, contentArea = shopFrame, tabBar = tabBar, nextRoundButton = nextRound,
+			backdrop = { marlo = nil, relayout = function() end }, cardRowHeight = function() return 300 end, setCardScale = function() end,
+		})
+		expectTrue(stage ~= nil, "the stage builds" .. where)
+
+		-- the Reroll row exactly as Shop.lua builds it: a row in the Buy list holding the button and the table label
+		local patronRow, packRow = FakeGui.new("ScrollingFrame"), FakeGui.new("ScrollingFrame")
+		patronRow.ZIndex, packRow.ZIndex, patronRow.Parent, packRow.Parent = 6, 6, buyList, buyList
+		local rerollRow = FakeGui.new("Frame")
+		rerollRow.ZIndex, rerollRow.Parent = 6, buyList
+		local rerollButton = FakeGui.new("TextButton")
+		rerollButton.Text, rerollButton.ZIndex, rerollButton.Parent = "Reroll 3", 6, rerollRow
+		local tableLabel = FakeGui.new("TextLabel")
+		tableLabel.ZIndex, tableLabel.Parent = 6, rerollRow
+		local rerolls = 0
+		rerollButton.MouseButton1Click:Connect(function() rerolls = rerolls + 1 end)
+
+		haggle.update({ tips = 14, shopOffers = { { id = "p1", name = "Rowdy Bunch", price = 5 } }, packOffers = {},
+			haggle = { available = true, used = false } })
+		FakeGui.layout(gui, W, H) -- the stage reads the Shop frame's size when it arranges
+		stage.arrange({ patronRow = patronRow, packRow = packRow, rerollRow = rerollRow, rerollButton = rerollButton, tableLabel = tableLabel,
+			counts = { offers = 2, packs = 2, noMarlo = true }, patronRowHeight = 340, packRowHeight = 180 })
+		FakeGui.layout(gui, W, H)
+
+		local function centre(o) return o.AbsolutePosition.X + o.AbsoluteSize.X / 2, o.AbsolutePosition.Y + o.AbsoluteSize.Y / 2 end
+		local haggleButton = shopFrame:FindFirstChild("HaggleButton")
+		local bellTag, haggleTag = rerollRow:FindFirstChild("BellTag"), haggleButton:FindFirstChild("HaggleTag")
+		expectTrue(bellTag ~= nil and haggleTag ~= nil, "both gold pills exist" .. where)
+		expectEqual(bellTag.Text, "Reroll 3", "the Reroll pill shows its price" .. where)
+		expectEqual(haggleTag.Text, "Haggle", "the Haggle pill shows its state" .. where)
+
+		-- the pill hangs under the painted prop: the old hit area (the row, the prop rect) did not include it
+		local rowBottom = rerollRow.AbsolutePosition.Y + rerollRow.AbsoluteSize.Y
+		expectTrue(bellTag.AbsolutePosition.Y >= rowBottom, "the Reroll pill sits below the bell's own rect (" .. bellTag.AbsolutePosition.Y .. " vs " .. rowBottom .. ")" .. where)
+
+		-- a click on the middle of each pill, and on each prop, reaches that control
+		local x, y = centre(bellTag)
+		expectEqual(FakeGui.hit(gui, x, y), rerollButton, "a click on the Reroll pill reaches the Reroll button" .. where)
+		x, y = centre(rerollRow)
+		expectEqual(FakeGui.hit(gui, x, y), rerollButton, "a click on the bell reaches it too" .. where)
+		x, y = bellTag.AbsolutePosition.X + 2, bellTag.AbsolutePosition.Y + 2
+		expectEqual(FakeGui.hit(gui, x, y), rerollButton, "...also at the corner of the pill" .. where)
+		x, y = centre(haggleTag)
+		expectEqual(FakeGui.hit(gui, x, y), haggleButton, "a click on the Haggle pill reaches the Haggle button" .. where)
+		x, y = haggleButton.AbsolutePosition.X + haggleButton.AbsoluteSize.X / 2, haggleButton.AbsolutePosition.Y + 6
+		expectEqual(FakeGui.hit(gui, x, y), haggleButton, "a click on the ledger reaches it too" .. where)
+		x, y = haggleTag.AbsolutePosition.X + haggleTag.AbsoluteSize.X - 2, haggleTag.AbsolutePosition.Y + haggleTag.AbsoluteSize.Y - 2
+		expectEqual(FakeGui.hit(gui, x, y), haggleButton, "...also at the far corner of the pill" .. where)
+
+		-- and the handlers run: Reroll counts, Haggle opens its chooser
+		FakeGui.hit(gui, centre(bellTag)).MouseButton1Click:Fire()
+		expectEqual(rerolls, 1, "the click on the pill runs the Reroll handler" .. where)
+		local chooser = shopFrame:FindFirstChild("HaggleChooser")
+		expectFalse(chooser.Visible, "the chooser starts closed" .. where)
+		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()
+		expectTrue(chooser.Visible, "the click on the Haggle pill opens the item chooser" .. where)
+		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()
+		expectFalse(chooser.Visible, "a second click closes it" .. where)
+
+		-- after the visit's haggle: the control stays and reads Haggled, a click says why, nothing opens
+		haggle.update({ tips = 14, shopOffers = {}, packOffers = {}, haggle = { available = false, used = true, reason = "used" } })
+		expectTrue(haggleButton.Visible, "the Haggle control stays after it is used" .. where)
+		expectEqual(haggleTag.Text, "Haggled", "...and says so" .. where)
+		stage.relayout()
+		expectEqual(haggleTag.Text, "Haggled", "a relayout keeps the word" .. where)
+		expectEqual(rerollRow:FindFirstChild("BellTag").Text, "Reroll 3", "a relayout keeps the Reroll price too" .. where)
+		said, warned = {}, {}
+		FakeGui.hit(gui, centre(haggleTag)).MouseButton1Click:Fire()
+		expectFalse(chooser.Visible, "nothing opens once it is used" .. where)
+		expectTrue(said[1] == "You already haggled this visit." and warned[1] == "You already haggled this visit.", "a click that does nothing says why, in Marlo's bubble and on the Counter" .. where)
+		-- while a pack is open it is dimmed with its own reason; on a ranked board it is not drawn at all
+		haggle.update({ shopOffers = {}, packOffers = {}, haggle = { available = false, used = false, reason = "pack_open" } })
+		expectTrue(haggleButton.Visible and haggleTag.Text == "Haggle", "an open pack only dims it" .. where)
+		haggle.update({ shopOffers = {}, packOffers = {}, haggle = { available = false, used = false, reason = "ranked" } })
+		expectFalse(haggleButton.Visible, "a ranked board has no Haggle" .. where)
+		haggle.update({ shopOffers = {}, packOffers = {}, haggle = nil })
+		expectFalse(haggleButton.Visible, "no haggle state, no control" .. where)
+	end
+end })
+
+table.insert(tests, { name = "Reroll and Haggle refusals: the server says why, the Counter shows it once, Studio traces the path", fn = function()
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local server = read("src/Server/init.server.lua")
+	local shop = read("src/Client/Shop.lua")
+	local haggle = read("src/Client/ShopHaggle.lua")
+	local stage = read("src/Client/ShopStage.lua")
+	if not (server and shop and haggle and stage) then return end
+	-- server: neither handler returns silently on a refusal any more
+	local reroll = server:match("Rem%.RerollShop%.OnServerEvent:Connect.-\nend%)\n")
+	expectTrue(reroll ~= nil and reroll:find("ShopRefusal", 1, true) ~= nil and reroll:find("counterNotice(player, session, why)", 1, true) ~= nil, "Reroll turns a refusal into a notice")
+	expectTrue(reroll:find("counterTrace", 1, true) ~= nil, "Reroll is traced in Studio")
+	local hag = server:match("Rem%.Haggle%.OnServerEvent:Connect.-\nend%)\n")
+	expectTrue(hag ~= nil and hag:find("counterNotice(player, session, Refusal.haggle(code))", 1, true) ~= nil, "a Haggle start that fails says why")
+	expectTrue(hag:find('Refusal.haggle(session.state.pendingPack and "pack_open" or "wrong_phase")', 1, true) ~= nil, "...also when the phase or an open pack stops it")
+	expectTrue(server:find("shopNotice = session.shopNotice", 1, true) ~= nil, "the notice reaches the client in the state")
+	-- client: the notice is shown once per seq, the words are the shared ones, every click is traced
+	expectTrue(shop:find("state.shopNotice.seq ~= lastNoticeSeq", 1, true) ~= nil and shop:find("showWarning(state.shopNotice.text)", 1, true) ~= nil, "the Counter shows a server notice once")
+	expectTrue(shop:find("ShopRefusal.rerollLabel(state.rerollCost)", 1, true) ~= nil, "the Reroll button shows its cost")
+	expectTrue(shop:find('ShopTrace.log("Reroll clicked")', 1, true) ~= nil and shop:find("Reroll sent to the server", 1, true) ~= nil, "the Reroll click is traced")
+	expectTrue(haggle:find('ShopTrace.log("Haggle clicked', 1, true) ~= nil and haggle:find("ShopRefusal.haggleDenied", 1, true) ~= nil, "the Haggle click is traced and refused out loud")
+	-- the tags are part of the hit area, not labels beside it
+	expectTrue(stage:find("TAG_H + TAG_GAP", 1, true) ~= nil and stage:find("bindHover(", 1, true) ~= nil, "the pill is inside its control's hit area and lights on hover")
+	-- ... and the trace is silent outside Studio
+	local trace = read("src/Client/ShopTrace.lua")
+	expectTrue(trace ~= nil and trace:find("IsStudio()", 1, true) ~= nil, "ShopTrace prints only in Studio")
+end })
+
 return tests
