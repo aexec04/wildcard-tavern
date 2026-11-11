@@ -18993,6 +18993,35 @@ table.insert(tests, { name = "PlayBoardLayout.placement: 2:3 top-left rect, nil 
 	end
 end })
 
+table.insert(tests, { name = "SidebarMetrics: painted board sets the left edge of full screens, flat sidebar keeps 240/260, under 900 px stays flat", fn = function()
+	local SM = require(script.Parent.Parent.Engine.SidebarMetrics)
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	SM.setPainted(false)
+	expectTrue(SM.width(1506, 751) == 240 and SM.hostLeft(1506, 751) == 240 and SM.contentLeft(1506, 751) == 260, "flat numbers")
+	local fired = 0
+	SM.onChange(function() fired = fired + 1 end)
+	SM.setPainted(true)
+	expectTrue(fired == 1, "listeners run when the painted state changes")
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 } }) do
+		local w = PB.placement(sz[1], sz[2]).w
+		expectTrue(SM.width(sz[1], sz[2]) == w, "width is the board width at " .. sz[1])
+		expectTrue(SM.contentLeft(sz[1], sz[2]) == w + 8 and SM.hostLeft(sz[1], sz[2]) == w + 8, "board right edge plus 8 at " .. sz[1])
+		expectTrue(sz[1] - SM.contentLeft(sz[1], sz[2]) - 20 >= 600, "the Counter keeps room at " .. sz[1])
+	end
+	expectTrue(SM.contentLeft(800, 450) == 260, "narrow window keeps the old inset")
+	SM.setPainted(false)
+	expectTrue(fired == 2, "listeners run again on leaving painted")
+	if io and io.open then
+		for _, f in ipairs({ "src/Client/Shop.lua", "src/Client/BossFight.lua", "src/Client/PlayBoardPaint.lua" }) do
+			local h = io.open(f, "r")
+			if h then
+				local c = h:read("*a"); h:close()
+				expectTrue(c:find("SidebarMetrics", 1, true) ~= nil, f .. " uses the shared sidebar number")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3,width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
 	expectFalse(PB.usable(390))

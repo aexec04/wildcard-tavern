@@ -137,9 +137,11 @@ local function build(deps)
 	local function layout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-		local areaW = math.max(vp.X - sidebarWidth, 200)
+		local SM = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SidebarMetrics"))
+		local left = SM.isPainted() and SM.hostLeft(vp.X, vp.Y) or sidebarWidth -- painted board is wider than the flat sidebar
+		local areaW = math.max(vp.X - left, 200)
 		host.AnchorPoint = Vector2.new(0, 0)
-		host.Position = UDim2.new(0, sidebarWidth, 0, 0)
+		host.Position = UDim2.new(0, left, 0, 0)
 		host.Size = UDim2.new(0, areaW, 1, 0)
 	end
 	host.ClipsDescendants = true

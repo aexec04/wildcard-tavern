@@ -253,8 +253,17 @@ return function(deps)
 		-- it fully covers the corner icon buttons (top) and the Play Hand/
 		-- Discard bar (bottom) instead of leaving them peeking out above/
 		-- below the panel.
-		shopFrame.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 1, 0)
-		shopFrame.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, 0)
+		-- painted board: start 8 px right of the board (Engine/SidebarMetrics, one shared number), refit when it changes
+		local SM = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SidebarMetrics"))
+		local function fitLeft()
+			local vp = root.AbsoluteSize
+			local left = SM.isPainted() and SM.contentLeft(vp.X, vp.Y) or (SIDEBAR_WIDTH + 20)
+			shopFrame.Size = UDim2.new(1, -(left + 20), 1, 0)
+			shopFrame.Position = UDim2.new(0, left, 0, 0)
+		end
+		fitLeft()
+		SM.onChange(fitLeft)
+		root:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitLeft)
 		shopFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 		shopFrame.Visible = false
 		-- ZIndex 6, not 5: the corner icon buttons (help/mute/settings/etc.) are

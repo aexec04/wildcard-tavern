@@ -405,8 +405,14 @@ function ShopCards.new(deps)
 			BackgroundColor3 = WOOD_DARK })
 		corner(banner, 6)
 		stroke(banner, GOLD, 1.5, 0)
-		label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.name or "",
-			TextColor3 = CREAM, TextWrapped = true, TextSize = 16, TextStrokeTransparency = 1 })
+		-- shrinks (16 down to 14) so a long name like "Wholesale Pricing" wraps at the space, never mid-word
+		local nameLabel = label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.name or "",
+			TextColor3 = CREAM, TextWrapped = true, TextSize = 16, TextScaled = true, TextStrokeTransparency = 1 })
+		if nameLabel then
+			local fit = Instance.new("UITextSizeConstraint")
+			fit.MinTextSize, fit.MaxTextSize = 14, 16
+			fit.Parent = nameLabel
+		end
 
 		-- ===== Dim when it cannot be afforded =====
 		local affordable = spec.affordable ~= false

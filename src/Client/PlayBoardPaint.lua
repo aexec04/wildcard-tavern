@@ -16,6 +16,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
+local SidebarMetrics = require(Engine:WaitForChild("SidebarMetrics"))
 local PlayBoardHud = require(script.Parent:WaitForChild("PlayBoardHud"))
 local Guard = require(script.Parent:WaitForChild("PlayPaintGuard"))
 
@@ -54,6 +55,7 @@ function PlayBoardPaint.install(deps)
 		local p = loaded and PlayBoardLayout.placement(size.X, size.Y) or nil
 		if p then
 			painted = true
+			SidebarMetrics.setPainted(true)
 			image.Position = UDim2.fromOffset(p.x, p.y)
 			image.Size = UDim2.fromOffset(p.w, p.h)
 			image.Visible = true
@@ -65,6 +67,7 @@ function PlayBoardPaint.install(deps)
 			Guard.run("board HUD", PlayBoardHud.apply, root, p) -- C2 to C4: the HUD rows onto the board's slots (the old column returns on nil)
 		elseif painted then
 			painted = false
+			SidebarMetrics.setPainted(false)
 			image.Visible, filler.Visible = false, false
 			board.BackgroundTransparency = 0
 			if deps.boardArt then deps.boardArt.Visible = true end
