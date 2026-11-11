@@ -2391,6 +2391,7 @@ local function render(state)
 		local PatronPlaqueModule = require(script.PatronPlaque)
 		local ownedPatrons = state.ownedPatrons or {}
 		local slotLimit = math.min(state.patronSlotLimit or #ownedPatrons, SidebarModule.MAX_SIDEBAR_PATRON_SLOTS)
+		if SidebarModule.fitSeats then SidebarModule.fitSeats(slotLimit) end
 		for i = 1, SidebarModule.MAX_SIDEBAR_PATRON_SLOTS do
 			local slot = SidebarModule.patronSlots[i]
 			if slot then

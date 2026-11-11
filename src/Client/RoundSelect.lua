@@ -886,6 +886,16 @@ return function(deps)
 				entry.bossNameLabel.TextStrokeTransparency = 1
 				entry.bossLabel.TextTransparency = 0
 				entry.bossLabel.TextStrokeTransparency = 1
+				do -- a long rule grows upward: lift the boss name and room labels so nothing is covered or cut
+					local fit = require(game:GetService("ReplicatedStorage").Shared.Engine.BossRuleFit)
+					local okT, bounds = pcall(function()
+						return game:GetService("TextService"):GetTextSize(entry.bossLabel.Text, 16, Enum.Font.Gotham, Vector2.new(CARD_W - 20 - 16, 10000))
+					end)
+					local h = okT and (bounds.Y + fit.PAD) or fit.height(fit.lines(entry.bossLabel.Text, 16, CARD_W - 36), 16)
+					entry.shiftBase0 = entry.shiftBase0 or { entry.shiftBase[1], entry.shiftBase[2] }
+					local lift = fit.extra(h)
+					entry.shiftBase[1], entry.shiftBase[2] = entry.shiftBase0[1] - lift, entry.shiftBase0[2] - lift
+				end
 			else
 				entry.bossLabel.Visible = false
 				entry.bossNameLabel.Visible = false

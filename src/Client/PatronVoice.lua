@@ -89,7 +89,11 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 	bubbleLabel.Text = PatronLines.get(patronId)
 	local pos = slotFrame.AbsolutePosition - gui.AbsolutePosition
 	local size = slotFrame.AbsoluteSize
-	bubble.Position = UDim2.fromOffset(pos.X + size.X + 8, pos.Y + size.Y / 2)
+	-- open beside the whole left HUD column (the table area), never over its plates or the hand preview
+	local col = slotFrame:FindFirstAncestor("SidebarBoard") or slotFrame:FindFirstAncestor("Sidebar")
+	local left = pos.X + size.X + 8
+	if col then left = math.max(left, col.AbsolutePosition.X - gui.AbsolutePosition.X + col.AbsoluteSize.X + 8) end
+	bubble.Position = UDim2.fromOffset(left, pos.Y + size.Y / 2)
 	bubble.Visible = true
 	task.delay(SHOW_SECONDS, function()
 		if mine == bubbleToken and bubble then bubble.Visible = false end

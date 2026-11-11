@@ -15483,4 +15483,32 @@ table.insert(tests, { name = "TooltipSpec.correct absorbs an outside shift so th
 	end
 end })
 
+table.insert(tests, { name = "Left HUD: 5, 6 and 7 Patron seats fit one row; a long boss rule lifts the name labels; bubbles open beside the column", fn = function()
+	local SeatFit = require(script.Parent.Parent.Engine.SeatFit)
+	local usable, gap = 208, 3
+	for _, n in ipairs({ 5, 6, 7 }) do
+		local size = SeatFit.size(n, usable, gap, 38, 26)
+		expectTrue(SeatFit.rowWidth(n, size, gap) <= usable, n .. " seats fit one row of " .. usable .. " px (size " .. size .. ")")
+		expectTrue(size >= 26, n .. " seats stay at least 26 px")
+	end
+	expectEqual(SeatFit.size(5, usable, gap, 38, 26), 38, "5 seats keep the full size")
+	expectTrue(SeatFit.size(6, usable, gap, 38, 26) >= 30, "6 seats stay about 30 px or more")
+
+	local Fit = require(script.Parent.Parent.Engine.BossRuleFit)
+	local long = "1 random card is tossed out of your hand after every hand you play."
+	local lines = Fit.lines(long, 16, 304)
+	expectTrue(lines >= 2, "the long rule wraps to several lines")
+	expectEqual(Fit.extra(Fit.height(2, 16)), 0, "two lines need no lift")
+	expectTrue(Fit.extra(Fit.height(4, 16)) > 0, "four lines lift the name labels")
+	expectTrue(Fit.extra(Fit.height(4, 16)) >= Fit.height(4, 16) - Fit.height(2, 16), "the lift covers every extra line")
+
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local side = read("src/Client/Sidebar.lua")
+	if side then expectTrue(side:find("SeatFit", 1, true) ~= nil and side:find("fitSeats", 1, true) ~= nil, "Sidebar sizes seats with SeatFit") end
+	local rs = read("src/Client/RoundSelect.lua")
+	if rs then expectTrue(rs:find("BossRuleFit", 1, true) ~= nil, "Round Select lifts the labels by BossRuleFit") end
+	local pv = read("src/Client/PatronVoice.lua")
+	if pv then expectTrue(pv:find("SidebarBoard", 1, true) ~= nil, "the Patron bubble opens beside the HUD column") end
+end })
+
 return tests

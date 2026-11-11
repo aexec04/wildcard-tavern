@@ -622,6 +622,21 @@ return function(deps)
 		end
 		patronSlots[i] = { frame = slot, label = slotLabel, pulse = pulse }
 	end
+	-- Up to 7 seats share one row: they shrink (min 26 px) instead of wrapping under the plates below.
+	local function fitSeats(count)
+		local row = patronsSlotRow.AbsoluteSize.X
+		local usable = (row > 40 and row or 216) - 8
+		local size = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeatFit")).size(count, usable, SLOT_GAP, SLOT, 26)
+		for _, seat in ipairs(patronSlots) do
+			seat.frame.Size = UDim2.fromOffset(size, size)
+			for _, obj in ipairs({ seat.frame, seat.frame:FindFirstChild("InnerRing"), seat.pulse }) do
+				local c = obj and obj:FindFirstChildOfClass("UICorner")
+				if c then c.CornerRadius = UDim.new(0.5, 0) end
+			end
+		end
+		patronsSlotRow.Size = UDim2.new(1, 0, 0, size + 12)
+		return size
+	end
 	makeDivider(9)
 
 	-- ===== Status line / live hand preview ("Select cards...") =====
@@ -684,6 +699,7 @@ return function(deps)
 		patronsInset = patronsSlotRow, -- TUTORIAL: spotlight target for the Patron seats
 		patronSlots = patronSlots,
 		MAX_SIDEBAR_PATRON_SLOTS = MAX_SIDEBAR_PATRON_SLOTS,
+		fitSeats = fitSeats,
 		scorePreviewBox = scorePreviewBox,
 		scorePreviewLabel = scorePreviewLabel,
 		setRunModeBadge = setRunModeBadge,
