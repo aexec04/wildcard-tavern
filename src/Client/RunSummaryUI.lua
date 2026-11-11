@@ -30,6 +30,7 @@ local function stroke(parent, color, thickness)
 	local s = Instance.new("UIStroke")
 	s.Color = color
 	s.Thickness = thickness
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- never Contextual: it would stroke button text too
 	s.Parent = parent
 end
 
@@ -159,7 +160,7 @@ function RunSummaryUI.init(screenGui, deps)
 	corner(ui.patrons, 8)
 	stroke(ui.patrons, INK, 1.5)
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.new(0, 44, 0, 44)
+	grid.CellSize = UDim2.new(0, 76, 0, 82)
 	grid.CellPadding = UDim2.new(0, 8, 0, 8)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = ui.patrons
@@ -370,7 +371,8 @@ local function buildCard(summary)
 	label(parent, {
 		Position = UDim2.new(0, 10, 1, -64), Size = UDim2.new(1, -20, 0, 40),
 		Text = string.upper(rarityDef and rarityDef.name or summary.rarity), TextSize = 20,
-		TextColor3 = rarityDef and Color3.fromRGB(rarityDef.color[1], rarityDef.color[2], rarityDef.color[3]) or INK,
+		-- Common's grey vanishes on the tan card, so it gets ink (readable); other rarities keep their colour
+		TextColor3 = (rarityDef and summary.rarity ~= "common") and Color3.fromRGB(rarityDef.color[1], rarityDef.color[2], rarityDef.color[3]) or INK,
 	})
 end
 
@@ -379,18 +381,30 @@ local function buildPatrons(summary)
 	local PatronPlaque = require(script.Parent.PatronPlaque)
 	ui.noPatrons.Visible = #summary.patrons == 0
 	local shown = math.min(#summary.patrons, 10)
-	local rows = math.max(1, math.ceil(shown / 8))
-	layoutRows(shown == 0 and 44 or (16 + rows * 52 - 8 + 8))
+	local rows = math.max(1, math.ceil(shown / 5))
+	layoutRows(shown == 0 and 44 or (16 + rows * 90 - 8))
 	for index, patron in ipairs(summary.patrons) do
 		if index > 10 then
 			break
 		end
+		local holder = Instance.new("Frame")
+		holder.LayoutOrder = index
+		holder.BackgroundTransparency = 1
+		holder.BorderSizePixel = 0
+		holder.ZIndex = 73
+		holder.Parent = ui.patrons
 		local seat = Instance.new("Frame")
-		seat.LayoutOrder = index
+		seat.Position = UDim2.new(0.5, -22, 0, 0)
+		seat.Size = UDim2.new(0, 44, 0, 44)
 		seat.BackgroundColor3 = PARCHMENT
 		seat.BorderSizePixel = 0
 		seat.ZIndex = 73
-		seat.Parent = ui.patrons
+		seat.Parent = holder
+		local nameLabel = label(holder, {
+			Position = UDim2.new(0, 0, 0, 48), Size = UDim2.new(1, 0, 0, 32), Text = patron.name or patron.id,
+			TextSize = 14, Font = Enum.Font.GothamMedium,
+		})
+		nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		corner(seat, 22)
 		stroke(seat, INK, 2)
 		local emoji = label(seat, {

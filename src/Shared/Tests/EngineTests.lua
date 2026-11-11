@@ -16574,6 +16574,10 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(has("RunSummaryUI.lua", "stop.name or stop.id") and not has("RunSummaryUI.lua", "stop.icon"), "run summary lists road names, not icon codes")
 	expectTrue(has("RunSummaryUI.lua", "local y = 226 + boxH + 12") and has("RunSummaryUI.lua", "ui.share.Position = UDim2.new(0, 312, 0, y)"), "run summary share row sits 12 px under the Patrons box")
 	expectTrue(has("RunSummaryUI.lua", "b.TextStrokeTransparency = 1"), "run summary buttons have no heavy text stroke")
+	expectTrue(has("RunSummaryUI.lua", "s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border"), "run summary strokes use Border mode, so button text is not doubled")
+	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("RunSummaryUI.lua", '"StoreBackdrop"'), "result plates hide StoreBackdrop and its tab strip")
+	expectTrue(has("RunSummaryUI.lua", 'summary.rarity ~= "common"'), "Common rarity word is drawn in ink, not ghost grey")
+	expectTrue(has("RunSummaryUI.lua", "Text = patron.name or patron.id"), "run summary names each patron under its portrait")
 	local setupSrc = read("src/Client/RunSetup.lua") or ""
 	expectTrue(not setupSrc:find("\240\159", 1, true) and not setupSrc:find("\226\154", 1, true) and not setupSrc:find("\226\156", 1, true), "Run Setup has no emoji in headers or labels")
 	expectTrue(has("RoadChoice.lua", 'policy = "locked"') and has("RoundSelect.lua", 'policy = "locked"'), "mid-run choices are locked: Escape opens Settings")

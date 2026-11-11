@@ -155,6 +155,11 @@ return function(deps)
 		handsValue.Text = tostring(math.floor(state.handsPlayedTotal or 0))
 		bestValue.Text = best and string.format("%s (%d)", best.name, math.floor(best.score)) or "-"
 		patronsValue.Text = tostring(#(state.ownedPatrons or {}))
+		-- an account panel (Store with its tab strip) must not stay up behind the plate
+		local store = backdrop.Parent and backdrop.Parent:FindFirstChild("StoreBackdrop")
+		if store and store:IsA("GuiObject") then
+			store.Visible = false
+		end
 		backdrop.Visible = true
 		if not ClientSettings.get("reduceShake") then
 			-- Pop in (skipped when screen shake is reduced).
