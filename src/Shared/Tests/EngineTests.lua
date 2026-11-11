@@ -18795,4 +18795,54 @@ table.insert(tests, { name = "Collection sections: the wall fills the side areas
 	end
 end })
 
+table.insert(tests, { name = "PlayTableLayout: table is bottom anchored full width, rail and deck inside it, plates in a row under the rail without overlaps (1280x720, 1920x1080, phone fallback)", fn = function()
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectFalse(PT.usable(390), "phone uses the old layout")
+	expectTrue(PT.usable(1280))
+	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 1000, 600 } }) do
+		local w, h = sz[1], sz[2]
+		local m = PT.map(w, h)
+		expectEqual(m.image.w, w)
+		expectEqual(m.image.y + m.image.h, h, "table sits on the bottom edge")
+		local function inside(r, name)
+			expectTrue(r.x >= 0 and r.y >= m.image.y and r.x + r.w <= w and r.y + r.h <= h, name .. " inside the area at " .. w .. "x" .. h)
+		end
+		inside(m.felt, "felt")
+		inside(m.rail, "rail")
+		inside(m.deck, "deck")
+		for k, p in pairs(m.plates) do
+			inside(p, "plate " .. k)
+			expectTrue(p.y >= m.rail.y + m.rail.h, k .. " plate is under the rail")
+		end
+		expectTrue(m.plates.sort.x + m.plates.sort.w <= m.plates.play.x, "sort left of play")
+		expectTrue(m.plates.play.x + m.plates.play.w <= m.plates.discard.x, "play left of discard")
+		expectTrue(m.deck.x >= m.rail.x + m.rail.w, "deck is right of the rail")
+	end
+end })
+
+table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3, width at most 24 percent, slots inside and stacked without overlap, five rings in a row", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	expectFalse(PB.usable(390))
+	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 1000, 600 } }) do
+		local w, h = PB.size(sz[1], sz[2])
+		expectTrue(w <= sz[1] * 0.24 + 1, "width cap at " .. sz[1])
+		expectTrue(h <= sz[2], "fits the height")
+		expectTrue(math.abs(w / h - 2 / 3) < 0.02, "2:3 ratio")
+		local m = PB.map(w, h)
+		local order = { "title", "target", "wide", "hands" }
+		for i = 1, #order - 1 do
+			expectTrue(m[order[i]].y + m[order[i]].h <= m[order[i + 1]].y, order[i] .. " above " .. order[i + 1])
+		end
+		expectTrue(m.hands.x + m.hands.w <= m.discards.x, "hands left of discards")
+		expectEqual(#m.rings, 5)
+		for i, r in ipairs(m.rings) do
+			expectTrue(r.cx - r.d / 2 >= 0 and r.cx + r.d / 2 <= w and r.cy + r.d / 2 <= h, "ring " .. i .. " inside")
+			expectTrue(r.cy - r.d / 2 >= m.hands.y + m.hands.h, "rings under the small slots")
+			if i > 1 then
+				expectTrue(r.cx - r.d / 2 >= m.rings[i - 1].cx + m.rings[i - 1].d / 2 - 1, "rings do not overlap")
+			end
+		end
+	end
+end })
+
 return tests
