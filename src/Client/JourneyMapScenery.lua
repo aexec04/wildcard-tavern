@@ -19,6 +19,14 @@
 	feathers fade the top and bottom. Neighbouring regions overlap by the join zone and cross-fade; there are no clip windows,
 	no stacked slices and no flat tint frames. (The older notes below describe the slice scheme this replaced.)
 
+	LAYERS (ZIndex is absolute): the GameUI ScreenGui draws with ZIndexBehavior.Global, so a child is never lifted to its
+	parent's level and a ZIndex left at 1 draws under the whole map. Bottom to top: the Tavern Map plate (21), ParchmentBase
+	(21, the plate's descendant, so it wins the tie), every painting (22), WorldGraph (23), the road, labels and nodes,
+	the top and bottom feathers (29), doodles (30 and 31), the fog (35). Painting tiles used to take their tile number (1, 2, ...)
+	as ZIndex and drew under ParchmentBase and the plate, so the map showed only the base colours. At equal ZIndex the later
+	sibling draws on top: that is what lets a later region (or tile) fade in over the earlier one, and the road pieces, created
+	after this layer, draw over the paintings. reportLayers() prints every ZIndex once per Studio session.
+
 	Joins (old notes): no pale or white seam. Each painted tile is zoomed 1.2x about its centre inside a clipping
 	frame, so the pale parchment fade the art has at its own edges falls outside the frame. Where two
 	biomes meet (a zone of at least 25 percent of the narrower region, 96 to 480px, RegionTiles.joinWidth), the later biome is drawn as thin ImageLabel slices whose
@@ -59,7 +67,12 @@ return function(deps)
 		{ key = "region_road", tint = Color3.fromRGB(214, 192, 146), name = "The Road Beyond", lastNode = math.huge,
 			decor = { "signpost", "pine_tree", "mushroom_ring" } }, -- the road continues past the tavern
 	}
-		local ART_ASPECT = 1.5 -- region art width / height
+	-- Layers (see the header): absolute ZIndex values under ZIndexBehavior.Global.
+	local Z_BASE = 21 -- ParchmentBase and the container, level with the Tavern Map plate (a descendant wins the tie)
+	local Z_PAINTING = 22 -- every Region frame and painting tile: above the base, below WorldGraph (23) and everything on the road
+	local Z_FEATHER = 29 -- FeatherTop and FeatherBottom
+	local Z_DECOR = 30 -- doodles: above the feathers (they would fade a doodle) and below the fog (35, which hides them)
+	local ART_ASPECT = 1.5 -- region art width / height
 	local ZOOM = 1.2 -- tiles are zoomed about their centre so the art's own pale edge fade is clipped away
 	-- Cross-fade zone: MapSeams.joinWidth (36 percent of the narrower region, so each painting overlaps its neighbour by
 	-- 18 percent on each side). UIGradient.Transparency is never used (project rule): the fade is thin ImageTransparency slices.
@@ -99,7 +112,7 @@ return function(deps)
 	layer.Name = "Scenery"
 	layer.Size = UDim2.fromScale(1, 1)
 	layer.BackgroundTransparency = 1
-	layer.ZIndex = 21 -- under the road (22) and the trail dots (23)
+	layer.ZIndex = Z_BASE
 	layer.BorderSizePixel = 0
 	layer.Parent = canvas
 
@@ -108,7 +121,7 @@ return function(deps)
 	base.Name = "ParchmentBase"
 	base.BackgroundColor3 = Color3.new(1, 1, 1) -- tinted by the ramp below
 	base.BorderSizePixel = 0
-	base.ZIndex = 21
+	base.ZIndex = Z_BASE
 	base.Parent = layer
 	local baseRamp = Instance.new("UIGradient") -- Color stops only: the averaged region colours across the canvas
 	baseRamp.Color = ColorSequence.new(PARCHMENT_BASE)
@@ -133,7 +146,7 @@ return function(deps)
 		h.Name = "Region" .. i
 		h.BackgroundTransparency = 1
 		h.BorderSizePixel = 0
-		h.ZIndex = 22 + i
+		h.ZIndex = Z_PAINTING -- not 22 + i: a later holder wins the tie by being created later
 		h.Parent = layer
 		regionHolders[i] = h
 	end
@@ -159,7 +172,7 @@ return function(deps)
 		f.Name = name
 		f.BackgroundColor3 = PARCHMENT_BASE
 		f.BorderSizePixel = 0
-		f.ZIndex = 22 + #REGIONS + 1
+		f.ZIndex = Z_FEATHER
 		f.Parent = layer
 		local g = Instance.new("UIGradient")
 		g.Rotation = 90
@@ -237,7 +250,8 @@ return function(deps)
 					local tx1 = math.min(w, math.floor(t * w / tiles) + 1)
 					local fadeL = (t > 1 and FW) or (i > 1 and joinW[i]) or outerFade
 					local fadeR = (i == #REGIONS and t == tiles) and outerFade or 0
-					paintTile(holder, "Tile" .. t, image, tx0, tx1 - tx0, canvasH, t, fadeL, fadeR)
+					-- The ZIndex was the tile number (1, 2, ...): absolute under Global, so every painting drew under ParchmentBase.
+					paintTile(holder, "Tile" .. t, image, tx0, tx1 - tx0, canvasH, Z_PAINTING, fadeL, fadeR)
 				end
 			end
 		end
@@ -274,7 +288,7 @@ return function(deps)
 					img.Image = id
 					img.ImageTransparency = 0.12
 					img.ScaleType = Enum.ScaleType.Fit
-					img.ZIndex = 23
+					img.ZIndex = Z_DECOR -- absolute: the layer's own ZIndex is not inherited
 					img.Parent = decorLayer
 					bindLandmark(img, key, r) -- no rounded corner or stroke: they drew the prop's art as a hard-edged square
 				end
@@ -294,15 +308,52 @@ return function(deps)
 				img.Image = id
 				img.ImageTransparency = 0.2
 				img.ScaleType = Enum.ScaleType.Fit
-				img.ZIndex = 24
+				img.ZIndex = Z_DECOR + 1
 				img.Parent = decorLayer
 				bindLandmark(img, key, i)
 			end
 		end
 	end
 
+	-- Studio only, once per Play: the live ZIndex of every map layer in one Output line, so a layering mistake is one look away.
+	-- layers=ok means every painting is above ParchmentBase and below WorldGraph (the roads, labels and nodes).
+	local reported = false
+	local function reportLayers()
+		if reported then
+			return
+		end
+		local okRun, studio = pcall(function()
+			return game:GetService("RunService"):IsStudio()
+		end)
+		if not (okRun and studio) then
+			return
+		end
+		reported = true
+		local function zOf(name)
+			local inst = canvas:FindFirstChild(name)
+			return inst and math.floor(inst.ZIndex) or nil
+		end
+		local tiles, lowest, highest = {}, math.huge, -math.huge
+		for _, holder in ipairs(regionHolders) do
+			for _, tile in ipairs(holder:GetChildren()) do
+				local z = math.floor(tile.ZIndex)
+				tiles[#tiles + 1] = string.format("%s.%s=%d", holder.Name, tile.Name, z)
+				lowest, highest = math.min(lowest, z), math.max(highest, z)
+			end
+		end
+		local graphZ = zOf("WorldGraph")
+		local verdict = "no paintings"
+		if #tiles > 0 then
+			verdict = (graphZ ~= nil and lowest > base.ZIndex and highest < graphZ) and "ok" or "WRONG"
+		end
+		warn(string.format("[TavernMap z] v1 ParchmentBase=%d tiles(%s) WorldGraph=%s Discoveries=%s FogBand=%s FeatherTop=%d layers=%s",
+			math.floor(base.ZIndex), table.concat(tiles, " "), tostring(graphZ), tostring(zOf("Discoveries")), tostring(zOf("FogBand")),
+			math.floor(featherTop.ZIndex), verdict))
+	end
+
 	return {
 		layout = layout,
+		reportLayers = reportLayers,
 		-- The view tells the scenery where the fog starts so hidden landmarks only say "???".
 		setFogEdge = function(x) fogEdge = x end,
 	}

@@ -15874,4 +15874,220 @@ table.insert(tests, { name = "Counter pack tooltips are wired through a placer, 
 	end
 end })
 
+-- ===== Tavern Map layers (2026-11-10): paintings were invisible because their ZIndex was the tile number (1) =====
+-- The GameUI ScreenGui draws with ZIndexBehavior.Global, so a ZIndex is absolute and a child never takes its parent's. These tests build
+-- the REAL scenery, graph, discoveries and fog builders on a fake Roblox (Tests/FakeGui.lua, Tests/MapScene.lua) and apply that rule.
+table.insert(tests, { name = "Tavern Map layers: built for real under ZIndexBehavior Global, every painting draws above ParchmentBase and the plate and below the roads", fn = function()
+	-- Local runner only: the Client modules are built on a fake Roblox, which needs io and load.
+	local probe = io and io.open and load and io.open("src/Client/JourneyMapScenery.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local MapScene = require(script.Parent.MapScene)
+
+	-- control: the harness really applies the Global rule, so the original bug (a painting at its tile number, 1) is caught by it
+	do
+		local scene = MapScene.build({})
+		local stray = scene.tiles[1][1]
+		stray.ZIndex = 1
+		local _, rank = FakeGui.drawOrder(scene.gui)
+		expectTrue(rank[stray] < rank[scene.base] and rank[stray] < rank[scene.plate], "control: a painting at ZIndex 1 draws under ParchmentBase and the plate")
+	end
+
+	local cases = {
+		{ name = "4072 x 734", canvasW = 4072, canvasH = 734 },
+		{ name = "wide canvas, several tiles per region", canvasW = 9000, canvasH = 700 },
+		{ name = "small canvas", canvasW = 900, canvasH = 300 },
+		{ name = "only the road painting recorded, the rest fall back", regionArt = { "region_road" } },
+		{ name = "doodles and painted fog", decor = true, fogImages = true },
+		{ name = "no painting recorded", regionArt = {}, expectNone = true },
+	}
+	for _, case in ipairs(cases) do
+		local where = " (" .. case.name .. ")"
+		local scene = MapScene.build(case)
+		local order, rank = FakeGui.drawOrder(scene.gui)
+		expectTrue(scene.base and scene.graphRoot and scene.discRoot and scene.fogBand and scene.featherTop and scene.featherBottom,
+			"the real builders made ParchmentBase, WorldGraph, Discoveries, FogBand and both feathers" .. where)
+		local base, plate, graph = scene.base.ZIndex, scene.plate.ZIndex, scene.graphRoot.ZIndex
+		expectEqual(base, 21, "ParchmentBase ZIndex" .. where)
+		expectEqual(graph, 23, "WorldGraph ZIndex" .. where)
+		expectTrue(rank[scene.base] > rank[scene.plate], "ParchmentBase draws above the map plate (" .. base .. " vs " .. plate .. ")" .. where)
+
+		local all, tileCount = {}, 0
+		for i = 1, 6 do
+			expectEqual(scene.holders[i].ZIndex, base + 1, "Region" .. i .. " frame is one above ParchmentBase" .. where)
+			for t, tile in ipairs(scene.tiles[i]) do
+				tileCount = tileCount + 1
+				all[#all + 1] = tile
+				local label = "Region" .. i .. "." .. tile.Name
+				expectEqual(tile.ClassName, "ImageLabel", label .. " is a painting" .. where)
+				expectTrue(tile.ZIndex > base and tile.ZIndex < graph, label .. " ZIndex " .. tile.ZIndex .. " must be above ParchmentBase " .. base .. " and below WorldGraph " .. graph .. where)
+				expectEqual(tile.ZIndex, base + 1, label .. " ZIndex" .. where)
+				expectTrue(rank[tile] > rank[scene.plate] and rank[tile] > rank[scene.base], label .. " draws above the plate and ParchmentBase" .. where)
+				if t > 1 then expectTrue(rank[tile] > rank[scene.tiles[i][t - 1]], label .. " cross-fades over the tile before it" .. where) end
+				if i > 1 then
+					for _, before in ipairs(scene.tiles[i - 1]) do
+						expectTrue(rank[tile] > rank[before], label .. " fades in over Region" .. (i - 1) .. where)
+					end
+				end
+			end
+		end
+		if case.expectNone then expectEqual(tileCount, 0, "no art means no paintings" .. where) else expectTrue(tileCount >= 6, "every region has a painting or its fallback" .. where) end
+		if case.canvasW == 9000 then
+			local tiled = 0
+			for i = 1, 6 do if #scene.tiles[i] > 1 then tiled = tiled + 1 end end
+			expectTrue(tiled >= 1, "the wide canvas exercises regions made of several tiles" .. where)
+		end
+
+		-- everything painted over the paintings: the roads (edge, fill, dots), the graph and discoveries, the feathers, the fog
+		for _, tile in ipairs(all) do
+			for _, name in ipairs({ "edge", "fill", "dot" }) do
+				expectTrue(rank[scene.road[name]] > rank[tile], "the road " .. name .. " (ZIndex " .. scene.road[name].ZIndex .. ") draws over every painting" .. where)
+			end
+			for _, over in ipairs({ scene.graphRoot, scene.discRoot, scene.featherTop, scene.featherBottom, scene.fogBand }) do
+				expectTrue(rank[over] > rank[tile], over.Name .. " draws over every painting" .. where)
+			end
+		end
+		expectTrue(rank[scene.fogBand] > rank[scene.featherTop] and rank[scene.fogBand] > rank[scene.graphRoot], "the fog is over the feathers and the graph" .. where)
+		for _, doodle in ipairs(scene.doodles) do
+			expectTrue(doodle.ZIndex > scene.featherTop.ZIndex and doodle.ZIndex < scene.fogBand.ZIndex, doodle.Name .. " doodle is over the feathers and under the fog (" .. doodle.ZIndex .. ")" .. where)
+		end
+		if case.decor then expectTrue(#scene.doodles > 0, "the doodle path was exercised" .. where) end
+
+		-- nothing in the map relies on the default ZIndex 1: every ImageLabel, and every GuiObject on the canvas, is at or above ParchmentBase
+		for _, inst in ipairs(order) do
+			if inst.ClassName == "ImageLabel" then
+				expectTrue(inst.ZIndex >= base, "ImageLabel " .. inst.Name .. " has ZIndex " .. inst.ZIndex .. ", under ParchmentBase" .. where)
+			end
+		end
+		for _, inst in ipairs(scene.canvas:GetDescendants()) do
+			if FakeGui.GUI_CLASSES[inst.ClassName] then
+				expectTrue(inst.ZIndex >= base, inst.ClassName .. " " .. inst.Name .. " has ZIndex " .. inst.ZIndex .. ", under ParchmentBase" .. where)
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map layers: Studio prints the ZIndex of every layer once, and says WRONG when a painting is under the base", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/JourneyMapScenery.lua", "r")
+	if not probe then return end
+	probe:close()
+	local MapScene = require(script.Parent.MapScene)
+	local scene = MapScene.build({ studio = true })
+	scene.scenery.reportLayers()
+	scene.scenery.reportLayers()
+	expectEqual(#scene.state.warns, 1, "the layer report prints once per session")
+	local line = scene.state.warns[1]
+	for _, part in ipairs({ "[TavernMap z] v1", "ParchmentBase=21", "Region1.Tile1=22", "Region6.Tile1=22", "WorldGraph=23", "Discoveries=24", "FogBand=35", "FeatherTop=29", "layers=ok" }) do
+		expectTrue(line:find(part, 1, true) ~= nil, "the report says " .. part .. ": " .. line)
+	end
+	-- a painting left under the base is reported
+	local broken = MapScene.build({ studio = true })
+	broken.tiles[3][1].ZIndex = 1
+	broken.scenery.reportLayers()
+	expectTrue(broken.state.warns[1]:find("layers=WRONG", 1, true) ~= nil and broken.state.warns[1]:find("Region3.Tile1=1", 1, true) ~= nil, "the report flags a painting under ParchmentBase: " .. tostring(broken.state.warns[1]))
+	-- outside Studio nothing is printed
+	local quiet = MapScene.build({ studio = false })
+	quiet.scenery.reportLayers()
+	expectEqual(#quiet.state.warns + #quiet.state.prints, 0, "outside Studio the report is silent")
+	-- no paintings recorded: said plainly, not WRONG
+	local bare = MapScene.build({ studio = true, regionArt = {} })
+	bare.scenery.reportLayers()
+	expectTrue(bare.state.warns[1]:find("layers=no paintings", 1, true) ~= nil, "no art is not an error: " .. tostring(bare.state.warns[1]))
+	-- the View prints it when the map opens
+	local f = io.open("src/Client/JourneyMapView.lua", "r")
+	if f then
+		local view = f:read("*a"); f:close()
+		local layoutAt, reportAt = view:find("layout(true)\n\t\t\tscenery.reportLayers()", 1, true), view:find("scenery.reportLayers()", 1, true)
+		expectTrue(layoutAt ~= nil and reportAt ~= nil, "the View reports the layers right after the first layout when the map opens")
+	end
+end })
+
+table.insert(tests, { name = "CompassWheel: needle, hub, N, pips and rim icons follow the frame's ZIndex (absolute under Global), so they draw above the panel", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/CompassWheel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local env = FakeGui.env({ stubs = { ClientSettings = { get = function() return false end }, Cue = { play = function() end } } })
+	local CompassWheel = FakeGui.load("src/Client/CompassWheel.lua", env)
+	for _, zFrame in ipairs({ 22, 46 }) do -- RoadChoice sets 22, JourneyMapCompass 46
+		local gui = FakeGui.new("ScreenGui")
+		local panel = FakeGui.new("Frame")
+		panel.ZIndex, panel.Parent = zFrame - 1, gui
+		local wheel = CompassWheel.new({ parent = panel, size = 130, icons = { { bearing = 0, text = "A", id = "a" }, { bearing = 90, text = "B", id = "b" } }, onTurn = function() end })
+		wheel.frame.ZIndex = zFrame -- callers move the frame after new()
+		local pieces = wheel.frame:GetDescendants()
+		expectTrue(#pieces >= 8, "the wheel has its ring, needle, hub, N, pips and two rim icons")
+		for _, piece in ipairs(pieces) do
+			if FakeGui.GUI_CLASSES[piece.ClassName] then
+				expectTrue(piece.ZIndex > zFrame, piece.ClassName .. " " .. piece.Name .. " has ZIndex " .. piece.ZIndex .. ", not above the wheel's " .. zFrame)
+			end
+		end
+		local _, rank = FakeGui.drawOrder(gui)
+		for _, piece in ipairs(pieces) do
+			if FakeGui.GUI_CLASSES[piece.ClassName] then
+				expectTrue(rank[piece] > rank[wheel.frame] and rank[piece] > rank[panel], piece.Name .. " draws above the wheel disc and its panel")
+			end
+		end
+		-- the needle sits under the hub, the rim icons over both
+		local needle, hub = wheel.frame:FindFirstChild("Needle"), nil
+		for _, kid in ipairs(wheel.frame:GetChildren()) do
+			if kid.ClassName == "Frame" and kid.Name == "Frame" and kid.BackgroundColor3 and kid.Size.X.Offset > 0 and kid.Size.X.Scale == 0 then hub = kid end
+		end
+		expectTrue(needle ~= nil and hub ~= nil and hub.ZIndex > needle:GetChildren()[1].ZIndex, "the hub is over the needle")
+		-- icons made after the frame moved use the new level too
+		wheel.setIcons({ { bearing = 180, text = "C", id = "c" } })
+		for _, kid in ipairs(wheel.frame:GetChildren()) do
+			if kid.ClassName == "TextButton" then
+				expectTrue(kid.ZIndex > wheel.frame.ZIndex, "a rim icon made after the move is above the wheel (" .. kid.ZIndex .. ")")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Tavern Map modules give every GuiObject an explicit ZIndex (absolute under Global, the default 1 draws under the whole map)", fn = function()
+	if not (io and io.open) then return end
+	local files = { "JourneyMapView", "JourneyMapGraph", "JourneyMapFog", "JourneyMapDiscoveries", "JourneyMapHero", "JourneyMapScenery", "JourneyMapCompass", "MapHover" }
+	local classes = { Frame = true, ImageLabel = true, ImageButton = true, TextLabel = true, TextButton = true, ScrollingFrame = true, ViewportFrame = true, CanvasGroup = true }
+	for _, name in ipairs(files) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local lines = {}
+			for line in f:lines() do lines[#lines + 1] = line end
+			f:close()
+			local made = 0
+			for i, line in ipairs(lines) do
+				local class = line:match('Instance%.new%("(%w+)"%)')
+				if class and classes[class] then
+					made = made + 1
+					local var = line:match("^%s*local%s+([%w_]+)%s*=") or line:match("^%s*([%w_]+)%s*=")
+					local found = false
+					for k = i, math.min(i + 40, #lines) do
+						local l = lines[k]
+						if (var and l:find(var .. ".ZIndex", 1, true)) or (not var and l:find("ZIndex", 1, true)) then found = true break end
+						if k > i and var and l:match("^%s*local%s+" .. var .. "%s*=") then break end -- the next object of that name
+					end
+					expectTrue(found, name .. ".lua:" .. i .. " creates a " .. class .. " with no ZIndex of its own (it would draw at 1, under the map): " .. line:gsub("^%s+", ""))
+				end
+			end
+			expectTrue(made > 0, name .. ".lua creates GuiObjects (the scan found none, so the pattern is stale)")
+		end
+	end
+	-- the scenery never passes a tile number as a ZIndex again
+	local f = io.open("src/Client/JourneyMapScenery.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local code = src:gsub("%-%-%[%[.-%]%]", ""):gsub("%-%-[^\n]*", "")
+		expectTrue(code:find("canvasH, t, fadeL, fadeR", 1, true) == nil, "paintTile is not given the tile number as its ZIndex")
+		expectTrue(code:find("canvasH, Z_PAINTING, fadeL, fadeR", 1, true) ~= nil, "paintTile is given Z_PAINTING")
+	end
+	-- the scenery is built before the road pieces and the graph, so at an equal ZIndex they draw over it
+	local view = io.open("src/Client/JourneyMapView.lua", "r")
+	if view then
+		local src = view:read("*a"); view:close()
+		local a, b, c = src:find("require(script.Parent.JourneyMapScenery)", 1, true), src:find("require(script.Parent.JourneyMapGraph)", 1, true), src:find("local function makeRoadPiece", 1, true)
+		expectTrue(a and b and c and a < b and b < c, "the View builds the scenery first, then the graph, then the road pieces")
+	end
+end })
+
 return tests

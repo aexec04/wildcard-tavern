@@ -217,7 +217,7 @@ function CompassWheel.new(opts)
 			b.Font = Enum.Font.GothamBold
 			b.TextColor3 = INK
 			b.AutoButtonColor = true
-			b.ZIndex = 3
+			b.ZIndex = frame.ZIndex + 3 -- absolute under Global: a bare 3 drew under the whole panel
 			b.Parent = frame
 			local c = Instance.new("UICorner")
 			c.CornerRadius = UDim.new(0.5, 0)
@@ -244,6 +244,21 @@ function CompassWheel.new(opts)
 	pips.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
 	pips.Text = ""
 	pips.Parent = frame
+
+	-- The ScreenGui draws with ZIndexBehavior.Global, so a ZIndex is absolute: children left at 1 drew under the whole panel and
+	-- the wheel showed a bare disc with no needle, hub, N or rim icons. Every piece follows the frame's own ZIndex; callers set
+	-- frame.ZIndex after new() (RoadChoice 22, JourneyMapCompass 46) and the property signal re-bases the pieces.
+	local function syncZ()
+		local z = frame.ZIndex
+		inner.ZIndex, holder.ZIndex, pips.ZIndex = z + 1, z + 1, z + 1
+		tip.ZIndex, tail.ZIndex, north.ZIndex = z + 2, z + 2, z + 2
+		hub.ZIndex = z + 3
+		for _, b in ipairs(iconButtons) do
+			b.ZIndex = z + 3
+		end
+	end
+	syncZ()
+	frame:GetPropertyChangedSignal("ZIndex"):Connect(syncZ)
 
 	function self.setCharges(n)
 		n = math.floor(n or 0)

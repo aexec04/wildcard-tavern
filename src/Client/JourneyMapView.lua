@@ -1917,6 +1917,7 @@ return function(deps)
 				return
 			end
 			layout(true)
+			scenery.reportLayers() -- Studio only, once: the ZIndex of every map layer, printed to the Output window
 			local view = currentView()
 			local pending = {}
 			if seen and view.state then
