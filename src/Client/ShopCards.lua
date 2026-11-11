@@ -161,7 +161,7 @@ function ShopCards.new(deps)
 	local self = {}
 	local selected = nil -- the card whose action button is pinned open (tap / click)
 
-	function self.row(parent, layoutOrder, height)
+	function self.row(parent, layoutOrder, height, gap)
 		local row = Instance.new("ScrollingFrame")
 		row.Name = "CardRow"
 		row.LayoutOrder = layoutOrder
@@ -179,7 +179,7 @@ function ShopCards.new(deps)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		layout.VerticalAlignment = Enum.VerticalAlignment.Top
-		layout.Padding = UDim.new(0, 16)
+		layout.Padding = UDim.new(0, gap or 16)
 		layout.Parent = row
 		local pad = Instance.new("UIPadding")
 		pad.PaddingLeft = UDim.new(0, 14)

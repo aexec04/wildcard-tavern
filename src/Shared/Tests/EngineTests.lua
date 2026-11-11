@@ -16917,10 +16917,10 @@ table.insert(tests, { name = "The Counter's oval card table: a wide oval with a 
 	end
 	local phone = SL.rects(390, 700, { offers = 3, packs = 2 })
 	expectEqual(phone.table, nil, "a phone has no table: its cards wrap in rows on the counter")
-	-- the dealt tilt: -5, +4, -3, +6 by slot, the same every visit, never zero, never past 8 degrees
-	for i, want in ipairs({ -5, 4, -3, 6, -5, 4 }) do expectEqual(SL.cardTilt(i), want, "slot " .. i .. " lies at " .. want .. " degrees") end
+	-- the dealt tilt: -4, +3, -3, +4 by slot, the same every visit, never zero, never past 4 degrees
+	for i, want in ipairs({ -4, 3, -3, 4, -4, 3 }) do expectEqual(SL.cardTilt(i), want, "slot " .. i .. " lies at " .. want .. " degrees") end
 	for i = 1, 12 do
-		expectTrue(math.abs(SL.cardTilt(i)) >= 3 and math.abs(SL.cardTilt(i)) <= 8, "tilt " .. i .. " is visible and within 8 degrees")
+		expectTrue(math.abs(SL.cardTilt(i)) >= 3 and math.abs(SL.cardTilt(i)) <= 4, "tilt " .. i .. " is visible and within 4 degrees")
 		if i > 1 then expectTrue(SL.cardTilt(i) ~= SL.cardTilt(i - 1), "neighbours lean differently (" .. i .. ")") end
 	end
 	-- a point just inside and just outside the oval's end tell the shape: a capsule, not a rectangle
@@ -17086,6 +17086,40 @@ table.insert(tests, { name = "Counter room: cards lie on the painted felt and ne
 	expectTrue(big.offers[1].w >= SL.READABLE_SCALE * 220, "cards reach the readable scale at 1660x1080 (" .. big.offers[1].w .. " px)")
 end })
 
+table.insert(tests, { name = "Counter room: 3, 4 and 5 offers never overlap, stay inside the felt and keep a gap of 2 percent of the room width (1280x720, 1920x1080, phone)", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, frame in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 390, 700 } }) do
+		local W, H = frame[1], frame[2]
+		for nOffers = 3, 5 do
+			local where = " (" .. nOffers .. " offers at " .. W .. "x" .. H .. ")"
+			local r = SL.rects(W, H, { offers = nOffers, packs = 2, room = true })
+			expectEqual(#r.offers, nOffers, "offer count" .. where)
+			if r.room and r.fitted and not r.sideBySide then
+				local p = SL.pic(W, H)
+				local clear = 0.02 * p.w - 1
+				local boxes = {}
+				for i, o in ipairs(r.offers) do
+					local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+					for _, c in ipairs(SL.corners(o, SL.cardTilt(i))) do
+						x0, y0, x1, y1 = math.min(x0, c.x), math.min(y0, c.y), math.max(x1, c.x), math.max(y1, c.y)
+					end
+					boxes[i] = { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+					expectTrue(x0 >= r.felt.x and x1 <= r.felt.x + r.felt.w, "offer " .. i .. " is inside the felt's rims" .. where)
+					expectTrue(math.abs(SL.cardTilt(i)) <= 4, "tilt stays within 4 degrees" .. where)
+					for _, pk in ipairs(r.packs) do expectFalse(SL.intersects(o, pk), "offer " .. i .. " and the packs never share space" .. where) end
+				end
+				for i = 1, #boxes - 1 do
+					expectTrue(boxes[i + 1].x - (boxes[i].x + boxes[i].w) >= clear, "offers " .. i .. "/" .. (i + 1) .. " keep the gap" .. where)
+				end
+				expectTrue(r.cardGap and r.cardGap >= 0.02 * p.w, "the row gap handed to the card row keeps the clearance" .. where)
+			end
+		end
+	end
+	-- the common case must fit: four offers in a 1920x1080 room
+	local r = SL.rects(1920, 1080, { offers = 4, packs = 2, room = true })
+	expectTrue(r.fitted, "four offers fit the painted felt at 1920x1080")
+end })
+
 table.insert(tests, { name = "Counter room: Marlo stands behind the counter with his feet clipped at the counter top, the Next Round sign hangs under the arch", fn = function()
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, frame in ipairs({ { 1660, 1080 }, { 1020, 720 } }) do
@@ -17095,7 +17129,8 @@ table.insert(tests, { name = "Counter room: Marlo stands behind the counter with
 		expectTrue(r.marlo.y < r.clipY and r.marlo.y + r.marlo.h > r.clipY, "Marlo's rect crosses the clip line, so his feet are cut off")
 		expectTrue(math.abs(r.marlo.h - SL.ROOM.marloH * p.h) <= 1, "his height follows the picture, not the window")
 		expectTrue(r.marlo.x >= r.shopkeeper.x - 1 and r.marlo.x + r.marlo.w <= r.shopkeeper.x + r.shopkeeper.w + 1, "he stands in the clear wall zone")
-		expectTrue(r.leave.y >= r.arch.y + r.arch.h - 1 and SL.inside(r.leave, r.area), "the Next Round sign is under the arch and on screen")
+		expectTrue(r.leave.y + r.leave.h <= r.arch.y + r.arch.h and r.leave.y >= r.arch.y and SL.inside(r.leave, r.area), "the Next Round plate sits in the arch's doorway, bottom centre, and on screen")
+		expectFalse(SL.intersects(r.leave, r.felt), "...and never over the felt")
 		local rows = SL.rows(r, 200, 150)
 		expectTrue(rows.patron.y == r.offers[1].y - 16, "the Patron row sits on the dealt cards")
 	end

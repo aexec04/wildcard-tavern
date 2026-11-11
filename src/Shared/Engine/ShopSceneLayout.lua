@@ -46,9 +46,9 @@ ShopSceneLayout.PACK_SHARE = 0.6     -- a pack is this share of a Patron card's 
 ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
 ShopSceneLayout.READABLE_SCALE = 0.5 -- the table grows taller on a small window until its Patron cards reach this card scale
 
--- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +6 by slot. Offers
+-- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +4 by slot. Offers
 -- use slot 1 to n, packs go on from n + 1, so neighbours never lean the same way.
-local TILTS = { -5, 4, -3, 6 }
+local TILTS = { -4, 3, -3, 4 }
 function ShopSceneLayout.cardTilt(index)
 	return TILTS[((math.max(1, math.floor(index)) - 1) % #TILTS) + 1]
 end
@@ -257,14 +257,18 @@ end
 -- Deals the spread on the painted felt: the Patron row, then the smaller pack row under it, both centred on the region's middle, the
 -- block resting on the region's bottom so the lower parts of the cards lie on the felt and the tops rise over the counter front. The
 -- biggest cards (width up to wMax) for which every card, turned by its tilt, stays inside the region and clear of every keep-out rect.
-local function dealInRoom(region, keep, nOffers, nPacks, wMax)
-	local gap, gapV = ShopSceneLayout.ROW_GAP, ShopSceneLayout.DEAL_GAP
+local function dealInRoom(region, keep, nOffers, nPacks, wMax, felt, minClear, rim)
+	local gapV = ShopSceneLayout.DEAL_GAP
+	-- Neighbours in a row keep minClear px between their turned outlines: the row gap grows with the card height (a tilt of up to 4
+	-- degrees swings a card's corners about 7 percent of its height sideways). Client/ShopCards lays the row out with this gap.
+	local function gapFor(h) return math.max(ShopSceneLayout.ROW_GAP, math.ceil(minClear + 0.07 * h + 2)) end
 	local cx = region.x + region.w / 2
 	local minW = ShopSceneLayout.SCALE_MIN * 220
 	local function build(w)
 		local ho = nOffers > 0 and (250 * w / 220 + 36) or 0
 		local wp = math.max(w * ShopSceneLayout.PACK_SHARE, minW)
 		local hp = nPacks > 0 and (210 * wp / 220 + 36) or 0
+		local gap = gapFor(math.max(ho, hp))
 		local total = ho + hp + ((nOffers > 0 and nPacks > 0) and gapV or 0)
 		local yTop = region.y + region.h - total - (0.06 * w + 2) -- a turned card reaches a little below its rect
 		local offers, packs = {}, {}
@@ -276,15 +280,29 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax)
 		return offers, packs
 	end
 	local function fits(offers, packs)
-		local index = 0
-		for _, list in ipairs({ offers, packs }) do
+		local index, boxes = 0, {}
+		for li, list in ipairs({ offers, packs }) do
 			for _, r in ipairs(list) do
 				index = index + 1
-				local b = boundsOf(r, ShopSceneLayout.cardTilt(index))
+				local deg = ShopSceneLayout.cardTilt(index)
+				local b = boundsOf(r, deg)
 				if b.x < region.x or b.y < region.y or b.x + b.w > region.x + region.w or b.y + b.h > region.y + region.h then return false end
-				for _, k in ipairs(keep) do
-					if ShopSceneLayout.intersects(b, k) then return false end
+				for _, k in ipairs(keep) do -- (3 px of slack: the rects are rounded after this check)
+					if ShopSceneLayout.intersects(b, { x = k.x - 3, y = k.y - 3, w = k.w + 6, h = k.h + 6 }) then return false end
 				end
+				-- on the felt: the whole card between its left and right rims, and its lower corners inside the oval
+				if felt then
+					if b.x < felt.x + minClear or b.x + b.w > felt.x + felt.w - minClear then return false end
+					local cs = ShopSceneLayout.corners(r, deg)
+					for c = 3, 4 do -- (the cards rest low on the felt, so their feet may reach the wood rim but not leave the table)
+						if not ShopSceneLayout.insideTable(rim, 0, cs[c].x, cs[c].y) then return false end
+					end
+				end
+				for _, o in ipairs(boxes) do
+					local pad = (o.list == li) and minClear or 0
+					if ShopSceneLayout.intersects({ x = b.x - pad, y = b.y, w = b.w + 2 * pad, h = b.h }, o) then return false end
+				end
+				boxes[#boxes + 1] = { x = b.x, y = b.y, w = b.w, h = b.h, list = li }
 			end
 		end
 		return true
@@ -295,7 +313,8 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax)
 			for i, r in ipairs(list) do out[i] = rect(r.x, r.y, r.w, r.h) end
 			return out
 		end
-		return rounded(offers), rounded(packs), fitted, sideBySide
+		local hMax = math.max(offers[1] and offers[1].h or 0, packs[1] and packs[1].h or 0)
+		return rounded(offers), rounded(packs), fitted, sideBySide, gapFor(hMax)
 	end
 	-- Stacked (Patrons, the smaller packs in a front row under them) is the look; on a small window its cards would be tiny, so the
 	-- packs then stand beside the Patrons in one row (bottom aligned, a gap between the groups) and the cards get bigger.
@@ -303,6 +322,7 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax)
 		local wp = math.max(w * ShopSceneLayout.PACK_SHARE, minW)
 		local ho = nOffers > 0 and (250 * w / 220 + 36) or 0
 		local hp = nPacks > 0 and (210 * wp / 220 + 36) or 0
+		local gap = gapFor(math.max(ho, hp))
 		local offW = w * nOffers + gap * math.max(nOffers - 1, 0)
 		local pkW = wp * nPacks + gap * math.max(nPacks - 1, 0)
 		local between = (nOffers > 0 and nPacks > 0) and 28 or 0
@@ -355,10 +375,11 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	local marloW = marloH * ShopSceneLayout.MARLO_RATIO
 	out.marlo = rect(p.x + R.marloX * p.w - marloW / 2, out.clipY + marloH * 0.08 - marloH, marloW, marloH)
 
-	-- Next Round: the sign hangs low on the stone arch (just under it, on the floor), clamped on screen
+	-- Next Round: the plate sits on the stone doorway itself, bottom centre of the arch opening, clamped on screen
 	local leaveW, leaveH = clamp(W * 0.11, 104, 160), 44
 	local archMid = out.arch.x + out.arch.w / 2
-	out.leave = rect(clamp(archMid - leaveW / 2, 8, W - leaveW - 8), clamp(out.arch.y + out.arch.h + 6, 8, H - leaveH - 12), leaveW, leaveH)
+	local leaveY = out.arch.y + out.arch.h - leaveH - 10
+	out.leave = rect(clamp(archMid - leaveW / 2, 8, W - leaveW - 8), clamp(leaveY, 8, H - leaveH - 12), leaveW, leaveH)
 
 	local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
@@ -372,10 +393,11 @@ local function roomRects(W, H, out, nOffers, nPacks)
 		out.leave, out.tabs, out.nextBoss,
 	}
 	local region = ShopSceneLayout.picRect(W, H, R.deal[1], R.deal[2], R.deal[3], R.deal[4])
-	local gap, pad = ShopSceneLayout.ROW_GAP, ShopSceneLayout.ROW_PAD
+	local gap, pad = ShopSceneLayout.ROW_GAP + 0.02 * p.w, ShopSceneLayout.ROW_PAD
 	local n = math.max(nOffers, 1)
 	local wMax = math.min((region.w - 2 * pad - gap * (n - 1)) / n, H * 0.42 * ShopSceneLayout.CARD_RATIO)
-	out.offers, out.packs, out.fitted, out.sideBySide = dealInRoom(region, out.keepOut, nOffers, nPacks, wMax)
+	local minClear = math.max(0.02 * p.w, 8)
+	out.offers, out.packs, out.fitted, out.sideBySide, out.cardGap = dealInRoom(region, out.keepOut, nOffers, nPacks, wMax, out.felt, minClear, out.table)
 	out.deal = region
 	out.bandX0, out.bandX1 = region.x, region.x + region.w
 	if out.sideBySide then -- each row is only as wide as its own cards, so it centres them where they were dealt
@@ -561,7 +583,7 @@ function ShopSceneLayout.cardScales(r)
 	end
 	local patron = fit(r.offers[1], 220, 250) or 1
 	local pack = fit(r.packs[1], 220, 210) or patron
-	return { patron = patron, pack = pack }
+	return { patron = patron, pack = pack, gap = r.cardGap }
 end
 
 -- Rects of the two scrolling card rows (transparent containers; the cards inside are centred). A row is the cards

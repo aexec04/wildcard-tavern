@@ -1467,7 +1467,7 @@ return function(deps)
 		if #lastCardSlots == 0 then
 			emptyScene = shopCards.emptyScene(shopBuyListFrame, order(), "offers")
 		else
-			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("patron"))
+			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("patron"), stageScales and stageScales.gap)
 			patronRow = row
 			for index, slotInfo in ipairs(lastCardSlots) do
 				local offer = slotInfo.offer
@@ -1519,7 +1519,7 @@ return function(deps)
 		lastPackSlots = reconcileSlots(lastPackSlots, currentPacks)
 		if #lastPackSlots > 0 then
 			if stageScales then ShopCardsModule.setScale(stageScales.pack) end
-			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("pack"))
+			local row = shopCards.row(shopBuyListFrame, order(), ShopCardsModule.rowHeight("pack"), stageScales and stageScales.gap)
 			packRow = row
 			-- Pack tooltips open beside the pack row, clear of the offers and every control (Client/ShopTips.lua).
 			local packTip = require(script.Parent.ShopTips).packPlacer({
