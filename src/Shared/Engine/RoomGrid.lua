@@ -56,6 +56,41 @@ function M.rects(sections, w, h, cols)
 	return { spots = spots, order = order, cols = cols, rows = rows }
 end
 
+-- ===== a painted room: ONE picture cover-fitted into the room (cropped, never stretched), each object a rectangle of it =====
+-- spec = { aspect = picture width over height, order = { id }, rects = { [id] = { x0, y0, x1, y1 } as fractions 0..1 of the picture } }
+-- Returns { image = { x, y, w, h } (the whole picture in the room's pixels, parts outside the room are clipped), spots, order, ok }.
+-- Each spot is { object = the object's rect clipped to the room, plate = the hover name plate (under the object, above it when there
+-- is no room below, always inside the room), hit = object }. ok is false when a crop would cut an object (less than M.PAINTED_VISIBLE of
+-- it shows) or one is smaller than M.PAINTED_MIN_HIT, and the caller then keeps the drawn room.
+M.PAINTED_VISIBLE = 0.8
+M.PAINTED_MIN_HIT = 44
+
+function M.painted(spec, w, h)
+	local iw, ih
+	if w / h > spec.aspect then iw, ih = w, w / spec.aspect else iw, ih = h * spec.aspect, h end
+	local ix, iy = (w - iw) / 2, (h - ih) / 2
+	local spots, ok = {}, true
+	for _, id in ipairs(spec.order) do
+		local f = spec.rects[id]
+		local x0, y0 = ix + f[1] * iw, iy + f[2] * ih
+		local x1, y1 = ix + f[3] * iw, iy + f[4] * ih
+		local full = (x1 - x0) * (y1 - y0)
+		local cx0, cy0, cx1, cy1 = math.max(0, x0), math.max(0, y0), math.min(w, x1), math.min(h, y1)
+		local obj = { x = math.floor(cx0), y = math.floor(cy0), w = math.floor(cx1 - cx0), h = math.floor(cy1 - cy0) }
+		if cx1 <= cx0 or cy1 <= cy0 or (cx1 - cx0) * (cy1 - cy0) < M.PAINTED_VISIBLE * full
+			or obj.w < M.PAINTED_MIN_HIT or obj.h < M.PAINTED_MIN_HIT then
+			ok = false
+		end
+		local plateW = math.min(w - 2 * M.MARGIN, math.max(obj.w, M.PLATE_MIN_W))
+		local px = math.max(M.MARGIN, math.min(w - M.MARGIN - plateW, obj.x + math.floor((obj.w - plateW) / 2)))
+		local py = obj.y + obj.h + M.PLATE_GAP
+		if py + M.PLATE_H > h then py = obj.y - M.PLATE_H - M.PLATE_GAP end
+		py = math.max(0, math.min(h - M.PLATE_H, py))
+		spots[id] = { object = obj, plate = { x = px, y = py, w = plateW, h = M.PLATE_H }, hit = obj }
+	end
+	return { image = { x = ix, y = iy, w = iw, h = ih }, spots = spots, order = spec.order, ok = ok }
+end
+
 function M.inside(r, w, h)
 	return r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h
 end

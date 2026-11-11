@@ -23,6 +23,22 @@ M.SECTIONS = {
 	{ id = "Special", object = "shelves", aspect = 1.5 },
 }
 
+-- The painted room (art `badge_wall` / `badge_room`, 1536x1024): the four objects as fractions of the picture (x0, y0, x1, y1).
+M.PAINTED = {
+	aspect = 1.5,
+	order = { "Roads", "Masters", "Night", "Special" },
+	rects = {
+		Roads = { 0.158, 0.146, 0.428, 0.405 },
+		Masters = { 0.561, 0.184, 0.850, 0.398 },
+		Night = { 0.156, 0.425, 0.433, 0.744 },
+		Special = { 0.550, 0.491, 0.869, 0.734 },
+	},
+}
+
+function M.paintedRects(w, h)
+	return Grid.painted(M.PAINTED, w, h)
+end
+
 M.SIDE = 15
 M.PLAQUE = { y = 6, h = 48, maxW = 360 } -- the small wooden plaque: Badges, "x of 32 earned" and the progress rail
 M.TABS = { y = 60, h = 26 } -- the quiet row of small plates

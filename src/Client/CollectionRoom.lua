@@ -16,6 +16,7 @@
 
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("CollectionRoomLayout"))
+local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local RoomHotspots = require(script.Parent.RoomHotspots)
 
 local CollectionRoom = {}
@@ -92,8 +93,13 @@ function BUILD.bonds(o, z)
 	end
 end
 
+-- The painted room (art `collection_scene` / `collection_room`) replaces the drawing when its Image id is recorded and the crop keeps
+-- every object; the six hotspots then sit over the picture's own objects (CollectionRoomLayout.PAINTED).
 function CollectionRoom.new(opts)
+	local paintedArt = ContentArt.getImageId("collection_scene", "collection_room")
+	if paintedArt then ContentArt.preload({ { "collection_scene", "collection_room" } }, "collection room") end
 	return RoomHotspots.new({
+		paintedArt = paintedArt,
 		parent = opts.parent, layout = Layout, build = BUILD, names = opts.names, onPick = opts.onPick, zIndex = opts.zIndex or 22,
 		name = "GalleryRoom",
 	})

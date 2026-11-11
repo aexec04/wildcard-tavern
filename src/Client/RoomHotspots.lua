@@ -104,6 +104,26 @@ function RoomHotspots.new(opts)
 	local floor = piece(frame, "Floor", 0, 0.9, 1, 0.1, wall.floor or DEFAULT_WALL.floor, z)
 	piece(floor, "Skirting", 0, 0, 1, 0.12, wall.skirting or DEFAULT_WALL.skirting, z)
 
+	-- The painted room (opts.paintedArt = an Image id, Layout.paintedRects): the picture is sized by the tested cover-fit maths (cropped
+	-- by the room's clip, never stretched) and the hotspots sit over its objects. Without the id, or when a crop would cut an object, the
+	-- drawn room above stays.
+	local painting
+	if opts.paintedArt and Layout.paintedRects then
+		painting = Instance.new("ImageLabel")
+		painting.Name = "Painting"
+		painting.BackgroundTransparency = 1
+		painting.BorderSizePixel = 0
+		painting.Active = false
+		painting.Image = opts.paintedArt
+		painting.ScaleType = Enum.ScaleType.Stretch -- the size already has the picture's own aspect
+		painting.ImageTransparency = 0
+		painting.ZIndex = z
+		painting.Visible = false
+		painting.Parent = frame
+	end
+	self.painting = painting
+	self.isPainted = false
+
 	for _, section in ipairs(Layout.SECTIONS) do
 		local id = section.id
 		local hotspot = Instance.new("Frame")
@@ -197,6 +217,8 @@ function RoomHotspots.new(opts)
 			glowRim.Transparency = on and 0.3 or 1
 			plate.BackgroundColor3 = on and P.PLATE_LIT or P.PLATE
 			plateRim.Color = (on or spot.complete) and P.BRASS_BRIGHT or P.BRASS
+			plate.Visible = on or not self.isPainted -- on the painting the name plate appears only under the pointer
+			if self.isPainted then return end -- nothing to lift: the object is part of the picture
 			if calm() then
 				object.Position = UDim2.fromOffset(spot.home.x, spot.home.y)
 			else
@@ -215,7 +237,20 @@ function RoomHotspots.new(opts)
 	-- Place every hotspot on its rectangle of the room (the room is w x h px).
 	function self.layout(w, h)
 		self.size = { w = w, h = h }
-		local R = Layout.rects(w, h)
+		local R = painting and Layout.paintedRects(w, h)
+		if R and not R.ok then R = nil end
+		self.isPainted = R ~= nil
+		if painting then
+			painting.Visible = R ~= nil
+			if R then
+				painting.Position = UDim2.fromOffset(math.floor(R.image.x), math.floor(R.image.y))
+				painting.Size = UDim2.fromOffset(math.ceil(R.image.w), math.ceil(R.image.h))
+			end
+		end
+		floor.Visible = R == nil
+		gradient.Enabled = R == nil
+		frame.BackgroundTransparency = R and 1 or 0
+		R = R or Layout.rects(w, h)
 		for _, id in ipairs(R.order) do
 			local r, spot = R.spots[id], self.spots[id]
 			local hit = r.hit
@@ -224,6 +259,8 @@ function RoomHotspots.new(opts)
 			spot.home = { x = r.object.x - hit.x, y = r.object.y - hit.y }
 			spot.object.Position = UDim2.fromOffset(spot.home.x, spot.home.y)
 			spot.object.Size = UDim2.fromOffset(r.object.w, r.object.h)
+			spot.object.Visible = not self.isPainted -- drawn furniture is only the fallback
+			spot.plate.Visible = spot.lit or not self.isPainted
 			local pad = 6
 			spot.glow.Position = UDim2.fromOffset(spot.home.x - pad, spot.home.y - pad)
 			spot.glow.Size = UDim2.fromOffset(r.object.w + 2 * pad, r.object.h + 2 * pad)

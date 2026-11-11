@@ -28,6 +28,25 @@ M.SECTIONS = {
 	{ id = "bonds", object = "bonds", aspect = 1.35 },
 }
 
+-- The painted room (art `collection_scene` / `collection_room`, 1536x1024): the six objects as fractions of the picture, measured from
+-- the generated PNG (x0, y0, x1, y1). The picture is cover-fitted into the room; see RoomGrid.painted.
+M.PAINTED = {
+	aspect = 1.5,
+	order = { "patrons", "recipes", "bosses", "housePasses", "titles", "bonds" },
+	rects = {
+		patrons = { 0.117, 0.215, 0.342, 0.400 },
+		recipes = { 0.411, 0.215, 0.594, 0.436 },
+		bosses = { 0.661, 0.244, 0.884, 0.454 },
+		housePasses = { 0.118, 0.542, 0.337, 0.725 },
+		titles = { 0.398, 0.559, 0.607, 0.708 },
+		bonds = { 0.682, 0.537, 0.856, 0.729 },
+	},
+}
+
+function M.paintedRects(w, h)
+	return Grid.painted(M.PAINTED, w, h)
+end
+
 -- ===== the panel's vertical order =====
 M.SIDE = 15 -- side margin of everything under the title
 M.BAR = { y = 36, h = 22 } -- overall progress line

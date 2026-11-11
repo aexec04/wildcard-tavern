@@ -15,6 +15,7 @@
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("BadgeRoomLayout"))
 local Wall = require(Engine:WaitForChild("BadgeWallLayout"))
+local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local RoomHotspots = require(script.Parent.RoomHotspots)
 
 local BadgeRoom = {}
@@ -90,8 +91,13 @@ function BUILD.shelves(o, z)
 	end
 end
 
+-- The painted trophy room (art `badge_wall` / `badge_room`) replaces the drawing when its Image id is recorded and the crop keeps every
+-- object; the four hotspots then sit over the picture's own objects (BadgeRoomLayout.PAINTED).
 function BadgeRoom.new(opts)
+	local paintedArt = ContentArt.getImageId("badge_wall", "badge_room")
+	if paintedArt then ContentArt.preload({ { "badge_wall", "badge_room" } }, "badge room") end
 	return RoomHotspots.new({
+		paintedArt = paintedArt,
 		parent = opts.parent, layout = Layout, build = BUILD, names = opts.names, onPick = opts.onPick, zIndex = opts.zIndex or 42,
 		name = "TrophyRoom",
 		wall = { top = Color3.fromRGB(46, 36, 34), bottom = Color3.fromRGB(26, 20, 22), floor = Color3.fromRGB(20, 15, 14), skirting = P.WOOD_DARK, rim = P.WOOD },

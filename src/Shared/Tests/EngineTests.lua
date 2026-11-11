@@ -18011,7 +18011,8 @@ table.insert(tests, { name = "Collection room and section area: inside the panel
 		local gx, gy = px(col.grid.Position)
 		local gw, gh = px(col.grid.Size)
 		expectTrue(gx == rx and gy == ry and gw == rw and gh == rh, "the section grid fills the same area as the room" .. where)
-		local R = RL.rects(rw, rh)
+		local R = RL.paintedRects(rw, rh) -- the recorded painting is wired: the hotspots sit over its objects when the crop keeps them all
+		if not R.ok then R = RL.rects(rw, rh) end
 		for _, id in ipairs(R.order) do
 			local hot, want = col.hotspot(id), R.spots[id].hit
 			expectEqual(hot.Position.X.Offset, want.x, id .. " hotspot x" .. where)
@@ -18022,6 +18023,92 @@ table.insert(tests, { name = "Collection room and section area: inside the panel
 			expectTrue(hot:FindFirstChild("NamePlate").Size.Y.Offset >= 24, id .. " plate is tall enough for its text" .. where)
 		end
 	end
+end })
+
+table.insert(tests, { name = "Painted rooms (Collection and Badges): hotspots are rectangles of the picture, inside the room, no overlap over 10 percent, every section has one, the crop never stretches and a cut object falls back to the drawing", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local rooms = {
+		{ name = "Collection", L = require(Engine.CollectionRoomLayout), count = 6 },
+		{ name = "Badges", L = require(Engine.BadgeRoomLayout), count = 4 },
+	}
+	for _, r in ipairs(rooms) do
+		local L = r.L
+		expectEqual(#L.PAINTED.order, r.count, r.name .. " painted room has one hotspot per section")
+		for i, sec in ipairs(L.SECTIONS) do
+			expectEqual(L.PAINTED.order[i], sec.id, r.name .. " painted order follows the sections")
+			local f = L.PAINTED.rects[sec.id]
+			expectTrue(f ~= nil and f[1] >= 0 and f[2] >= 0 and f[3] <= 1 and f[4] <= 1 and f[3] > f[1] and f[4] > f[2], sec.id .. " rect is a fraction box of the picture")
+		end
+		for _, size in ipairs({ { 1267, 640 }, { 1000, 560 }, { 800, 420 }, { 700, 300 }, { 560, 500 } }) do
+			local w, h = size[1], size[2]
+			local where = " (" .. r.name .. " " .. w .. "x" .. h .. ")"
+			local R = L.paintedRects(w, h)
+			expectTrue(R.ok, "the picture keeps every object" .. where)
+			expectTrue(math.abs(R.image.w / R.image.h - L.PAINTED.aspect) < 0.01, "the picture is cover-fitted at its own aspect, never stretched" .. where)
+			expectTrue(R.image.w >= w - 1 and R.image.h >= h - 1, "the picture covers the whole room" .. where)
+			for _, id in ipairs(R.order) do
+				local s = R.spots[id]
+				expectTrue(s ~= nil, id .. " has a hotspot" .. where)
+				expectTrue(L.inside(s.hit, w, h) and L.inside(s.plate, w, h), id .. " hotspot and plate are inside the room" .. where)
+				expectTrue(s.hit.w >= 44 and s.hit.h >= 44, id .. " is at least 44 px" .. where)
+			end
+			for i = 1, #R.order do
+				for j = i + 1, #R.order do
+					local a, b = R.spots[R.order[i]].hit, R.spots[R.order[j]].hit
+					local ox = math.max(0, math.min(a.x + a.w, b.x + b.w) - math.max(a.x, b.x))
+					local oy = math.max(0, math.min(a.y + a.h, b.y + b.h) - math.max(a.y, b.y))
+					expectTrue(ox * oy <= 0.1 * math.min(a.w * a.h, b.w * b.h), R.order[i] .. " and " .. R.order[j] .. " overlap at most 10 percent" .. where)
+				end
+			end
+		end
+		expectFalse(L.paintedRects(220, 600).ok, r.name .. ": a very narrow room would cut objects, so the drawn room stays")
+	end
+end })
+
+table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges panels show the recorded picture under the hotspots and keep the drawn room when the id is missing", fn = function()
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/RoomHotspots.lua", "r")
+	if not probe then return end
+	probe:close()
+	local Engine = script.Parent.Parent.Engine
+	local CA = require(Engine.ContentArt)
+	expectTrue(CA.getImageId("collection_scene", "collection_room") ~= nil, "collection_room id is recorded")
+	expectTrue(CA.getImageId("badge_wall", "badge_room") ~= nil, "badge_room id is recorded")
+	local function check(name, scene, room, id, L)
+		local painting = room:FindFirstChild("Painting")
+		expectTrue(painting ~= nil and painting.ClassName == "ImageLabel", name .. " room has a Painting image")
+		expectEqual(painting.Image, id, name .. " Painting uses the recorded id once (no doubled prefix)")
+		expectFalse(id:find("rbxassetid://rbxassetid://", 1, true) ~= nil, name .. " id has one prefix")
+		expectTrue(painting.Visible, name .. " Painting is shown")
+		expectTrue(math.abs(painting.Size.X.Offset / painting.Size.Y.Offset - L.PAINTED.aspect) < 0.02, name .. " Painting keeps its aspect")
+		expectFalse(room:FindFirstChild("Floor").Visible, name .. " drawn floor is hidden under the painting")
+		for _, sec in ipairs(L.SECTIONS) do
+			local hot = room:FindFirstChild("Hotspot_" .. sec.id)
+			expectFalse(hot:FindFirstChild("Object").Visible, sec.id .. " drawn furniture is hidden")
+			expectFalse(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate waits for the pointer")
+			hot:FindFirstChild("Surface").MouseEnter:Fire()
+			expectTrue(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate shows on hover")
+			expectTrue(hot:FindFirstChild("Glow").BackgroundTransparency < 1, sec.id .. " glows on hover")
+			hot:FindFirstChild("Surface").MouseLeave:Fire()
+			expectFalse(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate hides again")
+		end
+	end
+	local CS = require(script.Parent.CollectionScene)
+	local c = CS.build({})
+	c.open()
+	check("Collection", c, c.room, CA.getImageId("collection_scene", "collection_room"), require(Engine.CollectionRoomLayout))
+	local BS = require(script.Parent.BadgeScene)
+	local b = BS.build({ badgeIds = {} })
+	b.open()
+	check("Badges", b, b.room, CA.getImageId("badge_wall", "badge_room"), require(Engine.BadgeRoomLayout))
+	-- without the id the drawn room is what shows
+	local saved = require(Engine.CollectionSceneArt)["collection_room"]
+	require(Engine.CollectionSceneArt)["collection_room"] = nil
+	local plain = CS.build({})
+	plain.open()
+	require(Engine.CollectionSceneArt)["collection_room"] = saved
+	expectTrue(plain.room:FindFirstChild("Painting") == nil, "no id, no Painting")
+	expectTrue(plain.room:FindFirstChild("Floor").Visible and plain.room:FindFirstChild("Hotspot_patrons"):FindFirstChild("Object").Visible, "the drawn room stays as the fallback")
 end })
 
 return tests
