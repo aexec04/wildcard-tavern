@@ -59,6 +59,8 @@ local function button(parent, text, color, props)
 	b.BorderSizePixel = 0
 	b.AutoButtonColor = false
 	b.ZIndex = 73
+	b.TextTransparency = 0
+	b.TextStrokeTransparency = 1
 	for k, v in pairs(props) do
 		b[k] = v
 	end
@@ -101,7 +103,16 @@ function RunSummaryUI.init(screenGui, deps)
 	panel.ZIndex = 71
 	panel.Parent = backdrop
 	corner(panel, 10)
-	stroke(panel, GOLD, 3)
+	stroke(panel, WOOD, 6) -- dark wood frame, like the daily reward plate and News board
+	local rim = Instance.new("Frame")
+	rim.Name = "BrassRim"
+	rim.Size = UDim2.new(1, -8, 1, -8)
+	rim.Position = UDim2.fromOffset(4, 4)
+	rim.BackgroundTransparency = 1
+	rim.ZIndex = 71
+	rim.Parent = panel
+	corner(rim, 8)
+	stroke(rim, GOLD, 2)
 	local fit = Instance.new("UIScale")
 	fit.Parent = panel
 	ui.fit = fit
@@ -140,7 +151,7 @@ function RunSummaryUI.init(screenGui, deps)
 	})
 	ui.patrons = Instance.new("Frame")
 	ui.patrons.Position = UDim2.new(0, 312, 0, 226)
-	ui.patrons.Size = UDim2.new(1, -334, 0, 104)
+	ui.patrons.Size = UDim2.new(1, -334, 0, 60)
 	ui.patrons.BackgroundColor3 = PARCHMENT_DARK
 	ui.patrons.BorderSizePixel = 0
 	ui.patrons.ZIndex = 72
@@ -163,33 +174,33 @@ function RunSummaryUI.init(screenGui, deps)
 
 	-- personal best Endless Night per stake (set in update); a one-line strip along the bottom
 	ui.bestEndless = label(panel, {
-		Position = UDim2.new(0, 22, 1, -48), Size = UDim2.new(1, -44, 0, 30), Text = "", TextSize = 15,
+		Size = UDim2.new(1, -44, 0, 30), Text = "", TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 
 	ui.save = button(panel, "Save as my badge", GREEN, {
-		Position = UDim2.new(0, 312, 0, 346), Size = UDim2.new(1, -334, 0, 40),
+		Size = UDim2.new(1, -334, 0, 40),
 	})
 	ui.continue = button(panel, "Continue", WOOD, {
-		Position = UDim2.new(0, 312, 0, 400), Size = UDim2.new(0.5, -138, 0, 46),
+		Size = UDim2.new(0.5, -138, 0, 46),
 	})
 	ui.again = button(panel, "Play Again", WOOD, {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -22, 0, 400), Size = UDim2.new(0.5, -138, 0, 46),
+		AnchorPoint = Vector2.new(1, 0), Size = UDim2.new(0.5, -138, 0, 46),
 	})
 
 	-- Share seed (Seed Runs only): the code and a ready-to-send line in a selectable box (Ctrl+C copies it).
 	-- three equal buttons on one row (x from 312 to the panel's right margin): Share, Challenge, Invite
 	ui.share = button(panel, "Share result", WOOD, {
-		Position = UDim2.new(0, 312, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
+		Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
 	})
 	ui.share.Visible = false
 	ui.challenge = button(panel, "Challenge a friend", WOOD, {
-		Position = UDim2.new(1 / 3, 312 - 109, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
+		Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
 	})
 	ui.challenge.Visible = false
 	-- Invite friends (Client/InvitePrompt.lua), always available beside the share buttons
 	ui.invite = button(panel, "Invite friends", WOOD, {
-		Position = UDim2.new(2 / 3, 312 - 218, 0, 300), Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
+		Size = UDim2.new(1 / 3, -117, 0, 38), TextSize = 15, TextWrapped = true,
 	})
 	ui.invite.Visible = false
 	require(script.Parent.InvitePrompt).bind(ui.invite)
@@ -205,7 +216,6 @@ function RunSummaryUI.init(screenGui, deps)
 	end)
 	ui.shareBox = Instance.new("TextBox")
 	ui.shareBox.Name = "ShareSeedBox"
-	ui.shareBox.Position = UDim2.new(0, 312, 0, 300)
 	ui.shareBox.Size = UDim2.new(1, -334, 0, 38)
 	ui.shareBox.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
 	ui.shareBox.BorderSizePixel = 0
@@ -224,7 +234,7 @@ function RunSummaryUI.init(screenGui, deps)
 		ui.shareBox.CursorPosition = #ui.shareBox.Text + 1
 	end)
 	ui.shareHint = label(panel, {
-		Position = UDim2.new(0, 312, 0, 340), Size = UDim2.new(1, -334, 0, 18), Text = "Select the line, then press Ctrl+C.",
+		Size = UDim2.new(1, -334, 0, 18), Text = "Select the line, then press Ctrl+C.",
 		TextSize = 15, Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Left, Visible = false,
 	})
 
@@ -282,6 +292,29 @@ function RunSummaryUI.init(screenGui, deps)
 	end)
 end
 
+-- Right column rows below the Patrons box: share row (its own row, 12 px under the box), Save, Continue/Play Again,
+-- the Endless strip; then the panel and the badge card are sized to fit. boxH = height of the Patrons box.
+local function layoutRows(boxH)
+	ui.patrons.Size = UDim2.new(1, -334, 0, boxH)
+	local y = 226 + boxH + 12
+	ui.share.Position = UDim2.new(0, 312, 0, y)
+	ui.challenge.Position = UDim2.new(1 / 3, 312 - 109, 0, y)
+	ui.invite.Position = UDim2.new(2 / 3, 312 - 218, 0, y)
+	ui.shareBox.Position = UDim2.new(0, 312, 0, y)
+	ui.shareHint.Position = UDim2.new(0, 312, 0, y + 40)
+	local saveY = y + 62
+	ui.save.Position = UDim2.new(0, 312, 0, saveY)
+	local rowY = saveY + 50
+	ui.continue.Position = UDim2.new(0, 312, 0, rowY)
+	ui.again.Position = UDim2.new(1, -22, 0, rowY)
+	local bottom = rowY + 46
+	ui.bestEndless.Position = UDim2.new(0, 22, 0, bottom + 6)
+	local height = math.max(bottom + 6 + 30 + 14, 330)
+	ui.panel.Size = UDim2.new(0, 760, 0, height)
+	ui.card.Size = UDim2.new(0, 270, 0, height - 44)
+	ui.panelHeight = height
+end
+
 local function buildCard(summary)
 	clear(ui.cardContent)
 	local RarityFrame = require(script.Parent.RarityFrame)
@@ -317,24 +350,16 @@ local function buildCard(summary)
 		Position = UDim2.new(0, 10, 0, 220), Size = UDim2.new(1, -20, 0, 20), Text = "Road taken", TextSize = 15,
 		Font = Enum.Font.GothamMedium,
 	})
-	local routeRow = Instance.new("Frame")
-	routeRow.Position = UDim2.new(0, 10, 0, 244)
-	routeRow.Size = UDim2.new(1, -20, 0, 96)
-	routeRow.BackgroundTransparency = 1
-	routeRow.ZIndex = 72
-	routeRow.Parent = parent
-	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.new(0, 36, 0, 36)
-	grid.CellPadding = UDim2.new(0, 6, 0, 6)
-	grid.SortOrder = Enum.SortOrder.LayoutOrder
-	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	grid.Parent = routeRow
-	for index, stop in ipairs(summary.route) do
-		local chip = label(routeRow, {
-			LayoutOrder = index, Text = stop.icon or "?", TextSize = 24, Font = Enum.Font.GothamMedium,
-		})
-		chip.TextWrapped = false
+	local names = {}
+	for _, stop in ipairs(summary.route) do
+		names[#names + 1] = stop.name or stop.id
 	end
+	local routeText = label(parent, {
+		Position = UDim2.new(0, 10, 0, 244), Size = UDim2.new(1, -20, 0, 90),
+		Text = #names > 0 and table.concat(names, "\n") or "No stops yet", TextSize = 15, Font = Enum.Font.GothamMedium,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	routeText.TextTruncate = Enum.TextTruncate.AtEnd
 	if summary.blessing then
 		local blessingLine = label(parent, {
 			Position = UDim2.new(0, 10, 0, 342), Size = UDim2.new(1, -20, 0, 20),
@@ -353,6 +378,9 @@ local function buildPatrons(summary)
 	clear(ui.patrons)
 	local PatronPlaque = require(script.Parent.PatronPlaque)
 	ui.noPatrons.Visible = #summary.patrons == 0
+	local shown = math.min(#summary.patrons, 10)
+	local rows = math.max(1, math.ceil(shown / 8))
+	layoutRows(shown == 0 and 44 or (16 + rows * 52 - 8 + 8))
 	for index, patron in ipairs(summary.patrons) do
 		if index > 10 then
 			break
@@ -423,7 +451,13 @@ function RunSummaryUI.update(state)
 		if dismissedKey ~= key then
 			-- Fit small screens (the panel is 760x470), then pop in.
 			local size = ui.backdrop.Parent and ui.backdrop.Parent.AbsoluteSize or Vector2.new(1280, 720)
-			local base = math.clamp(math.min(size.X / 800, size.Y / 510), 0.6, 1)
+			local base = math.clamp(math.min(size.X / 800, size.Y / ((ui.panelHeight or 510) + 20)), 0.6, 1)
+			-- an account panel (Store with its tab strip) must not stay up behind the result
+			local gui = ui.backdrop.Parent
+			local store = gui and gui:FindFirstChild("StoreBackdrop")
+			if store and store:IsA("GuiObject") then
+				store.Visible = false
+			end
 			ui.backdrop.Visible = true
 			ui.fit.Scale = base * 0.85
 			TweenService:Create(ui.fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()

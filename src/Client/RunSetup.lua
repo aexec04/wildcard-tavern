@@ -169,7 +169,7 @@ return function(deps)
 		label.TextSize = 18
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.TextColor3 = Color3.fromRGB(250, 235, 200)
-		label.Text = icon .. "  " .. text
+		label.Text = text -- plain text: no emoji in headers
 		label.ZIndex = 27
 		label.Parent = header
 		return header
@@ -186,8 +186,8 @@ return function(deps)
 	local DECK_VARIANT_ACCENT = Color3.fromRGB(255, 200, 90)
 	local DIFFICULTY_ACCENT = Color3.fromRGB(210, 70, 70)
 
-	makeRunSetupSectionLabel("Deck Variant", "🃏", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
-	makeRunSetupSectionLabel("Difficulty", "⚔️", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
+	makeRunSetupSectionLabel("Deck Variant", "", DECK_HEADER_ORDER, DECK_VARIANT_ACCENT)
+	makeRunSetupSectionLabel("Difficulty", "", DIFF_HEADER_ORDER, DIFFICULTY_ACCENT)
 
 	-- STAKES (Engine/Stakes.lua): eight tiers, each adds one rule. Win a run on a stake to open the next.
 	-- Painted tier icons come later (prompts.json stake_subjects); the emoji icon is the fallback today.
@@ -196,7 +196,7 @@ return function(deps)
 	local STAKE_ACCENT = Color3.fromRGB(230, 150, 60)
 	local selectedStake = 1
 	local stakeCards = {}
-	makeRunSetupSectionLabel("Stakes", "🏅", STAKE_HEADER_ORDER, STAKE_ACCENT)
+	makeRunSetupSectionLabel("Stakes", "", STAKE_HEADER_ORDER, STAKE_ACCENT)
 	-- CHALLENGE RUNS and BOSS RUSH (Engine/Challenges.lua, BossRush.lua): optional extras after the stakes.
 	local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 	local Challenges = require(Engine:WaitForChild("Challenges"))
@@ -208,8 +208,8 @@ return function(deps)
 	local selectedChallengeId = nil -- nil = a normal run
 	local selectedMode = nil -- "rush" = Boss Rush, "quick" = Quick Run (Engine/RunModes.lua)
 	local challengeCards, rushCards = {}, {}
-	makeRunSetupSectionLabel("Challenge", "🎭", CHALLENGE_HEADER_ORDER, CHALLENGE_ACCENT)
-	makeRunSetupSectionLabel("Special Modes", "⚔️", RUSH_HEADER_ORDER, RUSH_ACCENT)
+	makeRunSetupSectionLabel("Challenge", "", CHALLENGE_HEADER_ORDER, CHALLENGE_ACCENT)
+	makeRunSetupSectionLabel("Special Modes", "", RUSH_HEADER_ORDER, RUSH_ACCENT)
 	local function highestStake()
 		local state = deps.getLatestState and deps.getLatestState()
 		return Stakes.clamp(state and state.highestStakeUnlocked)
@@ -250,7 +250,7 @@ return function(deps)
 		nameLabel.TextSize = 17
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.TextColor3 = INK
-		nameLabel.Text = (isSelected and "✓ " or "") .. name
+		nameLabel.Text = (isSelected and "Chosen: " or "") .. name
 		nameLabel.ZIndex = 26
 		nameLabel.Parent = card
 
@@ -360,7 +360,7 @@ return function(deps)
 			local legendState = deps.getLatestState and deps.getLatestState()
 			local view = legendState and legendState.legend
 			if view then
-				local name = view.open and ("👑 Legend level " .. view.level .. " of " .. view.max) or "👑 Legend"
+				local name = view.open and ("Legend level " .. view.level .. " of " .. view.max) or "Legend"
 				local text = view.open and view.hint or "Clear stake 8 to become a Legend. Rewards are cosmetic."
 				local legendCard, legendClick = makePickCard(runSetupScroll, STAKE_CARD_BASE + 20, name, text, false, Color3.fromRGB(255, 214, 100), not view.open, nil)
 				legendClick.Active = false
@@ -405,7 +405,7 @@ return function(deps)
 		local rushText = rush.unlocked
 			and ("Boss after boss with 3 Patrons you pick. No shop. Best: " .. tostring(math.floor(rush.best or 0)))
 			or "Locked. Win a run first."
-		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, (ArtIcon.has("menu_icons", "boss_rush") and "" or "⚔️ ") .. "Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked, { "menu_icons", "boss_rush" })
+		local rushCard, rushClick = makePickCard(runSetupScroll, RUSH_CARD_BASE + 1, "Boss Rush", rushText, selectedMode == "rush", RUSH_ACCENT, not rush.unlocked, { "menu_icons", "boss_rush" })
 		table.insert(rushCards, rushCard)
 		table.insert(newlyBuiltCards, rushCard)
 		if rush.unlocked then

@@ -16570,6 +16570,12 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	local function has(file, text) local s = read("src/Client/" .. file); return s ~= nil and s:find(text, 1, true) ~= nil end
 	expectTrue(has("ConfirmDialog.lua", 'policy = "cancel"') and has("RestartRun.lua", 'policy = "cancel"'), "confirm dialogs: Escape and a click outside mean Cancel")
 	expectTrue(has("NightVictory.lua", 'policy = "button"') and has("RunSummaryUI.lua", 'policy = "button"') and has("OverlayQueue.lua", 'policy = "button"'), "result screens and plates: Escape presses their one button")
+	-- run summary and Run Setup polish: road names, buttons clear of the Patrons box, no emoji in Run Setup headers
+	expectTrue(has("RunSummaryUI.lua", "stop.name or stop.id") and not has("RunSummaryUI.lua", "stop.icon"), "run summary lists road names, not icon codes")
+	expectTrue(has("RunSummaryUI.lua", "local y = 226 + boxH + 12") and has("RunSummaryUI.lua", "ui.share.Position = UDim2.new(0, 312, 0, y)"), "run summary share row sits 12 px under the Patrons box")
+	expectTrue(has("RunSummaryUI.lua", "b.TextStrokeTransparency = 1"), "run summary buttons have no heavy text stroke")
+	local setupSrc = read("src/Client/RunSetup.lua") or ""
+	expectTrue(not setupSrc:find("\240\159", 1, true) and not setupSrc:find("\226\154", 1, true) and not setupSrc:find("\226\156", 1, true), "Run Setup has no emoji in headers or labels")
 	expectTrue(has("RoadChoice.lua", 'policy = "locked"') and has("RoundSelect.lua", 'policy = "locked"'), "mid-run choices are locked: Escape opens Settings")
 	expectTrue(has("Settings.lua", 'registerOpener("settings"'), "Settings can be opened by id, which a locked screen's Escape needs")
 	expectTrue(has("PanelTabs.lua", "function PanelTabs.attach(backdrop, id, playClick, panel)") and has("PanelTabs.lua", "PopupDismiss"), "PanelTabs registers the account panels")
