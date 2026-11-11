@@ -360,6 +360,7 @@ end
 FakeGui.plainLua = plainLua
 
 function FakeGui.load(path, env)
+	assert(io and io.open, "FakeGui.load needs io.open (local runner only), missing for " .. tostring(path) .. "; guard the test with 'if not (io and io.open) then return end'")
 	local f = assert(io.open(path, "r"))
 	local src = f:read("*a")
 	f:close()

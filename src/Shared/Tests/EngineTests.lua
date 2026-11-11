@@ -18310,6 +18310,10 @@ table.insert(tests, { name = "Content text: no double dash, em dash or en dash i
 end })
 
 table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; Escape goes wall to room to close", fn = function()
+	-- The scene builders read Client files with io.open, which Studio does not have: skip there like the other scene tests.
+	local probe = io and io.open and load and io.open("src/Client/BadgeRoom.lua", "r")
+	if not probe then return end
+	probe:close()
 	local Engine = script.Parent.Parent.Engine
 	local function checkRoom(label, rooms, sections)
 		for _, sec in ipairs(sections) do
