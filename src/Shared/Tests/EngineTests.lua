@@ -12698,6 +12698,17 @@ table.insert(tests, { name = "PanelBand: band is capped at 24 px, inset matches 
 	end
 end })
 
+table.insert(tests, { name = "Pack opening stays on the Counter table: translucent dim, backdrop kept, wooden plates, unique option names", fn = function()
+	local f = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if not f then return end
+	local t = f:read("*a"); f:close()
+	expectTrue(t:find("shopPackPanel.BackgroundTransparency = 0.45", 1, true) ~= nil, "the pack panel only dims the room")
+	expectTrue(t:find('child.Name ~= "ShopBackdrop"', 1, true) ~= nil, "the painted room stays visible during a pack")
+	expectTrue(t:find('"Option_" .. tostring(item.id)', 1, true) ~= nil, "each pick has a unique Option_<id> name")
+	expectTrue(t:find('"PackConfirm"', 1, true) ~= nil and t:find('"PackSkip"', 1, true) ~= nil, "Confirm and Skip are named plates")
+	expectTrue(t:find("ResolvePackRemote:FireServer", 1, true) ~= nil, "ResolvePack is still fired")
+end })
+
 table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
 	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
 	local g = ModalGate.new()
@@ -12729,7 +12740,7 @@ table.insert(tests, { name = "ModalGate: counter opens and closes and never goes
 	end
 	for _, file in ipairs({ "ChoicePanel", "RoadChoice", "Collection", "Shop" }) do
 		local h = io.open("src/Client/" .. file .. ".lua", "r"):read("*a")
-		expectTrue(h:find("ModalStage", 1, true) ~= nil and h:find("mount", 1, true) ~= nil, file .. " mounts a stage")
+		expectTrue(h:find("ModalStage", 1, true) ~= nil and (h:find("mount", 1, true) ~= nil or h:find("gateOnly", 1, true) ~= nil), file .. " mounts a stage (or the gate only: the pack opening dims the Counter)")
 	end
 end })
 

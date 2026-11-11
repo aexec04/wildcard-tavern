@@ -640,41 +640,47 @@ return function(deps)
 		shopPackPanel.Name = "PackPanel"
 		shopPackPanel.Size = UDim2.new(1, -20, 1, -20)
 		shopPackPanel.Position = UDim2.new(0, 10, 0, 10)
-		shopPackPanel.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+		shopPackPanel.BackgroundColor3 = Color3.fromRGB(16, 11, 8)
+		shopPackPanel.BackgroundTransparency = 0.45 -- soft dim: the painted room and the oval table stay visible
+		shopPackPanel.BorderSizePixel = 0
 		shopPackPanel.Visible = false
 		shopPackPanel.ZIndex = PANEL_ZINDEX
 		shopPackPanel.Parent = shopFrame
-		polishPanel(shopPackPanel, 12, "wood")
-		pcall(require(script.Parent.ModalStage).mount, shopPackPanel, "pack") -- card table stage + modal gate
+		pcall(require(script.Parent.ModalStage).gateOnly, shopPackPanel) -- modal gate and click sink, no opaque stage
 
-		packPanelTitleLabel = Instance.new("TextLabel")
-		packPanelTitleLabel.Size = UDim2.new(1, -20, 0, 30)
-		packPanelTitleLabel.Position = UDim2.new(0, 10, 0, 14)
-		packPanelTitleLabel.BackgroundTransparency = 1
-		packPanelTitleLabel.Font = Enum.Font.GothamBold
-		packPanelTitleLabel.TextSize = 20
-		packPanelTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-		packPanelTitleLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
-		packPanelTitleLabel.Text = ""
-		packPanelTitleLabel.ZIndex = PANEL_ZINDEX
-		packPanelTitleLabel.Parent = shopPackPanel
-
-		packPanelHintLabel = Instance.new("TextLabel")
-		packPanelHintLabel.Size = UDim2.new(1, -20, 0, 22)
-		packPanelHintLabel.Position = UDim2.new(0, 10, 0, 46)
-		packPanelHintLabel.BackgroundTransparency = 1
-		packPanelHintLabel.Font = Enum.Font.Gotham
-		packPanelHintLabel.TextSize = 15
-		packPanelHintLabel.TextXAlignment = Enum.TextXAlignment.Left
-		packPanelHintLabel.TextColor3 = Color3.fromRGB(190, 175, 155)
-		packPanelHintLabel.Text = ""
-		packPanelHintLabel.ZIndex = PANEL_ZINDEX
-		packPanelHintLabel.Parent = shopPackPanel
+		local function packSign(name, size, pos, color, textColor, textSize, font)
+			local l = Instance.new("TextLabel")
+			l.Name = name
+			l.AnchorPoint = Vector2.new(0.5, 0)
+			l.Size = size
+			l.Position = pos
+			l.BackgroundColor3 = color
+			l.BackgroundTransparency = 0
+			l.Font = font
+			l.TextSize = textSize
+			l.TextColor3 = textColor
+			l.Text = ""
+			l.ZIndex = PANEL_ZINDEX
+			l.Parent = shopPackPanel
+			roundCorner(l, 8)
+			local st = Instance.new("UIStroke")
+			st.Color = Color3.fromRGB(150, 110, 52)
+			st.Thickness = 2
+			st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			st.Parent = l
+			return l
+		end
+		-- "Pick 1 of 3": a small parchment sign top centre (dark ink on paper)
+		packPanelTitleLabel = packSign("PackTitleSign", UDim2.fromOffset(220, 36), UDim2.new(0.5, 0, 0, 14),
+			Color3.fromRGB(226, 208, 168), Color3.fromRGB(46, 32, 20), 20, Enum.Font.GothamBold)
+		packPanelHintLabel = packSign("PackHintSign", UDim2.fromOffset(420, 24), UDim2.new(0.5, 0, 0, 56),
+			Color3.fromRGB(30, 22, 16), Color3.fromRGB(240, 228, 200), 14, Enum.Font.Gotham)
 
 		packItemsRow = Instance.new("Frame")
+		packItemsRow.Name = "PackItemsRow"
 		packItemsRow.Size = UDim2.new(1, -20, 0, 0)
 		packItemsRow.AutomaticSize = Enum.AutomaticSize.Y -- grows with wrapped rows
-		packItemsRow.Position = UDim2.new(0, 10, 0, 78)
+		packItemsRow.Position = UDim2.new(0, 10, 0, 90)
 		packItemsRow.BackgroundTransparency = 1
 		packItemsRow.ZIndex = PANEL_ZINDEX
 		packItemsRow.Parent = shopPackPanel
@@ -687,29 +693,31 @@ return function(deps)
 		packItemsLayout.Wraps = true -- a second row on narrow screens (CardShape.pickLayout)
 		packItemsLayout.Parent = packItemsRow
 
-		packConfirmButton = Instance.new("TextButton")
-		packConfirmButton.Size = UDim2.new(0, 150, 0, 34)
-		packConfirmButton.Position = UDim2.new(1, -320, 1, -50)
-		packConfirmButton.Font = Enum.Font.GothamBold
-		packConfirmButton.TextSize = 15
-		packConfirmButton.Text = "Confirm"
-		packConfirmButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-		packConfirmButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		packConfirmButton.ZIndex = PANEL_ZINDEX
-		packConfirmButton.Parent = shopPackPanel
-		polishButton(packConfirmButton, 8)
-
-		packSkipButton = Instance.new("TextButton")
-		packSkipButton.Size = UDim2.new(0, 140, 0, 34)
-		packSkipButton.Position = UDim2.new(1, -160, 1, -50)
-		packSkipButton.Font = Enum.Font.GothamBold
-		packSkipButton.TextSize = 15
-		packSkipButton.Text = "Skip Pack"
-		packSkipButton.BackgroundColor3 = Color3.fromRGB(70, 55, 45)
-		packSkipButton.TextColor3 = Color3.fromRGB(250, 240, 220)
-		packSkipButton.ZIndex = PANEL_ZINDEX
-		packSkipButton.Parent = shopPackPanel
-		polishButton(packSkipButton, 8)
+		-- Confirm and Skip Pack: two small wooden plates under the table, centred (same look as Haggle and Reroll)
+		local function packPlate(name, text, x, color)
+			local b = Instance.new("TextButton")
+			b.Name = name
+			b.AnchorPoint = Vector2.new(0.5, 0)
+			b.Size = UDim2.fromOffset(150, 40)
+			b.Position = UDim2.new(0.5, x, 1, -56)
+			b.Font = Enum.Font.GothamBold
+			b.TextSize = 16
+			b.Text = text
+			b.BackgroundColor3 = color
+			b.TextColor3 = Color3.fromRGB(250, 240, 220)
+			b.AutoButtonColor = true
+			b.ZIndex = PANEL_ZINDEX + 1
+			b.Parent = shopPackPanel
+			polishButton(b, 8)
+			local st = Instance.new("UIStroke")
+			st.Color = Color3.fromRGB(150, 110, 52)
+			st.Thickness = 2
+			st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			st.Parent = b
+			return b
+		end
+		packConfirmButton = packPlate("PackConfirm", "Confirm", -82, Color3.fromRGB(110, 72, 34))
+		packSkipButton = packPlate("PackSkip", "Skip Pack", 82, Color3.fromRGB(70, 52, 40))
 	end -- do (Shop overlay)
 
 	-- ----- Recipe target picker state + logic -----
@@ -909,7 +917,7 @@ return function(deps)
 	-- the marker attribute lets the close restore exactly what was hidden here.
 	local function setCounterHiddenForPack(on)
 		for _, child in ipairs(shopFrame:GetChildren()) do
-			if child:IsA("GuiObject") and child ~= shopPackPanel then
+			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" then
 				if on then
 					if child.Visible and not child:GetAttribute("PackHidden") then
 						child:SetAttribute("PackHidden", true)
@@ -999,6 +1007,13 @@ return function(deps)
 					end,
 				})
 				packCards[index] = card
+				card.slot.Name = "Option_" .. tostring(item.id)
+				local tiltWrap = card.slot:FindFirstChild("Tilt")
+				if tiltWrap then -- cards lie on the table at the Counter's own angles
+					local angle = require(Engine:WaitForChild("ShopSceneLayout")).cardTilt(index)
+					tiltWrap.Rotation = angle
+					card.slot:SetAttribute("Tilt", angle)
+				end
 				if packArtCategory and not ContentArt.getImageId(packArtCategory, item.id) then
 					warn(string.format("[PackPick] no art for %s '%s' (emoji fallback shown)", tostring(item.category), tostring(item.id)))
 				end
@@ -1067,7 +1082,7 @@ return function(deps)
 
 		local count = selectedPackCount()
 		packPanelTitleLabel.Text = string.format("Pick %d of %d", pending.pickCount, #pending.items)
-		packPanelHintLabel.Text = string.format("Click an item to select it (%d/%d picked), or Skip to take nothing.", count, pending.pickCount)
+		packPanelHintLabel.Text = string.format("Click an item to pick it (%d/%d), or Skip Pack.", count, pending.pickCount)
 		packConfirmButton.BackgroundColor3 = (count == pending.pickCount) and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
 	end
 

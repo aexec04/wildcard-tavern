@@ -136,7 +136,27 @@ end
 
 function ModalStage.setKind(frame, kind)
 	local entry = mounted[frame]
-	if entry and entry.kind ~= kind then applyTheme(entry, kind) end
+	if entry and not entry.gateOnly and entry.kind ~= kind then applyTheme(entry, kind) end
+end
+
+-- Gate only: the frame counts as an open modal while Visible and sinks clicks (Active), but draws no stage of its own,
+-- so a translucent frame can dim the scene behind it (the pack opening on the Counter table).
+function ModalStage.gateOnly(frame)
+	if mounted[frame] then return end
+	frame.Active = true
+	local entry = { gateOnly = true }
+	mounted[frame] = entry
+	local function syncGate()
+		if frame.Visible then gate:open(frame) else gate:close(frame) end
+	end
+	frame:GetPropertyChangedSignal("Visible"):Connect(syncGate)
+	frame.AncestryChanged:Connect(function()
+		if not frame:IsDescendantOf(game) then
+			gate:close(frame)
+			mounted[frame] = nil
+		end
+	end)
+	syncGate()
 end
 
 -- Idempotent. `kind` is a ModalGate stage or a Choice kind (see ModalGate.stageFor).
