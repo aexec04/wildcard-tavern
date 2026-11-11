@@ -31,7 +31,7 @@ function CollectionScene.build(opts)
 	-- the modules the real files reach through ReplicatedStorage.Shared.Engine
 	local map = {}
 	for _, name in ipairs({ "CollectionBook", "ContentArt", "CollectionSceneLayout", "CollectionRoomLayout", "CollectionFurnitureLayout",
-		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid" }) do
+		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve" }) do
 		map[name] = require(Engine[name])
 	end
 	local engineFolder = FakeGui.folder(map)
@@ -68,6 +68,7 @@ function CollectionScene.build(opts)
 	stubs.PanelTabs = { attach = noop, setStep = function(id, fn) steps[id] = fn end }
 	stubs.CollectionGallery = FakeGui.load("src/Client/CollectionGallery.lua", env)
 	stubs.CollectionFurniture = FakeGui.load("src/Client/CollectionFurniture.lua", env)
+	stubs.SmoothVignette = FakeGui.load("src/Client/SmoothVignette.lua", env)
 	stubs.RoomHotspots = FakeGui.load("src/Client/RoomHotspots.lua", env)
 	stubs.CollectionRoom = FakeGui.load("src/Client/CollectionRoom.lua", env)
 	-- the painted section scenes are the real module, but only on when a test asks (opts.painted); otherwise the scrolling grid shows

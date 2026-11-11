@@ -520,6 +520,7 @@ return function(deps)
 		local P = RoomLayout.panel(panelW, panelH, legendH, chest and chest.x or nil, mode)
 		local chrome = RoomLayout.chrome(mode)
 		tabRow.Visible, legendRow.Visible = chrome.tabs, chrome.rarityFilter
+		tabRow.Position, tabRow.Size = UDim2.fromOffset(P.tabs.x, P.tabs.y), UDim2.fromOffset(P.tabs.w, P.tabs.h)
 		legendRow.Size = UDim2.fromOffset(P.filter.w, P.filter.h)
 		legendRow.Position = UDim2.new(0.5, 0, 1, -RoomLayout.FOOTER)
 		-- bottom inset, not a height: the area follows the panel while it is resized or expanded between two layouts
@@ -530,6 +531,7 @@ return function(deps)
 		room.layout(P.area.w, P.area.h)
 		if Sec.scene then -- the painted section follows the same area; a window that changes what fits swaps it with the old grid
 			Sec.scene.frame.Position, Sec.scene.frame.Size = scroll.Position, scroll.Size
+			Sec.scene.setPager(P.pager)
 			Sec.scene.layout(P.area.w, P.area.h)
 			if mode == "section" and Sec.refit then Sec.refit() end
 		end

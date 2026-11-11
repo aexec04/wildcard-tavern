@@ -9,7 +9,7 @@
 	the picture in effect (px / 1536, px / 1024).
 
 	M.IMAGE_W, M.IMAGE_H                    1536, 1024
-	M.PAGER_H                               height of the strip under the scene that holds the page arrows and the page plate
+	M.MARGIN                                8: clear wall kept between the outermost slot (or plate) and the scene region's edge
 	M.has(tabId)                            true for the six sections that have a scene
 	M.artKey(tabId)                         the collection_scene key ("coll_sec_patrons_a")
 	M.perPage(tabId)                        12 (Bonds 8)
@@ -17,11 +17,14 @@
 	M.clampPage(page, n, tabId)
 	M.pageItems(items, tabId, page)         the entries of one page, in order
 	M.pageText(page, pages)                 "Page 2 of 7"
-	M.place(tabId, areaW, areaH, pages)     -> { ok, image = {x,y,w,h}, view = {x,y,w,h}, slots = { { x,y,w,h, inner, plate } },
-	                                             pager = { prev, label, next } | nil }
-	                                        all in the area's pixels. The picture is cover-fitted into `view` (the area minus the pager
-	                                        strip) and only shrinks below cover when a crop would cut a slot; it is never stretched.
+	M.pager(w)                              { prev, label, next } of the page arrows and plate in a w wide host (they live in the panel's
+	                                        bottom strip, see CollectionRoomLayout.panel, never over the scene)
+	M.place(tabId, areaW, areaH, pages)     -> { ok, image = {x,y,w,h}, view = {x,y,w,h}, slots = { { x,y,w,h, inner, plate } } }
+	                                        all in the area's pixels. The picture is cover-fitted into `view` (the whole area) and shrinks
+	                                        below cover so every slot and plate keeps M.MARGIN of clear room; it is never stretched.
 	                                        ok is false when a slot would be too small to read (the caller keeps the old grid).
+	M.contrast(a, b) / M.inkOn(bg, locked)  text colour and transparency that read at 4.5:1 or better on a slot colour (tested)
+	M.paperOf(tabId)                        the average painted slot colour, measured from the PNG (art-wip/collection_scene/sample_paper.py)
 	M.inside(r, w, h) / M.intersects(a, b)
 ]]
 
@@ -30,7 +33,7 @@ local Grid = require(script.Parent.RoomGrid)
 local M = {}
 
 M.IMAGE_W, M.IMAGE_H = 1536, 1024
-M.PAGER_H = 40
+M.MARGIN = 8
 M.PAD = 14 -- picture pixels of wall kept around the outermost slots
 
 -- cols = { { x, w } }, rows = { { y, h } } of the slot in picture pixels; `inset` = { left, top, right, bottom } fractions of the slot kept
@@ -47,7 +50,7 @@ local SCENES = {
 		art = "coll_sec_recipes_a", per = 12, kind = "card", min = { 90, 60 },
 		cols = { { 227, 247 }, { 511, 240 }, { 788, 240 }, { 1064, 244 } },
 		rows = { { 157, 198 }, { 393, 196 }, { 626, 202 } },
-		inset = { 0.06, 0.16, 0.06, 0.06 },
+		inset = { 0.06, 0.16, 0.06, 0.06 }, paper = { 207, 156, 80 },
 	},
 	bosses = {
 		art = "coll_sec_bosses_a", per = 12, kind = "portrait", min = { 72, 60 },
@@ -59,19 +62,19 @@ local SCENES = {
 		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 60, 70 },
 		cols = { { 388, 109 }, { 588, 111 }, { 810, 109 }, { 1026, 110 } },
 		rows = { { 240, 155 }, { 517, 151 }, { 790, 153 } },
-		inset = { 0.08, 0.28, 0.08, 0.06 },
+		inset = { 0.08, 0.28, 0.08, 0.06 }, paper = { 213, 151, 67 },
 	},
 	titles = {
 		art = "coll_sec_titles_a", per = 12, kind = "plate", min = { 100, 50 },
 		cols = { { 145, 282 }, { 477, 267 }, { 798, 264 }, { 1112, 281 } },
 		rows = { { 222, 143 }, { 415, 143 }, { 605, 143 } },
-		inset = { 0.12, 0.1, 0.12, 0.1 },
+		inset = { 0.12, 0.1, 0.12, 0.1 }, paper = { 118, 72, 25 },
 	},
 	bonds = {
 		art = "coll_sec_bonds_a", per = 8, kind = "card", min = { 90, 90 },
 		cols = { { 242, 239 }, { 534, 214 }, { 797, 213 }, { 1067, 231 } },
 		rows = { { 203, 272 }, { 540, 266 } },
-		inset = { 0.07, 0.1, 0.07, 0.06 },
+		inset = { 0.07, 0.1, 0.07, 0.06 }, paper = { 212, 155, 71 },
 	},
 }
 M.SCENES = SCENES
@@ -134,8 +137,9 @@ end
 function M.place(tabId, areaW, areaH, pages)
 	local scene = SCENES[tabId]
 	if not scene then return nil end
-	local pagerH = (pages or 1) > 1 and M.PAGER_H or 0
-	local view = { x = 0, y = 0, w = areaW, h = math.max(1, areaH - pagerH) }
+	local view = { x = 0, y = 0, w = areaW, h = math.max(1, areaH) }
+	local mg = M.MARGIN
+	local inW, inH = math.max(1, view.w - 2 * mg), math.max(1, view.h - 2 * mg) -- the room the slots may use
 	local slots = pictureSlots(tabId)
 	local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
 	for _, s in ipairs(slots) do
@@ -145,10 +149,10 @@ function M.place(tabId, areaW, areaH, pages)
 	end
 	x0, y0, x1, y1 = x0 - M.PAD, y0 - M.PAD, x1 + M.PAD, y1 + M.PAD
 	local cover = math.max(view.w / M.IMAGE_W, view.h / M.IMAGE_H)
-	local fit = math.min(view.w / (x1 - x0), view.h / (y1 - y0))
+	local fit = math.min(inW / (x1 - x0), inH / (y1 - y0))
 	local s = math.min(cover, fit)
 	local iw, ih = M.IMAGE_W * s, M.IMAGE_H * s
-	local ix, iy = offset(view.w, M.IMAGE_W, s, x0, x1), offset(view.h, M.IMAGE_H, s, y0, y1)
+	local ix, iy = offset(view.w, M.IMAGE_W, s, x0 - mg / s, x1 + mg / s), offset(view.h, M.IMAGE_H, s, y0 - mg / s, y1 + mg / s)
 	local out = { image = { x = ix, y = iy, w = iw, h = ih }, view = view, slots = {}, ok = true }
 	local inset = scene.inset or { 0, 0, 0, 0 }
 	for _, p in ipairs(slots) do
@@ -168,19 +172,73 @@ function M.place(tabId, areaW, areaH, pages)
 		out.slots[#out.slots + 1] = r
 		if r.w < scene.min[1] or r.h < scene.min[2] then out.ok = false end
 	end
-	if pagerH > 0 then
-		local by = view.h + 2
-		local bh = pagerH - 6
-		local plateW = 150
-		local cx = math.floor(areaW / 2)
-		out.pager = {
-			prev = { x = cx - plateW / 2 - 8 - 44, y = by, w = 44, h = bh },
-			label = { x = cx - plateW / 2, y = by, w = plateW, h = bh },
-			next = { x = cx + plateW / 2 + 8, y = by, w = 44, h = bh },
-		}
-	end
 	return out
 end
+
+-- the picture's edges that lie INSIDE the view (the side wall shows beyond them) and so get a feather of `px` pixels:
+-- { rect = the picture clipped to the view, edges = { left = fraction of the rect's width, ... } }; nil when the picture fills the view
+function M.feather(p, px)
+	local im, v = p.image, p.view
+	local x0, y0 = math.max(0, im.x), math.max(0, im.y)
+	local x1, y1 = math.min(v.w, im.x + im.w), math.min(v.h, im.y + im.h)
+	local w, h = x1 - x0, y1 - y0
+	if w <= 0 or h <= 0 then return nil end
+	local edges, any = {}, false
+	if im.x > 0.5 then edges.left, any = math.min(1, px / w), true end
+	if im.x + im.w < v.w - 0.5 then edges.right, any = math.min(1, px / w), true end
+	if im.y > 0.5 then edges.top, any = math.min(1, px / h), true end
+	if im.y + im.h < v.h - 0.5 then edges.bottom, any = math.min(1, px / h), true end
+	if not any then return nil end
+	return { rect = { x = math.floor(x0), y = math.floor(y0), w = math.ceil(w), h = math.ceil(h) }, edges = edges }
+end
+
+-- the page arrows and plate, centred in a host that is w wide and PAGER_H high
+M.PAGER_H = 28
+function M.pager(w)
+	local plateW, btnW, gap = 104, 36, 4
+	local total = btnW * 2 + plateW + gap * 2
+	local x = math.floor((w - total) / 2)
+	return {
+		total = total,
+		prev = { x = x, y = 0, w = btnW, h = M.PAGER_H },
+		label = { x = x + btnW + gap, y = 0, w = plateW, h = M.PAGER_H },
+		next = { x = x + btnW + gap + plateW + gap, y = 0, w = btnW, h = M.PAGER_H },
+	}
+end
+
+-- ===== readable text on a painted slot =====
+local INK, DEEP, CREAM = { 58, 38, 18 }, { 30, 18, 6 }, { 240, 226, 190 }
+M.INK, M.DEEP, M.CREAM = INK, DEEP, CREAM
+
+local function lin(v)
+	v = v / 255
+	return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
+end
+local function luminance(c) return 0.2126 * lin(c[1]) + 0.7152 * lin(c[2]) + 0.0722 * lin(c[3]) end
+
+function M.contrast(a, b)
+	local la, lb = luminance(a), luminance(b)
+	if la < lb then la, lb = lb, la end
+	return (la + 0.05) / (lb + 0.05)
+end
+
+-- what a label with colour fg and TextTransparency t really looks like on bg (Roblox blends in sRGB)
+function M.blend(fg, bg, t)
+	return { fg[1] * (1 - t) + bg[1] * t, fg[2] * (1 - t) + bg[2] * t, fg[3] * (1 - t) + bg[3] * t }
+end
+
+-- the better of dark ink and cream on bg; a locked entry is softened as far as 4.5:1 still holds (0.3 at most), a found one is solid
+function M.inkOn(bg, locked)
+	local color = INK
+	if M.contrast(INK, bg) < 4.5 then -- mid-tone slots (the lit brass plate) need the deeper ink; dark ones take cream
+		color = M.contrast(DEEP, bg) >= M.contrast(CREAM, bg) and DEEP or CREAM
+	end
+	local t = locked and 0.3 or 0
+	while t > 0 and M.contrast(M.blend(color, bg, t), bg) < 4.5 do t = t - 0.05 end
+	return { color = color, transparency = math.max(0, t) }
+end
+
+function M.paperOf(tabId) return SCENES[tabId] and SCENES[tabId].paper end
 
 M.inside = Grid.inside
 M.intersects = Grid.intersects

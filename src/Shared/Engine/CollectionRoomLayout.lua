@@ -52,7 +52,10 @@ end
 M.SIDE = 15 -- side margin of everything under the title
 M.BAR = { y = 36, h = 22 } -- overall progress line
 M.TABS = { y = 62, h = 26 } -- the quiet row of small tab plates
-M.AREA_TOP = 94 -- the room and the section grid start here
+M.AREA_TOP = 94 -- (the old top of the section area; a section now starts under the progress line, see panel)
+M.STRIP_H = 28 -- the slim strip along the bottom of a section: tab plates on the left, the page arrows and plate on the right
+M.STRIP_GAP = 6
+M.PAGER_W = 184 -- two 36 px arrows, the 104 px page plate and their gaps (CollectionSectionLayout.pager)
 M.FOOTER = 58 -- the Close row at the bottom of the panel
 M.FILTER_MAX_W = 620
 M.FILTER_PAD = 4 -- room above and below the chips inside the wooden plate
@@ -79,14 +82,25 @@ function M.panel(W, H, legendH, chestX, mode)
 	end
 	filterW = math.floor(filterW)
 	local filter = { x = math.floor((W - filterW) / 2), y = H - M.FOOTER - filterH, w = filterW, h = filterH }
-	local areaTop, areaBottom = M.AREA_TOP, filter.y - M.FILTER_GAP
-	if not chrome.tabs then areaTop = M.TABS.y end
+	-- the scene (or grid) gets its own region: under the one-line banner (title and progress), above ONE slim strip that holds the
+	-- tab plates, the rarity filter and the page plate; nothing else is drawn over it
+	local areaTop, areaBottom = M.TABS.y, filter.y - M.FILTER_GAP
+	local tabs = { x = side, y = M.TABS.y, w = W - 2 * side, h = M.TABS.h }
+	local pager
+	if chrome.tabs then
+		local stripY = filter.y - M.FILTER_GAP - M.STRIP_H
+		local pagerW = W >= 560 and M.PAGER_W or 0
+		tabs = { x = side, y = stripY, w = W - 2 * side - (pagerW > 0 and pagerW + 8 or 0), h = M.TABS.h }
+		if pagerW > 0 then pager = { x = W - side - pagerW, y = stripY, w = pagerW, h = M.STRIP_H } end
+		areaBottom = stripY - M.STRIP_GAP
+	end
 	if not chrome.rarityFilter then areaBottom = H - M.FOOTER end
 	local areaH = math.max(60, areaBottom - areaTop)
 	return {
 		title = { x = 0, y = 6, w = W, h = 28 },
 		bar = { x = side, y = M.BAR.y, w = W - 2 * side, h = M.BAR.h },
-		tabs = { x = side, y = M.TABS.y, w = W - 2 * side, h = M.TABS.h },
+		tabs = tabs,
+		pager = pager,
 		area = { x = side, y = areaTop, w = W - 2 * side, h = areaH },
 		filter = filter,
 		close = { x = math.floor(W / 2 - 70), y = H - 50, w = 140, h = 40 },

@@ -4,14 +4,17 @@
 	shows that section's own painted close-up (art `collection_scene` coll_sec_<section>_a) as ONE cover-fitted picture, and every entry
 	sits INSIDE a painted slot: a portrait in its gilded frame with the name on the brass plate, a boss standing on its pedestal, ink on a
 	parchment card, a paper tag or a brass nameplate. The section pages (12 entries a page, Bonds 8) with brass arrow plates and a
-	"Page 2 of 7" plate under the scene, and with the Left and Right keys. Slot geometry is Engine/CollectionSectionLayout.lua (tested).
+	"Page 2 of 7" plate that live in the panel's bottom strip (a `SectionPager` host, rect from CollectionRoomLayout.panel, never over the
+	scene), and with the Left and Right keys. Slot geometry is Engine/CollectionSectionLayout.lua (tested). The scene has its own region:
+	the picture is contained with 8 px of margin, the rest of the region is the dimmed Collection wall, and the picture's edges are
+	feathered into it (SmoothVignette, the one sanctioned Transparency gradient).
 
-	A locked entry stays on its slot dim, with its name; a click calls onPick(item) (the Collection's detail card). No tween anywhere, so
-	calm mode needs no special case. Collection.lua keeps the old scrolling grid when canShow(tabId) is false (no Image id, or a window
-	too small for readable slots).
+	A locked entry stays on its slot, painted plate lit, with its name in text that reads at 4.5:1 (CollectionSectionLayout.inkOn); a
+	click calls onPick(item) (the Collection's detail card). No tween anywhere, so calm mode needs no special case. Collection.lua keeps the
+	old scrolling grid when canShow(tabId) is false (no Image id, or a window too small for readable slots).
 
 	CollectionSection.new({ parent, zIndex, isActive = function() -> bool, addTooltip }) -> {
-		frame, canShow(tabId), show(tabId, items, describe, onPick), hide(), layout(w, h), page(), pages(), turn(delta)
+		frame, canShow(tabId), show(tabId, items, describe, onPick), hide(), layout(w, h), setPager(rect), page(), pages(), turn(delta)
 	}
 	describe(item) -> { found, name, line, artId, icon, rarityColor, equipped, fresh, tip }
 ]]
@@ -21,16 +24,24 @@ local UserInputService = game:GetService("UserInputService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("CollectionSectionLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local SmoothVignette = require(script.Parent.SmoothVignette)
 
 local CollectionSection = {}
 
 local INK = Color3.fromRGB(58, 38, 18)
 local INK_BRASS = Color3.fromRGB(52, 34, 14)
 local CREAM = Color3.fromRGB(240, 226, 190)
-local BRASS = Color3.fromRGB(176, 136, 58)
-local BRASS_DULL = Color3.fromRGB(118, 94, 50)
+local BRASS_RGB = { 176, 136, 58 }
+local BRASS = Color3.fromRGB(BRASS_RGB[1], BRASS_RGB[2], BRASS_RGB[3])
 local WALL = Color3.fromRGB(24, 17, 11)
 local ZSTEP = 1
+local FEATHER = 40 -- px of the picture's edge that melts into the wall
+local WALL_DIM = 0.35 -- the side wall is dimmed by this much
+
+local function inkOf(bg, locked)
+	local r = Layout.inkOn(bg, locked)
+	return Color3.fromRGB(r.color[1], r.color[2], r.color[3]), r.transparency
+end
 
 local function make(class, parent, props)
 	local o = Instance.new(class)
@@ -73,9 +84,13 @@ function CollectionSection.new(opts)
 	local self = {}
 	local z0 = opts.zIndex or 22
 	local frame = make("Frame", opts.parent, {
-		Name = "SectionScene", BackgroundColor3 = WALL, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = z0,
+		Name = "SectionScene", BackgroundColor3 = WALL, BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true,
+		Visible = false, ZIndex = z0,
 	})
 	self.frame = frame
+	-- the page arrows and plate: a host in the panel's bottom strip (outside the scene frame), shown with the scene
+	local pagerHost = make("Frame", opts.parent, { Name = "SectionPager", BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ZIndex = z0 + 6 })
+	local pagerRect = nil
 	local area = { w = 0, h = 0 }
 	local st = { tabId = nil, items = {}, describe = nil, onPick = nil, page = 1 }
 
@@ -96,6 +111,7 @@ function CollectionSection.new(opts)
 
 	local function clear()
 		for _, child in ipairs(frame:GetChildren()) do child:Destroy() end
+		for _, child in ipairs(pagerHost:GetChildren()) do child:Destroy() end
 	end
 
 	local function pick(item)
@@ -134,29 +150,39 @@ function CollectionSection.new(opts)
 		return d
 	end
 
-	-- the portrait kinds: Patrons (the portrait fills the frame's dark canvas) and Boss Rounds (it stands on the pedestal)
+	-- the portrait kinds: Patrons (the portrait sits INSET in the frame's dark canvas) and Boss Rounds (it stands on the pedestal)
+	local PATRON_INSET = 0.06 -- of the frame, per side, so the art never touches the gilded edge
 	local function portraitSlot(tabId, slot, item, info, z)
 		local standing = tabId == "bosses"
-		local well = make("Frame", frame, { Name = "Portrait", BackgroundTransparency = standing and 1 or 0, BorderSizePixel = 0, ZIndex = z })
-		well.BackgroundColor3 = info.found and Color3.fromRGB(46, 36, 26) or Color3.fromRGB(26, 20, 15)
-		rect(well, slot)
-		local art = info.artId and make("ImageLabel", well, {
+		local well = { x = slot.x, y = slot.y, w = slot.w, h = slot.h }
+		if not standing then
+			local ix, iy = math.floor(slot.w * PATRON_INSET), math.floor(slot.h * PATRON_INSET)
+			well = { x = slot.x + ix, y = slot.y + iy, w = slot.w - 2 * ix, h = slot.h - 2 * iy }
+		end
+		local holder = make("Frame", frame, { Name = "Portrait", BackgroundTransparency = standing and 1 or 0, BorderSizePixel = 0, ZIndex = z })
+		holder.BackgroundColor3 = info.found and Color3.fromRGB(46, 36, 26) or Color3.fromRGB(26, 20, 15)
+		rect(holder, well)
+		if standing then corner(holder, 8) end -- lightly rounded on the pedestal, never a hard dark rectangle
+		local art = info.artId and make("ImageLabel", holder, {
 			Name = "ContentArt", BackgroundTransparency = 1, Image = info.artId, ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(1, 1), ZIndex = z + ZSTEP,
 			ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(78, 72, 66),
 		}) or nil
+		if art and standing then corner(art, 8) end
 		if not art then
-			make("TextLabel", well, {
+			make("TextLabel", holder, {
 				Text = info.icon or "?", Font = Enum.Font.GothamBold, TextSize = 28, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
 				TextColor3 = CREAM, TextTransparency = info.found and 0 or 0.55, TextStrokeTransparency = 1, ZIndex = z + ZSTEP,
 			})
 		end
-		if not info.found and not standing then dimOver(frame, slot, z + 2, nil) end
+		-- a locked Patron dims only its portrait, the painted frame stays lit
+		if not info.found and not standing then dimOver(frame, well, z + 2, nil) end
 		if slot.plate then
+			local ink, transparency = inkOf(BRASS_RGB, not info.found)
 			local plate = make("TextButton", frame, {
-				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = info.found and BRASS or BRASS_DULL, BorderSizePixel = 0,
-				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = INK_BRASS, TextTruncate = Enum.TextTruncate.AtEnd,
-				TextTransparency = info.found and 0 or 0.35, TextStrokeTransparency = 1, ZIndex = z + 3,
+				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
+				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextTruncate = Enum.TextTruncate.AtEnd,
+				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, slot.plate)
 			corner(plate, 4)
@@ -164,12 +190,12 @@ function CollectionSection.new(opts)
 		end
 	end
 
-	-- the text kinds: ink on a card, a tag or a nameplate, shrink-to-fit
+	-- the text kinds: ink on a card, a tag or a nameplate, shrink-to-fit. The painted slot stays lit (no dark wash over the text); a
+	-- locked entry is told apart by softer text that still reads at 4.5:1 against the slot's own paper
 	local function textSlot(tabId, slot, item, info, z)
 		local kind = Layout.kind(tabId)
 		local inner = slot.inner
-		local ink = (kind == "plate") and INK_BRASS or INK
-		local transparency = info.found and 0 or 0.35
+		local ink, transparency = inkOf(Layout.paperOf(tabId) or BRASS_RGB, not info.found)
 		if kind == "tag" or kind == "plate" then
 			local name = fitText(frame, inner, tostring(info.name), z + 1, { TextColor3 = ink, TextTransparency = transparency, max = 20 })
 			if info.line and kind == "plate" then
@@ -187,11 +213,10 @@ function CollectionSection.new(opts)
 				line.Name = "Line"
 			end
 		end
-		if not info.found then dimOver(frame, slot, z + 2, nil) end
 	end
 
 	local function brassButton(r, text, onClick)
-		local b = make("TextButton", frame, {
+		local b = make("TextButton", pagerHost, {
 			AutoButtonColor = true, BackgroundColor3 = BRASS, BorderSizePixel = 0, Text = text, Font = Enum.Font.GothamBold, TextSize = 20,
 			TextColor3 = INK_BRASS, TextStrokeTransparency = 1, ZIndex = z0 + 6,
 		})
@@ -209,11 +234,28 @@ function CollectionSection.new(opts)
 		st.page = Layout.clampPage(st.page, #st.items, tabId)
 		local p = Layout.place(tabId, area.w, area.h, pages)
 		if not p then return end
+		-- the side areas: the dimmed Collection wall (cover-cropped), never flat black
+		local wallId = ContentArt.getImageId("collection_scene", "collection_wall")
+		if wallId then
+			make("ImageLabel", frame, { Name = "SideWall", BackgroundTransparency = 1, Image = wallId, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1), ZIndex = z0 })
+			make("Frame", frame, { Name = "SideWallDim", BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1 - WALL_DIM, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = z0 })
+		else
+			make("Frame", frame, { Name = "SideWall", BackgroundColor3 = WALL, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = z0 })
+		end
 		local img = artId(tabId)
 		if img then
 			local im = make("ImageLabel", frame, { Name = "Scene", BackgroundTransparency = 1, Image = img, ScaleType = Enum.ScaleType.Stretch, ZIndex = z0 })
 			im.Position = UDim2.fromOffset(math.floor(p.image.x), math.floor(p.image.y))
 			im.Size = UDim2.fromOffset(math.ceil(p.image.w), math.ceil(p.image.h))
+			-- feather: a 40 px fade on every picture edge that lies inside the region, into the dimmed wall
+			local f = Layout.feather(p, FEATHER)
+			if f then
+				local holder = make("Frame", frame, { Name = "Feather", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z0 })
+				rect(holder, f.rect)
+				local spec = { zIndex = z0, color = Color3.fromRGB(22, 15, 10), name = "SceneFeather" }
+				for edge, extent in pairs(f.edges) do spec[edge] = { strength = 0.9, extent = extent } end
+				SmoothVignette.build(holder, spec)
+			end
 		end
 		local z = z0 + 1 -- every piece stays under the detail card (30) and the toast
 		for i, item in ipairs(Layout.pageItems(st.items, tabId, st.page)) do
@@ -224,13 +266,17 @@ function CollectionSection.new(opts)
 			hit.Name = "Slot_" .. tostring(item.id)
 			if info.fresh and info.found then newTag(frame, slot, z + 6) end
 		end
-		if p.pager then
-			brassButton(p.pager.prev, "<", function() self.turn(-1) end).Name = "PagePrev"
-			brassButton(p.pager.next, ">", function() self.turn(1) end).Name = "PageNext"
-			local plate = brassButton(p.pager.label, Layout.pageText(st.page, pages), nil)
+		if pagerRect and pages > 1 then
+			pagerHost.Visible = true
+			local pg = Layout.pager(pagerRect.w)
+			brassButton(pg.prev, "<", function() self.turn(-1) end).Name = "PagePrev"
+			brassButton(pg.next, ">", function() self.turn(1) end).Name = "PageNext"
+			local plate = brassButton(pg.label, Layout.pageText(st.page, pages), nil)
 			plate.AutoButtonColor = false
 			plate.TextSize = 16
 			plate.Name = "PagePlate"
+		else
+			pagerHost.Visible = false
 		end
 	end
 
@@ -255,7 +301,15 @@ function CollectionSection.new(opts)
 
 	function self.hide()
 		frame.Visible = false
+		pagerHost.Visible = false
 		clear()
+	end
+
+	-- the strip rect (panel pixels) for the page arrows and plate; nil = no room for them (a narrow panel)
+	function self.setPager(r)
+		pagerRect = r
+		if r then rect(pagerHost, r) end
+		if frame.Visible and st.tabId then render() end
 	end
 
 	function self.layout(w, h)

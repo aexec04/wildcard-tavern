@@ -18603,13 +18603,10 @@ table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8)
 						end
 					end
 				end
-				if pages > 1 then
-					expectTrue(p.pager ~= nil and p.view.h + L.PAGER_H <= h + 1, label .. ": the page strip is under the scene")
-					expectTrue(L.inside(p.pager.prev, w, h) and L.inside(p.pager.next, w, h) and L.inside(p.pager.label, w, h), label .. ": arrows and plate inside the area")
-					expectFalse(L.intersects(p.pager.prev, p.pager.label) or L.intersects(p.pager.next, p.pager.label), label .. ": arrows clear of the plate")
-					for _, s in ipairs(p.slots) do expectFalse(L.intersects(s, p.pager.label), label .. ": the page plate covers no slot") end
-				else
-					expectTrue(p.pager == nil, label .. ": one page, no arrows")
+				expectTrue(p.pager == nil and p.view.h == h, label .. ": the whole region is the scene's, the page strip lives in the panel")
+				for i, s in ipairs(p.slots) do
+					expectTrue(s.x >= L.MARGIN - 1 and s.y >= L.MARGIN - 1 and s.x + s.w <= w - L.MARGIN + 1 and s.y + s.h <= h - L.MARGIN + 1, label .. ": slot " .. i .. " keeps 8 px of margin")
+					if s.plate then expectTrue(s.plate.y >= L.MARGIN - 1 and s.plate.y + s.plate.h <= h - L.MARGIN + 1, label .. ": plate " .. i .. " keeps 8 px of margin") end
 				end
 				if p.ok then usableSeen = true end
 				-- (paper tags are narrow: House Passes needs the tall desktop window, a short one keeps its grid)
@@ -18642,18 +18639,19 @@ table.insert(tests, { name = "Collection sections open as painted scenes: entrie
 		for _, c in ipairs(col.scene:GetChildren()) do if c.ClassName == "ImageLabel" and c.Name == "Scene" then picture = true end end
 		expectTrue(picture, tab.name .. ": the painted picture is drawn")
 		if total > L.perPage(tab.id) then
-			local plate, nextBtn, prevBtn = col.scene:FindFirstChild("PagePlate"), col.scene:FindFirstChild("PageNext"), col.scene:FindFirstChild("PagePrev")
+			local pager = col.panel:FindFirstChild("SectionPager")
+			local plate, nextBtn, prevBtn = pager:FindFirstChild("PagePlate"), pager:FindFirstChild("PageNext"), pager:FindFirstChild("PagePrev")
 			expectEqual(plate.Text, L.pageText(1, L.pageCount(total, tab.id)), tab.name .. ": page plate")
 			nextBtn.MouseButton1Click:Fire()
-			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the arrow turns the page")
+			expectEqual(col.panel:FindFirstChild("SectionPager"):FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the arrow turns the page")
 			expectEqual(#slots(), math.min(L.perPage(tab.id), total - L.perPage(tab.id)), tab.name .. ": page 2 holds the next entries")
-			prevBtn = col.scene:FindFirstChild("PagePrev")
+			prevBtn = col.panel:FindFirstChild("SectionPager"):FindFirstChild("PagePrev")
 			prevBtn.MouseButton1Click:Fire()
-			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(1, L.pageCount(total, tab.id)), tab.name .. ": and back")
+			expectEqual(col.panel:FindFirstChild("SectionPager"):FindFirstChild("PagePlate").Text, L.pageText(1, L.pageCount(total, tab.id)), tab.name .. ": and back")
 			col.env.game.GetService(nil, "UserInputService").InputBegan:Fire({ KeyCode = "Enum.KeyCode.Right" }, false)
-			expectEqual(col.scene:FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the Right key turns the page")
+			expectEqual(col.panel:FindFirstChild("SectionPager"):FindFirstChild("PagePlate").Text, L.pageText(2, L.pageCount(total, tab.id)), tab.name .. ": the Right key turns the page")
 		else
-			expectTrue(col.scene:FindFirstChild("PageNext") == nil, tab.name .. ": one page, no arrows")
+			expectTrue(col.panel:FindFirstChild("SectionPager"):FindFirstChild("PageNext") == nil, tab.name .. ": one page, no arrows")
 		end
 		local first = slots()[1]
 		if first then
@@ -18669,6 +18667,87 @@ table.insert(tests, { name = "Collection sections open as painted scenes: entrie
 	plain.open()
 	plain.pick("patrons")
 	expectTrue(plain.grid.Visible and not plain.scene.Visible, "no scene: the old grid shows")
+end })
+
+table.insert(tests, { name = "Collection section region: the scene sits between the banner and ONE bottom strip (tabs, page plate), the filter and Close follow, nothing overlaps", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local RL, RS = require(Engine.CollectionRoomLayout), require(Engine.ResponsiveLayout)
+	for _, vp in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 } }) do
+		local fit = RS.collectionPanel(vp[1], vp[2])
+		local W, H = math.floor(fit.w * vp[1]), math.floor(fit.h * vp[2])
+		local P = RL.panel(W, H, 24, nil, "section")
+		local where = " (" .. W .. "x" .. H .. ")"
+		expectTrue(P.pager ~= nil, "a wide panel has the page plate in the strip" .. where)
+		expectEqual(P.pager.y, P.tabs.y, "the tabs and the page plate share the strip" .. where)
+		expectFalse(RL.intersects(P.tabs, P.pager), "tabs and page plate are apart" .. where)
+		for _, name in ipairs({ "tabs", "pager", "filter", "close", "bar", "title" }) do
+			expectFalse(RL.intersects(P.area, P[name]), "the scene region is clear of " .. name .. where)
+			expectTrue(RL.inside(P[name], W, H), name .. " is inside the panel" .. where)
+		end
+		expectTrue(P.area.y >= P.bar.y + P.bar.h, "the region starts under the one-line banner" .. where)
+		expectTrue(P.area.y + P.area.h <= P.tabs.y, "the region ends above the strip" .. where)
+		expectTrue(P.pager.h <= 28 and P.tabs.h <= 28, "the strip is slim" .. where)
+		local room = RL.panel(W, H, 24, nil, "room")
+		expectTrue(room.pager == nil, "the room has no page plate" .. where)
+	end
+	expectTrue(RL.panel(420, 700, 24, nil, "section").pager == nil, "a narrow panel keeps the tabs full width and no page plate")
+end })
+
+table.insert(tests, { name = "CollectionSectionLayout.inkOn: slot text reads at 4.5 to 1 on every painted slot, found and locked, the pager and feather maths hold", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, id in ipairs({ "recipes", "housePasses", "titles", "bonds" }) do
+		local paper = L.paperOf(id)
+		for _, locked in ipairs({ false, true }) do
+			local ink = L.inkOn(paper, locked)
+			local seen = L.blend(ink.color, paper, ink.transparency)
+			expectTrue(L.contrast(seen, paper) >= 4.5, id .. (locked and " locked" or " found") .. ": text reads at 4.5 to 1 on the slot")
+			if not locked then expectEqual(ink.transparency, 0, id .. ": found text is solid") end
+		end
+	end
+	local titles = L.inkOn(L.paperOf("titles"), true)
+	expectEqual(titles.color, L.CREAM, "Titles: the painted brass plates are dark bronze, so the text is cream, never brown on brown")
+	local brass = { 176, 136, 58 }
+	for _, locked in ipairs({ false, true }) do
+		local ink = L.inkOn(brass, locked)
+		expectTrue(L.contrast(L.blend(ink.color, brass, ink.transparency), brass) >= 4.5, "the lit brass name plate reads at 4.5 to 1")
+	end
+	-- the pager is centred in its host and its pieces do not touch
+	local pg = L.pager(210)
+	expectTrue(L.inside(pg.prev, 210, 28) and L.inside(pg.label, 210, 28) and L.inside(pg.next, 210, 28), "page arrows inside the strip host")
+	expectFalse(L.intersects(pg.prev, pg.label) or L.intersects(pg.next, pg.label), "arrows clear of the plate")
+	-- feather: only the picture edges that lie inside the region
+	local wide = L.place("patrons", 1500, 420, 1)
+	local f = L.feather(wide, 40)
+	expectTrue(f ~= nil and f.edges.left ~= nil and f.edges.right ~= nil, "a wide region shows wall at both sides, so both feather")
+	expectTrue(f.edges.top == nil and f.edges.bottom == nil, "the picture fills the region's height: no top or bottom feather")
+	expectTrue(math.abs(f.edges.left * f.rect.w - 40) < 1, "the feather is 40 px")
+	expectTrue(L.inside(f.rect, 1500, 420), "the feather sits inside the region")
+	expectTrue(L.feather({ image = { x = 0, y = 0, w = 800, h = 500 }, view = { w = 800, h = 500 } }, 40) == nil, "a picture that fills the view needs no feather")
+end })
+
+table.insert(tests, { name = "Collection sections: the wall fills the side areas (no flat black), the picture is feathered, locked text is never dark on dark, portraits sit inset", fn = function()
+	local col, CB = collectionBuild({ painted = true })
+	if not col then return end
+	col.resize(1920, 1080)
+	col.open()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, tab in ipairs(CB.Tabs) do
+		col.pick(tab.id)
+		expectTrue(col.scene.BackgroundTransparency == 1, tab.name .. ": the scene frame is not an opaque slab")
+		local wall = col.scene:FindFirstChild("SideWall")
+		expectTrue(wall ~= nil, tab.name .. ": a wall layer fills the region around the picture")
+		expectTrue(col.scene:FindFirstChild("Scene") ~= nil, tab.name .. ": the picture is drawn over the wall")
+		for _, c in ipairs(col.scene:GetChildren()) do
+			if c.ClassName == "Frame" and c.Name == "Dim" then
+				expectEqual(L.kind(tab.id), "portrait", tab.name .. ": only a locked portrait is dimmed, never a text slot or a painted plate")
+			end
+			if c.ClassName == "TextLabel" and L.kind(tab.id) ~= "portrait" and c.Name ~= "NewTag" then
+				local paper = L.paperOf(tab.id)
+				local seen = L.blend({ c.TextColor3.R * 255, c.TextColor3.G * 255, c.TextColor3.B * 255 }, paper, c.TextTransparency)
+				expectTrue(L.contrast(seen, paper) >= 4.4, tab.name .. ": slot text reads at 4.5 to 1")
+			end
+		end
+	end
 end })
 
 return tests
