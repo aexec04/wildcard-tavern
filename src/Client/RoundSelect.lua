@@ -438,6 +438,7 @@ return function(deps)
 			local edge = Instance.new("UIStroke")
 			edge.Color = Color3.fromRGB(150, 118, 66)
 			edge.Thickness = 1.5
+			edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			edge.Name = "PlateEdge"
 			edge.Parent = lbl
 		end
@@ -536,6 +537,10 @@ return function(deps)
 		targetLabel.ZIndex = 11
 		targetLabel.Parent = panel
 		polishPanel(targetLabel, 8)
+		do
+			local ts = targetLabel:FindFirstChildOfClass("UIStroke")
+			if ts then ts.ApplyStrokeMode = Enum.ApplyStrokeMode.Border end
+		end
 
 		-- Select / Skip buttons sit directly under the content area.
 		-- y=462/512 for boss panel; y=400/450 for non-boss.
@@ -568,6 +573,15 @@ return function(deps)
 		skipButton.Visible = false
 		skipButton.Parent = panel
 		polishButton(skipButton, 10)
+		-- Clean button faces: the deferred inner rim read as a dark arc under the label.
+		for _, b in ipairs({ selectButton, skipButton }) do
+			task.defer(function()
+				task.defer(function()
+					local rim = b:FindFirstChild("InnerRim")
+					if rim then rim:Destroy() end
+				end)
+			end)
+		end
 
 		selectButton.MouseButton1Click:Connect(function()
 			if actionPending then
@@ -679,7 +693,7 @@ return function(deps)
 	if fitCam then fitCam:GetPropertyChangedSignal("ViewportSize"):Connect(fitCards) end
 
 	local function describeTag(tag)
-		return string.format("%s %s\n%s", tag.icon or "🏷️", tag.name, tag.description)
+		return string.format("%s\n%s", tag.name, tag.description)
 	end
 
 	-- lastStageKeyForConfirm/lastTagForConfirm/lastTipsForConfirm: same "only
@@ -810,7 +824,7 @@ return function(deps)
 			-- all text stay fully readable regardless of round state.
 			entry.sceneImage.ImageColor3 = (isPast or isFuture) and Color3.fromRGB(160, 160, 160) or Color3.new(1, 1, 1)
 
-			-- Status chip: "You are here" for current, "🔒 Up next" for future,
+			-- Status chip: "You are here" for current, "Up next" for future,
 			-- "Cleared" check chip for completed rounds.
 			if isCurrent then
 				entry.statusChip.Visible = true
@@ -819,12 +833,12 @@ return function(deps)
 				entry.statusChip.TextColor3 = Color3.fromRGB(200, 255, 210)
 			elseif isFuture then
 				entry.statusChip.Visible = true
-				entry.statusChip.Text = "  🔒 Up next  "
+				entry.statusChip.Text = "  Up next  "
 				entry.statusChip.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 				entry.statusChip.TextColor3 = Color3.fromRGB(180, 180, 200)
 			else
 				entry.statusChip.Visible = true
-				entry.statusChip.Text = "  ✓ Cleared  "
+				entry.statusChip.Text = "  Cleared  "
 				entry.statusChip.BackgroundColor3 = Color3.fromRGB(45, 120, 70)
 				entry.statusChip.TextColor3 = Color3.fromRGB(215, 255, 225)
 			end
@@ -860,7 +874,7 @@ return function(deps)
 				entry.tagLabel.Visible = true
 				if isCurrent and state.currentRoundSkipTag then
 					local tag = state.currentRoundSkipTag
-					entry.tagLabel.Text = (tag.icon or "🏷") .. " " .. tag.name
+					entry.tagLabel.Text = tag.name
 					entry.tagLabel.BackgroundTransparency = 0.06
 				elseif isPast then
 					entry.tagLabel.Text = ""
@@ -884,7 +898,7 @@ return function(deps)
 			-- and make the card that much shorter so it ends just under the Target plaque
 			-- (the active card keeps the full 620px for Select and Skip).
 			-- All three cards share ONE size (user feedback); state shows through stroke, tint and medal.
-			local drop = 0
+			local drop = isCurrent and 0 or NO_BUTTON_DROP -- no buttons: text block settles to the bottom, no dead black space
 			local stroke = entry.panel:FindFirstChildOfClass("UIStroke")
 			if stroke then
 				if isCurrent then

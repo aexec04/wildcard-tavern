@@ -15230,4 +15230,23 @@ table.insert(tests, { name = "Tavern Map: opaque props are not drawn; label plat
 	end
 end })
 
+tests[#tests + 1] = ({ name = "RoundSelect: UIStrokes are Border mode and no emoji", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/RoundSelect.lua", "r")
+	if not f then return end
+	local lines = {}
+	for l in f:lines() do lines[#lines + 1] = l end
+	f:close()
+	for n, l in ipairs(lines) do
+		if l:find('Instance.new("UIStroke")', 1, true) then
+			local ok = false
+			for k = n, math.min(n + 8, #lines) do
+				if lines[k]:find("ApplyStrokeMode = Enum.ApplyStrokeMode.Border", 1, true) then ok = true break end
+			end
+			expectTrue(ok, "RoundSelect.lua line " .. n .. ": UIStroke must set ApplyStrokeMode Border")
+		end
+		expectTrue(not l:find("[\240-\244]"), "RoundSelect.lua line " .. n .. " has an emoji")
+	end
+end })
+
 return tests
