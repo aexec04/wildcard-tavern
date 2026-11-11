@@ -124,8 +124,6 @@ local function furniture(board, kind, w, h, shelves, items)
 		back.BackgroundColor3 = Color3.fromRGB(56, 38, 26)
 		g.Color = ColorSequence.new(Color3.fromRGB(72, 50, 34), Color3.fromRGB(40, 28, 20))
 		stroke(back, Color3.fromRGB(96, 64, 38), 8)
-		local lantern = frame(back, { Position = UDim2.new(1, -34, 0, 4), Size = UDim2.fromOffset(20, 26), BackgroundColor3 = Color3.fromRGB(244, 190, 80) }, 5)
-		stroke(lantern, Color3.fromRGB(70, 46, 24), 2)
 	end
 	g.Parent = back
 	local art = artOver(back, Wall.FURNITURE_ART[kind], { ZIndex = Z - 1, ImageTransparency = 0.05, ScaleType = Enum.ScaleType.Crop }) -- the painted backdrop, fully visible on every tab

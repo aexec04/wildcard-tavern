@@ -18229,12 +18229,12 @@ table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges
 		for _, sec in ipairs(L.SECTIONS) do
 			local hot = room:FindFirstChild("Hotspot_" .. sec.id)
 			expectFalse(hot:FindFirstChild("Object").Visible, sec.id .. " drawn furniture is hidden")
-			expectFalse(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate waits for the pointer")
+			expectTrue(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate shows at rest")
 			hot:FindFirstChild("Surface").MouseEnter:Fire()
 			expectTrue(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate shows on hover")
 			expectTrue(hot:FindFirstChild("Glow").BackgroundTransparency < 1, sec.id .. " glows on hover")
 			hot:FindFirstChild("Surface").MouseLeave:Fire()
-			expectFalse(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate hides again")
+			expectTrue(hot:FindFirstChild("NamePlate").Visible, sec.id .. " plate stays after the pointer leaves")
 		end
 	end
 	local CS = require(script.Parent.CollectionScene)
@@ -18288,6 +18288,30 @@ table.insert(tests, { name = "Content text: no double dash, em dash or en dash i
 		if ok then scan(name, mod, 0) end
 	end
 	expectEqual(#bad, 0, "dashes in content text: " .. table.concat(bad, " | "))
+end })
+
+table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; Escape goes wall to room to close", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local function checkRoom(label, rooms, sections)
+		for _, sec in ipairs(sections) do
+			local h = rooms:FindFirstChild("Hotspot_" .. sec.id)
+			expectTrue(h ~= nil, label .. " hotspot " .. sec.id)
+			expectTrue(h:FindFirstChild("NamePlate").Visible, label .. " " .. sec.id .. " plate visible at rest")
+			local rim = h:FindFirstChild("Glow"):FindFirstChildOfClass("UIStroke")
+			expectTrue(rim.Transparency < 1 and rim.Transparency >= 0.5, label .. " " .. sec.id .. " has a faint resting ring")
+		end
+	end
+	local BS = require(script.Parent.BadgeScene)
+	local b = BS.build({ badgeIds = {} })
+	b.open()
+	checkRoom("Badges", b.room, require(Engine.BadgeRoomLayout).SECTIONS)
+	local CS = require(script.Parent.CollectionScene)
+	local c = CS.build({})
+	c.open()
+	checkRoom("Collection", c.room, require(Engine.CollectionRoomLayout).SECTIONS)
+	b.pick("Roads")
+	expectTrue(b.step() == true, "Escape from a wall goes to the room")
+	expectTrue(b.step() == false, "Escape from the room steps nothing, so the panel closes")
 end })
 
 return tests

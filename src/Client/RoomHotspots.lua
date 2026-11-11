@@ -39,6 +39,8 @@ local DEFAULT_WALL = {
 	skirting = P.WOOD_DARK, rim = Color3.fromRGB(96, 66, 40),
 }
 
+local REST_RING = 0.8
+
 local function calm() return ClientSettings.get("reduceShake") == true end
 
 local function corner(inst, radius)
@@ -143,7 +145,7 @@ function RoomHotspots.new(opts)
 		glow.ZIndex = z + 1
 		glow.Parent = hotspot
 		corner(glow, 10)
-		local glowRim = stroke(glow, P.GLOW, 3, 1)
+		local glowRim = stroke(glow, P.GLOW, 2, REST_RING) -- faint always-on ring: says "click me" with no hover (phones)
 
 		local object = Instance.new("Frame")
 		object.Name = "Object"
@@ -214,10 +216,10 @@ function RoomHotspots.new(opts)
 		local function setLit(on)
 			spot.lit = on
 			glow.BackgroundTransparency = on and 0.84 or 1
-			glowRim.Transparency = on and 0.3 or 1
+			glowRim.Transparency = on and 0.3 or REST_RING
 			plate.BackgroundColor3 = on and P.PLATE_LIT or P.PLATE
 			plateRim.Color = (on or spot.complete) and P.BRASS_BRIGHT or P.BRASS
-			plate.Visible = on or not self.isPainted -- on the painting the name plate appears only under the pointer
+			plate.Visible = true
 			if self.isPainted then return end -- nothing to lift: the object is part of the picture
 			if calm() then
 				object.Position = UDim2.fromOffset(spot.home.x, spot.home.y)
@@ -260,7 +262,7 @@ function RoomHotspots.new(opts)
 			spot.object.Position = UDim2.fromOffset(spot.home.x, spot.home.y)
 			spot.object.Size = UDim2.fromOffset(r.object.w, r.object.h)
 			spot.object.Visible = not self.isPainted -- drawn furniture is only the fallback
-			spot.plate.Visible = spot.lit or not self.isPainted
+			spot.plate.Visible = true
 			local pad = 6
 			spot.glow.Position = UDim2.fromOffset(spot.home.x - pad, spot.home.y - pad)
 			spot.glow.Size = UDim2.fromOffset(r.object.w + 2 * pad, r.object.h + 2 * pad)
