@@ -70,7 +70,9 @@ end
 -- A Patron hung on the wall: a soft shadow on the wall behind it, a brass nail with two short chains, the gilt frame (lit when
 -- owned, under its grey dust cloth when locked) and a brass plate attached across the frame's bottom edge. Returns the cell parts.
 function CollectionGallery.frameTile(tile, found, rarityColor, nameText)
-	local kind = found and "owned" or "empty"
+	-- A locked Patron hangs in the same gilt frame, unlit: a dim silhouette in the opening and its name on a duller brass plate. (It used
+	-- to hang under a grey dust cloth with "???" on the plate, which read as an empty hole.)
+	local kind = "owned"
 	local parts = Layout.framedParts(kind)
 	tile.BackgroundTransparency = 1
 	local f, sh = parts.frame, Layout.SHADOW
@@ -86,21 +88,22 @@ function CollectionGallery.frameTile(tile, found, rarityColor, nameText)
 	local clip = box(tile, { Name = "FrameCrop", BackgroundTransparency = 1, ClipsDescendants = true,
 		Position = UDim2.fromOffset(f.x, f.y), Size = UDim2.fromOffset(f.w, f.h), ZIndex = 22 })
 	local o = Layout.FRAMES[kind].opening
-	box(clip, { BackgroundColor3 = found and Color3.fromRGB(44, 30, 20) or Color3.fromRGB(26, 20, 16),
+	box(clip, { BackgroundColor3 = found and Color3.fromRGB(44, 30, 20) or Color3.fromRGB(30, 23, 18),
 		Position = UDim2.fromScale(o.x, o.y), Size = UDim2.fromScale(o.w, o.h), ZIndex = 22 }) -- canvas in the opening
 	local p = Layout.cropPlacement(kind)
 	local img = Instance.new("ImageLabel")
-	img.Name = found and "FrameOwned" or "FrameEmpty"
+	img.Name = found and "FrameOwned" or "FrameLocked"
 	img.BackgroundTransparency = 1
 	img.Active = false
-	img.Image = art(found and "collection_frame_owned" or "collection_frame_empty")
+	img.Image = art("collection_frame_owned")
+	if not found then img.ImageColor3 = Color3.fromRGB(150, 140, 130) end -- unlit gilt (a colour multiply, never transparency)
 	img.Size = UDim2.fromScale(p.sizeX, p.sizeY)
 	img.Position = UDim2.fromScale(p.posX, p.posY)
 	img.ZIndex = 22
 	img.Parent = clip
 	-- the brass plate is part of the frame: brass colour, dark engraved text, a soft rarity rim when owned
 	local pl = parts.plate
-	local plate = box(tile, { Name = "NamePlate", BackgroundColor3 = BRASS, Position = UDim2.fromOffset(pl.x, pl.y),
+	local plate = box(tile, { Name = "NamePlate", BackgroundColor3 = found and BRASS or Color3.fromRGB(122, 98, 58), Position = UDim2.fromOffset(pl.x, pl.y),
 		Size = UDim2.fromOffset(pl.w, pl.h), ZIndex = 25 }, 4)
 	local rim = Instance.new("UIStroke")
 	rim.Color = found and rarityColor or BRASS_RIM
@@ -117,7 +120,7 @@ function CollectionGallery.frameTile(tile, found, rarityColor, nameText)
 	name.Position = UDim2.fromOffset(8, 0)
 	name.Font = Enum.Font.GothamBold
 	name.TextSize = 14
-	name.TextColor3 = ENGRAVE
+	name.TextColor3 = found and ENGRAVE or Color3.fromRGB(250, 240, 220) -- cream on the duller locked brass (5:1)
 	name.TextTransparency = 0
 	name.TextStrokeTransparency = 1
 	name.TextTruncate = Enum.TextTruncate.AtEnd
@@ -375,10 +378,20 @@ function CollectionGallery.mountChest(panel)
 	end
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(place)
 	place()
+	local shown, hasText = true, false
+	local function sync()
+		chest.Visible = shown
+		plate.Visible = shown and hasText
+	end
 	local api = {}
 	function api.setNext(str)
 		text.Text = str
-		plate.Visible = str ~= ""
+		hasText = str ~= ""
+		sync()
+	end
+	function api.setShown(on) -- the gallery room hides the chest; the section shelves show it
+		shown = on == true
+		sync()
 	end
 	local token = 0
 	function api.open()
@@ -388,7 +401,7 @@ function CollectionGallery.mountChest(panel)
 		if not calm() then
 			TweenService:Create(chest, TweenInfo.new(0.12), { Rotation = 6 }):Play()
 			task.delay(0.12, function() TweenService:Create(chest, TweenInfo.new(0.12), { Rotation = 0 }):Play() end)
-			for i = 1, 6 do -- gold motes rise from the open lid
+			for i = 1, shown and 6 or 0 do -- gold motes rise from the open lid (none while the gallery room hides the chest)
 				local m = box(panel, { BackgroundColor3 = Color3.fromRGB(255, 214, 110), Size = UDim2.fromOffset(5, 5), ZIndex = 31,
 					Position = chest.Position + UDim2.fromOffset(chest.AbsoluteSize.X / 2 + (i - 3.5) * 6, 8) }, 3)
 				TweenService:Create(m, TweenInfo.new(0.9), { Position = m.Position + UDim2.fromOffset((i - 3.5) * 8, -34), BackgroundTransparency = 1 }):Play()

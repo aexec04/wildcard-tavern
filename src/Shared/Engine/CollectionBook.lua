@@ -392,6 +392,23 @@ function CollectionBook.completion(sets)
 	return result
 end
 
+-- Found and total per tab over EVERY entry the tab shows: the name plates of the Collection room ("Recipes 3/24"). Unlike completion()
+-- this also counts what does not count toward the percent (milestone titles, Bonds), because the tab lists them all.
+function CollectionBook.tabCounts(sets)
+	local out = {}
+	for _, tab in ipairs(CollectionBook.Tabs) do
+		local found, total = 0, 0
+		for _, item in ipairs(CollectionBook.itemsFor(tab.id)) do
+			total = total + 1
+			if CollectionBook.isDiscovered(sets, item) then
+				found = found + 1
+			end
+		end
+		out[tab.id] = { found = found, total = total }
+	end
+	return out
+end
+
 -- Integer comparison, so 100% means every counted entry, not 99.6% rounded.
 function CollectionBook.isMilestoneReached(milestone, completion)
 	return completion.found * 100 >= milestone.percent * completion.total

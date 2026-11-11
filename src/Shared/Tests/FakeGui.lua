@@ -173,9 +173,18 @@ function Methods.GetAttribute(inst, key) return rawget(inst, "_attrs")[key] end
 
 function FakeGui.new(class)
 	local inst = setmetatable({ _class = class, _kids = {}, _props = { Name = class }, _signals = {}, _attrs = {} }, meta)
+	local props = rawget(inst, "_props")
 	if GUI[class] then
-		local props = rawget(inst, "_props")
 		props.ZIndex, props.Visible = 1, true
+		-- like Roblox, a GuiObject that has not been laid out yet reports zero (never nil): FakeGui.layout or a test sets real numbers
+		props.AbsoluteSize, props.AbsolutePosition = { X = 0, Y = 0 }, { X = 0, Y = 0 }
+		if class == "ScrollingFrame" then
+			props.AbsoluteWindowSize, props.CanvasPosition = { X = 0, Y = 0 }, { X = 0, Y = 0 }
+		elseif class == "TextLabel" or class == "TextButton" then
+			props.TextBounds = { X = 0, Y = 0 }
+		end
+	elseif class == "UIListLayout" or class == "UIGridLayout" then
+		props.AbsoluteContentSize = { X = 0, Y = 0 }
 	end
 	return inst
 end
@@ -183,9 +192,16 @@ end
 -- ===== Value types and services =====
 local function udim(s, o) return { Scale = s or 0, Offset = o or 0 } end
 local UDim2 = {}
+local udim2Meta = {} -- UDim2 + UDim2 and UDim2 - UDim2 work in Roblox ("pos + UDim2.fromOffset(0, 3)")
 function UDim2.new(xs, xo, ys, yo)
-	if type(xs) == "table" then return { X = xs, Y = xo } end
-	return { X = udim(xs, xo), Y = udim(ys, yo) }
+	if type(xs) == "table" then return setmetatable({ X = xs, Y = xo }, udim2Meta) end
+	return setmetatable({ X = udim(xs, xo), Y = udim(ys, yo) }, udim2Meta)
+end
+udim2Meta.__add = function(a, b)
+	return UDim2.new(a.X.Scale + b.X.Scale, a.X.Offset + b.X.Offset, a.Y.Scale + b.Y.Scale, a.Y.Offset + b.Y.Offset)
+end
+udim2Meta.__sub = function(a, b)
+	return UDim2.new(a.X.Scale - b.X.Scale, a.X.Offset - b.X.Offset, a.Y.Scale - b.Y.Scale, a.Y.Offset - b.Y.Offset)
 end
 function UDim2.fromOffset(x, y) return UDim2.new(0, x, 0, y) end
 function UDim2.fromScale(x, y) return UDim2.new(x, 0, y, 0) end

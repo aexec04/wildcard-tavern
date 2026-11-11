@@ -14176,7 +14176,8 @@ table.insert(tests, { name = "Collection Patrons wall: frames hang on chains wit
 	local c = io and io.open and io.open("src/Client/Collection.lua", "r")
 	if c then
 		local src = c:read("*a"); c:close()
-		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) ~= nil, "locked frames hide the portrait and the padlock")
+		expectTrue(src:find("if framed and not found then iconWell.Visible = false end", 1, true) == nil, "locked frames show their dim silhouette (they no longer hang under a dust cloth)")
+		expectTrue(src:find("Gallery.frameTile(tile, found, rgb(rarity.color), shownName(item))", 1, true) ~= nil, "a locked portrait carries its name on the plate, not ???")
 		expectTrue(src:find("grid.CellPadding = hungGap", 1, true) ~= nil, "framed tab uses the wider gaps")
 		expectTrue(src:find("Furn.style(fxKind", 1, true) ~= nil and src:find("furniture.setTab(activeTabId)", 1, true) ~= nil, "Recipes are pinned on a cork board built from their cells")
 		expectTrue(src:find("Gallery.hangSign(panel)", 1, true) ~= nil and src:find("hungSign.bind(titleLabel)", 1, true) ~= nil, "the title hangs as a brass sign")
@@ -17255,6 +17256,361 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	expectTrue(line == nil and icon == nil or true)
 	expectEqual(NewsPanel.timeText({ daysLeft = 1 }), "Last day")
 	expectEqual(NewsPanel.timeText({ startsIn = 5 }), "Starts in 5 days")
+end })
+
+-- ===== The Collection is a gallery room: six hotspots, every section lists every entry (2026-11-10) =====
+table.insert(tests, { name = "CollectionBook.tabCounts: every tab's total is its definition count (milestone titles and Bonds included), found counts what is discovered", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local CB = require(Engine.CollectionBook)
+	local Patrons, Recipes, BossRounds = require(Engine.Patrons), require(Engine.Recipes), require(Engine.BossRounds)
+	local HousePasses, Achievements, Bonds = require(Engine.HousePasses), require(Engine.Achievements), require(Engine.Bonds)
+	local want = {
+		patrons = #Patrons.Definitions,
+		recipes = #Recipes.HouseRecipes + #Recipes.MenuRecipes + #Recipes.SecretRecipes,
+		bosses = #BossRounds.Definitions,
+		housePasses = #HousePasses.Definitions,
+		titles = #Achievements.Definitions,
+		bonds = #Bonds.Definitions,
+	}
+	local empty = CB.tabCounts(CB.setsFromLists({}))
+	for _, tab in ipairs(CB.Tabs) do
+		expectTrue(want[tab.id] ~= nil and want[tab.id] > 0, tab.id .. " has definitions")
+		expectEqual(empty[tab.id].total, want[tab.id], tab.id .. " total is the definition count")
+		expectEqual(empty[tab.id].found, 0, tab.id .. " has nothing found yet")
+		expectEqual(#CB.displayItems(tab.id, {}), want[tab.id], tab.id .. " lists every entry when no tier is hidden")
+	end
+	local sets = CB.setsFromLists({
+		patrons = { Patrons.Definitions[1].id, Patrons.Definitions[2].id },
+		bonds = { Bonds.Definitions[1].id },
+		titles = { Achievements.Definitions[1].id },
+	})
+	local some = CB.tabCounts(sets)
+	expectEqual(some.patrons.found, 2, "two Patrons found")
+	expectEqual(some.bonds.found, 1, "a Bond counts on the Bonds plate")
+	expectEqual(some.titles.found, 1, "a Title counts on the Titles plate")
+	expectEqual(some.recipes.found, 0, "nothing found among the Recipes")
+	-- the completion percent still leaves Bonds out (a bonus page), while the room's plate counts them
+	expectEqual(CB.completion(sets).tabs.bonds.total, 0, "Bonds stay out of the completion percent")
+end })
+
+table.insert(tests, { name = "CollectionRoomLayout: the six sections are the Collection's tabs in order, plate text is 'Name found/total', text never below 14", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local RL, CB = require(Engine.CollectionRoomLayout), require(Engine.CollectionBook)
+	expectEqual(#RL.SECTIONS, #CB.Tabs, "one hotspot per Collection tab")
+	for i, tab in ipairs(CB.Tabs) do
+		expectEqual(RL.SECTIONS[i].id, tab.id, "section " .. i .. " is the " .. tab.name .. " tab")
+		expectTrue(RL.SECTIONS[i].object ~= nil and RL.SECTIONS[i].aspect > 0, "section " .. tab.id .. " names its object")
+	end
+	expectEqual(RL.plateText("Recipes", 0, 24), "Recipes 0/24")
+	expectEqual(RL.plateText("Boss Rounds", 3.0, 12), "Boss Rounds 3/12", "whole numbers, no decimals")
+	expectEqual(RL.plateText("Titles", 7.9, 30.2), "Titles 7/30", "fractions are floored before %d")
+	expectTrue(RL.plateTextSize(100) >= 14 and RL.plateTextSize(400) >= 14, "name plate text is at least 14")
+	expectTrue(RL.plateTextSize(400) > RL.plateTextSize(100), "a narrow plate steps down, not below 14")
+end })
+
+table.insert(tests, { name = "CollectionRoomLayout.panel: title, progress line, quiet tab row, room, filter plate and Close are stacked without overlap at three sizes", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local RL, RS, SL = require(Engine.CollectionRoomLayout), require(Engine.ResponsiveLayout), require(Engine.CollectionSceneLayout)
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local fit = RS.collectionPanel(vp[1], vp[2])
+		local W, H = math.floor(fit.w * vp[1]), math.floor(fit.h * vp[2])
+		local chest = SL.chest(W, H)
+		for _, legendH in ipairs({ 24, 62 }) do -- one row of rarity chips, or two when they wrap
+			for _, chestX in ipairs({ -1, chest.x }) do
+				local P = RL.panel(W, H, legendH, chestX >= 0 and chestX or nil)
+				local where = " (" .. W .. "x" .. H .. ", chips " .. legendH .. ", chest " .. tostring(chestX >= 0) .. ")"
+				local list = { "title", "bar", "tabs", "area", "filter", "close" }
+				for _, name in ipairs(list) do
+					expectTrue(RL.inside(P[name], W, H), name .. " is inside the panel" .. where)
+					expectTrue(P[name].w > 0 and P[name].h > 0, name .. " has a size" .. where)
+				end
+				for i = 1, #list do
+					for j = i + 1, #list do
+						local a, b = list[i], list[j]
+						if not (a == "title" and b == "bar") then -- the title row and the bar share no pixels either, but keep the check cheap
+							expectFalse(RL.intersects(P[a], P[b]), a .. " and " .. b .. " do not overlap" .. where)
+						end
+					end
+				end
+				expectTrue(P.area.h >= 150, "the room has height to work with" .. where)
+				expectTrue(P.filter.h >= legendH + 2 * RL.FILTER_PAD, "the wooden filter plate holds its chips" .. where)
+				if chestX >= 0 then
+					expectTrue(P.filter.x + P.filter.w <= chestX - 8, "the filter plate stays left of the milestone chest" .. where)
+				end
+				expectTrue(math.abs(P.filter.x * 2 + P.filter.w - W) <= 1, "the filter plate is centred (to the pixel)" .. where)
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "CollectionRoomLayout.rects: six hotspots (object plus name plate) inside the room, none overlapping, at three sizes and a phone", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local RL, RS = require(Engine.CollectionRoomLayout), require(Engine.ResponsiveLayout)
+	local rooms = {}
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 390, 700 } }) do
+		local fit = RS.collectionPanel(vp[1], vp[2])
+		local W, H = math.floor(fit.w * vp[1]), math.floor(fit.h * vp[2])
+		local P = RL.panel(W, H, vp[1] < 500 and 62 or 24, nil)
+		rooms[#rooms + 1] = { name = vp[1] .. "x" .. vp[2], w = P.area.w, h = P.area.h }
+	end
+	for _, room in ipairs(rooms) do
+		local R = RL.rects(room.w, room.h)
+		local where = " (" .. room.name .. ", room " .. room.w .. "x" .. room.h .. ")"
+		expectEqual(#R.order, 6, "six hotspots" .. where)
+		expectEqual(R.cols * R.rows >= 6, true, "the grid holds six" .. where)
+		for _, id in ipairs(R.order) do
+			local s = R.spots[id]
+			expectTrue(s ~= nil, id .. " has a hotspot" .. where)
+			for _, part in ipairs({ "object", "plate", "hit" }) do
+				expectTrue(RL.inside(s[part], room.w, room.h), id .. " " .. part .. " is inside the room" .. where)
+				expectTrue(s[part].w > 0 and s[part].h > 0, id .. " " .. part .. " has a size" .. where)
+			end
+			expectTrue(s.object.h >= 40, id .. " object is big enough to hit and to read" .. where)
+			expectTrue(s.plate.h >= 24 and s.plate.w >= 140, id .. " name plate holds '" .. RL.plateText("House Passes", 12, 12) .. "'" .. where)
+			expectTrue(s.plate.y >= s.object.y + s.object.h, id .. " plate sits under its object" .. where)
+			expectTrue(RL.inside(s.object, s.hit.x + s.hit.w, s.hit.y + s.hit.h) and s.hit.x <= s.object.x and s.hit.x <= s.plate.x, id .. " hit covers object and plate" .. where)
+		end
+		for i = 1, #R.order do
+			for j = i + 1, #R.order do
+				expectFalse(RL.intersects(R.spots[R.order[i]].hit, R.spots[R.order[j]].hit), R.order[i] .. " and " .. R.order[j] .. " do not overlap" .. where)
+			end
+		end
+	end
+	expectEqual(RL.rects(738, 233).cols, 3, "a wide room is three across")
+	expectEqual(RL.rects(344, 400).cols, 2, "a phone room is two across")
+end })
+
+-- The real Collection panel (Client/Collection.lua) on the fake Roblox, with some entries found in every section.
+local function collectionBuild(extra)
+	if not (io and io.open and load) then return nil end
+	local probe = io.open("src/Client/Collection.lua", "r")
+	if not probe then return nil end
+	probe:close()
+	local CS = require(script.Parent.CollectionScene)
+	local CB = require(script.Parent.Parent.Engine.CollectionBook)
+	local discovered, titles = {}, {}
+	for _, tab in ipairs(CB.Tabs) do
+		local ids = {}
+		for i, item in ipairs(CB.itemsFor(tab.id)) do
+			if i <= 2 then ids[#ids + 1] = item.id end
+		end
+		if tab.id == "titles" then titles = ids elseif tab.profileField then discovered[tab.id] = ids end
+	end
+	local opts = { discovered = discovered, unlockedAchievementIds = titles }
+	for k, v in pairs(extra or {}) do opts[k] = v end
+	return CS.build(opts), CB, discovered, titles
+end
+
+local function visibleLabel(root, text) -- a TextLabel under root that shows `text` and is not hidden by any ancestor up to root
+	for _, d in ipairs(root:GetDescendants()) do
+		if d.ClassName == "TextLabel" and d.Text == text then
+			local hidden, p = false, d
+			while p and p ~= root do
+				if p.Visible == false then hidden = true end
+				p = p.Parent
+			end
+			if not hidden and root.Visible ~= false then return d end
+		end
+	end
+	return nil
+end
+
+table.insert(tests, { name = "Collection opens on the gallery room: six hotspots with count plates, a quiet row of small tab plates, a wooden rarity plate", fn = function()
+	local col, CB = collectionBuild()
+	if not col then return end
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	col.open()
+	expectTrue(col.backdrop.Visible, "the Collection is open")
+	expectTrue(col.room.Visible, "the gallery room is the first view")
+	expectFalse(col.grid.Visible, "the section grid waits behind it")
+	local sets = CB.setsFromLists({ patrons = col.latest.collection.discovered.patrons, recipes = col.latest.collection.discovered.recipes,
+		bosses = col.latest.collection.discovered.bosses, housePasses = col.latest.collection.discovered.housePasses,
+		bonds = col.latest.collection.discovered.bonds, titles = col.latest.unlockedAchievementIds })
+	local counts = CB.tabCounts(sets)
+	for i, tab in ipairs(CB.Tabs) do
+		local hot = col.hotspot(tab.id)
+		expectTrue(hot ~= nil, tab.name .. " has a hotspot in the room")
+		expectEqual(hot:GetChildren()[1] ~= nil, true)
+		local surface = hot:FindFirstChild("Surface")
+		expectTrue(surface ~= nil and surface.ClassName == "TextButton", tab.name .. " hotspot has a clickable surface")
+		local top = true
+		for _, d in ipairs(hot:GetDescendants()) do
+			if d.ClassName ~= "UICorner" and d.ZIndex and d ~= surface and d.ZIndex >= surface.ZIndex then top = false end
+		end
+		expectTrue(top, tab.name .. " surface sits above everything drawn in its hotspot")
+		local label = hot:FindFirstChild("NamePlate"):FindFirstChild("Label")
+		expectEqual(label.Text, RL.plateText(tab.name, counts[tab.id].found, counts[tab.id].total), tab.name .. " plate carries its count")
+		expectEqual(counts[tab.id].found, 2, tab.name .. " shows the two entries this test found")
+		expectTrue(label.TextSize >= 14, tab.name .. " plate text is at least 14")
+		expectFalse(label.Text:find("%?") ~= nil, "no question marks on a plate")
+	end
+	-- the quiet row: "< Gallery" and the six sections as small plates
+	local plates = {}
+	for _, c in ipairs(col.quiet:GetChildren()) do
+		if c.ClassName == "TextButton" then plates[#plates + 1] = c end
+	end
+	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+	expectEqual(#plates, 7, "a Gallery plate and one per section")
+	expectEqual(plates[1].Text, "< Gallery")
+	for i, tab in ipairs(CB.Tabs) do expectEqual(plates[i + 1].Text, tab.name, "quiet plate " .. i) end
+	for _, p in ipairs(plates) do
+		expectTrue(p.TextSize >= 14, p.Text .. " plate text is at least 14")
+		expectTrue(p.Size.Y.Offset <= 28, p.Text .. " is a small plate")
+	end
+	-- the rarity filter is one wooden plate with a brass rim and six chips
+	expectEqual(col.legend.BackgroundTransparency, 0, "the filter sits on a solid plate")
+	expectTrue(col.legend:FindFirstChildOfClass("UIStroke") ~= nil, "...with a brass rim")
+	local chips = 0
+	for _, c in ipairs(col.legend:GetChildren()) do
+		if c.Name:sub(1, 5) == "Chip_" then chips = chips + 1 end
+	end
+	expectEqual(chips, #CB.RarityOrder, "one chip per rarity tier")
+	expectEqual(col.legend.AnchorPoint.Y, 1, "the plate hangs from the bottom of the panel")
+	-- the chip names read on the wooden plate, checked and unchecked
+	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
+	local function rgb255(c) return { math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5) } end
+	local chip = col.legend:FindFirstChild("Chip_common")
+	local nameLabel
+	for _, c in ipairs(chip:GetChildren()) do
+		if c.ClassName == "TextLabel" and c.Text == "Common" then nameLabel = c end
+	end
+	expectTrue(nameLabel ~= nil, "the Common chip names its tier")
+	expectTrue(LL.contrast(rgb255(nameLabel.TextColor3), rgb255(col.legend.BackgroundColor3)) >= 4.5, "a checked tier's name reads on the wooden plate")
+	chip.MouseButton1Click:Fire() -- unchecked
+	expectTrue(LL.contrast(rgb255(nameLabel.TextColor3), rgb255(col.legend.BackgroundColor3)) >= 4.5, "an unchecked tier's name still reads (4.5:1)")
+	chip.MouseButton1Click:Fire() -- checked again
+	expectEqual(#col.state.warns, 0, "nothing warned while building: " .. table.concat(col.state.warns, " | "))
+end })
+
+table.insert(tests, { name = "Collection: every section lists ALL of its entries (count equals the definitions), locked ones as silhouettes with their name, no ??? and no blank note", fn = function()
+	local col, CB, discovered, titles = collectionBuild()
+	if not col then return end
+	local Engine = script.Parent.Parent.Engine
+	local want = {
+		patrons = #require(Engine.Patrons).Definitions,
+		recipes = #require(Engine.Recipes).HouseRecipes + #require(Engine.Recipes).MenuRecipes + #require(Engine.Recipes).SecretRecipes,
+		bosses = #require(Engine.BossRounds).Definitions,
+		housePasses = #require(Engine.HousePasses).Definitions,
+		titles = #require(Engine.Achievements).Definitions,
+		bonds = #require(Engine.Bonds).Definitions,
+	}
+	col.open()
+	for _, tab in ipairs(CB.Tabs) do
+		col.pick(tab.id)
+		expectTrue(col.grid.Visible and not col.room.Visible, tab.name .. ": the section replaces the room")
+		local tiles = col.tiles()
+		local items = CB.displayItems(tab.id, {})
+		expectEqual(#tiles, want[tab.id], tab.name .. ": one tile per definition")
+		expectEqual(#tiles, #items, tab.name .. ": one tile per listed entry")
+		local foundIds = {}
+		for _, id in ipairs(tab.id == "titles" and titles or discovered[tab.id] or {}) do foundIds[id] = true end
+		local locked, lit = 0, 0
+		for _, tile in ipairs(tiles) do
+			local item = items[tile.LayoutOrder]
+			expectTrue(item ~= nil, tab.name .. ": tile " .. tostring(tile.LayoutOrder) .. " belongs to an entry")
+			if item then
+				local name = tab.id == "titles" and item.def.title or item.def.name
+				expectTrue(visibleLabel(tile, name) ~= nil, tab.name .. ": '" .. tostring(name) .. "' is on its plate")
+				expectTrue(visibleLabel(tile, "???") == nil, tab.name .. ": no ??? on " .. tostring(name))
+				if tab.id ~= "titles" then -- titles are engraved plates without a picture
+					local well = tile:FindFirstChild("IconWell", true)
+					expectTrue(well ~= nil and well.Visible ~= false, tab.name .. ": '" .. tostring(name) .. "' keeps its picture (a dim silhouette when locked)")
+				end
+				if foundIds[item.id] then lit = lit + 1 else locked = locked + 1 end
+			end
+		end
+		expectEqual(lit, 2, tab.name .. ": the two found entries are drawn lit")
+		expectEqual(locked, want[tab.id] - 2, tab.name .. ": every other entry is drawn locked, not left out")
+		expectEqual(#col.state.warns, 0, tab.name .. " built without a warning: " .. table.concat(col.state.warns, " | "))
+		expectTrue(col.step(), tab.name .. ": Escape returns to the room")
+	end
+end })
+
+table.insert(tests, { name = "Collection: Escape and the Gallery plate step back (detail card, then section, then the room), a quiet plate goes to its section", fn = function()
+	local col, CB = collectionBuild()
+	if not col then return end
+	col.open()
+	expectFalse(col.step(), "in the room Escape has nothing to step back from, so it closes the Collection")
+	col.pick("bosses")
+	local tiles = col.tiles()
+	tiles[1].MouseButton1Click:Fire()
+	expectTrue(col.detail.Visible, "a click on an entry opens its detail card")
+	expectTrue(col.step(), "Escape closes the detail card first")
+	expectFalse(col.detail.Visible)
+	expectTrue(col.grid.Visible, "...and stays in the section")
+	expectTrue(col.step(), "the next Escape returns to the room")
+	expectTrue(col.room.Visible and not col.grid.Visible)
+	local function plate(text)
+		for _, c in ipairs(col.quiet:GetChildren()) do
+			if c.ClassName == "TextButton" and c.Text == text then return c end
+		end
+	end
+	plate("Titles").MouseButton1Click:Fire()
+	expectTrue(col.grid.Visible and not col.room.Visible, "a quiet plate zooms into its section")
+	plate("< Gallery").MouseButton1Click:Fire()
+	expectTrue(col.room.Visible and not col.grid.Visible, "the Gallery plate returns to the room")
+	-- reopening always starts at the room
+	col.pick("recipes")
+	col.open()
+	expectTrue(col.room.Visible and not col.grid.Visible, "the Collection always opens on the room")
+	expectEqual(#col.state.warns, 0, table.concat(col.state.warns, " | "))
+	-- the rarity chips filter the section grid; they never drop an entry from the room's count
+	col.pick("recipes")
+	expectEqual(#col.tiles(), #CB.displayItems("recipes", {}))
+	col.legend:FindFirstChild("Chip_common").MouseButton1Click:Fire()
+	expectEqual(#col.tiles(), #CB.displayItems("recipes", { common = true }), "hiding Common leaves the other tiers")
+	col.legend:FindFirstChild("Chip_common").MouseButton1Click:Fire()
+	expectEqual(#col.tiles(), #CB.displayItems("recipes", {}), "showing it again brings them back")
+	-- the wiring: Escape (PopupDismiss) asks the panel to step back before it closes it
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a")
+		f:close()
+		return s
+	end
+	local dismiss, tabs, collection = read("src/Client/PopupDismiss.lua"), read("src/Client/PanelTabs.lua"), read("src/Client/Collection.lua")
+	if dismiss and tabs and collection then
+		local escape = dismiss:match("function PopupDismiss%.escape%(%).-\nend\n")
+		expectTrue(escape ~= nil and escape:find("entry.spec.step", 1, true) ~= nil and escape:find("return", 1, true) ~= nil, "Escape calls the popup's step and stops when it handled it")
+		expectTrue(escape:find("entry.spec.step", 1, true) < escape:find('Rules.action(policyOf(entry), "escape")', 1, true), "...before the policy closes the popup")
+		expectTrue(tabs:find("function PanelTabs.setStep(id, fn)", 1, true) ~= nil and tabs:find("step = function()", 1, true) ~= nil, "PanelTabs hands a panel's step to PopupDismiss")
+		expectTrue(collection:find('setStep("collection", stepBack)', 1, true) ~= nil, "the Collection registers its step")
+	end
+end })
+
+table.insert(tests, { name = "Collection room and section area: inside the panel, clear of the title, quiet row, filter plate and Close at three window sizes, hotspots match the layout", fn = function()
+	local col = collectionBuild()
+	if not col then return end
+	local Engine = script.Parent.Parent.Engine
+	local RL = require(Engine.CollectionRoomLayout)
+	col.open()
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		col.resize(vp[1], vp[2])
+		local W, H = col.panel.AbsoluteSize.X, col.panel.AbsoluteSize.Y
+		local function px(udim2) return udim2.X.Scale * W + udim2.X.Offset, udim2.Y.Scale * H + udim2.Y.Offset end
+		local rx, ry = px(col.room.Position)
+		local rw, rh = px(col.room.Size)
+		local where = " (" .. vp[1] .. "x" .. vp[2] .. ", panel " .. W .. "x" .. H .. ")"
+		expectTrue(rx >= 0 and ry >= RL.TABS.y + RL.TABS.h and rx + rw <= W, "the room sits under the quiet row and inside the panel" .. where)
+		local filterTop = H - RL.FOOTER - col.legend.Size.Y.Offset
+		expectTrue(ry + rh <= filterTop, "the room ends above the filter plate" .. where)
+		expectTrue(H - RL.FOOTER <= H - 50, "the filter plate ends above the Close row" .. where)
+		expectTrue(rh >= 150 and rw >= 300, "the room is big enough to use" .. where)
+		local gx, gy = px(col.grid.Position)
+		local gw, gh = px(col.grid.Size)
+		expectTrue(gx == rx and gy == ry and gw == rw and gh == rh, "the section grid fills the same area as the room" .. where)
+		local R = RL.rects(rw, rh)
+		for _, id in ipairs(R.order) do
+			local hot, want = col.hotspot(id), R.spots[id].hit
+			expectEqual(hot.Position.X.Offset, want.x, id .. " hotspot x" .. where)
+			expectEqual(hot.Position.Y.Offset, want.y, id .. " hotspot y" .. where)
+			expectEqual(hot.Size.X.Offset, want.w, id .. " hotspot width" .. where)
+			expectEqual(hot.Size.Y.Offset, want.h, id .. " hotspot height" .. where)
+			expectTrue(RL.inside(want, rw, rh), id .. " hotspot is inside the room" .. where)
+			expectTrue(hot:FindFirstChild("NamePlate").Size.Y.Offset >= 24, id .. " plate is tall enough for its text" .. where)
+		end
+	end
 end })
 
 return tests

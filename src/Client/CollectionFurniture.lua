@@ -8,7 +8,8 @@
 	  Furniture.cellSize(kind) / .gap(kind) UDim2 for the UIGridLayout
 	  Furniture.padding(kind)               { top, side } px the grid needs so outer margins are not clipped
 	  Furniture.style(kind, tile, opts)     content: card, pin, base, ticket, plate, icon well and name (once per tile)
-	                                        opts = { found, iconWell, nameLabel, rarityColor, id, equipped, locked text }
+	                                        opts = { found, iconWell, nameLabel, rarityColor, id, equipped }; a locked cell keeps its dim
+	                                        silhouette (iconWell) and its name on the plate
 	                                        returns { hang = {dy, tilt}, target = frame the hover acts on }
 	  Furniture.furnish(tile, ctx)          board / plank / rail / hook / strings (rebuilt when the column count changes)
 	ctx = { index, n, cols, tie = bool (Bonds: a string to the next card) }
@@ -124,16 +125,7 @@ function M.style(kind, tile, o)
 		rim.Thickness = 1
 		rim.Parent = pin
 		box(card, "PinShadow", { Position = UDim2.fromOffset(P.pin.x + 2, P.pin.y + 3), Size = UDim2.fromOffset(P.pin.w, P.pin.h), BackgroundColor3 = SHADE, BackgroundTransparency = 0.6, ZIndex = 39 }, 6, true)
-		if not found then
-			-- a blank card with a small paper tag: no padlock chip, no ???
-			if iconWell then iconWell.Visible = false end
-			if o.lockedText and nameLabel then
-				nameLabel.Visible = true
-				nameLabel.Text = o.lockedText
-			elseif nameLabel then
-				nameLabel.Visible = false
-			end
-		end
+		-- a locked card stays on the board as a dim silhouette with its name in dimmer ink: no padlock chip, no ???, never a blank note
 		if nameLabel and found then
 			nameLabel.TextColor3 = INK
 		elseif nameLabel then
@@ -152,12 +144,11 @@ function M.style(kind, tile, o)
 		rim.Parent = base
 		if iconWell then
 			iconWell.Position, iconWell.Size = rect(P.icon)
-			iconWell.Visible = found
+			iconWell.Visible = true -- locked: the dim silhouette stands on the base
 			if found then iconWell.BackgroundColor3 = Color3.fromRGB(255, 226, 150); iconWell.BackgroundTransparency = 0.8 end -- a slight shine
 		end
 		plateOn("BrassPlate", P.plate, found and BRASS or BRASS_DULL)
-		nameOn(P.plate)
-		if nameLabel and not found then nameLabel.Text = "" end -- locked: a blank plate
+		nameOn(P.plate) -- locked: the name on a duller plate
 	elseif kind == "key" then
 		-- a hook on the rail with a short chain and a ticket (owned) or an empty hook with the faint outline of a tag (locked)
 		local pivot = P.sway.pivotY
@@ -185,11 +176,10 @@ function M.style(kind, tile, o)
 			iconWell.Parent = holder
 			local r = rel(P.icon)
 			iconWell.Position, iconWell.Size = rect(r)
-			iconWell.Visible = found
+			iconWell.Visible = true -- locked: the dim silhouette hangs on the empty hook's tag outline
 		end
 		plateOn("BrassPlate", P.plate, found and BRASS or BRASS_DULL)
-		nameOn(P.plate)
-		if nameLabel and not found then nameLabel.Text = "" end
+		nameOn(P.plate) -- locked: the name on a duller plate
 		local swaying = false
 		tile.MouseEnter:Connect(function()
 			if swaying or calm() or not found then return end
@@ -238,8 +228,7 @@ function M.style(kind, tile, o)
 		nameOn(P.plate)
 		if nameLabel then
 			nameLabel.Position = UDim2.fromOffset(24, 0)
-			nameLabel.Size = UDim2.fromOffset(P.plate.w - 48, P.plate.h)
-			if not found then nameLabel.Text = "" end -- locked: a dull blank plate
+			nameLabel.Size = UDim2.fromOffset(P.plate.w - 48, P.plate.h) -- locked: the name on a duller plate
 		end
 	end
 	return result

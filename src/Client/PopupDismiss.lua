@@ -10,6 +10,8 @@
 	    close   = function(), how this popup closes itself (the same thing its Close button does).
 	    policy  = "dismiss" (default) | "cancel" | "button" | "locked", or a function returning one (see the rules file).
 	    press   = function(), for policy "button": what its one button does (Escape presses it).
+	    step    = function() -> true when it went back one level (the Collection: detail card, section, room); Escape calls it first and only
+	              closes the popup when it answers anything else.
 	    escape / outside = false to leave that exit to the module (PokerHandsReference and RestartRun keep their own clicks).
 	    button  = true | false, whether it shows a Back, Close, Cancel or Continue button (otherwise found by name, for the report).
 	  })
@@ -156,6 +158,15 @@ end
 function PopupDismiss.escape()
 	local entry = topmostEntry()
 	if entry and entry.spec.escape ~= false then
+		-- a popup with levels (the Collection: detail card, section, room) steps back one level before it closes
+		if entry.spec.step then
+			local ok, handled = pcall(entry.spec.step)
+			if not ok then
+				warn("[PopupDismiss] " .. nameOf(entry) .. " could not step back: " .. tostring(handled))
+			elseif handled == true then
+				return
+			end
+		end
 		run(entry, Rules.action(policyOf(entry), "escape"))
 	end
 end

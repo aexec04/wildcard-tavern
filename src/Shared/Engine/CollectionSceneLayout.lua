@@ -14,6 +14,8 @@
 	dropOffset(t, calm, fast) vertical drop-in offset in px for a newly acquired frame (0 when done or skipped)
 ]]
 
+local RoomLayout = require(script.Parent.CollectionRoomLayout)
+
 local CollectionSceneLayout = {}
 
 CollectionSceneLayout.FRAME_RATIO = 0.75   -- width / height of collection_frame_owned (3:4)
@@ -32,8 +34,11 @@ local CELL = {
 	plates = { w = 170, h = 56 },
 }
 
+-- The area under the quiet tab row and above the wooden rarity plate (one row of chips): where the room and the section grid live
+-- (CollectionRoomLayout.panel has the panel's whole vertical order).
 function CollectionSceneLayout.content(W, H)
-	return { x = 15, y = 138, w = math.max(0, W - 30), h = math.max(0, H - 196) }
+	local a = RoomLayout.panel(W, H, 24, nil).area
+	return { x = a.x, y = a.y, w = math.max(0, a.w), h = math.max(0, a.h) }
 end
 
 function CollectionSceneLayout.grid(W, H, kind, n)

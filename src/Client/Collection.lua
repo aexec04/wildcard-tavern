@@ -1,15 +1,21 @@
 --[[
 	Client/Collection.lua
 	The Collection screen (parchment panel), opened from the "📔" corner
-	button. Five tabs -- Patrons, Recipes, Boss Rounds, House Passes,
-	Titles -- each showing its completion %, plus an overall % bar with the
-	next milestone reward.
+	button. It opens on a gallery room (Client/CollectionRoom.lua): six objects
+	on its walls, one per section -- Patrons, Recipes, Boss Rounds, House
+	Passes, Titles, Bonds -- each a hotspot with a name plate and its count.
+	A click zooms into that section's furniture (the scroll and grid); the
+	"< Gallery" plate in the quiet row of small tab plates, or Escape, goes
+	back. An overall % bar shows the next milestone reward, and the rarity
+	filter is a small wooden plate above Close. Engine/CollectionRoomLayout.lua
+	holds the panel's vertical order and the room's hotspot rects (tested).
 
 	All content and rules come from Shared/Engine/CollectionBook.lua, which
 	reads the registries. Nothing here lists content by hand.
 
-	Tiles: discovered entries show their icon, name and a glow in their
-	rarity's color; undiscovered ones are a dark silhouette named "???".
+	Tiles: every entry of the section is drawn. Discovered entries show their
+	icon, name and a glow in their rarity's color; locked ones are a dim
+	silhouette with their name on the plate (never "???", never a blank note).
 	Tapping a tile opens a detail card with the effect text and flavor
 	line. A Title's detail card has the Equip button (fires EquipTitle;
 	clicking the equipped title's button un-equips it).
@@ -60,6 +66,7 @@ return function(deps)
 	local RarityFrame = require(script.Parent.RarityFrame)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local StageMotion = require(Engine:WaitForChild("StageMotion"))
+	local RoomLayout = require(Engine:WaitForChild("CollectionRoomLayout")) -- the panel's vertical order and the gallery room's hotspots
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local SOFT_CREAM = Color3.fromRGB(215, 200, 178)
@@ -338,28 +345,54 @@ return function(deps)
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
 	})
 
-	-- Tabs.
-	local tabRow = Instance.new("Frame")
-	tabRow.Size = UDim2.new(1, -30, 0, 38)
-	tabRow.Position = UDim2.fromOffset(15, 64)
+	-- Tabs: the gallery room is the way in, so these are only a quiet row of small plates (for the keyboard and for phones). They scroll
+	-- sideways when the panel is narrower than the row.
+	local tabRow = Instance.new("ScrollingFrame")
+	tabRow.Name = "QuietTabs"
+	tabRow.Size = UDim2.new(1, -30, 0, RoomLayout.TABS.h)
+	tabRow.Position = UDim2.fromOffset(RoomLayout.SIDE, RoomLayout.TABS.y)
 	tabRow.BackgroundTransparency = 1
+	tabRow.BorderSizePixel = 0
+	tabRow.ScrollBarThickness = 0
+	tabRow.ScrollingDirection = Enum.ScrollingDirection.X
+	tabRow.AutomaticCanvasSize = Enum.AutomaticSize.X
+	tabRow.CanvasSize = UDim2.new(0, 0, 0, 0)
 	tabRow.ZIndex = 21
 	tabRow.Parent = panel
 
 	local tabLayout = Instance.new("UIListLayout")
 	tabLayout.FillDirection = Enum.FillDirection.Horizontal
+	tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	tabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	tabLayout.Padding = UDim.new(0, 6)
 	tabLayout.Parent = tabRow
 
-	-- Rarity legend: one swatch + name per tier, in order.
+	-- Rarity filter: one swatch + name per tier, in order, on a small wooden plate at the bottom (relayout() places it above Close).
 	local legendRow = Instance.new("Frame")
 	legendRow.Name = "RarityLegend"
-	legendRow.Size = UDim2.new(1, -30, 0, 26)
-	legendRow.Position = UDim2.fromOffset(15, 108)
-	legendRow.BackgroundTransparency = 1
+	legendRow.AnchorPoint = Vector2.new(0.5, 1)
+	legendRow.Size = UDim2.fromOffset(RoomLayout.FILTER_MAX_W, 32)
+	legendRow.Position = UDim2.new(0.5, 0, 1, -RoomLayout.FOOTER)
+	legendRow.BackgroundColor3 = Color3.fromRGB(62, 42, 26)
+	legendRow.BackgroundTransparency = 0
+	legendRow.BorderSizePixel = 0
 	legendRow.ZIndex = 21
 	legendRow.Parent = panel
+	roundCorner(legendRow, 8)
+	do
+		local rim = Instance.new("UIStroke")
+		rim.Color = Color3.fromRGB(196, 156, 74)
+		rim.Thickness = 1.5
+		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		rim.Parent = legendRow
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0, RoomLayout.FILTER_PAD)
+		pad.PaddingBottom = UDim.new(0, RoomLayout.FILTER_PAD)
+		pad.PaddingLeft = UDim.new(0, 8)
+		pad.PaddingRight = UDim.new(0, 8)
+		pad.Parent = legendRow
+	end
 	local legendLayout = Instance.new("UIListLayout")
 	legendLayout.FillDirection = Enum.FillDirection.Horizontal
 	legendLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -405,7 +438,7 @@ return function(deps)
 			-- unchecked: dark swatch, no tick, dim name (the ring keeps the tier color)
 			swatch.BackgroundColor3 = on and tierColor or Color3.fromRGB(34, 26, 18)
 			check.Visible = on
-			name.TextColor3 = on and SOFT_CREAM or DIM
+			name.TextColor3 = on and SOFT_CREAM or Color3.fromRGB(176, 164, 148) -- an unchecked tier is dimmer but still 5:1 on the wooden plate
 		end
 		paint()
 		chip.MouseButton1Click:Connect(function()
@@ -419,6 +452,7 @@ return function(deps)
 	local furniture = Gallery.mountFurniture(panel) -- the tab's painted board or shelf, behind the grid (made before it)
 	Gallery.chestApi = Gallery.mountChest(panel) -- milestone chest on the floor, bottom right
 	local scroll = Instance.new("ScrollingFrame")
+	scroll.Name = "SectionGrid"
 	scroll.Size = UDim2.new(1, -30, 1, -196)
 	scroll.Position = UDim2.fromOffset(15, 138)
 	scroll.BackgroundTransparency = 1
@@ -443,11 +477,29 @@ return function(deps)
 	gridPadding.PaddingBottom = UDim.new(0, 4)
 	gridPadding.Parent = scroll
 
+	-- ===== The gallery room: the way into the Collection =====
+	-- The room is the first view. A click on one of its six objects zooms into that section's furniture (the scroll and grid above), and
+	-- the "< Gallery" plate or Escape returns. mode is "room" or "section"; showSection / showRoom are assigned below the tab plates.
+	local mode = "room"
+	local showSection, showRoom
+	local room
+	do
+		local names = {}
+		for _, tab in ipairs(CollectionBook.Tabs) do names[tab.id] = tab.name end
+		room = require(script.Parent.CollectionRoom).new({
+			parent = panel, names = names, zIndex = 22,
+			onPick = function(tabId)
+				playClickSfx()
+				showSection(tabId)
+			end,
+		})
+	end
+
 	-- ===== Responsive layout (narrow windows and phones) =====
-	-- The panel grows toward the full width as the window narrows (Engine/ResponsiveLayout), the title steps
-	-- aside of the Card Sets / Badges buttons, and the legend chips wrap; the grid below follows the header.
+	-- The panel grows toward the full width as the window narrows (Engine/ResponsiveLayout), the title steps aside of the Card Sets /
+	-- Badges buttons, and the rarity chips wrap on their wooden plate. Engine/CollectionRoomLayout.panel gives the vertical order: the
+	-- room and the section grid fill the area between the quiet tab row and the plate.
 	local ResponsiveLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout"))
-	local legendTop = 126
 	local function relayout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
@@ -458,14 +510,23 @@ return function(deps)
 			panel.Size = UDim2.fromScale(fit.w, fit.h)
 		end
 		local panelW = panel.AbsoluteSize.X > 0 and panel.AbsoluteSize.X or vp.X * fit.w
+		local panelH = panel.AbsoluteSize.Y > 0 and panel.AbsoluteSize.Y or vp.Y * fit.h
 		local head = ResponsiveLayout.collectionTitle(panelW)
 		titleLabel.Position = UDim2.fromOffset(head.x, 6)
 		titleLabel.Size = head.fullWidth and UDim2.new(1, 0, 0, 28) or UDim2.fromOffset(head.w, 28)
-		local legendH = math.max(26, math.ceil(legendLayout.AbsoluteContentSize.Y))
-		legendRow.Size = UDim2.new(1, -30, 0, legendH)
-		local top = legendTop + legendH + 4
-		scroll.Position = UDim2.fromOffset(15, top)
-		scroll.Size = UDim2.new(1, -30, 1, -(top + 58))
+		local legendH = math.max(24, math.ceil(legendLayout.AbsoluteContentSize.Y))
+		local chest = Gallery.chestApi and SceneLayout.chest(panelW, panelH) or nil
+		local P = RoomLayout.panel(panelW, panelH, legendH, chest and chest.x or nil)
+		legendRow.Size = UDim2.fromOffset(P.filter.w, P.filter.h)
+		legendRow.Position = UDim2.new(0.5, 0, 1, -RoomLayout.FOOTER)
+		-- bottom inset, not a height: the area follows the panel while it is resized or expanded between two layouts
+		local inset = panelH - (P.area.y + P.area.h)
+		scroll.Position = UDim2.fromOffset(P.area.x, P.area.y)
+		scroll.Size = UDim2.new(1, -2 * P.area.x, 1, -(P.area.y + inset))
+		room.frame.Position, room.frame.Size = scroll.Position, scroll.Size
+		room.layout(P.area.w, P.area.h)
+		local back = panel:FindFirstChild("PanelScrim") -- the painted alcove's dark wash behind the grid follows the same area
+		if back then back.Position, back.Size = scroll.Position, scroll.Size end
 	end
 	legendLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(relayout)
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(relayout)
@@ -489,6 +550,7 @@ return function(deps)
 	-- ===== Detail card =====
 	-- `detailShade` covers the panel; hiding it hides the card too.
 	local detailShade = Instance.new("TextButton")
+	detailShade.Name = "DetailShade"
 	detailShade.Text = ""
 	detailShade.AutoButtonColor = false
 	detailShade.Size = UDim2.fromScale(1, 1)
@@ -635,6 +697,11 @@ return function(deps)
 		return item.def.icon or FALLBACK_ICONS[item.tab] or "❔"
 	end
 
+	-- The name a tile or a plate shows. Locked entries keep their name: a dim silhouette with its name on the plate, never "???".
+	local function shownName(item)
+		return tostring(item.tab == "titles" and item.def.title or item.def.name)
+	end
+
 	local function milestoneFor(titleId)
 		for _, milestone in ipairs(CollectionBook.Milestones) do
 			for _, reward in ipairs(milestone.rewards) do
@@ -705,15 +772,7 @@ return function(deps)
 				detailArt.ScaleType = Enum.ScaleType.Crop
 			end
 		end
-		local prevLock = portrait:FindFirstChild("ContentLockBadge")
-		if prevLock then prevLock:Destroy() end
-		if not found then
-			local lockBadge = label(portrait, {
-				Size = UDim2.fromOffset(34, 34), Position = UDim2.new(1, -40, 0, 6),
-				TextSize = 26, ZIndex = 40, Text = "🔒", BackgroundTransparency = 1,
-			})
-			lockBadge.Name = "ContentLockBadge"
-		end
+		-- (a locked entry reads as locked from its dim portrait and the "Locked." line below; no padlock emoji)
 
 		if found then
 			cardName.Text = item.tab == "titles" and ('"' .. def.title .. '"') or def.name
@@ -727,7 +786,7 @@ return function(deps)
 			cardEffect.Text = effect
 			cardFlavor.Text = def.flavorText and ('"' .. def.flavorText .. '"') or ""
 		else
-			cardName.Text = "???"
+			cardName.Text = shownName(item)
 			cardKind.Text = rarity.name .. " " .. CollectionBook.kindLabel(item)
 			cardEffect.Text = undiscoveredHint(item, view)
 			cardFlavor.Text = ""
@@ -854,7 +913,7 @@ return function(deps)
 			tile.AutoButtonColor = false
 		elseif framed then
 			tile.AutoButtonColor = false
-			parts = Gallery.frameTile(tile, found, rgb(rarity.color), found and item.def.name or "???")
+			parts = Gallery.frameTile(tile, found, rgb(rarity.color), shownName(item))
 		end
 		if not framed and not fxKind then
 			roundCorner(tile, 8)
@@ -866,6 +925,7 @@ return function(deps)
 		end
 
 		local iconWell = Instance.new("Frame")
+		iconWell.Name = "IconWell"
 		local wellSize = framed and parts.icon.w or 60
 		local wellRadius = framed and 6 or 30
 		iconWell.Size = UDim2.fromOffset(wellSize, framed and parts.icon.h or 60)
@@ -875,8 +935,7 @@ return function(deps)
 		iconWell.ZIndex = 23
 		iconWell.Parent = tile
 		roundCorner(iconWell, wellRadius)
-		-- a locked frame hangs under its dust cloth: the portrait and the padlock are hidden (the tooltip still says locked)
-		if framed and not found then iconWell.Visible = false end
+		-- a locked entry stays on show as a dim silhouette with its name on the plate (never "???" and an empty hole)
 
 		local icon = label(iconWell, {
 			Size = UDim2.fromScale(1, 1), TextSize = framed and 28 or 34, ZIndex = 23, Text = iconFor(item),
@@ -889,19 +948,15 @@ return function(deps)
 		do
 			local artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id)
 			if artId then
-				PatronPlaqueModule.applyById(iconWell, artId, {
+				local art = PatronPlaqueModule.applyById(iconWell, artId, {
 					emojiLabel = icon,
 					dim = not found,
 					zIndex = 24,
 					cornerRadius = wellRadius,
 				})
+				-- locked: an unlit silhouette (the locked Bond medallion is already its own picture)
+				if art and not found and item.tab ~= "bonds" then art.ImageColor3 = Color3.fromRGB(78, 72, 66) end
 			end
-		end
-		if not found then
-			label(iconWell, {
-				Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -16, 1, -16),
-				TextSize = 14, ZIndex = 26, Text = "🔒", BackgroundTransparency = 1,
-			})
 		end
 
 		local nameLabel
@@ -910,7 +965,7 @@ return function(deps)
 				Size = UDim2.new(1, -8, 0, 36), Position = UDim2.new(0, 4, 0, 68),
 				Font = Enum.Font.GothamBold, TextSize = 14, TextWrapped = true, ZIndex = 22,
 				TextColor3 = found and CREAM or DIM,
-				Text = found and (item.tab == "titles" and item.def.title or item.def.name) or "???",
+				Text = shownName(item),
 			})
 		end
 
@@ -922,7 +977,6 @@ return function(deps)
 			fx = Furn.style(fxKind, tile, {
 				found = found, iconWell = iconWell, nameLabel = nameLabel, rarityColor = rgb(rarity.color), id = item.id,
 				equipped = found and item.tab == "titles" and view.equippedTitleId == item.id,
-				lockedText = item.tab == "bonds" and item.def.name or nil,
 			})
 			hang = fx.hang
 			local rec = { tile = tile, kind = fxKind, index = order, tie = item.tab == "bonds" and found and nextFound == true }
@@ -1013,12 +1067,22 @@ return function(deps)
 		overallText.Text = string.format("Overall %d%%  (%d / %d)   --   %s",
 			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
 
-		-- Tab headers.
+		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.
 		for _, tab in ipairs(CollectionBook.Tabs) do
 			local tabButton = tabButtons[tab.id]
-			local tabCompletion = completion.tabs[tab.id]
-			tabButton.Text = string.format("%s\n%d%%", tab.name, math.floor(tabCompletion.percent))
-			tabButton.BackgroundColor3 = tab.id == activeTabId and ACTIVE_BROWN or BUTTON_BROWN
+			tabButton.Text = tab.name
+			tabButton.BackgroundColor3 = (mode == "section" and tab.id == activeTabId) and ACTIVE_BROWN or BUTTON_BROWN
+		end
+		tabButtons.room.BackgroundColor3 = mode == "room" and ACTIVE_BROWN or BUTTON_BROWN
+
+		-- The gallery room: the count on every name plate, and a New tag where something was found since the last visit.
+		do
+			local fresh = {}
+			for key in pairs(freshKeys) do
+				local tabId = key:match("^(.-):")
+				if tabId then fresh[tabId] = (fresh[tabId] or 0) + 1 end
+			end
+			room.update(CollectionBook.tabCounts(view.sets), fresh)
 		end
 
 		-- Grid.
@@ -1031,6 +1095,10 @@ return function(deps)
 		-- refresh bumps buildToken and the old batch loop stops.
 		buildToken = buildToken + 1
 		local mine = buildToken
+		if mode ~= "section" then
+			currentItems, furnRecords = {}, {} -- the room is showing: no section tiles are kept
+			return
+		end
 		furniture.setTab(activeTabId)
 		grid.CellSize = Gallery.cellSize(activeTabId) -- framed portraits are taller than the plain tiles
 		local hungGap = Gallery.framed(activeTabId) and SceneLayout.FRAMED_GAP or nil -- wider gaps so chains and shadows fit
@@ -1079,21 +1147,71 @@ return function(deps)
 		return ok
 	end
 
-	for i, tab in ipairs(CollectionBook.Tabs) do
-		local tabButton = button(tabRow, {
-			Size = UDim2.new(1 / #CollectionBook.Tabs, -5, 1, 0),
-			TextSize = 14, LayoutOrder = i, Text = tab.name,
+	-- The quiet row: "< Gallery" (back to the room) and one small plate per section, for the keyboard and for phones.
+	local function quietPlate(text, order)
+		local plate = button(tabRow, {
+			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, RoomLayout.TABS.h - 2),
+			TextSize = 14, LayoutOrder = order, Text = text, BorderSizePixel = 0,
 		})
-		polishButton(tabButton, 8)
+		roundCorner(plate, 6)
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0, 10)
+		pad.PaddingRight = UDim.new(0, 10)
+		pad.Parent = plate
+		local rim = Instance.new("UIStroke")
+		rim.Color = Color3.fromRGB(110, 90, 54)
+		rim.Thickness = 1
+		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		rim.Parent = plate
+		return plate
+	end
+
+	local function setMode(newMode) -- which view shows; the caller refreshes
+		mode = newMode
+		room.frame.Visible = newMode == "room"
+		scroll.Visible = newMode == "section"
+		if Gallery.chestApi and Gallery.chestApi.setShown then Gallery.chestApi.setShown(newMode == "section") end -- the chest stands by the shelves
+	end
+	showSection = function(tabId)
+		activeTabId = tabId
+		hideDetail()
+		setMode("section")
+		scroll.CanvasPosition = Vector2.new(0, 0)
+		safeRefresh("tab " .. tabId)
+	end
+	showRoom = function()
+		hideDetail()
+		setMode("room")
+		safeRefresh("the gallery room")
+	end
+	-- Escape (PopupDismiss `step`): close the detail card first, then leave a section for the room; false = nothing to step back from,
+	-- so Escape closes the Collection as it always did.
+	local function stepBack()
+		if detailShade.Visible then
+			hideDetail()
+			return true
+		end
+		if mode == "section" then
+			showRoom()
+			return true
+		end
+		return false
+	end
+
+	do
+		local galleryPlate = quietPlate("< Gallery", 0)
+		tabButtons.room = galleryPlate
+		galleryPlate.MouseButton1Click:Connect(function()
+			playClickSfx()
+			if mode ~= "room" then showRoom() end
+		end)
+	end
+	for i, tab in ipairs(CollectionBook.Tabs) do
+		local tabButton = quietPlate(tab.name, i)
 		tabButtons[tab.id] = tabButton
 		tabButton.MouseButton1Click:Connect(function()
 			playClickSfx()
-			if activeTabId ~= tab.id then
-				activeTabId = tab.id
-				hideDetail()
-				scroll.CanvasPosition = Vector2.new(0, 0)
-				safeRefresh("tab " .. tab.id)
-			end
+			if mode ~= "section" or activeTabId ~= tab.id then showSection(tab.id) end
 		end)
 	end
 
@@ -1125,7 +1243,9 @@ return function(deps)
 		end)
 	end
 
-	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel) -- shared tab strip + Back
+	-- shared tab strip + Back; Escape steps back (detail card, then section, then the room) before it closes the Collection
+	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel)
+	require(script.Parent.PanelTabs).setStep("collection", stepBack)
 	OverlayManager.register("collection", function()
 		hideDetail()
 		popOut(backdrop, panel)
@@ -1150,7 +1270,8 @@ return function(deps)
 		if not okPrep then
 			warn("[Collection] could not read what is new: " .. tostring(prepErr))
 		end
-		safeRefresh("the open tab")
+		setMode("room") -- the gallery room is always the first view
+		safeRefresh("the gallery room")
 		popIn(backdrop, panel)
 	end
 	OverlayManager.registerOpener("collection", openCollection)

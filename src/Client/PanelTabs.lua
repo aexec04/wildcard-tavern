@@ -43,6 +43,13 @@ function PanelTabs.go(id)
 	return OverlayManager.open(id)
 end
 
+-- Panels with levels (the Collection: detail card, section, gallery room) say how Escape steps back one level: fn() returns true when it
+-- did. Escape closes the panel only when it did not (Client/PopupDismiss `step`).
+local steps = {}
+function PanelTabs.setStep(id, fn)
+	steps[id] = fn
+end
+
 function PanelTabs.back(id)
 	local target = PanelTabs.backTarget(id, previous)
 	if target and OverlayManager.open(target) then return end
@@ -259,7 +266,13 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 	-- Escape and a click on the dark area close the panel too (Client/PopupDismiss, closing through the id the panel registers
 	-- with OverlayManager). `panel` is the panel itself: a click on it is never "outside"; without it only Escape is wired.
 	pcall(function()
-		require(script.Parent.PopupDismiss).attach(backdrop, { id = id, panel = panel, button = true })
+		require(script.Parent.PopupDismiss).attach(backdrop, {
+			id = id, panel = panel, button = true,
+			step = function() -- a panel with levels (the Collection) registers PanelTabs.setStep(id, fn)
+				local fn = steps[id]
+				return fn ~= nil and fn() == true
+			end,
+		})
 	end)
 end
 
