@@ -28,6 +28,9 @@ M.PLATE_BOXES = {
 	discard = { x = 997, y = 364, w = 512, h = 294 },
 }
 M.PLATES_IMG_W, M.PLATES_IMG_H = 1536, 1024
+-- The writing face inside a plate, as fractions of the plate box (below the top bar, inside the corner studs); read by eye from
+-- play_plates_b.png: the bar and its posts end at about 0.30, the face is the dark wood from 0.34 to 0.82.
+M.FACE = { x = 0.12, y = 0.34, w = 0.76, h = 0.48 }
 
 function M.usable(areaW)
 	return areaW >= M.MIN_W
@@ -80,10 +83,17 @@ function M.placement(areaW, areaH, left, rightReserve)
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)
 	local handY = math.floor(m.rail.y + m.rail.h / 2 + M.CARD_PAD - M.HAND_H + 0.5)
-	local stripMid = m.plates.play.y + m.plates.play.h / 2
-	local actY = math.floor(stripMid - M.ACTION_H / 2 + 0.5)
-	if handY < 0 or actY + M.ACTION_H > areaH or actY < handY + M.HAND_H then return nil end
-	return { map = m, hand = { x = x, y = handY, w = w, h = M.HAND_H }, actions = { x = x, y = actY, w = w, h = M.ACTION_H } }
+	-- the Actions row IS the three painted plates in a row (Sort, Play Hand, Discard), as tall as the tallest
+	local pl = m.plates
+	local actY = pl.play.y
+	local actH = math.max(pl.sort.h, pl.play.h, pl.discard.h)
+	local actX = pl.sort.x
+	local actW = pl.discard.x + pl.discard.w - pl.sort.x
+	if handY < 0 or actY + actH > areaH or actY < handY + M.HAND_H - M.CARD_PAD then return nil end
+	local dx = math.max(0, left - actX) -- a narrow window slides the row clear of the sidebar
+	actX = actX + dx
+	if actX + actW > areaW then return nil end
+	return { map = m, hand = { x = x, y = handY, w = w, h = M.HAND_H }, actions = { x = actX, y = actY, w = actW, h = actH }, gap = math.floor(24 * m.scale + 0.5), dx = dx }
 end
 
 return M

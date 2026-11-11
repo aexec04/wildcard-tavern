@@ -18832,7 +18832,9 @@ table.insert(tests, { name = "PlayTableLayout.placement: hand stands on the rail
 			expectTrue(p.hand.y >= 0, "hand top on screen")
 			local cardBottom = p.hand.y + p.hand.h - PT.CARD_PAD
 			expectTrue(math.abs(cardBottom - (p.map.rail.y + p.map.rail.h / 2)) <= 1, "card bottom on the rail groove at " .. w)
-			expectTrue(p.actions.y >= p.hand.y + p.hand.h, "Actions row below the hand frame")
+			expectTrue(p.actions.y >= p.hand.y + p.hand.h - PT.CARD_PAD, "Actions row below the cards")
+			expectTrue(p.actions.x >= 260, "Actions row right of the sidebar at " .. w)
+			expectTrue(PT.FACE.y > 0.3 and PT.FACE.y + PT.FACE.h <= 0.9 and PT.FACE.x + PT.FACE.w <= 1, "plate face inside the box, below the bar")
 			expectTrue(p.actions.y + p.actions.h <= h, "Actions row on screen")
 			expectTrue(p.hand.x + p.hand.w <= p.map.deck.x + 1 or p.hand.y + p.hand.h <= p.map.deck.y + p.map.deck.h + PT.CARD_PAD, "hand does not cover the deck recess")
 		end

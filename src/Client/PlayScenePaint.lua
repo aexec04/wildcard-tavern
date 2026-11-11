@@ -36,6 +36,11 @@ function PlayScenePaint.install(deps)
 	image.Parent = root
 
 	local loaded, painted = false, false
+	local platesId = art.play_plates_b
+	local PlayPlates = require(script.Parent.PlayPlates)
+	local function plates(p)
+		pcall(function() PlayPlates.apply(actionFrame, p, platesId) end) -- a failure leaves the flat buttons
+	end
 
 	local function apply()
 		local size = root.AbsoluteSize
@@ -51,11 +56,13 @@ function PlayScenePaint.install(deps)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)
 			actionFrame.Position = UDim2.fromOffset(p.actions.x, p.actions.y)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
+			plates(p)
 		elseif painted then
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
 			painted = false
 			image.Visible = false
 			handFrame:SetAttribute("PaintedRail", nil)
+			plates(nil)
 			if size.X >= PlayTableLayout.MIN_W then
 				handFrame.Position = UDim2.new(0, sidebarW + 20, 1, -272)
 				handFrame.Size = UDim2.new(1, -(sidebarW + 40 + R.PILE_RESERVE), 0, 176)
