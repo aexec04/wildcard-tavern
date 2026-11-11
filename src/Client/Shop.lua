@@ -917,7 +917,7 @@ return function(deps)
 	-- the marker attribute lets the close restore exactly what was hidden here.
 	local function setCounterHiddenForPack(on)
 		for _, child in ipairs(shopFrame:GetChildren()) do
-			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" then
+			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" and child.Name ~= "PeddlerBubble" then
 				if on then
 					if child.Visible and not child:GetAttribute("PackHidden") then
 						child:SetAttribute("PackHidden", true)

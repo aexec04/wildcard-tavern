@@ -18242,4 +18242,17 @@ table.insert(tests, { name = "Painted rooms are wired: the Collection and Badges
 	expectTrue(plain.room:FindFirstChild("Floor").Visible and plain.room:FindFirstChild("Hotspot_patrons"):FindFirstChild("Object").Visible, "the drawn room stays as the fallback")
 end })
 
+table.insert(tests, { name = "Peddler speech bubble: hidden when its text is empty or faded, and the pack panel never restores it", fn = function()
+	local f = io and io.open and io.open("src/Client/ShopScene.lua", "r")
+	if not f then return end -- Studio has no io
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('bubble.Text == "" or bubble.TextTransparency >= 1', 1, true) ~= nil, "a spent bubble is hidden")
+	expectTrue(src:find('bubble:GetPropertyChangedSignal("Visible"):Connect(hideIfSpent)', 1, true) ~= nil, "the guard runs on every Visible change")
+	local g = io.open("src/Client/Shop.lua", "r")
+	local shop = g:read("*a")
+	g:close()
+	expectTrue(shop:find('child.Name ~= "PeddlerBubble"', 1, true) ~= nil, "setCounterHiddenForPack leaves the bubble alone")
+end })
+
 return tests

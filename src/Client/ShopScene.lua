@@ -232,6 +232,14 @@ function ShopScene.new(deps)
 	end
 
 	local bubbleToken = 0
+	-- Whoever sets Visible (for example the pack panel restoring hidden Counter pieces) cannot show a spent bubble:
+	-- no text or a faded text means the bare stroke would show as an empty outlined box.
+	local function hideIfSpent()
+		if bubble.Visible and (bubble.Text == "" or bubble.TextTransparency >= 1) then
+			bubble.Visible = false
+		end
+	end
+	bubble:GetPropertyChangedSignal("Visible"):Connect(hideIfSpent)
 	local function seedFor(event)
 		local st = getState() or {}
 		return tostring(st.seed or st.runSeed or 0) .. "|" .. tostring(st.night or 0) .. "|" .. tostring(lineCount) .. event
