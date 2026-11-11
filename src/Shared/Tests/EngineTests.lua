@@ -17142,6 +17142,7 @@ table.insert(tests, { name = "Counter room: Marlo stands behind the counter with
 end })
 
 table.insert(tests, { name = "Counter room: the backdrop is ONE cropped picture, Marlo sits in a frame clipped at the counter top, the older pieces hide (and return without the room)", fn = function()
+	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)
 	local Engine = script.Parent.Parent.Engine
 	local SL = require(Engine.ShopSceneLayout)
@@ -18864,6 +18865,18 @@ table.insert(tests, { name = "PlayBoardLayout: board keeps 2:3, width at most 24
 			end
 		end
 	end
+end })
+
+table.insert(tests, { name = "ImagePreload: loaded comes from the PreloadAsync status even when IsLoaded is false; failure or no status keeps the old UI", fn = function()
+	local IP = require(script.Parent.Parent.Engine.ImagePreload)
+	local img = { IsLoaded = false }
+	local function provider(status)
+		return { PreloadAsync = function(_, _, cb) if status then cb("rbxassetid://1", status) end end }
+	end
+	expectTrue(IP.run(provider("Success"), img, "Success") == true, "success status counts as loaded")
+	expectTrue(IP.run(provider("Failure"), img, "Success") == false, "failure keeps the old UI")
+	expectTrue(IP.run(provider(nil), img, "Success") == false, "no status keeps the old UI")
+	expectTrue(IP.run({ PreloadAsync = function() error("x") end }, img, "Success") == false, "error keeps the old UI")
 end })
 
 return tests

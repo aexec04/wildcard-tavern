@@ -14,6 +14,7 @@ local ContentProvider = game:GetService("ContentProvider")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local R = require(Engine:WaitForChild("ResponsiveLayout"))
+local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
 
 local PlayScenePaint = {}
 
@@ -82,8 +83,8 @@ function PlayScenePaint.install(deps)
 	actionFrame:GetPropertyChangedSignal("Position"):Connect(apply)
 
 	task.spawn(function()
-		pcall(function() ContentProvider:PreloadAsync({ image }) end)
-		loaded = image.IsLoaded == true
+		-- IsLoaded reads false for a Visible = false label in Studio, so trust the PreloadAsync status instead
+		loaded = ImagePreload.run(ContentProvider, image, Enum.AssetFetchStatus.Success)
 		if loaded then apply() end
 	end)
 
