@@ -11862,6 +11862,11 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	local sp = io.open("src/Client/ScorePopup.lua", "r"):read("*a")
 	expectTrue(sp:find("FlairGlow", 1, true) ~= nil, "score digits glow")
 	expectTrue(sp:find(".finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget", 1, true) ~= nil, "finisher gets the clear flag")
+	-- the scoring readout hangs above the played row on pills, 28 px numbers with a 2 px outline, 20 px hand name
+	expectTrue(sp:find("scorePopup.Position = UDim2.new(0.5, 0, 0, math.max(4, rowY - 8 - POPUP_H))", 1, true) ~= nil, "readout sits above the played row")
+	expectTrue(sp:find("chipsLabel.TextSize = 28", 1, true) ~= nil and sp:find("multLabel.TextSize = 28", 1, true) ~= nil, "readout numbers are 28 px")
+	expectTrue(sp:find("scorePopupHandName.TextSize = 20", 1, true) ~= nil, "hand name is 20 px")
+	expectTrue(sp:find("o.Thickness = 2", 1, true) ~= nil, "readout numbers have a 2 px outline")
 end })
 
 table.insert(tests, { name = "FlairFX preview passes zIndex and big particles to every burst; Expand toggle survives the Collection relayout", fn = function()

@@ -239,70 +239,113 @@ return function(deps)
 		return duration / currentPaceDivisor
 	end
 
+	local POPUP_H = 112
+	local READOUT_INK = Color3.fromRGB(40, 24, 12)
 	local scorePopup = Instance.new("Frame")
 	scorePopup.Name = "ScorePopup"
-	scorePopup.Size = UDim2.new(0, 260, 0, 116)
-	scorePopup.AnchorPoint = Vector2.new(0.5, 1)
-	scorePopup.Position = UDim2.new(0.5, 0, 1, -240)
+	-- The readout sits ABOVE the played cards (layoutPlayedRow sets Position from the row's top edge),
+	-- never over the hand: event line, a parchment pill with Chips x Mult, then the hand name on a dark pill.
+	scorePopup.Size = UDim2.new(0, 360, 0, POPUP_H)
+	scorePopup.AnchorPoint = Vector2.new(0.5, 0)
+	scorePopup.Position = UDim2.new(0.5, 0, 0, 120)
 	scorePopup.BackgroundTransparency = 1
 	scorePopup.Visible = false
 	scorePopup.ZIndex = 25
 	scorePopup.Parent = root
 
 	local scorePopupHandName = Instance.new("TextLabel")
-	scorePopupHandName.Size = UDim2.new(1, 0, 0, 24)
+	local handPill = Instance.new("Frame")
+	handPill.Name = "HandPill"
+	handPill.AnchorPoint = Vector2.new(0.5, 0)
+	handPill.Position = UDim2.new(0.5, 0, 0, 80)
+	handPill.Size = UDim2.new(0, 260, 0, 30)
+	handPill.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	handPill.BackgroundTransparency = 0.05
+	handPill.BorderSizePixel = 0
+	handPill.ZIndex = 24
+	handPill.Parent = scorePopup
+	local handPillCorner = Instance.new("UICorner")
+	handPillCorner.CornerRadius = UDim.new(0.5, 0)
+	handPillCorner.Parent = handPill
+	scorePopupHandName.Size = UDim2.new(1, 0, 1, 0)
 	scorePopupHandName.BackgroundTransparency = 1
 	scorePopupHandName.Font = Enum.Font.GothamBold
-	scorePopupHandName.TextSize = 18
+	scorePopupHandName.TextSize = 20
 	scorePopupHandName.TextColor3 = Color3.fromRGB(255, 230, 180)
 	scorePopupHandName.TextStrokeTransparency = 0.5
 	scorePopupHandName.Text = ""
 	scorePopupHandName.ZIndex = 25
-	scorePopupHandName.Parent = scorePopup
+	scorePopupHandName.Parent = handPill
 
 	-- SCORING JUICE, full choreography pass: split out of the old single
 	-- "chips x mult" label into a real blue Chips box / red Mult box, so
 	-- flying numbers have an actual matching box to merge into (Ahmed's
 	-- spec: "the blue Chips box and red Mult box pop directly into the
 	-- HUD" / "slam together... as the math completes").
+	local readoutPill = Instance.new("Frame")
+	readoutPill.Name = "ReadoutPill"
+	readoutPill.AnchorPoint = Vector2.new(0.5, 0)
+	readoutPill.Position = UDim2.new(0.5, 0, 0, 26)
+	readoutPill.Size = UDim2.new(0, 260, 0, 50)
+	readoutPill.BackgroundColor3 = Color3.fromRGB(240, 228, 196)
+	readoutPill.BorderSizePixel = 0
+	readoutPill.ZIndex = 24
+	readoutPill.Parent = scorePopup
+	local readoutCorner = Instance.new("UICorner")
+	readoutCorner.CornerRadius = UDim.new(0.5, 0)
+	readoutCorner.Parent = readoutPill
+	local readoutEdge = Instance.new("UIStroke")
+	readoutEdge.Color = Color3.fromRGB(120, 84, 40)
+	readoutEdge.Thickness = 2
+	readoutEdge.Parent = readoutPill
+	local function readoutOutline(label)
+		local o = Instance.new("UIStroke")
+		o.Name = "ReadoutOutline"
+		o.Color = READOUT_INK
+		o.Thickness = 2
+		o.Parent = label
+	end
 	local chipsLabel = Instance.new("TextLabel")
-	chipsLabel.Size = UDim2.new(0, 115, 0, 50)
-	chipsLabel.Position = UDim2.new(0, 0, 0, 26)
+	chipsLabel.Size = UDim2.new(0, 105, 0, 50)
+	chipsLabel.Position = UDim2.new(0, 10, 0, 0)
 	chipsLabel.BackgroundTransparency = 1
 	chipsLabel.Font = Enum.Font.GothamBold
-	chipsLabel.TextSize = 30
-	chipsLabel.TextColor3 = KIND_COLORS.chips
-	chipsLabel.TextStrokeTransparency = 0.35
+	chipsLabel.TextSize = 28
+	chipsLabel.TextColor3 = Color3.fromRGB(60, 130, 235)
+	chipsLabel.TextStrokeTransparency = 1
 	chipsLabel.TextXAlignment = Enum.TextXAlignment.Right
 	chipsLabel.Text = "0"
 	chipsLabel.ZIndex = 25
-	chipsLabel.Parent = scorePopup
+	chipsLabel.Parent = readoutPill
+	readoutOutline(chipsLabel)
 
 	local xLabel = Instance.new("TextLabel")
 	xLabel.Size = UDim2.new(0, 30, 0, 50)
-	xLabel.Position = UDim2.new(0, 115, 0, 26)
+	xLabel.Position = UDim2.new(0, 115, 0, 0)
 	xLabel.BackgroundTransparency = 1
 	xLabel.Font = Enum.Font.GothamBold
 	xLabel.TextSize = 26
 	xLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	xLabel.TextStrokeTransparency = 0.4
+	xLabel.TextStrokeTransparency = 1
 	xLabel.TextXAlignment = Enum.TextXAlignment.Center
 	xLabel.Text = "x"
 	xLabel.ZIndex = 25
-	xLabel.Parent = scorePopup
+	xLabel.Parent = readoutPill
+	readoutOutline(xLabel)
 
 	local multLabel = Instance.new("TextLabel")
-	multLabel.Size = UDim2.new(0, 115, 0, 50)
-	multLabel.Position = UDim2.new(0, 145, 0, 26)
+	multLabel.Size = UDim2.new(0, 105, 0, 50)
+	multLabel.Position = UDim2.new(0, 145, 0, 0)
 	multLabel.BackgroundTransparency = 1
 	multLabel.Font = Enum.Font.GothamBold
-	multLabel.TextSize = 30
-	multLabel.TextColor3 = KIND_COLORS.mult
-	multLabel.TextStrokeTransparency = 0.35
+	multLabel.TextSize = 28
+	multLabel.TextColor3 = Color3.fromRGB(225, 55, 55)
+	multLabel.TextStrokeTransparency = 1
 	multLabel.TextXAlignment = Enum.TextXAlignment.Left
 	multLabel.Text = "0"
 	multLabel.ZIndex = 25
-	multLabel.Parent = scorePopup
+	multLabel.Parent = readoutPill
+	readoutOutline(multLabel)
 
 	-- Bump targets for flyNumberToBox's "merge into the box" impact -- see
 	-- there. Kept on the boxes themselves (not the whole popup) so a
@@ -319,11 +362,11 @@ return function(deps)
 	-- still the one place the exact text is always guaranteed readable
 	-- regardless of whether a ghost/slot happened to be found.
 	local scorePopupEventLabel = Instance.new("TextLabel")
-	scorePopupEventLabel.Size = UDim2.new(1, 0, 0, 22)
-	scorePopupEventLabel.Position = UDim2.new(0, 0, 0, 80)
+	scorePopupEventLabel.Size = UDim2.new(1, 0, 0, 24)
+	scorePopupEventLabel.Position = UDim2.new(0, 0, 0, 0)
 	scorePopupEventLabel.BackgroundTransparency = 1
 	scorePopupEventLabel.Font = Enum.Font.GothamBold
-	scorePopupEventLabel.TextSize = 15
+	scorePopupEventLabel.TextSize = 18
 	scorePopupEventLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	scorePopupEventLabel.TextStrokeTransparency = 0.6
 	scorePopupEventLabel.Text = ""
@@ -544,9 +587,6 @@ return function(deps)
 	local ROW_CARD_HEIGHT = 100 -- matches rebuildHand's card slot height
 	local ROW_MARGIN_ABOVE_POPUP = 24
 	local function layoutPlayedRow(playedGhosts)
-		if #playedGhosts == 0 then
-			return
-		end
 		local rootSize = root.AbsoluteSize
 		-- the played hand lands as a small tilted, slightly overlapping group with a soft shadow (Engine/PlayMotion.stackSpec);
 		-- calm mode keeps the flat row
@@ -558,7 +598,8 @@ return function(deps)
 			totalWidth = totalWidth + entry.ghost.AbsoluteSize.X
 		end
 		totalWidth = totalWidth + gap * (#playedGhosts - 1)
-		local popupTop = scorePopup.AbsolutePosition.Y
+		-- reference line the row has always hung from (the old popup's top edge)
+		local popupTop = root.AbsolutePosition.Y + rootSize.Y - 356
 		local rowY = math.max(20, popupTop - ROW_MARGIN_ABOVE_POPUP - ROW_CARD_HEIGHT)
 		-- Boss rounds: keep the row below the boss plaque and HP bar (host bottom),
 		-- but never lower than just above the popup.
@@ -567,6 +608,11 @@ return function(deps)
 		if bossHost and bossPlate and bossHost.Visible then
 			local bossBottom = bossPlate.AbsolutePosition.Y - root.AbsolutePosition.Y + bossPlate.AbsoluteSize.Y
 			rowY = math.min(math.max(rowY, bossBottom + 6), popupTop - 6 - ROW_CARD_HEIGHT)
+		end
+		-- the readout hangs just above the row's top edge, clear of the hand
+		scorePopup.Position = UDim2.new(0.5, 0, 0, math.max(4, rowY - 8 - POPUP_H))
+		if #playedGhosts == 0 then
+			return
 		end
 		local x = (rootSize.X - totalWidth) / 2
 		for i, entry in ipairs(playedGhosts) do
@@ -774,7 +820,7 @@ return function(deps)
 			if targetBox.Parent then
 				local boxScale = targetBox:FindFirstChildOfClass("UIScale")
 				if boxScale then
-					tweenTo(boxScale, { Scale = 1.18 }, 0.06)
+					tweenTo(boxScale, { Scale = 1.15 }, 0.06)
 					task.delay(0.06, function()
 						if boxScale.Parent then
 							tweenTo(boxScale, { Scale = 1 }, 0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
