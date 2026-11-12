@@ -1190,7 +1190,7 @@ local SELECTED_HOVER_SCALE = 1.14
 -- hand of cards toward your thumb. Pure position/scale tweening, no color
 -- or transparency tricks, so this is safe against the addGloss-style bug.
 local HOVER_LIFT = 6 -- capped: the lip of the table rail (Client/PlayRailLip) keeps a lifted card tucked in
-local SELECTED_LIFT = 8
+local SELECTED_LIFT = 18
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ===== Collection Gallery overlay =====
@@ -1485,7 +1485,7 @@ local function refreshCardVisual(index, usePop)
 	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	VisualHelpersModule.tweenTo(button, {
-		Position = UDim2.new(0.5, 0, 0.5, -lift),
+		Position = UDim2.new(0.5, button.Parent:GetAttribute("FanX") or 0, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),
 	}, 0.15)
 	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
 

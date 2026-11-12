@@ -548,7 +548,11 @@ return function(deps)
 			return
 		end
 		local rootSize = root.AbsoluteSize
-		local gap = 14
+		-- the played hand lands as a small tilted, slightly overlapping group with a soft shadow (Engine/PlayMotion.stackSpec);
+		-- calm mode keeps the flat row
+		local stacked = ClientSettings.get("reduceShake") ~= true
+		local gap = stacked and -8 or 14
+		local PMotion = stacked and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayMotion")) or nil
 		local totalWidth = 0
 		for _, entry in ipairs(playedGhosts) do
 			totalWidth = totalWidth + entry.ghost.AbsoluteSize.X
@@ -565,8 +569,30 @@ return function(deps)
 			rowY = math.min(math.max(rowY, bossBottom + 6), popupTop - 6 - ROW_CARD_HEIGHT)
 		end
 		local x = (rootSize.X - totalWidth) / 2
-		for _, entry in ipairs(playedGhosts) do
-			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		for i, entry in ipairs(playedGhosts) do
+			local dy, rot = 0, nil
+			if PMotion then
+				local _, sy, sr = PMotion.stackSpec(i, #playedGhosts)
+				dy, rot = sy, sr
+				if not entry.ghost:FindFirstChild("StackShadow") then
+					local sh = Instance.new("Frame")
+					sh.Name = "StackShadow"
+					sh.AnchorPoint = Vector2.new(0.5, 0)
+					sh.Position = UDim2.new(0.5, 0, 1, -2)
+					sh.Size = UDim2.new(0.86, 0, 0, 14)
+					sh.BackgroundColor3 = Color3.new(0, 0, 0)
+					sh.BackgroundTransparency = 0.7
+					sh.BorderSizePixel = 0
+					sh.Active = false
+					sh.ZIndex = 29 -- under the ghost (30), in Global layering
+					local c = Instance.new("UICorner")
+					c.CornerRadius = UDim.new(0.5, 0)
+					c.Parent = sh
+					sh.Parent = entry.ghost
+				end
+			end
+			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY + dy) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+			if rot then tweenTo(entry.ghost, { Rotation = rot }, pace(GHOST_LIFT_DURATION)) end
 			x = x + entry.ghost.AbsoluteSize.X + gap
 		end
 	end

@@ -76,10 +76,10 @@ function PlayRailLip.addCardShadow(slot)
 	local s = Instance.new("Frame")
 	s.Name = "ContactShadow"
 	s.AnchorPoint = Vector2.new(0.5, 0.5)
-	s.Position = UDim2.new(0.5, 0, 1, -4)
-	s.Size = UDim2.new(0.86, 0, 0, 14)
+	s.Position = UDim2.new(0.5, 0, 1, 6) -- 6 px below the card's foot, on the felt
+	s.Size = UDim2.new(0.9, 0, 0, 18)
 	s.BackgroundColor3 = Color3.new(0, 0, 0)
-	s.BackgroundTransparency = 0.68
+	s.BackgroundTransparency = 0.7
 	s.BorderSizePixel = 0
 	s.Active = false
 	s.ZIndex = 1 -- created before the card button, so the card draws over it
@@ -93,8 +93,10 @@ function PlayRailLip.setShadow(slot, selected, lift)
 	if slot then slot:SetAttribute("Lifted", selected == true) end -- read by PlayMotion for the camera lean
 	local s = slot and slot:FindFirstChild("ContactShadow")
 	if not s then return end
-	local t = selected and 0.5 or 0.68
-	s.BackgroundTransparency = math.min(0.9, t + (lift or 0) * 0.01)
+	-- a lifted card's shadow shrinks and fades (numbers in Engine/PlayMotion.shadowFor)
+	local tr, w = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayMotion).shadowFor(selected == true)
+	s.BackgroundTransparency = math.min(0.95, tr + (lift or 0) * 0.002)
+	s.Size = UDim2.new(w, 0, 0, selected and 14 or 18)
 end
 
 return PlayRailLip

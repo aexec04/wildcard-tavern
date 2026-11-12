@@ -52,33 +52,50 @@ end
 PlayMotion.COOL_SETS = { festival_night = true, winter_evening = true }
 function PlayMotion.lightFor(setId)
 	if PlayMotion.COOL_SETS[setId] then
-		return { color = { 150, 190, 235 }, poolTransparency = 0.88, edgeTransparency = 0.72 }
+		return { color = { 150, 190, 235 }, poolTransparency = 0.84, edgeTransparency = 0.72 }
 	end
-	return { color = { 255, 206, 140 }, poolTransparency = 0.86, edgeTransparency = 0.72 }
+	return { color = { 255, 206, 140 }, poolTransparency = 0.82, edgeTransparency = 0.72 }
 end
 
 -- pool rect over the hand: a wide ellipse centred on the felt at the hand row
 function PlayMotion.poolRect(screenW, screenH, handY, handH)
-	local w = math.floor(screenW * 0.62)
+	local w = math.floor(screenW * 0.6)
 	local h = math.floor(math.max(handH * 2.2, screenH * 0.3))
 	return math.floor(screenW / 2 - w / 2), math.floor(handY + handH / 2 - h / 2), w, h
 end
 
--- depth: the hand lies on the felt in a very gentle arc. Position 1..count; returns degrees (1 to 3 in size, edges lean
--- outward) and a scale (centre 1.0, far edge cards about 4 percent smaller, as if farther from the seat)
-function PlayMotion.cardTilt(pos, count)
+-- depth: the hand lies on the felt in a visible fan. Position 1..count, t runs -1 (far left) to 1 (far right).
+-- Ends lean outward up to 5 degrees, dip 17 px, tuck 8 px toward the middle (so neighbours overlap a little) and are 0.92 the
+-- size of the centre cards, which sit highest, largest and level.
+PlayMotion.FAN = { deg = 5, dip = 17, tuck = 8, endScale = 0.92 }
+local function fanT(pos, count)
 	count = math.max(1, count or 1)
-	local t = count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
-	local jitter = (pos % 2 == 0) and 0.7 or -0.7
-	local deg = PlayMotion.clamp(t * 2.2 + jitter, -3, 3)
-	if math.abs(deg) < 1 then deg = deg < 0 and -1 or 1 end
-	return deg
+	return count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
+end
+function PlayMotion.cardTilt(pos, count)
+	return fanT(pos, count) * PlayMotion.FAN.deg
+end
+function PlayMotion.cardScale(pos, count)
+	local t = fanT(pos, count)
+	return 1 - (1 - PlayMotion.FAN.endScale) * t * t
+end
+-- pixel offset from the slot centre: x tucks toward the middle, y dips down toward the ends
+function PlayMotion.cardOffset(pos, count)
+	local t = fanT(pos, count)
+	return -t * PlayMotion.FAN.tuck, PlayMotion.FAN.dip * t * t
 end
 
-function PlayMotion.cardScale(pos, count)
-	count = math.max(1, count or 1)
-	local t = count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
-	return 1 - 0.04 * t * t
+-- played hand: card i of n lands in a small tilted overlapping group on the felt centre (offsets from the centre, degrees)
+function PlayMotion.stackSpec(i, n)
+	n = math.max(1, n or 1)
+	local t = n > 1 and ((i - 1) / (n - 1)) * 2 - 1 or 0
+	return t * 26, ((i % 2 == 0) and -4 or 4), t * 9 + ((i % 2 == 0) and -2 or 2)
+end
+
+-- contact shadow under a hand card: (transparency, width fraction) at rest and with the card lifted
+function PlayMotion.shadowFor(lifted)
+	if lifted then return 0.86, 0.7 end
+	return 0.7, 0.9
 end
 
 -- camera lean: 0 at rest, 0.6 with a card selected, 1 while a hand plays; a plate or calm mode returns to rest

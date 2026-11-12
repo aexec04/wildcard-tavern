@@ -44,6 +44,7 @@ function M.install(deps)
 	pcall(buildGlow)
 	pcall(function() HudTheme.onSkin(function() pcall(buildGlow) end) end)
 
+	local sx, sy, lean = 0, 0, 0
 	local function placeGlow()
 		if not glow then return end
 		local show = handFrame.Visible and root.AbsoluteSize.X > 0
@@ -51,7 +52,7 @@ function M.install(deps)
 		if not show then return end
 		local ox, oy = root.AbsolutePosition.X, root.AbsolutePosition.Y
 		local x, y, w, h = PM.poolRect(root.AbsoluteSize.X, root.AbsoluteSize.Y, handFrame.AbsolutePosition.Y - oy, handFrame.AbsoluteSize.Y)
-		glow.root.Position = UDim2.fromOffset(x + w / 2, y + h / 2)
+		glow.root.Position = UDim2.fromOffset(x + w / 2 - sx * 12, y + h / 2 - sy * 6)
 		glow.root.Size = UDim2.fromOffset(w, h)
 	end
 
@@ -61,7 +62,6 @@ function M.install(deps)
 		{ name = "PlayRailBack", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
 		{ name = "PlayRailFront", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
 	}
-	local sx, sy, lean = 0, 0, 0
 	local function applyDepth()
 		local slots = {}
 		for _, c in ipairs(handFrame:GetChildren()) do
@@ -71,6 +71,18 @@ function M.install(deps)
 		local selected = 0
 		for i, slot in ipairs(slots) do
 			slot.Rotation = PM.cardTilt(i, #slots)
+			-- fan offset (tuck and dip) lives in slot attributes; the hub's lift tween adds it to its own target
+			local fx, fy = PM.cardOffset(i, #slots)
+			fx, fy = math.floor(fx + 0.5), math.floor(fy + 0.5)
+			local ox, oy = slot:GetAttribute("FanX") or 0, slot:GetAttribute("FanY") or 0
+			if ox ~= fx or oy ~= fy then
+				slot:SetAttribute("FanX", fx)
+				slot:SetAttribute("FanY", fy)
+				local btn = slot:FindFirstChildOfClass("TextButton")
+				if btn and not slot:GetAttribute("Dealing") then
+					btn.Position = btn.Position + UDim2.fromOffset(fx - ox, fy - oy)
+				end
+			end
 			local us = slot:FindFirstChild("DepthScale")
 			if not us then us = Instance.new("UIScale") us.Name = "DepthScale" us.Parent = slot end
 			us.Scale = PM.cardScale(i, #slots)
@@ -117,6 +129,8 @@ function M.install(deps)
 		local fromX = deck.AbsolutePosition.X + deck.AbsoluteSize.X / 2 - (slot.AbsolutePosition.X + slot.AbsoluteSize.X / 2)
 		local fromY = deck.AbsolutePosition.Y + deck.AbsoluteSize.Y / 2 - (slot.AbsolutePosition.Y + slot.AbsoluteSize.Y / 2)
 		local delay, dur = PM.dealTiming(order, count)
+		local landX, landY = slot:GetAttribute("FanX") or 0, slot:GetAttribute("FanY") or 0
+		slot:SetAttribute("Dealing", true)
 		button.Position = UDim2.new(0.5, fromX, 0.5, fromY)
 		button.Rotation = 14
 		task.delay(delay, function()
@@ -133,7 +147,7 @@ function M.install(deps)
 					return
 				end
 				local e = 1 - (1 - t) ^ 3 -- ease out
-				local x, y = PM.arc(fromX, fromY, 0, 0, e, 40)
+				local x, y = PM.arc(fromX, fromY, landX, landY, e, 40)
 				button.Position = UDim2.new(0.5, x, 0.5, y)
 				button.Rotation = 14 * (1 - e)
 			end)

@@ -19529,17 +19529,29 @@ table.insert(tests, { name = "PlayMotion: parallax is capped and opposite the cu
 	expectTrue(x >= 0 and x + w <= 1920 and h > 0 and y + h > 800, "pool sits over the hand inside the screen")
 end })
 
-table.insert(tests, { name = "PlayMotion: card tilt 1 to 3 degrees, edge cards 4 percent smaller, lean eases only with a selection or play", fn = function()
+table.insert(tests, { name = "PlayMotion: visible fan (5 degrees, 17 px dip, 8 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
-	for count = 1, 8 do
+	for count = 2, 8 do
 		for pos = 1, count do
-			local d = math.abs(PM.cardTilt(pos, count))
-			expectTrue(d >= 1 and d <= 3, "tilt 1 to 3 degrees")
-			local sc = PM.cardScale(pos, count)
-			expectTrue(sc >= 0.96 and sc <= 1, "scale within 4 percent")
+			local d, sc = PM.cardTilt(pos, count), PM.cardScale(pos, count)
+			local dx, dy = PM.cardOffset(pos, count)
+			expectTrue(math.abs(d) <= 5 and sc >= 0.92 and sc <= 1, "tilt within 5 degrees, scale within 8 percent")
+			expectTrue(dy >= 0 and dy <= 20 and math.abs(dx) <= 10, "dip 0 to 20 px, tuck up to 10 px")
 		end
+		expectTrue(PM.cardTilt(1, count) == -5 and PM.cardTilt(count, count) == 5, "ends lean outward 5 degrees")
+		local _, dyEnd = PM.cardOffset(1, count)
+		expectTrue(dyEnd >= 14 and dyEnd <= 20 and math.abs(PM.cardScale(1, count) - 0.92) < 1e-9, "ends dip 14 to 20 px and scale 0.92")
+		expectTrue(PM.cardOffset(1, count) > 0 and PM.cardOffset(count, count) < 0, "ends tuck toward the middle")
 	end
-	expectTrue(math.abs(PM.cardScale(1, 8) - 0.96) < 1e-9 and PM.cardScale(1, 1) == 1, "far edge 0.96, lone card 1")
+	local _, dyMid = PM.cardOffset(2, 3)
+	expectTrue(dyMid == 0 and PM.cardTilt(2, 3) == 0 and PM.cardScale(2, 3) == 1, "the centre card sits level, largest and lowest on the arc")
+	expectTrue(PM.cardTilt(1, 1) == 0 and PM.cardScale(1, 1) == 1, "a lone card is straight")
+	local dx1, _, r1 = PM.stackSpec(1, 4)
+	local dx4, _, r4 = PM.stackSpec(4, 4)
+	expectTrue(dx1 < 0 and dx4 > 0 and r1 ~= r4 and math.abs(r1) <= 12, "played cards form a small tilted overlapping group")
+	local tr0, w0 = PM.shadowFor(false)
+	local tr1, w1 = PM.shadowFor(true)
+	expectTrue(tr1 > tr0 and w1 < w0 and tr0 >= 0.65, "a lifted card's shadow shrinks and fades")
 	expectTrue(PM.leanTarget(0, false, false, false) == 0 and PM.leanTarget(2, false, false, false) == 0.6 and PM.leanTarget(0, true, false, false) == 1, "lean steps")
 	expectTrue(PM.leanTarget(2, true, true, false) == 0 and PM.leanTarget(2, true, false, true) == 0, "plate or calm returns to rest")
 	local dy, sc = PM.leanOffset(1, PM.LEAN_PX.rail)
