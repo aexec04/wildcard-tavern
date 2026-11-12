@@ -20064,6 +20064,55 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 	end
 end })
 
+tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body at 1920x1080 and 1280x720, content fills plaques, pages and shelves with whole text", fn = function()
+	local L = require(script.Parent.Parent.Engine.StatsSceneLayout)
+	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local rect = L.panel(vp[1], vp[2])
+		expectTrue(rect.x >= 260 - 1 and rect.x + rect.w <= vp[1] and rect.y >= 0 and rect.y + rect.h <= vp[2], "desk stays right of the sidebar and on screen at " .. vp[1] .. "x" .. vp[2])
+		local W, H = rect.w, rect.h - L.TOP - L.BOTTOM
+		local p = L.place(W, H)
+		expectTrue(p.ok, "painted ledger desk fits at " .. vp[1] .. "x" .. vp[2])
+		expectEqual(#p.plaques, 3, "three plaques")
+		expectEqual(#p.pages, 2, "two pages")
+		expectEqual(#p.shelves, 6, "six shelf slots")
+		local all = {}
+		for _, g in ipairs({ p.plaques, p.pages, p.shelves }) do for _, r in ipairs(g) do all[#all + 1] = r end end
+		local area = { x = 0, y = 0, w = W, h = H }
+		for i, r in ipairs(all) do
+			expectTrue(inside(r, area), "slot " .. i .. " inside the body at " .. vp[1] .. "x" .. vp[2])
+			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(L.rowsFit(p.pages[1].h - 30, L.ROW_H) >= 5, "the left page shows at least five rows")
+		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
+		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil, "plain fade strip") end
+	end
+	local stats = { runs = 12, wins = 3, bestNight = 6, bestHandScore = 123456, hands = 400, tipsEarned = 900,
+		favoritePatron = { id = "x", wins = 2 }, quickBest = { won = true, night = 3, score = 10 },
+		recent = { { won = true, night = 8, score = 5000 }, { won = false, night = 4, score = 900 }, { won = false, night = 6, score = 1200 } } }
+	local c = L.content(stats, { streak = 5 }, "Regular", "The Gambler")
+	expectEqual(#c.headline, 3, "three headline numbers")
+	expectEqual(c.headline[1].value, "3", "runs won")
+	expectEqual(c.headline[3].value, "123.5K", "best hand formatted")
+	expectEqual(#c.shelves, 6, "six shelf items")
+	expectEqual(c.shelves[1].value, "5 days", "login streak")
+	expectTrue(c.shelves[2].value:find("Won, Night 8", 1, true) ~= nil, "best run first")
+	expectTrue(c.shelves[5].value:find("The Gambler", 1, true) ~= nil, "favourite Patron by name")
+	expectEqual(#c.runs, 3, "recent runs listed")
+	expectEqual(#c.rows, 7, "seven ledger lines")
+	local empty = L.content(nil, nil, nil, nil)
+	expectEqual(#empty.shelves, 6, "an empty ledger still fills every shelf")
+	expectEqual(empty.shelves[1].value, "0 days", "no streak yet")
+	expectEqual(#empty.runs, 0, "no runs yet")
+	local f = io and io.open and io.open("src/Client/StatsRoom.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("[StatsRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, select, hand and the hand count is reported once dealt", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(table.concat(R.ROUND1_ORDER, ","), "start,choice,select,hand", "fixed step order")

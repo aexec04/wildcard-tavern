@@ -45,7 +45,23 @@ return function(deps)
 		panel.Position = UDim2.new(0, r.x, 0.5, 0)
 	end
 	fitPanel()
-	local book = LedgerBook.build(deps, panel)
+	local bookLayer = Instance.new("Frame") -- everything the old open ledger book draws; hidden while the painted desk is up
+	bookLayer.Name = "BookLayer"
+	bookLayer.BackgroundTransparency = 1
+	bookLayer.Size = UDim2.fromScale(1, 1)
+	bookLayer.Active = false
+	bookLayer.ZIndex = 41
+	bookLayer.Parent = panel
+	local book = LedgerBook.build(deps, bookLayer)
+	-- the painted ledger desk (stats_room_a): used when the window is big enough and the Image id is recorded, else the book above
+	local room = require(script.Parent.StatsRoom).new({
+		panel = panel, screenGui = deps.screenGui, hide = { bookLayer }, getState = deps.getLatestState,
+		plainRect = function()
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
+			return Pages.panelRect(vp.X, vp.Y)
+		end,
+	})
 
 	local L = Pages.LAYOUT
 	local title = Instance.new("TextLabel")
@@ -83,9 +99,23 @@ return function(deps)
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("stats")
 		fitPanel()
-		book.setPage(1)
-		book.refresh(true)
+		if room.layout() then
+			room.paint()
+		else
+			book.setPage(1)
+			book.refresh(true)
+		end
 		deps.popIn(backdrop, panel)
+	end
+	do -- a resized window re-decides painted desk or book
+		local cam = workspace.CurrentCamera
+		if cam then
+			cam:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+				if backdrop.Visible then
+					if room.layout() then room.paint() else book.refresh(false) end
+				end
+			end)
+		end
 	end
 	OverlayManager.registerOpener("stats", openThisPanel)
 	deps.openButton.MouseButton1Click:Connect(openThisPanel)
@@ -96,7 +126,7 @@ return function(deps)
 	deps.StateUpdatedRemote.OnClientEvent:Connect(function()
 		task.defer(function()
 			if backdrop.Visible then
-				book.refresh(false)
+				if room.on then room.paint() else book.refresh(false) end
 			end
 		end)
 	end)
