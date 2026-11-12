@@ -144,6 +144,14 @@ local function build(deps)
 		host.AnchorPoint = Vector2.new(0, 0)
 		host.Position = UDim2.new(0, left, 0, 0)
 		host.Size = UDim2.new(0, areaW, 1, 0)
+		-- the plate and the frame stand at the screen centre, not the host centre, so the plate stays clear of the corner icons
+		local cx = math.floor(vp.X / 2 - left)
+		local pl = host:FindFirstChild("NamePlate")
+		if pl then pl.Position = UDim2.new(0, cx, 0, 10) end
+		local hd = host:FindFirstChild("BossPortrait")
+		local af = hd and hd:FindFirstChild("BossFrame")
+		if af then af.Position = UDim2.new(0, cx, 0, af.Position.Y.Offset) end
+		host:SetAttribute("CenterX", cx)
 	end
 	host.ClipsDescendants = true
 
@@ -404,7 +412,7 @@ local function build(deps)
 				artFrame.AnchorPoint = Vector2.new(0.5, 0)
 				-- fr.top is in screen pixels; the holder may start below the screen top (inset), so take that off
 				local inset = math.max(0, holder.AbsolutePosition.Y)
-				artFrame.Position = UDim2.new(0.5, 0, 0, math.max(0, fr.top - inset))
+				artFrame.Position = UDim2.new(0, host:GetAttribute("CenterX") or math.floor(host.AbsoluteSize.X / 2), 0, math.max(0, fr.top - inset))
 				artFrame.Size = UDim2.fromOffset(fr.width, fr.height)
 				artFrame.BackgroundColor3 = WOOD
 				artFrame.BorderSizePixel = 0
@@ -414,8 +422,8 @@ local function build(deps)
 				artFrame.Parent = holder
 				corner(artFrame, 8)
 				local frameStroke = Instance.new("UIStroke")
-				frameStroke.Color = GOLD
-				frameStroke.Thickness = 3
+				frameStroke.Color = Color3.fromRGB(140, 32, 32) -- dark red frame: a boss
+				frameStroke.Thickness = 4
 				frameStroke.Parent = artFrame
 				artBase = UDim2.fromScale(0.5, 0.5)
 				-- small nameplate across the bottom border: the boss name in cream on dark wood with a gilt rim

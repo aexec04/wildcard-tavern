@@ -256,12 +256,20 @@ local function run(root, st)
 			-- the two lines are one block centred in the slot: name hugs the middle from above, rule line from below
 			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.45, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = showLine and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center, Visible = true })
-			fitOne(st, nameL, w, 12, 14)
+			fitOne(st, nameL, w, 12, isBoss and 15 or 14)
+			if isBoss then
+				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200), Font = Enum.Font.GothamBold }) -- fitOne sets dark ink: cream on the red plate
+			else
+				-- a plate left red by an earlier boss round goes back to its saved colour
+				local sv = st.saved[rule]
+				if sv and sv.BackgroundColor3 then rule.BackgroundColor3 = sv.BackgroundColor3[1] end
+				if sv and sv.BackgroundTransparency then rule.BackgroundTransparency = sv.BackgroundTransparency[1] end
+			end
 			put(st, lineL, { Position = UDim2.new(0, RULE_INSET, 0.45, 0), Size = UDim2.new(1, -2 * RULE_INSET, 0.55, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Top, Visible = showLine and true or false })
 			if showLine and isBoss then
 				fitOne(st, lineL, w, 12, 12)
-				put(st, lineL, { TextWrapped = true, TextColor3 = Color3.fromRGB(230, 205, 170) })
+				put(st, lineL, { TextWrapped = true, TextColor3 = Color3.fromRGB(246, 232, 200) })
 			elseif showLine then
 				fitOne(st, lineL, w, 12, 14)
 			end
