@@ -41,6 +41,15 @@ function StatsRoom.new(ctx)
 	layer.Parent = ctx.panel
 
 	local room = { on = false }
+	-- the lights live in their own layer: room.paint() clears RoomLayer's children on every repaint
+	local lightLayer = Instance.new("Frame")
+	lightLayer.Name = "LightLayer"
+	lightLayer.BackgroundTransparency = 1
+	lightLayer.Size = UDim2.fromScale(1, 1)
+	lightLayer.Active = false
+	lightLayer.ZIndex = 42
+	lightLayer.Parent = ctx.panel
+	local lights = require(script.Parent.RoomLights).attach(lightLayer, { room = "stats", zIndex = 42, visible = function() return layer.Visible and (not ctx.backdrop or ctx.backdrop.Visible) end })
 	local placed = nil
 	local lastKey = nil
 
@@ -158,6 +167,7 @@ function StatsRoom.new(ctx)
 			scene.hide()
 		end
 		layer.Visible = room.on
+		lights.place(room.on and { x = p.image.x, y = p.image.y + Layout.TOP, w = p.image.w, h = p.image.h } or nil)
 		do local sh = ctx.panel.Parent and ctx.panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not room.on end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
 		end
 		if ctx.onMode then ctx.onMode(room.on) end

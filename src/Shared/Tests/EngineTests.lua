@@ -19197,6 +19197,37 @@ table.insert(tests, { name = "FlairSceneLayout.arch: the mirror glass is a circl
 	expectEqual(A.radius, 77, "radius is half the width")
 end })
 
+table.insert(tests, { name = "RoomLights: flicker stays within plus or minus 8 percent for every kind, is exactly 1 in calm mode; motes capped at 12 and inside the shaft; spots lie on the picture", fn = function()
+	local RL = require(script.Parent.Parent.Engine.RoomLights)
+	for _, kind in ipairs({ "candle", "lantern", "fire", "window" }) do
+		local lo, hi = 2, 0
+		for seed = 1, 5 do
+			for step = 0, 6000 do
+				local m = RL.flicker(kind, step * 0.01, seed, false)
+				lo, hi = math.min(lo, m), math.max(hi, m)
+				expectEqual(RL.flicker(kind, step * 0.01, seed, true), 1, kind .. ": calm is static")
+			end
+		end
+		expectTrue(lo >= 1 - RL.LIMIT - 1e-9 and hi <= 1 + RL.LIMIT + 1e-9, kind .. ": inside +-8 percent (" .. lo .. ", " .. hi .. ")")
+		expectTrue(hi - lo > 0.02, kind .. ": it does move")
+	end
+	for id, room in pairs(RL.ROOMS) do
+		expectTrue(RL.moteCount(id) <= RL.MAX_MOTES, id .. ": at most 12 motes")
+		expectTrue(#room.spots > 0, id .. ": has light spots")
+		for _, sp in ipairs(room.spots) do
+			expectTrue(sp.x > 0 and sp.x < 1 and sp.y > 0 and sp.y < 1 and sp.size > 0 and sp.size < 0.5, id .. ": spot on the picture")
+			expectTrue(RL.BASE[sp.kind] ~= nil, id .. ": known kind " .. tostring(sp.kind))
+		end
+		for i = 1, RL.moteCount(id) do
+			for step = 0, 400 do
+				local m = RL.mote(i, RL.moteCount(id), step * 0.5, room.shaft)
+				expectTrue(m.alpha >= 0 and m.alpha <= 1, id .. ": mote alpha 0..1")
+				expectTrue(m.y >= room.shaft.y - 1e-9 and m.y <= room.shaft.y + room.shaft.h + 1e-9, id .. ": mote stays in the shaft height")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Collection painted sections: a locked Recipe or Bond prints only its name, never its effect or flavor text", fn = function()
 	local col, CB, discovered = collectionBuild({ painted = true })
 	if not col then return end

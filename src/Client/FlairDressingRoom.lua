@@ -130,6 +130,7 @@ function FlairDressingRoom.build(deps, panel)
 	local sceneImage = make("ImageLabel", sceneHolder, { Name = "Picture", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false })
 	local sceneVignette = make("Frame", sceneHolder, { Name = "Vignette", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- over the picture
 	local sceneMarks = make("Frame", sceneHolder, { Name = "SoonMarks", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false })
+	local roomLights = require(script.Parent.RoomLights).attach(sceneHolder, { room = "flair", zIndex = Z, visible = function() return sceneHolder.Visible and panel.Visible and (panel.Parent == nil or not panel.Parent:IsA("GuiObject") or panel.Parent.Visible) end })
 	local sceneOn = false
 	local sceneS = nil -- the last Scene.place result while the painted room is on
 	local truncatedLabels = 0 -- cubby names that do not fit their two lines (reset on every relayout)
@@ -631,6 +632,7 @@ function FlairDressingRoom.build(deps, panel)
 		end
 		if not S then sceneS = nil; paintPatches() end
 		sceneHolder.Visible = sceneOn
+		roomLights.place(sceneOn and sceneS and { x = sceneS.image.x, y = sceneS.image.y, w = sceneS.image.w, h = sceneS.image.h } or nil)
 		plaque.Visible = sceneOn
 		-- panels drawn by hand give way to the painting
 		plate.BackgroundTransparency = sceneOn and 1 or 0
