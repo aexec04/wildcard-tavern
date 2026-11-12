@@ -1020,6 +1020,19 @@ return function(deps)
 			-- first. Same shape as the Legendary block just below, its own
 			-- instances/color/hold.
 			if wildcardResolution then
+				-- one message in the centre at a time: wait (briefly) for the Announcer's turn, free the slot when the banner is gone
+				local wildcardTicket
+				do
+					local okA, Announcer = pcall(function() return require(script.Parent.Announcer) end)
+					if okA then
+						wildcardTicket = Announcer.request("wildcard", 3, 2.6)
+						wildcardTicket.wait(1.5)
+					end
+				end
+				if scorePopupToken ~= myToken then
+					if wildcardTicket then wildcardTicket.release() end
+					return
+				end
 				wildcardBanner.TextTransparency = 1
 				wildcardBanner.TextStrokeTransparency = 1
 				wildcardBannerScale.Scale = 0.4
@@ -1050,6 +1063,7 @@ return function(deps)
 				end)
 
 				task.wait(pace(WILDCARD_FREEZE_HOLD))
+				if wildcardTicket then wildcardTicket.release() end
 				if scorePopupToken ~= myToken then
 					return
 				end

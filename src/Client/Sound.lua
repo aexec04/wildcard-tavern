@@ -687,6 +687,11 @@ return function(deps)
 	-- pitch (6 percent) and volume (8 percent) variation, never the same exact value twice in a row. Composite cues (Engine/SoundFX.Layers)
 	-- play their layers, each at its own delay, pitch and volume, using only sounds that already load.
 	local gate = SoundFX.newGate()
+	-- SOUND DIRECTOR (Engine/SoundDirector): one fanfare at a time, at most 2 small voices, a 90 ms gap per group, a coin burst becomes one
+	-- rising run, and a fanfare ducks the rest by 50 percent. Studio logs "[SoundDirector] voices=N" every time a sound starts.
+	local director = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundDirector")).new()
+	local logVoices = game:GetService("RunService"):IsStudio()
+	local fanfareShots = {} -- the Sounds of the fanfare that is playing, so a higher priority one can turn it down
 	local lastPitch, lastVolume = {}, {}
 	local failedWarned = {}
 	local function cueDelay(delay, fn)
@@ -701,6 +706,26 @@ return function(deps)
 			return
 		end
 		local layers = SoundFX.layersFor(name)
+		-- a cue with no sound (an id-less single cue) is silent and must not take a voice
+		if not layers and not SoundIds.cueId(name) then
+			return
+		end
+		local verdict = director:request(name, os.clock())
+		if not verdict.play then
+			return
+		end
+		if verdict.cut then
+			for _, shot in ipairs(fanfareShots) do
+				pcall(function() shot.Volume = shot.Volume * 0.4 end) -- the cut fanfare keeps 40 percent (60 percent down)
+			end
+			fanfareShots = {}
+		end
+		if logVoices then
+			print(string.format("[SoundDirector] voices=%d cue=%s group=%s", verdict.voices, name, verdict.group))
+		end
+		scale = (scale or 1) * verdict.scale
+		layerSpeed = (layerSpeed or 1) * verdict.speed
+		local isFanfare = verdict.group == "fanfare"
 		if layers then
 			for _, layer in ipairs(layers) do
 				cueDelay(layer.delay, function()
@@ -709,18 +734,21 @@ return function(deps)
 					if not id then
 						return
 					end
-					local speed = layer.speed or (layer.semis and SoundFX.semitone(layer.semis)) or 1
-					playOneShot(id, (layer.volume or cue.volume or 0.5) * (scale or 1), speed, layer.maxLength or cue.maxLength, cue.startAt, layer.fade or cue.fade)
+					local speed = (layer.speed or (layer.semis and SoundFX.semitone(layer.semis)) or 1) * verdict.speed
+					local shot = playOneShot(id, (layer.volume or cue.volume or 0.5) * (scale or 1), speed, layer.maxLength or cue.maxLength, cue.startAt, layer.fade or cue.fade)
+					if isFanfare and shot then fanfareShots[#fanfareShots + 1] = shot end
 				end)
 			end
 			return
 		end
 		local id = SoundIds.cueId(name)
-		if not id then
-			return
-		end
 		local cue = SoundIds.Cues[name]
 		local volume = (cue.volume or 0.5) * (scale or 1)
+		if verdict.speed ~= 1 then
+			-- a rising coin tick needs its own pitch: play it as a one shot
+			playOneShot(id, volume, layerSpeed, cue.maxLength or 0.6, cue.startAt, cue.fade)
+			return
+		end
 		if SoundFX.JITTERED[name] then
 			local rollP, rollV = math.random(), math.random()
 			local speed = SoundFX.jitter(1, SoundFX.PITCH_JITTER, rollP, lastPitch[name])
@@ -731,6 +759,7 @@ return function(deps)
 			return
 		end
 		playSfx(id, volume, cue.maxLength, cue.startAt, cue.fade)
+		if isFanfare and sfxPool[id] then fanfareShots = { sfxPool[id] } end
 	end
 
 	-- The coin cascade: a few coins 60 ms apart at slightly different pitch (the payout landing).
@@ -766,6 +795,19 @@ return function(deps)
 	-- Studio audition (DebugGoto "sfx:<cue>" and "sfx:ladder"): plays a cue once, or an 8 step pitch ladder. A cue whose Sound fails to load or
 	-- has no length is named in a warning, so the QA loop can see which one is dead.
 	local function auditionCue(name)
+		if name == "roundwin" then
+			-- the whole Round Complete sound set in the order the game fires it (a score tick burst, the round stinger, the Round Complete coin run,
+			-- the Counter greeting, then a True Wildcard lock in), so QA can count voices: each sound that starts logs "[SoundDirector] voices=N"
+			local script_ = {
+				{ 0.00, "chip" }, { 0.05, "chip" }, { 0.10, "chip" }, { 0.15, "coin" }, { 0.20, "win" }, { 0.25, "coin" }, { 0.30, "coin" },
+				{ 0.35, "coin" }, { 0.40, "coin" }, { 0.45, "coin" }, { 0.50, "coin" }, { 0.60, "shop_enter" }, { 0.70, "card_deal" }, { 0.90, "button_click" },
+				{ 1.50, "legendary_moment" }, { 1.60, "win" },
+			}
+			for _, step in ipairs(script_) do
+				task.delay(step[1], function() playCue(step[2], 1) end)
+			end
+			return true
+		end
 		if name == "ladder" then
 			local id = JUICE_SOUND_IDS.chipTick
 			for n = 1, 8 do

@@ -6,7 +6,10 @@
 	Next Round work from the first frame. A click or key press anywhere (after a short grace) closes it early. Timing lives in the
 	tested Engine/RewardBanner; the amounts come from Engine/RoundPayout. The economy is not touched, this only draws.
 
-	RoundRewardBanner.show({ screenGui, title, amount, interest })
+	RoundRewardBanner.show({ screenGui, title, amount, interest, flavor, onClose })
+	    flavor   one small line under the Total (a callout such as the Counter's "Big spender today!", merged here by Client/Announcer
+	             instead of a second overlapping label); RoundRewardBanner.setFlavor(text) adds it while the plate is up
+	    onClose  called once when the plate is gone (Client/Announcer frees the centre of the screen then)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,15 +26,25 @@ local PLATE = Color3.fromRGB(46, 34, 24)
 local BRASS = Color3.fromRGB(200, 160, 84)
 local CREAM = Color3.fromRGB(250, 238, 212)
 local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
+local SOFT = Color3.fromRGB(226, 206, 168)
 local Z = 55 -- over the Counter and the table, under every modal (the Choice screens start at 60)
 
-local current -- the banner on screen: { gui, conns }
+local current -- the banner on screen: { gui, conns, onClose, flavorLabel }
 
 local function close()
 	if not current then return end
+	local onClose = current.onClose
 	for _, c in ipairs(current.conns) do c:Disconnect() end
 	if current.gui then current.gui:Destroy() end
 	current = nil
+	if onClose then pcall(onClose) end
+end
+
+function RoundRewardBanner.setFlavor(text)
+	if current and current.flavorLabel and type(text) == "string" and text ~= "" then
+		current.flavorLabel.Text = text
+		current.flavorLabel.Visible = true
+	end
 end
 
 local function label(parent, text, size, color, order)
@@ -94,10 +107,14 @@ function RoundRewardBanner.show(args)
 		rows[i].Visible = plan.stagger <= 0 or i == 1
 	end
 	local totalRow = rows[#rows]
+	local flavorLabel = label(gui, args.flavor or "", 15, SOFT, 50)
+	flavorLabel.Name = "Flavor"
+	flavorLabel.Font = Enum.Font.GothamMedium
+	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= ""
 
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
 
-	current = { gui = gui, conns = {} }
+	current = { gui = gui, conns = {}, onClose = args.onClose, flavorLabel = flavorLabel }
 	local me = current
 	local started = os.clock()
 	local dismissedAt = nil

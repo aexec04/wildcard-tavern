@@ -20892,12 +20892,144 @@ table.insert(tests, { name = "Choose your road: painted room scene under the pan
 	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
+table.insert(tests, { name = "Announcer: one message at a time 0.25 s apart, higher priority first, low priority dropped after 2 s or when the state moved on, flavor merges into Round Complete", fn = function()
+	local A = require(script.Parent.Parent.Engine.Announcer)
+	local a = A.new()
+	local function kinds(ops, op)
+		local out = {}
+		for _, o in ipairs(ops) do if o.op == op then out[#out + 1] = o.msg.id end end
+		return out
+	end
+	-- Round Complete up; a wildcard and a Night strip arrive meanwhile
+	a:submit({ id = "rc", kind = "round_complete", priority = 3, duration = 2.6 }, 0)
+	expectEqual(kinds(a:tick(0), "show")[1], "rc", "the first message shows at once")
+	a:submit({ id = "night", kind = "night", priority = 1, duration = 2 }, 0.1)
+	a:submit({ id = "wild", kind = "wildcard", priority = 3, duration = 2.6 }, 0.2)
+	expectEqual(#kinds(a:tick(0.5), "show"), 0, "only one message is visible at a time")
+	expectEqual(a:current().id, "rc", "the Round Complete stays up")
+	-- it ends at 2.6; the gap keeps the next one out until 2.85
+	local ops = a:tick(2.6)
+	expectEqual(kinds(ops, "hide")[1], "rc", "Round Complete is hidden at its duration")
+	expectEqual(#kinds(ops, "show"), 0, "and the next waits for the 0.25 s gap")
+	expectEqual(kinds(ops, "drop")[1], "night", "the priority 1 strip waited more than 2 s and is dropped")
+	expectEqual(#kinds(a:tick(2.8), "show"), 0, "still inside the gap")
+	ops = a:tick(2.86)
+	expectEqual(kinds(ops, "show")[1], "wild", "the higher priority message goes next, not the older Night strip")
+	-- a priority 3 message is never dropped for waiting
+	a = A.new()
+	a:submit({ id = "w1", kind = "wildcard", priority = 3, duration = 2.6 }, 0)
+	a:tick(0)
+	a:submit({ id = "rc2", kind = "round_complete", priority = 3, duration = 2.6 }, 0.1)
+	expectEqual(#kinds(a:tick(2.5), "drop"), 0, "Round Complete is never dropped for waiting")
+	-- a message made for another round state is dropped
+	a = A.new()
+	a:setState("n4r1")
+	a:submit({ id = "cur", kind = "x", priority = 3, duration = 5 }, 0)
+	a:tick(0)
+	a:submit({ id = "old", kind = "flavor", priority = 0, duration = 2, stateKey = "n4r1" }, 0.1)
+	a:setState("n4r2")
+	expectEqual(kinds(a:tick(0.2), "drop")[1], "old", "a waiting message from a finished state is dropped")
+	-- done() frees the slot early; ties go to the earlier message
+	a = A.new()
+	a:submit({ id = "p", kind = "x", priority = 3, duration = 5 }, 0)
+	a:tick(0)
+	a:submit({ id = "q1", kind = "x", priority = 2, duration = 1 }, 0.1)
+	a:submit({ id = "q2", kind = "x", priority = 2, duration = 1 }, 0.2)
+	a:done("p", 1)
+	expectEqual(kinds(a:tick(1), "hide")[1], "p", "a click that ends the plate hides it")
+	expectEqual(kinds(a:tick(1.3), "show")[1], "q1", "equal priority: first come, first shown")
+	expectFalse(a:isIdle(), "not idle while a message is up or waiting")
+	-- flavor: merged into the Round Complete on screen, or queued; none without one
+	a = A.new()
+	expectEqual(a:addFlavor("Big spender today!"), nil, "no Round Complete: the caller handles the line itself")
+	a:submit({ id = "rc", kind = "round_complete", priority = 3, duration = 2.6 }, 0)
+	local msg, onScreen = a:addFlavor("Big spender today!")
+	expectTrue(msg ~= nil and msg.flavor == "Big spender today!" and onScreen == false, "a queued Round Complete takes the flavor line")
+	a:tick(0)
+	expectEqual(a:addFlavor("Second line"), nil, "only one flavor line per plate")
+	a = A.new()
+	a:submit({ id = "rc", kind = "round_complete", priority = 3, duration = 2.6 }, 0)
+	a:tick(0)
+	local _, shown = a:addFlavor("Treat yourself!")
+	expectTrue(shown == true, "on a plate that is already up the presenter adds the line")
+	a:submit({ id = "tmp", kind = "x", priority = 3, duration = 2 }, 0.1)
+	expectTrue(a:cancel("tmp", 0.2) and a:pendingCount() == 0, "a waiting message can be taken back")
+end })
+
+table.insert(tests, { name = "SoundDirector: one fanfare at a time, at most 2 small voices, 90 ms group gap, repeats dropped, coin bursts collapse to a rising run of 4, fanfare ducks the rest", fn = function()
+	local SD = require(script.Parent.Parent.Engine.SoundDirector)
+	local d = SD.new()
+	-- same cue twice within 120 ms
+	expectTrue(d:request("button_click", 0).play, "the first click plays")
+	local r = d:request("button_click", 0.05)
+	expectTrue(not r.play and r.reason == "repeat", "the same cue within 120 ms is dropped")
+	-- same group closer than 90 ms
+	d = SD.new()
+	expectTrue(d:request("card_deal", 0).play, "a card sound plays")
+	r = d:request("card_play", 0.05)
+	expectTrue(not r.play and r.reason == "gap", "another sound of the same group inside 90 ms is dropped")
+	expectTrue(d:request("card_play", 0.1).play, "and plays after 90 ms")
+	-- at most 2 small voices together (ui + coin + card)
+	d = SD.new()
+	expectTrue(d:request("card_deal", 0).play and d:request("button_click", 0.2).play, "two small voices play")
+	r = d:request("coin", 0.3)
+	expectTrue(not r.play and r.reason == "voices", "a third small voice at once is dropped")
+	expectTrue(d:request("coin", 1.0).play, "and plays when the others are over")
+	-- a coin burst is ONE rising run of at most 4
+	d = SD.new()
+	local played, last = 0, 0
+	for i = 0, 11 do
+		local now = i * 0.1
+		d = d -- one director for the whole burst
+		local res = d:request("coin", now + i * 0.0)
+		if res.play then
+			played = played + 1
+			expectTrue(res.speed > last, "each tick of the run is higher")
+			last = res.speed
+		end
+	end
+	expectTrue(played <= SD.BURST_MAX, "a burst of coin ticks is at most 4 sounds, got " .. played)
+	-- fanfares: one at a time, higher priority cuts the lower, equal or lower is dropped
+	d = SD.new()
+	r = d:request("win", 0)
+	expectTrue(r.play, "the round stinger plays")
+	r = d:request("lose", 0.5)
+	expectTrue(not r.play and r.reason == "fanfare", "a second fanfare of equal priority is dropped")
+	r = d:request("wildcard_lock", 0.6)
+	expectTrue(r.play and r.cut ~= nil and r.cut.cue == "win", "a higher priority fanfare cuts the lower one")
+	r = d:request("round_win", 1.0)
+	expectTrue(not r.play, "a True Wildcard lock in mutes the round stinger")
+	r = d:request("round_win", 2.8)
+	expectTrue(not r.play, "even just after the wildcard stinger ends")
+	r = d:request("round_win", 3.5)
+	expectTrue(r.play, "and the round stinger works again later")
+	-- a fanfare ducks the other groups by 50 percent
+	d = SD.new()
+	d:request("win", 0)
+	r = d:request("coin", 0.3)
+	expectTrue(r.play and r.scale == 0.5, "everything else is ducked by 50 percent while a fanfare plays")
+	expectEqual(d:voices(0.3), 2, "voices counts the fanfare and the coin")
+	-- the Round Complete moment: one stinger plus one coin run
+	d = SD.new()
+	local stingers, coins = 0, 0
+	for _, step in ipairs({ { "win", 0 }, { "round_win", 0.01 }, { "coin", 0.02 }, { "coin", 0.12 }, { "coin", 0.22 }, { "coin", 0.32 }, { "coin", 0.42 }, { "coin", 0.52 }, { "chip", 0.62 } }) do
+		local res = d:request(step[1], step[2])
+		if res.play then
+			if res.group == "fanfare" then stingers = stingers + 1 elseif res.group == "coin" then coins = coins + 1 end
+		end
+	end
+	expectEqual(stingers, 1, "the Round Complete moment has exactly one stinger")
+	expectTrue(coins >= 1 and coins <= SD.BURST_MAX, "and one coin run of at most 4 ticks")
+	expectEqual(SD.info("unknown_cue").group, "ui", "unlisted cues are quiet ui sounds")
+end })
+
 table.insert(tests, { name = "RewardBanner: holds 2.2 s (1.2 fast), fades by itself, early click closes it after the grace, calm mode has no animation, count-up reaches the total", fn = function()
 	local B = require(script.Parent.Parent.Engine.RewardBanner)
 	local n = B.plan("normal", false)
 	local f = B.plan("fast", false)
 	local c = B.plan("normal", true)
-	expectEqual(n.hold, 2.2, "normal hold is 2.2 s")
+	expectEqual(n.hold, 2.0, "normal hold is 2.0 s")
+	expectTrue(n.fadeIn + n.hold + n.fadeOut <= 2.6 + 1e-9, "the banner is gone after 2.6 s at most")
 	expectEqual(f.hold, 1.2, "fast animation holds 1.2 s")
 	expectTrue(c.animated == false and c.fadeIn == 0 and c.fadeOut == 0 and c.countUp == 0 and c.stagger == 0, "calm mode: no fades, no count, no stagger")
 	local ph = B.phaseAt(n, 0.05)
@@ -21641,6 +21773,7 @@ table.insert(tests, { name = "Sound pass wiring: Sound.lua gates, jitters and la
 	local t = R.parse("sfx:card_play")
 	expectTrue(t and t.kind == "sfx" and t.cue == "card_play", "sfx:<cue> parses")
 	expectTrue(R.parse("sfx:ladder").cue == "ladder", "sfx:ladder parses")
+	expectTrue(R.parse("sfx:roundwin").cue == "roundwin", "sfx:roundwin parses (the whole round win sound set)")
 	expectEqual(R.parse("sfx:bad cue!"), nil, "a malformed cue name is refused")
 end })
 

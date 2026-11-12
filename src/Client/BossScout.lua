@@ -25,6 +25,7 @@ local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(70, 48, 30)
 
 local banner, chip, tokenChip
+local chipWanted, chipWatching = false, false
 local holdConn, hold
 
 local function corner(inst, r)
@@ -254,7 +255,16 @@ function BossScout.update(root, state)
 	end
 	if chip then
 		local show = scout ~= nil and (state.phase == "shop") and not state.pendingPack -- hidden while a pack is open
-		chip.Visible = show
+		-- a quiet strip: it shows only while no other message (Round Complete, a wildcard lock in) is up in the centre
+		chipWanted = show
+		local okA, Announcer = pcall(function() return require(script.Parent.Announcer) end)
+		if okA and not chipWatching then
+			chipWatching = true
+			Announcer.onChange(function()
+				if chip and chip.Parent then chip.Visible = chipWanted and Announcer.isIdle() end
+			end)
+		end
+		chip.Visible = show and (not okA or Announcer.isIdle())
 		if show then
 			local line = require(Engine:WaitForChild("PostBoss")).shopBanner(state, scout) or ""
 			chip.Text = (line:sub(1, 2) == "  ") and line or ("  " .. line)

@@ -543,7 +543,17 @@ function ShopScene.new(deps)
 			elseif (st.tips or 0) >= 20 then
 				event = "richTips"
 			end
-			self.say(event)
+			-- a flavor line ("Big spender today!") never overlaps the Round Complete plate: it becomes the small ink line under its Total
+			local merged = false
+			if event == "richTips" then
+				local okA, Announcer = pcall(function() return require(script.Parent.Announcer) end)
+				if okA then
+					merged = Announcer.addFlavor(Lines.pick(event, seedFor(event)), function(text)
+						require(script.Parent.RoundRewardBanner).setFlavor(text)
+					end)
+				end
+			end
+			if not merged then self.say(event) end
 			loop()
 			startMarlo()
 		else

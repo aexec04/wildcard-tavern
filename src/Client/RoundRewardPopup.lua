@@ -38,7 +38,16 @@ return function(deps)
 		-- timing in Engine/RewardBanner): no Continue click and the Counter is usable at once. The one-time Night-cleared headline
 		-- (titleOverride) and Tag rewards (no interest, one line of text) are momentous or different results and keep the plate.
 		if interest ~= nil and titleOverride == nil then
-			require(script.Parent.RoundRewardBanner).show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest })
+			-- one message at a time in the centre: the banner goes through the Announcer (Client/Announcer), which also merges the Counter's
+			-- flavor line (Big spender today!) into it as one small line under the Total
+			local Banner = require(script.Parent.RoundRewardBanner)
+			require(script.Parent.Announcer).submit({
+				id = "round_complete", kind = "round_complete", priority = 3, duration = 2.6,
+				show = function(done, msg)
+					Banner.show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest, flavor = msg and msg.flavor, onClose = done })
+				end,
+				hide = function() Banner.close() end,
+			})
 			return
 		end
 		-- Tag rewards (Tip Jar) pass no interest and keep the one-line text.

@@ -13,7 +13,7 @@
 
 local RewardBanner = {}
 
-RewardBanner.HOLD = 2.2
+RewardBanner.HOLD = 2.0 -- with the 0.2 s fade in and 0.35 s fade out the banner is gone after about 2.6 s
 RewardBanner.HOLD_FAST = 1.2
 RewardBanner.GRACE = 0.4 -- the click or key that played the winning hand must not close the banner at once
 

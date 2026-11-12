@@ -14,6 +14,8 @@
 	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
 	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
+	  sfx:roundwin                      fires the whole round win sound set (score ticks, stinger, coin run, greeting, wildcard stinger); the
+	                                    Output logs "[SoundDirector] voices=N" each time a sound starts
 	init({ menuFrame })
 ]]
 
