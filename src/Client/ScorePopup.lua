@@ -368,7 +368,8 @@ return function(deps)
 	scorePopupEventLabel.Font = Enum.Font.GothamBold
 	scorePopupEventLabel.TextSize = 18
 	scorePopupEventLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	scorePopupEventLabel.TextStrokeTransparency = 0.6
+	scorePopupEventLabel.TextStrokeTransparency = 0
+	scorePopupEventLabel.TextStrokeColor3 = Color3.fromRGB(25, 15, 8)
 	scorePopupEventLabel.Text = ""
 	scorePopupEventLabel.ZIndex = 25
 	scorePopupEventLabel.Parent = scorePopup
@@ -1189,7 +1190,7 @@ return function(deps)
 
 					local color = KIND_COLORS[entry.kind] or FINALE_COLOR
 					scorePopupEventLabel.Text = formatEntryText(entry)
-					scorePopupEventLabel.TextColor3 = color
+					scorePopupEventLabel.TextColor3 = Color3.fromRGB(255, 244, 214) -- cream on a dark outline: the kind colour read at 2:1 on the sky
 
 					-- VISUALS: elastic pop on the event line + color coding
 					-- (kept from the prior pass -- always fires regardless

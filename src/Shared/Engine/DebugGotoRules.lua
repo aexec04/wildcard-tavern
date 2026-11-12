@@ -15,13 +15,47 @@ DebugGotoRules.TOME_PAGES = {
 
 DebugGotoRules.SEED_CODE = "DEBUG2" -- fixed run seed for round1 (6 chars, A-Z without I and O, digits 2-9)
 
+-- Table screens reached by round1 then re-rendering a changed copy of the real state (no server hook needed).
+DebugGotoRules.SYNTH = { shop = true, roundwin = true, gameover = true, boss1 = true, roundselect = true }
+
+-- shallow copy of `state` turned into the named screen; `data` = { patrons = {def...}, packs = {def...}, boss = def }
+function DebugGotoRules.synth(which, state, data)
+	local s = {}
+	for k, v in pairs(state) do s[k] = v end
+	data = data or {}
+	if which == "shop" or which == "roundwin" then
+		s.phase = "shop"
+		s.hand = {}
+		s.lastRoundReward = which == "roundwin" and 9 or 0
+		s.shopOffers, s.packOffers = {}, {}
+		for i, p in ipairs(data.patrons or {}) do
+			if i > 2 then break end
+			s.shopOffers[#s.shopOffers + 1] = { id = p.id, name = p.name, description = p.description, price = 4 + i }
+		end
+		for i, p in ipairs(data.packs or {}) do
+			if i > 2 then break end
+			s.packOffers[#s.packOffers + 1] = { id = p.id, name = p.name, icon = p.icon, description = p.description, price = 3 + i }
+		end
+		s.tips = math.max(s.tips or 0, 12)
+	elseif which == "gameover" then
+		s.phase = "gameover"
+	elseif which == "boss1" and data.boss then
+		s.bossModifier = { id = data.boss.id, name = data.boss.name, description = data.boss.description }
+		s.isBossRound = true
+	end
+	return s
+end
+
 function DebugGotoRules.parse(value)
 	if type(value) ~= "string" or value == "" then
 		return nil, "empty value"
 	end
 	local text = value:lower():gsub("%s+", "")
-	if text == "menu" or text == "news" or text == "round1" or text == "shop" or text == "spectate" then
+	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
+	end
+	if DebugGotoRules.SYNTH[text] then
+		return { kind = "synth", which = text }
 	end
 	local parts = {}
 	for part in text:gmatch("[^:]+") do

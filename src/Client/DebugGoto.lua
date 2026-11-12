@@ -4,8 +4,8 @@
 	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1, round1:<cardSetId>
 	(the last starts round 1 with that Card Set previewed, e.g. round1:winter_evening).
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
-	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. shop and spectate need a
-	server hook or a second player, so they only warn. Parsing is in Engine/DebugGotoRules.lua.
+	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
+	player, so it only warns. Parsing is in Engine/DebugGotoRules.lua.
 	init({ menuFrame })
 ]]
 
@@ -14,6 +14,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DebugGoto = {}
+
+-- the hub hands over its render function and a getter for the latest table state (Studio-only screens re-render a changed copy)
+function DebugGoto.setRenderer(render, getState)
+	DebugGoto.render, DebugGoto.getState = render, getState
+end
 
 function DebugGoto.init(deps)
 	if not RunService:IsStudio() then return end
@@ -25,7 +30,22 @@ function DebugGoto.init(deps)
 	local round1Token = 0 -- bumped on every jump so an old watchdog never fires for a new one
 	local lastStep = "start"
 	local selectSent = false
+	local synthWhich = nil -- shop/roundwin/gameover/boss1/roundselect: the screen to show once round1 has reached it
 	local previewSet = nil -- round1:<setId>: the set to preview once the hand is dealt (a run start resets the look)
+
+	local function showSynth(which)
+		if which == "roundselect" then return end -- the real Round Select state is already on screen
+		if not (DebugGoto.render and DebugGoto.getState) then error("renderer not wired") end
+		local base = DebugGoto.getState()
+		if not base then error("no table state yet") end
+		local Engine = ReplicatedStorage.Shared.Engine
+		local patrons, packs = {}, {}
+		for _, d in ipairs(require(Engine.Patrons).Definitions) do patrons[#patrons + 1] = d if #patrons >= 2 then break end end
+		for _, d in ipairs(require(Engine.Packs).Definitions) do packs[#packs + 1] = d if #packs >= 2 then break end end
+		local boss = require(Engine.BossRounds).Definitions[1]
+		DebugGoto.render(Rules.synth(which, base, { patrons = patrons, packs = packs, boss = boss }))
+		print("[DebugGoto] " .. which .. " ok")
+	end
 
 	local function hideMenu()
 		if deps and deps.menuFrame then deps.menuFrame.Visible = false end
@@ -90,10 +110,12 @@ function DebugGoto.init(deps)
 					end
 				end)
 			else
-				error(target.kind .. " is not reachable from script (needs a server hook or a second player)")
+				error(target.kind .. " is not reachable from script (needs a second player)")
 			end
 		end)
-		if ok then
+		if ok and target.kind == "synth" then
+			-- "<name> ok" is printed once the screen is up
+		elseif ok then
 			print("[DebugGoto] " .. tostring(value) .. " ok")
 		else
 			warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(err))
@@ -105,6 +127,12 @@ function DebugGoto.init(deps)
 		if not pendingRound1 then return end
 		lastStep = Rules.stepOf(state)
 		local count = Rules.handCount(state)
+		if synthWhich == "roundselect" and lastStep == "select" then
+			pendingRound1 = false
+			synthWhich = nil
+			print("[DebugGoto] roundselect ok")
+			return
+		end
 		if count then
 			pendingRound1 = false
 			print("[DebugGoto] round1 hand=" .. count)

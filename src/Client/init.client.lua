@@ -2853,6 +2853,8 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 	render(state)
 end)
 
+pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end) end) -- Studio-only screens
+
 do -- STATE RESYNC: the push sent at join can land before this listener exists, which left an empty table behind Play.
 	-- Ask once now, and again every 2 s until a state has arrived (the server answers with the current table).
 	local request = remotes:WaitForChild("RequestState")

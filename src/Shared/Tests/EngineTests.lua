@@ -20355,4 +20355,20 @@ tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids):
 	expectEqual(close.BackgroundTransparency, 0, "Close is a button again on the cork board")
 end })
 
+tests[#tests + 1] = ({ name = "DebugGotoRules: shop, roundwin, gameover, boss1, roundselect parse as synth jumps and synth() changes the state copy", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	for _, name in ipairs({ "shop", "roundwin", "gameover", "boss1", "roundselect" }) do
+		local t = R.parse(name)
+		expectTrue(t ~= nil and t.kind == "synth" and t.which == name, name .. " parses as synth")
+	end
+	local base = { phase = "playing", hand = { 1 }, tips = 3 }
+	local data = { patrons = { { id = "a", name = "A", description = "d" } }, packs = { { id = "p", name = "P" } }, boss = { id = "b", name = "B", description = "r" } }
+	local shop = R.synth("roundwin", base, data)
+	expectTrue(shop.phase == "shop" and shop.lastRoundReward > 0 and #shop.shopOffers == 1 and #shop.packOffers == 1, "roundwin is a shop with offers and a reward")
+	expectTrue(R.synth("shop", base, data).lastRoundReward == 0, "shop has no reward popup amount")
+	expectTrue(R.synth("gameover", base, data).phase == "gameover", "gameover phase")
+	expectTrue(R.synth("boss1", base, data).bossModifier.id == "b", "boss1 carries the rule")
+	expectTrue(base.phase == "playing" and base.tips == 3, "the input state is untouched")
+end })
+
 return tests
