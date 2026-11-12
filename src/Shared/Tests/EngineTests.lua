@@ -22830,4 +22830,29 @@ table.insert(tests, { name = "BoardPanelRows: a missing row collapses, short scr
 	expectTrue(empty.panel.h == 0 and #empty.order == 0, "no rows, no panel")
 end })
 
+table.insert(tests, { name = "CloseX: the round X is a 44 px hit area with a 40 px disc, fully inside the panel at 1280x720, 1920x1080 and 800x600, and every panel wires it", fn = function()
+	local R = require(script.Parent.Parent.Engine.CloseXRules)
+	expectTrue(R.HIT >= 44 and R.DISC == 40, "44 px hit area, 40 px disc")
+	for _, sz in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 800, 600 } }) do
+		for _, corner in ipairs({ "topRight", "topLeft" }) do
+			expectTrue(R.fits(sz[1], sz[2], corner), "X fits " .. corner .. " at " .. sz[1] .. "x" .. sz[2])
+		end
+		local r = R.rect(sz[1], sz[2], "topRight")
+		expectTrue(r.x + r.w <= sz[1] and r.y >= 0, "top right corner")
+	end
+	local d = R.discRect()
+	expectTrue(d.x + d.w <= R.HIT and d.y + d.h <= R.HIT and d.x >= 0, "disc inside the hit area")
+	-- source guard (skipped when the files are not reachable from the working directory)
+	local files = { "Journey", "StorePanel", "Settings", "SeasonPanel", "StatsPanel", "CollectionRewardsPanel", "BadgesPanel", "VolumePanel",
+		"LegendPanel", "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel", "CosmeticSetsPanel", "FlairPanel", "NewsPanel", "Collection", "DeckTracker", "MapFullScreen", "PokerHandsReference" }
+	for _, name in ipairs(files) do
+		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		if f then
+			local src = f:read("*a")
+			f:close()
+			expectTrue(src:find("CloseX).attach(", 1, true) ~= nil, name .. " uses the shared round X")
+		end
+	end
+end })
+
 return tests

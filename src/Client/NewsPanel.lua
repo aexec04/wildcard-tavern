@@ -554,7 +554,8 @@ function NewsPanel.init(deps)
 		roundCorner = deps.roundCorner, polishButton = deps.polishButton, playClickSfx = deps.playClickSfx, popIn = deps.popIn,
 		popOut = deps.popOut, claimRemote = deps.claimRemote,
 	}
-	close.MouseButton1Click:Connect(function()
+	require(script.Parent.CloseX).retire(close)
+	require(script.Parent.CloseX).attach(panel, function()
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end)

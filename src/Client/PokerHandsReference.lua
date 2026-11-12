@@ -452,12 +452,15 @@ return function(deps)
 		popIn(backdrop, panel)
 		startEase()
 	end
-	for _, b in ipairs({ backButton, closeButton }) do
-		b.MouseButton1Click:Connect(function()
-			playClickSfx()
-			closePanel()
-		end)
-	end
+	backButton.MouseButton1Click:Connect(function()
+		playClickSfx()
+		closePanel()
+	end)
+	require(script.Parent.CloseX).retire(closeButton) -- the round X replaces the Close plaque
+	require(script.Parent.CloseX).attach(panel, function()
+		playClickSfx()
+		closePanel()
+	end)
 	backdrop.MouseButton1Click:Connect(closePanel)
 	-- Escape goes through Client/PopupDismiss like every other popup (it ignores gameProcessed, as this always did); the click
 	-- on the dim area stays this panel's own (the backdrop is a button).

@@ -239,6 +239,23 @@ end
 function FakeGui.env(opts)
 	opts = opts or {}
 	local stubs = opts.stubs or {}
+	if stubs.CloseX == nil then -- the shared round X: a 44 px "CloseX" button in the panel's top right, like Client/CloseX
+		stubs.CloseX = {
+			retire = function(old) if old then old.Visible = false end end,
+			attach = function(panel, onClose, o)
+				o = o or {}
+				local inset = o.inset or 8
+				local b = FakeGui.new("TextButton")
+				b.Name = "CloseX"
+				b.Size = UDim2.new(0, 44, 0, 44)
+				b.AnchorPoint = { X = 1, Y = 0 }
+				b.Position = UDim2.new(1, -inset, 0, o.top or inset)
+				b.Parent = panel
+				b.MouseButton1Click:Connect(onClose)
+				return b
+			end,
+		}
+	end
 	local state = { warns = {}, prints = {}, studio = opts.studio == true, services = {}, delays = {}, parked = {} }
 	-- resume every thread parked at a task.wait once
 	function state.runWaiting()

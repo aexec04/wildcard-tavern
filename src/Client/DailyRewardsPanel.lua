@@ -194,7 +194,8 @@ function DailyRewardsPanel.init(deps)
 		getLatestState = deps.getLatestState, roundCorner = deps.roundCorner, playClickSfx = deps.playClickSfx,
 		popIn = deps.popIn, popOut = deps.popOut,
 	}
-	close.MouseButton1Click:Connect(function()
+	require(script.Parent.CloseX).retire(close)
+	require(script.Parent.CloseX).attach(panel, function()
 		deps.playClickSfx()
 		deps.popOut(backdrop, panel)
 	end)

@@ -459,7 +459,8 @@ return function(deps)
 	end
 	OverlayManager.registerOpener("badges", openThisPanel)
 	deps.openButton.MouseButton1Click:Connect(openThisPanel)
-	closeButton.MouseButton1Click:Connect(function()
+	require(script.Parent.CloseX).retire(closeButton)
+	require(script.Parent.CloseX).attach(panel, function()
 		playClickSfx()
 		stopLoop()
 		detail.Visible = false

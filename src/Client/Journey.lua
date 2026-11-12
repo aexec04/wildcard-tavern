@@ -897,7 +897,8 @@ return function(deps)
 	journeyCloseButton.Parent = journeyPanel
 	polishButton(journeyCloseButton, 12)
 
-	journeyCloseButton.MouseButton1Click:Connect(function()
+	require(script.Parent.CloseX).retire(journeyCloseButton)
+	require(script.Parent.CloseX).attach(journeyPanel, function()
 		playClickSfx()
 		journeyBackdrop.Visible = false
 	end)

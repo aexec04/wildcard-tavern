@@ -588,7 +588,8 @@ return function(deps)
 	end
 	OverlayManager.registerOpener("cosmeticSets", openThisPanel) -- Tome tabs and the Menu open it from here
 	deps.openButton.MouseButton1Click:Connect(openThisPanel)
-	closeButton.MouseButton1Click:Connect(function()
+	require(script.Parent.CloseX).retire(closeButton)
+	require(script.Parent.CloseX).attach(panel, function()
 		playClickSfx()
 		popOut(backdrop, panel)
 	end)

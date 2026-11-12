@@ -56,30 +56,10 @@ function MapFullScreen.apply(p)
 		strip.Active = false
 		strip.ZIndex = 40 -- above every map layer (fog is 35)
 		strip.Parent = panel
-		local x = Instance.new("TextButton")
-		x.Name = "MapCloseX"
-		x.Text = "X"
-		x.Font = Enum.Font.GothamBold
-		x.TextSize = 20
-		x.TextColor3 = CREAM
-		x.TextTransparency = 0
-		x.TextStrokeTransparency = 1
-		x.BackgroundColor3 = BRASS
-		x.AutoButtonColor = true
-		x.BorderSizePixel = 0
-		x.ZIndex = 42
-		x.Parent = panel
-		local xc = Instance.new("UICorner")
-		xc.CornerRadius = UDim.new(0.5, 0)
-		xc.Parent = x
-		x.Activated:Connect(function() p.backdrop.Visible = false end)
+		require(script.Parent.CloseX).attach(panel, function() p.backdrop.Visible = false end, { inset = Rules.MARGIN, top = 10, z = 42 })
 	end
 	strip.Size = UDim2.new(1, 0, 0, Rules.STRIP_H)
 	strip.Position = UDim2.fromOffset(0, 0)
-	local xr = Rules.xRect(1000, 1000)
-	local x = panel:FindFirstChild("MapCloseX")
-	x.Size = UDim2.fromOffset(xr.w, xr.h)
-	x.Position = UDim2.new(1, -(Rules.X + Rules.MARGIN), 0, xr.y)
 
 	p.title.ZIndex, p.subtitle.ZIndex = 41, 41
 	p.title.BackgroundTransparency = 1

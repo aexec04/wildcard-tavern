@@ -224,7 +224,8 @@ function QuestsPanel.init(deps)
 	OverlayManager.register("quests", function() deps.popOut(backdrop, panel) end)
 	OverlayManager.registerOpener("quests", open)
 	deps.openButton.MouseButton1Click:Connect(open)
-	close.MouseButton1Click:Connect(closePanel)
+	require(script.Parent.CloseX).retire(close)
+	require(script.Parent.CloseX).attach(panel, closePanel)
 	-- a click on the dim area and Escape close it through Client/PopupDismiss (registered by PanelTabs.attach above)
 end
 
