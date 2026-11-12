@@ -19683,6 +19683,25 @@ table.insert(tests, { name = "PlayBoardLayout.placement: 2:3 top-left rect, nil 
 	end
 end })
 
+table.insert(tests, { name = "Round Select: Select and Skip clicks use the hover sound call and volume, no shuffle cue on the button", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/RoundSelect.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local g = io.open("src/Client/RoundSelectFX.lua", "r")
+	local fx = g and g:read("*a") or ""
+	if g then g:close() end
+	expectTrue(fx:find("pcall(playClickSfx, 0.12)", 1, true) ~= nil, "hover sound call changed")
+	for _, name in ipairs({ "selectButton", "skipButton" }) do
+		local a = src:find(name .. ".MouseButton1Click:Connect", 1, true)
+		expectTrue(a ~= nil, name .. " handler missing")
+		local seg = src:sub(a, a + 900)
+		expectTrue(seg:find("pcall(playClickSfx, 0.12)", 1, true) ~= nil, name .. " click must use the hover sound call")
+		expectTrue(not seg:find("playClickSfx()", 1, true), name .. " click must not play the full-volume click")
+		expectTrue(not seg:find('"shuffle"', 1, true), name .. " click must not fire the shuffle cue")
+	end
+end })
+
 table.insert(tests, { name = "PlayScenePaint never sets HandFrame, Actions or DeckWidget visibility (the game owns it; round 2 must keep its hand)", fn = function()
 	local f = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
 	if not f then return end

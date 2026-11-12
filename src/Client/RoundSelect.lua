@@ -621,8 +621,7 @@ return function(deps)
 				return
 			end
 			actionPending = true
-			playClickSfx()
-			require(script.Parent.Cue).play("shuffle")
+			pcall(playClickSfx, 0.12) -- same call and volume as the hover sound (RoundSelectFX hoverSound)
 			require(script.Parent.TutorialBus).fire("select_round")
 			SelectRoundRemote:FireServer() -- sent right away; the travel cover below only delays the reveal
 			pcall(function()
@@ -662,7 +661,7 @@ return function(deps)
 				return
 			end
 			actionPending = true
-			playClickSfx()
+			pcall(playClickSfx, 0.12) -- same call and volume as the hover sound
 			SkipRoundRemote:FireServer()
 		end)
 
