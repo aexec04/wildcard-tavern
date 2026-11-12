@@ -17678,7 +17678,7 @@ table.insert(tests, { name = "OverlayQueue sends small notices to the corner toa
 		st.services.ReplicatedStorage = { WaitForChild = function()
 			return { WaitForChild = function()
 				return FakeGui.folder({
-					CornerToastRules = require(Engine.CornerToastRules), OverlayQueueRules = require(Engine.OverlayQueueRules), HudKit = require(Engine.HudKit),
+					CornerToastRules = require(Engine.CornerToastRules), OverlayQueueRules = require(Engine.OverlayQueueRules), HudKit = require(Engine.HudKit), ToastPlacement = require(Engine.ToastPlacement),
 				})
 			end }
 		end }
@@ -19649,6 +19649,16 @@ table.insert(tests, { name = "PlayMotion client: the fan tilt is put on the card
 	expectTrue(src:find("tbtn.Rotation = tilt", 1, true) ~= nil, "button gets the tilt")
 	expectTrue(src:find('SetAttribute("FanRot"', 1, true) ~= nil, "tilt target kept for the deal and hover tweens")
 	expectTrue(src:find("[HandFan]", 1, true) ~= nil, "Studio side check logs AbsoluteRotation")
+end })
+table.insert(tests, { name = "CornerToast: every toast kind is the parchment strip from ToastPlacement.STYLE (no dark plate, shadow fades with it)", fn = function()
+	local f = io and io.open and io.open("src/Client/CornerToast.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("ToastPlacement", 1, true) ~= nil and src:find("STYLE.paper", 1, true) ~= nil, "paper from STYLE")
+	expectTrue(src:find("STYLE.ink", 1, true) ~= nil and src:find("STYLE.edge", 1, true) ~= nil, "ink and gold edge from STYLE")
+	expectTrue(src:find("46, 34, 24", 1, true) == nil and src:find("250, 238, 212", 1, true) == nil, "old dark plate colours are gone")
+	expectTrue(src:find("row.shadow", 1, true) ~= nil, "shadow is part of the fade")
 end })
 table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 12 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)

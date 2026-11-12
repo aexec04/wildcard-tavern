@@ -29,9 +29,12 @@ local ClientSettings = require(script.Parent.ClientSettings)
 
 local CornerToast = {}
 
-local PLATE = Color3.fromRGB(46, 34, 24)
-local BRASS = Color3.fromRGB(200, 160, 84)
-local CREAM = Color3.fromRGB(250, 238, 212) -- on PLATE about 12:1
+-- parchment strip like the play hint toast: paper fill, dark ink, thin gold edge, soft shadow (numbers in ToastPlacement.STYLE)
+local STYLE = require(Engine:WaitForChild("ToastPlacement")).STYLE
+local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+local PLATE = rgb(STYLE.paper)
+local BRASS = rgb(STYLE.edge)
+local CREAM = rgb(STYLE.ink) -- dark ink on paper (name kept from the old dark plate)
 local Z = 140 -- over the Choice screen (60 to 66) and the HUD, under the OverlayQueue plates (150)
 
 local stack = Rules.new()
@@ -51,10 +54,23 @@ local function newRow()
 	frame.AutoButtonColor = false
 	frame.Text = ""
 	frame.BackgroundColor3 = PLATE
+	frame.BackgroundTransparency = STYLE.paperTransparency
 	frame.BorderSizePixel = 0
 	frame.Visible = false
 	frame.ZIndex = Z + 1
 	frame.Parent = holder
+	local shadow = Instance.new("Frame") -- soft shadow, a child so it moves and hides with the toast
+	shadow.Name = "Shadow"
+	shadow.Position = UDim2.fromOffset(0, STYLE.shadowOffset)
+	shadow.Size = UDim2.fromScale(1, 1)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = STYLE.shadowTransparency
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = Z
+	shadow.Parent = frame
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 8)
+	shadowCorner.Parent = shadow
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = frame
@@ -86,7 +102,7 @@ local function newRow()
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.ZIndex = Z + 2
 	label.Parent = frame
-	local row = { frame = frame, label = label, icon = icon, order = nil }
+	local row = { frame = frame, label = label, icon = icon, shadow = shadow, order = nil }
 	frame.MouseButton1Click:Connect(function()
 		if row.order then
 			stack:dismiss(row.order)
@@ -107,17 +123,21 @@ local function fade(row, visible)
 	local f = row.frame
 	if calm() then
 		f.Visible = visible
-		f.BackgroundTransparency, row.label.TextTransparency = 0, 0
+		f.BackgroundTransparency, row.label.TextTransparency = STYLE.paperTransparency, 0
+		row.shadow.BackgroundTransparency = STYLE.shadowTransparency
 		return
 	end
+	local info = TweenInfo.new(Rules.FADE)
 	if visible and not f.Visible then
 		f.Visible = true
-		f.BackgroundTransparency, row.label.TextTransparency = 1, 1
-		TweenService:Create(f, TweenInfo.new(Rules.FADE), { BackgroundTransparency = 0 }):Play()
-		TweenService:Create(row.label, TweenInfo.new(Rules.FADE), { TextTransparency = 0 }):Play()
+		f.BackgroundTransparency, row.label.TextTransparency, row.shadow.BackgroundTransparency = 1, 1, 1
+		TweenService:Create(f, info, { BackgroundTransparency = STYLE.paperTransparency }):Play()
+		TweenService:Create(row.label, info, { TextTransparency = 0 }):Play()
+		TweenService:Create(row.shadow, info, { BackgroundTransparency = STYLE.shadowTransparency }):Play()
 	elseif not visible and f.Visible then
-		TweenService:Create(f, TweenInfo.new(Rules.FADE), { BackgroundTransparency = 1 }):Play()
-		TweenService:Create(row.label, TweenInfo.new(Rules.FADE), { TextTransparency = 1 }):Play()
+		TweenService:Create(f, info, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(row.label, info, { TextTransparency = 1 }):Play()
+		TweenService:Create(row.shadow, info, { BackgroundTransparency = 1 }):Play()
 		task.delay(Rules.FADE, function()
 			if not row.order then f.Visible = false end
 		end)
