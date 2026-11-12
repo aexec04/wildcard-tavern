@@ -430,7 +430,7 @@ local handLayout = Instance.new("UIListLayout")
 handLayout.FillDirection = Enum.FillDirection.Horizontal
 handLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 handLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-handLayout.Padding = UDim.new(0, 6)
+handLayout.Padding = UDim.new(0, 8)
 -- Explicit: UIListLayout's default SortOrder can be Name, which ignores
 -- the slots' LayoutOrder (same bug class as Shop.lua's Phase 1c fix).
 handLayout.SortOrder = Enum.SortOrder.LayoutOrder

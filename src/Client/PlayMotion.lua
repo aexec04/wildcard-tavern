@@ -121,7 +121,7 @@ function M.install(deps)
 					if b then n += 1 if math.abs(b.AbsoluteRotation) > 0.1 then rotated += 1 end end
 				end
 				print(string.format("[HandFan] cards=%d rotated=%d", n, rotated))
-				if n > 1 and rotated == 0 then warn("[HandFan] no hand card has a nonzero AbsoluteRotation; the fan is not drawing") end
+				if PM.HAND_FAN_ENABLED and n > 1 and rotated == 0 then warn("[HandFan] no hand card has a nonzero AbsoluteRotation; the fan is not drawing") end
 			end)
 		end
 		lean += (PM.leanTarget(okD and selectedCount or 0, false, modal, isCalm) - lean) * PM.follow(dt, 0.14) -- settles in about 0.3 s

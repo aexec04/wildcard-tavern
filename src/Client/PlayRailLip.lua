@@ -72,6 +72,8 @@ function PlayRailLip.apply(lip, p, shown)
 end
 
 function PlayRailLip.addCardShadow(slot)
+	-- a straight row has no per-card capsule shadows: the floor shadow gradient is the one soft shadow under the whole row
+	if not require(game:GetService("ReplicatedStorage").Shared.Engine.PlayMotion).HAND_FAN_ENABLED then return end
 	if slot:FindFirstChild("ContactShadow") then return end
 	local s = Instance.new("Frame")
 	s.Name = "ContactShadow"

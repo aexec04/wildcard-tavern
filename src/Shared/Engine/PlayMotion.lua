@@ -125,19 +125,24 @@ end
 -- Ends lean outward up to 6.5 degrees, dip 28 px, tuck 12 px toward the middle (so neighbours overlap a little) and are 0.92 the
 -- size of the centre cards, which sit highest, largest and level.
 PlayMotion.FAN = { deg = 6.5, dip = 28, tuck = 12, endScale = 0.92 }
+-- The hand is a straight, level row for now (same Y, no rotation, no end shrink, no tuck). Set true to bring the fan back.
+PlayMotion.HAND_FAN_ENABLED = false
 local function fanT(pos, count)
 	count = math.max(1, count or 1)
 	return count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
 end
 function PlayMotion.cardTilt(pos, count)
+	if not PlayMotion.HAND_FAN_ENABLED then return 0 end
 	return fanT(pos, count) * PlayMotion.FAN.deg
 end
 function PlayMotion.cardScale(pos, count)
+	if not PlayMotion.HAND_FAN_ENABLED then return 1 end
 	local t = fanT(pos, count)
 	return 1 - (1 - PlayMotion.FAN.endScale) * t * t
 end
 -- pixel offset from the slot centre: x tucks toward the middle, y dips down toward the ends
 function PlayMotion.cardOffset(pos, count)
+	if not PlayMotion.HAND_FAN_ENABLED then return 0, 0 end
 	local t = fanT(pos, count)
 	return -t * PlayMotion.FAN.tuck, PlayMotion.FAN.dip * t * t
 end

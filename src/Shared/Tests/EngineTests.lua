@@ -14226,6 +14226,7 @@ end })
 
 table.insert(tests, { name = "PlayMotion depth pass 4: visible fan, navy opaque rest stack, clear vignette, felt clipped off the left HUD", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	PM.HAND_FAN_ENABLED = true -- the fan maths still hold when it is switched back on
 	expectTrue(math.abs(PM.cardTilt(8, 8)) >= 6 and math.abs(PM.cardTilt(8, 8)) <= 7, "end cards tilt 6 to 7 degrees")
 	local _, dy = PM.cardOffset(8, 8)
 	expectTrue(dy >= 27 and dy <= 29, "end cards dip about 28 px")
@@ -14235,6 +14236,7 @@ table.insert(tests, { name = "PlayMotion depth pass 4: visible fan, navy opaque 
 	expectTrue(tx > 0 and tx <= 14, "slight overlap tuck")
 	local b = PM.REST_BACK
 	expectTrue(b.navy[3] > b.navy[1] and b.navy[3] > b.navy[2], "navy back like the deck")
+	PM.HAND_FAN_ENABLED = false
 	expectTrue(#PM.REST_STACK >= 3 and #PM.REST_STACK <= 4, "3 to 4 cards")
 	expectTrue(PM.FELT.edgePeak >= 0.3 and PM.FELT.edgePeak <= 0.5, "clear but calm vignette")
 	local felt = { x = 30, y = 490, w = 1470, h = 290 }
@@ -20173,8 +20175,23 @@ table.insert(tests, { name = "PlayMotion.shadeGlows: left glows are off when the
 	f:close()
 	expectTrue(src:find("cardBackTemplate", 1, true) ~= nil and src:find("BackArt", 1, true) ~= nil, "top card uses the deck back image")
 end })
-table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 12 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
+table.insert(tests, { name = "PlayMotion: the hand is a level row by default (no tilt, dip, tuck or end shrink, no per-card capsule shadow); the fan maths come back with HAND_FAN_ENABLED", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	expectFalse(PM.HAND_FAN_ENABLED, "the fan is off")
+	for count = 1, 9 do
+		for pos = 1, count do
+			local dx, dy = PM.cardOffset(pos, count)
+			expectTrue(PM.cardTilt(pos, count) == 0 and PM.cardScale(pos, count) == 1 and dx == 0 and dy == 0, "card " .. pos .. " of " .. count .. " is level, full size, same Y")
+		end
+	end
+	local f = io and io.open and io.open("src/Client/PlayRailLip.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("HAND_FAN_ENABLED", 1, true) ~= nil, "no ContactShadow capsules under cards while the row is straight")
+	end
+	PM.HAND_FAN_ENABLED = true
+	local ok, err = pcall(function()
 	for count = 2, 8 do
 		for pos = 1, count do
 			local d, sc = PM.cardTilt(pos, count), PM.cardScale(pos, count)
@@ -20190,6 +20207,9 @@ table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 1
 	local _, dyMid = PM.cardOffset(2, 3)
 	expectTrue(dyMid == 0 and PM.cardTilt(2, 3) == 0 and PM.cardScale(2, 3) == 1, "the centre card sits level, largest and lowest on the arc")
 	expectTrue(PM.cardTilt(1, 1) == 0 and PM.cardScale(1, 1) == 1, "a lone card is straight")
+	end)
+	PM.HAND_FAN_ENABLED = false
+	if not ok then error(err, 0) end
 	local dx1, _, r1 = PM.stackSpec(1, 4)
 	local dx4, _, r4 = PM.stackSpec(4, 4)
 	expectTrue(dx1 < 0 and dx4 > 0 and r1 ~= r4 and math.abs(r1) <= 12, "played cards form a small tilted overlapping group")
