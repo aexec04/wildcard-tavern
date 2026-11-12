@@ -22965,6 +22965,22 @@ table.insert(tests, { name = "BoardPanelRows: every blessing and curse text wrap
 	end
 end })
 
+table.insert(tests, { name = "Full screen pages never pop-scale, and the Collection header bar keeps 56 px clear of the close X", fn = function()
+	local f = io and io.open and io.open("src/Client/VisualHelpers.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find('content:GetAttribute("FullScreenPanel") == true', 1, true) ~= nil, "popIn skips the 85 percent scale for a full screen panel")
+		expectTrue(text:find('content:GetAttribute("FullScreenPanel") ~= true', 1, true) ~= nil, "popOut skips the scale tween for a full screen panel")
+	end
+	local g = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find("overallBar.Size = UDim2.new(1, -(15 + 56)", 1, true) ~= nil, "header bar reserves 56 px on the right")
+	end
+end })
+
 table.insert(tests, { name = "Source audit: no dash characters in player text, no doubled asset prefix, no banned word, the 14 px text count only goes down", fn = function()
 	expectEqual(require(script.Parent.Parent.Engine.DebugGotoRules).parse("perf").kind, "perf", "DebugGoto perf prints the [Perf] line")
 	local p = io and io.popen and io.popen("ls src/Client/*.lua src/Shared/Engine/*.lua 2>/dev/null")

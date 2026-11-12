@@ -320,7 +320,7 @@ return function(deps)
 
 	-- Overall completion bar + next milestone.
 	local overallBar = Instance.new("Frame")
-	overallBar.Size = UDim2.new(1, -30, 0, RoomLayout.BAR.h)
+	overallBar.Size = UDim2.new(1, -(15 + 56), 0, RoomLayout.BAR.h) -- 56 px on the right stay clear of the round close X
 	overallBar.Position = UDim2.fromOffset(15, RoomLayout.BAR.y)
 	overallBar.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 	overallBar.ZIndex = 21

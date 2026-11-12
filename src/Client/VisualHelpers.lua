@@ -708,10 +708,15 @@ return function(deps)
 		backdrop.Active = backdrop:GetAttribute("PopActive") == true
 		backdrop.Visible = true
 		backdrop.BackgroundTransparency = 1
-		scale.Scale = opts.fromScale or 0.85
+		-- a full screen page (PanelFullScreen) never scales: its layout and the painted scene measure the panel's AbsoluteSize,
+		-- and an 85 percent pop left them laid out at the transient size (a dark band at the bottom)
+		local fullScreen = content:GetAttribute("FullScreenPanel") == true
+		scale.Scale = fullScreen and 1 or (opts.fromScale or 0.85)
 
 		tweenTo(backdrop, { BackgroundTransparency = targetTransparency }, duration)
-		tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		if not fullScreen then
+			tweenTo(scale, { Scale = 1 }, duration, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		end
 	end
 
 	-- Reverses popIn: `content` shrinks slightly while `backdrop` fades back
@@ -723,7 +728,7 @@ return function(deps)
 		opts = opts or {}
 		local duration = opts.duration or 0.15
 		local scale = content:FindFirstChildOfClass("UIScale")
-		if scale then
+		if scale and content:GetAttribute("FullScreenPanel") ~= true then
 			tweenTo(scale, { Scale = opts.toScale or 0.9 }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		end
 		local seq = (backdrop:GetAttribute("PopSeq") or 0) + 1

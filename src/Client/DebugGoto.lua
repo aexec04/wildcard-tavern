@@ -155,6 +155,22 @@ function DebugGoto.init(deps)
 					if d:IsA("LocalScript") or d:IsA("ModuleScript") then scripts += 1 end
 				end
 				print(string.format("[Perf] gui=%s instances=%d visibleGuiObjects=%d scripts=%d", gui.Name, total, visible, scripts))
+				-- who owns the weight: the ten biggest direct children by descendant count, then the commonest classes
+				local owners, classes = {}, {}
+				for _, c in ipairs(gui:GetChildren()) do
+					owners[#owners + 1] = { name = c.Name, n = #c:GetDescendants() + 1 }
+				end
+				table.sort(owners, function(a, b) return a.n > b.n end)
+				local parts = {}
+				for i = 1, math.min(10, #owners) do parts[i] = owners[i].name .. "=" .. owners[i].n end
+				print("[Perf] top children: " .. table.concat(parts, ", "))
+				for _, d in ipairs(gui:GetDescendants()) do classes[d.ClassName] = (classes[d.ClassName] or 0) + 1 end
+				local cl = {}
+				for k, v in pairs(classes) do cl[#cl + 1] = { k = k, v = v } end
+				table.sort(cl, function(a, b) return a.v > b.v end)
+				local cp = {}
+				for i = 1, math.min(6, #cl) do cp[i] = cl[i].k .. "=" .. cl[i].v end
+				print("[Perf] top classes: " .. table.concat(cp, ", "))
 			end)
 			if not okP then warn("[DebugGoto] perf failed: " .. tostring(errP)) end
 			return
