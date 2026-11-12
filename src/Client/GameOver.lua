@@ -62,7 +62,7 @@ return function(deps)
 	dim.Name = "GameOver"
 	dim.Size = UDim2.fromScale(1, 1)
 	dim.BackgroundColor3 = Color3.fromRGB(10, 8, 6)
-	dim.BackgroundTransparency = 0.25
+	dim.BackgroundTransparency = 0.55
 	dim.BorderSizePixel = 0
 	dim.Active = true
 	dim.Visible = false
@@ -153,8 +153,9 @@ return function(deps)
 		b.Name = name
 		b.Text = text
 		b.Font = Enum.Font.GothamBold
-		b.TextSize = size or 17
-		b.TextWrapped = true
+		b.TextSize = size or 16
+		b.TextWrapped = false
+		b.TextTruncate = Enum.TextTruncate.None
 		b.TextColor3 = textColor or CREAM
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1
@@ -196,14 +197,14 @@ return function(deps)
 	local actionsF = frame("Actions")
 	local moreF = frame("More")
 
-	local continueButton = button(actionsF, "ContinueButton", "One More Round", GREEN, CREAM, 18)
-	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", BRASS, Color3.fromRGB(40, 28, 14), 18)
-	local tavernButton = button(actionsF, "BackToTavern", "Back to Tavern", WOOD, CREAM, 18)
-	local shareButton = button(moreF, "ShareResult", "Share result", WOOD, CREAM, 15)
-	local challengeButton = button(moreF, "ChallengeFriend", "Challenge a friend", WOOD, CREAM, 15)
-	local inviteButton = button(moreF, "InviteFriends", "Invite friends", WOOD, CREAM, 15)
-	local saveButton = button(moreF, "SaveBadge", "Save as my badge", GREEN, CREAM, 15)
-	local winCardButton = button(moreF, "WinCard", "Win Card", GREEN, CREAM, 15)
+	local continueButton = button(actionsF, "ContinueButton", "One More Round", GREEN, CREAM, 16)
+	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", BRASS, Color3.fromRGB(40, 28, 14), 16)
+	local tavernButton = button(actionsF, "BackToTavern", "Back to Tavern", WOOD, CREAM, 16)
+	local shareButton = button(moreF, "ShareResult", "Share", WOOD, CREAM, 16)
+	local challengeButton = button(moreF, "ChallengeFriend", "Challenge", WOOD, CREAM, 16)
+	local inviteButton = button(moreF, "InviteFriends", "Invite", WOOD, CREAM, 16)
+	local saveButton = button(moreF, "SaveBadge", "Save Badge", GREEN, CREAM, 16)
+	local winCardButton = button(moreF, "WinCard", "Win Card", GREEN, CREAM, 16)
 	winCardButton.Visible = false
 	require(script.Parent.InvitePrompt).bind(inviteButton)
 
@@ -504,6 +505,16 @@ return function(deps)
 		end
 		buildPatrons(r.patrons)
 		current.rects = r
+		-- ZIndex is absolute under Global: lift the whole screen above the play HUD (hand, plates, deck, corner icons) so none of it
+		-- draws over the scroll; the original value is kept in an attribute so a re-layout never lifts twice
+		for _, d in ipairs(dim:GetDescendants()) do
+			if d:IsA("GuiObject") then
+				local base = d:GetAttribute("RunOverBaseZ")
+				if base == nil then base = d.ZIndex; d:SetAttribute("RunOverBaseZ", base) end
+				d.ZIndex = base + RunOverLayout.Z_LIFT
+			end
+		end
+		dim.ZIndex = 1 + RunOverLayout.Z_LIFT
 	end
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		if dim.Visible then pcall(layoutNow) end
@@ -524,7 +535,7 @@ return function(deps)
 			if scrim then scrim.Visible = not isWin end
 		end
 		revivedBadge.Visible = isRevived
-		continueButton.Text = state.continueOffer == "free" and "One More Round (Free)" or "One More Round"
+		continueButton.Text = state.continueOffer == "free" and "One More (Free)" or "One More Round"
 		if isWin then
 			iconLabel.Text = "\u{1F3C6}"
 			titleLabel.Text = "Last call, but what a night! You beat the tavern."
@@ -545,7 +556,7 @@ return function(deps)
 		-- Save as my badge: on until it is saved
 		local saved = summary ~= nil and summary.badgeSaved == true
 		saveButton.Active = summary ~= nil and not saved
-		saveButton.Text = saved and "Badge saved" or "Save as my badge"
+		saveButton.Text = saved and "Badge saved" or "Save Badge"
 		saveButton.BackgroundColor3 = (saved or summary == nil) and Color3.fromRGB(120, 110, 95) or GREEN
 		shareButton.Active, challengeButton.Active = summary ~= nil, summary ~= nil
 

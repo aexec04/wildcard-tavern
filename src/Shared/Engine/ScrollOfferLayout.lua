@@ -15,7 +15,7 @@
 
 local ScrollOfferLayout = {}
 
-ScrollOfferLayout.TEXT_TITLE, ScrollOfferLayout.TEXT_BODY, ScrollOfferLayout.TEXT_BUTTON = 22, 16, 15
+ScrollOfferLayout.TEXT_TITLE, ScrollOfferLayout.TEXT_BODY, ScrollOfferLayout.TEXT_BUTTON = 22, 16, 16
 ScrollOfferLayout.MIN_SCALE = 0.34
 
 -- picture pixels (1024 x 1536). sheet = the flat paper between the rolls, safe = where text may go (inside the wavy edges, clear of the
@@ -68,9 +68,12 @@ function ScrollOfferLayout.layout(key, maxW, maxH)
 	-- blessing then curse share the space between the title and the buttons
 	local bodyH = btnY - gap - y
 	out.body = { x = S.x, y = y, w = S.w, h = bodyH }
-	local half = math.floor((bodyH - gap) / 2)
-	out.blessing = { x = S.x, y = y, w = S.w, h = half }
-	out.curse = { x = S.x, y = y + half + gap, w = S.w, h = bodyH - half - gap }
+	-- two stacked lines, each as tall as its text needs (up to two wrapped lines), 12 px apart, centred in the space
+	local lineH = math.min(math.floor((bodyH - 12) / 2), ScrollOfferLayout.TEXT_BODY * 2 + 10)
+	local blockH = lineH * 2 + 12
+	local top = y + math.max(0, math.floor((bodyH - blockH) / 2))
+	out.blessing = { x = S.x, y = top, w = S.w, h = lineH }
+	out.curse = { x = S.x, y = top + lineH + 12, w = S.w, h = lineH }
 	return out
 end
 

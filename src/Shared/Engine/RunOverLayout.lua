@@ -141,12 +141,22 @@ RunOverLayout.SCROLLS = {
 }
 RunOverLayout.SCROLL_MIN_FIT = 0.95 -- the content must fit the safe rect at nearly full size: text is never shrunk below 15 px by much
 RunOverLayout.SCROLL_MAX_SCALE = 1.15
+RunOverLayout.SCROLL_WIDTH_FRACTION = 0.78 -- the scroll is about 78 percent of the screen width when the content still fits
+RunOverLayout.Z_LIFT = 400 -- added to every ZIndex on the screen so it draws above the play HUD
 
 function RunOverLayout.scroll(sw, sh, spec, key)
 	local S = RunOverLayout.SCROLLS[key or "a"]
 	if not S then return nil end
-	local scale = math.min((sw - 24) / S.art.w, (sh - 16) / S.art.h, RunOverLayout.SCROLL_MAX_SCALE)
-	if scale <= 0 then return nil end
+	local maxScale = math.min((sw - 24) / S.art.w, (sh - 16) / S.art.h, RunOverLayout.SCROLL_MAX_SCALE)
+	if maxScale <= 0 then return nil end
+	-- try the 78 percent width first, then the largest scale that fits the window
+	local pref = math.min(maxScale, RunOverLayout.SCROLL_WIDTH_FRACTION * sw / S.art.w)
+	local result = RunOverLayout.scrollAt(sw, sh, spec, key, S, pref)
+	if result or pref >= maxScale then return result end
+	return RunOverLayout.scrollAt(sw, sh, spec, key, S, maxScale)
+end
+
+function RunOverLayout.scrollAt(sw, sh, spec, key, S, scale)
 	local function m(r) return rect((r.x - S.art.x) * scale, (r.y - S.art.y) * scale, r.w * scale, r.h * scale) end
 	local safe = m(S.safe)
 	-- the content is laid out for a window as wide as the safe rect (two columns from 720 px) and as tall as it needs

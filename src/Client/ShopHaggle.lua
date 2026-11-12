@@ -270,8 +270,9 @@ function ShopHaggle.new(deps)
 	local SCROLL_INK = Color3.fromRGB(60, 40, 22)
 	local scrollRoot = Instance.new("Frame")
 	scrollRoot.Name = "StrangerScroll"
-	scrollRoot.AnchorPoint = Vector2.new(0, 1)
-	scrollRoot.Position = UDim2.new(0, 16, 1, -72)
+	-- centred low so Marlo (left) and the cards stay visible around it; sized at 0.8 of the old maximum
+	scrollRoot.AnchorPoint = Vector2.new(0.5, 1)
+	scrollRoot.Position = UDim2.new(0.5, 0, 1, -24)
 	scrollRoot.BackgroundTransparency = 1
 	scrollRoot.Active = true -- sinks clicks on the paper
 	scrollRoot.ZIndex = Z
@@ -312,6 +313,18 @@ function ShopHaggle.new(deps)
 	medallionRing.Thickness = 3
 	medallionRing.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	medallionRing.Parent = medallion
+	local medallionPortrait = Instance.new("ImageLabel") -- the Stranger's portrait when the art exists (shop_stranger), else the offer icon
+	medallionPortrait.Name = "Portrait"
+	medallionPortrait.BackgroundTransparency = 1
+	medallionPortrait.BorderSizePixel = 0
+	medallionPortrait.Size = UDim2.fromScale(1, 1)
+	medallionPortrait.ScaleType = Enum.ScaleType.Crop
+	medallionPortrait.ZIndex = Z + 3
+	medallionPortrait.Visible = false
+	medallionPortrait.Parent = medallion
+	local portraitCorner = Instance.new("UICorner")
+	portraitCorner.CornerRadius = UDim.new(0.5, 0)
+	portraitCorner.Parent = medallionPortrait
 	local medallionIcon = label(medallion, { size = 36, color = CREAM })
 	medallionIcon.ZIndex = Z + 3
 	medallionIcon.TextWrapped = false
@@ -324,13 +337,24 @@ function ShopHaggle.new(deps)
 	local scrollCurse = label(scrollRoot, { size = ScrollLayout.TEXT_BODY, color = Color3.fromRGB(130, 38, 30) })
 	scrollCurse.Name = "OfferCurse"
 	scrollCurse.ZIndex = Z + 2
-	local scrollAccept = button(scrollRoot, "Accept", GREEN, UDim2.fromOffset(100, 36))
+	local ACCEPT_GREEN = Color3.fromRGB(70, 120, 60)
+	local scrollAccept = button(scrollRoot, "Accept", ACCEPT_GREEN, UDim2.fromOffset(100, 36))
 	scrollAccept.Name = "Accept"
 	scrollAccept.TextSize = ScrollLayout.TEXT_BUTTON
+	scrollAccept.TextWrapped = false
 	scrollAccept.ZIndex = Z + 3
 	local scrollDecline = button(scrollRoot, "No thanks", WOOD, UDim2.fromOffset(100, 36))
 	scrollDecline.Name = "NoThanks"
 	scrollDecline.TextSize = ScrollLayout.TEXT_BUTTON
+	scrollDecline.TextWrapped = false
+	-- wooden plates like every other button (polishButton adds the set skin plate and caps); Accept keeps a green tint
+	if deps.polishButton then
+		for _, b in ipairs({ scrollAccept, scrollDecline }) do
+			local stroke = b:FindFirstChildOfClass("UIStroke")
+			if stroke then stroke:Destroy() end
+			pcall(deps.polishButton, b, 10)
+		end
+	end
 	scrollDecline.ZIndex = Z + 3
 	local scrollMode = nil -- the layout in use while a scroll is showing
 	local function box(inst, r)
@@ -344,7 +368,9 @@ function ShopHaggle.new(deps)
 		local key = ScrollLayout.pick(s)
 		local id = scrollArt(key) or scrollArt(key == "a" and "b" or "a")
 		local size = shopFrame.AbsoluteSize
-		local r = id and size.X > 0 and ScrollLayout.layout(key, math.min(size.X - 32, 620), math.min(0.8 * size.Y, 760)) or nil
+		local maxW, maxH = math.min(size.X - 32, 620), math.min(0.8 * size.Y, 760)
+			-- 0.8 of the old size when that still reads (15 px text), else the full size
+			local r = id and size.X > 0 and (ScrollLayout.layout(key, maxW * 0.8, maxH * 0.8) or ScrollLayout.layout(key, maxW, maxH)) or nil
 		if not r then
 			scrollRoot.Visible = false
 			scrollMode = nil
@@ -363,7 +389,10 @@ function ShopHaggle.new(deps)
 		box(scrollImage, { x = 0, y = 0, w = r.w, h = r.h })
 		box(scrollShadow, { x = 6, y = 10, w = r.w - 12, h = r.h - 14 })
 		box(medallion, r.medallion)
-		medallionIcon.Text = s.icon or "?"
+		local portrait = ContentArt.getImageId("shop", "shop_stranger")
+		medallionPortrait.Image = portrait or ""
+		medallionPortrait.Visible = portrait ~= nil
+		medallionIcon.Text = portrait and "" or (s.icon or "?")
 		box(scrollTitle, r.title)
 		box(scrollBless, r.blessing)
 		box(scrollCurse, r.curse)
@@ -373,7 +402,7 @@ function ShopHaggle.new(deps)
 		scrollBless.Text = "Blessing: " .. tostring(s.blessing)
 		scrollCurse.Text = "Curse: " .. tostring(s.curse)
 		scrollAccept.Active = (state.tips or 0) >= (s.price or 0)
-		scrollAccept.BackgroundColor3 = scrollAccept.Active and GREEN or Color3.fromRGB(110, 110, 100)
+		scrollAccept.BackgroundColor3 = scrollAccept.Active and ACCEPT_GREEN or Color3.fromRGB(110, 110, 100)
 		if not scrollRoot.Visible then
 			scrollRoot.Visible = true
 			if newKey and ClientSettings.get("reduceShake") ~= true and ClientSettings.get("animSpeed") ~= "fast" then

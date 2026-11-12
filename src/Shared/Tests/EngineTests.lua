@@ -21050,7 +21050,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 		end
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
 		expectTrue(#panel:FindFirstChild("Patrons", true):GetChildren() >= 3, "a medallion per Patron")
-		expectTrue(actions.ContinueButton.Visible == true and actions.ContinueButton.Text == "One More Round (Free)", "One More Round (Free) shows when offered")
+		expectTrue(actions.ContinueButton.Visible == true and actions.ContinueButton.Text == "One More (Free)", "One More (Free) shows when offered")
 	end
 	-- the painted scroll: roomy windows draw the content ON run_over_scroll_a (loss) or _b (win), ink on paper, inside the safe rect
 	local Art = require(E.ShopSceneArt)
@@ -21088,7 +21088,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local sawWin = false
 	for _, c in ipairs(panel:FindFirstChild("Title", true):GetChildren()) do if c:IsA("TextLabel") and c.Text:find("beat the tavern", 1, true) then sawWin = true end end
 	expectTrue(sawWin, "a win uses the same panel with the win line")
-	expectTrue(more.SaveBadge.Active == true and more.SaveBadge.Text == "Save as my badge", "Save as my badge is offered")
+	expectTrue(more.SaveBadge.Active == true and more.SaveBadge.Text == "Save Badge", "Save Badge is offered")
 	summary.badgeSaved = true
 	P.refreshGameOver(win, nil)
 	expectTrue(more.SaveBadge.Active == false and more.SaveBadge.Text == "Badge saved", "and turns into Badge saved")
@@ -21924,6 +21924,22 @@ table.insert(tests, { name = "RunOverLayout.scroll: content stays inside the map
 	end
 	expectTrue(usedAny, "the scroll is used at desktop sizes")
 	expectEqual(L.scroll(390, 844, { factsH = 200, patrons = 3, primary = 3, more = 6 }, "a"), nil, "a phone keeps the plain one column panel")
+end })
+
+table.insert(tests, { name = "RunOverLayout.scroll: about 78 percent of the screen width at 1920x1080, and every text size and button label fits one line", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local r = L.scroll(1920, 1080, { factsH = 330, patrons = 3, primary = 3, more = 6 }, "a")
+	expectTrue(r ~= nil, "the scroll is used at 1920x1080")
+	if r then
+		local frac = r.card.w / 1920
+		expectTrue(frac > 0.7 and frac < 0.86, "the scroll is near 78 percent of the width, got " .. frac)
+	end
+	expectTrue(L.Z_LIFT >= 200, "the screen is lifted above the play HUD")
+	local E = script.Parent.Parent.Engine
+	local primary = L.compute(1920, 1080, { factsH = 330, patrons = 3, primary = 3, more = 6 }).primary
+	for i, cell in ipairs(primary) do
+		expectTrue(cell.w >= 150, "primary button " .. i .. " is wide enough for a one line 16 px label")
+	end
 end })
 
 table.insert(tests, { name = "Choice cards are painted parchment: wood frame with brass studs, a slight tilt each, a brass medallion, 16 px ink rule text centred in the gap, green plus and red minus", fn = function()

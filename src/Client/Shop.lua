@@ -328,7 +328,7 @@ return function(deps)
 			shopScene = ok and built or nil
 			local okH, haggle = pcall(function()
 				return require(script.Parent.ShopHaggle).new({
-					shopFrame = shopFrame, playClickSfx = playClickSfx,
+					shopFrame = shopFrame, playClickSfx = playClickSfx, polishButton = polishButton,
 					say = function(text) if shopScene then shopScene.sayText(text) end end,
 					warn = showWarning, -- a refused click says why on the Counter as well as in Marlo's bubble
 				})
