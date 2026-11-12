@@ -20795,4 +20795,57 @@ table.insert(tests, { name = "Choose your road: painted room scene under the pan
 	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
+table.insert(tests, { name = "RewardBanner: holds 2.2 s (1.2 fast), fades by itself, early click closes it after the grace, calm mode has no animation, count-up reaches the total", fn = function()
+	local B = require(script.Parent.Parent.Engine.RewardBanner)
+	local n = B.plan("normal", false)
+	local f = B.plan("fast", false)
+	local c = B.plan("normal", true)
+	expectEqual(n.hold, 2.2, "normal hold is 2.2 s")
+	expectEqual(f.hold, 1.2, "fast animation holds 1.2 s")
+	expectTrue(c.animated == false and c.fadeIn == 0 and c.fadeOut == 0 and c.countUp == 0 and c.stagger == 0, "calm mode: no fades, no count, no stagger")
+	local ph = B.phaseAt(n, 0.05)
+	expectEqual(ph, "in", "it fades in first")
+	ph = B.phaseAt(n, n.fadeIn + 1)
+	expectEqual(ph, "hold", "then holds")
+	ph = B.phaseAt(n, n.fadeIn + n.hold + 0.1)
+	expectEqual(ph, "out", "then fades out")
+	ph = B.phaseAt(n, n.fadeIn + n.hold + n.fadeOut + 0.01)
+	expectEqual(ph, "done", "and is gone by itself (auto dismiss)")
+	ph = B.phaseAt(c, c.hold + 0.001)
+	expectEqual(ph, "done", "calm mode ends with no fade")
+	ph = B.phaseAt(c, 0.0)
+	local _, a = B.phaseAt(c, 0.0)
+	expectTrue(ph == "hold" and a == 1, "calm mode shows at full strength at once")
+	-- an early click starts the fade-out at once
+	local p1, a1 = B.phaseAt(n, 1.0, 0.9)
+	expectEqual(p1, "out", "a click at 0.9 s starts the fade-out")
+	expectTrue(a1 < 1 and a1 > 0, "partway faded")
+	expectEqual((B.phaseAt(n, 0.9 + n.fadeOut + 0.01, 0.9)), "done", "and it is gone one fade later")
+	expectFalse(B.canDismiss(n, 0.1), "the click that played the hand does not close it")
+	expectTrue(B.canDismiss(n, 0.5), "a later click does")
+	expectEqual(B.countAt(n, 18, 0), 0, "the count starts at 0")
+	expectEqual(B.countAt(n, 18, n.countUp), 18, "and ends on the exact total")
+	expectEqual(B.countAt(n, 18, 99), 18, "and stays there")
+	expectEqual(B.countAt(c, 18, 0), 18, "calm mode shows the total at once")
+	local prev = -1
+	for i = 0, 20 do
+		local v = B.countAt(n, 37, n.countUp * i / 20)
+		expectTrue(v >= prev and v <= 37, "the count never goes down or past the total")
+		prev = v
+	end
+	expectEqual(B.shownLines(n, 3, 0), 1, "the first line shows at once")
+	expectEqual(B.shownLines(n, 3, 0.3), 2, "one more every 0.25 s")
+	expectEqual(B.shownLines(n, 3, 5), 3, "capped at the line count")
+	expectEqual(B.shownLines(c, 3, 0), 3, "calm mode shows every line at once")
+	if io and io.open then
+		local function read(path) local fh = io.open(path, "r"); if not fh then return nil end local t = fh:read("*a"); fh:close(); return t end
+		local banner, popup = read("src/Client/RoundRewardBanner.lua"), read("src/Client/RoundRewardPopup.lua")
+		if banner and popup then
+			expectTrue(banner:find("Backdrop", 1, true) == nil or banner:find('Name = "%w*Backdrop"') == nil, "the banner is not a Backdrop, so it blocks nothing")
+			expectTrue(banner:find("Active = false", 1, true) ~= nil, "the banner takes no input")
+			expectTrue(popup:find("RoundRewardBanner", 1, true) ~= nil and popup:find("titleOverride == nil", 1, true) ~= nil, "a normal round win uses the banner, the Night-cleared headline keeps the plate")
+		end
+	end
+end })
+
 return tests

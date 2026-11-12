@@ -1,0 +1,133 @@
+--[[
+	Client/RoundRewardBanner.lua
+	Round Complete without a Continue click: a small dark parchment plate with a brass edge near the top centre of the screen lists
+	Round reward, Interest and a gold Total, counts the Tips up, holds about 2.2 s (1.2 s on fast animation, no fades in calm mode)
+	and fades out by itself. It never blocks: it is not a "...Backdrop", takes no input, and the Counter, Reroll, Haggle, the cards and
+	Next Round work from the first frame. A click or key press anywhere (after a short grace) closes it early. Timing lives in the
+	tested Engine/RewardBanner; the amounts come from Engine/RoundPayout. The economy is not touched, this only draws.
+
+	RoundRewardBanner.show({ screenGui, title, amount, interest })
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+local RewardBanner = require(Engine:WaitForChild("RewardBanner"))
+local Payout = require(Engine:WaitForChild("RoundPayout"))
+local ClientSettings = require(script.Parent.ClientSettings)
+
+local RoundRewardBanner = {}
+
+local PLATE = Color3.fromRGB(46, 34, 24)
+local BRASS = Color3.fromRGB(200, 160, 84)
+local CREAM = Color3.fromRGB(250, 238, 212)
+local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
+local Z = 55 -- over the Counter and the table, under every modal (the Choice screens start at 60)
+
+local current -- the banner on screen: { gui, conns }
+
+local function close()
+	if not current then return end
+	for _, c in ipairs(current.conns) do c:Disconnect() end
+	if current.gui then current.gui:Destroy() end
+	current = nil
+end
+
+local function label(parent, text, size, color, order)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(1, 0, 0, size + 8)
+	l.LayoutOrder = order
+	l.Font = Enum.Font.GothamBold
+	l.TextSize = size
+	l.Text = text
+	l.TextColor3 = color
+	l.TextTransparency = 0
+	l.TextStrokeTransparency = 1
+	l.ZIndex = Z + 1
+	l.Parent = parent
+	return l
+end
+
+function RoundRewardBanner.show(args)
+	close()
+	local screenGui = args.screenGui
+	if not screenGui then return end
+	local calm = ClientSettings.get("reduceShake") == true
+	local plan = RewardBanner.plan(ClientSettings.get("animSpeed"), calm)
+	local data = Payout.breakdown(args.amount, args.interest or 0)
+
+	local gui = Instance.new("CanvasGroup") -- one GroupTransparency fades the whole plate
+	gui.Name = "RoundRewardBanner"
+	gui.AnchorPoint = Vector2.new(0.5, 0)
+	gui.Position = UDim2.new(0.5, 0, 0, 64) -- under the Roblox top bar, above the offers
+	gui.Size = UDim2.fromOffset(340, 0)
+	gui.AutomaticSize = Enum.AutomaticSize.Y
+	gui.BackgroundColor3 = PLATE
+	gui.BorderSizePixel = 0
+	gui.Active = false
+	gui.ZIndex = Z
+	gui.GroupTransparency = plan.fadeIn > 0 and 1 or 0
+	gui.Parent = screenGui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = gui
+	local edge = Instance.new("UIStroke")
+	edge.Color = BRASS
+	edge.Thickness = 3
+	edge.Parent = gui
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 12), UDim.new(0, 12)
+	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
+	pad.Parent = gui
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0, 2)
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.Parent = gui
+
+	label(gui, "\u{1F4B0} " .. (args.title or "Round Complete!"), 22, GOLD_TEXT, 1)
+	local rows = {}
+	for i, line in ipairs(data.lines) do
+		rows[i] = label(gui, line.text, line.total and 20 or 18, line.total and GOLD_TEXT or CREAM, 1 + i)
+		rows[i].Visible = plan.stagger <= 0 or i == 1
+	end
+	local totalRow = rows[#rows]
+
+	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
+
+	current = { gui = gui, conns = {} }
+	local me = current
+	local started = os.clock()
+	local dismissedAt = nil
+	local function onInput(input)
+		if current ~= me or dismissedAt then return end
+		local t = os.clock() - started
+		if not RewardBanner.canDismiss(plan, t) then return end
+		local kind = input.UserInputType
+		if kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch or kind == Enum.UserInputType.Keyboard then
+			dismissedAt = t
+		end
+	end
+	table.insert(me.conns, UserInputService.InputBegan:Connect(onInput))
+	table.insert(me.conns, RunService.Heartbeat:Connect(function()
+		if current ~= me then return end
+		local t = os.clock() - started
+		local phase, alpha = RewardBanner.phaseAt(plan, t, dismissedAt)
+		if phase == "done" then
+			close()
+			return
+		end
+		gui.GroupTransparency = 1 - alpha
+		local shown = RewardBanner.shownLines(plan, #rows, t)
+		for i, row in ipairs(rows) do row.Visible = i <= shown end
+		if totalRow then
+			totalRow.Text = string.format("Total +$%d Tips", RewardBanner.countAt(plan, data.total, t))
+		end
+	end))
+end
+
+RoundRewardBanner.close = close
+
+return RoundRewardBanner

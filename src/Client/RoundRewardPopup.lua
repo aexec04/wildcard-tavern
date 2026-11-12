@@ -34,6 +34,13 @@ return function(deps)
 		local OverlayQueue = require(script.Parent.OverlayQueue)
 		local Payout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundPayout"))
 		OverlayQueue.newRound()
+		-- A normal Round Complete is a non-blocking banner that counts up, holds about 2.2 s and fades on its own (Client/RoundRewardBanner,
+		-- timing in Engine/RewardBanner): no Continue click and the Counter is usable at once. The one-time Night-cleared headline
+		-- (titleOverride) and Tag rewards (no interest, one line of text) are momentous or different results and keep the plate.
+		if interest ~= nil and titleOverride == nil then
+			require(script.Parent.RoundRewardBanner).show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest })
+			return
+		end
 		-- Tag rewards (Tip Jar) pass no interest and keep the one-line text.
 		local rows = interest ~= nil and Payout.breakdown(amount, interest).lines or nil
 		OverlayQueue.enqueue({
