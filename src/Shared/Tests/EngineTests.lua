@@ -14019,7 +14019,15 @@ table.insert(tests, { name = "SpectateLayout: Leave is centred at the bottom and
 		expectTrue(math.abs(l[1] + l[3] / 2 - w / 2) < 0.01, "Leave centred at width " .. w)
 		expectTrue(l[2] + l[4] <= SL.HEIGHT and l[1] >= 0 and l[1] + l[3] <= w, "Leave inside the overlay at width " .. w)
 		expectTrue(re[2] + re[4] <= l[2], "reaction row ends above Leave at width " .. w)
+		expectTrue(l[2] - (re[2] + re[4]) >= 20, "a 20 px gap between the reaction row and Leave at width " .. w)
 		expectTrue(l[3] >= 44 and l[4] >= 30, "Leave is a real touch target")
+	end
+	local f = io and io.open and io.open("src/Client/SpectatePanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("stopButton", 1, true) == nil and src:find('"Stop"', 1, true) == nil, "the red Stop button is gone, Leave is the one exit")
+		expectTrue(src:find('header.Name = "HeaderStrip"', 1, true) ~= nil, "a header strip under the title")
+		expectTrue(src:find("TextSize = 22, TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left, Text = \"Watching\"", 1, true) ~= nil, "the Watching title is 20+ and cream")
 	end
 end })
 

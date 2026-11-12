@@ -82,36 +82,42 @@ function SpectatePanel.init(deps)
 	local oc = Instance.new("UICorner")
 	oc.CornerRadius = UDim.new(0, 14)
 	oc.Parent = overlay
+	-- dark wood frame (calm, low contrast) and a wood header strip with a thin gold line under it, like the other panels
 	local os_ = Instance.new("UIStroke")
-	os_.Color = GOLD
-	os_.Thickness = 2
+	os_.Color = Color3.fromRGB(104, 70, 40)
+	os_.Thickness = 6
+	os_.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	os_.Parent = overlay
+	local header = Instance.new("Frame")
+	header.Name = "HeaderStrip"
+	header.Position = UDim2.fromOffset(0, 0)
+	header.Size = UDim2.new(1, 0, 0, 56)
+	header.BackgroundColor3 = Color3.fromRGB(96, 66, 38)
+	header.BorderSizePixel = 0
+	header.Active = false
+	header.ZIndex = 131 -- created before the title and sub line, so they draw on it
+	header.Parent = overlay
+	local hc = Instance.new("UICorner")
+	hc.CornerRadius = UDim.new(0, 14)
+	hc.Parent = header
+	local headLine = Instance.new("Frame")
+	headLine.Name = "HeaderLine"
+	headLine.Position = UDim2.fromOffset(0, 56)
+	headLine.Size = UDim2.new(1, 0, 0, 2)
+	headLine.BackgroundColor3 = GOLD
+	headLine.BorderSizePixel = 0
+	headLine.Active = false
+	headLine.ZIndex = 131
+	headLine.Parent = overlay
 
-	local title = label(overlay, { Size = UDim2.new(1, -150, 0, 26), Position = UDim2.fromOffset(12, 6), TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, Text = "Watching" })
+	local title = label(overlay, { Size = UDim2.new(1, -24, 0, 28), Position = UDim2.fromOffset(12, 4), TextSize = 22, TextColor3 = CREAM, TextXAlignment = Enum.TextXAlignment.Left, Text = "Watching" })
 	local sub = label(overlay, { Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 32), Font = Enum.Font.GothamMedium, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
 
-	local function smallButton(text, x, color)
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.fromOffset(64, 30)
-		b.AnchorPoint = Vector2.new(1, 0)
-		b.Position = UDim2.new(1, x, 0, 8)
-		b.Font = Enum.Font.GothamBold
-		b.TextSize = 14
-		b.TextColor3 = CREAM
-		b.BackgroundColor3 = color
-		b.Text = text
-		b.ZIndex = 132
-		b.Parent = overlay
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 8)
-		c.Parent = b
-		return b
-	end
-	local stopButton = smallButton("Stop", -8, Color3.fromRGB(150, 60, 50))
+	-- one exit only: the parchment Leave button at the bottom (the red Stop was a second copy of it)
 
 	-- score line
 	local barBack = Instance.new("Frame")
-	barBack.Position = UDim2.fromOffset(12, 58)
+	barBack.Position = UDim2.fromOffset(12, 62)
 	barBack.Size = UDim2.new(1, -24, 0, 22)
 	barBack.BackgroundColor3 = Color3.fromRGB(70, 52, 36)
 	barBack.BorderSizePixel = 0
@@ -315,12 +321,7 @@ function SpectatePanel.init(deps)
 		watchedFlair = {}
 	end
 
-	stopButton.MouseButton1Click:Connect(function()
-		ActionRemote:FireServer("stop")
-		stopWatching()
-	end)
-
-	-- Leave: a parchment button at the bottom centre; same close path as Stop (tells the server, hides the overlay, the Menu is underneath)
+	-- Leave: the one exit, a parchment button at the bottom centre (tells the server, hides the overlay, the Menu is underneath)
 	local leaveButton = Instance.new("TextButton")
 	leaveButton.Name = "LeaveButton"
 	leaveButton.AnchorPoint = Vector2.new(0.5, 1)
