@@ -11,7 +11,7 @@ return {
 	["bouncer"] = "rbxassetid://102498103986132",
 	["clubs_are_out"] = "rbxassetid://115969517449124",
 	["cold_start"] = "rbxassetid://113768396016802",
-	["crowded_counter"] = "rbxassetid://110752620686446",
+	["crowded_counter"] = "rbxassetid://119178205833383",
 	["diamonds_are_out"] = "rbxassetid://123767074351075",
 	["double_tab"] = "rbxassetid://103629183301671",
 	["empty_handed"] = "rbxassetid://95660355985337",
