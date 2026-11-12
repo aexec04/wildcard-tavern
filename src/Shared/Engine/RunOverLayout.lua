@@ -9,6 +9,9 @@
 	RunOverLayout.estimateLines(text, width, size)     wrapped line count of a text (no real fonts needed)
 	RunOverLayout.compute(sw, sh, spec)                spec = { factsH, patrons, primary, more }; returns the rects
 	RunOverLayout.TEXT_MIN                              smallest text size on the screen (15)
+	RunOverLayout.SCROLLS                               the two painted scrolls (run_over_scroll_a for a loss, _b for a win) with their measured boxes
+	RunOverLayout.scroll(sw, sh, spec, key)             the same content drawn ON a scroll: { key, card, safe, fit, origin, inner } or nil when the
+	                                                    window is too small for 15 px text on the paper (then the plain panel shows)
 ]]
 
 local RunOverLayout = {}
@@ -19,9 +22,9 @@ RunOverLayout.GAP = 12
 RunOverLayout.TITLE_H = 64
 RunOverLayout.BTN_H = 46
 RunOverLayout.SMALL_H = 38
-RunOverLayout.SEAT_W, RunOverLayout.SEAT_H = 84, 96
+RunOverLayout.SEAT_W, RunOverLayout.SEAT_H = 72, 96
 RunOverLayout.WIDE_FROM = 720 -- screen width from which the two columns show
-RunOverLayout.LEFT_W = 300
+RunOverLayout.LEFT_W = 280
 RunOverLayout.LABEL_H = 24
 
 function RunOverLayout.columns(sw)
@@ -125,6 +128,35 @@ function RunOverLayout.compute(sw, sh, spec)
 	out.scale = math.max(0.4, fit)
 	out.columns = C
 	return out
+end
+
+-- The painted scrolls (1536 x 1024 pictures), boxes measured from the PNGs (art-wip/shop_scene/debug_run_over_scroll_*_boxes.png), picture pixels:
+-- art = the opaque scroll, sheet = the paper between the rolls, safe = where content may go (clear of the seal and the stains), seal = the wax
+-- seal, leftRod / rightRod = the rolls with their rods.
+RunOverLayout.SCROLLS = {
+	a = { art = { x = 53, y = 34, w = 1475, h = 990 }, sheet = { x = 226, y = 140, w = 1084, h = 760 }, safe = { x = 250, y = 170, w = 1036, h = 610 },
+		seal = { x = 704, y = 800, w = 136, h = 120 }, leftRod = { x = 66, y = 36, w = 164, h = 950 }, rightRod = { x = 1308, y = 40, w = 150, h = 940 } },
+	b = { art = { x = 53, y = 56, w = 1483, h = 966 }, sheet = { x = 200, y = 150, w = 1130, h = 730 }, safe = { x = 230, y = 190, w = 1070, h = 560 },
+		seal = { x = 700, y = 760, w = 150, h = 130 }, leftRod = { x = 54, y = 56, w = 160, h = 909 }, rightRod = { x = 1316, y = 56, w = 150, h = 909 } },
+}
+RunOverLayout.SCROLL_MIN_FIT = 0.95 -- the content must fit the safe rect at nearly full size: text is never shrunk below 15 px by much
+RunOverLayout.SCROLL_MAX_SCALE = 1.15
+
+function RunOverLayout.scroll(sw, sh, spec, key)
+	local S = RunOverLayout.SCROLLS[key or "a"]
+	if not S then return nil end
+	local scale = math.min((sw - 24) / S.art.w, (sh - 16) / S.art.h, RunOverLayout.SCROLL_MAX_SCALE)
+	if scale <= 0 then return nil end
+	local function m(r) return rect((r.x - S.art.x) * scale, (r.y - S.art.y) * scale, r.w * scale, r.h * scale) end
+	local safe = m(S.safe)
+	-- the content is laid out for a window as wide as the safe rect (two columns from 720 px) and as tall as it needs
+	local inner = RunOverLayout.compute(safe.w + 32, 100000, spec)
+	local fit = math.min(1, safe.w / inner.panel.w, safe.h / inner.panel.h)
+	if fit < RunOverLayout.SCROLL_MIN_FIT then return nil end
+	local w, h = inner.panel.w * fit, inner.panel.h * fit
+	local origin = { x = safe.x + math.floor((safe.w - w) / 2 + 0.5), y = safe.y + math.floor((safe.h - h) / 2 + 0.5) }
+	return { key = key or "a", scale = scale, card = { w = math.floor(S.art.w * scale + 0.5), h = math.floor(S.art.h * scale + 0.5) }, safe = safe, seal = m(S.seal),
+		leftRod = m(S.leftRod), rightRod = m(S.rightRod), fit = fit, origin = origin, inner = inner }
 end
 
 return RunOverLayout

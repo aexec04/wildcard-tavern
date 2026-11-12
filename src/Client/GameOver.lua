@@ -30,6 +30,9 @@ local SeedDisplay = require(Engine:WaitForChild("SeedDisplay"))
 local ShareResult = require(Engine:WaitForChild("ShareResult"))
 local EndlessRules = require(Engine:WaitForChild("EndlessRules"))
 local WinCardRules = require(Engine:WaitForChild("WinCard"))
+local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
+local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local ClientSettings = require(script.Parent.ClientSettings)
 
 local CREAM = Color3.fromRGB(250, 240, 220)
 local GOLD_TEXT = Color3.fromRGB(255, 214, 130)
@@ -42,6 +45,12 @@ local BRASS = Color3.fromRGB(196, 150, 60)
 
 local FACT_SIZE = 17
 local LINE_PAD = 6
+
+-- text colours by tone: light on the dark wood panel, dark ink on the painted scroll's paper (4.5:1 or better on the paper)
+local TONES = {
+	plain = { text = CREAM, gold = GOLD_TEXT, soft = SOFT },
+	scroll = { text = Color3.fromRGB(60, 40, 22), gold = Color3.fromRGB(110, 66, 16), soft = Color3.fromRGB(84, 58, 34) },
+}
 
 return function(deps)
 	local root = deps.root
@@ -87,6 +96,28 @@ return function(deps)
 	winArt.ZIndex = 20
 	winArt.Parent = panel
 
+	-- the painted scroll behind the content (run_over_scroll_a for a loss, _b for a win): shown when the window is roomy enough for the content at
+	-- full size inside the scroll's measured text-safe rect (Engine/RunOverLayout.scroll), else the dark wood panel stays
+	local scrollPicture = Instance.new("ImageLabel")
+	scrollPicture.Name = "ScrollPicture"
+	scrollPicture.BackgroundTransparency = 1
+	scrollPicture.BorderSizePixel = 0
+	scrollPicture.Active = false
+	scrollPicture.ScaleType = Enum.ScaleType.Stretch
+	scrollPicture.ZIndex = 21
+	scrollPicture.Visible = false
+	scrollPicture.Parent = panel
+	-- every named frame lives in Content, which is moved and scaled onto the safe rect of the scroll (or fills the plain panel)
+	local content = Instance.new("Frame")
+	content.Name = "Content"
+	content.BackgroundTransparency = 1
+	content.BorderSizePixel = 0
+	content.Active = false
+	content.ZIndex = 22
+	content.Size = UDim2.fromScale(1, 1)
+	content.Parent = panel
+	local contentScale = Instance.new("UIScale")
+	contentScale.Parent = content
 	local function frame(name, parent)
 		local f = Instance.new("Frame")
 		f.Name = name
@@ -94,7 +125,7 @@ return function(deps)
 		f.BorderSizePixel = 0
 		f.Active = false
 		f.ZIndex = 22
-		f.Parent = parent or panel
+		f.Parent = parent or content
 		return f
 	end
 	local function place(f, r)
@@ -150,7 +181,7 @@ return function(deps)
 	})
 	polishPanel(revivedBadge, 13)
 	local factsF = frame("Facts")
-	local patronsLabel = label(panel, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
+	local patronsLabel = label(content, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	local patronsF = frame("Patrons")
 	patronsF.BackgroundTransparency = 0.15
@@ -254,29 +285,40 @@ return function(deps)
 		local lines = {}
 		local function add(text, props) lines[#lines + 1] = { text = text, props = props or {} } end
 		local best = summary and summary.bestHand or bestHand
-		if best then add(string.format("\u{26A1} Biggest hand: %s: %d", best.name, best.score), { TextColor3 = GOLD_TEXT }) end
+		if best then add(string.format("\u{26A1} Biggest hand: %s: %d", best.name, best.score), { tone = "gold" }) end
 		add(string.format("Final score: %d / %d", math.floor(state.roundScore or 0), math.floor(state.targetScore or 0)))
 		add(string.format("Tips banked: %d", math.floor(state.tips or 0)))
 		if summary then
-			add("Road taken", { TextColor3 = GOLD_TEXT })
+			add("Road taken", { tone = "gold" })
 			local names = {}
 			for _, stop in ipairs(summary.route or {}) do names[#names + 1] = stop.name or stop.id end
-			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = SOFT })
+			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" })
 			if summary.blessing then add("Blessing: " .. summary.blessing.name) end
 		end
-		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { TextColor3 = GOLD_TEXT }) end
+		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
 		local seedInfo = SeedDisplay.label(state)
-		if seedInfo then add(seedInfo.text, { Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = SOFT }) end
+		if seedInfo then add(seedInfo.text, { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
 		if summary then
 			local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)
-			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = SOFT }) end
+			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
 		end
 		local hint = (not isWin) and GameOverTips.pick(state.night, state.round) or nil
-		if hint then add("Tip: " .. hint, { Font = Enum.Font.GothamMedium, TextSize = 15, TextColor3 = SOFT }) end
+		if hint then add("Tip: " .. hint, { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
 		return lines
 	end
 
 	local current = {} -- what the screen shows now: { state, summary, bestHand, isWin, lines }
+
+	local mode = "plain" -- "plain" (dark wood panel) or "scroll" (painted paper): decides the text colours
+
+	local function measureFacts(width)
+		local y = 0
+		for _, line in ipairs(current.lines) do
+			local size = line.props.TextSize or FACT_SIZE
+			y = y + RunOverLayout.estimateLines(line.text, width, size) * (size + 3) + LINE_PAD
+		end
+		return y
+	end
 
 	local function buildFacts(width)
 		clearFacts()
@@ -287,11 +329,44 @@ return function(deps)
 			local h = n * (size + 3) + LINE_PAD
 			label(factsF, {
 				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(width, h),
-				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = line.props.TextColor3 or CREAM,
+				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = TONES[mode][line.props.tone or "text"],
 			})
 			y = y + h
 		end
 		return y
+	end
+
+	-- the text and plate colours for the current mode (ink on the scroll's paper, cream on the dark wood), and the panel's own chrome
+	local chromeSaved = {}
+	local function applyMode(newMode)
+		mode = newMode
+		local t = TONES[mode]
+		titleLabel.TextColor3 = t.text
+		patronsLabel.TextColor3 = t.gold
+		noPatrons.TextColor3 = t.text
+		shareHint.TextColor3 = t.text
+		local onScroll = mode == "scroll"
+		patronsF.BackgroundTransparency = onScroll and 0.88 or 0.15
+		scrollPicture.Visible = onScroll
+		-- the dark wood panel's fill, stroke, gradient, sheen and shadow step aside while the paper is the panel
+		for _, child in ipairs(panel:GetChildren()) do
+			if child ~= content and child ~= scrollPicture and child ~= winArt then
+				if child:IsA("UIStroke") or child:IsA("UIGradient") then
+					child.Enabled = not onScroll
+				elseif child:IsA("GuiObject") then
+					if onScroll and chromeSaved[child] == nil then chromeSaved[child] = child.Visible end
+					if onScroll then
+						child.Visible = false
+					elseif chromeSaved[child] ~= nil then
+						child.Visible = chromeSaved[child]
+						chromeSaved[child] = nil
+					end
+				end
+			end
+		end
+		panel.BackgroundTransparency = onScroll and 1 or 0
+		local shadow = dim:FindFirstChild("Shadow")
+		if shadow then shadow.Visible = not onScroll end
 	end
 
 	local function buildPatrons(r)
@@ -334,7 +409,7 @@ return function(deps)
 			PatronPlaque.apply(seat, patron.id, { zIndex = 26, cornerRadius = 26, emojiLabel = emoji })
 			local nameLabel = label(holder, {
 				Text = patron.name or patron.id, Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 0, 40), TextSize = 15,
-				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 24,
+				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 24, TextColor3 = TONES[mode].text,
 			})
 			nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 		end
@@ -345,8 +420,6 @@ return function(deps)
 		if not current.state then return end
 		local size = root.AbsoluteSize
 		local sw, sh = size.X > 0 and size.X or 1280, size.Y > 0 and size.Y or 720
-		local cols = RunOverLayout.columns(sw)
-		local factsH = buildFacts(cols.leftW)
 		local state = current.state
 		local primaryList = {}
 		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"
@@ -360,9 +433,42 @@ return function(deps)
 		if showWin then moreList[#moreList + 1] = winCardButton end
 		local patronN = math.min(10, current.summary and #current.summary.patrons or 0)
 		-- six secondary cells are always reserved: the free ones hold the share hint once a share line is showing
-		local r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6 })
-		panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
-		fit.Scale = r.scale
+		-- the scroll first: it needs the content to fit its measured text-safe rect at (nearly) full size; otherwise the plain wood panel
+		local scrollKey = current.isWin and "b" or "a"
+		local artId = ContentArt.getImageId("shop_scene", "run_over_scroll_" .. scrollKey)
+		local sc = nil
+		if artId then
+			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6 }, scrollKey)
+		end
+		local factsH
+		local r
+		if sc then
+			applyMode("scroll")
+			factsH = buildFacts(RunOverLayout.LEFT_W)
+			r = sc.inner
+			panel.Size = UDim2.fromOffset(sc.card.w, sc.card.h)
+			fit.Scale = 1
+			content.Position = UDim2.fromOffset(sc.origin.x, sc.origin.y)
+			content.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
+			contentScale.Scale = sc.fit
+			local art = RunOverLayout.SCROLLS[scrollKey].art
+			local ix, iy, iw, ih = ImageSpace.rect(art.x, art.y, art.w, art.h, 1536, 1024)
+			scrollPicture.Image = artId
+			scrollPicture.ImageRectOffset = Vector2.new(ix, iy)
+			scrollPicture.ImageRectSize = Vector2.new(iw, ih)
+			scrollPicture.Position = UDim2.fromOffset(0, 0)
+			scrollPicture.Size = UDim2.fromOffset(sc.card.w, sc.card.h)
+		else
+			applyMode("plain")
+			local cols = RunOverLayout.columns(sw)
+			factsH = buildFacts(cols.leftW)
+			r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6 })
+			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
+			fit.Scale = r.scale
+			content.Position = UDim2.fromOffset(0, 0)
+			content.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
+			contentScale.Scale = 1
+		end
 		place(titleF, r.title)
 		place(factsF, r.facts)
 		place(patronsLabel, r.patronsLabel)
@@ -459,8 +565,20 @@ return function(deps)
 			if store and store:IsA("GuiObject") then store.Visible = false end
 			-- pop in: the panel grows from 85 percent to its fitted scale
 			local target = fit.Scale
-			fit.Scale = target * 0.85
-			TweenService:Create(fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+			if mode == "scroll" then
+				-- the scroll unrolls: a 0.3 s fade and settle (none in Reduce motion)
+				if ClientSettings.get("reduceShake") ~= true then
+					fit.Scale = 0.94
+					scrollPicture.ImageTransparency = 1
+					TweenService:Create(fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+					TweenService:Create(scrollPicture, TweenInfo.new(0.3), { ImageTransparency = 0 }):Play()
+				else
+					scrollPicture.ImageTransparency = 0
+				end
+			else
+				fit.Scale = target * 0.85
+				TweenService:Create(fit, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+			end
 			if playSfx and SOUND_IDS then
 				require(script.Parent.Cue).play(isWin and "win" or "lose", 1.2)
 			end

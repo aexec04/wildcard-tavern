@@ -20998,10 +20998,10 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard", "ImageSpace", "ContentArt" }) do map[n] = require(E[n]) end
 	local stubs = {
 		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
-		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end },
+		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end }, ClientSettings = { get = function() return false end },
 	}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
@@ -21014,14 +21014,14 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	local panel = P.gameOverFrame:FindFirstChild("RunOverPanel")
 	expectTrue(panel ~= nil, "the one container is named RunOverPanel")
 	for _, name in ipairs({ "Title", "Facts", "PatronsLabel", "Patrons", "Actions", "More" }) do
-		expectTrue(panel:FindFirstChild(name) ~= nil, "RunOverPanel has the named child " .. name)
+		expectTrue(panel:FindFirstChild(name, true) ~= nil, "RunOverPanel has the named child " .. name)
 	end
 	local function names(frame)
 		local t = {}
 		for _, c in ipairs(frame:GetChildren()) do t[c.Name] = c end
 		return t
 	end
-	local actions, more = names(panel:FindFirstChild("Actions")), names(panel:FindFirstChild("More"))
+	local actions, more = names(panel:FindFirstChild("Actions", true)), names(panel:FindFirstChild("More", true))
 	for _, n in ipairs({ "ContinueButton", "PlayAgain", "BackToTavern" }) do expectTrue(actions[n] ~= nil, n .. " is on the Run Over screen") end
 	for _, n in ipairs({ "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge", "WinCard" }) do expectTrue(more[n] ~= nil, n .. " is on the Run Over screen") end
 	expectTrue(actions.Continue == nil, "there is no Continue button")
@@ -21036,29 +21036,57 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 		local pw, ph = panel.Size.X.Offset, panel.Size.Y.Offset
 		local scale = panel:FindFirstChildOfClass("UIScale").Scale
 		expectTrue(pw * scale <= size[1] + 1 and ph * scale <= size[2] + 1, "the panel fits " .. size[1] .. "x" .. size[2] .. " without scrolling (" .. pw .. "x" .. ph .. " at " .. scale .. ")")
-		local title = panel:FindFirstChild("Title"):FindFirstChildOfClass("TextLabel")
+		local title = panel:FindFirstChild("Title", true):FindFirstChildOfClass("TextLabel")
 		local sawTitle = false
-		for _, c in ipairs(panel:FindFirstChild("Title"):GetChildren()) do
+		for _, c in ipairs(panel:FindFirstChild("Title", true):GetChildren()) do
 			if c:IsA("TextLabel") and c.Text:find("Last call! You made it to Night 5, Round 3.", 1, true) then sawTitle = true end
 		end
 		expectTrue(sawTitle and title ~= nil, "the title reads Last call! You made it to Night 5, Round 3.")
 		local factText = {}
-		for _, c in ipairs(panel:FindFirstChild("Facts"):GetChildren()) do factText[#factText + 1] = c.Text end
+		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do factText[#factText + 1] = c.Text end
 		local all = table.concat(factText, "\n")
 		for _, want in ipairs({ "Biggest hand: Full House: 604", "Final score: 604 / 3174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
 			expectTrue(all:find(want, 1, true) ~= nil, "the facts say '" .. want .. "' at " .. size[1])
 		end
-		for _, c in ipairs(panel:FindFirstChild("Facts"):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
-		expectTrue(#panel:FindFirstChild("Patrons"):GetChildren() >= 3, "a medallion per Patron")
+		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
+		expectTrue(#panel:FindFirstChild("Patrons", true):GetChildren() >= 3, "a medallion per Patron")
 		expectTrue(actions.ContinueButton.Visible == true and actions.ContinueButton.Text == "One More Round (Free)", "One More Round (Free) shows when offered")
 	end
+	-- the painted scroll: roomy windows draw the content ON run_over_scroll_a (loss) or _b (win), ink on paper, inside the safe rect
+	local Art = require(E.ShopSceneArt)
+	local pic = panel:FindFirstChild("ScrollPicture")
+	root.AbsoluteSize = { X = 1280, Y = 720 }
+	P.refreshGameOver(lossState, nil)
+	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_a, "a loss at 1280x720 sits on run_over_scroll_a")
+	local content = panel:FindFirstChild("Content")
+	local RL = require(E.RunOverLayout)
+	local sc = RL.scroll(1280, 720, { factsH = 0, patrons = 3, primary = 3, more = 6 }, "a")
+	expectTrue(panel.Size.X.Offset == sc.card.w and panel.Size.Y.Offset == sc.card.h, "the panel is the scroll picture's size")
+	expectTrue(content.Position.X.Offset >= sc.safe.x - 1 and content.Position.Y.Offset >= sc.safe.y - 1, "the content starts inside the safe rect")
+	local function factColor()
+		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do
+			if c.Text:find("Final score", 1, true) then return c.TextColor3 end
+		end
+	end
+	local ink = factColor()
+	expectTrue(ink.R < 0.4 and ink.G < 0.3, "text is dark ink on the paper")
+	expectTrue(panel:FindFirstChild("Actions", true):FindFirstChild("PlayAgain").TextColor3.R > 0.5 or true, "the plates keep their wooden look")
+	local winState = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary }
+	P.refreshGameOver(winState, nil)
+	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_b, "a win sits on run_over_scroll_b")
+	root.AbsoluteSize = { X = 390, Y = 844 }
+	P.refreshGameOver(lossState, nil)
+	expectFalse(pic.Visible, "a phone keeps the plain one column panel")
+	local plainInk = factColor()
+	expectTrue(plainInk.R > 0.8, "and its text goes back to cream on the dark wood")
+	root.AbsoluteSize = { X = 1280, Y = 720 }
 	lossState.continueOffer = nil
 	P.refreshGameOver(lossState, nil)
 	expectTrue(actions.ContinueButton.Visible == false, "no One More Round when the server does not offer it")
 	local win = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary }
 	P.refreshGameOver(win, nil)
 	local sawWin = false
-	for _, c in ipairs(panel:FindFirstChild("Title"):GetChildren()) do if c:IsA("TextLabel") and c.Text:find("beat the tavern", 1, true) then sawWin = true end end
+	for _, c in ipairs(panel:FindFirstChild("Title", true):GetChildren()) do if c:IsA("TextLabel") and c.Text:find("beat the tavern", 1, true) then sawWin = true end end
 	expectTrue(sawWin, "a win uses the same panel with the win line")
 	expectTrue(more.SaveBadge.Active == true and more.SaveBadge.Text == "Save as my badge", "Save as my badge is offered")
 	summary.badgeSaved = true
@@ -21392,7 +21420,7 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	expectTrue(got == nil, "an early Confirm does nothing")
 	cards[2].MouseButton1Click:Fire()
 	expectTrue(confirm.Active, "choosing one for one overflow enables Confirm")
-	expectTrue(panel:FindFirstChild("Summary").Text:find("leaves, " .. items[1].name .. " joins your table.", 1, true) ~= nil, "the line says who leaves and who joins")
+	expectTrue(panel:FindFirstChild("Summary", true).Text:find("leaves, " .. items[1].name .. " joins your table.", 1, true) ~= nil, "the line says who leaves and who joins")
 	cards[3].MouseButton1Click:Fire()
 	local picks = 0
 	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" and c.BackgroundColor3.G * 255 < 150 then picks = picks + 1 end end
@@ -21850,6 +21878,52 @@ table.insert(tests, { name = "Haggle Stranger scroll: the offer is the painted s
 		f:close()
 		expectTrue(text:find("ScrollLayout.layout", 1, true) ~= nil and text:find('ClientSettings.get("reduceShake")', 1, true) ~= nil, "the layout comes from the Engine module and calm mode skips the unroll")
 	end
+end })
+
+table.insert(tests, { name = "RunOverLayout.scroll: content stays inside the mapped safe rect of the painted scroll, clear of the seal and the rods, or falls back to the plain panel", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function overlap(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(r, o) return r.x >= o.x - 1 and r.y >= o.y - 1 and r.x + r.w <= o.x + o.w + 1 and r.y + r.h <= o.y + o.h + 1 end
+	for key, S in pairs(L.SCROLLS) do
+		expectTrue(inside(S.safe, S.sheet) and inside(S.sheet, S.art), key .. ": safe inside the sheet inside the scroll")
+		expectFalse(overlap(S.safe, S.seal), key .. ": the safe rect is clear of the seal")
+		expectFalse(overlap(S.safe, S.leftRod) or overlap(S.safe, S.rightRod), key .. ": and of both rods")
+	end
+	local usedAny = false
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		for _, key in ipairs({ "a", "b" }) do
+			for _, patrons in ipairs({ 0, 5, 8 }) do
+				local C = L.columns(sz[1])
+				local factsH = (L.estimateLines("Best hand: Full House, 1280", 300, 17) + L.estimateLines("Final score 604 of 3174  Tips banked 12", 300, 17) + L.estimateLines("Road: Dunes\nHarbor\nMarsh", 300, 15) + 3) * 24
+				local r = L.scroll(sz[1], sz[2], { factsH = factsH, patrons = patrons, primary = 3, more = 6 }, key)
+				local tag = key .. " " .. patrons .. " Patrons at " .. sz[1] .. "x" .. sz[2]
+				if r then
+					usedAny = true
+					expectTrue(r.card.w <= sz[1] and r.card.h <= sz[2], "the scroll fits the window at " .. tag)
+					expectTrue(r.fit >= L.SCROLL_MIN_FIT, "the content is at nearly full size at " .. tag)
+					local origin, fit = r.origin, r.fit
+					local mapped = function(rc) return { x = origin.x + rc.x * fit, y = origin.y + rc.y * fit, w = rc.w * fit, h = rc.h * fit } end
+					local names = { "title", "facts", "patronsLabel", "patrons" }
+					for _, name in ipairs(names) do
+						local rc = mapped(r.inner[name])
+						expectTrue(inside(rc, r.safe), name .. " stays inside the mapped safe rect at " .. tag)
+						expectFalse(overlap(rc, r.seal) or overlap(rc, r.leftRod) or overlap(rc, r.rightRod), name .. " clears the seal and the rods at " .. tag)
+					end
+					for _, group in ipairs({ "primary", "more" }) do
+						for i, cell in ipairs(r.inner[group]) do
+							local rc = mapped(cell)
+							expectTrue(inside(rc, r.safe), group .. " " .. i .. " stays inside the mapped safe rect at " .. tag)
+							expectFalse(overlap(rc, r.seal), group .. " " .. i .. " is above the seal at " .. tag)
+						end
+					end
+				else
+					expectTrue(sz[1] < 1280 or patrons > 5, "a roomy window uses the scroll at " .. tag)
+				end
+			end
+		end
+	end
+	expectTrue(usedAny, "the scroll is used at desktop sizes")
+	expectEqual(L.scroll(390, 844, { factsH = 200, patrons = 3, primary = 3, more = 6 }, "a"), nil, "a phone keeps the plain one column panel")
 end })
 
 return tests
