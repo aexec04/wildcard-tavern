@@ -131,9 +131,32 @@ local function plateStyle(st, row)
 		table.insert(st.made, e)
 		local k = Instance.new("UICorner")
 		k.Name = "BoardPlateCorner"
-		k.CornerRadius = UDim.new(0, 6)
+		k.CornerRadius = UDim.new(0, 10)
 		k.Parent = row
 		table.insert(st.made, k)
+		-- warm parchment: light top to darker foot (Color stops only) and a thin inner brass line, so the plate reads as wood and parchment
+		local g = Instance.new("UIGradient")
+		g.Name = "BoardPlateShade"
+		g.Rotation = 90
+		g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
+		g.Parent = row
+		table.insert(st.made, g)
+		local inner = Instance.new("Frame")
+		inner.Name = "BoardPlateInner"
+		inner.BackgroundTransparency = 1
+		inner.BorderSizePixel = 0
+		inner.Active = false
+		inner.Position = UDim2.fromOffset(3, 3)
+		inner.Size = UDim2.new(1, -6, 1, -6)
+		inner.Parent = row
+		table.insert(st.made, inner)
+		local ik = Instance.new("UICorner")
+		ik.CornerRadius = UDim.new(0, 8)
+		ik.Parent = inner
+		local is = Instance.new("UIStroke")
+		is.Color = Color3.fromRGB(176, 138, 70)
+		is.Thickness = 1
+		is.Parent = inner
 	end
 end
 

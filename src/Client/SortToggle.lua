@@ -67,7 +67,7 @@ function SortToggle.build(parent, onPick)
 		pill.Parent = b
 		b.BorderSizePixel = 0
 		b.AutoButtonColor = false
-		b.Font = Enum.Font.GothamBold
+		b.Font = Enum.Font.Fondamento
 		b.TextSize = 18
 		b.Text = text
 		b.TextTransparency = 0

@@ -82,7 +82,8 @@ function M.install(root, art)
 	-- a small resting stack of played cards on the felt centre: card-backs with fixed tilts, low contrast, under the cards in play
 	local stack = Instance.new("Folder")
 	stack.Name = "RestStack"
-	stack.Parent = frame
+	-- the draw pile tray already shows the deck, so the stack is built but not parented: one deck on screen, not two
+	if PM.REST_STACK_VISIBLE then stack.Parent = frame end
 	local stackCards = {}
 	for i = 1, #PM.REST_STACK do
 		local c = Instance.new("Frame")

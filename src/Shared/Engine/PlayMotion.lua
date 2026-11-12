@@ -87,6 +87,9 @@ end
 
 -- resting stack of played cards at the felt centre: 4 card-backs with fixed small rotations and offsets (no randomness at runtime,
 -- so layouts are stable). Returns { { cx, cy, w, h, rot }, ... } for a felt rect of size w x h, centred on it, kept inside it.
+-- false: the draw pile tray already shows the deck, so the felt shows no second stack
+PlayMotion.REST_STACK_VISIBLE = false
+
 PlayMotion.REST_STACK = {
 	{ dx = -6, dy = 3, rot = -9 }, { dx = 5, dy = -2, rot = 6 }, { dx = -2, dy = -5, rot = -3 }, { dx = 3, dy = 1, rot = 8 },
 }

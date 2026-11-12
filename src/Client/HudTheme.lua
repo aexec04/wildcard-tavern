@@ -116,6 +116,7 @@ local function paintAction(button, entry)
 		local s = outer:FindFirstChildOfClass("UIStroke")
 		if s then s.Color = c3(p.outer) end
 	end
+	button.Font = Enum.Font.Fondamento -- the serif face of the title and ledger, not the plain sans
 	button.TextColor3 = c3(p.text)
 	softShadow(button, p.text)
 	local art = button:FindFirstChild("HudAccentArt")
