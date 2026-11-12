@@ -19598,6 +19598,27 @@ table.insert(tests, { name = "PlayMotion: parallax is capped and opposite the cu
 	expectTrue(x >= 0 and x + w <= 1920 and h > 0 and y + h > 800, "pool sits over the hand inside the screen")
 end })
 
+table.insert(tests, { name = "PlayMotion: one frame step over the real layers gives whole numbers and survives nil inputs (leanPx regression)", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	local layers = {
+		{ name = "PlayTableFront", px = PM.LAYER_PX.table, leanPx = PM.LEAN_PX.table },
+		{ name = "PlayRailBack", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
+		{ name = "PlayRailFront", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
+	}
+	for _, calm in ipairs({ false, true }) do
+		for _, lean in ipairs({ 0, 0.6, 1 }) do
+			for _, layer in ipairs(layers) do
+				local dx, dy = PM.layerOffset(0.5, -0.5, layer, lean, calm)
+				assert(dx == math.floor(dx) and dy == math.floor(dy), "offsets are whole pixels")
+			end
+		end
+	end
+	local _, dy = PM.layerOffset(0, 0, layers[2], 1, true)
+	assert(dy == PM.LEAN_PX.rail or dy == 0, "calm parallax is still, lean only moves down")
+	local nx, ny = PM.layerOffset(nil, nil, {}, nil, nil)
+	assert(nx == 0 and ny == 0, "nil safe")
+	assert(PM.layerOffset(0, 0, nil, 0, false) == 0)
+end })
 table.insert(tests, { name = "PlayMotion: visible fan (5 degrees, 17 px dip, 8 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	for count = 2, 8 do

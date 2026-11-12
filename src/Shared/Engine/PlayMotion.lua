@@ -144,4 +144,12 @@ function PlayMotion.leanOffset(a, px)
 	return a * px, 1 + PlayMotion.LEAN_SCALE * a
 end
 
+-- whole-pixel (dx, dy) for one parallax layer: cursor parallax plus the lean toward the hand; nil safe on every input
+function PlayMotion.layerOffset(sx, sy, layer, lean, calm)
+	layer = layer or {}
+	local dx, dy = PlayMotion.parallax(sx or 0, sy or 0, layer.px or 0, calm and true or false, false)
+	local leanDy = PlayMotion.leanOffset(lean or 0, layer.leanPx or 0)
+	return math.floor((dx or 0) + 0.5), math.floor((dy or 0) + leanDy + 0.5)
+end
+
 return PlayMotion

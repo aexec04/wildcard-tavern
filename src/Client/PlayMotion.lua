@@ -111,8 +111,8 @@ function M.install(deps)
 			if not inst or inst.Parent ~= root then inst = root:FindFirstChild(layer.name); layer.inst = inst end
 			if inst then
 				if layer.applied ~= inst.Position then layer.base = inst.Position end -- layout moved it: new base
-				local dx, dy = PM.parallax(sx, sy, layer.px, isCalm, false)
-				layer.applied = layer.base + UDim2.fromOffset(math.floor(dx + 0.5), math.floor(dy + leanPx + 0.5))
+				local dx, dy = PM.layerOffset(sx, sy, layer, lean, isCalm)
+				layer.applied = layer.base + UDim2.fromOffset(dx, dy)
 				inst.Position = layer.applied
 			end
 		end
