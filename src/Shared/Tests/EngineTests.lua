@@ -14386,7 +14386,7 @@ table.insert(tests, { name = "Collection Gallery: framed portraits fit their cel
 		local sec = io.open("src/Client/CollectionSection.lua", "r")
 		if sec then
 			local ssrc = sec:read("*a"); sec:close()
-			expectTrue(ssrc:find("rarityMarks(slot, info, z)", 1, true) ~= nil and ssrc:find("RarityGem", 1, true) ~= nil and ssrc:find("RarityUnderline", 1, true) ~= nil, "painted section slots wear rarity rim, gem and underline")
+			expectTrue(ssrc:find("rarityMarks(slot, info, z)", 1, true) ~= nil and ssrc:find("RarityGem", 1, true) ~= nil and ssrc:find("RarityUnderline", 1, true) ~= nil and ssrc:find("RarityPlateFill", 1, true) ~= nil, "painted section slots wear rarity rim, gem, plate fill and underline")
 		end
 		expectTrue(src:find("CollectionBook.isDiscovered(view.sets, item)", 1, true) ~= nil and src:find("showDetail(item, view)", 1, true) ~= nil, "discovery and the detail card are the same code as before")
 	end
