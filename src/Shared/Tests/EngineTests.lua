@@ -19896,4 +19896,23 @@ table.insert(tests, { name = "CornerToast text stays opaque dark ink; Board seat
 	end
 end })
 
+table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown ones return nil, round1 steps", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectEqual(R.parse("menu").kind, "menu", "menu")
+	expectEqual(R.parse("news").kind, "news", "news")
+	expectEqual(R.parse("round1").kind, "round1", "round1")
+	local t = R.parse("tome:badges:night")
+	expectEqual(t.page, "badges", "tome page")
+	expectEqual(t.sub, "night", "tome sub-tab")
+	expectEqual(R.parse("tome:cardsets").page, "cosmeticSets", "card sets opener id")
+	expectTrue(R.parse("tome:nope") == nil, "unknown tome page does nothing")
+	expectTrue(R.parse("banana") == nil, "unknown value does nothing")
+	expectTrue(R.parse("") == nil and R.parse(5) == nil, "empty and non-string do nothing")
+	local step, id = R.round1Step({ choice = { options = { { id = "a" }, { id = "b" } } } })
+	expectEqual(step, "choice", "choice open")
+	expectEqual(id, "a", "first option")
+	expectEqual(R.round1Step({ phase = "roundSelect" }), "select", "round select starts the round")
+	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
+end })
+
 return tests
