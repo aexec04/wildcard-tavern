@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local ClientSettings = require(script.Parent.ClientSettings)
+local CompassLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CompassLayout"))
 
 local INK = Color3.fromRGB(60, 40, 22)
 local GOLD = Color3.fromRGB(222, 182, 104)
@@ -106,18 +107,27 @@ function CompassWheel.new(opts)
 	hubCorner.CornerRadius = UDim.new(0.5, 0)
 	hubCorner.Parent = hub
 
-	local north = Instance.new("TextLabel")
-	north.BackgroundTransparency = 1
-	north.AnchorPoint = Vector2.new(0.5, 0)
-	north.Position = UDim2.new(0.5, 0, 0, 2)
-	north.Size = UDim2.fromOffset(20, 18)
-	north.Text = "N"
-	north.Font = Enum.Font.GothamBold
-	north.TextSize = 15
-	north.TextColor3 = INK
-	north.TextTransparency = 0
-	north.TextStrokeTransparency = 1
-	north.Parent = frame
+	-- N, E, S, W on the outer rim in their own fixed places; the road markers ride an inner ring (Engine/CompassLayout), so a
+	-- marker never covers a letter
+	local radii = CompassLayout.radii(size)
+	local letters = {}
+	for _, def in ipairs(CompassLayout.LETTERS) do
+		local a = math.rad(def.bearing)
+		local letter = Instance.new("TextLabel")
+		letter.Name = "Letter" .. def.text
+		letter.BackgroundTransparency = 1
+		letter.AnchorPoint = Vector2.new(0.5, 0.5)
+		letter.Position = UDim2.new(0.5, math.floor(math.sin(a) * radii.rim + 0.5), 0.5, -math.floor(math.cos(a) * radii.rim + 0.5))
+		letter.Size = UDim2.fromOffset(CompassLayout.LETTER_BOX, CompassLayout.LETTER_BOX)
+		letter.Text = def.text
+		letter.Font = Enum.Font.GothamBold
+		letter.TextSize = 15
+		letter.TextColor3 = INK
+		letter.TextTransparency = 0
+		letter.TextStrokeTransparency = 1
+		letter.Parent = frame
+		table.insert(letters, letter)
+	end
 
 	local function apply()
 		holder.Rotation = current
@@ -204,13 +214,16 @@ function CompassWheel.new(opts)
 			b:Destroy()
 		end
 		iconButtons = {}
-		local radius = size * 0.5 - 14
-		for _, icon in ipairs(list or {}) do
-			local a = math.rad(icon.bearing or 0)
+		local radius = radii.marker
+		local bearings = {}
+		for i, icon in ipairs(list or {}) do bearings[i] = icon.bearing or 0 end
+		local shown = CompassLayout.spread(bearings, size) -- fanned apart so two markers never overlap
+		for i, icon in ipairs(list or {}) do
+			local a = math.rad(shown[i] or 0)
 			local b = Instance.new("TextButton")
 			b.AnchorPoint = Vector2.new(0.5, 0.5)
 			b.Position = UDim2.new(0.5, math.sin(a) * radius, 0.5, -math.cos(a) * radius)
-			b.Size = UDim2.fromOffset(28, 28)
+			b.Size = UDim2.fromOffset(CompassLayout.MARKER, CompassLayout.MARKER)
 			b.BackgroundColor3 = GOLD
 			b.Text = icon.text or "?"
 			b.TextSize = 18
@@ -251,7 +264,8 @@ function CompassWheel.new(opts)
 	local function syncZ()
 		local z = frame.ZIndex
 		inner.ZIndex, holder.ZIndex, pips.ZIndex = z + 1, z + 1, z + 1
-		tip.ZIndex, tail.ZIndex, north.ZIndex = z + 2, z + 2, z + 2
+		tip.ZIndex, tail.ZIndex = z + 2, z + 2
+		for _, letter in ipairs(letters) do letter.ZIndex = z + 2 end
 		hub.ZIndex = z + 3
 		for _, b in ipairs(iconButtons) do
 			b.ZIndex = z + 3

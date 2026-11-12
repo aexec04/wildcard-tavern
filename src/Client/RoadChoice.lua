@@ -40,7 +40,8 @@ end
 local INK = Color3.fromRGB(60, 40, 22)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
-local PARCHMENT = Color3.fromRGB(222, 198, 150)
+local PARCHMENT = Color3.fromRGB(238, 222, 186) -- the paper of the Choose a blessing cards
+local BRASS = Color3.fromRGB(200, 160, 84)
 
 local CARD_W, CARD_H = 236, 330
 local HEADER_H = 150 -- title, subtitle and the compass wheel
@@ -82,6 +83,7 @@ return function(deps)
 	backdrop.Visible = false
 	backdrop.Parent = root
 	pcall(ModalStage.mount, backdrop, "road") -- map desk stage + modal gate
+	pcall(function() require(script.Parent.ModalScene).build(backdrop, backdrop.ZIndex) end) -- the painted tavern room under a scrim, like the Choice screens
 
 	local panel = Instance.new("Frame")
 	panel.Name = "RoadChoicePanel"
@@ -93,6 +95,12 @@ return function(deps)
 	panel.Parent = backdrop
 	roundCorner(panel, 14)
 	polishPanel(panel, 14, "wood")
+	local panelEdge = Instance.new("UIStroke") -- brass edge on dark wood, like the Choice title plate
+	panelEdge.Name = "PanelBrass"
+	panelEdge.Color = BRASS
+	panelEdge.Thickness = 3
+	panelEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	panelEdge.Parent = panel
 	-- A mid-run choice is not abandonable (it has its own Later button), but Escape opens Settings above it so nobody is stuck
 	-- (Client/PopupDismiss, policy "locked").
 	require(script.Parent.PopupDismiss).attach(backdrop, { policy = "locked", panel = panel, button = true })
@@ -166,8 +174,8 @@ return function(deps)
 	local function highlight(stopId)
 		for id, c in pairs(cardByStop) do
 			local on = id == stopId
-			c.stroke.Color = on and GOLD or Color3.fromRGB(110, 80, 45)
-			c.stroke.Thickness = on and 5 or 2
+			c.stroke.Color = on and GOLD or BRASS
+			c.stroke.Thickness = on and 5 or 3
 		end
 	end
 	local wheel = CompassWheel.new({
@@ -230,8 +238,8 @@ return function(deps)
 		card.Parent = row
 		roundCorner(card, 12)
 		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(110, 80, 45)
-		stroke.Thickness = 2
+		stroke.Color = BRASS
+		stroke.Thickness = 3
 		stroke.Parent = card
 
 		-- Biome strip with the stop art (emoji behind it so a missing or slow image never leaves it empty).
@@ -285,7 +293,7 @@ return function(deps)
 		take.AnchorPoint = Vector2.new(0.5, 1)
 		take.Position = UDim2.new(0.5, 0, 1, -10)
 		take.Size = UDim2.new(1, -24, 0, 40)
-		take.BackgroundColor3 = Color3.fromRGB(86, 140, 70)
+		take.BackgroundColor3 = Color3.fromRGB(46, 98, 52) -- the Choose button green
 		take.Text = "Take this road"
 		take.Font = Enum.Font.GothamBold
 		take.TextSize = 18

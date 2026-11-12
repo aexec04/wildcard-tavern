@@ -16579,7 +16579,9 @@ table.insert(tests, { name = "CompassWheel: needle, hub, N, pips and rim icons f
 	if not probe then return end
 	probe:close()
 	local FakeGui = require(script.Parent.FakeGui)
-	local env = FakeGui.env({ stubs = { ClientSettings = { get = function() return false end }, Cue = { play = function() end } } })
+	local env, state = FakeGui.env({ stubs = { ClientSettings = { get = function() return false end }, Cue = { play = function() end } } })
+	local folder = FakeGui.folder({ CompassLayout = require(script.Parent.Parent.Engine.CompassLayout) })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 	local CompassWheel = FakeGui.load("src/Client/CompassWheel.lua", env)
 	for _, zFrame in ipairs({ 22, 46 }) do -- RoadChoice sets 22, JourneyMapCompass 46
 		local gui = FakeGui.new("ScreenGui")
@@ -20745,6 +20747,52 @@ table.insert(tests, { name = "PhaseA: the Boss Round intro popup is off behind B
 	local b = src:find("if not BOSS_INTRO_ENABLED then", 1, true)
 	local c = src:find("OQ.isBusy", 1, true)
 	expectTrue(a and b and b > a and (not c or b < c), "announceBossIfNew returns before it builds any banner, portrait, flash or shake")
+end })
+
+table.insert(tests, { name = "CompassLayout: letters on the rim, markers on an inner ring, markers never overlap each other or a letter", fn = function()
+	local L = require(script.Parent.Parent.Engine.CompassLayout)
+	for _, size in ipairs({ 118, 130, 150 }) do
+		local r = L.radii(size)
+		expectTrue(r.marker + L.MARKER * 0.5 + 2 <= r.rim - L.LETTER_BOX * 0.5 + 1e-9, "marker discs stay inside the letter ring at " .. size)
+		expectTrue(r.marker - L.MARKER * 0.5 > size * 0.07, "marker discs clear the hub at " .. size)
+		local seed = 7
+		local function rnd() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+		for trial = 1, 300 do
+			local n = 1 + trial % 3 + (trial % 5 == 0 and 1 or 0)
+			local b = {}
+			for i = 1, n do b[i] = rnd() * 360 end
+			if trial % 7 == 0 then for i = 2, n do b[i] = b[1] + (i - 1) * 3 end end -- crowded, near-equal bearings
+			local shown = L.spread(b, size)
+			expectEqual(#shown, n, "one shown bearing per marker")
+			local sep = L.minSeparation(r.marker, n)
+			for i = 1, n do
+				for j = i + 1, n do
+					local d = math.abs(shown[i] - shown[j]) % 360
+					d = math.min(d, 360 - d)
+					expectTrue(d >= math.min(sep, 360 / n) - 0.5, "markers " .. i .. " and " .. j .. " keep " .. math.floor(sep) .. " degrees (got " .. math.floor(d) .. ", n " .. n .. ")")
+					-- the chord between the disc centres leaves the two discs apart
+					local chord = 2 * r.marker * math.sin(math.rad(d) / 2)
+					if n <= 4 then expectTrue(chord >= L.MARKER - 0.5, "discs do not overlap at " .. size .. " (chord " .. math.floor(chord) .. ")") end
+				end
+			end
+		end
+	end
+	expectTrue(L.minSeparation(30, 3) >= 40 or L.minSeparation(30, 3) == 120, "separation is at least 40 degrees unless the circle is that crowded")
+	local shown = L.spread({ 10, 14 }, 118)
+	expectTrue(math.abs(shown[1] - shown[2]) >= 40, "two close roads are fanned apart")
+	expectEqual(#L.LETTERS, 4, "N, E, S and W")
+	for _, def in ipairs(L.LETTERS) do expectTrue(def.bearing % 90 == 0, def.text .. " is on a cardinal bearing") end
+end })
+
+table.insert(tests, { name = "Choose your road: painted room scene under the panel, brass-edged paper cards, letters and markers from CompassLayout", fn = function()
+	if not (io and io.open) then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local road, wheel, scene = read("src/Client/RoadChoice.lua"), read("src/Client/CompassWheel.lua"), read("src/Client/ModalScene.lua")
+	if not (road and wheel and scene) then return end
+	expectTrue(road:find("ModalScene", 1, true) ~= nil, "RoadChoice builds the painted scene")
+	expectTrue(scene:find('MenuSceneArt["menu_scene_a"]', 1, true) ~= nil and scene:find("Decor", 1, true) ~= nil, "the scene is the Menu room painting and hides the stage strips")
+	expectTrue(wheel:find("CompassLayout.spread", 1, true) ~= nil and wheel:find('"Letter"', 1, true) ~= nil, "the wheel fans its markers and draws N E S W on the rim")
+	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
 return tests
