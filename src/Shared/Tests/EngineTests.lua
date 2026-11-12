@@ -7873,6 +7873,23 @@ table.insert(tests, { name = "PlayTableLayout: hand row is as wide in every Card
 	end
 end })
 
+table.insert(tests, { name = "PlayTableLayout: the oval wood-only front has rects inside its picture, no code felt fill, and the plates fit under the groove", fn = function()
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local o = PTL.SETS[PTL.OVAL_KEY]
+	expectEqual(o.art, "play_table_front_c", "oval front art key")
+	expectEqual(PTL.fillOf(PTL.OVAL_KEY), nil, "no code felt or stitch on the oval front")
+	for _, k in ipairs({ "felt", "rail", "deck" }) do
+		local r = o[k]
+		expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= PTL.IMG_W and r.y + r.h <= PTL.IMG_H, k .. " inside the picture")
+	end
+	expectTrue(o.felt.y + o.felt.h <= 704, "felt rect stays above the wood front (transparent above y 704)")
+	expectTrue(o.rail.y >= 704 and o.deck.y >= 704, "groove and recess are on the wood")
+	for _, size in ipairs({ { 1920, 957 }, { 1506, 751 } }) do
+		local p = PTL.placement(size[1], size[2], 260, 150, PTL.OVAL_KEY)
+		expectTrue(p ~= nil, "oval placement at " .. size[1])
+	end
+end })
+
 table.insert(tests, { name = "TooltipSpec: one border, padding clears the text, placement stays on screen", fn = function()
 	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
 	local spec = TooltipSpec.Spec

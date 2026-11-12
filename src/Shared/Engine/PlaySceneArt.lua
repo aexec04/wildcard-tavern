@@ -15,6 +15,7 @@ return {
 	["play_table_bg_a"] = "rbxassetid://110353308947189",
 	["play_table_bg_b"] = "rbxassetid://136830085571078",
 	["play_table_front_b"] = "rbxassetid://111672466307619",
+	["play_table_front_c"] = "rbxassetid://91351665188898",
 	["play_table_front_festival_a"] = "rbxassetid://103282552527851",
 	["play_table_front_frosted_a"] = "rbxassetid://90420427952379",
 	["play_table_front_frosted_c"] = "rbxassetid://87202822036839",

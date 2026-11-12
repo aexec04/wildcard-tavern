@@ -33,6 +33,13 @@ M.SETS = {
 		strip = { y = 915, h = 100 } },
 }
 
+-- The default look once play_table_front_c is recorded: ONLY the wood front (transparent above y 704), the felt and rim come from the
+-- play_table_bg_b backdrop. Measured by eye on play_table_front_c.png (groove interior x 235-1210, y 755-825; recess x 1265-1500,
+-- y 740-840). No `fill`, so no code felt or stitch is drawn. Key "_oval" is internal (never a Card Set id).
+M.OVAL_KEY = "_oval"
+M.SETS[M.OVAL_KEY] = { art = "play_table_front_c",
+	felt = { x = 120, y = 430, w = 1300, h = 260 }, rail = { x = 290, y = 770, w = 870, h = 40 }, deck = { x = 1280, y = 748, w = 205, h = 90 } }
+
 -- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
 function M.fillOf(setId)
 	local s = setId and M.SETS[setId]

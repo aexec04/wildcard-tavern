@@ -124,6 +124,9 @@ function PlayScenePaint.install(deps)
 		local sid = skin and skin.id
 		local artKey = PlayTableLayout.artKeyOf(sid)
 		local setId = artKey and art[artKey] and sid or nil
+		-- default look: the wood-only oval front (play_table_front_c) when recorded and the tavern backdrop is there; else the old front
+		local oval = (not setId) and bg and art[PlayTableLayout.SETS[PlayTableLayout.OVAL_KEY].art] or nil
+		if oval then setId = PlayTableLayout.OVAL_KEY; artKey = PlayTableLayout.SETS[setId].art end
 		local t = (not setId) and CosmeticSets.tableTintOf(sid) or nil
 		image.Image = setId and art[artKey] or id
 		image.ImageColor3 = t and c3(t.felt) or Color3.new(1, 1, 1)
