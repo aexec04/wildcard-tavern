@@ -74,6 +74,15 @@ function PlayMotion.edgeGlows(x, y, w, h)
 	return { { x + w / 2, y, size }, { x + w / 2, y + h, size }, { x, y + h / 2, size }, { x + w, y + h / 2, size } }
 end
 
+-- which glows may draw. cornerGlows order: top-left, top-right, bottom-left, bottom-right; edgeGlows order: top, bottom, left, right.
+-- With the felt clipped on the left (under the HUD) the left corner glows and the left edge glow stay off, so no hard edge shows.
+function PlayMotion.shadeGlows(leftClipped)
+	if leftClipped then
+		return { corners = { false, true, false, true }, edges = { true, true, false, true } }
+	end
+	return { corners = { true, true, true, true }, edges = { true, true, true, true } }
+end
+
 -- resting stack of played cards at the felt centre: 4 card-backs with fixed small rotations and offsets (no randomness at runtime,
 -- so layouts are stable). Returns { { cx, cy, w, h, rot }, ... } for a felt rect of size w x h, centred on it, kept inside it.
 PlayMotion.REST_STACK = {

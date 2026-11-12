@@ -114,7 +114,8 @@ function PlayScenePaint.install(deps)
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
 			image.Visible = handFrame.Visible
-			shade.apply(handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil) -- never under the left HUD
+			local feltClip = handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil -- never under the left HUD
+			shade.apply(feltClip, feltClip ~= nil and feltClip.x > p.map.felt.x)
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)

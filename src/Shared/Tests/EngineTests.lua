@@ -19660,6 +19660,20 @@ table.insert(tests, { name = "CornerToast: every toast kind is the parchment str
 	expectTrue(src:find("46, 34, 24", 1, true) == nil and src:find("250, 238, 212", 1, true) == nil, "old dark plate colours are gone")
 	expectTrue(src:find("row.shadow", 1, true) ~= nil, "shadow is part of the fade")
 end })
+table.insert(tests, { name = "PlayMotion.shadeGlows: left glows are off when the felt is clipped under the HUD; the rest stack top card wears the deck back", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	local all = PM.shadeGlows(false)
+	for i = 1, 4 do expectTrue(all.corners[i] and all.edges[i], "everything draws when unclipped") end
+	local cl = PM.shadeGlows(true)
+	expectTrue(cl.corners[1] == false and cl.corners[3] == false and cl.edges[3] == false, "top-left, bottom-left corners and left edge off")
+	expectTrue(cl.corners[2] and cl.corners[4] and cl.edges[1] and cl.edges[2] and cl.edges[4], "right and top/bottom glows stay")
+	expectTrue(PM.shadeGlows(nil).edges[3] == true, "nil means unclipped")
+	local f = io and io.open and io.open("src/Client/PlayFeltShade.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("cardBackTemplate", 1, true) ~= nil and src:find("BackArt", 1, true) ~= nil, "top card uses the deck back image")
+end })
 table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 12 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	for count = 2, 8 do

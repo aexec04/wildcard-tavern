@@ -96,20 +96,51 @@ function M.install(root, art)
 		edge.Parent = c
 		stackCards[i] = c
 	end
+	-- the top card wears the deck's own back (navy with the gold compass star) so the stack matches the draw pile
+	pcall(function()
+		local backId = require(script.Parent.ArtAssets).cardBackTemplate
+		if backId and backId ~= "" and stackCards[#stackCards] then
+			local top = stackCards[#stackCards]
+			local img = Instance.new("ImageLabel")
+			img.Name = "BackArt"
+			img.Size = UDim2.fromScale(1, 1)
+			img.BackgroundTransparency = 1
+			img.BorderSizePixel = 0
+			img.Active = false
+			img.Image = backId
+			img.ScaleType = Enum.ScaleType.Stretch
+			img.ImageTransparency = 0
+			img.ZIndex = 0
+			img.Parent = top
+			local ic = Instance.new("UICorner")
+			ic.CornerRadius = UDim.new(0, 5)
+			ic.Parent = img
+		end
+	end)
 
 	local api = { frame = frame }
-	function api.apply(rect)
+	local reported = false
+	function api.apply(rect, clipped)
 		if not rect then frame.Visible = false return end
 		frame.Position = UDim2.fromOffset(rect.x, rect.y)
 		frame.Size = UDim2.fromOffset(rect.w, rect.h)
 		frame.Visible = true
+		-- glows centred on a clip line (the line under the left HUD) would end in a hard dark rectangle edge: when the felt is
+		-- clipped on the left, the left corner glows and the left edge glow are not drawn (PM.shadeGlows decides, tested)
+		local show = PM.shadeGlows(clipped)
 		for i, g in ipairs(PM.cornerGlows(0, 0, rect.w, rect.h)) do
+			corners[i].root.Visible = show.corners[i]
 			corners[i].root.Position = UDim2.fromOffset(g[1], g[2])
 			corners[i].root.Size = UDim2.fromOffset(g[3], g[3])
 		end
 		for i, g in ipairs(PM.edgeGlows(0, 0, rect.w, rect.h)) do
+			edges[i].root.Visible = show.edges[i]
 			edges[i].root.Position = UDim2.fromOffset(g[1], g[2])
 			edges[i].root.Size = UDim2.fromOffset(g[3], g[3])
+		end
+		if not reported and game:GetService("RunService"):IsStudio() then
+			reported = true
+			print(string.format("[PlayFeltShade] frame x=%d y=%d w=%d h=%d leftClipped=%s", rect.x, rect.y, rect.w, rect.h, tostring(clipped == true)))
 		end
 		for i, c in ipairs(PM.restStack(rect.w, rect.h)) do
 			stackCards[i].Position = UDim2.fromOffset(c[1], c[2])
