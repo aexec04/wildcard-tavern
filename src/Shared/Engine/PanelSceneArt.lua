@@ -8,4 +8,6 @@
 return {
 	["flair_room_a"] = "rbxassetid://101234566513694",
 	["flair_room_b"] = "rbxassetid://131269527164236",
+	["legend_room_a"] = "rbxassetid://102375139420542",
+	["legend_room_b"] = "rbxassetid://99193291042227",
 }
