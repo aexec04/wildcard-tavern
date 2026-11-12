@@ -354,12 +354,12 @@ function NewsPanel.init(deps)
 	woodEdge.Thickness = 6
 	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	woodEdge.Parent = panel
-	-- cork grain: a few very faint speckles at fixed spots (deterministic, no animation) and a thin inner shadow under the frame
+	-- cork grain: speckles (low contrast, stronger than before) at fixed spots (deterministic, no animation) and a thin inner shadow under the frame
 	local speck = Instance.new("Folder")
 	speck.Name = "Speckle"
 	speck.Parent = panel
 	local seed = 17
-	for i = 1, 70 do
+	for i = 1, 120 do
 		seed = (seed * 1103515245 + 12345) % 2147483648
 		local fx = (seed % 1000) / 1000
 		seed = (seed * 1103515245 + 12345) % 2147483648
@@ -368,8 +368,8 @@ function NewsPanel.init(deps)
 		d.Name = "Dot" .. i
 		d.Size = UDim2.fromOffset(2 + i % 3, 2 + i % 3)
 		d.Position = UDim2.new(0.02 + fx * 0.96, 0, 0.02 + fy * 0.96, 0)
-		d.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(120, 84, 50) or Color3.fromRGB(205, 165, 118)
-		d.BackgroundTransparency = 0.82
+		d.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(104, 70, 40) or Color3.fromRGB(214, 174, 126)
+		d.BackgroundTransparency = 0.62
 		d.BorderSizePixel = 0
 		d.Active = false
 		d.ZIndex = 31

@@ -13929,6 +13929,16 @@ table.insert(tests, { name = "SpectateLayout: Leave is centred at the bottom and
 	end
 end })
 
+table.insert(tests, { name = "News board: cork grain is visible but stays low contrast", fn = function()
+	local f = io and io.open and io.open("src/Client/NewsPanel.lua", "r")
+	if not f then return end
+	local text = f:read("*a"); f:close()
+	local n = tonumber(text:match("for i = 1, (%d+) do%s+seed = "))
+	local tr = tonumber(text:match("d%.BackgroundTransparency = ([%d%.]+)"))
+	expectTrue(n and n >= 100, "at least 100 grain dots")
+	expectTrue(tr and tr >= 0.5 and tr <= 0.7, "grain transparency between 0.5 and 0.7 (visible, never harsh)")
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it
