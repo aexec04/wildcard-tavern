@@ -155,6 +155,7 @@ local r = opts.cornerRadius
 	end
 	art.Parent = frame
 	revealArt(art, opts.emojiLabel)
+	if opts.fade then require(script.Parent.ArtFade).apply(art) end
 	return art
 end
 

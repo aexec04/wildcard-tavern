@@ -22720,4 +22720,47 @@ table.insert(tests, { name = "PanelLayout.fullScreenRect: Collection, Card Sets,
 	end
 end })
 
+table.insert(tests, { name = "CollectionPreload: the warm list covers every sub-tab and the scenes with no duplicate or empty ids, in batches of 20, and the grids fade art in", fn = function()
+	local E = script.Parent.Parent.Engine
+	local CP = require(E.CollectionPreload)
+	local items = CP.items()
+	local seenCat = {}
+	for _, it in ipairs(items) do
+		expectTrue(type(it[1]) == "string" and it[1] ~= "" and not seenCat[it[1]], "category " .. tostring(it[1]) .. " listed once")
+		seenCat[it[1]] = true
+	end
+	for _, c in ipairs({ "patrons", "recipes", "boss_rounds", "house_passes", "titles", "bonds", "collection_scene" }) do expectTrue(seenCat[c], c .. " is warmed") end
+	local fake = {
+		collectUrls = function(list)
+			local out, seen = {}, {}
+			for _, it in ipairs(list) do for i = 1, 45 do local u = it[1] .. i if not seen[u] then seen[u] = true out[#out + 1] = u end end end
+			return out
+		end,
+	}
+	local urls = CP.urls(fake)
+	local seen = {}
+	for _, u in ipairs(urls) do expectTrue(u ~= "" and not seen[u], "no empty or duplicate url " .. u) seen[u] = true end
+	local batches = CP.batches(urls, 20)
+	local total = 0
+	for i, b in ipairs(batches) do expectTrue(#b <= 20 and #b >= 1, "batch " .. i .. " has 1 to 20 urls") total = total + #b end
+	expectEqual(total, #urls, "every url is in a batch")
+	local ContentArt = require(E.ContentArt)
+	local real = CP.urls(ContentArt)
+	local rs = {}
+	for _, u in ipairs(real) do expectTrue(u ~= "" and not rs[u], "real warm list has no empty or duplicate url") rs[u] = true end
+	local f = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("[Collection] tab=%s ready_ms=%d", 1, true) ~= nil and text:find("collection warm", 1, true) ~= nil, "timing line and warm-up on open")
+		expectTrue(text:find("fade = true", 1, true) ~= nil, "Collection art fades in")
+	end
+	local g = io and io.open and io.open("src/Client/ArtFade.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find("DURATION = 0.15", 1, true) ~= nil, "0.15 s fade")
+	end
+end })
+
 return tests

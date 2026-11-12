@@ -780,6 +780,7 @@ return function(deps)
 			local artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id)
 			local detailArt = artId and PatronPlaqueModule.applyById(portrait, artId, {
 				emojiLabel = cardIcon,
+				fade = true,
 				dim = not found,
 				zIndex = 33,
 				cornerRadius = 10,
@@ -968,6 +969,7 @@ return function(deps)
 			if artId then
 				local art = PatronPlaqueModule.applyById(iconWell, artId, {
 					emojiLabel = icon,
+					fade = true,
 					dim = not found,
 					zIndex = 24,
 					cornerRadius = wellRadius,
@@ -1109,7 +1111,11 @@ return function(deps)
 
 	refresh = function()
 		tileFailed = false
-		task.spawn(ContentArt.preload, { { activeTabId } }, "collection tab " .. activeTabId) -- current tab first; urls load once
+		task.spawn(function() -- current tab first; urls load once. One timing line per switch for the slowest-tab report.
+			local t0, tabName = os.clock(), activeTabId
+			ContentArt.preload({ { tabName } }, "collection tab " .. tabName)
+			print(string.format("[Collection] tab=%s ready_ms=%d", tabName, math.floor((os.clock() - t0) * 1000 + 0.5)))
+		end)
 		local view = currentView()
 		local completion = view.completion
 
@@ -1322,6 +1328,14 @@ return function(deps)
 	end
 
 	-- shared tab strip + Back; Escape steps back (detail card, then section, then the room) before it closes the Collection
+	-- Warm every sub-tab and the painted scenes when the Collection opens (batches of 20, a short pause between), so no click shows art loading in
+	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not backdrop.Visible then return end
+		task.spawn(function()
+			local CP = require(Engine:WaitForChild("CollectionPreload"))
+			ContentArt.preload(CP.items(), "collection warm", { batch = CP.BATCH, pause = 0.03 })
+		end)
+	end)
 	require(script.Parent.PanelTabs).attach(backdrop, "collection", playClickSfx, panel)
 	require(script.Parent.PanelTabs).setStep("collection", stepBack)
 	OverlayManager.register("collection", function()

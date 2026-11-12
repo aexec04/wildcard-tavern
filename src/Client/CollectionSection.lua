@@ -189,6 +189,7 @@ function CollectionSection.new(opts)
 			Size = UDim2.fromScale(1, 1), ZIndex = z + ZSTEP,
 			ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(96, 90, 84),
 		}) or nil
+		if art then require(script.Parent.ArtFade).apply(art) end
 		if art and standing then corner(art, 8) end
 		if not art then
 			make("TextLabel", holder, {
@@ -247,10 +248,10 @@ function CollectionSection.new(opts)
 		local holder = make("Frame", frame, { Name = "TagIcon", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 1 })
 		rect(holder, inner)
 		if info.artId then
-			make("ImageLabel", holder, {
+			require(script.Parent.ArtFade).apply(make("ImageLabel", holder, {
 				Name = "ContentArt", BackgroundTransparency = 1, Image = info.artId, ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromScale(1, 1),
 				ZIndex = z + ZSTEP, ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(110, 96, 78),
-			})
+			}))
 		else
 			local ink, transparency = inkOf(Layout.paperOf(tabId) or BRASS_RGB, not info.found)
 			make("TextLabel", holder, {

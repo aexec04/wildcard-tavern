@@ -31,7 +31,7 @@ function CollectionScene.build(opts)
 	-- the modules the real files reach through ReplicatedStorage.Shared.Engine
 	local map = {}
 	for _, name in ipairs({ "CollectionBook", "ContentArt", "CollectionSceneLayout", "CollectionRoomLayout", "CollectionFurnitureLayout",
-		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve" }) do
+		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve", "CollectionPreload" }) do
 		map[name] = require(Engine[name])
 	end
 	local engineFolder = FakeGui.folder(map)
@@ -53,6 +53,7 @@ function CollectionScene.build(opts)
 		register = function(id, fn) registered[id] = fn end, registerOpener = function(id, fn) openers[id] = fn end,
 		closeAllExcept = noop, close = noop, open = noop,
 	}
+	stubs.ArtFade = { apply = function() end }
 	stubs.PatronPlaque = { applyById = function(frame) local img = FakeGui.new("ImageLabel"); img.Parent = frame; return img end }
 	stubs.RarityFrame = { apply = noop, colorFor = function() return fromRGB(180, 160, 120) end }
 	stubs.PanelArt = { add = function() return nil end, vignette = noop }
