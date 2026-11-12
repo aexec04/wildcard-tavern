@@ -19969,6 +19969,35 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
 end })
 
+tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, select, hand and the hand count is reported once dealt", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectEqual(table.concat(R.ROUND1_ORDER, ","), "start,choice,select,hand", "fixed step order")
+	local seq = {
+		{ state = nil, step = "start" },
+		{ state = { phase = "choice" }, step = "start" }, -- nothing actionable yet
+		{ state = { choice = { options = { { id = "p1" } } } }, step = "choice" },
+		{ state = { choice = { options = { { id = "b1" } } } }, step = "choice" }, -- the second pick
+		{ state = { phase = "roundSelect" }, step = "select" },
+		{ state = { phase = "playing", hand = {} }, step = "start" }, -- no cards dealt yet
+		{ state = { phase = "playing", hand = { {}, {}, {}, {}, {}, {}, {}, {} } }, step = "hand" },
+	}
+	local last = 0
+	for i, s in ipairs(seq) do
+		expectEqual(R.stepOf(s.state), s.step, "step " .. i)
+		if s.step == "hand" then last = R.handCount(s.state) end
+	end
+	expectEqual(last, 8, "hand=8 is reported after the deal")
+	expectTrue(R.handCount({ phase = "roundSelect" }) == nil, "no hand count before the deal")
+	expectTrue(R.ROUND1_TIMEOUT > 0, "a watchdog warns with the stuck step")
+	local f = io and io.open and io.open("src/Client/DebugGoto.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("deps.root.Visible = true", 1, true) ~= nil, "round1 shows GameRoot like the real launch")
+		expectTrue(src:find("[DebugGoto] round1 hand=", 1, true) ~= nil and src:find("stuck at step", 1, true) ~= nil, "round1 prints the hand or the failed step")
+		expectTrue(src:find("hideTutorialOverlay()", 1, true) ~= nil, "the tutorial overlay is hidden")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio and the opt in", fn = function()
 	local SA = require(script.Parent.Parent.Engine.StudioAudio)
 	expectTrue(SA.shouldMute(true, nil), "Studio mutes by default")

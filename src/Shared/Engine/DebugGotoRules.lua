@@ -48,4 +48,25 @@ function DebugGotoRules.round1Step(state)
 	return nil
 end
 
+-- The round1 jump has a fixed step order: start (StartSeedRun, menu hidden, GameRoot shown, tutorial overlay hidden)
+-- -> choice (the first option, as many times as the server asks) -> select (the first Round Select card) -> hand.
+-- stepOf(state) names where the table is; handCount(state) is the number of dealt cards once the round is playing, else nil.
+DebugGotoRules.ROUND1_ORDER = { "start", "choice", "select", "hand" }
+
+function DebugGotoRules.stepOf(state)
+	if type(state) ~= "table" then return "start" end
+	if type(state.choice) == "table" and type(state.choice.options) == "table" and state.choice.options[1] then return "choice" end
+	if state.phase == "roundSelect" then return "select" end
+	if state.phase == "playing" and type(state.hand) == "table" and #state.hand > 0 then return "hand" end
+	return "start"
+end
+
+function DebugGotoRules.handCount(state)
+	if DebugGotoRules.stepOf(state) == "hand" then return #state.hand end
+	return nil
+end
+
+-- seconds to wait for the whole chain before warning which step it stopped at
+DebugGotoRules.ROUND1_TIMEOUT = 12
+
 return DebugGotoRules

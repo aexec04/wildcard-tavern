@@ -907,7 +907,7 @@ do -- Daily login streak popup and Next unlock strip (Client/LoginStreakUI.lua);
 	end)
 	if not ok then warn("[Client] LoginStreakUI failed: " .. tostring(err)) end
 end
-pcall(function() require(script.DebugGoto).init({ menuFrame = MenuScreen.menuFrame }) end) -- Studio-only jump hook
+pcall(function() require(script.DebugGoto).init({ menuFrame = MenuScreen.menuFrame, root = root }) end) -- Studio-only jump hook
 
 -- Warm the image cache for all content art (non-blocking) so Collection tiles
 -- and other art find their images already loaded.

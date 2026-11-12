@@ -21,9 +21,21 @@ function DebugGoto.init(deps)
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	local player = Players.LocalPlayer
 	local pendingRound1 = false
+	local round1Token = 0 -- bumped on every jump so an old watchdog never fires for a new one
+	local lastStep = "start"
+	local selectSent = false
 
 	local function hideMenu()
 		if deps and deps.menuFrame then deps.menuFrame.Visible = false end
+	end
+	-- the Menu scene stays up behind Tome panels and the news board (like the real Menu), so no 3D world shows through them
+	local function showMenu()
+		if deps and deps.root then deps.root.Visible = false end
+		if deps and deps.menuFrame then deps.menuFrame.Visible = true end
+	end
+	local function hideTutorialOverlay()
+		local overlay = player.PlayerGui:FindFirstChild("TutorialOverlay", true)
+		if overlay and overlay:IsA("GuiObject") then overlay.Visible = false end
 	end
 
 	local function go(value)
@@ -36,21 +48,35 @@ function DebugGoto.init(deps)
 			pendingRound1 = false
 			if target.kind == "menu" then
 				OverlayManager.closeAllExcept("")
-				if deps and deps.menuFrame then deps.menuFrame.Visible = true end
+				showMenu()
 			elseif target.kind == "tome" then
-				hideMenu()
+				OverlayManager.closeAllExcept("")
+				showMenu()
 				if not OverlayManager.open(target.page) then error("no opener for " .. target.page) end
 				if target.sub then
 					warn("[DebugGoto] sub-tab " .. target.sub .. " cannot be clicked from script; panel opened on its first tab")
 				end
 			elseif target.kind == "news" then
 				OverlayManager.closeAllExcept("")
+				showMenu()
 				require(script.Parent.NewsPanel).open()
 			elseif target.kind == "round1" then
 				OverlayManager.closeAllExcept("")
 				hideMenu()
+				if deps and deps.root then deps.root.Visible = true end -- the real launch shows the table too (Client/ChallengeStart.launch)
+				hideTutorialOverlay()
 				pendingRound1 = true
+				lastStep = "start"
+				selectSent = false
+				round1Token = round1Token + 1
+				local mine = round1Token
 				remotes:WaitForChild("StartSeedRun"):FireServer(Rules.SEED_CODE)
+				task.delay(Rules.ROUND1_TIMEOUT, function()
+					if pendingRound1 and round1Token == mine then
+						pendingRound1 = false
+						warn("[DebugGoto] round1 stuck at step '" .. lastStep .. "' after " .. Rules.ROUND1_TIMEOUT .. " s")
+					end
+				end)
 			else
 				error(target.kind .. " is not reachable from script (needs a server hook or a second player)")
 			end
@@ -65,12 +91,20 @@ function DebugGoto.init(deps)
 	-- round1: answer the draft and blessing choices with the first option, then start the round
 	remotes:WaitForChild("StateUpdated").OnClientEvent:Connect(function(state)
 		if not pendingRound1 then return end
+		lastStep = Rules.stepOf(state)
+		local count = Rules.handCount(state)
+		if count then
+			pendingRound1 = false
+			print("[DebugGoto] round1 hand=" .. count)
+			return
+		end
+		hideTutorialOverlay()
 		local step, optionId = Rules.round1Step(state)
 		if step == "choice" then
 			remotes:WaitForChild("Choice"):FireServer(optionId)
-		elseif step == "select" then
-			pendingRound1 = false
-			remotes:WaitForChild("SelectRound"):FireServer()
+		elseif step == "select" and not selectSent then
+			selectSent = true
+			remotes:WaitForChild("SelectRound"):FireServer() -- stays pending until the hand is dealt
 		end
 	end)
 
