@@ -242,20 +242,9 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 			end
 		end
 	end
-	local function cornerRow()
-		local gui = backdrop:FindFirstAncestorWhichIsA("LayerCollector")
-		local row = gui and gui:FindFirstChild("CornerIconRow", true)
-		return row and row:IsA("GuiObject") and row or nil
-	end
+	-- the dock is a function of which registered backdrops are visible (Client/CornerDock), never a remembered boolean
+	pcall(function() require(script.Parent.CornerDock).register(backdrop) end)
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
-		local row = cornerRow()
-		if row then
-			if backdrop.Visible then
-				row.Visible = false
-			elseif not (backdrop.Parent and backdrop.Parent:GetAttribute("BannerAtBottom")) then
-				row.Visible = true -- Round Select (BannerAtBottom) keeps its own hide
-			end
-		end
 		if backdrop.Visible then
 			pcall(clearStrip)
 			if current ~= id then previous, current = current, id end

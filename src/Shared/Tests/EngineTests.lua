@@ -22927,6 +22927,70 @@ table.insert(tests, { name = "ScrimGradient: no caller can build a sequence over
 	expectTrue(#VC.keypoints() <= 20, "vignette within 20 keypoints")
 end })
 
+table.insert(tests, { name = "CornerDock: the dock is a function of the open pages, so no open/close order leaves it hidden (tabs, Map, Escape, Round Select, a run starting)", fn = function()
+	local DR = require(script.Parent.Parent.Engine.DockRules)
+	expectTrue(DR.visible({}), "nothing open: shown")
+	expectFalse(DR.visible({ panelOpen = true }), "a page open: hidden")
+	expectFalse(DR.visible({ roundSelect = true }), "Round Select: hidden")
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/CornerDock.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local env, state = FakeGui.env({})
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ DockRules = DR }) end } end }
+	local CornerDock = FakeGui.load("src/Client/CornerDock.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	local root = FakeGui.new("Frame")
+	root.Parent = gui
+	local row = FakeGui.new("Frame")
+	row.Name = "CornerIconRow"
+	row.Parent = root
+	local function backdrop(name)
+		local b = FakeGui.new("Frame")
+		b.Name = name
+		b.Visible = false
+		b.Parent = root
+		CornerDock.register(b)
+		return b
+	end
+	local collection, badges, map = backdrop("CollectionBackdrop"), backdrop("BadgesBackdrop"), backdrop("TavernMapBackdrop")
+	local function expectDock(want, what) expectEqual(row.Visible, want, what) end
+	expectDock(true, "start: shown")
+	collection.Visible = true
+	expectDock(false, "a page open")
+	collection.Visible = false
+	expectDock(true, "open, close")
+	collection.Visible = true
+	badges.Visible = true -- the new page shows first ...
+	collection.Visible = false -- ... then the old one hides (the order that used to turn the dock back on under an open page)
+	expectDock(false, "open, switch tab: still hidden while the new page is up")
+	badges.Visible = false
+	expectDock(true, "open, switch tab, close")
+	collection.Visible = true
+	map.Visible = true -- the Tavern Map opens on top of an open page
+	collection.Visible = false
+	map.Visible = false
+	expectDock(true, "page, Map on top, page closes, Map closes: shown (the stale-saved-false bug)")
+	collection.Visible = true
+	collection.Visible = false -- Escape / dark area / Close X all end as Visible = false
+	expectDock(true, "open, Escape")
+	root:SetAttribute("BannerAtBottom", true)
+	CornerDock.refresh(root)
+	expectDock(false, "Round Select up: hidden")
+	root:SetAttribute("BannerAtBottom", false)
+	CornerDock.refresh(root)
+	expectDock(true, "Round Select closed: shown")
+	badges.Visible = true
+	row.Visible = true -- something else (or a missed signal) leaves the dock in the wrong state
+	state.runWaiting() -- the safety loop recomputes within one tick
+	expectDock(false, "the safety loop heals a wrong Visible while a page is open")
+	badges.Visible = false -- a run starts with every page closed
+	row.Visible = false -- a stale hidden dock
+	state.runWaiting()
+	expectDock(true, "no page open: the safety loop brings the dock back")
+end })
+
 table.insert(tests, { name = "Full screen Collection: the layout never writes the windowed size back, the old Shadow stays hidden, the room fills the panel at 1920x1080 and 1280x720", fn = function()
 	local scene = collectionBuild({ fullScreen = true })
 	if not scene then return end

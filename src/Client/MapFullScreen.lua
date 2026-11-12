@@ -82,6 +82,7 @@ function MapFullScreen.apply(p)
 	close.ZIndex = 42
 
 	FullScreenHud.enter(root, "tavernMap")
+	pcall(function() require(script.Parent.CornerDock).register(p.backdrop) end) -- the dock hides while the map backdrop is visible
 	if not p.backdrop:GetAttribute("FullScreenWired") then
 		p.backdrop:SetAttribute("FullScreenWired", true)
 		p.backdrop:GetPropertyChangedSignal("Visible"):Connect(function()

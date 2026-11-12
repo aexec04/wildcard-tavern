@@ -1,8 +1,8 @@
 --[[
 	Client/FullScreenHud.lua
 	While a full-screen scene (the Tavern Map) is open the corner icon dock is hidden (Engine/FullScreenRules.HIDE); everything else of the
-	HUD sits under the opaque full-screen panel (its ZIndex is above the HUD). The first call remembers each piece's Visible and leave()
-	puts it back exactly, whichever way the scene closed (Close, Escape, another popup replacing it).
+	HUD sits under the opaque full-screen panel (its ZIndex is above the HUD). The dock itself is Client/CornerDock's: it is recomputed from
+	the live Visible of the open pages, so whichever way a scene closed (Close, Escape, another popup replacing it) it comes back.
 
 	enter(root, reason)   leave(root, reason)   isHidden()
 ]]
@@ -13,32 +13,25 @@ local Rules = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Eng
 local FullScreenHud = {}
 
 local state = Rules.new()
-local saved = {} -- [instance] = its Visible before the first enter
+
+-- The dock itself is Client/CornerDock's: it shows or hides from the live Visible of the registered backdrops, so entering while another
+-- page is open, or leaving in a different order, can never restore a stale "hidden".
+local function refresh(root)
+	pcall(function() require(script.Parent.CornerDock).refresh(root) end)
+end
 
 function FullScreenHud.enter(root, reason)
-	local wasHidden = Rules.hidden(state)
 	Rules.enter(state, reason)
-	if wasHidden then return end
-	for _, name in ipairs(Rules.HIDE) do
-		local inst = root:FindFirstChild(name)
-		if inst then
-			saved[inst] = inst.Visible
-			inst.Visible = false
-		end
-	end
 	root:SetAttribute("FullScreenOpen", true)
+	refresh(root)
 end
 
 function FullScreenHud.leave(root, reason)
-	if not Rules.hidden(state) then return end
 	Rules.leave(state, reason)
-	if Rules.hidden(state) then
-		for inst, was in pairs(saved) do
-			if inst.Parent then inst.Visible = was end
-		end
-		saved = {}
+	if not Rules.hidden(state) then
 		root:SetAttribute("FullScreenOpen", nil)
 	end
+	refresh(root)
 end
 
 function FullScreenHud.isHidden() return Rules.hidden(state) end

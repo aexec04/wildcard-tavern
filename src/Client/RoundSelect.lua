@@ -162,8 +162,7 @@ return function(deps)
 			-- Real modal: the corner icon row (and its hover tooltips) is hidden while Round Select is up,
 			-- so nothing behind the window can be reached. It returns when the window closes.
 			local gui = root:FindFirstAncestorWhichIsA("LayerCollector") or root
-			local row = gui:FindFirstChild("CornerIconRow", true)
-			if row and row:IsA("GuiObject") then row.Visible = not roundSelectFrame.Visible end
+			pcall(function() require(script.Parent.CornerDock).refresh(root) end) -- the dock follows Round Select and the open pages
 			local tip = gui:FindFirstChild("Tooltip", true)
 			if tip and tip:IsA("GuiObject") and roundSelectFrame.Visible then tip.Visible = false end
 		end
