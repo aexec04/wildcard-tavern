@@ -19073,6 +19073,24 @@ table.insert(tests, { name = "PlayScenePaint never sets HandFrame, Actions or De
 	expectTrue(not string.find(src, "ShopCover", 1, true), "PlayScenePaint must not install ShopCover")
 end })
 
+table.insert(tests, { name = "PlayRailLip hides whenever the hand is hidden or the Counter, Round Select or Game Over covers the table", fn = function()
+	local f = io and io.open and io.open("src/Client/PlayRailLip.lua", "r")
+	if not f then return end
+	f:close()
+	local Lip = dofile("src/Client/PlayRailLip.lua")
+	expectTrue(Lip.shouldShow(true, false), "play table: shown")
+	expectTrue(not Lip.shouldShow(true, true), "Counter open: hidden")
+	expectTrue(not Lip.shouldShow(false, false), "hand hidden: hidden")
+	local covers = table.concat(Lip.COVERS, ",")
+	for _, n in ipairs({ "Shop", "RoundSelect", "GameOver" }) do
+		expectTrue(string.find(covers, n, 1, true) ~= nil, n .. " must cover the lip")
+	end
+	local g = io.open("src/Client/PlayScenePaint.lua", "r")
+	local src = g:read("*a")
+	g:close()
+	expectTrue(not string.find(src, "lip.Visible = handFrame.Visible", 1, true), "the lip must not follow the hand alone")
+end })
+
 table.insert(tests, { name = "SidebarMetrics: painted board sets the left edge of full screens, flat sidebar keeps 240/260, under 900 px stays flat", fn = function()
 	local SM = require(script.Parent.Parent.Engine.SidebarMetrics)
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)

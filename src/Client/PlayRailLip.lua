@@ -25,6 +25,12 @@ function PlayRailLip.lipRect(p)
 	return { x = p.map.rail.x, y = top, w = p.map.rail.w, h = h }
 end
 
+-- The lip belongs to the play table only: it follows the hand and hides whenever the Counter, Round Select or Game Over covers it.
+PlayRailLip.COVERS = { "Shop", "RoundSelect", "GameOver" }
+function PlayRailLip.shouldShow(handVisible, coverVisible)
+	return handVisible == true and coverVisible ~= true
+end
+
 function PlayRailLip.install(root)
 	local lip = root:FindFirstChild("HandRailLip")
 	if lip then return lip end
@@ -39,7 +45,7 @@ function PlayRailLip.install(root)
 	corner.CornerRadius = UDim.new(0, 6)
 	corner.Parent = lip
 	local grad = Instance.new("UIGradient") -- Color stops only
-	grad.Color = ColorSequence.new(Color3.fromRGB(128, 86, 52), Color3.fromRGB(70, 44, 26))
+	grad.Color = ColorSequence.new(Color3.fromRGB(255, 232, 205), Color3.fromRGB(190, 160, 130)) -- multiplies WOOD: a lit top fading to the rail's own tone, not near black
 	grad.Rotation = 90
 	grad.Parent = lip
 	local edge = Instance.new("Frame") -- lighter top edge

@@ -68,6 +68,26 @@ function PlayScenePaint.install(deps)
 	-- Preview start and Preview stop, and a set without a tint puts the painted colours back exactly
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 	local HudTheme = require(script.Parent.HudTheme)
+	local function covered() -- any full-screen scene over the table (Counter, Round Select, Game Over)
+		for _, name in ipairs(PlayRailLip.COVERS) do
+			local c = root:FindFirstChild(name)
+			if c and c:IsA("GuiObject") and c.Visible then return true end
+		end
+		return false
+	end
+	local function lipShown() return PlayRailLip.shouldShow(handFrame.Visible, covered()) end
+	local watched = {}
+	local function watchCovers()
+		for _, name in ipairs(PlayRailLip.COVERS) do
+			local c = root:FindFirstChild(name)
+			if c and c:IsA("GuiObject") and not watched[c] then
+				watched[c] = true
+				c:GetPropertyChangedSignal("Visible"):Connect(function()
+					if painted then lip.Visible = lipShown() end
+				end)
+			end
+		end
+	end
 	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 	local function tint(skin)
 		local t = CosmeticSets.tableTintOf(skin and skin.id)
@@ -93,7 +113,8 @@ function PlayScenePaint.install(deps)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
 			plates(p)
 			deck(p.map.deck)
-			PlayRailLip.apply(lip, p, handFrame.Visible)
+			watchCovers()
+			PlayRailLip.apply(lip, p, lipShown())
 		elseif painted then
 			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
@@ -115,7 +136,7 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible; lip.Visible = handFrame.Visible end
+		if painted then image.Visible = handFrame.Visible; lip.Visible = lipShown() end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)
