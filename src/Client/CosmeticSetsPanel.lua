@@ -405,7 +405,28 @@ return function(deps)
 		})
 	end
 
+	-- the painted shelf wall (cardsets_room_a): a paged grid of framed slots; the plain scrolling list stays for small windows and a missing id
+	local room = require(script.Parent.CardSetsRoom).new({
+		panel = panel, screenGui = deps.screenGui, roundCorner = roundCorner, playClickSfx = playClickSfx, label = label,
+		isOpen = function() return backdrop.Visible end, hide = { scroll },
+		CosmeticSets = CosmeticSets, CardBacks = CardBacks, CardBackView = CardBackView, SetSkin = SetSkin,
+		getState = deps.getLatestState, backHint = backUnlockHint,
+		actions = {
+			equipSet = function(id) EquipRemote:FireServer(id) end,
+			buySet = function(id) BuyRemote:FireServer(id) end,
+			equipBack = function(id) EquipBackRemote:FireServer(id) end,
+			preview = function(name, setId, backId) startPreview(name, setId, backId) end,
+		},
+	})
+	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if backdrop.Visible and not previewActive then refresh() end
+	end)
+
 	refresh = function()
+		if room.layout() then
+			room.paint()
+			return
+		end
 		for _, child in ipairs(scroll:GetChildren()) do
 			if child:IsA("Frame") then
 				child:Destroy()

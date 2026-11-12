@@ -20004,6 +20004,66 @@ tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the pane
 	end
 end })
 
+tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the body at 1920x1080 and 1280x720, tiles fit their frames, paging covers every set and back", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	local Sets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Backs = require(script.Parent.Parent.Engine.CardBacks)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, screen in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local pw, ph = L.panel(screen[1], screen[2])
+		expectTrue(pw >= 640 and ph >= 520, "panel keeps its minimum at " .. screen[1] .. "x" .. screen[2])
+		local W, H = pw, ph - L.TOP - L.BOTTOM
+		local p = L.place(W, H)
+		local area = { x = 0, y = 0, w = W, h = H }
+		expectTrue(p.ok, "painted shelf wall fits at " .. screen[1] .. "x" .. screen[2])
+		expectEqual(#p.plates, 5, "five plates")
+		expectEqual(#p.frames, 10, "ten frames")
+		expectEqual(#p.plaques, 10, "ten plaques")
+		local all = {}
+		for _, g in ipairs({ p.plates, p.frames, p.plaques }) do for _, r in ipairs(g) do all[#all + 1] = r end end
+		for i, r in ipairs(all) do
+			expectTrue(inside(r, area), "slot " .. i .. " inside the body at " .. screen[1] .. "x" .. screen[2])
+			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
+		for _, pl in ipairs(p.plaques) do expectTrue(pl.h >= 22 and pl.w >= 76, "plaque text (14 px) fits") end
+		-- every plaque sits under its own frame
+		for i = 1, 10 do
+			expectTrue(p.plaques[i].y >= p.frames[i].y + p.frames[i].h - 6 and p.plaques[i].x >= p.frames[i].x - 20 and p.plaques[i].x + p.plaques[i].w <= p.frames[i].x + p.frames[i].w + 20, "plaque " .. i .. " is under frame " .. i)
+		end
+		for i, f in ipairs(p.frames) do
+			local t = L.tileParts(f)
+			local rel = { x = 0, y = 0, w = f.w, h = f.h }
+			for _, k in ipairs({ "face", "back", "single", "name", "preview" }) do expectTrue(inside(t[k], rel), "frame " .. i .. " " .. k .. " inside the frame") end
+			expectFalse(hit(t.face, t.back), "face and back do not overlap")
+			expectFalse(hit(t.face, t.name) or hit(t.back, t.name) or hit(t.name, t.preview), "name sits between the cards and the Preview plate")
+			expectTrue(t.name.h >= 36 and t.preview.h >= 24 and t.cardH >= 56, "two name lines, a Preview plate and cards big enough to see")
+		end
+		-- soft vignette only where the picture leaves an edge
+		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "plain fade strip") end
+	end
+	-- paging: every set and every back (plus Match my set) is reachable
+	local function reach(n)
+		local list = {}
+		for i = 1, n do list[i] = i end
+		local seen = 0
+		for page = 1, L.pageCount(n) do seen = seen + #(L.pageSlice(list, page)) end
+		return seen
+	end
+	expectEqual(reach(#Sets.Definitions), #Sets.Definitions, "every Card Set is on some page")
+	expectEqual(reach(#Backs.Definitions + 1), #Backs.Definitions + 1, "every Card Back and Match my set is on some page")
+	local _, page, pages = L.pageSlice({ 1, 2, 3 }, 99)
+	expectTrue(page == 1 and pages == 1, "page clamps")
+	expectFalse(L.place(500, 300).ok, "a tiny panel keeps the plain list")
+	local f = io and io.open and io.open("src/Client/CardSetsRoom.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("[CardSetsRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, select, hand and the hand count is reported once dealt", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(table.concat(R.ROUND1_ORDER, ","), "start,choice,select,hand", "fixed step order")
