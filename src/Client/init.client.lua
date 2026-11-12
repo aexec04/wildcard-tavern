@@ -2606,7 +2606,7 @@ local function render(state)
 	lastPhase = state.phase
 
 	RoundSelectOverlay.roundSelectFrame.Visible = (state.phase == "roundSelect")
-	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect") -- stats panel away on Round Select
+	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect" or state.phase == "shop") -- stats panel away on Round Select and the Counter
 	Shop.shopFrame.Visible = (state.phase == "shop")
 	GameOverPanel.gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then

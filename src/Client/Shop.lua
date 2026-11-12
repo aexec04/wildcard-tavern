@@ -258,8 +258,9 @@ return function(deps)
 		local function fitLeft()
 			local vp = root.AbsoluteSize
 			local left = SM.isPainted() and SM.contentLeft(vp.X, vp.Y) or (SIDEBAR_WIDTH + 20)
-			shopFrame.Size = UDim2.new(1, -(left + 20), 1, 0)
-			shopFrame.Position = UDim2.new(0, left, 0, 0)
+			-- the Counter is a full screen scene: the round sidebar slides away while it is open (hub, SidebarSlide)
+			shopFrame.Size = UDim2.fromScale(1, 1)
+			shopFrame.Position = UDim2.fromOffset(0, 0)
 		end
 		fitLeft()
 		SM.onChange(fitLeft)
@@ -1302,6 +1303,7 @@ return function(deps)
 		local slotLimit = state.patronSlotLimit or ownedCount
 		local tableIsFull = ownedCount >= slotLimit
 		local tips = state.tips or 0
+		require(script.Parent.ShopPurse).update(shopFrame, tips)
 
 		-- Every element added to this ScrollingFrame needs an explicit, sequential LayoutOrder
 		-- (see the note on UIListLayout sorting by Name).
