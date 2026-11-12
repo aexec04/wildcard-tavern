@@ -214,16 +214,9 @@ function ShopCards.new(deps)
 			Size = UDim2.fromOffset(3 * gw + 2 * 16, gh), BackgroundTransparency = 1 })
 		for i = 1, 3 do
 			local group = frame(cluster, { Name = "Ghost" .. i, Position = UDim2.fromOffset((i - 1) * (gw + 16), 0),
-				Size = UDim2.fromOffset(gw, gh), BackgroundColor3 = CREAM, BackgroundTransparency = 0.93 })
-			corner(group, 8)
-			-- dotted outline: small dots around the perimeter
-			local step = 11
-			local function dot(x, y)
-				local d = frame(group, { Position = UDim2.fromOffset(x - 2, y - 2), Size = UDim2.fromOffset(4, 4), BackgroundColor3 = CREAM, BackgroundTransparency = 0.45 })
-				corner(d, 2)
-			end
-			for x = 6, gw - 6, step do dot(x, 3) dot(x, gh - 3) end
-			for y = 6, gh - 6, step do dot(3, y) dot(gw - 3, y) end
+				Size = UDim2.fromOffset(gw, gh), BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = 0.35 })
+			corner(group, 10)
+			stroke(group, Color3.fromRGB(120, 88, 56), 1, 0.6) -- soft dim slot like an Empty seat, no dotted outline
 			label(group, { Size = UDim2.fromScale(1, 1), Text = icons[i] or "", TextSize = math.floor(30 * scale), TextTransparency = 0.82,
 				TextColor3 = CREAM })
 		end

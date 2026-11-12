@@ -19073,6 +19073,20 @@ table.insert(tests, { name = "PlayScenePaint never sets HandFrame, Actions or De
 	expectTrue(not string.find(src, "ShopCover", 1, true), "PlayScenePaint must not install ShopCover")
 end })
 
+table.insert(tests, { name = "Counter tabs: the seat row starts at least 20 px right of Marlo, and empty states draw no dotted outline", fn = function()
+	local SSL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local zone, r = SSL.tabZone(size[1], size[2], false, nil)
+		if r.marlo then expectTrue(zone.x - (r.marlo.x + r.marlo.w) >= 20, "gap to Marlo at " .. size[1]) end
+		expectTrue(zone.x + zone.w <= size[1], "inside the screen at " .. size[1])
+	end
+	local f = io and io.open and io.open("src/Client/ShopCards.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(not string.find(src, "local function dot(", 1, true), "no dotted outline helper in ShopCards")
+end })
+
 table.insert(tests, { name = "PlayRailLip hides whenever the hand is hidden or the Counter, Round Select or Game Over covers the table", fn = function()
 	local f = io and io.open and io.open("src/Client/PlayRailLip.lua", "r")
 	if not f then return end

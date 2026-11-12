@@ -445,7 +445,7 @@ function ShopSceneLayout.rects(W, H, counts)
 		local marloH = H * 0.62
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
 		-- Marlo stands BEHIND the counter: his frame is clipped at the counter's back lip, so his waist and legs are hidden
-		out.clipY = math.floor(counterY + counterH * 0.16 + 0.5)
+		out.clipY = math.floor(counterY + counterH * 0.02 + 0.5)
 		out.marlo = rect(W * 0.03, out.clipY + marloH * 0.30 - marloH, marloW, marloH)
 
 		-- props: ledger and mug at the left end, bell and candle at the far right, resting on the surface
@@ -612,7 +612,7 @@ ShopSceneLayout.TAB_TOP, ShopSceneLayout.TAB_BOTTOM_RESERVE = 84, 64
 function ShopSceneLayout.tabZone(W, H, noMarlo, room)
 	local r = ShopSceneLayout.rects(W, H, { offers = 1, packs = 0, noMarlo = noMarlo, room = room })
 	local x0 = 10
-	if r.marlo and not noMarlo then x0 = r.marlo.x + r.marlo.w + 12 end
+	if r.marlo and not noMarlo then x0 = r.marlo.x + r.marlo.w + 32 end
 	local x1 = W - 10
 	local y0 = ShopSceneLayout.TAB_TOP
 	return rect(x0, y0, math.max(x1 - x0, 1), math.max(H - ShopSceneLayout.TAB_BOTTOM_RESERVE - y0, 1)), r
