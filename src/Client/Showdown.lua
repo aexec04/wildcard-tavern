@@ -40,14 +40,9 @@ function Showdown.play(state, root)
 	layer.ZIndex = 60
 	layer.Parent = root
 
-	local dim = Instance.new("Frame")
-	dim.Size = UDim2.fromScale(1, 1)
-	dim.BackgroundColor3 = Color3.fromRGB(20, 10, 0)
-	dim.BackgroundTransparency = 1
-	dim.BorderSizePixel = 0
-	dim.Active = false
-	dim.ZIndex = 60
-	dim.Parent = layer
+	-- the old flat dark dim over the whole table is gone: a soft gold glow on the banner, a faint edge vignette and a few drifting motes
+	local FlashFX = require(script.Parent.FlashFX)
+	local effect = FlashFX.play(root, "showdown", UDim2.fromScale(0.5, 0.42), { zIndex = 60 })
 
 	local banner = Instance.new("Frame")
 	banner.Name = "ShowdownBanner"
@@ -90,7 +85,6 @@ function Showdown.play(state, root)
 	label(string.upper(tostring(hand.name)), 28, 36, 30, CREAM)
 	label(string.format("%d", math.floor(tonumber(hand.score) or 0)), 62, 30, 24, GOLD)
 
-	TweenService:Create(dim, TweenInfo.new(0.2), { BackgroundTransparency = 0.7 }):Play()
 	TweenService:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	-- the long hold is a slow push-in on the banner
 	task.delay(0.3, function()
@@ -104,7 +98,6 @@ function Showdown.play(state, root)
 			busy = false
 			return
 		end
-		TweenService:Create(dim, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
 		TweenService:Create(banner, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
 		TweenService:Create(stroke, TweenInfo.new(0.3), { Transparency = 1 }):Play()
 		for _, child in ipairs(banner:GetChildren()) do
@@ -113,6 +106,7 @@ function Showdown.play(state, root)
 			end
 		end
 		task.delay(0.35, function()
+			effect.stop()
 			layer:Destroy()
 			busy = false
 		end)

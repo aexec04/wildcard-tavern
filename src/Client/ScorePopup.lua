@@ -384,22 +384,11 @@ return function(deps)
 	scorePopupEventScale.Scale = 1
 	scorePopupEventScale.Parent = scorePopupEventLabel
 
-	-- PHASE A (Spectacle pass): a full-root flash wash + a big slammed-in
-	-- banner, both built once here and reused every call (same pattern as
-	-- scorePopup itself) -- see showScorePopup's `legendary` block below
-	-- for when these actually get driven. ZIndex sits above the particle
-	-- bursts (30) and flying numbers (32) on purpose -- a legendary hand's
-	-- flash is meant to wash OVER everything else happening on screen in
-	-- that instant, not get buried under it.
-	local legendaryFlashOverlay = Instance.new("Frame")
-	legendaryFlashOverlay.Name = "LegendaryFlash"
-	legendaryFlashOverlay.Size = UDim2.fromScale(1, 1)
-	legendaryFlashOverlay.BackgroundColor3 = LEGENDARY_FLASH_COLOR
-	legendaryFlashOverlay.BackgroundTransparency = 1
-	legendaryFlashOverlay.BorderSizePixel = 0
-	legendaryFlashOverlay.ZIndex = 33
-	legendaryFlashOverlay.Parent = root
-
+	-- PHASE A (Spectacle pass): a big slammed-in banner built once here and reused every call (same pattern as scorePopup itself) -- see
+	-- showScorePopup's `legendary` block below for when it gets driven. The old flat full-screen colour wash is gone: Client/FlashFX draws
+	-- a soft glow, edge vignette and drifting motes instead (nothing over 15 percent opacity across the screen).
+	local FlashFX = require(script.Parent.FlashFX)
+	local activeFlash = nil -- the effect on screen (stopped when the sequence is cancelled)
 	local legendaryBanner = Instance.new("TextLabel")
 	legendaryBanner.Name = "LegendaryBanner"
 	legendaryBanner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -458,15 +447,6 @@ return function(deps)
 	-- the Legendary threshold). wildcardBanner.Text is set fresh per call
 	-- in showScorePopup below -- unlike the Legendary banner, there's no
 	-- fixed string to set once here.
-	local wildcardFlashOverlay = Instance.new("Frame")
-	wildcardFlashOverlay.Name = "WildcardFlash"
-	wildcardFlashOverlay.Size = UDim2.fromScale(1, 1)
-	wildcardFlashOverlay.BackgroundColor3 = WILDCARD_FLASH_COLOR
-	wildcardFlashOverlay.BackgroundTransparency = 1
-	wildcardFlashOverlay.BorderSizePixel = 0
-	wildcardFlashOverlay.ZIndex = 33
-	wildcardFlashOverlay.Parent = root
-
 	local wildcardBanner = Instance.new("TextLabel")
 	wildcardBanner.Name = "WildcardBanner"
 	wildcardBanner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1058,37 +1038,8 @@ return function(deps)
 				screenShake(root, 8, pace(0.3))
 				particleBurst(centerOf(scorePopup), WILDCARD_FLASH_COLOR, 12, { spread = 100, duration = 0.55 })
 
-				wildcardFlashOverlay.BackgroundTransparency = 1
-				tweenTo(wildcardFlashOverlay, { BackgroundTransparency = 0.3 }, pace(0.08))
-				task.delay(pace(0.08), function()
-					if scorePopupToken == myToken then
-						tweenTo(wildcardFlashOverlay, { BackgroundTransparency = 1 }, pace(0.5))
-					end
-				end)
-
-				-- HARD SAFETY NET (BUGFIX, Ahmed's Studio screenshot -- the
-				-- whole screen staying purple over the Shop): same reasoning
-				-- as the banner's own 2.5s timeout above, but for the FLASH
-				-- OVERLAY's BackgroundTransparency specifically. Setting a
-				-- property directly (cancelScorePopup's reset, below) does
-				-- NOT stop an already-playing Tween targeting that same
-				-- property -- TweenService keeps driving it every frame
-				-- until the Tween finishes or is :Cancel()'d, so if
-				-- cancelScorePopup() lands while the short flash-IN tween
-				-- just above (pace(0.08), i.e. well under a tenth of a
-				-- second) is still mid-flight, that tween wins the race and
-				-- finishes AT BackgroundTransparency = 0.3 -- permanently
-				-- tinting the whole screen (ZIndex 33, well above every
-				-- panel) purple/gold, with the gated fade-out tween above
-				-- never firing because scorePopupToken no longer matches.
-				-- This is exactly what a hand that both resolves the True
-				-- Wildcard AND wins the round can trigger (the "shop" phase
-				-- push races the freeze-frame). No matter what else goes
-				-- wrong, this overlay can never stay visibly tinted longer
-				-- than this, full stop.
-				task.delay(2.5, function()
-					wildcardFlashOverlay.BackgroundTransparency = 1
-				end)
+				if activeFlash then activeFlash.stop() end
+				activeFlash = FlashFX.play(root, "wildcard", centerOf(scorePopup), { zIndex = 33, banner = wildcardBanner })
 
 				tweenTo(wildcardBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
 				tweenTo(wildcardBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -1129,23 +1080,8 @@ return function(deps)
 					particleBurst(randomPos, (math.random() > 0.5) and FINALE_COLOR or Color3.fromRGB(200, 130, 255), 14, { spread = 140, duration = 0.6 })
 				end
 
-				legendaryFlashOverlay.BackgroundTransparency = 1
-				tweenTo(legendaryFlashOverlay, { BackgroundTransparency = 0.3 }, pace(0.08))
-				task.delay(pace(0.08), function()
-					if scorePopupToken == myToken then
-						tweenTo(legendaryFlashOverlay, { BackgroundTransparency = 1 }, pace(0.5))
-					end
-				end)
-
-				-- HARD SAFETY NET (BUGFIX, same root cause/fix as the True
-				-- Wildcard flash overlay's own copy of this comment just
-				-- above -- read that one for the full explanation). This
-				-- overlay had the identical latent gap; folding the fix in
-				-- here too rather than leaving a known-identical bug in
-				-- place just because it hadn't been hit/reported yet.
-				task.delay(2.5, function()
-					legendaryFlashOverlay.BackgroundTransparency = 1
-				end)
+				if activeFlash then activeFlash.stop() end
+				activeFlash = FlashFX.play(root, "legendary", centerOf(scorePopup), { zIndex = 33, banner = legendaryBanner })
 
 				tweenTo(legendaryBanner, { TextTransparency = 0, TextStrokeTransparency = 0.1 }, pace(0.12))
 				tweenTo(legendaryBannerScale, { Scale = 1.15 }, pace(0.22), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -1493,13 +1429,12 @@ return function(deps)
 		-- how it got stuck visible in the first place.
 		legendaryBanner.TextTransparency = 1
 		legendaryBanner.TextStrokeTransparency = 1
-		legendaryFlashOverlay.BackgroundTransparency = 1
+		if activeFlash then activeFlash.stop() activeFlash = nil end
 		-- PHASE C: same defensive reset for the True Wildcard's own
 		-- banner/flash pair -- see wildcardBanner's own comment at its
 		-- creation.
 		wildcardBanner.TextTransparency = 1
 		wildcardBanner.TextStrokeTransparency = 1
-		wildcardFlashOverlay.BackgroundTransparency = 1
 		destroyGhosts(liveGhosts)
 		liveGhosts = {}
 	end

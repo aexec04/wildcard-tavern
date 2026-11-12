@@ -297,16 +297,8 @@ local function build(deps)
 
 	local function screenFlash()
 		if not require(script.Parent.ClientSettings).flashesAllowed() then return end -- Reduce Flashing
-		local f = Instance.new("Frame")
-		f.Size = UDim2.fromScale(1, 1)
-		f.BackgroundColor3 = Color3.fromRGB(255, 240, 210)
-		f.BackgroundTransparency = 0.75
-		f.BorderSizePixel = 0
-		f.Active = false
-		f.ZIndex = 34
-		f.Parent = root
-		play(f, { BackgroundTransparency = 1 }, 0.25)
-		later(0.3, function() f:Destroy() end)
+		-- no flat full-screen wash: a short soft cream glow on the boss (Client/FlashFX, Engine/FlashFX "hit")
+		require(script.Parent.FlashFX).play(root, "hit", UDim2.fromScale(0.5, 0.3), { zIndex = 34 })
 	end
 
 	local function particles(count, color)

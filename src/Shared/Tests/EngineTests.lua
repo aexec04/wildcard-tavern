@@ -21597,4 +21597,84 @@ table.insert(tests, { name = "Sound pass wiring: Sound.lua gates, jitters and la
 	expectEqual(R.parse("sfx:bad cue!"), nil, "a malformed cue name is refused")
 end })
 
+table.insert(tests, { name = "FlashFX: layered glow, vignette, motes and sweep; no full-screen layer above 15 percent; reduced motion is static; the flat overlays are gone", fn = function()
+	local FX = require(script.Parent.Parent.Engine.FlashFX)
+	for _, kind in ipairs({ "legendary", "wildcard", "showdown", "hit" }) do
+		for _, reduced in ipairs({ false, true }) do
+			local spec = FX.spec(kind, reduced)
+			local tag = kind .. (reduced and " (reduced)" or "")
+			expectTrue(FX.maxFullScreenOpacity(spec) <= FX.MAX_FULL_SCREEN_OPACITY + 1e-9, tag .. ": no full-screen layer above 15 percent opacity (" .. FX.maxFullScreenOpacity(spec) .. ")")
+			for _, l in ipairs(spec.layers) do
+				expectTrue(l.opacity <= 0.6, tag .. ": " .. l.type .. " stays soft")
+				if l.type == "glow" then expectTrue(l.coverage < 0.5 and l.size <= 0.55, tag .. ": the glow never covers the whole screen") end
+			end
+			local c = spec.color
+			expectTrue(c[1] <= 255 and c[2] <= 255 and c[3] <= 255 and (c[1] + c[2] + c[3]) / 3 < 235, tag .. ": the colour is muted, not white")
+			if reduced then
+				expectFalse(spec.motion, tag .. ": reduced motion has no motion")
+				for _, l in ipairs(spec.layers) do
+					expectTrue(l.type ~= "motes" and l.type ~= "sweep", tag .. ": no motes or sweep")
+					expectTrue((l.fadeIn or 0) == 0 and (l.fadeOut or 0) == 0, tag .. ": no animated fade, just on and off")
+				end
+				expectEqual(FX.moteCount(kind, true), 0, tag .. ": no motes")
+				expectEqual(FX.glowPeakAt(spec, 0.1), spec.layers[1].opacity, tag .. ": the glow just stands")
+			end
+		end
+	end
+	local leg = FX.spec("legendary", false)
+	local glow, vig, motes, sweep
+	for _, l in ipairs(leg.layers) do
+		if l.type == "glow" then glow = l elseif l.type == "vignette" then vig = l elseif l.type == "motes" then motes = l elseif l.type == "sweep" then sweep = l end
+	end
+	expectTrue(math.abs(glow.opacity - 0.25) < 1e-9 and glow.fadeIn == 0.5 and glow.fadeOut == 0.8, "glow: peak transparency 0.75, 0.5 s in, 0.8 s out")
+	expectTrue(math.abs(vig.opacity - 0.15) < 1e-9, "vignette: 0.85 transparency at its strongest")
+	expectTrue(motes.count >= 10 and motes.count <= 16 and FX.moteCount("wildcard", false) >= 10 and FX.moteCount("wildcard", false) <= 16, "10 to 16 motes")
+	expectTrue(sweep ~= nil, "Legendary has a light sweep")
+	local wild = FX.spec("wildcard", false)
+	local hasSweep = false
+	for _, l in ipairs(wild.layers) do if l.type == "sweep" then hasSweep = true end end
+	expectFalse(hasSweep, "the wildcard has no sweep")
+	expectTrue(FX.PALETTE.legendary[1] > FX.PALETTE.legendary[3] and FX.PALETTE.wildcard[3] > FX.PALETTE.wildcard[2], "Legendary is warm gold, Wildcard soft violet")
+	-- the envelope: zero, rising, peak, falling, zero; never a strobe
+	local prev, peaked = 0, false
+	for i = 0, 40 do
+		local v = FX.glowPeakAt(leg, i * 0.05)
+		if v > 0.2499 then peaked = true end
+		expectTrue(v >= 0 and v <= 0.25 + 1e-9, "the glow stays within its peak")
+	end
+	expectTrue(peaked and FX.glowPeakAt(leg, 0) == 0 and FX.glowPeakAt(leg, leg.duration + 1) == 0, "it rises to the peak and ends at nothing")
+	local rises = 0
+	local last = 0
+	for i = 0, 40 do
+		local v = FX.glowPeakAt(leg, i * 0.05)
+		if v > last + 1e-9 and last > v - 1e-9 then rises = rises + 1 end
+		last = v
+	end
+	local turns, dir = 0, 0
+	local lv = 0
+	for i = 0, 60 do
+		local v = FX.glowPeakAt(leg, i * 0.03)
+		local d = v > lv + 1e-9 and 1 or (v < lv - 1e-9 and -1 or 0)
+		if d ~= 0 and dir ~= 0 and d ~= dir then turns = turns + 1 end
+		if d ~= 0 then dir = d end
+		lv = v
+	end
+	expectTrue(turns <= 1, "one rise and one fall, no strobe")
+	-- the motes are deterministic from their rolls and stay within sane bounds
+	local list = FX.motes("legendary", {})
+	expectEqual(#list, 16, "one entry per mote")
+	for _, m in ipairs(list) do
+		expectTrue(m.rise >= 90 and m.rise <= 210 and m.size >= 4 and m.size <= 8 and m.delay <= 0.35, "mote numbers are small and quick")
+	end
+	-- the old flat overlays are gone from the source
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local pop, pha, sd, bf = read("src/Client/ScorePopup.lua"), read("src/Client/PhaseA.lua"), read("src/Client/Showdown.lua"), read("src/Client/BossFight.lua")
+	if pop and pha and sd and bf then
+		expectTrue(pop:find("FlashOverlay", 1, true) == nil and pop:find("LEGENDARY_FLASH_COLOR", 1, true) ~= nil and pop:find('FlashFX.play(root, "legendary"', 1, true) ~= nil and pop:find('FlashFX.play(root, "wildcard"', 1, true) ~= nil, "ScorePopup has no flat flash overlay, it plays the layered effect")
+		expectTrue(pha:find("flashOverlay", 1, true) == nil, "PhaseA's flat flash overlay is removed")
+		expectTrue(sd:find('local dim = Instance.new("Frame")', 1, true) == nil and sd:find("FlashFX.play", 1, true) ~= nil, "Showdown's flat dim is replaced")
+		expectTrue(bf:find("Color3.fromRGB(255, 240, 210)", 1, true) == nil or bf:find('FlashFX").play(root, "hit"', 1, true) ~= nil, "the boss screen flash is the soft glow")
+	end
+end })
+
 return tests

@@ -60,14 +60,7 @@ return function(deps)
 
 	-- ===== Boss Intro =====
 
-	local flashOverlay = Instance.new("Frame")
-	flashOverlay.Name = "BossFlashOverlay"
-	flashOverlay.Size = UDim2.fromScale(1, 1)
-	flashOverlay.BackgroundColor3 = Color3.fromRGB(10, 6, 8)
-	flashOverlay.BackgroundTransparency = 1
-	flashOverlay.BorderSizePixel = 0
-	flashOverlay.ZIndex = 36
-	flashOverlay.Parent = root
+	-- (the flat BossFlashOverlay is gone: the boss intro is off, and no flat full-screen colour wash is used anywhere)
 
 	local banner = Instance.new("TextLabel")
 	banner.Name = "BossIntroBanner"
@@ -144,14 +137,6 @@ return function(deps)
 
 		playPitched(payoutThudSound, 0.55, 0.8)
 		screenShake(root, 7, 0.3)
-
-		flashOverlay.BackgroundTransparency = 1
-		tweenTo(flashOverlay, { BackgroundTransparency = 0.35 }, 0.08)
-		task.delay(0.08, function()
-			if bossToken == myToken then
-				tweenTo(flashOverlay, { BackgroundTransparency = 1 }, 0.5)
-			end
-		end)
 
 		tweenTo(banner, { TextTransparency = 0 }, 0.12)
 		tweenTo(bannerScale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
