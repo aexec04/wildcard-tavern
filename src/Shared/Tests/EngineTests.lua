@@ -5376,6 +5376,19 @@ table.insert(tests, { name = "PlayRailLip: the lip hides the bottom 14 percent o
 	expectTrue(Lip.lipRect(nil) == nil)
 end })
 
+table.insert(tests, { name = "CosmeticSets.tableTintOf: Mountain Festival tints the table cool, the default and others stay untouched", fn = function()
+	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
+	local t = CosmeticSets.tableTintOf("festival_night")
+	expectTrue(t ~= nil and #t.felt == 3 and #t.wood == 3, "festival_night has a felt and wood tint")
+	expectTrue(t.felt[2] > t.felt[1] and t.felt[3] > t.felt[1], "felt multiplier leans cool (pine), not red")
+	expectTrue(t.wood[3] >= t.wood[1], "wood multiplier is slightly colder")
+	for _, v in ipairs({ t.felt[1], t.felt[2], t.felt[3], t.wood[1], t.wood[2], t.wood[3] }) do
+		expectTrue(v >= 120 and v <= 255, "tint stays calm and low contrast")
+	end
+	expectTrue(CosmeticSets.tableTintOf("classic_tavern") == nil, "the default table is exactly as painted")
+	expectTrue(CosmeticSets.tableTintOf(nil) == nil and CosmeticSets.tableTintOf("nope") == nil)
+end })
+
 table.insert(tests, { name = "RegionTiles: tavern fill covers the whole region frame, hero keeps aspect", fn = function()
 	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
 	for _, frameW in ipairs({ 600, 1175, 2400 }) do

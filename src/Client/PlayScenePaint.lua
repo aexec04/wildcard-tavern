@@ -64,6 +64,18 @@ function PlayScenePaint.install(deps)
 
 	local PlayRailLip = require(script.Parent.PlayRailLip)
 	local lip = PlayRailLip.install(root)
+	-- the equipped or previewed Card Set may tint the table (felt on the picture, wood on the rail lip); HudTheme calls this on equip,
+	-- Preview start and Preview stop, and a set without a tint puts the painted colours back exactly
+	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
+	local HudTheme = require(script.Parent.HudTheme)
+	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	local function tint(skin)
+		local t = CosmeticSets.tableTintOf(skin and skin.id)
+		image.ImageColor3 = t and c3(t.felt) or Color3.new(1, 1, 1)
+		lip.BackgroundColor3 = t and c3(t.wood):Lerp(PlayRailLip.WOOD, 0.5) or PlayRailLip.WOOD
+	end
+	HudTheme.onSkin(tint)
+	tint(HudTheme.skin())
 	local function apply()
 		local size = root.AbsoluteSize
 		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE) or nil

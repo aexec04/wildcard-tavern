@@ -92,6 +92,8 @@ CosmeticSets.Definitions = {
 		cardBackId = "festival_ribbon",
 		face = { paper = { 255, 242, 220 }, border = { 240, 160, 80 }, pip = { 200, 100, 60 }, foil = true },
 		accent = { 240, 170, 90 },
+		-- the painted play table is multiplied by `felt` (a cool dusk pine felt) and its rail lip by `wood` (a slightly colder wood)
+		tableTint = { felt = { 150, 196, 176 }, wood = { 214, 220, 236 } },
 		backdropImage = BackgroundArt.backdrop_festival_night or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 235, 205 },
@@ -355,6 +357,14 @@ function CosmeticSets.validateStyle(style)
 		end
 	end
 	return true
+end
+
+-- Optional painted-table tint of a set (or set id): { felt = {r,g,b}, wood = {r,g,b} } multipliers, nil keeps the table exactly as painted.
+function CosmeticSets.tableTintOf(setOrId)
+	local set = type(setOrId) == "string" and CosmeticSets.getById(setOrId) or setOrId
+	local t = type(set) == "table" and set.tableTint or nil
+	if type(t) ~= "table" or type(t.felt) ~= "table" or type(t.wood) ~= "table" then return nil end
+	return t
 end
 
 function CosmeticSets.getById(id)

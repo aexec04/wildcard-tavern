@@ -12,6 +12,7 @@ local PlayRailLip = {}
 
 PlayRailLip.TUCK = 0.14 -- share of a card's height hidden behind the lip
 PlayRailLip.CARD_H = 144 -- Engine/PlayTableLayout: cards are 144 px in the 176 px hand frame
+PlayRailLip.WOOD = Color3.fromRGB(92, 58, 34) -- the table rail's base wood
 PlayRailLip.Z = 20 -- above every card piece (all below 15), below the ghosts and popups
 
 -- p = PlayTableLayout.placement result. Card bottoms sit on the middle of the rail groove (hand.y + HAND_H - CARD_PAD).
@@ -29,7 +30,7 @@ function PlayRailLip.install(root)
 	if lip then return lip end
 	lip = Instance.new("Frame")
 	lip.Name = "HandRailLip"
-	lip.BackgroundColor3 = Color3.fromRGB(92, 58, 34) -- the table's rail wood
+	lip.BackgroundColor3 = PlayRailLip.WOOD
 	lip.BorderSizePixel = 0
 	lip.Active = false
 	lip.ZIndex = PlayRailLip.Z
