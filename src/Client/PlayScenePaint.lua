@@ -235,8 +235,10 @@ function PlayScenePaint.install(deps)
 			PlayRailLip.apply(lip, p, lipShown())
 			PlayRail.apply(rail, p, lipShown())
 			if rail then lip.Visible = false end
-			if not frontShown() then -- a room has no rail in its painting: no flat tan strip, no painted tray pieces
+			setLip(lipShown()) -- the groove rim follows the current room (it kept the previous table's visibility before)
+			if not frontShown() then -- a room has no rail in its painting: no flat tan strip, no groove strip, no painted tray pieces
 				lip.Visible = false
+				groove.Visible = false
 				if rail then rail.back.Visible = false; rail.front.Visible = false end
 			end
 		elseif painted then
@@ -248,6 +250,7 @@ function PlayScenePaint.install(deps)
 			floorShade.setVisible(false)
 			if bg then bg.Visible = false end
 			shade.apply(nil)
+			groove.Visible = false
 			PlayRailLip.apply(lip, nil)
 			PlayRail.apply(rail, nil)
 			handFrame:SetAttribute("PaintedRail", nil)

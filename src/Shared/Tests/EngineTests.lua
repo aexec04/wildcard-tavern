@@ -20946,6 +20946,7 @@ table.insert(tests, { name = "Per-set rooms are the painting alone: no wood fron
 		expectTrue(text:find("PlayTableLayout.showsFront(setKey)", 1, true) ~= nil and text:find("floorShade.setVisible", 1, true) ~= nil, "PlayScenePaint hides the front in a room and shows the floor shadow")
 		expectTrue(text:find("frontShown() and p.map.deck or nil", 1, true) ~= nil, "no painted deck recess box in a room")
 		expectTrue(text:find("if not frontShown() then -- a room has no rail", 1, true) ~= nil, "no flat tan rail strip in a room")
+		expectTrue(text:find("groove.Visible = false", 1, true) ~= nil and text:find("setLip(lipShown()) -- the groove rim", 1, true) ~= nil, "PlayGrooveLip is hidden in every per-set room and refreshed on each apply")
 		expectTrue(text:find("bp.x + bp.w + 24", 1, true) ~= nil, "the hand starts 24 px right of the left board in a room")
 	end
 	local g = io and io.open and io.open("src/Client/PlayFloorShade.lua", "r")
