@@ -56,7 +56,7 @@ local SCENES = {
 		art = "coll_sec_bosses_a", per = 12, kind = "portrait", min = { 72, 60 },
 		cols = { { 259, 170 }, { 535, 170 }, { 817, 170 }, { 1098, 170 } },
 		rows = { { 166, 134 }, { 394, 134 }, { 618, 134 } }, -- bottoms on the pedestal tops; the tops leave room for the plates above
-		plate = { ys = { 349, 579, 811 }, h = 26 },
+		plate = { ys = { 349, 579, 811 }, h = 26, oneLine = true }, -- one line each, text shrinks to fit (14 px floor), so a plate never reaches the next row
 	},
 	housePasses = {
 		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 48, 60 },
@@ -164,11 +164,11 @@ function M.place(tabId, areaW, areaH, pages)
 			w = math.floor(r.w * (1 - inset[1] - inset[3])), h = math.floor(r.h * (1 - inset[2] - inset[4])),
 		}
 		if p.plateY then
-			local ph = math.max(18, math.floor(scene.plate.h * s))
+			local ph = math.max(scene.plate.oneLine and 22 or 18, math.floor(scene.plate.h * s))
 			-- wide enough to read a name at 14 px, but never into the next column's plate
 			local pitch = (scene.cols[2][1] - scene.cols[1][1]) * s
 			local pw = math.floor(math.min(pitch - 8, math.max(r.w * 0.94, 112)))
-			r.plate = { x = math.max(0, math.min(view.w - pw, r.x + math.floor((r.w - pw) / 2))), y = math.floor(iy + (p.plateY + scene.plate.h / 2) * s - ph / 2), w = pw, h = ph }
+			r.plate = { x = math.max(0, math.min(view.w - pw, r.x + math.floor((r.w - pw) / 2))), y = math.floor(iy + (p.plateY + scene.plate.h / 2) * s - ph / 2), w = pw, h = ph, oneLine = scene.plate.oneLine }
 		end
 		out.slots[#out.slots + 1] = r
 		if r.w < scene.min[1] or r.h < scene.min[2] then out.ok = false end
@@ -181,6 +181,7 @@ end
 M.PLATE_TEXT = 14
 M.PLATE_MIN, M.PLATE_MAX = 11, 16
 function M.plateFit(name, plate)
+	if plate.oneLine then return { x = plate.x, y = plate.y, w = plate.w, h = plate.h }, 1 end -- a one-line plate keeps its own height
 	local perChar = M.PLATE_TEXT * 0.62
 	local usable = math.max(1, plate.w - 8)
 	local lines = (#tostring(name) * perChar <= usable) and 1 or 2

@@ -19039,6 +19039,24 @@ table.insert(tests, { name = "CollectionSectionLayout.plateFit: long plate names
 	expectEqual(l2, 2)
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout: Boss Rounds plates are one line and end above the next row's frame", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	for _, size in ipairs({ { 993, 585 }, { 1400, 800 }, { 1700, 900 } }) do
+		local P = RL.panel(size[1], size[2], 24, nil, "section")
+		local p = L.place("bosses", P.area.w, P.area.h, 1)
+		if p and p.ok then
+			for i, s in ipairs(p.slots) do
+				local r, lines = L.plateFit("House Minimum", s.plate)
+				expectEqual(lines, 1, "one line")
+				expectTrue(r.h >= 22, "plate tall enough for 14 px text")
+				local below = p.slots[i + 4]
+				if below then expectTrue(r.y + r.h <= below.y, "plate ends above the next row's frame") end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8), paging and filtered paging, slots inside the area and apart at three sizes and a phone, the picture is never stretched", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)

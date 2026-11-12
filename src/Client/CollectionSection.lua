@@ -154,13 +154,13 @@ function CollectionSection.new(opts)
 
 	-- the portrait kinds: Patrons (the portrait sits INSET in the frame's dark canvas) and Boss Rounds (it stands on the pedestal)
 	-- name plate text: fixed plate height, scaled to fit between PLATE_MIN and PLATE_MAX, truncated at the end, never clipped
-	local function plateText(plate)
+	local function plateText(plate, oneLine)
 		plate.TextScaled = true
-		plate.TextWrapped = true
+		plate.TextWrapped = not oneLine
 		plate.TextTruncate = Enum.TextTruncate.AtEnd
 		plate.TextYAlignment = Enum.TextYAlignment.Center
 		local c = Instance.new("UITextSizeConstraint")
-		c.MinTextSize, c.MaxTextSize = Layout.PLATE_MIN, Layout.PLATE_MAX
+		c.MinTextSize, c.MaxTextSize = oneLine and Layout.PLATE_TEXT or Layout.PLATE_MIN, Layout.PLATE_MAX
 		c.Parent = plate
 		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) })
 	end
@@ -201,7 +201,7 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
-			plateText(plate)
+			plateText(plate, slot.plate.oneLine)
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -234,7 +234,7 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
-			plateText(plate)
+			plateText(plate, slot.plate.oneLine)
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -273,14 +273,14 @@ function CollectionSection.new(opts)
 
 	-- Rarity on a slot: a muted rim in the tier colour around the slot, a thin underline of it on the name plate, a small gem at the top
 	-- left, a very faint inner glow from Epic up and (not in calm mode) a slow shimmer on Mythical. Locked entries keep the tint, dimmed.
-	local function rarityMarks(slot, info, z)
+	local function rarityMarks(slot, info, z, uniform)
 		local c = info.rarityColor
 		if not c then return end
 		local calm = false
 		pcall(function() calm = ClientSettings.get("reduceShake") == true end)
 		local k = 0.2 -- locked entries get the same full tier colour as found ones
-		local tint = c:Lerp(Color3.fromRGB(60, 44, 28), k * 0.5)
-		local common = info.rarity == "common"
+		local tint = uniform and Color3.fromRGB(150, 120, 70) or c:Lerp(Color3.fromRGB(60, 44, 28), k * 0.5)
+		local common = uniform or info.rarity == "common" -- uniform: every slot of the section wears the same thin rim (Boss Rounds)
 		local rim = make("Frame", frame, { Name = "RarityRim", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 4 })
 		rect(rim, slot)
 		corner(rim, 6)
@@ -303,8 +303,8 @@ function CollectionSection.new(opts)
 			end
 		end
 		local gem = make("Frame", frame, { Name = "RarityGem", BackgroundColor3 = c, BorderSizePixel = 0, Rotation = 45, ZIndex = z + 5 })
-		gem.Position = UDim2.fromOffset(slot.x + slot.w - 26, slot.y + 10) -- top right: the title starts at the left
-		gem.Size = UDim2.fromOffset(16, 16)
+		gem.Position = UDim2.fromOffset(slot.x + slot.w - 24, slot.y + 10) -- top right: the title starts at the left
+		gem.Size = UDim2.fromOffset(14, 14)
 		gem.BackgroundTransparency = 0
 		make("UIStroke", gem, { Color = Color3.fromRGB(30, 20, 10), Thickness = 2 })
 		local plate = slot.plate
