@@ -16733,7 +16733,7 @@ table.insert(tests, { name = "Tavern Map modules give every GuiObject an explici
 	local files = { "JourneyMapView", "JourneyMapGraph", "JourneyMapFog", "JourneyMapDiscoveries", "JourneyMapHero", "JourneyMapScenery", "JourneyMapCompass", "MapHover" }
 	local classes = { Frame = true, ImageLabel = true, ImageButton = true, TextLabel = true, TextButton = true, ScrollingFrame = true, ViewportFrame = true, CanvasGroup = true }
 	for _, name in ipairs(files) do
-		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		local f = io and io.open and io.open("src/Client/" .. name .. ".lua", "r")
 		if f then
 			local lines = {}
 			for line in f:lines() do lines[#lines + 1] = line end
@@ -22853,6 +22853,18 @@ table.insert(tests, { name = "CloseX: the round X is a 44 px hit area with a 40 
 			expectTrue(src:find("CloseX).attach(", 1, true) ~= nil, name .. " uses the shared round X")
 		end
 	end
+end })
+
+table.insert(tests, { name = "ScrimGradient: no caller can build a sequence over Roblox's 20 keypoint limit", fn = function()
+	local SG = require(script.Parent.Parent.Engine.ScrimGradient)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local VC = require(script.Parent.Parent.Engine.VignetteCurve)
+	for _, n in ipairs({ 16, 24, 40, 500 }) do
+		expectTrue(#SG.keypoints(n, 0.55, 1.3) <= 20, "ScrimGradient.keypoints(" .. n .. ") has at most 20 points")
+	end
+	expectTrue(#SG.keypoints(24, 0.55, 1.3) == 20, "GameplayScene's 24 steps clamp to 20")
+	expectTrue(#PTL.floorKeypoints() <= 20, "floor shade within 20 keypoints")
+	expectTrue(#VC.keypoints() <= 20, "vignette within 20 keypoints")
 end })
 
 return tests

@@ -10,8 +10,10 @@
 
 local M = {}
 
+M.MAX_POINTS = 20 -- Roblox NumberSequence and ColorSequence accept at most 20 keypoints
+
 function M.keypoints(points, peakAlpha, exponent)
-	points = math.max(2, math.floor(points or 16))
+	points = math.min(M.MAX_POINTS, math.max(2, math.floor(points or 16)))
 	exponent = exponent or 1
 	local out = {}
 	for i = 0, points - 1 do
