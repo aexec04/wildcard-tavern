@@ -19149,6 +19149,31 @@ table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8)
 	expectTrue(usableSeen, "some size shows the scenes")
 end })
 
+table.insert(tests, { name = "Collection painted sections: a locked Recipe or Bond prints only its name, never its effect or flavor text", fn = function()
+	local col, CB, discovered = collectionBuild({ painted = true })
+	if not col then return end
+	col.resize(1920, 1080)
+	col.open()
+	for _, tabId in ipairs({ "recipes", "bonds" }) do
+		col.pick(tabId)
+		local secret, open = {}, {}
+		for _, id in ipairs(discovered[tabId] or {}) do open[id] = true end
+		for _, item in ipairs(CB.displayItems(tabId, {})) do
+			local d = item.def
+			if not open[item.id] then
+				for _, t in ipairs({ d.description, d.flavorText }) do if t and #t > 8 then secret[#secret + 1] = t end end
+			end
+		end
+		expectTrue(#secret > 0, tabId .. ": has text to hide")
+		for _, d in ipairs(col.scene:GetDescendants()) do
+			if d.Text then
+				for _, t in ipairs(secret) do expectFalse(d.Text == t, tabId .. ": locked slot leaks '" .. t .. "'") end
+			end
+		end
+		col.step()
+	end
+end })
+
 table.insert(tests, { name = "Collection sections open as painted scenes: entries sit in slots, 12 a page, arrows and keys turn pages, a click opens the detail card, no art keeps the grid", fn = function()
 	local col, CB = collectionBuild({ painted = true })
 	if not col then return end

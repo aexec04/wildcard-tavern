@@ -1071,9 +1071,11 @@ return function(deps)
 				artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id),
 				fresh = freshKeys[item.tab .. ":" .. tostring(item.id)] == true,
 			}
-			if item.tab == "recipes" then info.line = def.description
+			-- a locked entry never prints what it does: name only, plus the unlock rule when the server sent one
+			if not found then info.line = unlockRuleHint(item, view)
+			elseif item.tab == "recipes" then info.line = def.description
 			elseif item.tab == "bonds" then info.line = def.flavorText
-			elseif item.tab == "titles" and found and view.equippedTitleId == item.id then info.line = "Equipped" end
+			elseif item.tab == "titles" and view.equippedTitleId == item.id then info.line = "Equipped" end
 			if found then
 				info.tip = def.description and (shownName(item) .. "\n" .. def.description) or nil
 			else
