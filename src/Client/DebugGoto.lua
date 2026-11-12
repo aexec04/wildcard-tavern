@@ -144,6 +144,21 @@ function DebugGoto.init(deps)
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
 			return
 		end
+		if target.kind == "perf" then
+			-- Studio only: one [Perf] line with the instance counts of the GameUI, for before and after numbers (open a scene first)
+			local okP, errP = pcall(function()
+				local gui = Players.LocalPlayer.PlayerGui:FindFirstChild("GameUI") or Players.LocalPlayer.PlayerGui
+				local total, visible, scripts = 0, 0, 0
+				for _, d in ipairs(gui:GetDescendants()) do
+					total += 1
+					if d:IsA("GuiObject") and d.Visible then visible += 1 end
+					if d:IsA("LocalScript") or d:IsA("ModuleScript") then scripts += 1 end
+				end
+				print(string.format("[Perf] gui=%s instances=%d visibleGuiObjects=%d scripts=%d", gui.Name, total, visible, scripts))
+			end)
+			if not okP then warn("[DebugGoto] perf failed: " .. tostring(errP)) end
+			return
+		end
 		if target.kind == "drawer" then
 			-- the left board drawer, for screenshots (start a round first: round1)
 			local okD, errD = pcall(function() require(script.Parent.BoardDrawer).setCollapsed(target.closed) end)

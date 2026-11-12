@@ -22965,6 +22965,42 @@ table.insert(tests, { name = "BoardPanelRows: every blessing and curse text wrap
 	end
 end })
 
+table.insert(tests, { name = "Source audit: no dash characters in player text, no doubled asset prefix, no banned word, the 14 px text count only goes down", fn = function()
+	expectEqual(require(script.Parent.Parent.Engine.DebugGotoRules).parse("perf").kind, "perf", "DebugGoto perf prints the [Perf] line")
+	local p = io and io.popen and io.popen("ls src/Client/*.lua src/Shared/Engine/*.lua 2>/dev/null")
+	if not p then return end
+	local files = {}
+	for l in p:lines() do files[#files + 1] = l end
+	p:close()
+	if #files == 0 then return end
+	local small = 0
+	for _, path in ipairs(files) do
+		local n = 0
+		for line in io.lines(path) do
+			n = n + 1
+			local code = line:gsub("%-%-.*$", "") -- comments may use any characters; strings may not
+			if code:find("\226\128\148", 1, true) or code:find("\226\128\147", 1, true) then
+				expectTrue(false, path .. ":" .. n .. " has an em or en dash in code (player text uses commas and periods)")
+			end
+			if code:find("rbxassetid://rbxassetid://", 1, true) then
+				expectTrue(false, path .. ":" .. n .. " doubles the rbxassetid prefix")
+			end
+			if code:lower():find("balatro", 1, true) and not code:find("BANNED", 1, true) then -- the filter list itself may name it
+				expectTrue(false, path .. ":" .. n .. " has the banned word")
+			end
+			if path:find("src/Client/", 1, true) then
+				local size = code:match("TextSize%s*=%s*(%d+)")
+				if size and tonumber(size) == 14 then small = small + 1 end
+				if size and tonumber(size) < 14 and not line:find("-- small:", 1, true) then
+					expectTrue(false, path .. ":" .. n .. " TextSize " .. size .. " is under the 14 px floor")
+				end
+			end
+		end
+	end
+	-- the floor is moving to 15: lower this number when a 14 becomes 15, never raise it (Studio check needed for plates that fit 14 only)
+	expectTrue(small <= 126, "14 px text literals in src/Client: " .. small .. " (ratchet 126)")
+end })
+
 table.insert(tests, { name = "CornerDock: the dock is a function of the open pages, so no open/close order leaves it hidden (tabs, Map, Escape, Round Select, a run starting)", fn = function()
 	local DR = require(script.Parent.Parent.Engine.DockRules)
 	expectTrue(DR.visible({}), "nothing open: shown")

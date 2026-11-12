@@ -144,6 +144,9 @@ function DebugGotoRules.parse(value)
 	if text == "drawer:closed" or text == "drawer:open" then
 		return { kind = "drawer", closed = text == "drawer:closed" }
 	end
+	if text == "perf" then
+		return { kind = "perf" }
+	end
 	if text == "loading" then
 		return { kind = "loading", percent = 60 }
 	end
