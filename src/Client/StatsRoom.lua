@@ -158,6 +158,8 @@ function StatsRoom.new(ctx)
 			scene.hide()
 		end
 		layer.Visible = room.on
+		do local sh = ctx.panel.Parent and ctx.panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not room.on end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
+		end
 		if ctx.onMode then ctx.onMode(room.on) end
 		for _, g in ipairs(ctx.hide) do g.Visible = not room.on end
 		if RunService:IsStudio() then

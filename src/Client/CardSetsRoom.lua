@@ -65,6 +65,11 @@ function CardSetsRoom.new(ctx)
 		end
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1
+		if opts.cream then -- plate labels on the dark painted plates: cream with a soft dark shadow (light text stroke)
+			b.TextColor3 = CREAM
+			b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+			b.TextStrokeTransparency = 0.7
+		end
 		b.Text = text
 		b.TextWrapped = true
 		b.ZIndex = 44
@@ -197,13 +202,13 @@ function CardSetsRoom.new(ctx)
 	-- the plate row: two tabs, then "Page n of m" and the arrows (plates stay intact and empty when there is one page)
 	local function paintPlates(pages)
 		local pl = placed.plates
-		plateButton(layer, pl[1], "Card Sets", { active = view.tab == "sets", onClick = function() view.tab, view.page = "sets", 1; room.paint() end })
-		plateButton(layer, pl[2], "Card Backs", { active = view.tab == "backs", onClick = function() view.tab, view.page = "backs", 1; room.paint() end })
+		plateButton(layer, pl[1], "Card Sets", { cream = true, active = view.tab == "sets", onClick = function() view.tab, view.page = "sets", 1; room.paint() end })
+		plateButton(layer, pl[2], "Card Backs", { cream = true, active = view.tab == "backs", onClick = function() view.tab, view.page = "backs", 1; room.paint() end })
 		if pages > 1 then
-			plateButton(layer, pl[3], "Page " .. view.page .. " of " .. pages)
+			plateButton(layer, pl[3], "Page " .. view.page .. " of " .. pages, { cream = true })
 			-- a disabled arrow draws nothing: its plate stays an intact, empty painted plate
-			if view.page > 1 then plateButton(layer, pl[4], "< Prev", { onClick = function() view.page = view.page - 1; room.paint() end }) end
-			if view.page < pages then plateButton(layer, pl[5], "Next >", { onClick = function() view.page = view.page + 1; room.paint() end }) end
+			if view.page > 1 then plateButton(layer, pl[4], "< Prev", { cream = true, onClick = function() view.page = view.page - 1; room.paint() end }) end
+			if view.page < pages then plateButton(layer, pl[5], "Next >", { cream = true, onClick = function() view.page = view.page + 1; room.paint() end }) end
 		end
 	end
 
@@ -239,6 +244,8 @@ function CardSetsRoom.new(ctx)
 			scene.hide()
 		end
 		layer.Visible = room.on
+		do local sh = ctx.panel.Parent and ctx.panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not room.on end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
+		end
 		for _, g in ipairs(ctx.hide) do g.Visible = not room.on end
 		if RunService:IsStudio() then
 			local key = pw .. "x" .. ph .. (room.on and "on" or "off")

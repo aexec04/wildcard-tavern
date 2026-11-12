@@ -376,6 +376,8 @@ function LegendPanel.init(deps)
 			scene.hide()
 		end
 		sceneLayer.Visible = sceneOn
+		do local sh = panel.Parent and panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not sceneOn end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
+		end
 		crestHolder.Visible = not sceneOn
 		show.Visible = not sceneOn
 		ladder.Visible = not sceneOn
@@ -439,6 +441,9 @@ function LegendPanel.init(deps)
 					TextSize = 14, TextWrapped = true, Text = line.text, TextColor3 = Color3.fromRGB(sc.shelfInk[1], sc.shelfInk[2], sc.shelfInk[3]),
 					Font = Enum.Font.GothamMedium, BackgroundTransparency = 0.12, BackgroundColor3 = Color3.fromRGB(sc.shelfStrip[1], sc.shelfStrip[2], sc.shelfStrip[3]) })
 				deps.roundCorner(plate, 4)
+				local pad = Instance.new("UIPadding") -- 8 px inner padding so text never touches the strip edge (two lines allowed)
+				pad.PaddingLeft, pad.PaddingRight, pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 8), UDim.new(0, 8), UDim.new(0, 4), UDim.new(0, 4)
+				pad.Parent = plate
 			end
 		end
 		-- plaques: two reward medallions each, level under every one
