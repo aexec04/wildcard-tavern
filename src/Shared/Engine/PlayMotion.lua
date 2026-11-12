@@ -75,12 +75,14 @@ function PlayMotion.edgeGlows(x, y, w, h)
 end
 
 -- which glows may draw. cornerGlows order: top-left, top-right, bottom-left, bottom-right; edgeGlows order: top, bottom, left, right.
--- With the felt clipped on the left (under the HUD) the left corner glows and the left edge glow stay off, so no hard edge shows.
+-- The felt frame clips its children, so a glow centred on its right side ends in a hard dark rectangle edge (the measured felt rect
+-- runs past the painted felt there): the right corner glows and the right edge glow are never drawn. With the felt clipped on the
+-- left (under the HUD) the left corner glows and the left edge glow stay off too.
 function PlayMotion.shadeGlows(leftClipped)
 	if leftClipped then
-		return { corners = { false, true, false, true }, edges = { true, true, false, true } }
+		return { corners = { false, false, false, false }, edges = { true, true, false, false } }
 	end
-	return { corners = { true, true, true, true }, edges = { true, true, true, true } }
+	return { corners = { true, false, true, false }, edges = { true, true, true, false } }
 end
 
 -- resting stack of played cards at the felt centre: 4 card-backs with fixed small rotations and offsets (no randomness at runtime,

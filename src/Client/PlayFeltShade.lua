@@ -140,7 +140,7 @@ function M.install(root, art)
 		end
 		if not reported and game:GetService("RunService"):IsStudio() then
 			reported = true
-			print(string.format("[PlayFeltShade] frame x=%d y=%d w=%d h=%d leftClipped=%s", rect.x, rect.y, rect.w, rect.h, tostring(clipped == true)))
+			print(string.format("[PlayFeltShade] frame x=%d y=%d w=%d h=%d leftClipped=%s bgTransparency=%s", rect.x, rect.y, rect.w, rect.h, tostring(clipped == true), tostring(frame.BackgroundTransparency)))
 		end
 		for i, c in ipairs(PM.restStack(rect.w, rect.h)) do
 			stackCards[i].Position = UDim2.fromOffset(c[1], c[2])
