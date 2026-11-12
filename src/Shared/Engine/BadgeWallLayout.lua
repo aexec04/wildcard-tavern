@@ -177,7 +177,12 @@ Wall.SCENES = {
 	Night = { art = "badge_scene_night", pitch = 0.22, slots = {
 		-- centres of the ring OPENINGS (above the rings' outer centres, perspective); d is about 80 percent of the opening height
 		{ 0.153, 0.676, 0.074 }, { 0.374, 0.676, 0.074 }, { 0.594, 0.676, 0.074 }, { 0.813, 0.676, 0.074 },
-	} },
+	},
+	-- v2: four round carved recesses (inner diameter 229 px of 1536, centres measured from the PNG), badge at 85 percent of the recess;
+	-- the painted plates sit under them at y 0.801. Used instead of the ring picture once its Image id is recorded.
+	v2 = { art = "badge_scene_night_b", pitch = 0.2, plateRows = { 0.801, 0.801 }, plateMargin = 14, slots = {
+		{ 0.190, 0.598, 0.127 }, { 0.392, 0.598, 0.127 }, { 0.596, 0.598, 0.127 }, { 0.799, 0.598, 0.127 },
+	} } },
 	-- Roads: the painted route map, two rows of 4 round pinned stops (road order, left to right, top row first), plate rows under them
 	Roads = { art = "badge_scene_roads", pitch = 0.173, plateRows = { 0.420, 0.672 }, plateExtra = 40, plateMargin = 24, slots = {
 		{ 0.241, 0.339, 0.084 }, { 0.415, 0.339, 0.084 }, { 0.590, 0.339, 0.084 }, { 0.762, 0.339, 0.084 },
@@ -193,16 +198,17 @@ Wall.SCENES = {
 function Wall.sceneOf(chip, art)
 	local sc = Wall.SCENES[chip]
 	if not sc then return nil end
-	local id = art and art[sc.art]
-	if type(id) ~= "string" or id == "" then return nil end
+	local function has(k) local id = art and art[k]; return type(id) == "string" and id ~= "" end
+	if sc.v2 and has(sc.v2.art) then return sc.v2 end
+	if not has(sc.art) then return nil end
 	return sc
 end
 
 -- Layout of a tab on its painted scene: the picture is cover-fitted into the w x h board (never stretched) and every badge sits in its
 -- slot with a small name plate under it (on the painted plate row where there is one). Returns { items, shelves = {}, image, scene } or
 -- nil when the crop would cut a slot or a plate, and the caller keeps the drawn layout. Master Tavern takes the large slot.
-function Wall.sceneLayout(chip, defs, w, h)
-	local sc = Wall.SCENES[chip]
+function Wall.sceneLayout(chip, defs, w, h, scene)
+	local sc = scene or Wall.SCENES[chip]
 	if not sc then return nil end
 	local list = Wall.members(chip, defs)
 	local order = {}

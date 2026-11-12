@@ -19572,6 +19572,30 @@ table.insert(tests, { name = "PlayMotion: visible fan (5 degrees, 17 px dip, 8 p
 	expectTrue(PM.LEAN_PX.table >= 8 and PM.LEAN_PX.rail <= 16, "lean px in 8 to 16")
 end })
 
+table.insert(tests, { name = "Badge scenes: Night v2 has four round recesses, badges at 85 percent of the recess, used only once its Image id is recorded, every plate inside the board", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local v2 = W.SCENES.Night.v2
+	expectEqual(#v2.slots, 4, "four round recesses")
+	for _, slot in ipairs(v2.slots) do
+		expectTrue(math.abs(slot[3] - 0.85 * 229 / 1536) < 0.002, "badge is 85 percent of the 229 px recess")
+	end
+	expectTrue(W.sceneOf("Night", { badge_scene_night = "rbxassetid://1" }) == W.SCENES.Night, "the ring picture stays until the new id is recorded")
+	expectTrue(W.sceneOf("Night", { badge_scene_night = "rbxassetid://1", badge_scene_night_b = "rbxassetid://2" }) == v2, "the round-recess picture wins once recorded")
+	for _, win in ipairs(badgeWindows()) do
+		local bw, bh = win.P.area.w, win.P.area.h
+		local lay = W.sceneLayout("Night", nil, bw, bh, v2)
+		if lay then
+			expectEqual(#lay.items, 4, "one slot per Night badge (" .. bw .. "x" .. bh .. ")")
+			for _, it in ipairs(lay.items) do
+				local pr = W.plateRect(it)
+				local py = it.y + W.plateY(it)
+				expectTrue(it.x >= 0 and it.x + it.size <= bw and it.x + pr.x >= 0 and it.x + pr.x + pr.w <= bw and py + pr.h <= bh, it.id .. " and its plate are inside the board (" .. bw .. "x" .. bh .. ")")
+				expectTrue(py >= it.y + it.size, it.id .. " plate is never over its badge")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Badge scenes: Masters 8, Night 4, Special 12 slots; every badge in its own slot with a small plate inside the board; no scene without a recorded id; crops that cut a slot fall back", fn = function()
 	local Engine = script.Parent.Parent.Engine
 	local W, B = require(Engine.BadgeWallLayout), require(Engine.Badges)

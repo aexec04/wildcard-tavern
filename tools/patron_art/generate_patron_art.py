@@ -185,11 +185,11 @@ CATEGORY_OPTS = {
                   "sizes": {"ledger_desk": "1536x1024", "ledger_book_open": "1536x1024", "ledger_bookmark_ribbon": "1024x1536"}},
     "badge_wall": {"quality": "low", "style_key": "house_style", "transparent": True,
                    "opaque": ["badge_cabinet", "badge_velvet_board", "badge_map_board", "badge_night_sky", "badge_curio_shelf", "badge_room",
-                              "badge_scene_masters", "badge_scene_night", "badge_scene_special", "badge_scene_roads"],
+                              "badge_scene_masters", "badge_scene_night", "badge_scene_special", "badge_scene_roads", "badge_scene_night_b"],
                    "sizes": {"badge_cabinet": "1536x1024", "badge_velvet_board": "1536x1024", "badge_map_board": "1536x1024",
                              "badge_night_sky": "1536x1024", "badge_curio_shelf": "1536x1024",
                              "badge_shelf_rail": "1536x1024", "badge_ribbon_banner": "1536x1024", "badge_room": "1536x1024",
-                             "badge_scene_masters": "1536x1024", "badge_scene_night": "1536x1024", "badge_scene_special": "1536x1024", "badge_scene_roads": "1536x1024"},
+                             "badge_scene_masters": "1536x1024", "badge_scene_night": "1536x1024", "badge_scene_special": "1536x1024", "badge_scene_roads": "1536x1024", "badge_scene_night_b": "1536x1024"},
                    # the trophy room is restyled toward the Menu room wall, so it reads as a room of the same tavern
                    "references": {"badge_room": "art-wip/menu_room/menu_room_wall.png"}},
     # Card Set UI skins: 6 slots per set. face_paper is an opaque tile; the rest are cut out from magenta.

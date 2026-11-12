@@ -337,7 +337,7 @@ function BadgeWall.render(board, chip, have, opts)
 	if w < 80 or h < 80 then w, h = math.max(w, 600), math.max(h, 340) end
 	-- a painted scene (once its Image id is recorded) places every badge in a socket of the picture; otherwise the drawn layout stays
 	local sc = Wall.sceneOf(chip, WallArt)
-	local lay = sc and Wall.sceneLayout(chip, nil, w, h)
+	local lay = sc and Wall.sceneLayout(chip, nil, w, h, sc)
 	local painted = lay ~= nil
 	if painted then
 		sceneBackdrop(board, sc)
