@@ -186,7 +186,7 @@ function PlayScenePaint.install(deps)
 		-- a per-Card-Set room keeps the hand 24 px right of the painted left board (the board is wider than the sidebar)
 		local leftEdge = sidebarW + 20
 		local roomSet = setKey and PlayTableLayout.SETS[setKey]
-		if roomSet and roomSet.room then
+		if roomSet and (roomSet.room or setKey == PlayTableLayout.OVAL_KEY) then
 			local bp = require(Engine:WaitForChild("PlayBoardLayout")).placement(size.X, size.Y)
 			if bp then leftEdge = math.max(leftEdge, bp.x + bp.w + 24) end
 		end

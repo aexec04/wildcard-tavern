@@ -20940,7 +20940,7 @@ table.insert(tests, { name = "Choose your road: painted room scene under the pan
 	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
-table.insert(tests, { name = "Per-set rooms are the painting alone: no wood front band or recess box in any of the 14 rooms, a floor shadow instead; the classic oval table keeps its wood", fn = function()
+table.insert(tests, { name = "Per-set rooms are the painting alone: no wood front band or recess box in any of the 14 rooms, a floor shadow instead; the classic tavern room follows the same rule", fn = function()
 	local E = script.Parent.Parent.Engine
 	local L = require(E.PlayTableLayout)
 	local RA = require(E.PlayRoomArt)
@@ -20949,7 +20949,7 @@ table.insert(tests, { name = "Per-set rooms are the painting alone: no wood fron
 		expectFalse(L.showsFront(RA.PREFIX .. id), id .. ": the flat wood front band is not drawn")
 		expectTrue(L.SETS[RA.PREFIX .. id] ~= nil and L.SETS[RA.PREFIX .. id].room == id, id .. ": it is a room layout")
 	end
-	expectTrue(L.showsFront(L.OVAL_KEY), "the classic oval table keeps its painted wood")
+	expectFalse(L.showsFront(L.OVAL_KEY), "the classic tavern room drops its wood band and deck recess too")
 	expectTrue(L.showsFront(nil), "the default front is untouched")
 	expectTrue(L.showsFront("winter_evening"), "the older Frosted Garden front keeps its table")
 	local bands = L.floorBands()

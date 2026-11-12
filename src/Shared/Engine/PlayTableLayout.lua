@@ -63,8 +63,9 @@ do
 end
 
 -- A per-Card-Set room (a key built from PlayRoomArt) is shown by its painting alone: its wood front (the flat tan band under the hand, the
--- deck recess box) is not drawn. The classic oval front and the older Mountain Festival and Frosted Garden fronts keep theirs.
+-- deck recess box) is not drawn. The classic tavern room (oval key) follows the same rule; the older Mountain Festival and Frosted Garden fronts keep theirs.
 function M.showsFront(setKey)
+	if setKey == M.OVAL_KEY then return false end -- the classic tavern room is a painting alone too (its felt is in the background)
 	local s = setKey and M.SETS[setKey]
 	return not (s and s.room ~= nil)
 end
