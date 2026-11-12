@@ -48,6 +48,14 @@ function DebugGotoRules.synth(which, state, data)
 	return s
 end
 
+-- reference design size the layouts are authored against
+DebugGotoRules.BASE_W, DebugGotoRules.BASE_H = 1920, 957
+
+-- UIScale that makes the 1920x957 design fit a w x h viewport (never above 1)
+function DebugGotoRules.scaleFor(w, h)
+	return math.min(1, w / DebugGotoRules.BASE_W, h / DebugGotoRules.BASE_H)
+end
+
 function DebugGotoRules.parse(value)
 	if type(value) ~= "string" or value == "" then
 		return nil, "empty value"
@@ -58,6 +66,18 @@ function DebugGotoRules.parse(value)
 	end
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
+	end
+	-- scale:<w>x<h> shrinks GameUI to that viewport (Studio only), scale:off restores it
+	if text == "scale:off" then
+		return { kind = "scale", off = true }
+	end
+	local sw, sh = text:match("^scale:(%d+)x(%d+)$")
+	if sw then
+		local w, h = tonumber(sw), tonumber(sh)
+		if w < 200 or h < 200 or w > 7680 or h > 4320 then
+			return nil, "scale size out of range " .. value
+		end
+		return { kind = "scale", w = w, h = h, scale = DebugGotoRules.scaleFor(w, h) }
 	end
 	local parts = {}
 	for part in text:gmatch("[^:]+") do

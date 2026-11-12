@@ -20393,6 +20393,17 @@ tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids):
 	expectEqual(close.BackgroundTransparency, 0, "Close is a button again on the cork board")
 end })
 
+tests[#tests + 1] = ({ name = "DebugGotoRules: scale:<w>x<h> and scale:off parse, bad sizes return nil", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("scale:1280x720")
+	assert(t and t.kind == "scale" and t.w == 1280 and t.h == 720, "1280x720 parses")
+	assert(math.abs(t.scale - 1280 / 1920) < 1e-9, "scale is min(w/1920, h/957)")
+	assert(R.parse(" Scale:off ").off == true, "off parses")
+	assert(R.parse("scale:1920x1080").scale == 1, "never above 1")
+	assert(R.parse("scale:10x10") == nil, "too small")
+	assert(R.parse("scale:abc") == nil, "garbage")
+end })
+
 tests[#tests + 1] = ({ name = "DebugGotoRules: shop, roundwin, gameover, boss1, roundselect parse as synth jumps and synth() changes the state copy", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	for _, name in ipairs({ "shop", "roundwin", "gameover", "boss1", "roundselect" }) do

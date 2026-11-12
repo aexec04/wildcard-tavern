@@ -5,7 +5,7 @@
 	(the last starts round 1 with that Card Set previewed, e.g. round1:winter_evening).
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
-	player, so it only warns. Parsing is in Engine/DebugGotoRules.lua.
+	player, so it only warns. scale:<w>x<h> shrinks GameUI to that viewport, scale:off restores it. Parsing is in Engine/DebugGotoRules.lua.
 	init({ menuFrame })
 ]]
 
@@ -60,10 +60,49 @@ function DebugGoto.init(deps)
 		if overlay and overlay:IsA("GuiObject") then overlay.Visible = false end
 	end
 
+	-- scale:<w>x<h> / scale:off. ScreenGui cannot hold a UIScale, so every top-level GuiObject of GameUI gets one,
+	-- centred on its own middle (original anchor and position are kept in attributes and restored by scale:off).
+	-- It shrinks the whole picture; it does not re-run layouts for a smaller viewport.
+	local function applyScale(target)
+		local gui = player.PlayerGui:FindFirstChild("GameUI")
+		if not gui then error("no GameUI") end
+		for _, child in ipairs(gui:GetChildren()) do
+			if child:IsA("GuiObject") then
+				local us = child:FindFirstChild("DebugScale")
+				if target.off then
+					if us then
+						us:Destroy()
+						child.AnchorPoint = child:GetAttribute("DebugAnchor") or child.AnchorPoint
+						child.Position = child:GetAttribute("DebugPos") or child.Position
+						child:SetAttribute("DebugAnchor", nil)
+						child:SetAttribute("DebugPos", nil)
+					end
+				else
+					if not us then
+						us = Instance.new("UIScale")
+						us.Name = "DebugScale"
+						us.Parent = child
+						child:SetAttribute("DebugAnchor", child.AnchorPoint)
+						child:SetAttribute("DebugPos", child.Position)
+						child.AnchorPoint = Vector2.new(0.5, 0.5)
+						child.Position = UDim2.fromScale(0.5, 0.5)
+					end
+					us.Scale = target.scale
+				end
+			end
+		end
+		print(target.off and "[DebugGoto] scale off" or ("[DebugGoto] scale " .. target.w .. "x" .. target.h))
+	end
+
 	local function go(value)
 		local target, why = Rules.parse(value)
 		if not target then
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
+			return
+		end
+		if target.kind == "scale" then
+			local okS, errS = pcall(applyScale, target)
+			if not okS then warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(errS)) end
 			return
 		end
 		local ok, err = pcall(function()
