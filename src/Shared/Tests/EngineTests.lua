@@ -18564,8 +18564,9 @@ table.insert(tests, { name = "Badges panel (real, on the fake Roblox) opens on t
 				for _, c in ipairs(scene.board:GetChildren()) do
 					if c.Name == "Pin" then pins = pins + 1 elseif c.Name == "PathDot" then dots = dots + 1 end
 				end
-				expectEqual(pins, 8, "one pin on the map per road stop" .. where)
-				expectTrue(dots >= 14, "a dotted road runs between the stops" .. where)
+				local paintedRoads = W.sceneLayout("Roads", nil, win.vp[1], win.vp[2]) ~= nil -- pins and path are in the picture
+				expectEqual(pins, paintedRoads and 0 or 8, "one pin on the map per road stop" .. where)
+				expectTrue(paintedRoads or dots >= 14, "a dotted road runs between the stops" .. where)
 			end
 			expectTrue(scene.step(), "Escape leaves the wall for the room" .. where)
 			expectTrue(scene.room.Visible and not scene.board.Visible, "...and shows the room" .. where)
