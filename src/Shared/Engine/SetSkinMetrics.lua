@@ -7,7 +7,7 @@
 
 return {
 	["classic_tavern"] = {
-		button_plate = { w = 1536, h = 1024, x = 11, y = 292, cw = 1513, ch = 427, l = 211, r = 118, t = 93, b = 94 },
+		button_plate = { w = 948, h = 428, x = 0, y = 0, cw = 948, ch = 427, l = 211, r = 118, t = 0, b = 0, px0 = 319, px1 = 709 },
 		tab_plate = { w = 1024, h = 1024, x = 14, y = 185, cw = 996, ch = 653, l = 0, r = 0, t = 0, b = 0 },
 		panel_frame = { w = 1536, h = 1024, x = 0, y = 0, cw = 1536, ch = 1015, l = 0, r = 0, t = 0, b = 106 },
 		face_frame = { w = 1024, h = 1536, x = 0, y = 0, cw = 1024, ch = 1528, ix = 145, iy = 398, iw = 734, ih = 778, l = 0, r = 0, t = 0, b = 0 },

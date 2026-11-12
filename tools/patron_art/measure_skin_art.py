@@ -137,14 +137,22 @@ def inner_window(alpha, box):
     return l, t, r - l + 1, b - t + 1
 
 
+# Cleaned button plates (tools/make_button_plate_slice.py): <set>_button_plate_slice.png replaces <set>_button_plate and
+# carries px0..px1, the plain rail span in crop px (left cap 0..px0, right cap px1..cw), so no stud lands in the stretch.
+PLAIN_SPAN = {"classic_tavern": (319, 709)}
+
+
 def main():
     out = {}
-    pat = re.compile(r"^(.+)_(button_plate|tab_plate|panel_frame|face_frame)\.png$")
-    for name in sorted(os.listdir(SRC)):
+    pat = re.compile(r"^(.+)_(button_plate|tab_plate|panel_frame|face_frame)(_slice)?\.png$")
+    names = sorted(os.listdir(SRC))
+    for name in names:
         m = pat.match(name)
         if not m:
             continue
         sid, slot = m.group(1), m.group(2)
+        if m.group(3) is None and (sid + "_" + slot + "_slice.png") in names:
+            continue  # the cleaned slice copy is measured instead
         w, h, alpha = read_alpha(os.path.join(SRC, name))
         box = bbox(w, h, alpha, ALPHA_EDGE)
         print("CROP %s %s %.1f%% x %.1f%%" % (sid, slot, 100.0 * box[2] / w, 100.0 * box[3] / h), file=sys.stderr)
@@ -156,6 +164,8 @@ def main():
                     entry.update({"ix": win[0], "iy": win[1], "iw": win[2], "ih": win[3]})
             l, r, t, b = edge_thickness(alpha, box)
             entry.update({"l": l, "r": r, "t": t, "b": b})
+            if m.group(3) and sid in PLAIN_SPAN:
+                entry.update({"px0": PLAIN_SPAN[sid][0] - box[0], "px1": PLAIN_SPAN[sid][1] - box[0]})
         out.setdefault(sid, {})[slot] = entry
         print(sid, slot, entry, file=sys.stderr)
     lines = ["--[[", "\tShared/Engine/SetSkinMetrics.lua",

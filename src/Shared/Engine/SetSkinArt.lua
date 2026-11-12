@@ -7,6 +7,7 @@
 
 return {
 	["classic_tavern_button_plate"] = "rbxassetid://100288590153692",
+	["classic_tavern_button_plate_slice"] = "rbxassetid://95182689491515",
 	["classic_tavern_face_court"] = "rbxassetid://115327490826174",
 	["classic_tavern_face_frame"] = "rbxassetid://117481618485564",
 	["classic_tavern_face_paper"] = "rbxassetid://126376427919402",

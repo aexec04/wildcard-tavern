@@ -12476,6 +12476,28 @@ table.insert(tests, { name = "SkinSlice: wide plates show only the plain rails (
 	end
 end })
 
+table.insert(tests, { name = "Classic button plate uses the cleaned slice: only the plain rail span is ever stretched, 140 to 400 px", fn = function()
+	local SS = require(script.Parent.Parent.Engine.SkinSlice)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Art = require(script.Parent.Parent.Engine.SetSkinArt)
+	local skin = CS.skinOf({ id = "classic_tavern" })
+	expectEqual(skin.images.buttonPlate, Art["classic_tavern_button_plate_slice"], "classic buttons use the slice image")
+	expectTrue(Art["classic_tavern_button_plate"] ~= nil, "old plate stays as the fallback id")
+	expectTrue(not tostring(skin.images.buttonPlate):find("rbxassetid://rbxassetid://", 1, true), "single asset prefix")
+	local m = SS.metrics("classic_tavern", "button_plate")
+	expectTrue(m and m.px0 == 319 and m.px1 == 709, "plain span is 319 to 709 of the 948 px slice")
+	for w = 140, 400, 10 do
+		local sl = SS.plateSlice(m, w, 48)
+		if sl then
+			if sl.wide then
+				expectTrue(sl.crop.x >= m.px0 and sl.crop.x + sl.crop.w <= m.px1, "wide crop lies inside the plain span at " .. w)
+			else
+				expectTrue(sl.center.l == m.px0 and sl.center.r == m.px1, "stretch band is exactly the plain span at " .. w)
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Button text: cream or ink reads at 4.5:1 on every set's button colour", fn = function()
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
 	for _, set in ipairs(CS.Definitions) do
@@ -13027,6 +13049,7 @@ table.insert(tests, { name = "Set skins: every set has colour fallbacks, the def
 		expectTrue(type(skin.images) == "table", set.id .. " has an images table")
 		for _, def in ipairs(CS.SKIN_SLOTS) do
 			local mapped = SkinArt[set.id .. "_" .. def.key]
+			if def.slot == "buttonPlate" and SkinArt[set.id .. "_button_plate_slice"] then mapped = SkinArt[set.id .. "_button_plate_slice"] end
 			if def.slot == "panelFrame9" and mapped == nil then
 				-- set_panels art is used only when the set passed the slice fit test
 				local art, fit = PanelArt[set.id], PanelFit[set.id]

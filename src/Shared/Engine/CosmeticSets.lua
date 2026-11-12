@@ -596,6 +596,9 @@ function CosmeticSets.skinOf(set)
 			local id = SetSkinArt[set.id .. "_" .. def.key]
 			if type(id) == "string" and id ~= "" and id ~= "rbxassetid://0" then images[def.slot] = id end
 		end
+		-- cleaned button plate (no stud block in the stretchable middle) wins over the original, which stays as the fallback
+		local slice = SetSkinArt[set.id .. "_button_plate_slice"]
+		if type(slice) == "string" and slice ~= "" and slice ~= "rbxassetid://0" then images.buttonPlate = slice end
 		-- slice-friendly panel border (set_panels): only for sets whose art passed the fit test (SetPanelFit)
 		local panel, fit = SetPanelArt[set.id], SetPanelFit[set.id]
 		if not images.panelFrame9 and type(panel) == "string" and panel ~= "" and fit and fit.pass then

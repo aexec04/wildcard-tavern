@@ -38,6 +38,27 @@ end
 function SkinSlice.plateSlice(m, btnW, btnH)
 	if not m or btnW <= 0 or btnH <= 0 then return nil end
 	local scale = btnH / m.ch
+	-- Cleaned plates (px0..px1 = the one plain rail span) never stretch anything but that span.
+	if m.px0 and m.px1 then
+		local rail = math.floor(m.ch * SkinSlice.RAIL_FRACTION)
+		if btnW > SkinSlice.WIDE_PX then
+			local w = m.px1 - m.px0
+			return {
+				center = { l = SkinSlice.WIDE_CAP, t = rail, r = w - SkinSlice.WIDE_CAP, b = m.ch - rail },
+				scale = scale,
+				capW = SkinSlice.WIDE_CAP * scale,
+				crop = { x = m.x + m.px0, y = m.y, w = w, h = m.ch },
+				wide = true,
+			}
+		end
+		local capW = math.max(m.px0, m.cw - m.px1) * scale
+		if btnW < capW * 2 + 8 then return nil end
+		return {
+			center = { l = m.px0, t = rail, r = m.px1, b = m.ch - rail },
+			scale = scale,
+			capW = capW,
+		}
+	end
 	if btnW > SkinSlice.WIDE_PX then
 		local x0 = math.floor(m.cw * SkinSlice.WIDE_FROM)
 		local x1 = math.floor(m.cw * SkinSlice.WIDE_TO)
