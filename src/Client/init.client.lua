@@ -2588,7 +2588,7 @@ local function render(state)
 		if state.wonRun and state.night == (state.nightCap or 8) then
 			title = string.format("🏆 Night %d Cleared: Endless Mode Unlocked!", state.night)
 		end
-		RoundRewardPopupModule.showRoundReward(actualReward, title)
+		RoundRewardPopupModule.showRoundReward(actualReward, title, state.lastInterest or 0)
 	end
 
 	-- ROUND SELECT FEATURE: rebuild BEFORE `lastPhase` gets reassigned just

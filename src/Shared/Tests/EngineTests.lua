@@ -20417,4 +20417,17 @@ table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll 
 	expectTrue(read("src/Client/BossFight.lua"):find("[BossStage] visible=", 1, true) ~= nil, "BossStage log")
 end })
 
+table.insert(tests, { name = "RoundPayout: breakdown lines add up to the real total", fn = function()
+	local P = require(script.Parent.Parent.Engine.RoundPayout)
+	local b = P.breakdown(9, 2)
+	expectEqual(b.reward, 7, "reward is total minus interest")
+	expectEqual(#b.lines, 3, "reward, interest, total")
+	expectEqual(b.lines[1].text, "Round reward +$7", "reward line")
+	expectEqual(b.lines[2].text, "Interest +$2", "interest line")
+	expectTrue(b.lines[3].total and b.lines[3].text == "Total +$9 Tips", "total line")
+	local n = P.breakdown(5, 0)
+	expectEqual(#n.lines, 2, "no interest line when none was paid")
+	expectEqual(P.breakdown(3, 99).reward, 0, "interest never exceeds the total")
+end })
+
 return tests

@@ -236,7 +236,19 @@ local function show(item)
 		row.LayoutOrder = i
 		row.Size = UDim2.new(1, 0, 0, 24)
 		row.AutomaticSize = Enum.AutomaticSize.Y
-		row.Text = r
+		local isTable = type(r) == "table"
+		row.Text = isTable and r.text or r
+		if isTable and r.total then
+			row.TextSize = 24
+			row.Font = Enum.Font.GothamBold
+		end
+		if isTable and (item.stagger or 0) > 0 and not calm() then
+			row.TextTransparency, row.TextStrokeTransparency = 1, 1
+			task.delay(item.stagger * (i - 1), function()
+				if token ~= mine or not row.Parent then return end
+				TweenService:Create(row, TweenInfo.new(0.2), { TextTransparency = 0, TextStrokeTransparency = 0 }):Play()
+			end)
+		end
 	end
 	button.Visible = item.button ~= nil
 	if item.button then

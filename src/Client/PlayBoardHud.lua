@@ -243,6 +243,12 @@ local function run(root, st)
 			lineL.Font = Enum.Font.Gotham -- the rule line is narrower in the regular weight, so more of the rules fit
 			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
 			nameL.Text, lineL.Text = first, second
+			if first:find("👑", 1, true) then
+				-- boss round: dark red plate with cream text so it reads as different
+				put(st, rule, { BackgroundColor3 = Color3.fromRGB(92, 26, 26), BackgroundTransparency = 0 })
+				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200) })
+				put(st, lineL, { TextColor3 = Color3.fromRGB(230, 205, 170) })
+			end
 			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
 			-- the two lines are one block centred in the slot: name hugs the middle from above, rule line from below
 			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.5, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),

@@ -30,16 +30,21 @@
 
 return function(deps)
 	-- The popup is now a plate in Client/OverlayQueue (one at a time, first in the order).
-	local function showRoundReward(amount, titleOverride)
+	local function showRoundReward(amount, titleOverride, interest)
 		local OverlayQueue = require(script.Parent.OverlayQueue)
+		local Payout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoundPayout"))
 		OverlayQueue.newRound()
+		-- Tag rewards (Tip Jar) pass no interest and keep the one-line text.
+		local rows = interest ~= nil and Payout.breakdown(amount, interest).lines or nil
 		OverlayQueue.enqueue({
 			id = "roundComplete",
 			plate = true, -- a real result: it stays the big plate (everything smaller is a corner toast)
 			priority = OverlayQueue.rules.PRIORITY.roundComplete,
 			icon = "💰",
 			title = titleOverride or "Round Complete!",
-			text = string.format("+$%d Tips", math.floor(amount)),
+			text = rows == nil and string.format("+$%d Tips", math.floor(amount)) or nil,
+			rows = rows,
+			stagger = rows and Payout.STAGGER or nil,
 			button = "Continue",
 			sound = "coin",
 		})

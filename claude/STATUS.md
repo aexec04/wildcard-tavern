@@ -29,6 +29,8 @@ Roblox poker-hand roguelike deckbuilder, solo project aiming for the Roblox Home
 - **Art:** 2D painted UI. One pipeline (`tools/patron_art/generate_patron_art.py --category <cat>`, prompts in `prompts.json`) writes generated `*Art.lua` maps in `src/Shared/Engine/`; `ContentArt.getImageId(tab, id)` looks them up and the UI falls back to emoji or flat colour when an id is empty. Gaps are tracked by `python3 tools/art_status.py` and `claude/ART_TODO.md`.
 - **Balance:** decent bot win rate by stake 1 to 8 is 29.0 / 26.3 / 23.0 / 20.2 / 16.5 / 12.8 / 7.0 / 6.0 percent (600 runs, no soft locks). Regression bands in `tools/test_sim.lua`.
 
+- **Round Complete:** the plate lists Round reward, Interest (when paid) and a gold Total +$N Tips, revealed 0.25 s apart (`Engine/RoundPayout.lua`, `Client/RoundRewardPopup.lua`); boss rounds tint the left rule plate dark red with a crown (`Client/PlayBoardHud.lua`). The engine pays nothing for hands left, so there is no such line.
+
 ## Open items
 - **User only:** store page thumbnail, icon and video; real phone test; create the Developer Products and passes in Creator Hub and paste their ids (list in `claude/LAUNCH.md`); resolve decal ids to Image ids for new art and send `record-image` lines.
 - **Art not generated yet:** biome Patrons and House Recipes, Endless rule icons, store page images; `tools/art_status.py` has the live list.
