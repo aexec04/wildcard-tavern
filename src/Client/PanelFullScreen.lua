@@ -101,6 +101,7 @@ function PanelFullScreen.apply(backdrop, panel, name)
 	end)
 	local top = PanelLayout.fullScreenRect(0, 0).y
 	local forcing = false
+	local extra = 0 -- pixels added to the height so the bottom edge reaches the bottom of the ScreenGui (see heal)
 	local function force()
 		if forcing then return end
 		forcing = true
@@ -108,15 +109,26 @@ function PanelFullScreen.apply(backdrop, panel, name)
 		backdrop.BackgroundColor3 = Color3.fromRGB(26, 20, 14)
 		panel.AnchorPoint = Vector2.new(0, 0)
 		panel.Position = UDim2.fromOffset(0, top)
-		panel.Size = UDim2.new(1, 0, 1, -top)
+		panel.Size = UDim2.new(1, 0, 1, -top + extra)
 		flatten(panel)
 		forcing = false
 	end
 	force()
+	-- The panel is (screen height - top) tall, but in Studio the backdrop's absolute top can sit above the GUI origin, leaving a dark band
+	-- under the painting. One frame after opening, measure the panel's bottom against the ScreenGui and add the missing height.
+	local function heal()
+		local gui = backdrop:FindFirstAncestorOfClass("ScreenGui")
+		if not gui or not backdrop.Visible then return end
+		local gap = PanelLayout.fullScreenGap(gui.AbsoluteSize.Y, panel.AbsolutePosition.Y, panel.AbsoluteSize.Y)
+		if gap > 0 then
+			extra = extra + gap
+			force()
+		end
+	end
 	for _, prop in ipairs({ "Size", "Position", "AnchorPoint" }) do
 		panel:GetPropertyChangedSignal(prop):Connect(function()
 			if forcing then return end
-			if panel.Size ~= UDim2.new(1, 0, 1, -top) or panel.Position ~= UDim2.fromOffset(0, top) or panel.AnchorPoint ~= Vector2.new(0, 0) then
+			if panel.Size ~= UDim2.new(1, 0, 1, -top + extra) or panel.Position ~= UDim2.fromOffset(0, top) or panel.AnchorPoint ~= Vector2.new(0, 0) then
 				task.defer(force)
 			end
 		end)
@@ -124,6 +136,7 @@ function PanelFullScreen.apply(backdrop, panel, name)
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 		if backdrop.Visible then
 			force()
+			task.defer(function() task.wait(); pcall(heal) end)
 			audit(name or panel.Name, backdrop, panel)
 		end
 	end)

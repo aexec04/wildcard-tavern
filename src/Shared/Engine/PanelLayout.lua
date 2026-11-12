@@ -44,4 +44,12 @@ function PanelLayout.fullScreenRect(screenW, screenH)
 	return { x = 0, y = top, w = screenW, h = screenH - top }
 end
 
+-- Extra height (offset pixels, 0 to 200) a full screen panel needs so its bottom edge reaches the bottom of the ScreenGui: the panel's
+-- absolute top (panelY) plus its height (panelH) can stop short of the GUI height (guiH) when the backdrop sits above the GUI origin.
+function PanelLayout.fullScreenGap(guiH, panelY, panelH)
+	local gap = (guiH or 0) - ((panelY or 0) + (panelH or 0))
+	if gap <= 2 then return 0 end
+	return math.min(200, math.floor(gap + 0.5))
+end
+
 return PanelLayout

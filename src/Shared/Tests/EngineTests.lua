@@ -22740,6 +22740,20 @@ table.insert(tests, { name = "FullScreenRules: the Tavern Map panel is the whole
 	end
 end })
 
+table.insert(tests, { name = "PanelLayout.fullScreenGap: a full screen panel whose bottom stops short of the GUI is extended to it, never shrunk", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	expectEqual(PL.fullScreenGap(751, 7, 686), 58, "the Studio case (GUI 751, panel y 7 height 686) needs 58 more")
+	expectEqual(PL.fullScreenGap(751, 65, 686), 0, "a panel that reaches the bottom needs nothing")
+	expectEqual(PL.fullScreenGap(751, 65, 700), 0, "a panel past the bottom is not shrunk")
+	expectEqual(PL.fullScreenGap(751, 66, 684), 1 - 1, "a gap of 1 pixel is rounding, not a band")
+	local f = io and io.open and io.open("src/Client/PanelFullScreen.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("fullScreenGap", 1, true) ~= nil and text:find("-top + extra", 1, true) ~= nil, "PanelFullScreen measures the bottom edge and adds the gap")
+	end
+end })
+
 table.insert(tests, { name = "PanelLayout.fullScreenRect: Collection, Card Sets, Badges, Legend, Flair and Stats fill the screen below the tab strip at 1920x1080, 1280x720 and 800x600", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PanelLayout)
 	for _, id in ipairs({ "collection", "cosmeticSets", "badges", "legend", "flair", "stats" }) do expectTrue(PL.FULL_SCREEN[id], id .. " is a full-screen page") end
