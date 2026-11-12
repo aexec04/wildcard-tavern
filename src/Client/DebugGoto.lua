@@ -1,7 +1,8 @@
 --[[
 	Client/DebugGoto.lua
 	Studio-only jump hook. Set a StringValue named DebugGoto under the LocalPlayer (or the attribute DebugGoto)
-	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1.
+	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1, round1:<cardSetId>
+	(the last starts round 1 with that Card Set previewed, e.g. round1:winter_evening).
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. shop and spectate need a
 	server hook or a second player, so they only warn. Parsing is in Engine/DebugGotoRules.lua.
@@ -24,6 +25,7 @@ function DebugGoto.init(deps)
 	local round1Token = 0 -- bumped on every jump so an old watchdog never fires for a new one
 	local lastStep = "start"
 	local selectSent = false
+	local previewSet = nil -- round1:<setId>: the set to preview once the hand is dealt (a run start resets the look)
 
 	local function hideMenu()
 		if deps and deps.menuFrame then deps.menuFrame.Visible = false end
@@ -65,6 +67,12 @@ function DebugGoto.init(deps)
 				hideMenu()
 				if deps and deps.root then deps.root.Visible = true end -- the real launch shows the table too (Client/ChallengeStart.launch)
 				hideTutorialOverlay()
+				local CosmeticSets = require(ReplicatedStorage.Shared.Engine.CosmeticSets)
+				previewSet = nil
+				if target.setId then
+					previewSet = CosmeticSets.getById(target.setId)
+					if not previewSet then error("unknown card set " .. target.setId) end
+				end
 				pendingRound1 = true
 				lastStep = "start"
 				selectSent = false
@@ -96,6 +104,13 @@ function DebugGoto.init(deps)
 		if count then
 			pendingRound1 = false
 			print("[DebugGoto] round1 hand=" .. count)
+			if previewSet then
+				local set = previewSet
+				previewSet = nil
+				-- same call the Card Sets Preview button makes; PlayScenePaint then prints [PlayTableSet] <set> front=<painted|default>
+				local okP, errP = pcall(function() require(script.Parent.CosmeticSetsView).preview(set.id, set.cardBackId) end)
+				print("[DebugGoto] round1 preview " .. set.id .. (okP and " ok" or (" failed: " .. tostring(errP))))
+			end
 			return
 		end
 		hideTutorialOverlay()

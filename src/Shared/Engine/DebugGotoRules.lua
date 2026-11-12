@@ -27,6 +27,10 @@ function DebugGotoRules.parse(value)
 	for part in text:gmatch("[^:]+") do
 		parts[#parts + 1] = part
 	end
+	-- round1:<cardSetId> starts round 1 with that Card Set shown as a local preview (ids are snake_case, checked by the client)
+	if parts[1] == "round1" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then
+		return { kind = "round1", setId = parts[2] }
+	end
 	if parts[1] == "tome" and #parts >= 2 and #parts <= 3 then
 		local opener = DebugGotoRules.TOME_PAGES[parts[2]]
 		if opener then

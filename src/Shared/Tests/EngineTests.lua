@@ -19931,6 +19931,15 @@ table.insert(tests, { name = "CornerToast text stays opaque dark ink; Board seat
 	end
 end })
 
+table.insert(tests, { name = "DebugGotoRules: round1:<setId> parses to a round1 jump with a set id, bad ones return nil", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("round1:winter_evening")
+	assert(t and t.kind == "round1" and t.setId == "winter_evening", "round1:winter_evening")
+	assert(R.parse("Round1:Mountain_Festival").setId == "mountain_festival", "case folded")
+	assert(R.parse("round1").setId == nil, "plain round1 has no set")
+	assert(R.parse("round1:") == nil and R.parse("round1:a:b") == nil and R.parse("round1:bad id!") == nil, "malformed rejected")
+end })
+
 table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown ones return nil, round1 steps", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(R.parse("menu").kind, "menu", "menu")
