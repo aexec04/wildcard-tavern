@@ -537,7 +537,15 @@ local function build(deps)
 		lastBubble = now
 		bubbleToken = bubbleToken + 1
 		local mine = bubbleToken
-		bubble.Position = UDim2.new(0.5, -(BAR_W / 2) - 10, 0, 10) -- left of the banner
+		-- left of the banner (it stands at the screen centre, host attribute CenterX), 12 px gap, on screen
+			local cx = host:GetAttribute("CenterX") or math.floor(host.AbsoluteSize.X / 2)
+			local pw = plate.AbsoluteSize.X > 0 and plate.AbsoluteSize.X or BAR_W
+			local right = cx - math.floor(pw / 2) - 12
+			if right - 210 >= 8 then
+				bubble.Position = UDim2.new(0, right, 0, 10)
+			else
+				bubble.Position = UDim2.new(0, math.max(218, cx - 12), 0, 66) -- no room beside it: below the banner
+			end
 		bubbleText.Text = line
 		bubbleText.TextTransparency = 0
 		bubbleText.TextStrokeTransparency = 1
