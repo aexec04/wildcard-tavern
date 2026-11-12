@@ -178,6 +178,38 @@ local function plateStyle(st, row)
 	end
 end
 
+-- the run badge (Daily, Weekly, Seed): a small dark wood plate with a brass edge and a cream label. The Sidebar recolours the badge's own
+-- BackgroundColor3 on every update, so the wood is a separate fill frame behind the label and the badge itself is see-through.
+local function woodPlateStyle(st, row)
+	put(st, row, { BackgroundTransparency = 1 })
+	if not row:FindFirstChild("BoardWoodFill") then
+		local fill = Instance.new("Frame")
+		fill.Name = "BoardWoodFill"
+		fill.BackgroundColor3 = Color3.fromRGB(58, 38, 22)
+		fill.BorderSizePixel = 0
+		fill.Active = false
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.ZIndex = math.max(1, row.ZIndex - 1)
+		fill.Parent = row
+		table.insert(st.made, fill)
+		local k = Instance.new("UICorner")
+		k.CornerRadius = UDim.new(0, 8)
+		k.Parent = fill
+		local e = Instance.new("UIStroke")
+		e.Color = Color3.fromRGB(176, 138, 70)
+		e.Thickness = 2
+		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		e.Parent = fill
+	end
+	for _, c in ipairs(row:GetChildren()) do
+		if c:IsA("UIStroke") or c:IsA("UIGradient") then put(st, c, { Enabled = false }) end
+		if c:IsA("TextLabel") then
+			put(st, c, { TextColor3 = Color3.fromRGB(240, 226, 190), TextStrokeTransparency = 1, TextTransparency = 0 })
+			if (c.TextSize or 15) < 15 then put(st, c, { TextSize = 15 }) end
+		end
+	end
+end
+
 local function hideFill(st, frame)
 	put(st, frame, { BackgroundTransparency = 1 })
 	for _, c in ipairs(frame:GetChildren()) do
@@ -419,7 +451,8 @@ local function run(root, st)
 		if c.Visible then
 			local h = c.Size.Y.Scale == 0 and c.Size.Y.Offset or c.AbsoluteSize.Y
 			if h > 0 then
-				if c:IsA("Frame") and (c.Name == "TipsRow" or c.LayoutOrder == 10) then plateStyle(st, c) end -- Tips and the hint: two matching plates
+				if c:IsA("Frame") and (c.Name == "TipsRow" or c.LayoutOrder == 10) then plateStyle(st, c); h = math.min(h, 38) end -- Tips and the hint: two matching, tighter plates
+				if c:IsA("Frame") and c.LayoutOrder == -1 then woodPlateStyle(st, c) end -- the Daily / Weekly / Seed badge: dark wood, never flat green
 				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(stackX, y), Size = UDim2.fromOffset(stackW, h) })
 				y = y + h + 4
 			end
