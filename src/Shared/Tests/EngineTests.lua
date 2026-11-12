@@ -20399,4 +20399,22 @@ table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varie
 	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
 end })
 
+table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll plates, gold active tab, boss rule line on the plate, [BossStage] log", fn = function()
+	local function read(p)
+		local f = io and io.open and io.open(p, "r")
+		if not f then return nil end
+		local s = f:read("*a")
+		f:close()
+		return s
+	end
+	local shop = read("src/Client/Shop.lua")
+	if not shop then return end
+	expectTrue(shop:find('nextRoundButton:SetAttribute("FlatFace", true)', 1, true) ~= nil, "Next Round has a flat face")
+	expectTrue(shop:find('rerollButton:SetAttribute("FlatFace", true)', 1, true) ~= nil, "Reroll has a flat face")
+	expectTrue(shop:find("active and Color3.fromRGB(255, 214, 120)", 1, true) ~= nil and shop:find("TextTransparency = active and 0 or 0.3", 1, true) ~= nil, "active tab gold, inactive cream at 70 percent")
+	local hub = read("src/Client/init.client.lua")
+	expectTrue(hub:find('<b><font size="16">%s%s</font></b>', 1, true) ~= nil and hub:find('size="14" color="#E6D2AA"', 1, true) ~= nil, "boss plate: bold name 16, rule 14")
+	expectTrue(read("src/Client/BossFight.lua"):find("[BossStage] visible=", 1, true) ~= nil, "BossStage log")
+end })
+
 return tests

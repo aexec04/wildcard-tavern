@@ -2484,7 +2484,7 @@ local function render(state)
 		local function esc(text)
 			return (tostring(text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
 		end
-		local bossLine = '<font size="17">%s%s</font>\n<font size="13" color="#E6D2AA">%s</font>'
+		local bossLine = '<b><font size="16">%s%s</font></b>\n<font size="14" color="#E6D2AA">%s</font>'
 		local bossName = esc(state.bossModifier.name)
 		local bossRule = esc(state.bossModifier.description)
 		SidebarModule.setIconText(

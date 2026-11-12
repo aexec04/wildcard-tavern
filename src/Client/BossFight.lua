@@ -148,6 +148,7 @@ local function build(deps)
 	host.ClipsDescendants = true
 
 	-- backdrop holder (what shakes / scales / tilts): fills the play area
+	local lastBossStageLog = nil
 	local holder = Instance.new("Frame")
 	holder.Name = "BossPortrait"
 	holder.AnchorPoint = Vector2.new(0.5, 0)
@@ -853,6 +854,10 @@ local function build(deps)
 		end
 
 		holder.Visible = not stageActive() -- the live boss replaces the framed portrait
+		if lastBossStageLog ~= holder.Visible then
+			lastBossStageLog = holder.Visible
+			print("[BossStage] visible=" .. tostring(holder.Visible))
+		end
 		local hands = state.handsRemaining
 		local playedHand = lastHands ~= nil and hands ~= nil and hands < lastHands
 		lastHands = hands

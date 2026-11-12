@@ -492,7 +492,11 @@ return function(deps)
 			if chipRef then chipRef.Visible = (key == "myrecipes") end
 			if shopStage then shopStage.setTab(key) end
 			for _, entry in ipairs(shopTabButtons) do
-				entry.button.BackgroundColor3 = (entry.key == key) and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
+				local active = entry.key == key
+				entry.button.BackgroundColor3 = active and Color3.fromRGB(110, 85, 50) or Color3.fromRGB(60, 45, 32)
+				-- inactive: cream at 70 percent; active: gold
+				entry.button.TextColor3 = active and Color3.fromRGB(255, 214, 120) or Color3.fromRGB(250, 240, 220)
+				entry.button.TextTransparency = active and 0 or 0.3
 			end
 		end
 
@@ -533,6 +537,7 @@ return function(deps)
 		nextRoundButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48) -- wooden sign
 		nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		nextRoundButton.ZIndex = SHOP_ZINDEX
+		nextRoundButton:SetAttribute("FlatFace", true) -- the set's plate art has a baked mark at its left end
 		nextRoundButton.Parent = shopFrame
 		polishButton(nextRoundButton, 10)
 		addButtonHoverScale(nextRoundButton)
@@ -1350,6 +1355,7 @@ return function(deps)
 		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
 		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 		rerollButton.ZIndex = 6
+		rerollButton:SetAttribute("FlatFace", true) -- same wood plate as Next Round
 		rerollButton.Parent = rerollRow
 		polishButton(rerollButton, 8)
 		addButtonHoverScale(rerollButton)

@@ -418,7 +418,7 @@ return function(deps)
 			if busy then
 				return
 			end
-			local fixed = blindInfoLabel.Text:gsub("#E6D2AA", "#3C2816"):gsub('size="13"', 'size="15"')
+			local fixed = blindInfoLabel.Text:gsub("#E6D2AA", "#3C2816")
 			if fixed ~= blindInfoLabel.Text then
 				busy = true
 				blindInfoLabel.Text = fixed
