@@ -23,6 +23,7 @@ local Tags = require(script.Parent.Tags)
 local Recipes = require(script.Parent.Recipes)
 local HousePasses = require(script.Parent.HousePasses)
 local Packs = require(script.Parent.Packs)
+local PackRoom = require(script.Parent.PackRoom)
 local TrueWildcard = require(script.Parent.TrueWildcard)
 local WorldMap = require(script.Parent.WorldMap)
 local RunSummary = require(script.Parent.RunSummary)
@@ -1410,7 +1411,7 @@ end
 	still keep whatever OTHER picks fit, and you don't lose the pack you
 	already paid for over one pick not landing.
 ]]
-function RunState.resolvePack(state, chosenIds)
+function RunState.resolvePack(state, chosenIds, replaceIds)
 	local pending = state.pendingPack
 	if not pending then
 		return false, "No pack is open"
@@ -1441,6 +1442,54 @@ function RunState.resolvePack(state, chosenIds)
 			return false, "Invalid selection"
 		end
 		table.remove(pool, foundAt)
+	end
+
+	-- MAKE ROOM: a Patron pick with every seat full (or a recipe with the box full) is never silently lost. The player names which owned
+	-- items leave (replaceIds, validated by Engine/PackRoom: owned, no duplicates, exactly the overflow); without them the pack stays open and
+	-- the answer is "Make room first". Replaced items are sold at their normal sell value (half the price, rounded down).
+	local function pickedItem(chosenId)
+		for _, item in ipairs(pending.items) do
+			if item.id == chosenId then
+				return item
+			end
+		end
+		return nil
+	end
+	local sold = 0
+	if #chosenIds > 0 then
+		local picked = {}
+		for _, chosenId in ipairs(chosenIds) do
+			picked[#picked + 1] = pickedItem(chosenId) or { category = pending.category }
+		end
+		local ownedIds, recipeIds = {}, {}
+		for _, o in ipairs(state.ownedPatrons) do ownedIds[#ownedIds + 1] = o.id end
+		for _, inv in ipairs({ state.houseRecipeInventory, state.menuRecipeInventory, state.secretRecipeInventory }) do
+			for _, id in ipairs(inv) do recipeIds[#recipeIds + 1] = id end
+		end
+		local ok, plan = PackRoom.check({ ownedPatrons = ownedIds, recipes = recipeIds, patronLimit = RunState.patronSlotLimit(state),
+			recipeLimit = RunState.recipeSlotLimit(state) }, picked, replaceIds)
+		if not ok then
+			return false, plan
+		end
+		for _, id in ipairs(plan.patrons) do
+			local sellOk, refund = RunState.sellPatron(state, id)
+			if sellOk then sold = sold + refund end
+		end
+		for _, id in ipairs(plan.recipes) do
+			for _, inv in ipairs({ state.houseRecipeInventory, state.menuRecipeInventory, state.secretRecipeInventory }) do
+				local at
+				for i, owned in ipairs(inv) do
+					if owned == id then at = i break end
+				end
+				if at then
+					table.remove(inv, at)
+					local refund = PackRoom.sellValue("recipe", id)
+					state.tips = state.tips + refund
+					sold = sold + refund
+					break
+				end
+			end
+		end
 	end
 
 	-- Every revealed item carries its OWN `category` tag (see RunState.openPack)
@@ -1507,7 +1556,7 @@ function RunState.resolvePack(state, chosenIds)
 	end
 
 	state.pendingPack = nil
-	return true, "Picked!"
+	return true, "Picked!", sold
 end
 
 -- Discard an owned Patron for half its price back (rounded down). Allowed

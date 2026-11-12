@@ -243,6 +243,7 @@ return function(deps)
 	local packItemsRow
 	local packConfirmButton
 	local packSkipButton
+	local packMakeRoom -- the "Make room" step (Client/PackMakeRoom): a pick that does not fit the table or the recipe box
 
 	do
 		shopFrame = Instance.new("Frame")
@@ -733,6 +734,7 @@ return function(deps)
 		end
 		packConfirmButton = packPlate("PackConfirm", "Confirm", -82, Color3.fromRGB(110, 72, 34))
 		packSkipButton = packPlate("PackSkip", "Skip Pack", 82, Color3.fromRGB(70, 52, 40))
+		packMakeRoom = require(script.Parent.PackMakeRoom).new({ parent = shopPackPanel, z = PANEL_ZINDEX + 12, playClick = playClickSfx })
 	end -- do (Shop overlay)
 
 	-- ----- Recipe target picker state + logic -----
@@ -1114,6 +1116,26 @@ return function(deps)
 		end
 		if #chosen ~= pending.pickCount then
 			showWarning(string.format("Pick %d item%s first, or use Skip Pack.", pending.pickCount, pending.pickCount == 1 and "" or "s"))
+			return
+		end
+		-- a pick that does not fit the table (or the recipe box) is never silently lost: the Make room step asks which owned ones leave
+		local PackRoom = require(Engine:WaitForChild("PackRoom"))
+		local picked = {}
+		for index in pairs(pendingPackSelected) do table.insert(picked, pending.items[index]) end
+		table.sort(picked, function(a, b) return tostring(a.id) < tostring(b.id) end)
+		local view = { ownedPatrons = {}, recipes = {}, patronLimit = state.patronSlotLimit or 0, recipeLimit = state.recipeSlotLimit or 0 }
+		for _, o in ipairs(state.ownedPatrons or {}) do table.insert(view.ownedPatrons, o.id) end
+		for _, inv in ipairs({ state.houseRecipeInventory or {}, state.menuRecipeInventory or {}, state.secretRecipeInventory or {} }) do
+			for _, id in ipairs(inv) do table.insert(view.recipes, id) end
+		end
+		local over = PackRoom.overflow(view, picked)
+		if (over.patrons > 0 or over.recipes > 0) and packMakeRoom then
+			packMakeRoom.open(view, picked, function(replaceIds)
+				require(script.Parent.Cue).play("buy")
+				ResolvePackRemote:FireServer(chosen, replaceIds)
+				pendingPackSelected = {}
+				tutorialReport("pack_confirm")
+			end)
 			return
 		end
 		require(script.Parent.Cue).play("buy")

@@ -1667,7 +1667,7 @@ table.insert(tests, { name = "Using a Recipe makes room to buy again at the cap"
 	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit)
 end })
 
-table.insert(tests, { name = "RunState.resolvePack skips a Recipe pick that no longer fits the shared box, but still resolves", fn = function()
+table.insert(tests, { name = "RunState.resolvePack: a Recipe pick with the box full needs Make room, never vanishes (kept open without replaceIds)", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 1000
 	RunState.buyHouseRecipe(state, Recipes.HouseRecipes[1].id)
@@ -1675,9 +1675,19 @@ table.insert(tests, { name = "RunState.resolvePack skips a Recipe pick that no l
 	expectEqual(#state.houseRecipeInventory, state.config.recipeSlotLimit) -- already full
 
 	local reveal = RunState.openPack(state, "menu_pack", function(n) return n end)
-	local ok = RunState.resolvePack(state, { reveal.items[1].id })
-	expectTrue(ok, "resolve should still succeed even though the box is full")
-	expectEqual(#state.menuRecipeInventory, 0, "the pick should be silently skipped, not crash or overfill")
+	local tipsBefore = state.tips
+	local ok, msg = RunState.resolvePack(state, { reveal.items[1].id })
+	expectFalse(ok, "a full box does not silently drop the pick")
+	expectEqual(msg, "Make room first", "the answer says what to do")
+	expectTrue(state.pendingPack ~= nil and state.tips == tipsBefore and #state.menuRecipeInventory == 0, "the pack stays open and nothing changed")
+	local leaving = state.houseRecipeInventory[1]
+	local leavingValue = math.floor(Recipes.getHouseRecipeById(leaving).price / 2)
+	local ok2, msg2, sold = RunState.resolvePack(state, { reveal.items[1].id }, { leaving })
+	expectTrue(ok2, "with a recipe named to leave it resolves: " .. tostring(msg2))
+	expectEqual(#state.menuRecipeInventory + #state.houseRecipeInventory + #state.secretRecipeInventory, state.config.recipeSlotLimit, "the box is full again, one out one in")
+	expectEqual(state.tips, tipsBefore + leavingValue, "the recipe that left was sold at half its price")
+	expectEqual(sold, leavingValue, "the refund is reported")
+	expectTrue(state.pendingPack == nil, "the pack is resolved")
 end })
 
 table.insert(tests, { name = "House Recipe 'Second Helping' refuses when the recipe box is full", fn = function()
@@ -1943,20 +1953,88 @@ table.insert(tests, { name = "RunState.resolvePack rejects a selection that wasn
 	expectTrue(state.pendingPack ~= nil, "a bad resolve should leave the pack open, not silently clear it")
 end })
 
-table.insert(tests, { name = "RunState.resolvePack skips a Patron pick that no longer fits, but still resolves", fn = function()
+table.insert(tests, { name = "RunState.resolvePack: a Patron pick with every seat full needs Make room, with validation and a sale at half price", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	state.tips = 1000
-	-- Fill the table to the cap first.
 	for i, patron in ipairs(Patrons.Definitions) do
 		if i > state.config.patronSlotLimit then break end
 		RunState.buyPatron(state, patron.id)
 	end
 	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit)
-
 	local reveal = RunState.openPack(state, "buffoon_pack", function(n) return n end)
-	local ok = RunState.resolvePack(state, { reveal.items[1].id })
-	expectTrue(ok, "resolve should still succeed even though the table is full")
-	expectEqual(#state.ownedPatrons, state.config.patronSlotLimit, "the pick should be silently skipped, not crash or overfill")
+	local pick = reveal.items[1].id
+	local tips = state.tips
+	local ok, msg = RunState.resolvePack(state, { pick })
+	expectFalse(ok, "overflow without replaceIds fails")
+	expectEqual(msg, "Make room first", "with the plain message")
+	expectTrue(state.pendingPack ~= nil and #state.ownedPatrons == state.config.patronSlotLimit and state.tips == tips, "and keeps the pack open, nothing lost")
+	local owned1, owned2 = state.ownedPatrons[1].id, state.ownedPatrons[2].id
+	expectFalse((RunState.resolvePack(state, { pick }, { "no_such_patron" })), "an id that is not owned is rejected")
+	expectFalse((RunState.resolvePack(state, { pick }, { owned1, owned1 })), "a duplicate is rejected")
+	expectFalse((RunState.resolvePack(state, { pick }, { owned1, owned2 })), "more than the overflow is rejected")
+	expectFalse((RunState.resolvePack(state, { pick }, {})), "an empty list is the same as none")
+	expectTrue(state.pendingPack ~= nil and #state.ownedPatrons == state.config.patronSlotLimit and state.tips == tips, "rejections change nothing")
+	local value = math.floor(state.ownedPatrons[1].price / 2)
+	local ok2, _, sold = RunState.resolvePack(state, { pick }, { owned1 })
+	expectTrue(ok2, "a valid replacement resolves")
+	expectEqual(sold, value, "the old Patron sold at half price")
+	expectEqual(state.tips, tips + value, "the refund landed")
+	local has, hadOld = false, false
+	for _, o in ipairs(state.ownedPatrons) do
+		if o.id == pick then has = true end
+		if o.id == owned1 then hadOld = true end
+	end
+	expectTrue(has and not hadOld and #state.ownedPatrons == state.config.patronSlotLimit, "the pick sits at the table, the old Patron left")
+	-- skipping a pack never needs room
+	local state2 = RunState.new(nil, function(n) return n end)
+	state2.tips = 1000
+	for i, patron in ipairs(Patrons.Definitions) do
+		if i > state2.config.patronSlotLimit then break end
+		RunState.buyPatron(state2, patron.id)
+	end
+	RunState.openPack(state2, "buffoon_pack", function(n) return n end)
+	expectTrue((RunState.resolvePack(state2, {})), "Skip Pack still works with a full table")
+	-- with room, replaceIds are refused (nothing should be sold for no reason)
+	local state3 = RunState.new(nil, function(n) return n end)
+	state3.tips = 1000
+	RunState.buyPatron(state3, Patrons.Definitions[1].id)
+	local r3 = RunState.openPack(state3, "buffoon_pack", function(n) return n end)
+	expectFalse((RunState.resolvePack(state3, { r3.items[1].id }, { Patrons.Definitions[1].id })), "no replacement when there is room")
+	expectTrue((RunState.resolvePack(state3, { r3.items[1].id })), "a pick with room just joins")
+end })
+
+table.insert(tests, { name = "RunState.resolvePack: a Mega pack with two picks and one free seat needs exactly one to leave; PackRoom check and values", fn = function()
+	local PackRoom = require(script.Parent.Parent.Engine.PackRoom)
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	local limit = state.config.patronSlotLimit
+	for i, patron in ipairs(Patrons.Definitions) do
+		if i > limit - 1 then break end
+		RunState.buyPatron(state, patron.id)
+	end
+	expectEqual(#state.ownedPatrons, limit - 1)
+	local reveal = RunState.openPack(state, "buffoon_pack_mega", function(n) return n end)
+	expectEqual(reveal.pickCount, 2)
+	local picks = { reveal.items[1].id, reveal.items[2].id }
+	local ok, msg = RunState.resolvePack(state, picks)
+	expectFalse(ok, "two picks into one free seat need room")
+	expectEqual(msg, "Make room first")
+	local a, b = state.ownedPatrons[1].id, state.ownedPatrons[2].id
+	expectFalse((RunState.resolvePack(state, picks, { a, b })), "two leaving for one overflow is rejected")
+	expectTrue((RunState.resolvePack(state, picks, { a })), "exactly one leaving resolves")
+	expectEqual(#state.ownedPatrons, limit, "the table is full with both picks and one old Patron gone")
+	-- the pure rule
+	local view = { ownedPatrons = { "x", "y" }, recipes = { "r1", "r2" }, patronLimit = 2, recipeLimit = 2 }
+	local over = PackRoom.overflow(view, { { category = "patron" }, { category = "house" }, { category = "standard" } })
+	expectTrue(over.patrons == 1 and over.recipes == 1, "a patron and a recipe pick each overflow by one; a card never does")
+	expectEqual(PackRoom.overflow(view, { { category = "standard" } }).patrons, 0, "standard cards need no room")
+	expectFalse((PackRoom.check(view, { { category = "patron" } }, nil)), "make room first")
+	expectTrue((PackRoom.check(view, { { category = "patron" } }, { "x" })), "x may leave")
+	expectFalse((PackRoom.check(view, { { category = "patron" } }, { "x", "x" })), "no duplicates")
+	expectFalse((PackRoom.check(view, { { category = "patron" } }, { "r1" })), "a recipe cannot make room at the table")
+	expectTrue((PackRoom.check(view, { { category = "patron" }, { category = "menu" } }, { "x", "r2" })), "a mixed pick names one of each")
+	expectEqual(PackRoom.sellValue("patron", Patrons.Definitions[1].id), math.floor(Patrons.Definitions[1].price / 2), "Patron sells for half")
+	expectEqual(PackRoom.sellValue("patron", "nobody"), 0, "unknown sells for nothing")
 end })
 
 -- ===== Feature Expansion (Phase 2 cont'd): Jumbo/Mega Pack sizes =====
@@ -21280,6 +21358,64 @@ table.insert(tests, { name = "Scroll art: the four scroll pieces are Image asset
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	for _, k in ipairs({ "shop_offer_scroll_a", "shop_offer_scroll_b", "run_over_scroll_a", "run_over_scroll_b" }) do
 		expectTrue(type(Art[k]) == "string" and Art[k]:match("^rbxassetid://%d+$") ~= nil, k .. " has a single-prefix Image id")
+	end
+end })
+
+table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons with sell values, needs exactly the overflow, Back and Confirm work", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local env, state = FakeGui.env({})
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ PackRoom = require(E.PackRoom) }) end } end }
+	local PackMakeRoom = FakeGui.load("src/Client/PackMakeRoom.lua", env)
+	local Patrons = require(E.Patrons)
+	local host = FakeGui.new("Frame")
+	local clicks = 0
+	local room = PackMakeRoom.new({ parent = host, z = 30, playClick = function() clicks = clicks + 1 end })
+	local owned = { Patrons.Definitions[1].id, Patrons.Definitions[2].id, Patrons.Definitions[3].id }
+	local view = { ownedPatrons = owned, recipes = {}, patronLimit = 3, recipeLimit = 2 }
+	local items = { { id = Patrons.Definitions[4].id, name = Patrons.Definitions[4].name, category = "patron" } }
+	local got
+	room.open(view, items, function(ids) got = ids end)
+	local panel = host:FindFirstChild("MakeRoomPanel")
+	expectTrue(panel ~= nil and panel.Visible and room.isOpen(), "the panel opens")
+	local list = panel:FindFirstChild("Owned")
+	local cards = {}
+	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" then cards[#cards + 1] = c end end
+	expectEqual(#cards, 3, "one card per owned Patron")
+	local first = cards[1]
+	expectTrue(first:FindFirstChild("Value").Text == "Sells for $" .. math.floor(Patrons.Definitions[1].price / 2), "the card shows the sell value")
+	local confirm, back = panel:FindFirstChild("Confirm"), panel:FindFirstChild("Back")
+	expectFalse(confirm.Active, "Confirm waits until the overflow is chosen")
+	confirm.MouseButton1Click:Fire()
+	expectTrue(got == nil, "an early Confirm does nothing")
+	cards[2].MouseButton1Click:Fire()
+	expectTrue(confirm.Active, "choosing one for one overflow enables Confirm")
+	expectTrue(panel:FindFirstChild("Summary").Text:find("leaves, " .. items[1].name .. " joins your table.", 1, true) ~= nil, "the line says who leaves and who joins")
+	cards[3].MouseButton1Click:Fire()
+	local picks = 0
+	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" and c.BackgroundColor3.G * 255 < 150 then picks = picks + 1 end end
+	expectEqual(picks, 1, "a second tap does not choose more than the overflow")
+	cards[2].MouseButton1Click:Fire()
+	expectFalse(confirm.Active, "tapping the chosen one again puts it back")
+	cards[1].MouseButton1Click:Fire()
+	confirm.MouseButton1Click:Fire()
+	expectTrue(got ~= nil and #got == 1 and got[1] == owned[1], "Confirm hands the chosen owned id back")
+	expectFalse(room.isOpen(), "and closes")
+	room.open(view, items, function() got = "again" end)
+	back.MouseButton1Click:Fire()
+	expectFalse(room.isOpen(), "Back closes without choosing")
+	expectTrue(got ~= "again", "Back never confirms")
+	-- the pure summary for a two pick overflow
+	local PR = require(E.PackRoom)
+	local two = PR.summary({ ownedPatrons = owned, recipes = {}, patronLimit = 3, recipeLimit = 2 },
+		{ { id = Patrons.Definitions[4].id, name = "A", category = "patron" }, { id = Patrons.Definitions[5].id, name = "B", category = "patron" } }, { owned[1], owned[2] })
+	expectTrue(two.ready and #two.lines == 2 and two.refund == PR.sellValue("patron", owned[1]) + PR.sellValue("patron", owned[2]), "two picks into a full table: two lines and the refund of both")
+	local source = io.open("src/Client/Shop.lua", "r")
+	if source then
+		local text = source:read("*a")
+		source:close()
+		expectTrue(text:find("packMakeRoom.open(view, picked", 1, true) ~= nil and text:find("ResolvePackRemote:FireServer(chosen, replaceIds)", 1, true) ~= nil, "the pack Confirm opens Make room on overflow and sends the replaceIds")
 	end
 end })
 

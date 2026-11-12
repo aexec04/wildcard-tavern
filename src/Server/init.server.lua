@@ -2449,7 +2449,7 @@ Rem.BuyPack.OnServerEvent:Connect(function(player, packId)
 	pushState(player)
 end)
 
-Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds)
+Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds, replaceIds)
 	if not RateLimit.allow(player.UserId, "Rem.ResolvePack", os.clock()) then return end
 	local session = sessions[player]
 	if not session or not RunState.phaseAllowsShopActions(session.phase) then
@@ -2463,10 +2463,26 @@ Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds)
 			return
 		end
 	end
+	-- Make room (Engine/PackRoom): the owned items that leave so the picks fit. The client only names ids; the engine checks they are
+	-- owned, distinct and exactly the overflow, and sells them at half price. Anything else is ignored.
+	if replaceIds ~= nil then
+		if type(replaceIds) ~= "table" or #replaceIds > 10 then
+			return
+		end
+		for _, id in ipairs(replaceIds) do
+			if type(id) ~= "string" then
+				return
+			end
+		end
+	end
 
-	local ok, err = pcall(RunState.resolvePack, session.state, chosenIds)
+	local ok, err, message = pcall(RunState.resolvePack, session.state, chosenIds, replaceIds)
 	if not ok then
 		warn("ResolvePack error for " .. player.Name .. ": " .. tostring(err))
+		return
+	end
+	if err == false and type(message) == "string" then
+		counterNotice(player, session, message) -- e.g. "Make room first": the pack stays open and the Counter says why
 		return
 	end
 
