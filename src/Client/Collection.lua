@@ -339,11 +339,18 @@ return function(deps)
 	overallFill.Parent = overallBar
 	roundCorner(overallFill, 6)
 
-	local overallText = label(overallBar, {
-		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0),
-		Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 23, TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
-	})
+	-- Line one: Overall on the left, the next milestone on the right. Line two: the next unlock. 15 px cream, never truncated.
+	local function barLine(y, align, width)
+		return label(overallBar, {
+			Size = UDim2.new(width, -16, 0.5, 0), Position = UDim2.new(align == Enum.TextXAlignment.Right and 1 - width or 0, 8, y, 0),
+			Font = Enum.Font.GothamBold, TextSize = 15, ZIndex = 23, TextWrapped = false,
+			TextColor3 = Color3.fromRGB(245, 232, 200), TextTransparency = 0, TextStrokeTransparency = 1,
+			TextXAlignment = align, Text = "",
+		})
+	end
+	local overallText = barLine(0, Enum.TextXAlignment.Left, 0.3)
+	local overallNext = barLine(0, Enum.TextXAlignment.Right, 0.7)
+	local overallUnlock = barLine(0.5, Enum.TextXAlignment.Left, 1)
 
 	-- Tabs: the gallery room is the way in, so these are only a quiet row of small plates (for the keyboard and for phones). They scroll
 	-- sideways when the panel is narrower than the row.
@@ -1119,12 +1126,10 @@ return function(deps)
 		if Gallery.chestApi then Gallery.chestApi.setNext(nextMilestone and ("Next at " .. nextMilestone.percent .. "%") or "All claimed") end
 		-- Next unlock (moved here from the main menu strip)
 		local pick = view.state and view.state.nextUnlock
-		if pick and pick.label then
-			nextText = nextText .. "\nNext unlock: " .. pick.label
-		end
-		overallText.TextTruncate = Enum.TextTruncate.AtEnd
-		overallText.Text = string.format("Overall %d%%  (%d / %d)\n%s",
-			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
+		overallUnlock.Text = (pick and pick.label) and ("Next unlock: " .. pick.label) or ""
+		overallNext.Text = nextText
+		overallText.Text = string.format("Overall %d%%  (%d / %d)",
+			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total))
 
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.
 		for _, tab in ipairs(CollectionBook.Tabs) do
