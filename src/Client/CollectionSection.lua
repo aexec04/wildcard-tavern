@@ -379,10 +379,19 @@ function CollectionSection.new(opts)
 		for i = used + 1, Layout.perPage(tabId) do
 			local slot = p.slots[i]
 			if slot then
+				local card = Layout.kind(tabId) == "card" and Layout.paperOf(tabId)
 				local dim = make("Frame", frame, { Name = "EmptySlot_" .. i, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, BorderSizePixel = 0, ZIndex = z + 1 })
 				dim.Position = UDim2.fromOffset(math.floor(slot.x), math.floor(slot.y))
 				dim.Size = UDim2.fromOffset(math.ceil(slot.w), math.ceil(slot.h))
-				local q = make("TextLabel", dim, { Name = "Unknown", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "?", TextSize = 18, Font = Enum.Font.GothamBold, TextColor3 = Color3.fromRGB(245, 235, 210), TextTransparency = 0.4, TextStrokeTransparency = 1, ZIndex = z + 2 })
+				local qColor, qAlpha = Color3.fromRGB(245, 235, 210), 0.4
+				if card then
+					-- a blank parchment tag at 55 percent brightness with a red cord across the top and a faint ink "?"
+					dim.BackgroundColor3 = Color3.fromRGB(math.floor(card[1] * 0.55), math.floor(card[2] * 0.55), math.floor(card[3] * 0.55))
+					dim.BackgroundTransparency = 0
+					local cord = make("Frame", dim, { Name = "Cord", BackgroundColor3 = Color3.fromRGB(120, 28, 24), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, math.max(4, math.floor(slot.h * 0.06))), ZIndex = z + 2 })
+					qColor, qAlpha = Color3.fromRGB(52, 34, 18), 0.6
+				end
+				local q = make("TextLabel", dim, { Name = "Unknown", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Text = "?", TextSize = card and 28 or 18, Font = Enum.Font.GothamBold, TextColor3 = qColor, TextTransparency = qAlpha, TextStrokeTransparency = 1, ZIndex = z + 2 })
 			end
 		end
 		if pagerRect and pages > 1 then
