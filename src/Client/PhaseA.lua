@@ -96,8 +96,15 @@ return function(deps)
 	local ContentArtPA = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt"))
 	local bossPortrait = nil -- the boss art shown above the banner, if an id exists
 
+	-- The crown banner, boss portrait, flash, shake and thud on every boss round were too repetitive: off. The boss is still shown on the
+	-- Round Select card, the play screen board and Boss Scout.
+	local BOSS_INTRO_ENABLED = false
+
 	local announceBossIfNew
 	announceBossIfNew = function(state)
+		if not BOSS_INTRO_ENABLED then
+			return
+		end
 		if not state or not state.bossModifier then
 			return
 		end
@@ -189,6 +196,7 @@ return function(deps)
 	end
 
 	return {
+		BOSS_INTRO_ENABLED = BOSS_INTRO_ENABLED,
 		announceBossIfNew = announceBossIfNew,
 		recordHand = recordHand,
 		resetRun = resetRun,

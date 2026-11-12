@@ -20734,4 +20734,17 @@ table.insert(tests, { name = "MenuGate: run modals and the table never show over
 	end
 end })
 
+table.insert(tests, { name = "PhaseA: the Boss Round intro popup is off behind BOSS_INTRO_ENABLED", fn = function()
+	if not (io and io.open) then return end
+	local f = io.open("src/Client/PhaseA.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("local BOSS_INTRO_ENABLED = false", 1, true) ~= nil, "the flag is false")
+	local a = src:find("announceBossIfNew = function(state)", 1, true)
+	local b = src:find("if not BOSS_INTRO_ENABLED then", 1, true)
+	local c = src:find("OQ.isBusy", 1, true)
+	expectTrue(a and b and b > a and (not c or b < c), "announceBossIfNew returns before it builds any banner, portrait, flash or shake")
+end })
+
 return tests
