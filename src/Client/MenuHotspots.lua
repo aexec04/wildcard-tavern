@@ -449,11 +449,11 @@ function Hotspots.build(opts)
 	allButton.Position = UDim2.new(1, -16, 1, -16)
 	allButton.Size = UDim2.fromOffset(168, 42)
 	allButton.AutoButtonColor = false
-	allButton.BackgroundColor3 = Color3.fromRGB(238, 222, 186) -- a solid parchment plate with a brass edge (ink on it is over 10:1)
+	allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22) -- a dark wood plate with a brass edge like Deal Me In (cream on it is over 10:1)
 	allButton.BackgroundTransparency = 0
 	allButton.Font = Enum.Font.GothamBold
 	allButton.TextSize = 16
-	allButton.TextColor3 = Color3.fromRGB(48, 32, 18)
+	allButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 	allButton.TextTransparency = 0
 	allButton.TextStrokeTransparency = 1
 	allButton.Text = "All actions"

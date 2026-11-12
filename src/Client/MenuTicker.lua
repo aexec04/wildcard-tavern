@@ -14,7 +14,7 @@ local MenuTicker = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 
 local Ticker = {}
 
-local PARCHMENT = Color3.fromRGB(222, 198, 150)
+local PARCHMENT = Color3.fromRGB(196, 168, 120) -- darker parchment, not a pasted cream bar
 local GOLD = Color3.fromRGB(222, 182, 104)
 local INK = Color3.fromRGB(60, 40, 22)
 local CREAM = Color3.fromRGB(250, 235, 200)
@@ -23,7 +23,7 @@ local WOOD = Color3.fromRGB(86, 58, 34)
 function Ticker.attach(parent, layoutOrder)
 	local frame = Instance.new("Frame")
 	frame.Name = "MenuTicker"
-	frame.Size = UDim2.fromOffset(460, 40)
+	frame.Size = UDim2.fromOffset(460, 78) -- text on top, the Daily board button on its own row below
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = PARCHMENT
 	frame.ZIndex = 10
@@ -38,7 +38,7 @@ function Ticker.attach(parent, layoutOrder)
 
 	local icon = Instance.new("TextLabel")
 	icon.Size = UDim2.fromOffset(30, 40)
-	icon.Position = UDim2.fromOffset(6, 0)
+	icon.Position = UDim2.fromOffset(6, 2)
 	icon.BackgroundTransparency = 1
 	icon.Font = Enum.Font.GothamBold
 	icon.TextSize = 20
@@ -51,11 +51,11 @@ function Ticker.attach(parent, layoutOrder)
 
 	local text = Instance.new("TextLabel")
 	text.Name = "Text"
-	text.Size = UDim2.new(1, -150, 1, 0)
-	text.Position = UDim2.fromOffset(38, 0)
+	text.Size = UDim2.new(1, -46, 0, 40) -- full width above the button row: nothing can sit on its second line
+	text.Position = UDim2.fromOffset(38, 2)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.GothamMedium
-	text.TextSize = 14
+	text.TextSize = 15
 	text.TextColor3 = INK
 	text.TextTransparency = 0
 	text.TextStrokeTransparency = 1
@@ -68,8 +68,8 @@ function Ticker.attach(parent, layoutOrder)
 	local boardButton = Instance.new("TextButton")
 	boardButton.Name = "DailyBoardButton"
 	boardButton.Size = UDim2.fromOffset(100, 28)
-	boardButton.AnchorPoint = Vector2.new(1, 0.5)
-	boardButton.Position = UDim2.new(1, -8, 0.5, 0)
+	boardButton.AnchorPoint = Vector2.new(1, 1)
+	boardButton.Position = UDim2.new(1, -8, 1, -6)
 	boardButton.BackgroundColor3 = WOOD
 	boardButton.Font = Enum.Font.GothamBold
 	boardButton.TextSize = 14

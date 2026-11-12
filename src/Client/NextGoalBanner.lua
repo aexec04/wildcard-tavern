@@ -8,7 +8,7 @@ local NextGoalBanner = {}
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local CREAM = Color3.fromRGB(250, 235, 200)
-local PARCHMENT = Color3.fromRGB(222, 198, 150)
+local PARCHMENT = Color3.fromRGB(196, 168, 120)
 local INK = Color3.fromRGB(60, 40, 22)
 local WOOD = Color3.fromRGB(86, 58, 34)
 

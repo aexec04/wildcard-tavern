@@ -12246,10 +12246,10 @@ table.insert(tests, { name = "Menu polish 1: no corner blobs, no cloud ghosts or
 	expectTrue(board:find("local function fit()", 1, true) ~= nil and board:find("frame.Size = UDim2.new(N.w, 0, 0, math.max(60, math.floor(h)))", 1, true) ~= nil, "the board is only as tall as its notes")
 	expectTrue(board:find("UDim2.new(0.5, 0, 0, -4)", 1, true) ~= nil, "pins sit on the note's top edge, not over its rows")
 	expectTrue(hot:find("if Layout.world then object.Visible = false end", 1, true) ~= nil, "the Deal Me In block has no cut-off dark medallion on the map")
-	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(238, 222, 186)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid parchment plate")
+	expectTrue(hot:find("allButton.BackgroundColor3 = Color3.fromRGB(58, 38, 22)", 1, true) ~= nil and hot:find("allButton.BackgroundTransparency = 0", 1, true) ~= nil, "All actions is a solid dark wood plate")
 	local ML = require(script.Parent.Parent.Engine.MenuLayout)
 	local LL = require(script.Parent.Parent.Engine.LedgerLayout)
-	expectTrue(LL.contrast({ 250, 240, 220 }, { 34, 24, 16 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
+	expectTrue(LL.contrast({ 250, 235, 200 }, { 58, 38, 22 }) >= 4.5, "cream on the All actions plate is at least 4.5:1")
 	expectTrue(ML.NoticeBoard.h <= 0.3, "the board's layout rect is the cap, the fit makes it shorter")
 end })
 
