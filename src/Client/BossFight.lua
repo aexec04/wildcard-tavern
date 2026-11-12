@@ -776,6 +776,7 @@ local function build(deps)
 			acc = acc + dt
 			if acc < 0.25 then return end
 			acc = 0
+			if not visible and not covered then return end -- no fight on screen: nothing to hide or restore
 			local names = {}
 			local gui = root:FindFirstAncestorOfClass("ScreenGui")
 			for _, parent in ipairs({ root, gui }) do
