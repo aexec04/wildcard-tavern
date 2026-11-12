@@ -192,7 +192,7 @@ function MenuRoom.build(parent)
 			for _, o in ipairs(list) do o.Visible = not calm end
 		end
 		glint.Visible = not calm
-		ring.Visible = not calm
+		ring.Visible = false -- no pulsing outline around the deck; the hover glow is the only ring
 		if calm then
 			setGlow(fireGlow, 0.85)
 			for _, g in ipairs(lanternGlows) do setGlow(g, 0.86) end
@@ -220,7 +220,6 @@ function MenuRoom.build(parent)
 		end
 		local g = RL.glintAt(t)
 		glint.BackgroundTransparency = g == 0 and 1 or 1 - math.sin(g * math.pi) * 0.9
-		ringStroke.Transparency = 0.55 + math.sin(t * 2.2) * 0.3
 	end
 
 	scene.update(0, 0, 0, false)

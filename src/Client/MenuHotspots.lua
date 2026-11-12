@@ -690,7 +690,7 @@ function Hotspots.build(opts)
 		rim.Name = "Glow"
 		rim.Color = GLOW
 		rim.Thickness = hotspot.lit and 3 or 2
-		rim.Transparency = 0.7
+		rim.Transparency = Layout.roomPainted and 1 or 0.7 -- painted room: no outline at rest, hover glows the Object fill instead
 		rim.Parent = object
 		local lift = Instance.new("UIScale")
 		lift.Parent = object
@@ -748,7 +748,7 @@ function Hotspots.build(opts)
 				local plaque = button:FindFirstChild("Plaque")
 				plaque.Visible = true
 				plaque.AnchorPoint = Vector2.new(0.5, 1)
-				plaque.Position = UDim2.new(0.5, 0, 1, -44)
+				plaque.Position = UDim2.new(0.5, 0, 1, -46) -- New Run (34 px) sits under it with a 12 px gap
 				plaque.Size = UDim2.fromOffset(210, 38)
 				plaque.Desc.Visible = false
 				plaque.Title.Text = button:GetAttribute("HotspotLabel")
@@ -759,7 +759,7 @@ function Hotspots.build(opts)
 			homes.newRun = function(button)
 				setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(150, 34))
 				button.AnchorPoint = Vector2.new(0.5, 1)
-				button.Position = UDim2.new(0.5, 0, 1, -4)
+				button.Position = UDim2.new(0.5, 0, 1, 0)
 				button:FindFirstChild("Plaque").Title.TextSize = 16
 				button.Parent = frame
 			end
@@ -847,7 +847,7 @@ function Hotspots.build(opts)
 			ribbon.Parent = frame
 			round(ribbon, UDim.new(0, 5))
 			source:GetPropertyChangedSignal("Visible"):Connect(function() ribbon.Visible = source.Visible end)
-			if source.Visible then
+			if source.Visible and not Layout.roomPainted then
 				table.insert(lanterns, TweenService:Create(rim, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 					{ Transparency = 0.1, Thickness = 4 }))
 				result.animatedCount += 1
@@ -881,6 +881,7 @@ function Hotspots.build(opts)
 			local ui = hotspotUI[hs.id]
 			if f then
 				local l, t, r, b = Layout.rect(hs, w, h)
+				if hs.id == "play" and b > h - 24 then t, b = t - (b - (h - 24)), h - 24 end -- 24 px margin under New Run
 				f.Position = UDim2.fromOffset((l + r) / 2, (t + b) / 2)
 				f.Size = UDim2.fromOffset(r - l, b - t)
 				local aspect = f:FindFirstChildOfClass("UIAspectRatioConstraint")
@@ -976,7 +977,7 @@ function Hotspots.build(opts)
 			local ui = hotspotUI[hotspot.id]
 			if ui then
 				ui.rim.Thickness = hotspot.lit and 3 or 2
-				ui.rim.Transparency = hotspot.lit and 0.4 or 0.7
+				ui.rim.Transparency = Layout.roomPainted and 1 or (hotspot.lit and 0.4 or 0.7)
 			end
 		end
 	end

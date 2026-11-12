@@ -11,7 +11,7 @@ local MenuTicker = {}
 MenuTicker.CACHE_SECONDS = 60 -- the server refreshes the board and the run count at most this often (per server)
 
 MenuTicker.FlavorLines = {
-	"The lanterns are lit. Take a seat.",
+	"Lanterns lit. Take a seat.",
 	"A fresh deck is waiting at the corner table.",
 	"Today's Daily is the same for everyone.",
 	"Patrons are gathering. Who will you hire?",

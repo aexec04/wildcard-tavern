@@ -203,6 +203,21 @@ function MenuBoard.build(parent)
 		end
 		local fitted = RoomLayout.noteSlots(r - l, b - t, heights)
 		scale.Scale = fitted.scale
+		-- the notes are drawn at NOTE_W and shrunk by the scale; raise each line's size so it still reads at least 14 px on screen
+		for _, slot in ipairs(visibleSlots) do
+			for _, d in ipairs(slot:GetDescendants()) do
+				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" then
+					local base = d:GetAttribute("BaseTextSize") or d.TextSize
+					d:SetAttribute("BaseTextSize", base)
+					local want = math.max(base, math.ceil(14 / fitted.scale))
+					d.TextSize = want
+					d.TextWrapped = false -- one line per row, cut with an ellipsis rather than spilling
+					if d.Size.Y.Scale == 0 and d.Size.Y.Offset > 0 and d.Size.Y.Offset < want + 4 then
+						d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, want + 4)
+					end
+				end
+			end
+		end
 		for i, slot in ipairs(visibleSlots) do
 			local crowd = i > fitted.shown
 			slot:SetAttribute("Crowded", crowd)

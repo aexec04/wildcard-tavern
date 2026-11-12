@@ -66,7 +66,7 @@ function NewsPanel.bannerLine(news)
 	end
 	local soon = news.upcoming and news.upcoming[1]
 	if soon then
-		return soon.icon, "Coming up: " .. soon.name, NewsPanel.timeText(soon)
+		return soon.icon, "Soon: " .. soon.name, NewsPanel.timeText(soon)
 	end
 	return nil
 end
