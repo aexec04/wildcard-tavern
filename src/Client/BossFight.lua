@@ -448,7 +448,7 @@ local function build(deps)
 				plateStroke.Thickness = 1.5
 				plateStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				plateStroke.Parent = plate
-				plate.Position = UDim2.new(0.5, 0, 0, math.max(0, fr.top - inset) + fr.height)
+				plate.Position = UDim2.new(artFrame.Position.X.Scale, artFrame.Position.X.Offset, 0, math.max(0, fr.top - inset) + fr.height)
 				artFrame.Destroying:Connect(function() plate:Destroy() end)
 				art = PatronPlaque.applyById(artFrame, artId, {
 					size = UDim2.fromScale(1.08, 1.08), anchor = Vector2.new(0.5, 0.5), position = artBase,
