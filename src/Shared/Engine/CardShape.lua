@@ -51,11 +51,13 @@ function CardShape.fitScale(availW, availH, vpX, vpY, widestRow)
 end
 
 -- My Patrons seats: the largest scale (never above scaleFor, never below 0.4) at which n owned cards fit availW in one row.
+CardShape.OWNED_GAP = 10
 function CardShape.fitOwned(availW, n, vpX, vpY)
 	local s = CardShape.scaleFor(vpX, vpY)
 	n = math.max(n or 1, 1)
 	if availW and availW > 0 then
-		s = math.min(s, (availW - 28 - (n - 1) * 16) / (n * BASE.owned.w))
+		-- seatW = floor((viewportW - 2 * 14 padding - (n - 1) * gap) / n); the scale is that width over the base width
+		s = math.min(s, (availW - 28 - (n - 1) * CardShape.OWNED_GAP) / (n * BASE.owned.w))
 	end
 	return math.max(0.4, s)
 end

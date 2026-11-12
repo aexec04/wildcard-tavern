@@ -1608,7 +1608,9 @@ return function(deps)
 		pad.PaddingLeft = UDim.new(0, shopStage and shopStage.tabPadLeft() or 0)
 	end
 
-	local function rebuildMyPatronsTab(state)
+	local lastPatronFitW = nil
+	local rebuildMyPatronsTab
+	function rebuildMyPatronsTab(state)
 		local ownedPatrons = (state and state.ownedPatrons) or {}
 		local housePassIds = (state and state.housePassIds) or {}
 		clearTab(shopMyPatronsListFrame)
@@ -1626,13 +1628,27 @@ return function(deps)
 			local seats = math.max(math.floor(tonumber(state and state.patronSlotLimit) or #ownedPatrons), #ownedPatrons)
 			-- size the seats so five fit the free area right of Marlo with no scrolling (more than five scroll)
 			local zoneW = shopStage and shopStage.tabWidth() or 0
+			-- the REAL viewport of the list (minus the stage pad) caps the zone, so the canvas can never be wider
+			local realW = shopMyPatronsListFrame.AbsoluteSize.X - (shopStage and shopStage.tabPadLeft() or 0)
+			if realW > 0 and (zoneW <= 0 or realW < zoneW) then zoneW = realW end
 			if zoneW > 0 then
 				local cam = workspace.CurrentCamera
 				local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 				ShopCardsModule.setScale(require(Engine:WaitForChild("CardShape")).fitOwned(zoneW, math.min(seats, 5), vp.X, vp.Y))
 			end
-			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
+			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"), 10)
 			row.CanvasPosition = Vector2.new(0, 0)
+			row.ClipsDescendants = seats > 5
+			-- if the first build ran before layout, refit once when the real width is known and the canvas overflows
+			if seats <= 5 then
+				row:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+					local w = row.AbsoluteSize.X
+					if w > 0 and row.AbsoluteCanvasSize.X > w + 1 and lastPatronFitW ~= w then
+						lastPatronFitW = w
+						task.defer(function() rebuildMyPatronsTab(state) end)
+					end
+				end)
+			end
 			for seat = #ownedPatrons + 1, seats do
 				shopCards.seatSlot(row, seat, "owned")
 			end

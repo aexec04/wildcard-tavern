@@ -323,7 +323,7 @@ local function run(root, st)
 				placeRect(st, seat, rects[i], H.ringRow)
 				for _, c in ipairs(seat:GetChildren()) do
 					if c:IsA("UIStroke") then put(st, c, { Enabled = false }) end -- the painted ring is the ring
-					if c.Name == "InnerRing" then put(st, c, { Visible = false }) end
+					if c.Name == "InnerRing" or c.Name == "EmptyPulse" then put(st, c, { Visible = false }) end -- the painted ring is the ring
 				end
 			end
 		end

@@ -535,7 +535,7 @@ return function(deps)
 		patronsHeader.Text = "Patrons " .. patronsCountLabel.Text
 	end)
 
-	local SLOT, SLOT_GAP = 38, 12 -- 12 px between seats leaves 8 clear after the open-seat pulse ring (+3 px each side, 2 px stroke)
+	local SLOT, SLOT_GAP = 38, 14 -- 14 px between seats leaves 8 clear after the open-seat pulse ring (+1 px each side, 2 px stroke)
 	local patronsSlotRow = Instance.new("Frame")
 	patronsSlotRow.Name = "PatronsInset"
 	patronsSlotRow.Size = UDim2.new(1, 0, 0, SLOT + 12)
@@ -611,12 +611,12 @@ return function(deps)
 		pulse.Name = "EmptyPulse"
 		pulse.AnchorPoint = Vector2.new(0.5, 0.5)
 		pulse.Position = UDim2.fromScale(0.5, 0.5)
-		pulse.Size = UDim2.new(1, 6, 1, 6)
+		pulse.Size = UDim2.new(1, 2, 1, 2)
 		pulse.BackgroundTransparency = 1
 		pulse.Active = false
 		pulse.ZIndex = Z
 		pulse.Parent = slot
-		roundCorner(pulse, SLOT / 2 + 3)
+		roundCorner(pulse, SLOT / 2 + 1)
 		local pulseRing = Instance.new("UIStroke")
 		pulseRing.Color = Color3.fromRGB(222, 182, 104)
 		pulseRing.Thickness = 2

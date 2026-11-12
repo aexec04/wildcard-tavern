@@ -15750,10 +15750,10 @@ table.insert(tests, { name = "Sidebar seat rings keep 8 px clear of each other; 
 	local side = read("src/Client/Sidebar.lua")
 	if side then
 		local gap = tonumber(side:match("local SLOT, SLOT_GAP = %d+, (%d+)"))
-		expectTrue(gap ~= nil and gap >= 12, "SLOT_GAP is at least 12 so pulse rings keep 8 px apart (got " .. tostring(gap) .. ")")
+		expectTrue(gap ~= nil and gap >= 14, "SLOT_GAP is at least 14 so pulse rings keep 8 px apart (got " .. tostring(gap) .. ")")
 	end
 	for _, n in ipairs({ 5, 6, 7 }) do
-		local gap = n <= 5 and 12 or 3
+		local gap = n <= 5 and 14 or 3
 		local size = SeatFit.size(n, 208, gap, 38, 26)
 		expectTrue(SeatFit.rowWidth(n, size, gap) <= 208, n .. " seats still fit one row")
 	end
@@ -15762,7 +15762,15 @@ table.insert(tests, { name = "Sidebar seat rings keep 8 px clear of each other; 
 		local zone = SSL.tabZone(sz[1] - 300, sz[2], false, nil)
 		local s = CardShape.fitOwned(zone.w, 5, sz[1], sz[2])
 		local shape = CardShape.shape("owned", s)
-		expectTrue(CardShape.fitsRow(5, zone.w, shape, 16, 14), "five seats fit " .. sz[1] .. "x" .. sz[2] .. " (zone " .. zone.w .. ", card " .. shape.w .. ")")
+		expectTrue(CardShape.fitsRow(5, zone.w, shape, CardShape.OWNED_GAP, 14), "five seats fit " .. sz[1] .. "x" .. sz[2] .. " (zone " .. zone.w .. ", card " .. shape.w .. ")")
+	end
+	-- canvas never wider than the viewport: viewports measured in Studio (817 at 1506x751) and a 1067x600 one
+	for _, v in ipairs({ { 817, 1506, 751 }, { 560, 1067, 600 }, { 1100, 1920, 1080 } }) do
+		local s = CardShape.fitOwned(v[1], 5, v[2], v[3])
+		local w = CardShape.shape("owned", s).w
+		local canvas = 5 * w + 4 * CardShape.OWNED_GAP + 28
+		expectTrue(canvas <= v[1], "five seats canvas " .. canvas .. " fits viewport " .. v[1] .. " at " .. v[2] .. "x" .. v[3])
+		if v[1] >= 800 then expectTrue(w >= 140, "seat at least 140 px wide in " .. v[1] .. " (got " .. w .. ")") end
 	end
 end })
 
