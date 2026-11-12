@@ -305,6 +305,10 @@ return function(deps)
 		roundCorner = roundCorner,
 		isActionPending = function() return actionPending end,
 	})
+	local function bossPlateText(entry, bossName)
+		local room = '<font size="14">' .. ROOM_CONFIGS[ROUNDS_PER_NIGHT].roomName .. '</font>'
+		return bossName and (room .. "\n" .. bossName) or room
+	end
 	local NO_BUTTON_DROP = 96 -- Select (44) + gap (6) + Skip (40) + margins, see the button positions below
 	for round = 1, ROUNDS_PER_NIGHT do
 		local cfg = ROOM_CONFIGS[round]
@@ -472,9 +476,11 @@ return function(deps)
 		-- Boss name: large gold text, boss panel only (y=324).
 		local bossNameLabel = Instance.new("TextLabel")
 		bossNameLabel.Name = "BossNameLabel"
-		bossNameLabel.Size = UDim2.new(1, -16, 0, 26)
+		bossNameLabel.Size = UDim2.new(1, -16, 0, 46) -- one compact plate: room name (14) over boss name (18)
+		bossNameLabel.RichText = true
 		bossNameLabel.AnchorPoint = Vector2.new(0, 1)
 		bossNameLabel.Position = UDim2.new(0, 8, 1, -204)
+		if isBossPanel then roomLabel.Visible = false end -- its text lives on the boss plate
 		bossNameLabel.BackgroundTransparency = 1
 		bossNameLabel.Font = Enum.Font.GothamBold
 		bossNameLabel.TextSize = 18
@@ -878,17 +884,18 @@ return function(deps)
 				entry.tagLabel.Visible = false
 				if state.nightBossModifier then
 					entry.bossNameLabel.Visible = true
-					entry.bossNameLabel.Text = state.nightBossModifier.name
+					entry.bossNameLabel.Text = bossPlateText(entry, state.nightBossModifier.name)
 					entry.bossLabel.Text = state.nightBossModifier.description
 				elseif state.bossModifier then
 					-- Defensive fallback: we're somehow already ON the Boss
 					-- round (bossModifier set) but nightBossModifier wasn't
 					-- sent -- use the one we definitely have.
 					entry.bossNameLabel.Visible = true
-					entry.bossNameLabel.Text = state.bossModifier.name
+					entry.bossNameLabel.Text = bossPlateText(entry, state.bossModifier.name)
 					entry.bossLabel.Text = state.bossModifier.description
 				else
-					entry.bossNameLabel.Visible = false
+					entry.bossNameLabel.Visible = true
+					entry.bossNameLabel.Text = bossPlateText(entry, nil)
 					entry.bossLabel.Text = "Boss Rounds are off this run."
 				end
 				entry.bossNameLabel.TextTransparency = 0
@@ -951,7 +958,7 @@ return function(deps)
 			end
 			entry.goldTint.Visible = isPast
 			entry.medal.Visible = isPast
-			entry.panel.Size = UDim2.new(0, CARD_W, 0, 620 - drop)
+			entry.panel.Size = UDim2.new(0, CARD_W, 0, 620) -- all three cards share one height and bottom edge
 			for i, obj in ipairs(entry.shiftables) do
 				local p = obj.Position
 				obj.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, entry.shiftBase[i] + drop)
