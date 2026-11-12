@@ -75,6 +75,23 @@ local function nestedPanel(inst)
 	return false
 end
 
+-- AbsoluteSize includes every ancestor UIScale (a Round Select card's fit/breathe/hover scale), but offsets inside the
+-- element are scaled again on screen. Border geometry must use the unscaled local size or it is off whenever the scale is
+-- not 1 (the idle card), so divide the ancestor scales back out.
+local function localSize(inst)
+	local size = inst.AbsoluteSize
+	local k = 1
+	local node = inst.Parent
+	while node do
+		local us = node:FindFirstChildOfClass("UIScale")
+		if us and us.Scale > 0 then k = k * us.Scale end
+		node = node.Parent
+	end
+	local own = inst:FindFirstChildOfClass("UIScale")
+	if own and own.Scale > 0 then k = k * own.Scale end
+	return Vector2.new(size.X / k, size.Y / k)
+end
+
 local SLOT_KEY = { panel = "panel_frame", button = "button_plate", tab = "tab_plate" }
 
 -- Crop the plate to its measured art box and 9-slice it for the element's size (see Engine/SkinSlice). Panels get a band
@@ -86,7 +103,7 @@ local function fitArt(inst, kind, label, m)
 	label.ImageRectSize = Vector2.new(crop.w, crop.h)
 	label.ScaleType = Enum.ScaleType.Slice
 	local function apply()
-		local size = inst.AbsoluteSize
+		local size = localSize(inst)
 		local sl
 		if size.X > 0 and size.Y > 0 then
 			if kind == "panel" then
@@ -156,7 +173,7 @@ local function codeBorder(inst, accent)
 		end
 		holder.Parent = inst
 		local function layout()
-			local size = inst.AbsoluteSize
+			local size = localSize(inst)
 			if size.X <= 0 or size.Y <= 0 then return end
 			local l = PanelBorder.layout(size.X, size.Y)
 			innerLine.Position = UDim2.fromOffset(l.inner.x, l.inner.y)
@@ -211,7 +228,7 @@ local function style(inst, kind, skin)
 			-- slice-friendly art: fixed 6 percent edge on a 3:2 canvas (1536x1024), band-thick on screen
 			label.ScaleType = Enum.ScaleType.Slice
 			label.SliceCenter = Rect.new(92, 61, 1444, 963)
-			local function fit() label.SliceScale = PanelBorder.thickness(inst.AbsoluteSize.X, inst.AbsoluteSize.Y) / 61 end
+			local function fit() label.SliceScale = PanelBorder.thickness(localSize(inst).X, localSize(inst).Y) / 61 end
 			fit()
 			if not label:GetAttribute("BandHooked") then
 				label:SetAttribute("BandHooked", true)
