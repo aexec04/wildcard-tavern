@@ -17,6 +17,9 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("NewsBoardLayout"))
 local HudKit = require(Engine:WaitForChild("HudKit"))
 local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
+-- the painted notice board (Engine/NewsSceneLayout + the shared Client/PanelScene); nil keeps the plain cork board
+local okScene, SceneLayout = pcall(function() return require(Engine:WaitForChild("NewsSceneLayout")) end)
+if not okScene or type(SceneLayout) ~= "table" then SceneLayout = nil end
 
 local INK = Color3.fromRGB(60, 40, 22)
 local INK_SOFT = Color3.fromRGB(110, 78, 40) -- on the paper about 5.6:1
@@ -148,8 +151,9 @@ end
 
 -- One paper note pinned to the cork. The rect is the final (scaled) rect inside the notes area; the note is built at its natural
 -- size and scaled about its centre, tilted by its fixed per-event angle.
-local function buildNote(rect, entry, scale)
+local function buildNote(rect, entry, scale, painted)
 	local row = entry.row
+	local y0 = painted and 30 or 0 -- painted: the picture's own pin sits on the paper's top edge, keep the text clear of it
 	-- The root sits in the board's ScrollingFrame, where Roblox ignores Rotation on a direct child: it only places and scales the note.
 	-- The paper is its inner Tilt frame, and the tilt is on that.
 	local root = Instance.new("Frame")
@@ -166,34 +170,37 @@ local function buildNote(rect, entry, scale)
 	note.Size = UDim2.fromScale(1, 1)
 	note.Rotation = rect.tilt
 	note.BackgroundColor3 = entry.kind == "soon" and PAPER_SOON or PAPER
+	note.BackgroundTransparency = painted and 1 or 0 -- painted: the paper and its pin are in the picture
 	note.BorderSizePixel = 0
 	note.ZIndex = 32
 	note.Parent = root
-	ui.roundCorner(note, 4)
-	local edge = Instance.new("UIStroke")
-	edge.Color = Color3.fromRGB(150, 118, 72)
-	edge.Thickness = 1
-	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	edge.Parent = note
 	if scale ~= 1 then
 		local s = Instance.new("UIScale")
 		s.Scale = scale
 		s.Parent = root
 	end
-	local pin = Instance.new("Frame") -- the pin holds the note to the cork, on its top edge, clear of the text
-	pin.Name = "Pin"
-	pin.AnchorPoint = Vector2.new(0.5, 0.5)
-	pin.Position = UDim2.new(0.5, 0, 0, -3)
-	pin.Size = UDim2.fromOffset(11, 11)
-	pin.BackgroundColor3 = BRASS
-	pin.BorderSizePixel = 0
-	pin.Active = false
-	pin.ZIndex = 36
-	pin.Parent = note
-	ui.roundCorner(pin, 6)
+	if not painted then
+		ui.roundCorner(note, 4)
+		local edge = Instance.new("UIStroke")
+		edge.Color = Color3.fromRGB(150, 118, 72)
+		edge.Thickness = 1
+		edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		edge.Parent = note
+		local pin = Instance.new("Frame") -- the pin holds the note to the cork, on its top edge, clear of the text
+		pin.Name = "Pin"
+		pin.AnchorPoint = Vector2.new(0.5, 0.5)
+		pin.Position = UDim2.new(0.5, 0, 0, -3)
+		pin.Size = UDim2.fromOffset(11, 11)
+		pin.BackgroundColor3 = BRASS
+		pin.BorderSizePixel = 0
+		pin.Active = false
+		pin.ZIndex = 36
+		pin.Parent = note
+		ui.roundCorner(pin, 6)
+	end
 
 	if entry.kind == "empty" then
-		label(note, { Name = "Text", Size = UDim2.new(1, -24, 1, -16), Position = UDim2.fromOffset(12, 8), Text = row.text, TextSize = 17, TextWrapped = true })
+		label(note, { Name = "Text", Size = UDim2.new(1, -24, 1, -16 - y0), Position = UDim2.fromOffset(12, 8 + y0), Text = row.text, TextSize = 17, TextWrapped = true })
 		return note
 	end
 
@@ -213,15 +220,16 @@ local function buildNote(rect, entry, scale)
 		textX = 44
 	end
 	label(note, {
-		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 42), Position = UDim2.fromOffset(textX, 8), Text = row.name, TextSize = 17,
+		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 42), Position = UDim2.fromOffset(textX, 8 + y0), Text = row.name, TextSize = 17,
 		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
 	})
 	label(note, {
-		Name = "Time", Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 52), Text = NewsPanel.noteTime(row), TextSize = 14,
+		Name = "Time", Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 52 + y0), Text = NewsPanel.noteTime(row), TextSize = 14,
 		Font = Enum.Font.GothamMedium, TextColor3 = INK_SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
+	local claimRow = (entry.kind == "active" and entry.claim) and 46 or 12
 	label(note, {
-		Name = "Blurb", Size = UDim2.new(1, -24, 0, 50), Position = UDim2.fromOffset(12, 74), Text = row.blurb or "", TextSize = 14,
+		Name = "Blurb", Size = UDim2.new(1, -24, 0, painted and math.max(50, rect.h / scale - (74 + y0) - claimRow) or 50), Position = UDim2.fromOffset(12, 74 + y0), Text = row.blurb or "", TextSize = 14,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
@@ -255,6 +263,80 @@ local function buildNote(rect, entry, scale)
 	return note
 end
 
+-- Painted notice board on/off: the plain cork dressing (fill, grain, wood edge, nameplate and strip fills, Close button look) goes away
+-- when the picture is the board, and comes back for small screens, a missing Image id and more events than painted notes.
+function NewsPanel.setPainted(on)
+	if not ui or ui.painted == on then return end
+	ui.painted = on
+	ui.panel.BackgroundTransparency = on and 1 or 0
+	ui.shade.Enabled = not on
+	ui.woodEdge.Enabled = not on
+	ui.speck.Parent = (not on) and ui.panel or nil
+	ui.inner.Visible = not on
+	for _, f in ipairs({ ui.heading, ui.strip }) do
+		f.BackgroundTransparency = on and 1 or 0
+	end
+	ui.headEdge.Enabled = not on
+	ui.stripEdge.Enabled = not on
+	ui.close.BackgroundTransparency = on and 1 or 0
+	for _, ch in ipairs(ui.close:GetChildren()) do -- the polish gloss, stroke and gradient of the button (the garbled little icon)
+		if ch.ClassName == "UIStroke" or ch.ClassName == "UIGradient" then
+			ch.Enabled = not on
+		elseif ch.ClassName == "Frame" or ch.ClassName == "ImageLabel" or ch.ClassName == "TextLabel" then
+			ch.Visible = not on
+		end
+	end
+	ui.close.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
+	ui.close.TextStrokeTransparency = on and 0.35 or 1
+	ui.close.TextTransparency = 0
+	local ink = on and SceneLayout.COLORS.ink or { 250, 235, 200 }
+	ui.headingLabel.TextColor3 = Color3.fromRGB(ink[1], ink[2], ink[3])
+	ui.stripLabel.TextColor3 = Color3.fromRGB(ink[1], ink[2], ink[3])
+	ui.headingLabel.TextSize = on and 30 or 24
+	ui.stripLabel.TextWrapped = on
+	ui.stripLabel.TextTruncate = on and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd
+	if not on and ui.scene then ui.scene.hide() end
+end
+
+-- Lays the board out as the painted notice board; false when it cannot (plain board then)
+function NewsPanel.refreshPainted(entries, W, H)
+	if not (SceneLayout and ui.scene and ui.scene.id and SceneLayout.canShow(#entries)) then
+		return false
+	end
+	local rect = SceneLayout.panel(W, H)
+	local p = SceneLayout.place(rect.w)
+	if not p then
+		return false
+	end
+	NewsPanel.setPainted(true)
+	ui.panel.Size = UDim2.fromOffset(rect.w, rect.h)
+	ui.scene.show({ x = 0, y = 0, w = rect.w, h = rect.h }, p)
+	place(ui.heading, p.banner)
+	place(ui.strip, p.strip)
+	place(ui.close, p.close)
+	place(ui.list, { x = 0, y = 0, w = rect.w, h = rect.h })
+	ui.list.CanvasSize = UDim2.fromOffset(0, 0)
+	ui.list.ScrollingEnabled = false
+	ui.list.ScrollBarThickness = 0
+	ui.list.CanvasPosition = Vector2.new(0, 0)
+	for i, entry in ipairs(entries) do
+		local slot = p.notes[i]
+		buildNote({ x = slot.x, y = slot.y, w = slot.w, h = slot.h, tilt = 0 }, entry, 1, true)
+	end
+	if entries[1].kind ~= "empty" then -- the blank papers left over say so, in the same ink
+		for i = #entries + 1, #p.notes do
+			local slot = p.notes[i]
+			label(ui.list, { Name = "Soon_" .. i, Position = UDim2.fromOffset(slot.x + 12, slot.y + 30), Size = UDim2.fromOffset(slot.w - 24, 40),
+				Text = "More news soon", TextSize = 16, TextWrapped = true, TextColor3 = INK_SOFT, Font = Enum.Font.GothamMedium })
+		end
+	end
+	if game:GetService("RunService"):IsStudio() and ui.lastLog ~= #entries .. "x" .. rect.w then
+		ui.lastLog = #entries .. "x" .. rect.w
+		print(string.format("[NewsRoom] painted board=%dx%d notes=%d of %d slots, banner %dx%d, close %dx%d", rect.w, rect.h, #entries, #p.notes, p.banner.w, p.banner.h, p.close.w, p.close.h))
+	end
+	return true
+end
+
 function NewsPanel.refresh()
 	if not ui or not lastNews then
 		return
@@ -275,6 +357,10 @@ function NewsPanel.refresh()
 		entries[1] = { id = "empty", kind = "empty", claim = false, row = { text = "Nothing is on right now. Check back soon!" } }
 	end
 	local W, H = screenSize()
+	if NewsPanel.refreshPainted(entries, W, H) then
+		return
+	end
+	NewsPanel.setPainted(false)
 	local board = Layout.board(W, H)
 	local areas = Layout.areas(board)
 	ui.panel.Size = UDim2.fromOffset(board.w, board.h)
@@ -406,7 +492,7 @@ function NewsPanel.init(deps)
 	headEdge.Thickness = 2
 	headEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	headEdge.Parent = heading
-	label(heading, { Size = UDim2.fromScale(1, 1), Text = "Tavern News", TextSize = 24, TextColor3 = CREAM, ZIndex = 34 })
+	local headingLabel = label(heading, { Size = UDim2.fromScale(1, 1), Text = "Tavern News", TextSize = 24, TextColor3 = CREAM, ZIndex = 34 })
 
 	-- the subtitle on a strip of paper
 	local strip = Instance.new("Frame")
@@ -421,7 +507,7 @@ function NewsPanel.init(deps)
 	stripEdge.Thickness = 1
 	stripEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stripEdge.Parent = strip
-	label(strip, {
+	local stripLabel = label(strip, {
 		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0), Text = "Events never change the Daily, Weekly or Seed boards.",
 		TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 34,
 	})
@@ -446,8 +532,20 @@ function NewsPanel.init(deps)
 	close.Parent = panel
 	deps.polishButton(close, 10)
 
+	-- the painted notice board under the notes (nothing when the module or the Image id is missing: the cork board above stays)
+	local scene
+	if SceneLayout then
+		local okPS, PanelScene = pcall(function() return require(script.Parent.PanelScene) end)
+		if okPS and type(PanelScene) == "table" then
+			local okNew, made = pcall(PanelScene.new, panel, { artKey = SceneLayout.ART_KEY, def = SceneLayout.DEF, z = 31 })
+			if okNew then scene = made end
+		end
+	end
+
 	ui = {
 		backdrop = backdrop, panel = panel, heading = heading, strip = strip, list = list, close = close, screenGui = deps.screenGui,
+		scene = scene, shade = shade, woodEdge = woodEdge, speck = speck, inner = inner, headEdge = headEdge, stripEdge = stripEdge,
+		headingLabel = headingLabel, stripLabel = stripLabel,
 		roundCorner = deps.roundCorner, polishButton = deps.polishButton, playClickSfx = deps.playClickSfx, popIn = deps.popIn,
 		popOut = deps.popOut, claimRemote = deps.claimRemote,
 	}

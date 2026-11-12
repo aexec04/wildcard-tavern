@@ -12,6 +12,7 @@ return {
 	["flair_room_b"] = "rbxassetid://131269527164236",
 	["legend_room_a"] = "rbxassetid://102375139420542",
 	["legend_room_b"] = "rbxassetid://99193291042227",
+	["news_room_a"] = "rbxassetid://109031658568506",
 	["stats_room_a"] = "rbxassetid://133925378156495",
 	["stats_room_b"] = "rbxassetid://72193082671151",
 }

@@ -20256,4 +20256,83 @@ tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio a
 	expectTrue(not SA.shouldMute(false, true), "live servers are never muted, attribute or not")
 end })
 
+tests[#tests + 1] = ({ name = "NewsSceneLayout: painted notice board slots fit the square board at 1920x957, 1920x1080 and 1280x720, none overlap; tiny screens and more than 3 events use the plain board", fn = function()
+	local L = require(script.Parent.Parent.Engine.NewsSceneLayout)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	expectEqual(L.MAX_SLOTS, 5, "the layout allows up to five event slots")
+	for _, vp in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 } }) do
+		local r = L.panel(vp[1], vp[2])
+		expectTrue(r.w == r.h and r.x >= 0 and r.y >= 0 and r.x + r.w <= vp[1] and r.y + r.h <= vp[2], "square board on screen at " .. vp[1] .. "x" .. vp[2])
+		local p = L.place(r.w)
+		expectTrue(p ~= nil, "painted board fits at " .. vp[1] .. "x" .. vp[2])
+		expectEqual(#p.notes, 3, "three pinned notes")
+		local all = { p.banner, p.strip, p.close }
+		for _, n in ipairs(p.notes) do all[#all + 1] = n end
+		local area = { x = 0, y = 0, w = r.w, h = r.h }
+		for i, s in ipairs(all) do
+			expectTrue(inside(s, area), "slot " .. i .. " inside the board")
+			for j = i + 1, #all do expectFalse(hit(s, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(p.notes[1].w >= 140 and p.notes[1].h >= 190, "a note is big enough for 14 px text")
+	end
+	expectTrue(L.place(L.panel(800, 450).w) == nil, "a tiny window keeps the plain board")
+	expectTrue(L.canShow(1) and L.canShow(3) and not L.canShow(4) and not L.canShow(0), "up to three events use the painted notes")
+end })
+
+tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids): events sit in the three slots without paper or pin of their own, Close is a plain plaque, four events use the cork board", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/NewsPanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local SL = require(Engine.NewsSceneLayout)
+	local stubs = {}
+	local env, st = FakeGui.env({ stubs = stubs })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({ NewsBoardLayout = require(Engine.NewsBoardLayout), HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt), NewsSceneLayout = SL })
+		end }
+	end }
+	local shown = {}
+	stubs.ArtIcon = { apply = function() end }
+	stubs.HudTheme = { setId = function() return nil end }
+	stubs.MenuTitleHider = { bind = function() end }
+	stubs.PopupDismiss = { attach = function() end }
+	stubs.PanelScene = { new = function() return { id = "rbxassetid://1", show = function(area, p) shown[#shown + 1] = p end, hide = function() shown[#shown + 1] = false end } end }
+	local registered
+	local NewsPanel = FakeGui.load("src/Client/NewsPanel.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	gui.AbsoluteSize = { X = 1920, Y = 957 }
+	NewsPanel.init({ screenGui = gui, roundCorner = function() end, polishButton = function() end, playClickSfx = function() end,
+		popIn = function() end, popOut = function() end, claimRemote = { FireServer = function() end } })
+	local function ev(id, n) return { id = id, name = "Event " .. id, icon = "x", blurb = "Blurb " .. id, rewards = {}, hasRewards = false, daysLeft = n } end
+	NewsPanel.update({ news = { active = { ev("a", 3), ev("b", 2) }, upcoming = { { id = "c", name = "Event c", icon = "x", blurb = "Soon", startsIn = 2 } } } })
+	NewsPanel.open()
+	local panel
+	for _, kid in ipairs(gui:GetChildren()) do if kid.Name == "NewsBackdrop" then panel = kid:FindFirstChild("Panel") end end
+	expectTrue(panel ~= nil, "board exists")
+	local r = SL.panel(1920, 957)
+	expectEqual(panel.Size.X.Offset, r.w, "the board is the square the picture needs")
+	expectTrue(type(shown[#shown]) == "table", "the painted scene is shown")
+	local list = panel:FindFirstChild("List")
+	local notes = {}
+	for _, kid in ipairs(list:GetChildren()) do if kid.Name:sub(1, 5) == "Note_" then notes[#notes + 1] = kid end end
+	expectEqual(#notes, 3, "one note per event in the three painted slots")
+	for _, n in ipairs(notes) do
+		local paper = n:FindFirstChild("Tilt")
+		expectEqual(paper.Rotation, 0, n.Name .. " hangs straight on its painted paper")
+		expectEqual(paper.BackgroundTransparency, 1, n.Name .. " draws no paper of its own")
+		expectTrue(paper:FindFirstChild("Pin") == nil, n.Name .. " uses the pin in the picture")
+	end
+	local close = panel:FindFirstChild("Close")
+	expectEqual(close.BackgroundTransparency, 1, "Close is a plain label on the painted plaque")
+	expectEqual(close.Text, "Close")
+	-- four events do not fit the painted papers: the plain cork board comes back
+	NewsPanel.update({ news = { active = { ev("a", 3), ev("b", 2), ev("d", 1), ev("e", 1) }, upcoming = {} } })
+	NewsPanel.open()
+	expectEqual(shown[#shown], false, "the picture is hidden for four events")
+	expectEqual(close.BackgroundTransparency, 0, "Close is a button again on the cork board")
+end })
+
 return tests
