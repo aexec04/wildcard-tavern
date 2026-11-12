@@ -1395,6 +1395,7 @@ function RunState.openPack(state, packId, rng)
 		category = pack.category,
 		pickCount = math.min(pack.pickCount, #items),
 		items = items,
+		paidPrice = price, -- what was actually paid after discounts: Skip Pack gives half of it back (Packs.skipRefund)
 	}
 	return state.pendingPack
 end
@@ -1403,8 +1404,8 @@ end
 	Resolves the currently open pack (state.pendingPack). `chosenIds` is a
 	list of item ids from the reveal -- either exactly `pickCount` of them
 	(to keep those), or an empty list to skip the pack entirely (you keep
-	nothing, but you don't get your Tips back either -- same as the
-	reference game). Returns true/false, message.
+	nothing, and you get about half of what you paid back: Packs.skipRefund of
+	state.pendingPack.paidPrice, never more than the price paid). Returns true/false, message[, Tips back].
 
 	Granting a chosen Patron silently no-ops (instead of failing the whole
 	resolve) if the table's already full by the time you confirm -- you
@@ -1556,6 +1557,12 @@ function RunState.resolvePack(state, chosenIds, replaceIds)
 	end
 
 	state.pendingPack = nil
+	if #chosenIds == 0 then
+		-- Skip Pack: half the price actually paid comes back (the amount is read from the server's own record, never from the client)
+		local refund = math.min(Packs.skipRefund(pending.paidPrice), math.floor(tonumber(pending.paidPrice) or 0))
+		state.tips = state.tips + refund
+		return true, string.format("Pack skipped, %d Tips back.", refund), refund
+	end
 	return true, "Picked!", sold
 end
 

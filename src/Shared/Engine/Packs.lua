@@ -127,6 +127,14 @@ Packs.Definitions = {
 	},
 }
 
+-- Skipping a pack you bought gives about half of what you paid back (after discounts): half rounded down, at least 1 when you paid 2 or more,
+-- nothing for a free pack. Server side only (RunState.resolvePack); the client only shows the number on the Skip Pack button.
+function Packs.skipRefund(paidPrice)
+	local paid = math.floor(tonumber(paidPrice) or 0)
+	if paid < 2 then return 0 end
+	return math.max(1, math.floor(paid / 2))
+end
+
 function Packs.getById(id)
 	for _, pack in ipairs(Packs.Definitions) do
 		if pack.id == id then

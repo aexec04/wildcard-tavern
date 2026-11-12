@@ -21419,4 +21419,74 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	end
 end })
 
+table.insert(tests, { name = "Skip Pack: half the price paid comes back (min 1 from 2 Tips, 0 for a free pack), never more than paid, once, server side", fn = function()
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	expectEqual(Packs.skipRefund(0), 0, "a free pack gives nothing back")
+	expectEqual(Packs.skipRefund(1), 0, "1 Tip: nothing")
+	expectEqual(Packs.skipRefund(2), 1, "2 Tips: 1 back")
+	expectEqual(Packs.skipRefund(3), 1, "3 Tips: half rounded down is 1")
+	expectEqual(Packs.skipRefund(5), 2, "5 Tips: 2 back")
+	expectEqual(Packs.skipRefund(12), 6, "a Mega pack at 12: 6 back")
+	expectEqual(Packs.skipRefund(nil), 0, "no record, no refund")
+	for paid = 0, 40 do expectTrue(Packs.skipRefund(paid) <= paid, "the refund never exceeds the price paid at " .. paid) end
+	-- the real engine
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 100
+	local reveal = RunState.openPack(state, "buffoon_pack", function(n) return n end)
+	expectEqual(reveal.paidPrice, Packs.getById("buffoon_pack").price, "the price actually paid is stored on the open pack")
+	local afterBuy = state.tips
+	local ok, msg, refund = RunState.resolvePack(state, {})
+	expectTrue(ok, "skipping resolves")
+	expectEqual(refund, 3, "6 Tips paid, 3 back")
+	expectEqual(state.tips, afterBuy + 3, "the Tips landed")
+	expectEqual(msg, "Pack skipped, 3 Tips back.", "and the message says so")
+	expectTrue(state.pendingPack == nil, "the pack is closed")
+	local ok2 = RunState.resolvePack(state, {})
+	expectFalse(ok2, "skipping twice is impossible: there is no open pack")
+	expectEqual(state.tips, afterBuy + 3, "so no second refund")
+	-- Mega pack
+	local mega = RunState.new(nil, function(n) return n end)
+	mega.tips = 100
+	RunState.openPack(mega, "buffoon_pack_mega", function(n) return n end)
+	local before = mega.tips
+	local _, _, r2 = RunState.resolvePack(mega, {})
+	expectEqual(r2, 6, "a Mega pack at 12 gives 6 back")
+	expectEqual(mega.tips, before + 6)
+	-- a discounted pack refunds half of what was ACTUALLY paid
+	local disc = RunState.new(nil, function(n) return n end)
+	disc.tips = 100
+	disc.nextShopDiscount = 2
+	local expectedPaid = RunState.packPrice(disc, Packs.getById("buffoon_pack"))
+	RunState.openPack(disc, "buffoon_pack", function(n) return n end)
+	expectEqual(disc.pendingPack.paidPrice, expectedPaid, "the discounted price is the one stored")
+	local tipsBefore = disc.tips
+	local _, _, r3 = RunState.resolvePack(disc, {})
+	expectEqual(r3, Packs.skipRefund(expectedPaid), "half of the discounted price")
+	expectEqual(disc.tips, tipsBefore + r3)
+	expectTrue(r3 < Packs.skipRefund(Packs.getById("buffoon_pack").price) or expectedPaid == Packs.getById("buffoon_pack").price, "a discount lowers the refund with the price")
+	-- a free pack (price floored at 1 Tip by the engine, so force the stored price) gives nothing
+	local free = RunState.new(nil, function(n) return n end)
+	free.tips = 100
+	RunState.openPack(free, "house_pack", function(n) return n end)
+	free.pendingPack.paidPrice = 0
+	local t0 = free.tips
+	local _, m0, r0 = RunState.resolvePack(free, {})
+	expectEqual(r0, 0, "a free pack refunds 0")
+	expectEqual(free.tips, t0, "no Tips appear")
+	expectEqual(m0, "Pack skipped, 0 Tips back.", "the message is still honest")
+	-- the client can only send ids, never an amount: the remote takes (chosenIds, replaceIds) and nothing else changes the refund
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("Rem.ResolvePack.OnServerEvent:Connect(function(player, chosenIds, replaceIds)", 1, true) ~= nil, "no amount parameter on the remote")
+	end
+	local g = io and io.open and io.open("src/Client/Shop.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find('"Skip Pack (+%d Tips)"', 1, true) ~= nil and text:find("%d Tips back", 1, true) ~= nil, "the button shows the refund and a toast says N Tips back")
+	end
+end })
+
 return tests

@@ -733,7 +733,8 @@ return function(deps)
 			return b
 		end
 		packConfirmButton = packPlate("PackConfirm", "Confirm", -82, Color3.fromRGB(110, 72, 34))
-		packSkipButton = packPlate("PackSkip", "Skip Pack", 82, Color3.fromRGB(70, 52, 40))
+		packSkipButton = packPlate("PackSkip", "Skip Pack", 102, Color3.fromRGB(70, 52, 40))
+		packSkipButton.Size = UDim2.fromOffset(200, 40) -- room for "Skip Pack (+12 Tips)"
 		packMakeRoom = require(script.Parent.PackMakeRoom).new({ parent = shopPackPanel, z = PANEL_ZINDEX + 12, playClick = playClickSfx })
 	end -- do (Shop overlay)
 
@@ -1101,6 +1102,9 @@ return function(deps)
 		packPanelTitleLabel.Text = string.format("Pick %d of %d", pending.pickCount, #pending.items)
 		packPanelHintLabel.Text = string.format("Click an item to pick it (%d/%d), or Skip Pack.", count, pending.pickCount)
 		packConfirmButton.BackgroundColor3 = (count == pending.pickCount) and Color3.fromRGB(90, 60, 30) or Color3.fromRGB(70, 60, 55)
+		-- Skip Pack gives about half of what was paid back (Engine/Packs.skipRefund, applied by the server): the button says how much
+		local refund = require(Engine:WaitForChild("Packs")).skipRefund(pending.paidPrice)
+		packSkipButton.Text = refund > 0 and string.format("Skip Pack (+%d Tips)", refund) or "Skip Pack"
 	end
 
 	packConfirmButton.MouseButton1Click:Connect(function()
@@ -1147,8 +1151,15 @@ return function(deps)
 	packSkipButton.MouseButton1Click:Connect(function()
 		if not tutorialAllows("packSkip") then return end -- never allowed in the tutorial
 		playClickSfx(0.4)
+		local pendingNow = getLatestState() and getLatestState().pendingPack
+		local refund = pendingNow and require(Engine:WaitForChild("Packs")).skipRefund(pendingNow.paidPrice) or 0
 		ResolvePackRemote:FireServer({})
 		pendingPackSelected = {}
+		if refund > 0 then
+			-- the server pays it; this is only the words and the coin sound
+			pcall(function() require(script.Parent.Cue).play("coin", 1.2) end)
+			pcall(function() require(script.Parent.CornerToast).show({ id = "packRefund" .. tostring(os.clock()), text = string.format("%d Tips back", refund) }) end)
+		end
 	end)
 
 	-- (The old text rows for offers were replaced by the art cards in Client/ShopCards.lua.)
