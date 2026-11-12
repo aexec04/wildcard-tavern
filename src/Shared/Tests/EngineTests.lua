@@ -12460,8 +12460,15 @@ table.insert(tests, { name = "Blessing chip: view carries both lines, layout nev
 		expectEqual(TP.plan(screen).anchor, "top", screen .. " toast sits under the title")
 		expectTrue(TP.plan(screen).y >= TP.TITLE_BLOCK, screen .. " toast below the title block")
 	end
-	expectEqual(TP.plan("table").anchor, "bottom")
-	expectTrue(TP.plan("table").y <= -TP.TRAY_CLEARANCE, "table toast above the hand tray")
+	local tp = TP.plan("table")
+	expectTrue(tp.centred and tp.width == 360 and tp.seconds == 2 and tp.yScale > 0.3 and tp.yScale < 0.4, "table toast: small, centred on the felt, 2 s")
+	for _, sz in ipairs({ { 1920, 1080, 252, 800 }, { 1280, 720, 252, 520 }, { 900, 600, 252, 420 } }) do
+		local x, y, w, h = TP.tableRect(sz[1], sz[2], sz[3], sz[4])
+		expectTrue(w <= 360 and x >= sz[3] and x + w <= sz[1], "table toast inside the area right of the sidebar at " .. sz[1])
+		expectTrue(y + h <= sz[4], "table toast ends above the hand row at " .. sz[1])
+	end
+	local _, y1080 = TP.tableRect(1920, 1080, 252, 800)
+	expectEqual(y1080, 378)
 	expectEqual(TP.screenOf({ phase = "shop" }), "shop")
 	expectEqual(TP.screenOf({ phase = "play", choice = {} }), "choice")
 	expectEqual(TP.screenOf({ phase = "play" }), "table")
@@ -19524,7 +19531,11 @@ table.insert(tests, { name = "PlayMotion: parallax is capped and opposite the cu
 	expectTrue(d1 == 0 and math.abs(d8 - 0.28) < 1e-9 and t1 >= 0.25 and t8 <= 0.35, "0.04 s stagger, 0.25 to 0.35 s each")
 	expectTrue(select(1, PM.slideTarget("discard", 10, 10, 50, 50, 90, 70)) == 80, "discards head for the deck")
 	expectTrue(PM.lightFor("festival_night").color[3] > PM.lightFor("classic_tavern").color[3], "cool sets lean blue, Classic warm")
-	expectTrue(PM.lightFor("classic_tavern").poolTransparency >= 0.8, "low contrast")
+	local pt = PM.lightFor("classic_tavern").poolTransparency
+	expectTrue(1 - pt >= 0.25 and 1 - pt <= 0.4, "pool lightens the felt visibly (12 to 18 percent)")
+	expectTrue(PM.FELT.grainOpacity >= 0.08 and PM.FELT.grainOpacity <= 0.12, "grain 8 to 12 percent")
+	local cg = PM.cornerGlows(100, 50, 800, 400)
+	expectTrue(#cg == 4 and cg[1][1] == 100 and cg[4][1] == 900 and cg[4][2] == 450 and cg[1][3] == 440, "four corner glows centred on the felt corners")
 	local x, y, w, h = PM.poolRect(1920, 1080, 800, 180)
 	expectTrue(x >= 0 and x + w <= 1920 and h > 0 and y + h > 800, "pool sits over the hand inside the screen")
 end })

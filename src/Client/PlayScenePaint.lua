@@ -38,6 +38,7 @@ function PlayScenePaint.install(deps)
 	image.Parent = root
 
 	local loaded, painted = false, false
+	local shade = require(script.Parent.PlayFeltShade).install(root, art) -- corner darkening and felt grain, over the felt rect only
 	local platesId = art.play_plates_b
 	local PlayPlates = require(script.Parent.PlayPlates)
 	local function plates(p)
@@ -112,6 +113,7 @@ function PlayScenePaint.install(deps)
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
 			image.Visible = handFrame.Visible
+			shade.apply(handFrame.Visible and p.map.felt or nil)
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)
@@ -129,6 +131,7 @@ function PlayScenePaint.install(deps)
 			painted = false
 			vignette(false)
 			image.Visible = false
+			shade.apply(nil)
 			PlayRailLip.apply(lip, nil)
 			PlayRail.apply(rail, nil)
 			handFrame:SetAttribute("PaintedRail", nil)
@@ -145,7 +148,7 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible; setLip(lipShown()) end
+		if painted then image.Visible = handFrame.Visible; shade.frame.Visible = handFrame.Visible; setLip(lipShown()) end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)

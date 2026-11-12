@@ -72,6 +72,7 @@ return function(deps)
 	messageLabel.BackgroundTransparency = 1
 	messageLabel.Font = Enum.Font.Gotham
 	messageLabel.TextSize = 16
+	messageLabel.TextWrapped = true
 	messageLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 	messageLabel.TextTransparency = 1
 	messageLabel.Text = ""
@@ -91,20 +92,28 @@ return function(deps)
 		messageBar:SetAttribute("MessageToken", myToken)
 
 		messageBar.Visible = true
-		-- Never over a title: Round Select, Choice and Shop sit under the title block, table screens sit above the
-		-- hand tray (Engine/ToastPlacement.lua; render() sets the ToastScreen attribute).
+		-- Never over a title: Round Select, Choice and Shop sit under the title block. Table screens: a small toast on the felt
+		-- above the hand (Engine/ToastPlacement.lua; render() sets the ToastScreen attribute), never across the cards.
 		local place = ToastPlacement.plan(root:GetAttribute("ToastScreen") or (root:GetAttribute("BannerAtBottom") and "roundSelect") or "table")
-		messageBar.AnchorPoint = Vector2.new(0, place.anchor == "bottom" and 1 or 0)
+		messageBar.AnchorPoint = Vector2.new(0, 0)
 		local function pos(y)
 			local drift = y - RESTING_Y
-			if place.anchor == "bottom" then return UDim2.new(0, SIDEBAR_WIDTH + 20, 1, place.y - drift) end
+			if place.centred then
+				local size = root.AbsoluteSize
+				local hand = root:FindFirstChild("HandFrame")
+				local handTop = hand and hand.Visible and (hand.AbsolutePosition.Y - root.AbsolutePosition.Y) or nil
+				local x, ty, w, h = ToastPlacement.tableRect(size.X, size.Y, SIDEBAR_WIDTH, handTop)
+				messageBar.Size = UDim2.fromOffset(w, h)
+				return UDim2.fromOffset(x, ty + drift)
+			end
+			messageBar.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 34)
 			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, place.y + drift)
 		end
 		messageBar.Position = pos(START_Y)
 		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = pos(RESTING_Y) }, 0.18)
 		tweenTo(messageLabel, { TextTransparency = 0 }, 0.18)
 
-		task.delay(3, function()
+		task.delay(place.seconds or ToastPlacement.SECONDS, function()
 			if messageBar:GetAttribute("MessageToken") ~= myToken then
 				return -- a newer warning has already replaced this one
 			end

@@ -52,15 +52,24 @@ end
 PlayMotion.COOL_SETS = { festival_night = true, winter_evening = true }
 function PlayMotion.lightFor(setId)
 	if PlayMotion.COOL_SETS[setId] then
-		return { color = { 150, 190, 235 }, poolTransparency = 0.84, edgeTransparency = 0.72 }
+		return { color = { 150, 190, 235 }, poolTransparency = 0.70, edgeTransparency = 0.72 }
 	end
-	return { color = { 255, 206, 140 }, poolTransparency = 0.82, edgeTransparency = 0.72 }
+	return { color = { 255, 206, 140 }, poolTransparency = 0.68, edgeTransparency = 0.72 }
+end
+
+-- felt shading: the pool lightens the felt over the hand by about 12 to 18 percent, four dark corner glows take about 10 percent
+-- off the far corners, and a seamless grain texture lies over the felt rect at 8 to 12 percent. All of it is still (calm mode too).
+PlayMotion.FELT = { cornerPeak = 0.30, cornerSize = 0.55, grainOpacity = 0.10, grainTile = 256 }
+-- corner glows for a felt rect (x, y, w, h): { { centreX, centreY, size }, ... } centred on the four corners
+function PlayMotion.cornerGlows(x, y, w, h)
+	local size = math.floor(math.max(w, h) * PlayMotion.FELT.cornerSize)
+	return { { x, y, size }, { x + w, y, size }, { x, y + h, size }, { x + w, y + h, size } }
 end
 
 -- pool rect over the hand: a wide ellipse centred on the felt at the hand row
 function PlayMotion.poolRect(screenW, screenH, handY, handH)
-	local w = math.floor(screenW * 0.6)
-	local h = math.floor(math.max(handH * 2.2, screenH * 0.3))
+	local w = math.floor(screenW * 0.7)
+	local h = math.floor(math.max(handH * 2.6, screenH * 0.42))
 	return math.floor(screenW / 2 - w / 2), math.floor(handY + handH / 2 - h / 2), w, h
 end
 
