@@ -21,7 +21,7 @@ M.MIN_WIDTH = 900
 M.SHADOW = 40
 M.HAND_LEFT_COLLAPSED = 60
 -- the root children that make up the left HUD (a missing one is skipped)
-M.NAMES = { "SidebarBoard", "Sidebar", "EdgeShadow", "PlayBoardPaint", "PlayBoardFiller", "BlessingChip" }
+M.NAMES = { "SidebarBoard", "Sidebar", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip" }
 
 function M.enabled(screenW)
 	return (screenW or 0) >= M.MIN_WIDTH

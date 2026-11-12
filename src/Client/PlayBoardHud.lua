@@ -29,7 +29,6 @@ local INSET = 8 -- text keeps 8 px off a slot's edge
 local RULE_INSET = 12 -- the round rule box keeps 12 px each side
 local TILE_INSET = 10 -- Hands and Discards keep 10 px
 local PLATE = Color3.fromRGB(226, 202, 156)
-local EDGE = Color3.fromRGB(96, 66, 38)
 local THEME_PIECES = { HudKitPlate = true, HudKitPad = true, HudHeaderPlate = true, HudDepth = true, InnerHighlight = true, HudKitFrame = true }
 -- the Card Set kit pieces (HudKitPlate, HudKitPad, HudKitFrame ...) are all theme paint over a row; HudKitIcon is a picture a row keeps
 local function isThemePiece(name)
@@ -136,35 +135,30 @@ local function flatRow(st, row)
 	end
 end
 
--- the run badge (Daily, Weekly, Seed): a small dark wood plate with a brass edge and a cream label. The Sidebar recolours the badge's own
--- BackgroundColor3 on every update, so the wood is a separate fill frame behind the label and the badge itself is see-through.
-local function woodPlateStyle(st, row)
+-- the Run row ("Seed: ABC"): dark ink on the board's parchment with a thin brass underline, no box of its own
+local function inkLineStyle(st, row)
 	put(st, row, { BackgroundTransparency = 1 })
-	if not row:FindFirstChild("BoardWoodFill") then
-		local fill = Instance.new("Frame")
-		fill.Name = "BoardWoodFill"
-		fill.BackgroundColor3 = Color3.fromRGB(58, 38, 22)
-		fill.BorderSizePixel = 0
-		fill.Active = false
-		fill.Size = UDim2.fromScale(1, 1)
-		fill.ZIndex = math.max(1, row.ZIndex - 1)
-		fill.Parent = row
-		table.insert(st.made, fill)
-		local k = Instance.new("UICorner")
-		k.CornerRadius = UDim.new(0, 8)
-		k.Parent = fill
-		local e = Instance.new("UIStroke")
-		e.Color = Color3.fromRGB(176, 138, 70)
-		e.Thickness = 2
-		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		e.Parent = fill
-	end
 	for _, c in ipairs(row:GetChildren()) do
 		if c:IsA("UIStroke") or c:IsA("UIGradient") then put(st, c, { Enabled = false }) end
 		if c:IsA("TextLabel") then
-			put(st, c, { TextColor3 = Color3.fromRGB(240, 226, 190), TextStrokeTransparency = 1, TextTransparency = 0 })
+			put(st, c, { TextColor3 = INK, TextStrokeTransparency = 1, TextTransparency = 0 })
 			if (c.TextSize or 15) < 15 then put(st, c, { TextSize = 15 }) end
 		end
+	end
+	local fill = row:FindFirstChild("BoardWoodFill")
+	if fill then fill.Visible = false end
+	if not row:FindFirstChild("BoardRunUnderline") then
+		local u = Instance.new("Frame")
+		u.Name = "BoardRunUnderline"
+		u.BorderSizePixel = 0
+		u.Active = false
+		u.BackgroundColor3 = Color3.fromRGB(176, 138, 70)
+		u.AnchorPoint = Vector2.new(0, 1)
+		u.Position = UDim2.new(0, 6, 1, -1)
+		u.Size = UDim2.new(1, -12, 0, 2)
+		u.ZIndex = row.ZIndex + 1
+		u.Parent = row
+		table.insert(st.made, u)
 	end
 end
 
@@ -235,6 +229,7 @@ local function run(root, st)
 
 	local stack = {} -- rows the list used to stack that have no slot: they go under the board
 	local patrons, hd, score, rule, runRow
+	local seatRects, seatFrames -- the Patron seats of this pass (the extra ones move once the board's growth is known)
 	for _, c in ipairs(content:GetChildren()) do
 		if c:IsA("GuiObject") then
 			if c.Name == "Divider" then
@@ -462,6 +457,7 @@ local function run(root, st)
 					warn("[SeatFit] seats size@x: " .. table.concat(out, " "))
 				end)
 			end
+			seatRects, seatFrames = rects, seats
 			for i, seat in ipairs(seats) do
 				placeRect(st, seat, rects[i], H.ringRow)
 				-- the painted hole is the seat: no parchment disc under a portrait or an empty seat (the hub recolours the fill on every
@@ -517,33 +513,39 @@ local function run(root, st)
 	local function shown(r) return r ~= nil and r.Visible and (r.Size.Y.Scale == 0 and r.Size.Y.Offset or r.AbsoluteSize.Y) > 0 end
 	local chipShown = chip ~= nil and chip:GetAttribute("Shown") == true
 	local plan = BoardPanelRows.plan({
-		x = H.target.x - 6, w = H.target.w + 12, top = rect.h + 2, avail = root.AbsoluteSize.Y - (rect.h + 2) - 8,
+		x = H.target.x - 6, w = H.target.w + 12, top = PlayBoardLayout.panelTop(rect.w),
+		avail = root.AbsoluteSize.Y - 8 - rect.h + math.floor(PlayBoardLayout.PANEL_ROOM * rect.w / PlayBoardLayout.IMG_W),
 		want = { tips = shown(tipsRow), hint = shown(hintRow), blessing = chipShown, run = shown(runRow) },
 	})
-	local back = sidebar:FindFirstChild("BoardPanelBack")
+	-- the board itself grows: PlayBoardPaint stretches a plain parchment band so the rows lie on the board's own parchment
+	local extend = PlayBoardLayout.extension(rect.w, plan.panel.h)
+	if root:GetAttribute("BoardExtend") ~= extend then root:SetAttribute("BoardExtend", extend) end
+	if seatRects then -- seats on the wooden base (the sixth and later) move down with the bottom cap
+		for i, seatFrame in ipairs(seatFrames) do
+			if seatRects[i] and seatRects[i].extra then
+				placeRect(st, seatFrame, { x = seatRects[i].x, y = seatRects[i].y + extend, w = seatRects[i].w, h = seatRects[i].h }, H.ringRow)
+			end
+		end
+	end
+	local back = sidebar:FindFirstChild("BoardPanelBack") -- only the holder of the brass lines now: no card, no edge, the parchment is the board's
 	if plan.panel.h > 0 then
 		if not back then
 			back = Instance.new("Frame")
 			back.Name = "BoardPanelBack"
 			back.BorderSizePixel = 0
-			back.BackgroundTransparency = 0
+			back.BackgroundTransparency = 1
 			back.Active = false
 			back.ZIndex = 2 -- below every row (Sidebar rows draw at 3), above the painted board
-			back.BackgroundColor3 = Color3.new(1, 1, 1)
 			back.Parent = sidebar
 			table.insert(st.made, back)
-			local k = Instance.new("UICorner") k.CornerRadius = UDim.new(0, 10) k.Parent = back
-			local e = Instance.new("UIStroke") e.Color = EDGE e.Thickness = 4 e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border e.Parent = back
-			local g = Instance.new("UIGradient") -- Color stops only, never Transparency
-			g.Rotation = 90
-			g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
-			g.Parent = back
 		end
 		back.Position, back.Size, back.Visible = UDim2.fromOffset(plan.panel.x, plan.panel.y), UDim2.fromOffset(plan.panel.w, plan.panel.h), true
 		local lines = {}
 		for _, c in ipairs(back:GetChildren()) do if c.Name == "BoardPanelLine" then lines[#lines + 1] = c end end
-		for i = #plan.seps + 1, #lines do lines[i]:Destroy() end
-		for i, ly in ipairs(plan.seps) do
+		local ys = { plan.panel.y + 3 } -- a thin brass divider under the Patron rings, then the lines between the rows
+		for _, ly in ipairs(plan.seps) do ys[#ys + 1] = ly end
+		for i = #ys + 1, #lines do lines[i]:Destroy() end
+		for i, ly in ipairs(ys) do
 			local ln = lines[i]
 			if not ln then
 				ln = Instance.new("Frame")
@@ -569,7 +571,7 @@ local function run(root, st)
 	seat(hintRow, "hint")
 	if runRow then
 		if plan.rows.run then
-			woodPlateStyle(st, runRow)
+			inkLineStyle(st, runRow)
 			put(st, runRow, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(plan.rows.run.x, plan.rows.run.y), Size = UDim2.fromOffset(plan.rows.run.w, plan.rows.run.h) })
 		elseif shown(runRow) then
 			put(st, runRow, { Visible = false }) -- no room left on a short screen: the run line is in Settings
@@ -595,7 +597,7 @@ local function run(root, st)
 			table.insert(st.conns, chip:GetAttributeChangedSignal("Shown"):Connect(function() schedule(root, st) end))
 		end
 	end
-	local y = rect.h + 6 + (plan.panel.h > 0 and plan.panel.h or 0)
+	local y = rect.h + extend + 6
 	local stackW = math.min(230, rect.w - 2 * H.target.x)
 	for _, c in ipairs(others) do
 		if c.Visible and c ~= runRow then

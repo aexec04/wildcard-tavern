@@ -30,6 +30,37 @@ M.SEAT_FILL = 0.84 -- a Patron portrait is 84 percent of the hole, so it never t
 -- (hole 56, outer 1.375 times the hole like the painted ones), in one centred row; they shrink when there are many.
 M.EXTRA = { y = 1352, hole = 56, centre = 512, span = 370, pitch = 92, ringRatio = 1.375 }
 
+-- The tall board: the Tips, hint, Blessing and Run rows sit on the board's OWN parchment under the five rings. The picture is cut in
+-- three: the top (through the rings), a plain parchment band (BAND, picture px, no ornament in it) that is stretched down by `extra`
+-- screen px, and the bottom cap (wood beam, posts, extra seats), which moves down by the same amount. Measured from play_board_a:
+-- ring bottoms at 1255, parchment ends at 1298, so PANEL_TOP..PANEL_TOP+PANEL_ROOM is the parchment already there under the rings.
+M.BAND = { y = 1272, h = 12 }
+M.PANEL_TOP, M.PANEL_ROOM = 1262, 34
+
+function M.panelTop(w)
+	return math.floor(M.PANEL_TOP * w / M.IMG_W + 0.5)
+end
+
+-- extra px the board must grow so a panel of panelH px (starting at panelTop) lies on parchment
+function M.extension(w, panelH)
+	if not panelH or panelH <= 0 then return 0 end
+	return math.max(0, math.ceil(panelH - M.PANEL_ROOM * w / M.IMG_W))
+end
+
+-- three slices of a w x h board grown by extra px: screen y and height plus the source rect in picture pixels (top, band, cap)
+function M.slices(w, h, extra)
+	extra = math.max(0, math.floor(extra or 0))
+	local sy = h / M.IMG_H
+	local topH = math.floor(M.BAND.y * sy + 0.5)
+	local bandH = math.floor(M.BAND.h * sy + 0.5)
+	local capSrcY = M.BAND.y + M.BAND.h
+	return {
+		{ name = "top", y = 0, h = topH, src = { x = 0, y = 0, w = M.IMG_W, h = M.BAND.y } },
+		{ name = "band", y = topH, h = bandH + extra, src = { x = 0, y = M.BAND.y, w = M.IMG_W, h = M.BAND.h } },
+		{ name = "cap", y = topH + bandH + extra, h = h - topH - bandH, src = { x = 0, y = capSrcY, w = M.IMG_W, h = M.IMG_H - capSrcY } },
+	}
+end
+
 function M.usable(screenW)
 	return screenW >= M.MIN_W
 end
@@ -90,7 +121,7 @@ end
 -- Seat rects (top left x, y and size in board coordinates) for n Patron seats. Seats 1 to 5 sit in the painted ring holes, each
 -- centred on its hole at 84 percent of the hole's diameter. A sixth seat and beyond sit in one centred row on the wooden base under the
 -- board, with `extra = true` and `ring = { cx, cy, d }` for the brass ring the client draws around them.
-function M.seats(w, h, n)
+function M.seats(w, h, n, extra)
 	local m = M.map(w, h)
 	local sx, sy = w / M.IMG_W, h / M.IMG_H
 	local out = {}
@@ -107,7 +138,7 @@ function M.seats(w, h, n)
 		local hole = math.max(16, math.min(E.hole, math.floor(pitch) - 8))
 		for j = 1, k do
 			local cx = (E.centre + (j - (k + 1) / 2) * pitch) * sx
-			local cy = E.y * sy
+			local cy = E.y * sy + (extra or 0) -- the wooden base moves down with a grown board
 			local size = math.max(12, math.floor(hole * sx * M.SEAT_FILL + 0.5))
 			out[#m.rings + j] = {
 				x = math.floor(cx - size / 2 + 0.5), y = math.floor(cy - size / 2 + 0.5), w = size, h = size, extra = true,

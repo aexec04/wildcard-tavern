@@ -19912,7 +19912,10 @@ table.insert(tests, { name = "Painted play screen polish 2: title fits and plate
 		expectTrue(title.TextSize <= 17 and title.TextSize * #title.Text * 0.6 <= H.title.w - 16 or title.TextSize == 14, "title fits its slot at " .. label)
 		for _, f in ipairs({ tips, hint, chip }) do
 			local x, y, w, h = f.Position.X.Offset, f.Position.Y.Offset, f.Size.X.Offset, f.Size.Y.Offset
-			expectTrue(x >= 0 and x + w <= rect.w and y >= rect.h and y + h <= size[2], f.Name .. " stays under the board and on screen at " .. label)
+			local onBoard = f ~= chip -- in this fake the chip is a Sidebar child with no row, so it is stacked below the grown board
+			expectTrue(x >= 0 and x + w <= rect.w and y + h <= size[2]
+				and (onBoard and y >= map.PlayBoardLayout.panelTop(rect.w) and y + h <= rect.h + (root:GetAttribute("BoardExtend") or 0) or y >= rect.h),
+				f.Name .. " lies on the board's own parchment under the rings and on screen at " .. label)
 		end
 		expectTrue(tips.Position.Y.Offset + tips.Size.Y.Offset <= hint.Position.Y.Offset, "Tips above the hint at " .. label)
 	end
@@ -20008,15 +20011,17 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local ruleName = rule:FindFirstChild("BoardRuleName")
 	expectTrue(ruleName ~= nil and ruleName.Position.X.Offset == 12 and ruleName.Size.X.Offset == -24, "rule text is inset 12 px")
 	expectTrue(hl.Position.X.Offset == 10 and hl.Size.X.Offset == -20, "Hands text is inset 10 px")
-	expectTrue(tips.Position.Y.Offset >= rect.h, "Tips sits under the board")
+	local extend = root:GetAttribute("BoardExtend") or 0
+	expectTrue(tips.Position.Y.Offset >= map.PlayBoardLayout.panelTop(rect.w) and tips.Position.Y.Offset < rect.h, "Tips sits on the board's parchment under the rings")
+	expectTrue(extend > 0, "the board grows (BoardExtend) to hold the rows")
 
 	-- (2) the hint is clamped to the board width and sits under the board
 	expectTrue(hint.Size.X.Offset <= 230 and hint.Position.X.Offset + hint.Size.X.Offset <= rect.w, "the hint is clamped to the board width")
-	expectTrue(hint.Position.Y.Offset >= rect.h, "the hint sits under the board")
+	expectTrue(hint.Position.Y.Offset + hint.Size.Y.Offset <= rect.h + extend, "the hint ends inside the grown board")
 	local panel = sidebar and sidebar:FindFirstChild("BoardPanelBack")
-	expectTrue(panel ~= nil and panel.Visible and panel.BackgroundTransparency == 0, "Tips and the hint share ONE solid panel under the board")
+	expectTrue(panel ~= nil and panel.Visible and panel.BackgroundTransparency == 1, "no cream card: the holder of the brass lines is see-through")
 	local pstroke = panel and panel:FindFirstChildOfClass("UIStroke")
-	expectTrue(pstroke ~= nil and pstroke.Thickness == 4, "the panel has the 4 px wood frame")
+	expectTrue(pstroke == nil and panel:FindFirstChildOfClass("UICorner") == nil and panel:FindFirstChildOfClass("UIGradient") == nil, "no gold edge, corners or gradient of its own")
 	expectTrue(tips:FindFirstChild("BoardPlateBack") == nil and hint:FindFirstChild("BoardPlateBack") == nil, "no separate plate per row")
 	expectTrue(tips.BackgroundTransparency == 1 and hint.BackgroundTransparency == 1, "the rows are see-through on the panel")
 	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the rows share a left edge, the hint under Tips")
@@ -22818,6 +22823,33 @@ table.insert(tests, { name = "BoardPanelRows: one panel under the board holds Ti
 		expectTrue(#plan.seps == #plan.order - 1, "one brass line between neighbours at " .. tag)
 		expectTrue(plan.fits, "everything fits at " .. tag)
 	end
+end })
+
+table.insert(tests, { name = "PlayBoardLayout: the tall board is three slices, the band stretches, the cap and extra seats move down, rows fit inside the grown board", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	local BP = require(script.Parent.Parent.Engine.BoardPanelRows)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1000, 600 }, { 900, 500 } }) do
+		local bw, bh = PB.size(sz[1], sz[2])
+		local H = PB.hud(bw, bh)
+		local avail = sz[2] - 8 - bh + math.floor(PB.PANEL_ROOM * bw / PB.IMG_W)
+		local plan = BP.plan({ x = H.target.x - 6, w = H.target.w + 12, top = PB.panelTop(bw), avail = avail,
+			want = { tips = true, hint = true, blessing = true, run = true } })
+		local E = PB.extension(bw, plan.panel.h)
+		local tag = sz[1] .. "x" .. sz[2]
+		local sl = PB.slices(bw, bh, E)
+		expectTrue(#sl == 3 and sl[1].y == 0 and sl[2].y == sl[1].h and sl[3].y == sl[2].y + sl[2].h, "slices stack with no gap at " .. tag)
+		expectTrue(sl[3].y + sl[3].h == bh + E, "the grown board ends " .. E .. " px lower at " .. tag)
+		expectTrue(sl[1].src.h + sl[2].src.h + sl[3].src.h == PB.IMG_H, "the three source rects cover the picture once at " .. tag)
+		expectTrue(sl[2].h >= PB.BAND.h * bh / PB.IMG_H - 1, "the band never shrinks at " .. tag)
+		expectTrue(bh + E <= sz[2] - 8 or not plan.fits, "the grown board stays inside the screen with its 8 px margin at " .. tag)
+		local rings = PB.map(bw, bh).rings[1]
+		expectTrue(PB.panelTop(bw) >= rings.cy + rings.d / 2 - 1, "rows start under the ring bottoms at " .. tag)
+		expectTrue(plan.panel.y + plan.panel.h <= bh + E, "every row ends inside the grown board at " .. tag)
+		local a, b = PB.seats(bw, bh, 7)[7], PB.seats(bw, bh, 7, E)[7]
+		expectTrue(b.y == a.y + E and b.ring.cy == a.ring.cy + E, "an extra seat moves down with the cap at " .. tag)
+		expectTrue(PB.seats(bw, bh, 5, E)[5].y == PB.seats(bw, bh, 5)[5].y, "a ring seat does not move at " .. tag)
+	end
+	expectTrue(PB.extension(460, 0) == 0 and PB.extension(460, 10) == 0, "no rows, no growth")
 end })
 
 table.insert(tests, { name = "BoardPanelRows: a missing row collapses, short screens shrink then drop Run and Blessing, an empty plan has no panel", fn = function()
