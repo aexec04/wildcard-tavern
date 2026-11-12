@@ -1378,6 +1378,9 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() -- painted table foreground, hand on the rail (Client/PlayScenePaint.lua)
 		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
+	pcall(function() -- calm parallax, lamp light pool and deal arc (Client/PlayMotion.lua)
+		require(script.PlayMotion).install({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
+	end)
 	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
 		local sortFrame = nil
 		for _, c in ipairs(actionFrame:GetChildren()) do
@@ -2223,13 +2226,15 @@ local function rebuildHand(handData, phase)
 		-- only for cards that are actually new (index >= dealFromIndex; see
 		-- above), so kept cards after a Play/Discard don't re-deal too.
 		if isNewHand and index >= dealFromIndex then
-			button.Position = UDim2.new(0.5, 380, 0.5, 50)
-			button.Rotation = 14
-			task.delay((visualPosition - 1) * 0.05, function()
-				if button.Parent then
-					VisualHelpersModule.tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-				end
-			end)
+			if not require(script.PlayMotion).deal(button, visualPosition, #handData) then -- calm arc from the deck; else the old fly-in
+				button.Position = UDim2.new(0.5, 380, 0.5, 50)
+				button.Rotation = 14
+				task.delay((visualPosition - 1) * 0.05, function()
+					if button.Parent then
+						VisualHelpersModule.tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+					end
+				end)
+			end
 			-- Cosmetic back-to-face flip (overlay child of the button; no input/state effect).
 			pcall(function()
 				local cos = latestState and latestState.cosmetics
