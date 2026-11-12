@@ -34,6 +34,13 @@ return function(deps)
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local TweenService = game:GetService("TweenService")
 
+	local Rules = require(Engine:WaitForChild("OverlayQueueRules"))
+	local HudKit = require(Engine:WaitForChild("HudKit"))
+	local HudTheme = require(script.Parent.HudTheme)
+	local INK = Color3.fromRGB(52, 34, 18)
+	local INK_TITLE = Color3.fromRGB(104, 54, 12)
+	local TILE = Color3.fromRGB(236, 220, 184) -- parchment stat tiles
+
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NightVictoryBackdrop"
 	backdrop.Size = UDim2.fromScale(1, 1)
@@ -43,17 +50,39 @@ return function(deps)
 	backdrop.ZIndex = 60
 	backdrop.Parent = deps.screenGui
 
-	local panel = Instance.new("Frame")
+	-- Same painted plate as Round Complete (the equipped set's kit plate), dark code-drawn plate when the set has none.
+	local panel = Instance.new("ImageLabel")
+	panel.Name = "Plate"
+	panel.ScaleType = Enum.ScaleType.Stretch
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(460, 340)
+	panel.Size = UDim2.fromOffset(Rules.MAX_WIDTH, 440)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
+	panel.BackgroundColor3 = Color3.fromRGB(46, 34, 24)
 	panel.ZIndex = 61
 	panel.Parent = backdrop
-	deps.polishPanel(panel, 16, "parchment")
+	local panelLimit = Instance.new("UISizeConstraint")
+	panelLimit.MaxSize = Vector2.new(Rules.MAX_WIDTH, 440)
+	panelLimit.Parent = panel
+	local panelCorner = Instance.new("UICorner")
+	panelCorner.CornerRadius = UDim.new(0, 14)
+	panelCorner.Parent = panel
+	local panelStroke = Instance.new("UIStroke")
+	panelStroke.Color = Color3.fromRGB(200, 160, 84)
+	panelStroke.Thickness = 3
+	panelStroke.Parent = panel
 	deps.addSoftShadow(panel, 18)
 
-	local function label(props)
+	local pad = Rules.KIT_PAD
+	local content = Instance.new("Frame") -- text area inside the plate's painted border
+	content.Name = "Content"
+	content.BackgroundTransparency = 1
+	content.Size = UDim2.new(1, -2 * pad.x, 1, -(pad.top + pad.bottom))
+	content.Position = UDim2.fromOffset(pad.x, pad.top)
+	content.ZIndex = 62
+	content.Parent = panel
+
+	local inkLabels = {} -- { label, paintedColor, darkColor }
+	local function label(props, paintedColor)
 		local l = Instance.new("TextLabel")
 		l.BackgroundTransparency = 1
 		l.Font = Enum.Font.Gotham
@@ -65,34 +94,36 @@ return function(deps)
 		for k, v in pairs(props) do
 			l[k] = v
 		end
-		l.Parent = panel
+		l.Parent = content
+		inkLabels[#inkLabels + 1] = { l, paintedColor, l.TextColor3 }
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 16), Font = Enum.Font.GothamBold,
-		TextSize = 28, TextColor3 = GOLD, Text = "👑 Tavern Champion! 👑" })
-	label({ Size = UDim2.new(1, -40, 0, 20), Position = UDim2.fromOffset(20, 60), TextSize = 14,
-		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The tavern is yours!" })
+	label({ Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 0), Font = Enum.Font.GothamBold,
+		TextSize = 26, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
+	label({ Size = UDim2.new(1, 0, 0, 38), Position = UDim2.fromOffset(0, 40), TextSize = 14,
+		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The tavern is yours!" }, INK)
 
-	-- Run stats: three tiles.
+	-- Run stats: three parchment tiles. An unfilled value shows a dash, never a placeholder word.
 	local function statTile(x, caption)
 		local tile = Instance.new("Frame")
-		tile.Size = UDim2.new(0.333, -10, 0, 74)
-		tile.Position = UDim2.new(x, 5, 0, 94)
-		tile.BackgroundColor3 = Color3.fromRGB(28, 20, 14)
+		tile.Size = UDim2.new(0.333, -8, 0, 74)
+		tile.Position = UDim2.new(x, 4, 0, 86)
+		tile.BackgroundColor3 = TILE
 		tile.ZIndex = 62
-		tile.Parent = panel
+		tile.Parent = content
 		deps.roundCorner(tile, 8)
 		local value = Instance.new("TextLabel")
 		value.Size = UDim2.new(1, -8, 0, 44)
-		value.Position = UDim2.fromOffset(4, 6)
+		value.Position = UDim2.fromOffset(4, 4)
 		value.BackgroundTransparency = 1
 		value.Font = Enum.Font.GothamBold
 		value.TextSize = 18
-		value.TextColor3 = GOLD
+		value.TextColor3 = INK_TITLE
 		value.TextTransparency = 0
 		value.TextStrokeTransparency = 1
 		value.TextWrapped = true
+		value.Text = "-"
 		value.ZIndex = 63
 		value.Parent = tile
 		local cap = Instance.new("TextLabel")
@@ -101,7 +132,7 @@ return function(deps)
 		cap.BackgroundTransparency = 1
 		cap.Font = Enum.Font.Gotham
 		cap.TextSize = 14
-		cap.TextColor3 = Color3.fromRGB(215, 200, 178)
+		cap.TextColor3 = INK
 		cap.TextTransparency = 0
 		cap.TextStrokeTransparency = 1
 		cap.Text = caption
@@ -113,23 +144,37 @@ return function(deps)
 	local bestValue = statTile(0.333, "Best hand")
 	local patronsValue = statTile(0.666, "Patrons used")
 
-	local rewardLabel = label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 180), TextSize = 14,
-		TextColor3 = GOLD, Text = "" })
-	label({ Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 222), TextSize = 14,
-		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." })
+	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 32), Position = UDim2.fromOffset(0, 168), TextSize = 14,
+		TextColor3 = GOLD, Text = "" }, INK_TITLE)
+	label({ Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 204), TextSize = 14,
+		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." }, INK)
 
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.fromOffset(240, 40)
 	button.AnchorPoint = Vector2.new(0.5, 1)
-	button.Position = UDim2.new(0.5, 0, 1, -18)
+	button.Position = UDim2.new(0.5, 0, 1, 0)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
 	button.TextColor3 = CREAM
 	button.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	button.Text = "Enter Endless Nights ♾"
+	button.Text = "Enter Endless Nights"
 	button.ZIndex = 62
-	button.Parent = panel
+	button.Parent = content
 	deps.polishButton(button, 12)
+
+	-- Kit plate art + dark ink on its parchment, or the dark code-drawn plate with light text.
+	local function dress()
+		local setId = HudTheme.setId()
+		local kitId = setId and HudKit.piece(setId, Rules.KIT_PLATE) or nil
+		local painted = kitId ~= nil
+		panel.Image = kitId or ""
+		panel.BackgroundTransparency = painted and 1 or 0
+		panelStroke.Enabled = not painted
+		panelCorner.CornerRadius = UDim.new(0, painted and 0 or 14)
+		for _, e in ipairs(inkLabels) do
+			e[1].TextColor3 = painted and e[2] or e[3]
+		end
+	end
 
 	local function proceed()
 		deps.playClickSfx()
@@ -147,10 +192,11 @@ return function(deps)
 			end
 		end
 		if newlyCleared then
-			rewardLabel.Text = "🎁 " .. JourneyMap.rewardLabel(JourneyMap.Nights[JourneyMap.NightCap].reward, lookups)
+			rewardLabel.Text = JourneyMap.rewardLabel(JourneyMap.Nights[JourneyMap.NightCap].reward, lookups)
 		else
 			rewardLabel.Text = "Night 8 already cleared before. Welcome back, Keeper."
 		end
+		dress()
 		local best = deps.getBestHand and deps.getBestHand() or nil
 		handsValue.Text = tostring(math.floor(state.handsPlayedTotal or 0))
 		bestValue.Text = best and string.format("%s (%d)", best.name, math.floor(best.score)) or "-"
