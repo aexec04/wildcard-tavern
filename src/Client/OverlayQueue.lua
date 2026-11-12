@@ -281,7 +281,7 @@ local function show(item)
 		-- Escape presses the plate's one button (Continue); the pending click handler is dropped so it cannot fire again on a later plate
 		pressCurrent = function()
 			if conn then conn:Disconnect() end
-			if item.onButton then pcall(item.onButton) end
+			if item.onButton and not item.escapeDismisses then pcall(item.onButton) end -- the daily reward: Escape is Not now, never Claim
 			dismiss()
 		end
 		local secs = Rules.autoSeconds(item)

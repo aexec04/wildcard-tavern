@@ -109,6 +109,14 @@ function BlessingChip.relayout()
 		ui.curse.Visible = full
 		ui.name.Position = UDim2.fromOffset(46, full and 3 or 12)
 		ui.blessing.TextSize, ui.curse.TextSize = 15, 15
+		-- each effect line wraps to two lines inside the row width instead of being cut at the edge
+		for _, l in ipairs({ ui.blessing, ui.curse }) do
+			l.TextWrapped = true
+			l.TextYAlignment = Enum.TextYAlignment.Top
+			l.Size = UDim2.new(1, -52, 0, 34)
+		end
+		ui.blessing.Position = UDim2.fromOffset(46, 25)
+		ui.curse.Position = UDim2.fromOffset(46, 61)
 		return
 	end
 	local height = ui.board.AbsoluteSize.Y

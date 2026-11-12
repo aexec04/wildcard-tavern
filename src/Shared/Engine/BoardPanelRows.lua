@@ -26,7 +26,7 @@ M.ORDER = { "tips", "hint", "blessing", "run" }
 -- nominal and minimum heights per row; the Blessing row has a full (name, blessing, curse) and a compact (name only) form
 M.HEIGHTS = {
 	tips = { 38, 34 }, hint = { 34, 28 }, run = { 30, 26 },
-	blessingFull = { 76, 76 }, blessingCompact = { 44, 40 },
+	blessingFull = { 102, 102 }, blessingCompact = { 44, 40 },
 }
 M.MIN_TEXT = 15
 

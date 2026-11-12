@@ -2,11 +2,11 @@
 -- Self-contained so the hub only calls init(menuFrame, remote, playClick) once and update(state) from render.
 -- Display only: the server (Engine/LoginStreak.lua) decides streaks and claims.
 --
--- The plate (painted chest, the streak as a row of flame dots, the 7-day ladder, a Claim button, a Later link) wears
+-- The plate (painted chest, the streak as a row of flame dots, the 7-day ladder, a Claim button, a Not now button) wears
 -- the equipped Card Set's reward plate like the other overlay plates. It opens when the game opens with a reward
--- ready and again when a played round ends with one still waiting (Engine/DailyPopup decides), closes itself after
+-- ready and again back at the Menu after a run, never during a run (Engine/DailyPopup decides), closes itself after
 -- 12s if ignored, and a claimed reward flies to the Tips counter. A small gift icon sits in the top-right icon row
--- only while a reward is waiting. No emoji anywhere: painted pieces, with a plain drawn dot when art is missing.
+-- only while a reward is waiting and no run is in progress. No emoji anywhere: painted pieces, with a plain drawn dot when art is missing.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -74,6 +74,10 @@ local function overlayOpen(gui)
 		end
 	end
 	return false
+end
+
+local function menuShown()
+	return not (ui.menuFrame and ui.menuFrame.Visible == false)
 end
 
 local function artId(category, key)
@@ -229,17 +233,25 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 			Size = UDim2.new(1, 0, 0, 14), Position = UDim2.fromOffset(0, slot + 1), Text = tostring(i), TextSize = 14, TextColor3 = ink,
 		})
 	end
-	local later = Instance.new("TextButton")
-	later.Name = "Later"
-	later.LayoutOrder = 3
-	later.Size = UDim2.fromOffset(240, 28)
-	later.BackgroundTransparency = 1
+	local hint = label(holder, {
+		Name = "LaterHint", LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 18), Text = laterText, TextSize = 15, TextColor3 = ink,
+		Font = Enum.Font.Gotham,
+	})
+	hint.ZIndex = 154
+	local later = Instance.new("TextButton") -- "Not now": same brass plate look as Claim, keeps the reward claimable
+	later.Name = "NotNow"
+	later.LayoutOrder = 4
+	later.Size = UDim2.fromOffset(120, 34)
+	later.BackgroundColor3 = Color3.fromRGB(70, 48, 30)
 	later.Font = Enum.Font.GothamBold
-	later.TextSize = 15
-	later.TextColor3 = ink
-	later.Text = laterText
+	later.TextSize = 16
+	later.TextColor3 = CREAM
+	later.Text = "Not now"
+	later.AutoButtonColor = true
 	later.ZIndex = 154
 	later.Parent = holder
+	corner(later, 8)
+	stroke(later, GOLD, 2)
 	later.Activated:Connect(function()
 		if ui.playClick then ui.playClick() end
 		OverlayQueue.closeIfCurrent(plateId)
@@ -249,7 +261,7 @@ end
 local function showPopup()
 	local login = lastState and lastState.login
 	local reward = login and DailyPopup.nextClaimable(login)
-	if not reward or ui.queuedId then return end -- nothing to claim, or the daily plate is already queued or showing
+	if not reward or ui.queuedId or DailyPopup.runActive(lastState) then return end -- nothing to claim, or the daily plate is already queued or showing
 	counter += 1
 	local id = "daily:" .. counter
 	ui.queuedId = id
@@ -263,7 +275,8 @@ local function showPopup()
 		artId = artId("hud", "coin_purse"), -- the chest image has an opaque black background; the purse is the same one the ladder uses
 		button = "Claim",
 		autoAfter = AUTO_DISMISS,
-		customHeight = 60 + 6 + 28,
+		customHeight = 60 + 6 + 18 + 6 + 34,
+			escapeDismisses = true, -- Escape means Not now, never Claim
 		custom = function(holder, painted) buildLadder(holder, painted, login, id, LoginStreak.laterLabel(claimDay)) end,
 		onButton = function()
 			if ui.remote then ui.remote:FireServer(claimDay) end
@@ -277,6 +290,7 @@ end
 -- menuFrame: the Menu root; remote: ClaimLoginReward; playClick: optional click sfx.
 function LoginStreakUI.init(menuFrame, remote, playClick)
 	ui.remote = remote
+	ui.menuFrame = menuFrame
 	ui.playClick = playClick
 	local gui = menuFrame:FindFirstAncestorOfClass("ScreenGui")
 	ui.gui = gui
@@ -307,7 +321,7 @@ function LoginStreakUI.suppress(on)
 	end
 end
 
--- The gift icon in the top-right icon row: only while a reward is waiting. Painted chest, else a drawn dot.
+-- The gift icon in the top-right icon row: only while a reward is waiting and no run is in progress. Painted chest, else a drawn dot.
 local function ensureGift()
 	if ui.gift and ui.gift.Parent then return ui.gift end
 	local gui = ui.gui
@@ -356,10 +370,15 @@ function LoginStreakUI.update(state)
 	end
 	lastState = state
 	local waiting = DailyPopup.nextClaimable(state.login) ~= nil
+	local offerable = DailyPopup.canOffer(state, true) -- the chest icon is hidden while a run is in progress
 	local gift = ensureGift()
-	if gift then gift.Visible = waiting end
-	if waiting and not ui.suppressed then
-		if DailyPopup.shouldShow(tracker, state) then
+	if gift then gift.Visible = waiting and offerable end
+	if DailyPopup.runActive(state) then
+		ui.pending = false
+		if ui.queuedId then pcall(OverlayQueue.closeIfCurrent, ui.queuedId) end -- a plate that became ready mid run waits for the Menu
+		DailyPopup.shouldShow(tracker, state, false) -- records that a run happened
+	elseif waiting and not ui.suppressed then
+		if DailyPopup.shouldShow(tracker, state, menuShown()) then
 			ui.pending = true -- opens at once unless another overlay is up (the spawn loop above retries)
 			if not overlayOpen(ui.gui) then
 				ui.pending = false

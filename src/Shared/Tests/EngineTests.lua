@@ -8233,7 +8233,7 @@ table.insert(tests, { name = "Layout harness: Collection panel, title and chips 
 	end
 end })
 
-table.insert(tests, { name = "DailyPopup: shows when the game opens with a reward ready and after a round, never nags", fn = function()
+table.insert(tests, { name = "DailyPopup: offered only at the Menu, never during a run, Not now keeps it claimable", fn = function()
 	local DailyPopup = require(script.Parent.Parent.Engine.DailyPopup)
 	local R = require(script.Parent.Parent.Engine.ResponsiveLayout)
 	local function state(phase, claimable, day, round)
@@ -8242,18 +8242,29 @@ table.insert(tests, { name = "DailyPopup: shows when the game opens with a rewar
 	end
 	expectEqual(DailyPopup.nextClaimable(state("menu", false).login), nil, "nothing claimable")
 	expectEqual(DailyPopup.nextClaimable(state("menu", true).login).day, 3)
+	for _, ph in ipairs({ "playing", "shop", "roundSelect" }) do
+		expectTrue(DailyPopup.runActive(state(ph, true)), ph .. " is a run")
+		expectFalse(DailyPopup.canOffer(state(ph, true), true), ph .. ": no plate and no chest icon")
+	end
+	expectTrue(DailyPopup.canOffer(state("menu", true), true), "Menu: offered")
+	expectTrue(DailyPopup.canOffer(state("gameover", true), true), "after a run ends: offered")
 	local t = {}
-	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", false)), "nothing waiting: no popup")
-	expectTrue(DailyPopup.shouldShow(t, state("roundSelect", true)), "game opens with a reward ready: show")
-	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", true)), "same state again: no nagging")
-	expectFalse(DailyPopup.shouldShow(t, state("playing", true)), "mid-round: stays quiet")
-	expectTrue(DailyPopup.shouldShow(t, state("shop", true)), "a round just ended with the reward still waiting: show again")
-	expectFalse(DailyPopup.shouldShow(t, state("shop", true)), "once per finished round")
-	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", true, 3, 2)), "not a round end: quiet")
-	expectFalse(DailyPopup.shouldShow(t, state("playing", true, 3, 2)))
-	expectTrue(DailyPopup.shouldShow(t, state("shop", true, 3, 2)), "the next finished round asks again")
-	expectFalse(DailyPopup.shouldShow(t, state("shop", false, 3, 2)), "claimed: nothing to show")
-	expectTrue(DailyPopup.shouldShow(t, state("shop", true, 7, 2)), "the next reward (another day) asks on first sight")
+	expectFalse(DailyPopup.shouldShow(t, state("menu", false), true), "nothing waiting: no popup")
+	expectFalse(DailyPopup.shouldShow(t, state("playing", true), false), "mid-round: quiet")
+	expectFalse(DailyPopup.shouldShow(t, state("shop", true), false), "shop: quiet")
+	expectFalse(DailyPopup.shouldShow(t, state("roundSelect", true), true), "round select: quiet even with the Menu flag")
+	t = {}
+	expectTrue(DailyPopup.shouldShow(t, state("menu", true), true), "game opens at the Menu with a reward ready: show")
+	expectFalse(DailyPopup.shouldShow(t, state("menu", true), true), "Not now: the same state does not nag")
+	expectTrue(DailyPopup.nextClaimable(state("menu", true).login) ~= nil, "Not now leaves the reward claimable")
+	expectFalse(DailyPopup.shouldShow(t, state("playing", true), false), "a run starts: quiet")
+	expectTrue(DailyPopup.shouldShow(t, state("gameover", true), true), "back at the Menu after the run: offered once")
+	expectFalse(DailyPopup.shouldShow(t, state("gameover", true), true), "once")
+	expectFalse(DailyPopup.shouldShow(t, state("menu", false), true), "claimed: nothing to show")
+	expectTrue(DailyPopup.shouldShow(t, state("menu", true, 7), true), "the next reward (another day) asks on first sight")
+	t = {}
+	expectFalse(DailyPopup.shouldShow(t, state("menu", true), false), "Menu hidden: waits")
+	expectTrue(DailyPopup.shouldShow(t, state("menu", true), true), "Menu shown: offered")
 	local shown, extra = DailyPopup.flames(3, 7)
 	expectTrue(shown == 3 and extra == 0, "3 flames")
 	shown, extra = DailyPopup.flames(12, 7)

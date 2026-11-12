@@ -5,11 +5,11 @@
 
 	nextClaimable(login) -> reward | nil     the first reward that can be claimed now
 	flames(streak, max) -> shown, extra      streak as flame icons (capped), "+extra" for a long streak
-	shouldShow(tracker, state) -> bool       call on every state push with a persistent tracker table:
+	runActive(state), canOffer(state, menuVisible) -> bool    no plate and no chest icon while a run is on
+	shouldShow(tracker, state, menuVisible) -> bool    call on every state push with a persistent tracker table:
 	    * shows once when the game opens with a reward ready (the first state that carries one),
-	    * shows again when a played round has just ended (phase went playing -> shop / roundSelect /
-	      nightVictory) and a reward is still waiting,
-	    * never twice for the same waiting reward within the same round, and never when nothing is claimable.
+	    * shows again once when the player is back at the Menu after a run,
+	    * never during a run (playing, shop, roundSelect), never twice for the same waiting reward, never when nothing is claimable.
 	    A claim or a new day changes the "waiting key", so the next reward can ask again.
 ]]
 
@@ -33,28 +33,36 @@ function DailyPopup.flames(streak, max)
 	return max, streak - max
 end
 
-local ROUND_END = { shop = true, roundSelect = true, nightVictory = true }
+local RUN_PHASES = { playing = true, shop = true, roundSelect = true }
 
-function DailyPopup.shouldShow(tracker, state)
+-- True while a run is in progress (round, shop, round select, boss, haggle all live in these phases).
+function DailyPopup.runActive(state)
+	return type(state) == "table" and RUN_PHASES[state.phase] == true
+end
+
+-- The daily reward is only offered (plate and top-right chest) away from a run, with the Menu showing.
+function DailyPopup.canOffer(state, menuVisible)
+	return menuVisible ~= false and not DailyPopup.runActive(state)
+end
+
+function DailyPopup.shouldShow(tracker, state, menuVisible)
 	local login = type(state) == "table" and state.login or nil
 	local reward = DailyPopup.nextClaimable(login)
-	local phase = type(state) == "table" and state.phase or nil
-	local previousPhase = tracker.phase
-	tracker.phase = phase
+	if DailyPopup.runActive(state) then
+		tracker.sawRun = true
+		return false -- never during a run; it waits for the Menu
+	end
 	if not reward then
 		tracker.waitingKey = nil
+		tracker.sawRun = nil
 		return false
 	end
+	if not DailyPopup.canOffer(state, menuVisible) then return false end
 	local key = tostring(login.streak) .. ":" .. tostring(reward.day)
-	local roundKey = tostring(state.night) .. "-" .. tostring(state.round)
-	local roundJustEnded = previousPhase == "playing" and ROUND_END[phase] == true
-	if tracker.waitingKey ~= key then
-		-- the first sight of this waiting reward (game open, new day, or the next reward after a claim)
+	if tracker.waitingKey ~= key or tracker.sawRun then
+		-- first sight of this waiting reward (game open, new day, next reward after a claim), or back at the Menu after a run
 		tracker.waitingKey = key
-		return true
-	end
-	if roundJustEnded and tracker.endShown ~= roundKey then
-		tracker.endShown = roundKey -- once per finished round
+		tracker.sawRun = nil
 		return true
 	end
 	return false
