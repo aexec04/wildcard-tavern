@@ -22575,4 +22575,45 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 	end
 end })
 
+table.insert(tests, { name = "BoardDrawer: collapsed board is fully off screen except the handle, the chip and handle stay inside, numbers are whole, phones and forced-open keep it open", fn = function()
+	local D = require(script.Parent.Parent.Engine.BoardDrawer)
+	local PBL = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	expectEqual(D.SLIDE_TIME, 0.28, "slides in 0.28 s")
+	expectTrue(D.HANDLE.h >= 96 - 1 and D.HANDLE.hit >= 48, "handle about 36 x 96 with a 48 px hit area")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 900, 600 } }) do
+		local sw, sh = size[1], size[2]
+		local p = PBL.placement(sw, sh)
+		local boardW = p and p.w or 240
+		local dist = D.distance(boardW)
+		expectTrue(boardW - dist < 0, "the board's right edge is left of the screen at " .. sw .. "x" .. sh)
+		local h = D.handleRect(sw, sh, boardW, true)
+		expectTrue(h.x >= 0 and h.x + h.hit <= sw and h.y >= 0 and h.y + h.h <= sh, "the collapsed handle is on screen")
+		local c = D.chipRect(sw, sh)
+		expectTrue(c.x >= h.x + h.hit and c.x + c.w <= sw and c.y >= 0 and c.y + c.h <= sh, "the chip is on screen and clear of the handle")
+		expectTrue(math.abs(h.y + h.h / 2 - sh / 2) <= 1, "the handle is vertically centred")
+		local open = D.handleRect(sw, sh, boardW, false)
+		expectEqual(open.x, boardW, "open, the handle sits on the board's right edge")
+	end
+	local lines = D.chipLines(0, 317, 26, 4.0, 3)
+	expectEqual(lines[1], "Score 0 / 317", "score line")
+	expectEqual(lines[2], "Tips 26", "tips line")
+	expectEqual(lines[3], "H 4  D 3", "hands and discards line")
+	expectTrue(D.collapsed(true, false, 1920), "the user's choice collapses it")
+	expectFalse(D.collapsed(true, true, 1920), "a tutorial step or tooltip keeps it open")
+	expectFalse(D.collapsed(true, false, 800), "under 900 px the compact layout owns the drawer")
+	expectEqual(D.handLeft(true, 361), D.HAND_LEFT_COLLAPSED, "the hand uses the free width")
+	expectEqual(D.handLeft(false, 361), 385, "open, the hand starts 24 px right of the board")
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	expectTrue(PP.SETTING_SPECS.boardCollapsed ~= nil and PP.SETTING_SPECS.boardCollapsed.default == false, "boardCollapsed is a saved setting, default open")
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectTrue(R.parse("drawer:closed").closed == true and R.parse("drawer:open").closed == false, "DebugGoto drawer:closed and drawer:open")
+	local f = io and io.open and io.open("src/Client/BoardDrawer.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("KeyCode.Tab", 1, true) ~= nil and text:find("GetFocusedTextBox", 1, true) ~= nil, "Tab toggles, never while a text box has focus")
+		expectTrue(text:find("motionAllowed", 1, true) ~= nil, "reduced motion is instant")
+	end
+end })
+
 return tests

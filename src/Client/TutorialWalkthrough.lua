@@ -471,6 +471,7 @@ return function(deps)
 		if completed then return end
 		completed = true
 		active = false
+		pcall(function() require(script.Parent.BoardDrawer).forceOpen("tutorial", false) end)
 		if skipped then machine:skip() end
 		hideAll()
 		dismissNewRibbon()
@@ -548,6 +549,7 @@ return function(deps)
 	local function start()
 		if active or completed then return end
 		active = true
+		pcall(function() require(script.Parent.BoardDrawer).forceOpen("tutorial", true) end) -- the board stays open while the tutorial points at it
 		show()
 	end
 
@@ -589,6 +591,7 @@ return function(deps)
 		machine = Steps.new()
 		completed = false
 		active = true
+		pcall(function() require(script.Parent.BoardDrawer).forceOpen("tutorial", true) end)
 		syncToState(lastState)
 		show()
 	end

@@ -2611,6 +2611,7 @@ local function render(state)
 
 	RoundSelectOverlay.roundSelectFrame.Visible = (state.phase == "roundSelect")
 	pcall(require(script.SidebarSlide).set, root, SidebarModule.SIDEBAR_WIDTH, state.phase == "roundSelect" or state.phase == "shop") -- stats panel away on Round Select and the Counter
+	pcall(function() local BD = require(script.BoardDrawer) BD.install(root) BD.update(state) end) -- left board drawer: handle, chip, slide
 	Shop.shopFrame.Visible = (state.phase == "shop")
 	GameOverPanel.gameOverFrame.Visible = (state.phase == "gameover")
 	if state.phase == "shop" then

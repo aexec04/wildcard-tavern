@@ -141,6 +141,9 @@ function DebugGotoRules.parse(value)
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
 	end
+	if text == "drawer:closed" or text == "drawer:open" then
+		return { kind = "drawer", closed = text == "drawer:closed" }
+	end
 	if text == "loading" then
 		return { kind = "loading", percent = 60 }
 	end

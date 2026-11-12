@@ -190,6 +190,7 @@ function PlayScenePaint.install(deps)
 			local bp = require(Engine:WaitForChild("PlayBoardLayout")).placement(size.X, size.Y)
 			if bp then leftEdge = math.max(leftEdge, bp.x + bp.w + 24) end
 		end
+		if root:GetAttribute("BoardCollapsed") then leftEdge = 60 end -- the left board is slid away (Client/BoardDrawer): the hand uses the free width
 		local p = loaded and PlayTableLayout.placement(size.X, size.Y, leftEdge, R.PILE_RESERVE, setKey) or nil
 		if p then
 			painted = true
@@ -265,6 +266,7 @@ function PlayScenePaint.install(deps)
 	end
 
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
+	root:GetAttributeChangedSignal("BoardCollapsed"):Connect(function() if apply then apply() end end)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
 		if painted then

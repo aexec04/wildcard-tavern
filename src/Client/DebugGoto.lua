@@ -144,6 +144,12 @@ function DebugGoto.init(deps)
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
 			return
 		end
+		if target.kind == "drawer" then
+			-- the left board drawer, for screenshots (start a round first: round1)
+			local okD, errD = pcall(function() require(script.Parent.BoardDrawer).setCollapsed(target.closed) end)
+			if okD then print("[DebugGoto] drawer " .. (target.closed and "closed" or "open") .. " ok") else warn("[DebugGoto] drawer failed: " .. tostring(errD)) end
+			return
+		end
 		if target.kind == "loading" then
 			-- the launch loading screen frozen at a percent, for screenshots (the real one is ReplicatedFirst/LoadingScreen)
 			local okL, errL = pcall(function()
