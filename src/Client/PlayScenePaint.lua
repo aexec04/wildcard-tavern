@@ -26,6 +26,24 @@ function PlayScenePaint.install(deps)
 	local id = okArt and type(art) == "table" and art.play_table_front_b or nil
 	if not id or id == "" then return { isPainted = function() return false end } end
 
+	-- the painted tavern room behind the table (play_table_bg_b, an oval table in a candlelit room): cover-cropped over the whole screen,
+	-- never stretched, directly under the table front (created first, same ZIndex, so it draws below it). No id: the old scene shows.
+	local bgId = art.play_table_bg_b
+	local bg = nil
+	if bgId and bgId ~= "" then
+		bg = Instance.new("ImageLabel")
+		bg.Name = "PlayTableBg"
+		bg.BackgroundTransparency = 1
+		bg.BorderSizePixel = 0
+		bg.Active = false
+		bg.Image = bgId
+		bg.ScaleType = Enum.ScaleType.Crop
+		bg.Size = UDim2.fromScale(1, 1)
+		bg.ZIndex = 0
+		bg.Visible = false
+		bg.Parent = root
+	end
+
 	local image = Instance.new("ImageLabel")
 	image.Name = "PlayTableFront"
 	image.BackgroundTransparency = 1
@@ -131,6 +149,7 @@ function PlayScenePaint.install(deps)
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
 			image.Visible = handFrame.Visible
+			if bg then bg.Visible = handFrame.Visible end
 			local feltClip = handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil -- never under the left HUD
 			shade.apply(feltClip, feltClip ~= nil and feltClip.x > p.map.felt.x)
 			shade.setFill(PlayTableLayout.fillOf(setKey))
@@ -155,6 +174,7 @@ function PlayScenePaint.install(deps)
 			painted = false
 			vignette(false)
 			image.Visible = false
+			if bg then bg.Visible = false end
 			shade.apply(nil)
 			PlayRailLip.apply(lip, nil)
 			PlayRail.apply(rail, nil)
@@ -172,7 +192,7 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible; shade.frame.Visible = handFrame.Visible; setLip(lipShown()) end
+		if painted then image.Visible = handFrame.Visible; if bg then bg.Visible = handFrame.Visible end; shade.frame.Visible = handFrame.Visible; setLip(lipShown()) end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)

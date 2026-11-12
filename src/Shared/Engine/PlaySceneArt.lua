@@ -12,6 +12,8 @@ return {
 	["play_plates_b"] = "rbxassetid://125973303965017",
 	["play_rail_back_a"] = "rbxassetid://82426539791500",
 	["play_rail_front_b"] = "rbxassetid://139459542357848",
+	["play_table_bg_a"] = "rbxassetid://110353308947189",
+	["play_table_bg_b"] = "rbxassetid://136830085571078",
 	["play_table_front_b"] = "rbxassetid://111672466307619",
 	["play_table_front_festival_a"] = "rbxassetid://103282552527851",
 	["play_table_front_frosted_a"] = "rbxassetid://90420427952379",
