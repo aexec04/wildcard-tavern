@@ -27,6 +27,7 @@ local TweenService = game:GetService("TweenService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local SceneKeys = require(Engine:WaitForChild("SceneKeys"))
+local ScrimGradient = require(Engine:WaitForChild("ScrimGradient"))
 local TableStyle = require(Engine:WaitForChild("TableStyle"))
 local TableLook = require(script.Parent.TableLook)
 local CosmeticSetsView = require(script.Parent.CosmeticSetsView)
@@ -82,29 +83,25 @@ local function build(deps)
 		labels[i] = label
 	end
 
-	-- Soft dark gradient over the bottom half (stepped strips, Frame transparency only).
+	-- Soft dark gradient over the bottom half: ONE frame with a UIGradient fade (stacked strips showed as lines).
 	local shade = Instance.new("Frame")
 	shade.Name = "GameSceneShade"
 	shade.AnchorPoint = Vector2.new(0, 1)
 	shade.Position = UDim2.fromScale(0, 1)
 	shade.Size = UDim2.fromScale(1, 0.55)
-	shade.BackgroundTransparency = 1
+	shade.BackgroundColor3 = Color3.fromRGB(10, 6, 4)
+	shade.BackgroundTransparency = 0
 	shade.BorderSizePixel = 0
 	shade.Active = false
 	shade.ZIndex = 0
 	shade.Visible = false
 	shade.Parent = root
-	for i = 1, SHADE_STEPS do
-		local strip = Instance.new("Frame")
-		strip.Size = UDim2.fromScale(1, 1 / SHADE_STEPS) -- no +1 px overlap: overlapping rows doubled the shade into lines
-		strip.Position = UDim2.new(0, 0, (i - 1) / SHADE_STEPS, 0)
-		strip.BackgroundColor3 = Color3.fromRGB(10, 6, 4)
-		strip.BackgroundTransparency = 1 - 0.55 * (i / SHADE_STEPS) ^ 1.3
-		strip.BorderSizePixel = 0
-		strip.Active = false
-		strip.ZIndex = 0
-		strip.Parent = shade
-	end
+	local shadeGradient = Instance.new("UIGradient")
+	shadeGradient.Rotation = 90
+	local shadeKeys = {}
+	for _, k in ipairs(ScrimGradient.keypoints(SHADE_STEPS, 0.55, 1.3)) do shadeKeys[#shadeKeys + 1] = NumberSequenceKeypoint.new(k[1], k[2]) end
+	shadeGradient.Transparency = NumberSequence.new(shadeKeys)
+	shadeGradient.Parent = shade
 
 	-- Biome grade, Night mood, set style host and vignette (Client/TableLook.lua), above the painting.
 	local tableLook = TableLook.new(root)

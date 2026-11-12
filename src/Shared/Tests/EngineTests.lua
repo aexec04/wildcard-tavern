@@ -22763,4 +22763,16 @@ table.insert(tests, { name = "CollectionPreload: the warm list covers every sub-
 	end
 end })
 
+table.insert(tests, { name = "ScrimGradient: a fade is 16+ smooth keypoints, clear at the top, about 8 percent transparent at the bottom (RoundSelect card scrim)", fn = function()
+	local ScrimGradient = require(script.Parent.Parent.Engine.ScrimGradient)
+	local k = ScrimGradient.keypoints(16, 0.92, 0.8)
+	assert(#k >= 16, "needs at least 16 keypoints")
+	assert(k[1][1] == 0 and k[1][2] == 1, "transparency 1 at the top")
+	assert(k[#k][1] == 1 and math.abs(k[#k][2] - 0.08) < 1e-9, "about 0.08 at the bottom")
+	for n = 2, #k do
+		assert(k[n][1] > k[n - 1][1], "times strictly increase")
+		assert(k[n][2] <= k[n - 1][2], "transparency never rises")
+	end
+end })
+
 return tests

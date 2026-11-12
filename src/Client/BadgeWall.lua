@@ -116,7 +116,7 @@ local function furniture(board, kind, w, h, shelves, items)
 		for i = 1, 40 do -- soft stars, fixed positions
 			local sx = (i * 37 % 100) / 100
 			local sy = (i * 61 % 100) / 100
-			frame(back, { Position = UDim2.fromScale(sx, sy), Size = UDim2.fromOffset(2 + i % 3, 2 + i % 3), BackgroundColor3 = Color3.fromRGB(230, 236, 255), BackgroundTransparency = 0.3 + (i % 4) * 0.12 }, 2)
+			frame(back, { Position = UDim2.fromScale(sx, sy), Size = UDim2.fromOffset(2 + i % 3, 2 + i % 3), BackgroundColor3 = Color3.fromRGB(230, 236, 255), BackgroundTransparency = 0.3 + (i % 4) * 0.12 }, 2) -- strips: scattered stars, not a fade
 		end
 		local moon = frame(back, { Position = UDim2.new(0.9, -30, 0.08, 0), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = Color3.fromRGB(250, 238, 200) }, 23)
 		frame(moon, { Position = UDim2.fromOffset(14, -4), Size = UDim2.fromOffset(42, 42), BackgroundColor3 = Color3.fromRGB(16, 24, 62), ZIndex = Z + 1 }, 21)

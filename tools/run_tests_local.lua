@@ -110,6 +110,13 @@ if textOk and textFails and textFails > 0 then
 	os.exit(1)
 end
 
+-- Source lint: no fade built from stacked graded-transparency Frames (they show as black lines).
+local stripOk, stripFails = pcall(dofile, "tools/lint_stacked_strips.lua")
+if stripOk and stripFails and stripFails > 0 then
+	print("FAILED: " .. stripFails .. " stacked graded-transparency loop(s)")
+	os.exit(1)
+end
+
 -- Source lint: top level local counts of the two hub scripts (200 limit guard).
 local locOk, locFails = pcall(dofile, "tools/check_locals.lua")
 if locOk and locFails and locFails > 0 then

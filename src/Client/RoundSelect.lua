@@ -396,31 +396,28 @@ return function(deps)
 		roundCorner(sceneImage, 14)
 
 		-- Scrim over the bottom 45% of the card: clear at the top, nearly opaque
-		-- at the bottom, so the art fades into the text area. Stepped strips
-		-- (Frame transparency only, no UIGradient.Transparency). Never dimmed.
+		-- at the bottom, so the art fades into the text area. ONE black frame with
+		-- a UIGradient fade (stacked strips showed as black lines). Never dimmed.
 		local scrim = Instance.new("Frame")
 		scrim.Name = "Scrim"
 		scrim.AnchorPoint = Vector2.new(0, 1)
 		scrim.Position = UDim2.new(0, 0, 1, 0)
 		scrim.Size = UDim2.new(1, 0, 0.45, 0)
-		scrim.BackgroundTransparency = 1
+		scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+		scrim.BackgroundTransparency = 0
 		scrim.BorderSizePixel = 0
 		scrim.ClipsDescendants = true
 		scrim.ZIndex = 9
 		scrim.Parent = panel
 		roundCorner(scrim, 14)
-		local SCRIM_STEPS = 14
-		for i = 1, SCRIM_STEPS do
-			local strip = Instance.new("Frame")
-			strip.Name = "Strip" .. i
-			strip.Size = UDim2.new(1, 0, 1 / SCRIM_STEPS, 1)
-			strip.Position = UDim2.new(0, 0, (i - 1) / SCRIM_STEPS, 0)
-			strip.BackgroundColor3 = Color3.new(0, 0, 0)
-			strip.BackgroundTransparency = 1 - 0.92 * (i / SCRIM_STEPS) ^ 0.8
-			strip.BorderSizePixel = 0
-			strip.ZIndex = 9
-			strip.Parent = scrim
+		local scrimGradient = Instance.new("UIGradient")
+		scrimGradient.Rotation = 90
+		local scrimKeys = {}
+		for _, k in ipairs(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScrimGradient")).keypoints(16, 0.92, 0.8)) do
+			scrimKeys[#scrimKeys + 1] = NumberSequenceKeypoint.new(k[1], k[2])
 		end
+		scrimGradient.Transparency = NumberSequence.new(scrimKeys)
+		scrimGradient.Parent = scrim
 
 		-- Status chip overlaid on the top-left of the scene image.
 		-- Shows "You are here" (green) for the current round,
@@ -433,7 +430,7 @@ return function(deps)
 		statusChip.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
 		statusChip.BackgroundTransparency = 0
 		statusChip.Font = Enum.Font.GothamBold
-		statusChip.TextSize = 14
+		statusChip.TextSize = 15
 		statusChip.TextColor3 = Color3.fromRGB(200, 200, 215)
 		statusChip.Text = ""
 		statusChip.ZIndex = 12
