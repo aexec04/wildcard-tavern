@@ -20256,6 +20256,13 @@ tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio a
 	expectTrue(not SA.shouldMute(false, true), "live servers are never muted, attribute or not")
 end })
 
+tests[#tests + 1] = ({ name = "SetSkin: Tome tabs and Close buttons never draw plate art (no garbled side shapes)", fn = function()
+	local f = io and io.open and io.open("src/Client/SetSkin.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find('kind == "tab" or (kind == "button" and inst:IsA("TextButton") and (inst.Name == "Close" or inst.Text == "Close")) then image = nil', 1, true) ~= nil, "tabs and Close buttons skip the plate image")
+end })
+
 tests[#tests + 1] = ({ name = "NewsSceneLayout: painted notice board slots fit the square board at 1920x957, 1920x1080 and 1280x720, none overlap; tiny screens and more than 3 events use the plain board", fn = function()
 	local L = require(script.Parent.Parent.Engine.NewsSceneLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
