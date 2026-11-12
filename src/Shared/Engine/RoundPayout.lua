@@ -23,4 +23,14 @@ function RoundPayout.breakdown(total, interest)
 	return { lines = lines, reward = reward, interest = interest, total = total }
 end
 
+-- The Round Complete toast: ONE line "Round Complete  +$4 Tips" and, when interest was paid, a small second line naming the parts.
+function RoundPayout.toastLines(total, interest)
+	local b = RoundPayout.breakdown(total, interest)
+	local out = { main = string.format("Round Complete  +$%d Tips", b.total) }
+	if b.interest > 0 then
+		out.sub = string.format("Round reward $%d + Interest $%d", b.reward, b.interest)
+	end
+	return out
+end
+
 return RoundPayout

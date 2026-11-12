@@ -42,7 +42,7 @@ return function(deps)
 			-- flavor line (Big spender today!) into it as one small line under the Total
 			local Banner = require(script.Parent.RoundRewardBanner)
 			require(script.Parent.Announcer).submit({
-				id = "round_complete", kind = "round_complete", priority = 3, duration = 2.6,
+				id = "round_complete", kind = "round_complete", priority = 3, duration = 1.9,
 				show = function(done, msg)
 					Banner.show({ screenGui = deps.screenGui, title = "Round Complete!", amount = amount, interest = interest, flavor = msg and msg.flavor, onClose = done })
 				end,

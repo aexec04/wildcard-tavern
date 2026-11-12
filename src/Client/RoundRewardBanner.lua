@@ -74,8 +74,8 @@ function RoundRewardBanner.show(args)
 	local gui = Instance.new("CanvasGroup") -- one GroupTransparency fades the whole plate
 	gui.Name = "RoundRewardBanner"
 	gui.AnchorPoint = Vector2.new(0.5, 0)
-	gui.Position = UDim2.new(0.5, 0, 0, 64) -- under the Roblox top bar, above the offers
-	gui.Size = UDim2.fromOffset(340, 0)
+	gui.Position = UDim2.new(0.5, 0, 0, calm and 64 or 48) -- under the Roblox top bar, above the offers; slides down 16 px as it fades in
+	gui.Size = UDim2.fromOffset(420, 0)
 	gui.AutomaticSize = Enum.AutomaticSize.Y
 	gui.BackgroundColor3 = PLATE
 	gui.BorderSizePixel = 0
@@ -86,27 +86,36 @@ function RoundRewardBanner.show(args)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = gui
+	local minSize = Instance.new("UISizeConstraint") -- a strip at least 64 px tall
+	minSize.MinSize = Vector2.new(0, 64)
+	minSize.Parent = gui
+	if not calm then
+		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play() end)
+	end
 	local edge = Instance.new("UIStroke")
 	edge.Color = BRASS
 	edge.Thickness = 3
 	edge.Parent = gui
 	local pad = Instance.new("UIPadding")
-	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 12), UDim.new(0, 12)
+	pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 10), UDim.new(0, 10)
 	pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 16), UDim.new(0, 16)
 	pad.Parent = gui
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Padding = UDim.new(0, 2)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Center
 	list.Parent = gui
 
-	label(gui, "\u{1F4B0} " .. (args.title or "Round Complete!"), 22, GOLD_TEXT, 1)
-	local rows = {}
-	for i, line in ipairs(data.lines) do
-		rows[i] = label(gui, line.text, line.total and 20 or 18, line.total and GOLD_TEXT or CREAM, 1 + i)
-		rows[i].Visible = plan.stagger <= 0 or i == 1
+	-- ONE line: "Round Complete  +$4 Tips" (counts up); a small second line names the parts when interest was paid
+	local toast = Payout.toastLines(args.amount, args.interest or 0)
+	local mainRow = label(gui, toast.main, 18, GOLD_TEXT, 1)
+	mainRow.Name = "Main"
+	if toast.sub then
+		local subRow = label(gui, toast.sub, 14, SOFT, 2)
+		subRow.Name = "Parts"
+		subRow.Font = Enum.Font.GothamMedium
 	end
-	local totalRow = rows[#rows]
 	local flavorLabel = label(gui, args.flavor or "", 15, SOFT, 50)
 	flavorLabel.Name = "Flavor"
 	flavorLabel.Font = Enum.Font.GothamMedium
@@ -137,11 +146,7 @@ function RoundRewardBanner.show(args)
 			return
 		end
 		gui.GroupTransparency = 1 - alpha
-		local shown = RewardBanner.shownLines(plan, #rows, t)
-		for i, row in ipairs(rows) do row.Visible = i <= shown end
-		if totalRow then
-			totalRow.Text = string.format("Total +$%d Tips", RewardBanner.countAt(plan, data.total, t))
-		end
+		mainRow.Text = Payout.toastLines(RewardBanner.countAt(plan, data.total, t), 0).main
 	end))
 end
 

@@ -23,6 +23,16 @@ OverlayQueueRules.DAILY_AUTO_SECONDS = 12
 local Queue = {}
 Queue.__index = Queue
 
+-- The widest a plate may be: MAX_WIDTH, and for the big Round Complete plate (the Night cleared headline, Tag rewards) at most 55 percent
+-- of the screen width. A normal round win is a one line toast (Client/RoundRewardBanner), not this plate.
+OverlayQueueRules.ROUND_COMPLETE_FRACTION = 0.55
+function OverlayQueueRules.plateMaxWidth(id, screenW)
+	if id == "roundComplete" and (screenW or 0) > 0 then
+		return math.min(OverlayQueueRules.MAX_WIDTH, math.floor(screenW * OverlayQueueRules.ROUND_COMPLETE_FRACTION))
+	end
+	return OverlayQueueRules.MAX_WIDTH
+end
+
 function OverlayQueueRules.new()
 	return setmetatable({ waiting = {}, shown = {}, active = nil, counter = 0 }, Queue)
 end

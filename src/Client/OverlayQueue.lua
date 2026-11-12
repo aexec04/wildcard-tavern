@@ -262,6 +262,8 @@ local function show(item)
 	if customHolder.Visible then pcall(item.custom, customHolder, kitId ~= nil) end
 	plate.Size = UDim2.new(1, -2 * Rules.MIN_EDGE, 0, 0)
 	plate.AutomaticSize = Enum.AutomaticSize.Y
+	-- the big Round Complete plate (the Night cleared headline, Tag rewards) is at most 55 percent of the screen width
+	plateLimit.MaxSize = Vector2.new(Rules.plateMaxWidth(item.id, gui and gui.AbsoluteSize.X or 0), math.huge)
 	backdrop.Visible = true
 	if item.sound then pcall(function() require(script.Parent.Cue).play(item.sound, 2) end) end
 	if not calm() then
@@ -284,6 +286,16 @@ local function show(item)
 		end
 		local secs = Rules.autoSeconds(item)
 		if secs then task.delay(secs, dismiss) end
+		-- a click anywhere (the dark area or the plate) closes the Round Complete plate; nothing stays blocked behind it
+		if item.id == "roundComplete" then
+			local function anywhere(input)
+				if token == mine and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+					if pressCurrent then pressCurrent() end
+				end
+			end
+			backdrop.InputBegan:Once(anywhere)
+			plate.InputBegan:Once(anywhere)
+		end
 	end
 	-- a click anywhere on a pure toast closes it too; plates with a button close only from the button
 	if not item.button then
