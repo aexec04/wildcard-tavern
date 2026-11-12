@@ -98,11 +98,53 @@ function M.place(areaW, areaH)
 	return out
 end
 
--- a flair tile that fills a cubby: round icon on top, then a one-line name and a one-line status (14 px each)
+-- a flair tile that fills a cubby: round icon on top, then a name (two lines when the cubby is tall enough) and a one-line status (14 px each)
 function M.cell(w, h)
-	local nameH, tagH = 18, 18
+	local tagH = 18
+	local nameH = h >= 110 and 34 or 18
 	local med = math.max(30, math.min(68, h - (6 + 4 + nameH + 2 + tagH + 4)))
-	return { med = med, nameH = nameH, tagH = tagH, w = w, h = h }
+	return { med = med, nameH = nameH, tagH = tagH, w = w, h = h, lines = nameH >= 30 and 2 or 1 }
+end
+
+-- Pieces that make the one picture cover the whole body when it cannot (it shrinks so every slot keeps its room): eight slices of
+-- the picture's own edge (4 px) stretched over the uncovered bands and corners, each { name, rect (area px), src = { x, y, w, h } (picture px) }.
+-- They run 1 px under the picture, which is drawn after them.
+M.EDGE = 4
+function M.edgeFill(p, areaW, areaH)
+	local I, e, E = p.image, M.EDGE, M.EDGE
+	local W, H = M.IMAGE_W, M.IMAGE_H
+	local out = {}
+	local x1, y1 = I.x + I.w, I.y + I.h
+	local function add(name, x, y, w, h, sx, sy, sw, sh)
+		if w > 0.5 and h > 0.5 then
+			out[#out + 1] = { name = name, rect = { x = math.floor(x), y = math.floor(y), w = math.ceil(w), h = math.ceil(h) }, src = { x = sx, y = sy, w = sw, h = sh } }
+		end
+	end
+	local midY0, midY1 = math.max(0, I.y), math.min(areaH, y1)
+	local midX0, midX1 = math.max(0, I.x), math.min(areaW, x1)
+	-- left / right bands sit level with the picture, top / bottom above and below it, the corners take the corner pixels
+	add("Left", 0, midY0, I.x + 1, midY1 - midY0, 0, 0, e, H)
+	add("Right", x1 - 1, midY0, areaW - x1 + 1, midY1 - midY0, W - e, 0, e, H)
+	add("Top", midX0, 0, midX1 - midX0, I.y + 1, 0, 0, W, E)
+	add("Bottom", midX0, y1 - 1, midX1 - midX0, areaH - y1 + 1, 0, H - E, W, E)
+	add("TopLeft", 0, 0, I.x + 1, I.y + 1, 0, 0, e, E)
+	add("TopRight", x1 - 1, 0, areaW - x1 + 1, I.y + 1, W - e, 0, e, E)
+	add("BottomLeft", 0, y1 - 1, I.x + 1, areaH - y1 + 1, 0, H - E, e, E)
+	add("BottomRight", x1 - 1, y1 - 1, areaW - x1 + 1, areaH - y1 + 1, W - e, H - E, e, E)
+	return out
+end
+
+-- the plates of categories that do not exist stay unused: a patch of plain stucco wall (picture px 110,108 230x56, above the first plate)
+-- is stretched over each one and a little beyond its brass edge
+M.WALL = { x = 110, y = 108, w = 230, h = 56 }
+function M.platePatches(p, categories)
+	local out = {}
+	local g = 4 * (p.scale or 1)
+	for i = categories + 1, #p.tabs do
+		local t = p.tabs[i]
+		out[#out + 1] = { index = i, rect = { x = math.floor(t.x - g), y = math.floor(t.y - g), w = math.ceil(t.w + 2 * g), h = math.ceil(t.h + 2 * g) }, src = M.WALL }
+	end
+	return out
 end
 
 return M

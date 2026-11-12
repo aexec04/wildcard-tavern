@@ -42,6 +42,7 @@ function FlairDressingRoom.build(deps, panel)
 	local GREEN = Color3.fromRGB(86, 140, 80)
 	local PLATE = Color3.fromRGB(38, 28, 22)
 	local TILE = Color3.fromRGB(52, 38, 28)
+	local PARCHMENT = Color3.fromRGB(226, 208, 170)
 	local Z = 43
 
 	local function tween(inst, seconds, props, style)
@@ -126,8 +127,24 @@ function FlairDressingRoom.build(deps, panel)
 	-- ===== painted scene (flair_room_a): drawn under everything once its Image id is recorded and the panel is big enough =====
 	local sceneId = ContentArt.getImageId("panel_scene", Scene.ART_KEY)
 	local sceneHolder = make("Frame", panel, { Name = "FlairScene", BackgroundColor3 = Color3.fromRGB(26, 18, 12), ClipsDescendants = true, Visible = false, Active = false })
+	local sceneEdges = make("Frame", sceneHolder, { Name = "Edges", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- under the picture
 	local sceneImage = make("ImageLabel", sceneHolder, { Name = "Picture", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false })
+	local scenePatches = make("Frame", sceneHolder, { Name = "PlatePatches", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- over the picture
 	local sceneOn = false
+	local sceneS = nil -- the last Scene.place result while the painted room is on
+	local paintPatches -- assigned below, needs the category count
+	-- slices of the picture itself: edge bands under it (so the painting reads as covering the whole body) and wall patches over unused plates
+	local function paintSlices(holder, items)
+		for _, ch in ipairs(holder:GetChildren()) do ch:Destroy() end
+		for _, it in ipairs(items) do
+			make("ImageLabel", holder, { Name = it.name or ("Patch" .. tostring(it.index)), BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch,
+				ImageRectOffset = Vector2.new(it.src.x, it.src.y), ImageRectSize = Vector2.new(it.src.w, it.src.h),
+				Position = UDim2.fromOffset(it.rect.x, it.rect.y), Size = UDim2.fromOffset(it.rect.w, it.rect.h), Active = false })
+		end
+	end
+	paintPatches = function()
+		paintSlices(scenePatches, sceneS and #drawers > 0 and Scene.platePatches(sceneS, #drawers) or {})
+	end
 
 	-- ===== title, bundle, close =====
 	local titleBox = bind(make("Frame", panel, { Name = "TitleBox", BackgroundTransparency = 1 }), function(r) return r.title end)
@@ -210,8 +227,10 @@ function FlairDressingRoom.build(deps, panel)
 
 	local scoreBase, nameBase = 40, 20
 	local function sizeStageText()
-		scoreBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.2), 24, 56)
-		nameBase = math.clamp(math.floor(mirror.AbsoluteSize.Y * 0.09), 16, 26)
+		-- the sample "12,480" is about 3.7 em wide and pops to 1.3x, so it must fit the mirror glass (width W): em <= W / 4.8
+		local glassW = math.max(1, mirror.AbsoluteSize.X - 12)
+		scoreBase = math.clamp(math.floor(math.min(mirror.AbsoluteSize.Y * 0.2, glassW / 4.8)), 14, 56)
+		nameBase = math.clamp(math.floor(math.min(mirror.AbsoluteSize.Y * 0.09, glassW / 5.5)), 14, 26)
 		stageScore.TextSize = scoreBase
 		stageName.TextSize = nameBase
 	end
@@ -293,6 +312,8 @@ function FlairDressingRoom.build(deps, panel)
 	local card = bind(make("Frame", plate, { Name = "DetailCard", BackgroundColor3 = TILE, ZIndex = Z + 4 }),
 		function(r) return { x = r.detail.x - r.plate.x, y = r.detail.y - r.plate.y, w = r.detail.w, h = r.detail.h } end)
 	round(card, 10)
+	local cardStroke = stroke(card, BRASS, 2)
+	cardStroke.Enabled = false
 	local cardName = make("TextLabel", card, { TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 5 })
 	local cardHow = make("TextLabel", card, { Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 5 })
@@ -393,7 +414,9 @@ function FlairDressingRoom.build(deps, panel)
 				t.sub.Size = UDim2.new(1, -32, 0, 18)
 				t.name.TextXAlignment = Enum.TextXAlignment.Left
 				t.name.TextSize = 16
+				t.name.TextScaled = true -- the whole category name, shrinking to 14 at the smallest, never dots
 			else
+				t.name.TextScaled = false
 				t.sub.Visible = not R.narrow
 				t.sub.Position = UDim2.fromOffset(10, 32)
 				t.sub.Size = UDim2.new(1, -16, 0, 18)
@@ -460,7 +483,7 @@ function FlairDressingRoom.build(deps, panel)
 			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
 		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.new(1, -8, 0, cellSize.nameH), Text = item.name,
-			TextSize = 14, TextWrapped = not R.sceneOn, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
+			TextSize = 14, TextWrapped = (not R.sceneOn) or cellSize.lines == 2, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
 			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
 		local status, statusColor
 		if item.state == "equipped" then
@@ -513,6 +536,9 @@ function FlairDressingRoom.build(deps, panel)
 			end
 			local name = make("TextLabel", b, { Text = d.icon .. " " .. d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
 				TextColor3 = on and CREAM or Color3.fromRGB(210, 194, 164) })
+			local nameLimit = Instance.new("UITextSizeConstraint")
+			nameLimit.MinTextSize, nameLimit.MaxTextSize = 14, 16
+			nameLimit.Parent = name
 			local sub = make("TextLabel", b, { Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -16, 0, 18), Font = Enum.Font.GothamMedium, TextSize = 14,
 				Text = d.ownedCount .. " of " .. d.total .. " unlocked", TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 				TextColor3 = GOLD, ZIndex = Z + 1 })
@@ -541,6 +567,7 @@ function FlairDressingRoom.build(deps, panel)
 
 	-- one full redraw of the parts that depend on the open category and the chosen piece
 	function FlairDressingRoom._rebuild()
+		paintPatches()
 		buildTabs()
 		buildGrid()
 		layoutGrid()
@@ -578,7 +605,11 @@ function FlairDressingRoom.build(deps, panel)
 			R.mirror, R.detail, R.plaque = down(S.mirror), down(S.detail), down(S.plaque)
 			sceneHolder.Position, sceneHolder.Size = UDim2.fromOffset(0, S.areaY), UDim2.fromOffset(w, h - R.topH - R.bottomH)
 			sceneImage.Position, sceneImage.Size = UDim2.fromOffset(S.image.x, S.image.y), UDim2.fromOffset(S.image.w, S.image.h)
+			paintSlices(sceneEdges, Scene.edgeFill(S, w, h - R.topH - R.bottomH))
+			sceneS = S
+			paintPatches()
 		end
+		if not S then sceneS = nil; paintPatches() end
 		sceneHolder.Visible = sceneOn
 		plaque.Visible = sceneOn
 		-- panels drawn by hand give way to the painting
@@ -591,11 +622,20 @@ function FlairDressingRoom.build(deps, panel)
 		mirror.BackgroundTransparency = sceneOn and 0.3 or 0
 		mirrorStroke.Enabled = not sceneOn
 		gridStroke.Enabled = not sceneOn
+		-- the detail card is a parchment plate with a brass edge on the painted room (not a black box); ink text at 9:1
+		card.BackgroundColor3 = sceneOn and PARCHMENT or TILE
+		card.BackgroundTransparency = sceneOn and 0.06 or 0
+		cardStroke.Enabled = sceneOn
+		cardName.TextColor3 = sceneOn and INK or CREAM
+		cardHow.TextColor3 = sceneOn and INK or CREAM
 		if sceneOn then
-			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.fromOffset(4, 4), UDim2.new(1, -8, 0, 20), Enum.TextXAlignment.Center
+			-- both labels live on the brass plaque under the mirror, so nothing floats over the sample number
+			liveLabel.Parent = plaque
+			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.new(0, 14, 0, 0), UDim2.new(1, -28, 0.45, 0), Enum.TextXAlignment.Center
 			previewingLabel.Parent = plaque
-			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.fromOffset(14, 0), UDim2.new(1, -28, 1, 0), Enum.TextXAlignment.Center
+			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.new(0, 14, 0.45, 0), UDim2.new(1, -28, 0.5, 0), Enum.TextXAlignment.Center
 		else
+			liveLabel.Parent = mirror
 			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.fromOffset(10, 4), UDim2.new(0.4, -10, 0, 20), Enum.TextXAlignment.Left
 			previewingLabel.Parent = mirror
 			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.new(0.4, 0, 0, 4), UDim2.new(0.6, -10, 0, 20), Enum.TextXAlignment.Right

@@ -13405,6 +13405,60 @@ table.insert(tests, { name = "FlairSceneLayout: painted Flair room maps tabs, 12
 	end
 end })
 
+table.insert(tests, { name = "FlairSceneLayout: the picture plus its edge slices cover the whole body, unused plates are patched, names get two lines (1920x1080, 1280x720)", fn = function()
+	local L = require(script.Parent.Parent.Engine.FlairSceneLayout)
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	-- body areas at 1920x1080 (panel 1410 wide, body about 680 tall), 1280x720 and a short wide one
+	for _, size in ipairs({ { 1410, 680 }, { 1000, 544 }, { 1640, 850 } }) do
+		local W, H = size[1], size[2]
+		local p = L.place(W, H)
+		expectTrue(p.ok, "painted room at " .. W .. "x" .. H)
+		local pieces = L.edgeFill(p, W, H)
+		local function covered(x, y)
+			local i = p.image
+			if x >= i.x and x <= i.x + i.w and y >= i.y and y <= i.y + i.h then return true end
+			for _, it in ipairs(pieces) do
+				local r = it.rect
+				if x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h then return true end
+			end
+			return false
+		end
+		local gaps = 0
+		for gx = 0, 20 do
+			for gy = 0, 10 do
+				if not covered(gx / 20 * (W - 1), gy / 10 * (H - 1)) then gaps = gaps + 1 end
+			end
+		end
+		expectEqual(gaps, 0, "no flat panel colour left uncovered at " .. W .. "x" .. H)
+		for _, it in ipairs(pieces) do
+			expectTrue(it.src.w >= 1 and it.src.h >= 1 and it.src.x >= 0 and it.src.y >= 0 and it.src.x + it.src.w <= L.IMAGE_W and it.src.y + it.src.h <= L.IMAGE_H, it.name .. " slices inside the picture")
+		end
+		-- two categories fewer than plates: the spare plates are patched with wall, none beyond the plate column
+		local patches = L.platePatches(p, #Flair.Slots)
+		expectEqual(#patches, 6 - #Flair.Slots, "one patch per unused plate")
+		for _, pt in ipairs(patches) do
+			expectTrue(pt.index > #Flair.Slots and pt.rect.w >= p.tabs[pt.index].w and pt.rect.h >= p.tabs[pt.index].h, "patch covers its plate")
+		end
+		expectEqual(#L.platePatches(p, 6), 0, "no patch when every plate is used")
+		-- cubby labels may take two lines where the cubby is tall enough and the tile still fits
+		local c = p.cubbies[1]
+		local cell = L.cell(c.w, c.h)
+		expectTrue(cell.lines == 2 or c.h < 110, "two name lines when the cubby is tall")
+		expectTrue(6 + cell.med + 4 + cell.nameH + 2 + cell.tagH <= c.h, "two-line tile fits the cubby at " .. W .. "x" .. H)
+	end
+end })
+
+table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the polish (parchment card, labels on the plaque, fitted sample, scaled tab names)", fn = function()
+	local f = io and io.open and io.open("src/Client/FlairDressingRoom.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("PARCHMENT", 1, true) ~= nil and src:find("cardStroke.Enabled = sceneOn", 1, true) ~= nil, "detail card is a parchment plate on the painted room")
+	expectTrue(src:find("liveLabel.Parent = plaque", 1, true) ~= nil, "Live preview label sits on the plaque")
+	expectTrue(src:find("glassW / 4.8", 1, true) ~= nil, "sample number is sized to the mirror glass")
+	expectTrue(src:find("t.name.TextScaled = true", 1, true) ~= nil and src:find("UITextSizeConstraint", 1, true) ~= nil, "tab names scale with a 14 floor")
+	expectTrue(src:find("Scene.edgeFill", 1, true) ~= nil and src:find("Scene.platePatches", 1, true) ~= nil, "edge fill and plate patches are drawn")
+end })
+
 table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, detail card and buttons never overlap or leave the panel (1920x1080, 1280x720, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
