@@ -343,9 +343,15 @@ function SpectatePanel.init(deps)
 	ls.Thickness = 1.5
 	ls.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	ls.Parent = leaveButton
-	leaveButton.MouseButton1Click:Connect(function()
+	local function leave()
 		ActionRemote:FireServer("stop")
 		stopWatching()
+	end
+	leaveButton.MouseButton1Click:Connect(leave)
+	-- the other exits: the round X (CloseX) and Escape (PopupDismiss) both mean Leave; a click on the dark area stays off (the overlay is a strip)
+	pcall(function() require(script.Parent.CloseX).attach(overlay, leave, { z = 133 }) end)
+	pcall(function()
+		require(script.Parent.PopupDismiss).attach(overlay, { policy = "dismiss", close = leave, panel = overlay, outside = false, button = true })
 	end)
 
 	-- ===== the watched player's badge =====

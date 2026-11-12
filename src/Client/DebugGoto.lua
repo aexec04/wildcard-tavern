@@ -155,7 +155,11 @@ function DebugGoto.init(deps)
 			local okL, errL = pcall(function()
 				local old = Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingScreen")
 				if old then old:Destroy() end
-				local UI = require(game:GetService("ReplicatedFirst"):WaitForChild("LoadingScreenUI"))
+				local module = game:GetService("ReplicatedFirst"):WaitForChild("LoadingScreenUI", 3)
+				if not module then
+					error("ReplicatedFirst.LoadingScreenUI is not in this Studio session: resync with the Rojo 7.4.4 plugin (default.project.json maps src/ReplicatedFirst), stop Play and press Play again")
+				end
+				local UI = require(module)
 				UI.show(Players.LocalPlayer.PlayerGui, { shared = ReplicatedStorage:WaitForChild("Shared"), frozen = target.percent / 100 })
 			end)
 			if okL then print("[DebugGoto] loading " .. target.percent .. " ok (set DebugGoto to menu to clear)") else warn("[DebugGoto] loading failed: " .. tostring(errL)) end

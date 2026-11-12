@@ -22906,7 +22906,7 @@ table.insert(tests, { name = "CloseX: the round X is a 44 px hit area with a 40 
 	local files = { "Journey", "StorePanel", "Settings", "SeasonPanel", "StatsPanel", "CollectionRewardsPanel", "BadgesPanel", "VolumePanel",
 		"LegendPanel", "DailyLeaderboard", "QuestsPanel", "DailyRewardsPanel", "CosmeticSetsPanel", "FlairPanel", "NewsPanel", "Collection", "DeckTracker", "MapFullScreen", "PokerHandsReference" }
 	for _, name in ipairs(files) do
-		local f = io.open("src/Client/" .. name .. ".lua", "r")
+		local f = io and io.open and io.open("src/Client/" .. name .. ".lua", "r") -- io is nil in Studio
 		if f then
 			local src = f:read("*a")
 			f:close()
