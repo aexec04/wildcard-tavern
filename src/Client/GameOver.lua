@@ -68,6 +68,11 @@ return function(deps)
 	dim.Active = true
 	dim.Visible = false
 	dim.Parent = root
+	-- the toast bar and its gold bracket border never draw over the Run Over screen
+	dim:GetPropertyChangedSignal("Visible"):Connect(function()
+		local bar = root:FindFirstChild("MessageBar")
+		if dim.Visible and bar then bar.Visible = false end
+	end)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "RunOverPanel"
@@ -525,11 +530,14 @@ return function(deps)
 		place(patronsLabel, r.patronsLabel)
 		place(patronsF, r.patrons)
 		local ax, ay = r.primary[1].x, r.primary[1].y
-		local actionsW = r.primary[#r.primary].x + r.primary[#r.primary].w - ax
-		place(actionsF, { x = ax, y = ay, w = actionsW, h = r.primary[1].h })
+		local actionsW = 0
+		for _, c in ipairs(r.primary) do actionsW = math.max(actionsW, c.x + c.w - ax) end
+		local actionsBottom = ay
+		for _, c in ipairs(r.primary) do actionsBottom = math.max(actionsBottom, c.y + c.h) end
+		place(actionsF, { x = ax, y = ay, w = actionsW, h = actionsBottom - ay })
 		for i, b in ipairs(primaryList) do
 			local c = r.primary[i]
-			b.Position = UDim2.fromOffset(math.floor(c.x - ax + 0.5), 0)
+			b.Position = UDim2.fromOffset(math.floor(c.x - ax + 0.5), math.floor(c.y - ay + 0.5))
 			b.Size = UDim2.fromOffset(math.floor(c.w + 0.5), math.floor(c.h + 0.5))
 		end
 		local mx, my = r.more[1].x, r.more[1].y

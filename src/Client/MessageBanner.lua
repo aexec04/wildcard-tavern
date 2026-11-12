@@ -109,7 +109,20 @@ return function(deps)
 	-- after a few seconds. The "MessageToken" attribute (not a top-level
 	-- local) guards against a newer message getting wiped early by an older
 	-- message's stale clear-timer.
+	-- A full screen (Run Over, a Backdrop popup) owns the view: no toast or bracket border is drawn over it.
+	local function blocked()
+		for _, c in ipairs(root:GetChildren()) do
+			if c:IsA("GuiObject") and c.Visible and (c.Name == "GameOver" or (c.Name:sub(-8) == "Backdrop" and c.Name ~= "DeckTrackerBackdrop")) then
+				return true
+			end
+		end
+		return false
+	end
 	local function showWarning(text)
+		if blocked() then
+			messageBar.Visible = false
+			return
+		end
 		messageLabel.Text = text
 		local myToken = (messageBar:GetAttribute("MessageToken") or 0) + 1
 		messageBar:SetAttribute("MessageToken", myToken)

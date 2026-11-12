@@ -14971,6 +14971,35 @@ table.insert(tests, { name = "PostBoss: after a cleared Boss Round the Counter a
 	expectFalse(P.cleared({ phase = "playing", isBossRound = true }), "not cleared while playing")
 end })
 
+table.insert(tests, { name = "Run Over: the action buttons never overlap (wide, scroll and phone), GameOver places each by its own y", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function textW(t) return #t * 9 end
+	local labels = { "One More (Free)", "Play Again", "Back to Tavern" }
+	local function apart(a, b)
+		return a.x + a.w <= b.x + 0.01 or b.x + b.w <= a.x + 0.01 or a.y + a.h <= b.y + 0.01 or b.y + b.h <= a.y + 0.01
+	end
+	local function check(cells, tag)
+		expectEqual(#cells, 3, tag .. " has three buttons")
+		for i = 1, #cells do
+			for j = i + 1, #cells do expectTrue(apart(cells[i], cells[j]), tag .. " buttons " .. i .. " and " .. j .. " do not overlap") end
+		end
+	end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 390, 844 } }) do
+		local r = L.compute(sz[1], sz[2], { factsH = 300, patrons = 3, primary = 3, more = 6, primaryLabels = labels, moreLabels = { "Share", "Challenge", "Invite", "Save" }, textW = textW })
+		check(r.primary, "compute " .. sz[1] .. "x" .. sz[2])
+	end
+	for _, key in ipairs({ "a", "b" }) do
+		local sc = L.scroll(1920, 1080, { factsH = 300, patrons = 3, primary = 3, more = 6, primaryLabels = labels, moreLabels = { "Share", "Challenge", "Invite", "Save" }, textW = textW }, key)
+		if sc then check(sc.inner.primary, "scroll " .. key) end
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("c.y - ay", 1, true) ~= nil, "GameOver positions each action button by its own row")
+		expectFalse(src:find("fromOffset(math.floor(c.x - ax + 0.5), 0)", 1, true) ~= nil, "no button is pinned to y = 0")
+	end
+end })
+
 table.insert(tests, { name = "BannerVisibility: the rules banner hides behind every non-run screen and returns at the table", fn = function()
 	local B = require(script.Parent.Parent.Engine.BannerVisibility)
 	for _, name in ipairs({ "CollectionBackdrop", "CosmeticSetsBackdrop", "BadgesBackdrop", "LegendBackdrop", "FlairBackdrop", "StatsBackdrop", "LedgerBackdrop" }) do
