@@ -57,16 +57,19 @@ end
 -- edge (the table front covers everything below it). Returns { top, height, width } in screen pixels, or nil when the painted
 -- table is not used or the band is too short to read (the caller then keeps the full-area backdrop).
 StageLayout.PORTRAIT_TOP = 76 -- below the name plate (ends at 60) and the taunt bubble (ends at 72)
-StageLayout.PORTRAIT_GAP = 10 -- air between the frame and the felt back edge
+StageLayout.PORTRAIT_GAP = 6 -- air between the frame (and its nameplate) and the felt back edge
+StageLayout.PORTRAIT_PLATE = 24 -- nameplate hung across the frame's bottom border: its lower half sits below the frame
+StageLayout.PORTRAIT_SHRINK = 0.88 -- the band is not used to the brim: the table's rim reads a little above the measured felt line
 StageLayout.PORTRAIT_MIN = 90
 function StageLayout.bossFrame(screenW, screenH)
 	local PlayTableLayout = require(script.Parent:WaitForChild("PlayTableLayout"))
 	if not PlayTableLayout.usable(screenW) or screenH < 1 then return nil end
 	local feltY = PlayTableLayout.map(screenW, screenH).felt.y
 	local top = StageLayout.PORTRAIT_TOP
-	local height = math.min(feltY - StageLayout.PORTRAIT_GAP - top, math.floor(screenH * 0.5))
+	local free = feltY - StageLayout.PORTRAIT_GAP - math.floor(StageLayout.PORTRAIT_PLATE / 2) - top
+	local height = math.floor(math.min(free * StageLayout.PORTRAIT_SHRINK, screenH * 0.5))
 	if height < StageLayout.PORTRAIT_MIN then return nil end
-	return { top = top, height = height, width = height }
+	return { top = top, height = height, width = height, plateH = StageLayout.PORTRAIT_PLATE }
 end
 
 -- Pixel heights for the rigs. mode = "normal" (player only) or "boss". Returns player, boss (boss nil in normal).

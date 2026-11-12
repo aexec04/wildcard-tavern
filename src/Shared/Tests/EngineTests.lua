@@ -5367,7 +5367,7 @@ table.insert(tests, { name = "StageLayout: the framed boss portrait fits the fre
 		if fr then
 			local felt = PlayTableLayout.map(w, h).felt
 			expectTrue(fr.top >= 72, "frame starts below the name plate and bubble at " .. w .. "x" .. h)
-			expectTrue(fr.top + fr.height <= felt.y, "whole frame above the felt back edge at " .. w .. "x" .. h)
+			expectTrue(fr.top + fr.height + fr.plateH / 2 + 6 <= felt.y, "frame and its nameplate sit 6 px above the felt back edge at " .. w .. "x" .. h)
 			expectTrue(fr.height >= StageLayout.PORTRAIT_MIN and fr.width <= w, "frame readable and on screen at " .. w .. "x" .. h)
 		end
 	end

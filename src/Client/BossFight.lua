@@ -401,7 +401,9 @@ local function build(deps)
 				artFrame = Instance.new("Frame")
 				artFrame.Name = "BossFrame"
 				artFrame.AnchorPoint = Vector2.new(0.5, 0)
-				artFrame.Position = UDim2.new(0.5, 0, 0, fr.top)
+				-- fr.top is in screen pixels; the holder may start below the screen top (inset), so take that off
+				local inset = math.max(0, holder.AbsolutePosition.Y)
+				artFrame.Position = UDim2.new(0.5, 0, 0, math.max(0, fr.top - inset))
 				artFrame.Size = UDim2.fromOffset(fr.width, fr.height)
 				artFrame.BackgroundColor3 = WOOD
 				artFrame.BorderSizePixel = 0
@@ -415,6 +417,30 @@ local function build(deps)
 				frameStroke.Thickness = 3
 				frameStroke.Parent = artFrame
 				artBase = UDim2.fromScale(0.5, 0.5)
+				-- small nameplate across the bottom border: the boss name in cream on dark wood with a gilt rim
+				local plate = Instance.new("TextLabel")
+				plate.Name = "BossNamePlate"
+				plate.AnchorPoint = Vector2.new(0.5, 0.5)
+				plate.Size = UDim2.fromOffset(math.max(120, math.floor(fr.width * 0.8)), fr.plateH)
+				plate.BackgroundColor3 = WOOD
+				plate.BorderSizePixel = 0
+				plate.Font = Enum.Font.GothamBold
+				plate.TextSize = 14
+				plate.TextColor3 = CREAM
+				plate.TextTransparency = 0
+				plate.TextStrokeTransparency = 1
+				plate.Text = boss.name or ""
+				plate.TextTruncate = Enum.TextTruncate.AtEnd
+				plate.ZIndex = 3
+				plate.Parent = holder
+				corner(plate, 6)
+				local plateStroke = Instance.new("UIStroke")
+				plateStroke.Color = GOLD
+				plateStroke.Thickness = 1.5
+				plateStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				plateStroke.Parent = plate
+				plate.Position = UDim2.new(0.5, 0, 0, math.max(0, fr.top - inset) + fr.height)
+				artFrame.Destroying:Connect(function() plate:Destroy() end)
 				art = PatronPlaque.applyById(artFrame, artId, {
 					size = UDim2.fromScale(1.08, 1.08), anchor = Vector2.new(0.5, 0.5), position = artBase,
 					zIndex = 0, cornerRadius = 0,
