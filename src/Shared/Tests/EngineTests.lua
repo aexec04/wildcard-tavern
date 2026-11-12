@@ -13917,6 +13917,18 @@ table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave
 	expectTrue(type(LogoArt) == "table", "LogoArt hook exists")
 end })
 
+table.insert(tests, { name = "SpectateLayout: Leave is centred at the bottom and clear of the reaction row, at every overlay width", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SpectateLayout)
+	for _, w in ipairs({ 300, 480, 684, 760 }) do
+		local r = SL.rects(w)
+		local l, re = r.leave, r.react
+		expectTrue(math.abs(l[1] + l[3] / 2 - w / 2) < 0.01, "Leave centred at width " .. w)
+		expectTrue(l[2] + l[4] <= SL.HEIGHT and l[1] >= 0 and l[1] + l[3] <= w, "Leave inside the overlay at width " .. w)
+		expectTrue(re[2] + re[4] <= l[2], "reaction row ends above Leave at width " .. w)
+		expectTrue(l[3] >= 44 and l[4] >= 30, "Leave is a real touch target")
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it

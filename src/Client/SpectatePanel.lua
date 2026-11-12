@@ -34,6 +34,7 @@ local RANK_TEXT = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
 function SpectatePanel.init(deps)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local Spectate = require(Engine:WaitForChild("Spectate"))
+	local SpectateLayout = require(Engine:WaitForChild("SpectateLayout"))
 	local Flair = require(Engine:WaitForChild("Flair"))
 	local Patrons = require(Engine:WaitForChild("Patrons"))
 	local ClientSettings = require(script.Parent.ClientSettings)
@@ -68,7 +69,7 @@ function SpectatePanel.init(deps)
 	overlay.Name = "SpectateOverlay"
 	overlay.AnchorPoint = Vector2.new(0.5, 0)
 	overlay.Position = UDim2.new(0.5, 0, 0, 12)
-	overlay.Size = UDim2.new(0.9, 0, 0, 330)
+	overlay.Size = UDim2.new(0.9, 0, 0, SpectateLayout.HEIGHT)
 	overlay.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
 	overlay.BackgroundTransparency = 0.05
 	overlay.BorderSizePixel = 0
@@ -76,7 +77,7 @@ function SpectatePanel.init(deps)
 	overlay.ZIndex = 130
 	overlay.Parent = gui
 	local sizeLimit = Instance.new("UISizeConstraint")
-	sizeLimit.MaxSize = Vector2.new(760, 330)
+	sizeLimit.MaxSize = Vector2.new(SpectateLayout.WIDTH_MAX, SpectateLayout.HEIGHT)
 	sizeLimit.Parent = overlay
 	local oc = Instance.new("UICorner")
 	oc.CornerRadius = UDim.new(0, 14)
@@ -152,8 +153,8 @@ function SpectatePanel.init(deps)
 
 	-- reactions: six presets
 	local reactRow = Instance.new("Frame")
-	reactRow.Position = UDim2.new(0, 12, 1, -44)
-	reactRow.Size = UDim2.new(1, -24, 0, 36)
+	reactRow.Position = UDim2.new(0, 12, 1, SpectateLayout.rects(0).react[2] - SpectateLayout.HEIGHT)
+	reactRow.Size = UDim2.new(1, -24, 0, SpectateLayout.REACT_H)
 	reactRow.BackgroundTransparency = 1
 	reactRow.ZIndex = 131
 	reactRow.Parent = overlay
@@ -315,6 +316,33 @@ function SpectatePanel.init(deps)
 	end
 
 	stopButton.MouseButton1Click:Connect(function()
+		ActionRemote:FireServer("stop")
+		stopWatching()
+	end)
+
+	-- Leave: a parchment button at the bottom centre; same close path as Stop (tells the server, hides the overlay, the Menu is underneath)
+	local leaveButton = Instance.new("TextButton")
+	leaveButton.Name = "LeaveButton"
+	leaveButton.AnchorPoint = Vector2.new(0.5, 1)
+	leaveButton.Position = UDim2.new(0.5, 0, 1, -SpectateLayout.EDGE)
+	leaveButton.Size = UDim2.fromOffset(SpectateLayout.LEAVE_W, SpectateLayout.LEAVE_H)
+	leaveButton.Font = Enum.Font.GothamBold
+	leaveButton.TextSize = 15
+	leaveButton.TextColor3 = INK
+	leaveButton.BackgroundColor3 = Color3.fromRGB(236, 220, 184)
+	leaveButton.AutoButtonColor = true
+	leaveButton.Text = "Leave"
+	leaveButton.ZIndex = 132
+	leaveButton.Parent = overlay
+	local lc = Instance.new("UICorner")
+	lc.CornerRadius = UDim.new(0, 8)
+	lc.Parent = leaveButton
+	local ls = Instance.new("UIStroke")
+	ls.Color = GOLD
+	ls.Thickness = 1.5
+	ls.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ls.Parent = leaveButton
+	leaveButton.MouseButton1Click:Connect(function()
 		ActionRemote:FireServer("stop")
 		stopWatching()
 	end)
