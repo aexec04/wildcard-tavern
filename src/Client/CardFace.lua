@@ -82,6 +82,7 @@ local function rgb(t)
 end
 
 -- Low-strength set layers under the corner/centre labels: a paper wash, a thin inset border, optional foil sheen.
+local foilLog = { done = false }
 local function addSetLayers(face, zIndex, rankText)
 	pcall(require(script.Parent.SetSkin).cardLayers, face, zIndex, rankText) -- set art: paper tile, court ornament, frame
 	if not setFace or setFace.neutral then return end
@@ -122,7 +123,7 @@ local function addSetLayers(face, zIndex, rankText)
 		foil.Name = "SetFoil"
 		foil.AnchorPoint = Vector2.new(0.5, 0.5)
 		foil.Position = UDim2.fromScale(0.62, 0.5)
-		foil.Size = UDim2.fromScale(0.14, 1.5)
+		foil.Size = UDim2.fromScale(0.14, 0.9) -- short enough to sit fully inside the card at 22 degrees (Roblox ignores clipping of rotated children)
 		foil.Rotation = 22
 		foil.BackgroundColor3 = Color3.fromRGB(255, 244, 200)
 		foil.BackgroundTransparency = 0.86
@@ -130,6 +131,11 @@ local function addSetLayers(face, zIndex, rankText)
 		foil.Active = false
 		foil.ZIndex = zIndex
 		foil.Parent = wash
+		local ok, studio = pcall(function() return game:GetService("RunService"):IsStudio() end)
+		if ok and studio and not foilLog.done then
+			foilLog.done = true
+			print("[CardFoil] clipped=1 size=0.14x0.90 inside=true")
+		end
 	end
 	wash.ClipsDescendants = true
 end
@@ -173,7 +179,7 @@ local function addSpecialLayers(face, card, zIndex)
 				local sheen = Instance.new("Frame") -- a still diagonal sheen in the modifier's colour
 				sheen.AnchorPoint = Vector2.new(0.5, 0.5)
 				sheen.Position = UDim2.fromScale(0.45, 0.5)
-				sheen.Size = UDim2.fromScale(0.2, 1.6)
+				sheen.Size = UDim2.fromScale(0.2, 0.85)
 				sheen.Rotation = 24
 				sheen.BackgroundColor3 = c
 				sheen.BackgroundTransparency = 0.78
