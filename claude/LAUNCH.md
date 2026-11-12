@@ -71,7 +71,7 @@ Screenshot anything that looks wrong and write the screen name on it.
 - Start with `wins_1`, `night_3`, `night_8`, `streak_3`, they are the easiest to earn and drive the "I got a badge" feeling.
 
 **Sound and music slots still empty** (the game stays silent for these and nothing breaks; pick ids from the Roblox audio library, never guess)
-- File `Engine/SoundIds.lua`, table `Cues`, empty `id`: `shuffle`, `card_flip`, `discard`, `hover`, `boss_intro`, `boss_defeat`, `map_open`, `road_choose`, `compass_turn`.
+- File `Engine/SoundIds.lua`, table `Cues`: `shuffle` now has an id (ProSoundEffects "Deck Of Cards 5", cut to 1.3 s). These cues have no id of their own but play by reusing and pitching working sounds (`Engine/SoundFX.Layers`): `card_flip`, `discard`, `hover`, `map_open`, `road_choose`, `compass_turn`, `shop_enter`, `shop_buy`, `shop_reroll`, `shop_cant`, `boss_defeat`. Only `boss_intro` is still silent (the intro popup is gone). Optional coin alternates to audition: `SoundIds.CoinAlternates` (9113849583 "Coin Throws 2", 9121189379 "BagOfCoins"); in Studio set DebugGoto to `sfx:<cue>` or `sfx:ladder` to hear one.
 - Same file, table `Music`, empty: `region_road`, `region_meadow`, `region_river`, `region_peaks`, `region_desert`, `region_swamp`, `region_snow`, `region_coast`, `region_tavern` (an empty one falls back to the plain gameplay track).
 - Filled today: menu, gameplay, shop, boss music and the card, chip, coin, buy, click, win and lose cues.
 - Check every id plays in a published place: some library audio is private and fails silently.

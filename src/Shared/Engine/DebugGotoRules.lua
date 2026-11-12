@@ -67,6 +67,11 @@ function DebugGotoRules.parse(value)
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
 	end
+	-- sfx:<cueName> plays that cue once, sfx:ladder an 8 step pitch ladder (Studio audition, Client/Sound.auditionCue)
+	local sfxName = text:match("^sfx:([%w_]+)$")
+	if sfxName then
+		return { kind = "sfx", cue = sfxName }
+	end
 	-- scale:<w>x<h> shrinks GameUI to that viewport (Studio only), scale:off restores it
 	if text == "scale:off" then
 		return { kind = "scale", off = true }

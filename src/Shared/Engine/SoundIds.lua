@@ -18,7 +18,7 @@ SoundIds.Cues = {
 	card_deal = { id = "rbxassetid://9114035597", volume = 0.35, maxLength = 0.6 }, -- reuses the deck-flick clip
 	card_select = { id = "rbxassetid://9117308777", volume = 3, maxLength = 0.35 },
 	card_play = { id = "rbxassetid://9113727134", volume = 0.6 },
-	shuffle = { id = "", volume = 0.5 },
+	shuffle = { id = "rbxassetid://9114035457", volume = 0.5, maxLength = 1.3, fade = 0.2 }, -- ProSoundEffects "Deck Of Cards 5" (3.9 s with chips at the tail): cut to 1.3 s with a 0.2 s fade
 	card_flip = { id = "", volume = 0.35, maxLength = 0.4 }, -- the deal flip (Client/DealFlip.lua)
 	discard = { id = "", volume = 0.5 }, -- a Discard was used (Client/FeelHooks.lua)
 	chip = { id = "rbxassetid://7381722372", volume = 0.4 },
@@ -42,6 +42,9 @@ SoundIds.Cues = {
 	scroll_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.9 }, -- any scroll or panel popup opens (Client/PopupShield.lua; ProSoundEffects "Scrapbook Open And Turn Pages 6")
 	scroll_close = { id = "rbxassetid://9118838541", volume = 0.35, maxLength = 0.7 }, -- it closes (ProSoundEffects "Scraping Brisk Plastic Wood 1")
 }
+
+-- Optional alternates for the coin cascade (not the default, so nothing regresses): try them in Studio with DebugGoto "sfx:<cue>".
+SoundIds.CoinAlternates = { "rbxassetid://9113849583", "rbxassetid://9121189379" } -- "Coin Throws 2" (2.4 s), "BagOfCoins"
 
 -- Display/iteration order (pairs order is not stable).
 SoundIds.CueOrder = {
@@ -109,6 +112,19 @@ function SoundIds.missingCues()
 	local out = {}
 	for _, name in ipairs(SoundIds.CueOrder) do
 		if not SoundIds.cueId(name) then
+			table.insert(out, name)
+		end
+	end
+	return out
+end
+
+-- Cues that still make no sound at all: no id of their own and no composite layers (Engine/SoundFX.Layers). Only boss_intro stays silent.
+function SoundIds.silentCues()
+	local ok, SoundFX = pcall(function() return require(script.Parent.SoundFX) end)
+	local out = {}
+	for _, name in ipairs(SoundIds.CueOrder) do
+		local layered = ok and SoundFX.layersFor(name) ~= nil
+		if not SoundIds.cueId(name) and not layered then
 			table.insert(out, name)
 		end
 	end

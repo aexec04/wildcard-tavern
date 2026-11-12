@@ -113,6 +113,8 @@ return function(deps)
 	local screenShake = deps.screenShake
 	local particleBurst = deps.particleBurst
 	local playPitched = deps.playPitched
+	local SoundFX = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundFX"))
+	local CueBridge = require(script.Parent.Cue)
 	local chipTickSound = deps.chipTickSound
 	local multTickSound = deps.multTickSound
 	local xmultTickSound = deps.xmultTickSound
@@ -1051,6 +1053,8 @@ return function(deps)
 					wildcardBanner.TextStrokeTransparency = 1
 				end)
 				playPitched(payoutThudSound, 0.5, 0.85)
+				CueBridge.play("legendary_moment") -- the win sting +5, a low thud and a two note chime (+12 and +19)
+				CueBridge.duck()
 				screenShake(root, 8, pace(0.3))
 				particleBurst(centerOf(scorePopup), WILDCARD_FLASH_COLOR, 12, { spread = 100, duration = 0.55 })
 
@@ -1116,6 +1120,8 @@ return function(deps)
 					legendaryBanner.TextStrokeTransparency = 1
 				end)
 				playPitched(payoutThudSound, 0.55, 0.8)
+				CueBridge.play("legendary_moment")
+				CueBridge.duck()
 				screenShake(root, 9, pace(0.35))
 				particleBurst(centerOf(scorePopup), LEGENDARY_FLASH_COLOR, 10, { spread = 90, duration = 0.5 })
 				for _ = 1, 4 do
@@ -1161,6 +1167,7 @@ return function(deps)
 			local breakdown = preview.breakdown or {}
 			local animatedCount = math.min(#breakdown, MAX_ANIMATED_ENTRIES)
 			local runningChips, runningMult, runningXMult = 0, 0, 1
+			local chipTicks, multTicks = 0, 0 -- the pitch ladder: each tick of a kind rises a half step (Engine/SoundFX)
 
 			for i, entry in ipairs(breakdown) do
 				if scorePopupToken ~= myToken then
@@ -1203,8 +1210,19 @@ return function(deps)
 					-- AUDIO: pitch climbs a little with every consecutive
 					-- trigger in this sequence, resetting fresh on the next
 					-- Play Hand (myToken/i are both per-sequence, not global).
-					local pitch = math.min(MAX_PITCH, BASE_PITCH + PITCH_STEP * (i - 1))
-					playPitched(tickSoundFor(entry.kind), pitch, 0.35)
+					-- SOUND PASS: a half step up per tick (capped at +12 semitones), the volume climbing a little, and an xmult tick an octave
+					-- over the last mult tick (Engine/SoundFX.tick)
+					local plan
+					if entry.kind == "xmult" then
+						plan = SoundFX.tick("xmult", 1, multTicks)
+					elseif entry.kind == "mult" then
+						multTicks = multTicks + 1
+						plan = SoundFX.tick("mult", multTicks)
+					else
+						chipTicks = chipTicks + 1
+						plan = SoundFX.tick("chips", chipTicks)
+					end
+					playPitched(tickSoundFor(entry.kind), plan.speed, plan.volume)
 
 					-- SOURCE-AWARE CHOREOGRAPHY: trace this entry back to
 					-- the card/Patron that caused it (see Scoring.lua's
@@ -1339,6 +1357,8 @@ return function(deps)
 			-- different sound family that doesn't need disguising -- just a
 			-- gentle 0.85x to land it with a touch of weight.
 			playPitched(payoutThudSound, 0.85, 0.6)
+			CueBridge.coinCascade(0.35) -- the payout landing: 3 coins 60 ms apart at slightly different pitch
+			CueBridge.sting(preview.name) -- a hand-type sting by tier (the biggest tier also ducks the music)
 
 			-- PLAYTEST FEEDBACK: same revert as the per-entry loop above --
 			-- the finale's own boost is gone too. A legendary hand's whole
@@ -1369,6 +1389,11 @@ return function(deps)
 					juiceScale.Scale = 0.5
 					tweenTo(juiceScale, { Scale = 1.1 }, pace(0.25), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 					playPitched(payoutThudSound, 1.25, 0.5)
+					if clears then
+						CueBridge.play("win", 0.6) -- the round win: the win sting and a coin cascade, the music ducks for the beat
+						CueBridge.coinCascade(0.3)
+						CueBridge.duck()
+					end
 					screenShake(root, ScoreJuice.shakeFor(preview.score, preview.targetScore), pace(0.3))
 					particleBurst(centerOf(scorePopup), color, ScoreJuice.burstFor(preview.score, preview.targetScore), { spread = 140, duration = 0.7 })
 					if clears then

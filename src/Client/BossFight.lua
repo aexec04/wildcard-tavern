@@ -692,6 +692,7 @@ local function build(deps)
 	local function defeatSequence()
 		retiring = true
 		require(script.Parent.Cue).play("boss_defeat")
+		require(script.Parent.Cue).duck() -- a big beat: the music dips about 4 dB for 1.2 s
 		if fast() then
 			say("defeated", true)
 			later(0.6, function() hide() end)

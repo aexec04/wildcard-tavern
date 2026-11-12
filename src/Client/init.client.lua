@@ -127,6 +127,7 @@ local SoundModule = require(script.Sound)({
 	SoundService = SoundService,
 })
 require(script.Cue).set(SoundModule.playCue) -- named cues (Engine/SoundIds) for any module
+require(script.Cue).setExtras({ coinCascade = SoundModule.coinCascade, sting = SoundModule.playSting, duck = SoundModule.duckMusic, audition = SoundModule.auditionCue })
 -- VOLUME_STEPS (the old loud/quiet/mute click-to-cycle table) is gone --
 -- volumeButton opens VolumePanel.lua's real slider panel now instead of
 -- cycling, so only the icon table + its initial index are still needed

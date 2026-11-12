@@ -157,6 +157,7 @@ return function(deps)
 	-- until picked and setMusicTrack skips empty ids). "title" stays as an alias of "menu".
 	local SoundIds = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundIds"))
 	local TweenService = game:GetService("TweenService") -- the biome music crossfade
+	local SoundFX = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SoundFX")) -- pitch ladder, jitter, gate, ducking, layers
 	local MUSIC_IDS = {
 		title = SoundIds.Music.menu,
 		gameplay = SOUND_IDS.backgroundMusic,        -- rbxassetid://132846105965979
@@ -620,24 +621,188 @@ return function(deps)
 		end
 	end
 
+	-- ONE SHOT: a throw-away clone of the pooled Sound, so layers and rapid repeats of the same clip can overlap at their own pitch
+	-- (the pooled instance restarts when played again). `speed` is PlaybackSpeed. The SFX slider and Mute apply through getSfxVolume.
+	local function playOneShot(soundId, volume, speed, maxLength, startAt, fade)
+		if not soundId or soundId == "" or soundId == "rbxassetid://0" then
+			return
+		end
+		local base = sfxPool[soundId]
+		if not base then
+			base = Instance.new("Sound")
+			base.SoundId = soundId
+			base.Parent = SoundService
+			sfxPool[soundId] = base
+		end
+		local shot = base:Clone()
+		shot.Volume = (volume or 0.5) * getSfxVolume(soundId)
+		shot.PlaybackSpeed = speed or 1
+		shot.TimePosition = startAt or 0
+		shot.Parent = SoundService
+		shot:Play()
+		local life = (maxLength or 4) / math.max(0.25, speed or 1)
+		if fade and fade > 0 and maxLength and fade < maxLength then
+			task.delay(math.max(0, life - fade), function()
+				pcall(function() TweenService:Create(shot, TweenInfo.new(fade), { Volume = 0 }):Play() end)
+			end)
+		end
+		task.delay(life + 0.1, function()
+			pcall(function() shot:Stop() shot:Destroy() end)
+		end)
+		return shot
+	end
+
+	-- MUSIC DUCKING: a big beat (Legendary, True Wildcard, Four of a Kind or better, a boss defeat, a round win) lowers the music by about
+	-- 4 dB for 1.2 s and eases it back over 0.6 s (Engine/SoundFX.duck). The way back reads the Music slider and Mute AT THAT TIME, so a
+	-- slider moved during the duck is respected.
+	local duckToken = 0
+	local function duckMusic()
+		if backgroundMusic.Volume <= 0 then
+			return
+		end
+		duckToken = duckToken + 1
+		local myToken = duckToken
+		local function target()
+			return (studioMuted or ClientSettings.get("muted")) and 0 or (ClientSettings.get("musicVolume") or 0)
+		end
+		local started = os.clock()
+		task.spawn(function()
+			while duckToken == myToken do
+				local t = os.clock() - started
+				backgroundMusic.Volume = target() * SoundFX.duck(t)
+				if t >= SoundFX.DUCK_HOLD + SoundFX.DUCK_RELEASE then
+					break
+				end
+				task.wait(0.05)
+			end
+			if duckToken == myToken then
+				backgroundMusic.Volume = target()
+			end
+		end)
+	end
+
 	-- Named cue from SoundIds.Cues: per-cue volume (times `scale`, default 1) and max length, then the
 	-- player's SFX slider/Mute inside playSfx. Unknown cues and cues with no id yet are skipped silently.
-	-- Hover is rate limited to one per 0.1s.
-	local lastHoverAt = 0
-	local function playCue(name, scale)
+	-- Every cue has a minimum interval (hover 80 ms, the rest 30 ms, Engine/SoundFX). Card, button, hover, chip and coin cues get a little
+	-- pitch (6 percent) and volume (8 percent) variation, never the same exact value twice in a row. Composite cues (Engine/SoundFX.Layers)
+	-- play their layers, each at its own delay, pitch and volume, using only sounds that already load.
+	local gate = SoundFX.newGate()
+	local lastPitch, lastVolume = {}, {}
+	local failedWarned = {}
+	local function cueDelay(delay, fn)
+		if delay and delay > 0 then
+			task.delay(delay, fn)
+		else
+			fn()
+		end
+	end
+	local function playCue(name, scale, layerSpeed)
+		if not gate:allow(name, os.clock()) then
+			return
+		end
+		local layers = SoundFX.layersFor(name)
+		if layers then
+			for _, layer in ipairs(layers) do
+				cueDelay(layer.delay, function()
+					local cue = SoundIds.Cues[layer.cue]
+					local id = SoundIds.cueId(layer.cue)
+					if not id then
+						return
+					end
+					local speed = layer.speed or (layer.semis and SoundFX.semitone(layer.semis)) or 1
+					playOneShot(id, (layer.volume or cue.volume or 0.5) * (scale or 1), speed, layer.maxLength or cue.maxLength, cue.startAt, layer.fade or cue.fade)
+				end)
+			end
+			return
+		end
 		local id = SoundIds.cueId(name)
 		if not id then
 			return
 		end
-		if name == "hover" then
-			local now = os.clock()
-			if now - lastHoverAt < 0.1 then
-				return
-			end
-			lastHoverAt = now
-		end
 		local cue = SoundIds.Cues[name]
-		playSfx(id, (cue.volume or 0.5) * (scale or 1), cue.maxLength, cue.startAt, cue.fade)
+		local volume = (cue.volume or 0.5) * (scale or 1)
+		if SoundFX.JITTERED[name] then
+			local rollP, rollV = math.random(), math.random()
+			local speed = SoundFX.jitter(1, SoundFX.PITCH_JITTER, rollP, lastPitch[name])
+			lastPitch[name] = speed
+			volume = SoundFX.jitter(volume, SoundFX.VOLUME_JITTER, rollV, lastVolume[name])
+			lastVolume[name] = volume
+			playOneShot(id, volume, speed * (layerSpeed or 1), cue.maxLength, cue.startAt, cue.fade)
+			return
+		end
+		playSfx(id, volume, cue.maxLength, cue.startAt, cue.fade)
+	end
+
+	-- The coin cascade: a few coins 60 ms apart at slightly different pitch (the payout landing).
+	local function coinCascade(volume)
+		local id = SoundIds.cueId("coin")
+		if not id then
+			return
+		end
+		for _, coin in ipairs(SoundFX.coinCascade(3)) do
+			cueDelay(coin.delay, function()
+				playOneShot(id, (volume or 0.35) * (1 - coin.delay), coin.speed, 0.8)
+			end)
+		end
+	end
+
+	-- A hand-type sting by tier (quiet for High Card and Pair up to the biggest for Full House, Four of a Kind, Straight Flush).
+	local function playSting(handName)
+		local tier = SoundFX.handSting(handName)
+		for _, layer in ipairs(SoundFX.stingLayers(tier)) do
+			cueDelay(layer.delay, function()
+				local id = SoundIds.cueId(layer.cue)
+				if id then
+					playOneShot(id, layer.volume or 0.4, layer.speed or (layer.semis and SoundFX.semitone(layer.semis)) or 1, SoundIds.Cues[layer.cue].maxLength)
+				end
+			end)
+		end
+		if tier == "biggest" then
+			duckMusic()
+		end
+		return tier
+	end
+
+	-- Studio audition (DebugGoto "sfx:<cue>" and "sfx:ladder"): plays a cue once, or an 8 step pitch ladder. A cue whose Sound fails to load or
+	-- has no length is named in a warning, so the QA loop can see which one is dead.
+	local function auditionCue(name)
+		if name == "ladder" then
+			local id = JUICE_SOUND_IDS.chipTick
+			for n = 1, 8 do
+				task.delay((n - 1) * 0.22, function()
+					playOneShot(id, 0.4, SoundFX.ladderSpeed(n), 0.5)
+				end)
+			end
+			return true
+		end
+		if not SoundIds.Cues[name] then
+			warn("[Sound] audition: no cue named " .. tostring(name))
+			return false
+		end
+		local ids = {}
+		local layers = SoundFX.layersFor(name)
+		if layers then
+			for _, layer in ipairs(layers) do ids[#ids + 1] = SoundIds.cueId(layer.cue) end
+		else
+			ids[1] = SoundIds.cueId(name)
+		end
+		if #ids == 0 then
+			warn("[Sound] audition: cue " .. name .. " has no id and no layers (silent on purpose)")
+			return false
+		end
+		for _, id in ipairs(ids) do
+			local probe = sfxPool[id]
+			if probe then
+				task.delay(1.2, function()
+					if probe.TimeLength == 0 and not failedWarned[id] then
+						failedWarned[id] = true
+						warn(string.format("[Sound] cue %s: %s failed to load or has no length (TimeLength 0)", name, id))
+					end
+				end)
+			end
+		end
+		playCue(name, 1)
+		return true
 	end
 
 	-- SOUND_IDS.uiClick (Rotary-Switch-10-SFX) has two audible clicks baked
@@ -735,6 +900,11 @@ return function(deps)
 		end,
 		playSfx = playSfx,
 		playCue = playCue,
+		playOneShot = playOneShot,
+		coinCascade = coinCascade,
+		playSting = playSting,
+		duckMusic = duckMusic,
+		auditionCue = auditionCue,
 		SoundIds = SoundIds,
 		playClickSfx = playClickSfx,
 		playPitched = playPitched,

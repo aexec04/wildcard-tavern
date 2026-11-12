@@ -11218,7 +11218,7 @@ table.insert(tests, { name = "SoundIds: biome tracks crossfade only between game
 	expectEqual(S.cueId("card_flip"), nil); expectEqual(S.cueId("discard"), nil)
 	local missing = {}
 	for _, name in ipairs(S.missingCues()) do missing[name] = true end
-	expectTrue(missing.card_flip and missing.discard and missing.shuffle, "empty slots are listed so the ids can be picked")
+	expectTrue(missing.card_flip and missing.discard and not missing.shuffle, "slots with no id of their own are still listed (shuffle now has one)")
 	-- the fallback: a region with no id plays the plain gameplay track
 	expectEqual(S.regionMusicKey("desert"), "gameplay")
 	-- source checks: the hooks exist and no frame is created per scored hand
@@ -21487,6 +21487,114 @@ table.insert(tests, { name = "Skip Pack: half the price paid comes back (min 1 f
 		g:close()
 		expectTrue(text:find('"Skip Pack (+%d Tips)"', 1, true) ~= nil and text:find("%d Tips back", 1, true) ~= nil, "the button shows the refund and a toast says N Tips back")
 	end
+end })
+
+table.insert(tests, { name = "SoundFX: pitch ladder, jitter bounds and no repeat, min interval gate, ducking envelope, every cue has an id or layers, stings, coin cascade", fn = function()
+	local FX = require(script.Parent.Parent.Engine.SoundFX)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	-- the ladder: a half step per tick, capped at +12 semitones
+	expectEqual(FX.ladderSpeed(1), 1, "the first tick is at pitch")
+	expectTrue(math.abs(FX.ladderSpeed(2) - 2 ^ (1 / 12)) < 1e-9, "the second is a half step up")
+	expectTrue(math.abs(FX.ladderSpeed(13) - 2) < 1e-9, "the thirteenth is an octave up")
+	expectTrue(math.abs(FX.ladderSpeed(40) - 2) < 1e-9 and math.abs(FX.ladderSpeed(99) - 2) < 1e-9, "and it stops there")
+	local prev = 0
+	for n = 1, 20 do expectTrue(FX.ladderSpeed(n) >= prev, "the ladder never falls"); prev = FX.ladderSpeed(n) end
+	local c1, c5 = FX.tick("chips", 1), FX.tick("chips", 5)
+	expectTrue(c5.speed > c1.speed and c5.volume > c1.volume and c5.volume <= 0.6, "volume rises slightly with the rung, with a cap")
+	local m = FX.tick("mult", 3)
+	local x = FX.tick("xmult", 1, 3)
+	expectTrue(math.abs(x.speed - FX.ladderSpeed(3) * 2) < 1e-9, "an xmult tick is an octave over the last mult tick")
+	expectEqual(FX.tick("chips", nil).speed, 1, "a missing count is the first rung")
+	expectTrue(m.speed > 1, "mult ticks climb too")
+	-- jitter: within bounds and never the same value twice in a row
+	local last
+	for i = 0, 200 do
+		local roll = (i % 21) / 20
+		local v = FX.jitter(1, FX.PITCH_JITTER, roll, last)
+		expectTrue(v >= 1 - FX.PITCH_JITTER - 1e-9 and v <= 1 + FX.PITCH_JITTER + 1e-9, "pitch stays within 6 percent")
+		expectTrue(last == nil or v ~= last, "never the same exact value twice in a row")
+		last = v
+	end
+	local lv
+	for i = 0, 100 do
+		local v = FX.jitter(0.5, FX.VOLUME_JITTER, (i % 7) / 6, lv)
+		expectTrue(v >= 0.5 * (1 - FX.VOLUME_JITTER) - 1e-9 and v <= 0.5 * (1 + FX.VOLUME_JITTER) + 1e-9, "volume stays within 8 percent")
+		lv = v
+	end
+	for _, name in ipairs({ "card_select", "card_play", "card_deal", "button_click", "hover", "chip", "coin" }) do expectTrue(FX.JITTERED[name], name .. " is jittered") end
+	-- the gate
+	local gate = FX.newGate()
+	expectTrue(gate:allow("card_select", 1.000), "the first play is allowed")
+	expectFalse(gate:allow("card_select", 1.010), "10 ms later is blocked")
+	expectTrue(gate:allow("card_select", 1.031), "31 ms later is allowed")
+	expectTrue(gate:allow("hover", 2.0) and not gate:allow("hover", 2.05) and gate:allow("hover", 2.081), "hover waits 80 ms")
+	expectTrue(gate:allow("coin", 1.011), "another cue is independent")
+	-- ducking: 4 dB down at once, held 1.2 s, back up over 0.6 s
+	local deep = FX.dbToGain(-4)
+	expectTrue(math.abs(deep - 0.631) < 0.001, "-4 dB is a gain of 0.631")
+	expectEqual(FX.duck(-1), 1, "before the beat nothing is ducked")
+	expectEqual(FX.duck(0), deep, "it drops at once")
+	expectEqual(FX.duck(1.2), deep, "and holds for 1.2 s")
+	expectTrue(FX.duck(1.5) > deep and FX.duck(1.5) < 1, "then eases back")
+	expectEqual(FX.duck(1.8), 1, "fully back after 0.6 s")
+	local up = 0
+	for t = 1.2, 1.8, 0.05 do expectTrue(FX.duck(t) >= up - 1e-9, "the return never dips"); up = FX.duck(t) end
+	-- every cue has an id or explicit layers, and the layers only use cues that have ids
+	for _, name in ipairs(S.CueOrder) do
+		local ok = S.cueId(name) ~= nil or FX.layersFor(name) ~= nil or FX.EMPTY_OK[name]
+		expectTrue(ok, name .. " has an id, explicit layers, or is on the silent list")
+	end
+	expectEqual(table.concat(S.silentCues(), ","), "boss_intro", "only boss_intro stays silent (the intro popup is gone)")
+	for name, layers in pairs(FX.Layers) do
+		for _, layer in ipairs(layers) do
+			expectTrue(S.cueId(layer.cue) ~= nil, name .. " layer plays " .. layer.cue .. " which has a working id")
+			expectTrue(layer.semis == nil or math.abs(layer.semis) <= 24, name .. " layer pitch is sane")
+		end
+	end
+	for _, name in ipairs({ "shuffle" }) do expectEqual(S.Cues[name].id, "rbxassetid://9114035457", "shuffle reuses Deck Of Cards 5") end
+	expectEqual(S.Cues.shuffle.maxLength, 1.3, "cut to 1.3 s")
+	expectTrue(S.Cues.coin.id == "rbxassetid://133292918309565" and #S.CoinAlternates == 2, "the coin default is unchanged, the two alternates are optional")
+	-- stings by hand tier
+	expectEqual(FX.handSting("High Card"), "quiet", "High Card is quiet")
+	expectEqual(FX.handSting("Pair"), "quiet", "Pair is quiet")
+	expectEqual(FX.handSting("Two Pair"), "medium", "Two Pair is medium")
+	expectEqual(FX.handSting("Three of a Kind"), "medium", "Three of a Kind is medium")
+	expectEqual(FX.handSting("Straight"), "loud", "Straight is loud")
+	expectEqual(FX.handSting("Flush"), "loud", "Flush is loud")
+	for _, name in ipairs({ "Full House", "Four of a Kind", "Straight Flush" }) do expectEqual(FX.handSting(name), "biggest", name .. " is the biggest") end
+	expectTrue(#FX.stingLayers("biggest") > #FX.stingLayers("quiet"), "bigger hands layer more")
+	-- the coin cascade: 3 coins, 60 ms apart, different pitches
+	local cascade = FX.coinCascade(3)
+	expectTrue(#cascade == 3 and cascade[2].delay - cascade[1].delay == 0.06 and cascade[3].delay > cascade[2].delay, "three coins 60 ms apart")
+	expectTrue(cascade[1].speed ~= cascade[2].speed and cascade[2].speed ~= cascade[3].speed, "at different pitches")
+	-- big beats
+	expectTrue(FX.isBigBeat("legendary") and FX.isBigBeat("wildcard") and FX.isBigBeat("boss_defeat") and FX.isBigBeat("round_win") and not FX.isBigBeat("pair"), "which beats duck the music")
+	-- the Legendary and Wildcard moment layers: win +5, a low thud, chime at +12 and +19, 90 ms apart
+	local L = FX.layersFor("legendary_moment")
+	expectTrue(L[1].cue == "win" and L[1].semis == 5, "win sting pitched +5")
+	local chimes = {}
+	for _, l in ipairs(L) do if l.cue == "chip" then chimes[#chimes + 1] = l end end
+	expectTrue(#chimes == 2 and chimes[1].semis == 12 and chimes[2].semis == 19 and math.abs(chimes[2].delay - chimes[1].delay - 0.09) < 1e-9, "a two note chime, +12 and +19, 90 ms apart")
+end })
+
+table.insert(tests, { name = "Sound pass wiring: Sound.lua gates, jitters and layers cues, ducks the music; ScorePopup climbs the ladder; the Volume slider scales every layer", fn = function()
+	if not (io and io.open) then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local snd, pop, cue, dbg, boss = read("src/Client/Sound.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/Cue.lua"), read("src/Client/DebugGoto.lua"), read("src/Client/BossFight.lua")
+	if not (snd and pop and cue and dbg and boss) then return end
+	expectTrue(snd:find("gate:allow(name, os.clock())", 1, true) ~= nil and snd:find("SoundFX.JITTERED[name]", 1, true) ~= nil, "cues go through the minimum interval gate and the jitter")
+	expectTrue(snd:find("SoundFX.layersFor(name)", 1, true) ~= nil and snd:find("getSfxVolume(soundId)", 1, true) ~= nil, "layers play through the one-shot that applies the SFX slider and Mute to every layer")
+	expectTrue(snd:find("SoundFX.duck(t)", 1, true) ~= nil and snd:find('ClientSettings.get("musicVolume")', 1, true) ~= nil, "ducking reads the Music slider")
+	expectTrue(snd:find("TimeLength == 0", 1, true) ~= nil and snd:find("warn(string.format(\"[Sound] cue %s", 1, true) ~= nil, "a cue that fails to load or has no length is named in a warning")
+	expectTrue(pop:find('SoundFX.tick("xmult", 1, multTicks)', 1, true) ~= nil and pop:find("CueBridge.coinCascade", 1, true) ~= nil and pop:find("CueBridge.sting(preview.name)", 1, true) ~= nil, "the tally climbs the ladder, then the coin cascade and the hand sting")
+	expectTrue(pop:find('CueBridge.play("legendary_moment")', 1, true) ~= nil, "Legendary and True Wildcard get their own moment")
+	expectTrue(cue:find("function Cue.audition", 1, true) ~= nil and dbg:find('target.kind == "sfx"', 1, true) ~= nil, "DebugGoto sfx:<cue> auditions a cue")
+	expectTrue(boss:find("Cue).duck()", 1, true) ~= nil, "a boss defeat ducks the music")
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = R.parse("sfx:card_play")
+	expectTrue(t and t.kind == "sfx" and t.cue == "card_play", "sfx:<cue> parses")
+	expectTrue(R.parse("sfx:ladder").cue == "ladder", "sfx:ladder parses")
+	expectEqual(R.parse("sfx:bad cue!"), nil, "a malformed cue name is refused")
 end })
 
 return tests

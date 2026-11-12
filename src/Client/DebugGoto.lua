@@ -12,6 +12,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Cue = require(script.Parent.Cue)
 
 local DebugGoto = {}
 
@@ -98,6 +99,10 @@ function DebugGoto.init(deps)
 		local target, why = Rules.parse(value)
 		if not target then
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
+			return
+		end
+		if target.kind == "sfx" then
+			if not Cue.audition(target.cue) then warn("[DebugGoto] sfx:" .. target.cue .. " did not play") end
 			return
 		end
 		if target.kind == "scale" then
