@@ -21677,4 +21677,69 @@ table.insert(tests, { name = "FlashFX: layered glow, vignette, motes and sweep; 
 	end
 end })
 
+table.insert(tests, { name = "Per-set rooms: every Card Set kit piece on the plates under the board is hidden and stays hidden, the felt shade is off in the 14 rooms", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	local stubs = {}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local folder = FakeGui.folder(map)
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+	stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+	local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
+	local function mk(class, name, parent, order)
+		local i = FakeGui.new(class)
+		i.Name = name
+		if order then i.LayoutOrder = order end
+		i.Parent = parent
+		return i
+	end
+	local root = mk("Frame", "Root", nil)
+	local sidebar = mk("Frame", "Sidebar", root)
+	mk("Frame", "SidebarBoard", root)
+	local content = mk("Frame", "BoardContent", sidebar)
+	local tips = mk("Frame", "TipsRow", content, 5)
+	local hint = mk("Frame", "Hint", content, 10)
+	tips.Size = env.UDim2.fromOffset(300, 44)
+	hint.Size = env.UDim2.fromOffset(300, 44)
+	local pieces = {}
+	for _, row in ipairs({ tips, hint }) do
+		for _, n in ipairs({ "HudKitPlate", "HudKitPad", "HudKitFrame", "HudKitGlow" }) do
+			local p = mk("Frame", n, row)
+			p.BackgroundTransparency = 0.12
+			pieces[#pieces + 1] = p
+		end
+	end
+	local icon = mk("ImageLabel", "HudKitIcon", tips)
+	local rect = map.PlayBoardLayout.placement(1920, 957)
+	local called, applied = pcall(PlayBoardHud.apply, root, rect)
+	expectTrue(called and applied == true, "applies: " .. tostring(PlayBoardHud.lastError))
+	for _, p in ipairs(pieces) do expectFalse(p.Visible, p.Name .. " on a plate is hidden") end
+	expectTrue(icon.Visible, "a kit icon a row keeps is not a theme block")
+	pieces[2].Visible = true -- the theme paints again when a set is equipped or previewed
+	expectFalse(pieces[2].Visible, "a kit piece the theme shows again is hidden again")
+	expectTrue(type(PlayBoardHud.reportOverlaps) == "function", "the Studio report exists")
+	PlayBoardHud.reportOverlaps(root)
+	PlayBoardHud.apply(root, nil)
+	local psp = io.open("src/Client/PlayScenePaint.lua", "r")
+	if psp then
+		local text = psp:read("*a")
+		psp:close()
+		expectTrue(text:find("if roomDef and roomDef.room then feltClip = nil end", 1, true) ~= nil, "no felt shade over any per-set room")
+		expectTrue(text:find("reportOverlaps", 1, true) ~= nil, "the painted table asks for the plate overlap report in Studio")
+	end
+	local PTL = require(E.PlayTableLayout)
+	local PRA = require(E.PlayRoomArt)
+	for _, id in ipairs(PRA.ORDER) do
+		local def = PTL.SETS[PRA.PREFIX .. id]
+		expectTrue(def and def.room == id, id .. " is flagged as a room")
+		for _, size in ipairs({ { 1920, 957 }, { 1280, 720 } }) do
+			local pl = PTL.placement(size[1], size[2], 260, 150, PRA.PREFIX .. id)
+			expectTrue(pl ~= nil, id .. " places at " .. size[1])
+		end
+	end
+end })
+
 return tests

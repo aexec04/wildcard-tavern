@@ -198,6 +198,11 @@ function PlayScenePaint.install(deps)
 				groove.ImageRectSize = Vector2.new(rw, rh)
 			end
 			local feltClip = handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil -- never under the left HUD
+			-- the 14 per-Card-Set rooms carry their own painted lighting: the felt shade (a green grain, edge and corner glows clipped to the
+			-- felt RECT) showed as a hard-edged band where that rect leaves the room's oval (golden_gala, y 325 to 335 at 1920x957), so it is
+			-- off in every room; only the classic backdrop keeps it
+			local roomDef = setKey and PlayTableLayout.SETS[setKey]
+			if roomDef and roomDef.room then feltClip = nil end
 			shade.apply(feltClip, feltClip ~= nil and feltClip.x > p.map.felt.x)
 			shade.setFill(PlayTableLayout.fillOf(setKey))
 			if game:GetService("RunService"):IsStudio() and setKey then
@@ -210,6 +215,9 @@ function PlayScenePaint.install(deps)
 			actionFrame.Position = UDim2.fromOffset(p.actions.x, p.actions.y)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
 			plates(p)
+			if game:GetService("RunService"):IsStudio() then
+				task.delay(1.2, function() pcall(function() require(script.Parent.PlayBoardHud).reportOverlaps(root) end) end) -- [PlateOverlap] in the Output
+			end
 			deck(p.map.deck)
 			watchCovers()
 			PlayRailLip.apply(lip, p, lipShown())

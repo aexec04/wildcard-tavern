@@ -28,13 +28,17 @@ local TILE_INSET = 10 -- Hands and Discards keep 10 px
 local PLATE = Color3.fromRGB(226, 202, 156)
 local EDGE = Color3.fromRGB(96, 66, 38)
 local THEME_PIECES = { HudKitPlate = true, HudKitPad = true, HudHeaderPlate = true, HudDepth = true, InnerHighlight = true, HudKitFrame = true }
+-- the Card Set kit pieces (HudKitPlate, HudKitPad, HudKitFrame ...) are all theme paint over a row; HudKitIcon is a picture a row keeps
+local function isThemePiece(name)
+	return THEME_PIECES[name] == true or (type(name) == "string" and name:sub(1, 6) == "HudKit" and name ~= "HudKitIcon")
+end
 
 local states = setmetatable({}, { __mode = "k" })
 
 local function stateFor(root)
 	local st = states[root]
 	if not st then
-		st = { saved = {}, hosts = {}, conns = {}, made = {}, applying = false, pending = false, rect = nil }
+		st = { saved = {}, hosts = {}, conns = {}, made = {}, applying = false, pending = false, rect = nil, watched = setmetatable({}, { __mode = "k" }) }
 		states[root] = st
 	end
 	return st
@@ -242,6 +246,8 @@ local function visibleLabel(parent, scaledOnly)
 	end
 end
 
+local schedule -- defined below, run() asks for a second pass when the theme re-shows one of its pieces
+
 local function run(root, st)
 	local rect = st.rect
 	local sidebar = root:FindFirstChild("Sidebar")
@@ -302,7 +308,7 @@ local function run(root, st)
 		end
 	end
 	for _, c in ipairs(sidebar:GetChildren()) do
-		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not THEME_PIECES[c.Name] then
+		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not isThemePiece(c.Name) then
 			if c.LayoutOrder == -1 and root:GetAttribute("DebugSeedBar") ~= true then
 				put(st, c, { Visible = false }) -- the Daily / Weekly / Seed bar is a debug aid on the painted board (Settings shows the run line)
 			else
@@ -582,13 +588,53 @@ local function run(root, st)
 	for _, top in ipairs({ sidebar, root:FindFirstChild("SidebarBoard") }) do
 		if top then
 			for _, d in ipairs(top:GetDescendants()) do
-				if THEME_PIECES[d.Name] and d:IsA("GuiObject") then put(st, d, { Visible = false }) end
+				if isThemePiece(d.Name) and d:IsA("GuiObject") then
+					put(st, d, { Visible = false })
+					if not st.watched[d] then
+						st.watched[d] = true -- the theme may show it again when a Card Set is equipped or previewed: hide it again, once per change
+						table.insert(st.conns, d:GetPropertyChangedSignal("Visible"):Connect(function() schedule(root, st) end))
+					end
+				end
 			end
 		end
 	end
 end
 
-local function schedule(root, st)
+-- Studio only: a visible Frame that overlaps a plate under the board (Tips, the Select cards hint) and is not part of it is named in one warn,
+-- with its path, rect, ZIndex, fill and colour, so a stray unpainted block can be found without guessing.
+local function reportOverlaps(root, st)
+	if not game:GetService("RunService"):IsStudio() or not st.rect then return end
+	local plates = {}
+	for _, host in ipairs({ root:FindFirstChild("Sidebar") }) do
+		if host then
+			for _, d in ipairs(host:GetDescendants()) do
+				if d:IsA("Frame") and (d.Name == "TipsRow" or d.LayoutOrder == 10 or d.Name == "Hint") and d.Visible then plates[#plates + 1] = d end
+			end
+		end
+	end
+	local found = {}
+	for _, plate in ipairs(plates) do
+		local pp, ps = plate.AbsolutePosition, plate.AbsoluteSize
+		for _, d in ipairs(root:GetDescendants()) do
+			if d:IsA("Frame") and d.Visible and d.BackgroundTransparency < 1 and d.AbsoluteSize.X > 0 and d ~= plate and not d:IsDescendantOf(plate)
+				and not plate:IsDescendantOf(d) and d.Name ~= "BoardPlateBack" and d.Name ~= "BoardWoodFill" then
+				local p, sz = d.AbsolutePosition, d.AbsoluteSize
+				if p.X < pp.X + ps.X and pp.X < p.X + sz.X and p.Y < pp.Y + ps.Y and pp.Y < p.Y + sz.Y and sz.X < root.AbsoluteSize.X * 0.6 then
+					found[#found + 1] = string.format("%s pos=%d,%d size=%dx%d z=%d bgT=%.2f color=%d,%d,%d", d:GetFullName(), p.X, p.Y, sz.X, sz.Y, d.ZIndex,
+						d.BackgroundTransparency, d.BackgroundColor3.R * 255, d.BackgroundColor3.G * 255, d.BackgroundColor3.B * 255)
+				end
+			end
+		end
+	end
+	local key = table.concat(found, "|")
+	if key ~= st.overlapKey then
+		st.overlapKey = key
+		warn("[PlateOverlap] " .. (#found == 0 and "nothing overlaps the Tips and hint plates" or (#found .. " visible Frame(s) overlap them:\n  " .. table.concat(found, "\n  "))))
+	end
+end
+PlayBoardHud.reportOverlaps = function(root) local st = stateFor(root) pcall(reportOverlaps, root, st) end
+
+function schedule(root, st)
 	if st.applying or st.pending or not st.rect then return end
 	st.pending = true
 	task.defer(function()
@@ -603,6 +649,7 @@ end
 local function unwatch(st)
 	for _, cn in ipairs(st.conns) do cn:Disconnect() end
 	st.conns = {}
+	st.watched = setmetatable({}, { __mode = "k" })
 end
 
 local function restore(st, root)
