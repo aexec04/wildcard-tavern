@@ -21295,6 +21295,16 @@ table.insert(tests, { name = "RunOverLayout: one panel, two columns wide and one
 	expectTrue(L.estimateLines(string.rep("a", 100), 200, 16) >= 3, "long text wraps")
 end })
 
+table.insert(tests, { name = "Run Over: the painted scroll turns the gold rim and corner marks off and VisualHelpers keeps them off", fn = function()
+	if not (io and io.open) then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return nil end; local t = f:read("*a"); f:close(); return t end
+	local go, vh = read("src/Client/GameOver.lua"), read("src/Client/VisualHelpers.lua")
+	if not (go and vh) then return end
+	expectTrue(go:find('panel:SetAttribute("OrnateOff", onScroll)', 1, true) ~= nil, "GameOver sets OrnateOff while the scroll is the panel")
+	expectTrue(vh:find('GetAttribute("OrnateOff")', 1, true) ~= nil, "the rim and brackets resize handler honours OrnateOff")
+	expectTrue(vh:find("inner.Visible = not off and", 1, true) ~= nil and vh:find("piece.Visible = not off and", 1, true) ~= nil, "both the InnerRim and the corner pieces are gated")
+end })
+
 table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named frames, every action present, no Continue, fits 1280x720 and a phone", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)

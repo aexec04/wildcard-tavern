@@ -360,6 +360,7 @@ return function(deps)
 		local onScroll = mode == "scroll"
 		patronsF.BackgroundTransparency = onScroll and 0.88 or 0.15
 		scrollPicture.Visible = onScroll
+		panel:SetAttribute("OrnateOff", onScroll) -- VisualHelpers keeps InnerRim and the corner marks hidden on the painted scroll
 		-- the dark wood panel's fill, stroke, gradient, sheen and shadow step aside while the paper is the panel
 		for _, child in ipairs(panel:GetChildren()) do
 			if child ~= content and child ~= scrollPicture and child ~= winArt and child ~= flavorLabel then

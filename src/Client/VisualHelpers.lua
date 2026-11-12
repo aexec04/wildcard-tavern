@@ -258,9 +258,11 @@ return function(deps)
 				local smallest = math.min(size.X, size.Y)
 				-- 0 means not laid out yet; show everything until it is.
 				local measured = smallest > 0
-				inner.Visible = not measured or smallest >= RIM_MIN_SIZE
+				-- a host that wears painted art (the Run Over scroll) sets OrnateOff: the rim and brackets stay hidden
+				local off = instance:GetAttribute("OrnateOff") == true
+				inner.Visible = not off and (not measured or smallest >= RIM_MIN_SIZE)
 				for _, piece in ipairs(brackets) do
-					piece.Visible = not measured or smallest >= BRACKET_MIN_SIZE
+					piece.Visible = not off and (not measured or smallest >= BRACKET_MIN_SIZE)
 				end
 			end
 			syncZ()
