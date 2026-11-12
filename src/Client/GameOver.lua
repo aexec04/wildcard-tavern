@@ -75,6 +75,7 @@
 
 return function(deps)
 	local root = deps.root
+	local GameOverTips = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("GameOverTips"))
 	local polishPanel = deps.polishPanel
 	local polishButton = deps.polishButton
 	local addSoftShadow = deps.addSoftShadow
@@ -83,15 +84,30 @@ return function(deps)
 	local SOUND_IDS = deps.SOUND_IDS
 	local gameOverWinBackgroundImage = deps.gameOverWinBackgroundImage
 
+	-- dim is the full-screen even dark dim (hides the table so no cards peek out) and sinks clicks; the wood panel
+	-- sits centred inside it, so one Visible flag on `dim` (returned as gameOverFrame) shows and hides everything.
+	local dim = Instance.new("Frame")
+	dim.Name = "GameOver"
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.fromRGB(10, 8, 6)
+	dim.BackgroundTransparency = 0.25
+	dim.BorderSizePixel = 0
+	dim.Active = true
+	dim.Visible = false
+	dim.Parent = root
+
 	local gameOverFrame = Instance.new("Frame")
-	gameOverFrame.Name = "GameOver"
+	gameOverFrame.Name = "Panel"
 	gameOverFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	gameOverFrame.Size = UDim2.fromScale(0.46, 0.42)
+	gameOverFrame.Size = UDim2.new(0.5, 0, 0, 470)
 	gameOverFrame.Position = UDim2.fromScale(0.5, 0.5)
 	gameOverFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	gameOverFrame.ClipsDescendants = true
-	gameOverFrame.Visible = false
-	gameOverFrame.Parent = root
+	gameOverFrame.Parent = dim
+	local sizeLimit = Instance.new("UISizeConstraint")
+	sizeLimit.MinSize = Vector2.new(560, 470)
+	sizeLimit.MaxSize = Vector2.new(780, 470)
+	sizeLimit.Parent = gameOverFrame
 	polishPanel(gameOverFrame, 16, "wood")
 	-- Painted background (PanelArt): flat panel color if the art id is missing.
 	local gameOverFrameArt = require(script.Parent.PanelArt).add(gameOverFrame, {
@@ -99,18 +115,6 @@ return function(deps)
 		scrimTransparency = 0.35,
 	})
 	addSoftShadow(gameOverFrame, 18)
-
-	-- POLISH: a thin color-coded strip along the top -- gold for a win,
-	-- warm ember-red for a loss -- recolored in refreshGameOver below.
-	-- Cheap, high-signal "how did this run go" cue readable before the
-	-- player even reads a word of text.
-	local accentBar = Instance.new("Frame")
-	accentBar.Name = "AccentBar"
-	accentBar.Size = UDim2.new(1, 0, 0, 6)
-	accentBar.BackgroundColor3 = Color3.fromRGB(177, 84, 79)
-	accentBar.BorderSizePixel = 0
-	accentBar.ZIndex = 21
-	accentBar.Parent = gameOverFrame
 
 	-- ART (placeholder-safe, see Client/ArtAssets.lua): win-only background
 	-- illustration. Starts hidden -- refreshGameOver below flips Visible to
@@ -157,11 +161,11 @@ return function(deps)
 	iconLabel.Parent = content
 
 	local gameOverLabel = Instance.new("TextLabel")
-	gameOverLabel.Size = UDim2.new(1, -40, 0, 34)
-	gameOverLabel.Position = UDim2.new(0, 20, 0, 76)
+	gameOverLabel.Size = UDim2.new(1, -40, 0, 68)
+	gameOverLabel.Position = UDim2.new(0, 20, 0, 74)
 	gameOverLabel.BackgroundTransparency = 1
 	gameOverLabel.Font = Enum.Font.GothamBold
-	gameOverLabel.TextSize = 21
+	gameOverLabel.TextSize = 28
 	gameOverLabel.TextWrapped = true
 	gameOverLabel.TextColor3 = Color3.fromRGB(250, 240, 220)
 	gameOverLabel.Text = "Last call! Your run has ended."
@@ -172,17 +176,35 @@ return function(deps)
 	-- showed no stats at all once the run ended, just the one static
 	-- sentence (and, thanks to the bug above, not even the dynamic part of
 	-- THAT sentence).
-	local statsLabel = Instance.new("TextLabel")
-	statsLabel.Size = UDim2.new(1, -60, 0, 50)
-	statsLabel.Position = UDim2.new(0, 30, 0, 118)
-	statsLabel.BackgroundTransparency = 1
-	statsLabel.Font = Enum.Font.Gotham
-	statsLabel.TextSize = 15
-	statsLabel.TextWrapped = true
-	statsLabel.TextColor3 = Color3.fromRGB(220, 205, 185)
-	statsLabel.Text = ""
-	statsLabel.ZIndex = 22
-	statsLabel.Parent = content
+	local function statRow(name, y)
+		local plate = Instance.new("Frame")
+		plate.Name = name
+		plate.Size = UDim2.new(1, -80, 0, 38)
+		plate.Position = UDim2.new(0, 40, 0, y)
+		plate.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+		plate.BackgroundTransparency = 0.15
+		plate.BorderSizePixel = 0
+		plate.ZIndex = 22
+		plate.Parent = content
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = plate
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.Size = UDim2.new(1, -24, 1, 0)
+		label.Position = UDim2.fromOffset(12, 0)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 18
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Color3.fromRGB(250, 240, 220)
+		label.Text = ""
+		label.ZIndex = 23
+		label.Parent = plate
+		return label
+	end
+	local scoreLabel = statRow("ScoreRow", 150)
+	local tipsLabel = statRow("TipsRow", 194)
 
 	-- PHASE A (Spectacle pass, see claude/mind-blowing-plan.md): a small
 	-- run-recap line -- the single biggest hand this run (tracked purely
@@ -191,11 +213,11 @@ return function(deps)
 	-- bestHand is nil (e.g. the run ended before a single hand scored --
 	-- an immediate quit -- rather than showing an empty/misleading line).
 	local recapLabel = Instance.new("TextLabel")
-	recapLabel.Size = UDim2.new(1, -60, 0, 22)
-	recapLabel.Position = UDim2.new(0, 30, 0, 168)
+	recapLabel.Size = UDim2.new(1, -80, 0, 24)
+	recapLabel.Position = UDim2.new(0, 40, 0, 240)
 	recapLabel.BackgroundTransparency = 1
 	recapLabel.Font = Enum.Font.GothamBold
-	recapLabel.TextSize = 14
+	recapLabel.TextSize = 18
 	recapLabel.TextWrapped = true
 	recapLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
 	recapLabel.Text = ""
@@ -203,24 +225,39 @@ return function(deps)
 	recapLabel.ZIndex = 22
 	recapLabel.Parent = content
 
+	local hintLabel = Instance.new("TextLabel")
+	hintLabel.Name = "Hint"
+	hintLabel.Size = UDim2.new(1, -80, 0, 44)
+	hintLabel.Position = UDim2.new(0, 40, 0, 272)
+	hintLabel.BackgroundTransparency = 1
+	hintLabel.Font = Enum.Font.GothamMedium
+	hintLabel.TextSize = 16
+	hintLabel.TextWrapped = true
+	hintLabel.TextColor3 = Color3.fromRGB(235, 222, 195)
+	hintLabel.Text = ""
+	hintLabel.Visible = false
+	hintLabel.ZIndex = 22
+	hintLabel.Parent = content
+
 	local playAgainButton = Instance.new("TextButton")
-	playAgainButton.Size = UDim2.new(0, 200, 0, 40)
-	playAgainButton.Position = UDim2.new(0.5, -100, 1, -60)
+	playAgainButton.Name = "PlayAgain"
+	playAgainButton.Size = UDim2.new(0, 220, 0, 48)
+	playAgainButton.Position = UDim2.new(0.5, -230, 1, -70)
 	playAgainButton.Font = Enum.Font.GothamBold
-	playAgainButton.TextSize = 18
+	playAgainButton.TextSize = 20
 	playAgainButton.Text = "Play Again"
-	playAgainButton.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	playAgainButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	playAgainButton.BackgroundColor3 = Color3.fromRGB(196, 150, 60)
+	playAgainButton.TextColor3 = Color3.fromRGB(40, 28, 14)
 	playAgainButton.ZIndex = 22
 	playAgainButton.Parent = content
 	polishButton(playAgainButton, 10)
 
 	local continueButton = Instance.new("TextButton")
 	continueButton.Name = "ContinueButton"
-	continueButton.Size = UDim2.new(0, 200, 0, 40)
-	continueButton.Position = UDim2.new(0.5, 10, 1, -60)
+	continueButton.Size = UDim2.new(0, 220, 0, 48)
+	continueButton.Position = UDim2.new(0.5, -110, 1, -130)
 	continueButton.Font = Enum.Font.GothamBold
-	continueButton.TextSize = 16
+	continueButton.TextSize = 20
 	continueButton.TextWrapped = true
 	continueButton.Text = "One More Round"
 	continueButton.BackgroundColor3 = Color3.fromRGB(60, 110, 70)
@@ -230,6 +267,18 @@ return function(deps)
 	continueButton.Parent = content
 	polishButton(continueButton, 10)
 
+	local tavernButton = Instance.new("TextButton")
+	tavernButton.Name = "BackToTavern"
+	tavernButton.Size = UDim2.new(0, 220, 0, 48)
+	tavernButton.Position = UDim2.new(0.5, 10, 1, -70)
+	tavernButton.Font = Enum.Font.GothamBold
+	tavernButton.TextSize = 20
+	tavernButton.Text = "Back to Tavern"
+	tavernButton.BackgroundColor3 = Color3.fromRGB(70, 50, 34)
+	tavernButton.TextColor3 = Color3.fromRGB(250, 240, 220)
+	tavernButton.ZIndex = 22
+	tavernButton.Parent = content
+	polishButton(tavernButton, 10)
 	local revivedBadge = Instance.new("TextLabel")
 	revivedBadge.Name = "RevivedBadge"
 	revivedBadge.AnchorPoint = Vector2.new(1, 0)
@@ -244,9 +293,6 @@ return function(deps)
 	revivedBadge.ZIndex = 23
 	revivedBadge.Parent = content
 	polishPanel(revivedBadge, 13)
-
-	local WIN_COLOR = Color3.fromRGB(230, 190, 90)
-	local LOSS_COLOR = Color3.fromRGB(177, 84, 79)
 
 	-- Only replays the pop-in/fade reveal when this is genuinely a NEW
 	-- run-ending state (a fresh loss, or the run flipping from ongoing to
@@ -285,13 +331,11 @@ return function(deps)
 		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"
 		continueButton.Visible = canContinue
 		continueButton.Text = state.continueOffer == "free" and "One More Round (Free)" or "One More Round"
-		playAgainButton.Position = canContinue and UDim2.new(0.5, -210, 1, -60) or UDim2.new(0.5, -100, 1, -60)
+		-- Play Again (gold, primary) left, Back to Tavern right; One More Round sits above them when offered.
 		if isWin then
-			accentBar.BackgroundColor3 = WIN_COLOR
 			iconLabel.Text = "🏆"
 			gameOverLabel.Text = "Last call, but what a night! You beat the tavern."
 		else
-			accentBar.BackgroundColor3 = LOSS_COLOR
 			iconLabel.Text = "🕯️"
 			gameOverLabel.Text = string.format(
 				"Last call! You made it to Night %d, Round %d.",
@@ -299,10 +343,11 @@ return function(deps)
 			)
 		end
 
-		statsLabel.Text = string.format(
-			"Final Score: %d / %d\nTips banked: %d",
-			state.roundScore or 0, state.targetScore or 0, state.tips or 0
-		)
+		scoreLabel.Text = string.format("Final score: %d / %d", math.floor(state.roundScore or 0), math.floor(state.targetScore or 0))
+		tipsLabel.Text = string.format("Tips banked: %d", math.floor(state.tips or 0))
+		local hint = (not isWin) and GameOverTips.pick(state.night, state.round) or nil
+		hintLabel.Visible = hint ~= nil
+		hintLabel.Text = hint and ("Tip: " .. hint) or ""
 
 		-- PHASE A (Spectacle pass): only shown when there's actually a hand
 		-- to brag about -- see recapLabel's own comment above for why this
@@ -326,7 +371,11 @@ return function(deps)
 			contentScale.Scale = 0.82
 			iconLabel.TextTransparency = 1
 			gameOverLabel.TextTransparency = 1
-			statsLabel.TextTransparency = 1
+			scoreLabel.TextTransparency = 1
+			tipsLabel.TextTransparency = 1
+			hintLabel.TextTransparency = 1
+			tavernButton.BackgroundTransparency = 1
+			tavernButton.TextTransparency = 1
 			recapLabel.TextTransparency = 1
 			playAgainButton.BackgroundTransparency = 1
 			playAgainButton.TextTransparency = 1
@@ -337,7 +386,9 @@ return function(deps)
 			tweenTo(iconLabel, { TextTransparency = 0 }, 0.3)
 			tweenTo(gameOverLabel, { TextTransparency = 0 }, 0.3)
 			task.delay(0.08, function()
-				tweenTo(statsLabel, { TextTransparency = 0 }, 0.3)
+				tweenTo(scoreLabel, { TextTransparency = 0 }, 0.3)
+				tweenTo(tipsLabel, { TextTransparency = 0 }, 0.3)
+				tweenTo(hintLabel, { TextTransparency = 0 }, 0.3)
 				if recapLabel.Visible then
 					tweenTo(recapLabel, { TextTransparency = 0 }, 0.3)
 				end
@@ -345,6 +396,7 @@ return function(deps)
 			task.delay(0.16, function()
 				tweenTo(playAgainButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
 				tweenTo(continueButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
+				tweenTo(tavernButton, { BackgroundTransparency = 0, TextTransparency = 0 }, 0.3)
 			end)
 
 			if playSfx and SOUND_IDS then
@@ -356,9 +408,10 @@ return function(deps)
 	end
 
 	return {
-		gameOverFrame = gameOverFrame,
+		gameOverFrame = dim,
 		playAgainButton = playAgainButton,
 		continueButton = continueButton,
+		tavernButton = tavernButton, -- wired in init.client.lua (needs the Menu frame)
 		refreshGameOver = refreshGameOver,
 	}
 end

@@ -20381,4 +20381,22 @@ tests[#tests + 1] = ({ name = "DebugGoto: the synth kind has its own branch that
 	expectTrue(src:find("pcall(showSynth, which)", 1, true) ~= nil, "showSynth is called once the hand is dealt")
 end })
 
+table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varies with the seed, Game Over has Back to Tavern and a full-screen dim", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.GameOverTips)
+	expectTrue(Tips.pick(2, 1) == nil and Tips.pick(5, 0) == nil, "no tip after Night 1")
+	expectTrue(type(Tips.pick(1, 0)) == "string" and Tips.pick(1, nil) == Tips.TIPS[1], "tip on Night 1")
+	expectTrue(Tips.pick(1, 1) ~= Tips.pick(1, 0), "seed changes the tip")
+	expectTrue(Tips.pick(1, #Tips.TIPS) == Tips.TIPS[1], "seed wraps")
+	for _, t in ipairs(Tips.TIPS) do
+		expectTrue(not t:lower():find("balatro", 1, true) and not t:find("\u{2014}", 1, true), "clean tip text")
+	end
+	local f = io and io.open and io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('"Back to Tavern"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Back to Tavern button")
+	expectTrue(src:find("AccentBar", 1, true) == nil, "red accent line removed")
+	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
+end })
+
 return tests

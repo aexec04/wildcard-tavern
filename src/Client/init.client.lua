@@ -2791,6 +2791,13 @@ GameOverPanel.playAgainButton.MouseButton1Click:Connect(function()
 	RestartRunRemote:FireServer()
 end)
 
+-- Back to Tavern: same as Settings > Main Menu, sends nothing to the server.
+GameOverPanel.tavernButton.MouseButton1Click:Connect(function()
+	SoundModule.playClickSfx()
+	root.Visible = false
+	MenuScreen.menuFrame.Visible = true
+end)
+
 -- PAID CONTINUE: the server prompts the Developer Product purchase and
 -- grants it in ProcessReceipt; the next state push takes us back to play.
 -- No new top-level locals here: this script's main chunk is at Luau's
