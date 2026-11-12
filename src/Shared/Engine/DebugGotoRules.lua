@@ -141,6 +141,13 @@ function DebugGotoRules.parse(value)
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
 	end
+	if text == "loading" then
+		return { kind = "loading", percent = 60 }
+	end
+	local pct = text:match("^loading:(%d+)$")
+	if pct then
+		return { kind = "loading", percent = math.min(100, tonumber(pct)) }
+	end
 	if DebugGotoRules.FX[text] then
 		return { kind = "fx", effect = text }
 	end

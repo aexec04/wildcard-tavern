@@ -22473,4 +22473,85 @@ table.insert(tests, { name = "DebugGoto: haggle, road, runover, packroom, rarity
 	end
 end })
 
+table.insert(tests, { name = "LoadProgress: monotonic, clamped 0 to 1, reaches 1 only when the Menu is shown and every phase is done; the bar fill never leaves the frame", fn = function()
+	local LP = require(script.Parent.Parent.Engine.LoadProgress)
+	local p = LP.new()
+	expectEqual(p.value(), 0, "starts at 0")
+	p.report("menu", 5, 10)
+	expectTrue(math.abs(p.value() - 0.2) < 1e-9, "half of the 40 percent menu phase is 0.2")
+	p.report("menu", 2, 10)
+	expectTrue(math.abs(p.value() - 0.2) < 1e-9, "a lower report never moves the bar back")
+	p.report("menu", 99, 10)
+	p.report("gameplay", 10, 10)
+	expectTrue(p.value() < 1, "not 1 before the Menu is shown")
+	expectFalse(p.isReady(), "not ready before the Menu is shown")
+	p.menuShown()
+	expectEqual(p.value(), 1, "1 once the Menu is shown and every phase is complete")
+	expectTrue(p.isReady(), "ready")
+	local q = LP.new()
+	q.menuShown()
+	expectTrue(q.value() <= 0.2 + 1e-9 and not q.isReady(), "the Menu alone is 20 percent, never 1")
+	q.complete("menu"); q.complete("gameplay")
+	expectEqual(q.value(), 1, "complete() fills a phase with nothing to load")
+	q.report("bogus", 1, 1)
+	expectEqual(LP.clamp01(7), 1, "clamped high")
+	expectEqual(LP.clamp01(-3), 0, "clamped low")
+	local d = 0
+	for _ = 1, 600 do
+		local nd = LP.ease(d, 0.5, 1 / 60)
+		expectTrue(nd >= d and nd <= 0.5, "ease never goes backward or past the target")
+		d = nd
+	end
+	expectTrue(d > 0.49, "ease reaches the target")
+	expectEqual(LP.ease(0.8, 0.3, 0.1), 0.8, "a lower target never pulls the bar back")
+	for _, v in ipairs({ -1, 0, 0.33, 1, 2 }) do
+		for _, w in ipairs({ 0, 100, 345 }) do
+			local px = LP.fillWidth(w, v)
+			expectTrue(px >= 0 and px <= w, "fill stays inside the frame")
+		end
+	end
+	expectTrue(LP.stalled(10, 1) and not LP.stalled(5, 1), "Almost there after 8 s with no progress")
+	expectEqual(LP.status(0.5, true, false), "Almost there...", "stalled text")
+	expectEqual(LP.status(0.5, true, true), "Still loading, thanks for waiting", "slow text beats stalled")
+	expectTrue(LP.MIN_VISIBLE >= 1.2 and LP.SKIP_AFTER == 25, "timings from the brief")
+end })
+
+table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, short enough for one 15 px line, the shuffle uses each once; the launch screen is wired and uses no tiny text", fn = function()
+	local Tips = require(script.Parent.Parent.Engine.LoadingTips)
+	local LP = require(script.Parent.Parent.Engine.LoadProgress)
+	expectEqual(#Tips.TIPS, 12, "twelve tips")
+	for i, tip in ipairs(Tips.TIPS) do
+		expectFalse(tip:find("-", 1, true) ~= nil or tip:find("\226\128\148", 1, true) ~= nil or tip:find("\226\128\147", 1, true) ~= nil, "tip " .. i .. " has no dash")
+		expectTrue(#tip <= Tips.MAX_LENGTH, "tip " .. i .. " fits one line")
+		expectFalse(tip:lower():find("balatro", 1, true) ~= nil, "no banned word")
+	end
+	for i, text in ipairs({ LP.status(0.1), LP.status(0.5), LP.status(0.9), LP.status(0.5, true), LP.status(0.5, true, true) }) do
+		expectFalse(text:find("-", 1, true) ~= nil, "status " .. i .. " has no dash")
+	end
+	local seen, order = {}, Tips.order(42)
+	for _, idx in ipairs(order) do seen[idx] = true end
+	local n = 0
+	for _ in pairs(seen) do n = n + 1 end
+	expectTrue(#order == 12 and n == 12, "every tip exactly once")
+	local DG = require(script.Parent.Parent.Engine.DebugGotoRules)
+	expectEqual(DG.parse("loading").percent, 60, "loading freezes at 60")
+	expectEqual(DG.parse("loading:25").percent, 25, "loading:<n>")
+	expectEqual(DG.parse("loading:900").percent, 100, "loading:<n> clamps")
+	local f = io and io.open and io.open("default.project.json", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("ReplicatedFirst", 1, true) ~= nil and text:find("src/ReplicatedFirst", 1, true) ~= nil, "ReplicatedFirst is mapped")
+	end
+	local u = io and io.open and io.open("src/ReplicatedFirst/LoadingScreenUI.lua", "r")
+	if u then
+		local text = u:read("*a")
+		u:close()
+		expectFalse(text:find("%.Transparency =", 1) ~= nil and text:find("UIGradient") ~= nil and text:find("g%.Transparency") ~= nil, "no UIGradient Transparency")
+		expectTrue(text:find("DisplayOrder = 1000", 1, true) ~= nil and text:find("ResetOnSpawn = false", 1, true) ~= nil and text:find("IgnoreGuiInset = true", 1, true) ~= nil, "gui settings")
+		expectTrue(text:find("fade.Active = false", 1, true) ~= nil and text:find("gui:Destroy()", 1, true) ~= nil, "it stops blocking clicks and is destroyed")
+		expectTrue(text:find("math.max(15, size)", 1, true) ~= nil, "text is never under 15")
+	end
+end })
+
 return tests

@@ -906,6 +906,9 @@ pcall(function() require(script.DebugGoto).init({ menuFrame = MenuScreen.menuFra
 -- Warm the image cache for all content art (non-blocking) so Collection tiles
 -- and other art find their images already loaded.
 task.spawn(function()
+	pcall(function() -- the launch loading screen fades out once the Menu is up
+		require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LoadProgress")).shared.menuShown()
+	end)
 	local ok, err = pcall(function()
 		require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).preloadAll()
 	end)

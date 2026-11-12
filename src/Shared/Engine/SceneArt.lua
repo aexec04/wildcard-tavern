@@ -36,6 +36,8 @@ return {
 	["lilypad_pond_a"] = "rbxassetid://102419394625540",
 	["lilypad_pond_b"] = "rbxassetid://113269676274647",
 	["lilypad_pond_in"] = "rbxassetid://98907757830852",
+	["loading_bar_frame"] = "rbxassetid://94173978109062",
+	["loading_scene_bg"] = "rbxassetid://127546936233835",
 	["mountain_pass_a"] = "rbxassetid://87177205186194",
 	["mountain_pass_b"] = "rbxassetid://132914021275498",
 	["mountain_pass_in"] = "rbxassetid://126097508516624",

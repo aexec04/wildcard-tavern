@@ -116,7 +116,7 @@ CATEGORY_OPTS = {
     "map_regions": {"size": "1536x1024", "quality": "low", "style_key": "style_map_region"},
     "map_decor": {"quality": "low", "style_key": "style_map_decor"},
     "card_backs": {"size": "1024x1536", "quality": "medium", "style_key": "house_style"},
-    "scenes": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
+    "scenes": {"size": "1536x1024", "quality": "low", "style_key": "house_style", "transparent_ids": ["loading_bar_frame"]},
     "packs": {"quality": "low", "style_key": "house_style"},
     "biome_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
     "set_backdrops": {"size": "1536x1024", "quality": "low", "style_key": "house_style"},
@@ -268,6 +268,8 @@ except (OSError, ValueError):
 def wants_alpha(pid):
     """True when this category asks for a transparent background for pid."""
     opts = CATEGORY_OPTS.get(CATEGORY, {})
+    if pid in opts.get("transparent_ids", []):
+        return True
     return bool(opts.get("transparent")) and pid not in opts.get("opaque", [])
 # Rough OpenAI gpt-image-1 price per 1024x1024 image (USD). Check platform.openai.com/pricing.
 COST_PER_IMAGE = {"low": 0.011, "medium": 0.042, "high": 0.167}

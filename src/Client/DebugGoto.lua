@@ -13,6 +13,7 @@
 	  packroom                          5/5 Patrons, 20 Tips, an open Patron pack and its first Patron picked: the Make room step
 	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
+	  loading, loading:<0..100>         the launch loading screen frozen at 60 percent (or that percent), for screenshots
 	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
 	  sfx:roundwin                      fires the whole round win sound set (score ticks, stinger, coin run, greeting, wildcard stinger); the
 	                                    Output logs "[SoundDirector] voices=N" each time a sound starts
@@ -141,6 +142,17 @@ function DebugGoto.init(deps)
 		local target, why = Rules.parse(value)
 		if not target then
 			warn("[DebugGoto] " .. tostring(value) .. " ignored: " .. tostring(why))
+			return
+		end
+		if target.kind == "loading" then
+			-- the launch loading screen frozen at a percent, for screenshots (the real one is ReplicatedFirst/LoadingScreen)
+			local okL, errL = pcall(function()
+				local old = Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingScreen")
+				if old then old:Destroy() end
+				local UI = require(game:GetService("ReplicatedFirst"):WaitForChild("LoadingScreenUI"))
+				UI.show(Players.LocalPlayer.PlayerGui, { shared = ReplicatedStorage:WaitForChild("Shared"), frozen = target.percent / 100 })
+			end)
+			if okL then print("[DebugGoto] loading " .. target.percent .. " ok (set DebugGoto to menu to clear)") else warn("[DebugGoto] loading failed: " .. tostring(errL)) end
 			return
 		end
 		if target.kind == "sfx" then

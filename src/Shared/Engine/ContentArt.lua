@@ -14,6 +14,7 @@
 ]]
 
 local Engine = script.Parent
+local LoadProgress = require(Engine:WaitForChild("LoadProgress")) -- the launch loading screen reads these reports
 
 local ContentArt = {
 	patrons      = require(Engine:WaitForChild("PatronArt")),
@@ -159,6 +160,7 @@ function ContentArt.preload(items, label, opts)
 		local batch = {}
 		for j = i, math.min(i + BATCH - 1, #fresh) do table.insert(batch, fresh[j]) end
 		pcall(function() ContentProvider:PreloadAsync(batch) end)
+		LoadProgress.shared.report(label, math.min(i + BATCH - 1, #fresh), #fresh)
 		if opts.pause and opts.pause > 0 then task.wait(opts.pause) end
 	end
 	print(string.format("[ArtLoad] %s: %d images in %.2fs (%.1fs after start)",

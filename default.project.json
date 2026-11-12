@@ -2,6 +2,9 @@
   "name": "WildcardTavern",
   "tree": {
     "$className": "DataModel",
+    "ReplicatedFirst": {
+      "$path": "src/ReplicatedFirst"
+    },
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/Shared"
