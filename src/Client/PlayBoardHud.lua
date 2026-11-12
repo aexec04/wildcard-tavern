@@ -131,6 +131,9 @@ local function flatRow(st, row)
 	for _, c in ipairs(row:GetChildren()) do
 		if c:IsA("UIStroke") or c:IsA("UIGradient") then put(st, c, { Enabled = false }) end
 	end
+	for _, c in ipairs(row:GetDescendants()) do -- the rows lie on parchment: dark ink (the theme may have tinted them for a dark plate)
+		if c:IsA("TextLabel") then put(st, c, { TextColor3 = INK, TextStrokeTransparency = 1, TextTransparency = 0 }) end
+	end
 end
 
 -- the run badge (Daily, Weekly, Seed): a small dark wood plate with a brass edge and a cream label. The Sidebar recolours the badge's own
@@ -212,7 +215,8 @@ local function run(root, st)
 	end
 	put(st, content, { AutomaticSize = Enum.AutomaticSize.None, Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(rect.w, rect.h) })
 
-	local known = { HeaderRibbon = true, ArchSpacer = true, BoardContent = true }
+	-- BoardPanelBack is our own panel: without it here a second pass took it for a row to stack under the board (a cream box off the screen)
+	local known = { HeaderRibbon = true, ArchSpacer = true, BoardContent = true, BoardPanelBack = true }
 	local ribbon = sidebar:FindFirstChild("HeaderRibbon")
 	local spacer = sidebar:FindFirstChild("ArchSpacer")
 	if spacer then put(st, spacer, { Visible = false }) end

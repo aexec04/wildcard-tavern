@@ -20028,6 +20028,14 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	band.HudKitFrame.Visible = true -- the theme paints again later
 	PlayBoardHud.apply(root, rect)
 	expectTrue(band.HudKitFrame.Visible == false, "a piece the theme re-shows is hidden again")
+	do -- a second pass must not take the panel itself for a row and stack it under the board (the cream box off the bottom)
+		local again = sidebar:FindFirstChild("BoardPanelBack")
+		expectTrue(again == panel and again.Position.Y.Offset < tips.Position.Y.Offset,
+			"the panel stays behind its rows after a second pass")
+		local n = 0
+		for _, c in ipairs(sidebar:GetChildren()) do if c.Name == "BoardPanelBack" then n = n + 1 end end
+		expectTrue(n == 1, "exactly one panel")
+	end
 	-- the rule: name on the first line, the rule line only when it fits, never outside the slot
 	local rn, rl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
 	expectTrue(rn and rn.Text == "Small Round" and rl and rl.Text == "No special rules this round.", "rule slot holds the round name, then the rule")
