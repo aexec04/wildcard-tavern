@@ -132,8 +132,8 @@ return function(deps)
 	roundSelectFrame.Name = "RoundSelect"
 	-- Full width: the left stats panel only matters during a round, so Round Select covers it
 	-- (Client/SidebarSlide.lua slides the panel away here and back in when a round starts).
-	roundSelectFrame.Size = UDim2.new(1, -40, 1, 0)
-	roundSelectFrame.Position = UDim2.new(0, 20, 0, 0)
+	roundSelectFrame.Size = UDim2.new(1, 0, 1, 0) -- edge to edge: a 20 px gutter let the green felt show
+	roundSelectFrame.Position = UDim2.new(0, 0, 0, 0)
 	roundSelectFrame.BackgroundColor3 = Color3.fromRGB(40, 30, 22)
 	roundSelectFrame.Visible = false
 	roundSelectFrame.ZIndex = 6 -- matches shopFrame -- see Shop.lua for why (beats the corner icon buttons)
@@ -243,16 +243,23 @@ return function(deps)
 	tipsChip.AnchorPoint = Vector2.new(1, 0)
 	tipsChip.Size = UDim2.new(0, 150, 0, 34)
 	tipsChip.Position = UDim2.new(1, -20, 0, 18)
-	tipsChip.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
-	tipsChip.BackgroundTransparency = 0.2
+	tipsChip.BackgroundColor3 = Color3.fromRGB(92, 62, 34)
+	tipsChip.BackgroundTransparency = 0
 	tipsChip.BorderSizePixel = 0
 	tipsChip.Font = Enum.Font.GothamBold
 	tipsChip.TextSize = 17
-	tipsChip.TextColor3 = Color3.fromRGB(235, 200, 120)
+	tipsChip.TextColor3 = Color3.fromRGB(245, 232, 200)
 	tipsChip.Text = "Tips: 0"
 	tipsChip.ZIndex = 7
 	tipsChip.Parent = roundSelectFrame
 	roundCorner(tipsChip, 8)
+	do -- wood plate edge
+		local e = Instance.new("UIStroke")
+		e.Color = Color3.fromRGB(150, 118, 66)
+		e.Thickness = 2
+		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		e.Parent = tipsChip
+	end
 
 	-- panelRow: vertically centered so fixed-height cards don't cling to the top.
 	local panelRow = Instance.new("Frame")
@@ -265,7 +272,7 @@ return function(deps)
 	local panelRowLayout = Instance.new("UIListLayout")
 	panelRowLayout.FillDirection = Enum.FillDirection.Horizontal
 	panelRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	panelRowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	panelRowLayout.VerticalAlignment = Enum.VerticalAlignment.Top -- equal panel tops
 	panelRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	panelRowLayout.Padding = UDim.new(0, 24)
 	panelRowLayout.Parent = panelRow
@@ -854,8 +861,8 @@ return function(deps)
 			elseif isFuture then
 				entry.statusChip.Visible = true
 				entry.statusChip.Text = "  Up next  "
-				entry.statusChip.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
-				entry.statusChip.TextColor3 = Color3.fromRGB(180, 180, 200)
+				entry.statusChip.BackgroundColor3 = Color3.fromRGB(30, 22, 16)
+				entry.statusChip.TextColor3 = Color3.fromRGB(245, 232, 200)
 			else
 				entry.statusChip.Visible = true
 				entry.statusChip.Text = "  Cleared  "
@@ -933,13 +940,13 @@ return function(deps)
 			if stroke then
 				if isCurrent then
 					stroke.Color = Color3.fromRGB(255, 244, 200)
-					stroke.Thickness = 6
+					stroke.Thickness = 2
 				elseif isPast then
 					stroke.Color = Color3.fromRGB(230, 184, 70)
-					stroke.Thickness = 4
+					stroke.Thickness = 2
 				else
-					stroke.Color = entry.accent
-					stroke.Thickness = entry.isBossRound and 4 or 3
+					stroke.Color = entry.isBossRound and Color3.fromRGB(140, 30, 30) or entry.accent
+					stroke.Thickness = 2
 				end
 			end
 			entry.goldTint.Visible = isPast
