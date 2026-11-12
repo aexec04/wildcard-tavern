@@ -5,16 +5,15 @@
 	  { w, h, margin = 8, pad = 14, groups = { name = { rect, rect, ... } }, min = { name = { w, h } } }
 	place(def, areaW, areaH) turns them into the area's pixels. The picture is cover-fitted into the area and shrinks below cover so every
 	slot keeps `margin` px of clear room; it is never stretched. ok is false when a slot would be too small to read (the caller keeps the
-	plain layout). edgeFill(def, p, areaW, areaH) lists eight 4 px slices of the picture's own edge that cover whatever the picture does
-	not, so the painting reads as the whole body of the panel (the caller draws them under the picture, 1 px of overlap).
+	plain layout). feather(p, areaW, areaH) lists the soft vignette strips that melt the picture's uncovered edges into the dark fill behind
+	it (no stretched picture pixels).
 
 	place -> { ok, scale, image = {x,y,w,h}, groups = { name = { rect, ... } } }
-	edgeFill -> { { name, rect = {x,y,w,h} (area px), src = {x,y,w,h} (picture px) }, ... }
+	feather -> { { name, rect = {x,y,w,h} (area px), transparency }, ... }
 ]]
 
 local M = {}
 
-M.EDGE = 4
 
 local function clampRange(v, lo, hi)
 	if lo > hi then return (lo + hi) / 2 end
@@ -66,26 +65,28 @@ function M.place(def, areaW, areaH)
 	return out
 end
 
-function M.edgeFill(def, p, areaW, areaH)
-	local I, e = p.image, M.EDGE
-	local W, H = def.w, def.h
+-- Soft vignette where the picture does not reach the edge of the area: ten stacked strips inside each uncovered picture edge, fully opaque
+-- at the edge and fading out eased, drawn in the dark fill colour that already covers the area behind the picture. No picture pixels are
+-- stretched (a stretched edge reads as streaks), and no texture size is assumed. Returns { { name, rect = {x,y,w,h} (area px), transparency } }.
+M.FEATHER_STEPS = 10
+function M.feather(p, areaW, areaH)
+	local I = p.image
 	local out = {}
+	local n = M.FEATHER_STEPS
 	local x1, y1 = I.x + I.w, I.y + I.h
-	local function add(name, x, y, w, h, sx, sy, sw, sh)
+	local fwx, fwy = math.min(90, I.w * 0.1), math.min(70, I.h * 0.1)
+	local function add(name, x, y, w, h, t)
 		if w > 0.5 and h > 0.5 then
-			out[#out + 1] = { name = name, rect = { x = math.floor(x), y = math.floor(y), w = math.ceil(w), h = math.ceil(h) }, src = { x = sx, y = sy, w = sw, h = sh } }
+			out[#out + 1] = { name = name, rect = { x = math.floor(x), y = math.floor(y), w = math.ceil(w), h = math.ceil(h) }, transparency = t }
 		end
 	end
-	local midY0, midY1 = math.max(0, I.y), math.min(areaH, y1)
-	local midX0, midX1 = math.max(0, I.x), math.min(areaW, x1)
-	add("Left", 0, midY0, I.x + 1, midY1 - midY0, 0, 0, e, H)
-	add("Right", x1 - 1, midY0, areaW - x1 + 1, midY1 - midY0, W - e, 0, e, H)
-	add("Top", midX0, 0, midX1 - midX0, I.y + 1, 0, 0, W, e)
-	add("Bottom", midX0, y1 - 1, midX1 - midX0, areaH - y1 + 1, 0, H - e, W, e)
-	add("TopLeft", 0, 0, I.x + 1, I.y + 1, 0, 0, e, e)
-	add("TopRight", x1 - 1, 0, areaW - x1 + 1, I.y + 1, W - e, 0, e, e)
-	add("BottomLeft", 0, y1 - 1, I.x + 1, areaH - y1 + 1, 0, H - e, e, e)
-	add("BottomRight", x1 - 1, y1 - 1, areaW - x1 + 1, areaH - y1 + 1, W - e, H - e, e, e)
+	for i = 0, n - 1 do
+		local t = 1 - (1 - i / n) ^ 2
+		if I.x > 0.5 then add("L" .. i, I.x + i * fwx / n, math.max(0, I.y), fwx / n + 1, math.min(areaH, y1) - math.max(0, I.y), t) end
+		if x1 < areaW - 0.5 then add("R" .. i, x1 - (i + 1) * fwx / n - 1, math.max(0, I.y), fwx / n + 1, math.min(areaH, y1) - math.max(0, I.y), t) end
+		if I.y > 0.5 then add("T" .. i, math.max(0, I.x), I.y + i * fwy / n, math.min(areaW, x1) - math.max(0, I.x), fwy / n + 1, t) end
+		if y1 < areaH - 0.5 then add("B" .. i, math.max(0, I.x), y1 - (i + 1) * fwy / n - 1, math.min(areaW, x1) - math.max(0, I.x), fwy / n + 1, t) end
+	end
 	return out
 end
 

@@ -127,23 +127,29 @@ function FlairDressingRoom.build(deps, panel)
 	-- ===== painted scene (flair_room_a): drawn under everything once its Image id is recorded and the panel is big enough =====
 	local sceneId = ContentArt.getImageId("panel_scene", Scene.ART_KEY)
 	local sceneHolder = make("Frame", panel, { Name = "FlairScene", BackgroundColor3 = Color3.fromRGB(26, 18, 12), ClipsDescendants = true, Visible = false, Active = false })
-	local sceneEdges = make("Frame", sceneHolder, { Name = "Edges", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- under the picture
 	local sceneImage = make("ImageLabel", sceneHolder, { Name = "Picture", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false })
-	local scenePatches = make("Frame", sceneHolder, { Name = "PlatePatches", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- over the picture
+	local sceneVignette = make("Frame", sceneHolder, { Name = "Vignette", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- over the picture
+	local sceneMarks = make("Frame", sceneHolder, { Name = "SoonMarks", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false })
 	local sceneOn = false
 	local sceneS = nil -- the last Scene.place result while the painted room is on
-	local paintPatches -- assigned below, needs the category count
-	-- slices of the picture itself: edge bands under it (so the painting reads as covering the whole body) and wall patches over unused plates
-	local function paintSlices(holder, items)
-		for _, ch in ipairs(holder:GetChildren()) do ch:Destroy() end
+	local truncatedLabels = 0 -- cubby names that do not fit their two lines (reset on every relayout)
+	-- the dark vignette: strips in the holder colour, opaque at the picture's uncovered edge and fading inward (no stretched picture pixels)
+	local function paintVignette(items)
+		for _, ch in ipairs(sceneVignette:GetChildren()) do ch:Destroy() end
 		for _, it in ipairs(items) do
-			make("ImageLabel", holder, { Name = it.name or ("Patch" .. tostring(it.index)), BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch,
-				ImageRectOffset = Vector2.new(it.src.x, it.src.y), ImageRectSize = Vector2.new(it.src.w, it.src.h),
+			make("Frame", sceneVignette, { Name = it.name, BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = it.transparency,
 				Position = UDim2.fromOffset(it.rect.x, it.rect.y), Size = UDim2.fromOffset(it.rect.w, it.rect.h), Active = false })
 		end
 	end
-	paintPatches = function()
-		paintSlices(scenePatches, sceneS and #drawers > 0 and Scene.platePatches(sceneS, #drawers) or {})
+	-- plates of categories that do not exist stay intact painted plates with a faint "More soon" (no hole in the wall)
+	local function paintPatches()
+		for _, ch in ipairs(sceneMarks:GetChildren()) do ch:Destroy() end
+		if not sceneS or #drawers == 0 then return end
+		for i = #drawers + 1, #sceneS.tabs do
+			local t = sceneS.tabs[i]
+			make("TextLabel", sceneMarks, { Name = "SoonPlate" .. i, Position = UDim2.fromOffset(t.x + 14, t.y), Size = UDim2.fromOffset(t.w - 28, t.h),
+				Text = "More soon", TextSize = 14, Font = Enum.Font.GothamMedium, TextTransparency = 0.5, TextColor3 = Color3.fromRGB(226, 208, 170), Active = false })
+		end
 	end
 
 	-- ===== title, bundle, close =====
@@ -482,8 +488,12 @@ function FlairDressingRoom.build(deps, panel)
 			circle(shade)
 			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
+		local nameW = math.max(10, (R.sceneOn and R.cubbies[1] and R.cubbies[1].w or 120) - 8)
+		-- whole names: wrap onto two lines, never dots; the room counts any name that still does not fit (the [FlairRoom] line wants 0)
+		local okSize, nameBounds = pcall(TextService.GetTextSize, TextService, item.name, 14, Enum.Font.GothamBold, Vector2.new(nameW, 1000))
+		if R.sceneOn and okSize and nameBounds.Y > cellSize.nameH then truncatedLabels = truncatedLabels + 1 end
 		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.new(1, -8, 0, cellSize.nameH), Text = item.name,
-			TextSize = 14, TextWrapped = (not R.sceneOn) or cellSize.lines == 2, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
+			TextSize = 14, TextWrapped = true, TextTruncate = R.sceneOn and Enum.TextTruncate.None or Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
 			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
 		local status, statusColor
 		if item.state == "equipped" then
@@ -493,8 +503,11 @@ function FlairDressingRoom.build(deps, panel)
 		else
 			status, statusColor = item.tag or "Locked", Color3.fromRGB(190, 160, 110)
 		end
-		make("TextLabel", f, { Name = "Status", Position = UDim2.fromOffset(4, 6 + med + 4 + cellSize.nameH + 2), Size = UDim2.new(1, -8, 0, cellSize.tagH), Text = status,
-			TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = statusColor, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 })
+		if cellSize.showTag == false then
+			status = nil -- a short cubby gives its height to the name; the ring and the lock already say equipped or locked
+		end
+		if status then make("TextLabel", f, { Name = "Status", Position = UDim2.fromOffset(4, 6 + med + 4 + cellSize.nameH + 2), Size = UDim2.new(1, -8, 0, cellSize.tagH), Text = status,
+			TextSize = 14, Font = Enum.Font.GothamMedium, TextColor3 = statusColor, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 2 }) end
 		f.MouseButton1Click:Connect(function()
 			deps.playClickSfx()
 			chosenId = item.id
@@ -555,6 +568,7 @@ function FlairDressingRoom.build(deps, panel)
 	end
 
 	local function buildGrid()
+		truncatedLabels = 0
 		if openSlot then scrollMemory[openSlot] = gridFrame.CanvasPosition.Y end
 		for _, t in ipairs(tiles) do t.frame:Destroy() end
 		tiles = {}
@@ -605,7 +619,7 @@ function FlairDressingRoom.build(deps, panel)
 			R.mirror, R.detail, R.plaque = down(S.mirror), down(S.detail), down(S.plaque)
 			sceneHolder.Position, sceneHolder.Size = UDim2.fromOffset(0, S.areaY), UDim2.fromOffset(w, h - R.topH - R.bottomH)
 			sceneImage.Position, sceneImage.Size = UDim2.fromOffset(S.image.x, S.image.y), UDim2.fromOffset(S.image.w, S.image.h)
-			paintSlices(sceneEdges, Scene.edgeFill(S, w, h - R.topH - R.bottomH))
+			paintVignette(Scene.feather(S, w, h - R.topH - R.bottomH))
 			sceneS = S
 			paintPatches()
 		end
@@ -643,7 +657,12 @@ function FlairDressingRoom.build(deps, panel)
 		for _, entry in ipairs(placed) do setRect(entry.inst, entry.fn(R)) end
 		titleLabel.TextSize = R.compact and 24 or 28
 		sizeStageText()
+		truncatedLabels = 0
 		if #drawers > 0 then FlairDressingRoom._rebuild() end
+		if game:GetService("RunService"):IsStudio() then
+			local cover = math.max(w / Scene.IMAGE_W, (h - R.topH - R.bottomH) / Scene.IMAGE_H)
+			print(string.format("[FlairRoom] %s scale=%.2f cover=%.2f labels=%d truncated=%d", sceneOn and "painted" or "plain", sceneS and sceneS.scale or 0, cover, #tiles, truncatedLabels))
+		end
 	end
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() relayout(false) end)
 

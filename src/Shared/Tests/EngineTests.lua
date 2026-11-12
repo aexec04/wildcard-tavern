@@ -13392,7 +13392,7 @@ table.insert(tests, { name = "FlairSceneLayout: painted Flair room maps tabs, 12
 			-- never stretched: the picture keeps its aspect
 			expectTrue(math.abs(p.image.w / p.image.h - L.IMAGE_W / L.IMAGE_H) < 0.001, "picture is not stretched")
 			local cell = L.cell(p.cubbies[1].w, p.cubbies[1].h)
-			expectTrue(cell.med >= 30 and 6 + cell.med + 4 + cell.nameH + 2 + cell.tagH <= p.cubbies[1].h, "tile content fits the cubby")
+			expectTrue(cell.med >= 28 and 6 + cell.med + 4 + cell.nameH + (cell.showTag and cell.tagH + 2 or 0) <= p.cubbies[1].h, "tile content fits the cubby")
 		end
 	end
 	expectEqual(fitted, 3, "all three desktop sizes use the painted room")
@@ -13405,50 +13405,29 @@ table.insert(tests, { name = "FlairSceneLayout: painted Flair room maps tabs, 12
 	end
 end })
 
-table.insert(tests, { name = "FlairSceneLayout: the picture plus its edge slices cover the whole body, unused plates are patched, names get two lines (1920x1080, 1280x720)", fn = function()
+table.insert(tests, { name = "FlairSceneLayout: the picture is never stretched, uncovered edges melt into a vignette (no picture slices), names get two full lines (1920x1080, 1280x720)", fn = function()
 	local L = require(script.Parent.Parent.Engine.FlairSceneLayout)
-	local Flair = require(script.Parent.Parent.Engine.Flair)
-	-- body areas at 1920x1080 (panel 1410 wide, body about 680 tall), 1280x720 and a short wide one
 	for _, size in ipairs({ { 1410, 680 }, { 1000, 544 }, { 1640, 850 } }) do
 		local W, H = size[1], size[2]
 		local p = L.place(W, H)
 		expectTrue(p.ok, "painted room at " .. W .. "x" .. H)
-		local pieces = L.edgeFill(p, W, H)
-		local function covered(x, y)
-			local i = p.image
-			if x >= i.x and x <= i.x + i.w and y >= i.y and y <= i.y + i.h then return true end
-			for _, it in ipairs(pieces) do
-				local r = it.rect
-				if x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h then return true end
-			end
-			return false
+		local strips = L.feather(p, W, H)
+		local uncovered = p.image.x > 0.5 or p.image.x + p.image.w < W - 0.5 or p.image.y > 0.5 or p.image.y + p.image.h < H - 0.5
+		expectEqual(#strips > 0, uncovered, "a vignette exactly when the picture leaves an edge uncovered at " .. W .. "x" .. H)
+		for _, st in ipairs(strips) do
+			expectTrue(st.transparency >= 0 and st.transparency <= 1, "vignette transparency is a fraction")
+			expectTrue(st.rect.x >= -1 and st.rect.y >= -1 and st.rect.x + st.rect.w <= W + 2 and st.rect.y + st.rect.h <= H + 2, st.name .. " stays inside the body")
+			expectTrue(st.src == nil, "no stretched picture slice")
 		end
-		local gaps = 0
-		for gx = 0, 20 do
-			for gy = 0, 10 do
-				if not covered(gx / 20 * (W - 1), gy / 10 * (H - 1)) then gaps = gaps + 1 end
-			end
-		end
-		expectEqual(gaps, 0, "no flat panel colour left uncovered at " .. W .. "x" .. H)
-		for _, it in ipairs(pieces) do
-			expectTrue(it.src.w >= 1 and it.src.h >= 1 and it.src.x >= 0 and it.src.y >= 0 and it.src.x + it.src.w <= L.IMAGE_W and it.src.y + it.src.h <= L.IMAGE_H, it.name .. " slices inside the picture")
-		end
-		-- two categories fewer than plates: the spare plates are patched with wall, none beyond the plate column
-		local patches = L.platePatches(p, #Flair.Slots)
-		expectEqual(#patches, 6 - #Flair.Slots, "one patch per unused plate")
-		for _, pt in ipairs(patches) do
-			expectTrue(pt.index > #Flair.Slots and pt.rect.w >= p.tabs[pt.index].w and pt.rect.h >= p.tabs[pt.index].h, "patch covers its plate")
-		end
-		expectEqual(#L.platePatches(p, 6), 0, "no patch when every plate is used")
-		-- cubby labels may take two lines where the cubby is tall enough and the tile still fits
+		-- the cubby tile: two 14 px lines never cut (Roblox needs at least 36 px for them), content inside the cubby
 		local c = p.cubbies[1]
 		local cell = L.cell(c.w, c.h)
-		expectTrue(cell.lines == 2 or c.h < 110, "two name lines when the cubby is tall")
-		expectTrue(6 + cell.med + 4 + cell.nameH + 2 + cell.tagH <= c.h, "two-line tile fits the cubby at " .. W .. "x" .. H)
+		expectTrue(cell.lines == 2 and cell.nameH >= 36, "two full name lines at " .. W .. "x" .. H)
+		expectTrue(cell.med >= 28 and 6 + cell.med + 4 + cell.nameH + (cell.showTag and cell.tagH + 2 or 0) <= c.h, "tile fits the cubby at " .. W .. "x" .. H)
 	end
 end })
 
-table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the polish (parchment card, labels on the plaque, fitted sample, scaled tab names)", fn = function()
+table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the polish (parchment card, labels on the plaque, fitted sample, scaled tab names, vignette, intact spare plates, [FlairRoom] line)", fn = function()
 	local f = io and io.open and io.open("src/Client/FlairDressingRoom.lua", "r")
 	if not f then return end
 	local src = f:read("*a"); f:close()
@@ -13456,7 +13435,9 @@ table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the p
 	expectTrue(src:find("liveLabel.Parent = plaque", 1, true) ~= nil, "Live preview label sits on the plaque")
 	expectTrue(src:find("glassW / 4.8", 1, true) ~= nil, "sample number is sized to the mirror glass")
 	expectTrue(src:find("t.name.TextScaled = true", 1, true) ~= nil and src:find("UITextSizeConstraint", 1, true) ~= nil, "tab names scale with a 14 floor")
-	expectTrue(src:find("Scene.edgeFill", 1, true) ~= nil and src:find("Scene.platePatches", 1, true) ~= nil, "edge fill and plate patches are drawn")
+	expectTrue(src:find("Scene.feather", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
+	expectTrue(src:find("More soon", 1, true) ~= nil, "spare plates stay intact with a faint mark")
+	expectTrue(src:find("[FlairRoom]", 1, true) ~= nil and src:find("truncated=%d", 1, true) ~= nil, "the Studio line reports the cover scale and truncated labels")
 end })
 
 table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, detail card and buttons never overlap or leave the panel (1920x1080, 1280x720, phone)", fn = function()
@@ -19969,7 +19950,7 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
 end })
 
-tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the panel body at 1920x1080 and 1280x720, the picture covers the body, parts stay inside their slots", fn = function()
+tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the panel body at 1920x1080 and 1280x720, edges melt into a vignette, parts stay inside their slots", fn = function()
 	local L = require(script.Parent.Parent.Engine.LegendSceneLayout)
 	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
@@ -19990,22 +19971,11 @@ tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the pane
 			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
 		end
 		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
-		-- picture plus edge slices leave no flat panel colour
-		local pieces = PS.edgeFill(L.DEF, p, W, H)
-		local gaps = 0
-		for gx = 0, 20 do
-			for gy = 0, 10 do
-				local x, y = gx / 20 * (W - 1), gy / 10 * (H - 1)
-				local i = p.image
-				local ok = x >= i.x and x <= i.x + i.w and y >= i.y and y <= i.y + i.h
-				for _, it in ipairs(pieces) do
-					local r = it.rect
-					if x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h then ok = true end
-				end
-				if not ok then gaps = gaps + 1 end
-			end
-		end
-		expectEqual(gaps, 0, "no uncovered panel colour at " .. screen[1] .. "x" .. screen[2])
+		-- uncovered picture edges melt into a vignette; nothing is cut out of the picture
+		local strips = PS.feather(p, W, H)
+		local uncovered = p.image.x > 0.5 or p.image.x + p.image.w < W - 0.5 or p.image.y > 0.5 or p.image.y + p.image.h < H - 0.5
+		expectEqual(#strips > 0, uncovered, "vignette exactly when an edge is uncovered at " .. screen[1] .. "x" .. screen[2])
+		for _, st in ipairs(strips) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "vignette strip " .. st.name .. " is a plain fade") end
 		-- parts
 		local a = L.alcoveParts(p.alcove)
 		local rel = { x = 0, y = 0, w = p.alcove.w, h = p.alcove.h }

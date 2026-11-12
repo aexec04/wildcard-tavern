@@ -1,7 +1,7 @@
 --[[
 	Client/PanelScene.lua
-	The painted room under a panel (art `panel_scene`, Engine/PanelSceneLayout.lua): a holder with the 4 px edge slices under the
-	cover-fitted picture, so the painting reads as the whole body of the panel. Used by the Legend, Card Sets and Stats panels.
+	The painted room under a panel (art `panel_scene`, Engine/PanelSceneLayout.lua): a dark holder with the cover-fitted picture and a soft
+	vignette melting its uncovered edges into the holder colour, so the painting reads as the whole body of the panel. Used by the Legend, Card Sets and Stats panels.
 
 	PanelScene.new(panel, { artKey, def, z }) -> scene
 	scene.id           the recorded Image id or nil (nil: the caller keeps its plain layout)
@@ -13,6 +13,7 @@ local ContentArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Sh
 local PanelSceneLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelSceneLayout"))
 
 local PanelScene = {}
+local FILL = Color3.fromRGB(26, 18, 12) -- the holder colour the vignette fades into
 
 function PanelScene.new(panel, opts)
 	local z = opts.z or 41
@@ -20,20 +21,13 @@ function PanelScene.new(panel, opts)
 	local scene = { id = id }
 	local holder = Instance.new("Frame")
 	holder.Name = "PanelScene"
-	holder.BackgroundColor3 = Color3.fromRGB(26, 18, 12)
+	holder.BackgroundColor3 = FILL
 	holder.BorderSizePixel = 0
 	holder.ClipsDescendants = true
 	holder.Visible = false
 	holder.Active = false
 	holder.ZIndex = z
 	holder.Parent = panel
-	local edges = Instance.new("Frame")
-	edges.Name = "Edges"
-	edges.BackgroundTransparency = 1
-	edges.Size = UDim2.fromScale(1, 1)
-	edges.Active = false
-	edges.ZIndex = z
-	edges.Parent = holder
 	local picture = Instance.new("ImageLabel")
 	picture.Name = "Picture"
 	picture.BackgroundTransparency = 1
@@ -46,19 +40,19 @@ function PanelScene.new(panel, opts)
 	function scene.show(area, placed)
 		holder.Position, holder.Size = UDim2.fromOffset(area.x, area.y), UDim2.fromOffset(area.w, area.h)
 		picture.Position, picture.Size = UDim2.fromOffset(placed.image.x, placed.image.y), UDim2.fromOffset(placed.image.w, placed.image.h)
-		for _, ch in ipairs(edges:GetChildren()) do ch:Destroy() end
-		for _, it in ipairs(PanelSceneLayout.edgeFill(opts.def, placed, area.w, area.h)) do
-			local f = Instance.new("ImageLabel")
-			f.Name = it.name
-			f.BackgroundTransparency = 1
-			f.Image = id or ""
-			f.ScaleType = Enum.ScaleType.Stretch
-			f.ImageRectOffset = Vector2.new(it.src.x, it.src.y)
-			f.ImageRectSize = Vector2.new(it.src.w, it.src.h)
+		for _, ch in ipairs(holder:GetChildren()) do
+			if ch ~= picture then ch:Destroy() end
+		end
+		for _, it in ipairs(PanelSceneLayout.feather(placed, area.w, area.h)) do
+			local f = Instance.new("Frame")
+			f.Name = "Vignette_" .. it.name
+			f.BackgroundColor3 = FILL
+			f.BackgroundTransparency = it.transparency
+			f.BorderSizePixel = 0
 			f.Position, f.Size = UDim2.fromOffset(it.rect.x, it.rect.y), UDim2.fromOffset(it.rect.w, it.rect.h)
 			f.Active = false
 			f.ZIndex = z
-			f.Parent = edges
+			f.Parent = holder
 		end
 		holder.Visible = true
 	end
