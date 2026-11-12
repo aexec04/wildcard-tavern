@@ -24,14 +24,34 @@ M.DEF = {
 		shelves = { { 726, 222, 192, 106 }, { 726, 366, 192, 108 }, { 726, 508, 192, 112 } },
 	},
 	-- smallest sizes (px) at which text stays readable (nothing under 14)
-	min = { alcove = { 200, 250 }, plaques = { 92, 56 }, shelves = { 112, 60 } },
+	min = { alcove = { 200, 250 }, plaques = { 92, 56 }, shelves = { 112, 72 } },
 }
 M.PANEL_FRAC = { 0.9, 0.94 }
 M.PANEL_MAX = { 1180, 800 }
 M.TOP, M.BOTTOM = 78, 60 -- header (title, hint) above and Close below the body
 
+-- The picture is square, so the panel is only as wide as the picture comes out at the height-limited scale: no band is left at the sides.
 function M.panel(screenW, screenH)
-	return PS.panelSize(screenW, screenH, M.PANEL_FRAC[1], M.PANEL_FRAC[2], M.PANEL_MAX[1], M.PANEL_MAX[2])
+	local fw, fh = PS.panelSize(screenW, screenH, M.PANEL_FRAC[1], M.PANEL_FRAC[2], M.PANEL_MAX[1], M.PANEL_MAX[2])
+	local x0, y0, x1, y1 = PS.bounds(M.DEF)
+	local s = (fh - M.TOP - M.BOTTOM - 2 * (M.DEF.margin or 8)) / (y1 - y0)
+	local w = math.max(640, math.min(fw, math.ceil(M.DEF.w * s)))
+	return w, fh
+end
+
+-- Colours (rgb) with their contrast, tested at 4.5:1 or better: the level labels are cream on a dark pill (cream on the brass plaque
+-- alone is only about 3.8:1), the shelf texts are dark ink on a small parchment strip, the panel frame is the dark wood of the other
+-- Tome panels instead of maroon.
+M.COLORS = {
+	lvInk = { 250, 235, 200 }, lvPill = { 40, 26, 16 },
+	shelfInk = { 52, 32, 16 }, shelfStrip = { 222, 204, 164 },
+	frame = { 50, 34, 22 }, frameLine = { 190, 146, 78 }, closeButton = { 96, 64, 36 },
+}
+
+-- the parchment strip behind one shelf's text: centred in the shelf, inset 6 px, at most 60 px tall (relative to the shelf)
+function M.shelfStrip(shelf)
+	local h = math.min(shelf.h - 12, 60)
+	return { x = 6, y = math.floor((shelf.h - h) / 2), w = shelf.w - 12, h = h }
 end
 
 function M.place(areaW, areaH)

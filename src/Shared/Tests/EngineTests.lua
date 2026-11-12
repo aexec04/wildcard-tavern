@@ -19976,6 +19976,9 @@ tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the pane
 		local uncovered = p.image.x > 0.5 or p.image.x + p.image.w < W - 0.5 or p.image.y > 0.5 or p.image.y + p.image.h < H - 0.5
 		expectEqual(#strips > 0, uncovered, "vignette exactly when an edge is uncovered at " .. screen[1] .. "x" .. screen[2])
 		for _, st in ipairs(strips) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "vignette strip " .. st.name .. " is a plain fade") end
+		-- the panel is as wide as the picture: no flat band at the left or right
+		expectTrue(p.image.x <= 1 and p.image.x + p.image.w >= W - 1, "the picture reaches both sides at " .. screen[1] .. "x" .. screen[2])
+		for _, st in ipairs(strips) do expectFalse(st.name:sub(1, 1) == "L" or st.name:sub(1, 1) == "R", "no side vignette needed") end
 		-- parts
 		local a = L.alcoveParts(p.alcove)
 		local rel = { x = 0, y = 0, w = p.alcove.w, h = p.alcove.h }
@@ -19991,8 +19994,22 @@ tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the pane
 			end
 			expectFalse(hit(parts[1].medal, parts[2].medal), "plaque medallions do not touch")
 		end
-		for _, sh in ipairs(p.shelves) do expectTrue(sh.w >= 112 and sh.h >= 60, "shelf text fits three 14 px lines") end
+		for _, sh in ipairs(p.shelves) do
+			expectTrue(sh.w >= 112 and sh.h >= 72, "shelf text fits three 14 px lines")
+			local strip = L.shelfStrip(sh)
+			expectTrue(strip.h >= 48 and strip.x >= 0 and strip.x + strip.w <= sh.w and strip.y >= 0 and strip.y + strip.h <= sh.h, "the parchment strip sits inside its shelf")
+		end
 	end
+	-- contrast (WCAG ratio): level labels, shelf ink and the unchanged text on the dark frame
+	local function lum(c)
+		local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+	end
+	local function ratio(a, b) local la, lb = lum(a), lum(b); if la < lb then la, lb = lb, la end; return (la + 0.05) / (lb + 0.05) end
+	expectTrue(ratio(L.COLORS.lvInk, L.COLORS.lvPill) >= 4.5, "Lv labels: cream on the dark pill is at least 4.5:1")
+	expectTrue(ratio(L.COLORS.shelfInk, L.COLORS.shelfStrip) >= 4.5, "shelf ink on parchment is at least 4.5:1")
+	expectTrue(ratio({ 255, 226, 140 }, L.COLORS.frame) >= 4.5, "the gold title on the wood frame is at least 4.5:1")
+	expectTrue(L.COLORS.frame[1] > L.COLORS.frame[3] and L.COLORS.frame[1] < 80, "the frame is dark wood, not maroon (red well above blue, no purple)")
 	expectEqual(#L.pairs(10), 5, "ten levels on five plaques")
 	expectEqual(L.pairs(10)[5][2], 10, "last plaque holds level 10")
 	expectFalse(L.place(500, 300).ok, "a tiny panel keeps the plain layout")

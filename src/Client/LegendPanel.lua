@@ -358,6 +358,11 @@ function LegendPanel.init(deps)
 		local placed = scene.id and Scene.place(pw, ph - Scene.TOP - Scene.BOTTOM) or nil
 		sceneOn = placed ~= nil and placed.ok and pw >= 640 and ph >= 520 -- the panel's own minimum size
 		scenePlaced = sceneOn and placed or nil
+		-- the frame, header and footer are the dark wood of the other Tome panels while the room is up (maroon only in the plain layout)
+		local C = Scene.COLORS
+		panel.BackgroundColor3 = sceneOn and Color3.fromRGB(C.frame[1], C.frame[2], C.frame[3]) or BURGUNDY
+		innerStroke.Color = sceneOn and Color3.fromRGB(C.frameLine[1], C.frameLine[2], C.frameLine[3]) or Color3.fromRGB(150, 112, 60)
+		closeButton.BackgroundColor3 = sceneOn and Color3.fromRGB(C.closeButton[1], C.closeButton[2], C.closeButton[3]) or Color3.fromRGB(110, 40, 52)
 		if sceneOn then
 			panelLimit.MaxSize = Vector2.new(Scene.PANEL_MAX[1], Scene.PANEL_MAX[2])
 			panel.Size = UDim2.fromOffset(pw, ph)
@@ -424,9 +429,13 @@ function LegendPanel.init(deps)
 		for i, line in ipairs(lines) do
 			local shelf = P.shelves[i]
 			if shelf then
-				label(sceneLayer, { Position = UDim2.fromOffset(shelf.x + 8, shelf.y + 4), Size = UDim2.fromOffset(shelf.w - 16, shelf.h - 8),
-					TextSize = shelf.h >= 72 and 16 or 14, TextWrapped = true, Text = line.text, TextColor3 = line.color or CREAM,
-					Font = Enum.Font.GothamMedium })
+				-- a small parchment strip each, ink on it (the bare dark shelf back made the text float)
+				local strip = Scene.shelfStrip(shelf)
+				local sc = Scene.COLORS
+				local plate = label(sceneLayer, { Name = "ShelfStrip" .. i, Position = UDim2.fromOffset(shelf.x + strip.x, shelf.y + strip.y), Size = UDim2.fromOffset(strip.w, strip.h),
+					TextSize = 14, TextWrapped = true, Text = line.text, TextColor3 = Color3.fromRGB(sc.shelfInk[1], sc.shelfInk[2], sc.shelfInk[3]),
+					Font = Enum.Font.GothamMedium, BackgroundTransparency = 0.12, BackgroundColor3 = Color3.fromRGB(sc.shelfStrip[1], sc.shelfStrip[2], sc.shelfStrip[3]) })
+				deps.roundCorner(plate, 4)
 			end
 		end
 		-- plaques: two reward medallions each, level under every one
@@ -470,8 +479,13 @@ function LegendPanel.init(deps)
 								Text = "✓", TextColor3 = BURGUNDY_DEEP, BackgroundTransparency = 0, BackgroundColor3 = BRIGHT, ZIndex = 50 })
 							deps.roundCorner(check, 8)
 						end
-						label(box, { Position = UDim2.fromOffset(r.num.x, r.num.y), Size = UDim2.fromOffset(r.num.w, r.num.h), TextSize = 14,
-							Text = "Lv " .. row.level, TextColor3 = BURGUNDY_DEEP, ZIndex = 44 })
+						-- cream on a small dark pill (cream straight on the brass is only 3.8:1)
+						local lc = Scene.COLORS
+						local pillW = math.min(r.num.w - 4, 46)
+						local pill = label(box, { Name = "Lv" .. row.level, Position = UDim2.fromOffset(r.num.x + math.floor((r.num.w - pillW) / 2), r.num.y), Size = UDim2.fromOffset(pillW, r.num.h), TextSize = 14,
+							Text = "Lv " .. row.level, TextColor3 = Color3.fromRGB(lc.lvInk[1], lc.lvInk[2], lc.lvInk[3]), ZIndex = 44,
+							BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(lc.lvPill[1], lc.lvPill[2], lc.lvPill[3]) })
+						deps.roundCorner(pill, r.num.h // 2)
 						deps.addTooltip(m, row.text .. (row.reached and "" or (" at Legend level " .. row.level)))
 					end
 				end
