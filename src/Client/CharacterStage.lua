@@ -582,13 +582,18 @@ local function build(deps)
 		local W = H * aspect
 		-- Floor line: a per-scene override in SceneKeys.FloorFractions wins, otherwise it sits just above
 		-- the hand row (fixed pixels) so feet are always visible; heights fill the band above it.
-		local floorFrac
-		if type(SceneKeys.FloorFractions[sceneKey]) == "number" then
+		local floorFrac, topFrac
+		if mode == "boss" then
+			floorFrac, topFrac = StageLayout.tableBand(size.X + sidebarWidth, size.Y)
+		end
+		if floorFrac then
+			-- boss round on the painted table: stand between the top bar and the felt's back edge
+		elseif type(SceneKeys.FloorFractions[sceneKey]) == "number" then
 			floorFrac = SceneKeys.floorFraction(sceneKey)
 		else
 			floorFrac = StageLayout.floorFraction(size.Y)
 		end
-		local playerPx, bossPx = StageLayout.heights(size.Y, floorFrac, mode, grandBoss)
+		local playerPx, bossPx = StageLayout.heights(size.Y, floorFrac, mode, grandBoss, topFrac)
 		local studsPerPx = H / size.Y
 		local cy = (floorFrac - 0.5) * H
 		cam.CFrame = CFrame.lookAt(Vector3.new(0, cy, DIST), Vector3.new(0, cy, 0))

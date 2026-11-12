@@ -5340,6 +5340,23 @@ table.insert(tests, { name = "StageLayout: feet stay above the hand row and both
 	end
 end })
 
+table.insert(tests, { name = "StageLayout: on the painted table the boss stands above the felt, clear of the top bar", fn = function()
+	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
+	local PlayTableLayout = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 } }) do
+		local w, h = size[1], size[2]
+		local floorFrac, topFrac = StageLayout.tableBand(w, h)
+		expectTrue(floorFrac ~= nil and topFrac ~= nil, "painted band at " .. w)
+		local felt = PlayTableLayout.map(w, h).felt
+		expectTrue(floorFrac * h <= felt.y + 0.5, "feet at or above the felt top at " .. w .. "x" .. h)
+		expectTrue(topFrac * h >= math.min(100, 0.12 * h) - 0.5, "head clear of the top bar at " .. w .. "x" .. h)
+		local player, boss = StageLayout.heights(h, floorFrac, "boss", true, topFrac)
+		expectTrue(floorFrac * h - boss >= topFrac * h - 1, "whole boss inside the band (stage rect misses the felt) at " .. w .. "x" .. h)
+		expectTrue(player > 0 and boss >= player, "sizes sane")
+	end
+	expectTrue(StageLayout.tableBand(800, 450) == nil, "narrow screens keep the old band")
+end })
+
 table.insert(tests, { name = "RegionTiles: tavern fill covers the whole region frame, hero keeps aspect", fn = function()
 	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
 	for _, frameW in ipairs({ 600, 1175, 2400 }) do

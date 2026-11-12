@@ -33,14 +33,29 @@ function StageLayout.floorFraction(screenHeight, clearance)
 end
 
 -- Free vertical band in pixels between the plaque area and the floor line.
-function StageLayout.bandPixels(screenHeight, floorFrac)
+function StageLayout.bandPixels(screenHeight, floorFrac, topFrac)
 	floorFrac = floorFrac or StageLayout.floorFraction(screenHeight)
-	return math.max(StageLayout.MIN_HEIGHT, (floorFrac - StageLayout.TOP_FRACTION) * screenHeight)
+	return math.max(StageLayout.MIN_HEIGHT, (floorFrac - (topFrac or StageLayout.TOP_FRACTION)) * screenHeight)
+end
+
+-- On the painted play table (Engine/PlayTableLayout) the felt starts about 38 percent down, so the stage stands in the band
+-- between the top bar and the felt's back edge and the table front never covers a character. Returns floorFrac, topFrac, or
+-- nil when the painted table is not used (screen too narrow), which keeps the old band.
+StageLayout.TABLE_TOP_PX = 100 -- clear of the boss name plate and HP bar (plate ends at 60 px)
+StageLayout.TABLE_TOP_MIN = 0.12
+function StageLayout.tableBand(screenW, screenH)
+	local PlayTableLayout = require(script.Parent:WaitForChild("PlayTableLayout"))
+	if not PlayTableLayout.usable(screenW) or screenH < 1 then return nil end
+	local m = PlayTableLayout.map(screenW, screenH)
+	local floorFrac = math.min(0.85, math.max(0.2, m.felt.y / screenH))
+	local topFrac = math.max(StageLayout.TABLE_TOP_MIN, StageLayout.TABLE_TOP_PX / screenH)
+	if floorFrac - topFrac < 0.1 then topFrac = math.max(0.02, floorFrac - 0.1) end
+	return floorFrac, topFrac
 end
 
 -- Pixel heights for the rigs. mode = "normal" (player only) or "boss". Returns player, boss (boss nil in normal).
-function StageLayout.heights(screenHeight, floorFrac, mode, grand)
-	local band = StageLayout.bandPixels(screenHeight, floorFrac)
+function StageLayout.heights(screenHeight, floorFrac, mode, grand, topFrac)
+	local band = StageLayout.bandPixels(screenHeight, floorFrac, topFrac)
 	if mode ~= "boss" then
 		return math.max(StageLayout.MIN_HEIGHT, band * StageLayout.NORMAL_BAND_FRACTION), nil
 	end
