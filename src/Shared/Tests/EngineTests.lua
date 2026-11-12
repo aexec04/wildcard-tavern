@@ -20435,13 +20435,13 @@ tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, se
 	end
 end })
 
-tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio and the opt in", fn = function()
+tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio and the StudioAudio=false opt out", fn = function()
 	local SA = require(script.Parent.Parent.Engine.StudioAudio)
-	expectTrue(SA.shouldMute(true, nil), "Studio mutes by default")
-	expectTrue(SA.shouldMute(true, false), "Studio mutes with the attribute false")
-	expectTrue(not SA.shouldMute(true, true), "StudioAudio = true opts back in")
+	expectTrue(not SA.shouldMute(true, nil), "Studio plays sound by default")
+	expectTrue(not SA.shouldMute(true, true), "StudioAudio = true plays")
+	expectTrue(SA.shouldMute(true, false), "StudioAudio = false mutes Studio")
 	expectTrue(not SA.shouldMute(false, nil), "live servers are never muted")
-	expectTrue(not SA.shouldMute(false, true), "live servers are never muted, attribute or not")
+	expectTrue(not SA.shouldMute(false, false), "live servers are never muted, attribute or not")
 end })
 
 tests[#tests + 1] = ({ name = "SetSkin: Tome tabs and Close buttons never draw plate art (no garbled side shapes)", fn = function()

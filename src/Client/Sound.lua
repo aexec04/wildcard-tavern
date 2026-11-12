@@ -179,10 +179,10 @@ return function(deps)
 	-- scales every sound effect; mute silences music and SFX together.
 	local ClientSettings = require(script.Parent.ClientSettings)
 
-	-- Studio Play is silent unless SoundService has the attribute StudioAudio = true (not saved, live servers unaffected)
+	-- Studio Play has sound by default; SoundService attribute StudioAudio = false mutes it (not saved, live servers unaffected)
 	local StudioAudio = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StudioAudio"))
 	local studioMuted = StudioAudio.shouldMute(game:GetService("RunService"):IsStudio(), SoundService:GetAttribute("StudioAudio"))
-	if studioMuted then print("[Audio] studio muted") end
+	if studioMuted then print("[Audio] studio muted by StudioAudio=false") end
 
 	local function getSfxVolume(_id)
 		if studioMuted or ClientSettings.get("muted") then
