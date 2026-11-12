@@ -183,7 +183,14 @@ function PlayScenePaint.install(deps)
 	tint(HudTheme.skin())
 	apply = function()
 		local size = root.AbsoluteSize
-		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE, setKey) or nil
+		-- a per-Card-Set room keeps the hand 24 px right of the painted left board (the board is wider than the sidebar)
+		local leftEdge = sidebarW + 20
+		local roomSet = setKey and PlayTableLayout.SETS[setKey]
+		if roomSet and roomSet.room then
+			local bp = require(Engine:WaitForChild("PlayBoardLayout")).placement(size.X, size.Y)
+			if bp then leftEdge = math.max(leftEdge, bp.x + bp.w + 24) end
+		end
+		local p = loaded and PlayTableLayout.placement(size.X, size.Y, leftEdge, R.PILE_RESERVE, setKey) or nil
 		if p then
 			painted = true
 			vignette(true)
@@ -228,6 +235,10 @@ function PlayScenePaint.install(deps)
 			PlayRailLip.apply(lip, p, lipShown())
 			PlayRail.apply(rail, p, lipShown())
 			if rail then lip.Visible = false end
+			if not frontShown() then -- a room has no rail in its painting: no flat tan strip, no painted tray pieces
+				lip.Visible = false
+				if rail then rail.back.Visible = false; rail.front.Visible = false end
+			end
 		elseif painted then
 			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
