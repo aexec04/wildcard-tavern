@@ -19529,4 +19529,22 @@ table.insert(tests, { name = "PlayMotion: parallax is capped and opposite the cu
 	expectTrue(x >= 0 and x + w <= 1920 and h > 0 and y + h > 800, "pool sits over the hand inside the screen")
 end })
 
+table.insert(tests, { name = "PlayMotion: card tilt 1 to 3 degrees, edge cards 4 percent smaller, lean eases only with a selection or play", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	for count = 1, 8 do
+		for pos = 1, count do
+			local d = math.abs(PM.cardTilt(pos, count))
+			expectTrue(d >= 1 and d <= 3, "tilt 1 to 3 degrees")
+			local sc = PM.cardScale(pos, count)
+			expectTrue(sc >= 0.96 and sc <= 1, "scale within 4 percent")
+		end
+	end
+	expectTrue(math.abs(PM.cardScale(1, 8) - 0.96) < 1e-9 and PM.cardScale(1, 1) == 1, "far edge 0.96, lone card 1")
+	expectTrue(PM.leanTarget(0, false, false, false) == 0 and PM.leanTarget(2, false, false, false) == 0.6 and PM.leanTarget(0, true, false, false) == 1, "lean steps")
+	expectTrue(PM.leanTarget(2, true, true, false) == 0 and PM.leanTarget(2, true, false, true) == 0, "plate or calm returns to rest")
+	local dy, sc = PM.leanOffset(1, PM.LEAN_PX.rail)
+	expectTrue(dy == 16 and sc > 1.01 and sc <= 1.02, "lean 16 px, up to 2 percent")
+	expectTrue(PM.LEAN_PX.table >= 8 and PM.LEAN_PX.rail <= 16, "lean px in 8 to 16")
+end })
+
 return tests

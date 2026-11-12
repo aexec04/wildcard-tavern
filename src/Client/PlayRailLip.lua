@@ -90,6 +90,7 @@ function PlayRailLip.addCardShadow(slot)
 end
 
 function PlayRailLip.setShadow(slot, selected, lift)
+	if slot then slot:SetAttribute("Lifted", selected == true) end -- read by PlayMotion for the camera lean
 	local s = slot and slot:FindFirstChild("ContactShadow")
 	if not s then return end
 	local t = selected and 0.5 or 0.68

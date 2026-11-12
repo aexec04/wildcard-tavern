@@ -64,4 +64,35 @@ function PlayMotion.poolRect(screenW, screenH, handY, handH)
 	return math.floor(screenW / 2 - w / 2), math.floor(handY + handH / 2 - h / 2), w, h
 end
 
+-- depth: the hand lies on the felt in a very gentle arc. Position 1..count; returns degrees (1 to 3 in size, edges lean
+-- outward) and a scale (centre 1.0, far edge cards about 4 percent smaller, as if farther from the seat)
+function PlayMotion.cardTilt(pos, count)
+	count = math.max(1, count or 1)
+	local t = count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
+	local jitter = (pos % 2 == 0) and 0.7 or -0.7
+	local deg = PlayMotion.clamp(t * 2.2 + jitter, -3, 3)
+	if math.abs(deg) < 1 then deg = deg < 0 and -1 or 1 end
+	return deg
+end
+
+function PlayMotion.cardScale(pos, count)
+	count = math.max(1, count or 1)
+	local t = count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0
+	return 1 - 0.04 * t * t
+end
+
+-- camera lean: 0 at rest, 0.6 with a card selected, 1 while a hand plays; a plate or calm mode returns to rest
+PlayMotion.LEAN_PX = { table = 8, rail = 16 }
+PlayMotion.LEAN_SCALE = 0.02
+function PlayMotion.leanTarget(selectedCount, playing, modalOpen, calm)
+	if modalOpen or calm then return 0 end
+	if playing then return 1 end
+	return (selectedCount or 0) > 0 and 0.6 or 0
+end
+-- offset (px down toward the hand) and scale of a layer at lean amount a (0..1)
+function PlayMotion.leanOffset(a, px)
+	a = PlayMotion.clamp(a, 0, 1)
+	return a * px, 1 + PlayMotion.LEAN_SCALE * a
+end
+
 return PlayMotion

@@ -4,7 +4,9 @@
 	  * parallax: the painted table and the rail pieces drift 9 to 14 px opposite the cursor, eased and capped, still under
 	    a modal and in calm mode (Reduce Motion / Reduce Shake);
 	  * light: a soft lamp light pool over the felt at the hand row, warm or cool per Card Set, no flicker;
-	  * dealCard(button, order, count): a new hand card travels from the deck pile to its slot in a short arc.
+	  * dealCard(button, order, count): a new hand card travels from the deck pile to its slot in a short arc;
+  * depth: hand slots lie on a gentle arc (1 to 3 degrees, far-edge cards 4 percent smaller) and the table and rail
+    layers lean 8 to 16 px and up to 2 percent toward the hand while a card is selected (still in calm mode and under a plate).
 	Layout code sets the layers' Positions; this module reads whatever it wrote last as the new base each frame, so a
 	resize never fights it. Nothing here touches input, selection or game state.
 
@@ -55,11 +57,27 @@ function M.install(deps)
 
 	-- parallax -----------------------------------------------------------------------------------------------------
 	local layers = {
-		{ name = "PlayTableFront", px = PM.LAYER_PX.table },
-		{ name = "PlayRailBack", px = PM.LAYER_PX.rail },
-		{ name = "PlayRailFront", px = PM.LAYER_PX.rail },
+		{ name = "PlayTableFront", px = PM.LAYER_PX.table, leanPx = PM.LEAN_PX.table },
+		{ name = "PlayRailBack", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
+		{ name = "PlayRailFront", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
 	}
-	local sx, sy = 0, 0
+	local sx, sy, lean = 0, 0, 0
+	local function applyDepth()
+		local slots = {}
+		for _, c in ipairs(handFrame:GetChildren()) do
+			if c:IsA("Frame") and c:GetAttribute("HandIndex") then slots[#slots + 1] = c end
+		end
+		table.sort(slots, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+		local selected = 0
+		for i, slot in ipairs(slots) do
+			slot.Rotation = PM.cardTilt(i, #slots)
+			local us = slot:FindFirstChild("DepthScale")
+			if not us then us = Instance.new("UIScale") us.Name = "DepthScale" us.Parent = slot end
+			us.Scale = PM.cardScale(i, #slots)
+			if slot:GetAttribute("Lifted") then selected += 1 end
+		end
+		return selected
+	end
 	RunService.RenderStepped:Connect(function(dt)
 		if not handFrame.Visible then return end
 		pcall(placeGlow)
@@ -74,13 +92,15 @@ function M.install(deps)
 		local a = PM.follow(dt, 0.1)
 		sx += (nx - sx) * a
 		sy += (ny - sy) * a
+		local okD, selectedCount = pcall(applyDepth)
+		lean += (PM.leanTarget(okD and selectedCount or 0, false, modal, isCalm) - lean) * PM.follow(dt, 0.14) -- settles in about 0.3 s
 		for _, layer in ipairs(layers) do
 			local inst = layer.inst
 			if not inst or inst.Parent ~= root then inst = root:FindFirstChild(layer.name); layer.inst = inst end
 			if inst then
 				if layer.applied ~= inst.Position then layer.base = inst.Position end -- layout moved it: new base
 				local dx, dy = PM.parallax(sx, sy, layer.px, isCalm, false)
-				layer.applied = layer.base + UDim2.fromOffset(math.floor(dx + 0.5), math.floor(dy + 0.5))
+				layer.applied = layer.base + UDim2.fromOffset(math.floor(dx + 0.5), math.floor(dy + leanPx + 0.5))
 				inst.Position = layer.applied
 			end
 		end
