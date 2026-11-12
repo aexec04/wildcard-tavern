@@ -319,8 +319,21 @@ local function run(root, st)
 			end
 			table.sort(seats, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
 			local rects = PlayBoardLayout.seats(rect.w, rect.h, #seats)
+			if not st.seatReported and #seats > 1 and game:GetService("RunService"):IsStudio() then
+				st.seatReported = true
+				task.delay(1.5, function() -- Studio side check: the real drawn size and pitch of the seats (and any UIScale left on them)
+					local out = {}
+					for i, seat in ipairs(seats) do
+						local us = seat:FindFirstChildOfClass("UIScale")
+						out[i] = string.format("%d@%d(s%.2f)", math.floor(seat.AbsoluteSize.X), math.floor(seat.AbsolutePosition.X), us and us.Scale or 1)
+					end
+					warn("[SeatFit] seats size@x: " .. table.concat(out, " "))
+				end)
+			end
 			for i, seat in ipairs(seats) do
 				placeRect(st, seat, rects[i], H.ringRow)
+				local us = seat:FindFirstChildOfClass("UIScale")
+				if us and us.Scale > 1.02 then us.Scale = 1 end -- a pop left stuck above 1 would make neighbouring seats overlap
 				for _, c in ipairs(seat:GetChildren()) do
 					if c:IsA("UIStroke") then put(st, c, { Enabled = false }) end -- the painted ring is the ring
 					if c.Name == "InnerRing" or c.Name == "EmptyPulse" then put(st, c, { Visible = false }) end -- the painted ring is the ring

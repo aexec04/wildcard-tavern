@@ -124,6 +124,7 @@ local function fade(row, visible)
 	if calm() then
 		f.Visible = visible
 		f.BackgroundTransparency, row.label.TextTransparency = STYLE.paperTransparency, 0
+		row.label.TextStrokeTransparency = 1
 		row.shadow.BackgroundTransparency = STYLE.shadowTransparency
 		return
 	end
@@ -134,6 +135,17 @@ local function fade(row, visible)
 		TweenService:Create(f, info, { BackgroundTransparency = STYLE.paperTransparency }):Play()
 		TweenService:Create(row.label, info, { TextTransparency = 0 }):Play()
 		TweenService:Create(row.shadow, info, { BackgroundTransparency = STYLE.shadowTransparency }):Play()
+	elseif visible then
+		-- already showing: once the fade-in is over, force the ink fully opaque (a fade-out still running from the last toast
+		-- on this row must not leave dark-on-paper text invisible), and re-assert the ink colour
+		if not row.shownAt or os.clock() - row.shownAt > Rules.FADE + 0.1 then
+			for _, t in ipairs(row.outTweens or {}) do t:Cancel() end
+			row.outTweens = nil
+			row.shadow.BackgroundTransparency = STYLE.shadowTransparency
+			row.label.TextTransparency, row.label.TextStrokeTransparency = 0, 1
+			row.label.TextColor3 = CREAM
+			f.BackgroundTransparency = STYLE.paperTransparency
+		end
 	elseif not visible and f.Visible then
 		TweenService:Create(f, info, { BackgroundTransparency = 1 }):Play()
 		TweenService:Create(row.label, info, { TextTransparency = 1 }):Play()

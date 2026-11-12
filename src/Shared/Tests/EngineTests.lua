@@ -19829,4 +19829,26 @@ table.insert(tests, { name = "Badges panel with painted scenes (fake ids): no da
 	expectTrue(#descendants(scene.board) > 0, "the map still draws")
 end })
 
+table.insert(tests, { name = "CornerToast text stays opaque dark ink; Board seats never overlap at any size", fn = function()
+	local ST = require(script.Parent.Parent.Engine.ToastPlacement).STYLE
+	local function lum(c) return 0.2126 * c[1] + 0.7152 * c[2] + 0.0722 * c[3] end
+	expectTrue(lum(ST.paper) - lum(ST.ink) > 120, "ink is much darker than the paper")
+	local f = io and io.open and io.open("src/Client/CornerToast.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("row.label.TextTransparency, row.label.TextStrokeTransparency = 0, 1", 1, true) ~= nil, "settled toast forces opaque text")
+		expectTrue(src:find(":Cancel()", 1, true) ~= nil, "a running fade-out is cancelled when the row shows again")
+	end
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	for _, size in ipairs({ { 360, 540 }, { 540, 810 }, { 720, 1080 }, { 1006, 1509 } }) do
+		for n = 2, 14 do
+			local r = PB.seats(size[1], size[2], n)
+			for i = 2, n do
+				expectTrue(r[i].x >= r[i - 1].x + r[i - 1].w, n .. " seats at " .. size[1] .. " do not overlap")
+			end
+		end
+	end
+end })
+
 return tests
