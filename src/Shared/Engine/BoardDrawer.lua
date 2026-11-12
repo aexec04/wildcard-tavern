@@ -1,24 +1,26 @@
 --[[
 	Engine/BoardDrawer.lua
-	Pure rules for the left board drawer: the whole left HUD (painted board, Tips and hint plates, medallion) slides off to the left so
-	the room and table show; a brass tab handle and a small chip with the key numbers stay behind. No Roblox types.
+	Pure rules for the left board drawer: the player presses and drags the painted board sideways; it slides off to the left and only a
+	28 px strip of its wood post stays on the edge. Dragging the strip back (or a plain click on it) opens it again. No handle tab and no
+	info chip. No Roblox types.
 
 	enabled(screenW)                      -> false under 900 px wide (the compact layout already makes the board a drawer there)
 	collapsed(userChoice, forced, sw)     -> the effective state: forced open (tutorial, tooltip) beats the user's choice
-	distance(boardW)                      -> how far the pieces slide left (the board's width plus its 40 px shadow room)
-	handleRect(sw, sh, boardW, collapsed) -> { x, y, w, h, hit } the visual tab; hit is the width of the hit area
-	chipRect(sw, sh)                      -> { x, y, w, h } of the chip shown while collapsed
-	chipLines(score, target, tips, hands, discards) -> { "Score 0 / 317", "Tips 26", "H 4  D 3" }
+	distance(boardW)                      -> how far the pieces slide left (the board's width minus the 28 px strip)
+	stripRect(sh, boardTop, boardH)       -> { x, y, w, h } the strip that stays on the left edge (hit area = the strip)
+	dragDx(startDx, deltaX, boardW)       -> the board offset while dragging, clamped to [-distance, 0]
+	isDrag(deltaX)                        -> true once the pointer moved 4 px or more (below that it is a click)
+	settle(startCollapsed, dx, boardW)    -> the collapsed state after release: past 40 percent of the way flips it; a click on the strip opens
 	handLeft(collapsed, boardRight)       -> left edge of the hand area
 ]]
 
 local M = {}
 
-M.HANDLE = { w = 36, h = 96, hit = 48 }
-M.CHIP = { w = 176, h = 84 }
-M.SLIDE_TIME = 0.28
+M.STRIP = 28
+M.SNAP = 0.4
+M.DRAG_START = 4
+M.SLIDE_TIME = 0.2
 M.MIN_WIDTH = 900
-M.SHADOW = 40
 M.HAND_LEFT_COLLAPSED = 60
 -- the root children that make up the left HUD (a missing one is skipped)
 M.NAMES = { "SidebarBoard", "Sidebar", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip" }
@@ -34,27 +36,32 @@ function M.collapsed(userChoice, forced, screenW)
 end
 
 function M.distance(boardW)
-	return math.floor(boardW + M.SHADOW)
+	return math.max(0, math.floor(boardW - M.STRIP))
 end
 
-function M.handleRect(sw, sh, boardW, collapsed)
-	local h = M.HANDLE
-	return { x = collapsed and 0 or math.floor(boardW), y = math.floor(sh / 2 - h.h / 2), w = h.w, h = h.h, hit = h.hit }
+function M.stripRect(sh, boardTop, boardH)
+	local y = math.max(0, math.floor(boardTop or 0))
+	local h = math.min(sh - y, math.floor(boardH or sh))
+	return { x = 0, y = y, w = M.STRIP, h = math.max(h, 0) }
 end
 
-function M.chipRect(sw, sh)
-	local c, h = M.CHIP, M.HANDLE
-	return { x = h.hit + 6, y = math.floor(sh / 2 - c.h / 2), w = c.w, h = c.h }
+function M.dragDx(startDx, deltaX, boardW)
+	local lo = -M.distance(boardW)
+	return math.max(lo, math.min(0, math.floor(startDx + deltaX)))
 end
 
-local function whole(v) return math.floor((tonumber(v) or 0) + 0.5) end
+function M.isDrag(deltaX)
+	return math.abs(deltaX or 0) >= M.DRAG_START
+end
 
-function M.chipLines(score, target, tips, hands, discards)
-	return {
-		string.format("Score %d / %d", whole(score), whole(target)),
-		string.format("Tips %d", whole(tips)),
-		string.format("H %d  D %d", whole(hands), whole(discards)),
-	}
+function M.settle(startCollapsed, dx, boardW)
+	local dist = M.distance(boardW)
+	if dist <= 0 then return false end
+	local moved = startCollapsed and (dx + dist) or -dx -- distance travelled away from the start state, 0..dist
+	if startCollapsed then
+		return not (moved > M.SNAP * dist) -- dragged back more than 40 percent: open
+	end
+	return moved > M.SNAP * dist -- dragged away more than 40 percent: away
 end
 
 function M.handLeft(collapsed, boardRight)
