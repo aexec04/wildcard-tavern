@@ -26,6 +26,9 @@ RunOverLayout.SEAT_W, RunOverLayout.SEAT_H = 72, 96
 RunOverLayout.WIDE_FROM = 720 -- screen width from which the two columns show
 RunOverLayout.LEFT_W = 280
 RunOverLayout.LABEL_H = 24
+RunOverLayout.BTN_TEXT = 16 -- every button label is one line at this size
+RunOverLayout.CAP_PAD = 22 -- the plate caps take this much on each side of a label (polishButton), so the text must fit between them
+RunOverLayout.MIN_BTN_W = 110
 
 function RunOverLayout.columns(sw)
 	local M = RunOverLayout.MARGIN
@@ -36,6 +39,18 @@ function RunOverLayout.columns(sw)
 	end
 	local panelW = math.max(280, sw - 16)
 	return { mode = "narrow", panelW = panelW, leftW = panelW - 2 * M, rightW = panelW - 2 * M }
+end
+
+-- width of a one line button label in pixels: GothamBold averages about 0.62 of its size per glyph (a safe upper estimate; the client
+-- passes a TextService measurement through spec.textW and the larger of the two wins)
+function RunOverLayout.labelWidth(text, size)
+	return math.ceil(#tostring(text or "") * (size or RunOverLayout.BTN_TEXT) * 0.62)
+end
+
+-- the button width a label needs: its text plus the plate cap on both sides
+function RunOverLayout.buttonWidth(text, textW)
+	local est = RunOverLayout.labelWidth(text, RunOverLayout.BTN_TEXT)
+	return math.max(RunOverLayout.MIN_BTN_W, math.ceil(math.max(est, textW and textW(text) or 0)) + 2 * RunOverLayout.CAP_PAD)
 end
 
 -- a rough wrapped-line count: average glyph width 0.55 of the size
@@ -76,6 +91,37 @@ local function grid(x, y, w, h, count, perRow, gap)
 	return cells, (#cells > 0 and (y0 - gap) or y)
 end
 
+-- Buttons sized by their labels, packed left to right into rows of width w (a row breaks when the next button no longer fits); each row
+-- is then stretched to the full width. Returns the rects and the bottom y.
+local function packRow(x, y, w, h, labels, gap, textW)
+	local cells, rowStart, widths, used = {}, 1, {}, 0
+	local function flush(rowY)
+		local n = #widths
+		if n == 0 then return end
+		local extra = (w - used - (n - 1) * gap) / n
+		local cx = x
+		for i = 1, n do
+			local cw = widths[i] + extra
+			cells[rowStart + i - 1] = rect(cx, rowY, cw, h)
+			cx = cx + cw + gap
+		end
+		rowStart = rowStart + n
+		widths, used = {}, 0
+	end
+	local rowY = y
+	for _, label in ipairs(labels) do
+		local bw = math.min(w, RunOverLayout.buttonWidth(label, textW))
+		if #widths > 0 and used + bw + #widths * gap > w then
+			flush(rowY)
+			rowY = rowY + h + gap
+		end
+		widths[#widths + 1] = bw
+		used = used + bw
+	end
+	flush(rowY)
+	return cells, rowY + h
+end
+
 function RunOverLayout.compute(sw, sh, spec)
 	spec = spec or {}
 	local C = RunOverLayout.columns(sw)
@@ -103,9 +149,25 @@ function RunOverLayout.compute(sw, sh, spec)
 		out.facts = rect(M, y0, C.leftW, factsH)
 		local rx = M + C.leftW + M
 		local y = patronBlock(rx, y0, C.rightW) + G
-		out.primary = row(rx, y, C.rightW, RunOverLayout.BTN_H, primary, 8)
-		y = y + RunOverLayout.BTN_H + G
-		local cells, bottom = grid(rx, y, C.rightW, RunOverLayout.SMALL_H, more, 3, 8)
+		if spec.primaryLabels then
+			local cells, bottom = packRow(rx, y, C.rightW, RunOverLayout.BTN_H, spec.primaryLabels, 8, spec.textW)
+			out.primary = cells
+			y = bottom + G
+		else
+			out.primary = row(rx, y, C.rightW, RunOverLayout.BTN_H, primary, 8)
+			y = y + RunOverLayout.BTN_H + G
+		end
+		local cells, bottom
+		if spec.moreLabels then
+			-- sized by label like the primary row (an empty label is a free cell of the minimum width)
+			cells, bottom = packRow(rx, y, C.rightW, RunOverLayout.SMALL_H, spec.moreLabels, 8, spec.textW)
+			local n = 0
+			for _, c in ipairs(cells) do if c.y == cells[1].y then n = n + 1 end end
+			out.morePerRow = n
+		else
+			out.morePerRow = 3
+			cells, bottom = grid(rx, y, C.rightW, RunOverLayout.SMALL_H, more, 3, 8)
+		end
 		out.more = cells
 		local rightBottom = math.max(y, bottom)
 		out.panel = rect(0, 0, C.panelW, math.max(y0 + factsH, rightBottom) + M)
@@ -120,6 +182,7 @@ function RunOverLayout.compute(sw, sh, spec)
 			y = y + RunOverLayout.BTN_H + 8
 		end
 		y = y - 8 + G
+		out.morePerRow = 2
 		local cells, bottom = grid(M, y, w, RunOverLayout.SMALL_H, more, 2, 8)
 		out.more = cells
 		out.panel = rect(0, 0, C.panelW, math.max(y, bottom) + M)
@@ -139,10 +202,11 @@ RunOverLayout.SCROLLS = {
 	b = { art = { x = 53, y = 56, w = 1483, h = 966 }, sheet = { x = 200, y = 150, w = 1130, h = 730 }, safe = { x = 230, y = 190, w = 1070, h = 560 },
 		seal = { x = 700, y = 760, w = 150, h = 130 }, leftRod = { x = 54, y = 56, w = 160, h = 909 }, rightRod = { x = 1316, y = 56, w = 150, h = 909 } },
 }
-RunOverLayout.SCROLL_MIN_FIT = 0.95 -- the content must fit the safe rect at nearly full size: text is never shrunk below 15 px by much
+RunOverLayout.SCROLL_MIN_FIT = 0.92 -- the content must fit the safe rect at nearly full size: 16 px labels are never shrunk below about 14.7 px
 RunOverLayout.SCROLL_MAX_SCALE = 1.15
 RunOverLayout.SCROLL_WIDTH_FRACTION = 0.78 -- the scroll is about 78 percent of the screen width when the content still fits
-RunOverLayout.Z_LIFT = 400 -- added to every ZIndex on the screen so it draws above the play HUD
+RunOverLayout.Z_LIFT = 5000 -- added to every ZIndex on the screen so it draws above the play HUD (and anything else on the GameUI)
+RunOverLayout.FLAVOR_MIN_H = 36 -- the free paper under the content must be at least this tall for the flavor line
 
 function RunOverLayout.scroll(sw, sh, spec, key)
 	local S = RunOverLayout.SCROLLS[key or "a"]
@@ -164,8 +228,12 @@ function RunOverLayout.scrollAt(sw, sh, spec, key, S, scale)
 	local fit = math.min(1, safe.w / inner.panel.w, safe.h / inner.panel.h)
 	if fit < RunOverLayout.SCROLL_MIN_FIT then return nil end
 	local w, h = inner.panel.w * fit, inner.panel.h * fit
-	local origin = { x = safe.x + math.floor((safe.w - w) / 2 + 0.5), y = safe.y + math.floor((safe.h - h) / 2 + 0.5) }
-	return { key = key or "a", scale = scale, card = { w = math.floor(S.art.w * scale + 0.5), h = math.floor(S.art.h * scale + 0.5) }, safe = safe, seal = m(S.seal),
+	-- the content stands at the top of the safe rect; whatever paper is left under it holds one flavor line (no empty sheet above the seal)
+	local origin = { x = safe.x + math.floor((safe.w - w) / 2 + 0.5), y = safe.y + 4 }
+	local gap = safe.h - 4 - h
+	local flavor = nil
+	if gap >= RunOverLayout.FLAVOR_MIN_H then flavor = rect(safe.x, origin.y + h, safe.w, gap) end
+	return { key = key or "a", flavor = flavor, scale = scale, card = { w = math.floor(S.art.w * scale + 0.5), h = math.floor(S.art.h * scale + 0.5) }, safe = safe, seal = m(S.seal),
 		leftRod = m(S.leftRod), rightRod = m(S.rightRod), fit = fit, origin = origin, inner = inner }
 end
 

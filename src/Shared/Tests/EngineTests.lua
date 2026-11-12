@@ -21060,9 +21060,18 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_a, "a loss at 1280x720 sits on run_over_scroll_a")
 	local content = panel:FindFirstChild("Content")
 	local RL = require(E.RunOverLayout)
-	local sc = RL.scroll(1280, 720, { factsH = 0, patrons = 3, primary = 3, more = 6 }, "a")
-	expectTrue(panel.Size.X.Offset == sc.card.w and panel.Size.Y.Offset == sc.card.h, "the panel is the scroll picture's size")
-	expectTrue(content.Position.X.Offset >= sc.safe.x - 1 and content.Position.Y.Offset >= sc.safe.y - 1, "the content starts inside the safe rect")
+	local border = FakeGui.new("Frame") -- a gold bracket border the skin adds to the panel after the scroll was applied
+	border.Name = "SetSkinBorder"
+	border.Parent = panel
+	panel.ChildAdded:Fire(border) -- the fake does not fire ChildAdded on its own
+	expectFalse(border.Visible, "chrome added to the panel while the scroll shows stays hidden")
+	expectTrue(panel:FindFirstChild("Flavor") ~= nil, "the panel has a flavor line for the free paper under the content")
+	local art = RL.SCROLLS.a.art
+	local pw, ph = panel.Size.X.Offset, panel.Size.Y.Offset
+	expectTrue(math.abs(pw / ph - art.w / art.h) < 0.01 and pw <= 1280 and ph <= 720, "the panel is the scroll picture's size")
+	local k = pw / art.w
+	local safeA = RL.SCROLLS.a.safe
+	expectTrue(content.Position.X.Offset >= (safeA.x - art.x) * k - 1 and content.Position.Y.Offset >= (safeA.y - art.y) * k - 1, "the content starts inside the safe rect")
 	local function factColor()
 		for _, c in ipairs(panel:FindFirstChild("Facts", true):GetChildren()) do
 			if c.Text:find("Final score", 1, true) then return c.TextColor3 end
@@ -21949,6 +21958,45 @@ table.insert(tests, { name = "RunOverLayout.scroll: about 78 percent of the scre
 	for i, cell in ipairs(primary) do
 		expectTrue(cell.w >= 150, "primary button " .. i .. " is wide enough for a one line 16 px label")
 	end
+end })
+
+table.insert(tests, { name = "RunOverLayout: every button is wide enough for its label plus a 22 px plate cap each side, on the scroll and the plain panel, and the free paper holds a flavor line", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local primaryAll = { { "One More (Free)", "Play Again", "Back to Tavern" }, { "One More Round", "Play Again", "Back to Tavern" }, { "Play Again", "Back to Tavern" } }
+	local moreAll = { "Share", "Challenge", "Invite", "Save Badge", "Win Card", "" }
+	local narrowMeasure = function(text) return #text * 10 end -- a wider measured font than the estimate: the larger of the two wins
+	for _, textW in ipairs({ false, narrowMeasure }) do
+		for _, primaryLabels in ipairs(primaryAll) do
+			for _, sz in ipairs({ { 1920, 1080 }, { 1600, 900 }, { 1280, 720 }, { 800, 450 }, { 390, 844 } }) do
+				local spec = { factsH = 330, patrons = 4, primary = #primaryLabels, more = 6, primaryLabels = primaryLabels, moreLabels = moreAll, textW = textW or nil }
+				local rects = { L.compute(sz[1], sz[2], spec) }
+				local sc = L.scroll(sz[1], sz[2], spec, "a")
+				if sc then rects[#rects + 1] = sc.inner end
+				for _, r in ipairs(rects) do
+					for i, label in ipairs(primaryLabels) do
+						local need = L.buttonWidth(label, textW or nil)
+						expectTrue(r.primary[i].w + 0.5 >= need, label .. " fits its plate at " .. sz[1] .. "x" .. sz[2] .. " (" .. r.primary[i].w .. " vs " .. need .. ")")
+						expectTrue(need >= L.labelWidth(label, 16) + 2 * L.CAP_PAD, label .. " is measured with 22 px of cap on each side")
+					end
+					for i, label in ipairs(moreAll) do
+						expectTrue(r.more[i].w + 0.5 >= L.buttonWidth(label, textW or nil), label .. " fits its cell at " .. sz[1] .. "x" .. sz[2])
+					end
+					for i = 2, #primaryLabels do
+						local a, b = r.primary[i - 1], r.primary[i]
+						expectFalse(a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h, "primary buttons never overlap at " .. sz[1] .. "x" .. sz[2])
+					end
+				end
+				if sc and sc.flavor then
+					local f = sc.flavor
+					expectTrue(f.h >= L.FLAVOR_MIN_H and f.y >= sc.origin.y and f.y + f.h <= sc.safe.y + sc.safe.h + 1, "the flavor line sits on the paper under the content at " .. sz[1] .. "x" .. sz[2])
+					expectFalse(f.y + f.h > sc.seal.y and f.x < sc.seal.x + sc.seal.w and sc.seal.x < f.x + f.w, "and above the seal")
+				end
+			end
+		end
+	end
+	local sc = L.scroll(1920, 1080, { factsH = 330, patrons = 3, primary = 3, more = 6, primaryLabels = primaryAll[1], moreLabels = moreAll }, "a")
+	expectTrue(sc ~= nil and sc.flavor ~= nil, "at 1920x1080 the free paper under the content holds a flavor line")
+	expectTrue(L.Z_LIFT >= 1000, "the screen is lifted far above the play HUD")
 end })
 
 table.insert(tests, { name = "Choice cards are painted parchment: wood frame with brass studs, a slight tilt each, a brass medallion, 16 px ink rule text centred in the gap, green plus and red minus", fn = function()

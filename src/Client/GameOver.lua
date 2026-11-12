@@ -22,6 +22,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local GameOverTips = require(Engine:WaitForChild("GameOverTips"))
@@ -62,7 +63,7 @@ return function(deps)
 	dim.Name = "GameOver"
 	dim.Size = UDim2.fromScale(1, 1)
 	dim.BackgroundColor3 = Color3.fromRGB(10, 8, 6)
-	dim.BackgroundTransparency = 0.55
+	dim.BackgroundTransparency = 0.25 -- a dark scrim: the play screen behind is only a faint shape
 	dim.BorderSizePixel = 0
 	dim.Active = true
 	dim.Visible = false
@@ -196,6 +197,11 @@ return function(deps)
 	})
 	local actionsF = frame("Actions")
 	local moreF = frame("More")
+	-- one ink line on the paper under the content (the free sheet above the seal), only while the scroll is drawn
+	local flavorLabel = label(panel, {
+		Name = "Flavor", Text = "The house thanks you for the night.", TextSize = 18, Font = Enum.Font.GothamMedium, TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(84, 58, 34), Visible = false,
+	})
 
 	local continueButton = button(actionsF, "ContinueButton", "One More Round", GREEN, CREAM, 16)
 	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", BRASS, Color3.fromRGB(40, 28, 14), 16)
@@ -351,7 +357,7 @@ return function(deps)
 		scrollPicture.Visible = onScroll
 		-- the dark wood panel's fill, stroke, gradient, sheen and shadow step aside while the paper is the panel
 		for _, child in ipairs(panel:GetChildren()) do
-			if child ~= content and child ~= scrollPicture and child ~= winArt then
+			if child ~= content and child ~= scrollPicture and child ~= winArt and child ~= flavorLabel then
 				if child:IsA("UIStroke") or child:IsA("UIGradient") then
 					child.Enabled = not onScroll
 				elseif child:IsA("GuiObject") then
@@ -369,6 +375,26 @@ return function(deps)
 		local shadow = dim:FindFirstChild("Shadow")
 		if shadow then shadow.Visible = not onScroll end
 	end
+
+	-- chrome that the skin adds to the panel AFTER the mode was applied (the code border with its gold corner brackets, plates, glosses) must not
+	-- show over the scroll either: hide anything new while the scroll is the panel, and lift it above the play HUD with the rest
+	local function isChrome(child)
+		return child ~= content and child ~= scrollPicture and child ~= winArt and child ~= flavorLabel and child:IsA("GuiObject")
+	end
+	panel.ChildAdded:Connect(function(child)
+		if mode == "scroll" and isChrome(child) then
+			chromeSaved[child] = chromeSaved[child] == nil and child.Visible or chromeSaved[child]
+			child.Visible = false
+		end
+	end)
+	dim.DescendantAdded:Connect(function(d)
+		task.defer(function()
+			if d.Parent and d:IsA("GuiObject") and d:GetAttribute("RunOverBaseZ") == nil and dim.ZIndex >= RunOverLayout.Z_LIFT then
+				d:SetAttribute("RunOverBaseZ", d.ZIndex)
+				d.ZIndex = d.ZIndex + RunOverLayout.Z_LIFT
+			end
+		end)
+	end)
 
 	local function buildPatrons(r)
 		clearPatrons()
@@ -417,12 +443,27 @@ return function(deps)
 	end
 
 	-- lay everything out for the current screen size and content
+	local function labelsOf(list)
+		local out = {}
+		for _, b in ipairs(list) do out[#out + 1] = b.Text end
+		return out
+	end
+	-- the six reserved secondary cells: the real labels, then empty ones (free cells that hold the share hint)
+	local function moreLabelsOf(list)
+		local out = labelsOf(list)
+		while #out < 6 do out[#out + 1] = "" end
+		return out
+	end
 	layoutNow = function()
 		if not current.state then return end
 		local size = root.AbsoluteSize
 		local sw, sh = size.X > 0 and size.X or 1280, size.Y > 0 and size.Y or 720
 		local state = current.state
 		local primaryList = {}
+		local function textW(text)
+			local ok, size = pcall(function() return TextService:GetTextSize(text, RunOverLayout.BTN_TEXT, Enum.Font.GothamBold, Vector2.new(1000, 100)) end)
+			return ok and size and size.X or 0
+		end
 		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"
 		continueButton.Visible = canContinue
 		if canContinue then primaryList[#primaryList + 1] = continueButton end
@@ -439,10 +480,12 @@ return function(deps)
 		local artId = ContentArt.getImageId("shop_scene", "run_over_scroll_" .. scrollKey)
 		local sc = nil
 		if artId then
-			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6 }, scrollKey)
+			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6,
+				primaryLabels = labelsOf(primaryList), moreLabels = moreLabelsOf(moreList), textW = textW }, scrollKey)
 		end
 		local factsH
 		local r
+		flavorLabel.Visible = false
 		if sc then
 			applyMode("scroll")
 			factsH = buildFacts(RunOverLayout.LEFT_W)
@@ -459,11 +502,18 @@ return function(deps)
 			scrollPicture.ImageRectSize = Vector2.new(iw, ih)
 			scrollPicture.Position = UDim2.fromOffset(0, 0)
 			scrollPicture.Size = UDim2.fromOffset(sc.card.w, sc.card.h)
+				if sc.flavor then
+					flavorLabel.Text = current.isWin and "The house will remember tonight." or "The house thanks you for the night."
+					flavorLabel.Position = UDim2.fromOffset(math.floor(sc.flavor.x + 0.5), math.floor(sc.flavor.y + 0.5))
+					flavorLabel.Size = UDim2.fromOffset(math.floor(sc.flavor.w + 0.5), math.floor(sc.flavor.h + 0.5))
+					flavorLabel.Visible = true
+				end
 		else
 			applyMode("plain")
 			local cols = RunOverLayout.columns(sw)
 			factsH = buildFacts(cols.leftW)
-			r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6 })
+			r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6,
+				primaryLabels = labelsOf(primaryList), moreLabels = moreLabelsOf(moreList), textW = textW })
 			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			fit.Scale = r.scale
 			content.Position = UDim2.fromOffset(0, 0)
@@ -491,7 +541,7 @@ return function(deps)
 			b.Size = UDim2.fromOffset(math.floor(c.w + 0.5), math.floor(c.h + 0.5))
 		end
 		-- the share box covers the first row of three; the hint takes the free cells after the last button
-		local row1 = { r.more[1], r.more[math.min(#r.more, r.columns.mode == "wide" and 3 or 2)] }
+		local row1 = { r.more[1], r.more[math.max(1, math.min(#r.more, r.morePerRow or (r.columns.mode == "wide" and 3 or 2)))] }
 		shareBox.Position = UDim2.fromOffset(math.floor(row1[1].x - mx + 0.5), math.floor(row1[1].y - my + 0.5))
 		shareBox.Size = UDim2.fromOffset(math.floor(row1[2].x + row1[2].w - row1[1].x + 0.5), math.floor(row1[1].h + 0.5))
 		local free = r.more[#moreList + 1]
