@@ -8,6 +8,7 @@
 return {
 	["play_board_a"] = "rbxassetid://102660307972620",
 	["play_deck_box_b"] = "rbxassetid://84091001100735",
+	["play_felt_grain"] = "rbxassetid://79473466946513",
 	["play_plates_b"] = "rbxassetid://125973303965017",
 	["play_rail_back_a"] = "rbxassetid://82426539791500",
 	["play_rail_front_b"] = "rbxassetid://139459542357848",
