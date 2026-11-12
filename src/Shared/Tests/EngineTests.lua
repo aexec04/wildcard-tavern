@@ -20706,4 +20706,32 @@ table.insert(tests, { name = "RoundPayout: breakdown lines add up to the real to
 	expectEqual(P.breakdown(3, 99).reward, 0, "interest never exceeds the total")
 end })
 
+table.insert(tests, { name = "MenuGate: run modals and the table never show over the open Menu, click sinks are listed", fn = function()
+	local G = require(script.Parent.Parent.Engine.MenuGate)
+	expectTrue(G.mustHide("ChoiceBackdrop", true), "the opening blessing waits while the Menu is open")
+	expectFalse(G.mustHide("ChoiceBackdrop", false), "it shows once the Menu is closed")
+	expectFalse(G.mustHide("SettingsBackdrop", true), "Menu panels are not run modals")
+	for _, n in ipairs({ "RoadChoiceBackdrop", "NightVictoryBackdrop", "RunSummaryBackdrop", "OverlayQueueBackdrop", "WinCardBackdrop" }) do
+		expectTrue(G.mustHide(n, true), n .. " waits while the Menu is open")
+	end
+	expectFalse(G.rootAllowed(true), "GameRoot stays hidden while the Menu is open")
+	expectTrue(G.rootAllowed(false), "GameRoot may show once the Menu is closed")
+	local sinks = G.sinks({
+		{ name = "MenuFrame", visible = true, active = true },
+		{ name = "ChoiceBackdrop", visible = true, active = true },
+		{ name = "GameRoot", visible = false, active = true },
+		{ name = "Toast", visible = true, active = false },
+	}, "MenuFrame")
+	expectEqual(#sinks, 1, "only visible Active objects other than the Menu are listed")
+	expectEqual(sinks[1], "ChoiceBackdrop", "the stale blessing modal is named")
+	if io and io.open then
+		local f = io.open("src/Client/init.client.lua", "r")
+		if f then
+			local hub = f:read("*a")
+			f:close()
+			expectTrue(hub:find("require(script.MenuGate).install", 1, true) ~= nil, "the hub installs the Menu gate")
+		end
+	end
+end })
+
 return tests

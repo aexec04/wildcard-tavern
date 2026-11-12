@@ -2861,6 +2861,14 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 end)
 
 pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end) end) -- Studio-only screens
+do -- the Menu stays usable until Play: no table or run modal over it after an abandon (Client/MenuGate.lua, Engine/MenuGate.lua)
+	local ok, err = pcall(function()
+		require(script.MenuGate).install({ screenGui = screenGui, root = root, menuFrame = MenuScreen.menuFrame, rerender = function()
+			if latestState then render(latestState) end
+		end })
+	end)
+	if not ok then warn("[Client] MenuGate failed: " .. tostring(err)) end
+end
 
 do -- STATE RESYNC: the push sent at join can land before this listener exists, which left an empty table behind Play.
 	-- Ask once now, and again every 2 s until a state has arrived (the server answers with the current table).
