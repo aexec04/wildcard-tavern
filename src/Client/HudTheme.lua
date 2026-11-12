@@ -84,6 +84,18 @@ local function dropOldChrome(button)
 	end
 end
 
+-- light text gets a soft dark shadow so it holds on painted plates (the 4.5:1 maths only knows the flat fill underneath)
+local function softShadow(label, textColor)
+	local lum = (textColor[1] * 0.299 + textColor[2] * 0.587 + textColor[3] * 0.114) / 255
+	label.TextTransparency = 0
+	if lum > 0.55 then
+		label.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+		label.TextStrokeTransparency = 0.55
+	else
+		label.TextStrokeTransparency = 1
+	end
+end
+
 local function paintAction(button, entry)
 	local p = HudStyle.buttonPalette(current.colors, entry.role)
 	local face = button:FindFirstChild("HudFace")
@@ -105,8 +117,7 @@ local function paintAction(button, entry)
 		if s then s.Color = c3(p.outer) end
 	end
 	button.TextColor3 = c3(p.text)
-	button.TextTransparency = 0
-	button.TextStrokeTransparency = 1
+	softShadow(button, p.text)
 	local art = button:FindFirstChild("HudAccentArt")
 	local image = current.images and current.images.hudAccent
 	if image then

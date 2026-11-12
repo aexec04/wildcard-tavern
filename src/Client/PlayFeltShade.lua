@@ -140,6 +140,45 @@ function M.install(root, art)
 		end
 	end)
 
+	local linkBack = function() end
+	-- the played stack wears the equipped back: mirror the draw pile's CardBackArt (image, crop mode, tint) and follow its changes
+	do
+		local linked = false
+		local function link()
+			if linked then return end
+			local gui = frame:FindFirstAncestorOfClass("ScreenGui")
+			local src = gui and gui:FindFirstChild("CardBackArt", true)
+			local top = stackCards[#stackCards]
+			if not (src and top and src:IsA("ImageLabel")) then return end
+			linked = true
+			local art = top:FindFirstChild("BackArt")
+			if not art then
+				art = Instance.new("ImageLabel")
+				art.Name = "BackArt"
+				art.Size = UDim2.fromScale(1, 1)
+				art.BackgroundTransparency = 1
+				art.BorderSizePixel = 0
+				art.Active = false
+				art.ZIndex = 0
+				art.Parent = top
+				local ic = Instance.new("UICorner")
+				ic.CornerRadius = UDim.new(0, 5)
+				ic.Parent = art
+			end
+			local function sync()
+				if src.Image ~= "" then art.Image = src.Image end
+				art.ScaleType = src.ScaleType
+				art.ImageColor3 = src.ImageColor3
+			end
+			sync()
+			src:GetPropertyChangedSignal("Image"):Connect(sync)
+			src:GetPropertyChangedSignal("ImageColor3"):Connect(sync)
+		end
+		frame.AncestryChanged:Connect(link)
+		task.defer(link)
+		linkBack = link
+	end
+
 	local api = { frame = frame }
 	function api.setFill(f) -- nil hides it
 		fill.Visible = f ~= nil
@@ -152,6 +191,7 @@ function M.install(root, art)
 	local reported = false
 	function api.apply(rect, clipped)
 		if not rect then frame.Visible = false return end
+		linkBack()
 		frame.Position = UDim2.fromOffset(rect.x, rect.y)
 		frame.Size = UDim2.fromOffset(rect.w, rect.h)
 		frame.Visible = true

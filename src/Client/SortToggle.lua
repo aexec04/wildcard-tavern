@@ -68,7 +68,7 @@ function SortToggle.build(parent, onPick)
 		b.BorderSizePixel = 0
 		b.AutoButtonColor = false
 		b.Font = Enum.Font.GothamBold
-		b.TextSize = 16
+		b.TextSize = 18
 		b.Text = text
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1
@@ -104,7 +104,11 @@ function SortToggle.build(parent, onPick)
 			local lit = on or hoverKey == key
 			b.BackgroundTransparency = lit and 0 or 1
 			b.BackgroundColor3 = c3(on and p.active or p.hover)
-			b.TextColor3 = c3(on and p.activeText or p.text)
+			local tc = on and p.activeText or p.text
+			b.TextColor3 = c3(tc)
+			local lum = (tc[1] * 0.299 + tc[2] * 0.587 + tc[3] * 0.114) / 255
+			b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+			b.TextStrokeTransparency = lum > 0.55 and 0.55 or 1
 		end
 	end
 	for key, b in pairs({ rank = rank, suit = suit }) do
