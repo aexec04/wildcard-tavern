@@ -44,6 +44,24 @@ M.SETS[M.OVAL_KEY] = { art = "play_table_front_c",
 	felt = { x = 120, y = 430, w = 1300, h = 260 }, rail = { x = 245, y = 757, w = 960, h = 69 }, deck = { x = 1280, y = 748, w = 205, h = 90 },
 	seat = 836, lip = { x = 215, y = 822, w = 1020, h = 34 } }
 
+-- The 14 per-Card-Set rooms (Engine/PlayRoomArt): the front's groove, recess, seat line, rim crop and plate strip are the oval front's
+-- moved down by the set's measured dy. The key is PlayRoomArt.PREFIX .. setId. The plate strip never runs past the picture's bottom.
+do
+	local PlayRoomArt = require(script.Parent.PlayRoomArt)
+	local o = M.SETS[M.OVAL_KEY]
+	local function down(r, dy) return { x = r.x, y = r.y + dy, w = r.w, h = r.h } end
+	for _, id in ipairs(PlayRoomArt.ORDER) do
+		local def = PlayRoomArt.SETS[id]
+		local dy = def.dy
+		local stripY = 862 + dy
+		M.SETS[PlayRoomArt.PREFIX .. id] = {
+			art = PlayRoomArt.keys(id).front, bg = PlayRoomArt.keys(id).bg, room = id,
+			felt = def.felt or o.felt, rail = down(o.rail, dy), deck = down(o.deck, dy), seat = o.seat + dy, lip = down(o.lip, dy),
+			strip = { y = stripY, h = math.min(150, 1016 - stripY) },
+		}
+	end
+end
+
 -- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
 function M.fillOf(setId)
 	local s = setId and M.SETS[setId]

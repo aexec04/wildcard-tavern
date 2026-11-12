@@ -142,7 +142,9 @@ local function paintButton(btn, imageId, box, rect)
 		if image then
 			image.ImageTransparency = 0 -- dim is a darker plate, not a ghost
 			image.Position = UDim2.fromOffset(0, dy)
-			image.ImageColor3 = state.pressed and Color3.fromRGB(190, 190, 190) or (dim and DIM_IMAGE or Color3.new(1, 1, 1))
+			local roomTint = btn.Parent and btn.Parent:GetAttribute("RoomTint") or Color3.new(1, 1, 1) -- the Card Set room's hint of its accent
+			local base = state.pressed and Color3.fromRGB(190, 190, 190) or (dim and DIM_IMAGE or Color3.new(1, 1, 1))
+			image.ImageColor3 = Color3.new(base.R * roomTint.R, base.G * roomTint.G, base.B * roomTint.B)
 		end
 		local lb = btn:FindFirstChild("PlateLabel")
 		if lb then
@@ -162,6 +164,8 @@ local function paintButton(btn, imageId, box, rect)
 	btn.MouseButton1Up:Connect(function() state.pressed = false look() end)
 	local face = btn:FindFirstChild("HudFace")
 	if face then face:GetPropertyChangedSignal("BackgroundTransparency"):Connect(look) end
+	if btn.Parent then btn.Parent:GetAttributeChangedSignal("RoomTint"):Connect(look) end
+	look()
 	btn:GetPropertyChangedSignal("Text"):Connect(function()
 		local lb = btn:FindFirstChild("PlateLabel")
 		if lb then

@@ -15,6 +15,8 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayTableLayout = require(Engine:WaitForChild("PlayTableLayout"))
 local R = require(Engine:WaitForChild("ResponsiveLayout"))
 local ImagePreload = require(Engine:WaitForChild("ImagePreload"))
+local PlayRoomArt = require(Engine:WaitForChild("PlayRoomArt"))
+local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 local Guard = require(script.Parent:WaitForChild("PlayPaintGuard"))
 
 local PlayScenePaint = {}
@@ -100,8 +102,12 @@ function PlayScenePaint.install(deps)
 	groove.ZIndex = PlayRailLip.Z
 	groove.Visible = false
 	groove.Parent = root
+	local function hasRim() -- the front has a rim crop to draw over the card bottoms (the oval front and every per-set room front)
+		local def = setKey and PlayTableLayout.SETS[setKey]
+		return def ~= nil and def.lip ~= nil
+	end
 	local function setLip(v) -- one place for lip visibility: the painted pieces replace the flat strip when present
-		local oval = setKey == PlayTableLayout.OVAL_KEY
+		local oval = hasRim()
 		lip.Visible = v and not rail and not oval
 		if rail then rail.back.Visible = v and not oval; rail.front.Visible = v and not oval end
 		groove.Visible = v and oval
@@ -139,11 +145,24 @@ function PlayScenePaint.install(deps)
 		local sid = skin and skin.id
 		local artKey = PlayTableLayout.artKeyOf(sid)
 		local setId = artKey and art[artKey] and sid or nil
+		-- the equipped or previewed Card Set's own room (Engine/PlayRoomArt): a complete recorded pair wins over any older painted front, and
+		-- swaps live with the skin (this runs on equip, Preview start and Preview stop); anything else keeps the classic backdrop and front
+		local room = PlayRoomArt.roomArt(sid, art)
+		if room.layout and PlayTableLayout.SETS[room.layout] then
+			setId, artKey = room.layout, room.front
+		end
+		if bg then bg.Image = art[room.bg] or bgId end
 		-- default look: the wood-only oval front (play_table_front_c) when recorded and the tavern backdrop is there; else the old front
 		local oval = (not setId) and bg and art[PlayTableLayout.SETS[PlayTableLayout.OVAL_KEY].art] or nil
 		if oval then setId = PlayTableLayout.OVAL_KEY; artKey = PlayTableLayout.SETS[setId].art end
 		local t = (not setId) and CosmeticSets.tableTintOf(sid) or nil
 		image.Image = setId and art[artKey] or id
+		groove.Image = setId and art[artKey] or ""
+		-- a low contrast hint of the set's accent on the left board, the bottom plates and the Counter (never darker than TINT_FLOOR, so
+		-- ink and cream text keep 4.5:1); the pieces read this attribute and follow it live
+		local mult = PlayRoomArt.tint(CosmeticSets.accentOf(CosmeticSets.getById(sid)))
+		root:SetAttribute("RoomTint", Color3.fromRGB(mult[1], mult[2], mult[3]))
+		actionFrame:SetAttribute("RoomTint", Color3.fromRGB(mult[1], mult[2], mult[3]))
 		image.ImageColor3 = t and c3(t.felt) or Color3.new(1, 1, 1)
 		lip.BackgroundColor3 = t and c3(t.wood):Lerp(PlayRailLip.WOOD, 0.5) or PlayRailLip.WOOD
 		if setKey ~= setId then
@@ -152,7 +171,8 @@ function PlayScenePaint.install(deps)
 		end
 		if game:GetService("RunService"):IsStudio() and lastReport ~= tostring(sid) then
 			lastReport = tostring(sid)
-			print(string.format("[PlayTableSet] %s front=%s art=%s", tostring(sid or "default"), setId and "painted" or "default", tostring(PlayTableLayout.artKeyOf(setId) or "play_table_front_a")))
+			print(string.format("[PlayTableSet] %s front=%s art=%s bg=%s", tostring(sid or "default"), setId and "painted" or "default",
+				tostring(setId and PlayTableLayout.SETS[setId] and PlayTableLayout.SETS[setId].art or "play_table_front_a"), tostring(room.bg)))
 		end
 	end
 	HudTheme.onSkin(tint)
@@ -168,6 +188,15 @@ function PlayScenePaint.install(deps)
 			image.Size = UDim2.fromOffset(m.w, m.h)
 			image.Visible = handFrame.Visible
 			if bg then bg.Visible = handFrame.Visible end
+			local rim = p.map.lip -- the front's own rim, cropped from the same picture and drawn above the cards so it overlaps their bottoms
+			local def = setKey and PlayTableLayout.SETS[setKey]
+			if rim and def and def.lip then
+				groove.Position = UDim2.fromOffset(rim.x, rim.y)
+				groove.Size = UDim2.fromOffset(rim.w, rim.h)
+				local rx, ry, rw, rh = ImageSpace.rect(def.lip.x, def.lip.y, def.lip.w, def.lip.h, PlayTableLayout.IMG_W, PlayTableLayout.IMG_H)
+				groove.ImageRectOffset = Vector2.new(rx, ry)
+				groove.ImageRectSize = Vector2.new(rw, rh)
+			end
 			local feltClip = handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil -- never under the left HUD
 			shade.apply(feltClip, feltClip ~= nil and feltClip.x > p.map.felt.x)
 			shade.setFill(PlayTableLayout.fillOf(setKey))

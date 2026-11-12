@@ -173,6 +173,17 @@ function ShopBackdrop.new(deps)
 		counterFront.Visible = false
 		self.counterFront = counterFront
 	end
+	-- the room picture and its counter band wear the same hint of the equipped Card Set's accent (GameRoot attribute RoomTint, set by
+	-- Client/PlayScenePaint), so there is no seam between them; it follows a live skin change
+	local gameRoot = deps.shopFrame
+	while gameRoot and gameRoot.Name ~= "GameRoot" and gameRoot.Parent do gameRoot = gameRoot.Parent end
+	local function applyTint()
+		local t = gameRoot and gameRoot:GetAttribute("RoomTint") or Color3.new(1, 1, 1)
+		if roomImg then roomImg.ImageColor3 = t end
+		if counterFront then counterFront.ImageColor3 = t end
+	end
+	applyTint()
+	if gameRoot then gameRoot:GetAttributeChangedSignal("RoomTint"):Connect(applyTint) end
 	self.marloId = marloId
 	self.marloWaveId = ContentArt.getImageId("shop_scene", "shop_marlo_wave")
 	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")

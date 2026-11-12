@@ -21222,4 +21222,57 @@ table.insert(tests, { name = "ChoiceRarity: the tier word is produced for a know
 	end
 end })
 
+table.insert(tests, { name = "PlayRoomArt: every Card Set maps to its recorded room pair, classic and unknown sets fall back, the tint keeps text at 4.5:1", fn = function()
+	local PRA = require(script.Parent.Parent.Engine.PlayRoomArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(#PRA.ORDER, 14, "14 sets have a room")
+	for _, id in ipairs(PRA.ORDER) do
+		expectTrue(PRA.SETS[id] ~= nil and CS.getById(id) ~= nil, id .. " is a real Card Set with measured numbers")
+		local r = PRA.roomArt(id, Art)
+		expectEqual(r.bg, "play_room_" .. id .. "_bg", id .. " bg key")
+		expectEqual(r.front, "play_room_" .. id .. "_front", id .. " front key")
+		expectTrue(type(Art[r.bg]) == "string" and Art[r.bg]:sub(1, 13) == "rbxassetid://" and not Art[r.bg]:find("rbxassetid://rbxassetid://", 1, true), id .. " bg Image id is recorded once")
+		expectTrue(type(Art[r.front]) == "string" and Art[r.front] ~= "", id .. " front Image id is recorded")
+		expectEqual(r.room, id, "the room is flagged")
+		local g = PTL.SETS[r.layout]
+		expectTrue(g ~= nil and g.art == r.front and g.bg == r.bg, id .. " has measured layout numbers under " .. tostring(r.layout))
+		expectTrue(g.rail.y + g.rail.h < g.lip.y + g.lip.h + 40 and g.seat > g.rail.y and g.seat < g.rail.y + g.rail.h + 20, id .. " seat line and rim crop sit on its groove")
+		expectTrue(g.strip.y + g.strip.h <= 1016 and g.strip.h >= 100, id .. " plate strip stays on the picture")
+		for _, k in ipairs({ "felt", "rail", "deck", "lip" }) do
+			local rc = g[k]
+			expectTrue(rc.x >= 0 and rc.y >= 0 and rc.x + rc.w <= PTL.IMG_W and rc.y + rc.h <= PTL.IMG_H, id .. " " .. k .. " inside the picture")
+		end
+	end
+	local classic = PRA.roomArt("classic_tavern", Art)
+	expectTrue(classic.bg == "play_table_bg_b" and classic.front == "play_table_front_c" and classic.room == nil and classic.layout == nil, "Classic Tavern keeps the classic pair")
+	local unknown = PRA.roomArt("no_such_set", Art)
+	expectTrue(unknown.front == "play_table_front_c" and unknown.room == nil, "an unknown set falls back to the classic pair")
+	expectTrue(PRA.roomArt(nil, Art).front == "play_table_front_c", "no set falls back too")
+	local missing = PRA.roomArt("golden_gala", { play_room_golden_gala_bg = "rbxassetid://1" }) -- only one half of the pair is recorded
+	expectTrue(missing.room == nil and missing.front == "play_table_front_c", "a half recorded pair falls back to the classic pair")
+	expectEqual(PRA.roomArt("golden_gala", nil).room, "golden_gala", "without a map the pair is still named")
+	-- the tint is a low contrast hint and never makes ink or cream text fail 4.5:1
+	local INK, CREAM = { 52, 32, 16 }, { 250, 240, 220 }
+	local PARCH, WOODDARK = { 226, 202, 156 }, { 58, 38, 22 }
+	local function mul(c, t) return { math.floor(c[1] * t[1] / 255), math.floor(c[2] * t[2] / 255), math.floor(c[3] * t[3] / 255) } end
+	for _, set in ipairs(CS.Definitions) do
+		local t = PRA.tint(CS.accentOf(set))
+		for i = 1, 3 do expectTrue(t[i] >= PRA.TINT_FLOOR and t[i] <= 255, set.id .. " tint channel " .. i .. " is a hint, not a wash (" .. t[i] .. ")") end
+		expectTrue(CS.contrastRatio(INK, mul(PARCH, t)) >= 4.5, set.id .. " ink on the tinted board stays at 4.5:1")
+		expectTrue(CS.contrastRatio(CREAM, mul(WOODDARK, t)) >= 4.5, set.id .. " cream on the tinted dark wood stays at 4.5:1")
+	end
+	expectEqual(table.concat(PRA.tint(nil), ","), "255,255,255", "no accent, no tint")
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local psp, plates, board, shop = read("src/Client/PlayScenePaint.lua"), read("src/Client/PlayPlates.lua"), read("src/Client/PlayBoardPaint.lua"), read("src/Client/ShopBackdrop.lua")
+	if psp and plates and board and shop then
+		expectTrue(psp:find("PlayRoomArt.roomArt(sid, art)", 1, true) ~= nil and psp:find("bg.Image = art[room.bg] or bgId", 1, true) ~= nil, "the backdrop and the front follow the equipped set live")
+		expectTrue(psp:find("HudTheme.onSkin(tint)", 1, true) ~= nil, "a skin change (equip, Preview) re-runs it")
+		expectTrue(psp:find("groove.ImageRectOffset", 1, true) ~= nil, "the rim crop is placed above the cards")
+		expectTrue(plates:find('GetAttribute("RoomTint")', 1, true) ~= nil and board:find('GetAttribute("RoomTint")', 1, true) ~= nil and shop:find('GetAttribute("RoomTint")', 1, true) ~= nil, "board, plates and Counter read the room tint")
+		expectFalse(psp:find("TweenService", 1, true) ~= nil or psp:find("breath", 1, true) ~= nil, "no movement or breathing on the play screen")
+	end
+end })
+
 return tests

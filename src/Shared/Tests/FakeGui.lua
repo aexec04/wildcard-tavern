@@ -174,7 +174,13 @@ end
 function Methods.IsDescendantOf(inst, other) return Methods.IsAncestorOf(other, inst) end
 
 function Methods.GetPropertyChangedSignal(inst, name) return signalOf(inst, "prop:" .. name) end
-function Methods.SetAttribute(inst, key, value) rawget(inst, "_attrs")[key] = value end
+function Methods.SetAttribute(inst, key, value)
+	local attrs = rawget(inst, "_attrs")
+	local changed = attrs[key] ~= value
+	attrs[key] = value
+	if changed then signalOf(inst, "attr:" .. key):Fire() end
+end
+function Methods.GetAttributeChangedSignal(inst, name) return signalOf(inst, "attr:" .. name) end
 function Methods.GetAttribute(inst, key) return rawget(inst, "_attrs")[key] end
 
 function FakeGui.new(class)

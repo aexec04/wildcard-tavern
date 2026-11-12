@@ -49,6 +49,9 @@ function PlayBoardPaint.install(deps)
 	image.Visible = false
 	image.Parent = root
 
+	local function tinted() return root:GetAttribute("RoomTint") or Color3.new(1, 1, 1) end
+	image.ImageColor3 = tinted()
+	root:GetAttributeChangedSignal("RoomTint"):Connect(function() image.ImageColor3 = tinted() end) -- the equipped Card Set's room (PlayScenePaint)
 	local loaded, painted = false, false
 	local function apply()
 		local size = root.AbsoluteSize
