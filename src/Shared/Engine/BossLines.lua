@@ -115,7 +115,7 @@ BossLines.ByBoss = {
 	heavy_hands = { intro = { "Big plates only, at least three cards.", "No tiny dishes tonight." }, defeated = { "A heavy hand wins the night!", "You carried it well." } },
 	quiet_corner = { intro = { "The odd chairs are asleep, shh.", "Quiet in this corner." }, defeated = { "You woke the sleepers!", "What a lively corner." } },
 	picky_eater = { intro = { "No lines and no colors on my plate.", "I am a very picky eater." }, defeated = { "You found something I like!", "Delicious after all." } },
-	crowded_counter = { intro = { "Only two helpers fit at the counter.", "Make some room, please." }, defeated = { "Two helpers were plenty!", "You made it work." } },
+	crowded_counter = { intro = { "Only four helpers fit at the counter.", "Make some room, please." }, defeated = { "Four helpers were plenty!", "You made it work." } },
 	penny_wise = { intro = { "Every coin stays in my pocket.", "I count each one twice." }, defeated = { "You earned it fair and square!", "Keep the coins, you won." } },
 	bare_bones = { intro = { "Bare bones tonight: less of everything.", "Just the basics." }, defeated = { "You built a feast from bare bones!", "Full pantry again." } },
 }

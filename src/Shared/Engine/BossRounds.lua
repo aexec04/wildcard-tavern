@@ -450,10 +450,10 @@ BossRounds.Definitions = {
 		id = "crowded_counter",
 		icon = "🧍",
 		name = "Crowded Counter",
-		description = "Only your first 2 Patrons help you score this round.",
-		flavorText = "There is room for two helpers at the counter, no more.",
+		description = "Only your first 4 Patrons help you score this round.",
+		flavorText = "There is room for four helpers at the counter, no more.",
 		minNight = 6,
-		patronCap = 2,
+		patronCap = 4,
 	},
 	{
 		id = "penny_wise",

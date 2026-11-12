@@ -45,7 +45,7 @@ BossCounters.ShortLines = {
 	flat_mult = "Mult from played hands is cut by 40% this round.",
 	thin_soup = "Chips from played hands are cut by 20% this round.",
 	slow_simmer = "Mult from played hands is cut by 20% this round.",
-	crowded_counter = "Only your first 2 Patrons help you score.",
+	crowded_counter = "Only your first 4 Patrons help you score.",
 	penny_wise = "Tips from scoring are not paid this round.",
 	slow_night = "1 random card is tossed after every hand you play.",
 }

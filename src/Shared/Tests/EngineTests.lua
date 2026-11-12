@@ -10718,7 +10718,7 @@ table.insert(tests, { name = "BossRules: blocked hand types, minimum hand, first
 	expectEqual(BossRules.scoreFactor(BossRounds.getById("sleepy_cook"), false), 1)
 	expectEqual(BossRules.scoreFactor(nil, true), 1)
 	local list = { 1, 2, 3, 4 }
-	expectEqual(#BossRules.scoringPatrons(BossRounds.getById("crowded_counter"), list), 2)
+	expectEqual(#BossRules.scoringPatrons(BossRounds.getById("crowded_counter"), list), 4)
 	expectEqual(BossRules.scoringPatrons(nil, list), list)
 	expectEqual(BossRules.tipsPercent(nil, { tipsPercent = 50 }), 50)
 	expectEqual(BossRules.applyPercent(8, 50), 4)
@@ -10776,10 +10776,10 @@ table.insert(tests, { name = "New Boss Rounds: eight new rules, tiered, each one
 	expectEqual(RunState.playHand(picky, { 1, 2, 3, 4, 5 }).score, 0, "a Flush scores nothing")
 	picky.hand = { C(7, "Hearts"), C(7, "Spades"), C(8, "Hearts"), C(9, "Clubs"), C(10, "Hearts"), C(12, "Hearts"), C(3, "Hearts"), C(2, "Diamonds") }
 	expectTrue(RunState.playHand(picky, { 1, 2 }).score > 0)
-	-- Crowded Counter: only the first 2 Patrons score (3 Patrons == the first 2)
-	local crowd3 = bossState("crowded_counter", { "the_regular", "the_regular", "the_regular" })
-	local crowd2 = bossState("crowded_counter", { "the_regular", "the_regular" })
-	local free3 = bossState("bouncer", { "the_regular", "the_regular", "the_regular" })
+	-- Crowded Counter: only the first 4 Patrons score (5 Patrons == the first 4)
+	local crowd3 = bossState("crowded_counter", { "the_regular", "the_regular", "the_regular", "the_regular", "the_regular" })
+	local crowd2 = bossState("crowded_counter", { "the_regular", "the_regular", "the_regular", "the_regular" })
+	local free3 = bossState("bouncer", { "the_regular", "the_regular", "the_regular", "the_regular", "the_regular" })
 	free3.bossModifier = nil
 	local s3, s2, sf = RunState.playHand(crowd3, { 1, 2 }).score, RunState.playHand(crowd2, { 1, 2 }).score, RunState.playHand(free3, { 1, 2 }).score
 	expectEqual(s3, s2, "the third Patron does not score")
