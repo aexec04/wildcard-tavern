@@ -118,6 +118,9 @@ local function stripTags(str) return (str:gsub("<[^>]+>", "")) end
 -- a solid parchment plate with a dark wood edge, for the rows that sit under the board
 local function plateStyle(st, row)
 	put(st, row, { BackgroundColor3 = PLATE, BackgroundTransparency = 0 })
+	for _, c in ipairs(row:GetDescendants()) do
+		if c:IsA("TextLabel") and (c.TextSize or 15) < 15 and not c.TextScaled then put(st, c, { TextSize = 15 }) end
+	end
 	for _, c in ipairs(row:GetChildren()) do
 		if c:IsA("UIStroke") and c.Name ~= "BoardPlateEdge" then put(st, c, { Enabled = false }) end
 	end
@@ -125,7 +128,7 @@ local function plateStyle(st, row)
 		local e = Instance.new("UIStroke")
 		e.Name = "BoardPlateEdge"
 		e.Color = EDGE
-		e.Thickness = 3
+		e.Thickness = 4 -- dark wood frame
 		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		e.Parent = row
 		table.insert(st.made, e)
@@ -157,6 +160,21 @@ local function plateStyle(st, row)
 		is.Color = Color3.fromRGB(176, 138, 70)
 		is.Thickness = 1
 		is.Parent = inner
+		-- four brass corner studs, like the left sign's plates (children of the inner frame, which has no layout)
+		for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+			local stud = Instance.new("Frame")
+			stud.Name = "BoardPlateStud" .. i
+			stud.AnchorPoint = Vector2.new(at[1], at[2])
+			stud.Position = UDim2.new(at[1], at[1] == 0 and 5 or -5, at[2], at[2] == 0 and 5 or -5)
+			stud.Size = UDim2.fromOffset(6, 6)
+			stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
+			stud.BorderSizePixel = 0
+			stud.Active = false
+			stud.Parent = inner
+			local sk = Instance.new("UICorner")
+			sk.CornerRadius = UDim.new(0.5, 0)
+			sk.Parent = stud
+		end
 	end
 end
 

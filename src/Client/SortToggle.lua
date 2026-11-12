@@ -68,7 +68,7 @@ function SortToggle.build(parent, onPick)
 		b.BorderSizePixel = 0
 		b.AutoButtonColor = false
 		b.Font = Enum.Font.Fondamento
-		b.TextSize = 18
+		b.TextSize = 20
 		b.Text = text
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1

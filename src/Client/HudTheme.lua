@@ -117,6 +117,10 @@ local function paintAction(button, entry)
 		if s then s.Color = c3(p.outer) end
 	end
 	button.Font = Enum.Font.Fondamento -- the serif face of the title and ledger, not the plain sans
+	do -- big enough for the chest plate: about 30 px, less only when the button is narrow ("Play Hand" is about 4.5 em wide)
+		local w = button.AbsoluteSize.X
+		button.TextSize = w > 0 and math.clamp(math.floor(w / 6), 20, 30) or 30
+	end
 	button.TextColor3 = c3(p.text)
 	softShadow(button, p.text)
 	local art = button:FindFirstChild("HudAccentArt")
