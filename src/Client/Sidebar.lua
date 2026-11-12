@@ -683,14 +683,17 @@ return function(deps)
 	local function placeRewardIcon() end
 	local function setIconText(key, plainText, emojiText)
 		if key == "boss" then
-			blindInfoLabel.Text = plainText -- no crown: plain name line plus rule text
+			blindInfoLabel.Text = plainText -- no crown in the text: plain name line plus rule text
+			blindInfoLabel:SetAttribute("Boss", true) -- PlayBoardHud paints the dark red plate and crown from this
 		elseif key == "tips" then
 			tipsLabel.Text = plainText
 		elseif key == "hands" then
 			handsDiscardsLabel.Text = plainText
 		end
 	end
-	local function hideLineIcon() end
+	local function hideLineIcon(key)
+		if key == "boss" then blindInfoLabel:SetAttribute("Boss", nil) end
+	end
 
 	return {
 		SIDEBAR_WIDTH = SIDEBAR_WIDTH,

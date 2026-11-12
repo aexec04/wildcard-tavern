@@ -243,20 +243,33 @@ local function run(root, st)
 			lineL.Font = Enum.Font.Gotham -- the rule line is narrower in the regular weight, so more of the rules fit
 			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
 			nameL.Text, lineL.Text = first, second
-			if first:find("👑", 1, true) then
-				-- boss round: dark red plate with cream text so it reads as different
+			local isBoss = src:GetAttribute("Boss") == true or first:find("👑", 1, true) ~= nil
+			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
+			if isBoss then
+				-- boss round: dark red plate, cream text, crown on the name; the rule wraps to two lines at 12 px
+				nameL.Text = "\u{1F451} " .. (first:gsub("^\u{1F451}%s*", ""))
 				put(st, rule, { BackgroundColor3 = Color3.fromRGB(92, 26, 26), BackgroundTransparency = 0 })
 				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200) })
 				put(st, lineL, { TextColor3 = Color3.fromRGB(230, 205, 170) })
+				showLine = second ~= ""
 			end
-			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
 			-- the two lines are one block centred in the slot: name hugs the middle from above, rule line from below
-			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.5, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),
+			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.45, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = showLine and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center, Visible = true })
 			fitOne(st, nameL, w, 12, 14)
-			put(st, lineL, { Position = UDim2.new(0, RULE_INSET, 0.5, 0), Size = UDim2.new(1, -2 * RULE_INSET, 0.5, 0),
+			put(st, lineL, { Position = UDim2.new(0, RULE_INSET, 0.45, 0), Size = UDim2.new(1, -2 * RULE_INSET, 0.55, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Top, Visible = showLine and true or false })
-			if showLine then fitOne(st, lineL, w, 12, 14) end
+			if showLine and isBoss then
+				fitOne(st, lineL, w, 12, 12)
+				put(st, lineL, { TextWrapped = true, TextColor3 = Color3.fromRGB(230, 205, 170) })
+			elseif showLine then
+				fitOne(st, lineL, w, 12, 14)
+			end
+			local logKey = second .. tostring(isBoss)
+			if isBoss and rule:GetAttribute("BossPlateLogged") ~= logKey then
+				rule:SetAttribute("BossPlateLogged", logKey)
+				print("[BossPlate] rule=" .. second .. " red=true")
+			end
 			rule:SetAttribute("RuleTooltip", (plain:gsub("\n", " - ")))
 		end
 	end

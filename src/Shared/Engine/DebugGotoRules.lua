@@ -42,6 +42,8 @@ function DebugGotoRules.synth(which, state, data)
 	elseif which == "boss1" and data.boss then
 		s.bossModifier = { id = data.boss.id, name = data.boss.name, description = data.boss.description }
 		s.isBossRound = true
+		s.round = 3 -- the boss is the last round of a Night: the stage, portrait and plate only act from there
+		s.phase = "playing"
 	end
 	return s
 end

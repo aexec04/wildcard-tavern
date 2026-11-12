@@ -20417,6 +20417,26 @@ table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll 
 	expectTrue(read("src/Client/BossFight.lua"):find("[BossStage] visible=", 1, true) ~= nil, "BossStage log")
 end })
 
+table.insert(tests, { name = "DebugGoto boss1 builds a real boss round (round 3, playing, boss modifier); the plate keys off the Boss attribute", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local s = R.synth("boss1", { round = 1, phase = "playing", night = 1 }, { boss = { id = "b", name = "The Bouncer", description = "Deals you one fewer card this round" } })
+	expectEqual(s.round, 3, "boss round is the last of the Night")
+	expectEqual(s.phase, "playing", "playing phase")
+	expectTrue(s.bossModifier ~= nil and s.bossModifier.name == "The Bouncer", "boss modifier set")
+	local f = io and io.open and io.open("src/Client/PlayBoardHud.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find('GetAttribute("Boss")', 1, true) ~= nil and text:find("[BossPlate] rule=", 1, true) ~= nil, "PlayBoardHud reads the Boss attribute and logs [BossPlate]")
+	end
+	local f2 = io and io.open and io.open("src/Client/Sidebar.lua", "r")
+	if f2 then
+		local text = f2:read("*a")
+		f2:close()
+		expectTrue(text:find('SetAttribute("Boss", true)', 1, true) ~= nil, "Sidebar marks the boss plate")
+	end
+end })
+
 table.insert(tests, { name = "RoundPayout: breakdown lines add up to the real total", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundPayout)
 	local b = P.breakdown(9, 2)
