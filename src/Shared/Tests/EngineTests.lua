@@ -14357,7 +14357,8 @@ table.insert(tests, { name = "ShopSceneLayout: bob is gentle, staggered and off 
 	-- the Counter v2 art map exists, is registered and every key it holds is a known scene piece
 	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
 	expectTrue(type(Art) == "table", "ShopSceneArt hook exists")
-	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true }
+	local known = { shop_wall = true, shop_marlo_behind = true, shop_marlo_wave = true, shop_counter_top = true, shop_counter_props = true, shop_light_pool = true, shop_table = true, shop_room_a = true, shop_room_b = true, shop_room_c = true,
+		shop_offer_scroll_a = true, shop_offer_scroll_b = true, run_over_scroll_a = true, run_over_scroll_b = true }
 	for k in pairs(Art) do expectTrue(known[k], "known scene piece " .. tostring(k)) end
 	local f = io and io.open and io.open("src/Client/ShopBackdrop.lua", "r")
 	if f then
@@ -21272,6 +21273,13 @@ table.insert(tests, { name = "PlayRoomArt: every Card Set maps to its recorded r
 		expectTrue(psp:find("groove.ImageRectOffset", 1, true) ~= nil, "the rim crop is placed above the cards")
 		expectTrue(plates:find('GetAttribute("RoomTint")', 1, true) ~= nil and board:find('GetAttribute("RoomTint")', 1, true) ~= nil and shop:find('GetAttribute("RoomTint")', 1, true) ~= nil, "board, plates and Counter read the room tint")
 		expectFalse(psp:find("TweenService", 1, true) ~= nil or psp:find("breath", 1, true) ~= nil, "no movement or breathing on the play screen")
+	end
+end })
+
+table.insert(tests, { name = "Scroll art: the four scroll pieces are Image assets and their Image ids are in the shop_scene art map", fn = function()
+	local Art = require(script.Parent.Parent.Engine.ShopSceneArt)
+	for _, k in ipairs({ "shop_offer_scroll_a", "shop_offer_scroll_b", "run_over_scroll_a", "run_over_scroll_b" }) do
+		expectTrue(type(Art[k]) == "string" and Art[k]:match("^rbxassetid://%d+$") ~= nil, k .. " has a single-prefix Image id")
 	end
 end })
 

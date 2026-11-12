@@ -6,11 +6,15 @@
 ]]
 
 return {
+	["run_over_scroll_a"] = "rbxassetid://70375192295163",
+	["run_over_scroll_b"] = "rbxassetid://86086833738078",
 	["shop_counter_props"] = "rbxassetid://135868671588275",
 	["shop_counter_top"] = "rbxassetid://125809081130355",
 	["shop_light_pool"] = "rbxassetid://86060482506004",
 	["shop_marlo_behind"] = "rbxassetid://106144373711439",
 	["shop_marlo_wave"] = "rbxassetid://98238109368177",
+	["shop_offer_scroll_a"] = "rbxassetid://130489069975538",
+	["shop_offer_scroll_b"] = "rbxassetid://104583801741108",
 	["shop_room_a"] = "rbxassetid://91484997579906",
 	["shop_table"] = "rbxassetid://74414987897069",
 	["shop_wall"] = "rbxassetid://126299265758911",
