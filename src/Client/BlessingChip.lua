@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("BlessingChipLayout"))
 local ArtIcon = require(script.Parent.ArtIcon)
+local Rows = require(Engine:WaitForChild("BoardPanelRows"))
 
 local BlessingChip = {}
 
@@ -42,6 +43,20 @@ local function label(parent, name, size, color, y, h, font)
 	l.Parent = parent
 	return l
 end
+
+-- Lines a 15 px effect text needs at widthPx: measured with TextService, the pure estimate when that is not available.
+function BlessingChip.lines(text, widthPx)
+	local ok, size = pcall(function()
+		return game:GetService("TextService"):GetTextSize(tostring(text), 15, Enum.Font.GothamMedium, Vector2.new(math.max(40, widthPx), 1000))
+	end)
+	if ok and size and size.Y > 0 then
+		return math.max(1, math.min(Rows.MAX_LINES, math.floor(size.Y / 15 + 0.5)))
+	end
+	return Rows.estimateLines(text, widthPx)
+end
+
+-- The text width of the full row: the panel row's width minus the icon (46) and the right padding (6).
+function BlessingChip.textWidth(rowWidth) return math.max(40, (rowWidth or 0) - 52) end
 
 function BlessingChip.init(deps)
 	local chip = Instance.new("Frame")
@@ -109,14 +124,18 @@ function BlessingChip.relayout()
 		ui.curse.Visible = full
 		ui.name.Position = UDim2.fromOffset(46, full and 3 or 12)
 		ui.blessing.TextSize, ui.curse.TextSize = 15, 15
-		-- each effect line wraps to two lines inside the row width instead of being cut at the edge
+		-- each effect text wraps inside the real row width (measured, up to 3 lines) and the next starts right under it: no cut text, no gap
+		local w = BlessingChip.textWidth(ui.chip.Size.X.Offset > 0 and ui.chip.Size.X.Offset or ui.chip.AbsoluteSize.X)
+		local bl, cl = BlessingChip.lines(ui.blessing.Text, w), BlessingChip.lines(ui.curse.Text, w)
 		for _, l in ipairs({ ui.blessing, ui.curse }) do
 			l.TextWrapped = true
+			l.TextTruncate = Enum.TextTruncate.None
 			l.TextYAlignment = Enum.TextYAlignment.Top
-			l.Size = UDim2.new(1, -52, 0, 34)
 		end
 		ui.blessing.Position = UDim2.fromOffset(46, 25)
-		ui.curse.Position = UDim2.fromOffset(46, 61)
+		ui.blessing.Size = UDim2.new(1, -52, 0, bl * Rows.LINE_H)
+		ui.curse.Position = UDim2.fromOffset(46, 25 + bl * Rows.LINE_H + 4)
+		ui.curse.Size = UDim2.new(1, -52, 0, cl * Rows.LINE_H)
 		return
 	end
 	local height = ui.board.AbsoluteSize.Y

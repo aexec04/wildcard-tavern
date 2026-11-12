@@ -22927,6 +22927,44 @@ table.insert(tests, { name = "ScrimGradient: no caller can build a sequence over
 	expectTrue(#VC.keypoints() <= 20, "vignette within 20 keypoints")
 end })
 
+table.insert(tests, { name = "BoardPanelRows: every blessing and curse text wraps inside the real row width (3 lines at most), the Blessing row grows to fit with no blank gap, at three sizes", fn = function()
+	local R = require(script.Parent.Parent.Engine.BoardPanelRows)
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local PBL = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	expectEqual(R.fullHeight(1, 1), 66, "one line each: name 25, two 16 px lines, 4 px between, 5 px padding, no blank gap")
+	expectTrue(R.fullHeight(2, 2) > R.fullHeight(1, 2) and R.fullHeight(3, 3) > R.fullHeight(2, 2), "more lines, taller row")
+	expectEqual(R.fullHeight(9, 0), R.fullHeight(3, 1), "line counts are clamped to 1..3")
+	expectTrue(R.estimateLines("Recipe box holds 1 more", 80) >= 2, "a long effect wraps on a narrow row")
+	expectEqual(R.estimateLines("+6 Tips now", 400), 1, "a short effect stays on one line")
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1000, 640 } }) do
+		local p = PBL.placement(size[1], size[2])
+		local board = p and p.w or 300
+		local H = PBL.hud(board, p and p.h or 600)
+		local rowW = H.target.w + 12 - 2 * R.PAD
+		local textW = math.max(40, rowW - 52)
+		for _, def in ipairs(RM.Definitions) do
+			local bl, cl = R.estimateLines("+ " .. def.blessing, textW), R.estimateLines("- " .. def.curse, textW)
+			expectTrue(bl >= 1 and bl <= 3 and cl >= 1 and cl <= 3, def.id .. ": 1 to 3 lines at " .. size[1])
+			local fullH = R.fullHeight(bl, cl)
+			local plan = R.plan({ x = 0, w = rowW + 16, top = 0, avail = 2000, blessingFullH = fullH, want = { tips = true, hint = true, blessing = true, run = true } })
+			expectEqual(plan.rows.blessing.h, fullH, def.id .. ": the Blessing row is as tall as its texts need")
+			expectEqual(plan.blessing, "full", def.id .. ": full on a tall screen")
+			expectTrue(plan.fits, def.id .. ": fits with room")
+			-- a short screen: rows shrink first (Blessing compact), then the Run row, then the Blessing row; nothing overlaps or overflows
+			for _, avail in ipairs({ 150, 220, 300, 380 }) do
+				local short = R.plan({ x = 0, w = rowW + 16, top = 0, avail = avail, blessingFullH = fullH, want = { tips = true, hint = true, blessing = true, run = true } })
+				local lastBottom = 0
+				for _, key in ipairs(short.order) do
+					local r = short.rows[key]
+					expectTrue(r.y >= lastBottom, def.id .. ": rows do not overlap at avail " .. avail)
+					lastBottom = r.y + r.h
+				end
+				expectTrue(not short.fits or short.panel.h <= avail, def.id .. ": a plan that says it fits does")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "CornerDock: the dock is a function of the open pages, so no open/close order leaves it hidden (tabs, Map, Escape, Round Select, a run starting)", fn = function()
 	local DR = require(script.Parent.Parent.Engine.DockRules)
 	expectTrue(DR.visible({}), "nothing open: shown")

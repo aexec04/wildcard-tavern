@@ -512,7 +512,17 @@ local function run(root, st)
 	local chip = boardTop and boardTop:FindFirstChild("BlessingChip")
 	local function shown(r) return r ~= nil and r.Visible and (r.Size.Y.Scale == 0 and r.Size.Y.Offset or r.AbsoluteSize.Y) > 0 end
 	local chipShown = chip ~= nil and chip:GetAttribute("Shown") == true
+	local fullH -- the full Blessing row is as tall as its two effect texts need at the real row width (they wrap, never cut)
+	if chipShown then
+		pcall(function()
+			local BC = require(script.Parent.BlessingChip)
+			local tw = BC.textWidth(H.target.w + 12 - 2 * BoardPanelRows.PAD)
+			local b, c = chip:FindFirstChild("Blessing"), chip:FindFirstChild("Curse")
+			if b and c then fullH = BoardPanelRows.fullHeight(BC.lines(b.Text, tw), BC.lines(c.Text, tw)) end
+		end)
+	end
 	local plan = BoardPanelRows.plan({
+		blessingFullH = fullH,
 		x = H.target.x - 6, w = H.target.w + 12, top = PlayBoardLayout.panelTop(rect.w),
 		avail = root.AbsoluteSize.Y - 8 - rect.h + math.floor(PlayBoardLayout.PANEL_ROOM * rect.w / PlayBoardLayout.IMG_W),
 		want = { tips = shown(tipsRow), hint = shown(hintRow), blessing = chipShown, run = shown(runRow) },

@@ -11,6 +11,7 @@
 	x, w   the panel's left edge and width (the board's inner column)
 	top    where the panel starts (the painted board's bottom)
 	avail  pixels from top to the bottom margin of the screen
+	blessingFullH  optional height of the full Blessing row, from fullHeight(blessing lines, curse lines) (default: one line each)
 	want   { tips = bool, hint = bool, blessing = bool, run = bool }  rows that exist right now (a missing row collapses)
 
 	Rows shrink first (level 1: compact Blessing, level 2: every row at its minimum). If even that is too tall the Run row and then the
@@ -26,16 +27,47 @@ M.ORDER = { "tips", "hint", "blessing", "run" }
 -- nominal and minimum heights per row; the Blessing row has a full (name, blessing, curse) and a compact (name only) form
 M.HEIGHTS = {
 	tips = { 38, 34 }, hint = { 34, 28 }, run = { 30, 26 },
-	blessingFull = { 102, 102 }, blessingCompact = { 44, 40 },
+	blessingFull = { 66, 66 }, blessingCompact = { 44, 40 },
 }
 M.MIN_TEXT = 15
+M.LINE_H = 16 -- one 15 px line of an effect text
+M.MAX_LINES = 3
 
-local function heightsFor(level, want, drop)
+-- Height of the full Blessing row for a blessing text of bLines lines and a curse text of cLines lines: name, a gap, the blessing, a gap,
+-- the curse, padding. No blank gap: the second text starts right under the first one's last line.
+function M.fullHeight(bLines, cLines)
+	local function clamp(n) return math.max(1, math.min(M.MAX_LINES, math.floor(tonumber(n) or 1))) end
+	return 3 + 20 + 2 + clamp(bLines) * M.LINE_H + 4 + clamp(cLines) * M.LINE_H + 5
+end
+
+-- How many lines a text needs at widthPx when it wraps on spaces (charPx = the average width of one character at 15 px; the client
+-- measures with TextService instead and uses this only when that is not available). Never fewer than 1, never more than MAX_LINES.
+function M.estimateLines(text, widthPx, charPx)
+	charPx = charPx or 8
+	local per = math.max(1, math.floor((widthPx or 0) / charPx))
+	local lines, used = 1, 0
+	for word in tostring(text or ""):gmatch("%S+") do
+		local len = #word
+		if used == 0 then
+			used = len
+		elseif used + 1 + len <= per then
+			used = used + 1 + len
+		else
+			lines, used = lines + 1, len
+		end
+		while used > per do -- a word longer than the line breaks anywhere
+			lines, used = lines + 1, used - per
+		end
+	end
+	return math.min(lines, M.MAX_LINES)
+end
+
+local function heightsFor(level, want, drop, fullH)
 	local rows = {}
 	for _, k in ipairs(M.ORDER) do
 		if want[k] and not drop[k] then
 			local pair
-			if k == "blessing" then pair = (level == 0) and M.HEIGHTS.blessingFull or M.HEIGHTS.blessingCompact else pair = M.HEIGHTS[k] end
+			if k == "blessing" then pair = (level == 0) and { fullH, fullH } or M.HEIGHTS.blessingCompact else pair = M.HEIGHTS[k] end
 			rows[#rows + 1] = { key = k, h = (level >= 2) and pair[2] or pair[1] }
 		end
 	end
@@ -53,13 +85,14 @@ function M.plan(p)
 	local want = p.want or {}
 	local avail = p.avail or 0
 	local drop = {}
+	local fullH = p.blessingFullH or M.HEIGHTS.blessingFull[1] -- measured from the real texts by the client (fullHeight)
 	local rows, level
 	-- try each level, then drop the Run row, then the Blessing row
 	local attempts = { {}, { run = true }, { run = true, blessing = true } }
 	for _, d in ipairs(attempts) do
 		drop = d
 		for lv = 0, 2 do
-			local r = heightsFor(lv, want, drop)
+			local r = heightsFor(lv, want, drop, fullH)
 			if totalOf(r) <= avail or (lv == 2 and d == attempts[#attempts]) then rows, level = r, lv end
 			if rows then break end
 		end
