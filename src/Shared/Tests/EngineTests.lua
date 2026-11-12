@@ -13939,6 +13939,18 @@ table.insert(tests, { name = "News board: cork grain is visible but stays low co
 	expectTrue(tr and tr >= 0.5 and tr <= 0.7, "grain transparency between 0.5 and 0.7 (visible, never harsh)")
 end })
 
+table.insert(tests, { name = "ToastPlacement.STYLE: parchment toast has readable ink, a gold edge and a soft shadow", fn = function()
+	local TP = require(script.Parent.Parent.Engine.ToastPlacement)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local st = TP.STYLE
+	expectTrue(CS.contrastRatio(st.ink, st.paper) >= 4.5, "ink on paper at 4.5:1 or better")
+	expectTrue(st.paper[1] > 200 and st.paper[2] > 200, "paper is light")
+	expectTrue(st.edgeThickness >= 1 and st.edgeThickness <= 2, "thin edge")
+	expectTrue(st.shadowTransparency >= 0.6 and st.shadowOffset >= 2, "soft shadow")
+	local plan = TP.plan("table")
+	expectTrue(plan.yScale == TP.TABLE_Y and plan.width == TP.TABLE_W, "placement unchanged")
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it

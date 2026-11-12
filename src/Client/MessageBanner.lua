@@ -39,6 +39,8 @@
 ]]
 
 local ToastPlacement = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ToastPlacement"))
+local STYLE = ToastPlacement.STYLE
+local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 
 return function(deps)
 	local SIDEBAR_WIDTH = deps.SIDEBAR_WIDTH
@@ -53,12 +55,32 @@ return function(deps)
 	messageBar.Name = "MessageBar"
 	messageBar.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 34)
 	messageBar.Position = UDim2.new(0, SIDEBAR_WIDTH + 20, 0, RESTING_Y)
-	messageBar.BackgroundColor3 = Color3.fromRGB(50, 38, 28)
+	messageBar.BackgroundColor3 = rgb(STYLE.paper)
 	messageBar.BackgroundTransparency = 1
 	messageBar.Visible = false
 	messageBar.ZIndex = 4
 	messageBar.Parent = root
 	polishPanel(messageBar, 8)
+	-- Thin gold edge (Border mode) and a soft shadow; both are children of the bar so they fade and hide with it.
+	local edge = Instance.new("UIStroke")
+	edge.Color = rgb(STYLE.edge)
+	edge.Thickness = STYLE.edgeThickness
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edge.Transparency = 1
+	edge.Parent = messageBar
+	local shadow = Instance.new("Frame") -- ZIndex below the bar, so it draws beneath it (the GUI uses Global draw order)
+	shadow.Name = "Shadow"
+	shadow.Size = UDim2.fromScale(1, 1)
+	shadow.Position = UDim2.fromOffset(0, STYLE.shadowOffset)
+	shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	shadow.BackgroundTransparency = 1
+	shadow.BorderSizePixel = 0
+	shadow.Active = false
+	shadow.ZIndex = 3
+	shadow.Parent = messageBar
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 8)
+	shadowCorner.Parent = shadow
 	-- Deliberately no addSoftShadow here -- that helper parents its shadow
 	-- to messageBar.Parent (root), which never toggles Visible/transparency
 	-- alongside messageBar itself, so a shadow attached to something this
@@ -73,13 +95,14 @@ return function(deps)
 	messageLabel.Font = Enum.Font.Gotham
 	messageLabel.TextSize = 16
 	messageLabel.TextWrapped = true
-	messageLabel.TextColor3 = Color3.fromRGB(255, 214, 130)
+	messageLabel.TextColor3 = rgb(STYLE.ink)
+	messageLabel.TextStrokeTransparency = 1
 	messageLabel.TextTransparency = 1
 	messageLabel.Text = ""
 	messageLabel.ZIndex = 4
 	messageLabel.Parent = messageBar
 
-	local BAR_TRANSPARENCY = 0.12
+	local BAR_TRANSPARENCY = STYLE.paperTransparency
 
 	-- Every warning shown through this ("Not enough tips", "Select 1-5 cards...")
 	-- used to just sit on screen forever once set. This clears it back to ""
@@ -112,12 +135,16 @@ return function(deps)
 		messageBar.Position = pos(START_Y)
 		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = pos(RESTING_Y) }, 0.18)
 		tweenTo(messageLabel, { TextTransparency = 0 }, 0.18)
+		tweenTo(edge, { Transparency = 0 }, 0.18)
+		tweenTo(shadow, { BackgroundTransparency = STYLE.shadowTransparency }, 0.18)
 
 		task.delay(place.seconds or ToastPlacement.SECONDS, function()
 			if messageBar:GetAttribute("MessageToken") ~= myToken then
 				return -- a newer warning has already replaced this one
 			end
 			tweenTo(messageBar, { BackgroundTransparency = 1 }, 0.3)
+			tweenTo(edge, { Transparency = 1 }, 0.3)
+			tweenTo(shadow, { BackgroundTransparency = 1 }, 0.3)
 			local fadeOut = tweenTo(messageLabel, { TextTransparency = 1 }, 0.3)
 			fadeOut.Completed:Connect(function(playbackState)
 				if playbackState == Enum.PlaybackState.Completed and messageBar:GetAttribute("MessageToken") == myToken then

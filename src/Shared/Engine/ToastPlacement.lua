@@ -14,6 +14,16 @@ ToastPlacement.TABLE_Y = 0.35 -- table toast: a fraction of the screen height (a
 ToastPlacement.TABLE_W = 360 -- a small parchment toast, never a wide bar across the cards
 ToastPlacement.TABLE_SECONDS = 2
 ToastPlacement.SECONDS = 3
+-- Look of the strip: a small parchment slip with dark ink, a thin gold edge and a soft shadow (RGB triples; ink on paper is at least 4.5:1).
+ToastPlacement.STYLE = {
+	paper = { 238, 222, 186 },
+	ink = { 62, 40, 22 },
+	edge = { 214, 170, 84 },
+	edgeThickness = 1.5,
+	shadowOffset = 3,
+	shadowTransparency = 0.78,
+	paperTransparency = 0.04,
+}
 
 -- screen: "table" | "roundSelect" | "choice" | "shop". Returns { anchor = "top" | "bottom", y = offset }.
 function ToastPlacement.plan(screen)
