@@ -2,7 +2,7 @@
 	Shared/Engine/CollectionSectionLayout.lua
 	Pure geometry for the Collection's painted section scenes (Client/CollectionSection.lua). Each section opened from the gallery room is
 	ONE painted close-up of its own furniture (art `collection_scene`, keys coll_sec_<section>_a, 1536x1024) with a fixed number of empty
-	painted slots; the code puts each entry into a slot and pages through the section (12 entries a page, Bonds 8).
+	painted slots; the code puts each entry into a slot and pages through the section (12 entries a page, Bonds 8, House Passes 4).
 
 	The slot rectangles were read off the generated PNGs (art-wip/collection_scene, with debug overlays in art-wip/collection_scene/debug_*.png)
 	and are stored in the picture's own 1536x1024 pixels; every public function turns them into the area's pixels, so they are fractions of
@@ -12,7 +12,7 @@
 	M.MARGIN                                8: clear wall kept between the outermost slot (or plate) and the scene region's edge
 	M.has(tabId)                            true for the six sections that have a scene
 	M.artKey(tabId)                         the collection_scene key ("coll_sec_patrons_a")
-	M.perPage(tabId)                        12 (Bonds 8)
+	M.perPage(tabId)                        12 (Bonds 8, House Passes 4)
 	M.pageCount(n, tabId)                   at least 1
 	M.clampPage(page, n, tabId)
 	M.pageItems(items, tabId, page)         the entries of one page, in order
@@ -71,10 +71,11 @@ local SCENES = {
 		plate = { ys = { 349, 579, 811 }, h = 26, oneLine = true }, -- one line each, text shrinks to fit (14 px floor), so a plate never reaches the next row
 	},
 	housePasses = {
-		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 44, 56 },
-		cols = { { 388, 109 }, { 588, 111 }, { 810, 109 }, { 1026, 110 } },
-		rows = { { 240, 155 }, { 517, 151 }, { 790, 153 } },
-		plate = { ys = { 402, 674, 949 }, h = 26, twoLine = true }, -- the name on a brass plate under each tag, room for two lines at one size (14 px); the tag itself holds the pass icon
+		-- 4 big hanging tags in one row (was 12 small ones): each is about 3 times the old tag's area, centred on the painted hooks of row 1
+		art = "coll_sec_passes_a", per = 4, kind = "tag", min = { 44, 56 },
+		cols = { { 348, 190 }, { 548, 190 }, { 770, 190 }, { 986, 190 } },
+		rows = { { 215, 300 } },
+		plate = { ys = { 530 }, h = 26, twoLine = true }, -- the name on a brass plate under each tag, room for two lines at one size (14 px); the tag itself holds the pass icon
 		inset = { 0.08, 0.28, 0.08, 0.06 }, paper = { 213, 151, 67 },
 	},
 	titles = {

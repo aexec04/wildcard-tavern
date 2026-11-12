@@ -18983,7 +18983,7 @@ table.insert(tests, { name = "Rooms: name plates show and no outline ring at res
 	expectTrue(b.step() == false, "Escape from the room steps nothing, so the panel closes")
 end })
 
-table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the painted key rack at the Studio panel size (all six sections do), brass name plate under every tag, 2 pages for 13", fn = function()
+table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the painted key rack at the Studio panel size (all six sections do), brass name plate under every tag, 4 pages for 13", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
 	local P = RL.panel(993, 585, 24, nil, "section") -- the 1920x957 capture: a 993x585 panel
@@ -18992,7 +18992,8 @@ table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the pa
 		expectTrue(p ~= nil and p.ok, section.id .. " resolves to the painted layout, not the old grid")
 	end
 	expectEqual(L.scene("housePasses").kind, "tag")
-	expectEqual(L.pageCount(13, "housePasses"), 2, "13 passes make 2 pages")
+	expectEqual(L.perPage("housePasses"), 4, "four big tags a page")
+	expectEqual(L.pageCount(13, "housePasses"), 4, "13 passes make 4 pages")
 	local p = L.place("housePasses", P.area.w, P.area.h, 2)
 	for i, s in ipairs(p.slots) do
 		expectTrue(s.plate ~= nil, "pass tag " .. i .. " has a name plate")
@@ -19015,7 +19016,9 @@ end })
 table.insert(tests, { name = "CollectionSectionLayout.unusedCount: only a partly filled last page has unused slots", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	expectEqual(L.unusedCount(13, "housePasses", 1), 0, "full first page")
-	expectEqual(L.unusedCount(13, "housePasses", 2), 11, "page 2 of 13 has 11 unused")
+	expectEqual(L.unusedCount(13, "housePasses", 2), 0, "page 2 of 13 is full")
+	expectEqual(L.unusedCount(13, "housePasses", 4), 3, "page 4 of 13 has 3 unused")
+	expectEqual(L.unusedCount(2, "housePasses", 1), 2, "a short list leaves the rest of the one page dimmed")
 	expectEqual(L.unusedCount(16, "bonds", 2), 0, "a full bonds page")
 	expectEqual(L.unusedCount(10, "bonds", 2), 6, "bonds hold 8 a page")
 end })
@@ -19142,7 +19145,7 @@ table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8)
 				if p.ok then usableSeen = true end
 				-- (paper tags are narrow: House Passes needs the tall desktop window, a short one keeps its grid)
 				if w >= 1000 and (id ~= "housePasses" or h >= 800) then expectTrue(p.ok, label .. ": readable slots at desktop sizes") end
-				if w < 400 then expectFalse(p.ok, label .. ": a phone keeps the old grid") end
+				if w < 400 and id ~= "housePasses" then expectFalse(p.ok, label .. ": a phone keeps the old grid") end
 			end
 		end
 	end
