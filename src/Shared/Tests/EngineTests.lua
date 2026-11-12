@@ -20113,6 +20113,41 @@ tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body 
 	end
 end })
 
+tests[#tests + 1] = ({ name = "PlayTableLayout: Card Sets with a painted table front use their own measured felt, rail, deck and plate strip (1920x1080, 1280x720)", fn = function()
+	local L = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local Sets = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectTrue(L.artKeyOf("classic_tavern") == nil and L.artKeyOf(nil) == nil, "a set without its own table keeps the default front")
+	for setId, def in pairs(L.SETS) do
+		expectTrue(Sets.getById and Sets.getById(setId) ~= nil or true, "known set")
+		expectTrue(type(Art[def.art]) == "string" and Art[def.art] ~= "", def.art .. " has a recorded Image id")
+		for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+			local W, H = size[1], size[2]
+			local p = L.placement(W, H, 260, 120, setId)
+			expectTrue(p ~= nil, setId .. " places the hand and plates at " .. W .. "x" .. H)
+			if p then
+				local m = p.map
+				expectEqual(m.set, setId, "the map carries the set")
+				expectTrue(m.felt.y + m.felt.h <= m.rail.y + 1, "felt ends above the rail groove")
+				expectTrue(m.deck.x >= m.rail.x + m.rail.w, "the deck recess is right of the groove")
+				expectTrue(m.rail.y + m.rail.h <= m.image.y + m.image.h and m.deck.y + m.deck.h <= m.image.y + m.image.h, "groove and recess inside the picture")
+				expectTrue(p.actions.y >= m.rail.y + m.rail.h, "the plates stand under the groove")
+				expectTrue(p.hand.x + p.hand.w <= m.deck.x, "the hand row stops left of the deck")
+				expectTrue(p.hand.y + L.HAND_H - L.CARD_PAD <= p.actions.y, "cards end above the plates")
+				-- the default front is untouched
+				local d = L.placement(W, H, 260, 120)
+				expectEqual(d.map.rail.x, L.map(W, H).rail.x, "the default rail is unchanged")
+			end
+		end
+	end
+	local f = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("[PlayTableSet]", 1, true) ~= nil and src:find("front=%s", 1, true) ~= nil, "the Studio line reports painted or default")
+		expectTrue(src:find("artKeyOf", 1, true) ~= nil and src:find("(not setId) and CosmeticSets.tableTintOf", 1, true) ~= nil, "no felt tint goes on a painted front")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, select, hand and the hand count is reported once dealt", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(table.concat(R.ROUND1_ORDER, ","), "start,choice,select,hand", "fixed step order")

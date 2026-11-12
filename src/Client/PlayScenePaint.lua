@@ -97,16 +97,33 @@ function PlayScenePaint.install(deps)
 		end
 	end
 	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	local apply -- assigned below
+	local setKey = nil -- the Card Set id whose own painted front is showing (PlayTableLayout.SETS), nil for the default front
+	local lastReport = nil
+	-- A set with its own painted table (Mountain Festival, Frosted Garden) swaps the front picture and its measured rects; the art already
+	-- carries the colour, so no tint goes on top. Any other set keeps the default front plus its tint, exactly as before.
 	local function tint(skin)
-		local t = CosmeticSets.tableTintOf(skin and skin.id)
+		local sid = skin and skin.id
+		local artKey = PlayTableLayout.artKeyOf(sid)
+		local setId = artKey and art[artKey] and sid or nil
+		local t = (not setId) and CosmeticSets.tableTintOf(sid) or nil
+		image.Image = setId and art[artKey] or id
 		image.ImageColor3 = t and c3(t.felt) or Color3.new(1, 1, 1)
 		lip.BackgroundColor3 = t and c3(t.wood):Lerp(PlayRailLip.WOOD, 0.5) or PlayRailLip.WOOD
+		if setKey ~= setId then
+			setKey = setId
+			if apply then apply() end
+		end
+		if game:GetService("RunService"):IsStudio() and lastReport ~= tostring(sid) then
+			lastReport = tostring(sid)
+			print(string.format("[PlayTableSet] %s front=%s", tostring(sid or "default"), setId and "painted" or "default"))
+		end
 	end
 	HudTheme.onSkin(tint)
 	tint(HudTheme.skin())
-	local function apply()
+	apply = function()
 		local size = root.AbsoluteSize
-		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE) or nil
+		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE, setKey) or nil
 		if p then
 			painted = true
 			vignette(true)

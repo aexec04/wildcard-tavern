@@ -21,6 +21,23 @@ M.FELT = { x = 30, y = 490, w = 1470, h = 290 }
 M.RAIL = { x = 340, y = 800, w = 850, h = 45 }
 M.DECK = { x = 1275, y = 700, w = 200, h = 95 }
 
+-- Painted fronts of Card Sets with their own table (the art already carries the colour, so no felt tint goes on top). Each picture is
+-- 1536x1024 like the default, but its felt, rail groove, deck recess and wooden front sit elsewhere; measured by eye from the PNGs with
+-- art-wip/play_scene/table_set_crop.py (grid every 50 px). `strip` is where the Sort / Play / Discard plates stand (picture y and height).
+M.SETS = {
+	festival_night = { art = "play_table_front_festival_a",
+		felt = { x = 30, y = 505, w = 1470, h = 250 }, rail = { x = 300, y = 790, w = 800, h = 50 }, deck = { x = 1295, y = 770, w = 185, h = 95 } },
+	winter_evening = { art = "play_table_front_frosted_a",
+		felt = { x = 30, y = 618, w = 1470, h = 205 }, rail = { x = 385, y = 858, w = 550, h = 38 }, deck = { x = 1280, y = 800, w = 175, h = 72 },
+		strip = { y = 915, h = 100 } },
+}
+
+-- the painted front's art key for a Card Set id, nil for a set without its own table (the default front plus tint)
+function M.artKeyOf(setId)
+	local s = setId and M.SETS[setId]
+	return s and s.art or nil
+end
+
 -- Measured on play_plates_b.png (alpha above 128; the bar above each face is inside the box).
 M.PLATE_BOXES = {
 	sort = { x = 28, y = 369, w = 356, h = 289 },
@@ -57,14 +74,17 @@ end
 -- Plates sit under the rail on the wooden front of the table (picture y 860 to 1010), scaled to fit the strip.
 local PLATE_STRIP = { y = 862, h = 150 }
 
-function M.map(areaW, areaH)
+-- setId (optional): a Card Set with its own painted front (M.SETS) uses that picture's measured rects; anything else the default's.
+function M.map(areaW, areaH, setId)
+	local set = setId and M.SETS[setId] or nil
 	local s = areaW / M.IMG_W
 	local imgH = math.floor(M.IMG_H * s + 0.5)
 	local oy = areaH - imgH
-	local out = { scale = s, image = { x = 0, y = oy, w = areaW, h = imgH } }
-	out.felt = scaleRect(M.FELT, s, 0, oy)
-	out.rail = scaleRect(M.RAIL, s, 0, oy)
-	out.deck = scaleRect(M.DECK, s, 0, oy)
+	local out = { scale = s, image = { x = 0, y = oy, w = areaW, h = imgH }, set = set and setId or nil }
+	out.felt = scaleRect(set and set.felt or M.FELT, s, 0, oy)
+	out.rail = scaleRect(set and set.rail or M.RAIL, s, 0, oy)
+	out.deck = scaleRect(set and set.deck or M.DECK, s, 0, oy)
+	local PLATE_STRIP = set and set.strip or PLATE_STRIP
 	-- plate rects: scale so the tallest plate fills the strip height, keep the three boxes' relative spacing centred under the rail.
 	local ps = (PLATE_STRIP.h * s) / M.PLATE_BOXES.play.h
 	local gap = 24 * s
@@ -88,9 +108,9 @@ end
 -- Returns nil when the painted layout cannot hold them (the old layout stays). left = sidebar edge, rightReserve = the draw pile.
 M.HAND_H, M.ACTION_H, M.CARD_PAD = 176, 54, 16
 
-function M.placement(areaW, areaH, left, rightReserve)
+function M.placement(areaW, areaH, left, rightReserve, setId)
 	if not M.usable(areaW) then return nil end
-	local m = M.map(areaW, areaH)
+	local m = M.map(areaW, areaH, setId)
 	local right = math.min(areaW - rightReserve, m.deck.x - 8)
 	local w = math.min(math.floor(m.rail.w * 1.3), right - left)
 	if w < 400 then return nil end
