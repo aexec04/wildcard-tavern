@@ -17244,7 +17244,8 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 		st.services.ReplicatedStorage = setmetatable({
 			WaitForChild = function()
 				return { WaitForChild = function()
-					return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ShopRefusal = require(Engine.ShopRefusal), GlowCurve = require(Engine.GlowCurve) })
+					return FakeGui.folder({ ShopSceneLayout = require(Engine.ShopSceneLayout), ShopRefusal = require(Engine.ShopRefusal), GlowCurve = require(Engine.GlowCurve),
+						ScrollOfferLayout = require(Engine.ScrollOfferLayout), ImageSpace = require(Engine.ImageSpace), ContentArt = require(Engine.ContentArt) })
 				end }
 			end,
 			FindFirstChild = function(_, name) return name == "Remotes" and Remotes or nil end,
@@ -17350,7 +17351,7 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 			local top = 0
 			for _, d in ipairs(shopFrame:GetDescendants()) do
 				local inside = d == chooser or d == dimmer or d:IsDescendantOf(chooser)
-				for _, own in ipairs({ "HaggleBar", "StrangerCard", "HaggleButton" }) do -- ShopHaggle's own pieces, never shown together with the chooser
+				for _, own in ipairs({ "HaggleBar", "StrangerCard", "StrangerScroll", "HaggleButton" }) do -- ShopHaggle's own pieces, never shown together with the chooser
 					local o = shopFrame:FindFirstChild(own)
 					if o and (d == o or d:IsDescendantOf(o)) then inside = true end
 				end
@@ -21739,6 +21740,115 @@ table.insert(tests, { name = "Per-set rooms: every Card Set kit piece on the pla
 			local pl = PTL.placement(size[1], size[2], 260, 150, PRA.PREFIX .. id)
 			expectTrue(pl ~= nil, id .. " places at " .. size[1])
 		end
+	end
+end })
+
+table.insert(tests, { name = "ScrollOfferLayout: the Stranger's scroll keeps text inside the measured paper, clear of the rods and the seal, at 1920x1080, 1280x720 and a phone", fn = function()
+	local L = require(script.Parent.Parent.Engine.ScrollOfferLayout)
+	local function overlap(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	local function inside(r, o) return r.x >= o.x and r.y >= o.y and r.x + r.w <= o.x + o.w and r.y + r.h <= o.y + o.h end
+	-- the measured boxes are consistent in the picture
+	for key, P in pairs(L.PICTURES) do
+		expectTrue(inside(P.safe, P.sheet), key .. ": the safe rect is inside the flat sheet")
+		expectFalse(overlap(P.safe, P.seal), key .. ": the safe rect is clear of the seal")
+		expectFalse(overlap(P.safe, P.topRoll) or overlap(P.safe, P.bottomRoll), key .. ": and of both rolls")
+		local art = L.ART[key]
+		expectTrue(inside(P.sheet, { x = art.x, y = art.y, w = art.w, h = art.h }), key .. ": the sheet is inside the opaque art")
+	end
+	local screens = { { 1920, 1080 }, { 1280, 720 }, { 390, 844 }, { 375, 667 } }
+	for _, sc in ipairs(screens) do
+		local maxH = math.min(0.8 * sc[2], 760)
+		local maxW = sc[1] - 32
+		for _, key in ipairs({ "a", "b" }) do
+			local r = L.layout(key, maxW, maxH)
+			local tag = key .. " at " .. sc[1] .. "x" .. sc[2]
+			expectTrue(r ~= nil, "the scroll fits " .. tag)
+			if r then
+				local card = { x = 0, y = 0, w = r.w, h = r.h }
+				expectTrue(r.w <= maxW + 1 and r.h <= maxH + 1, "the card fits the area at " .. tag)
+				for _, name in ipairs({ "safe", "medallion", "title", "blessing", "curse", "accept", "decline", "seal" }) do
+					expectTrue(inside(r[name], card), name .. " is inside the card at " .. tag)
+				end
+				for _, name in ipairs({ "medallion", "title", "blessing", "curse", "accept", "decline" }) do
+					expectTrue(inside(r[name], r.safe), name .. " is inside the text-safe rect at " .. tag)
+					expectFalse(overlap(r[name], r.seal), name .. " never touches the seal at " .. tag)
+				end
+				local names = { "medallion", "title", "blessing", "curse", "accept", "decline" }
+				for i = 1, #names do
+					for j = i + 1, #names do
+						expectFalse(overlap(r[names[i]], r[names[j]]), names[i] .. " and " .. names[j] .. " do not overlap at " .. tag)
+					end
+				end
+				expectTrue(r.title.h >= L.TEXT_TITLE and r.blessing.h >= L.TEXT_BODY * 2 and r.curse.h >= L.TEXT_BODY * 2, "the text has room for its lines at " .. tag)
+				expectTrue(r.accept.h >= 36 and r.accept.w >= 90 and r.decline.w >= 90, "the plates are at least 36 px tall and 90 wide at " .. tag)
+				expectTrue(r.accept.y + r.accept.h <= r.seal.y, "the plates sit above the seal at " .. tag)
+			end
+		end
+	end
+	expectEqual(L.layout("a", 160, 200), nil, "a tiny window falls back to the flat card")
+	expectEqual(L.TEXT_TITLE, 22, "title 22 px")
+	expectTrue(L.TEXT_BODY >= 16 and L.TEXT_BUTTON >= 15, "body 16 px, buttons 15 px")
+	expectEqual(L.pick({ blessing = "Sharper hands", curse = "Lose all your Tips at the start of every single round" }), "b", "a harsh offer uses the second scroll")
+	expectEqual(L.pick({ blessing = "A big bonus this round", curse = "-1 hand" }), "a", "a fair offer uses the first")
+	expectEqual(L.pick(nil), "a", "no offer, the first")
+end })
+
+table.insert(tests, { name = "Haggle Stranger scroll: the offer is the painted scroll with ink text, a brass medallion and two wooden plates; the flat card is the fallback", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local SL = require(E.ScrollOfferLayout)
+	local stubs = {}
+	local env, st = FakeGui.env({ stubs = stubs })
+	local Remotes = FakeGui.new("Folder")
+	local fired = {}
+	for _, n in ipairs({ "Haggle", "Stranger" }) do
+		local r = FakeGui.new("Folder")
+		r.Name, r.Parent = n, Remotes
+		r.FireServer = function(_, ...) fired[#fired + 1] = { n, ... } end
+	end
+	Remotes.Name = "Remotes"
+	st.services.ReplicatedStorage = setmetatable({
+		WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ ShopRefusal = require(E.ShopRefusal), ScrollOfferLayout = SL, ImageSpace = require(E.ImageSpace),
+			ContentArt = require(E.ContentArt) }) end } end,
+		FindFirstChild = function(_, name) return name == "Remotes" and Remotes or nil end,
+	}, {})
+	stubs.ClientSettings = { get = function() return false end }
+	stubs.ShopTrace = FakeGui.load("src/Client/ShopTrace.lua", env)
+	local ShopHaggle = FakeGui.load("src/Client/ShopHaggle.lua", env)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 390, 844 } }) do
+		local shop = FakeGui.new("Frame")
+		shop.AbsoluteSize = { X = size[1], Y = size[2] }
+		local haggle = ShopHaggle.new({ shopFrame = shop, playClickSfx = function() end, say = function() end })
+		haggle.update({ tips = 10, stranger = { id = "purse", name = "The Fat Purse", icon = "P", price = 4, blessing = "A big bonus", curse = "-1 hand" } })
+		local scroll = shop:FindFirstChild("StrangerScroll")
+		local card = shop:FindFirstChild("StrangerCard")
+		local tag = size[1] .. "x" .. size[2]
+		expectTrue(scroll ~= nil and scroll.Visible and card ~= nil and not card.Visible, "the scroll shows and the flat card is hidden at " .. tag)
+		if scroll and scroll.Visible then
+			local pic = scroll:FindFirstChild("ScrollPicture")
+			expectTrue(pic ~= nil and pic.Image:find("rbxassetid://", 1, true) ~= nil, "the picture is the scroll art at " .. tag)
+			local title, bless, curse = scroll:FindFirstChild("OfferTitle"), scroll:FindFirstChild("OfferBlessing"), scroll:FindFirstChild("OfferCurse")
+			expectTrue(title.Text == "The Fat Purse (4 Tips)" and title.TextSize == 22, "the title is 22 px: " .. title.Text)
+			expectTrue(bless.TextSize >= 16 and curse.TextSize >= 16 and bless.Text == "Blessing: A big bonus" and curse.Text == "Curse: -1 hand", "the body is 16 px or more")
+			expectTrue(scroll:FindFirstChild("StrangerMedallion") ~= nil, "the Stranger sits in a medallion")
+			local accept, no = scroll:FindFirstChild("Accept"), scroll:FindFirstChild("NoThanks")
+			expectTrue(accept.TextSize >= 15 and no.TextSize >= 15 and accept.Size.Y.Offset >= 36, "the plates are real buttons, 15 px text")
+			accept.MouseButton1Click:Fire()
+			no.MouseButton1Click:Fire()
+			expectTrue(#fired >= 2 and fired[#fired - 1][2] == "accept" and fired[#fired][2] == "decline", "Accept and No thanks still fire the same remote")
+			expectTrue(scroll.Size.X.Offset <= size[1] - 16 and scroll.Size.Y.Offset <= size[2], "the scroll fits the window at " .. tag)
+		end
+		haggle.update({ tips = 1, stranger = { id = "purse", name = "The Fat Purse", icon = "P", price = 4, blessing = "A big bonus", curse = "-1 hand" } })
+		expectFalse(scroll:FindFirstChild("Accept").Active, "too few Tips greys Accept at " .. tag)
+		haggle.update({ tips = 10 })
+		expectFalse(scroll.Visible or card.Visible, "no Stranger, nothing shows at " .. tag)
+	end
+	local f = io.open("src/Client/ShopHaggle.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("ScrollLayout.layout", 1, true) ~= nil and text:find('ClientSettings.get("reduceShake")', 1, true) ~= nil, "the layout comes from the Engine module and calm mode skips the unroll")
 	end
 end })
 
