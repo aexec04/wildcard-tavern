@@ -15952,7 +15952,7 @@ table.insert(tests, { name = "Painted play screen: plates and board HUD switch l
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
 	local stubs = {}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
@@ -19874,7 +19874,7 @@ table.insert(tests, { name = "Painted play screen polish 2: title fits and plate
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
 	for _, size in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 } }) do
 		local stubs = {}
 		local env, state = FakeGui.env({ stubs = stubs })
@@ -19924,7 +19924,7 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
 	local stubs = {}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
@@ -20013,14 +20013,14 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	-- (2) the hint is clamped to the board width and sits under the board
 	expectTrue(hint.Size.X.Offset <= 230 and hint.Position.X.Offset + hint.Size.X.Offset <= rect.w, "the hint is clamped to the board width")
 	expectTrue(hint.Position.Y.Offset >= rect.h, "the hint sits under the board")
-	local tb, hb = tips:FindFirstChild("BoardPlateBack"), hint:FindFirstChild("BoardPlateBack")
-	expectTrue(tb ~= nil and hb ~= nil and tb.BackgroundTransparency == 0 and hb.BackgroundTransparency == 0 and tips.Size.X.Offset == hint.Size.X.Offset, "Tips and the hint are two matching solid plates (own opaque backing frame)")
-	local tstroke = tb and tb:FindFirstChildOfClass("UIStroke")
-	expectTrue(tstroke ~= nil and tstroke.Thickness == 4 and tb.ZIndex < tips.ZIndex + 1, "the plate backing has the 4 px wood frame and sits behind the text")
-	local studs = 0
-	if tb then for _, d in ipairs(tb:GetDescendants()) do if string.sub(d.Name, 1, 14) == "BoardPlateStud" then studs = studs + 1 end end end
-	expectTrue(studs == 4, "the plate backing has four brass studs")
-	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the plates share a left edge, the hint under Tips")
+	local panel = sidebar and sidebar:FindFirstChild("BoardPanelBack")
+	expectTrue(panel ~= nil and panel.Visible and panel.BackgroundTransparency == 0, "Tips and the hint share ONE solid panel under the board")
+	local pstroke = panel and panel:FindFirstChildOfClass("UIStroke")
+	expectTrue(pstroke ~= nil and pstroke.Thickness == 4, "the panel has the 4 px wood frame")
+	expectTrue(tips:FindFirstChild("BoardPlateBack") == nil and hint:FindFirstChild("BoardPlateBack") == nil, "no separate plate per row")
+	expectTrue(tips.BackgroundTransparency == 1 and hint.BackgroundTransparency == 1, "the rows are see-through on the panel")
+	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the rows share a left edge, the hint under Tips")
+	expectTrue(panel ~= nil and tips.Position.X.Offset >= panel.Position.X.Offset and hint.Position.Y.Offset + hint.Size.Y.Offset <= panel.Position.Y.Offset + panel.Size.Y.Offset, "both rows sit inside the panel")
 	for n, f in pairs(band) do expectTrue(f.Visible == false, n .. " is hidden while painted (no dark band over the table)") end
 	expectTrue(board:GetAttribute("PlayBoardPainted") == true, "the board is marked painted so the theme draws nothing over the table")
 	expectTrue(badge.Visible == false, "the Seed / Daily bar is hidden on the painted board (no bar at the top left)")
@@ -21590,7 +21590,7 @@ table.insert(tests, { name = "Painted board: six Patron seats sit in the five ri
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
 	local stubs = {}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
@@ -22093,7 +22093,7 @@ table.insert(tests, { name = "Per-set rooms: every Card Set kit piece on the pla
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local map = {}
-	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout", "BoardPanelRows" }) do map[n] = require(E[n]) end
 	local stubs = {}
 	local env, state = FakeGui.env({ stubs = stubs })
 	local folder = FakeGui.folder(map)
@@ -22783,6 +22783,51 @@ table.insert(tests, { name = "ScrimGradient: a fade is 16+ smooth keypoints, cle
 		assert(k[n][1] > k[n - 1][1], "times strictly increase")
 		assert(k[n][2] <= k[n - 1][2], "transparency never rises")
 	end
+end })
+
+
+table.insert(tests, { name = "BoardPanelRows: one panel under the board holds Tips, hint, Blessing and Run in order, inside the screen, rows never overlap", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	local BP = require(script.Parent.Parent.Engine.BoardPanelRows)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1000, 600 }, { 900, 500 } }) do
+		local bw, bh = PB.size(sz[1], sz[2])
+		local H = PB.hud(bw, bh)
+		local plan = BP.plan({ x = H.target.x - 6, w = H.target.w + 12, top = bh + 2, avail = sz[2] - (bh + 2) - 8,
+			want = { tips = true, hint = true, blessing = true, run = true } })
+		local tag = sz[1] .. "x" .. sz[2]
+		expectTrue(plan.panel.y == bh + 2, "panel hangs right under the board at " .. tag)
+		expectTrue(plan.panel.y + plan.panel.h <= sz[2], "panel inside the screen at " .. tag)
+		expectTrue(plan.panel.x + plan.panel.w <= bw, "panel no wider than the board at " .. tag)
+		local last = plan.panel.y
+		for _, k in ipairs(plan.order) do
+			local r = plan.rows[k]
+			expectTrue(r.y >= last and r.h >= 26, k .. " row below the previous one and tall enough for 15 px text at " .. tag)
+			expectTrue(r.x >= plan.panel.x and r.x + r.w <= plan.panel.x + plan.panel.w, k .. " row inside the panel at " .. tag)
+			last = r.y + r.h
+		end
+		expectTrue(last <= plan.panel.y + plan.panel.h, "rows end inside the panel at " .. tag)
+		expectTrue(plan.order[1] == "tips" and plan.order[2] == "hint", "Tips then the hint at " .. tag)
+		expectTrue(#plan.seps == #plan.order - 1, "one brass line between neighbours at " .. tag)
+		expectTrue(plan.fits, "everything fits at " .. tag)
+	end
+end })
+
+table.insert(tests, { name = "BoardPanelRows: a missing row collapses, short screens shrink then drop Run and Blessing, an empty plan has no panel", fn = function()
+	local BP = require(script.Parent.Parent.Engine.BoardPanelRows)
+	local base = { x = 10, w = 240, top = 400 }
+	local function plan(avail, want) return BP.plan({ x = base.x, w = base.w, top = base.top, avail = avail, want = want }) end
+	local all = { tips = true, hint = true, blessing = true, run = true }
+	local roomy = plan(500, all)
+	expectTrue(roomy.blessing == "full" and roomy.level == 0, "roomy: full Blessing row")
+	local noRun = plan(500, { tips = true, hint = true, blessing = true })
+	expectTrue(noRun.rows.run == nil and noRun.panel.h < roomy.panel.h, "no seeded run: the Run row collapses")
+	local tight = plan(roomy.panel.h - 10, all)
+	expectTrue(tight.blessing == "compact" and tight.fits and tight.rows.run ~= nil, "tight: Blessing goes compact first")
+	local tiny = plan(150, all)
+	expectTrue(tiny.fits and tiny.panel.h <= 150, "tiny: still fits")
+	expectTrue(tiny.rows.run == nil, "tiny: the Run row is dropped before anything else")
+	local empty = plan(300, {})
+	expectTrue(empty.panel.h == 0 and #empty.order == 0, "no rows, no panel")
 end })
 
 return tests

@@ -4,8 +4,9 @@
 	The Sidebar and BoardContent lists (and the sidebar padding) are switched off and every row is placed by hand from the tested
 	Engine/PlayBoardLayout.hud / seats: the Night/Round ribbon in the title band, the score, bar and Reward in the big slot, Tips and
 	the round rule in the wide slot, Hands and Discards in their two slots, the Patron seats on the five rings (portraits inset 8 percent).
-	Old row fills, strokes, kit plates and pads are hidden so only dark brown ink shows on the painted slots. The Select cards hint,
-	the run badge, the blessing chip and anything else the list used to stack go in a column on a small plate under the board.
+	Old row fills, strokes, kit plates and pads are hidden so only dark brown ink shows on the painted slots. The Tips row, the Select cards hint, the
+	Blessing chip and the Run line (Daily / Weekly / Seed) sit in ONE panel hung under the board (Engine/BoardPanelRows); anything else
+	the list used to stack goes in a column below it.
 
 	PlayBoardHud.apply(root, rect)   rect = { x, y, w, h } of the painted board; nil restores every touched property and the lists.
 	Everything touched is remembered the first time and put back on nil, so a failed load or a narrow window keeps the old column.
@@ -15,6 +16,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
+local BoardPanelRows = require(Engine:WaitForChild("BoardPanelRows"))
 local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local PlayBoardHud = {}
@@ -120,74 +122,14 @@ end
 
 local function stripTags(str) return (str:gsub("<[^>]+>", "")) end
 
--- a solid parchment plate with a dark wood edge, for the rows that sit under the board. The Sidebar and the Card Set theme recolour a
--- row's own fill, strokes and gradients on every update (that is what left these flat cream), so the whole plate is drawn on its own
--- child frame behind the row's text and the row itself is see-through.
-local function plateStyle(st, row)
+-- a row that sits on the board panel: see-through, no strokes or gradients of its own, text at 15 px or more
+local function flatRow(st, row)
 	put(st, row, { BackgroundTransparency = 1 })
 	for _, c in ipairs(row:GetDescendants()) do
 		if c:IsA("TextLabel") and (c.TextSize or 15) < 15 and not c.TextScaled then put(st, c, { TextSize = 15 }) end
 	end
 	for _, c in ipairs(row:GetChildren()) do
-		if (c:IsA("UIStroke") or c:IsA("UIGradient")) then put(st, c, { Enabled = false }) end
-	end
-	local back = row:FindFirstChild("BoardPlateBack")
-	if back then back.ZIndex = math.max(1, row.ZIndex - 1) return end
-	local z = math.max(1, row.ZIndex - 1)
-	back = Instance.new("Frame")
-	back.Name = "BoardPlateBack"
-	back.BackgroundTransparency = 0
-	back.BackgroundColor3 = Color3.new(1, 1, 1) -- the shade below supplies the colour stops
-	back.BorderSizePixel = 0
-	back.Active = false
-	back.Size = UDim2.fromScale(1, 1)
-	back.ZIndex = z
-	back.Parent = row
-	table.insert(st.made, back)
-	local k = Instance.new("UICorner")
-	k.CornerRadius = UDim.new(0, 10)
-	k.Parent = back
-	local e = Instance.new("UIStroke")
-	e.Color = EDGE
-	e.Thickness = 4 -- dark wood frame
-	e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	e.Parent = back
-	-- warm parchment: light top to darker foot (Color stops only)
-	local g = Instance.new("UIGradient")
-	g.Rotation = 90
-	g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
-	g.Parent = back
-	local inner = Instance.new("Frame")
-	inner.Name = "BoardPlateInner"
-	inner.BackgroundTransparency = 1
-	inner.BorderSizePixel = 0
-	inner.Active = false
-	inner.Position = UDim2.fromOffset(3, 3)
-	inner.Size = UDim2.new(1, -6, 1, -6)
-	inner.ZIndex = z
-	inner.Parent = back
-	local ik = Instance.new("UICorner")
-	ik.CornerRadius = UDim.new(0, 8)
-	ik.Parent = inner
-	local is = Instance.new("UIStroke")
-	is.Color = Color3.fromRGB(176, 138, 70)
-	is.Thickness = 1
-	is.Parent = inner
-	-- four brass corner studs, like the left sign's plates
-	for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
-		local stud = Instance.new("Frame")
-		stud.Name = "BoardPlateStud" .. i
-		stud.AnchorPoint = Vector2.new(at[1], at[2])
-		stud.Position = UDim2.new(at[1], at[1] == 0 and 5 or -5, at[2], at[2] == 0 and 5 or -5)
-		stud.Size = UDim2.fromOffset(6, 6)
-		stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
-		stud.BorderSizePixel = 0
-		stud.Active = false
-		stud.ZIndex = z
-		stud.Parent = inner
-		local sk = Instance.new("UICorner")
-		sk.CornerRadius = UDim.new(0.5, 0)
-		sk.Parent = stud
+		if c:IsA("UIStroke") or c:IsA("UIGradient") then put(st, c, { Enabled = false }) end
 	end
 end
 
@@ -288,7 +230,7 @@ local function run(root, st)
 	end
 
 	local stack = {} -- rows the list used to stack that have no slot: they go under the board
-	local patrons, hd, score, rule
+	local patrons, hd, score, rule, runRow
 	for _, c in ipairs(content:GetChildren()) do
 		if c:IsA("GuiObject") then
 			if c.Name == "Divider" then
@@ -310,8 +252,8 @@ local function run(root, st)
 	end
 	for _, c in ipairs(sidebar:GetChildren()) do
 		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not isThemePiece(c.Name) then
-			if c.LayoutOrder == -1 and root:GetAttribute("DebugSeedBar") ~= true then
-				put(st, c, { Visible = false }) -- the Daily / Weekly / Seed bar is a debug aid on the painted board (Settings shows the run line)
+			if c.LayoutOrder == -1 then
+				runRow = c -- the Daily / Weekly / Seed line: the Run row of the board panel (collapses when the Sidebar hides it)
 			else
 				table.insert(stack, c)
 			end
@@ -558,18 +500,104 @@ local function run(root, st)
 		end
 	end
 
-	-- rows with no slot: a column of plates under the board, aligned with its left edge
+	-- ONE panel under the board holds Tips, the Select cards hint, the Blessing and the Run line (Engine/BoardPanelRows); rows with no
+	-- place there (anything else the list used to stack) keep a plain plate below the panel
+	local tipsRow, hintRow, others = nil, nil, {}
 	table.sort(stack, function(a, b) return (a.LayoutOrder or 0) < (b.LayoutOrder or 0) end)
-	local y = rect.h + 6
-	local stackW = math.min(230, rect.w - 2 * H.target.x)
-	local stackX = H.target.x
 	for _, c in ipairs(stack) do
-		if c.Visible then
+		if c:IsA("Frame") and c.Name == "TipsRow" then tipsRow = c
+		elseif c:IsA("Frame") and c.LayoutOrder == 10 then hintRow = c
+		else others[#others + 1] = c end
+	end
+	local chip = boardTop and boardTop:FindFirstChild("BlessingChip")
+	local function shown(r) return r ~= nil and r.Visible and (r.Size.Y.Scale == 0 and r.Size.Y.Offset or r.AbsoluteSize.Y) > 0 end
+	local chipShown = chip ~= nil and chip:GetAttribute("Shown") == true
+	local plan = BoardPanelRows.plan({
+		x = H.target.x - 6, w = H.target.w + 12, top = rect.h + 2, avail = root.AbsoluteSize.Y - (rect.h + 2) - 8,
+		want = { tips = shown(tipsRow), hint = shown(hintRow), blessing = chipShown, run = shown(runRow) },
+	})
+	local back = sidebar:FindFirstChild("BoardPanelBack")
+	if plan.panel.h > 0 then
+		if not back then
+			back = Instance.new("Frame")
+			back.Name = "BoardPanelBack"
+			back.BorderSizePixel = 0
+			back.BackgroundTransparency = 0
+			back.Active = false
+			back.ZIndex = 2 -- below every row (Sidebar rows draw at 3), above the painted board
+			back.BackgroundColor3 = Color3.new(1, 1, 1)
+			back.Parent = sidebar
+			table.insert(st.made, back)
+			local k = Instance.new("UICorner") k.CornerRadius = UDim.new(0, 10) k.Parent = back
+			local e = Instance.new("UIStroke") e.Color = EDGE e.Thickness = 4 e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border e.Parent = back
+			local g = Instance.new("UIGradient") -- Color stops only, never Transparency
+			g.Rotation = 90
+			g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
+			g.Parent = back
+		end
+		back.Position, back.Size, back.Visible = UDim2.fromOffset(plan.panel.x, plan.panel.y), UDim2.fromOffset(plan.panel.w, plan.panel.h), true
+		local lines = {}
+		for _, c in ipairs(back:GetChildren()) do if c.Name == "BoardPanelLine" then lines[#lines + 1] = c end end
+		for i = #plan.seps + 1, #lines do lines[i]:Destroy() end
+		for i, ly in ipairs(plan.seps) do
+			local ln = lines[i]
+			if not ln then
+				ln = Instance.new("Frame")
+				ln.Name = "BoardPanelLine"
+				ln.BorderSizePixel = 0
+				ln.Active = false
+				ln.BackgroundColor3 = Color3.fromRGB(176, 138, 70) -- the thin brass line used between Hands and the rings
+				ln.ZIndex = 2
+				ln.Parent = back
+			end
+			ln.Position, ln.Size = UDim2.fromOffset(12, ly - plan.panel.y), UDim2.new(1, -24, 0, 1)
+		end
+	elseif back then
+		back.Visible = false
+	end
+	local function seat(c, key)
+		local r = plan.rows[key]
+		if not (c and r) then return end
+		flatRow(st, c)
+		put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(r.x, r.y), Size = UDim2.fromOffset(r.w, r.h) })
+	end
+	seat(tipsRow, "tips")
+	seat(hintRow, "hint")
+	if runRow then
+		if plan.rows.run then
+			woodPlateStyle(st, runRow)
+			put(st, runRow, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(plan.rows.run.x, plan.rows.run.y), Size = UDim2.fromOffset(plan.rows.run.w, plan.rows.run.h) })
+		elseif shown(runRow) then
+			put(st, runRow, { Visible = false }) -- no room left on a short screen: the run line is in Settings
+		end
+	end
+	if chip then
+		chip:SetAttribute("BoardPanel", true)
+		chip:SetAttribute("PanelMode", plan.blessing)
+		local r = plan.rows.blessing
+		if r then
+			put(st, chip, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(r.x, r.y), Size = UDim2.fromOffset(r.w, r.h), BackgroundTransparency = 1 })
+			local stroke = chip:FindFirstChildOfClass("UIStroke")
+			if stroke then put(st, stroke, { Enabled = false }) end
+			chip.Visible = true
+		else
+			chip.Visible = false
+		end
+		if not st.watched[chip] then
+			st.watched[chip] = true
+			for _, prop in ipairs({ "BackgroundTransparency", "Visible" }) do
+				table.insert(st.conns, chip:GetPropertyChangedSignal(prop):Connect(function() schedule(root, st) end))
+			end
+			table.insert(st.conns, chip:GetAttributeChangedSignal("Shown"):Connect(function() schedule(root, st) end))
+		end
+	end
+	local y = rect.h + 6 + (plan.panel.h > 0 and plan.panel.h or 0)
+	local stackW = math.min(230, rect.w - 2 * H.target.x)
+	for _, c in ipairs(others) do
+		if c.Visible and c ~= runRow then
 			local h = c.Size.Y.Scale == 0 and c.Size.Y.Offset or c.AbsoluteSize.Y
 			if h > 0 then
-				if c:IsA("Frame") and (c.Name == "TipsRow" or c.LayoutOrder == 10) then plateStyle(st, c); h = math.min(h, 38) end -- Tips and the hint: two matching, tighter plates
-				if c:IsA("Frame") and c.LayoutOrder == -1 then woodPlateStyle(st, c) end -- the Daily / Weekly / Seed badge: dark wood, never flat green
-				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(stackX, y), Size = UDim2.fromOffset(stackW, h) })
+				put(st, c, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(H.target.x, y), Size = UDim2.fromOffset(stackW, h) })
 				y = y + h + 4
 			end
 		end
@@ -672,6 +700,12 @@ local function restore(st, root)
 	st.hosts = {}
 	for _, c in ipairs(st.made) do pcall(function() c:Destroy() end) end
 	st.made = {}
+	local chip = b and b:FindFirstChild("BlessingChip")
+	if chip then
+		chip:SetAttribute("BoardPanel", nil)
+		chip:SetAttribute("PanelMode", nil)
+		pcall(function() require(script.Parent.BlessingChip).relayout() end)
+	end
 end
 
 function PlayBoardHud.apply(root, rect)

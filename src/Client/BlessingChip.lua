@@ -102,6 +102,15 @@ function BlessingChip.relayout()
 	if not ui or not ui.board or not ui.shown then
 		return
 	end
+	if ui.chip:GetAttribute("BoardPanel") then
+		-- the tall left board owns the row (Client/PlayBoardHud places it, Engine/BoardPanelRows picks full or compact)
+		local full = ui.chip:GetAttribute("PanelMode") == "full"
+		ui.blessing.Visible = full
+		ui.curse.Visible = full
+		ui.name.Position = UDim2.fromOffset(46, full and 3 or 12)
+		ui.blessing.TextSize, ui.curse.TextSize = 15, 15
+		return
+	end
 	local height = ui.board.AbsoluteSize.Y
 	local reserve = ui.crowd and CROWD_RESERVE or 0
 	local plan = Layout.plan(height, reserve)
@@ -126,9 +135,11 @@ function BlessingChip.update(state)
 	if type(view) ~= "table" or not parentChip() then
 		ui.shown = false
 		ui.chip.Visible = false
+		ui.chip:SetAttribute("Shown", false)
 		return
 	end
 	ui.shown = true
+	ui.chip:SetAttribute("Shown", true)
 	ui.crowd = type(state.crowdRules) == "table" and #state.crowdRules > 0
 	if shownId ~= view.id then
 		shownId = view.id
