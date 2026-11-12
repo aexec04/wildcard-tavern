@@ -905,17 +905,40 @@ return function(deps)
 
 	-- ===== META LAYER: "Tavern Map" tab (8 named Nights + Endless) =====
 	-- The original round-by-round road is kept as the "This Night" tab.
-	local mapView = require(script.Parent.JourneyMapView)({
-		parent = journeyPanel,
-		polishPanel = polishPanel,
-		roundCorner = roundCorner,
-		getLatestState = getLatestState,
-		titleLabel = journeyTitle,
-		subtitleLabel = journeySubtitle,
-		StateUpdatedRemote = deps.StateUpdatedRemote,
-		playClickSfx = playClickSfx,
-		polishButton = polishButton,
+	local function buildMapView()
+		return require(script.Parent.JourneyMapView)({
+			parent = journeyPanel,
+			polishPanel = polishPanel,
+			roundCorner = roundCorner,
+			getLatestState = getLatestState,
+			titleLabel = journeyTitle,
+			subtitleLabel = journeySubtitle,
+			StateUpdatedRemote = deps.StateUpdatedRemote,
+			playClickSfx = playClickSfx,
+			polishButton = polishButton,
+		})
+	end
+	-- The Tavern Map holds thousands of instances, so it is built on first open (a stub until then;
+	-- the backdrop and panel stay so PopupDismiss still lists them).
+	local realMapView = nil
+	local mapView = setmetatable({}, {
+		__index = function(_, key)
+			if key == "frame" then
+				return realMapView and realMapView.frame
+			end
+			return function(...)
+				local fn = realMapView and realMapView[key]
+				if type(fn) == "function" then
+					return fn(...)
+				end
+			end
+		end,
 	})
+	local function ensureMapView()
+		if not realMapView then
+			realMapView = buildMapView()
+		end
+	end
 	-- No tab row: the overlay always shows the Tavern Map at the large size. The old
 	-- "This Night" road (journeyMapScroll, journeyInfoBar, stage nodes) is entangled with
 	-- refreshJourneyImpl, so it stays built but is permanently hidden.
@@ -930,6 +953,7 @@ return function(deps)
 		end)
 	end
 	local function showMap()
+		ensureMapView()
 		journeyPanel.Size = UDim2.fromScale(0.92, 0.92)
 		mapView.setShown(true)
 		journeyMapScroll.Visible = false
@@ -1146,6 +1170,7 @@ return function(deps)
 		-- Map art loads on demand (it is not in the background plan).
 		task.spawn(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ContentArt")).preload,
 			{ { "map_regions" }, { "map_nodes" }, { "map_decor" }, { "fx" } }, "journey map")
+		ensureMapView()
 		refreshJourneyImpl(false) -- snap to the right stage on open, no walk animation
 		journeyBackdrop.Visible = true
 		require(script.Parent.Cue).play("map_open")

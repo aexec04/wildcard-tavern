@@ -23123,4 +23123,22 @@ table.insert(tests, { name = "Full screen Collection: the layout never writes th
 	end
 end })
 
+table.insert(tests, { name = "Journey.lua: the Tavern Map (thousands of instances) is built on first open, not at startup", fn = function()
+	local f = io and io.open and io.open("src/Client/Journey.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local calls, pos = 0, 1
+	while true do
+		local a, b = src:find("require(script.Parent.JourneyMapView)", pos, true)
+		if not a then break end
+		calls = calls + 1
+		pos = b + 1
+	end
+	expectEqual(calls, 1, "JourneyMapView is required once")
+	expectTrue(src:find("local function buildMapView%(%)") ~= nil, "the build sits inside buildMapView")
+	local open = src:match("local function openJourney%(%).-\n\tend\n")
+	expectTrue(open ~= nil and open:find("ensureMapView()", 1, true) ~= nil, "openJourney builds the map before showing it")
+	expectTrue(src:find("local mapView = require", 1, true) == nil, "no eager mapView build at startup")
+end })
+
 return tests
