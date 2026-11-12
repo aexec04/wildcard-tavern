@@ -243,6 +243,24 @@ function MenuBoard.build(parent)
 					end
 				end
 			end
+			local tx, tm = note:FindFirstChild("Text"), note:FindFirstChild("Time")
+			if tx and tm and tx:IsA("TextLabel") and tm:IsA("TextLabel") and tm.Text ~= "" then
+				-- a left label and a right label never share a line: stack them, both left aligned, each wrapped to the full width
+				local x0 = tx.Position.X.Offset
+				local w = NOTE_W - x0 - 10
+				local function lines(l)
+					local ok, b = pcall(function() return TextService:GetTextSize(l.Text, l.TextSize, l.Font, Vector2.new(w, 1000)) end)
+					return (ok and b) and math.max(1, math.min(3, math.round(b.Y / (l.TextSize + 2)))) or 1
+				end
+				local h1, h2 = lines(tx) * (tx.TextSize + 2), lines(tm) * (tm.TextSize + 2)
+				tx.Position = UDim2.fromOffset(x0, 4)
+				tx.Size = UDim2.fromOffset(w, h1)
+				tx.TextWrapped, tx.TextYAlignment = true, Enum.TextYAlignment.Top
+				tm.Position = UDim2.fromOffset(x0, 4 + h1)
+				tm.Size = UDim2.fromOffset(w, h2)
+				tm.TextWrapped, tm.TextXAlignment, tm.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
+				extra = math.max(extra, 4 + h1 + h2 + 6 - baseH)
+			end
 			extra = math.max(0, extra)
 			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines
 				if c.Name == "Track" and c:IsA("GuiObject") then
