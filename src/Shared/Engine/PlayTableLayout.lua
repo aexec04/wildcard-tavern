@@ -112,7 +112,8 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	if not M.usable(areaW) then return nil end
 	local m = M.map(areaW, areaH, setId)
 	local right = math.min(areaW - rightReserve, m.deck.x - 8)
-	local w = math.min(math.floor(m.rail.w * 1.3), right - left)
+	-- hand width follows the default groove for every set, so card size (CardFace fits cards to the row) is the same in all sets
+	local w = math.min(math.floor(M.RAIL.w * m.scale * 1.3), right - left)
 	if w < 400 then return nil end
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)

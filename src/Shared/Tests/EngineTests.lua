@@ -7857,6 +7857,22 @@ table.insert(tests, { name = "MapPan: the camera clamps at every edge, centres i
 	expectEqual(MapPan.compassTarget(hero, 45, {}), nil, "no candidates, no target")
 end })
 
+table.insert(tests, { name = "PlayTableLayout: hand row is as wide in every Card Set (same card size), centred on the set's groove", fn = function()
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, size in ipairs({ { 1920, 957 }, { 1506, 751 } }) do
+		local base = PTL.placement(size[1], size[2], 260, 150)
+		for setId in pairs(PTL.SETS) do
+			local p = PTL.placement(size[1], size[2], 260, 150, setId)
+			expectTrue(p ~= nil and base ~= nil, "placement for " .. setId)
+			expectTrue(p.hand.w == base.hand.w or p.hand.w == p.map.deck.x - 8 - 260 or p.hand.w < base.hand.w, setId .. " hand not wider than default")
+			if p.hand.w == base.hand.w then
+				local cx = p.hand.x + p.hand.w / 2
+				expectTrue(math.abs(cx - (p.map.rail.x + p.map.rail.w / 2)) <= 1 or p.hand.x == 260, setId .. " hand centred on its groove")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "TooltipSpec: one border, padding clears the text, placement stays on screen", fn = function()
 	local TooltipSpec = require(script.Parent.Parent.Engine.TooltipSpec)
 	local spec = TooltipSpec.Spec

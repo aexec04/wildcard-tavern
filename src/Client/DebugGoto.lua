@@ -69,6 +69,8 @@ function DebugGoto.init(deps)
 				hideTutorialOverlay()
 				local CosmeticSets = require(ReplicatedStorage.Shared.Engine.CosmeticSets)
 				previewSet = nil
+				-- a preview left over from an earlier jump or the Card Sets panel would win over this jump's set: clear it first
+				pcall(function() require(script.Parent.CosmeticSetsView).stopPreview() end)
 				if target.setId then
 					previewSet = CosmeticSets.getById(target.setId)
 					if not previewSet then error("unknown card set " .. target.setId) end
