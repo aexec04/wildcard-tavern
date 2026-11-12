@@ -30,7 +30,6 @@ return function(deps)
 
 	local CREAM = Color3.fromRGB(250, 240, 220)
 	local GOLD = Color3.fromRGB(255, 214, 130)
-	local PURPLE = Color3.fromRGB(JourneyMap.EndlessTheme.accent[1], JourneyMap.EndlessTheme.accent[2], JourneyMap.EndlessTheme.accent[3])
 	local ClientSettings = require(script.Parent.ClientSettings)
 	local TweenService = game:GetService("TweenService")
 
@@ -40,6 +39,11 @@ return function(deps)
 	local INK = Color3.fromRGB(52, 34, 18)
 	local INK_TITLE = Color3.fromRGB(104, 54, 12)
 	local TILE = Color3.fromRGB(236, 220, 184) -- parchment stat tiles
+
+	-- The plate art is a wide wooden frame stretched to this box; its parchment is the middle 72 x 54 percent
+	-- (measured from the art: x 0.139 to 0.863, y 0.242 to 0.780). Everything must sit inside it.
+	local PLATE_W, PLATE_H = 560, 520
+	local PARCH = { x = 0.139, w = 0.724, y = 0.242, h = 0.538, inset = 12 }
 
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NightVictoryBackdrop"
@@ -55,13 +59,13 @@ return function(deps)
 	panel.Name = "Plate"
 	panel.ScaleType = Enum.ScaleType.Stretch
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(Rules.MAX_WIDTH, 440)
+	panel.Size = UDim2.fromOffset(PLATE_W, PLATE_H)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.BackgroundColor3 = Color3.fromRGB(46, 34, 24)
 	panel.ZIndex = 61
 	panel.Parent = backdrop
 	local panelLimit = Instance.new("UISizeConstraint")
-	panelLimit.MaxSize = Vector2.new(Rules.MAX_WIDTH, 440)
+	panelLimit.MaxSize = Vector2.new(PLATE_W, PLATE_H)
 	panelLimit.Parent = panel
 	local panelCorner = Instance.new("UICorner")
 	panelCorner.CornerRadius = UDim.new(0, 14)
@@ -72,12 +76,11 @@ return function(deps)
 	panelStroke.Parent = panel
 	deps.addSoftShadow(panel, 18)
 
-	local pad = Rules.KIT_PAD
-	local content = Instance.new("Frame") -- text area inside the plate's painted border
+		local content = Instance.new("Frame") -- text area inside the plate's painted border
 	content.Name = "Content"
 	content.BackgroundTransparency = 1
-	content.Size = UDim2.new(1, -2 * pad.x, 1, -(pad.top + pad.bottom))
-	content.Position = UDim2.fromOffset(pad.x, pad.top)
+	content.Size = UDim2.new(PARCH.w, -2 * PARCH.inset, PARCH.h, -2 * PARCH.inset)
+	content.Position = UDim2.new(PARCH.x, PARCH.inset, PARCH.y, PARCH.inset)
 	content.ZIndex = 62
 	content.Parent = panel
 
@@ -87,7 +90,7 @@ return function(deps)
 	flow.FillDirection = Enum.FillDirection.Vertical
 	flow.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	flow.VerticalAlignment = Enum.VerticalAlignment.Center
-	flow.Padding = UDim.new(0, 14)
+	flow.Padding = UDim.new(0, 8)
 	flow.Parent = content
 	local order = 0
 	local function nextOrder() order += 1 return order end
@@ -111,29 +114,29 @@ return function(deps)
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 36), Font = Enum.Font.GothamBold,
-		TextSize = 26, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
-	label({ Size = UDim2.new(1, 0, 0, 38), TextSize = 14,
-		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The tavern is yours!" }, INK)
+	label({ Size = UDim2.new(1, 0, 0, 32), Font = Enum.Font.GothamBold,
+		TextSize = 24, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
+	label({ Size = UDim2.new(1, 0, 0, 34), TextSize = 14,
+		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The doors stay open for Endless Nights." }, INK)
 
 	-- Run stats: three parchment tiles. An unfilled value shows a dash, never a placeholder word.
 	local tileRow = Instance.new("Frame")
 	tileRow.Name = "Tiles"
 	tileRow.BackgroundTransparency = 1
-	tileRow.Size = UDim2.new(1, 0, 0, 74)
+	tileRow.Size = UDim2.new(1, 0, 0, 62)
 	tileRow.LayoutOrder = nextOrder()
 	tileRow.ZIndex = 62
 	tileRow.Parent = content
 	local function statTile(x, caption)
 		local tile = Instance.new("Frame")
-		tile.Size = UDim2.new(0.333, -8, 0, 74)
+		tile.Size = UDim2.new(0.333, -8, 0, 62)
 		tile.Position = UDim2.new(x, 4, 0, 0)
 		tile.BackgroundColor3 = TILE
 		tile.ZIndex = 62
 		tile.Parent = tileRow
 		deps.roundCorner(tile, 8)
 		local value = Instance.new("TextLabel")
-		value.Size = UDim2.new(1, -8, 0, 44)
+		value.Size = UDim2.new(1, -8, 0, 38)
 		value.Position = UDim2.fromOffset(4, 4)
 		value.BackgroundTransparency = 1
 		value.Font = Enum.Font.GothamBold
@@ -146,8 +149,8 @@ return function(deps)
 		value.ZIndex = 63
 		value.Parent = tile
 		local cap = Instance.new("TextLabel")
-		cap.Size = UDim2.new(1, -8, 0, 18)
-		cap.Position = UDim2.fromOffset(4, 52)
+		cap.Size = UDim2.new(1, -8, 0, 16)
+		cap.Position = UDim2.fromOffset(4, 42)
 		cap.BackgroundTransparency = 1
 		cap.Font = Enum.Font.Gotham
 		cap.TextSize = 14
@@ -163,13 +166,11 @@ return function(deps)
 	local bestValue = statTile(0.333, "Best hand")
 	local patronsValue = statTile(0.666, "Patrons used")
 
-	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 32), TextSize = 14,
+	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 34), TextSize = 14,
 		TextColor3 = GOLD, Text = "" }, INK_TITLE)
-	label({ Size = UDim2.new(1, 0, 0, 40), TextSize = 14,
-		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." }, INK)
 
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(240, 40)
+	button.Size = UDim2.fromOffset(220, 38)
 	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
@@ -190,6 +191,15 @@ return function(deps)
 		panel.BackgroundTransparency = painted and 1 or 0
 		panelStroke.Enabled = not painted
 		panelCorner.CornerRadius = UDim.new(0, painted and 0 or 14)
+		local shadow = backdrop:FindFirstChild("Shadow") -- the soft shadow frame is a dark box behind the painted plate
+		if shadow and shadow:IsA("GuiObject") then shadow.Visible = not painted end
+		if painted then
+			content.Position = UDim2.new(PARCH.x, PARCH.inset, PARCH.y, PARCH.inset)
+			content.Size = UDim2.new(PARCH.w, -2 * PARCH.inset, PARCH.h, -2 * PARCH.inset)
+		else
+			content.Position = UDim2.fromOffset(28, 28)
+			content.Size = UDim2.new(1, -56, 1, -56)
+		end
 		for _, e in ipairs(inkLabels) do
 			e[1].TextColor3 = painted and e[2] or e[3]
 		end

@@ -16687,6 +16687,7 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	expectTrue(has("NightVictory.lua", "Rules.KIT_PLATE") and has("NightVictory.lua", "ImageLabel") and not has("NightVictory.lua", "👑") and not has("NightVictory.lua", "♾") and has("NightVictory.lua", 'Text = "-"'), "Night victory uses the Round Complete kit plate, no emoji, stat values start as a dash")
 	expectTrue(has("NightVictory.lua", "HudKit.piece(setId, Rules.KIT_PLATE)") and has("OverlayQueue.lua", "HudKit.piece(setId, Rules.KIT_PLATE)"), "Night victory and Round Complete resolve the same kit plate id")
 	expectTrue(has("NightVictory.lua", 'GetPropertyChangedSignal("Visible")') and not has("NightVictory.lua", "polishButton(button"), "Night victory paints its plate whenever it becomes visible, and its button has no chrome underline")
+	expectTrue(has("NightVictory.lua", "PARCH.y, PARCH.inset") and has("NightVictory.lua", 'FindFirstChild("Shadow")') and has("NightVictory.lua", "PLATE_W, PLATE_H = 560, 520"), "Night victory content sits inside the plate's parchment and its shadow box is hidden while painted")
 	expectTrue(has("RunSummaryUI.lua", 'summary.rarity ~= "common"'), "Common rarity word is drawn in ink, not ghost grey")
 	expectTrue(has("RunSummaryUI.lua", "Text = patron.name or patron.id"), "run summary names each patron under its portrait")
 	expectTrue(select(2, (read("src/Client/RunSummaryUI.lua") or ""):gsub("UDim2%.new%(0%.5, %-173, 0, 46%)", "")) == 2, "run summary Continue and Play Again are equal width with a 12 px gap")
