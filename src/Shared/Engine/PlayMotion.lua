@@ -66,6 +66,29 @@ function PlayMotion.cornerGlows(x, y, w, h)
 	return { { x, y, size }, { x + w, y, size }, { x, y + h, size }, { x + w, y + h, size } }
 end
 
+-- edge vignette: four soft dark glows centred on the middle of each felt edge (they join the corner glows into one soft ring)
+PlayMotion.FELT.edgePeak = 0.18
+PlayMotion.FELT.edgeSize = 0.5
+function PlayMotion.edgeGlows(x, y, w, h)
+	local size = math.floor(math.max(w, h) * PlayMotion.FELT.edgeSize)
+	return { { x + w / 2, y, size }, { x + w / 2, y + h, size }, { x, y + h / 2, size }, { x + w, y + h / 2, size } }
+end
+
+-- resting stack of played cards at the felt centre: 4 card-backs with fixed small rotations and offsets (no randomness at runtime,
+-- so layouts are stable). Returns { { cx, cy, w, h, rot }, ... } for a felt rect of size w x h, centred on it, kept inside it.
+PlayMotion.REST_STACK = {
+	{ dx = -6, dy = 3, rot = -9 }, { dx = 5, dy = -2, rot = 6 }, { dx = -2, dy = -5, rot = -3 }, { dx = 3, dy = 1, rot = 8 },
+}
+function PlayMotion.restStack(w, h)
+	local cw = PlayMotion.clamp(math.floor(h * 0.16), 36, 84)
+	local ch = math.floor(cw * 1.4)
+	local out = {}
+	for i, s in ipairs(PlayMotion.REST_STACK) do
+		out[i] = { w / 2 + s.dx * cw / 40, h / 2 + s.dy * cw / 40, cw, ch, s.rot }
+	end
+	return out
+end
+
 -- pool rect over the hand: a wide ellipse centred on the felt at the hand row
 function PlayMotion.poolRect(screenW, screenH, handY, handH)
 	local w = math.floor(screenW * 0.7)

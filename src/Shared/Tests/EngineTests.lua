@@ -13951,6 +13951,27 @@ table.insert(tests, { name = "ToastPlacement.STYLE: parchment toast has readable
 	expectTrue(plan.yScale == TP.TABLE_Y and plan.width == TP.TABLE_W, "placement unchanged")
 end })
 
+table.insert(tests, { name = "PlayMotion: felt edge vignette and resting card stack sit inside the felt and centre on it", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	for _, sz in ipairs({ { 1100, 600 }, { 700, 380 }, { 400, 240 } }) do
+		local w, h = sz[1], sz[2]
+		local edges = PM.edgeGlows(0, 0, w, h)
+		expectTrue(#edges == 4, "four edge glows")
+		expectTrue(edges[1][1] == w / 2 and edges[1][2] == 0 and edges[4][1] == w and edges[4][2] == h / 2, "glows centred on edge midpoints")
+		expectTrue(PM.FELT.edgePeak <= PM.FELT.cornerPeak and PM.FELT.edgePeak > 0, "edge glow softer than the corners")
+		local cards = PM.restStack(w, h)
+		expectTrue(#cards == 4, "four stacked cards")
+		local sx, sy = 0, 0
+		for _, c in ipairs(cards) do
+			sx, sy = sx + c[1], sy + c[2]
+			expectTrue(c[1] - c[3] / 2 > 0 and c[1] + c[3] / 2 < w and c[2] - c[4] / 2 > 0 and c[2] + c[4] / 2 < h, "card inside the felt")
+			expectTrue(math.abs(c[5]) > 0 and math.abs(c[5]) <= 10, "slight rotation")
+			expectTrue(c[3] >= 36, "card at least 36 px wide")
+		end
+		expectTrue(math.abs(sx / 4 - w / 2) < 10 and math.abs(sy / 4 - h / 2) < 10, "stack centred on the felt")
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it
