@@ -133,6 +133,11 @@ function PlayScenePaint.install(deps)
 			image.Visible = handFrame.Visible
 			local feltClip = handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil -- never under the left HUD
 			shade.apply(feltClip, feltClip ~= nil and feltClip.x > p.map.felt.x)
+			shade.setFill(PlayTableLayout.fillOf(setKey))
+			if game:GetService("RunService"):IsStudio() and setKey then
+				local f = p.map.felt
+				print(string.format("[PlayTableSet] felt=%d,%d,%d,%d visible=%s", math.floor(f.x), math.floor(f.y), math.floor(f.w), math.floor(f.h), tostring(feltClip ~= nil)))
+			end
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)

@@ -29,8 +29,16 @@ M.SETS = {
 		felt = { x = 30, y = 505, w = 1470, h = 250 }, rail = { x = 300, y = 790, w = 800, h = 50 }, deck = { x = 1295, y = 770, w = 185, h = 95 } },
 	winter_evening = { art = "play_table_front_frosted_a",
 		felt = { x = 30, y = 618, w = 1470, h = 205 }, rail = { x = 385, y = 858, w = 550, h = 38 }, deck = { x = 1280, y = 800, w = 175, h = 72 },
-		strip = { y = 915, h = 100 } },
+		strip = { y = 915, h = 100 },
+		-- the painted front shows no felt of its own: a cool slate-blue felt (70 percent opaque) with a thin pale gold stitch goes on the measured felt rect
+		fill = { color = { 62, 84, 112 }, transparency = 0.3, stitch = { 214, 196, 140 } } },
 }
+
+-- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
+function M.fillOf(setId)
+	local s = setId and M.SETS[setId]
+	return s and s.fill or nil
+end
 
 -- the painted front's art key for a Card Set id, nil for a set without its own table (the default front plus tint)
 function M.artKeyOf(setId)

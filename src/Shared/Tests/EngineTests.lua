@@ -20185,6 +20185,7 @@ tests[#tests + 1] = ({ name = "PlayTableLayout: Card Sets with a painted table f
 	local L = require(script.Parent.Parent.Engine.PlayTableLayout)
 	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
 	local Sets = require(script.Parent.Parent.Engine.CosmeticSets)
+	expectTrue(L.fillOf("winter_evening") ~= nil and L.fillOf("winter_evening").transparency == 0.3 and L.fillOf("classic_tavern") == nil and L.fillOf(nil) == nil, "Frosted Garden draws its own felt, other sets none")
 	expectTrue(L.artKeyOf("classic_tavern") == nil and L.artKeyOf(nil) == nil, "a set without its own table keeps the default front")
 	for setId, def in pairs(L.SETS) do
 		expectTrue(Sets.getById and Sets.getById(setId) ~= nil or true, "known set")

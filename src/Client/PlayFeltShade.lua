@@ -25,6 +25,28 @@ function M.install(root, art)
 	frame.Visible = false
 	frame.Parent = root
 
+	local fill = Instance.new("Frame") -- code-drawn felt for painted fronts without one (PlayTableLayout.fillOf), bottom of the stack
+	fill.Name = "SetFelt"
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.BorderSizePixel = 0
+	fill.Active = false
+	fill.Visible = false
+	fill.ZIndex = 0
+	fill.Parent = frame
+	local stitch = Instance.new("Frame")
+	stitch.Name = "Stitch"
+	stitch.Position = UDim2.fromOffset(6, 6)
+	stitch.Size = UDim2.new(1, -12, 1, -12)
+	stitch.BackgroundTransparency = 1
+	stitch.BorderSizePixel = 0
+	stitch.Active = false
+	stitch.ZIndex = 0
+	stitch.Parent = fill
+	local stitchLine = Instance.new("UIStroke")
+	stitchLine.Thickness = 1
+	stitchLine.Transparency = 0.5
+	stitchLine.Parent = stitch
+
 	local grainId = type(art) == "table" and art.play_felt_grain or nil
 	if grainId and grainId ~= "" then
 		local grain = Instance.new("ImageLabel")
@@ -119,6 +141,14 @@ function M.install(root, art)
 	end)
 
 	local api = { frame = frame }
+	function api.setFill(f) -- nil hides it
+		fill.Visible = f ~= nil
+		if f then
+			fill.BackgroundColor3 = Color3.fromRGB(f.color[1], f.color[2], f.color[3])
+			fill.BackgroundTransparency = f.transparency
+			stitchLine.Color = Color3.fromRGB(f.stitch[1], f.stitch[2], f.stitch[3])
+		end
+	end
 	local reported = false
 	function api.apply(rect, clipped)
 		if not rect then frame.Visible = false return end
