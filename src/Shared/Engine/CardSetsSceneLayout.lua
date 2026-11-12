@@ -41,15 +41,24 @@ M.DEF = {
 		plaques = plaques(),
 	},
 	-- smallest sizes (px) at which text stays readable (nothing under 14)
-	min = { plates = { 96, 40 }, frames = { 96, 140 }, plaques = { 76, 22 } },
+	min = { plates = { 96, 40 }, frames = { 84, 124 }, plaques = { 70, 20 } },
 }
 M.PANEL_FRAC = { 0.92, 0.94 }
 M.PANEL_MAX = { 1200, 900 }
 M.TOP, M.BOTTOM = 62, 46
 
+-- The picture is square, so the panel is only as wide as the picture comes out at the height-limited scale (no flat band at the sides);
+-- its height never passes screen height minus 96 (PanelLayout.expandedHeight), so Close stays on screen under the tab strip's nudge.
 function M.panel(screenW, screenH)
-	return PS.panelSize(screenW, screenH, M.PANEL_FRAC[1], M.PANEL_FRAC[2], M.PANEL_MAX[1], M.PANEL_MAX[2])
+	local fw, fh = PS.panelSize(screenW, screenH, M.PANEL_FRAC[1], M.PANEL_FRAC[2], M.PANEL_MAX[1], M.PANEL_MAX[2])
+	local x0, y0, x1, y1 = PS.bounds(M.DEF)
+	local s = (fh - M.TOP - M.BOTTOM - 2 * (M.DEF.margin or 8)) / (y1 - y0)
+	return math.max(640, math.min(fw, math.ceil(M.DEF.w * s))), fh
 end
+
+-- Plaque and plate colours (rgb, tested at 4.5:1): Locked, Buy and the page texts are cream on a small dark pill (cream straight on the
+-- brass plaque is only about 3.8:1), Equip stays dark ink on the brass.
+M.COLORS = { cream = { 250, 240, 220 }, pill = { 40, 26, 16 }, ink = { 44, 26, 12 }, brass = { 170, 126, 60 } }
 
 function M.place(areaW, areaH)
 	local p = PS.place(M.DEF, areaW, areaH)
@@ -60,9 +69,9 @@ end
 -- inside one frame: two cards side by side (a sample face and the back, for a set) or one big back (single), the name on two lines
 -- (38 px: Roblox only fits two 14 px lines in 36 or more) and a Preview plate at the foot
 function M.tileParts(f)
-	local pad, gap = 6, 6
-	local nameH, btnH = 38, 26
-	local cardH = math.max(60, f.h - (pad + 4 + nameH + 4 + btnH + pad))
+	local pad, gap = 4, 6
+	local nameH, btnH = 37, 24
+	local cardH = math.max(48, f.h - (pad + 4 + nameH + 3 + btnH + pad))
 	local cardW = math.floor(math.min((f.w - 2 * pad - gap) / 2, cardH * 2 / 3))
 	cardH = math.floor(cardW * 3 / 2)
 	local top = pad

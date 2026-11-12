@@ -53,9 +53,19 @@ return function(deps)
 	bookLayer.ZIndex = 41
 	bookLayer.Parent = panel
 	local book = LedgerBook.build(deps, bookLayer)
+	local L = Pages.LAYOUT
+	local title -- the "Tavern Ledger" label, made below; the room moves it into a one-line strip above the picture
 	-- the painted ledger desk (stats_room_a): used when the window is big enough and the Image id is recorded, else the book above
 	local room = require(script.Parent.StatsRoom).new({
-		panel = panel, screenGui = deps.screenGui, hide = { bookLayer }, getState = deps.getLatestState,
+		panel = panel, screenGui = deps.screenGui, hide = { bookLayer }, getState = deps.getLatestState, backdrop = backdrop,
+		onMode = function(on)
+			if not title then return end
+			if on then -- one line in the header strip (the picture starts below it), never over the painted lamps
+				title.Position, title.Size, title.TextSize = UDim2.fromOffset(0, 6), UDim2.new(1, 0, 0, 40), 26
+			else
+				title.Position, title.Size, title.TextSize = UDim2.fromScale(L.title.x, L.title.y), UDim2.fromScale(L.title.w, L.title.h), 28
+			end
+		end,
 		plainRect = function()
 			local cam = workspace.CurrentCamera
 			local vp = cam and cam.ViewportSize or Vector2.new(1920, 1080)
@@ -63,8 +73,7 @@ return function(deps)
 		end,
 	})
 
-	local L = Pages.LAYOUT
-	local title = Instance.new("TextLabel")
+	title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = 28

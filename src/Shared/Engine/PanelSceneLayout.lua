@@ -91,8 +91,11 @@ function M.feather(p, areaW, areaH)
 end
 
 -- Size a scene panel asks for on a screen: a fraction of the screen up to a cap (so the body is tall enough for the picture's slots).
+-- The height never exceeds PanelLayout.expandedHeight (screen height minus 96): a centered panel is nudged 40 px down by the tab strip, so
+-- anything taller has its Close button cut off at the bottom of the window.
 function M.panelSize(screenW, screenH, fracW, fracH, maxW, maxH)
-	return math.floor(math.min(screenW * fracW, maxW)), math.floor(math.min(screenH * fracH, maxH))
+	local capH = require(script.Parent.PanelLayout).expandedHeight(screenH)
+	return math.floor(math.min(screenW * fracW, maxW)), math.floor(math.min(screenH * fracH, maxH, capH))
 end
 
 return M

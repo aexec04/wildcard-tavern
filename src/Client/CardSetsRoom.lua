@@ -57,6 +57,12 @@ function CardSetsRoom.new(ctx)
 		b.Font = Enum.Font.GothamBold
 		b.TextSize = 14
 		b.TextColor3 = opts.dim and DIM_INK or INK
+		if opts.pill then -- cream on a small dark pill: readable on the brass plaque (cream straight on brass is only about 3.8:1)
+			local pc, cc = Layout.COLORS.pill, Layout.COLORS.cream
+			b.BackgroundColor3 = Color3.fromRGB(pc[1], pc[2], pc[3])
+			b.BackgroundTransparency = 0.08
+			b.TextColor3 = Color3.fromRGB(cc[1], cc[2], cc[3])
+		end
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1
 		b.Text = text
@@ -66,7 +72,7 @@ function CardSetsRoom.new(ctx)
 		b.Parent = parent
 		ctx.roundCorner(b, 4)
 		if opts.onClick then
-			if not opts.solid then
+			if not opts.solid and not opts.pill then
 				b.MouseEnter:Connect(function() if not opts.active then b.BackgroundTransparency = 0.82 end end)
 				b.MouseLeave:Connect(function() b.BackgroundTransparency = opts.active and 0.7 or 1 end)
 			end
@@ -178,16 +184,14 @@ function CardSetsRoom.new(ctx)
 		if onPreview then
 			local pb = plateButton(holder, parts.preview, "Preview", { onClick = onPreview, solid = BROWN })
 			pb.AutoButtonColor = true
-			pb.TextColor3 = CREAM
-			local st = Instance.new("UIStroke")
-			st.Color = GOLD
-			st.Thickness = 1.5
-			st.Parent = pb
+			pb.TextColor3 = CREAM -- clean cream text on the brown plate: no stroke (a UIStroke on a button strokes its text and doubles it)
+			pb.TextStrokeTransparency = 1
 		end
 		addTip(holder, tipText)
 		-- the action lives on the brass plaque under the frame
 		local pr = { x = plaque.x - 0, y = plaque.y, w = plaque.w, h = plaque.h }
-		plateButton(layer, pr, actionText, { onClick = onAction, dim = onAction == nil and actionText == "Locked", active = equipped })
+		local pill = actionText == "Locked" or string.sub(actionText, 1, 3) == "Buy" -- cream on a dark pill; Equip and Equipped stay ink on the brass
+		plateButton(layer, pr, actionText, { onClick = onAction, pill = pill, active = equipped })
 	end
 
 	-- the plate row: two tabs, then "Page n of m" and the arrows (plates stay intact and empty when there is one page)
@@ -197,8 +201,9 @@ function CardSetsRoom.new(ctx)
 		plateButton(layer, pl[2], "Card Backs", { active = view.tab == "backs", onClick = function() view.tab, view.page = "backs", 1; room.paint() end })
 		if pages > 1 then
 			plateButton(layer, pl[3], "Page " .. view.page .. " of " .. pages)
-			plateButton(layer, pl[4], "< Prev", { dim = view.page <= 1, onClick = function() if view.page > 1 then view.page = view.page - 1; room.paint() end end })
-			plateButton(layer, pl[5], "Next >", { dim = view.page >= pages, onClick = function() if view.page < pages then view.page = view.page + 1; room.paint() end end })
+			-- a disabled arrow draws nothing: its plate stays an intact, empty painted plate
+			if view.page > 1 then plateButton(layer, pl[4], "< Prev", { onClick = function() view.page = view.page - 1; room.paint() end }) end
+			if view.page < pages then plateButton(layer, pl[5], "Next >", { onClick = function() view.page = view.page + 1; room.paint() end }) end
 		end
 	end
 
@@ -239,6 +244,9 @@ function CardSetsRoom.new(ctx)
 			local key = pw .. "x" .. ph .. (room.on and "on" or "off")
 			if key ~= lastKey then
 				lastKey = key
+				local shownH = room.on and ph or math.floor(screen.Y * 0.84) -- the plain panel is 84 percent of the height
+				local fit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fit(screen.Y, shownH)
+				print(string.format("[PanelFit] cardsets screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, room.on and pw or math.floor(screen.X * 0.64), shownH, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[CardSetsRoom] %s slots=%d (plates %d, frames %d, plaques %d) panel %dx%d", room.on and "painted" or "plain",
 					room.on and (#p.plates + #p.frames + #p.plaques) or 0, room.on and #p.plates or 0, room.on and #p.frames or 0, room.on and #p.plaques or 0, pw, ph))
 			end

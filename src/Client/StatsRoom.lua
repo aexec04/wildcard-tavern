@@ -69,40 +69,50 @@ function StatsRoom.new(ctx)
 		local titleDef = state.equippedTitleId and Achievements.getById(state.equippedTitleId)
 		local fav = stats.favoritePatron
 		local patron = fav and Patrons.getById(fav.id)
-		local c = Layout.content(stats, state.login, titleDef and titleDef.title or nil, patron and patron.name or nil)
+		local c = Layout.content(stats, state.login, titleDef and titleDef.title or nil, patron and patron.name or nil, placed.pages[1].w < Layout.COMPACT_PAGE_W)
 
-		-- brass plaques: the number big, its caption under it (ink on brass)
+		-- brass plaques: the number big, its caption under it, cream with a soft dark shadow (dark ink on the brass was brown on brown)
+		local C = Layout.COLORS
+		local shadow = { TextColor3 = Color3.fromRGB(C.plaqueInk[1], C.plaqueInk[2], C.plaqueInk[3]),
+			TextStrokeColor3 = Color3.fromRGB(C.plaqueShadow[1], C.plaqueShadow[2], C.plaqueShadow[3]), TextStrokeTransparency = 0.35 }
 		for i, h in ipairs(c.headline) do
 			local pl = placed.plaques[i]
 			if pl then
 				local numH = math.max(28, math.floor(pl.h * 0.5))
-				text(layer, { x = pl.x + 8, y = pl.y + math.floor(pl.h * 0.14), w = pl.w - 16, h = numH }, { Text = h.value, TextSize = math.clamp(math.floor(numH * 0.9), 22, 44), TextWrapped = false })
-				text(layer, { x = pl.x + 8, y = pl.y + math.floor(pl.h * 0.14) + numH, w = pl.w - 16, h = 20 }, { Text = h.caption, Font = Enum.Font.GothamMedium, TextWrapped = false })
+				local numProps = { Text = h.value, TextSize = math.clamp(math.floor(numH * 0.9), 22, 44), TextWrapped = false }
+				local capProps = { Text = h.caption, Font = Enum.Font.GothamBold, TextWrapped = false }
+				for k, v in pairs(shadow) do numProps[k] = v; capProps[k] = v end
+				text(layer, { x = pl.x + 8, y = pl.y + math.floor(pl.h * 0.14), w = pl.w - 16, h = numH }, numProps)
+				text(layer, { x = pl.x + 8, y = pl.y + math.floor(pl.h * 0.14) + numH, w = pl.w - 16, h = 20 }, capProps)
 			end
 		end
 
-		-- left page: lifetime ledger lines, label left and value right, a row each
+		-- left page: lifetime ledger lines, label left and value right, a row each, inset from the paper edge
 		local lp = placed.pages[1]
 		if lp then
+			local inset = Layout.inset(lp.w)
+			local innerW = lp.w - 2 * inset
 			local fit = Layout.rowsFit(lp.h - 30, Layout.ROW_H)
-			text(layer, { x = lp.x + 8, y = lp.y + 4, w = lp.w - 16, h = 24 }, { Text = "The Ledger", TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
+			text(layer, { x = lp.x + inset, y = lp.y + 4, w = innerW, h = 24 }, { Text = "The Ledger", TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
 			for i = 1, math.min(fit, #c.rows) do
 				local y = lp.y + 30 + (i - 1) * Layout.ROW_H
-				text(layer, { x = lp.x + 8, y = y, w = math.floor(lp.w * 0.55), h = Layout.ROW_H }, { Text = c.rows[i].label, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
-				text(layer, { x = lp.x + 8 + math.floor(lp.w * 0.45), y = y, w = lp.w - 16 - math.floor(lp.w * 0.45), h = Layout.ROW_H }, { Text = c.rows[i].value, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false })
+				text(layer, { x = lp.x + inset, y = y, w = math.floor(innerW * 0.62), h = Layout.ROW_H }, { Text = c.rows[i].label, Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
+				text(layer, { x = lp.x + inset + math.floor(innerW * 0.5), y = y, w = innerW - math.floor(innerW * 0.5), h = Layout.ROW_H }, { Text = c.rows[i].value, TextXAlignment = Enum.TextXAlignment.Right, TextWrapped = false })
 			end
 		end
 
 		-- right page: the newest runs, won in red ink and lost in blue (as in the book)
 		local rp = placed.pages[2]
 		if rp then
+			local inset = Layout.inset(rp.w)
+			local innerW = rp.w - 2 * inset
 			local fit = Layout.rowsFit(rp.h - 30, Layout.ROW_H)
-			text(layer, { x = rp.x + 8, y = rp.y + 4, w = rp.w - 16, h = 24 }, { Text = "Recent Runs", TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
+			text(layer, { x = rp.x + inset, y = rp.y + 4, w = innerW, h = 24 }, { Text = "Recent Runs", TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
 			if #c.runs == 0 then
-				text(layer, { x = rp.x + 8, y = rp.y + 34, w = rp.w - 16, h = 48 }, { Text = "Nothing written yet. Go lose gracefully.", Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left })
+				text(layer, { x = rp.x + inset, y = rp.y + 34, w = innerW, h = 48 }, { Text = "Nothing written yet. Go lose gracefully.", Font = Enum.Font.GothamMedium, TextColor3 = INK_DIM, TextXAlignment = Enum.TextXAlignment.Left })
 			end
 			for i = 1, math.min(fit, #c.runs) do
-				text(layer, { x = rp.x + 8, y = rp.y + 30 + (i - 1) * Layout.ROW_H, w = rp.w - 16, h = Layout.ROW_H },
+				text(layer, { x = rp.x + inset, y = rp.y + 30 + (i - 1) * Layout.ROW_H, w = innerW, h = Layout.ROW_H },
 					{ Text = c.runs[i].text, TextColor3 = c.runs[i].won and WIN_INK or LOSS_INK, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = false })
 			end
 		end
@@ -111,8 +121,9 @@ function StatsRoom.new(ctx)
 		for i, sh in ipairs(c.shelves) do
 			local r = placed.shelves[i]
 			if r then
-				local titleH = 18 -- titles are one short line; the value takes up to three
-				text(layer, { x = r.x + 6, y = r.y + 6, w = r.w - 12, h = titleH }, { Text = sh.title, TextColor3 = GOLD, TextWrapped = false, TextYAlignment = Enum.TextYAlignment.Top })
+				local titleSize = r.w >= 110 and 17 or 14 -- slightly larger titles where the niche is wide enough, 14 in the narrowest
+				local titleH = titleSize + 4 -- titles are one short line; the value takes up to three
+				text(layer, { x = r.x + 6, y = r.y + 6, w = r.w - 12, h = titleH }, { Text = sh.title, TextSize = titleSize, TextColor3 = GOLD, TextWrapped = false, TextYAlignment = Enum.TextYAlignment.Top })
 				text(layer, { x = r.x + 6, y = r.y + 8 + titleH, w = r.w - 12, h = math.max(52, r.h - titleH - 12) }, { Text = sh.value, Font = Enum.Font.GothamMedium, TextColor3 = CREAM, TextYAlignment = Enum.TextYAlignment.Top })
 			end
 		end
@@ -133,18 +144,28 @@ function StatsRoom.new(ctx)
 			ctx.panel.Size = UDim2.new(0, rect.w, 0, rect.h)
 			ctx.panel.Position = UDim2.new(0, rect.x, 0.5, 0)
 			scene.show(area, p)
+			-- header and footer are solid dark wood (the world no longer shows through them) and the backdrop is darker behind the room
+			local fc = Layout.COLORS.frame
+			ctx.panel.BackgroundColor3 = Color3.fromRGB(fc[1], fc[2], fc[3])
+			ctx.panel.BackgroundTransparency = 0
+			if ctx.backdrop then ctx.backdrop.BackgroundTransparency = 0.2 end
 		else
+			ctx.panel.BackgroundTransparency = 1
+			if ctx.backdrop then ctx.backdrop.BackgroundTransparency = 0.4 end
 			local r = ctx.plainRect()
 			ctx.panel.Size = UDim2.new(0, r.w, 0, r.h)
 			ctx.panel.Position = UDim2.new(0, r.x, 0.5, 0)
 			scene.hide()
 		end
 		layer.Visible = room.on
+		if ctx.onMode then ctx.onMode(room.on) end
 		for _, g in ipairs(ctx.hide) do g.Visible = not room.on end
 		if RunService:IsStudio() then
 			local key = rect.w .. "x" .. rect.h .. (room.on and "on" or "off")
 			if key ~= lastKey then
 				lastKey = key
+				local fit = require(Engine:WaitForChild("PanelLayout")).fit(vp.Y, rect.h)
+				print(string.format("[PanelFit] stats screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", vp.X, vp.Y, rect.w, rect.h, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[StatsRoom] %s slots=%d (plaques %d, pages %d, shelves %d) panel %dx%d", room.on and "painted" or "plain",
 					room.on and (#p.plaques + #p.pages + #p.shelves) or 0, room.on and #p.plaques or 0, room.on and #p.pages or 0, room.on and #p.shelves or 0, rect.w, rect.h))
 			end

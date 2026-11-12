@@ -19955,9 +19955,11 @@ tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the pane
 	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
-	for _, screen in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+	for _, screen in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 } }) do
 		local pw, ph = L.panel(screen[1], screen[2])
 		expectTrue(pw >= 640 and ph >= 520, "panel keeps its minimum at " .. screen[1] .. "x" .. screen[2])
+		local FitP = require(script.Parent.Parent.Engine.PanelLayout).fit(screen[2], ph)
+		expectTrue(FitP.fits and FitP.bottom <= screen[2] - 8, "Close stays inside the window under the strip's nudge at " .. screen[1] .. "x" .. screen[2])
 		local W, H = pw, ph - L.TOP - L.BOTTOM
 		local p = L.place(W, H)
 		local area = { x = 0, y = 0, w = W, h = H }
@@ -20028,9 +20030,11 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 	local Backs = require(script.Parent.Parent.Engine.CardBacks)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
-	for _, screen in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+	for _, screen in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 } }) do
 		local pw, ph = L.panel(screen[1], screen[2])
 		expectTrue(pw >= 640 and ph >= 520, "panel keeps its minimum at " .. screen[1] .. "x" .. screen[2])
+		local FitP = require(script.Parent.Parent.Engine.PanelLayout).fit(screen[2], ph)
+		expectTrue(FitP.fits and FitP.bottom <= screen[2] - 8, "Close stays inside the window under the strip's nudge at " .. screen[1] .. "x" .. screen[2])
 		local W, H = pw, ph - L.TOP - L.BOTTOM
 		local p = L.place(W, H)
 		local area = { x = 0, y = 0, w = W, h = H }
@@ -20045,7 +20049,11 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
 		end
 		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
-		for _, pl in ipairs(p.plaques) do expectTrue(pl.h >= 22 and pl.w >= 76, "plaque text (14 px) fits") end
+		for _, pl in ipairs(p.plaques) do expectTrue(pl.h >= 20 and pl.w >= 70, "plaque text (14 px, \"Equipped\" is about 64 px) fits") end
+		-- the panel is as wide as the picture (no flat side band) and stays on screen under the strip's 40 px nudge, Close included
+		expectTrue(p.image.x <= 1 and p.image.x + p.image.w >= W - 1, "the picture reaches both sides at " .. screen[1] .. "x" .. screen[2])
+		local Fit = require(script.Parent.Parent.Engine.PanelLayout).fit(screen[2], ph)
+		expectTrue(Fit.fits and Fit.bottom <= screen[2] - 8, "panel and Close stay inside the window at " .. screen[1] .. "x" .. screen[2] .. " (bottom " .. Fit.bottom .. ")")
 		-- every plaque sits under its own frame
 		for i = 1, 10 do
 			expectTrue(p.plaques[i].y >= p.frames[i].y + p.frames[i].h - 6 and p.plaques[i].x >= p.frames[i].x - 20 and p.plaques[i].x + p.plaques[i].w <= p.frames[i].x + p.frames[i].w + 20, "plaque " .. i .. " is under frame " .. i)
@@ -20056,7 +20064,7 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 			for _, k in ipairs({ "face", "back", "single", "name", "preview" }) do expectTrue(inside(t[k], rel), "frame " .. i .. " " .. k .. " inside the frame") end
 			expectFalse(hit(t.face, t.back), "face and back do not overlap")
 			expectFalse(hit(t.face, t.name) or hit(t.back, t.name) or hit(t.name, t.preview), "name sits between the cards and the Preview plate")
-			expectTrue(t.name.h >= 36 and t.preview.h >= 24 and t.cardH >= 56, "two name lines, a Preview plate and cards big enough to see")
+			expectTrue(t.name.h >= 36 and t.preview.h >= 24 and t.cardH >= 48, "two name lines, a Preview plate and cards big enough to see")
 		end
 		-- soft vignette only where the picture leaves an edge
 		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil and st.transparency >= 0 and st.transparency <= 1, "plain fade strip") end
@@ -20074,10 +20082,21 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 	local _, page, pages = L.pageSlice({ 1, 2, 3 }, 99)
 	expectTrue(page == 1 and pages == 1, "page clamps")
 	expectFalse(L.place(500, 300).ok, "a tiny panel keeps the plain list")
+	-- contrast of the plaque pill (Locked, Buy) and the ink on brass (Equip)
+	local function lum(c)
+		local function ch(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * ch(c[1]) + 0.7152 * ch(c[2]) + 0.0722 * ch(c[3])
+	end
+	local function ratio(a, b) local la, lb = lum(a), lum(b); if la < lb then la, lb = lb, la end; return (la + 0.05) / (lb + 0.05) end
+	expectTrue(ratio(L.COLORS.cream, L.COLORS.pill) >= 4.5, "Locked and Buy: cream on the dark pill is at least 4.5:1")
+	expectTrue(ratio(L.COLORS.ink, L.COLORS.brass) >= 4.0, "Equip: ink on the brass plaque stays readable")
 	local f = io and io.open and io.open("src/Client/CardSetsRoom.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("[CardSetsRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
+		expectTrue(src:find("[PanelFit] cardsets", 1, true) ~= nil, "the [PanelFit] line is printed")
+		expectTrue(src:find("UIStroke", 1, true) == nil or src:find("local fs = Instance.new(\"UIStroke\")", 1, true) ~= nil, "no UIStroke on a button (it doubled the Preview text)")
+		expectTrue(src:find("pill = pill", 1, true) ~= nil and src:find("if view.page > 1 then plateButton", 1, true) ~= nil, "pills for Locked and Buy, disabled arrows draw nothing")
 	end
 end })
 
@@ -20086,7 +20105,7 @@ tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body 
 	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
-	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+	for _, vp in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 } }) do
 		local rect = L.panel(vp[1], vp[2])
 		expectTrue(rect.x >= 260 - 1 and rect.x + rect.w <= vp[1] and rect.y >= 0 and rect.y + rect.h <= vp[2], "desk stays right of the sidebar and on screen at " .. vp[1] .. "x" .. vp[2])
 		local W, H = rect.w, rect.h - L.TOP - L.BOTTOM
@@ -20103,6 +20122,13 @@ tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body 
 			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
 		end
 		expectTrue(L.rowsFit(p.pages[1].h - 30, L.ROW_H) >= 5, "the left page shows at least five rows")
+		-- fit: the desk keeps Close on screen under the strip's 40 px nudge, is centred (both sides alike) and clear of the sidebar
+		local Fit = require(script.Parent.Parent.Engine.PanelLayout).fit(vp[2], rect.h)
+		expectTrue(Fit.fits and Fit.bottom <= vp[2] - 8, "desk and Close stay inside the window at " .. vp[1] .. "x" .. vp[2] .. " (bottom " .. Fit.bottom .. ")")
+		expectTrue(math.abs((rect.x + rect.w / 2) - vp[1] / 2) <= 1 or rect.x == 260 - 0 or rect.x >= 260, "the desk is centred or pinned right of the sidebar")
+		-- ink is inset from the paper: about 24 px on a big page, never under 14, and the text still fits a row
+		local inset = L.inset(p.pages[1].w)
+		expectTrue(inset >= 14 and inset <= 24 and p.pages[1].w - 2 * inset >= 110, "ledger rows are inset " .. inset .. " px and keep 110 px of paper")
 		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
 		for _, st in ipairs(PS.feather(p, W, H)) do expectTrue(st.src == nil, "plain fade strip") end
 	end

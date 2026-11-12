@@ -23,6 +23,14 @@ function PanelLayout.expandedHeight(screenH)
 	return screenH - PanelLayout.EXPANDED_MARGIN
 end
 
+-- Where a centered panel of height panelH lands on a screen of height screenH once the strip has nudged it down: its top and bottom edge
+-- and whether it stays on screen (top below the strip, bottom inside the window). The [PanelFit] Studio lines print this.
+function PanelLayout.fit(screenH, panelH, nudged)
+	local top = (screenH - panelH) / 2 + (nudged ~= false and PanelLayout.STRIP_NUDGE or 0)
+	local bottom = top + panelH
+	return { top = top, bottom = bottom, fits = top >= PanelLayout.STRIP_BOTTOM - PanelLayout.STRIP_NUDGE and bottom <= screenH }
+end
+
 -- True when a control with the given top edge and height overlaps the tab strip band (y 3 to 63).
 function PanelLayout.hitsStrip(y, h)
 	return y < PanelLayout.STRIP_BOTTOM and (y + h) > 3
