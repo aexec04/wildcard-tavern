@@ -109,6 +109,6 @@ end
 
 -- Painted plate: the kit's `reward` piece; padding keeps text on its parchment, clear of the wood.
 OverlayQueueRules.KIT_PLATE = "reward"
-OverlayQueueRules.KIT_PAD = { x = 76, top = 44, bottom = 44, minH = 190 }
+OverlayQueueRules.KIT_PAD = { x = 76, top = 44, bottom = 64, minH = 190 }
 
 return OverlayQueueRules

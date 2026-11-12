@@ -178,36 +178,6 @@ local function flyCoin()
 	t.Completed:Once(function() coin:Destroy() end)
 end
 
--- The streak as a row of drawn flame dots (capped, "+N" beyond the cap).
-local function flameDots(parent, streak, ink)
-	local shown, extra = DailyPopup.flames(streak, 7)
-	local row = Instance.new("Frame")
-	row.BackgroundTransparency = 1
-	row.Size = UDim2.fromScale(1, 1)
-	row.ZIndex = 153
-	row.Parent = parent
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.VerticalAlignment = Enum.VerticalAlignment.Center
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0, 6)
-	list.Parent = row
-	for i = 1, math.max(1, shown) do
-		local cell = Instance.new("Frame")
-		cell.LayoutOrder = i
-		cell.BackgroundTransparency = 1
-		cell.Size = UDim2.fromOffset(14, 14)
-		cell.ZIndex = 153
-		cell.Parent = row
-		dot(cell, 12, FLAME, 154)
-	end
-	if extra > 0 then
-		local more = label(row, { LayoutOrder = 99, Size = UDim2.fromOffset(34, 16), Text = "+" .. extra, TextSize = 14 })
-		more.TextColor3 = ink
-	end
-end
-
 -- Builds the ladder inside the plate's custom holder (OverlayQueue item.custom).
 local function buildLadder(holder, painted, login, plateId, laterText)
 	local ink = painted and INK or CREAM
@@ -216,13 +186,6 @@ local function buildLadder(holder, painted, login, plateId, laterText)
 	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	list.Padding = UDim.new(0, 6)
 	list.Parent = holder
-	local flames = Instance.new("Frame")
-	flames.BackgroundTransparency = 1
-	flames.LayoutOrder = 1
-	flames.Size = UDim2.new(1, 0, 0, 18)
-	flames.ZIndex = 153
-	flames.Parent = holder
-	flameDots(flames, login.streak, ink)
 	local screenW = ui.gui and ui.gui.AbsoluteSize.X or 800
 	local availW = math.min(520, screenW - 48) - (painted and 152 or 40)
 	local slot = math.max(26, math.min(44, math.floor((availW - 36) / 7)))
@@ -297,10 +260,10 @@ local function showPopup()
 		priority = OverlayQueue.rules.PRIORITY.daily,
 		title = "Daily reward ready!",
 		text = string.format("Day %d streak. Today: %s", math.floor(login.streak or 0), reward.label or ""),
-		artId = artId("discoveries", "chest"),
+		artId = artId("hud", "coin_purse"), -- the chest image has an opaque black background; the purse is the same one the ladder uses
 		button = "Claim",
 		autoAfter = AUTO_DISMISS,
-		customHeight = 18 + 6 + 60 + 6 + 28,
+		customHeight = 60 + 6 + 28,
 		custom = function(holder, painted) buildLadder(holder, painted, login, id, LoginStreak.laterLabel(claimDay)) end,
 		onButton = function()
 			if ui.remote then ui.remote:FireServer(claimDay) end
