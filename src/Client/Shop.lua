@@ -735,7 +735,7 @@ return function(deps)
 		packConfirmButton = packPlate("PackConfirm", "Confirm", -82, Color3.fromRGB(110, 72, 34))
 		packSkipButton = packPlate("PackSkip", "Skip Pack", 102, Color3.fromRGB(70, 52, 40))
 		packSkipButton.Size = UDim2.fromOffset(200, 40) -- room for "Skip Pack (+12 Tips)"
-		packMakeRoom = require(script.Parent.PackMakeRoom).new({ parent = shopPackPanel, z = PANEL_ZINDEX + 12, playClick = playClickSfx })
+		packMakeRoom = require(script.Parent.PackMakeRoom).new({ parent = shopPackPanel, z = PANEL_ZINDEX + 12, playClick = playClickSfx, polishButton = polishButton })
 	end -- do (Shop overlay)
 
 	-- ----- Recipe target picker state + logic -----

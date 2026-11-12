@@ -21395,7 +21395,7 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	local FakeGui = require(script.Parent.FakeGui)
 	local E = script.Parent.Parent.Engine
 	local env, state = FakeGui.env({})
-	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ PackRoom = require(E.PackRoom) }) end } end }
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ PackRoom = require(E.PackRoom), ChoiceRarity = require(E.ChoiceRarity) }) end } end }
 	local PackMakeRoom = FakeGui.load("src/Client/PackMakeRoom.lua", env)
 	local Patrons = require(E.Patrons)
 	local host = FakeGui.new("Frame")
@@ -21408,13 +21408,13 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	room.open(view, items, function(ids) got = ids end)
 	local panel = host:FindFirstChild("MakeRoomPanel")
 	expectTrue(panel ~= nil and panel.Visible and room.isOpen(), "the panel opens")
-	local list = panel:FindFirstChild("Owned")
+	local list = panel:FindFirstChild("Owned", true)
 	local cards = {}
 	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" then cards[#cards + 1] = c end end
 	expectEqual(#cards, 3, "one card per owned Patron")
 	local first = cards[1]
 	expectTrue(first:FindFirstChild("Value").Text == "Sells for $" .. math.floor(Patrons.Definitions[1].price / 2), "the card shows the sell value")
-	local confirm, back = panel:FindFirstChild("Confirm"), panel:FindFirstChild("Back")
+	local confirm, back = panel:FindFirstChild("Confirm", true), panel:FindFirstChild("Back", true)
 	expectFalse(confirm.Active, "Confirm waits until the overflow is chosen")
 	confirm.MouseButton1Click:Fire()
 	expectTrue(got == nil, "an early Confirm does nothing")
@@ -21423,8 +21423,13 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	expectTrue(panel:FindFirstChild("Summary", true).Text:find("leaves, " .. items[1].name .. " joins your table.", 1, true) ~= nil, "the line says who leaves and who joins")
 	cards[3].MouseButton1Click:Fire()
 	local picks = 0
-	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" and c.BackgroundColor3.G * 255 < 150 then picks = picks + 1 end end
+	for _, c in ipairs(list:GetChildren()) do if c.ClassName == "TextButton" and c:GetAttribute("Chosen") then picks = picks + 1 end end
 	expectEqual(picks, 1, "a second tap does not choose more than the overflow")
+	expectTrue(cards[2]:FindFirstChild("Ribbon").Visible and not cards[1]:FindFirstChild("Ribbon").Visible, "the chosen card wears the Leaves ribbon")
+	expectTrue(cards[1]:FindFirstChild("Dim").Visible and not cards[2]:FindFirstChild("Dim").Visible, "the others dim once enough are chosen")
+	expectTrue(cards[1]:FindFirstChild("RarityGem", true) ~= nil and cards[1]:FindFirstChild("Rarity", true) ~= nil, "each owned card shows its rarity gem and tier word")
+	expectTrue(panel:FindFirstChild("Join_" .. items[1].id, true) ~= nil and panel:FindFirstChild("JoinHead", true).Text == "Joins your table", "the incoming Patron stands on the left as Joins your table")
+	expectTrue(panel:FindFirstChild("Sheet") ~= nil and panel:FindFirstChild("WoodStud1") ~= nil, "wood frame with studs round a parchment sheet")
 	cards[2].MouseButton1Click:Fire()
 	expectFalse(confirm.Active, "tapping the chosen one again puts it back")
 	cards[1].MouseButton1Click:Fire()
@@ -21440,6 +21445,10 @@ table.insert(tests, { name = "PackMakeRoom: the panel lists the owned Patrons wi
 	local two = PR.summary({ ownedPatrons = owned, recipes = {}, patronLimit = 3, recipeLimit = 2 },
 		{ { id = Patrons.Definitions[4].id, name = "A", category = "patron" }, { id = Patrons.Definitions[5].id, name = "B", category = "patron" } }, { owned[1], owned[2] })
 	expectTrue(two.ready and #two.lines == 2 and two.refund == PR.sellValue("patron", owned[1]) + PR.sellValue("patron", owned[2]), "two picks into a full table: two lines and the refund of both")
+	local joiners = PR.joiners({ ownedPatrons = owned, recipes = {}, patronLimit = 3, recipeLimit = 2 },
+		{ { id = Patrons.Definitions[4].id, name = "A", category = "patron" }, { id = Patrons.Definitions[5].id, name = "B", category = "patron" } })
+	expectTrue(#joiners == 2 and joiners[1].name == "A" and joiners[2].kind == "patron", "joiners lists the picks that do not fit")
+	expectEqual(#PR.joiners({ ownedPatrons = {}, recipes = {}, patronLimit = 3, recipeLimit = 2 }, { { id = Patrons.Definitions[4].id, category = "patron" } }), 0, "nothing joins by force when there is room")
 	local source = io.open("src/Client/Shop.lua", "r")
 	if source then
 		local text = source:read("*a")

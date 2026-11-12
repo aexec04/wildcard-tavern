@@ -96,6 +96,30 @@ function PackRoom.nameOf(kind, id)
 	return def and def.name or tostring(id)
 end
 
+-- The emoji fallback for an owned Patron or Recipe portrait.
+function PackRoom.iconOf(kind, id)
+	local def
+	if kind == "patron" then def = Patrons.getById(id) else def = recipeDef(id) end
+	return def and def.icon or "🃏"
+end
+
+-- The picks that do not fit (the LAST ones, as in summary): { { kind, id, name } }, shown as "Joins your table".
+function PackRoom.joiners(view, items)
+	local need = PackRoom.overflow(view, items)
+	local patrons, recipes = {}, {}
+	for _, item in ipairs(items or {}) do
+		if item.category == "patron" then patrons[#patrons + 1] = item elseif RECIPE[item.category] then recipes[#recipes + 1] = item end
+	end
+	local out = {}
+	for i = math.max(1, #patrons - need.patrons + 1), #patrons do
+		if need.patrons > 0 then out[#out + 1] = { kind = "patron", id = patrons[i].id, name = patrons[i].name or PackRoom.nameOf("patron", patrons[i].id) } end
+	end
+	for i = math.max(1, #recipes - need.recipes + 1), #recipes do
+		if need.recipes > 0 then out[#out + 1] = { kind = "recipe", id = recipes[i].id, name = recipes[i].name or PackRoom.nameOf("recipe", recipes[i].id) } end
+	end
+	return out
+end
+
 -- What the Make room panel shows for the current choice. `ready` is true when the choice is exactly the overflow (it can be confirmed).
 function PackRoom.summary(view, items, replaceIds)
 	local need = PackRoom.overflow(view, items)
