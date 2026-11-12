@@ -42,6 +42,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local RarityFrame = require(script.Parent.RarityFrame)
 local PatronPlaque = require(script.Parent.PatronPlaque)
@@ -339,6 +340,20 @@ function ShopCards.new(deps)
 			rarity = CollectionBook.rarityForId(spec.rarityTab, spec.rarityId)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
+		-- Pick screens: the tier as a word (readable without colour), only for an item that really has a rarity (ChoiceRarity.lookup is
+		-- nil for an unknown id, so "Common" is never shown by mistake). A dark pill at the top right of the art, 15 px.
+		if spec.rarityWord and spec.rarityTab and spec.rarityId then
+			local info = ChoiceRarity.info(spec.rarityTab, spec.rarityId)
+			if info then
+				local wordW = math.max(64, #info.word * 9 + 18)
+				local tier = Color3.fromRGB(info.text[1], info.text[2], info.text[3])
+				local pill = frame(artClip, { Name = "RarityTag", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 6),
+					Size = UDim2.fromOffset(wordW, 22), BackgroundColor3 = Color3.fromRGB(info.plate[1], info.plate[2], info.plate[3]), BackgroundTransparency = 0.05 })
+				corner(pill, 11)
+				stroke(pill, tier, 1.5, 0)
+				label(pill, { Name = "Word", Size = UDim2.fromScale(1, 1), Text = info.word, TextColor3 = tier, TextSize = 15, TextStrokeTransparency = 1 })
+			end
+		end
 
 		-- No shine strip: Roblox ignores ClipsDescendants under the rotated Tilt wrapper, so a moving strip escaped the card.
 

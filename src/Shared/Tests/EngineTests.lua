@@ -16838,7 +16838,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 		return { WaitForChild = function()
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
-				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
 			})
 		end }
 	end }
@@ -18611,7 +18611,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 		} })
 		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
 		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
-			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout) })
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity) })
 		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 		local tweens = {}
 		st.services.TweenService.Create = function(_, inst, _, goal)
@@ -21181,6 +21181,44 @@ table.insert(tests, { name = "Counter room: the counter band crops the room from
 		local x, y, w, h = IS.rect(R.counterX[1] * R.w, R.counterBack * R.h, (R.counterX[2] - R.counterX[1]) * R.w, (R.counterFront - R.counterBack) * R.h, R.w, R.h)
 		local sc = IS.rectScale(R.w, R.h)
 		expectTrue(x >= 0 and y >= 0 and x + w <= R.w * sc + 1 and y + h <= R.h * sc + 1, "the crop rect lies inside the stored picture" .. where)
+	end
+end })
+
+table.insert(tests, { name = "ChoiceRarity: the tier word is produced for a known Patron, nothing for an unknown item, plates read at 4.5:1", fn = function()
+	local CR = require(script.Parent.Parent.Engine.ChoiceRarity)
+	local CB = require(script.Parent.Parent.Engine.CollectionBook)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local first = Patrons.getAll and Patrons.getAll()[1] or Patrons.Definitions and Patrons.Definitions[1]
+	expectTrue(first ~= nil, "there is a Patron to test with")
+	local info = CR.info(CR.tabFor("patron"), first.id)
+	expectTrue(info ~= nil and info.word == CB.Rarities[CB.rarityForId("patrons", first.id)].name, "a known Patron gets its tier word: " .. tostring(info and info.word))
+	expectEqual(CR.tabFor("rushPatron"), "patrons", "the Boss Rush draft is a Patron pick")
+	expectEqual(CR.tabFor("house"), "recipes", "a house recipe in a pack is a recipe")
+	expectEqual(CR.tabFor("modifier"), nil, "blessings have no rarity")
+	expectEqual(CR.tabFor("event"), nil, "events have no rarity")
+	expectEqual(CR.lookup("patrons", "no_such_patron"), nil, "an unknown id shows nothing, never Common by mistake")
+	expectEqual(CR.info("patrons", "no_such_patron"), nil, "info is nil for an unknown id")
+	expectEqual(CR.info(nil, first.id), nil, "no tab, no rarity")
+	local function lum(c)
+		local function f(v) v = v / 255 return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * f(c[1]) + 0.7152 * f(c[2]) + 0.0722 * f(c[3])
+	end
+	local function ratio(a, b) local x, y = lum(a), lum(b) if x < y then x, y = y, x end return (x + 0.05) / (y + 0.05) end
+	for _, rarity in ipairs(CB.RarityOrder) do
+		local st = CR.styleOf(rarity)
+		expectTrue(st ~= nil and st.word == CB.Rarities[rarity].name, "tier " .. rarity .. " has its word")
+		expectTrue(ratio(st.text, st.plate) >= 4.5, rarity .. " word reads on its plate at 4.5:1 (" .. string.format("%.1f", ratio(st.text, st.plate)) .. ")")
+		expectTrue(rarity == "common" or (st.plate[1] < 80 and st.plate[2] < 80 and st.plate[3] < 80), rarity .. " plate is very dark")
+	end
+	expectEqual(CR.styleOf("nonsense"), nil, "an unknown tier has no style")
+	-- the real module's colours for the Patron
+	expectTrue(ratio(info.text, info.plate) >= 4.5, "the real plate and word read at 4.5:1")
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local cp, sc = read("src/Client/ChoicePanel.lua"), read("src/Client/ShopCards.lua")
+	if cp and sc then
+		expectTrue(cp:find("ChoiceRarity.info", 1, true) ~= nil and cp:find('Name = "Rarity"', 1, true) ~= nil and cp:find("RarityGem", 1, true) ~= nil, "the pick cards draw the tier rim, gem and word")
+		expectTrue(sc:find("RarityTag", 1, true) ~= nil and sc:find("ChoiceRarity.info", 1, true) ~= nil, "pack pick cards carry the tier word pill")
+		expectFalse(cp:find("isDecline and ChoiceRarity", 1, true) ~= nil, "no rarity on the decline card")
 	end
 end })
 

@@ -1003,7 +1003,7 @@ return function(deps)
 					end)()),
 					kind = "patron", layoutOrder = index, name = item.name, description = description, noAction = true, tipAlign = "below",
 					emoji = item.icon, artTab = packArtCategory, artId = packArtCategory and item.id or nil,
-					rarityTab = packArtCategory and (packArtCategory == "patrons" and "patrons" or nil) or nil, rarityId = item.id,
+					rarityTab = packArtCategory, rarityId = item.id, rarityWord = packArtCategory ~= nil, -- tier word on the card (patrons and recipes)
 					rarity = standardCard and "common" or nil,
 					onClick = function(c)
 						if not tutorialAllows("packItem") then return end

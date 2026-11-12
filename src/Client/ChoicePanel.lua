@@ -22,6 +22,7 @@ local MenuSceneArt = require(Engine:WaitForChild("MenuSceneArt"))
 local SmoothVignette = require(script.Parent.SmoothVignette)
 local SoftGlow = require(script.Parent.SoftGlow)
 local DismissRules = require(Engine:WaitForChild("PopupDismissRules"))
+local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
 
 local ChoicePanel = {}
 
@@ -134,17 +135,71 @@ local function buildCard(choice, option, order)
 		end
 	end
 
+	-- Rarity (Patrons in the draft): a muted tier rim, a gem at the top corner, a dark name plate with the tier word as a second line,
+	-- a soft glow from Rare up. Items with no rarity (blessings, events, the decline card) show nothing.
+	local rarity = (not isDecline) and ChoiceRarity.info(ChoiceRarity.tabFor(choice.kind), option.id) or nil
+	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+	if rarity then
+		stroke.Color = c3(rarity.rim)
+		local gem = Instance.new("Frame")
+		gem.Name = "RarityGem"
+		gem.AnchorPoint = Vector2.new(0.5, 0.5)
+		gem.Position = UDim2.new(1, -20, 0, 20)
+		gem.Size = UDim2.fromOffset(14, 14)
+		gem.Rotation = 45
+		gem.BackgroundColor3 = c3(rarity.color)
+		gem.BorderSizePixel = 0
+		gem.ZIndex = 65
+		gem.Parent = card
+		local gs = Instance.new("UIStroke")
+		gs.Color = Color3.fromRGB(30, 20, 10)
+		gs.Thickness = 2
+		gs.Parent = gem
+		if rarity.glow then
+			pcall(function()
+				local g = SoftGlow.build(slot, {
+					name = "RarityGlow", color = c3(rarity.color), zIndex = 61,
+					position = UDim2.fromOffset(CARD_W / 2, CARD_H / 2), size = UDim2.fromOffset(CARD_W * 1.25, CARD_H * 1.25), peak = rarity.glow,
+				})
+				g.root.Active = false
+			end)
+		end
+		local plate = Instance.new("Frame")
+		plate.Name = "NamePlate"
+		plate.Position = UDim2.fromOffset(8, 102)
+		plate.Size = UDim2.new(1, -16, 0, 52)
+		plate.BackgroundColor3 = c3(rarity.plate)
+		plate.BackgroundTransparency = 0.05
+		plate.BorderSizePixel = 0
+		plate.ZIndex = 63
+		plate.Parent = card
+		ui.roundCorner(plate, 8)
+		local underline = Instance.new("UIStroke")
+		underline.Color = c3(rarity.rim)
+		underline.Thickness = 1.5
+		underline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		underline.Parent = plate
+		label(plate, {
+			Name = "Name", Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 3), Text = option.name, TextSize = 19,
+			TextColor3 = CREAM, ZIndex = 64, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd,
+		})
+		label(plate, {
+			Name = "Rarity", Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 30), Text = rarity.word, TextSize = 15,
+			TextColor3 = c3(rarity.text), ZIndex = 64,
+		})
+	else
+		label(card, {
+			Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 106), Text = option.name, TextSize = 19,
+			TextWrapped = true,
+		})
+	end
 	label(card, {
-		Name = "Name", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 106), Text = option.name, TextSize = 19,
-		TextWrapped = true,
-	})
-	label(card, {
-		Name = "Line1", Size = UDim2.new(1, -24, 0, 56), Position = UDim2.fromOffset(12, 136), Text = option.line1 or "", TextSize = 15,
+		Name = "Line1", Size = UDim2.new(1, -24, 0, rarity and 44 or 56), Position = UDim2.fromOffset(12, rarity and 158 or 136), Text = option.line1 or "", TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
 		TextColor3 = (choice.kind == "modifier") and BLESS or INK,
 	})
 	label(card, {
-		Name = "Line2", Size = UDim2.new(1, -24, 0, 40), Position = UDim2.fromOffset(12, 194), Text = option.line2 or "", TextSize = 15,
+		Name = "Line2", Size = UDim2.new(1, -24, 0, rarity and 36 or 40), Position = UDim2.fromOffset(12, rarity and 204 or 194), Text = option.line2 or "", TextSize = 15,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = CURSE,
 	})
 
