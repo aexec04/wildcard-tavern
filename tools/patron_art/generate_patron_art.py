@@ -241,6 +241,15 @@ CATEGORY_OPTS = {
                                   "menu_scene_c": "art-wip/menu_room/menu_room_wall.png"}},
 }
 
+# ===== per-set play rooms =====
+for _sid in ['winter_evening', 'festival_night', 'closing_time', 'golden_gala', 'meadow_picnic', 'riverside_evening', 'summit_camp', 'dune_market', 'marsh_lanterns', 'snowy_hearth', 'harbor_lights', 'tavern_feast', 'harvest_table', 'winter_table']:
+    _o = CATEGORY_OPTS["play_scene"]
+    _o["opaque"].append("play_room_%s_bg" % _sid)
+    for _suf in ("bg", "front"):
+        _o["sizes"]["play_room_%s_%s" % (_sid, _suf)] = "1536x1024"
+    _o["references"]["play_room_%s_bg" % _sid] = "art-wip/play_scene/play_table_bg_b.png"
+    _o["references"]["play_room_%s_front" % _sid] = "art-wip/play_scene/play_table_front_c.png"
+
 # set_skins: one id per "<setId>_<slot>"; sizes and opaque ids follow the slot suffix.
 _SKIN_SIZES = {"_face_frame": "1024x1536", "_face_paper": "1024x1024", "_face_court": "1024x1024",
                "_panel_frame": "1536x1024", "_button_plate": "1536x1024", "_tab_plate": "1024x1024"}
