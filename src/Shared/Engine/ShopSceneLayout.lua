@@ -212,7 +212,9 @@ ShopSceneLayout.ROOM = {
 	rim = { 0.35, 0.585, 0.875, 0.83 },       -- the wood rim around the felt
 	counterTop = 0.47,                        -- the counter's back edge (where its top surface starts)
 	surface = 0.53,                           -- the front edge of the counter top: Patron cards may rise to here, no higher
-	counterFront = 0.70,                      -- foot of the counter's front panel
+	counterFront = 716 / 1024,                -- foot of the counter's front panel (measured: the floor's dark line is row 716)
+	counterBack = 486 / 1024,                 -- the counter's back edge: row 485 is the dark shadow line, row 486 the first bright top row
+	waist = 0.04,                             -- Marlo's waist stands this share of the picture height BELOW the back edge (about 40 px)
 	counterX = { 0.03, 0.85 },
 	rail = 0.56,                              -- the brass rail
 	ledger = { 0.14, 0.48, 0.12, 0.075 },     -- centre x, centre y, width, height (the open book with the quill)
@@ -373,7 +375,11 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	-- Marlo stands behind the counter: his height follows the picture (so the counter), his feet go below clipY and are clipped there
 	local marloH = R.marloH * p.h
 	local marloW = marloH * ShopSceneLayout.MARLO_RATIO
-	out.marlo = rect(p.x + R.marloX * p.w - marloW / 2, out.clipY + marloH * 0.08 - marloH, marloW, marloH)
+	-- his waist is R.waist of the picture below the counter's back edge, with no clipping: the counter band drawn over him hides his lower body
+	local waistY = p.y + (R.counterBack + R.waist) * p.h
+	out.marlo = rect(p.x + R.marloX * p.w - marloW / 2, waistY - marloH, marloW, marloH)
+	-- the counter band: the same picture cropped from the back edge to the foot of the front, at the same scale and place as the room
+	out.counterBand = ShopSceneLayout.picRect(W, H, R.counterX[1], R.counterBack, R.counterX[2], R.counterFront)
 
 	-- Next Round: the plate sits on the stone doorway itself, bottom centre of the arch opening, clamped on screen
 	local leaveW, leaveH = clamp(W * 0.11, 104, 160), 44

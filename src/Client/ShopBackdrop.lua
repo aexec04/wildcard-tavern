@@ -159,6 +159,20 @@ function ShopBackdrop.new(deps)
 		marlo.ScaleType = Enum.ScaleType.Fit
 	end
 	self.marlo = marlo
+	-- The counter in front of Marlo: a second label of the SAME room picture, cropped to the counter band (back edge to the foot of the
+	-- front, rows measured from shop_room_a), drawn at the room's own scale and place, above Marlo and below the controls, so the wood
+	-- hides his lower body with the counter's real back edge. Made after the Marlo frame so it draws over him (equal ZIndex, later sibling).
+	local counterFront
+	if roomId then
+		local R = Layout.ROOM
+		counterFront = image(root, "CounterFront", roomId, 6)
+		counterFront.ScaleType = Enum.ScaleType.Stretch
+		local x, y, w, h = ImageSpace.rect(R.counterX[1] * R.w, R.counterBack * R.h, (R.counterX[2] - R.counterX[1]) * R.w, (R.counterFront - R.counterBack) * R.h, R.w, R.h)
+		counterFront.ImageRectOffset = Vector2.new(x, y)
+		counterFront.ImageRectSize = Vector2.new(w, h)
+		counterFront.Visible = false
+		self.counterFront = counterFront
+	end
 	self.marloId = marloId
 	self.marloWaveId = ContentArt.getImageId("shop_scene", "shop_marlo_wave")
 	local poolId = ContentArt.getImageId("shop_scene", "shop_light_pool")
@@ -289,7 +303,13 @@ function ShopBackdrop.new(deps)
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end
-		marloClip.Size = UDim2.fromOffset(size.X, r.clipY or size.Y)
+		-- painted room: no clipping, Marlo is whole and the counter band covers him; the older scenes still clip him at the counter top
+		marloClip.ClipsDescendants = not room
+		marloClip.Size = room and UDim2.fromScale(1, 1) or UDim2.fromOffset(size.X, r.clipY or size.Y)
+		if counterFront then
+			counterFront.Visible = room and r.counterBand ~= nil
+			if r.counterBand then place(counterFront, r.counterBand) end
+		end
 		if counter then
 			place(counter, r.counter)
 		end

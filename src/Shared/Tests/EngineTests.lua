@@ -17667,9 +17667,21 @@ table.insert(tests, { name = "Counter room: the backdrop is ONE cropped picture,
 	local rim = root:FindFirstChild("TableTop")
 	expectTrue(rim == nil or not rim.Visible, "the drawn table is hidden: the table is in the picture")
 	local clip = root:FindFirstChild("MarloClip")
-	expectTrue(clip ~= nil and clip.ClipsDescendants and clip.Size.Y.Offset == want.clipY, "Marlo's frame ends at the counter top line")
-	expectTrue(backdrop.marlo == nil or backdrop.marlo.Parent == clip, "Marlo lives in the clipped frame")
+	expectTrue(clip ~= nil and not clip.ClipsDescendants, "in the painted room Marlo's frame does not clip him (he is whole, the counter band covers him)")
+	expectTrue(backdrop.marlo == nil or backdrop.marlo.Parent == clip, "Marlo lives in his frame")
+	local band = root:FindFirstChild("CounterFront")
+	expectTrue(band ~= nil and band.Visible and band.Image == backdrop.room.Image, "the counter band is a second label of the same room picture")
+	expectTrue(band.Position.X.Offset == want.counterBand.x and band.Position.Y.Offset == want.counterBand.y and band.Size.X.Offset == want.counterBand.w and band.Size.Y.Offset == want.counterBand.h,
+		"the band sits exactly where that part of the room is drawn")
+	local order, marloAt, bandAt = root:GetChildren(), 0, 0
+	for i, c in ipairs(order) do
+		if c == clip then marloAt = i end
+		if c == band then bandAt = i end
+	end
+	expectTrue(bandAt > marloAt and band.ZIndex >= clip.ZIndex, "the band draws above Marlo (later sibling, same or higher ZIndex)")
 	backdrop.relayout({ offers = 2, packs = 2 })
+	expectFalse(band.Visible, "no band without the room")
+	expectTrue(clip.ClipsDescendants, "the older scenes still clip Marlo at the counter top")
 	expectFalse(backdrop.room.Visible, "no room picture without the flag")
 	expectTrue(wall == nil or wall.Visible, "the older wall returns")
 end })
@@ -21141,6 +21153,34 @@ table.insert(tests, { name = "Painted board: six Patron seats sit in the five ri
 		end
 		PlayBoardHud.apply(root, nil)
 		expectTrue(seats[6]:FindFirstChild("ExtraRing") == nil and seats[1].BackgroundTransparency == 0, "everything is put back when the board is not painted")
+	end
+end })
+
+table.insert(tests, { name = "Counter room: the counter band crops the room from the back edge to the foot of the front, at the room's own scale, and covers Marlo's waist", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local IS = require(script.Parent.Parent.Engine.ImageSpace)
+	local R = SL.ROOM
+	expectTrue(R.counterBack > 0.47 and R.counterBack < 0.48 and R.counterFront > R.counterBack and R.counterFront < 0.71, "the band rows are the measured ones (486 and 716 of 1024)")
+	expectTrue(math.abs(R.counterBack * R.h - 486) < 1e-6 and math.abs(R.counterFront * R.h - 716) < 1e-6, "back edge row 486, front foot row 716")
+	for _, frame in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 800, 450 } }) do
+		local W, H = frame[1], frame[2]
+		local r = SL.rects(W, H, { offers = 2, packs = 2, room = true })
+		local p = SL.pic(W, H)
+		local where = " at " .. W .. "x" .. H
+		-- same scale and place as the room: the band is the picture's own fraction rect
+		local want = SL.picRect(W, H, R.counterX[1], R.counterBack, R.counterX[2], R.counterFront)
+		expectTrue(math.abs(r.counterBand.x - want.x) < 1e-6 and math.abs(r.counterBand.y - want.y) < 1e-6 and math.abs(r.counterBand.w - want.w) < 1e-6 and math.abs(r.counterBand.h - want.h) < 1e-6, "band rect is the room's fraction rect" .. where)
+		expectTrue(math.abs(r.counterBand.w / r.counterBand.h / (((R.counterX[2] - R.counterX[1]) * R.w) / ((R.counterFront - R.counterBack) * R.h)) - 1) < 0.01, "the band keeps the crop's aspect, so nothing stretches" .. where)
+		expectTrue(math.abs(r.counterBand.y - (p.y + R.counterBack * p.h)) <= 1, "the band starts on the back edge" .. where)
+		-- Marlo's waist is below the back edge by waist of the picture height, so the band covers it; his head stays above the edge
+		local waistY = r.marlo.y + r.marlo.h
+		expectTrue(math.abs(waistY - (r.counterBand.y + R.waist * p.h)) <= 1.5, "his waist is about 40 px below the back edge" .. where)
+		expectTrue(waistY <= r.counterBand.y + r.counterBand.h, "the band reaches below his waist" .. where)
+		expectTrue(r.marlo.y < r.counterBand.y, "most of him is above the back edge" .. where)
+		-- the crop rect in the stored texture (Roblox keeps the 1536 px sheet at 1024) stays inside it
+		local x, y, w, h = IS.rect(R.counterX[1] * R.w, R.counterBack * R.h, (R.counterX[2] - R.counterX[1]) * R.w, (R.counterFront - R.counterBack) * R.h, R.w, R.h)
+		local sc = IS.rectScale(R.w, R.h)
+		expectTrue(x >= 0 and y >= 0 and x + w <= R.w * sc + 1 and y + h <= R.h * sc + 1, "the crop rect lies inside the stored picture" .. where)
 	end
 end })
 
