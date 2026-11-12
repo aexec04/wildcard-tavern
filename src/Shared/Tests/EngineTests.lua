@@ -19547,4 +19547,101 @@ table.insert(tests, { name = "PlayMotion: card tilt 1 to 3 degrees, edge cards 4
 	expectTrue(PM.LEAN_PX.table >= 8 and PM.LEAN_PX.rail <= 16, "lean px in 8 to 16")
 end })
 
+table.insert(tests, { name = "Badge scenes: Masters 8, Night 4, Special 12 slots; every badge in its own slot with a small plate inside the board; no scene without a recorded id; crops that cut a slot fall back", fn = function()
+	local Engine = script.Parent.Parent.Engine
+	local W, B = require(Engine.BadgeWallLayout), require(Engine.Badges)
+	expectEqual(#W.SCENES.Masters.slots, 8, "eight sockets on the velvet board")
+	expectEqual(#W.SCENES.Night.slots, 4, "four niches on the sill")
+	expectEqual(#W.SCENES.Special.slots, 12, "twelve recesses, two rows of six")
+	expectTrue(W.sceneOf("Masters", {}) == nil and W.sceneOf("Roads", { badge_map_board = "rbxassetid://1" }) == nil, "no scene until its Image id is recorded")
+	expectTrue(W.sceneOf("Night", { badge_scene_night = "rbxassetid://1" }) ~= nil, "a recorded id turns the scene on")
+	local function apart(a, b) return a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y end
+	for _, win in ipairs(badgeWindows()) do
+		local bw, bh = win.P.area.w, win.P.area.h
+		for _, chip in ipairs({ "Masters", "Night", "Special" }) do
+			local where = " (" .. chip .. " " .. bw .. "x" .. bh .. " at " .. win.name .. ")"
+			local lay = W.sceneLayout(chip, nil, bw, bh)
+			if lay then
+				expectEqual(#lay.items, #W.members(chip), "one slot per badge" .. where)
+				local boxes = {}
+				for _, it in ipairs(lay.items) do
+					expectTrue(it.noSocket and it.size >= 16, it.id .. " sits in the picture's socket" .. where)
+					local pr = W.plateRect(it)
+					local plate = { x = it.x + pr.x, y = it.y + W.plateY(it), w = pr.w, h = pr.h }
+					expectTrue(plate.x >= 0 and plate.y >= 0 and plate.x + plate.w <= bw and plate.y + plate.h <= bh, it.id .. " plate is inside the board" .. where)
+					expectTrue(plate.y >= it.y + it.size, it.id .. " plate is under its badge" .. where)
+					expectTrue(plate.h <= W.NAMEPLATE_H - 4, it.id .. " plate is small" .. where)
+					boxes[#boxes + 1] = { id = it.id, badge = { x = it.x, y = it.y, w = it.size, h = it.size }, plate = plate }
+				end
+				for i = 1, #boxes do
+					for j = i + 1, #boxes do
+						expectTrue(apart(boxes[i].badge, boxes[j].badge) and apart(boxes[i].plate, boxes[j].plate), boxes[i].id .. " and " .. boxes[j].id .. " do not overlap" .. where)
+					end
+				end
+				if chip == "Masters" then
+					local big = lay.items[1]
+					expectTrue(big.big and B.getById(big.id).region == "tavern" and big.size > lay.items[2].size, "the Master Tavern badge takes the large top socket" .. where)
+				end
+			end
+		end
+	end
+	local wide = W.sceneLayout("Special", nil, 1800, 400) -- a very wide board crops the picture's top and bottom: a slot would be cut
+	expectTrue(wide == nil, "a crop that cuts a slot keeps the drawn layout")
+end })
+
+table.insert(tests, { name = "Badges panel with painted scenes (fake ids): no dark ring or box, padlock chip on locked, small plates, hover shows the whole name, Roads has no dark socket plate", fn = function()
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/BadgesPanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local BS = require(script.Parent.BadgeScene)
+	local Engine = script.Parent.Parent.Engine
+	local W = require(Engine.BadgeWallLayout)
+	local art = {}
+	for k, v in pairs(require(Engine.BadgeWallArt)) do art[k] = v end
+	art.badge_scene_masters, art.badge_scene_night, art.badge_scene_special = "rbxassetid://1", "rbxassetid://2", "rbxassetid://3"
+	local scene = BS.build({ badgeIds = { "wins_1" }, wallArt = art })
+	local function descendants(root, out)
+		out = out or {}
+		for _, c in ipairs(root:GetChildren()) do out[#out + 1] = c; descendants(c, out) end
+		return out
+	end
+	for _, chip in ipairs({ "Masters", "Night", "Special" }) do
+		scene.open()
+		scene.resize(1920, 1080)
+		scene.pick(chip)
+		local where = " (" .. chip .. ")"
+		local lay = W.sceneLayout(chip, nil, scene.board.AbsoluteSize.X, scene.board.AbsoluteSize.Y)
+		expectTrue(lay ~= nil, "the scene fits the board" .. where)
+		local backdrop = scene.board:FindFirstChild("Furniture")
+		expectTrue(backdrop ~= nil and backdrop:FindFirstChild("SceneArt") ~= nil, "the painted scene is the backdrop" .. where)
+		expectTrue(scene.board:FindFirstChild("GridScrim", true) == nil and scene.board:FindFirstChild("Plank", true) == nil, "no scrim or planks over the scene" .. where)
+		for _, def in ipairs(W.members(chip)) do
+			local holder = scene.board:FindFirstChild("Badge_" .. def.id)
+			expectTrue(holder ~= nil, def.id .. " is on the scene" .. where)
+			if holder then
+				expectTrue(holder:FindFirstChild("RimOverlap") == nil, def.id .. " has no ring over its edge" .. where)
+				local medal = holder:FindFirstChild("Medal")
+				local stroke = medal:FindFirstChildOfClass("UIStroke") -- only the next-up badge keeps its thin gold pulse
+				expectTrue(stroke == nil or (def.id == W.nextUp(chip, nil, { wins_1 = true }) and stroke.Thickness <= 2), def.id .. " has no thick ring" .. where)
+				local plate = holder:FindFirstChild("Nameplate")
+				expectTrue(plate.Size.Y.Offset <= 38 and plate.BackgroundColor3.R > 0.5, def.id .. " has a small light plate, not a dark box" .. where)
+				expectTrue(plate:FindFirstChildOfClass("TextLabel").TextSize >= 14, def.id .. " plate text is readable" .. where)
+				local earned = def.id == "wins_1"
+				expectEqual(holder:FindFirstChild("LockChip") ~= nil, not earned, def.id .. " locked badges carry a padlock chip" .. where)
+			end
+		end
+	end
+	-- Roads keeps the map but loses the dark socket plate and the ring
+	scene.open()
+	scene.resize(1920, 1080)
+	scene.pick("Roads")
+	for _, def in ipairs(W.members("Roads")) do
+		local sock = scene.board:FindFirstChild("Socket_" .. def.id)
+		expectTrue(sock ~= nil and sock:FindFirstChild("Plate") == nil, def.id .. " has no dark socket plate on the map")
+		expectTrue(scene.board:FindFirstChild("Badge_" .. def.id):FindFirstChild("RimOverlap") == nil, def.id .. " has no ring on the map")
+	end
+	expectTrue(#descendants(scene.board) > 0, "the map still draws")
+end })
+
 return tests

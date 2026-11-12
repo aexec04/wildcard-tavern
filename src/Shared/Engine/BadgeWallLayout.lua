@@ -72,7 +72,7 @@ end
 
 -- Socket square { x, y, w, h } of an item, concentric with its badge.
 function Wall.socketRect(item)
-	local p = Wall.pad(item.size)
+	local p = item.noSocket and 0 or Wall.pad(item.size)
 	return { x = item.x - p, y = item.y - p, w = item.size + 2 * p, h = item.size + 2 * p }
 end
 
@@ -156,6 +156,86 @@ function Wall.layout(chip, defs, w, h)
 	return { items = items, shelves = shelves }
 end
 
+-- ===== painted scenes (Masters, Night, Special) =====
+-- Each tab has a painted picture with a socket for every badge. A slot is { cx, cy, d } = the socket centre as fractions of the
+-- picture's width and height, and the badge diameter as a fraction of its width (a little under the hole, so the painted rim shows).
+-- Special's name plates are painted on the shelf front: `py` is the plate row's centre as a fraction of the picture height.
+-- Measured from art-wip/badge_wall/badge_scene_*.png (1536x1024). Until the picture's Image id is recorded in
+-- Engine/BadgeWallArt.lua the older drawn layout (Wall.layout) stays.
+Wall.SCENE_ASPECT = 1.5
+Wall.SCENE_PLATE_H = 22 -- one line of 14 px name text
+Wall.SCENES = {
+	Masters = { art = "badge_scene_masters", pitch = 0.1085, slots = {
+		{ 0.505, 0.323, 0.098 }, -- the Master Tavern badge, large, on top
+		{ 0.180, 0.602, 0.060 }, { 0.287, 0.602, 0.060 }, { 0.395, 0.602, 0.060 }, { 0.504, 0.602, 0.060 },
+		{ 0.613, 0.602, 0.060 }, { 0.723, 0.602, 0.060 }, { 0.831, 0.602, 0.060 },
+	} },
+	Night = { art = "badge_scene_night", pitch = 0.22, slots = {
+		{ 0.151, 0.700, 0.092 }, { 0.371, 0.700, 0.092 }, { 0.591, 0.700, 0.092 }, { 0.811, 0.700, 0.092 },
+	} },
+	Special = { art = "badge_scene_special", pitch = 0.136, plateRows = { 0.488, 0.796 }, slots = {
+		{ 0.169, 0.350, 0.098 }, { 0.306, 0.350, 0.098 }, { 0.441, 0.350, 0.098 }, { 0.576, 0.350, 0.098 }, { 0.712, 0.350, 0.098 }, { 0.840, 0.350, 0.098 },
+		{ 0.164, 0.652, 0.098 }, { 0.305, 0.652, 0.098 }, { 0.439, 0.652, 0.098 }, { 0.573, 0.652, 0.098 }, { 0.710, 0.652, 0.098 }, { 0.844, 0.652, 0.098 },
+	} },
+}
+
+-- The scene of a tab when its picture is recorded in `art` (the BadgeWallArt map), else nil.
+function Wall.sceneOf(chip, art)
+	local sc = Wall.SCENES[chip]
+	if not sc then return nil end
+	local id = art and art[sc.art]
+	if type(id) ~= "string" or id == "" then return nil end
+	return sc
+end
+
+-- Layout of a tab on its painted scene: the picture is cover-fitted into the w x h board (never stretched) and every badge sits in its
+-- slot with a small name plate under it (on the painted plate row where there is one). Returns { items, shelves = {}, image, scene } or
+-- nil when the crop would cut a slot or a plate, and the caller keeps the drawn layout. Master Tavern takes the large slot.
+function Wall.sceneLayout(chip, defs, w, h)
+	local sc = Wall.SCENES[chip]
+	if not sc then return nil end
+	local list = Wall.members(chip, defs)
+	local order = {}
+	if chip == "Masters" then -- the Tavern master badge first (large slot), then the roads in road order
+		for _, d in ipairs(list) do if d.region == "tavern" then order[#order + 1] = d end end
+		for _, d in ipairs(list) do if d.region ~= "tavern" then order[#order + 1] = d end end
+	else
+		order = list
+	end
+	if #order ~= #sc.slots then return nil end
+	local iw, ih
+	if w / h > Wall.SCENE_ASPECT then iw, ih = w, w / Wall.SCENE_ASPECT else iw, ih = h * Wall.SCENE_ASPECT, h end
+	local ix, iy = (w - iw) / 2, (h - ih) / 2
+	local items = {}
+	for i, slot in ipairs(sc.slots) do
+		local d = order[i]
+		local size = math.floor(slot[3] * iw)
+		local cx, cy = ix + slot[1] * iw, iy + slot[2] * ih
+		local x, y = math.floor(cx - size / 2), math.floor(cy - size / 2)
+		local maxW = math.floor(sc.pitch * iw) - 6
+		local text = Wall.plateText(d, false)
+		local single = math.floor(#text * 8 + 14)
+		local plateW = math.max(size, math.min(maxW, single))
+		local plateH = Wall.plateLines(text, plateW, 14) > 1 and (Wall.NAMEPLATE_H - 4) or Wall.SCENE_PLATE_H
+		local top = y + size + 6 -- plate top, below the socket
+		if sc.plateRows then -- the painted plate row under this slot's shelf
+			top = math.floor(iy + sc.plateRows[slot[2] < 0.5 and 1 or 2] * ih - plateH / 2)
+		end
+		items[i] = { id = d.id, x = x, y = y, size = size, cell = size + 12, noSocket = true, scene = true, big = (chip == "Masters" and i == 1) or nil,
+			plateW = plateW, plateH = plateH, drop = top - (y + size) - 3 }
+		items[i].socket = "scene"
+	end
+	for _, it in ipairs(items) do
+		local f = Wall.footprint(it)
+		local pr = Wall.plateRect(it)
+		local plate = { x = it.x + pr.x, y = it.y + Wall.plateY(it), w = pr.w, h = pr.h }
+		if f.x < 0 or f.y < 0 or f.x + f.w > w or plate.x < 0 or plate.y < 0 or plate.x + plate.w > w or plate.y + plate.h > h or f.y + it.size > h then
+			return nil
+		end
+	end
+	return { items = items, shelves = {}, image = { x = ix, y = iy, w = iw, h = ih }, scene = sc }
+end
+
 -- The pin above a Roads medal and the string from it down to the socket top: { x = centre, y = pin centre, y2 = string end }.
 function Wall.pinFor(item)
 	local top = item.y - Wall.pad(item.size)
@@ -182,13 +262,13 @@ end
 
 -- Rectangle of an item including its socket and nameplate, { x, y, w, h }.
 function Wall.footprint(item)
-	local p = Wall.pad(item.size)
+	local p = item.noSocket and 0 or Wall.pad(item.size)
 	return { x = item.x - p, y = item.y - p, w = item.size + 2 * p, h = item.size + 2 * p + Wall.NAMEPLATE_H + (item.drop or 0) }
 end
 
 -- Where a nameplate hangs under a badge (relative to the badge top-left): below the socket, and below the plank on a shelf.
 function Wall.plateY(item)
-	return item.size + Wall.pad(item.size) + 3 + (item.drop or 0)
+	return item.size + (item.noSocket and 0 or Wall.pad(item.size)) + 3 + (item.drop or 0)
 end
 
 -- A line between two badge centres cut back to the socket edges, so it joins the sockets and never pokes through them.
@@ -289,8 +369,8 @@ end
 -- Nameplate rectangle relative to the badge's top-left: as wide as the item's own column (so two lines of name fit), never
 -- narrower than the badge plus 8 px, with a 4 px gap to its neighbours. { x, w, h }.
 function Wall.plateRect(item)
-	local w = math.max(item.size + 8, math.floor((item.cell or (item.size + 8)) - 4))
-	return { x = math.floor((item.size - w) / 2), w = w, h = Wall.NAMEPLATE_H - 4 }
+	local w = item.plateW or math.max(item.size + 8, math.floor((item.cell or (item.size + 8)) - 4))
+	return { x = math.floor((item.size - w) / 2), w = w, h = item.plateH or (Wall.NAMEPLATE_H - 4) }
 end
 
 -- Constellation line between two item centres: { x, y, length, rotation } for a thin Frame centred on the midpoint.

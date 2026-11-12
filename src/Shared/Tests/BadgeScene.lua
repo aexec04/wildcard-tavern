@@ -31,6 +31,7 @@ function BadgeScene.build(opts)
 	for _, name in ipairs({ "Badges", "BadgeWallLayout", "BadgeWallArt", "BadgeSocketArt", "BadgeRoomLayout", "RoomGrid", "ContentArt", "ResponsiveLayout" }) do
 		map[name] = require(Engine[name])
 	end
+	if opts.wallArt then map.BadgeWallArt = opts.wallArt end -- tests can record the painted scene ids
 	local engineFolder = FakeGui.folder(map)
 	local equipped = {}
 	local equipRemote = { FireServer = function(_, ...) equipped[#equipped + 1] = { ... } end }

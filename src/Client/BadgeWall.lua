@@ -139,14 +139,32 @@ local function furniture(board, kind, w, h, shelves, items)
 	return back
 end
 
+-- A painted scene (Masters, Night, Special): the picture is cover-fitted over the board, its sockets are in the art, no planks or scrim.
+local function sceneBackdrop(board, sc)
+	local back = frame(board, { Name = "Furniture", Size = UDim2.fromScale(1, 1), ZIndex = Z - 1, BackgroundColor3 = Color3.fromRGB(40, 28, 20) }, 12)
+	local img = artOver(back, sc.art, { Name = "SceneArt", ZIndex = Z - 1, ScaleType = Enum.ScaleType.Crop })
+	if img then
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 12)
+		c.Parent = img
+	end
+	return back
+end
+
 -- A round socket behind a badge, concentric with it: contact shadow, dark plate with an inner shadow ring and a rim.
 -- Painted socket art (Engine/BadgeSocketArt.lua) is laid over when an Image id is recorded; the drawn one shows otherwise.
 local ART_SCALE = { badge_socket_star = 1.9 } -- the painted star ring has a hollow centre much smaller than its frame
 local RIM = { road = Color3.fromRGB(150, 140, 120), shelf = Color3.fromRGB(150, 108, 64), niche = Color3.fromRGB(190, 150, 70), star = Color3.fromRGB(196, 156, 74) }
-local function socketWidget(board, it, owned)
+local function socketWidget(board, it, owned, flat)
 	local r = Wall.socketRect(it)
 	local d = r.w
 	local holder = frame(board, { Name = "Socket_" .. tostring(it.id), Position = UDim2.fromOffset(r.x, r.y), Size = UDim2.fromOffset(d, d), BackgroundTransparency = 1, ZIndex = Z + 1 })
+	if flat then -- the picture provides the socket (or the map the pin): only a soft contact shadow, no dark plate and no ring
+		if not it.scene then
+			frame(holder, { Name = "ContactShadow", Position = UDim2.fromOffset(-1, 3), Size = UDim2.fromOffset(d + 2, d), BackgroundColor3 = Color3.fromRGB(40, 24, 10), BackgroundTransparency = 0.78, ZIndex = Z + 1 }, d)
+		end
+		return holder
+	end
 	frame(holder, { Name = "ContactShadow", Position = UDim2.fromOffset(-2, 3), Size = UDim2.fromOffset(d + 4, d + 2), BackgroundColor3 = Color3.fromRGB(8, 5, 3), BackgroundTransparency = 0.55, ZIndex = Z + 1 }, d)
 	local plate = frame(holder, { Name = "Plate", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(24, 17, 12), ZIndex = Z + 2 }, d)
 	local rimColor = owned and GOLD or (RIM[it.socket] or BRASS)
@@ -219,19 +237,20 @@ local function sparkle(parent, size)
 	end
 end
 
-local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
+local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh, flat)
 	local size = it.size
 	local holder = frame(board, { Name = "Badge_" .. def.id, Position = UDim2.fromOffset(it.x, it.y), Size = UDim2.fromOffset(size, Wall.plateY(it) + Wall.NAMEPLATE_H - 3), BackgroundTransparency = 1, ZIndex = Z + 3 })
 	if owned then -- soft spotlight cone behind earned badges
 		local spot = frame(holder, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(size / 2, size / 2), Size = UDim2.fromOffset(size * 1.3, size * 1.3), BackgroundColor3 = Color3.fromRGB(255, 226, 140), BackgroundTransparency = 0.9, ZIndex = Z + 2 }, size)
 	end
 	local medal = frame(holder, { Name = "Medal", Size = UDim2.fromOffset(size, size), BackgroundColor3 = owned and Color3.fromRGB(70, 52, 36) or Color3.fromRGB(58, 50, 44), ClipsDescendants = true, ZIndex = Z + 3 }, math.floor(size / 2))
-	stroke(medal, owned and GOLD or Color3.fromRGB(92, 80, 66), owned and 3 or 2)
+	if not flat then stroke(medal, owned and GOLD or Color3.fromRGB(92, 80, 66), owned and 3 or 2) end -- on a scene the badge art itself is the object: no ring
 	words(medal, { Size = UDim2.fromScale(1, 1), Text = def.icon, TextSize = math.max(14, math.floor(size * 0.5)), TextTransparency = owned and 0 or 0.45, TextColor3 = owned and CREAM or Color3.fromRGB(150, 140, 128), ZIndex = Z + 4 })
 	local artId = ContentArt.getImageId("badges", def.id)
 	if artId then
 		local art = PatronPlaque.applyById(medal, artId, { zIndex = Z + 5, cornerRadius = math.floor(size / 2) })
 		if art then
+			if flat then medal.BackgroundTransparency = 1 end
 			art.ScaleType = Enum.ScaleType.Crop
 			art.ImageColor3 = owned and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 146, 142) -- locked: the same icon, muted
 		end
@@ -239,7 +258,8 @@ local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
 	if not owned then
 		local mute = frame(medal, { Name = "Mute", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(58, 52, 48), BackgroundTransparency = 0.5, ZIndex = Z + 6 }, math.floor(size / 2))
 		mute.Active = false
-		local lock = words(medal, { AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -4), Size = UDim2.fromOffset(math.max(18, size * 0.28), math.max(18, size * 0.28)), Text = "\240\159\148\146", TextSize = math.max(14, math.floor(size * 0.2)), BackgroundTransparency = 0.25, BackgroundColor3 = Color3.fromRGB(26, 19, 13), ZIndex = Z + 8 })
+		-- locked: a small padlock chip (on a scene it sits on the socket rim, outside the clipped medal)
+		local lock = words(flat and holder or medal, { Name = "LockChip", AnchorPoint = Vector2.new(1, 1), Position = flat and UDim2.new(1, 3, 0, size + 3) or UDim2.new(1, -4, 1, -4), Size = UDim2.fromOffset(math.max(18, size * 0.28), math.max(18, size * 0.28)), Text = "\240\159\148\146", TextSize = math.max(14, math.floor(size * 0.2)), BackgroundTransparency = 0.25, BackgroundColor3 = Color3.fromRGB(26, 19, 13), ZIndex = Z + 8 })
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(1, 0)
 		c.Parent = lock
@@ -248,21 +268,38 @@ local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
 		table.insert(sweeps, { strip = strip, phase = (#sweeps % 7) / 7 })
 	end
 	-- brass nameplate: earned shows the name, locked shows the requirement
-	rimOver(holder, size, owned, it.socket)
+	if not flat then rimOver(holder, size, owned, it.socket) end
 	local pr = Wall.plateRect(it)
-	local plate = frame(holder, { Name = "Nameplate", Position = UDim2.fromOffset(pr.x, Wall.plateY(it)), Size = UDim2.fromOffset(pr.w, pr.h), BackgroundColor3 = Color3.fromRGB(44, 32, 24), ZIndex = Z + 4 }, 4)
-	stroke(plate, BRASS, 1)
-	words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = Wall.plateText(def, owned), TextWrapped = true, TextSize = 15, TextTruncate = Enum.TextTruncate.None, ZIndex = Z + 6,
-		TextColor3 = owned and CREAM or Color3.fromRGB(196, 182, 156) })
+	local nameText = Wall.plateText(def, owned)
+	if flat and not it.scene and Wall.plateLines(nameText, pr.w, 14) == 1 then -- Roads: a one-line plate when the name fits its column
+		pr = { x = pr.x, w = pr.w, h = Wall.SCENE_PLATE_H }
+	end
+	-- on a scene or the map the name sits on a small parchment plate, not a big dark box
+	local plateColor = flat and (owned and Color3.fromRGB(226, 204, 158) or Color3.fromRGB(190, 172, 136)) or Color3.fromRGB(44, 32, 24)
+	local plate = frame(holder, { Name = "Nameplate", Position = UDim2.fromOffset(pr.x, Wall.plateY(it)), Size = UDim2.fromOffset(pr.w, pr.h), BackgroundColor3 = plateColor, ZIndex = Z + 4 }, 4)
+	stroke(plate, flat and Color3.fromRGB(122, 90, 48) or BRASS, 1)
+	local plateLabel = words(plate, { Size = UDim2.new(1, -6, 1, 0), Position = UDim2.fromOffset(3, 0), Text = nameText, TextWrapped = true, TextSize = flat and 14 or 15, TextTruncate = Enum.TextTruncate.None, ZIndex = Z + 6,
+		TextColor3 = flat and (owned and INK or Color3.fromRGB(86, 68, 48)) or (owned and CREAM or Color3.fromRGB(196, 182, 156)) })
+	-- the hovered or next-up badge shows its whole name on one line; the others keep the small plate
+	local function expandPlate(on)
+		if not flat then return end
+		local single = math.max(pr.w, #nameText * 8 + 14)
+		local wide = on and single > pr.w
+		plate.Size = UDim2.fromOffset(wide and single or pr.w, wide and Wall.SCENE_PLATE_H or pr.h)
+		plate.Position = UDim2.fromOffset(wide and math.floor((size - single) / 2) or pr.x, Wall.plateY(it))
+		plate.ZIndex = on and Z + 14 or Z + 4
+		plateLabel.ZIndex = on and Z + 15 or Z + 6
+	end
 	if opts.tooltip then opts.tooltip(plate, def.name .. "\n" .. (owned and def.description or def.hint)) end
 	if opts.equippedId == def.id or opts.secondId == def.id then
 		local tag = frame(holder, { Position = UDim2.fromOffset(-2, 4), Size = UDim2.fromOffset(math.min(88, size), 20), BackgroundColor3 = GOLD, ZIndex = Z + 9 }, 3)
 		words(tag, { Size = UDim2.fromScale(1, 1), Text = "Equipped", ZIndex = Z + 10 })
 	end
 	if isNext then
-		local ring = stroke(medal, GOLD, 3)
+		expandPlate(true)
+		local ring = stroke(medal, GOLD, flat and 2 or 3)
 		table.insert(pulses, { ring = ring, phase = 0 })
-		local ribbon = frame(holder, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, 2 - Wall.pad(size)), Size = UDim2.fromOffset(math.max(64, size * 0.8), 18), BackgroundColor3 = Color3.fromRGB(176, 44, 44), ZIndex = Z + 9 }, 3)
+		local ribbon = frame(holder, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, 2 - (it.noSocket and 0 or Wall.pad(size))), Size = UDim2.fromOffset(math.max(flat and 56 or 64, size * (flat and 0.6 or 0.8)), 18), BackgroundColor3 = Color3.fromRGB(176, 44, 44), ZIndex = Z + 9 }, 3)
 		words(ribbon, { Size = UDim2.fromScale(1, 1), Text = "Next up", TextColor3 = Color3.fromRGB(255, 236, 200), ZIndex = Z + 10 })
 	end
 	-- the whole medal is the click target; hover raises it a little (not on touch)
@@ -277,10 +314,12 @@ local function badgeWidget(board, def, it, owned, state, opts, isNext, fresh)
 	hit.MouseButton1Click:Connect(function() if opts.onPick then opts.onPick(def, owned) end end)
 	if not UserInputService.TouchEnabled then
 		hit.MouseEnter:Connect(function()
+			expandPlate(true)
 			if calm() then return end
 			TweenService:Create(holder, TweenInfo.new(0.12), { Position = UDim2.fromOffset(it.x, it.y - 4) }):Play()
 		end)
 		hit.MouseLeave:Connect(function()
+			expandPlate(isNext == true)
 			TweenService:Create(holder, TweenInfo.new(0.12), { Position = UDim2.fromOffset(it.x, it.y) }):Play()
 		end)
 	end
@@ -296,13 +335,21 @@ function BadgeWall.render(board, chip, have, opts)
 	sweeps, pulses = {}, {}
 	local w, h = board.AbsoluteSize.X, board.AbsoluteSize.Y
 	if w < 80 or h < 80 then w, h = math.max(w, 600), math.max(h, 340) end
-	local lay = Wall.layout(chip, nil, w, h)
-	local kind = Wall.FURNITURE[chip] or "cabinet"
-	furniture(board, kind, w, h, lay.shelves, lay.items)
+	-- a painted scene (once its Image id is recorded) places every badge in a socket of the picture; otherwise the drawn layout stays
+	local sc = Wall.sceneOf(chip, WallArt)
+	local lay = sc and Wall.sceneLayout(chip, nil, w, h)
+	local painted = lay ~= nil
+	if painted then
+		sceneBackdrop(board, sc)
+	else
+		lay = Wall.layout(chip, nil, w, h)
+		furniture(board, Wall.FURNITURE[chip] or "cabinet", w, h, lay.shelves, lay.items)
+	end
+	local flat = painted or chip == "Roads" -- no dark rings or boxes: the picture and the map hold the badges
 
 	local byId = {}
 	for _, it in ipairs(lay.items) do byId[it.id] = it end
-	for _, seg in ipairs(Wall.lines(chip, nil, have)) do
+	for _, seg in ipairs(painted and {} or Wall.lines(chip, nil, have)) do
 		local a, b = byId[seg.a], byId[seg.b]
 		if a and b then
 			local ax, ay, bx, by = a.x + a.size / 2, a.y + a.size / 2, b.x + b.size / 2, b.y + b.size / 2
@@ -325,18 +372,18 @@ function BadgeWall.render(board, chip, have, opts)
 			local pin = frame(board, { Name = "Pin", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(p.x, p.y), Size = UDim2.fromOffset(Wall.PIN, Wall.PIN), BackgroundColor3 = it and have[it.id] and GOLD or BRASS, ZIndex = Z + 2 }, Wall.PIN)
 			stroke(pin, Color3.fromRGB(60, 40, 20), 1)
 		end
-	elseif chip == "Night" then
+	elseif chip == "Night" and not painted then
 		for _, st in ipairs(Wall.tinyStars(lay.items)) do
 			frame(board, { Name = "TinyStar", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(st.x, st.y), Size = UDim2.fromOffset(st.size, st.size), BackgroundColor3 = Color3.fromRGB(230, 236, 255), BackgroundTransparency = 0.25, ZIndex = Z + 1 }, st.size)
 		end
 	end
-	for _, it in ipairs(lay.items) do socketWidget(board, it, have[it.id] == true) end
+	for _, it in ipairs(lay.items) do socketWidget(board, it, have[it.id] == true, flat) end
 	local nextId = Wall.nextUp(chip, nil, have)
 	local freshSet = {}
 	for _, id in ipairs(Wall.fresh(seenIds, have)) do freshSet[id] = true end
 	for _, it in ipairs(lay.items) do
 		local def = Badges.getById(it.id)
-		if def then badgeWidget(board, def, it, have[def.id] == true, nil, opts, it.id == nextId, freshSet[def.id]) end
+		if def then badgeWidget(board, def, it, have[def.id] == true, nil, opts, it.id == nextId, freshSet[def.id], flat) end
 	end
 	-- everything on screen now counts as seen (the first view only records, nothing sparkles)
 	seenIds = seenIds or {}
