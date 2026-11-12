@@ -107,14 +107,18 @@ function FlashFX.play(root, kind, center, opts)
 	-- the glow and the vignette follow the tested envelope
 	task.spawn(function()
 		local t0 = os.clock()
-		while alive do
-			local t = os.clock() - t0
-			if t >= spec.duration then break end
-			glow.setPeak(math.max(0.001, Spec.glowPeakAt(spec, t)))
-			local strength = math.min(0.95, math.max(0.001, Spec.vignetteAt(spec, t)))
-			for _, edge in ipairs(EDGES) do vignette.setStrength(edge, strength, true) end
-			task.wait(1 / 30)
-		end
+		-- a failing frame must never leave the overlays on screen: every step is protected and destroy() always runs
+		local ok, err = pcall(function()
+			while alive do
+				local t = os.clock() - t0
+				if t >= spec.duration then break end
+				glow.setPeak(math.max(0.001, Spec.glowPeakAt(spec, t)))
+				local strength = math.min(0.95, math.max(0.001, Spec.vignetteAt(spec, t)))
+				for _, edge in ipairs(EDGES) do vignette.setStrength(edge, strength) end -- third argument is an optional apply function, never a boolean
+				task.wait(1 / 30)
+			end
+		end)
+		if not ok then warn("[FlashFX] " .. tostring(err)) end
 		destroy()
 	end)
 	task.delay(spec.duration + 0.6, destroy) -- hard safety net: nothing can stay on screen

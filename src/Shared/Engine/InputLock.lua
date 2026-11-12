@@ -57,4 +57,11 @@ function InputLock.effectivelyVisible(selfVisible, ancestors)
 	return true
 end
 
+-- A backdrop whose last popup action was popOut and which is STILL visible a second later is stuck: its fade-out never finished, and while
+-- it stays up it swallows clicks and locks the gameplay buttons (InputGuard). Client/InputGuard checks this once a second.
+InputLock.STUCK_AFTER = 1
+function InputLock.isStuck(popState, popOutAt, visible, now)
+	return visible == true and popState == "out" and type(popOutAt) == "number" and (now - popOutAt) > InputLock.STUCK_AFTER
+end
+
 return InputLock

@@ -96,7 +96,7 @@ return function(deps)
 	local previewBar = Instance.new("Frame")
 	previewBar.Name = "PreviewModeBar"
 	previewBar.AnchorPoint = Vector2.new(0.5, 0)
-	previewBar.Size = UDim2.fromOffset(380, 44)
+	previewBar.Size = UDim2.fromOffset(460, 44)
 	previewBar.Position = UDim2.new(0.5, 0, 0, 112) -- top centre BELOW the game title (the wordmark spans y 20 to 100) and the PanelTabs strip; never over Sort / Play / Discard
 	previewBar.BackgroundColor3 = Color3.fromRGB(70, 48, 28)
 	previewBar.Visible = false
@@ -144,7 +144,7 @@ return function(deps)
 	local function startPreview(name, setId, backId)
 		savedScroll = scroll.CanvasPosition
 		previewActive = true
-		barText.Text = "Preview mode: " .. name
+		barText.Text = "Preview mode: " .. name .. "  (X to end)"
 		previewBar.Visible = true
 		pcall(CosmeticSetsView.preview, setId, backId)
 		popOut(backdrop, panel)

@@ -88,7 +88,7 @@ function SmoothVignette.build(parent, opts)
 		local f = frames[edge]
 		if not f then return end
 		local props = { BackgroundTransparency = 1 - math.clamp(strength, 0, 0.95) }
-		if applyFn then applyFn(f, props) else f.BackgroundTransparency = props.BackgroundTransparency end
+		if type(applyFn) == "function" then applyFn(f, props) else f.BackgroundTransparency = props.BackgroundTransparency end
 	end
 	return self
 end

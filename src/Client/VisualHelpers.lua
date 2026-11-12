@@ -699,6 +699,11 @@ return function(deps)
 			scale.Parent = content
 		end
 
+		-- hide bookkeeping: a later popOut's safety timer must not hide a backdrop that was shown again, and Active comes back with it
+		backdrop:SetAttribute("PopSeq", (backdrop:GetAttribute("PopSeq") or 0) + 1)
+		backdrop:SetAttribute("PopState", "in")
+		if backdrop:GetAttribute("PopActive") == nil then backdrop:SetAttribute("PopActive", backdrop.Active) end
+		backdrop.Active = backdrop:GetAttribute("PopActive") == true
 		backdrop.Visible = true
 		backdrop.BackgroundTransparency = 1
 		scale.Scale = opts.fromScale or 0.85
@@ -719,18 +724,35 @@ return function(deps)
 		if scale then
 			tweenTo(scale, { Scale = opts.toScale or 0.9 }, duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		end
-		local tween = tweenTo(backdrop, { BackgroundTransparency = 1 }, duration)
-		tween.Completed:Connect(function(playbackState)
-			if playbackState ~= Enum.PlaybackState.Completed then
-				return -- interrupted by a newer tween (e.g. re-shown mid-fade-out) -- don't stomp it
-			end
+		local seq = (backdrop:GetAttribute("PopSeq") or 0) + 1
+		backdrop:SetAttribute("PopSeq", seq)
+		backdrop:SetAttribute("PopState", "out") -- Client/InputGuard.watchStuck hides a backdrop that is still up a second after this
+		backdrop:SetAttribute("PopOutAt", os.clock())
+		if backdrop:GetAttribute("PopActive") == nil then backdrop:SetAttribute("PopActive", backdrop.Active) end
+		local hidden = false
+		local function hide()
+			if hidden then return end
+			hidden = true
 			backdrop.Visible = false
+			backdrop.Active = false -- a hidden backdrop never keeps swallowing clicks (popIn gives Active back)
 			if scale then
 				scale.Scale = 1
 			end
 			if onHidden then
 				onHidden()
 			end
+		end
+		local tween = tweenTo(backdrop, { BackgroundTransparency = 1 }, duration)
+		tween.Completed:Connect(function(playbackState)
+			if playbackState ~= Enum.PlaybackState.Completed then
+				return -- interrupted by a newer tween (e.g. re-shown mid-fade-out) -- don't stomp it
+			end
+			if backdrop:GetAttribute("PopSeq") ~= seq then return end
+			hide()
+		end)
+		-- safety net: if the tween never completes (it was cancelled or replaced), the backdrop still goes away, unless it was shown again
+		task.delay(duration + 0.45, function()
+			if backdrop:GetAttribute("PopSeq") == seq then hide() end
 		end)
 	end
 

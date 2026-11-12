@@ -115,6 +115,27 @@ function InputGuard.install(opts)
 	end
 	if opts.menuGuarded then guardContainer(opts.menuGuarded, menuLock) end
 
+	-- SAFETY NET: once a second while the game is up, a backdrop that was popped out more than a second ago and is still visible is stuck
+	-- (a fade-out that never completed): log "[InputGuard] stuck <name>" and hide it so the board is clickable again.
+	task.spawn(function()
+		while root.Parent do
+			task.wait(1)
+			if root.Visible then
+				local hosts = { root }
+				if root.Parent and root.Parent:IsA("LayerCollector") then hosts[2] = root.Parent end
+				for _, host in ipairs(hosts) do
+					for _, child in ipairs(host:GetChildren()) do
+						if child:IsA("GuiObject") and InputLock.isStuck(child:GetAttribute("PopState"), child:GetAttribute("PopOutAt"), child.Visible, os.clock()) then
+							warn("[InputGuard] stuck " .. child.Name)
+							child.Visible = false
+							child.Active = false
+						end
+					end
+				end
+			end
+		end
+	end)
+
 	return lock
 end
 

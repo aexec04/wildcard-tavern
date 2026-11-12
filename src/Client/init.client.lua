@@ -917,6 +917,7 @@ end)
 MenuScreen.menuPlayButton.MouseButton1Click:Connect(function()
 	SoundModule.playClickSfx()
 	require(script.TutorialBus).fire("menu_play")
+	pcall(require(script.OverlayManager).closeAllExcept, "") -- Card Sets Preview mode and any panel still fading never follow the player into the run
 	MenuScreen.menuFrame.Visible = false
 	root.Visible = true
 	if SoundModule.backgroundMusic.SoundId ~= "rbxassetid://0" and SoundModule.backgroundMusic.Volume > 0 then
@@ -1116,6 +1117,7 @@ require(script.RunSetup)({
 	-- see RunRecap.lua's own header for why this needs 2 call sites, not
 	-- just the gameover->playing transition render() already covers.
 	onBeginRun = function()
+		pcall(require(script.OverlayManager).closeAllExcept, "") -- Begin Run: no Preview mode or fading panel survives into the run
 		PhaseAModule.resetRun()
 		require(script.GameplayScene).get().reset()
 	end,
@@ -2782,12 +2784,14 @@ end)
 
 GameOverPanel.playAgainButton.MouseButton1Click:Connect(function()
 	SoundModule.playClickSfx()
+	pcall(require(script.OverlayManager).closeAllExcept, "") -- ends Card Sets Preview mode and closes any panel, so no backdrop is left up over the new run
 	RestartRunRemote:FireServer()
 end)
 
 -- Back to Tavern: same as Settings > Main Menu, sends nothing to the server.
 GameOverPanel.tavernButton.MouseButton1Click:Connect(function()
 	SoundModule.playClickSfx()
+	pcall(require(script.OverlayManager).closeAllExcept, "")
 	root.Visible = false
 	MenuScreen.menuFrame.Visible = true
 end)

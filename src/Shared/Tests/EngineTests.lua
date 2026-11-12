@@ -20892,6 +20892,53 @@ table.insert(tests, { name = "Choose your road: painted room scene under the pan
 	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
+table.insert(tests, { name = "Dead clicks audit: stuck backdrop detection, popOut always hides (tween or not), Preview ends when a run starts, FlashFX and PlayBoardHud cannot loop", fn = function()
+	local L = require(script.Parent.Parent.Engine.InputLock)
+	expectTrue(L.isStuck("out", 10, true, 11.2), "a backdrop popped out more than a second ago and still visible is stuck")
+	expectFalse(L.isStuck("out", 10, true, 10.5), "a fade-out that is still running is not stuck")
+	expectFalse(L.isStuck("in", 10, true, 20), "an open panel is not stuck")
+	expectFalse(L.isStuck("out", 10, false, 20), "a hidden backdrop is not stuck")
+	expectFalse(L.isStuck(nil, nil, true, 20), "a frame that never used popIn or popOut is left alone")
+	local function read(path)
+		local f = io and io.open and io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a")
+		f:close()
+		return text
+	end
+	local helpers = read("src/Client/VisualHelpers.lua")
+	if helpers then
+		expectTrue(helpers:find('task.delay(duration + 0.45', 1, true) ~= nil and helpers:find("backdrop.Active = false", 1, true) ~= nil, "popOut hides the backdrop and clears Active in the Completed callback and in a timer")
+		expectTrue(helpers:find('SetAttribute("PopState", "out")', 1, true) ~= nil, "popOut marks the backdrop for the stuck watcher")
+	end
+	local guard = read("src/Client/InputGuard.lua")
+	if guard then
+		expectTrue(guard:find("[InputGuard] stuck", 1, true) ~= nil and guard:find("InputLock.isStuck", 1, true) ~= nil, "InputGuard logs and hides a stuck backdrop once a second")
+	end
+	local hub = read("src/Client/init.client.lua")
+	if hub then
+		local _, n = hub:gsub('closeAllExcept, ""', "")
+		expectTrue(n >= 4, "Play, Begin Run, Play Again and Back to Tavern all end Preview mode and close panels, found " .. n)
+	end
+	local flash = read("src/Client/FlashFX.lua")
+	if flash then
+		expectFalse(flash:find("setStrength(edge, strength, true)", 1, true) ~= nil, "FlashFX passes no boolean as the apply function")
+		expectTrue(flash:find("pcall(function()", 1, true) ~= nil and flash:find("destroy()", 1, true) ~= nil, "the flash loop is protected and always destroys the overlays")
+	end
+	local vignette = read("src/Client/SmoothVignette.lua")
+	if vignette then
+		expectTrue(vignette:find('type(applyFn) == "function"', 1, true) ~= nil, "SmoothVignette ignores a non function apply argument")
+	end
+	local board = read("src/Client/PlayBoardHud.lua")
+	if board then
+		expectTrue(board:find("RUN_COOLDOWN = 0.05", 1, true) ~= nil and board:find("task.delay(wait, go)", 1, true) ~= nil, "PlayBoardHud placements are 50 ms apart so watchers cannot chain task.defer")
+	end
+	local sets = read("src/Client/CosmeticSetsPanel.lua")
+	if sets then
+		expectTrue(sets:find("(X to end)", 1, true) ~= nil, "the Preview bar says to press X")
+	end
+end })
+
 table.insert(tests, { name = "Round Complete is a one line toast (no Continue, gone in 1.8 s); the big plate is at most 55 percent of the screen and any click closes it", fn = function()
 	local P = require(script.Parent.Parent.Engine.RoundPayout)
 	local t = P.toastLines(4, 0)

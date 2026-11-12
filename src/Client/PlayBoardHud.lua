@@ -18,6 +18,7 @@ local PlayBoardLayout = require(Engine:WaitForChild("PlayBoardLayout"))
 local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local PlayBoardHud = {}
+PlayBoardHud.RUN_COOLDOWN = 0.05 -- seconds between two scheduled placements (breaks the watcher re-entrancy chain)
 
 local INK = Color3.fromRGB(52, 32, 16)
 -- decoration the theme and the skin draw on the Sidebar and SidebarBoard frames themselves: gone while the board is painted
@@ -637,13 +638,18 @@ PlayBoardHud.reportOverlaps = function(root) local st = stateFor(root) pcall(rep
 function schedule(root, st)
 	if st.applying or st.pending or not st.rect then return end
 	st.pending = true
-	task.defer(function()
+	-- The watchers that call schedule() fire for the very properties run() changes, so an unbroken defer chain exceeded Roblox's re-entrancy
+	-- depth (80). A 50 ms cooldown between two runs moves a repeat to a later frame, which ends the chain.
+	local function go()
 		st.pending = false
 		if not st.rect then return end
 		st.applying = true
 		pcall(run, root, st)
 		st.applying = false
-	end)
+		st.lastRun = os.clock()
+	end
+	local wait = PlayBoardHud.RUN_COOLDOWN - (os.clock() - (st.lastRun or -1))
+	if wait > 0 then task.delay(wait, go) else task.defer(go) end
 end
 
 local function unwatch(st)
