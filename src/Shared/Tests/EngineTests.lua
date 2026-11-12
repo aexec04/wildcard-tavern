@@ -20371,4 +20371,14 @@ tests[#tests + 1] = ({ name = "DebugGotoRules: shop, roundwin, gameover, boss1, 
 	expectTrue(base.phase == "playing" and base.tips == 3, "the input state is untouched")
 end })
 
+tests[#tests + 1] = ({ name = "DebugGoto: the synth kind has its own branch that sets synthWhich and runs the round1 chain, and showSynth runs once the hand is dealt", fn = function()
+	local f = io and io.open and io.open("src/Client/DebugGoto.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('target.kind == "synth"', 1, true) ~= nil, "a synth branch exists")
+	expectTrue(src:find("synthWhich = (target.kind == \"synth\") and target.which", 1, true) ~= nil, "synthWhich is assigned from the target")
+	expectTrue(src:find("pcall(showSynth, which)", 1, true) ~= nil, "showSynth is called once the hand is dealt")
+end })
+
 return tests

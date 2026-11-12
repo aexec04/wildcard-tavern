@@ -84,7 +84,8 @@ function DebugGoto.init(deps)
 				OverlayManager.closeAllExcept("")
 				showMenu()
 				require(script.Parent.NewsPanel).open()
-			elseif target.kind == "round1" then
+			elseif target.kind == "round1" or target.kind == "synth" then
+				synthWhich = (target.kind == "synth") and target.which or nil
 				OverlayManager.closeAllExcept("")
 				hideMenu()
 				if deps and deps.root then deps.root.Visible = true end -- the real launch shows the table too (Client/ChallengeStart.launch)
@@ -135,6 +136,13 @@ function DebugGoto.init(deps)
 		end
 		if count then
 			pendingRound1 = false
+			if synthWhich then
+				local which = synthWhich
+				synthWhich = nil
+				local okS, errS = pcall(showSynth, which)
+				if not okS then warn("[DebugGoto] " .. which .. " failed: " .. tostring(errS)) end
+				return
+			end
 			print("[DebugGoto] round1 hand=" .. count)
 			if previewSet then
 				local set = previewSet
