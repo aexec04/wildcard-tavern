@@ -22660,4 +22660,41 @@ table.insert(tests, { name = "PreviewGuard: every run remote is rejected while P
 	end
 end })
 
+table.insert(tests, { name = "FullScreenRules: the Tavern Map panel is the whole screen at three sizes, the header strip and the buttons fit, the corner dock hides while open and comes back after any close", fn = function()
+	local R = require(script.Parent.Parent.Engine.FullScreenRules)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 390, 844 } }) do
+		local sw, sh = size[1], size[2]
+		local panel = R.panelRect(sw, sh)
+		expectTrue(panel.x == 0 and panel.y == 0 and panel.w == sw and panel.h == sh, "the map root equals the screen at " .. sw .. "x" .. sh)
+		local strip = R.stripRect(sw, sh)
+		expectTrue(strip.h == 64 and strip.w == sw, "a 64 px strip across the top")
+		local close, x = R.closeRect(sw, sh), R.xRect(sw, sh)
+		expectTrue(close.x >= 0 and close.x + close.w <= sw and close.y + close.h <= sh - 16 + 0.5 and math.abs(close.x + close.w / 2 - sw / 2) <= 1, "Close is bottom centre with a 16 px margin")
+		expectTrue(x.x >= 0 and x.x + x.w <= sw and x.y >= 0 and x.y + x.h <= strip.h, "the round X sits inside the strip at the top right")
+	end
+	local st = R.new()
+	expectFalse(R.hidden(st), "the dock shows at first")
+	R.enter(st, "tavernMap")
+	expectTrue(R.hidden(st), "the dock is hidden while the map is open")
+	R.enter(st, "other")
+	R.leave(st, "tavernMap")
+	expectTrue(R.hidden(st), "another full-screen scene keeps it hidden")
+	R.leave(st, "other")
+	expectFalse(R.hidden(st), "and it is restored after the last one closes")
+	expectEqual(R.HIDE[1], "CornerIconRow", "the corner icon row is what hides")
+	local f = io and io.open and io.open("src/Client/MapFullScreen.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("FullScreenHud.enter", 1, true) ~= nil and text:find("FullScreenHud.leave", 1, true) ~= nil and text:find("GetPropertyChangedSignal(\"Visible\")", 1, true) ~= nil, "any close (Visible false) restores the dock")
+		expectTrue(text:find("UDim2.fromScale(1, 1)", 1, true) ~= nil, "panel and map fill the screen")
+	end
+	local g = io and io.open and io.open("src/Client/Journey.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find("MapFullScreen", 1, true) ~= nil, "showMap makes the map full screen")
+	end
+end })
+
 return tests

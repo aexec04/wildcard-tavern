@@ -934,6 +934,10 @@ return function(deps)
 		journeyMapScroll.Visible = false
 		journeyInfoBar.Visible = false
 		mapView.applyHeader(true)
+		require(script.Parent.MapFullScreen).apply({ -- the Tavern Map is a full-screen scene with the corner dock hidden
+			screenGui = screenGui, backdrop = journeyBackdrop, panel = journeyPanel, title = journeyTitle, subtitle = journeySubtitle,
+			mapFrame = mapView.frame, closeButton = journeyCloseButton, sizeConstraint = journeyPanelMinSize,
+		})
 	end
 
 	-- Closing the overlay by any route (Close, another overlay) stops the map's drifting fog and ambience.
