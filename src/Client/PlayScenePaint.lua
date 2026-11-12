@@ -106,11 +106,15 @@ function PlayScenePaint.install(deps)
 		local def = setKey and PlayTableLayout.SETS[setKey]
 		return def ~= nil and def.lip ~= nil
 	end
+	-- a per-Card-Set room is its painting alone: no wood front (the flat tan band), no groove rim, no deck recess box; a soft floor shadow
+	-- under the hand keeps it legible (Engine/PlayTableLayout.showsFront, Client/PlayFloorShade)
+	local floorShade = require(script.Parent.PlayFloorShade).install(root)
+	local function frontShown() return PlayTableLayout.showsFront(setKey) end
 	local function setLip(v) -- one place for lip visibility: the painted pieces replace the flat strip when present
 		local oval = hasRim()
 		lip.Visible = v and not rail and not oval
 		if rail then rail.back.Visible = v and not oval; rail.front.Visible = v and not oval end
-		groove.Visible = v and oval
+		groove.Visible = v and oval and frontShown()
 	end
 	-- the equipped or previewed Card Set may tint the table (felt on the picture, wood on the rail lip); HudTheme calls this on equip,
 	-- Preview start and Preview stop, and a set without a tint puts the painted colours back exactly
@@ -186,7 +190,8 @@ function PlayScenePaint.install(deps)
 			local m = p.map.image
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
-			image.Visible = handFrame.Visible
+			image.Visible = handFrame.Visible and frontShown()
+			floorShade.setVisible(handFrame.Visible and not frontShown())
 			if bg then bg.Visible = handFrame.Visible end
 			local rim = p.map.lip -- the front's own rim, cropped from the same picture and drawn above the cards so it overlaps their bottoms
 			local def = setKey and PlayTableLayout.SETS[setKey]
@@ -218,7 +223,7 @@ function PlayScenePaint.install(deps)
 			if game:GetService("RunService"):IsStudio() then
 				task.delay(1.2, function() pcall(function() require(script.Parent.PlayBoardHud).reportOverlaps(root) end) end) -- [PlateOverlap] in the Output
 			end
-			deck(p.map.deck)
+			deck(frontShown() and p.map.deck or nil) -- no painted recess box in a room: the deck pile sits directly on the painting
 			watchCovers()
 			PlayRailLip.apply(lip, p, lipShown())
 			PlayRail.apply(rail, p, lipShown())
@@ -229,6 +234,7 @@ function PlayScenePaint.install(deps)
 			painted = false
 			vignette(false)
 			image.Visible = false
+			floorShade.setVisible(false)
 			if bg then bg.Visible = false end
 			shade.apply(nil)
 			PlayRailLip.apply(lip, nil)
@@ -247,7 +253,13 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible; if bg then bg.Visible = handFrame.Visible end; shade.frame.Visible = handFrame.Visible; setLip(lipShown()) end
+		if painted then
+			image.Visible = handFrame.Visible and frontShown()
+			floorShade.setVisible(handFrame.Visible and not frontShown())
+			if bg then bg.Visible = handFrame.Visible end
+			shade.frame.Visible = handFrame.Visible
+			setLip(lipShown())
+		end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)

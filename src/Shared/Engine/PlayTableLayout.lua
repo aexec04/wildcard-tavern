@@ -62,6 +62,27 @@ do
 	end
 end
 
+-- A per-Card-Set room (a key built from PlayRoomArt) is shown by its painting alone: its wood front (the flat tan band under the hand, the
+-- deck recess box) is not drawn. The classic oval front and the older Mountain Festival and Frosted Garden fronts keep theirs.
+function M.showsFront(setKey)
+	local s = setKey and M.SETS[setKey]
+	return not (s and s.room ~= nil)
+end
+
+-- Instead of the front, a soft dark floor shadow lies under the hand for legibility: FLOOR.layers stacked solid bands, the k-th covering the
+-- bottom height * k / layers of the screen, each black at the same alpha, so the shadow is `alpha` black at the very bottom and fades to
+-- nothing at `height` of the screen (colour only: no UIGradient.Transparency).
+M.FLOOR = { layers = 8, height = 0.35, alpha = 0.55 }
+function M.floorBands()
+	local f = M.FLOOR
+	local per = 1 - (1 - f.alpha) ^ (1 / f.layers) -- opacity of one band so that all of them together reach `alpha`
+	local out = {}
+	for k = 1, f.layers do
+		out[k] = { height = f.height * k / f.layers, transparency = 1 - per }
+	end
+	return out
+end
+
 -- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
 function M.fillOf(setId)
 	local s = setId and M.SETS[setId]

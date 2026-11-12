@@ -20892,6 +20892,39 @@ table.insert(tests, { name = "Choose your road: painted room scene under the pan
 	expectFalse(wheel:find("north", 1, true) ~= nil, "no lone N label at the top any more")
 end })
 
+table.insert(tests, { name = "Per-set rooms are the painting alone: no wood front band or recess box in any of the 14 rooms, a floor shadow instead; the classic oval table keeps its wood", fn = function()
+	local E = script.Parent.Parent.Engine
+	local L = require(E.PlayTableLayout)
+	local RA = require(E.PlayRoomArt)
+	expectEqual(#RA.ORDER, 14, "14 per-set rooms")
+	for _, id in ipairs(RA.ORDER) do
+		expectFalse(L.showsFront(RA.PREFIX .. id), id .. ": the flat wood front band is not drawn")
+		expectTrue(L.SETS[RA.PREFIX .. id] ~= nil and L.SETS[RA.PREFIX .. id].room == id, id .. ": it is a room layout")
+	end
+	expectTrue(L.showsFront(L.OVAL_KEY), "the classic oval table keeps its painted wood")
+	expectTrue(L.showsFront(nil), "the default front is untouched")
+	expectTrue(L.showsFront("winter_evening"), "the older Frosted Garden front keeps its table")
+	local bands = L.floorBands()
+	expectEqual(#bands, L.FLOOR.layers, "one band per layer")
+	local keep = 1
+	for _, b in ipairs(bands) do keep = keep * b.transparency end
+	expectTrue(math.abs((1 - keep) - 0.55) < 0.001, "the bands together are 55 percent black at the very bottom")
+	expectTrue(math.abs(bands[#bands].height - 0.35) < 1e-9 and bands[1].height < bands[#bands].height, "and fade out over the bottom 35 percent")
+	local f = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("PlayTableLayout.showsFront(setKey)", 1, true) ~= nil and text:find("floorShade.setVisible", 1, true) ~= nil, "PlayScenePaint hides the front in a room and shows the floor shadow")
+		expectTrue(text:find("frontShown() and p.map.deck or nil", 1, true) ~= nil, "no painted deck recess box in a room")
+	end
+	local g = io and io.open and io.open("src/Client/PlayFloorShade.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectFalse(text:find("UIGradient", 1, true) ~= nil, "the floor shadow is solid bands, no gradient transparency")
+	end
+end })
+
 table.insert(tests, { name = "Dead clicks audit: stuck backdrop detection, popOut always hides (tween or not), Preview ends when a run starts, FlashFX and PlayBoardHud cannot loop", fn = function()
 	local L = require(script.Parent.Parent.Engine.InputLock)
 	expectTrue(L.isStuck("out", 10, true, 11.2), "a backdrop popped out more than a second ago and still visible is stuck")
