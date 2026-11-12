@@ -5357,6 +5357,23 @@ table.insert(tests, { name = "StageLayout: on the painted table the boss stands 
 	expectTrue(StageLayout.tableBand(800, 450) == nil, "narrow screens keep the old band")
 end })
 
+table.insert(tests, { name = "StageLayout: the framed boss portrait fits the free band above the felt at every size", fn = function()
+	local StageLayout = require(script.Parent.Parent.Engine.StageLayout)
+	local PlayTableLayout = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1024, 768 }, { 1000, 600 } }) do
+		local w, h = size[1], size[2]
+		local fr = StageLayout.bossFrame(w, h)
+		expectTrue(fr ~= nil, "portrait frame at " .. w .. "x" .. h)
+		if fr then
+			local felt = PlayTableLayout.map(w, h).felt
+			expectTrue(fr.top >= 72, "frame starts below the name plate and bubble at " .. w .. "x" .. h)
+			expectTrue(fr.top + fr.height <= felt.y, "whole frame above the felt back edge at " .. w .. "x" .. h)
+			expectTrue(fr.height >= StageLayout.PORTRAIT_MIN and fr.width <= w, "frame readable and on screen at " .. w .. "x" .. h)
+		end
+	end
+	expectTrue(StageLayout.bossFrame(800, 450) == nil, "narrow screens keep the full-area backdrop")
+end })
+
 table.insert(tests, { name = "PlayRailLip: the lip hides the bottom 14 percent of a card and ends below the rail groove", fn = function()
 	local PlayTableLayout = require(script.Parent.Parent.Engine.PlayTableLayout)
 	local Lip = nil

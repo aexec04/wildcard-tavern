@@ -38,6 +38,7 @@ local BossRounds = require(Engine:WaitForChild("BossRounds"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local BossStage = require(Engine:WaitForChild("BossStage"))
+local StageLayout = require(Engine:WaitForChild("StageLayout"))
 local BannerVisibility = require(Engine:WaitForChild("BannerVisibility"))
 
 local ENRAGE_GOLD = Color3.fromRGB(235, 180, 40)
@@ -164,6 +165,8 @@ local function build(deps)
 	local function S(x) return BASE_SCALE * x end
 
 	local art -- ImageLabel or emoji TextLabel, rebuilt per boss
+	local artFrame -- hung frame around the art on the painted table (nil on the old full-area backdrop)
+	local artBase = UDim2.fromScale(0, 0) -- resting position of art; sway is added to it
 	-- dark stepped vignette (bottom and both sides) so the card row and hand stay readable
 	local vignette = Instance.new("Frame")
 	vignette.Name = "BossVignette"
@@ -363,7 +366,7 @@ local function build(deps)
 			swayConn = nil
 		end
 		if art then
-			art.Position = UDim2.fromScale(0, 0) -- (the emoji fallback also sits at 0,0)
+			art.Position = artBase -- (the emoji fallback also sits at 0,0)
 			art.Rotation = 0
 		end
 	end
@@ -379,21 +382,58 @@ local function build(deps)
 		swayConn = RunService.RenderStepped:Connect(function()
 			if not (art and host.Visible) then return end
 			local dx, dy, rot = StageMotion.sway(os.clock() * speed, phase, amp)
-			art.Position = UDim2.new(0, dx, 0, dy)
+			art.Position = UDim2.new(artBase.X.Scale, artBase.X.Offset + dx, artBase.Y.Scale, artBase.Y.Offset + dy)
 			art.Rotation = rot
 		end)
 	end
 
 	local function setArt(boss)
 		if art then art:Destroy() art = nil end
+		if artFrame then artFrame:Destroy() artFrame = nil end
+		artBase = UDim2.fromScale(0, 0)
 		local artId = boss and ContentArt.getImageId("boss_rounds", boss.id) or nil
 		if artId then
-			-- Crop over a frame 30% taller than the area, anchored top: the face stays above the card row.
-			art = PatronPlaque.applyById(holder, artId, {
-				size = UDim2.fromScale(1, 1.3), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
-				zIndex = 0, cornerRadius = 0,
-			})
-			if art then art.ScaleType = Enum.ScaleType.Crop end
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+			local fr = StageLayout.bossFrame(vp.X, vp.Y)
+			if fr then
+				-- Painted table: the whole portrait hangs in the free band above the felt, so the face is never under the table front.
+				artFrame = Instance.new("Frame")
+				artFrame.Name = "BossFrame"
+				artFrame.AnchorPoint = Vector2.new(0.5, 0)
+				artFrame.Position = UDim2.new(0.5, 0, 0, fr.top)
+				artFrame.Size = UDim2.fromOffset(fr.width, fr.height)
+				artFrame.BackgroundColor3 = WOOD
+				artFrame.BorderSizePixel = 0
+				artFrame.ClipsDescendants = true
+				artFrame.Active = false
+				artFrame.ZIndex = 0
+				artFrame.Parent = holder
+				corner(artFrame, 8)
+				local frameStroke = Instance.new("UIStroke")
+				frameStroke.Color = GOLD
+				frameStroke.Thickness = 3
+				frameStroke.Parent = artFrame
+				artBase = UDim2.fromScale(0.5, 0.5)
+				art = PatronPlaque.applyById(artFrame, artId, {
+					size = UDim2.fromScale(1.08, 1.08), anchor = Vector2.new(0.5, 0.5), position = artBase,
+					zIndex = 0, cornerRadius = 0,
+				})
+				if art then
+					art.ScaleType = Enum.ScaleType.Crop
+				else
+					artFrame:Destroy() artFrame = nil
+					artBase = UDim2.fromScale(0, 0)
+				end
+			end
+			if not art then
+				-- Crop over a frame 30% taller than the area, anchored top.
+				art = PatronPlaque.applyById(holder, artId, {
+					size = UDim2.fromScale(1, 1.3), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
+					zIndex = 0, cornerRadius = 0,
+				})
+				if art then art.ScaleType = Enum.ScaleType.Crop end
+			end
 		end
 		if not art then
 			art = Instance.new("TextLabel")
