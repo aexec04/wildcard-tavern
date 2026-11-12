@@ -38,6 +38,7 @@ function PlayScenePaint.install(deps)
 	image.Parent = root
 
 	local loaded, painted = false, false
+	local PlayMotion = require(Engine:WaitForChild("PlayMotion"))
 	local shade = require(script.Parent.PlayFeltShade).install(root, art) -- corner darkening and felt grain, over the felt rect only
 	local platesId = art.play_plates_b
 	local PlayPlates = require(script.Parent.PlayPlates)
@@ -113,7 +114,7 @@ function PlayScenePaint.install(deps)
 			image.Position = UDim2.fromOffset(m.x, m.y)
 			image.Size = UDim2.fromOffset(m.w, m.h)
 			image.Visible = handFrame.Visible
-			shade.apply(handFrame.Visible and p.map.felt or nil)
+			shade.apply(handFrame.Visible and PlayMotion.clipFelt(p.map.felt, sidebarW + 20) or nil) -- never under the left HUD
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)

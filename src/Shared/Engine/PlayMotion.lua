@@ -59,7 +59,7 @@ end
 
 -- felt shading: the pool lightens the felt over the hand by about 12 to 18 percent, four dark corner glows take about 10 percent
 -- off the far corners, and a seamless grain texture lies over the felt rect at 8 to 12 percent. All of it is still (calm mode too).
-PlayMotion.FELT = { cornerPeak = 0.30, cornerSize = 0.55, grainOpacity = 0.10, grainTile = 256 }
+PlayMotion.FELT = { cornerPeak = 0.42, cornerSize = 0.55, grainOpacity = 0.10, grainTile = 256 }
 -- corner glows for a felt rect (x, y, w, h): { { centreX, centreY, size }, ... } centred on the four corners
 function PlayMotion.cornerGlows(x, y, w, h)
 	local size = math.floor(math.max(w, h) * PlayMotion.FELT.cornerSize)
@@ -67,7 +67,7 @@ function PlayMotion.cornerGlows(x, y, w, h)
 end
 
 -- edge vignette: four soft dark glows centred on the middle of each felt edge (they join the corner glows into one soft ring)
-PlayMotion.FELT.edgePeak = 0.18
+PlayMotion.FELT.edgePeak = 0.36
 PlayMotion.FELT.edgeSize = 0.5
 function PlayMotion.edgeGlows(x, y, w, h)
 	local size = math.floor(math.max(w, h) * PlayMotion.FELT.edgeSize)
@@ -79,8 +79,19 @@ end
 PlayMotion.REST_STACK = {
 	{ dx = -6, dy = 3, rot = -9 }, { dx = 5, dy = -2, rot = 6 }, { dx = -2, dy = -5, rot = -3 }, { dx = 3, dy = 1, rot = 8 },
 }
+-- the stack uses the deck's card back: navy with a gold edge, fully opaque, with a soft contact shadow under each card
+PlayMotion.REST_BACK = { navy = { 38, 52, 92 }, gold = { 214, 178, 96 }, shadowTransparency = 0.7, shadowOffset = 3 }
+-- the felt shade must not run under the left HUD: clip a felt rect to start at minX (nil when nothing is left)
+function PlayMotion.clipFelt(rect, minX)
+	if not rect then return nil end
+	local x = math.max(rect.x, minX or rect.x)
+	local w = rect.x + rect.w - x
+	if w < 40 then return nil end
+	return { x = x, y = rect.y, w = w, h = rect.h }
+end
 function PlayMotion.restStack(w, h)
 	local cw = PlayMotion.clamp(math.floor(h * 0.16), 36, 84)
+	cw = math.min(cw, math.floor(h * 0.3))
 	local ch = math.floor(cw * 1.4)
 	local out = {}
 	for i, s in ipairs(PlayMotion.REST_STACK) do
@@ -97,9 +108,9 @@ function PlayMotion.poolRect(screenW, screenH, handY, handH)
 end
 
 -- depth: the hand lies on the felt in a visible fan. Position 1..count, t runs -1 (far left) to 1 (far right).
--- Ends lean outward up to 5 degrees, dip 17 px, tuck 8 px toward the middle (so neighbours overlap a little) and are 0.92 the
+-- Ends lean outward up to 6.5 degrees, dip 28 px, tuck 12 px toward the middle (so neighbours overlap a little) and are 0.92 the
 -- size of the centre cards, which sit highest, largest and level.
-PlayMotion.FAN = { deg = 5, dip = 17, tuck = 8, endScale = 0.92 }
+PlayMotion.FAN = { deg = 6.5, dip = 28, tuck = 12, endScale = 0.92 }
 local function fanT(pos, count)
 	count = math.max(1, count or 1)
 	return count > 1 and ((pos - 1) / (count - 1)) * 2 - 1 or 0

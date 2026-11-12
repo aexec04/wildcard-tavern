@@ -13972,6 +13972,27 @@ table.insert(tests, { name = "PlayMotion: felt edge vignette and resting card st
 	end
 end })
 
+table.insert(tests, { name = "PlayMotion depth pass 4: visible fan, navy opaque rest stack, clear vignette, felt clipped off the left HUD", fn = function()
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	expectTrue(math.abs(PM.cardTilt(8, 8)) >= 6 and math.abs(PM.cardTilt(8, 8)) <= 7, "end cards tilt 6 to 7 degrees")
+	local _, dy = PM.cardOffset(8, 8)
+	expectTrue(dy >= 27 and dy <= 29, "end cards dip about 28 px")
+	local _, mid = PM.cardOffset(4, 7)
+	expectEqual(mid, 0, "centre card level and highest")
+	local tx = PM.cardOffset(1, 8)
+	expectTrue(tx > 0 and tx <= 14, "slight overlap tuck")
+	local b = PM.REST_BACK
+	expectTrue(b.navy[3] > b.navy[1] and b.navy[3] > b.navy[2], "navy back like the deck")
+	expectTrue(#PM.REST_STACK >= 3 and #PM.REST_STACK <= 4, "3 to 4 cards")
+	expectTrue(PM.FELT.edgePeak >= 0.3 and PM.FELT.edgePeak <= 0.5, "clear but calm vignette")
+	local felt = { x = 30, y = 490, w = 1470, h = 290 }
+	local c = PM.clipFelt(felt, 260)
+	expectTrue(c.x == 260 and c.x + c.w == 1500 and c.y == 490 and c.h == 290, "felt starts right of the sidebar, same right edge")
+	expectEqual(PM.clipFelt(felt, 5).x, 30, "no clip when already clear")
+	expectEqual(PM.clipFelt(felt, 1490), nil, "nothing left, no shade")
+	expectEqual(PM.clipFelt(nil, 260), nil, "nil safe")
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: bands, Marlo, offers, packs, props, bubble and controls never collide or leave the area (1920x1080, 1280x720, 800x450, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	-- play area = screen minus the 240 px sidebar plus gaps, as Shop.lua sizes it
@@ -19619,18 +19640,18 @@ table.insert(tests, { name = "PlayMotion: one frame step over the real layers gi
 	assert(nx == 0 and ny == 0, "nil safe")
 	assert(PM.layerOffset(0, 0, nil, 0, false) == 0)
 end })
-table.insert(tests, { name = "PlayMotion: visible fan (5 degrees, 17 px dip, 8 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
+table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 12 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	for count = 2, 8 do
 		for pos = 1, count do
 			local d, sc = PM.cardTilt(pos, count), PM.cardScale(pos, count)
 			local dx, dy = PM.cardOffset(pos, count)
-			expectTrue(math.abs(d) <= 5 and sc >= 0.92 and sc <= 1, "tilt within 5 degrees, scale within 8 percent")
-			expectTrue(dy >= 0 and dy <= 20 and math.abs(dx) <= 10, "dip 0 to 20 px, tuck up to 10 px")
+			expectTrue(math.abs(d) <= 6.5 and sc >= 0.92 and sc <= 1, "tilt within 5 degrees, scale within 8 percent")
+			expectTrue(dy >= 0 and dy <= 30 and math.abs(dx) <= 14, "dip 0 to 30 px, tuck up to 14 px")
 		end
-		expectTrue(PM.cardTilt(1, count) == -5 and PM.cardTilt(count, count) == 5, "ends lean outward 5 degrees")
+		expectTrue(PM.cardTilt(1, count) == -6.5 and PM.cardTilt(count, count) == 6.5, "ends lean outward 6.5 degrees")
 		local _, dyEnd = PM.cardOffset(1, count)
-		expectTrue(dyEnd >= 14 and dyEnd <= 20 and math.abs(PM.cardScale(1, count) - 0.92) < 1e-9, "ends dip 14 to 20 px and scale 0.92")
+		expectTrue(dyEnd >= 26 and dyEnd <= 30 and math.abs(PM.cardScale(1, count) - 0.92) < 1e-9, "ends dip 26 to 30 px and scale 0.92")
 		expectTrue(PM.cardOffset(1, count) > 0 and PM.cardOffset(count, count) < 0, "ends tuck toward the middle")
 	end
 	local _, dyMid = PM.cardOffset(2, 3)
