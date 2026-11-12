@@ -253,11 +253,19 @@ function CollectionSection.new(opts)
 				sub.Name = "Line"
 			end
 		else
-			local nameH = math.floor(inner.h * (info.line and 0.36 or 1))
-			fitText(frame, { x = inner.x, y = inner.y, w = inner.w, h = nameH }, tostring(info.name), z + 1, { TextColor3 = ink, TextTransparency = transparency, max = 20 })
+			-- keep the title 26 px below the slot top (clear of the pin) and 22 px in from the left, 15 px max for two-line titles
+			local topPad = math.max(0, 26 - (inner.y - slot.y))
+			local ix, iw = inner.x, inner.w
+			if kind == "card" then
+				local lp = math.max(0, 22 - (inner.x - slot.x))
+				ix, iw = ix + lp, iw - lp
+			end
+			local ih = inner.h - topPad
+			local nameH = math.floor(ih * (info.line and 0.36 or 1))
+			fitText(frame, { x = ix, y = inner.y + topPad, w = iw, h = nameH }, tostring(info.name), z + 1, { TextColor3 = ink, TextTransparency = transparency, max = kind == "card" and 15 or 20 })
 			if info.line then
-				local line = fitText(frame, { x = inner.x, y = inner.y + nameH + 2, w = inner.w, h = inner.h - nameH - 2 }, info.line, z + 1,
-					{ TextColor3 = ink, TextTransparency = transparency, Font = Enum.Font.Gotham, max = 16 })
+				local line = fitText(frame, { x = ix, y = inner.y + topPad + nameH + 2, w = iw, h = ih - nameH - 2 }, info.line, z + 1,
+					{ TextColor3 = ink, TextTransparency = transparency, Font = Enum.Font.Gotham, max = 16, TextTruncate = Enum.TextTruncate.AtEnd })
 				line.Name = "Line"
 			end
 		end
@@ -295,7 +303,7 @@ function CollectionSection.new(opts)
 			end
 		end
 		local gem = make("Frame", frame, { Name = "RarityGem", BackgroundColor3 = c, BorderSizePixel = 0, Rotation = 45, ZIndex = z + 5 })
-		gem.Position = UDim2.fromOffset(slot.x + 10, slot.y + 10)
+		gem.Position = UDim2.fromOffset(slot.x + slot.w - 26, slot.y + 10) -- top right: the title starts at the left
 		gem.Size = UDim2.fromOffset(16, 16)
 		gem.BackgroundTransparency = 0
 		make("UIStroke", gem, { Color = Color3.fromRGB(30, 20, 10), Thickness = 2 })
