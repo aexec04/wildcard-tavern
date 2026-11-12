@@ -6,6 +6,8 @@
 ]]
 
 return {
+	["cardsets_room_a"] = "rbxassetid://94800954477575",
+	["cardsets_room_b"] = "rbxassetid://70697027042573",
 	["flair_room_a"] = "rbxassetid://101234566513694",
 	["flair_room_b"] = "rbxassetid://131269527164236",
 	["legend_room_a"] = "rbxassetid://102375139420542",
