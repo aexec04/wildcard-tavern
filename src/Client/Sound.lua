@@ -179,8 +179,13 @@ return function(deps)
 	-- scales every sound effect; mute silences music and SFX together.
 	local ClientSettings = require(script.Parent.ClientSettings)
 
+	-- Studio Play is silent unless SoundService has the attribute StudioAudio = true (not saved, live servers unaffected)
+	local StudioAudio = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StudioAudio"))
+	local studioMuted = StudioAudio.shouldMute(game:GetService("RunService"):IsStudio(), SoundService:GetAttribute("StudioAudio"))
+	if studioMuted then print("[Audio] studio muted") end
+
 	local function getSfxVolume(_id)
-		if ClientSettings.get("muted") then
+		if studioMuted or ClientSettings.get("muted") then
 			return 0
 		end
 		return ClientSettings.get("sfxVolume") or 1
@@ -477,7 +482,7 @@ return function(deps)
 	-- Applies the saved music volume / mute to backgroundMusic, starting or
 	-- stopping it as it crosses 0 (same rule every Play() call here uses).
 	local function applyMusicVolume()
-		local volume = ClientSettings.get("muted") and 0 or (ClientSettings.get("musicVolume") or 0)
+		local volume = (studioMuted or ClientSettings.get("muted")) and 0 or (ClientSettings.get("musicVolume") or 0)
 		backgroundMusic.Volume = volume
 		if volume <= 0 then
 			backgroundMusic:Stop()
@@ -485,7 +490,7 @@ return function(deps)
 			backgroundMusic:Play()
 		end
 	end
-	backgroundMusic.Volume = ClientSettings.get("musicVolume")
+	backgroundMusic.Volume = studioMuted and 0 or ClientSettings.get("musicVolume")
 	ClientSettings.onChanged(function(key)
 		if key == "musicVolume" or key == "muted" then
 			applyMusicVolume()

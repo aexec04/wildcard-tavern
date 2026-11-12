@@ -19915,4 +19915,13 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
 end })
 
+tests[#tests + 1] = ({ name = "Studio audio mute is decided only from IsStudio and the opt in", fn = function()
+	local SA = require(script.Parent.Parent.Engine.StudioAudio)
+	expectTrue(SA.shouldMute(true, nil), "Studio mutes by default")
+	expectTrue(SA.shouldMute(true, false), "Studio mutes with the attribute false")
+	expectTrue(not SA.shouldMute(true, true), "StudioAudio = true opts back in")
+	expectTrue(not SA.shouldMute(false, nil), "live servers are never muted")
+	expectTrue(not SA.shouldMute(false, true), "live servers are never muted, attribute or not")
+end })
+
 return tests
