@@ -20159,6 +20159,16 @@ table.insert(tests, { name = "CornerToast: every toast kind is the parchment str
 	expectTrue(src:find("46, 34, 24", 1, true) == nil and src:find("250, 238, 212", 1, true) == nil, "old dark plate colours are gone")
 	expectTrue(src:find("row.shadow", 1, true) ~= nil, "shadow is part of the fade")
 end })
+table.insert(tests, { name = "PlayFeltShade: no rectangular felt overlay (no tiled Grain box, SetFelt is rounded to the oval)", fn = function()
+	local f = io and io.open and io.open("src/Client/PlayFeltShade.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('Instance.new("ImageLabel")', 1, true) == nil or src:find('"Grain"', 1, true) == nil, "no Grain ImageLabel over the felt")
+	expectTrue(src:find("fillRound", 1, true) ~= nil and src:find("UDim.new(0.5, 0)", 1, true) ~= nil, "SetFelt has a half-size UICorner")
+	-- every direct child Frame of PlayFeltShade is either hidden by default, rounded, or a SoftGlow radial
+	expectTrue(src:find("SoftGlow.build", 1, true) ~= nil, "corner and edge shading are SoftGlow radials")
+end })
 table.insert(tests, { name = "PlayMotion.shadeGlows: left glows are off when the felt is clipped under the HUD; the rest stack top card wears the deck back", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	local all = PM.shadeGlows(false)

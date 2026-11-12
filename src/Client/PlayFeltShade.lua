@@ -32,6 +32,9 @@ function M.install(root, art)
 	fill.Active = false
 	fill.Visible = false
 	fill.ZIndex = 0
+	local fillRound = Instance.new("UICorner") -- follows the oval, never a hard rectangle
+	fillRound.CornerRadius = UDim.new(0.5, 0)
+	fillRound.Parent = fill
 	fill.Parent = frame
 	local stitch = Instance.new("Frame")
 	stitch.Name = "Stitch"
@@ -47,21 +50,8 @@ function M.install(root, art)
 	stitchLine.Transparency = 0.5
 	stitchLine.Parent = stitch
 
-	local grainId = type(art) == "table" and art.play_felt_grain or nil
-	if grainId and grainId ~= "" then
-		local grain = Instance.new("ImageLabel")
-		grain.Name = "Grain"
-		grain.BackgroundTransparency = 1
-		grain.BorderSizePixel = 0
-		grain.Active = false
-		grain.Size = UDim2.fromScale(1, 1)
-		grain.Image = grainId
-		grain.ScaleType = Enum.ScaleType.Tile
-		grain.TileSize = UDim2.fromOffset(PM.FELT.grainTile, PM.FELT.grainTile)
-		grain.ImageTransparency = 1 - PM.FELT.grainOpacity
-		grain.ZIndex = 0
-		grain.Parent = frame
-	end
+	-- No tiled grain rectangle: it drew a hard-edged green box wider than the painted oval (the painted table is the felt).
+	-- `art` is kept for the signature; play_felt_grain stays in PlaySceneArt unused.
 
 	local corners = {}
 	for i = 1, 4 do
