@@ -19181,6 +19181,22 @@ table.insert(tests, { name = "CollectionSectionLayout.cardText: card text is cen
 	end
 end })
 
+table.insert(tests, { name = "FlairSceneLayout.arch: the mirror glass is a circle on top and a rectangle below that tile it exactly, at every size", fn = function()
+	local L = require(script.Parent.Parent.Engine.FlairSceneLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local S = L.place(size[1], size[2] - 120)
+		if S and S.mirror then
+			local A = L.arch(S.mirror)
+			expectEqual(A.top.w, S.mirror.w, "top spans the glass")
+			expectEqual(A.top.h, S.mirror.w, "top is a circle (width = height)")
+			expectEqual(A.body.y, A.radius, "body starts at the circle's centre line")
+			expectEqual(A.body.y + A.body.h, S.mirror.h, "body ends on the glass floor")
+		end
+	end
+	local A = L.arch({ w = 155, h = 455 })
+	expectEqual(A.radius, 77, "radius is half the width")
+end })
+
 table.insert(tests, { name = "Collection painted sections: a locked Recipe or Bond prints only its name, never its effect or flavor text", fn = function()
 	local col, CB, discovered = collectionBuild({ painted = true })
 	if not col then return end

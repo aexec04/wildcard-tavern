@@ -24,12 +24,20 @@ local TABS = {}
 for i = 0, 5 do TABS[#TABS + 1] = { x = 110, y = 170 + 97 * i, w = 230, h = 76 } end
 local COLS = { { 432, 142 }, { 606, 136 }, { 772, 134 }, { 936, 134 } }
 local ROWS = { { 200, 155 }, { 395, 150 }, { 590, 148 } }
-local MIRROR = { x = 1205, y = 252, w = 158, h = 450 }
+-- the dark glass of the painted arched door, measured from flair_room_a.png (tools/_measure_flair_door.py draws it): straight sides and
+-- floor, a semicircular top of radius w / 2
+local MIRROR = { x = 1201, y = 241, w = 155, h = 455 }
 local PLAQUE = { x = 1108, y = 868, w = 380, h = 74 }
 local DETAIL = { x = 420, y = 790, w = 650, h = 190 }
 
 -- smallest sizes (px) at which text stays readable (nothing under 14)
 M.MIN = { tab = { 130, 40 }, cubby = { 80, 88 }, mirror = { 96, 200 }, detail = { 272, 110 } }
+
+-- the arched glass as two pieces in the mirror's own pixels: a circle of diameter w on top and a rectangle below its centre line
+function M.arch(mirror)
+	local r = math.floor(mirror.w / 2)
+	return { top = { x = 0, y = 0, w = mirror.w, h = mirror.w }, body = { x = 0, y = r, w = mirror.w, h = math.max(1, mirror.h - r) }, radius = r }
+end
 
 M.PICTURE = { tabs = TABS, mirror = MIRROR, plaque = PLAQUE, detail = DETAIL }
 

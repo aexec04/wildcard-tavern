@@ -213,6 +213,11 @@ function FlairDressingRoom.build(deps, panel)
 		function(r) return { x = r.mirror.x - r.plate.x, y = r.mirror.y - r.plate.y, w = r.mirror.w, h = r.mirror.h } end)
 	round(mirror, 10)
 	local mirrorStroke = stroke(mirror, GOLD, 2)
+	-- on the painted door the glass is an arch: a circle on top and a rectangle below it (a UICorner cannot round only two corners)
+	local GLASS = Color3.fromRGB(16, 18, 24)
+	local glassTop = make("Frame", mirror, { Name = "GlassTop", BackgroundColor3 = GLASS, BackgroundTransparency = 0.05, BorderSizePixel = 0, Visible = false, ZIndex = Z + 1 })
+	round(glassTop, 9999)
+	local glassBody = make("Frame", mirror, { Name = "GlassBody", BackgroundColor3 = GLASS, BackgroundTransparency = 0.05, BorderSizePixel = 0, Visible = false, ZIndex = Z + 1 })
 	local liveLabel
 
 	liveLabel = make("TextLabel", mirror, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(0.4, -10, 0, 20), Text = "Live preview", TextColor3 = GOLD,
@@ -634,7 +639,14 @@ function FlairDressingRoom.build(deps, panel)
 		gridFrame.BackgroundTransparency = sceneOn and 1 or 0
 		gridFrame.ScrollBarThickness = sceneOn and 0 or 8
 		gridFrame.ScrollingEnabled = not sceneOn
-		mirror.BackgroundTransparency = sceneOn and 0.3 or 0
+		mirror.BackgroundTransparency = sceneOn and 1 or 0
+		mirror.ClipsDescendants = not sceneOn
+		glassTop.Visible, glassBody.Visible = sceneOn, sceneOn
+		if sceneOn and R.mirror then
+			local A = Scene.arch(R.mirror)
+			glassTop.Position, glassTop.Size = UDim2.fromOffset(A.top.x, A.top.y), UDim2.fromOffset(A.top.w, A.top.h)
+			glassBody.Position, glassBody.Size = UDim2.fromOffset(A.body.x, A.body.y), UDim2.fromOffset(A.body.w, A.body.h)
+		end
 		mirrorStroke.Enabled = not sceneOn
 		gridStroke.Enabled = not sceneOn
 		-- the detail card is a parchment plate with a brass edge on the painted room (not a black box); ink text at 9:1
