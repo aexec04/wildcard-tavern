@@ -50,6 +50,16 @@ function CardShape.fitScale(availW, availH, vpX, vpY, widestRow)
 	return math.max(CardShape.FIT_MIN, s)
 end
 
+-- My Patrons seats: the largest scale (never above scaleFor, never below 0.4) at which n owned cards fit availW in one row.
+function CardShape.fitOwned(availW, n, vpX, vpY)
+	local s = CardShape.scaleFor(vpX, vpY)
+	n = math.max(n or 1, 1)
+	if availW and availW > 0 then
+		s = math.min(s, (availW - 28 - (n - 1) * 16) / (n * BASE.owned.w))
+	end
+	return math.max(0.4, s)
+end
+
 -- Pack pick screen: one centered row when it fits, else 2 or 3 wrapped rows, picking the layout with the
 -- biggest cards. Reserves 78px for the title/hint and 64px for the Confirm / Skip row. Returns scale, rows.
 CardShape.PICK_TOP, CardShape.PICK_BOTTOM = 78, 64

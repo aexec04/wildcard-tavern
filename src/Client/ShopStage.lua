@@ -182,6 +182,12 @@ function ShopStage.new(deps)
 		local zone = Layout.tabZone(W, H, backdrop.marlo == nil, backdrop.roomId ~= nil)
 		return math.max(zone.x - 10, 0)
 	end
+	-- Width of the free area right of Marlo (the My Patrons / My Recipes rows must fit inside it).
+	function self.tabWidth()
+		local W, H = shopFrame.AbsoluteSize.X, shopFrame.AbsoluteSize.Y
+		if W < 1 or H < 1 then return 0 end
+		return Layout.tabZone(W, H, backdrop.marlo == nil, backdrop.roomId ~= nil).w
+	end
 	function self.setTab(key)
 		tabKey = key
 		local onBuy = key == "buy"

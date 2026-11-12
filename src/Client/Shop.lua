@@ -1623,8 +1623,16 @@ return function(deps)
 
 		addSectionHeader(shopMyPatronsListFrame, order(), "Patrons")
 		do
-			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
 			local seats = math.max(math.floor(tonumber(state and state.patronSlotLimit) or #ownedPatrons), #ownedPatrons)
+			-- size the seats so five fit the free area right of Marlo with no scrolling (more than five scroll)
+			local zoneW = shopStage and shopStage.tabWidth() or 0
+			if zoneW > 0 then
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+				ShopCardsModule.setScale(require(Engine:WaitForChild("CardShape")).fitOwned(zoneW, math.min(seats, 5), vp.X, vp.Y))
+			end
+			local row = shopCards.row(shopMyPatronsListFrame, order(), ShopCardsModule.rowHeight("owned"))
+			row.CanvasPosition = Vector2.new(0, 0)
 			for seat = #ownedPatrons + 1, seats do
 				shopCards.seatSlot(row, seat, "owned")
 			end

@@ -15724,6 +15724,31 @@ table.insert(tests, { name = "TooltipSpec.correct absorbs an outside shift so th
 	end
 end })
 
+table.insert(tests, { name = "Sidebar seat rings keep 8 px clear of each other; My Patrons fits five seats in the free area", fn = function()
+	local SeatFit = require(script.Parent.Parent.Engine.SeatFit)
+	local CardShape = require(script.Parent.Parent.Engine.CardShape)
+	local SSL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	-- the open-seat pulse ring is the seat + 6 px (+2 px stroke): the gap between seats must leave 8 px beyond it
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local side = read("src/Client/Sidebar.lua")
+	if side then
+		local gap = tonumber(side:match("local SLOT, SLOT_GAP = %d+, (%d+)"))
+		expectTrue(gap ~= nil and gap >= 12, "SLOT_GAP is at least 12 so pulse rings keep 8 px apart (got " .. tostring(gap) .. ")")
+	end
+	for _, n in ipairs({ 5, 6, 7 }) do
+		local gap = n <= 5 and 12 or 3
+		local size = SeatFit.size(n, 208, gap, 38, 26)
+		expectTrue(SeatFit.rowWidth(n, size, gap) <= 208, n .. " seats still fit one row")
+	end
+	-- five owned seats fit the free zone right of Marlo with no sideways scroll
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local zone = SSL.tabZone(sz[1] - 300, sz[2], false, nil)
+		local s = CardShape.fitOwned(zone.w, 5, sz[1], sz[2])
+		local shape = CardShape.shape("owned", s)
+		expectTrue(CardShape.fitsRow(5, zone.w, shape, 16, 14), "five seats fit " .. sz[1] .. "x" .. sz[2] .. " (zone " .. zone.w .. ", card " .. shape.w .. ")")
+	end
+end })
+
 table.insert(tests, { name = "Left HUD: 5, 6 and 7 Patron seats fit one row; a long boss rule lifts the name labels; bubbles open beside the column", fn = function()
 	local SeatFit = require(script.Parent.Parent.Engine.SeatFit)
 	local usable, gap = 208, 3

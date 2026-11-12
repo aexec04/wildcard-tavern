@@ -535,7 +535,7 @@ return function(deps)
 		patronsHeader.Text = "Patrons " .. patronsCountLabel.Text
 	end)
 
-	local SLOT, SLOT_GAP = 38, 3
+	local SLOT, SLOT_GAP = 38, 12 -- 12 px between seats leaves 8 clear after the open-seat pulse ring (+3 px each side, 2 px stroke)
 	local patronsSlotRow = Instance.new("Frame")
 	patronsSlotRow.Name = "PatronsInset"
 	patronsSlotRow.Size = UDim2.new(1, 0, 0, SLOT + 12)
@@ -632,7 +632,10 @@ return function(deps)
 	local function fitSeats(count)
 		local row = patronsSlotRow.AbsoluteSize.X
 		local usable = (row > 40 and row or 216) - 8
-		local size = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeatFit")).size(count, usable, SLOT_GAP, SLOT, 26)
+		-- 5 seats or fewer keep the wide gap; 6 and 7 tighten it so they still fit one row
+		local gap = count <= 5 and SLOT_GAP or 3
+		seatLayout.Padding = UDim.new(0, gap)
+		local size = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeatFit")).size(count, usable, gap, SLOT, 26)
 		for _, seat in ipairs(patronSlots) do
 			seat.frame.Size = UDim2.fromOffset(size, size)
 			for _, obj in ipairs({ seat.frame, seat.frame:FindFirstChild("InnerRing"), seat.pulse }) do
