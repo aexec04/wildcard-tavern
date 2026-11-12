@@ -103,7 +103,7 @@ COLL_SEC = ["coll_sec_%s_%s" % (s, v) for s in ("patrons", "recipes", "bosses", 
 PLAY_KEYS = ('play_table_front_a', 'play_table_front_b', 'play_deck_box_a', 'play_deck_box_b', 'play_board_a', 'play_board_b', 'play_plates_a', 'play_plates_b',
              'play_rail_back_a', 'play_rail_back_b', 'play_rail_front_a', 'play_rail_front_b',
              'play_table_front_festival_a', 'play_table_front_festival_b', 'play_table_front_frosted_a', 'play_table_front_frosted_b',
-             'play_table_front_frosted_c', 'play_table_front_frosted_d')
+             'play_table_front_frosted_c', 'play_table_front_frosted_d', 'play_table_front_c')
 
 CATEGORY_OPTS = {
     "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
@@ -168,7 +168,7 @@ CATEGORY_OPTS = {
                              "play_plates_a": "1536x1024", "play_plates_b": "1536x1024",
                              "play_rail_back_a": "1536x1024", "play_rail_back_b": "1536x1024",
                              "play_rail_front_a": "1536x1024", "play_rail_front_b": "1536x1024",
-                             "play_table_front_festival_a": "1536x1024", "play_table_front_festival_b": "1536x1024", "play_table_front_frosted_a": "1536x1024", "play_table_front_frosted_b": "1536x1024", "play_table_front_frosted_c": "1536x1024", "play_table_front_frosted_d": "1536x1024"},
+                             "play_table_front_festival_a": "1536x1024", "play_table_front_festival_b": "1536x1024", "play_table_front_frosted_a": "1536x1024", "play_table_front_frosted_b": "1536x1024", "play_table_front_frosted_c": "1536x1024", "play_table_front_frosted_d": "1536x1024", "play_table_front_c": "1536x1024"},
                    "references": dict((k, "art-wip/menu_room/menu_room_wall.png") for k in PLAY_KEYS)},
     "panel_scene": {"quality": "high", "style_key": "house_style", "transparent": True,
                     "opaque": ["flair_room_a", "flair_room_b"],
