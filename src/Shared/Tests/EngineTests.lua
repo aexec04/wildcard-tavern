@@ -5357,6 +5357,25 @@ table.insert(tests, { name = "StageLayout: on the painted table the boss stands 
 	expectTrue(StageLayout.tableBand(800, 450) == nil, "narrow screens keep the old band")
 end })
 
+table.insert(tests, { name = "PlayRailLip: the lip hides the bottom 14 percent of a card and ends below the rail groove", fn = function()
+	local PlayTableLayout = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local Lip = nil
+	local f = io and io.open and io.open("src/Client/PlayRailLip.lua", "r")
+	if not f then return end -- file-reading tests skip when io is missing
+	f:close()
+	Lip = dofile("src/Client/PlayRailLip.lua")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local p = PlayTableLayout.placement(size[1], size[2], 260, 150)
+		expectTrue(p ~= nil, "placement at " .. size[1])
+		local r = Lip.lipRect(p)
+		local cardBottom = p.hand.y + 176 - 16
+		expectTrue(r.y < cardBottom and cardBottom - r.y >= 0.12 * 144 and cardBottom - r.y <= 0.16 * 144, "tucks 12 to 16 percent of the card")
+		expectTrue(r.y + r.h >= p.map.rail.y + p.map.rail.h, "covers the front of the rail groove")
+		expectTrue(r.y + r.h <= p.actions.y + 1, "ends above the Actions plates")
+	end
+	expectTrue(Lip.lipRect(nil) == nil)
+end })
+
 table.insert(tests, { name = "RegionTiles: tavern fill covers the whole region frame, hero keeps aspect", fn = function()
 	local RegionTiles = require(script.Parent.Parent.Engine.RegionTiles)
 	for _, frameW in ipairs({ 600, 1175, 2400 }) do

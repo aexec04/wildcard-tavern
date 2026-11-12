@@ -65,6 +65,24 @@ function DeckWidgetSkin.install(deps)
 		c.Parent = widget
 		stackCards[3] = { frame = c, dx = 0, dy = 6 }
 	end
+	-- two more layers (shown only in the painted recess, DeckWidget.syncStack): the pile reads as 4 to 5 cards thick
+	if first and #stackCards == 3 then
+		for i, name in ipairs({ "StackBackD", "StackBackE" }) do
+			local c = first.frame:Clone()
+			c.Name = name
+			c.Parent = widget
+			stackCards[3 + i] = { frame = c, dx = 0, dy = 6 + 2 * i }
+		end
+	end
+	-- two more layers (shown only in the painted recess, DeckWidget.syncStack) so the pile reads as 4 to 5 cards thick
+	if first and #stackCards == 3 then
+		for i, name in ipairs({ "StackBackD", "StackBackE" }) do
+			local c = first.frame:Clone()
+			c.Name = name
+			c.Parent = widget
+			stackCards[3 + i] = { frame = c, dx = 0, dy = 6 + 2 * i }
+		end
+	end
 
 	local _, bars = makeBrackets(cardBack)
 	local plateRing = Instance.new("UIStroke")

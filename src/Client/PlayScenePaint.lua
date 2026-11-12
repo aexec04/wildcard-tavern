@@ -62,6 +62,8 @@ function PlayScenePaint.install(deps)
 		end
 	end
 
+	local PlayRailLip = require(script.Parent.PlayRailLip)
+	local lip = PlayRailLip.install(root)
 	local function apply()
 		local size = root.AbsoluteSize
 		local p = loaded and PlayTableLayout.placement(size.X, size.Y, sidebarW + 20, R.PILE_RESERVE) or nil
@@ -79,12 +81,14 @@ function PlayScenePaint.install(deps)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
 			plates(p)
 			deck(p.map.deck)
+			PlayRailLip.apply(lip, p, handFrame.Visible)
 		elseif painted then
 			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
 			painted = false
 			vignette(false)
 			image.Visible = false
+			PlayRailLip.apply(lip, nil)
 			handFrame:SetAttribute("PaintedRail", nil)
 			plates(nil)
 			if size.X >= PlayTableLayout.MIN_W then
@@ -99,7 +103,7 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible end
+		if painted then image.Visible = handFrame.Visible; lip.Visible = handFrame.Visible end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)

@@ -291,7 +291,7 @@ return function(deps)
 		-- runs below the recess; the card back is centre anchored there
 		local painted = deckWidget:GetAttribute("DeckPainted") == true
 		for i, c in ipairs(stackCards) do
-			c.frame.Visible = deckCardBack.Visible
+			c.frame.Visible = deckCardBack.Visible and (painted or i <= 3) -- layers D and E only make the painted pile thicker
 			c.frame.Size = deckCardBack.Size
 			local pos = deckCardBack.Position
 			c.frame.AnchorPoint = Vector2.new(0.5, painted and deckCardBack.AnchorPoint.Y or 0)

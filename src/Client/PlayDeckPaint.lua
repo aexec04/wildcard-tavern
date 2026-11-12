@@ -18,7 +18,7 @@ local ImageSpace = require(Engine:WaitForChild("ImageSpace"))
 
 local PlayDeckPaint = {}
 
-local KEEP = { ClickCatcher = true, DeckCardBack = true, DeckCount = true, StackBackA = true, StackBackB = true, StackBackC = true, PileGlow = true }
+local KEEP = { ClickCatcher = true, DeckCardBack = true, DeckCount = true, StackBackA = true, StackBackB = true, StackBackC = true, StackBackD = true, StackBackE = true, PileGlow = true }
 
 -- gold corner brackets, studs and the inner rim that the skin and the ornate-frame pass put on the widget and on the card back;
 -- the skin shows them again whenever it restyles, so a hidden one is hidden again as soon as something turns it back on

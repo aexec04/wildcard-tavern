@@ -1189,8 +1189,8 @@ local SELECTED_HOVER_SCALE = 1.14
 -- neighbors lift a little too, falling off with distance, like fanning a
 -- hand of cards toward your thumb. Pure position/scale tweening, no color
 -- or transparency tricks, so this is safe against the addGloss-style bug.
-local HOVER_LIFT = 10
-local SELECTED_LIFT = 6
+local HOVER_LIFT = 6 -- capped: the lip of the table rail (Client/PlayRailLip) keeps a lifted card tucked in
+local SELECTED_LIFT = 8
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ===== Collection Gallery overlay =====
@@ -1484,6 +1484,7 @@ local function refreshCardVisual(index, usePop)
 	VisualHelpersModule.tweenTo(button, {
 		Position = UDim2.new(0.5, 0, 0.5, -lift),
 	}, 0.15)
+	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
 
 	-- SELECTION/HOVER CUE: see the UIStroke's own comment back in
 	-- rebuildHand for why this moved off button.BackgroundColor3. Looked
@@ -2074,6 +2075,7 @@ local function rebuildHand(handData, phase)
 		slot.LayoutOrder = visualPosition
 		slot:SetAttribute("HandIndex", index) -- stable tag for the tutorial spotlight (hand is rebuilt every deal)
 		slot.Parent = handFrame
+		require(script.PlayRailLip).addCardShadow(slot) -- soft contact shadow under the card, behind it
 
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.fromScale(1, 1)
