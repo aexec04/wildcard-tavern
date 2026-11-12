@@ -1060,6 +1060,7 @@ return function(deps)
 			local def = item.def
 			local info = {
 				found = found, name = shownName(item), icon = iconFor(item), rarityColor = rgb(CollectionBook.Rarities[CollectionBook.rarityOf(item)].color),
+					rarity = CollectionBook.rarityOf(item),
 				artId = ContentArt.getImageId(item.tab, (not found and item.tab == "bonds") and "bond_locked" or item.id),
 				fresh = freshKeys[item.tab .. ":" .. tostring(item.id)] == true,
 			}

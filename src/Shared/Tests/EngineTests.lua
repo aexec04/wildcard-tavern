@@ -14365,6 +14365,12 @@ table.insert(tests, { name = "Collection Gallery: framed portraits fit their cel
 		local src = col:read("*a"); col:close()
 		expectTrue(src:find("Gallery.frameTile(", 1, true) ~= nil and src:find("Gallery.newTag(tile)", 1, true) ~= nil and src:find("Gallery.dropIn(tile)", 1, true) ~= nil, "Collection frames portraits and tags new finds")
 		expectTrue(src:find("SceneLayout.newIds(lastKeys, keys)", 1, true) ~= nil, "New tags come from the state diff since the last open")
+		expectTrue(src:find("rarity = CollectionBook.rarityOf(item),", 1, true) ~= nil, "painted section slots receive the rarity id")
+		local sec = io.open("src/Client/CollectionSection.lua", "r")
+		if sec then
+			local ssrc = sec:read("*a"); sec:close()
+			expectTrue(ssrc:find("rarityMarks(slot, info, z)", 1, true) ~= nil and ssrc:find("RarityGem", 1, true) ~= nil and ssrc:find("RarityUnderline", 1, true) ~= nil, "painted section slots wear rarity rim, gem and underline")
+		end
 		expectTrue(src:find("CollectionBook.isDiscovered(view.sets, item)", 1, true) ~= nil and src:find("showDetail(item, view)", 1, true) ~= nil, "discovery and the detail card are the same code as before")
 	end
 end })

@@ -25,6 +25,8 @@ local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitF
 local Layout = require(Engine:WaitForChild("CollectionSectionLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local SmoothVignette = require(script.Parent.SmoothVignette)
+local TweenService = game:GetService("TweenService")
+local ClientSettings = require(script.Parent.ClientSettings)
 
 local CollectionSection = {}
 
@@ -137,7 +139,7 @@ function CollectionSection.new(opts)
 			Name = "NewTag", Text = "NEW", Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = INK_BRASS, BackgroundColor3 = BRASS,
 			BorderSizePixel = 0, ZIndex = z, TextStrokeTransparency = 1,
 		})
-		tag.Position = UDim2.fromOffset(r.x + 2, r.y + 2)
+		tag.Position = UDim2.fromOffset(r.x + 20, r.y + 2) -- the rarity gem sits at the slot corner
 		tag.Size = UDim2.fromOffset(40, 18)
 		corner(tag, 4)
 		return tag
@@ -245,6 +247,51 @@ function CollectionSection.new(opts)
 		end
 	end
 
+	-- Rarity on a slot: a muted rim in the tier colour around the slot, a thin underline of it on the name plate, a small gem at the top
+	-- left, a very faint inner glow from Epic up and (not in calm mode) a slow shimmer on Mythical. Locked entries keep the tint, dimmed.
+	local function rarityMarks(slot, info, z)
+		local c = info.rarityColor
+		if not c then return end
+		local calm = false
+		pcall(function() calm = ClientSettings.get("reduceShake") == true end)
+		local k = info.found and 0.35 or 0.7 -- how much of the brass/dark base is kept
+		local tint = c:Lerp(Color3.fromRGB(60, 44, 28), k * 0.5)
+		local rim = make("Frame", frame, { Name = "RarityRim", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 4 })
+		rect(rim, slot)
+		corner(rim, 6)
+		local stroke = make("UIStroke", rim, { Color = tint, Thickness = 2, Transparency = info.found and 0.15 or 0.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		local tier = info.rarity
+		if info.found and (tier == "epic" or tier == "legendary" or tier == "mythical") then
+			local glow = make("Frame", frame, { Name = "RarityGlow", BackgroundColor3 = c, BackgroundTransparency = 0.93, BorderSizePixel = 0, ZIndex = z + 4 })
+			rect(glow, slot)
+			corner(glow, 6)
+			if tier == "mythical" and not calm then
+				task.spawn(function()
+					while glow.Parent do
+						TweenService:Create(glow, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0.85 }):Play()
+						task.wait(1.6)
+						if not glow.Parent then break end
+						TweenService:Create(glow, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0.95 }):Play()
+						task.wait(1.6 + 3)
+					end
+				end)
+			end
+		end
+		local gem = make("Frame", frame, { Name = "RarityGem", BackgroundColor3 = c, BorderSizePixel = 0, Rotation = 45, ZIndex = z + 5 })
+		gem.Position = UDim2.fromOffset(slot.x + 8, slot.y + 8)
+		gem.Size = UDim2.fromOffset(10, 10)
+		gem.BackgroundTransparency = info.found and 0 or 0.45
+		make("UIStroke", gem, { Color = Color3.fromRGB(30, 20, 10), Thickness = 1 })
+		local plate = slot.plate
+		if plate then
+			local pr = Layout.plateFit(info.name, plate)
+			local line = make("Frame", frame, { Name = "RarityUnderline", BackgroundColor3 = tint, BorderSizePixel = 0, ZIndex = z + 4 })
+			line.Position = UDim2.fromOffset(pr.x + 3, pr.y + pr.h - 3)
+			line.Size = UDim2.fromOffset(math.max(1, pr.w - 6), 2)
+			line.BackgroundTransparency = info.found and 0 or 0.4
+		end
+	end
+
 	local function brassButton(r, text, onClick)
 		local b = make("TextButton", pagerHost, {
 			AutoButtonColor = true, BackgroundColor3 = BRASS, BorderSizePixel = 0, Text = text, Font = Enum.Font.GothamBold, TextSize = 20,
@@ -294,6 +341,7 @@ function CollectionSection.new(opts)
 			if Layout.kind(tabId) == "tag" then tagSlot(tabId, slot, item, info, z)
 			elseif Layout.scene(tabId).plate then portraitSlot(tabId, slot, item, info, z)
 			else textSlot(tabId, slot, item, info, z) end
+			rarityMarks(slot, info, z)
 			local hit = hitArea(frame, slot, item, info, z + 5)
 			hit.Name = "Slot_" .. tostring(item.id)
 			if info.fresh and info.found then newTag(frame, slot, z + 6) end
