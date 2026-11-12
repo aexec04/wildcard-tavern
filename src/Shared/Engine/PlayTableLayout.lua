@@ -70,16 +70,17 @@ function M.showsFront(setKey)
 	return not (s and s.room ~= nil)
 end
 
--- Instead of the front, a soft dark floor shadow lies under the hand for legibility: FLOOR.layers stacked solid bands, the k-th covering the
--- bottom height * k / layers of the screen, each black at the same alpha, so the shadow is `alpha` black at the very bottom and fades to
--- nothing at `height` of the screen (colour only: no UIGradient.Transparency).
-M.FLOOR = { layers = 8, height = 0.35, alpha = 0.55 }
-function M.floorBands()
+-- Instead of the front, a soft dark floor shadow lies under the hand for legibility: ONE frame over the bottom `height` of the screen with a
+-- UIGradient (rotation 90) whose Transparency runs from clear at the top to 1 - alpha at the very bottom along a smoothstep, `points` keypoints.
+-- No stacked bands, so no hard step shows in the picture.
+M.FLOOR = { points = 14, height = 0.35, alpha = 0.55 }
+function M.floorKeypoints()
 	local f = M.FLOOR
-	local per = 1 - (1 - f.alpha) ^ (1 / f.layers) -- opacity of one band so that all of them together reach `alpha`
 	local out = {}
-	for k = 1, f.layers do
-		out[k] = { height = f.height * k / f.layers, transparency = 1 - per }
+	for i = 0, f.points - 1 do
+		local t = i / (f.points - 1) -- 0 at the top of the shadow frame, 1 at the screen bottom
+		local ease = t * t * (3 - 2 * t)
+		out[#out + 1] = { t, 1 - f.alpha * ease }
 	end
 	return out
 end

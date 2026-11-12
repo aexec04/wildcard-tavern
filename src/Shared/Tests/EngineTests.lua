@@ -20952,12 +20952,12 @@ table.insert(tests, { name = "Per-set rooms are the painting alone: no wood fron
 	expectFalse(L.showsFront(L.OVAL_KEY), "the classic tavern room drops its wood band and deck recess too")
 	expectTrue(L.showsFront(nil), "the default front is untouched")
 	expectTrue(L.showsFront("winter_evening"), "the older Frosted Garden front keeps its table")
-	local bands = L.floorBands()
-	expectEqual(#bands, L.FLOOR.layers, "one band per layer")
-	local keep = 1
-	for _, b in ipairs(bands) do keep = keep * b.transparency end
-	expectTrue(math.abs((1 - keep) - 0.55) < 0.001, "the bands together are 55 percent black at the very bottom")
-	expectTrue(math.abs(bands[#bands].height - 0.35) < 1e-9 and bands[1].height < bands[#bands].height, "and fade out over the bottom 35 percent")
+	local pts = L.floorKeypoints()
+	expectTrue(#pts >= 12, "the floor gradient has at least 12 keypoints")
+	expectTrue(pts[1][1] == 0 and pts[#pts][1] == 1 and pts[1][2] == 1, "it starts clear at the top")
+	expectTrue(math.abs((1 - pts[#pts][2]) - 0.55) < 0.001, "and is 55 percent black at the very bottom")
+	for i = 2, #pts do expectTrue(pts[i][1] > pts[i - 1][1] and pts[i][2] <= pts[i - 1][2], "time rises, transparency never rises") end
+	expectTrue(math.abs(L.FLOOR.height - 0.35) < 1e-9, "over the bottom 35 percent")
 	local f = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
 	if f then
 		local text = f:read("*a")
@@ -20972,7 +20972,8 @@ table.insert(tests, { name = "Per-set rooms are the painting alone: no wood fron
 	if g then
 		local text = g:read("*a")
 		g:close()
-		expectFalse(text:find("UIGradient", 1, true) ~= nil, "the floor shadow is solid bands, no gradient transparency")
+		expectTrue(text:find("UIGradient", 1, true) ~= nil and text:find("floorKeypoints", 1, true) ~= nil, "the floor shadow is one gradient frame")
+		expectFalse(text:find('"Band"', 1, true) ~= nil or text:find('"Ring"', 1, true) ~= nil or text:find("floorBands", 1, true) ~= nil, "no Band or Ring frames in the floor shadow")
 	end
 end })
 
