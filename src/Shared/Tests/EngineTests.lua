@@ -17270,6 +17270,16 @@ table.insert(tests, { name = "Counter room: 3, 4 and 5 offers never overlap, sta
 	expectTrue(r.fitted, "four offers fit the painted felt at 1920x1080")
 end })
 
+table.insert(tests, { name = "Counter (unpainted room): Marlo's waist is hidden, his frame is clipped at the counter's back lip", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, frame in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local r = SL.rects(frame[1], frame[2], { offers = 2, packs = 2 })
+		expectTrue(r.clipY ~= nil, "a clip line exists")
+		expectTrue(r.marlo.y < r.clipY and r.marlo.y + r.marlo.h > r.clipY + 0.2 * r.marlo.h, "at least 20 percent of Marlo is below the clip line, so it is cut off behind the counter")
+		expectTrue(r.clipY >= r.counter.y and r.clipY <= r.counter.y + r.counter.h, "the clip line is on the counter")
+	end
+end })
+
 table.insert(tests, { name = "Counter room: Marlo stands behind the counter with his feet clipped at the counter top, the Next Round sign hangs under the arch", fn = function()
 	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, frame in ipairs({ { 1660, 1080 }, { 1020, 720 } }) do

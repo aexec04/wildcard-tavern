@@ -444,7 +444,9 @@ function ShopSceneLayout.rects(W, H, counts)
 	if not phone then
 		local marloH = H * 0.62
 		local marloW = marloH * ShopSceneLayout.MARLO_RATIO
-		out.marlo = rect(W * 0.03, counterY + counterH * 0.10 - marloH, marloW, marloH)
+		-- Marlo stands BEHIND the counter: his frame is clipped at the counter's back lip, so his waist and legs are hidden
+		out.clipY = math.floor(counterY + counterH * 0.16 + 0.5)
+		out.marlo = rect(W * 0.03, out.clipY + marloH * 0.30 - marloH, marloW, marloH)
 
 		-- props: ledger and mug at the left end, bell and candle at the far right, resting on the surface
 		local propY = out.surfaceY + counterH * 0.08

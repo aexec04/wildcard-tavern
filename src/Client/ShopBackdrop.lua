@@ -289,7 +289,7 @@ function ShopBackdrop.new(deps)
 		place(light, r.light)
 		if self.pool then place(self.pool, r.light) end
 		if marlo then place(marlo, r.marlo) end
-		marloClip.Size = UDim2.fromOffset(size.X, room and r.clipY or size.Y)
+		marloClip.Size = UDim2.fromOffset(size.X, r.clipY or size.Y)
 		if counter then
 			place(counter, r.counter)
 		end
