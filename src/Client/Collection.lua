@@ -166,6 +166,7 @@ return function(deps)
 		playClickSfx = playClickSfx,
 	})
 
+	if expandToggle.button then expandToggle.button.Visible = false end -- the Collection is always full screen (Client/PanelFullScreen), so no expand arrow
 	-- Card Sets (cosmetic card back + backdrop) live in their own panel.
 	local setsButton = button(panel, {
 		Size = UDim2.fromOffset(104, 28), Position = UDim2.fromOffset(15, 4),

@@ -263,6 +263,7 @@ function PanelTabs.attach(backdrop, id, playClick, panel)
 			current = nil
 		end
 	end)
+	if panel and PanelLayout.FULL_SCREEN[id] then pcall(require(script.Parent.PanelFullScreen).apply, backdrop, panel) end
 	-- Escape and a click on the dark area close the panel too (Client/PopupDismiss, closing through the id the panel registers
 	-- with OverlayManager). `panel` is the panel itself: a click on it is never "outside"; without it only Escape is wired.
 	pcall(function()

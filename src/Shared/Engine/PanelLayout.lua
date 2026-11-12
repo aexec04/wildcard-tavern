@@ -36,4 +36,12 @@ function PanelLayout.hitsStrip(y, h)
 	return y < PanelLayout.STRIP_BOTTOM and (y + h) > 3
 end
 
+-- The account pages in FULL_SCREEN open as full-screen scenes like the Tavern Map: the panel fills the screen below the tab strip (no margins,
+-- no outer border), the strip stays at the top, the corner dock is hidden (PanelTabs).
+PanelLayout.FULL_SCREEN = { collection = true, cosmeticSets = true, badges = true, legend = true, flair = true, stats = true }
+function PanelLayout.fullScreenRect(screenW, screenH)
+	local top = PanelLayout.STRIP_BOTTOM + 2
+	return { x = 0, y = top, w = screenW, h = screenH - top }
+end
+
 return PanelLayout

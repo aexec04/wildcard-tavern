@@ -22697,4 +22697,27 @@ table.insert(tests, { name = "FullScreenRules: the Tavern Map panel is the whole
 	end
 end })
 
+table.insert(tests, { name = "PanelLayout.fullScreenRect: Collection, Card Sets, Badges, Legend, Flair and Stats fill the screen below the tab strip at 1920x1080, 1280x720 and 800x600", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	for _, id in ipairs({ "collection", "cosmeticSets", "badges", "legend", "flair", "stats" }) do expectTrue(PL.FULL_SCREEN[id], id .. " is a full-screen page") end
+	expectFalse(PL.FULL_SCREEN.store or PL.FULL_SCREEN.season or PL.FULL_SCREEN.quests, "other account pages are unchanged")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 600 } }) do
+		local r = PL.fullScreenRect(size[1], size[2])
+		expectTrue(r.x == 0 and r.w == size[1] and r.y >= PL.STRIP_BOTTOM and r.y + r.h == size[2], "the panel spans the width and ends at the bottom edge at " .. size[1] .. "x" .. size[2])
+		expectTrue(r.h >= size[2] - PL.STRIP_BOTTOM - 4, "nothing but the tab strip is above it")
+	end
+	local f = io and io.open and io.open("src/Client/PanelTabs.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("PanelFullScreen", 1, true) ~= nil and text:find("PanelLayout.FULL_SCREEN[id]", 1, true) ~= nil, "PanelTabs.attach makes those pages full screen")
+	end
+	local g = io and io.open and io.open("src/Client/Collection.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find("expandToggle.button.Visible = false", 1, true) ~= nil, "no expand arrow on the Collection")
+	end
+end })
+
 return tests
