@@ -11,6 +11,7 @@
 ]]
 
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("MenuLayout"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
@@ -150,7 +151,7 @@ function MenuBoard.build(parent)
 		note.Parent = slot
 		lift(note, Z - note.ZIndex)
 		for _, d in ipairs(note:GetDescendants()) do
-			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.AtEnd end -- never run past the cork
+			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.None end -- rows wrap onto a second line in place(), nothing ends in an ellipsis
 		end
 		note:GetPropertyChangedSignal("Visible"):Connect(function() slot.Visible = note.Visible and slot:GetAttribute("Crowded") ~= true end)
 		local pin = Instance.new("Frame") -- the pin holding the note to the board
@@ -201,23 +202,61 @@ function MenuBoard.build(parent)
 				heights[#heights + 1] = slot.Size.Y.Offset
 			end
 		end
-		local fitted = RoomLayout.noteSlots(r - l, b - t, heights)
-		scale.Scale = fitted.scale
-		-- the notes are drawn at NOTE_W and shrunk by the scale; raise each line's size so it still reads at least 14 px on screen
+		local scale0 = RoomLayout.noteSlots(r - l, b - t, {}).scale -- the scale depends on the width only
+		-- the notes are drawn at NOTE_W and shrunk by the scale; raise each line's size so it still reads at least 14 px on screen.
+		-- A line that does not fit wraps onto more lines (the note grows by the extra height), so no text is ever cut with an ellipsis.
+		heights = {}
 		for _, slot in ipairs(visibleSlots) do
-			for _, d in ipairs(slot:GetDescendants()) do
-				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" then
+			local note = slot:FindFirstChildWhichIsA("GuiObject")
+			local baseH = note:GetAttribute("BaseH") or note.Size.Y.Offset
+			note:SetAttribute("BaseH", baseH)
+			local extra = 0
+			for _, d in ipairs(note:GetDescendants()) do
+				if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.Name ~= "NoteHit" then
 					local base = d:GetAttribute("BaseTextSize") or d.TextSize
 					d:SetAttribute("BaseTextSize", base)
-					local want = math.max(base, math.ceil(14 / fitted.scale))
+					local want = math.max(base, math.ceil(14 / scale0))
 					d.TextSize = want
-					d.TextWrapped = false -- one line per row, cut with an ellipsis rather than spilling
-					if d.Size.Y.Scale == 0 and d.Size.Y.Offset > 0 and d.Size.Y.Offset < want + 4 then
-						d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, want + 4)
+					d.TextTruncate = Enum.TextTruncate.None
+					if d.Name == "Text" or d.Name == "Time" then
+						local baseLabelH = d:GetAttribute("BaseLabelH") or d.Size.Y.Offset
+						d:SetAttribute("BaseLabelH", baseLabelH)
+						local w = d.Size.X.Offset
+						if d.Size.X.Scale ~= 0 then w = d.Size.X.Scale * NOTE_W + w end
+						local lines = 1
+						local ok, bounds = pcall(function() return TextService:GetTextSize(d.Text, want, d.Font, Vector2.new(math.max(20, w), 1000)) end)
+						if ok and bounds then lines = math.max(1, math.min(3, math.round(bounds.Y / (want + 2)))) end
+						d.TextWrapped = lines > 1
+						local lineH = want + 2
+						if d.Size.Y.Scale == 0 and lines > 1 then
+							d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, math.max(baseLabelH, lines * lineH))
+							extra = math.max(extra, lines * lineH - baseLabelH)
+						elseif d.Size.Y.Scale == 0 then
+							d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, math.max(baseLabelH, lineH))
+							extra = math.max(extra, lineH - baseLabelH)
+						end
+					else
+						d.TextWrapped = false
+						if d.Size.Y.Scale == 0 and d.Size.Y.Offset > 0 and d.Size.Y.Offset < want + 4 then
+							d.Size = UDim2.new(d.Size.X.Scale, d.Size.X.Offset, 0, want + 4)
+						end
 					end
 				end
 			end
+			extra = math.max(0, extra)
+			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines
+				if c.Name == "Track" and c:IsA("GuiObject") then
+					local baseY = c:GetAttribute("BaseY") or c.Position.Y.Offset
+					c:SetAttribute("BaseY", baseY)
+					c.Position = UDim2.new(c.Position.X.Scale, c.Position.X.Offset, 0, baseY + extra)
+				end
+			end
+			note.Size = UDim2.fromOffset(NOTE_W, baseH + extra)
+			slot.Size = note.Size
+			heights[#heights + 1] = baseH + extra
 		end
+		local fitted = RoomLayout.noteSlots(r - l, b - t, heights)
+		scale.Scale = fitted.scale
 		for i, slot in ipairs(visibleSlots) do
 			local crowd = i > fitted.shown
 			slot:SetAttribute("Crowded", crowd)
