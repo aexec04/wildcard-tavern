@@ -5393,6 +5393,29 @@ table.insert(tests, { name = "PlayRailLip: the lip hides the bottom 14 percent o
 	expectTrue(Lip.lipRect(nil) == nil)
 end })
 
+table.insert(tests, { name = "PlayRail: painted tray rects sit on the lip, stay inside the picture, and the module needs both ids", fn = function()
+	local f = io and io.open and io.open("src/Client/PlayRail.lua", "r")
+	if not f then return end -- file-reading tests skip when io is missing
+	f:close()
+	local PlayTableLayout = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local Rail = dofile("src/Client/PlayRail.lua")
+	expectTrue(Rail.rects(nil) == nil, "no placement, no rects")
+	expectTrue(not Rail.ready({}) and not Rail.ready({ play_rail_back_a = "x" }) and not Rail.ready(nil), "one id is not enough")
+	expectTrue(Rail.ready({ play_rail_back_a = "x", play_rail_front_b = "y" }), "both ids")
+	expectTrue(Rail.install({}, {}) == nil, "no art, no pieces (the flat lip stays)")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local p = PlayTableLayout.placement(size[1], size[2], 260, 150)
+		local r = Rail.rects(p)
+		local lip = dofile("src/Client/PlayRailLip.lua").lipRect(p)
+		expectTrue(r.front.y == lip.y and r.front.y + r.front.h == lip.y + lip.h, "front covers the lip rect")
+		expectTrue(r.front.x <= lip.x and r.front.x + r.front.w >= lip.x + lip.w, "front spans the rail")
+		expectTrue(r.back.y + r.back.h == lip.y + lip.h, "back ends where the front ends")
+		expectTrue(r.back.w == r.front.w and r.back.h > 0, "back has the same width")
+		expectTrue(r.back.y > p.hand.y, "back stays below the top of the hand frame")
+	end
+	expectTrue(Rail.BACK_Z < 1 and Rail.FRONT_Z > 20, "back below every card, front above them")
+end })
+
 table.insert(tests, { name = "CosmeticSets.tableTintOf: Mountain Festival tints the table cool, the default and others stay untouched", fn = function()
 	local CosmeticSets = require(script.Parent.Parent.Engine.CosmeticSets)
 	local t = CosmeticSets.tableTintOf("festival_night")

@@ -99,7 +99,8 @@ CATEGORIES = {
 # Per-category overrides: image size, quality, and which prompts.json key holds the style prefix.
 COLL_SEC = ["coll_sec_%s_%s" % (s, v) for s in ("patrons", "recipes", "bosses", "passes", "titles", "bonds") for v in "ab"]
 
-PLAY_KEYS = ('play_table_front_a', 'play_table_front_b', 'play_deck_box_a', 'play_deck_box_b', 'play_board_a', 'play_board_b', 'play_plates_a', 'play_plates_b')
+PLAY_KEYS = ('play_table_front_a', 'play_table_front_b', 'play_deck_box_a', 'play_deck_box_b', 'play_board_a', 'play_board_b', 'play_plates_a', 'play_plates_b',
+             'play_rail_back_a', 'play_rail_back_b', 'play_rail_front_a', 'play_rail_front_b')
 
 CATEGORY_OPTS = {
     "backgrounds": {"size": "1536x1024", "quality": "low", "style_key": "style_background"},
@@ -160,7 +161,9 @@ CATEGORY_OPTS = {
                    "sizes": {"play_table_front_a": "1536x1024", "play_table_front_b": "1536x1024",
                              "play_deck_box_a": "1024x1024", "play_deck_box_b": "1024x1024",
                              "play_board_a": "1024x1536", "play_board_b": "1024x1536",
-                             "play_plates_a": "1536x1024", "play_plates_b": "1536x1024"},
+                             "play_plates_a": "1536x1024", "play_plates_b": "1536x1024",
+                             "play_rail_back_a": "1536x1024", "play_rail_back_b": "1536x1024",
+                             "play_rail_front_a": "1536x1024", "play_rail_front_b": "1536x1024"},
                    "references": dict((k, "art-wip/menu_room/menu_room_wall.png") for k in PLAY_KEYS)},
     "blessing_icons": {"quality": "low", "style_key": "house_style", "transparent": True},
     # small 1:1 sprites; the 2:1 clouds and 4:1 streak are made on the 3:2 canvas and cropped in code

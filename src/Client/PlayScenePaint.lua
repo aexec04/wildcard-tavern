@@ -64,6 +64,12 @@ function PlayScenePaint.install(deps)
 
 	local PlayRailLip = require(script.Parent.PlayRailLip)
 	local lip = PlayRailLip.install(root)
+	local PlayRail = require(script.Parent.PlayRail)
+	local rail = PlayRail.install(root, art) -- nil until both rail Image ids exist: the flat lip stays
+	local function setLip(v) -- one place for lip visibility: the painted pieces replace the flat strip when present
+		lip.Visible = v and not rail
+		if rail then rail.back.Visible = v; rail.front.Visible = v end
+	end
 	-- the equipped or previewed Card Set may tint the table (felt on the picture, wood on the rail lip); HudTheme calls this on equip,
 	-- Preview start and Preview stop, and a set without a tint puts the painted colours back exactly
 	local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
@@ -83,7 +89,7 @@ function PlayScenePaint.install(deps)
 			if c and c:IsA("GuiObject") and not watched[c] then
 				watched[c] = true
 				c:GetPropertyChangedSignal("Visible"):Connect(function()
-					if painted then lip.Visible = lipShown() end
+					if painted then setLip(lipShown()) end
 				end)
 			end
 		end
@@ -115,6 +121,8 @@ function PlayScenePaint.install(deps)
 			deck(p.map.deck)
 			watchCovers()
 			PlayRailLip.apply(lip, p, lipShown())
+			PlayRail.apply(rail, p, lipShown())
+			if rail then lip.Visible = false end
 		elseif painted then
 			deck(nil)
 			-- leaving the painted layout: back to the flat one (a narrow window is then handled by CompactLayout)
@@ -122,6 +130,7 @@ function PlayScenePaint.install(deps)
 			vignette(false)
 			image.Visible = false
 			PlayRailLip.apply(lip, nil)
+			PlayRail.apply(rail, nil)
 			handFrame:SetAttribute("PaintedRail", nil)
 			plates(nil)
 			if size.X >= PlayTableLayout.MIN_W then
@@ -136,7 +145,7 @@ function PlayScenePaint.install(deps)
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(apply)
 	-- The game owns HandFrame, Actions and DeckWidget visibility; this module only follows it (never sets it)
 	handFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-		if painted then image.Visible = handFrame.Visible; lip.Visible = lipShown() end
+		if painted then image.Visible = handFrame.Visible; setLip(lipShown()) end
 	end)
 	-- CompactLayout re-applies its own numbers on viewport changes; put the painted ones back right after
 	handFrame:GetPropertyChangedSignal("Position"):Connect(apply)
