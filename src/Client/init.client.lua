@@ -2231,7 +2231,7 @@ local function rebuildHand(handData, phase)
 				button.Rotation = 14
 				task.delay((visualPosition - 1) * 0.05, function()
 					if button.Parent then
-						VisualHelpersModule.tweenTo(button, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+						VisualHelpersModule.tweenTo(button, { Position = UDim2.new(0.5, button.Parent:GetAttribute("FanX") or 0, 0.5, button.Parent:GetAttribute("FanY") or 0), Rotation = button.Parent:GetAttribute("FanRot") or 0 }, 0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 					end
 				end)
 			end

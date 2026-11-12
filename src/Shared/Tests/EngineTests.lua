@@ -19640,6 +19640,16 @@ table.insert(tests, { name = "PlayMotion: one frame step over the real layers gi
 	assert(nx == 0 and ny == 0, "nil safe")
 	assert(PM.layerOffset(0, 0, nil, 0, false) == 0)
 end })
+table.insert(tests, { name = "PlayMotion client: the fan tilt is put on the card button, never left on the layout slot (AbsoluteRotation 0 regression)", fn = function()
+	local f = io and io.open and io.open("src/Client/PlayMotion.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("slot.Rotation = 0", 1, true) ~= nil, "slot itself stays unrotated")
+	expectTrue(src:find("tbtn.Rotation = tilt", 1, true) ~= nil, "button gets the tilt")
+	expectTrue(src:find('SetAttribute("FanRot"', 1, true) ~= nil, "tilt target kept for the deal and hover tweens")
+	expectTrue(src:find("[HandFan]", 1, true) ~= nil, "Studio side check logs AbsoluteRotation")
+end })
 table.insert(tests, { name = "PlayMotion: visible fan (6.5 degrees, 28 px dip, 12 px tuck, ends 0.92), played stack, shadow, lean eases only with a selection or play", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	for count = 2, 8 do

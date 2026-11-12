@@ -62,6 +62,7 @@ function M.install(deps)
 		{ name = "PlayRailBack", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
 		{ name = "PlayRailFront", px = PM.LAYER_PX.rail, leanPx = PM.LEAN_PX.rail },
 	}
+	local fanChecked = false
 	local function applyDepth()
 		local slots = {}
 		for _, c in ipairs(handFrame:GetChildren()) do
@@ -70,7 +71,13 @@ function M.install(deps)
 		table.sort(slots, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
 		local selected = 0
 		for i, slot in ipairs(slots) do
-			slot.Rotation = PM.cardTilt(i, #slots)
+			-- Roblox does not draw Rotation on a layout-controlled slot (AbsoluteRotation stays 0), so the tilt goes on the
+			-- card button inside the slot and the slot keeps the target in an attribute
+			local tilt = PM.cardTilt(i, #slots)
+			slot.Rotation = 0
+			slot:SetAttribute("FanRot", tilt)
+			local tbtn = slot:FindFirstChildOfClass("TextButton")
+			if tbtn and not slot:GetAttribute("Dealing") and tbtn.Rotation ~= tilt then tbtn.Rotation = tilt end
 			-- fan offset (tuck and dip) lives in slot attributes; the hub's lift tween adds it to its own target
 			local fx, fy = PM.cardOffset(i, #slots)
 			fx, fy = math.floor(fx + 0.5), math.floor(fy + 0.5)
@@ -105,6 +112,18 @@ function M.install(deps)
 		sx += (nx - sx) * a
 		sy += (ny - sy) * a
 		local okD, selectedCount = pcall(applyDepth)
+		if not fanChecked and okD then
+			fanChecked = true
+			task.defer(function()
+				local n, rotated = 0, 0
+				for _, c in ipairs(handFrame:GetChildren()) do
+					local b = c:IsA("Frame") and c:GetAttribute("HandIndex") and c:FindFirstChildOfClass("TextButton")
+					if b then n += 1 if math.abs(b.AbsoluteRotation) > 0.1 then rotated += 1 end end
+				end
+				print(string.format("[HandFan] cards=%d rotated=%d", n, rotated))
+				if n > 1 and rotated == 0 then warn("[HandFan] no hand card has a nonzero AbsoluteRotation; the fan is not drawing") end
+			end)
+		end
 		lean += (PM.leanTarget(okD and selectedCount or 0, false, modal, isCalm) - lean) * PM.follow(dt, 0.14) -- settles in about 0.3 s
 		for _, layer in ipairs(layers) do
 			local inst = layer.inst
@@ -142,14 +161,16 @@ function M.install(deps)
 				local t = (os.clock() - t0) / dur
 				if t >= 1 then
 					conn:Disconnect()
-					button.Position = UDim2.fromScale(0.5, 0.5)
-					button.Rotation = 0
+					button.Position = UDim2.new(0.5, landX, 0.5, landY)
+					button.Rotation = slot:GetAttribute("FanRot") or 0
+					slot:SetAttribute("Dealing", nil)
 					return
 				end
 				local e = 1 - (1 - t) ^ 3 -- ease out
 				local x, y = PM.arc(fromX, fromY, landX, landY, e, 40)
 				button.Position = UDim2.new(0.5, x, 0.5, y)
-				button.Rotation = 14 * (1 - e)
+				local rest = slot:GetAttribute("FanRot") or 0
+				button.Rotation = rest + (14 - rest) * (1 - e)
 			end)
 		end)
 		return true
