@@ -20968,4 +20968,89 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	expectTrue(more.SaveBadge.Active == false and more.SaveBadge.Text == "Badge saved", "and turns into Badge saved")
 end })
 
+table.insert(tests, { name = "RegularsLayout: framed portraits hang on the chimney wall, at most 6 (3 on a phone), 44 px or more, never over a Menu hotspot or each other", fn = function()
+	local R = require(script.Parent.Parent.Engine.RegularsLayout)
+	local M = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	local function overlap(a, b) return a.x < b.x + b.w - 0.01 and b.x < a.x + a.w - 0.01 and a.y < b.y + b.h - 0.01 and b.y < a.y + a.h - 0.01 end
+	local sizes = { { 1920, 1080 }, { 1280, 720 }, { 1024, 576 }, { 900, 506 }, { 800, 450 }, { 390, 844 }, { 360, 640 } }
+	for _, sz in ipairs(sizes) do
+		for count = 0, 8 do
+			local r = R.compute(sz[1], sz[2], count)
+			local maxN = sz[1] >= R.NARROW_BELOW and R.MAX or R.MAX_NARROW
+			local tag = sz[1] .. "x" .. sz[2] .. " count " .. count
+			expectEqual(#r.frames, math.min(count, maxN), "frame count is the count capped at " .. maxN .. " at " .. tag)
+			for i, f in ipairs(r.frames) do
+				expectTrue(f.w >= 44 and f.h >= 44, "frame " .. i .. " is at least 44 px at " .. tag)
+				expectTrue(f.x >= 0 and f.y >= 0 and f.x + f.w <= sz[1] and f.y + f.h <= sz[2], "frame " .. i .. " is on screen at " .. tag)
+				expectTrue(math.abs(f.tilt) <= 2, "tilt is 2 degrees at most")
+				for j = i + 1, #r.frames do
+					expectFalse(overlap(f, r.frames[j]), "frames " .. i .. " and " .. j .. " do not overlap at " .. tag)
+				end
+				if not r.fallback then
+					-- on the chimney: left of the lantern, above the fire, clear of every Menu hotspot and ambient prop
+					for name, pic in pairs(M.pic) do
+						local l, t, rr, b = M.toPixels(pic, sz[1], sz[2])
+						expectFalse(overlap(f, { x = l, y = t, w = rr - l, h = b - t }), "frame " .. i .. " stays off the " .. name .. " hotspot at " .. tag)
+					end
+					for _, rect in ipairs({ M.fireRect, M.windowRect, M.lanternRects[1], M.lanternRects[2] }) do
+						local l, t, rr, b = M.toPixels(rect, sz[1], sz[2])
+						expectFalse(overlap(f, { x = l, y = t, w = rr - l, h = b - t }), "frame " .. i .. " stays off the fire, window and lanterns at " .. tag)
+					end
+				end
+			end
+		end
+	end
+	expectFalse(R.compute(1920, 1080, 6).fallback, "a wide screen hangs them on the chimney")
+	expectTrue(R.compute(390, 844, 3).fallback, "a portrait phone crops the chimney away, so they hang in a top-left row")
+	expectEqual(#R.compute(1920, 1080, 0).frames, 0, "no Regulars, no frames")
+	expectEqual(#R.compute(390, 844, 6).frames, 3, "a phone keeps at most 3")
+	-- the layout depends only on the picture crop, so the chimney keeps its place against the picture
+	local a, b = R.compute(1920, 1080, 6), R.compute(1280, 720, 6)
+	local pwA, _, oxA = M.cover(1920, 1080)
+	local pwB, _, oxB = M.cover(1280, 720)
+	expectTrue(math.abs((a.frames[1].x - oxA) / pwA - (b.frames[1].x - oxB) / pwB) < 0.01, "the first frame sits at the same place on the picture at both sizes")
+end })
+
+table.insert(tests, { name = "MenuRegulars: framed portraits on the wall, no floating title, nothing with zero Regulars, tap card titled Your Regular", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = { RegularsLayout = require(E.RegularsLayout) }
+	local env, state = FakeGui.env({ stubs = { ArtIcon = { apply = function() return nil end } } })
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder(map) end } end }
+	local MR = FakeGui.load("src/Client/MenuRegulars.lua", env)
+	local menu = FakeGui.new("Frame")
+	menu.AbsoluteSize = { X = 1280, Y = 720 }
+	local function regular(i)
+		return { key = "patron:p" .. i, kind = "patron", id = "p" .. i, name = "Regular " .. i, icon = "R", greeting = "Evening.", story = "A story.", wins = i, losses = 0 }
+	end
+	MR.update({ regulars = {} }, menu)
+	local layer = menu:FindFirstChild("TavernRegulars")
+	expectTrue(layer == nil or layer.Visible == false, "no Regulars, nothing drawn")
+	local six = {}
+	for i = 1, 6 do six[i] = regular(i) end
+	MR.update({ regulars = six }, menu)
+	layer = menu:FindFirstChild("TavernRegulars")
+	expectTrue(layer ~= nil and layer.Visible == true, "the layer shows with Regulars")
+	local portraits = layer:FindFirstChild("Portraits")
+	local count = 0
+	for _, c in ipairs(portraits:GetChildren()) do
+		if c.Name:sub(1, 8) == "Regular_" then
+			count = count + 1
+			expectTrue(c.Size.X.Offset >= 44 and c.Size.Y.Offset >= 44, c.Name .. " is at least 44 px")
+			expectTrue(math.abs(c.Rotation) <= 2, c.Name .. " tilts at most 2 degrees")
+			expectTrue(c:FindFirstChild("Shadow") and c:FindFirstChild("Cord") and c:FindFirstChild("Nail") and c:FindFirstChild("PortraitWindow") and c:FindFirstChild("HoverGlow"), c.Name .. " has shadow, cord, nail, window and glow")
+		end
+	end
+	expectEqual(count, 6, "six framed portraits")
+	expectTrue(layer:FindFirstChild("RegularsTitle") == nil, "no Your Regulars title floats over the room")
+	local card = layer:FindFirstChild("RegularCard")
+	expectTrue(card ~= nil and card:FindFirstChild("CardTitle") ~= nil and card:FindFirstChild("CardTitle").Text == "Your Regular", "the tap card carries the title")
+	menu.AbsoluteSize = { X = 390, Y = 844 }
+	MR.update({ regulars = six }, menu)
+	count = 0
+	for _, c in ipairs(layer:FindFirstChild("Portraits"):GetChildren()) do if c.Name:sub(1, 8) == "Regular_" then count = count + 1 end end
+	expectEqual(count, 3, "a phone keeps at most 3 frames")
+end })
+
 return tests
