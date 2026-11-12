@@ -17,6 +17,7 @@ return {
 	["badge_room"] = "rbxassetid://109280517838418",
 	["badge_scene_masters"] = "rbxassetid://129962030592148",
 	["badge_scene_night"] = "rbxassetid://83566274570691",
+	["badge_scene_night_b"] = "rbxassetid://98708074178494",
 	["badge_scene_roads"] = "rbxassetid://108676419353133",
 	["badge_scene_special"] = "rbxassetid://107548038955080",
 	["badge_shelf_rail"] = "rbxassetid://84154135538816",
