@@ -22927,4 +22927,32 @@ table.insert(tests, { name = "ScrimGradient: no caller can build a sequence over
 	expectTrue(#VC.keypoints() <= 20, "vignette within 20 keypoints")
 end })
 
+table.insert(tests, { name = "Full screen Collection: the layout never writes the windowed size back, the old Shadow stays hidden, the room fills the panel at 1920x1080 and 1280x720", fn = function()
+	local scene = collectionBuild({ fullScreen = true })
+	if not scene then return end
+	local PL = require(script.Parent.Parent.Engine.PanelLayout)
+	local top = PL.fullScreenRect(0, 0).y
+	local FakeGui = require(script.Parent.FakeGui)
+	local shadow = FakeGui.new("Frame") -- the old windowed panel shadow that popIn and SetSkin used to switch back on
+	shadow.Name = "Shadow"
+	shadow.Parent = scene.panel
+	scene.backdrop.Visible = false
+	scene.backdrop.Visible = true -- opening runs PanelFullScreen's force(), which flattens the decoration
+	expectFalse(shadow.Visible, "opening hides the Shadow")
+	for _, vp in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		scene.camera.ViewportSize = { X = vp[1], Y = vp[2] }
+		scene.panel.AbsoluteSize = { X = vp[1], Y = vp[2] - top } -- what Roblox reports for Size (1, 0, 1, -top)
+		scene.panel.AbsoluteSize = { X = vp[1] - 1, Y = vp[2] - top } -- a size change makes the Collection lay out again
+		scene.panel.AbsoluteSize = { X = vp[1], Y = vp[2] - top }
+		local size = scene.panel.Size
+		expectTrue(size.X.Scale == 1 and size.X.Offset == 0 and size.Y.Scale == 1 and size.Y.Offset == -top, vp[1] .. ": the panel keeps the full screen size after the layout ran, not the 66 percent windowed one")
+		shadow.Visible = true -- popIn / SetSkin
+		expectFalse(shadow.Visible, vp[1] .. ": the Shadow cannot be switched back on")
+		scene.open()
+		local room, grid = scene.room.AbsoluteSize, scene.panel.AbsoluteSize
+		expectTrue(scene.room.Size.X.Scale > 0 or scene.room.Size.X.Offset >= 0, vp[1] .. ": the room has a size")
+		expectTrue(room.X <= grid.X and room.Y <= grid.Y, vp[1] .. ": the room fits inside the panel")
+	end
+end })
+
 return tests

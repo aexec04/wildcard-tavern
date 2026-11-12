@@ -19,6 +19,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 return function(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
@@ -76,8 +77,7 @@ return function(deps)
 			local cam = workspace.CurrentCamera
 			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 			local fit = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout")).badgesPanel(vp.X, vp.Y)
-			panel.Size = UDim2.fromOffset(fit.w, math.max(fit.h, math.floor(vp.Y * 0.84)))
-			panel.Position = UDim2.new(0, fit.x, 0.5, 0)
+			FullScreen.setRect(panel, UDim2.fromOffset(fit.w, math.max(fit.h, math.floor(vp.Y * 0.84))), UDim2.new(0, fit.x, 0.5, 0))
 		end
 		place()
 		if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(place) end
@@ -322,7 +322,7 @@ return function(deps)
 	local function relayout()
 		local cam = workspace.CurrentCamera
 		local vpX = cam and cam.ViewportSize.X or 1280
-		panel.Size = (vpX < 700) and UDim2.fromScale(0.96, 0.92) or UDim2.fromScale(0.78, 0.88)
+		FullScreen.setRect(panel, (vpX < 700) and UDim2.fromScale(0.96, 0.92) or UDim2.fromScale(0.78, 0.88))
 		detail.Size = UDim2.new(0, math.min(420, math.max(280, vpX - 60)), 0, 330)
 	end
 

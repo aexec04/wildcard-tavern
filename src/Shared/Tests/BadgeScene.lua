@@ -28,7 +28,7 @@ function BadgeScene.build(opts)
 	local env, state = FakeGui.env({ stubs = stubs })
 
 	local map = {}
-	for _, name in ipairs({ "Badges", "BadgeWallLayout", "BadgeWallArt", "BadgeSocketArt", "BadgeRoomLayout", "RoomGrid", "ContentArt", "ResponsiveLayout" }) do
+	for _, name in ipairs({ "Badges", "BadgeWallLayout", "BadgeWallArt", "BadgeSocketArt", "BadgeRoomLayout", "RoomGrid", "ContentArt", "ResponsiveLayout", "PanelLayout" }) do
 		map[name] = require(Engine[name])
 	end
 	if opts.wallArt then map.BadgeWallArt = opts.wallArt end -- tests can record the painted scene ids
@@ -53,6 +53,7 @@ function BadgeScene.build(opts)
 	stubs.PatronPlaque = { applyById = function(frame) local img = FakeGui.new("ImageLabel"); img.Parent = frame; return img end }
 	stubs.RarityFrame = { apply = noop }
 	stubs.PanelTabs = { attach = noop, setStep = function(id, fn) steps[id] = fn end }
+	stubs.PanelFullScreen = FakeGui.load("src/Client/PanelFullScreen.lua", env)
 	stubs.RoomHotspots = FakeGui.load("src/Client/RoomHotspots.lua", env)
 	stubs.BadgeRoom = FakeGui.load("src/Client/BadgeRoom.lua", env)
 	stubs.BadgeWall = FakeGui.load("src/Client/BadgeWall.lua", env)

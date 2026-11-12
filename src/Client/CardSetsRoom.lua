@@ -16,6 +16,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 local CardSetsRoom = {}
 
@@ -228,6 +229,7 @@ function CardSetsRoom.new(ctx)
 	function room.layout()
 		local screen = ctx.screenGui.AbsoluteSize
 		local pw, ph = Layout.panel(screen.X, screen.Y)
+		pw, ph = FullScreen.fit(ctx.panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local area = { x = 0, y = Layout.TOP, w = pw, h = ph - Layout.TOP - Layout.BOTTOM }
 		local p = scene.id and Layout.place(area.w, area.h) or nil
 		room.on = p ~= nil and p.ok and pw >= 640 and ph >= 520
@@ -237,10 +239,10 @@ function CardSetsRoom.new(ctx)
 			for _, group in ipairs({ p.plates, p.frames, p.plaques }) do
 				for _, r in ipairs(group) do r.y = r.y + Layout.TOP end
 			end
-			ctx.panel.Size = UDim2.fromOffset(pw, ph)
+			FullScreen.setRect(ctx.panel, UDim2.fromOffset(pw, ph))
 			scene.show(area, p)
 		else
-			ctx.panel.Size = UDim2.fromScale(0.64, 0.84)
+			FullScreen.setRect(ctx.panel, UDim2.fromScale(0.64, 0.84))
 			scene.hide()
 		end
 		layer.Visible = room.on

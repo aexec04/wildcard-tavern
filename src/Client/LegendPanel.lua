@@ -13,6 +13,7 @@
 ]]
 
 local LegendPanel = {}
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 function LegendPanel.crestText(level)
 	level = math.floor(tonumber(level) or 0)
@@ -355,6 +356,7 @@ function LegendPanel.init(deps)
 	local function layoutRoom()
 		local screen = deps.screenGui.AbsoluteSize
 		local pw, ph = Scene.panel(screen.X, screen.Y)
+		pw, ph = FullScreen.fit(panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local placed = scene.id and Scene.place(pw, ph - Scene.TOP - Scene.BOTTOM) or nil
 		sceneOn = placed ~= nil and placed.ok and pw >= 640 and ph >= 520 -- the panel's own minimum size
 		scenePlaced = sceneOn and placed or nil
@@ -365,14 +367,14 @@ function LegendPanel.init(deps)
 		closeButton.BackgroundColor3 = sceneOn and Color3.fromRGB(C.closeButton[1], C.closeButton[2], C.closeButton[3]) or Color3.fromRGB(110, 40, 52)
 		if sceneOn then
 			panelLimit.MaxSize = Vector2.new(Scene.PANEL_MAX[1], Scene.PANEL_MAX[2])
-			panel.Size = UDim2.fromOffset(pw, ph)
+			FullScreen.setRect(panel, UDim2.fromOffset(pw, ph))
 			scene.show({ x = 0, y = Scene.TOP, w = pw, h = ph - Scene.TOP - Scene.BOTTOM }, placed)
 			for _, p in ipairs(placed.plaques) do p.y = p.y + Scene.TOP end
 			for _, p in ipairs(placed.shelves) do p.y = p.y + Scene.TOP end
 			placed.alcove.y = placed.alcove.y + Scene.TOP
 		else
 			panelLimit.MaxSize = Vector2.new(980, 640)
-			panel.Size = UDim2.fromScale(0.8, 0.88)
+			FullScreen.setRect(panel, UDim2.fromScale(0.8, 0.88))
 			scene.hide()
 		end
 		sceneLayer.Visible = sceneOn

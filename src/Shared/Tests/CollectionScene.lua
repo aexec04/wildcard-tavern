@@ -31,7 +31,7 @@ function CollectionScene.build(opts)
 	-- the modules the real files reach through ReplicatedStorage.Shared.Engine
 	local map = {}
 	for _, name in ipairs({ "CollectionBook", "ContentArt", "CollectionSceneLayout", "CollectionRoomLayout", "CollectionFurnitureLayout",
-		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve", "CollectionPreload" }) do
+		"StageMotion", "ResponsiveLayout", "MothFlight", "CollectionSectionLayout", "RoomGrid", "VignetteCurve", "CollectionPreload", "PanelLayout" }) do
 		map[name] = require(Engine[name])
 	end
 	local engineFolder = FakeGui.folder(map)
@@ -67,6 +67,7 @@ function CollectionScene.build(opts)
 	stubs.ExpandToggle = function() return { setCollapsedSize = noop } end
 	stubs.ModalStage = { mount = noop }
 	stubs.PanelTabs = { attach = noop, setStep = function(id, fn) steps[id] = fn end }
+	stubs.PanelFullScreen = FakeGui.load("src/Client/PanelFullScreen.lua", env)
 	stubs.CollectionGallery = FakeGui.load("src/Client/CollectionGallery.lua", env)
 	stubs.CollectionFurniture = FakeGui.load("src/Client/CollectionFurniture.lua", env)
 	stubs.SmoothVignette = FakeGui.load("src/Client/SmoothVignette.lua", env)
@@ -113,6 +114,7 @@ function CollectionScene.build(opts)
 		legend = panel:FindFirstChild("RarityLegend"), detail = panel:FindFirstChild("DetailShade"),
 		scene = panel:FindFirstChild("SectionScene"), -- the painted section scene (only on when opts.painted)
 	}
+	if opts.fullScreen then stubs.PanelFullScreen.apply(backdrop, panel, "collection") end -- what PanelTabs.attach does for the six full screen pages
 	function out.open() openers.collection() end
 	function out.hotspot(id) return out.room:FindFirstChild("Hotspot_" .. id) end
 	function out.pick(id) out.hotspot(id):FindFirstChild("Surface").MouseButton1Click:Fire() end

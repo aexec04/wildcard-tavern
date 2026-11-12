@@ -8,6 +8,7 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 return function(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
@@ -41,8 +42,7 @@ return function(deps)
 		if not cam then return end
 		local vp = cam.ViewportSize
 		local r = Pages.panelRect(vp.X, vp.Y)
-		panel.Size = UDim2.new(0, r.w, 0, r.h)
-		panel.Position = UDim2.new(0, r.x, 0.5, 0)
+		FullScreen.setRect(panel, UDim2.new(0, r.w, 0, r.h), UDim2.new(0, r.x, 0.5, 0))
 	end
 	fitPanel()
 	local bookLayer = Instance.new("Frame") -- everything the old open ledger book draws; hidden while the painted desk is up

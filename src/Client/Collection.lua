@@ -509,17 +509,21 @@ return function(deps)
 	-- Badges buttons, and the rarity chips wrap on their wooden plate. Engine/CollectionRoomLayout.panel gives the vertical order: the
 	-- room and the section grid fill the area between the quiet tab row and the plate.
 	local ResponsiveLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ResponsiveLayout"))
+	local FullScreen = require(script.Parent.PanelFullScreen)
 	local function relayout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		local fit = ResponsiveLayout.collectionPanel(vp.X, vp.Y)
 		-- the responsive size is the collapsed size; while expanded the toggle owns Size (resetting it here undid the tween)
 		expandToggle.setCollapsedSize(UDim2.fromScale(fit.w, fit.h))
+		-- PanelFullScreen owns the size of the full screen panel: writing the windowed size here fought it on every AbsoluteSize change
+		-- (this was the wrong size source: the layout below measured the transient 66 percent panel and painted at that size)
 		if panel:GetAttribute("Expanded") ~= true then
-			panel.Size = UDim2.fromScale(fit.w, fit.h)
+			FullScreen.setRect(panel, UDim2.fromScale(fit.w, fit.h))
 		end
-		local panelW = panel.AbsoluteSize.X > 0 and panel.AbsoluteSize.X or vp.X * fit.w
-		local panelH = panel.AbsoluteSize.Y > 0 and panel.AbsoluteSize.Y or vp.Y * fit.h
+		local fullW, fullH = FullScreen.fit(panel, vp.X * fit.w, vp.Y * fit.h, vp.X, vp.Y)
+		local panelW = panel.AbsoluteSize.X > 0 and panel.AbsoluteSize.X or fullW
+		local panelH = panel.AbsoluteSize.Y > 0 and panel.AbsoluteSize.Y or fullH
 		local head = ResponsiveLayout.collectionTitle(panelW)
 		titleLabel.Position = UDim2.fromOffset(head.x, 6)
 		titleLabel.Size = head.fullWidth and UDim2.new(1, 0, 0, 28) or UDim2.fromOffset(head.w, 28)
@@ -886,7 +890,8 @@ return function(deps)
 		local ok, cols = pcall(function()
 			local cam = workspace.CurrentCamera
 			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-			local standIn = vp.X * ResponsiveLayout.collectionPanel(vp.X, vp.Y).w - 30 - scroll.ScrollBarThickness
+			local fitW = ResponsiveLayout.collectionPanel(vp.X, vp.Y).w
+			local standIn = FullScreen.fit(panel, vp.X * fitW, 0, vp.X, vp.Y) - 30 - scroll.ScrollBarThickness
 			local okWindow, window = pcall(function() return scroll.AbsoluteWindowSize.X end) -- visible width, scroll bar excluded
 			return Furn.layout.colsIn(currentKind, okWindow and window or scroll.AbsoluteSize.X, Furn.padding(currentKind).side, standIn)
 		end)

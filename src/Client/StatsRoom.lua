@@ -14,6 +14,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 local StatsRoom = {}
 
@@ -141,6 +142,10 @@ function StatsRoom.new(ctx)
 	function room.layout()
 		local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
 		local rect = Layout.panel(vp.X, vp.Y)
+		do -- a full screen panel: the real screen below the tab strip
+			local fw, fh = FullScreen.fit(ctx.panel, rect.w, rect.h, vp.X, vp.Y)
+			if fw ~= rect.w or fh ~= rect.h then rect = { x = 0, y = rect.y, w = fw, h = fh } end
+		end
 		local area = { x = 0, y = Layout.TOP, w = rect.w, h = rect.h - Layout.TOP - Layout.BOTTOM }
 		local p = scene.id and Layout.place(area.w, area.h) or nil
 		room.on = p ~= nil and p.ok
@@ -150,8 +155,7 @@ function StatsRoom.new(ctx)
 			for _, group in ipairs({ p.plaques, p.pages, p.shelves }) do
 				for _, r in ipairs(group) do r.y = r.y + Layout.TOP end
 			end
-			ctx.panel.Size = UDim2.new(0, rect.w, 0, rect.h)
-			ctx.panel.Position = UDim2.new(0, rect.x, 0.5, 0)
+			FullScreen.setRect(ctx.panel, UDim2.new(0, rect.w, 0, rect.h), UDim2.new(0, rect.x, 0.5, 0))
 			scene.show(area, p)
 			-- header and footer are solid dark wood (the world no longer shows through them) and the backdrop is darker behind the room
 			local fc = Layout.COLORS.frame
@@ -162,8 +166,7 @@ function StatsRoom.new(ctx)
 			ctx.panel.BackgroundTransparency = 1
 			if ctx.backdrop then ctx.backdrop.BackgroundTransparency = 0.4 end
 			local r = ctx.plainRect()
-			ctx.panel.Size = UDim2.new(0, r.w, 0, r.h)
-			ctx.panel.Position = UDim2.new(0, r.x, 0.5, 0)
+			FullScreen.setRect(ctx.panel, UDim2.new(0, r.w, 0, r.h), UDim2.new(0, r.x, 0.5, 0))
 			scene.hide()
 		end
 		layer.Visible = room.on

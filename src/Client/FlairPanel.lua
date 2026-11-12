@@ -10,6 +10,7 @@
 ]]
 
 local FlairPanel = {}
+local FullScreen = require(script.Parent.PanelFullScreen)
 
 function FlairPanel.init(deps)
 	local OverlayManager = require(script.Parent.OverlayManager)
@@ -40,6 +41,7 @@ function FlairPanel.init(deps)
 		if not cam then return end
 		local vp = cam.ViewportSize
 		local r = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("FlairRoomLayout")).panelRect(vp.X, vp.Y)
+		if FullScreen.owns(panel) then return end -- PanelFullScreen owns the rect
 		panel.AnchorPoint = Vector2.new(0, 0.5)
 		panel.Size = UDim2.new(0, r.w, 0, r.h)
 		panel.Position = UDim2.new(0, r.x, 0.5, 0)
