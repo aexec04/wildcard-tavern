@@ -19148,6 +19148,24 @@ table.insert(tests, { name = "ImageSpace: rects of sheets over 1024 px scale by 
 	expectTrue(x == 200 and y == 100 and w == 100 and h == 50, "rect scaled")
 end })
 
+table.insert(tests, { name = "PlayBoardLayout.seats: every seat is the same size and the row is centred on the plate (filled and empty rings alike)", fn = function()
+	local PBL = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local w, h = PBL.size(size[1], size[2])
+		local m = PBL.map(w, h)
+		local plateMid = m.target.x + m.target.w / 2
+		for n = 1, 5 do
+			local seats = PBL.seats(w, h, n)
+			for i = 2, n do
+				expectTrue(seats[i].w == seats[1].w and seats[i].h == seats[1].h, "seat " .. i .. " matches seat 1 for n=" .. n)
+			end
+		end
+		local five = PBL.seats(w, h, 5)
+		local mid = (five[1].x + five[5].x + five[5].w) / 2
+		expectTrue(math.abs(mid - plateMid) <= 0.03 * m.target.w, "five seats are centred on the plate")
+	end
+end })
+
 table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the board, Tips and rule do not overlap, 1 to 7 Patron seats fit inside the ring row without touching", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
 	local function inside(r, w, h) return r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h end
