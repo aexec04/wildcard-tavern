@@ -187,6 +187,8 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
+			plate.TextYAlignment = Enum.TextYAlignment.Top -- first line at one fixed offset so names align across a row
+			make("UIPadding", plate, { PaddingTop = UDim.new(0, 4) })
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -219,6 +221,8 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
+			plate.TextYAlignment = Enum.TextYAlignment.Top -- first line at one fixed offset so names align across a row
+			make("UIPadding", plate, { PaddingTop = UDim.new(0, 4) })
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -254,13 +258,13 @@ function CollectionSection.new(opts)
 		if not c then return end
 		local calm = false
 		pcall(function() calm = ClientSettings.get("reduceShake") == true end)
-		local k = info.found and 0.2 or 0.55 -- how much of the brass/dark base is kept
+		local k = 0.2 -- locked entries get the same full tier colour as found ones
 		local tint = c:Lerp(Color3.fromRGB(60, 44, 28), k * 0.5)
 		local common = info.rarity == "common"
 		local rim = make("Frame", frame, { Name = "RarityRim", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 4 })
 		rect(rim, slot)
 		corner(rim, 6)
-		local stroke = make("UIStroke", rim, { Color = tint, Thickness = common and 2 or 5, Transparency = info.found and 0.05 or 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		local stroke = make("UIStroke", rim, { Color = tint, Thickness = common and 2 or 5, Transparency = 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 		local tier = info.rarity
 		if info.found and (tier == "epic" or tier == "legendary" or tier == "mythical") then
 			local glow = make("Frame", frame, { Name = "RarityGlow", BackgroundColor3 = c, BackgroundTransparency = 0.93, BorderSizePixel = 0, ZIndex = z + 4 })
@@ -281,20 +285,20 @@ function CollectionSection.new(opts)
 		local gem = make("Frame", frame, { Name = "RarityGem", BackgroundColor3 = c, BorderSizePixel = 0, Rotation = 45, ZIndex = z + 5 })
 		gem.Position = UDim2.fromOffset(slot.x + 10, slot.y + 10)
 		gem.Size = UDim2.fromOffset(16, 16)
-		gem.BackgroundTransparency = info.found and 0 or 0.45
+		gem.BackgroundTransparency = 0
 		make("UIStroke", gem, { Color = Color3.fromRGB(30, 20, 10), Thickness = 2 })
 		local plate = slot.plate
 		if plate then
 			local pr = Layout.plateFit(info.name, plate)
 			if not common then -- very dark version of the rarity colour behind the name
-				local fill = make("Frame", frame, { Name = "RarityPlateFill", BackgroundColor3 = c:Lerp(Color3.fromRGB(12, 8, 6), 0.78), BorderSizePixel = 0, ZIndex = z, BackgroundTransparency = info.found and 0.2 or 0.5 })
+				local fill = make("Frame", frame, { Name = "RarityPlateFill", BackgroundColor3 = c:Lerp(Color3.fromRGB(12, 8, 6), 0.78), BorderSizePixel = 0, ZIndex = z, BackgroundTransparency = 0.2 })
 				rect(fill, pr)
 				corner(fill, 4)
 			end
 			local line = make("Frame", frame, { Name = "RarityUnderline", BackgroundColor3 = tint, BorderSizePixel = 0, ZIndex = z + 4 })
 			line.Position = UDim2.fromOffset(pr.x + 3, pr.y + pr.h - 3)
 			line.Size = UDim2.fromOffset(math.max(1, pr.w - 6), 2)
-			line.BackgroundTransparency = info.found and 0 or 0.4
+			line.BackgroundTransparency = 0
 		end
 	end
 

@@ -18805,6 +18805,17 @@ table.insert(tests, { name = "CollectionSectionLayout: House Passes takes the pa
 	end
 end })
 
+table.insert(tests, { name = "CollectionBook.Rarities: six tiers each have a distinct colour", fn = function()
+	local seen, n = {}, 0
+	for _, id in ipairs(CollectionBook.RarityOrder) do
+		local c = CollectionBook.Rarities[id].color
+		local key = c[1] .. "," .. c[2] .. "," .. c[3]
+		assert(not seen[key], "duplicate tier colour " .. id)
+		seen[key], n = true, n + 1
+	end
+	assert(n == 6)
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout.plateFit: long plate names wrap to two lines at 14 px and keep their top, short ones stay on one", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
