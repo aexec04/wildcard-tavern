@@ -18110,7 +18110,7 @@ table.insert(tests, { name = "Notice callers: every OverlayQueue item is a toast
 		end
 	end
 	table.sort(plates)
-	expectEqual(table.concat(plates, ","), "LoginStreakUI.lua,RoundRewardPopup.lua", "only the daily reward and Round Complete are plates")
+	expectEqual(table.concat(plates, ","), "LoginStreakUI.lua", "only the daily reward is a plate; Round Complete is a corner banner")
 	expectTrue(#toasts >= 5, "the scan found the small notices (" .. #toasts .. ")")
 	for _, entry in ipairs(toasts) do
 		expectTrue(not entry[2]:find("button%s*="), entry[1] .. " has a toast with a button: it must be a plate or lose the button")
@@ -21262,7 +21262,7 @@ table.insert(tests, { name = "RewardBanner: holds 2.2 s (1.2 fast), fades by its
 		if banner and popup then
 			expectTrue(banner:find("Backdrop", 1, true) == nil or banner:find('Name = "%w*Backdrop"') == nil, "the banner is not a Backdrop, so it blocks nothing")
 			expectTrue(banner:find("Active = false", 1, true) ~= nil, "the banner takes no input")
-			expectTrue(popup:find("RoundRewardBanner", 1, true) ~= nil and popup:find("titleOverride == nil", 1, true) ~= nil, "a normal round win uses the banner, the Night-cleared headline keeps the plate")
+			expectTrue(popup:find("RoundRewardBanner", 1, true) ~= nil and popup:find("button = \"Continue\"", 1, true) == nil, "every round win uses the banner, no Continue plate")
 		end
 	end
 end })
