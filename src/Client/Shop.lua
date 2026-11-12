@@ -1701,12 +1701,10 @@ return function(deps)
 					artTab = "patrons", artId = owned.id, rarityTab = "patrons", rarityId = owned.id,
 					onAction = function()
 						playClickSfx(0.4)
-						showConfirmDialog(
-							string.format("Discard %s?\n\nYou'll get %d tips back. This can't be undone.", owned.name, refund),
-							function()
-								SellPatronRemote:FireServer(owned.id)
-							end
-						)
+						local copy = require(Engine:WaitForChild("ConfirmCopy")).sell(owned.name, refund)
+						showConfirmDialog(copy.message, function()
+							SellPatronRemote:FireServer(owned.id)
+						end, copy)
 						return false
 					end,
 				})
@@ -1805,13 +1803,11 @@ return function(deps)
 								if recipe.cardCount then
 									openTargetPanel(categoryKey, recipe.id, recipe)
 								else
-									showConfirmDialog(
-										string.format("Use %s?\n\n%s", recipe.name, recipe.description),
-										function()
-											require(script.Parent.Cue).play("buy")
-											UseRecipeRemote:FireServer(categoryKey, recipe.id)
-										end
-									)
+									local copy = require(Engine:WaitForChild("ConfirmCopy")).use(recipe.name, recipe.description)
+									showConfirmDialog(copy.message, function()
+										require(script.Parent.Cue).play("buy")
+										UseRecipeRemote:FireServer(categoryKey, recipe.id)
+									end, copy)
 								end
 								return false
 							end,

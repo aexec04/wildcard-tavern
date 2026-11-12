@@ -2766,7 +2766,8 @@ discardButton.MouseButton1Click:Connect(function()
 	-- Settings > Gameplay > Confirm Before Discard.
 	if require(script.ClientSettings).get("confirmDiscard") then
 		local count = math.floor(#indices)
-		ConfirmDialogModule.showConfirmDialog(string.format("Discard %d card%s?", count, count == 1 and "" or "s"), doDiscard)
+		local copy = require(game:GetService("ReplicatedStorage").Shared.Engine.ConfirmCopy).discard(count)
+		ConfirmDialogModule.showConfirmDialog(copy.message, doDiscard, copy)
 	else
 		doDiscard()
 	end
