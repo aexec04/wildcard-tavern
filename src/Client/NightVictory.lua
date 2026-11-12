@@ -81,6 +81,17 @@ return function(deps)
 	content.ZIndex = 62
 	content.Parent = panel
 
+	-- Even vertical rhythm: one centred list inside the painted border.
+	local flow = Instance.new("UIListLayout")
+	flow.SortOrder = Enum.SortOrder.LayoutOrder
+	flow.FillDirection = Enum.FillDirection.Vertical
+	flow.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	flow.VerticalAlignment = Enum.VerticalAlignment.Center
+	flow.Padding = UDim.new(0, 14)
+	flow.Parent = content
+	local order = 0
+	local function nextOrder() order += 1 return order end
+
 	local inkLabels = {} -- { label, paintedColor, darkColor }
 	local function label(props, paintedColor)
 		local l = Instance.new("TextLabel")
@@ -91,6 +102,7 @@ return function(deps)
 		l.TextStrokeTransparency = 1
 		l.TextWrapped = true
 		l.ZIndex = 62
+		l.LayoutOrder = nextOrder()
 		for k, v in pairs(props) do
 			l[k] = v
 		end
@@ -99,19 +111,26 @@ return function(deps)
 		return l
 	end
 
-	label({ Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 0), Font = Enum.Font.GothamBold,
+	label({ Size = UDim2.new(1, 0, 0, 36), Font = Enum.Font.GothamBold,
 		TextSize = 26, TextColor3 = GOLD, Text = "Tavern Champion" }, INK_TITLE)
-	label({ Size = UDim2.new(1, 0, 0, 38), Position = UDim2.fromOffset(0, 40), TextSize = 14,
+	label({ Size = UDim2.new(1, 0, 0, 38), TextSize = 14,
 		Text = "You cleared Night 8: " .. JourneyMap.Nights[JourneyMap.NightCap].name .. ". The tavern is yours!" }, INK)
 
 	-- Run stats: three parchment tiles. An unfilled value shows a dash, never a placeholder word.
+	local tileRow = Instance.new("Frame")
+	tileRow.Name = "Tiles"
+	tileRow.BackgroundTransparency = 1
+	tileRow.Size = UDim2.new(1, 0, 0, 74)
+	tileRow.LayoutOrder = nextOrder()
+	tileRow.ZIndex = 62
+	tileRow.Parent = content
 	local function statTile(x, caption)
 		local tile = Instance.new("Frame")
 		tile.Size = UDim2.new(0.333, -8, 0, 74)
-		tile.Position = UDim2.new(x, 4, 0, 86)
+		tile.Position = UDim2.new(x, 4, 0, 0)
 		tile.BackgroundColor3 = TILE
 		tile.ZIndex = 62
-		tile.Parent = content
+		tile.Parent = tileRow
 		deps.roundCorner(tile, 8)
 		local value = Instance.new("TextLabel")
 		value.Size = UDim2.new(1, -8, 0, 44)
@@ -144,15 +163,14 @@ return function(deps)
 	local bestValue = statTile(0.333, "Best hand")
 	local patronsValue = statTile(0.666, "Patrons used")
 
-	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 32), Position = UDim2.fromOffset(0, 168), TextSize = 14,
+	local rewardLabel = label({ Size = UDim2.new(1, 0, 0, 32), TextSize = 14,
 		TextColor3 = GOLD, Text = "" }, INK_TITLE)
-	label({ Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 204), TextSize = 14,
+	label({ Size = UDim2.new(1, 0, 0, 40), TextSize = 14,
 		TextColor3 = PURPLE, Text = "The doors stay open. Endless Nights await, with new rewards at Nights 10, 15 and 20." }, INK)
 
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.fromOffset(240, 40)
-	button.AnchorPoint = Vector2.new(0.5, 1)
-	button.Position = UDim2.new(0.5, 0, 1, 0)
+	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16
 	button.TextColor3 = CREAM
@@ -160,7 +178,8 @@ return function(deps)
 	button.Text = "Enter Endless Nights"
 	button.ZIndex = 62
 	button.Parent = content
-	deps.polishButton(button, 12)
+	deps.roundCorner(button, 12) -- no gold chrome or ornate rim: it drew a dark line under the label
+	button.AutoButtonColor = true
 
 	-- Kit plate art + dark ink on its parchment, or the dark code-drawn plate with light text.
 	local function dress()
@@ -175,6 +194,12 @@ return function(deps)
 			e[1].TextColor3 = painted and e[2] or e[3]
 		end
 	end
+
+	dress() -- paint now, and again whenever the plate becomes visible or the set changes
+	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+		if backdrop.Visible then dress() end
+	end)
+	HudTheme.onSkin(dress)
 
 	local function proceed()
 		deps.playClickSfx()
