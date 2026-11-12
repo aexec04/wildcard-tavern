@@ -73,7 +73,7 @@ RunState.DefaultConfig = {
 		   Mode getting harder forever, see below).
 		2) blindMultiplierFor(night, round, roundsPerNight) -- which Blind
 		   you're on this round: Small (round 1) = 1x, Big (any round
-		   between) = 2x, Boss (the Night's last round) scales from 2x at
+		   between) = 1.5x, Boss (the Night's last round) scales from 2x at
 		   Night 1 up to 2.5x at Night `nightCap` (8, the genre's usual run length),
 		   then plateaus at 2.5x forever after -- Endless Mode keeps escalating
 		   purely through nightBaseScoreFor's unbounded growth instead of an
@@ -84,7 +84,7 @@ RunState.DefaultConfig = {
 local TARGET_BASE_SCORE = 65
 local TARGET_NIGHT_GROWTH = 2.15
 local BLIND_MULTIPLIER_SMALL = 1
-local BLIND_MULTIPLIER_BIG = 2
+local BLIND_MULTIPLIER_BIG = 1.5
 local BOSS_BLIND_MULTIPLIER_MIN = 2
 local BOSS_BLIND_MULTIPLIER_MAX = 2.5
 

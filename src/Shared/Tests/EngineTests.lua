@@ -1333,9 +1333,9 @@ table.insert(tests, { name = "RunState.blindMultiplierFor: Small Blind (round 1)
 	expectEqual(RunState.blindMultiplierFor(8, 1, 3), 1)
 end })
 
-table.insert(tests, { name = "RunState.blindMultiplierFor: Big Blind (any round before the last) is always 2x", fn = function()
-	expectEqual(RunState.blindMultiplierFor(1, 2, 3), 2)
-	expectEqual(RunState.blindMultiplierFor(5, 2, 3), 2)
+table.insert(tests, { name = "RunState.blindMultiplierFor: Big Blind (any round before the last) is always 1.5x", fn = function()
+	expectEqual(RunState.blindMultiplierFor(1, 2, 3), 1.5)
+	expectEqual(RunState.blindMultiplierFor(5, 2, 3), 1.5)
 end })
 
 table.insert(tests, { name = "RunState.blindMultiplierFor: Boss Blind scales from 2x at Night 1 to 2.5x at Night 8, then plateaus", fn = function()
@@ -1348,7 +1348,7 @@ table.insert(tests, { name = "RunState.targetScoreFor folds nightBaseScoreFor an
 	local night = 4
 	local base = RunState.nightBaseScoreFor(night)
 	expectEqual(RunState.targetScoreFor(night, 1, 3), math.floor(base * 1))
-	expectEqual(RunState.targetScoreFor(night, 2, 3), math.floor(base * 2))
+	expectEqual(RunState.targetScoreFor(night, 2, 3), math.floor(base * 1.5))
 	expectEqual(RunState.targetScoreFor(night, 3, 3), math.floor(base * RunState.blindMultiplierFor(night, 3, 3)))
 end })
 
@@ -3731,7 +3731,7 @@ end })
 table.insert(tests, { name = "Balance: the target curve matches the tuned numbers", fn = function()
 	expectEqual(RunState.nightBaseScoreFor(1), 65)
 	expectEqual(RunState.targetScoreFor(1, 1, 3), 65)
-	expectEqual(RunState.targetScoreFor(1, 2, 3), 130)
+	expectEqual(RunState.targetScoreFor(1, 2, 3), 97)
 	expectEqual(RunState.targetScoreFor(1, 3, 3), 130)
 	expectEqual(RunState.targetScoreFor(8, 3, 3), math.floor(65 * 2.15 ^ 7 * 2.5))
 	-- Targets keep rising Night over Night on the same blind.
