@@ -27,6 +27,8 @@ function LegendPanel.init(deps)
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local TweenService = game:GetService("TweenService")
 	local ClientSettings = require(script.Parent.ClientSettings)
+	local Scene = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("LegendSceneLayout"))
+	local PanelScene = require(script.Parent.PanelScene)
 
 	-- Dark gold and burgundy palette: cream on dark everywhere, never dark on dark.
 	local BURGUNDY = Color3.fromRGB(58, 20, 30)
@@ -86,6 +88,17 @@ function LegendPanel.init(deps)
 	panelLimit.MaxSize = Vector2.new(980, 640)
 	panelLimit.MinSize = Vector2.new(640, 520)
 	panelLimit.Parent = panel
+	local scene = PanelScene.new(panel, { artKey = Scene.ART_KEY, def = Scene.DEF, z = 41 }) -- painted trophy hall under everything (after Studio: Image id recorded)
+	local sceneLayer = Instance.new("Frame") -- the trophy hall's live widgets: crest line, card back, shelf text, plaque medallions
+	sceneLayer.Name = "RoomLayer"
+	sceneLayer.BackgroundTransparency = 1
+	sceneLayer.Size = UDim2.fromScale(1, 1)
+	sceneLayer.Active = false
+	sceneLayer.Visible = false
+	sceneLayer.ZIndex = 42
+	sceneLayer.Parent = panel
+	local sceneOn = false
+	local scenePlaced = nil -- last Scene.place result while the room is on
 	local innerFrame = Instance.new("Frame") -- thin inner gold rule: the ornate double border
 	innerFrame.Size = UDim2.new(1, -16, 1, -16)
 	innerFrame.Position = UDim2.fromOffset(8, 8)
@@ -337,6 +350,135 @@ function LegendPanel.init(deps)
 		seg.Parent = ladder
 	end
 
+	-- ===== painted trophy hall (legend_room_a): the card back stands in the alcove, Show off lines sit on the shelves, the ten ladder
+	-- rewards are medallions on the five brass plaques (two levels each; full names in the tooltip and the "Next" line) =====
+	local function layoutRoom()
+		local screen = deps.screenGui.AbsoluteSize
+		local pw, ph = Scene.panel(screen.X, screen.Y)
+		local placed = scene.id and Scene.place(pw, ph - Scene.TOP - Scene.BOTTOM) or nil
+		sceneOn = placed ~= nil and placed.ok and pw >= 640 and ph >= 520 -- the panel's own minimum size
+		scenePlaced = sceneOn and placed or nil
+		if sceneOn then
+			panelLimit.MaxSize = Vector2.new(Scene.PANEL_MAX[1], Scene.PANEL_MAX[2])
+			panel.Size = UDim2.fromOffset(pw, ph)
+			scene.show({ x = 0, y = Scene.TOP, w = pw, h = ph - Scene.TOP - Scene.BOTTOM }, placed)
+			for _, p in ipairs(placed.plaques) do p.y = p.y + Scene.TOP end
+			for _, p in ipairs(placed.shelves) do p.y = p.y + Scene.TOP end
+			placed.alcove.y = placed.alcove.y + Scene.TOP
+		else
+			panelLimit.MaxSize = Vector2.new(980, 640)
+			panel.Size = UDim2.fromScale(0.8, 0.88)
+			scene.hide()
+		end
+		sceneLayer.Visible = sceneOn
+		crestHolder.Visible = not sceneOn
+		show.Visible = not sceneOn
+		ladder.Visible = not sceneOn
+		if not sceneOn then
+			-- the card back goes home to the Show off card
+			showBack.Parent = show
+			showBack.AnchorPoint = Vector2.new(1, 0.5)
+			showBack.Position = UDim2.new(1, -16, 0.5, 0)
+			showBack.Size = UDim2.fromOffset(84, 126)
+		end
+		if game:GetService("RunService"):IsStudio() then
+			local key = pw .. "x" .. ph .. (sceneOn and "on" or "off")
+			if key ~= LegendPanel._lastKey then
+				LegendPanel._lastKey = key
+				print(string.format("[LegendRoom] %s slots=%d (alcove 1, plaques %d, shelves %d) panel %dx%d", sceneOn and "painted" or "plain",
+					sceneOn and (1 + #placed.plaques + #placed.shelves) or 0, sceneOn and #placed.plaques or 0, sceneOn and #placed.shelves or 0, pw, ph))
+			end
+		end
+	end
+
+	local function clearRoom()
+		showBack.Parent = show -- the card back is reparented into the alcove while the room is up; save it before clearing
+		for _, ch in ipairs(sceneLayer:GetChildren()) do ch:Destroy() end
+	end
+
+	local function paintRoom(view, nextRow, lines)
+		clearRoom()
+		if not sceneOn or not scenePlaced then return end
+		local P = scenePlaced
+		local function holder(rect)
+			local f = Instance.new("Frame")
+			f.BackgroundTransparency = 1
+			f.Position, f.Size = UDim2.fromOffset(rect.x, rect.y), UDim2.fromOffset(rect.w, rect.h)
+			f.Active = false
+			f.ZIndex = 43
+			f.Parent = sceneLayer
+			return f
+		end
+		-- alcove: crest line on top, the card back, the next reward under it
+		local alcove = holder(P.alcove)
+		local parts = Scene.alcoveParts(P.alcove)
+		label(alcove, { Position = UDim2.fromOffset(parts.crest.x, parts.crest.y), Size = UDim2.fromOffset(parts.crest.w, parts.crest.h),
+			TextSize = 20, Text = "👑 Legend " .. tostring(view.level), TextColor3 = BRIGHT })
+		showBack.Parent = alcove
+		showBack.AnchorPoint = Vector2.new(0, 0)
+		showBack.Position, showBack.Size = UDim2.fromOffset(parts.back.x, parts.back.y), UDim2.fromOffset(parts.back.w, parts.back.h)
+		label(alcove, { Position = UDim2.fromOffset(parts.next.x, parts.next.y), Size = UDim2.fromOffset(parts.next.w, parts.next.h), TextSize = 14,
+			Font = Enum.Font.GothamMedium, TextWrapped = true,
+			Text = nextRow and ("Next: " .. nextRow.text .. " at Legend " .. nextRow.level) or "Every reward earned" })
+		-- shelves: the three Show off lines
+		for i, line in ipairs(lines) do
+			local shelf = P.shelves[i]
+			if shelf then
+				label(sceneLayer, { Position = UDim2.fromOffset(shelf.x + 8, shelf.y + 4), Size = UDim2.fromOffset(shelf.w - 16, shelf.h - 8),
+					TextSize = shelf.h >= 72 and 16 or 14, TextWrapped = true, Text = line.text, TextColor3 = line.color or CREAM,
+					Font = Enum.Font.GothamMedium })
+			end
+		end
+		-- plaques: two reward medallions each, level under every one
+		local byLevel = {}
+		for _, row in ipairs(view.rewards) do byLevel[row.level] = row end
+		local nextLevel = view.level < view.max and (view.level + 1) or nil
+		for k, lv in ipairs(Scene.pairs(#view.rewards)) do
+			local plaque = P.plaques[k]
+			if plaque then
+				local box = holder(plaque)
+				local pp = Scene.plaqueParts(plaque)
+				for c = 1, 2 do
+					local level = lv[c]
+					local row = byLevel[level]
+					if row and (c == 1 or level ~= lv[1]) then
+						local r = pp[c]
+						local isNext = row.level == nextLevel
+						local m = Instance.new("Frame")
+						m.Name = "Level_" .. row.level
+						m.Position, m.Size = UDim2.fromOffset(r.medal.x, r.medal.y), UDim2.fromOffset(r.medal.w, r.medal.h)
+						m.BackgroundColor3 = row.reached and BURGUNDY_DEEP or DIM
+						m.BorderSizePixel = 0
+						m.ZIndex = 44
+						m.Parent = box
+						deps.roundCorner(m, r.medal.w / 2)
+						local ring = Instance.new("UIStroke")
+						ring.Color = (row.reached or isNext) and BRIGHT or Color3.fromRGB(70, 56, 48)
+						ring.Thickness = (row.reached or isNext) and 3 or 1.5
+						ring.Parent = m
+						local glyph = label(m, { Size = UDim2.fromScale(1, 1), TextSize = math.max(14, math.floor(r.medal.w * 0.55)), Text = row.icon or (row.kind == "cardBack" and "🂠" or "🏷️"),
+							TextColor3 = CREAM, ZIndex = 46 })
+						local category = (row.kind == "cardBack" and "card_backs") or (row.kind == "title" and "titles") or (row.kind == "trinket" and "legend") or nil
+						if category then
+							pcall(ArtIcon.apply, m, category, row.id, glyph, { cornerRadius = r.medal.w / 2, zIndex = 47, dim = not row.reached })
+						end
+						if not row.reached then
+							glyph.TextTransparency = 0.5
+							label(m, { Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 3, 1, 3), TextSize = 14, Text = "🔒", ZIndex = 50 })
+						else
+							local check = label(m, { Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 3, 0, -3), TextSize = 14,
+								Text = "✓", TextColor3 = BURGUNDY_DEEP, BackgroundTransparency = 0, BackgroundColor3 = BRIGHT, ZIndex = 50 })
+							deps.roundCorner(check, 8)
+						end
+						label(box, { Position = UDim2.fromOffset(r.num.x, r.num.y), Size = UDim2.fromOffset(r.num.w, r.num.h), TextSize = 14,
+							Text = "Lv " .. row.level, TextColor3 = BURGUNDY_DEEP, ZIndex = 44 })
+						deps.addTooltip(m, row.text .. (row.reached and "" or (" at Legend level " .. row.level)))
+					end
+				end
+			end
+		end
+	end
+
 	local function refresh()
 		for _, child in ipairs(ladder:GetChildren()) do
 			if child:IsA("GuiObject") then
@@ -348,16 +490,19 @@ function LegendPanel.init(deps)
 		if not view then
 			levelLabel.Text = "0"
 			hintLabel.Text = "Legend loads when you join."
+			if sceneOn then clearRoom() end
 			return
 		end
 		levelLabel.Text = tostring(view.level)
 		hintLabel.Text = view.open and view.hint or "Clear stake 8 to become a Legend. Rewards are cosmetic, never power."
-		for i = 1, #view.rewards - 1 do
-			pathSegment(i, view.level)
-		end
 		local nextLevel = view.level < view.max and (view.level + 1) or nil
-		for _, row in ipairs(view.rewards) do
-			medallion(row, row.level == nextLevel)
+		if not sceneOn then
+			for i = 1, #view.rewards - 1 do
+				pathSegment(i, view.level)
+			end
+			for _, row in ipairs(view.rewards) do
+				medallion(row, row.level == nextLevel)
+			end
 		end
 		-- Show off card: the newest title, the aura and the newest card back earned so far
 		local bestTitle, bestBack
@@ -376,6 +521,15 @@ function LegendPanel.init(deps)
 		-- Nothing earned yet: show the default painted back (dimmed) instead of the grey missing-art box.
 		pcall(ArtIcon.apply, showBack, "card_backs", bestBack and bestBack.id or "classic", showBackGlyph,
 			{ cornerRadius = 8, zIndex = 46, dim = not bestBack })
+		if sceneOn then
+			local nextRow
+			for _, row in ipairs(view.rewards) do
+				if not row.reached and (not nextRow or row.level < nextRow.level) then nextRow = row end
+			end
+			paintRoom(view, nextRow, {
+				{ text = showTitle.Text }, { text = showAura.Text, color = GOLD }, { text = showBackLabel.Text },
+			})
+		end
 	end
 
 	require(script.Parent.PanelTabs).attach(backdrop, "legend", deps.playClickSfx, panel) -- shared tab strip + Back
@@ -387,6 +541,7 @@ function LegendPanel.init(deps)
 		deps.playClickSfx()
 		OverlayManager.closeAllExcept("legend")
 		deps.popIn(backdrop, panel)
+		layoutRoom() -- the painted room (or the plain layout) is decided from the screen size before anything is built
 		startLoops() -- before refresh: refresh starts the next-medallion pulse with the current loop token
 		refresh()
 	end
@@ -399,6 +554,12 @@ function LegendPanel.init(deps)
 	end)
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 		if not backdrop.Visible then stopLoops() end
+	end)
+	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if backdrop.Visible then
+			layoutRoom()
+			refresh()
+		end
 	end)
 	deps.StateUpdatedRemote.OnClientEvent:Connect(function()
 		task.defer(function()

@@ -19969,6 +19969,71 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
 end })
 
+tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the panel body at 1920x1080 and 1280x720, the picture covers the body, parts stay inside their slots", fn = function()
+	local L = require(script.Parent.Parent.Engine.LegendSceneLayout)
+	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, screen in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local pw, ph = L.panel(screen[1], screen[2])
+		expectTrue(pw >= 640 and ph >= 520, "panel keeps its minimum at " .. screen[1] .. "x" .. screen[2])
+		local W, H = pw, ph - L.TOP - L.BOTTOM
+		local p = L.place(W, H)
+		local area = { x = 0, y = 0, w = W, h = H }
+		expectTrue(p.ok, "painted trophy hall fits at " .. screen[1] .. "x" .. screen[2])
+		local all = { p.alcove }
+		for _, r in ipairs(p.plaques) do all[#all + 1] = r end
+		for _, r in ipairs(p.shelves) do all[#all + 1] = r end
+		expectEqual(#all, 9, "alcove, five plaques and three shelves")
+		for i, r in ipairs(all) do
+			expectTrue(inside(r, area), "slot " .. i .. " inside the body at " .. screen[1] .. "x" .. screen[2])
+			for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " do not overlap") end
+		end
+		expectTrue(math.abs(p.image.w / p.image.h - 1) < 0.001, "the picture is not stretched")
+		-- picture plus edge slices leave no flat panel colour
+		local pieces = PS.edgeFill(L.DEF, p, W, H)
+		local gaps = 0
+		for gx = 0, 20 do
+			for gy = 0, 10 do
+				local x, y = gx / 20 * (W - 1), gy / 10 * (H - 1)
+				local i = p.image
+				local ok = x >= i.x and x <= i.x + i.w and y >= i.y and y <= i.y + i.h
+				for _, it in ipairs(pieces) do
+					local r = it.rect
+					if x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h then ok = true end
+				end
+				if not ok then gaps = gaps + 1 end
+			end
+		end
+		expectEqual(gaps, 0, "no uncovered panel colour at " .. screen[1] .. "x" .. screen[2])
+		-- parts
+		local a = L.alcoveParts(p.alcove)
+		local rel = { x = 0, y = 0, w = p.alcove.w, h = p.alcove.h }
+		for _, k in ipairs({ "crest", "back", "next" }) do expectTrue(inside(a[k], rel), "alcove " .. k .. " inside the alcove") end
+		expectTrue(math.abs(a.back.w / a.back.h - 2 / 3) < 0.02 and a.back.h >= 100, "card back is 2:3 and big enough to see")
+		expectFalse(hit(a.crest, a.back) or hit(a.back, a.next), "alcove parts do not overlap")
+		for k, pl in ipairs(p.plaques) do
+			local parts = L.plaqueParts(pl)
+			local prel = { x = 0, y = 0, w = pl.w, h = pl.h }
+			for c = 1, 2 do
+				expectTrue(inside(parts[c].medal, prel) and inside(parts[c].num, prel), "plaque " .. k .. " column " .. c .. " inside the plaque")
+				expectTrue(parts[c].medal.w >= 28 and parts[c].num.h >= 14, "medallion and level text readable")
+			end
+			expectFalse(hit(parts[1].medal, parts[2].medal), "plaque medallions do not touch")
+		end
+		for _, sh in ipairs(p.shelves) do expectTrue(sh.w >= 112 and sh.h >= 60, "shelf text fits three 14 px lines") end
+	end
+	expectEqual(#L.pairs(10), 5, "ten levels on five plaques")
+	expectEqual(L.pairs(10)[5][2], 10, "last plaque holds level 10")
+	expectFalse(L.place(500, 300).ok, "a tiny panel keeps the plain layout")
+	local f = io and io.open and io.open("src/Client/LegendPanel.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("[LegendRoom]", 1, true) ~= nil and src:find("slots=%d", 1, true) ~= nil, "the Studio line reports the slot count placed")
+		expectTrue(src:find("PanelScene.new", 1, true) ~= nil and src:find("sceneOn", 1, true) ~= nil, "the panel draws the painted scene")
+	end
+end })
+
 tests[#tests + 1] = ({ name = "DebugGoto round1: step order is start, choice, select, hand and the hand count is reported once dealt", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(table.concat(R.ROUND1_ORDER, ","), "start,choice,select,hand", "fixed step order")
