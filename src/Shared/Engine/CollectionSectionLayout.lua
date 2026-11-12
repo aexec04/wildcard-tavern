@@ -59,10 +59,10 @@ local SCENES = {
 		plate = { ys = { 349, 579, 811 }, h = 26, oneLine = true }, -- one line each, text shrinks to fit (14 px floor), so a plate never reaches the next row
 	},
 	housePasses = {
-		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 48, 60 },
+		art = "coll_sec_passes_a", per = 12, kind = "tag", min = { 44, 56 },
 		cols = { { 388, 109 }, { 588, 111 }, { 810, 109 }, { 1026, 110 } },
 		rows = { { 240, 155 }, { 517, 151 }, { 790, 153 } },
-		plate = { ys = { 402, 674, 949 }, h = 26 }, -- the name on a brass plate under each tag; the tag itself holds the pass icon
+		plate = { ys = { 402, 674, 949 }, h = 26, twoLine = true }, -- the name on a brass plate under each tag, room for two lines at one size (14 px); the tag itself holds the pass icon
 		inset = { 0.08, 0.28, 0.08, 0.06 }, paper = { 213, 151, 67 },
 	},
 	titles = {
@@ -152,6 +152,21 @@ function M.place(tabId, areaW, areaH, pages)
 	local cover = math.max(view.w / M.IMAGE_W, view.h / M.IMAGE_H)
 	local fit = math.min(inW / (x1 - x0), inH / (y1 - y0))
 	local s = math.min(cover, fit)
+	-- a two-line plate needs M.TWO_LINE_H screen pixels, more than its picture height at small scales: reserve that below the last
+	-- plate row (plus 2 px, so with the 8 px margin the plate ends 10 px above the area bottom), iterating until the scale settles
+	if scene.plate and scene.plate.twoLine then
+		local base = y1
+		for _ = 1, 6 do
+			y1 = base
+			for _, sl in ipairs(slots) do
+				if sl.plateY then y1 = math.max(y1, sl.plateY + (M.TWO_LINE_H + 2) / s) end
+			end
+			s = math.min(cover, inW / (x1 - x0), inH / (y1 - y0))
+		end
+		for _, sl in ipairs(slots) do
+			if sl.plateY then y1 = math.max(y1, sl.plateY + (M.TWO_LINE_H + 2) / s) end
+		end
+	end
 	local iw, ih = M.IMAGE_W * s, M.IMAGE_H * s
 	local ix, iy = offset(view.w, M.IMAGE_W, s, x0 - mg / s, x1 + mg / s), offset(view.h, M.IMAGE_H, s, y0 - mg / s, y1 + mg / s)
 	local out = { image = { x = ix, y = iy, w = iw, h = ih }, view = view, slots = {}, ok = true }
@@ -168,7 +183,12 @@ function M.place(tabId, areaW, areaH, pages)
 			-- wide enough to read a name at 14 px, but never into the next column's plate
 			local pitch = (scene.cols[2][1] - scene.cols[1][1]) * s
 			local pw = math.floor(math.min(pitch - 8, math.max(r.w * 0.94, 112)))
-			r.plate = { x = math.max(0, math.min(view.w - pw, r.x + math.floor((r.w - pw) / 2))), y = math.floor(iy + (p.plateY + scene.plate.h / 2) * s - ph / 2), w = pw, h = ph, oneLine = scene.plate.oneLine }
+			local py = math.floor(iy + (p.plateY + scene.plate.h / 2) * s - ph / 2)
+			if scene.plate.twoLine then
+				ph, pw = M.TWO_LINE_H, math.floor(pitch - 8)
+				py = math.floor(iy + p.plateY * s) -- top on the picture's plate band; the room below it is reserved above
+			end
+			r.plate = { x = math.max(0, math.min(view.w - pw, r.x + math.floor((r.w - pw) / 2))), y = py, w = pw, h = ph, oneLine = scene.plate.oneLine, twoLine = scene.plate.twoLine }
 		end
 		out.slots[#out.slots + 1] = r
 		if r.w < scene.min[1] or r.h < scene.min[2] then out.ok = false end
@@ -179,8 +199,10 @@ end
 -- every name plate has ONE fixed height (room for two lines), so rows align and no text clips; the text is scaled to fit between
 -- PLATE_MIN and PLATE_MAX. Returns the plate rect to use and the line count the name needs (an upper estimate for GothamBold).
 M.PLATE_TEXT = 14
+M.TWO_LINE_H = 38 -- two 14 px lines plus padding
 M.PLATE_MIN, M.PLATE_MAX = 11, 16
 function M.plateFit(name, plate)
+	if plate.twoLine then return { x = plate.x, y = plate.y, w = plate.w, h = plate.h }, 2 end -- fixed two-line height, one text size
 	if plate.oneLine then return { x = plate.x, y = plate.y, w = plate.w, h = plate.h }, 1 end -- a one-line plate keeps its own height
 	local perChar = M.PLATE_TEXT * 0.62
 	local usable = math.max(1, plate.w - 8)

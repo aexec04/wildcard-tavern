@@ -154,14 +154,19 @@ function CollectionSection.new(opts)
 
 	-- the portrait kinds: Patrons (the portrait sits INSET in the frame's dark canvas) and Boss Rounds (it stands on the pedestal)
 	-- name plate text: fixed plate height, scaled to fit between PLATE_MIN and PLATE_MAX, truncated at the end, never clipped
-	local function plateText(plate, oneLine)
-		plate.TextScaled = true
+	local function plateText(plate, oneLine, twoLine)
 		plate.TextWrapped = not oneLine
 		plate.TextTruncate = Enum.TextTruncate.AtEnd
 		plate.TextYAlignment = Enum.TextYAlignment.Center
-		local c = Instance.new("UITextSizeConstraint")
-		c.MinTextSize, c.MaxTextSize = oneLine and Layout.PLATE_TEXT or Layout.PLATE_MIN, Layout.PLATE_MAX
-		c.Parent = plate
+		if twoLine then
+			plate.TextScaled = false -- every plate in the section uses one size, up to two lines
+			plate.TextSize = Layout.PLATE_TEXT
+		else
+			plate.TextScaled = true
+			local c = Instance.new("UITextSizeConstraint")
+			c.MinTextSize, c.MaxTextSize = oneLine and Layout.PLATE_TEXT or Layout.PLATE_MIN, Layout.PLATE_MAX
+			c.Parent = plate
+		end
 		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) })
 	end
 	local PATRON_INSET = 0.06 -- of the frame, per side, so the art never touches the gilded edge
@@ -234,7 +239,7 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
-			plateText(plate, slot.plate.oneLine)
+			plateText(plate, slot.plate.oneLine, slot.plate.twoLine)
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end

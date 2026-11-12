@@ -19057,6 +19057,26 @@ table.insert(tests, { name = "CollectionSectionLayout: Boss Rounds plates are on
 	end
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout: House Pass plates all hold two 14 px lines and the last row ends inside the area with a 10 px margin", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
+	for _, size in ipairs({ { 993, 585 }, { 1400, 800 }, { 1700, 900 } }) do
+		local P = RL.panel(size[1], size[2], 24, nil, "section")
+		local p = L.place("housePasses", P.area.w, P.area.h, 1)
+		if p and p.ok then
+			for i, s in ipairs(p.slots) do
+				local r, lines = L.plateFit("Grand Opening Special", s.plate)
+				expectEqual(lines, 2, "two line plate")
+				expectTrue(r.h >= 2 * L.PLATE_TEXT + 8, "tall enough for two 14 px lines")
+				expectEqual(r.h, p.slots[1].plate.h, "every plate has the same height")
+				expectTrue(r.y + r.h <= p.view.h - 10, "plate ends 10 px above the area bottom")
+				local below = p.slots[i + 4]
+				if below then expectTrue(r.y + r.h <= below.y, "plate ends above the next row") end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8), paging and filtered paging, slots inside the area and apart at three sizes and a phone, the picture is never stretched", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)
