@@ -5421,10 +5421,13 @@ table.insert(tests, { name = "CosmeticSets.tableTintOf: Mountain Festival tints 
 	local t = CosmeticSets.tableTintOf("festival_night")
 	expectTrue(t ~= nil and #t.felt == 3 and #t.wood == 3, "festival_night has a felt and wood tint")
 	expectTrue(t.felt[2] > t.felt[1] and t.felt[3] > t.felt[1], "felt multiplier leans cool (pine), not red")
-	expectTrue(t.wood[3] >= t.wood[1], "wood multiplier is slightly colder")
+	expectTrue(t.felt[1] <= 100 and t.felt[2] <= 160, "felt is clearly different from white, not a near-1.0 multiplier")
+	expectTrue(t.wood[1] > t.wood[3], "wood multiplier is warm")
 	for _, v in ipairs({ t.felt[1], t.felt[2], t.felt[3], t.wood[1], t.wood[2], t.wood[3] }) do
-		expectTrue(v >= 120 and v <= 255, "tint stays calm and low contrast")
+		expectTrue(v >= 60 and v <= 255, "tint stays calm and low contrast")
 	end
+	local f = CosmeticSets.tableTintOf("winter_evening")
+	expectTrue(f ~= nil and f.felt[3] > f.felt[1] and f.felt[3] > f.felt[2], "Frosted Garden felt leans icy blue")
 	expectTrue(CosmeticSets.tableTintOf("classic_tavern") == nil, "the default table is exactly as painted")
 	expectTrue(CosmeticSets.tableTintOf(nil) == nil and CosmeticSets.tableTintOf("nope") == nil)
 end })

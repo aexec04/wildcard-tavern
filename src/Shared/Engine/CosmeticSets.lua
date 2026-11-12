@@ -82,6 +82,8 @@ CosmeticSets.Definitions = {
 			vignette = { color = { 200, 228, 255 }, strength = 0.5 },
 			layers = { { kind = "snow", count = 22, speed = 0.6 } },
 		},
+		-- cool icy blue felt, a pale frosted wood lip
+		tableTint = { felt = { 110, 150, 215 }, wood = { 200, 220, 245 } },
 		unlock = { kind = "tips", price = 12 },
 	},
 	{
@@ -92,8 +94,8 @@ CosmeticSets.Definitions = {
 		cardBackId = "festival_ribbon",
 		face = { paper = { 255, 242, 220 }, border = { 240, 160, 80 }, pip = { 200, 100, 60 }, foil = true },
 		accent = { 240, 170, 90 },
-		-- the painted play table is multiplied by `felt` (a cool dusk pine felt) and its rail lip by `wood` (a slightly colder wood)
-		tableTint = { felt = { 150, 196, 176 }, wood = { 214, 220, 236 } },
+		-- the painted play table is multiplied by `felt` (a deep midnight pine green leaning blue) and its rail lip by `wood` (a warm festival tone)
+		tableTint = { felt = { 70, 120, 120 }, wood = { 255, 205, 160 } },
 		backdropImage = BackgroundArt.backdrop_festival_night or "rbxassetid://0",
 		backdropStyle = {
 			tint = { 255, 235, 205 },
