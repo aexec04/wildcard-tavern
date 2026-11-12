@@ -24,6 +24,7 @@ local FlairDressingRoom = {}
 function FlairDressingRoom.build(deps, panel)
 	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 	local Layout = require(Engine:WaitForChild("FlairRoomLayout"))
+	local Scene = require(Engine:WaitForChild("FlairSceneLayout"))
 	local ContentArt = require(Engine:WaitForChild("ContentArt"))
 	local ArtIcon = require(script.Parent.ArtIcon)
 	local FlairFX = require(script.Parent.FlairFX)
@@ -122,6 +123,12 @@ function FlairDressingRoom.build(deps, panel)
 	local scrollMemory = {}
 	local R = Layout.rects(1000, 600)
 
+	-- ===== painted scene (flair_room_a): drawn under everything once its Image id is recorded and the panel is big enough =====
+	local sceneId = ContentArt.getImageId("panel_scene", Scene.ART_KEY)
+	local sceneHolder = make("Frame", panel, { Name = "FlairScene", BackgroundColor3 = Color3.fromRGB(26, 18, 12), ClipsDescendants = true, Visible = false, Active = false })
+	local sceneImage = make("ImageLabel", sceneHolder, { Name = "Picture", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false })
+	local sceneOn = false
+
 	-- ===== title, bundle, close =====
 	local titleBox = bind(make("Frame", panel, { Name = "TitleBox", BackgroundTransparency = 1 }), function(r) return r.title end)
 	local titleLabel = make("TextLabel", titleBox, { Size = UDim2.new(1, 0, 0, 34), TextSize = 28, Text = "Flair: the Dressing Room",
@@ -176,18 +183,20 @@ function FlairDressingRoom.build(deps, panel)
 	-- ===== preview plate: live preview on top, detail card below =====
 	local plate = bind(make("Frame", panel, { Name = "PreviewPlate", BackgroundColor3 = PLATE, ClipsDescendants = true }), function(r) return r.plate end)
 	round(plate, 12)
-	stroke(plate, BRASS, 1.5)
-	artOver(plate, "flair_stage", { ScaleType = Enum.ScaleType.Crop, ImageTransparency = 0.9 }) -- the one art layer, barely there
+	local plateStroke = stroke(plate, BRASS, 1.5)
+	local stageArt = artOver(plate, "flair_stage", { ScaleType = Enum.ScaleType.Crop, ImageTransparency = 0.9 }) -- the one art layer, barely there
 
 	mirror = bind(make("Frame", plate, { Name = "Mirror", BackgroundColor3 = Color3.fromRGB(26, 30, 40), ClipsDescendants = true }),
 		function(r) return { x = r.mirror.x - r.plate.x, y = r.mirror.y - r.plate.y, w = r.mirror.w, h = r.mirror.h } end)
 	round(mirror, 10)
-	stroke(mirror, GOLD, 2)
+	local mirrorStroke = stroke(mirror, GOLD, 2)
+	local liveLabel
 
-	make("TextLabel", mirror, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(0.4, -10, 0, 20), Text = "Live preview", TextColor3 = GOLD,
+	liveLabel = make("TextLabel", mirror, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(0.4, -10, 0, 20), Text = "Live preview", TextColor3 = GOLD,
 		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = Z + 3 })
 	local previewingLabel = make("TextLabel", mirror, { Position = UDim2.new(0.4, 0, 0, 4), Size = UDim2.new(0.6, -10, 0, 20), Text = "",
 		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 3 })
+	local plaque = bind(make("Frame", panel, { Name = "ScenePlaque", BackgroundTransparency = 1, Visible = false, Active = false }), function(r) return r.plaque or r.close end)
 	local stageScore = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(1, 0.3),
 		Text = "12,480", ZIndex = Z + 3 })
 	local stageScoreStroke = stroke(stageScore, CREAM, 0)
@@ -371,14 +380,28 @@ function FlairDressingRoom.build(deps, panel)
 	local tabButtons = {}
 
 	local function layoutTabs()
-		local rects = Layout.tabRects({ x = 0, y = 0, w = R.tabs.w, h = R.tabs.h }, #tabButtons, R.narrow)
+		local rects = R.sceneOn and R.tabPlates or Layout.tabRects({ x = 0, y = 0, w = R.tabs.w, h = R.tabs.h }, #tabButtons, R.narrow)
 		for i, t in ipairs(tabButtons) do
-			setRect(t.button, rects[i])
-			t.sub.Visible = not R.narrow
-			t.name.Size = R.narrow and UDim2.new(1, -8, 1, 0) or UDim2.new(1, -16, 0, 22)
-			t.name.Position = R.narrow and UDim2.fromOffset(4, 0) or UDim2.fromOffset(10, 8)
-			t.name.TextXAlignment = R.narrow and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
-			t.name.TextSize = R.narrow and 14 or 16
+			local rect = rects[i] or rects[#rects]
+			setRect(t.button, rect)
+			if R.sceneOn then
+				-- text sits on the painted plate, inside its brass corners; the count line only when the plate is tall enough
+				t.sub.Visible = rect.h >= 46
+				t.name.Size = UDim2.new(1, -32, 0, 22)
+				t.name.Position = UDim2.fromOffset(16, t.sub.Visible and 5 or math.floor((rect.h - 22) / 2))
+				t.sub.Position = UDim2.fromOffset(16, 26)
+				t.sub.Size = UDim2.new(1, -32, 0, 18)
+				t.name.TextXAlignment = Enum.TextXAlignment.Left
+				t.name.TextSize = 16
+			else
+				t.sub.Visible = not R.narrow
+				t.sub.Position = UDim2.fromOffset(10, 32)
+				t.sub.Size = UDim2.new(1, -16, 0, 18)
+				t.name.Size = R.narrow and UDim2.new(1, -8, 1, 0) or UDim2.new(1, -16, 0, 22)
+				t.name.Position = R.narrow and UDim2.fromOffset(4, 0) or UDim2.fromOffset(10, 8)
+				t.name.TextXAlignment = R.narrow and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+				t.name.TextSize = R.narrow and 14 or 16
+			end
 		end
 	end
 
@@ -386,28 +409,43 @@ function FlairDressingRoom.build(deps, panel)
 	local gridFrame = bind(make("ScrollingFrame", panel, { Name = "FlairGrid", BackgroundColor3 = PLATE, BackgroundTransparency = 0, ScrollBarThickness = 8,
 		ScrollBarImageColor3 = GOLD, ScrollBarImageTransparency = 0, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y }), function(r) return r.grid end)
 	round(gridFrame, 12)
-	stroke(gridFrame, BRASS, 1.5)
+	local gridStroke = stroke(gridFrame, BRASS, 1.5)
 
 	local tiles = {} -- { frame, itemId, ring }
 
 	local function layoutGrid()
-		local g = Layout.grid(R.grid.w - 8, #tiles, Layout.cell(R.compact))
-		for k, t in ipairs(tiles) do setRect(t.frame, g.cells[k]) end
-		gridFrame.CanvasSize = UDim2.fromOffset(0, g.canvasH)
+		if R.sceneOn then
+			-- one tile per painted cubby (4 x 3, row by row); the grid frame is the cubby block and does not scroll
+			for k, t in ipairs(tiles) do
+				local c = R.cubbies[k]
+				t.frame.Visible = c ~= nil
+				if c then setRect(t.frame, { x = c.x - R.grid.x, y = c.y - R.grid.y, w = c.w, h = c.h }) end
+			end
+			gridFrame.CanvasSize = UDim2.new()
+		else
+			local g = Layout.grid(R.grid.w - 8, #tiles, Layout.cell(R.compact))
+			for k, t in ipairs(tiles) do t.frame.Visible = true; setRect(t.frame, g.cells[k]) end
+			gridFrame.CanvasSize = UDim2.fromOffset(0, g.canvasH)
+		end
 		for _, t in ipairs(tiles) do
 			local sel = t.itemId == chosenId
 			t.ring.Enabled = sel
 			t.frame.BackgroundColor3 = sel and Color3.fromRGB(74, 54, 36) or TILE
+			if R.sceneOn then t.frame.BackgroundTransparency = sel and 0.55 or 1 end
 		end
 	end
 
 	local function buildTile(item)
-		local cellSize = Layout.cell(R.compact)
+		local cellSize = (R.sceneOn and R.cubbies[1]) and Scene.cell(R.cubbies[1].w, R.cubbies[1].h) or Layout.cell(R.compact)
 		local med = cellSize.med
 		local locked = item.state == "locked"
 		local f = make("TextButton", gridFrame, { Name = "Tile_" .. item.id, Text = "", AutoButtonColor = false, BackgroundColor3 = TILE, BackgroundTransparency = 0, ZIndex = Z + 1 })
 		round(f, 10)
-		stroke(f, item.state == "equipped" and GOLD or Color3.fromRGB(86, 66, 44), item.state == "equipped" and 2.5 or 1)
+		if R.sceneOn then
+			stroke(f, GOLD, item.state == "equipped" and 2 or 0)
+		else
+			stroke(f, item.state == "equipped" and GOLD or Color3.fromRGB(86, 66, 44), item.state == "equipped" and 2.5 or 1)
+		end
 		local sel = stroke(f, CREAM, 2)
 		sel.Enabled = false
 		local ic = make("Frame", f, { Name = "Icon", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(med, med),
@@ -422,7 +460,7 @@ function FlairDressingRoom.build(deps, panel)
 			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
 		make("TextLabel", f, { Name = "ItemName", Position = UDim2.fromOffset(4, 6 + med + 4), Size = UDim2.new(1, -8, 0, cellSize.nameH), Text = item.name,
-			TextSize = 14, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
+			TextSize = 14, TextWrapped = not R.sceneOn, TextTruncate = Enum.TextTruncate.AtEnd, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = Z + 2,
 			TextColor3 = locked and Color3.fromRGB(176, 164, 140) or CREAM })
 		local status, statusColor
 		if item.state == "equipped" then
@@ -466,7 +504,13 @@ function FlairDressingRoom.build(deps, panel)
 			local on = d.id == openSlot
 			local b = make("TextButton", tabsHolder, { Name = "Tab_" .. d.id, Text = "", AutoButtonColor = false, BackgroundColor3 = on and Color3.fromRGB(86, 62, 38) or TILE, BackgroundTransparency = 0 })
 			round(b, 8)
-			stroke(b, on and GOLD or Color3.fromRGB(86, 66, 44), on and 2.5 or 1)
+			if sceneOn then
+				-- the painted plate is the button: a faint gold wash and a gold edge only on the open tab
+				b.BackgroundTransparency = on and 0.7 or 1
+				stroke(b, GOLD, on and 2.5 or 0)
+			else
+				stroke(b, on and GOLD or Color3.fromRGB(86, 66, 44), on and 2.5 or 1)
+			end
 			local name = make("TextLabel", b, { Text = d.icon .. " " .. d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
 				TextColor3 = on and CREAM or Color3.fromRGB(210, 194, 164) })
 			local sub = make("TextLabel", b, { Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -16, 0, 18), Font = Enum.Font.GothamMedium, TextSize = 14,
@@ -513,6 +557,49 @@ function FlairDressingRoom.build(deps, panel)
 		if key == lastKey and not force then return end
 		lastKey = key
 		R = Layout.rects(w, h)
+		local S = nil
+		if sceneId and not R.narrow then
+			local areaY = R.topH
+			local areaH = h - R.topH - R.bottomH
+			S = Scene.place(w, areaH)
+			if S.ok then S.areaY = areaY else S = nil end
+		end
+		sceneOn = S ~= nil
+		R.sceneOn = sceneOn
+		if S then
+			local function down(r) return { x = r.x, y = r.y + S.areaY, w = r.w, h = r.h } end
+			R.tabs = { x = 0, y = 0, w = w, h = h }
+			R.tabPlates = {}
+			for i, t in ipairs(S.tabs) do R.tabPlates[i] = down(t) end
+			R.cubbies = {}
+			for i, c in ipairs(S.cubbies) do R.cubbies[i] = down(c) end
+			R.grid = down(S.bounds)
+			R.plate = { x = 0, y = 0, w = w, h = h }
+			R.mirror, R.detail, R.plaque = down(S.mirror), down(S.detail), down(S.plaque)
+			sceneHolder.Position, sceneHolder.Size = UDim2.fromOffset(0, S.areaY), UDim2.fromOffset(w, h - R.topH - R.bottomH)
+			sceneImage.Position, sceneImage.Size = UDim2.fromOffset(S.image.x, S.image.y), UDim2.fromOffset(S.image.w, S.image.h)
+		end
+		sceneHolder.Visible = sceneOn
+		plaque.Visible = sceneOn
+		-- panels drawn by hand give way to the painting
+		plate.BackgroundTransparency = sceneOn and 1 or 0
+		plateStroke.Enabled = not sceneOn
+		if stageArt then stageArt.Visible = not sceneOn end
+		gridFrame.BackgroundTransparency = sceneOn and 1 or 0
+		gridFrame.ScrollBarThickness = sceneOn and 0 or 8
+		gridFrame.ScrollingEnabled = not sceneOn
+		mirror.BackgroundTransparency = sceneOn and 0.3 or 0
+		mirrorStroke.Enabled = not sceneOn
+		gridStroke.Enabled = not sceneOn
+		if sceneOn then
+			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.fromOffset(4, 4), UDim2.new(1, -8, 0, 20), Enum.TextXAlignment.Center
+			previewingLabel.Parent = plaque
+			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.fromOffset(14, 0), UDim2.new(1, -28, 1, 0), Enum.TextXAlignment.Center
+		else
+			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.fromOffset(10, 4), UDim2.new(0.4, -10, 0, 20), Enum.TextXAlignment.Left
+			previewingLabel.Parent = mirror
+			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.new(0.4, 0, 0, 4), UDim2.new(0.6, -10, 0, 20), Enum.TextXAlignment.Right
+		end
 		for _, entry in ipairs(placed) do setRect(entry.inst, entry.fn(R)) end
 		titleLabel.TextSize = R.compact and 24 or 28
 		sizeStageText()

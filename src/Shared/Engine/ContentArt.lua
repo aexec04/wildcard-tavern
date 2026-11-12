@@ -52,6 +52,7 @@ local ContentArt = {
 	spectate     = require(Engine:WaitForChild("SpectateArt")),       -- reaction ids and "eye" (Spectate panel)
 	shop         = require(Engine:WaitForChild("ShopArt")),           -- shop_peddler, shop_stranger, shop_counter, shop_crate, shop_tag (Counter scene)
 	badge_wall   = require(Engine:WaitForChild("BadgeWallArt")),         -- badge_room and the wall pieces (Badges trophy room)
+	panel_scene  = require(Engine:WaitForChild("PanelSceneArt")),      -- flair_room_a/_b (painted panel rooms: Flair now, Legend, Card Sets, Stats later)
 	collection_scene = require(Engine:WaitForChild("CollectionSceneArt")), -- collection_wall, frames, corkboard, shelves, key rack, chests, moth, dust cloth (Collection Gallery, empty until Image ids are recorded)
 	shop_scene   = require(Engine:WaitForChild("ShopSceneArt")),      -- shop_wall, shop_marlo_behind, shop_marlo_wave, shop_counter_top, shop_counter_props, shop_light_pool (Counter v2, empty until Image ids are recorded)
 	ambient      = require(Engine:WaitForChild("AmbientArt")),        -- ambient_butterfly_*, ambient_cloud_*, leaves, petals, snow, fireflies, ... (living backdrops, empty until Image ids are recorded)

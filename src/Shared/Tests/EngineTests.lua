@@ -13362,6 +13362,49 @@ table.insert(tests, { name = "Flair preview: every Flair id previews without tou
 	end
 end })
 
+table.insert(tests, { name = "FlairSceneLayout: painted Flair room maps tabs, 12 cubbies, mirror, plaque and detail card inside the area without overlaps, falls back when small", fn = function()
+	local L = require(script.Parent.Parent.Engine.FlairSceneLayout)
+	local Flair = require(script.Parent.Parent.Engine.Flair)
+	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	-- panel areas of 1920x1080, 1280x720 (compact), 1100x700
+	local fitted = 0
+	for _, size in ipairs({ { 1640, 850 }, { 1000, 544 }, { 1000, 600 } }) do
+		local W, H = size[1], size[2]
+		local p = L.place(W, H)
+		local area = { x = 0, y = 0, w = W, h = H }
+		expectTrue(p.ok, "painted scene fits at " .. W .. "x" .. H)
+		if p.ok then
+			fitted = fitted + 1
+			expectEqual(#p.cubbies, L.CUBBIES, "twelve cubbies")
+			expectEqual(#p.tabs, 6, "six tab plates")
+			local all = { p.mirror, p.plaque, p.detail }
+			for _, t in ipairs(p.tabs) do all[#all + 1] = t end
+			for _, c in ipairs(p.cubbies) do all[#all + 1] = c end
+			for i, r in ipairs(all) do
+				expectTrue(inside(r, area), "slot " .. i .. " inside the area at " .. W .. "x" .. H)
+				for j = i + 1, #all do expectFalse(hit(r, all[j]), "slots " .. i .. " and " .. j .. " overlap at " .. W .. "x" .. H) end
+			end
+			expectTrue(p.tabs[1].w >= 130 and p.tabs[1].h >= 40, "tab plates big enough to read")
+			expectTrue(p.cubbies[1].w >= 80 and p.cubbies[1].h >= 88, "cubbies big enough to read")
+			expectTrue(p.detail.w >= 272 and p.detail.h >= 110, "detail card fits its three buttons")
+			expectTrue(inside(p.bounds, area), "cubby block inside the area")
+			-- never stretched: the picture keeps its aspect
+			expectTrue(math.abs(p.image.w / p.image.h - L.IMAGE_W / L.IMAGE_H) < 0.001, "picture is not stretched")
+			local cell = L.cell(p.cubbies[1].w, p.cubbies[1].h)
+			expectTrue(cell.med >= 30 and 6 + cell.med + 4 + cell.nameH + 2 + cell.tagH <= p.cubbies[1].h, "tile content fits the cubby")
+		end
+	end
+	expectEqual(fitted, 3, "all three desktop sizes use the painted room")
+	expectFalse(L.place(776, 301).ok, "a tiny panel keeps the plain layout")
+	-- every Flair category fits the twelve cubbies and the tab plates
+	local view = Flair.view({})
+	expectTrue(#view.slots <= 6, "no more categories than tab plates")
+	for _, slot in ipairs(view.slots) do
+		expectTrue(#slot.options <= L.CUBBIES, slot.id .. " has no more pieces than cubbies")
+	end
+end })
+
 table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, detail card and buttons never overlap or leave the panel (1920x1080, 1280x720, phone)", fn = function()
 	local L = require(script.Parent.Parent.Engine.FlairRoomLayout)
 	local function inside(a, b) return a.x >= b.x - 0.001 and a.y >= b.y - 0.001 and a.x + a.w <= b.x + b.w + 0.001 and a.y + a.h <= b.y + b.h + 0.001 end

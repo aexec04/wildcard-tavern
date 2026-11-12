@@ -150,7 +150,7 @@ function FlairRoomLayout.rects(W, H)
 	local detail = { x = plate.x + pad, y = mirror.y + mirror.h + gap, w = plate.w - 2 * pad, h = plate.y + plate.h - pad - (mirror.y + mirror.h + gap) }
 	local btnW, btnH = 190, 30
 	return {
-		compact = compact, narrow = narrow, margin = m, gap = gap, pad = pad,
+		compact = compact, narrow = narrow, margin = m, gap = gap, pad = pad, topH = topH, bottomH = bottomH,
 		title = { x = m, y = 4, w = W - 2 * m - btnW - 10, h = topH - 6 },
 		bundle = { x = W - m - btnW, y = math.floor((topH - btnH) / 2), w = btnW, h = btnH },
 		tabs = tabs, grid = grid, plate = plate, mirror = mirror, detail = detail,
