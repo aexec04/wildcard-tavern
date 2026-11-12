@@ -19715,7 +19715,11 @@ table.insert(tests, { name = "PlayBoardLayout.hud/seats: rows sit inside the boa
 			expectTrue(#seats == n, n .. " seats returned")
 			for i, a in ipairs(seats) do
 				expectTrue(inside(a, bw, bh) and a.w >= 12, "seat " .. i .. " of " .. n .. " inside the board at " .. sz[1])
-				expectTrue(a.x >= H.ringRow.x and a.x + a.w <= H.ringRow.x + H.ringRow.w and a.y >= H.ringRow.y and a.y + a.h <= H.ringRow.y + H.ringRow.h, "seat inside the ring row")
+				if i <= 5 then
+					expectTrue(a.x >= H.ringRow.x and a.x + a.w <= H.ringRow.x + H.ringRow.w and a.y >= H.ringRow.y and a.y + a.h <= H.ringRow.y + H.ringRow.h, "seat inside the ring row")
+				else
+					expectTrue(a.extra == true and a.ring ~= nil and a.y > H.ringRow.y + H.ringRow.h, "a sixth or later seat sits on the base row under the rings, in its own brass ring")
+				end
 				for j = i + 1, n do expectTrue(not overlap(a, seats[j]), "seats " .. i .. " and " .. j .. " of " .. n .. " do not touch") end
 			end
 		end
@@ -20200,7 +20204,9 @@ table.insert(tests, { name = "CornerToast text stays opaque dark ink; Board seat
 		for n = 2, 14 do
 			local r = PB.seats(size[1], size[2], n)
 			for i = 2, n do
-				expectTrue(r[i].x >= r[i - 1].x + r[i - 1].w, n .. " seats at " .. size[1] .. " do not overlap")
+				if i ~= 6 then -- seat 6 starts the second row (the base under the rings)
+					expectTrue(r[i].x >= r[i - 1].x + r[i - 1].w, n .. " seats at " .. size[1] .. " do not overlap")
+				end
 			end
 		end
 	end
@@ -21051,6 +21057,91 @@ table.insert(tests, { name = "MenuRegulars: framed portraits on the wall, no flo
 	count = 0
 	for _, c in ipairs(layer:FindFirstChild("Portraits"):GetChildren()) do if c.Name:sub(1, 8) == "Regular_" then count = count + 1 end end
 	expectEqual(count, 3, "a phone keeps at most 3 frames")
+end })
+
+table.insert(tests, { name = "PlayBoardLayout.seats: every Patron seat is centred in its painted ring hole (within 1 px) at 84 percent of the hole, extras on the base row", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBoardLayout)
+	-- the measured holes of play_board_a (picture pixels): centre x, and the common centre y and diameter
+	local holes = { 281, 394, 510, 625, 738 }
+	expectEqual(PB.HOLE_D, 72, "the hole is 72 px")
+	for _, sz in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 }, { 1000, 600 } }) do
+		local bw, bh = PB.size(sz[1], sz[2])
+		local sx, sy = bw / PB.IMG_W, bh / PB.IMG_H
+		for n = 1, 7 do
+			local seats = PB.seats(bw, bh, n)
+			for i = 1, math.min(n, 5) do
+				local a = seats[i]
+				local cx, cy = a.x + a.w / 2, a.y + a.h / 2
+				expectTrue(math.abs(cx - holes[i] * sx) <= 1 and math.abs(cy - PB.RING_Y * sy) <= 1, "seat " .. i .. " of " .. n .. " is centred in its ring hole at " .. sz[1] .. " (" .. cx .. "," .. cy .. ")")
+				local hole = PB.HOLE_D * sx
+				expectTrue(math.abs(a.w - PB.SEAT_FILL * hole) <= 1.5 or a.w == 12, "seat " .. i .. " is 84 percent of the hole at " .. sz[1])
+				expectTrue(a.w < hole, "the portrait is smaller than the hole, so it never touches the brass")
+			end
+			for i = 6, n do
+				local a = seats[i]
+				expectTrue(a.extra and a.ring and math.abs(a.x + a.w / 2 - a.ring.cx) <= 1 and math.abs(a.y + a.h / 2 - a.ring.cy) <= 1, "extra seat " .. i .. " is centred in its own ring")
+				expectTrue(a.ring.d > a.w, "the extra ring is larger than the portrait")
+				expectTrue(a.y + a.h <= bh and a.x >= 0 and a.x + a.w <= bw, "extra seat " .. i .. " is inside the board")
+			end
+		end
+		-- a symmetric board: the five hole centres are spaced like the painted ones
+		local seats = PB.seats(bw, bh, 5)
+		for i = 2, 5 do
+			local gap = (seats[i].x + seats[i].w / 2) - (seats[i - 1].x + seats[i - 1].w / 2)
+			expectTrue(math.abs(gap - (holes[i] - holes[i - 1]) * sx) <= 1.5, "pitch " .. i - 1 .. " to " .. i .. " follows the painting at " .. sz[1])
+		end
+	end
+end })
+
+table.insert(tests, { name = "Painted board: six Patron seats sit in the five ring holes plus a brass ring on the base, no parchment disc under any seat", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "PlayTableLayout", "ImageSpace", "PlayBoardLayout" }) do map[n] = require(E[n]) end
+	local stubs = {}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local folder = FakeGui.folder(map)
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+	stubs.LayoutSwitch = FakeGui.load("src/Client/LayoutSwitch.lua", env)
+	local PlayBoardHud = FakeGui.load("src/Client/PlayBoardHud.lua", env)
+	local UDim2 = env.UDim2
+	local function mk(class, name, parent, order)
+		local i = FakeGui.new(class)
+		i.Name = name
+		if order then i.LayoutOrder = order end
+		i.Parent = parent
+		return i
+	end
+	for _, size in ipairs({ { 1920, 957 }, { 1506, 751 }, { 1280, 720 } }) do
+		local root = mk("Frame", "Root", nil)
+		local sidebar = mk("Frame", "Sidebar", root)
+		mk("Frame", "SidebarBoard", root)
+		local content = mk("Frame", "BoardContent", sidebar)
+		local tray = mk("Frame", "PatronsTray", content, 5)
+		local inset = mk("Frame", "PatronsInset", tray)
+		local seats = {}
+		for i = 1, 6 do
+			seats[i] = mk("Frame", "Seat" .. i, inset, i)
+			seats[i].Size = UDim2.fromOffset(38, 38)
+			seats[i].BackgroundTransparency = 0
+			mk("UIStroke", "S", seats[i])
+		end
+		local rect = map.PlayBoardLayout.placement(size[1], size[2])
+		local ok, err = pcall(PlayBoardHud.apply, root, rect)
+		expectTrue(ok, "applies at " .. size[1] .. ": " .. tostring(err))
+		local H = map.PlayBoardLayout.hud(rect.w, rect.h)
+		local want = map.PlayBoardLayout.seats(rect.w, rect.h, 6)
+		for i, seat in ipairs(seats) do
+			expectTrue(seat.BackgroundTransparency == 1, "seat " .. i .. " has no parchment disc at " .. size[1])
+			local cx = H.ringRow.x + seat.Position.X.Offset + seat.Size.X.Offset / 2
+			local cy = H.ringRow.y + seat.Position.Y.Offset + seat.Size.Y.Offset / 2
+			expectTrue(math.abs(cx - (want[i].x + want[i].w / 2)) <= 1 and math.abs(cy - (want[i].y + want[i].h / 2)) <= 1, "seat " .. i .. " sits on its measured centre at " .. size[1])
+			expectTrue((seat:FindFirstChild("ExtraRing") ~= nil) == (i == 6), "only the sixth seat gets a code ring (seat " .. i .. ")")
+		end
+		PlayBoardHud.apply(root, nil)
+		expectTrue(seats[6]:FindFirstChild("ExtraRing") == nil and seats[1].BackgroundTransparency == 0, "everything is put back when the board is not painted")
+	end
 end })
 
 return tests

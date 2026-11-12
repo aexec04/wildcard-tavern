@@ -21,9 +21,14 @@ M.SLOTS = {
 	hands = { x = 232, y = 974, w = 264, h = 144 },
 	discards = { x = 528, y = 974, w = 264, h = 144 },
 }
-M.RING_Y, M.RING_D = 1215, 100
-M.RING_X = { 288, 396, 504, 612, 738 }
-M.RING_INSET = 0.08 -- portraits are inset 8 percent so the brass ring shows
+-- The five brass rings, measured from play_board_a (art-wip/play_scene/ring_measure: the dark hole of each ring, area equivalent
+-- diameter 72 px, bbox 73 to 76; debug overlay art-wip/play_scene/debug_rings_measured.png). RING_D is the outer brass diameter.
+M.RING_Y, M.RING_D, M.HOLE_D = 1205, 100, 72
+M.RING_X = { 281, 394, 510, 625, 738 }
+M.SEAT_FILL = 0.84 -- a Patron portrait is 84 percent of the hole, so it never touches the brass
+-- Seats beyond the five painted rings sit on the wooden base under the board, each in a matching brass ring drawn in code
+-- (hole 56, outer 1.375 times the hole like the painted ones), in one centred row; they shrink when there are many.
+M.EXTRA = { y = 1352, hole = 56, centre = 512, span = 370, pitch = 92, ringRatio = 1.375 }
 
 function M.usable(screenW)
 	return screenW >= M.MIN_W
@@ -53,12 +58,12 @@ function M.map(w, h)
 	local function r(s)
 		return { x = math.floor(s.x * sx + 0.5), y = math.floor(s.y * sy + 0.5), w = math.floor(s.w * sx + 0.5), h = math.floor(s.h * sy + 0.5) }
 	end
-	local out = { rings = {}, ringInset = M.RING_INSET }
+	local out = { rings = {}, seatFill = M.SEAT_FILL }
 	for k, s in pairs(M.SLOTS) do
 		out[k] = r(s)
 	end
 	for i, cx in ipairs(M.RING_X) do
-		out.rings[i] = { cx = math.floor(cx * sx + 0.5), cy = math.floor(M.RING_Y * sy + 0.5), d = math.floor(M.RING_D * sx + 0.5) }
+		out.rings[i] = { cx = math.floor(cx * sx + 0.5), cy = math.floor(M.RING_Y * sy + 0.5), d = math.floor(M.RING_D * sx + 0.5), hole = math.floor(M.HOLE_D * sx + 0.5) }
 	end
 	return out
 end
@@ -82,25 +87,33 @@ function M.hud(w, h)
 	return out
 end
 
--- Seat rects (top left x, y and size in board coordinates) for n Patron seats.
+-- Seat rects (top left x, y and size in board coordinates) for n Patron seats. Seats 1 to 5 sit in the painted ring holes, each
+-- centred on its hole at 84 percent of the hole's diameter. A sixth seat and beyond sit in one centred row on the wooden base under the
+-- board, with `extra = true` and `ring = { cx, cy, d }` for the brass ring the client draws around them.
 function M.seats(w, h, n)
 	local m = M.map(w, h)
+	local sx, sy = w / M.IMG_W, h / M.IMG_H
 	local out = {}
 	if n <= 0 then return out end
-	if n <= #m.rings then
-		for i = 1, n do
-			local r = m.rings[i]
-			local size = math.floor(r.d * (1 - 2 * M.RING_INSET) + 0.5)
-			out[i] = { x = r.cx - math.floor(size / 2), y = r.cy - math.floor(size / 2), w = size, h = size }
-		end
-		return out
+	for i = 1, math.min(n, #m.rings) do
+		local r = m.rings[i]
+		local size = math.max(12, math.floor(r.hole * M.SEAT_FILL + 0.5))
+		out[i] = { x = r.cx - math.floor(size / 2), y = r.cy - math.floor(size / 2), w = size, h = size }
 	end
-	local first, last = m.rings[1], m.rings[#m.rings]
-	local pitch = (last.cx - first.cx) / (n - 1)
-	local size = math.max(12, math.min(first.d, math.floor(pitch) - 2))
-	for i = 1, n do
-		local cx = first.cx + (i - 1) * pitch
-		out[i] = { x = math.floor(cx - size / 2 + 0.5), y = first.cy - math.floor(size / 2), w = size, h = size }
+	local k = n - #m.rings
+	if k > 0 then
+		local E = M.EXTRA
+		local pitch = math.min(E.pitch, E.span / k)
+		local hole = math.max(16, math.min(E.hole, math.floor(pitch) - 8))
+		for j = 1, k do
+			local cx = (E.centre + (j - (k + 1) / 2) * pitch) * sx
+			local cy = E.y * sy
+			local size = math.max(12, math.floor(hole * sx * M.SEAT_FILL + 0.5))
+			out[#m.rings + j] = {
+				x = math.floor(cx - size / 2 + 0.5), y = math.floor(cy - size / 2 + 0.5), w = size, h = size, extra = true,
+				ring = { cx = math.floor(cx + 0.5), cy = math.floor(cy + 0.5), d = math.max(size + 4, math.floor(hole * E.ringRatio * sx + 0.5)) },
+			}
+		end
 	end
 	return out
 end

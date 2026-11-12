@@ -511,6 +511,36 @@ local function run(root, st)
 			end
 			for i, seat in ipairs(seats) do
 				placeRect(st, seat, rects[i], H.ringRow)
+				-- the painted hole is the seat: no parchment disc under a portrait or an empty seat (the hub recolours the fill on every
+				-- render, so only its transparency is pinned); the empty seat shows a dim ink "+" and nothing else
+				put(st, seat, { BackgroundTransparency = 1 })
+				local ringSpec = rects[i].ring
+				if rects[i].extra and ringSpec then
+					-- a sixth seat and beyond have no painted ring: a matching brass ring in code, behind the portrait
+					local ring = seat:FindFirstChild("ExtraRing")
+					if not ring then
+						ring = Instance.new("Frame")
+						ring.Name = "ExtraRing"
+						ring.AnchorPoint = Vector2.new(0.5, 0.5)
+						ring.Position = UDim2.fromScale(0.5, 0.5)
+						ring.BackgroundColor3 = Color3.fromRGB(74, 50, 28) -- the dark hole
+						ring.BorderSizePixel = 0
+						ring.Active = false
+						ring.ZIndex = math.max(1, seat.ZIndex - 1)
+						ring.Parent = seat
+						table.insert(st.made, ring)
+						local rk = Instance.new("UICorner")
+						rk.CornerRadius = UDim.new(0.5, 0)
+						rk.Parent = ring
+						local rs = Instance.new("UIStroke")
+						rs.Color = Color3.fromRGB(205, 164, 84) -- brass
+						rs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						rs.Parent = ring
+					end
+					ring.Size = UDim2.fromOffset(ringSpec.d, ringSpec.d)
+					local stroke = ring:FindFirstChildOfClass("UIStroke")
+					if stroke then stroke.Thickness = math.max(2, math.floor(ringSpec.d * 0.08 + 0.5)) end
+				end
 				local us = seat:FindFirstChildOfClass("UIScale")
 				if us and us.Scale > 1.02 then us.Scale = 1 end -- a pop left stuck above 1 would make neighbouring seats overlap
 				for _, c in ipairs(seat:GetChildren()) do
