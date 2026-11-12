@@ -364,7 +364,7 @@ function BadgeWall.render(board, chip, have, opts)
 			end
 		end
 	end
-	if chip == "Roads" then
+	if chip == "Roads" and not painted then -- on the painted map the pins and the dotted path are in the picture
 		for _, it in ipairs(lay.items) do
 			local p = Wall.pinFor(it)
 			frame(board, { Name = "PinString", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(p.x, p.y), Size = UDim2.fromOffset(2, p.y2 - p.y), BackgroundColor3 = Color3.fromRGB(186, 156, 104), ZIndex = Z + 1 })

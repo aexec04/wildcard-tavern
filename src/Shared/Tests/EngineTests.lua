@@ -14546,7 +14546,8 @@ table.insert(tests, { name = "Badges: nameplates fit two lines inside their colu
 			local rects = {}
 			for _, it in ipairs(lay.items) do
 				local p = W.plateRect(it)
-				expectTrue(p.w >= it.size + 8 or chip == "Masters", "plate at least as wide as the badge")
+				expectTrue(p.w >= it.size + 8 or chip == "Masters" or (chip == "Roads" and p.w >= it.size), "plate at least as wide as the badge")
+				if chip == "Roads" then expectTrue(p.w <= it.size + W.PLATE_EXTRA, "Roads plate is at most the medal width plus 40 px") end
 				expectTrue(it.x + p.x >= 0 and it.x + p.x + p.w <= size[1], chip .. " plate inside the board width")
 				expectTrue(it.y + W.plateY(it) + p.h <= size[2], chip .. " plate inside the board height")
 				rects[#rects + 1] = { x = it.x + p.x, y = it.y + W.plateY(it), w = p.w, h = p.h }
@@ -19576,12 +19577,16 @@ table.insert(tests, { name = "Badge scenes: Masters 8, Night 4, Special 12 slots
 	expectEqual(#W.SCENES.Masters.slots, 8, "eight sockets on the velvet board")
 	expectEqual(#W.SCENES.Night.slots, 4, "four niches on the sill")
 	expectEqual(#W.SCENES.Special.slots, 12, "twelve recesses, two rows of six")
+	expectEqual(#W.SCENES.Roads.slots, 8, "eight pinned stops, two rows of four")
+	for _, slot in ipairs(W.SCENES.Night.slots) do
+		expectTrue(slot[2] >= 0.66 and slot[2] <= 0.69 and slot[3] <= 0.078, "Night badges sit in the ring openings (above the ring centre) at about 80 percent of the opening")
+	end
 	expectTrue(W.sceneOf("Masters", {}) == nil and W.sceneOf("Roads", { badge_map_board = "rbxassetid://1" }) == nil, "no scene until its Image id is recorded")
 	expectTrue(W.sceneOf("Night", { badge_scene_night = "rbxassetid://1" }) ~= nil, "a recorded id turns the scene on")
 	local function apart(a, b) return a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y end
 	for _, win in ipairs(badgeWindows()) do
 		local bw, bh = win.P.area.w, win.P.area.h
-		for _, chip in ipairs({ "Masters", "Night", "Special" }) do
+		for _, chip in ipairs({ "Masters", "Night", "Special", "Roads" }) do
 			local where = " (" .. chip .. " " .. bw .. "x" .. bh .. " at " .. win.name .. ")"
 			local lay = W.sceneLayout(chip, nil, bw, bh)
 			if lay then

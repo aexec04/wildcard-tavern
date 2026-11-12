@@ -24,6 +24,8 @@ local ROAD_ORDER = { "meadow", "river", "peaks", "desert", "swamp", "snow", "coa
 -- Where each road stop sits ON the pinned map, as fractions { x, y } of the board (the centre of its medal). The road runs from the
 -- Meadow at the left to the Tavern at the right, zigzagging between an upper and a lower row.
 Wall.ROAD_UPPER, Wall.ROAD_LOWER = 0.30, 0.66
+Wall.ROAD_MEDAL = 140 -- Roads medals grow to this many px when the board has room
+Wall.PLATE_EXTRA = 40 -- a Roads plate is at most the medal width plus this
 Wall.ROAD_STOPS = {
 	meadow = { 0.12, Wall.ROAD_LOWER }, river = { 0.2286, Wall.ROAD_UPPER }, peaks = { 0.3371, Wall.ROAD_LOWER },
 	desert = { 0.4457, Wall.ROAD_UPPER }, swamp = { 0.5543, Wall.ROAD_LOWER }, snow = { 0.6629, Wall.ROAD_UPPER },
@@ -111,9 +113,11 @@ function Wall.layout(chip, defs, w, h)
 		local n = #list
 		local stepX = n > 1 and (stops[n][1] - stops[1][1]) * w / (n - 1) or w * 0.2
 		local rowSep = h * (Wall.ROAD_LOWER - Wall.ROAD_UPPER)
-		local size = math.floor(math.max(16, math.min(stepX * 0.78, (rowSep - Wall.NAMEPLATE_H - 6) / Wall.SOCKET)))
+		local size = math.floor(math.max(16, math.min(Wall.ROAD_MEDAL, stepX * 0.95, (rowSep - Wall.NAMEPLATE_H - 6) / Wall.SOCKET)))
 		for i, d in ipairs(list) do
-			items[i] = { id = d.id, x = math.floor(w * stops[i][1] - size / 2), y = math.floor(h * stops[i][2] - size / 2), size = size, cell = 2 * stepX }
+			-- the plate fits its text (12 px padding each side) and is never wider than the medal plus 40 px, so neighbours never touch
+			local plateW = math.max(size, math.min(size + Wall.PLATE_EXTRA, math.floor(#Wall.plateText(d, false) * 8 + 24)))
+			items[i] = { id = d.id, x = math.floor(w * stops[i][1] - size / 2), y = math.floor(h * stops[i][2] - size / 2), size = size, cell = 2 * stepX, plateW = plateW }
 		end
 	elseif chip == "Masters" then
 		local row = {}
@@ -171,7 +175,13 @@ Wall.SCENES = {
 		{ 0.613, 0.602, 0.060 }, { 0.723, 0.602, 0.060 }, { 0.831, 0.602, 0.060 },
 	} },
 	Night = { art = "badge_scene_night", pitch = 0.22, slots = {
-		{ 0.151, 0.700, 0.092 }, { 0.371, 0.700, 0.092 }, { 0.591, 0.700, 0.092 }, { 0.811, 0.700, 0.092 },
+		-- centres of the ring OPENINGS (above the rings' outer centres, perspective); d is about 80 percent of the opening height
+		{ 0.153, 0.676, 0.074 }, { 0.374, 0.676, 0.074 }, { 0.594, 0.676, 0.074 }, { 0.813, 0.676, 0.074 },
+	} },
+	-- Roads: the painted route map, two rows of 4 round pinned stops (road order, left to right, top row first), plate rows under them
+	Roads = { art = "badge_scene_roads", pitch = 0.173, plateRows = { 0.420, 0.672 }, plateExtra = 40, plateMargin = 24, slots = {
+		{ 0.241, 0.339, 0.084 }, { 0.415, 0.339, 0.084 }, { 0.590, 0.339, 0.084 }, { 0.762, 0.339, 0.084 },
+		{ 0.241, 0.587, 0.084 }, { 0.415, 0.587, 0.084 }, { 0.590, 0.587, 0.084 }, { 0.762, 0.587, 0.084 },
 	} },
 	Special = { art = "badge_scene_special", pitch = 0.136, plateRows = { 0.488, 0.796 }, slots = {
 		{ 0.169, 0.350, 0.098 }, { 0.306, 0.350, 0.098 }, { 0.441, 0.350, 0.098 }, { 0.576, 0.350, 0.098 }, { 0.712, 0.350, 0.098 }, { 0.840, 0.350, 0.098 },
@@ -214,12 +224,13 @@ function Wall.sceneLayout(chip, defs, w, h)
 		local x, y = math.floor(cx - size / 2), math.floor(cy - size / 2)
 		local maxW = math.floor(sc.pitch * iw) - 6
 		local text = Wall.plateText(d, false)
-		local single = math.floor(#text * 8 + 14)
+		local single = math.floor(#text * 8 + (sc.plateMargin or 14))
+		if sc.plateExtra then maxW = math.min(maxW, size + sc.plateExtra) end
 		local plateW = math.max(size, math.min(maxW, single))
 		local plateH = Wall.plateLines(text, plateW, 14) > 1 and (Wall.NAMEPLATE_H - 4) or Wall.SCENE_PLATE_H
 		local top = y + size + 6 -- plate top, below the socket
 		if sc.plateRows then -- the painted plate row under this slot's shelf
-			top = math.floor(iy + sc.plateRows[slot[2] < 0.5 and 1 or 2] * ih - plateH / 2)
+			top = math.max(math.floor(iy + sc.plateRows[slot[2] < 0.5 and 1 or 2] * ih - plateH / 2), y + size + 3) -- never over its own badge
 		end
 		items[i] = { id = d.id, x = x, y = y, size = size, cell = size + 12, noSocket = true, scene = true, big = (chip == "Masters" and i == 1) or nil,
 			plateW = plateW, plateH = plateH, drop = top - (y + size) - 3 }
