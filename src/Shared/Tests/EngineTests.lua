@@ -13906,6 +13906,7 @@ table.insert(tests, { name = "GameName: player-facing text says The Gilded Knave
 	if menu and wordmark then
 		expectTrue(menu:find("Wordmark", 1, true) ~= nil, "Menu draws the title through Wordmark")
 		expectTrue(menu:find(old, 1, true) == nil, "Menu has no old name")
+		expectTrue(menu:find("menuNewRunButton, titleGroup }", 1, true) ~= nil, "Menu title hides while a panel (Tome, tab rows) is open")
 		expectTrue(menu:find("MenuRibbon", 1, true) == nil, "Menu title has no tagline ribbon")
 		expectTrue(wordmark:find("GameName", 1, true) ~= nil, "Wordmark takes its text from GameName")
 		expectTrue(wordmark:find("UIGradient.Transparency", 1, true) == nil, "gradient is Color only")

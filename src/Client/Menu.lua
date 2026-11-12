@@ -138,8 +138,8 @@ return function(deps)
 	end
 	local menuPlayButton = buttons.play
 	local menuNewRunButton = buttons.newRun
-	-- the Notice Board and the New Run buttons never show through an open panel
-	require(script.Parent.MenuPanelHide).attach(menuFrame, board, { menuPlayButton, menuNewRunButton })
+	-- the Notice Board, the title and the New Run buttons never show through an open panel (tab rows would cover the title)
+	require(script.Parent.MenuPanelHide).attach(menuFrame, board, { menuPlayButton, menuNewRunButton, titleGroup })
 	local menuDailyChallengeButton = buttons.daily
 	local menuWeeklyChallengeButton = buttons.weekly
 	local menuSeedRunButton = buttons.seed
