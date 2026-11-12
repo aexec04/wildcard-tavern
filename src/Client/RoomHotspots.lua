@@ -39,7 +39,7 @@ local DEFAULT_WALL = {
 	skirting = P.WOOD_DARK, rim = Color3.fromRGB(96, 66, 40),
 }
 
-local REST_RING = 0.8
+local REST_RING = 1 -- no outline at rest: the painted rooms already show their objects; the ring shows on hover only
 
 local function calm() return ClientSettings.get("reduceShake") == true end
 

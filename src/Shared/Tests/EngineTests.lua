@@ -18950,7 +18950,7 @@ table.insert(tests, { name = "Content text: no double dash, em dash or en dash i
 	expectEqual(#bad, 0, "dashes in content text: " .. table.concat(bad, " | "))
 end })
 
-table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; Escape goes wall to room to close", fn = function()
+table.insert(tests, { name = "Rooms: name plates show and no outline ring at rest; Escape goes wall to room to close", fn = function()
 	-- The scene builders read Client files with io.open, which Studio does not have: skip there like the other scene tests.
 	local probe = io and io.open and load and io.open("src/Client/BadgeRoom.lua", "r")
 	if not probe then return end
@@ -18962,7 +18962,7 @@ table.insert(tests, { name = "Rooms: name plates and a faint ring show at rest; 
 			expectTrue(h ~= nil, label .. " hotspot " .. sec.id)
 			expectTrue(h:FindFirstChild("NamePlate").Visible, label .. " " .. sec.id .. " plate visible at rest")
 			local rim = h:FindFirstChild("Glow"):FindFirstChildOfClass("UIStroke")
-			expectTrue(rim.Transparency < 1 and rim.Transparency >= 0.5, label .. " " .. sec.id .. " has a faint resting ring")
+			expectTrue(rim.Transparency == 1, label .. " " .. sec.id .. " has no resting outline")
 		end
 	end
 	local BS = require(script.Parent.BadgeScene)
