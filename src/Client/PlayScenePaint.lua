@@ -116,7 +116,7 @@ function PlayScenePaint.install(deps)
 		end
 		if game:GetService("RunService"):IsStudio() and lastReport ~= tostring(sid) then
 			lastReport = tostring(sid)
-			print(string.format("[PlayTableSet] %s front=%s", tostring(sid or "default"), setId and "painted" or "default"))
+			print(string.format("[PlayTableSet] %s front=%s art=%s", tostring(sid or "default"), setId and "painted" or "default", tostring(PlayTableLayout.artKeyOf(setId) or "play_table_front_a")))
 		end
 	end
 	HudTheme.onSkin(tint)

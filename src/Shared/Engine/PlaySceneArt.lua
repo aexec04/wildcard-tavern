@@ -15,4 +15,5 @@ return {
 	["play_table_front_b"] = "rbxassetid://111672466307619",
 	["play_table_front_festival_a"] = "rbxassetid://103282552527851",
 	["play_table_front_frosted_a"] = "rbxassetid://90420427952379",
+	["play_table_front_frosted_c"] = "rbxassetid://87202822036839",
 }

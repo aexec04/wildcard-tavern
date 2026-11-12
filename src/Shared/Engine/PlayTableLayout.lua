@@ -27,11 +27,10 @@ M.DECK = { x = 1275, y = 700, w = 200, h = 95 }
 M.SETS = {
 	festival_night = { art = "play_table_front_festival_a",
 		felt = { x = 30, y = 505, w = 1470, h = 250 }, rail = { x = 300, y = 790, w = 800, h = 50 }, deck = { x = 1295, y = 770, w = 185, h = 95 } },
-	winter_evening = { art = "play_table_front_frosted_a",
-		felt = { x = 30, y = 618, w = 1470, h = 205 }, rail = { x = 385, y = 858, w = 550, h = 38 }, deck = { x = 1280, y = 800, w = 175, h = 72 },
-		strip = { y = 915, h = 100 },
-		-- the painted front shows no felt of its own: a cool slate-blue felt (70 percent opaque) with a thin pale gold stitch goes on the measured felt rect
-		fill = { color = { 62, 84, 112 }, transparency = 0.3, stitch = { 214, 196, 140 } } },
+	-- painted felt, snow-dusted rim and front of its own (variant c of two, measured by eye from the PNG), so no code felt goes on top
+	winter_evening = { art = "play_table_front_frosted_c",
+		felt = { x = 70, y = 578, w = 1380, h = 255 }, rail = { x = 380, y = 838, w = 765, h = 48 }, deck = { x = 1235, y = 742, w = 235, h = 92 },
+		strip = { y = 915, h = 100 } },
 }
 
 -- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
