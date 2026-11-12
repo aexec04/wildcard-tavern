@@ -21926,4 +21926,86 @@ table.insert(tests, { name = "RunOverLayout.scroll: content stays inside the map
 	expectEqual(L.scroll(390, 844, { factsH = 200, patrons = 3, primary = 3, more = 6 }, "a"), nil, "a phone keeps the plain one column panel")
 end })
 
+table.insert(tests, { name = "Choice cards are painted parchment: wood frame with brass studs, a slight tilt each, a brass medallion, 16 px ink rule text centred in the gap, green plus and red minus", fn = function()
+	local probe = io and io.open and load and io.open("src/Client/ChoicePanel.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local Engine = script.Parent.Parent.Engine
+	local stubs = {
+		PatronPlaque = { apply = function() return nil end, applyById = function() return nil end }, ClientSettings = { get = function() return "fast" end },
+		ModalStage = { mount = function() return nil end, setKind = function() end },
+		SmoothVignette = {}, SoftGlow = {}, PopupDismiss = { attach = function() end },
+	}
+	local env, st = FakeGui.env({ studio = true, stubs = stubs })
+	setmetatable(stubs.SmoothVignette, { __index = function() return function() end end })
+	setmetatable(stubs.SoftGlow, { __index = function() return function() return { root = FakeGui.new("Frame") } end end })
+	st.services.ReplicatedStorage = { WaitForChild = function()
+		return { WaitForChild = function()
+			return FakeGui.folder({
+				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
+				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
+			})
+		end }
+	end }
+	local ChoicePanel = FakeGui.load("src/Client/ChoicePanel.lua", env)
+	local gui, menu, root = FakeGui.new("ScreenGui"), FakeGui.new("Frame"), FakeGui.new("Frame")
+	menu.Visible, root.Visible = false, true
+	gui.AbsoluteSize = { X = 1920, Y = 1080 }
+	ChoicePanel.init({ screenGui = gui, menuFrame = menu, root = root, polishButton = function() end, roundCorner = function() end, playClickSfx = function() end, choiceRemote = {} })
+	local Patrons = require(Engine.Patrons)
+	local function row() return gui:FindFirstChild("ChoiceBackdrop"):FindFirstChild("Row", true) end
+	local function cards()
+		local out = {}
+		for _, slot in ipairs(row():GetChildren()) do
+			for _, c in ipairs(slot:GetChildren()) do if c.Name:sub(1, 7) == "Option_" then out[#out + 1] = c end end
+		end
+		return out
+	end
+	local tilts = {}
+	for _, spec in ipairs({
+		{ kind = "modifier", title = "Choose a blessing", options = {
+			{ id = "b1", name = "Sharp Eyes", icon = "E", line1 = "+1 hand each round", line2 = "-1 discard each round" },
+			{ id = "b2", name = "Generous House", icon = "G", line1 = "+2 Tips per round", line2 = "Shop prices rise by 1" },
+			{ id = "b3", name = "Big Recipe Book", icon = "B", line1 = "+1 recipe slot", line2 = "-1 Patron seat" }, { id = "decline", name = "No blessing", icon = "x", line1 = "Play it straight." } } },
+		{ kind = "patron", title = "Choose your first Patron", options = {
+			{ id = Patrons.Definitions[1].id, name = Patrons.Definitions[1].name, icon = "P", line1 = "A steady hand." },
+			{ id = Patrons.Definitions[2].id, name = Patrons.Definitions[2].name, icon = "Q", line1 = "Lucky." } } },
+	}) do
+		ChoicePanel.update({ choice = spec })
+		local list = cards()
+		expectTrue(#list == #spec.options, spec.kind .. ": one card per option")
+		for i, card in ipairs(list) do
+			local isDecline = card.Name == "Option_decline"
+			local wood = card:FindFirstChild("WoodFrame")
+			expectTrue(wood ~= nil, card.Name .. " has the dark wood frame")
+			local studs = 0
+			for _, k in ipairs(wood:GetChildren()) do if k.Name:sub(1, 8) == "WoodStud" then studs = studs + 1 end end
+			expectEqual(studs, 4, card.Name .. " has four brass studs")
+			expectTrue(math.abs(card.Rotation) <= 2 and (isDecline or card.Rotation ~= 0), card.Name .. " has a slight tilt of at most 2 degrees")
+			if not isDecline then tilts[#tilts + 1] = card.Rotation end
+			expectTrue(card:FindFirstChild("MedalRing") ~= nil, card.Name .. " has a brass ring around the portrait")
+			local rule = card:FindFirstChild("Rule")
+			expectTrue(rule ~= nil and rule:FindFirstChildOfClass("UIListLayout").VerticalAlignment == env.Enum.VerticalAlignment.Center, card.Name .. " centres the rule text in the gap")
+			for _, line in ipairs(rule:GetChildren()) do
+				if line.ClassName == "TextLabel" then expectTrue(line.TextSize >= 16, card.Name .. " rule text is 16 px or more") end
+			end
+			expectTrue(card:FindFirstChild("Pick") ~= nil, card.Name .. " keeps its wooden Choose plate button")
+			if spec.kind == "modifier" and not isDecline then
+				local plus, minus = rule:FindFirstChild("Line1"), rule:FindFirstChild("Line2")
+				expectTrue(plus.TextColor3.G > plus.TextColor3.R and plus.TextColor3.G > plus.TextColor3.B, card.Name .. " plus line is green ink")
+				expectTrue(minus.TextColor3.R > minus.TextColor3.G and minus.TextColor3.R > minus.TextColor3.B, card.Name .. " minus line is red ink")
+				expectFalse((plus.Text .. minus.Text):find("\226\128\148", 1, true) ~= nil, card.Name .. " text has no em dash")
+			end
+		end
+	end
+	expectTrue(#tilts >= 4 and tilts[1] ~= tilts[2], "the cards tilt differently")
+	local f = io.open("src/Client/ChoicePanel.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("ChoiceRarity.info", 1, true) ~= nil and text:find("RarityGem", 1, true) ~= nil, "the rarity rim, gem and tier word are the shared ChoiceRarity helper, not a copy")
+	end
+end })
+
 return tests

@@ -103,11 +103,61 @@ local function buildCard(choice, option, order)
 	card.ZIndex = 62
 	card.Parent = slot
 	ui.roundCorner(card, 12)
-	local stroke = Instance.new("UIStroke")
+	local stroke = Instance.new("UIStroke") -- the thin brass line at the paper's edge, inside the wood
 	stroke.Color = isDecline and INK or GOLD
-	stroke.Thickness = isDecline and 1.5 or 3
+	stroke.Thickness = isDecline and 1.5 or 2
 	stroke.Parent = card
+	local paper = Instance.new("UIGradient") -- warm paper: lighter at the top, a touch darker at the foot (colour stops only)
+	paper.Rotation = 90
+	paper.Color = ColorSequence.new(Color3.fromRGB(246, 232, 198), Color3.fromRGB(228, 210, 172))
+	paper.Parent = card
+	-- a slight tilt, a different one per card (1 to 2 degrees); the decline card stands straight
+	local TILTS = { -1.5, 1.0, -0.5, 1.5, -1.0 }
+	card.Rotation = isDecline and 0 or TILTS[(order - 1) % #TILTS + 1]
+	-- the dark wood frame around the paper with four brass studs on its corners (the Round Select cards' look)
+	local woodFrame = Instance.new("Frame")
+	woodFrame.Name = "WoodFrame"
+	woodFrame.Position = UDim2.fromOffset(-7, -7)
+	woodFrame.Size = UDim2.new(1, 14, 1, 14)
+	woodFrame.BackgroundColor3 = Color3.fromRGB(82, 54, 30)
+	woodFrame.BorderSizePixel = 0
+	woodFrame.Active = false
+	woodFrame.ZIndex = 61
+	woodFrame.Parent = card
+	ui.roundCorner(woodFrame, 15)
+	local woodEdge = Instance.new("UIStroke")
+	woodEdge.Color = Color3.fromRGB(38, 24, 12)
+	woodEdge.Thickness = 2
+	woodEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	woodEdge.Parent = woodFrame
+	for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+		local stud = Instance.new("Frame")
+		stud.Name = "WoodStud" .. i
+		stud.AnchorPoint = Vector2.new(0.5, 0.5)
+		stud.Position = UDim2.new(at[1], at[1] == 0 and 7 or -7, at[2], at[2] == 0 and 7 or -7)
+		stud.Size = UDim2.fromOffset(9, 9)
+		stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
+		stud.BorderSizePixel = 0
+		stud.Active = false
+		stud.ZIndex = 62
+		stud.Parent = woodFrame
+		ui.roundCorner(stud, 5)
+	end
 
+	local medalRing = Instance.new("Frame") -- the brass ring the portrait sits in (made first, so it draws under the well)
+	medalRing.Name = "MedalRing"
+	medalRing.Size = UDim2.fromOffset(98, 98)
+	medalRing.Position = UDim2.new(0.5, -49, 0, 7)
+	medalRing.BackgroundColor3 = Color3.fromRGB(200, 160, 84)
+	medalRing.BorderSizePixel = 0
+	medalRing.ZIndex = 63
+	medalRing.Parent = card
+	ui.roundCorner(medalRing, 49)
+	local medalEdge = Instance.new("UIStroke")
+	medalEdge.Color = Color3.fromRGB(60, 40, 22)
+	medalEdge.Thickness = 2
+	medalEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	medalEdge.Parent = medalRing
 	local well = Instance.new("Frame")
 	well.Name = "Well"
 	well.Size = UDim2.fromOffset(84, 84)
@@ -193,15 +243,33 @@ local function buildCard(choice, option, order)
 			TextWrapped = true,
 		})
 	end
-	label(card, {
-		Name = "Line1", Size = UDim2.new(1, -24, 0, rarity and 44 or 56), Position = UDim2.fromOffset(12, rarity and 158 or 136), Text = option.line1 or "", TextSize = 15,
-		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
-		TextColor3 = (choice.kind == "modifier") and BLESS or INK,
-	})
-	label(card, {
-		Name = "Line2", Size = UDim2.new(1, -24, 0, rarity and 36 or 40), Position = UDim2.fromOffset(12, rarity and 204 or 194), Text = option.line2 or "", TextSize = 15,
-		Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = CURSE,
-	})
+	-- the rule text sits in one block centred in the gap between the name and the Choose plate: dark ink, 16 px, the plus line in green ink
+	-- and the minus line in dark red ink (4.5:1 or better on the paper)
+	local ruleTop = rarity and 158 or 136
+	local ruleBox = Instance.new("Frame")
+	ruleBox.Name = "Rule"
+	ruleBox.BackgroundTransparency = 1
+	ruleBox.BorderSizePixel = 0
+	ruleBox.Active = false
+	ruleBox.Position = UDim2.fromOffset(12, ruleTop)
+	ruleBox.Size = UDim2.new(1, -24, 0, 242 - ruleTop)
+	ruleBox.ZIndex = 63
+	ruleBox.Parent = card
+	local ruleList = Instance.new("UIListLayout")
+	ruleList.SortOrder = Enum.SortOrder.LayoutOrder
+	ruleList.VerticalAlignment = Enum.VerticalAlignment.Center
+	ruleList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	ruleList.Padding = UDim.new(0, 4)
+	ruleList.Parent = ruleBox
+	local function ruleLine(name, order, text, color)
+		if text == nil or text == "" then return end
+		label(ruleBox, {
+			Name = name, LayoutOrder = order, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = text, TextSize = 16,
+			Font = Enum.Font.GothamMedium, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = color,
+		})
+	end
+	ruleLine("Line1", 1, option.line1, (choice.kind == "modifier") and BLESS or INK)
+	ruleLine("Line2", 2, option.line2, CURSE)
 
 	local button = Instance.new("TextButton")
 	button.Name = "Pick"
