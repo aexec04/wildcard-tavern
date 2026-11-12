@@ -102,6 +102,12 @@ function M.pageItems(items, tabId, page)
 	return out
 end
 
+-- how many slots of a page hold no entry (only the last page); the client covers them so no blank hook or tag shows
+function M.unusedCount(n, tabId, page)
+	local shown = #M.pageItems((function() local t = {} for i = 1, n do t[i] = i end return t end)(), tabId, page)
+	return M.perPage(tabId) - shown
+end
+
 function M.pageText(page, pages)
 	return string.format("Page %d of %d", math.floor(page), math.floor(pages))
 end

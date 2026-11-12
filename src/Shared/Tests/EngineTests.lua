@@ -19012,6 +19012,13 @@ table.insert(tests, { name = "CollectionBook.Rarities: six tiers each have a dis
 	assert(n == 6)
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout.unusedCount: only a partly filled last page has unused slots", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	expectEqual(L.unusedCount(13, "housePasses", 1), 0, "full first page")
+	expectEqual(L.unusedCount(13, "housePasses", 2), 11, "page 2 of 13 has 11 unused")
+	expectEqual(L.unusedCount(16, "bonds", 2), 0, "a full bonds page")
+	expectEqual(L.unusedCount(10, "bonds", 2), 6, "bonds hold 8 a page")
+end })
 table.insert(tests, { name = "CollectionSectionLayout.plateFit: long plate names wrap to two lines at 14 px and keep their top, short ones stay on one", fn = function()
 	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
 	local RL = require(script.Parent.Parent.Engine.CollectionRoomLayout)

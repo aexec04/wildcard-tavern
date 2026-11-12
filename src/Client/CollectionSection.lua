@@ -381,6 +381,21 @@ function CollectionSection.new(opts)
 			hit.Name = "Slot_" .. tostring(item.id)
 			if info.fresh and info.found then newTag(frame, slot, z + 6) end
 		end
+		-- unused slots on a partly filled last page: cover the painted blank hook or tag with the dark wall tone
+		local used = #Layout.pageItems(st.items, tabId, st.page)
+		for i = used + 1, Layout.perPage(tabId) do
+			local slot = p.slots[i]
+			if slot then
+				local top = slot.y - (Layout.kind(tabId) == "tag" and math.floor(slot.h * 0.35) or 6)
+				local bottom = slot.y + slot.h
+				if slot.plate then bottom = math.max(bottom, slot.plate.y + slot.plate.h) end
+				local x0, x1 = slot.x - 6, slot.x + slot.w + 6
+				if slot.plate then x0, x1 = math.min(x0, slot.plate.x - 4), math.max(x1, slot.plate.x + slot.plate.w + 4) end
+				local cover = make("Frame", frame, { Name = "EmptySlot_" .. i, BackgroundColor3 = Color3.fromRGB(30, 21, 14), BackgroundTransparency = 0, BorderSizePixel = 0, ZIndex = z + 1 })
+				cover.Position = UDim2.fromOffset(math.floor(x0), math.floor(top))
+				cover.Size = UDim2.fromOffset(math.ceil(x1 - x0), math.ceil(bottom - top))
+			end
+		end
 		if pagerRect and pages > 1 then
 			pagerHost.Visible = true
 			local pg = Layout.pager(pagerRect.w)
