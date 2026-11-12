@@ -13,7 +13,7 @@ Each category keeps its own ids.json / image-ids.json / state.json (stale tracki
 Run from the project root on your Mac (add -c <category> to any command):
   python3 tools/patron_art/generate_patron_art.py generate --limit 5     # style test first
   python3 tools/patron_art/generate_patron_art.py generate               # the rest (skips existing PNGs)
-  python3 tools/patron_art/generate_patron_art.py upload                 # Open Cloud upload, saves ids
+  python3 tools/patron_art/generate_patron_art.py upload                 # Open Cloud upload as Image assets, records ids and writes the art map (--decal for the old route)
   python3 tools/patron_art/generate_patron_art.py lua                    # writes src/Shared/Engine/PatronArt.lua
   python3 tools/patron_art/generate_patron_art.py all                    # generate + upload + lua
   python3 tools/patron_art/generate_patron_art.py status                 # what is missing / stale / uploaded
@@ -496,8 +496,9 @@ def _upload_one(pid, data, headers, creator, args):
     if qa(pid):
         print(f"skip {pid}: QA failed {qa(pid)}")
         return "skipped"
+    as_decal = getattr(args, "decal", False)
     req = {
-        "assetType": "Decal",
+        "assetType": "Decal" if as_decal else "Image",
         "displayName": f"{LABEL} {pid}",
         "description": f"Wildcard Tavern {LABEL.lower()} art",
         "creationContext": {"creator": creator},
@@ -532,8 +533,16 @@ def _upload_one(pid, data, headers, creator, args):
             ids[pid] = str(op["response"]["assetId"])
             save_ids(ids)
             _record_hash(pid)
-            _drop_image_id(pid)
-        print(f"uploaded {pid} -> {ids[pid]}", flush=True)
+            if as_decal:
+                _drop_image_id(pid)  # a Decal id still needs resolving to its Image id in Studio
+            else:
+                m = load_image_ids()  # an Image upload returns the Image id itself: record it now
+                m[pid] = ids[pid]
+                IMAGE_IDS.write_text(json.dumps(m, indent=2, sort_keys=True))
+        if as_decal:
+            print(f"uploaded {pid} -> {ids[pid]}", flush=True)
+        else:
+            print(f"{CATEGORY} {pid} {ids[pid]} recorded", flush=True)
         return "made"
     print(f"NOT FINISHED/REJECTED {pid}: {json.dumps(op)[:300]}", flush=True)
     return "failed"
@@ -549,6 +558,8 @@ def cmd_upload(args):
     headers = {"x-api-key": key}
     pids = pick(subjects(data), args)
     failed, stop = _run_parallel(lambda pid: _upload_one(pid, data, headers, creator["creator"], args), pids, args.workers)
+    if not getattr(args, "decal", False):
+        cmd_lua(args)  # Image ids are final: write the art map now
     if stop:
         sys.exit(stop)
     if failed:
@@ -776,6 +787,7 @@ def main():
     ap.add_argument("--only")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--decal", action="store_true", help="upload as Decals (old route: ids need resolving to Image ids in Studio); default uploads Images and records them")
     ap.add_argument("--quality", choices=["low", "medium", "high"], help="quality for this command only (beats the category value and .env)")
     ap.add_argument("--style", help="prompts.json style key to use instead of the category's (e.g. house_style)")
     ap.add_argument("--reference", nargs="?", const="art-wip/backgrounds/journey_map.png",
