@@ -132,6 +132,7 @@ return function(deps)
 		end
 		previewActive = false
 		previewBar.Visible = false
+		pcall(function() require(script.Parent.PreviewMode).finish() end) -- the real run is drawn again, run remotes work again
 		pcall(CosmeticSetsView.stopPreview)
 		if reopen then
 			refresh()
@@ -144,11 +145,14 @@ return function(deps)
 	local function startPreview(name, setId, backId)
 		savedScroll = scroll.CanvasPosition
 		previewActive = true
-		barText.Text = "Preview mode: " .. name .. "  (X to end)"
+		barText.Text = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PreviewGuard")).barText(name)
 		previewBar.Visible = true
+		pcall(function() require(script.Parent.PreviewMode).begin(deps.screenGui:FindFirstChild("GameRoot") or deps.screenGui) end) -- look-only: sample hand, inert plates
 		pcall(CosmeticSetsView.preview, setId, backId)
 		popOut(backdrop, panel)
 	end
+	-- Escape presses the X (the one button of the preview bar); the dark area is not a thing here
+	require(script.Parent.PopupDismiss).attach(previewBar, { policy = "button", press = function() endPreview(true) end, outside = false, button = true })
 	barX.MouseButton1Click:Connect(function()
 		playClickSfx()
 		endPreview(true)

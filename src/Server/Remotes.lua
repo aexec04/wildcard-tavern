@@ -43,6 +43,7 @@ Rem.EquipBadge = newRemote("EquipBadge") -- BADGES: (player, badgeId|nil) equips
 Rem.UnlockRoad = newRemote("UnlockRoad") -- WORLD MAP: (player, stopId) spends a Key to open a locked road at a pending fork
 Rem.UseCompass = newRemote("UseCompass") -- WORLD MAP: (player) spends a compass charge at a fork
 Rem.EquipTitle = newRemote("EquipTitle") -- ACHIEVEMENTS + TITLES (Phase 16): (player, achievementId or nil)
+Rem.PreviewMode = newRemote("PreviewMode") -- (player, on boolean): Card Set Preview is look-only, run remotes are rejected while on (Engine/PreviewGuard)
 Rem.SetSetting = newRemote("SetSetting") -- (player, key string, value) -- see PlayerProfile.SETTING_SPECS
 Rem.MarkTutorialSeen = newRemote("MarkTutorialSeen") -- TUTORIAL (Phase 16): (player) -- fired once the walkthrough is dismissed/skipped
 Rem.BuyRecipe = newRemote("BuyRecipe")   -- (player, category, id) -- see the comment above its handler: direct-buy is unreachable from the current UI, kept for direct engine/test use

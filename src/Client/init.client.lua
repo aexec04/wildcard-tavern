@@ -2273,6 +2273,7 @@ refreshHandSort = function()
 end
 
 local function render(state)
+	state = require(script.PreviewMode).filter(state) -- Card Set Preview is look-only: a sample hand and numbers while it runs
 	latestState = state
 
 	-- INTERACTIVE TUTORIAL: started only from the menu's "Tutorial"
@@ -2863,6 +2864,7 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 end)
 
 pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end, { showScorePopup = ScorePopupModule.showScorePopup, packSelect = Shop.debugPackSelect, packConfirm = Shop.debugPackConfirm }) end) -- Studio-only screens
+pcall(function() require(script.PreviewMode).setRenderer(render) end) -- Preview mode draws the real state again when it ends
 do -- the Menu stays usable until Play: no table or run modal over it after an abandon (Client/MenuGate.lua, Engine/MenuGate.lua)
 	local ok, err = pcall(function()
 		require(script.MenuGate).install({ screenGui = screenGui, root = root, menuFrame = MenuScreen.menuFrame, rerender = function()

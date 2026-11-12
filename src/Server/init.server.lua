@@ -53,7 +53,19 @@ local storePrompts = {} -- [player] = seq: opens the Store on the Starter Pack o
 local rewardSeqCounter = 0
 local EndlessRules = require(Engine.EndlessRules)
 local SaveLock = require(Engine.SaveLock) -- session lease + load retry schedule
-local RateLimit = require(Engine.RateLimit) -- per-player token bucket on every remote
+local RateLimit = (function() -- per-player token bucket on every remote; also the one place Card Set Preview (look only) rejects run remotes
+	local base, Guard = require(Engine.RateLimit), require(Engine.PreviewGuard)
+	local wrapped = setmetatable({}, { __index = base })
+	function wrapped.allow(userId, key, now)
+		local player = game:GetService("Players"):GetPlayerByUserId(userId)
+		if player then
+			if Guard.ENDS[key] then player:SetAttribute("PreviewMode", nil) end -- a new run or leaving one ends a preview
+			if Guard.blocked(key, player:GetAttribute("PreviewMode") == true) then return false end
+		end
+		return base.allow(userId, key, now)
+	end
+	return wrapped
+end)()
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
@@ -2805,6 +2817,10 @@ end)
 
 -- Settings panel / volume popup. No pushState: the client already applied
 -- the change locally, and an echo could fight a slider mid-drag.
+Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
+	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
+	player:SetAttribute("PreviewMode", on == true or nil)
+end)
 Rem.SetSetting.OnServerEvent:Connect(function(player, key, value)
 	if not RateLimit.allow(player.UserId, "Rem.SetSetting", os.clock()) then return end
 	local profile = profiles[player]

@@ -21040,7 +21040,7 @@ table.insert(tests, { name = "Dead clicks audit: stuck backdrop detection, popOu
 	end
 	local sets = read("src/Client/CosmeticSetsPanel.lua")
 	if sets then
-		expectTrue(sets:find("(X to end)", 1, true) ~= nil, "the Preview bar says to press X")
+		expectTrue(sets:find("barText(name)", 1, true) ~= nil and require(script.Parent.Parent.Engine.PreviewGuard).barText("A"):find("X to end)", 1, true) ~= nil, "the Preview bar says to press X")
 	end
 end })
 
@@ -22613,6 +22613,50 @@ table.insert(tests, { name = "BoardDrawer: collapsed board is fully off screen e
 		f:close()
 		expectTrue(text:find("KeyCode.Tab", 1, true) ~= nil and text:find("GetFocusedTextBox", 1, true) ~= nil, "Tab toggles, never while a text box has focus")
 		expectTrue(text:find("motionAllowed", 1, true) ~= nil, "reduced motion is instant")
+	end
+end })
+
+table.insert(tests, { name = "PreviewGuard: every run remote is rejected while PreviewMode is true, a new run ends it, the preview shows a fixed sample hand and numbers and never the real run", fn = function()
+	local G = require(script.Parent.Parent.Engine.PreviewGuard)
+	local runRemotes = { "PlayHand", "Discard", "BuyPatron", "SellPatron", "Choice", "ChooseRoad", "BuyRecipe", "UseRecipe", "RerollShop", "Haggle", "Stranger", "BuyPack", "ResolvePack", "BuyHousePass", "AdvanceRound", "SelectRound", "SkipRound", "UnlockRoad", "UseCompass", "UseRuleBan", "Minigame", "SideStop", "RequestContinue" }
+	for _, name in ipairs(runRemotes) do
+		expectTrue(G.blocked("Rem." .. name, true), name .. " is rejected while previewing")
+		expectFalse(G.blocked("Rem." .. name, false), name .. " works normally otherwise")
+	end
+	expectTrue(G.blocked("UseRuleBanRemote", true), "the Rule Ban key is guarded too")
+	expectFalse(G.blocked("Rem.SetSetting", true) or G.blocked("Rem.EquipCosmeticSet", true), "settings and cosmetics are not run actions")
+	for _, name in ipairs({ "StartRun", "RestartRun", "AbandonRun", "StartTutorial" }) do expectTrue(G.ENDS["Rem." .. name], name .. " ends a preview") end
+	local real = { phase = "playing", night = 5, round = 2, roundScore = 812, targetScore = 4000, handsRemaining = 1, discardsRemaining = 0, tips = 31, ownedPatrons = { { id = "x" } }, hand = { { rank = 9, suit = "Hearts" } }, isBossRound = true, bossModifier = { id = "b" } }
+	local sample = G.sampleState(real)
+	expectEqual(real.night, 5, "the real state is never changed")
+	expectEqual(#real.hand, 1, "the real hand is untouched")
+	expectTrue(sample.night == 1 and sample.round == 1 and sample.roundScore == 0 and sample.targetScore == 300, "sample Night 1 Round 1, 0 / 300")
+	expectTrue(#sample.hand == 8 and #sample.ownedPatrons == 0 and sample.isBossRound == false and sample.bossModifier == nil, "a fixed sample hand, no real Patrons or boss")
+	local suits, face, ace = {}, false, false
+	for _, c in ipairs(sample.hand) do suits[c.suit] = true if c.rank >= 11 and c.rank <= 13 then face = true end if c.rank == 14 then ace = true end end
+	expectTrue(suits.Hearts and suits.Diamonds and suits.Clubs and suits.Spades and face and ace, "one of each suit, a face card and an Ace")
+	local shop = { phase = "shop" }
+	expectTrue(G.sampleState(shop) == shop, "only a playing round is replaced")
+	expectEqual(G.DIM, 0.4, "Play Hand and Discard are dimmed 40 percent")
+	expectEqual(G.barText("Frosted Garden"), "Preview mode: Frosted Garden  (look only, X to end)", "bar line")
+	local f = io and io.open and io.open("src/Server/init.server.lua", "r")
+	if f then
+		local text = f:read("*a")
+		f:close()
+		expectTrue(text:find("Guard.blocked(key, player:GetAttribute(\"PreviewMode\") == true)", 1, true) ~= nil, "the server rate limiter rejects blocked remotes in one place")
+		expectTrue(text:find("Rem.PreviewMode.OnServerEvent", 1, true) ~= nil, "the client can set PreviewMode")
+	end
+	local g = io and io.open and io.open("src/Client/CosmeticSetsPanel.lua", "r")
+	if g then
+		local text = g:read("*a")
+		g:close()
+		expectTrue(text:find("PreviewMode", 1, true) ~= nil and text:find("PopupDismiss", 1, true) ~= nil, "Preview start and end drive PreviewMode; Escape presses the X through PopupDismiss")
+	end
+	local h = io and io.open and io.open("src/Client/PreviewMode.lua", "r")
+	if h then
+		local text = h:read("*a")
+		h:close()
+		expectTrue(text:find("Active = true", 1, true) ~= nil and text:find("Guard.DIM", 1, true) ~= nil, "shields sink clicks and the plates are dimmed")
 	end
 end })
 
