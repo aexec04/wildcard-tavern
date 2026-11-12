@@ -6,6 +6,14 @@
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
 	player, so it only warns. scale:<w>x<h> shrinks GameUI to that viewport, scale:off restores it. Parsing is in Engine/DebugGotoRules.lua.
+	Screens that are hard to reach (each goes through round1 first, then shows a changed copy of the real state):
+	  haggle, haggle:good, haggle:bad   the Counter with a Wandering Stranger on offer (bad: the long curse picks the second scroll)
+	  road                              Choose your road with three sample stops
+	  runover, runover:win              the merged Run Over screen with a loss or a win sample, every field filled
+	  packroom                          5/5 Patrons, 20 Tips, an open Patron pack and its first Patron picked: the Make room step
+	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
+	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
+	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
 	init({ menuFrame })
 ]]
 
@@ -17,8 +25,8 @@ local Cue = require(script.Parent.Cue)
 local DebugGoto = {}
 
 -- the hub hands over its render function and a getter for the latest table state (Studio-only screens re-render a changed copy)
-function DebugGoto.setRenderer(render, getState)
-	DebugGoto.render, DebugGoto.getState = render, getState
+function DebugGoto.setRenderer(render, getState, tools)
+	DebugGoto.render, DebugGoto.getState, DebugGoto.tools = render, getState, tools or {}
 end
 
 function DebugGoto.init(deps)
@@ -32,9 +40,10 @@ function DebugGoto.init(deps)
 	local lastStep = "start"
 	local selectSent = false
 	local synthWhich = nil -- shop/roundwin/gameover/boss1/roundselect: the screen to show once round1 has reached it
+	local synthVariant, synthPage = nil, nil -- haggle:good|bad, runover:win, rarity:<page>
 	local previewSet = nil -- round1:<setId>: the set to preview once the hand is dealt (a run start resets the look)
 
-	local function showSynth(which)
+	local function showSynth(which, variant, page)
 		if which == "roundselect" then return end -- the real Round Select state is already on screen
 		if not (DebugGoto.render and DebugGoto.getState) then error("renderer not wired") end
 		local base = DebugGoto.getState()
@@ -44,8 +53,39 @@ function DebugGoto.init(deps)
 		for _, d in ipairs(require(Engine.Patrons).Definitions) do patrons[#patrons + 1] = d if #patrons >= 2 then break end end
 		for _, d in ipairs(require(Engine.Packs).Definitions) do packs[#packs + 1] = d if #packs >= 2 then break end end
 		local boss = require(Engine.BossRounds).Definitions[1]
-		DebugGoto.render(Rules.synth(which, base, { patrons = patrons, packs = packs, boss = boss }))
-		print("[DebugGoto] " .. which .. " ok")
+		local data = { patrons = patrons, packs = packs, boss = boss, variant = variant, page = page }
+		if which == "road" then
+			-- three sample stops that exist on the map
+			data.roads = {}
+			for id in pairs(require(Engine.WorldMap).Stops) do
+				data.roads[#data.roads + 1] = id
+			end
+			table.sort(data.roads)
+			while #data.roads > 3 do table.remove(data.roads) end
+		elseif which == "packroom" then
+			data.allPatrons = require(Engine.Patrons).Definitions
+		elseif which == "rarity" then
+			-- one Patron of each rarity tier that exists, weakest tier first
+			local CB = require(Engine.CollectionBook)
+			local byTier, order = {}, {}
+			for _, d in ipairs(require(Engine.Patrons).Definitions) do
+				local tier = CB.rarityForId("patrons", d.id)
+				if not byTier[tier] then byTier[tier] = d end
+			end
+			for _, tier in ipairs(CB.RarityOrder) do
+				if byTier[tier] then order[#order + 1] = byTier[tier] end
+			end
+			data.tierPatrons = order
+		end
+		DebugGoto.render(Rules.synth(which, base, data))
+		if which == "packroom" and DebugGoto.tools.packSelect then
+			-- pick the first revealed Patron and press Confirm, so the Make room step shows
+			task.delay(0.6, function()
+				pcall(DebugGoto.tools.packSelect, 1)
+				pcall(DebugGoto.tools.packConfirm)
+			end)
+		end
+		print("[DebugGoto] " .. which .. (variant and (":" .. variant) or "") .. " ok")
 	end
 
 	local function hideMenu()
@@ -105,6 +145,21 @@ function DebugGoto.init(deps)
 			if not Cue.audition(target.cue) then warn("[DebugGoto] sfx:" .. target.cue .. " did not play") end
 			return
 		end
+		if target.kind == "fx" then
+			-- the True Wildcard banner and effect, or the Legendary banner and FlashFX, once, on the play screen (round1 first so the table is up)
+			local tools = DebugGoto.tools or {}
+			if not tools.showScorePopup then warn("[DebugGoto] " .. target.effect .. " ignored: no score popup wired") return end
+			local preview = { name = "Straight Flush", score = 48000, chips = 800, mult = 60, breakdown = {}, roundScoreBefore = 0, targetScore = 3000,
+				isLegendary = target.effect == "legendary" }
+			if target.effect == "wildcard" then preview.wildcardResolution = { label = "8 of Hearts" } end
+			local okF, errF = pcall(function()
+				if deps and deps.root then deps.root.Visible = true end
+				if deps and deps.menuFrame then deps.menuFrame.Visible = false end
+				tools.showScorePopup(preview, nil)
+			end)
+			if okF then print("[DebugGoto] " .. target.effect .. " ok") else warn("[DebugGoto] " .. target.effect .. " failed: " .. tostring(errF)) end
+			return
+		end
 		if target.kind == "scale" then
 			local okS, errS = pcall(applyScale, target)
 			if not okS then warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(errS)) end
@@ -130,6 +185,7 @@ function DebugGoto.init(deps)
 				require(script.Parent.NewsPanel).open()
 			elseif target.kind == "round1" or target.kind == "synth" then
 				synthWhich = (target.kind == "synth") and target.which or nil
+				synthVariant, synthPage = target.variant, target.page
 				OverlayManager.closeAllExcept("")
 				hideMenu()
 				if deps and deps.root then deps.root.Visible = true end -- the real launch shows the table too (Client/ChallengeStart.launch)
@@ -181,9 +237,9 @@ function DebugGoto.init(deps)
 		if count then
 			pendingRound1 = false
 			if synthWhich then
-				local which = synthWhich
-				synthWhich = nil
-				local okS, errS = pcall(showSynth, which)
+				local which, variant, page = synthWhich, synthVariant, synthPage
+				synthWhich, synthVariant, synthPage = nil, nil, nil
+				local okS, errS = pcall(showSynth, which, variant, page)
 				if not okS then warn("[DebugGoto] " .. which .. " failed: " .. tostring(errS)) end
 				return
 			end

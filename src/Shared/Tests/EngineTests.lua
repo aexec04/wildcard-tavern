@@ -20733,7 +20733,7 @@ tests[#tests + 1] = ({ name = "DebugGoto: the synth kind has its own branch that
 	f:close()
 	expectTrue(src:find('target.kind == "synth"', 1, true) ~= nil, "a synth branch exists")
 	expectTrue(src:find("synthWhich = (target.kind == \"synth\") and target.which", 1, true) ~= nil, "synthWhich is assigned from the target")
-	expectTrue(src:find("pcall(showSynth, which)", 1, true) ~= nil, "showSynth is called once the hand is dealt")
+	expectTrue(src:find("pcall(showSynth, which, variant, page)", 1, true) ~= nil, "showSynth is called once the hand is dealt")
 end })
 
 table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varies with the seed, Game Over has Back to Tavern and a full-screen dim", fn = function()
@@ -22005,6 +22005,65 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 		local text = f:read("*a")
 		f:close()
 		expectTrue(text:find("ChoiceRarity.info", 1, true) ~= nil and text:find("RarityGem", 1, true) ~= nil, "the rarity rim, gem and tier word are the shared ChoiceRarity helper, not a copy")
+	end
+end })
+
+table.insert(tests, { name = "DebugGoto: haggle, road, runover, packroom, rarity and the wildcard and legendary effects parse, and their synthetic states carry what each screen needs", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local function kind(v) local t = R.parse(v) return t and t.kind, t end
+	for _, name in ipairs({ "haggle", "road", "runover", "packroom", "rarity" }) do
+		local k, t = kind(name)
+		expectTrue(k == "synth" and t.which == name, name .. " is a synth screen")
+	end
+	local _, t = kind("haggle:bad")
+	expectTrue(t.which == "haggle" and t.variant == "bad", "haggle:bad")
+	_, t = kind("haggle:good")
+	expectTrue(t.which == "haggle" and t.variant == "good", "haggle:good")
+	_, t = kind("runover:win")
+	expectTrue(t.which == "runover" and t.variant == "win", "runover:win")
+	_, t = kind("rarity:2")
+	expectTrue(t.which == "rarity" and t.page == 2, "rarity:2 is the second page")
+	for _, effect in ipairs({ "wildcard", "legendary" }) do
+		local k, e = kind(effect)
+		expectTrue(k == "fx" and e.effect == effect, effect .. " plays an effect")
+	end
+	for _, bad in ipairs({ "haggle:ugly", "runover:lose", "rarity:x", "rarity:0", "packroom:2", "road:1", "Wildcard2" }) do
+		expectEqual(R.parse(bad), nil, bad .. " is refused")
+	end
+	expectTrue(R.parse("HAGGLE:Bad").variant == "bad", "case and spaces are folded")
+	-- the synthetic states
+	local base = { phase = "playing", night = 1, round = 1, tips = 3, ownedPatrons = {}, patronSlotLimit = 5, hand = { 1, 2 } }
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local all = Patrons.Definitions
+	local two = { all[1], all[2] }
+	local good = R.synth("haggle", base, { patrons = two, variant = "good" })
+	local bad = R.synth("haggle", base, { patrons = two, variant = "bad" })
+	expectTrue(good.phase == "shop" and good.tips >= 20 and good.stranger ~= nil and #good.shopOffers == 2, "haggle: the Counter with a Stranger and enough Tips")
+	expectTrue(#bad.stranger.curse > #bad.stranger.blessing + 8 and #good.stranger.curse <= #good.stranger.blessing + 8, "bad has the long curse (second scroll), good does not")
+	local SL = require(script.Parent.Parent.Engine.ScrollOfferLayout)
+	expectTrue(SL.pick(bad.stranger) == "b" and SL.pick(good.stranger) == "a", "so the two variants show the two scrolls")
+	local road = R.synth("road", base, { roads = { "a", "b", "c" } })
+	expectTrue(road.phase == "roundSelect" and #road.worldChoices == 3 and road.night >= 3, "road: three choices on a Night 3 fork")
+	local lose = R.synth("runover", base, { patrons = all })
+	local win = R.synth("runover", base, { patrons = all, variant = "win" })
+	expectTrue(lose.phase == "gameover" and lose.wonRun == false and win.wonRun == true and win.runSummary.won == true, "runover: a loss and a win")
+	for _, st in ipairs({ lose, win }) do
+		local sm = st.runSummary
+		expectTrue(sm.bestHand and #sm.route >= 3 and #sm.patrons >= 1 and sm.blessing and sm.rarity and st.nextUnlock and st.continueOffer == "free", "runover: every field is filled")
+	end
+	local room = R.synth("packroom", base, { allPatrons = all })
+	expectTrue(room.phase == "shop" and room.tips == 20 and #room.ownedPatrons == room.patronSlotLimit and room.pendingPack and #room.pendingPack.items == 3, "packroom: a full table, 20 Tips, a pack of three")
+	for _, item in ipairs(room.pendingPack.items) do
+		for _, owned in ipairs(room.ownedPatrons) do expectFalse(item.id == owned.id, "a revealed Patron is not already owned") end
+	end
+	local page1 = R.synth("rarity", base, { tierPatrons = all, page = 1 })
+	local page2 = R.synth("rarity", base, { tierPatrons = all, page = 2 })
+	expectTrue(page1.choice.kind == "patron" and #page1.choice.options == 3 and #page2.choice.options == 3 and page1.choice.options[1].id ~= page2.choice.options[1].id, "rarity: three per page, the next page shows the next three")
+	local f = io and io.open and io.open("src/Client/DebugGoto.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("haggle, haggle:good, haggle:bad", 1, true) ~= nil and src:find("wildcard, legendary", 1, true) ~= nil, "the header comment lists the new values")
 	end
 end })
 

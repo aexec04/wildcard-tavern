@@ -1107,7 +1107,7 @@ return function(deps)
 		packSkipButton.Text = refund > 0 and string.format("Skip Pack (+%d Tips)", refund) or "Skip Pack"
 	end
 
-	packConfirmButton.MouseButton1Click:Connect(function()
+	local function confirmPackPick()
 		if not tutorialAllows("packConfirm") then return end
 		local state = getLatestState()
 		local pending = state and state.pendingPack
@@ -1146,7 +1146,8 @@ return function(deps)
 		ResolvePackRemote:FireServer(chosen)
 		pendingPackSelected = {}
 		tutorialReport("pack_confirm")
-	end)
+	end
+	packConfirmButton.MouseButton1Click:Connect(confirmPackPick)
 
 	packSkipButton.MouseButton1Click:Connect(function()
 		if not tutorialAllows("packSkip") then return end -- never allowed in the tutorial
@@ -1934,5 +1935,16 @@ return function(deps)
 		rebuildMyPatronsTab = rebuildMyPatronsTab,
 		rebuildMyRecipesTab = rebuildMyRecipesTab,
 		closeTargetPanel = closeTargetPanel,
+		-- Studio only (Client/DebugGoto "packroom"): pick the n-th revealed item and press Confirm, so the Make room step can be looked at
+		debugPackSelect = function(index)
+			local state = getLatestState()
+			if state and state.pendingPack and state.pendingPack.items[index] then
+				pendingPackSelected = { [index] = true }
+				refreshPackPanel(state)
+			end
+		end,
+		debugPackConfirm = function()
+			confirmPackPick()
+		end,
 	}
 end

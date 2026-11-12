@@ -2853,7 +2853,7 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 	render(state)
 end)
 
-pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end) end) -- Studio-only screens
+pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end, { showScorePopup = ScorePopupModule.showScorePopup, packSelect = Shop.debugPackSelect, packConfirm = Shop.debugPackConfirm }) end) -- Studio-only screens
 do -- the Menu stays usable until Play: no table or run modal over it after an abandon (Client/MenuGate.lua, Engine/MenuGate.lua)
 	local ok, err = pcall(function()
 		require(script.MenuGate).install({ screenGui = screenGui, root = root, menuFrame = MenuScreen.menuFrame, rerender = function()

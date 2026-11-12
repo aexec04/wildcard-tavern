@@ -16,7 +16,12 @@ DebugGotoRules.TOME_PAGES = {
 DebugGotoRules.SEED_CODE = "DEBUG2" -- fixed run seed for round1 (6 chars, A-Z without I and O, digits 2-9)
 
 -- Table screens reached by round1 then re-rendering a changed copy of the real state (no server hook needed).
-DebugGotoRules.SYNTH = { shop = true, roundwin = true, gameover = true, boss1 = true, roundselect = true }
+DebugGotoRules.SYNTH = { shop = true, roundwin = true, gameover = true, boss1 = true, roundselect = true,
+	haggle = true, road = true, runover = true, packroom = true, rarity = true }
+-- values with a variant: haggle:good|bad, runover:win, rarity:<page>
+DebugGotoRules.VARIANTS = { haggle = { good = true, bad = true }, runover = { win = true } }
+-- play one effect on the play screen: wildcard (the True Wildcard banner and effect) and legendary (the Legendary banner and FlashFX)
+DebugGotoRules.FX = { wildcard = true, legendary = true }
 
 -- shallow copy of `state` turned into the named screen; `data` = { patrons = {def...}, packs = {def...}, boss = def }
 function DebugGotoRules.synth(which, state, data)
@@ -37,6 +42,75 @@ function DebugGotoRules.synth(which, state, data)
 			s.packOffers[#s.packOffers + 1] = { id = p.id, name = p.name, icon = p.icon, description = p.description, price = 3 + i }
 		end
 		s.tips = math.max(s.tips or 0, 12)
+	elseif which == "haggle" then
+		-- the Counter with a Wandering Stranger on offer: a good offer (short curse) or a bad one (a long curse picks the second scroll)
+		s.phase = "shop"
+		s.hand = {}
+		s.shopOffers, s.packOffers = {}, {}
+		for i, p in ipairs(data.patrons or {}) do
+			if i > 2 then break end
+			s.shopOffers[#s.shopOffers + 1] = { id = p.id, name = p.name, description = p.description, price = 4 + i }
+		end
+		s.tips = math.max(s.tips or 0, 20)
+		local bad = data.variant == "bad"
+		s.stranger = { id = "debug_purse", name = "The Fat Purse", icon = "\u{1F45B}", price = 4,
+			blessing = bad and "Sharper hands" or "A big bonus this round",
+			curse = bad and "Lose all your Tips at the start of every single round" or "-1 hand" }
+	elseif which == "road" then
+		-- the Choose your road screen with three sample stops
+		s.phase = "roundSelect"
+		s.night = math.max(s.night or 1, 3)
+		s.worldChoices = data.roads or {}
+		s.worldRoute = nil
+		s.compassCharges = 1
+	elseif which == "runover" then
+		-- the merged Run Over screen with every field filled
+		s.phase = "gameover"
+		s.wonRun = data.variant == "win"
+		s.night, s.round = s.wonRun and 8 or 5, 3
+		s.roundScore, s.targetScore, s.tips = 604, 3174, 12
+		s.continueOffer = "free"
+		s.revived = false
+		s.nextUnlock = { label = "Fast Hands at 3 wins" }
+		local patrons = {}
+		for i, p in ipairs(data.patrons or {}) do
+			if i > 6 then break end
+			patrons[#patrons + 1] = { id = p.id, name = p.name, icon = p.icon }
+		end
+		s.runSummary = { won = s.wonRun, night = s.night, round = s.round, bestHand = { name = "Full House", score = 1280 }, handsPlayed = 22,
+			route = data.route or { { id = "dusty_road", name = "Dusty Road" }, { id = "meadow", name = "Meadow Gate" }, { id = "harbor", name = "Harbor Steps" } },
+			routeIds = {}, patrons = patrons, rarity = s.wonRun and "legendary" or "rare", titleText = "Wandering Guest",
+			blessing = { name = "Generous House", curse = "Prices rise by 1" }, badgeSaved = false, stake = 1, endlessBestByStake = {} }
+	elseif which == "packroom" then
+		-- a full table (5 of 5 Patrons), 20 Tips and an open Patron pack: Confirm on a pick opens the Make room step
+		s.phase = "shop"
+		s.hand = {}
+		s.tips = 20
+		s.patronSlotLimit = s.patronSlotLimit or 5
+		s.ownedPatrons = {}
+		local all = data.allPatrons or {}
+		for i = 1, s.patronSlotLimit do
+			local p = all[i]
+			if p then s.ownedPatrons[#s.ownedPatrons + 1] = { id = p.id, name = p.name, description = p.description } end
+		end
+		local items = {}
+		for i = s.patronSlotLimit + 1, #all do
+			local p = all[i]
+			items[#items + 1] = { id = p.id, name = p.name, icon = p.icon, description = p.description, category = "patron" }
+			if #items >= 3 then break end
+		end
+		s.pendingPack = { packId = "buffoon_pack", category = "patron", pickCount = 1, items = items, paidPrice = 6 }
+		s.shopOffers, s.packOffers = {}, {}
+	elseif which == "rarity" then
+		-- the first-Patron draft with a Patron of each tier that exists, three per page (rarity:2 for the next three)
+		local tiers = data.tierPatrons or {}
+		local page = math.max(1, data.page or 1)
+		local options = {}
+		for i = (page - 1) * 3 + 1, math.min(#tiers, page * 3) do
+			local p = tiers[i]
+			options[#options + 1] = { id = p.id, name = p.name, icon = p.icon, line1 = p.description or "", line2 = "" }
+		end
+		s.choice = { kind = "patron", title = "Choose your first Patron", text = "Debug: one Patron per rarity tier (page " .. page .. ").", icon = "?", options = options }
 	elseif which == "gameover" then
 		s.phase = "gameover"
 	elseif which == "boss1" and data.boss then
@@ -66,6 +140,17 @@ function DebugGotoRules.parse(value)
 	end
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
+	end
+	if DebugGotoRules.FX[text] then
+		return { kind = "fx", effect = text }
+	end
+	-- haggle:good | haggle:bad | runover:win | rarity:<page 1..9>
+	local name, variant = text:match("^(%a+):([%w]+)$")
+	if name and DebugGotoRules.VARIANTS[name] and DebugGotoRules.VARIANTS[name][variant] then
+		return { kind = "synth", which = name, variant = variant }
+	end
+	if name == "rarity" and variant:match("^%d$") and tonumber(variant) >= 1 then
+		return { kind = "synth", which = "rarity", page = tonumber(variant) }
 	end
 	-- sfx:<cueName> plays that cue once, sfx:ladder an 8 step pitch ladder (Studio audition, Client/Sound.auditionCue)
 	local sfxName = text:match("^sfx:([%w_]+)$")
