@@ -292,6 +292,18 @@ function M.inkOn(bg, locked)
 	return { color = color, transparency = math.max(0, t) }
 end
 
+-- Card text block (Recipes, Bonds): centred in the slot's inner rect with CARD_PAD px each side (the pin and gem never push it), the
+-- title and the description stacked as one block centred vertically; a locked card (no line) centres its single name.
+M.CARD_PAD = 12
+function M.cardText(inner, hasLine)
+	local pad = M.CARD_PAD
+	local x, w = inner.x + pad, math.max(1, inner.w - 2 * pad)
+	local y, h = inner.y + pad, math.max(1, inner.h - 2 * pad)
+	if not hasLine then return { name = { x = x, y = y, w = w, h = h } } end
+	local nameH = math.floor(h * 0.3)
+	return { name = { x = x, y = y, w = w, h = nameH }, line = { x = x, y = y + nameH, w = w, h = h - nameH } }
+end
+
 function M.paperOf(tabId) return SCENES[tabId] and SCENES[tabId].paper end
 
 M.inside = Grid.inside

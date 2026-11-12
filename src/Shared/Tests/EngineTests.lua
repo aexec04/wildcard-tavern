@@ -19166,6 +19166,21 @@ table.insert(tests, { name = "Collection rarity rim: equals the slot minus the i
 	end
 end })
 
+table.insert(tests, { name = "CollectionSectionLayout.cardText: card text is centred with 12 px each side, never truncated by the pin, locked name centred alone", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, inner in ipairs({ { x = 100, y = 50, w = 260, h = 150 }, { x = 7, y = 9, w = 180, h = 110 } }) do
+		local t = L.cardText(inner, true)
+		expectEqual(t.name.x - inner.x, inner.x + inner.w - (t.name.x + t.name.w), "name: equal space left and right")
+		expectEqual(t.line.x - inner.x, inner.x + inner.w - (t.line.x + t.line.w), "line: equal space left and right")
+		expectEqual(t.name.x - inner.x, L.CARD_PAD, "12 px padding")
+		expectEqual(t.name.y - inner.y, inner.y + inner.h - (t.line.y + t.line.h), "block centred vertically")
+		expectEqual(t.name.y + t.name.h, t.line.y, "title and description touch, no gap")
+		local one = L.cardText(inner, false)
+		expectTrue(one.line == nil, "locked: only a name")
+		expectEqual(one.name.y - inner.y, inner.y + inner.h - (one.name.y + one.name.h), "locked name centred vertically")
+	end
+end })
+
 table.insert(tests, { name = "Collection painted sections: a locked Recipe or Bond prints only its name, never its effect or flavor text", fn = function()
 	local col, CB, discovered = collectionBuild({ painted = true })
 	if not col then return end

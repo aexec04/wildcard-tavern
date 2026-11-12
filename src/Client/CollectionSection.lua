@@ -258,20 +258,16 @@ function CollectionSection.new(opts)
 				sub.Name = "Line"
 			end
 		else
-			-- keep the title 26 px below the slot top (clear of the pin) and 22 px in from the left, 15 px max for two-line titles
-			local topPad = math.max(0, 26 - (inner.y - slot.y))
-			local ix, iw = inner.x, inner.w
-			if kind == "card" then
-				local lp = math.max(0, 22 - (inner.x - slot.x))
-				ix, iw = ix + lp, iw - lp
-			end
-			local ih = inner.h - topPad
-			local nameH = math.floor(ih * (info.line and 0.36 or 1))
-			fitText(frame, { x = ix, y = inner.y + topPad, w = iw, h = nameH }, tostring(info.name), z + 1, { TextColor3 = ink, TextTransparency = transparency, max = kind == "card" and 15 or 20 })
+			-- Recipes and Bonds: one block centred on the card, 12 px padding each side; the pin and the gem sit outside it
+			local rects = Layout.cardText(inner, info.line ~= nil)
+			local nm = fitText(frame, rects.name, tostring(info.name), z + 1, { TextColor3 = ink, TextTransparency = transparency, max = 20 })
+			nm.TextXAlignment = Enum.TextXAlignment.Center
+			nm.TextYAlignment = info.line and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center
 			if info.line then
-				local line = fitText(frame, { x = ix, y = inner.y + topPad + nameH + 2, w = iw, h = ih - nameH - 2 }, info.line, z + 1,
-					{ TextColor3 = ink, TextTransparency = transparency, Font = Enum.Font.Gotham, max = 16, TextTruncate = Enum.TextTruncate.AtEnd })
+				local line = fitText(frame, rects.line, info.line, z + 1, { TextColor3 = ink, TextTransparency = transparency, Font = Enum.Font.Gotham, max = 16 })
 				line.Name = "Line"
+				line.TextXAlignment = Enum.TextXAlignment.Center
+				line.TextYAlignment = Enum.TextYAlignment.Top
 			end
 		end
 	end
