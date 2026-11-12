@@ -102,13 +102,29 @@ function SortToggle.build(parent, onPick)
 		for key, b in pairs({ rank = rank, suit = suit }) do
 			local on = mode == key
 			local lit = on or hoverKey == key
+			-- the picked half is an inset of the plate itself: a lighter tone of the plate's own wood with a thin gold line, not a flat cream block
+			local lighter = c3(p.fill):Lerp(Color3.fromRGB(205, 160, 96), 0.22)
+			local bg = on and lighter or c3(p.hover)
 			b.BackgroundTransparency = lit and 0 or 1
-			b.BackgroundColor3 = c3(on and p.active or p.hover)
-			local tc = on and p.activeText or p.text
-			b.TextColor3 = c3(tc)
-			local lum = (tc[1] * 0.299 + tc[2] * 0.587 + tc[3] * 0.114) / 255
+			b.BackgroundColor3 = bg
+			local tc = c3(p.text)
+			if lit then
+				local lum = bg.R * 0.299 + bg.G * 0.587 + bg.B * 0.114
+				tc = lum > 0.5 and Color3.fromRGB(38, 24, 12) or Color3.fromRGB(246, 232, 200)
+			end
+			b.TextColor3 = tc
+			local pick = b:FindFirstChild("PickLine")
+			if not pick then
+				pick = Instance.new("UIStroke")
+				pick.Name = "PickLine"
+				pick.Thickness = 1
+				pick.Color = Color3.fromRGB(214, 176, 92)
+				pick.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				pick.Parent = b
+			end
+			pick.Enabled = on
 			b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
-			b.TextStrokeTransparency = lum > 0.55 and 0.55 or 1
+			b.TextStrokeTransparency = 1
 		end
 	end
 	for key, b in pairs({ rank = rank, suit = suit }) do

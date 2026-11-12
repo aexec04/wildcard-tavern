@@ -86,9 +86,25 @@ function PlayScenePaint.install(deps)
 	local lip = PlayRailLip.install(root)
 	local PlayRail = require(script.Parent.PlayRail)
 	local rail = PlayRail.install(root, art) -- nil until both rail Image ids exist: the flat lip stays
+	local setKey = nil -- the Card Set id whose own painted front is showing (PlayTableLayout.SETS), nil for the default front
+	local ovalArt = art[PlayTableLayout.SETS[PlayTableLayout.OVAL_KEY].art]
+	-- the oval front's own groove rim, cut from the same picture and drawn above the cards so the rim overlaps their bottoms; it replaces
+	-- the flat lip and the old PlayRailBack / PlayRailFront pieces, which are hidden while the oval front shows
+	local groove = Instance.new("ImageLabel")
+	groove.Name = "PlayGrooveLip"
+	groove.BackgroundTransparency = 1
+	groove.BorderSizePixel = 0
+	groove.Active = false
+	groove.Image = ovalArt or ""
+	groove.ScaleType = Enum.ScaleType.Stretch
+	groove.ZIndex = PlayRailLip.Z
+	groove.Visible = false
+	groove.Parent = root
 	local function setLip(v) -- one place for lip visibility: the painted pieces replace the flat strip when present
-		lip.Visible = v and not rail
-		if rail then rail.back.Visible = v; rail.front.Visible = v end
+		local oval = setKey == PlayTableLayout.OVAL_KEY
+		lip.Visible = v and not rail and not oval
+		if rail then rail.back.Visible = v and not oval; rail.front.Visible = v and not oval end
+		groove.Visible = v and oval
 	end
 	-- the equipped or previewed Card Set may tint the table (felt on the picture, wood on the rail lip); HudTheme calls this on equip,
 	-- Preview start and Preview stop, and a set without a tint puts the painted colours back exactly
@@ -116,7 +132,6 @@ function PlayScenePaint.install(deps)
 	end
 	local function c3(t) return Color3.fromRGB(t[1], t[2], t[3]) end
 	local apply -- assigned below
-	local setKey = nil -- the Card Set id whose own painted front is showing (PlayTableLayout.SETS), nil for the default front
 	local lastReport = nil
 	-- A set with its own painted table (Mountain Festival, Frosted Garden) swaps the front picture and its measured rects; the art already
 	-- carries the colour, so no tint goes on top. Any other set keeps the default front plus its tint, exactly as before.
@@ -185,7 +200,7 @@ function PlayScenePaint.install(deps)
 			plates(nil)
 			if size.X >= PlayTableLayout.MIN_W then
 				handFrame.Position = UDim2.new(0, sidebarW + 20, 1, -272)
-				handFrame.Size = UDim2.new(1, -(sidebarW + 40 + R.PILE_RESERVE), 0, 176)
+				handFrame.Size = UDim2.new(1, -(sidebarW + 40 + R.PILE_RESERVE), 0, 176) -- flat layout keeps its own height
 				actionFrame.Position = UDim2.new(0, sidebarW + 20, 1, -80)
 				actionFrame.Size = UDim2.new(1, -(sidebarW + 40 + R.PILE_RESERVE), 0, R.ACTION_H)
 			end

@@ -325,11 +325,34 @@ local function run(root, st)
 			nameL.ZIndex, lineL.ZIndex = src.ZIndex, src.ZIndex
 			nameL.Text, lineL.Text = first, second
 			local isBoss = src:GetAttribute("Boss") == true or first:find("👑", 1, true) ~= nil
+			local band = rule:FindFirstChild("BossBand")
+			if not band then
+				band = Instance.new("Frame")
+				band.Name = "BossBand"
+				band.BackgroundColor3 = Color3.fromRGB(86, 38, 34) -- muted dark red
+				band.BackgroundTransparency = 0.1
+				band.BorderSizePixel = 0
+				band.Active = false
+				band.Position = UDim2.fromOffset(5, 4)
+				band.Size = UDim2.new(1, -10, 1, -8)
+				band.ZIndex = math.max(1, src.ZIndex - 1)
+				band.Parent = rule
+				table.insert(st.made, band)
+				local k = Instance.new("UICorner")
+				k.CornerRadius = UDim.new(0, 6)
+				k.Parent = band
+				local e = Instance.new("UIStroke") -- thin brass line, like the other slots' inner rims
+				e.Color = Color3.fromRGB(150, 116, 62)
+				e.Thickness = 1
+				e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				e.Parent = band
+			end
+			band.Visible = isBoss
 			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
 			if isBoss then
 				-- boss round: dark red plate, cream text, crown on the name; the rule wraps to two lines at 12 px
 				nameL.Text = "\u{1F451} " .. (first:gsub("^\u{1F451}%s*", ""))
-				put(st, rule, { BackgroundColor3 = Color3.fromRGB(92, 26, 26), BackgroundTransparency = 0 })
+				-- the slot keeps its own dark wood like the other board slots; only a muted dark red band sits inside it
 				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200) })
 				put(st, lineL, { TextColor3 = Color3.fromRGB(230, 205, 170) })
 				showLine = second ~= ""

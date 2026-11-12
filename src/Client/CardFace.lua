@@ -51,7 +51,7 @@ local ClientSettings = require(script.Parent.ClientSettings)
 local builtFaces = setmetatable({}, { __mode = "k" }) -- [button] = args
 
 local CARD_ASPECT = 1.45 -- height / width, matches the reference cards
-local MAX_CARD_WIDTH = 96
+local MAX_CARD_WIDTH = 114 -- 19 percent larger than the old 96; PlayTableLayout.HAND_H is 200 to hold it
 local MIN_CARD_WIDTH = 48
 local CARD_GAP = 6
 local TRAY_PAD = 16

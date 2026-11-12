@@ -5385,12 +5385,28 @@ table.insert(tests, { name = "PlayRailLip: the lip hides the bottom 14 percent o
 		local p = PlayTableLayout.placement(size[1], size[2], 260, 150)
 		expectTrue(p ~= nil, "placement at " .. size[1])
 		local r = Lip.lipRect(p)
-		local cardBottom = p.hand.y + 176 - 16
-		expectTrue(r.y < cardBottom and cardBottom - r.y >= 0.12 * 144 and cardBottom - r.y <= 0.16 * 144, "tucks 12 to 16 percent of the card")
+		local cardBottom = p.hand.y + p.hand.h - 16
+		expectTrue(r.y < cardBottom and cardBottom - r.y >= 0.12 * 165 and cardBottom - r.y <= 0.16 * 165, "tucks 12 to 16 percent of the card")
 		expectTrue(r.y + r.h >= p.map.rail.y + p.map.rail.h, "covers the front of the rail groove")
 		expectTrue(r.y + r.h <= p.actions.y + 1, "ends above the Actions plates")
 	end
 	expectTrue(Lip.lipRect(nil) == nil)
+end })
+
+table.insert(tests, { name = "PlayTableLayout oval front: card bottoms land inside the groove rim, the rim crop overlaps them, cards are bigger (1920x1080, 1506x751, 1280x720)", fn = function()
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(PT.HAND_H, 200, "hand frame holds 114 px wide cards")
+	for _, size in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 } }) do
+		local p = PT.placement(size[1], size[2], 260, 150, PT.OVAL_KEY)
+		expectTrue(p ~= nil, "placement at " .. size[1])
+		local m = p.map
+		local cardBottom = p.hand.y + p.hand.h - PT.CARD_PAD
+		expectEqual(cardBottom, m.seat, "card bottoms on the seat line")
+		expectTrue(m.lip ~= nil and m.seat > m.lip.y and m.seat < m.lip.y + m.lip.h, "seat line is inside the rim crop, so the rim overlaps the card bottoms")
+		expectTrue(m.seat - m.rail.y > 0.8 * m.rail.h, "cards sit low in the groove (lower third inside it)")
+		expectTrue(m.lip.x + m.lip.w <= size[1] and m.lip.x >= 0, "rim crop inside the screen")
+		expectTrue(p.hand.y + p.hand.h - PT.CARD_PAD <= p.actions.y, "cards end above the plates")
+	end
 end })
 
 table.insert(tests, { name = "PlayRail: painted tray rects sit on the lip, stay inside the picture, and the module needs both ids", fn = function()

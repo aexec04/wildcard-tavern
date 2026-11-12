@@ -11,14 +11,14 @@
 local PlayRailLip = {}
 
 PlayRailLip.TUCK = 0.14 -- share of a card's height hidden behind the lip
-PlayRailLip.CARD_H = 144 -- Engine/PlayTableLayout: cards are 144 px in the 176 px hand frame
+PlayRailLip.CARD_H = 165 -- Engine/PlayTableLayout: cards are up to 165 px in the 200 px hand frame
 PlayRailLip.WOOD = Color3.fromRGB(92, 58, 34) -- the table rail's base wood
 PlayRailLip.Z = 20 -- above every card piece (all below 15), below the ghosts and popups
 
 -- p = PlayTableLayout.placement result. Card bottoms sit on the middle of the rail groove (hand.y + HAND_H - CARD_PAD).
 function PlayRailLip.lipRect(p)
 	if not p then return nil end
-	local cardBottom = p.hand.y + 176 - 16
+	local cardBottom = p.hand.y + p.hand.h - 16
 	local top = math.floor(cardBottom - PlayRailLip.TUCK * PlayRailLip.CARD_H + 0.5)
 	local bottom = math.floor(p.map.rail.y + p.map.rail.h + 0.5)
 	local h = math.max(8, bottom - top)

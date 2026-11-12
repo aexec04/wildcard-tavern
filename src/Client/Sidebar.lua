@@ -295,8 +295,9 @@ return function(deps)
 			return
 		end
 		runModeBadgeBox.Visible = true
-		runModeBadgeBox.BackgroundColor3 = info.kind == "daily" and Color3.fromRGB(80, 55, 110)
-			or (info.kind == "weekly" and Color3.fromRGB(45, 75, 110) or Color3.fromRGB(55, 95, 60))
+		-- dark wood tones with a hint of the mode colour, never a flat bright bar (the painted board draws its own wood plate over this)
+		runModeBadgeBox.BackgroundColor3 = info.kind == "daily" and Color3.fromRGB(52, 38, 64)
+			or (info.kind == "weekly" and Color3.fromRGB(34, 46, 64) or Color3.fromRGB(38, 50, 34))
 		if info.kind == "seed" then
 			-- "Seed:" on the left, the code selectable on the right
 			runModeBadgeLabel.TextXAlignment = Enum.TextXAlignment.Left

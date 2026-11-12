@@ -37,8 +37,12 @@ M.SETS = {
 -- play_table_bg_b backdrop. Measured by eye on play_table_front_c.png (groove interior x 235-1210, y 755-825; recess x 1265-1500,
 -- y 740-840). No `fill`, so no code felt or stitch is drawn. Key "_oval" is internal (never a Card Set id).
 M.OVAL_KEY = "_oval"
+-- Measured on the PNG (art-wip/play_scene/debug_table_c2.png): the groove interior is x 245-1205, y 757-826, its front rim bevel starts
+-- at y 822. `seat` is the picture y the card bottoms land on (inside the rim, so the lower third of a card stands in the groove) and
+-- `lip` is the crop of the front picture drawn ABOVE the cards so the rim overlaps their bottoms (Client/PlayScenePaint).
 M.SETS[M.OVAL_KEY] = { art = "play_table_front_c",
-	felt = { x = 120, y = 430, w = 1300, h = 260 }, rail = { x = 290, y = 770, w = 870, h = 40 }, deck = { x = 1280, y = 748, w = 205, h = 90 } }
+	felt = { x = 120, y = 430, w = 1300, h = 260 }, rail = { x = 245, y = 757, w = 960, h = 69 }, deck = { x = 1280, y = 748, w = 205, h = 90 },
+	seat = 836, lip = { x = 215, y = 822, w = 1020, h = 34 } }
 
 -- a code-drawn felt for a painted front that needs one: { color, transparency, stitch } or nil
 function M.fillOf(setId)
@@ -98,6 +102,8 @@ function M.map(areaW, areaH, setId)
 	out.felt = scaleRect(set and set.felt or M.FELT, s, 0, oy)
 	out.rail = scaleRect(set and set.rail or M.RAIL, s, 0, oy)
 	out.deck = scaleRect(set and set.deck or M.DECK, s, 0, oy)
+	out.seat = set and set.seat and math.floor(oy + set.seat * s + 0.5) or math.floor(out.rail.y + out.rail.h / 2 + 0.5)
+	out.lip = set and set.lip and scaleRect(set.lip, s, 0, oy) or nil
 	local PLATE_STRIP = set and set.strip or PLATE_STRIP
 	-- plate rects: scale so the tallest plate fills the strip height, keep the three boxes' relative spacing centred under the rail.
 	local ps = (PLATE_STRIP.h * s) / M.PLATE_BOXES.play.h
@@ -117,10 +123,10 @@ function M.map(areaW, areaH, setId)
 	return out
 end
 
--- Where the live hand row and the Actions row go on the painted table. The cards (144 px tall in a 176 px frame, 16 px of
--- padding under them) stand with their bottom edge on the middle of the rail groove; the Actions row is centred in the plate strip.
+-- Where the live hand row and the Actions row go on the painted table. The cards (up to 165 px tall in a 200 px frame, 16 px of
+-- padding under them) stand with their bottom edge on the seat line (the middle of the rail groove, or inside the front rim for the oval front); the Actions row is centred in the plate strip.
 -- Returns nil when the painted layout cannot hold them (the old layout stays). left = sidebar edge, rightReserve = the draw pile.
-M.HAND_H, M.ACTION_H, M.CARD_PAD = 176, 54, 16
+M.HAND_H, M.ACTION_H, M.CARD_PAD = 200, 54, 16 -- 200 px holds cards up to 114 wide (CardFace MAX_CARD_WIDTH)
 
 function M.placement(areaW, areaH, left, rightReserve, setId)
 	if not M.usable(areaW) then return nil end
@@ -131,7 +137,7 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	if w < 400 then return nil end
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)
-	local handY = math.floor(m.rail.y + m.rail.h / 2 + M.CARD_PAD - M.HAND_H + 0.5)
+	local handY = m.seat + M.CARD_PAD - M.HAND_H
 	-- the Actions row IS the three painted plates in a row (Sort, Play Hand, Discard), as tall as the tallest
 	local pl = m.plates
 	local actY = pl.play.y
