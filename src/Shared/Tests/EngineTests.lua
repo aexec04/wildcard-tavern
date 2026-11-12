@@ -12911,7 +12911,7 @@ table.insert(tests, { name = "ResultGuard: Store stays hidden while a result pla
 		local h = io.open("src/Client/" .. file, "r"); if not h then return true end
 		local c = h:read("*a"); h:close(); return c:find(text, 1, true) ~= nil
 	end
-	expectTrue(has("RunSummaryUI.lua", "ResultGuard") and has("NightVictory.lua", "ResultGuard"), "both result plates call ResultGuard.hold")
+	expectTrue(has("NightVictory.lua", "ResultGuard") and has("GameOver.lua", '"StoreBackdrop"'), "the Night victory plate calls ResultGuard.hold and the Run Over screen hides the Store")
 end })
 
 table.insert(tests, { name = "ModalGate: counter opens and closes and never goes negative, hover gate blocks outside the modal only, every modal kind has a stage", fn = function()
@@ -17069,20 +17069,19 @@ table.insert(tests, { name = "Every ...Backdrop the client builds is registered 
 	-- the policies that matter
 	local function has(file, text) local s = read("src/Client/" .. file); return s ~= nil and s:find(text, 1, true) ~= nil end
 	expectTrue(has("ConfirmDialog.lua", 'policy = "cancel"') and has("RestartRun.lua", 'policy = "cancel"'), "confirm dialogs: Escape and a click outside mean Cancel")
-	expectTrue(has("NightVictory.lua", 'policy = "button"') and has("RunSummaryUI.lua", 'policy = "button"') and has("OverlayQueue.lua", 'policy = "button"'), "result screens and plates: Escape presses their one button")
+	expectTrue(has("NightVictory.lua", 'policy = "button"') and has("OverlayQueue.lua", 'policy = "button"'), "result plates: Escape presses their one button")
 	-- run summary and Run Setup polish: road names, buttons clear of the Patrons box, no emoji in Run Setup headers
-	expectTrue(has("RunSummaryUI.lua", "stop.name or stop.id") and not has("RunSummaryUI.lua", "stop.icon"), "run summary lists road names, not icon codes")
-	expectTrue(has("RunSummaryUI.lua", "local y = 226 + boxH + 12") and has("RunSummaryUI.lua", "ui.share.Position = UDim2.new(0, 312, 0, y)"), "run summary share row sits 12 px under the Patrons box")
-	expectTrue(has("RunSummaryUI.lua", "b.TextStrokeTransparency = 1"), "run summary buttons have no heavy text stroke")
-	expectTrue(has("RunSummaryUI.lua", "s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border"), "run summary strokes use Border mode, so button text is not doubled")
-	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("RunSummaryUI.lua", '"StoreBackdrop"'), "result plates hide StoreBackdrop and its tab strip")
+	expectTrue(has("GameOver.lua", "stop.name or stop.id") and not has("GameOver.lua", "stop.icon"), "Run Over lists road names, not icon codes")
+	expectTrue(has("GameOver.lua", "RunOverLayout.compute(sw, sh") and has("GameOver.lua", "RunOverPanel"), "Run Over is laid out by the RunOverLayout module in one RunOverPanel")
+	expectTrue(has("GameOver.lua", "b.TextStrokeTransparency = 1"), "Run Over buttons have no heavy text stroke")
+	expectTrue(has("GameOver.lua", "ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border"), "Run Over strokes use Border mode, so text is not doubled")
+	expectTrue(has("NightVictory.lua", '"StoreBackdrop"') and has("GameOver.lua", '"StoreBackdrop"'), "result screens hide StoreBackdrop and its tab strip")
 	expectTrue(has("NightVictory.lua", "Rules.KIT_PLATE") and has("NightVictory.lua", "ImageLabel") and not has("NightVictory.lua", "👑") and not has("NightVictory.lua", "♾") and has("NightVictory.lua", 'Text = "-"'), "Night victory uses the Round Complete kit plate, no emoji, stat values start as a dash")
 	expectTrue(has("NightVictory.lua", "HudKit.piece(setId, Rules.KIT_PLATE)") and has("OverlayQueue.lua", "HudKit.piece(setId, Rules.KIT_PLATE)"), "Night victory and Round Complete resolve the same kit plate id")
 	expectTrue(has("NightVictory.lua", 'GetPropertyChangedSignal("Visible")') and not has("NightVictory.lua", "polishButton(button"), "Night victory paints its plate whenever it becomes visible, and its button has no chrome underline")
 	expectTrue(has("NightVictory.lua", "PARCH.y, PARCH.inset") and has("NightVictory.lua", 'FindFirstChild("Shadow")') and has("NightVictory.lua", "PLATE_W, PLATE_H = 560, 520"), "Night victory content sits inside the plate's parchment and its shadow box is hidden while painted")
-	expectTrue(has("RunSummaryUI.lua", 'summary.rarity ~= "common"'), "Common rarity word is drawn in ink, not ghost grey")
-	expectTrue(has("RunSummaryUI.lua", "Text = patron.name or patron.id"), "run summary names each patron under its portrait")
-	expectTrue(select(2, (read("src/Client/RunSummaryUI.lua") or ""):gsub("UDim2%.new%(0%.5, %-173, 0, 46%)", "")) == 2, "run summary Continue and Play Again are equal width with a 12 px gap")
+	expectTrue(has("GameOver.lua", "Text = patron.name or patron.id"), "Run Over names each patron under its medallion")
+	expectFalse(has("GameOver.lua", "Continue\""), "Run Over has no Continue button (there is no second screen to continue to)")
 	local setupSrc = read("src/Client/RunSetup.lua") or ""
 	expectTrue(not setupSrc:find("\240\159", 1, true) and not setupSrc:find("\226\154", 1, true) and not setupSrc:find("\226\156", 1, true), "Run Setup has no emoji in headers or labels")
 	expectTrue(has("RoadChoice.lua", 'policy = "locked"') and has("RoundSelect.lua", 'policy = "locked"'), "mid-run choices are locked: Escape opens Settings")
@@ -20846,6 +20845,127 @@ table.insert(tests, { name = "RewardBanner: holds 2.2 s (1.2 fast), fades by its
 			expectTrue(popup:find("RoundRewardBanner", 1, true) ~= nil and popup:find("titleOverride == nil", 1, true) ~= nil, "a normal round win uses the banner, the Night-cleared headline keeps the plate")
 		end
 	end
+end })
+
+table.insert(tests, { name = "RunOverLayout: one panel, two columns wide and one column narrow, no overlaps, fits 1280x720 and phone width without scrolling", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function overlap(a, b) return a.x < b.x + b.w - 0.01 and b.x < a.x + a.w - 0.01 and a.y < b.y + b.h - 0.01 and b.y < a.y + a.h - 0.01 end
+	local function inside(r, panel) return r.x >= -0.01 and r.y >= -0.01 and r.x + r.w <= panel.w + 0.01 and r.y + r.h <= panel.h + 0.01 end
+	local sizes = { { 1920, 1080 }, { 1280, 720 }, { 1024, 576 }, { 800, 450 }, { 720, 400 }, { 390, 844 }, { 360, 640 }, { 320, 568 } }
+	for _, sz in ipairs(sizes) do
+		for _, patrons in ipairs({ 0, 3, 5, 8, 10 }) do
+			for _, primary in ipairs({ 2, 3 }) do
+				local C = L.columns(sz[1])
+				local factsH = (L.estimateLines("Best hand: Full House, 1280", C.leftW, 17) + L.estimateLines("Final score 604 of 3174  Tips banked 12", C.leftW, 17)
+					+ L.estimateLines("Road: Dunes\nHarbor\nMarsh\nPeaks", C.leftW, 15) + 3) * 24
+				local r = L.compute(sz[1], sz[2], { factsH = factsH, patrons = patrons, primary = primary, more = 5 })
+				local tag = sz[1] .. "x" .. sz[2] .. " patrons " .. patrons .. " primary " .. primary
+				expectTrue(r.mode == (sz[1] >= L.WIDE_FROM and "wide" or "narrow"), "mode follows the width at " .. tag)
+				local named = { title = r.title, facts = r.facts, patronsLabel = r.patronsLabel, patrons = r.patrons }
+				local list = {}
+				for name, rc in pairs(named) do list[#list + 1] = { name = name, r = rc } end
+				for i, rc in ipairs(r.primary) do list[#list + 1] = { name = "primary" .. i, r = rc } end
+				for i, rc in ipairs(r.more) do list[#list + 1] = { name = "more" .. i, r = rc } end
+				expectEqual(#r.primary, primary, "one cell per primary button at " .. tag)
+				expectEqual(#r.more, 5, "one cell per secondary button at " .. tag)
+				for _, item in ipairs(list) do
+					expectTrue(inside(item.r, r.panel), item.name .. " is inside the panel at " .. tag)
+					expectTrue(item.r.w > 0 and item.r.h > 0, item.name .. " has a size at " .. tag)
+				end
+				for i = 1, #list do
+					for j = i + 1, #list do
+						expectFalse(overlap(list[i].r, list[j].r), list[i].name .. " and " .. list[j].name .. " do not overlap at " .. tag)
+					end
+				end
+				for _, rc in ipairs(r.primary) do expectTrue(rc.h >= 44, "primary buttons are at least 44 px tall at " .. tag) end
+				for _, rc in ipairs(r.more) do expectTrue(rc.h >= 36 and rc.w >= 90, "secondary buttons are at least 36 px tall and 90 wide at " .. tag) end
+				expectTrue(r.panel.w * r.scale <= sz[1] + 0.01 and r.panel.h * r.scale <= sz[2] + 0.01, "the scaled panel fits the screen at " .. tag)
+				if sz[1] == 1280 and patrons <= 8 then expectEqual(r.scale, 1, "no scaling needed at 1280x720 (" .. tag .. ")") end
+				if r.mode == "wide" then
+					expectTrue(r.facts.x < r.patrons.x and r.facts.x + r.facts.w <= r.patrons.x, "facts left, patrons right at " .. tag)
+				else
+					expectTrue(r.facts.x == r.patrons.x and r.facts.y + r.facts.h <= r.patrons.y, "one column at " .. tag)
+					expectTrue(sz[1] < 360 or r.scale >= 0.5, "a phone keeps a readable scale (" .. r.scale .. ") at " .. tag)
+				end
+			end
+		end
+	end
+	expectEqual(L.TEXT_MIN, 15, "text is 15 px or more")
+	expectEqual(L.estimateLines("", 200, 16), 0, "no text, no lines")
+	expectTrue(L.estimateLines(string.rep("a", 100), 200, 16) >= 3, "long text wraps")
+end })
+
+table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named frames, every action present, no Continue, fits 1280x720 and a phone", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local E = script.Parent.Parent.Engine
+	local map = {}
+	for _, n in ipairs({ "GameOverTips", "RunOverLayout", "SeedDisplay", "ShareResult", "EndlessRules", "WinCard" }) do map[n] = require(E[n]) end
+	local stubs = {
+		PanelArt = { add = function() return nil end }, InvitePrompt = { bind = function() end },
+		PatronPlaque = { apply = function() return nil end }, Cue = { play = function() end }, WinCard = { show = function() end },
+	}
+	local env, state = FakeGui.env({ stubs = stubs })
+	local folder = FakeGui.folder(map)
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
+	local GameOver = FakeGui.load("src/Client/GameOver.lua", env)
+	local root = FakeGui.new("Frame")
+	local function noop() end
+	local P = GameOver({ root = root, polishPanel = noop, polishButton = noop, addSoftShadow = noop, tweenTo = noop, playSfx = noop, SOUND_IDS = {},
+		playClick = noop, saveBadge = noop, makeSeed = function() return "ABC234" end })
+	local panel = P.gameOverFrame:FindFirstChild("RunOverPanel")
+	expectTrue(panel ~= nil, "the one container is named RunOverPanel")
+	for _, name in ipairs({ "Title", "Facts", "PatronsLabel", "Patrons", "Actions", "More" }) do
+		expectTrue(panel:FindFirstChild(name) ~= nil, "RunOverPanel has the named child " .. name)
+	end
+	local function names(frame)
+		local t = {}
+		for _, c in ipairs(frame:GetChildren()) do t[c.Name] = c end
+		return t
+	end
+	local actions, more = names(panel:FindFirstChild("Actions")), names(panel:FindFirstChild("More"))
+	for _, n in ipairs({ "ContinueButton", "PlayAgain", "BackToTavern" }) do expectTrue(actions[n] ~= nil, n .. " is on the Run Over screen") end
+	for _, n in ipairs({ "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge", "WinCard" }) do expectTrue(more[n] ~= nil, n .. " is on the Run Over screen") end
+	expectTrue(actions.Continue == nil, "there is no Continue button")
+	local summary = { night = 5, round = 3, won = false, handsPlayed = 22, bestHand = { name = "Full House", score = 604 }, route = { { name = "Dunes" }, { name = "Harbor" } },
+		patrons = { { id = "a", name = "Ada", icon = "A" }, { id = "b", name = "Bo", icon = "B" }, { id = "c", name = "Cy", icon = "C" } },
+		blessing = { name = "Generous House" }, rarity = "common", badgeSaved = false }
+	local lossState = { phase = "gameover", night = 5, round = 3, roundScore = 604, targetScore = 3174, tips = 12, continueOffer = "free", runSummary = summary,
+		nextUnlock = { label = "Fast Hands at 3 wins" } }
+	for _, size in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 390, 844 } }) do
+		root.AbsoluteSize = { X = size[1], Y = size[2] }
+		P.refreshGameOver(lossState, nil)
+		local pw, ph = panel.Size.X.Offset, panel.Size.Y.Offset
+		local scale = panel:FindFirstChildOfClass("UIScale").Scale
+		expectTrue(pw * scale <= size[1] + 1 and ph * scale <= size[2] + 1, "the panel fits " .. size[1] .. "x" .. size[2] .. " without scrolling (" .. pw .. "x" .. ph .. " at " .. scale .. ")")
+		local title = panel:FindFirstChild("Title"):FindFirstChildOfClass("TextLabel")
+		local sawTitle = false
+		for _, c in ipairs(panel:FindFirstChild("Title"):GetChildren()) do
+			if c:IsA("TextLabel") and c.Text:find("Last call! You made it to Night 5, Round 3.", 1, true) then sawTitle = true end
+		end
+		expectTrue(sawTitle and title ~= nil, "the title reads Last call! You made it to Night 5, Round 3.")
+		local factText = {}
+		for _, c in ipairs(panel:FindFirstChild("Facts"):GetChildren()) do factText[#factText + 1] = c.Text end
+		local all = table.concat(factText, "\n")
+		for _, want in ipairs({ "Biggest hand: Full House: 604", "Final score: 604 / 3174", "Tips banked: 12", "Dunes  >  Harbor", "Blessing: Generous House", "Next unlock: Fast Hands at 3 wins" }) do
+			expectTrue(all:find(want, 1, true) ~= nil, "the facts say '" .. want .. "' at " .. size[1])
+		end
+		for _, c in ipairs(panel:FindFirstChild("Facts"):GetChildren()) do expectTrue(c.TextSize >= 15, "fact text is 15 px or more") end
+		expectTrue(#panel:FindFirstChild("Patrons"):GetChildren() >= 3, "a medallion per Patron")
+		expectTrue(actions.ContinueButton.Visible == true and actions.ContinueButton.Text == "One More Round (Free)", "One More Round (Free) shows when offered")
+	end
+	lossState.continueOffer = nil
+	P.refreshGameOver(lossState, nil)
+	expectTrue(actions.ContinueButton.Visible == false, "no One More Round when the server does not offer it")
+	local win = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary }
+	P.refreshGameOver(win, nil)
+	local sawWin = false
+	for _, c in ipairs(panel:FindFirstChild("Title"):GetChildren()) do if c:IsA("TextLabel") and c.Text:find("beat the tavern", 1, true) then sawWin = true end end
+	expectTrue(sawWin, "a win uses the same panel with the win line")
+	expectTrue(more.SaveBadge.Active == true and more.SaveBadge.Text == "Save as my badge", "Save as my badge is offered")
+	summary.badgeSaved = true
+	P.refreshGameOver(win, nil)
+	expectTrue(more.SaveBadge.Active == false and more.SaveBadge.Text == "Badge saved", "and turns into Badge saved")
 end })
 
 return tests

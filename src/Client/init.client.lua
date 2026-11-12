@@ -766,6 +766,10 @@ local GameOverPanel = require(script.GameOver)({
 	-- Win/loss sound (Phase 14 fix): this panel played nothing before.
 	playSfx = SoundModule.playSfx,
 	SOUND_IDS = SoundModule.SOUND_IDS,
+	-- the one Run Over screen also carries the old Run Summary actions
+	playClick = SoundModule.playClickSfx,
+	saveBadge = function() remotes:WaitForChild("SaveBadge"):FireServer() end,
+	makeSeed = function() return remotes:WaitForChild("MakeChallengeSeed"):InvokeServer() end, -- Challenge a friend
 })
 
 -- INTERACTIVE TUTORIAL (requested directly by Ahmed -- see
@@ -823,17 +827,6 @@ local MenuScreen = require(script.Menu)({
 	}).showSeedRunDialog,
 })
 
-do -- End-of-run summary and badge (Client/RunSummaryUI.lua), shown over Game Over from render()
-	local ok, err = pcall(function()
-		require(script.RunSummaryUI).init(screenGui, {
-			playClick = SoundModule.playClickSfx,
-			restart = function() remotes:WaitForChild("RestartRun"):FireServer() end,
-			saveBadge = function() remotes:WaitForChild("SaveBadge"):FireServer() end,
-			makeSeed = function() return remotes:WaitForChild("MakeChallengeSeed"):InvokeServer() end, -- Challenge a friend
-		})
-	end)
-	if not ok then warn("[Client] RunSummaryUI failed: " .. tostring(err)) end
-end
 do -- Start-of-run draft and between-Nights event cards (Client/ChoicePanel.lua); fed from render()
 	local ok, err = pcall(function()
 		require(script.ChoicePanel).init({
@@ -2327,7 +2320,6 @@ local function render(state)
 	pcall(require(script.EndlessChips).update, state) -- Crowd Rule chips and banner, display only
 	pcall(require(script.BlessingChip).update, state) -- blessing and curse chip, display only
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
-	pcall(require(script.RunSummaryUI).update, state) -- Game Over summary and badge, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.MenuRegulars).update, state, MenuScreen.menuFrame) -- Tavern Regulars row on the menu, display only
