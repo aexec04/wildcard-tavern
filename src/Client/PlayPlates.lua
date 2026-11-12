@@ -18,8 +18,24 @@ local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local PlayPlates = {}
 
+local TextService = game:GetService("TextService")
+
 local CREAM = Color3.fromRGB(250, 240, 220)
 local INK = Color3.fromRGB(30, 18, 8)
+local LABEL_MAX, LABEL_MIN = 30, 26 -- Play Hand and Discard read at the strength of the Rank plate: 30 px, never below 26 when the plate is narrow
+local DIM_IMAGE = Color3.fromRGB(206, 198, 188) -- no cards selected: slightly darker, never see-through
+local DIM_LABEL = Color3.fromRGB(226, 214, 190)
+
+-- biggest label size (LABEL_MIN to LABEL_MAX) whose text fits the face width
+local function labelSize(text, font, width)
+	local size = LABEL_MAX
+	while size > LABEL_MIN do
+		local ok, v = pcall(function() return TextService:GetTextSize(text, size, font, Vector2.new(10000, size + 10)) end)
+		if not ok or v.X <= width then break end
+		size = size - 1
+	end
+	return size
+end
 
 local function find(actionFrame)
 	local sortFrame, play, discard
@@ -86,7 +102,7 @@ local function paintButton(btn, imageId, box, rect)
 	lab.Font = btn.Font
 	lab.Text = btn.Text
 	lab.TextScaled = false
-	lab.TextSize = 21
+	lab.TextSize = labelSize(btn.Text, btn.Font, math.max(40, rect.w - 2 * side - 8))
 	lab.TextWrapped = false
 	lab.TextXAlignment = Enum.TextXAlignment.Center
 	lab.TextYAlignment = Enum.TextYAlignment.Center
@@ -124,14 +140,15 @@ local function paintButton(btn, imageId, box, rect)
 		local dim = face ~= nil and face.BackgroundTransparency > 0.3
 		local image = btn:FindFirstChild("PlatePaint")
 		if image then
-			image.ImageTransparency = dim and 0.5 or 0
+			image.ImageTransparency = 0 -- dim is a darker plate, not a ghost
 			image.Position = UDim2.fromOffset(0, dy)
-			image.ImageColor3 = state.pressed and Color3.fromRGB(190, 190, 190) or Color3.new(1, 1, 1)
+			image.ImageColor3 = state.pressed and Color3.fromRGB(190, 190, 190) or (dim and DIM_IMAGE or Color3.new(1, 1, 1))
 		end
 		local lb = btn:FindFirstChild("PlateLabel")
 		if lb then
 			lb.Position = UDim2.fromOffset(side, top + dy)
-			lb.TextTransparency = dim and 0.5 or 0
+			lb.TextTransparency = 0
+			lb.TextColor3 = dim and DIM_LABEL or CREAM
 		end
 		local h = btn:FindFirstChild("PlateHover")
 		if h then
@@ -147,7 +164,10 @@ local function paintButton(btn, imageId, box, rect)
 	if face then face:GetPropertyChangedSignal("BackgroundTransparency"):Connect(look) end
 	btn:GetPropertyChangedSignal("Text"):Connect(function()
 		local lb = btn:FindFirstChild("PlateLabel")
-		if lb then lb.Text = btn.Text end
+		if lb then
+			lb.Text = btn.Text
+			lb.TextSize = labelSize(btn.Text, btn.Font, math.max(40, btn.AbsoluteSize.X * (1 - 2 * F.x) - 8))
+		end
 	end)
 end
 

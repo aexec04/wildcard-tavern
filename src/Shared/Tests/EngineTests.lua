@@ -19832,6 +19832,12 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local hint = mk("Frame", "Hint", content, 10)
 	hint.Size = UDim2.fromOffset(353, 56)
 	hint.BackgroundTransparency = 1
+	local badge = mk("Frame", "RunBadge", sidebar, -1) -- the Daily / Weekly / Seed bar
+	badge.Size = UDim2.new(1, 0, 0, 36)
+	badge.BackgroundTransparency = 0
+	local strip = mk("Frame", "GoldStrip", board) -- a flat wide column left on the board frame
+	strip.Size = UDim2.fromOffset(305, 800)
+	strip.BackgroundTransparency = 0
 	-- the dark band: depth, kit frame and accent wash on the board, also ones the theme adds after the first paint
 	local band = {}
 	for _, n in ipairs({ "HudDepth", "HudKitFrame", "SetAccent" }) do band[n] = mk("Frame", n, board) end
@@ -19870,6 +19876,8 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the plates share a left edge, the hint under Tips")
 	for n, f in pairs(band) do expectTrue(f.Visible == false, n .. " is hidden while painted (no dark band over the table)") end
 	expectTrue(board:GetAttribute("PlayBoardPainted") == true, "the board is marked painted so the theme draws nothing over the table")
+	expectTrue(badge.Visible == false, "the Seed / Daily bar is hidden on the painted board (no bar at the top left)")
+	expectTrue(strip.Visible == false, "a flat wide column on the board frame is hidden")
 	band.HudKitFrame.Visible = true -- the theme paints again later
 	PlayBoardHud.apply(root, rect)
 	expectTrue(band.HudKitFrame.Visible == false, "a piece the theme re-shows is hidden again")
@@ -19902,6 +19910,18 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	end
 	PlayBoardHud.apply(root, nil)
 	expectTrue(sidebar.BackgroundTransparency == 0 and sidebar:FindFirstChild("CornerStud").Visible, "everything comes back on restore")
+	expectTrue(badge.Visible == true, "the bar comes back when the board is not painted")
+	-- boss round: wood slot with a red band, brass studs, text at least 15 px, the rule line wraps instead of being cut
+	ruleLabel.Text = '<font size="17">\u{1F451} Slow Night</font>\n<font size="13">1 random card is tossed out of your hand after every hand you play.</font>'
+	ruleLabel:SetAttribute("Boss", true)
+	PlayBoardHud.apply(root, rect)
+	local bn, bl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
+	expectTrue(bn and bl and bn.TextSize >= 15 and bl.TextSize >= 15 and bl.TextWrapped == true and bl.Visible, "boss rule text is 15 px or more and wraps")
+	expectTrue(rule.BackgroundTransparency == 1, "the boss slot has no flat fill")
+	local bossStuds = 0
+	for _, d in ipairs(rule:GetChildren()) do if string.sub(d.Name, 1, 8) == "BossStud" and d.Visible then bossStuds = bossStuds + 1 end end
+	expectTrue(bossStuds == 4, "the boss slot has four brass studs")
+	PlayBoardHud.apply(root, nil)
 
 	-- (4) deck: no brackets, studs or rim anywhere, even when the skin turns them on again
 	local widget = mk("Frame", "DeckWidget", nil)

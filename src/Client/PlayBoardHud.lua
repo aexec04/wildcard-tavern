@@ -302,7 +302,25 @@ local function run(root, st)
 		end
 	end
 	for _, c in ipairs(sidebar:GetChildren()) do
-		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not THEME_PIECES[c.Name] then table.insert(stack, c) end
+		if c:IsA("GuiObject") and not known[c.Name] and not FRAME_DECOR[c.Name] and not THEME_PIECES[c.Name] then
+			if c.LayoutOrder == -1 and root:GetAttribute("DebugSeedBar") ~= true then
+				put(st, c, { Visible = false }) -- the Daily / Weekly / Seed bar is a debug aid on the painted board (Settings shows the run line)
+			else
+				table.insert(stack, c)
+			end
+		end
+	end
+	-- anything flat and wide left on the board frame (accent wash, kit pieces, the old strip) goes: the room shows left of the board
+	local boardTop = root:FindFirstChild("SidebarBoard")
+	if boardTop then
+		for _, d in ipairs(boardTop:GetChildren()) do
+			if d:IsA("GuiObject") and d.Name ~= "PlayerMedallion" and d.Name ~= "BlessingChip" and (d:IsA("Frame") or d:IsA("ImageLabel")) then
+				local sz = d.Size
+				local wide = sz ~= nil and (sz.X.Scale >= 0.8 or sz.X.Offset >= 200)
+				local filled = d:IsA("ImageLabel") or (d.BackgroundTransparency or 1) < 0.99
+				if wide and filled then put(st, d, { Visible = false }) end
+			end
+		end
 	end
 
 	if rule then
@@ -348,6 +366,28 @@ local function run(root, st)
 				e.Parent = band
 			end
 			band.Visible = isBoss
+			-- the slot is the board's dark wood: no flat fill from the Sidebar over it, and four brass studs like the other plates
+			hideFill(st, rule)
+			for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+				local stud = rule:FindFirstChild("BossStud" .. i)
+				if not stud then
+					stud = Instance.new("Frame")
+					stud.Name = "BossStud" .. i
+					stud.AnchorPoint = Vector2.new(at[1], at[2])
+					stud.Position = UDim2.new(at[1], at[1] == 0 and 3 or -3, at[2], at[2] == 0 and 3 or -3)
+					stud.Size = UDim2.fromOffset(6, 6)
+					stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
+					stud.BorderSizePixel = 0
+					stud.Active = false
+					stud.ZIndex = math.max(1, src.ZIndex)
+					stud.Parent = rule
+					table.insert(st.made, stud)
+					local sk = Instance.new("UICorner")
+					sk.CornerRadius = UDim.new(0.5, 0)
+					sk.Parent = stud
+				end
+				stud.Visible = isBoss
+			end
 			local showLine = second ~= "" and select(2, sizeFor(second, 12, 14, w, Enum.Font.Gotham))
 			if isBoss then
 				-- boss round: dark red plate, cream text, crown on the name; the rule wraps to two lines at 12 px
@@ -371,9 +411,17 @@ local function run(root, st)
 			end
 			put(st, lineL, { Position = UDim2.new(0, RULE_INSET, 0.45, 0), Size = UDim2.new(1, -2 * RULE_INSET, 0.55, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Top, Visible = showLine and true or false })
+			if isBoss then
+				-- text 15 px or more and never cut: the name on a 22 px line, the rule wraps below it in the rest of the slot
+				fitOne(st, nameL, w, 15, 16)
+				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200), Font = Enum.Font.GothamBold,
+					Position = UDim2.fromOffset(RULE_INSET, 6), Size = UDim2.new(1, -2 * RULE_INSET, 0, 22), TextYAlignment = Enum.TextYAlignment.Center })
+			end
 			if showLine and isBoss then
-				fitOne(st, lineL, w, 12, 12)
-				put(st, lineL, { TextWrapped = true, TextColor3 = Color3.fromRGB(246, 232, 200) })
+				put(st, lineL, { TextScaled = false, TextSize = 15, TextWrapped = true, RichText = false, TextTruncate = Enum.TextTruncate.None,
+					TextColor3 = Color3.fromRGB(246, 232, 200), Font = Enum.Font.Gotham,
+					Position = UDim2.fromOffset(RULE_INSET, 28), Size = UDim2.new(1, -2 * RULE_INSET, 0, math.max(20, H.rule.h - 32)),
+					TextYAlignment = Enum.TextYAlignment.Top, TextStrokeTransparency = 1, TextTransparency = 0 })
 			elseif showLine then
 				fitOne(st, lineL, w, 12, 14)
 			end
