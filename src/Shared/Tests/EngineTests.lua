@@ -18993,39 +18993,15 @@ table.insert(tests, { name = "PlayBoardLayout.placement: 2:3 top-left rect, nil 
 	end
 end })
 
-table.insert(tests, { name = "ShopCover: hand, Actions and deck hide while the Counter is open and come back exactly when it closes", fn = function()
-	local FakeGui = require(script.Parent.FakeGui)
-	local env = FakeGui.env({})
-	local ShopCover = FakeGui.load("src/Client/ShopCover.lua", env)
-	local function mk(name, parent)
-		local i = FakeGui.new("Frame")
-		i.Name = name
-		i.Parent = parent
-		return i
+table.insert(tests, { name = "PlayScenePaint never sets HandFrame, Actions or DeckWidget visibility (the game owns it; round 2 must keep its hand)", fn = function()
+	local f = io and io.open and io.open("src/Client/PlayScenePaint.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	for _, name in ipairs({ "handFrame", "actionFrame", "deckWidget" }) do
+		expectTrue(not string.find(src, name .. "%.Visible%s*=[^=]"), name .. ".Visible must not be assigned in PlayScenePaint")
 	end
-	local root = mk("Root", nil)
-	local hand, actions, deck = mk("Hand", root), mk("Actions", root), mk("Deck", root)
-	local shop = mk("Shop", root)
-	shop.Visible = false
-	local seen = {}
-	local cover = ShopCover.install({ root = root, frames = { hand, actions, deck }, onChange = function(on) seen[#seen + 1] = on end })
-	expectTrue(hand.Visible and actions.Visible and deck.Visible and not cover.isCovered(), "Counter closed: all shown")
-	shop.Visible = true
-	expectTrue(not hand.Visible and not actions.Visible and not deck.Visible and cover.isCovered(), "Counter open: all hidden")
-	hand.Visible = true -- the game shows the hand while the Counter is open: stays hidden
-	expectTrue(not hand.Visible, "a frame shown by the game under the Counter stays hidden")
-	shop.Visible = false
-	expectTrue(hand.Visible and actions.Visible and deck.Visible and not cover.isCovered(), "Counter closed: all back")
-	deck.Visible = false -- hidden by the game before the Counter opens: stays hidden after it closes
-	shop.Visible = true
-	shop.Visible = false
-	expectTrue(not deck.Visible, "a frame the game had hidden stays hidden")
-	deck.Visible = true
-	shop.Visible = true
-	shop.Visible = false
-	expectTrue(hand.Visible and actions.Visible, "reopen and close again restores")
-	expectEqual(#seen, 6, "onChange fires once per change")
-	-- (a Shop frame created after install is picked up through ChildAdded, which the fake never fires)
+	expectTrue(not string.find(src, "ShopCover", 1, true), "PlayScenePaint must not install ShopCover")
 end })
 
 table.insert(tests, { name = "SidebarMetrics: painted board sets the left edge of full screens, flat sidebar keeps 240/260, under 900 px stays flat", fn = function()
