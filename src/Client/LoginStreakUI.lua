@@ -324,7 +324,7 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 	task.spawn(function()
 		while host.Parent do
 			pcall(function()
-				if ui.pending and not overlayOpen(gui) then
+				if ui.pending and not ui.suppressed and not overlayOpen(gui) then
 					ui.pending = false
 					showPopup()
 				end
@@ -333,6 +333,15 @@ function LoginStreakUI.init(menuFrame, remote, playClick)
 		end
 	end)
 	ui.ready = true
+end
+
+-- Studio DebugGoto only: keeps the daily reward plate from opening on its own (the gift icon still works) and closes one that is up.
+function LoginStreakUI.suppress(on)
+	ui.suppressed = on and true or false
+	if ui.suppressed then
+		ui.pending = false
+		if ui.queuedId then pcall(OverlayQueue.closeIfCurrent, ui.queuedId) end
+	end
 end
 
 -- The gift icon in the top-right icon row: only while a reward is waiting. Painted chest, else a drawn dot.
@@ -386,7 +395,7 @@ function LoginStreakUI.update(state)
 	local waiting = DailyPopup.nextClaimable(state.login) ~= nil
 	local gift = ensureGift()
 	if gift then gift.Visible = waiting end
-	if waiting then
+	if waiting and not ui.suppressed then
 		if DailyPopup.shouldShow(tracker, state) then
 			ui.pending = true -- opens at once unless another overlay is up (the spawn loop above retries)
 			if not overlayOpen(ui.gui) then
