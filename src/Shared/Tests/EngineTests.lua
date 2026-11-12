@@ -19793,7 +19793,13 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	-- (2) the hint is clamped to the board width and sits under the board
 	expectTrue(hint.Size.X.Offset <= 230 and hint.Position.X.Offset + hint.Size.X.Offset <= rect.w, "the hint is clamped to the board width")
 	expectTrue(hint.Position.Y.Offset >= rect.h, "the hint sits under the board")
-	expectTrue(tips.BackgroundTransparency == 0 and hint.BackgroundTransparency == 0 and tips.Size.X.Offset == hint.Size.X.Offset, "Tips and the hint are two matching solid plates")
+	local tb, hb = tips:FindFirstChild("BoardPlateBack"), hint:FindFirstChild("BoardPlateBack")
+	expectTrue(tb ~= nil and hb ~= nil and tb.BackgroundTransparency == 0 and hb.BackgroundTransparency == 0 and tips.Size.X.Offset == hint.Size.X.Offset, "Tips and the hint are two matching solid plates (own opaque backing frame)")
+	local tstroke = tb and tb:FindFirstChildOfClass("UIStroke")
+	expectTrue(tstroke ~= nil and tstroke.Thickness == 4 and tb.ZIndex < tips.ZIndex + 1, "the plate backing has the 4 px wood frame and sits behind the text")
+	local studs = 0
+	if tb then for _, d in ipairs(tb:GetDescendants()) do if string.sub(d.Name, 1, 14) == "BoardPlateStud" then studs = studs + 1 end end end
+	expectTrue(studs == 4, "the plate backing has four brass studs")
 	expectTrue(tips.Position.X.Offset == hint.Position.X.Offset and hint.Position.Y.Offset >= tips.Position.Y.Offset + tips.Size.Y.Offset, "the plates share a left edge, the hint under Tips")
 	for n, f in pairs(band) do expectTrue(f.Visible == false, n .. " is hidden while painted (no dark band over the table)") end
 	expectTrue(board:GetAttribute("PlayBoardPainted") == true, "the board is marked painted so the theme draws nothing over the table")

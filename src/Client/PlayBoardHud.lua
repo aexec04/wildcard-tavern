@@ -115,66 +115,74 @@ end
 
 local function stripTags(str) return (str:gsub("<[^>]+>", "")) end
 
--- a solid parchment plate with a dark wood edge, for the rows that sit under the board
+-- a solid parchment plate with a dark wood edge, for the rows that sit under the board. The Sidebar and the Card Set theme recolour a
+-- row's own fill, strokes and gradients on every update (that is what left these flat cream), so the whole plate is drawn on its own
+-- child frame behind the row's text and the row itself is see-through.
 local function plateStyle(st, row)
-	put(st, row, { BackgroundColor3 = PLATE, BackgroundTransparency = 0 })
+	put(st, row, { BackgroundTransparency = 1 })
 	for _, c in ipairs(row:GetDescendants()) do
 		if c:IsA("TextLabel") and (c.TextSize or 15) < 15 and not c.TextScaled then put(st, c, { TextSize = 15 }) end
 	end
 	for _, c in ipairs(row:GetChildren()) do
-		if c:IsA("UIStroke") and c.Name ~= "BoardPlateEdge" then put(st, c, { Enabled = false }) end
+		if (c:IsA("UIStroke") or c:IsA("UIGradient")) then put(st, c, { Enabled = false }) end
 	end
-	if not row:FindFirstChild("BoardPlateEdge") then
-		local e = Instance.new("UIStroke")
-		e.Name = "BoardPlateEdge"
-		e.Color = EDGE
-		e.Thickness = 4 -- dark wood frame
-		e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		e.Parent = row
-		table.insert(st.made, e)
-		local k = Instance.new("UICorner")
-		k.Name = "BoardPlateCorner"
-		k.CornerRadius = UDim.new(0, 10)
-		k.Parent = row
-		table.insert(st.made, k)
-		-- warm parchment: light top to darker foot (Color stops only) and a thin inner brass line, so the plate reads as wood and parchment
-		local g = Instance.new("UIGradient")
-		g.Name = "BoardPlateShade"
-		g.Rotation = 90
-		g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
-		g.Parent = row
-		table.insert(st.made, g)
-		local inner = Instance.new("Frame")
-		inner.Name = "BoardPlateInner"
-		inner.BackgroundTransparency = 1
-		inner.BorderSizePixel = 0
-		inner.Active = false
-		inner.Position = UDim2.fromOffset(3, 3)
-		inner.Size = UDim2.new(1, -6, 1, -6)
-		inner.Parent = row
-		table.insert(st.made, inner)
-		local ik = Instance.new("UICorner")
-		ik.CornerRadius = UDim.new(0, 8)
-		ik.Parent = inner
-		local is = Instance.new("UIStroke")
-		is.Color = Color3.fromRGB(176, 138, 70)
-		is.Thickness = 1
-		is.Parent = inner
-		-- four brass corner studs, like the left sign's plates (children of the inner frame, which has no layout)
-		for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
-			local stud = Instance.new("Frame")
-			stud.Name = "BoardPlateStud" .. i
-			stud.AnchorPoint = Vector2.new(at[1], at[2])
-			stud.Position = UDim2.new(at[1], at[1] == 0 and 5 or -5, at[2], at[2] == 0 and 5 or -5)
-			stud.Size = UDim2.fromOffset(6, 6)
-			stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
-			stud.BorderSizePixel = 0
-			stud.Active = false
-			stud.Parent = inner
-			local sk = Instance.new("UICorner")
-			sk.CornerRadius = UDim.new(0.5, 0)
-			sk.Parent = stud
-		end
+	local back = row:FindFirstChild("BoardPlateBack")
+	if back then back.ZIndex = math.max(1, row.ZIndex - 1) return end
+	local z = math.max(1, row.ZIndex - 1)
+	back = Instance.new("Frame")
+	back.Name = "BoardPlateBack"
+	back.BackgroundTransparency = 0
+	back.BackgroundColor3 = Color3.new(1, 1, 1) -- the shade below supplies the colour stops
+	back.BorderSizePixel = 0
+	back.Active = false
+	back.Size = UDim2.fromScale(1, 1)
+	back.ZIndex = z
+	back.Parent = row
+	table.insert(st.made, back)
+	local k = Instance.new("UICorner")
+	k.CornerRadius = UDim.new(0, 10)
+	k.Parent = back
+	local e = Instance.new("UIStroke")
+	e.Color = EDGE
+	e.Thickness = 4 -- dark wood frame
+	e.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	e.Parent = back
+	-- warm parchment: light top to darker foot (Color stops only)
+	local g = Instance.new("UIGradient")
+	g.Rotation = 90
+	g.Color = ColorSequence.new(Color3.fromRGB(244, 226, 186), Color3.fromRGB(206, 178, 128))
+	g.Parent = back
+	local inner = Instance.new("Frame")
+	inner.Name = "BoardPlateInner"
+	inner.BackgroundTransparency = 1
+	inner.BorderSizePixel = 0
+	inner.Active = false
+	inner.Position = UDim2.fromOffset(3, 3)
+	inner.Size = UDim2.new(1, -6, 1, -6)
+	inner.ZIndex = z
+	inner.Parent = back
+	local ik = Instance.new("UICorner")
+	ik.CornerRadius = UDim.new(0, 8)
+	ik.Parent = inner
+	local is = Instance.new("UIStroke")
+	is.Color = Color3.fromRGB(176, 138, 70)
+	is.Thickness = 1
+	is.Parent = inner
+	-- four brass corner studs, like the left sign's plates
+	for i, at in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+		local stud = Instance.new("Frame")
+		stud.Name = "BoardPlateStud" .. i
+		stud.AnchorPoint = Vector2.new(at[1], at[2])
+		stud.Position = UDim2.new(at[1], at[1] == 0 and 5 or -5, at[2], at[2] == 0 and 5 or -5)
+		stud.Size = UDim2.fromOffset(6, 6)
+		stud.BackgroundColor3 = Color3.fromRGB(205, 164, 84)
+		stud.BorderSizePixel = 0
+		stud.Active = false
+		stud.ZIndex = z
+		stud.Parent = inner
+		local sk = Instance.new("UICorner")
+		sk.CornerRadius = UDim.new(0.5, 0)
+		sk.Parent = stud
 	end
 end
 
