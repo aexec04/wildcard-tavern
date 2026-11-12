@@ -177,6 +177,9 @@ end
 -- ===== whole-backdrop breath =====
 -- Zoom stays at 1.03 or more so a drift of 0.006 of the size never shows an edge (margin is 0.015 per side).
 
+-- Play screen is static: the whole backdrop picture must not zoom or drift (it separated from the table). Client/AmbientLife checks this.
+AmbientLayout.BREATH_ENABLED = false
+
 function AmbientLayout.breath(t)
 	local s = 0.5 + 0.5 * math.sin(t * (math.pi * 2 / 40))
 	return {

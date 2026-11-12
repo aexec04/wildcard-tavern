@@ -211,6 +211,7 @@ local function build(scene)
 end
 
 local function breathe(scene, t)
+	if not AmbientLayout.BREATH_ENABLED then return end
 	local host = scene.host
 	if not host:IsA("ImageLabel") then return end
 	if not scene.saved then

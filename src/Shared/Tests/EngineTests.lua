@@ -13163,6 +13163,17 @@ table.insert(tests, { name = "AmbientLayout: every Card Set has a living backdro
 	expectEqual(AL.objectCount("not_a_set", false), 0, "unknown set has no objects")
 end })
 
+table.insert(tests, { name = "AmbientLife: the play backdrop breath is switched off (static scene)", fn = function()
+	local AmbientLayout = require(script.Parent.Parent.Engine.AmbientLayout)
+	expectEqual(AmbientLayout.BREATH_ENABLED, false, "whole-picture breath must stay off")
+	local f = io and io.open and io.open("src/Client/AmbientLife.lua", "r")
+	if f then
+		local src = f:read("*a")
+		f:close()
+		expectTrue(src:find("if not AmbientLayout.BREATH_ENABLED then return end", 1, true) ~= nil, "breathe() must check the flag")
+	end
+end })
+
 table.insert(tests, { name = "AmbientLayout: motion is deterministic, butterflies swap sprites and stay inside, wind and breath stay in range", fn = function()
 	local AL = require(script.Parent.Parent.Engine.AmbientLayout)
 	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
