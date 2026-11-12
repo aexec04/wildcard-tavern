@@ -17,7 +17,7 @@ local M = {}
 
 M.MARGIN = 10 -- from the board's edge to the notes
 M.GAP = 12
-M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 200, 140, 178 -- title (2 lines), time, a 3 line blurb, then 12 px of paper; Claim adds a button row
+M.NOTE_W, M.NOTE_H, M.NOTE_H_CLAIM = 200, 148, 186 -- title (2 lines of 20), time, a 3 line blurb, then 12 px of paper; Claim adds a button row
 M.ROW_MAX, M.ROW_W_MIN, M.ROW_W_MAX = 3, 280, 310 -- wide boards: up to 3 notes on ONE row, each 280 to 310 wide
 M.MIN_SCALE, M.MAX_SCALE = 0.9, 1.3 -- below 0.9 the 14 px text would be unreadable: the board scrolls instead
 M.HEADING_H, M.SUBTITLE_H, M.CLOSE_H = 40, 26, 44

@@ -17985,7 +17985,7 @@ table.insert(tests, { name = "NewsBoardLayout: every note inside the board with 
 			for _, rc in ipairs(five.rects) do rowsSeen[math.floor(rc.y)] = (rowsSeen[math.floor(rc.y)] or 0) + 1 end
 			for _, n in pairs(rowsSeen) do expectTrue(n <= L.ROW_MAX, "wide board: at most 3 notes per row" .. where) end
 		end
-		expectTrue(L.NOTE_H >= 8 + 42 + 24 + 50 + 12 and L.NOTE_H_CLAIM >= L.NOTE_H + 34 + 4, "notes leave 12 px of paper under the last line" .. where)
+		expectTrue(L.NOTE_H >= 8 + 48 + 22 + 50 + 12 and L.NOTE_H_CLAIM >= L.NOTE_H + 34 + 4, "notes leave 12 px of paper under the last line" .. where)
 		local r = one.rects[1]
 		expectTrue(math.abs((r.x + r.w / 2) - a.notes.w / 2) < 1 and math.abs((r.y + r.h / 2) - a.notes.h / 2) < 1, "a single note is centred" .. where)
 		local four = L.layout(a.notes.w, a.notes.h, { { id = "a" }, { id = "b" }, { id = "c" }, { id = "d" } })

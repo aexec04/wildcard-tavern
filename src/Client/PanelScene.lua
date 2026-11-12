@@ -54,6 +54,28 @@ function PanelScene.new(panel, opts)
 			f.ZIndex = z
 			f.Parent = holder
 		end
+		if opts.edgeFade then -- the picture's own border reads as a lighter rectangle on the dim room: fade all four edges into the dark fill
+			local steps, w = 8, 6
+			for i = 0, steps - 1 do
+				local t = 0.15 + 0.85 * (i / steps) ^ 1.5
+				local o = i * w
+				local specs = {
+					{ "EL", o, 0, w, area.h }, { "ER", area.w - o - w, 0, w, area.h },
+					{ "ET", 0, o, area.w, w }, { "EB", 0, area.h - o - w, area.w, w },
+				}
+				for _, sp in ipairs(specs) do
+					local f = Instance.new("Frame")
+					f.Name = "EdgeFade_" .. sp[1] .. i
+					f.BackgroundColor3 = FILL
+					f.BackgroundTransparency = t
+					f.BorderSizePixel = 0
+					f.Position, f.Size = UDim2.fromOffset(math.floor(sp[2]), math.floor(sp[3])), UDim2.fromOffset(math.ceil(sp[4]), math.ceil(sp[5]))
+					f.Active = false
+					f.ZIndex = z
+					f.Parent = holder
+				end
+			end
+		end
 		holder.Visible = true
 	end
 

@@ -217,19 +217,19 @@ local function buildNote(rect, entry, scale, painted)
 		icon.Active = false
 		icon.ZIndex = 34
 		icon.Parent = note
-		textX = 44
+		textX = 40 -- the icon has its own 24 px column (10 to 34)
 	end
 	label(note, {
-		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 42), Position = UDim2.fromOffset(textX, 8 + y0), Text = row.name, TextSize = 17,
-		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
+		Name = "Title", Size = UDim2.new(1, -(textX + 10), 0, 48), Position = UDim2.fromOffset(textX, 8 + y0), Text = row.name, TextSize = 20,
+		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	label(note, {
-		Name = "Time", Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 52 + y0), Text = NewsPanel.noteTime(row), TextSize = 14,
+		Name = "Time", Size = UDim2.new(1, -24, 0, 20), Position = UDim2.fromOffset(12, 58 + y0), Text = NewsPanel.noteTime(row), TextSize = 14,
 		Font = Enum.Font.GothamMedium, TextColor3 = INK_SOFT, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
 	})
 	local claimRow = (entry.kind == "active" and entry.claim) and 46 or 12
 	label(note, {
-		Name = "Blurb", Size = UDim2.new(1, -24, 0, painted and math.max(50, rect.h / scale - (74 + y0) - claimRow) or 50), Position = UDim2.fromOffset(12, 74 + y0), Text = row.blurb or "", TextSize = 14,
+		Name = "Blurb", Size = UDim2.new(1, -24, 0, painted and math.max(50, rect.h / scale - (80 + y0) - claimRow) or 50), Position = UDim2.fromOffset(12, 80 + y0), Text = row.blurb or "", TextSize = 14,
 		Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	})
@@ -378,6 +378,11 @@ function NewsPanel.refresh()
 		local r = plan.scroll and { x = rect.x, y = rect.y + 12, w = rect.w, h = rect.h, tilt = rect.tilt } or rect
 		buildNote(r, entries[i], plan.scale)
 	end
+end
+
+-- Hide the board at once, no animation (DebugGoto jumps and other full-screen switches).
+function NewsPanel.hideNow()
+	if ui then ui.backdrop.Visible = false end
 end
 
 function NewsPanel.open()
@@ -537,7 +542,7 @@ function NewsPanel.init(deps)
 	if SceneLayout then
 		local okPS, PanelScene = pcall(function() return require(script.Parent.PanelScene) end)
 		if okPS and type(PanelScene) == "table" then
-			local okNew, made = pcall(PanelScene.new, panel, { artKey = SceneLayout.ART_KEY, def = SceneLayout.DEF, z = 31 })
+			local okNew, made = pcall(PanelScene.new, panel, { artKey = SceneLayout.ART_KEY, def = SceneLayout.DEF, z = 31, edgeFade = true })
 			if okNew then scene = made end
 		end
 	end

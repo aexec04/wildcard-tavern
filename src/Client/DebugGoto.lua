@@ -48,6 +48,7 @@ function DebugGoto.init(deps)
 		end
 		local ok, err = pcall(function()
 			pendingRound1 = false
+			pcall(function() require(script.Parent.NewsPanel).hideNow() end) -- every jump starts with the News board closed
 			pcall(function() require(script.Parent.LoginStreakUI).suppress(true) end) -- the daily reward plate would cover the view
 			if target.kind == "menu" then
 				OverlayManager.closeAllExcept("")

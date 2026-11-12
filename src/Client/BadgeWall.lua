@@ -144,9 +144,11 @@ local function sceneBackdrop(board, sc)
 	local back = frame(board, { Name = "Furniture", Size = UDim2.fromScale(1, 1), ZIndex = Z - 1, BackgroundColor3 = Color3.fromRGB(40, 28, 20) }, 12)
 	local img = artOver(back, sc.art, { Name = "SceneArt", ZIndex = Z - 1, ScaleType = Enum.ScaleType.Crop })
 	if img then
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 12)
-		c.Parent = img
+		-- the paintings carry a faint 1 px border: grow the picture 6 px past every edge and clip it, so the border is cropped away
+		back.ClipsDescendants = true
+		img.AnchorPoint = Vector2.new(0, 0)
+		img.Position = UDim2.fromOffset(-6, -6)
+		img.Size = UDim2.new(1, 12, 1, 12)
 	end
 	return back
 end
