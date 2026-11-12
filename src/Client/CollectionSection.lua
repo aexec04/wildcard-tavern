@@ -217,7 +217,28 @@ function CollectionSection.new(opts)
 	-- a key-rack tag (House Passes): the pass icon on the paper tag, the name on the brass plate under it (shared with portraitSlot)
 	local function tagSlot(tabId, slot, item, info, z)
 		local inner = slot.inner
-		local holder = make("Frame", frame, { Name = "TagIcon", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z })
+		-- ONE hanging tag: an opaque parchment body from the slot top to the bottom of the name plate (it covers any painted blank tag
+		-- under it), a single cord and hole at the top, the picture in a fitted dark wood frame, the plate attached directly below
+		do
+			local bottom = slot.y + slot.h
+			if slot.plate then local pr = Layout.plateFit(info.name, slot.plate); bottom = pr.y + pr.h + 2 end
+			local paper = Layout.paperOf(tabId) or { 213, 151, 67 }
+			local k = info.found and 1 or 0.6
+			local body = make("Frame", frame, { Name = "TagBody", BackgroundColor3 = Color3.fromRGB(math.floor(paper[1] * k), math.floor(paper[2] * k), math.floor(paper[3] * k)), BorderSizePixel = 0, ZIndex = z })
+			rect(body, { x = slot.x, y = slot.y, w = slot.w, h = bottom - slot.y })
+			corner(body, 8)
+			make("UIStroke", body, { Color = Color3.fromRGB(58, 38, 20), Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+			local cordH = math.max(8, math.floor(slot.h * 0.12))
+			local cord = make("Frame", frame, { Name = "TagCord", BackgroundColor3 = Color3.fromRGB(120, 28, 24), BorderSizePixel = 0, ZIndex = z + 1 })
+			rect(cord, { x = slot.x + math.floor(slot.w / 2) - 3, y = slot.y - cordH + 6, w = 6, h = cordH })
+			local hole = make("Frame", frame, { Name = "TagHole", BackgroundColor3 = Color3.fromRGB(40, 26, 14), BorderSizePixel = 0, ZIndex = z + 1 })
+			rect(hole, { x = slot.x + math.floor(slot.w / 2) - 5, y = slot.y + 8, w = 10, h = 10 })
+			corner(hole, 5)
+			local fr = make("Frame", frame, { Name = "TagPicFrame", BackgroundColor3 = Color3.fromRGB(34, 22, 12), BorderSizePixel = 0, ZIndex = z + 1 })
+			rect(fr, { x = inner.x - 4, y = inner.y - 4, w = inner.w + 8, h = inner.h + 8 })
+			corner(fr, 6)
+		end
+		local holder = make("Frame", frame, { Name = "TagIcon", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 1 })
 		rect(holder, inner)
 		if info.artId then
 			make("ImageLabel", holder, {
