@@ -34,6 +34,18 @@ local M = {}
 
 M.IMAGE_W, M.IMAGE_H = 1536, 1024
 M.MARGIN = 8
+
+-- Rarity rim: a thin outline set RIM_INSET px inside the slot edge, same corner shape, 60 percent opaque (transparency 0.4)
+M.RIM_INSET = 3
+M.RIM_TRANSPARENCY = 0.4
+function M.rimRect(slot)
+	local i = M.RIM_INSET
+	return { x = slot.x + i, y = slot.y + i, w = slot.w - 2 * i, h = slot.h - 2 * i }
+end
+function M.rimRadius(tileRadius) return math.max(0, tileRadius - M.RIM_INSET) end
+-- peak of the soft glow behind a tile: Rare and above only, very low contrast
+local GLOW = { rare = 0.08, epic = 0.1, legendary = 0.12, mythical = 0.12 }
+function M.glowPeak(rarity) return GLOW[rarity] end
 M.PAD = 14 -- picture pixels of wall kept around the outermost slots
 
 -- cols = { { x, w } }, rows = { { y, h } } of the slot in picture pixels; `inset` = { left, top, right, bottom } fractions of the slot kept

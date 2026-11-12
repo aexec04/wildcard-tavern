@@ -286,25 +286,22 @@ function CollectionSection.new(opts)
 		local k = 0.2 -- locked entries get the same full tier colour as found ones
 		local tint = uniform and Color3.fromRGB(150, 120, 70) or c:Lerp(Color3.fromRGB(60, 44, 28), k * 0.5)
 		local common = uniform or info.rarity == "common" -- uniform: every slot of the section wears the same thin rim (Boss Rounds)
+		-- a thin rim set RIM_INSET px inside the slot edge (same shape as the tile, no gap), 60 percent opaque
+		local rr = Layout.rimRect(slot)
 		local rim = make("Frame", frame, { Name = "RarityRim", BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = z + 4 })
-		rect(rim, slot)
-		corner(rim, 6)
-		local stroke = make("UIStroke", rim, { Color = tint, Thickness = common and 2 or 5, Transparency = 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-		local tier = info.rarity
-		if info.found and (tier == "epic" or tier == "legendary" or tier == "mythical") then
-			local glow = make("Frame", frame, { Name = "RarityGlow", BackgroundColor3 = c, BackgroundTransparency = 0.93, BorderSizePixel = 0, ZIndex = z + 4 })
-			rect(glow, slot)
-			corner(glow, 6)
-			if tier == "mythical" and not calm then
-				task.spawn(function()
-					while glow.Parent do
-						TweenService:Create(glow, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0.85 }):Play()
-						task.wait(1.6)
-						if not glow.Parent then break end
-						TweenService:Create(glow, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { BackgroundTransparency = 0.95 }):Play()
-						task.wait(1.6 + 3)
-					end
-				end)
+		rect(rim, rr)
+		corner(rim, Layout.rimRadius(6))
+		make("UIStroke", rim, { Color = tint, Thickness = common and 1 or 2, Transparency = Layout.RIM_TRANSPARENCY, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		-- Rare and above: a very soft glow behind the tile (SoftGlow, low peak, still in calm mode)
+		if info.found and Layout.glowPeak(info.rarity) then
+			local ok, SoftGlow = pcall(function() return require(script.Parent.SoftGlow) end)
+			if ok and SoftGlow then
+				local g = SoftGlow.build(frame, {
+					name = "RarityGlow", color = c, zIndex = z,
+					position = UDim2.fromOffset(slot.x + slot.w / 2, slot.y + slot.h / 2),
+					size = UDim2.fromOffset(slot.w * 1.25, slot.h * 1.25), peak = Layout.glowPeak(info.rarity),
+				})
+				g.root.Active = false
 			end
 		end
 		local gem = make("Frame", frame, { Name = "RarityGem", BackgroundColor3 = c, BorderSizePixel = 0, Rotation = 45, ZIndex = z + 5 })

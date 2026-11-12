@@ -19149,6 +19149,23 @@ table.insert(tests, { name = "CollectionSectionLayout: 12 slots a page (Bonds 8)
 	expectTrue(usableSeen, "some size shows the scenes")
 end })
 
+table.insert(tests, { name = "Collection rarity rim: equals the slot minus the inset, thin and 60 percent opaque; glow only from Rare and low", fn = function()
+	local L = require(script.Parent.Parent.Engine.CollectionSectionLayout)
+	for _, slot in ipairs({ { x = 10, y = 20, w = 200, h = 120 }, { x = 0, y = 0, w = 90, h = 60 }, { x = 333, y = 41, w = 150, h = 210 } }) do
+		local r = L.rimRect(slot)
+		expectEqual(r.x, slot.x + L.RIM_INSET, "rim left")
+		expectEqual(r.y, slot.y + L.RIM_INSET, "rim top")
+		expectEqual(r.x + r.w, slot.x + slot.w - L.RIM_INSET, "rim right")
+		expectEqual(r.y + r.h, slot.y + slot.h - L.RIM_INSET, "rim bottom")
+	end
+	expectEqual(L.rimRadius(6), 3, "rim radius follows the tile corner")
+	expectEqual(L.RIM_TRANSPARENCY, 0.4, "60 percent opaque")
+	expectTrue(L.glowPeak("common") == nil and L.glowPeak("uncommon") == nil, "no glow below Rare")
+	for _, t in ipairs({ "rare", "epic", "legendary", "mythical" }) do
+		expectTrue(L.glowPeak(t) and L.glowPeak(t) <= 0.15, t .. ": glow is very faint")
+	end
+end })
+
 table.insert(tests, { name = "Collection painted sections: a locked Recipe or Bond prints only its name, never its effect or flavor text", fn = function()
 	local col, CB, discovered = collectionBuild({ painted = true })
 	if not col then return end
