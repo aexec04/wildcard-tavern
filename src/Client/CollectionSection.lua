@@ -153,6 +153,17 @@ function CollectionSection.new(opts)
 	end
 
 	-- the portrait kinds: Patrons (the portrait sits INSET in the frame's dark canvas) and Boss Rounds (it stands on the pedestal)
+	-- name plate text: fixed plate height, scaled to fit between PLATE_MIN and PLATE_MAX, truncated at the end, never clipped
+	local function plateText(plate)
+		plate.TextScaled = true
+		plate.TextWrapped = true
+		plate.TextTruncate = Enum.TextTruncate.AtEnd
+		plate.TextYAlignment = Enum.TextYAlignment.Center
+		local c = Instance.new("UITextSizeConstraint")
+		c.MinTextSize, c.MaxTextSize = Layout.PLATE_MIN, Layout.PLATE_MAX
+		c.Parent = plate
+		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) })
+	end
 	local PATRON_INSET = 0.06 -- of the frame, per side, so the art never touches the gilded edge
 	local function portraitSlot(tabId, slot, item, info, z)
 		local standing = tabId == "bosses"
@@ -187,8 +198,7 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
-			plate.TextYAlignment = Enum.TextYAlignment.Top -- first line at one fixed offset so names align across a row
-			make("UIPadding", plate, { PaddingTop = UDim.new(0, 4) })
+			plateText(plate)
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end
@@ -221,8 +231,7 @@ function CollectionSection.new(opts)
 				TextTransparency = transparency, TextStrokeTransparency = 1, ZIndex = z + 3,
 			})
 			rect(plate, (Layout.plateFit(info.name, slot.plate)))
-			plate.TextYAlignment = Enum.TextYAlignment.Top -- first line at one fixed offset so names align across a row
-			make("UIPadding", plate, { PaddingTop = UDim.new(0, 4) })
+			plateText(plate)
 			corner(plate, 4)
 			plate.MouseButton1Click:Connect(function() pick(item) end)
 		end

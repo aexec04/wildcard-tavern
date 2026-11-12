@@ -176,16 +176,16 @@ function M.place(tabId, areaW, areaH, pages)
 	return out
 end
 
--- name plates never truncate: a name that does not fit on one line at 14 px wraps to two (never below 14), the plate growing
--- downward from its top edge. Returns the plate rect to use and the line count. Width per char is an upper estimate for GothamBold.
+-- every name plate has ONE fixed height (room for two lines), so rows align and no text clips; the text is scaled to fit between
+-- PLATE_MIN and PLATE_MAX. Returns the plate rect to use and the line count the name needs (an upper estimate for GothamBold).
 M.PLATE_TEXT = 14
+M.PLATE_MIN, M.PLATE_MAX = 11, 16
 function M.plateFit(name, plate)
 	local perChar = M.PLATE_TEXT * 0.62
 	local usable = math.max(1, plate.w - 8)
-	local oneLine = #tostring(name) * perChar <= usable
-	if oneLine then return plate, 1 end
+	local lines = (#tostring(name) * perChar <= usable) and 1 or 2
 	local h = math.max(plate.h, 2 * M.PLATE_TEXT + 8)
-	return { x = plate.x, y = plate.y, w = plate.w, h = h }, 2
+	return { x = plate.x, y = plate.y, w = plate.w, h = h }, lines
 end
 
 -- the picture's edges that lie INSIDE the view (the side wall shows beyond them) and so get a feather of `px` pixels:
