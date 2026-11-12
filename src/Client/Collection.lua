@@ -319,8 +319,8 @@ return function(deps)
 
 	-- Overall completion bar + next milestone.
 	local overallBar = Instance.new("Frame")
-	overallBar.Size = UDim2.new(1, -30, 0, 22)
-	overallBar.Position = UDim2.fromOffset(15, 36)
+	overallBar.Size = UDim2.new(1, -30, 0, RoomLayout.BAR.h)
+	overallBar.Position = UDim2.fromOffset(15, RoomLayout.BAR.y)
 	overallBar.BackgroundColor3 = Color3.fromRGB(35, 26, 18)
 	overallBar.ZIndex = 21
 	overallBar.Parent = panel
@@ -341,7 +341,7 @@ return function(deps)
 
 	local overallText = label(overallBar, {
 		Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0),
-		Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 23,
+		Font = Enum.Font.GothamBold, TextSize = 14, ZIndex = 23, TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left, Text = "",
 	})
 
@@ -1120,10 +1120,10 @@ return function(deps)
 		-- Next unlock (moved here from the main menu strip)
 		local pick = view.state and view.state.nextUnlock
 		if pick and pick.label then
-			nextText = nextText .. "   |   Next unlock: " .. pick.label
+			nextText = nextText .. "\nNext unlock: " .. pick.label
 		end
 		overallText.TextTruncate = Enum.TextTruncate.AtEnd
-		overallText.Text = string.format("Overall %d%%  (%d / %d)   |   %s",
+		overallText.Text = string.format("Overall %d%%  (%d / %d)\n%s",
 			math.floor(completion.percent), math.floor(completion.found), math.floor(completion.total), nextText)
 
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.

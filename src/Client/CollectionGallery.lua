@@ -103,7 +103,7 @@ function CollectionGallery.frameTile(tile, found, rarityColor, nameText)
 	img.Parent = clip
 	-- the brass plate is part of the frame: brass colour, dark engraved text, a soft rarity rim when owned
 	local pl = parts.plate
-	local plate = box(tile, { Name = "NamePlate", BackgroundColor3 = found and BRASS or Color3.fromRGB(122, 98, 58), Position = UDim2.fromOffset(pl.x, pl.y),
+	local plate = box(tile, { Name = "NamePlate", BackgroundColor3 = found and BRASS or Color3.fromRGB(96, 74, 40), Position = UDim2.fromOffset(pl.x, pl.y),
 		Size = UDim2.fromOffset(pl.w, pl.h), ZIndex = 25 }, 4)
 	local rim = Instance.new("UIStroke")
 	rim.Color = found and rarityColor or BRASS_RIM

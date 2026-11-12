@@ -50,8 +50,8 @@ end
 
 -- ===== the panel's vertical order =====
 M.SIDE = 15 -- side margin of everything under the title
-M.BAR = { y = 36, h = 22 } -- overall progress line
-M.TABS = { y = 62, h = 26 } -- the quiet row of small tab plates
+M.BAR = { y = 36, h = 40 } -- overall progress bar: two short lines (progress, then next reward and unlock)
+M.TABS = { y = 80, h = 26 } -- the quiet row of small tab plates
 M.AREA_TOP = 94 -- (the old top of the section area; a section now starts under the progress line, see panel)
 M.STRIP_H = 28 -- the slim strip along the bottom of a section: tab plates on the left, the page arrows and plate on the right
 M.STRIP_GAP = 6

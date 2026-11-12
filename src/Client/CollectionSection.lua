@@ -162,7 +162,7 @@ function CollectionSection.new(opts)
 		local c = Instance.new("UITextSizeConstraint")
 		c.MinTextSize, c.MaxTextSize = Layout.PLATE_MIN, Layout.PLATE_MAX
 		c.Parent = plate
-		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) })
+		make("UIPadding", plate, { PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) })
 	end
 	local PATRON_INSET = 0.06 -- of the frame, per side, so the art never touches the gilded edge
 	local function portraitSlot(tabId, slot, item, info, z)
@@ -173,13 +173,16 @@ function CollectionSection.new(opts)
 			well = { x = slot.x + ix, y = slot.y + iy, w = slot.w - 2 * ix, h = slot.h - 2 * iy }
 		end
 		local holder = make("Frame", frame, { Name = "Portrait", BackgroundTransparency = standing and 1 or 0, BorderSizePixel = 0, ZIndex = z })
-		holder.BackgroundColor3 = info.found and Color3.fromRGB(46, 36, 26) or Color3.fromRGB(26, 20, 15)
+		holder.BackgroundColor3 = info.found and Color3.fromRGB(46, 36, 26) or Color3.fromRGB(44, 35, 28)
 		rect(holder, well)
+		if not info.found and not standing then -- a faint lighter ring so a locked slot still reads as a portrait
+			make("UIStroke", holder, { Color = Color3.fromRGB(150, 128, 96), Thickness = 2, Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+		end
 		if standing then corner(holder, 8) end -- lightly rounded on the pedestal, never a hard dark rectangle
 		local art = info.artId and make("ImageLabel", holder, {
 			Name = "ContentArt", BackgroundTransparency = 1, Image = info.artId, ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(1, 1), ZIndex = z + ZSTEP,
-			ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(78, 72, 66),
+			ImageColor3 = info.found and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(96, 90, 84),
 		}) or nil
 		if art and standing then corner(art, 8) end
 		if not art then
@@ -191,7 +194,7 @@ function CollectionSection.new(opts)
 		-- a locked Patron dims only its portrait, the painted frame stays lit
 		if not info.found and not standing then dimOver(frame, well, z + 2, nil) end
 		if slot.plate then
-			local ink, transparency = inkOf(BRASS_RGB, not info.found)
+			local ink, transparency = inkOf(BRASS_RGB, false) -- plate text is always solid
 			local plate = make("TextButton", frame, {
 				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
 				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextWrapped = true,
@@ -224,7 +227,7 @@ function CollectionSection.new(opts)
 			})
 		end
 		if slot.plate then
-			local ink, transparency = inkOf(BRASS_RGB, not info.found)
+			local ink, transparency = inkOf(BRASS_RGB, false) -- plate text is always solid
 			local plate = make("TextButton", frame, {
 				Name = "Plate", AutoButtonColor = false, BackgroundColor3 = BRASS, BorderSizePixel = 0,
 				Text = tostring(info.name), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = ink, TextWrapped = true,
