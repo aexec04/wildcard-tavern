@@ -220,11 +220,12 @@ function FlairDressingRoom.build(deps, panel)
 	local previewingLabel = make("TextLabel", mirror, { Position = UDim2.new(0.4, 0, 0, 4), Size = UDim2.new(0.6, -10, 0, 20), Text = "",
 		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 3 })
 	local plaque = bind(make("Frame", panel, { Name = "ScenePlaque", BackgroundTransparency = 1, Visible = false, Active = false }), function(r) return r.plaque or r.close end)
-	local stageScore = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(1, 0.3),
+	local stageScore = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.fromScale(1, 0.3),
 		Text = "12,480", ZIndex = Z + 3 })
 	local stageScoreStroke = stroke(stageScore, CREAM, 0)
-	local stageName = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.74), Size = UDim2.fromScale(1, 0.16),
-		Text = "You", ZIndex = Z + 3 })
+	local stageName = make("TextLabel", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.74), Size = UDim2.new(0.5, 0, 0.14, 0),
+		Text = "You", ZIndex = Z + 3, BackgroundColor3 = Color3.fromRGB(18, 14, 12), BackgroundTransparency = 0.25 })
+	round(stageName, 8) -- "You" sits on a small plaque under the sample number
 	local auraRing = make("Frame", mirror, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.74), Size = UDim2.fromOffset(90, 30),
 		BackgroundTransparency = 1, Visible = false, ZIndex = Z + 2 })
 	round(auraRing, 15)
@@ -235,7 +236,7 @@ function FlairDressingRoom.build(deps, panel)
 	local function sizeStageText()
 		-- the sample "12,480" is about 3.7 em wide and pops to 1.3x, so it must fit the mirror glass (width W): em <= W / 4.8
 		local glassW = math.max(1, mirror.AbsoluteSize.X - 12)
-		scoreBase = math.clamp(math.floor(math.min(mirror.AbsoluteSize.Y * 0.2, glassW / 4.8)), 14, 56)
+		scoreBase = math.clamp(math.floor(math.min(math.max(36, mirror.AbsoluteSize.Y * 0.2), glassW / 4.8)), 14, 56)
 		nameBase = math.clamp(math.floor(math.min(mirror.AbsoluteSize.Y * 0.09, glassW / 5.5)), 14, 26)
 		stageScore.TextSize = scoreBase
 		stageName.TextSize = nameBase
@@ -484,7 +485,7 @@ function FlairDressingRoom.build(deps, panel)
 			TextColor3 = locked and Color3.fromRGB(110, 100, 96) or CREAM })
 		pcall(ArtIcon.apply, ic, "flair", item.id, glyph, { cornerRadius = med / 2, zIndex = Z + 3, dim = locked })
 		if locked then
-			local shade = make("Frame", ic, { Name = "Silhouette", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(10, 8, 8), BackgroundTransparency = 0.45, ZIndex = Z + 4 })
+			local shade = make("Frame", ic, { Name = "Silhouette", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(10, 8, 8), BackgroundTransparency = 0.7, ZIndex = Z + 4 })
 			circle(shade)
 			make("TextLabel", ic, { Name = "Lock", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1), Size = UDim2.fromOffset(20, 20), Text = "🔒", TextSize = 14, ZIndex = Z + 5 })
 		end
@@ -547,7 +548,7 @@ function FlairDressingRoom.build(deps, panel)
 			else
 				stroke(b, on and GOLD or Color3.fromRGB(86, 66, 44), on and 2.5 or 1)
 			end
-			local name = make("TextLabel", b, { Text = d.icon .. " " .. d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
+			local name = make("TextLabel", b, { Text = d.name, TextSize = 16, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = Z + 1,
 				TextColor3 = on and CREAM or Color3.fromRGB(210, 194, 164) })
 			local nameLimit = Instance.new("UITextSizeConstraint")
 			nameLimit.MinTextSize, nameLimit.MaxTextSize = 14, 16
@@ -646,8 +647,21 @@ function FlairDressingRoom.build(deps, panel)
 			-- both labels live on the brass plaque under the mirror, so nothing floats over the sample number
 			liveLabel.Parent = plaque
 			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.new(0, 14, 0, 0), UDim2.new(1, -28, 0.45, 0), Enum.TextXAlignment.Center
+			liveLabel.TextYAlignment, previewingLabel.TextYAlignment = Enum.TextYAlignment.Center, Enum.TextYAlignment.Center
+			local function centreLabels()
+				-- one label alone fills the plaque so its text sits in the middle; two stack
+				local two = previewingLabel.Text ~= ""
+				liveLabel.Size = two and UDim2.new(1, -28, 0.5, 0) or UDim2.new(1, -28, 1, 0)
+				previewingLabel.Position = UDim2.new(0, 14, 0.5, 0)
+				previewingLabel.Size = UDim2.new(1, -28, 0.5, 0)
+			end
+			if not previewingLabel:GetAttribute("CentreHooked") then
+				previewingLabel:SetAttribute("CentreHooked", true)
+				previewingLabel:GetPropertyChangedSignal("Text"):Connect(function() if previewingLabel.Parent == plaque then centreLabels() end end)
+			end
 			previewingLabel.Parent = plaque
-			previewingLabel.Position, previewingLabel.Size, previewingLabel.TextXAlignment = UDim2.new(0, 14, 0.45, 0), UDim2.new(1, -28, 0.5, 0), Enum.TextXAlignment.Center
+			previewingLabel.TextXAlignment = Enum.TextXAlignment.Center
+			centreLabels()
 		else
 			liveLabel.Parent = mirror
 			liveLabel.Position, liveLabel.Size, liveLabel.TextXAlignment = UDim2.fromOffset(10, 4), UDim2.new(0.4, -10, 0, 20), Enum.TextXAlignment.Left
