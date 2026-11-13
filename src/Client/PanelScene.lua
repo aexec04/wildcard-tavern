@@ -14,7 +14,9 @@ local PanelSceneLayout = require(game:GetService("ReplicatedStorage"):WaitForChi
 
 local PanelScene = {}
 local FILL = Color3.fromRGB(26, 18, 12) -- the holder colour the vignette fades into
-local WASH = 0.2 -- transparency of the dark wash over the backdrop copy of the painting
+local WASH = 0.5 -- transparency of the dark wash over the backdrop copy at the seam (near the picture's own brightness)
+local OUTER = 0.1 -- transparency of the fade at the screen edge (darkest point of the backdrop)
+local OVERSHOOT = 24 -- the holder runs this far below the area so no dark strip shows under it (the panel clips it)
 
 function PanelScene.new(panel, opts)
 	local z = opts.z or 41
@@ -39,7 +41,8 @@ function PanelScene.new(panel, opts)
 	picture.Parent = holder
 
 	function scene.show(area, placed)
-		holder.Position, holder.Size = UDim2.fromOffset(area.x, area.y), UDim2.fromOffset(area.w, area.h)
+		local fullH = area.h + OVERSHOOT
+		holder.Position, holder.Size = UDim2.fromOffset(area.x, area.y), UDim2.fromOffset(area.w, fullH)
 		picture.Position, picture.Size = UDim2.fromOffset(placed.image.x, placed.image.y), UDim2.fromOffset(placed.image.w, placed.image.h)
 		for _, ch in ipairs(holder:GetChildren()) do
 			if ch ~= picture then ch:Destroy() end
@@ -53,7 +56,7 @@ function PanelScene.new(panel, opts)
 		if gap and id and placed.scale and placed.scale > 0 then
 			base = WASH
 			local srcW, srcH = I.w / placed.scale, I.h / placed.scale
-			local cs = math.max(area.w / srcW, area.h / srcH)
+			local cs = math.max(area.w / srcW, fullH / srcH)
 			local back = Instance.new("ImageLabel")
 			back.Name = "Backdrop"
 			back.BackgroundTransparency = 1
@@ -62,14 +65,14 @@ function PanelScene.new(panel, opts)
 			back.Active = false
 			back.ZIndex = z
 			back.Size = UDim2.fromOffset(math.ceil(srcW * cs), math.ceil(srcH * cs))
-			back.Position = UDim2.fromOffset(math.floor((area.w - srcW * cs) / 2), math.floor((area.h - srcH * cs) / 2))
+			back.Position = UDim2.fromOffset(math.floor((area.w - srcW * cs) / 2), math.floor((fullH - srcH * cs) / 2))
 			back.Parent = holder
 			local wash = Instance.new("Frame")
 			wash.Name = "BackdropWash"
 			wash.BackgroundColor3 = FILL
 			wash.BackgroundTransparency = WASH
 			wash.BorderSizePixel = 0
-			wash.Size = UDim2.fromOffset(area.w, area.h)
+			wash.Size = UDim2.fromOffset(area.w, fullH)
 			wash.Active = false
 			wash.ZIndex = z
 			wash.Parent = holder

@@ -378,6 +378,7 @@ function LegendPanel.init(deps)
 			scene.hide()
 		end
 		sceneLayer.Visible = sceneOn
+		innerFrame.Visible = not sceneOn -- the boxed gold rule read as pasted over the wall; the room has plain text on the wood header like the Collection
 		do local sh = panel.Parent and panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not sceneOn end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
 		end
 		crestHolder.Visible = not sceneOn
