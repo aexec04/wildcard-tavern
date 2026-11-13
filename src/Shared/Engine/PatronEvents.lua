@@ -73,6 +73,8 @@ local function num(n)
 	return tostring(n)
 end
 
+PatronEvents.fmt = num -- one rounding (two decimals at most) for every place that prints an amount
+
 function PatronEvents.text(event)
 	if event.kind == "chips" then return "+" .. num(event.amount) .. " Chips", "chips" end
 	if event.kind == "mult" then return "+" .. num(event.amount) .. " Mult", "mult" end

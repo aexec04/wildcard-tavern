@@ -30,6 +30,12 @@ M.AIR = 8 -- clear space between the plaques and the hand cards
 
 local function floor(n) return math.floor(n + 0.5) end
 
+-- Where a beat pill hangs (bottom anchored): on the card's face just under its top edge, so it never rises into the hand-name
+-- plate above the row. Returns y (the pill's bottom edge) and how far it floats up while fading.
+function M.pillSpot(cardY, cardH)
+	return cardY + math.min(44, math.floor(cardH * 0.4)), 8
+end
+
 function M.scale(rootW)
 	return math.max(0.75, math.min(1.3, rootW / M.BASE_SCREEN))
 end

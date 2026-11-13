@@ -556,8 +556,8 @@ function M.trigger(patronId, event, fast)
 	-- the effect pill above the card
 	local r = c.slot
 	local hostX = r.Position.X.Offset + r.Size.X.Offset / 2
-	local hostY = r.Position.Y.Offset - 4
-	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, 22, hold, frozen)
+	local hostY, rise = Layout.pillSpot(r.Position.Y.Offset, r.Size.Y.Offset)
+	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen)
 	-- every other Patron dims to 70 percent while this one triggers
 	dimToken = dimToken + 1
 	local mine = dimToken

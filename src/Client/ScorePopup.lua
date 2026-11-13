@@ -500,7 +500,8 @@ return function(deps)
 
 	local function formatEntryText(entry)
 		if entry.kind == "xmult" then
-			return string.format("%s  x%g XMult", entry.label, entry.amount)
+			local PE = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents"))
+			return string.format("%s  x%s Mult", entry.label, PE.fmt(entry.amount))
 		elseif entry.kind == "tips" then
 			local sign = entry.amount >= 0 and "+" or ""
 			return string.format("%s  %s%d Tips", entry.label, sign, math.floor(entry.amount + 0.5))

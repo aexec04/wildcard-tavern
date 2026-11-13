@@ -23693,6 +23693,26 @@ table.insert(tests, { name = "Patron beats: DebugGoto playhand runs the hub's re
 	expectTrue(pop:find("pulsePatronSlot(slotFrame)", 1, true) ~= nil, "the loop runs per breakdown entry with a patron source")
 end })
 
+table.insert(tests, { name = "Patron beat polish: one xmult wording and rounding, pill clear of the plate, patrons:6 and 8 seat every card", fn = function()
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local RowLayout = require(script.Parent.Parent.Engine.PatronRowLayout)
+	expectEqual(PE.fmt(1.331), "1.33", "no third decimal")
+	expectEqual(PE.fmt(2), "2", "whole numbers stay whole")
+	expectEqual(PE.text({ kind = "xmult", amount = 1.331 }), "x1.33 Mult", "pill wording")
+	for _, h in ipairs({ 100, 132, 172 }) do
+		local y, rise = RowLayout.pillSpot(300, h)
+		expectTrue(y - 30 >= 300, "pill top stays under the card's top edge (" .. h .. ")")
+		expectTrue(y <= 300 + h and rise <= 10, "pill stays on the card (" .. h .. ")")
+	end
+	expectEqual(#Patrons.alwaysFiring(6), 6, "six debug Patrons exist")
+	expectEqual(#Patrons.alwaysFiring(8), 8, "eight debug Patrons exist")
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local pop, srv = slurp("src/Client/ScorePopup.lua"), slurp("src/Server/init.server.lua")
+	if not (pop and srv) then return end
+	expectFalse(pop:find("XMult\", entry.label", 1, true) ~= nil or pop:find("x%g XMult", 1, true) ~= nil, "the top line no longer says XMult")
+	expectTrue(srv:find("the debug row may be longer than the table's seat limit", 1, true) ~= nil, "debug seating bypasses the seat limit")
+end })
+
 table.insert(tests, { name = "Patron beats: debug Patrons always fire on High Card, played cards land below the Patron row, playhand:keep waits for the 5000 target", fn = function()
 	local ids = Patrons.alwaysFiring(3)
 	expectEqual(#ids, 3, "three always-firing Patrons exist")

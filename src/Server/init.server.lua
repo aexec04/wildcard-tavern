@@ -2828,7 +2828,8 @@ Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
 	state.ownedPatrons = {}
 	-- Patrons that fire on any hand (flat chips, flat mult, xmult first), so the debug hand always shows beats
 	for _, id in ipairs(Patrons.alwaysFiring(n)) do
-		if not RunState.grantPatron(state, id) then break end
+		local def = Patrons.getById(id)
+		if def then table.insert(state.ownedPatrons, def) end -- straight in: the debug row may be longer than the table's seat limit
 	end
 	print("[DebugGoto server] patrons=" .. #state.ownedPatrons .. " requested=" .. n)
 	pushState(player)
