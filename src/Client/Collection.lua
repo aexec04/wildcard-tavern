@@ -1392,5 +1392,5 @@ return function(deps)
 		end)
 	end
 
-	return {}
+	return { notice = showMilestoneToast } -- the lazy wrapper in the hub builds the panel and calls this when a milestone arrives before first open
 end

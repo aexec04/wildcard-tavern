@@ -18692,6 +18692,36 @@ table.insert(tests, { name = "LazyPanel: a panel is built on its first open only
 	expectEqual(opens, 2, "but opens again")
 end })
 
+table.insert(tests, { name = "LazyPanel: a group builds on any of its buttons or ids, the stand-in replaces every button, and the built panel's return value is kept", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local stubs, openers, opened = {}, {}, {}
+	stubs.OverlayManager = { registerOpener = function(id, fn) openers[id] = fn end, open = function(id) opened[#opened + 1] = id; if openers[id] then openers[id]() end end }
+	local env = FakeGui.env({ stubs = stubs })
+	local Lazy = FakeGui.load("src/Client/LazyPanel.lua", env)
+	local builds, opens = 0, 0
+	local a, b = FakeGui.new("TextButton"), FakeGui.new("TextButton")
+	local lazy = Lazy.wrap("group", function(deps)
+		builds = builds + 1
+		local function open() opens = opens + 1 end
+		openers.group, openers.child = open, open -- the built group registers its own pages
+		deps.a.MouseButton1Click:Connect(open)
+		deps.b.MouseButton1Click:Connect(open)
+		return { notice = true }
+	end, { "a", "b" }, { "child", "ghost" })({ a = a, b = b })
+	expectEqual(builds, 0, "nothing built at startup")
+	expectTrue(lazy.api() == nil, "no api before the first build")
+	openers.child() -- the Menu opening a page of the group
+	expectEqual(builds, 1, "opening a page id builds the group")
+	expectEqual(opens, 1, "and then opens that page for real")
+	expectTrue(lazy.api() ~= nil and lazy.api().notice, "the constructor's return value is kept")
+	b.MouseButton1Click:Fire()
+	expectEqual(builds, 1, "the second button does not rebuild")
+	-- an id the group never registers must not loop
+	openers.ghost()
+	expectEqual(builds, 1, "an unregistered id does not rebuild or recurse")
+end })
+
 table.insert(tests, { name = "Collection: Escape and the Gallery plate step back (detail card, then section, then the room), a quiet plate goes to its section", fn = function()
 	local col, CB = collectionBuild()
 	if not col then return end

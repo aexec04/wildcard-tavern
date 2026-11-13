@@ -1201,7 +1201,10 @@ local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit 
 -- back out of here (capturing the return value as a new top-level local
 -- here blew straight through Lua's 200-local ceiling -- this file is
 -- already right up against it, same lesson as ArtAssets.lua's).
-require(script.Collection)({
+-- Lazy: built on the first open of the Collection or of any page it owns (Card Sets, Badges, Rewards, Flair, Legend, Stats).
+do
+	local lazyCollection = require(script.LazyPanel).wrap("collection", require(script.Collection), { "collectionButton", "menuCollectionButton" },
+	{ "cosmeticSets", "badges", "collectionRewards", "flair", "legend", "stats" })({
 	addTooltip = addTooltip,
 	screenGui = screenGui,
 	polishPanel = VisualHelpersModule.polishPanel,
@@ -1232,6 +1235,18 @@ require(script.Collection)({
 	popOut = VisualHelpersModule.popOut,
 	addButtonHoverScale = VisualHelpersModule.addButtonHoverScale,
 })
+-- A Collection milestone can arrive before the panel was ever opened: build it then and show the toast (it is a one-shot notice).
+StateUpdatedRemote.OnClientEvent:Connect(function()
+	task.defer(function()
+		local notice = latestState and latestState.collectionMilestoneNotice
+		if notice and not lazyCollection.api() then
+			lazyCollection.build()
+			local api = lazyCollection.api()
+			if api and api.notice then api.notice(notice) end
+		end
+	end)
+end)
+end
 
 -- ===== Daily Challenge Leaderboard overlay (Phase 11) =====
 -- Extracted into Client/DailyLeaderboard.lua. Fully self-contained (only
