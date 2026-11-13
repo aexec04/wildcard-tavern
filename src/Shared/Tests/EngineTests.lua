@@ -20532,6 +20532,24 @@ table.insert(tests, { name = "DebugGotoRules: patrons:<n> parses and clamps to 8
 	assert(R.parse("patrons:x") == nil)
 end })
 
+table.insert(tests, { name = "DebugGoto round1:mod=: the client copies the parsed ids, and open_hands / sharp_eyes change Hands / Discards and show in the view", fn = function()
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	for id, key in pairs({ open_hands = "handsPerRound", sharp_eyes = "discardsPerRound" }) do
+		local state = { config = { handsPerRound = 4, discardsPerRound = 3, patronSlotLimit = 5, recipeSlotLimit = 2, tipsPerRoundWin = 3 }, tips = 0, handsRemaining = 4, discardsRemaining = 3 }
+		local ok = RM.apply(state, id)
+		assert(ok, id .. " applies")
+		local base = (key == "handsPerRound") and 4 or 3
+		assert(state.config[key] == base + 1, id .. " adds one to " .. key)
+		local view = RM.view(state.runModifierId)
+		assert(view and view.id == id and view.blessing and view.curse, id .. " has a view the board row shows")
+	end
+	if type(io) ~= "table" or not io.open then return end -- Studio has no io library
+	local f = io.open("src/Client/DebugGoto.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("wantedMod, wantedTag = target.modId, target.tagId", 1, true), "round1 jump stores the wanted blessing and Tag")
+end })
+
 table.insert(tests, { name = "DebugGotoRules: round1:mod= and round1:tag= parse, combine, and reject junk", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local a = R.parse("round1:mod=open_hands")
@@ -23604,6 +23622,7 @@ table.insert(tests, { name = "PatronRowLayout: leftLimit keeps the row 8 units r
 end })
 
 table.insert(tests, { name = "PatronRow: measurements are absolute, so the holder cancels any UIScale on the root (scale:WxH) and logs a [PatronRow] line", fn = function()
+	if type(io) ~= "table" or not io.open then return end -- Studio has no io library
 	local f = io.open("src/Client/PatronRow.lua", "r")
 	if not f then return end -- not run from the repo root
 	local src = f:read("*a"); f:close()

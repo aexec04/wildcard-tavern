@@ -292,6 +292,7 @@ function DebugGoto.init(deps)
 				hideTutorialOverlay()
 				local CosmeticSets = require(ReplicatedStorage.Shared.Engine.CosmeticSets)
 				previewSet = nil
+				wantedMod, wantedTag = target.modId, target.tagId
 				-- a preview left over from an earlier jump or the Card Sets panel would win over this jump's set: clear it first
 				pcall(function() require(script.Parent.CosmeticSetsView).stopPreview() end)
 				if target.setId then
@@ -378,6 +379,11 @@ function DebugGoto.init(deps)
 		hideTutorialOverlay()
 		local step, optionId = Rules.round1Step(state, wantedMod)
 		if step == "choice" then
+			if wantedMod and state.choice and state.choice.kind == "modifier" and optionId ~= wantedMod then
+				local ids = {}
+				for _, o in ipairs(state.choice.options) do ids[#ids + 1] = o.id end
+				warn("[DebugGoto] blessing '" .. wantedMod .. "' is not offered this run; options: " .. table.concat(ids, ", "))
+			end
 			remotes:WaitForChild("Choice"):FireServer(optionId)
 		elseif step == "select" and not selectSent then
 			selectSent = true
