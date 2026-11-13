@@ -39,9 +39,11 @@ local BossLines = require(Engine:WaitForChild("BossLines"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local BossStage = require(Engine:WaitForChild("BossStage"))
 local StageLayout = require(Engine:WaitForChild("StageLayout"))
+local BossBubbleLayout = require(Engine:WaitForChild("BossBubbleLayout"))
 local BannerVisibility = require(Engine:WaitForChild("BannerVisibility"))
 
 local ENRAGE_GOLD = Color3.fromRGB(235, 180, 40)
+local BUBBLE_W, BUBBLE_H = 250, 104
 local BUBBLE_GAP = 3.5 -- seconds between taunts (intro and the ending lines ignore it)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
@@ -492,8 +494,8 @@ local function build(deps)
 	-- parchment speech bubble, left of the portrait (the right side is the corner icon row)
 	local bubble = Instance.new("Frame")
 	bubble.Name = "BossBubble"
-	bubble.AnchorPoint = Vector2.new(1, 0)
-	bubble.Size = UDim2.new(0, 210, 0, 62)
+	bubble.AnchorPoint = Vector2.new(0, 0)
+	bubble.Size = UDim2.new(0, BUBBLE_W, 0, BUBBLE_H)
 	bubble.BackgroundColor3 = Color3.fromRGB(232, 212, 168)
 	bubble.BorderSizePixel = 0
 	bubble.Active = false
@@ -507,9 +509,66 @@ local function build(deps)
 	bubbleStroke.Parent = bubble
 	local bubbleScale = Instance.new("UIScale")
 	bubbleScale.Parent = bubble
+	-- the speaker: a round portrait chip and the boss name, so the line never comes from nowhere
+	local chip = Instance.new("Frame")
+	chip.Name = "SpeakerChip"
+	chip.Size = UDim2.fromOffset(30, 30)
+	chip.Position = UDim2.fromOffset(8, 6)
+	chip.BackgroundColor3 = WOOD
+	chip.BorderSizePixel = 0
+	chip.Active = false
+	chip.ClipsDescendants = true
+	chip.ZIndex = 6
+	chip.Parent = bubble
+	corner(chip, 15)
+	local chipStroke = Instance.new("UIStroke")
+	chipStroke.Color = Color3.fromRGB(140, 32, 32)
+	chipStroke.Thickness = 2
+	chipStroke.Parent = chip
+	local chipImage = Instance.new("ImageLabel")
+	chipImage.Name = "Portrait"
+	chipImage.Size = UDim2.fromScale(1.4, 1.4)
+	chipImage.AnchorPoint = Vector2.new(0.5, 0.4)
+	chipImage.Position = UDim2.fromScale(0.5, 0.4)
+	chipImage.BackgroundTransparency = 1
+	chipImage.ScaleType = Enum.ScaleType.Crop
+	chipImage.ZIndex = 6
+	chipImage.Parent = chip
+	local chipFallback = Instance.new("TextLabel")
+	chipFallback.Name = "Crown"
+	chipFallback.Size = UDim2.fromScale(1, 1)
+	chipFallback.BackgroundTransparency = 1
+	chipFallback.Text = "👑"
+	chipFallback.TextSize = 16
+	chipFallback.ZIndex = 6
+	chipFallback.Parent = chip
+	local speakerName = Instance.new("TextLabel")
+	speakerName.Name = "SpeakerName"
+	speakerName.Size = UDim2.new(1, -52, 0, 30)
+	speakerName.Position = UDim2.fromOffset(44, 6)
+	speakerName.BackgroundTransparency = 1
+	speakerName.Font = Enum.Font.GothamBold
+	speakerName.TextSize = 15
+	speakerName.TextXAlignment = Enum.TextXAlignment.Left
+	speakerName.TextColor3 = Color3.fromRGB(140, 32, 32)
+	speakerName.TextStrokeTransparency = 1
+	speakerName.TextTruncate = Enum.TextTruncate.AtEnd
+	speakerName.ZIndex = 6
+	speakerName.Parent = bubble
+	-- tail: a diamond half hidden behind the bubble, turned to point at the speaker
+	local tail = Instance.new("Frame")
+	tail.Name = "Tail"
+	tail.AnchorPoint = Vector2.new(0.5, 0.5)
+	tail.Size = UDim2.fromOffset(16, 16)
+	tail.Rotation = 45
+	tail.BackgroundColor3 = Color3.fromRGB(232, 212, 168)
+	tail.BorderSizePixel = 0
+	tail.Active = false
+	tail.ZIndex = 4
+	tail.Parent = bubble
 	local bubbleText = Instance.new("TextLabel")
-	bubbleText.Size = UDim2.new(1, -16, 1, -8)
-	bubbleText.Position = UDim2.new(0, 8, 0, 4)
+	bubbleText.Size = UDim2.new(1, -16, 1, -42)
+	bubbleText.Position = UDim2.new(0, 8, 0, 38)
 	bubbleText.BackgroundTransparency = 1
 	bubbleText.Font = Enum.Font.GothamMedium
 	bubbleText.TextSize = 16
@@ -520,6 +579,35 @@ local function build(deps)
 	bubbleText.Parent = bubble
 	local bubbleToken = 0
 
+	-- where the bubble goes: the boss portrait frame if it is on screen, else the banner plate; clear of the hand,
+	-- the Patron Row and the dock (rects read live; Engine/BossBubbleLayout is the tested rule)
+	local function absRect(g)
+		if not g or not g.Visible then return nil end
+		local sz = g.AbsoluteSize
+		if sz.X <= 0 or sz.Y <= 0 then return nil end
+		return { x = g.AbsolutePosition.X, y = g.AbsolutePosition.Y, w = sz.X, h = sz.Y }
+	end
+	local function bubbleSpot()
+		if not host.Visible then return nil end
+		local frame = holder.Visible and holder:FindFirstChild("BossFrame") or nil
+		local anchor = absRect(frame) or absRect(plate)
+		if not anchor then return nil end
+		local keep = {}
+		for _, name in ipairs({ "HandFrame", "PatronRow" }) do
+			local r = absRect(root:FindFirstChild(name, true))
+			if r then keep[#keep + 1] = r end
+		end
+		local hp, hs = host.AbsolutePosition, host.AbsoluteSize
+		keep[#keep + 1] = { x = hp.X + hs.X - 300, y = hp.Y, w = 300, h = 92 } -- corner dock row
+		local spot = BossBubbleLayout.place({ x = hp.X, y = hp.Y, w = hs.X, h = hs.Y }, anchor,
+			{ w = BUBBLE_W, h = BUBBLE_H }, keep)
+		if not spot then return nil end
+		-- to host-relative pixels
+		spot.rect.x, spot.rect.y = spot.rect.x - hp.X, spot.rect.y - hp.Y
+		spot.tail.x, spot.tail.y = spot.tail.x - hp.X, spot.tail.y - hp.Y
+		return spot
+	end
+
 	local function say(event, force)
 		if not bossDef or not visible then return end
 		local now = os.clock()
@@ -529,18 +617,27 @@ local function build(deps)
 		lastBubble = now
 		bubbleToken = bubbleToken + 1
 		local mine = bubbleToken
-		-- left of the banner (it stands at the screen centre, host attribute CenterX), 12 px gap, on screen
-			local cx = host:GetAttribute("CenterX") or math.floor(host.AbsoluteSize.X / 2)
-			local pw = plate.AbsoluteSize.X > 0 and plate.AbsoluteSize.X or BAR_W
-			local right = cx - math.floor(pw / 2) - 12
-			if right - 210 >= 8 then
-				bubble.Position = UDim2.new(0, right, 0, 10)
-			else
-				bubble.Position = UDim2.new(0, math.max(218, cx - 12), 0, 66) -- no room beside it: below the banner
-			end
+		-- anchored to the speaker's live rect (portrait frame, else the banner plate), tail towards it
+		local spot = bubbleSpot()
+		if not spot then -- speaker hidden or no clear room: skip this line
+			bubble.Visible = false
+			lastBubble = -100
+			return
+		end
+		bubble.Position = UDim2.fromOffset(spot.rect.x, spot.rect.y)
+		tail.Position = UDim2.fromOffset(spot.tail.x - spot.rect.x, spot.tail.y - spot.rect.y)
+		speakerName.Text = bossDef.name or ""
+		local artId = ContentArt.getImageId("boss_rounds", bossDef.id)
+		chipImage.Image = artId or ""
+		chipImage.Visible = artId ~= nil
+		chipFallback.Visible = artId == nil
+		tail.BackgroundTransparency = 0
 		bubbleText.Text = line
 		bubbleText.TextTransparency = 0
 		bubbleText.TextStrokeTransparency = 1
+		speakerName.TextTransparency = 0
+		speakerName.TextStrokeTransparency = 1
+		chip.BackgroundTransparency = 0
 		bubble.BackgroundTransparency = 0
 		bubbleStroke.Transparency = 0
 		bubble.Visible = true
@@ -555,6 +652,10 @@ local function build(deps)
 			if bubbleToken ~= mine then return end
 			play(bubble, { BackgroundTransparency = 1 }, 0.3)
 			play(bubbleText, { TextTransparency = 1 }, 0.3)
+			play(speakerName, { TextTransparency = 1 }, 0.3)
+			play(tail, { BackgroundTransparency = 1 }, 0.3)
+			play(chip, { BackgroundTransparency = 1 }, 0.3)
+			play(chipImage, { ImageTransparency = 1 }, 0.3)
 			play(bubbleStroke, { Transparency = 1 }, 0.3)
 			task.delay(0.35, function()
 				if bubbleToken == mine then bubble.Visible = false end

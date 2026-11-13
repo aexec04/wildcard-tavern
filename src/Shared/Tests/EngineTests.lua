@@ -23468,6 +23468,42 @@ table.insert(tests, { name = "PatronRowLayout.painted: strip keeps its aspect, 1
 	end
 end })
 
+table.insert(tests, { name = "BossBubbleLayout: the bubble hangs beside the speaker with a tail at it, stays on screen and 12 px clear of the keep-out rects at three sizes", fn = function()
+	local BBL = require(script.Parent.Parent.Engine.BossBubbleLayout)
+	local SL = require(script.Parent.Parent.Engine.StageLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local size = { w = 250, h = 104 }
+	expectEqual(BBL.place(nil, { x = 0, y = 0, w = 10, h = 10 }, size, {}), nil, "no bounds, no bubble")
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local left = 340
+		local fr = SL.bossFrame(w, h)
+		expectTrue(fr ~= nil, "boss frame at " .. w .. "x" .. h)
+		local cx = w / 2
+		local anchor = { x = cx - fr.width / 2, y = fr.top, w = fr.width, h = fr.height }
+		local p = PTL.placement(w, h, left, 150)
+		local keep = { { x = p.hand.x, y = p.hand.y, w = p.hand.w, h = p.hand.h }, { x = w - 300, y = 0, w = 300, h = 92 } }
+		local bounds = { x = left, y = 0, w = w - left, h = h }
+		local spot = BBL.place(bounds, anchor, size, keep)
+		expectTrue(spot ~= nil, "a spot exists at " .. w .. "x" .. h)
+		local r = spot.rect
+		expectTrue(r.x >= bounds.x + 8 and r.y >= 8 and r.x + r.w <= w - 8 and r.y + r.h <= h - 8, "on screen at " .. w .. "x" .. h)
+		for _, k in ipairs(keep) do
+			expectTrue(r.x >= k.x + k.w + 12 or k.x >= r.x + r.w + 12 or r.y >= k.y + k.h + 12 or k.y >= r.y + r.h + 12, "12 px clear of a keep-out rect at " .. w .. "x" .. h)
+		end
+		expectTrue(r.x >= anchor.x + anchor.w or r.x + r.w <= anchor.x or r.y >= anchor.y + anchor.h or r.y + r.h <= anchor.y, "never covers the speaker")
+		-- the tail sits on the bubble's edge that faces the speaker
+		local t = spot.tail
+		if spot.side == "right" then expectTrue(t.x == r.x and t.y >= r.y and t.y <= r.y + r.h, "tail on the left edge")
+		elseif spot.side == "left" then expectTrue(t.x == r.x + r.w, "tail on the right edge")
+		elseif spot.side == "below" then expectTrue(t.y == r.y, "tail on the top edge")
+		else expectTrue(t.y == r.y + r.h, "tail on the bottom edge") end
+	end
+	-- nothing fits: the line is skipped, not drawn over something
+	local boxed = { { x = 0, y = 0, w = 400, h = 400 } }
+	expectEqual(BBL.place({ x = 0, y = 0, w = 400, h = 400 }, { x = 150, y = 150, w = 100, h = 100 }, size, boxed), nil, "no room, no bubble")
+end })
+
 table.insert(tests, { name = "Patron Row is wired: the hub installs and updates it, ScorePopup triggers a beat per Patron entry", fn = function()
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local hub, pop, row = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PatronRow.lua")
