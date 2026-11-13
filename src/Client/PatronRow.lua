@@ -225,6 +225,9 @@ local function newCard(i)
 	c.value = value
 	c.slot, c.float, c.body, c.name, c.plus, c.plaque, c.shadow = slot, float, body, name, plus, plaque, shadow
 	c.dim, c.ringStroke = dim, ringStroke
+	-- hover: an owned Patron's gold ring shows faintly (the scoring beat owns the ring while a card hops)
+	body.MouseEnter:Connect(function() if c.id and not c.hopping then ringStroke.Transparency = 0.45 end end)
+	body.MouseLeave:Connect(function() if not c.hopping then ringStroke.Transparency = 1 end end)
 	if tooltipFn then
 		tooltipFn(body, function()
 			local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
