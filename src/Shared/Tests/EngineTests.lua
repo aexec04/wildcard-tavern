@@ -19773,7 +19773,9 @@ table.insert(tests, { name = "PlayTableLayout plates: Play Hand and Discard equa
 		expectTrue(p ~= nil, "placement at " .. sz[1])
 		if p then
 			local pl = p.map.plates
-			expectTrue(math.abs(pl.play.h - pl.discard.h) <= 1, "equal height at " .. sz[1])
+			expectTrue(pl.play.h > pl.discard.h and pl.play.w > pl.discard.w, "Play Hand is the primary at " .. sz[1])
+			expectTrue(math.abs((pl.play.y + pl.play.h) - (pl.discard.y + pl.discard.h)) <= 1, "one baseline at " .. sz[1])
+			expectTrue(math.abs((pl.play.y + pl.play.h) - (pl.sort.y + pl.sort.h)) <= 1, "sort on the same baseline at " .. sz[1])
 			for _, k in ipairs({ "sort", "play", "discard" }) do
 				local b = PT.PLATE_BOXES[k]
 				expectTrue(math.abs(pl[k].w / pl[k].h - b.w / b.h) < 0.03, k .. " keeps its aspect at " .. sz[1])
@@ -23932,6 +23934,22 @@ table.insert(tests, { name = "PlayedLane: played cards land between the Patron n
 	expectTrue(roomy.scale == PL.MAX_SCALE and roomy.fits and roomy.readoutY >= 150, "roomy window: 70 percent, readout clear of the nook")
 	local tight = PL.rect({ nookBottom = 200, handTop = 280, cardW = 120, cardH = 170, popupH = 112 })
 	expectTrue(tight.scale == PL.MIN_SCALE, "tight window shrinks to the floor")
+end })
+
+table.insert(tests, { name = "ButtonHierarchy: Play Hand dominant, Discard smaller, one baseline; tile text splits word and number", fn = function()
+	local BH = require(script.Parent.Parent.Engine.ButtonHierarchy)
+	local boxes = { sort = { w = 356, h = 289 }, play = { w = 533, h = 294 }, discard = { w = 512, h = 294 } }
+	local r = BH.plateRects(boxes, 0.3, 20, 700, 600, 100)
+	expectTrue(r.play.w > r.discard.w and r.play.h > r.discard.h, "play bigger")
+	expectEqual(r.play.y + r.play.h, r.discard.y + r.discard.h, "baseline")
+	expectEqual(r.play.y + r.play.h, r.sort.y + r.sort.h, "baseline sort")
+	expectTrue(r.sort.x + r.sort.w <= r.play.x and r.play.x + r.play.w <= r.discard.x, "no overlap")
+	local w, n = BH.tileText("Discards 3")
+	expectEqual(w, "Discards")
+	expectEqual(n, "3")
+	expectEqual(BH.tileText("nonsense"), nil)
+	expectTrue(BH.tileRich("Hands", "4"):find('size="28"', 1, true) ~= nil, "28 px number")
+	expectTrue(BH.NUMBER_SIZE >= 24 and BH.WORD_SIZE >= 15)
 end })
 
 table.insert(tests, { name = "HandSizing: 124 x 180 cards from 1200 wide, old size below, frame holds them, buttons keep clearance", fn = function()

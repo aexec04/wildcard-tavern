@@ -151,18 +151,10 @@ function M.map(areaW, areaH, setId)
 	-- plate rects: scale so the tallest plate fills the strip height, keep the three boxes' relative spacing centred under the rail.
 	local ps = (PLATE_STRIP.h * s) / M.PLATE_BOXES.play.h * M.PLATE_SCALE -- PlayBudget: buttons at about 70 percent of the old plate
 	local gap = 24 * s
-	local sortW, playW, disW = M.PLATE_BOXES.sort.w * ps, M.PLATE_BOXES.play.w * ps, M.PLATE_BOXES.discard.w * ps
-	local total = sortW + playW + disW + 2 * gap
 	local railCx = out.rail.x + out.rail.w / 2
-	local x = railCx - total / 2
 	local y0 = oy + PLATE_STRIP.y * s
-	local function plate(box, w)
-		local h = box.h * ps
-		local r = { x = math.floor(x + 0.5), y = math.floor(y0 + (PLATE_STRIP.h * s - h) / 2 + 0.5), w = math.floor(w + 0.5), h = math.floor(h + 0.5) }
-		x = x + w + gap
-		return r
-	end
-	out.plates = { sort = plate(M.PLATE_BOXES.sort, sortW), play = plate(M.PLATE_BOXES.play, playW), discard = plate(M.PLATE_BOXES.discard, disW) }
+	-- Play Hand is the primary, Discard a step smaller, all on one baseline (Engine/ButtonHierarchy)
+	out.plates = require(script.Parent.ButtonHierarchy).plateRects(M.PLATE_BOXES, ps, gap, railCx, y0, PLATE_STRIP.h * s)
 	return out
 end
 

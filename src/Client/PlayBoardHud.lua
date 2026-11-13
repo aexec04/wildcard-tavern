@@ -430,7 +430,25 @@ local function run(root, st)
 				end
 			end
 		end
-		for _, t in ipairs(tiles) do fitOne(st, t.lab, t.width, 15, shared) end -- Hands and Discards share one size (the smaller that fits both)
+		for _, t in ipairs(tiles) do fitOne(st, t.lab, t.width, 15, shared) end
+			-- two lines: the word at 15 px, the number at 28 px bold (Engine/ButtonHierarchy); Sidebar rewrites plain "Hands 3", so convert again
+			local okBH, BH = pcall(function() return require(Engine:WaitForChild("ButtonHierarchy")) end)
+			for _, t in ipairs(okBH and tiles or {}) do
+				local lab = t.lab
+				if not lab:GetAttribute("TwoLine") then
+					lab:SetAttribute("TwoLine", true)
+					local function twoLine()
+						local word, number = BH.tileText(lab.Text)
+						if word then lab.Text = BH.tileRich(word, number) end
+					end
+					lab.RichText = true
+					lab.TextScaled = false
+					lab.TextWrapped = false
+					lab.TextYAlignment = Enum.TextYAlignment.Center
+					lab:GetPropertyChangedSignal("Text"):Connect(twoLine)
+					twoLine()
+				end
+			end -- Hands and Discards share one size (the smaller that fits both)
 	end
 	if patrons then
 		placeRect(st, patrons, H.ringRow)
