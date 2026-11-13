@@ -377,6 +377,19 @@ return function(deps)
 	scorePopupEventLabel.ZIndex = 25
 	scorePopupEventLabel.Parent = scorePopup
 
+	-- the readout draws in front of the played cards (ghosts are ZIndex 30 in Global layering), and the event line sits on a dark tab
+	scorePopupEventLabel:GetPropertyChangedSignal("Text"):Connect(function()
+		scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.25
+	end)
+	scorePopupEventLabel.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	local eventTabCorner = Instance.new("UICorner")
+	eventTabCorner.CornerRadius = UDim.new(0.5, 0)
+	eventTabCorner.Parent = scorePopupEventLabel
+	scorePopup.ZIndex = 65
+	for _, d in ipairs(scorePopup:GetDescendants()) do
+		if d:IsA("GuiObject") then d.ZIndex = d.ZIndex + 40 end
+	end
+
 	local scorePopupScale = Instance.new("UIScale")
 	scorePopupScale.Scale = 1
 	scorePopupScale.Parent = scorePopup
@@ -601,6 +614,14 @@ return function(deps)
 		local rowY = lane.rowY
 		totalWidth = (lane.cardW + gap) * #playedGhosts - gap
 		scorePopup.Position = UDim2.new(0.5, 0, 0, lane.readoutY)
+		if lane.side and #playedGhosts > 0 then
+			-- no room above the cards: the readout stands on the felt beside them (right first, else left), never over a card
+			local half = scorePopup.AbsoluteSize.X / 2
+			local cardsLeft = (rootSize.X - totalWidth) / 2
+			local cx = cardsLeft + totalWidth + 16 + half
+			if cx + half > rootSize.X - 8 then cx = cardsLeft - 16 - half end
+			scorePopup.Position = UDim2.fromOffset(cx, lane.sideY)
+		end
 		if #playedGhosts == 0 then
 			return
 		end

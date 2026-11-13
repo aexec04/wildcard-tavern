@@ -181,6 +181,12 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)
 	local handY = m.seat + M.CARD_PAD - M.HAND_H
+	-- the button row is centred under the hand (the hand can slide off the rail centre when the left board or the deck clamps it)
+	do
+		local pl0 = m.plates
+		local shift = math.floor((x + w / 2) - (pl0.sort.x + pl0.discard.x + pl0.discard.w) / 2 + 0.5)
+		for _, r in pairs(pl0) do r.x = r.x + shift end
+	end
 	-- the Actions row IS the three painted plates in a row (Sort, Play Hand, Discard), as tall as the tallest
 	local pl = m.plates
 	local actY = pl.play.y

@@ -4,7 +4,7 @@
 	root-relative pixels. The cards shrink to at most 70 percent (at least 50) so the lane fits; the score readout hangs
 	above the lane when there is room for it.
 
-	PlayedLane.rect(o) -> { scale, rowY, cardW, cardH, readoutY, fits }
+	PlayedLane.rect(o) -> { scale, rowY, cardW, cardH, readoutY, fits, side, sideY }
 	  o.nookBottom  lowest edge of the Patron row (nil when none shows)
 	  o.handTop     top edge of the hand
 	  o.cardW, o.cardH  the hand card's size before shrinking
@@ -23,8 +23,9 @@ function PlayedLane.rect(o)
 	local bottom = o.handTop - gap
 	local avail = bottom - top
 	local reserve = o.popupH + 8
-	-- keep the readout above the lane only while the cards can still stay at a readable size
-	if avail - reserve < o.cardH * PlayedLane.MIN_SCALE then reserve = 0 end
+	-- keep the readout above the lane only while the cards can still stay at a readable size; otherwise it moves to the felt beside the cards
+	local side = false
+	if avail - reserve < o.cardH * PlayedLane.MIN_SCALE then reserve = 0; side = true end
 	local scale = math.min(PlayedLane.MAX_SCALE, (avail - reserve) / o.cardH)
 	scale = math.max(PlayedLane.MIN_SCALE, scale)
 	local cardH = o.cardH * scale
@@ -37,6 +38,8 @@ function PlayedLane.rect(o)
 		cardH = cardH,
 		readoutY = reserve > 0 and math.max(4, rowY - 8 - o.popupH) or math.max(4, top - 4),
 		fits = fits,
+		side = side, -- true: the readout stands beside the played cards (right, else left), vertically centred on the row
+		sideY = rowY + (cardH - o.popupH) / 2,
 	}
 end
 

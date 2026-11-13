@@ -23937,6 +23937,32 @@ table.insert(tests, { name = "PlayBudget: nook, lane, hand and buttons never ove
 	if sort then expectTrue(sort:find("b.TextSize = 16", 1, true) ~= nil, "Rank | Suit label stays 15 px or more") end
 end })
 
+table.insert(tests, { name = "Play table cohesion 2b: readout never overlaps the played cards, button row is centred under the hand", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PlayedLane)
+	for _, c in ipairs({ { 315, 527 }, { 250, 400 }, { 150, 700 }, { 200, 330 } }) do
+		local r = PL.rect({ nookBottom = c[1], handTop = c[2], cardW = 120, cardH = 170, popupH = 112 })
+		if r.side then
+			expectTrue(math.abs(r.sideY + 56 - (r.rowY + r.cardH / 2)) < 0.01, "side readout is centred on the row, beside the cards")
+		else
+			expectTrue(r.readoutY + 112 <= r.rowY + 0.01, "readout ends above the played cards")
+		end
+	end
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, size in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1920, 1080 }, { 1600, 900 } }) do
+		for _, left in ipairs({ 260, 480 }) do
+			local p = PT.placement(size[1], size[2], left, 150)
+			if p then
+				local pl = p.map.plates
+				local plateCx = (pl.sort.x + pl.discard.x + pl.discard.w) / 2
+				expectTrue(math.abs(plateCx - (p.hand.x + p.hand.w / 2)) <= 4, "button row centre equals hand centre at " .. size[1] .. " left " .. left)
+			end
+		end
+	end
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local pop = slurp("src/Client/ScorePopup.lua")
+	if pop then expectTrue(pop:find("scorePopup.ZIndex = 65", 1, true) ~= nil, "readout draws in front of the played cards") end
+end })
+
 table.insert(tests, { name = "Play table cohesion: card index text has a 15 px floor and the readout is parchment with ink numbers", fn = function()
 	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local face, pop = slurp("src/Client/CardFace.lua"), slurp("src/Client/ScorePopup.lua")
