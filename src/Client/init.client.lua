@@ -2419,7 +2419,7 @@ local function render(state)
 		local handsText = string.format("Hands: %d   Discards: %d", state.handsRemaining, state.discardsRemaining)
 		SidebarModule.setIconText("hands", handsText, "🃏 " .. handsText, handsText, SidebarModule.handsDiscardsLabel.TextSize)
 	end
-	DeckWidgetModule.deckCountLabel.Text = string.format("%d/52", countRemainingInDeck(state.deckCounts))
+	DeckWidgetModule.deckCountLabel.Text = require(ReplicatedStorage.Shared.Engine.DeckCountText).format(countRemainingInDeck(state.deckCounts), state.deckView)
 
 	-- LAYOUT FEATURE 5: fill in the Patron slot icons. Since the Patron
 	-- slot cap (RunState.patronSlotLimit, default 5) went in, this row

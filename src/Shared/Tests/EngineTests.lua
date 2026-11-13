@@ -24083,4 +24083,20 @@ table.insert(tests, { name = "PatronBoost: panel only when a Patron adds, real c
 	expectEqual(PB.place(nil, 1920), nil, "no nook")
 end })
 
+table.insert(tests, { name = "DeckCountText: remaining over the real deck size, 52 only as a fallback", fn = function()
+	local DCT = require(script.Parent.Parent.Engine.DeckCountText)
+	local view = {}
+	for i = 1, 54 do view[i] = { status = "deck" } end
+	expectEqual(DCT.format(44, view), "44/54", "grown deck")
+	expectEqual(DCT.format(44, nil), "44/52", "no view: 52")
+	expectEqual(DCT.format(44, {}), "44/52", "empty view: 52")
+	expectEqual(DCT.format(60, nil), "60/60", "never below remaining")
+	expectEqual(DCT.format(3.7, view), "3/54", "floored")
+	local f = io.open("src/Client/init.client.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('"%d/52"', 1, true) == nil, "the hub no longer hardcodes /52")
+	end
+end })
+
 return tests
