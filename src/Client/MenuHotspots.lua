@@ -875,7 +875,18 @@ function Hotspots.build(opts)
 
 	-- Tavern Room: place every prop frame on its rectangle of the picture (mapped through the crop). Hotspots that fall outside the
 	-- visible crop become plain plates in a bottom strip. With a painted picture the prop is invisible until hovered.
+	-- The entry drop-in tweens each hotspot back to the position it had when entry() ran. If the window got its real
+	-- size AFTER that (it starts small while the game loads), those tweens used to pull every hotspot back to the old,
+	-- small-window position while placeRoom had already given it the new size: the Jukebox's hit area ended up in the
+	-- middle of the room, the Rulebook's on the coin jar. placeRoom now cancels any entry motion and owns the position.
+	local entryTweens, entryToken = {}, 0
+	local function cancelEntry()
+		entryToken = entryToken + 1
+		for _, tween in ipairs(entryTweens) do tween:Cancel() end
+		entryTweens = {}
+	end
 	local function placeRoom(w, h)
+		cancelEntry()
 		for _, hs in ipairs(Layout.Hotspots) do
 			local f = result.hotspotFrames[hs.id]
 			local ui = hotspotUI[hs.id]
@@ -957,12 +968,17 @@ function Hotspots.build(opts)
 			return
 		end
 		entered = true
+		cancelEntry()
+		local myToken = entryToken
 		for i, hotspot in ipairs(Layout.Hotspots) do
 			local frame = result.hotspotFrames[hotspot.id]
 			local target = frame.Position
 			frame.Position = target - UDim2.fromOffset(0, hotspot.item and -40 or 40)
 			task.delay(0.06 * (i - 1), function()
-				TweenService:Create(frame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = target }):Play()
+				if entryToken ~= myToken then return end -- the room was laid out again since: placeRoom already put this hotspot where it belongs
+				local tween = TweenService:Create(frame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = target })
+				entryTweens[#entryTweens + 1] = tween
+				tween:Play()
 			end)
 		end
 	end

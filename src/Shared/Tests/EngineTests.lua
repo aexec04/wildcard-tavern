@@ -24714,4 +24714,19 @@ table.insert(tests, { name = "Collection detail card: the room shows dimmed behi
 	end
 end })
 
+table.insert(tests, { name = "Menu hotspots stay on their painted objects: a new room layout cancels the entry drop-in instead of being pulled back by it", fn = function()
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
+	local f = io.open("src/Client/MenuHotspots.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local place = src:find("local function placeRoom(w, h)", 1, true)
+	expectTrue(place ~= nil, "placeRoom exists")
+	local cancelInPlace = src:find("cancelEntry()", place, true)
+	expectTrue(cancelInPlace ~= nil and cancelInPlace - place < 80, "placeRoom cancels the entry motion before it places anything")
+	expectTrue(src:find("if entryToken ~= myToken then return end", 1, true) ~= nil, "a delayed drop-in does not start once the room has been laid out again")
+	expectTrue(src:find("entryTweens[#entryTweens + 1] = tween", 1, true) ~= nil, "running drop-in tweens are kept so they can be cancelled")
+	local entry = src:find("function result.entry()", 1, true)
+	expectTrue(entry ~= nil and entry > place, "entry is defined after placeRoom, so it can see cancelEntry")
+end })
+
 return tests

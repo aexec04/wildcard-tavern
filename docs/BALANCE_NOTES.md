@@ -310,3 +310,27 @@ lua5.3 tools/run_sim.lua --patron-lift --runs 400 --jobs 8
 ```
 
 The first 1,000 seeds are not a fair check of the final numbers: one candidate read 5.9% / 13.3% there but 7.6% / 11.9% on fresh seeds. Use at least 3,000 runs and a new `--seed` when judging a change.
+
+## Ladder check, Nov 13 2026 (after the engine stabilization pass)
+
+The simulator had been stopping with "Make room first" since the pack make-room rule went in (a bot with a full table opened a pack). `tools/sim/Sim.lua` now has the bot leave the pack in that case, so every mode runs again.
+
+Quick ladder, 150 runs per bot, seed 1, one job (a small sample, so read it as a direction, not a final number):
+
+| Bot | Target | Now | Before tonight's engine changes (same simulator) |
+|---|---|---|---|
+| random dies Night 1 to 2 | over 90% | 92.0% | 92.0% |
+| greedy win | 2 to 6% | 20.0% | 22.0% |
+| greedy median death | Night 5 to 6 | Night 7 | Night 7 |
+| decent win | 12 to 20% | 33.3% | 37.3% |
+| decent median death | Night 7 | Night 8 | Night 8 |
+
+Reading: the game is clearly easier than the targets above, and it already was before the stabilization commits (the two engine columns agree within noise). The drift comes from content added since the last tuning. Nothing was retuned in this pass; pick the target first, then run `lua5.3 tools/run_sim.lua --ladder --runs 5000 --jobs 8` on fresh seeds.
+
+Patron value table (`--patron-table`, score gain per Tip at mid-build, relative to the median Patron):
+- Strongest: the_apprentice x2.97, pair_parade x2.70, double_down x2.37, suit_sampler x2.03.
+- Weakest with a scoring effect: royal_road x0.01, flush_fan x0.03, full_suit_feast x0.03, kitchen_duo x0.04, stair_climber x0.04, triple_treat x0.08, long_road x0.10.
+- Pattern: Patrons that reward Pairs sit at the top and Patrons that reward Flushes, Straights and Full Houses sit at the bottom, because the bots' mid-game hands are mostly Pairs. That is the signature of one dominant line of play. Confirm with `--patron-lift --runs 300 --jobs 8` before changing numbers.
+- 28 Patrons show 0 in this table because their value is economy, scaling or utility, which this static measure does not see.
+
+Rule change in this pass that touches scoring: five cards of one rank are now Four of a Kind with all five scoring (they used to fall through to High Card). There is still no Five of a Kind hand.
