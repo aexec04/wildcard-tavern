@@ -23519,6 +23519,27 @@ table.insert(tests, { name = "Patron Nook: panel, ledge, rivets and alcoves stay
 	expectEqual(PRL.nook(nil, 100, {}), nil, "no row, no nook")
 end })
 
+table.insert(tests, { name = "PatronRowLayout: small roots (1004x500, 1024x600, 844x390) never hide the row while Patrons are owned", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local roots = { { 1004, 500 }, { 1024, 600 }, { 844, 390 } }
+	for _, sz in ipairs(roots) do
+		local hands = { { x = 200, y = 300, w = 560, h = 200 }, { x = 200, y = 150, w = 560, h = 200 }, { x = 200, y = 100, w = 560, h = 200 } }
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		if p then hands[#hands + 1] = p.hand end
+		for hi, hand in ipairs(hands) do
+			for n = 1, 8 do
+				local t = sz[1] .. "x" .. sz[2] .. " hand" .. hi .. " n=" .. n
+				local lay = PRL.compute(sz[1], sz[2], hand, n)
+				expectTrue(lay ~= nil, t .. " row is not nil")
+				local handTop = hand.y + (hand.h >= 200 and PRL.HAND_TOP_PAD or 0)
+				expectTrue(lay.rect.y >= 0 and lay.rect.y + lay.rect.h <= handTop, t .. " row ends above the hand cards")
+				expectTrue(lay.cardH >= 24, t .. " card readable")
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "PatronRowLayout.painted: strip keeps its aspect, 1 to 5 cards are centred in their arch, 6 to 8 overlap evenly, at three sizes and a phone", fn = function()
 	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
 	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)

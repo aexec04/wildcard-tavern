@@ -27,6 +27,8 @@ M.MIN_VISIBLE = 0.6
 M.TOP_LIMIT = 92
 M.HAND_TOP_PAD = 19 -- cards in a 200 px hand frame stand at most 165 px tall with 16 px under them
 M.AIR = 8 -- clear space between the plaques and the hand cards
+M.SMALL_TOP = 40 -- on short roots the row may rise this high (over the dock's quiet strip) rather than hide
+M.FLOOR_H = 40 -- smallest card the row will shrink to before giving up
 
 local function floor(n) return math.floor(n + 0.5) end
 
@@ -47,12 +49,18 @@ function M.compute(rootW, rootH, hand, count, opts)
 	local handTop = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0)
 	local bottom = handTop - M.AIR
 	local availH = bottom - topLimit - M.PLAQUE_H
+	if availH < M.MIN_H then -- short root: let the row rise toward the top bar instead of hiding
+		topLimit = math.min(topLimit, M.SMALL_TOP)
+		availH = bottom - topLimit - M.PLAQUE_H
+	end
 	local cardH = math.min(M.BASE_H * k, availH)
 	if cardH < M.MIN_H and availH >= M.MIN_H then cardH = M.MIN_H end
-	if cardH < 24 then return nil end -- no room at all: the row hides rather than covering something
+	if cardH < M.FLOOR_H then cardH = math.min(M.FLOOR_H, availH) end
+	if cardH < 24 then return nil end -- truly no room at all (the hand sits at the very top)
 	local cardW = cardH * M.BASE_W / M.BASE_H
 	-- width: centred over the hand, which never reaches the left board or the draw pile
 	local availW = math.min(hand.w, rootW)
+	if availW < cardW * 2 then availW = rootW * 0.6 end -- hand frame not laid out yet
 	local gap = M.GAP
 	local step = cardW + gap
 	local overlap = false
