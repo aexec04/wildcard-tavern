@@ -16,6 +16,19 @@ local PanelScene = {}
 local FILL = Color3.fromRGB(32, 22, 15) -- the wall colour of the holder the vignette fades into
 local OVERSHOOT = 24 -- the holder runs this far below the area so no dark strip shows under it (the panel clips it)
 
+-- the picture fades its own uncovered sides into the wall: one horizontal UIGradient on the picture (Roblox keeps one, so replace it)
+local function sideFade(picture, pts)
+	local old = picture:FindFirstChild("SideFade")
+	if old then old:Destroy() end
+	if not pts then return end
+	local g = Instance.new("UIGradient")
+	g.Name = "SideFade"
+	local keys = {}
+	for _, k in ipairs(pts) do keys[#keys + 1] = NumberSequenceKeypoint.new(k[1], k[2]) end
+	g.Transparency = NumberSequence.new(keys)
+	g.Parent = picture
+end
+
 function PanelScene.new(panel, opts)
 	local z = opts.z or 41
 	local id = ContentArt.getImageId("panel_scene", opts.artKey)
@@ -54,10 +67,11 @@ function PanelScene.new(panel, opts)
 		for _, ch in ipairs(holder:GetChildren()) do
 			if ch ~= picture and ch ~= wall then ch:Destroy() end
 		end
+		sideFade(picture, PanelSceneLayout.sideFade(placed, area.w))
 		-- Where the picture does not reach the area, the holder's flat wall colour shows (never a second copy of the painting, which read as
 		-- giant candles and lanterns); the feather strips fade the picture into it.
 		local base = 0
-		for _, it in ipairs(PanelSceneLayout.edges(placed, area.w, area.h)) do
+		for _, it in ipairs(PanelSceneLayout.verticalEdges(placed, area.w, area.h)) do
 			local f = Instance.new("Frame")
 			f.Name = "Vignette_" .. it.name
 			f.BackgroundColor3 = require(script.Parent.RoomWall).COLOR -- the wall's tone, so the picture edge melts into the wall

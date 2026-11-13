@@ -154,6 +154,7 @@ function FlairDressingRoom.build(deps, panel)
 		end
 	end
 	-- plates of categories that do not exist stay intact painted plates with a faint "More soon" (no hole in the wall)
+	local tileCount = 0 -- pieces in the open category (set by buildGrid), read by paintPatches
 	local function paintPatches()
 		for _, ch in ipairs(sceneMarks:GetChildren()) do ch:Destroy() end
 		if not sceneS or #drawers == 0 then return end
@@ -161,6 +162,16 @@ function FlairDressingRoom.build(deps, panel)
 			local t = sceneS.tabs[i]
 			make("TextLabel", sceneMarks, { Name = "SoonPlate" .. i, Position = UDim2.fromOffset(t.x + 14, t.y), Size = UDim2.fromOffset(t.w - 28, t.h),
 				Text = "More soon", TextSize = 14, Font = Enum.Font.GothamMedium, TextTransparency = 0.5, TextColor3 = Color3.fromRGB(226, 208, 170), Active = false })
+		end
+		-- cubbies with no piece in this category: a solid shelf-wood patch over the painted alcove, so only real items sit in alcoves
+		local used = tileCount
+		if sceneS.cubbies and used > 0 then
+			for k = used + 1, #sceneS.cubbies do
+				local c = sceneS.cubbies[k]
+				local patch = make("Frame", sceneMarks, { Name = "EmptyCubby" .. k, Position = UDim2.fromOffset(c.x - 4, c.y - 4), Size = UDim2.fromOffset(c.w + 8, c.h + 8),
+					BackgroundColor3 = Color3.fromRGB(58, 40, 26), BackgroundTransparency = 0, BorderSizePixel = 0, Active = false })
+				round(patch, 8)
+			end
 		end
 	end
 
@@ -595,14 +606,15 @@ function FlairDressingRoom.build(deps, panel)
 				for _, item in ipairs(d.items) do buildTile(item) end
 			end
 		end
+		tileCount = #tiles
 	end
 
 	-- one full redraw of the parts that depend on the open category and the chosen piece
 	function FlairDressingRoom._rebuild()
-		paintPatches()
 		buildTabs()
 		buildGrid()
 		layoutGrid()
+		paintPatches() -- after the grid: the empty cubbies depend on how many tiles this category has
 		paintCard()
 		if openSlot and scrollMemory[openSlot] then gridFrame.CanvasPosition = Vector2.new(0, scrollMemory[openSlot]) end
 	end
@@ -641,7 +653,20 @@ function FlairDressingRoom.build(deps, panel)
 			local gap = S.image.x > 0.5 or S.image.y > 0.5 or S.image.x + S.image.w < aw - 0.5 or S.image.y + S.image.h < ah - 0.5
 			sceneBack.Visible, sceneWash.Visible = false, false -- the bands are the holder's flat wall colour, never a second copy of the painting
 			sceneBase = 0
-			paintVignette(Scene.edges(S, aw, ah))
+			paintVignette(require(Engine:WaitForChild("PanelSceneLayout")).verticalEdges(S, aw, ah))
+			do -- the picture fades its own uncovered sides into the wall (no hard seam)
+				local old = sceneImage:FindFirstChild("SideFade")
+				if old then old:Destroy() end
+				local pts = require(Engine:WaitForChild("PanelSceneLayout")).sideFade(S, aw)
+				if pts then
+					local g = Instance.new("UIGradient")
+					g.Name = "SideFade"
+					local keys = {}
+					for _, k in ipairs(pts) do keys[#keys + 1] = NumberSequenceKeypoint.new(k[1], k[2]) end
+					g.Transparency = NumberSequence.new(keys)
+					g.Parent = sceneImage
+				end
+			end
 			sceneS = S
 			paintPatches()
 		end

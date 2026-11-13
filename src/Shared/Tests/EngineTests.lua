@@ -13612,7 +13612,7 @@ table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the p
 	expectTrue(src:find("liveLabel.Parent = plaque", 1, true) ~= nil, "Live preview label sits on the plaque")
 	expectTrue(src:find("glassW / 4.8", 1, true) ~= nil, "sample number is sized to the mirror glass")
 	expectTrue(src:find("t.name.TextScaled = true", 1, true) ~= nil and src:find("UITextSizeConstraint", 1, true) ~= nil, "tab names scale with a 14 floor")
-	expectTrue(src:find("Scene.edges", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
+	expectTrue(src:find("verticalEdges", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
 	expectTrue(src:find("More soon", 1, true) ~= nil, "spare plates stay intact with a faint mark")
 	expectTrue(src:find("[FlairRoom]", 1, true) ~= nil and src:find("truncated=%d", 1, true) ~= nil, "the Studio line reports the cover scale and truncated labels")
 end })
@@ -20502,6 +20502,27 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
 end })
 
+table.insert(tests, { name = "Scene pages: the picture fades its own uncovered sides (12 percent, eased, 18 keypoints at most), top and bottom keep edge frames", fn = function()
+	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	local p = { image = { x = 300, y = 0, w = 900, h = 800 } }
+	local pts = PS.sideFade(p, 1500)
+	expectTrue(pts ~= nil and #pts <= 20 and pts[1][1] == 0 and pts[#pts][1] == 1, "keypoints run 0..1 within Roblox's 20 limit")
+	expectEqual(pts[1][2], 1, "clear at the left picture edge")
+	expectEqual(pts[#pts][2], 1, "clear at the right picture edge")
+	local lastT = -1
+	for _, k in ipairs(pts) do expectTrue(k[1] > lastT, "times strictly increase"); lastT = k[1] end
+	local ramp = PS.SIDE_FRAC
+	local inside = false
+	for _, k in ipairs(pts) do if k[1] >= ramp and k[1] <= 1 - ramp and k[2] == 0 then inside = true end end
+	expectTrue(inside, "opaque inside the ramps")
+	expectTrue(PS.sideFade({ image = { x = 0, y = 0, w = 1500, h = 800 } }, 1500) == nil, "a picture that reaches both sides needs no fade")
+	local one = PS.sideFade({ image = { x = 0, y = 0, w = 900, h = 800 } }, 1500)
+	expectEqual(one[1][2], 0, "left side untouched when it reaches the area")
+	for _, e in ipairs(PS.verticalEdges({ image = { x = 300, y = 40, w = 900, h = 700 } }, 1500, 900)) do
+		expectTrue(e.name == "T" or e.name == "B", "only top and bottom edge frames remain")
+	end
+end })
+
 table.insert(tests, { name = "Scene pages: the painting area reaches the panel bottom, edges are one gradient frame each, no stacked strips", fn = function()
 	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
 	-- geometry: a picture smaller than the area gets one gradient frame per uncovered edge, inside the area, fully dark at the picture edge
@@ -20906,7 +20927,8 @@ tests[#tests + 1] = ({ name = "PanelScene: bands beside a smaller picture are fl
 	scene.show({ x = 0, y = 0, w = 1200, h = 800 }, small)
 	local n = names()
 	expectFalse(n.Backdrop or n.BackdropWash, "bands beside the picture are flat wall colour, never a second copy of the painting")
-	expectTrue(n.Vignette_L and n.Vignette_R, "the picture edges feather into the wall with one gradient frame per side")
+	expectTrue(holder:FindFirstChild("Picture"):FindFirstChild("SideFade") ~= nil, "the picture fades its own uncovered sides into the wall (one UIGradient)")
+	expectFalse(n.Vignette_L or n.Vignette_R, "no flat side vignette frames that would show a seam against the painted wall")
 	expectTrue(holder.Size.Y.Offset > 800, "the wall runs past the area bottom so no strip shows")
 	expectTrue(n.Wall and n.Picture, "the shared painted wall sits under the picture so the sides are never flat dark voids")
 	scene.show({ x = 0, y = 0, w = 1200, h = 800 }, small)

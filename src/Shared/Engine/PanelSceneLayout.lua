@@ -118,6 +118,40 @@ function M.edges(p, areaW, areaH)
 	return out
 end
 
+-- Alpha feather for the picture itself, so its left and right edges melt into the painted wall behind it (a flat vignette colour never
+-- matches the wall and showed as a hard vertical seam). Returns nil when the picture reaches both sides of the area, else a list of
+-- { time, transparency } keypoints for ONE horizontal UIGradient on the picture (18 at most, Roblox allows 20): each uncovered side ramps
+-- over SIDE_FRAC of the picture width, eased, fully clear at the picture edge and fully opaque inside.
+M.SIDE_FRAC = 0.12
+M.SIDE_STEPS = 8
+function M.sideFade(p, areaW)
+	local I = p.image
+	local left, right = I.x > 0.5, I.x + I.w < areaW - 0.5
+	if not left and not right then return nil end
+	local r, n = M.SIDE_FRAC, M.SIDE_STEPS
+	local pts = {}
+	if left then
+		for k = 0, n do pts[#pts + 1] = { r * k / n, (1 - k / n) ^ 2 } end
+	else
+		pts[#pts + 1] = { 0, 0 }
+	end
+	if right then
+		for k = 0, n do pts[#pts + 1] = { 1 - r + r * k / n, (k / n) ^ 2 } end
+	else
+		pts[#pts + 1] = { 1, 0 }
+	end
+	return pts
+end
+
+-- the edge frames that remain once the picture fades itself at the sides: only the top and bottom gaps
+function M.verticalEdges(p, areaW, areaH)
+	local out = {}
+	for _, e in ipairs(M.edges(p, areaW, areaH)) do
+		if e.name == "T" or e.name == "B" then out[#out + 1] = e end
+	end
+	return out
+end
+
 -- Size a scene panel asks for on a screen: a fraction of the screen up to a cap (so the body is tall enough for the picture's slots).
 -- The height never exceeds PanelLayout.expandedHeight (screen height minus 96): a centered panel is nudged 40 px down by the tab strip, so
 -- anything taller has its Close button cut off at the bottom of the window.
