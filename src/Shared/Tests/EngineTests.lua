@@ -18278,7 +18278,9 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 		screenGui = gui, roundCorner = function() end, polishButton = function() end, playClickSfx = function() end,
 		popIn = function() opened = opened + 1 end, popOut = function() end, claimRemote = { FireServer = function(_, id) fired[#fired + 1] = id end },
 	})
-	expectEqual(#registered, 1, "the board registers its exits with PopupDismiss")
+	expectEqual(#registered, 0, "the board is not built at startup (it builds on its first open)")
+	expectTrue(NewsPanel.ensure() and NewsPanel.ensure(), "ensure builds the board")
+	expectEqual(#registered, 1, "the board registers its exits with PopupDismiss once, a second ensure does not rebuild")
 	expectTrue(registered[1].backdrop.Name == "NewsBackdrop" and registered[1].spec.panel ~= nil and type(registered[1].spec.close) == "function", "...with its panel and a close")
 
 	local news = {

@@ -118,7 +118,7 @@ function NewsPanel.attach(parent, layoutOrder)
 	})
 	banner = { frame = frame, icon = icon, text = text, time = time }
 	frame.MouseButton1Click:Connect(function()
-		if ui then
+		if NewsPanel.ensure() then
 			ui.playClickSfx()
 			NewsPanel.open()
 		end
@@ -385,8 +385,19 @@ function NewsPanel.hideNow()
 	if ui then ui.backdrop.Visible = false end
 end
 
+local pendingDeps -- init() only remembers the deps; the board (about 270 instances) is built on the first open
+
+function NewsPanel.ensure()
+	if not ui and pendingDeps then
+		local deps = pendingDeps
+		pendingDeps = nil
+		NewsPanel.build(deps)
+	end
+	return ui ~= nil
+end
+
 function NewsPanel.open()
-	if not ui then
+	if not NewsPanel.ensure() then
 		return
 	end
 	NewsPanel.refresh()
@@ -394,6 +405,10 @@ function NewsPanel.open()
 end
 
 function NewsPanel.init(deps)
+	pendingDeps = deps
+end
+
+function NewsPanel.build(deps)
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "NewsBackdrop"
 	backdrop.Size = UDim2.fromScale(1, 1)

@@ -1095,7 +1095,7 @@ end)
 -- from the menu's "New Run..." button), so nothing needs to come back out
 -- of the require() call.
 xpcall(function()
-require(script.RunSetup)({
+require(script.LazyPanel).wrap("runsetup", require(script.RunSetup), "menuNewRunButton")({ -- built on the first click of New Run...
 	screenGui = screenGui,
 	root = root,
 	menuFrame = MenuScreen.menuFrame,

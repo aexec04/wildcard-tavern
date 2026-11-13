@@ -5,18 +5,19 @@
 	work as before), and the first click on the panel's open button, or the first OverlayManager.open(id), runs the real init with
 	a stand-in open button, then calls the open handler the panel registered. A second open never rebuilds. The built panel
 	re-registers its own opener and close function, which replace the stand-in.
-	  wrap(id, init)  init(deps) is the panel's constructor (deps.openButton is the button that opens it)
+	  wrap(id, init, buttonKey)  init(deps) is the panel's constructor (deps[buttonKey or "openButton"] is the button that opens it)
 ]]
 
 local OverlayManager = require(script.Parent.OverlayManager)
 
 local LazyPanel = {}
 
-function LazyPanel.wrap(id, init)
+function LazyPanel.wrap(id, init, buttonKey)
+	buttonKey = buttonKey or "openButton" -- the deps field holding the open button (RunSetup calls it menuNewRunButton)
 	return function(deps)
 		local built, handler = false, nil
 		local standIn = { MouseButton1Click = { Connect = function(_, fn) handler = fn end } }
-		local proxy = setmetatable({ openButton = standIn }, { __index = deps })
+		local proxy = setmetatable({ [buttonKey] = standIn }, { __index = deps })
 		local function build()
 			if built then return end
 			built = true
@@ -27,7 +28,7 @@ function LazyPanel.wrap(id, init)
 			if handler then handler() end
 		end
 		OverlayManager.registerOpener(id, open)
-		deps.openButton.MouseButton1Click:Connect(open)
+		deps[buttonKey].MouseButton1Click:Connect(open)
 		return { build = build, id = id }
 	end
 end
