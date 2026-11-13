@@ -111,14 +111,59 @@ function M.nook(lay, rootW, hand, opts)
 	return { back = back, ledge = ledge, trim = trim, rivets = rivets, alcoves = alcoves, glow = glow }
 end
 
--- The painted nook strip (`play_nook_strip_b`, trimmed to 1508 x 480): nine-sliced so the carved end posts and the
--- ledge keep their shape while the middle stretches to the nook's width. Returns { center = {x0,y0,x1,y1} in picture
--- pixels, scale } where scale maps the picture's height onto the nook's height (borders then keep their aspect).
+-- The painted nook strip (`play_nook_strip_b`, trimmed to 1508 x 480), drawn whole at its own aspect (never stretched).
+-- Its five arches are not equal, so the measured centres, opening widths and floor line (picture pixels, measured from
+-- art-wip/play_scene/play_nook_strip_b.png) place the cards: each card stands on the arch floor, centred in its arch.
 M.STRIP_W, M.STRIP_H = 1508, 480
-function M.paintedSlice(w, h)
-	if not w or not h or w <= 0 or h <= 0 then return nil end
-	local scale = h / M.STRIP_H
-	return { center = { x0 = 150, y0 = 180, x1 = M.STRIP_W - 150, y1 = 380 }, scale = scale }
+M.ARCH_CX = { 192, 477, 755, 1035, 1316 }
+M.ARCH_W = { 195, 225, 236, 230, 197 }
+M.ARCH_FLOOR = 375
+M.ARCH_SEATS = { { 3 }, { 2, 4 }, { 2, 3, 4 }, { 1, 2, 4, 5 }, { 1, 2, 3, 4, 5 } } -- arches used for 1 to 5 cards
+M.TUCK = 10 -- the strip's bottom edge slips this far under the top of the hand frame
+
+--   PatronRowLayout.painted(rootW, rootH, hand, count, opts) -> layout | nil (same shape as compute, plus
+--     strip = {x,y,w,h}, scale). 1 to 5 cards sit one per arch; 6 to 8 overlap evenly from the first arch centre to the last.
+function M.painted(rootW, rootH, hand, count, opts)
+	if not count or count <= 0 or not hand then return nil end
+	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
+	local handTop = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0)
+	local stripBottom = handTop - M.AIR + M.TUCK
+	local availW = math.min(hand.w, rootW)
+	local s = math.min(availW / M.STRIP_W, (stripBottom - topLimit) / M.STRIP_H)
+	if s * M.ARCH_W[1] < 60 then return nil end
+	local sw, sh = floor(M.STRIP_W * s), floor(M.STRIP_H * s)
+	local sx = floor(hand.x + (hand.w - sw) / 2)
+	sx = math.max(0, math.min(sx, rootW - sw))
+	local sy = floor(stripBottom - sh)
+	local floorY = sy + M.ARCH_FLOOR * s
+	local cardW = math.min(M.BASE_W * M.scale(rootW), M.ARCH_W[1] * s * 0.92)
+	local cardH = cardW * M.BASE_H / M.BASE_W
+	local maxH = floorY - topLimit
+	if cardH > maxH then cardH = maxH; cardW = cardH * M.BASE_W / M.BASE_H end
+	if cardH < 24 then return nil end
+	local centers = {}
+	local overlap = count > 5
+	if not overlap then
+		for i, a in ipairs(M.ARCH_SEATS[count]) do centers[i] = sx + M.ARCH_CX[a] * s end
+	else
+		local c0, c1 = sx + M.ARCH_CX[1] * s, sx + M.ARCH_CX[5] * s
+		for i = 1, count do centers[i] = c0 + (c1 - c0) * (i - 1) / (count - 1) end
+		local step = (c1 - c0) / (count - 1)
+		if step < cardW * M.MIN_VISIBLE then
+			cardW = step / M.MIN_VISIBLE
+			cardH = cardW * M.BASE_H / M.BASE_W
+		end
+	end
+	local y = floor(floorY - cardH + 4) -- cards stand 4 px down over the arch floor
+	local out = { cards = {}, cardH = floor(cardH), cardW = floor(cardW), plaqueH = M.PLAQUE_H, overlap = overlap,
+		strip = { x = sx, y = sy, w = sw, h = sh }, scale = s }
+	for i = 1, count do
+		out.cards[i] = { x = floor(centers[i] - cardW / 2), y = y, w = floor(cardW), h = floor(cardH) }
+	end
+	out.step = count > 1 and (centers[count] - centers[1]) / (count - 1) or 0
+	local first, last = out.cards[1], out.cards[count]
+	out.rect = { x = first.x, y = y, w = last.x + last.w - first.x, h = floor(cardH) + M.PLAQUE_H }
+	return out
 end
 
 return M

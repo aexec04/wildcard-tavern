@@ -299,8 +299,8 @@ local function paintedId()
 	return nil
 end
 
-local function placePainted(nk)
-	local id = paintedId()
+local function placePainted(strip)
+	local id = strip and paintedId()
 	if not id then
 		if nook.paint then nook.paint.Visible = false end
 		for _, k in ipairs({ "back", "glow", "ledge", "trim" }) do nook[k].Visible = true end
@@ -314,17 +314,14 @@ local function placePainted(nk)
 		img.BorderSizePixel = 0
 		img.Active = false
 		img.ZIndex = Z - 4
-		img.ScaleType = Enum.ScaleType.Slice
+		img.ScaleType = Enum.ScaleType.Stretch -- the rect already has the picture's aspect
 		img.Parent = nook.root
 		nook.paint = img
 	end
-	local sl = Layout.paintedSlice(nk.back.w, nk.back.h)
 	local img = nook.paint
 	img.Image = id
 	img.Visible = true
-	setRect(img, nk.back)
-	img.SliceCenter = Rect.new(sl.center.x0, sl.center.y0, sl.center.x1, sl.center.y1)
-	img.SliceScale = sl.scale
+	setRect(img, strip)
 	for _, k in ipairs({ "back", "glow", "ledge", "trim" }) do nook[k].Visible = false end
 	for _, r in ipairs(nook.rivets) do r.Visible = false end
 	return true
@@ -347,7 +344,7 @@ local function placeNook(lay, rootW, hand, owned)
 		nook.rivets[i].Position = UDim2.fromOffset(r.x, r.y)
 		nook.rivets[i].Size = UDim2.fromOffset(Layout.RIVET, Layout.RIVET)
 	end
-	local painted = placePainted(nk)
+	local painted = placePainted(lay.strip)
 	for i = 1, math.max(#nk.alcoves, #nook.alcoves) do
 		local r = nk.alcoves[i]
 		if r and not nook.alcoves[i] then nook.alcoves[i] = buildAlcove(i) end
@@ -380,7 +377,10 @@ local function place(state)
 		y = handRef.AbsolutePosition.Y - rootRef.AbsolutePosition.Y,
 		w = handRef.AbsoluteSize.X, h = handRef.AbsoluteSize.Y,
 	}
-	local lay = show and Layout.compute(rootSize.X, rootSize.Y, hand, limit) or nil
+	local lay = nil
+	if show then
+		lay = (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit)
+	end
 	holder.Visible = lay ~= nil
 	placeNook(lay, rootSize.X, hand, owned)
 	for i = 1, MAX_CARDS do

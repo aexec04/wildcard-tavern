@@ -23417,15 +23417,49 @@ table.insert(tests, { name = "Patron Nook: panel, ledge, rivets and alcoves stay
 	expectEqual(PRL.nook(nil, 100, {}), nil, "no row, no nook")
 end })
 
-table.insert(tests, { name = "PatronRowLayout.paintedSlice: slice centre sits inside the strip and the scale fits the nook height", fn = function()
+table.insert(tests, { name = "PatronRowLayout.painted: strip keeps its aspect, 1 to 5 cards are centred in their arch, 6 to 8 overlap evenly, at three sizes and a phone", fn = function()
 	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
-	expectEqual(PRL.paintedSlice(0, 100), nil, "no width, no slice")
-	for _, h in ipairs({ 120, 170, 240 }) do
-		local sl = PRL.paintedSlice(560, h)
-		local c = sl.center
-		expectTrue(c.x0 > 0 and c.x1 < PRL.STRIP_W and c.y0 > 0 and c.y1 < PRL.STRIP_H and c.x0 < c.x1 and c.y0 < c.y1, "centre inside the picture")
-		expectTrue(math.abs(sl.scale * PRL.STRIP_H - h) < 1e-6, "picture height maps to the nook height")
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(PRL.painted(1920, 957, { x = 0, y = 500, w = 800, h = 200 }, 0), nil, "no Patrons, no strip")
+	local function check(w, h, hand, left, tag)
+		for n = 1, 8 do
+			local t = tag .. " n=" .. n
+			local lay = PRL.painted(w, h, hand, n)
+			expectTrue(lay ~= nil, t .. " has a painted row")
+			local st = lay.strip
+			expectTrue(math.abs(st.w / st.h - PRL.STRIP_W / PRL.STRIP_H) < 0.02, t .. " strip keeps the picture aspect")
+			expectTrue(st.y >= PRL.TOP_LIMIT and st.x >= left and st.x + st.w <= w, t .. " strip below the dock, right of the board, on screen")
+			expectTrue(st.y + st.h <= hand.y + (hand.h >= 200 and PRL.HAND_TOP_PAD or 0) + PRL.TUCK, t .. " strip tucks under the hand, no further")
+			local floorY = st.y + PRL.ARCH_FLOOR * lay.scale
+			for i, c in ipairs(lay.cards) do
+				expectTrue(c.y >= PRL.TOP_LIMIT and math.abs(c.y + c.h - 4 - floorY) <= 1, t .. " card " .. i .. " stands on the arch floor")
+				expectTrue(c.x >= st.x and c.x + c.w <= st.x + st.w, t .. " card " .. i .. " inside the strip")
+			end
+			if n <= 5 then
+				local arches = PRL.ARCH_SEATS[n]
+				expectEqual(#arches, n, t .. " one arch per card")
+				for i, a in ipairs(arches) do
+					local c = lay.cards[i]
+					local cx = c.x + c.w / 2
+					local ax = st.x + PRL.ARCH_CX[a] * lay.scale
+					local half = PRL.ARCH_W[a] * lay.scale / 2
+					expectTrue(math.abs(cx - ax) <= 1.5, t .. " card " .. i .. " centred in its arch")
+					expectTrue(c.w <= half * 2, t .. " card " .. i .. " fits the arch opening")
+				end
+			else
+				expectTrue(lay.overlap, t .. " overlaps")
+				for i = 2, n do
+					expectTrue(lay.cards[i].x - lay.cards[i - 1].x >= math.floor(lay.cardW * PRL.MIN_VISIBLE) - 1, t .. " 60 percent visible")
+				end
+			end
+		end
 	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 } }) do
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		check(sz[1], sz[2], p.hand, 340, sz[1] .. "x" .. sz[2])
+	end
+	-- a phone is too narrow for readable arches: the painted layout declines and the code nook (compute) is used
+	expectEqual(PRL.painted(390, 844, { x = 8, y = 520, w = 374, h = 176 }, 3), nil, "phone keeps the code nook")
 	local src = io and io.open and io.open("src/Client/PatronRow.lua", "r")
 	if src then
 		local code = src:read("*a"); src:close()
