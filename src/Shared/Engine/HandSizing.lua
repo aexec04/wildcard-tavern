@@ -13,7 +13,7 @@ local M = {}
 
 M.ASPECT = 1.45 -- height / width, same as CardFace
 M.PAD = 16
-M.GAP = 6
+M.GAP = 6 -- equals the hub hand UIListLayout padding
 M.MIN_WIDTH = 48
 M.BASE_MAX = 114
 M.BIG_MAX = 124
@@ -29,6 +29,12 @@ end
 -- bottom padding, with 4 px to spare, so only the cards' tops rise.
 function M.frameHeight(_areaW)
 	return M.BASE_FRAME_H
+end
+
+-- Frame width that holds `count` cards of the big size (cards, gaps, 2 x padding); 0 on windows that keep the base size.
+function M.wantWidth(areaW, count)
+	if (areaW or 0) < M.BIG_FROM then return 0 end
+	return M.BIG_MAX * count + M.GAP * (count - 1) + 2 * M.PAD
 end
 
 function M.cardSize(areaW, frameW, frameH, count)

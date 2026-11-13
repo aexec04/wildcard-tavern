@@ -24140,4 +24140,28 @@ table.insert(tests, { name = "DeckCountText: remaining over the real deck size, 
 	end
 end })
 
+table.insert(tests, { name = "Tile text: fitOne never turns RichText off for a two-line tile, and the two-line pass forces it on every layout", fn = function()
+	local f = io.open("src/Client/PlayBoardHud.lua", "r")
+	if not f then return end -- Roblox build: no source on disk
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find('RichText = label:GetAttribute("TwoLine") == true', 1, true) ~= nil, "fitOne keeps RichText on a TwoLine label")
+	expectTrue(src:find("lab.RichText = true -- fitOne above just reset it", 1, true) ~= nil, "two-line pass sets RichText before the guard")
+	local count = 0
+	for _ in src:gmatch("BH%.tileRich") do count = count + 1 end
+	expectEqual(count, 1, "one writer of the rich tile text")
+	local BH = require(script.Parent.Parent.Engine.ButtonHierarchy)
+	expectTrue(BH.tileRich("Hands", "3"):find("<font", 1, true) ~= nil, "tileRich is rich text")
+end })
+
+table.insert(tests, { name = "HandSizing.wantWidth: 8 big cards need 1080 from 1200 wide, none below; the 1920 hand holds them", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(HS.wantWidth(1920, 8), 124 * 8 + 6 * 7 + 32)
+	expectEqual(HS.wantWidth(1000, 8), 0)
+	local p = PT.placement(1920, 957, 300, 150)
+	expectTrue(p ~= nil and p.hand.w >= HS.wantWidth(1920, 8), "1920 hand holds 8 big cards")
+	expectEqual((HS.cardSize(1920, p.hand.w, p.hand.h, 8)), 124)
+end })
+
 return tests

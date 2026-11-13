@@ -168,11 +168,12 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	local m = M.map(areaW, areaH, setId)
 	local right = math.min(areaW - rightReserve, m.deck.x - 8)
 	-- hand width follows the default groove for every set, so card size (CardFace fits cards to the row) is the same in all sets
-	local w = math.min(math.floor(M.RAIL.w * m.scale * 1.3), right - left)
+	local HS = require(script.Parent.HandSizing)
+	local w = math.min(math.max(math.floor(M.RAIL.w * m.scale * 1.3), HS.wantWidth(areaW, 8)), right - left)
 	if w < 400 then return nil end
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)
-	local handH = require(script.Parent.HandSizing).frameHeight(areaW)
+	local handH = HS.frameHeight(areaW)
 	local handY = m.seat + M.CARD_PAD - handH
 	-- the button row is centred under the hand (the hand can slide off the rail centre when the left board or the deck clamps it)
 	do

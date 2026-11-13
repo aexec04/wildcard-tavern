@@ -99,7 +99,7 @@ end
 -- one line, no scaling, no truncation: shrinks until it fits the slot width
 local function fitOne(st, label, width, lo, hi)
 	local size = sizeFor(label.Text, lo, hi, width, label.Font)
-	put(st, label, { TextScaled = false, TextWrapped = false, RichText = false, TextTruncate = Enum.TextTruncate.None, TextSize = size,
+	put(st, label, { TextScaled = false, TextWrapped = false, RichText = label:GetAttribute("TwoLine") == true, TextTruncate = Enum.TextTruncate.None, TextSize = size,
 		TextColor3 = INK, TextStrokeTransparency = 1, TextTransparency = 0 })
 end
 
@@ -435,6 +435,7 @@ local function run(root, st)
 			local okBH, BH = pcall(function() return require(Engine:WaitForChild("ButtonHierarchy")) end)
 			for _, t in ipairs(okBH and tiles or {}) do
 				local lab = t.lab
+				lab.RichText = true -- fitOne above just reset it; the font tags must never print
 				if not lab:GetAttribute("TwoLine") then
 					lab:SetAttribute("TwoLine", true)
 					local function twoLine()
