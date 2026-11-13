@@ -118,6 +118,32 @@ return function(deps)
 		end
 		return false
 	end
+	-- Where the bar goes on the screen that is showing NOW (it also sizes the bar): a wide strip under the title on
+	-- Round Select, Choice and Shop, a small toast on the felt on the table.
+	local function currentPlace()
+		return ToastPlacement.plan(root:GetAttribute("ToastScreen") or (root:GetAttribute("BannerAtBottom") and "roundSelect") or "table")
+	end
+	local function barPosition(place, y)
+		messageBar.AnchorPoint = Vector2.new(0, 0)
+		local drift = y - RESTING_Y
+		if place.centred then
+			local size = root.AbsoluteSize
+			local hand = root:FindFirstChild("HandFrame")
+			local handTop = hand and hand.Visible and (hand.AbsolutePosition.Y - root.AbsolutePosition.Y) or nil
+			local x, ty, w, h = ToastPlacement.tableRect(size.X, size.Y, SIDEBAR_WIDTH, handTop)
+			messageBar.Size = UDim2.fromOffset(w, h)
+			return UDim2.fromOffset(x, ty + drift)
+		end
+		messageBar.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 34)
+		return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, place.y + drift)
+	end
+	-- A message can outlive the screen it was shown on (said on Round Select, still up when the table appears): it used
+	-- to stay a wide strip across the Patron cards. It now moves to the new screen's place the moment the screen changes.
+	root:GetAttributeChangedSignal("ToastScreen"):Connect(function()
+		if messageBar.Visible then
+			messageBar.Position = barPosition(currentPlace(), RESTING_Y)
+		end
+	end)
 	local function showWarning(text)
 		if blocked() then
 			messageBar.Visible = false
@@ -130,21 +156,8 @@ return function(deps)
 		messageBar.Visible = true
 		-- Never over a title: Round Select, Choice and Shop sit under the title block. Table screens: a small toast on the felt
 		-- above the hand (Engine/ToastPlacement.lua; render() sets the ToastScreen attribute), never across the cards.
-		local place = ToastPlacement.plan(root:GetAttribute("ToastScreen") or (root:GetAttribute("BannerAtBottom") and "roundSelect") or "table")
-		messageBar.AnchorPoint = Vector2.new(0, 0)
-		local function pos(y)
-			local drift = y - RESTING_Y
-			if place.centred then
-				local size = root.AbsoluteSize
-				local hand = root:FindFirstChild("HandFrame")
-				local handTop = hand and hand.Visible and (hand.AbsolutePosition.Y - root.AbsolutePosition.Y) or nil
-				local x, ty, w, h = ToastPlacement.tableRect(size.X, size.Y, SIDEBAR_WIDTH, handTop)
-				messageBar.Size = UDim2.fromOffset(w, h)
-				return UDim2.fromOffset(x, ty + drift)
-			end
-			messageBar.Size = UDim2.new(1, -(SIDEBAR_WIDTH + 40), 0, 34)
-			return UDim2.new(0, SIDEBAR_WIDTH + 20, 0, place.y + drift)
-		end
+		local place = currentPlace()
+		local function pos(y) return barPosition(place, y) end
 		messageBar.Position = pos(START_Y)
 		tweenTo(messageBar, { BackgroundTransparency = BAR_TRANSPARENCY, Position = pos(RESTING_Y) }, 0.18)
 		tweenTo(messageLabel, { TextTransparency = 0 }, 0.18)

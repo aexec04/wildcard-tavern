@@ -168,6 +168,10 @@ function CornerToast.refresh()
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		w, h = vp.X, vp.Y
 	end
+	if screen == "table" then -- the Mult panel beside the Patron display stands where the column starts: toasts go under it
+		local okPanel, rect = pcall(function() return require(script.Parent.PatronRow).panelRect() end)
+		if okPanel and rect then Rules.below(plan, w, rect) end
+	end
 	for i = 1, Rules.MAX_STACK do
 		local row = rows[i]
 		if not row then

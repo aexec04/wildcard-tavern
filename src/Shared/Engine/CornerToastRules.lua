@@ -8,6 +8,7 @@
 	  CornerToastRules.textFor(item)            -> text, names   the toast's words ("Unlocked: A, B and 2 more", no emoji)
 	  CornerToastRules.plan(screen)             -> { maxVisible, lines, height }   screen = "table" | "roundSelect" | "choice" | "shop"
 	  CornerToastRules.slot(w, h, plan, index)  -> { x, y, w, h }   index 1 is the top (the newest)
+	  CornerToastRules.below(plan, w, keepOut)  -> plan             starts the column under a panel that stands in its way
 	  CornerToastRules.new()                    -> stack: push(item, now), tick(now, max), dismiss(order), newRound()
 
 	Where it sits: the right edge, 8 px under the top-right corner buttons (they end at y 66), 12 px from the edge, at most 300
@@ -88,6 +89,20 @@ function M.slot(w, h, plan, index)
 		w = width,
 		h = plan.height,
 	}
+end
+
+-- A panel standing where the toast column would start (the Mult panel beside the Patron display on the table): the
+-- column begins under it instead of on top of it. keepOut = { x, y, w, h } in the slot's own pixels, or nil.
+-- Changes and returns the plan. A panel left of the column, or wholly above its top, changes nothing.
+M.KEEP_OUT_GAP = 8
+function M.below(plan, w, keepOut)
+	if type(keepOut) ~= "table" then return plan end
+	local slotX = M.slot(w, 0, plan, 1).x
+	local top = plan.top or M.TOP
+	if keepOut.x + keepOut.w > slotX - M.GAP and keepOut.y + keepOut.h > top - M.GAP then
+		plan.top = math.max(top, math.floor(keepOut.y + keepOut.h + M.KEEP_OUT_GAP))
+	end
+	return plan
 end
 
 -- ===== the stack =====

@@ -20214,12 +20214,15 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	PlayBoardHud.apply(root, nil)
 	expectTrue(sidebar.BackgroundTransparency == 0 and sidebar:FindFirstChild("CornerStud").Visible, "everything comes back on restore")
 	expectTrue(badge.Visible == true, "the bar comes back when the board is not painted")
-	-- boss round: wood slot with a red band, brass studs, text at least 15 px, the rule line wraps instead of being cut
+	-- boss round: wood slot with a red band, brass studs, text at least 15 px, the rule line is one line with an ellipsis
 	ruleLabel.Text = '<font size="17">\u{1F451} Slow Night</font>\n<font size="13">1 random card is tossed out of your hand after every hand you play.</font>'
 	ruleLabel:SetAttribute("Boss", true)
 	PlayBoardHud.apply(root, rect)
 	local bn, bl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
-	expectTrue(bn and bl and bn.TextSize >= 15 and bl.TextSize >= 15 and bl.TextWrapped == true and bl.Visible, "boss rule text is 15 px or more and wraps")
+	expectTrue(bn and bl and bn.TextSize >= 15 and bl.TextSize >= 15 and bl.Visible, "boss rule text is 15 px or more")
+	expectTrue(bl.TextWrapped == false and bl.TextTruncate ~= nil and tostring(bl.TextTruncate.Name or bl.TextTruncate):find("AtEnd", 1, true) ~= nil, "the rule is one line that ends in an ellipsis, never a wrapped line cut in half")
+	expectTrue((rule:GetAttribute("RuleTooltip") or ""):find("after every hand you play", 1, true) ~= nil, "the whole rule is kept for the slot's tooltip")
+	expectTrue((rule:GetAttribute("RuleTooltip") or ""):find(" - ", 1, true) == nil, "name and rule are joined with a colon, not a dash")
 	expectTrue(rule.BackgroundTransparency == 1, "the boss slot has no flat fill")
 	local bossStuds = 0
 	for _, d in ipairs(rule:GetChildren()) do if string.sub(d.Name, 1, 8) == "BossStud" and d.Visible then bossStuds = bossStuds + 1 end end
@@ -24241,6 +24244,11 @@ table.insert(tests, { name = "PatronBoost.panel: the Mult panel shows the live p
 	expectEqual(l.line, "Last hand\n10 Chips x 9 Mult", "last hand line")
 	local live = PB.panel({ chips = 30, mult = 6.6, score = 198 }, last)
 	expectEqual(live.value, "x6.6", "the live preview wins over the last hand")
+	expectEqual(PB.fmtMult(6.65), "6.65", "two decimals when the hand needs them")
+	expectEqual(PB.fmtMult(8), "8", "whole numbers stay whole")
+	expectEqual(PB.fmtMult(6.604), "6.6", "no trailing zeros")
+	expectEqual(PB.fmtMult(12.5), "12.5")
+	expectEqual(PB.fmtMult(0), "0")
 	expectEqual(live.line, "This hand\n30 Chips x 6.6 Mult", "preview line")
 	expectEqual(PB.panel({ chips = 30 }, nil).value, nil, "a preview without a mult shows no figure")
 	for _, text in ipairs({ none.line, l.line, live.line, PB.LABEL }) do
@@ -24513,6 +24521,197 @@ table.insert(tests, { name = "Hand rules: five cards of one rank are Four of a K
 	expectTrue(Scoring.HandLevelGrowth[five.name] ~= nil, "and that hand has a level table")
 	local flushFive = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts") })
 	expectEqual(flushFive.name, "Four of a Kind", "five identical cards are Four of a Kind, which outranks the Flush they also make")
+end })
+
+table.insert(tests, { name = "PlayReport: the reveal plays the server's report (cards put back by position), falls back only on a timeout, legendary rule unchanged", fn = function()
+	local PR = require(script.Parent.Parent.Engine.PlayReport)
+	local hand = { C(2, "Hearts"), C(5, "Spades"), C(9, "Clubs"), C(9, "Diamonds"), C(13, "Hearts") }
+	local played, held = PR.split(hand, { 4, 2 }) -- selection order does not matter: the server plays in hand order
+	expectEqual(#played, 2); expectEqual(#held, 3)
+	expectTrue(played[1] == hand[2] and played[2] == hand[4], "played cards in hand order")
+	expectTrue(held[1] == hand[1] and held[2] == hand[3] and held[3] == hand[5], "held cards in hand order")
+	expectFalse(PR.isNew(nil, nil), "no report yet")
+	expectFalse(PR.isNew({ seq = 3 }, 3), "the report the client already had")
+	expectTrue(PR.isNew({ seq = 4 }, 3), "a newer hand")
+	expectTrue(PR.isNew({ seq = 1 }, nil), "the first hand of a run")
+	expectTrue(PR.isNew({ seq = 2 }, 5), "a revived round counts back, any different seq is a new hand")
+	local preview = { name = "High Card", chips = 9, mult = 1, score = 9, breakdown = {}, targetScore = 65, roundScoreBefore = 10, tavernNotes = { "n" } }
+	local report = {
+		seq = 4, handName = "Pair", chips = 28, mult = 22, score = 616, broken = { 2 }, wildcard = { rank = 9, suit = "Clubs" },
+		entries = {
+			{ kind = "chips", amount = 10, label = "Pair", source = { type = "hand" } },
+			{ kind = "mult", amount = 2, label = "Pair", source = { type = "hand" } },
+			{ kind = "chips", amount = 9, label = "9 of Diamonds", source = { type = "card", played = 2 } },
+			{ kind = "mult", amount = 20, label = "9 of Diamonds", source = { type = "card", played = 2 } },
+			{ kind = "xmult", amount = 1.5, label = "K of Hearts (held)", source = { type = "heldCard", held = 3 } },
+			{ kind = "mult", amount = 4, label = "The Regular", source = { type = "patron", patronId = "the_regular" } },
+		},
+	}
+	local final = PR.apply(preview, report, played, held, function(id) return { id = id } end)
+	expectEqual(final.name, "Pair", "the server's hand name")
+	expectEqual(final.score, 616, "the server's score")
+	expectEqual(final.chips, 28); expectEqual(final.mult, 22)
+	expectEqual(final.targetScore, 65, "the preview's own fields are kept")
+	expectEqual(final.tavernNotes[1], "n")
+	expectEqual(#final.breakdown, 6, "every server entry")
+	expectTrue(final.breakdown[3].source.card == hand[4], "a played card entry points at the client's own card table")
+	expectTrue(final.breakdown[5].source.card == hand[5], "a held card entry points at the kept card")
+	expectEqual(final.breakdown[6].source.patronId, "the_regular")
+	expectEqual(final.breakdown[6].source.patron.id, "the_regular", "the Patron definition is looked up on the client")
+	expectTrue(final.brokenCards[1] == hand[4], "the shattered card is the server's, by position")
+	expectEqual(final.wildcardResolution.rank, 9)
+	expectTrue(final.fromServer == true)
+	expectEqual(preview.score, 9, "the preview itself is not changed")
+	expectTrue(PR.isLegendary(143, 65, {}), "2.2 times the target")
+	expectFalse(PR.isLegendary(142, 65, {}), "just under")
+	expectTrue(PR.isLegendary(10, 65, { { kind = "xmult", amount = 4 } }), "one x4 entry")
+	expectFalse(PR.isLegendary(10, 65, { { kind = "xmult", amount = 3.9 }, { kind = "mult", amount = 40 } }), "big flat Mult is not legendary")
+	expectTrue(PR.TIMEOUT > 0.2 and PR.TIMEOUT <= 1, "the fallback waits a moment, never long")
+	local bc, bm, bn = PR.baseOf(report.entries)
+	expectEqual(bc, 10, "the hand's own Chips open the readout"); expectEqual(bm, 2, "with its own Mult"); expectEqual(bn, 2, "two entries are the hand itself")
+	local zc, zm, zn = PR.baseOf({})
+	expectEqual(zc, 0); expectEqual(zm, 0); expectEqual(zn, 0)
+	local oc, om, on = PR.baseOf({ { kind = "chips", amount = 9, label = "9", source = { type = "card", played = 1 } } })
+	expectEqual(on, 0, "a breakdown that does not open with the hand has no base")
+	expectEqual(oc + om, 0)
+	-- end to end: a real hand's report applied to the client's cards replays to the real score
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local state = RunState.new(nil, function(n) return n end)
+	local idx = {}
+	for i, card in ipairs(state.hand) do
+		if not card.isTrueWildcard and #idx < 3 then idx[#idx + 1] = i end
+	end
+	local clientHand = {}
+	for i, card in ipairs(state.hand) do clientHand[i] = { rank = card.rank, suit = card.suit } end -- the client's copies
+	local cPlayed, cHeld = PR.split(clientHand, idx)
+	local result = RunState.playHand(state, idx)
+	local shown = PR.apply({ breakdown = {} }, state.lastPlay, cPlayed, cHeld, nil)
+	local chips, mult = PE.replay(shown.breakdown)
+	expectEqual(chips * mult, result.score, "what the reveal plays adds up to what the run was paid")
+	for _, e in ipairs(shown.breakdown) do
+		if e.source.type == "card" then
+			local found = false
+			for _, c in ipairs(cPlayed) do if c == e.source.card then found = true end end
+			expectTrue(found, "every card entry lands on one of the client's played cards")
+		end
+	end
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("require(script.PlayReveal).begin({", 1, true) ~= nil, "Play holds the reveal for the server's report")
+	expectTrue(src:find("require(script.PlayReveal).onState(state)", 1, true) ~= nil, "every state is offered to the held reveal")
+	local a = src:find("require(script.PlayReveal).onState(state)", 1, true)
+	local b = src:find("render(state)", a, true)
+	expectTrue(b ~= nil and b - a < 200, "the reveal starts before the new state is drawn")
+	local g = io.open("src/Client/PlayReveal.lua", "r")
+	if g then
+		local code = g:read("*a"); g:close()
+		expectTrue(code:find("Scoring", 1, true) == nil and code:find("math.random", 1, true) == nil, "PlayReveal never scores or rolls anything itself")
+	end
+end })
+
+table.insert(tests, { name = "Patron display in a Boss Round: starts under the boss's home, gives up the heading before the names, stays inside the nook budget with readable values", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PB = require(script.Parent.Parent.Engine.PlayBudget)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local BHL = require(script.Parent.Parent.Engine.BossHomeLayout)
+	local PVT = require(script.Parent.Parent.Engine.PatronValueText)
+	expectEqual(PRL.VALUE_MIN_W, PVT.MIN_W, "one number for the narrowest card that shows its effect value")
+	local AIR = 4
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1920, 1080 }, { 1600, 900 }, { 1366, 768 }, { 1280, 720 } }) do
+		local t = sz[1] .. "x" .. sz[2]
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		local budgetH, top = PB.nookMax(sz[1], sz[2])
+		local bossTop = math.max(top, BHL.BOTTOM_LIMIT + AIR)
+		local opts = { topLimit = bossTop, maxStripH = budgetH - (bossTop - top) }
+		for n = 1, 5 do
+			local lay = PRL.display(sz[1], sz[2], p.hand, n, opts)
+			expectTrue(lay ~= nil and lay.display == true, t .. " n=" .. n .. " the display still shows in a Boss Round")
+			expectTrue(lay.tray.y >= BHL.BOTTOM_LIMIT, t .. " the tray starts under the boss's home")
+			expectTrue(lay.cards[1].y >= BHL.BOTTOM_LIMIT + AIR, t .. " no card under the boss's plate")
+			expectTrue(lay.head == nil or lay.head.y >= BHL.BOTTOM_LIMIT, t .. " a heading, when kept, is under the home too")
+			expectTrue(lay.tray.y + lay.tray.h <= top + budgetH + 0.5, t .. " n=" .. n .. " the tray ends inside the nook budget")
+			expectTrue(lay.rect.y + lay.rect.h <= lay.tray.y + lay.tray.h, t .. " cards and plaques inside the tray")
+			expectTrue(PVT.visible(lay.cardW), t .. " n=" .. n .. " the effect value stays readable (card " .. lay.cardW .. " wide)")
+			expectTrue(lay.plaqueH == 0 or lay.cardW >= PRL.PLAQUE_MIN_W, t .. " names only under cards that fit them")
+		end
+	end
+	-- the order parts are given up in, at the reference root
+	local hand = PTL.placement(1506, 751, 340, 150).hand
+	local full = PRL.display(1506, 751, hand, 5, { topLimit = 56, maxStripH = 194 })
+	expectTrue(full.head ~= nil and full.plaqueH > 0, "room for everything: heading and names")
+	local boss = PRL.display(1506, 751, hand, 5, { topLimit = 92, maxStripH = 158 })
+	expectTrue(boss.head == nil and boss.plaqueH > 0, "a Boss Round at the reference root gives up the heading and keeps the names")
+	expectTrue(boss.cardW >= PRL.PLAQUE_MIN_W, "and the cards still fit a 15 px name")
+	local tight = PRL.display(1506, 751, hand, 5, { topLimit = 92, maxStripH = 128 })
+	expectTrue(tight.head == nil and tight.plaqueH == 0, "tighter still: bare cards, the tooltip keeps the names")
+	expectEqual(PRL.display(1506, 751, hand, 5, { topLimit = 92, maxStripH = 50 }), nil, "no room for a 60 px card: the display declines")
+	if not io then return end
+	local f = io.open("src/Client/PatronRow.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find('rootRef:FindFirstChild("BossFightHost")', 1, true) ~= nil, "PatronRow looks for the boss's home")
+	expectTrue(src:find("opts.topLimit = bossBottom + BOSS_AIR", 1, true) ~= nil, "and starts the display under it")
+	expectTrue(src:find("nook.head.Visible = lay.head ~= nil", 1, true) ~= nil, "the heading hides when the layout gave it up")
+end })
+
+table.insert(tests, { name = "Toasts and banners keep clear of the Patron display: the corner column starts under the Mult panel, a message follows the screen it is on", fn = function()
+	local R = require(script.Parent.Parent.Engine.CornerToastRules)
+	local w = 1506
+	local plan = R.plan("table")
+	local first = R.slot(w, 751, plan, 1)
+	expectEqual(first.y, R.TOP, "no panel: the column starts under the corner buttons")
+	local panel = { x = 1147, y = 84, w = 188, h = 112 } -- the Mult panel at the reference root
+	local moved = R.below(R.plan("table"), w, panel)
+	local slot1 = R.slot(w, 751, moved, 1)
+	expectTrue(slot1.y >= panel.y + panel.h + R.KEEP_OUT_GAP, "the first toast starts under the panel")
+	expectTrue(slot1.x < panel.x + panel.w, "this panel does stand in the column")
+	local slot3 = R.slot(w, 751, moved, 3)
+	expectTrue(slot3.y + slot3.h <= 402, "three toasts still end above the hand cards at the reference root")
+	expectEqual(R.below(R.plan("table"), w, nil).top, R.TOP, "nil keep-out changes nothing")
+	expectEqual(R.below(R.plan("table"), w, { x = 400, y = 84, w = 188, h = 112 }).top, R.TOP, "a panel left of the column changes nothing")
+	expectEqual(R.below(R.plan("table"), w, { x = 1200, y = 0, w = 188, h = 40 }).top, R.TOP, "a panel wholly above the column changes nothing")
+	expectEqual(R.below(R.plan("shop"), w, nil).top, R.TOP, "other screens keep their slot")
+	if not io then return end
+	local f = io.open("src/Client/CornerToast.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("Rules.below(plan, w, rect)", 1, true) ~= nil, "CornerToast asks the rules to step under the Mult panel")
+		expectTrue(src:find('if screen == "table" then', 1, true) ~= nil, "only on the table")
+	end
+	local g = io.open("src/Client/MessageBanner.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find('root:GetAttributeChangedSignal("ToastScreen")', 1, true) ~= nil, "the message bar moves when the screen changes under it")
+		expectTrue(src:find("barPosition(currentPlace(), RESTING_Y)", 1, true) ~= nil, "to the new screen's own place")
+	end
+end })
+
+table.insert(tests, { name = "Collection detail card: the room shows dimmed behind it (no flat wall, no loose pins) and its portrait has one fade owner", fn = function()
+	local ModalGate = require(script.Parent.Parent.Engine.ModalGate)
+	local detail = ModalGate.STAGES[ModalGate.stageFor("detail")]
+	expectEqual(detail.decor, "none", "no pins floating on a flat wall")
+	expectEqual(detail.see, 1, "the stage is clear, so the painted room shows through the card's shade")
+	for _, kind in ipairs({ "modifier", "patron", "pack", "event", "road" }) do
+		expectEqual(ModalGate.STAGES[ModalGate.stageFor(kind)].see, nil, kind .. " keeps its opaque stage")
+	end
+	if not io then return end
+	local f = io.open("src/Client/ModalStage.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("entry.stage.BackgroundTransparency = def.see or 0", 1, true) ~= nil, "ModalStage honours the stage's see value")
+	end
+	local g = io.open("src/Client/PatronPlaque.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find("if opts.fade and not opts.emojiLabel then", 1, true) ~= nil, "ArtFade is skipped when revealArt already fades the art (two fades left the detail portrait black)")
+	end
+	local h = io.open("src/Client/init.client.lua", "r")
+	if h then
+		local src = h:read("*a"); h:close()
+		expectTrue(src:find('slot:GetAttribute("RuleTooltip")', 1, true) ~= nil, "the board's rule slot has a tooltip with the whole rule")
+	end
 end })
 
 return tests

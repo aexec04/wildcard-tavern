@@ -59,7 +59,9 @@ ModalGate.STAGES = {
 	pack = { title = "Card Table", top = { 122, 80, 42 }, bottom = { 34, 22, 14 }, accent = { 222, 182, 104 }, decor = "none", ease = 6 },
 	event = { title = "Map Desk", top = { 96, 74, 46 }, bottom = { 44, 30, 18 }, accent = { 235, 205, 150 }, decor = "map", ease = 6 },
 	road = { title = "Map Desk", top = { 96, 74, 46 }, bottom = { 44, 30, 18 }, accent = { 235, 205, 150 }, decor = "map", ease = 6 },
-	detail = { title = "Cork Wall", top = { 128, 92, 58 }, bottom = { 74, 50, 30 }, accent = { 200, 60, 50 }, decor = "pins", ease = 6 },
+	-- The Collection detail card: the painted room stays in view, dimmed by the card's own shade (see = 1 leaves the
+	-- stage itself clear). It used to be a flat brown wall with six loose red pins, which read as an unfinished screen.
+	detail = { title = "Collection Room", top = { 128, 92, 58 }, bottom = { 74, 50, 30 }, accent = { 200, 60, 50 }, decor = "none", ease = 6, see = 1 },
 }
 
 local KIND_TO_STAGE = {

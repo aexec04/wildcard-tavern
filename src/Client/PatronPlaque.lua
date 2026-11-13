@@ -155,7 +155,10 @@ local r = opts.cornerRadius
 	end
 	art.Parent = frame
 	revealArt(art, opts.emojiLabel)
-	if opts.fade then require(script.Parent.ArtFade).apply(art) end
+	-- revealArt (above) already fades the art in when an emoji label stands in for it. Running ArtFade as well read the
+	-- transparency revealArt had just set (1) as its goal and faded the loaded picture back OUT, which left the
+	-- Collection detail card with a black portrait. One fade owner per image.
+	if opts.fade and not opts.emojiLabel then require(script.Parent.ArtFade).apply(art) end
 	return art
 end
 

@@ -371,6 +371,12 @@ do
 -- align "left": the tooltip's right edge lines up with the button's right edge (buttons near the right
 -- screen edge). Text can be a string or a zero-arg function evaluated on each hover.
 addTooltip = require(script.Tooltip).new(screenGui).attach
+pcall(function() -- the board's rule slot shows one line: hovering it gives the whole rule (PlayBoardHud keeps it in RuleTooltip)
+	local slot = SidebarModule.blindInfoLabel.Parent
+	addTooltip(slot, function() return slot:GetAttribute("RuleTooltip") or SidebarModule.blindInfoLabel.Text end, function(pos, size, tipSize)
+		return pos.X + size.X + 64, pos.Y + (size.Y - tipSize.Y) / 2 -- right of the board's frame post, level with the slot, never over the board
+	end)
+end)
 
 addTooltip(volumeButton, "Volume", "left")
 addTooltip(journeyButton, "Journey", "left")
@@ -2711,19 +2717,6 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 		preview.targetScore = latestState.targetScore
 		preview.roundScoreBefore = latestState.roundScore or 0
 		preview.isRunStart = latestState.night == 1 and latestState.round == 1 and (latestState.roundScore or 0) == 0
-		preview.isLegendary = false
-		if latestState.targetScore and latestState.targetScore > 0 and preview.score >= latestState.targetScore * 2.2 then
-			preview.isLegendary = true
-		end
-		if not preview.isLegendary and preview.breakdown then
-			for _, entry in ipairs(preview.breakdown) do
-				if entry.kind == "xmult" and entry.amount >= 4 then
-					preview.isLegendary = true
-					break
-				end
-			end
-		end
-		PhaseAModule.recordHand(preview)
 
 		-- BUGFIX (Ahmed's report, "SFX doesn't work anymore and when you
 		-- play a card, nothing shows" -- right after the card-art rollout):
@@ -2749,10 +2742,23 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 		-- permanently hidden with nothing showing in its place.
 		local ok, sourceInfoOrErr = pcall(buildScoreSourceInfo, indices)
 		if ok then
-			local ok2, err2 = pcall(ScorePopupModule.showScorePopup, preview, sourceInfoOrErr)
-			if not ok2 then
-				warn("[WildcardTavern] ScorePopupModule.showScorePopup errored, hand still playing normally: " .. tostring(err2))
-			end
+			-- SERVER REPORT (Client/PlayReveal.lua, Engine/PlayReport.lua): the reveal waits one round trip for
+			-- state.lastPlay and plays what the server really scored (a Lucky hit or a shattered card is the server's
+			-- roll, never a second roll made here). With no report in time it plays this preview, which rolls no luck.
+			local PlayReport = require(ReplicatedStorage.Shared.Engine.PlayReport)
+			local played, held = PlayReport.split(latestState.hand, indices)
+			require(script.PlayReveal).begin({
+				preview = preview, played = played, held = held,
+				seqBefore = latestState.lastPlay and latestState.lastPlay.seq or nil,
+				show = function(final)
+					final.isLegendary = PlayReport.isLegendary(final.score, final.targetScore, final.breakdown)
+					PhaseAModule.recordHand(final)
+					local ok2, err2 = pcall(ScorePopupModule.showScorePopup, final, sourceInfoOrErr)
+					if not ok2 then
+						warn("[WildcardTavern] ScorePopupModule.showScorePopup errored, hand still playing normally: " .. tostring(err2))
+					end
+				end,
+			})
 		else
 			warn("[WildcardTavern] buildScoreSourceInfo errored, hand still playing normally: " .. tostring(sourceInfoOrErr))
 		end
@@ -2889,6 +2895,7 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 			showWarning(hint)
 		end)
 	end
+	pcall(function() require(script.PlayReveal).onState(state) end) -- a held score reveal starts now, with the server's report
 	render(state)
 end)
 

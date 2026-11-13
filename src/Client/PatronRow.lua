@@ -392,9 +392,11 @@ local function placeDisplay(lay)
 	nook.trayEdge.Transparency = 0.55
 	nook.back.Position = UDim2.fromOffset(lay.tray.x, lay.tray.y)
 	nook.back.Size = UDim2.fromOffset(lay.tray.w, lay.tray.h)
-	nook.head.Visible = true
-	nook.head.Position = UDim2.fromOffset(lay.head.x, lay.head.y)
-	nook.head.Size = UDim2.fromOffset(lay.head.w, lay.head.h)
+	nook.head.Visible = lay.head ~= nil -- given up when the room is short (a Boss Round's home sits where it would be)
+	if lay.head then
+		nook.head.Position = UDim2.fromOffset(lay.head.x, lay.head.y)
+		nook.head.Size = UDim2.fromOffset(lay.head.w, lay.head.h)
+	end
 	nook.lastBack = lay.tray
 	nook.display = true
 end
@@ -522,6 +524,27 @@ local function uiScaleOf(inst)
 	return math.max(k, 0.05)
 end
 
+-- The boss's home (Client/BossFight.lua: medallion and name plate in the top strip) reaches down into the top of the
+-- nook. While it shows, the Patron display starts under it instead of behind it. Returns the home's bottom edge in
+-- root pixels, or nil when no boss home is showing.
+local BOSS_AIR = 4
+local bossHooked = false
+local placeAgain
+local function bossHomeBottom()
+	local host = rootRef:FindFirstChild("BossFightHost")
+	if not host then return nil end
+	if not bossHooked then
+		bossHooked = true
+		host:GetPropertyChangedSignal("Visible"):Connect(function() if placeAgain then placeAgain() end end)
+		host:GetAttributeChangedSignal("HomeOk"):Connect(function() if placeAgain then placeAgain() end end)
+	end
+	if not host.Visible then return nil end
+	if host:GetAttribute("HomeOk") == true then
+		return require(Engine:WaitForChild("BossHomeLayout")).BOTTOM_LIMIT
+	end
+	return 60 -- the narrow-strip fallback: a centred 50 px plate from y 10
+end
+
 local function place(state)
 	if not holder then return end
 	state = state or lastState
@@ -546,6 +569,11 @@ local function place(state)
 	local lay = nil
 	local budgetH, budgetTop = PlayBudget.nookMax(rootSize.X / k, rootSize.Y / k)
 	local opts = { topLimit = budgetTop * k, maxStripH = budgetH * k, maxCardH = 100 * PlayBudget.scale(rootSize.X / k, rootSize.Y / k) * k } -- one vertical budget (Engine/PlayBudget): a slim nook
+	local bossBottom = show and bossHomeBottom() or nil
+	if bossBottom and bossBottom + BOSS_AIR > opts.topLimit then -- a Boss Round: start under the boss's home, inside what is left of the budget
+		opts.maxStripH = opts.maxStripH - (bossBottom + BOSS_AIR - opts.topLimit)
+		opts.topLimit = bossBottom + BOSS_AIR
+	end
 	if show and rootSize.X < 1200 then -- narrow roots: keep the row right of the left board, never over its portrait
 		local sb = rootRef:FindFirstChild("Sidebar")
 		if sb and sb.Visible then
@@ -697,6 +725,14 @@ function M.setPreview(preview)
 	refreshBoost()
 end
 
+-- The Mult panel's rect in root pixels while it shows, else nil (Client/CornerToast starts its column under it).
+function M.panelRect()
+	local f = boost.frame
+	if not (f and f.Visible and holder and holder.Visible) then return nil end
+	local at, size, origin = f.AbsolutePosition, f.AbsoluteSize, rootRef.AbsolutePosition
+	return { x = at.X - origin.X, y = at.Y - origin.Y, w = size.X, h = size.Y }
+end
+
 function M.install(deps)
 	if holder then return end
 	rootRef, handRef, tooltipFn, anchorFn = deps.root, deps.handFrame, deps.tooltip, deps.tavernAnchor
@@ -712,6 +748,7 @@ function M.install(deps)
 	holderScale.Name = "AbsoluteUnits"
 	holderScale.Parent = holder
 	local function again() pcall(place) end
+	placeAgain = again
 	for _, prop in ipairs({ "AbsoluteSize", "AbsolutePosition", "Visible" }) do
 		handRef:GetPropertyChangedSignal(prop):Connect(again)
 	end

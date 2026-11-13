@@ -366,7 +366,10 @@ local function run(root, st)
 					Position = UDim2.fromOffset(RULE_INSET, 6), Size = UDim2.new(1, -2 * RULE_INSET, 0, 22), TextYAlignment = Enum.TextYAlignment.Center })
 			end
 			if showLine and isBoss then
-				put(st, lineL, { TextScaled = false, TextSize = 15, TextWrapped = true, RichText = false, TextTruncate = Enum.TextTruncate.None,
+				-- ONE line that ends in an ellipsis when the rule is longer: the slot holds a 22 px line under the name, and a
+				-- wrapped rule was simply cut after its first line ("The target score is 40%"). The whole rule is on the boss's
+				-- plate above the Patrons and in this slot's tooltip (RuleTooltip, attached by the hub).
+				put(st, lineL, { TextScaled = false, TextSize = 15, TextWrapped = false, RichText = false, TextTruncate = Enum.TextTruncate.AtEnd,
 					TextColor3 = Color3.fromRGB(246, 232, 200), Font = Enum.Font.Gotham,
 					Position = UDim2.fromOffset(RULE_INSET, 28), Size = UDim2.new(1, -2 * RULE_INSET, 0, math.max(20, H.rule.h - 32)),
 					TextYAlignment = Enum.TextYAlignment.Top, TextStrokeTransparency = 1, TextTransparency = 0 })
@@ -378,7 +381,7 @@ local function run(root, st)
 				rule:SetAttribute("BossPlateLogged", logKey)
 				print("[BossPlate] rule=" .. second .. " red=true")
 			end
-			rule:SetAttribute("RuleTooltip", (plain:gsub("\n", " - ")))
+			rule:SetAttribute("RuleTooltip", (plain:gsub("\n", ": ")))
 		end
 	end
 	if score then

@@ -99,6 +99,7 @@ local function applyTheme(entry, kind)
 	-- Color stops only; never UIGradient.Transparency
 	entry.gradient.Color = ColorSequence.new(rgb(def.top), rgb(def.bottom))
 	entry.stage.BackgroundColor3 = rgb(def.top)
+	entry.stage.BackgroundTransparency = def.see or 0 -- opaque unless the stage says the scene behind should show (the Collection detail card)
 	buildDecor(entry.decor, def, entry.stage.ZIndex)
 end
 

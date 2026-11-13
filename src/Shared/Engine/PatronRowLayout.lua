@@ -213,12 +213,17 @@ end
 --   PatronRowLayout.display(rootW, rootH, hand, count, opts) -> layout | nil
 --     opts.topLimit   y the display starts at (PlayBudget nook row)
 --     opts.maxStripH  height it may use (PlayBudget nook row); nil gives nil so the caller keeps the old row
--- Cards are 96 x 132 at 1506 wide with a 12 px gap. When the budget is too short for a card wide enough to carry a
--- 15 px name, the plaque is dropped (the tooltip keeps the name) and the card takes that height, so the effect value
--- stays readable down to 1280 x 720. Under FLOOR_H the display declines and the caller falls back.
+-- Cards are 96 x 132 at 1506 wide with a 12 px gap. When the budget is too short for everything (a small window, or a
+-- Boss Round, where the boss's home takes the top of the nook), parts are given up in this order so the cards stay
+-- readable: first the heading (the names matter more), then the name plaques instead (the tooltip keeps the names and
+-- the effect value stays on the card), then both. layout.head is nil when the heading was given up.
+-- Under FLOOR_H the display declines and the caller falls back.
 M.HEAD_H, M.HEAD_GAP = 22, 6
 M.DISPLAY_GAP = 12
 M.TRAY_PAD_X, M.TRAY_PAD_BOTTOM = 12, 6
+M.NO_HEAD_PAD = 4 -- air above the cards when there is no heading
+M.BARE_PAD = 2 -- air above and under bare cards (no heading, no plaques): the tightest case keeps every pixel for the card
+M.VALUE_MIN_W = 84 -- same number as PatronValueText.MIN_W: a narrower card cannot show its 15 px effect value
 M.DISPLAY_MIN_K = 0.95 -- a card with no plaque may stand this tall (times BASE_H) even on a smaller root
 
 function M.display(rootW, rootH, hand, count, opts)
@@ -228,13 +233,28 @@ function M.display(rootW, rootH, hand, count, opts)
 	local topLimit = opts.topLimit or M.TOP_LIMIT
 	local k = M.scale(rootW)
 	hand = span(hand, opts)
-	local plaqueH = M.PLAQUE_H
-	local free = budget - M.HEAD_H - M.HEAD_GAP - M.TRAY_PAD_BOTTOM
-	local cardH = math.min(M.BASE_H * k, free - plaqueH)
-	if cardH * M.BASE_W / M.BASE_H < M.PLAQUE_MIN_W then
-		plaqueH = 0
-		cardH = math.min(M.BASE_H * math.max(k, M.DISPLAY_MIN_K), free)
+	local function fit(withHead, withPlaque)
+		local bare = not withHead and not withPlaque
+		local above = withHead and (M.HEAD_H + M.HEAD_GAP) or (bare and M.BARE_PAD or M.NO_HEAD_PAD)
+		local below = (withPlaque and M.PLAQUE_H or 0) + (bare and M.BARE_PAD or M.TRAY_PAD_BOTTOM)
+		local h = math.min(M.BASE_H * (withPlaque and k or math.max(k, M.DISPLAY_MIN_K)), budget - above - below)
+		return h, h * M.BASE_W / M.BASE_H
 	end
+	local headOn, plaqueOn = true, true
+	local cardH, fitW = fit(true, true)
+	if fitW < M.PLAQUE_MIN_W then
+		local h2, w2 = fit(false, true)
+		local h3, w3 = fit(true, false)
+		if w2 >= M.PLAQUE_MIN_W then
+			headOn, cardH = false, h2 -- names kept, heading given up
+		elseif w3 >= M.VALUE_MIN_W then
+			plaqueOn, cardH = false, h3 -- heading kept, names in the tooltip
+		else
+			headOn, plaqueOn = false, false
+			cardH = fit(false, false) -- bare cards: the most card the room allows
+		end
+	end
+	local plaqueH = plaqueOn and M.PLAQUE_H or 0
 	if cardH < M.FLOOR_H then return nil end
 	local cardW = cardH * M.BASE_W / M.BASE_H
 	local availW = math.min(hand.w, rootW)
@@ -256,7 +276,7 @@ function M.display(rootW, rootH, hand, count, opts)
 	local totalW = cardW + step * (count - 1)
 	local x0 = hand.x + (hand.w - totalW) / 2
 	x0 = math.max(0, math.min(x0, rootW - totalW))
-	local y = topLimit + M.HEAD_H + M.HEAD_GAP
+	local y = topLimit + (headOn and (M.HEAD_H + M.HEAD_GAP) or (plaqueOn and M.NO_HEAD_PAD or M.BARE_PAD))
 	local out = { cards = {}, cardW = floor(cardW), cardH = floor(cardH), plaqueH = plaqueH, step = step, overlap = overlap, display = true }
 	for i = 1, count do
 		out.cards[i] = { x = floor(x0 + (i - 1) * step), y = floor(y), w = floor(cardW), h = floor(cardH) }
@@ -265,8 +285,9 @@ function M.display(rootW, rootH, hand, count, opts)
 	out.rect = { x = first.x, y = floor(y), w = last.x + last.w - first.x, h = floor(cardH) + plaqueH }
 	local tx0 = math.max(0, out.rect.x - M.TRAY_PAD_X)
 	local tx1 = math.min(rootW, out.rect.x + out.rect.w + M.TRAY_PAD_X)
-	out.head = { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = M.HEAD_H }
-	out.tray = { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = out.rect.y + out.rect.h + M.TRAY_PAD_BOTTOM - floor(topLimit) }
+	out.head = headOn and { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = M.HEAD_H } or nil
+	local foot = (headOn or plaqueH > 0) and M.TRAY_PAD_BOTTOM or M.BARE_PAD
+	out.tray = { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = out.rect.y + out.rect.h + foot - floor(topLimit) }
 	return out
 end
 

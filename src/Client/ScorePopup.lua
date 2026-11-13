@@ -1028,8 +1028,11 @@ return function(deps)
 		end)
 		scorePopupHandName.Text = preview.name
 		scorePopupEventLabel.Text = ""
-		chipsLabel.Text = "0"
-		multLabel.Text = "0"
+		do -- the readout opens on the hand's own Chips x Mult, together with its name (Engine/PlayReport.baseOf)
+			local openChips, openMult = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
+			chipsLabel.Text = string.format("%d", math.floor(openChips + 0.5))
+			multLabel.Text = string.format("%d", math.floor(openMult + 0.5))
+		end
 		scorePopup.Visible = true
 		scorePopupScale.Scale = 0.6
 		tweenTo(scorePopupScale, { Scale = 1.15 }, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -1157,10 +1160,15 @@ return function(deps)
 
 			local breakdown = preview.breakdown or {}
 			local animatedCount = math.min(#breakdown, MAX_ANIMATED_ENTRIES)
-			local runningChips, runningMult, runningXMult = 0, 0, 1
+			-- The hand's own Chips and Mult are already on the readout (set with the hand name, see the reset above), so the
+			-- count starts from "10 x 2" and every tick after it is a card or a Patron doing something: no "0 x 0", no two
+			-- empty ticks before anything interesting happens (Engine/PlayReport.baseOf).
+			local baseChips, baseMult, baseCount = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).baseOf(breakdown)
+			local runningChips, runningMult, runningXMult = baseChips, baseMult, 1
 			local chipTicks, multTicks = 0, 0 -- the pitch ladder: each tick of a kind rises a half step (Engine/SoundFX)
 
-			for i, entry in ipairs(breakdown) do
+			for i = baseCount + 1, #breakdown do
+				local entry = breakdown[i]
 				if scorePopupToken ~= myToken then
 					return
 				end
@@ -1311,7 +1319,7 @@ return function(deps)
 			pcall(function() -- the boost panel by the Patron row shows this hand's real Chips x Mult while a Patron added to it
 				local E = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
 				require(script.Parent.PatronRow).setBoost(require(E:WaitForChild("PatronBoost")).summary(breakdown))
-				require(script.Parent.PatronRow).setLast(require(E:WaitForChild("PatronBoost")).totals(breakdown))
+				require(script.Parent.PatronRow).setLast({ chips = preview.chips, mult = preview.mult }) -- the hand's final Chips and Mult (boss rules and Bargain included), the same numbers the score used
 			end)
 
 			-- Boss Round and Bargain score changes land after the Patron beats, as pills on the tavern plate

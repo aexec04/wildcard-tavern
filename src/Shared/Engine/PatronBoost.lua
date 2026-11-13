@@ -51,9 +51,12 @@ M.LABEL = "MULTIPLIER"
 M.HINT = "Select cards to see your Mult"
 M.PANEL_W, M.PANEL_H = 188, 112
 
+-- Up to two decimals, no trailing zeros: 8 -> "8", 6.6 -> "6.6", 6.65 -> "6.65" (one decimal turned 6.65 into 6.7,
+-- and "15 Chips x 6.7 Mult" then did not add up to the 99 the hand paid).
 local function fmtMult(mult)
-	local m = math.floor((tonumber(mult) or 0) * 10 + 0.5) / 10
-	return (m == math.floor(m)) and string.format("%d", math.floor(m)) or tostring(m)
+	local text = string.format("%.2f", tonumber(mult) or 0)
+	text = text:gsub("0+$", ""):gsub("%.$", "")
+	return text
 end
 M.fmtMult = fmtMult
 
