@@ -386,15 +386,23 @@ local function run(root, st)
 		hideFill(st, score)
 		hideIcons(st, score, { TargetBar = true, RewardPlate = true }) -- the bar and the Reward line stay: they are stacked in this slot
 		local big = visibleLabel(score, true)
+		-- stacked score / bar / Reward in pixels: the fractions (0.44 / 0.12 / 0.3) leave the Reward line 9 px tall on short
+		-- roots, so each part keeps a floor (score 18, bar 6, Reward 20) and the next one moves down; large roots keep the fractions
+		local sh = math.max(H.target.h, 1)
+		local bigH = math.max(0.44 * sh, 18)
+		local barY = math.max(0.5 * sh, 0.02 * sh + bigH + 2)
+		local barH = math.max(0.12 * sh, 6)
+		local plateY = math.max(0.66 * sh, barY + barH + 2)
+		local plateH = math.max(0.3 * sh, 20)
 		if big then
-			put(st, big, { Position = UDim2.fromScale(0.04, 0.02), Size = UDim2.fromScale(0.92, 0.44), TextXAlignment = Enum.TextXAlignment.Center })
+			put(st, big, { Position = UDim2.fromScale(0.04, 0.02), Size = UDim2.fromScale(0.92, bigH / sh), TextXAlignment = Enum.TextXAlignment.Center })
 			fit(st, big, 15, 30)
 		end
 		local bar = score:FindFirstChild("TargetBar")
-		if bar then put(st, bar, { Position = UDim2.fromScale(0.06, 0.5), Size = UDim2.fromScale(0.88, 0.12) }) end
+		if bar then put(st, bar, { Position = UDim2.fromScale(0.06, barY / sh), Size = UDim2.fromScale(0.88, barH / sh) }) end
 		local plate = score:FindFirstChild("RewardPlate")
 		if plate then
-			put(st, plate, { Position = UDim2.fromScale(0.04, 0.66), Size = UDim2.fromScale(0.92, 0.3) })
+			put(st, plate, { Position = UDim2.fromScale(0.04, plateY / sh), Size = UDim2.fromScale(0.92, plateH / sh) })
 			local line = visibleLabel(plate)
 			if line then
 				put(st, line, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
@@ -414,8 +422,9 @@ local function run(root, st)
 				hideIcons(st, col)
 				local lab = visibleLabel(col)
 				if lab then
-					put(st, lab, { Position = UDim2.fromOffset(TILE_INSET, 0), Size = UDim2.new(1, -2 * TILE_INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
-					local width = slot.w - 2 * TILE_INSET
+					local inset = slot.w < 90 and 6 or TILE_INSET -- narrow tiles: 6 px padding each side so the number is not cut
+					put(st, lab, { Position = UDim2.fromOffset(inset, 0), Size = UDim2.new(1, -2 * inset, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
+					local width = slot.w - 2 * inset
 					shared = math.min(shared, (sizeFor(lab.Text, 15, 18, width, lab.Font)))
 					table.insert(tiles, { lab = lab, width = width })
 				end

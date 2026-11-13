@@ -327,13 +327,13 @@ local function placePainted(strip)
 	return true
 end
 
-local function placeNook(lay, rootW, hand, owned)
+local function placeNook(lay, rootW, hand, owned, opts)
 	if not lay then
 		if nook then nook.root.Visible = false end
 		return
 	end
 	if not nook then buildNook() end
-	local nk = Layout.nook(lay, rootW, hand)
+	local nk = Layout.nook(lay, rootW, hand, opts)
 	nook.root.Visible = nk ~= nil
 	if not nk then return end
 	setRect(nook.back, nk.back)
@@ -378,11 +378,18 @@ local function place(state)
 		w = handRef.AbsoluteSize.X, h = handRef.AbsoluteSize.Y,
 	}
 	local lay = nil
+	local opts = nil
+	if show and rootSize.X < 1200 then -- narrow roots: keep the row right of the left board, never over its portrait
+		local sb = rootRef:FindFirstChild("Sidebar")
+		if sb and sb.Visible then
+			opts = { leftLimit = sb.AbsolutePosition.X - rootRef.AbsolutePosition.X + sb.AbsoluteSize.X + 8 }
+		end
+	end
 	if show then
-		lay = (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit)
+		lay = (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
 	end
 	holder.Visible = lay ~= nil
-	placeNook(lay, rootSize.X, hand, owned)
+	placeNook(lay, rootSize.X, hand, owned, opts)
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end

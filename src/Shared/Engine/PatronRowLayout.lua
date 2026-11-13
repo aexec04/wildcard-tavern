@@ -33,6 +33,16 @@ M.PLAQUE_MIN_W = 84 -- narrower cards drop the name plaque (a 15 px name no long
 
 local function floor(n) return math.floor(n + 0.5) end
 
+-- The hand frame trimmed to start at opts.leftLimit (never over the left board); same table when nothing is trimmed.
+local function span(hand, opts)
+	local left = opts and opts.leftLimit
+	if not left or left <= hand.x then return hand end
+	local right = hand.x + hand.w
+	if right - left < 60 then return hand end -- hand not laid out yet: keep the old behaviour
+	return { x = left, y = hand.y, w = right - left, h = hand.h }
+end
+M.span = span
+
 -- Where a beat pill hangs (bottom anchored): on the card's face just under its top edge, so it never rises into the hand-name
 -- plate above the row. Returns y (the pill's bottom edge) and how far it floats up while fading.
 function M.pillSpot(cardY, cardH)
@@ -47,6 +57,7 @@ function M.compute(rootW, rootH, hand, count, opts)
 	if not count or count <= 0 or not hand then return nil end
 	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
 	local k = M.scale(rootW)
+	hand = span(hand, opts)
 	local handTop = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0)
 	local bottom = handTop - M.AIR
 	local plaqueH = M.PLAQUE_H
@@ -110,6 +121,7 @@ M.GLOW_H = 18
 function M.nook(lay, rootW, hand, opts)
 	if not lay or not lay.rect then return nil end
 	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
+	hand = span(hand, opts)
 	local r = lay.rect
 	local spanL = math.max(0, math.min(r.x, hand.x))
 	local spanR = math.min(rootW, math.max(r.x + r.w, hand.x + hand.w))
@@ -149,6 +161,7 @@ M.TUCK = 10 -- the strip's bottom edge slips this far under the top of the hand 
 function M.painted(rootW, rootH, hand, count, opts)
 	if not count or count <= 0 or not hand then return nil end
 	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
+	hand = span(hand, opts)
 	local handTop = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0)
 	local stripBottom = handTop - M.AIR + M.TUCK
 	local availW = math.min(hand.w, rootW)
@@ -163,7 +176,7 @@ function M.painted(rootW, rootH, hand, count, opts)
 	local cardH = cardW * M.BASE_H / M.BASE_W
 	local maxH = floorY - topLimit
 	if cardH > maxH then cardH = maxH; cardW = cardH * M.BASE_W / M.BASE_H end
-	if cardH < 24 then return nil end
+	if cardH < M.FLOOR_H then return nil end -- cards this small: the caller falls back to compute (60 px cards, code nook)
 	local centers = {}
 	local overlap = count > 5
 	if not overlap then

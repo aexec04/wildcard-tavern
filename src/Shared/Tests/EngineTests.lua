@@ -23564,6 +23564,28 @@ table.insert(tests, { name = "PatronRowLayout: small roots keep the row inside t
 	end
 end })
 
+table.insert(tests, { name = "PatronRowLayout: leftLimit keeps the row 8 units right of the board, cards 60 px or taller, painted strip yields when cards would be tiny", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	-- live 1004x500 case: sidebar right edge 160, hand column starts left of the board's right edge
+	local hand = { x = 100, y = 190, w = 600, h = 150 }
+	local opts = { leftLimit = 160 + 8 }
+	for n = 1, 8 do
+		local lay = PRL.compute(1004, 500, hand, n, opts)
+		expectTrue(lay ~= nil, "n=" .. n .. " row exists")
+		expectTrue(lay.rect.x >= 168, "n=" .. n .. " row starts at or after the board edge plus 8")
+		expectTrue(lay.rect.x + lay.rect.w <= hand.x + hand.w + 1, "n=" .. n .. " row ends inside the hand column")
+		expectTrue(lay.cardH >= PRL.FLOOR_H, "n=" .. n .. " card at least 60 tall")
+		local nk = PRL.nook(lay, 1004, hand, opts)
+		expectTrue(nk.back.x >= 168, "n=" .. n .. " nook back also clear of the board")
+		local pl = PRL.painted(1004, 500, hand, n, opts)
+		expectTrue(pl == nil or (pl.cardH >= PRL.FLOOR_H and pl.rect.x >= 168), "n=" .. n .. " painted is nil or 60 px cards clear of the board")
+	end
+	-- no limit: unchanged behaviour
+	local a = PRL.compute(1506, 751, { x = 200, y = 400, w = 800, h = 200 }, 4)
+	local b = PRL.compute(1506, 751, { x = 200, y = 400, w = 800, h = 200 }, 4, {})
+	expectTrue(a.rect.x == b.rect.x and a.cardW == b.cardW, "no leftLimit changes nothing")
+end })
+
 table.insert(tests, { name = "PatronRowLayout.painted: strip keeps its aspect, 1 to 5 cards are centred in their arch, 6 to 8 overlap evenly, at three sizes and a phone", fn = function()
 	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
 	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)

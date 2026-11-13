@@ -146,7 +146,15 @@ local function build(deps)
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
 		local SM = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SidebarMetrics"))
+		-- the play root can be smaller than the window (scaled roots, DebugGoto scale:WxH): measure it, and keep the home right
+		-- of the live board so the medallion never sits on the Night/Round pill
+		local rs = root.AbsoluteSize
+		if rs.X > 100 and rs.Y > 100 then vp = Vector2.new(rs.X, rs.Y) end
 		local left = SM.isPainted() and SM.hostLeft(vp.X, vp.Y) or sidebarWidth -- painted board is wider than the flat sidebar
+		local sb = root:FindFirstChild("Sidebar")
+		if sb and sb:IsA("GuiObject") and sb.Visible and sb.AbsoluteSize.X > 0 then
+			left = math.max(left, sb.AbsolutePosition.X - root.AbsolutePosition.X + sb.AbsoluteSize.X)
+		end
 		local areaW = math.max(vp.X - left, 200)
 		host.AnchorPoint = Vector2.new(0, 0)
 		host.Position = UDim2.new(0, left, 0, 0)
