@@ -89,6 +89,51 @@ function M.tileParts(f)
 	}
 end
 
+-- Full-width grid (the painted picture is no longer drawn): columns = floor(usable width / cell pitch), rows = floor(usable height / row
+-- pitch), cells spread over the whole width, a short last row centred, never an empty cell. perPage = cols * rows.
+-- grid(areaW, areaH, n, page) -> { ok, cols, rows, perPage, pages, page, plates = { tabs = {sets, backs}, page, prev, next },
+--                                  cells = { { frame, plaque, shelf } ... for the entries on that page } } in the area's pixels
+M.CELL = { frameW = 124, frameH = 184, plaqueH = 28, gapX = 22, gapY = 18, side = 28, barH = 40, barTop = 8 }
+function M.grid(areaW, areaH, n, page)
+	local C = M.CELL
+	local top = C.barTop + C.barH + 14
+	local usableW, usableH = areaW - 2 * C.side, areaH - top - 10
+	local rowH = C.frameH + C.plaqueH + 6
+	local cols, rows = math.floor((usableW + C.gapX) / (C.frameW + C.gapX)), math.floor((usableH + C.gapY) / (rowH + C.gapY))
+	local out = { ok = cols >= 1 and rows >= 1, cols = math.max(cols, 1), rows = math.max(rows, 1), cells = {} }
+	cols, rows = out.cols, out.rows
+	out.perPage = cols * rows
+	out.pages = math.max(1, math.ceil(n / out.perPage))
+	out.page = math.max(1, math.min(out.pages, page or 1))
+	local gx = cols > 1 and math.min(C.gapX * 3, (usableW - cols * C.frameW) / (cols - 1)) or 0
+	local gy = rows > 1 and math.min(C.gapY * 2, (usableH - rows * rowH) / (rows - 1)) or 0
+	local first = (out.page - 1) * out.perPage
+	local onPage = math.max(0, math.min(out.perPage, n - first))
+	local usedRows = math.max(1, math.ceil(onPage / cols))
+	local totalH = usedRows * rowH + (usedRows - 1) * gy
+	local y0 = top + math.max(0, math.floor((usableH - totalH) / 2))
+	for i = 1, onPage do
+		local r, c = math.floor((i - 1) / cols), (i - 1) % cols
+		local inRow = math.min(cols, onPage - r * cols)
+		local rowW = inRow * C.frameW + (inRow - 1) * gx
+		local x = math.floor((areaW - rowW) / 2 + c * (C.frameW + gx))
+		local y = math.floor(y0 + r * (rowH + gy))
+		out.cells[i] = {
+			frame = { x = x, y = y, w = C.frameW, h = C.frameH },
+			plaque = { x = x + 10, y = y + C.frameH + 6, w = C.frameW - 20, h = C.plaqueH },
+			shelf = { x = 0, y = y + C.frameH + 6 + C.plaqueH + 2, w = areaW, h = 6 },
+		}
+	end
+	local bw, y = 150, C.barTop
+	out.plates = {
+		tabs = { { x = C.side, y = y, w = bw, h = C.barH }, { x = C.side + bw + 10, y = y, w = bw, h = C.barH } },
+		page = { x = areaW - C.side - 3 * bw - 20, y = y, w = bw, h = C.barH },
+		prev = { x = areaW - C.side - 2 * bw - 10, y = y, w = bw, h = C.barH },
+		next = { x = areaW - C.side - bw, y = y, w = bw, h = C.barH },
+	}
+	return out
+end
+
 function M.pageCount(n)
 	return math.max(1, math.ceil(n / M.PER_PAGE))
 end

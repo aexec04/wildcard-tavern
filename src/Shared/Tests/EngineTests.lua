@@ -20515,7 +20515,7 @@ table.insert(tests, { name = "Scene pages: the painting area reaches the panel b
 	end
 	expectTrue(names.L and names.R and names.B and not names.T, "left, right and bottom gaps get an edge; the top touches the area")
 	-- every scene page hands the scene the area including the footer, so the painting is not cut off above the bottom band
-	for _, f in ipairs({ "src/Client/StatsRoom.lua", "src/Client/CardSetsRoom.lua", "src/Client/LegendPanel.lua" }) do
+	for _, f in ipairs({ "src/Client/StatsRoom.lua", "src/Client/LegendPanel.lua" }) do
 		local fh = io and io.open and io.open(f, "r")
 		if fh then
 			local src = fh:read("*a"); fh:close()
@@ -20677,6 +20677,44 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout: shelf wall slots fit the bod
 		expectTrue(src:find("UIStroke", 1, true) == nil or src:find("local fs = Instance.new(\"UIStroke\")", 1, true) ~= nil, "no UIStroke on a button (it doubled the Preview text)")
 		expectTrue(src:find("pill = pill", 1, true) ~= nil and src:find("if view.page > 1 then plateButton", 1, true) ~= nil, "pills for Locked and Buy, disabled arrows draw nothing")
 	end
+end })
+
+tests[#tests + 1] = ({ name = "CardSetsSceneLayout.grid: fills the panel width, no empty cell, short last row centred, paging only when needed", fn = function()
+	local L = require(script.Parent.Parent.Engine.CardSetsSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 800, 600 } }) do
+		local W, H = sz[1], sz[2] - L.TOP - L.BOTTOM
+		for _, n in ipairs({ 0, 5, 12, 40 }) do
+			local g = L.grid(W, H, n, 1)
+			expectTrue(g.ok, "grid fits at " .. sz[1] .. "x" .. sz[2])
+			local seen = 0
+			for page = 1, g.pages do
+				local gp = L.grid(W, H, n, page)
+				expectEqual(#gp.cells, math.min(gp.perPage, n - (page - 1) * gp.perPage), "exactly one cell per entry, no empty frame (" .. n .. " at " .. sz[1] .. ")")
+				seen = seen + #gp.cells
+				for i, c in ipairs(gp.cells) do
+					expectTrue(c.frame.x >= 0 and c.frame.x + c.frame.w <= W and c.plaque.y + c.plaque.h <= H, "cell inside the body")
+					expectTrue(c.plaque.h >= 20 and c.plaque.w >= 70, "plaque fits its text")
+					for j = i + 1, #gp.cells do expectFalse(hit(c.frame, gp.cells[j].frame) or hit(c.plaque, gp.cells[j].plaque), "cells do not overlap") end
+				end
+			end
+			expectEqual(seen, n, "every entry is on some page")
+			expectEqual(g.pages > 1, n > g.perPage, "pages only when the entries do not fit")
+		end
+	end
+	local wide, mid = L.grid(1920, 800, 12, 1), L.grid(1280, 560, 12, 1)
+	expectTrue(wide.cols >= 8 and mid.cols >= 6, "about 8 columns at 1920 and 6 at 1280")
+	expectEqual(L.grid(1920, 800, 12, 1).pages, 1, "12 sets are one page at desktop size")
+	local g = L.grid(1920, 800, 11, 1)
+	if g.cols > 6 and #g.cells > g.cols then
+		local last = g.cells[#g.cells].frame
+		local lastRowN = #g.cells - g.cols
+		local sum = 0
+		for i = #g.cells - lastRowN + 1, #g.cells do sum = sum + g.cells[i].frame.x + g.cells[i].frame.w / 2 end
+		expectTrue(math.abs(sum / lastRowN - 960) < 2, "a short last row is centred")
+		expectTrue(last.x > 0, "last cell on screen")
+	end
+	expectFalse(L.grid(150, 100, 5, 1).ok, "a tiny panel does not fit a grid")
 end })
 
 tests[#tests + 1] = ({ name = "StatsSceneLayout: ledger desk slots fit the body at 1920x1080 and 1280x720, content fills plaques, pages and shelves with whole text", fn = function()

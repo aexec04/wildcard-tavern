@@ -28,9 +28,22 @@ local BROWN = Color3.fromRGB(96, 66, 34)
 
 function CardSetsRoom.new(ctx)
 	local Layout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CardSetsSceneLayout"))
-	local PanelScene = require(script.Parent.PanelScene)
 	local addTip = require(script.Parent.Tooltip).new(ctx.screenGui).attach
-	local scene = PanelScene.new(ctx.panel, { artKey = Layout.ART_KEY, def = Layout.DEF, z = 41 })
+	local wall = Instance.new("Frame") -- code-drawn wood wall under the tiles (the painted picture is not drawn: it had a fixed 10 frames)
+	wall.Name = "RoomWall"
+	wall.BackgroundColor3 = Color3.fromRGB(58, 38, 24)
+	wall.BorderSizePixel = 0
+	wall.Size = UDim2.fromScale(1, 1)
+	wall.Active = false
+	wall.Visible = false
+	wall.ZIndex = 41
+	wall.Parent = ctx.panel
+	do
+		local g = Instance.new("UIGradient") -- Color stops only
+		g.Rotation = 90
+		g.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(78, 52, 32)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 26, 16)) })
+		g.Parent = wall
+	end
 	local layer = Instance.new("Frame") -- tiles, plate texts and plaque buttons, over the picture
 	layer.Name = "RoomLayer"
 	layer.BackgroundTransparency = 1
@@ -203,13 +216,15 @@ function CardSetsRoom.new(ctx)
 	-- the plate row: two tabs, then "Page n of m" and the arrows (plates stay intact and empty when there is one page)
 	local function paintPlates(pages)
 		local pl = placed.plates
-		plateButton(layer, pl[1], "Card Sets", { cream = true, active = view.tab == "sets", onClick = function() view.tab, view.page = "sets", 1; room.paint() end })
-		plateButton(layer, pl[2], "Card Backs", { cream = true, active = view.tab == "backs", onClick = function() view.tab, view.page = "backs", 1; room.paint() end })
-		if pages > 1 then
-			plateButton(layer, pl[3], "Page " .. view.page .. " of " .. pages, { cream = true })
-			-- a disabled arrow draws nothing: its plate stays an intact, empty painted plate
-			if view.page > 1 then plateButton(layer, pl[4], "< Prev", { cream = true, onClick = function() view.page = view.page - 1; room.paint() end }) end
-			if view.page < pages then plateButton(layer, pl[5], "Next >", { cream = true, onClick = function() view.page = view.page + 1; room.paint() end }) end
+		local function tab(rect, text, key)
+			plateButton(layer, rect, text, { solid = view.tab == key and BROWN or Color3.fromRGB(34, 22, 14), onClick = function() view.tab, view.page = key, 1; room.paint() end }).TextColor3 = CREAM
+		end
+		tab(pl.tabs[1], "Card Sets", "sets")
+		tab(pl.tabs[2], "Card Backs", "backs")
+		if pages > 1 then -- Prev and Next exist only with more than one page, and only in a direction that goes somewhere
+			plateButton(layer, pl.page, "Page " .. view.page .. " of " .. pages, { cream = true })
+			if view.page > 1 then plateButton(layer, pl.prev, "< Prev", { solid = BROWN, onClick = function() view.page = view.page - 1; room.paint() end }).TextColor3 = CREAM end
+			if view.page < pages then plateButton(layer, pl.next, "Next >", { solid = BROWN, onClick = function() view.page = view.page + 1; room.paint() end }).TextColor3 = CREAM end
 		end
 	end
 
@@ -218,11 +233,30 @@ function CardSetsRoom.new(ctx)
 		if not room.on or not placed then return end
 		local state = ctx.getState()
 		local list = entries(state)
-		local pageList, page, pages = Layout.pageSlice(list, view.page)
-		view.page = page
-		paintPlates(pages)
-		for i, entry in ipairs(pageList) do
-			if placed.frames[i] and placed.plaques[i] then paintTile(i, entry, placed.frames[i], placed.plaques[i], state) end
+			local g = Layout.grid(placed.areaW, placed.areaH, #list, view.page)
+		view.page = g.page
+		local top = placed.top
+		local function down(r) return { x = r.x, y = r.y + top, w = r.w, h = r.h } end
+		placed.plates = { tabs = { down(g.plates.tabs[1]), down(g.plates.tabs[2]) }, page = down(g.plates.page), prev = down(g.plates.prev), next = down(g.plates.next) }
+		paintPlates(g.pages)
+		local function box(color, r, grow)
+			local f = Instance.new("Frame")
+			f.BackgroundColor3 = color
+			f.BorderSizePixel = 0
+			f.ZIndex = 42
+			f.Position, f.Size = rectProps({ x = r.x - grow, y = r.y - grow, w = r.w + 2 * grow, h = r.h + 2 * grow })
+			f.Parent = layer
+		end
+		local seenShelf = {}
+		for i, cell in ipairs(g.cells) do
+			local entry = list[(g.page - 1) * g.perPage + i]
+			local fr, pq, sh = down(cell.frame), down(cell.plaque), down(cell.shelf)
+			if not seenShelf[sh.y] then seenShelf[sh.y] = true; box(Color3.fromRGB(104, 70, 38), sh, 0) end -- one wood shelf board under each row
+			box(Color3.fromRGB(30, 18, 10), fr, 5) -- dark wood frame
+			box(Color3.fromRGB(46, 28, 40), fr, 0) -- velvet
+			local br = Layout.COLORS.brass
+			box(Color3.fromRGB(br[1], br[2], br[3]), pq, 0) -- brass plaque under the frame
+			paintTile(i, entry, fr, pq, state)
 		end
 	end
 
@@ -231,20 +265,16 @@ function CardSetsRoom.new(ctx)
 		local pw, ph = Layout.panel(screen.X, screen.Y)
 		pw, ph = FullScreen.fit(ctx.panel, pw, ph, screen.X, screen.Y) -- a full screen panel: the real screen below the tab strip
 		local area = { x = 0, y = Layout.TOP, w = pw, h = ph - Layout.TOP - Layout.BOTTOM }
-		local p = scene.id and Layout.place(area.w, area.h) or nil
-		room.on = p ~= nil and p.ok and pw >= 640 and ph >= 520
+		local p = Layout.grid(area.w, area.h, 1, 1)
+		room.on = p.ok and pw >= 640 and ph >= 520
 		placed = nil
 		if room.on then
-			placed = p
-			for _, group in ipairs({ p.plates, p.frames, p.plaques }) do
-				for _, r in ipairs(group) do r.y = r.y + Layout.TOP end
-			end
+			placed = { areaW = area.w, areaH = area.h, top = Layout.TOP, plates = p.plates }
 			FullScreen.setRect(ctx.panel, UDim2.fromOffset(pw, ph))
-			scene.show({ x = area.x, y = area.y, w = area.w, h = area.h + Layout.BOTTOM }, p) -- the painting runs under the footer to the panel bottom
 		else
 			FullScreen.setRect(ctx.panel, UDim2.fromScale(0.64, 0.84))
-			scene.hide()
 		end
+		wall.Visible = room.on
 		layer.Visible = room.on
 		do local sh = ctx.panel.Parent and ctx.panel.Parent:FindFirstChild("Shadow"); if sh then sh.Visible = not room.on end -- the sibling drop shadow keeps the plain size and showed as a stray lighter rectangle behind the room
 		end
@@ -257,7 +287,7 @@ function CardSetsRoom.new(ctx)
 				local fit = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelLayout")).fit(screen.Y, shownH)
 				print(string.format("[PanelFit] cardsets screen=%dx%d panel=%dx%d top=%d bottom=%d fits=%s", screen.X, screen.Y, room.on and pw or math.floor(screen.X * 0.64), shownH, fit.top, fit.bottom, tostring(fit.fits)))
 				print(string.format("[CardSetsRoom] %s slots=%d (plates %d, frames %d, plaques %d) panel %dx%d", room.on and "painted" or "plain",
-					room.on and (#p.plates + #p.frames + #p.plaques) or 0, room.on and #p.plates or 0, room.on and #p.frames or 0, room.on and #p.plaques or 0, pw, ph))
+					room.on and (p.cols * p.rows) or 0, 0, room.on and p.cols or 0, room.on and p.rows or 0, pw, ph))
 			end
 		end
 		return room.on
