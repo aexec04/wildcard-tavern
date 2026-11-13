@@ -220,8 +220,19 @@ function DebugGoto.init(deps)
 			if target.keep then remotes:WaitForChild("DebugSetTarget"):FireServer(5000) end -- same client, so it arrives before PlayHand
 			-- the hub's real Play Hand handler (preview, score popup, Patron beats), not a bare remote: beats are client-side
 			if not DebugGoto.playSelected then warn("[DebugGoto] playhand: hub play handler not wired, nothing sent") return end
-			DebugGoto.playSelected(n)
-			print("[DebugGoto] playhand ran the real Play Hand flow with " .. n .. " cards" .. (target.keep and " (target 5000)" or ""))
+			task.spawn(function()
+				-- the Play Hand preview reads the client's state, so wait until the pushed 5000 target has arrived (else TARGET CLEARED flashes)
+				if target.keep then
+					local t0 = os.clock()
+					while os.clock() - t0 < 3 do
+						local st = DebugGoto.getState and DebugGoto.getState()
+						if st and st.targetScore == 5000 then break end
+						task.wait(0.05)
+					end
+				end
+				DebugGoto.playSelected(n)
+				print("[DebugGoto] playhand ran the real Play Hand flow with " .. n .. " cards" .. (target.keep and " (target 5000)" or ""))
+			end)
 			return
 		end
 		if target.kind == "sfx" then

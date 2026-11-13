@@ -443,6 +443,20 @@ function M.frames()
 	return out
 end
 
+-- lowest screen Y of the visible row (cards and nook ledge), or nil when no row shows: played cards land below this
+function M.bottomEdge()
+	if not holder or not holder.Visible then return nil end
+	local low
+	for _, body in pairs(M.frames()) do
+		local y = body.AbsolutePosition.Y + body.AbsoluteSize.Y
+		if not low or y > low then low = y end
+	end
+	if low and nook and nook.ledge and nook.ledge.Visible then
+		low = math.max(low, nook.ledge.AbsolutePosition.Y + nook.ledge.AbsoluteSize.Y)
+	end
+	return low
+end
+
 function M.frameFor(patronId)
 	return M.frames()[patronId]
 end

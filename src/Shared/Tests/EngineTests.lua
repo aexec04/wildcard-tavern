@@ -23683,4 +23683,25 @@ table.insert(tests, { name = "Patron beats: DebugGoto playhand runs the hub's re
 	expectTrue(pop:find("pulsePatronSlot(slotFrame)", 1, true) ~= nil, "the loop runs per breakdown entry with a patron source")
 end })
 
+table.insert(tests, { name = "Patron beats: debug Patrons always fire on High Card, played cards land below the Patron row, playhand:keep waits for the 5000 target", fn = function()
+	local ids = Patrons.alwaysFiring(3)
+	expectEqual(#ids, 3, "three always-firing Patrons exist")
+	local seen = {}
+	for _, id in ipairs(ids) do
+		expectTrue(Patrons.getById(id) ~= nil, "real Patron " .. id)
+		expectTrue(not seen[id], "no duplicates")
+		seen[id] = true
+	end
+	expectEqual(#Patrons.alwaysFiring(0), 0)
+	expectTrue(#Patrons.alwaysFiring(8) <= 8, "never more than asked")
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local dbg, pop, row, srv = slurp("src/Client/DebugGoto.lua"), slurp("src/Client/ScorePopup.lua"), slurp("src/Client/PatronRow.lua"), slurp("src/Server/init.server.lua")
+	if not (dbg and pop and row and srv) then return end
+	expectTrue(dbg:find("st.targetScore == 5000", 1, true) ~= nil, "playhand:keep waits for the pushed target before the preview reads it")
+	expectTrue(pop:find("PatronRow).bottomEdge()", 1, true) ~= nil and pop:find("nookBottom + 10", 1, true) ~= nil, "played cards clamp below the Patron row")
+	expectTrue(row:find("function M.bottomEdge", 1, true) ~= nil, "PatronRow exposes its bottom edge")
+	expectTrue(pop:find('"[PatronBeat] events="', 1, true) ~= nil, "the beat count is printed in Studio")
+	expectTrue(srv:find("Patrons.alwaysFiring(n)", 1, true) ~= nil, "DebugGoto patrons grants always-firing Patrons")
+end })
+
 return tests

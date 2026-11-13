@@ -2826,12 +2826,9 @@ Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
 	local state = session.state
 	local Patrons = require(Engine.Patrons)
 	state.ownedPatrons = {}
-	for _, def in ipairs(Patrons.Definitions) do
-		if #state.ownedPatrons >= n then break end
-		if def.id ~= "the_understudy" and def.id ~= "second_opinion" then -- copiers score nothing alone
-			local ok = RunState.grantPatron(state, def.id)
-			if not ok then break end
-		end
+	-- Patrons that fire on any hand (flat chips, flat mult, xmult first), so the debug hand always shows beats
+	for _, id in ipairs(Patrons.alwaysFiring(n)) do
+		if not RunState.grantPatron(state, id) then break end
 	end
 	print("[DebugGoto server] patrons=" .. #state.ownedPatrons .. " requested=" .. n)
 	pushState(player)

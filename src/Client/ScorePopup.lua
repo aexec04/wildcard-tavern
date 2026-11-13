@@ -594,6 +594,11 @@ return function(deps)
 		end
 		-- the readout hangs just above the row's top edge, clear of the hand
 		scorePopup.Position = UDim2.new(0.5, 0, 0, math.max(4, rowY - 8 - POPUP_H))
+		-- the played cards never cover the Patron row: they land below it (the readout plate stays where it was)
+		local okE, nookBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
+		if okE and nookBottom then
+			rowY = math.max(rowY, nookBottom + 10 - root.AbsolutePosition.Y)
+		end
 		if #playedGhosts == 0 then
 			return
 		end
@@ -904,6 +909,13 @@ return function(deps)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
 		local patronBeatNo = 0 -- Patron beats played this hand (Studio beatslow:freeze stops after the second)
+		if game:GetService("RunService"):IsStudio() then
+			local nBeats = 0
+			for _, e in ipairs(preview.breakdown or {}) do
+				if e.source and e.source.type == "patron" then nBeats = nBeats + 1 end
+			end
+			print("[PatronBeat] events=" .. nBeats)
+		end
 
 		-- PHASE A (Spectacle pass): decided once per hand, same timing as
 		-- currentPaceDivisor just below -- see this file's "LEGENDARY

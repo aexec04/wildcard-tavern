@@ -1174,4 +1174,35 @@ function Patrons.getById(id)
 	return nil
 end
 
+-- Studio QA (DebugGoto patrons:<n>): ids of up to n Patrons whose effect returns a bonus on a plain High Card hand,
+-- one flat chips, then one flat mult, then one xmult first (so every kind of beat shows), then any other that fires.
+function Patrons.alwaysFiring(n)
+	local cards = { Card.new(2, "Hearts"), Card.new(5, "Spades"), Card.new(7, "Diamonds"), Card.new(9, "Clubs"), Card.new(13, "Hearts") }
+	local hand = { name = "High Card", scoringCards = { cards[5] }, cards = cards }
+	local kinds = { chips = {}, mult = {}, xmult = {}, other = {} }
+	for _, def in ipairs(Patrons.Definitions) do
+		if def.id ~= "the_understudy" and def.id ~= "second_opinion" then
+			local ctx = { allPlayedCards = cards, heldCards = {}, handsRemaining = 2, discardsRemaining = 2, isLastHand = false,
+				night = 1, round = 1, tips = 5, ownedPatrons = {}, patronIndex = 1, roundsCleared = 0, bossesCleared = 0,
+				handsPlayedTotal = 0, discardsUsedTotal = 0, patronsSold = 0, handStatsBefore = {} }
+			local ok, b = pcall(def.effect, hand, ctx)
+			if ok and type(b) == "table" then
+				local k = (b.multMultiplier and b.multMultiplier ~= 1) and "xmult" or ((b.mult or 0) > 0 and "mult") or ((b.chips or 0) > 0 and "chips") or "other"
+				kinds[k][#kinds[k] + 1] = def.id
+			end
+		end
+	end
+	local out, used = {}, {}
+	for _, k in ipairs({ "chips", "mult", "xmult" }) do
+		local id = kinds[k][1]
+		if id and #out < n then out[#out + 1] = id; used[id] = true end
+	end
+	for _, k in ipairs({ "mult", "chips", "xmult", "other" }) do
+		for _, id in ipairs(kinds[k]) do
+			if #out < n and not used[id] then out[#out + 1] = id; used[id] = true end
+		end
+	end
+	return out
+end
+
 return Patrons
