@@ -1390,6 +1390,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() -- narrow windows and phones: stats drawer, wider hand, scaled button row (Client/CompactLayout.lua)
 		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH })
 	end)
+	pcall(function() require(script.PatronRow).install({ root = root, handFrame = handFrame, tooltip = addTooltip }) end) -- big Patron cards above the hand
 	pcall(function() -- painted table foreground, hand on the rail (Client/PlayScenePaint.lua)
 		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
@@ -1888,6 +1889,7 @@ local function buildScoreSourceInfo(indices)
 		end
 	end
 
+	for id, frame in pairs(require(script.PatronRow).frames()) do patronSlotFrames[id] = frame end -- the big cards take the scoring beats
 	return { cardGhosts = cardGhosts, patronSlotFrames = patronSlotFrames }
 end
 
@@ -2470,6 +2472,7 @@ local function render(state)
 			end
 		end
 		SidebarModule.patronsCountLabel.Text = string.format("%d/%d", #ownedPatrons, slotLimit)
+		require(script.PatronRow).update(state)
 		-- PATRON BONDS: glowing threads between bonded seats (Client/BondThreads.lua), built lazily, never fatal.
 		pcall(function()
 			local threads = SidebarModule.bondThreads

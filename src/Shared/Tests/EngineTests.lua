@@ -23259,4 +23259,42 @@ table.insert(tests, { name = "Journey.lua: the Tavern Map (thousands of instance
 	expectTrue(src:find("local mapView = require", 1, true) == nil, "no eager mapView build at startup")
 end })
 
+table.insert(tests, { name = "PatronRowLayout: 0 to 8 Patrons never overlap the hand, the board, the dock icons or each other's 60 percent", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(PRL.compute(1920, 957, { x = 100, y = 500, w = 800, h = 200 }, 0), nil, "no Patrons, no row")
+	local sizes = { { 1920, 957 }, { 1280, 720 }, { 1506, 751 } }
+	for _, sz in ipairs(sizes) do
+		local w, h = sz[1], sz[2]
+		local left = 340
+		local p = PTL.placement(w, h, left, 150)
+		expectTrue(p ~= nil, "painted placement at " .. w .. "x" .. h)
+		for n = 1, 8 do
+			local lay = PRL.compute(w, h, p.hand, n)
+			expectTrue(lay ~= nil, n .. " Patrons get a row at " .. w .. "x" .. h)
+			local r = lay.rect
+			expectTrue(r.y >= PRL.TOP_LIMIT, "row below the dock icons (" .. r.y .. ") at " .. w .. "x" .. h)
+			expectTrue(r.y + r.h <= p.hand.y + PRL.HAND_TOP_PAD, "row ends above the hand cards at " .. w .. "x" .. h .. " n=" .. n)
+			expectTrue(r.x >= left and r.x + r.w <= w, "row stays right of the board and on screen at " .. w .. "x" .. h .. " n=" .. n)
+			expectTrue(lay.cardH >= 100 or h < 800, "cards stay readable (" .. lay.cardW .. "x" .. lay.cardH .. ") at " .. w .. "x" .. h)
+			for i = 2, n do
+				local a, b = lay.cards[i - 1], lay.cards[i]
+				expectTrue(b.x >= a.x + math.floor(a.w * PRL.MIN_VISIBLE) - 1, "each card shows 60 percent at n=" .. n)
+				expectTrue(b.x > a.x, "cards run left to right")
+			end
+			if n <= 5 and not lay.overlap then
+				expectTrue(lay.cards[2] == nil or lay.cards[2].x - (lay.cards[1].x + lay.cards[1].w) >= PRL.GAP - 1, "side by side keeps the gap")
+			end
+		end
+	end
+	-- phone width: a hand frame in a 390 px wide area
+	for n = 1, 8 do
+		local hand = { x = 8, y = 520, w = 374, h = 176 }
+		local lay = PRL.compute(390, 844, hand, n)
+		expectTrue(lay ~= nil and lay.rect.x >= 0 and lay.rect.x + lay.rect.w <= 390, "phone row inside the screen, n=" .. n)
+		expectTrue(lay.rect.y + lay.rect.h <= hand.y, "phone row above the hand, n=" .. n)
+		expectTrue(lay.cardH >= 100 or lay.overlap, "phone cards keep 72x100 or overlap, n=" .. n)
+	end
+end })
+
 return tests
