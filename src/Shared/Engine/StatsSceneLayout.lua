@@ -33,10 +33,11 @@ M.DEF = {
 	-- smallest sizes (px) at which text stays readable (nothing under 14)
 	min = { plaques = { 100, 68 }, pages = { 150, 150 }, shelves = { 76, 76 } },
 }
-M.TOP, M.BOTTOM = 54, 48 -- title above, Close below the body
+M.TOP, M.BOTTOM = 54, 48 -- title above, footer below the body (the painting runs under the footer to the panel bottom)
 M.RUNS_SHOWN = 8
 M.ROW_H = 26
 
+-- areaH is the whole height from the title strip to the panel bottom (body plus footer): the picture fills it, no flat band under the shelves
 function M.place(areaW, areaH)
 	local p = PS.place(M.DEF, areaW, areaH)
 	p.plaques, p.pages, p.shelves = p.groups.plaques, p.groups.pages, p.groups.shelves

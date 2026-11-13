@@ -6862,14 +6862,13 @@ table.insert(tests, { name = "Counter cards: no rotated shine strip or clipped d
 	end
 end })
 
-table.insert(tests, { name = "Stats room: the picture's pale bottom trim is covered with the footer colour", fn = function()
+table.insert(tests, { name = "Stats room: the painting fills the footer, no flat cover band", fn = function()
 	local a = io and io.open and io.open("src/Client/StatsRoom.lua", "r")
-	local b = io and io.open and io.open("src/Client/PanelScene.lua", "r")
-	if not a or not b then return end -- Studio has no io
-	local room, scene = a:read("*a"), b:read("*a")
-	a:close(); b:close()
-	expectTrue(room:find("bottomCover", 1, true) ~= nil, "StatsRoom asks PanelScene for a bottom cover")
-	expectTrue(scene:find('"BottomCover"', 1, true) ~= nil and scene:find('"BottomCoverFade"', 1, true) ~= nil, "PanelScene draws the cover and its fade")
+	if not a then return end -- Studio has no io
+	local room = a:read("*a")
+	a:close()
+	expectTrue(room:find("bottomCover", 1, true) == nil, "StatsRoom draws no bottom cover band")
+	expectTrue(room:find("area.h + Layout.BOTTOM", 1, true) ~= nil, "StatsRoom places the picture over body plus footer")
 end })
 
 table.insert(tests, { name = "Panel scene footer band is full width with a smooth fade", fn = function()
@@ -6886,6 +6885,29 @@ table.insert(tests, { name = "Panel scene footer band is full width with a smoot
 		expectTrue(#B.points <= 18, "at most 18 keypoints")
 		expectTrue(B.points[1][2] == 1, "fade starts clear")
 		expectTrue(B.points[#B.points][2] == 0, "fade ends opaque")
+	end
+end })
+
+table.insert(tests, { name = "Stats and Legend paintings reach the panel bottom, no empty band under the shelves", fn = function()
+	local SSL = require(script.Parent.Parent.Engine.StatsSceneLayout)
+	local LSL = require(script.Parent.Parent.Engine.LegendSceneLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 } }) do
+		local PanelLayout = require(script.Parent.Parent.Engine.PanelLayout)
+		local ph = PanelLayout.expandedHeight(sz[2])
+		-- Stats: the picture is placed over body plus footer, so it must cover down to the panel bottom and keep every shelf inside it
+		local fullH = ph - SSL.TOP
+		local p = SSL.place(sz[1], fullH)
+		expectTrue(p.ok, "stats room fits at " .. sz[1])
+		expectTrue(p.image.y + p.image.h >= fullH - 0.5, "stats picture reaches the panel bottom at " .. sz[1])
+		for _, r in ipairs(p.shelves) do
+			expectTrue(r.y + r.h <= fullH, "stats shelf inside the panel at " .. sz[1])
+			-- at most a 40 px sliver of floor under the shelf frames (no 90 px empty band)
+			expectTrue(fullH - (r.y + r.h) <= 40, "stats shelf sits near the panel bottom at " .. sz[1])
+		end
+		-- Legend: the picture, placed in the body, still runs under the footer
+		local lw, lh = LSL.panel(sz[1], sz[2])
+		local lp = LSL.place(lw, lh - LSL.TOP - LSL.BOTTOM)
+		expectTrue(lp.image.y + lp.image.h >= lh - LSL.TOP - 0.5, "legend picture reaches the panel bottom at " .. sz[1])
 	end
 end })
 

@@ -31,7 +31,7 @@ function StatsRoom.new(ctx)
 	local Patrons = require(Engine:WaitForChild("Patrons"))
 	local Achievements = require(Engine:WaitForChild("Achievements"))
 	local PanelScene = require(script.Parent.PanelScene)
-	local scene = PanelScene.new(ctx.panel, { artKey = Layout.ART_KEY, def = Layout.DEF, z = 41, bottomCover = { frac = 0.075, color = require(script.Parent.RoomWall).COLOR } })
+	local scene = PanelScene.new(ctx.panel, { artKey = Layout.ART_KEY, def = Layout.DEF, z = 41 })
 	local layer = Instance.new("Frame")
 	layer.Name = "RoomLayer"
 	layer.BackgroundTransparency = 1
@@ -147,7 +147,7 @@ function StatsRoom.new(ctx)
 			if fw ~= rect.w or fh ~= rect.h then rect = { x = 0, y = rect.y, w = fw, h = fh } end
 		end
 		local area = { x = 0, y = Layout.TOP, w = rect.w, h = rect.h - Layout.TOP - Layout.BOTTOM }
-		local p = scene.id and Layout.place(area.w, area.h) or nil
+		local p = scene.id and Layout.place(area.w, area.h + Layout.BOTTOM) or nil -- the painting fills the footer strip too
 		room.on = p ~= nil and p.ok
 		placed = nil
 		if room.on then
