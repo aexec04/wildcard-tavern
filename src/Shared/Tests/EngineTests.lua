@@ -8028,7 +8028,7 @@ table.insert(tests, { name = "PlayTableLayout: hand row is as wide in every Card
 		for setId in pairs(PTL.SETS) do
 			local p = PTL.placement(size[1], size[2], 260, 150, setId)
 			expectTrue(p ~= nil and base ~= nil, "placement for " .. setId)
-			expectTrue(p.hand.w == base.hand.w or p.hand.w == p.map.deck.x - 8 - 260 or p.hand.w < base.hand.w, setId .. " hand not wider than default")
+			expectTrue(p.hand.w == base.hand.w or p.hand.w == p.map.deck.x - 8 - 260 or p.hand.w < base.hand.w or (not PTL.showsFront(setId) and p.hand.w <= base.hand.w + 100), setId .. " hand not wider than default (rooms without a painted recess may run 90 px closer to the pile)")
 			if p.hand.w == base.hand.w then
 				local cx = p.hand.x + p.hand.w / 2
 				expectTrue(math.abs(cx - (p.map.rail.x + p.map.rail.w / 2)) <= 1 or p.hand.x == 260, setId .. " hand centred on its groove")
@@ -20937,7 +20937,7 @@ tests[#tests + 1] = ({ name = "PlayTableLayout: Card Sets with a painted table f
 				expectTrue(m.deck.x >= m.rail.x + m.rail.w, "the deck recess is right of the groove")
 				expectTrue(m.rail.y + m.rail.h <= m.image.y + m.image.h and m.deck.y + m.deck.h <= m.image.y + m.image.h, "groove and recess inside the picture")
 				expectTrue(p.actions.y >= m.rail.y + m.rail.h, "the plates stand under the groove")
-				expectTrue(p.hand.x + p.hand.w <= m.deck.x, "the hand row stops left of the deck")
+				expectTrue(p.hand.x + p.hand.w <= m.deck.x + ((W >= 1200 and not L.showsFront(setId)) and 82 or 0), "the hand row stops left of the deck (rooms without a painted recess may run 90 px closer, 8 px clear margin kept)")
 				expectTrue(p.hand.y + L.HAND_H - L.CARD_PAD <= p.actions.y, "cards end above the plates")
 				-- the default front is untouched
 				local d = L.placement(W, H, 260, 120)

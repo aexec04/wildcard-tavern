@@ -166,7 +166,7 @@ M.HAND_H, M.ACTION_H, M.CARD_PAD = 200, 54, 16 -- 200 px holds cards up to 114 w
 function M.placement(areaW, areaH, left, rightReserve, setId)
 	if not M.usable(areaW) then return nil end
 	local m = M.map(areaW, areaH, setId)
-	local right = math.min(areaW - rightReserve, m.deck.x - 8)
+	local right = math.min(areaW - rightReserve, m.deck.x - 8 + (areaW >= 1200 and not M.showsFront(setId) and 90 or 0)) -- rooms paint no recess box and the pile is smaller than the recess: wide windows let the hand run 90 px closer
 	-- hand width follows the default groove for every set, so card size (CardFace fits cards to the row) is the same in all sets
 	local HS = require(script.Parent.HandSizing)
 	local w = math.min(math.max(math.floor(M.RAIL.w * m.scale * 1.3), HS.wantWidth(areaW, 8)), right - left)

@@ -588,8 +588,8 @@ return function(deps)
 		local rootSize = root.AbsoluteSize
 		-- the played hand lands as a small tilted, slightly overlapping group with a soft shadow (Engine/PlayMotion.stackSpec);
 		-- calm mode keeps the flat row
-		local stacked = ClientSettings.get("reduceShake") ~= true
-		local gap = stacked and -8 or 14
+		local stacked = false -- a played hand is a clean row: no overlap, no tilt (the stacked fan read as jumbled)
+		local gap = 12
 		local PMotion = stacked and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayMotion")) or nil
 		local totalWidth = 0
 		for _, entry in ipairs(playedGhosts) do
@@ -616,7 +616,11 @@ return function(deps)
 		scorePopup.Position = UDim2.new(0.5, 0, 0, lane.readoutY)
 		if lane.side and #playedGhosts > 0 then
 			-- no room above the cards: the readout stands on the felt beside them (right first, else left), never over a card
-			local half = scorePopup.AbsoluteSize.X / 2
+			local wide = scorePopup.AbsoluteSize.X
+			for _, d in ipairs(scorePopup:GetDescendants()) do -- the label bars are wider than the popup frame itself
+				if d:IsA("GuiObject") and d.Visible then wide = math.max(wide, d.AbsoluteSize.X) end
+			end
+			local half = wide / 2
 			local cardsLeft = (rootSize.X - totalWidth) / 2
 			local cx = cardsLeft + totalWidth + 16 + half
 			if cx + half > rootSize.X - 8 then cx = cardsLeft - 16 - half end
