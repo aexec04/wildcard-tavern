@@ -14,6 +14,7 @@ local PanelSceneLayout = require(game:GetService("ReplicatedStorage"):WaitForChi
 
 local PanelScene = {}
 local FILL = Color3.fromRGB(26, 18, 12) -- the holder colour the vignette fades into
+local WASH = 0.3 -- transparency of the dark wash over the backdrop copy of the painting
 
 function PanelScene.new(panel, opts)
 	local z = opts.z or 41
@@ -43,11 +44,43 @@ function PanelScene.new(panel, opts)
 		for _, ch in ipairs(holder:GetChildren()) do
 			if ch ~= picture then ch:Destroy() end
 		end
+		-- Where the picture does not reach the area (it keeps every slot inside, so it can sit smaller than cover), the same painting is laid
+		-- cover-fitted behind it under a dark wash, so the bands read as the room continuing, not as flat brown. The feather strips start at
+		-- the wash's own transparency so there is no seam.
+		local I = placed.image
+		local gap = I.x > 0.5 or I.y > 0.5 or I.x + I.w < area.w - 0.5 or I.y + I.h < area.h - 0.5
+		local base = 0
+		if gap and id and placed.scale and placed.scale > 0 then
+			base = WASH
+			local srcW, srcH = I.w / placed.scale, I.h / placed.scale
+			local cs = math.max(area.w / srcW, area.h / srcH)
+			local back = Instance.new("ImageLabel")
+			back.Name = "Backdrop"
+			back.BackgroundTransparency = 1
+			back.Image = id
+			back.ScaleType = Enum.ScaleType.Stretch
+			back.Active = false
+			back.ZIndex = z
+			back.Size = UDim2.fromOffset(math.ceil(srcW * cs), math.ceil(srcH * cs))
+			back.Position = UDim2.fromOffset(math.floor((area.w - srcW * cs) / 2), math.floor((area.h - srcH * cs) / 2))
+			back.Parent = holder
+			local wash = Instance.new("Frame")
+			wash.Name = "BackdropWash"
+			wash.BackgroundColor3 = FILL
+			wash.BackgroundTransparency = WASH
+			wash.BorderSizePixel = 0
+			wash.Size = UDim2.fromOffset(area.w, area.h)
+			wash.Active = false
+			wash.ZIndex = z
+			wash.Parent = holder
+			picture.Parent = nil -- equal ZIndex draws in sibling order: move the painting after the backdrop and wash
+			picture.Parent = holder
+		end
 		for _, it in ipairs(PanelSceneLayout.feather(placed, area.w, area.h)) do
 			local f = Instance.new("Frame")
 			f.Name = "Vignette_" .. it.name
 			f.BackgroundColor3 = FILL
-			f.BackgroundTransparency = it.transparency
+			f.BackgroundTransparency = base + (1 - base) * it.transparency
 			f.BorderSizePixel = 0
 			f.Position, f.Size = UDim2.fromOffset(it.rect.x, it.rect.y), UDim2.fromOffset(it.rect.w, it.rect.h)
 			f.Active = false
