@@ -22713,7 +22713,13 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 	if u then
 		local text = u:read("*a")
 		u:close()
-		expectFalse(text:find("%.Transparency =", 1) ~= nil and text:find("UIGradient") ~= nil and text:find("g%.Transparency") ~= nil, "no UIGradient Transparency")
+		expectTrue(text:find("ScrimGradient", 1, true) ~= nil and not text:find("Vignette", 1, true), "the scrims are two fade frames from ScrimGradient, no stacked vignettes")
+		local L = require(script.Parent.Parent.Engine.LoadingLook)
+		for _, line in ipairs({ { L.CREAM, L.STATUS_Y }, { L.CREAM, L.TIP_Y } }) do
+			expectTrue(L.worstContrast(line[1], L.BOTTOM, line[2]) >= 4.5, "status and tip text read at 4.5:1 even on a white painting")
+		end
+		expectTrue(L.scrimOpacity(L.BOTTOM, 0.4) == 0 and L.scrimOpacity(L.TOP, 0.5) == 0, "the middle of the painting is not darkened")
+		expectTrue(L.scrimOpacity(L.TOP, 0) <= 0.5 and L.scrimOpacity(L.BOTTOM, 1) <= 0.9, "edges darken to a limit")
 		expectTrue(text:find("DisplayOrder = 1000", 1, true) ~= nil and text:find("ResetOnSpawn = false", 1, true) ~= nil and text:find("IgnoreGuiInset = true", 1, true) ~= nil, "gui settings")
 		expectTrue(text:find("fade.Active = false", 1, true) ~= nil and text:find("gui:Destroy()", 1, true) ~= nil, "it stops blocking clicks and is destroyed")
 		expectTrue(text:find("math.max(15, size)", 1, true) ~= nil, "text is never under 15")

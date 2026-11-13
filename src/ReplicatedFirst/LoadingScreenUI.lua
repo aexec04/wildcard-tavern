@@ -3,7 +3,7 @@
 	Builds the launch loading screen: painted tavern doorway (loading_scene_bg), the wordmark, a wooden beam
 	progress bar (loading_bar_frame, code-drawn wood when the id is missing) with an amber fill, a moving
 	shimmer and an ember at the leading edge, a status line and a rotating tip. Rules (weights, easing, tips)
-	are in Engine/LoadProgress and Engine/LoadingTips. Only Color gradient stops are used, never Transparency.
+	are in Engine/LoadProgress and Engine/LoadingTips. The two scrims are the only UIGradient Transparency use (a fade, Engine/ScrimGradient).
 	LoadingScreenUI.show(playerGui, { shared = ReplicatedStorage.Shared, frozen = 0..1 or nil, onSkip = fn })
 	  -> handle { gui, setTarget(v), setReady(), fadeOut(), destroy(), isAlive() }
 ]]
@@ -40,7 +40,7 @@ local function label(parent, text, size, color, font)
 	l.Font = font or Enum.Font.GothamMedium
 	l.TextWrapped = true
 	l.TextTransparency = 0
-	l.TextStrokeTransparency = 0.6
+	l.TextStrokeTransparency = 0.35
 	l.TextStrokeColor3 = Color3.fromRGB(10, 6, 4)
 	l.Parent = parent
 	return l
@@ -100,17 +100,26 @@ function LoadingScreenUI.show(playerGui, opts)
 		gradient(glow, Color3.fromRGB(190, 120, 50), Color3.fromRGB(60, 34, 18), 90)
 	end
 
-	-- dark vignette bands (Color only), top and bottom
-	for _, band in ipairs({ { 0, 0.3, 90 }, { 0.65, 0.35, 270 } }) do
+	-- two soft scrims, each ONE frame with a UIGradient fade (the painting stays visible in between)
+	local ScrimGradient = require(Engine:WaitForChild("ScrimGradient"))
+	local Look = require(Engine:WaitForChild("LoadingLook"))
+	for _, def in ipairs({ { "ScrimBottom", Look.BOTTOM, 90 }, { "ScrimTop", Look.TOP, 270 } }) do
+		local spec = def[2]
 		local f = Instance.new("Frame")
-		f.Name = "Vignette"
-		f.Position = UDim2.fromScale(0, band[1])
-		f.Size = UDim2.fromScale(1, band[2])
+		f.Name = def[1]
+		f.Position = UDim2.fromScale(0, spec.from)
+		f.Size = UDim2.fromScale(1, spec.to - spec.from)
 		f.BackgroundColor3 = Color3.fromRGB(6, 4, 6)
-		f.BackgroundTransparency = 0.45
 		f.BorderSizePixel = 0
+		local g = Instance.new("UIGradient")
+		g.Rotation = def[3]
+		local pts = {}
+		for _, k in ipairs(ScrimGradient.keypoints(12, spec.peak, spec.exponent)) do
+			pts[#pts + 1] = NumberSequenceKeypoint.new(k[1], k[2])
+		end
+		g.Transparency = NumberSequence.new(pts)
+		g.Parent = f
 		f.Parent = fade
-		gradient(f, Color3.fromRGB(6, 4, 6), Color3.fromRGB(40, 28, 24), band[3])
 	end
 
 	-- title
@@ -148,7 +157,7 @@ function LoadingScreenUI.show(playerGui, opts)
 	channel.Name = "Channel"
 	channel.Position = UDim2.fromScale(CHANNEL.x0, CHANNEL.y0)
 	channel.Size = UDim2.fromScale(CHANNEL.x1 - CHANNEL.x0, CHANNEL.y1 - CHANNEL.y0)
-	channel.BackgroundColor3 = Color3.fromRGB(26, 14, 8)
+	channel.BackgroundColor3 = Color3.fromRGB(70, 42, 22)
 	channel.BorderSizePixel = 0
 	channel.ClipsDescendants = true
 	channel.ZIndex = 1
@@ -256,12 +265,12 @@ function LoadingScreenUI.show(playerGui, opts)
 	status.Position = UDim2.fromScale(0.5, 0.865)
 	status.Size = UDim2.fromScale(0.7, 0.05)
 
-	local tip = label(fade, "", 15, Color3.fromRGB(200, 184, 150))
+	local tip = label(fade, "", 16, CREAM)
 	tip.Name = "Tip"
 	tip.AnchorPoint = Vector2.new(0.5, 0)
 	tip.Position = UDim2.fromScale(0.5, 0.92)
 	tip.Size = UDim2.fromScale(0.86, 0.06)
-	tip.TextTransparency = 0.1
+	tip.TextTransparency = 0
 
 	local skip = Instance.new("TextButton")
 	skip.Name = "Skip"
@@ -303,7 +312,7 @@ function LoadingScreenUI.show(playerGui, opts)
 		tip.Text = LoadingTips.TIPS[order[tipIndex]]
 		tipAt = now
 		tip.TextTransparency = 1
-		TweenService:Create(tip, TweenInfo.new(0.3), { TextTransparency = 0.1 }):Play()
+		TweenService:Create(tip, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
 	end
 
 	local function stop()
