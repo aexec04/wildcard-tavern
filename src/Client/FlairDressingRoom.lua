@@ -163,16 +163,7 @@ function FlairDressingRoom.build(deps, panel)
 			make("TextLabel", sceneMarks, { Name = "SoonPlate" .. i, Position = UDim2.fromOffset(t.x + 14, t.y), Size = UDim2.fromOffset(t.w - 28, t.h),
 				Text = "More soon", TextSize = 14, Font = Enum.Font.GothamMedium, TextTransparency = 0.5, TextColor3 = Color3.fromRGB(226, 208, 170), Active = false })
 		end
-		-- cubbies with no piece in this category: a solid shelf-wood patch over the painted alcove, so only real items sit in alcoves
-		local used = tileCount
-		if sceneS.cubbies and used > 0 then
-			for k = used + 1, #sceneS.cubbies do
-				local c = sceneS.cubbies[k]
-				local patch = make("Frame", sceneMarks, { Name = "EmptyCubby" .. k, Position = UDim2.fromOffset(c.x - 4, c.y - 4), Size = UDim2.fromOffset(c.w + 8, c.h + 8),
-					BackgroundColor3 = Color3.fromRGB(58, 40, 26), BackgroundTransparency = 0, BorderSizePixel = 0, Active = false })
-				round(patch, 8)
-			end
-		end
+		-- cubbies with no piece stay as the painted empty alcoves: no cover patch is drawn (flat squares looked like stickers on the shelf)
 	end
 
 	-- ===== title, bundle, close =====
