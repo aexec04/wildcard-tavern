@@ -346,8 +346,9 @@ function DebugGoto.init(deps)
 			end
 			print("[DebugGoto] round1 hand=" .. count)
 			if wantedTag or wantedMod then
-				local tagId = wantedTag
+				local tagId, modId = wantedTag, wantedMod
 				wantedTag, wantedMod = nil, nil
+				if modId then pcall(function() remotes:WaitForChild("DebugSetMod"):FireServer(modId, true) end) end
 				if tagId then pcall(function() remotes:WaitForChild("DebugSetTag"):FireServer(tagId) end) end
 				task.delay(1, function() -- let the state update reach the board, then list what it shows
 					local okB, board = pcall(function() return player.PlayerGui.GameUI.GameRoot.Sidebar end)
@@ -382,7 +383,10 @@ function DebugGoto.init(deps)
 			if wantedMod and state.choice and state.choice.kind == "modifier" and optionId ~= wantedMod then
 				local ids = {}
 				for _, o in ipairs(state.choice.options) do ids[#ids + 1] = o.id end
-				warn("[DebugGoto] blessing '" .. wantedMod .. "' is not offered this run; options: " .. table.concat(ids, ", "))
+				-- not in the random draw: the server swaps it in, then the normal Choice remote picks it (same order on the wire)
+				print("[DebugGoto] blessing '" .. wantedMod .. "' was not in the draw (" .. table.concat(ids, ", ") .. "); asking the server to offer it")
+				remotes:WaitForChild("DebugSetMod"):FireServer(wantedMod)
+				optionId = wantedMod
 			end
 			remotes:WaitForChild("Choice"):FireServer(optionId)
 		elseif step == "select" and not selectSent then

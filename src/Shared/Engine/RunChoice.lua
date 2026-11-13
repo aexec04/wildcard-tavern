@@ -153,6 +153,19 @@ function RunChoice.canAnswer(phase, choice, optionId)
 	return phase == "roundSelect" and type(choice) == "table" and type(optionId) == "string"
 end
 
+-- Studio QA (DebugGoto round1:mod=): makes sure an open blessing draft offers `modId`, replacing the first option when it
+-- is not already there. Returns true when the draft now offers it, false (nothing changed) for any other choice or an unknown id.
+function RunChoice.forceOption(choice, modId)
+	if type(choice) ~= "table" or choice.kind ~= "modifier" or type(choice.options) ~= "table" then return false end
+	for _, o in ipairs(choice.options) do
+		if o.id == modId then return true end
+	end
+	local m = RunModifiers.getById(modId)
+	if not m then return false end
+	choice.options[1] = { id = m.id, name = m.name, icon = m.icon, line1 = "+ " .. m.blessing, line2 = "- " .. m.curse }
+	return true
+end
+
 -- Applies the player's pick to the run. Returns ok, message, nextChoice (the modifier step after the Patron step).
 -- A failed pick (not an offered id, or an event that cannot be paid) changes nothing and keeps the choice open.
 function RunChoice.pick(state, choice, optionId)

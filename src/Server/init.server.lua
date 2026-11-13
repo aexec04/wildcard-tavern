@@ -2846,6 +2846,23 @@ Rem.DebugSetTag.OnServerEvent:Connect(function(player, tagId)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto round1:mod=<id> makes the open blessing draft offer that blessing (the player then picks it through
+-- the normal Choice remote), or with report=true prints the applied numbers once the hand is dealt.
+Rem.DebugSetMod.OnServerEvent:Connect(function(player, modId, report)
+	if not RunService:IsStudio() then return end
+	local session = sessions[player]
+	if not session or type(modId) ~= "string" then return end
+	if report == true then
+		local st = session.state
+		print("[DebugGoto server] mod=" .. tostring(st.runModifierId) .. " wanted=" .. modId .. " hands=" .. tostring(st.handsRemaining)
+			.. " discards=" .. tostring(st.discardsRemaining) .. " patronSlots=" .. tostring(RunState.patronSlotLimit(st)))
+		return
+	end
+	local ok = RunChoice.forceOption(session.choice, modId)
+	print("[DebugGoto server] blessing " .. modId .. (ok and " is on offer" or " cannot be offered (unknown id or no blessing draft)"))
+	pushState(player)
+end)
+
 -- Studio only: DebugGoto playhand:keep raises the round target so one hand scores and the round stays open.
 Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	if not RunService:IsStudio() then return end

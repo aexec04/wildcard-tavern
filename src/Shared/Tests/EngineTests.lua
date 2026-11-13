@@ -20543,6 +20543,14 @@ table.insert(tests, { name = "DebugGoto round1:mod=: the client copies the parse
 		local view = RM.view(state.runModifierId)
 		assert(view and view.id == id and view.blessing and view.curse, id .. " has a view the board row shows")
 	end
+	do -- RunChoice.forceOption puts a blessing outside the random draw on offer, so round1:mod= can always apply it
+		local RC = require(script.Parent.Parent.Engine.RunChoice)
+		local choice = { kind = "modifier", options = { { id = "a" }, { id = "b" }, { id = "c" } } }
+		assert(RC.forceOption(choice, "open_hands") and choice.options[1].id == "open_hands" and #choice.options == 3, "swaps in the wanted blessing")
+		assert(RC.forceOption(choice, "b") and choice.options[2].id == "b", "an offered id changes nothing")
+		assert(not RC.forceOption(choice, "no_such_blessing"), "unknown id refused")
+		assert(not RC.forceOption({ kind = "patron", options = {} }, "open_hands"), "only a blessing draft is touched")
+	end
 	if type(io) ~= "table" or not io.open then return end -- Studio has no io library
 	local f = io.open("src/Client/DebugGoto.lua", "r")
 	if not f then return end
