@@ -240,7 +240,7 @@ function CardSetsRoom.new(ctx)
 				for _, r in ipairs(group) do r.y = r.y + Layout.TOP end
 			end
 			FullScreen.setRect(ctx.panel, UDim2.fromOffset(pw, ph))
-			scene.show(area, p)
+			scene.show({ x = area.x, y = area.y, w = area.w, h = area.h + Layout.BOTTOM }, p) -- the painting runs under the footer to the panel bottom
 		else
 			FullScreen.setRect(ctx.panel, UDim2.fromScale(0.64, 0.84))
 			scene.hide()

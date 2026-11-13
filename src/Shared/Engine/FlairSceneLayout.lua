@@ -120,5 +120,8 @@ end
 function M.feather(p, areaW, areaH)
 	return require(script.Parent.PanelSceneLayout).feather(p, areaW, areaH)
 end
+function M.edges(p, areaW, areaH)
+	return require(script.Parent.PanelSceneLayout).edges(p, areaW, areaH)
+end
 
 return M

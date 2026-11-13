@@ -90,6 +90,34 @@ function M.feather(p, areaW, areaH)
 	return out
 end
 
+-- The same vignette as ONE frame per uncovered edge with a UIGradient (stacked strips show as bands). Each item: { name, rect = {x,y,w,h},
+-- rotation (degrees: 0 left edge, 90 top, 180 right, 270 bottom, so gradient time 0 is the picture's own edge), points = { {time, fade}, ... } }
+-- where fade 0 is fully dark at the edge and 1 is clear inside. Callers map fade to transparency as base + (1 - base) * fade.
+M.EDGE_POINTS = 12
+function M.edges(p, areaW, areaH)
+	local I = p.image
+	local out = {}
+	local x1, y1 = I.x + I.w, I.y + I.h
+	local fwx, fwy = math.min(200, I.w * 0.2), math.min(140, I.h * 0.2)
+	local pts = {}
+	for k = 0, M.EDGE_POINTS - 1 do
+		local t = k / (M.EDGE_POINTS - 1)
+		pts[#pts + 1] = { t, 1 - (1 - t) ^ 2 }
+	end
+	local function add(name, x, y, w, h, rot)
+		if w > 0.5 and h > 0.5 then
+			out[#out + 1] = { name = name, rect = { x = math.floor(x), y = math.floor(y), w = math.ceil(w), h = math.ceil(h) }, rotation = rot, points = pts }
+		end
+	end
+	local vy0, vy1 = math.max(0, I.y), math.min(areaH, y1)
+	local hx0, hx1 = math.max(0, I.x), math.min(areaW, x1)
+	if I.x > 0.5 then add("L", I.x, vy0, fwx, vy1 - vy0, 0) end
+	if x1 < areaW - 0.5 then add("R", x1 - fwx, vy0, fwx, vy1 - vy0, 180) end
+	if I.y > 0.5 then add("T", hx0, I.y, hx1 - hx0, fwy, 90) end
+	if y1 < areaH - 0.5 then add("B", hx0, y1 - fwy, hx1 - hx0, fwy, 270) end
+	return out
+end
+
 -- Size a scene panel asks for on a screen: a fraction of the screen up to a cap (so the body is tall enough for the picture's slots).
 -- The height never exceeds PanelLayout.expandedHeight (screen height minus 96): a centered panel is nudged 40 px down by the tab strip, so
 -- anything taller has its Close button cut off at the bottom of the window.

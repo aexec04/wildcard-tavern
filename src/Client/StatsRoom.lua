@@ -156,7 +156,7 @@ function StatsRoom.new(ctx)
 				for _, r in ipairs(group) do r.y = r.y + Layout.TOP end
 			end
 			FullScreen.setRect(ctx.panel, UDim2.new(0, rect.w, 0, rect.h), UDim2.new(0, rect.x, 0.5, 0))
-			scene.show(area, p)
+			scene.show({ x = area.x, y = area.y, w = area.w, h = area.h + Layout.BOTTOM }, p) -- the painting runs under the footer to the panel bottom
 			-- header and footer are solid dark wood (the world no longer shows through them) and the backdrop is darker behind the room
 			local fc = Layout.COLORS.frame
 			ctx.panel.BackgroundColor3 = Color3.fromRGB(fc[1], fc[2], fc[3])

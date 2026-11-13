@@ -14,7 +14,7 @@ local PanelSceneLayout = require(game:GetService("ReplicatedStorage"):WaitForChi
 
 local PanelScene = {}
 local FILL = Color3.fromRGB(26, 18, 12) -- the holder colour the vignette fades into
-local WASH = 0.3 -- transparency of the dark wash over the backdrop copy of the painting
+local WASH = 0.2 -- transparency of the dark wash over the backdrop copy of the painting
 
 function PanelScene.new(panel, opts)
 	local z = opts.z or 41
@@ -76,15 +76,21 @@ function PanelScene.new(panel, opts)
 			picture.Parent = nil -- equal ZIndex draws in sibling order: move the painting after the backdrop and wash
 			picture.Parent = holder
 		end
-		for _, it in ipairs(PanelSceneLayout.feather(placed, area.w, area.h)) do
+		for _, it in ipairs(PanelSceneLayout.edges(placed, area.w, area.h)) do
 			local f = Instance.new("Frame")
 			f.Name = "Vignette_" .. it.name
 			f.BackgroundColor3 = FILL
-			f.BackgroundTransparency = base + (1 - base) * it.transparency
+			f.BackgroundTransparency = 0
 			f.BorderSizePixel = 0
 			f.Position, f.Size = UDim2.fromOffset(it.rect.x, it.rect.y), UDim2.fromOffset(it.rect.w, it.rect.h)
 			f.Active = false
 			f.ZIndex = z
+			local g = Instance.new("UIGradient")
+			g.Rotation = it.rotation
+			local keys = {}
+			for _, k in ipairs(it.points) do keys[#keys + 1] = NumberSequenceKeypoint.new(k[1], base + (1 - base) * k[2]) end
+			g.Transparency = NumberSequence.new(keys)
+			g.Parent = f
 			f.Parent = holder
 		end
 		if opts.edgeFade then -- the picture's own border reads as a lighter rectangle on the dim room: fade all four edges into the dark fill

@@ -142,8 +142,14 @@ function FlairDressingRoom.build(deps, panel)
 	local function paintVignette(items)
 		for _, ch in ipairs(sceneVignette:GetChildren()) do ch:Destroy() end
 		for _, it in ipairs(items) do
-			make("Frame", sceneVignette, { Name = it.name, BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = sceneBase + (1 - sceneBase) * it.transparency,
+			local f = make("Frame", sceneVignette, { Name = it.name, BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = 0,
 				Position = UDim2.fromOffset(it.rect.x, it.rect.y), Size = UDim2.fromOffset(it.rect.w, it.rect.h), Active = false })
+			local g = Instance.new("UIGradient")
+			g.Rotation = it.rotation
+			local keys = {}
+			for _, k in ipairs(it.points) do keys[#keys + 1] = NumberSequenceKeypoint.new(k[1], sceneBase + (1 - sceneBase) * k[2]) end
+			g.Transparency = NumberSequence.new(keys)
+			g.Parent = f
 		end
 	end
 	-- plates of categories that do not exist stay intact painted plates with a faint "More soon" (no hole in the wall)
@@ -628,9 +634,9 @@ function FlairDressingRoom.build(deps, panel)
 			R.grid = down(S.bounds)
 			R.plate = { x = 0, y = 0, w = w, h = h }
 			R.mirror, R.detail, R.plaque = down(S.mirror), down(S.detail), down(S.plaque)
-			sceneHolder.Position, sceneHolder.Size = UDim2.fromOffset(0, S.areaY), UDim2.fromOffset(w, h - R.topH - R.bottomH)
+			sceneHolder.Position, sceneHolder.Size = UDim2.fromOffset(0, S.areaY), UDim2.fromOffset(w, h - R.topH) -- the painting runs under the footer to the panel bottom
 			sceneImage.Position, sceneImage.Size = UDim2.fromOffset(S.image.x, S.image.y), UDim2.fromOffset(S.image.w, S.image.h)
-			local aw, ah = w, h - R.topH - R.bottomH
+			local aw, ah = w, h - R.topH
 			local gap = S.image.x > 0.5 or S.image.y > 0.5 or S.image.x + S.image.w < aw - 0.5 or S.image.y + S.image.h < ah - 0.5
 			sceneBack.Visible, sceneWash.Visible = gap, gap
 			sceneBase = gap and SCENE_WASH or 0
@@ -640,7 +646,7 @@ function FlairDressingRoom.build(deps, panel)
 				sceneBack.Size = UDim2.fromOffset(math.ceil(bw), math.ceil(bh))
 				sceneBack.Position = UDim2.fromOffset(math.floor((aw - bw) / 2), math.floor((ah - bh) / 2))
 			end
-			paintVignette(Scene.feather(S, aw, ah))
+			paintVignette(Scene.edges(S, aw, ah))
 			sceneS = S
 			paintPatches()
 		end

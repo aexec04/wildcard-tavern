@@ -368,7 +368,7 @@ function LegendPanel.init(deps)
 		if sceneOn then
 			panelLimit.MaxSize = Vector2.new(Scene.PANEL_MAX[1], Scene.PANEL_MAX[2])
 			FullScreen.setRect(panel, UDim2.fromOffset(pw, ph))
-			scene.show({ x = 0, y = Scene.TOP, w = pw, h = ph - Scene.TOP - Scene.BOTTOM }, placed)
+			scene.show({ x = 0, y = Scene.TOP, w = pw, h = ph - Scene.TOP }, placed) -- the painting runs under the footer to the panel bottom
 			for _, p in ipairs(placed.plaques) do p.y = p.y + Scene.TOP end
 			for _, p in ipairs(placed.shelves) do p.y = p.y + Scene.TOP end
 			placed.alcove.y = placed.alcove.y + Scene.TOP

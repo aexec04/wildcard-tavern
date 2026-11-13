@@ -13612,7 +13612,7 @@ table.insert(tests, { name = "FlairDressingRoom: painted room source keeps the p
 	expectTrue(src:find("liveLabel.Parent = plaque", 1, true) ~= nil, "Live preview label sits on the plaque")
 	expectTrue(src:find("glassW / 4.8", 1, true) ~= nil, "sample number is sized to the mirror glass")
 	expectTrue(src:find("t.name.TextScaled = true", 1, true) ~= nil and src:find("UITextSizeConstraint", 1, true) ~= nil, "tab names scale with a 14 floor")
-	expectTrue(src:find("Scene.feather", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
+	expectTrue(src:find("Scene.edges", 1, true) ~= nil and src:find("ImageRectOffset", 1, true) == nil, "the vignette is drawn and no picture slice is stretched")
 	expectTrue(src:find("More soon", 1, true) ~= nil, "spare plates stay intact with a faint mark")
 	expectTrue(src:find("[FlairRoom]", 1, true) ~= nil and src:find("truncated=%d", 1, true) ~= nil, "the Studio line reports the cover scale and truncated labels")
 end })
@@ -20489,6 +20489,35 @@ table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown o
 	expectEqual(id, "a", "first option")
 	expectEqual(R.round1Step({ phase = "roundSelect" }), "select", "round select starts the round")
 	expectTrue(R.round1Step({ phase = "playing" }) == nil, "playing needs nothing")
+end })
+
+table.insert(tests, { name = "Scene pages: the painting area reaches the panel bottom, edges are one gradient frame each, no stacked strips", fn = function()
+	local PS = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	-- geometry: a picture smaller than the area gets one gradient frame per uncovered edge, inside the area, fully dark at the picture edge
+	local p = { image = { x = 300, y = 0, w = 900, h = 800 } }
+	local edges = PS.edges(p, 1500, 900)
+	local names = {}
+	for _, e in ipairs(edges) do
+		names[e.name] = true
+		expectTrue(e.rect.x >= 0 and e.rect.y >= 0 and e.rect.x + e.rect.w <= 1500 + 1 and e.rect.y + e.rect.h <= 900 + 1, e.name .. " edge stays in the area")
+		expectTrue(#e.points >= 2 and #e.points <= 20 and e.points[1][1] == 0 and e.points[#e.points][1] == 1, e.name .. " keypoints run 0..1 and fit Roblox's 20 limit")
+		expectEqual(e.points[1][2], 0, e.name .. " is fully dark at the picture edge")
+		expectEqual(e.points[#e.points][2], 1, e.name .. " is clear inside")
+	end
+	expectTrue(names.L and names.R and names.B and not names.T, "left, right and bottom gaps get an edge; the top touches the area")
+	-- every scene page hands the scene the area including the footer, so the painting is not cut off above the bottom band
+	for _, f in ipairs({ "src/Client/StatsRoom.lua", "src/Client/CardSetsRoom.lua", "src/Client/LegendPanel.lua" }) do
+		local fh = io and io.open and io.open(f, "r")
+		if fh then
+			local src = fh:read("*a"); fh:close()
+			expectTrue(src:find("runs under the footer to the panel bottom", 1, true) ~= nil, f .. " paints to the panel bottom")
+		end
+	end
+	local fh = io and io.open and io.open("src/Client/FlairDressingRoom.lua", "r")
+	if fh then
+		local src = fh:read("*a"); fh:close()
+		expectTrue(src:find("h - R.topH) -- the painting runs under the footer", 1, true) ~= nil, "Flair paints to the panel bottom")
+	end
 end })
 
 tests[#tests + 1] = ({ name = "LegendSceneLayout: trophy hall slots fit the panel body at 1920x1080 and 1280x720, edges melt into a vignette, parts stay inside their slots", fn = function()
