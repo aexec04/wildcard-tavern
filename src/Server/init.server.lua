@@ -2817,6 +2817,26 @@ end)
 
 -- Settings panel / volume popup. No pushState: the client already applied
 -- the change locally, and an echo could fight a slider mid-drag.
+-- Studio only: DebugGoto patrons:<n> seats n different Patrons through the real grant path (no effect outside Studio).
+Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
+	if not RunService:IsStudio() then return end
+	local session = sessions[player]
+	if not session or type(n) ~= "number" then return end
+	n = math.max(0, math.min(8, math.floor(n)))
+	local state = session.state
+	local Patrons = require(Engine.Patrons)
+	state.ownedPatrons = {}
+	for _, def in ipairs(Patrons.Definitions) do
+		if #state.ownedPatrons >= n then break end
+		if def.id ~= "the_understudy" and def.id ~= "second_opinion" then -- copiers score nothing alone
+			local ok = RunState.grantPatron(state, def.id)
+			if not ok then break end
+		end
+	end
+	print("[DebugGoto server] patrons=" .. #state.ownedPatrons .. " requested=" .. n)
+	pushState(player)
+end)
+
 Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
 	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
 	player:SetAttribute("PreviewMode", on == true or nil)

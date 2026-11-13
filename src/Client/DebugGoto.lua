@@ -14,6 +14,8 @@
 	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
 	  loading, loading:<0..100>         the launch loading screen frozen at 60 percent (or that percent), for screenshots
+	  patrons:<0..8>                    after round1 is up: seats n different Patrons on the live run (Studio-only server remote), HUD rebuilds
+	  playhand                          plays the first 5 hand cards through the real PlayHand remote, so the Patron beats run once
 	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
 	  sfx:roundwin                      fires the whole round win sound set (score ticks, stinger, coin run, greeting, wildcard stinger); the
 	                                    Output logs "[SoundDirector] voices=N" each time a sound starts
@@ -194,6 +196,21 @@ function DebugGoto.init(deps)
 				UI.show(Players.LocalPlayer.PlayerGui, { shared = ReplicatedStorage:WaitForChild("Shared"), frozen = target.percent / 100 })
 			end)
 			if okL then print("[DebugGoto] loading " .. target.percent .. " ok (set DebugGoto to menu to clear)") else warn("[DebugGoto] loading failed: " .. tostring(errL)) end
+			return
+		end
+		if target.kind == "patrons" then
+			local okG, errG = pcall(function() remotes:WaitForChild("DebugGrantPatrons"):FireServer(target.count) end)
+			if okG then print("[DebugGoto] patrons " .. target.count .. " sent (needs a live run: round1 first)") else warn("[DebugGoto] patrons failed: " .. tostring(errG)) end
+			return
+		end
+		if target.kind == "playhand" then
+			local state = DebugGoto.getState and DebugGoto.getState()
+			local n = state and state.hand and math.min(5, #state.hand) or 0
+			if n < 1 then warn("[DebugGoto] playhand needs a dealt hand: round1 first") return end
+			local indices = {}
+			for i = 1, n do indices[i] = i end
+			remotes:WaitForChild("PlayHand"):FireServer(indices)
+			print("[DebugGoto] playhand sent " .. n .. " cards")
 			return
 		end
 		if target.kind == "sfx" then

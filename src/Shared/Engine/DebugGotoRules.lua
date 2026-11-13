@@ -144,6 +144,13 @@ function DebugGotoRules.parse(value)
 	if text == "drawer:closed" or text == "drawer:open" then
 		return { kind = "drawer", closed = text == "drawer:closed" }
 	end
+	local pn = text:match("^patrons:(%d+)$")
+	if pn then
+		return { kind = "patrons", count = math.min(8, tonumber(pn)) }
+	end
+	if text == "playhand" then
+		return { kind = "playhand" }
+	end
 	if text == "perf" then
 		return { kind = "perf" }
 	end

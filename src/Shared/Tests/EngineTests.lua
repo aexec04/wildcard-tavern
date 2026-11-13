@@ -20472,6 +20472,15 @@ table.insert(tests, { name = "DebugGotoRules: round1:<setId> parses to a round1 
 	assert(R.parse("round1:") == nil and R.parse("round1:a:b") == nil and R.parse("round1:bad id!") == nil, "malformed rejected")
 end })
 
+table.insert(tests, { name = "DebugGotoRules: patrons:<n> parses and clamps to 8, playhand parses, junk is nil", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local a, b, c = R.parse("patrons:3"), R.parse("patrons:99"), R.parse("playhand")
+	assert(a and a.kind == "patrons" and a.count == 3)
+	assert(b and b.count == 8)
+	assert(c and c.kind == "playhand")
+	assert(R.parse("patrons:x") == nil)
+end })
+
 table.insert(tests, { name = "DebugGotoRules: known jump values parse, unknown ones return nil, round1 steps", fn = function()
 	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
 	expectEqual(R.parse("menu").kind, "menu", "menu")
