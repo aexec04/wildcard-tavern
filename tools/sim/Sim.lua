@@ -666,6 +666,15 @@ local function resolveOpenPack(state, rng, rec)
 	if #chosen ~= pending.pickCount then
 		chosen = {}
 	end
+	local ok, why = E.RunState.resolvePack(state, chosen)
+	if not ok and tostring(why):find("Make room", 1, true) then
+		-- MAKE ROOM (RunState.resolvePack): a pick that would overflow the Patron seats or the recipe box needs the player to
+		-- name what leaves. These bots never sell to make room, so they leave the pack instead (an empty pick is a skip).
+		-- Before this branch the simulator stopped with "Make room first" as soon as a bot with a full table opened a pack.
+		chosen = {}
+		ok, why = E.RunState.resolvePack(state, chosen)
+	end
+	assert(ok, why)
 	for _, id in ipairs(chosen) do
 		for _, entry in ipairs(ranked) do
 			if entry.id == id and entry.item.category == "patron" then
@@ -673,7 +682,6 @@ local function resolveOpenPack(state, rng, rec)
 			end
 		end
 	end
-	assert(E.RunState.resolvePack(state, chosen))
 end
 
 -- ===== Shop =====
