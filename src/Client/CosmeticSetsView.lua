@@ -242,12 +242,13 @@ function M.apply(state)
 				if painted then
 					label.Image = painted
 					label.ScaleType = Enum.ScaleType.Crop
-					label.ImageColor3 = Color3.new(1, 1, 1)
+					-- the default back is warmed to copper and bronze so it sits with the wood and parchment of the room; other backs keep their own colours
+					label.ImageColor3 = backId == CardBacks.DefaultId and Color3.fromRGB(236, 150, 120) or Color3.new(1, 1, 1)
 				else
 					label.Image = ArtAssets.cardBackTemplate or "rbxassetid://0"
 					label.ScaleType = Enum.ScaleType.Stretch
 					if backId == CardBacks.DefaultId then
-						label.ImageColor3 = Color3.new(1, 1, 1)
+						label.ImageColor3 = Color3.fromRGB(236, 150, 120) -- the default back is warmed to copper and bronze: pure blue sat apart from the wood and parchment of the room
 					else
 						local c = back.colors.base
 						label.ImageColor3 = Color3.new(1, 1, 1):Lerp(Color3.fromRGB(c[1], c[2], c[3]), 0.6)
