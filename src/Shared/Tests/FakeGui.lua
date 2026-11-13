@@ -256,6 +256,9 @@ function FakeGui.env(opts)
 			end,
 		}
 	end
+	if stubs.RoomWall == nil then -- the shared painted wall behind the scene pages (Client/RoomWall): the tests see an empty wall
+		stubs.RoomWall = { COLOR = Color3.fromRGB(44, 30, 20), fill = function() end }
+	end
 	local state = { warns = {}, prints = {}, studio = opts.studio == true, services = {}, delays = {}, parked = {} }
 	-- resume every thread parked at a task.wait once
 	function state.runWaiting()

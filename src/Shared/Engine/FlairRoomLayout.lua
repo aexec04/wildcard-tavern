@@ -148,11 +148,14 @@ function FlairRoomLayout.rects(W, H)
 	local mirrorH = math.max(narrow and 70 or 120, plate.h - 2 * pad - gap - detailH)
 	local mirror = { x = plate.x + pad, y = plate.y + pad, w = plate.w - 2 * pad, h = mirrorH }
 	local detail = { x = plate.x + pad, y = mirror.y + mirror.h + gap, w = plate.w - 2 * pad, h = plate.y + plate.h - pad - (mirror.y + mirror.h + gap) }
-	local btnW, btnH = 190, 30
+	-- the Flair Bundle button ends left of the round Close X (44 px disc, 8 px in from the corner) and is wide enough for "Flair Bundle: Free in Studio"
+	local xClear = 52 + 8
+	local btnW = narrow and math.max(110, W - 2 * m - xClear - 100) or 240
+	local btnH = narrow and math.min(44, topH - 6) or 34
 	return {
 		compact = compact, narrow = narrow, margin = m, gap = gap, pad = pad, topH = topH, bottomH = bottomH,
-		title = { x = m, y = 4, w = W - 2 * m - btnW - 10, h = topH - 6 },
-		bundle = { x = W - m - btnW, y = math.floor((topH - btnH) / 2), w = btnW, h = btnH },
+		title = { x = m, y = 4, w = W - 2 * m - xClear - btnW - 10, h = topH - 6 },
+		bundle = { x = W - xClear - btnW, y = math.floor((topH - btnH) / 2), w = btnW, h = btnH },
 		tabs = tabs, grid = grid, plate = plate, mirror = mirror, detail = detail,
 		close = { x = math.floor((W - 110) / 2), y = H - bottomH + math.floor((bottomH - 34) / 2), w = 110, h = 34 },
 	}

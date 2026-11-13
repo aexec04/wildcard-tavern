@@ -13634,6 +13634,8 @@ table.insert(tests, { name = "FlairRoomLayout v2: tabs, grid, preview plate, det
 				expectFalse(L.intersects(r[blocks[i]], r[blocks[j]]), blocks[i] .. " and " .. blocks[j] .. " overlap at " .. W .. "x" .. H)
 			end
 		end
+		expectTrue(r.bundle.x + r.bundle.w <= W - 52, "the Flair Bundle button ends left of the Close X at " .. W .. "x" .. H)
+		expectTrue(r.bundle.w >= (r.narrow and 110 or 240), "the bundle button is wide enough to read at " .. W .. "x" .. H)
 		expectTrue(inside(r.mirror, r.plate) and inside(r.detail, r.plate), "mirror and detail card sit inside the plate")
 		expectFalse(L.intersects(r.mirror, r.detail), "detail card never covers the live preview")
 		expectTrue(r.mirror.h >= 70, "the preview keeps a usable height at " .. W .. "x" .. H)
@@ -20906,6 +20908,9 @@ tests[#tests + 1] = ({ name = "PanelScene: bands beside a smaller picture are fl
 	expectFalse(n.Backdrop or n.BackdropWash, "bands beside the picture are flat wall colour, never a second copy of the painting")
 	expectTrue(n.Vignette_L and n.Vignette_R, "the picture edges feather into the wall with one gradient frame per side")
 	expectTrue(holder.Size.Y.Offset > 800, "the wall runs past the area bottom so no strip shows")
+	expectTrue(n.Wall and n.Picture, "the shared painted wall sits under the picture so the sides are never flat dark voids")
+	scene.show({ x = 0, y = 0, w = 1200, h = 800 }, small)
+	expectTrue(names().Wall ~= nil and holder:FindFirstChild("Wall").ZIndex == 41, "a second show keeps the wall")
 end })
 
 tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids): events sit in the three slots without paper or pin of their own, Close is a plain plaque, four events use the cork board", fn = function()

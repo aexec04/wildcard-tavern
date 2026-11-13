@@ -29,6 +29,15 @@ function PanelScene.new(panel, opts)
 	holder.Active = false
 	holder.ZIndex = z
 	holder.Parent = panel
+	local wall = Instance.new("Frame") -- the shared painted Collection wall under a scrim fills every uncovered side (no flat dark voids)
+	wall.Name = "Wall"
+	wall.BorderSizePixel = 0
+	wall.Size = UDim2.fromScale(1, 1)
+	wall.ClipsDescendants = true
+	wall.Active = false
+	wall.ZIndex = z
+	wall.Parent = holder
+	require(script.Parent.RoomWall).fill(wall, z)
 	local picture = Instance.new("ImageLabel")
 	picture.Name = "Picture"
 	picture.BackgroundTransparency = 1
@@ -43,7 +52,7 @@ function PanelScene.new(panel, opts)
 		holder.Position, holder.Size = UDim2.fromOffset(area.x, area.y), UDim2.fromOffset(area.w, fullH)
 		picture.Position, picture.Size = UDim2.fromOffset(placed.image.x, placed.image.y), UDim2.fromOffset(placed.image.w, placed.image.h)
 		for _, ch in ipairs(holder:GetChildren()) do
-			if ch ~= picture then ch:Destroy() end
+			if ch ~= picture and ch ~= wall then ch:Destroy() end
 		end
 		-- Where the picture does not reach the area, the holder's flat wall colour shows (never a second copy of the painting, which read as
 		-- giant candles and lanterns); the feather strips fade the picture into it.
@@ -51,7 +60,7 @@ function PanelScene.new(panel, opts)
 		for _, it in ipairs(PanelSceneLayout.edges(placed, area.w, area.h)) do
 			local f = Instance.new("Frame")
 			f.Name = "Vignette_" .. it.name
-			f.BackgroundColor3 = FILL
+			f.BackgroundColor3 = require(script.Parent.RoomWall).COLOR -- the wall's tone, so the picture edge melts into the wall
 			f.BackgroundTransparency = 0
 			f.BorderSizePixel = 0
 			f.Position, f.Size = UDim2.fromOffset(it.rect.x, it.rect.y), UDim2.fromOffset(it.rect.w, it.rect.h)

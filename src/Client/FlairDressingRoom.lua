@@ -127,6 +127,8 @@ function FlairDressingRoom.build(deps, panel)
 	-- ===== painted scene (flair_room_a): drawn under everything once its Image id is recorded and the panel is big enough =====
 	local sceneId = ContentArt.getImageId("panel_scene", Scene.ART_KEY)
 	local sceneHolder = make("Frame", panel, { Name = "FlairScene", BackgroundColor3 = Color3.fromRGB(26, 18, 12), ClipsDescendants = true, Visible = false, Active = false })
+	local sceneWall = make("Frame", sceneHolder, { Name = "Wall", BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ClipsDescendants = true, Active = false }) -- the shared painted wall: no flat dark side voids
+	require(script.Parent.RoomWall).fill(sceneWall, Z)
 	local sceneBack = make("ImageLabel", sceneHolder, { Name = "Backdrop", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false, Visible = false })
 	local sceneWash = make("Frame", sceneHolder, { Name = "BackdropWash", BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = 0.3, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Active = false, Visible = false })
 	local sceneBase = 0
@@ -141,7 +143,7 @@ function FlairDressingRoom.build(deps, panel)
 	local function paintVignette(items)
 		for _, ch in ipairs(sceneVignette:GetChildren()) do ch:Destroy() end
 		for _, it in ipairs(items) do
-			local f = make("Frame", sceneVignette, { Name = it.name, BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = 0,
+			local f = make("Frame", sceneVignette, { Name = it.name, BackgroundColor3 = require(script.Parent.RoomWall).COLOR, BackgroundTransparency = 0,
 				Position = UDim2.fromOffset(it.rect.x, it.rect.y), Size = UDim2.fromOffset(it.rect.w, it.rect.h), Active = false })
 			local g = Instance.new("UIGradient")
 			g.Rotation = it.rotation
@@ -169,7 +171,7 @@ function FlairDressingRoom.build(deps, panel)
 	make("TextLabel", titleBox, { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 22), Font = Enum.Font.GothamMedium, TextSize = 16,
 		Text = "Looks only. Flair never changes your score.", TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd })
 
-	local bundleButton = bind(make("TextButton", panel, { Name = "FlairBundle", TextSize = 14, TextColor3 = INK, BackgroundColor3 = GOLD, BackgroundTransparency = 0,
+	local bundleButton = bind(make("TextButton", panel, { Name = "FlairBundle", TextSize = 15, TextWrapped = true, TextColor3 = INK, BackgroundColor3 = GOLD, BackgroundTransparency = 0,
 		Text = "Flair Bundle", Visible = false }), function(r) return r.bundle end)
 	deps.polishButton(bundleButton, 8)
 	bundleButton.MouseButton1Click:Connect(function()
