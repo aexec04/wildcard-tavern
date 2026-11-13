@@ -6862,6 +6862,16 @@ table.insert(tests, { name = "Counter cards: no rotated shine strip or clipped d
 	end
 end })
 
+table.insert(tests, { name = "Stats room: the picture's pale bottom trim is covered with the footer colour", fn = function()
+	local a = io and io.open and io.open("src/Client/StatsRoom.lua", "r")
+	local b = io and io.open and io.open("src/Client/PanelScene.lua", "r")
+	if not a or not b then return end -- Studio has no io
+	local room, scene = a:read("*a"), b:read("*a")
+	a:close(); b:close()
+	expectTrue(room:find("bottomCover", 1, true) ~= nil, "StatsRoom asks PanelScene for a bottom cover")
+	expectTrue(scene:find('"BottomCover"', 1, true) ~= nil and scene:find('"BottomCoverFade"', 1, true) ~= nil, "PanelScene draws the cover and its fade")
+end })
+
 table.insert(tests, { name = "Tutorial: the step table covers the guided hands in order and the walkthrough is wired", fn = function()
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local order = {}

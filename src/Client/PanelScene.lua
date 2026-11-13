@@ -88,6 +88,29 @@ function PanelScene.new(panel, opts)
 			g.Parent = f
 			f.Parent = holder
 		end
+		if opts.bottomCover then -- the picture's lit bottom trim reads as a pale strip under the shelves: cover it with the footer colour and fade up into the painting
+			local I, bc = placed.image, opts.bottomCover
+			local top = I.y + I.h * (1 - bc.frac)
+			local rise = math.floor(I.h * 0.03)
+			local function strip(name, y, h, grad)
+				local f = Instance.new("Frame")
+				f.Name = name
+				f.BackgroundColor3 = bc.color
+				f.BorderSizePixel = 0
+				f.Position, f.Size = UDim2.fromOffset(math.floor(I.x), math.floor(y)), UDim2.fromOffset(math.ceil(I.w), math.ceil(h))
+				f.Active = false
+				f.ZIndex = z
+				if grad then
+					local g = Instance.new("UIGradient")
+					g.Rotation = 90
+					g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
+					g.Parent = f
+				end
+				f.Parent = holder
+			end
+			strip("BottomCoverFade", top - rise, rise, true)
+			strip("BottomCover", top, fullH - top, false)
+		end
 		if opts.edgeFade then -- the picture's own border reads as a lighter rectangle on the dim room: fade all four edges into the dark fill
 			local steps, w = 8, 6
 			for i = 0, steps - 1 do
