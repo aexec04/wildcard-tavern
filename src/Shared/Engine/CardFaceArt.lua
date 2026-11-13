@@ -16,4 +16,10 @@ function CardFaceArt.resolve(map)
 	return "rbxassetid://" .. digits
 end
 
+-- True when a set skin should show the ivory face alone: a neutral skin (Classic Tavern or any set without its
+-- own face style) and a recorded face id. Such a skin draws no SetSkinPaper, SetSkinCourt or SetSkinFrame.
+function CardFaceArt.ivoryAlone(skin, faceId)
+	return type(skin) == "table" and skin.neutral == true and type(faceId) == "string" and faceId ~= ""
+end
+
 return CardFaceArt

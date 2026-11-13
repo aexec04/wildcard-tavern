@@ -23984,4 +23984,21 @@ table.insert(tests, { name = "CardFaceArt: the recorded face resolves to one rbx
 	expectTrue(CFA.resolve(nil) == "", "nil map is safe")
 end })
 
+table.insert(tests, { name = "CardFaceArt: the Classic Tavern skin draws the ivory face alone, themed sets keep their frame", fn = function()
+	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local id = CFA.resolve(Art)
+	local classic = CS.skinOf(CS.get and CS.get(CS.DefaultId) or { id = CS.DefaultId })
+	expectTrue(CFA.ivoryAlone(classic, id), "the default set shows the ivory face alone (no SetSkinFrame or SetSkinPaper)")
+	expectFalse(CFA.ivoryAlone(classic, ""), "a missing face id keeps the old layers as the fallback")
+	expectFalse(CFA.ivoryAlone({ neutral = false, images = {} }, id), "a themed set keeps its own skin")
+	expectFalse(CFA.ivoryAlone(nil, id), "nil skin is safe")
+	local f = io.open("src/Client/SetSkin.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("ivoryAlone", 1, true) ~= nil, "cardLayers consults ivoryAlone")
+	end
+end })
+
 return tests

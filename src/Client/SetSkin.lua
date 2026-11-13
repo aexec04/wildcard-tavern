@@ -18,6 +18,8 @@
 local PanelBand = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBand"))
 
 local CosmeticSets = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CosmeticSets"))
+local CardFaceArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("CardFaceArt"))
+local PlaySceneArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlaySceneArt"))
 local SkinSlice = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SkinSlice"))
 
 local PanelBorder = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PanelBorder"))
@@ -343,6 +345,12 @@ local COURT = { J = true, Q = true, K = true }
 function SetSkin.cardLayers(face, zIndex, rankText, skin)
 	skin = skin or current
 	local images = skin.images
+	local ivory = CardFaceArt.ivoryAlone(skin, CardFaceArt.resolve(PlaySceneArt))
+	if not SetSkin._warned then
+		SetSkin._warned = true
+		warn(("[SetSkin] cardLayers set=%s ivoryAlone=%s SetSkinFrame=%s SetSkinPaper=%s"):format(tostring(skin.id), tostring(ivory), tostring(not ivory and skin.images.faceFrame ~= nil), tostring(not ivory and skin.images.facePaper ~= nil)))
+	end
+	if ivory then images = {} end -- the painted ivory face stands alone: no paper tile, court ornament or orange frame
 	if skin.neutral and not images.faceFrame then
 		pcall(function() require(script.Parent.ClassicCardFrame).draw(face, zIndex) end) -- the default set's real border
 	end
