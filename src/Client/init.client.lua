@@ -1390,7 +1390,7 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() -- narrow windows and phones: stats drawer, wider hand, scaled button row (Client/CompactLayout.lua)
 		require(script.CompactLayout).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH })
 	end)
-	pcall(function() require(script.PatronRow).install({ root = root, handFrame = handFrame, tooltip = addTooltip }) end) -- big Patron cards above the hand
+	pcall(function() require(script.PatronRow).install({ root = root, handFrame = handFrame, tooltip = addTooltip, tavernAnchor = function() return SidebarModule.blindInfoLabel end }) end) -- big Patron cards above the hand
 	pcall(function() -- painted table foreground, hand on the rail (Client/PlayScenePaint.lua)
 		require(script.PlayScenePaint).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, SIDEBAR_WIDTH = SidebarModule.SIDEBAR_WIDTH, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
@@ -1749,6 +1749,8 @@ local function computeHandPreview(cardIndices)
 		score = score,
 		breakdown = extra and extra.breakdown,
 		brokenCards = extra and extra.brokenCards,
+		-- Boss Round score changes applied after the breakdown: ScorePopup shows them as pills on the tavern plate
+		tavernNotes = require(ReplicatedStorage.Shared.Engine.PatronEvents).tavernNotes(bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands, 0),
 		-- PHASE C: only set when THIS selection includes the unresolved
 		-- True Wildcard -- ScorePopup.lua uses this (Play-time call only;
 		-- the live SidebarModule.sidebar preview never calls ScorePopupModule.showScorePopup at all) to

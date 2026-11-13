@@ -18,6 +18,7 @@ local RunService = game:GetService("RunService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("PatronRowLayout"))
+local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local RarityFrame = require(script.Parent.RarityFrame)
@@ -30,7 +31,7 @@ local WOOD = Color3.fromRGB(78, 52, 26)
 local CREAM = Color3.fromRGB(240, 225, 190)
 local Z = 6
 
-local holder, rootRef, handRef, tooltipFn, stateGetter
+local holder, rootRef, handRef, tooltipFn, anchorFn
 local cards = {} -- pool of { slot, float, body, art, name, plus, floatTween, id }
 local lastState
 local MAX_CARDS = 14
@@ -98,6 +99,31 @@ local function newCard(i)
 	plus.Active = false
 	plus.Parent = body
 	corner(plus, 17)
+	local dim = Instance.new("Frame") -- dims the card while another Patron triggers
+	dim.Name = "Dim"
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dim.BackgroundTransparency = 1
+	dim.BorderSizePixel = 0
+	dim.ZIndex = Z + 5
+	dim.Active = false
+	dim.Parent = body
+	corner(dim, 8)
+	local ring = Instance.new("Frame") -- gold ring that flashes when the card triggers
+	ring.Name = "GlowRing"
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.new(1, 8, 1, 8)
+	ring.BackgroundTransparency = 1
+	ring.Active = false
+	ring.ZIndex = Z + 6
+	ring.Parent = body
+	corner(ring, 12)
+	local ringStroke = Instance.new("UIStroke")
+	ringStroke.Color = GOLD
+	ringStroke.Thickness = 4
+	ringStroke.Transparency = 1
+	ringStroke.Parent = ring
 	local plaque = Instance.new("Frame")
 	plaque.Name = "Plaque"
 	plaque.Position = UDim2.new(0, 0, 1, 4)
@@ -124,6 +150,7 @@ local function newCard(i)
 	name.Active = false
 	name.Parent = plaque
 	c.slot, c.float, c.body, c.name, c.plus, c.plaque, c.shadow = slot, float, body, name, plus, plaque, shadow
+	c.dim, c.ringStroke = dim, ringStroke
 	if tooltipFn then
 		tooltipFn(body, function()
 			local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
@@ -218,7 +245,7 @@ end
 
 function M.install(deps)
 	if holder then return end
-	rootRef, handRef, tooltipFn, stateGetter = deps.root, deps.handFrame, deps.tooltip, deps.getState
+	rootRef, handRef, tooltipFn, anchorFn = deps.root, deps.handFrame, deps.tooltip, deps.tavernAnchor
 	holder = Instance.new("Frame")
 	holder.Name = "PatronRow"
 	holder.BackgroundTransparency = 1
@@ -261,6 +288,114 @@ function M.cardOf(patronId)
 		if p.id == patronId then return cards[i] end
 	end
 	return nil
+end
+
+-- ===== scoring beats =====
+local KIND_COLOR = {
+	chips = Color3.fromRGB(120, 175, 255),
+	mult = Color3.fromRGB(255, 118, 104),
+	xmult = Color3.fromRGB(255, 96, 84),
+	money = Color3.fromRGB(246, 206, 112),
+}
+local dimToken = 0
+
+local function tween(obj, info, goal)
+	local t = TweenService:Create(obj, info, goal)
+	t:Play()
+	return t
+end
+
+local function pill(parent, text, color, size, bold, x, y, rise)
+	local p = Instance.new("TextLabel")
+	p.AnchorPoint = Vector2.new(0.5, 1)
+	p.Position = UDim2.fromOffset(x, y)
+	p.AutomaticSize = Enum.AutomaticSize.X
+	p.Size = UDim2.fromOffset(0, size + 12)
+	p.BackgroundColor3 = Color3.fromRGB(28, 18, 10)
+	p.BackgroundTransparency = 0.12
+	p.BorderSizePixel = 0
+	p.Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold
+	p.TextSize = size
+	p.TextColor3 = color
+	p.TextTransparency = 0
+	p.TextStrokeTransparency = 1
+	p.Text = "  " .. text .. "  "
+	p.ZIndex = Z + 40
+	p.Active = false
+	p.Parent = parent
+	corner(p, (size + 12) / 2)
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = color
+	stroke.Thickness = 1.5
+	stroke.Transparency = 0.2
+	stroke.Parent = p
+	local sc = Instance.new("UIScale")
+	sc.Scale = calm() and 1 or 0.5
+	sc.Parent = p
+	if not calm() then
+		tween(sc, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+	end
+	task.delay(0.55, function()
+		if not p.Parent then return end
+		local info = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		if not calm() then tween(p, info, { Position = UDim2.fromOffset(x, y - rise) }) end
+		tween(p, info, { TextTransparency = 1, BackgroundTransparency = 1 })
+		tween(stroke, info, { Transparency = 1 })
+		task.delay(0.4, function() if p.Parent then p:Destroy() end end)
+	end)
+	return p
+end
+
+function M.trigger(patronId, event, fast)
+	local c = M.cardOf(patronId)
+	if not c or not c.slot.Visible or not holder then return end
+	local text, key = PatronEvents.text(event)
+	-- hop 14 with a gold ring for 0.25 s (the ring stays in calm mode, the hop does not)
+	if not calm() then
+		if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
+		c.hopping = true
+		c.float.Position = UDim2.fromOffset(0, 0)
+		tween(c.float, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, -14) })
+		task.delay(0.12, function()
+			tween(c.float, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.fromOffset(0, 0) })
+			task.delay(0.14, function() c.hopping = false; startFloat(c, 1) end)
+		end)
+	end
+	c.ringStroke.Transparency = 0
+	tween(c.ringStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+	-- the effect pill above the card
+	local r = c.slot
+	local hostX = r.Position.X.Offset + r.Size.X.Offset / 2
+	local hostY = r.Position.Y.Offset - 4
+	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, 22)
+	-- every other Patron dims to 70 percent while this one triggers
+	dimToken = dimToken + 1
+	local mine = dimToken
+	for _, other in ipairs(cards) do
+		if other ~= c and other.slot.Visible and other.id then
+			tween(other.dim, TweenInfo.new(0.08), { BackgroundTransparency = 0.7 })
+		end
+	end
+	c.dim.BackgroundTransparency = 1
+	task.delay(PatronEvents.gap(fast) + 0.3, function()
+		if dimToken ~= mine then return end
+		for _, other in ipairs(cards) do
+			if other.dim.Parent then tween(other.dim, TweenInfo.new(0.2), { BackgroundTransparency = 1 }) end
+		end
+	end)
+end
+
+-- a Boss Round or Bargain score change: a grey (helps) or red (hurts) pill on the tavern plate, never on a Patron
+function M.tavernNote(text, hurts)
+	if not rootRef then return end
+	local anchor = anchorFn and anchorFn() or nil
+	local x, y = 240, 200
+	if anchor and anchor.Parent then
+		x = anchor.AbsolutePosition.X - rootRef.AbsolutePosition.X + anchor.AbsoluteSize.X + 90
+		y = anchor.AbsolutePosition.Y - rootRef.AbsolutePosition.Y + anchor.AbsoluteSize.Y / 2 + 14
+	end
+	pill(rootRef, text, hurts and Color3.fromRGB(255, 120, 108) or Color3.fromRGB(190, 190, 190), 18, false, x, y, 16)
 end
 
 return M

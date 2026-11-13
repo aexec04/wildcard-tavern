@@ -1134,7 +1134,8 @@ return function(deps)
 				-- "tips" entries deliberately don't touch chips/mult/xmult --
 				-- they don't affect the score math, just the Tips reward.
 
-				if i <= animatedCount then
+				local isPatronEntry = entry.source ~= nil and entry.source.type == "patron"
+				if i <= animatedCount or isPatronEntry then -- Patron beats are never cut by the entry cap
 					-- PACING: a brief anticipation pause right before a
 					-- big XMult hits, so the payout feels like it's
 					-- building instead of ticking along at a flat rate.
@@ -1199,6 +1200,11 @@ return function(deps)
 						local slotFrame = patronSlotFrames[source.patronId]
 						if slotFrame then
 							pulsePatronSlot(slotFrame)
+							pcall(function() -- Patron Row beat: hop, gold ring, effect pill, the others dim
+								require(script.Parent.PatronRow).trigger(source.patronId, {
+									kind = entry.kind == "tips" and "money" or entry.kind, amount = entry.amount, label = entry.label },
+									currentPaceDivisor > 1)
+							end)
 							-- voice line + hop, once per hand per Patron (cosmetic, never throws)
 							pcall(function()
 								require(script.Parent.PatronVoice).say(source.patronId, slotFrame, preview)
@@ -1242,8 +1248,28 @@ return function(deps)
 					-- land on a whole number.
 					chipsLabel.Text = string.format("%d", math.floor(runningChips + 0.5))
 					multLabel.Text = string.format("%d", math.floor(runningMult * runningXMult + 0.5))
-					task.wait(pace(ENTRY_STAGGER))
+					if isPatronEntry then
+						-- Patron beats come 0.28 s apart (0.12 in fast mode), the running numbers bump with each one
+						local bump = entry.kind == "chips" and chipsScale or (entry.kind ~= "tips" and multScale or nil)
+						if bump then
+							bump.Scale = 1.25
+							tweenTo(bump, { Scale = 1 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+						end
+						task.wait(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).gap(currentPaceDivisor > 1))
+					else
+						task.wait(pace(ENTRY_STAGGER))
+					end
 				end
+			end
+
+			-- Boss Round and Bargain score changes land after the Patron beats, as pills on the tavern plate
+			for _, note in ipairs(preview.tavernNotes or {}) do
+				if scorePopupToken ~= myToken then return end
+				pcall(function()
+					local text, hurts = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).noteText(note)
+					require(script.Parent.PatronRow).tavernNote(text, hurts)
+				end)
+				task.wait(pace(0.3))
 			end
 
 			if scorePopupToken ~= myToken then

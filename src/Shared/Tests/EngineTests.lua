@@ -23337,4 +23337,15 @@ table.insert(tests, { name = "PatronRowLayout: 0 to 8 Patrons never overlap the 
 	end
 end })
 
+table.insert(tests, { name = "Patron Row is wired: the hub installs and updates it, ScorePopup triggers a beat per Patron entry", fn = function()
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local hub, pop, row = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PatronRow.lua")
+	if not (hub and pop and row) then return end
+	expectTrue(hub:find("PatronRow).install", 1, true) ~= nil and hub:find("PatronRow).update(state)", 1, true) ~= nil, "hub installs and updates the row")
+	expectTrue(hub:find("PatronRow).frames()", 1, true) ~= nil, "scoring pulses the big cards")
+	expectTrue(pop:find("PatronRow).trigger(", 1, true) ~= nil and pop:find("PatronEvents", 1, true) ~= nil, "ScorePopup plays the beats 0.28 s apart")
+	expectTrue(pop:find("isPatronEntry", 1, true) ~= nil, "Patron entries are not cut by the animated-entry cap")
+	for size in row:gmatch("TextSize = (%d+)") do expectTrue(tonumber(size) >= 15, "Patron Row text is 15 px or more") end
+end })
+
 return tests
