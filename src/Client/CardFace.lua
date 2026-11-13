@@ -296,15 +296,21 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	local indexInk = ink
 	if info and not colorblind then indexInk = info.ink end
 	local L = info and info.layout
+	-- the ivory face drawn alone has no ornate frame to stay inside: its index goes back to the top-left corner
+	local okIv, ivory = pcall(function() return require(script.Parent.SetSkin).ivoryAlone() end)
+	local IV = okIv and ivory and require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).IVORY_LAYOUT or nil
+	if IV then L = IV end
 	local rank, suit, bottom
 	if L then
 		-- inside the frame's measured inner window, no box behind the index
 		rank = makeLabel(face, "CornerRank", rankText, indexInk, UDim2.fromScale(L.rank.w, L.rank.h), UDim2.fromScale(L.rank.x, L.rank.y), nil, Enum.TextXAlignment.Left, zIndex + 2)
 		suit = makeLabel(face, "CornerSuit", suitText, indexInk, UDim2.fromScale(L.suit.w, L.suit.h), UDim2.fromScale(L.suit.x, L.suit.y), nil, Enum.TextXAlignment.Left, zIndex + 2)
 		bottom = makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(L.bottom.w, L.bottom.h), UDim2.fromScale(L.bottom.x, L.bottom.y), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex + 2)
-		for _, lab in ipairs({ rank, suit, bottom }) do
-			lab.TextStrokeColor3 = info.stroke
-			lab.TextStrokeTransparency = 0.55
+		if info then
+			for _, lab in ipairs({ rank, suit, bottom }) do
+				lab.TextStrokeColor3 = info.stroke
+				lab.TextStrokeTransparency = 0.55
+			end
 		end
 	else
 		-- default set: index about 25 percent larger and inset from the inner border; stacked rank, suit and the centre pip
@@ -313,7 +319,8 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		makeLabel(face, "CornerSuit", suitText, indexInk, UDim2.fromScale(0.2, 0.11), UDim2.fromScale(0.22, 0.32), nil, Enum.TextXAlignment.Left, zIndex)
 		makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(0.18, 0.11), UDim2.fromScale(0.78, 0.85), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
 	end
-	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(0.5, 0.32), UDim2.fromScale(0.5, 0.58), Vector2.new(0.5, 0.5), nil, zIndex)
+	local C = IV and IV.center or { x = 0.5, y = 0.58, w = 0.5, h = 0.32 }
+	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(C.w, C.h), UDim2.fromScale(C.x, C.y), Vector2.new(0.5, 0.5), nil, zIndex)
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
 	end

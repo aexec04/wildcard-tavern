@@ -25,6 +25,12 @@ local INK = Color3.fromRGB(30, 18, 8)
 local LABEL_MAX, LABEL_MIN = 30, 26 -- Play Hand and Discard read at the strength of the Rank plate: 30 px, never below 26 when the plate is narrow
 local DIM_IMAGE = Color3.fromRGB(206, 198, 188) -- no cards selected: slightly darker, never see-through
 local DIM_LABEL = Color3.fromRGB(226, 214, 190)
+-- One button system, three ranks. Play Hand is the primary: full-bright plate, a brass rim inlaid round its face and a
+-- warm gold label. Discard and the Rank | Suit plate are secondary: the same plate a step darker, cream label, no rim.
+local GOLD = Color3.fromRGB(222, 182, 104)
+local PRIMARY_LABEL = Color3.fromRGB(255, 232, 170)
+local SECONDARY_IMAGE = Color3.fromRGB(226, 214, 200)
+PlayPlates.PRIMARY_RIM = 2 -- px
 
 -- biggest label size (LABEL_MIN to LABEL_MAX) whose text fits the face width
 local function labelSize(text, font, width)
@@ -79,7 +85,8 @@ local function plateImage(host, imageId, box)
 	return img
 end
 
-local function paintButton(btn, imageId, box, rect)
+local function paintButton(btn, imageId, box, rect, primary)
+	btn:SetAttribute("PlatePrimary", primary == true or nil)
 	btn.Size = UDim2.fromOffset(rect.w, rect.h)
 	local img = plateImage(btn, imageId, box)
 	for _, n in ipairs({ "HudFace", "HudOuter", "EmberGlow" }) do
@@ -122,6 +129,19 @@ local function paintButton(btn, imageId, box, rect)
 	hover.Position = UDim2.fromOffset(side, top)
 	hover.Size = UDim2.new(1, -2 * side, 1, -(top + bottom))
 
+	local oldRim = btn:FindFirstChild("PlateGold")
+	if oldRim and not primary then oldRim:Destroy() end
+	if primary then -- the brass rim that marks the primary action
+		local gold = ensure(btn, "Frame", "PlateGold", 2)
+		gold.BackgroundTransparency = 1
+		gold.Position = UDim2.fromOffset(side - 4, top - 2)
+		gold.Size = UDim2.new(1, -2 * side + 8, 1, -(top + bottom) + 4)
+		local gc = ensure(gold, "UICorner", "Corner", 1)
+		gc.CornerRadius = UDim.new(0, 6)
+		local gs = ensure(gold, "UIStroke", "Rim", 1)
+		gs.Color, gs.Thickness = GOLD, PlayPlates.PRIMARY_RIM
+	end
+
 	if btn:GetAttribute("PlateHooked") then return end
 	btn:SetAttribute("PlateHooked", true)
 	-- one label per button: keep the button's own text invisible even if a restyle resets it
@@ -143,14 +163,21 @@ local function paintButton(btn, imageId, box, rect)
 			image.ImageTransparency = 0 -- dim is a darker plate, not a ghost
 			image.Position = UDim2.fromOffset(0, dy)
 			local roomTint = btn.Parent and btn.Parent:GetAttribute("RoomTint") or Color3.new(1, 1, 1) -- the Card Set room's hint of its accent
-			local base = state.pressed and Color3.fromRGB(190, 190, 190) or (dim and DIM_IMAGE or Color3.new(1, 1, 1))
+			local isPrimary = btn:GetAttribute("PlatePrimary") == true
+			local base = state.pressed and Color3.fromRGB(190, 190, 190) or (dim and DIM_IMAGE or (isPrimary and Color3.new(1, 1, 1) or SECONDARY_IMAGE))
 			image.ImageColor3 = Color3.new(base.R * roomTint.R, base.G * roomTint.G, base.B * roomTint.B)
 		end
 		local lb = btn:FindFirstChild("PlateLabel")
 		if lb then
 			lb.Position = UDim2.fromOffset(side, top + dy)
 			lb.TextTransparency = 0
-			lb.TextColor3 = dim and DIM_LABEL or CREAM
+			lb.TextColor3 = dim and DIM_LABEL or (btn:GetAttribute("PlatePrimary") and PRIMARY_LABEL or CREAM)
+		end
+		local g = btn:FindFirstChild("PlateGold")
+		if g then
+			g.Position = UDim2.fromOffset(side - 4, top - 2 + dy)
+			local rimStroke = g:FindFirstChild("Rim")
+			if rimStroke then rimStroke.Transparency = dim and 0.6 or (state.hover and 0 or 0.1) end
 		end
 		local h = btn:FindFirstChild("PlateHover")
 		if h then
@@ -176,7 +203,7 @@ local function paintButton(btn, imageId, box, rect)
 end
 
 local function restoreButton(btn, w, h)
-	for _, n in ipairs({ "PlatePaint", "PlateFace", "PlateLabel", "PlateHover" }) do
+	for _, n in ipairs({ "PlatePaint", "PlateFace", "PlateLabel", "PlateHover", "PlateGold" }) do
 		local o = btn:FindFirstChild(n)
 		if o then o:Destroy() end
 	end
@@ -238,12 +265,12 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 		c.AnchorPoint = Vector2.new(0, 0)
 		c.Position = UDim2.fromOffset(pl[key].x - ox, pl[key].y - oy)
 	end
-	paintButton(play, imageId, B.play, pl.play)
+	paintButton(play, imageId, B.play, pl.play, true)
 	paintButton(discard, imageId, B.discard, pl.discard)
 
 	-- Sort: the plate carries the Rank | Suit toggle on its face; the toggle keeps its own hit areas and lit half
 	sortFrame.Size = UDim2.fromOffset(pl.sort.w, pl.sort.h)
-	plateImage(sortFrame, imageId, B.sort)
+	plateImage(sortFrame, imageId, B.sort).ImageColor3 = SECONDARY_IMAGE -- a utility plate, the same step back as Discard
 	local F = PlayTableLayout.FACE
 	-- the sort frame's own layout would also lay the plate picture out as a sibling: switch it off and place by hand
 	LayoutSwitch.off(sortFrame)

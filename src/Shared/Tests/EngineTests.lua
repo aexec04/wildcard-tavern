@@ -24169,4 +24169,122 @@ table.insert(tests, { name = "HandSizing.wantWidth: 8 big cards need 1080 from 1
 	expectEqual((HS.cardSize(1920, p.hand.w, p.hand.h, 8)), 124)
 end })
 
+table.insert(tests, { name = "PatronRowLayout.display: heading over five card slots inside the nook budget, wide enough for names and values, clear of the hand", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PB = require(script.Parent.Parent.Engine.PlayBudget)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local PVT = require(script.Parent.Parent.Engine.PatronValueText)
+	expectEqual(PRL.display(1506, 751, { x = 385, y = 383, w = 952, h = 200 }, 5, {}), nil, "no budget: the caller keeps the old row")
+	expectEqual(PRL.display(1506, 751, { x = 385, y = 383, w = 952, h = 200 }, 0, { maxStripH = 194 }), nil, "no seats, no display")
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1920, 1080 }, { 1600, 900 }, { 1366, 768 }, { 1280, 720 } }) do
+		local t = sz[1] .. "x" .. sz[2]
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		local budgetH, top = PB.nookMax(sz[1], sz[2])
+		local opts = { topLimit = top, maxStripH = budgetH }
+		for n = 1, 8 do
+			local lay = PRL.display(sz[1], sz[2], p.hand, n, opts)
+			expectTrue(lay ~= nil and lay.display == true, t .. " n=" .. n .. " display exists")
+			expectTrue(lay.head.y >= top - 0.5 and lay.head.h >= 20, t .. " heading starts at the budget top and holds 15 px text")
+			expectTrue(lay.cards[1].y >= lay.head.y + lay.head.h, t .. " cards stand under the heading")
+			expectTrue(lay.tray.y + lay.tray.h <= top + budgetH + 0.5, t .. " n=" .. n .. " tray ends inside the nook budget")
+			expectTrue(lay.rect.y + lay.rect.h <= lay.tray.y + lay.tray.h, t .. " plaques inside the tray")
+			expectTrue(lay.tray.x >= 0 and lay.tray.x + lay.tray.w <= sz[1], t .. " tray on screen")
+			expectTrue(lay.cardH >= PRL.FLOOR_H, t .. " cards at least 60 tall")
+			for i = 2, n do
+				local a, b = lay.cards[i - 1], lay.cards[i]
+				if n <= 5 then
+					expectTrue(b.x >= a.x + a.w + PRL.DISPLAY_GAP - 1, t .. " n=" .. n .. " even gap, no overlap")
+				else
+					expectTrue(b.x - a.x >= math.floor(lay.cardW * PRL.MIN_VISIBLE) - 1, t .. " n=" .. n .. " 60 percent visible")
+				end
+			end
+			if n <= 5 then
+				expectTrue(PVT.visible(lay.cardW), t .. " n=" .. n .. " card wide enough for the 15 px effect value")
+				expectTrue(lay.plaqueH == 0 or lay.cardW >= PRL.PLAQUE_MIN_W, t .. " a plaque only under a card that fits a 15 px name")
+			end
+		end
+	end
+	local lay = PRL.display(1506, 751, PTL.placement(1506, 751, 340, 150).hand, 5, { topLimit = 56, maxStripH = 194 })
+	expectEqual(lay.cardW, 96, "96 wide at the reference root")
+	expectEqual(lay.cardH, 132, "132 tall at the reference root")
+	expectEqual(lay.plaqueH, PRL.PLAQUE_H, "name plaques at the reference root")
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
+	local f = io.open("src/Client/PatronRow.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)", 1, true) ~= nil, "PatronRow asks for the display first")
+	expectTrue(src:find('title.Text = "PATRONS"', 1, true) ~= nil, "heading reads PATRONS (our name, never Jokers)")
+	expectTrue(src:find('c.plus.Text = "+"', 1, true) == nil, "empty slots no longer show a plus sign")
+	expectTrue(src:find('"EmptyMark"', 1, true) ~= nil, "empty slots are a card outline")
+end })
+
+table.insert(tests, { name = "PatronBoost.panel: the Mult panel shows the live preview, else the last hand, else only a hint; never an invented figure", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PatronBoost)
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local none = PB.panel(nil, nil)
+	expectEqual(none.value, nil, "nothing selected and nothing scored: no figure")
+	expectEqual(none.line, PB.HINT, "hint line")
+	expectEqual(none.label, "MULTIPLIER", "label")
+	local bd = {
+		{ kind = "chips", amount = 10, label = "Pair" }, { kind = "mult", amount = 2, label = "Pair" },
+		{ kind = "mult", amount = 4, label = "The Regular", source = { type = "patron", patronId = "the_regular" } },
+		{ kind = "xmult", amount = 1.5, label = "X", source = { type = "patron", patronId = "x" } },
+	}
+	local last = PB.totals(bd)
+	local c, m = PE.replay(bd)
+	expectEqual(last.chips, c, "last hand chips are the replay's")
+	expectEqual(last.mult, m, "last hand mult is the replay's")
+	expectEqual(PB.totals(nil), nil, "no breakdown, no totals")
+	expectEqual(PB.totals({}), nil, "empty breakdown, no totals")
+	local l = PB.panel(nil, last)
+	expectEqual(l.value, "x9", "last hand figure")
+	expectEqual(l.line, "Last hand\n10 Chips x 9 Mult", "last hand line")
+	local live = PB.panel({ chips = 30, mult = 6.6, score = 198 }, last)
+	expectEqual(live.value, "x6.6", "the live preview wins over the last hand")
+	expectEqual(live.line, "This hand\n30 Chips x 6.6 Mult", "preview line")
+	expectEqual(PB.panel({ chips = 30 }, nil).value, nil, "a preview without a mult shows no figure")
+	for _, text in ipairs({ none.line, l.line, live.line, PB.LABEL }) do
+		expectTrue(text:find("\226\128\148", 1, true) == nil and text:find("--", 1, true) == nil, "no dashes in panel text")
+	end
+	local tray = { x = 585, y = 56, w = 552, h = 190 }
+	local r = PB.placePanel(tray, 84, 1506)
+	expectTrue(r ~= nil and r.x >= tray.x + tray.w and r.y == 84, "right of the display, level with the cards")
+	expectTrue(r.x + r.w <= 1506 - PB.MARGIN, "inside the root")
+	expectEqual(PB.placePanel(tray, 84, 1300), nil, "no room: hidden")
+	expectEqual(PB.placePanel(nil, 84, 1506), nil, "no display: hidden")
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("require(script.PatronRow).setPreview(preview)", 1, true) ~= nil, "the hub feeds the panel its own hand preview (no second formula)")
+	local g = io.open("src/Client/PatronRow.lua", "r")
+	local code = g:read("*a"); g:close()
+	expectTrue(code:find("Scoring", 1, true) == nil, "PatronRow never scores a hand itself")
+end })
+
+table.insert(tests, { name = "Ivory card face: rank and suit sit in the top-left corner, rows never overlap; Play Hand is the one rimmed primary plate", fn = function()
+	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local L = CFA.IVORY_LAYOUT
+	expectTrue(L.rank.x <= 0.12 and L.rank.y <= 0.08, "rank starts in the top-left corner")
+	expectTrue(L.rank.x >= 0.06 and L.rank.y >= 0.05, "rank stays inside the painted inner border")
+	expectTrue(L.rank.y + L.rank.h <= L.suit.y + 0.011, "suit under the rank")
+	local pipTop, pipBottom = L.center.y - L.center.h / 2, L.center.y + L.center.h / 2
+	expectTrue(L.suit.y + L.suit.h <= pipTop + 0.001, "corner suit ends above the centre pip")
+	expectTrue(pipBottom <= L.bottom.y - L.bottom.h + 0.001, "centre pip ends above the bottom suit")
+	expectTrue(L.bottom.x <= 0.94 and L.bottom.y <= 0.95, "bottom suit inside the border")
+	expectTrue(L.rank.h * 158 >= 26, "rank label at least 26 px tall on a 158 px card")
+	if not io then return end
+	local f = io.open("src/Client/CardFace.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("IVORY_LAYOUT", 1, true) ~= nil, "CardFace uses the ivory layout")
+	end
+	local g = io.open("src/Client/PlayPlates.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find("paintButton(play, imageId, B.play, pl.play, true)", 1, true) ~= nil, "Play Hand is painted as the primary")
+		expectTrue(src:find("paintButton(discard, imageId, B.discard, pl.discard)", 1, true) ~= nil, "Discard is not")
+	end
+end })
+
 return tests

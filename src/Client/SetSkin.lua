@@ -401,6 +401,11 @@ function SetSkin.indexInfo(isRed, skin)
 	return { ink = rgb(style.ink), stroke = rgb(style.plate), layout = SkinSlice.indexLayout(win) }
 end
 
+-- True when the equipped skin shows the painted ivory face alone (CardFace then uses CardFaceArt.IVORY_LAYOUT).
+function SetSkin.ivoryAlone(skin)
+	return CardFaceArt.ivoryAlone(skin or current, CardFaceArt.resolve(PlaySceneArt))
+end
+
 -- Targets in the table HUD that wear the panel treatment (found by name, once the instance exists).
 SetSkin.HUD_PANELS = { "SidebarBoard", "HandTray", "DeckWidget" }
 

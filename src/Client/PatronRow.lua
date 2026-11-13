@@ -2,7 +2,9 @@
 	Client/PatronRow.lua
 	The Patron Row: big painted Patron cards on the table, above the hand, between the dock icons and the cards.
 	Rects come from the pure Engine/PatronRowLayout. Each card is the painted portrait inside its rarity frame with a
-	name plaque under it; free seats are faint slots with a plus pip. A slow idle float (off in calm mode) and a hover
+	name plaque under it; free seats are faint card-shaped slots (an inner outline and a small suit, no plus sign).
+	On roots with room the row is the Patron display (PatronRowLayout.display): a "PATRONS" heading over five card slots on a
+	quiet tray, with the Mult panel (Engine/PatronBoost.panel) to its right. A slow idle float (off in calm mode) and a hover
 	tooltip with the effect text. Cosmetic only: nothing here sends anything to the server.
 
 	  PatronRow.install{ root, handFrame, tooltip = fn(frame, textFn), getState = fn }   once, from the hub
@@ -32,10 +34,12 @@ local M = {}
 local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(78, 52, 26)
 local CREAM = Color3.fromRGB(240, 225, 190)
+local SLOT = Color3.fromRGB(22, 14, 9)
+local WALNUT = Color3.fromRGB(37, 23, 15)
 local Z = 6
 
 local holder, holderScale, rootRef, handRef, tooltipFn, anchorFn
-local boost = { summary = nil, frame = nil } -- the Chips x Mult boost panel (built below)
+local boost = { summary = nil, frame = nil } -- the Mult panel (built below): preview = selected cards, last = last scored hand
 local placeBoost
 local cards = {} -- pool of { slot, float, body, art, name, plus, floatTween, id }
 local lastState
@@ -104,6 +108,51 @@ local function newCard(i)
 	plus.Active = false
 	plus.Parent = body
 	corner(plus, 17)
+	local mark = Instance.new("Frame") -- empty slot: a card outline with a faint suit, so it reads as a place for a card
+	mark.Name = "EmptyMark"
+	mark.Size = UDim2.fromScale(1, 1)
+	mark.BackgroundTransparency = 1
+	mark.ZIndex = Z + 1
+	mark.Active = false
+	mark.Visible = false
+	mark.Parent = body
+	corner(mark, 8)
+	local markEdge = Instance.new("UIStroke")
+	markEdge.Color = GOLD
+	markEdge.Thickness = 1.5
+	markEdge.Transparency = 0.5
+	markEdge.Parent = mark
+	local inner = Instance.new("Frame")
+	inner.Name = "Inner"
+	inner.AnchorPoint = Vector2.new(0.5, 0.5)
+	inner.Position = UDim2.fromScale(0.5, 0.5)
+	inner.Size = UDim2.new(1, -14, 1, -14)
+	inner.BackgroundTransparency = 1
+	inner.ZIndex = Z + 1
+	inner.Active = false
+	inner.Parent = mark
+	corner(inner, 5)
+	local innerEdge = Instance.new("UIStroke")
+	innerEdge.Color = GOLD
+	innerEdge.Thickness = 1
+	innerEdge.Transparency = 0.75
+	innerEdge.Parent = inner
+	local suit = Instance.new("TextLabel")
+	suit.Name = "Suit"
+	suit.AnchorPoint = Vector2.new(0.5, 0.5)
+	suit.Position = UDim2.fromScale(0.5, 0.5)
+	suit.Size = UDim2.fromOffset(34, 34)
+	suit.BackgroundTransparency = 1
+	suit.Font = Enum.Font.GothamBold
+	suit.TextSize = 26
+	suit.TextColor3 = GOLD
+	suit.TextTransparency = 0.72
+	suit.TextStrokeTransparency = 1
+	suit.Text = "♠"
+	suit.ZIndex = Z + 1
+	suit.Active = false
+	suit.Parent = mark
+	c.mark = mark
 	local dim = Instance.new("Frame") -- dims the card while another Patron triggers
 	dim.Name = "Dim"
 	dim.Size = UDim2.fromScale(1, 1)
@@ -145,7 +194,7 @@ local function newCard(i)
 	name.Size = UDim2.new(1, -4, 1, 0)
 	name.Position = UDim2.fromOffset(2, 0)
 	name.BackgroundTransparency = 1
-	name.Font = Enum.Font.GothamBold
+	name.Font = Enum.Font.GothamMedium
 	name.TextSize = 15
 	name.TextColor3 = CREAM
 	name.TextTransparency = 0
@@ -164,7 +213,7 @@ local function newCard(i)
 	value.BorderSizePixel = 0
 	value.Font = Enum.Font.GothamBold
 	value.TextSize = 15
-	value.TextColor3 = CREAM
+	value.TextColor3 = GOLD
 	value.TextTransparency = 0
 	value.TextStrokeTransparency = 1
 	value.TextTruncate = Enum.TextTruncate.AtEnd
@@ -199,6 +248,11 @@ end
 local function fillCard(c, i, owned)
 	if owned then
 		c.plus.Visible = false
+		c.mark.Visible = false
+		local ro = c.body:FindFirstChild("RarityOrnaments")
+		if ro then ro.Visible = true end
+		local rs0 = c.body:FindFirstChild("RarityStroke")
+		if rs0 then rs0.Enabled = true end
 		c.plaque.Visible = true
 		c.name.Text = owned.name
 		c.valueText = PatronValueText.of(owned.description)
@@ -222,15 +276,17 @@ local function fillCard(c, i, owned)
 		c.id = nil
 		local old = c.body:FindFirstChild("PatronArt")
 		if old then old:Destroy() end
-		c.plus.Visible = true
-		c.plus.Text = "+"
-		c.plus.BackgroundTransparency = 0.8
+		c.plus.Visible = false -- no plus sign: the card outline says "a Patron goes here"
+		c.mark.Visible = true
 		c.plaque.Visible = false
 		c.valueText = nil
 		c.value.Visible = false
-		c.body.BackgroundTransparency = 0.75 -- faint slot
+		c.body.BackgroundColor3 = SLOT
+		c.body.BackgroundTransparency = 0.45 -- quiet slot
 		local rs = c.body:FindFirstChild("RarityStroke")
-		if rs then rs.Color = GOLD; rs.Transparency = 0.6 end
+		if rs then rs.Enabled = false end
+		local ro = c.body:FindFirstChild("RarityOrnaments")
+		if ro then ro.Visible = false end
 	end
 end
 
@@ -239,6 +295,7 @@ local nook -- { root, back, glow, ledge, trim, rivets, alcoves }
 
 local NOOK_BACK = Color3.fromRGB(34, 22, 14)
 local NOOK_ALCOVE = Color3.fromRGB(22, 14, 9)
+local HEAD_TEXT_W = 96
 
 local function nookFrame(parent, name, z, color, tr)
 	local f = Instance.new("Frame")
@@ -283,7 +340,60 @@ local function buildNook()
 		rivets[i] = nookFrame(root, "Rivet" .. i, Z, GOLD)
 		corner(rivets[i], 4)
 	end
-	nook = { root = root, back = back, glow = glow, ledge = ledge, trim = trim, rivets = rivets, alcoves = {} }
+	local trayEdge = Instance.new("UIStroke") -- only drawn for the Patron display's tray
+	trayEdge.Name = "TrayEdge"
+	trayEdge.Color = GOLD
+	trayEdge.Thickness = 1
+	trayEdge.Transparency = 1
+	trayEdge.Parent = back
+	local head = Instance.new("Frame") -- "PATRONS" between two brass rules
+	head.Name = "Heading"
+	head.BackgroundTransparency = 1
+	head.ZIndex = Z - 2
+	head.Active = false
+	head.Visible = false
+	head.Parent = root
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.AnchorPoint = Vector2.new(0.5, 0.5)
+	title.Position = UDim2.new(0.5, 0, 0.5, 1)
+	title.Size = UDim2.fromOffset(HEAD_TEXT_W, 22)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.Fondamento
+	title.TextSize = 19
+	title.TextColor3 = GOLD
+	title.TextTransparency = 0
+	title.TextStrokeTransparency = 1
+	title.Text = "PATRONS"
+	title.ZIndex = Z - 2
+	title.Active = false
+	title.Parent = head
+	for _, side in ipairs({ 0, 1 }) do
+		local rule = nookFrame(head, side == 0 and "RuleL" or "RuleR", Z - 2, GOLD, 0.55)
+		rule.AnchorPoint = Vector2.new(side, 0.5)
+		rule.Position = UDim2.new(side, side == 0 and 14 or -14, 0.5, 1)
+		rule.Size = UDim2.new(0.5, -(HEAD_TEXT_W / 2 + 22), 0, 1)
+	end
+	nook = { root = root, back = back, glow = glow, ledge = ledge, trim = trim, rivets = rivets, alcoves = {}, head = head, trayEdge = trayEdge }
+end
+
+-- The Patron display (lay.display): heading and a quiet tray, none of the shelf pieces.
+local function placeDisplay(lay)
+	if nook.paint then nook.paint.Visible = false end
+	for _, k in ipairs({ "glow", "ledge", "trim" }) do nook[k].Visible = false end
+	for _, r in ipairs(nook.rivets) do r.Visible = false end
+	for _, a in ipairs(nook.alcoves) do a.Visible = false end
+	nook.back.Visible = true
+	nook.back.BackgroundColor3 = WALNUT
+	nook.back.BackgroundTransparency = 0.35
+	nook.trayEdge.Transparency = 0.55
+	nook.back.Position = UDim2.fromOffset(lay.tray.x, lay.tray.y)
+	nook.back.Size = UDim2.fromOffset(lay.tray.w, lay.tray.h)
+	nook.head.Visible = true
+	nook.head.Position = UDim2.fromOffset(lay.head.x, lay.head.y)
+	nook.head.Size = UDim2.fromOffset(lay.head.w, lay.head.h)
+	nook.lastBack = lay.tray
+	nook.display = true
 end
 
 local function setRect(f, r)
@@ -360,6 +470,16 @@ local function placeNook(lay, rootW, hand, owned, opts)
 		return
 	end
 	if not nook then buildNook() end
+	if lay.display then
+		nook.root.Visible = true
+		placeDisplay(lay)
+		return
+	end
+	nook.display = false
+	nook.head.Visible = false
+	nook.trayEdge.Transparency = 1
+	nook.back.BackgroundColor3 = NOOK_BACK
+	nook.back.BackgroundTransparency = 0
 	local nk = Layout.nook(lay, rootW, hand, opts)
 	nook.root.Visible = nk ~= nil
 	if not nk then return end
@@ -430,7 +550,9 @@ local function place(state)
 		end
 	end
 	if show then
-		lay = (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
+		-- the Patron display first (card slots under a heading); the painted strip and the code nook are the fallbacks for roots it declines
+		lay = Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)
+			or (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
 	end
 	holder.Visible = lay ~= nil
 	if k ~= 1 and RunService:IsStudio() then
@@ -440,6 +562,8 @@ local function place(state)
 	end
 	placeNook(lay, rootSize.X, hand, owned, opts)
 	if #owned == 0 then boost.summary = nil end
+	if state and (state.roundScore or 0) == 0 and state.handsRemaining == state.roundStartHands then boost.last = nil end -- a fresh round has no last hand
+	boost.cardsY = lay and lay.display and lay.rect.y or nil
 	placeBoost(lay and nook and nook.lastBack or nil, rootSize.X / k)
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
@@ -466,12 +590,12 @@ local function place(state)
 	end
 end
 
--- ===== boost panel: real Chips x Mult of the last scored hand, only while a Patron added to it (Engine/PatronBoost) =====
+-- ===== Mult panel: the real Mult of the selected cards (the hub's hand preview), else of the last scored hand (Engine/PatronBoost.panel) =====
 local function buildBoost()
 	local f = Instance.new("Frame")
 	f.Name = "PatronBoostPanel"
-	f.BackgroundColor3 = Color3.fromRGB(46, 30, 16)
-	f.BackgroundTransparency = 0.05
+	f.BackgroundColor3 = WALNUT
+	f.BackgroundTransparency = 0.08
 	f.BorderSizePixel = 0
 	f.ZIndex = Z + 1
 	f.Active = false
@@ -482,13 +606,13 @@ local function buildBoost()
 	st.Color = GOLD
 	st.Thickness = 2
 	st.Parent = f
-	local function label(name, y, h, size, color)
+	local function label(name, y, h, size, color, font)
 		local l = Instance.new("TextLabel")
 		l.Name = name
-		l.Position = UDim2.fromOffset(6, y)
-		l.Size = UDim2.new(1, -12, 0, h)
+		l.Position = UDim2.fromOffset(8, y)
+		l.Size = UDim2.new(1, -16, 0, h)
 		l.BackgroundTransparency = 1
-		l.Font = Enum.Font.GothamBold
+		l.Font = font or Enum.Font.GothamBold
 		l.TextSize = size
 		l.TextColor3 = color
 		l.TextTransparency = 0
@@ -499,16 +623,30 @@ local function buildBoost()
 		l.Parent = f
 		return l
 	end
-	boost.value = label("Value", 4, 30, 24, GOLD)
-	boost.line = label("Line", 36, 38, 15, CREAM)
+	boost.label = label("Label", 7, 18, 15, CREAM)
+	boost.value = label("Value", 26, 40, 36, GOLD, Enum.Font.Fondamento)
+	boost.valueScale = Instance.new("UIScale")
+	boost.valueScale.Parent = boost.value
+	local rule = Instance.new("Frame")
+	rule.Name = "Rule"
+	rule.AnchorPoint = Vector2.new(0.5, 0)
+	rule.Position = UDim2.new(0.5, 0, 0, 68)
+	rule.Size = UDim2.new(1, -36, 0, 1)
+	rule.BackgroundColor3 = GOLD
+	rule.BackgroundTransparency = 0.55
+	rule.BorderSizePixel = 0
+	rule.ZIndex = Z + 2
+	rule.Active = false
+	rule.Parent = f
+	boost.rule = rule
+	boost.line = label("Line", 71, 36, 15, CREAM)
 	boost.frame = f
 	return f
 end
 
 function placeBoost(back, rootW)
-	local sum = boost.summary
 	local PatronBoost = require(Engine:WaitForChild("PatronBoost"))
-	local r = sum and back and PatronBoost.place(back, rootW) or nil
+	local r = back and PatronBoost.placePanel(back, boost.cardsY, rootW) or nil
 	if not r then
 		if boost.frame then boost.frame.Visible = false end
 		return
@@ -516,15 +654,44 @@ function placeBoost(back, rootW)
 	local f = boost.frame or buildBoost()
 	f.Position = UDim2.fromOffset(r.x, r.y)
 	f.Size = UDim2.fromOffset(r.w, r.h)
-	boost.value.Text = sum.text
-	boost.line.Text = sum.line
+	local m = PatronBoost.panel(boost.preview, boost.last)
+	boost.label.Text = m.label
+	boost.value.Text = m.value or ""
+	boost.value.Visible = m.value ~= nil
+	boost.rule.Visible = m.value ~= nil
+	boost.line.Text = m.line
+	boost.line.Position = UDim2.fromOffset(8, m.value and 71 or 40) -- no figure yet: the hint sits in the middle of the panel
+	if m.value ~= boost.shown then
+		boost.shown = m.value
+		if m.value and not calm() then -- a short pop when the figure changes (never in calm mode)
+			boost.valueScale.Scale = 1.14
+			TweenService:Create(boost.valueScale, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		else
+			boost.valueScale.Scale = 1
+		end
+	end
 	f.Visible = true
 end
 
--- ScorePopup passes PatronBoost.summary(breakdown) once a hand has scored (nil clears the panel)
+local function refreshBoost()
+	if holder and nook then pcall(placeBoost, holder.Visible and nook.lastBack or nil, rootRef.AbsoluteSize.X / uiScaleOf(rootRef)) end
+end
+
+-- ScorePopup passes PatronBoost.summary(breakdown) once a hand has scored (kept for callers; the panel reads setLast)
 function M.setBoost(summary)
 	boost.summary = summary
-	if holder and nook then pcall(placeBoost, nook.lastBack, rootRef.AbsoluteSize.X) end
+end
+
+-- ScorePopup passes PatronBoost.totals(breakdown) once a hand has scored: { chips, mult } of that hand
+function M.setLast(totals)
+	boost.last = totals
+	refreshBoost()
+end
+
+-- The hub passes its live hand preview (computeHandPreview) whenever the selection changes; nil when nothing previewable is selected
+function M.setPreview(preview)
+	boost.preview = preview and { chips = preview.chips, mult = preview.mult } or nil
+	refreshBoost()
 end
 
 function M.install(deps)
@@ -578,7 +745,9 @@ function M.bottomEdge()
 		local y = body.AbsolutePosition.Y + body.AbsoluteSize.Y
 		if not low or y > low then low = y end
 	end
-	if nook and nook.ledge and nook.ledge.Visible then
+	if nook and nook.display and nook.back.Visible then
+		low = math.max(low or 0, nook.back.AbsolutePosition.Y + nook.back.AbsoluteSize.Y) -- the display's tray, plaques included
+	elseif nook and nook.ledge and nook.ledge.Visible then
 		-- also with no Patron owned yet: the empty nook still stands there, so the score readout must stay below it
 		low = math.max(low or 0, nook.ledge.AbsolutePosition.Y + nook.ledge.AbsoluteSize.Y)
 	end

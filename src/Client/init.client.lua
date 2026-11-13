@@ -1914,6 +1914,7 @@ local function refreshScorePreview()
 
 	local preview = computeHandPreview(selectedIndices)
 	require(script.HandHighlight).set(preview and preview.name or nil)
+	pcall(function() require(script.PatronRow).setPreview(preview) end) -- the Mult panel by the Patron display shows this same preview
 	if not preview then
 		SidebarModule.scorePreviewLabel.Text = "Select cards..."
 		return

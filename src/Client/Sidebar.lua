@@ -262,11 +262,11 @@ return function(deps)
 	seedBox.AnchorPoint = Vector2.new(1, 0.5)
 	seedBox.Position = UDim2.new(1, -8, 0.5, 0)
 	seedBox.Size = UDim2.fromOffset(110, 26)
-	seedBox.BackgroundColor3 = Color3.fromRGB(26, 17, 10)
+	seedBox.BackgroundColor3 = Color3.fromRGB(199, 178, 137) -- the board's darker parchment inset with ink text, not a black box
 	seedBox.BorderSizePixel = 0
 	seedBox.Font = Enum.Font.GothamBold
 	seedBox.TextSize = 18
-	seedBox.TextColor3 = Color3.fromRGB(255, 232, 160)
+	seedBox.TextColor3 = Color3.fromRGB(60, 40, 22)
 	seedBox.TextEditable = false
 	seedBox.ClearTextOnFocus = false
 	seedBox.Text = ""
@@ -274,6 +274,14 @@ return function(deps)
 	seedBox.ZIndex = Z + 2
 	seedBox.Parent = runModeBadgeBox
 	roundCorner(seedBox, 5)
+	do
+		local seedEdge = Instance.new("UIStroke")
+		seedEdge.Name = "SeedEdge"
+		seedEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		seedEdge.Color = Color3.fromRGB(96, 66, 36)
+		seedEdge.Thickness = 1.5
+		seedEdge.Parent = seedBox
+	end
 	seedBox.Focused:Connect(function()
 		seedBox.SelectionStart = 1
 		seedBox.CursorPosition = #seedBox.Text + 1

@@ -207,4 +207,67 @@ function M.painted(rootW, rootH, hand, count, opts)
 	return out
 end
 
+-- The Patron display: five collectible card slots under a "PATRONS" heading, hung from the top of the nook budget
+-- (no shelf, no arches). Same layout shape as compute, plus display = true, head = {x,y,w,h} (the heading strip),
+-- tray = {x,y,w,h} (the quiet backing behind heading, cards and plaques).
+--   PatronRowLayout.display(rootW, rootH, hand, count, opts) -> layout | nil
+--     opts.topLimit   y the display starts at (PlayBudget nook row)
+--     opts.maxStripH  height it may use (PlayBudget nook row); nil gives nil so the caller keeps the old row
+-- Cards are 96 x 132 at 1506 wide with a 12 px gap. When the budget is too short for a card wide enough to carry a
+-- 15 px name, the plaque is dropped (the tooltip keeps the name) and the card takes that height, so the effect value
+-- stays readable down to 1280 x 720. Under FLOOR_H the display declines and the caller falls back.
+M.HEAD_H, M.HEAD_GAP = 22, 6
+M.DISPLAY_GAP = 12
+M.TRAY_PAD_X, M.TRAY_PAD_BOTTOM = 12, 6
+M.DISPLAY_MIN_K = 0.95 -- a card with no plaque may stand this tall (times BASE_H) even on a smaller root
+
+function M.display(rootW, rootH, hand, count, opts)
+	if not count or count <= 0 or not hand then return nil end
+	local budget = opts and opts.maxStripH
+	if not budget then return nil end
+	local topLimit = opts.topLimit or M.TOP_LIMIT
+	local k = M.scale(rootW)
+	hand = span(hand, opts)
+	local plaqueH = M.PLAQUE_H
+	local free = budget - M.HEAD_H - M.HEAD_GAP - M.TRAY_PAD_BOTTOM
+	local cardH = math.min(M.BASE_H * k, free - plaqueH)
+	if cardH * M.BASE_W / M.BASE_H < M.PLAQUE_MIN_W then
+		plaqueH = 0
+		cardH = math.min(M.BASE_H * math.max(k, M.DISPLAY_MIN_K), free)
+	end
+	if cardH < M.FLOOR_H then return nil end
+	local cardW = cardH * M.BASE_W / M.BASE_H
+	local availW = math.min(hand.w, rootW)
+	if availW < cardW * 2 then return nil end -- hand frame not laid out yet
+	local gap = M.DISPLAY_GAP
+	local step = cardW + gap
+	local overlap = false
+	if count > 1 and count * cardW + (count - 1) * gap > availW then
+		overlap = true
+		step = (availW - cardW) / (count - 1)
+		if step < cardW * M.MIN_VISIBLE then
+			cardW = availW / (1 + M.MIN_VISIBLE * (count - 1))
+			cardH = cardW * M.BASE_H / M.BASE_W
+			step = cardW * M.MIN_VISIBLE
+		end
+	end
+	if cardH < M.FLOOR_H then return nil end
+	if plaqueH > 0 and (cardW < M.PLAQUE_MIN_W or overlap) then plaqueH = 0 end -- overlapping cards would cover each other's names
+	local totalW = cardW + step * (count - 1)
+	local x0 = hand.x + (hand.w - totalW) / 2
+	x0 = math.max(0, math.min(x0, rootW - totalW))
+	local y = topLimit + M.HEAD_H + M.HEAD_GAP
+	local out = { cards = {}, cardW = floor(cardW), cardH = floor(cardH), plaqueH = plaqueH, step = step, overlap = overlap, display = true }
+	for i = 1, count do
+		out.cards[i] = { x = floor(x0 + (i - 1) * step), y = floor(y), w = floor(cardW), h = floor(cardH) }
+	end
+	local first, last = out.cards[1], out.cards[count]
+	out.rect = { x = first.x, y = floor(y), w = last.x + last.w - first.x, h = floor(cardH) + plaqueH }
+	local tx0 = math.max(0, out.rect.x - M.TRAY_PAD_X)
+	local tx1 = math.min(rootW, out.rect.x + out.rect.w + M.TRAY_PAD_X)
+	out.head = { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = M.HEAD_H }
+	out.tray = { x = tx0, y = floor(topLimit), w = tx1 - tx0, h = out.rect.y + out.rect.h + M.TRAY_PAD_BOTTOM - floor(topLimit) }
+	return out
+end
+
 return M
