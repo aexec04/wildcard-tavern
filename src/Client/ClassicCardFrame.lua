@@ -1,8 +1,7 @@
 --[[
 	Client/ClassicCardFrame.lua
-	The Classic Tavern card border, drawn in code on the full card edge: a dark oak band (7 percent of the card width on
-	every side), a brass line just inside it and small brass corner caps. Geometry comes from Engine/HudStyle.classicFrame
-	(tested: at least 6 percent of the width on each side). Called from SetSkin.cardLayers for the neutral default set.
+	The Classic Tavern card edge: a thin 1 px brass stroke on the card, no oak band and no corner caps.
+	(Engine/HudStyle.classicFrame still describes the old band geometry; it is no longer drawn.) Called from SetSkin.cardLayers for the neutral default set.
 
 	ClassicCardFrame.draw(face, zIndex)   adds a child "ClassicFrame" to the card face; refits when the card resizes
 ]]
@@ -44,30 +43,18 @@ function ClassicCardFrame.draw(face, zIndex)
 	corner.CornerRadius = faceCorner and faceCorner.CornerRadius or UDim.new(0, 6)
 	corner.Parent = holder
 
-	local parts = {}
-	for _, side in ipairs({ "top", "bottom", "left", "right" }) do
-		parts["band_" .. side] = bar(holder, "Oak_" .. side, HudStyle.CLASSIC_OAK, zIndex + 1)
-		parts["line_" .. side] = bar(holder, "Brass_" .. side, HudStyle.CLASSIC_BRASS, zIndex + 1)
+	-- Thin edge only: one 1 px brass stroke on the transparent holder. The oak band and brass corner caps
+	-- (the heavy dark frame and the pale gold corner blocks) are no longer built.
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "BrassEdge"
+	stroke.Thickness = 1
+	stroke.Color = c3(HudStyle.CLASSIC_BRASS)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = holder
+	if not ClassicCardFrame._warned then
+		ClassicCardFrame._warned = true
+		warn("[CardEdge] hidden: the oak bands and the four corner cap blocks (ClassicFrame); kept: 1 px BrassEdge stroke, radius " .. tostring(corner.CornerRadius.Offset))
 	end
-	for i = 1, 4 do
-		parts["cap" .. i] = bar(holder, "Cap" .. i, HudStyle.CLASSIC_CAP, zIndex + 1)
-	end
-	local function put(inst, r)
-		inst.Position = UDim2.fromOffset(r.x, r.y)
-		inst.Size = UDim2.fromOffset(r.w, r.h)
-	end
-	local function fit()
-		local size = face.AbsoluteSize
-		if size.X <= 0 or size.Y <= 0 then return end
-		local l = HudStyle.classicFrame(size.X, size.Y)
-		for _, side in ipairs({ "top", "bottom", "left", "right" }) do
-			put(parts["band_" .. side], l.band[side])
-			put(parts["line_" .. side], l.line[side])
-		end
-		for i, r in ipairs(l.caps) do put(parts["cap" .. i], r) end
-	end
-	fit()
-	face:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	return holder
 end
 

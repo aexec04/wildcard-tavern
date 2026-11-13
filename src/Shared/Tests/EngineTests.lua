@@ -13977,6 +13977,7 @@ table.insert(tests, { name = "Classic card border: wraps the full card edge, cen
 		local f = io.open("src/Client/ClassicCardFrame.lua", "r")
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("holder.BackgroundTransparency = 1", 1, true) ~= nil, "frame holder (the centre) is transparent")
+		expectTrue(src:find("Oak_", 1, true) == nil and src:find("Cap\" ..", 1, true) == nil and src:find("stroke.Thickness = 1", 1, true) ~= nil, "card edge is one 1 px stroke: no oak band, no corner caps")
 		expectTrue(src:find("FindFirstChildOfClass", 1, true) ~= nil, "frame corner radius follows the card")
 		local g = io.open("src/Client/CosmeticSetsPanel.lua", "r")
 		local panel = g:read("*a"); g:close()
@@ -24027,7 +24028,7 @@ table.insert(tests, { name = "Card face polish: the face crop drops the checker 
 	local r = CFA.rect()
 	expectTrue(r.x >= 54 and r.y >= 54, "crop covers the ~54 px checker margin")
 	expectTrue(r.x + r.w == CFA.SIZE[1] - CFA.CROP and r.y + r.h == CFA.SIZE[2] - CFA.CROP, "crop is symmetric and inside the picture")
-	expectTrue(CFA.CORNER_RADIUS >= 8, "art corners are rounded")
+	expectTrue(CFA.CORNER_RADIUS >= 4 and CFA.CORNER_RADIUS <= 8, "art corners are rounded about 6 px")
 	local f = io.open("src/Client/SortToggle.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()

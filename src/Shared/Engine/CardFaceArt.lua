@@ -13,7 +13,7 @@ CardFaceArt.FLAT_IVORY = { 250, 245, 235 }
 -- The ImageLabel shows only the inside of this crop.
 CardFaceArt.SIZE = { 1024, 1536 }
 CardFaceArt.CROP = 60
-CardFaceArt.CORNER_RADIUS = 10
+CardFaceArt.CORNER_RADIUS = 6
 
 function CardFaceArt.rect()
 	local c, s = CardFaceArt.CROP, CardFaceArt.SIZE

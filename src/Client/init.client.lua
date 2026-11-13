@@ -2147,7 +2147,7 @@ local function rebuildHand(handData, phase)
 			local r = require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).rect()
 			cardArt.ImageRectOffset, cardArt.ImageRectSize = Vector2.new(r.x, r.y), Vector2.new(r.w, r.h)
 		end
-		VisualHelpersModule.roundCorner(cardArt, 10)
+		VisualHelpersModule.roundCorner(cardArt, 6)
 
 		-- The card's rank/suit -- always shown. Not a fallback anymore:
 		-- the face template's center is blank on purpose, so this text IS
