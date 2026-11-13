@@ -127,9 +127,8 @@ function FlairDressingRoom.build(deps, panel)
 	-- ===== painted scene (flair_room_a): drawn under everything once its Image id is recorded and the panel is big enough =====
 	local sceneId = ContentArt.getImageId("panel_scene", Scene.ART_KEY)
 	local sceneHolder = make("Frame", panel, { Name = "FlairScene", BackgroundColor3 = Color3.fromRGB(26, 18, 12), ClipsDescendants = true, Visible = false, Active = false })
-	local SCENE_WASH = 0.3 -- the same painting, cover-fitted behind the picture under a dark wash, so uncovered bands read as the room (not flat brown)
 	local sceneBack = make("ImageLabel", sceneHolder, { Name = "Backdrop", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false, Visible = false })
-	local sceneWash = make("Frame", sceneHolder, { Name = "BackdropWash", BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = SCENE_WASH, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Active = false, Visible = false })
+	local sceneWash = make("Frame", sceneHolder, { Name = "BackdropWash", BackgroundColor3 = Color3.fromRGB(26, 18, 12), BackgroundTransparency = 0.3, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), Active = false, Visible = false })
 	local sceneBase = 0
 	local sceneImage = make("ImageLabel", sceneHolder, { Name = "Picture", BackgroundTransparency = 1, Image = sceneId or "", ScaleType = Enum.ScaleType.Stretch, Active = false })
 	local sceneVignette = make("Frame", sceneHolder, { Name = "Vignette", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Active = false }) -- over the picture
@@ -638,14 +637,8 @@ function FlairDressingRoom.build(deps, panel)
 			sceneImage.Position, sceneImage.Size = UDim2.fromOffset(S.image.x, S.image.y), UDim2.fromOffset(S.image.w, S.image.h)
 			local aw, ah = w, h - R.topH
 			local gap = S.image.x > 0.5 or S.image.y > 0.5 or S.image.x + S.image.w < aw - 0.5 or S.image.y + S.image.h < ah - 0.5
-			sceneBack.Visible, sceneWash.Visible = gap, gap
-			sceneBase = gap and SCENE_WASH or 0
-			if gap then
-				local cs = math.max(aw / S.image.w, ah / S.image.h) -- cover scale relative to the placed (smaller) picture
-				local bw, bh = S.image.w * cs, S.image.h * cs
-				sceneBack.Size = UDim2.fromOffset(math.ceil(bw), math.ceil(bh))
-				sceneBack.Position = UDim2.fromOffset(math.floor((aw - bw) / 2), math.floor((ah - bh) / 2))
-			end
+			sceneBack.Visible, sceneWash.Visible = false, false -- the bands are the holder's flat wall colour, never a second copy of the painting
+			sceneBase = 0
 			paintVignette(Scene.edges(S, aw, ah))
 			sceneS = S
 			paintPatches()

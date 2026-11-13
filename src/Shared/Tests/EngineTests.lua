@@ -20832,7 +20832,7 @@ tests[#tests + 1] = ({ name = "NewsSceneLayout: painted notice board slots fit t
 	expectTrue(L.canShow(1) and L.canShow(3) and not L.canShow(4) and not L.canShow(0), "up to three events use the painted notes")
 end })
 
-tests[#tests + 1] = ({ name = "PanelScene: a picture smaller than the area gets a washed cover copy of the painting behind it, none when it already covers", fn = function()
+tests[#tests + 1] = ({ name = "PanelScene: bands beside a smaller picture are flat wall colour with feathered edges, no copy of the painting", fn = function()
 	local probe = io and io.open and load and io.open("src/Client/PanelScene.lua", "r")
 	if not probe then return end
 	probe:close()
@@ -20852,16 +20852,9 @@ tests[#tests + 1] = ({ name = "PanelScene: a picture smaller than the area gets 
 	local small = { image = { x = 200, y = 0, w = 800, h = 800 }, scale = 1 }
 	scene.show({ x = 0, y = 0, w = 1200, h = 800 }, small)
 	local n = names()
-	expectTrue(n.Backdrop and n.BackdropWash, "bands beside the picture show the washed painting")
-	local back = holder:FindFirstChild("Backdrop")
-	expectTrue(back.Size.X.Offset >= 1200 and back.Size.Y.Offset >= 1200, "the copy is cover-fitted over the area")
-	local kids = holder:GetChildren()
-	local idx = {}
-	for i, c in ipairs(kids) do idx[c.Name] = i end
-	expectTrue(idx.Picture > idx.Backdrop and idx.Picture > idx.BackdropWash, "the painting draws after the backdrop")
-	scene.show({ x = 0, y = 0, w = 800, h = 800 }, { image = { x = 0, y = 0, w = 800, h = 800 }, scale = 1 })
-	n = names()
-	expectFalse(n.Backdrop or n.BackdropWash, "a picture that covers the area needs no backdrop")
+	expectFalse(n.Backdrop or n.BackdropWash, "bands beside the picture are flat wall colour, never a second copy of the painting")
+	expectTrue(n.Vignette_L and n.Vignette_R, "the picture edges feather into the wall with one gradient frame per side")
+	expectTrue(holder.Size.Y.Offset > 800, "the wall runs past the area bottom so no strip shows")
 end })
 
 tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids): events sit in the three slots without paper or pin of their own, Close is a plain plaque, four events use the cork board", fn = function()
