@@ -160,4 +160,22 @@ function M.panelSize(screenW, screenH, fracW, fracH, maxW, maxH)
 	return math.floor(math.min(screenW * fracW, maxW)), math.floor(math.min(screenH * fracH, maxH, capH))
 end
 
+-- Footer band under a painting whose bottom trim reads pale: one FULL-WIDTH band (never narrower than the area, so it has no side edges)
+-- from the trim's top to the holder bottom, plus a fade strip above it. fade = { { time, transparency }, ... } for ONE vertical
+-- UIGradient (9 keypoints, eased, clear at the top). Returns { fade = rect, band = rect, points = fade }.
+M.BAND_FADE_PX = 60
+function M.bottomBand(p, areaW, holderH, frac)
+	local I = p.image
+	local top = math.floor(I.y + I.h * (1 - frac))
+	local rise = M.BAND_FADE_PX
+	local pts = {}
+	for k = 0, 8 do pts[#pts + 1] = { k / 8, 1 - (k / 8) ^ 0.8 * 1 } end
+	pts[#pts][2] = 0
+	return {
+		fade = { x = 0, y = top - rise, w = areaW, h = rise },
+		band = { x = 0, y = top, w = areaW, h = holderH - top },
+		points = pts,
+	}
+end
+
 return M

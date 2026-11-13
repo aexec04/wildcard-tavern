@@ -31,7 +31,7 @@ function StatsRoom.new(ctx)
 	local Patrons = require(Engine:WaitForChild("Patrons"))
 	local Achievements = require(Engine:WaitForChild("Achievements"))
 	local PanelScene = require(script.Parent.PanelScene)
-	local scene = PanelScene.new(ctx.panel, { artKey = Layout.ART_KEY, def = Layout.DEF, z = 41, bottomCover = { frac = 0.075, color = Color3.fromRGB(Layout.COLORS.frame[1], Layout.COLORS.frame[2], Layout.COLORS.frame[3]) } })
+	local scene = PanelScene.new(ctx.panel, { artKey = Layout.ART_KEY, def = Layout.DEF, z = 41, bottomCover = { frac = 0.075, color = require(script.Parent.RoomWall).COLOR } })
 	local layer = Instance.new("Frame")
 	layer.Name = "RoomLayer"
 	layer.BackgroundTransparency = 1

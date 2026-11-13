@@ -6872,6 +6872,23 @@ table.insert(tests, { name = "Stats room: the picture's pale bottom trim is cove
 	expectTrue(scene:find('"BottomCover"', 1, true) ~= nil and scene:find('"BottomCoverFade"', 1, true) ~= nil, "PanelScene draws the cover and its fade")
 end })
 
+table.insert(tests, { name = "Panel scene footer band is full width with a smooth fade", fn = function()
+	local PSL = require(script.Parent.Parent.Engine.PanelSceneLayout)
+	for _, sz in ipairs({ { 1920, 860 }, { 1280, 600 } }) do
+		local areaW, areaH = sz[1], sz[2]
+		local p = { image = { x = 500, y = 0, w = 918, h = areaH } }
+		local B = PSL.bottomBand(p, areaW, areaH + 24, 0.075)
+		expectTrue(B.band.x == 0, "band starts at the left edge")
+		expectTrue(B.band.w == areaW, "band spans the whole width")
+		expectTrue(B.fade.w == areaW, "fade spans the whole width")
+		expectTrue(B.band.y + B.band.h == areaH + 24, "band reaches the holder bottom")
+		expectTrue(B.fade.y + B.fade.h == B.band.y, "fade sits right on the band")
+		expectTrue(#B.points <= 18, "at most 18 keypoints")
+		expectTrue(B.points[1][2] == 1, "fade starts clear")
+		expectTrue(B.points[#B.points][2] == 0, "fade ends opaque")
+	end
+end })
+
 table.insert(tests, { name = "Tutorial: the step table covers the guided hands in order and the walkthrough is wired", fn = function()
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local order = {}
