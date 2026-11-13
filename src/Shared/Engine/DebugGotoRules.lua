@@ -148,8 +148,8 @@ function DebugGotoRules.parse(value)
 	if pn then
 		return { kind = "patrons", count = math.min(8, tonumber(pn)) }
 	end
-	if text == "playhand" then
-		return { kind = "playhand" }
+	if text == "playhand" or text == "playhand:keep" then
+		return { kind = "playhand", keep = text == "playhand:keep" }
 	end
 	if text == "perf" then
 		return { kind = "perf" }

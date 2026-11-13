@@ -462,7 +462,8 @@ local function run(root, st)
 				placeRect(st, seat, rects[i], H.ringRow)
 				-- the painted hole is the seat: no parchment disc under a portrait or an empty seat (the hub recolours the fill on every
 				-- render, so only its transparency is pinned); the empty seat shows a dim ink "+" and nothing else
-				put(st, seat, { BackgroundTransparency = 1 })
+				-- an owned seat is a filled gold pip (the hub sets the Owned attribute and the gold fill each render)
+				put(st, seat, { BackgroundTransparency = seat:GetAttribute("Owned") == true and 0 or 1 })
 				local ringSpec = rects[i].ring
 				if rects[i].extra and ringSpec then
 					-- a sixth seat and beyond have no painted ring: a matching brass ring in code, behind the portrait
@@ -758,6 +759,7 @@ function PlayBoardHud.apply(root, rect)
 					for _, prop in ipairs({ "Size", "Visible", "Position" }) do
 						table.insert(st.conns, d:GetPropertyChangedSignal(prop):Connect(function() schedule(root, st) end))
 					end
+					table.insert(st.conns, d:GetAttributeChangedSignal("Owned"):Connect(function() schedule(root, st) end))
 				elseif d:IsA("TextLabel") then
 					table.insert(st.conns, d:GetPropertyChangedSignal("TextColor3"):Connect(function() schedule(root, st) end))
 				end

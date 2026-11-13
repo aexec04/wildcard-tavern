@@ -23390,4 +23390,32 @@ table.insert(tests, { name = "Patron Row is wired: the hub installs and updates 
 	for size in row:gmatch("TextSize = (%d+)") do expectTrue(tonumber(size) >= 15, "Patron Row text is 15 px or more") end
 end })
 
+table.insert(tests, { name = "PatronRowRules: the row shows only on the play table, hides on Shop, Round Select, Game Over, Menu and under pages", fn = function()
+	local R = require(script.Parent.Parent.Engine.PatronRowRules)
+	local base = { phase = "playing", rootVisible = true, handVisible = true, panelOpen = false, seats = 3 }
+	local function with(k, v) local t = {} for a, b in pairs(base) do t[a] = b end t[k] = v return t end
+	expectTrue(R.visible(base), "playing shows the row")
+	for _, ph in ipairs({ "shop", "roundSelect", "gameover", "road", "packRoom", false }) do
+		expectTrue(not R.visible(with("phase", ph)), "phase " .. tostring(ph) .. " hides the row")
+	end
+	expectTrue(not R.visible(with("rootVisible", false)), "Menu (root hidden) hides it")
+	expectTrue(not R.visible(with("handVisible", false)), "no hand, no row")
+	expectTrue(not R.visible(with("panelOpen", true)), "a full screen page hides it")
+	expectTrue(not R.visible(with("seats", 0)), "no seats, no row")
+	expectTrue(not R.visible(nil), "nil flags hide it")
+end })
+
+table.insert(tests, { name = "Patron Row fixes: owned pips are filled, the row asks the rule and the corner dock, playhand:keep parses and is wired", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local k, p = R.parse("playhand:keep"), R.parse("playhand")
+	expectTrue(k and k.kind == "playhand" and k.keep == true, "playhand:keep parses with keep")
+	expectTrue(p and p.keep == false, "playhand does not keep")
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local row, board, hub, dbg = read("src/Client/PatronRow.lua"), read("src/Client/PlayBoardHud.lua"), read("src/Client/init.client.lua"), read("src/Client/DebugGoto.lua")
+	if not (row and board and hub and dbg) then return end
+	expectTrue(row:find("Rules.visible", 1, true) ~= nil and row:find("CornerDock", 1, true) ~= nil, "row visibility comes from the rule and the dock")
+	expectTrue(board:find('GetAttribute("Owned")', 1, true) ~= nil and hub:find('SetAttribute("Owned"', 1, true) ~= nil, "owned pips stay filled")
+	expectTrue(dbg:find("DebugSetTarget", 1, true) ~= nil, "playhand:keep raises the target")
+end })
+
 return tests

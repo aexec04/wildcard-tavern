@@ -19,6 +19,7 @@ local RunService = game:GetService("RunService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("PatronRowLayout"))
 local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
+local Rules = require(Engine:WaitForChild("PatronRowRules"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local RarityFrame = require(script.Parent.RarityFrame)
@@ -328,7 +329,10 @@ local function place(state)
 	local limit = math.min(state and state.patronSlotLimit or #owned, MAX_CARDS)
 	limit = math.max(limit, #owned)
 	limit = math.min(limit, MAX_CARDS)
-	local show = rootRef.Visible ~= false and handRef.Visible and limit > 0
+	local panelOpen = false
+	pcall(function() panelOpen = not require(script.Parent.CornerDock).isShown() end) -- same live answer as the corner dock
+	local show = Rules.visible({ phase = state and state.phase, rootVisible = rootRef.Visible, handVisible = handRef.Visible,
+		panelOpen = panelOpen, seats = limit })
 	holder.Visible = show
 	local rootSize = rootRef.AbsoluteSize
 	local hand = {
@@ -382,6 +386,11 @@ function M.update(state)
 	if not holder then return end
 	local ok, err = pcall(place, state)
 	if not ok and RunService:IsStudio() then warn("[PatronRow] " .. tostring(err)) end
+end
+
+-- CornerDock calls this when a page opens or closes, so the row follows the same live answer
+function M.refresh()
+	if holder then pcall(place) end
 end
 
 function M.frames()

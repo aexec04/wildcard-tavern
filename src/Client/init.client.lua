@@ -2437,6 +2437,7 @@ local function render(state)
 				else
 					slot.frame.Visible = true
 					local owned = ownedPatrons[i]
+					slot.frame:SetAttribute("Owned", owned ~= nil) -- PlayBoardHud keeps an owned pip filled
 					if slot.pulse then slot.pulse.Visible = (owned == nil) end
 					if owned then
 						-- a filled gold pip: the portrait is on the big card in the Patron Row, no second tiny copy here

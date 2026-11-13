@@ -51,6 +51,7 @@ function CornerDock.refresh(any)
 		or (anchor.Parent ~= nil and anchor.Parent:GetAttribute("BannerAtBottom") == true) -- RoundSelect sets it on the HUD root
 	shown = Rules.visible({ panelOpen = anyPanelOpen(), roundSelect = roundSelect })
 	if row.Visible ~= shown then row.Visible = shown end
+	pcall(function() require(script.Parent.PatronRow).refresh() end) -- the Patron Row hides under the same pages
 end
 
 local function startSafetyLoop()

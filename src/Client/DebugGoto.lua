@@ -15,6 +15,7 @@
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
 	  loading, loading:<0..100>         the launch loading screen frozen at 60 percent (or that percent), for screenshots
 	  patrons:<0..8>                    after round1 is up: seats n different Patrons on the live run (Studio-only server remote), HUD rebuilds
+	  playhand:keep                     first sets the round target to 5000 (Studio-only server remote), then plays, so the round stays open and the beats can be watched
 	  playhand                          plays the first 5 hand cards through the real PlayHand remote, so the Patron beats run once
 	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
 	  sfx:roundwin                      fires the whole round win sound set (score ticks, stinger, coin run, greeting, wildcard stinger); the
@@ -209,8 +210,9 @@ function DebugGoto.init(deps)
 			if n < 1 then warn("[DebugGoto] playhand needs a dealt hand: round1 first") return end
 			local indices = {}
 			for i = 1, n do indices[i] = i end
+			if target.keep then remotes:WaitForChild("DebugSetTarget"):FireServer(5000) end -- same client, so it arrives before PlayHand
 			remotes:WaitForChild("PlayHand"):FireServer(indices)
-			print("[DebugGoto] playhand sent " .. n .. " cards")
+			print("[DebugGoto] playhand sent " .. n .. " cards" .. (target.keep and " (target 5000)" or ""))
 			return
 		end
 		if target.kind == "sfx" then

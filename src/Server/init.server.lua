@@ -2837,6 +2837,15 @@ Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto playhand:keep raises the round target so one hand scores and the round stays open.
+Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
+	if not RunService:IsStudio() then return end
+	local session = sessions[player]
+	if not session or type(n) ~= "number" or n ~= n then return end
+	session.state.targetScore = math.max(1, math.min(1e9, math.floor(n)))
+	pushState(player)
+end)
+
 Rem.PreviewMode.OnServerEvent:Connect(function(player, on)
 	if not RateLimit.allow(player.UserId, "Rem.PreviewMode", os.clock()) then return end
 	player:SetAttribute("PreviewMode", on == true or nil)
