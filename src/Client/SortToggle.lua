@@ -25,7 +25,7 @@ end
 function SortToggle.build(parent, onPick)
 	local frame = Instance.new("Frame")
 	frame.Name = "SortToggle"
-	frame.Size = UDim2.fromOffset(150, 36)
+	frame.Size = UDim2.fromOffset(132, 28)
 	frame.BackgroundTransparency = 0
 	frame.BorderSizePixel = 0
 	frame.LayoutOrder = 2
@@ -68,7 +68,7 @@ function SortToggle.build(parent, onPick)
 		b.BorderSizePixel = 0
 		b.AutoButtonColor = false
 		b.Font = Enum.Font.Fondamento
-		b.TextSize = 20
+		b.TextSize = 16
 		b.Text = text
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1

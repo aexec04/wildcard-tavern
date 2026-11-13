@@ -297,7 +297,7 @@ return function(deps)
 	readoutCorner.CornerRadius = UDim.new(0.5, 0)
 	readoutCorner.Parent = readoutPill
 	local readoutEdge = Instance.new("UIStroke")
-	readoutEdge.Color = Color3.fromRGB(120, 84, 40)
+	readoutEdge.Color = Color3.fromRGB(196, 154, 76) -- gold edge
 	readoutEdge.Thickness = 2
 	readoutEdge.Parent = readoutPill
 	local function readoutOutline(label)
@@ -305,6 +305,7 @@ return function(deps)
 		o.Name = "ReadoutOutline"
 		o.Color = READOUT_INK
 		o.Thickness = 2
+		o.Transparency = 0.85 -- ink numbers on parchment need no heavy outline
 		o.Parent = label
 	end
 	local chipsLabel = Instance.new("TextLabel")
@@ -313,7 +314,7 @@ return function(deps)
 	chipsLabel.BackgroundTransparency = 1
 	chipsLabel.Font = Enum.Font.GothamBold
 	chipsLabel.TextSize = 28
-	chipsLabel.TextColor3 = Color3.fromRGB(60, 130, 235)
+	chipsLabel.TextColor3 = Color3.fromRGB(34, 62, 128)
 	chipsLabel.TextStrokeTransparency = 1
 	chipsLabel.TextXAlignment = Enum.TextXAlignment.Right
 	chipsLabel.Text = "0"
@@ -327,7 +328,7 @@ return function(deps)
 	xLabel.BackgroundTransparency = 1
 	xLabel.Font = Enum.Font.GothamBold
 	xLabel.TextSize = 26
-	xLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	xLabel.TextColor3 = Color3.fromRGB(60, 40, 22)
 	xLabel.TextStrokeTransparency = 1
 	xLabel.TextXAlignment = Enum.TextXAlignment.Center
 	xLabel.Text = "x"
@@ -341,7 +342,7 @@ return function(deps)
 	multLabel.BackgroundTransparency = 1
 	multLabel.Font = Enum.Font.GothamBold
 	multLabel.TextSize = 28
-	multLabel.TextColor3 = Color3.fromRGB(225, 55, 55)
+	multLabel.TextColor3 = Color3.fromRGB(150, 44, 34)
 	multLabel.TextStrokeTransparency = 1
 	multLabel.TextXAlignment = Enum.TextXAlignment.Left
 	multLabel.Text = "0"
@@ -582,24 +583,24 @@ return function(deps)
 			totalWidth = totalWidth + entry.ghost.AbsoluteSize.X
 		end
 		totalWidth = totalWidth + gap * (#playedGhosts - 1)
-		-- reference line the row has always hung from (the old popup's top edge)
-		local popupTop = root.AbsolutePosition.Y + rootSize.Y - 356
-		local rowY = math.max(20, popupTop - ROW_MARGIN_ABOVE_POPUP - ROW_CARD_HEIGHT)
-		-- Boss rounds: keep the row below the boss plaque and HP bar (host bottom),
-		-- but never lower than just above the popup.
-		local bossHost = root:FindFirstChild("BossFightHost")
-		local bossPlate = bossHost and bossHost:FindFirstChild("NamePlate") -- the host is now a full-area backdrop
-		if bossHost and bossPlate and bossHost.Visible then
-			local bossBottom = bossPlate.AbsolutePosition.Y - root.AbsolutePosition.Y + bossPlate.AbsoluteSize.Y
-			rowY = math.min(math.max(rowY, bossBottom + 6), popupTop - 6 - ROW_CARD_HEIGHT)
-		end
-		-- the readout hangs just above the row's top edge, clear of the hand
-		scorePopup.Position = UDim2.new(0.5, 0, 0, math.max(4, rowY - 8 - POPUP_H))
-		-- the played cards never cover the Patron row: they land below it (the readout plate stays where it was)
+		-- the played hand gets its own lane between the Patron row and the hand (Engine/PlayedLane), cards at 50 to 75 percent
+		local handFrame = root:FindFirstChild("HandFrame", true)
 		local okE, nookBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
-		if okE and nookBottom then
-			rowY = math.max(rowY, nookBottom + 10 - root.AbsolutePosition.Y)
+		local g1 = playedGhosts[1] and playedGhosts[1].ghost
+		if g1 and handFrame and not g1:GetAttribute("LaneW") then
+			g1:SetAttribute("LaneW", g1.AbsoluteSize.X)
+			g1:SetAttribute("LaneH", g1.AbsoluteSize.Y)
 		end
+		local baseW = g1 and g1:GetAttribute("LaneW") or 120
+		local baseH = g1 and g1:GetAttribute("LaneH") or 170
+		local lane = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane")).rect({
+			nookBottom = okE and nookBottom and (nookBottom - root.AbsolutePosition.Y) or nil,
+			handTop = handFrame and (handFrame.AbsolutePosition.Y - root.AbsolutePosition.Y) or (rootSize.Y - 356),
+			cardW = baseW, cardH = baseH, popupH = POPUP_H,
+		})
+		local rowY = lane.rowY
+		totalWidth = (lane.cardW + gap) * #playedGhosts - gap
+		scorePopup.Position = UDim2.new(0.5, 0, 0, lane.readoutY)
 		if #playedGhosts == 0 then
 			return
 		end
@@ -626,9 +627,10 @@ return function(deps)
 					sh.Parent = entry.ghost
 				end
 			end
+			tweenTo(entry.ghost, { Size = UDim2.fromOffset(lane.cardW, lane.cardH) }, pace(GHOST_LIFT_DURATION))
 			tweenTo(entry.ghost, { Position = UDim2.fromOffset(x, rowY + dy) }, pace(GHOST_LIFT_DURATION), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 			if rot then tweenTo(entry.ghost, { Rotation = rot }, pace(GHOST_LIFT_DURATION)) end
-			x = x + entry.ghost.AbsoluteSize.X + gap
+			x = x + lane.cardW + gap
 		end
 	end
 

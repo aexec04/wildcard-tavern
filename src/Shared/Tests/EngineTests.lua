@@ -12034,7 +12034,7 @@ table.insert(tests, { name = "FlairFX: previews draw above every Flair panel lay
 	expectTrue(sp:find("FlairGlow", 1, true) ~= nil, "score digits glow")
 	expectTrue(sp:find(".finisher(particleBurst, centerOf(scorePopup), preview, ScoreJuice.clearsTarget", 1, true) ~= nil, "finisher gets the clear flag")
 	-- the scoring readout hangs above the played row on pills, 28 px numbers with a 2 px outline, 20 px hand name
-	expectTrue(sp:find("scorePopup.Position = UDim2.new(0.5, 0, 0, math.max(4, rowY - 8 - POPUP_H))", 1, true) ~= nil, "readout sits above the played row")
+	expectTrue(sp:find("scorePopup.Position = UDim2.new(0.5, 0, 0, lane.readoutY)", 1, true) ~= nil, "readout sits above the played row")
 	expectTrue(sp:find("chipsLabel.TextSize = 28", 1, true) ~= nil and sp:find("multLabel.TextSize = 28", 1, true) ~= nil, "readout numbers are 28 px")
 	expectTrue(sp:find("scorePopupHandName.TextSize = 20", 1, true) ~= nil, "hand name is 20 px")
 	expectTrue(sp:find("o.Thickness = 2", 1, true) ~= nil, "readout numbers have a 2 px outline")
@@ -23888,10 +23888,37 @@ table.insert(tests, { name = "Patron beats: debug Patrons always fire on High Ca
 	local dbg, pop, row, srv = slurp("src/Client/DebugGoto.lua"), slurp("src/Client/ScorePopup.lua"), slurp("src/Client/PatronRow.lua"), slurp("src/Server/init.server.lua")
 	if not (dbg and pop and row and srv) then return end
 	expectTrue(dbg:find("st.targetScore == 5000", 1, true) ~= nil, "playhand:keep waits for the pushed target before the preview reads it")
-	expectTrue(pop:find("PatronRow).bottomEdge()", 1, true) ~= nil and pop:find("nookBottom + 10", 1, true) ~= nil, "played cards clamp below the Patron row")
+	expectTrue(pop:find("PatronRow).bottomEdge()", 1, true) ~= nil and pop:find("PlayedLane", 1, true) ~= nil, "played cards clamp below the Patron row")
 	expectTrue(row:find("function M.bottomEdge", 1, true) ~= nil, "PatronRow exposes its bottom edge")
 	expectTrue(pop:find('"[PatronBeat] events="', 1, true) ~= nil, "the beat count is printed in Studio")
 	expectTrue(srv:find("Patrons.alwaysFiring(n)", 1, true) ~= nil, "DebugGoto patrons grants always-firing Patrons")
+end })
+
+table.insert(tests, { name = "PlayedLane: played cards land between the Patron nook and the hand, shrunk to 50 to 75 percent", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PlayedLane)
+	for _, c in ipairs({ { 957, 150, 640 }, { 720, 120, 470 }, { 957, 0, 700 }, { 600, 110, 480 } }) do
+		local o = { nookBottom = c[2] > 0 and c[2] or nil, handTop = c[3], cardW = 120, cardH = 170, popupH = 112 }
+		local r = PL.rect(o)
+		expectTrue(r.scale >= PL.MIN_SCALE and r.scale <= PL.MAX_SCALE, "scale in range")
+		expectTrue(math.abs(r.cardH - 170 * r.scale) < 0.01 and math.abs(r.cardW - 120 * r.scale) < 0.01, "size follows the scale")
+		expectTrue(r.rowY + r.cardH <= o.handTop - PL.GAP + 0.01, "lane ends above the hand (no overlap with HandFrame)")
+		if r.fits then
+			expectTrue(r.rowY >= (o.nookBottom or 0) + PL.GAP - 0.01, "lane starts below the Patron name plaques")
+		end
+	end
+	local roomy = PL.rect({ nookBottom = 150, handTop = 700, cardW = 120, cardH = 170, popupH = 112 })
+	expectTrue(roomy.scale == PL.MAX_SCALE and roomy.fits and roomy.readoutY >= 150, "roomy window: 75 percent, readout clear of the nook")
+	local tight = PL.rect({ nookBottom = 200, handTop = 280, cardW = 120, cardH = 170, popupH = 112 })
+	expectTrue(tight.scale == PL.MIN_SCALE, "tight window shrinks to the floor")
+end })
+
+table.insert(tests, { name = "Play table cohesion: card index text has a 15 px floor and the readout is parchment with ink numbers", fn = function()
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local face, pop = slurp("src/Client/CardFace.lua"), slurp("src/Client/ScorePopup.lua")
+	if not (face and pop) then return end
+	expectTrue(face:find("MinTextSize = 15", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 15")
+	expectTrue(pop:find("PlayedLane", 1, true) ~= nil, "ScorePopup lands cards through PlayedLane")
+	expectTrue(pop:find("Color3.fromRGB(60, 130, 235)", 1, true) == nil and pop:find("Color3.fromRGB(225, 55, 55)", 1, true) == nil, "no saturated flat blue and red on the readout")
 end })
 
 return tests

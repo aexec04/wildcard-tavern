@@ -2139,6 +2139,7 @@ local function rebuildHand(handData, phase)
 		cardArt.BorderSizePixel = 0
 		cardArt.ScaleType = Enum.ScaleType.Stretch
 		cardArt.Image = cardFaceTemplate
+		cardArt.ImageColor3 = Color3.fromRGB(246, 233, 205) -- warm aged ivory, not flat white
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
 		VisualHelpersModule.roundCorner(cardArt, 8)

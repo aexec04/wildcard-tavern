@@ -29,8 +29,8 @@
 local CardFace = {}
 
 local SERIF = "rbxasset://fonts/families/Merriweather.json"
-local RED_INK = Color3.fromRGB(165, 28, 28)
-local BLACK_INK = Color3.fromRGB(30, 22, 18)
+local RED_INK = Color3.fromRGB(160, 50, 40) -- muted brick red
+local BLACK_INK = Color3.fromRGB(60, 40, 22) -- warm ink, same family as the parchment board
 local WILDCARD_INK = Color3.fromRGB(150, 110, 230)
 local GOLD = Color3.fromRGB(205, 170, 95)
 
@@ -70,6 +70,11 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 	label.Text = text
 	label.ZIndex = zIndex
 	label.Parent = parent
+	-- TextScaled alone shrank the corner index to about 8 px; keep it readable
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MinTextSize = 15
+	limit.MaxTextSize = 60
+	limit.Parent = label
 	return label
 end
 

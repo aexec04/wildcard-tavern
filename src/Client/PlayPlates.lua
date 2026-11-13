@@ -213,7 +213,7 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 		sortFrame.Size = UDim2.new(0, 214, 1, 0)
 		if caption then caption.Visible = true end
 		if toggle then
-			toggle.Size = UDim2.fromOffset(150, 36)
+			toggle.Size = UDim2.fromOffset(132, 28) -- a small chip, lighter than Play Hand and Discard
 			toggle.BackgroundTransparency = 0
 			local st = toggle:FindFirstChildOfClass("UIStroke")
 			if st then st.Enabled = true end
