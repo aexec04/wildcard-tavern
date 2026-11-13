@@ -17,7 +17,8 @@
 	  patrons:<0..8>                    after round1 is up: seats n different Patrons on the live run (Studio-only server remote), HUD rebuilds
 	  playhand:keep                     first sets the round target to 5000 (Studio-only server remote), then plays, so the round stays open and the beats can be watched
 	  playhand                          plays the first 5 hand cards through the real PlayHand remote, so the Patron beats run once
-	  sfx:<cue>, sfx:ladder             plays a sound cue once, or an 8 step pitch ladder
+	  beatslow:on|freeze|off            Patron scoring beats 2.0 s apart, each held 1.6 s; freeze keeps beat 2 (ring, hop, pill, dimmed others) until off
+	  sfx:<cue>, sfx:ladder           plays a sound cue once, or an 8 step pitch ladder
 	  sfx:roundwin                      fires the whole round win sound set (score ticks, stinger, coin run, greeting, wildcard stinger); the
 	                                    Output logs "[SoundDirector] voices=N" each time a sound starts
 	init({ menuFrame })
@@ -176,6 +177,14 @@ function DebugGoto.init(deps)
 				print("[Perf] top classes: " .. table.concat(cp, ", "))
 			end)
 			if not okP then warn("[DebugGoto] perf failed: " .. tostring(errP)) end
+			return
+		end
+		if target.kind == "beatslow" then
+			-- Patron scoring beats slowed for screenshots; freeze keeps beat 2 on screen until beatslow:off
+			local okB, errB = pcall(function()
+				require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).setSlow(target.mode)
+			end)
+			if okB then print("[DebugGoto] beatslow " .. target.mode .. " ok") else warn("[DebugGoto] beatslow failed: " .. tostring(errB)) end
 			return
 		end
 		if target.kind == "drawer" then

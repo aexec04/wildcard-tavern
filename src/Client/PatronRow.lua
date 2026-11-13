@@ -470,7 +470,7 @@ local function tween(obj, info, goal)
 	return t
 end
 
-local function pill(parent, text, color, size, bold, x, y, rise)
+local function pill(parent, text, color, size, bold, x, y, rise, hold, frozen)
 	local p = Instance.new("TextLabel")
 	p.AnchorPoint = Vector2.new(0.5, 1)
 	p.Position = UDim2.fromOffset(x, y)
@@ -501,7 +501,8 @@ local function pill(parent, text, color, size, bold, x, y, rise)
 	if not calm() then
 		tween(sc, TweenInfo.new(0.14, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
 	end
-	task.delay(0.55, function()
+	task.delay(hold or 0.55, function()
+		while frozen and frozen() and p.Parent do task.wait(0.1) end -- Studio beatslow:freeze
 		if not p.Parent then return end
 		local info = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		if not calm() then tween(p, info, { Position = UDim2.fromOffset(x, y - rise) }) end
@@ -527,13 +528,22 @@ function M.trigger(patronId, event, fast)
 			task.delay(0.14, function() c.hopping = false; startFloat(c, 1) end)
 		end)
 	end
+	local hold = PatronEvents.hold() -- nil outside Studio beatslow
+	local frozen = event.freeze and function() return PatronEvents.slowMode() == "freeze" end or nil
 	c.ringStroke.Transparency = 0
-	tween(c.ringStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+	if hold then
+		task.delay(hold, function()
+			while frozen and frozen() and c.ringStroke.Parent do task.wait(0.1) end
+			tween(c.ringStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+		end)
+	else
+		tween(c.ringStroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 })
+	end
 	-- the effect pill above the card
 	local r = c.slot
 	local hostX = r.Position.X.Offset + r.Size.X.Offset / 2
 	local hostY = r.Position.Y.Offset - 4
-	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, 22)
+	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, 22, hold, frozen)
 	-- every other Patron dims to 70 percent while this one triggers
 	dimToken = dimToken + 1
 	local mine = dimToken
@@ -543,7 +553,8 @@ function M.trigger(patronId, event, fast)
 		end
 	end
 	c.dim.BackgroundTransparency = 1
-	task.delay(PatronEvents.gap(fast) + 0.3, function()
+	task.delay(hold or (PatronEvents.gap(fast) + 0.3), function()
+		while frozen and frozen() and dimToken == mine do task.wait(0.1) end
 		if dimToken ~= mine then return end
 		for _, other in ipairs(cards) do
 			if other.dim.Parent then tween(other.dim, TweenInfo.new(0.2), { BackgroundTransparency = 1 }) end

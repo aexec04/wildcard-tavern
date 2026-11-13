@@ -144,6 +144,10 @@ function DebugGotoRules.parse(value)
 	if text == "drawer:closed" or text == "drawer:open" then
 		return { kind = "drawer", closed = text == "drawer:closed" }
 	end
+	local bs = text:match("^beatslow:(%a+)$")
+	if bs == "on" or bs == "off" or bs == "freeze" then
+		return { kind = "beatslow", mode = bs }
+	end
 	local pn = text:match("^patrons:(%d+)$")
 	if pn then
 		return { kind = "patrons", count = math.min(8, tonumber(pn)) }

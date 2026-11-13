@@ -21,8 +21,28 @@ PatronEvents.GAP, PatronEvents.GAP_FAST = 0.28, 0.12
 
 local KIND = { chips = "chips", mult = "mult", xmult = "xmult", tips = "money" }
 
+-- Studio-only screenshot aid (DebugGoto beatslow:on|freeze|off): "slow" spaces beats GAP_SLOW apart and holds each
+-- one HOLD_SLOW; "freeze" is slow, and the second beat stays on screen until the mode is switched off.
+PatronEvents.GAP_SLOW, PatronEvents.HOLD_SLOW, PatronEvents.FREEZE_AT = 2.0, 1.6, 2
+local slowMode = nil
+
+function PatronEvents.setSlow(mode)
+	if mode == "on" or mode == "slow" then slowMode = "slow"
+	elseif mode == "freeze" then slowMode = "freeze"
+	else slowMode = nil end
+	return slowMode
+end
+
+function PatronEvents.slowMode() return slowMode end
+
 function PatronEvents.gap(fast)
+	if slowMode then return PatronEvents.GAP_SLOW end
 	return fast and PatronEvents.GAP_FAST or PatronEvents.GAP
+end
+
+-- seconds the ring, pill and dimming stay up for one beat (nil = the normal short animation)
+function PatronEvents.hold()
+	return slowMode and PatronEvents.HOLD_SLOW or nil
 end
 
 function PatronEvents.fromBreakdown(breakdown)

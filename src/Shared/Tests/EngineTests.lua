@@ -23320,6 +23320,28 @@ table.insert(tests, { name = "Full screen Collection: the layout never writes th
 	end
 end })
 
+table.insert(tests, { name = "beatslow: parses on/freeze/off, slows the Patron beat gap to 2.0 s, holds 1.6 s, off restores", fn = function()
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	for _, m in ipairs({ "on", "freeze", "off" }) do
+		local t = R.parse("beatslow:" .. m)
+		expectTrue(t ~= nil and t.kind == "beatslow" and t.mode == m, "beatslow:" .. m .. " parses")
+	end
+	expectTrue(R.parse("beatslow:maybe") == nil, "junk mode is nil")
+	expectEqual(PE.gap(false), 0.28, "normal gap")
+	expectTrue(PE.hold() == nil, "no hold normally")
+	PE.setSlow("on")
+	expectEqual(PE.gap(false), 2.0, "slow gap")
+	expectEqual(PE.gap(true), 2.0, "slow gap in fast mode")
+	expectEqual(PE.hold(), 1.6, "slow hold")
+	expectTrue(PE.slowMode() == "slow", "mode slow")
+	PE.setSlow("freeze")
+	expectTrue(PE.slowMode() == "freeze", "mode freeze")
+	PE.setSlow("off")
+	expectEqual(PE.gap(false), 0.28, "off restores the gap")
+	expectTrue(PE.slowMode() == nil and PE.hold() == nil, "off clears the mode")
+end })
+
 table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
 	local ids = {}

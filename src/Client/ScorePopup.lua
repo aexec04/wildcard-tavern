@@ -903,6 +903,7 @@ return function(deps)
 	local function showScorePopup(preview, sourceInfo)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
+		local patronBeatNo = 0 -- Patron beats played this hand (Studio beatslow:freeze stops after the second)
 
 		-- PHASE A (Spectacle pass): decided once per hand, same timing as
 		-- currentPaceDivisor just below -- see this file's "LEGENDARY
@@ -1201,8 +1202,10 @@ return function(deps)
 						if slotFrame then
 							pulsePatronSlot(slotFrame)
 							pcall(function() -- Patron Row beat: hop, gold ring, effect pill, the others dim
+								patronBeatNo = patronBeatNo + 1
 								require(script.Parent.PatronRow).trigger(source.patronId, {
-									kind = entry.kind == "tips" and "money" or entry.kind, amount = entry.amount, label = entry.label },
+									kind = entry.kind == "tips" and "money" or entry.kind, amount = entry.amount, label = entry.label,
+									freeze = patronBeatNo == 2 and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).slowMode() == "freeze" },
 									currentPaceDivisor > 1)
 							end)
 							-- voice line + hop, once per hand per Patron (cosmetic, never throws)
@@ -1255,7 +1258,10 @@ return function(deps)
 							bump.Scale = 1.25
 							tweenTo(bump, { Scale = 1 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 						end
-						task.wait(require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).gap(currentPaceDivisor > 1))
+						local PE = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents"))
+						task.wait(PE.gap(currentPaceDivisor > 1))
+						-- Studio beatslow:freeze: beat 2 stays up and the count up waits until beatslow:off
+						while patronBeatNo == PE.FREEZE_AT and PE.slowMode() == "freeze" and scorePopupToken == myToken do task.wait(0.1) end
 					else
 						task.wait(pace(ENTRY_STAGGER))
 					end
