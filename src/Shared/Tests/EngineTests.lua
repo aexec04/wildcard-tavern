@@ -21231,6 +21231,7 @@ table.insert(tests, { name = "MenuGate: run modals and the table never show over
 	expectEqual(#sinks, 1, "only visible Active objects other than the Menu are listed")
 	expectEqual(sinks[1], "ChoiceBackdrop", "the stale blessing modal is named")
 	if io and io.open then
+		if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
 		local f = io.open("src/Client/init.client.lua", "r")
 		if f then
 			local hub = f:read("*a")
@@ -24056,6 +24057,7 @@ table.insert(tests, { name = "CardFaceArt: the Classic Tavern skin draws the ivo
 	expectFalse(CFA.ivoryAlone(classic, ""), "a missing face id keeps the old layers as the fallback")
 	expectFalse(CFA.ivoryAlone({ neutral = false, images = {} }, id), "a themed set keeps its own skin")
 	expectFalse(CFA.ivoryAlone(nil, id), "nil skin is safe")
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
 	local f = io.open("src/Client/SetSkin.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
@@ -24069,6 +24071,7 @@ table.insert(tests, { name = "Card face polish: the face crop drops the checker 
 	expectTrue(r.x >= 54 and r.y >= 54, "crop covers the ~54 px checker margin")
 	expectTrue(r.x + r.w == CFA.SIZE[1] - CFA.CROP and r.y + r.h == CFA.SIZE[2] - CFA.CROP, "crop is symmetric and inside the picture")
 	expectTrue(CFA.CORNER_RADIUS >= 4 and CFA.CORNER_RADIUS <= 8, "art corners are rounded about 6 px")
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
 	local f = io.open("src/Client/SortToggle.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
@@ -24133,6 +24136,7 @@ table.insert(tests, { name = "DeckCountText: remaining over the real deck size, 
 	expectEqual(DCT.format(44, {}), "44/52", "empty view: 52")
 	expectEqual(DCT.format(60, nil), "60/60", "never below remaining")
 	expectEqual(DCT.format(3.7, view), "3/54", "floored")
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
 	local f = io.open("src/Client/init.client.lua", "r")
 	if f then
 		local src = f:read("*a"); f:close()
@@ -24141,6 +24145,7 @@ table.insert(tests, { name = "DeckCountText: remaining over the real deck size, 
 end })
 
 table.insert(tests, { name = "Tile text: fitOne never turns RichText off for a two-line tile, and the two-line pass forces it on every layout", fn = function()
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
 	local f = io.open("src/Client/PlayBoardHud.lua", "r")
 	if not f then return end -- Roblox build: no source on disk
 	local src = f:read("*a")

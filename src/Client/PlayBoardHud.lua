@@ -423,7 +423,7 @@ local function run(root, st)
 				local lab = visibleLabel(col)
 				if lab then
 					local inset = slot.w < 90 and 6 or TILE_INSET -- narrow tiles: 6 px padding each side so the number is not cut
-					put(st, lab, { Position = UDim2.fromOffset(inset, 0), Size = UDim2.new(1, -2 * inset, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
+					put(st, lab, { Position = UDim2.fromOffset(inset, 4), Size = UDim2.new(1, -2 * inset, 1, -4), TextXAlignment = Enum.TextXAlignment.Center })
 					local width = slot.w - 2 * inset
 					shared = math.min(shared, (sizeFor(lab.Text, 15, 18, width, lab.Font)))
 					table.insert(tiles, { lab = lab, width = width })
@@ -436,6 +436,7 @@ local function run(root, st)
 			for _, t in ipairs(okBH and tiles or {}) do
 				local lab = t.lab
 				lab.RichText = true -- fitOne above just reset it; the font tags must never print
+				lab.LineHeight = 0.72 -- 15 px word over 28 px number must fit the 51 px well without clipping the word
 				if not lab:GetAttribute("TwoLine") then
 					lab:SetAttribute("TwoLine", true)
 					local function twoLine()

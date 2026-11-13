@@ -438,6 +438,23 @@ function CardFace.layoutHand(handFrame)
 		local byHeight = math.floor((frameSize.Y - (bigHand and TRAY_PAD or 2 * TRAY_PAD)) / CARD_ASPECT)
 		width = math.clamp(math.min(maxWidth, byWidth, byHeight), MIN_CARD_WIDTH, maxWidth)
 	end
+	-- Big hands (cards up to 124 wide) that do not fit the row fan out: neighbours overlap by up to 20 percent of a card, like a held
+	-- hand. The rank and suit sit top left, so every index stays readable. Narrow windows keep the plain 6 px gap.
+	local gap = CARD_GAP
+	if frameSize.X > 0 and count > 1 and (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH then
+		local avail = frameSize.X - 2 * TRAY_PAD
+		local byHeight = math.floor((frameSize.Y - TRAY_PAD) / CARD_ASPECT)
+		local w = math.clamp(math.min(maxWidth, byHeight), MIN_CARD_WIDTH, maxWidth)
+		if count * w + (count - 1) * CARD_GAP > avail then
+			local maxOverlap = math.floor(w * 0.2)
+			gap = math.max(math.floor((avail - count * w) / (count - 1)), -maxOverlap)
+			width = math.clamp(math.min(w, math.floor((avail - (count - 1) * gap) / count)), MIN_CARD_WIDTH, maxWidth)
+		else
+			width = w
+		end
+	end
+	local layout = handFrame:FindFirstChildOfClass("UIListLayout")
+	if layout and layout.Padding.Offset ~= gap then layout.Padding = UDim.new(0, gap) end
 	local height = math.floor(width * CARD_ASPECT)
 	for _, slot in ipairs(slots) do
 		slot.Size = UDim2.fromOffset(width, height)
@@ -450,7 +467,7 @@ function CardFace.layoutHand(handFrame)
 		local center = handFrame.AbsolutePosition + frameSize / 2 - host.AbsolutePosition
 		tray.Position = UDim2.fromOffset(center.X, center.Y)
 		tray.Size = UDim2.fromOffset(
-			count * width + math.max(count - 1, 0) * CARD_GAP + 2 * TRAY_PAD,
+			count * width + math.max(count - 1, 0) * gap + 2 * TRAY_PAD,
 			height + 2 * TRAY_PAD
 		)
 	end
