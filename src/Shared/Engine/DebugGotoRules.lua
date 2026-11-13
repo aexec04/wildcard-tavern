@@ -201,6 +201,18 @@ function DebugGotoRules.parse(value)
 	if parts[1] == "round1" and #parts == 2 and parts[2]:match("^[a-z0-9_]+$") then
 		return { kind = "round1", setId = parts[2] }
 	end
+	-- round1:mod=<blessingId>, round1:tag=<tagId>, or both joined by a comma (round1:mod=open_hands,tag=tip_jar)
+	if parts[1] == "round1" and #parts == 2 and parts[2]:find("=", 1, true) then
+		local out = { kind = "round1" }
+		for item in parts[2]:gmatch("[^,]+") do
+			local key, id = item:match("^(%a+)=([a-z0-9_]+)$")
+			if (key ~= "mod" and key ~= "tag") or out[key .. "Id"] then
+				return nil, "bad round1 option " .. item
+			end
+			out[key .. "Id"] = id
+		end
+		return out
+	end
 	if parts[1] == "tome" and #parts >= 2 and #parts <= 3 then
 		local opener = DebugGotoRules.TOME_PAGES[parts[2]]
 		if opener then
@@ -213,9 +225,15 @@ end
 
 -- What to answer to a table state while round1 is being reached.
 -- Returns "choice", optionId (pick the first option), "select" (start the round) or nil.
-function DebugGotoRules.round1Step(state)
+-- wantedModId (optional): answer a blessing choice with that option when it is offered, else the first option.
+function DebugGotoRules.round1Step(state, wantedModId)
 	if type(state) ~= "table" then return nil end
 	if type(state.choice) == "table" and type(state.choice.options) == "table" and state.choice.options[1] then
+		if wantedModId and state.choice.kind == "modifier" then
+			for _, option in ipairs(state.choice.options) do
+				if option.id == wantedModId then return "choice", option.id end
+			end
+		end
 		return "choice", state.choice.options[1].id
 	end
 	if state.phase == "roundSelect" then return "select" end

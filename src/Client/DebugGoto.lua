@@ -1,7 +1,7 @@
 --[[
 	Client/DebugGoto.lua
 	Studio-only jump hook. Set a StringValue named DebugGoto under the LocalPlayer (or the attribute DebugGoto)
-	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1, round1:<cardSetId>
+	to one of: menu, tome:<collection|cardsets|badges|legend|flair|stats>[:subtab], news, round1, round1:<cardSetId>, round1:mod=<blessingId>[,tag=<tagId>]
 	(the last starts round 1 with that Card Set previewed, e.g. round1:winter_evening).
 	Goes through the normal open paths (OverlayManager openers, NewsPanel.open, the StartSeedRun and Choice
 	remotes). Prints "[DebugGoto] <value> ok" or the error. Does nothing outside Studio. spectate needs a second
@@ -48,6 +48,7 @@ function DebugGoto.init(deps)
 	local selectSent = false
 	local synthWhich = nil -- shop/roundwin/gameover/boss1/roundselect: the screen to show once round1 has reached it
 	local synthVariant, synthPage = nil, nil -- haggle:good|bad, runover:win, rarity:<page>
+	local wantedMod, wantedTag = nil, nil -- round1:mod=<id>,tag=<id>: the blessing to pick and the Tag to make current
 	local previewSet = nil -- round1:<setId>: the set to preview once the hand is dealt (a run start resets the look)
 
 	local function showSynth(which, variant, page)
@@ -343,6 +344,28 @@ function DebugGoto.init(deps)
 				return
 			end
 			print("[DebugGoto] round1 hand=" .. count)
+			if wantedTag or wantedMod then
+				local tagId = wantedTag
+				wantedTag, wantedMod = nil, nil
+				if tagId then pcall(function() remotes:WaitForChild("DebugSetTag"):FireServer(tagId) end) end
+				task.delay(1, function() -- let the state update reach the board, then list what it shows
+					local okB, board = pcall(function() return player.PlayerGui.GameUI.GameRoot.Sidebar end)
+					if not okB or not board then warn("[DebugGoto] board text: Sidebar not found") return end
+					local lines = {}
+					for _, d in ipairs(board:GetDescendants()) do
+						if d:IsA("TextLabel") and d.Text ~= "" and d.Visible then
+							local shown = true
+							local p = d.Parent
+							while p and p ~= board do
+								if p:IsA("GuiObject") and not p.Visible then shown = false break end
+								p = p.Parent
+							end
+							if shown then lines[#lines + 1] = d.Text:gsub("<[^>]+>", "") end
+						end
+					end
+					print("[DebugGoto] board text: " .. table.concat(lines, " | "))
+				end)
+			end
 			if previewSet then
 				local set = previewSet
 				previewSet = nil
@@ -353,7 +376,7 @@ function DebugGoto.init(deps)
 			return
 		end
 		hideTutorialOverlay()
-		local step, optionId = Rules.round1Step(state)
+		local step, optionId = Rules.round1Step(state, wantedMod)
 		if step == "choice" then
 			remotes:WaitForChild("Choice"):FireServer(optionId)
 		elseif step == "select" and not selectSent then

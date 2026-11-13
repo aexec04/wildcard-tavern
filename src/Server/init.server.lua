@@ -2835,6 +2835,17 @@ Rem.DebugGrantPatrons.OnServerEvent:Connect(function(player, n)
 	pushState(player)
 end)
 
+-- Studio only: DebugGoto round1:tag=<id> makes that Tag the current round's skip Tag.
+Rem.DebugSetTag.OnServerEvent:Connect(function(player, tagId)
+	if not RunService:IsStudio() then return end
+	local session = sessions[player]
+	if not session or type(tagId) ~= "string" then return end
+	local tag = require(Engine.Tags).getById(tagId)
+	if not tag then return end
+	session.state.currentRoundSkipTag = tag
+	pushState(player)
+end)
+
 -- Studio only: DebugGoto playhand:keep raises the round target so one hand scores and the round stays open.
 Rem.DebugSetTarget.OnServerEvent:Connect(function(player, n)
 	if not RunService:IsStudio() then return end
