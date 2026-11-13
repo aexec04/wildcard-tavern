@@ -57,6 +57,13 @@ Scoring.HandLevelGrowth = {
 -- rng(n) returns an integer in [1, n]. A "1 in N" chance hits when that
 -- roll comes up 1, so tests can force a hit with `function() return 1 end`
 -- or force a miss with the default identity-style rng (as long as N > 1).
+-- A "never lucky" rng: a 1 in N roll hits on 1, so answering N misses every roll (for any N above 1). The client's
+-- hand preview scores with this, so a preview shows the part of the score that is certain and never a lucky roll the
+-- server did not make. The real hand is rolled once, on the server, and reported back (RunState state.lastPlay).
+function Scoring.noLuck(n)
+	return n
+end
+
 local function chanceHits(rng, oneInN)
 	if not oneInN or oneInN < 1 then
 		return false

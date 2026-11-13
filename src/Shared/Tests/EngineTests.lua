@@ -10994,7 +10994,7 @@ table.insert(tests, { name = "New Boss Rounds: eight new rules, tiered, each one
 	local hub = io and io.open and io.open("src/Client/init.client.lua", "r")
 	if hub then
 		local src = hub:read("*a"); hub:close()
-		expectTrue(src:find("BossRules.blocksHand", 1, true) ~= nil and src:find("BossRules.scoreFactor", 1, true) ~= nil, "the preview uses the same rules")
+		expectTrue(src:find("BossRules.blocksHand", 1, true) ~= nil and src:find("BossRules.finishScore", 1, true) ~= nil, "the preview uses the same rules")
 	end
 end })
 
@@ -24285,6 +24285,234 @@ table.insert(tests, { name = "Ivory card face: rank and suit sit in the top-left
 		expectTrue(src:find("paintButton(play, imageId, B.play, pl.play, true)", 1, true) ~= nil, "Play Hand is painted as the primary")
 		expectTrue(src:find("paintButton(discard, imageId, B.discard, pl.discard)", 1, true) ~= nil, "Discard is not")
 	end
+end })
+
+table.insert(tests, { name = "PayloadGuard.indexList: whole numbers in range only; fractions, NaN, infinities, repeats, holes, extra keys and wrong types are refused", fn = function()
+	local PG = require(script.Parent.Parent.Engine.PayloadGuard)
+	expectTrue(PG.indexList({ 1 }, 8), "one card")
+	expectTrue(PG.indexList({ 8, 1, 3, 5, 2 }, 8), "five cards in any order")
+	expectTrue(PG.indexList({ 1, 2, 3 }, 8, 3), "a smaller limit still allows up to it")
+	expectFalse(PG.indexList({ 1.5 }, 8), "a fraction picked no card and still spent a hand")
+	expectFalse(PG.indexList({ 1, 2.000001 }, 8), "a near whole number")
+	expectFalse(PG.indexList({ 0 / 0 }, 8), "NaN")
+	expectFalse(PG.indexList({ math.huge }, 8), "infinity")
+	expectFalse(PG.indexList({ -math.huge }, 8), "negative infinity")
+	expectFalse(PG.indexList({ 0 }, 8), "zero")
+	expectFalse(PG.indexList({ -1 }, 8), "negative")
+	expectFalse(PG.indexList({ 9 }, 8), "past the hand")
+	expectFalse(PG.indexList({ 2, 2 }, 8), "a repeat")
+	expectFalse(PG.indexList({}, 8), "empty")
+	expectFalse(PG.indexList({ 1, 2, 3, 4, 5, 6 }, 8), "six cards")
+	expectFalse(PG.indexList({ 1, 2, 3, 4 }, 8, 3), "over a smaller limit")
+	expectFalse(PG.indexList({ "1" }, 8), "a string")
+	expectFalse(PG.indexList({ { 1 } }, 8), "a nested table")
+	expectFalse(PG.indexList({ [1] = 1, [3] = 2 }, 8), "a hole")
+	expectFalse(PG.indexList({ 1, x = 2 }, 8), "an extra key")
+	expectFalse(PG.indexList({ x = 1 }, 8), "a dictionary")
+	expectFalse(PG.indexList(nil, 8), "nil")
+	expectFalse(PG.indexList("12", 8), "a string instead of a list")
+	expectFalse(PG.indexList(3, 8), "a number instead of a list")
+	expectFalse(PG.indexList({ 1 }, 0), "an empty hand")
+	expectFalse(PG.indexList({ 1 }, 7.5), "a broken hand size")
+	expectTrue(PG.wholeNumber(4) and not PG.wholeNumber(4.2) and not PG.wholeNumber("4") and not PG.wholeNumber(0 / 0), "wholeNumber")
+	if not io then return end -- Studio has no io; these read the source and run in the local Lua tests
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("require(Engine.PayloadGuard).indexList(list, handSize, 5)", 1, true) ~= nil, "the server validates card indices through PayloadGuard")
+	local a = src:find("Rem.BuyRecipe.OnServerEvent:Connect", 1, true)
+	local b = src:find("Rem.UseRecipe.OnServerEvent:Connect", 1, true)
+	expectTrue(a ~= nil and b ~= nil and a < b, "both recipe handlers exist")
+	local handler = src:sub(a, b)
+	expectTrue(handler:find("def.buy", 1, true) == nil and handler:find("pushState", 1, true) == nil, "the BuyRecipe remote no longer sells anything (Recipes come from Packs)")
+	local t = src:find("TestRunner.run(engineTests)", 1, true)
+	local g = src:find('if game:GetService("RunService"):IsStudio() then', 1, true)
+	expectTrue(t ~= nil and g ~= nil and g < t and t - g < 900, "the engine tests run at startup only in Studio, never on a live server")
+end })
+
+table.insert(tests, { name = "BossRules.finishScore: one function for the boss factors, the first hand and the Dealer's Bargain; the real hand and the preview both use it", fn = function()
+	local BR = require(script.Parent.Parent.Engine.BossRules)
+	local Strangers = require(script.Parent.Parent.Engine.Strangers)
+	local c, m, sc = BR.finishScore(10, 4, nil, false, 0)
+	expectEqual(c, 10); expectEqual(m, 4); expectEqual(sc, 40)
+	c, m, sc = BR.finishScore(10, 4, nil, true, nil)
+	expectEqual(sc, 40, "no rules and no Bargain change nothing")
+	local rules = { chipsMultiplier = 0.5, multMultiplier = 2, firstHandMultiplier = 0.5 }
+	c, m, sc = BR.finishScore(10, 4, rules, true, 25)
+	expectEqual(c, 5, "boss Chips factor")
+	expectEqual(m, 4 * 2 * 0.5 * 1.25, "boss Mult, first hand, then the Bargain")
+	expectEqual(sc, c * m, "score is chips x mult")
+	c, m, sc = BR.finishScore(10, 4, rules, false, 25)
+	expectEqual(m, 4 * 2 * 1.25, "the first hand factor only on the first hand")
+	c, m, sc = BR.finishScore(10, 4, nil, false, -95)
+	expectTrue(math.abs(m - 0.4) < 1e-9, "a curse never takes Mult below a tenth")
+	-- a real hand with a Bargain: the score the run pays is the report's chips x mult, Bargain included
+	local state = RunState.new(nil, function(n) return n end)
+	state.bargains = { { id = "hot_pan", night = state.night } }
+	local pct = Strangers.field(state, "scorePct")
+	expectEqual(pct, 25, "The Hot Pan adds 25 percent Mult")
+	local idx
+	for i, card in ipairs(state.hand) do
+		if not card.isTrueWildcard then idx = i break end
+	end
+	local result = RunState.playHand(state, { idx })
+	local baseChips, baseMult = require(script.Parent.Parent.Engine.PatronEvents).replay(state.lastPlay.entries)
+	expectEqual(state.lastPlay.chips, baseChips, "chips are untouched by the Bargain")
+	expectTrue(math.abs(state.lastPlay.mult - baseMult * 1.25) < 1e-9, "mult carries the Bargain")
+	expectTrue(math.abs(result.score - baseChips * baseMult * 1.25) < 1e-9, "the paid score carries the Bargain")
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("BossRules.finishScore(chips, mult, bossModifierDef", 1, true) ~= nil, "the preview finishes the score with the shared function")
+	expectTrue(src:find('.field(latestState, "scorePct")', 1, true) ~= nil, "the preview reads the Dealer's Bargain percent")
+	expectTrue(src:find("latestState.handsRemaining == latestState.roundStartHands, bargainPct)", 1, true) ~= nil, "the Bargain pill is shown with the real percent, not a hardcoded 0")
+	expectTrue(src:find("rng = Scoring.noLuck", 1, true) ~= nil, "the preview never rolls luck")
+end })
+
+table.insert(tests, { name = "Play report: state.lastPlay is plain data that replays to the real score, cards named by position, seq counts up", fn = function()
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local state = RunState.new(nil, function(n) return n end)
+	expectEqual(state.lastPlay, nil, "no report before the first hand")
+	local function pick(count)
+		local idx = {}
+		for i, card in ipairs(state.hand) do
+			if not card.isTrueWildcard and #idx < count then idx[#idx + 1] = i end
+		end
+		return idx
+	end
+	local idx = pick(2)
+	local result = RunState.playHand(state, idx)
+	local lp = state.lastPlay
+	expectTrue(lp ~= nil and lp.seq == 1, "first report has seq 1")
+	expectEqual(lp.handName, result.handName, "hand name")
+	expectEqual(lp.score, result.score, "the report's score is the score the run was paid")
+	expectEqual(lp.chips * lp.mult, lp.score, "chips x mult = score")
+	local chips, mult = PE.replay(lp.entries)
+	expectEqual(chips, lp.chips, "the entries replay to the chips")
+	expectEqual(mult, lp.mult, "the entries replay to the mult")
+	expectTrue(#lp.entries >= 2, "at least the hand's own chips and mult")
+	for _, e in ipairs(lp.entries) do
+		expectTrue(type(e.kind) == "string" and type(e.amount) == "number" and type(e.label) == "string", "entry fields are plain values")
+		for key, value in pairs(e.source) do
+			expectTrue(type(value) == "string" or type(value) == "number", "source." .. tostring(key) .. " is plain data (no card or Patron table crosses the network)")
+		end
+		if e.source.type == "card" then
+			expectTrue(e.source.played ~= nil and e.source.played >= 1 and e.source.played <= #idx, "a card entry names a played position")
+		end
+	end
+	expectEqual(#lp.broken, 0, "nothing shattered")
+	if not state.roundOver then
+		RunState.playHand(state, pick(1))
+		expectEqual(state.lastPlay.seq, 2, "seq counts up with every played hand")
+	end
+	-- a held Iron card is named by its position among the cards kept in hand
+	local s2 = RunState.new(nil, function(n) return n end)
+	local play, held
+	for i, card in ipairs(s2.hand) do
+		if not card.isTrueWildcard then
+			if not play then play = i elseif not held then held = i end
+		end
+	end
+	s2.hand[held].garnish = "iron"
+	RunState.playHand(s2, { play })
+	local found = false
+	for _, e in ipairs(s2.lastPlay.entries) do
+		if e.source.type == "heldCard" then
+			found = true
+			local want = held > play and held - 1 or held -- one card left the hand in front of it, or none
+			expectEqual(e.source.held, want, "held position counts only the cards kept in hand")
+		end
+	end
+	expectTrue(found or Card.Garnishes.iron == nil or Card.Garnishes.iron.heldXMult == nil, "an Iron card held in hand shows up as a heldCard entry")
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("lastPlay = state.lastPlay,", 1, true) ~= nil, "the server sends the report with the state")
+end })
+
+table.insert(tests, { name = "Scoring luck: a run with its own rng rolls Lucky Garnish from that rng (seeded runs stay deterministic); Scoring.noLuck never hits", fn = function()
+	local state = RunState.new(nil, function() return 1 end) -- every 1 in N roll hits
+	local idx
+	for i, card in ipairs(state.hand) do
+		if not card.isTrueWildcard then idx = i break end
+	end
+	state.hand[idx].garnish = "lucky"
+	RunState.playHand(state, { idx })
+	local lucky = false
+	for _, e in ipairs(state.lastPlay.entries) do
+		if e.kind == "mult" and e.amount == Card.Garnishes.lucky.luckyMult then lucky = true end
+	end
+	expectTrue(lucky, "the Lucky Mult was rolled on the run's own rng and the report shows it")
+	local miss = RunState.new(nil, function(n) return n end) -- never hits
+	local j
+	for i, card in ipairs(miss.hand) do
+		if not card.isTrueWildcard then j = i break end
+	end
+	miss.hand[j].garnish = "lucky"
+	RunState.playHand(miss, { j })
+	for _, e in ipairs(miss.lastPlay.entries) do
+		expectFalse(e.kind == "mult" and e.amount == Card.Garnishes.lucky.luckyMult, "a run rng that never hits pays no Lucky Mult")
+	end
+	local card = Card.new(9, "Hearts", { garnish = "lucky" })
+	local _, _, mult, extra = Scoring.calculate(HandEvaluator.evaluate({ card }), {}, { rng = Scoring.noLuck })
+	expectEqual(mult, 1, "noLuck never procs the Mult")
+	expectEqual(extra.tipsEarned, 0, "noLuck never procs the Tips")
+	for n = 2, 30 do expectTrue(Scoring.noLuck(n) ~= 1, "noLuck(" .. n .. ") misses") end
+end })
+
+table.insert(tests, { name = "Transaction safety: a Patron effect that throws leaves the run exactly as it was (playHand and discard roll back)", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	table.insert(state.ownedPatrons, { id = "test_boom", name = "Boom", effect = function() error("kaboom") end })
+	local function shape(s)
+		local parts = {}
+		for _, c in ipairs(s.hand) do parts[#parts + 1] = tostring(c.rank) .. c.suit .. tostring(c.wildcardLocked) end
+		return { table.concat(parts, ","), #s.deck, #s.discardPile, s.handsRemaining, s.discardsRemaining, s.roundScore, s.tips, s.handsPlayedTotal }
+	end
+	local before = shape(state)
+	local ok, err = pcall(RunState.playHand, state, { 1, 2, 3 })
+	expectFalse(ok, "the throwing Patron fails the play")
+	expectTrue(tostring(err):find("kaboom", 1, true) ~= nil, "the original error comes back to the caller")
+	local after = shape(state)
+	for i = 1, #before do
+		expectEqual(after[i], before[i], "field " .. i .. " is unchanged after the failed play")
+	end
+	expectEqual(next(state.handTypesPlayedThisRound), nil, "no hand type was marked as played")
+	expectEqual(next(state.handStats), nil, "no hand was counted")
+	expectEqual(state.lastPlay, nil, "no report for a hand that never scored")
+	for i = #state.ownedPatrons, 1, -1 do
+		if state.ownedPatrons[i].id == "test_boom" then table.remove(state.ownedPatrons, i) end
+	end
+	local ok2 = pcall(RunState.playHand, state, { 1, 2, 3 })
+	expectTrue(ok2, "the same hand plays once the fault is gone")
+	expectEqual(state.handsPlayedTotal, before[8] + 1, "and it counts once")
+	-- discard: a fault after the cards have already left the hand
+	local s2 = RunState.new(nil, function(n) return n end)
+	s2.cardsDiscarded = "not a number"
+	local handBefore, discardsBefore, deckBefore = #s2.hand, s2.discardsRemaining, #s2.deck
+	local okD = pcall(RunState.discard, s2, { 1 })
+	expectFalse(okD, "the broken counter fails the discard")
+	expectEqual(#s2.hand, handBefore, "the hand is whole again")
+	expectEqual(s2.discardsRemaining, discardsBefore, "no discard was spent")
+	expectEqual(#s2.deck, deckBefore, "no card was drawn")
+	-- the ordinary rule errors still read the same
+	local s3 = RunState.new(nil, function(n) return n end)
+	local okR, errR = pcall(RunState.playHand, s3, { 1, 2, 3, 4, 5, 6 })
+	expectFalse(okR)
+	expectTrue(tostring(errR):find("Play between 1 and 5 cards", 1, true) ~= nil, "rule messages pass through unchanged")
+end })
+
+table.insert(tests, { name = "Hand rules: five cards of one rank are Four of a Kind and all five score (they used to fall through to High Card)", fn = function()
+	local five = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Spades"), C(9, "Clubs"), C(9, "Diamonds"), C(9, "Hearts") })
+	expectEqual(five.name, "Four of a Kind", "five Nines are Four of a Kind")
+	expectEqual(#five.scoringCards, 5, "every card of that rank scores")
+	local four = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Spades"), C(9, "Clubs"), C(9, "Diamonds"), C(4, "Hearts") })
+	expectEqual(four.name, "Four of a Kind", "four Nines and a kicker are unchanged")
+	expectEqual(#four.scoringCards, 4, "the kicker still does not score")
+	expectTrue(Scoring.HandLevelGrowth[five.name] ~= nil, "and that hand has a level table")
+	local flushFive = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts"), C(9, "Hearts") })
+	expectEqual(flushFive.name, "Four of a Kind", "five identical cards are Four of a Kind, which outranks the Flush they also make")
 end })
 
 return tests

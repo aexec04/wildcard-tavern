@@ -171,7 +171,10 @@ function HandEvaluator.evaluate(cards)
 		return { name = "Straight Flush", scoringCards = cards }
 	end
 
-	if rankCounts[sortedRanks[1]] == 4 then
+	-- Four OR MORE of a rank. A deck can hold five cards of one rank (Standard Packs add cards, Recipes change ranks),
+	-- and "== 4" let five Nines fall all the way through to High Card. There is no Five of a Kind hand yet, so five of
+	-- a rank is Four of a Kind and every card of that rank scores.
+	if rankCounts[sortedRanks[1]] >= 4 then
 		return { name = "Four of a Kind", scoringCards = cardsWithRank(cards, sortedRanks[1]) }
 	end
 

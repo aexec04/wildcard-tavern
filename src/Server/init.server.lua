@@ -96,11 +96,13 @@ local liveLookup = { -- display names for event reward text
 	titleName = function(id) local d = Achievements.getById(id) return d and d.title end,
 }
 
--- ===== 1. Run engine tests on server start =====
+-- ===== 1. Run engine tests on server start (Studio only) =====
+-- Live servers skip this: the suite is a development check, and running 950 tests (and printing a line for each)
+-- on every public server start costs startup time and floods the live log for nothing.
 
 -- Never gate startup on the tests: they run in their own thread with a time limit, so a
 -- hung test can't stop the Remotes folder from being created (the client waits on it).
-do
+if game:GetService("RunService"):IsStudio() then
 	local finished = false
 	task.spawn(function()
 		local okTests, errTests = pcall(function()
@@ -817,6 +819,7 @@ local function serializeState(session, player)
 		worldChoices = session.phase == "roundSelect" and WorldMap.pendingChoices(state) or nil,
 		worldFixed = state.worldPlan ~= nil,
 		lastHand = state.lastHand and { name = state.lastHand.name, score = math.floor(state.lastHand.score) } or nil, -- Showdown banner
+		lastPlay = state.lastPlay, -- what the last played hand really scored, entry by entry (plain data, see RunState buildPlayReport): the client's reveal plays this
 		-- THE COUNTER: the haggle bar, the Wandering Stranger's offer and the Dealer's Bargains taken this run.
 		haggle = session.phase == "shop" and (function()
 			require(Engine.Haggle).expire(state, os.clock())
@@ -2046,17 +2049,8 @@ end)
 -- a player could fire these remotes directly with bogus data.
 
 local function isValidIndexList(list, handSize)
-	if type(list) ~= "table" or #list < 1 or #list > 5 then
-		return false
-	end
-	local seen = {}
-	for _, i in ipairs(list) do
-		if type(i) ~= "number" or i < 1 or i > handSize or seen[i] then
-			return false
-		end
-		seen[i] = true
-	end
-	return true
+	-- whole numbers only, 1 to 5 of them, in range, no repeats, no holes, no extra keys (Engine/PayloadGuard.lua, tested)
+	return require(Engine.PayloadGuard).indexList(list, handSize, 5)
 end
 
 Rem.PlayHand.OnServerEvent:Connect(function(player, cardIndices)
@@ -2239,27 +2233,13 @@ local function findRecipe(catalog, id)
 	return nil
 end
 
-Rem.BuyRecipe.OnServerEvent:Connect(function(player, category, id)
+Rem.BuyRecipe.OnServerEvent:Connect(function(player)
 	if not RateLimit.allow(player.UserId, "Rem.BuyRecipe", os.clock()) then return end
-	local session = sessions[player]
-	if not session or not RunState.phaseAllowsShopActions(session.phase) then
-		return
-	end
-	if session.state.pendingPack then
-		return
-	end
-	local def = RECIPE_CATEGORIES[category]
-	if not def or type(id) ~= "string" or not findRecipe(def.catalog, id) then
-		return
-	end
-
-	local ok, err = pcall(def.buy, session.state, id)
-	if not ok then
-		warn("BuyRecipe error for " .. player.Name .. ": " .. tostring(err))
-		return
-	end
-
-	pushState(player)
+	-- CLOSED. Recipes come from Packs (and a few Patron, Stamp and Tag rewards), never from a direct purchase, and no
+	-- screen has fired this remote since the Recipes catalog tab was removed. The old handler still sold ANY Recipe in
+	-- the catalog to whoever fired the remote by hand, with no offer check and no unlock check. The remote itself stays
+	-- (clients wait for it at startup); every request is now refused. RunState.buyHouseRecipe, buyMenuRecipe and
+	-- buySecretRecipe remain for the engine and its tests.
 end)
 
 Rem.UseRecipe.OnServerEvent:Connect(function(player, category, id, cardIndices, suit)

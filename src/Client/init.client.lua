@@ -1695,6 +1695,7 @@ local function computeHandPreview(cardIndices)
 		patronPower = latestState.challenge and latestState.challenge.patronPower,
 		allPlayedCards = selectedCards,
 		heldCards = heldCards,
+		rng = Scoring.noLuck, -- a preview never rolls luck: it shows the certain part, the server rolls the real hand once
 		handLevels = latestState.handLevels,
 		ownedPatronSpecials = latestState.ownedPatronSpecials,
 		brittleShielded = latestState.brittleShieldRound,
@@ -1727,14 +1728,8 @@ local function computeHandPreview(cardIndices)
 	-- the hand's own pre-boss-scaling buildup, then the finale visibly
 	-- snaps to these final, correctly-scaled numbers -- intentional, reads
 	-- like the boss's discount/surcharge landing at the very end.
-	if bossModifierDef and bossModifierDef.chipsMultiplier then
-		chips = chips * bossModifierDef.chipsMultiplier
-	end
-	if bossModifierDef and bossModifierDef.multMultiplier then
-		mult = mult * bossModifierDef.multMultiplier
-	end
-	mult = mult * BossRules.scoreFactor(bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands)
-	score = chips * mult
+	local bargainPct = require(ReplicatedStorage.Shared.Engine.Strangers).field(latestState, "scorePct") -- Dealer's Bargain, the same call the server makes
+	chips, mult, score = BossRules.finishScore(chips, mult, bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands, bargainPct)
 
 	-- extra.breakdown (see Scoring.lua) drives ScorePopup.lua's sequenced
 	-- chips/mult/xmult reveal -- see ScorePopupModule.showScorePopup's call site below.
@@ -1750,7 +1745,7 @@ local function computeHandPreview(cardIndices)
 		breakdown = extra and extra.breakdown,
 		brokenCards = extra and extra.brokenCards,
 		-- Boss Round score changes applied after the breakdown: ScorePopup shows them as pills on the tavern plate
-		tavernNotes = require(ReplicatedStorage.Shared.Engine.PatronEvents).tavernNotes(bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands, 0),
+		tavernNotes = require(ReplicatedStorage.Shared.Engine.PatronEvents).tavernNotes(bossModifierDef, latestState.roundStartHands ~= nil and latestState.handsRemaining == latestState.roundStartHands, bargainPct),
 		-- PHASE C: only set when THIS selection includes the unresolved
 		-- True Wildcard -- ScorePopup.lua uses this (Play-time call only;
 		-- the live SidebarModule.sidebar preview never calls ScorePopupModule.showScorePopup at all) to

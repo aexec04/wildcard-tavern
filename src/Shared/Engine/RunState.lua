@@ -620,6 +620,69 @@ function RunState.hasLegalPlay(state)
 	return true
 end
 
+-- THE PLAY REPORT (state.lastPlay): what a played hand really scored, entry by entry, as plain data the server can
+-- send. The client's score reveal plays this, so a lucky hit, a shattered card or a Bargain on screen is always the
+-- one the server rolled, never a second roll made on the client. Cards are named by position, not by table:
+--   source.played = position among the played cards (hand order), source.held = position among the cards kept in hand.
+--   { seq, handName, chips, mult, score, entries = { { kind, amount, label, source = { type, played, held, patronId, bond } } },
+--     broken = { played positions that shattered }, wildcard = { rank, suit } or nil }
+-- seq goes up by one per played hand, so the client can tell a new report from the one it has already shown.
+local function buildPlayReport(previous, handResult, playedCards, heldCards, chips, mult, score, extra, wildcardResolution)
+	local playedAt, heldAt = {}, {}
+	for i, card in ipairs(playedCards) do
+		playedAt[card] = i
+	end
+	for i, card in ipairs(heldCards) do
+		heldAt[card] = i
+	end
+	local entries = {}
+	for _, entry in ipairs(extra and extra.breakdown or {}) do
+		local source = entry.source or {}
+		entries[#entries + 1] = {
+			kind = entry.kind, amount = entry.amount, label = entry.label,
+			source = {
+				type = source.type,
+				played = source.card and playedAt[source.card] or nil,
+				held = source.card and heldAt[source.card] or nil,
+				patronId = source.patronId,
+				bond = source.bond,
+			},
+		}
+	end
+	local broken = {}
+	for _, card in ipairs(extra and extra.brokenCards or {}) do
+		if playedAt[card] then
+			broken[#broken + 1] = playedAt[card]
+		end
+	end
+	return {
+		seq = (previous and previous.seq or 0) + 1,
+		handName = handResult.name, chips = chips, mult = mult, score = score,
+		entries = entries, broken = broken, wildcard = wildcardResolution,
+	}
+end
+
+-- TRANSACTION SAFETY: playHand and discard change a dozen fields (the hand, the counters, Tips, the wildcard lock)
+-- before the last Patron effect has run. If anything in between throws, the run must not be left half played (cards
+-- gone from the hand but never scored, a hand spent for nothing). So both run against a copy: on an error the state
+-- table is put back exactly as it was and the error is raised again for the caller to log. The rng is not rewound.
+local function transact(state, action, cardIndices)
+	local before = copyForSnapshot(state)
+	local ok, result = pcall(action, state, cardIndices)
+	if ok then
+		return result
+	end
+	local roundStart = state.roundStartSnapshot
+	for key in pairs(state) do
+		state[key] = nil
+	end
+	for key, value in pairs(before) do
+		state[key] = value
+	end
+	state.roundStartSnapshot = roundStart
+	error(result, 0)
+end
+
 local function removeIndicesFromHand(state, indices)
 	-- indices: array of 1-based positions into state.hand, must be unique.
 	local indexSet = {}
@@ -699,7 +762,7 @@ function RunState.phaseAllowsShopActions(phase)
 	return phase == "shop"
 end
 
-function RunState.playHand(state, cardIndices)
+local function playHandNow(state, cardIndices)
 	assert(not state.roundOver, "Round is already over, advance to the next round first")
 	local bossModifier = state.bossModifier
 	if bossModifier and bossModifier.requiredCardsPerHand then
@@ -802,6 +865,7 @@ function RunState.playHand(state, cardIndices)
 			patronPower = state.challenge and state.challenge.patronPower,
 			allPlayedCards = playedCards,
 			heldCards = state.hand, -- cards left in hand, not played -- Iron Garnish reads this
+			rng = state.rng, -- a seeded run (Daily, Weekly, Seed) rolls its luck from its own stream, never the shared math.random
 			handLevels = state.handLevels,
 			ownedPatronSpecials = state.ownedPatronSpecials, -- Silver/Gold/Rainbow on a Patron
 			brittleShielded = state.brittleShieldRound, -- "Sugar Shield" Secret Recipe
@@ -814,23 +878,17 @@ function RunState.playHand(state, cardIndices)
 			night = state.night,
 			round = state.round,
 		}, runCounters))
-		if bossModifier and bossModifier.chipsMultiplier then
-			chips = chips * bossModifier.chipsMultiplier
-		end
-		if bossModifier and bossModifier.multMultiplier then
-			mult = mult * bossModifier.multMultiplier
-		end
-		-- Sleepy Cook: the first hand of the round scores less
-		mult = mult * BossRules.scoreFactor(bossModifier, state.handsRemaining + 1 == state.roundStartHands)
 		if (bossModifier and bossModifier.noScoringTips) or (state.challenge and state.challenge.noScoringTips) then
 			extra.tipsEarned = 0 -- Penny Wise
 		end
-		local bargainPct = Strangers.field(state, "scorePct") -- Dealer's Bargain Mult boost or curse
-		if bargainPct ~= 0 then
-			mult = mult * math.max(0.1, 1 + bargainPct / 100)
-		end
-		score = chips * mult
+		-- boss Chips and Mult factors, Sleepy Cook's first hand, the Dealer's Bargain: one shared function with the preview
+		chips, mult, score = BossRules.finishScore(chips, mult, bossModifier, state.handsRemaining + 1 == state.roundStartHands,
+			Strangers.field(state, "scorePct"))
 	end
+
+	-- What this hand really did, as plain data for the client's score reveal (cards by position, no table references).
+	-- Built now, while state.hand is still exactly the held cards: the draw and any thrown card come after.
+	state.lastPlay = buildPlayReport(state.lastPlay, handResult, playedCards, state.hand, chips, mult, score, extra, wildcardResolution)
 
 	state.handsPlayedTotal = state.handsPlayedTotal + 1
 	if score >= 500 then
@@ -1025,8 +1083,12 @@ function RunState.playHand(state, cardIndices)
 	}
 end
 
+function RunState.playHand(state, cardIndices)
+	return transact(state, playHandNow, cardIndices)
+end
+
 -- Discard 1-5 cards from the hand and draw replacements.
-function RunState.discard(state, cardIndices)
+local function discardNow(state, cardIndices)
 	assert(not state.roundOver, "Round is already over")
 	assert(#cardIndices >= 1 and #cardIndices <= 5, "Discard between 1 and 5 cards")
 	assert(state.discardsRemaining > 0, "No discards remaining this round")
@@ -1090,6 +1152,10 @@ end
 -- to hook into instead of every call site re-reading state.config directly.
 function RunState.recipeSlotLimit(state)
 	return math.max(0, state.config.recipeSlotLimit + (state.housePasses.pantry_shelf and 1 or 0) + endlessField(state, "recipeSlotDelta")) -- Pantry Shelf, Packed Shelf
+end
+
+function RunState.discard(state, cardIndices)
+	return transact(state, discardNow, cardIndices)
 end
 
 -- What a Patron actually costs THIS player right now -- the Regulars'

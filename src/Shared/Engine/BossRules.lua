@@ -91,4 +91,24 @@ function BossRules.applyPercent(amount, percent)
 	return math.floor(amount * percent / 100)
 end
 
+-- The rules that change a hand's Chips and Mult AFTER Scoring.calculate, in one place and one order: the boss's
+-- Chips factor, the boss's Mult factor, the first-hand factor (Sleepy Cook), then the Dealer's Bargain percent.
+-- RunState.playHand (the real score) and the client's hand preview both call this, so the preview cannot leave a
+-- rule out again (it used to skip the Bargain percent and showed a different number than the hand then paid).
+--   BossRules.finishScore(chips, mult, rules, isFirstHand, bargainPct) -> chips, mult, score
+function BossRules.finishScore(chips, mult, rules, isFirstHand, bargainPct)
+	if rules and rules.chipsMultiplier then
+		chips = chips * rules.chipsMultiplier
+	end
+	if rules and rules.multMultiplier then
+		mult = mult * rules.multMultiplier
+	end
+	mult = mult * BossRules.scoreFactor(rules, isFirstHand)
+	bargainPct = tonumber(bargainPct) or 0
+	if bargainPct ~= 0 then
+		mult = mult * math.max(0.1, 1 + bargainPct / 100)
+	end
+	return chips, mult, chips * mult
+end
+
 return BossRules
