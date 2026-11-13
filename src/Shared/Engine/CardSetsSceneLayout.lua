@@ -96,7 +96,7 @@ end
 M.CELL = { frameW = 124, frameH = 184, plaqueH = 28, gapX = 22, gapY = 18, side = 28, barH = 40, barTop = 8 }
 function M.grid(areaW, areaH, n, page)
 	local C = M.CELL
-	local top = C.barTop + C.barH + 14
+	local top = C.barTop + C.barH + 22 -- room for the frame border and its shadow
 	local usableW, usableH = areaW - 2 * C.side, areaH - top - 10
 	local rowH = C.frameH + C.plaqueH + 6
 	local cols, rows = math.floor((usableW + C.gapX) / (C.frameW + C.gapX)), math.floor((usableH + C.gapY) / (rowH + C.gapY))
@@ -109,9 +109,7 @@ function M.grid(areaW, areaH, n, page)
 	local gy = rows > 1 and math.min(C.gapY * 2, (usableH - rows * rowH) / (rows - 1)) or 0
 	local first = (out.page - 1) * out.perPage
 	local onPage = math.max(0, math.min(out.perPage, n - first))
-	local usedRows = math.max(1, math.ceil(onPage / cols))
-	local totalH = usedRows * rowH + (usedRows - 1) * gy
-	local y0 = top + math.max(0, math.floor((usableH - totalH) / 2))
+	local y0 = top -- grid starts right under the tab row (no dead band)
 	for i = 1, onPage do
 		local r, c = math.floor((i - 1) / cols), (i - 1) % cols
 		local inRow = math.min(cols, onPage - r * cols)

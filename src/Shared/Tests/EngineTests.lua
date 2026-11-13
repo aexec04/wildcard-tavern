@@ -20687,6 +20687,10 @@ tests[#tests + 1] = ({ name = "CardSetsSceneLayout.grid: fills the panel width, 
 		for _, n in ipairs({ 0, 5, 12, 40 }) do
 			local g = L.grid(W, H, n, 1)
 			expectTrue(g.ok, "grid fits at " .. sz[1] .. "x" .. sz[2])
+			if n > 0 then
+				local tb = g.plates.tabs[1]
+				expectTrue(g.cells[1].frame.y - (tb.y + tb.h) <= 30, "first shelf row starts right under the tab row, no dead band (" .. sz[1] .. ")")
+			end
 			local seen = 0
 			for page = 1, g.pages do
 				local gp = L.grid(W, H, n, page)
