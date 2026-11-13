@@ -637,6 +637,7 @@ return function(deps)
 		local gap = count <= 5 and SLOT_GAP or 3
 		seatLayout.Padding = UDim.new(0, gap)
 		local size = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SeatFit")).size(count, usable, gap, SLOT, 26)
+		size = math.min(size, 18) -- seats are small pips now: the Patron cards live in the Patron Row on the table (Client/PatronRow.lua)
 		for _, seat in ipairs(patronSlots) do
 			seat.frame.Size = UDim2.fromOffset(size, size)
 			for _, obj in ipairs({ seat.frame, seat.frame:FindFirstChild("InnerRing"), seat.pulse }) do

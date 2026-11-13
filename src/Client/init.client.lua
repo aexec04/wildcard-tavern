@@ -2437,17 +2437,13 @@ local function render(state)
 					local owned = ownedPatrons[i]
 					if slot.pulse then slot.pulse.Visible = (owned == nil) end
 					if owned then
-						slot.frame.BackgroundColor3 = Color3.fromRGB(78, 52, 26)
-						slot.label.TextColor3 = Color3.fromRGB(255, 222, 150)
-						slot.label.Text = owned.name:sub(1, 1)
-						PatronPlaqueModule.updateSlot(slot, owned.id)
-						-- Tier ring color (ring only, no ornaments on seats).
+						-- a filled gold pip: the portrait is on the big card in the Patron Row, no second tiny copy here
+						slot.frame.BackgroundColor3 = Color3.fromRGB(222, 182, 104)
+						slot.label.Text = ""
+						PatronPlaqueModule.updateSlot(slot, nil)
 						pcall(function()
 							local seatRing = slot.frame:FindFirstChildOfClass("UIStroke")
-							local tier = require(ReplicatedStorage.Shared.Engine.CollectionBook).rarityForId("patrons", owned.id)
-							if seatRing then
-								seatRing.Color = tier == "common" and Color3.fromRGB(96, 64, 36) or require(script.RarityFrame).colorFor(tier)
-							end
+							if seatRing then seatRing.Color = Color3.fromRGB(96, 64, 36) end
 						end)
 						-- POLISH PASS: a fresh Patron pop into this seat gets a
 						-- one-off scale pop (VisualHelpersModule.popScale -- NOT VisualHelpersModule.pulseFrame, since
@@ -2464,8 +2460,7 @@ local function render(state)
 							emptyRing.Color = Color3.fromRGB(96, 64, 36)
 						end
 						slot.frame.BackgroundColor3 = Color3.fromRGB(196, 168, 118)
-						slot.label.TextColor3 = Color3.fromRGB(120, 88, 54)
-						slot.label.Text = "+" -- open seat, not "?" -- there's nothing hidden here anymore
+						slot.label.Text = "" -- an empty pip: the "+" lives on the free card in the Patron Row
 					end
 					lastPatronSlotOwned[i] = (owned ~= nil)
 				end
