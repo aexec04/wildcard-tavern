@@ -2139,7 +2139,8 @@ local function rebuildHand(handData, phase)
 		cardArt.BorderSizePixel = 0
 		cardArt.ScaleType = Enum.ScaleType.Stretch
 		cardArt.Image = cardFaceTemplate
-		cardArt.ImageColor3 = Color3.fromRGB(246, 233, 205) -- warm aged ivory, not flat white
+		cardArt.ImageColor3 = Color3.new(1, 1, 1) -- the painted face is already ivory; no tint
+		cardArt.Visible = cardFaceTemplate ~= "" -- missing Image id: the button's flat ivory fill shows
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
 		VisualHelpersModule.roundCorner(cardArt, 8)

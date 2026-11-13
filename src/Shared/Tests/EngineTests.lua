@@ -23972,4 +23972,16 @@ table.insert(tests, { name = "Play table cohesion: card index text has a 15 px f
 	expectTrue(pop:find("Color3.fromRGB(60, 130, 235)", 1, true) == nil and pop:find("Color3.fromRGB(225, 55, 55)", 1, true) == nil, "no saturated flat blue and red on the readout")
 end })
 
+table.insert(tests, { name = "CardFaceArt: the recorded face resolves to one rbxassetid prefix, a missing or zero id falls back to flat ivory", fn = function()
+	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local Art = require(script.Parent.Parent.Engine.PlaySceneArt)
+	local id = CFA.resolve(Art)
+	expectTrue(id:match("^rbxassetid://%d+$") ~= nil, "the recorded card face resolves to a clean asset id")
+	expectTrue(select(2, id:gsub("rbxassetid://", "")) == 1, "no doubled rbxassetid prefix")
+	expectTrue(CFA.resolve({}) == "", "missing id gives the flat fallback")
+	expectTrue(CFA.resolve({ card_face_ivory_b = "rbxassetid://0" }) == "", "zero id gives the flat fallback")
+	expectTrue(CFA.resolve({ card_face_ivory_b = "rbxassetid://rbxassetid://123" }) == "rbxassetid://123", "a doubled prefix is collapsed")
+	expectTrue(CFA.resolve(nil) == "", "nil map is safe")
+end })
+
 return tests

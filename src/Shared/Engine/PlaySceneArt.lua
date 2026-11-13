@@ -6,6 +6,7 @@
 ]]
 
 return {
+	["card_face_ivory_b"] = "rbxassetid://134507888345479",
 	["play_board_a"] = "rbxassetid://102660307972620",
 	["play_deck_box_b"] = "rbxassetid://84091001100735",
 	["play_felt_grain"] = "rbxassetid://79473466946513",

@@ -1,10 +1,15 @@
 local BackgroundArt = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("BackgroundArt"))
 
+local Engine = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+local CardFaceArt = require(Engine:WaitForChild("CardFaceArt"))
+local PlaySceneArt = require(Engine:WaitForChild("PlaySceneArt"))
+
 return {
 	menuBackground = "rbxassetid://103951896085634",
 	shopBackground = BackgroundArt.shop_bg or "rbxassetid://0",
 	gameOverWinBackground = BackgroundArt.game_over_win_bg or "rbxassetid://0",
-	cardFaceTemplate = "rbxassetid://104840515050032",
+	-- Painted ivory face (PlaySceneArt); "" when its Image id is missing, the card then shows its flat ivory fill.
+	cardFaceTemplate = CardFaceArt.resolve(PlaySceneArt),
 	cardBackTemplate = "rbxassetid://109450269406536",
 
 	-- ----- Corner button icon set (re-uploaded via Decals Oct 29 2026) -----
