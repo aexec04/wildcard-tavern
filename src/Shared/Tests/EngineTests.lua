@@ -23586,6 +23586,16 @@ table.insert(tests, { name = "PatronRowLayout: leftLimit keeps the row 8 units r
 	expectTrue(a.rect.x == b.rect.x and a.cardW == b.cardW, "no leftLimit changes nothing")
 end })
 
+table.insert(tests, { name = "PatronRow: measurements are absolute, so the holder cancels any UIScale on the root (scale:WxH) and logs a [PatronRow] line", fn = function()
+	local f = io.open("src/Client/PatronRow.lua", "r")
+	if not f then return end -- not run from the repo root
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("uiScaleOf(rootRef)", 1, true) ~= nil, "reads the root's UIScale")
+	expectTrue(src:find("holderScale.Scale = 1 / k", 1, true) ~= nil, "holder cancels the UIScale")
+	expectTrue(src:find("holder.Size = UDim2.fromScale(k, k)", 1, true) ~= nil, "holder keeps covering the root")
+	expectTrue(src:find("[PatronRow] scaled root", 1, true) ~= nil, "scaled roots log leftLimit and card 1")
+end })
+
 table.insert(tests, { name = "PatronRowLayout.painted: strip keeps its aspect, 1 to 5 cards are centred in their arch, 6 to 8 overlap evenly, at three sizes and a phone", fn = function()
 	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
 	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)

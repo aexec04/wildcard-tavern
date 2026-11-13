@@ -32,7 +32,7 @@ local WOOD = Color3.fromRGB(78, 52, 26)
 local CREAM = Color3.fromRGB(240, 225, 190)
 local Z = 6
 
-local holder, rootRef, handRef, tooltipFn, anchorFn
+local holder, holderScale, rootRef, handRef, tooltipFn, anchorFn
 local cards = {} -- pool of { slot, float, body, art, name, plus, floatTween, id }
 local lastState
 local MAX_CARDS = 14
@@ -359,6 +359,18 @@ local function placeNook(lay, rootW, hand, owned, opts)
 	end
 end
 
+-- Product of every UIScale on this object and its GuiObject ancestors (1 on a normal screen).
+local function uiScaleOf(inst)
+	local k = 1
+	while inst and inst:IsA("GuiBase2d") do
+		for _, c in ipairs(inst:GetChildren()) do
+			if c:IsA("UIScale") then k = k * c.Scale end
+		end
+		inst = inst.Parent
+	end
+	return math.max(k, 0.05)
+end
+
 local function place(state)
 	if not holder then return end
 	state = state or lastState
@@ -371,6 +383,9 @@ local function place(state)
 	local show = Rules.visible({ phase = state and state.phase, rootVisible = rootRef.Visible, handVisible = handRef.Visible,
 		panelOpen = panelOpen, seats = limit })
 	holder.Visible = show
+	local k = uiScaleOf(rootRef) -- Studio scale:WxH puts a UIScale on the root; measurements below are absolute, so the holder cancels it
+	holder.Size = UDim2.fromScale(k, k)
+	holderScale.Scale = 1 / k
 	local rootSize = rootRef.AbsoluteSize
 	local hand = {
 		x = handRef.AbsolutePosition.X - rootRef.AbsolutePosition.X,
@@ -389,6 +404,11 @@ local function place(state)
 		lay = (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
 	end
 	holder.Visible = lay ~= nil
+	if k ~= 1 and RunService:IsStudio() then
+		local r1 = lay and lay.cards[1]
+		print(string.format("[PatronRow] scaled root k=%.2f root=%dx%d leftLimit=%s card1=%s", k, math.floor(rootSize.X), math.floor(rootSize.Y),
+			tostring(opts and opts.leftLimit), r1 and (math.floor(r1.x) .. "," .. math.floor(r1.y) .. " " .. math.floor(r1.w) .. "x" .. math.floor(r1.h)) or "none"))
+	end
 	placeNook(lay, rootSize.X, hand, owned, opts)
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
@@ -422,6 +442,9 @@ function M.install(deps)
 	holder.Active = false
 	holder.Visible = false
 	holder.Parent = rootRef
+	holderScale = Instance.new("UIScale")
+	holderScale.Name = "AbsoluteUnits"
+	holderScale.Parent = holder
 	local function again() pcall(place) end
 	for _, prop in ipairs({ "AbsoluteSize", "AbsolutePosition", "Visible" }) do
 		handRef:GetPropertyChangedSignal(prop):Connect(again)
