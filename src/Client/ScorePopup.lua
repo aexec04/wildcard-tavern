@@ -261,7 +261,7 @@ return function(deps)
 	handPill.AnchorPoint = Vector2.new(0.5, 0)
 	handPill.Position = UDim2.new(0.5, 0, 0, 80)
 	handPill.Size = UDim2.new(0, 260, 0, 30)
-	handPill.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	handPill.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
 	handPill.BackgroundTransparency = 0.05
 	handPill.BorderSizePixel = 0
 	handPill.ZIndex = 24
@@ -289,7 +289,7 @@ return function(deps)
 	readoutPill.AnchorPoint = Vector2.new(0.5, 0)
 	readoutPill.Position = UDim2.new(0.5, 0, 0, 26)
 	readoutPill.Size = UDim2.new(0, 260, 0, 50)
-	readoutPill.BackgroundColor3 = Color3.fromRGB(240, 228, 196)
+	readoutPill.BackgroundColor3 = Color3.fromRGB(218, 196, 152)
 	readoutPill.BorderSizePixel = 0
 	readoutPill.ZIndex = 24
 	readoutPill.Parent = scorePopup
@@ -381,7 +381,7 @@ return function(deps)
 	scorePopupEventLabel:GetPropertyChangedSignal("Text"):Connect(function()
 		scorePopupEventLabel.BackgroundTransparency = scorePopupEventLabel.Text == "" and 1 or 0.25
 	end)
-	scorePopupEventLabel.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	scorePopupEventLabel.BackgroundColor3 = Color3.fromRGB(44, 28, 16)
 	local eventTabCorner = Instance.new("UICorner")
 	eventTabCorner.CornerRadius = UDim.new(0.5, 0)
 	eventTabCorner.Parent = scorePopupEventLabel
