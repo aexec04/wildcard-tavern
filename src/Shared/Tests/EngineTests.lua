@@ -24039,4 +24039,25 @@ table.insert(tests, { name = "Card face polish: the face crop drops the checker 
 	expectTrue(PTL.SORT_MIN_H >= 28, "chip stays at least 28 tall")
 end })
 
+table.insert(tests, { name = "PatronValueText: value comes from the real description, hidden on narrow cards", fn = function()
+	local PVT = require(script.Parent.Parent.Engine.PatronValueText)
+	expectEqual(PVT.of("+4 Mult on every hand."), "+4 Mult", "mult")
+	expectEqual(PVT.of("+15 Chips if the hand contains a Pair (or better)."), "+15 Chips", "chips")
+	expectEqual(PVT.of("Mult x1.5 when played as your last hand of the round."), "x1.5 Mult", "xmult after")
+	expectEqual(PVT.of("x3 Mult if you've already played this poker hand type this round."), "x3 Mult", "xmult before")
+	expectEqual(PVT.of("Earn 4 Tips at the end of each round you win."), "+4 Tips", "tips")
+	expectEqual(PVT.of("Copies the ability of the Patron to its right."), nil, "no figure, no value")
+	expectEqual(PVT.of(nil), nil, "nil description")
+	expectTrue(not PVT.visible(70) and PVT.visible(96), "needs a card at least 84 wide")
+	local shown = 0
+	for _, def in ipairs(Patrons.Definitions) do
+		local v = PVT.of(def.description)
+		if v then
+			shown = shown + 1
+			expectTrue(def.description:find(v:match("[%d%.]+"), 1, true) ~= nil, def.id .. " value figure is in its description")
+		end
+	end
+	expectTrue(shown >= 40, "most Patrons have a value")
+end })
+
 return tests

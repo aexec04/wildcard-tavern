@@ -23,6 +23,7 @@ local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local Rules = require(Engine:WaitForChild("PatronRowRules"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
+local PatronValueText = require(Engine:WaitForChild("PatronValueText"))
 local RarityFrame = require(script.Parent.RarityFrame)
 local ClientSettings = require(script.Parent.ClientSettings)
 
@@ -151,6 +152,26 @@ local function newCard(i)
 	name.ZIndex = Z + 3
 	name.Active = false
 	name.Parent = plaque
+	local value = Instance.new("TextLabel") -- the real effect figure ("+4 Mult") on a dark strip at the foot of the portrait
+	value.Name = "Value"
+	value.AnchorPoint = Vector2.new(0.5, 1)
+	value.Position = UDim2.new(0.5, 0, 1, -4)
+	value.Size = UDim2.new(1, -8, 0, 20)
+	value.BackgroundColor3 = Color3.fromRGB(30, 20, 11)
+	value.BackgroundTransparency = 0.2
+	value.BorderSizePixel = 0
+	value.Font = Enum.Font.GothamBold
+	value.TextSize = 15
+	value.TextColor3 = CREAM
+	value.TextTransparency = 0
+	value.TextStrokeTransparency = 1
+	value.TextTruncate = Enum.TextTruncate.AtEnd
+	value.ZIndex = Z + 5
+	value.Active = false
+	value.Visible = false
+	value.Parent = body
+	corner(value, 4)
+	c.value = value
 	c.slot, c.float, c.body, c.name, c.plus, c.plaque, c.shadow = slot, float, body, name, plus, plaque, shadow
 	c.dim, c.ringStroke = dim, ringStroke
 	if tooltipFn then
@@ -178,6 +199,7 @@ local function fillCard(c, i, owned)
 		c.plus.Visible = false
 		c.plaque.Visible = true
 		c.name.Text = owned.name
+		c.valueText = PatronValueText.of(owned.description)
 		c.body.BackgroundTransparency = 0
 		c.body.BackgroundColor3 = WOOD
 		if c.id ~= owned.id then
@@ -202,6 +224,8 @@ local function fillCard(c, i, owned)
 		c.plus.Text = "+"
 		c.plus.BackgroundTransparency = 0.8
 		c.plaque.Visible = false
+		c.valueText = nil
+		c.value.Visible = false
 		c.body.BackgroundTransparency = 0.75 -- faint slot
 		local rs = c.body:FindFirstChild("RarityStroke")
 		if rs then rs.Color = GOLD; rs.Transparency = 0.6 end
@@ -423,6 +447,10 @@ local function place(state)
 				c.slot.Size = UDim2.fromOffset(r.w, r.h)
 				c.slot.ZIndex = Z + i -- later cards overlap earlier ones
 				fillCard(c, i, owned[i])
+				if c.value then
+					c.value.Text = c.valueText or ""
+					c.value.Visible = (c.valueText ~= nil) and PatronValueText.visible(r.w)
+				end
 				if lay.plaqueH <= 0 then c.plaque.Visible = false end -- narrow cards: the tooltip carries the name
 				if not c.floatTween and not c.hopping then startFloat(c, i) end
 			else
