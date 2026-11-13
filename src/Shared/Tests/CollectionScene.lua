@@ -59,6 +59,7 @@ function CollectionScene.build(opts)
 	stubs.PanelArt = { add = function() return nil end, vignette = noop }
 	stubs.CollectionWall = { mount = function() return nil end }
 	stubs.CosmeticSetsPanel = noop
+	stubs.LazyPanel = { wrap = function(_, init) return init end }
 	stubs.BadgesPanel = noop
 	stubs.StatsPanel = noop
 	stubs.CollectionRewardsPanel = { init = noop }

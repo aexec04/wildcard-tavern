@@ -18665,6 +18665,31 @@ table.insert(tests, { name = "Collection: every section lists ALL of its entries
 	end
 end })
 
+table.insert(tests, { name = "LazyPanel: a panel is built on its first open only, the opener runs its handler, a second open never rebuilds", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local stubs, openers = {}, {}
+	stubs.OverlayManager = { registerOpener = function(id, fn) openers[id] = fn end }
+	local env = FakeGui.env({ stubs = stubs })
+	local Lazy = FakeGui.load("src/Client/LazyPanel.lua", env)
+	local builds, opens = 0, 0
+	local button = FakeGui.new("TextButton")
+	local wrapped = Lazy.wrap("demo", function(deps)
+		builds = builds + 1
+		deps.openButton.MouseButton1Click:Connect(function() opens = opens + 1 end)
+		openers.demo = function() opens = opens + 1 end -- a built panel replaces the stand-in opener
+	end)
+	wrapped({ openButton = button })
+	expectEqual(builds, 0, "nothing is built at startup")
+	expectTrue(openers.demo ~= nil, "the opener is registered at startup")
+	button.MouseButton1Click:Fire()
+	expectEqual(builds, 1, "the first click builds the panel")
+	expectEqual(opens, 1, "and then opens it")
+	button.MouseButton1Click:Fire()
+	expectEqual(builds, 1, "a second click does not rebuild")
+	expectEqual(opens, 2, "but opens again")
+end })
+
 table.insert(tests, { name = "Collection: Escape and the Gallery plate step back (detail card, then section, then the room), a quiet plate goes to its section", fn = function()
 	local col, CB = collectionBuild()
 	if not col then return end

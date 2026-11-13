@@ -198,7 +198,7 @@ return function(deps)
 		})
 		polishButton(badgesButton, 8)
 			badgesButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
-		require(script.Parent.BadgesPanel)({
+		require(script.Parent.LazyPanel).wrap("badges", require(script.Parent.BadgesPanel))({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
 			polishButton = polishButton,
@@ -248,7 +248,7 @@ return function(deps)
 		})
 		polishButton(flairButton, 8)
 			flairButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
-		require(script.Parent.FlairPanel).init({
+		require(script.Parent.LazyPanel).wrap("flair", require(script.Parent.FlairPanel).init)({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
 			polishButton = polishButton,
@@ -299,7 +299,7 @@ return function(deps)
 		})
 		polishButton(statsButton, 8)
 			statsButton.Visible = false -- navigation lives in PanelTabs; panels still open via their openers
-		require(script.Parent.StatsPanel)({
+		require(script.Parent.LazyPanel).wrap("stats", require(script.Parent.StatsPanel))({
 			screenGui = screenGui,
 			polishPanel = polishPanel,
 			polishButton = polishButton,
