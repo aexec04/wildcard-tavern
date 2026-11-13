@@ -35,6 +35,8 @@ local CREAM = Color3.fromRGB(240, 225, 190)
 local Z = 6
 
 local holder, holderScale, rootRef, handRef, tooltipFn, anchorFn
+local boost = { summary = nil, frame = nil } -- the Chips x Mult boost panel (built below)
+local placeBoost
 local cards = {} -- pool of { slot, float, body, art, name, plus, floatTween, id }
 local lastState
 local MAX_CARDS = 14
@@ -370,6 +372,7 @@ local function placeNook(lay, rootW, hand, owned, opts)
 		nook.rivets[i].Size = UDim2.fromOffset(Layout.RIVET, Layout.RIVET)
 	end
 	local painted = placePainted(lay.strip)
+	nook.lastBack = nk.back
 	for i = 1, math.max(#nk.alcoves, #nook.alcoves) do
 		local r = nk.alcoves[i]
 		if r and not nook.alcoves[i] then nook.alcoves[i] = buildAlcove(i) end
@@ -436,6 +439,8 @@ local function place(state)
 			tostring(opts and opts.leftLimit), r1 and (math.floor(r1.x) .. "," .. math.floor(r1.y) .. " " .. math.floor(r1.w) .. "x" .. math.floor(r1.h)) or "none"))
 	end
 	placeNook(lay, rootSize.X, hand, owned, opts)
+	if #owned == 0 then boost.summary = nil end
+	placeBoost(lay and nook and nook.lastBack or nil, rootSize.X / k)
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end
@@ -459,6 +464,67 @@ local function place(state)
 			end
 		end
 	end
+end
+
+-- ===== boost panel: real Chips x Mult of the last scored hand, only while a Patron added to it (Engine/PatronBoost) =====
+local function buildBoost()
+	local f = Instance.new("Frame")
+	f.Name = "PatronBoostPanel"
+	f.BackgroundColor3 = Color3.fromRGB(46, 30, 16)
+	f.BackgroundTransparency = 0.05
+	f.BorderSizePixel = 0
+	f.ZIndex = Z + 1
+	f.Active = false
+	f.Visible = false
+	f.Parent = holder
+	corner(f, 8)
+	local st = Instance.new("UIStroke")
+	st.Color = GOLD
+	st.Thickness = 2
+	st.Parent = f
+	local function label(name, y, h, size, color)
+		local l = Instance.new("TextLabel")
+		l.Name = name
+		l.Position = UDim2.fromOffset(6, y)
+		l.Size = UDim2.new(1, -12, 0, h)
+		l.BackgroundTransparency = 1
+		l.Font = Enum.Font.GothamBold
+		l.TextSize = size
+		l.TextColor3 = color
+		l.TextTransparency = 0
+		l.TextStrokeTransparency = 1
+		l.TextWrapped = true
+		l.ZIndex = Z + 2
+		l.Active = false
+		l.Parent = f
+		return l
+	end
+	boost.value = label("Value", 4, 30, 24, GOLD)
+	boost.line = label("Line", 36, 38, 15, CREAM)
+	boost.frame = f
+	return f
+end
+
+function placeBoost(back, rootW)
+	local sum = boost.summary
+	local PatronBoost = require(Engine:WaitForChild("PatronBoost"))
+	local r = sum and back and PatronBoost.place(back, rootW) or nil
+	if not r then
+		if boost.frame then boost.frame.Visible = false end
+		return
+	end
+	local f = boost.frame or buildBoost()
+	f.Position = UDim2.fromOffset(r.x, r.y)
+	f.Size = UDim2.fromOffset(r.w, r.h)
+	boost.value.Text = sum.text
+	boost.line.Text = sum.line
+	f.Visible = true
+end
+
+-- ScorePopup passes PatronBoost.summary(breakdown) once a hand has scored (nil clears the panel)
+function M.setBoost(summary)
+	boost.summary = summary
+	if holder and nook then pcall(placeBoost, nook.lastBack, rootRef.AbsoluteSize.X) end
 end
 
 function M.install(deps)

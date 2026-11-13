@@ -24060,4 +24060,27 @@ table.insert(tests, { name = "PatronValueText: value comes from the real descrip
 	expectTrue(shown >= 40, "most Patrons have a value")
 end })
 
+table.insert(tests, { name = "PatronBoost: panel only when a Patron adds, real chips x mult, never over the nook", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PatronBoost)
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	expectEqual(PB.summary(nil), nil, "no breakdown")
+	expectEqual(PB.summary({ { kind = "chips", amount = 10, label = "Pair" }, { kind = "mult", amount = 2, label = "Pair" } }), nil, "no Patron entry")
+	local bd = {
+		{ kind = "chips", amount = 10, label = "Pair" }, { kind = "mult", amount = 2, label = "Pair" },
+		{ kind = "mult", amount = 4, label = "The Regular", source = { type = "patron", patronId = "the_regular" } },
+		{ kind = "xmult", amount = 1.5, label = "X", source = { type = "patron", patronId = "x" } },
+	}
+	local s = PB.summary(bd)
+	local c, m = PE.replay(bd)
+	expectEqual(s.chips, c, "chips match replay")
+	expectEqual(s.mult, m, "mult matches replay")
+	expectEqual(s.text, "10 x 9", "text")
+	expectEqual(s.line, "Your Patrons are boosting your score!", "line")
+	local back = { x = 300, y = 92, w = 700, h = 110 }
+	local r = PB.place(back, 1920, 200, 78)
+	expectTrue(r ~= nil and r.x >= back.x + back.w and r.y == back.y, "right of the nook, same top")
+	expectEqual(PB.place(back, 1050, 200, 78), nil, "no room: hidden")
+	expectEqual(PB.place(nil, 1920), nil, "no nook")
+end })
+
 return tests

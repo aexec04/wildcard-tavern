@@ -1304,6 +1304,11 @@ return function(deps)
 				end
 			end
 
+			pcall(function() -- the boost panel by the Patron row shows this hand's real Chips x Mult while a Patron added to it
+				local E = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+				require(script.Parent.PatronRow).setBoost(require(E:WaitForChild("PatronBoost")).summary(breakdown))
+			end)
+
 			-- Boss Round and Bargain score changes land after the Patron beats, as pills on the tavern plate
 			for _, note in ipairs(preview.tavernNotes or {}) do
 				if scorePopupToken ~= myToken then return end
