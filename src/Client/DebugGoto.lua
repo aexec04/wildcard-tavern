@@ -85,7 +85,11 @@ function DebugGoto.init(deps)
 			end
 			data.tierPatrons = order
 		end
-		DebugGoto.render(Rules.synth(which, base, data))
+		local synthState = Rules.synth(which, base, data)
+		if which == "boss1" and data.boss then
+			warn(string.format("[DebugGoto] boss1 hand=%d live=%d delta=%d", #(synthState.hand or {}), #(base.hand or {}), data.boss.handSizeDelta or 0))
+		end
+		DebugGoto.render(synthState)
 		if which == "packroom" and DebugGoto.tools.packSelect then
 			-- pick the first revealed Patron and press Confirm, so the Make room step shows
 			task.delay(0.6, function()

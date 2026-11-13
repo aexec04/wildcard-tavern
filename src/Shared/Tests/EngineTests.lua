@@ -732,6 +732,27 @@ table.insert(tests, { name = "A Boss Round's hand-size penalty actually shrinks 
 	expectEqual(state.discardsRemaining, state.config.discardsPerRound - 1)
 end })
 
+table.insert(tests, { name = "The Bouncer deals base hand size minus one, never below 5, and the boss1 debug jump matches", fn = function()
+	local idx
+	for i, def in ipairs(BossRounds.Definitions) do if def.id == "bouncer" then idx = i end end
+	expectTrue(idx ~= nil, "bouncer exists")
+	local state = RunState.new(nil, function(_n) return idx end)
+	state.round = state.config.roundsPerNight
+	RunState.startRound(state)
+	expectEqual(state.bossModifier.id, "bouncer")
+	expectEqual(#state.hand, state.config.handSize - 1)
+	local R = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local live = #state.hand
+	local s = R.synth("boss1", state, { boss = BossRounds.Definitions[idx] })
+	expectEqual(#s.hand, math.max(5, live - 1))
+	expectEqual(#state.hand, live)
+	local small = RunState.new(nil, function(_n) return idx end)
+	small.config.handSize = 5
+	small.round = small.config.roundsPerNight
+	RunState.startRound(small)
+	expectEqual(#small.hand, 5)
+end })
+
 table.insert(tests, { name = "JOURNEY: a Night's Boss modifier is knowable from Round 1, before the Boss round itself", fn = function()
 	local state = RunState.new(nil, function(n) return n end)
 	expectTrue(state.nightBossModifier ~= nil, "expected nightBossModifier to already be picked at Round 1")

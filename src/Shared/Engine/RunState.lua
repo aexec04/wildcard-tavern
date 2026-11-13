@@ -429,7 +429,7 @@ function RunState.startRound(state)
 		+ (state.housePasses.card_cart and 1 or 0) -- Card Cart
 		+ endlessField(state, "handSizeDelta")
 		+ Strangers.field(state, "handSizeDelta")
-	handSize = math.max(1, handSize)
+	handSize = math.max(5, handSize) -- never fewer than 5 cards
 	-- Late Kitchen House Pass: +1 Discard every round, permanent for the run.
 	local discards = state.config.discardsPerRound + ((bossModifier and bossModifier.discardsDelta) or 0)
 		+ (state.housePasses.late_kitchen and 1 or 0)

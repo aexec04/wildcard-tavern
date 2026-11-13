@@ -114,7 +114,16 @@ function DebugGotoRules.synth(which, state, data)
 	elseif which == "gameover" then
 		s.phase = "gameover"
 	elseif which == "boss1" and data.boss then
-		s.bossModifier = { id = data.boss.id, name = data.boss.name, description = data.boss.description }
+		s.bossModifier = { id = data.boss.id, name = data.boss.name, description = data.boss.description,
+			handSizeDelta = data.boss.handSizeDelta }
+		-- the synthetic jump keeps round1's dealt hand, so apply the boss's hand-size penalty to it here (never below 5)
+		local delta = data.boss.handSizeDelta or 0
+		if delta < 0 and type(s.hand) == "table" then
+			local keep = math.max(5, #s.hand + delta)
+			local trimmed = {}
+			for i = 1, math.min(keep, #s.hand) do trimmed[i] = s.hand[i] end
+			s.hand = trimmed -- a copy: the synthetic state is shallow, the live hand stays untouched
+		end
 		s.isBossRound = true
 		s.round = 3 -- the boss is the last round of a Night: the stage, portrait and plate only act from there
 		s.phase = "playing"
