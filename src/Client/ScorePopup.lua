@@ -620,7 +620,7 @@ return function(deps)
 			for _, d in ipairs(scorePopup:GetDescendants()) do -- the label bars are wider than the popup frame itself
 				if d:IsA("GuiObject") and d.Visible then wide = math.max(wide, d.AbsoluteSize.X) end
 			end
-			local half = wide / 2
+			local half = wide / 2 + 50 -- the label bars stick out about 50 px each side of the pill and are not always measured yet
 			local cardsLeft = (rootSize.X - totalWidth) / 2
 			local cx = cardsLeft + totalWidth + 16 + half
 			if cx + half > rootSize.X - 8 then cx = cardsLeft - 16 - half end

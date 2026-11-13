@@ -1181,9 +1181,9 @@ local lastHandRenderSignature = nil
 local pendingNewCardCount = nil
 
 local BASE_SCALE = 1.0
-local HOVER_SCALE = 1.06
-local SELECTED_SCALE = 1.08
-local SELECTED_HOVER_SCALE = 1.14
+local HOVER_SCALE = 1.03
+local SELECTED_SCALE = 1.0 -- selected cards lift and get the gold outline, they do not grow into their neighbours (the 6 px gap stays)
+local SELECTED_HOVER_SCALE = 1.04
 
 -- FEATURE 2: card hover "fan" -- hovering a card lifts it; its immediate
 -- neighbors lift a little too, falling off with distance, like fanning a

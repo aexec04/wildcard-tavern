@@ -578,9 +578,11 @@ function M.bottomEdge()
 		local y = body.AbsolutePosition.Y + body.AbsoluteSize.Y
 		if not low or y > low then low = y end
 	end
-	if low and nook and nook.ledge and nook.ledge.Visible then
-		low = math.max(low, nook.ledge.AbsolutePosition.Y + nook.ledge.AbsoluteSize.Y)
+	if nook and nook.ledge and nook.ledge.Visible then
+		-- also with no Patron owned yet: the empty nook still stands there, so the score readout must stay below it
+		low = math.max(low or 0, nook.ledge.AbsolutePosition.Y + nook.ledge.AbsoluteSize.Y)
 	end
+	if not low then low = holder.AbsolutePosition.Y + holder.AbsoluteSize.Y end
 	return low
 end
 
