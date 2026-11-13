@@ -23508,6 +23508,52 @@ table.insert(tests, { name = "BossBubbleLayout: the bubble hangs beside the spea
 	expectEqual(BBL.place({ x = 0, y = 0, w = 400, h = 400 }, { x = 150, y = 150, w = 100, h = 100 }, size, boxed), nil, "no room, no bubble")
 end })
 
+table.insert(tests, { name = "BossHomeLayout: the boss medallion and name plate stand in the top strip, clear of the nook, hand, dock and left board at three sizes and a phone", fn = function()
+	local BHL = require(script.Parent.Parent.Engine.BossHomeLayout)
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(BHL.place(0, 0, 0), nil, "no screen, no home")
+	expectEqual(BHL.place(300, 600, 200), nil, "a strip too narrow for a plate gives no home")
+	expectTrue(BHL.BOTTOM_LIMIT < PRL.TOP_LIMIT, "the home ends above the Patron Nook")
+	local function apart(a, b, tag)
+		expectTrue(a.x >= b.x + b.w or b.x >= a.x + a.w or a.y >= b.y + b.h or b.y >= a.y + a.h, tag)
+	end
+	local function check(w, h, left, tag)
+		local home = BHL.place(w, h, left)
+		expectTrue(home ~= nil, tag .. " has a home")
+		local m, p = home.medallion, home.plate
+		expectTrue(m.w >= 56 and m.w == m.h, tag .. " medallion is a readable circle")
+		expectTrue(p.w >= 96 and p.h >= 40, tag .. " plate is readable")
+		apart(m, p, tag .. " medallion and plate do not overlap")
+		for _, r in ipairs({ m, p }) do
+			expectTrue(r.y >= 0 and r.y + r.h <= BHL.BOTTOM_LIMIT, tag .. " inside the top strip")
+			expectTrue(r.x >= left + BHL.EDGE, tag .. " clear of the left board")
+			expectTrue(r.x + r.w <= w - math.min(300, math.floor(w * 0.35)) - BHL.EDGE, tag .. " clear of the corner dock")
+		end
+		return home
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local home = check(w, h, 340, tag)
+		local p = PTL.placement(w, h, 340, 150)
+		local nook = PRL.painted(w, h, p.hand, 5)
+		for _, r in ipairs({ home.medallion, home.plate }) do
+			apart(r, nook.strip, tag .. " clear of the painted nook")
+			apart(r, p.hand, tag .. " clear of the hand")
+		end
+	end
+	check(390, 844, 0, "phone 390x844")
+	check(800, 450, 240, "800x450")
+	-- the plate source: no name plate is drawn on the nook any more
+	local f = io and io.open and io.open("src/Client/BossFight.lua", "r")
+	if f then
+		local code = f:read("*a"); f:close()
+		expectTrue(code:find("BossNamePlate", 1, true) == nil, "no boss name plate hangs on the Patron Nook")
+		expectTrue(code:find("BossHomeLayout", 1, true) ~= nil, "BossFight places the boss from BossHomeLayout")
+	end
+end })
+
 table.insert(tests, { name = "Left board text never cuts: every blessing and curse line fits 3 wrapped lines in the narrowest board text box, boxes end inside the clip edge, no truncation on wrapped board labels", fn = function()
 	local Rows = require(script.Parent.Parent.Engine.BoardPanelRows)
 	local RM = require(script.Parent.Parent.Engine.RunModifiers)

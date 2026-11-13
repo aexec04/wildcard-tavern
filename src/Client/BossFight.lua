@@ -38,8 +38,8 @@ local BossRounds = require(Engine:WaitForChild("BossRounds"))
 local BossLines = require(Engine:WaitForChild("BossLines"))
 local JourneyMap = require(Engine:WaitForChild("JourneyMap"))
 local BossStage = require(Engine:WaitForChild("BossStage"))
-local StageLayout = require(Engine:WaitForChild("StageLayout"))
 local BossBubbleLayout = require(Engine:WaitForChild("BossBubbleLayout"))
+local BossHomeLayout = require(Engine:WaitForChild("BossHomeLayout"))
 local BannerVisibility = require(Engine:WaitForChild("BannerVisibility"))
 
 local ENRAGE_GOLD = Color3.fromRGB(235, 180, 40)
@@ -49,6 +49,8 @@ local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
 local WOOD = Color3.fromRGB(70, 48, 30)
 local BAR_W = 400
+local HOME_Z = 7 -- above the painted room (0); the home is in the top strip, so it never meets the Patron Nook
+local MED_RIM = Color3.fromRGB(140, 32, 32) -- dark red rim: a boss
 local BASE_SCALE = 1.03 -- resting scale of the backdrop: slack so shakes and sway never show an edge
 local HIT_FLASH = Color3.fromRGB(250, 240, 210) -- cream, never red
 local BIG_HIT = 0.30 -- share of the Target that counts as a big hit
@@ -137,6 +139,9 @@ local function build(deps)
 	host.Visible = false
 	host.Parent = root
 
+	-- The boss home (Engine/BossHomeLayout): a round medallion and the name plate in the top strip, above the Patron Nook.
+	-- homeRects holds the resting host-relative rects; nil when the strip is too narrow (the old centred plate stays).
+	local homeRects = nil
 	local function layout()
 		local cam = workspace.CurrentCamera
 		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
@@ -146,14 +151,36 @@ local function build(deps)
 		host.AnchorPoint = Vector2.new(0, 0)
 		host.Position = UDim2.new(0, left, 0, 0)
 		host.Size = UDim2.new(0, areaW, 1, 0)
-		-- the plate and the frame stand at the screen centre, not the host centre, so the plate stays clear of the corner icons
 		local cx = math.floor(vp.X / 2 - left)
+		local home = BossHomeLayout.place(vp.X, vp.Y, left)
 		local pl = host:FindFirstChild("NamePlate")
-		if pl then pl.Position = UDim2.new(0, cx, 0, 10) end
-		local hd = host:FindFirstChild("BossPortrait")
-		local af = hd and hd:FindFirstChild("BossFrame")
-		if af then af.Position = UDim2.new(0, cx, 0, af.Position.Y.Offset) end
+		local med = host:FindFirstChild("BossMedallion")
+		if home then
+			homeRects = {
+				plate = UDim2.fromOffset(home.plate.x - left, home.plate.y),
+				medallion = UDim2.fromOffset(home.medallion.x - left, home.medallion.y),
+			}
+			if pl then
+				pl.AnchorPoint = Vector2.new(0, 0)
+				pl.Position = homeRects.plate
+				pl.Size = UDim2.fromOffset(home.plate.w, home.plate.h)
+			end
+			if med then
+				med.Position = homeRects.medallion
+				med.Size = UDim2.fromOffset(home.medallion.w, home.medallion.h)
+				med.Visible = true
+			end
+		else
+			homeRects = nil
+			if pl then
+				pl.AnchorPoint = Vector2.new(0.5, 0)
+				pl.Position = UDim2.new(0, cx, 0, 10)
+				pl.Size = UDim2.new(0, BAR_W, 0, 50)
+			end
+			if med then med.Visible = false end
+		end
 		host:SetAttribute("CenterX", cx)
+		host:SetAttribute("HomeOk", home ~= nil)
 	end
 	host.ClipsDescendants = true
 
@@ -176,7 +203,6 @@ local function build(deps)
 	local function S(x) return BASE_SCALE * x end
 
 	local art -- ImageLabel or emoji TextLabel, rebuilt per boss
-	local artFrame -- hung frame around the art on the painted table (nil on the old full-area backdrop)
 	local artBase = UDim2.fromScale(0, 0) -- resting position of art; sway is added to it
 	-- dark stepped vignette (bottom and both sides) so the card row and hand stay readable
 	local vignette = Instance.new("Frame")
@@ -207,7 +233,7 @@ local function build(deps)
 	tint.ZIndex = 0
 	tint.Parent = holder
 
-	-- slim name banner, top centre
+	-- name plate (name and rule text) beside the medallion in the top strip; the old centred banner when the strip is too narrow
 	local plate = Instance.new("Frame")
 	plate.Name = "NamePlate"
 	plate.AnchorPoint = Vector2.new(0.5, 0)
@@ -216,7 +242,7 @@ local function build(deps)
 	plate.BorderSizePixel = 0
 	plate.Size = UDim2.new(0, BAR_W, 0, 50)
 	plate.Active = false
-	plate.ZIndex = 0
+	plate.ZIndex = HOME_Z
 	plate.Parent = host
 	corner(plate, 8)
 	local plateStroke = Instance.new("UIStroke")
@@ -224,27 +250,62 @@ local function build(deps)
 	plateStroke.Thickness = 2
 	plateStroke.Parent = plate
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, -12, 0, 24)
-	nameLabel.Position = UDim2.new(0, 6, 0, 2)
+	nameLabel.Size = UDim2.new(1, -16, 0, 22)
+	nameLabel.Position = UDim2.new(0, 8, 0, 3)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextSize = 18
 	nameLabel.TextColor3 = CREAM
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.TextStrokeTransparency = 0.3
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.ZIndex = 0
+	nameLabel.ZIndex = HOME_Z + 1
 	nameLabel.Parent = plate
 	local ruleLabel = Instance.new("TextLabel")
-	ruleLabel.Size = UDim2.new(1, -12, 0, 22)
-	ruleLabel.Position = UDim2.new(0, 6, 0, 26)
+	ruleLabel.Size = UDim2.new(1, -16, 1, -28)
+	ruleLabel.Position = UDim2.new(0, 8, 0, 25)
 	ruleLabel.BackgroundTransparency = 1
 	ruleLabel.Font = Enum.Font.Gotham
 	ruleLabel.TextSize = 15
 	ruleLabel.TextColor3 = Color3.fromRGB(235, 215, 175)
+	ruleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	ruleLabel.TextYAlignment = Enum.TextYAlignment.Top
+	ruleLabel.TextWrapped = true
 	ruleLabel.TextStrokeTransparency = 0.4
 	ruleLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	ruleLabel.ZIndex = 0
+	ruleLabel.ZIndex = HOME_Z + 1
 	ruleLabel.Parent = plate
+
+	-- the medallion: a round portrait in a dark red rim, left of the plate (art goes in by setArt); pulses on a rule hit
+	local medallion = Instance.new("Frame")
+	medallion.Name = "BossMedallion"
+	medallion.Size = UDim2.fromOffset(72, 72)
+	medallion.BackgroundColor3 = WOOD
+	medallion.BorderSizePixel = 0
+	medallion.ClipsDescendants = true
+	medallion.Active = false
+	medallion.Visible = false
+	medallion.ZIndex = HOME_Z
+	medallion.Parent = host
+	corner(medallion, 100)
+	local medStroke = Instance.new("UIStroke")
+	medStroke.Color = MED_RIM
+	medStroke.Thickness = 4
+	medStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	medStroke.Parent = medallion
+	local medScale = Instance.new("UIScale")
+	medScale.Scale = 1
+	medScale.Parent = medallion
+	local medTint = Instance.new("Frame") -- grey wash on defeat
+	medTint.Name = "MedallionTint"
+	medTint.Size = UDim2.fromScale(1, 1)
+	medTint.BackgroundColor3 = Color3.fromRGB(110, 110, 115)
+	medTint.BackgroundTransparency = 1
+	medTint.BorderSizePixel = 0
+	medTint.Active = false
+	medTint.ZIndex = HOME_Z + 3
+	medTint.Parent = medallion
+	corner(medTint, 100)
 
 	local function arrange()
 		layout()
@@ -392,77 +453,40 @@ local function build(deps)
 
 	local function setArt(boss)
 		if art then art:Destroy() art = nil end
-		if artFrame then artFrame:Destroy() artFrame = nil end
 		artBase = UDim2.fromScale(0, 0)
 		local artId = boss and ContentArt.getImageId("boss_rounds", boss.id) or nil
-		if artId then
-			local cam = workspace.CurrentCamera
-			local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-			local fr = StageLayout.bossFrame(vp.X, vp.Y)
-			if fr then
-				-- Painted table: the whole portrait hangs in the free band above the felt, so the face is never under the table front.
-				artFrame = Instance.new("Frame")
-				artFrame.Name = "BossFrame"
-				artFrame.AnchorPoint = Vector2.new(0.5, 0)
-				-- fr.top is in screen pixels; the holder may start below the screen top (inset), so take that off
-				local inset = math.max(0, holder.AbsolutePosition.Y)
-				artFrame.Position = UDim2.new(0, host:GetAttribute("CenterX") or math.floor(host.AbsoluteSize.X / 2), 0, math.max(0, fr.top - inset))
-				artFrame.Size = UDim2.fromOffset(fr.width, fr.height)
-				artFrame.BackgroundColor3 = WOOD
-				artFrame.BorderSizePixel = 0
-				artFrame.ClipsDescendants = true
-				artFrame.Active = false
-				artFrame.ZIndex = 0
-				artFrame.Parent = holder
-				corner(artFrame, 8)
-				local frameStroke = Instance.new("UIStroke")
-				frameStroke.Color = Color3.fromRGB(140, 32, 32) -- dark red frame: a boss
-				frameStroke.Thickness = 4
-				frameStroke.Parent = artFrame
-				artBase = UDim2.fromScale(0.5, 0.5)
-				-- small nameplate across the bottom border: the boss name in cream on dark wood with a gilt rim
-				local plate = Instance.new("TextLabel")
-				plate.Name = "BossNamePlate"
-				plate.AnchorPoint = Vector2.new(0.5, 0.5)
-				plate.Size = UDim2.fromOffset(math.max(120, math.floor(fr.width * 0.8)), fr.plateH)
-				plate.BackgroundColor3 = WOOD
-				plate.BorderSizePixel = 0
-				plate.Font = Enum.Font.GothamBold
-				plate.TextSize = 14
-				plate.TextColor3 = CREAM
-				plate.TextTransparency = 0
-				plate.TextStrokeTransparency = 1
-				plate.Text = boss.name or ""
-				plate.TextTruncate = Enum.TextTruncate.AtEnd
-				plate.ZIndex = 3
-				plate.Parent = holder
-				corner(plate, 6)
-				local plateStroke = Instance.new("UIStroke")
-				plateStroke.Color = GOLD
-				plateStroke.Thickness = 1.5
-				plateStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-				plateStroke.Parent = plate
-				plate.Position = UDim2.new(artFrame.Position.X.Scale, artFrame.Position.X.Offset, 0, math.max(0, fr.top - inset) + fr.height)
-				artFrame.Destroying:Connect(function() plate:Destroy() end)
-				art = PatronPlaque.applyById(artFrame, artId, {
-					size = UDim2.fromScale(1.08, 1.08), anchor = Vector2.new(0.5, 0.5), position = artBase,
-					zIndex = 0, cornerRadius = 0,
-				})
-				if art then
-					art.ScaleType = Enum.ScaleType.Crop
-				else
-					artFrame:Destroy() artFrame = nil
-					artBase = UDim2.fromScale(0, 0)
-				end
-			end
-			if not art then
-				-- Crop over a frame 30% taller than the area, anchored top.
-				art = PatronPlaque.applyById(holder, artId, {
-					size = UDim2.fromScale(1, 1.3), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
-					zIndex = 0, cornerRadius = 0,
+		if homeRects then
+			-- the medallion is the boss's one home: the art (or a crown) crops into the circle, never under the nook
+			artBase = UDim2.fromScale(0.5, 0.5)
+			if artId then
+				art = PatronPlaque.applyById(medallion, artId, {
+					size = UDim2.fromScale(1.12, 1.12), anchor = Vector2.new(0.5, 0.5), position = artBase,
+					zIndex = HOME_Z + 1, cornerRadius = 0,
 				})
 				if art then art.ScaleType = Enum.ScaleType.Crop end
 			end
+			if not art then
+				art = Instance.new("TextLabel")
+				art.AnchorPoint = Vector2.new(0.5, 0.5)
+				art.Position = artBase
+				art.Size = UDim2.fromScale(0.7, 0.7)
+				art.BackgroundTransparency = 1
+				art.Font = Enum.Font.GothamBold
+				art.TextScaled = true
+				art.Text = "\u{1F451}"
+				art.TextColor3 = CREAM
+				art.TextTransparency = 0
+				art.TextStrokeTransparency = 1
+				art.ZIndex = HOME_Z + 1
+				art.Parent = medallion
+			end
+		elseif artId then
+			-- no room for the home (very narrow screen): the old full-area backdrop
+			art = PatronPlaque.applyById(holder, artId, {
+				size = UDim2.fromScale(1, 1.3), anchor = Vector2.new(0, 0), position = UDim2.fromScale(0, 0),
+				zIndex = 0, cornerRadius = 0,
+			})
+			if art then art.ScaleType = Enum.ScaleType.Crop end
 		end
 		if not art then
 			art = Instance.new("TextLabel")
@@ -472,16 +496,36 @@ local function build(deps)
 			art.BackgroundTransparency = 1
 			art.Font = Enum.Font.GothamBold
 			art.TextScaled = true
-			art.Text = "👑"
+			art.Text = "\u{1F451}"
 			art.TextColor3 = CREAM
 			art.ZIndex = 0
 			art.Parent = holder
 		end
+		medTint.Parent = nil
+		medTint.Parent = medallion
 		-- keep the vignette and flash above the art
 		vignette.Parent = nil
 		vignette.Parent = holder
 		tint.Parent = nil
 		tint.Parent = holder
+	end
+
+	-- a rule hit pulses the medallion; defeat greys and tilts it; a boss win swells it with a gold rim (hide() resets all three)
+	local function pulseHome()
+		if not homeRects or not motionOk() then return end
+		medScale.Scale = 1.16
+		play(medScale, { Scale = 1 }, 0.3, Enum.EasingStyle.Back)
+		medStroke.Color = GOLD
+		later(0.3, function() medStroke.Color = MED_RIM end)
+	end
+	local function homeDefeated()
+		play(medTint, { BackgroundTransparency = 0.45 }, 0.3)
+		medStroke.Color = Color3.fromRGB(120, 120, 125)
+		if motionOk() then play(medallion, { Rotation = 10 }, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In) end
+	end
+	local function homeVictory()
+		medStroke.Color = GOLD
+		if motionOk() then play(medScale, { Scale = 1.14 }, 0.3, Enum.EasingStyle.Back) end
 	end
 
 	-- ===== part 2: taunts, attacks, enrage, defeat =====
@@ -589,8 +633,7 @@ local function build(deps)
 	end
 	local function bubbleSpot()
 		if not host.Visible then return nil end
-		local frame = holder.Visible and holder:FindFirstChild("BossFrame") or nil
-		local anchor = absRect(frame) or absRect(plate)
+		local anchor = absRect(medallion) or absRect(plate) -- the live portrait medallion, else the name plate
 		if not anchor then return nil end
 		local keep = {}
 		for _, name in ipairs({ "HandFrame", "PatronRow" }) do
@@ -741,6 +784,7 @@ local function build(deps)
 			end)
 			if spec.shake > 0 and screenShake then pcall(screenShake, root, spec.shake, 0.15) end
 		end
+		pulseHome()
 		say("rule_hit")
 	end
 
@@ -794,6 +838,7 @@ local function build(deps)
 		if playFanfare then pcall(playFanfare) end
 		stageEvent("boss", "defeat", 1)
 		stageEvent("player", "cheer")
+		homeDefeated()
 		-- freeze frame: idle motion stops and the boss holds still for a beat, then
 		-- desaturates, tilts and slides down; gold confetti and orange embers burst out.
 		stopIdle()
@@ -825,6 +870,7 @@ local function build(deps)
 		retiring = true
 		stageEvent("boss", "victory", 1)
 		stageEvent("player", "slump")
+		homeVictory()
 		say("victory", true)
 		if motionOk() then
 			-- grows slightly and laughs (bob)
@@ -853,6 +899,10 @@ local function build(deps)
 		banner.TextStrokeTransparency = 1
 		band.BackgroundTransparency = 1
 		holder.Rotation = 0
+		medallion.Rotation = 0
+		medScale.Scale = 1
+		medStroke.Color = MED_RIM
+		medTint.BackgroundTransparency = 1
 		holder.Visible = true
 		holder.Position = UDim2.new(0.5, 0, 0, 0)
 		pscale.Scale = BASE_SCALE
@@ -953,10 +1003,21 @@ local function build(deps)
 			host.Visible = true
 			visible = true
 			startIdle()
-			-- entrance: pop in, then the intro taunt once the Boss Intro banner has landed
+			-- entrance: the medallion and plate slide down from above the screen edge (0.4 s) and hold 2.2 s with the name and
+			-- rule text, then the intro line speaks from the medallion
 			pscale.Scale = S(0.96)
 			play(pscale, { Scale = BASE_SCALE }, 0.35, Enum.EasingStyle.Back)
-			later(grand and 1.4 or 1.0, function()
+			local introDelay = 1.0
+			if homeRects then
+				if motionOk() and not fast() then
+					medallion.Position = homeRects.medallion - UDim2.fromOffset(0, 100)
+					plate.Position = homeRects.plate - UDim2.fromOffset(0, 100)
+					play(medallion, { Position = homeRects.medallion }, 0.4, Enum.EasingStyle.Back)
+					play(plate, { Position = homeRects.plate }, 0.4, Enum.EasingStyle.Back)
+					introDelay = 2.6
+				end
+			end
+			later(introDelay, function()
 					stageEvent("boss", "taunt", 0.6)
 					require(script.Parent.Cue).play("boss_intro")
 					say("intro", true)
