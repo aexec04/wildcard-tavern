@@ -22732,6 +22732,7 @@ table.insert(tests, { name = "LoadingTips: 12 tips, plain text with no dashes, s
 		expectTrue(text:find("DisplayOrder = 1000", 1, true) ~= nil and text:find("ResetOnSpawn = false", 1, true) ~= nil and text:find("IgnoreGuiInset = true", 1, true) ~= nil, "gui settings")
 		expectTrue(text:find("fade.Active = false", 1, true) ~= nil and text:find("gui:Destroy()", 1, true) ~= nil, "it stops blocking clicks and is destroyed")
 		expectTrue(text:find("math.max(15, size)", 1, true) ~= nil, "text is never under 15")
+		expectTrue(not text:find("gradient(fade,", 1, true) and not text:find("gradient%(fade%s*[,)]"), "no UIGradient is a direct child of the Fade CanvasGroup (it would tint every child)")
 	end
 end })
 

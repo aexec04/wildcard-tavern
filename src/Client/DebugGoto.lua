@@ -239,6 +239,11 @@ function DebugGoto.init(deps)
 		end
 		local ok, err = pcall(function()
 			pendingRound1 = false
+			-- a loading preview never covers the next screen
+			pcall(function()
+				local ls = player.PlayerGui:FindFirstChild("LoadingScreen")
+				if ls then ls:Destroy() end
+			end)
 			pcall(function() require(script.Parent.NewsPanel).hideNow() end) -- every jump starts with the News board closed
 			pcall(function() require(script.Parent.LoginStreakUI).suppress(true) end) -- the daily reward plate would cover the view
 			if target.kind == "menu" then

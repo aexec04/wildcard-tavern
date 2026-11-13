@@ -72,7 +72,14 @@ function LoadingScreenUI.show(playerGui, opts)
 	fade.GroupTransparency = 0
 	fade.Active = true -- swallow clicks while it is up
 	fade.Parent = gui
-	gradient(fade, Color3.fromRGB(26, 20, 30), Color3.fromRGB(8, 6, 8), 90)
+	-- the colour wash is a plain Frame behind the painting: a UIGradient on the CanvasGroup itself multiplies every child (screen near black)
+	local backdrop = Instance.new("Frame")
+	backdrop.Name = "Backdrop"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	backdrop.BorderSizePixel = 0
+	backdrop.Parent = fade
+	gradient(backdrop, Color3.fromRGB(26, 20, 30), Color3.fromRGB(8, 6, 8), 90)
 
 	-- painted scene, cover-cropped
 	if validId(SceneArt.loading_scene_bg) then
