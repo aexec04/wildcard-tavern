@@ -18,6 +18,7 @@ local RunService = game:GetService("RunService")
 
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("PatronRowLayout"))
+local PlayBudget = require(Engine:WaitForChild("PlayBudget"))
 local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local Rules = require(Engine:WaitForChild("PatronRowRules"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
@@ -393,11 +394,12 @@ local function place(state)
 		w = handRef.AbsoluteSize.X, h = handRef.AbsoluteSize.Y,
 	}
 	local lay = nil
-	local opts = nil
+	local budgetH, budgetTop = PlayBudget.nookMax(rootSize.X / k, rootSize.Y / k)
+	local opts = { topLimit = budgetTop * k, maxStripH = budgetH * k, maxCardH = 100 * PlayBudget.scale(rootSize.X / k, rootSize.Y / k) * k } -- one vertical budget (Engine/PlayBudget): a slim nook
 	if show and rootSize.X < 1200 then -- narrow roots: keep the row right of the left board, never over its portrait
 		local sb = rootRef:FindFirstChild("Sidebar")
 		if sb and sb.Visible then
-			opts = { leftLimit = sb.AbsolutePosition.X - rootRef.AbsolutePosition.X + sb.AbsoluteSize.X + 8 }
+			opts.leftLimit = sb.AbsolutePosition.X - rootRef.AbsolutePosition.X + sb.AbsoluteSize.X + 8
 		end
 	end
 	if show then

@@ -23894,7 +23894,7 @@ table.insert(tests, { name = "Patron beats: debug Patrons always fire on High Ca
 	expectTrue(srv:find("Patrons.alwaysFiring(n)", 1, true) ~= nil, "DebugGoto patrons grants always-firing Patrons")
 end })
 
-table.insert(tests, { name = "PlayedLane: played cards land between the Patron nook and the hand, shrunk to 50 to 75 percent", fn = function()
+table.insert(tests, { name = "PlayedLane: played cards land between the Patron nook and the hand, shrunk to 50 to 70 percent", fn = function()
 	local PL = require(script.Parent.Parent.Engine.PlayedLane)
 	for _, c in ipairs({ { 957, 150, 640 }, { 720, 120, 470 }, { 957, 0, 700 }, { 600, 110, 480 } }) do
 		local o = { nookBottom = c[2] > 0 and c[2] or nil, handTop = c[3], cardW = 120, cardH = 170, popupH = 112 }
@@ -23907,9 +23907,34 @@ table.insert(tests, { name = "PlayedLane: played cards land between the Patron n
 		end
 	end
 	local roomy = PL.rect({ nookBottom = 150, handTop = 700, cardW = 120, cardH = 170, popupH = 112 })
-	expectTrue(roomy.scale == PL.MAX_SCALE and roomy.fits and roomy.readoutY >= 150, "roomy window: 75 percent, readout clear of the nook")
+	expectTrue(roomy.scale == PL.MAX_SCALE and roomy.fits and roomy.readoutY >= 150, "roomy window: 70 percent, readout clear of the nook")
 	local tight = PL.rect({ nookBottom = 200, handTop = 280, cardW = 120, cardH = 170, popupH = 112 })
 	expectTrue(tight.scale == PL.MIN_SCALE, "tight window shrinks to the floor")
+end })
+
+table.insert(tests, { name = "PlayBudget: nook, lane, hand and buttons never overlap at any size, the slim nook caps the Patron strip", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PlayBudget)
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	for _, sz in ipairs({ { 1506, 751 }, { 1920, 957 }, { 1280, 720 }, { 1920, 1080 }, { 1000, 600 } }) do
+		local r = PB.rects(sz[1], sz[2])
+		local a, b = PB.overlaps(r)
+		expectTrue(a == nil, "budget rows overlap at " .. sz[1] .. "x" .. sz[2] .. ": " .. tostring(a) .. "," .. tostring(b))
+		expectTrue(r.nook.y >= r.top.y + r.top.h - 0.01, "nook starts below the dock strip")
+		local maxH, topY = PB.nookMax(sz[1], sz[2])
+		local hand = { x = 300, y = r.hand.y, w = sz[1] - 450, h = 200 }
+		for count = 1, 8 do
+			local lay = PRL.painted(sz[1], sz[2], hand, count, { topLimit = topY, maxStripH = maxH })
+			if lay then
+				expectTrue(lay.strip.h <= maxH + 1, "strip capped to the nook budget")
+				expectTrue(lay.strip.y >= topY - 1 and lay.strip.y + lay.strip.h <= r.nook.y + r.nook.h + 1, "strip inside its band")
+				expectTrue(lay.rect.y + lay.rect.h <= r.lane.y + 1, "Patron cards and plaques end above the played lane")
+			end
+		end
+	end
+	expectTrue(PB.LANE_SCALE == require(script.Parent.Parent.Engine.PlayedLane).MAX_SCALE, "lane scale matches the budget")
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local sort = slurp("src/Client/SortToggle.lua")
+	if sort then expectTrue(sort:find("b.TextSize = 16", 1, true) ~= nil, "Rank | Suit label stays 15 px or more") end
 end })
 
 table.insert(tests, { name = "Play table cohesion: card index text has a 15 px floor and the readout is parchment with ink numbers", fn = function()

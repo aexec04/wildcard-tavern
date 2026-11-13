@@ -72,6 +72,7 @@ function M.compute(rootW, rootH, hand, count, opts)
 		availH = bottom - topLimit
 	end
 	local cardH = math.min(M.BASE_H * k, availH)
+	if opts and opts.maxCardH and opts.maxCardH < cardH then cardH = math.max(M.FLOOR_H, opts.maxCardH) end
 	if cardH < M.MIN_H and availH >= M.MIN_H then cardH = M.MIN_H end
 	if cardH < M.FLOOR_H then cardH = math.min(M.FLOOR_H, availH) end
 	if cardH < 24 then return nil end -- truly no room at all (the hand sits at the very top)
@@ -166,11 +167,14 @@ function M.painted(rootW, rootH, hand, count, opts)
 	local stripBottom = handTop - M.AIR + M.TUCK
 	local availW = math.min(hand.w, rootW)
 	local s = math.min(availW / M.STRIP_W, (stripBottom - topLimit) / M.STRIP_H)
+	local capped = false
+	if opts and opts.maxStripH and opts.maxStripH / M.STRIP_H < s then s = opts.maxStripH / M.STRIP_H; capped = true end
 	if s * M.ARCH_W[1] < 60 then return nil end
 	local sw, sh = floor(M.STRIP_W * s), floor(M.STRIP_H * s)
 	local sx = floor(hand.x + (hand.w - sw) / 2)
 	sx = math.max(0, math.min(sx, rootW - sw))
 	local sy = floor(stripBottom - sh)
+	if capped then sy = floor(topLimit) end -- a slim nook hangs from the top limit (PlayBudget), the lane below it is the played cards'
 	local floorY = sy + M.ARCH_FLOOR * s
 	local cardW = math.min(M.BASE_W * M.scale(rootW), M.ARCH_W[1] * s * 0.92)
 	local cardH = cardW * M.BASE_H / M.BASE_W

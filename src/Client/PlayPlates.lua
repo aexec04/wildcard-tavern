@@ -249,8 +249,10 @@ function PlayPlates.apply(actionFrame, placement, imageId)
 	LayoutSwitch.off(sortFrame)
 	if caption then caption.Visible = false end
 	if toggle then
-		toggle.Position = UDim2.fromOffset(math.floor(pl.sort.w * F.x + 0.5), math.floor(pl.sort.h * F.y + 0.5))
-		toggle.Size = UDim2.fromOffset(math.floor(pl.sort.w * F.w + 0.5), math.floor(pl.sort.h * F.h + 0.5))
+		local tw = math.max(PlayTableLayout.SORT_MIN_W, math.floor(pl.sort.w * F.w + 0.5))
+		local th = math.max(PlayTableLayout.SORT_MIN_H, math.floor(pl.sort.h * F.h + 0.5))
+		toggle.Position = UDim2.fromOffset(math.floor(pl.sort.w * (F.x + F.w / 2) - tw / 2 + 0.5), math.floor(pl.sort.h * (F.y + F.h / 2) - th / 2 + 0.5))
+		toggle.Size = UDim2.fromOffset(tw, th)
 		toggle.BackgroundTransparency = 1
 		local st = toggle:FindFirstChildOfClass("UIStroke")
 		if st then st.Enabled = false end

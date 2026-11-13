@@ -104,6 +104,8 @@ M.PLATE_BOXES = {
 	discard = { x = 997, y = 364, w = 512, h = 294 },
 }
 M.PLATES_IMG_W, M.PLATES_IMG_H = 1536, 1024
+M.PLATE_SCALE = 0.7
+M.SORT_MIN_W, M.SORT_MIN_H = 120, 28 -- the Rank | Suit toggle never shrinks below a readable chip (15 px label)
 -- The writing face inside a plate, as fractions of the plate box (below the top bar, inside the corner studs); read by eye from
 -- play_plates_b.png: the bar and its posts end at about 0.30, the face is the dark wood from 0.34 to 0.82.
 M.FACE = { x = 0.12, y = 0.34, w = 0.76, h = 0.48 }
@@ -147,7 +149,7 @@ function M.map(areaW, areaH, setId)
 	out.lip = set and set.lip and scaleRect(set.lip, s, 0, oy) or nil
 	local PLATE_STRIP = set and set.strip or PLATE_STRIP
 	-- plate rects: scale so the tallest plate fills the strip height, keep the three boxes' relative spacing centred under the rail.
-	local ps = (PLATE_STRIP.h * s) / M.PLATE_BOXES.play.h
+	local ps = (PLATE_STRIP.h * s) / M.PLATE_BOXES.play.h * M.PLATE_SCALE -- PlayBudget: buttons at about 70 percent of the old plate
 	local gap = 24 * s
 	local sortW, playW, disW = M.PLATE_BOXES.sort.w * ps, M.PLATE_BOXES.play.w * ps, M.PLATE_BOXES.discard.w * ps
 	local total = sortW + playW + disW + 2 * gap

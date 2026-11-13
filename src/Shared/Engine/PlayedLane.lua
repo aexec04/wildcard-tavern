@@ -1,7 +1,7 @@
 --[[
 	Engine/PlayedLane.lua
 	Where a played hand lands: its own lane between the Patron nook and the hand, never over either. Pure numbers, all in
-	root-relative pixels. The cards shrink to at most 75 percent (at least 50) so the lane fits; the score readout hangs
+	root-relative pixels. The cards shrink to at most 70 percent (at least 50) so the lane fits; the score readout hangs
 	above the lane when there is room for it.
 
 	PlayedLane.rect(o) -> { scale, rowY, cardW, cardH, readoutY, fits }
@@ -13,7 +13,7 @@
 
 local PlayedLane = {}
 
-PlayedLane.MAX_SCALE = 0.75
+PlayedLane.MAX_SCALE = 0.7
 PlayedLane.MIN_SCALE = 0.5
 PlayedLane.GAP = 10
 
