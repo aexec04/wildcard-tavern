@@ -75,4 +75,40 @@ function M.compute(rootW, rootH, hand, count, opts)
 	return out
 end
 
+-- The Patron Nook: a carved ledge against the far rim that the cards stand in.
+--   PatronRowLayout.nook(lay, rootW, hand, opts) -> { back, ledge, trim, glow = rects {x,y,w,h},
+--     rivets = { {x,y}, {x,y} } (size RIVET), alcoves = { rect per card } (empty when the cards overlap) }
+-- The back panel pads the row by 12 px at the sides and 10 above, but never above the dock limit, never outside
+-- the hand frame's span (so the board stays clear) and ends 4 px under the plaques, above the hand cards.
+M.NOOK_PAD_X, M.NOOK_PAD_TOP, M.NOOK_PAD_BOTTOM = 12, 10, 4
+M.LEDGE_OVERLAP = 4 -- cards stand this far down over the ledge front
+M.RIVET = 8
+M.GLOW_H = 18
+
+function M.nook(lay, rootW, hand, opts)
+	if not lay or not lay.rect then return nil end
+	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
+	local r = lay.rect
+	local spanL = math.max(0, math.min(r.x, hand.x))
+	local spanR = math.min(rootW, math.max(r.x + r.w, hand.x + hand.w))
+	local x0 = math.max(r.x - M.NOOK_PAD_X, spanL)
+	local x1 = math.min(r.x + r.w + M.NOOK_PAD_X, spanR)
+	local y0 = math.max(r.y - M.NOOK_PAD_TOP, topLimit)
+	local y1 = r.y + r.h + M.NOOK_PAD_BOTTOM
+	local back = { x = floor(x0), y = floor(y0), w = floor(x1 - x0), h = floor(y1 - y0) }
+	local ledgeY = floor(r.y + lay.cardH - M.LEDGE_OVERLAP)
+	local ledge = { x = back.x, y = ledgeY, w = back.w, h = back.y + back.h - ledgeY }
+	local trim = { x = back.x, y = ledgeY, w = back.w, h = 2 }
+	local ry = ledge.y + ledge.h - M.RIVET - 4
+	local rivets = { { x = back.x + 4, y = ry }, { x = back.x + back.w - M.RIVET - 4, y = ry } }
+	local alcoves = {}
+	if not lay.overlap then
+		for i, c in ipairs(lay.cards) do
+			alcoves[i] = { x = c.x - 4, y = c.y - 4, w = c.w + 8, h = c.h + 4 }
+		end
+	end
+	local glow = { x = back.x, y = back.y, w = back.w, h = math.min(M.GLOW_H, back.h) }
+	return { back = back, ledge = ledge, trim = trim, rivets = rivets, alcoves = alcoves, glow = glow }
+end
+
 return M

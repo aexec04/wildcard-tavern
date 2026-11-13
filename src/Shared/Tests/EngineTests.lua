@@ -23347,6 +23347,38 @@ table.insert(tests, { name = "PatronRowLayout: 0 to 8 Patrons never overlap the 
 	end
 end })
 
+table.insert(tests, { name = "Patron Nook: panel, ledge, rivets and alcoves stay inside the hand span, below the dock and above the hand at three sizes and a phone", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local function check(w, h, hand, n, left, tag)
+		local lay = PRL.compute(w, h, hand, n)
+		local nk = PRL.nook(lay, w, hand)
+		expectTrue(nk ~= nil, tag .. " nook exists")
+		local b = nk.back
+		expectTrue(b.y >= PRL.TOP_LIMIT, tag .. " nook below the dock icons")
+		expectTrue(b.y + b.h <= hand.y + (hand.h >= 200 and PRL.HAND_TOP_PAD or 0), tag .. " nook above the hand cards")
+		expectTrue(b.x >= left and b.x + b.w <= w, tag .. " nook right of the board and on screen")
+		expectTrue(b.x <= lay.rect.x and b.x + b.w >= lay.rect.x + lay.rect.w - 1, tag .. " nook holds the row")
+		expectTrue(nk.glow.y == b.y and nk.glow.h <= b.h, tag .. " glow sits on the top edge")
+		expectTrue(nk.ledge.y + nk.ledge.h == b.y + b.h, tag .. " ledge ends at the panel bottom")
+		expectTrue(nk.ledge.y < lay.rect.y + lay.cardH, tag .. " cards overlap the ledge front")
+		expectEqual(#nk.rivets, 2, tag .. " two rivets")
+		for _, rv in ipairs(nk.rivets) do
+			expectTrue(rv.x >= b.x and rv.x + PRL.RIVET <= b.x + b.w and rv.y >= nk.ledge.y and rv.y + PRL.RIVET <= b.y + b.h, tag .. " rivet on the ledge")
+		end
+		expectEqual(#nk.alcoves, lay.overlap and 0 or n, tag .. " alcoves only when the cards do not overlap")
+		for _, a in ipairs(nk.alcoves) do
+			expectTrue(a.x >= b.x and a.x + a.w <= b.x + b.w and a.y >= b.y, tag .. " alcove inside the back panel")
+		end
+	end
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 1506, 751 } }) do
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		for n = 1, 8 do check(sz[1], sz[2], p.hand, n, 340, sz[1] .. "x" .. sz[2] .. " n=" .. n) end
+	end
+	for n = 1, 8 do check(390, 844, { x = 8, y = 520, w = 374, h = 176 }, n, 0, "phone n=" .. n) end
+	expectEqual(PRL.nook(nil, 100, {}), nil, "no row, no nook")
+end })
+
 table.insert(tests, { name = "Patron Row is wired: the hub installs and updates it, ScorePopup triggers a beat per Patron entry", fn = function()
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local hub, pop, row = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PatronRow.lua")

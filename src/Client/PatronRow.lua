@@ -206,6 +206,121 @@ local function fillCard(c, i, owned)
 	end
 end
 
+-- ===== the Nook: ledge, back panel, lantern glow, alcoves (code-drawn, rects from PatronRowLayout.nook) =====
+local nook -- { root, back, glow, ledge, trim, rivets, alcoves }
+
+local NOOK_BACK = Color3.fromRGB(34, 22, 14)
+local NOOK_ALCOVE = Color3.fromRGB(22, 14, 9)
+
+local function nookFrame(parent, name, z, color, tr)
+	local f = Instance.new("Frame")
+	f.Name = name
+	f.BackgroundColor3 = color
+	f.BackgroundTransparency = tr or 0
+	f.BorderSizePixel = 0
+	f.ZIndex = z
+	f.Active = false
+	f.Parent = parent
+	return f
+end
+
+local function buildNook()
+	local root = Instance.new("Frame")
+	root.Name = "Nook"
+	root.BackgroundTransparency = 1
+	root.Size = UDim2.fromScale(1, 1)
+	root.ZIndex = Z - 4
+	root.Active = false
+	root.Parent = holder
+	local back = nookFrame(root, "Back", Z - 4, NOOK_BACK)
+	corner(back, 8)
+	local glow = nookFrame(root, "Glow", Z - 3, NOOK_BACK) -- warm lantern light: ONE frame, Color stops only
+	local warm, keys = Color3.fromRGB(150, 98, 40), {}
+	for i = 0, 13 do
+		local t = i / 13
+		keys[#keys + 1] = ColorSequenceKeypoint.new(t, NOOK_BACK:Lerp(warm, (1 - t) ^ 2))
+	end
+	local gg = Instance.new("UIGradient")
+	gg.Rotation = 90
+	gg.Color = ColorSequence.new(keys)
+	gg.Parent = glow
+	local ledge = nookFrame(root, "Ledge", Z - 1, Color3.fromRGB(88, 58, 30))
+	local lg = Instance.new("UIGradient") -- wood grain, light to dark, Color only
+	lg.Rotation = 90
+	lg.Color = ColorSequence.new(Color3.fromRGB(112, 76, 40), Color3.fromRGB(66, 43, 22))
+	lg.Parent = ledge
+	local trim = nookFrame(root, "Trim", Z, GOLD)
+	local rivets = {}
+	for i = 1, 2 do
+		rivets[i] = nookFrame(root, "Rivet" .. i, Z, GOLD)
+		corner(rivets[i], 4)
+	end
+	nook = { root = root, back = back, glow = glow, ledge = ledge, trim = trim, rivets = rivets, alcoves = {} }
+end
+
+local function setRect(f, r)
+	f.Position = UDim2.fromOffset(r.x, r.y)
+	f.Size = UDim2.fromOffset(r.w, r.h)
+end
+
+local function buildAlcove(i)
+	local f = nookFrame(nook.root, "Alcove" .. i, Z - 2, NOOK_ALCOVE, 0.25)
+	corner(f, 8)
+	local st = Instance.new("UIStroke")
+	st.Color = GOLD
+	st.Thickness = 1
+	st.Transparency = 0.7
+	st.Parent = f
+	local pip = Instance.new("TextLabel") -- faint brass number pip
+	pip.Name = "Pip"
+	pip.Size = UDim2.fromOffset(20, 20)
+	pip.Position = UDim2.fromOffset(4, 4)
+	pip.BackgroundColor3 = GOLD
+	pip.BackgroundTransparency = 0.75
+	pip.Font = Enum.Font.GothamBold
+	pip.TextSize = 15
+	pip.TextColor3 = CREAM
+	pip.TextTransparency = 0.25
+	pip.TextStrokeTransparency = 1
+	pip.Text = tostring(i)
+	pip.ZIndex = Z - 1
+	pip.Active = false
+	pip.Parent = f
+	corner(pip, 10)
+	return f
+end
+
+local function placeNook(lay, rootW, hand, owned)
+	if not lay then
+		if nook then nook.root.Visible = false end
+		return
+	end
+	if not nook then buildNook() end
+	local nk = Layout.nook(lay, rootW, hand)
+	nook.root.Visible = nk ~= nil
+	if not nk then return end
+	setRect(nook.back, nk.back)
+	setRect(nook.glow, nk.glow)
+	setRect(nook.ledge, nk.ledge)
+	setRect(nook.trim, nk.trim)
+	for i, r in ipairs(nk.rivets) do
+		nook.rivets[i].Position = UDim2.fromOffset(r.x, r.y)
+		nook.rivets[i].Size = UDim2.fromOffset(Layout.RIVET, Layout.RIVET)
+	end
+	for i = 1, math.max(#nk.alcoves, #nook.alcoves) do
+		local r = nk.alcoves[i]
+		if r and not nook.alcoves[i] then nook.alcoves[i] = buildAlcove(i) end
+		local a = nook.alcoves[i]
+		if a then
+			a.Visible = r ~= nil
+			if r then
+				setRect(a, r)
+				a.Pip.Visible = owned[i] == nil
+			end
+		end
+	end
+end
+
 local function place(state)
 	if not holder then return end
 	state = state or lastState
@@ -223,6 +338,7 @@ local function place(state)
 	}
 	local lay = show and Layout.compute(rootSize.X, rootSize.Y, hand, limit) or nil
 	holder.Visible = lay ~= nil
+	placeNook(lay, rootSize.X, hand, owned)
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end
