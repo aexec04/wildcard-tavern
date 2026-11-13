@@ -20028,7 +20028,7 @@ table.insert(tests, { name = "Painted play screen polish 2: title fits and plate
 		local H = map.PlayBoardLayout.hud(rect.w, rect.h)
 		local label = size[1] .. "x" .. size[2]
 		expectTrue(PlayBoardHud.apply(root, rect) == true, "applies at " .. label)
-		expectTrue(title.TextSize <= 17 and title.TextSize * #title.Text * 0.6 <= H.title.w - 16 or title.TextSize == 14, "title fits its slot at " .. label)
+		expectTrue(title.TextSize <= 17 and title.TextSize * #title.Text * 0.6 <= H.title.w - 16 or title.TextSize == 15, "title fits its slot at " .. label)
 		for _, f in ipairs({ tips, hint, chip }) do
 			local x, y, w, h = f.Position.X.Offset, f.Position.Y.Offset, f.Size.X.Offset, f.Size.Y.Offset
 			local onBoard = f ~= chip -- in this fake the chip is a Sidebar child with no row, so it is stacked below the grown board
@@ -20164,7 +20164,7 @@ table.insert(tests, { name = "Painted play screen polish: score slot keeps bar a
 	local rn, rl = rule:FindFirstChild("BoardRuleName"), rule:FindFirstChild("BoardRuleLine")
 	expectTrue(rn and rn.Text == "Small Round" and rl and rl.Text == "No special rules this round.", "rule slot holds the round name, then the rule")
 	expectTrue(ruleLabel.Visible == false and not rn.TextWrapped and not rl.TextWrapped, "the rich text label is replaced by one-line labels")
-	expectTrue(rn.TextSize <= 14 and (not rl.Visible or (rl.TextSize >= 12 and rl.TextSize <= 14)), "rule text is at most 14 px, or the line is dropped when it does not fit")
+	expectTrue(rn.TextSize >= 15 and rn.TextSize <= 16 and (not rl.Visible or rl.TextSize == 15), "rule text is 15 to 16 px, or the line is dropped when it does not fit")
 	expectTrue(rl.Visible and (rn.TextYAlignment == env.Enum.TextYAlignment.Bottom and rl.TextYAlignment == env.Enum.TextYAlignment.Top) or (not rl.Visible and rn.TextYAlignment == env.Enum.TextYAlignment.Center and rn.Size.Y.Scale == 1), "the two rule lines are one block centred in the slot")
 	expectTrue(hl.TextSize == dl.TextSize, "Hands and Discards use one text size: " .. tostring(hl.TextSize) .. " vs " .. tostring(dl.TextSize))
 	expectTrue((rule:GetAttribute("RuleTooltip") or ""):find("No special rules"), "the full rule text is kept for the tooltip")
@@ -23535,6 +23535,30 @@ table.insert(tests, { name = "PatronRowLayout: small roots (1004x500, 1024x600, 
 				local handTop = hand.y + (hand.h >= 200 and PRL.HAND_TOP_PAD or 0)
 				expectTrue(lay.rect.y >= 0 and lay.rect.y + lay.rect.h <= handTop, t .. " row ends above the hand cards")
 				expectTrue(lay.cardH >= 24, t .. " card readable")
+			end
+		end
+	end
+end })
+
+table.insert(tests, { name = "PatronRowLayout: small roots keep the row inside the hand column, cards 60 px or taller, plaques only when 15 px names fit", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	for _, sz in ipairs({ { 1004, 500 }, { 1024, 600 }, { 844, 390 }, { 1506, 751 } }) do
+		local p = PTL.placement(sz[1], sz[2], 340, 150)
+		local hands = { { x = 200, y = 150, w = 520, h = 200 } }
+		if p then hands[#hands + 1] = p.hand end
+		for _, hand in ipairs(hands) do
+			for n = 1, 8 do
+				local t = sz[1] .. "x" .. sz[2] .. " n=" .. n
+				local lay = PRL.compute(sz[1], sz[2], hand, n)
+				expectTrue(lay ~= nil, t .. " row is not nil")
+				expectTrue(lay.rect.x >= hand.x - 1 and lay.rect.x + lay.rect.w <= hand.x + hand.w + 1, t .. " row inside the hand column")
+				local handTop = hand.y + (hand.h >= 200 and PRL.HAND_TOP_PAD or 0)
+				if handTop - PRL.AIR - PRL.SMALL_TOP >= PRL.FLOOR_H and not lay.overlap then
+					expectTrue(lay.cardH >= PRL.FLOOR_H, t .. " card at least 60 px tall")
+				end
+				expectTrue(lay.plaqueH == 0 or lay.cardW >= PRL.PLAQUE_MIN_W, t .. " plaque only on wide cards")
+				expectTrue(lay.rect.h == lay.cardH + lay.plaqueH, t .. " rect matches cards plus plaque")
 			end
 		end
 	end

@@ -394,6 +394,7 @@ local function place(state)
 				c.slot.Size = UDim2.fromOffset(r.w, r.h)
 				c.slot.ZIndex = Z + i -- later cards overlap earlier ones
 				fillCard(c, i, owned[i])
+				if lay.plaqueH <= 0 then c.plaque.Visible = false end -- narrow cards: the tooltip carries the name
 				if not c.floatTween and not c.hopping then startFloat(c, i) end
 			else
 				c.slot.Visible = false

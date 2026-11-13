@@ -28,7 +28,8 @@ M.TOP_LIMIT = 92
 M.HAND_TOP_PAD = 19 -- cards in a 200 px hand frame stand at most 165 px tall with 16 px under them
 M.AIR = 8 -- clear space between the plaques and the hand cards
 M.SMALL_TOP = 40 -- on short roots the row may rise this high (over the dock's quiet strip) rather than hide
-M.FLOOR_H = 40 -- smallest card the row will shrink to before giving up
+M.FLOOR_H = 60 -- smallest card the row will shrink to before giving up
+M.PLAQUE_MIN_W = 84 -- narrower cards drop the name plaque (a 15 px name no longer fits)
 
 local function floor(n) return math.floor(n + 0.5) end
 
@@ -48,10 +49,16 @@ function M.compute(rootW, rootH, hand, count, opts)
 	local k = M.scale(rootW)
 	local handTop = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0)
 	local bottom = handTop - M.AIR
-	local availH = bottom - topLimit - M.PLAQUE_H
+	local plaqueH = M.PLAQUE_H
+	local availH = bottom - topLimit - plaqueH
 	if availH < M.MIN_H then -- short root: let the row rise toward the top bar instead of hiding
 		topLimit = math.min(topLimit, M.SMALL_TOP)
-		availH = bottom - topLimit - M.PLAQUE_H
+		availH = bottom - topLimit - plaqueH
+	end
+	if availH * M.BASE_W / M.BASE_H < M.PLAQUE_MIN_W then
+		-- cards this narrow cannot hold a 15 px name: drop the plaques (the tooltip keeps the name) and give the cards the height
+		plaqueH = 0
+		availH = bottom - topLimit
 	end
 	local cardH = math.min(M.BASE_H * k, availH)
 	if cardH < M.MIN_H and availH >= M.MIN_H then cardH = M.MIN_H end
@@ -76,16 +83,17 @@ function M.compute(rootW, rootH, hand, count, opts)
 			step = cardW * M.MIN_VISIBLE
 		end
 	end
+	if plaqueH > 0 and cardW < M.PLAQUE_MIN_W then plaqueH = 0 end -- width shrank the cards: no room for a 15 px name
 	local totalW = cardW + step * (count - 1)
 	local x0 = hand.x + (hand.w - totalW) / 2
 	x0 = math.max(0, math.min(x0, rootW - totalW))
-	local y = bottom - M.PLAQUE_H - cardH
-	local out = { cards = {}, cardW = floor(cardW), cardH = floor(cardH), plaqueH = M.PLAQUE_H, step = step, overlap = overlap }
+	local y = bottom - plaqueH - cardH
+	local out = { cards = {}, cardW = floor(cardW), cardH = floor(cardH), plaqueH = plaqueH, step = step, overlap = overlap }
 	for i = 1, count do
 		out.cards[i] = { x = floor(x0 + (i - 1) * step), y = floor(y), w = floor(cardW), h = floor(cardH) }
 	end
 	local last = out.cards[count]
-	out.rect = { x = out.cards[1].x, y = floor(y), w = last.x + last.w - out.cards[1].x, h = floor(cardH) + M.PLAQUE_H }
+	out.rect = { x = out.cards[1].x, y = floor(y), w = last.x + last.w - out.cards[1].x, h = floor(cardH) + plaqueH }
 	return out
 end
 
@@ -111,6 +119,7 @@ function M.nook(lay, rootW, hand, opts)
 	local y1 = r.y + r.h + M.NOOK_PAD_BOTTOM
 	local back = { x = floor(x0), y = floor(y0), w = floor(x1 - x0), h = floor(y1 - y0) }
 	local ledgeY = floor(r.y + lay.cardH - M.LEDGE_OVERLAP)
+	if (lay.plaqueH or M.PLAQUE_H) <= 0 then ledgeY = math.min(ledgeY, y1 - (M.RIVET + 8)) end -- no plaque: the cards stand deeper in the ledge
 	local ledge = { x = back.x, y = ledgeY, w = back.w, h = back.y + back.h - ledgeY }
 	local trim = { x = back.x, y = ledgeY, w = back.w, h = 2 }
 	local ry = ledge.y + ledge.h - M.RIVET - 4
@@ -169,14 +178,15 @@ function M.painted(rootW, rootH, hand, count, opts)
 		end
 	end
 	local y = floor(floorY - cardH + 4) -- cards stand 4 px down over the arch floor
-	local out = { cards = {}, cardH = floor(cardH), cardW = floor(cardW), plaqueH = M.PLAQUE_H, overlap = overlap,
+	local plaqueH = cardW >= M.PLAQUE_MIN_W and M.PLAQUE_H or 0
+	local out = { cards = {}, cardH = floor(cardH), cardW = floor(cardW), plaqueH = plaqueH, overlap = overlap,
 		strip = { x = sx, y = sy, w = sw, h = sh }, scale = s }
 	for i = 1, count do
 		out.cards[i] = { x = floor(centers[i] - cardW / 2), y = y, w = floor(cardW), h = floor(cardH) }
 	end
 	out.step = count > 1 and (centers[count] - centers[1]) / (count - 1) or 0
 	local first, last = out.cards[1], out.cards[count]
-	out.rect = { x = first.x, y = y, w = last.x + last.w - first.x, h = floor(cardH) + M.PLAQUE_H }
+	out.rect = { x = first.x, y = y, w = last.x + last.w - first.x, h = floor(cardH) + plaqueH }
 	return out
 end
 

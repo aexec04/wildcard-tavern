@@ -220,7 +220,7 @@ local function run(root, st)
 		for _, c in ipairs(ribbon:GetChildren()) do
 			if c:IsA("TextLabel") then
 				put(st, c, { Position = UDim2.fromOffset(INSET, 0), Size = UDim2.new(1, -2 * INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
-				fitOne(st, c, H.title.w - 2 * INSET, 14, 17)
+				fitOne(st, c, H.title.w - 2 * INSET, 15, 17)
 			elseif c:IsA("Frame") then
 				put(st, c, { Visible = false })
 			end
@@ -348,7 +348,7 @@ local function run(root, st)
 			-- the two lines are one block centred in the slot: name hugs the middle from above, rule line from below
 			put(st, nameL, { Position = UDim2.fromOffset(RULE_INSET, 0), Size = showLine and UDim2.new(1, -2 * RULE_INSET, 0.45, 0) or UDim2.new(1, -2 * RULE_INSET, 1, 0),
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = showLine and Enum.TextYAlignment.Bottom or Enum.TextYAlignment.Center, Visible = true })
-			fitOne(st, nameL, w, 12, isBoss and 15 or 14)
+			fitOne(st, nameL, w, 15, isBoss and 15 or 16)
 			if isBoss then
 				put(st, nameL, { TextColor3 = Color3.fromRGB(246, 232, 200), Font = Enum.Font.GothamBold }) -- fitOne sets dark ink: cream on the red plate
 			else
@@ -371,7 +371,7 @@ local function run(root, st)
 					Position = UDim2.fromOffset(RULE_INSET, 28), Size = UDim2.new(1, -2 * RULE_INSET, 0, math.max(20, H.rule.h - 32)),
 					TextYAlignment = Enum.TextYAlignment.Top, TextStrokeTransparency = 1, TextTransparency = 0 })
 			elseif showLine then
-				fitOne(st, lineL, w, 12, 14)
+				fitOne(st, lineL, w, 15, 15)
 			end
 			local logKey = second .. tostring(isBoss)
 			if isBoss and rule:GetAttribute("BossPlateLogged") ~= logKey then
@@ -388,7 +388,7 @@ local function run(root, st)
 		local big = visibleLabel(score, true)
 		if big then
 			put(st, big, { Position = UDim2.fromScale(0.04, 0.02), Size = UDim2.fromScale(0.92, 0.44), TextXAlignment = Enum.TextXAlignment.Center })
-			fit(st, big, 14, 30)
+			fit(st, big, 15, 30)
 		end
 		local bar = score:FindFirstChild("TargetBar")
 		if bar then put(st, bar, { Position = UDim2.fromScale(0.06, 0.5), Size = UDim2.fromScale(0.88, 0.12) }) end
@@ -398,7 +398,7 @@ local function run(root, st)
 			local line = visibleLabel(plate)
 			if line then
 				put(st, line, { Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1), TextXAlignment = Enum.TextXAlignment.Center })
-				fit(st, line, 14, 17)
+				fit(st, line, 15, 17)
 			end
 		end
 	end
@@ -416,12 +416,12 @@ local function run(root, st)
 				if lab then
 					put(st, lab, { Position = UDim2.fromOffset(TILE_INSET, 0), Size = UDim2.new(1, -2 * TILE_INSET, 1, 0), TextXAlignment = Enum.TextXAlignment.Center })
 					local width = slot.w - 2 * TILE_INSET
-					shared = math.min(shared, (sizeFor(lab.Text, 14, 18, width, lab.Font)))
+					shared = math.min(shared, (sizeFor(lab.Text, 15, 18, width, lab.Font)))
 					table.insert(tiles, { lab = lab, width = width })
 				end
 			end
 		end
-		for _, t in ipairs(tiles) do fitOne(st, t.lab, t.width, 14, shared) end -- Hands and Discards share one size (the smaller that fits both)
+		for _, t in ipairs(tiles) do fitOne(st, t.lab, t.width, 15, shared) end -- Hands and Discards share one size (the smaller that fits both)
 	end
 	if patrons then
 		placeRect(st, patrons, H.ringRow)
