@@ -23241,6 +23241,46 @@ table.insert(tests, { name = "Full screen Collection: the layout never writes th
 	end
 end })
 
+table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local ids = {}
+	for _, p in ipairs(Patrons.Definitions) do ids[#ids + 1] = p.id end
+	local checked, withEvents = 0, 0
+	for start = 1, #ids, 3 do
+		local owned = {}
+		for k = 0, 5 do
+			owned[#owned + 1] = Patrons.getById(ids[((start + k - 1) % #ids) + 1])
+		end
+		local samples = {
+			{ C(9, "Hearts"), C(9, "Clubs"), C(2, "Spades") },
+			{ C(14, "Hearts"), C(13, "Hearts"), C(12, "Hearts"), C(11, "Hearts"), C(9, "Hearts") },
+			{ C(5, "Hearts"), C(5, "Clubs"), C(5, "Spades"), C(7, "Hearts"), C(7, "Clubs") },
+		}
+		for _, cards in ipairs(samples) do
+			local hand = HandEvaluator.evaluate(cards)
+			local score, chips, mult, extra = Scoring.calculate(hand, owned, {})
+			local rc, rm, rs = PE.replay(extra.breakdown)
+			expectTrue(math.abs(rc - chips) < 1e-6 and math.abs(rm - mult) < 1e-6 and math.abs(rs - score) < 1e-6, "replay equals Scoring (start " .. start .. ")")
+			local ev = PE.fromBreakdown(extra.breakdown)
+			local last = 0
+			for _, e in ipairs(ev) do
+				expectTrue(e.index > last, "events keep engine order")
+				last = e.index
+				expectTrue(e.kind == "chips" or e.kind == "mult" or e.kind == "xmult" or e.kind == "money", "known kind " .. tostring(e.kind))
+				expectTrue(#(PE.text(e)) > 0, "event has pill text")
+			end
+			if #ev > 0 then withEvents = withEvents + 1 end
+			checked = checked + 1
+		end
+	end
+	expectTrue(checked > 0 and withEvents > 0, "some sample hands trigger Patrons")
+	expectEqual(PE.gap(false), 0.28, "normal gap")
+	expectEqual(PE.gap(true), 0.12, "fast gap")
+	expectEqual(PE.text({ kind = "xmult", amount = 1.5 }), "x1.5 Mult", "xmult pill")
+	expectEqual(PE.text({ kind = "money", amount = 2 }), "+$2", "money pill")
+	expectEqual(#PE.tavernNotes({ chipsMultiplier = 0.5, firstHandMultiplier = 0.5 }, true, -20), 3, "boss chips factor, first hand and bargain")
+end })
+
 table.insert(tests, { name = "Journey.lua: the Tavern Map (thousands of instances) is built on first open, not at startup", fn = function()
 	local f = io and io.open and io.open("src/Client/Journey.lua", "r")
 	if not f then return end
