@@ -180,7 +180,8 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	if w < 400 then return nil end
 	local x = math.max(left, math.min(m.rail.x + m.rail.w / 2 - w / 2, right - w))
 	x = math.floor(x + 0.5)
-	local handY = m.seat + M.CARD_PAD - M.HAND_H
+	local handH = require(script.Parent.HandSizing).frameHeight(areaW)
+	local handY = m.seat + M.CARD_PAD - handH
 	-- the button row is centred under the hand (the hand can slide off the rail centre when the left board or the deck clamps it)
 	do
 		local pl0 = m.plates
@@ -193,11 +194,11 @@ function M.placement(areaW, areaH, left, rightReserve, setId)
 	local actH = math.max(pl.sort.h, pl.play.h, pl.discard.h)
 	local actX = pl.sort.x
 	local actW = pl.discard.x + pl.discard.w - pl.sort.x
-	if handY < 0 or actY + actH > areaH or actY < handY + M.HAND_H - M.CARD_PAD then return nil end
+	if handY < 0 or actY + actH > areaH or actY < handY + handH - M.CARD_PAD then return nil end
 	local dx = math.max(0, left - actX) -- a narrow window slides the row clear of the sidebar
 	actX = actX + dx
 	if actX + actW > areaW then return nil end
-	return { map = m, hand = { x = x, y = handY, w = w, h = M.HAND_H }, actions = { x = actX, y = actY, w = actW, h = actH }, gap = math.floor(24 * m.scale + 0.5), dx = dx }
+	return { map = m, hand = { x = x, y = handY, w = w, h = handH }, actions = { x = actX, y = actY, w = actW, h = actH }, gap = math.floor(24 * m.scale + 0.5), dx = dx }
 end
 
 return M

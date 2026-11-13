@@ -23934,6 +23934,28 @@ table.insert(tests, { name = "PlayedLane: played cards land between the Patron n
 	expectTrue(tight.scale == PL.MIN_SCALE, "tight window shrinks to the floor")
 end })
 
+table.insert(tests, { name = "HandSizing: 124 x 180 cards from 1200 wide, old size below, frame holds them, buttons keep clearance", fn = function()
+	local HS = require(script.Parent.Parent.Engine.HandSizing)
+	local PT = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectEqual(HS.maxCardWidth(1920), 124)
+	expectEqual(HS.maxCardWidth(1199), 114)
+	expectEqual(HS.frameHeight(1920), 200, "frame unchanged, so keep-out rects do not move")
+	expectEqual(HS.frameHeight(1000), 200)
+	local w, h = HS.cardSize(1920, 1100, 200, 8)
+	expectEqual(w, 124)
+	expectEqual(h, 179)
+	expectEqual(w + HS.GAP, 130, "step 130")
+	local sw = HS.cardSize(1920, 700, 200, 8)
+	expectTrue(sw < 124 and sw >= HS.MIN_WIDTH, "a narrow row shrinks the cards")
+	for _, size in ipairs({ { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 1000, 700 } }) do
+		local p = PT.placement(size[1], size[2], 260, 150, PT.OVAL_KEY)
+		if p then
+			expectEqual(p.hand.h, HS.frameHeight(size[1]), "hand frame height at " .. size[1])
+			expectTrue(p.hand.y + p.hand.h - PT.CARD_PAD <= p.actions.y, "cards end above the plates at " .. size[1])
+		end
+	end
+end })
+
 table.insert(tests, { name = "PlayBudget: nook, lane, hand and buttons never overlap at any size, the slim nook caps the Patron strip", fn = function()
 	local PB = require(script.Parent.Parent.Engine.PlayBudget)
 	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)

@@ -225,6 +225,14 @@ function PlayScenePaint.install(deps)
 			handFrame:SetAttribute("PaintedRail", true) -- CardFace hides its code-drawn tray
 			handFrame.Position = UDim2.fromOffset(p.hand.x, p.hand.y)
 			handFrame.Size = UDim2.fromOffset(p.hand.w, p.hand.h)
+			do
+				local HS = require(Engine:WaitForChild("HandSizing"))
+				handFrame:SetAttribute("MaxCardWidth", HS.maxCardWidth(size.X))
+				if game:GetService("RunService"):IsStudio() then
+					local cw, ch = HS.cardSize(size.X, p.hand.w, p.hand.h, 8)
+					warn(string.format("[HandSize] screen %d, card %d x %d, step %d, frame %d x %d", size.X, cw, ch, cw + HS.GAP, p.hand.w, p.hand.h))
+				end
+			end
 			actionFrame.Position = UDim2.fromOffset(p.actions.x, p.actions.y)
 			actionFrame.Size = UDim2.fromOffset(p.actions.w, p.actions.h)
 			plates(p)

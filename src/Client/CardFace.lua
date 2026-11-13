@@ -430,11 +430,13 @@ function CardFace.layoutHand(handFrame)
 	local count = #slots
 
 	local frameSize = handFrame.AbsoluteSize
-	local width = MAX_CARD_WIDTH
+	local maxWidth = math.max(MAX_CARD_WIDTH, handFrame:GetAttribute("MaxCardWidth") or 0)
+	local width = maxWidth
 	if frameSize.X > 0 and count > 0 then
 		local byWidth = math.floor((frameSize.X - 2 * TRAY_PAD - CARD_GAP * (count - 1)) / count)
-		local byHeight = math.floor((frameSize.Y - 2 * TRAY_PAD) / CARD_ASPECT)
-		width = math.clamp(math.min(MAX_CARD_WIDTH, byWidth, byHeight), MIN_CARD_WIDTH, MAX_CARD_WIDTH)
+		local bigHand = (handFrame:GetAttribute("MaxCardWidth") or 0) > MAX_CARD_WIDTH -- cards stand on the bottom padding only
+		local byHeight = math.floor((frameSize.Y - (bigHand and TRAY_PAD or 2 * TRAY_PAD)) / CARD_ASPECT)
+		width = math.clamp(math.min(maxWidth, byWidth, byHeight), MIN_CARD_WIDTH, maxWidth)
 	end
 	local height = math.floor(width * CARD_ASPECT)
 	for _, slot in ipairs(slots) do
