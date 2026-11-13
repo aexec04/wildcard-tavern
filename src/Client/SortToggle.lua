@@ -17,6 +17,7 @@ local HudStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local HudTheme = require(script.Parent.HudTheme)
 
 local SortToggle = {}
+SortToggle.TEXT_SIZE = 18 -- Fondamento draws small; 16 read as about 13 px. Never below 15.
 
 local function c3(t)
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -68,7 +69,7 @@ function SortToggle.build(parent, onPick)
 		b.BorderSizePixel = 0
 		b.AutoButtonColor = false
 		b.Font = Enum.Font.Fondamento
-		b.TextSize = 16
+		b.TextSize = SortToggle.TEXT_SIZE
 		b.Text = text
 		b.TextTransparency = 0
 		b.TextStrokeTransparency = 1

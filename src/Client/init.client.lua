@@ -2143,7 +2143,11 @@ local function rebuildHand(handData, phase)
 		cardArt.Visible = cardFaceTemplate ~= "" -- missing Image id: the button's flat ivory fill shows
 		cardArt.ZIndex = 1
 		cardArt.Parent = button
-		VisualHelpersModule.roundCorner(cardArt, 8)
+		do -- crop off the picture's opaque checker margin (the pale corner blocks), see Engine/CardFaceArt
+			local r = require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).rect()
+			cardArt.ImageRectOffset, cardArt.ImageRectSize = Vector2.new(r.x, r.y), Vector2.new(r.w, r.h)
+		end
+		VisualHelpersModule.roundCorner(cardArt, 10)
 
 		-- The card's rank/suit -- always shown. Not a fallback anymore:
 		-- the face template's center is blank on purpose, so this text IS

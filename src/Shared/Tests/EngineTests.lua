@@ -23934,7 +23934,7 @@ table.insert(tests, { name = "PlayBudget: nook, lane, hand and buttons never ove
 	expectTrue(PB.LANE_SCALE == require(script.Parent.Parent.Engine.PlayedLane).MAX_SCALE, "lane scale matches the budget")
 	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local sort = slurp("src/Client/SortToggle.lua")
-	if sort then expectTrue(sort:find("b.TextSize = 16", 1, true) ~= nil, "Rank | Suit label stays 15 px or more") end
+	if sort then expectTrue((tonumber(sort:match("SortToggle%.TEXT_SIZE%s*=%s*(%d+)")) or 0) >= 15, "Rank | Suit label stays 15 px or more") end
 end })
 
 table.insert(tests, { name = "Play table cohesion 2b: readout never overlaps the played cards, button row is centred under the hand", fn = function()
@@ -23999,6 +23999,23 @@ table.insert(tests, { name = "CardFaceArt: the Classic Tavern skin draws the ivo
 		local src = f:read("*a"); f:close()
 		expectTrue(src:find("ivoryAlone", 1, true) ~= nil, "cardLayers consults ivoryAlone")
 	end
+end })
+
+table.insert(tests, { name = "Card face polish: the face crop drops the checker margin, the Rank | Suit label is at least 15 px", fn = function()
+	local CFA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local r = CFA.rect()
+	expectTrue(r.x >= 54 and r.y >= 54, "crop covers the ~54 px checker margin")
+	expectTrue(r.x + r.w == CFA.SIZE[1] - CFA.CROP and r.y + r.h == CFA.SIZE[2] - CFA.CROP, "crop is symmetric and inside the picture")
+	expectTrue(CFA.CORNER_RADIUS >= 8, "art corners are rounded")
+	local f = io.open("src/Client/SortToggle.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		local n = tonumber(src:match("SortToggle%.TEXT_SIZE%s*=%s*(%d+)"))
+		expectTrue(n ~= nil and n >= 15, "Rank | Suit text size is at least 15")
+		expectTrue(src:find("b.TextSize = SortToggle.TEXT_SIZE", 1, true) ~= nil, "the halves use TEXT_SIZE")
+	end
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	expectTrue(PTL.SORT_MIN_H >= 28, "chip stays at least 28 tall")
 end })
 
 return tests
