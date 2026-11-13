@@ -217,11 +217,11 @@ function DebugGoto.init(deps)
 			local state = DebugGoto.getState and DebugGoto.getState()
 			local n = state and state.hand and math.min(5, #state.hand) or 0
 			if n < 1 then warn("[DebugGoto] playhand needs a dealt hand: round1 first") return end
-			local indices = {}
-			for i = 1, n do indices[i] = i end
 			if target.keep then remotes:WaitForChild("DebugSetTarget"):FireServer(5000) end -- same client, so it arrives before PlayHand
-			remotes:WaitForChild("PlayHand"):FireServer(indices)
-			print("[DebugGoto] playhand sent " .. n .. " cards" .. (target.keep and " (target 5000)" or ""))
+			-- the hub's real Play Hand handler (preview, score popup, Patron beats), not a bare remote: beats are client-side
+			if not DebugGoto.playSelected then warn("[DebugGoto] playhand: hub play handler not wired, nothing sent") return end
+			DebugGoto.playSelected(n)
+			print("[DebugGoto] playhand ran the real Play Hand flow with " .. n .. " cards" .. (target.keep and " (target 5000)" or ""))
 			return
 		end
 		if target.kind == "sfx" then

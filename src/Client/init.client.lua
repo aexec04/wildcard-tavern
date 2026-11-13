@@ -2662,7 +2662,8 @@ end
 
 -- ===== Wire up buttons =====
 
-playButton.MouseButton1Click:Connect(function()
+do -- the Play Hand click handler is shared with DebugGoto playhand so Studio runs the same beats
+	local function onPlayClick()
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then
 		return
 	end
@@ -2764,7 +2765,17 @@ playButton.MouseButton1Click:Connect(function()
 
 	PlayHandRemote:FireServer(indices)
 	Shop.tutorial.notifyHandPlayed()
+end
+playButton.MouseButton1Click:Connect(onPlayClick)
+pcall(function() -- Studio-only: DebugGoto playhand selects cards and calls this
+	local DG = require(script.DebugGoto)
+	DG.playSelected = function(n)
+		for k in pairs(selected) do selected[k] = nil end
+		for i = 1, n do selected[i] = true end
+		onPlayClick()
+	end
 end)
+end
 
 discardButton.MouseButton1Click:Connect(function()
 	if not latestState or not RunStateEngine.phaseAllowsCardActions(latestState.phase) then

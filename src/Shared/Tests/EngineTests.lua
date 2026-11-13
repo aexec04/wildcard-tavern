@@ -23671,4 +23671,16 @@ table.insert(tests, { name = "Patron Row fixes: owned pips are filled, the row a
 	expectTrue(dbg:find("DebugSetTarget", 1, true) ~= nil, "playhand:keep raises the target")
 end })
 
+table.insert(tests, { name = "Patron beats: DebugGoto playhand runs the hub's real Play Hand handler, and ScorePopup triggers PatronRow once per Patron entry", fn = function()
+	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local dbg, hub, pop = slurp("src/Client/DebugGoto.lua"), slurp("src/Client/init.client.lua"), slurp("src/Client/ScorePopup.lua")
+	if not (dbg and hub and pop) then return end
+	expectTrue(dbg:find('FireServer(indices)', 1, true) == nil, "playhand must not fire the bare PlayHand remote (it skips the client preview and the beats)")
+	expectTrue(dbg:find("DebugGoto.playSelected(n)", 1, true) ~= nil, "playhand calls the hub handler")
+	expectTrue(hub:find("DG.playSelected", 1, true) ~= nil and hub:find("MouseButton1Click:Connect(onPlayClick)", 1, true) ~= nil, "the hub exposes the same handler the Play Hand button uses")
+	local _, n = pop:gsub("require%(script%.Parent%.PatronRow%)%.trigger%(source%.patronId", "")
+	expectTrue(n == 1, "one trigger call inside the per-entry loop, found " .. n)
+	expectTrue(pop:find("pulsePatronSlot(slotFrame)", 1, true) ~= nil, "the loop runs per breakdown entry with a patron source")
+end })
+
 return tests
