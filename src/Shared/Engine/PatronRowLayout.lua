@@ -111,4 +111,14 @@ function M.nook(lay, rootW, hand, opts)
 	return { back = back, ledge = ledge, trim = trim, rivets = rivets, alcoves = alcoves, glow = glow }
 end
 
+-- The painted nook strip (`play_nook_strip_b`, trimmed to 1508 x 480): nine-sliced so the carved end posts and the
+-- ledge keep their shape while the middle stretches to the nook's width. Returns { center = {x0,y0,x1,y1} in picture
+-- pixels, scale } where scale maps the picture's height onto the nook's height (borders then keep their aspect).
+M.STRIP_W, M.STRIP_H = 1508, 480
+function M.paintedSlice(w, h)
+	if not w or not h or w <= 0 or h <= 0 then return nil end
+	local scale = h / M.STRIP_H
+	return { center = { x0 = 150, y0 = 180, x1 = M.STRIP_W - 150, y1 = 380 }, scale = scale }
+end
+
 return M

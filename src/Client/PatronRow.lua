@@ -291,6 +291,45 @@ local function buildAlcove(i)
 	return f
 end
 
+-- Painted strip (play_nook_strip_b): replaces the back panel, glow, ledge, trim and rivets once its Image id exists.
+local function paintedId()
+	local ok, art = pcall(function() return require(Engine:WaitForChild("PlaySceneArt")) end)
+	local id = ok and type(art) == "table" and art.play_nook_strip_b or nil
+	if id and id ~= "" then return id end
+	return nil
+end
+
+local function placePainted(nk)
+	local id = paintedId()
+	if not id then
+		if nook.paint then nook.paint.Visible = false end
+		for _, k in ipairs({ "back", "glow", "ledge", "trim" }) do nook[k].Visible = true end
+		for _, r in ipairs(nook.rivets) do r.Visible = true end
+		return false
+	end
+	if not nook.paint then
+		local img = Instance.new("ImageLabel")
+		img.Name = "NookPaint"
+		img.BackgroundTransparency = 1
+		img.BorderSizePixel = 0
+		img.Active = false
+		img.ZIndex = Z - 4
+		img.ScaleType = Enum.ScaleType.Slice
+		img.Parent = nook.root
+		nook.paint = img
+	end
+	local sl = Layout.paintedSlice(nk.back.w, nk.back.h)
+	local img = nook.paint
+	img.Image = id
+	img.Visible = true
+	setRect(img, nk.back)
+	img.SliceCenter = Rect.new(sl.center.x0, sl.center.y0, sl.center.x1, sl.center.y1)
+	img.SliceScale = sl.scale
+	for _, k in ipairs({ "back", "glow", "ledge", "trim" }) do nook[k].Visible = false end
+	for _, r in ipairs(nook.rivets) do r.Visible = false end
+	return true
+end
+
 local function placeNook(lay, rootW, hand, owned)
 	if not lay then
 		if nook then nook.root.Visible = false end
@@ -308,12 +347,13 @@ local function placeNook(lay, rootW, hand, owned)
 		nook.rivets[i].Position = UDim2.fromOffset(r.x, r.y)
 		nook.rivets[i].Size = UDim2.fromOffset(Layout.RIVET, Layout.RIVET)
 	end
+	local painted = placePainted(nk)
 	for i = 1, math.max(#nk.alcoves, #nook.alcoves) do
 		local r = nk.alcoves[i]
 		if r and not nook.alcoves[i] then nook.alcoves[i] = buildAlcove(i) end
 		local a = nook.alcoves[i]
 		if a then
-			a.Visible = r ~= nil
+			a.Visible = r ~= nil and not painted -- the picture has its own alcoves
 			if r then
 				setRect(a, r)
 				a.Pip.Visible = owned[i] == nil

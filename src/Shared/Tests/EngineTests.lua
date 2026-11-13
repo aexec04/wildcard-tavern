@@ -23379,6 +23379,23 @@ table.insert(tests, { name = "Patron Nook: panel, ledge, rivets and alcoves stay
 	expectEqual(PRL.nook(nil, 100, {}), nil, "no row, no nook")
 end })
 
+table.insert(tests, { name = "PatronRowLayout.paintedSlice: slice centre sits inside the strip and the scale fits the nook height", fn = function()
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	expectEqual(PRL.paintedSlice(0, 100), nil, "no width, no slice")
+	for _, h in ipairs({ 120, 170, 240 }) do
+		local sl = PRL.paintedSlice(560, h)
+		local c = sl.center
+		expectTrue(c.x0 > 0 and c.x1 < PRL.STRIP_W and c.y0 > 0 and c.y1 < PRL.STRIP_H and c.x0 < c.x1 and c.y0 < c.y1, "centre inside the picture")
+		expectTrue(math.abs(sl.scale * PRL.STRIP_H - h) < 1e-6, "picture height maps to the nook height")
+	end
+	local src = io and io.open and io.open("src/Client/PatronRow.lua", "r")
+	if src then
+		local code = src:read("*a"); src:close()
+		expectTrue(code:find("play_nook_strip_b", 1, true) ~= nil, "PatronRow reads the painted nook id")
+		expectTrue(code:find("and not painted", 1, true) ~= nil, "code alcoves hide under the painting")
+	end
+end })
+
 table.insert(tests, { name = "Patron Row is wired: the hub installs and updates it, ScorePopup triggers a beat per Patron entry", fn = function()
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local hub, pop, row = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PatronRow.lua")
