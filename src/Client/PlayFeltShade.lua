@@ -53,22 +53,6 @@ function M.install(root, art)
 	-- No tiled grain rectangle: it drew a hard-edged green box wider than the painted oval (the painted table is the felt).
 	-- `art` is kept for the signature; play_felt_grain stays in PlaySceneArt unused.
 
-	local corners = {}
-	for i = 1, 4 do
-		corners[i] = SoftGlow.build(frame, {
-			name = "Corner" .. i, color = Color3.fromRGB(8, 14, 8), position = UDim2.fromOffset(0, 0),
-			size = UDim2.fromOffset(10, 10), peak = PM.FELT.cornerPeak, zIndex = 0,
-		})
-	end
-
-	local edges = {}
-	for i = 1, 4 do
-		edges[i] = SoftGlow.build(frame, {
-			name = "Edge" .. i, color = Color3.fromRGB(8, 14, 8), position = UDim2.fromOffset(0, 0),
-			size = UDim2.fromOffset(10, 10), peak = PM.FELT.edgePeak, zIndex = 0,
-		})
-	end
-
 	-- a small resting stack of played cards on the felt centre: card-backs with fixed tilts, low contrast, under the cards in play
 	local stack = Instance.new("Folder")
 	stack.Name = "RestStack"
@@ -170,6 +154,32 @@ function M.install(root, art)
 		linkBack = link
 	end
 
+	-- The eight glows are 32 stacked discs each (about 510 instances): built on the first apply (the first time the Play screen shows),
+	-- not at startup, so the Menu does not carry them. Everything here is ZIndex 0 and draws in sibling order, so the stack is moved
+	-- behind-to-front again after the glows exist.
+	local corners, edges = {}, {}
+	local glowsBuilt = false
+	local function buildGlows()
+		if glowsBuilt then return end
+		glowsBuilt = true
+		for i = 1, 4 do
+			corners[i] = SoftGlow.build(frame, {
+				name = "Corner" .. i, color = Color3.fromRGB(8, 14, 8), position = UDim2.fromOffset(0, 0),
+				size = UDim2.fromOffset(10, 10), peak = PM.FELT.cornerPeak, zIndex = 0,
+			})
+		end
+		for i = 1, 4 do
+			edges[i] = SoftGlow.build(frame, {
+				name = "Edge" .. i, color = Color3.fromRGB(8, 14, 8), position = UDim2.fromOffset(0, 0),
+				size = UDim2.fromOffset(10, 10), peak = PM.FELT.edgePeak, zIndex = 0,
+			})
+		end
+		if stack.Parent == frame then
+			stack.Parent = nil
+			stack.Parent = frame
+		end
+	end
+
 	local api = { frame = frame }
 	function api.setFill(f) -- nil hides it
 		fill.Visible = f ~= nil
@@ -188,6 +198,7 @@ function M.install(root, art)
 		frame.Visible = true
 		-- glows centred on a clip line (the line under the left HUD) would end in a hard dark rectangle edge: when the felt is
 		-- clipped on the left, the left corner glows and the left edge glow are not drawn (PM.shadeGlows decides, tested)
+		buildGlows()
 		local show = PM.shadeGlows(clipped)
 		for i, g in ipairs(PM.cornerGlows(0, 0, rect.w, rect.h)) do
 			corners[i].root.Visible = show.corners[i]
