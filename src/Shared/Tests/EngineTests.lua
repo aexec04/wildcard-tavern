@@ -23504,6 +23504,35 @@ table.insert(tests, { name = "BossBubbleLayout: the bubble hangs beside the spea
 	expectEqual(BBL.place({ x = 0, y = 0, w = 400, h = 400 }, { x = 150, y = 150, w = 100, h = 100 }, size, boxed), nil, "no room, no bubble")
 end })
 
+table.insert(tests, { name = "Left board text never cuts: every blessing and curse line fits 3 wrapped lines in the narrowest board text box, boxes end inside the clip edge, no truncation on wrapped board labels", fn = function()
+	local Rows = require(script.Parent.Parent.Engine.BoardPanelRows)
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	-- narrowest plausible row: a 1280x720 board is about 300 px wide, row = target column (about 200) minus padding and the icon
+	for _, rowW in ipairs({ 190, 230, 300 }) do
+		local textW = math.max(40, rowW - 52)
+		for _, d in ipairs(RM.Definitions) do
+			for _, t in ipairs({ "+ " .. d.blessing, "- " .. d.curse }) do
+				local per = math.floor(textW / 8)
+				local need = 1
+				local used = 0
+				for word in t:gmatch("%S+") do
+					if used == 0 then used = #word elseif used + 1 + #word <= per then used = used + 1 + #word else need = need + 1 used = #word end
+				end
+				expectTrue(need <= Rows.MAX_LINES, d.id .. " '" .. t .. "' needs " .. need .. " lines at row width " .. rowW)
+			end
+		end
+	end
+	expectTrue(Rows.CLIP_PAD >= 12, "text boxes end 12 px inside the board edge")
+	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
+	local chip, hud = read("src/Client/BlessingChip.lua"), read("src/Client/PlayBoardHud.lua")
+	if chip and hud then
+		expectTrue(chip:find("Rows.CLIP_PAD", 1, true) ~= nil, "BlessingChip caps its text box at the board's clip edge")
+		expectTrue(hud:find("BoardPanelRows.CLIP_PAD", 1, true) ~= nil, "the panel plan ends inside the board edge")
+		local relayout = chip:match("function BlessingChip.relayout%(%).-\nend") or ""
+		expectTrue(relayout:find("TextTruncate = Enum.TextTruncate.None", 1, true) ~= nil and relayout:find("TextWrapped = true", 1, true) ~= nil, "wrapped board effect labels never truncate")
+	end
+end })
+
 table.insert(tests, { name = "Patron Row is wired: the hub installs and updates it, ScorePopup triggers a beat per Patron entry", fn = function()
 	local function read(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local hub, pop, row = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PatronRow.lua")

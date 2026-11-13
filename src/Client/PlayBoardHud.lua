@@ -517,14 +517,14 @@ local function run(root, st)
 	if chipShown then
 		pcall(function()
 			local BC = require(script.Parent.BlessingChip)
-			local tw = BC.textWidth(H.target.w + 12 - 2 * BoardPanelRows.PAD)
+			local tw = BC.textWidth(math.min(H.target.w + 12, rect.w - (H.target.x - 6) - BoardPanelRows.CLIP_PAD) - 2 * BoardPanelRows.PAD)
 			local b, c = chip:FindFirstChild("Blessing"), chip:FindFirstChild("Curse")
 			if b and c then fullH = BoardPanelRows.fullHeight(BC.lines(b.Text, tw), BC.lines(c.Text, tw)) end
 		end)
 	end
 	local plan = BoardPanelRows.plan({
 		blessingFullH = fullH,
-		x = H.target.x - 6, w = H.target.w + 12, top = PlayBoardLayout.panelTop(rect.w),
+		x = H.target.x - 6, w = math.min(H.target.w + 12, rect.w - (H.target.x - 6) - BoardPanelRows.CLIP_PAD), top = PlayBoardLayout.panelTop(rect.w),
 		avail = root.AbsoluteSize.Y - 8 - rect.h + math.floor(PlayBoardLayout.PANEL_ROOM * rect.w / PlayBoardLayout.IMG_W),
 		want = { tips = shown(tipsRow), hint = shown(hintRow), blessing = chipShown, run = shown(runRow) },
 	})

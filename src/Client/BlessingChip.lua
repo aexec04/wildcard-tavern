@@ -125,7 +125,11 @@ function BlessingChip.relayout()
 		ui.name.Position = UDim2.fromOffset(46, full and 3 or 12)
 		ui.blessing.TextSize, ui.curse.TextSize = 15, 15
 		-- each effect text wraps inside the real row width (measured, up to 3 lines) and the next starts right under it: no cut text, no gap
-		local w = BlessingChip.textWidth(ui.chip.Size.X.Offset > 0 and ui.chip.Size.X.Offset or ui.chip.AbsoluteSize.X)
+		-- the board clips what lies past its right edge: the text box ends 12 px inside it, whatever width the plan gave the row
+		local rowW = ui.chip.Size.X.Offset > 0 and ui.chip.Size.X.Offset or ui.chip.AbsoluteSize.X
+		local room = ui.board.AbsoluteSize.X - ui.chip.Position.X.Offset - Rows.CLIP_PAD
+		if room > 60 then rowW = math.min(rowW, room) end
+		local w = BlessingChip.textWidth(rowW)
 		local bl, cl = BlessingChip.lines(ui.blessing.Text, w), BlessingChip.lines(ui.curse.Text, w)
 		for _, l in ipairs({ ui.blessing, ui.curse }) do
 			l.TextWrapped = true
@@ -133,9 +137,9 @@ function BlessingChip.relayout()
 			l.TextYAlignment = Enum.TextYAlignment.Top
 		end
 		ui.blessing.Position = UDim2.fromOffset(46, 25)
-		ui.blessing.Size = UDim2.new(1, -52, 0, bl * Rows.LINE_H)
+		ui.blessing.Size = UDim2.fromOffset(w, bl * Rows.LINE_H)
 		ui.curse.Position = UDim2.fromOffset(46, 25 + bl * Rows.LINE_H + 4)
-		ui.curse.Size = UDim2.new(1, -52, 0, cl * Rows.LINE_H)
+		ui.curse.Size = UDim2.fromOffset(w, cl * Rows.LINE_H)
 		return
 	end
 	local height = ui.board.AbsoluteSize.Y

@@ -22,6 +22,7 @@
 local M = {}
 
 M.PAD = 8 -- panel padding top, bottom and sides
+M.CLIP_PAD = 12 -- text boxes end this far inside the board's right edge (the board clips past it)
 M.SEP = 3 -- gap that holds the brass line between two rows
 M.ORDER = { "tips", "hint", "blessing", "run" }
 -- nominal and minimum heights per row; the Blessing row has a full (name, blessing, curse) and a compact (name only) form
