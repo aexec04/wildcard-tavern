@@ -22751,6 +22751,7 @@ table.insert(tests, { name = "PanelLayout.fullScreenGap: a full screen panel who
 		local text = f:read("*a")
 		f:close()
 		expectTrue(text:find("fullScreenGap", 1, true) ~= nil and text:find("-top + extra", 1, true) ~= nil, "PanelFullScreen measures the bottom edge and adds the gap")
+			expectTrue(text:find("FullScreenExtra", 1, true) ~= nil and text:find("- top + extra", 1, true) ~= nil, "the mismatch audit expects the extended height")
 	end
 end })
 

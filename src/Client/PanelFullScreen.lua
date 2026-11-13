@@ -71,10 +71,11 @@ local function audit(name, backdrop, panel)
 	local okRs, RunService = pcall(function() return game:GetService("RunService") end)
 	if not okRs or not RunService:IsStudio() then return end
 	task.defer(function()
-		task.wait()
+		task.wait(); task.wait() -- after heal() has measured and added its gap
 		if not backdrop.Visible then return end
 		local top = PanelLayout.fullScreenRect(0, 0).y
-		local want = Vector2.new(backdrop.AbsoluteSize.X, backdrop.AbsoluteSize.Y - top)
+		local extra = panel:GetAttribute("FullScreenExtra") or 0 -- height heal() added so the bottom reaches the ScreenGui
+		local want = Vector2.new(backdrop.AbsoluteSize.X, backdrop.AbsoluteSize.Y - top + extra)
 		local function off(a, b) return math.abs(a.X - b.X) > 2 or math.abs(a.Y - b.Y) > 2 end
 		local function report(child, got, expect)
 			warn(string.format("[FullScreen] mismatch %s %s %dx%d vs %dx%d", name, child, got.X, got.Y, expect.X, expect.Y))
@@ -110,6 +111,7 @@ function PanelFullScreen.apply(backdrop, panel, name)
 		panel.AnchorPoint = Vector2.new(0, 0)
 		panel.Position = UDim2.fromOffset(0, top)
 		panel.Size = UDim2.new(1, 0, 1, -top + extra)
+		panel:SetAttribute("FullScreenExtra", extra)
 		flatten(panel)
 		forcing = false
 	end
