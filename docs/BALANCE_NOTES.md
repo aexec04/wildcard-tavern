@@ -325,12 +325,170 @@ Quick ladder, 150 runs per bot, seed 1, one job (a small sample, so read it as a
 | decent win | 12 to 20% | 33.3% | 37.3% |
 | decent median death | Night 7 | Night 8 | Night 8 |
 
-Reading: the game is clearly easier than the targets above, and it already was before the stabilization commits (the two engine columns agree within noise). The drift comes from content added since the last tuning. Nothing was retuned in this pass; pick the target first, then run `lua5.3 tools/run_sim.lua --ladder --runs 5000 --jobs 8` on fresh seeds.
+Reading (corrected, see "Build check, Nov 13 2026" below): the Target column is the old Phase 3 band and is not the yardstick. The last tuning was balance pass 3 on Nov 8, decent 29.0% on Regular. Against that the game is about 10 points easier, and it already was before the stabilization commits (the two engine columns agree within noise). The drift comes from content added since that tuning, almost all of it Patron Bonds. Nothing was retuned in this pass; pick the target first, then run `lua5.3 tools/run_sim.lua --ladder --runs 5000 --jobs 8` on fresh seeds.
 
 Patron value table (`--patron-table`, score gain per Tip at mid-build, relative to the median Patron):
 - Strongest: the_apprentice x2.97, pair_parade x2.70, double_down x2.37, suit_sampler x2.03.
 - Weakest with a scoring effect: royal_road x0.01, flush_fan x0.03, full_suit_feast x0.03, kitchen_duo x0.04, stair_climber x0.04, triple_treat x0.08, long_road x0.10.
-- Pattern: Patrons that reward Pairs sit at the top and Patrons that reward Flushes, Straights and Full Houses sit at the bottom, because the bots' mid-game hands are mostly Pairs. That is the signature of one dominant line of play. Confirm with `--patron-lift --runs 300 --jobs 8` before changing numbers.
+- Pattern: Patrons that reward Pairs sit at the top and Patrons that reward Flushes, Straights and Full Houses sit at the bottom, because the bots' mid-game hands are mostly Pairs. Corrected: that is the bots' habit, not a dominant line of play. They spend about 7 of the 70 discards a run offers and this table never discards at all. A player who spends discards plays Flush (`--chase-table`, "Build check" below).
 - 28 Patrons show 0 in this table because their value is economy, scaling or utility, which this static measure does not see.
 
 Rule change in this pass that touches scoring: five cards of one rank are now Four of a Kind with all five scoring (they used to fall through to High Card). There is still no Five of a Kind hand.
+
+## Build check, Nov 13 2026
+
+This section corrects the "Ladder check, Nov 13 2026" section where the two disagree. Two readings there were wrong.
+
+The numbers in this section were measured on the engine at `f92c688` with this pass's changes applied (the Mac could not be reached that day). The stabilization commits after `f92c688` change no Patron, target or shop number, and the last subsection repeats the ladder on the real HEAD.
+
+### 1. The yardstick was out of date
+
+That section compared against the Phase 3 band (decent 12 to 20%). The last tuning was balance pass 3 on Nov 8 (`bb7558e`): decent 29.0% on Regular, falling to 6.0% on Legend, recorded in `claude/STATUS.md` and `tools/test_sim.lua`. Measured against that, the game is about 10 points easier on Regular, not twice as easy.
+
+Where the 10 points came from. Each row is that commit's own engine and simulator on the same 600 seeds, decent bot, Regular:
+
+| Change | Commit | Before | After |
+|---|---|---|---|
+| Patron Bonds added | `33d402d`, Nov 9 | 29.0% | 35.7% |
+| Big round 2x to 1.5x | `2588e35`, Nov 11 | 35.7% | 35.7% |
+| Crowded Counter lets 4 Patrons score (was 2); packs gained Make room and the Skip refund | `e3188cc`, `28c1f2d`, `51d6847`, Nov 12 | 35.7% | 39.5% |
+
+The Big round change moved deaths from Big rounds to bosses without changing the win rate on those seeds. On today's code it is worth about 2 points (36.7% with a 2x Big round, 38.8% with 1.5x, 600 runs each). The three Nov 12 commits were not separated.
+
+Nothing was retuned after Bonds went in. Whether to take those points back is a difficulty decision, listed under Open below.
+
+### 2. "Pair builds dominate" described the bots, not the game
+
+The decent bot discards only when its best play is behind pace. That is about 7 discards in a whole run (the builder bot, which discards on the same rule, logs 6.6) out of about 70 it could spend, and it judges every shop Patron on hands as dealt. It plays Pair or Two Pair on 59% of hands because that is what an undiscarded hand usually holds. `--patron-table` has the same blind spot: its fixed build is leveled in Pair and Two Pair and it never discards. So every Patron that pays for a Flush, a Straight or a Full House read as weak, and the Pair Patrons read as strong.
+
+A player who spends their discards sees a different game (next section): Flush is the most common best hand even with nobody seated, and All Matching is the strongest 6 Tip Patron on every table tried.
+
+### New tools
+
+| Tool | What it does |
+|---|---|
+| `--chase-table` | Patron value for a player who spends discards. Plays the same fixed deals with each Patron added to a table, spending `--discards N` on each hand (default 2) the way the builder bot picks its draws, and reports the average hand, the gain and the hand type played most. `--build open` is Night 1 with nobody seated. `--build mid` seats The Regular and The Bard (they pay every hand the same) with every hand leveled twice. Economy Patrons, Patrons that grow over a run and Patrons that need a set-up read as zero. All Patrons take several minutes; `--patron-list ID,ID` limits the rows. |
+| `--bot builder` | As decent (discards only when behind pace), but it picks the draw: it tries holding its best play, a Flush draw, a Straight draw, its pairs and its high cards on sampled redraws, and goes for whichever scores best with its own Patrons. |
+| `hands played` and `draws chased` lines | Every full report shows the share of hands by type, and for the builder bot which draw each discard went for. |
+| Bots know more Boss Rounds | The bots' play search uses `Engine/BossRules`, so they stop playing Flushes into Picky Eater and High Cards into Pair Patrol, count only 4 Patrons on Crowded Counter and halve the first hand on Sleepy Cook. Decent moved from 38.5% to 39.3% on the same 1,200 seeds. |
+
+`tools/test_sim.lua` checks all four.
+
+### What a player who discards sees
+
+`--chase-table --runs 300`, numbers before this pass. Gain is the average hand with the Patron over the average hand without it.
+
+| Average hand without the Patron | Night 1, nobody seated | Mid-build |
+|---|---|---|
+| 2 discards a hand | 334, mostly Flush (47% of hands) | 2,389, mostly Flush (34%) |
+| 1 discard a hand | 261, mostly Flush (34%) | 2,090, mostly Flush (24%) |
+
+Two discards a hand:
+
+| Patron | Price | Opening gain | Mid-build gain | Plays mostly (opening) |
+|---|---|---|---|---|
+| all_matching | 6 | +289% | +57% | Flush 64% |
+| house_special | 8 | +188% | +41% | Full House 41% |
+| straight_shooter | 6 | +186% | +39% | Straight 51% |
+| jack_of_all_trades | 5 | +179% | +29% | Flush 25% |
+| threes_company | 5 | +168% | +36% | Full House 39% |
+| pair_parade | 6 | +147% | +27% | Full House 40% |
+| regulars_round | 5 | +128% | +23% | Full House 40% |
+| steady_hand | 7 | +105% | +25% | Flush 36% |
+| the_regular | 4 | +91% | (seated) | Flush 42% |
+| ladder_builder | 6 | +90% | +17% | Straight 49% |
+| double_down | 6 | +74% | +3% | Two Pair 76% |
+| long_road | 6 | +60% | +16% | Straight 47% |
+| triple_treat | 6 | +48% | +8% | Three of a Kind 43% |
+| full_suit_feast | 8 | +35% | +26% | Flush 53% |
+| all_hands_in | 7 | +33% | +8% | Flush 39% |
+| twin_spoons | 5 | +29% | +1% | Two Pair 68% |
+| flush_fan | 6 | +27% | +11% | Flush 53% |
+| color_matcher | 5 | +16% | +9% | Flush 50% |
+| big_portions | 7 | +10% | +6% | Flush 39% |
+| stair_climber | 6 | +9% | +4% | Flush 34% |
+| kitchen_duo | 6 | +9% | +6% | Flush 39% |
+| foursome_table | 8 | +6% | +7% | Flush 44% |
+| lucky_dice | 5 | +5% | +6% | Flush 43% |
+| royal_road | 8 | +2% | +4% | Flush 42% |
+
+Reading it:
+
+- The Mult piece for each big hand is strong (All Matching, Straight Shooter, House Special, Three's Company). Those were raised in Phase 3 because the Pair probe never triggered them. For a player who discards, All Matching is the best 6 Tip Patron by a wide margin. It also leads with one discard a hand (+235% opening, +38% mid-build, against Pair Parade's +153% and +27%).
+- The Chips piece for the same hands was close to worthless. Stair Climber added 4% at mid-build against Straight Shooter's 39% for the same 6 Tips. A Sweet Garnish on a single card is also +30 Chips.
+- Royal Road sat at the bottom of the table, and it is a four-win unlock that costs 8.
+- So a Straight or Full House build had one good piece and nothing worth a second seat.
+
+### Changes
+
+Five Patrons, number and card text together. Nothing was lowered.
+
+| Patron | Old | New | Opening gain | Mid-build gain |
+|---|---|---|---|---|
+| flush_fan | +30 Chips | +80 Chips | +27% to +76% | +11% to +32% |
+| stair_climber | +30 Chips | +80 Chips | +9% to +28% | +4% to +26% |
+| kitchen_duo | +40 Chips | +100 Chips | +9% to +29% | +6% to +24% |
+| long_road | +8 Mult | +12 Mult | +60% to +110% | +16% to +23% |
+| royal_road | x1.5 Mult | x2 Mult | +2% to +9% | +4% to +11% |
+
+Why these numbers:
+
+- Each Chips piece still sits below the Mult piece for the same hand on both tables, so the order a player learns (Mult first, Chips second) holds. A test pins the opening order for Flush and Straight.
+- Stair Climber stops at +80 because of Bonds. At +100 the Bond with Straight Shooter lifted a plain Straight by 10.2%, over the 10% line the Bonds balance test holds on everyday hands.
+- Royal Road stops at x2 for the same reason. A Bond adds 7% of an x-Mult above 1 as a further multiplier, so x3 meant a 20.5% Bond lift on an Ace Straight. At x2 the largest Bond lift anywhere is 13.1% (Straight Shooter with Royal Road on an Ace Straight). Before this pass it was 12.9% (All Hands In with Foursome Table on Four of a Kind). The new test pins 14% for rare hands.
+
+### Ladder after the change
+
+Fresh seeds 3100001+, final simulator.
+
+| Bot | Runs | Win | Median death | Night 1 deaths |
+|---|---|---|---|---|
+| random | 600 | 0.8% | Night 1 | 83.3% (88.8% by Night 2) |
+| greedy | 1,200 | 18.5% | Night 7 | 6.7% |
+| decent | 1,200 | 39.3% | Night 8 | 0% |
+| builder | 1,200 | 42.8% | Night 8 | 0% |
+
+The five changes do not move the ladder: decent on the same 1,200 seeds was 39.7% with the old numbers and 39.3% with the new ones (standard error 1.4). These bots rarely own the changed Patrons.
+
+Decent by stake, 600 runs each, seeds 1+:
+
+| Stake | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| Nov 13 | 40.3% | 33.7% | 28.3% | 24.0% | 20.2% | 19.2% | 12.2% | 10.7% |
+| Pass 3, Nov 8 | 29.0% | 26.3% | 23.0% | 20.2% | 16.5% | 12.8% | 7.0% | 6.0% |
+
+Where the decent bot dies on Regular, share of all runs: Nights 1 to 5 together 1.9%, Night 6 10.8%, Night 7 23.5%, Night 8 24.4%, and 90% of deaths are on a Boss Round. For a bot that always finds its best hand, the first five Nights are close to free and the run is decided by the last three bosses. Real new players are far less efficient than that, so this says more about practiced players than about a first session.
+
+### Open
+
+1. **Difficulty on Regular.** Bonds made the game about 7 points easier and nothing was retuned. Leaving it is defensible for new players. Taking it back is one number. Decent on the same 600 seeds: 40.3% today, 30.3% with target growth 2.2 instead of 2.15 (pass 3 was 29.0%), 22.7% with 2.25, and 34.7% with the Bond bonus halved (`Bonds.RATIO` 0.035). Not changed here.
+2. **Flush is the default line for a player who discards**, and All Matching is ahead of every other 6 Tip Patron. If Flush turns out to be the only build testers play, the lever is All Matching's number: at +14 it sits level with its siblings at mid-build (+42%, against Straight Shooter's +39% and House Special's +41%) and still opens strongest (+223%). Lowering the Flush base from 40 x 5 to 35 x 5 changes little (Flush share at opening 47% to 41%, All Matching still +285%). Not changed here; it needs real players first.
+3. **Royal Road is still near the bottom** at x2. The Ace rule is the limit, not the number. "x2 Mult if a Straight has a face card or an Ace" measured about +30% opening and +34% at mid-build, which is where an 8 Tip unlock belongs. That is a rule change, so it waits for a yes.
+4. **Other low rows**, not touched: triple_treat (+12 Mult, beaten by threes_company at +18 for 1 Tip less), twin_spoons and double_down at mid-build, foursome_table and all_hands_in (Four of a Kind is too rare to build on), lucky_dice, big_portions, color_matcher. Lucky Dice and Big Portions were lowered in Phase 3 on the Pair probe's reading, which over-read them.
+5. **The bots still cannot commit to a build in the shop.** They judge Patrons on hands as dealt and level the hand they play most, so every bot drifts to Two Pair whatever it is given. Run-level win rates therefore cannot yet say whether a committed Flush table beats a committed Straight table; the chase table is the evidence for that. Two things were tried and dropped in this pass. A bot that spent discards on every hand won less than one that plays to pace (33% against 39% on fresh seeds), probably because a discard spent early in a round cannot rescue a bad hand later in it. A shop policy that judged Patrons on hands the bot could reach made it worse still (27%), probably because picking the best of several sampled draws flatters every Patron that needs a draw.
+
+### Later the same day: changes that do not move the ladder
+
+Each was measured on the same engine with the change applied.
+
+- **Last Chance and Empty Handed leave one discard on every stake.** Their cards say "only 1 discard", and from the Busy Night stake up the player had none. Decent bot on stakes 2, 4, 6 and 8, 600 seeds each: 33.7%, 23.8%, 18.8%, 10.8%, against 33.7%, 24.0%, 19.2%, 10.7% before.
+- **Patron card audit.** Three's Company fires on Four of a Kind (its card says "contains a Three of a Kind"). Five cards that said "a Pair (or better)" say "contains a Pair" now, with no rule change. On the same 1,200 seeds as the build check: decent 39.4% (39.3% before), builder 42.7% (42.8% before).
+- **The hand preview is engine code now** (`Engine/HandPreview`), so the number shown before a play is the number paid. No score changes.
+
+`tools/run_fuzz.lua` is new: random runs with invariants checked after every action. First full run: 12,000 runs, 1.3 million actions, every Boss Round and every Recipe, 0 findings, and 220,943 previews equal to their plays.
+
+### Re-measured on HEAD, Nov 14 2026
+
+Everything above was applied to the repository on Nov 14 (commit `ec58eec`) and the ladder was run again on that tree, with its own simulator.
+
+Decent by stake, 600 runs each, seeds 1+:
+
+| Stake | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| HEAD, Nov 14 | 37.5% | 32.7% | 29.8% | 23.3% | 20.7% | 17.3% | 12.5% | 11.7% |
+| Sandbox, Nov 13 | 40.3% | 33.7% | 28.3% | 24.0% | 20.2% | 19.2% | 12.2% | 10.7% |
+| Pass 3, Nov 8 | 29.0% | 26.3% | 23.0% | 20.2% | 16.5% | 12.8% | 7.0% | 6.0% |
+
+Fresh seeds 3100001+, 1,200 runs each: random 1.1% (dead by Night 1 in 83.5% of runs, by Night 2 in 89.2%), greedy 19.1%, decent 39.2%, builder 43.3%.
+
+The two rows agree within the noise of 600 runs (about 2 points either way). HEAD rolls a seeded run's luck from the run's own rng, so the same seed is not the same run as in the sandbox. The reading stands: about 8 to 10 points easier on Regular than at pass 3, and the difficulty decision under Open is unchanged.
