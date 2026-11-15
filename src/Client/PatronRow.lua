@@ -675,9 +675,29 @@ local function buildBoost()
 	return f
 end
 
+-- The corner icon row's rectangle in the root (nil before its first layout). The Mult panel keeps clear of it
+-- (Engine/PatronBoost.placePanel). The row gets its width a moment after it is built and changes it when an icon comes
+-- or goes, so the panel is placed again when that happens.
+local watchedDock = nil
+local function dockRect()
+	local row = rootRef and rootRef:FindFirstChild("CornerIconRow")
+	if not row then return nil end
+	if row ~= watchedDock then
+		watchedDock = row
+		row:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			if holder and nook then pcall(placeBoost, holder.Visible and nook.lastBack or nil, rootRef.AbsoluteSize.X / uiScaleOf(rootRef)) end
+		end)
+	end
+	if row.AbsoluteSize.X <= 0 then return nil end
+	return {
+		x = row.AbsolutePosition.X - rootRef.AbsolutePosition.X, y = row.AbsolutePosition.Y - rootRef.AbsolutePosition.Y,
+		w = row.AbsoluteSize.X, h = row.AbsoluteSize.Y,
+	}
+end
+
 function placeBoost(back, rootW)
 	local PatronBoost = require(Engine:WaitForChild("PatronBoost"))
-	local r = back and PatronBoost.placePanel(back, boost.cardsY, rootW) or nil
+	local r = back and PatronBoost.placePanel(back, boost.cardsY, rootW, dockRect()) or nil
 	if not r then
 		if boost.frame then boost.frame.Visible = false end
 		return
@@ -691,7 +711,12 @@ function placeBoost(back, rootW)
 	boost.value.Visible = m.value ~= nil
 	boost.rule.Visible = m.value ~= nil
 	boost.line.Text = m.line
-	boost.line.Position = UDim2.fromOffset(8, m.value and 71 or 40) -- no figure yet: the hint sits in the middle of the panel
+	-- a compact panel (a short screen: it stands below the corner icons) has no label row; the rest moves up by it
+	local up = r.compact and PatronBoost.LABEL_H or 0
+	boost.label.Visible = not r.compact
+	boost.value.Position = UDim2.fromOffset(8, 26 - up)
+	boost.rule.Position = UDim2.new(0.5, 0, 0, 68 - up)
+	boost.line.Position = UDim2.fromOffset(8, m.value and (71 - up) or (r.compact and 28 or 40)) -- no figure yet: the hint sits in the middle of the panel
 	if m.value ~= boost.shown then
 		boost.shown = m.value
 		if m.value and not calm() then -- a short pop when the figure changes (never in calm mode)

@@ -26415,4 +26415,63 @@ table.insert(tests, { name = "True Wildcard in the reveal: its ghost shows the c
 	expectTrue(hold ~= nil and 0.12 + hold + 0.4 < 2.5, "and is gone before its 2.5 s safety net")
 end })
 
+table.insert(tests, { name = "Multiplier panel on a short screen: it stands below the corner icons and leaves out its label row", fn = function()
+	local PB = require(script.Parent.Parent.Engine.PatronBoost)
+	-- the 1506 x 630 Studio view the overlap was seen in: no heading, cards at y 51, five icons at the right edge
+	local tray = { x = 587, y = 47, w = 548, h = 163 }
+	local dock = { x = 1180, y = 12, w = 310, h = 54 }
+	local plain = PB.placePanel(tray, 51, 1506)
+	expectEqual(plain.y, 51, "without a dock the panel is level with the cards")
+	expectEqual(plain.h, PB.PANEL_H)
+	expectFalse(plain.compact, "and whole")
+	local r = PB.placePanel(tray, 51, 1506, dock)
+	expectEqual(r.x, plain.x, "it only moves down")
+	expectTrue(r.y >= dock.y + dock.h + PB.DOCK_AIR, "below the icons")
+	expectTrue(r.compact == true, "compact")
+	expectEqual(r.h, PB.PANEL_H - PB.LABEL_H, "without its label row")
+	expectTrue(r.y + r.h <= plain.y + plain.h + 4, "its bottom stays where it was, give or take 4 px")
+	expectTrue(r.y + r.h <= tray.y + tray.h, "inside the Patron nook")
+	-- the reference screen: the heading already puts the cards below the icons
+	local ref = PB.placePanel({ x = 585, y = 56, w = 552, h = 190 }, 84, 1506, dock)
+	expectEqual(ref.y, 84, "nothing moves at 1506 x 751")
+	expectEqual(ref.h, PB.PANEL_H)
+	expectFalse(ref.compact)
+	local left = PB.placePanel({ x = 300, y = 47, w = 500, h = 163 }, 51, 1506, dock)
+	expectEqual(left.y, 51, "a panel that ends left of the icons stays level with the cards")
+	expectFalse(left.compact)
+	local unlaid = PB.placePanel(tray, 51, 1506, { x = 1490, y = 12, w = 0, h = 54 })
+	expectEqual(unlaid.y, 51, "a dock with no width yet is no dock")
+	-- through the real layout at the sizes where the display has no heading: never under the icons, never out of the nook
+	local PRL = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local PTL = require(script.Parent.Parent.Engine.PlayTableLayout)
+	local Budget = require(script.Parent.Parent.Engine.PlayBudget)
+	local moved = 0
+	for _, size in ipairs({ { 1506, 630 }, { 1366, 657 }, { 1280, 650 }, { 1024, 768 }, { 1506, 751 }, { 1366, 768 }, { 1920, 1080 } }) do
+		local W, H = size[1], size[2]
+		local at = " at " .. W .. "x" .. H
+		local budgetH, top = Budget.nookMax(W, H)
+		local hand = PTL.placement(W, H, 340, 150).hand
+		local icons = { x = W - 16 - 310, y = 12, w = 310, h = 54 }
+		for seats = 1, 5 do
+			local lay = PRL.display(W, H, hand, seats, { topLimit = top, maxStripH = budgetH, maxCardH = 100 * Budget.scale(W, H) })
+			local panel = lay and PB.placePanel(lay.tray, lay.rect.y, W, icons)
+			if panel then
+				local underIcons = panel.x < icons.x + icons.w and panel.x + panel.w > icons.x and panel.y < icons.y + icons.h + PB.DOCK_AIR
+				expectFalse(underIcons, "the panel is clear of the corner icons with " .. seats .. " seats" .. at)
+				expectTrue(panel.y + panel.h <= top + budgetH + 0.5, "and ends inside the nook's budget" .. at)
+				if panel.compact then moved = moved + 1 end
+			end
+		end
+	end
+	expectTrue(moved > 0, "the short sizes do move it (" .. moved .. " layouts)")
+	if not io then return end
+	local f = io.open("src/Client/PatronRow.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	expectTrue(src:find("PatronBoost.placePanel(back, boost.cardsY, rootW, dockRect())", 1, true) ~= nil, "the Patron row tells the rule where the icons are")
+	expectTrue(src:find('rootRef:FindFirstChild("CornerIconRow")', 1, true) ~= nil, "read from the real row")
+	expectTrue(src:find("boost.label.Visible = not r.compact", 1, true) ~= nil, "a compact panel hides its label")
+	expectTrue(src:find("local up = r.compact and PatronBoost.LABEL_H or 0", 1, true) ~= nil, "and moves the rest up by the label row")
+end })
+
 return tests
