@@ -25416,4 +25416,57 @@ table.insert(tests, { name = "PatronValueText: a single Tip, a Discard, a Hand a
 	expectTrue(shown >= 74, shown .. " of " .. #Patrons.Definitions .. " Patrons show a value under their portrait")
 end })
 
+-- THE MARK ON SWITCHED-OFF CARDS (Nov 14 2026). The play screen dims every hand card the Boss Round's rule switches
+-- off and tags it "No score" (Client/CardOutMark). The mark asks BossRules.switchesOff, and this holds that answer
+-- to what the scoring really does with each of the 52 cards under every such rule.
+table.insert(tests, { name = "Boss Rounds: the play screen marks exactly the cards that will score nothing", fn = function()
+	local BossRules = require(script.Parent.Parent.Engine.BossRules)
+	local function chipsOf(card, debuff)
+		local _, chips = Scoring.calculate(HandEvaluator.evaluate({ card }), {}, { allPlayedCards = { card }, heldCards = {}, debuff = debuff, rng = Scoring.noLuck })
+		return chips
+	end
+	local rules, checked = 0, 0
+	for _, boss in ipairs(BossRounds.Definitions) do
+		if boss.debuff then
+			rules = rules + 1
+			for _, suit in ipairs(Card.Suits) do
+				for rank = 2, 14 do
+					local card = C(rank, suit)
+					local scoresNothing = chipsOf(card, boss.debuff) < chipsOf(card, nil)
+					expectEqual(BossRules.switchesOff(card, boss), scoresNothing, boss.id .. ": " .. rank .. " of " .. suit)
+					checked = checked + 1
+				end
+			end
+		else
+			expectEqual(BossRules.switchesOff(C(12, "Hearts"), boss), false, boss.id .. " switches nothing off")
+		end
+	end
+	expectTrue(rules >= 7 and checked >= 7 * 52, "every rule that switches cards off was checked (" .. rules .. ")")
+	-- no rule, no card, and a True Wildcard that has not locked in (its rank and suit are not decided yet)
+	local hearts = BossRounds.getById("hearts_are_out")
+	expectEqual(BossRules.switchesOff(C(9, "Hearts"), nil), false)
+	expectEqual(BossRules.switchesOff(nil, hearts), false)
+	local wild = C(9, "Hearts")
+	wild.isTrueWildcard = true
+	expectEqual(BossRules.switchesOff(wild, hearts), false, "an open True Wildcard is never marked")
+	wild.wildcardLocked = true
+	expectEqual(BossRules.switchesOff(wild, hearts), true, "once it has locked in as a Heart it is")
+	-- Studio can show any Boss Round by id to look at the marks: DebugGoto boss1:<bossId>
+	local jump = require(script.Parent.Parent.Engine.DebugGotoRules).parse("boss1:hearts_are_out")
+	expectTrue(jump ~= nil and jump.kind == "synth" and jump.which == "boss1" and jump.variant == "hearts_are_out", "boss1:<bossId> parses")
+	local plain = require(script.Parent.Parent.Engine.DebugGotoRules).parse("boss1")
+	expectTrue(plain ~= nil and plain.which == "boss1" and plain.variant == nil, "boss1 alone still shows the first Boss Round")
+	-- the mark on screen asks this function, and the hub brings the marks up to date on every render
+	if io and io.open then
+		local mark = io.open("src/Client/CardOutMark.lua", "r")
+		local hub = io.open("src/Client/init.client.lua", "r")
+		if mark and hub then
+			expectTrue(mark:read("*a"):find("BossRules.switchesOff", 1, true) ~= nil, "the mark uses the scoring's own rule")
+			expectTrue(hub:read("*a"):find("CardOutMark).refresh(handFrame, state)", 1, true) ~= nil, "the hub refreshes the marks after every render")
+		end
+		if mark then mark:close() end
+		if hub then hub:close() end
+	end
+end })
+
 return tests

@@ -2372,6 +2372,9 @@ local function render(state)
 	end
 
 	rebuildHand(state.hand, state.phase)
+	-- Cards the Boss Round switches off are dimmed and tagged "No score". Done here, not inside rebuildHand: the hand is
+	-- not rebuilt when only the round's rule changed (a Rule Ban lifts it mid-round), and the marks must follow.
+	require(script.CardOutMark).refresh(handFrame, state)
 	-- rebuildHand resets `selected` to empty on an actual hand change, and
 	-- otherwise leaves it (and the preview) exactly as the player left it --
 	-- either way, recomputing here keeps the preview in sync.

@@ -10,6 +10,7 @@
 	  haggle, haggle:good, haggle:bad   the Counter with a Wandering Stranger on offer (bad: the long curse picks the second scroll)
 	  road                              Choose your road with three sample stops
 	  runover, runover:win              the merged Run Over screen with a loss or a win sample, every field filled
+	  boss1, boss1:<bossId>             the play screen in a Boss Round: the first one, or the one with that id (boss1:hearts_are_out)
 	  packroom                          5/5 Patrons, 20 Tips, an open Patron pack and its first Patron picked: the Make room step
 	  rarity, rarity:2                  the first-Patron draft with one Patron per rarity tier that exists, three per page
 	  wildcard, legendary               plays the True Wildcard or the Legendary banner and effect once on the play screen
@@ -61,6 +62,9 @@ function DebugGoto.init(deps)
 		for _, d in ipairs(require(Engine.Patrons).Definitions) do patrons[#patrons + 1] = d if #patrons >= 2 then break end end
 		for _, d in ipairs(require(Engine.Packs).Definitions) do packs[#packs + 1] = d if #packs >= 2 then break end end
 		local boss = require(Engine.BossRounds).Definitions[1]
+		if which == "boss1" and variant then -- boss1:<bossId>: any Boss Round by id, to look at its plate, its rule line and the cards it switches off
+			boss = require(Engine.BossRounds).getById(variant) or error("no Boss Round has the id " .. tostring(variant))
+		end
 		local data = { patrons = patrons, packs = packs, boss = boss, variant = variant, page = page }
 		if which == "road" then
 			-- three sample stops that exist on the map

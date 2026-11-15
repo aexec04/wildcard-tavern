@@ -177,6 +177,11 @@ function DebugGotoRules.parse(value)
 	if DebugGotoRules.FX[text] then
 		return { kind = "fx", effect = text }
 	end
+	-- boss1:<bossId> shows that Boss Round on the play screen (boss1 alone shows the first one). The caller checks the id.
+	local bossId = text:match("^boss1:([%w_]+)$")
+	if bossId then
+		return { kind = "synth", which = "boss1", variant = bossId }
+	end
 	-- haggle:good | haggle:bad | runover:win | rarity:<page 1..9>
 	local name, variant = text:match("^(%a+):([%w]+)$")
 	if name and DebugGotoRules.VARIANTS[name] and DebugGotoRules.VARIANTS[name][variant] then

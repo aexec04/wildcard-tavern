@@ -15,6 +15,7 @@
 	  minCardsPerHand    number                  a hand needs at least this many cards
 ]]
 
+local Card = require(script.Parent.Card)
 local HandEvaluator = require(script.Parent.HandEvaluator)
 
 local BossRules = {}
@@ -124,6 +125,19 @@ function BossRules.wipesTips(rules, handStatsBefore, handName)
 		end
 	end
 	return true
+end
+
+-- True when the round's rule switches this card off, so it will score nothing ("Hearts score nothing this round").
+-- The play screen marks these cards (Client/CardOutMark). A True Wildcard that has not locked in is never marked:
+-- its rank and suit are not decided until it is played.
+function BossRules.switchesOff(card, rules)
+	if not card or not rules or not rules.debuff then
+		return false
+	end
+	if card.isTrueWildcard and not card.wildcardLocked then
+		return false
+	end
+	return Card.isOut(card, rules.debuff)
 end
 
 return BossRules
