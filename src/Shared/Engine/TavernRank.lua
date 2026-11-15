@@ -109,7 +109,10 @@ function TavernRank.view(profile)
 	local maxed = rank >= TavernRank.MAX_RANK
 	local into = xp - TavernRank.xpForRank(rank)
 	local need = maxed and 0 or TavernRank.xpToNext(rank)
-	local nextRank = maxed and nil or rank + 1
+	local nextRank = nil -- "maxed and nil or rank + 1" is always rank + 1
+	if not maxed then
+		nextRank = rank + 1
+	end
 	return {
 		rank = rank, xp = xp, into = into, need = need, maxed = maxed,
 		nextRank = nextRank, nextReward = nextRank and TavernRank.Rewards[nextRank] or nil,

@@ -393,7 +393,8 @@ end
 -- Constellation line between two item centres: { x, y, length, rotation } for a thin Frame centred on the midpoint.
 function Wall.segment(ax, ay, bx, by)
 	local dx, dy = bx - ax, by - ay
-	return { x = (ax + bx) / 2, y = (ay + by) / 2, length = math.sqrt(dx * dx + dy * dy), rotation = math.deg(math.atan(dy, dx)) }
+	return { x = (ax + bx) / 2, y = (ay + by) / 2, length = math.sqrt(dx * dx + dy * dy),
+		rotation = math.deg((math.atan2 or math.atan)(dy, dx)) } -- atan2 in Luau, two-argument atan in plain Lua
 end
 
 -- Header plaque of the Badges panel: a small wooden plaque with the title, the count line and a slim progress bar inside it.

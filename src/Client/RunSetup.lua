@@ -411,7 +411,11 @@ return function(deps)
 		if rush.unlocked then
 			rushClick.MouseButton1Click:Connect(function()
 				playClickSfx(0.4)
-				selectedMode = (selectedMode == "rush") and nil or "rush"
+				if selectedMode == "rush" then
+					selectedMode = nil -- tapping the chosen card takes it off ("x and nil or y" is always y)
+				else
+					selectedMode = "rush"
+				end
 				if selectedMode == "rush" then selectedChallengeId = nil end
 				refreshRunSetupCards()
 			end)
@@ -429,7 +433,11 @@ return function(deps)
 		table.insert(newlyBuiltCards, quickCard)
 		quickClick.MouseButton1Click:Connect(function()
 			playClickSfx(0.4)
-			selectedMode = (selectedMode == "quick") and nil or "quick"
+			if selectedMode == "quick" then
+				selectedMode = nil
+			else
+				selectedMode = "quick"
+			end
 			if selectedMode == "quick" then
 				selectedChallengeId = nil
 				selectedStake = 1

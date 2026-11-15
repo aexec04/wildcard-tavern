@@ -8,9 +8,10 @@
 		lua5.3 tools/run_sim.lua --bosses --runs 200 --jobs 8
 		lua5.3 tools/run_sim.lua --patron-table
 		lua5.3 tools/run_sim.lua --patron-lift --runs 300 --jobs 8
+		lua5.3 tools/run_sim.lua --chase-table --runs 300 --build mid
 
 	Options:
-		--bot random|greedy|decent   (default decent)
+		--bot random|greedy|decent|builder   (default decent; builder also picks which draw to chase)
 		--stake N                    run on stake 1 to 8 (default 1)
 		--stakes                     every stake x every bot, one summary line each
 		--ladder                     all three bots, one summary line each
@@ -19,6 +20,10 @@
 		--boss-list ID,ID            limit --bosses to these
 		--patron-lift                start with each Patron for free, report win-rate lift
 		--patron-table               Patron marginal value table
+		--chase-table                Patron value for a player who spends discards (the builder bot's play)
+		    --build open|mid         table each Patron is added to (default open: Night 1, nobody seated)
+		    --discards N             discards to spend on each hand (default 2)
+		    --patron-list ID,ID      limit the rows to these
 		--runs N  --seed N  --jobs N
 		--difficulty ID  --deck ID
 		--max-night N                stop after this Night's boss (default 10)
@@ -50,16 +55,19 @@ local function parseArgs(argv)
 		["--bot"] = "bot", ["--difficulty"] = "difficulty", ["--deck"] = "deck", ["--src"] = "src",
 		["--json"] = "json", ["--csv"] = "csv", ["--force-boss"] = "forceBoss", ["--mode"] = "mode",
 		["--force-patron"] = "forcePatron", ["--force-passes"] = "forcePasses", ["--boss-list"] = "bossList", ["--worker-out"] = "workerOut",
+		["--build"] = "build", ["--patron-list"] = "patronList",
 	}
 	local numbers = {
 		["--runs"] = "runs", ["--seed"] = "seed", ["--jobs"] = "jobs", ["--max-night"] = "maxNight",
 		["--bank"] = "bank", ["--boss-night"] = "bossNight", ["--patron-offers"] = "patronOffers",
 		["--pack-offers"] = "packOffers", ["--voucher-chance"] = "voucherChance",
 		["--first-run"] = "firstRun", ["--stake"] = "stake", ["--night-one-discards"] = "nightOneDiscards",
+		["--discards"] = "discards",
 	}
 	local flags = {
 		["--ladder"] = "ladder", ["--variants"] = "variants", ["--bosses"] = "bosses",
 		["--patron-lift"] = "patronLift", ["--patron-table"] = "patronTable", ["--stakes"] = "stakes", ["--endless"] = "endless",
+		["--chase-table"] = "chaseTable",
 	}
 	local i = 1
 	while i <= #argv do
@@ -203,6 +211,15 @@ if cfg.patronTable then
 	print(string.format("%-22s %5s %8s %10s %8s", "patron", "price", "gain", "gain/price", "x median"))
 	for _, row in ipairs(rows) do
 		print(string.format("%-22s %5d %7.1f%% %9.2f%% %8.2f", row.id, row.price, 100 * row.gain, 100 * row.gainPerPrice, row.gainPerPrice / median))
+	end
+elseif cfg.chaseTable then
+	local discards = cfg.discards or 2
+	local rows, base, baseTop, baseShare = Sim.chaseTable(cfg.runs, cfg.seed, cfg.build, discards, cfg.patronList)
+	print(string.format("Build %s, %d deals, %d %s to spend on each hand. Without the Patron: average hand %.0f, mostly %s (%.0f%% of hands).",
+		cfg.build or "open", cfg.runs, discards, discards == 1 and "discard" or "discards", base, baseTop, 100 * baseShare))
+	print(string.format("%-22s %5s %9s %8s   %s", "patron", "price", "avg hand", "gain", "plays mostly"))
+	for _, row in ipairs(rows) do
+		print(string.format("%-22s %5d %9.0f %+7.1f%%   %s %.0f%%", row.id, row.price, row.value, 100 * row.gain, row.top, 100 * row.share))
 	end
 elseif cfg.stakes then
 	-- every stake x every bot, one summary line each

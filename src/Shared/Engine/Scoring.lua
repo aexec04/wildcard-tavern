@@ -159,16 +159,7 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 
 	local debuff = context.debuff
 	local function isDebuffed(card)
-		if not debuff then
-			return false
-		end
-		if debuff == "FaceCards" then
-			return Card.isFaceCard(card)
-		end
-		if debuff == "OddRanks" then
-			return card.rank % 2 == 1 -- 3, 5, 7, 9, Jack and King
-		end
-		return Card.hasSuit(card, debuff)
+		return Card.isOut(card, debuff)
 	end
 
 	-- Scores ONE trigger of a single card's own rank + Garnish + Special +

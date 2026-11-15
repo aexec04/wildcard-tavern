@@ -69,7 +69,7 @@ Patrons.Definitions = {
 		id = "lucky_dice",
 		name = "Lucky Dice",
 		icon = "🎲",
-		description = "+15 Chips if the hand contains a Pair (or better).",
+		description = "+15 Chips if the hand contains a Pair.",
 		flavorText = "Rolls them for every decision, even soup or stew.",
 		price = 5,
 		effect = function(handResult, _context)
@@ -107,7 +107,7 @@ Patrons.Definitions = {
 		id = "curtain_call",
 		name = "Curtain Call",
 		icon = "🌙",
-		description = "Mult x1.5 when played as your last hand of the round.",
+		description = "x1.5 Mult when played as your last hand of the round.",
 		flavorText = "Always saves the best bow for last.",
 		price = 7,
 		effect = function(_handResult, context)
@@ -136,7 +136,7 @@ Patrons.Definitions = {
 	-- ===== +MULT: rewards a specific hand type =====
 	{
 		id = "regulars_round", name = "Regulars' Round", icon = "🤝", price = 5,
-		description = "+8 Mult if the hand contains a Pair (or better).",
+		description = "+8 Mult if the hand contains a Pair.",
 		flavorText = "Two old friends who never sit apart.",
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -154,7 +154,8 @@ Patrons.Definitions = {
 		description = "+18 Mult if the hand contains a Three of a Kind.",
 		flavorText = "Arrive as a trio, leave as a trio, laugh as a trio.",
 		effect = function(handResult, _context)
-			if handResult.name == "Three of a Kind" or handResult.name == "Full House" then
+			-- "contains": a Full House and a Four of a Kind both hold three of a rank
+			if handResult.name == "Three of a Kind" or handResult.name == "Full House" or handResult.name == "Four of a Kind" then
 				return { mult = 18 }
 			end
 			return nil
@@ -209,7 +210,7 @@ Patrons.Definitions = {
 	-- ===== +CHIPS =====
 	{
 		id = "big_portions", name = "Big Portions", icon = "🍖", price = 7,
-		description = "+25 Chips if the hand contains a Pair (or better).",
+		description = "+25 Chips if the hand contains a Pair.",
 		flavorText = "Asks for seconds before the firsts arrive.",
 		effect = function(handResult, _context)
 			local pairLike = {
@@ -886,10 +887,10 @@ end
 local depthPatrons = {
 	{
 		id = "flush_fan", name = "Flush Fan", icon = "🪭", price = 6,
-		description = "+30 Chips if the hand is a Flush or Straight Flush.",
+		description = "+80 Chips if the hand is a Flush or Straight Flush.",
 		flavorText = "Fans the whole table in one color.",
 		effect = function(handResult, context)
-			return (handResult.name == "Flush" or handResult.name == "Straight Flush") and { chips = 30 } or nil
+			return (handResult.name == "Flush" or handResult.name == "Straight Flush") and { chips = 80 } or nil
 		end,
 	},
 	{
@@ -967,15 +968,15 @@ local depthPatrons = {
 	},
 	{
 		id = "kitchen_duo", name = "Kitchen Duo", icon = "👩‍🍳", price = 6,
-		description = "+40 Chips if the hand is a Full House.",
+		description = "+100 Chips if the hand is a Full House.",
 		flavorText = "One chops, one stirs, nobody argues.",
 		effect = function(handResult, context)
-			return handResult.name == "Full House" and { chips = 40 } or nil
+			return handResult.name == "Full House" and { chips = 100 } or nil
 		end,
 	},
 	{
 		id = "pair_parade", name = "Pair Parade", icon = "🎺", price = 6,
-		description = "+2 Mult for each scoring card in a Pair or better.",
+		description = "+2 Mult for each scoring card if the hand contains a Pair.",
 		flavorText = "Marches in twos, trumpets and all.",
 		effect = function(handResult, context)
 			if (handResult.name == "High Card" or handResult.name == "Straight" or handResult.name == "Flush" or handResult.name == "Straight Flush") then return nil end
@@ -984,18 +985,18 @@ local depthPatrons = {
 	},
 	{
 		id = "stair_climber", name = "Stair Climber", icon = "🪜", price = 6,
-		description = "+30 Chips if the hand is a Straight or Straight Flush.",
+		description = "+80 Chips if the hand is a Straight or Straight Flush.",
 		flavorText = "Takes the stairs, one rank at a time.",
 		effect = function(handResult, context)
-			return (handResult.name == "Straight" or handResult.name == "Straight Flush") and { chips = 30 } or nil
+			return (handResult.name == "Straight" or handResult.name == "Straight Flush") and { chips = 80 } or nil
 		end,
 	},
 	{
 		id = "long_road", name = "Long Road", icon = "🛤️", price = 6,
-		description = "+8 Mult if the hand is a Straight.",
+		description = "+12 Mult if the hand is a Straight.",
 		flavorText = "Has walked every road in order.",
 		effect = function(handResult, context)
-			return handResult.name == "Straight" and { mult = 8 } or nil
+			return handResult.name == "Straight" and { mult = 12 } or nil
 		end,
 	},
 	{
@@ -1009,12 +1010,12 @@ local depthPatrons = {
 	},
 	{
 		id = "royal_road", name = "Royal Road", icon = "🏰", price = 8,
-		description = "x1.5 Mult if a Straight has an Ace.",
+		description = "x2 Mult if a Straight has an Ace.",
 		flavorText = "Rolls out the red carpet for the high card.",
 		effect = function(handResult, context)
 			if handResult.name ~= "Straight" and handResult.name ~= "Straight Flush" then return nil end
 			for _, card in ipairs(handResult.scoringCards) do
-				if card.rank == 14 then return { multMultiplier = 1.5 } end
+				if card.rank == 14 then return { multMultiplier = 2 } end
 			end
 			return nil
 		end,
@@ -1046,7 +1047,7 @@ local depthPatrons = {
 	},
 	{
 		id = "lucky_penny_jar", name = "Lucky Penny Jar", icon = "🍯", price = 6,
-		description = "Earn 1 Tip each time you play a Pair or better.",
+		description = "Earn 1 Tip each time you play a hand that contains a Pair.",
 		flavorText = "Every pair earns a clink.",
 		effect = function(handResult, context)
 			if (handResult.name == "High Card" or handResult.name == "Straight" or handResult.name == "Flush" or handResult.name == "Straight Flush") then return nil end

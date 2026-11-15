@@ -85,6 +85,8 @@ function Report.aggregate(records)
 		patrons = {},
 		levels = {},
 		econ = {},
+		handsPlayed = {},
+		draws = {},
 		rerolls = 0,
 		recipesUsed = 0,
 	}
@@ -131,6 +133,12 @@ function Report.aggregate(records)
 		end
 		for name, level in pairs(rec.levels) do
 			s.levels[name] = (s.levels[name] or 0) + level
+		end
+		for name, count in pairs(rec.handsPlayed or {}) do
+			s.handsPlayed[name] = (s.handsPlayed[name] or 0) + count
+		end
+		for kind, count in pairs(rec.draws or {}) do
+			s.draws[kind] = (s.draws[kind] or 0) + count
 		end
 		for id, tips in pairs(rec.econTips) do
 			local e = s.econ[id] or { runs = 0, tips = 0 }
@@ -182,6 +190,42 @@ function Report.summaryLine(label, s)
 		pct(s.bossDeathShare), table.concat(parts, ", "))
 end
 
+local function shares(counts)
+	local total = 0
+	for _, count in pairs(counts or {}) do
+		total = total + count
+	end
+	if total == 0 then
+		return nil
+	end
+	local names = sortedKeys(counts)
+	table.sort(names, function(a, b)
+		if counts[a] ~= counts[b] then
+			return counts[a] > counts[b]
+		end
+		return a < b
+	end)
+	local parts = {}
+	for _, name in ipairs(names) do
+		parts[#parts + 1] = string.format("%s %s", name, pct(counts[name] / total))
+	end
+	return table.concat(parts, ", "), total
+end
+
+-- Share of all played hands by hand type, biggest first: which builds the bot actually ends up playing.
+function Report.handShares(s)
+	return shares(s.handsPlayed) or "none recorded"
+end
+
+-- Builder bot only: which draw each discard went for, and how many discards a run used.
+function Report.drawShares(s)
+	local text, total = shares(s.draws)
+	if not text then
+		return nil
+	end
+	return string.format("%s (%.1f discards a run)", text, total / math.max(1, s.runs))
+end
+
 function Report.printFull(label, s)
 	print(Report.summaryLine(label, s))
 	print(string.format("  runs %d, soft-locks %d, median %% of target at death %s, Tips at shop: mean %.1f, median %d",
@@ -194,6 +238,11 @@ function Report.printFull(label, s)
 		table.insert(levels, string.format("%s %d", name, s.levels[name]))
 	end
 	print("  levels: " .. table.concat(levels, ", "))
+	print("  hands played: " .. Report.handShares(s))
+	local draws = Report.drawShares(s)
+	if draws then
+		print("  draws chased: " .. draws)
+	end
 
 	local killers = sortedKeys(s.killers)
 	table.sort(killers, function(a, b)

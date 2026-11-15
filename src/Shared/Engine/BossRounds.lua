@@ -39,6 +39,7 @@
 		  requiredCardsPerHand = number|nil,   -- must play EXACTLY this many cards
 		  noRepeatHandTypes = true|nil,        -- 2nd play of a hand type scores 0
 		  zeroTipsOnMostPlayedHand = true|nil, -- playing your most-used hand wipes Tips
+		  minDiscards = number|nil,            -- the boss never takes the round below this many discards
 		  firstHandMultiplier = number|nil,    -- the first hand of the round scores x this (Engine/BossRules)
 		  tipsLostAtStart = number|nil,        -- Tips lost as the round begins
 		  minHandName = string|nil,            -- hands ranked below this one score 0
@@ -147,7 +148,7 @@ BossRounds.Definitions = {
 	{
 		id = "empty_pockets",
 		name = "Empty Pockets",
-		description = "Playing your most-used hand type this round wipes your Tips to 0.",
+		description = "This round, playing your most-played hand type wipes your Tips to 0.",
 		flavorText = "Play your favorite trick and the coins roll away.",
 		minNight = 3,
 		zeroTipsOnMostPlayedHand = true,
@@ -167,6 +168,7 @@ BossRounds.Definitions = {
 		flavorText = "One toss in the bin and that's it.",
 		minNight = 3,
 		discardsDelta = -2,
+		minDiscards = 1,
 	},
 	{
 		id = "short_staffed",
@@ -287,6 +289,7 @@ BossRounds.Definitions = {
 		flavorText = "Short on tries, short on tosses, long on nerves.",
 		minNight = 6,
 		discardsDelta = -2,
+		minDiscards = 1,
 		handsPerRoundOverride = 3,
 	},
 	{
@@ -396,7 +399,7 @@ BossRounds.Definitions = {
 		id = "sleepy_cook",
 		icon = "😴",
 		name = "Sleepy Cook",
-		description = "Your first hand each round scores only half.",
+		description = "Your first hand this round scores only half.",
 		flavorText = "He yawns over the stove. The first order comes out half done.",
 		minNight = 1,
 		firstHandMultiplier = 0.5,
@@ -432,7 +435,7 @@ BossRounds.Definitions = {
 		id = "quiet_corner",
 		icon = "🤫",
 		name = "Quiet Corner",
-		description = "Cards with an odd rank score nothing this round.",
+		description = "Odd ranks (3, 5, 7, 9, Jack, King) score nothing this round.",
 		flavorText = "The odd chairs are full of sleepers.",
 		minNight = 3,
 		debuff = "OddRanks",

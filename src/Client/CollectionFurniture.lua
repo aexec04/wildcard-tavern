@@ -255,7 +255,7 @@ function M.furnish(kind, tile, ctx)
 				local a, b = pts[i], pts[i + 1]
 				local len = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
 				add("String" .. i, { x = (a.x + b.x) / 2 - len / 2, y = (a.y + b.y) / 2 - 1, w = len + 1, h = 2 },
-					{ BackgroundColor3 = Color3.fromRGB(188, 44, 44), ZIndex = 38, Rotation = math.deg(math.atan(b.y - a.y, b.x - a.x)) })
+					{ BackgroundColor3 = Color3.fromRGB(188, 44, 44), ZIndex = 38, Rotation = math.deg((math.atan2 or math.atan)(b.y - a.y, b.x - a.x)) })
 			end
 		end
 	elseif kind == "trophy" then

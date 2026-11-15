@@ -31,7 +31,7 @@ local function check(name, ok, detail)
 	end
 end
 
-for _, bot in ipairs({ "random", "greedy", "decent" }) do
+for _, bot in ipairs({ "random", "greedy", "decent", "builder" }) do
 	local same = true
 	for seed = 1, 10 do
 		local a = Report.serialize(Sim.runOne(config({ bot = bot }), seed))
@@ -80,6 +80,63 @@ local paired = { C(2, "Hearts"), C(2, "Spades"), C(9, "Hearts"), C(9, "Clubs"), 
 check("chooseKeep keeps paired ranks", #Sim.chooseKeep(paired) == 4)
 local loose = { C(2, "Hearts"), C(4, "Spades"), C(6, "Hearts"), C(8, "Clubs"), C(10, "Spades"), C(12, "Clubs"), C(14, "Spades"), C(3, "Diamonds") }
 check("chooseKeep keeps the 3 highest", #Sim.chooseKeep(loose) == 3)
+
+-- The builder bot says which draw each discard went for, and goes for more than one kind.
+do
+	local draws, kinds = 0, {}
+	for seed = 1, 5 do
+		for kind, count in pairs(Sim.runOne(config({ bot = "builder" }), seed).draws) do
+			draws = draws + count
+			kinds[kind] = true
+		end
+	end
+	check("builder bot discards when behind pace", draws >= 10, draws .. " discards in 5 runs")
+	check("builder bot chases Flush and Straight draws", kinds.flush == true and kinds.straight == true)
+	local none = 0
+	for _ in pairs(Sim.runOne(config({ bot = "decent" }), 1).draws) do
+		none = none + 1
+	end
+	check("the other bots record no draws", none == 0)
+end
+
+-- The value table with discards: the same seed gives the same rows, a Patron that pays for a Flush makes the player
+-- go and make Flushes, and it is worth more than a flat +4 Mult to a player who can chase it.
+do
+	local rows = Sim.chaseTable(24, 7, "open", 2, "all_matching,the_regular")
+	local again = Sim.chaseTable(24, 7, "open", 2, "all_matching,the_regular")
+	local byId, same = {}, #rows == #again
+	for i, row in ipairs(rows) do
+		byId[row.id] = row
+		same = same and again[i] and again[i].id == row.id and again[i].value == row.value
+	end
+	check("chase table is deterministic per seed", same)
+	check("chase table lists the Patrons asked for", byId.all_matching ~= nil and byId.the_regular ~= nil and #rows == 2)
+	check("a Flush Patron sends the player after Flushes", byId.all_matching.top == "Flush", tostring(byId.all_matching.top))
+	check("and is worth more than a flat Mult Patron to them", byId.all_matching.gain > byId.the_regular.gain,
+		string.format("%.2f against %.2f", byId.all_matching.gain, byId.the_regular.gain))
+	local economy = Sim.chaseTable(6, 7, "open", 2, "tip_jar")
+	check("an economy Patron reads as zero", #economy == 1 and economy[1].gain == 0)
+end
+
+-- The bots know the Boss Rounds that zero a hand type: on Picky Eater a made Flush is not the best play.
+do
+	local picky = engine.RunState.new(nil, engine.SeededRng.new(1))
+	picky.hand = { C(2, "Hearts"), C(5, "Hearts"), C(9, "Hearts"), C(11, "Hearts"), C(13, "Hearts"), C(13, "Clubs"), C(4, "Spades"), C(3, "Diamonds") }
+	local _, free = Sim.bestPlay(picky)
+	local freeCards = {}
+	for i, index in ipairs(free.played) do
+		freeCards[i] = picky.hand[index]
+	end
+	check("bestPlay takes the Flush on a normal round", engine.HandEvaluator.evaluate(freeCards).name == "Flush")
+	picky.bossModifier = engine.BossRounds.getById("picky_eater")
+	local score, blocked = Sim.bestPlay(picky)
+	local blockedCards = {}
+	for i, index in ipairs(blocked.played) do
+		blockedCards[i] = picky.hand[index]
+	end
+	check("bestPlay leaves the Flush alone on Picky Eater", engine.HandEvaluator.evaluate(blockedCards).name == "Pair" and score > 0,
+		engine.HandEvaluator.evaluate(blockedCards).name)
+end
 
 local forced = Sim.runOne(config({ forceBoss = "lights_out", bossNight = 1 }), 4)
 check("forced boss appears on its Night", forced.bosses[1] and forced.bosses[1].id == "lights_out")

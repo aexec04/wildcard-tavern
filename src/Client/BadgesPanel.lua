@@ -292,7 +292,11 @@ return function(deps)
 	equipButton.MouseButton1Click:Connect(function()
 		if not detailDef then return end
 		playClickSfx()
-		EquipRemote:FireServer(equippedId == detailDef.id and nil or detailDef.id) -- tapping the equipped badge takes it off
+		if equippedId == detailDef.id then
+			EquipRemote:FireServer(nil) -- tapping the equipped badge takes it off
+		else
+			EquipRemote:FireServer(detailDef.id)
+		end
 		detail.Visible = false
 	end)
 	starButton.MouseButton1Click:Connect(function()

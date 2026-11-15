@@ -6,10 +6,14 @@
 	can never drift from what the game does. Only the decisions live here.
 
 	Bots:
-		random -- plays a random legal selection, never discards
-		greedy -- plays the highest-scoring subset, never discards
-		decent -- as greedy, but discards when behind pace
-	All three share the shop policy in Sim.shopVisit.
+		random  -- plays a random legal selection, never discards
+		greedy  -- plays the highest-scoring subset, never discards
+		decent  -- as greedy, but discards when behind pace
+		builder -- as decent, but it picks the draw: it tries holding its best
+		           play, a Flush draw, a Straight draw, its pairs and its high
+		           cards on sampled redraws and goes for whichever scores best
+		           with its own Patrons. Sim.chaseTable plays hands this way.
+	All four share the shop policy in Sim.shopVisit.
 
 	Determinism: each run is a pure function of (config, seed). playHand rolls
 	Lucky/Brittle procs with math.random, so runOne reseeds that too.
@@ -27,6 +31,7 @@ local SAMPLE_HANDS = 3 -- hands drawn per marginal-value estimate
 local MAX_REROLLS_PER_VISIT = 3
 local RICH_MARGIN = 10 -- Tips to keep beyond a reroll's cost before rerolling
 local SWAP_FACTOR = 1.3 -- a new Patron must beat the weakest seat by this much
+local ROLLOUTS = 6 -- builder bot: sampled redraws per draw it weighs
 
 local VOUCHERS_WANTED = { double_shift = true, late_kitchen = true, grand_opening = true }
 
@@ -180,6 +185,15 @@ local function scorePlay(state, hand, combo, patrons)
 	if boss and boss.noRepeatHandTypes and alreadyPlayed then
 		return 0, handResult
 	end
+	-- Boss Rounds that zero a hand type (Picky Eater, Pair Patrol) or let fewer Patrons score (Crowded Counter): the
+	-- helpers RunState.playHand uses. Before this the bots kept playing Flushes into Picky Eater for nothing.
+	local rules = E.BossRules
+	if rules then
+		if rules.blocksHand(handResult.name, boss, state.challenge) then
+			return 0, handResult
+		end
+		patrons = rules.scoringPatrons(boss, patrons)
+	end
 	local handsLeft = state.handsRemaining - 1
 	local _, chips, mult = E.Scoring.calculate(handResult, patrons, E.RunState.addRunCounters({
 		rng = noLuck,
@@ -201,6 +215,9 @@ local function scorePlay(state, hand, combo, patrons)
 	end
 	if boss and boss.multMultiplier then
 		mult = mult * boss.multMultiplier
+	end
+	if rules and state.roundStartHands then
+		mult = mult * rules.scoreFactor(boss, state.handsRemaining == state.roundStartHands) -- Sleepy Cook
 	end
 	return chips * mult, handResult
 end
@@ -277,9 +294,10 @@ function Sim.chooseKeep(hand)
 	return { order[1], order[2], order[3] }
 end
 
-local function discardList(hand)
+-- Positions to toss when keeping `keep`: everything else, lowest rank first, 5 at most.
+local function tossFor(hand, keep)
 	local kept = {}
-	for _, i in ipairs(Sim.chooseKeep(hand)) do
+	for _, i in ipairs(keep) do
 		kept[i] = true
 	end
 	local out = {}
@@ -298,6 +316,211 @@ local function discardList(hand)
 		table.remove(out)
 	end
 	return out
+end
+
+local function discardList(hand)
+	return tossFor(hand, Sim.chooseKeep(hand))
+end
+
+-- ===== Build-aware discards (builder bot) =====
+
+-- The biggest suit group, 3 cards or more. A House Blend card counts for every suit, as it does for a real Flush.
+local function flushDraw(hand)
+	local best
+	for _, suit in ipairs(E.Card.Suits) do
+		local group = {}
+		for i, card in ipairs(hand) do
+			if E.Card.hasSuit(card, suit) then
+				group[#group + 1] = i
+			end
+		end
+		if #group >= 3 and (not best or #group > #best) then
+			best = group
+		end
+	end
+	return best
+end
+
+-- The best Straight draw: the run of five ranks (Ace low or high) holding the most different ranks, 3 or more. Ties go
+-- to the higher run.
+local function straightDraw(hand)
+	local byRank = {}
+	for i, card in ipairs(hand) do
+		if not byRank[card.rank] then
+			byRank[card.rank] = i
+		end
+	end
+	if byRank[14] then
+		byRank[1] = byRank[14]
+	end
+	local best, bestCount = nil, 0
+	for low = 1, 10 do
+		local group = {}
+		for rank = low, low + 4 do
+			if byRank[rank] then
+				group[#group + 1] = byRank[rank]
+			end
+		end
+		if #group >= 3 and #group >= bestCount then
+			best, bestCount = group, #group
+		end
+	end
+	return best
+end
+
+-- Every card of a rank held twice or more, or nil without one.
+local function pairKeep(hand)
+	local byRank = {}
+	for i, card in ipairs(hand) do
+		byRank[card.rank] = byRank[card.rank] or {}
+		table.insert(byRank[card.rank], i)
+	end
+	local keep = {}
+	for rank = 14, 2, -1 do
+		local group = byRank[rank]
+		if group and #group >= 2 then
+			for _, i in ipairs(group) do
+				keep[#keep + 1] = i
+			end
+		end
+	end
+	return #keep > 0 and keep or nil
+end
+
+local function highKeep(hand)
+	local order = {}
+	for i = 1, #hand do
+		order[i] = i
+	end
+	table.sort(order, function(a, b)
+		if hand[a].rank ~= hand[b].rank then
+			return hand[a].rank > hand[b].rank
+		end
+		return a < b
+	end)
+	return { order[1], order[2], order[3] }
+end
+
+-- `count` cards from `pool` added to `into`, no card twice, without changing `pool`.
+local function drawFrom(pool, count, rng, into)
+	local taken, got = {}, 0
+	count = math.min(count, #pool)
+	while got < count do
+		local j = rng(#pool)
+		if not taken[j] then
+			taken[j] = true
+			got = got + 1
+			into[#into + 1] = pool[j]
+		end
+	end
+	return into
+end
+
+-- The hand left after tossing `toss`.
+local function withoutTossed(hand, toss)
+	local tossed = {}
+	for _, i in ipairs(toss) do
+		tossed[i] = true
+	end
+	local kept = {}
+	for i, card in ipairs(hand) do
+		if not tossed[i] then
+			kept[#kept + 1] = card
+		end
+	end
+	return kept
+end
+
+-- Best score among one play per (hand type, size): the one with the highest ranks. A redraw estimate needs the size of
+-- the best score, not the exact cards, and this costs about a third of the full search in Sim.bestPlay.
+local function quickBest(state)
+	local hand = state.hand
+	local bySize = combosFor(#hand)
+	local boss = state.bossModifier
+	local required = boss and boss.requiredCardsPerHand
+	local minCards = (boss and boss.minCardsPerHand) or (state.challenge and state.challenge.minCardsPerHand) or 1
+	local best = {}
+	for size = math.min(minCards, #hand), math.min(5, #hand) do
+		if not required or size == required then
+			for _, combo in ipairs(bySize[size]) do
+				local handResult = E.HandEvaluator.evaluate(pickCards(hand, combo.played))
+				local weight = 0
+				for _, card in ipairs(handResult.scoringCards) do
+					weight = weight + card.rank
+				end
+				local key = handResult.name .. size
+				local entry = best[key]
+				if not entry or weight > entry.weight then
+					best[key] = { weight = weight, combo = combo }
+				end
+			end
+		end
+	end
+	local bestScore = -1
+	for _, entry in pairs(best) do
+		local score = scorePlay(state, hand, entry.combo, state.ownedPatrons)
+		if score > bestScore then
+			bestScore = score
+		end
+	end
+	return bestScore
+end
+
+-- Average best play after tossing `toss` and drawing that many cards at random from what is left of the deck. The bot
+-- knows which cards are left (a player who counts does too), never their order.
+local function rolloutValue(state, toss, rng)
+	local realHand, realDiscards = state.hand, state.discardsRemaining
+	local kept = withoutTossed(realHand, toss)
+	state.discardsRemaining = realDiscards - 1
+	local total = 0
+	for _ = 1, ROLLOUTS do
+		local hand = {}
+		for i, card in ipairs(kept) do
+			hand[i] = card
+		end
+		state.hand = drawFrom(state.deck, #toss, rng, hand)
+		total = total + quickBest(state)
+	end
+	state.hand, state.discardsRemaining = realHand, realDiscards
+	return total / ROLLOUTS
+end
+
+-- The toss that scores best on sampled redraws, or nothing when every draw would average less than the play in hand
+-- (`holding`). Keeping the cards of that play and tossing the rest is always one of the choices.
+local function builderToss(state, combo, holding, rng, rec)
+	local hand = state.hand
+	if #state.deck == 0 then
+		return {}
+	end
+	local candidates, seen = {}, {}
+	local function add(kind, keep)
+		if not keep then
+			return
+		end
+		local toss = tossFor(hand, keep)
+		local key = table.concat(toss, ",")
+		if #toss > 0 and not seen[key] then
+			seen[key] = true
+			candidates[#candidates + 1] = { kind = kind, toss = toss }
+		end
+	end
+	add("hold", combo.played)
+	add("flush", flushDraw(hand))
+	add("straight", straightDraw(hand))
+	add("pairs", pairKeep(hand))
+	add("high", highKeep(hand))
+	local best, bestValue = nil, -1
+	for _, candidate in ipairs(candidates) do
+		local value = rolloutValue(state, candidate.toss, rng)
+		if value > bestValue then
+			best, bestValue = candidate, value
+		end
+	end
+	if not best or bestValue < holding then
+		return {}
+	end
+	rec.draws[best.kind] = (rec.draws[best.kind] or 0) + 1
+	return best.toss
 end
 
 -- ===== Round play =====
@@ -332,8 +555,12 @@ local function playRound(state, cfg, rng, rec)
 			local bestScore, combo = Sim.bestPlay(state)
 			local pace = (state.targetScore - state.roundScore) / state.handsRemaining
 			local toss = {}
-			if cfg.bot == "decent" and bestScore < pace and state.discardsRemaining > 0 then
-				toss = discardList(state.hand)
+			if bestScore < pace and state.discardsRemaining > 0 then
+				if cfg.bot == "decent" then
+					toss = discardList(state.hand)
+				elseif cfg.bot == "builder" then
+					toss = builderToss(state, combo, bestScore, rng, rec)
+				end
 			end
 			if #toss > 0 then
 				result = E.RunState.discard(state, toss)
@@ -792,6 +1019,7 @@ local function newRecord(seed)
 		rerolls = 0,
 		recipesUsed = 0,
 		handsPlayed = {},
+		draws = {},
 		patronsBought = {},
 		vouchers = {},
 		tipsAtShop = {},
@@ -934,6 +1162,129 @@ function Sim.patronTable(count, seed)
 		return a.gainPerPrice > b.gainPerPrice
 	end)
 	return rows, base
+end
+
+-- ===== Patron value with discards (the builder bot's play, no run needed) =====
+
+-- The two tables a Patron is tried on. "open" is Night 1: nobody seated, every hand at its base level. "mid" seats two
+-- Patrons that pay any hand the same (so no build is favoured) and has every hand leveled twice.
+local CHASE_BUILDS = {
+	open = { night = 1, tips = 4, patrons = {}, level = 0 },
+	mid = { night = 5, tips = 15, patrons = { "the_regular", "the_bard" }, level = 2 },
+}
+
+-- `count` fixed deals: a starting hand and the order the rest of the deck will come in.
+local function chaseDeals(pool, handSize, count, rng)
+	local deals = {}
+	for _ = 1, count do
+		local deck = {}
+		for i, card in ipairs(pool) do
+			deck[i] = card
+		end
+		for i = #deck, 2, -1 do
+			local j = rng(i)
+			deck[i], deck[j] = deck[j], deck[i]
+		end
+		local hand = {}
+		for _ = 1, math.min(handSize, #deck) do
+			hand[#hand + 1] = table.remove(deck)
+		end
+		deals[#deals + 1] = { hand = hand, deck = deck }
+	end
+	return deals
+end
+
+-- One hand the way the builder bot plays it: up to `discards` draws, then its best play.
+local function chaseHand(state, deal, discards, rng, rec)
+	state.hand, state.deck = {}, {}
+	for i, card in ipairs(deal.hand) do
+		state.hand[i] = card
+	end
+	for i, card in ipairs(deal.deck) do
+		state.deck[i] = card
+	end
+	state.discardsRemaining = discards
+	while true do
+		local bestScore, combo = Sim.bestPlay(state)
+		local toss = state.discardsRemaining > 0 and builderToss(state, combo, bestScore, rng, rec) or {}
+		if #toss == 0 then
+			local _, handResult = scorePlay(state, state.hand, combo, state.ownedPatrons)
+			return bestScore, handResult.name
+		end
+		state.hand = withoutTossed(state.hand, toss)
+		for _ = 1, math.min(#toss, #state.deck) do
+			state.hand[#state.hand + 1] = table.remove(state.deck)
+		end
+		state.discardsRemaining = state.discardsRemaining - 1
+	end
+end
+
+-- Average score of `deals` for the Patrons now seated, and the hand type played most often with its share.
+local function chaseValue(state, deals, discards, seed)
+	local rng = E.SeededRng.new(seed)
+	local rec = { draws = {} }
+	local total, played = 0, {}
+	for _, deal in ipairs(deals) do
+		local score, name = chaseHand(state, deal, discards, rng, rec)
+		total = total + score
+		played[name] = (played[name] or 0) + 1
+	end
+	local top, topCount = "High Card", 0
+	for _, name in ipairs(E.HandEvaluator.HandOrder) do
+		if (played[name] or 0) > topCount then
+			top, topCount = name, played[name]
+		end
+	end
+	return total / #deals, top, topCount / #deals
+end
+
+-- What each Patron adds to the hand a practiced player ends up playing. The builder bot plays `count` deals with
+-- `discards` discards to spend on each, first with the build's table alone, then with each Patron added. Every row sees
+-- the same deals and the same deck order, so the difference between two rows is the Patron and the draws it made worth
+-- chasing. Unlike Sim.patronTable, a Patron that pays for a Flush or a Straight gets credit for the Flushes and
+-- Straights a player would go and make once they own it. Economy Patrons, Patrons that grow over a run and Patrons that
+-- need a set-up (a repeat hand, a last hand, a neighbour to copy) read as zero here.
+-- `only` limits the rows to a comma-separated list of ids.
+function Sim.chaseTable(count, seed, buildName, discards, only)
+	seed = seed or 1
+	discards = discards or 2
+	local build = assert(CHASE_BUILDS[buildName or "open"], "Unknown build: " .. tostring(buildName))
+	local state = E.RunState.new({}, E.SeededRng.new(seed))
+	local deals = chaseDeals(allCards(state), state.config.handSize, count, E.SeededRng.new(seed))
+	state.night, state.tips = build.night, build.tips
+	state.handsRemaining = 3
+	state.roundScore, state.targetScore = 0, math.huge
+	local seated = {}
+	for _, id in ipairs(build.patrons) do
+		table.insert(state.ownedPatrons, E.Patrons.getById(id))
+		seated[id] = true
+	end
+	for _, name in ipairs(E.HandEvaluator.HandOrder) do
+		state.handLevels[name] = build.level
+	end
+	local wanted = only and ("," .. only .. ",")
+
+	local table0 = state.ownedPatrons
+	local base, baseTop, baseShare = chaseValue(state, deals, discards, seed)
+	local rows = {}
+	for _, patron in ipairs(E.Patrons.Definitions) do
+		if patron.effect and not seated[patron.id] and (not wanted or wanted:find("," .. patron.id .. ",", 1, true)) then
+			state.ownedPatrons = withPatron(table0, patron)
+			local value, top, share = chaseValue(state, deals, discards, seed)
+			table.insert(rows, {
+				id = patron.id, price = patron.price or 0, value = value, gain = (value - base) / base,
+				top = top, share = share,
+			})
+		end
+	end
+	state.ownedPatrons = table0
+	table.sort(rows, function(a, b)
+		if a.gain ~= b.gain then
+			return a.gain > b.gain
+		end
+		return a.id < b.id
+	end)
+	return rows, base, baseTop, baseShare
 end
 
 return Sim

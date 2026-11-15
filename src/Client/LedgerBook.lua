@@ -448,7 +448,11 @@ function LedgerBook.build(deps, desk)
 		hit.Parent = row0
 		hit.MouseButton1Click:Connect(function()
 			deps.playClickSfx()
-			expandedOrder = (expandedOrder == order) and nil or order
+			if expandedOrder == order then
+				expandedOrder = nil -- tapping the open row closes it
+			else
+				expandedOrder = order
+			end
 			rebuildRight(stats)
 		end)
 		local stakeDef = Stakes.get(entry.stake)
@@ -864,7 +868,9 @@ function LedgerBook.build(deps, desk)
 		local state = deps.getLatestState and deps.getLatestState() or nil
 		local stats = state and state.runStats
 		if not stats then return end
-		expandedOrder = animate and nil or expandedOrder
+		if animate then
+			expandedOrder = nil -- the book opens with every row closed
+		end
 		paintTabs()
 		paint(state)
 		local beaten = Pages.beaten(lastSeen, stats)

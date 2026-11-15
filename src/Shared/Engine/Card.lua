@@ -146,4 +146,20 @@ function Card.hasSuit(card, suit)
 	return card.suit == suit
 end
 
+-- True when a Boss Round's debuff switches this card off, so it adds no Chips, Mult, Garnish, Special or Stamp:
+-- a suit name ("Hearts"), "FaceCards" (Jack, Queen, King) or "OddRanks" (3, 5, 7, 9, Jack and King; an Ace is 14).
+-- One rule for Scoring and for the play screen, which should mark these cards in the hand.
+function Card.isOut(card, debuff)
+	if not debuff then
+		return false
+	end
+	if debuff == "FaceCards" then
+		return Card.isFaceCard(card)
+	end
+	if debuff == "OddRanks" then
+		return card.rank % 2 == 1
+	end
+	return Card.hasSuit(card, debuff)
+end
+
 return Card

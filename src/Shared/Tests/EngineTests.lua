@@ -10994,7 +10994,12 @@ table.insert(tests, { name = "New Boss Rounds: eight new rules, tiered, each one
 	local hub = io and io.open and io.open("src/Client/init.client.lua", "r")
 	if hub then
 		local src = hub:read("*a"); hub:close()
-		expectTrue(src:find("BossRules.blocksHand", 1, true) ~= nil and src:find("BossRules.finishScore", 1, true) ~= nil, "the preview uses the same rules")
+		expectTrue(src:find("Engine.HandPreview", 1, true) ~= nil, "the hub's preview is Engine/HandPreview")
+		local engineFile = io.open("src/Shared/Engine/HandPreview.lua", "r")
+		if engineFile then
+			local engineSrc = engineFile:read("*a"); engineFile:close()
+			expectTrue(engineSrc:find("BossRules.blocksHand", 1, true) ~= nil and engineSrc:find("BossRules.finishScore", 1, true) ~= nil, "the preview uses the same rules")
+		end
 	end
 end })
 
@@ -24369,12 +24374,19 @@ table.insert(tests, { name = "BossRules.finishScore: one function for the boss f
 	expectTrue(math.abs(state.lastPlay.mult - baseMult * 1.25) < 1e-9, "mult carries the Bargain")
 	expectTrue(math.abs(result.score - baseChips * baseMult * 1.25) < 1e-9, "the paid score carries the Bargain")
 	if not io then return end
-	local f = io.open("src/Client/init.client.lua", "r")
-	if not f then return end
-	local src = f:read("*a"); f:close()
-	expectTrue(src:find("BossRules.finishScore(chips, mult, bossModifierDef", 1, true) ~= nil, "the preview finishes the score with the shared function")
-	expectTrue(src:find('.field(latestState, "scorePct")', 1, true) ~= nil, "the preview reads the Dealer's Bargain percent")
-	expectTrue(src:find("latestState.handsRemaining == latestState.roundStartHands, bargainPct)", 1, true) ~= nil, "the Bargain pill is shown with the real percent, not a hardcoded 0")
+	local hubFile = io.open("src/Client/init.client.lua", "r")
+	local engineFile = io.open("src/Shared/Engine/HandPreview.lua", "r")
+	if not hubFile or not engineFile then
+		if hubFile then hubFile:close() end
+		if engineFile then engineFile:close() end
+		return
+	end
+	local hub = hubFile:read("*a"); hubFile:close()
+	local src = engineFile:read("*a"); engineFile:close()
+	expectTrue(hub:find("Engine.HandPreview", 1, true) ~= nil, "the hub's preview is Engine/HandPreview")
+	expectTrue(src:find("BossRules.finishScore(chips, mult, boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the preview finishes the score with the shared function")
+	expectTrue(src:find('Strangers.field(view, "scorePct")', 1, true) ~= nil, "the preview reads the Dealer's Bargain percent")
+	expectTrue(src:find("PatronEvents.tavernNotes(boss, isFirstHand, bargainPct)", 1, true) ~= nil, "the Bargain pill is shown with the real percent, not a hardcoded 0")
 	expectTrue(src:find("rng = Scoring.noLuck", 1, true) ~= nil, "the preview never rolls luck")
 end })
 
@@ -24727,6 +24739,681 @@ table.insert(tests, { name = "Menu hotspots stay on their painted objects: a new
 	expectTrue(src:find("entryTweens[#entryTweens + 1] = tween", 1, true) ~= nil, "running drop-in tweens are kept so they can be cancelled")
 	local entry = src:find("function result.entry()", 1, true)
 	expectTrue(entry ~= nil and entry > place, "entry is defined after placeRoom, so it can see cancelEntry")
+end })
+
+-- BUILD PIECES (balance pass, Nov 13 2026): tools/run_sim.lua --chase-table plays each Patron the way a player who uses
+-- discards would. On that table these five paid a fraction of their siblings (Stair Climber +4% at mid-build against
+-- Straight Shooter's +39% for the same 6 Tips; Royal Road +2% on an opening hand for 8 Tips), so a Straight or Full
+-- House build had one good piece and nothing worth a second seat. Numbers and card text are pinned together here.
+table.insert(tests, { name = "Build pieces: Flush Fan, Stair Climber, Kitchen Duo, Long Road and Royal Road pay what their cards say", fn = function()
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local function hand(spec)
+		local cards = {}
+		for i, c in ipairs(spec) do cards[i] = Card.new(c[1], c[2]) end
+		return HE.evaluate(cards)
+	end
+	local H, S, D, C = "Hearts", "Spades", "Diamonds", "Clubs"
+	local flush = hand({ { 2, H }, { 5, H }, { 9, H }, { 11, H }, { 13, H } })
+	local straight = hand({ { 5, H }, { 6, S }, { 7, C }, { 8, D }, { 9, H } })
+	local aceHigh = hand({ { 10, H }, { 11, S }, { 12, C }, { 13, D }, { 14, H } })
+	local wheel = hand({ { 14, H }, { 2, S }, { 3, C }, { 4, D }, { 5, H } })
+	local straightFlush = hand({ { 5, H }, { 6, H }, { 7, H }, { 8, H }, { 9, H } })
+	local house = hand({ { 7, H }, { 7, S }, { 7, C }, { 9, D }, { 9, H } })
+	local pair = hand({ { 5, H }, { 5, S }, { 9, D }, { 2, C }, { 13, H } })
+	expectEqual(flush.name, "Flush"); expectEqual(straight.name, "Straight"); expectEqual(wheel.name, "Straight")
+	expectEqual(straightFlush.name, "Straight Flush"); expectEqual(house.name, "Full House")
+	local function pays(id, result)
+		return Patrons.getById(id).effect(result, {})
+	end
+	expectEqual(pays("flush_fan", flush).chips, 80)
+	expectEqual(pays("flush_fan", straightFlush).chips, 80)
+	expectEqual(pays("flush_fan", straight), nil)
+	expectEqual(pays("stair_climber", straight).chips, 80)
+	expectEqual(pays("stair_climber", straightFlush).chips, 80)
+	expectEqual(pays("stair_climber", flush), nil)
+	expectEqual(pays("kitchen_duo", house).chips, 100)
+	expectEqual(pays("kitchen_duo", pair), nil)
+	expectEqual(pays("long_road", straight).mult, 12)
+	expectEqual(pays("long_road", straightFlush), nil)
+	expectEqual(pays("royal_road", aceHigh).multMultiplier, 2)
+	expectEqual(pays("royal_road", wheel).multMultiplier, 2, "Ace low counts")
+	expectEqual(pays("royal_road", straight), nil)
+	-- the card text names the number the effect pays
+	for id, text in pairs({ flush_fan = "+80 Chips", stair_climber = "+80 Chips", kitchen_duo = "+100 Chips", long_road = "+12 Mult", royal_road = "x2 Mult" }) do
+		expectTrue(Patrons.getById(id).description:find(text, 1, true) ~= nil, id .. " says " .. text)
+	end
+	-- and it reaches the score: Chips land in Chips, Royal Road doubles the whole Mult
+	local _, plainChips, plainMult = Scoring.calculate(flush, {}, {})
+	local _, fanChips, fanMult = Scoring.calculate(flush, { Patrons.getById("flush_fan") }, {})
+	expectEqual(fanChips - plainChips, 80); expectEqual(fanMult, plainMult)
+	local _, _, aceMult = Scoring.calculate(aceHigh, {}, {})
+	local _, _, royalMult = Scoring.calculate(aceHigh, { Patrons.getById("royal_road") }, {})
+	expectEqual(royalMult, aceMult * 2)
+	-- a Chips piece stays the second piece of its build: on an opening hand the Mult piece for the same hand is worth more
+	local fan = Scoring.calculate(flush, { Patrons.getById("flush_fan") }, {})
+	local matching = Scoring.calculate(flush, { Patrons.getById("all_matching") }, {})
+	expectTrue(matching > fan, "All Matching still opens stronger than Flush Fan")
+	local climber = Scoring.calculate(straight, { Patrons.getById("stair_climber") }, {})
+	local shooter = Scoring.calculate(straight, { Patrons.getById("straight_shooter") }, {})
+	expectTrue(shooter > climber, "Straight Shooter still opens stronger than Stair Climber")
+	-- Bonds stay small with these numbers. The Bonds balance test holds the four everyday hands to 10 percent. On the
+	-- rare ones (Four of a Kind, a Straight with an Ace, the lowest Full House) the most any Bond adds is 13.1 percent;
+	-- before this pass it was 12.9 (All Hands In with Foursome Table on Four of a Kind).
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	local rare = { aceHigh, wheel, house, straightFlush,
+		hand({ { 2, H }, { 2, S }, { 2, C }, { 3, D }, { 3, H } }), hand({ { 7, H }, { 7, S }, { 7, C }, { 7, D }, { 9, H } }) }
+	local worst, where = 0, nil
+	for i = 1, #Patrons.Definitions - 1 do
+		for j = i + 1, #Patrons.Definitions do
+			local p, q = Patrons.Definitions[i], Patrons.Definitions[j]
+			if not p.biome and not q.biome and #Bonds.find({ p, q }) > 0 then
+				for _, result in ipairs(rare) do
+					local on = Scoring.calculate(result, { p, q }, { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5 })
+					local off = Scoring.calculate(result, { p, q }, { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5, bondsOff = true })
+					if off > 0 and on / off > worst then
+						worst, where = on / off, p.id .. "+" .. q.id
+					end
+				end
+			end
+		end
+	end
+	expectTrue(worst <= 1.14, string.format("a Bond lifts a rare hand by %.1f percent (%s)", (worst - 1) * 100, tostring(where)))
+end })
+
+-- HAND PREVIEW (Nov 13 2026): the play screen's preview is Engine/HandPreview. This is the test that keeps it honest:
+-- random tables, hands, Garnishes, levels, Tips, a Bargain, a Challenge and the True Wildcard on every Boss Round, and
+-- each time the preview must be the number RunState.playHand then pays. Luck is taken out of both sides (a preview
+-- never rolls it).
+table.insert(tests, { name = "Hand preview: what it shows is what the hand pays, on every Boss Round", fn = function()
+	local HandPreview = require(script.Parent.Parent.Engine.HandPreview)
+	local SeededRng = require(script.Parent.Parent.Engine.SeededRng)
+	local Strangers = require(script.Parent.Parent.Engine.Strangers)
+	local noLuck = function(n) return n end
+	-- An older engine rolled a play's luck on math.random, so it is swapped out where that is possible. Roblox's math
+	-- library is read-only: there the play rolls on the run's own rng, which is set to noLuck below.
+	local realRandom = math.random
+	local swapped = pcall(function()
+		math.random = noLuck
+	end)
+	local ok, err = pcall(function()
+		local pick = SeededRng.new(20261113)
+		local bossIds = { false }
+		for _, def in ipairs(BossRounds.Definitions) do
+			bossIds[#bossIds + 1] = def.id
+		end
+		local handNames = { "High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind" }
+		local garnishes = { "sweet", "zesty", "brittle", "iron", "houseBlend", "golden", "lucky" }
+		local specials = { "silver", "gold", "rainbow" }
+		local stamps = { "gold", "encore" }
+		local compared, wipes, wilds = 0, 0, 0
+		for _, bossId in ipairs(bossIds) do
+			for trial = 1, 12 do
+				local state = RunState.new(nil, SeededRng.new(pick(1000000)))
+				state.night = 2 + pick(6)
+				local function seat(def)
+					for _, seated in ipairs(state.ownedPatrons) do
+						if seated.id == def.id then
+							return
+						end
+					end
+					table.insert(state.ownedPatrons, def)
+				end
+				if trial % 6 == 1 then
+					seat(Patrons.getById("penny_pincher")) -- pays Mult for Tips held: shows an Empty Pockets wipe in the score
+				end
+				for _ = 1, pick(5) - 1 do
+					seat(Patrons.Definitions[pick(#Patrons.Definitions)])
+				end
+				if trial % 2 == 0 then
+					-- a full table whose fifth seat pays on every hand, so Crowded Counter (first 4 only) shows in the score
+					local guard = 0
+					while #state.ownedPatrons < 4 and guard < 50 do
+						guard = guard + 1
+						local def = Patrons.Definitions[pick(#Patrons.Definitions)]
+						if def.id ~= "the_regular" then
+							seat(def)
+						end
+					end
+					for i = #state.ownedPatrons, 1, -1 do
+						if state.ownedPatrons[i].id == "the_regular" then
+							table.remove(state.ownedPatrons, i)
+						end
+					end
+					table.insert(state.ownedPatrons, Patrons.getById("the_regular"))
+				end
+				for _ = 1, 3 do
+					state.handLevels[handNames[pick(#handNames)]] = pick(4) - 1
+					state.handStats[handNames[pick(#handNames)]] = pick(6)
+				end
+				state.tips = pick(40) - 1
+				if trial % 3 == 0 then
+					state.bargains = { { id = "hot_pan", night = state.night } }
+				end
+				if trial % 5 == 0 then
+					state.challenge = { patronPower = 2 }
+				end
+				local originalPick = BossRounds.pick
+				if bossId then
+					BossRounds.pick = function() return BossRounds.getById(bossId) end
+					state.nightBossModifier = BossRounds.getById(bossId)
+				end
+				state.round = 1
+				RunState.startRound(state)
+				if bossId then
+					state.round = state.config.roundsPerNight
+					RunState.startRound(state)
+				end
+				BossRounds.pick = originalPick
+				state.rng = noLuck
+
+				for _, card in ipairs(state.hand) do
+					local roll = pick(9)
+					if roll == 1 then card.garnish = garnishes[pick(#garnishes)] end
+					if roll == 2 then card.special = specials[pick(#specials)] end
+					if roll == 3 then card.stamp = stamps[pick(#stamps)] end
+				end
+				if trial % 4 == 0 then
+					for i, card in ipairs(state.deck) do
+						if card.isTrueWildcard and not card.wildcardLocked and #state.hand > 0 then
+							state.deck[i], state.hand[1] = state.hand[1], card
+							break
+						end
+					end
+				end
+
+				local boss = state.bossModifier
+				for _ = 1, 3 do
+					if state.roundOver or state.runOver or state.handsRemaining <= 0 or #state.hand == 0 then
+						break
+					end
+					local count = boss and boss.requiredCardsPerHand
+					if not count then
+						local least = math.max(1, boss and boss.minCardsPerHand or 1)
+						count = least + pick(5 - least + 1) - 1
+					end
+					count = math.min(count, #state.hand)
+					local indices, taken = {}, {}
+					while #indices < count do
+						local i = pick(#state.hand)
+						if not taken[i] then
+							taken[i] = true
+							indices[#indices + 1] = i
+						end
+					end
+					local tipsBefore = state.tips
+					local preview = HandPreview.compute(state, indices)
+					local wildBefore = preview and preview.wildcardResolution
+					local played = RunState.playHand(state, indices)
+					local where = string.format("boss %s, trial %d, %s", tostring(bossId), trial, tostring(played.handName))
+					expectTrue(preview ~= nil, "a preview for " .. where)
+					expectEqual(preview.name, played.handName, "hand name, " .. where)
+					expectEqual(preview.score, played.score, "score, " .. where)
+					expectEqual(preview.chips, played.chips, "Chips, " .. where)
+					expectEqual(preview.mult, played.mult, "Mult, " .. where)
+					if played.wildcardResolution then
+						wilds = wilds + 1
+						expectEqual(wildBefore and wildBefore.rank, played.wildcardResolution.rank, "True Wildcard rank, " .. where)
+						expectEqual(wildBefore and wildBefore.suit, played.wildcardResolution.suit, "True Wildcard suit, " .. where)
+					end
+					if bossId == "empty_pockets" and tipsBefore > 0 and state.tips < tipsBefore then
+						wipes = wipes + 1
+					end
+					compared = compared + 1
+				end
+			end
+		end
+		expectTrue(compared > 900, "enough hands compared: " .. compared)
+		expectTrue(wipes > 0, "Empty Pockets wiped Tips at least once in the sample")
+		expectTrue(wilds > 0, "the True Wildcard was played at least once in the sample")
+	end)
+	if swapped then
+		math.random = realRandom
+	end
+	if not ok then
+		error(err, 0)
+	end
+end })
+
+table.insert(tests, { name = "Hand preview: Empty Pockets wipes Tips in the preview as it does in the play", fn = function()
+	local HandPreview = require(script.Parent.Parent.Engine.HandPreview)
+	local BossRules = require(script.Parent.Parent.Engine.BossRules)
+	local Card = require(script.Parent.Parent.Engine.Card)
+	-- the rule on its own: this play counts, a tie counts, another hand ahead does not
+	local pockets = BossRounds.getById("empty_pockets")
+	expectEqual(BossRules.wipesTips(nil, { Pair = 3 }, "Pair"), false)
+	expectEqual(BossRules.wipesTips(BossRounds.getById("bouncer"), { Pair = 3 }, "Pair"), false)
+	expectEqual(BossRules.wipesTips(pockets, {}, "Pair"), true)
+	expectEqual(BossRules.wipesTips(pockets, { Pair = 2, Flush = 3 }, "Pair"), true, "a tie after this play")
+	expectEqual(BossRules.wipesTips(pockets, { Pair = 2, Flush = 4 }, "Pair"), false)
+	expectEqual(BossRules.wipesTips(pockets, nil, "Pair"), true)
+
+	-- Penny Pincher pays Mult for Tips held. On Empty Pockets a Pair that is the most-played hand scores with no Tips.
+	local function round(stats)
+		local state = RunState.new(nil, function(n) return n end)
+		state.night = 4
+		local originalPick = BossRounds.pick
+		BossRounds.pick = function() return pockets end
+		state.nightBossModifier = pockets
+		state.round = 1
+		RunState.startRound(state)
+		state.round = state.config.roundsPerNight
+		RunState.startRound(state)
+		BossRounds.pick = originalPick
+		state.ownedPatrons = { Patrons.getById("penny_pincher") }
+		state.tips = 30
+		state.handStats = stats
+		state.hand[1], state.hand[2] = Card.new(9, "Hearts"), Card.new(9, "Clubs")
+		return state
+	end
+	local favourite = round({ Pair = 4, Flush = 1 })
+	local other = round({ Pair = 1, Flush = 6 })
+	local wiped = HandPreview.compute(favourite, { 1, 2 })
+	local kept = HandPreview.compute(other, { 1, 2 })
+	expectEqual(wiped.name, "Pair"); expectEqual(kept.name, "Pair")
+	expectTrue(kept.mult > wiped.mult, "Tips still count when the Pair is not the most-played hand")
+	expectEqual(favourite.tips, 30, "a preview changes nothing")
+	local paid = RunState.playHand(favourite, { 1, 2 })
+	expectEqual(wiped.score, paid.score, "the preview is what the play pays")
+	expectEqual(favourite.tips, 0, "and the play wiped the Tips")
+	expectEqual(kept.score, RunState.playHand(other, { 1, 2 }).score)
+	expectEqual(HandPreview.compute(other, {}), nil, "no cards, no preview")
+	expectEqual(HandPreview.compute(nil, { 1 }), nil)
+end })
+
+table.insert(tests, { name = "Boss Rounds: Last Chance and Empty Handed leave one discard on every stake", fn = function()
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	local function discards(id, stake, pass, challengeId)
+		local state = RunState.new({ stakeId = stake, challengeId = challengeId }, function(n) return n end)
+		state.night = 6
+		if pass then state.housePasses[pass] = true end
+		local originalPick = BossRounds.pick
+		BossRounds.pick = function() return BossRounds.getById(id) end
+		state.nightBossModifier = BossRounds.getById(id)
+		state.round = 1
+		RunState.startRound(state)
+		state.round = state.config.roundsPerNight
+		RunState.startRound(state)
+		BossRounds.pick = originalPick
+		return state.discardsRemaining
+	end
+	for stake = 1, #Stakes.Definitions do
+		expectEqual(discards("last_chance", stake), 1, "Last Chance on stake " .. stake)
+		expectEqual(discards("empty_handed", stake), 1, "Empty Handed on stake " .. stake)
+	end
+	expectEqual(discards("last_chance", 1, "late_kitchen"), 2, "a bought discard still adds on top")
+	-- the boss leaves a discard, it does not hand one out: a No Discards Challenge Run still has none
+	expectEqual(discards("last_chance", 1, nil, "no_discards"), 0, "Last Chance in a No Discards run")
+	expectEqual(discards("empty_handed", 1, nil, "no_discards"), 0, "Empty Handed in a No Discards run")
+	-- the Boss Rounds that say "one fewer" still take one from whatever the stake leaves
+	expectEqual(discards("short_notice", 1), 2)
+	expectEqual(discards("short_notice", 2), 1)
+	expectEqual(discards("short_notice", #Stakes.Definitions), 0)
+end })
+
+table.insert(tests, { name = "Boss Rounds: the cards a rule switches off, and text that says which", fn = function()
+	local Card = require(script.Parent.Parent.Engine.Card)
+	local function out(rank, suit, debuff, opts)
+		return Card.isOut(Card.new(rank, suit, opts), debuff)
+	end
+	expectEqual(out(9, "Hearts", nil), false)
+	expectEqual(out(9, "Hearts", "Hearts"), true)
+	expectEqual(out(9, "Clubs", "Hearts"), false)
+	expectEqual(out(9, "Clubs", "Hearts", { garnish = "houseBlend" }), true, "House Blend counts as every suit, for penalties too")
+	for _, rank in ipairs({ 11, 12, 13 }) do
+		expectEqual(out(rank, "Spades", "FaceCards"), true)
+	end
+	expectEqual(out(14, "Spades", "FaceCards"), false)
+	expectEqual(out(10, "Spades", "FaceCards"), false)
+	for _, rank in ipairs({ 3, 5, 7, 9, 11, 13 }) do
+		expectEqual(out(rank, "Spades", "OddRanks"), true, "rank " .. rank)
+	end
+	for _, rank in ipairs({ 2, 4, 6, 8, 10, 12, 14 }) do
+		expectEqual(out(rank, "Spades", "OddRanks"), false, "rank " .. rank)
+	end
+	-- Scoring uses the same rule: a switched-off Jack adds nothing on Quiet Corner
+	local HE = require(script.Parent.Parent.Engine.HandEvaluator)
+	local jacks = HE.evaluate({ Card.new(11, "Hearts"), Card.new(11, "Clubs") })
+	local queens = HE.evaluate({ Card.new(12, "Hearts"), Card.new(12, "Clubs") })
+	local _, jackChips = Scoring.calculate(jacks, {}, { debuff = "OddRanks" })
+	local _, queenChips = Scoring.calculate(queens, {}, { debuff = "OddRanks" })
+	expectTrue(queenChips > jackChips, "Queens score on Quiet Corner, Jacks do not")
+	-- the text names what the rule does
+	local quiet = BossRounds.getById("quiet_corner").description
+	expectTrue(quiet:find("Jack", 1, true) ~= nil and quiet:find("King", 1, true) ~= nil, quiet)
+	expectTrue(BossRounds.getById("sleepy_cook").description:find("this round", 1, true) ~= nil)
+	expectTrue(BossRounds.getById("empty_pockets").description:find("This round,", 1, true) == 1)
+end })
+
+-- Found by running the Luau analyzer over the source (Nov 13 2026). math.atan(dy, dx) is atan2 in the plain Lua the
+-- local runner uses and atan(dy) in Luau, so this only ever failed inside Roblox, where nothing checked the angle.
+table.insert(tests, { name = "Badge wall: a constellation line points from one medal to the next", fn = function()
+	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
+	local function near(a, b)
+		return math.abs(a - b) < 1e-6
+	end
+	expectTrue(near(W.segment(0, 0, 10, 0).rotation, 0), "right")
+	expectTrue(near(W.segment(0, 0, 0, 10).rotation, 90), "down")
+	expectTrue(near(W.segment(0, 0, -10, 0).rotation, 180), "left")
+	expectTrue(near(W.segment(0, 0, 0, -10).rotation, -90), "up")
+	expectTrue(near(W.segment(0, 0, 3, 4).rotation, 53.13010235415598), "3 across, 4 down")
+	expectTrue(near(W.segment(5, 5, 2, 9).rotation, 126.86989764584402), "3 back, 4 down")
+end })
+
+table.insert(tests, { name = "Tavern Rank: the top rank has no next rank", fn = function()
+	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
+	local top = TavernRank.view({ tavernXp = TavernRank.MAX_XP })
+	expectEqual(top.maxed, true)
+	expectEqual(top.rank, TavernRank.MAX_RANK)
+	expectEqual(top.nextRank, nil)
+	expectEqual(top.nextReward, nil)
+	expectEqual(top.need, 0)
+	local fresh = TavernRank.view({ tavernXp = 0 })
+	expectEqual(fresh.maxed, false)
+	expectEqual(fresh.nextRank, fresh.rank + 1)
+end })
+
+-- PATRON CARDS (Nov 13 2026). What each of the 81 cards says, held against what its effect pays. Every Patron is run
+-- over the same 480 deals: each hand type many times, with held cards, Tips, discards and run counters. This probe
+-- found Three's Company silent on Four of a Kind, and five cards that said "or better" while leaving out Straights
+-- and Flushes.
+do
+	local HANDS = { "High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush" }
+	local SUITS = { "Hearts", "Diamonds", "Clubs", "Spades" }
+	local deals
+
+	local function buildDeals()
+		local seed = 20261113
+		local function rnd(n) -- 1..n, the same numbers on every machine
+			seed = (seed * 16807) % 2147483647
+			return seed % n + 1
+		end
+		deals = {}
+		for trial = 1, 480 do
+			local deck = {}
+			for _, suit in ipairs(SUITS) do
+				for rank = 2, 14 do
+					deck[#deck + 1] = C(rank, suit)
+				end
+			end
+			for i = #deck, 2, -1 do
+				local j = rnd(i)
+				deck[i], deck[j] = deck[j], deck[i]
+			end
+			local played = {}
+			local function take(want)
+				for i, card in ipairs(deck) do
+					if want == nil or want(card) then
+						table.remove(deck, i)
+						played[#played + 1] = card
+						return card
+					end
+				end
+				return nil
+			end
+			local function rankOf(first)
+				return function(card)
+					return card.rank == first.rank
+				end
+			end
+			local kind = (trial - 1) % 12 + 1 -- 1 to 8 aim at a hand type, 9 to 12 take what the deck gives
+			if kind == 1 then
+				take(rankOf(take()))
+			elseif kind == 2 then
+				local a = take()
+				take(rankOf(a))
+				local b = take(function(card) return card.rank ~= a.rank end)
+				take(rankOf(b))
+			elseif kind == 3 then
+				local a = take()
+				take(rankOf(a))
+				take(rankOf(a))
+			elseif kind == 4 or kind == 5 then
+				local low = rnd(10) + 1
+				local ranks = (low == 11) and { 14, 2, 3, 4, 5 } or { low, low + 1, low + 2, low + 3, low + 4 }
+				local suit = SUITS[rnd(4)]
+				for _, rank in ipairs(ranks) do
+					take(function(card) return card.rank == rank and (kind == 4 or card.suit == suit) end)
+				end
+			elseif kind == 6 then
+				local suit = SUITS[rnd(4)]
+				for _ = 1, 5 do
+					take(function(card) return card.suit == suit end)
+				end
+			elseif kind == 7 then
+				local a = take()
+				take(rankOf(a))
+				take(rankOf(a))
+				local b = take(function(card) return card.rank ~= a.rank end)
+				take(rankOf(b))
+			elseif kind == 8 then
+				local a = take()
+				for _ = 1, 3 do
+					take(rankOf(a))
+				end
+			end
+			local size = math.max(#played, rnd(5))
+			while #played < size do
+				take()
+			end
+			local held = {}
+			for _ = 1, rnd(8) - 1 do
+				held[#held + 1] = table.remove(deck)
+			end
+			local handsRemaining = rnd(4) - 1
+			local stats = {}
+			for _, name in ipairs(HANDS) do
+				if rnd(2) == 1 then
+					stats[name] = rnd(12) - 1
+				end
+			end
+			deals[#deals + 1] = {
+				handResult = HandEvaluator.evaluate(played),
+				context = {
+					allPlayedCards = played, heldCards = held,
+					handsRemaining = handsRemaining, isLastHand = handsRemaining == 0, discardsRemaining = rnd(5) - 1,
+					night = rnd(8), round = rnd(3), tips = rnd(41) - 1,
+					roundsCleared = rnd(24) - 1, bossesCleared = rnd(8) - 1, handsPlayedTotal = rnd(81) - 1,
+					discardsUsedTotal = rnd(61) - 1, patronsSold = rnd(6) - 1, handStatsBefore = stats,
+					alreadyPlayedThisHandTypeThisRound = rnd(2) == 1,
+				},
+			}
+		end
+	end
+
+	-- seen[key]: every number the effect returned under that key. fired and dealt: counts by hand name.
+	local function probe(def)
+		if not deals then
+			buildDeals()
+		end
+		local seen, fired, dealt = {}, {}, {}
+		local regular = Patrons.getById("the_regular")
+		for _, deal in ipairs(deals) do
+			local context = { ownedPatrons = { regular, def, regular }, patronIndex = 2 } -- neighbours, for the copiers
+			for key, value in pairs(deal.context) do
+				context[key] = value
+			end
+			local name = deal.handResult.name
+			dealt[name] = (dealt[name] or 0) + 1
+			local any = false
+			for key, value in pairs(def.effect(deal.handResult, context) or {}) do
+				if type(value) == "number" and value ~= 0 then
+					any = true
+					seen[key] = seen[key] or {}
+					table.insert(seen[key], value)
+				end
+			end
+			if any then
+				fired[name] = (fired[name] or 0) + 1
+			end
+		end
+		return seen, fired, dealt
+	end
+
+	table.insert(tests, { name = "Patron cards: every number a card states is a number its effect pays", fn = function()
+		local function has(list, wanted)
+			for _, value in ipairs(list or {}) do
+				if math.abs(value - wanted) < 1e-6 then
+					return true
+				end
+			end
+			return false
+		end
+		local checked = 0
+		for _, def in ipairs(Patrons.Definitions) do
+			local text = def.description
+			local seen = probe(def)
+			local perStep = text:find("for each", 1, true) or text:find("for every", 1, true) or text:find(" per ", 1, true)
+
+			-- "+30 Chips" pays exactly 30. "+3 Mult for each Heart" pays a whole number of threes.
+			local function plus(key, pattern, unit)
+				for figure in text:gmatch(pattern) do
+					local stated = tonumber(figure)
+					checked = checked + 1
+					expectTrue(seen[key] ~= nil, def.id .. " says +" .. figure .. " " .. unit .. " and never pays any")
+					if perStep then
+						for _, value in ipairs(seen[key] or {}) do
+							local steps = value / stated
+							expectTrue(math.abs(steps - math.floor(steps + 0.5)) < 1e-6,
+								string.format("%s pays %s %s, not a whole number of +%s", def.id, tostring(value), unit, figure))
+						end
+					else
+						expectTrue(has(seen[key], stated), def.id .. " says +" .. figure .. " " .. unit .. " and never pays exactly that")
+					end
+				end
+			end
+			plus("chips", "%+(%d+) Chips?", "Chips")
+			plus("mult", "%+(%d+) Mult", "Mult")
+
+			-- "x2 Mult" pays exactly 2. "x1.5 Mult for each King" pays 1.5, 2.25, 3.38 and so on.
+			for figure in text:gmatch("x(%d+%.?%d*) Mult") do
+				local stated = tonumber(figure)
+				checked = checked + 1
+				expectTrue(seen.multMultiplier ~= nil, def.id .. " says x" .. figure .. " Mult and never multiplies")
+				if perStep then
+					for _, value in ipairs(seen.multMultiplier or {}) do
+						local power = math.floor(math.log(value) / math.log(stated) + 0.5)
+						expectTrue(power >= 1 and math.abs(stated ^ power - value) < 0.006,
+							string.format("%s pays x%s, not a power of x%s", def.id, tostring(value), figure))
+					end
+				else
+					expectTrue(has(seen.multMultiplier, stated), def.id .. " says x" .. figure .. " Mult and never pays exactly that")
+				end
+			end
+			-- "x0.02 more Mult for every hand played" climbs from x1 in steps of 0.02
+			for figure in text:gmatch("x(%d+%.?%d*) more Mult") do
+				local stated = tonumber(figure)
+				checked = checked + 1
+				expectTrue(seen.multMultiplier ~= nil, def.id .. " says x" .. figure .. " more Mult and never multiplies")
+				for _, value in ipairs(seen.multMultiplier or {}) do
+					local steps = (value - 1) / stated
+					expectTrue(steps > 0.5 and math.abs(steps - math.floor(steps + 0.5)) < 1e-6,
+						string.format("%s pays x%s, not 1 plus a whole number of %s", def.id, tostring(value), figure))
+				end
+			end
+
+			-- "(up to +15)", "(up to x2)"
+			local capPlus, capTimes = tonumber(text:match("up to %+(%d+)")), tonumber(text:match("up to x(%d+%.?%d*)"))
+			for _, key in ipairs({ "chips", "mult" }) do
+				for _, value in ipairs(capPlus and seen[key] or {}) do
+					expectTrue(value <= capPlus, def.id .. " pays " .. tostring(value) .. ", over its stated cap")
+				end
+			end
+			for _, value in ipairs(capTimes and seen.multMultiplier or {}) do
+				expectTrue(value <= capTimes + 1e-9, def.id .. " pays x" .. tostring(value) .. ", over its stated cap")
+			end
+
+			-- Tips paid by the effect ("Earn 1 Tip when ...") and by the round win ("Earn 4 Tips at the end of ...")
+			local earnOne = tonumber(text:match("^Earn (%d+) Tips? "))
+			if earnOne and seen.tips then
+				checked = checked + 1
+				expectTrue(has(seen.tips, earnOne), def.id .. " says Earn " .. earnOne .. " and its effect never pays that")
+			end
+			local earnFlat = tonumber(text:match("^Earn (%d+) Tips "))
+			if earnFlat and def.onRoundWin and not perStep then
+				local state = { tips = 0, handsRemaining = 3, roundStartHands = 4, discardsRemaining = 2, ownedPatrons = { def }, isBossRound = true, bossModifier = { id = "any" } }
+				def.onRoundWin(state)
+				checked = checked + 1
+				expectEqual(state.tips, earnFlat, def.id .. " Tips at the round win")
+			end
+
+			-- nothing paid that the card keeps quiet about (the copiers pay whatever their neighbour does)
+			if not text:find("^Copies") then
+				for key, word in pairs({ chips = "Chip", mult = "Mult", multMultiplier = "x%d", tips = "Tip" }) do
+					if seen[key] then
+						expectTrue(text:find(word) ~= nil, def.id .. " pays " .. key .. " and its card does not say so: " .. text)
+					end
+				end
+			end
+		end
+		expectTrue(checked >= 60, "the card texts were read (" .. checked .. " figures checked)")
+	end })
+
+	table.insert(tests, { name = "Patron cards: \"contains a\" fires on every hand that holds one, \"is a\" on that hand only", fn = function()
+		local HOLDS = { -- the hands that hold a Pair, a Three of a Kind and so on
+			["Pair"] = { "Pair", "Two Pair", "Three of a Kind", "Full House", "Four of a Kind" },
+			["Three of a Kind"] = { "Three of a Kind", "Full House", "Four of a Kind" },
+			["Four of a Kind"] = { "Four of a Kind" },
+			["Straight"] = { "Straight", "Straight Flush" },
+			["Flush"] = { "Flush", "Straight Flush" },
+		}
+		local isHand = {}
+		for _, name in ipairs(HANDS) do
+			isHand[name] = true
+		end
+		local checked = 0
+		for _, def in ipairs(Patrons.Definitions) do
+			local text = def.description
+			expectTrue(text:find("or better", 1, true) == nil, def.id .. ": \"or better\" would have to include Straights and Flushes")
+			local expected = HOLDS[text:match("contains an? ([%a ]+)%.") or ""]
+			if not expected then
+				local named = text:match("hand is exactly an? ([%a ]+)%.") or text:match("hand is an? ([%a ]+)%.")
+				if named then
+					expected = {}
+					for name in (named .. " or "):gmatch("(.-) or ") do
+						if isHand[name] then
+							expected[#expected + 1] = name
+						else
+							expected = nil
+							break
+						end
+					end
+				end
+			end
+			if expected then
+				checked = checked + 1
+				local want = {}
+				for _, name in ipairs(expected) do
+					want[name] = true
+				end
+				local _, fired, dealt = probe(def)
+				for _, name in ipairs(HANDS) do
+					expectTrue((dealt[name] or 0) >= 10, "the deals hold enough " .. name)
+					expectEqual(fired[name] or 0, want[name] and dealt[name] or 0, def.id .. " on " .. name .. " (" .. text .. ")")
+				end
+			end
+		end
+		expectTrue(checked >= 15, "the hand-type cards were read (" .. checked .. ")")
+	end })
+end
+
+table.insert(tests, { name = "PatronValueText: a single Tip, a Discard, a Hand and a drawn card get a value too", fn = function()
+	local PVT = require(script.Parent.Parent.Engine.PatronValueText)
+	expectEqual(PVT.of("Earn 1 Tip for each Patron at your table, at the end of each round you win."), "+1 Tip")
+	expectEqual(PVT.of("After a round win, earn 1 Tip per 4 held (up to 4)."), "+1 Tip")
+	expectEqual(PVT.of("Earn 4 Tips at the end of each round you win."), "+4 Tips")
+	expectEqual(PVT.of("+1 Discard each round."), "+1 Discard")
+	expectEqual(PVT.of("+1 Hand each round, but draw 1 fewer card."), "+1 Hand")
+	expectEqual(PVT.of("Draw 1 more card at the start of each round."), "+1 Card")
+	expectEqual(PVT.of("+1 Mult for each Discard you have remaining this round."), "+1 Mult", "the first figure on the card wins")
+	expectEqual(PVT.of("Shop rerolls cost 1 less (minimum 1)."), nil, "no plain figure, no value")
+	local shown = 0
+	for _, def in ipairs(Patrons.Definitions) do
+		if PVT.of(def.description) then
+			shown = shown + 1
+		end
+	end
+	expectTrue(shown >= 74, shown .. " of " .. #Patrons.Definitions .. " Patrons show a value under their portrait")
 end })
 
 return tests

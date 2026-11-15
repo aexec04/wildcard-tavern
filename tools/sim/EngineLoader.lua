@@ -63,6 +63,9 @@ function EngineLoader.load(sharedPath)
 	}) do
 		engine[name] = loadModule(sharedPath .. "/Engine/" .. name)
 	end
+	-- Boss and Challenge scoring rules. Optional so an older engine given with --src still loads.
+	local hasRules, rules = pcall(loadModule, sharedPath .. "/Engine/BossRules")
+	engine.BossRules = hasRules and rules or nil
 	return engine
 end
 

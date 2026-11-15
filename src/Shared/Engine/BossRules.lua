@@ -111,4 +111,19 @@ function BossRules.finishScore(chips, mult, rules, isFirstHand, bargainPct)
 	return chips, mult, chips * mult
 end
 
+-- Empty Pockets: playing the hand type you have played most this run wipes your Tips before the hand scores. This play
+-- counts and a tie for most counts. `handStatsBefore` is the tally from before the play (RunState.runCounters).
+function BossRules.wipesTips(rules, handStatsBefore, handName)
+	if not (rules and rules.zeroTipsOnMostPlayedHand) then
+		return false
+	end
+	local mine = ((handStatsBefore and handStatsBefore[handName]) or 0) + 1
+	for name, count in pairs(handStatsBefore or {}) do
+		if name ~= handName and count > mine then
+			return false
+		end
+	end
+	return true
+end
+
 return BossRules

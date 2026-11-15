@@ -446,7 +446,14 @@ function RunState.startRound(state)
 	if state.isBossRound and state.stakeRules then
 		discards = discards + state.stakeRules.bossExtraDiscards -- Legend stake: a second small boss debuff
 	end
+	local discardsWithoutBoss = math.max(0, discards - ((bossModifier and bossModifier.discardsDelta) or 0))
 	discards = math.max(0, discards)
+	if bossModifier and bossModifier.minDiscards then
+		-- Last Chance, Empty Handed: "only 1 discard" was none at all from the Busy Night stake up. The boss never
+		-- takes the last discard. It never hands one out either: a round that has none without the boss (the No
+		-- Discards Challenge Run) still has none.
+		discards = math.max(discards, math.min(bossModifier.minDiscards, discardsWithoutBoss))
+	end
 
 	local handsPerRound = state.config.handsPerRound
 	if bossModifier and bossModifier.handsPerRoundOverride then
@@ -803,6 +810,7 @@ local function playHandNow(state, cardIndices)
 					return nil
 				end
 				return RunState.addRunCounters({
+					rng = Scoring.noLuck, -- which card it becomes never hangs on a Lucky roll (the preview picks the same way)
 					allPlayedCards = playedCards,
 					heldCards = state.hand, -- cards left in hand after removeIndicesFromHand, above
 					handLevels = state.handLevels,
@@ -843,15 +851,10 @@ local function playHandNow(state, cardIndices)
 	state.handStats[handResult.name] = (state.handStats[handResult.name] or 0) + 1
 
 	-- "Empty Pockets" Boss Round: playing your most-used hand type wipes
-	-- your Tips right away (checked using counts AFTER this play).
-	if bossModifier and bossModifier.zeroTipsOnMostPlayedHand then
-		local maxCount = 0
-		for _, count in pairs(state.handStats) do
-			maxCount = math.max(maxCount, count)
-		end
-		if state.handStats[handResult.name] == maxCount then
-			state.tips = 0
-		end
+	-- your Tips right away, before the hand scores. The rule lives in
+	-- BossRules.wipesTips so the hand preview (Engine/HandPreview) applies it too.
+	if BossRules.wipesTips(bossModifier, runCounters.handStatsBefore, handResult.name) then
+		state.tips = 0
 	end
 
 	state.handsRemaining = state.handsRemaining - 1
