@@ -249,10 +249,15 @@ function ShopScene.new(deps)
 	local function show(text)
 		bubbleToken += 1
 		local token = bubbleToken
+		-- the pack screen covers Marlo, and his plate sat on its "Click an item" line: he says nothing while it is open
+		local pack = shopFrame:FindFirstChild("PackPanel")
+		if pack and pack:IsA("GuiObject") and pack.Visible then text = "" end
 		bubble.Text = text or ""
 		bubble.Visible = (text or "") ~= "" -- an empty bubble would show as a bare outline
 		bubble.BackgroundTransparency = 0.05
 		bubble.TextTransparency = 0
+		local edge = bubble:FindFirstChildOfClass("UIStroke")
+		if edge then edge.Transparency = 0 end
 		if not calm() then
 			peddler.Rotation = 0
 			tween(peddler, { Rotation = 3 }, 0.1)
@@ -265,6 +270,7 @@ function ShopScene.new(deps)
 				return
 			end
 			tween(bubble, { BackgroundTransparency = 1, TextTransparency = 1 }, 0.35)
+			if edge then tween(edge, { Transparency = 1 }, 0.35) end -- the outline fades with the plate (it stayed on as an empty box)
 			task.delay(0.4, function()
 				if token == bubbleToken and bubble.Parent then
 					bubble.Visible = false

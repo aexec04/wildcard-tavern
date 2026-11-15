@@ -96,6 +96,50 @@ local TestRunner = loadModuleByPath(SRC_SHARED .. "/Tests/TestRunner")
 print("Running Wildcard Tavern engine tests (plain Lua, no Roblox)...\n")
 local results = TestRunner.run(tests)
 
+-- Studio pass. At Studio startup the same tests run under Luau, which has no io library (and no load, loadfile, dofile or
+-- package). A test that reads source files must stop before the read (`if not io then return end`). Two tests once did
+-- not: they passed here and failed only in Studio. So every test runs a second time on freshly loaded modules with those
+-- libraries hidden; a failure here is a failure in Studio.
+local STUDIO_HIDES = { io = true, load = true, loadfile = true, dofile = true, package = true, loadstring = true }
+local studioCache = {}
+local function loadStudioModule(path)
+	if studioCache[path] then
+		return studioCache[path]
+	end
+	local env = setmetatable({ script = makeProxy(path) }, { __index = function(_, key)
+		if STUDIO_HIDES[key] then
+			return nil
+		end
+		return _G[key]
+	end })
+	env.require = function(target)
+		if type(target) == "table" and target.__path then
+			return loadStudioModule(target.__path)
+		end
+		error("run_tests_local shim: unsupported require() target")
+	end
+	local chunk, loadErr = loadfile(path .. ".lua", "t", env)
+	if not chunk then
+		error("Could not load module at " .. path .. ".lua: " .. tostring(loadErr))
+	end
+	local result = chunk()
+	studioCache[path] = result
+	return result
+end
+local studioRan, studioFailed = 0, 0
+for _, test in ipairs(loadStudioModule(testsProxy.__path)) do
+	studioRan = studioRan + 1
+	local ok, err = pcall(test.fn)
+	if not ok then
+		studioFailed = studioFailed + 1
+		print("  [FAIL without io, as in Studio] " .. tostring(test.name) .. " -- " .. tostring(err))
+	end
+end
+print(string.format("Studio pass (no io library): %d run, %d failed", studioRan, studioFailed))
+if studioFailed > 0 then
+	os.exit(1)
+end
+
 -- Source lint: every UIList/UIGrid layout in src/Client must set SortOrder.
 local lintOk, lintFails = pcall(dofile, "tools/lint_sort_order.lua")
 if lintOk and lintFails and lintFails > 0 then

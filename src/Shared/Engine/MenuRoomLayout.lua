@@ -26,6 +26,8 @@ MenuRoomLayout.pic = {
 -- The cork surface itself (inside the wooden frame of noticeboard): the Notice Board notes are laid out inside it.
 MenuRoomLayout.cork = { l = 0.79, t = 0.17, r = 0.955, b = 0.39 }
 MenuRoomLayout.NOTE_W, MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP, MenuRoomLayout.CORK_MARGIN, MenuRoomLayout.MAX_NOTES = 300, 16, 10, 10, 4
+-- When the notes do not all fit they first move closer together (noteSlots), before any note is taken off the board.
+MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT = 8, 4
 MenuRoomLayout.deck = { l = 0.49, t = 0.67, r = 0.56, b = 0.73 }   -- gentle pulse ring on the primary
 MenuRoomLayout.stripOrder = { "play", "questscroll", "maptable", "tome", "coinjar", "rulebook", "jukebox", "noticeboard" }
 MenuRoomLayout.STRIP_H = 44
@@ -64,6 +66,19 @@ function MenuRoomLayout.toPixels(r, W, H)
 	return ox + r.l * pw, oy + r.t * ph, ox + r.r * pw, oy + r.b * ph
 end
 
+-- The card table carries its own sign (Client/MenuHotspots): "Deal Me In" (210 x 38) over "New Run" (34 px) with a
+-- 12 px gap, hung from the bottom of the hotspot, 24 px above the bottom of the screen. A strip plate is 44 px tall, so
+-- as a strip plate the table had "Deal Me In" above its own click surface and "New Run" over the rest of it: a click on
+-- the sign did nothing. That was every screen wider than 2.37 to 1 (a 21:9 monitor, a short window), where more than
+-- 40 percent of the table is cropped off the bottom. The table stays a prop while the part on screen holds the sign.
+MenuRoomLayout.PLAY_SIGN_W, MenuRoomLayout.PLAY_SIGN_H, MenuRoomLayout.PLAY_SIGN_MARGIN = 210, 84, 24
+
+function MenuRoomLayout.holdsSign(l, t, r, b, W, H)
+	local width = math.min(r, W) - math.max(l, 0)
+	local height = math.min(b, H) - math.max(t, 0)
+	return width >= MenuRoomLayout.PLAY_SIGN_W and height >= MenuRoomLayout.PLAY_SIGN_H + MenuRoomLayout.PLAY_SIGN_MARGIN
+end
+
 local function fractionInside(l, t, r, b, W, H)
 	local il, it, ir, ib = math.max(l, 0), math.max(t, 0), math.min(r, W), math.min(b, H)
 	if ir <= il or ib <= it then return 0 end
@@ -77,7 +92,7 @@ function MenuRoomLayout.layout(W, H)
 	local T = MenuRoomLayout.minTouch
 	for _, id in ipairs(MenuRoomLayout.stripOrder) do
 		local l, t, r, b = MenuRoomLayout.toPixels(MenuRoomLayout.pic[id], W, H)
-		if fractionInside(l, t, r, b, W, H) < 0.6 then
+		if fractionInside(l, t, r, b, W, H) < 0.6 and not (id == "play" and MenuRoomLayout.holdsSign(l, t, r, b, W, H)) then
 			stripIds[#stripIds + 1] = id
 		else
 			if r - l < T then local c = (l + r) / 2; l, r = c - T / 2, c + T / 2 end
@@ -110,22 +125,49 @@ end
 
 -- Notes on the cork. heights = the unscaled heights of the visible notes in order. The notes keep NOTE_W wide, shrink with one
 -- scale (never above 1) to fit the cork minus a margin and a little extra for their tilt, and as many as fit are shown, at most
--- MAX_NOTES, with equal gaps. Returns { scale, shown, rects = { {x, y, w, h} } } in pixels inside the cork (0,0 = cork top left).
-function MenuRoomLayout.noteSlots(corkW, corkH, heights)
+-- MAX_NOTES, with equal gaps. Returns { scale, shown, rects = { {x, y, w, h} }, show = { [i] = true }, gap, top } in pixels
+-- inside the cork (0,0 = cork top left); gap and top are the unscaled spacing the rects were measured with.
+--
+-- Notes that do not all fit first move closer together (NOTE_GAP_TIGHT, NOTE_TOP_TIGHT). keep (optional) is the index of
+-- the one note that must stay on the board, the Next goal: if it still has no room, the notes above it come off, the
+-- nearest first, until it has. A goal line that wrapped onto a second row used to push its own note off the board.
+function MenuRoomLayout.noteSlots(corkW, corkH, heights, keep)
 	local M, tilt = MenuRoomLayout.CORK_MARGIN, 10 -- 10 px of slack for a 2 degree tilt
 	local w = MenuRoomLayout.NOTE_W
 	local scale = math.max(0.1, math.min(1, (corkW - 2 * M - tilt) / w))
 	local availH = corkH - 2 * M - tilt
-	local rects, y, shown = {}, MenuRoomLayout.NOTE_TOP * scale, 0
-	for i, h in ipairs(heights) do
-		if i > MenuRoomLayout.MAX_NOTES then break end
-		local bottom = y + h * scale
-		if bottom > availH then break end
-		rects[#rects + 1] = { x = (corkW - w * scale) / 2, y = M + tilt / 2 + y, w = w * scale, h = h * scale }
-		shown = shown + 1
-		y = bottom + MenuRoomLayout.NOTE_GAP * scale
+	local function fill(gap, top, skip)
+		local rects, show, y, shown = {}, {}, top * scale, 0
+		for i, h in ipairs(heights) do
+			if shown >= MenuRoomLayout.MAX_NOTES then break end
+			if not (skip and skip[i]) then
+				local bottom = y + h * scale
+				if bottom > availH then break end
+				rects[#rects + 1] = { x = (corkW - w * scale) / 2, y = M + tilt / 2 + y, w = w * scale, h = h * scale }
+				show[i] = true
+				shown = shown + 1
+				y = bottom + gap * scale
+			end
+		end
+		return { scale = scale, shown = shown, rects = rects, show = show, gap = gap, top = top }
 	end
-	return { scale = scale, shown = shown, rects = rects }
+	local best = fill(MenuRoomLayout.NOTE_GAP, MenuRoomLayout.NOTE_TOP)
+	if best.shown < math.min(#heights, MenuRoomLayout.MAX_NOTES) then
+		local tight = fill(MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT)
+		if tight.shown > best.shown then best = tight end
+	end
+	if keep and heights[keep] and not best.show[keep] then
+		local skip = {}
+		for i = keep - 1, 1, -1 do
+			skip[i] = true
+			local try = fill(MenuRoomLayout.NOTE_GAP_TIGHT, MenuRoomLayout.NOTE_TOP_TIGHT, skip)
+			if try.show[keep] then
+				best = try
+				break
+			end
+		end
+	end
+	return best
 end
 
 -- Rectangles (pixels) the layout test checks: { id, kind, l, t, r, b }.

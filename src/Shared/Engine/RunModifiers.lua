@@ -56,6 +56,16 @@ function RunModifiers.getById(id)
 	return nil
 end
 
+-- One line of a blessing ("+") or of a curse ("-") as it is written on the choice card and on the board: the sign, a
+-- space, the words. A text that opens with its own sign ("+1 Hand every round") keeps one sign: both places used to
+-- add theirs in front and read "+ +1 Hand every round".
+function RunModifiers.line(sign, text)
+	text = tostring(text or "")
+	if text:sub(1, 1) == sign then text = text:sub(2) end
+	text = text:gsub("^%s+", "")
+	return sign .. " " .. text
+end
+
 -- Display data for the blessing a run picked (nil when none): { id, name, icon, blessing, curse, line }.
 function RunModifiers.view(id)
 	local def = id and RunModifiers.getById(id)

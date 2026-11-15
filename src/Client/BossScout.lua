@@ -188,7 +188,9 @@ local function buildTokenChip(parent)
 	tokenChip = Instance.new("TextLabel")
 	tokenChip.Name = "RuleBanTokens"
 	tokenChip.AnchorPoint = Vector2.new(1, 0)
-	tokenChip.Position = UDim2.new(1, -8, 0, 8)
+	-- Left of the player medallion (Client/PlayerMedallion: 58 wide, 12 from the edge, from y 74) and below Roblox's own
+	-- top bar buttons. At (1, -8, 0, 8) the chip sat under those buttons and only its number showed.
+	tokenChip.Position = UDim2.new(1, -78, 0, require(Engine:WaitForChild("ResponsiveLayout")).clearOfTopBar(0, 82))
 	tokenChip.Size = UDim2.fromOffset(74, 26)
 	tokenChip.BackgroundColor3 = WOOD
 	tokenChip.BorderSizePixel = 0

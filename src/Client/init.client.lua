@@ -1376,7 +1376,16 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 		bus.register("menuPlay", MenuScreen.menuPlayButton)
 		bus.register("selectButton", function()
 			for _, d in ipairs(RoundSelectOverlay.roundSelectFrame:GetDescendants()) do
-				if d.Name == "SelectButton" and d:IsA("TextButton") and d.Visible then return d end
+				if d.Name == "SelectButton" and d:IsA("TextButton") and d.Visible then
+					-- the round's own plates (name, Tag, target) are lit with Select: the line says "Pick The Corner Table",
+					-- and with the button alone its caption sat on top of that very name
+					local lit = { d }
+					for _, plateName in ipairs({ "RoomLabel", "TagLabel", "TargetLabel" }) do
+						local plate = d.Parent:FindFirstChild(plateName)
+						if plate and plate:IsA("GuiObject") and plate.Visible then lit[#lit + 1] = plate end
+					end
+					return lit
+				end
 			end
 			return nil
 		end)
@@ -1577,7 +1586,7 @@ local function computeHandPreview(cardIndices)
 	end
 	local wild = preview.wildcardResolution
 	if wild then
-		wild.label = (RANK_NAMES[wild.rank] or tostring(wild.rank)) .. " of " .. wild.suit
+		wild.label = require(ReplicatedStorage.Shared.Engine.PlayReport).wildcardLabel(wild) -- one wording, also used for the server's report
 	end
 	return preview
 end
@@ -1595,7 +1604,7 @@ end
 -- in place); held cards' real buttons stay visible and untouched -- their
 -- ghost only exists to show a brief Iron Garnish highlight/number-float
 -- overlay, and starts invisible.
-local function buildScoreSourceInfo(indices)
+local function buildScoreSourceInfo(indices, wild) -- wild: the preview's wildcardResolution, when this play locks the True Wildcard in
 	if not latestState then
 		return { cardGhosts = {}, patronSlotFrames = {} }
 	end
@@ -1656,13 +1665,17 @@ local function buildScoreSourceInfo(indices)
 			-- REFERENCE-MATCH PASS: same idea, now with the full card
 			-- layout. CardFace.build destroys the cloned "CardFace" first,
 			-- so the ghost never shows a doubled-up face.
+			-- The run's True Wildcard is a Mystery card in the hand. Its ghost was drawn with the rank and suit it was
+			-- dealt with (which the hand never shows), so a Four of a Kind of Eights was revealed with a 4 of Hearts in
+			-- it. A played one shows the card it locks in as, the card the banner names (Engine/PlayReport.ghostFace).
+			local faceRank, faceSuit, mystery = require(ReplicatedStorage.Shared.Engine.PlayReport).ghostFace(card, isPlayed, wild)
 			require(script.CardFace).build(
 				ghost,
-				RANK_NAMES[card.rank] or tostring(card.rank),
-				SUIT_SYMBOLS[card.suit] or "?",
-				RED_SUITS[card.suit] == true,
+				RANK_NAMES[faceRank] or tostring(faceRank),
+				SUIT_SYMBOLS[faceSuit] or "?",
+				RED_SUITS[faceSuit] == true,
 				40,
-				false,
+				mystery,
 				card
 			)
 			-- Held-card ghosts start hidden -- the real card is still
@@ -2116,7 +2129,7 @@ local function rebuildHand(handData, phase)
 end
 
 refreshHandSort = function()
-	if latestState then
+	if latestState and not require(script.RevealHold).holding() then -- (the table stays as it is while a round-ending hand's reveal plays)
 		rebuildHand(latestState.hand, latestState.phase)
 	end
 end
@@ -2565,7 +2578,7 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 		-- buildScoreSourceInfo hides the played cards' real buttons, so
 		-- skipping it on a nil preview avoids ever leaving a card
 		-- permanently hidden with nothing showing in its place.
-		local ok, sourceInfoOrErr = pcall(buildScoreSourceInfo, indices)
+		local ok, sourceInfoOrErr = pcall(buildScoreSourceInfo, indices, preview.wildcardResolution)
 		if ok then
 			-- SERVER REPORT (Client/PlayReveal.lua, Engine/PlayReport.lua): the reveal waits one round trip for
 			-- state.lastPlay and plays what the server really scored (a Lucky hit or a shattered card is the server's
@@ -2578,10 +2591,14 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 				show = function(final)
 					final.isLegendary = PlayReport.isLegendary(final.score, final.targetScore, final.breakdown)
 					PhaseAModule.recordHand(final)
+					-- the board keeps the score from before this hand until the reveal's payout lands (Client/ScoreLand)
+					pcall(function() require(script.ScoreLand).hold(final.roundScoreBefore) end)
 					local ok2, err2 = pcall(ScorePopupModule.showScorePopup, final, sourceInfoOrErr)
 					if not ok2 then
 						warn("[WildcardTavern] ScorePopupModule.showScorePopup errored, hand still playing normally: " .. tostring(err2))
+						pcall(function() require(script.ScoreLand).land() end) -- no reveal: nothing for the board to wait for
 					end
+					return ok2 -- false: no reveal is playing, so the next screen must not wait for one (Client/RevealHold)
 				end,
 			})
 		else
@@ -2720,8 +2737,14 @@ StateUpdatedRemote.OnClientEvent:Connect(function(state)
 			showWarning(hint)
 		end)
 	end
-	pcall(function() require(script.PlayReveal).onState(state) end) -- a held score reveal starts now, with the server's report
-	render(state)
+	local revealStarted = false
+	pcall(function() revealStarted = require(script.PlayReveal).onState(state) == true end) -- a held score reveal starts now, with the server's report
+	-- A hand that ends the round or the run keeps the table up until its reveal has landed (Client/RevealHold): drawing
+	-- the next screen at once cut that reveal off in the frame it began. A state that is kept back still becomes
+	-- latestState now, so nothing at the table takes input while the reveal plays.
+	if require(script.RevealHold).deliver(state, revealStarted, render) then
+		latestState = state
+	end
 end)
 
 pcall(function() require(script.DebugGoto).setRenderer(render, function() return latestState end, { showScorePopup = ScorePopupModule.showScorePopup, packSelect = Shop.debugPackSelect, packConfirm = Shop.debugPackConfirm }) end) -- Studio-only screens

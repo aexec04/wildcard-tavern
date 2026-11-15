@@ -73,11 +73,16 @@ local function patronChoice(state)
 	return { kind = "patron", title = "Choose your first Patron", text = "They sit at your table from the first hand.", icon = "🧑‍🍳", options = options }
 end
 
+-- A blessing line opens with "+" and a curse line with "-" (Engine/RunModifiers.line: one sign, never two).
+local function marked(sign, text)
+	return RunModifiers.line(sign, text)
+end
+
 local function modifierChoice(state)
 	local picks = draw(RunModifiers.Definitions, RunChoice.DRAFT_SIZE, rngOf(state))
 	local options = {}
 	for _, m in ipairs(picks) do
-		options[#options + 1] = { id = m.id, name = m.name, icon = m.icon, line1 = "+ " .. m.blessing, line2 = "- " .. m.curse }
+		options[#options + 1] = { id = m.id, name = m.name, icon = m.icon, line1 = marked("+", m.blessing), line2 = marked("-", m.curse) }
 	end
 	return { kind = "modifier", title = "Choose a blessing", text = "Every blessing comes with a catch.", icon = "🎁", options = options }
 end
@@ -162,7 +167,7 @@ function RunChoice.forceOption(choice, modId)
 	end
 	local m = RunModifiers.getById(modId)
 	if not m then return false end
-	choice.options[1] = { id = m.id, name = m.name, icon = m.icon, line1 = "+ " .. m.blessing, line2 = "- " .. m.curse }
+	choice.options[1] = { id = m.id, name = m.name, icon = m.icon, line1 = marked("+", m.blessing), line2 = marked("-", m.curse) }
 	return true
 end
 

@@ -269,6 +269,10 @@ local function run(root, st)
 				if wide and filled then put(st, d, { Visible = false }) end
 			end
 		end
+		-- With the painted board the old 240 px frame draws nothing of its own (the loop above), so it has nothing left to
+		-- clip. Its clip cut the Blessing row at 240 px although the parchment is wider: the two effect texts were squeezed
+		-- into a 92 px column, wrapped onto three lines and ran over the board's lower rail.
+		put(st, boardTop, { ClipsDescendants = false })
 	end
 
 	if rule then
@@ -549,9 +553,11 @@ local function run(root, st)
 	if chipShown then
 		pcall(function()
 			local BC = require(script.Parent.BlessingChip)
-			local tw = BC.textWidth(math.min(H.target.w + 12, rect.w - (H.target.x - 6) - BoardPanelRows.CLIP_PAD) - 2 * BoardPanelRows.PAD)
+			-- (the width the chip's texts really wrap at: BlessingChip.wrapWidth cuts the row where the board clips it)
+			local tw = BC.wrapWidth(math.min(H.target.w + 12, rect.w - (H.target.x - 6) - BoardPanelRows.CLIP_PAD) - 2 * BoardPanelRows.PAD,
+				H.target.x - 6 + BoardPanelRows.PAD)
 			local b, c = chip:FindFirstChild("Blessing"), chip:FindFirstChild("Curse")
-			if b and c then fullH = BoardPanelRows.fullHeight(BC.lines(b.Text, tw), BC.lines(c.Text, tw)) end
+			if b and c then fullH = BoardPanelRows.fullHeight(BC.linesOf(b, tw, 15), BC.linesOf(c, tw, 15)) end
 		end)
 	end
 	local plan = BoardPanelRows.plan({

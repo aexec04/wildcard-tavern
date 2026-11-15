@@ -7070,7 +7070,7 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
 	local ids = {}
 	for i, step in ipairs(Steps.Steps) do ids[step.id] = i end
-	local order = { "play_straight_flush", "panel_target", "panel_tips",
+	local order = { "play_pair", "panel_target", "pick_two_pair", "play_straight_flush", "panel_tips",
 		"shop_patrons", "buy_patron", "buy_pack", "pick_pack_item", "confirm_pack", "tab_patrons",
 		"mp_patrons", "mp_seats", "mp_discard", "mp_passes", "tab_shop", "reroll", "next_round", "done" }
 	local last = 0
@@ -7085,12 +7085,12 @@ table.insert(tests, { name = "Tutorial Shop section: panel pieces, Counter, buy 
 	local m = Steps.new()
 	m:report("menu_play"); m:report("select_round")
 	expectTrue(m:catchUpShop())
-	expectEqual(m:current().id, "panel_target")
+	expectEqual(m:current().id, "panel_tips")
 	-- tapping the spotlighted piece is the only way on; the wrong thing wiggles
 	expectEqual(m:report("reroll"), "wrong")
 	expectFalse(m:allows("buy")); expectFalse(m:allows("reroll")); expectFalse(m:allows("nextRound"))
 	expectTrue(m:allows("tap"))
-	for _, id in ipairs({ "panel_target", "panel_tips", "shop_patrons" }) do
+	for _, id in ipairs({ "panel_tips", "shop_patrons" }) do
 		expectEqual(m:current().id, id)
 		expectEqual(m:report("tap"), "advanced")
 	end
@@ -17038,6 +17038,7 @@ table.insert(tests, { name = "ChoicePanel on a fake Roblox: after a panel is ope
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return "" end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
 				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
+				ResponsiveLayout = require(Engine.ResponsiveLayout),
 			})
 		end }
 	end }
@@ -22720,6 +22721,7 @@ table.insert(tests, { name = "Choice cards are painted parchment: wood frame wit
 			return FakeGui.folder({
 				ContentArt = { getImageId = function() return nil end }, ChoiceSceneLayout = require(Engine.ChoiceSceneLayout),
 				MenuSceneArt = require(Engine.MenuSceneArt), PopupDismissRules = require(Engine.PopupDismissRules), ChoiceRarity = require(Engine.ChoiceRarity),
+				ResponsiveLayout = require(Engine.ResponsiveLayout),
 			})
 		end }
 	end }
@@ -24614,8 +24616,8 @@ table.insert(tests, { name = "PlayReport: the reveal plays the server's report (
 	expectTrue(src:find("require(script.PlayReveal).begin({", 1, true) ~= nil, "Play holds the reveal for the server's report")
 	expectTrue(src:find("require(script.PlayReveal).onState(state)", 1, true) ~= nil, "every state is offered to the held reveal")
 	local a = src:find("require(script.PlayReveal).onState(state)", 1, true)
-	local b = src:find("render(state)", a, true)
-	expectTrue(b ~= nil and b - a < 200, "the reveal starts before the new state is drawn")
+	local b = src:find("require(script.RevealHold).deliver(state, revealStarted, render)", a, true)
+	expectTrue(b ~= nil and b - a < 700, "the reveal starts before the new state is drawn (or kept back for it)")
 	local g = io.open("src/Client/PlayReveal.lua", "r")
 	if g then
 		local code = g:read("*a"); g:close()
@@ -25467,6 +25469,950 @@ table.insert(tests, { name = "Boss Rounds: the play screen marks exactly the car
 		if mark then mark:close() end
 		if hub then hub:close() end
 	end
+end })
+table.insert(tests, { name = "Round-ending hand: the next screen waits for its reveal, and only for a reveal that really started", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RevealHold)
+	expectTrue(RH.holds(true, "shop"), "the hand that clears the round keeps the table up")
+	expectTrue(RH.holds(true, "gameover"), "so does the last hand of a lost run")
+	expectTrue(RH.holds(true, "roundSelect"), "and a Boss Rush win")
+	expectFalse(RH.holds(true, "playing"), "a hand that leaves the round open is drawn at once")
+	expectFalse(RH.holds(false, "shop"), "no reveal started (a refused play, a late report): nothing to wait for")
+	expectFalse(RH.holds(nil, "shop"))
+	expectFalse(RH.holds(true, nil), "a state without a phase is never kept back")
+	expectTrue(RH.MAX_SECONDS >= 10 and RH.MAX_SECONDS <= 15, "longer than the slowest reveal, never a long freeze")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local hub, hold, popup, reveal = read("src/Client/init.client.lua"), read("src/Client/RevealHold.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/PlayReveal.lua")
+	if not (hub and hold and popup and reveal) then return end
+	expectTrue(hub:find("if require(script.RevealHold).deliver(state, revealStarted, render) then\n\t\tlatestState = state", 1, true) ~= nil,
+		"the hub hands every state to RevealHold, and a kept state still becomes latestState (the table takes no input)")
+	expectTrue(hub:find("return ok2 -- false: no reveal is playing", 1, true) ~= nil, "the hub says whether the popup really started")
+	expectTrue(reveal:find("return mine.show(ok and merged or mine.preview, ok) ~= false", 1, true) ~= nil, "PlayReveal passes that on")
+	expectTrue(hold:find("Rules.holds(revealStarted, state.phase)", 1, true) ~= nil, "the client asks the tested rule")
+	expectTrue(hold:find("task.delay(Rules.MAX_SECONDS", 1, true) ~= nil, "a hold ends by itself")
+	expectTrue(popup:find("require(script.Parent.RevealHold).landed(", 1, true) ~= nil, "the popup releases the next screen when it ends")
+	local cancelAt = popup:find("local function cancelScorePopup()", 1, true)
+	expectTrue(cancelAt ~= nil and popup:find("require(script.Parent.RevealHold).cancelled()", cancelAt, true) ~= nil, "and when it is cancelled")
+end })
+
+table.insert(tests, { name = "Round score on the board: it keeps the old score while the reveal plays and counts up with the payout", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ScoreLand)
+	expectTrue(SL.keepsOld(48, 65, 144, 65), "same round, higher score: the board waits for the payout")
+	expectTrue(SL.keepsOld(48, 65, 48, 65))
+	expectFalse(SL.keepsOld(144, 65, 0, 97), "a new round shows its own numbers at once")
+	expectFalse(SL.keepsOld(48, 65, 0, 65), "a score that went down is a new round as well")
+	expectFalse(SL.keepsOld(nil, 65, 10, 65))
+	-- the count-up: whole numbers, starts at the old score, ends exactly on the new one, never past it, never backwards
+	local last = 48
+	for step = 0, 40 do
+		local v = SL.rolled(48, 144, step * SL.ROLL_TIME / 40, SL.ROLL_TIME)
+		expectTrue(v == math.floor(v), "whole number")
+		expectTrue(v >= last and v <= 144, "between the old and the new score, never backwards (" .. v .. ")")
+		last = v
+	end
+	expectEqual(SL.rolled(48, 144, 0, SL.ROLL_TIME), 48)
+	expectEqual(SL.rolled(48, 144, SL.ROLL_TIME, SL.ROLL_TIME), 144)
+	expectEqual(SL.rolled(48, 144, 99, SL.ROLL_TIME), 144)
+	expectEqual(SL.rolled(48, 144, 0.1, 0), 144, "no duration: the new score at once")
+	expectTrue(SL.ROLL_TIME > 0 and SL.ROLL_TIME <= 0.6, "a short count")
+	expectTrue(SL.MAX_HOLD >= 10 and SL.MAX_HOLD <= 15)
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local side, land, popup, hub = read("src/Client/Sidebar.lua"), read("src/Client/ScoreLand.lua"), read("src/Client/ScorePopup.lua"), read("src/Client/init.client.lua")
+	if not (side and land and popup and hub) then return end
+	expectTrue(side:find("require(script.Parent.ScoreLand).set(score, target)", 1, true) ~= nil, "the board's score goes through ScoreLand")
+	expectTrue(side:find("require(script.Parent.ScoreLand).bind(", 1, true) ~= nil)
+	expectTrue(hub:find("require(script.ScoreLand).hold(final.roundScoreBefore)", 1, true) ~= nil, "a starting reveal holds the old score")
+	local thud = popup:find("playPitched(payoutThudSound, 0.85, 0.6)", 1, true)
+	local landAt = popup:find("require(script.Parent.ScoreLand).land()", thud or 1, true)
+	expectTrue(thud ~= nil and landAt ~= nil and landAt - thud < 200, "the score lands with the payout thud")
+	expectTrue(land:find("ClientSettings.motionAllowed()", 1, true) ~= nil, "no count-up in calm mode or with Reduce motion")
+	expectTrue(land:find("TweenService", 1, true) == nil, "no tween")
+	expectTrue(land:find("task.delay(Rules.MAX_HOLD", 1, true) ~= nil, "an old score cannot stay on the board")
+end })
+
+table.insert(tests, { name = "Tutorial round: its target needs all four scripted hands and the straight flush clears it", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialScript)
+	local state = RunState.new({ stakeId = 1 }, function(n) return n end)
+	local plain = state.targetScore
+	expectTrue(TS.setTarget(state), "a fresh run takes the tutorial target")
+	expectEqual(state.targetScore, TS.TARGET)
+	expectEqual(RunState.targetForRound(state, 1), TS.TARGET, "Round Select is told the same number the board shows")
+	expectTrue(TS.TARGET > plain, "higher than the game's own first target, which two small hands already cleared")
+	expectTrue(state.config.handsPerRound >= #TS.Stages, "a round has a hand for every scripted stage")
+	local total = 0
+	for stage = 1, #TS.Stages do
+		expectTrue(TS.applyStage(state, stage), "stage " .. stage .. " is dealt")
+		local idx = {}
+		for i = 1, TS.targetCount(stage) do idx[i] = i end
+		local result = RunState.playHand(state, idx)
+		total = total + result.score
+		if stage < #TS.Stages then
+			expectFalse(result.roundWon == true, string.format("hand %d (%s) leaves the round open at %d of %d", stage, TS.Stages[stage].name, total, TS.TARGET))
+			expectFalse(result.runOver == true, "and the run goes on")
+		else
+			expectTrue(result.roundWon == true, string.format("the last hand clears the round (%d of %d)", total, TS.TARGET))
+			expectTrue(result.score > TS.TARGET, "by itself it is worth more than the whole target: the lesson about big hands")
+		end
+	end
+	expectFalse(TS.setTarget({}), "nothing to scale without a target")
+	-- a Reroll in the tutorial costs Tips and adds none (the step says "Reroll costs Tips")
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local purse = { tips = 0, ownedPatrons = {} }
+	local need = TS.shopFor(purse, { patrons = {}, packs = {} }, 5)
+	expectEqual(purse.tips, need, "the first roll funds the lesson")
+	purse.tips = 2
+	local offers = { patrons = {}, packs = {} }
+	TS.shopFor(purse, offers, 5, false)
+	expectEqual(purse.tips, 2, "a Reroll adds no Tips")
+	expectTrue(#offers.patrons >= 1 and #offers.packs >= 1, "the shelf is still scripted")
+	expectTrue(Patrons.Definitions[1] ~= nil)
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local server = f:read("*a"); f:close()
+	expectTrue(server:find("rollShopOffers(session, true)", 1, true) ~= nil, "the Reroll handler says it is a Reroll")
+	expectTrue(server:find("if sessions[player].isTutorial then\n\t\tTutorialScript.setTarget(sessions[player].state)", 1, true) ~= nil, "a tutorial run gets the tutorial target")
+end })
+
+table.insert(tests, { name = "Tutorial never dead-ends: every Counter step points at the Counter, a missing target is passed over or freed", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	-- the left board slides away at the Counter: no Shop step may point at it (three did, and lit an empty wall)
+	local board = { sidebarScore = true, sidebarTips = true, sidebarHands = true, sidebarPatrons = true }
+	local seenTarget, seenTips = false, false
+	for i, step in ipairs(Steps.Steps) do
+		if Steps.screenOf(step) == "shop" then
+			expectFalse(board[step.target] == true, step.id .. " points at the left board, which is not on screen at the Counter")
+		end
+		if step.id == "panel_target" then
+			seenTarget = true
+			expectEqual(Steps.screenOf(step), "table", "the target is explained at the table, where the board is")
+			expectEqual(Steps.Steps[i - 1].id, "play_pair", "right after the first score has landed on it")
+		end
+		if step.id == "panel_tips" then
+			seenTips = true
+			expectEqual(step.target, "shopTips", "Tips are shown on the Counter's own plate")
+		end
+		if step.id == "mp_seats" then expectEqual(step.target, "myPatronCards", "the seats are in the My Patrons tab itself") end
+	end
+	expectTrue(seenTarget and seenTips)
+	-- a step waits for its own screen; there it never waits forever
+	local tap, act, shopTap = { id = "t", action = "tap", target = "x" }, { id = "a", action = "buy_patron", target = "x", shop = true }, { id = "s", action = "tap", target = "x", shop = true }
+	expectTrue(Steps.onItsScreen(tap, "playing") and not Steps.onItsScreen(tap, "shop"))
+	expectTrue(Steps.onItsScreen(shopTap, "shop") and not Steps.onItsScreen(shopTap, "playing"), "a Counter step waits while the last hand is still being scored")
+	expectTrue(Steps.onItsScreen({ id = "m", action = "menu_play", target = "menuPlay" }, nil), "the menu has no phase")
+	expectEqual(Steps.whenMissing(shopTap, "playing", 60), "wait", "the Counter has not opened: an expected wait, however long")
+	expectEqual(Steps.whenMissing(shopTap, "shop", Steps.MISSING_GRACE - 0.1), "wait")
+	expectEqual(Steps.whenMissing(shopTap, "shop", Steps.MISSING_GRACE), "skip", "a step that only explains is passed over")
+	expectEqual(Steps.whenMissing(act, "shop", Steps.MISSING_GRACE + 1), "free", "a step that wants an action gets the dim lifted")
+	expectEqual(Steps.whenMissing(nil, "shop", 99), "wait")
+	expectTrue(Steps.MISSING_GRACE >= 2 and Steps.MISSING_GRACE <= 5)
+	-- the caption never covers the game's own tooltip
+	local ribbon = { x = 563, y = 434, w = 380, h = 56 }
+	local tip = { x = 601, y = 382, w = 303, h = 64 } -- the Pack card's description, as measured in Studio
+	local y, moved = Steps.captionClearOf(ribbon, tip, 719)
+	expectTrue(moved and y >= tip.y + tip.h + Steps.CAPTION_AIR, "the caption steps below the tooltip (" .. y .. ")")
+	local y2, moved2 = Steps.captionClearOf(ribbon, { x = 601, y = 200, w = 303, h = 64 }, 719)
+	expectTrue(not moved2 and y2 == ribbon.y, "a tooltip that is clear of it changes nothing")
+	local y3, moved3 = Steps.captionClearOf({ x = 563, y = 640, w = 380, h = 56 }, { x = 601, y = 630, w = 303, h = 70 }, 719)
+	expectTrue(moved3 and y3 + 56 <= 630 - Steps.CAPTION_AIR, "no room below: above the tooltip")
+	expectTrue(Steps.meets({ x = 0, y = 0, w = 10, h = 10 }, { x = 9, y = 9, w = 5, h = 5 }))
+	expectFalse(Steps.meets({ x = 0, y = 0, w = 10, h = 10 }, { x = 10, y = 0, w = 5, h = 5 }))
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local walk, shop, cards, hub = read("src/Client/TutorialWalkthrough.lua"), read("src/Client/Shop.lua"), read("src/Client/ShopCards.lua"), read("src/Client/init.client.lua")
+	if not (walk and shop and cards and hub) then return end
+	expectTrue(walk:find("Steps.whenMissing(step, phase, os.clock() - since)", 1, true) ~= nil, "the walkthrough asks the rule while it waits")
+	expectTrue(walk:find("p.X + s.X <= g.X or p.Y + s.Y <= g.Y or p.X >= g.X + gs.X or p.Y >= g.Y + gs.Y", 1, true) ~= nil, "a piece that slid off the screen is not a target")
+	expectTrue(walk:find("Steps.captionClearOf(", 1, true) ~= nil, "the caption steps clear of the tooltip")
+	expectTrue(walk:find("setChromeHidden(not Steps.onItsScreen(step, phaseNow()))", 1, true) ~= nil, "nothing is darkened while the step's screen is not up")
+	expectTrue(shop:find('closed:SetAttribute("HoldOpen", true)', 1, true) ~= nil, "the Discard plate is held open for the tutorial")
+	expectTrue(cards:find('button:GetAttributeChangedSignal("HoldOpen")', 1, true) ~= nil, "and the card listens")
+	expectTrue(shop:find('TB.register("shopTips"', 1, true) ~= nil)
+	expectTrue(hub:find('for _, plateName in ipairs({ "RoomLabel", "TagLabel", "TargetLabel" }) do', 1, true) ~= nil, "Select is lit together with the round's name and target")
+end })
+
+table.insert(tests, { name = "Round targets: one set of sums for the table and Round Select, across decks, difficulties, stakes, Quick Run and bosses", fn = function()
+	local DT = require(script.Parent.Parent.Engine.DifficultyTiers)
+	local DV = require(script.Parent.Parent.Engine.DeckVariants)
+	local StakesModule = require(script.Parent.Parent.Engine.Stakes)
+	local WM = require(script.Parent.Parent.Engine.WorldMap)
+	local checked, differs = 0, 0
+	local function walk(options, nights)
+		local state = RunState.new(options, function(n) return n end)
+		for _ = 1, nights * state.config.roundsPerNight do
+			local announced = {}
+			for r = 1, state.config.roundsPerNight do announced[r] = RunState.targetForRound(state, r) end
+			expectEqual(announced[state.round], state.targetScore, "the round that is up")
+			if announced[state.round] ~= RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap) then
+				differs = differs + 1 -- the plain formula Round Select used to show is not this run's target
+			end
+			local night = state.night
+			state.roundOver = true
+			RunState.advanceToNextRound(state)
+			pcall(WM.fillDefault, state)
+			if state.night == night then
+				expectEqual(state.targetScore, announced[state.round], string.format("Night %d round %d was announced as %d", night, state.round, announced[state.round]))
+				checked = checked + 1
+			end
+		end
+	end
+	for _, d in ipairs(DT.Definitions) do
+		for _, v in ipairs(DV.Definitions) do walk({ difficultyId = d.id, deckVariantId = v.id }, 3) end
+	end
+	walk({ mode = "quick" }, 4)
+	for stake = 1, StakesModule.MAX do walk({ stakeId = stake }, 2) end
+	walk({ endlessRules = true }, 10)
+	expectTrue(checked >= 100, "rounds compared: " .. checked)
+	expectTrue(differs >= 10, "the plain formula really was wrong for many of these runs (" .. differs .. ")")
+	-- a boss with its own target multiplier, announced from the first round of its Night; a Rule Ban takes it off
+	local state = RunState.new(nil, function(n) return n end)
+	local base = RunState.targetScoreFor(state.night, state.config.roundsPerNight, state.config.roundsPerNight, state.config.nightCap)
+	state.nightBossModifier = BossRounds.getById("house_rules") -- 1.4x target score
+	expectEqual(RunState.targetForRound(state, state.config.roundsPerNight), math.floor(base * 1.4))
+	expectEqual(RunState.targetForRound(state, 1), state.targetScore, "the other rounds are not touched")
+	state.bannedBossNight = state.night
+	expectEqual(RunState.targetForRound(state, state.config.roundsPerNight), base, "a banned boss fights with no rule")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local engine, server, panel = read("src/Shared/Engine/RunState.lua"), read("src/Server/init.server.lua"), read("src/Client/RoundSelect.lua")
+	if not (engine and server and panel) then return end
+	expectTrue(engine:find("state.targetScore = RunState.targetForRound(state, state.round)", 1, true) ~= nil, "startRound uses the same sums")
+	local _, sums = engine:gsub("EndlessRules.clampTarget%(", "")
+	expectEqual(sums, 1, "the target is worked out in exactly one place")
+	expectTrue(server:find("list[r] = RunState.targetForRound(state, r)", 1, true) ~= nil, "the server sends every round's target")
+	expectTrue(panel:find("state.roundTargets[entry.round]", 1, true) ~= nil, "Round Select shows the server's number")
+end })
+
+table.insert(tests, { name = "First session polish: one sign per blessing line, nothing under Roblox's top bar, notes re-measured, the shelf keeps its size", fn = function()
+	local RC = require(script.Parent.Parent.Engine.RunChoice)
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	-- every blessing through the draft's own code: the line opens with one sign, never two
+	for _, def in ipairs(RM.Definitions) do
+		local choice = { kind = "modifier", options = { { id = "none" } } }
+		expectTrue(RC.forceOption(choice, def.id), "the draft can show " .. def.id)
+		local o = choice.options[1]
+		expectTrue(o.line1:sub(1, 1) == "+" and o.line2:sub(1, 1) == "-", "blessing line then curse line")
+		expectFalse(o.line1:find("^%+ ?%+") ~= nil, "one plus: " .. o.line1)
+		expectFalse(o.line2:find("^%- ?%-") ~= nil, "one minus: " .. o.line2)
+		expectEqual(o.line1, RM.line("+", def.blessing), "written by the shared rule")
+		expectEqual(o.line2, RM.line("-", def.curse))
+		local words = def.blessing:gsub("^%+", "")
+		expectTrue(o.line1:find(words, 1, true) ~= nil and o.line2:find(def.curse, 1, true) ~= nil, "the words are untouched")
+	end
+	-- the shared top bar rule: the left zone starts below Roblox's own buttons
+	expectEqual(RL.clearOfTopBar(12, 12), RL.TOPBAR_H, "Back to menu on the choice screen")
+	expectEqual(RL.clearOfTopBar(0, 82), 82, "the Rule Ban chip is already below it at 82")
+	expectTrue(82 >= RL.TOPBAR_H)
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local choicePanel, scout, board = read("src/Client/ChoicePanel.lua"), read("src/Client/BossScout.lua"), read("src/Client/MenuBoard.lua")
+	local shop, stage, scene = read("src/Client/Shop.lua"), read("src/Client/ShopStage.lua"), read("src/Client/ShopScene.lua")
+	if not (choicePanel and scout and board and shop and stage and scene) then return end
+	expectTrue(choicePanel:find("backButton.Position = UDim2.fromOffset(12, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(12, 12))", 1, true) ~= nil)
+	expectFalse(choicePanel:find("backButton.Position = UDim2.fromOffset(12, 12)", 1, true) ~= nil, "not under the top bar")
+	expectTrue(scout:find("tokenChip.Position = UDim2.new(1, -78, 0, require(Engine:WaitForChild(\"ResponsiveLayout\")).clearOfTopBar(0, 82))", 1, true) ~= nil)
+	expectFalse(scout:find("tokenChip.Position = UDim2.new(1, -8, 0, 8)", 1, true) ~= nil)
+	expectTrue(board:find('d:GetPropertyChangedSignal("Text"):Connect(placeAgain)', 1, true) ~= nil, "a note whose words change is measured again")
+	expectTrue(board:find("lastPlace = { l, t, r, b, painted }", 1, true) ~= nil)
+	expectTrue(board:find("GetTextBoundsAsync", 1, true) ~= nil, "measured with the face the label draws with")
+	expectTrue(shop:find("shopStage.scales(state, { offers = spotsAfter(lastCardSlots, cardKeys), packs = spotsAfter(lastPackSlots, packKeys) })", 1, true) ~= nil,
+		"the shelf is sized for its SOLD spots too")
+	expectTrue(stage:find("function self.scales(state, spots)", 1, true) ~= nil)
+	expectTrue(scene:find("tween(edge, { Transparency = 1 }, 0.35)", 1, true) ~= nil, "the speech plate's outline fades with it")
+	expectTrue(scene:find('shopFrame:FindFirstChild("PackPanel")', 1, true) ~= nil, "no speech plate over the pack screen")
+end })
+table.insert(tests, { name = "Notice Board: notes move closer before one is dropped, and the Next goal note is never the one that goes", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	expectTrue(RL.NOTE_GAP_TIGHT < RL.NOTE_GAP and RL.NOTE_TOP_TIGHT < RL.NOTE_TOP, "a tighter spacing exists")
+	-- the board as measured in Studio at 1506 x 719: news 86, rank 66, and the goal 74 once its line wraps onto two
+	local l, t, r, b = RL.corkRect(1506, 719)
+	local cw, ch = r - l, b - t
+	local roomy = RL.noteSlots(cw, ch, { 86, 66, 54 })
+	expectEqual(roomy.shown, 3)
+	expectEqual(roomy.gap, RL.NOTE_GAP, "notes that fit keep the normal spacing")
+	local wrapped = RL.noteSlots(cw, ch, { 86, 66, 74 }, 3)
+	expectEqual(wrapped.shown, 3, "the wrapped goal note still fits: the notes move closer")
+	expectEqual(wrapped.gap, RL.NOTE_GAP_TIGHT)
+	expectTrue(wrapped.show[1] and wrapped.show[2] and wrapped.show[3])
+	-- a goal line of three rows: something has to go, and it is not the goal
+	local tall = RL.noteSlots(cw, ch, { 86, 66, 98, 82 }, 3)
+	expectTrue(tall.show[3] == true, "the Next goal note stays")
+	expectTrue(tall.show[1] == true and not tall.show[2], "the note just above it makes room")
+	expectEqual(tall.shown, 2)
+	expectEqual(#tall.rects, tall.shown)
+	-- without a kept note the old rule holds: notes are shown in order until one does not fit
+	local plain = RL.noteSlots(cw, ch, { 86, 66, 98, 82 })
+	expectTrue(plain.show[1] and plain.show[2] and not plain.show[3] and not plain.show[4])
+	-- every case, every screen: shown notes are inside the cork, in order, and never overlap
+	for _, size in ipairs({ { 1920, 1080 }, { 1506, 719 }, { 1280, 720 }, { 1024, 768 }, { 800, 450 } }) do
+		local l2, t2, r2, b2 = RL.corkRect(size[1], size[2])
+		local w2, h2 = r2 - l2, b2 - t2
+		for _, case in ipairs({ { { 86, 66, 74 }, 3 }, { { 86, 66, 98, 82 }, 3 }, { { 66, 98 }, 2 }, { { 86, 66, 54, 82 }, 3 }, { { 400 }, 1 }, { { 86, 66, 74 }, nil } }) do
+			local fitted = RL.noteSlots(w2, h2, case[1], case[2])
+			local count, prevBottom = 0, nil
+			for i in ipairs(case[1]) do if fitted.show[i] then count = count + 1 end end
+			expectEqual(count, fitted.shown, size[1] .. ": show and shown agree")
+			expectEqual(#fitted.rects, fitted.shown)
+			expectTrue(fitted.shown <= RL.MAX_NOTES)
+			for i, n in ipairs(fitted.rects) do
+				expectTrue(n.y >= RL.CORK_MARGIN and n.y + n.h <= h2 - RL.CORK_MARGIN, size[1] .. ": note " .. i .. " is inside the cork")
+				if prevBottom then expectTrue(n.y > prevBottom, size[1] .. ": notes do not overlap") end
+				prevBottom = n.y + n.h
+			end
+			if case[2] and case[1][case[2]] * fitted.scale <= h2 - 2 * RL.CORK_MARGIN - 10 - RL.NOTE_TOP_TIGHT * fitted.scale then
+				expectTrue(fitted.show[case[2]] == true, size[1] .. ": a kept note that can fit alone is shown")
+			end
+		end
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local board, menu = read("src/Client/MenuBoard.lua"), read("src/Client/Menu.lua")
+	if not (board and menu) then return end
+	expectTrue(board:find("local crowd = not fitted.show[i]", 1, true) ~= nil, "the board hides exactly the notes the rule drops")
+	expectTrue(board:find("layout.Padding = UDim.new(0, fitted.gap)", 1, true) ~= nil and board:find("listPad.PaddingTop = UDim.new(0, fitted.top)", 1, true) ~= nil,
+		"and spaces them the way the rule measured them")
+	expectTrue(board:find('note:GetAttribute("KeepOnBoard") == true', 1, true) ~= nil)
+	local goalPin = menu:find("board.pin(goalNote, function()", 1, true)
+	expectTrue(goalPin ~= nil and menu:find("end, true)", goalPin, true) ~= nil and menu:find("end, true)", goalPin, true) - goalPin < 400,
+		"the menu pins the Next goal note as the one to keep")
+end })
+
+table.insert(tests, { name = "Names: packs and hints use the game's own words (Patron, House Pass), not another game's", fn = function()
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	local EmptyStates = require(script.Parent.Parent.Engine.EmptyStates)
+	local borrowed = { "Buffoon", "Joker", "Voucher", "Tarot", "Planet", "Spectral", "Arcana", "Celestial", "Blind", "Ante" }
+	local function clean(text, where)
+		for _, word in ipairs(borrowed) do
+			expectTrue(tostring(text):find(word, 1, true) == nil, where .. " says " .. word .. ": " .. tostring(text))
+		end
+	end
+	local patronPacks = 0
+	for _, pack in ipairs(Packs.Definitions) do
+		clean(pack.name, "pack " .. pack.id)
+		clean(pack.description, "pack " .. pack.id)
+		if pack.category == "patron" then
+			patronPacks = patronPacks + 1
+			expectTrue(pack.name:find("Patron Pack", 1, true) ~= nil, "a pack of Patrons is called a Patron Pack: " .. pack.name)
+		end
+	end
+	expectEqual(patronPacks, 3, "normal, Jumbo and Mega")
+	expectEqual(Packs.getById("buffoon_pack").name, "Patron Pack", "the id is unchanged (saves and tests use it), only the name on the card")
+	for key, hint in pairs(EmptyStates.Hints) do clean(hint, "hint " .. key) end
+	for key, line in pairs(EmptyStates.Lines) do clean(line, "line " .. key) end
+	expectTrue(EmptyStates.Hints.housePasses:find("House Pass", 1, true) ~= nil)
+end })
+table.insert(tests, { name = "Shelf cards: a pack's plate shows a name that fits it, and the House Pass card is tagged in our own words", fn = function()
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	expectEqual(Packs.shelfName("Jumbo Secret Recipe Pack"), "Secret Recipe", "the badge says JUMBO, the plate says what is inside")
+	expectEqual(Packs.shelfName("Mega Patron Pack"), "Patron Pack")
+	expectEqual(Packs.shelfName("House Recipe Pack"), "House Recipe")
+	expectEqual(Packs.shelfName("Jumbo Grab Bag Pack"), "Grab Bag")
+	expectEqual(Packs.shelfName("Standard Pack"), "Standard Pack", "two words already fit")
+	expectEqual(Packs.shelfName(nil), "")
+	local seen = {}
+	for _, pack in ipairs(Packs.Definitions) do
+		local short = Packs.shelfName(pack.name)
+		local words = 0
+		for word in short:gmatch("%S+") do
+			words = words + 1
+			-- the plate of the smallest shelf card is 61 px wide (measured in Studio): eight letters of 14 px text
+			expectTrue(#word <= 8, pack.id .. ": '" .. word .. "' fits one line of the smallest plate")
+		end
+		expectTrue(words >= 1 and words <= 2, pack.id .. ": two lines at most (" .. short .. ")")
+		expectTrue(pack.name:find(short, 1, true) ~= nil, pack.id .. ": the short name is part of the full name")
+		expectTrue(short:find("Jumbo", 1, true) == nil and short:find("Mega", 1, true) == nil, pack.id .. ": the size is on the badge")
+		seen[pack.category] = seen[pack.category] or short
+		expectEqual(short, seen[pack.category], pack.id .. ": every size of one kind of pack carries the same name")
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local shop, cards = read("src/Client/Shop.lua"), read("src/Client/ShopCards.lua")
+	if not (shop and cards) then return end
+	expectTrue(shop:find("ribbon = Packs.shelfName(pack.name)", 1, true) ~= nil, "the shelf uses the short name")
+	expectTrue(shop:find('kind = "pack", layoutOrder = index, name = pack.name,', 1, true) ~= nil, "the tooltip keeps the full name")
+	expectTrue(cards:find('Text = spec.ribbon or spec.name or "",', 1, true) ~= nil)
+	expectTrue(shop:find('badge = "PASS"', 1, true) ~= nil, "a House Pass card is tagged PASS")
+	expectTrue(shop:find('badge = "VOUCHER"', 1, true) == nil, "not with another game's word")
+end })
+
+table.insert(tests, { name = "Blessing lines: one rule writes them on the choice card and on the board; the tutorial pauses behind its Skip question", fn = function()
+	local RM = require(script.Parent.Parent.Engine.RunModifiers)
+	expectEqual(RM.line("+", "+1 Hand every round"), "+ 1 Hand every round", "one sign, not two")
+	expectEqual(RM.line("+", "1 more Patron seat"), "+ 1 more Patron seat")
+	expectEqual(RM.line("+", "Rounds pay +2 Tips"), "+ Rounds pay +2 Tips", "a sign inside the words stays")
+	expectEqual(RM.line("-", "1 fewer Patron seat"), "- 1 fewer Patron seat")
+	expectEqual(RM.line("-", "- No interest"), "- No interest")
+	expectEqual(RM.line("+", nil), "+ ")
+	for _, def in ipairs(RM.Definitions) do
+		for _, pair in ipairs({ { "+", def.blessing }, { "-", def.curse } }) do
+			local line = RM.line(pair[1], pair[2])
+			expectTrue(line:sub(1, 2) == pair[1] .. " ", def.id .. ": sign, space, words")
+			expectTrue(line:sub(3, 3) ~= pair[1] and line:sub(3, 3) ~= " ", def.id .. ": no second sign, no double space: " .. line)
+		end
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local chip, choice, walk = read("src/Client/BlessingChip.lua"), read("src/Shared/Engine/RunChoice.lua"), read("src/Client/TutorialWalkthrough.lua")
+	if not (chip and choice and walk) then return end
+	expectTrue(chip:find('.line("+", view.blessing)', 1, true) ~= nil and chip:find('.line("-", view.curse)', 1, true) ~= nil, "the board asks the rule")
+	expectTrue(chip:find('"+ " .. view.blessing', 1, true) == nil, "and no longer adds a sign of its own")
+	expectTrue(choice:find("return RunModifiers.line(sign, text)", 1, true) ~= nil, "the choice card asks the same rule")
+	local skip = walk:find("skipButton.MouseButton1Click:Connect(function()", 1, true)
+	local stop = skip and walk:find("stopFollowing()", skip, true)
+	local ask = skip and walk:find("restart.ask({", skip, true)
+	expectTrue(skip ~= nil and stop ~= nil and ask ~= nil and stop < ask, "the spotlight stops following before the Skip question opens")
+end })
+table.insert(tests, { name = "Combo shout: it stands beside the played cards, clear of them and inside the table, and shrinks before it overlaps", fn = function()
+	local SF = require(script.Parent.Parent.Engine.ScoreFeel)
+	-- as measured in Studio at 1506 px: the hand area starts at 385; five played cards start at 541, four at 585
+	expectEqual(SF.comboFit(585, 385, 1.2), 1.2, "four cards leave room for the wanted size")
+	local five = SF.comboFit(541, 385, 1.4)
+	expectTrue(five < 1.4 and five >= 1, "five cards: a little smaller, still full size text (" .. five .. ")")
+	expectTrue(five * SF.COMBO_TEXT_W + SF.COMBO_AIR <= 541 - 385 + 0.001, "its far end stays inside the hand area")
+	expectEqual(SF.comboFit(430, 385, 1.3), SF.COMBO_MIN_SCALE, "no room at all: the smallest size, never smaller")
+	expectEqual(SF.comboFit(900, 1498, 1.6), 1.6, "the right side works the same way")
+	expectEqual(SF.comboFit(500, nil, 1.1), SF.COMBO_MIN_SCALE, "no limit given: the careful size")
+	expectTrue(SF.COMBO_MIN_SCALE * 32 >= 15, "the smallest shout is still 15 px text or more")
+	expectTrue(SF.COMBO_AIR >= 8)
+	for combo = 2, SF.MAX_COMBO do
+		local want = SF.comboScale(combo)
+		for _, edge in ipairs({ 440, 541, 585, 628, 700 }) do
+			local got = SF.comboFit(edge, 385, want)
+			expectTrue(got <= want and got >= SF.COMBO_MIN_SCALE, "never bigger than wanted, never under the floor")
+		end
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local combo, popup = read("src/Client/ComboCounter.lua"), read("src/Client/ScorePopup.lua")
+	if not (combo and popup) then return end
+	expectTrue(popup:find("require(script.Parent.ComboCounter).stand({", 1, true) ~= nil, "the score popup says where the played cards are")
+	expectTrue(combo:find("ScoreFeel.comboFit(place.edge, place.limit, target)", 1, true) ~= nil, "the shout asks the rule for its size")
+	expectTrue(combo:find("label.Position = UDim2.fromOffset(place.edge", 1, true) ~= nil, "and stands at the cards' edge")
+end })
+table.insert(tests, { name = "Combo shout and finale banner share the row without touching; the board's Blessing row is measured at the width it wraps at", fn = function()
+	local SF = require(script.Parent.Parent.Engine.ScoreFeel)
+	-- as measured in Studio at 1506 px: "TARGET CLEARED!" is 160 px to each side of its middle, "NEW BEST!" 95
+	expectTrue(SF.bannerHalf("TARGET CLEARED!") >= 160 and SF.bannerHalf("TARGET CLEARED!") <= 175)
+	expectTrue(SF.bannerHalf("NEW BEST!") >= 95 and SF.bannerHalf("NEW BEST!") <= 110)
+	local mid, air = 1506 / 2, SF.COMBO_AIR
+	-- one played card, the round is cleared: the readout stands at 828..1088 beside it. The banner used to stay in the
+	-- middle (593..912) and was half hidden under the readout.
+	local half = SF.bannerHalf("TARGET CLEARED!")
+	local one = SF.finaleRow({ screenW = 1506, cardsLeft = 716, cardsRight = 791, bannerHalf = half, readoutLeft = 828, readoutRight = 1088, handLeft = 385 })
+	expectTrue(one.bannerX + half <= 828 - air, "the banner ends before the readout begins (" .. one.bannerX .. ")")
+	expectEqual(one.side, "left", "the shout stands on the side the readout did not take")
+	expectTrue(one.comboEdge <= one.bannerX - half and one.comboEdge <= 716, "and starts beyond the banner and the cards")
+	expectEqual(one.limit, 385)
+	-- five played cards: the banner fits between them, nothing moves
+	local five = SF.finaleRow({ screenW = 1506, cardsLeft = 541, cardsRight = 965, bannerHalf = half, readoutLeft = 1031, readoutRight = 1291, handLeft = 385 })
+	expectEqual(five.bannerX, mid, "room in the middle: the banner stays there")
+	expectEqual(five.comboEdge, 541, "the cards reach further out than the banner")
+	-- no banner this hand: the shout stands right beside the cards
+	local plain = SF.finaleRow({ screenW = 1506, cardsLeft = 716, cardsRight = 791, bannerHalf = 0, readoutLeft = 828, readoutRight = 1088, handLeft = 385 })
+	expectEqual(plain.bannerX, mid)
+	expectEqual(plain.comboEdge, 716)
+	-- the readout is not in this row (a tall screen: it stands above the cards): the banner stays in the middle
+	local tall = SF.finaleRow({ screenW = 1920, cardsLeft = 900, cardsRight = 1020, bannerHalf = half, handLeft = 500 })
+	expectEqual(tall.bannerX, 960)
+	expectEqual(tall.comboEdge, 960 - half)
+	-- the readout took the left side: everything mirrors
+	local mirror = SF.finaleRow({ screenW = 1506, cardsLeft = 716, cardsRight = 791, bannerHalf = half, readoutLeft = 418, readoutRight = 678, handLeft = 385 })
+	expectEqual(mirror.side, "right")
+	expectTrue(mirror.bannerX - half >= 678 + air, "the banner begins after the readout ends")
+	expectTrue(mirror.comboEdge >= mirror.bannerX + half and mirror.comboEdge >= 791)
+	expectEqual(mirror.limit, 1506 - 8)
+	-- every hand size: banner clear of the readout, shout clear of both
+	for cards = 1, 5 do
+		local rowW = cards * 75 + (cards - 1) * 12
+		local left = (1506 - rowW) / 2
+		local readoutLeft = left + rowW + 37
+		for _, text in ipairs({ "TARGET CLEARED!", "NEW BEST!" }) do
+			local h = SF.bannerHalf(text)
+			local plan = SF.finaleRow({ screenW = 1506, cardsLeft = left, cardsRight = left + rowW, bannerHalf = h, readoutLeft = readoutLeft, readoutRight = readoutLeft + 260, handLeft = 385 })
+			expectTrue(plan.bannerX + h <= readoutLeft - air + 0.001, cards .. " card(s), " .. text .. ": clear of the readout")
+			expectTrue(plan.comboEdge <= plan.bannerX - h and plan.comboEdge <= left, cards .. " card(s): the shout is clear of the banner and the cards")
+			expectTrue(plan.bannerX <= mid, "the banner never moves toward the readout")
+		end
+	end
+	-- the Blessing row: one rule gives the width the two texts wrap at, for the plan and for the chip
+	local Rows = require(script.Parent.Parent.Engine.BoardPanelRows)
+	expectEqual(Rows.fullHeight(1, 1), Rows.HEIGHTS.blessingFull[1], "one line each is the nominal row")
+	expectTrue(Rows.fullHeight(2, 2) - Rows.fullHeight(1, 1) == 2 * Rows.LINE_H, "two wrapped texts need two more lines of room")
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local chip, hud, popup = read("src/Client/BlessingChip.lua"), read("src/Client/PlayBoardHud.lua"), read("src/Client/ScorePopup.lua")
+	if not (chip and hud and popup) then return end
+	expectTrue(chip:find("function BlessingChip.wrapWidth(rowW, rowX)", 1, true) ~= nil)
+	expectTrue(chip:find("local w = BlessingChip.wrapWidth(rowW, ui.chip.Position.X.Offset)", 1, true) ~= nil, "the chip wraps its texts at that width")
+	expectTrue(hud:find("local tw = BC.wrapWidth(", 1, true) ~= nil, "and the board plans the row with the same width")
+	expectTrue(hud:find("local tw = BC.textWidth(", 1, true) == nil, "not with the full row width, which counted one line for a text that wraps to two")
+	expectTrue(popup:find("local plan = ScoreFeel.finaleRow({", 1, true) ~= nil, "the finale asks the rule")
+	expectTrue(popup:find("juiceBanner.Position = UDim2.new(0, plan.bannerX, 0.4, 0)", 1, true) ~= nil, "and puts the banner where it says")
+	expectTrue(popup:find('scorePopup:SetAttribute("RowLeft", x)', 1, true) ~= nil, "the played row is remembered for the finale")
+	expectTrue(hud:find("put(st, boardTop, { ClipsDescendants = false })", 1, true) ~= nil, "under the painted board the old frame clips nothing")
+	expectTrue(chip:find("if ui and ui.board and ui.board.ClipsDescendants then", 1, true) ~= nil, "the text column is only cut while the frame clips")
+	expectTrue(chip:find("function BlessingChip.linesOf(l, widthPx, textSize)", 1, true) ~= nil and chip:find("l.TextBounds.Y", 1, true) ~= nil,
+		"lines are counted on the label itself, in the face it is drawn with")
+	expectTrue(hud:find("BC.linesOf(b, tw, 15), BC.linesOf(c, tw, 15)", 1, true) ~= nil, "the plan and the chip count lines the same way")
+end })
+table.insert(tests, { name = "Tutorial caption: it and its arrow never sit on the Skip button (the Tips plate at the Counter is right above it)", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local air = Steps.CAPTION_AIR
+	-- as measured in Studio at 1506 px: the Tips plate is lit at x 1330..1500, y 0..56; the caption came out at
+	-- x 1114..1494, y 100..156 with its arrow at (1415, 78), and Skip stands at x 1390..1482, y 84..120
+	local skip = { x = 1390, y = 84, w = 92, h = 36 }
+	local plan = Steps.clearOfSkip({ x = 1114, y = 100, w = 380, h = 56 }, { x = 1415, y = 78 }, skip, { x = 1330, w = 170 }, 1506)
+	expectEqual(plan.ribbonX, skip.x - air - 380, "the caption slides left until it is clear")
+	expectTrue(plan.ribbonX + 380 <= skip.x - air, "its right end stops before the button")
+	expectEqual(plan.arrowX, skip.x - air - Steps.ARROW / 2, "the arrow slides with it")
+	expectTrue(plan.arrowX - Steps.ARROW / 2 >= 1330 and plan.arrowX + Steps.ARROW / 2 <= 1500, "and still points into the lit plate")
+	local zone = { x = skip.x - air, y = skip.y - air, w = skip.w + 2 * air, h = skip.h + 2 * air }
+	expectFalse(Steps.meets({ x = plan.ribbonX, y = 100, w = 380, h = 56 }, zone))
+	expectFalse(Steps.meets({ x = plan.arrowX - 20, y = 58, w = 40, h = 40 }, zone))
+	-- a caption that is nowhere near the button is left alone
+	local far = Steps.clearOfSkip({ x = 226, y = 311, w = 380, h = 56 }, { x = 416, y = 389 }, skip, { x = 258, w = 315 }, 1506)
+	expectEqual(far.ribbonX, 226)
+	expectEqual(far.arrowX, 416)
+	-- no room on the left (a narrow screen): the caption goes to the other side when it fits there
+	local narrow = Steps.clearOfSkip({ x = 60, y = 100, w = 380, h = 56 }, { x = 250, y = 78 }, { x = 200, y = 84, w = 92, h = 36 }, { x = 240, w = 20 }, 900)
+	expectEqual(narrow.ribbonX, 200 + 92 + air, "right of the button")
+	expectEqual(narrow.arrowX, nil, "an arrow that cannot point into its target any more is not drawn")
+	-- no room on either side: the caption stays (it is never pushed off the screen)
+	local stuck = Steps.clearOfSkip({ x = 10, y = 100, w = 380, h = 56 }, { x = 30, y = 20 }, { x = 200, y = 84, w = 92, h = 36 }, { x = 0, w = 60 }, 420)
+	expectEqual(stuck.ribbonX, 10)
+	expectEqual(stuck.arrowX, 30, "an arrow that is clear of the button keeps its place")
+	if not io then return end
+	local f = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not f then return end
+	local walk = f:read("*a"); f:close()
+	local at = walk:find("Steps.clearOfSkip(", 1, true)
+	local tip = walk:find("Steps.captionClearOf(", 1, true)
+	expectTrue(at ~= nil and tip ~= nil and at < tip, "the walkthrough clears the Skip button first, then the tooltip")
+	expectTrue(walk:find("if skipButton.Visible then", 1, true) ~= nil, "only while the button is on screen")
+end })
+
+table.insert(tests, { name = "Counter: the corner icons are hidden while it is open, and come back at the table", fn = function()
+	local DR = require(script.Parent.Parent.Engine.DockRules)
+	expectFalse(DR.visible({ counter = true }), "the Counter is a full screen scene: the dock is hidden under it")
+	expectTrue(DR.visible({ counter = false }))
+	expectFalse(DR.visible({ counter = true, panelOpen = true }))
+	if not (io and io.open and load) then return end
+	local probe = io.open("src/Client/CornerDock.lua", "r")
+	if not probe then return end
+	probe:close()
+	local FakeGui = require(script.Parent.FakeGui)
+	local env, state = FakeGui.env({})
+	state.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return FakeGui.folder({ DockRules = DR }) end } end }
+	local CornerDock = FakeGui.load("src/Client/CornerDock.lua", env)
+	local gui = FakeGui.new("ScreenGui")
+	local root = FakeGui.new("Frame")
+	root.Parent = gui
+	local row = FakeGui.new("Frame")
+	row.Name = "CornerIconRow"
+	row.Parent = root
+	local shop = FakeGui.new("Frame")
+	shop.Name = "Shop"
+	shop.Visible = false
+	shop.Parent = root
+	local page = FakeGui.new("Frame")
+	page.Name = "CollectionBackdrop"
+	page.Visible = false
+	page.Parent = root
+	CornerDock.register(page)
+	expectEqual(row.Visible, true, "at the table: shown")
+	shop.Visible = true -- the round is won: the Counter opens (no page was opened or closed, only the Counter)
+	expectEqual(row.Visible, false, "the Counter opens: the icons under its art are hidden at once (they were live: a tap on the Tips plate opened the Tavern Map)")
+	expectFalse(CornerDock.isShown())
+	shop.Visible = false
+	expectEqual(row.Visible, true, "Next Round: back at the table, shown again")
+	shop.Visible = true
+	row.Visible = true -- something else switches the dock on while the Counter is up
+	state.runWaiting()
+	expectEqual(row.Visible, false, "the safety loop hides it again")
+	shop.Visible = false
+	page.Visible = true
+	expectEqual(row.Visible, false, "a page open at the table still hides it")
+	page.Visible = false
+	expectEqual(row.Visible, true)
+end })
+
+table.insert(tests, { name = "Tavern Map: its title and top-left controls are clear of Roblox's own buttons; the finale banner has an outline that fades with it", fn = function()
+	local FR = require(script.Parent.Parent.Engine.FullScreenRules)
+	local RL = require(script.Parent.Parent.Engine.ResponsiveLayout)
+	expectEqual(FR.HEADER_LEFT, RL.TOPBAR_ZONE_W, "the header words start right of the top bar zone")
+	expectTrue(FR.CONTROLS_TOP >= FR.STRIP_H and FR.CONTROLS_TOP >= RL.TOPBAR_H, "the controls start below the strip and below the bar")
+	expectEqual(RL.clearOfTopBar(14, FR.CONTROLS_TOP), FR.CONTROLS_TOP, "Find me is where the shared rule allows it")
+	expectEqual(RL.clearOfTopBar(FR.HEADER_LEFT, 3), 3, "the title at the top of the strip is right of the zone")
+	for _, w in ipairs({ 1920, 1506, 1280, 800 }) do
+		local room = w - FR.HEADER_LEFT - (FR.X + FR.MARGIN * 3)
+		expectTrue(room >= 300, w .. " px: the header still has room for its words (" .. room .. ")")
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local full, view, compass, popup = read("src/Client/MapFullScreen.lua"), read("src/Client/JourneyMapView.lua"), read("src/Client/JourneyMapCompass.lua"), read("src/Client/ScorePopup.lua")
+	if not (full and view and compass and popup) then return end
+	expectTrue(full:find("p.title.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 3)", 1, true) ~= nil)
+	expectTrue(full:find("p.subtitle.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 28)", 1, true) ~= nil)
+	expectTrue(full:find("UDim2.fromOffset(Rules.MARGIN, 3)", 1, true) == nil, "not under Roblox's buttons")
+	expectTrue(view:find('findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)', 1, true) ~= nil)
+	expectTrue(view:find("findMe.Position = UDim2.fromOffset(14, 8)", 1, true) == nil)
+	expectTrue(compass:find("icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)", 1, true) ~= nil, "the compass keeps its place under Find me")
+	expectTrue(compass:find("keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 46)", 1, true) ~= nil)
+	expectTrue(compass:find("panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 98)", 1, true) ~= nil)
+	-- the banner's outline: on with the letters, off with them
+	expectTrue(popup:find("juiceEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual", 1, true) ~= nil, "an outline around the letters")
+	local show = popup:find("juiceBanner.TextTransparency = 0", 1, true)
+	expectTrue(show ~= nil and popup:find("juiceEdge.Transparency = 0", show, true) ~= nil and popup:find("juiceEdge.Transparency = 0", show, true) - show < 200, "shown with the banner")
+	expectTrue(popup:find("tweenTo(juiceEdge, { Transparency = 1 }, pace(0.4))", 1, true) ~= nil, "fades with it")
+	local _, hidden = popup:gsub("juiceEdge%.Transparency = 1", "")
+	expectTrue(hidden >= 2, "hidden at the start and by the safety net")
+end })
+table.insert(tests, { name = "Tutorial steps aside: for one of the game's own screens opened over it, and for the hand that is being scored", fn = function()
+	local Steps = require(script.Parent.Parent.Engine.TutorialSteps)
+	local table_ = { "GameRoot", "TutorialOverlay", "CornerToasts", "HandFrame", "Actions", "Sidebar" }
+	expectFalse(Steps.stepsAside(table_, false), "the table alone: the step is shown")
+	expectTrue(Steps.stepsAside(table_, true), "the played hand is being scored: its reveal plays undimmed")
+	for _, screen in ipairs({ "VolumeBackdrop", "SettingsBackdrop", "JourneyBackdrop", "HowToPlayBackdrop", "DeckTrackerBackdrop", "OverlayQueueBackdrop", "RestartConfirmBackdrop" }) do
+		local names = { "GameRoot", "TutorialOverlay", screen }
+		expectTrue(Steps.stepsAside(names, false), screen .. " is open over the step: the tutorial waits behind it")
+	end
+	expectFalse(Steps.stepsAside({ "ShopBackdropArt", "Backdrops", "Shop" }, false), "only a name that ends in Backdrop is a screen")
+	expectFalse(Steps.stepsAside(nil, nil))
+	expectFalse(Steps.stepsAside({ 12, false }, false), "names that are not text are ignored")
+	if not io then return end
+	local f = io.open("src/Client/TutorialWalkthrough.lua", "r")
+	if not f then return end
+	local walk = f:read("*a"); f:close()
+	expectTrue(walk:find("return Steps.stepsAside(names, scoring)", 1, true) ~= nil, "the walkthrough asks the rule")
+	expectTrue(walk:find("local scoring = scoreReveal ~= nil and scoreReveal.Visible", 1, true) ~= nil, "a reveal on screen counts")
+	expectTrue(walk:find("scoring = playReveal ~= false and playReveal.waiting() == true", 1, true) ~= nil,
+		"and so does a hand whose report is still on its way (the next step used to flash before the reveal began)")
+	local hub = io.open("src/Client/init.client.lua", "r")
+	if hub then
+		local src = hub:read("*a"); hub:close()
+		local begin = src:find("require(script.PlayReveal).begin({", 1, true)
+		local told = src:find("Shop.tutorial.notifyHandPlayed()", 1, true)
+		expectTrue(begin ~= nil and told ~= nil and begin < told, "the hub holds the reveal before it tells the tutorial about the hand")
+	end
+	local resolve = walk:find("local function resolveTarget(step)", 1, true)
+	local first = resolve and walk:find("if aside() then return nil, step.text end", resolve, true)
+	expectTrue(first ~= nil and first - resolve < 120, "a step has no target while the tutorial stands aside")
+	expectTrue(walk:find("local function setChromeAside()", 1, true) ~= nil)
+	local wait = walk:find("local since, freed = os.clock(), false", 1, true)
+	local away = wait and walk:find("since = os.clock()", wait, true)
+	local asideAt = wait and walk:find("if aside() then", wait, true)
+	expectTrue(wait ~= nil and asideAt ~= nil and away ~= nil and asideAt < away, "nothing is counted toward the missing-target rule while it stands aside")
+	expectTrue(walk:find("ribbon.Visible = not aside()", 1, true) ~= nil, "a freed step's caption is not left over an open screen either")
+end })
+
+table.insert(tests, { name = "True Wildcard reveal: the report's choice carries the banner's label, and a reveal that errors ends instead of stranding the hand", fn = function()
+	local PR = require(script.Parent.Parent.Engine.PlayReport)
+	expectEqual(PR.wildcardLabel({ rank = 8, suit = "Hearts" }), "8 of Hearts")
+	expectEqual(PR.wildcardLabel({ rank = 13, suit = "Spades" }), "K of Spades")
+	expectEqual(PR.wildcardLabel({ rank = 14, suit = "Clubs" }), "A of Clubs")
+	expectTrue(PR.wildcardLabel(nil) == nil and PR.wildcardLabel({}) == nil and PR.wildcardLabel({ rank = 7 }) == nil, "nothing to name")
+	-- what the hub hands the reveal: its own labelled preview, then the server's report in its place
+	local preview = { name = "Pair", score = 48, breakdown = {}, wildcardResolution = { rank = 7, suit = "Hearts", label = "7 of Hearts" } }
+	local final = PR.apply(preview, { seq = 1, handName = "Pair", chips = 24, mult = 2, score = 48, entries = {}, wildcard = { rank = 7, suit = "Spades" } }, {}, {})
+	expectEqual(final.wildcardResolution.label, "7 of Spades", "the server's choice, labelled (a nil label stopped the whole reveal)")
+	expectEqual(final.wildcardResolution.rank, 7)
+	expectEqual(preview.wildcardResolution.label, "7 of Hearts", "the preview's own table is left alone")
+	local kept = PR.apply(preview, { seq = 2, handName = "Pair", chips = 24, mult = 2, score = 48, entries = {} }, {}, {})
+	expectEqual(kept.wildcardResolution.label, "7 of Hearts", "a report without a choice keeps the preview's")
+	local none = PR.apply({ name = "Pair", breakdown = {} }, { seq = 3, handName = "Pair", chips = 1, mult = 1, score = 1, entries = {} }, {}, {})
+	expectTrue(none.wildcardResolution == nil, "no True Wildcard in the hand, no banner")
+	-- end to end: a run plays its True Wildcard, and what the reveal is handed names the card the server locked in
+	local HP = require(script.Parent.Parent.Engine.HandPreview)
+	local PatronDefs = require(script.Parent.Parent.Engine.Patrons)
+	local state = RunState.new(nil, function(n) return n end)
+	local at
+	for i, card in ipairs(state.hand) do
+		if card.isTrueWildcard then at = i end
+	end
+	if not at then
+		for i, card in ipairs(state.deck) do
+			if card.isTrueWildcard then
+				state.deck[i], state.hand[1] = state.hand[1], card
+				at = 1
+				break
+			end
+		end
+	end
+	expectTrue(at ~= nil, "every run has one True Wildcard")
+	if at then
+		local clientPreview = HP.compute(state, { at })
+		expectTrue(clientPreview ~= nil and clientPreview.wildcardResolution ~= nil, "the preview sees it lock in")
+		clientPreview.wildcardResolution.label = PR.wildcardLabel(clientPreview.wildcardResolution) -- the hub's own line
+		local clientHand = {}
+		for i, card in ipairs(state.hand) do clientHand[i] = { rank = card.rank, suit = card.suit } end
+		local cPlayed, cHeld = PR.split(clientHand, { at })
+		local result = RunState.playHand(state, { at })
+		expectTrue(state.lastPlay ~= nil and state.lastPlay.wildcard ~= nil, "the server reports its choice")
+		expectTrue(state.lastPlay.wildcard.label == nil, "as rank and suit only (the label is the client's wording)")
+		local shown = PR.apply(clientPreview, state.lastPlay, cPlayed, cHeld, PatronDefs.getById)
+		expectTrue(type(shown.wildcardResolution.label) == "string" and #shown.wildcardResolution.label > 0, "the banner has a card to name")
+		expectEqual(shown.wildcardResolution.label, PR.wildcardLabel(result.wildcardResolution), "and it is the card the server locked in")
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local s = f:read("*a"); f:close()
+		return s
+	end
+	local popup, hub = read("src/Client/ScorePopup.lua"), read("src/Client/init.client.lua")
+	if not (popup and hub) then return end
+	expectTrue(hub:find("wild.label = require(ReplicatedStorage.Shared.Engine.PlayReport).wildcardLabel(wild)", 1, true) ~= nil, "the preview uses the same wording")
+	expectTrue(popup:find('.. wildcardResolution.label .. "!"', 1, true) == nil, "the banner never joins a bare label")
+	expectTrue(popup:find('.. tostring(wildName) .. "!"', 1, true) ~= nil, "it names the card even when a table came without one")
+	expectTrue(popup:find("task.spawn(guarded, function()", 1, true) ~= nil, "the reveal runs guarded")
+	expectTrue(popup:find("if scorePopupToken == myToken and finishBrokenReveal then finishBrokenReveal() end", 1, true) ~= nil, "an error ends this reveal, never a newer one")
+	local cancelAt = popup:find("local function cancelScorePopup()", 1, true)
+	expectTrue(cancelAt ~= nil and popup:find("finishBrokenReveal = cancelScorePopup", cancelAt, true) ~= nil,
+		"through the cancel path: the score lands and a kept-back screen opens")
+	expectTrue(popup:find("warn(\"[ScorePopup] the reveal stopped on an error", 1, true) ~= nil, "and the error is written to Output")
+end })
+
+table.insert(tests, { name = "Tutorial run: it has no True Wildcard, so the four hands score as scripted whichever card the run marked", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialScript)
+	-- plays the four scripted hands of a fresh run whose True Wildcard mark sits on the given card
+	local function lesson(markRank, markSuit, plain)
+		local state = RunState.new({ stakeId = 1 }, function(n) return n end)
+		for _, pile in ipairs({ state.deck, state.hand }) do
+			for _, card in ipairs(pile) do
+				card.isTrueWildcard, card.wildcardLocked = nil, nil
+				if card.rank == markRank and card.suit == markSuit then
+					card.isTrueWildcard, card.wildcardLocked = true, false
+				end
+			end
+		end
+		local cleared = plain and TS.plainDeck(state) or nil
+		TS.setTarget(state)
+		local scores, wonAt, banners = {}, nil, 0
+		for stage = 1, #TS.Stages do
+			if not TS.applyStage(state, stage) then break end
+			local idx = {}
+			for i = 1, TS.targetCount(stage) do idx[i] = i end
+			local result = RunState.playHand(state, idx)
+			scores[stage] = result.score
+			if result.wildcardResolution then banners = banners + 1 end
+			if result.roundWon then
+				wonAt = stage
+				break
+			end
+		end
+		return scores, wonAt, banners, cleared
+	end
+	local want, wantWon = lesson(nil, nil, true)
+	expectEqual(#want, #TS.Stages, "the plain lesson plays all four hands")
+	expectEqual(wantWon, #TS.Stages)
+	local changed, early = 0, 0
+	for _, spec in ipairs(TS.Stages) do
+		for _, target in ipairs(spec.targets) do
+			local where = string.format("with the run's mark on the %d of %s", target[1], target[2])
+			local got, wonAt, banners, cleared = lesson(target[1], target[2], true)
+			expectEqual(cleared, 1, "the mark is taken off " .. where)
+			expectEqual(banners, 0, "no True Wildcard banner in the lesson " .. where)
+			expectEqual(wonAt, #TS.Stages, "the round ends on the straight flush " .. where)
+			for stage = 1, #TS.Stages do
+				expectEqual(got[stage], want[stage], "hand " .. stage .. " scores as scripted " .. where)
+			end
+			-- what the lesson was before: the marked card locked in as whatever paid best
+			local before, beforeWon, beforeBanners = lesson(target[1], target[2], false)
+			expectEqual(beforeBanners, 1, "left in, it locks in during the lesson " .. where)
+			local same = beforeWon == #TS.Stages
+			for stage = 1, #TS.Stages do
+				if before[stage] ~= want[stage] then same = false end
+			end
+			if not same then changed = changed + 1 end
+			if beforeWon ~= #TS.Stages then early = early + 1 end
+		end
+	end
+	expectTrue(changed > 0, "left in, it changes what the scripted hands score (" .. changed .. " of 16 cards)")
+	expectTrue(early > 0, "and on " .. early .. " cards the round ended before the straight flush was dealt")
+	expectEqual(TS.plainDeck({}), 0, "nothing to clear")
+	expectEqual(TS.plainDeck(nil), 0)
+	local discarded = { discardPile = { { rank = 2, suit = "Hearts", isTrueWildcard = true, wildcardLocked = false } }, deck = {}, hand = {} }
+	expectEqual(TS.plainDeck(discarded), 1, "wherever the card is")
+	expectTrue(discarded.discardPile[1].isTrueWildcard == nil and discarded.discardPile[1].wildcardLocked == nil)
+	expectEqual(discarded.discardPile[1].rank, 2, "the card itself stays")
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if f then
+		local server = f:read("*a"); f:close()
+		local at = server:find("if sessions[player].isTutorial then\n\t\tTutorialScript.setTarget(sessions[player].state)", 1, true)
+		expectTrue(at ~= nil and server:find("TutorialScript.plainDeck(sessions[player].state)", at, true) ~= nil, "the server clears it when a tutorial run starts")
+	end
+end })
+
+table.insert(tests, { name = "Menu on a very wide screen: the card table stays a prop, so Deal Me In lies on its own click surface", fn = function()
+	local RL = require(script.Parent.Parent.Engine.MenuRoomLayout)
+	-- the Studio view the bug was found in, 21:9 monitors, a 32:9 one, then the usual sizes
+	for _, size in ipairs({ { 1506, 630 }, { 2560, 1080 }, { 3440, 1440 }, { 5120, 1440 }, { 1920, 1080 }, { 1506, 751 }, { 1280, 720 }, { 800, 450 } }) do
+		local W, H = size[1], size[2]
+		local at = " at " .. W .. "x" .. H
+		local r = RL.layout(W, H).play
+		expectFalse(r.strip, "the card table is a prop, not a 44 px strip plate" .. at)
+		-- the frame the client makes of it (MenuHotspots.placeRoom keeps 24 px free under New Run)
+		local top, bottom = r.t, r.b
+		if bottom > H - RL.PLAY_SIGN_MARGIN then
+			top, bottom = top - (bottom - (H - RL.PLAY_SIGN_MARGIN)), H - RL.PLAY_SIGN_MARGIN
+		end
+		local mid = (r.l + r.r) / 2
+		-- "Deal Me In": 210 x 38, its bottom 46 px above the frame's bottom. "New Run": 34 px on the frame's bottom.
+		local signTop, signBottom = bottom - RL.PLAY_SIGN_H, bottom - 46
+		expectTrue(mid - RL.PLAY_SIGN_W / 2 >= r.l and mid + RL.PLAY_SIGN_W / 2 <= r.r, "the sign is no wider than the click surface" .. at)
+		expectTrue(signTop >= top and signBottom <= bottom, "Deal Me In lies on the click surface" .. at)
+		expectTrue(signTop >= 0 and bottom <= H, "and on the screen" .. at)
+	end
+	expectTrue(RL.holdsSign(0, 0, 210, 108, 1000, 1000), "just big enough")
+	expectFalse(RL.holdsSign(0, 0, 209, 108, 1000, 1000), "too narrow for the sign")
+	expectFalse(RL.holdsSign(0, 0, 210, 107, 1000, 1000), "too short for the sign and its margin")
+	expectFalse(RL.holdsSign(0, 900, 400, 1200, 1000, 1000), "only the part on screen counts")
+	expectTrue(RL.layout(200, 844).play.strip, "a sliver of the table is still a strip plate (the phone list is shown there)")
+	-- every other hotspot keeps the old rule: mostly cropped away means a strip plate
+	local strips = 0
+	for _, rect in ipairs(RL.rects(5120, 1440)) do
+		if rect.kind == "strip" then
+			strips = strips + 1
+			expectTrue(rect.id ~= "play", "never the table on a wide screen")
+		end
+	end
+	expectTrue(strips >= 1, "a 32:9 screen still moves cropped props into the strip")
+	if not io then return end
+	local f = io.open("src/Client/MenuHotspots.lua", "r")
+	if not f then return end
+	local hot = f:read("*a"); f:close()
+	expectTrue(hot:find("plaque.Position = UDim2.new(0.5, 0, 1, -46)", 1, true) ~= nil and hot:find("plaque.Size = UDim2.fromOffset(210, 38)", 1, true) ~= nil,
+		"the sign the rule is sized for: 210 wide, 38 tall, 46 above the frame's bottom")
+	expectTrue(hot:find('setMode(button, "plaque", Z_SCENE + 2, UDim2.fromOffset(150, 34))', 1, true) ~= nil, "New Run is 34 px under it")
+	expectTrue(hot:find('if hs.id == "play" and b > h - 24 then', 1, true) ~= nil, "and the 24 px margin under New Run")
+end })
+
+table.insert(tests, { name = "True Wildcard in the reveal: its ghost shows the card it locks in as, never the hidden card it was dealt as, and the banner can be read", fn = function()
+	local PR = require(script.Parent.Parent.Engine.PlayReport)
+	local mysteryCard = { rank = 4, suit = "Hearts", isTrueWildcard = true, wildcardLocked = false }
+	local r, s, mystery = PR.ghostFace(mysteryCard, true, { rank = 8, suit = "Hearts" })
+	expectEqual(r, 8, "played: the card the banner names")
+	expectEqual(s, "Hearts")
+	expectFalse(mystery)
+	r, s, mystery = PR.ghostFace(mysteryCard, false, { rank = 8, suit = "Hearts" })
+	expectTrue(mystery, "kept in hand: still a Mystery card")
+	r, s, mystery = PR.ghostFace(mysteryCard, true, nil)
+	expectTrue(mystery, "played with no known choice: a Mystery card, not the hidden 4 of Hearts")
+	r, s, mystery = PR.ghostFace(mysteryCard, true, { rank = 8 })
+	expectTrue(mystery, "half a choice is no choice")
+	r, s, mystery = PR.ghostFace({ rank = 8, suit = "Hearts", isTrueWildcard = true, wildcardLocked = true }, true, nil)
+	expectEqual(r, 8, "locked in on an earlier hand: an ordinary card")
+	expectEqual(s, "Hearts")
+	expectFalse(mystery)
+	r, s, mystery = PR.ghostFace({ rank = 13, suit = "Clubs" }, true, { rank = 8, suit = "Hearts" })
+	expectEqual(r, 13, "every other card is itself")
+	expectEqual(s, "Clubs")
+	expectFalse(mystery)
+	local nr, ns, nm = PR.ghostFace(nil, true, nil)
+	expectTrue(nr == nil and ns == nil and nm == false, "nothing to draw")
+	-- end to end: the ghost of a real run's True Wildcard is the card the server locks in
+	local HP = require(script.Parent.Parent.Engine.HandPreview)
+	local state = RunState.new(nil, function(n) return n end)
+	local at
+	for i, card in ipairs(state.hand) do
+		if card.isTrueWildcard then at = i end
+	end
+	if not at then
+		for i, card in ipairs(state.deck) do
+			if card.isTrueWildcard then
+				state.deck[i], state.hand[1] = state.hand[1], card
+				at = 1
+				break
+			end
+		end
+	end
+	expectTrue(at ~= nil, "every run has one True Wildcard")
+	if at then
+		local held = state.hand[at]
+		local clientCard = { rank = held.rank, suit = held.suit, isTrueWildcard = true, wildcardLocked = false }
+		local preview = HP.compute(state, { at })
+		local gr, gs, gm = PR.ghostFace(clientCard, true, preview.wildcardResolution)
+		local result = RunState.playHand(state, { at })
+		expectFalse(gm, "the played ghost is a real card")
+		expectEqual(gr, result.wildcardResolution.rank, "the rank the server locked in")
+		expectEqual(gs, result.wildcardResolution.suit, "and its suit")
+	end
+	if not io then return end
+	local function read(path)
+		local f = io.open(path, "r")
+		if not f then return nil end
+		local text = f:read("*a"); f:close()
+		return text
+	end
+	local hub, popup = read("src/Client/init.client.lua"), read("src/Client/ScorePopup.lua")
+	if not (hub and popup) then return end
+	expectTrue(hub:find("local function buildScoreSourceInfo(indices, wild)", 1, true) ~= nil, "the ghost builder is told the choice")
+	expectTrue(hub:find("pcall(buildScoreSourceInfo, indices, preview.wildcardResolution)", 1, true) ~= nil, "by the Play Hand handler")
+	expectTrue(hub:find("PlayReport).ghostFace(card, isPlayed, wild)", 1, true) ~= nil, "and asks the tested rule")
+	expectTrue(hub:find("RANK_NAMES[faceRank] or tostring(faceRank)", 1, true) ~= nil and hub:find("\t\t\t\tmystery,\n\t\t\t\tcard\n", 1, true) ~= nil,
+		"the face is drawn from the rule's answer")
+	local hold = tonumber(popup:match("local WILDCARD_FREEZE_HOLD = ([%d%.]+)"))
+	expectTrue(hold ~= nil and hold >= 1, "the banner holds long enough to read which card it became")
+	expectTrue(hold ~= nil and 0.12 + hold + 0.4 < 2.5, "and is gone before its 2.5 s safety net")
 end })
 
 return tests

@@ -19,6 +19,13 @@
 	PlayReport.baseOf(breakdown) -> chips, mult, count
 	    the hand's own Chips and Mult (the leading entries whose source is the hand itself) and how many entries that
 	    was. The reveal shows these with the hand name and counts up from there, instead of ticking up from 0 x 0.
+	PlayReport.wildcardLabel(resolution) -> "8 of Hearts", "K of Spades", or nil
+	    the True Wildcard banner's wording for { rank, suit }. apply() writes it as wildcardResolution.label, and the
+	    hub's preview uses it too, so the banner (Client/ScorePopup) always has a card to name.
+	PlayReport.ghostFace(card, isPlayed, wild) -> rank, suit, mystery
+	    what a card's ghost shows in the reveal. The run's True Wildcard is a Mystery card in the hand: played, its
+	    ghost shows the card it locks in as (wild = the preview's wildcardResolution); kept in hand, or with no known
+	    choice, it stays a Mystery card (mystery = true). Every other card is itself.
 	PlayReport.TIMEOUT
 	    how long the reveal waits for the report before it plays the local preview instead (which never rolls luck)
 ]]
@@ -28,6 +35,30 @@ local M = {}
 M.TIMEOUT = 0.7
 M.LEGENDARY_SCORE_FACTOR = 2.2
 M.LEGENDARY_XMULT = 4
+
+local RANK_LETTERS = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
+
+function M.wildcardLabel(resolution)
+	if type(resolution) ~= "table" or resolution.rank == nil or resolution.suit == nil then
+		return nil
+	end
+	return (RANK_LETTERS[resolution.rank] or tostring(resolution.rank)) .. " of " .. tostring(resolution.suit)
+end
+
+-- The ghost of the True Wildcard used to be drawn with the rank and suit the card was dealt with. The hand never shows
+-- those (the card is a Mystery card there), so a Four of a Kind of Eights was revealed with a 4 of Hearts in it.
+function M.ghostFace(card, isPlayed, wild)
+	if type(card) ~= "table" then
+		return nil, nil, false
+	end
+	if card.isTrueWildcard and not card.wildcardLocked then
+		if isPlayed and type(wild) == "table" and wild.rank ~= nil and wild.suit ~= nil then
+			return wild.rank, wild.suit, false
+		end
+		return card.rank, card.suit, true
+	end
+	return card.rank, card.suit, false
+end
 
 function M.split(hand, indices)
 	local chosen = {}
@@ -109,7 +140,12 @@ function M.apply(preview, report, played, held, patronById)
 	out.chips, out.mult, out.score = report.chips, report.mult, report.score
 	out.breakdown = breakdown
 	out.brokenCards = broken
-	out.wildcardResolution = report.wildcard or out.wildcardResolution
+	-- The server names the True Wildcard's new rank and suit only, and the banner reads .label. The bare table used to
+	-- take the place of the preview's labelled one, and the whole reveal stopped on "attempt to concatenate nil".
+	local wild = report.wildcard
+	if type(wild) == "table" then
+		out.wildcardResolution = { rank = wild.rank, suit = wild.suit, label = M.wildcardLabel(wild) }
+	end
 	out.fromServer = true
 	return out
 end

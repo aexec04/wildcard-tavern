@@ -934,6 +934,10 @@ return function(deps)
 	-- While the pack panel is open every other Counter piece (price tags, tooltip frame, Reroll, slots) is hidden;
 	-- the marker attribute lets the close restore exactly what was hidden here.
 	local function setCounterHiddenForPack(on)
+		if on then -- Marlo's speech plate would sit on the pack screen's own hint line
+			local plate = shopFrame:FindFirstChild("PeddlerBubble")
+			if plate then plate.Visible = false end
+		end
 		for _, child in ipairs(shopFrame:GetChildren()) do
 			if child:IsA("GuiObject") and child ~= shopPackPanel and child.Name ~= "ShopBackdrop" and child.Name ~= "PeddlerBubble" then
 				if on then
@@ -1312,6 +1316,24 @@ return function(deps)
 		return fresh
 	end
 
+	-- How many spots a row will show once reconcileSlots has run (a purchase keeps its SOLD spot; a Reroll or a new
+	-- visit starts over). The card sizes are planned for that number, before the rows are built.
+	local function spotsAfter(previous, keys)
+		if previous then
+			local known = {}
+			for _, slotInfo in ipairs(previous) do known[slotInfo.key] = true end
+			local allKnown = true
+			for _, key in ipairs(keys) do
+				if not known[key] then
+					allKnown = false
+					break
+				end
+			end
+			if allKnown then return #previous end
+		end
+		return #keys
+	end
+
 	local function rebuildShop(state)
 		-- A refused Reroll or Haggle is never silent: the server sends the reason and the Counter says it once.
 		if state and type(state.shopNotice) == "table" and state.shopNotice.seq ~= lastNoticeSeq then
@@ -1366,7 +1388,14 @@ return function(deps)
 			fitScaleValue = require(Engine:WaitForChild("CardShape")).fitScale(availW, availH, vp.X, vp.Y, widest)
 			ShopCardsModule.setScale(fitScaleValue)
 			if shopStage then
-				stageScales = shopStage.scales(state)
+				-- The shelf is sized for every spot it will show, SOLD spots included. It used to be sized for what was
+				-- still for sale, so the remaining cards shrank the moment something was bought (and the pack names
+				-- no longer fitted their plates).
+				local cardKeys, packKeys = {}, {}
+				if state.voucherOffer then cardKeys[#cardKeys + 1] = "v:" .. tostring(state.voucherOffer.id) end
+				for _, offer in ipairs(state.shopOffers or {}) do cardKeys[#cardKeys + 1] = "p:" .. tostring(offer.id) end
+				for _, pack in ipairs(state.packOffers or {}) do packKeys[#packKeys + 1] = "k:" .. tostring(pack.id) end
+				stageScales = shopStage.scales(state, { offers = spotsAfter(lastCardSlots, cardKeys), packs = spotsAfter(lastPackSlots, packKeys) })
 				ShopCardsModule.setScale(stageScales.patron)
 			end
 		end
@@ -1530,7 +1559,7 @@ return function(deps)
 					local card = shopCards.card(row, {
 						shield = shieldFor(require(Engine:WaitForChild("HousePasses")).getById(offer.id)),
 						kind = "voucher", layoutOrder = index, name = offer.name, description = offer.description,
-						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", emoji = offer.icon, badge = "VOUCHER",
+						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", emoji = offer.icon, badge = "PASS",
 						artTab = "house_passes", artId = offer.id, rarityTab = "housePasses", rarityId = offer.id,
 						onAction = function()
 							local fired = buyVoucher(offer)
@@ -1590,6 +1619,7 @@ return function(deps)
 					local line = definition and string.format("See %d, keep %d", definition.revealCount or 3, definition.pickCount or 1) or pack.description
 					local card = shopCards.card(row, {
 						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price, tipAlign = packTip,
+						ribbon = Packs.shelfName(pack.name), -- the small plate shows a name that fits it; the tooltip keeps the full one
 						affordable = tips >= pack.price, actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
 						artTab = "packs", artId = baseId, rarity = tierRarity,
 						glow = (sizeBadge == "MEGA" and 2) or (sizeBadge == "JUMBO" and 1) or 0,
@@ -1887,11 +1917,21 @@ return function(deps)
 			end)
 			TB.register("myPatronDiscard", function()
 				if not (shopMyPatronsListFrame and shopMyPatronsListFrame.Visible) then return nil end
+				local closed
 				for _, d in ipairs(shopMyPatronsListFrame:GetDescendants()) do
-					if d:IsA("TextButton") and d.Text == "Discard" and d.Visible and d.AbsoluteSize.X > 0 then return d end
+					if d:IsA("TextButton") and d.Text == "Discard" and d.AbsoluteSize.X > 0 then
+						if d.Visible then return d end
+						closed = closed or d
+					end
 				end
+				-- The Discard plate is only drawn while its card is hovered or picked, so there was nothing to point at
+				-- and the tutorial stopped on a dim screen (always, on touch). The first card is asked to hold its
+				-- plate open (Client/ShopCards "HoldOpen"); it is found on the next frame.
+				if closed then closed:SetAttribute("HoldOpen", true) end
 				return nil
 			end)
+			-- the Counter's own Tips plate (Client/ShopPurse): the left board with the Tips row is not on screen here
+			TB.register("shopTips", function() return shopFrame:FindFirstChild("PursePlate") end)
 			TB.register("myHousePasses", function()
 				if not (shopMyPatronsListFrame and shopMyPatronsListFrame.Visible) then return nil end
 				local list = {}

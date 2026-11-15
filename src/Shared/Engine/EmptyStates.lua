@@ -28,7 +28,7 @@ EmptyStates.Icons = {
 EmptyStates.Hints = {
 	patrons = "Recruit Patrons in the Shop tab.",
 	recipes = "Open Packs to find Recipes.",
-	housePasses = "Buy Vouchers in the Shop tab.",
+	housePasses = "Buy House Passes in the Shop tab.",
 	offers = "You have met everyone available so far.",
 	seat = "Visit The Counter to recruit a Patron.",
 }

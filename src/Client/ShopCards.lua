@@ -14,6 +14,7 @@
 		spec.kind        "patron" | "voucher" | "pack" | "owned"   (shapes the card)
 		spec.layoutOrder number
 		spec.name, spec.description, spec.line   (line replaces the description, e.g. packs; shown in the tooltip)
+		spec.ribbon      the words on the name plate when they differ from spec.name (packs: Engine/Packs.shelfName)
 		spec.price       number | nil (nil = no price tag, owned cards)
 		spec.affordable  bool (false = dimmed card and a red price)
 		spec.actionText  "Buy" | "Sell" | "Use"; spec.enabled bool; spec.disabledText ("Full")
@@ -407,7 +408,7 @@ function ShopCards.new(deps)
 		corner(banner, 6)
 		stroke(banner, GOLD, 1.5, 0)
 		-- shrinks (16 down to 14) so a long name like "Wholesale Pricing" wraps at the space, never mid-word
-		local nameLabel = label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.name or "",
+		local nameLabel = label(banner, { Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), Text = spec.ribbon or spec.name or "",
 			TextColor3 = CREAM, TextWrapped = true, TextSize = 16, TextScaled = true, TextStrokeTransparency = 1 })
 		if nameLabel then
 			local fit = Instance.new("UITextSizeConstraint")
@@ -550,6 +551,13 @@ function ShopCards.new(deps)
 			refresh()
 		end
 		card.setPinned = setPinned
+		-- The tutorial points at a card's action plate (Client/Shop.lua, target myPatronDiscard). The plate is only drawn
+		-- while the card is hovered or picked, so the walkthrough asks for it to stay open with this attribute.
+		if button then
+			button:GetAttributeChangedSignal("HoldOpen"):Connect(function()
+				setPinned(button:GetAttribute("HoldOpen") == true)
+			end)
+		end
 		hit.MouseButton1Click:Connect(function()
 			if spec.onClick then
 				playClickSfx(0.3)

@@ -63,13 +63,14 @@ function MapFullScreen.apply(p)
 
 	p.title.ZIndex, p.subtitle.ZIndex = 41, 41
 	p.title.BackgroundTransparency = 1
-	p.title.Position = UDim2.fromOffset(Rules.MARGIN, 3)
-	p.title.Size = UDim2.new(1, -(Rules.X + Rules.MARGIN * 3), 0, 26)
+	-- (right of Roblox's own top-left buttons: the title used to start under them, Engine/FullScreenRules.HEADER_LEFT)
+	p.title.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 3)
+	p.title.Size = UDim2.new(1, -(Rules.X + Rules.MARGIN * 3) - Rules.HEADER_LEFT, 0, 26)
 	p.title.TextXAlignment = Enum.TextXAlignment.Left
 	p.title.TextSize = 22
 	p.subtitle.BackgroundTransparency = 1 -- the strip is the plate
-	p.subtitle.Position = UDim2.fromOffset(Rules.MARGIN, 28)
-	p.subtitle.Size = UDim2.new(1, -(Rules.X + Rules.MARGIN * 3), 0, 34)
+	p.subtitle.Position = UDim2.fromOffset(Rules.HEADER_LEFT, 28)
+	p.subtitle.Size = UDim2.new(1, -(Rules.X + Rules.MARGIN * 3) - Rules.HEADER_LEFT, 0, 34)
 	p.subtitle.TextSize = 15
 
 	local close = p.closeButton

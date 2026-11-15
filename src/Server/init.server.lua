@@ -455,10 +455,10 @@ local ownedGamePasses = {} -- [player] = { [GamePasses catalog id] = true }
 -- uses this too, via openShop below, which additionally resets the cost.
 -- Offer generation itself lives in Shared/Engine/Shop.lua (pure, so the
 -- headless simulator rolls offers through the same code).
-local function rollShopOffers(session)
+local function rollShopOffers(session, isReroll)
 	local offers = Shop.rollOffers(session.state)
 	if session.isTutorial then
-		TutorialScript.shopFor(session.state, offers, session.rerollCost or Shop.REROLL_BASE_COST) -- scripted, affordable
+		TutorialScript.shopFor(session.state, offers, session.rerollCost or Shop.REROLL_BASE_COST, not isReroll) -- scripted, affordable; a Reroll adds no Tips
 	end
 	session.shopOffers = offers.patrons
 	session.packOffers = offers.packs
@@ -692,6 +692,15 @@ local function serializeState(session, player)
 		isBossRound = RunState.isBossRound(state),
 		-- JOURNEY FEATURE / ROUND SELECT FEATURE
 		nightBossModifier = nightBossModifier,
+		-- ROUND SELECT: the target every round of this Night will really have (RunState.targetForRound), so a panel
+		-- never shows a different number from the table.
+		roundTargets = (function()
+			local list = {}
+			for r = 1, state.config.roundsPerNight do
+				list[r] = RunState.targetForRound(state, r)
+			end
+			return list
+		end)(),
 		canSkipRound = RunState.canSkipRound(state),
 		currentRoundSkipTag = currentRoundSkipTag,
 		handStats = state.handStats,
@@ -1806,6 +1815,11 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 		isTutorial = isTutorial == true and seededRng == nil,
 	}
 
+	if sessions[player].isTutorial then
+		TutorialScript.setTarget(sessions[player].state) -- the round needs all four scripted hands (Engine/TutorialScript.TARGET)
+		TutorialScript.plainDeck(sessions[player].state) -- and no True Wildcard: it changed what the scripted hands score
+	end
+
 	if profile and TutorialStart.writesProfile(sessions[player]) then
 		PlayerProfile.recordRunStarted(profile)
 		menuTicker.pending = menuTicker.pending + 1 -- counted into today's run total (flushed at most once a minute)
@@ -2322,7 +2336,7 @@ Rem.RerollShop.OnServerEvent:Connect(function(player)
 		return
 	end
 	session.state.tips = session.state.tips - cost
-	rollShopOffers(session)
+	rollShopOffers(session, true)
 	session.rerollCost = (session.rerollCost or Shop.REROLL_BASE_COST) + Shop.REROLL_COST_STEP
 	pushState(player)
 end)

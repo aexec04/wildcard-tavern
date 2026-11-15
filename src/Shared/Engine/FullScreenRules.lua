@@ -17,6 +17,12 @@ M.MARGIN = 16
 M.CLOSE = { w = 160, h = 44 }
 M.X = 40
 M.HIDE = { "CornerIconRow" }
+-- Roblox's own buttons sit over the top left corner of the screen (Engine/ResponsiveLayout: a zone TOPBAR_ZONE_W wide
+-- and TOPBAR_H tall), and a full screen scene is drawn under them. Its header words start right of that zone and its
+-- top-left controls start below the strip. (On the Tavern Map the title was hidden under those buttons, and "Find
+-- me" sat under them where it could not be pressed.)
+M.HEADER_LEFT = require(script.Parent.ResponsiveLayout).TOPBAR_ZONE_W
+M.CONTROLS_TOP = M.STRIP_H + 4
 
 function M.panelRect(sw, sh) return { x = 0, y = 0, w = sw, h = sh } end
 

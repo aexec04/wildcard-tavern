@@ -214,8 +214,14 @@ function ShopStage.new(deps)
 
 	local lastCounts = { offers = 3, packs = 2, noMarlo = backdrop.marlo == nil, room = backdrop.roomId ~= nil }
 	-- Card scales for the current counts (Shop.lua sets them before building each row).
-	function self.scales(state)
+	-- spots (optional): { offers, packs } = how many shelf spots each row will show. A bought card leaves a SOLD spot
+	-- behind, so the count is not just what is still for sale (Client/Shop.lua spotsAfter).
+	function self.scales(state, spots)
 		lastCounts = counts(state)
+		if spots then
+			lastCounts.offers = math.max(spots.offers or lastCounts.offers, 1)
+			lastCounts.packs = spots.packs or lastCounts.packs
+		end
 		local W, H = size()
 		return Layout.cardScales(Layout.rects(W, H, lastCounts))
 	end

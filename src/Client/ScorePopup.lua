@@ -173,7 +173,10 @@ return function(deps)
 	-- this file at all).
 	local WILDCARD_BANNER_COLOR = Color3.fromRGB(205, 170, 255)
 	local WILDCARD_FLASH_COLOR = Color3.fromRGB(190, 160, 255)
-	local WILDCARD_FREEZE_HOLD = 0.5
+	-- How long the banner holds before the reveal goes on. It was 0.5: measured in Studio the line was readable for
+	-- about 0.6 s, too short to read which card the Mystery card became, and this happens once in a run. With its
+	-- fades (0.12 in, 0.4 out) the banner is on screen for 1.7 s, under its 2.5 s safety net.
+	local WILDCARD_FREEZE_HOLD = 1.2
 
 	-- PACING: Ahmed's first playtest of the old HUD-only popup couldn't
 	-- read the per-entry text before it was replaced by the next one, and
@@ -450,6 +453,15 @@ return function(deps)
 	juiceBanner.Text = ""
 	juiceBanner.ZIndex = 34
 	juiceBanner.Parent = root
+	-- A dark outline around the letters. The banner pops over the played cards, and gold or green letters with a
+	-- hairline edge were hard to read on their cream paper.
+	local juiceEdge = Instance.new("UIStroke")
+	juiceEdge.Name = "Edge"
+	juiceEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	juiceEdge.Color = Color3.fromRGB(46, 30, 18)
+	juiceEdge.Thickness = 3
+	juiceEdge.Transparency = 1
+	juiceEdge.Parent = juiceBanner
 	local juiceScale = Instance.new("UIScale")
 	juiceScale.Parent = juiceBanner
 
@@ -630,6 +642,12 @@ return function(deps)
 			return
 		end
 		local x = (rootSize.X - totalWidth) / 2
+		-- Where this row is, for the finale: the banner and the combo shout share it with the readout (placed at the finale
+		-- by Engine/ScoreFeel.finaleRow).
+		scorePopup:SetAttribute("RowLeft", x)
+		scorePopup:SetAttribute("RowRight", x + totalWidth)
+		scorePopup:SetAttribute("RowMid", rowY + lane.cardH / 2)
+		scorePopup:SetAttribute("RowHandLeft", handFrame and (handFrame.AbsolutePosition.X - root.AbsolutePosition.X) or 0)
 		for i, entry in ipairs(playedGhosts) do
 			local dy, rot = 0, nil
 			if PMotion then
@@ -933,9 +951,22 @@ return function(deps)
 	-- init.client.lua's buildScoreSourceInfo -- may be nil/omitted, in
 	-- which case every per-source visual below just no-ops back to the
 	-- plain center-HUD reveal.
+	-- Set below to cancelScorePopup: how a reveal ends when its choreography errors (see `guarded` in showScorePopup).
+	local finishBrokenReveal
 	local function showScorePopup(preview, sourceInfo)
 		scorePopupToken = scorePopupToken + 1
 		local myToken = scorePopupToken
+		-- An error anywhere in the choreography must not strand the hand. The True Wildcard's banner once stopped the
+		-- whole reveal: the board never counted up, and a hand that ended the round waited out Client/RevealHold's
+		-- 12 seconds. Now the error is written to Output and the reveal ends the way a cancelled one does: the score
+		-- lands, a kept-back screen opens, the ghosts go. A newer reveal is never touched (the token check).
+		local function guarded(body)
+			local okBody, bodyErr = pcall(body)
+			if not okBody then
+				warn("[ScorePopup] the reveal stopped on an error and was ended early: " .. tostring(bodyErr))
+				if scorePopupToken == myToken and finishBrokenReveal then finishBrokenReveal() end
+			end
+		end
 		local patronBeatNo = 0 -- Patron beats played this hand (Studio beatslow:freeze stops after the second)
 		if game:GetService("RunService"):IsStudio() then
 			local nBeats = 0
@@ -1048,7 +1079,7 @@ return function(deps)
 		-- them out one at a time.
 		layoutPlayedRow(playedGhosts)
 
-		task.spawn(function()
+		task.spawn(guarded, function()
 			-- PHASE A (Spectacle pass): freeze-frame beat, fires BEFORE the
 			-- normal per-entry reveal starts -- a big slammed-in banner, a
 			-- hard screen flash, a heavier shake, a low "boom" stinger (the
@@ -1080,7 +1111,11 @@ return function(deps)
 				wildcardBanner.TextTransparency = 1
 				wildcardBanner.TextStrokeTransparency = 1
 				wildcardBannerScale.Scale = 0.4
-				wildcardBanner.Text = "🎴 TRUE WILDCARD LOCKS IN:\n" .. wildcardResolution.label .. "!"
+				-- (.label comes from the hub's preview or from Engine/PlayReport.apply; a table without one is still named)
+				local wildName = wildcardResolution.label
+					or require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).wildcardLabel(wildcardResolution)
+					or "a new card"
+				wildcardBanner.Text = "🎴 TRUE WILDCARD LOCKS IN:\n" .. tostring(wildName) .. "!"
 
 				-- HARD SAFETY NET, same pattern as the Legendary banner's
 				-- own timeout just below -- this can never stay on screen
@@ -1373,6 +1408,39 @@ return function(deps)
 					screenShake(root, slam + 3, 0.22)
 				end
 				pcall(function()
+					-- The finale's pieces share the played cards' row and never touch (Engine/ScoreFeel.finaleRow): the readout
+					-- stays where it stands, the banner keeps clear of it, the combo shout starts beyond the cards and the banner.
+					-- ("TARGET CLEARED!" was half hidden under the readout; the shout sat on the Patron row's name plates.)
+					local bannerText = (ScoreJuice.isNewBest(preview.score, preview.isRunStart and 0 or juiceBest) and "NEW BEST!")
+						or (ScoreJuice.clearsTarget(preview.roundScoreBefore, preview.score, preview.targetScore) and "TARGET CLEARED!") or nil
+					local rootPos, rootSize = root.AbsolutePosition, root.AbsoluteSize
+					local bandTop, bandBottom = 0.4 * rootSize.Y - 28, 0.4 * rootSize.Y + 28 -- the banner's own band
+					local readoutLeft, readoutRight = nil, nil
+					local middle = scorePopup.AbsolutePosition.X + scorePopup.AbsoluteSize.X / 2 - rootPos.X
+					for _, partName in ipairs({ "ReadoutPill", "HandPill" }) do
+						local part = scorePopup:FindFirstChild(partName)
+						if part and part.Visible then
+							local top = part.AbsolutePosition.Y - rootPos.Y
+							if top < bandBottom and top + part.AbsoluteSize.Y > bandTop then
+								-- (this part of the readout is in the banner's band; 1.25: the readout swells that far when the round is cleared)
+								local reach = part.Size.X.Offset / 2 * 1.25
+								readoutLeft = math.min(readoutLeft or (middle - reach), middle - reach)
+								readoutRight = math.max(readoutRight or (middle + reach), middle + reach)
+							end
+						end
+					end
+					local plan = ScoreFeel.finaleRow({
+						screenW = rootSize.X, cardsLeft = scorePopup:GetAttribute("RowLeft"), cardsRight = scorePopup:GetAttribute("RowRight"),
+						handLeft = scorePopup:GetAttribute("RowHandLeft"), bannerHalf = bannerText and ScoreFeel.bannerHalf(bannerText) or 0,
+						readoutLeft = readoutLeft, readoutRight = readoutRight,
+					})
+					juiceBanner.Position = UDim2.new(0, plan.bannerX, 0.4, 0)
+					require(script.Parent.ComboCounter).stand({
+						side = plan.side, edge = plan.comboEdge, limit = plan.limit,
+						y = scorePopup:GetAttribute("RowMid") or (0.4 * rootSize.Y),
+					})
+				end)
+				pcall(function()
 					require(script.Parent.ComboCounter).hand(preview.score, (preview.roundScoreBefore or 0) <= 0)
 				end)
 			end
@@ -1393,6 +1461,7 @@ return function(deps)
 			-- different sound family that doesn't need disguising -- just a
 			-- gentle 0.85x to land it with a touch of weight.
 			playPitched(payoutThudSound, 0.85, 0.6)
+			pcall(function() require(script.Parent.ScoreLand).land() end) -- the board's round score counts up now, with the payout
 			CueBridge.coinCascade(0.35) -- the payout landing: 3 coins 60 ms apart at slightly different pitch
 			CueBridge.sting(preview.name) -- a hand-type sting by tier (the biggest tier also ducks the music)
 
@@ -1422,6 +1491,7 @@ return function(deps)
 					juiceBanner.TextColor3 = color
 					juiceBanner.TextTransparency = 0
 					juiceBanner.TextStrokeTransparency = 0.2
+					juiceEdge.Transparency = 0
 					juiceScale.Scale = 0.5
 					tweenTo(juiceScale, { Scale = 1.1 }, pace(0.25), Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 					playPitched(payoutThudSound, 1.25, 0.5)
@@ -1445,11 +1515,13 @@ return function(deps)
 					end
 					task.delay(pace(1.4), function()
 						tweenTo(juiceBanner, { TextTransparency = 1, TextStrokeTransparency = 1 }, pace(0.4))
+						tweenTo(juiceEdge, { Transparency = 1 }, pace(0.4))
 					end)
 					-- Hard safety net like the other banners.
 					task.delay(2.5, function()
 						juiceBanner.TextTransparency = 1
 						juiceBanner.TextStrokeTransparency = 1
+						juiceEdge.Transparency = 1
 					end)
 					if scorePopupToken ~= myToken then
 						return
@@ -1491,6 +1563,8 @@ return function(deps)
 			local worstCaseDropoffTime = pace(DROPOFF_START_DELAY)
 				+ pace(math.max(0, #playedGhosts - 1) * 0.05)
 				+ pace(DROPOFF_DURATION)
+			-- A hand that ended the round kept the next screen back (Client/RevealHold): it opens as this popup hides.
+			pcall(function() require(script.Parent.RevealHold).landed(math.max(pace(FINALE_LINGER), worstCaseDropoffTime + 0.05)) end)
 			task.delay(math.max(pace(FINALE_LINGER), worstCaseDropoffTime + 0.05), function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
@@ -1518,6 +1592,10 @@ return function(deps)
 	-- fire correctly once the coroutine's already bailed early.
 	local function cancelScorePopup()
 		scorePopupToken = scorePopupToken + 1
+		-- nothing is left to wait for: the board shows the real total and a kept-back state is drawn (both do nothing
+		-- when no reveal was being waited for, which is every ordinary call of this function)
+		pcall(function() require(script.Parent.ScoreLand).land() end)
+		pcall(function() require(script.Parent.RevealHold).cancelled() end)
 		scorePopup.Visible = false
 		scorePopupEventLabel.Text = ""
 		-- PHASE A (Spectacle pass): defensive reset, same reasoning as the
@@ -1538,6 +1616,7 @@ return function(deps)
 		destroyGhosts(liveGhosts)
 		liveGhosts = {}
 	end
+	finishBrokenReveal = cancelScorePopup
 
 	return {
 		showScorePopup = showScorePopup,

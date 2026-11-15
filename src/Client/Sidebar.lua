@@ -482,15 +482,20 @@ return function(deps)
 	rewardPlate.ZIndex = Z
 	rewardPlate.Parent = scoreBox
 	local rewardLine = makeLabel(rewardPlate, 17, { Size = UDim2.fromScale(1, 1), Position = UDim2.new(), TextWrapped = false })
+	-- The big score and its bar are drawn through Client/ScoreLand: while a hand's reveal plays they keep the score from
+	-- before the hand, and they count up when the payout lands (they used to jump to the result as the reveal began).
+	require(script.Parent.ScoreLand).bind(function(score, target)
+		bigScore.Text = string.format("%d / %d", math.floor(score), math.floor(target))
+		barFill.Size = UDim2.fromScale(math.clamp(target > 0 and score / target or 0, 0, 1), 1)
+	end)
 	scoreLabel:GetPropertyChangedSignal("Text"):Connect(function()
 		local score, target, reward = scoreLabel.Text:match("Score:%s*([%d%.%-]+)%s*/%s*([%d%.%-]+).-Reward:%s*%$?([%d%.%-]+)")
 		score, target = tonumber(score), tonumber(target)
 		if not score or not target then
 			return
 		end
-		bigScore.Text = string.format("%d / %d", math.floor(score), math.floor(target))
 		rewardLine.Text = "Reward: $" .. tostring(reward)
-		barFill.Size = UDim2.fromScale(math.clamp(target > 0 and score / target or 0, 0, 1), 1)
+		require(script.Parent.ScoreLand).set(score, target)
 	end)
 	makeDivider(4)
 

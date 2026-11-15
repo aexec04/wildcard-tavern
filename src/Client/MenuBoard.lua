@@ -23,6 +23,27 @@ local NOTE_W = 300 -- notes are re-sized to this when pinned (Engine/MenuRoomLay
 local TILTS = { -1.5, 1.2, -0.8, 1.6 } -- degrees, at most 2
 local Z = 14 -- notes are drawn at z 10 to 12 by their modules; lift them above the board and the backdrop
 
+-- How tall a label's text is at `size` when wrapped to `width`, or nil when it cannot be measured.
+-- The hub's font pass gives every label a FontFace (Merriweather). After that label.Font reads Enum.Font.Unknown, and
+-- GetTextSize refuses it. That refusal used to be swallowed and counted as one line, so a note longer than one line
+-- was cut on the menu ("Lantern Weekend: Double"). GetTextBoundsAsync measures with the face the label draws with.
+local function textHeight(label, size, width)
+	local ok, bounds = pcall(function()
+		local params = Instance.new("GetTextBoundsParams")
+		params.Text = label.Text
+		params.Font = label.FontFace
+		params.Size = size
+		params.Width = width
+		return TextService:GetTextBoundsAsync(params)
+	end)
+	if not (ok and bounds) then
+		ok, bounds = pcall(function()
+			return TextService:GetTextSize(label.Text, size, label.Font, Vector2.new(width, 1000))
+		end)
+	end
+	return (ok and bounds) and bounds.Y or nil
+end
+
 local function lift(root, n)
 	root.ZIndex += n
 	for _, d in ipairs(root:GetDescendants()) do
@@ -135,7 +156,23 @@ function MenuBoard.build(parent)
 	local slots = {}
 	local board = { frame = frame, list = list, head = head, slots = slots }
 
-	function board.pin(note, onClick)
+	-- A note whose words change after the board was laid out (the Next goal after the tutorial, a new news line) is
+	-- measured again, so the new line wraps onto a second line. It used to keep its old one-line box and was cut at
+	-- the note's edge ("Next goal: win your first run (b").
+	local lastPlace = nil
+	local placeQueued = false
+	local function placeAgain()
+		if placeQueued or not lastPlace then return end
+		placeQueued = true
+		task.defer(function()
+			placeQueued = false
+			if lastPlace then board.place(lastPlace[1], lastPlace[2], lastPlace[3], lastPlace[4], lastPlace[5]) end
+		end)
+	end
+
+	-- keep = true: this note is the one that stays when the board is too full (the Next goal).
+	function board.pin(note, onClick, keep)
+		if keep then note:SetAttribute("KeepOnBoard", true) end
 		local slot = Instance.new("Frame")
 		slot.Name = "Slot_" .. note.Name
 		note.Size = UDim2.fromOffset(NOTE_W, note.Size.Y.Offset) -- narrower than the old 460 so it fits the cork at full size
@@ -152,6 +189,9 @@ function MenuBoard.build(parent)
 		lift(note, Z - note.ZIndex)
 		for _, d in ipairs(note:GetDescendants()) do
 			if d:IsA("TextLabel") or d:IsA("TextButton") then d.TextTruncate = Enum.TextTruncate.None end -- rows wrap onto a second line in place(), nothing ends in an ellipsis
+			if d:IsA("TextLabel") and (d.Name == "Text" or d.Name == "Time") then
+				d:GetPropertyChangedSignal("Text"):Connect(placeAgain)
+			end
 		end
 		note:GetPropertyChangedSignal("Visible"):Connect(function() slot.Visible = note.Visible and slot:GetAttribute("Crowded") ~= true end)
 		local pin = Instance.new("Frame") -- the pin holding the note to the board
@@ -190,6 +230,7 @@ function MenuBoard.build(parent)
 
 	-- Tavern Room: sit on a pixel rectangle (the painted cork board). When the picture is painted the wood and stroke are dropped.
 	function board.place(l, t, r, b, painted)
+		lastPlace = { l, t, r, b, painted }
 		placed = painted == true
 		frame.Position = UDim2.fromOffset(l, t)
 		frame.Size = UDim2.fromOffset(r - l, b - t)
@@ -224,8 +265,8 @@ function MenuBoard.build(parent)
 						local w = d.Size.X.Offset
 						if d.Size.X.Scale ~= 0 then w = d.Size.X.Scale * NOTE_W + w end
 						local lines = 1
-						local ok, bounds = pcall(function() return TextService:GetTextSize(d.Text, want, d.Font, Vector2.new(math.max(20, w), 1000)) end)
-						if ok and bounds then lines = math.max(1, math.min(3, math.round(bounds.Y / (want + 2)))) end
+						local tall = textHeight(d, want, math.max(20, w))
+						if tall then lines = math.max(1, math.min(3, math.round(tall / (want + 2)))) end
 						d.TextWrapped = lines > 1
 						local lineH = want + 2
 						if d.Size.Y.Scale == 0 and lines > 1 then
@@ -249,8 +290,8 @@ function MenuBoard.build(parent)
 				local x0 = tx.Position.X.Offset
 				local w = NOTE_W - x0 - 10
 				local function lines(l)
-					local ok, b = pcall(function() return TextService:GetTextSize(l.Text, l.TextSize, l.Font, Vector2.new(w, 1000)) end)
-					return (ok and b) and math.max(1, math.min(3, math.round(b.Y / (l.TextSize + 2)))) or 1
+					local tall = textHeight(l, l.TextSize, w)
+					return tall and math.max(1, math.min(3, math.round(tall / (l.TextSize + 2)))) or 1
 				end
 				local h1, h2 = lines(tx) * (tx.TextSize + 2), lines(tm) * (tm.TextSize + 2)
 				tx.Position = UDim2.fromOffset(x0, 4)
@@ -273,10 +314,17 @@ function MenuBoard.build(parent)
 			slot.Size = note.Size
 			heights[#heights + 1] = baseH + extra
 		end
-		local fitted = RoomLayout.noteSlots(r - l, b - t, heights)
-		scale.Scale = fitted.scale
+		local keep = nil
 		for i, slot in ipairs(visibleSlots) do
-			local crowd = i > fitted.shown
+			local note = slot:FindFirstChildWhichIsA("GuiObject")
+			if note and note:GetAttribute("KeepOnBoard") == true then keep = i end
+		end
+		local fitted = RoomLayout.noteSlots(r - l, b - t, heights, keep)
+		scale.Scale = fitted.scale
+		layout.Padding = UDim.new(0, fitted.gap) -- (the rule moves the notes closer before it drops one)
+		listPad.PaddingTop = UDim.new(0, fitted.top)
+		for i, slot in ipairs(visibleSlots) do
+			local crowd = not fitted.show[i]
 			slot:SetAttribute("Crowded", crowd)
 			slot.Visible = not crowd
 		end

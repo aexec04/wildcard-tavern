@@ -219,6 +219,12 @@ return function(deps)
 		if inst == nil or inst.Parent == nil or not inst:IsDescendantOf(screenGui) then return false end
 		-- a destroyed/rebuilt or zero-size element has no usable rect
 		if inst:IsA("GuiObject") and (inst.AbsoluteSize.X <= 0 or inst.AbsoluteSize.Y <= 0) then return false end
+		-- a piece that has slid off the screen (the left board at the Counter) is not there to point at: the spotlight
+		-- used to be clamped to the screen edge and lit an empty patch of wall
+		if inst:IsA("GuiObject") then
+			local p, s, g, gs = inst.AbsolutePosition, inst.AbsoluteSize, gui.AbsolutePosition, gui.AbsoluteSize
+			if p.X + s.X <= g.X or p.Y + s.Y <= g.Y or p.X >= g.X + gs.X or p.Y >= g.Y + gs.Y then return false end
+		end
 		return true
 	end
 
@@ -240,9 +246,35 @@ return function(deps)
 		return slots
 	end
 
+	-- The player is looking at something else (Engine/TutorialSteps.stepsAside): one of the game's own screens is open
+	-- over the step, or the hand that was just played is still being scored. The tutorial draws nothing until that is over.
+	local scoreReveal = nil
+	local playReveal = nil -- Client/PlayReveal, required on first use (false when it cannot be loaded)
+	local function aside()
+		local names = {}
+		for _, parent in ipairs({ screenGui, root }) do
+			for _, c in ipairs(parent:GetChildren()) do
+				if c:IsA("GuiObject") and c.Visible then names[#names + 1] = c.Name end
+			end
+		end
+		if not (scoreReveal and scoreReveal.Parent) then scoreReveal = screenGui:FindFirstChild("ScorePopup", true) end
+		local scoring = scoreReveal ~= nil and scoreReveal.Visible
+		if not scoring then
+			-- Play Hand was pressed and the server's report is on its way: the reveal starts in a moment (Client/PlayReveal
+			-- holds it for that round trip). Without this the next step was drawn for a frame or two and taken away again.
+			if playReveal == nil then
+				local ok, module = pcall(require, script.Parent.PlayReveal)
+				playReveal = ok and module or false
+			end
+			scoring = playReveal ~= false and playReveal.waiting() == true
+		end
+		return Steps.stepsAside(names, scoring)
+	end
+
 	-- Resolve the list of instances to cut a hole around, plus the text to show (it can differ when the player
 	-- is on another screen: then it points back at the menu's Play button).
 	local function resolveTarget(step)
+		if aside() then return nil, step.text end -- (nothing is pointed at while the tutorial stands aside)
 		local menuPlay = TutorialBus.resolve("menuPlay")
 		if step.target == "menuPlay" then
 			return menuPlay and visible(menuPlay) and { menuPlay } or nil, step.text
@@ -293,14 +325,39 @@ return function(deps)
 
 	-- No spotlight (target missing or not on screen yet): keep ONE full-screen sink so nothing underneath can
 	-- be clicked, without drawing a wrong highlight.
-	local function setChromeHidden()
+	-- clear: the sink still takes every click but the screen is not darkened (the step's own screen is not up yet).
+	local function setChromeHidden(clear)
 		tapButton.Visible = false
 		for _, f in ipairs(dims) do f.Visible = false end
 		dims[1].Position, dims[1].Size = UDim2.fromOffset(0, 0), UDim2.fromScale(1, 1)
+		dims[1].BackgroundTransparency = clear and 1 or DIM
 		dims[1].Visible = true
 		highlight.Visible = false
 		arrow.Visible = false
 	end
+
+	-- A step that wants an action and whose target never turns up: the dim comes off and the line sits at the top of the
+	-- screen. The game can be played and the step still ends when its action is done (Engine/TutorialSteps.whenMissing).
+	local function setChromeFree(text)
+		tapButton.Visible = false
+		for _, f in ipairs(dims) do f.Visible = false end
+		highlight.Visible = false
+		arrow.Visible = false
+		ribbonText.Text = text
+		ribbon.Position = UDim2.fromOffset(math.floor(gui.AbsoluteSize.X / 2 - ribbon.AbsoluteSize.X / 2), 96)
+		ribbon.Visible = true
+	end
+
+	-- Stepped aside: nothing of the tutorial is drawn over what the player is looking at (the Skip button stays).
+	local function setChromeAside()
+		tapButton.Visible = false
+		for _, f in ipairs(dims) do f.Visible = false end
+		highlight.Visible = false
+		arrow.Visible = false
+		ribbon.Visible = false
+	end
+
+	local show -- (layout goes back to it when the target goes away)
 
 	local function layout()
 		if not currentList then return end
@@ -308,17 +365,14 @@ return function(deps)
 			-- re-find the live target every frame: hand cards and the Select button are rebuilt on every render
 			local list, text = resolveTarget(currentStep)
 			if not list or #list == 0 then
-				setChromeHidden()
 				ribbon.Visible = false -- no target: no caption plate either
-				if not warned[currentStep.id] then
-					warned[currentStep.id] = true
-					warn("[Tutorial] target not found for step " .. tostring(currentStep.id) .. " (" .. tostring(currentStep.target) .. "): no spotlight")
-				end
+				show() -- the target went away: wait for it again (show gives up after a moment, so this is never a dead end)
 				return
 			end
 			currentList = list
 			ribbonText.Text = text or Steps.captionFor(currentStep)
 			ribbon.Visible = true
+			dims[1].BackgroundTransparency = DIM
 			dims[1].Visible = true
 			highlight.Visible = true
 			arrow.Visible = true
@@ -354,11 +408,40 @@ return function(deps)
 				arrow.Position = UDim2.fromOffset(right and (x + w + 24) or (x - 24), y + h / 2)
 				arrow.Text = right and "<" or ">"
 			end
+			-- The caption and its arrow never sit on the Skip button (Engine/TutorialSteps.clearOfSkip). The Tips plate at
+			-- the Counter is right above that button: the caption under it was half covered, and the arrow stood on it.
+			if skipButton.Visible then
+				local gp, sp, ss = gui.AbsolutePosition, skipButton.AbsolutePosition, skipButton.AbsoluteSize
+				local plan = Steps.clearOfSkip(
+					{ x = ribbon.Position.X.Offset, y = ribbon.Position.Y.Offset, w = rw, h = rh },
+					{ x = arrow.Position.X.Offset, y = arrow.Position.Y.Offset },
+					{ x = sp.X - gp.X, y = sp.Y - gp.Y, w = ss.X, h = ss.Y }, { x = x, w = w }, size.X)
+				ribbon.Position = UDim2.fromOffset(plan.ribbonX, ribbon.Position.Y.Offset)
+				if plan.arrowX then
+					arrow.Position = UDim2.fromOffset(plan.arrowX, arrow.Position.Y.Offset)
+				else
+					arrow.Visible = false
+				end
+			end
+			-- The game's own tooltip (what the hovered card does) stays readable: the caption steps clear of it and the
+			-- arrow rests while it would cross it (Engine/TutorialSteps.captionClearOf). Picking from a Pack, the caption
+			-- used to sit on the last line of the card's description.
+			local tip = screenGui:FindFirstChild("Tooltip")
+			if tip and tip:IsA("GuiObject") and tip.Visible and tip.AbsoluteSize.Y > 0 then
+				local gp = gui.AbsolutePosition
+				local t = { x = tip.AbsolutePosition.X - gp.X, y = tip.AbsolutePosition.Y - gp.Y, w = tip.AbsoluteSize.X, h = tip.AbsoluteSize.Y }
+				local rx, ry = ribbon.Position.X.Offset, ribbon.Position.Y.Offset
+				local newY, moved = Steps.captionClearOf({ x = rx, y = ry, w = rw, h = rh }, t, size.Y)
+				if moved then ribbon.Position = UDim2.fromOffset(rx, newY) end
+				local ax, ay = arrow.Position.X.Offset, arrow.Position.Y.Offset
+				if moved or Steps.meets({ x = ax - 20, y = ay - 20, w = 40, h = 40 }, t) then arrow.Visible = false end
+			end
 		end)
 		return ok
 	end
 
 	local function setChrome(on)
+		if on then dims[1].BackgroundTransparency = DIM end
 		for _, f in ipairs(dims) do f.Visible = on end
 		highlight.Visible = on
 		arrow.Visible = on
@@ -386,8 +469,9 @@ return function(deps)
 	end
 
 	local complete
+	local report
 
-	local function show()
+	function show()
 		local step = machine:current()
 		if not active or not step then
 			hideAll()
@@ -400,6 +484,7 @@ return function(deps)
 			currentList = nil
 			currentStep = nil
 			for _, f in ipairs(dims) do f.Position, f.Size = UDim2.fromOffset(0, 0), UDim2.new(1, 0, 1, 0) end
+			dims[1].BackgroundTransparency = DIM
 			dims[1].Visible = true
 			for i = 2, 4 do dims[i].Visible = false end
 			highlight.Visible = false
@@ -423,15 +508,63 @@ return function(deps)
 		ribbonText.Text = text or Steps.captionFor(step)
 		ribbon.Visible = list ~= nil
 		if not list then
-			-- nothing to point at right now (for example while a hand is being dealt): wait and retry
-			setChromeHidden()
+			-- Nothing to point at right now (a hand is being dealt, the Counter has not opened yet): wait and retry.
+			-- While the step's own screen is not up the wait is expected and nothing is darkened (the last hand of the
+			-- round is still being scored). Once it is up, a target that stays missing ends the wait
+			-- (Steps.whenMissing): the tutorial never stops on a dim screen with nothing to press.
+			local function phaseNow() return lastState and lastState.phase or nil end
+			local away = aside()
+			if away then
+				setChromeAside()
+			else
+				setChromeHidden(not Steps.onItsScreen(step, phaseNow()))
+			end
 			currentList = nil
 			currentStep = nil
 			stopFollowing()
+			local since, freed = os.clock(), false
 			conn = RunService.Heartbeat:Connect(function()
 				if resolveTarget(step) then
 					stopFollowing()
 					show()
+					return
+				end
+				if freed then
+					ribbon.Visible = not aside() -- (a freed step's caption is not left over an open screen either)
+					return
+				end
+				if aside() then
+					-- The player is looking at something else (a screen of the game, the hand being scored): nothing is
+					-- dimmed and nothing is counted. The step comes back when that is over.
+					if not away then
+						away = true
+						setChromeAside()
+					end
+					since = os.clock()
+					return
+				elseif away then
+					away = false
+					setChromeHidden(not Steps.onItsScreen(step, phaseNow()))
+				end
+				local phase = phaseNow()
+				if not Steps.onItsScreen(step, phase) then
+					since = os.clock()
+					return
+				end
+				dims[1].BackgroundTransparency = DIM
+				local verdict = Steps.whenMissing(step, phase, os.clock() - since)
+				if verdict == "wait" then return end
+				if not warned[step.id] then
+					warned[step.id] = true
+					warn("[Tutorial] target not found for step " .. tostring(step.id) .. " (" .. tostring(step.target) .. "): "
+						.. (verdict == "skip" and "the step is passed over" or "the dim is lifted"))
+				end
+				if verdict == "skip" then
+					stopFollowing()
+					report(step.action)
+				else
+					freed = true
+					setChromeFree(text or Steps.captionFor(step))
 				end
 			end)
 			return
@@ -496,7 +629,7 @@ return function(deps)
 		return false
 	end
 
-	local function report(action, detail)
+	function report(action, detail)
 		if not active then return end
 		local result = machine:report(action, detail)
 		if result == "advanced" then
@@ -528,6 +661,7 @@ return function(deps)
 			return
 		end
 		-- the tutorial pauses behind the popup; Cancel (the default) brings it back
+		stopFollowing() -- (the per-frame layout switched the spotlight and the caption straight back on, over the popup)
 		setChrome(false)
 		ribbon.Visible = false
 		restart.ask({

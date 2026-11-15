@@ -29,7 +29,7 @@ local Packs = {}
 Packs.Definitions = {
 	-- ===== Normal (reveal 3, pick 1) =====
 	{
-		id = "buffoon_pack", name = "Buffoon Pack", icon = "🃏", price = 6,
+		id = "buffoon_pack", name = "Patron Pack", icon = "🃏", price = 6,
 		category = "patron", size = "normal", revealCount = 3, pickCount = 1,
 		description = "Reveals 3 random Patrons, pick 1 to join your table for free.",
 	},
@@ -56,7 +56,7 @@ Packs.Definitions = {
 
 	-- ===== Jumbo (reveal 5, pick 1 -- better odds at the item you want) =====
 	{
-		id = "buffoon_pack_jumbo", name = "Jumbo Buffoon Pack", icon = "🃏", price = 9,
+		id = "buffoon_pack_jumbo", name = "Jumbo Patron Pack", icon = "🃏", price = 9,
 		category = "patron", size = "jumbo", revealCount = 5, pickCount = 1,
 		description = "JUMBO: Reveals 5 random Patrons, pick 1 to join your table for free.",
 	},
@@ -83,7 +83,7 @@ Packs.Definitions = {
 
 	-- ===== Mega (reveal 5, pick 2 -- two keepers from one pack) =====
 	{
-		id = "buffoon_pack_mega", name = "Mega Buffoon Pack", icon = "🃏", price = 12,
+		id = "buffoon_pack_mega", name = "Mega Patron Pack", icon = "🃏", price = 12,
 		category = "patron", size = "mega", revealCount = 5, pickCount = 2,
 		description = "MEGA: Reveals 5 random Patrons, pick 2 to join your table for free.",
 	},
@@ -133,6 +133,19 @@ function Packs.skipRefund(paidPrice)
 	local paid = math.floor(tonumber(paidPrice) or 0)
 	if paid < 2 then return 0 end
 	return math.max(1, math.floor(paid / 2))
+end
+
+-- The name on a pack's small shelf card. The card's badge already says JUMBO or MEGA and its plate holds two short
+-- words, so the size word is left off and, from a name of three words or more, the closing "Pack" too. The full name
+-- stays in the tooltip and on the pack screen. ("Jumbo Secret Recipe Pack" was cut after "Jumbo Secret".)
+function Packs.shelfName(name)
+	local short = tostring(name or "")
+	short = short:gsub("^Jumbo ", "")
+	short = short:gsub("^Mega ", "")
+	local words = 0
+	for _ in short:gmatch("%S+") do words = words + 1 end
+	if words > 2 then short = short:gsub(" Pack$", "") end
+	return short
 end
 
 function Packs.getById(id)

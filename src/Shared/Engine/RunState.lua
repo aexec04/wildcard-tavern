@@ -367,6 +367,37 @@ local function endlessField(state, field)
 	return state.endlessRules and state.endlessRules[field] or 0
 end
 
+-- The target a round of the current Night has, by ONE set of sums: startRound uses it for the round that begins, and
+-- the server sends it for every round of the Night, so Round Select shows the number the table will show. Round Select
+-- used to work its number out from the Night and the round alone, which left out the run's deck and difficulty, Quick
+-- Run's curve and everything that moves a Boss Round's target (the boss's own multiplier, the stake, Warm Welcome,
+-- the Crowd Rules).
+function RunState.targetForRound(state, round)
+	local roundsPerNight = state.config.roundsPerNight
+	local isBossRound = BossRounds.isBossRound(round, roundsPerNight)
+	-- (a boss banned with a Rule Ban fights with no rule, so its target multiplier is off as well)
+	local bossModifier = (state.bossRoundsEnabled and isBossRound and state.bannedBossNight ~= state.night) and state.nightBossModifier or nil
+	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
+	if isBossRound and state.stakeRules then
+		bossMultiplier = bossMultiplier * (1 + state.stakeRules.bossTargetPct / 100) -- Rowdy Crowd stake
+	end
+	if isBossRound and state.housePasses.warm_welcome then
+		bossMultiplier = bossMultiplier * 0.9 -- Warm Welcome
+	end
+	if isBossRound then
+		bossMultiplier = bossMultiplier * (1 + endlessField(state, "bossTargetPct") / 100)
+	end
+	local baseTarget
+	if state.quickRun then
+		-- Quick Run: the compressed curve (Night n of 4 scores like Night 1 + (n - 1) * 7 / 3), gentle first Night
+		baseTarget = RunState.targetScoreFor(state.night, round, roundsPerNight, state.config.nightCap,
+			RunModes.equivalentNight("quick", state.night)) * RunModes.targetScale("quick", state.night)
+	else
+		baseTarget = RunState.targetScoreFor(state.night, round, roundsPerNight, state.config.nightCap)
+	end
+	return math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
+end
+
 function RunState.startRound(state)
 	for _, card in ipairs(state.hand) do
 		table.insert(state.deck, card)
@@ -494,25 +525,7 @@ function RunState.startRound(state)
 	state.handTypesPlayedThisRound = {}
 	state.brittleShieldRound = false -- "Sugar Shield" only protects for the round it was used in
 
-	local bossMultiplier = (bossModifier and bossModifier.targetScoreMultiplier) or 1
-	if state.isBossRound and state.stakeRules then
-		bossMultiplier = bossMultiplier * (1 + state.stakeRules.bossTargetPct / 100) -- Rowdy Crowd stake
-	end
-	if state.isBossRound and state.housePasses.warm_welcome then
-		bossMultiplier = bossMultiplier * 0.9 -- Warm Welcome
-	end
-	if state.isBossRound then
-		bossMultiplier = bossMultiplier * (1 + endlessField(state, "bossTargetPct") / 100)
-	end
-	local baseTarget
-	if state.quickRun then
-		-- Quick Run: the compressed curve (Night n of 4 scores like Night 1 + (n - 1) * 7 / 3), gentle first Night
-		baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap,
-			RunModes.equivalentNight("quick", state.night)) * RunModes.targetScale("quick", state.night)
-	else
-		baseTarget = RunState.targetScoreFor(state.night, state.round, state.config.roundsPerNight, state.config.nightCap)
-	end
-	state.targetScore = math.floor(EndlessRules.clampTarget(baseTarget * state.targetMultiplier * bossMultiplier))
+	state.targetScore = RunState.targetForRound(state, state.round) -- one set of sums, shared with Round Select
 
 	-- Cold Start Boss Round: Tips are lost as the round begins
 	state.bossTipsLostAtStart = 0

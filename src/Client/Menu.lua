@@ -119,7 +119,7 @@ return function(deps)
 		local target = GOAL_TARGET[require(script.Parent.NextGoalBanner).kind]
 		local owner = target and Layout.hotspotOf(target)
 		if owner and owner.item and hotspots then hotspots.openScroll(owner.id) end
-	end)
+	end, true) -- (true: the one note that stays when the board is too full)
 	board.pin(menuTickerButton.Parent) -- the ticker frame; its own button keeps the hub's Daily board wiring
 
 	-- ===== Actions: one real button each =====

@@ -8,7 +8,8 @@
 	reveal starts with the local preview, which never contains a luck roll, so nothing shown was invented.
 
 	  PlayReveal.begin{ preview, played, held, seqBefore, show = fn(finalPreview, fromServer) }
-	  PlayReveal.onState(state)     call for every state the server sends, before it is drawn
+	  PlayReveal.onState(state)     call for every state the server sends, before it is drawn; true when this state's
+	                                report started a reveal (show returned anything but false)
 	  PlayReveal.waiting() -> bool  a reveal is still held (tests and debugging)
 ]]
 
@@ -54,7 +55,8 @@ function M.onState(state)
 		note(string.format("hand %d from the server: %s %d (the preview said %d), %d entries", report.seq, tostring(report.handName),
 			math.floor((report.score or 0) + 0.5), math.floor((mine.preview.score or 0) + 0.5), #(report.entries or {})))
 	end
-	mine.show(ok and merged or mine.preview, ok)
+	-- true: a reveal is now playing for this state (Client/RevealHold keeps a round-ending state back until it lands)
+	return mine.show(ok and merged or mine.preview, ok) ~= false
 end
 
 function M.waiting()

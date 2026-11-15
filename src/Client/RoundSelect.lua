@@ -842,7 +842,10 @@ return function(deps)
 			-- serializeState) through so a Boss Blind preview here always
 			-- matches what RunState.startRound will actually compute
 			-- server-side, instead of assuming the global default.
-			local target = RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
+			-- (the server's own number for this round: state.roundTargets carries the run's deck, difficulty, Quick Run
+			-- and Boss Round sums; the plain formula stays as the fallback for a state without it)
+			local target = (type(state.roundTargets) == "table" and tonumber(state.roundTargets[entry.round]))
+				or RunStateEngine.targetScoreFor(state.night, entry.round, ROUNDS_PER_NIGHT, state.nightCap)
 
 			entry.targetLabel.Text = string.format("Target: %d", math.floor(target))
 			entry.targetLabel.TextTransparency = 0

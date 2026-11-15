@@ -470,7 +470,8 @@ function ChoicePanel.init(deps)
 	-- Menu is up) and New Run starts a clean run as it always did. Escape and a click on the dark area do the same.
 	local backButton = Instance.new("TextButton")
 	backButton.Name = "BackToMenu"
-	backButton.Position = UDim2.fromOffset(12, 12)
+	-- (below Roblox's own top bar buttons, which sit over the top left corner: Engine/ResponsiveLayout.clearOfTopBar)
+	backButton.Position = UDim2.fromOffset(12, require(Engine:WaitForChild("ResponsiveLayout")).clearOfTopBar(12, 12))
 	backButton.Size = UDim2.fromOffset(150, 44)
 	backButton.Font = Enum.Font.GothamBold
 	backButton.TextSize = 17

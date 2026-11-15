@@ -23,10 +23,14 @@ return function(deps)
 	local CREAM = Color3.fromRGB(250, 235, 200)
 	local PARCHMENT = Color3.fromRGB(222, 198, 150)
 
+	-- The map's top-left controls start below the header strip, clear of Roblox's own buttons (Engine/FullScreenRules):
+	-- "Find me" at CONTROLS_TOP, the compass and the Keys counter under it, the compass panel under those.
+	local CONTROLS_TOP = require(deps.Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP
+
 	-- Keys counter next to the compass: Keys open locked roads (Engine/Keys.lua).
 	local keysPill = Instance.new("TextLabel")
 	keysPill.Name = "KeysCounter"
-	keysPill.Position = UDim2.fromOffset(74, 54)
+	keysPill.Position = UDim2.fromOffset(74, CONTROLS_TOP + 46)
 	keysPill.Size = UDim2.fromOffset(86, 36)
 	keysPill.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
 	keysPill.Text = "Keys 0"
@@ -42,9 +46,9 @@ return function(deps)
 
 	local icon = Instance.new("TextButton")
 	icon.Name = "CompassIcon"
-	-- Top left, just under the "Find me" button (14,8 to 36); this is the map's only compass (the old decorative
+	-- Top left, just under the "Find me" button; this is the map's only compass (the old decorative
 	-- compass_rose doodle was removed from JourneyMapScenery).
-	icon.Position = UDim2.fromOffset(14, 46)
+	icon.Position = UDim2.fromOffset(14, CONTROLS_TOP + 38)
 	icon.Size = UDim2.fromOffset(52, 52)
 	icon.BackgroundColor3 = PARCHMENT
 	icon.Text = "N"
@@ -80,7 +84,7 @@ return function(deps)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "CompassPanel"
-	panel.Position = UDim2.fromOffset(14, 106)
+	panel.Position = UDim2.fromOffset(14, CONTROLS_TOP + 98)
 	panel.Size = UDim2.fromOffset(300, 366)
 	panel.BackgroundColor3 = PARCHMENT
 	panel.BorderSizePixel = 0

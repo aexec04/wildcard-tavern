@@ -1318,7 +1318,8 @@ return function(deps)
 	-- "Find me": recentre the camera on the hero.
 	local findMe = Instance.new("TextButton")
 	findMe.Name = "FindMe"
-	findMe.Position = UDim2.fromOffset(14, 8)
+	-- (below the header strip: at y 8 it sat under Roblox's own top-left buttons and could not be pressed)
+	findMe.Position = UDim2.fromOffset(14, require(Engine:WaitForChild("FullScreenRules")).CONTROLS_TOP)
 	findMe.Size = UDim2.fromOffset(104, 28)
 	findMe.Font = Enum.Font.GothamBold
 	findMe.TextSize = 14

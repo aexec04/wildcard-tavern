@@ -13,6 +13,7 @@ local label, scale
 local combo = 0
 local token = 0
 local activeTween
+local place = nil -- { side = "left" | "right", edge, y, limit } in screen pixels: where the played cards are (stand)
 
 function ComboCounter.init(screenGui)
 	label = Instance.new("TextLabel")
@@ -33,6 +34,12 @@ function ComboCounter.init(screenGui)
 	label.Parent = screenGui
 	scale = Instance.new("UIScale")
 	scale.Parent = label
+end
+
+-- The score popup says where the played cards are (Client/ScorePopup layoutPlayedRow). The shout stands on the felt
+-- beside them, on the side the score readout did not take, level with the middle of the row.
+function ComboCounter.stand(spec)
+	place = spec
 end
 
 local function hide(mine)
@@ -60,6 +67,13 @@ function ComboCounter.hand(score, firstHandOfRound)
 	label.Visible = true
 	label.TextTransparency, label.TextStrokeTransparency = 0, 0.3
 	local target = ScoreFeel.comboScale(combo)
+	if place then
+		local left = place.side ~= "right"
+		label.AnchorPoint = Vector2.new(left and 1 or 0, 0.5) -- it grows away from the cards, never over them
+		label.TextXAlignment = left and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
+		label.Position = UDim2.fromOffset(place.edge + (left and -ScoreFeel.COMBO_AIR or ScoreFeel.COMBO_AIR), place.y)
+		target = ScoreFeel.comboFit(place.edge, place.limit, target)
+	end
 	if ClientSettings.get("animSpeed") == "fast" or ClientSettings.get("reduceShake") == true then
 		scale.Scale = target
 	else

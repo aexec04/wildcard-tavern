@@ -9,6 +9,7 @@
 	Stages[n] = { name, targets = { {rank, suit}, ... } }
 	applyStage(state, stage, handSize?) -> ok    rewrites state.hand / state.deck; false if a target card is gone
 	targetCount(stage) -> number
+	plainDeck(state) -> number    takes the run's True Wildcard mark off its card, so the lesson's hands score as scripted
 ]]
 
 local Patrons = require(script.Parent.Patrons)
@@ -22,6 +23,42 @@ TutorialScript.Stages = {
 	{ name = "flush", targets = { { 2, "Diamonds" }, { 6, "Diamonds" }, { 9, "Diamonds" }, { 11, "Diamonds" }, { 14, "Diamonds" } } },
 	{ name = "straight_flush", targets = { { 5, "Clubs" }, { 6, "Clubs" }, { 7, "Clubs" }, { 8, "Clubs" }, { 9, "Clubs" } } },
 }
+
+-- The tutorial round is cleared by the LAST scripted hand and not before. With the game's own first target (65) the
+-- pair and the two pair already cleared it, so the flush and the straight flush, the two lessons about big hands,
+-- were never dealt. Through the engine the four hands score 48, 96, 390 and 1080: the first three reach 534, just
+-- short of TARGET, and the straight flush carries the round far over it (a test plays all four).
+TutorialScript.TARGET = 600
+
+-- Gives a fresh tutorial run its target: the run's own target multiplier is scaled, so Round Select, the board and the
+-- engine all read the same number (RunState.targetForRound).
+function TutorialScript.setTarget(state)
+	local plain = type(state) == "table" and state.targetScore or nil
+	if type(plain) ~= "number" or plain <= 0 then return false end
+	state.targetMultiplier = (state.targetMultiplier or 1) * (TutorialScript.TARGET + 0.5) / plain -- (+0.5: the floor lands on TARGET)
+	state.targetScore = TutorialScript.TARGET
+	return true
+end
+
+-- A tutorial run has no True Wildcard. Every run marks one of its 52 cards (RunState.new) and the lesson plays 16 of
+-- them, so about three lessons in ten played it. It then scored as whatever paid best: a King among "Kings and Fours"
+-- made three of a kind under a caption about two pair, a Four cleared the round on the flush so the straight flush
+-- was never dealt, and each time a banner came up that the lesson never explains. The card keeps its rank and suit and
+-- plays as a plain card. Returns how many marks were cleared (1 on a fresh run).
+function TutorialScript.plainDeck(state)
+	if type(state) ~= "table" then return 0 end
+	local cleared = 0
+	for _, pile in ipairs({ "deck", "hand", "discardPile" }) do
+		for _, card in ipairs(type(state[pile]) == "table" and state[pile] or {}) do
+			if card.isTrueWildcard then
+				card.isTrueWildcard = nil
+				card.wildcardLocked = nil
+				cleared = cleared + 1
+			end
+		end
+	end
+	return cleared
+end
 
 function TutorialScript.targetCount(stage)
 	local s = TutorialScript.Stages[stage]
@@ -111,7 +148,9 @@ end
 -- SCRIPTED SHOP for the tutorial run (server, applied on every roll including a reroll): a cheap Patron and a
 -- cheap Pack are always on the shelf (the cheapest the run does not own), no House Pass, and the player has
 -- enough Tips for a Patron, a Pack and one Reroll. Mutates `offers` and state.tips, returns the cost it covers.
-function TutorialScript.shopFor(state, offers, rerollCost)
+-- fund = false (a Reroll): the offers are scripted but no Tips are added. The step says "Reroll costs Tips", and the
+-- purse used to go UP by ten right after it.
+function TutorialScript.shopFor(state, offers, rerollCost, fund)
 	local owned = {}
 	for _, p in ipairs(state.ownedPatrons or {}) do owned[p.id] = true end
 	local cheapPatron
@@ -140,7 +179,7 @@ function TutorialScript.shopFor(state, offers, rerollCost)
 		while #offers.packs > 2 do table.remove(offers.packs) end
 	end
 	local need = (cheapPatron and cheapPatron.price or 0) + (cheapPack and cheapPack.price or 0) + (rerollCost or 5) + 2
-	if (state.tips or 0) < need then state.tips = need end
+	if fund ~= false and (state.tips or 0) < need then state.tips = need end
 	return need
 end
 

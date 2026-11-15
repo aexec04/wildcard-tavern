@@ -58,6 +58,38 @@ end
 -- The text width of the full row: the panel row's width minus the icon (46) and the right padding (6).
 function BlessingChip.textWidth(rowWidth) return math.max(40, (rowWidth or 0) - 52) end
 
+-- The width the two effect texts really wrap at: the row's text column, cut where the board clips its right edge
+-- (rowX = the row's left edge on the board). The board's plan (Client/PlayBoardHud) and the chip's own layout both ask
+-- this. The plan used to count lines at the full row width, so two texts that wrap on the board were given a one-line
+-- row and the curse's last line ran over the board's lower rail.
+function BlessingChip.wrapWidth(rowW, rowX)
+	-- (only while the board frame really clips: under the painted board it no longer does, Client/PlayBoardHud)
+	if ui and ui.board and ui.board.ClipsDescendants then
+		local room = ui.board.AbsoluteSize.X - (rowX or 0) - Rows.CLIP_PAD
+		if room > 60 then rowW = math.min(rowW, room) end
+	end
+	return BlessingChip.textWidth(rowW)
+end
+
+-- Lines an effect label's own text needs at widthPx, measured on the label itself, so in the face it is really drawn
+-- with (the hub's font pass gives every label Merriweather; BlessingChip.lines measures Gotham). textSize: the size it
+-- will be drawn at (15 on the board). The label's Size and TextSize are put back as they were.
+function BlessingChip.linesOf(l, widthPx, textSize)
+	local ok, tall, size = pcall(function()
+		local wasSize, wasText, wasWrap = l.Size, l.TextSize, l.TextWrapped
+		l.TextSize = textSize or wasText
+		l.TextWrapped = true
+		l.Size = UDim2.fromOffset(math.max(40, widthPx), 400)
+		local y, ts = l.TextBounds.Y, l.TextSize
+		l.Size, l.TextSize, l.TextWrapped = wasSize, wasText, wasWrap
+		return y, ts
+	end)
+	if ok and type(tall) == "number" and tall > 0 and type(size) == "number" and size > 0 then
+		return math.max(1, math.min(Rows.MAX_LINES, math.floor(tall / size + 0.5)))
+	end
+	return BlessingChip.lines(l.Text, widthPx)
+end
+
 function BlessingChip.init(deps)
 	local chip = Instance.new("Frame")
 	chip.Name = "BlessingChip"
@@ -127,10 +159,8 @@ function BlessingChip.relayout()
 		-- each effect text wraps inside the real row width (measured, up to 3 lines) and the next starts right under it: no cut text, no gap
 		-- the board clips what lies past its right edge: the text box ends 12 px inside it, whatever width the plan gave the row
 		local rowW = ui.chip.Size.X.Offset > 0 and ui.chip.Size.X.Offset or ui.chip.AbsoluteSize.X
-		local room = ui.board.AbsoluteSize.X - ui.chip.Position.X.Offset - Rows.CLIP_PAD
-		if room > 60 then rowW = math.min(rowW, room) end
-		local w = BlessingChip.textWidth(rowW)
-		local bl, cl = BlessingChip.lines(ui.blessing.Text, w), BlessingChip.lines(ui.curse.Text, w)
+		local w = BlessingChip.wrapWidth(rowW, ui.chip.Position.X.Offset)
+		local bl, cl = BlessingChip.linesOf(ui.blessing, w, 15), BlessingChip.linesOf(ui.curse, w, 15)
 		for _, l in ipairs({ ui.blessing, ui.curse }) do
 			l.TextWrapped = true
 			l.TextTruncate = Enum.TextTruncate.None
@@ -176,8 +206,9 @@ function BlessingChip.update(state)
 		shownId = view.id
 		ui.icon.Text = view.icon or "!"
 		ui.name.Text = view.name
-		ui.blessing.Text = "+ " .. view.blessing
-		ui.curse.Text = "- " .. view.curse
+		-- (the shared rule: one sign per line; "+1 Hand every round" was drawn as "+ +1 Hand every round")
+		ui.blessing.Text = require(Engine:WaitForChild("RunModifiers")).line("+", view.blessing)
+		ui.curse.Text = require(Engine:WaitForChild("RunModifiers")).line("-", view.curse)
 		pcall(ArtIcon.apply, ui.chip, "blessing_icons", view.id, ui.icon, { cornerRadius = 6, size = UDim2.fromOffset(34, 34), position = UDim2.fromOffset(6, 6), anchor = Vector2.new(0, 0), zIndex = 8 })
 		ui.tip = "This run: " .. view.name .. "\nBlessing: " .. view.blessing .. "\nCurse: " .. view.curse
 		if not ui.tipped then
