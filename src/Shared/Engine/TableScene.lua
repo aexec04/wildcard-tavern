@@ -10,6 +10,7 @@
 
 	TableScene.CAMERA, TABLE, CARD, CHIP, LIFT   the numbers
 	groundPoint(nx, ny, aspect, planeY) -> { x, y, z }   where the pixel at (nx, ny) meets the plane y = planeY
+	planePoint(nx, ny, aspect, p0, n);  leanPlane(footZ, lean, off) -> p0, n, up   for what stands on the table
 	    nx, ny in -1..1 from the screen's middle (x right, y down); aspect = width / height
 	depthOf(point) -> studs along the camera's view axis;  studsPerPixel(depth, viewportH) -> studs one pixel covers there
 	onFelt(point, margin) -> bool
@@ -26,16 +27,24 @@ local M = {}
 -- Where the scene stands in the world: far above the baseplate and the spawn, which stay as they are.
 M.ORIGIN = { 0, 500, 0 }
 
--- The fixed camera. 58 degrees down with a narrow lens: cards on the felt keep nine tenths of their height on screen
--- and the far end of the table is still in the picture.
-M.CAMERA = { fov = 38, pitch = 58, height = 22.4, z = 15.75, x = 0 }
+-- The fixed camera: a seat at the table. Low and close, 24 degrees down with a wide lens, so the table recedes from
+-- under the player's hands and the room stands behind it. The top of the picture looks a little above level.
+M.CAMERA = { fov = 55, pitch = 24, height = 12, z = 27.25, x = 0 }
 
--- A rectangular felt in a wooden rail. The hand row lands about 4.6 studs toward the player from the middle and the
--- played cards land just past it; the rail's near edge sits under the action buttons.
+-- A long felt in a wooden rail. The near edge is under the camera (off the bottom of the picture); the far edge is
+-- about 46 studs ahead, a third of the way down the picture, and the room's back wall stands behind it.
 M.TABLE = {
-	centreX = 2.5, halfLength = 19, halfWidth = 8.25,
-	railWidth = 2.3, railHeight = 0.55, feltThickness = 0.3, bodyDrop = 1.6, floorDrop = 9,
+	centreX = 3, halfLength = 40, halfWidth = 18.75,
+	railWidth = 2.3, railHeight = 0.55, feltThickness = 0.3, bodyDrop = 1.6, floorDrop = 14,
 }
+
+-- How far back the things that stand on the table lean, in degrees from upright (the camera looks 24 degrees down,
+-- so a board leaning 24 faces it squarely). The hand is held up to the player; signs and Patrons stand.
+M.STAND = { hand = 34, patron = 16, sign = 24, plaque = 50 }
+
+-- The Patron row stands this share of the screen's height lower than the 2D layout puts it: on the far table.
+-- The played cards' lane may start laneRise of the screen's height above the Patron row's old lower edge.
+M.LAYOUT = { patronDrop = 0.09, laneRise = 0.05 }
 
 M.CARD = { aspect = 1.45, thickness = 0.05, rest = 0.035, stackStep = 0.014 }
 
@@ -46,7 +55,7 @@ M.LIFT = { perPx = 2.3, perScale = 6.5, max = 2.6, travel = 0.9, tilt = 9, tiltA
 M.CHIP = { diameter = 0.86, height = 0.13, perStack = 7, spacing = 0.98, perPile = 35, flight = 0.46, apex = 2.6 }
 
 -- Where the pot stands when no played card is on the table to stand it beside (table space, on the felt).
-M.POT = { -7.5, 0, -1.5 }
+M.POT = { -8, 0, 4 }
 
 local function rad(deg) return deg * math.pi / 180 end
 
@@ -72,6 +81,27 @@ function M.groundPoint(nx, ny, aspect, planeY)
 	local cam = M.cameraPosition()
 	local t = ((planeY or 0) - cam[2]) / dir[2]
 	return { cam[1] + dir[1] * t, cam[2] + dir[2] * t, cam[3] + dir[3] * t }
+end
+
+-- where the pixel's ray meets any plane (p0 a point on it, n its normal); nil when it looks away from the plane
+function M.planePoint(nx, ny, aspect, p0, n)
+	local dir = M.rayThrough(nx, ny, aspect)
+	local cam = M.cameraPosition()
+	local facing = dir[1] * n[1] + dir[2] * n[2] + dir[3] * n[3]
+	if facing > -1e-6 then return nil end
+	local t = ((p0[1] - cam[1]) * n[1] + (p0[2] - cam[2]) * n[2] + (p0[3] - cam[3]) * n[3]) / facing
+	if t <= 0 then return nil end
+	return { cam[1] + dir[1] * t, cam[2] + dir[2] * t, cam[3] + dir[3] * t }
+end
+
+-- the plane a thing leaning `lean` degrees back stands in, when its foot is on the felt at z = footZ and it has been
+-- lifted `off` studs toward the camera: returns p0, n, and the direction of its top edge
+function M.leanPlane(footZ, lean, off)
+	local a = rad(lean)
+	local n = { 0, math.sin(a), math.cos(a) }
+	local up = { 0, math.cos(a), -math.sin(a) }
+	off = off or 0
+	return { 0, n[2] * off, footZ + n[3] * off }, n, up
 end
 
 -- how far a point is along the camera's view axis (what perspective divides by)

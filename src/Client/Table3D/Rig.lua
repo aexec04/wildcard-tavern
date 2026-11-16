@@ -68,6 +68,21 @@ function Rig.pointUnder(guiX, guiY, height)
 	return Rig.world(p), p
 end
 
+-- the same for any plane in table space (p0, n as Engine/TableScene.planePoint takes them)
+function Rig.pointOnPlane(guiX, guiY, p0, n)
+	local cam = workspace.CurrentCamera
+	if not cam then return nil end
+	local size = cam.ViewportSize
+	if size.X < 2 or size.Y < 2 then return nil end
+	local inset = GuiService:GetGuiInset()
+	local ox, oy = rootOffset()
+	local nx = (guiX - ox + inset.X) / size.X * 2 - 1
+	local ny = (guiY - oy + inset.Y) / size.Y * 2 - 1
+	local p = TS.planePoint(nx, ny, size.X / size.Y, p0, n)
+	if not p then return nil end
+	return Rig.world(p), p
+end
+
 function Rig.studsPerPixel(tablePoint)
 	local cam = workspace.CurrentCamera
 	return TS.studsPerPixel(TS.depthOf(tablePoint), cam and cam.ViewportSize.Y or 751)

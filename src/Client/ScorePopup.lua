@@ -611,6 +611,7 @@ return function(deps)
 		-- the played hand gets its own lane between the Patron row and the hand (Engine/PlayedLane), cards at 50 to 75 percent
 		local handFrame = root:FindFirstChild("HandFrame", true)
 		local okE, nookBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
+		if okE then pcall(function() nookBottom = require(script.Parent.Table3D).laneTop(nookBottom) end) end -- 3D table: the Patrons stand, the played cards lie in front of their feet
 		local g1 = playedGhosts[1] and playedGhosts[1].ghost
 		if g1 and handFrame and not g1:GetAttribute("LaneW") then
 			g1:SetAttribute("LaneW", g1.AbsoluteSize.X)

@@ -26484,32 +26484,45 @@ table.insert(tests, { name = "3D table: a spot on the screen lands on the felt w
 	for _, size in ipairs({ { 1506, 751 }, { 1506, 630 }, { 1024, 768 }, { 1920, 1080 }, { 2560, 1080 } }) do
 		local W, H = size[1], size[2]
 		local aspect, at = W / H, " at " .. W .. "x" .. H
-		-- the hand row stands about 64 percent down the screen and the played cards about 40 percent
-		for _, ny in ipairs({ 0.29, -0.2 }) do
+		-- the hand's lower edge is about three quarters down the screen, the played cards lie about the middle and the
+		-- Patrons stand a third of the way down
+		for _, ny in ipairs({ 0.5, 0.0, -0.17 }) do
 			local p = TS.groundPoint(0, ny, aspect, 0)
 			expectTrue(p ~= nil, "the spot meets the table" .. at)
 			expectTrue(math.abs(p[2]) < 1e-6, "on the felt's plane")
-			expectTrue(TS.onFelt({ p[1] + TS.TABLE.centreX, 0, p[3] }, 2), "and on the felt, two studs clear of the rail" .. at)
-			-- the point is on the ray the pixel looks along
+			expectTrue(TS.onFelt(p, 2), "and on the felt, two studs clear of the rail" .. at)
 			local dir = TS.rayThrough(0, ny, aspect)
 			local t = (p[2] - cam[2]) / dir[2]
 			expectTrue(math.abs(cam[1] + dir[1] * t - p[1]) < 1e-6 and math.abs(cam[3] + dir[3] * t - p[3]) < 1e-6, "on the pixel's own ray")
 		end
-		local hand, played = TS.groundPoint(0, 0.29, aspect, 0), TS.groundPoint(0, -0.2, aspect, 0)
-		expectTrue(played[3] < hand[3], "the played cards lie further from the player than the hand")
-		expectTrue(TS.depthOf(played) > TS.depthOf(hand), "and deeper in the picture")
-		-- a 114 px hand card is a card of sensible size, the same at every window height's scale
+		local hand, played, patrons = TS.groundPoint(0, 0.5, aspect, 0), TS.groundPoint(0, 0, aspect, 0), TS.groundPoint(0, -0.17, aspect, 0)
+		expectTrue(played[3] < hand[3] and patrons[3] < played[3], "the table recedes: hand, then played cards, then Patrons")
+		expectTrue(TS.depthOf(patrons) > TS.depthOf(played) and TS.depthOf(played) > TS.depthOf(hand))
+		-- a 114 px hand card is a card of sensible size
 		local card = 114 * (H / 751) * TS.studsPerPixel(TS.depthOf(hand), H)
-		expectTrue(card > 2.2 and card < 3.0, "a hand card is about two and a half studs wide" .. at .. " (" .. card .. ")")
-		-- the top of the screen is past the far rail, the bottom is on the near rail: the table fills the height
-		local top, bottom = TS.groundPoint(0, -1, aspect, 0), TS.groundPoint(0, 1, aspect, 0)
-		expectTrue(top[3] < -(TS.TABLE.halfWidth + TS.TABLE.railWidth) + 1.5, "the far rail is in the picture" .. at)
-		expectTrue(bottom[3] > TS.TABLE.halfWidth and bottom[3] < TS.TABLE.halfWidth + TS.TABLE.railWidth + 0.6, "the bottom edge is on the near rail" .. at)
+		expectTrue(card > 2.2 and card < 3.6, "a hand card is about three studs wide" .. at .. " (" .. card .. ")")
+		-- the top of the picture is the room, not the table; the far edge is in the picture; the bottom is felt
+		expectEqual(TS.groundPoint(0, -1, aspect, 0), nil, "the top of the picture looks over the table into the room" .. at)
+		local edge = TS.groundPoint(0, -0.34, aspect, 0)
+		expectTrue(edge ~= nil and edge[3] < -TS.TABLE.halfWidth, "the table's far edge is in the picture, with the room above it" .. at)
+		local bottom = TS.groundPoint(0, 1, aspect, 0)
+		expectTrue(bottom[3] > 14 and bottom[3] < TS.TABLE.halfWidth, "the bottom of the picture is felt, right under the player's hands" .. at)
 	end
-	expectEqual(TS.groundPoint(0, -30, 2, 0), nil, "a ray that looks above the horizon never meets the table")
 	local raised = TS.groundPoint(0.2, 0.29, 2, 1.5)
 	local flat = TS.groundPoint(0.2, 0.29, 2, 0)
 	expectTrue(math.abs(raised[2] - 1.5) < 1e-6 and raised[3] > flat[3], "a lifted card stays under the same pixel by coming toward the camera")
+	-- what stands on the table leans back in a plane; a pixel above the foot is higher up that plane
+	local p0, n, up = TS.leanPlane(12, TS.STAND.hand, 0)
+	local foot = TS.groundPoint(0, 0.5, 2, 0)
+	local p0f, nf = TS.leanPlane(foot[3], TS.STAND.hand, 0)
+	local mid = TS.planePoint(0, 0.3, 2, p0f, nf)
+	expectTrue(mid ~= nil and mid[2] > 0.5 and mid[3] < foot[3], "the middle of a held card is above the felt and leans away")
+	expectTrue(math.abs((mid[2] - 0) * nf[2] + (mid[3] - foot[3]) * nf[3]) < 1e-6, "and in the leaning plane")
+	expectTrue(math.abs(up[2] * n[2] + up[3] * n[3]) < 1e-9 and p0[3] == 12, "the plane's top edge lies in it")
+	local lifted0 = TS.leanPlane(foot[3], TS.STAND.hand, 1)
+	local near = TS.planePoint(0, 0.3, 2, lifted0, nf)
+	expectTrue(TS.depthOf(near) < TS.depthOf(mid), "a lifted held card comes toward the player")
+	expectEqual(TS.planePoint(0, 0.3, 2, { 0, 0, 40 }, { 0, 0, 1 }), nil, "a plane behind the camera is never met")
 end })
 
 table.insert(tests, { name = "3D table: a card lifts off the felt when it is hovered or selected, and jumps when it scores", fn = function()
@@ -26633,9 +26646,9 @@ table.insert(tests, { name = "3D table theme: the Tavern folder is complete, sta
 	local hopping, lit = 0, 0
 	for _, prop in ipairs(theme.Props) do
 		local x, z = prop.at[1], prop.at[3]
-		local inPlay = math.abs(x - T.centreX) < 11.5 and z > -4.5 and z < 7.6
-		expectFalse(inPlay, prop.name .. " stands clear of the hand and the played cards")
-		expectTrue(math.abs(x - T.centreX) <= T.halfLength + T.railWidth and math.abs(z) <= T.halfWidth + T.railWidth, prop.name .. " stands on the table")
+		local inPlay = x > -9.5 and x < 19 and z > -10 and z < T.halfWidth
+		expectFalse(inPlay, prop.name .. " stands clear of the hand, the played cards and the Patrons")
+		expectTrue(z < -T.halfWidth - 10 or prop.at[2] > 6 or (math.abs(x - T.centreX) <= T.halfLength and math.abs(z) <= T.halfWidth), prop.name .. " stands on the table, hangs over it or is in the room behind it")
 		if (prop.hop or 0) > 0 then hopping = hopping + 1 end
 		if prop.light then lit = lit + 1 end
 	end

@@ -268,7 +268,21 @@ local function follow(av, proxy, dt, quiet)
 	local pos, size = proxy.AbsolutePosition, proxy.AbsoluteSize
 	if size.X < 2 or size.Y < 2 then setShown(av, av.mode == "ghost" and av.shown or false) return end
 	local cx, cy = pos.X + size.X / 2, pos.Y + size.Y / 2
-	local feltAt, feltPoint = Rig.pointUnder(cx, cy, 0)
+	-- A hand card is held up to the player: it stands in a plane that leans back from where the hand row's lower edge
+	-- meets the felt. A played card (a ghost) lies on the felt.
+	local slot = av.mode == "hand" and proxy.Parent or nil
+	local footZ = nil
+	if slot and slot:IsA("GuiObject") then
+		local _, foot = Rig.pointUnder(cx, slot.AbsolutePosition.Y + slot.AbsoluteSize.Y, 0)
+		footZ = foot and foot[3] or nil
+	end
+	local feltAt, feltPoint
+	if footZ then
+		local p0, n = TS.leanPlane(footZ, TS.STAND.hand, 0)
+		feltAt, feltPoint = Rig.pointOnPlane(cx, cy, p0, n)
+	else
+		feltAt, feltPoint = Rig.pointUnder(cx, cy, 0)
+	end
 	if not feltAt then return end
 	local spp = Rig.studsPerPixel(feltPoint)
 	local s = av.scale and av.scale.Scale or 1
@@ -277,7 +291,6 @@ local function follow(av, proxy, dt, quiet)
 
 	-- how far above its resting place the 2D twin stands (hover, selected)
 	local liftPx = 0
-	local slot = av.mode == "hand" and proxy.Parent or nil
 	if slot and slot:IsA("GuiObject") and not slot:GetAttribute("Dealing") then
 		local sp, ss = slot.AbsolutePosition, slot.AbsoluteSize
 		local restX = sp.X + ss.X / 2 + (slot:GetAttribute("FanX") or 0)
@@ -322,12 +335,20 @@ local function follow(av, proxy, dt, quiet)
 		end
 		height = height + math.sin(av.blend * math.pi) * av.blendAmp
 	end
-	local at = Rig.pointUnder(cx, cy, height)
+	local at
+	if footZ then
+		local p0, n = TS.leanPlane(footZ, TS.STAND.hand, height)
+		at = Rig.pointOnPlane(cx, cy, p0, n)
+	else
+		at = Rig.pointUnder(cx, cy, height)
+	end
 	if not at then return end
+	local standTo = footZ and math.rad(90 - TS.STAND.hand) or 0 -- how far the card is raised from lying flat
+	av.stand = quiet and standTo or (av.stand or standTo) + (standTo - (av.stand or standTo)) * math.min(1, dt * 14)
 	if av.blend > 0 and av.blendFrom then -- a kept card glides to its new slot
 		av.blend = quiet and 0 or math.max(0, av.blend - dt / 0.2)
 		local e = av.blend * av.blend
-		at = at:Lerp(Vector3.new(av.blendFrom.X, at.Y, av.blendFrom.Z), e)
+		at = at:Lerp(av.blendFrom, e)
 	end
 
 	local rollTo = 0
@@ -338,6 +359,7 @@ local function follow(av, proxy, dt, quiet)
 	local lifted = math.clamp((av.h - rest) / TS.LIFT.tiltAt, 0, 1)
 	av.part.Size = Vector3.new(h, TS.CARD.thickness, w)
 	av.part.CFrame = CFrame.new(at)
+		* CFrame.Angles(av.stand, 0, 0)
 		* CFrame.Angles(0, -math.rad(proxy.AbsoluteRotation), 0)
 		* CFrame.Angles(math.rad(TS.LIFT.tilt) * lifted, 0, av.roll)
 		* CFrame.Angles(0, 0, math.pi * av.flip)

@@ -35,6 +35,9 @@ function Veil.install(root)
 		for _, child in ipairs(root:GetChildren()) do
 			if NAMES[child.Name] then hold(child) end
 		end
+		local row = root:FindFirstChild("PatronRow") -- the Patron row's painted alcove: the Patrons stand on the table now
+		local nook = row and row:FindFirstChild("Nook")
+		if nook then hold(nook) end
 		local host = root:FindFirstChild("BossFightHost")
 		if host then
 			for _, name in ipairs(IN_BOSS_HOST) do

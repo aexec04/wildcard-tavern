@@ -102,7 +102,7 @@ function Scene.build(theme)
 	-- felt, the body under it and the floor
 	scene.felt = block("Felt", L * 2, T.feltThickness, W * 2, cx, -T.feltThickness / 2, 0, felt.surface, false)
 	block("Body", (L + rw) * 2 - 0.5, T.bodyDrop, (W + rw) * 2 - 0.5, cx, -T.feltThickness - T.bodyDrop / 2, 0, felt.body)
-	block("Floor", 260, 1, 160, cx, -T.floorDrop - 0.5, -6, felt.floor, false)
+	block("Floor", 420, 1, 320, cx, -T.floorDrop - 0.5, -40, felt.floor, false)
 
 	-- the rail: a low dark lip against the felt, then the plank top, with a brass line where they meet
 	local railH = rh + T.feltThickness
@@ -161,11 +161,15 @@ function Scene.build(theme)
 		local at = world(prop.at[1], prop.at[2], prop.at[3])
 		local base = CFrame.new(at) * CFrame.Angles(0, math.rad(prop.yaw or 0), 0)
 		local entry = { name = folder.Name, hop = prop.hop or 0, parts = {}, rest = {}, at = at }
+		local k = prop.scale or 1 -- a prop can be drawn once and stood at any size
 		for _, piece in ipairs(prop.parts) do
 			local ok, err = pcall(function()
-				local part, turn = shaped(piece.shape, piece.size)
+				local size = {}
+				for i, v in ipairs(piece.size) do size[i] = v * k end
+				local part, turn = shaped(piece.shape, size)
 				local o, r = piece.offset or { 0, 0, 0 }, piece.rot or { 0, 0, 0 }
-				local cf = base * CFrame.new(o[1], o[2], o[3]) * CFrame.fromOrientation(math.rad(r[1]), math.rad(r[2]), math.rad(r[3]))
+				local cf = base * CFrame.new(o[1] * k, o[2] * k, o[3] * k) * CFrame.fromOrientation(math.rad(r[1]), math.rad(r[2]), math.rad(r[3]))
+				if piece.shadow == false then part.CastShadow = false end
 				if turn then cf = cf * turn end
 				part.CFrame = cf
 				scene.paint(part, piece.mat)
@@ -184,7 +188,7 @@ function Scene.build(theme)
 			holder.Transparency = 1
 			holder.CastShadow = false
 			local o = lamp.offset or { 0, 1, 0 }
-			holder.CFrame = base * CFrame.new(o[1], o[2], o[3])
+			holder.CFrame = base * CFrame.new(o[1] * k, o[2] * k, o[3] * k)
 			holder.Parent = folder
 			local light = Instance.new("PointLight")
 			light.Color = rgb(lamp.color)

@@ -7,7 +7,7 @@
 
 return {
 	-- the table
-	felt = { material = "Fabric", color = { 24, 82, 54 } },
+	felt = { material = "Fabric", color = { 22, 72, 48 } },
 	feltLine = { material = "Metal", color = { 186, 148, 78 }, reflectance = 0.12 },
 	rail = { material = "WoodPlanks", color = { 104, 64, 36 } },
 	railEdge = { material = "Wood", color = { 74, 44, 24 } },
@@ -30,7 +30,20 @@ return {
 	leather = { material = "Leather", color = { 92, 48, 30 } },
 	page = { material = "SmoothPlastic", color = { 226, 208, 170 } },
 
+	-- the room
+	wall = { material = "WoodPlanks", color = { 72, 46, 32 } },
+	stone = { material = "Cobblestone", color = { 84, 74, 66 } },
+	beam = { material = "Wood", color = { 44, 28, 18 } },
+	banner = { material = "Fabric", color = { 104, 22, 24 } },
+	bannerGold = { material = "Fabric", color = { 176, 134, 62 } },
+	ember = { material = "Neon", color = { 235, 92, 30 } },
+	fire = { material = "Neon", color = { 255, 150, 48 } },
+	soot = { material = "Slate", color = { 22, 18, 16 } },
+	lampGlass = { material = "Neon", color = { 236, 156, 72 } },
+	barrel = { material = "WoodPlanks", color = { 96, 62, 36 } },
+
 	-- the pieces the code builds
+	board = { material = "Wood", color = { 82, 52, 30 } }, -- the boards the HUD's pieces stand on
 	cardEdge = { material = "SmoothPlastic", color = { 226, 200, 158 } },
 	chipChips = { material = "SmoothPlastic", color = { 58, 108, 198 } },
 	chipMult = { material = "SmoothPlastic", color = { 194, 58, 48 } },

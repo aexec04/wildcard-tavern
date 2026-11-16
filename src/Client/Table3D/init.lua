@@ -35,7 +35,7 @@ local M = {}
 local active = false
 local tried = false
 local deps = nil
-local Rig, Cards, Chips, React
+local Rig, Cards, Chips, React, Stand
 local pot = { at = nil, since = 0, last = 0 }
 
 local function calm()
@@ -72,6 +72,8 @@ function M.start(d)
 		Cards.start({ scene = scene, theme = theme, deck = d.deckWidget, calm = calm })
 		Chips.start({ scene = scene, calm = calm })
 		React.start({ scene = scene, theme = theme, calm = calm })
+		Stand = require(script.Stand)
+		Stand.start({ scene = scene, theme = theme })
 		Rig.start()
 		require(script.Veil).install(d.root)
 		d.root:SetAttribute("Table3D", true) -- Client/PlayMotion reads it: its painted light pool stays off
@@ -83,7 +85,52 @@ function M.start(d)
 	end
 	deps = d
 	active = true
+	task.spawn(function() -- the HUD's pieces come and go with the screens: look for new ones twice a second
+		while d.root.Parent do
+			local ok, err = pcall(M.furnish)
+			if not ok and not M.furnishWarned then
+				M.furnishWarned = true
+				warn("[Table3D] a HUD piece could not be stood on the table: " .. tostring(err))
+			end
+			task.wait(0.5)
+		end
+	end)
 	return true
+end
+
+-- The HUD's pieces become things on the table (Table3D/Stand): the Patrons and the Multiplier panel stand at the far
+-- side, Play Hand, Discard and the sort toggle are signs at the near side (their painted plates on real boards), the
+-- deck is a pile of cards.
+function M.furnish()
+	local root = deps.root
+	local row = root:FindFirstChild("PatronRow")
+	if row then
+		local drop = math.floor(root.AbsoluteSize.Y * TS.LAYOUT.patronDrop + 0.5)
+		if row.Position.Y.Offset ~= drop then row.Position = UDim2.new(0, 0, 0, drop) end -- the row stands lower: on the table, not over the room
+		for _, slot in ipairs(row:GetChildren()) do
+			if slot:IsA("GuiObject") and slot.Name:match("^PatronCard%d+$") then
+				local float = slot:FindFirstChild("Float")
+				local body = float and float:FindFirstChild("Body")
+				local plaque = float and float:FindFirstChild("Plaque")
+				if body then Stand.adopt(body, { lean = TS.STAND.patron, anchor = slot, foot = true }) end
+				if plaque then Stand.adopt(plaque, { lean = TS.STAND.plaque, clear = true }) end
+				local shadow = slot:FindFirstChild("Shadow")
+				if shadow and shadow.Visible then shadow.Visible = false end -- the board casts a real one
+			end
+		end
+		local boost = row:FindFirstChild("PatronBoostPanel")
+		if boost then Stand.adopt(boost, { lean = TS.STAND.patron, foot = true }) end
+	end
+	local actions = root:FindFirstChild("Actions")
+	if actions then
+		for _, child in ipairs(actions:GetChildren()) do
+			-- (backers: the hub restyles these by name, so their painted plates stay theirs and a board stands behind)
+			if child:IsA("GuiButton") or (child:IsA("Frame") and child:FindFirstChild("SortToggle")) then
+				Stand.adopt(child, { lean = TS.STAND.sign, foot = true, backer = true, thick = 0.3 })
+			end
+		end
+	end
+	Stand.pile(root:FindFirstChild("DeckWidget"))
 end
 
 function M.active()
@@ -169,6 +216,14 @@ function M.shake(target, intensity, duration)
 	if not active or target ~= deps.root then return end
 	Rig.shake(intensity, duration)
 	React.thump(math.clamp((intensity or 0) / 10, 0, 1))
+end
+
+-- The played cards' lane starts under the Patron row in the 2D layout. On the 3D table the Patrons stand at the far
+-- side and the played cards lie on the felt in front of them, so the lane may start level with the Patrons' knees.
+function M.laneTop(nookBottom)
+	if not active or type(nookBottom) ~= "number" then return nookBottom end
+	local h = deps.root.AbsoluteSize.Y
+	return nookBottom - math.floor(h * (TS.LAYOUT.patronDrop + TS.LAYOUT.laneRise) + 0.5)
 end
 
 -- for a look in Studio: what is on the table right now

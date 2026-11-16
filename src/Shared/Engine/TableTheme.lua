@@ -25,7 +25,7 @@
 local M = {}
 
 M.PARTS = { "Materials", "Lighting", "Props", "Felt" }
-M.REQUIRED_MATERIALS = { "cardEdge", "chipChips", "chipMult", "chipTips", "chipStripe" }
+M.REQUIRED_MATERIALS = { "cardEdge", "chipChips", "chipMult", "chipTips", "chipStripe", "board" }
 M.SHAPES = { Block = true, Cylinder = true, Ball = true, Wedge = true }
 M.MATERIALS = {
 	Plastic = true, SmoothPlastic = true, Wood = true, WoodPlanks = true, Fabric = true, Metal = true, Brick = true,
