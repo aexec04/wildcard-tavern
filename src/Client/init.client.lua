@@ -1412,6 +1412,9 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	pcall(function() -- calm parallax, lamp light pool and deal arc (Client/PlayMotion.lua)
 		require(script.PlayMotion).install({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })
 	end)
+	pcall(function() -- the 3D table: scene, fixed camera, cards on the felt, chips (Client/Table3D). If it cannot start the painted table stays.
+		require(script.Table3D).start({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent, scoreBox = function() return SidebarModule.scoreBox end })
+	end)
 	pcall(function() -- flavor and motion for Play Hand, Discard, Rank and Suit (Client/ActionButtonFX.lua)
 		local sortFrame = nil
 		for _, c in ipairs(actionFrame:GetChildren()) do
@@ -1698,6 +1701,7 @@ local function buildScoreSourceInfo(indices, wild) -- wild: the preview's wildca
 				scale = scale,
 				isPlayed = isPlayed,
 				visualPosition = cardVisualPosition[index] or index,
+				source = button, -- the hand button it was cloned from (Client/Table3D follows the ghost with that card)
 			})
 
 			if isPlayed then
@@ -1728,6 +1732,7 @@ local function buildScoreSourceInfo(indices, wild) -- wild: the preview's wildca
 	end
 
 	for id, frame in pairs(require(script.PatronRow).frames()) do patronSlotFrames[id] = frame end -- the big cards take the scoring beats
+	pcall(function() require(script.Table3D).adoptGhosts(cardGhosts) end) -- 3D table: the played cards on the felt follow their ghosts
 	return { cardGhosts = cardGhosts, patronSlotFrames = patronSlotFrames }
 end
 
@@ -2126,6 +2131,9 @@ local function rebuildHand(handData, phase)
 
 	-- REFERENCE-MATCH PASS: size cards to the window + draw the tray.
 	cardFaceModule.layoutHand(handFrame)
+	pcall(function() -- 3D table: each hand button gets its card on the felt (a no-op while the table is off)
+		require(script.Table3D).syncHand(handFrame, handData, latestState and latestState.cosmetics and latestState.cosmetics.cardBackId)
+	end)
 end
 
 refreshHandSort = function()

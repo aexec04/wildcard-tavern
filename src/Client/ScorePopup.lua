@@ -1201,6 +1201,11 @@ return function(deps)
 			local baseChips, baseMult, baseCount = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).baseOf(breakdown)
 			local runningChips, runningMult, runningXMult = baseChips, baseMult, 1
 			local chipTicks, multTicks = 0, 0 -- the pitch ladder: each tick of a kind rises a half step (Engine/SoundFX)
+			pcall(function() -- 3D table: the hand's own worth comes in from the house before the cards add theirs
+				local T3 = require(script.Parent.Table3D)
+				if baseChips > 0 then T3.beat("chips", nil, baseChips) end
+				if baseMult > 0 then T3.beat("mult", nil, baseMult) end
+			end)
 
 			for i = baseCount + 1, #breakdown do
 				local entry = breakdown[i]
@@ -1308,6 +1313,7 @@ return function(deps)
 							flyNumberToBox(sourcePos, entry, color, multLabel)
 						end
 					end
+					pcall(function() require(script.Parent.Table3D).beat(entry.kind, sourcePos, entry.amount) end) -- 3D table: chips fly from what scored into the pot
 
 					-- PLAYTEST FEEDBACK (Ahmed, right after Phase A shipped):
 					-- "the multipliers are moving by so fast now, I liked it
@@ -1462,6 +1468,7 @@ return function(deps)
 			-- gentle 0.85x to land it with a touch of weight.
 			playPitched(payoutThudSound, 0.85, 0.6)
 			pcall(function() require(script.Parent.ScoreLand).land() end) -- the board's round score counts up now, with the payout
+			pcall(function() require(script.Parent.Table3D).payout(math.min(10, preview.score / 40)) end) -- 3D table: the pot flies to the board
 			CueBridge.coinCascade(0.35) -- the payout landing: 3 coins 60 ms apart at slightly different pitch
 			CueBridge.sting(preview.name) -- a hand-type sting by tier (the biggest tier also ducks the music)
 
@@ -1596,6 +1603,7 @@ return function(deps)
 		-- when no reveal was being waited for, which is every ordinary call of this function)
 		pcall(function() require(script.Parent.ScoreLand).land() end)
 		pcall(function() require(script.Parent.RevealHold).cancelled() end)
+		pcall(function() require(script.Parent.Table3D).settle() end) -- 3D table: no chips are left lying on the felt
 		scorePopup.Visible = false
 		scorePopupEventLabel.Text = ""
 		-- PHASE A (Spectacle pass): defensive reset, same reasoning as the

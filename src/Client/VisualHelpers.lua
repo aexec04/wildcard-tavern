@@ -429,6 +429,7 @@ return function(deps)
 			return
 		end
 		duration = duration or 0.25
+		pcall(function() require(script.Parent.Table3D).shake(target, intensity, duration) end) -- the 3D table takes the hit too
 		if not shakeRestPositions[target] then
 			shakeRestPositions[target] = target.Position
 		end

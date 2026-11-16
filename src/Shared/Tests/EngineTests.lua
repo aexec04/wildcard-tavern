@@ -26474,4 +26474,220 @@ table.insert(tests, { name = "Multiplier panel on a short screen: it stands belo
 	expectTrue(src:find("local up = r.compact and PatronBoost.LABEL_H or 0", 1, true) ~= nil, "and moves the rest up by the label row")
 end })
 
+-- ============================================================
+-- The 3D play table (Engine/TableScene, Engine/TableTheme, Shared/TableThemes, Client/Table3D)
+-- ============================================================
+
+table.insert(tests, { name = "3D table: a spot on the screen lands on the felt where the hand and the played cards are", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TableScene)
+	local cam = TS.cameraPosition()
+	for _, size in ipairs({ { 1506, 751 }, { 1506, 630 }, { 1024, 768 }, { 1920, 1080 }, { 2560, 1080 } }) do
+		local W, H = size[1], size[2]
+		local aspect, at = W / H, " at " .. W .. "x" .. H
+		-- the hand row stands about 64 percent down the screen and the played cards about 40 percent
+		for _, ny in ipairs({ 0.29, -0.2 }) do
+			local p = TS.groundPoint(0, ny, aspect, 0)
+			expectTrue(p ~= nil, "the spot meets the table" .. at)
+			expectTrue(math.abs(p[2]) < 1e-6, "on the felt's plane")
+			expectTrue(TS.onFelt({ p[1] + TS.TABLE.centreX, 0, p[3] }, 2), "and on the felt, two studs clear of the rail" .. at)
+			-- the point is on the ray the pixel looks along
+			local dir = TS.rayThrough(0, ny, aspect)
+			local t = (p[2] - cam[2]) / dir[2]
+			expectTrue(math.abs(cam[1] + dir[1] * t - p[1]) < 1e-6 and math.abs(cam[3] + dir[3] * t - p[3]) < 1e-6, "on the pixel's own ray")
+		end
+		local hand, played = TS.groundPoint(0, 0.29, aspect, 0), TS.groundPoint(0, -0.2, aspect, 0)
+		expectTrue(played[3] < hand[3], "the played cards lie further from the player than the hand")
+		expectTrue(TS.depthOf(played) > TS.depthOf(hand), "and deeper in the picture")
+		-- a 114 px hand card is a card of sensible size, the same at every window height's scale
+		local card = 114 * (H / 751) * TS.studsPerPixel(TS.depthOf(hand), H)
+		expectTrue(card > 2.2 and card < 3.0, "a hand card is about two and a half studs wide" .. at .. " (" .. card .. ")")
+		-- the top of the screen is past the far rail, the bottom is on the near rail: the table fills the height
+		local top, bottom = TS.groundPoint(0, -1, aspect, 0), TS.groundPoint(0, 1, aspect, 0)
+		expectTrue(top[3] < -(TS.TABLE.halfWidth + TS.TABLE.railWidth) + 1.5, "the far rail is in the picture" .. at)
+		expectTrue(bottom[3] > TS.TABLE.halfWidth and bottom[3] < TS.TABLE.halfWidth + TS.TABLE.railWidth + 0.6, "the bottom edge is on the near rail" .. at)
+	end
+	expectEqual(TS.groundPoint(0, -30, 2, 0), nil, "a ray that looks above the horizon never meets the table")
+	local raised = TS.groundPoint(0.2, 0.29, 2, 1.5)
+	local flat = TS.groundPoint(0.2, 0.29, 2, 0)
+	expectTrue(math.abs(raised[2] - 1.5) < 1e-6 and raised[3] > flat[3], "a lifted card stays under the same pixel by coming toward the camera")
+end })
+
+table.insert(tests, { name = "3D table: a card lifts off the felt when it is hovered or selected, and jumps when it scores", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TableScene)
+	local spp = 0.0228 -- studs per pixel at the hand row on the reference screen
+	expectEqual(TS.liftFor(0, 1, spp), 0, "a resting card lies flat")
+	local hover = TS.liftFor(6, 1.03, spp)
+	local selected = TS.liftFor(18, 1.0, spp)
+	local both = TS.liftFor(24, 1.04, spp)
+	local pop = TS.liftFor(0, 1.22, spp)
+	expectTrue(hover >= 0.4, "a hovered card visibly leaves the felt (" .. hover .. " studs)")
+	expectTrue(selected > hover and both > selected, "a selected card stands higher, a selected and hovered one higher still")
+	expectTrue(pop > selected, "a scoring card jumps higher than a selected one")
+	expectEqual(TS.liftFor(400, 3, spp), TS.LIFT.max, "never higher than the cap")
+	expectEqual(TS.liftFor(-5, 0.2, spp), 0, "a shrinking ghost does not sink into the table")
+	-- the follow settles on its target and does not explode on a long frame
+	for _, dt in ipairs({ 1 / 60, 1 / 30, 0.25 }) do
+		local x, v = 0, 0
+		local peak = 0
+		for _ = 1, 240 do
+			x, v = TS.spring(x, v, 1, dt)
+			peak = math.max(peak, x)
+		end
+		expectTrue(math.abs(x - 1) < 0.01, "settled at dt " .. dt)
+		expectTrue(peak < 1.35, "with only a little overshoot at dt " .. dt .. " (" .. peak .. ")")
+	end
+end })
+
+table.insert(tests, { name = "3D table: chips fly in an arc into neat stacks and a shake dies away", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TableScene)
+	expectEqual(TS.chipsFor("chips", 10), 3)
+	expectEqual(TS.chipsFor("chips", 1), 1, "even a single Chip throws a chip")
+	expectEqual(TS.chipsFor("chips", 5000), 8, "a huge number does not flood the table")
+	expectEqual(TS.chipsFor("mult", 4), 4)
+	expectEqual(TS.chipsFor("xmult", 1.5), 5, "a multiplier is always a handful")
+	expectEqual(TS.chipsFor("tips", 3), 3)
+	expectTrue(TS.chipsFor("mult", 900) <= 6 and TS.chipsFor("tips", 900) <= 5)
+	-- no two chips of one pile share a place, and a stack is never taller than perStack
+	local taken = {}
+	for n = 1, TS.CHIP.perPile do
+		local dx, dz, level = TS.potSlot(n)
+		local key = string.format("%.2f|%.2f|%d", dx, dz, level)
+		expectFalse(taken[key] == true, "chip " .. n .. " has a place of its own")
+		taken[key] = true
+		expectTrue(level >= 0 and level < TS.CHIP.perStack, "inside its stack")
+		expectTrue(math.abs(dx) <= 2.01 * TS.CHIP.spacing and math.abs(dz) <= 1.74 * TS.CHIP.spacing, "the pile stays small")
+	end
+	local dx1, dz1, level1 = TS.potSlot(1)
+	expectTrue(dx1 == 0 and dz1 == 0 and level1 == 0, "the first chip lands in the middle")
+	local _, _, level2 = TS.potSlot(2)
+	expectEqual(level2, 1, "the second lands on it")
+	-- the arc starts and ends where it should and rises in between
+	local a, b = { 0, 1, 0 }, { 4, 0.1, -2 }
+	local p0, p1, mid = TS.arcPoint(a, b, 2.6, 0), TS.arcPoint(a, b, 2.6, 1), TS.arcPoint(a, b, 2.6, 0.5)
+	expectTrue(p0[1] == 0 and p0[2] == 1 and p0[3] == 0, "from the card")
+	expectTrue(p1[1] == 4 and math.abs(p1[2] - 0.1) < 1e-9 and p1[3] == -2, "to its place in the pot")
+	expectTrue(math.abs(mid[2] - (0.55 + 2.6)) < 1e-9, "over the top of the arc")
+	-- the shake
+	local x0, y0 = TS.shakeAt(-0.1, 6, 0.2)
+	local x1, y1 = TS.shakeAt(0.2, 6, 0.2)
+	expectTrue(x0 == 0 and y0 == 0 and x1 == 0 and y1 == 0, "nothing before or after")
+	local early, late = 0, 0
+	for i = 0, 9 do
+		local ex, ey = TS.shakeAt(0.002 * i, 6, 0.2)
+		local lx, ly = TS.shakeAt(0.18 + 0.002 * i, 6, 0.2)
+		early = math.max(early, math.abs(ex), math.abs(ey))
+		late = math.max(late, math.abs(lx), math.abs(ly))
+	end
+	expectTrue(early > late * 5, "it dies away")
+	local bx, by = TS.shakeAt(0.01, 500, 0.2)
+	expectTrue(math.abs(bx) < 0.2 and math.abs(by) < 0.2, "and the biggest one still moves the camera less than a fifth of a stud")
+end })
+
+table.insert(tests, { name = "3D table: a card that stays in the hand keeps its piece of card on the felt", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TableScene)
+	local function card(rank, suit, extra)
+		local c = { rank = rank, suit = suit }
+		for k, v in pairs(extra or {}) do c[k] = v end
+		return c
+	end
+	local function sigs(list)
+		local out = {}
+		for i, c in ipairs(list) do out[i] = TS.signature(c) end
+		return out
+	end
+	expectFalse(TS.signature(card(9, "Hearts")) == TS.signature(card(9, "Spades")))
+	expectFalse(TS.signature(card(9, "Hearts")) == TS.signature(card(9, "Hearts", { garnish = "iron" })), "a Garnish is a different card")
+	expectFalse(TS.signature(card(4, "Hearts", { isTrueWildcard = true })) == TS.signature(card(4, "Hearts", { isTrueWildcard = true, wildcardLocked = true })), "a True Wildcard that locked in is drawn anew")
+	-- five cards, the second and fourth are discarded, two new ones are drawn at the end
+	local old = sigs({ card(2, "Clubs"), card(7, "Hearts"), card(9, "Spades"), card(11, "Diamonds"), card(14, "Hearts") })
+	local new = sigs({ card(2, "Clubs"), card(9, "Spades"), card(14, "Hearts"), card(5, "Clubs"), card(7, "Spades") })
+	local m = TS.matchHands(old, new)
+	expectEqual(m[1], 1)
+	expectEqual(m[2], 3)
+	expectEqual(m[3], 5)
+	expectEqual(m[4], nil, "a drawn card is a new piece of card")
+	expectEqual(m[5], nil)
+	-- sorting the same hand moves every card and makes none
+	local sorted = TS.matchHands(old, sigs({ card(14, "Hearts"), card(11, "Diamonds"), card(9, "Spades"), card(7, "Hearts"), card(2, "Clubs") }))
+	for i = 1, 5 do expectEqual(sorted[i], 6 - i) end
+	-- two cards that are the same card pair up in order, each old one once
+	local twins = TS.matchHands(sigs({ card(8, "Clubs"), card(8, "Clubs") }), sigs({ card(8, "Clubs"), card(8, "Clubs"), card(8, "Clubs") }))
+	expectEqual(twins[1], 1)
+	expectEqual(twins[2], 2)
+	expectEqual(twins[3], nil)
+	expectEqual(next(TS.matchHands({}, {})), nil)
+end })
+
+table.insert(tests, { name = "3D table theme: the Tavern folder is complete, stays clear of the cards, and a second theme is only data", fn = function()
+	local TT = require(script.Parent.Parent.Engine.TableTheme)
+	local TS = require(script.Parent.Parent.Engine.TableScene)
+	local folder = script.Parent.Parent.TableThemes[TT.default()]
+	local theme = {}
+	for _, part in ipairs(TT.PARTS) do theme[part] = require(folder[part]) end
+	expectEqual(#TT.PARTS, 4, "a theme is four modules: materials, lighting, props, felt")
+	local ok, problems = TT.check(theme)
+	expectTrue(ok, "the theme passes its check: " .. table.concat(problems, "; "))
+	-- nothing stands where the cards play, and everything stands on the table
+	local T = TS.TABLE
+	expectTrue(#theme.Props >= 6, "the table is not bare")
+	local hopping, lit = 0, 0
+	for _, prop in ipairs(theme.Props) do
+		local x, z = prop.at[1], prop.at[3]
+		local inPlay = math.abs(x - T.centreX) < 11.5 and z > -4.5 and z < 7.6
+		expectFalse(inPlay, prop.name .. " stands clear of the hand and the played cards")
+		expectTrue(math.abs(x - T.centreX) <= T.halfLength + T.railWidth and math.abs(z) <= T.halfWidth + T.railWidth, prop.name .. " stands on the table")
+		if (prop.hop or 0) > 0 then hopping = hopping + 1 end
+		if prop.light then lit = lit + 1 end
+	end
+	expectTrue(hopping >= 4, "things on the table hop when the score lands")
+	expectTrue(lit >= 1, "and at least one of them is a light")
+	expectTrue(theme.Lighting.react ~= nil and theme.Lighting.cards ~= nil, "the theme says how the light answers and how the cards take it")
+	-- the check names what is wrong
+	local bare = { Materials = theme.Materials, Lighting = theme.Lighting, Props = theme.Props }
+	local okBare, why = TT.check(bare)
+	expectFalse(okBare)
+	expectTrue(table.concat(why, ";"):find("Felt is missing", 1, true) ~= nil)
+	local wrong = { Materials = theme.Materials, Lighting = theme.Lighting, Felt = theme.Felt, Props = { { name = "Skull", at = { 0, 0, -6 }, parts = { { shape = "Ball", size = { 1 }, mat = "ivory" } } } } }
+	local okWrong, whyWrong = TT.check(wrong)
+	expectFalse(okWrong, "a prop of an unknown material is caught")
+	expectTrue(table.concat(whyWrong, ";"):find("ivory", 1, true) ~= nil)
+	local dark = { Materials = theme.Materials, Felt = theme.Felt, Props = {}, Lighting = { service = {}, lights = {} } }
+	expectFalse((TT.check(dark)), "a table with no light at all is caught")
+	-- a second theme: the same four tables with other values, no code
+	local crypt = { Materials = {}, Felt = theme.Felt, Lighting = theme.Lighting, Props = { theme.Props[1] } }
+	for name, m in pairs(theme.Materials) do crypt.Materials[name] = { material = "Slate", color = { 60, 62, 70 } } end
+	expectTrue((TT.check(crypt)), "another look is another set of data")
+	if not io then return end
+	-- the code that builds the table never names the theme: it reads whatever folder TableTheme.default() says
+	local okP, p = pcall(function() return io.popen and io.popen("ls src/Client/Table3D/*.lua 2>/dev/null") end)
+	if not okP or not p then return end -- a Lua built without popen: the listing is skipped
+	local count = 0
+	for file in p:lines() do
+		local f = io.open(file, "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			count = count + 1
+			expectTrue(src:find("Tavern", 1, true) == nil, file .. " does not name the theme")
+			expectTrue(src:find("Balatro", 1, true) == nil)
+		end
+	end
+	p:close()
+	if count == 0 then return end
+	expectTrue(count >= 6, "the table's client modules are there (" .. count .. ")")
+	local function has(file, needle, why)
+		local f = io.open(file, "r")
+		if not f then return end
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find(needle, 1, true) ~= nil, why)
+	end
+	has("src/Client/init.client.lua", "require(script.Table3D).start(", "the hub starts the table")
+	has("src/Client/init.client.lua", "require(script.Table3D).syncHand(handFrame, handData", "a rebuilt hand is put on the felt")
+	has("src/Client/init.client.lua", "require(script.Table3D).adoptGhosts(cardGhosts)", "the played cards follow their ghosts")
+	has("src/Client/ScorePopup.lua", "require(script.Parent.Table3D).beat(entry.kind, sourcePos, entry.amount)", "a scoring beat throws chips")
+	has("src/Client/ScorePopup.lua", "require(script.Parent.Table3D).payout(", "the payout sends the pot to the board")
+	has("src/Client/ScorePopup.lua", 'T3.beat("chips", nil, baseChips)', "the hand's own worth is thrown in by the house")
+	has("src/Client/ScorePopup.lua", "require(script.Parent.Table3D).settle()", "a reveal that ends early leaves no chips")
+	has("src/Client/VisualHelpers.lua", "require(script.Parent.Table3D).shake(target, intensity, duration)", "a 2D shake shakes the table")
+end })
+
 return tests

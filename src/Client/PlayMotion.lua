@@ -47,7 +47,7 @@ function M.install(deps)
 	local sx, sy, lean = 0, 0, 0
 	local function placeGlow()
 		if not glow then return end
-		local show = handFrame.Visible and root.AbsoluteSize.X > 0
+		local show = handFrame.Visible and root.AbsoluteSize.X > 0 and not root:GetAttribute("Table3D") -- the 3D table has real light
 		glow.root.Visible = show
 		if not show then return end
 		local ox, oy = root.AbsolutePosition.X, root.AbsolutePosition.Y
