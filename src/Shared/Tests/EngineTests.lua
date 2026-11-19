@@ -28931,4 +28931,18 @@ table.insert(tests, { name = "Gameplay v2 hand preview: name, level, chips and m
 	assert(read("src/Client/Gameplay2.lua"):find("PreviewPill", 1, true) and read("src/Client/init.client.lua"):find("Gameplay2).setPreview", 1, true), "wired to the hub's preview")
 end })
 
+table.insert(tests, { name = "Gameplay v2 deck viewer: the Your Deck panel wears the TavernKit look on the v2 table, opens on the cards left to draw, keeps the old look on the v1 archive", fn = function()
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local src = read("src/Client/DeckTracker.lua")
+	assert(src:find('gameplay() == 2', 1, true), "the kit look is gated on the v2 flag")
+	assert(src:find('Kit.skin, sortButton, nil, "secondary"', 1, true) and src:find('Kit.skin, closeButton, nil, "secondary"', 1, true), "sort and close are kit buttons")
+	assert(src:find('"primary" or "secondary"', 1, true), "the open filter is the green plate, the others brown")
+	assert(src:find('activeFilter = v2() and "draw" or "all"', 1, true), "opens on what is left in the deck")
+	assert(src:find("ACTIVE_BROWN", 1, true), "the old look is still there for the archive")
+	assert(src:find("PopupDismiss", 1, true) and src:find("OverlayManager.register", 1, true), "Escape and the dark area still close it")
+	local T = require(script.Parent.Parent.Engine.TavernStyle)
+	assert(T.rgb("plateFill") and T.rgb("goldTrim") and T.FONTS.title, "the style keys it reads exist")
+end })
+
 return tests

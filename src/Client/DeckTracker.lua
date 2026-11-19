@@ -112,10 +112,15 @@ return function(deps)
 		return b
 	end
 
-	label(panel, {
+	local titleLabel = label(panel, {
 		Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 6),
 		TextSize = 24, Text = "Your Deck",
 	})
+	-- Gameplay v2: the panel wears the TavernKit look (plate colours with a gold trim, serif title, kit buttons); the old look stays on the v1 archive
+	local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
+	local Kit = require(script.Parent.TavernKit)
+	local TavernStyle = require(Engine:WaitForChild("TavernStyle"))
+	local function v2() return require(Engine:WaitForChild("FeatureFlags")).gameplay() == 2 end
 
 	-- Controls row: filter chips on the left, counter and sort toggle on the right.
 	local controls = Instance.new("Frame")
@@ -182,6 +187,19 @@ return function(deps)
 	})
 	polishButton(closeButton, 12)
 	addButtonHoverScale(closeButton)
+	if v2() then
+		local pc = TavernStyle.rgb("plateFill")
+		panel.BackgroundColor3 = Color3.fromRGB(pc[1], pc[2], pc[3])
+		local gt = TavernStyle.rgb("goldTrim")
+		local trim = Instance.new("UIStroke")
+		trim.Name = "KitTrim"
+		trim.Color = Color3.fromRGB(gt[1], gt[2], gt[3])
+		trim.Thickness = 2
+		trim.Parent = panel
+		titleLabel.Font = Enum.Font[TavernStyle.FONTS.title]
+		pcall(Kit.skin, sortButton, nil, "secondary")
+		pcall(Kit.skin, closeButton, nil, "secondary")
+	end
 	require(script.Parent.CloseX).retire(closeButton)
 	require(script.Parent.CloseX).attach(panel, function()
 		playClickSfx()
@@ -486,7 +504,12 @@ return function(deps)
 		end
 
 		for _, filter in ipairs(FILTERS) do
-			chipButtons[filter.id].BackgroundColor3 = filter.id == activeFilter and ACTIVE_BROWN or BROWN
+			if v2() then
+				local kind = filter.id == activeFilter and "primary" or "secondary" -- the open filter is the green plate
+				if chipButtons[filter.id]:GetAttribute("TavernKind") ~= kind then pcall(Kit.skin, chipButtons[filter.id], nil, kind) end
+			else
+				chipButtons[filter.id].BackgroundColor3 = filter.id == activeFilter and ACTIVE_BROWN or BROWN
+			end
 		end
 		sortButton.Text = sortDescending and "High to Low" or "Low to High"
 	end
@@ -520,7 +543,7 @@ return function(deps)
 	deckWidgetButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		OverlayManager.closeAllExcept("deckTracker")
-		activeFilter = "all"
+		activeFilter = v2() and "draw" or "all" -- the table's deck viewer opens on what is still left to draw
 		scroll.CanvasPosition = Vector2.new(0, 0)
 		popIn(backdrop, panel)
 		task.defer(refresh) -- after popIn so panel.AbsoluteSize is real
