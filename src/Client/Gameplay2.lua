@@ -392,7 +392,17 @@ function M.install(deps)
 		local img = TableArt[key] or ""
 		if scene.Image ~= img then scene.Image = img end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
-		scoreNum.Text = string.format("%d", math.floor(lastState.roundScore or 0))
+		do -- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number
+			local nowScore = math.floor(lastState.roundScore or 0)
+			local function put(n) scoreNum.Text = string.format("%d", math.floor(n)) end
+			if self.lastScore and nowScore > self.lastScore and lastState.phase == "playing" then
+				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put) end)
+				if not ok then put(nowScore) end
+			elseif not self.lastScore or nowScore < self.lastScore then
+				put(nowScore)
+			end
+			self.lastScore = nowScore
+		end
 		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
 		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
 		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))

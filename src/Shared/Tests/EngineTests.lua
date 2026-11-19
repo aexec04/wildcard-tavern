@@ -28711,4 +28711,25 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 	assert(L.scoreStack(400, 20, 22).roomy and not L.scoreStack(60, 20, 22).roomy)
 end })
 
+table.insert(tests, { name = "Gameplay v2 scoring: centre score counts up in 12 steps, slams in with a burst and a hold, Fast halves it, Calm is instant, a client module reads the settings", fn = function()
+	local S = require(script.Parent.Parent.Engine.Gameplay2Score)
+	assert(S.plan(100, 100) == nil and S.plan(100, 50) == nil, "no plan when the score does not rise")
+	local p = S.plan(0, 310)
+	assert(#p.steps == 12 and p.steps[12] == 310 and p.final == 310 and p.burst > 0 and p.hold == 1.0)
+	for i = 2, #p.steps do assert(p.steps[i] >= p.steps[i - 1], "steps never go down") end
+	assert(p.slam.peak > 1.2 and p.slam.peak <= 1.3, "slam scales up about 1.25")
+	assert(math.abs(p.total - (12 * 0.07 + 0.12 + 0.18 + 1.0)) < 1e-9)
+	local f = S.plan(0, 310, { fast = true })
+	assert(math.abs(f.total - p.total / 2) < 1e-9 and f.hold == 0.5, "Fast halves every time")
+	local c = S.plan(0, 310, { calm = true })
+	assert(#c.steps == 1 and c.steps[1] == 310 and c.slam == nil and c.burst == 0 and c.total == 0, "Calm mode: the end value, no motion")
+	assert(S.skipTo(p) == 310 and S.skipTo(nil) == nil)
+	assert(S.pitch(1, 12) == 1.0 and math.abs(S.pitch(12, 12) - 1.3) < 1e-9 and S.pitch(1, 1) == 1.0)
+	if not io then return end
+	local fh = assert(io.open("src/Client/Gameplay2ScoreFX.lua", "r")); local src = fh:read("*a"); fh:close()
+	assert(src:find("reduceShake", 1, true) and src:find("calm = calm()", 1, true), "the FX asks Calm mode first")
+	local g = assert(io.open("src/Client/Gameplay2.lua", "r")); local gs = g:read("*a"); g:close()
+	assert(gs:find("Gameplay2ScoreFX", 1, true), "Gameplay2 plays the centre score FX")
+end })
+
 return tests
