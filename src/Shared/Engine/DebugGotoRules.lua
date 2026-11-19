@@ -161,6 +161,9 @@ function DebugGotoRules.parse(value)
 	if text == "menu" or text == "news" or text == "round1" or text == "spectate" then
 		return { kind = text }
 	end
+	if text == "store" then -- the Tavern Store panel, opened from the Menu like the Tome pages
+		return { kind = "tome", page = "store" }
+	end
 	if DebugGotoRules.SYNTH[text] then
 		return { kind = "synth", which = text }
 	end

@@ -30545,6 +30545,32 @@ table.insert(tests, { name = "Button labels: a button and its KitLabel never dra
 	for _, w in ipairs(once) do expectFalse(w:find("shows twice", 1, true) ~= nil, "no warning when only the label draws") end
 end })
 
+table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards and the Close plate fit at 1920x1080, 1280x720 and 1024x768 with 44 px plates and readable text", fn = function()
+	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = Rules.parse("store")
+	expectTrue(t and t.kind == "tome" and t.page == "store", "DebugGoto store opens the Store opener")
+	local L = require(script.Parent.Parent.Engine.StoreLayout)
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local PlayerProfile = require(script.Parent.Parent.Engine.PlayerProfile)
+	local n = #Store.view(PlayerProfile.new(), {}, false).items
+	expectTrue(n >= 1 and n <= L.MAX_CARDS, "the main Store row never has more cards than fit (" .. n .. ")")
+	expectTrue(L.rowWidth(L.MAX_CARDS) <= L.PANEL_W - L.ROW_PAD, "four cards fit inside the panel row")
+	local r = L.rects()
+	expectTrue(r.row.y + r.row.h <= r.close.y, "the card row ends above the Close plate")
+	expectTrue(r.price.y + r.price.h <= r.buy.y and r.perks.y + r.perks.h <= r.price.y, "perks, price and Buy do not overlap on a card")
+	expectTrue(r.buy.h >= 44 and r.close.h >= 44, "Buy and Close plates are 44 px")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
+		local sc = L.scale(size[1], size[2])
+		expectTrue(sc * L.PANEL_W <= size[1] and sc * L.PANEL_H <= size[2], "panel on screen at " .. size[1] .. "x" .. size[2])
+		expectTrue(sc * r.buy.h >= 44 - 0.001, "Buy touch target at " .. size[1] .. "x" .. size[2] .. " is " .. sc * r.buy.h)
+		expectTrue(sc * 14 >= 14, "small text is not shrunk at " .. size[1] .. "x" .. size[2])
+	end
+	local C = require(script.Parent.Parent.Engine.SelfCheck).contrast
+	expectTrue(C({ 90, 66, 40 }, { 222, 198, 150 }) >= 4.5, "perk text on the parchment card")
+	expectTrue(C({ 60, 40, 22 }, { 222, 198, 150 }) >= 4.5, "name and desc ink on the parchment card")
+	expectTrue(C({ 222, 182, 104 }, { 40, 30, 22 }) >= 4.5, "the promise line on the dark wood")
+end })
+
 table.insert(tests, { name = "Button labels: Play Hand and Discard keep a readable word when the hit box is see-through, every KitLabel with text has TextTransparency below 0.5", fn = function()
 	if not (io and io.open) then return end
 	local FakeGui = require(script.Parent.FakeGui)

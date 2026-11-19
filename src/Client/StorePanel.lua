@@ -10,6 +10,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
 local OverlayManager = require(script.Parent.OverlayManager)
 local Kit = require(script.Parent.TavernKit)
+local StoreLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StoreLayout")) -- panel numbers, tested at every size
 
 local StorePanel = {}
 
@@ -183,7 +184,7 @@ function StorePanel.init(deps)
 	fit.Parent = panel
 	local function resize()
 		local size = deps.screenGui.AbsoluteSize
-		fit.Scale = math.clamp(math.min(size.X / 860, size.Y / 510), 0.5, 1)
+		fit.Scale = StoreLayout.scale(size.X, size.Y)
 	end
 	resize()
 	deps.screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
