@@ -285,6 +285,7 @@ function M.install(deps)
 		active = on
 		shell(on)
 		if not on then fanHand(false, size.Y); restoreOld(); return end
+		pcall(function() require(script.Parent.AmbienceFX).start() end) -- quiet tavern bed (silent until SoundIds.Ambience has an id)
 		local FX = require(script.Parent.HudTickFX) -- number pops, deck shake (nothing in Calm mode)
 		local oldCoins, oldHands, oldDeck = coinsText.Text, handsText.Text, deckText.Text
 		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))

@@ -16,7 +16,7 @@ local SoundIds = {}
 -- name -> { id = "rbxassetid://<digits>" or "", volume = 0..1, maxLength = seconds? }
 SoundIds.Cues = {
 	card_deal = { id = "rbxassetid://9114035597", volume = 0.35, maxLength = 0.6 }, -- reuses the deck-flick clip
-	card_select = { id = "rbxassetid://9117308777", volume = 3, maxLength = 0.35 },
+	card_select = { id = "rbxassetid://9117308777", volume = 0.7, maxLength = 0.35 },
 	card_play = { id = "rbxassetid://9113727134", volume = 0.6 },
 	shuffle = { id = "rbxassetid://9114035457", volume = 0.5, maxLength = 1.3, fade = 0.2 }, -- ProSoundEffects "Deck Of Cards 5" (3.9 s with chips at the tail): cut to 1.3 s with a 0.2 s fade
 	card_flip = { id = "rbxassetid://9117308777", volume = 0.35, maxLength = 0.4 }, -- the deal flip (Client/DealFlip.lua)
@@ -48,6 +48,9 @@ SoundIds.Cues = {
 	round_clear = { id = "rbxassetid://1170853519", volume = 0.55 }, -- Round Complete plate (Client/RoundRewardBanner)
 	defeat = { id = "rbxassetid://7381722902", volume = 0.5 }, -- the run is lost (Run Over screen)
 }
+
+-- Quiet looping beds (not cues: Engine/Ambience sets the volume, 0.12 and 0.06 while scoring). Empty id = silent until picked.
+SoundIds.Ambience = { tavern = { id = "", volume = 0.12 } }
 
 -- Optional alternates for the coin cascade (not the default, so nothing regresses): try them in Studio with DebugGoto "sfx:<cue>".
 SoundIds.CoinAlternates = { "rbxassetid://9113849583", "rbxassetid://9121189379" } -- "Coin Throws 2" (2.4 s), "BagOfCoins"

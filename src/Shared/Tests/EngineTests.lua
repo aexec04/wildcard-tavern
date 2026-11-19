@@ -23872,6 +23872,20 @@ table.insert(tests, { name = "Small screens table: 1024x600, 844x390 and 390x844
 		end
 	end
 end })
+table.insert(tests, { name = "Sound polish: every cue volume is 0.05 to 0.7, none over 6 dB above the card flip; ambience bed 0.12, ducked 0.06, muted or hidden is silent", fn = function()
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local A = require(script.Parent.Parent.Engine.Ambience)
+	local flip = S.Cues.card_flip.volume
+	for name, cue in pairs(S.Cues) do
+		assert(cue.volume >= 0.05 and cue.volume <= 0.7, name .. " volume " .. tostring(cue.volume))
+		assert(cue.volume <= flip * 2 + 1e-9, name .. " is more than 6 dB above the card flip")
+	end
+	assert(S.Ambience.tavern.volume == A.BASE and A.DUCKED == 0.06)
+	assert(A.volume(false, 1, false, true) == 0.12 and A.volume(false, 1, true, true) == 0.06)
+	assert(A.volume(true, 1, false, true) == 0 and A.volume(false, 1, false, false) == 0 and A.volume(false, 0, false, true) == 0)
+	assert(math.abs(A.volume(false, 0.5, false, true) - 0.06) < 1e-9)
+	assert(not A.shouldPlay("", false, true) and A.shouldPlay("rbxassetid://1", false, true) and not A.shouldPlay("rbxassetid://1", true, true) and not A.shouldPlay("rbxassetid://1", false, false))
+end })
 table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed starter and no drafts, a two step hint that ends after the first hand, no pulse in calm mode", fn = function()
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
 	assert(G.isGuided(1, false, false, false) and G.isGuided(0, false, false, false), "first run")
