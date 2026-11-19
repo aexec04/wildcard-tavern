@@ -462,6 +462,7 @@ function M.install(deps)
 		local size = root.AbsoluteSize
 		local on = Flags.gameplay() == 2 and lastState ~= nil and lastState.phase == "playing" and deps.handFrame.Visible and Layout.fits(size.X, size.Y)
 		active = on
+		if deps.deckWidget then deps.deckWidget.Visible = Layout.deckWidgetShown(lastState and lastState.phase) end
 		shell(on)
 		if not on then
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate

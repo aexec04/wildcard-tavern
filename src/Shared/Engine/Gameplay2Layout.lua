@@ -238,4 +238,9 @@ end
 -- the controls that must each exist exactly once (a test checks the client builds these and nothing else clickable)
 M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck", "mute", "calm" }
 
+-- the old deck widget (with its corner brackets) sits bottom right under the Run Over scrim: it is hidden on that screen
+function M.deckWidgetShown(phase)
+	return phase ~= "gameover"
+end
+
 return M

@@ -30246,4 +30246,17 @@ table.insert(tests, { name = "Button labels: the word draws above every skin pla
 	expectTrue(has("TavernScreens.lua", "NEXT_ROUND") and has("TavernScreens.lua", 'name == "PlayAgain"'), "Run Over Play Again uses the bright green")
 end })
 
+table.insert(tests, { name = "Run Over: the old deck widget and its corner brackets are hidden, shown on every other phase", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	expectTrue(L.deckWidgetShown("gameover") == false, "hidden on Run Over")
+	for _, ph in ipairs({ "playing", "shop", "roundSelect", "menu" }) do expectTrue(L.deckWidgetShown(ph) == true, ph) end
+	expectTrue(L.deckWidgetShown(nil) == true, "no state yet keeps it")
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("deckWidgetShown", 1, true) ~= nil, "Gameplay2.update applies the rule")
+	end
+end })
+
 return tests
