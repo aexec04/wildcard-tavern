@@ -29017,4 +29017,18 @@ table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit butt
 	assert(g:find("MuteButton", 1, true) and g:find("CalmButton", 1, true) and g:find("ClientSettings.set(k, val)", 1, true), "the client sets the real settings")
 end })
 
+table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note with the native green TavernKit Play Daily plate, same start function as the Daily action row, dropped first when the board is crowded", fn = function()
+	local D = require(script.Parent.Parent.Engine.MenuDailyEntry)
+	assert(D.TITLE == "Daily Challenge" and D.BUTTON_TEXT == "Play Daily" and D.NOTE_H == 78 and D.ORDER > 0, "words and order: after the ticker (0)")
+	assert(D.BUTTON.h >= 30 and D.BUTTON.w >= 100, "a plate big enough to press")
+	local bad = (D.TITLE .. D.LINE .. D.BUTTON_TEXT):lower()
+	assert(not bad:find("\u{2014}", 1, true) and not bad:find("--", 1, true) and not bad:find("balatro", 1, true), "no dashes, no banned word")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local menu = read("src/Client/Menu.lua")
+	assert(menu:find("local function startDaily()", 1, true) and menu:find("MouseButton1Click:Connect(startDaily)", 1, true) and menu:find("MenuDailyEntry", 1, true), "one start function, wired to both")
+	local cl = read("src/Client/MenuDailyEntry.lua")
+	assert(cl:find("Kit.primaryButton", 1, true) and not cl:find("TweenService", 1, true), "the green kit plate, no tween of its own")
+end })
+
 return tests

@@ -165,7 +165,7 @@ return function(deps)
 	menuDailyRewardsButton.MouseButton1Click:Connect(function()
 		pcall(function() require(script.Parent.DailyRewardsPanel).open() end)
 	end)
-	menuDailyChallengeButton.MouseButton1Click:Connect(function()
+	local function startDaily() -- the Daily action row and the Notice Board's green Play Daily plate both come here
 		if playClickSfx then
 			playClickSfx()
 		end
@@ -175,7 +175,9 @@ return function(deps)
 		elseif StartDailyChallengeRemote then
 			StartDailyChallengeRemote:FireServer()
 		end
-	end)
+	end
+	menuDailyChallengeButton.MouseButton1Click:Connect(startDaily)
+	pcall(function() board.pin(require(script.Parent.MenuDailyEntry).attach(board.list, nil, startDaily)) end) -- last note: dropped first when the board is crowded
 	menuWeeklyChallengeButton.MouseButton1Click:Connect(function()
 		if playClickSfx then
 			playClickSfx()
