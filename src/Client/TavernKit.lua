@@ -326,6 +326,9 @@ function TavernKit.icon(host, name, pad)
 		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(pad, 0); up.Parent = host
 		local s = img.Size.X.Offset
 		up.PaddingLeft = UDim.new(0, math.floor(host.AbsoluteSize.X * 0.06 + s + 10)) -- clear gap right of the icon at any plate width
+		host.TextXAlignment = Enum.TextXAlignment.Left -- the word starts at the padding, so a centred word cannot slide under the icon (its KitLabel mirrors this)
+		local kl = host:FindFirstChild("KitLabel")
+		if kl then kl.TextXAlignment = Enum.TextXAlignment.Left end
 	end
 	return img
 end

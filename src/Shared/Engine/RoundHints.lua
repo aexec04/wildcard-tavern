@@ -31,7 +31,8 @@ M.PLATE_MIN_W = 280
 M.PLATE_ASPECT = 1408 / 543
 M.BUTTON_W, M.BUTTON_H = 90, 44
 -- short screens (under about 160 px free above the hand) keep the compact plate: 300 x 72 with a 72 x 44 Got it beside it, the pill picture
-M.WIDE_W, M.WIDE_H, M.WIDE_MIN_W, M.WIDE_BUTTON_W = 300, 72, 200, 72
+M.WIDE_W, M.WIDE_H, M.WIDE_MIN_W, M.WIDE_BUTTON_W = 300, 84, 200, 92
+M.WIDE_BUTTON_H = 44 -- a wide Got it, level with the middle of the plate (it was a square 72 x 72)
 -- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate
 M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
 M.GAP = 8
@@ -133,7 +134,7 @@ function M.place(r, viewW, viewH, avoid)
 		if plateW >= M.WIDE_MIN_W then
 			local x, y = col.x0, top
 			local plate = { x = x, y = y, w = plateW, h = h }
-			local button = { x = x + plateW + M.GAP, y = y, w = M.WIDE_BUTTON_W, h = h } -- as tall as the plate, so the two sit level
+			local button = { x = x + plateW + M.GAP, y = y + math.floor((h - M.WIDE_BUTTON_H) / 2), w = M.WIDE_BUTTON_W, h = M.WIDE_BUTTON_H } -- vertically centred on the plate
 			local clear = true
 			for name, rect in pairs(r) do
 				if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end

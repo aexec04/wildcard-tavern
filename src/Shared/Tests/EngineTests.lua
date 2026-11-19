@@ -31857,4 +31857,33 @@ table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole 
 	end
 end })
 
+table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word never touch (6 px gap, word left aligned), the wide hint body ends 8 px above its frame, Got it is a wide 44 px plate centred on the hint", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, nm in ipairs({ "sortRank", "sortSuit" }) do
+			local b = r[nm]
+			local iconW = math.max(8, math.floor(b.h * 0.53 + 0.5)) -- TavernKit.icon
+			local iconRight = math.floor(b.w * 0.06) + iconW
+			local textLeft = math.floor(b.w * 0.06 + iconW + 10) -- its padding; the word is left aligned, so it starts here
+			expectTrue(textLeft - iconRight >= 6, nm .. " icon and word gap at " .. sz[1] .. "x" .. sz[2])
+			expectTrue(b.w - textLeft >= 36, nm .. " leaves room for the word at " .. sz[1] .. "x" .. sz[2])
+		end
+	end
+	-- wide plate: body y 38, two 15 px lines (36 px box) must end 8 px above the frame bottom
+	expectTrue(RH.WIDE_H - (38 + 36) >= 8, "the wide frame is tall enough for its two body lines")
+	expectTrue(RH.WIDE_BUTTON_W > RH.WIDE_BUTTON_H and RH.WIDE_BUTTON_H >= 44, "Got it is wide, not square, and a 44 px touch target")
+	local r = L.rects(1920, 957)
+	local spot = RH.place(r, 1920, 957, {})
+	if spot and spot.kind == "wide" then
+		expectEqual(spot.button.y + spot.button.h / 2, spot.plate.y + spot.plate.h / 2, "Got it is centred on the plate")
+	end
+	if io then
+		local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+		local kit = read("src/Client/TavernKit.lua")
+		if kit then expectTrue(kit:find("host.TextXAlignment = Enum.TextXAlignment.Left", 1, true) ~= nil, "icon plates left align the word") end
+	end
+end })
+
 return tests
