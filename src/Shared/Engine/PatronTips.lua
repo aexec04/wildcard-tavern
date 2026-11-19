@@ -60,6 +60,10 @@ function M.setLine(ownedIds, index)
 	for _, set in ipairs(SetBonuses.members(SetBonuses.formed(ownedIds), index)) do
 		lines[#lines + 1] = SetBonuses.lineOf(set)
 	end
+	if #lines == 0 then
+		local p = SetBonuses.progress(ownedIds, index)
+		if p ~= "" then return p end
+	end
 	return table.concat(lines, "   ")
 end
 

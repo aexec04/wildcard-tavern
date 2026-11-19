@@ -104,6 +104,33 @@ function M.formed(ownedIds)
 	return M.find(list, nil)
 end
 
+-- Progress toward a set this seat could join, "Rare Court: 2 of 3" ("" when the seat is in a formed set or helps none).
+-- Rare Court counts Rare or better Patrons, Tavern Circle the best shared tag (two sharing one tag shows 2 of 3).
+function M.progress(ownedIds, seat)
+	local list = {}
+	for i, id in ipairs(ownedIds or {}) do list[i] = { id = id } end
+	if not list[seat] then return "" end
+	if #M.members(M.find(list, nil), seat) > 0 then return "" end
+	local mine = defOf(list[seat])
+	if rarityRank(mine) >= RANK.rare then
+		local n = 0
+		for _, e in ipairs(list) do if rarityRank(defOf(e)) >= RANK.rare then n = n + 1 end end
+		if n >= 2 and n < 3 then return M.Definitions[2].name .. ": " .. n .. " of 3" end
+	end
+	for _, tag in ipairs(Bonds.Tags) do
+		local has = false
+		for _, t in ipairs(mine.tags or {}) do if t == tag then has = true end end
+		if has then
+			local n = 0
+			for _, e in ipairs(list) do
+				for _, t in ipairs(defOf(e).tags or {}) do if t == tag then n = n + 1 break end end
+			end
+			if n == 2 then return M.Definitions[1].name .. ": 2 of 3" end
+		end
+	end
+	return ""
+end
+
 function M.members(sets, seat)
 	local out = {}
 	for _, s in ipairs(sets or {}) do

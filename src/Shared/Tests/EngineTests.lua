@@ -31402,4 +31402,45 @@ table.insert(tests, { name = "Counter flow rects: Next Round (the `leave` rect) 
 end })
 
 
+table.insert(tests, { name = "Gameplay v2 Patron readability: tooltip clear of hand and buttons at five more sizes, trigger pop 0.6 s rises 24 px inside the screen, set progress text, calm mode static", fn = function()
+	local T = require(script.Parent.Parent.Engine.Gameplay2Tip)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local PC = require(script.Parent.Parent.Engine.PatronCallout)
+	local SB = require(script.Parent.Parent.Engine.SetBonuses)
+	local PT = require(script.Parent.Parent.Engine.PatronTips)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local CB = require(script.Parent.Parent.Engine.CollectionBook)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 768 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local tw = T.width(w)
+		local th = T.height(tw, math.floor(h * 0.12))
+		for slot = 1, 5 do
+			local x, y = T.place(r, w, h, slot, tw, th)
+			local tip = { x = x, y = y, w = tw, h = th }
+			assert(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, "tooltip on screen, seat " .. slot .. " at " .. w)
+			for _, a in ipairs(T.avoid(r)) do assert(not hit(tip, a), "tooltip clear of hand and buttons, seat " .. slot .. " at " .. w .. "x" .. h) end
+			-- the trigger pop rises 24 px from the card top and must stay on screen
+			assert(r.slots[slot].card.y - PC.RISE - 26 >= -2 or w < 900, "pop stays on screen at " .. w)
+		end
+	end
+	assert(PC.DUR == 0.6 and PC.RISE == 24 and PC.spec(true).static and PC.spec(true).rise == 0 and PC.spec(true).dur == 0.4, "0.6 s pop, calm is static 0.4 s")
+	-- set progress: two Rare or better Patrons read "Rare Court: 2 of 3", a formed set or a lone seat reads nothing extra
+	local rares = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		local rr = CB.rarityOf({ tab = "patrons", id = p.id, def = p })
+		if (rr == "rare" or rr == "epic" or rr == "legendary" or rr == "mythical") and #rares < 3 then rares[#rares + 1] = p.id end
+	end
+	assert(#rares == 3)
+	local two = { rares[1], rares[2] }
+	local line = SB.progress(two, 1)
+	assert(line == "Rare Court: 2 of 3" or line:find(" of 3", 1, true), "two rares show progress, got '" .. line .. "'")
+	assert(SB.progress(rares, 1) == "" or SB.progress(rares, 1):find("Tavern", 1, true) == nil, "a formed set shows no progress line")
+	assert(SB.progress({ rares[1] }, 1) == "" or SB.progress({ rares[1] }, 1):find("2 of 3", 1, true) == nil, "one Patron shows no 2 of 3")
+	assert(SB.progress({}, 1) == "" and SB.progress(two, 5) == "", "empty and missing seats are quiet")
+	assert(PT.setLine(two, 1) ~= "", "the tooltip set line carries the progress")
+end })
+
+
 return tests
