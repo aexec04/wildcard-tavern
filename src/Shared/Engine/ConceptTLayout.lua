@@ -61,6 +61,49 @@ function M.patronSlots(w, h, n)
 	return out
 end
 
+-- The live Patron row on a real screen of any shape: the same fractions as patronSlots, but a card keeps the reference's
+-- width to height ratio (0.112 x 1536 : 0.236 x 1024) instead of stretching with a wide window. n up to 8 seats; more than five
+-- spread evenly over the same span and overlap. Returns cards (the slot rects), labels and pills, in pixels of the w x h screen.
+M.CARD_ASPECT = (0.112 * 1536) / (0.236 * 1024)
+function M.patronRow(w, h, n)
+	n = math.max(0, math.min(math.floor(tonumber(n) or 5), 8))
+	local ch = M.patronCard.h * h
+	local cw = math.min(M.patronCard.w * w, ch * M.CARD_ASPECT)
+	ch = cw / M.CARD_ASPECT
+	local c1, c5 = M.patronCard.centers[1], M.patronCard.centers[#M.patronCard.centers]
+	local top = M.patronCard.y * h
+	local out = { cards = {}, labels = {}, pills = {} }
+	for i = 1, n do
+		local cx
+		if n <= #M.patronCard.centers then cx = M.patronCard.centers[i] * w
+		else cx = (c1 + (c5 - c1) * (i - 1) / (n - 1)) * w end
+		local lw, ph = math.min(M.patronLabel.w * w, cw), M.patronPill.h * h
+		out.cards[i] = { x = round(cx - cw / 2), y = round(top), w = round(cw), h = round(ch) }
+		out.labels[i] = { x = round(cx - lw / 2), y = round(top + ch + 2), w = round(lw), h = round(M.patronLabel.h * h) }
+		out.pills[i] = { x = round(cx - lw / 2), y = round(top + ch + 2 + M.patronLabel.h * h + 2), w = round(lw), h = round(ph) }
+	end
+	return out
+end
+
+-- where the Rank | Suit sort frame (sw x sh px) stands: bottom left, centred on the Play Hand row, left of Play Hand
+-- (clamped so it never reaches into Play Hand and never leaves the screen)
+function M.sortSpot(w, h, sw, sh, rects)
+	sw, sh = math.max(sw or 0, 1), math.max(sh or 0, 1)
+	local x = math.min(round(0.014 * w), rects.play.x - sw - 6)
+	x = math.max(x, 0)
+	local y = rects.play.y + round((rects.play.h - sh) / 2)
+	y = math.max(0, math.min(y, h - sh))
+	return { x = x, y = y, w = sw, h = sh }
+end
+
+-- the small preview pill (Chips x Mult of the selected cards) between the Patron pills and the scoring stage
+M.previewFrac = { 0.37, 0.500, 0.63, 0.548 }
+function M.previewRect(w, h)
+	local f = M.previewFrac
+	local x0, y0, x1, y1 = round(f[1] * w), round(f[2] * h), round(f[3] * w), round(f[4] * h)
+	return { x = x0, y = y0, w = x1 - x0, h = math.max(y1 - y0, 20) }
+end
+
 -- the bar track inside the round banner (fractions of the banner itself)
 -- the banner title is a warm cream serif (Merriweather bold), smaller than the HUD numbers: ROUND_TEXT
 M.ROUND_TEXT = { r = 255, g = 240, b = 205 }

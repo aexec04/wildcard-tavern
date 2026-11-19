@@ -24,6 +24,7 @@ local PlayBudget = require(Engine:WaitForChild("PlayBudget"))
 local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local Rules = require(Engine:WaitForChild("PatronRowRules"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local PatronValueText = require(Engine:WaitForChild("PatronValueText"))
 local RarityFrame = require(script.Parent.RarityFrame)
@@ -41,6 +42,8 @@ local Z = 6
 local holder, holderScale, rootRef, handRef, tooltipFn, anchorFn
 local boost = { summary = nil, frame = nil } -- the Mult panel (built below): preview = selected cards, last = last scored hand
 local placeBoost
+local ctPlace = false -- the last place() ran for the Concept T screen
+local ctPill = nil -- the small Chips x Mult preview pill of the Concept T screen
 local cards = {} -- pool of { slot, float, body, art, name, plus, floatTween, id }
 local lastState
 local MAX_CARDS = 14
@@ -619,7 +622,13 @@ local function place(state)
 			opts.leftLimit = sb.AbsolutePosition.X - rootRef.AbsolutePosition.X + sb.AbsoluteSize.X + 8
 		end
 	end
-	if show then
+	local ctOn = false
+	if show then pcall(function() ctOn = require(script.Parent.ConceptTPlay).isActive() end) end
+	ctPlace = ctOn
+	if show and ctOn then
+		-- Concept T play screen: five cards on the painted rug, no panel, nook or Mult panel (rects: Engine/ConceptTLayout.patronRow)
+		lay = { cards = CTLayout.patronRow(rootSize.X, rootSize.Y, limit).cards, plaqueH = 20 }
+	elseif show then
 		-- the Patron display first (card slots under a heading); the painted strip and the code nook are the fallbacks for roots it declines
 		lay = Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)
 			or (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
@@ -630,11 +639,12 @@ local function place(state)
 		print(string.format("[PatronRow] scaled root k=%.2f root=%dx%d leftLimit=%s card1=%s", k, math.floor(rootSize.X), math.floor(rootSize.Y),
 			tostring(opts and opts.leftLimit), r1 and (math.floor(r1.x) .. "," .. math.floor(r1.y) .. " " .. math.floor(r1.w) .. "x" .. math.floor(r1.h)) or "none"))
 	end
-	placeNook(lay, rootSize.X, hand, owned, opts)
+	placeNook(ctOn and nil or lay, rootSize.X, hand, owned, opts)
 	if #owned == 0 then boost.summary = nil end
 	if state and (state.roundScore or 0) == 0 and state.handsRemaining == state.roundStartHands then boost.last = nil end -- a fresh round has no last hand
 	boost.cardsY = lay and lay.display and lay.rect.y or nil
-	placeBoost(lay and nook and nook.lastBack or nil, rootSize.X / k)
+	placeBoost((not ctOn) and lay and nook and nook.lastBack or nil, rootSize.X / k)
+	M.placePill()
 	for i = 1, MAX_CARDS do
 		local c = cards[i]
 		if not c and lay and i <= limit then c = newCard(i); cards[i] = c end
@@ -770,8 +780,55 @@ function placeBoost(back, rootW)
 	f.Visible = true
 end
 
+-- Concept T screen: the Mult panel is replaced by one small pill, "<chips> Chips x <mult> Mult", between the Patron pills and
+-- the scoring stage; shown only while the selected cards (or the last hand) give a figure. No tween, so Calm mode is the same.
+function M.placePill()
+	if not (holder and rootRef) then return end
+	local m = require(Engine:WaitForChild("PatronBoost")).panel(boost.preview, boost.last)
+	local on = ctPlace and holder.Visible and m.value ~= nil
+	if not on then
+		if ctPill then ctPill.Visible = false end
+		return
+	end
+	local size = rootRef.AbsoluteSize
+	local r = CTLayout.previewRect(size.X, size.Y)
+	if not ctPill then
+		ctPill = Instance.new("Frame")
+		ctPill.Name = "CTPreviewPill"
+		ctPill.BackgroundColor3 = WALNUT
+		ctPill.BackgroundTransparency = 0.1
+		ctPill.BorderSizePixel = 0
+		ctPill.ZIndex = Z + 3
+		ctPill.Active = false
+		ctPill.Parent = holder
+		corner(ctPill, 10)
+		local st = Instance.new("UIStroke")
+		st.Color = GOLD
+		st.Thickness = 2
+		st.Parent = ctPill
+		local t = Instance.new("TextLabel")
+		t.Name = "Text"
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.Font = Enum.Font.GothamBold
+		t.TextColor3 = CREAM
+		t.TextTransparency = 0
+		t.TextStrokeTransparency = 1
+		t.ZIndex = Z + 4
+		t.Active = false
+		t.Parent = ctPill
+	end
+	ctPill.Position = UDim2.fromOffset(r.x, r.y)
+	ctPill.Size = UDim2.fromOffset(r.w, r.h)
+	local t = ctPill.Text
+	t.TextSize = math.max(15, math.floor(r.h * 0.55))
+	t.Text = (m.line:match("([^\n]+)$")) or ""
+	ctPill.Visible = true
+end
+
 local function refreshBoost()
-	if holder and nook then pcall(placeBoost, holder.Visible and nook.lastBack or nil, rootRef.AbsoluteSize.X / uiScaleOf(rootRef)) end
+	if holder and nook then pcall(placeBoost, (not ctPlace) and holder.Visible and nook.lastBack or nil, rootRef.AbsoluteSize.X / uiScaleOf(rootRef)) end
+	pcall(M.placePill)
 end
 
 -- ScorePopup passes PatronBoost.summary(breakdown) once a hand has scored (kept for callers; the panel reads setLast)

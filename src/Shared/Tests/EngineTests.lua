@@ -26901,5 +26901,35 @@ table.insert(tests, { name = "Menu play button: Concept T green art, pulse only 
 	expectTrue(hot:find("if calm() then return end\n\t\tfor _, t in ipairs(lanterns)", 1, true) ~= nil, "startLoops plays the pulse only outside calm mode")
 	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt).ct_btn_blank ~= nil, "the art id is recorded")
 end })
+table.insert(tests, { name = "ConceptTLayout parity: Patron cards, labels and pills stay on screen and clear of the hand, preview pill and sort frame clear of buttons, at five sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local r = L.rects(w, h)
+		for _, n in ipairs({ 3, 5, 8 }) do
+			local row = L.patronRow(w, h, n)
+			assert(#row.cards == n and #row.labels == n and #row.pills == n, tag .. " counts")
+			for i = 1, n do
+				for _, group in ipairs({ row.cards, row.labels, row.pills }) do
+					local b = group[i]
+					assert(b.x >= 0 and b.x + b.w <= w and b.y >= 0 and b.y + b.h <= h, tag .. " on screen " .. i)
+					assert(not hit(b, r.hand), tag .. " clear of the hand " .. i)
+					assert(not hit(b, r.round) and not hit(b, r.gear), tag .. " clear of the HUD " .. i)
+				end
+				if i > 1 and n <= 5 then assert(row.cards[i].x >= row.cards[i - 1].x + row.cards[i - 1].w - 1, tag .. " cards in order without overlap") end
+			end
+		end
+		local row = L.patronRow(w, h, 5)
+		assert(row.cards[1].w / row.cards[1].h <= L.CARD_ASPECT + 0.02, tag .. " card keeps its shape")
+		local pv = L.previewRect(w, h)
+		assert(pv.h >= 20 and not hit(pv, r.hand) and not hit(pv, r.round), tag .. " preview pill")
+		for i = 1, 5 do assert(not hit(pv, row.pills[i]), tag .. " preview clear of the Patron pills " .. i) end
+		local s = L.sortSpot(w, h, 214, 40, r)
+		assert(s.x >= 0 and s.x + s.w <= r.play.x and s.y >= 0 and s.y + s.h <= h, tag .. " sort frame left of Play Hand")
+		assert(not hit(s, r.hand), tag .. " sort frame clear of the hand")
+	end
+end })
 
 return tests

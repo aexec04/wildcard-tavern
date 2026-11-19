@@ -24,7 +24,7 @@ local current = nil
 local INK = Color3.fromRGB(255, 244, 214) -- cream on the dark wood plates, well over 4.5:1
 local OUTLINE = Color3.fromRGB(40, 22, 10)
 local GOLD = Color3.fromRGB(246, 196, 70)
-local HIDE = { "Sidebar", "SidebarBoard", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip", "CornerIconRow", "PlayFeltShade", "PlayTableFront", "PlayTableBg", "PlayFloorShade", "HandRailLip", "PlayGrooveLip", "PlayRailBack", "PlayRailFront" }
+local HIDE = { "Sidebar", "SidebarBoard", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip", "PlayFeltShade", "PlayTableFront", "PlayTableBg", "PlayFloorShade", "HandRailLip", "PlayGrooveLip", "PlayRailBack", "PlayRailFront" }
 
 local function image(parent, name, key, z)
 	local img = Instance.new("ImageLabel")
@@ -117,6 +117,17 @@ function M.install(deps)
 	fg.Parent = fill
 
 	local active, lastState = false, nil
+	local hiddenDeck = {} -- old deck widget pieces this screen hid, given back when it leaves
+	local function restoreOld()
+		for c in pairs(hiddenDeck) do c.Visible = true end
+		hiddenDeck = {}
+		local row = root:FindFirstChild("CornerIconRow")
+		if row and row:IsA("GuiObject") then
+			row.Position = UDim2.new(1, -16, 0, 12)
+			local sc = row:FindFirstChild("CTScale")
+			if sc then sc.Scale = 1 end
+		end
+	end
 	-- ambient tavern life on the painted room: fire and candle flicker, dust motes (static glows in Calm mode)
 	local lights = require(script.Parent.RoomLights).attach(layer, { room = "concept_t", zIndex = 1, visible = function() return active end })
 	local self = {}
@@ -165,12 +176,38 @@ function M.install(deps)
 		deps.playButton.Position = UDim2.fromOffset(0, 0)
 		deps.discardButton.Position = UDim2.fromOffset(r.discard.x - r.play.x, r.discard.y - r.play.y)
 		deps.discardButton.Size = UDim2.fromOffset(r.discard.w, r.discard.h)
-		local holder = root:FindFirstChild("PatronRow")
-		if holder and holder:IsA("GuiObject") then place(holder, r.patrons) end
+		-- the Rank | Suit sort frame used to sit at the action row's origin, on top of Play Hand (the stray bracket and line):
+		-- it stands at the bottom left, clear of the hand and the buttons
+		for _, c in ipairs(deps.actionFrame:GetChildren()) do
+			if c:IsA("Frame") and c.LayoutOrder == 0 then
+				local sx = Layout.sortSpot(size.X, size.Y, c.AbsoluteSize.X, c.AbsoluteSize.Y, r)
+				c.Position = UDim2.fromOffset(sx.x - r.play.x, sx.y - r.play.y)
+			end
+		end
+		-- the Patron cards place themselves from ConceptTLayout.patronRow (Client/PatronRow asks isActive)
 		local dw = deps.deckWidget
 		if dw then
 			place(dw, r.deck)
 			dw.AnchorPoint = Vector2.new(0, 0)
+			-- only the click catcher stays: the old framed deck, card back and count pills are covered by the painted book and one count plate
+			dw.BackgroundTransparency = 1
+			for _, c in ipairs(dw:GetChildren()) do
+				if c.Name ~= "ClickCatcher" then
+					if c:IsA("GuiObject") then
+						if c.Visible then hiddenDeck[c] = true end
+						c.Visible = false
+					elseif c:IsA("UIStroke") then c.Enabled = false end
+				end
+			end
+		end
+		-- the other corner icons sit in a row left of the gear at 0.7 of its height (the gear itself is the painted one)
+		local row = root:FindFirstChild("CornerIconRow")
+		if row and row:IsA("GuiObject") then
+			row.AnchorPoint = Vector2.new(1, 0)
+			row.Position = UDim2.fromOffset(r.gear.x - 10, r.gear.y + math.floor(r.gear.h * 0.15))
+			local sc = row:FindFirstChild("CTScale")
+			if not sc then sc = Instance.new("UIScale"); sc.Name = "CTScale"; sc.Parent = row end
+			sc.Scale = math.max(0.5, math.min(1.2, r.gear.h * 0.7 / 54))
 		end
 		local sb = deps.settingsButton
 		if sb then
@@ -197,7 +234,7 @@ function M.install(deps)
 		local on = lastState ~= nil and lastState.phase == "playing" and deps.handFrame.Visible and Layout.fits(size.X, size.Y)
 		active = on
 		shell(on)
-		if not on then fanHand(false, size.Y); return end
+		if not on then fanHand(false, size.Y); restoreOld(); return end
 		local FX = require(script.Parent.HudTickFX) -- number pops, deck shake (nothing in Calm mode)
 		local oldCoins, oldHands, oldDeck = coinsText.Text, handsText.Text, deckText.Text
 		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))
@@ -240,6 +277,10 @@ function M.install(deps)
 	end)
 	current = self
 	return self
+end
+
+function M.isActive()
+	return current ~= nil and current.isActive()
 end
 
 function M.update(state)
