@@ -477,7 +477,7 @@ function M.install(deps)
 			local nowScore = math.floor(lastState.roundScore or 0)
 			local function put(n) scoreNum.Text = string.format("%d", math.floor(n)) end
 			if self.lastScore and nowScore > self.lastScore and lastState.phase == "playing" then
-				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put) end)
+				local ok = pcall(function() require(script.Parent.Gameplay2ScoreFX).play(scoreNum, scoreBox, self.lastScore, nowScore, put, lastState.targetScore) end)
 				if not ok then put(nowScore) end
 			elseif not self.lastScore or nowScore < self.lastScore then
 				put(nowScore)

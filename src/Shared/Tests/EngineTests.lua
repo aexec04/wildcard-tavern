@@ -23787,7 +23787,7 @@ table.insert(tests, { name = "beatslow: parses on/freeze/off, slows the Patron b
 		expectTrue(t ~= nil and t.kind == "beatslow" and t.mode == m, "beatslow:" .. m .. " parses")
 	end
 	expectTrue(R.parse("beatslow:maybe") == nil, "junk mode is nil")
-	expectEqual(PE.gap(false), 0.28, "normal gap")
+	expectEqual(PE.gap(false), 0.18, "normal gap")
 	expectTrue(PE.hold() == nil, "no hold normally")
 	PE.setSlow("on")
 	expectEqual(PE.gap(false), 2.0, "slow gap")
@@ -23797,7 +23797,7 @@ table.insert(tests, { name = "beatslow: parses on/freeze/off, slows the Patron b
 	PE.setSlow("freeze")
 	expectTrue(PE.slowMode() == "freeze", "mode freeze")
 	PE.setSlow("off")
-	expectEqual(PE.gap(false), 0.28, "off restores the gap")
+	expectEqual(PE.gap(false), 0.18, "off restores the gap")
 	expectTrue(PE.slowMode() == nil and PE.hold() == nil, "off clears the mode")
 end })
 
@@ -24116,6 +24116,57 @@ table.insert(tests, { name = "CollectionCards: count pill, locked glyph, page cu
 	for _, tab in ipairs(CB.Tabs) do tabs[tab.id] = true end
 	assert(tabs.patrons and tabs.housePasses, "glyph tabs exist in the book")
 end })
+table.insert(tests, { name = "ScorePacing: 180 ms beats, quicker on repeats, a tap skips, the flourish grows past Target, callouts fit their card", fn = function()
+	local P = require(script.Parent.Parent.Engine.ScorePacing)
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Score)
+	expectEqual(P.gap(1, false, false), 0.18)
+	expectEqual(P.gap(nil, false, false), 0.18)
+	expectTrue(P.gap(2, false, false) < P.gap(1, false, false), "a repeat is quicker")
+	expectTrue(P.gap(3, false, false) < P.gap(2, false, false))
+	expectEqual(P.gap(50, false, false), P.FLOOR, "never under the floor")
+	expectEqual(P.gap(1, true, false), 0.12, "fast speed caps the gap")
+	expectEqual(P.gap(5, true, false), P.FLOOR)
+	expectEqual(P.gap(1, false, true), 0, "calm mode: no wait")
+	expectEqual(P.skipGap(), 0)
+	expectEqual(PE.gap(false, 1), 0.18)
+	expectTrue(PE.gap(false, 4) < 0.18)
+	-- repeat counting
+	expectEqual(P.nextRepeats(nil, 0, "Pair"), 1)
+	expectEqual(P.nextRepeats("Pair", 1, "Pair"), 2)
+	expectEqual(P.nextRepeats("Pair", 2, "Pair"), 3)
+	expectEqual(P.nextRepeats("Pair", 3, "Flush"), 1)
+	-- the flourish grows with the overage
+	local last = -1
+	for _, ratio in ipairs({ 0.5, 1.0, 1.5, 2.0, 3.0, 10.0 }) do
+		local f = P.flourish(ratio * 300, 300)
+		expectTrue(f.level >= last, "level never drops as the score grows")
+		last = f.level
+	end
+	expectEqual(P.flourish(100, 300).level, 0)
+	expectEqual(P.flourish(300, 300).level, 1)
+	expectEqual(P.flourish(450, 300).level, 2)
+	expectEqual(P.flourish(600, 300).level, 3)
+	expectEqual(P.flourish(900, 300).level, 4)
+	expectEqual(P.flourish(900, nil).level, 0)
+	expectTrue(P.flourish(900, 300).burst > P.flourish(300, 300).burst and P.flourish(900, 300).peak > P.flourish(300, 300).peak)
+	-- the centre score uses it; calm mode still shows only the end value
+	local plain = G.plan(0, 300, {})
+	local big = G.plan(0, 900, { target = 300 })
+	expectTrue(big.slam.peak > plain.slam.peak and big.burst > plain.burst and big.hold > plain.hold, "a big overage slams bigger")
+	local calm = G.plan(0, 900, { calm = true, target = 300 })
+	expectEqual(calm.slam, nil); expectEqual(#calm.steps, 1); expectEqual(calm.final, 900)
+	-- a callout ("+4 Mult", "x1.5 Mult" at 22 px, about 11 px a letter) is never wider than its card, so it never reaches a neighbour
+	local CL = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 }, { 1024, 768 } }) do
+		local row = CL.patronRow(size[1], size[2], 5)
+		for i = 1, 5 do
+			expectTrue(#"x1.5 Mult" * 11 <= row.cards[i].w + 1 or row.cards[i].w < 100, "callout fits card " .. i .. " at " .. size[1])
+			if i > 1 then expectTrue(row.cards[i].x >= row.cards[i - 1].x + row.cards[i - 1].w, "cards do not overlap at five seats") end
+		end
+	end
+end })
+
 table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
 	local ids = {}
@@ -24149,7 +24200,7 @@ table.insert(tests, { name = "PatronEvents: the Patron beats come in engine orde
 		end
 	end
 	expectTrue(checked > 0 and withEvents > 0, "some sample hands trigger Patrons")
-	expectEqual(PE.gap(false), 0.28, "normal gap")
+	expectEqual(PE.gap(false), 0.18, "normal gap")
 	expectEqual(PE.gap(true), 0.12, "fast gap")
 	expectEqual(PE.text({ kind = "xmult", amount = 1.5 }), "x1.5 Mult", "xmult pill")
 	expectEqual(PE.text({ kind = "money", amount = 2 }), "+$2", "money pill")
@@ -24490,7 +24541,7 @@ table.insert(tests, { name = "Patron Row is wired: the hub installs and updates 
 	if not (hub and pop and row) then return end
 	expectTrue(hub:find("PatronRow).install", 1, true) ~= nil and hub:find("PatronRow).update(state)", 1, true) ~= nil, "hub installs and updates the row")
 	expectTrue(hub:find("PatronRow).frames()", 1, true) ~= nil, "scoring pulses the big cards")
-	expectTrue(pop:find("PatronRow).trigger(", 1, true) ~= nil and pop:find("PatronEvents", 1, true) ~= nil, "ScorePopup plays the beats 0.28 s apart")
+	expectTrue(pop:find("PatronRow).trigger(", 1, true) ~= nil and pop:find("PatronEvents", 1, true) ~= nil, "ScorePopup plays the beats 0.18 s apart")
 	expectTrue(pop:find("isPatronEntry", 1, true) ~= nil, "Patron entries are not cut by the animated-entry cap")
 	for size in row:gmatch("TextSize = (%d+)") do expectTrue(tonumber(size) >= 15, "Patron Row text is 15 px or more") end
 end })

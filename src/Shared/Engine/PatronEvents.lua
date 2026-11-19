@@ -12,12 +12,13 @@
 	  PatronEvents.tavernNotes(bossRules, isFirstHand, bargainPct) -> { {kind, factor, label} ... }
 	      score changes the table makes AFTER the breakdown (Boss Round chip or mult factors, Sleepy Cook, a Dealer's
 	      Bargain); shown as grey or red pills on the tavern plate, never on a Patron.
-	  PatronEvents.gap(fast) -> seconds between beats (0.28, or 0.12 in fast mode)
+	  PatronEvents.gap(fast, repeats) -> seconds between beats (0.18, quicker on repeats, 0.12 at most in fast mode)
 ]]
 
 local PatronEvents = {}
 
-PatronEvents.GAP, PatronEvents.GAP_FAST = 0.28, 0.12
+local ScorePacing = require(script.Parent.ScorePacing)
+PatronEvents.GAP, PatronEvents.GAP_FAST = ScorePacing.GAP, ScorePacing.FAST_CAP -- 180 ms between beats
 
 local KIND = { chips = "chips", mult = "mult", xmult = "xmult", tips = "money" }
 
@@ -35,9 +36,10 @@ end
 
 function PatronEvents.slowMode() return slowMode end
 
-function PatronEvents.gap(fast)
+-- repeats = how many times in a row this hand was played (Engine/ScorePacing: each repeat is 30 ms quicker, never under 60 ms)
+function PatronEvents.gap(fast, repeats)
 	if slowMode then return PatronEvents.GAP_SLOW end
-	return fast and PatronEvents.GAP_FAST or PatronEvents.GAP
+	return ScorePacing.gap(repeats, fast, false)
 end
 
 -- seconds the ring, pill and dimming stay up for one beat (nil = the normal short animation)

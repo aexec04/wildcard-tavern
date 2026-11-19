@@ -238,6 +238,7 @@ return function(deps)
 	local HandFlow = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("HandFlow"))
 	local PlayerProfileEngine = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayerProfile"))
 	local currentPaceDivisor = 1
+	local beatRepeats, lastHandName, beatSkip, beatSkipConn = 0, nil, false, nil -- Engine/ScorePacing: same hand again is quicker, a tap skips the gaps
 	local function pace(duration)
 		if currentPaceDivisor == 1 then
 			return duration
@@ -1029,6 +1030,18 @@ return function(deps)
 			hasFastForwardPass ~= nil and hasFastForwardPass()
 		)
 
+		do -- pacing: the same hand again and again plays its Patron beats quicker, and a tap or click plays the rest at once
+			local Pacing = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ScorePacing"))
+			beatRepeats = Pacing.nextRepeats(lastHandName, beatRepeats, preview.name)
+			lastHandName = preview.name
+			beatSkip = false
+			if beatSkipConn then beatSkipConn:Disconnect() end
+			beatSkipConn = game:GetService("UserInputService").InputBegan:Connect(function(input)
+				local t = input.UserInputType
+				if t == Enum.UserInputType.MouseButton1 or t == Enum.UserInputType.Touch then beatSkip = true end
+			end)
+		end
+
 		-- Defensive cleanup: a previous sequence that got interrupted
 		-- (e.g. the player queued up another hand before this one's
 		-- reveal finished) may have left ghosts behind -- always start
@@ -1382,7 +1395,7 @@ return function(deps)
 							tweenTo(bump, { Scale = 1 }, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 						end
 						local PE = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents"))
-						task.wait(PE.gap(currentPaceDivisor > 1))
+						if not beatSkip and ClientSettings.get("reduceShake") ~= true then task.wait(PE.gap(currentPaceDivisor > 1, beatRepeats)) end
 						-- Studio beatslow:freeze: beat 2 stays up and the count up waits until beatslow:off
 						while patronBeatNo == PE.FREEZE_AT and PE.slowMode() == "freeze" and scorePopupToken == myToken do task.wait(0.1) end
 					else

@@ -22,6 +22,7 @@ function M.pitch(i, n)
 	return 1.0 + 0.3 * (i - 1) / (n - 1)
 end
 
+-- opts.target lets the flourish grow with how far past the Target the round score is (Engine/ScorePacing.flourish)
 function M.plan(oldScore, newScore, opts)
 	opts = opts or {}
 	oldScore = math.floor(tonumber(oldScore) or 0)
@@ -37,9 +38,11 @@ function M.plan(oldScore, newScore, opts)
 	for i = 1, n do steps[i] = math.floor(oldScore + (newScore - oldScore) * i / n + 0.5) end
 	steps[n] = newScore
 	local stepDur = T.stepDur * k
-	local slam = { from = T.slamFrom, peak = T.slamPeak, up = T.slamUp * k, settle = T.slamSettle * k }
-	local hold = T.hold * k
-	return { steps = steps, stepDur = stepDur, slam = slam, burst = T.burst, hold = hold, final = newScore,
+	local fl = require(script.Parent.ScorePacing).flourish(newScore, opts.target)
+	local slam = { from = T.slamFrom, peak = math.max(T.slamPeak, fl.peak), up = T.slamUp * k, settle = T.slamSettle * k }
+	local hold = (T.hold + fl.extraHold) * k
+	local burst = opts.target and math.max(T.burst, fl.burst) or T.burst
+	return { steps = steps, stepDur = stepDur, slam = slam, burst = burst, hold = hold, final = newScore, level = fl.level,
 		total = n * stepDur + slam.up + slam.settle + hold }
 end
 

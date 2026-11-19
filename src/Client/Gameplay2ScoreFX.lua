@@ -47,9 +47,9 @@ local function burst(parent, n)
 	end
 end
 
-function M.play(scoreNum, burstParent, oldScore, newScore, setText)
+function M.play(scoreNum, burstParent, oldScore, newScore, setText, target)
 	local fast = ClientSettings.get("animSpeed") == "fast" and PlayerProfile.animationPaceDivisor("fast", false) > 1
-	local plan = Rules.plan(oldScore, newScore, { calm = calm(), fast = fast })
+	local plan = Rules.plan(oldScore, newScore, { calm = calm(), fast = fast, target = target })
 	running = running + 1
 	local id = running
 	if not plan then setText(newScore); return end
