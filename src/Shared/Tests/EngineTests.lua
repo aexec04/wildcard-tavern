@@ -29314,4 +29314,53 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
 end })
 
+table.insert(tests, { name = "Counter summary plate: top right under the corner buttons, inside the screen, quest toasts start 8 px under it, wired once", fn = function()
+	local S = require(script.Parent.Parent.Engine.ShopSummary)
+	local T = require(script.Parent.Parent.Engine.CornerToastRules)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 } }) do
+		local r = S.rect(sz[1], sz[2])
+		assert(r.x >= 0 and r.x + r.w <= sz[1] - S.EDGE + 0.5 and r.y >= 66 and r.w <= 300, "plate inside the corner at " .. sz[1])
+		local plan = T.plan("shop")
+		T.below(plan, sz[1], S.keepOut(sz[1], sz[2]))
+		assert(T.slot(sz[1], sz[2], plan, 1).y >= r.y + r.h + S.TOAST_GAP, "toasts start under the plate at " .. sz[1])
+	end
+	local l = S.lines({ title = "Target cleared", score = "Score 900 of 600", tips = "Tips +7" })
+	assert(l.score == "Score 900 of 600" and l.tips == "Tips +7" and S.lines(nil) == nil)
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/Gameplay2.lua"):find("ShopSummaryPlate", 1, true) and read("src/Client/Shop.lua"):find("ShopSummaryPlate", 1, true), "wired")
+	assert(not read("src/Client/ShopSummaryPlate.lua"):find("TweenService", 1, true), "no tweens")
+end })
+
+table.insert(tests, { name = "Gameplay v2 played lane: cards land under the centre score block and above the hand at every size, one scoring display", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local Lane = require(script.Parent.Parent.Engine.PlayedLane)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local b = L.playedBand(r, 26, 22)
+		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y, "band sits inside the stage and above the hand at " .. sz[1])
+		local lane = Lane.rect({ nookBottom = b.top - 10, handTop = b.bottom + 10, cardW = 110, cardH = 154, popupH = 0 })
+		assert(lane.rowY >= b.top - 0.5, "played cards start inside the band at " .. sz[1])
+		assert(lane.rowY + lane.cardH <= b.bottom + 0.5, "played cards end above the hand at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local sp = read("src/Client/ScorePopup.lua")
+	assert(sp:find("playedBand", 1, true) and sp:find("readoutPill.Visible = not", 1, true), "ScorePopup uses the v2 band and hides the legacy pills")
+end })
+
+table.insert(tests, { name = "Patron speech bubble on the v2 table: below the row, centred on its own Patron, at most 260 px wide, inside the screen", fn = function()
+	local V = require(script.Parent.Parent.Engine.PatronVoiceLayout)
+	for _, w in ipairs({ 1920, 1280, 844 }) do
+		for _, cx in ipairs({ 0, 300, w / 2, w - 150 }) do
+			local r = V.rect(cx, 120, 400, w)
+			assert(r.w <= 260 and r.x >= 0 and r.x + r.w <= w and r.y >= 400, "bubble below the row, inside the screen at " .. w)
+			if cx > 200 and cx + 120 < w - 200 then assert(math.abs((r.x + r.w / 2) - (cx + 60)) <= 1, "centred on its own Patron") end
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronVoice.lua", "r")); local c = f:read("a"); f:close()
+	assert(c:find("PatronVoiceLayout", 1, true), "wired")
+end })
+
 return tests

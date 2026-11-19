@@ -547,6 +547,7 @@ return function(deps)
 		pcall(function() require(script.Parent.ConceptTSkin).plateButton(nextRoundButton) end) -- the one green plate style
 		addButtonHoverScale(nextRoundButton)
 		pcall(function() require(script.Parent.TavernScreens).apply(shopFrame, "counter") end) -- Gameplay v2 look: counter scene behind, green Next Round
+		pcall(function() require(script.Parent.ShopSummaryPlate).attach(shopFrame) end) -- lasting Target cleared / Score / Tips plate, top right
 
 		-- Counter v2 stage director (Client/ShopStage.lua): nil until the painted scene art is recorded.
 		do

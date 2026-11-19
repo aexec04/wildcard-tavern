@@ -172,6 +172,10 @@ function CornerToast.refresh()
 		local okPanel, rect = pcall(function() return require(script.Parent.PatronRow).panelRect() end)
 		if okPanel and rect then Rules.below(plan, w, rect) end
 	end
+	if screen == "shop" then -- the round summary plate stands where the column starts: toasts go 8 px under it
+		local okSum, sum = pcall(function() return require(game:GetService("ReplicatedStorage").Shared.Engine.ShopSummary).keepOut(w, h) end)
+		if okSum and sum then Rules.below(plan, w, sum) end
+	end
 	for i = 1, Rules.MAX_STACK do
 		local row = rows[i]
 		if not row then

@@ -619,10 +619,16 @@ return function(deps)
 		end
 		local baseW = g1 and g1:GetAttribute("LaneW") or 120
 		local baseH = g1 and g1:GetAttribute("LaneH") or 170
+		local laneTop = okE and nookBottom and (nookBottom - root.AbsolutePosition.Y) or nil
+		local laneHandTop = handFrame and (handFrame.AbsolutePosition.Y - root.AbsolutePosition.Y) or (rootSize.Y - 356)
+		local laneReadoutH = POPUP_H
+		local okB, band = pcall(function() return require(script.Parent.Gameplay2).playedBand() end)
+		if okB and band then -- v2 table: the cards stand under the centre score block and no legacy readout hangs above them
+			laneTop, laneHandTop, laneReadoutH = band.top - 10, math.min(laneHandTop, band.bottom + 10), 0
+		end
 		local lane = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane")).rect({
-			nookBottom = okE and nookBottom and (nookBottom - root.AbsolutePosition.Y) or nil,
-			handTop = handFrame and (handFrame.AbsolutePosition.Y - root.AbsolutePosition.Y) or (rootSize.Y - 356),
-			cardW = baseW, cardH = baseH, popupH = POPUP_H,
+			nookBottom = laneTop, handTop = laneHandTop,
+			cardW = baseW, cardH = baseH, popupH = laneReadoutH,
 		})
 		local rowY = lane.rowY
 		totalWidth = (lane.cardW + gap) * #playedGhosts - gap
@@ -1094,6 +1100,11 @@ return function(deps)
 			multLabel.Text = string.format("%d", math.floor(openMult + 0.5))
 		end
 		scorePopup.Visible = true
+		do -- v2 table: the centre block is the one scoring display, so the old Chips x Mult box and hand name strip stay hidden
+			local okV, v2 = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+			handPill.Visible = not (okV and v2)
+			readoutPill.Visible = not (okV and v2)
+		end
 		scorePopupScale.Scale = 0.6
 		tweenTo(scorePopupScale, { Scale = 1.15 }, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 

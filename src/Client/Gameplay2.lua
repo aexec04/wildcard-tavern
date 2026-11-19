@@ -458,7 +458,10 @@ function M.install(deps)
 			if self.prev and lastState and lastState.phase ~= "playing" then -- the round just ended: a cleared target gets its plate
 				local lines = Moments.clearLines(self.prev, lastState)
 				self.prev = nil
-				if lines then pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end) end
+				if lines then
+					pcall(function() require(script.Parent.ShopSummaryPlate).remember(lines) end) -- stays on the Counter
+					pcall(function() require(script.Parent.Gameplay2MomentsFX).clear(root, lines) end)
+				end
 			end
 			fanHand(false, size.Y); restoreOld()
 			-- the "TARGET CLEARED!" shout of the last hand must not hang over the Counter
@@ -563,6 +566,13 @@ function M.setPreview(preview, handLevels)
 	if current.previewText == text then return end
 	current.previewText = text
 	if current.isActive() then pcall(current.refresh) end
+end
+
+-- where the played cards land (root-relative { top, bottom }), nil when the v2 table is not up: below the centre score block
+function M.playedBand()
+	if not (current and current.isActive()) then return nil end
+	local r = current.rects()
+	return require(Engine:WaitForChild("Gameplay2Layout")).playedBand(r, math.max(20, PreviewRules.H), 22)
 end
 
 -- where discarded cards fly (root pixels), nil when the v2 table is not up: the bottom right, under the deck count

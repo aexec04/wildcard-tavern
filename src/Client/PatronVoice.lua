@@ -93,7 +93,19 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 	local col = slotFrame:FindFirstAncestor("SidebarBoard") or slotFrame:FindFirstAncestor("Sidebar")
 	local left = pos.X + size.X + 8
 	if col then left = math.max(left, col.AbsolutePosition.X - gui.AbsolutePosition.X + col.AbsoluteSize.X + 8) end
+	bubble.AnchorPoint = Vector2.new(0, 0.5)
+	bubble.Size = UDim2.fromOffset(190, 40)
 	bubble.Position = UDim2.fromOffset(left, pos.Y + size.Y / 2)
+	pcall(function() -- v2 table: below the Patron row, centred on its own Patron, never over a neighbour's face
+		local okA, active = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+		local okE, rowBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
+		if okA and active and okE and rowBottom then
+			local R = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronVoiceLayout")).rect(pos.X, size.X, rowBottom - gui.AbsolutePosition.Y, gui.AbsoluteSize.X)
+			bubble.AnchorPoint = Vector2.new(0, 0)
+			bubble.Size = UDim2.fromOffset(R.w, R.h)
+			bubble.Position = UDim2.fromOffset(R.x, R.y)
+		end
+	end)
 	bubble.Visible = true
 	task.delay(SHOW_SECONDS, function()
 		if mine == bubbleToken and bubble then bubble.Visible = false end

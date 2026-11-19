@@ -142,6 +142,19 @@ function M.scoreStack(stageH, capH, progH)
 	return { roomy = roomy, numTop = numTop, numH = numH, textSize = textSize, lineY = numTop + numH - 2, progressY = numTop + numH + 2, bottom = numTop + numH + 2 + 4 + progH }
 end
 
+-- Where a played hand lands on the v2 table: under the centre score block (caption, numeral, line, progress) and above the hand, so
+-- there is ONE scoring display and the cards never cover it. Root pixels: { top, bottom }.
+M.PLAYED_GAP = 8
+M.PLAYED_MIN_H = 80
+function M.playedBand(r, capH, progH)
+	local N = M.scoreStack(r.stage.h, capH or 26, progH or 22)
+	-- the numeral and its gold line stay clear; the small "<score> of <target>" line under them may sit behind the cards (the stage is
+	-- only about 185 px tall at 1080p, too short for score block and a readable card row)
+	local bottom = r.hand.y - M.PLAYED_GAP
+	-- a short stage (1280x720) has no room for both: the cards keep a readable 80 px row and cover the lower part of the numeral
+	return { top = math.max(r.stage.y, math.min(r.stage.y + N.progressY - 2, bottom - M.PLAYED_MIN_H)), bottom = bottom }
+end
+
 local function intersects(a, b)
 	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
 end
