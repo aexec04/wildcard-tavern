@@ -91,19 +91,45 @@ function M.emphasizeNext(b)
 	local N = Screens.NEXT_ROUND
 	local base = Color3.fromRGB(N.fill[1], N.fill[2], N.fill[3])
 	local hot = Color3.fromRGB(N.hover[1], N.hover[2], N.hover[3])
+	-- nothing may sit between the plate colour and the label: the plate art and any gradient or old stroke go
+	for _, d in ipairs(b:GetChildren()) do
+		if d.Name == "ConceptTPlate" and d:IsA("GuiObject") then d.Visible = false
+		elseif d:IsA("UIGradient") or d:IsA("UIStroke") then d:Destroy() end
+	end
 	b.BackgroundColor3 = base
 	b.BackgroundTransparency = 0
+	local edge = Instance.new("UIStroke")
+	edge.Name = "NextEdge"
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edge.Color = Color3.fromRGB(N.edge[1], N.edge[2], N.edge[3])
+	edge.Thickness = 2
+	edge.Parent = b
+	b.AutoButtonColor = false
 	b.TextSize = N.textSize
 	b.TextScaled = true -- 24 px where it fits, down to 15 px on a narrow plate
 	local cap = Instance.new("UITextSizeConstraint")
 	cap.MaxTextSize, cap.MinTextSize = N.textSize, 15
 	cap.Parent = b
-	b.TextColor3 = Color3.fromRGB(250, 240, 220)
+	local cream = Color3.fromRGB(N.text[1], N.text[2], N.text[3])
+	b.TextColor3 = cream
 	b.TextTransparency = 0
 	b.TextStrokeColor3 = Color3.fromRGB(N.stroke[1], N.stroke[2], N.stroke[3])
 	b.TextStrokeTransparency = 0
-	b.MouseEnter:Connect(function() b.BackgroundColor3 = hot end) -- a colour swap, no tween, so Calm mode is the same
-	b.MouseLeave:Connect(function() b.BackgroundColor3 = base end)
+	local hovered = false
+	local function settle() -- the one writer of the plate look: fully opaque, cream label, bright fill (no tween, so Calm mode is the same)
+		local fill = hovered and hot or base
+		if b.BackgroundTransparency ~= 0 then b.BackgroundTransparency = 0 end
+		if b.TextTransparency ~= 0 then b.TextTransparency = 0 end
+		if b.TextStrokeTransparency ~= 0 then b.TextStrokeTransparency = 0 end
+		if b.TextColor3 ~= cream then b.TextColor3 = cream end
+		if b.BackgroundColor3 ~= fill then b.BackgroundColor3 = fill end
+	end
+	for _, prop in ipairs({ "BackgroundTransparency", "TextTransparency", "TextStrokeTransparency", "TextColor3", "BackgroundColor3" }) do
+		b:GetPropertyChangedSignal(prop):Connect(settle)
+	end
+	b.MouseEnter:Connect(function() hovered = true; settle() end)
+	b.MouseLeave:Connect(function() hovered = false; settle() end)
+	settle()
 end
 
 function M.apply(screenFrame, screen)

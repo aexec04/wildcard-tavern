@@ -45,7 +45,7 @@ ShopSceneLayout.TABLE_EDGE = 8       -- gap between the table and the foot of th
 ShopSceneLayout.TABLE_FOOT = 30      -- the table's lower edge stays at least this far above the Next Round sign
 ShopSceneLayout.TABLE_WIDTH = 0.88   -- the table takes this share of the room between Marlo and the bell (it was too big, over the shelves)
 ShopSceneLayout.PACK_RATIO = 0.8     -- width / height of a pack's rect
-ShopSceneLayout.PACK_SHARE = 0.6     -- a pack is this share of a Patron card's width: packs lie smaller
+ShopSceneLayout.PACK_SHARE = 0.75    -- a pack is this share of a Patron card's width: packs lie smaller
 ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
 ShopSceneLayout.READABLE_SCALE = 0.5 -- the table grows taller on a small window until its Patron cards reach this card scale
 

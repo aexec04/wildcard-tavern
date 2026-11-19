@@ -27,7 +27,8 @@ M.SCREENS = {
 }
 
 -- Next Round on the Counter: a bright primary green plate, cream 24 px text on a solid dark outline, brighter on hover, never dimmed
-M.NEXT_ROUND = { fill = { 62, 148, 70 }, hover = { 84, 176, 92 }, stroke = { 18, 40, 14 }, textSize = 24 }
+-- (bright warm green 0.30,0.62,0.30; the text keeps a dark outline for 4.5:1 and the plate a thin gold edge)
+M.NEXT_ROUND = { fill = { 77, 158, 77 }, hover = { 100, 186, 100 }, stroke = { 18, 40, 14 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, textSize = 24 }
 
 -- the Patron tooltip plate: TavernKit plate colours (Engine/TavernStyle) instead of its own brown
 M.TOOLTIP = { fill = "plateFill", trim = "goldTrim", trimThickness = 2 }

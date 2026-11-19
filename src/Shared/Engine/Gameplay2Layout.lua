@@ -127,6 +127,15 @@ function M.rects(w, h)
 	return r
 end
 
+-- The TARGET CLEARED / NEW BEST banner (56 px tall, centred): the top of the stage, just under the 26 px hand preview pill, so it never
+-- covers the Patron label and pill rows. Returns the banner's centre Y in px.
+M.BANNER_H = 56
+M.BANNER_AIR = 4 -- px under the preview pill (Gameplay2Preview.H is 26)
+function M.bannerY(w, h)
+	local st = M.rects(w, h).stage
+	return st.y + 26 + M.BANNER_AIR + math.floor(M.BANNER_H / 2)
+end
+
 -- The centre score stack inside the stage: caption, numeral (digits about 56 px tall, so a 72 px font), a gold line directly under
 -- it and the "<score> of <target>" progress text (18 px) under the line. A short stage keeps the number alone.
 M.SCORE_FONT = 72

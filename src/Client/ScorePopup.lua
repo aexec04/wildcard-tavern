@@ -1454,7 +1454,14 @@ return function(deps)
 					local bannerText = (ScoreJuice.isNewBest(preview.score, preview.isRunStart and 0 or juiceBest) and "NEW BEST!")
 						or (ScoreJuice.clearsTarget(preview.roundScoreBefore, preview.score, preview.targetScore) and "TARGET CLEARED!") or nil
 					local rootPos, rootSize = root.AbsolutePosition, root.AbsoluteSize
-					local bandTop, bandBottom = 0.4 * rootSize.Y - 28, 0.4 * rootSize.Y + 28 -- the banner's own band
+					local bannerCy = 0.4 * rootSize.Y -- the v2 table moves the banner to the top of its stage, under the Patron pill rows
+					pcall(function()
+						local Eng = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+						if require(Eng:WaitForChild("FeatureFlags")).gameplay() == 2 then
+							bannerCy = require(Eng:WaitForChild("Gameplay2Layout")).bannerY(rootSize.X, rootSize.Y)
+						end
+					end)
+					local bandTop, bandBottom = bannerCy - 28, bannerCy + 28 -- the banner's own band
 					local readoutLeft, readoutRight = nil, nil
 					local middle = scorePopup.AbsolutePosition.X + scorePopup.AbsoluteSize.X / 2 - rootPos.X
 					for _, partName in ipairs({ "ReadoutPill", "HandPill" }) do
@@ -1474,7 +1481,7 @@ return function(deps)
 						handLeft = scorePopup:GetAttribute("RowHandLeft"), bannerHalf = bannerText and ScoreFeel.bannerHalf(bannerText) or 0,
 						readoutLeft = readoutLeft, readoutRight = readoutRight,
 					})
-					juiceBanner.Position = UDim2.new(0, plan.bannerX, 0.4, 0)
+					juiceBanner.Position = UDim2.new(0, plan.bannerX, 0, bannerCy)
 					require(script.Parent.ComboCounter).stand({
 						side = plan.side, edge = plan.comboEdge, limit = plan.limit,
 						y = scorePopup:GetAttribute("RowMid") or (0.4 * rootSize.Y),

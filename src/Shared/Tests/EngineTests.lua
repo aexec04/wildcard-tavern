@@ -26526,7 +26526,7 @@ table.insert(tests, { name = "Combo shout and finale banner share the row withou
 	expectTrue(hud:find("local tw = BC.wrapWidth(", 1, true) ~= nil, "and the board plans the row with the same width")
 	expectTrue(hud:find("local tw = BC.textWidth(", 1, true) == nil, "not with the full row width, which counted one line for a text that wraps to two")
 	expectTrue(popup:find("local plan = ScoreFeel.finaleRow({", 1, true) ~= nil, "the finale asks the rule")
-	expectTrue(popup:find("juiceBanner.Position = UDim2.new(0, plan.bannerX, 0.4, 0)", 1, true) ~= nil, "and puts the banner where it says")
+	expectTrue(popup:find("juiceBanner.Position = UDim2.new(0, plan.bannerX, 0, bannerCy)", 1, true) ~= nil, "and puts the banner where it says")
 	expectTrue(popup:find('scorePopup:SetAttribute("RowLeft", x)', 1, true) ~= nil, "the played row is remembered for the finale")
 	expectTrue(hud:find("put(st, boardTop, { ClipsDescendants = false })", 1, true) ~= nil, "under the painted board the old frame clips nothing")
 	expectTrue(chip:find("if ui and ui.board and ui.board.ClipsDescendants then", 1, true) ~= nil, "the text column is only cut while the frame clips")
@@ -28720,6 +28720,39 @@ table.insert(tests, { name = "TavernScreens layers: scene and decor sit below ev
 	assert(src:find("pcall(M.layer, screenFrame, screen)", 1, true), "apply layers the screen")
 end })
 
+table.insert(tests, { name = "Counter fixes: bright Next Round with gold edge, packs as big as offers, banner under the preview pill and clear of the Patron rows", fn = function()
+	local E = script.Parent.Parent.Engine
+	local S, SL, L = require(E.TavernScreens), require(E.ShopSceneLayout), require(E.Gameplay2Layout)
+	local Style = require(E.TavernStyle)
+	local N = S.NEXT_ROUND
+	assert(N.fill[1] == 77 and N.fill[2] == 158 and N.fill[3] == 77, "bright warm green (0.30, 0.62, 0.30)")
+	assert(N.text[1] == 250 and N.text[2] == 240 and N.text[3] == 220, "cream label")
+	assert(N.edge and N.edge[1] > 200 and N.edge[3] < 100, "thin gold edge")
+	assert(N.hover[2] > N.fill[2], "hover brightens")
+	assert(Style.contrast(N.text, N.stroke) >= 4.5, "the label's dark outline gives 4.5:1")
+	-- layers: the scene sits under every control
+	assert(S.LAYERS.scene < S.LAYERS.decor and S.LAYERS.decor < S.LAYERS.controls)
+	-- offer cards and packs at 1920x1080 with three or four offers: offers 170 px or more, packs not tiny (at least 70 percent of an offer)
+	for n = 3, 4 do
+		local r = SL.rects(1920, 1080, { offers = n, packs = 2 })
+		assert(r.offers[1].w >= 170, "offer card 170 px wide with " .. n .. " offers")
+		assert(r.packs[1].w >= 0.7 * r.offers[1].w - 1, "pack is at least 70 percent of an offer card")
+	end
+	local r3 = SL.rects(1920, 1080, { offers = 3, packs = 2 })
+	assert(r3.packs[1].w >= 170, "with three offers the packs are 170 px too")
+	-- banner: under the 26 px preview pill, inside the stage, below every Patron pill
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local cy = L.bannerY(sz[1], sz[2])
+		local top = cy - L.BANNER_H / 2
+		assert(top >= r.stage.y + 26, "banner under the preview pill at " .. sz[1])
+		for _, s in ipairs(r.slots) do
+			assert(top >= s.pill.y + s.pill.h and top >= s.label.y + s.label.h, "banner clear of the Patron label and pill rows at " .. sz[1])
+		end
+		assert(cy < r.hand.y + r.hand.h, "banner above the bottom of the hand")
+	end
+end })
+
 table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner disc, Next Round contrast, banner spot, score stack, bigger offer cards, no overlaps", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, S, RB, L = require(E.PatronTierStyle), require(E.TavernScreens), require(E.RewardBanner), require(E.Gameplay2Layout)
@@ -28729,7 +28762,7 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 	assert(d.w == 48 and d.x + d.w == 150 + 19 and d.y + d.h == 210 + 19, "48 px disc on a roomy card, 19 px (40 percent) outside the corner")
 	assert(T.discBand(150) >= 16, "the label starts under the disc overhang")
 	-- 2. Next Round: bright green, cream text at 24 px, at least 3:1 (large text) with a solid dark outline
-	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.fill) >= 3, "cream on the bright green plate")
+	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.stroke) >= 4.5, "cream on its dark outline (the plate itself is bright green)")
 	assert(S.NEXT_ROUND.fill[2] > Style.rgb("greenDeep")[2], "brighter than the kit primary")
 	-- 3. the Round Complete plate stands right of the merchant: top right, clear of the right-hand column
 	for _, w in ipairs({ 1920, 1280, 1024, 844 }) do
