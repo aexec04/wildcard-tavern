@@ -159,6 +159,7 @@ ShopCards.packTier = packTier
 function ShopCards.new(deps)
 	local playClickSfx = deps.playClickSfx or function() end
 	local particleBurst = deps.particleBurst
+	local flipLast, flipN = nil, 0 -- card flip in stagger (Engine/AnimPass.cardFlip)
 	local sparkled = {} -- offer key -> last sparkle time (Engine/ShopSparkle.shouldPlay)
 	local addTooltip = deps.addTooltip
 	local self = {}
@@ -342,6 +343,12 @@ function ShopCards.new(deps)
 			rarity = CollectionBook.rarityForId(spec.rarityTab, spec.rarityId)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
+		do -- cards turn up one by one when a shelf first shows (index counts cards built within 0.4 s of each other; none in Calm mode)
+			local now = os.clock()
+			if now - (flipLast or -1) > 0.4 then flipN = 0 end
+			flipLast, flipN = now, flipN + 1
+			if spec.kind ~= "owned" then local n = flipN; pcall(function() require(script.Parent.AnimPassFX).cardFlip(slot, n) end) end
+		end
 		-- a Rare or better offer gives one small sparkle in its tier colour when it first shows (none in calm mode or on Fast)
 		if particleBurst and spec.kind ~= "owned" then
 			local sp = require(Engine:WaitForChild("ShopSparkle"))

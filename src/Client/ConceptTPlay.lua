@@ -155,6 +155,8 @@ function M.install(deps)
 		fill.Position = UDim2.fromOffset(bar.x, bar.y)
 		fill.Size = UDim2.fromOffset(math.floor(bar.w * p), bar.h)
 		fill.Visible = p > 0
+		if self.lastP ~= nil and p > self.lastP then local prev = self.lastP; pcall(function() require(script.Parent.AnimPassFX).barShine(fill, prev, p) end) end
+		self.lastP = p
 		-- the real controls ride on the painted pieces
 		place(deps.handFrame, r.hand)
 		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
@@ -209,8 +211,10 @@ function M.install(deps)
 		end
 		deckText.Text = DeckCountText.spaced(remaining, lastState.deckView)
 		if oldDeck ~= "" and oldDeck ~= deckText.Text then
-			pcall(FX.pop, deckText, oldDeck, deckText.Text)
-			pcall(FX.deckShake, deck, oldDeck, deckText.Text)
+			local newDeck = deckText.Text
+			pcall(FX.pop, deckText, oldDeck, newDeck)
+			pcall(FX.deckShake, deck, oldDeck, newDeck)
+			pcall(function() require(script.Parent.AnimPassFX).countFlip(deckText, oldDeck, newDeck) end)
 		end
 		clearButton(deps.playButton); clearButton(deps.discardButton)
 		apply()

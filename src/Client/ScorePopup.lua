@@ -1058,6 +1058,7 @@ return function(deps)
 			end
 		end)
 		scorePopupHandName.Text = preview.name
+		pcall(function() require(script.Parent.AnimPassFX).nameSlam(scorePopupHandName, false) end) -- slam, squash, settle (none in Calm mode)
 		scorePopupEventLabel.Text = ""
 		do -- the readout opens on the hand's own Chips x Mult, together with its name (Engine/PlayReport.baseOf)
 			local openChips, openMult = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayReport")).baseOf(preview.breakdown or {})
