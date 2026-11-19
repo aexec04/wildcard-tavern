@@ -1604,7 +1604,19 @@
     "penny_pincher": "uncommon",
     "big_spender": "uncommon",
     "boss_bane": "uncommon",
-    "tasting_menu": "uncommon"
+    "tasting_menu": "uncommon",
+    "early_bird": "rare",
+    "night_owl": "rare",
+    "full_suit_feast": "rare",
+    "foursome_table": "rare",
+    "royal_road": "rare",
+    "bread_starter": "rare",
+    "overtime": "rare",
+    "house_special": "epic",
+    "full_house_crowd": "epic",
+    "house_tab": "epic",
+    "veterans_table": "epic",
+    "house_favorite": "legendary"
   },
   "ctp_subjects": {
     "ctp_the_regular": "the same common card, same frame and gem, with the character replaced by a cheerful middle aged man with a round face and a brown beard in a green waistcoat, sitting happily on his usual stool and holding up a fresh round loaf of bread. The wooden name plate at the bottom reads exactly \"The Regular\" and nothing else is written anywhere",
@@ -1620,6 +1632,18 @@
     "ctp_penny_pincher": "the same uncommon card, same frame and gem, with the character replaced by a thin careful man with a pointed grey beard and round spectacles in a brown coat, counting a few small coins in his palm. The wooden name plate at the bottom reads exactly \"Penny Pincher\" and nothing else is written anywhere",
     "ctp_big_spender": "the same uncommon card, same frame and gem, with the character replaced by a jolly broad shouldered woman with a bright yellow hat and dark brown skin in a fancy teal coat, tossing a handful of gold coins in the air. The wooden name plate at the bottom reads exactly \"Big Spender\" and nothing else is written anywhere",
     "ctp_boss_bane": "the same uncommon card, same frame and gem, with the character replaced by a brave young hero with spiky silver hair and light brown skin in a bright blue tunic and a short cape, striking a bold pose with a fist raised. The wooden name plate at the bottom reads exactly \"Boss's Bane\" and nothing else is written anywhere",
-    "ctp_tasting_menu": "the same uncommon card, same frame and gem, with the character replaced by a friendly chef with a tall white hat and a curly black moustache in a clean white apron, holding a small silver tray with tiny tarts. The wooden name plate at the bottom reads exactly \"Tasting Menu\" and nothing else is written anywhere"
+    "ctp_tasting_menu": "the same uncommon card, same frame and gem, with the character replaced by a friendly chef with a tall white hat and a curly black moustache in a clean white apron, holding a small silver tray with tiny tarts. The wooden name plate at the bottom reads exactly \"Tasting Menu\" and nothing else is written anywhere",
+    "ctp_early_bird": "the same rare card, same frame and gem, with the character replaced by a cheerful young man with messy sandy hair and light skin in a sunrise yellow jacket, holding a small blue songbird on his finger, a golden sunrise glow behind him. The wooden name plate at the bottom reads exactly \"Early Bird\" and nothing else is written anywhere",
+    "ctp_night_owl": "the same rare card, same frame and gem, with the character replaced by a calm woman with short silver hair and brown skin in a deep indigo cloak with star patterns, a friendly owl on her shoulder, a crescent moon glow behind her. The wooden name plate at the bottom reads exactly \"Night Owl\" and nothing else is written anywhere",
+    "ctp_full_suit_feast": "the same rare card, same frame and gem, with the character replaced by a plump happy cook with a black bun and tan skin in a bright red apron, proudly presenting a big golden platter of food, four small card suit symbols floating around. The wooden name plate at the bottom reads exactly \"Full Suit Feast\" and nothing else is written anywhere",
+    "ctp_foursome_table": "the same rare card, same frame and gem, with the character replaced by a cheerful pair of two friends standing close together, one with green hair and one with pink hair, both in matching blue vests, each holding up two fingers for four fingers in all. The wooden name plate at the bottom reads exactly \"Foursome Table\" and nothing else is written anywhere",
+    "ctp_royal_road": "the same rare card, same frame and gem, with the character replaced by a noble traveller with wavy brown hair and olive skin in a royal blue cape with gold trim, walking forward along a golden brick road with one hand raised. The wooden name plate at the bottom reads exactly \"Royal Road\" and nothing else is written anywhere",
+    "ctp_bread_starter": "the same rare card, same frame and gem, with the character replaced by a smiling baker with curly white hair and a flour smudge on her dark brown cheek in a cream apron, holding a big glass jar of bubbly dough beside a fresh loaf. The wooden name plate at the bottom reads exactly \"Bread Starter\" and nothing else is written anywhere",
+    "ctp_overtime": "the same rare card, same frame and gem, with the character replaced by a tired but cheerful clerk with round glasses and neat black hair and light skin in a green vest, holding a big brass pocket clock, with a steaming mug of cocoa on the desk behind. The wooden name plate at the bottom reads exactly \"Overtime\" and nothing else is written anywhere",
+    "ctp_house_special": "the same epic card, same frame and gem, with the character replaced by a flamboyant chef with a tall purple hat and a waxed moustache and dark skin in a purple and gold jacket, lifting the lid off a glowing silver dish, sparkles rising. The wooden name plate at the bottom reads exactly \"House Special\" and nothing else is written anywhere",
+    "ctp_full_house_crowd": "the same epic card, same frame and gem, with the character replaced by a happy crowd of five different blocky friends squeezed together in the frame, waving and laughing, different hair colours and hats, the tallest in the middle with a purple scarf. The wooden name plate at the bottom reads exactly \"Full House Crowd\" and nothing else is written anywhere",
+    "ctp_house_tab": "the same epic card, same frame and gem, with the character replaced by a careful bookkeeper with a long white beard and gold spectacles and pale skin in a purple robe, holding a huge open ledger book with a quill, little gold coins floating up from the page. The wooden name plate at the bottom reads exactly \"House Tab\" and nothing else is written anywhere",
+    "ctp_veterans_table": "the same epic card, same frame and gem, with the character replaced by a proud old soldier with a grey braided beard and tan skin in a polished purple coat with medals, sitting at a round table with one hand resting on a stack of cards, kind eyes. The wooden name plate at the bottom reads exactly \"Veteran's Table\" and nothing else is written anywhere",
+    "ctp_house_favorite": "the same legendary card, same frame and gem, with the character replaced by a radiant champion with golden hair and a gold crown and warm brown skin in a white and gold royal coat with a flowing cape, both arms raised in victory, golden light rays behind the character with golden light rays behind the character. The wooden name plate at the bottom reads exactly \"House Favorite\" and nothing else is written anywhere"
   }
 }
