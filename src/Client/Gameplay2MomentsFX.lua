@@ -238,6 +238,7 @@ function M.boss(layer, rects, state, w, h)
 	local timing = Rules.bossEntrance(calm(), fast())
 	if key and banner:GetAttribute("EntranceKey") ~= key then
 		banner:SetAttribute("EntranceKey", key)
+		pcall(function() require(script.Parent.Cue).play("boss_intro") end) -- silent until the cue has an id
 		if timing.slide > 0 then
 			local rest = UDim2.fromOffset(rect.x, rect.y)
 			banner.Position = UDim2.fromOffset(rect.x, rect.y - rect.h - 12)

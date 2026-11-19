@@ -29067,6 +29067,31 @@ table.insert(tests, { name = "Gameplay v2 sound pass: every moment plays an exis
 	end
 end })
 
+table.insert(tests, { name = "Gameplay v2 pass 21 to 23: GuiObject count under 1,500, every table effect on FxLoop, text 12 px or more, silent cues keep their call site", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Perf)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local FX = require(script.Parent.Parent.Engine.SoundFX)
+	assert(P.LIMIT == 1500 and P.verdict(100) == "ok" and P.verdict(1200) == "warn" and P.verdict(1500) == "over")
+	local tree = { Children = { { ClassName = "Frame", Visible = true, Children = { { ClassName = "TextLabel", Visible = true, Children = {} }, { ClassName = "UICorner", Children = {} } } },
+		{ ClassName = "Frame", Visible = false, Children = { { ClassName = "TextLabel", Visible = true, Children = {} } } } } }
+	assert(P.count(tree, false) == 4 and P.count(tree, true) == 3, "invisible branches are not counted on screen")
+	for _, m in ipairs(G.SILENT_OK) do
+		assert(S.Cues[m.cue] and FX.EMPTY_OK[m.cue], m.moment .. ": a real cue that is allowed to stay silent")
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	for _, m in ipairs(G.SILENT_OK) do assert(read(m.file):find(m.marker, 1, true), m.moment .. ": call site") end
+	for _, path in ipairs(P.LOOP_FILES) do
+		local src = read(path)
+		local bad = P.forbiddenLoop(src)
+		assert(not bad, path .. " starts a repeating effect outside FxLoop: " .. tostring(bad))
+		for size in src:gmatch("TextSize = (%d+)") do assert(tonumber(size) >= P.MIN_TEXT, path .. ": text under 12 px") end
+	end
+	assert(read("src/Client/GuidedHint.lua"):find("FxLoop.add", 1, true), "the guide pulse runs on FxLoop")
+	assert(read("src/Client/AuditV2.lua"):find("Gameplay2Perf", 1, true), "AuditV2 prints the GuiObject count")
+end })
+
 table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit buttons top left under Roblox's top bar, 44 px targets, state shown by words and plate, Calm flips the three settings together", fn = function()
 	local Q = require(script.Parent.Parent.Engine.Gameplay2Quick)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

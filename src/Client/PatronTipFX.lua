@@ -66,7 +66,10 @@ function M.show(root, cards, index, info, calm)
 	if not v2 then return render(root, cards, index, info, calm, false) end
 	local mine = token
 	task.delay(Tip.DELAY, function()
-		if mine == token and root.Parent then render(root, cards, index, info, calm, true) end
+		if mine == token and root.Parent then
+			render(root, cards, index, info, calm, true)
+			pcall(function() require(script.Parent.Cue).play("hover") end) -- the soft hover tick, behind the cue cooldown
+		end
 	end)
 end
 

@@ -22,7 +22,14 @@ M.MOMENTS = {
 	{ moment = "coin", cue = "coin", file = "src/Client/RoundRewardBanner.lua", marker = '"coin"' },
 	{ moment = "round clear", cue = "round_clear", file = "src/Client/RoundRewardBanner.lua", marker = '"round_clear"' },
 	{ moment = "defeat", cue = "defeat", file = "src/Client/GameOver.lua", marker = '"defeat"' },
+	{ moment = "Patron tooltip", cue = "hover", file = "src/Client/PatronTipFX.lua", marker = '"hover"' },
+	{ moment = "shop buy", cue = "shop_buy", file = "src/Client/ShopScene.lua", marker = '"shop_buy"' },
 	{ moment = "nothing selected", cue = "shop_cant", file = "src/Client/Gameplay2FeelFX.lua", marker = '"shop_cant"' },
+}
+
+-- cues that may stay silent until an id is pasted in (SoundFX.EMPTY_OK); the call site must still exist
+M.SILENT_OK = {
+	{ moment = "boss entrance", cue = "boss_intro", file = "src/Client/Gameplay2MomentsFX.lua", marker = '"boss_intro"' },
 }
 
 M.SLIDER_STEPS = { 0, 0.1, 0.25, 0.5, 0.75, 1 }

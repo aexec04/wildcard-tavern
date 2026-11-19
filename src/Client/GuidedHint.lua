@@ -13,9 +13,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Guided = require(Engine:WaitForChild("GuidedHand"))
 local ClientSettings = require(script.Parent.ClientSettings)
+local FxLoop = require(script.Parent.FxLoop)
 
 local M = {}
 local plate, line1, line2, outline, outline2, outlineOn, skipBtn
+local pulseLoop
 local skipped = false -- Skip hides the hint for the rest of this session; the server flag already makes it once per profile
 
 local GOLD = Color3.fromRGB(246, 196, 70)
@@ -67,6 +69,8 @@ end
 function M.hide()
 	if plate then plate.Visible = false end
 	if skipBtn then skipBtn.Visible = false end
+	if pulseLoop then pulseLoop.cancel(); pulseLoop = nil end
+	outlineOn = nil
 	if outline then outline.Enabled = false; outline.Parent = nil end
 	if outline2 then outline2.Enabled = false; outline2.Parent = nil end
 end
@@ -106,9 +110,15 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
 		if hint.pulse and outlineOn ~= target then
 			outlineOn = target
 			outline.Transparency = 0
-			TweenService:Create(outline, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.6 }):Play()
+			if pulseLoop then pulseLoop.cancel() end
+			local t0 = os.clock()
+			pulseLoop = FxLoop.add(function()
+				if not outline or outline.Parent == nil or not outline.Enabled then pulseLoop = nil; return true end
+				outline.Transparency = 0.3 + 0.3 * math.sin((os.clock() - t0) * math.pi / 0.7) -- 0 to 0.6 over 1.4 s, on the one loop
+			end, 0.05)
 		elseif not hint.pulse then
 			outlineOn = nil
+			if pulseLoop then pulseLoop.cancel(); pulseLoop = nil end
 			outline.Transparency = 0
 		end
 	end

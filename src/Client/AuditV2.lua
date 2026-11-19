@@ -29,6 +29,14 @@ function M.run()
 			if i == 1 and #a.warnings > 0 then warn("[AuditV2] " .. line) else print("[AuditV2] " .. line) end
 		end
 	end
+	pcall(function() -- live GuiObject count under the limit (Engine/Gameplay2Perf); run it at round start and again during scoring
+		local Perf = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Gameplay2Perf"))
+		local pg = game:GetService("Players").LocalPlayer.PlayerGui
+		local all, shown = Perf.count(pg, false), Perf.count(pg, true)
+		local v = Perf.verdict(shown)
+		local line = string.format("[AuditV2] GuiObjects: %d in the tree, %d on screen (limit %d, %s)", all, shown, Perf.LIMIT, v)
+		if v == "ok" then print(line) else warn(line) end
+	end)
 	print(string.format("[AuditV2] %d warning(s) across %d sizes", total, #sizes))
 	return total
 end
