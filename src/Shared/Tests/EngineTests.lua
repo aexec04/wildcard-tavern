@@ -30120,4 +30120,26 @@ table.insert(tests, { name = "Gameplay v2 audit: the My Patrons seat order label
 	expectTrue(CS.contrastRatio(Style.rgb("cream"), pf) >= 4.5, "cream on the plate")
 end })
 
+table.insert(tests, { name = "SortGlide: cards that changed place slide from their old spot, unmoved and new cards stay, none in Calm mode, the whole glide ends within 0.5 s, wired into the sort handler", fn = function()
+	local G = require(script.Parent.Parent.Engine.SortGlide)
+	local offs = G.offsets({ [1] = 100, [2] = 200, [3] = 300 }, { [1] = 300, [2] = 200, [3] = 100, [4] = 400 })
+	expectTrue(offs[1] == -200, "card 1 started 200 px left of its new place")
+	expectTrue(offs[3] == 200, "card 3 started 200 px right of its new place")
+	expectTrue(offs[2] == nil and offs[4] == nil, "an unmoved card and a new card do not glide")
+	expectTrue(G.offsets({ [1] = 100 }, { [1] = 101 })[1] == nil, "under 2 px counts as unmoved")
+	expectTrue(G.timing(true, false) == nil, "Calm mode and Reduce motion: no tween")
+	expectTrue(G.timing(false, true).time < G.timing(false, false).time, "Fast is quicker")
+	for _, n in ipairs({ 1, 5, 8, 12 }) do
+		for _, fast in ipairs({ false, true }) do
+			local t = G.timing(false, fast)
+			expectTrue(G.delay(n, n, fast) + t.time <= G.TOTAL_CAP + 1e-9, n .. " cards: the last one lands by " .. G.TOTAL_CAP .. " s")
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/init.client.lua", "r")); local hub = f:read("a"); f:close()
+	expectTrue(hub:find("SortGlideFX", 1, true) ~= nil, "the sort handler calls SortGlideFX")
+	f = assert(io.open("src/Client/SortGlideFX.lua", "r")); local fx = f:read("a"); f:close()
+	expectTrue(fx:find("if calm() or", 1, true) ~= nil, "calm mode returns before any tween")
+end })
+
 return tests

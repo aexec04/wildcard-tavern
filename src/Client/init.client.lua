@@ -547,7 +547,10 @@ local function applyHandSortMode(mode)
 	handSortMode = mode
 	refreshSortButtonHighlight()
 	if refreshHandSort then
+		local glide = script.SortGlideFX -- cards slide from their old place to the sorted one (none in Calm mode)
+		local before = require(glide).capture(handFrame)
 		refreshHandSort()
+		require(glide).play(handFrame, before)
 	end
 end
 
