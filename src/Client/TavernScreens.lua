@@ -140,7 +140,7 @@ function M.emphasizeNext(b)
 	for _, prop in ipairs({ "BackgroundTransparency", "TextTransparency", "TextStrokeTransparency", "TextColor3", "BackgroundColor3" }) do
 		b:GetPropertyChangedSignal(prop):Connect(settle)
 	end
-	pcall(function() require(script.Parent.TavernKit).painted(b, "btn_green") end) -- Counter Next Round wears the painted green button
+	pcall(function() require(script.Parent.TavernKit).paintedButton(b, "primary") end) -- Counter Next Round wears the ornate green button
 	b.MouseEnter:Connect(function() hovered = true; settle() end)
 	b.MouseLeave:Connect(function() hovered = false; settle() end)
 	settle()

@@ -270,6 +270,12 @@ function TavernKit.painted(host, piece)
 	return img
 end
 
+-- The ornate button for any screen: kind "primary" (green) or "secondary" (dark wood); the piece follows the plate's shape (Style.buttonPiece).
+function TavernKit.paintedButton(host, kind)
+	if not host then return nil end
+	return TavernKit.painted(host, Style.buttonPiece(kind, host.AbsoluteSize.X, host.AbsoluteSize.Y))
+end
+
 -- A small painted icon (speaker, pause, bulb, bars, spade, crown: Engine/PaintedKitArt pk_w_icon_<name>) drawn as a CHILD of the plate at its
 -- left side, so it survives a Clone and follows the plate. `pad` pushes the plate's own text right by that fraction of the width (a UIPadding),
 -- so the word never sits on the icon. Returns the ImageLabel, or nil (no id: the word stays centred and nothing changes).

@@ -29809,7 +29809,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	local g2 = read("src/Client/Gameplay2.lua")
 	for _, piece in ipairs({ "wh_target", "wh_small", "wh_count", "wh_score", "wh_btn_green", "wh_btn_dark", "wh_btn_sq", "wh_scroll" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
 	for _, icon in ipairs({ "bulb", "bars", "spade" }) do expectTrue(g2:find('"' .. icon .. '"', 1, true) ~= nil, "the table HUD draws the " .. icon .. " icon") end
-	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear and Next Round are painted")
+	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('paintedButton(b, "primary")', 1, true), "gear and Next Round are painted")
 end })
 
 table.insert(tests, { name = "Patron seats: an empty seat wears the painted patron_slot frame, an owned seat hides it, no overlap with labels", fn = function()
@@ -31037,8 +31037,8 @@ table.insert(tests, { name = "Night map and menu: info bar, subtitle, Select, Sk
 	if not io then return end
 	local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
 	local rs, jn, mb = src("src/Client/RoundSelect.lua"), src("src/Client/Journey.lua"), src("src/Client/MenuBoard.lua")
-	expectTrue(rs:find('painted(selectButton, "btn_green")', 1, true) ~= nil, "Select is the painted green plate")
-	expectTrue(rs:find('painted(skipButton, "btn_dark")', 1, true) ~= nil, "Skip is the painted dark plate")
+	expectTrue(rs:find('paintedButton(selectButton, "primary")', 1, true) ~= nil, "Select is the painted green plate")
+	expectTrue(rs:find('paintedButton(skipButton, "secondary")', 1, true) ~= nil, "Skip is the painted dark plate")
 	expectTrue(rs:find('painted(tipsChip, "count_tab")', 1, true) ~= nil, "Tips chip is painted")
 	expectTrue(jn:find('painted(journeyInfoBar, "wood_plate")', 1, true) ~= nil, "Night map info bar is painted")
 	expectTrue(jn:find('painted(journeySubtitle, "wood_plate")', 1, true) ~= nil, "Night map subtitle is painted")
@@ -31456,10 +31456,10 @@ table.insert(tests, { name = "Painted frames reach the Counter summary, Reroll a
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local want = {
 		{ "src/Client/ShopSummaryPlate.lua", 'painted(plate, "wood_plate")' },
-		{ "src/Client/ShopHaggle.lua", 'painted(haggleButton, "btn_dark")' },
-		{ "src/Client/Shop.lua", 'painted(rerollButton, "btn_dark")' },
-		{ "src/Client/GameOver.lua", 'painted(b, "btn_green")' },
-		{ "src/Client/GameOver.lua", 'painted(b, "btn_dark")' },
+		{ "src/Client/ShopHaggle.lua", 'paintedButton(haggleButton, "secondary")' },
+		{ "src/Client/Shop.lua", 'paintedButton(rerollButton, "secondary")' },
+		{ "src/Client/GameOver.lua", 'paintedButton(b, "primary")' },
+		{ "src/Client/GameOver.lua", 'paintedButton(b, "secondary")' },
 		{ "src/Client/DailyStrip.lua", 'painted(f, "wood_plate")' },
 	}
 	for _, w in ipairs(want) do
@@ -31523,8 +31523,8 @@ table.insert(tests, { name = "Counter flow rects: Next Round (the `leave` rect) 
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local ts = read("src/Client/TavernScreens.lua")
-	assert(ts:find('painted(b, "btn_green")', 1, true) and ts:find("emphasizeNext", 1, true), "Next Round wears the painted green plate and the emphasis")
-	assert(read("src/Client/GameOver.lua"):find('painted(b, "btn_green")', 1, true), "Run Over Play Again wears the painted green plate")
+	assert(ts:find('paintedButton(b, "primary")', 1, true) and ts:find("emphasizeNext", 1, true), "Next Round wears the painted green plate and the emphasis")
+	assert(read("src/Client/GameOver.lua"):find('paintedButton(b, "primary")', 1, true), "Run Over Play Again wears the painted green plate")
 end })
 
 
@@ -31668,7 +31668,7 @@ table.insert(tests, { name = "Run Over: summary names the night, best hand, scor
 	if not io then return end
 	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
 	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: %d / %d", "Patrons used", "unlockLine(names)", "Next unlock: ",
-		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'painted(b, "btn_green")', 'painted(b, "btn_dark")' }) do
+		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'paintedButton(b, "primary")', 'paintedButton(b, "secondary")' }) do
 		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
 	end
 	expectTrue(src:find("Back to Tavern\"", 1, true) == nil, "no second name for the Menu button")
@@ -31760,6 +31760,33 @@ table.insert(tests, { name = "Whole-picture plates: no nine-slice, a recorded Im
 		expectTrue(ratio > 0.7 and ratio < 1.8, piece .. " picture aspect is close to its shown aspect (" .. string.format("%.2f", ratio) .. ")")
 	end
 	for _, n in ipairs({ "speaker", "pause", "bulb", "bars", "spade", "crown" }) do expectTrue(type(Art["pk_w_icon_" .. n]) == "string" and #Art["pk_w_icon_" .. n] > 10, n .. " icon has a recorded id") end
+end })
+
+table.insert(tests, { name = "Ornate button family: buttonPiece picks the whole picture near its aspect and the ornate nine-slice elsewhere; every screen uses it", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	expectEqual(Style.buttonPiece("primary", 310, 80), "wh_btn_green", "a 310x80 primary is the whole green picture")
+	expectEqual(Style.buttonPiece("secondary", 310, 80), "wh_btn_dark", "a 310x80 secondary is the whole dark picture")
+	expectEqual(Style.buttonPiece("primary", 900, 44), "orn_btn_green", "a wide Select bar is the ornate nine-slice")
+	expectEqual(Style.buttonPiece("secondary", 60, 60), "orn_btn_dark", "a square button is the ornate nine-slice")
+	expectEqual(Style.buttonPiece("secondary", 0, 0), "orn_btn_dark", "an unmeasured plate is the ornate nine-slice")
+	for _, kind in ipairs({ "primary", "secondary" }) do
+		for _, sz in ipairs({ { 310, 80 }, { 900, 44 }, { 44, 44 }, { 0, 0 } }) do
+			local piece = Style.buttonPiece(kind, sz[1], sz[2])
+			expectTrue(Style.PAINTED[piece] ~= nil and type(Art[Style.PAINTED[piece].art]) == "string", piece .. " is defined with art")
+		end
+	end
+	if not io then return end
+	local function read(p) local f = io.open(p, "rb"); if not f then return "" end local t = f:read("*a"); f:close(); return t end
+	for file, needle in pairs({ ["src/Client/RoundSelect.lua"] = 'paintedButton(selectButton, "primary")', ["src/Client/GameOver.lua"] = 'paintedButton(b, "primary")',
+		["src/Client/Shop.lua"] = 'paintedButton(rerollButton, "secondary")', ["src/Client/GearMenu.lua"] = 'Kit.paintedButton, b, "secondary"',
+		["src/Client/TavernScreens.lua"] = 'paintedButton(b, "primary")', ["src/Client/ShopHaggle.lua"] = 'paintedButton(haggleButton, "secondary")' }) do
+		expectTrue(read(file):find(needle, 1, true) ~= nil, file .. " wears the ornate button family")
+	end
+	for _, file in ipairs({ "src/Client/RoundSelect.lua", "src/Client/GameOver.lua", "src/Client/Shop.lua" }) do
+		local t = read(file)
+		expectTrue(t:find('"btn_green"', 1, true) == nil and t:find('"btn_dark"', 1, true) == nil, file .. " has no old flat button piece left")
+	end
 end })
 
 return tests

@@ -132,6 +132,19 @@ end
 M.PAINTED_EDGE_MIN = 10
 M.PAINTED_EDGE_MAX = 14
 
+-- One ornate button family for every screen (Counter, Night map, Run Over, pause): kind "primary" is the green plate, "secondary" the dark
+-- wood one. A button near the whole-picture aspect (2.6 to 5.2 wide for 1) wears the finished wh_btn picture; any other shape (a full width
+-- Select bar, a square icon button, an unmeasured plate) wears the ornate nine-slice of the same family, so nothing stretches.
+M.BUTTON_ASPECT = { min = 2.6, max = 5.2 }
+function M.buttonPiece(kind, w, h)
+	local green = kind ~= "secondary"
+	local a = (w and h and h > 0) and (w / h) or 0
+	if a >= M.BUTTON_ASPECT.min and a <= M.BUTTON_ASPECT.max then
+		return green and "wh_btn_green" or "wh_btn_dark"
+	end
+	return green and "orn_btn_green" or "orn_btn_dark"
+end
+
 -- Plate size clamp: a plate is never smaller than its padding needs.
 function M.plateSize(w, h)
 	return math.max(math.floor(w), 2 * M.RADIUS.panel + 8), math.max(math.floor(h), 2 * M.RADIUS.panel + 8)

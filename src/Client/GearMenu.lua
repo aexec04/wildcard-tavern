@@ -109,6 +109,7 @@ function M.install(deps)
 		local b = Kit.secondaryButton(scroll, def.label)
 		b.Name = "Row_" .. def.id
 		b.ZIndex = Z + 2
+		pcall(Kit.paintedButton, b, "secondary") -- same ornate dark plate as every other screen (flat brown if the picture does not load)
 		local label = ButtonLabelTop.own(b, def.label, Style.TEXT.button, Z + 4, rgb("cream"))
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.Size = UDim2.new(1, -78, 1, 0)

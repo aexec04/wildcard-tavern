@@ -95,7 +95,7 @@ function ShopHaggle.new(deps)
 	haggleButton.Name = "HaggleButton"
 	haggleButton.AnchorPoint = Vector2.new(1, 1)
 	haggleButton.Visible = false
-	pcall(function() require(script.Parent.TavernKit).painted(haggleButton, "btn_dark") end)
+	pcall(function() require(script.Parent.TavernKit).paintedButton(haggleButton, "secondary") end)
 
 	-- Item chooser.
 	local chooser = Instance.new("Frame")
