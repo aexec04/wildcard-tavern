@@ -33,6 +33,7 @@ local ART_MAPS = {
 	housePasses = require(Engine:WaitForChild("HousePassArt")),
 	titles = require(Engine:WaitForChild("TitleArt")),
 }
+local CARD_ART = require(Engine:WaitForChild("ConceptTPatronArt")) -- full Concept T cut cards (ctp_<patronId>), win over the old portrait
 
 local GOLD = Color3.fromRGB(222, 182, 104)
 local TweenService = game:GetService("TweenService")
@@ -168,6 +169,8 @@ function PatronPlaque.apply(frame, patronId, opts)
 	local category = opts.category or "patrons"
 	local map = ART_MAPS[category]
 	local artId = map and map[patronId]
+	local cutCard = category == "patrons" and CARD_ART["ctp_" .. patronId] or nil
+	if type(cutCard) == "string" and cutCard ~= "" then artId = cutCard else cutCard = nil end
 	if type(artId) ~= "string" or artId == "" or artId == "rbxassetid://0" then return nil end
 
 	local art = Instance.new("ImageLabel")
@@ -182,6 +185,7 @@ function PatronPlaque.apply(frame, patronId, opts)
 	art.AnchorPoint = opts.anchor or Vector2.new(0, 0)
 	art.ZIndex = opts.zIndex or (frame.ZIndex + 1)
 	art.ImageTransparency = 0
+	if cutCard then art:SetAttribute("ConceptTCard", true) end
 	if opts.dim then
 		-- Locked: dimmed, never a black silhouette (colour multiply, no transparency).
 		art.ImageColor3 = Color3.fromRGB(120, 120, 120)

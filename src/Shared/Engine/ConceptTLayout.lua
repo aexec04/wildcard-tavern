@@ -94,9 +94,25 @@ M.TIERS = {
 	Legendary = { frame = "gold", pill = "gold" },
 }
 
+local function norm(rarity)
+	rarity = tostring(rarity or ""):lower()
+	return rarity:sub(1, 1):upper() .. rarity:sub(2)
+end
+
+-- tier names arrive as "common" (CollectionBook) or "Common" (Patrons): both work
 function M.tierFrame(rarity)
-	local t = M.TIERS[rarity]
+	local t = M.TIERS[norm(rarity)]
 	return t and t.frame or "bronze"
+end
+
+-- Image keys in ConceptTArt for the rarity label pill and the effect pill under a Patron card
+function M.labelKey(rarity)
+	return "ct_label_" .. (M.TIERS[norm(rarity)] and norm(rarity):lower() or "common")
+end
+
+function M.pillKey(rarity)
+	local t = M.TIERS[norm(rarity)]
+	return "ct_pill_" .. (t and t.pill or "green")
 end
 
 return M

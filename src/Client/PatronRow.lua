@@ -274,8 +274,21 @@ local function fillCard(c, i, owned)
 		end
 		local tier = "common"
 		pcall(function() tier = CollectionBook.rarityForId("patrons", owned.id) or "common" end)
-		pcall(function() RarityFrame.apply(c.body, tier, { thickness = 3, radius = 8, zIndex = Z + 4 }) end)
+		local cut = c.body:FindFirstChild("PatronArt")
+		cut = cut ~= nil and cut:GetAttribute("ConceptTCard") == true
+		if not cut then -- a Concept T cut card carries its own rarity frame and name plate
+			pcall(function() RarityFrame.apply(c.body, tier, { thickness = 3, radius = 8, zIndex = Z + 4 }) end)
+		end
+		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, tier, c.valueText, cut) end)
+		if cut then
+			c.plaque.Visible = false
+			local rs1 = c.body:FindFirstChild("RarityStroke")
+			if rs1 then rs1.Enabled = false end
+			local ro1 = c.body:FindFirstChild("RarityOrnaments")
+			if ro1 then ro1.Visible = false end
+		end
 	else
+		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, "common", nil, false) end)
 		c.id = nil
 		local old = c.body:FindFirstChild("PatronArt")
 		if old then old:Destroy() end
@@ -611,6 +624,8 @@ local function place(state)
 					c.value.Text = c.valueText or ""
 					c.value.Visible = (c.valueText ~= nil) and PatronValueText.visible(r.w)
 				end
+				local ctl = c.slot:FindFirstChild("CTLabel")
+				if ctl and ctl.Visible and c.value then c.value.Visible = false end -- the Concept T effect pill shows the value
 				if lay.plaqueH <= 0 then c.plaque.Visible = false end -- narrow cards: the tooltip carries the name
 				if not c.floatTween and not c.hopping then startFloat(c, i) end
 			else

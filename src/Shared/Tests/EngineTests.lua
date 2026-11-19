@@ -26571,4 +26571,29 @@ table.insert(tests, { name = "Concept T play screen: rects match the reference a
 	end
 end })
 
+table.insert(tests, { name = "Concept T Patron cards: tier maps to frame, label pill and effect pill, with art for every key", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local Art = require(script.Parent.Parent.Engine.ConceptTArt)
+	local want = {
+		common = { "bronze", "green" }, uncommon = { "green", "green" }, rare = { "blue", "blue" },
+		epic = { "purple", "purple" }, legendary = { "gold", "gold" },
+	}
+	for tier, w in pairs(want) do
+		expectEqual(L.tierFrame(tier), w[1], tier .. " frame")
+		expectEqual(L.labelKey(tier), "ct_label_" .. tier, tier .. " label")
+		expectEqual(L.pillKey(tier), "ct_pill_" .. w[2], tier .. " pill")
+		expectTrue(Art[L.labelKey(tier)] ~= nil and Art[L.pillKey(tier)] ~= nil, tier .. " pieces have Image ids")
+		local cap = tier:sub(1, 1):upper() .. tier:sub(2)
+		expectEqual(L.tierFrame(cap), w[1], cap .. " (capitalised) frame")
+	end
+	expectEqual(L.labelKey("nonsense"), "ct_label_common", "unknown tier falls back to Common")
+	if io then
+		local f = io.open("src/Client/PatronRow.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(src:find("ConceptTPatronCard", 1, true) ~= nil, "the play row draws the pills")
+		end
+	end
+end })
+
 return tests
