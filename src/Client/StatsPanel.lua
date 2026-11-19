@@ -85,6 +85,7 @@ return function(deps)
 	title.Size = UDim2.fromScale(L.title.w, L.title.h)
 	title.ZIndex = 45
 	title.Parent = panel
+	pcall(function() require(script.Parent.TomeHeaderPlate).attach(panel, "stats", title, nil, { follow = true }) end)
 
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.fromOffset(120, 38)

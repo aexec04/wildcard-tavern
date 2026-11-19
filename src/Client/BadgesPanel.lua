@@ -102,12 +102,12 @@ return function(deps)
 	bannerStroke.Color = GOLD
 	bannerStroke.Thickness = 1.5
 	bannerStroke.Parent = banner
-	local titleLabel = label(banner, { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.fromOffset(0, 1), Font = Enum.Font.GothamBold, TextSize = 18, Text = "Badges", ZIndex = 46 })
-	local countLabel = label(banner, { Size = UDim2.new(1, 0, 0, 17), Position = UDim2.fromOffset(0, 23), Font = Enum.Font.GothamMedium, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(226, 210, 176) })
+	local titleLabel = label(banner, { Size = UDim2.new(1, -32, 0, 22), Position = UDim2.fromOffset(16, 1), Font = Enum.Font.GothamBold, TextSize = 18, Text = "Badges", ZIndex = 46 })
+	local countLabel = label(banner, { Size = UDim2.new(1, -32, 0, 17), Position = UDim2.fromOffset(16, 23), Font = Enum.Font.GothamMedium, TextSize = 14, Text = "", ZIndex = 46, TextColor3 = Color3.fromRGB(226, 210, 176) })
 	local rail = Instance.new("Frame") -- slim progress bar inside the plaque: gold fill on a dark track
 	rail.Name = "ProgressTrack"
-	rail.Position = UDim2.fromOffset(14, 41)
-	rail.Size = UDim2.new(1, -28, 0, 5)
+	rail.Position = UDim2.fromOffset(16, 41)
+	rail.Size = UDim2.new(1, -32, 0, 5)
 	rail.BackgroundColor3 = Color3.fromRGB(24, 17, 12)
 	rail.BorderSizePixel = 0
 	rail.ZIndex = 45

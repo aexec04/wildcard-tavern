@@ -28010,5 +28010,34 @@ table.insert(tests, { name = "Tome header: tab text reads at 4.5:1 on every grou
 	expectTrue(RoomLayout.BAR_PAD >= 16, "progress plate padding is at least 16 px")
 end })
 
-return tests
+table.insert(tests, { name = "Tome sub pages: every header plate is padded, clear of the border, readable and below nothing it overlaps", fn = function()
+	local TH = require(script.Parent.Parent.Engine.TomeHeader)
+	expectTrue(TH.PAD >= 16 and TH.SIDE >= 16, "padding and border clearance are at least 16 px")
+	local ids = {}
+	for _, p in ipairs(TH.PAGES) do
+		ids[p.id] = true
+		expectTrue(TH.contrast(p) >= 4.5, p.id .. " header text contrast on the plate")
+		expectTrue(p.tiles == "uniform", p.id .. " declares uniform tiles")
+		expectTrue(p.drawn == "shared" or p.drawn == "badges" or p.drawn == "collection", p.id .. " has an owner")
+		for _, size in ipairs({ { 1280, 720 }, { 1920, 1080 }, { 844, 390 }, { 600, 360 } }) do
+			local w, h = math.floor(size[1] * 0.64), math.floor(size[2] * 0.84)
+			local hasSub = p.sub ~= nil
+			local L = TH.layout(w, h, hasSub)
+			local plates = { L.title, L.sub }
+			for _, r in ipairs(plates) do
+				expectTrue(r.x >= TH.SIDE and r.x + r.w <= w - TH.SIDE, p.id .. " plate clear of the side border at " .. w)
+				local t = TH.textRect(r)
+				expectTrue(t.x - r.x >= TH.PAD and (r.x + r.w) - (t.x + t.w) >= TH.PAD, p.id .. " text padded 16 px on both sides")
+			end
+			if L.sub then
+				expectTrue(L.sub.y >= L.title.y + L.title.h + 4, p.id .. " info plate under the title plate")
+			end
+			expectTrue(L.bodyTop >= (L.sub and L.sub.y + L.sub.h or L.title.y + L.title.h) + 8, p.id .. " body starts 8 px under the header")
+		end
+	end
+	for _, id in ipairs({ "cosmeticSets", "badges", "legend", "stats", "patrons", "recipes", "bosses", "housePasses", "titles", "bonds" }) do
+		expectTrue(ids[id], id .. " is in the header table")
+	end
+end })
 
+return tests

@@ -75,15 +75,16 @@ return function(deps)
 	polishPanel(panel, 16, "parchment")
 	deps.addSoftShadow(panel, 18)
 
-	label(panel, {
-		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6),
+	local headTitle = label(panel, {
+		Size = UDim2.new(1, 0, 0, 28), Position = UDim2.fromOffset(0, 6), ZIndex = 44,
 		Font = Enum.Font.GothamBold, TextSize = 22, Text = "Card Sets & Backs",
 	})
-	label(panel, {
-		Size = UDim2.new(1, -30, 0, 20), Position = UDim2.fromOffset(15, 34),
+	local headSub = label(panel, {
+		Size = UDim2.new(1, -30, 0, 20), Position = UDim2.fromOffset(15, 34), ZIndex = 44,
 		TextSize = 15, TextColor3 = SOFT_CREAM, TextTruncate = Enum.TextTruncate.AtEnd,
 		Text = "Sets theme the table. Backs can be picked on their own. Looks only.",
 	})
+	pcall(function() require(script.Parent.TomeHeaderPlate).attach(panel, "cosmeticSets", headTitle, headSub) end)
 
 	-- Preview mode (local only: never sends a remote, never touches saved ids).
 	-- Preview closes this panel, applies the set/back to the live table, and shows a
@@ -164,8 +165,8 @@ return function(deps)
 	end
 
 	scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -104)
-	scroll.Position = UDim2.fromOffset(15, 62)
+	scroll.Size = UDim2.new(1, -30, 1, -136)
+	scroll.Position = UDim2.fromOffset(15, 94)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 6

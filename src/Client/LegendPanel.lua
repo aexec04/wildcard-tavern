@@ -114,11 +114,12 @@ function LegendPanel.init(deps)
 	innerStroke.Parent = innerFrame
 
 	-- Title and subtitle (cream and gold on burgundy)
-	label(panel, { Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 10), TextSize = 32, Text = "Legend", TextColor3 = BRIGHT })
+	local headTitle = label(panel, { Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 10), TextSize = 32, Text = "Legend", TextColor3 = BRIGHT, ZIndex = 44 })
 	local hintLabel = label(panel, {
 		Size = UDim2.new(1, -60, 0, 24), Position = UDim2.fromOffset(30, 50), TextSize = 18, Font = Enum.Font.GothamMedium,
-		TextWrapped = true, Text = "",
+		TextWrapped = true, Text = "", ZIndex = 44,
 	})
+	pcall(function() require(script.Parent.TomeHeaderPlate).attach(panel, "legend", headTitle, hintLabel) end)
 
 	-- Crest: a gold medallion with a slow glow pulse, drifting sparks and the level shown large.
 	local crestHolder = Instance.new("Frame")
