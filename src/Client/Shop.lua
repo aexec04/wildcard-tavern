@@ -924,6 +924,7 @@ return function(deps)
 	local RANK_LABELS = { [11] = "J", [12] = "Q", [13] = "K", [14] = "A" }
 	local SUIT_SYMBOLS_SHOP = { Hearts = "\226\153\165", Diamonds = "\226\153\166", Clubs = "\226\153\163", Spades = "\226\153\160" }
 	local packPanelWasOpen = false
+	local packReveal -- Client/PackRevealFX controller for the open pack
 
 	local function selectedPackCount()
 		local n = 0
@@ -963,6 +964,7 @@ return function(deps)
 			pendingPackSelected = {}
 			packPanelWasOpen = false
 			packBuiltSig = nil
+			if packReveal then packReveal.destroy() packReveal = nil end
 			return
 		end
 
@@ -1098,7 +1100,23 @@ return function(deps)
 				end
 				card.slot.ZIndex = card.slot.ZIndex + zDelta
 			end
+			-- the opening moment (Client/PackRevealFX): face down, tap to open, flips one at a time, Seat or Keep pill, Skip all
+			if packReveal then packReveal.destroy() packReveal = nil end
+			pcall(function()
+				local CR = require(Engine:WaitForChild("ChoiceRarity"))
+				local list, rarities = {}, {}
+				for index, item in ipairs(pending.items) do
+					list[index] = packCards[index]
+					rarities[index] = CR.lookup(CR.tabFor(item.category), item.id) or (item.category == "standard" and "common" or nil)
+				end
+				packReveal = require(script.Parent.PackRevealFX).attach(shopPackPanel, packItemsRow, list, pending.items, rarities, {
+					z = shopPackPanel.ZIndex + 20,
+					isPicked = function(i) return pendingPackSelected[i] == true end,
+					onPick = function(i) if packCards[i] then packCards[i].spec.onClick(packCards[i]) end end,
+				})
+			end)
 		end
+		if packReveal then packReveal.refresh() end
 		for index, card in pairs(packCards) do
 			card.setSelected(pendingPackSelected[index] == true)
 			card.setPinned(pendingPackSelected[index] == true)
