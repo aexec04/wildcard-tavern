@@ -31374,4 +31374,32 @@ table.insert(tests, { name = "Hand feel: a picked card (28 px lift) stays under 
 end })
 
 
+table.insert(tests, { name = "Counter flow rects: Next Round (the `leave` rect) is on screen, at least 44 px tall and clear of every offer, pack, tab, bubble and prop at 1920x1080, 1280x720 and 1506x751 (with and without the sidebar)", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		for _, sidebar in ipairs({ 0, 240 }) do
+			local W, H = sz[1] - sidebar, sz[2]
+			for _, counts in ipairs({ { offers = 3, packs = 2 }, { offers = 5, packs = 3 } }) do
+				local tag = W .. "x" .. H .. " " .. counts.offers .. "/" .. counts.packs
+				local r = L.rects(W, H, counts)
+				assert(L.inside(r.leave, r.area), "Next Round inside the area " .. tag)
+				assert(r.leave.h >= 44, "Next Round is a 44 px target " .. tag)
+				local others = { r.tabs, r.bubble }
+				for _, o in ipairs(r.offers) do others[#others + 1] = o end
+				for _, o in ipairs(r.packs) do others[#others + 1] = o end
+				for _, o in pairs(r.props) do others[#others + 1] = o end
+				for i, o in ipairs(others) do
+					assert(not L.intersects(r.leave, o), "Next Round clear of piece " .. i .. " " .. tag)
+				end
+			end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local ts = read("src/Client/TavernScreens.lua")
+	assert(ts:find('painted(b, "btn_green")', 1, true) and ts:find("emphasizeNext", 1, true), "Next Round wears the painted green plate and the emphasis")
+	assert(read("src/Client/GameOver.lua"):find('painted(b, "btn_green")', 1, true), "Run Over Play Again wears the painted green plate")
+end })
+
+
 return tests
