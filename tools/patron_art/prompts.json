@@ -1609,7 +1609,12 @@
     "ct_pill_purple_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
     "ct_pill_gold_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
     "ct_glow_ring": "PROCEDURAL, upload only, never generated: tools/concept_t_glow.py",
-    "ct_table_room_old": "KEPT, upload only, never generated: the first redraw of the room (green felt table). ct_table_room is now the plate inpainted from the reference"
+    "ct_table_room_old": "KEPT, upload only, never generated: the first redraw of the room (green felt table). ct_table_room is now the plate inpainted from the reference",
+    "ct_ref_patron_1": "CUT, upload only, never generated: tools/concept_t_ref_patrons.py (the reference card Court Jester with alpha corners, Studio reference scene only)",
+    "ct_ref_patron_2": "CUT, upload only, never generated: tools/concept_t_ref_patrons.py (the reference card Generous King with alpha corners, Studio reference scene only)",
+    "ct_ref_patron_3": "CUT, upload only, never generated: tools/concept_t_ref_patrons.py (the reference card Arcane Sage with alpha corners, Studio reference scene only)",
+    "ct_ref_patron_4": "CUT, upload only, never generated: tools/concept_t_ref_patrons.py (the reference card Alchemy Adept with alpha corners, Studio reference scene only)",
+    "ct_ref_patron_5": "CUT, upload only, never generated: tools/concept_t_ref_patrons.py (the reference card Royal Cat with alpha corners, Studio reference scene only)"
   },
   "ctp_style": "Edit the reference image, which is a finished trading card. Keep EXACTLY the same card: same frame, same gem, same wooden name plate, same proportions, same hand-painted blocky Roblox tavern style, palette and lighting, on a plain light gray background. Change ONLY the character inside the frame and the name on the wooden plate. The new character is a blocky Roblox avatar with chunky proportions and hand-painted textures, bright, friendly and colourful, a different face, hair, skin tone, age and outfit from the reference. Not dark, no skulls, no hooded figures, no weapons. The only text on the whole card is the name on the wooden plate, spelled exactly as given, no other letters or numbers anywhere. Kid-friendly original art",
   "ctp_rarity": {

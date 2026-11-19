@@ -145,23 +145,21 @@ function M.show()
 
 	-- five Patron cards, centred in the Patron row, each with its rarity label and effect pill
 	local pats = pickPatrons()
-	local p = r.patrons
-	local cardH = math.floor(p.h * 0.70)
-	local cardW = math.floor(cardH * 2 / 3)
-	local gap = math.floor((p.w - cardW * 5) / 6)
+	local slots = Layout.patronSlots(size.X, size.Y, 5)
 	for i = 1, 5 do
-		local x, tier = p.x + gap * i + cardW * (i - 1), S.tiers[i]
+		local tier, sl = S.tiers[i], slots[i]
 		local card = Instance.new("ImageLabel")
 		card.BackgroundTransparency = 1
 		card.ScaleType = Enum.ScaleType.Fit
 		card.ZIndex = 3
-		card.Image = pats[i] and CardArt["ctp_" .. pats[i].id] or ""
-		at(card, { x = x, y = p.y, w = cardW, h = cardH })
+		-- the exact reference cut (alpha corners, scene only); the registry card is the fallback
+		card.Image = Art["ct_ref_patron_" .. i] or (pats[i] and CardArt["ctp_" .. pats[i].id]) or ""
+		at(card, sl.card)
 		card.Parent = gui
 		local lab = img(gui, Layout.labelKey(tier), 3)
-		at(lab, { x = x, y = p.y + cardH + 2, w = cardW, h = 22 })
+		at(lab, sl.label)
 		local pill = img(gui, Layout.blankPillKey(tier), 3)
-		at(pill, { x = x, y = p.y + cardH + 26, w = cardW, h = 26 })
+		at(pill, sl.pill)
 		local t = label(pill, Layout.cleanValue(S.pills[i]), 15, 4)
 		t.Size = UDim2.fromScale(1, 1)
 	end

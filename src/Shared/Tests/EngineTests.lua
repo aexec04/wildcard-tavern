@@ -26667,4 +26667,27 @@ table.insert(tests, { name = "Concept T reference scene: holds the reference num
 	expectTrue(src:find("Full House", 1, true) ~= nil and src:find("310", 1, true) ~= nil, "scoring stage")
 end })
 
+table.insert(tests, { name = "Concept T pixel pass 3: Patron cards are 0.112 x 0.236 of the frame, centred on their label pills, exact cut cards in the scene", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local Art = require(script.Parent.Parent.Engine.ConceptTArt)
+	for _, size in ipairs({ { 1536, 1024 }, { 1280, 853 }, { 800, 533 } }) do
+		local slots = L.patronSlots(size[1], size[2], 5)
+		expectEqual(#slots, 5, "five slots")
+		for i, sl in ipairs(slots) do
+			local cx = sl.card.x + sl.card.w / 2
+			expectTrue(math.abs(cx - (sl.label.x + sl.label.w / 2)) <= 1.5, "card centred on its label pill at " .. size[1])
+			expectTrue(math.abs(cx - (sl.pill.x + sl.pill.w / 2)) <= 1.5, "card centred on its effect pill at " .. size[1])
+			expectTrue(sl.card.y + sl.card.h <= sl.label.y + 2 and sl.label.y + sl.label.h <= sl.pill.y + 2, "card, label, pill stack top to bottom")
+			expectTrue(math.abs(sl.card.w / size[1] - 0.112) < 0.004 and math.abs(sl.card.h / size[2] - 0.236) < 0.004, "card size fractions")
+			if i > 1 then expectTrue(sl.card.x >= slots[i - 1].card.x + slots[i - 1].card.w, "cards do not overlap") end
+		end
+		local all = {}
+		for i, sl in ipairs(slots) do all["card" .. i] = sl.card; all["label" .. i] = sl.label; all["pill" .. i] = sl.pill end
+		expectEqual(#L.overlaps(all), 0, "no card, label or pill overlaps another")
+		expectTrue(slots[1].card.y >= 0.16 * size[2] and slots[1].pill.y + slots[1].pill.h <= 0.50 * size[2], "inside the reference Patron band")
+	end
+	for i = 1, 5 do expectTrue(type(Art["ct_ref_patron_" .. i]) == "string" and Art["ct_ref_patron_" .. i] ~= "", "ct_ref_patron_" .. i .. " has an Image id") end
+	expectTrue(Art.ct_table_room ~= nil and Art.ct_table_room_old ~= nil and Art.ct_table_room ~= Art.ct_table_room_old, "new room plate and the kept old one")
+end })
+
 return tests

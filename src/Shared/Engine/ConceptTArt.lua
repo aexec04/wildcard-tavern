@@ -33,6 +33,11 @@ return {
 	["ct_pill_plain"] = "rbxassetid://96126029266539",
 	["ct_pill_purple"] = "rbxassetid://96334491669844",
 	["ct_pill_purple_blank"] = "rbxassetid://93884100910717",
+	["ct_ref_patron_1"] = "rbxassetid://112273561240034",
+	["ct_ref_patron_2"] = "rbxassetid://78480300791706",
+	["ct_ref_patron_3"] = "rbxassetid://125415644798690",
+	["ct_ref_patron_4"] = "rbxassetid://109836667833764",
+	["ct_ref_patron_5"] = "rbxassetid://99941247971100",
 	["ct_table_room"] = "rbxassetid://101974788123574",
 	["ct_table_room_old"] = "rbxassetid://117281432443762",
 }

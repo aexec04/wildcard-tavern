@@ -37,6 +37,29 @@ M.frac = {
 	deckCount = { 0.853, 0.865, 0.965, 0.925 },
 }
 
+-- The five Patron cards of the reference: each about 0.112 x 0.236 of the frame, centred on the label pill under it
+-- (card centres measured from full_reference.png: 374, 568, 760, 953, 1146 of 1536). The label pill and the effect pill hang tight under the card.
+M.patronCard = { w = 0.112, h = 0.236, y = 0.166, centers = { 0.2435, 0.3698, 0.4948, 0.6204, 0.7461 } }
+M.patronLabel = { w = 0.082, h = 0.036, y = 0.405 }
+M.patronPill = { w = 0.082, h = 0.046, y = 0.444 }
+
+-- pixel rects { card, label, pill } for n (up to 5) Patron slots in a w x h frame, in the order of the reference
+function M.patronSlots(w, h, n)
+	local out = {}
+	for i = 1, math.min(n or 5, #M.patronCard.centers) do
+		local cx = M.patronCard.centers[i] * w
+		local function box(wFrac, y, hFrac)
+			return { x = round(cx - wFrac * w / 2), y = round(y * h), w = round(wFrac * w), h = round(hFrac * h) }
+		end
+		out[i] = {
+			card = box(M.patronCard.w, M.patronCard.y, M.patronCard.h),
+			label = box(M.patronLabel.w, M.patronLabel.y, M.patronLabel.h),
+			pill = box(M.patronPill.w, M.patronPill.y, M.patronPill.h),
+		}
+	end
+	return out
+end
+
 -- the bar track inside the round banner (fractions of the banner itself)
 M.barInBanner = { 0.20, 0.60, 0.80, 0.84 }
 
