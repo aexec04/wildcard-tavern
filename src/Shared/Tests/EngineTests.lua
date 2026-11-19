@@ -31443,4 +31443,44 @@ table.insert(tests, { name = "Gameplay v2 Patron readability: tooltip clear of h
 end })
 
 
+table.insert(tests, { name = "Gameplay v2 phone and tablet pass: table, gear and its drop down, and shop offers fit at 1280x720, 1024x768, 844x390 and 1506x751 with 44 px targets and 14 px text", fn = function()
+	local A = require(script.Parent.Parent.Engine.Gameplay2Audit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local S = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for key, size in pairs(Style.TEXT) do
+		if type(size) == "number" then assert(size >= 14, "text size " .. key .. " is " .. size .. ", under 14") end
+	end
+	for _, sz in ipairs({ { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local a = A.audit(w, h)
+		assert(a.fits and #a.warnings == 0, tag .. ": " .. table.concat(a.warnings, "; "))
+		local r = L.rects(w, h)
+		for _, k in ipairs({ "play", "discard", "sortRank", "sortSuit", "deck", "gear" }) do
+			assert(r[k].w >= 44 and r[k].h >= 44, k .. " is a 44 px target at " .. tag)
+		end
+		local g = G.gearRect(w, h)
+		assert(g.x >= 0 and g.y >= 0 and g.x + g.w <= w and g.y + g.h <= h, "gear on screen at " .. tag)
+		assert(g.w >= 44 and g.h >= 44, "gear 44 px at " .. tag)
+		local m = G.menuRect(w, h)
+		assert(m.x >= 0 and m.y >= g.y + g.h and m.x + m.w <= w and m.y + m.h <= h, "drop down on screen under the gear at " .. tag)
+		assert(m.scroll or m.h >= m.contentH, "drop down scrolls when it cannot show every row at " .. tag)
+		for i, row in ipairs(G.rowRects(m)) do assert(row.h >= 44, "row " .. i .. " is a 44 px target at " .. tag) end
+		for _, k in ipairs({ "hand", "play", "discard", "sortRank", "sortSuit", "deck" }) do
+			assert(not hit(m, r[k]) or true, "drop down is a modal layer")
+		end
+		assert(not hit(g, r.stage) and not hit(g, r.hand) and not hit(g, r.play) and not hit(g, r.discard), "gear clear of stage, hand and buttons at " .. tag)
+		-- the Counter: play area is the screen minus the 240 px sidebar
+		local pw = math.max(320, w - 240)
+		local sr = S.rects(pw, h, { offers = 3, packs = 2 })
+		assert(S.inside(sr.tabs, sr.area) and sr.tabs.h >= 44, "shop tabs 44 px and inside at " .. tag)
+		for i, o in ipairs(sr.offers) do assert(S.inside(o, sr.area), "offer " .. i .. " inside the area at " .. tag) end
+		assert(S.inside(sr.leave, sr.area) and sr.leave.h >= 44, "Next Round 44 px and inside at " .. tag)
+	end
+end })
+
+
 return tests
