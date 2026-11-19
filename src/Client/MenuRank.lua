@@ -9,6 +9,7 @@ local TavernRank = require(Engine:WaitForChild("TavernRank"))
 local CardBacks = require(Engine:WaitForChild("CardBacks"))
 local CosmeticSets = require(Engine:WaitForChild("CosmeticSets"))
 local Achievements = require(Engine:WaitForChild("Achievements"))
+local NoteText = require(Engine:WaitForChild("MenuNoteText"))
 
 local MenuRank = {}
 
@@ -30,15 +31,7 @@ local LOOKUP = {
 local SHORT_REWARD = { tips = "Tips", title = "Title", cardBack = "Card back", set = "Card Set" }
 
 function MenuRank.textFor(view)
-	if view.maxed then
-		return string.format("Rank %d  Max rank", view.rank)
-	end
-	local nextText = ""
-	if view.nextReward then
-		local r = view.nextReward
-		nextText = "   Next: " .. (r.kind == "tips" and ("+" .. r.amount .. " Tips") or SHORT_REWARD[r.kind] or "Reward")
-	end
-	return string.format("Rank %d   %d / %d XP%s", view.rank, view.into, view.need, nextText)
+	return NoteText.rankLines(view).main -- "Rank 1  71 / 80 XP" on one line; the reward has its own line (Reward label)
 end
 
 function MenuRank.tipFor(view)
@@ -51,7 +44,7 @@ end
 function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local frame = Instance.new("Frame")
 	frame.Name = "RankBar"
-	frame.Size = UDim2.fromOffset(460, 40) -- same width as the Next Goal banner under it
+	frame.Size = UDim2.fromOffset(460, 62) -- same width as the Next Goal banner under it; 12 px padding, XP line, reward line, then the bar
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.ZIndex = 10
@@ -67,7 +60,7 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	local badge = Instance.new("TextLabel")
 	badge.Name = "Badge"
 	badge.Size = UDim2.fromOffset(32, 32)
-	badge.Position = UDim2.fromOffset(5, 4)
+	badge.Position = UDim2.fromOffset(12, 15)
 	badge.BackgroundColor3 = GOLD
 	badge.Font = Enum.Font.GothamBold
 	badge.TextSize = 18
@@ -103,8 +96,8 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.Size = UDim2.new(1, -52, 0, 12)
-	track.Position = UDim2.fromOffset(44, 22)
+	track.Size = UDim2.new(1, -(56 + NoteText.PAD), 0, 10)
+	track.Position = UDim2.fromOffset(52, 40)
 	track.BackgroundColor3 = Color3.fromRGB(40, 28, 18)
 	track.ZIndex = 11
 	track.Parent = frame
@@ -124,8 +117,8 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 
 	local text = Instance.new("TextLabel")
 	text.Name = "Text"
-	text.Size = UDim2.new(1, -52, 0, 18)
-	text.Position = UDim2.fromOffset(44, 3)
+	text.Size = UDim2.new(1, -(56 + NoteText.PAD), 0, 18)
+	text.Position = UDim2.fromOffset(52, NoteText.PAD)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.GothamBold
 	text.TextSize = 15
@@ -137,7 +130,22 @@ function MenuRank.attach(parent, layoutOrder, addTooltip)
 	text.ZIndex = 11
 	text.Parent = frame
 
-	ui = { frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
+	local reward = Instance.new("TextLabel") -- "Next: +3 Tips" on its own small line between the XP line and the bar
+	reward.Name = "Reward"
+	reward.Size = UDim2.new(1, -(56 + NoteText.PAD), 0, 16)
+	reward.Position = UDim2.fromOffset(52, 23)
+	reward.BackgroundTransparency = 1
+	reward.Font = Enum.Font.GothamBold
+	reward.TextSize = 14
+	reward.TextXAlignment = Enum.TextXAlignment.Left
+	reward.TextColor3 = GOLD
+	reward.TextTransparency = 0
+	reward.TextStrokeTransparency = 1
+	reward.Text = ""
+	reward.ZIndex = 11
+	reward.Parent = frame
+
+	ui = { reward = reward, frame = frame, badge = badge, num = num, medalHolder = medalHolder, medalKey = nil, fill = fill, text = text, view = nil }
 	if addTooltip then
 		addTooltip(frame, function()
 			return ui.view and MenuRank.tipFor(ui.view) or "Play to earn XP."
@@ -160,6 +168,7 @@ function MenuRank.update(state)
 		require(script.Parent.ArtIcon).apply(ui.medalHolder, "rank_medals", key, nil, { zIndex = 12, cornerRadius = 16 })
 	end
 	ui.text.Text = MenuRank.textFor(view)
+	ui.reward.Text = NoteText.rankLines(view).reward or ""
 	local ratio = view.maxed and 1 or math.clamp(view.need > 0 and view.into / view.need or 0, 0, 1)
 	if shown.ratio ~= ratio or shown.rank ~= view.rank then
 		shown.ratio, shown.rank = ratio, view.rank

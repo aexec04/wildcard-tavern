@@ -18555,7 +18555,7 @@ table.insert(tests, { name = "NewsPanel on a fake Roblox: a cork board of pinned
 	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ NewsBoardLayout = Layout, HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt) })
+			return FakeGui.folder({ MenuNoteText = require(Engine.MenuNoteText), NewsBoardLayout = Layout, HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt) })
 		end }
 	end }
 	local registered = {}
@@ -21345,7 +21345,7 @@ tests[#tests + 1] = ({ name = "NewsPanel with a painted notice board (fake ids):
 	local env, st = FakeGui.env({ stubs = stubs })
 	st.services.ReplicatedStorage = { WaitForChild = function()
 		return { WaitForChild = function()
-			return FakeGui.folder({ NewsBoardLayout = require(Engine.NewsBoardLayout), HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt), NewsSceneLayout = SL })
+			return FakeGui.folder({ MenuNoteText = require(Engine.MenuNoteText), NewsBoardLayout = require(Engine.NewsBoardLayout), HudKit = require(Engine.HudKit), MenuSceneArt = require(Engine.MenuSceneArt), NewsSceneLayout = SL })
 		end }
 	end }
 	local shown = {}
@@ -31651,6 +31651,31 @@ table.insert(tests, { name = "Boss intro: the plate stands below the Patron row 
 	expectTrue(fx:find("bossIntroPlateFor", 1, true) and fx:find("if banner then banner:Destroy() end", 1, true), "the intro uses the table rects and the old banner is removed")
 	expectTrue(fx:find("UITextSizeConstraint", 1, true), "intro rule text is scaled, not truncated")
 	expectTrue(read("src/Client/Gameplay2.lua"):find("deps.actionFrame.ClipsDescendants = false", 1, true), "the Discard frame is never clipped")
+end })
+
+table.insert(tests, { name = "Notice Board text: Rank on one line with the reward on its own line, news kept to two lines plus the days left, 12 px padding", fn = function()
+	local M = require(script.Parent.Parent.Engine.MenuNoteText)
+	local rl = M.rankLines({ rank = 1, into = 71, need = 80, nextReward = { kind = "tips", amount = 3 } })
+	expectEqual(rl.main, "Rank 1  71 / 80 XP", "XP on one line")
+	expectEqual(rl.reward, "Next: +3 Tips", "the reward has its own line")
+	expectTrue(#rl.main <= M.LINE_CHARS, "the Rank line fits one 28 character line")
+	expectEqual(M.rankLines({ rank = 30, maxed = true }).main, "Rank 30  Max rank", "max rank")
+	expectEqual(M.rankLines({ rank = 4, into = 1, need = 9, nextReward = { kind = "cardBack" } }).reward, "Next: Card back", "non Tips reward")
+	local row = { name = "Harvest Week", blurb = "Daily Challenge dressed for harvest", daysLeft = 4 }
+	expectEqual(M.newsLine(row), "Harvest Week: Daily Challenge dressed for harvest", "the Harvest line fits two lines")
+	expectEqual(M.newsTime(row), "4 days left", "days left on its own line")
+	expectEqual(M.newsTime({ daysLeft = 1 }), "Last day", "last day")
+	expectEqual(M.newsTime({ startsIn = 5 }), "Starts in 5 days", "upcoming")
+	local long = M.newsLine({ name = "Moonlit Marathon", blurb = "Every Boss Round this week is dressed for the long harvest night with extra Tips for everyone playing along" })
+	expectTrue(#long <= M.LINE_CHARS * 2, "a long blurb is cut to two lines")
+	expectTrue(not long:find("%.%.") and not long:find("\226\128\166") and not long:find("[%s%p]$"), "cut at a word, no dots at the end")
+	expectEqual(M.PAD, 12, "12 px padding")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local rank, news, board = read("src/Client/MenuRank.lua"), read("src/Client/NewsPanel.lua"), read("src/Client/MenuBoard.lua")
+	expectTrue(rank:find('reward.Name = "Reward"', 1, true) and rank:find("NoteText.rankLines", 1, true), "the Rank note draws the reward on its own label")
+	expectTrue(news:find("NoteText.newsLine", 1, true) and news:find("NoteText.PAD", 1, true), "the news note uses the shortened line and the padding")
+	expectTrue(board:find("local PADN = 12", 1, true) and board:find("PADN + h1 + h2 + PADN", 1, true), "stacked notes keep 12 px top and bottom")
 end })
 
 return tests

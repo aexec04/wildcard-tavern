@@ -19,6 +19,7 @@ local RoomLayout = require(Engine:WaitForChild("MenuRoomLayout"))
 
 local MenuBoard = {}
 
+local PADN = 12 -- padding inside a pinned note (Engine/MenuNoteText.PAD)
 local NOTE_W = 300 -- notes are re-sized to this when pinned (Engine/MenuRoomLayout.NOTE_W) so they fit the cork at full scale
 local TILTS = { -1.5, 1.2, -0.8, 1.6 } -- degrees, at most 2
 local Z = 14 -- notes are drawn at z 10 to 12 by their modules; lift them above the board and the backdrop
@@ -295,13 +296,13 @@ function MenuBoard.build(parent)
 					return tall and math.max(1, math.min(3, math.round(tall / (l.TextSize + 2)))) or 1
 				end
 				local h1, h2 = lines(tx) * (tx.TextSize + 2), lines(tm) * (tm.TextSize + 2)
-				tx.Position = UDim2.fromOffset(x0, 4)
+				tx.Position = UDim2.fromOffset(x0, PADN)
 				tx.Size = UDim2.fromOffset(w, h1)
 				tx.TextWrapped, tx.TextYAlignment = true, Enum.TextYAlignment.Top
-				tm.Position = UDim2.fromOffset(x0, 4 + h1)
+				tm.Position = UDim2.fromOffset(x0, PADN + h1)
 				tm.Size = UDim2.fromOffset(w, h2)
 				tm.TextWrapped, tm.TextXAlignment, tm.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
-				extra = math.max(extra, 4 + h1 + h2 + 6 - baseH)
+				extra = math.max(extra, PADN + h1 + h2 + PADN - baseH)
 			end
 			extra = math.max(0, extra)
 			for _, c in ipairs(note:GetChildren()) do -- the progress track under the text moves down with the extra lines

@@ -34,6 +34,7 @@ local CORK = Color3.fromRGB(168, 124, 78)
 local CORK_EDGE = Color3.fromRGB(96, 64, 38)
 local GREEN = Color3.fromRGB(70, 110, 65)
 
+local NoteText = require(Engine:WaitForChild("MenuNoteText"))
 local banner
 local ui
 local lastNews
@@ -62,7 +63,7 @@ function NewsPanel.bannerLine(news)
 	end
 	local row = news.banner
 	if row then
-		return row.icon, row.name .. ": " .. row.blurb, NewsPanel.timeText(row)
+		return row.icon, NoteText.newsLine(row), NoteText.newsTime(row) -- two lines at most, then "4 days left" on its own line
 	end
 	local soon = news.upcoming and news.upcoming[1]
 	if soon then
@@ -89,7 +90,7 @@ end
 function NewsPanel.attach(parent, layoutOrder)
 	local frame = Instance.new("TextButton")
 	frame.Name = "NewsBanner"
-	frame.Size = UDim2.fromOffset(460, 42)
+	frame.Size = UDim2.fromOffset(460, 66)
 	frame.LayoutOrder = layoutOrder
 	frame.BackgroundColor3 = WOOD
 	frame.AutoButtonColor = true
@@ -109,12 +110,12 @@ function NewsPanel.attach(parent, layoutOrder)
 	-- Painted news scroll (menu_icons "news") covers the emoji once loaded; the emoji stays if the id is missing.
 	require(script.Parent.ArtIcon).apply(icon, "menu_icons", "news", icon, { size = UDim2.fromOffset(34, 34), position = UDim2.fromOffset(3, 3), zIndex = 12, cornerRadius = 6 })
 	local text = label(frame, {
-		Name = "Text", Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(46, 0), Text = "", TextSize = 15, TextColor3 = CREAM,
-		TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 11,
+		Name = "Text", Size = UDim2.new(1, -(46 + NoteText.PAD), 0, 36), Position = UDim2.fromOffset(46, NoteText.PAD), Text = "", TextSize = 15, TextColor3 = CREAM,
+		TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 11,
 	})
 	local time = label(frame, {
-		Name = "Time", Size = UDim2.fromOffset(100, 42), Position = UDim2.new(1, -104, 0, 0), Text = "", TextSize = 14, TextColor3 = GOLD,
-		TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 11,
+		Name = "Time", Size = UDim2.new(1, -(46 + NoteText.PAD), 0, 16), Position = UDim2.fromOffset(46, NoteText.PAD + 36), Text = "", TextSize = 14, TextColor3 = GOLD,
+		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11,
 	})
 	banner = { frame = frame, icon = icon, text = text, time = time }
 	frame.MouseButton1Click:Connect(function()
