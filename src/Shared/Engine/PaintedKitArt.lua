@@ -6,8 +6,8 @@
 ]]
 
 return {
-	["pk_banner_l"] = "rbxassetid://127643145949196",
-	["pk_banner_r"] = "rbxassetid://90875909094244",
+	["pk_banner_l"] = "rbxassetid://137155418304367",
+	["pk_banner_r"] = "rbxassetid://100746185395785",
 	["pk_btn_dark"] = "rbxassetid://85570855187526",
 	["pk_btn_dark_p"] = "rbxassetid://94112703378740",
 	["pk_btn_green"] = "rbxassetid://93790886879372",
