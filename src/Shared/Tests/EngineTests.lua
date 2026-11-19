@@ -30603,7 +30603,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 		local f = RH.GOT_IT.fill
 		expectTrue(f[2] > f[1] + 40 and f[2] > f[3] + 40, "Got it fill reads green")
 		local spot = RH.place(L.rects(1920, 1080), 1920, 1080)
-		expectTrue(spot and spot.button.y == spot.plate.y and spot.button.h == spot.plate.h and spot.button.h >= 44, "Got it level with the plate and 44 px or more")
+		expectTrue(spot and spot.button.y >= spot.plate.y + spot.plate.h and spot.button.h >= 44 and spot.button.x >= spot.plate.x and spot.button.x + spot.button.w <= spot.plate.x + spot.plate.w, "Got it sits under the plate, inside its width, 44 px or more")
 	end
 	expectTrue(RH.satisfied("round_hint_select", 1) and not RH.satisfied("round_hint_select", 0) and not RH.satisfied("round_hint_tiers", 5), "picking a card finishes the first plate only")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
@@ -30614,7 +30614,7 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 			if w >= 1280 then expectTrue(spot ~= nil, w .. "x" .. h .. ": the plate fits") end
 			if spot then
 				expectTrue(spot.button.h >= 44, "Got it is 44 px tall at " .. w .. "x" .. h)
-				for _, rect in pairs(spot) do
+				for _, rect in pairs({ spot.plate, spot.button }) do
 					expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, "on screen at " .. w .. "x" .. h)
 					for name, other in pairs(L.flat(r)) do
 						local hit = rect.x < other.x + other.w and other.x < rect.x + rect.w and rect.y < other.y + other.h and other.y < rect.y + rect.h
@@ -31094,7 +31094,7 @@ table.insert(tests, { name = "First five minutes: hint sequence card then Play H
 	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x" }, patronLimit = 1 }), "no free seat: off")
 	if io and io.open then
 		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
-		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "Round hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wh_hint")', 1, true) ~= nil, "Round hint plate is painted")
 		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "wh_btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
 		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wh_target")', 1, true) ~= nil, "guided hint plate is painted")
 		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")

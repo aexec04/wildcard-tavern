@@ -24,9 +24,14 @@ M.ORDER = {
 
 M.MAX_NIGHT = 1
 M.MAX_ROUND = 3
-M.PLATE_W, M.PLATE_H = 300, 72
-M.PLATE_MIN_W = 200
-M.BUTTON_W, M.BUTTON_H = 72, 44
+-- the plate is the whole picture pk_w_hint (crown medallion on the left, 1408 x 543, so 2.59 : 1), 320 wide when it fits and down to 280; the small
+-- green Got it plate sits UNDER it, centred (reference: hint panel 320 x 140 with the button below)
+M.PLATE_W = 320
+M.PLATE_MIN_W = 280
+M.PLATE_ASPECT = 1408 / 543
+M.BUTTON_W, M.BUTTON_H = 112, 44
+-- short screens (under about 160 px free above the hand) keep the compact plate: 300 x 72 with a 72 x 44 Got it beside it, the pill picture
+M.WIDE_W, M.WIDE_H, M.WIDE_MIN_W, M.WIDE_BUTTON_W = 300, 72, 200, 72
 -- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate
 M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
 M.GAP = 6
@@ -86,21 +91,49 @@ function M.place(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.stage or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local top = r.slots[1].pill.y + r.slots[1].pill.h + 4
 	local bottom = r.hand.y - 6
-	local h = math.max(M.PLATE_H, M.BUTTON_H)
-	if bottom - top < h then return nil end
 	local pad = 8
 	local cols = {
 		{ x0 = pad, x1 = r.stage.x - pad }, -- left of the stage
 		{ x0 = r.stage.x + r.stage.w + pad, x1 = viewW - pad }, -- right of it
 	}
 	for _, col in ipairs(cols) do
-		local total = math.min(M.PLATE_W + M.GAP + M.BUTTON_W, col.x1 - col.x0)
-		local plateW = total - M.GAP - M.BUTTON_W
-		if plateW >= M.PLATE_MIN_W then
-			local x = col.x0
-			local y = top
+		local plateW = math.min(M.PLATE_W, col.x1 - col.x0)
+		while plateW >= M.PLATE_MIN_W do
+			local plateH = math.floor(plateW / M.PLATE_ASPECT + 0.5)
+			local total = plateH + M.GAP + M.BUTTON_H
+			if bottom - top >= total then
+				local x, y = col.x0, top
+				local plate = { x = x, y = y, w = plateW, h = plateH }
+				local button = { x = x + math.floor((plateW - M.BUTTON_W) / 2), y = y + plateH + M.GAP, w = M.BUTTON_W, h = M.BUTTON_H }
+				local clear = true
+				for name, rect in pairs(r) do
+					if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end
+				end
+				for _, s in ipairs(r.slots) do
+					for _, part in ipairs({ s.card, s.label, s.pill }) do
+						if hit(plate, part) or hit(button, part) then clear = false end
+					end
+				end
+				if hit(plate, r.stage) or hit(button, r.stage) then clear = false end
+				for _, a in ipairs(avoid or {}) do -- a boss rule plate and anything else that must stay uncovered
+					if hit(plate, a) or hit(button, a) then clear = false end
+				end
+				if plate.x >= 0 and button.x + button.w <= viewW and y + total <= viewH and clear then
+					return { plate = plate, button = button, kind = "tall" }
+				end
+			end
+			plateW = plateW - 20
+		end
+	end
+	local h = math.max(M.WIDE_H, M.BUTTON_H)
+	if bottom - top < h then return nil end
+	for _, col in ipairs(cols) do
+		local total = math.min(M.WIDE_W + M.GAP + M.WIDE_BUTTON_W, col.x1 - col.x0)
+		local plateW = total - M.GAP - M.WIDE_BUTTON_W
+		if plateW >= M.WIDE_MIN_W then
+			local x, y = col.x0, top
 			local plate = { x = x, y = y, w = plateW, h = h }
-			local button = { x = x + plateW + M.GAP, y = y, w = M.BUTTON_W, h = h } -- as tall as the plate, so the two sit level
+			local button = { x = x + plateW + M.GAP, y = y, w = M.WIDE_BUTTON_W, h = h } -- as tall as the plate, so the two sit level
 			local clear = true
 			for name, rect in pairs(r) do
 				if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end
@@ -111,11 +144,11 @@ function M.place(r, viewW, viewH, avoid)
 				end
 			end
 			if hit(plate, r.stage) or hit(button, r.stage) then clear = false end
-			for _, a in ipairs(avoid or {}) do -- a boss rule plate and anything else that must stay uncovered
+			for _, a in ipairs(avoid or {}) do
 				if hit(plate, a) or hit(button, a) then clear = false end
 			end
 			if plate.x >= 0 and button.x + button.w <= viewW and y + h <= viewH and clear then
-				return { plate = plate, button = button }
+				return { plate = plate, button = button, kind = "wide" }
 			end
 		end
 	end
