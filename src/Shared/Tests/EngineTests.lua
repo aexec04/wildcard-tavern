@@ -30050,14 +30050,14 @@ table.insert(tests, { name = "Gameplay v2 polish run: every whole-picture plate 
 	end
 end })
 
-table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit left of the gear, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
+table.insert(tests, { name = "Gear menu quick buttons: speaker and Pause sit at the top left, 44 px, on screen, apart from the gear and the menu and the Gameplay v2 pieces at six sizes", fn = function()
 	local E = script.Parent.Parent.Engine
 	local G, L = require(E.GearMenu), require(E.Gameplay2Layout)
 	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 1024, 600 }, { 844, 390 }, { 800, 400 } }) do
 		local w, h = sz[1], sz[2]
 		local q, g, m = G.quickRects(w, h), G.gearRect(w, h), G.menuRect(w, h)
-		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w + G.QUICK_GAP <= g.x and q.speaker.x + q.speaker.w + G.QUICK_GAP <= q.pause.x, "row order and gap " .. w)
+		expectTrue(q.speaker.x >= 0 and q.pause.x + q.pause.w < g.x and q.speaker.x + q.speaker.w + G.QUICK_GAP <= q.pause.x and q.speaker.y == g.y, "row order and gap, top left " .. w)
 		expectTrue(q.speaker.w >= 44 and q.speaker.h >= 44 and q.pause.h >= 44, "44 px targets " .. w)
 		expectTrue(not hit(q.speaker, g) and not hit(q.pause, g) and not hit(q.speaker, m) and not hit(q.pause, m), "clear of gear and menu " .. w)
 		local r = L.rects(w, h)

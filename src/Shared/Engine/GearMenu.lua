@@ -47,12 +47,14 @@ function M.gearRect(w, h)
 	return { x = w - m - M.SIZE, y = y, w = M.SIZE, h = M.SIZE }
 end
 
--- the speaker (Sound toggle) and Pause round buttons sit in a row just left of the gear, same size, 8 px apart; they do what the menu rows do
+-- the speaker (Sound toggle) and Pause round buttons sit in a row at the TOP LEFT (the reference puts them left of the Target plate), same size
+-- and top as the gear, 8 px apart; they do what the menu rows do. The consumables tray starts one row lower (Gameplay2Layout, M.SIZE + QUICK_GAP).
 M.QUICK_GAP = 8
 function M.quickRects(w, h)
 	local g = M.gearRect(w, h)
-	local pause = { x = g.x - M.QUICK_GAP - M.SIZE, y = g.y, w = M.SIZE, h = M.SIZE }
-	local speaker = { x = pause.x - M.QUICK_GAP - M.SIZE, y = g.y, w = M.SIZE, h = M.SIZE }
+	local x0 = M.margin(w)
+	local speaker = { x = x0, y = g.y, w = M.SIZE, h = M.SIZE }
+	local pause = { x = x0 + M.SIZE + M.QUICK_GAP, y = g.y, w = M.SIZE, h = M.SIZE }
 	return { speaker = speaker, pause = pause }
 end
 

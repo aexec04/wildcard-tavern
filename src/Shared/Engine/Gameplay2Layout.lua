@@ -138,8 +138,8 @@ function M.rects(w, h)
 	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
 	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
 	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
-	local ty = qy
-	if trayW >= 2 * 60 + 8 and ty + 52 + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- (the 52 keeps the old size cut-off: the tray used to start under Mute and Calm) -- no room above the hand on the shortest screens: no tray there
+	local ty = qy + 52 -- one row below the Speaker and Pause buttons (44 px + 8 px gap, Engine/GearMenu.quickRects)
+	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
 		local sw2 = math.floor((trayW - 8) / 2)
 		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)
 		r.traySlot2 = box(pad + sw2 + 8, ty, sw2, M.MIN_TOUCH)
@@ -158,7 +158,7 @@ function M.rects(w, h)
 	r.sortSuit = box(sx + sw + sgap, sy, sw, sh) -- two separate plates with a gap between
 	if r.trayUse then -- the prompt plate (Pick 2 cards / Suit: Hearts) when a third row fits above Rank and Suit, else the Use plate says it
 		local py = r.trayUse.y + M.MIN_TOUCH + 6
-		if py + M.MIN_TOUCH + 6 <= sy then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
+		if py + M.MIN_TOUCH + 6 <= sy and py + M.MIN_TOUCH <= handTop - 4 then r.trayPrompt = box(pad, py, r.traySell.x + r.traySell.w - pad, M.MIN_TOUCH) end
 	end
 	-- deck: right of the hand, count plate under it
 	local dw = math.min(round(0.115 * w), w - (r.hand.x + r.hand.w) - 2 * pad)
