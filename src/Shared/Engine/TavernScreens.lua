@@ -26,6 +26,9 @@ M.SCREENS = {
 	boss = { scene = "table_boss", tint = { 150, 140, 130 }, buttons = {} },
 }
 
+-- Next Round on the Counter: a bright primary green plate, cream 24 px text on a solid dark outline, brighter on hover, never dimmed
+M.NEXT_ROUND = { fill = { 62, 148, 70 }, hover = { 84, 176, 92 }, stroke = { 18, 40, 14 }, textSize = 24 }
+
 -- the Patron tooltip plate: TavernKit plate colours (Engine/TavernStyle) instead of its own brown
 M.TOOLTIP = { fill = "plateFill", trim = "goldTrim", trimThickness = 2 }
 

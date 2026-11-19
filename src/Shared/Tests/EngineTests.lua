@@ -21538,7 +21538,7 @@ table.insert(tests, { name = "Round Complete is a one line toast (no Continue, g
 		local text = f:read("*a")
 		f:close()
 		expectFalse(text:find("TextButton", 1, true) ~= nil, "the toast has no Continue button (no button at all)")
-		expectTrue(text:find("fromOffset(420, 0)", 1, true) ~= nil and text:find("MinSize = Vector2.new(0, 64)", 1, true) ~= nil, "a strip about 420 x 64")
+		expectTrue(text:find("fromOffset(spot.width, 0)", 1, true) ~= nil and text:find("MinSize = Vector2.new(0, 64)", 1, true) ~= nil, "a strip about 300 x 64 at the top right")
 		expectFalse(text:find("Active = true", 1, true) ~= nil, "it never takes clicks: the hand stays playable")
 	end
 end })
@@ -28537,8 +28537,9 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 	for _, w in ipairs({ 60, 90, 140, 200 }) do
 		local h = math.floor(w / 0.712)
 		local d = T.discRect(w, h)
-		assert(d.y >= h, "the disc starts at or below the card bottom, so it never covers the name strip (w " .. w .. ")")
-		assert(d.x >= 0 and d.x + d.w <= w, "disc inside the card width")
+		assert(d.w == (w >= 70 and 40 or 28), "disc is 40 px (w " .. w .. ")")
+		assert(d.x + d.w > w and d.y + d.h > h, "the disc sits in the bottom right corner and overhangs the frame")
+		assert(math.abs((d.x + d.w - w) / d.w - 0.4) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.4) < 0.06, "about 40 percent of the disc is outside the frame")
 	end
 	assert(T.unitText("+4 Mult") == "Mult" and T.unitText("+30 Chips") == "Chips" and T.unitText("x1.5 Mult") == "Mult")
 	assert(T.unitText("Retrigger") == "Retrigger" and T.unitText("") == "")
@@ -28595,7 +28596,7 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("deps.playButton.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
-	assert(src:find("math.min(56, numH)", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true), "centre score is a 56 px numeral with an 18 px caption above it")
+	assert(src:find("scoreStack(", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
 	assert(src:find("ScoreJuiceBanner", 1, true), "a stale TARGET CLEARED shout is hidden once the screen leaves play")
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
@@ -28624,13 +28625,13 @@ table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ 
 	assert(T.frameRect("legendary", 150, 210).h == 210 + 25 and T.frameRect("epic", 150, 210).h == 210 + 13)
 	assert(S.contrast(T.DISC.text, T.DISC.fill) >= 4.5, "cream numeral on the gold disc is 4.5:1")
 	assert(T.numeral("+30") == "+30" and T.numeral("++4") == "+4" and T.numeral(nil) == "" and T.numeral("  x2 ") == "x2")
-	assert(T.discDiameter(100) >= 28 and T.discDiameter(200) == 60)
+	assert(T.discDiameter(100) == 40 and T.discDiameter(200) == 40 and T.discDiameter(50) == 28)
 	-- the layout leaves room for the disc: label and pill start under its lower half
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local row = L.patronRow(sz[1], sz[2], 5)
 		for i = 1, 5 do
 			local c = row.cards[i]
-			assert(row.labels[i].y >= c.y + c.h + math.ceil(T.discDiameter(c.w) / 2), "label under the power disc")
+			assert(row.labels[i].y >= c.y + c.h + math.ceil(T.discDiameter(c.w) * 0.4), "label under the power disc overhang")
 			assert(row.pills[i].y >= row.labels[i].y + row.labels[i].h)
 		end
 	end
@@ -28674,6 +28675,40 @@ table.insert(tests, { name = "TavernScreens: scene art exists for each screen, a
 	assert(tip:find("Gameplay2Layout", 1, true), "the tooltip avoids the v2 rects")
 	assert(not fx:find('Instance.new("TextButton")', 1, true), "no new buttons: the real instances are restyled")
 	assert(not fx:find("[\128-\255]"), "ASCII only")
+end })
+
+table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner disc, Next Round contrast, banner spot, score stack, bigger offer cards, no overlaps", fn = function()
+	local E = script.Parent.Parent.Engine
+	local T, S, RB, L = require(E.PatronTierStyle), require(E.TavernScreens), require(E.RewardBanner), require(E.Gameplay2Layout)
+	local Style = require(E.TavernStyle)
+	-- 1. the disc: 40 px, bottom right corner, 40 percent outside the frame, label clear of its overhang
+	local d = T.discRect(150, 210)
+	assert(d.w == 40 and d.x + d.w == 150 + 16 and d.y + d.h == 210 + 16, "40 px disc, 16 px (40 percent) outside the corner")
+	assert(T.discBand(150) >= 16, "the label starts under the disc overhang")
+	-- 2. Next Round: bright green, cream text at 24 px, at least 3:1 (large text) with a solid dark outline
+	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.fill) >= 3, "cream on the bright green plate")
+	assert(S.NEXT_ROUND.fill[2] > Style.rgb("greenDeep")[2], "brighter than the kit primary")
+	-- 3. the Round Complete plate stands right of the merchant: top right, clear of the right-hand column
+	for _, w in ipairs({ 1920, 1280, 1024, 844 }) do
+		local sp = RB.spot(w)
+		assert(sp.right <= w - 120 and sp.right - sp.width >= w * 0.4, "plate in the right half, clear of the right column at " .. w)
+	end
+	assert(RB.clearedLine() == "Target cleared" and RB.clearedLine(120, 65) == "Target cleared  120 of 65")
+	-- 4. offer cards at 1920x1080 are at least 170 px wide for up to four offers
+	local SL = require(E.ShopSceneLayout)
+	for n = 2, 4 do
+		local r = SL.rects(1920, 1080, { offers = n, packs = 2 })
+		assert(r.offers[1].w >= 170, "offer card at least 170 px wide with " .. n .. " offers")
+	end
+	-- 5. the centre score stack: 72 px font (56 px digits), line directly under, progress text under the line, all inside the stage
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local st = L.scoreStack(r.stage.h, 20, 22)
+		if st.roomy then
+			assert(st.textSize == 72 and st.lineY <= st.numTop + st.numH and st.progressY > st.lineY and st.bottom <= r.stage.h, "score stack fits the stage at " .. sz[1])
+		end
+	end
+	assert(L.scoreStack(400, 20, 22).roomy and not L.scoreStack(60, 20, 22).roomy)
 end })
 
 return tests

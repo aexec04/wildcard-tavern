@@ -172,11 +172,12 @@ local function build(deco, tier, w)
 		cap.BackgroundColor3 = c3(s.rgb)
 		corner(cap, UDim.new(0, 4))
 	end
-	-- the power disc hangs wholly below the card (its top edge is the card's bottom edge), so it never covers the name strip
+	-- the power disc sits in the card's bottom right corner, 40 percent over the frame; only the numeral is inside it
 	local D = Style.discDiameter(w)
 	local disc = frame(deco, "PowerDisc", Z_DISC)
-	disc.AnchorPoint = Vector2.new(0.5, 0)
-	disc.Position = UDim2.new(0.5, 0, 1, 2)
+	local dr = Style.discRect(w, 0)
+	disc.AnchorPoint = Vector2.new(0, 0)
+	disc.Position = UDim2.new(1, dr.x - w, 1, dr.y) -- bottom right corner, 40 percent outside the frame
 	disc.Size = UDim2.fromOffset(D, D)
 	disc.BackgroundTransparency = 0
 	disc.BackgroundColor3 = c3(Style.DISC.fill)

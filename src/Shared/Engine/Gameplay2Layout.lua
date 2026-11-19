@@ -120,6 +120,18 @@ function M.rects(w, h)
 	return r
 end
 
+-- The centre score stack inside the stage: caption, numeral (digits about 56 px tall, so a 72 px font), a gold line directly under
+-- it and the "<score> of <target>" progress text (18 px) under the line. A short stage keeps the number alone.
+M.SCORE_FONT = 72
+function M.scoreStack(stageH, capH, progH)
+	local need = capH + M.SCORE_FONT + 2 + 4 + progH + 4
+	local roomy = stageH >= need
+	local numTop = roomy and capH or math.floor(stageH * 0.1)
+	local textSize = roomy and M.SCORE_FONT or math.max(20, math.min(56, stageH - numTop - 4))
+	local numH = roomy and M.SCORE_FONT or textSize
+	return { roomy = roomy, numTop = numTop, numH = numH, textSize = textSize, lineY = numTop + numH - 2, progressY = numTop + numH + 2, bottom = numTop + numH + 2 + 4 + progH }
+end
+
 local function intersects(a, b)
 	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
 end

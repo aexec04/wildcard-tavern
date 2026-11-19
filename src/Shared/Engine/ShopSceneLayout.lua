@@ -394,7 +394,7 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	out.bubble = rect(clamp(out.marlo.x + out.marlo.w * 0.7, 8, W - bubbleW - 8), tabsBottom + 10, bubbleW, bubbleH)
 
 	-- the dealt cards: inside the region, clear of the bell and ledger (with their name plates), the arch, Marlo's wall and Next Round
-	local tagH = 24 + 4 + 4
+	local tagH = 28 + 12 + 4 -- the plate under a prop: ShopStage TAG_H + TAG_GAP + 4
 	local function withTag(r, padX) return { x = r.x - padX, y = r.y, w = r.w + 2 * padX, h = r.h + tagH } end
 	out.keepOut = {
 		withTag(out.props.bell, 30), withTag(out.props.ledger, 0), out.arch, out.shopkeeper,

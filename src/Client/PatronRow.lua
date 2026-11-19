@@ -694,6 +694,7 @@ local function place(state)
 				end
 				local ctl = c.slot:FindFirstChild("CTLabel")
 				if ctl and ctl.Visible and c.value then c.value.Visible = false end -- the Concept T effect pill shows the value
+				if c.value and c.slot:FindFirstChild("TierDeco") and c.slot.TierDeco.Visible then c.value.Visible = false end -- Gameplay v2: the disc has the number, the pill the unit, no loose string
 				if lay.plaqueH <= 0 then c.plaque.Visible = false end -- narrow cards: the tooltip carries the name
 				if not c.floatTween and not c.hopping and not c.hovering then startFloat(c, i) end
 			else

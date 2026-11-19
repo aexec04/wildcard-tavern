@@ -74,9 +74,12 @@ function RoundRewardBanner.show(args)
 
 	local gui = Instance.new("CanvasGroup") -- one GroupTransparency fades the whole plate
 	gui.Name = "RoundRewardBanner"
-	gui.AnchorPoint = Vector2.new(0.5, 0)
-	gui.Position = UDim2.new(0.5, 0, 0, calm and 64 or 48) -- under the Roblox top bar, above the offers; slides down 16 px as it fades in
-	gui.Size = UDim2.fromOffset(420, 0)
+	-- top right of the scene: right of the merchant, left of the Tips box and the quest toast column (Engine/RoundRewardBanner spot)
+	local sw = screenGui.AbsoluteSize.X
+	local spot = RewardBanner.spot(sw)
+	gui.AnchorPoint = Vector2.new(1, 0)
+	gui.Position = UDim2.new(0, spot.right, 0, calm and 64 or 48) -- under the Roblox top bar; slides down 16 px as it fades in
+	gui.Size = UDim2.fromOffset(spot.width, 0)
 	gui.AutomaticSize = Enum.AutomaticSize.Y
 	gui.BackgroundColor3 = PLATE
 	gui.BorderSizePixel = 0
@@ -91,7 +94,7 @@ function RoundRewardBanner.show(args)
 	minSize.MinSize = Vector2.new(0, 64)
 	minSize.Parent = gui
 	if not calm then
-		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(Celebration.BANNER_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play() end)
+		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(Celebration.BANNER_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0, spot.right, 0, 64) }):Play() end)
 	end
 	local edge = Instance.new("UIStroke")
 	edge.Color = BRASS
@@ -118,6 +121,9 @@ function RoundRewardBanner.show(args)
 		subRow.Name = "Parts"
 		subRow.Font = Enum.Font.GothamMedium
 	end
+	local clearedRow = label(gui, RewardBanner.clearedLine(args.score, args.target), 14, SOFT, 3) -- the stale text is not missed
+	clearedRow.Name = "Cleared"
+	clearedRow.Font = Enum.Font.GothamMedium
 	local flavorLabel = label(gui, args.flavor or "", 15, SOFT, 50)
 	flavorLabel.Name = "Flavor"
 	flavorLabel.Font = Enum.Font.GothamMedium

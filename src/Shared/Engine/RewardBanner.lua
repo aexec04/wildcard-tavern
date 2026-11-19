@@ -58,4 +58,20 @@ function RewardBanner.canDismiss(_plan, t)
 	return t >= RewardBanner.GRACE
 end
 
+-- Where the plate stands: top right of the scene, 300 px wide (narrower on small screens), its right edge clear of the Tips box and
+-- the quest toast column (about 18 percent of the width, 120 to 340 px). Returns the right edge x and the width.
+function RewardBanner.spot(screenW)
+	local w = math.max(1, tonumber(screenW) or 1920)
+	local width = math.min(300, math.floor(w * 0.30))
+	local margin = math.max(120, math.min(340, math.floor(w * 0.18)))
+	return { right = w - margin, width = width }
+end
+
+-- Second line of the plate, so a stale "Target cleared" is never missed; the score joins it when the caller knows it
+function RewardBanner.clearedLine(score, target)
+	local sc = tonumber(score)
+	if sc then return "Target cleared  " .. string.format("%d", math.floor(sc)) .. (tonumber(target) and (" of " .. string.format("%d", math.floor(target))) or "") end
+	return "Target cleared"
+end
+
 return RewardBanner

@@ -51,9 +51,34 @@ function M.skin(screenFrame, screen)
 	end
 end
 
+-- Next Round: brighter than the kit primary and a full outline so it can never read as dark text on dark green
+function M.emphasizeNext(b)
+	if not (b and b:IsA("TextButton")) or b:GetAttribute("NextEmph") then return end
+	b:SetAttribute("NextEmph", true)
+	local N = Screens.NEXT_ROUND
+	local base = Color3.fromRGB(N.fill[1], N.fill[2], N.fill[3])
+	local hot = Color3.fromRGB(N.hover[1], N.hover[2], N.hover[3])
+	b.BackgroundColor3 = base
+	b.BackgroundTransparency = 0
+	b.TextSize = N.textSize
+	b.TextScaled = true -- 24 px where it fits, down to 15 px on a narrow plate
+	local cap = Instance.new("UITextSizeConstraint")
+	cap.MaxTextSize, cap.MinTextSize = N.textSize, 15
+	cap.Parent = b
+	b.TextColor3 = Color3.fromRGB(250, 240, 220)
+	b.TextTransparency = 0
+	b.TextStrokeColor3 = Color3.fromRGB(N.stroke[1], N.stroke[2], N.stroke[3])
+	b.TextStrokeTransparency = 0
+	b.MouseEnter:Connect(function() b.BackgroundColor3 = hot end) -- a colour swap, no tween, so Calm mode is the same
+	b.MouseLeave:Connect(function() b.BackgroundColor3 = base end)
+end
+
 function M.apply(screenFrame, screen)
 	pcall(M.backdrop, screenFrame, screen)
 	M.skin(screenFrame, screen)
+	if screen == "counter" and screenFrame and Flags.gameplay() == 2 then
+		pcall(M.emphasizeNext, screenFrame:FindFirstChild("NextRound", true))
+	end
 end
 
 return M

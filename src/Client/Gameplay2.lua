@@ -129,6 +129,8 @@ function M.install(deps)
 	local scoreNum = scoreText("ScoreNumber", Enum.Font[Style.FONTS.title], cream, 0.5)
 	local scoreCaption = scoreText("ScoreCaption", Enum.Font[Style.FONTS.ui], cream, 0.6)
 	scoreCaption.Text = "Score"
+	local scoreProgress = scoreText("ScoreProgress", Enum.Font[Style.FONTS.ui], Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]), 0.5)
+	scoreProgress.TextTransparency = 0.1
 	scoreNum.TextTransparency = 0.05; scoreNum.TextStrokeTransparency = 0.45 -- the numeral reads at a glance, a soft gold edge is its glow
 	scoreNum.TextStrokeColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3])
 	scoreCaption.TextTransparency = 0.1
@@ -272,18 +274,17 @@ function M.install(deps)
 		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)
 		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
 		scoreBox.ZIndex = 2
-		local numH = math.max(20, math.floor(r.stage.h * 0.5))
-		local capH = 20
-		local roomy = r.stage.h >= capH + 56 + 8 -- a short stage keeps the number only
-		local numTop = roomy and capH or math.floor(r.stage.h * 0.1)
-		numH = math.max(20, math.min(r.stage.h - numTop - 4, 64))
-		scoreNum.Size = UDim2.new(1, 0, 0, numH); scoreNum.Position = UDim2.fromOffset(0, numTop)
-		scoreNum.TextSize = math.min(56, numH); scoreNum.ZIndex = 2
+		local capH, progH = 20, 22
+		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH)
+		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
+		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 2
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
-		scoreLine.Position = UDim2.new(0.5, 0, 0, numTop + numH); scoreLine.ZIndex = 2
+		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 2
 		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 2
-		scoreCaption.Visible = roomy; scoreLine.Visible = roomy
+		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
+		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 2
+		scoreCaption.Visible = N.roomy; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
@@ -392,6 +393,7 @@ function M.install(deps)
 		if scene.Image ~= img then scene.Image = img end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
 		scoreNum.Text = string.format("%d", math.floor(lastState.roundScore or 0))
+		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
 		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
 		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))
 		setText(handsPill, string.format("Hands %d", math.floor(lastState.handsRemaining or 0)))

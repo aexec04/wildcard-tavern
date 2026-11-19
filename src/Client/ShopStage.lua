@@ -54,14 +54,14 @@ end
 -- The gold price tag hangs TAG_GAP under its prop and is TAG_H tall. It is only a label (Active = false), so a click on it goes
 -- to whatever is under it: the control's hit area is therefore made TAG_H + TAG_GAP taller (and as wide as the tag), which is what
 -- makes the pill itself clickable. (Before, only the small transparent rect over the painted prop was, and the pill did nothing.)
-local TAG_H, TAG_GAP = 24, 4
+local TAG_H, TAG_GAP = 28, 12 -- the plate hangs 12 px under the prop so the painted bell stays fully visible
 ShopStage.TAG_H, ShopStage.TAG_GAP = TAG_H, TAG_GAP
 -- Reroll and Haggle are objects in the room, so their words are a Menu-style name plate (dark, brass edge, cream text at 12:1)
 -- under the painted prop, not a gold pill. The plate and the soft warm glow behind the prop light up while the pointer is on it.
-local PLATE = Color3.fromRGB(44, 32, 22)
-local PLATE_HOVER = Color3.fromRGB(78, 58, 36)
+local PLATE = Color3.fromRGB(90, 60, 30) -- TavernKit secondary: brown fill, gold trim, cream text
+local PLATE_HOVER = Color3.fromRGB(122, 84, 44)
 local CREAM = Color3.fromRGB(250, 235, 200)
-local BRASS = Color3.fromRGB(190, 150, 62)
+local BRASS = Color3.fromRGB(200, 165, 90)
 
 local function bindHover(button, tagLabel, glow)
 	if button:GetAttribute("TagHover") then return end
@@ -85,10 +85,11 @@ local function tag(parent, name, text, width, y)
 		t.BackgroundColor3 = PLATE
 		t.BorderSizePixel = 0
 		t.Font = Enum.Font.GothamBold
-		t.TextSize = 14
+		t.TextSize = 16
 		t.TextColor3 = CREAM
 		t.TextTransparency = 0
-		t.TextStrokeTransparency = 1
+		t.TextStrokeColor3 = Color3.fromRGB(46, 30, 14)
+		t.TextStrokeTransparency = 0.7
 		t.ZIndex = 8
 		t.Active = false
 		t.Parent = parent

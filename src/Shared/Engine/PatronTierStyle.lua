@@ -51,21 +51,22 @@ function M.frameRect(tier, w, h)
 	return { x = -math.floor(gw / 2), y = -gh, w = w + gw, h = h + gh }
 end
 
+-- the power disc is a fixed 40 px (28 on very narrow cards) in the card's bottom right corner, 40 percent of it outside the frame
+M.DISC_SIZE, M.DISC_OVERLAP = 40, 0.4
 function M.discDiameter(w)
-	return math.max(28, round((tonumber(w) or 0) * 0.30))
+	return (tonumber(w) or 0) >= 70 and M.DISC_SIZE or 28
 end
 
--- The power disc hangs WHOLLY below the card (its top touches the card's bottom edge plus 2 px), so it can never cover the name strip.
--- Returns { x, y, w, h } relative to a w x h card slot.
+-- Bottom right corner of the card: 60 percent of the disc inside the frame, 40 percent outside (right and below).
 function M.discRect(w, h)
 	local d = M.discDiameter(w)
-	return { x = round((w - d) / 2), y = h + 2, w = d, h = d }
+	local out = math.floor(d * M.DISC_OVERLAP + 0.5)
+	return { x = w - d + out, y = h - d + out, w = d, h = d }
 end
 
--- Height of the band under the card that the disc owns; the rarity label starts under it
-function M.discBand(w) return M.discDiameter(w) + 2 end
+-- Height under the card that the disc's overhang owns; the rarity label starts under it
+function M.discBand(w) return math.floor(M.discDiameter(w) * M.DISC_OVERLAP + 0.5) + 2 end
 
--- The effect pill shows only the unit when the disc already shows the number ("+4 Mult" -> "Mult"); text without a number stays whole
 function M.unitText(valueText)
 	local t = tostring(valueText or ""):gsub("^%s+", ""):gsub("%s+$", "")
 	local rest = t:match("^[%+%-xX]?%d[%d%.,]*%%?%s+(.+)$")
