@@ -61,7 +61,9 @@ function M.patronSlots(w, h, n)
 end
 
 -- the bar track inside the round banner (fractions of the banner itself)
-M.barInBanner = { 0.20, 0.60, 0.80, 0.84 }
+-- the banner title is a warm cream serif (Merriweather bold), smaller than the HUD numbers: ROUND_TEXT
+M.ROUND_TEXT = { r = 255, g = 240, b = 205 }
+M.barInBanner = { 0.125, 0.545, 0.875, 0.80 } -- the reference track spans about 0.11 to 0.89 of the banner width
 
 function M.fits(w, h)
 	return (tonumber(w) or 0) >= M.MIN_W and (tonumber(h) or 0) >= M.MIN_H
@@ -133,7 +135,7 @@ end
 
 -- HUD text sizes as a fraction of the frame height, so the numbers fill their plates like the reference (about 28 px at 1024 high);
 -- never under 15 px
-M.TEXT_FRAC = { coins = 0.027, hands = 0.027, round = 0.030, deckCount = 0.028, pill = 0.017 }
+M.TEXT_FRAC = { coins = 0.027, hands = 0.027, round = 0.027, deckCount = 0.028, pill = 0.017 }
 
 function M.textSize(key, frameH)
 	local f = M.TEXT_FRAC[key] or 0.02

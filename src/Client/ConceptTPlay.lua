@@ -96,6 +96,10 @@ function M.install(deps)
 	local coinsText = text(layer, "CoinsText", 20, 3)
 	local handsText = text(layer, "HandsText", 20, 3)
 	local roundText = text(layer, "RoundText", 18, 3)
+	-- the banner title is a warm cream serif, not the heavy HUD face
+	roundText.FontFace = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold)
+	roundText.TextColor3 = Color3.fromRGB(Layout.ROUND_TEXT.r, Layout.ROUND_TEXT.g, Layout.ROUND_TEXT.b)
+	roundText.TextStrokeTransparency = 0.6
 	local deckText = text(layer, "DeckText", 18, 3)
 	local fill = Instance.new("Frame")
 	fill.Name = "BarFill"
@@ -106,6 +110,11 @@ function M.install(deps)
 	local fc = Instance.new("UICorner")
 	fc.CornerRadius = UDim.new(1, 0)
 	fc.Parent = fill
+	-- subtle highlight: one Color-only gradient, lighter on top (never Transparency)
+	local fg = Instance.new("UIGradient")
+	fg.Rotation = 90
+	fg.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 226, 120)), ColorSequenceKeypoint.new(0.5, GOLD), ColorSequenceKeypoint.new(1, Color3.fromRGB(214, 150, 40)) })
+	fg.Parent = fill
 
 	local active, lastState = false, nil
 	local self = {}

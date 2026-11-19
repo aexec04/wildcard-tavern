@@ -128,7 +128,10 @@ function M.show()
 	at(img(gui, "ct_hud_coins", 2), r.coins); at(label(gui, tostring(S.coins), Layout.textSize("coins", size.Y), 3), Layout.textRect(r.coins, "coins"))
 	at(img(gui, "ct_hud_hands", 2), r.hands); at(label(gui, tostring(S.hands), Layout.textSize("hands", size.Y), 3), Layout.textRect(r.hands, "hands"))
 	at(img(gui, "ct_hud_round", 2), r.round)
-	at(label(gui, "Round " .. S.round, Layout.textSize("round", size.Y), 3), Layout.textRect(r.round, "round"))
+	local rt = label(gui, "Round " .. S.round, Layout.textSize("round", size.Y), 3, Color3.fromRGB(Layout.ROUND_TEXT.r, Layout.ROUND_TEXT.g, Layout.ROUND_TEXT.b))
+	rt.FontFace = Font.new("rbxasset://fonts/families/Merriweather.json", Enum.FontWeight.Bold) -- warm cream serif like the reference
+	rt.TextStrokeTransparency = 0.6
+	at(rt, Layout.textRect(r.round, "round"))
 	local bar = Layout.bar(r)
 	local fill = Instance.new("Frame")
 	fill.BackgroundColor3 = Color3.fromRGB(246, 196, 70)
@@ -137,6 +140,10 @@ function M.show()
 	fill.Position = UDim2.fromOffset(bar.x, bar.y)
 	fill.Size = UDim2.fromOffset(math.floor(bar.w * S.progress), bar.h)
 	fill.Parent = gui
+	local fcorner = Instance.new("UICorner"); fcorner.CornerRadius = UDim.new(1, 0); fcorner.Parent = fill
+	local fgrad = Instance.new("UIGradient"); fgrad.Rotation = 90 -- Color only, never Transparency
+	fgrad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 226, 120)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(246, 196, 70)), ColorSequenceKeypoint.new(1, Color3.fromRGB(214, 150, 40)) })
+	fgrad.Parent = fill
 	at(img(gui, "ct_hud_gear", 2), r.gear)
 	at(img(gui, "ct_deck_a", 2), r.deck)
 	at(img(gui, "ct_deck_count", 2), r.deckCount); at(label(gui, S.deck, Layout.textSize("deckCount", size.Y), 3), Layout.textRect(r.deckCount, "deckCount"))
