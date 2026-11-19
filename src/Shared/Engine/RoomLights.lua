@@ -31,6 +31,17 @@ M.ROOMS = {
 		shaft = { x = 0.9, y = 0.3, w = 0.08, h = 0.3 },
 		motes = 5,
 	},
+	-- the Concept T play room (ct_table_room, 1536 x 1024): fireplace, chandelier and mantel candles, the left window shaft
+	concept_t = {
+		spots = {
+			{ x = 0.835, y = 0.38, size = 0.17, kind = "fire" },
+			{ x = 0.50, y = 0.12, size = 0.14, kind = "candle" },
+			{ x = 0.965, y = 0.165, size = 0.08, kind = "candle" },
+			{ x = 0.04, y = 0.24, size = 0.14, kind = "window" },
+		},
+		shaft = { x = 0.03, y = 0.26, w = 0.12, h = 0.3 },
+		motes = 8,
+	},
 	stats = {
 		spots = {
 			{ x = 0.082, y = 0.283, size = 0.2, kind = "lantern" },

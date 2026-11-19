@@ -23506,6 +23506,20 @@ table.insert(tests, { name = "Confetti: none in calm mode, fewer on Fast, more f
 	end
 	assert(gold > 0 and purple > 0, "both palettes appear")
 end })
+table.insert(tests, { name = "RoomLights: the Concept T play room has a fire, candles, a window and a few motes, all inside the picture", fn = function()
+	local L = require(script.Parent.Parent.Engine.RoomLights)
+	local r = L.ROOMS.concept_t
+	assert(r and #r.spots >= 3 and L.moteCount("concept_t") > 0 and L.moteCount("concept_t") <= L.MAX_MOTES)
+	local fire = false
+	for _, sp in ipairs(r.spots) do
+		assert(sp.x > 0 and sp.x < 1 and sp.y > 0 and sp.y < 1 and L.BASE[sp.kind])
+		if sp.kind == "fire" then fire = true end
+	end
+	assert(fire, "the fireplace glows")
+	local f = L.flicker("fire", 3.1, 1, false)
+	assert(type(f) == "number" and math.abs(f - 1) <= L.LIMIT + 0.001 and L.flicker("fire", 3.1, 1, true) == 1, "flicker stays within the limit and is steady in calm mode")
+	assert(r.shaft.x + r.shaft.w <= 1 and r.shaft.y + r.shaft.h <= 1)
+end })
 table.insert(tests, { name = "PatronMotion: entrance by tier, rays only for Legendary, calm mode makes no motion, hover keeps the larger pill", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PatronMotion)
 	assert(PM.entrance("rare", true) == nil, "calm: no entrance tween")
