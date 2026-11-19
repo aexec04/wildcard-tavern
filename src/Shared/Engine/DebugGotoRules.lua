@@ -214,6 +214,8 @@ function DebugGotoRules.parse(value)
 	end
 	-- audit:v2 prints the Gameplay v2 rect table and warnings for five window sizes (Studio only, Client/AuditV2)
 	if text == "audit:v2" then return { kind = "audit" } end
+	-- selfcheck walks the visible text of the open screen for dim, low contrast, mislayered, clipped or overlapping labels
+	if text == "selfcheck" then return { kind = "selfcheck" } end
 	-- scale:<w>x<h> shrinks GameUI to that viewport (Studio only), scale:off restores it
 	if text == "scale:off" then
 		return { kind = "scale", off = true }

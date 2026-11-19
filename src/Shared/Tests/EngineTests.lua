@@ -30571,4 +30571,34 @@ table.insert(tests, { name = "Run Over: the old deck widget and its corner brack
 	end
 end })
 
+table.insert(tests, { name = "SelfCheck: dim text, low contrast, a plate over its label, a label outside its parent and two overlapping labels are each found, a clean screen is not", fn = function()
+	local S = require(script.Parent.Parent.Engine.SelfCheck)
+	local cream, green = { 0.98, 0.94, 0.86 }, { 0.30, 0.62, 0.30 }
+	local function node(path, o)
+		local n = { path = path, text = "Play Hand", textTransparency = 0, textColor = cream, plateColor = { 0.2, 0.12, 0.08 }, z = 8, plateZ = 5,
+			rect = { x = 10, y = 10, w = 100, h = 40 }, parentRect = { x = 0, y = 0, w = 120, h = 60 } }
+		for k, v in pairs(o or {}) do n[k] = v end
+		return n
+	end
+	expectTrue(#S.check({ node("A.Play"), node("A.Discard", { rect = { x = 200, y = 10, w = 100, h = 40 }, parentRect = { x = 190, y = 0, w = 120, h = 60 } }) }) == 0, "a clean screen")
+	expectTrue(#S.check({ node("A.Dim", { textTransparency = 1 }) }) == 1, "invisible text")
+	expectTrue(#S.check({ node("A.Dim", { textTransparency = 0.5 }) }) == 0, "0.5 is the limit")
+	expectTrue(#S.check({ node("A.Low", { textColor = { 0.4, 0.62, 0.30 }, plateColor = green }) }) == 1, "green on green")
+	expectTrue(S.contrast({ 1, 1, 1 }, { 0, 0, 0 }) > 20.9 and S.contrast({ 0.5, 0.5, 0.5 }, { 0.5, 0.5, 0.5 }) == 1, "contrast bounds")
+	expectTrue(#S.check({ node("A.Layer", { plateZ = 8 }) }) == 1 and #S.check({ node("A.Layer", { plateZ = 9 }) }) == 1 and #S.check({ node("A.Layer", { plateZ = 7 }) }) == 0, "label above plate")
+	expectTrue(#S.check({ node("A.Out", { rect = { x = 100, y = 10, w = 100, h = 40 } }) }) == 1, "outside the parent")
+	expectTrue(#S.check({ node("A.Edge", { rect = { x = 11, y = 10, w = 109, h = 40 } }) }) == 0, "1 px slack")
+	local two = S.check({ node("A.One"), node("A.Two", { text = "Discard", rect = { x = 30, y = 10, w = 90, h = 40 } }) })
+	expectTrue(#two == 1 and two[1]:find("overlaps", 1, true), "labels overlapping")
+	expectTrue(#S.check({ node("A.One"), node("A.One.Mirror") }) == 0, "a label inside its own ancestor is no pair")
+	expectTrue(#S.check({ node("A.One"), node("A.Gone", { textTransparency = 1 }) }) == 1, "a hidden label overlaps nothing, only its own transparency warns")
+	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = D.parse("selfcheck")
+	expectTrue(t and t.kind == "selfcheck", "DebugGoto selfcheck parses")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	expectTrue(read("src/Client/SelfCheck.lua"):find("IsStudio", 1, true) and read("src/Client/DebugGoto.lua"):find("SelfCheck", 1, true), "Studio only, reachable from DebugGoto")
+	expectTrue(read("claude/skills/wildcard-tavern-studio-check.md"):find("selfcheck", 1, true) ~= nil, "documented")
+end })
+
 return tests

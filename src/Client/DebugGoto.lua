@@ -285,6 +285,11 @@ function DebugGoto.init(deps)
 			if not okA then warn("[DebugGoto] audit:v2 failed: " .. tostring(errA)) end
 			return
 		end
+		if target.kind == "selfcheck" then
+			local okC, errC = pcall(function() require(script.Parent.SelfCheck).run() end)
+			if not okC then warn("[DebugGoto] selfcheck failed: " .. tostring(errC)) end
+			return
+		end
 		if target.kind == "scale" then
 			local okS, errS = pcall(applyScale, target)
 			if not okS then warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(errS)) end
