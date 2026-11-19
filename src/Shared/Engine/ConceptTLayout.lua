@@ -33,7 +33,7 @@ M.frac = {
 	hand = { 0.195, 0.675, 0.780, 0.875 }, -- measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
 	play = { 0.300, 0.875, 0.530, 0.985 },
 	discard = { 0.537, 0.882, 0.689, 0.980 },
-	deck = { 0.806, 0.650, 0.978, 0.880 },
+	deck = { 0.790, 0.630, 0.990, 0.940 }, -- the ct_deck_a cut canvas (307 x 317) at its reference origin (1213, 645), so the book is its full reference size (about 261 x 230 of the frame)
 	deckCount = { 0.853, 0.865, 0.965, 0.925 },
 }
 
