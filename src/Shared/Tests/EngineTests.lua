@@ -28821,6 +28821,19 @@ table.insert(tests, { name = "Gameplay v2 boss entrance: icon per rule family, 0
 	assert(M.bossEntranceKey({ night = 1, round = 1 }) == nil)
 end })
 
+table.insert(tests, { name = "Shop buy UX: Buy plate says Need N when Tips are short, the shake is small and absent in Calm mode and on Fast", fn = function()
+	local M = require(script.Parent.Parent.Engine.ShopBuyUX)
+	assert(M.shortBy(8, 5) == 3 and M.shortBy(5, 8) == 0 and M.shortBy(nil, nil) == 0)
+	assert(M.plateText("Buy", 8, 5) == "Need 3" and M.plateText("Buy", 8, 8) == "Buy" and M.plateText("Buy") == "Buy")
+	local plan = M.shake(false, false)
+	assert(plan and plan.step == 0.05 and plan.offsets[#plan.offsets] == 0, "ends back at rest")
+	for _, dx in ipairs(plan.offsets) do assert(math.abs(dx) <= 6, "small") end
+	assert(M.shake(true, false) == nil and M.shake(false, true) == nil)
+	if not io then return end
+	local f = assert(io.open("src/Client/ShopCards.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("ShopBuyUX", 1, true) and src:find("reduceShake", 1, true), "ShopCards uses the shake and checks Calm mode")
+end })
+
 table.insert(tests, { name = "Gameplay v2 Patron tooltip: 0.25 s delay, 320 px wide scaling down, portrait column, plate clear of the bar, hand, buttons, sort control and deck for all five seats at three sizes", fn = function()
 	local T = require(script.Parent.Parent.Engine.Gameplay2Tip)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

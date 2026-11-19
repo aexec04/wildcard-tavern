@@ -528,7 +528,7 @@ function ShopCards.new(deps)
 			button.Font = Enum.Font.GothamBold
 			button.TextSize = 16
 			button.AutoButtonColor = false
-			button.Text = enabled and (spec.actionText or "Buy") or (spec.disabledText or "Full")
+			button.Text = enabled and ((spec.shortBy or 0) > 0 and ("Need " .. math.floor(spec.shortBy)) or (spec.actionText or "Buy")) or (spec.disabledText or "Full")
 			button.TextColor3 = enabled and CREAM or Color3.fromRGB(180, 170, 160)
 			button.BackgroundColor3 = enabled and Color3.fromRGB(70, 130, 60) or Color3.fromRGB(70, 60, 55)
 			button.ZIndex = Z + 4
@@ -644,6 +644,18 @@ function ShopCards.new(deps)
 			-- A disabled ("Full") button still calls onAction so Shop.lua can show its warning.
 			if spec.onAction and spec.onAction(card) then
 				card.pop()
+			elseif (spec.shortBy or 0) > 0 and enabled then
+				-- not enough Tips: the card shakes sideways (the cue and Marlo's answer come from Shop.lua)
+				local plan = require(game:GetService("ReplicatedStorage").Shared.Engine.ShopBuyUX).shake(ClientSettings.get("reduceShake") == true, slow())
+				if plan then
+					task.spawn(function()
+						for _, dx in ipairs(plan.offsets) do
+							if not body.Parent then return end
+							tween(body, { Position = UDim2.fromOffset(dx, HEAD - LIFT) }, plan.step)
+							task.wait(plan.step)
+						end
+					end)
+				end
 			end
 		end)
 		end

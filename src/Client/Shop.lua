@@ -1584,7 +1584,7 @@ return function(deps)
 					local card = shopCards.card(row, {
 						shield = shieldFor(require(Engine:WaitForChild("HousePasses")).getById(offer.id)),
 						kind = "voucher", layoutOrder = index, name = offer.name, description = offer.description,
-						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", emoji = offer.icon, badge = "PASS",
+						price = offer.price, affordable = tips >= offer.price, shortBy = math.max(0, offer.price - tips), actionText = "Buy", emoji = offer.icon, badge = "PASS",
 						artTab = "house_passes", artId = offer.id, rarityTab = "housePasses", rarityId = offer.id,
 						onAction = function()
 							local fired = buyVoucher(offer)
@@ -1600,7 +1600,7 @@ return function(deps)
 					local card = shopCards.card(row, {
 						synergy = synergyTagsFor(offer.id), shield = shieldFor(fullPatron),
 						kind = "patron", layoutOrder = index, name = offer.name, description = offer.description,
-						price = offer.price, affordable = tips >= offer.price, actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
+						price = offer.price, affordable = tips >= offer.price, shortBy = math.max(0, offer.price - tips), actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
 						emoji = fullPatron and fullPatron.icon, artTab = "patrons", artId = offer.id, rarityTab = "patrons", rarityId = offer.id,
 						onAction = function()
 							local fired = buyPatron(offer)
@@ -1645,7 +1645,7 @@ return function(deps)
 					local card = shopCards.card(row, {
 						kind = "pack", layoutOrder = index, name = pack.name, line = line, price = pack.price, tipAlign = packTip,
 						ribbon = Packs.shelfName(pack.name), -- the small plate shows a name that fits it; the tooltip keeps the full one
-						affordable = tips >= pack.price, actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
+						affordable = tips >= pack.price, shortBy = math.max(0, pack.price - tips), actionText = "Buy", emoji = pack.icon, badge = sizeBadge,
 						artTab = "packs", artId = baseId, rarity = tierRarity,
 						glow = (sizeBadge == "MEGA" and 2) or (sizeBadge == "JUMBO" and 1) or 0,
 						onAction = function()
