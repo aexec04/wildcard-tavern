@@ -28961,4 +28961,32 @@ table.insert(tests, { name = "Gameplay v2 event cards: every event keeps a safe 
 	assert(src:find("ui.choiceRemote:FireServer(option.id)", 1, true), "one remote call per choice, unchanged")
 end })
 
+table.insert(tests, { name = "Gameplay v2 sound pass: every moment plays an existing cue with an id from a real call site, volumes stay in 0..1 at every slider step, Mute and a zero slider are silent", fn = function()
+	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local SFX = require(script.Parent.Parent.Engine.SoundFX)
+	assert(#G.MOMENTS >= 11)
+	for _, m in ipairs(G.MOMENTS) do
+		local cue = S.Cues[m.cue]
+		assert(cue, m.moment .. ": the cue " .. m.cue .. " exists in SoundIds")
+		assert(cue.id ~= "" and cue.id:find("^rbxassetid://%d+$"), m.moment .. ": the cue has a real id")
+		assert(cue.volume > 0 and cue.volume <= 1, m.moment .. ": cue volume in range")
+		for _, step in ipairs(G.SLIDER_STEPS) do
+			local v = G.effective(cue.volume, 3, step, false)
+			assert(v >= 0 and v <= 1, m.moment .. ": volume stays in 0..1 at slider " .. step)
+			if step == 0 then assert(v == 0, "slider at zero is silent") end
+		end
+		assert(G.effective(cue.volume, 1, 1, true) == 0, m.moment .. ": Mute is silent")
+	end
+	assert(G.effective(0.5, 1, 0.5, false) == 0.25 and G.effective(0.9, 3, 1, false) == 1)
+	-- the score tick rises 1.0 to 1.3 and no cue repeats faster than its cooldown
+	assert(math.abs(SFX.tickSpeed(1) - 1.0) < 1e-9 and math.abs(SFX.tickSpeed(11) - 1.3) < 1e-9, "score_tick pitch ladder 1.0 to 1.3")
+	assert(SFX.minInterval("hover") >= 0.05 and SFX.minInterval("score_tick") >= 0.03, "per cue cooldowns")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	for _, m in ipairs(G.MOMENTS) do
+		assert(read(m.file):find(m.marker, 1, true), m.moment .. ": " .. m.file .. " has the call site " .. m.marker)
+	end
+end })
+
 return tests

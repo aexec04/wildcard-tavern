@@ -76,6 +76,7 @@ end
 
 function M.shake(btn)
 	local l = btn and label(btn)
+	pcall(function() require(script.Parent.Cue).play("shop_cant", 0.6) end) -- the soft "not yet" sound, also in Calm mode (it is not motion)
 	local p = Rules.shake(calm())
 	if not l or not p then return end
 	task.spawn(function()
