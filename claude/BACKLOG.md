@@ -2,7 +2,9 @@
 Only after the Concept T play screen, Patron cards and pixel fixes are done. Keep the Concept T look: bright, cozy, simple, attention grabbing Patrons. Never add clutter to the play screen. Calm mode and Reduce motion must create no tweens. Keep the 127 client locals ratchet. No spend unless a task says ALLOWED: generate (small, under 10 images, run estimate first).
 
 1. Scoring juice: card-by-card score pops in the scoring stage (rising pitch tick per card, number pop, a bigger burst on the final total, Patron card bounce when its effect fires, floating +value pill in the Patron's rarity color). Code only.
+   DONE: rim of the floating Patron value pill follows rarity (PatronEvents.rarityRim, PatronRow.trigger). Pitch ticks, number pops, finale burst and Patron hop already existed.
 2. Patron entrance: new Patron cards drop in with a small bounce and a rarity glow sweep (Legendary gets light rays). Hover or tap lifts the card and shows its effect pill larger.
+   DONE: Engine/PatronMotion (tested numbers) and Client/PatronMotionFX: drop-in with bounce and rarity glow sweep (Legendary rays) when a card gets a new Patron, hover or tap lift with a 1.25x effect pill in the play row. Shop and collection keep static cards.
 3. Hand feel: cards fan and lift on hover or select, a soft shadow under selected cards, play and discard cards fly to the stage and the discard pile with an arc, new cards deal from the deck pile.
 4. Round clear and win moments: a short celebration (confetti in the gold and purple palette, banner swoop, coin count-up). Defeat is gentle, with a retry button.
 5. Ambient tavern life on the painted table room: flickering fireplace glow and candle light as soft gradients, floating dust motes, a slow bob on the crowd. Cheap, no new art.

@@ -56,6 +56,8 @@ local function corner(parent, r)
 	c.Parent = parent
 end
 
+local startFloat -- defined below (hover and entrance hand control back to it)
+
 local function newCard(i)
 	local c = { id = nil }
 	local slot = Instance.new("Frame")
@@ -226,8 +228,27 @@ local function newCard(i)
 	c.slot, c.float, c.body, c.name, c.plus, c.plaque, c.shadow = slot, float, body, name, plus, plaque, shadow
 	c.dim, c.ringStroke = dim, ringStroke
 	-- hover: an owned Patron's gold ring shows faintly (the scoring beat owns the ring while a card hops)
-	body.MouseEnter:Connect(function() if c.id and not c.hopping then ringStroke.Transparency = 0.45 end end)
-	body.MouseLeave:Connect(function() if not c.hopping then ringStroke.Transparency = 1 end end)
+	c.afterMotion = function() if c.slot.Visible and not c.hovering and not c.floatTween then startFloat(c, 1) end end
+	body.MouseEnter:Connect(function()
+		if c.id and not c.hopping then ringStroke.Transparency = 0.45 end
+		if c.id then pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end) end
+	end)
+	body.MouseLeave:Connect(function()
+		if not c.hopping then ringStroke.Transparency = 1 end
+		if c.hovering then
+			pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end)
+			if not calm() then task.delay(0.15, function() if not c.hovering then startFloat(c, 1) end end) end
+		end
+	end)
+	-- a tap (touch) lifts the card for 1.5 s
+	body.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch and c.id then
+			pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end)
+			task.delay(1.5, function()
+				if c.hovering then pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end) end
+			end)
+		end
+	end)
 	if tooltipFn then
 		tooltipFn(body, function()
 			local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
@@ -238,14 +259,14 @@ local function newCard(i)
 	return c
 end
 
-local function startFloat(c, i)
+function startFloat(c, i)
 	if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
 	c.float.Position = UDim2.fromOffset(0, 0)
-	if calm() or c.hopping then return end
+	if calm() or c.hopping or c.hovering then return end
 	local t = TweenService:Create(c.float, TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 		{ Position = UDim2.fromOffset(0, -2) })
 	-- stagger so the row does not bob as one block
-	task.delay((i % 5) * 0.4, function() if c.floatTween == nil and c.slot.Visible and not c.hopping then c.floatTween = t; t:Play() end end)
+	task.delay((i % 5) * 0.4, function() if c.floatTween == nil and c.slot.Visible and not c.hopping and not c.hovering then c.floatTween = t; t:Play() end end)
 end
 
 local function fillCard(c, i, owned)
@@ -262,6 +283,7 @@ local function fillCard(c, i, owned)
 		c.body.BackgroundTransparency = 0
 		c.body.BackgroundColor3 = WOOD
 		if c.id ~= owned.id then
+			c.enterPending = require(Engine:WaitForChild("PatronMotion")).isNew(c.id, owned.id)
 			c.id = owned.id
 			local old = c.body:FindFirstChild("PatronArt")
 			if old then old:Destroy() end
@@ -280,6 +302,10 @@ local function fillCard(c, i, owned)
 			pcall(function() RarityFrame.apply(c.body, tier, { thickness = 3, radius = 8, zIndex = Z + 4 }) end)
 		end
 		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, tier, c.valueText, cut) end)
+		if c.enterPending then
+			c.enterPending = false
+			pcall(function() require(script.Parent.PatronMotionFX).enter(c, tier, calm()) end)
+		end
 		if cut then
 			c.plaque.Visible = false
 			local rs1 = c.body:FindFirstChild("RarityStroke")
@@ -627,7 +653,7 @@ local function place(state)
 				local ctl = c.slot:FindFirstChild("CTLabel")
 				if ctl and ctl.Visible and c.value then c.value.Visible = false end -- the Concept T effect pill shows the value
 				if lay.plaqueH <= 0 then c.plaque.Visible = false end -- narrow cards: the tooltip carries the name
-				if not c.floatTween and not c.hopping then startFloat(c, i) end
+				if not c.floatTween and not c.hopping and not c.hovering then startFloat(c, i) end
 			else
 				c.slot.Visible = false
 				if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
