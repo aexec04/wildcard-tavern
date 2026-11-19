@@ -539,6 +539,19 @@ function M.install(deps)
 		if scene.Image ~= img then scene.Image = img end
 		if lifeAttach() then life.scene(key); life.place(size.X, size.Y) end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
+		do -- a Boss round adds its rule as a second line in the scroll (two lines at most, one line when the bar is too short for two)
+			local bname, brule = Moments.bossText(lastState)
+			local baseSize = Style.TEXT.subtitle
+			local ih = roundLabel.AbsoluteSize.Y
+			if bname and brule ~= "" and ih >= 2 * 15 + 6 then
+				roundLabel.TextWrapped = true
+				roundLabel.TextSize = math.max(14, math.min(baseSize, math.floor((ih - 6) / 2)))
+				roundLabel.Text = roundLabel.Text .. "\n" .. Moments.plateLine(bname, brule)
+				roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			else
+				roundLabel.TextSize = baseSize
+			end
+		end
 		do -- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number
 			local nowScore = math.floor(lastState.roundScore or 0)
 			local function put(n) scoreNum.Text = string.format("%d", math.floor(n)) end
