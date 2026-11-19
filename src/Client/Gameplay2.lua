@@ -155,7 +155,9 @@ function M.install(deps)
 	scoreCaption.Text = "Score"
 	local scoreProgress = scoreText("ScoreProgress", Enum.Font[Style.FONTS.ui], Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]), 0.5)
 	scoreProgress.TextTransparency = 0.1
-	scoreNum.TextTransparency = 0.05; scoreNum.TextStrokeTransparency = 0.45 -- the numeral reads at a glance, a soft gold edge is its glow
+	scoreNum.TextTransparency = 0; scoreNum.TextStrokeTransparency = 0.1 -- bold white digits (a thin serif 0 read as an O) with a gold outline
+	scoreNum.Font = Enum.Font.GothamBold
+	scoreNum.TextColor3 = Color3.fromRGB(255, 255, 255)
 	scoreNum.TextStrokeColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3])
 	scoreCaption.TextTransparency = 0.1
 	local scoreLine = Instance.new("Frame")

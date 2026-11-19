@@ -309,7 +309,13 @@ function TavernKit.icon(host, name, pad)
 		img.Position = UDim2.new(0.06, 0, 0.5, 0)
 		img.Parent = host
 		-- a square sized in pixels from the plate's height (a zero-width UDim2 with an aspect constraint collapsed to nothing, which hid every icon)
-		local function size() local s = math.max(8, math.floor(host.AbsoluteSize.Y * 0.62 + 0.5)); img.Size = UDim2.fromOffset(s, s) end
+		-- 0.53 of the plate height (15 percent under the first 0.62); the text padding below is the icon's right edge plus a 10 px gap
+		local function size()
+			local s = math.max(8, math.floor(host.AbsoluteSize.Y * 0.53 + 0.5))
+			img.Size = UDim2.fromOffset(s, s)
+			local up = host:FindFirstChild("KitIconPad")
+			if up then up.PaddingLeft = UDim.new(0, math.floor(host.AbsoluteSize.X * 0.06 + s + 10)) end
+		end
 		size()
 		host:GetPropertyChangedSignal("AbsoluteSize"):Connect(size)
 	end
@@ -318,6 +324,8 @@ function TavernKit.icon(host, name, pad)
 	img.ZIndex = host.ZIndex + 2
 	if pad and pad > 0 and (host:IsA("TextLabel") or host:IsA("TextButton")) and not host:FindFirstChild("KitIconPad") then
 		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(pad, 0); up.Parent = host
+		local s = img.Size.X.Offset
+		up.PaddingLeft = UDim.new(0, math.floor(host.AbsoluteSize.X * 0.06 + s + 10)) -- clear gap right of the icon at any plate width
 	end
 	return img
 end

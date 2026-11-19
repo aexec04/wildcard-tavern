@@ -52,7 +52,7 @@ local function build(layer)
 		return t
 	end
 	title = label("Title", 14, 20, 16, Color3.fromRGB(255, 244, 214), Enum.Font.GothamBold)
-	body = label("Body", 36, 60, 15, Color3.fromRGB(235, 218, 180), Enum.Font.Gotham)
+	body = label("Body", 38, 36, 15, Color3.fromRGB(235, 218, 180), Enum.Font.Gotham)
 	button = Instance.new("TextButton")
 	button.Name = "RoundHintGotIt"
 	button.ZIndex = 30

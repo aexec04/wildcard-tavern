@@ -181,7 +181,7 @@ M.BANNER_ASPECT = { left = 594 / 934, right = 682 / 977 }
 function M.banners(w, h)
 	if w < M.REF_MIN_W or h < M.REF_MIN_H then return nil end
 	local r = M.rects(w, h)
-	local y = math.max(4, round(0.012 * h))
+	local y = math.max(0, round(0.012 * h) - 10) -- 10 px higher: the left banner no longer reaches the first Patron seat's shadow
 	local lw, rw = round(0.0568 * w), round(0.0718 * w)
 	local out = { right = box(round(0.8553 * w), y, rw, round(rw / M.BANNER_ASPECT.right)) }
 	local left = box(round(0.1705 * w), y, lw, round(lw / M.BANNER_ASPECT.left))

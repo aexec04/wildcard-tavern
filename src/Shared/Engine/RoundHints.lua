@@ -18,8 +18,8 @@ local M = {}
 
 M.ORDER = {
 	{ id = "round_hint_select", title = "Pick your cards", body = "Tap up to five cards, then press Play Hand." },
-	{ id = "round_hint_tiers", title = "Patron power", body = "The frame shows power: wood is Common, gold is Legendary." },
-	{ id = "round_hint_target", title = "What is Target?", body = "Reach the Target score before your hands run out." },
+	{ id = "round_hint_tiers", title = "Patron power", body = "Wood frames are Common, gold are Legendary." },
+	{ id = "round_hint_target", title = "What is Target?", body = "Score the Target before your hands run out." },
 }
 
 M.MAX_NIGHT = 1
