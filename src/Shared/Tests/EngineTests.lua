@@ -26894,11 +26894,12 @@ table.insert(tests, { name = "Menu play button: Concept T green art, pulse only 
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
 	local mod, hot = read("src/Client/MenuPlayButton.lua"), read("src/Client/MenuHotspots.lua")
-	expectTrue(mod:find("ct_btn_play_a", 1, true) ~= nil, "uses the Concept T play art")
+	expectTrue(mod:find("Art.ct_btn_blank", 1, true) ~= nil, "uses the text-free Concept T plate")
+	expectTrue(mod:find("Art.ct_btn_play_a", 1, true) == nil, "never the plate with Play Hand baked in")
 	expectTrue(mod:find(":Play()", 1, true) == nil, "the module never plays a tween itself")
 	expectTrue(hot:find("MenuPlayButton", 1, true) ~= nil, "the sign is styled by MenuPlayButton")
 	expectTrue(hot:find("if calm() then return end\n\t\tfor _, t in ipairs(lanterns)", 1, true) ~= nil, "startLoops plays the pulse only outside calm mode")
-	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt).ct_btn_play_a ~= nil, "the art id is recorded")
+	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt).ct_btn_blank ~= nil, "the art id is recorded")
 end })
 
 return tests

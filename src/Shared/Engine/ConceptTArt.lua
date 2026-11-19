@@ -6,6 +6,7 @@
 ]]
 
 return {
+	["ct_btn_blank"] = "rbxassetid://119179226749829",
 	["ct_btn_discard"] = "rbxassetid://99709048276522",
 	["ct_btn_discard_a"] = "rbxassetid://84348477941060",
 	["ct_btn_play"] = "rbxassetid://113101513720578",

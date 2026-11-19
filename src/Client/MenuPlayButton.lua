@@ -1,7 +1,7 @@
 --[[
 	Client/MenuPlayButton.lua
 	The Menu's Deal Me In sign in the Concept T green button style: the wood plate and studs are hidden, the painted
-	ct_btn_play_a art sits behind the label, and a gentle UIScale pulse is added to `loops` (the hotspot loop list that
+	ct_btn_blank art sits behind the label, and a gentle UIScale pulse is added to `loops` (the hotspot loop list that
 	startLoops plays and stopLoops cancels; startLoops plays nothing in Calm mode or Reduce Motion, so nothing tweens then).
 	Click handling is untouched: the real button stays the click surface.
 ]]
@@ -14,7 +14,7 @@ MenuPlayButton.PULSE_SECONDS = 1.1
 
 function MenuPlayButton.style(plaque, loops, TweenService)
 	if plaque:FindFirstChild("ConceptTArt") then return end
-	local id = Art.ct_btn_play_a
+	local id = Art.ct_btn_blank -- the text-free plate; ct_btn_play_a has "Play Hand" baked in
 	if not id or id == "" then return end -- no art recorded: keep the wood plate
 	plaque.BackgroundTransparency = 1
 	local rim = plaque:FindFirstChild("Rim")
