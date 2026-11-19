@@ -23932,6 +23932,34 @@ table.insert(tests, { name = "RoomLights: the Concept T play room has a fire, ca
 	assert(type(f) == "number" and math.abs(f - 1) <= L.LIMIT + 0.001 and L.flicker("fire", 3.1, 1, true) == 1, "flicker stays within the limit and is steady in calm mode")
 	assert(r.shaft.x + r.shaft.w <= 1 and r.shaft.y + r.shaft.h <= 1)
 end })
+table.insert(tests, { name = "Table ambience: table_play and table_boss lights stay within 12 objects and on the picture, steady in Calm mode, run on FxLoop", fn = function()
+	local L = require(script.Parent.Parent.Engine.RoomLights)
+	for _, key in ipairs({ "table_play", "table_boss" }) do
+		local r = L.ROOMS[key]
+		assert(r and #r.spots >= 3, key .. " has candles and a fire")
+		assert(#r.spots + L.moteCount(key) <= 12, key .. " animates at most 12 objects")
+		local fire, candle = false, false
+		for _, sp in ipairs(r.spots) do
+			assert(sp.x > 0 and sp.x < 1 and sp.y > 0 and sp.y < 1 and L.BASE[sp.kind], key .. " spot on the picture")
+			fire = fire or sp.kind == "fire"
+			candle = candle or sp.kind == "candle"
+			assert(L.flicker(sp.kind, 1.7, 2, true) == 1, "calm mode holds every light still")
+		end
+		assert(fire and candle, key .. " has a flickering candle and a breathing fire")
+		assert(r.shaft.x + r.shaft.w <= 1 and r.shaft.y + r.shaft.h <= 1, key .. " motes stay on the picture")
+	end
+	local Life = require(script.Parent.Parent.Engine.TavernLife)
+	assert(Life.firePulse(0, true) == 1 and Life.firePulse(1.5, false) >= 0.9 and Life.firePulse(1.5, false) <= 1, "fire breathes 0.9 to 1.0, none in Calm mode")
+	if not (io and io.open) then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end local x = f:read("*a"); f:close(); return x end
+	local life = read("src/Client/Gameplay2Life.lua")
+	assert(life:find("RoomLights", 1, true) and not life:find("Heartbeat:Connect", 1, true) and not life:find("TweenService", 1, true), "ambience rides RoomLights and the one FxLoop, no tweens of its own")
+	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2Life", 1, true), "the table hooks the ambience")
+	local C = require(script.Parent.Parent.Engine.Gameplay2Perf)
+	local listed = false
+	for _, f in ipairs(C.LOOP_FILES) do if f == "src/Client/Gameplay2Life.lua" then listed = true end end
+	assert(listed, "the perf lint covers the new file")
+end })
 table.insert(tests, { name = "ShopSparkle: Rare or better only, more for higher tiers, none in calm mode, one per offer per 30 s", fn = function()
 	local SS = require(script.Parent.Parent.Engine.ShopSparkle)
 	assert(SS.spec("common", false) == nil and SS.spec("uncommon", false) == nil and SS.spec(nil, false) == nil and SS.spec("rare", true) == nil)

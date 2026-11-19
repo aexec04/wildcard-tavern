@@ -196,6 +196,11 @@ function M.install(deps)
 	end
 
 	local active, lastState = false, nil
+	local life = nil -- candles, fire and dust motes over the scene (Client/Gameplay2Life), built on first use
+	local function lifeAttach()
+		if not life then pcall(function() life = require(script.Parent.Gameplay2Life).attach(layer, function() return active end) end) end
+		return life
+	end
 	local hiddenDeck, sortHost, actionHeld = {}, nil, nil
 	local savedFan, savedFanOn = PlayMotion.FAN, PlayMotion.HAND_FAN_ENABLED
 	local self = {}
@@ -476,6 +481,7 @@ function M.install(deps)
 		local key = sceneKey(lastState)
 		local img = TableArt[key] or ""
 		if scene.Image ~= img then scene.Image = img end
+		if lifeAttach() then life.scene(key); life.place(size.X, size.Y) end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
 		do -- a rising round score counts up and slams in (Client/Gameplay2ScoreFX); anything else just shows the number
 			local nowScore = math.floor(lastState.roundScore or 0)

@@ -42,6 +42,29 @@ M.ROOMS = {
 		shaft = { x = 0.03, y = 0.26, w = 0.12, h = 0.3, period = 8 },
 		motes = 12,
 	},
+	-- Gameplay v2 table scenes (table_play and table_boss, 1536 x 1024): candles, lantern, fireplace and the window shaft.
+	-- At most 12 animated objects each (glows plus motes), measured by eye from art-wip/table_scene.
+	table_play = {
+		spots = {
+			{ x = 0.114, y = 0.42, size = 0.10, kind = "candle" },
+			{ x = 0.169, y = 0.532, size = 0.08, kind = "candle" },
+			{ x = 0.925, y = 0.46, size = 0.15, kind = "fire" },
+			{ x = 0.85, y = 0.66, size = 0.09, kind = "lantern" },
+		},
+		shaft = { x = 0.2, y = 0.2, w = 0.1, h = 0.22, period = 9 },
+		motes = 6,
+	},
+	table_boss = {
+		spots = {
+			{ x = 0.043, y = 0.26, size = 0.11, kind = "candle" },
+			{ x = 0.118, y = 0.35, size = 0.08, kind = "candle" },
+			{ x = 0.958, y = 0.72, size = 0.11, kind = "candle" },
+			{ x = 0.889, y = 0.22, size = 0.14, kind = "fire" },
+			{ x = 0.534, y = 0.10, size = 0.07, kind = "candle" },
+		},
+		shaft = { x = 0.2, y = 0.15, w = 0.1, h = 0.2, period = 9 },
+		motes = 5,
+	},
 	stats = {
 		spots = {
 			{ x = 0.082, y = 0.283, size = 0.2, kind = "lantern" },
