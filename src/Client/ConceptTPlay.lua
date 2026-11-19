@@ -196,18 +196,30 @@ function M.install(deps)
 		active = on
 		shell(on)
 		if not on then fanHand(false, size.Y); return end
+		local FX = require(script.Parent.HudTickFX) -- number pops, deck shake (nothing in Calm mode)
+		local oldCoins, oldHands, oldDeck = coinsText.Text, handsText.Text, deckText.Text
 		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))
 		handsText.Text = string.format("%d", math.floor(lastState.handsRemaining or 0))
+		if oldCoins ~= "" then pcall(FX.pop, coinsText, oldCoins, coinsText.Text) end
+		if oldHands ~= "" then pcall(FX.pop, handsText, oldHands, handsText.Text) end
 		roundText.Text = string.format("Round %d", math.floor(lastState.round or 1))
 		local remaining = 0
 		for _, suit in pairs(lastState.deckCounts or {}) do
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
 		end
 		deckText.Text = DeckCountText.spaced(remaining, lastState.deckView)
+		if oldDeck ~= "" and oldDeck ~= deckText.Text then
+			pcall(FX.pop, deckText, oldDeck, deckText.Text)
+			pcall(FX.deckShake, deck, oldDeck, deckText.Text)
+		end
 		clearButton(deps.playButton); clearButton(deps.discardButton)
 		apply()
 	end
 
+	if deps.settingsButton then -- the gear turns a little while the cursor is on it (still in Calm mode)
+		deps.settingsButton.MouseEnter:Connect(function() pcall(require(script.Parent.HudTickFX).gear, gear, true) end)
+		deps.settingsButton.MouseLeave:Connect(function() pcall(require(script.Parent.HudTickFX).gear, gear, false) end)
+	end
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply() end end)
 	-- other modules rewrite their own Position now and then; this keeps the painted layout the last word
 	task.spawn(function()
