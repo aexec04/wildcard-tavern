@@ -994,12 +994,13 @@ function M.trigger(patronId, event, fast)
 	if not c or not c.slot.Visible or not holder then return end
 	local text, key = PatronEvents.text(event)
 	pcall(function() require(script.Parent.Cue).play("patron_trigger", 2) end) -- no id yet: silent
-	-- hop 14 with a gold ring for 0.25 s (the ring stays in calm mode, the hop does not)
-	if not calm() then
+	-- hop 8 (Engine/TavernLife.patronHop) with a gold ring for 0.25 s (the ring stays in calm mode, the hop does not)
+	local hopPx = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TavernLife")).patronHop(calm())
+	if hopPx then
 		if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
 		c.hopping = true
 		c.float.Position = UDim2.fromOffset(0, 0)
-		tween(c.float, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, -14) })
+		tween(c.float, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, -hopPx) })
 		task.delay(0.12, function()
 			tween(c.float, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.fromOffset(0, 0) })
 			task.delay(0.14, function() c.hopping = false; startFloat(c, 1) end)

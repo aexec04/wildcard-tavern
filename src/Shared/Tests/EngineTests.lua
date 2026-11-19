@@ -26993,4 +26993,34 @@ table.insert(tests, { name = "ConceptTLayout parity: Patron cards, labels and pi
 	end
 end })
 
+table.insert(tests, { name = "TavernLife: fire 0.9 to 1.0 over 3 s, cat 1.5 percent over 4 s, 12 motes rise in 8 s, juice values, nothing in calm mode", fn = function()
+	local L = require(script.Parent.Parent.Engine.TavernLife)
+	local R = require(script.Parent.Parent.Engine.RoomLights)
+	for i = 0, 120 do
+		local t = i * 0.05
+		local f, c = L.firePulse(t, false), L.catScale(t, false)
+		expectTrue(f >= 0.9 - 1e-9 and f <= 1.0 + 1e-9, "fire pulse in range")
+		expectTrue(c >= 1 - 1e-9 and c <= 1.015 + 1e-9, "cat breath in range")
+	end
+	expectTrue(math.abs(L.firePulse(0.4, false) - L.firePulse(3.4, false)) < 1e-9, "fire period is 3 s")
+	expectTrue(math.abs(L.catScale(0.7, false) - L.catScale(4.7, false)) < 1e-9, "cat period is 4 s")
+	expectEqual(L.firePulse(1, true), 1)
+	expectEqual(L.catScale(1, true), 1)
+	expectEqual(R.moteCount("concept_t"), 12)
+	local shaft = R.ROOMS.concept_t.shaft
+	local a, b = R.mote(1, 12, 0, shaft), R.mote(1, 12, 8, shaft)
+	expectTrue(math.abs(a.y - b.y) < 1e-9, "a mote returns to its place after 8 s")
+	expectEqual(L.coinBurst(5, 5, false), nil)
+	expectEqual(L.coinBurst(5, 9, true), nil)
+	local cb = L.coinBurst(5, 15, false)
+	expectTrue(cb and cb.count >= 4 and cb.count <= 12 and cb.dur > 0, "coin burst on a rise")
+	local wf = L.warmFlash(300, 600, false)
+	expectTrue(wf and wf.alpha == 0.08 and wf.dur == 0.2, "warm flash 0.08 for 0.2 s")
+	expectEqual(L.warmFlash(10, 600, false), nil)
+	expectEqual(L.warmFlash(300, 600, true), nil)
+	expectEqual(L.patronHop(false), 8)
+	expectEqual(L.patronHop(true), nil)
+	expectTrue(L.CAT.x + L.CAT.w <= 1536 and L.CAT.y + L.CAT.h <= 1024, "cat crop inside the picture")
+end })
+
 return tests

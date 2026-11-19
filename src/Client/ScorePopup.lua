@@ -1487,6 +1487,7 @@ return function(deps)
 				local newBest = ScoreJuice.isNewBest(preview.score, juiceBest)
 				local clears = ScoreJuice.clearsTarget(preview.roundScoreBefore, preview.score, preview.targetScore)
 				juiceBest = math.max(juiceBest, preview.score)
+				pcall(function() require(script.Parent.TavernLifeFX).warmFlash(root, preview.score, preview.targetScore) end) -- brief warm wash on a big hand
 				if newBest or clears then
 					local color = newBest and Color3.fromRGB(255, 214, 90) or Color3.fromRGB(150, 235, 150)
 					juiceBanner.Text = newBest and "NEW BEST!" or "TARGET CLEARED!"

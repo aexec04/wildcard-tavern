@@ -146,6 +146,7 @@ function M.install(deps)
 		end
 	end
 	-- ambient tavern life on the painted room: fire and candle flicker, dust motes (static glows in Calm mode)
+	local cat = require(script.Parent.TavernLifeFX).cat(layer, room) -- the sleeping cat breathes (still in Calm mode)
 	local lights = require(script.Parent.RoomLights).attach(layer, { room = "concept_t", zIndex = 1, visible = function() return active end })
 	local self = {}
 	local savedFan, savedFanOn = PlayMotion.FAN, PlayMotion.HAND_FAN_ENABLED
@@ -168,7 +169,9 @@ function M.install(deps)
 		do -- the room is cover-cropped at 3:2, tell the lights where the picture really is
 			local w = math.max(size.X, size.Y * 1.5)
 			local h = w / 1.5
-			lights.place({ x = (size.X - w) / 2, y = (size.Y - h) / 2, w = w, h = h })
+			local pr = { x = (size.X - w) / 2, y = (size.Y - h) / 2, w = w, h = h }
+			lights.place(pr)
+			cat.place(pr, true)
 		end
 		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
 		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
@@ -273,7 +276,10 @@ function M.install(deps)
 		local oldCoins, oldHands, oldDeck = coinsText.Text, handsText.Text, deckText.Text
 		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))
 		handsText.Text = string.format("%d", math.floor(lastState.handsRemaining or 0))
-		if oldCoins ~= "" then pcall(FX.pop, coinsText, oldCoins, coinsText.Text) end
+		if oldCoins ~= "" then
+			pcall(FX.pop, coinsText, oldCoins, coinsText.Text)
+			pcall(require(script.Parent.TavernLifeFX).coinBurst, layer, coins, oldCoins, coinsText.Text) -- gold burst when coins rise
+		end
 		if oldHands ~= "" then pcall(FX.pop, handsText, oldHands, handsText.Text) end
 		roundText.Text = string.format("Round %d", math.floor(lastState.round or 1))
 		local remaining = 0

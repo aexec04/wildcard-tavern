@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Lights = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("RoomLights"))
+local Life = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TavernLife"))
 local SoftGlow = require(script.Parent.SoftGlow)
 local ClientSettings = require(script.Parent.ClientSettings)
 
@@ -68,6 +69,7 @@ function RoomLights.attach(parent, opts)
 	local function frame(t, calm)
 		for i, e in ipairs(glows) do
 			local m = Lights.flicker(e.spot.kind, t, i, calm)
+			if e.spot.kind == "fire" then m = m * Life.firePulse(t, calm) end -- slow 3 s breath, 0.9 to 1.0
 			if m ~= e.last then -- skip the 32 ring writes when nothing changed (calm mode)
 				e.last = m
 				e.glow.setPeak(Lights.BASE[e.spot.kind] * m)

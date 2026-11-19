@@ -39,8 +39,8 @@ M.ROOMS = {
 			{ x = 0.965, y = 0.165, size = 0.08, kind = "candle" },
 			{ x = 0.04, y = 0.24, size = 0.14, kind = "window" },
 		},
-		shaft = { x = 0.03, y = 0.26, w = 0.12, h = 0.3 },
-		motes = 8,
+		shaft = { x = 0.03, y = 0.26, w = 0.12, h = 0.3, period = 8 },
+		motes = 12,
 	},
 	stats = {
 		spots = {
@@ -85,7 +85,8 @@ end
 -- mote i of n: rises slowly through the shaft box and fades in at the bottom and out at the top
 function M.mote(i, n, t, shaft)
 	local rise = 0.012 + 0.002 * (i % 4) -- shaft heights per second
-	local cycle = (t * rise / math.max(shaft.h, 1e-6) + (i - 1) / math.max(n, 1)) % 1
+	local speed = shaft.period and (1 / shaft.period) or (rise / math.max(shaft.h, 1e-6)) -- a shaft may set seconds per rise
+	local cycle = (t * speed + (i - 1) / math.max(n, 1)) % 1
 	local sway = math.sin(TAU * t / (9 + i) + i * 1.7) * shaft.w * 0.25
 	local col = ((i * 0.618034) % 1)
 	return {
