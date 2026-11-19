@@ -21309,6 +21309,16 @@ table.insert(tests, { name = "Counter and boss look: flat Next Round and Reroll 
 		expectTrue(r.nextBoss.y - (r.tabs.y + r.tabs.h) >= 8, "8 px gap between the tabs and the Next boss line at " .. sz[1])
 		expectTrue(r.leave.h >= 56 and r.leave.w >= 110, "Next Round plate is big enough at " .. sz[1])
 	end
+	-- the Next boss strip and Marlo's speech plate never sit on his face in the painted room
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = SSL.rects(sz[1], sz[2], { offers = 3, packs = 2, room = true })
+		local m = r.marlo
+		local face = { x = m.x + m.w * SSL.FACE_X0, y = m.y, w = m.w * (SSL.FACE_X1 - SSL.FACE_X0), h = m.h * SSL.FACE_H }
+		local function hits(a) return a.x < face.x + face.w and face.x < a.x + a.w and a.y < face.y + face.h and face.y < a.y + a.h end
+		expectTrue(not hits(r.nextBoss), "Next boss strip clear of Marlo's face at " .. sz[1])
+		expectTrue(not hits(r.bubble), "speech plate clear of Marlo's face at " .. sz[1])
+		expectTrue(r.nextBoss.w <= 520 and r.nextBoss.x >= 0 and r.nextBoss.x + r.nextBoss.w <= sz[1], "Next boss strip on screen and at most 520 wide at " .. sz[1])
+	end
 	local hub = read("src/Client/init.client.lua")
 	expectTrue(hub:find('<b><font size="16">%s%s</font></b>', 1, true) ~= nil and hub:find('size="14" color="#E6D2AA"', 1, true) ~= nil, "boss plate: bold name 16, rule 14")
 	expectTrue(read("src/Client/BossFight.lua"):find("[BossStage] visible=", 1, true) ~= nil, "BossStage log")

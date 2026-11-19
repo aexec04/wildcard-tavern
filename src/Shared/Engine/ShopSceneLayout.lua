@@ -32,7 +32,8 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
-ShopSceneLayout.TAB_GAP = 8 -- clear space between the tab row and the Next boss line
+ShopSceneLayout.FACE_X0, ShopSceneLayout.FACE_X1, ShopSceneLayout.FACE_H = 0.25, 0.75, 0.35 -- Marlo's face: middle half of his rect, top 35 percent
+ShopSceneLayout.TAB_GAP = 8-- clear space between the tab row and the Next boss line
 ShopSceneLayout.MIN_TOUCH = 44 -- smallest height of a tappable control (tabs, Next Round)
 
 -- The round card table: a wide oval (a rounded rectangle with half-circle ends, the same shape as the Menu room's felt table) with a
@@ -389,9 +390,17 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	local leaveY = out.arch.y + out.arch.h - leaveH - 10
 	out.leave = rect(clamp(archMid - leaveW / 2, 8, W - leaveW - 8), clamp(leaveY, 8, H - leaveH - 12), leaveW, leaveH)
 
+	-- Marlo's face is the top of his middle half (FACE_*): the Next boss strip slides right of it when the centred strip would cover
+	-- it, and his speech plate starts right of the face, never over it
+	local faceRight = out.marlo.x + out.marlo.w * ShopSceneLayout.FACE_X1
+	local faceBottom = out.marlo.y + out.marlo.h * ShopSceneLayout.FACE_H
+	local nb = out.nextBoss
+	if nb.y < faceBottom and nb.x < faceRight and nb.x + nb.w > out.marlo.x + out.marlo.w * ShopSceneLayout.FACE_X0 then
+		nb.x = clamp(faceRight + 8, 8, math.max(8, W - nb.w - 8))
+	end
 	local bubbleW, bubbleH = clamp(W * 0.22, 180, 320), 54
-	local tabsBottom = out.nextBoss.y + out.nextBoss.h
-	out.bubble = rect(clamp(out.marlo.x + out.marlo.w * 0.7, 8, W - bubbleW - 8), tabsBottom + 10, bubbleW, bubbleH)
+	local tabsBottom = nb.y + nb.h
+	out.bubble = rect(clamp(faceRight + 8, 8, W - bubbleW - 8), tabsBottom + 10, bubbleW, bubbleH)
 
 	-- the dealt cards: inside the region, clear of the bell and ledger (with their name plates), the arch, Marlo's wall and Next Round
 	local tagH = 28 + 12 + 4 -- the plate under a prop: ShopStage TAG_H + TAG_GAP + 4
