@@ -29655,7 +29655,7 @@ table.insert(tests, { name = "Gameplay v2 pass 21 to 23: GuiObject count under 1
 	assert(read("src/Client/AuditV2.lua"):find("Gameplay2Perf", 1, true), "AuditV2 prints the GuiObject count")
 end })
 
-table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit buttons top left under Roblox's top bar, 44 px targets, state shown by words and plate, Calm flips the three settings together", fn = function()
+table.insert(tests, { name = "Gameplay v2 quick controls: Quick view and writes stay pure, the loose Mute and Calm plates are gone and one 44 px gear sits top right", fn = function()
 	local Q = require(script.Parent.Parent.Engine.Gameplay2Quick)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local off = Q.view({})
@@ -29670,9 +29670,9 @@ table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit butt
 	assert(w2.reduceMotion == false and w2.reduceFlashing == false and w2.reduceShake == false, "and off together")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 }, { 844, 390 } }) do
 		local r = L.rects(sz[1], sz[2])
-		assert(r.mute.h >= 44 and r.calm.h >= 44 and r.mute.w >= 44 and r.calm.w >= 44, "44 px touch targets at " .. sz[1])
-		assert(r.mute.y >= 60, "below Roblox's top bar at " .. sz[1])
-		assert(r.mute.x + r.mute.w < r.calm.x, "two separate buttons")
+		assert(r.mute == nil and r.calm == nil, "no loose Mute or Calm plates at " .. sz[1])
+		assert(r.gear and r.gear.h >= 44 and r.gear.w >= 44, "44 px gear at " .. sz[1])
+		assert(r.gear.y >= 60 and r.gear.x + r.gear.w <= sz[1], "gear below Roblox's top bar and on screen at " .. sz[1])
 		assert(#L.overlaps(r) == 0, "no overlaps with the table at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
 		local ok = L.onScreen(r, sz[1], sz[2])
 		assert(ok, "on screen at " .. sz[1])
@@ -29680,10 +29680,55 @@ table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit butt
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local g = read("src/Client/Gameplay2.lua")
-	assert(g:find("MuteButton", 1, true) and g:find("CalmButton", 1, true) and g:find("ClientSettings.set(k, val)", 1, true), "the client sets the real settings")
+	assert(not g:find("MuteButton", 1, true) and not g:find("CalmButton", 1, true) and g:find("GearMenu", 1, true), "the table has no loose plates, the gear module is installed")
 end })
 
-table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots under Mute and Calm, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
+table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local P = require(script.Parent.Parent.Engine.PlayerProfile)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 }, { 800, 400 }, { 720, 360 } }) do
+		local w, h = sz[1], sz[2]
+		local g, m = G.gearRect(w, h), G.menuRect(w, h)
+		expectTrue(g.w >= 44 and g.h >= 44 and g.y >= 60 and g.x + g.w <= w, "gear is 44 px, under the top bar, on screen at " .. w)
+		expectTrue(m.x >= 0 and m.y >= g.y + g.h and m.x + m.w <= w and m.y + m.h <= h, "menu fully on screen below the gear at " .. w .. "x" .. h)
+		expectTrue(m.w <= 280 and m.w >= 200, "menu about 280 wide at " .. w)
+		for _, rr in ipairs(G.rowRects(m)) do expectTrue(rr.h >= 44 and rr.x >= 0 and rr.x + rr.w <= m.w, rr.id .. " row is 44 px and inside the menu at " .. w) end
+		local r = L.rects(w, h)
+		if L.fits(w, h) then
+			expectTrue(not hit(g, r.bar), "gear clear of the top bar at " .. w)
+			for i, sl in ipairs(r.slots) do expectTrue(not hit(g, sl.card) and not hit(g, sl.label) and not hit(g, sl.pill), "gear clear of Patron seat " .. i .. " at " .. w) end
+			expectTrue(not hit(g, r.stage) and not hit(g, r.hand) and not hit(g, r.deck), "gear clear of stage, hand and deck at " .. w)
+		end
+	end
+	local ids = {}
+	for _, row in ipairs(G.ROWS) do ids[row.id] = row.kind end
+	expectTrue(ids.sound == "toggle" and ids.music == "toggle" and ids.calm == "toggle" and ids.reduceMotion == "toggle" and ids.hints == "toggle", "five toggles")
+	expectTrue(ids.pause == "action" and ids.howTo == "action" and ids.quit == "action", "three actions")
+	local s = P.defaultSettings()
+	local v = G.view(s)
+	expectTrue(v.sound.state == "On" and v.music.state == "On" and v.calm.state == "Off" and v.reduceMotion.state == "Off" and v.hints.state == "On", "defaults read as words")
+	local function apply(id) for k, val in pairs(G.writes(id, s)) do expectTrue(P.SETTING_SPECS[k] ~= nil, k .. " is a real setting"); s[k] = val end end
+	apply("sound"); expectTrue(G.view(s).sound.state == "Off" and s.sfxVolume == 0, "Sound off"); apply("sound"); expectTrue(G.view(s).sound.on and s.sfxVolume == 1, "Sound back on")
+	apply("music"); expectTrue(G.view(s).music.state == "Off" and s.musicVolume == 0, "Music off"); apply("music"); expectTrue(G.view(s).music.on and s.musicVolume > 0, "Music back on")
+	apply("calm"); expectTrue(G.view(s).calm.on and s.reduceMotion and s.reduceFlashing and s.reduceShake, "Calm flips the three together"); apply("calm"); expectTrue(not G.view(s).calm.on and not s.reduceMotion, "and back")
+	apply("reduceMotion"); expectTrue(s.reduceMotion == true and G.view(s).reduceMotion.state == "On", "Reduce motion"); apply("reduceMotion")
+	apply("hints"); expectTrue(s.roundHints == false and G.view(s).hints.state == "Off", "Hints off"); apply("hints"); expectTrue(s.roundHints == true, "Hints on")
+	expectTrue(next(G.writes("pause", s)) == nil and next(G.writes("quit", s)) == nil, "actions write no setting")
+	expectTrue(G.duration(true) == 0 and G.duration(false) == 0.15, "Calm mode and Reduce motion slide in at once")
+	expectTrue(G.visibleOn({ root = true, table = true }) and G.visibleOn({ root = true, counter = true }) and G.visibleOn({ root = true, map = true }), "table, Counter and Night map show the gear")
+	expectTrue(not G.visibleOn({ root = false, table = true }) and not G.visibleOn({ root = true }) and not G.visibleOn({ root = true, table = true, popup = true }), "never on the Menu, a bare root or under a popup")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local c = read("src/Client/GearMenu.lua")
+	expectTrue(c:find("OverlayManager.open(\"settings\")", 1, true) and c:find("ClientSettings.set(k, val)", 1, true), "the menu reuses the real settings and pause backends")
+	expectTrue(c:find("KeyCode.Escape", 1, true) == nil and c:find("PopupDismiss", 1, true), "Escape goes through PopupDismiss")
+	expectTrue(c:find("G.duration(calm())", 1, true), "the slide is skipped in Calm mode")
+	expectTrue(read("src/Client/Gameplay2.lua"):find("GearMenu", 1, true), "installed by the table, shared by the Counter and Night map through the root")
+end })
+
+table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots at the top left, Use and Sell plates, 44 px targets, no overlaps at six sizes, names fit in two lines, use flow and sell rules", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, L, Recipes, RS = require(E.Gameplay2Tray), require(E.Gameplay2Layout), require(E.Recipes), require(E.RunState)
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 844, 390 }, { 800, 400 }, { 720, 360 } }) do
@@ -29694,7 +29739,7 @@ table.insert(tests, { name = "Gameplay v2 consumables tray: two Recipe slots und
 			assert(r[k], k .. " exists at " .. sz[1] .. "x" .. sz[2])
 			assert(r[k].h >= 44 and r[k].w >= 44, k .. " is a 44 px target at " .. sz[1])
 		end
-		assert(r.traySlot1.y >= r.calm.y + r.calm.h + 8, "tray sits under Mute and Calm at " .. sz[1])
+		assert(r.traySlot1.y >= 60 and r.traySlot2.x + r.traySlot2.w < r.gear.x, "tray starts under the top bar and is clear of the gear at " .. sz[1])
 		assert(r.traySlot2.x + r.traySlot2.w < r.slots[1].card.x, "tray is clear of the first Patron at " .. sz[1])
 		assert(r.trayUse.y + r.trayUse.h < r.sortRank.y, "tray is above Rank and Suit at " .. sz[1])
 		assert(#L.overlaps(r) == 0, "no overlaps at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
@@ -30040,7 +30085,7 @@ table.insert(tests, { name = "Gameplay v2 Night 2 and 3 tables: boss rule plate 
 			assert(not hit(p, s.card) and not hit(p, s.label) and not hit(p, s.pill), "clear of Patron seat " .. i .. " at " .. w)
 		end
 		assert(not hit(p, r.stage), "clear of the preview pill and score block at " .. w)
-		assert(not hit(p, r.hand) and not hit(p, r.sortRank) and not hit(p, r.sortSuit) and not hit(p, r.mute) and not hit(p, r.calm), "clear of hand and controls at " .. w)
+		assert(not hit(p, r.hand) and not hit(p, r.sortRank) and not hit(p, r.sortSuit) and not hit(p, r.gear), "clear of hand and controls at " .. w)
 		local d = L.deckHit(r)
 		assert(d.y == r.deck.y and d.y + d.h == r.deckCount.y + r.deckCount.h and d.h >= 44, "deck click covers book and count plate at " .. w)
 		assert(d.x <= r.deck.x and d.x + d.w >= r.deckCount.x + r.deckCount.w and d.x + d.w <= w, "deck click inside the screen at " .. w)
@@ -30467,12 +30512,12 @@ table.insert(tests, { name = "Gameplay v2 audit: boss icon chip, banner and rule
 		local r = L.rects(sz[1], sz[2])
 		local rp, bb = M.rulePlate(r), M.bossBanner(r, sz[1], sz[2])
 		if rp then
-			for _, k in ipairs({ "sortRank", "sortSuit", "hand", "stage", "mute", "calm", "bar" }) do expectTrue(not hit(rp, r[k]), sz[1] .. " rule plate clear of " .. k) end
+			for _, k in ipairs({ "sortRank", "sortSuit", "hand", "stage", "gear", "bar" }) do expectTrue(not hit(rp, r[k]), sz[1] .. " rule plate clear of " .. k) end
 			for i, sl in ipairs(r.slots) do for _, p in ipairs({ "card", "label", "pill" }) do expectTrue(not hit(rp, sl[p]), sz[1] .. " rule plate clear of seat " .. i .. " " .. p) end end
 		end
 		if bb then
 			expectTrue(bb.h >= M.MIN_BANNER_H, sz[1] .. " banner tall enough for 14 px text")
-			for _, k in ipairs({ "mute", "calm" }) do expectTrue(not hit(bb, r[k]), sz[1] .. " banner clear of " .. k) end
+			expectTrue(not hit(bb, r.gear), sz[1] .. " banner clear of the gear")
 			for i, sl in ipairs(r.slots) do expectTrue(not hit(bb, sl.card), sz[1] .. " banner clear of seat " .. i) end
 		end
 	end

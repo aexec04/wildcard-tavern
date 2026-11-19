@@ -28,17 +28,17 @@ function M.table(w, h)
 	local function no(s) bad[#bad + 1] = s end
 	if not L.fits(w, h) then return bad end
 	local r = L.rects(w, h)
-	for _, k in ipairs({ "mute", "calm", "play", "discard", "sortRank", "sortSuit" }) do
+	for _, k in ipairs({ "gear", "play", "discard", "sortRank", "sortSuit" }) do
 		if r[k].h < M.MIN_TOUCH then no(k .. " is " .. r[k].h .. " px tall") end
 	end
-	for _, k in ipairs({ "mute", "calm", "sortRank", "sortSuit" }) do
+	for _, k in ipairs({ "gear", "sortRank", "sortSuit" }) do
 		if r[k].w < M.MIN_TOUCH then no(k .. " is " .. r[k].w .. " px wide") end
 	end
 	local hitRect = L.deckHit(r)
 	if hitRect.h < M.MIN_TOUCH or hitRect.w < M.MIN_TOUCH then no("the deck tap area is " .. hitRect.w .. "x" .. hitRect.h) end
 	for i, s in ipairs(r.slots) do
 		if s.label.h < M.MIN_ROW_H or s.pill.h < M.MIN_ROW_H then no("Patron seat " .. i .. " rows are too short for text") end
-		if hit(s.card, r.mute) or hit(s.card, r.calm) then no("Mute or Calm covers Patron seat " .. i) end
+		if hit(s.card, r.gear) then no("the gear covers Patron seat " .. i) end
 		if not (inside(s.card, w, h) and inside(s.label, w, h) and inside(s.pill, w, h)) then no("Patron seat " .. i .. " off screen") end
 	end
 	if hit(r.hand, r.play) or hit(r.hand, r.discard) then no("the hand reaches Play Hand or Discard") end

@@ -426,6 +426,7 @@ return function(deps)
 
 	menuHowToPlayButton.MouseButton1Click:Connect(openHowToPlay)
 	helpButton.MouseButton1Click:Connect(openHowToPlay)
+	OverlayManager.registerOpener("howToPlay", openHowToPlay) -- the gear menu's How to play row
 
 	return {}
 end

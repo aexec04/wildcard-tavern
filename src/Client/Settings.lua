@@ -559,6 +559,12 @@ return function(deps)
 	end
 	-- PopupDismiss: Escape and a click on the dark area close it, and a locked screen's Escape opens it (lifted above that screen).
 	OverlayManager.registerOpener("settings", openSettings)
+	-- the gear menu's Quit to Tavern row: the same thing as Settings > Quit to Tavern (Client/GearMenu)
+	OverlayManager.registerOpener("quitToTavern", function()
+		playClickSfx()
+		deps.root.Visible = false
+		deps.menuFrame.Visible = true
+	end)
 	require(script.Parent.PopupDismiss).attach(settingsBackdrop, { id = "settings", panel = settingsPanel, button = true })
 
 	local function setRunLabel(text)

@@ -84,10 +84,9 @@ function M.rects(w, h)
 	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * 0.34), ih)
 	local tx = r.round.x + r.round.w + inner
 	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
-	-- quick controls, top left under Roblox's own top bar: Mute and Calm, 44 px touch targets (everything else stays behind Settings)
+	-- the one Settings gear sits in the top right corner (Engine/GearMenu); the consumables tray starts at the top left, under Roblox's top bar
 	local qy = Responsive.clearOfTopBar(pad, 0)
-	r.mute = box(pad, qy, 64, M.MIN_TOUCH) -- wide enough for the word "Muted" at 14 px
-	r.calm = box(pad + 64 + 8, qy, 84, M.MIN_TOUCH) -- and "Calm On"
+	r.gear = box(w - round(math.max(8, 0.012 * w)) - 44, math.max(Responsive.TOPBAR_H, round(math.max(8, 0.012 * w))), 44, M.MIN_TOUCH)
 	-- Patron seats
 	local row = M.patronRow(w, h, M.SEATS)
 	r.slots = {}
@@ -120,11 +119,11 @@ function M.rects(w, h)
 	local stH = math.max(24, handTop - 6 - stTop) -- the score is one quiet line, so a short stage is fine
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
-	-- consumables tray (Engine/Gameplay2Tray): two slots side by side under Mute and Calm, a Use and a Sell plate under them, all 44 px
+	-- consumables tray (Engine/Gameplay2Tray): two slots side by side at the top left, a Use and a Sell plate under them, all 44 px
 	-- tall, only where they clear the hand; the prompt plate takes a third row only when it fits above the sort control, else the Use plate carries the prompt
 	local trayW = math.max(0, math.min(240, row.cards[1].x - 8 - pad - pad))
-	local ty = r.calm.y + r.calm.h + 8
-	if trayW >= 2 * 60 + 8 and ty + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- no room above the hand on the shortest screens: no tray there
+	local ty = qy
+	if trayW >= 2 * 60 + 8 and ty + 52 + 2 * M.MIN_TOUCH + 6 <= handTop - 4 then -- (the 52 keeps the old size cut-off: the tray used to start under Mute and Calm) -- no room above the hand on the shortest screens: no tray there
 		local sw2 = math.floor((trayW - 8) / 2)
 		r.traySlot1 = box(pad, ty, sw2, M.MIN_TOUCH)
 		r.traySlot2 = box(pad + sw2 + 8, ty, sw2, M.MIN_TOUCH)
@@ -253,7 +252,7 @@ function M.onScreen(r, w, h)
 end
 
 -- the controls that must each exist exactly once (a test checks the client builds these and nothing else clickable)
-M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck", "mute", "calm" }
+M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck" }
 M.TRAY_CONTROLS = { "traySlot1", "traySlot2", "trayUse", "traySell" } -- present whenever the screen is wide enough for the tray
 
 -- the old deck widget (with its corner brackets) sits bottom right under the Run Over scrim: it is hidden on that screen
