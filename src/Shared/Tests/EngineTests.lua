@@ -26596,6 +26596,65 @@ table.insert(tests, { name = "Concept T Patron cards: tier maps to frame, label 
 	end
 end })
 
+table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pills, fan arc, text rects, re-cut art keys", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local Art = require(script.Parent.Parent.Engine.ConceptTArt)
+	local f = L.frameRect(1920, 957)
+	expectEqual(f.h, 957, "1920x957 is wider than 3:2, the frame fills the height")
+	expectEqual(f.w, 1435, "frame width is 3/2 of the height")
+	expectEqual(f.x, 242, "frame is centred")
+	local tall = L.frameRect(1000, 1000)
+	expectTrue(tall.w == 1000 and tall.h == 666 and tall.y == 167, "a square window gets bars top and bottom")
+	local rr, fr2 = L.rectsIn(1920, 957)
+	expectEqual(fr2.w, 1435, "rectsIn returns its frame")
+	expectTrue(rr.play.x >= fr2.x and rr.gear.x + rr.gear.w <= fr2.x + fr2.w, "rects sit inside the frame")
+	expectEqual(L.cleanValue("++30"), "+30", "one plus")
+	expectEqual(L.cleanValue("+30"), "+30", "one plus stays")
+	expectEqual(L.cleanValue("x2"), "x2", "no plus is not added")
+	expectEqual(L.cleanValue(nil), "", "nil is empty")
+	local rot1, dip1 = L.fan(1, 7)
+	local rot7, dip7 = L.fan(7, 7)
+	local rot4, dip4 = L.fan(4, 7)
+	expectTrue(rot1 == -12 and rot7 == 12 and rot4 == 0, "rotation runs -12 to +12")
+	expectTrue(dip4 == 0 and dip1 == 1 and dip7 == 1, "the middle is lifted, the ends are lowest")
+	local prev = -99
+	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
+	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
+	local prof = L.fanProfile(1000)
+	expectTrue(prof.deg == 12 and prof.dip == 22 and prof.endScale == 1, "fan profile for the real hand")
+	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
+		local r = L.rects(size[1], size[2])
+		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
+			local t = L.textRect(r[key], key)
+			local p = r[key]
+			expectTrue(t.x >= p.x and t.y >= p.y and t.x + t.w <= p.x + p.w and t.y + t.h <= p.y + p.h and t.w > 0 and t.h > 0, key .. " text inside its plate")
+		end
+		local t = L.textRect(r.coins, "coins")
+		expectTrue(t.x >= r.coins.x + r.coins.w * 0.3, "the coin number starts right of the baked coin")
+	end
+	for _, key in ipairs({ "ct_btn_play_a", "ct_btn_discard_a", "ct_deck_a", "ct_glow_ring", "ct_pill_green_blank", "ct_pill_blue_blank", "ct_pill_purple_blank", "ct_pill_gold_blank" }) do
+		expectTrue(Art[key] ~= nil and Art[key] ~= "", key .. " has an Image id")
+	end
+	for _, tier in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+		expectTrue(Art[L.blankPillKey(tier)] ~= nil, tier .. " has a blank pill")
+	end
+	if io then
+		local function read(path) local fh = io.open(path, "r"); if not fh then return nil end local t = fh:read("*a"); fh:close(); return t end
+		local ref = read("src/Client/ConceptTReference.lua")
+		if ref then
+			expectTrue(ref:find("CollectionBook.rarityOf", 1, true) ~= nil, "the scene reads rarity through CollectionBook.rarityOf, not def.rarity")
+			expectTrue(ref:find("def.rarity", 1, true) == nil, "no def.rarity read")
+			expectTrue(ref:find("frameRect", 1, true) ~= nil and ref:find("ct_glow_ring", 1, true) ~= nil, "frame and glow ring")
+		end
+		local play = read("src/Client/ConceptTPlay.lua")
+		if play then
+			expectTrue(play:find("ct_btn_play_a", 1, true) ~= nil and play:find("ct_deck_a", 1, true) ~= nil, "the play screen draws the re-cut pieces")
+		end
+		local pm = read("tools/pixel_match.py")
+		if pm then expectTrue(pm:find("crop_bars", 1, true) ~= nil, "pixel_match crops black bars") end
+	end
+end })
+
 table.insert(tests, { name = "Concept T reference scene: holds the reference numbers, Studio only, never touches the run or the server", fn = function()
 	if not io then return end
 	local f = io.open("src/Client/ConceptTReference.lua", "r")

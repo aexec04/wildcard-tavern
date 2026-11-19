@@ -16,6 +16,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("ConceptTLayout"))
 local Art = require(Engine:WaitForChild("ConceptTArt"))
 local DeckCountText = require(Engine:WaitForChild("DeckCountText"))
+local PlayMotion = require(Engine:WaitForChild("PlayMotion"))
 
 local M = {}
 local current = nil
@@ -88,10 +89,10 @@ function M.install(deps)
 	local hands = image(layer, "Hands", "ct_hud_hands", 2)
 	local round = image(layer, "Round", "ct_hud_round", 2)
 	local gear = image(layer, "Gear", "ct_hud_gear", 2)
-	local deck = image(layer, "Deck", "ct_deck", 2)
+	local deck = image(layer, "Deck", "ct_deck_a", 2)
 	local deckCount = image(layer, "DeckCount", "ct_deck_count", 2)
-	local play = image(layer, "PlayArt", "ct_btn_play", 2)
-	local discard = image(layer, "DiscardArt", "ct_btn_discard", 2)
+	local play = image(layer, "PlayArt", "ct_btn_play_a", 2)
+	local discard = image(layer, "DiscardArt", "ct_btn_discard_a", 2)
 	local coinsText = text(layer, "CoinsText", 20, 3)
 	local handsText = text(layer, "HandsText", 20, 3)
 	local roundText = text(layer, "RoundText", 18, 3)
@@ -108,15 +109,28 @@ function M.install(deps)
 
 	local active, lastState = false, nil
 	local self = {}
+	local savedFan, savedFanOn = PlayMotion.FAN, PlayMotion.HAND_FAN_ENABLED
+
+	-- the hand lies in the reference's tight arc while this screen is up (a static pose, no tweens, so Calm mode and Fast keep it)
+	local function fanHand(on, h)
+		if on then
+			PlayMotion.FAN = Layout.fanProfile(h)
+			PlayMotion.HAND_FAN_ENABLED = true
+		else
+			PlayMotion.FAN = savedFan
+			PlayMotion.HAND_FAN_ENABLED = savedFanOn
+		end
+	end
 
 	local function apply()
 		local size = root.AbsoluteSize
 		local r = Layout.rects(size.X, size.Y)
+		fanHand(true, size.Y)
 		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
 		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
-		place(coinsText, r.coins); place(handsText, r.hands); place(deckText, r.deckCount)
-		local rt = r.round
-		place(roundText, { x = rt.x, y = rt.y, w = rt.w, h = math.floor(rt.h * 0.58) })
+		place(coinsText, Layout.textRect(r.coins, "coins")); place(handsText, Layout.textRect(r.hands, "hands"))
+		place(deckText, Layout.textRect(r.deckCount, "deckCount"))
+		place(roundText, Layout.textRect(r.round, "round"))
 		local bar = Layout.bar(r)
 		local p = Layout.progress(lastState and lastState.roundScore, lastState and lastState.targetScore)
 		fill.Position = UDim2.fromOffset(bar.x, bar.y)
@@ -162,7 +176,7 @@ function M.install(deps)
 		local on = lastState ~= nil and lastState.phase == "playing" and deps.handFrame.Visible and Layout.fits(size.X, size.Y)
 		active = on
 		shell(on)
-		if not on then return end
+		if not on then fanHand(false, size.Y); return end
 		coinsText.Text = string.format("%d", math.floor(lastState.tips or 0))
 		handsText.Text = string.format("%d", math.floor(lastState.handsRemaining or 0))
 		roundText.Text = string.format("Round %d", math.floor(lastState.round or 1))

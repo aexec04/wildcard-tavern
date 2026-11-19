@@ -1600,7 +1600,15 @@
     "ct_pill_green": "EXACT CUT, upload only, never generated: claude/reference/concept_t/pill_green.png",
     "ct_pill_blue": "EXACT CUT, upload only, never generated: claude/reference/concept_t/pill_blue.png",
     "ct_pill_purple": "EXACT CUT, upload only, never generated: claude/reference/concept_t/pill_purple.png",
-    "ct_pill_gold": "EXACT CUT, upload only, never generated: claude/reference/concept_t/pill_gold.png"
+    "ct_pill_gold": "EXACT CUT, upload only, never generated: claude/reference/concept_t/pill_gold.png",
+    "ct_btn_play_a": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_btn_discard_a": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_deck_a": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_pill_green_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_pill_blue_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_pill_purple_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_pill_gold_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
+    "ct_glow_ring": "PROCEDURAL, upload only, never generated: tools/concept_t_glow.py"
   },
   "ctp_style": "Edit the reference image, which is a finished trading card. Keep EXACTLY the same card: same frame, same gem, same wooden name plate, same proportions, same hand-painted blocky Roblox tavern style, palette and lighting, on a plain light gray background. Change ONLY the character inside the frame and the name on the wooden plate. The new character is a blocky Roblox avatar with chunky proportions and hand-painted textures, bright, friendly and colourful, a different face, hair, skin tone, age and outfit from the reference. Not dark, no skulls, no hooded figures, no weapons. The only text on the whole card is the name on the wooden plate, spelled exactly as given, no other letters or numbers anywhere. Kid-friendly original art",
   "ctp_rarity": {

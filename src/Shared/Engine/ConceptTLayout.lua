@@ -9,10 +9,16 @@
 	fits(w, h)      -> true when the screen is wide enough for this layout (phones keep the old play screen)
 	overlaps(rects) -> list of "a|b" pairs of rects that overlap (the tests expect none)
 	tierFrame(rarity) -> frame colour name for a Patron rarity (used by the Patron cards task)
+	frameRect(w, h) -> the largest centred 3:2 area of a screen; rectsIn(w, h) -> rects inside it (plus the frame) for odd viewports
+	fan(i, n)       -> rotation (degrees, -12 to +12) and edge dip 0..1 of card i of n in the fanned hand
+	textRect(rect, key) -> where the live number sits on a plate (clear of the baked icon)
+	cleanValue(text)    -> one leading plus only ("++30" becomes "+30")
 	progress(score, target) -> 0..1 fill of the round bar
 ]]
 
 local M = {}
+
+local function round(n) return math.floor(n + 0.5) end
 
 M.REF_W, M.REF_H = 1536, 1024
 M.MIN_W, M.MIN_H = 640, 360
@@ -33,8 +39,6 @@ M.frac = {
 
 -- the bar track inside the round banner (fractions of the banner itself)
 M.barInBanner = { 0.20, 0.60, 0.80, 0.84 }
-
-local function round(n) return math.floor(n + 0.5) end
 
 function M.fits(w, h)
 	return (tonumber(w) or 0) >= M.MIN_W and (tonumber(h) or 0) >= M.MIN_H
@@ -60,6 +64,54 @@ end
 
 local function intersects(a, b)
 	return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+end
+
+-- the largest 3:2 area, centred (the reference scene and the pixel match are 3:2; the rest of a wider window is bars)
+function M.frameRect(w, h)
+	local fw, fh = w, math.floor(w * 2 / 3)
+	if fh > h then fh = h; fw = math.floor(h * 3 / 2) end
+	return { x = math.floor((w - fw) / 2), y = math.floor((h - fh) / 2), w = fw, h = fh }
+end
+
+function M.rectsIn(w, h)
+	local f = M.frameRect(w, h)
+	local r = M.rects(f.w, f.h)
+	for _, rect in pairs(r) do rect.x = rect.x + f.x; rect.y = rect.y + f.y end
+	return r, f
+end
+
+-- the fanned hand: cards overlap in a tight arc, left leans -12, right +12, the middle stands highest
+M.FAN = { deg = 12, dipFrac = 0.022, tuckFrac = 0.006 }
+
+function M.fan(i, n)
+	if n <= 1 then return 0, 0 end
+	local t = ((i - 1) / (n - 1)) * 2 - 1
+	return t * M.FAN.deg, t * t
+end
+
+-- PlayMotion.FAN numbers for a screen of height h (the real hand uses the same arc as the reference scene)
+function M.fanProfile(h)
+	return { deg = M.FAN.deg, dip = round(h * M.FAN.dipFrac), tuck = round(h * M.FAN.tuckFrac), endScale = 1 }
+end
+
+-- where the live number goes on a plate, as fractions of the plate (right of the coin or hand icon, centred in what is left)
+M.textBox = {
+	coins = { 0.36, 0.06, 0.94, 0.94 }, hands = { 0.36, 0.06, 0.94, 0.94 },
+	round = { 0.10, 0.04, 0.90, 0.54 }, deckCount = { 0.06, 0.06, 0.94, 0.94 },
+}
+
+function M.textRect(rect, key)
+	local b = M.textBox[key] or { 0, 0, 1, 1 }
+	return {
+		x = rect.x + round(rect.w * b[1]), y = rect.y + round(rect.h * b[2]),
+		w = round(rect.w * (b[3] - b[1])), h = round(rect.h * (b[4] - b[2])),
+	}
+end
+
+-- an effect value shows exactly one leading plus
+function M.cleanValue(text)
+	text = tostring(text or "")
+	return (text:gsub("^%++", function(p) return #p > 0 and "+" or "" end))
 end
 
 -- the count plate hangs on the bottom of the deck pile on purpose
@@ -108,6 +160,11 @@ end
 -- Image keys in ConceptTArt for the rarity label pill and the effect pill under a Patron card
 function M.labelKey(rarity)
 	return "ct_label_" .. (M.TIERS[norm(rarity)] and norm(rarity):lower() or "common")
+end
+
+-- the pill with its number painted out (the game draws the live value on it)
+function M.blankPillKey(rarity)
+	return M.pillKey(rarity) .. "_blank"
 end
 
 function M.pillKey(rarity)

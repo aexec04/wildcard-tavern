@@ -40,7 +40,7 @@ function M.set(slot, tier, valueText, hasCard)
 	label.AnchorPoint = Vector2.new(0.5, 0)
 	label.Position = UDim2.new(0.5, 0, 1, 2)
 	label.Size = UDim2.new(0.92, 0, 0, 22)
-	pill.Image = Art[Layout.pillKey(tier)] or ""
+	pill.Image = Art[Layout.blankPillKey(tier)] or Art[Layout.pillKey(tier)] or ""
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 26)
 	pill.Size = UDim2.new(0.92, 0, 0, 26)
@@ -59,7 +59,7 @@ function M.set(slot, tier, valueText, hasCard)
 		t.ZIndex = 13
 		t.Parent = pill
 	end
-	t.Text = valueText or ""
+	t.Text = Layout.cleanValue(valueText)
 end
 
 return M

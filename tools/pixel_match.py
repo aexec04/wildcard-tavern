@@ -33,8 +33,22 @@ REGIONS = {
 }
 
 
-def load(path):
+def crop_bars(im, threshold=12, share=0.05):
+    """Cut the black bars off a screenshot taken in a window that is not 3:2: keep the rows and columns where at least
+    `share` of the pixels are brighter than `threshold`. A frame with no bars comes back unchanged."""
+    a = np.asarray(im, dtype=np.uint8).max(axis=2) > threshold
+    rows = np.where(a.mean(axis=1) >= share)[0]
+    cols = np.where(a.mean(axis=0) >= share)[0]
+    if len(rows) == 0 or len(cols) == 0:
+        return im
+    box = (int(cols[0]), int(rows[0]), int(cols[-1]) + 1, int(rows[-1]) + 1)
+    return im.crop(box) if box != (0, 0, im.size[0], im.size[1]) else im
+
+
+def load(path, bars=False):
     im = Image.open(path).convert("RGB")
+    if bars:
+        im = crop_bars(im)
     if im.size != SIZE:
         im = im.resize(SIZE, Image.LANCZOS)
     return im
@@ -91,7 +105,7 @@ def main(argv):
     if len(args) != 1:
         print(__doc__)
         return 2
-    ref_im, shot_im = load(ref_path), load(args[0])
+    ref_im, shot_im = load(ref_path), load(args[0], bars=True)
     scores, diff = compare(ref_im, shot_im)
     write_images(ref_im, shot_im, diff)
     print("\n".join(report(scores)))
