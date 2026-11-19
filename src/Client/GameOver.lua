@@ -69,7 +69,9 @@ return function(deps)
 	dim.Visible = false
 	dim.Parent = root
 	-- the toast bar and its gold bracket border never draw over the Run Over screen
+	local clearWash -- removes the defeat wash when the screen closes
 	dim:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not dim.Visible and clearWash then clearWash(); clearWash = nil end
 		local bar = root:FindFirstChild("MessageBar")
 		if dim.Visible and bar then bar.Visible = false end
 	end)
@@ -595,6 +597,7 @@ return function(deps)
 		end
 		revivedBadge.Visible = isRevived
 		continueButton.Text = state.continueOffer == "free" and "One More (Free)" or "One More Round"
+		playAgainButton.Text = isWin and "Play Again" or "Try Again" -- a calm retry after a loss
 		if isWin then
 			iconLabel.Text = "\u{1F3C6}"
 			titleLabel.Text = "Last call, but what a night! You beat the tavern."
@@ -652,6 +655,16 @@ return function(deps)
 			if playSfx and SOUND_IDS then
 				require(script.Parent.Cue).play(isWin and "win" or "lose", 1.2)
 			end
+			pcall(function() -- win: suit confetti and a springy title; loss: a gentle grey wash, no shake (all none in Calm mode)
+				local fx = require(script.Parent.CelebrationFX)
+				if clearWash then clearWash(); clearWash = nil end
+				if isWin then
+					fx.winConfetti(root.Parent)
+					fx.titleIn(titleLabel)
+				else
+					clearWash = fx.defeatWash(dim)
+				end
+			end)
 		end
 	end
 

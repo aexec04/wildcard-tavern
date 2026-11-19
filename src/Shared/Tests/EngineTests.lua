@@ -27364,6 +27364,29 @@ do
 	end })
 end
 
+table.insert(tests, { name = "Celebration: coins count up in at most 12 steps, banner 0.4 s, Patron hops in order, 40 suit confetti in 2.5 s, title overshoot, gentle defeat, nothing in calm mode", fn = function()
+	local C = require(script.Parent.Parent.Engine.Celebration)
+	local s = C.countSteps(7, false)
+	assert(#s.values == 7 and s.values[1] == 1 and s.values[7] == 7)
+	local b = C.countSteps(100, false)
+	assert(#b.values == 12 and b.values[12] == 100 and b.values[1] <= b.values[2])
+	assert(C.countSteps(0, false) == nil and C.countSteps(5, true) == nil)
+	assert(C.bannerSlide(false).dur == 0.4 and C.bannerSlide(true) == nil)
+	assert(C.patronHopDelay(1, false) == 0 and C.patronHopDelay(3, false) > C.patronHopDelay(2, false) and C.patronHopDelay(2, true) == nil)
+	local f = C.confetti(123, false)
+	assert(#f.pieces == 40 and f.dur == 2.5 and C.confetti(1, true) == nil)
+	local gold, red = 0, 0
+	for _, p in ipairs(f.pieces) do
+		assert(p.delay + p.fall <= f.dur and p.x > 0 and p.x < 1 and p.size >= 18)
+		if p.color == C.GOLD then gold = gold + 1 elseif p.color == C.RED then red = red + 1 end
+	end
+	assert(gold == 20 and red == 20)
+	local t = C.titleIn(false)
+	assert(t.peak > 1 and t.from < 1 and C.titleIn(true) == nil)
+	local d = C.defeat(false)
+	assert(d.saturation == 0.6 and d.dur == 0.8 and C.defeat(true) == nil and C.TRY_AGAIN == "Try Again")
+end })
+
 table.insert(tests, { name = "MenuLife: logo rises 16 px in 0.5 s, pulse 1.03 every 2.5 s, 4 px hover lift, six tips rotating every 6 s, still in calm mode", fn = function()
 	local M = require(script.Parent.Parent.Engine.MenuLife)
 	local a, b = M.logo(0, false), M.logo(0.5, false)

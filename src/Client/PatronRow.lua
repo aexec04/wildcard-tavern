@@ -991,6 +991,25 @@ local function pill(parent, text, color, size, bold, x, y, rise, hold, frozen, r
 	return p
 end
 
+-- Round clear: every owned Patron hops 8 px in order, 0.12 s apart (Engine/Celebration; nothing in Calm mode)
+function M.celebrate()
+	local Cel = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Celebration"))
+	for i, c in ipairs(cards) do
+		local delay = c.id and Cel.patronHopDelay(i, calm())
+		if delay then
+			task.delay(delay, function()
+				if not c.slot.Visible or c.hopping or c.hovering then return end
+				c.hopping = true
+				tween(c.float, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, -8) })
+				task.delay(0.12, function()
+					tween(c.float, TweenInfo.new(0.13, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.fromOffset(0, 0) })
+					task.delay(0.14, function() c.hopping = false end)
+				end)
+			end)
+		end
+	end
+end
+
 function M.trigger(patronId, event, fast)
 	local c = M.cardOf(patronId)
 	if not c or not c.slot.Visible or not holder then return end

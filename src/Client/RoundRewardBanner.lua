@@ -18,6 +18,7 @@ local UserInputService = game:GetService("UserInputService")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local RewardBanner = require(Engine:WaitForChild("RewardBanner"))
 local Payout = require(Engine:WaitForChild("RoundPayout"))
+local Celebration = require(Engine:WaitForChild("Celebration"))
 local ClientSettings = require(script.Parent.ClientSettings)
 
 local RoundRewardBanner = {}
@@ -90,7 +91,7 @@ function RoundRewardBanner.show(args)
 	minSize.MinSize = Vector2.new(0, 64)
 	minSize.Parent = gui
 	if not calm then
-		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play() end)
+		pcall(function() game:GetService("TweenService"):Create(gui, TweenInfo.new(Celebration.BANNER_SECONDS, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0, 64) }):Play() end)
 	end
 	local edge = Instance.new("UIStroke")
 	edge.Color = BRASS
@@ -122,6 +123,10 @@ function RoundRewardBanner.show(args)
 	flavorLabel.Font = Enum.Font.GothamMedium
 	flavorLabel.Visible = type(args.flavor) == "string" and args.flavor ~= ""
 
+	pcall(function() -- the Tips count up one coin at a time, then every Patron hops in order (none in Calm mode)
+		require(script.Parent.CelebrationFX).countUp(mainRow, Payout.breakdown(args.amount, args.interest or 0).total, function(n) return Payout.toastLines(n, 0).main end)
+		require(script.Parent.PatronRow).celebrate()
+	end)
 	pcall(function() require(script.Parent.Cue).play("coin", 2) end)
 	pcall(function() require(script.Parent.Cue).play("round_clear", 3) end) -- no id yet: silent
 	pcall(function() require(script.Parent.ConfettiFX).burst(screenGui, args.big == true) end) -- gold and purple, none in calm mode
