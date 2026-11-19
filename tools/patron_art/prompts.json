@@ -1587,7 +1587,7 @@
     "ct_deck_count": "the same small deck count plate, but remove the text completely so the plate is empty; keep the wood and gold frame, on a flat solid pure magenta #FF00FF background with no gradient and no shadow on it, clean sharp edges, the object centred with generous margin",
     "ct_pill_plain": "the same green pill plate, but remove the text completely so the pill is empty and plain; keep the shape, colour and rim, on a flat solid pure magenta #FF00FF background with no gradient and no shadow on it, clean sharp edges, the object centred with generous margin",
     "ct_card_back": "a flat playing card back seen straight on, no perspective, no tilt, a portrait rectangle with rounded corners, deep purple with a thin gold border and the same gold crown as the reference in the centre, painted blocky Roblox style, on a flat solid pure magenta #FF00FF background with no gradient and no shadow on it, clean sharp edges, the object centred with generous margin",
-    "ct_table_room": "redraw this whole picture with ALL playing cards, Patron cards, labels, pills, buttons, HUD plates, counters, deck pile and any text removed, so only the tavern room, the crowd (slightly softer and blurrier), the cat on the barrel, the banners, the fireplace glow and the empty table remain; same layout, same palette, same lighting. Replace every mug, tankard, cup and bottle with plain bowls, plates of bread or candles (no drinks, no bottles, no jugs anywhere). In the lower middle of the picture the table is a large wide green felt card table seen from the front with a dark wooden rim, completely empty and calm, not a red rug",
+    "ct_table_room": "INPAINTED, upload only, never generated: tools/concept_t_room_inpaint.py (the reference with only the UI holes filled, the rest pixel identical)",
     "ct_btn_play": "EXACT CUT, upload only, never generated: claude/reference/concept_t/btn_play.png",
     "ct_btn_discard": "EXACT CUT, upload only, never generated: claude/reference/concept_t/btn_discard.png",
     "ct_deck": "EXACT CUT, upload only, never generated: claude/reference/concept_t/deck.png",
@@ -1608,7 +1608,8 @@
     "ct_pill_blue_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
     "ct_pill_purple_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
     "ct_pill_gold_blank": "RECUT, upload only, never generated: tools/concept_t_recut.py (real alpha, no dark corners; pills have the number removed)",
-    "ct_glow_ring": "PROCEDURAL, upload only, never generated: tools/concept_t_glow.py"
+    "ct_glow_ring": "PROCEDURAL, upload only, never generated: tools/concept_t_glow.py",
+    "ct_table_room_old": "KEPT, upload only, never generated: the first redraw of the room (green felt table). ct_table_room is now the plate inpainted from the reference"
   },
   "ctp_style": "Edit the reference image, which is a finished trading card. Keep EXACTLY the same card: same frame, same gem, same wooden name plate, same proportions, same hand-painted blocky Roblox tavern style, palette and lighting, on a plain light gray background. Change ONLY the character inside the frame and the name on the wooden plate. The new character is a blocky Roblox avatar with chunky proportions and hand-painted textures, bright, friendly and colourful, a different face, hair, skin tone, age and outfit from the reference. Not dark, no skulls, no hooded figures, no weapons. The only text on the whole card is the name on the wooden plate, spelled exactly as given, no other letters or numbers anywhere. Kid-friendly original art",
   "ctp_rarity": {

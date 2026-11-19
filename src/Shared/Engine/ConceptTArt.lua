@@ -33,5 +33,6 @@ return {
 	["ct_pill_plain"] = "rbxassetid://96126029266539",
 	["ct_pill_purple"] = "rbxassetid://96334491669844",
 	["ct_pill_purple_blank"] = "rbxassetid://93884100910717",
-	["ct_table_room"] = "rbxassetid://117281432443762",
+	["ct_table_room"] = "rbxassetid://101974788123574",
+	["ct_table_room_old"] = "rbxassetid://117281432443762",
 }
