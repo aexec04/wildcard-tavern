@@ -66,9 +66,9 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r)
 	end
 	plate.Visible = true
 	line1.Text, line2.Text = hint.line1, hint.line2
-	local w, h = math.max(220, math.floor(r.stage.w * 0.8)), math.max(52, math.floor(r.stage.h * 0.45))
-	plate.Size = UDim2.fromOffset(w, h)
-	plate.Position = UDim2.fromOffset(r.stage.x + r.stage.w / 2, r.stage.y)
+	local pr = Guided.plateRect(r, layer.AbsoluteSize.Y)
+	plate.Size = UDim2.fromOffset(pr.w, pr.h)
+	plate.Position = UDim2.fromOffset(pr.x + pr.w / 2, pr.y)
 	local target = hint.target == "card" and firstCard or playButton
 	if target and target.Parent then
 		if outline.Parent ~= target then outline.Parent = target end

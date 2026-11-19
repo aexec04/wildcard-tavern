@@ -27943,4 +27943,47 @@ table.insert(tests, { name = "PackRevealFX: tweens only through the calm gate, o
 	assert(shop:find("PackRevealFX", 1, true), "the pack panel plays the reveal")
 end })
 
+table.insert(tests, { name = "Guided hint: the plate sits between the Patron pills and the hand, clear of Play Hand, and its text is 4.5:1 on the plate, at three sizes", fn = function()
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local function lum(c)
+		local function f(v) v = v / 255 return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+		return 0.2126 * f(c[1]) + 0.7152 * f(c[2]) + 0.0722 * f(c[3])
+	end
+	local function ratio(a, b)
+		local x, y = lum(a), lum(b)
+		if x < y then x, y = y, x end
+		return (x + 0.05) / (y + 0.05)
+	end
+	assert(ratio(G.TEXT, G.PLATE) >= 4.5 and ratio(G.TEXT2, G.PLATE) >= 4.5, "hint text contrast on the dark plate")
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = L.rects(v[1], v[2])
+		local p = G.plateRect(r, v[2])
+		assert(p.h >= 44 and p.w >= 220, "plate big enough to read")
+		assert(p.y >= math.floor(v[2] * 0.495), "plate is under the Patron pills at " .. v[1])
+		assert(p.y + p.h <= r.hand.y, "plate ends above the hand at " .. v[1])
+		assert(p.y + p.h <= r.play.y, "plate is clear of Play Hand at " .. v[1])
+		assert(p.x >= 0 and p.x + p.w <= v[1], "plate on screen at " .. v[1])
+	end
+	-- the hint points at the card until one is picked, then at Play Hand, and ends after the first hand
+	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 1, 2, false) == nil)
+end })
+table.insert(tests, { name = "Tutorial Skip: 44 px touch target, always on screen, never silent without its dialog; Settings has Replay Tutorial", fn = function()
+	local TS = require(script.Parent.Parent.Engine.TutorialStart)
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 } }) do
+		local L = TS.skipLayout(v[1], v[2])
+		assert(L.height >= 44, "Skip is at least 44 px tall")
+		assert(L.right + L.width * L.scale <= v[1], "Skip on screen")
+	end
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/TutorialWalkthrough.lua", "r"))
+	local w = f:read("*a")
+	f:close()
+	assert(w:find("complete(true) -- the confirm dialog is missing", 1, true), "a missing confirm dialog still lets Skip finish")
+	local g = assert(io.open("src/Client/Settings.lua", "r"))
+	local st = g:read("*a")
+	g:close()
+	assert(st:find("Replay Tutorial", 1, true) and st:find("deps.replayTutorial", 1, true), "Settings has a Replay Tutorial entry")
+end })
+
 return tests

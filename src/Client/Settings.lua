@@ -233,6 +233,59 @@ return function(deps)
 		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
 	})
 
+	-- Replay Tutorial: the 24 step walkthrough again (Skip is always on screen while it runs)
+	if deps.replayTutorial then
+		local row = Instance.new("Frame")
+		row.Name = "ReplayTutorialRow"
+		row.Size = UDim2.new(1, 0, 0, 62)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -130, 0, 22)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextColor3 = TEXT
+		title.Text = "Replay Tutorial"
+		title.ZIndex = 21
+		title.Parent = row
+		local blurb = Instance.new("TextLabel")
+		blurb.Size = UDim2.new(1, -130, 0, 36)
+		blurb.Position = UDim2.new(0, 0, 0, 22)
+		blurb.BackgroundTransparency = 1
+		blurb.Font = Enum.Font.Gotham
+		blurb.TextSize = 14
+		blurb.TextWrapped = true
+		blurb.TextXAlignment = Enum.TextXAlignment.Left
+		blurb.TextYAlignment = Enum.TextYAlignment.Top
+		blurb.TextColor3 = SUBTLE
+		blurb.Text = "Walk through the first hands again. You can skip it at any time."
+		blurb.ZIndex = 21
+		blurb.Parent = row
+		local go = Instance.new("TextButton")
+		go.Name = "ReplayTutorial"
+		go.Size = UDim2.new(0, 110, 0, 44)
+		go.AnchorPoint = Vector2.new(1, 0.5)
+		go.Position = UDim2.new(1, -4, 0.5, 0)
+		go.Font = Enum.Font.GothamBold
+		go.TextSize = 14
+		go.TextColor3 = TEXT
+		go.BackgroundColor3 = BUTTON
+		go.Text = "Replay"
+		go.ZIndex = 21
+		go.Parent = row
+		polishButton(go, 8)
+		addButtonHoverScale(go)
+		go.MouseButton1Click:Connect(function()
+			playClickSfx()
+			settingsBackdrop.Visible = false
+			pcall(deps.replayTutorial)
+		end)
+	end
+
 	-- Replay Hints: forget which first time hints were shown (Engine/Hints.lua), so each shows once more
 	do
 		local row = Instance.new("Frame")

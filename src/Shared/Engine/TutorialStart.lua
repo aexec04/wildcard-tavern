@@ -34,7 +34,7 @@ TutorialStart.SKIP_MARGIN = 24
 TutorialStart.SKIP_TOP = 84
 function TutorialStart.skipLayout(viewW, viewH)
 	local scale = math.max(0.75, math.min(1, math.min(viewW / 1280, viewH / 720)))
-	return { right = TutorialStart.SKIP_MARGIN, top = TutorialStart.SKIP_TOP, scale = scale, width = 92, height = 36 }
+	return { right = TutorialStart.SKIP_MARGIN, top = TutorialStart.SKIP_TOP, scale = scale, width = 92, height = 44, minTouch = 44 }
 end
 
 return TutorialStart

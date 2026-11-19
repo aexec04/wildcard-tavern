@@ -168,7 +168,7 @@ return function(deps)
 	skipButton.Name = "TutorialSkip"
 	skipButton.AnchorPoint = Vector2.new(1, 0)
 	skipButton.Position = UDim2.new(1, -24, 0, 84)
-	skipButton.Size = UDim2.fromOffset(92, 36)
+	skipButton.Size = UDim2.fromOffset(92, 44)
 	-- ghost button in the tavern style: mostly see-through dark wood, brass border, cream text
 	skipButton.BackgroundColor3 = Color3.fromRGB(52, 36, 22)
 	skipButton.BackgroundTransparency = 0.35
@@ -658,6 +658,7 @@ return function(deps)
 		playClickSfx()
 		local restart = require(script.Parent.RestartRun).get()
 		if not restart then
+			complete(true) -- the confirm dialog is missing: Skip still works, it never does nothing
 			return
 		end
 		-- the tutorial pauses behind the popup; Cancel (the default) brings it back

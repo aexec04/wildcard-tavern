@@ -987,6 +987,11 @@ do
 		-- that lets a player back out of an in-progress run to the menu.
 		menuFrame = MenuScreen.menuFrame,
 		root = root,
+		replayTutorial = function() -- Settings > Replay Tutorial: same path as How to Play
+			MenuScreen.menuFrame.Visible = false
+			root.Visible = true
+			Shop.tutorial.replay()
+		end,
 	})
 	settingsHowToPlayButton = SettingsModule.settingsHowToPlayButton
 	settingsLeaderboardButton = SettingsModule.settingsLeaderboardButton
