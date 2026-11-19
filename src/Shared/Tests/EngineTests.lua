@@ -30227,6 +30227,17 @@ table.insert(tests, { name = "Button labels: the word draws above every skin pla
 		return src:find(text, 1, true) ~= nil
 	end
 	expectTrue(has("SetSkin.lua", "ButtonLabelTop") and has("VisualHelpers.lua", "ButtonLabelTop"), "the two helpers that add plate and rim attach the label")
+	expectTrue(has("HudTheme.lua", "ButtonLabelTop"), "HUD action buttons attach the label")
+	expectTrue(has("InputWatchdogFX.lua", "ButtonLabelTop"), "the sweep runs as a safety net on every screen")
+	expectTrue(B.needs(5, "Play", { 5 }) and B.needs(5, "Play", { 9, 1 }) and not B.needs(5, "Play", { 4 }) and not B.needs(5, "", { 9 }) and not B.needs(5, "Play", {}), "needs rule")
+	local root = FakeGui.new("Frame")
+	local tb, plain = FakeGui.new("TextButton"), FakeGui.new("TextButton")
+	tb.Text, plain.Text, tb.ZIndex, plain.ZIndex = "Go", "Stay", 7, 7
+	local art = FakeGui.new("ImageLabel"); art.ZIndex = 8; art.Parent = tb
+	tb.Parent, plain.Parent = root, root
+	expectTrue(B.sweep(root) == 1, "sweep fixes only the button with a plate over its word")
+	expectTrue(tb:FindFirstChild("KitLabel").ZIndex > art.ZIndex and plain:FindFirstChild("KitLabel") == nil, "label above the art, clean button untouched")
+	expectTrue(B.sweep(root) == 0, "sweep is idempotent")
 	expectTrue(has("TavernScreens.lua", "NEXT_ROUND") and has("TavernScreens.lua", 'name == "PlayAgain"'), "Run Over Play Again uses the bright green")
 end })
 

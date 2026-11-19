@@ -123,6 +123,7 @@ local function paintAction(button, entry)
 	end
 	button.TextColor3 = c3(p.text)
 	softShadow(button, p.text)
+	pcall(function() require(script.Parent.ButtonLabelTop).attach(button) end) -- the word draws above the accent art
 	local art = button:FindFirstChild("HudAccentArt")
 	local image = current.images and current.images.hudAccent
 	if image then

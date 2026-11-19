@@ -25,6 +25,31 @@ local function topZ(button, label)
 	return ButtonLabelTop.zFor(button.ZIndex, zs)
 end
 
+-- pure rule, tested: a button needs the label when it has a word and some decorative child draws at or above its own ZIndex
+function ButtonLabelTop.needs(buttonZ, text, siblingZs)
+	if text == nil or text == "" then return false end
+	for _, z in ipairs(siblingZs or {}) do
+		if z >= buttonZ then return true end
+	end
+	return false
+end
+
+-- Safety net for any screen: attach the label to every TextButton under root that needs it. Returns how many were fixed.
+function ButtonLabelTop.sweep(root)
+	local fixed = 0
+	if not root then return fixed end
+	for _, b in ipairs(root:GetDescendants()) do
+		if b:IsA("TextButton") and not b:FindFirstChild("KitLabel") and b.Text ~= "" then
+			local zs = {}
+			for _, c in ipairs(b:GetChildren()) do
+				if c:IsA("GuiObject") then zs[#zs + 1] = c.ZIndex end
+			end
+			if ButtonLabelTop.needs(b.ZIndex, b.Text, zs) and ButtonLabelTop.attach(b) then fixed = fixed + 1 end
+		end
+	end
+	return fixed
+end
+
 function ButtonLabelTop.attach(button)
 	if not button or not button:IsA("TextButton") then return nil end
 	local existing = button:FindFirstChild("KitLabel")

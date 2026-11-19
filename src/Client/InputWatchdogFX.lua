@@ -19,8 +19,16 @@ function M.start()
 	started = true
 	local wd = Watchdog.new()
 	task.spawn(function()
+		local ticks = 0
 		while true do
 			task.wait(1)
+			ticks = ticks + 1
+			if ticks % 5 == 0 then -- every 5 s: a button whose plate or rim draws over its word gets the label on top
+				pcall(function()
+					local gui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+					if gui then require(script.Parent.ButtonLabelTop).sweep(gui) end
+				end)
+			end
 			local now = os.clock()
 			local Fade = require(script.Parent.ScreenFadeFX)
 			local Guard = require(script.Parent.InputGuard)
