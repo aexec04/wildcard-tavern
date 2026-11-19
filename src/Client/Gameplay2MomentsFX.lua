@@ -327,23 +327,17 @@ function M.boss(layer, rects, state, w, h)
 			local pd = Instance.new("UIPadding"); pd.Name = "TextPad"; pd.PaddingLeft = UDim.new(0, 30); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
 			local st = Instance.new("UIStroke"); st.Name = "Edge"; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Thickness = 2; st.Parent = rulePlate
 			rulePlate.Parent = layer
-			-- the boss rule is one cream parchment scroll plate with a wax seal (Engine/TavernStyle.PAINTED); dark ink on it, cream again if the picture is missing
-			local pic = nil
-			pcall(function() pic = require(script.Parent.TavernKit).painted(rulePlate, "parchment") end)
-			if pic then
-				rulePlate.TextColor3 = Color3.fromRGB(46, 28, 14)
-				rulePlate.TextStrokeTransparency = 1
-				pic.Destroying:Connect(function() rulePlate.TextColor3 = color("cream"); rulePlate.TextStrokeTransparency = 0.5 end)
-			end
+			-- the slim boss plate stays a dark tinted plate with cream text (4.5:1); the cream parchment frame made the text pale
 		end
 		rulePlate.Visible = true
 		rulePlate.Position = UDim2.fromOffset(pr.x, pr.y)
 		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
 		rulePlate.TextSize = math.max(14, math.min(16, pr.h - 6))
-		rulePlate.Text = name .. ": " .. rule
+		rulePlate.Text = Rules.plateLine(name, rule)
 		local parts = Rules.rulePlateParts(pr)
 		local side = parts.icon.w
-		rulePlate.BossIcon.Position = UDim2.fromOffset(parts.icon.x, parts.icon.y)
+		-- children of a UIPadding parent start after its left padding: shift the chip back by textX so it lands at icon.x (it sat ON the first letters)
+			rulePlate.BossIcon.Position = UDim2.fromOffset(parts.icon.x - parts.textX, parts.icon.y)
 		rulePlate.BossIcon.Size = UDim2.fromOffset(side, side)
 		rulePlate.TextPad.PaddingLeft = UDim.new(0, parts.textX)
 		rulePlate.BossIcon.Text = Rules.bossIcon(bdef and bdef.rules)

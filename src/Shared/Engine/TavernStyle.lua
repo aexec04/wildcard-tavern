@@ -98,11 +98,16 @@ function M.paintedSlice(piece, w, h)
 	if not p or not p.inset or w <= 0 or h <= 0 then return nil end
 	local sw, sh = p.src[1], p.src[2]
 	local i = p.inset
-	local scale = h / sh -- the height is never stretched
-	local maxScale = (w * 0.9) / (i.l + i.r) -- both corner columns together fit inside the plate
-	scale = math.max(0.01, math.min(scale, maxScale))
+	-- the plate's border is drawn about EDGE px thick (10 to 14, by plate height), so a corner ornament never balloons into a thick bar
+	-- on a small button; the picture's own height is never stretched past 1:1 and both corner columns always fit inside the plate
+	local edge = math.max(M.PAINTED_EDGE_MIN, math.min(M.PAINTED_EDGE_MAX, h * 0.22))
+	local scale = edge / math.max(i.l, i.r, i.t, i.b)
+	scale = math.min(scale, h / sh, (w * 0.9) / (i.l + i.r), (h * 0.9) / (i.t + i.b))
+	scale = math.max(0.01, scale)
 	return { left = i.l, top = i.t, right = sw - i.r, bottom = sh - i.b, scale = scale }
 end
+M.PAINTED_EDGE_MIN = 10
+M.PAINTED_EDGE_MAX = 14
 
 -- Plate size clamp: a plate is never smaller than its padding needs.
 function M.plateSize(w, h)

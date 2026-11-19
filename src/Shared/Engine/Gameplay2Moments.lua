@@ -162,6 +162,15 @@ function M.bossText(state)
 	return state.bossModifier.name or "Boss", state.bossModifier.description or ""
 end
 
+-- The one line on the slim boss plate: "The Bouncer: one fewer card this round" (leading "Deals you" and the final full stop dropped).
+function M.plateLine(name, rule)
+	local r = tostring(rule or ""):gsub("^%s+", ""):gsub("%s+$", "")
+	r = r:gsub("^Deals you ", ""):gsub("%.$", "")
+	if r:find("^%u%l") then r = r:sub(1, 1):lower() .. r:sub(2) end
+	if r == "" then return tostring(name or "Boss") end
+	return tostring(name or "Boss") .. ": " .. r
+end
+
 function M.bossGlow(calm)
 	return { color = { 150, 38, 30 }, transparency = calm and 0.9 or 0.84 }
 end

@@ -259,7 +259,7 @@ function TavernKit.painted(host, piece)
 		if img.Parent and not img.IsLoaded then
 			img:Destroy()
 			flatOff(false)
-			host.BackgroundTransparency = flatBg
+			host.BackgroundTransparency = (flatBg >= 1) and 0 or flatBg -- a plate that was see-through when wrapped still gets a flat fill, never bare text
 		end
 	end)
 	host.Destroying:Connect(function() img:Destroy() end)

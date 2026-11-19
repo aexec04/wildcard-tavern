@@ -29761,7 +29761,36 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
 	for _, piece in ipairs({ "wood_plate", "count_tab", "btn_green", "btn_dark" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
-	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/Gameplay2MomentsFX.lua"):find('"parchment"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear, boss rule and Next Round are painted")
+	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear and Next Round are painted")
+end })
+
+table.insert(tests, { name = "Painted frames: border about 10 to 14 px on every button size, slices inside the picture, boss line and chip", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for key, piece in pairs({ play = "btn_green", discard = "btn_dark" }) do
+			local b = r[key]
+			local def = Style.PAINTED[piece]
+			local sl = Style.paintedSlice(piece, b.w, b.h)
+			expectTrue(sl ~= nil, piece .. " slices at " .. sz[1])
+			expectTrue(def.inset.l < def.src[1] / 3 and def.inset.r < def.src[1] / 3 and def.inset.t < def.src[2] / 3 and def.inset.b < def.src[2] / 3, piece .. " insets under a third")
+			expectTrue(sl.left < sl.right and sl.top < sl.bottom and sl.right <= def.src[1] and sl.bottom <= def.src[2], piece .. " slice rect inside the picture")
+			local edge = math.max(def.inset.l, def.inset.r, def.inset.t, def.inset.b) * sl.scale
+			expectTrue(edge >= 9.9 and edge <= 14.1, piece .. " border " .. edge .. " px at " .. sz[1])
+		end
+	end
+	expectEqual(M.plateLine("The Bouncer", "Deals you one fewer card this round."), "The Bouncer: one fewer card this round", "boss line on one row")
+	expectEqual(M.plateLine("The Tax Man", "Hearts score nothing."), "The Tax Man: hearts score nothing", "other rules lose the full stop")
+	expectEqual(M.plateLine("X", ""), "X", "no rule text, name only")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(fx:find("parts.icon.x - parts.textX", 1, true), "the chip is shifted back by the text padding so it never covers the first letters")
+	expectTrue(not fx:find('"parchment"', 1, true), "the boss plate is a dark tinted plate, not the cream scroll")
+	local kit = read("src/Client/TavernKit.lua")
+	expectTrue(kit:find("(flatBg >= 1) and 0 or flatBg", 1, true), "a failed picture never leaves a see-through plate with bare text")
 end })
 
 table.insert(tests, { name = "Boss plate: icon chip never covers the text (12 px gap), exactly one boss plate source on the v2 table", fn = function()
