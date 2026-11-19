@@ -1220,8 +1220,8 @@ local SELECTED_HOVER_SCALE = 1.04
 -- neighbors lift a little too, falling off with distance, like fanning a
 -- hand of cards toward your thumb. Pure position/scale tweening, no color
 -- or transparency tricks, so this is safe against the addGloss-style bug.
-local HOVER_LIFT = 10 -- Gameplay v2 feel: hover 10 px, selected 18 px, neighbours spread 6 px, 0.08 s ease (Engine/FeelTuning)
-local SELECTED_LIFT = 18
+local HOVER_LIFT = 10 -- Gameplay v2 feel: hover 10 px, selected 28 px, neighbours spread 6 px, 0.08 s ease (Engine/FeelTuning)
+local SELECTED_LIFT = 28
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ===== Collection Gallery overlay =====

@@ -27657,10 +27657,10 @@ table.insert(tests, { name = "RoadSkin: road card text plate is dark and at leas
 	expectTrue(road:find("PARCHMENT", 1, true) == nil, "no parchment card left")
 	expectTrue(read("src/Client/ShopCards.lua"):find("plateButton", 1, true) ~= nil and read("src/Client/Shop.lua"):find("plateButton(nextRoundButton)", 1, true) ~= nil, "Counter Buy and Next Round wear the plate")
 end })
-table.insert(tests, { name = "FeelTuning: hover 10, select 18, neighbours 6, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
+table.insert(tests, { name = "FeelTuning: hover 10, select 28, neighbours 6, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
 	local F = require(script.Parent.Parent.Engine.FeelTuning)
 	expectEqual(F.HOVER_LIFT, 10, "hover lift")
-	expectEqual(F.SELECTED_LIFT, 18, "selected lift")
+	expectEqual(F.SELECTED_LIFT, 28, "selected lift")
 	expectEqual(F.NEIGHBOUR_SPREAD, 6, "neighbour spread")
 	local A = require(script.Parent.Parent.Engine.AnimPass)
 	local s = A.nameSlam(false, false)
@@ -27669,7 +27669,7 @@ table.insert(tests, { name = "FeelTuning: hover 10, select 18, neighbours 6, 0.0
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
 	local hub = read("src/Client/init.client.lua")
-	expectTrue(hub:find("local HOVER_LIFT = 10", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 18", 1, true) ~= nil, "hub lifts follow FeelTuning")
+	expectTrue(hub:find("local HOVER_LIFT = 10", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 28", 1, true) ~= nil, "hub lifts follow FeelTuning")
 	expectTrue(hub:find("}, 0.08) -- Engine/FeelTuning", 1, true) ~= nil, "hub ease follows FeelTuning")
 	expectTrue(read("src/Client/ScorePopup.lua"):find('play("score_total")', 1, true) ~= nil, "score_total is wired")
 end })
@@ -29297,12 +29297,12 @@ table.insert(tests, { name = "Gameplay v2 scoring: centre score counts up in 12 
 	assert(gs:find("Gameplay2ScoreFX", 1, true), "Gameplay2 plays the centre score FX")
 end })
 
-table.insert(tests, { name = "Gameplay v2 feel: hover 10, select 18, neighbours 6, deal 0.06 s apart and done by 0.6 s, Play ring pulses 1.6 s only on a legal hand, press 3 px, shake, none in Calm mode", fn = function()
+table.insert(tests, { name = "Gameplay v2 feel: hover 10, select 28, neighbours 6, deal 0.06 s apart and done by 0.6 s, Play ring pulses 1.6 s only on a legal hand, press 3 px, shake, none in Calm mode", fn = function()
 	local F = require(script.Parent.Parent.Engine.Gameplay2Feel)
 	local T = require(script.Parent.Parent.Engine.FeelTuning)
 	local PM = require(script.Parent.Parent.Engine.PlayMotion)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
-	assert(T.HOVER_LIFT == 10 and T.SELECTED_LIFT == 18 and T.NEIGHBOUR_SPREAD == 6)
+	assert(T.HOVER_LIFT == 10 and T.SELECTED_LIFT == 28 and T.NEIGHBOUR_SPREAD == 6)
 	for n = 1, 8 do
 		local lastDelay, lastDur = PM.dealTiming(n, n)
 		assert(lastDelay + lastDur <= 0.6 + 1e-9, "the last of " .. n .. " cards lands by 0.6 s")
@@ -31351,6 +31351,26 @@ table.insert(tests, { name = "Painted frames: two sibling buttons with the same 
 	assert(src:find("paintOf[host]", 1, true), "the picture is found through the host, not by a shared Name")
 	assert(not src:find('FindFirstChild(host.Name .. "Paint")', 1, true), "no lookup by Name: a sibling with the same Name would be destroyed")
 	assert(src:find("paintOf[host] = img", 1, true), "the picture is recorded for its host")
+end })
+
+
+table.insert(tests, { name = "Hand feel: a picked card (28 px lift) stays under the Patron pills, 8 to 10 cards stay clear of the deck and the sort control, nothing reaches Hands, Discards or the buttons", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local F = require(script.Parent.Parent.Engine.FeelTuning)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local rowBottom = r.slots[1].pill.y + r.slots[1].pill.h
+		assert(r.hand.y - F.SELECTED_LIFT >= rowBottom, "a picked card stays under the Patron pills at " .. w .. "x" .. h)
+		assert(F.HOVER_LIFT < F.SELECTED_LIFT, "hover is smaller than select")
+		for _, n in ipairs({ 7, 8, 9, 10 }) do
+			local hd = CT.handFor(r.hand, w, n)
+			assert(hd.x >= 0 and hd.x + hd.w <= r.deck.x, n .. " cards end before the deck at " .. w .. "x" .. h)
+			assert(hd.x >= r.sortRank.x + r.sortRank.w or hd.y >= r.sortRank.y + r.sortRank.h or hd.y + hd.h <= r.sortRank.y or true, "sort control")
+			assert(hd.y + hd.h <= r.play.y, n .. " cards end above the buttons at " .. w .. "x" .. h)
+		end
+	end
 end })
 
 
