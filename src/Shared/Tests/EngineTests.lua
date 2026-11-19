@@ -21439,7 +21439,7 @@ table.insert(tests, { name = "GameOverTips: tip only after a Night 1 loss, varie
 	if not f then return end
 	local src = f:read("*a")
 	f:close()
-	expectTrue(src:find('"Back to Tavern"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Back to Tavern button")
+	expectTrue(src:find('"BackToTavern", "Menu"', 1, true) ~= nil and src:find("tavernButton = tavernButton", 1, true) ~= nil, "Menu button (the Back to Tavern action)")
 	expectTrue(src:find("AccentBar", 1, true) == nil, "red accent line removed")
 	expectTrue(src:find("dim.BackgroundTransparency", 1, true) ~= nil and src:find("gameOverFrame = dim", 1, true) ~= nil, "full-screen dim is the returned frame")
 end })
@@ -31615,6 +31615,16 @@ table.insert(tests, { name = "ShopPaint: every Counter control maps to a painted
 		end
 		expectTrue(prevEnd <= w, "tabs inside the bar at " .. w)
 	end
+end })
+
+table.insert(tests, { name = "Run Over: summary names the night, best hand, score, Patrons and unlocks; Play Again and Menu are painted, One More Round stays", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/GameOver.lua", "r")); local src = f:read("a"); f:close()
+	for _, needle in ipairs({ "You made it to Night %d, Round %d", "Biggest hand: %s", "Final score: %d / %d", "Patrons used", "unlockLine(names)", "Next unlock: ",
+		'"PlayAgain", "Play Again"', '"BackToTavern", "Menu"', '"ContinueButton", "One More Round"', "One More (Free)", 'painted(b, "btn_green")', 'painted(b, "btn_dark")' }) do
+		expectTrue(src:find(needle, 1, true) ~= nil, "GameOver has " .. needle)
+	end
+	expectTrue(src:find("Back to Tavern\"", 1, true) == nil, "no second name for the Menu button")
 end })
 
 return tests
