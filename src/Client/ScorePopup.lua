@@ -1085,6 +1085,7 @@ return function(deps)
 			end
 		end)
 		scorePopupHandName.Text = preview.name
+		pcall(function() require(script.Parent.Gameplay2).flair(preview) end) -- v2 table: the name flair above the centre score
 		pcall(function() require(script.Parent.AnimPassFX).nameSlam(scorePopupHandName, false) end) -- slam, squash, settle (none in Calm mode)
 		scorePopupEventLabel.Text = ""
 		do -- the readout opens on the hand's own Chips x Mult, together with its name (Engine/PlayReport.baseOf)

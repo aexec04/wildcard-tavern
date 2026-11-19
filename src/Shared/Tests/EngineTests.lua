@@ -29224,4 +29224,54 @@ table.insert(tests, { name = "PatronJuice: each tier adds an effect, Calm mode k
 	assert(read("src/Shared/Engine/Gameplay2Perf.lua"):find("PatronJuiceFX.lua", 1, true), "listed in the FxLoop lint")
 end })
 
+table.insert(tests, { name = "Gameplay2Flair: better hands get more flair, under 1.2 s, OVERKILL on a one hand kill, name clear of the Patron row, numeral and hand at three sizes, Calm mode text only", fn = function()
+	local F = require(script.Parent.Parent.Engine.Gameplay2Flair)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(F.tierOf("Pair") == "plain" and F.tierOf("High Card") == "plain" and F.tierOf("Three of a Kind") == "plain", "pairs plain")
+	assert(F.tierOf("Flush") == "wipe" and F.tierOf("Straight") == "wipe", "Flush and Straight")
+	assert(F.tierOf("Full House") == "burst" and F.tierOf("Four of a Kind") == "burst", "Full House and Four of a Kind")
+	assert(F.tierOf("Straight Flush") == "vignette" and F.tierOf("Royal Flush") == "vignette", "Straight Flush and Royal")
+	assert(F.tierOf("Something New") == "plain" and F.tierOf(nil) == "plain", "unknown reads plain")
+	local p, w, b, v = F.spec("Pair"), F.spec("Flush"), F.spec("Full House"), F.spec("Straight Flush")
+	assert(p.underline == 0 and p.burst == 0 and p.vignette == 0, "plain has only the slam and sweep")
+	assert(w.underline > 0 and w.burst == 0 and w.vignette == 0, "wipe adds the underline")
+	assert(b.underline > 0 and b.burst > 0 and b.vignette == 0, "burst adds the burst")
+	assert(v.underline > 0 and v.burst > b.burst and v.vignette > 0, "vignette adds the gold vignette")
+	assert(p.slam.down + p.slam.settle < 0.31, "the slam is 0.3 s")
+	for _, n in ipairs({ "Pair", "Flush", "Full House", "Royal Flush" }) do
+		assert(F.spec(n).total <= 1.2 and F.spec(n, false, true).total < F.spec(n).total, "under 1.2 s, Fast shorter " .. n)
+		local k = F.spec(n, true, false, true)
+		assert(k.static and k.slam == nil and k.sweep == 0 and k.underline == 0 and k.burst == 0 and k.vignette == 0 and k.overkill, "calm: text only " .. n)
+	end
+	assert(F.overkill(900, 600) and F.overkill(600, 600) and not F.overkill(599, 600) and not F.overkill(100, 0) and not F.overkill(nil, 5), "overkill: one hand reaches the Target")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local avoid = 0
+		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
+		local size = F.fontSize(r.stage, avoid)
+		if sz[1] == 1920 then assert(size == 40, "40 px at 1920x1080, got " .. tostring(size)) end
+		if size then
+			assert(size >= F.MIN_FONT and size <= 40, "font range")
+			local n = F.nameRect(r.stage, avoid, size)
+			assert(n.y >= avoid, string.format("name below the Patron row at %dx%d (%d vs %d)", sz[1], sz[2], n.y, avoid))
+			assert(n.y + n.h <= r.stage.y + F.CAPTION + F.OVERLAP, "name stays above the numeral digits")
+			assert(n.x >= r.stage.x and n.x + n.w <= r.stage.x + r.stage.w, "inside the stage width")
+			assert(n.y + n.h <= r.hand.y and n.y + n.h <= r.play.y, string.format("clear of the hand and Play Hand at %dx%d: name bottom %d, hand %d, play %d, stage %d,%d,%d,%d", sz[1], sz[2], n.y + n.h, r.hand.y, r.play.y, r.stage.x, r.stage.y, r.stage.w, r.stage.h))
+			local pr = F.overkillRect(n, r.stage, "Straight Flush", size)
+			if pr then
+				assert(pr.x >= r.stage.x and pr.x + pr.w <= r.stage.x + r.stage.w and pr.y >= n.y and pr.y + pr.h <= n.y + n.h + 1, "OVERKILL plate inside the name row")
+				assert(pr.x >= r.stage.x + r.stage.w / 2 + #"Straight Flush" * size * 0.58 / 2, "plate right of the name")
+			end
+		end
+	end
+	assert(F.fontSize({ x = 0, y = 100, w = 400, h = 20 }, 100) == nil, "no room: no flair")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
+	local fx = read("src/Client/Gameplay2FlairFX.lua")
+	assert(fx:find("FxLoop.add", 1, true) and not fx:find("TweenService", 1, true) and fx:find("Kit.still()", 1, true), "one FxLoop job, no tween, still in Calm mode")
+	assert(fx:find("InputBegan", 1, true) and fx:find("Active = false", 1, true), "a tap skips it, it takes no clicks")
+	assert(read("src/Client/ScorePopup.lua"):find("Gameplay2).flair(preview)", 1, true), "played hands call the flair")
+	assert(read("src/Shared/Engine/Gameplay2Perf.lua"):find("Gameplay2FlairFX.lua", 1, true), "listed in the FxLoop lint")
+end })
+
 return tests

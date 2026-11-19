@@ -388,6 +388,16 @@ function M.install(deps)
 
 	function self.isActive() return active end
 
+	-- the hand name flair above the centre score (Client/Gameplay2FlairFX); the stage and the Patron row's last row set where it may sit
+	function self.flair(preview)
+		if not active or not preview or not preview.name then return end
+		local r = self.rects()
+		local avoid = 0
+		for _, s in ipairs(r.slots) do avoid = math.max(avoid, s.pill.y + s.pill.h, s.label.y + s.label.h) end
+		local over = require(Engine:WaitForChild("Gameplay2Flair")).overkill(preview.score, preview.targetScore)
+		require(script.Parent.Gameplay2FlairFX).show(layer, r.stage, avoid, preview.name, over)
+	end
+
 	function self.rects()
 		local size = root.AbsoluteSize
 		return Layout.rects(size.X, size.Y)
@@ -538,6 +548,12 @@ end
 
 function M.isActive()
 	return current ~= nil and current.isActive()
+end
+
+-- a hand was played (ScorePopup): the name flair, nothing when the v2 table is not up or the flair has no room
+function M.flair(preview)
+	if not current then return end
+	pcall(current.flair, preview)
 end
 
 -- the hub passes its live hand preview (Engine/HandPreview) whenever the selection changes, nil when nothing is selected
