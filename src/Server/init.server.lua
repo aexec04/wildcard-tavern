@@ -66,6 +66,7 @@ local RateLimit = (function() -- per-player token bucket on every remote; also t
 	end
 	return wrapped
 end)()
+local GuidedHand = require(Engine.GuidedHand) -- first run: fixed starter Patron, no drafts
 local RunChoice = require(Engine.RunChoice) -- start-of-run draft and between-Night events
 local Discoveries = require(Engine.Discoveries) -- hidden map spots
 local Challenges = require(Engine.Challenges) -- challenge runs with a twist
@@ -900,6 +901,7 @@ local function serializeState(session, player)
 			end,
 		}) or nil,
 		saveDisabled = saveBlocked[player] == true, -- load failed or held by another server: progress will not save
+		guidedFirstHand = session.guided == true or nil, -- Engine/GuidedHand: the play screen shows the two line hint until the first hand
 		choice = session.choice, -- the open draft or event card (Engine/RunChoice.lua), nil when none
 		-- CROWD RULES (Endless): the active rules as display data, and the one that joined this Night (nil when none)
 		crowdRules = state.endlessRulesEnabled and (function()
@@ -1832,7 +1834,11 @@ local function startNewSession(player, deckVariantId, difficultyId, seededRng, s
 			if rush then
 				sessions[player].choice = RunChoice.rushDraft(sessions[player].state, 1, {}) -- Boss Rush: take 3 Patrons along
 			else
-				sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
+				if GuidedHand.isGuided(profile.stats.runsStarted, false, false, false) and GuidedHand.apply(sessions[player].state) then
+					sessions[player].guided = true -- first run of a new profile: fixed starter Patron, no drafts, a short hint (Engine/GuidedHand)
+				else
+					sessions[player].choice = RunChoice.startDraft(sessions[player].state, true) -- start-of-run draft
+				end
 			end
 			sessions[player].startedAt = os.time() -- the Speed Run challenge times the run from here
 			local merchant = Discoveries.takeMerchantDiscount(profile) -- a map merchant: Tips off the first shop visit

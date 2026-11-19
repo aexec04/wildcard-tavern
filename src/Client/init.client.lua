@@ -1416,7 +1416,8 @@ do -- overlays disable the gameplay hit areas (deck pile, hand, Play/Discard/Sor
 	end)
 	pcall(function() -- Concept T painted play screen: HUD plates, room, image buttons (Client/ConceptTPlay.lua)
 		require(script.ConceptTPlay).install({ root = root, handFrame = handFrame, actionFrame = actionFrame, playButton = playButton, discardButton = discardButton,
-			deckWidget = DeckWidgetModule.deckWidgetButton.Parent, settingsButton = settingsButton })
+			deckWidget = DeckWidgetModule.deckWidgetButton.Parent, settingsButton = settingsButton,
+			selectedCount = function() local n = 0 for _ in pairs(selected) do n = n + 1 end return n end, firstCard = function() return cardButtons[1] end })
 	end)
 	pcall(function() -- calm parallax, lamp light pool and deal arc (Client/PlayMotion.lua)
 		require(script.PlayMotion).install({ root = root, handFrame = handFrame, deckWidget = DeckWidgetModule.deckWidgetButton.Parent })

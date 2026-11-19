@@ -218,6 +218,12 @@ function M.install(deps)
 		end
 		clearButton(deps.playButton); clearButton(deps.discardButton)
 		apply()
+		if deps.selectedCount then -- the guided first hand hint (Engine/GuidedHand), display only
+			pcall(function()
+				local r = Layout.rects(size.X, size.Y)
+				require(script.Parent.GuidedHint).update(layer, lastState, deps.selectedCount(), deps.firstCard and deps.firstCard(), deps.playButton, r)
+			end)
+		end
 	end
 
 	if deps.settingsButton then -- the gear turns a little while the cursor is on it (still in Calm mode)

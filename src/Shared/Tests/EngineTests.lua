@@ -23575,6 +23575,22 @@ table.insert(tests, { name = "ConceptTLayout small screens: five sizes keep ever
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do assert(L.textSize(key, h) >= 15, tag .. " text " .. key) end
 	end
 end })
+table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed starter and no drafts, a two step hint that ends after the first hand, no pulse in calm mode", fn = function()
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	assert(G.isGuided(1, false, false, false) and G.isGuided(0, false, false, false), "first run")
+	assert(not G.isGuided(2, false, false, false) and not G.isGuided(1, true, false, false) and not G.isGuided(1, false, true, false) and not G.isGuided(1, false, false, true) and not G.isGuided(nil, false, false, false))
+	local RunState = require(script.Parent.Parent.Engine.RunState)
+	local state = RunState.new and RunState.new() or nil
+	if state then
+		assert(G.apply(state) and #state.ownedPatrons == 1 and state.ownedPatrons[1].id == G.STARTER and state.startPatronId == G.STARTER)
+		assert(not G.apply(state), "the same Patron cannot be seated twice")
+	end
+	local a, b = G.hint(true, 0, 0, false), G.hint(true, 0, 2, false)
+	assert(a.target == "card" and b.target == "play" and a.pulse and a.line1 ~= "" and a.line2 ~= "" and b.line1 ~= a.line1)
+	assert(G.hint(true, 1, 0, false) == nil and G.hint(false, 0, 0, false) == nil and G.hint(nil, 0, 0, false) == nil)
+	assert(G.hint(true, 0, 0, true).pulse == false and G.hint(true, 0, 1, true).pulse == false)
+	for _, h in ipairs({ a, b }) do assert(not (h.line1 .. h.line2):find("[\226\128\148]") and not (h.line1 .. h.line2):find("%-%-")) end
+end })
 table.insert(tests, { name = "PatronMotion: entrance by tier, rays only for Legendary, calm mode makes no motion, hover keeps the larger pill", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PatronMotion)
 	assert(PM.entrance("rare", true) == nil, "calm: no entrance tween")
