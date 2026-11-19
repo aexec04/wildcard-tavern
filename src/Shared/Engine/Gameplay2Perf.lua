@@ -18,7 +18,7 @@ M.MIN_TEXT = 12
 
 M.LOOP_FILES = {
 	"src/Client/Gameplay2.lua", "src/Client/Gameplay2FeelFX.lua", "src/Client/Gameplay2ScoreFX.lua", "src/Client/Gameplay2SynergyFX.lua",
-	"src/Client/Gameplay2MomentsFX.lua", "src/Client/GuidedHint.lua", "src/Client/PatronTierFX.lua", "src/Client/TavernLifeFX.lua",
+	"src/Client/Gameplay2MomentsFX.lua", "src/Client/GuidedHint.lua", "src/Client/PatronTierFX.lua", "src/Client/PatronJuiceFX.lua", "src/Client/TavernLifeFX.lua",
 }
 
 local GUI = { Frame = true, TextLabel = true, TextButton = true, ImageLabel = true, ImageButton = true, ScrollingFrame = true, CanvasGroup = true, ViewportFrame = true }

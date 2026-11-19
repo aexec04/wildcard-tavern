@@ -29187,4 +29187,41 @@ table.insert(tests, { name = "Patron name strip: every Patron name fits beside t
 	assert(src:find("NameFit.rect(r.w)", 1, true) and src:find("TextScaled = true", 1, true) and src:find("IsStudio", 1, true), "row sizes the name by its card width and warns in Studio")
 end })
 
+table.insert(tests, { name = "PatronJuice: each tier adds an effect, Calm mode keeps only the pill text, order and pill text, one FxLoop job, no per particle tween", fn = function()
+	local J = require(script.Parent.Parent.Engine.PatronJuice)
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local c, u, r, e, l = J.spec("common"), J.spec("uncommon"), J.spec("rare"), J.spec("epic"), J.spec("legendary")
+	assert(c.hop == 6 and c.ring == 0 and c.sweep == 0 and c.sparks == 0 and c.rays == 0, "common: a 6 px hop and the pill")
+	assert(u.ring > 0 and u.sweep == 0, "uncommon adds the ring")
+	assert(r.ring > 0 and r.sweep > 0 and r.sparks == 0, "rare adds the sweep")
+	assert(e.sparks == 6 and e.crown > 0 and e.rays == 0, "epic: 6 sparks and a crown flash")
+	assert(l.rays == 0.5 and l.edge > 0 and l.sparks == 6, "legendary: rays for 0.5 s and the edge glow")
+	assert(l.pill.rise == 24 and l.pill.dur == 0.7, "the pill rises 24 px over 0.7 s")
+	for _, tier in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+		local k = J.spec(tier, true)
+		assert(k.static and k.hop == 0 and k.ring == 0 and k.sweep == 0 and k.sparks == 0 and k.crown == 0 and k.rays == 0 and k.edge == 0 and k.pill.rise == 0, "calm: text only " .. tier)
+		assert(J.spec(tier, false, true).pill.dur < J.spec(tier).pill.dur, "fast halves " .. tier)
+	end
+	assert(J.tierOf("mythical") == "legendary" and J.tierOf("nonsense") == "common" and J.tierOf("EPIC") == "epic", "tier names")
+	assert(J.pillText("chips", 30) == "+30 Chips" and J.pillText("mult", 4) == "+4 Mult" and J.pillText("xmult", 1.5) == "x1.5" and J.pillText("money", 3) == "" and J.pillText("mult", nil) == "", "pill text")
+	local o = J.order({ "a", "b", "c", "d" }, { "d", "b" })
+	assert(#o == 2 and o[1] == "b" and o[2] == "d", "row order, left to right")
+	assert(J.delayOf(1) == 0 and math.abs(J.delayOf(3) - 0.24) < 1e-9, "0.12 s apart")
+	assert(PE.gap(false) >= J.SPACING and PE.gap(true) >= J.SPACING, "the scoring beats are at least 0.12 s apart")
+	for i = 1, 6 do
+		for _, p in ipairs({ 0, 0.5, 1 }) do
+			local x, y = J.particle(i, 6, p)
+			assert(x > 0 and x < 1.1 and y >= 0.05 and y <= 0.85, "spark stays near the card")
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
+	local fx = read("src/Client/PatronJuiceFX.lua")
+	assert(fx:find("FxLoop.add", 1, true) and not fx:find("TweenService", 1, true), "one FxLoop job, no tween")
+	assert(fx:find("Kit.still()", 1, true), "Calm mode, Reduce motion and Fast are still")
+	assert(not fx:find("Active = true", 1, true), "takes no clicks")
+	assert(read("src/Client/PatronRow.lua"):find("PatronJuiceFX", 1, true), "the row plays it on the v2 table")
+	assert(read("src/Shared/Engine/Gameplay2Perf.lua"):find("PatronJuiceFX.lua", 1, true), "listed in the FxLoop lint")
+end })
+
 return tests

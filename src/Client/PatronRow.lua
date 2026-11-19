@@ -1080,6 +1080,13 @@ function M.trigger(patronId, event, fast)
 	pcall(function() require(script.Parent.Cue).play("patron_trigger", 2) end) -- no id yet: silent
 	-- hop 8 (Engine/TavernLife.patronHop) with a gold ring for 0.25 s (the ring stays in calm mode, the hop does not)
 	local hopPx = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("TavernLife")).patronHop(calm())
+	local v2 = false -- the v2 table: a tier effect (Engine/PatronJuice) replaces the plain callout and sets the hop
+	pcall(function() v2 = require(script.Parent.Gameplay2).isActive() == true end)
+	local tierName
+	if v2 then
+		tierName = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronJuice")).tierOf(CollectionBook.rarityForId("patrons", patronId))
+		if hopPx then hopPx = require(script.Parent.PatronJuiceFX).hopPx(tierName) or hopPx end
+	end
 	if hopPx then
 		if c.floatTween then c.floatTween:Cancel(); c.floatTween = nil end
 		c.hopping = true
@@ -1115,7 +1122,11 @@ function M.trigger(patronId, event, fast)
 	if hold or frozen then
 		pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen, rim)
 	else
-		require(script.Parent.PatronCalloutFX).show(holder, patronId, text, key, hostX, r.Position.Y.Offset)
+		if v2 then
+			require(script.Parent.PatronJuiceFX).play(c.slot, tierName, key, event.amount, rim)
+		else
+			require(script.Parent.PatronCalloutFX).show(holder, patronId, text, key, hostX, r.Position.Y.Offset)
+		end
 	end
 	-- every other Patron dims to 70 percent while this one triggers
 	dimToken = dimToken + 1
