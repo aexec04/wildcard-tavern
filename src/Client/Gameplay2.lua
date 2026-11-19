@@ -382,7 +382,8 @@ function M.install(deps)
 				arrow.Parent = scoreBox
 			end
 			arrow.ZIndex = 4
-			arrow.Position = UDim2.new(0.5, side * 108, 0, N.lineY + 4 + math.floor(progH / 2))
+			local half = math.floor(math.max(24, math.min(scoreProgress.TextBounds.X, 160)) / 2) -- snug: 12 px gap from the "o of N" text, arrow 52 wide
+			arrow.Position = UDim2.new(0.5, side * (half + 12 + 26), 0, N.lineY + 4 + math.floor(progH / 2))
 			arrow.Visible = scoreProgress.Visible
 		end
 		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
