@@ -28290,6 +28290,22 @@ table.insert(tests, { name = "Play screen: 200 frames of idle breath and hover s
 	if io then local f = io.open("src/Client/PatronMotionFX.lua", "r"); if f then src = f:read("*a"); f:close() end end
 	if src then assert(src:find("local target = on and p.pillScale or 1", 1, true), "hover sets an absolute scale, never multiplies the last one") end
 end })
+table.insert(tests, { name = "Tier identity: every tier has its own shape (mythical reads as the star), and shop tags and Collection tiles draw it", fn = function()
+	local C = require(script.Parent.Parent.Engine.RarityCues)
+	local seen = {}
+	for _, t in ipairs(C.order) do
+		local n = C.shape(t).name
+		assert(not seen[n], "two tiers share the shape " .. n)
+		seen[n] = true
+	end
+	assert(C.shape("mythical").name == C.shape("legendary").name, "mythical is never the plain circle")
+	assert(C.shape("nonsense").name == C.shape("common").name, "unknown reads as common")
+	assert(require(script.Parent.Parent.Engine.PatronTierStyle).distinct(), "frames differ in shape and size")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end local x = f:read("*a"); f:close(); return x end
+	assert(read("src/Client/ShopCards.lua"):find("RarityShape", 1, true), "shop tier tag draws the shape marker")
+	assert(read("src/Client/Collection.lua"):find("TierMark", 1, true), "Collection tiles carry a tier shape mark")
+end })
 table.insert(tests, { name = "Accessibility: Concept T text colours keep 4.5:1 (body) and 3:1 (large) on their plates", fn = function()
 	local C = require(script.Parent.Parent.Engine.RarityCues)
 	local S = require(script.Parent.Parent.Engine.ConceptTSkin)

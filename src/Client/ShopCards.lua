@@ -382,13 +382,14 @@ function ShopCards.new(deps)
 		if spec.rarityWord and spec.rarityTab and spec.rarityId then
 			local info = ChoiceRarity.info(spec.rarityTab, spec.rarityId)
 			if info then
-				local wordW = math.max(64, #info.word * 9 + 18)
+				local wordW = math.max(64, #info.word * 9 + 18 + 16) -- 16 px for the tier shape marker
 				local tier = Color3.fromRGB(info.text[1], info.text[2], info.text[3])
 				local pill = frame(artClip, { Name = "RarityTag", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 6),
 					Size = UDim2.fromOffset(wordW, 22), BackgroundColor3 = Color3.fromRGB(info.plate[1], info.plate[2], info.plate[3]), BackgroundTransparency = 0.05 })
 				corner(pill, 11)
 				stroke(pill, tier, 1.5, 0)
-				label(pill, { Name = "Word", Size = UDim2.fromScale(1, 1), Text = info.word, TextColor3 = tier, TextSize = 15, TextStrokeTransparency = 1 })
+				label(pill, { Name = "Word", Position = UDim2.fromOffset(16, 0), Size = UDim2.new(1, -16, 1, 0), Text = info.word, TextColor3 = tier, TextSize = 15, TextStrokeTransparency = 1 })
+				pcall(function() require(script.Parent.RarityShape).set(pill, info.rarity, 12, 5) end) -- shape beside the word: never colour alone
 			end
 		end
 

@@ -26,6 +26,8 @@ local SHAPES = {
 	legendary = { name = "star", parts = { { rot = 0, round = false, size = 0.62 }, { rot = 45, round = false, size = 0.62 } } },
 }
 
+SHAPES.mythical = SHAPES.legendary -- the top Collection tier reads as the star, never as the plain circle
+
 function M.shape(tier)
 	return SHAPES[type(tier) == "string" and tier:lower() or "common"] or SHAPES.common
 end

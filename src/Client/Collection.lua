@@ -965,6 +965,20 @@ return function(deps)
 			})
 		end
 
+		do -- tier shape mark in the tile's top left corner, so rarity is never colour alone (also on locked tiles)
+			local mark = Instance.new("Frame")
+			mark.Name = "TierMark"
+			mark.Size = UDim2.fromOffset(20, 20)
+			mark.Position = UDim2.fromOffset(4, 4)
+			mark.BackgroundColor3 = Color3.fromRGB(30, 20, 14)
+			mark.BackgroundTransparency = 0.1
+			mark.BorderSizePixel = 0
+			mark.Active = false
+			mark.ZIndex = 30
+			mark.Parent = tile
+			roundCorner(mark, 10)
+			pcall(function() require(script.Parent.RarityShape).set(mark, CollectionBook.rarityOf(item), 12, 4) end)
+		end
 		local iconWell = Instance.new("Frame")
 		iconWell.Name = "IconWell"
 		local wellSize = framed and parts.icon.w or 60
