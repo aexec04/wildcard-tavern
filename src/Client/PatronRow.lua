@@ -60,8 +60,17 @@ local function tipActive()
 	return ok and v == true
 end
 
+local TipTap = require(Engine:WaitForChild("TipTap"))
+local tipTap = TipTap.new() -- which Patron plate a touch left open
+
 local function hideTip()
+	tipTap.open = nil
 	pcall(function() require(script.Parent.PatronTipFX).hide() end)
+end
+
+local function touchOnly()
+	local UIS = game:GetService("UserInputService")
+	return UIS.TouchEnabled and not UIS.MouseEnabled
 end
 
 local function showTip(i, c)
@@ -281,8 +290,38 @@ local function newCard(i)
 			pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end)
 			showTip(i, c)
 		end, function()
+			-- touch: the plate stays open after a long press; a tap on the card or away from it closes it (Engine/TipTap)
+			if touchOnly() then TipTap.longPress(tipTap, i) return end
 			hideTip()
 			if c.hovering then pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end) end
+		end)
+	end)
+	-- touch: a quick tap on an owned Patron opens its plate, another tap on it closes it; a tap anywhere else closes it
+	pcall(function()
+		if not tipTap.awayHooked then
+			tipTap.awayHooked = true
+			game:GetService("UserInputService").InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.Touch or not tipTap.open then return end
+				local card = cards[tipTap.open]
+				local rect
+				if card and card.body and card.body.Parent then
+					local p, s = card.body.AbsolutePosition, card.body.AbsoluteSize
+					rect = { x = p.X, y = p.Y, w = s.X, h = s.Y }
+				end
+				-- InputObject.Position is in the same space as AbsolutePosition (the inset is not added)
+				if TipTap.tapAway(tipTap, input.Position.X, input.Position.Y, rect) then hideTip() end
+			end)
+		end
+		local down
+		body.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch then down = { pos = input.Position, at = os.clock() } end
+		end)
+		body.InputEnded:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.Touch or not down then return end
+			local d, held = (input.Position - down.pos).Magnitude, os.clock() - down.at
+			down = nil
+			if not c.id or not TipTap.isTap(d, held) then return end
+			if TipTap.tapCard(tipTap, i) == "open" then showTip(i, c) else hideTip() end
 		end)
 	end)
 	if tooltipFn then

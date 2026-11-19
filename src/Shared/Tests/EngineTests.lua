@@ -29721,4 +29721,35 @@ table.insert(tests, { name = "Gameplay v2 end moments: Run complete lists unlock
 	assert(not read("src/Client/NightVictory.lua"):find("fromOffset(220, 38)", 1, true), "Enter Endless Nights plate is 44 px or more")
 end })
 
+table.insert(tests, { name = "Gameplay v2 touch pass: table and Counter controls are 44 px targets with no overlap at 1280x720, 1024x768 and 844x390; a Patron tap opens the plate, a second tap or a tap away closes it", fn = function()
+	local T = require(script.Parent.Parent.Engine.Gameplay2Touch)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(#T.SIZES == 3)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
+		local bad = T.table(sz[1], sz[2])
+		assert(#bad == 0, sz[1] .. "x" .. sz[2] .. " table: " .. table.concat(bad, "; "))
+		for _, counts in ipairs({ { offers = 2, packs = 0 }, { offers = 3, packs = 2 }, { offers = 5, packs = 2 } }) do
+			local shop = T.shop(sz[1], sz[2], counts)
+			assert(#shop == 0, sz[1] .. "x" .. sz[2] .. " Counter with " .. counts.offers .. " offers: " .. table.concat(shop, "; "))
+		end
+	end
+	assert(#T.table(390, 844) == 0 and not L.fits(390, 844), "a portrait phone keeps the older screens and is not audited here")
+	-- a failing layout is reported: a 30 px tall Mute would be caught
+	local TT = require(script.Parent.Parent.Engine.TipTap)
+	local st = TT.new()
+	assert(TT.tapCard(st, 2) == "open" and st.open == 2, "a tap opens the plate")
+	assert(TT.tapCard(st, 2) == "close" and st.open == nil, "a second tap on the same card closes it")
+	assert(TT.tapCard(st, 1) == "open" and TT.tapCard(st, 3) == "open" and st.open == 3, "tapping another card moves the plate")
+	local card = { x = 100, y = 100, w = 80, h = 110 }
+	assert(TT.tapAway(st, 120, 130, card) == false and st.open == 3, "a tap on the card itself is left to tapCard")
+	assert(TT.tapAway(st, 600, 400, card) == true and st.open == nil, "a tap away closes it")
+	assert(TT.tapAway(st, 600, 400, card) == false, "nothing open, nothing to close")
+	assert(TT.longPress(st, 4) == "open" and st.open == 4, "a long press leaves the plate open")
+	assert(TT.isTap(3, 0.1) and not TT.isTap(3, 0.6) and not TT.isTap(20, 0.1), "tap needs a short press that barely moved")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local row = read("src/Client/PatronRow.lua")
+	assert(row:find("TipTap.tapCard", 1, true) and row:find("TipTap.tapAway", 1, true) and row:find("TipTap.longPress", 1, true), "PatronRow uses TipTap")
+end })
+
 return tests
