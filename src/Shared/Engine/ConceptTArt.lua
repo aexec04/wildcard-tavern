@@ -6,11 +6,24 @@
 ]]
 
 return {
+	["ct_btn_discard"] = "rbxassetid://83460743165651",
+	["ct_btn_play"] = "rbxassetid://75874068934336",
 	["ct_card_back"] = "rbxassetid://131968794411799",
+	["ct_deck"] = "rbxassetid://124103145006812",
 	["ct_deck_count"] = "rbxassetid://113254156108727",
 	["ct_hud_coins"] = "rbxassetid://82390083856080",
+	["ct_hud_gear"] = "rbxassetid://109492491371504",
 	["ct_hud_hands"] = "rbxassetid://96506683623786",
 	["ct_hud_round"] = "rbxassetid://139190717212791",
+	["ct_label_common"] = "rbxassetid://123954870180904",
+	["ct_label_epic"] = "rbxassetid://112857237117370",
+	["ct_label_legendary"] = "rbxassetid://135411981062972",
+	["ct_label_rare"] = "rbxassetid://128092377159365",
+	["ct_label_uncommon"] = "rbxassetid://129784897434617",
+	["ct_pill_blue"] = "rbxassetid://92929236288117",
+	["ct_pill_gold"] = "rbxassetid://89486469908041",
+	["ct_pill_green"] = "rbxassetid://86564009941283",
 	["ct_pill_plain"] = "rbxassetid://96126029266539",
+	["ct_pill_purple"] = "rbxassetid://129958209686252",
 	["ct_table_room"] = "rbxassetid://117281432443762",
 }

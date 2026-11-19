@@ -399,7 +399,7 @@ def qa(pid):
     problems = []
     if b[:8] != b"\x89PNG\r\n\x1a\n":
         problems.append("not a PNG")
-    if len(b) < 30_000:
+    if len(b) < 30_000 and not pid.startswith("ct_"):  # ct_ exact cuts are small pieces (upload only)
         problems.append("suspiciously small (blank or failed image?)")
     if len(b) > 15_000_000:
         problems.append("too large for upload")
