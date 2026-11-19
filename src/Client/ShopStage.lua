@@ -313,18 +313,28 @@ function ShopStage.new(deps)
 		-- Reroll = the service bell with its price tag
 		if parts.rerollRow and parts.rerollButton then
 			local bell = r.props.bell
-			parts.rerollRow.Position = UDim2.fromOffset(bell.x, bell.y)
-			parts.rerollRow.Size = UDim2.fromOffset(bell.w, bell.h)
-			-- the bell AND its price tag are one hit area: as wide as the tag, tall enough to include it
+			-- the Reroll plate is a 44 px cream-text plate directly under the Patron row, left aligned with it (Engine/ShopSceneLayout.rerollPlate);
+			-- the painted bell stays as scenery. With no offers it keeps the old place under the bell.
+			local plate = Layout.rerollPlate(r)
+			local row = plate or bell
+			parts.rerollRow.Position = UDim2.fromOffset(row.x, row.y)
+			parts.rerollRow.Size = UDim2.fromOffset(row.w, row.h)
 			local tagW = 120
-			local extra = math.max(0, (tagW - bell.w) / 2)
+			local extra = plate and 0 or math.max(0, (tagW - bell.w) / 2)
 			parts.rerollButton.Position = UDim2.fromOffset(-extra, 0)
-			parts.rerollButton.Size = UDim2.new(1, 2 * extra, 1, TAG_H + TAG_GAP)
+			parts.rerollButton.Size = plate and UDim2.fromScale(1, 1) or UDim2.new(1, 2 * extra, 1, TAG_H + TAG_GAP)
 			local text = parts.rerollButton.Text
 			if text ~= "" then parts.rerollButton:SetAttribute("Label", text) end -- "Reroll 3"; a relayout keeps it
 			quiet(parts.rerollButton)
 			parts.rerollButton.Text = ""
-			bindHover(parts.rerollButton, tag(parts.rerollRow, "BellTag", parts.rerollButton:GetAttribute("Label") or "Reroll", tagW), propGlow("Reroll", bell))
+			local bellTag = tag(parts.rerollRow, "BellTag", parts.rerollButton:GetAttribute("Label") or "Reroll", plate and plate.w or tagW)
+			if plate then
+				bellTag.AnchorPoint = Vector2.new(0, 0)
+				bellTag.Position = UDim2.fromOffset(0, 0)
+				bellTag.Size = UDim2.fromOffset(plate.w, plate.h)
+				bellTag.TextSize = 18
+			end
+			bindHover(parts.rerollButton, bellTag, propGlow("Reroll", bell))
 			if parts.tableLabel then
 				parts.tableLabel.Parent = buyList
 				parts.tableLabel.AnchorPoint = Vector2.new(0, 0)
@@ -338,6 +348,13 @@ function ShopStage.new(deps)
 		end
 
 		placeControls(r)
+		if game:GetService("RunService"):IsStudio() then -- live check for chat Claude: the planned and the drawn offer size, and the Reroll plate
+			local o, rp = r.offers[1], Layout.rerollPlate(r)
+			local drawn = parts.patronRow and parts.patronRow:FindFirstChildWhichIsA("Frame")
+			warn(string.format("[ShopSizes] area %dx%d offers=%d packs=%d planned offer %dx%d pack %s reroll %s drawn first slot %s", W, H, lastCounts.offers or 0, lastCounts.packs or 0,
+				o and o.w or 0, o and o.h or 0, r.packs[1] and (r.packs[1].w .. "x" .. r.packs[1].h) or "none",
+				rp and (rp.x .. "," .. rp.y .. " " .. rp.w .. "x" .. rp.h) or "none", drawn and (math.floor(drawn.AbsoluteSize.X) .. "x" .. math.floor(drawn.AbsoluteSize.Y)) or "none"))
+		end
 
 		-- Once the row layout has settled, every card lies on the felt at its own visible, fixed angle, as if dealt by hand (-5, +4, -3,
 		-- +6 by slot): the same each visit, calm mode included. The angle goes on the card's inner Tilt wrapper (Roblox ignores Rotation

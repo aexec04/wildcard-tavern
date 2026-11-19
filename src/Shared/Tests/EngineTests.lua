@@ -17621,7 +17621,7 @@ table.insert(tests, { name = "The Counter's Reroll and Haggle on the real stage:
 
 		-- the pill hangs under the painted prop: the old hit area (the row, the prop rect) did not include it
 		local rowBottom = rerollRow.AbsolutePosition.Y + rerollRow.AbsoluteSize.Y
-		expectTrue(bellTag.AbsolutePosition.Y >= rowBottom, "the Reroll pill sits below the bell's own rect (" .. bellTag.AbsolutePosition.Y .. " vs " .. rowBottom .. ")" .. where)
+		expectTrue(bellTag.AbsolutePosition.Y >= rowBottom or (bellTag.AbsoluteSize.Y >= 44 and bellTag.AbsolutePosition.Y >= rerollRow.AbsolutePosition.Y), "the Reroll pill is the 44 px plate that is the row itself, or sits below the bell's own rect (" .. bellTag.AbsolutePosition.Y .. " vs " .. rowBottom .. ")" .. where)
 
 		-- a click on the middle of each pill, and on each prop, reaches that control
 		local x, y = centre(bellTag)
@@ -29564,6 +29564,29 @@ table.insert(tests, { name = "Gameplay v2 played lane: cards land under the cent
 	assert(read("src/Client/PatronJuiceFX.lua"):find("triggerPillY", 1, true), "the trigger pill stands under the tag rows")
 	assert(read("src/Client/PatronVoice.lua"):find("triggerPillY", 1, true), "the speech bubble starts below the trigger pill row")
 	assert(read("src/Client/Gameplay2.lua"):find("not self.playing", 1, true), "the old hand level plate is hidden while a hand scores")
+end })
+
+table.insert(tests, { name = "Counter room: normal offers are about 170 x 230 (3 offers with 2 packs), the Reroll plate is 44 px under the Patron row, left aligned, clear of every card", fn = function()
+	local SL = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 } }) do
+		for _, c in ipairs({ { 3, 2 }, { 3, 1 }, { 3, 0 } }) do
+			local r = SL.rects(sz[1], sz[2], { offers = c[1], packs = c[2], room = true })
+			assert(r.offers[1].w >= 165 and r.offers[1].h >= 224, "offers about 170 x 230 at " .. sz[1] .. "x" .. sz[2] .. " with " .. c[2] .. " packs, got " .. r.offers[1].w .. " x " .. r.offers[1].h)
+			if c[2] > 0 then assert(r.packs[1].w >= 77, "packs keep their minimum width") end
+			local p = SL.rerollPlate(r)
+			assert(p.h == 44 and p.x == r.offers[1].x, "Reroll plate is 44 px tall and left aligned with the Patron row")
+			for _, list in ipairs({ r.offers, r.packs }) do
+				for _, o in ipairs(list) do assert(not SL.intersects(p, o), "Reroll plate clear of every card at " .. sz[1] .. "x" .. sz[2]) end
+			end
+			assert(p.y >= r.offers[1].y + r.offers[1].h or (r.packs[1] and p.y >= r.packs[1].y), "Reroll plate stands under the Patron row")
+		end
+	end
+	-- 4 and 5 offers shrink gracefully (never below the old sizes) and still get a plate
+	local r4 = SL.rects(1920, 957, { offers = 4, packs = 2, room = true })
+	assert(r4.offers[1].w >= 155 and SL.rerollPlate(r4).h == 44)
+	if not io then return end
+	local f = assert(io.open("src/Client/ShopStage.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("Layout.rerollPlate", 1, true), "ShopStage places the Reroll row from the same layout function")
 end })
 
 table.insert(tests, { name = "Patron speech bubble on the v2 table: below the row, centred on its own Patron, at most 260 px wide, inside the screen", fn = function()

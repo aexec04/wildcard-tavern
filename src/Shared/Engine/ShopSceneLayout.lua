@@ -45,8 +45,10 @@ ShopSceneLayout.TABLE_EDGE = 8       -- gap between the table and the foot of th
 ShopSceneLayout.TABLE_FOOT = 30      -- the table's lower edge stays at least this far above the Next Round sign
 ShopSceneLayout.TABLE_WIDTH = 0.88   -- the table takes this share of the room between Marlo and the bell (it was too big, over the shelves)
 ShopSceneLayout.PACK_RATIO = 0.8     -- width / height of a pack's rect
+ShopSceneLayout.PACK_SHARE_MIN = 0.4 -- the smallest share a pack may lie at to keep Patron cards at OFFER_GOAL_W
 ShopSceneLayout.PACK_SHARE = 0.75    -- a pack is this share of a Patron card's width: packs lie smaller
 ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
+ShopSceneLayout.OFFER_GOAL_W = 170   -- a normal offer card is at least this wide (230 tall) when the room can hold it: packs go beside the Patrons before the Patrons shrink
 ShopSceneLayout.READABLE_SCALE = 0.5 -- the table grows taller on a small window until its Patron cards reach this card scale
 
 -- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +4 by slot. Offers
@@ -269,9 +271,10 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax, felt, minClear, r
 	local function gapFor(h) return math.max(ShopSceneLayout.ROW_GAP, math.ceil(minClear + 0.07 * h + 2)) end
 	local cx = region.x + region.w / 2
 	local minW = ShopSceneLayout.SCALE_MIN * 220
+	local share = ShopSceneLayout.PACK_SHARE -- packs may shrink (down to PACK_SHARE_MIN) before the Patron cards fall under OFFER_GOAL_W
 	local function build(w)
 		local ho = nOffers > 0 and (250 * w / 220 + 36) or 0
-		local wp = math.max(w * ShopSceneLayout.PACK_SHARE, minW)
+		local wp = math.max(w * share, minW)
 		local hp = nPacks > 0 and (210 * wp / 220 + 36) or 0
 		local gap = gapFor(math.max(ho, hp))
 		local total = ho + hp + ((nOffers > 0 and nPacks > 0) and gapV or 0)
@@ -324,7 +327,7 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax, felt, minClear, r
 	-- Stacked (Patrons, the smaller packs in a front row under them) is the look; on a small window its cards would be tiny, so the
 	-- packs then stand beside the Patrons in one row (bottom aligned, a gap between the groups) and the cards get bigger.
 	local function buildSide(w)
-		local wp = math.max(w * ShopSceneLayout.PACK_SHARE, minW)
+		local wp = math.max(w * share, minW)
 		local ho = nOffers > 0 and (250 * w / 220 + 36) or 0
 		local hp = nPacks > 0 and (210 * wp / 220 + 36) or 0
 		local gap = gapFor(math.max(ho, hp))
@@ -338,21 +341,28 @@ local function dealInRoom(region, keep, nOffers, nPacks, wMax, felt, minClear, r
 		for i = 1, nPacks do packs[i] = { x = x0 + offW + between + (i - 1) * (wp + gap), y = bottom - hp, w = wp, h = hp } end
 		return offers, packs
 	end
-	local stackW
-	for w = math.floor(wMax), minW, -2 do
-		local offers, packs = build(w)
-		if fits(offers, packs) then
-			stackW = w
-			if w >= ShopSceneLayout.READABLE_SCALE * 220 then return done(offers, packs, true, false) end
-			break
+	local stackW, stackShare
+	local goal = math.min(ShopSceneLayout.OFFER_GOAL_W, math.floor(wMax))
+	for _, sh in ipairs({ ShopSceneLayout.PACK_SHARE, 0.62, 0.5, ShopSceneLayout.PACK_SHARE_MIN }) do
+		share = sh
+		for w = math.floor(wMax), minW, -2 do
+			local offers, packs = build(w)
+			if fits(offers, packs) then
+				if not stackW or w > stackW then stackW, stackShare = w, sh end
+				if w >= goal then return done(offers, packs, true, false) end
+				break
+			end
 		end
+		if nPacks == 0 then break end
 	end
+	share = ShopSceneLayout.PACK_SHARE
 	for w = math.floor(wMax), minW, -2 do
 		if stackW and w <= stackW then break end
 		local offers, packs = buildSide(w)
 		if fits(offers, packs) then return done(offers, packs, true, true) end
 	end
 	if stackW then
+		share = stackShare
 		local offers, packs = build(stackW)
 		return done(offers, packs, true, false)
 	end
@@ -611,6 +621,24 @@ function ShopSceneLayout.cardScales(r)
 	local patron = fit(r.offers[1], 220, 250) or 1
 	local pack = fit(r.packs[1], 220, 210) or patron
 	return { patron = patron, pack = pack, gap = r.cardGap }
+end
+
+-- The Reroll plate (44 px tall, cream text): left aligned with the Patron row, directly under it. When the pack row under the Patrons
+-- starts far enough to the right it stands in that row's left margin (so it never sits under a pack), else under the last row. Rects
+-- are the dealt (untilted) card rects plus a 10 px allowance for the tilt.
+ShopSceneLayout.REROLL_W, ShopSceneLayout.REROLL_H, ShopSceneLayout.REROLL_AIR = 150, 44, 10
+function ShopSceneLayout.rerollPlate(r)
+	local o, k = r.offers and r.offers[1], r.packs and r.packs[1]
+	if not o then return nil end
+	local w, h, air = ShopSceneLayout.REROLL_W, ShopSceneLayout.REROLL_H, ShopSceneLayout.REROLL_AIR
+	local y = o.y + o.h + air
+	if k then
+		if k.y < o.y + o.h then y = math.max(o.y + o.h, k.y + k.h) + air -- packs beside the Patrons (one row): under the whole row
+		elseif k.x - o.x - 8 >= w then y = k.y else y = k.y + k.h + air end
+	end
+	local limit = r.area and r.area.h
+	if limit then y = math.min(y, limit - h - 4) end
+	return rect(o.x, y, w, h)
 end
 
 -- Rects of the two scrolling card rows (transparent containers; the cards inside are centred). A row is the cards
