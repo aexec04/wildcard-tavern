@@ -28538,7 +28538,7 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 	for _, w in ipairs({ 60, 90, 140, 200 }) do
 		local h = math.floor(w / 0.712)
 		local d = T.discRect(w, h)
-		assert(d.w == (w >= 70 and 40 or 28), "disc is 40 px (w " .. w .. ")")
+		assert(d.w == (w >= 140 and 48 or (w >= 70 and 40 or 28)), "disc scales with the card (w " .. w .. ")")
 		assert(d.x + d.w > w and d.y + d.h > h, "the disc sits in the bottom right corner and overhangs the frame")
 		assert(math.abs((d.x + d.w - w) / d.w - 0.4) < 0.06 and math.abs((d.y + d.h - h) / d.h - 0.4) < 0.06, "about 40 percent of the disc is outside the frame")
 	end
@@ -28626,7 +28626,7 @@ table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ 
 	assert(T.frameRect("legendary", 150, 210).h == 210 + 25 and T.frameRect("epic", 150, 210).h == 210 + 13)
 	assert(S.contrast(T.DISC.text, T.DISC.fill) >= 4.5, "cream numeral on the gold disc is 4.5:1")
 	assert(T.numeral("+30") == "+30" and T.numeral("++4") == "+4" and T.numeral(nil) == "" and T.numeral("  x2 ") == "x2")
-	assert(T.discDiameter(100) == 40 and T.discDiameter(200) == 40 and T.discDiameter(50) == 28)
+	assert(T.discDiameter(100) == 40 and T.discDiameter(200) == 48 and T.discDiameter(140) == 48 and T.discDiameter(50) == 28)
 	-- the layout leaves room for the disc: label and pill start under its lower half
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
 		local row = L.patronRow(sz[1], sz[2], 5)
@@ -28684,7 +28684,7 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 	local Style = require(E.TavernStyle)
 	-- 1. the disc: 40 px, bottom right corner, 40 percent outside the frame, label clear of its overhang
 	local d = T.discRect(150, 210)
-	assert(d.w == 40 and d.x + d.w == 150 + 16 and d.y + d.h == 210 + 16, "40 px disc, 16 px (40 percent) outside the corner")
+	assert(d.w == 48 and d.x + d.w == 150 + 19 and d.y + d.h == 210 + 19, "48 px disc on a roomy card, 19 px (40 percent) outside the corner")
 	assert(T.discBand(150) >= 16, "the label starts under the disc overhang")
 	-- 2. Next Round: bright green, cream text at 24 px, at least 3:1 (large text) with a solid dark outline
 	assert(S.NEXT_ROUND.textSize == 24 and Style.contrast({ 250, 240, 220 }, S.NEXT_ROUND.fill) >= 3, "cream on the bright green plate")
@@ -28706,10 +28706,11 @@ table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner di
 		local r = L.rects(sz[1], sz[2])
 		local st = L.scoreStack(r.stage.h, 20, 22)
 		if st.roomy then
-			assert(st.textSize == 72 and st.lineY <= st.numTop + st.numH and st.progressY > st.lineY and st.bottom <= r.stage.h, "score stack fits the stage at " .. sz[1])
+			assert(st.textSize == math.min(72, r.stage.h - 52) and st.lineY <= st.numTop + st.numH and st.progressY > st.lineY and st.bottom <= r.stage.h, "score stack fits the stage at " .. sz[1])
 		end
 	end
-	assert(L.scoreStack(400, 20, 22).roomy and not L.scoreStack(60, 20, 22).roomy)
+	assert(L.scoreStack(400, 20, 22).roomy and L.scoreStack(400, 20, 22).textSize == 72 and not L.scoreStack(60, 20, 22).roomy)
+	assert(L.scoreStack(113, 20, 22).roomy and L.scoreStack(113, 20, 22).textSize >= 44, "1280x720 keeps the caption and the line with a smaller numeral")
 end })
 
 table.insert(tests, { name = "Gameplay v2 scoring: centre score counts up in 12 steps, slams in with a burst and a hold, Fast halves it, Calm is instant, a client module reads the settings", fn = function()
@@ -28855,6 +28856,25 @@ table.insert(tests, { name = "Gameplay v2 audit: 1920x1080, 1280x720, 1024x600, 
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local studio = read("src/Client/AuditV2.lua")
 	assert(studio:find("IsStudio", 1, true) and read("src/Client/DebugGoto.lua"):find("AuditV2", 1, true), "Studio only, reachable from DebugGoto")
+end })
+
+table.insert(tests, { name = "Patron power disc: only the figure (at most 5 characters, never the unit), 48 px disc on a roomy card, text 20 px unscaled and clipped, Studio warning when text is wider than the disc", fn = function()
+	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
+	local V = require(script.Parent.Parent.Engine.PatronValueText)
+	for _, pair in ipairs({ { "+1 Chips", "+1" }, { "+4 Mult", "+4" }, { "x1.1 Mult", "x1.1" }, { "+3 Mult", "+3" }, { "+15 Chips", "+15" }, { "x1.5 Mult", "x1.5" }, { "+100 Chips", "+100" } }) do
+		assert(T.numeral(pair[1]) == pair[2], pair[1] .. " shows as " .. pair[2] .. ", got " .. T.numeral(pair[1]))
+	end
+	assert(T.numeral("+1 Tip") == "+1" and T.numeral("") == "" and T.numeral(nil) == "" and T.numeral("Retrigger") == "Retri", "no figure: cut to five characters")
+	for _, d in ipairs({ "+1 Chips and more", "Earn 4 Tips at the end", "Draw 1 more card each hand", "x2.25 Mult for pairs", "+4 Mult per Heart" }) do
+		local v = V.of(d)
+		if v then assert(#T.numeral(v) <= T.NUMERAL_MAX, "the figure of '" .. v .. "' is at most five characters") end
+	end
+	assert(T.discDiameter(157) == 48 and T.discDiameter(105) == 40 and T.discDiameter(58) == 28, "48 px at 1920x1080 card width, scales down")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/PatronTierFX.lua")
+	assert(fx:find("num.TextScaled = false", 1, true) and fx:find("disc.ClipsDescendants = true", 1, true) and fx:find("TextTruncate.None", 1, true), "fixed size, clipped, no truncation marks")
+	assert(fx:find("TextBounds.X > disc.AbsoluteSize.X", 1, true) and fx:find("IsStudio", 1, true), "Studio only warning when the text is wider than the disc")
 end })
 
 return tests

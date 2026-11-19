@@ -51,10 +51,13 @@ function M.frameRect(tier, w, h)
 	return { x = -math.floor(gw / 2), y = -gh, w = w + gw, h = h + gh }
 end
 
--- the power disc is a fixed 40 px (28 on very narrow cards) in the card's bottom right corner, 40 percent of it outside the frame
-M.DISC_SIZE, M.DISC_OVERLAP = 40, 0.4
+-- the power disc scales with the card: 48 px on a roomy card (140 px wide, 1920x1080), 40 px from 70 px, 28 px on very narrow
+-- cards, in the card's bottom right corner, 40 percent of it outside the frame
+M.DISC_SIZE, M.DISC_BIG, M.DISC_OVERLAP = 40, 48, 0.4
 function M.discDiameter(w)
-	return (tonumber(w) or 0) >= 70 and M.DISC_SIZE or 28
+	w = tonumber(w) or 0
+	if w >= 140 then return M.DISC_BIG end
+	return w >= 70 and M.DISC_SIZE or 28
 end
 
 -- Bottom right corner of the card: 60 percent of the disc inside the frame, 40 percent outside (right and below).
@@ -73,10 +76,15 @@ function M.unitText(valueText)
 	return rest or t
 end
 
+-- the figure only ("+4", "x1.1", "+15", "+100"), never the unit word: "+1 Chips" -> "+1". At most 5 characters so it always fits the disc.
+M.NUMERAL_MAX = 5
 function M.numeral(valueText)
 	local t = tostring(valueText or ""):gsub("^%s+", ""):gsub("%s+$", "")
 	if t == "" then return "" end
 	t = t:gsub("^%++", "+")
+	local figure = t:match("^[%+%-xX]?%d[%d%.,]*%%?")
+	if figure then t = figure end
+	if #t > M.NUMERAL_MAX then t = t:sub(1, M.NUMERAL_MAX) end
 	return t
 end
 

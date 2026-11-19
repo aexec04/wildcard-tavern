@@ -180,6 +180,7 @@ local function build(deco, tier, w)
 	disc.Position = UDim2.new(1, dr.x - w, 1, dr.y) -- bottom right corner, 40 percent outside the frame
 	disc.Size = UDim2.fromOffset(D, D)
 	disc.BackgroundTransparency = 0
+	disc.ClipsDescendants = true -- whatever the text does, it never leaves the disc
 	disc.BackgroundColor3 = c3(Style.DISC.fill)
 	corner(disc, UDim.new(1, 0))
 	local ds = Instance.new("UIStroke")
@@ -191,7 +192,9 @@ local function build(deco, tier, w)
 	num.BackgroundTransparency = 1
 	num.Size = UDim2.fromScale(1, 1)
 	num.Font = Enum.Font.Merriweather -- the numeral is serif, the unit word lives only in the pill below
-	num.TextSize = math.max(22, math.floor(D * 0.5))
+	num.TextSize = D >= 40 and 20 or 16 -- fixed, never scaled: the figure is at most 5 characters (Style.numeral) and always fits
+	num.TextTruncate = Enum.TextTruncate.None
+	num.TextWrapped = false
 	num.TextColor3 = c3(Style.DISC.text)
 	num.TextTransparency = 0
 	num.TextStrokeColor3 = c3(Style.DISC.outline)
@@ -260,7 +263,17 @@ function M.set(slot, tier, valueText)
 	if disc then
 		disc.Visible = text ~= ""
 		local num = disc:FindFirstChild("Numeral")
-		if num then num.Text = text end
+		if num then
+			num.Text = text
+			-- Studio only: the measured text must fit the disc (a wider string would be cut by the clip)
+			if text ~= "" and game:GetService("RunService"):IsStudio() then
+				task.defer(function()
+					if num.Parent and num.TextBounds.X > disc.AbsoluteSize.X + 1 then
+						warn(string.format("[PatronTierFX] disc text '%s' is %d px wide in a %d px disc", text, math.floor(num.TextBounds.X), math.floor(disc.AbsoluteSize.X)))
+					end
+				end)
+			end
+		end
 	end
 	-- Common reads slightly muted: the portrait is tinted a touch grey
 	local art = slot:FindFirstChild("PatronArt", true)

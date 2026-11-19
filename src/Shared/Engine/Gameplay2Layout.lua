@@ -125,12 +125,15 @@ end
 -- The centre score stack inside the stage: caption, numeral (digits about 56 px tall, so a 72 px font), a gold line directly under
 -- it and the "<score> of <target>" progress text (18 px) under the line. A short stage keeps the number alone.
 M.SCORE_FONT = 72
+M.SCORE_FONT_MIN = 44
 function M.scoreStack(stageH, capH, progH)
-	local need = capH + M.SCORE_FONT + 2 + 4 + progH + 4
-	local roomy = stageH >= need
+	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
+	local fixed = capH + 2 + 4 + progH + 4
+	local fontFit = math.min(M.SCORE_FONT, stageH - fixed)
+	local roomy = fontFit >= M.SCORE_FONT_MIN
 	local numTop = roomy and capH or math.floor(stageH * 0.1)
-	local textSize = roomy and M.SCORE_FONT or math.max(20, math.min(56, stageH - numTop - 4))
-	local numH = roomy and M.SCORE_FONT or textSize
+	local textSize = roomy and fontFit or math.max(20, math.min(56, stageH - numTop - 4))
+	local numH = roomy and fontFit or textSize
 	return { roomy = roomy, numTop = numTop, numH = numH, textSize = textSize, lineY = numTop + numH - 2, progressY = numTop + numH + 2, bottom = numTop + numH + 2 + 4 + progH }
 end
 
