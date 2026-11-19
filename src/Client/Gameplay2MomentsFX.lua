@@ -188,6 +188,7 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h)
 	holder.Size = UDim2.fromScale(1, 1)
 	holder.Active = false
 	holder.ZIndex = 34
+	holder:SetAttribute("Born", os.clock())
 	holder.Parent = layer
 	local dim = Instance.new("Frame")
 	dim.Name = "Dim"
@@ -318,12 +319,12 @@ function M.boss(layer, rects, state, w, h)
 			rulePlate.Active = false
 			rulePlate.ZIndex = 4
 			local ic = Instance.new("TextLabel"); ic.Name = "BossIcon"; ic.BackgroundColor3 = Color3.fromRGB(150, 38, 30); ic.BackgroundTransparency = 0
-			ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, -2, 0.5, 0); ic.Active = false
+			ic.Active = false
 			ic.Font = Enum.Font[Style.FONTS.title]; ic.TextColor3 = color("cream"); ic.TextStrokeTransparency = 0.4; ic.TextStrokeColor3 = color("outline"); ic.ZIndex = 5
 			local icc = Instance.new("UICorner"); icc.CornerRadius = UDim.new(0, 5); icc.Parent = ic
 			ic.Parent = rulePlate
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = rulePlate
-			local pd = Instance.new("UIPadding"); pd.PaddingLeft = UDim.new(0, 30); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
+			local pd = Instance.new("UIPadding"); pd.Name = "TextPad"; pd.PaddingLeft = UDim.new(0, 30); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
 			local st = Instance.new("UIStroke"); st.Name = "Edge"; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Thickness = 2; st.Parent = rulePlate
 			rulePlate.Parent = layer
 			-- the boss rule is one cream parchment scroll plate with a wax seal (Engine/TavernStyle.PAINTED); dark ink on it, cream again if the picture is missing
@@ -340,8 +341,11 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
 		rulePlate.TextSize = math.max(14, math.min(16, pr.h - 6))
 		rulePlate.Text = name .. ": " .. rule
-		local side = pr.h - 4
+		local parts = Rules.rulePlateParts(pr)
+		local side = parts.icon.w
+		rulePlate.BossIcon.Position = UDim2.fromOffset(parts.icon.x, parts.icon.y)
 		rulePlate.BossIcon.Size = UDim2.fromOffset(side, side)
+		rulePlate.TextPad.PaddingLeft = UDim.new(0, parts.textX)
 		rulePlate.BossIcon.Text = Rules.bossIcon(bdef and bdef.rules)
 		rulePlate.BossIcon.TextSize = math.max(12, math.min(16, side - 6))
 		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
@@ -361,6 +365,8 @@ function M.boss(layer, rects, state, w, h)
 	tint.BackgroundColor3 = Color3.fromRGB(g.color[1], g.color[2], g.color[3])
 	tint.BackgroundTransparency = g.transparency
 	tint.Visible = true
+	local stale = layer:FindFirstChild("BossIntro") -- an intro that outlived its hold and fade is removed, never left over the Patrons
+	if stale and stale:GetAttribute("Born") and os.clock() - stale:GetAttribute("Born") > 8 then stale:Destroy() end
 	local introKey = Rules.bossEntranceKey(state)
 	if introKey and tint:GetAttribute("IntroKey") ~= introKey then
 		tint:SetAttribute("IntroKey", introKey)

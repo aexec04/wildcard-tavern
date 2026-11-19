@@ -130,6 +130,14 @@ function M.rulePlate(r)
 	return { x = x, y = y, w = w, h = math.min(M.RULE_H, maxH) }
 end
 
+-- Inside the one rule plate: a square icon chip at the left edge and the text starting ICON_GAP px after it, so the chip never covers a letter.
+M.ICON_GAP = 12
+function M.rulePlateParts(pr)
+	local side = math.max(12, pr.h - 8)
+	local icon = { x = 4, y = math.floor((pr.h - side) / 2), w = side, h = side }
+	return { icon = icon, textX = icon.x + icon.w + M.ICON_GAP }
+end
+
 -- Each Boss rule family has its own plate colour (RGB). Fill is dark, edge is the bright version.
 M.TINTS = {
 	fewerHands = { 150, 38, 30 }, fewerDiscards = { 150, 38, 30 }, lowHandSize = { 150, 38, 30 }, cardToss = { 150, 38, 30 }, cardCount = { 150, 38, 30 },

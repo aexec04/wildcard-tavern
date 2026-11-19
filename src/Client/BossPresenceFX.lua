@@ -30,6 +30,9 @@ end
 function M.show(root, boss)
 	M.hide()
 	if not root or type(boss) ~= "table" then return end
+	-- the Gameplay v2 table shows the boss once (intro, then one slim rule plate in Gameplay2MomentsFX): no second red plate here
+	local g2 = root:FindFirstChild("Gameplay2")
+	if g2 and g2:IsA("GuiObject") and g2.Visible then return end
 	local size = root.AbsoluteSize
 	if not Layout.fits(size.X, size.Y) then return end
 	local rects = Layout.rects(size.X, size.Y)
@@ -37,7 +40,7 @@ function M.show(root, boss)
 	if p.h < 20 then return end
 
 	plate = Instance.new("TextLabel")
-	plate.Name = "BossRulePlate"
+	plate.Name = "BossPresencePlate"
 	plate.Size = UDim2.fromOffset(p.w, p.h)
 	plate.Position = UDim2.fromOffset(p.x, p.y)
 	plate.BackgroundColor3 = Color3.fromRGB(92, 22, 24)

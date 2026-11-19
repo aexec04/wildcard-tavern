@@ -29764,6 +29764,25 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/Gameplay2MomentsFX.lua"):find('"parchment"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear, boss rule and Next Round are painted")
 end })
 
+table.insert(tests, { name = "Boss plate: icon chip never covers the text (12 px gap), exactly one boss plate source on the v2 table", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local rp = M.rulePlate(r)
+		expectTrue(rp ~= nil, "plate fits at " .. sz[1])
+		local parts = M.rulePlateParts(rp)
+		expectTrue(parts.icon.x + parts.icon.w + 12 <= parts.textX, "text starts 12 px after the icon at " .. sz[1])
+		expectTrue(parts.icon.x >= 0 and parts.icon.y >= 0 and parts.icon.y + parts.icon.h <= rp.h, "icon stays inside the plate at " .. sz[1])
+		expectTrue(parts.textX < rp.w - 60, "room left for the line at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local pres = read("src/Client/BossPresenceFX.lua")
+	expectTrue(pres:find('FindFirstChild("Gameplay2")', 1, true) and not pres:find('"BossRulePlate"', 1, true), "the Concept T red plate is not drawn on the v2 table and cannot be mistaken for the v2 rule plate")
+	expectTrue(read("src/Client/Gameplay2MomentsFX.lua"):find("Born", 1, true), "a stale boss intro is removed")
+end })
+
 table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
