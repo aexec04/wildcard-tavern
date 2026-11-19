@@ -19,7 +19,7 @@ local M = {}
 
 local CREAM = Color3.fromRGB(245, 232, 200)
 local GOLD = Color3.fromRGB(246, 196, 70)
-local PLATE = Color3.fromRGB(46, 30, 17)
+local PLATE = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill
 local plate, highlights = nil, {}
 
 local function label(parent, text, size, font, color, y, h, order)
@@ -110,7 +110,7 @@ function M.show(root, cards, index, info, calm)
 	cr.CornerRadius = UDim.new(0, 8)
 	cr.Parent = frame
 	local st = Instance.new("UIStroke")
-	st.Color = color
+	st.Color = Color3.fromRGB(200, 165, 90) -- TavernStyle goldTrim; rarity is the word on the pill, not the border
 	st.Thickness = 2
 	st.Parent = frame
 	local body = Instance.new("Frame")
@@ -150,6 +150,11 @@ function M.show(root, cards, index, info, calm)
 	-- position: from the same rects the layout uses, clear of the HUD pills, banner, gear and hand
 	local r = CTLayout.rects(rs.X, rs.Y)
 	local avoid = { r.coins, r.hands, r.round, r.gear, r.hand }
+	local okV2, v2 = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
+	if okV2 and v2 then -- Gameplay v2: keep clear of its round bar, hand, buttons, sort control and deck instead
+		local g = require(Engine:WaitForChild("Gameplay2Layout")).rects(rs.X, rs.Y)
+		avoid = { g.bar, g.hand, g.play, g.discard, g.sortRank, g.sortSuit, g.deck, g.deckCount }
+	end
 	local slot = cards[index] and cards[index].slot
 	local rp, rsz = root.AbsolutePosition, rs
 	local card = { x = 0, y = 0, w = 0, h = 0 }

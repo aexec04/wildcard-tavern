@@ -231,6 +231,7 @@ return function(deps)
 	local saveButton = button(moreF, "SaveBadge", "Save Badge", WOOD, CREAM, 16)
 	local winCardButton = button(moreF, "WinCard", "Win Card", WOOD, CREAM, 16)
 	winCardButton.Visible = false
+	pcall(function() require(script.Parent.TavernScreens).apply(dim, "runover") end) -- Gameplay v2 look: closing time scene, one green primary
 	require(script.Parent.InvitePrompt).bind(inviteButton)
 
 	-- the share line: a selectable box over the first row of the More block (select it, then Ctrl+C)
@@ -631,6 +632,7 @@ return function(deps)
 		revivedBadge.Visible = isRevived
 		continueButton.Text = state.continueOffer == "free" and "One More (Free)" or "One More Round"
 		playAgainButton.Text = isWin and "Play Again" or "Try Again" -- a calm retry after a loss
+		pcall(function() require(script.Parent.TavernScreens).skin(dim, "runover") end)
 		if isWin then
 			titleLabel.Text = "Last call, but what a night! You beat the tavern."
 		else

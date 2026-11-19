@@ -28579,4 +28579,32 @@ table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ 
 	assert(not src:find("[\128-\255]"), "ASCII only")
 end })
 
+table.insert(tests, { name = "TavernScreens: scene art exists for each screen, at most two button kinds, one green primary, tooltip and Run Over buttons wired", fn = function()
+	local T = require(script.Parent.Parent.Engine.TavernScreens)
+	local Art = require(script.Parent.Parent.Engine.TableSceneArt)
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	for name, s in pairs(T.SCREENS) do
+		assert(Art[s.scene] and Art[s.scene] ~= "", name .. " has its table scene id")
+		local n = 0
+		for _ in pairs(T.kinds(name)) do n = n + 1 end
+		assert(n <= 2, name .. " uses at most two button styles")
+		local primaries = 0
+		for _, k in pairs(s.buttons) do if k == "primary" then primaries = primaries + 1 end end
+		assert(primaries <= 1, name .. " has one big green primary at most")
+	end
+	assert(T.kindOf("counter", "NextRound") == "primary" and T.kindOf("runover", "PlayAgain") == "primary")
+	assert(T.kindOf("runover", "BackToTavern") == "secondary" and T.kindOf("runover", "Nope") == nil and T.kindOf("nowhere", "x") == nil)
+	-- the cream label on both kit button fills stays readable
+	assert(S.contrast(S.rgb("cream"), S.rgb("greenDeep")) >= 4.5 and S.contrast(S.rgb("cream"), S.rgb("brown")) >= 4.5)
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local t = f:read("*a"); f:close(); return t end
+	local shop, over, tip, fx = read("src/Client/Shop.lua"), read("src/Client/GameOver.lua"), read("src/Client/PatronTipFX.lua"), read("src/Client/TavernScreens.lua")
+	if not (shop and over and tip and fx) then return end
+	assert(shop:find('TavernScreens).apply(shopFrame, "counter")', 1, true) and shop:find('nextRoundButton.Name = "NextRound"', 1, true), "Counter wired")
+	assert(over:find('TavernScreens).apply(dim, "runover")', 1, true), "Run Over wired")
+	assert(tip:find("Gameplay2Layout", 1, true), "the tooltip avoids the v2 rects")
+	assert(not fx:find('Instance.new("TextButton")', 1, true), "no new buttons: the real instances are restyled")
+	assert(not fx:find("[\128-\255]"), "ASCII only")
+end })
+
 return tests

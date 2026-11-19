@@ -537,6 +537,7 @@ return function(deps)
 		nextRoundButton.Font = Enum.Font.GothamBold
 		nextRoundButton.TextSize = 18
 		nextRoundButton.Text = "Next Round"
+		nextRoundButton.Name = "NextRound"
 		nextRoundButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48) -- wooden sign
 		nextRoundButton.TextColor3 = Color3.fromRGB(250, 240, 220)
 		nextRoundButton.ZIndex = SHOP_ZINDEX
@@ -545,6 +546,7 @@ return function(deps)
 		polishButton(nextRoundButton, 10)
 		pcall(function() require(script.Parent.ConceptTSkin).plateButton(nextRoundButton) end) -- the one green plate style
 		addButtonHoverScale(nextRoundButton)
+		pcall(function() require(script.Parent.TavernScreens).apply(shopFrame, "counter") end) -- Gameplay v2 look: counter scene behind, green Next Round
 
 		-- Counter v2 stage director (Client/ShopStage.lua): nil until the painted scene art is recorded.
 		do
@@ -1436,6 +1438,7 @@ return function(deps)
 		rerollButton.Font = Enum.Font.GothamBold
 		rerollButton.TextSize = 16
 		rerollButton.Text = ShopRefusal.rerollLabel(state.rerollCost) -- "Reroll 3": the price is on the control
+		rerollButton.Name = "Reroll"
 		rerollButton.BackgroundColor3 = Color3.fromRGB(118, 82, 48)
 		rerollButton.TextColor3 = Color3.fromRGB(250, 235, 200)
 		rerollButton.ZIndex = 6
@@ -1443,6 +1446,7 @@ return function(deps)
 		rerollButton.Parent = rerollRow
 		polishButton(rerollButton, 8)
 		addButtonHoverScale(rerollButton)
+		pcall(function() require(script.Parent.TavernScreens).skin(rerollRow, "counter") end) -- brown secondary
 
 		local tableLabel = Instance.new("TextLabel")
 		tableLabel.Size = UDim2.new(1, -230, 0, 38)
