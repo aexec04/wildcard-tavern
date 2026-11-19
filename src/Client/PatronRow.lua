@@ -377,6 +377,7 @@ local function fillCard(c, i, owned)
 		if not cut then -- a Concept T cut card carries its own rarity frame and name plate
 			pcall(function() RarityFrame.apply(c.body, tier, { thickness = 3, radius = 8, zIndex = Z + 4 }) end)
 		end
+		pcall(function() require(script.Parent.PatronSeatFrame).sync(c, false, Z) end)
 		pcall(function() require(script.Parent.ConceptTPatronCard).set(c.slot, tier, c.valueText, cut) end)
 		pcall(function() require(script.Parent.PatronShineFX).sync(c, tier, calm(), c.seat or 1) end)
 		if c.enterPending then
@@ -404,6 +405,7 @@ local function fillCard(c, i, owned)
 		c.value.Visible = false
 		c.body.BackgroundColor3 = SLOT
 		c.body.BackgroundTransparency = 0.45 -- quiet slot
+		pcall(function() require(script.Parent.PatronSeatFrame).sync(c, true, Z) end) -- painted empty seat frame (the flat slot returns if the picture fails)
 		local rs = c.body:FindFirstChild("RarityStroke")
 		if rs then rs.Enabled = false end
 		local ro = c.body:FindFirstChild("RarityOrnaments")

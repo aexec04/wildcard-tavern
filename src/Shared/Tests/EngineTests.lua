@@ -29764,6 +29764,27 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear and Next Round are painted")
 end })
 
+table.insert(tests, { name = "Patron seats: an empty seat wears the painted patron_slot frame, an owned seat hides it, no overlap with labels", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local def = Style.PAINTED.patron_slot
+	expectTrue(def ~= nil and def.inset.l * 2 < def.src[1] and def.inset.t * 2 < def.src[2], "patron_slot slices sit inside the picture")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local row = L.patronRow(sz[1], sz[2], 5)
+		for i = 1, 5 do
+			local sl = Style.paintedSlice("patron_slot", row.cards[i].w, row.cards[i].h)
+			expectTrue(sl ~= nil and sl.scale * (def.inset.l + def.inset.r) <= row.cards[i].w, "seat frame corners fit a " .. sz[1] .. " wide seat")
+			expectTrue(row.cards[i].y + row.cards[i].h <= row.labels[i].y, "seat " .. i .. " ends above its tag row")
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronSeatFrame.lua", "r")); local src = f:read("a"); f:close()
+	expectTrue(src:find('Kit.painted(back, "patron_slot")', 1, true) and src:find("back.Visible = empty", 1, true), "frame painted and shown only for empty seats")
+	expectTrue(src:find("Tween", 1, true) == nil, "no tweens")
+	local g = assert(io.open("src/Client/PatronRow.lua", "r")); local pr = g:read("a"); g:close()
+	expectTrue(pr:find("PatronSeatFrame", 1, true) ~= nil, "PatronRow calls the seat frame")
+end })
+
 table.insert(tests, { name = "Painted frames: border about 10 to 14 px on every button size, slices inside the picture, boss line and chip", fn = function()
 	local Style = require(script.Parent.Parent.Engine.TavernStyle)
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
