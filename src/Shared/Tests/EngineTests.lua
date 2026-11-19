@@ -31678,4 +31678,23 @@ table.insert(tests, { name = "Notice Board text: Rank on one line with the rewar
 	expectTrue(board:find("local PADN = 12", 1, true) and board:find("PADN + h1 + h2 + PADN", 1, true), "stacked notes keep 12 px top and bottom")
 end })
 
+table.insert(tests, { name = "Ornate frames: full scale slices keep the whole picture height, the score plate is about 0.19 of the width with arrow flourishes, hint plates use ornate pieces", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	for _, piece in ipairs({ "orn_wide", "orn_small", "orn_square", "orn_score", "orn_btn_dark", "orn_btn_green", "parchment" }) do
+		local def = Style.PAINTED[piece]
+		expectTrue(def.full == true, piece .. " draws at full scale")
+		local sl = Style.paintedSlice(piece, 300, 70)
+		expectTrue(sl and math.abs(sl.scale - math.min(70 / def.src[2], (300 * 0.9) / (def.inset.l + def.inset.r), (70 * 0.9) / (def.inset.t + def.inset.b))) < 1e-9, piece .. " scale is the plate height over the picture height")
+	end
+	-- the old clamp still holds for the plain pieces
+	local plain = Style.paintedSlice("wood_plate", 300, 44)
+	expectTrue(plain.scale * 140 <= 14 + 1e-9, "plain pieces keep the 14 px border")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local g2 = read("src/Client/Gameplay2.lua")
+	expectTrue(g2:find("0.19 * sw", 1, true) and g2:find('"ArrowL"', 1, true) or g2:find('"ArrowL"', 1, true) ~= nil or g2:find("ArrowL", 1, true) ~= nil, "score plate is 0.19 wide with arrow flourishes")
+	expectTrue(g2:find("0.19 * sw", 1, true) ~= nil, "score plate width is 0.19 of the screen")
+	expectTrue(read("src/Client/RoundHintsFX.lua"):find('"orn_btn_green"', 1, true) ~= nil, "Got it wears the ornate green frame")
+end })
+
 return tests

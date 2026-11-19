@@ -330,13 +330,29 @@ function M.install(deps)
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 4
 		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
-			local pw = math.min(r.stage.w, math.max(260, math.floor(r.stage.w * 0.62)))
-			local ph = math.max(40, N.lineY + 8)
+			local sw = root.AbsoluteSize.X
+			local pw = math.min(r.stage.w, math.max(240, math.floor(0.19 * sw))) -- the reference plate is 315 of 1672 wide (0.19)
+			local ph = math.max(40, N.lineY + 4)
 			scorePlate.Position = UDim2.fromOffset(r.stage.x + math.floor((r.stage.w - pw) / 2), r.stage.y - 2)
 			scorePlate.Size = UDim2.fromOffset(pw, ph)
 			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "orn_score") end) end
 		end
-		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy and not N.noProgress
+		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = false; scoreProgress.Visible = N.roomy and not N.noProgress -- the ornate plate has its own trim
+		for _, side in ipairs({ -1, 1 }) do -- small gold arrow flourishes flanking the "o of N" line: a thin line ending in a diamond
+			local arrow = scoreBox:FindFirstChild(side < 0 and "ArrowL" or "ArrowR")
+			if not arrow then
+				arrow = Instance.new("Frame"); arrow.Name = side < 0 and "ArrowL" or "ArrowR"
+				arrow.BorderSizePixel = 0; arrow.Active = false; arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+				arrow.BackgroundColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3]); arrow.Size = UDim2.fromOffset(52, 2)
+				local dia = Instance.new("Frame"); dia.Name = "Tip"; dia.BorderSizePixel = 0; dia.Active = false; dia.Rotation = 45; dia.ZIndex = 4
+				dia.AnchorPoint = Vector2.new(0.5, 0.5); dia.Size = UDim2.fromOffset(7, 7); dia.Position = UDim2.new(side < 0 and 1 or 0, 0, 0.5, 0)
+				dia.BackgroundColor3 = arrow.BackgroundColor3; dia.Parent = arrow
+				arrow.Parent = scoreBox
+			end
+			arrow.ZIndex = 4
+			arrow.Position = UDim2.new(0.5, side * 108, 0, N.lineY + 4 + math.floor(progH / 2))
+			arrow.Visible = scoreProgress.Visible
+		end
 		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
 			raise(previewPill, Z_UI + 1)
