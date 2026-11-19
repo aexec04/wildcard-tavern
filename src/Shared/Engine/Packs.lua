@@ -51,7 +51,8 @@ Packs.Definitions = {
 	{
 		id = "standard_pack", name = "Standard Pack", icon = "🎴", price = 5,
 		category = "standard", size = "normal", revealCount = 3, pickCount = 1,
-		description = "Reveals 3 random playing cards, each with a Garnish/Special/Stamp already on it, pick 1 to add to your deck for free.",
+		description = "Reveals 3 random dressed playing cards, pick 1 to add to your deck for free.",
+		short = "Pick 1 of 3 dressed cards for your deck",
 	},
 
 	-- ===== Jumbo (reveal 5, pick 1 -- better odds at the item you want) =====
@@ -78,7 +79,8 @@ Packs.Definitions = {
 	{
 		id = "standard_pack_jumbo", name = "Jumbo Standard Pack", icon = "🎴", price = 8,
 		category = "standard", size = "jumbo", revealCount = 5, pickCount = 1,
-		description = "JUMBO: Reveals 5 random playing cards, each with a Garnish/Special/Stamp already on it, pick 1 to add to your deck for free.",
+		description = "JUMBO: Reveals 5 random dressed playing cards, pick 1 to add to your deck for free.",
+		short = "Pick 1 of 5 dressed cards for your deck",
 	},
 
 	-- ===== Mega (reveal 5, pick 2 -- two keepers from one pack) =====
@@ -105,7 +107,8 @@ Packs.Definitions = {
 	{
 		id = "standard_pack_mega", name = "Mega Standard Pack", icon = "🎴", price = 11,
 		category = "standard", size = "mega", revealCount = 5, pickCount = 2,
-		description = "MEGA: Reveals 5 random playing cards, each with a Garnish/Special/Stamp already on it, pick 2 to add to your deck for free.",
+		description = "MEGA: Reveals 5 random dressed playing cards, pick 2 to add to your deck for free.",
+		short = "Pick 2 of 5 dressed cards for your deck",
 	},
 
 	-- ===== Mixed / Grab Bag (each revealed item independently rolls its own
@@ -113,17 +116,17 @@ Packs.Definitions = {
 	{
 		id = "mixed_pack", name = "Grab Bag Pack", icon = "🎁", price = 7,
 		category = "mixed", size = "normal", revealCount = 3, pickCount = 1,
-		description = "Reveals 3 random items, each its own surprise (Patron, Recipe, or card), pick 1 to keep for free.",
+		description = "Reveals 3 random items (Patron, Recipe or card), pick 1 to keep for free.",
 	},
 	{
 		id = "mixed_pack_jumbo", name = "Jumbo Grab Bag Pack", icon = "🎁", price = 10,
 		category = "mixed", size = "jumbo", revealCount = 5, pickCount = 1,
-		description = "JUMBO: Reveals 5 random items, each its own surprise (Patron, Recipe, or card), pick 1 to keep for free.",
+		description = "JUMBO: Reveals 5 random items (Patron, Recipe or card), pick 1 to keep for free.",
 	},
 	{
 		id = "mixed_pack_mega", name = "Mega Grab Bag Pack", icon = "🎁", price = 13,
 		category = "mixed", size = "mega", revealCount = 5, pickCount = 2,
-		description = "MEGA: Reveals 5 random items, each its own surprise (Patron, Recipe, or card), pick 2 to keep for free.",
+		description = "MEGA: Reveals 5 random items (Patron, Recipe or card), pick 2 to keep for free.",
 	},
 }
 

@@ -425,6 +425,7 @@ Patrons.Definitions = {
 	{
 		id = "early_bird", name = "Early Bird", icon = "🌅", price = 8,
 		description = "x1.1 Mult for each Hand you have remaining this round after this one.",
+		short = "x1.1 Mult per Hand left after this one",
 		flavorText = "Arrives before the doors open and waits politely.",
 		effect = function(_handResult, context)
 			local remaining = context.handsRemaining or 0
@@ -466,6 +467,7 @@ Patrons.Definitions = {
 	{
 		id = "big_spender", name = "Big Spender", icon = "🤵", price = 7,
 		description = "Earn 1 Tip for each Patron at your table, at the end of each round you win.",
+		short = "Win a round: 1 Tip per Patron you own",
 		flavorText = "Buys a round of muffins for the whole table.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -536,6 +538,7 @@ Patrons.Definitions = {
 	{
 		id = "spare_change", name = "Spare Change", icon = "🧻", price = 6,
 		description = "Earn 1 Tip for every Discard you have remaining at the end of a round you win.",
+		short = "Win a round: 1 Tip per Discard left",
 		flavorText = "Finds coins under every cushion in the place.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -650,6 +653,7 @@ Patrons.Definitions = {
 	{
 		id = "rainy_day_fund", name = "Rainy Day Fund", icon = "☔", price = 6,
 		description = "Earn 1 Tip for every Hand you have remaining at the end of a round you win.",
+		short = "Win a round: 1 Tip per Hand left",
 		flavorText = "Keeps an umbrella and a few coins for stormy nights.",
 		effect = function() return nil end,
 		onRoundWin = function(state)
@@ -728,6 +732,7 @@ Patrons.Definitions = {
 	{
 		id = "tasting_menu", name = "Tasting Menu", icon = "📜", price = 7,
 		description = "+1 Mult for every different poker hand type played this run (up to +9).",
+		short = "+1 Mult per hand type played (up to +9)",
 		flavorText = "Wants to try a little bit of everything.",
 		effect = function(_handResult, context)
 			local types = 0

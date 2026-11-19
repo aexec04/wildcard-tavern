@@ -19055,7 +19055,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 		} })
 		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
 		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
-			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), Gameplay2Synergy = require(Engine.Gameplay2Synergy) })
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), AbilityText = require(Engine.AbilityText), Gameplay2Synergy = require(Engine.Gameplay2Synergy) })
 		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 		local tweens = {}
 		st.services.TweenService.Create = function(_, inst, _, goal)
@@ -28119,6 +28119,57 @@ do
 		smokeCheck(again, "tryagain")
 	end })
 end
+
+table.insert(tests, { name = "AbilityText: every Patron, Recipe, House Pass and Pack text is short, whole and splits into condition and effect", fn = function()
+	local AT = require(script.Parent.Parent.Engine.AbilityText)
+	local Recipes = require(script.Parent.Parent.Engine.Recipes)
+	local HousePasses = require(script.Parent.Parent.Engine.HousePasses)
+	local Packs = require(script.Parent.Parent.Engine.Packs)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	-- the split
+	local s = AT.split("+15 Chips if the hand contains a Pair.")
+	expectEqual(s.effect, "+15 Chips")
+	expectEqual(s.trigger, "If the hand contains a Pair")
+	local always = AT.split("+4 Mult on every hand.")
+	expectEqual(always.trigger, nil, "no condition, no trigger line")
+	expectEqual(always.effect, "+4 Mult on every hand")
+	expectEqual(AT.split("Earn 1 Tip for each Patron at your table.").trigger, "For each Patron at your table")
+	expectEqual(AT.split("").effect, "")
+	expectEqual(#AT.card("+4 Mult on every hand."), 1)
+	expectEqual(table.concat(AT.card("Adds a Sweet Garnish (+30 Chips) to 1 card (not played)."), " "), "Adds a Sweet Garnish (+30 Chips) to 1 card")
+	expectEqual(AT.card("A very long description that cannot fit", "Short one")[1], "Short one", "a short form wins")
+	expectEqual(AT.tooltip("+15 Chips if the hand contains a Pair.", "AAAAAA"), '<font color="#AAAAAA">+15</font> Chips\nIf the hand contains a Pair', "effect line, then the condition on its own line, numbers gold")
+	-- numbers go gold, the words stay plain, and the markup strips back to the same text
+	local rich = AT.gold("+15 Chips, x1.5 Mult, 50% off, 3 Tips")
+	expectEqual(AT.plain(rich), "+15 Chips, x1.5 Mult, 50% off, 3 Tips")
+	expectTrue(rich:find('<font color="#F6C446">+15</font>', 1, true) ~= nil, "plus number is gold")
+	expectTrue(rich:find('<font color="#F6C446">x1.5</font>', 1, true) ~= nil, "times number is gold")
+	expectTrue(rich:find('<font color="#F6C446">50%</font>', 1, true) ~= nil, "percent is gold")
+	expectEqual(AT.plain(AT.gold("Pairs and Flushes")), "Pairs and Flushes", "no numbers, nothing wrapped")
+	-- the registries
+	local lists = {
+		{ "Patron", Patrons.Definitions },
+		{ "House Recipe", Recipes.HouseRecipes },
+		{ "Menu Recipe", Recipes.MenuRecipes },
+		{ "Secret Recipe", Recipes.SecretRecipes },
+		{ "House Pass", HousePasses.Definitions },
+		{ "Pack", Packs.Definitions },
+	}
+	local seen, bad = 0, {}
+	for _, entry in ipairs(lists) do
+		for _, def in ipairs(entry[2]) do
+			if def.description then
+				seen = seen + 1
+				local problems = AT.check(def.description, def.short)
+				if #problems > 0 then
+					bad[#bad + 1] = entry[1] .. " " .. tostring(def.id) .. ": " .. table.concat(problems, "; ") .. " -- " .. def.description
+				end
+			end
+		end
+	end
+	expectEqual(#bad, 0, "\n" .. table.concat(bad, "\n"))
+	expectTrue(seen >= 150, "the registries were read, saw " .. seen)
+end })
 
 table.insert(tests, { name = "Celebration: coins count up in at most 12 steps, banner 0.4 s, Patron hops in order, 40 suit confetti in 2.5 s, title overshoot, gentle defeat, nothing in calm mode", fn = function()
 	local C = require(script.Parent.Parent.Engine.Celebration)

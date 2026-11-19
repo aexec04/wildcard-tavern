@@ -45,6 +45,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local ChoiceRarity = require(Engine:WaitForChild("ChoiceRarity"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
+local AbilityText = require(Engine:WaitForChild("AbilityText"))
 local RarityFrame = require(script.Parent.RarityFrame)
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local ClientSettings = require(script.Parent.ClientSettings)
@@ -516,8 +517,10 @@ function ShopCards.new(deps)
 		-- The rules text lives in the shared hover tooltip (name on the first line, then the effect).
 		local tipText = spec.line or spec.description
 		if addTooltip and tipText and tipText ~= "" then
+			-- effect first, the condition on its own line, numbers in gold (Engine/AbilityText); a pack's own line stays as written
+			local body = spec.line and tipText or AbilityText.tooltip(tipText)
 			addTooltip(hit, function()
-				return (spec.name or "") .. "\n" .. tipText
+				return (spec.name or "") .. "\n" .. body
 			end, spec.tipAlign, banner)
 		end
 

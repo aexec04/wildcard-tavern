@@ -13,6 +13,7 @@
 
 local Patrons = require(script.Parent.Patrons)
 local Synergy = require(script.Parent.Synergy)
+local AbilityText = require(script.Parent.AbilityText)
 
 local M = {}
 
@@ -45,6 +46,9 @@ function M.content(id, name, description, rarity)
 		name = tostring(name or ""),
 		rarity = M.RARITY_WORDS[r] or "Common",
 		effect = M.sentence(description),
+		-- the tooltip body: effect line, then the condition on its own line; `bodyRich` has the numbers in gold
+		body = AbilityText.plain(AbilityText.tooltip(M.sentence(description))),
+		bodyRich = AbilityText.tooltip(M.sentence(description)),
 		tags = M.tagsOf(id),
 	}
 end

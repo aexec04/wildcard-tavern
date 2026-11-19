@@ -115,7 +115,7 @@ function render(root, cards, index, info, calm, v2)
 		return ok and b.Y or size * 2
 	end
 	local nameH = height(content.name, 20, Enum.Font.Merriweather) + 2
-	local effH = height(content.effect, 16, Enum.Font.GothamMedium) + 2
+	local effH = height(content.body or content.effect, 16, Enum.Font.GothamMedium) + 2
 	local tagText = ""
 	for i, t in ipairs(content.tags) do tagText = tagText .. (i > 1 and "   " or "") .. t.icon .. " " .. t.word end
 	local setText = PatronTips.setLine(ownedIds, index)
@@ -208,7 +208,11 @@ function render(root, cards, index, info, calm, v2)
 	pc.Parent = pill
 	pill.Parent = body
 	y = y + 24
-	label(body, content.effect, 16, Enum.Font.GothamMedium, CREAM, y, effH)
+	local effLabel = label(body, content.body or content.effect, 16, Enum.Font.GothamMedium, CREAM, y, effH)
+	if content.bodyRich and effLabel then
+		effLabel.RichText = true -- numbers in gold, the condition on its own line
+		effLabel.Text = content.bodyRich
+	end
 	y = y + effH
 	if tagText ~= "" then
 		label(body, tagText, 15, Enum.Font.GothamBold, GOLD, y + 2, 20)

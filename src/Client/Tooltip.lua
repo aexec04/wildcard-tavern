@@ -100,7 +100,10 @@ function Tooltip.new(screenGui)
 				side = "right" -- every left HUD tooltip opens beside the panel, never over its controls
 			end
 			if require(script.Parent.ModalStage).blocks(button) then return end -- a modal is open: nothing behind it reacts
-			label.Text = (type(text) == "function") and text() or text
+			local shown = (type(text) == "function") and text() or text
+			-- only text that carries our gold number markup (Engine/AbilityText.gold) is rich; every other tip stays plain
+			label.RichText = type(shown) == "string" and shown:find('<font color="#', 1, true) ~= nil
+			label.Text = shown
 			if label.Text == "" then T.hide() return end -- never show an empty outlined box
 			-- AutomaticSize settles a frame late, so place now and again next frame.
 			local lastLog = false -- one Studio warn per hover
