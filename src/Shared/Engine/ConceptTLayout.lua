@@ -29,8 +29,8 @@ M.frac = {
 	round = { 0.375, 0.006, 0.621, 0.084 },
 	gear = { 0.919, 0.012, 0.984, 0.107 },
 	patrons = { 0.185, 0.162, 0.810, 0.404 },
-	stage = { 0.350, 0.540, 0.650, 0.672 },
-	hand = { 0.195, 0.675, 0.780, 0.875 }, -- measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
+	stage = { 0.350, 0.530, 0.650, 0.646 }, -- ends above the hand (raised in pass 5)
+	hand = { 0.195, 0.651, 0.780, 0.851 }, -- raised 25 px in pass 5 so the cards end above the buttons; measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
 	play = { 0.300, 0.875, 0.530, 0.985 },
 	discard = { 0.537, 0.882, 0.689, 0.980 },
 	deck = { 0.790, 0.630, 0.990, 0.940 }, -- the ct_deck_a cut canvas (307 x 317) at its reference origin (1213, 645), so the book is its full reference size (about 261 x 230 of the frame)
@@ -106,7 +106,7 @@ function M.rectsIn(w, h)
 end
 
 -- the fanned hand: cards overlap in a tight arc, left leans -12, right +12, the middle stands highest
-M.FAN = { deg = 12, dipFrac = 0.034, tuckFrac = 0.006 }
+M.FAN = { deg = 11, dipFrac = 0.028, tuckFrac = 0.006 }
 
 function M.fan(i, n)
 	if n <= 1 then return 0, 0 end

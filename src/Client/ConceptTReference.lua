@@ -175,10 +175,10 @@ function M.show()
 	-- positions measured from the reference: name centre y 0.571, total centre y 0.630, rim centre y 0.646, rim 0.206 wide
 	local st = r.stage
 	local cx = st.x + st.w / 2
-	local ringW = math.floor(size.X * 0.27)
-	local ringH = math.floor(ringW * 340 / 1024)
+	local ringW = math.floor(size.X * 426 / 1536) -- the reference ellipse is 426 x 132 on 1536 x 1024
+	local ringH = math.floor(size.Y * 132 / 1024)
 	local ring = img(gui, "ct_glow_ring", 2)
-	ring.Position = UDim2.fromOffset(math.floor(cx - ringW / 2), math.floor(size.Y * 0.646 - ringH * 0.66))
+	ring.Position = UDim2.fromOffset(math.floor(cx - ringW / 2), math.floor(size.Y * 0.646 - ringH / 2))
 	ring.Size = UDim2.fromOffset(ringW, ringH)
 	ring.Parent = gui
 	local nameH, totH = math.floor(size.Y * 0.05), math.floor(size.Y * 0.09)
@@ -193,7 +193,7 @@ function M.show()
 	local CardFace = require(script.Parent.CardFace)
 	local FaceArt = require(Engine:WaitForChild("CardFaceArt"))
 	local hand = r.hand
-	local cw = math.floor(size.X * 0.098)
+	local cw = math.floor(size.X * 0.086)
 	local ch = math.floor(cw * 1.43)
 	local n = #S.hand
 	local step = (hand.w - cw) / (n - 1)

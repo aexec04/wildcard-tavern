@@ -26630,13 +26630,13 @@ table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pil
 	local rot1, dip1 = L.fan(1, 7)
 	local rot7, dip7 = L.fan(7, 7)
 	local rot4, dip4 = L.fan(4, 7)
-	expectTrue(rot1 == -12 and rot7 == 12 and rot4 == 0, "rotation runs -12 to +12")
+	expectTrue(rot1 == -11 and rot7 == 11 and rot4 == 0, "rotation runs -11 to +11")
 	expectTrue(dip4 == 0 and dip1 == 1 and dip7 == 1, "the middle is lifted, the ends are lowest")
 	local prev = -99
 	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
 	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
 	local prof = L.fanProfile(1000)
-	expectTrue(prof.deg == 12 and prof.dip == 34 and prof.endScale == 1, "fan profile for the real hand")
+	expectTrue(prof.deg == 11 and prof.dip == 28 and prof.endScale == 1, "fan profile for the real hand")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
 		local r = L.rects(size[1], size[2])
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
