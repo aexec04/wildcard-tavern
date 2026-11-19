@@ -28421,4 +28421,40 @@ table.insert(tests, { name = "Rarity pill: native rounded pill, 4.5:1 text, 22 p
 	end
 end })
 
+table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style sheet, 4.5:1 text, two button kinds, still in Calm mode, no images, no Transparency gradients", fn = function()
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	assert(S.rgb("plateFill")[1] == 40 and S.rgb("green")[1] == 70 and S.rgb("brown")[1] == 90, "plate, green and brown match RoundSelect")
+	assert(S.COLORS.goldTrim[1] == 200 and S.STROKE.plate == 2 and S.STROKE.button == 1.5, "gold trim numbers match polishPanel and polishButton")
+	for kind, k in pairs(S.BUTTONS) do
+		local fill = S.rgb(k.fill)
+		local top = { fill[1] + (255 - fill[1]) * 0.06, fill[2] + (255 - fill[2]) * 0.06, fill[3] + (255 - fill[3]) * 0.06 }
+		assert(S.contrast(S.rgb(k.text), fill) >= 4.5 and S.contrast(S.rgb(k.text), top) >= 4.5, kind .. " button text reads at 4.5:1, gradient top included")
+		assert(k.height >= S.SIZES.minTouch - 4 and k.height >= 40, kind .. " button is a real touch target")
+	end
+	assert(S.BUTTONS.primary.height >= S.SIZES.minTouch, "the primary button is at least 44 px")
+	assert(S.contrast(S.rgb("cream"), S.rgb("plateFill")) >= 4.5, "cream title on the plate")
+	assert(S.contrast(S.rgb("gold"), S.rgb("plateDark")) >= 4.5, "gold number on the Target box")
+	assert(S.contrast(S.rgb("creamChip"), S.PILLS.wood) >= 4.5, "pill text on wood")
+	local calm, live = S.feel(true), S.feel(false)
+	assert(calm.lift == 0 and calm.press == 1 and calm.seconds == 0, "Calm mode: no lift, no squeeze, no time")
+	assert(live.lift > 0 and live.press < 1 and live.seconds > 0, "live feel moves")
+	assert(S.TEXT.min >= 14 and S.TEXT.button >= 14 and S.TEXT.box >= 14, "text sizes of 14 or more")
+	local w, h = S.plateSize(1, 1)
+	assert(w >= 20 and h >= 20, "a plate never collapses below its corner radius")
+	assert(not pcall(S.rgb, "nope"), "unknown color is an error")
+	if io then
+		local fh = io.open("src/Client/TavernKit.lua", "r")
+		if fh then
+			local src = fh:read("*a"); fh:close()
+			assert(not src:find("ImageLabel", 1, true) and not src:find("rbxassetid", 1, true), "the kit draws no images")
+			assert(not src:find("%.Transparency%s*=%s*NumberSequence") and not src:find("g%.Transparency"), "gradients are Color only")
+			for _, fn in ipairs({ "plate", "primaryButton", "secondaryButton", "pill", "goldBox", "title", "feel" }) do
+				assert(src:find("function TavernKit." .. fn, 1, true), "TavernKit." .. fn .. " exists")
+			end
+			assert(src:find("reduceShake", 1, true) and src:find('"fast"', 1, true), "feel is skipped in Calm mode and Fast speed")
+			assert(not src:find("[\128-\255]"), "ASCII only")
+		end
+	end
+end })
+
 return tests
