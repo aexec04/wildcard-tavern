@@ -28708,6 +28708,18 @@ table.insert(tests, { name = "TavernScreens: scene art exists for each screen, a
 	assert(not fx:find("[\128-\255]"), "ASCII only")
 end })
 
+table.insert(tests, { name = "TavernScreens layers: scene and decor sit below every control, Next Round is lifted above them", fn = function()
+	local T = require(script.Parent.Parent.Engine.TavernScreens)
+	local L = T.LAYERS
+	assert(L.scene < L.decor and L.decor < L.controls and L.controls >= 10, "scene < decor < controls, controls at 10 or more")
+	assert(T.DECOR_NAMES.TavernScene and T.DECOR_NAMES.SetSkinBorder and T.DECOR_NAMES.InnerRim)
+	if not io then return end
+	local f = io.open("src/Client/TavernScreens.lua", "r"); if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("img.ZIndex = Screens.LAYERS.scene", 1, true), "the scene takes its layer from the table")
+	assert(src:find("pcall(M.layer, screenFrame, screen)", 1, true), "apply layers the screen")
+end })
+
 table.insert(tests, { name = "Gameplay v2 and shop polish round three: corner disc, Next Round contrast, banner spot, score stack, bigger offer cards, no overlaps", fn = function()
 	local E = script.Parent.Parent.Engine
 	local T, S, RB, L = require(E.PatronTierStyle), require(E.TavernScreens), require(E.RewardBanner), require(E.Gameplay2Layout)

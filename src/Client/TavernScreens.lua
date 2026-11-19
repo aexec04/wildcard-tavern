@@ -31,12 +31,45 @@ function M.backdrop(screenFrame, screen)
 		img.Active = false
 		img.Size = UDim2.fromScale(1, 1)
 		img.ScaleType = Enum.ScaleType.Crop
-		img.ZIndex = 0
+		img.ZIndex = Screens.LAYERS.scene
 		img.Parent = screenFrame
 	end
 	img.Image = TableArt[s.scene] or ""
 	img.ImageColor3 = Color3.fromRGB(s.tint[1], s.tint[2], s.tint[3])
 	img.Visible = Flags.gameplay() == 2 -- the v1 archive keeps its own look
+end
+
+-- pin one decor piece to its layer; a later writer (SetSkin puts its border at the element's own ZIndex) is put back
+local function pin(inst, z)
+	if not (inst and inst:IsA("GuiObject")) then return end
+	inst.ZIndex = z
+	if inst:GetAttribute("LayerPinned") then return end
+	inst:SetAttribute("LayerPinned", true)
+	inst:GetPropertyChangedSignal("ZIndex"):Connect(function()
+		if inst.ZIndex ~= z then inst.ZIndex = z end
+	end)
+end
+
+-- scene, border and rim below, the named buttons (and everything inside them) at LAYERS.controls or higher
+function M.layer(screenFrame, screen)
+	local s = Screens.SCREENS[screen]
+	if not (s and screenFrame) then return end
+	local L = Screens.LAYERS
+	for _, child in ipairs(screenFrame:GetChildren()) do
+		if child.Name == "TavernScene" then pin(child, L.scene)
+		elseif Screens.DECOR_NAMES[child.Name] then pin(child, L.decor) end
+	end
+	for name in pairs(s.buttons) do
+		local b = screenFrame:FindFirstChild(name, true)
+		if b and b:IsA("GuiObject") and b.ZIndex < L.controls and not b:GetAttribute("LayerLifted") then
+			b:SetAttribute("LayerLifted", true)
+			local delta = L.controls - b.ZIndex
+			b.ZIndex = b.ZIndex + delta
+			for _, d in ipairs(b:GetDescendants()) do
+				if d:IsA("GuiObject") then d.ZIndex = d.ZIndex + delta end
+			end
+		end
+	end
 end
 
 function M.skin(screenFrame, screen)
@@ -76,6 +109,7 @@ end
 function M.apply(screenFrame, screen)
 	pcall(M.backdrop, screenFrame, screen)
 	M.skin(screenFrame, screen)
+	pcall(M.layer, screenFrame, screen)
 	if screen == "counter" and screenFrame and Flags.gameplay() == 2 then
 		pcall(M.emphasizeNext, screenFrame:FindFirstChild("NextRound", true))
 	end

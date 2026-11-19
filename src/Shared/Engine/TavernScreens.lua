@@ -32,6 +32,11 @@ M.NEXT_ROUND = { fill = { 62, 148, 70 }, hover = { 84, 176, 92 }, stroke = { 18,
 -- the Patron tooltip plate: TavernKit plate colours (Engine/TavernStyle) instead of its own brown
 M.TOOLTIP = { fill = "plateFill", trim = "goldTrim", trimThickness = 2 }
 
+-- ZIndex layers under ZIndexBehavior.Global: the picture and the set's border and rim sit BELOW every control, so nothing can tint
+-- a button (Next Round read as dim green because the scene, added after it at the same ZIndex 6, drew on top of it)
+M.LAYERS = { scene = 4, decor = 5, controls = 10 }
+M.DECOR_NAMES = { SetSkinBorder = true, InnerRim = true, TavernScene = true }
+
 function M.kindOf(screen, name)
 	local s = M.SCREENS[screen]
 	return s and s.buttons[name] or nil
