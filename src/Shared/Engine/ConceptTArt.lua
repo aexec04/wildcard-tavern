@@ -14,7 +14,7 @@ return {
 	["ct_deck"] = "rbxassetid://125832514941458",
 	["ct_deck_a"] = "rbxassetid://104016663067228",
 	["ct_deck_count"] = "rbxassetid://113254156108727",
-	["ct_glow_ring"] = "rbxassetid://133797726500176",
+	["ct_glow_ring"] = "rbxassetid://101789961329741",
 	["ct_hud_coins"] = "rbxassetid://82390083856080",
 	["ct_hud_gear"] = "rbxassetid://131053291122426",
 	["ct_hud_hands"] = "rbxassetid://96506683623786",

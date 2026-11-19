@@ -93,16 +93,26 @@ function M.show()
 	screen.ResetOnSpawn = false
 	screen.DisplayOrder = 1000
 	screen.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	-- black bars everywhere, the scene in the largest centred 3:2 frame (tools/pixel_match.py crops the bars off)
-	local bars = Instance.new("Frame")
-	bars.BackgroundColor3 = Color3.new(0, 0, 0)
-	bars.BorderSizePixel = 0
-	bars.Size = UDim2.fromScale(1, 1)
-	bars.Parent = screen
-	local fr = Layout.frameRect(screen.AbsoluteSize.X, screen.AbsoluteSize.Y)
+	-- the scene in the largest centred 3:2 frame; four black bar frames only OUTSIDE it (a full-screen black frame hid the room)
+	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local sw, sh = screen.AbsoluteSize.X, screen.AbsoluteSize.Y
+	local fr = Layout.frameRect(sw, sh)
+	for i, b in ipairs({
+		{ 0, 0, sw, fr.y }, { 0, fr.y + fr.h, sw, sh - fr.y - fr.h },
+		{ 0, fr.y, fr.x, fr.h }, { fr.x + fr.w, fr.y, sw - fr.x - fr.w, fr.h },
+	}) do
+		local bar = Instance.new("Frame")
+		bar.Name = "Bar" .. i
+		bar.BackgroundColor3 = Color3.new(0, 0, 0)
+		bar.BorderSizePixel = 0
+		bar.Position = UDim2.fromOffset(b[1], b[2])
+		bar.Size = UDim2.fromOffset(math.max(0, b[3]), math.max(0, b[4]))
+		bar.Parent = screen
+	end
 	local gui = Instance.new("Frame")
 	gui.Name = "Frame3x2"
-	gui.BackgroundTransparency = 1
+	gui.BackgroundColor3 = Color3.fromRGB(92, 36, 0)
+	gui.BackgroundTransparency = 0
 	gui.BorderSizePixel = 0
 	gui.ClipsDescendants = true
 	gui.Position = UDim2.fromOffset(fr.x, fr.y)
@@ -112,7 +122,9 @@ function M.show()
 	local r = Layout.rects(size.X, size.Y)
 	local S = M.SCENE
 
-	at(img(gui, "ct_table_room", 0), { x = 0, y = 0, w = size.X, h = size.Y })
+	local room = img(gui, "ct_table_room", 1); room.Name = "Room"
+	at(room, { x = 0, y = 0, w = size.X, h = size.Y })
+	print(string.format("[ConceptTReference] room abs=%d,%d size=%dx%d image=%s", room.AbsolutePosition.X, room.AbsolutePosition.Y, room.AbsoluteSize.X, room.AbsoluteSize.Y, room.Image))
 	at(img(gui, "ct_hud_coins", 2), r.coins); at(label(gui, tostring(S.coins), 20, 3), Layout.textRect(r.coins, "coins"))
 	at(img(gui, "ct_hud_hands", 2), r.hands); at(label(gui, tostring(S.hands), 20, 3), Layout.textRect(r.hands, "hands"))
 	at(img(gui, "ct_hud_round", 2), r.round)
@@ -161,17 +173,19 @@ function M.show()
 	ring.AnchorPoint = Vector2.new(0.5, 0.5)
 	ring.Position = UDim2.fromOffset(st.x + st.w / 2, st.y + math.floor(st.h * 0.74))
 	ring.Size = UDim2.fromOffset(ringW, math.floor(ringW / 3))
+	ring.Parent = gui
 	local nm = label(gui, S.stage.name, 22, 4); at(nm, { x = st.x, y = st.y, w = st.w, h = math.floor(st.h * 0.3) })
 	local tot = label(gui, S.stage.total, 54, 4, Color3.fromRGB(246, 196, 70)); at(tot, { x = st.x, y = st.y + math.floor(st.h * 0.3), w = st.w, h = math.floor(st.h * 0.7) })
 
 	-- the fanned hand of seven, drawn through the game's own card face
 	local CardFace = require(script.Parent.CardFace)
 	local hand = r.hand
-	local cw = math.floor(size.X * 0.0977)
+	local cw = math.floor(size.X * 0.085)
 	local ch = math.floor(cw * 1.43)
 	local n = #S.hand
 	local step = (hand.w - cw) / (n - 1)
-	local baseY = hand.y + hand.h + math.floor(size.Y * 0.03)
+	-- the lowest (outer) card bottoms stop a hair into the button row, so Play Hand and Discard stay readable
+	local baseY = hand.y + hand.h + math.floor(size.Y * 0.004) - math.floor(size.Y * Layout.FAN.dipFrac)
 	for i, c in ipairs(S.hand) do
 		local rot, dip = Layout.fan(i, n)
 		local b = Instance.new("TextButton")
