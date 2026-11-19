@@ -27992,6 +27992,132 @@ do
 		expectTrue(smokePlay(state) ~= nil, "a hand played after the continue")
 		expectTrue(state.roundOver and not state.runOver, "the revived round is cleared")
 	end })
+
+	-- A bot that walks the screens in the server's order (roundSelect, playing, shop, gameover), mirrors the server's phase
+	-- changes and checks state at every step: Target, Tips, Patron seats, the Boss Round, Night cleared, Run Over, Try Again.
+	table.insert(tests, { name = "Smoke bot: Run Setup, Night 1 table, Counter buy and sell, Boss Round, Night cleared, Run Over and Try Again", fn = function()
+		local Gameplay2Moments = require(script.Parent.Parent.Engine.Gameplay2Moments)
+		local seed = 21
+		math.randomseed(seed)
+		local rng = SeededRng.new(seed)
+		-- Run Setup: stake and deck variant picked, then the run is built
+		local state = RunState.new({ stakeId = 1, deckVariantId = "standard" }, rng)
+		local phase = "roundSelect"
+		expectEqual(state.night, 1, "setup starts on Night 1")
+		expectEqual(state.round, 1, "setup starts on round 1")
+		expectEqual(#state.ownedPatrons, 0, "no Patrons before the Counter")
+		expectFalse(state.runOver, "a new run is alive")
+		expectTrue(RunState.patronSlotLimit(state) >= 1, "there is at least one Patron seat")
+		smokeCheck(state, "setup")
+
+		local function enterRound(label)
+			phase = "playing"
+			expectEqual(state.targetScore, RunState.targetForRound(state, state.round), label .. ": Target is the one Round Select showed")
+			expectTrue(state.targetScore > 0, label .. ": Target above zero")
+			expectEqual(state.handsRemaining, state.config.handsPerRound, label .. ": full hands")
+			expectFalse(state.roundOver, label .. ": round open")
+			expectTrue(RunState.phaseAllowsCardActions(phase) and not RunState.phaseAllowsShopActions(phase), label .. ": card actions only")
+			smokeCheck(state, label)
+		end
+
+		-- Night 1 table: round 1 at its real Target, the bot clears it by lowering the Target after the Target check
+		enterRound("n1r1")
+		local night1Targets = { state.targetScore }
+		local bossSeen = false
+		local clearedRounds = 0
+		local soldOnce, boughtOnce = false, false
+		local guard = 0
+		while state.night == 1 and not state.runOver and guard < 20 do
+			guard = guard + 1
+			local wasBoss = RunState.isBossRound(state)
+			state.targetScore = 1 -- the Target check above used the real one; the bot now makes the round easy to clear
+			local prev = { phase = "playing", roundScore = 0, tips = state.tips, targetScore = state.targetScore, bossModifier = state.bossModifier,
+				round = state.round, night = state.night, nightCap = state.config.nightCap }
+			expectTrue(smokePlay(state) ~= nil, "a hand played in round " .. state.round)
+			expectTrue(state.roundOver and not state.runOver, "round " .. state.round .. " cleared")
+			clearedRounds = clearedRounds + 1
+			phase = "shop"
+			expectTrue(RunState.phaseAllowsShopActions(phase) and not RunState.phaseAllowsCardActions(phase), "shop actions only at the Counter")
+			expectTrue(state.lastRoundReward >= 0, "the round paid a whole, non negative reward")
+			expectTrue(smokeWhole(state.lastRoundReward), "reward is whole")
+			local now = { phase = phase, roundScore = state.roundScore, tips = state.tips }
+			local lines = Gameplay2Moments.clearLines(prev, now)
+			expectTrue(lines ~= nil, "a cleared round gives a banner")
+			if wasBoss and state.round == state.config.roundsPerNight then
+				bossSeen = true
+				expectTrue(lines.night ~= nil, "clearing the Boss Round is a Night cleared moment")
+				expectEqual(lines.night.title, "Night cleared", "Night 1 is not the run's end")
+				expectEqual(lines.night.button, "Continue")
+			else
+				expectTrue(lines.night == nil, "an ordinary round is not a Night cleared moment")
+			end
+			smokeCheck(state, "cleared")
+
+			-- the Counter: buy one Patron, sell it back for half, buy again
+			local offers = Shop.rollOffers(state)
+			expectTrue(type(offers) == "table" and type(offers.patrons) == "table", "Counter offers")
+			if not soldOnce then
+				for _, offer in ipairs(offers.patrons) do
+					local price = RunState.patronPrice(state, offer)
+					if state.tips >= price and #state.ownedPatrons < RunState.patronSlotLimit(state) then
+						local tips, seats = state.tips, #state.ownedPatrons
+						local ok = RunState.buyPatron(state, offer.id)
+						expectTrue(ok, "buy " .. offer.id)
+						boughtOnce = true
+						expectEqual(state.tips, tips - price, "buying takes the price")
+						expectEqual(#state.ownedPatrons, seats + 1, "a seat is taken")
+						local sold, refund = RunState.sellPatron(state, offer.id)
+						expectTrue(sold, "sell " .. offer.id)
+						expectEqual(state.tips, tips - price + refund, "selling pays the refund")
+						expectEqual(#state.ownedPatrons, seats, "the seat is free again")
+						expectFalse(RunState.sellPatron(state, offer.id), "a sold Patron cannot be sold twice")
+						soldOnce = true
+						break
+					end
+				end
+			end
+			smokeCheck(state, "counter")
+			RunState.advanceToNextRound(state)
+			phase = "playing"
+			if state.night == 1 then
+				expectTrue(state.round == clearedRounds + 1, "the round counter moved on by one")
+				night1Targets[#night1Targets + 1] = RunState.targetForRound(state, state.round)
+				enterRound("n1r" .. state.round)
+			end
+		end
+		expectTrue(bossSeen, "Night 1 ended with its Boss Round")
+		expectEqual(clearedRounds, state.config.roundsPerNight, "every round of Night 1 was cleared")
+		expectTrue(night1Targets[3] > night1Targets[1], "the Boss Round Target is above round 1")
+		expectEqual(state.night, 2, "Night 2 follows the Boss Round")
+		expectEqual(state.round, 1, "Night 2 starts at round 1")
+		expectTrue(boughtOnce and soldOnce, "the bot bought and sold at the Counter")
+		smokeCheck(state, "night2")
+
+		-- lose Night 2 round 1: Run Over
+		state.targetScore = 1e12
+		local loops = 0
+		while not state.runOver and loops < 30 do
+			loops = loops + 1
+			smokePlay(state)
+		end
+		expectTrue(state.runOver, "the run ends")
+		phase = "gameover"
+		expectFalse(RunState.phaseAllowsCardActions(phase) or RunState.phaseAllowsShopActions(phase), "no actions on Run Over")
+		expectEqual(state.night, 2, "Run Over keeps the Night it ended on")
+		expectTrue(Gameplay2Moments.clearLines({ phase = "playing", roundScore = 0, tips = 0, targetScore = 1e12 },
+			{ phase = "gameover", roundScore = state.roundScore, tips = state.tips }) == nil, "no clear banner on a loss")
+		smokeCheck(state, "gameover")
+
+		-- Try Again: a fresh run from setup, nothing carried over
+		local again = RunState.new({ stakeId = 1, deckVariantId = "standard" }, SeededRng.new(seed + 1))
+		expectFalse(again.runOver, "the new run is alive")
+		expectEqual(again.night, 1)
+		expectEqual(again.round, 1)
+		expectEqual(#again.ownedPatrons, 0, "no Patrons carried over")
+		expectEqual(again.targetScore, RunState.targetForRound(again, 1), "Target back at round 1")
+		expectEqual(again.targetScore, night1Targets[1], "same opening Target as the first run")
+		smokeCheck(again, "tryagain")
+	end })
 end
 
 table.insert(tests, { name = "Celebration: coins count up in at most 12 steps, banner 0.4 s, Patron hops in order, 40 suit confetti in 2.5 s, title overshoot, gentle defeat, nothing in calm mode", fn = function()
