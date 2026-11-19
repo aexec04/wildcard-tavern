@@ -28616,7 +28616,7 @@ table.insert(tests, { name = "Guided hint: the plate sits between the Patron pil
 	end
 	-- the hint points at the card until one is picked, then at Play Hand, and ends after the first hand
 	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 1, 2, false) == nil)
-	assert(G.hint(true, 0, 1, false).target == "card" and G.hint(true, 0, 0, false).cards == 2, "two cards are asked for before Play Hand")
+	assert(G.hint(true, 0, 1, false).target == "play" and G.hint(true, 0, 0, false).cards == 2, "Play Hand is the target as soon as a card is picked")
 	assert(G.hint(true, 0, 2, false).line1 == "Play your hand")
 end })
 table.insert(tests, { name = "Guided hint on the v2 table: plate clear of the Patron seats, hand and buttons, Skip plate 44 px, on screen and clear of Play Hand at five sizes", fn = function()
@@ -30629,6 +30629,24 @@ table.insert(tests, { name = "Tablet and phone pass: the table, Counter and Run 
 		for i, rc in ipairs(ro.more) do expectTrue(rc.h * ro.scale >= 44, "Run Over button " .. i .. " is at least 44 px tall after scaling (" .. string.format("%.1f", rc.h * ro.scale) .. ") at " .. tag) end
 		expectTrue(ro.panel.w * ro.scale <= W and ro.panel.h * ro.scale <= H, "Run Over panel fits the window at " .. tag)
 	end
+end })
+
+table.insert(tests, { name = "First impression: at most 6 taps from the Menu to the first played hand, one primary plate per step, no confirm screen, Play Hand is the hint target once a card is picked", fn = function()
+	local F = require(script.Parent.Parent.Engine.FirstImpression)
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	expectTrue(F.tapsToFirstHand(2) <= F.MAX_TAPS, "the guided hand (2 cards) fits the budget, got " .. F.tapsToFirstHand(2))
+	expectTrue(F.tapsToFirstHand(1) < F.tapsToFirstHand(2), "fewer cards, fewer taps")
+	expectEqual(#F.confirmSteps(), 0, "no confirm only screen on the way")
+	local ids = {}
+	for _, st in ipairs(F.PATH) do
+		ids[st.id] = true
+		expectTrue(type(st.plate) == "string" and #st.plate > 0, st.id .. " has one primary plate")
+	end
+	expectTrue(ids.menu and ids.run_setup and ids.night_map and ids.play, "the path names every screen")
+	expectEqual(G.hint(true, 0, 0, false).target, "card", "no card picked: point at the cards")
+	expectEqual(G.hint(true, 0, 1, false).target, "play", "one card picked: point at Play Hand")
+	expectEqual(G.hint(true, 0, 3, false).target, "play", "more cards: still Play Hand")
+	expectEqual(G.hint(true, 0, 1, true).pulse, false, "Calm mode: no pulse")
 end })
 
 return tests

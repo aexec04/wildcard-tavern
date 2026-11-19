@@ -31,7 +31,7 @@ end
 
 function M.hint(guided, handsPlayed, selectedCount, calm)
 	if not guided or (tonumber(handsPlayed) or 0) >= 1 then return nil end
-	if (tonumber(selectedCount) or 0) < 2 then
+	if (tonumber(selectedCount) or 0) < 1 then -- one picked card is already a legal hand: from then on Play Hand is the one thing to press
 		return { line1 = "Tap two cards to pick them.", line2 = "You can pick up to five.", target = "card", cards = 2, pulse = not calm }
 	end
 	return { line1 = "Play your hand", line2 = "Your best hand scores.", target = "play", pulse = not calm }
