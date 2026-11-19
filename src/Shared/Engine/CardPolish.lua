@@ -13,7 +13,7 @@ local CardPolish = {}
 
 CardPolish.MAX_TILT = 1
 CardPolish.DECK_STEPS = 4
-CardPolish.REST_ALPHA = 0.25
+CardPolish.REST_ALPHA = 0.30
 
 local function clamp(x, lo, hi) return math.max(lo, math.min(hi, x)) end
 

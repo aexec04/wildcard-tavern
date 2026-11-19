@@ -72,7 +72,7 @@ local function makeLabel(parent, name, text, color, size, position, anchor, xAli
 	label.Parent = parent
 	-- TextScaled alone shrank the corner index to about 8 px; keep it readable
 	local limit = Instance.new("UITextSizeConstraint")
-	limit.MinTextSize = 15
+	limit.MinTextSize = 18
 	limit.MaxTextSize = 60
 	limit.Parent = label
 	return label

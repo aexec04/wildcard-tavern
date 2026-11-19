@@ -20623,11 +20623,11 @@ table.insert(tests, { name = "CardPolish: 0.25 alpha core shadow, bigger when se
 	local rest, sel = CP.shadow(false), CP.shadow(true)
 	expectEqual(#rest.layers, 3, "three stacked layers")
 	local core = rest.layers[3]
-	expectTrue(math.abs((1 - core.transparency) - 0.25) < 1e-9, "resting core shadow is 0.25 alpha")
+	expectTrue(math.abs((1 - core.transparency) - 0.30) < 1e-9, "resting core shadow is 0.30 alpha")
 	for i = 1, 3 do
 		local a, b = rest.layers[i], sel.layers[i]
 		expectTrue(b.w > a.w and b.h > a.h and b.dy > a.dy, "selected layer " .. i .. " is larger and lower")
-		expectTrue(a.transparency >= 0.75 - 1e-9 and a.transparency <= 1 and b.transparency >= 0.75 - 1e-9 and b.transparency <= 1, "layer alpha never above 0.25")
+		expectTrue(a.transparency >= 0.70 - 1e-9 and a.transparency <= 1 and b.transparency >= 0.70 - 1e-9 and b.transparency <= 1, "layer alpha never above 0.30")
 	end
 	expectEqual(CP.deckSteps(52, 52), 4, "full deck")
 	expectEqual(CP.deckSteps(40, 52), 4, "77 percent")
@@ -24848,7 +24848,7 @@ table.insert(tests, { name = "Play table cohesion: card index text has a 15 px f
 	local function slurp(path) local f = io and io.open and io.open(path, "r"); if not f then return nil end local x = f:read("*a"); f:close(); return x end
 	local face, pop = slurp("src/Client/CardFace.lua"), slurp("src/Client/ScorePopup.lua")
 	if not (face and pop) then return end
-	expectTrue(face:find("MinTextSize = 15", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 15")
+	expectTrue(face:find("MinTextSize = 18", 1, true) ~= nil, "CardFace labels carry a UITextSizeConstraint with MinTextSize 18")
 	expectTrue(pop:find("PlayedLane", 1, true) ~= nil, "ScorePopup lands cards through PlayedLane")
 	expectTrue(pop:find("Color3.fromRGB(60, 130, 235)", 1, true) == nil and pop:find("Color3.fromRGB(225, 55, 55)", 1, true) == nil, "no saturated flat blue and red on the readout")
 end })
@@ -30317,7 +30317,7 @@ table.insert(tests, { name = "CardLook: selected cards wear a thin warm gold edg
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local src = f:read("a"); f:close(); return src end
 	local face = read("src/Client/CardFace.lua")
-	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 15", 1, true), "CardLook mirrors the CardFace index box and floor")
+	assert(face:find("UDim2.fromScale(0.36, 0.18)", 1, true) and face:find("MinTextSize = 18", 1, true), "CardLook mirrors the CardFace index box and floor")
 	assert(read("src/Client/init.client.lua"):find('WaitForChild("CardLook")', 1, true), "the hub draws the selection edge from CardLook")
 	local pal = read("src/Client/Palette.lua")
 	assert(pal:find("cardSelected", 1, true), "palette unchanged")
