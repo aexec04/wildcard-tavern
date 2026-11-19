@@ -28457,4 +28457,33 @@ table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style s
 	end
 end })
 
+table.insert(tests, { name = "FeatureFlags: default flags build no corner icons, each flag brings its own back, LEGACY_V1 brings all", fn = function()
+	local F = require(script.Parent.Parent.Engine.FeatureFlags)
+	local n = 0
+	for icon, flag in pairs(F.CORNER) do
+		n = n + 1
+		assert(F.FLAGS[flag] == false, flag .. " must default to false")
+		assert(not F.cornerIcon(icon), icon .. " icon must not exist by default")
+		F.setOverride(flag, true)
+		assert(F.cornerIcon(icon), flag .. " must re-create " .. icon)
+		for other, oflag in pairs(F.CORNER) do
+			if other ~= icon then assert(not F.cornerIcon(other), flag .. " must not bring back " .. other) end
+		end
+		F.setOverride(flag, nil)
+		assert(not F.cornerIcon(icon))
+	end
+	assert(n == 5, "five corner icons")
+	F.LEGACY_V1 = true
+	for icon in pairs(F.CORNER) do assert(F.cornerIcon(icon), icon .. " on under LEGACY_V1") end
+	F.LEGACY_V1 = false
+	assert(not F.cornerIcon("nonsense"))
+	if not io then return end
+	local f = io.open("src/Client/init.client.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	for icon in pairs(F.CORNER) do
+		assert(src:find('"' .. icon .. '"%)'), "the hub must pass the flag key for " .. icon)
+	end
+end })
+
 return tests

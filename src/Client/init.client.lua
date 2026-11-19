@@ -274,7 +274,16 @@ local SidebarModule = require(script.Sidebar)({
 -- OverlayManager just above its own buttons.
 local ArtAssetsModule = require(script.ArtAssets)
 
-local function makeCornerButton(text, order, iconId)
+local function makeCornerButton(text, order, iconId, key)
+	-- Feature flag (Engine/FeatureFlags): a hidden feature gets a detached, invisible button, so nothing is created in the row and the
+	-- opener wired to it can never fire.
+	if key and not require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("FeatureFlags")).cornerIcon(key) then
+		local off = Instance.new("TextButton")
+		off.Name = "Hidden_" .. key
+		off.Visible = false
+		off.Active = false
+		return off
+	end
 	-- Corner buttons live in one right-aligned UIListLayout row, so a
 	-- hidden or removed button closes up instead of leaving a gap. `order`
 	-- is the LayoutOrder (1 = leftmost). Only buttons are parented to the
@@ -343,18 +352,18 @@ local function makeCornerButton(text, order, iconId)
 	return button
 end
 
-local volumeButton = makeCornerButton(SoundModule.VOLUME_ICONS[SoundModule.volumeStepIndex], 5, ArtAssetsModule.cornerIconVolume)
+local volumeButton = makeCornerButton(SoundModule.VOLUME_ICONS[SoundModule.volumeStepIndex], 5, ArtAssetsModule.cornerIconVolume, "volume")
 -- CORNER ROW CLEANUP: no "?" (How to Play) or "🏆" (Leaderboards) corner
 -- icons anymore -- both moved into the Settings panel (see Settings.lua),
 -- and everything right of Volume shifted 50px to close the gap.
-local journeyButton = makeCornerButton("🗺", 4, ArtAssetsModule.cornerIconJourney)
-local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHandReference)
+local journeyButton = makeCornerButton("🗺", 4, ArtAssetsModule.cornerIconJourney, "journey")
+local handRefButton = makeCornerButton("📖", 3, ArtAssetsModule.cornerIconHandReference, "handRef")
 -- No corner button for the Deck Tracker anymore -- the blue deck widget
 -- (bottom-right) is clickable and opens it directly instead (see
 -- DeckWidgetModule.deckWidgetButton). Settings/Collection shifted left by 50px to close
 -- the gap left behind.
-local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings)
-local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection)
+local settingsButton = makeCornerButton("⚙", 2, ArtAssetsModule.cornerIconSettings, "settings")
+local collectionButton = makeCornerButton("📔", 1, ArtAssetsModule.cornerIconCollection, "collection")
 for piece, b in pairs({ btn_volume = volumeButton, btn_journey = journeyButton, btn_hand_ref = handRefButton, btn_settings = settingsButton, btn_collection = collectionButton }) do
 	pcall(require(script.HudTheme).styleIcon, b, piece) -- ring, glow, disc tint and motif (or the painted kit button) follow the equipped Card Set
 end

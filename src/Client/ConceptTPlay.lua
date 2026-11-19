@@ -277,7 +277,7 @@ function M.install(deps)
 			sc.Scale = Layout.iconScale(r.gear.h)
 		end
 		local sb = deps.settingsButton
-		if sb then
+		if sb and sb.Name ~= "Hidden_settings" then
 			sb.Parent = layer
 			sb.AnchorPoint = Vector2.new(0, 0)
 			place(sb, r.gear)
