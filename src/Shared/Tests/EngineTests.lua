@@ -30948,6 +30948,39 @@ table.insert(tests, { name = "Sound and music pass: 1 s bed crossfade, every act
 	expectTrue(SoundIds.isValidId(SoundIds.Music.shop) and SoundIds.isValidId(SoundIds.Music.boss), "shop and boss beds use existing ids")
 end })
 
+table.insert(tests, { name = "First five minutes: hint sequence card then Play Hand then spent, first shop outlines the cheapest affordable Patron once, hint plates are painted", fn = function()
+	local GH = require(script.Parent.Parent.Engine.GuidedHand)
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local FB = require(script.Parent.Parent.Engine.FirstBuy)
+	local a = GH.hint(true, 0, 0, false)
+	expectTrue(a and a.target == "card", "no card picked: the hint points at a card")
+	local b = GH.hint(true, 0, 1, false)
+	expectTrue(b and b.target == "play", "one card picked: the hint points at Play Hand")
+	expectEqual(GH.hint(true, 1, 0, false), nil, "after the first hand the guided hint is gone")
+	expectEqual(GH.hint(false, 0, 0, false), nil, "not a guided run: no hint")
+	for _, h in ipairs({ a, b }) do
+		expectTrue(#h.line1 <= 40 and #h.line2 <= 40, "each hint line is short (two lines, one glance)")
+	end
+	expectTrue(RH.expired("round_hint_select", { handsPlayedTotal = 1 }), "Pick your cards is spent after the first hand")
+	-- first buy
+	local offers = { { id = "a", price = 8 }, { id = "b", price = 4 }, { id = "c", price = 4 }, { id = "d", price = 30 } }
+	expectEqual(FB.pick(offers, 10), 2, "cheapest affordable, first on a tie")
+	expectEqual(FB.pick(offers, 3), nil, "nothing affordable: no outline")
+	expectEqual(FB.pick({}, 10), nil)
+	expectEqual(FB.pick(nil, 10), nil)
+	expectTrue(FB.enabled({ night = 1, ownedPatrons = { "the_regular" }, patronLimit = 5 }), "Night 1 with the starter: on")
+	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x", "y" }, patronLimit = 5 }), "a second Patron was bought: off")
+	expectFalse(FB.enabled({ night = 2, ownedPatrons = {} }), "Night 2: off")
+	expectFalse(FB.enabled({ night = 1, ownedPatrons = { "x" }, patronLimit = 1 }), "no free seat: off")
+	if io and io.open then
+		local function src(p) local f = io.open(p, "r"); local s = f:read("a"); f:close(); return s end
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(plate, "wood_plate")', 1, true) ~= nil, "Round hint plate is painted")
+		expectTrue(src("src/Client/RoundHintsFX.lua"):find('painted(button, "btn_green")', 1, true) ~= nil, "Got it is the painted green plate")
+		expectTrue(src("src/Client/GuidedHint.lua"):find('painted(plate, "wood_plate")', 1, true) ~= nil, "guided hint plate is painted")
+		expectTrue(src("src/Client/Shop.lua"):find("FirstBuy.pick", 1, true) ~= nil and src("src/Client/ShopCards.lua"):find("spec.highlight", 1, true) ~= nil, "the Counter outlines the first buy")
+	end
+end })
+
 table.insert(tests, { name = "Store panel: DebugGoto store opens it, four cards and the Close plate fit at 1920x1080, 1280x720 and 1024x768 with 44 px plates and readable text", fn = function()
 	local Rules = require(script.Parent.Parent.Engine.DebugGotoRules)
 	local t = Rules.parse("store")

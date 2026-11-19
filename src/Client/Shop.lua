@@ -1570,6 +1570,14 @@ return function(deps)
 		lastCardSlots = reconcileSlots(lastCardSlots, current)
 
 		local offerCardsThisRebuild = {}
+		local firstBuyOffer -- the one affordable Patron the first visit points at (Engine/FirstBuy), nil afterwards
+		do
+			local FirstBuy = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("FirstBuy"))
+			if FirstBuy.enabled(state) then
+				local idx = FirstBuy.pick(state.shopOffers, tips)
+				firstBuyOffer = idx and state.shopOffers[idx] or nil
+			end
+		end
 		addSectionHeader(shopBuyListFrame, order(), "Patrons")
 		if #lastCardSlots == 0 then
 			emptyScene = shopCards.emptyScene(shopBuyListFrame, order(), "offers")
@@ -1603,6 +1611,7 @@ return function(deps)
 						synergy = synergyTagsFor(offer.id), shield = shieldFor(fullPatron),
 						kind = "patron", layoutOrder = index, name = offer.name, description = offer.description,
 						price = offer.price, affordable = tips >= offer.price, shortBy = math.max(0, offer.price - tips), actionText = "Buy", enabled = not tableIsFull, disabledText = "Full",
+						highlight = firstBuyOffer ~= nil and offer == firstBuyOffer,
 						emoji = fullPatron and fullPatron.icon, artTab = "patrons", artId = offer.id, rarityTab = "patrons", rarityId = offer.id,
 						onAction = function()
 							local fired = buyPatron(offer)

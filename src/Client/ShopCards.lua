@@ -320,7 +320,12 @@ function ShopCards.new(deps)
 		local body = frame(tilt, { Name = "Body", Position = UDim2.fromOffset(0, HEAD), Size = UDim2.fromOffset(W, shape.h),
 			BackgroundColor3 = WOOD_DARK })
 		corner(body, 10)
-		stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+		if spec.highlight == true then -- first buy: a steady gold outline on the one affordable Patron (no tween, so Calm mode is the same)
+			local hs = stroke(body, Color3.fromRGB(246, 196, 70), 4, 0)
+			hs.Name = "FirstBuyOutline"
+		else
+			stroke(body, Color3.fromRGB(30, 20, 12), 2, 0)
+		end
 		card.body = body
 
 		-- ===== Art, the hero: Crop inside a rarity frame =====
