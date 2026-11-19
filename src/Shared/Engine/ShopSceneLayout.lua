@@ -574,12 +574,14 @@ ShopSceneLayout.TAG_W, ShopSceneLayout.TAG_H = 64, 28
 function ShopSceneLayout.cardOverlays(W, artTop, artH, bannerTop, badgeW, chipWidths)
 	local out = { chips = {} }
 	local y = artTop + 6
+	-- a tag never runs past the card: at most the art width less a 12 px margin each side (its text is scaled to fit, 12 px at least)
+	local maxW = math.max(W - 24, 40)
 	if badgeW and badgeW > 0 then
-		out.badge = { x = 12, y = y, w = badgeW, h = 22 }
+		out.badge = { x = 12, y = y, w = math.min(badgeW, maxW), h = 22 }
 		y = y + 28
 	end
 	for i, cw in ipairs(chipWidths or {}) do
-		out.chips[i] = { x = 12, y = y, w = cw, h = 24 }
+		out.chips[i] = { x = 12, y = y, w = math.min(cw, maxW), h = 24 }
 		y = y + 28
 	end
 	out.price = { x = W - 12 - ShopSceneLayout.TAG_W, y = bannerTop - 4 - ShopSceneLayout.TAG_H,

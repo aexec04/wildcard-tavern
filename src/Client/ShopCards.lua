@@ -407,7 +407,10 @@ function ShopCards.new(deps)
 				BackgroundColor3 = Color3.fromRGB(30, 20, 14), BackgroundTransparency = 0.05 })
 			corner(pill, 11)
 			stroke(pill, GOLD, 1.5, 0)
-			label(pill, { Size = UDim2.fromScale(1, 1), Text = spec.badge, TextColor3 = GOLD })
+			local badgeText = label(pill, { Size = UDim2.fromScale(1, 1), Text = spec.badge, TextColor3 = GOLD, TextScaled = true })
+			local badgeFit = Instance.new("UITextSizeConstraint") -- fits the pill, never under 12 px
+			badgeFit.MinTextSize, badgeFit.MaxTextSize = 14, 15
+			badgeFit.Parent = badgeText
 		end
 
 		-- ===== Synergy tags (Engine/Synergy.lua): up to 2 pills, a drawn gold diamond plus one word, top left under the badge =====
@@ -419,8 +422,11 @@ function ShopCards.new(deps)
 			stroke(pill, Color3.fromRGB(255, 226, 140), 2, 0) -- gold glow ring
 			frame(pill, { Name = "Gem", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 14, 0.5, 0),
 				Size = UDim2.fromOffset(8, 8), Rotation = 45, BackgroundColor3 = Color3.fromRGB(255, 226, 140) })
-			label(pill, { Size = UDim2.new(1, -26, 1, 0), Position = UDim2.fromOffset(24, 0), Text = tag.word,
-				TextColor3 = Color3.fromRGB(255, 226, 140), TextSize = 15, TextStrokeTransparency = 1 })
+			local chipText = label(pill, { Size = UDim2.new(1, -26, 1, 0), Position = UDim2.fromOffset(24, 0), Text = tag.word,
+				TextColor3 = Color3.fromRGB(255, 226, 140), TextSize = 15, TextStrokeTransparency = 1, TextScaled = true })
+			local chipFit = Instance.new("UITextSizeConstraint")
+			chipFit.MinTextSize, chipFit.MaxTextSize = 14, 15
+			chipFit.Parent = chipText
 			if addTooltip then
 				addTooltip(pill, tag.line .. " " .. (tag.reason or ""))
 			end

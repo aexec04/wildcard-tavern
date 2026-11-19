@@ -14611,6 +14611,32 @@ table.insert(tests, { name = "ShopSceneLayout: My Patrons / My Recipes rows stay
 	end
 end })
 
+table.insert(tests, { name = "Shop offers: tags sit fully inside the card, Patron offers are at least 170 x 230 with three or four offers", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	for _, W in ipairs({ 90, 120, 135, 160, 220 }) do
+		local ov = L.cardOverlays(W, 6, 180, 170, L.pillWidth("JUMBO"), { L.pillWidth("Ranks"), L.pillWidth("Straights") })
+		for _, r in ipairs({ ov.badge, ov.chips[1], ov.chips[2] }) do
+			expectTrue(r.x >= 12 - 0.01 and r.x + r.w <= W - 12 + 0.01 or r.w <= 40, "tag inside the card at W " .. W)
+		end
+		expectTrue(ov.chips[1].y >= ov.badge.y + ov.badge.h, "chip under the badge")
+	end
+	for _, size in ipairs({ { 1920, 1080 }, { 1920, 957 } }) do
+		for _, n in ipairs({ 3, 4 }) do
+			local r = L.rects(size[1], size[2], { offers = n, packs = 2 })
+			for _, o in ipairs(r.offers) do
+				expectTrue(o.w >= 170 and o.h >= 230, n .. " offers at " .. size[1] .. "x" .. size[2] .. " are " .. math.floor(o.w) .. " x " .. math.floor(o.h))
+			end
+		end
+	end
+	if io and io.open then
+		local f = io.open("src/Client/ShopCards.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			expectTrue(select(2, src:gsub("MinTextSize, %w+%.MaxTextSize = 14, 15", "")) >= 2, "badge and chip text scale down to 14 px")
+		end
+	end
+end })
+
 table.insert(tests, { name = "ShopSceneLayout: card badge, chips and price tag never overlap and stay inside the card; offers sit inside the counter area", fn = function()
 	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
 	for _, W in ipairs({ 120, 160, 220, 297 }) do
