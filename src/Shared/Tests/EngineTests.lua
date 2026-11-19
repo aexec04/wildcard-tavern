@@ -29752,7 +29752,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
 		end
 	end
-	expectTrue(n == 8, "eight painted pieces: wood plate, parchment, green and dark button, round icon, count tab, Patron slot, score frame")
+	expectTrue(n == 14, "fourteen painted pieces: the eight plain ones plus the six ornate (wide, small, square, score, dark and green button)")
 	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
@@ -29761,7 +29761,7 @@ table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, sl
 	expectTrue(kit:find("img.IsLoaded", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
 	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
 	local g2 = read("src/Client/Gameplay2.lua")
-	for _, piece in ipairs({ "wood_plate", "count_tab", "btn_green", "btn_dark" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	for _, piece in ipairs({ "orn_wide", "orn_small", "orn_score", "orn_btn_green", "orn_btn_dark", "parchment" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
 	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear and Next Round are painted")
 end })
 

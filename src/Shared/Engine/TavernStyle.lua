@@ -88,6 +88,13 @@ M.PAINTED = {
 	count_tab = { art = "pk_count_tab", src = { 860, 244 }, inset = { l = 110, t = 80, r = 110, b = 80 } },
 	patron_slot = { art = "pk_patron_slot", src = { 657, 953 }, inset = { l = 90, t = 90, r = 90, b = 90 } },
 	score_frame = { art = "pk_score_frame", src = { 1485, 410 }, inset = { l = 170, t = 100, r = 170, b = 100 } },
+	-- ornate set (dark wood, carved gold trim, scrolled corners and studs, like claude/reference/concept-table-reference.png)
+	orn_wide = { art = "pk_orn_pill_wide", src = { 1418, 514 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
+	orn_small = { art = "pk_orn_pill_small", src = { 1291, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
+	orn_square = { art = "pk_orn_square", src = { 905, 906 }, inset = { l = 230, t = 230, r = 230, b = 230 } },
+	orn_score = { art = "pk_orn_score", src = { 1502, 563 }, inset = { l = 200, t = 170, r = 200, b = 150 } },
+	orn_btn_dark = { art = "pk_orn_btn_dark", src = { 1398, 616 }, inset = { l = 190, t = 170, r = 190, b = 170 } },
+	orn_btn_green = { art = "pk_orn_btn_green", src = { 1348, 562 }, inset = { l = 170, t = 150, r = 170, b = 150 } },
 }
 M.PAINTED_LOAD_WAIT = 4 -- seconds an image may take to load before the flat look comes back
 

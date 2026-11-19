@@ -161,7 +161,7 @@ CATEGORY_OPTS = {
     "table_scene": {"quality": "medium", "style_key": "house_style", "transparent": True,
                     "opaque": ["table_play", "table_boss", "table_counter", "table_runover"],
                     "sizes": {"table_play": "1536x1024", "table_boss": "1536x1024", "table_counter": "1536x1024", "table_runover": "1536x1024"},
-                    "references": dict((k, "art-wip/menu_room/menu_room_wall.png") for k in ("table_play", "table_boss", "table_counter", "table_runover"))},
+                    "references": dict((k, "art-wip/menu_room/menu_room_wall.png") for k in ("table_play", "table_boss", "table_counter", "table_runover", "pk_orn_pill_wide", "pk_orn_pill_small", "pk_orn_square", "pk_orn_score", "pk_orn_btn_dark", "pk_orn_btn_green"))},
     "collection_scene": {"quality": "high", "style_key": "house_style", "transparent": True,
                          "opaque": ["collection_wall", "collection_room"] + COLL_SEC,
                          "sizes": {"collection_wall": "1536x1024", "collection_frame_owned": "1024x1536", "collection_frame_empty": "1024x1536",

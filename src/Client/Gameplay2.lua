@@ -130,6 +130,9 @@ function M.install(deps)
 	end
 	local cream = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
 	local scoreNum = scoreText("ScoreNumber", Enum.Font[Style.FONTS.title], cream, 0.5)
+	local scorePlate = Instance.new("Frame") -- ornate plate behind the caption, numeral and gold line (the progress line stays under it)
+	scorePlate.Name = "ScorePlate"; scorePlate.BackgroundTransparency = 1; scorePlate.BorderSizePixel = 0; scorePlate.Active = false
+	scorePlate.ZIndex = 3; scorePlate.Parent = layer
 	local scoreCaption = scoreText("ScoreCaption", Enum.Font[Style.FONTS.ui], cream, 0.6)
 	scoreCaption.Text = "Score"
 	local scoreProgress = scoreText("ScoreProgress", Enum.Font[Style.FONTS.ui], Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]), 0.5)
@@ -157,7 +160,23 @@ function M.install(deps)
 
 	-- painted frames for the table HUD (Engine/TavernStyle.PAINTED): the top bar, the Hands, Discards and deck count tabs
 	local painted = {}
-	pcall(function() Kit.painted(bar, "wood_plate"); Kit.painted(handsPill, "count_tab"); Kit.painted(discardsPill, "count_tab"); Kit.painted(deckPill, "count_tab") end)
+	-- ornate set (dark wood, carved gold trim, scrolled corners): three separate top pieces (Target, the parchment rule scroll holding the Night and
+	-- Round name, Tips), the three count plates and the score plate; the old one piece bar stays as an invisible layout host
+	pcall(function()
+		bar.BackgroundTransparency = 1
+		for _, c in ipairs(bar:GetChildren()) do if c:IsA("UIStroke") then c.Enabled = false end end
+		Kit.painted(target, "orn_wide"); Kit.painted(tips, "orn_wide")
+		Kit.painted(handsPill, "orn_small"); Kit.painted(discardsPill, "orn_small"); Kit.painted(deckPill, "orn_small")
+		local scroll = Kit.painted(roundLabel, "parchment")
+		if scroll then -- dark ink on the cream scroll; cream again if the picture never loads
+			roundLabel.TextColor3 = Color3.fromRGB(58, 36, 20); roundLabel.TextStrokeTransparency = 1
+			task.delay(Style.PAINTED_LOAD_WAIT + 0.5, function()
+				if not scroll.Parent then
+					roundLabel.TextColor3 = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3]); roundLabel.TextStrokeTransparency = 0.2
+				end
+			end)
+		end
+	end)
 
 	-- the real Rank and Suit buttons live inside the hub's SortToggle; Gameplay v2 draws each as its own brown plate
 	local function splitSort(toggle, r)
@@ -171,7 +190,7 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
-				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "btn_dark") end) end
+				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "orn_btn_dark") end) end
 			end
 		end
 	end
@@ -274,7 +293,7 @@ function M.install(deps)
 		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
 		if not painted.buttons then -- the painted frames (Engine/TavernStyle.PAINTED); the flat plate stays if a picture is missing
 			painted.buttons = true
-			pcall(function() Kit.painted(deps.playButton, "btn_green"); Kit.painted(deps.discardButton, "btn_dark") end)
+			pcall(function() Kit.painted(deps.playButton, "orn_btn_green"); Kit.painted(deps.discardButton, "orn_btn_dark") end)
 		end
 		local function flatOpaque(b) if not (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) then b.BackgroundTransparency = 0 end end
 		flatOpaque(deps.playButton); flatOpaque(deps.discardButton)
@@ -298,17 +317,24 @@ function M.install(deps)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
 		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)
 		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
-		scoreBox.ZIndex = 2
+		scoreBox.ZIndex = 3
 		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
 		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH, self.playing == true)
 		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
-		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 2
+		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 4
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
-		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 2
+		scoreLine.Position = UDim2.new(0.5, 0, 0, N.lineY); scoreLine.ZIndex = 4
 		scoreCaption.Size = UDim2.new(1, 0, 0, capH); scoreCaption.TextSize = 18
-		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 2
+		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 4
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
-		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 2
+		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 4
+		do -- the plate: centred in the stage, as wide as the numeral needs, from the stage top to just under the gold line
+			local pw = math.min(r.stage.w, math.max(260, math.floor(r.stage.w * 0.62)))
+			local ph = math.max(40, N.lineY + 8)
+			scorePlate.Position = UDim2.fromOffset(r.stage.x + math.floor((r.stage.w - pw) / 2), r.stage.y - 2)
+			scorePlate.Size = UDim2.fromOffset(pw, ph)
+			if not painted.score then painted.score = true; pcall(function() Kit.painted(scorePlate, "orn_score") end) end
+		end
 		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy and not N.noProgress
 		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
