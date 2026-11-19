@@ -25,6 +25,7 @@ local PatronEvents = require(Engine:WaitForChild("PatronEvents"))
 local Rules = require(Engine:WaitForChild("PatronRowRules"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
+local NameFit = require(Engine:WaitForChild("PatronNameFit"))
 local PatronPlaque = require(script.Parent.PatronPlaque)
 local PatronValueText = require(Engine:WaitForChild("PatronValueText"))
 local RarityFrame = require(script.Parent.RarityFrame)
@@ -217,11 +218,18 @@ local function newCard(i)
 	corner(plaque, 5)
 	local name = Instance.new("TextLabel")
 	name.Name = "Name"
-	name.Size = UDim2.new(1, -4, 1, 0)
+	name.Size = UDim2.new(1, -4, 1, 0) -- c.name is resized per card width in the layout loop (PatronNameFit)
 	name.Position = UDim2.fromOffset(2, 0)
 	name.BackgroundTransparency = 1
 	name.Font = Enum.Font.GothamMedium
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextScaled = true -- shrinks to fit the remaining width, between 11 and 16 px
 	name.TextSize = 15
+	do
+		local cons = Instance.new("UITextSizeConstraint")
+		cons.MinTextSize, cons.MaxTextSize = NameFit.MIN_SIZE, NameFit.MAX_SIZE
+		cons.Parent = name
+	end
 	name.TextColor3 = CREAM
 	name.TextTransparency = 0
 	name.TextStrokeTransparency = 1
@@ -686,6 +694,12 @@ local function place(state)
 				c.slot.Visible = true
 				c.slot.Position = UDim2.fromOffset(r.x, r.y)
 				c.slot.Size = UDim2.fromOffset(r.w, r.h)
+				local nr = NameFit.rect(r.w) -- the power disc covers the strip's right end: the name keeps clear of it
+				c.name.Position = UDim2.fromOffset(nr.x, 0)
+				c.name.Size = UDim2.new(0, nr.w, 1, 0)
+				if game:GetService("RunService"):IsStudio() and c.name.Text ~= "" and c.name.TextBounds.X > nr.w + 1 then
+					warn(string.format("[PatronRow] name '%s' is %d px wide in a %d px strip", c.name.Text, math.floor(c.name.TextBounds.X), nr.w))
+				end
 				c.slot.ZIndex = Z + i -- later cards overlap earlier ones
 				fillCard(c, i, owned[i])
 				if c.value then

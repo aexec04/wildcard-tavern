@@ -29031,4 +29031,27 @@ table.insert(tests, { name = "Menu Daily Challenge entry: a Notice Board note wi
 	assert(cl:find("Kit.primaryButton", 1, true) and not cl:find("TweenService", 1, true), "the green kit plate, no tween of its own")
 end })
 
+table.insert(tests, { name = "Patron name strip: every Patron name fits beside the power disc at the card widths of 1920x1080 and 1280x720", fn = function()
+	local Fit = require(script.Parent.Parent.Engine.PatronNameFit)
+	local Style = require(script.Parent.Parent.Engine.PatronTierStyle)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	assert(Fit.MIN_SIZE == 11 and Fit.MAX_SIZE == 16, "11 to 16 px")
+	for _, w in ipairs({ 157, 140, 120, 105 }) do
+		local r = Fit.rect(w)
+		local d = Style.discDiameter(w)
+		local discLeft = w - (d - math.floor(d * Style.DISC_OVERLAP + 0.5)) -- where the disc starts over the strip
+		assert(r.x + r.w <= discLeft, "name ends before the disc at card width " .. w)
+		for _, p in ipairs(Patrons.Definitions) do
+			if w >= 157 then -- 1920x1080 cards: every name shows in full
+				assert(Fit.fits(p.name, w), string.format("'%s' (%d px at 11) does not fit %d px at card width %d", p.name, math.floor(Fit.textWidth(p.name, Fit.MIN_SIZE)), r.w, w))
+			else -- narrower cards: the label ends with a mark (TextTruncate.AtEnd) and shows at least 10 letters; the tooltip has the full name
+				assert(r.w >= Fit.textWidth(string.rep("m", 10), Fit.MIN_SIZE) * 0.9, "room for ten letters at card width " .. w)
+			end
+		end
+	end
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronRow.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("NameFit.rect(r.w)", 1, true) and src:find("TextScaled = true", 1, true) and src:find("IsStudio", 1, true), "row sizes the name by its card width and warns in Studio")
+end })
+
 return tests
