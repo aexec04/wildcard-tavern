@@ -28802,4 +28802,33 @@ table.insert(tests, { name = "Gameplay v2 moments: Target cleared plate lines an
 	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2MomentsFX", 1, true) and read("src/Client/GameOver.lua"):find("defeatLine", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Gameplay v2 Patron tooltip: 0.25 s delay, 320 px wide scaling down, portrait column, plate clear of the bar, hand, buttons, sort control and deck for all five seats at three sizes", fn = function()
+	local T = require(script.Parent.Parent.Engine.Gameplay2Tip)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(T.DELAY == 0.25)
+	assert(T.width(1920) == 320 and T.width(1280) == 320 and T.width(800) == 220 and T.width(640) == 220, "320 wide, scaling down to 220")
+	local p = T.portrait(320)
+	assert(math.abs(p.w / p.h - 0.712) < 0.02 and T.textWidth(320) > 150, "portrait left, text right")
+	assert(T.height(320, 10) == p.h + 24 and T.height(320, 400) == 424)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local tw = T.width(w)
+		local th = T.height(tw, math.floor(h * 0.12))
+		for slot = 1, 5 do
+			local x, y = T.place(r, w, h, slot, tw, th)
+			local tip = { x = x, y = y, w = tw, h = th }
+			assert(x >= 0 and y >= 0 and x + tw <= w and y + th <= h, "inside the screen, seat " .. slot .. " at " .. w)
+			for _, a in ipairs(T.avoid(r)) do
+				assert(not hit(tip, a), "plate clear of the bar, hand, buttons, sort control and deck, seat " .. slot .. " at " .. w .. "x" .. h)
+			end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/PatronTipFX.lua")
+	assert(fx:find("Gameplay2Tip", 1, true) and fx:find("Tip.DELAY", 1, true), "the plate waits the delay")
+end })
+
 return tests

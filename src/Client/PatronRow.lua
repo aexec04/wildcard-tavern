@@ -70,7 +70,7 @@ local function showTip(i, c)
 	pcall(function() tier = CollectionBook.rarityForId("patrons", owned.id) or "common" end)
 	pcall(function()
 		require(script.Parent.PatronTipFX).show(rootRef, cards, i,
-			{ id = owned.id, name = owned.name, description = owned.description, rarity = tier }, calm())
+			{ id = owned.id, name = owned.name, description = owned.description, rarity = tier, value = c.valueText }, calm())
 	end)
 end
 

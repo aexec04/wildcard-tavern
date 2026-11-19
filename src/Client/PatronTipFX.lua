@@ -14,6 +14,9 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local PatronTips = require(Engine:WaitForChild("PatronTips"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
+local Tip = require(Engine:WaitForChild("Gameplay2Tip"))
+local TierStyle = require(Engine:WaitForChild("PatronTierStyle"))
+local CutCards = require(Engine:WaitForChild("ConceptTPatronArt"))
 
 local M = {}
 
@@ -21,6 +24,7 @@ local CREAM = Color3.fromRGB(245, 232, 200)
 local GOLD = Color3.fromRGB(246, 196, 70)
 local PLATE = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill
 local plate, highlights = nil, {}
+local token = 0 -- a newer show or a hide cancels a plate that is still waiting its delay
 
 local function label(parent, text, size, font, color, y, h, order)
 	local t = Instance.new("TextLabel")
@@ -45,14 +49,28 @@ local function label(parent, text, size, font, color, y, h, order)
 end
 
 function M.hide()
+	token = token + 1
 	if plate then plate:Destroy(); plate = nil end
 	for _, h in ipairs(highlights) do h:Destroy() end
 	highlights = {}
 end
 
+local render
+
+-- Gameplay v2: the plate shows 0.25 s after the pointer arrives (Engine/Gameplay2Tip.DELAY); leaving hides it at once
 function M.show(root, cards, index, info, calm)
 	M.hide()
 	if not root or not info or not info.id then return end
+	local v2 = false
+	pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
+	if not v2 then return render(root, cards, index, info, calm, false) end
+	local mine = token
+	task.delay(Tip.DELAY, function()
+		if mine == token and root.Parent then render(root, cards, index, info, calm, true) end
+	end)
+end
+
+function render(root, cards, index, info, calm, v2)
 	local tier = tostring(info.rarity or "common"):lower()
 	local content = PatronTips.content(info.id, info.name, info.description, tier)
 	local color = Color3.fromRGB(table.unpack((CollectionBook.Rarities[tier] or CollectionBook.Rarities.common).color))
@@ -84,9 +102,10 @@ function M.show(root, cards, index, info, calm)
 		end
 	end
 	-- the plate: text sizes 15 or more, width follows the screen (never wider than 280)
-	local w = math.floor(math.max(190, math.min(280, rs.X * 0.3)))
+	local w = v2 and Tip.width(rs.X) or math.floor(math.max(190, math.min(280, rs.X * 0.3)))
 	local padX, padY = 12, 8
-	local inner = w - padX * 2
+	local portrait = v2 and Tip.portrait(w) or nil
+	local inner = v2 and Tip.textWidth(w) or (w - padX * 2)
 	local TextService = game:GetService("TextService")
 	local function height(text, size, font)
 		local ok, b = pcall(function() return TextService:GetTextSize(text, size, font, Vector2.new(inner, 1000)) end)
@@ -98,6 +117,7 @@ function M.show(root, cards, index, info, calm)
 	for i, t in ipairs(content.tags) do tagText = tagText .. (i > 1 and "   " or "") .. t.icon .. " " .. t.word end
 	local rows = nameH + 22 + effH + (tagText ~= "" and 22 or 0)
 	local h = math.floor(rows + padY * 2 + 8)
+	if v2 then h = Tip.height(w, rows) end
 	local frame = Instance.new("Frame")
 	frame.Name = "PatronTipPlate"
 	frame.Size = UDim2.fromOffset(w, h)
@@ -119,8 +139,50 @@ function M.show(root, cards, index, info, calm)
 	body.Position = UDim2.fromOffset(padX, padY)
 	body.ZIndex = 61
 	body.Parent = frame
+	if v2 then -- the cut card grown large on the left, with its power disc, the text on the right
+		local pad = Tip.PAD
+		body.Size = UDim2.fromOffset(inner, h - pad * 2)
+		body.Position = UDim2.fromOffset(pad * 2 + portrait.w, pad)
+		local pic = Instance.new("ImageLabel")
+		pic.Name = "TipCard"
+		pic.BackgroundTransparency = 1
+		pic.BorderSizePixel = 0
+		pic.Active = false
+		pic.ScaleType = Enum.ScaleType.Fit
+		pic.Image = CutCards["ctp_" .. info.id] or ""
+		pic.Size = UDim2.fromOffset(portrait.w, portrait.h)
+		pic.Position = UDim2.fromOffset(pad, pad)
+		pic.ZIndex = 61
+		pic.Parent = frame
+		local numeral = TierStyle.numeral(info.value or "")
+		if numeral ~= "" then
+			local D = math.max(30, math.floor(portrait.w * 0.4))
+			local disc = Instance.new("Frame")
+			disc.Name = "TipDisc"
+			disc.Size = UDim2.fromOffset(D, D)
+			disc.Position = UDim2.fromOffset(pad + portrait.w - math.floor(D * 0.6), pad + portrait.h - math.floor(D * 0.6))
+			disc.BackgroundColor3 = Color3.fromRGB(table.unpack(TierStyle.DISC.fill))
+			disc.BorderSizePixel = 0
+			disc.Active = false
+			disc.ZIndex = 63
+			local dc = Instance.new("UICorner"); dc.CornerRadius = UDim.new(1, 0); dc.Parent = disc
+			local ds = Instance.new("UIStroke"); ds.Color = Color3.fromRGB(table.unpack(TierStyle.DISC.ring)); ds.Thickness = 2; ds.Parent = disc
+			local num = Instance.new("TextLabel")
+			num.BackgroundTransparency = 1
+			num.Size = UDim2.fromScale(1, 1)
+			num.Font = Enum.Font.Merriweather
+			num.TextSize = 16
+			num.Text = numeral
+			num.TextColor3 = Color3.fromRGB(table.unpack(TierStyle.DISC.text))
+			num.TextStrokeTransparency = 0.4
+			num.ZIndex = 64
+			num.Active = false
+			num.Parent = disc
+			disc.Parent = frame
+		end
+	end
 	local y = 0
-	label(body, content.name, 20, Enum.Font.Merriweather, CREAM, y, nameH)
+	label(body, content.name, 20, Enum.Font.Merriweather, v2 and GOLD or CREAM, y, nameH)
 	y = y + nameH + 2
 	-- rarity as a word on a tinted pill, never colour alone
 	local pill = Instance.new("TextLabel")
@@ -162,6 +224,9 @@ function M.show(root, cards, index, info, calm)
 		card = { x = slot.AbsolutePosition.X - rp.X, y = slot.AbsolutePosition.Y - rp.Y, w = slot.AbsoluteSize.X, h = slot.AbsoluteSize.Y }
 	end
 	local x, py = PatronTips.place(card, { X = w, Y = h }, avoid, { X = rsz.X, Y = rsz.Y })
+	if v2 and index >= 1 and index <= 5 then
+		x, py = Tip.place(require(Engine:WaitForChild("Gameplay2Layout")).rects(rs.X, rs.Y), rs.X, rs.Y, index, w, h)
+	end
 	frame.Position = UDim2.fromOffset(math.floor(x), math.floor(py))
 	frame.Parent = root
 	plate = frame
