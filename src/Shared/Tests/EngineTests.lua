@@ -27215,6 +27215,37 @@ table.insert(tests, { name = "ConceptTSkin dialogs: ink on paper and cream on th
 	end
 	expectTrue(read("src/Client/FirstTimeHints.lua"):find("238, 222, 186", 1, true) ~= nil, "hint bubble is parchment")
 end })
+table.insert(tests, { name = "RoadSkin: road card text plate is dark and at least 0.92 alpha, rows sit inside it, button 44 px, text reads at 4.5:1, one button style, wired", fn = function()
+	local R = require(script.Parent.Parent.Engine.RoadSkin)
+	local S = require(script.Parent.Parent.Engine.ConceptTSkin)
+	expectTrue(R.PLATE_TRANSPARENCY <= 0.08 + 1e-9, "plate alpha 0.92 or more")
+	for _, c in ipairs({ R.TEXT, R.SUBTEXT, R.REWARD }) do
+		expectTrue(S.contrast(c, R.PLATE) >= 4.5, "text reads on the plate")
+	end
+	expectEqual(R.BUTTON_STYLES, 1, "one button style")
+	expectTrue(R.MIN_TEXT >= 15, "min text")
+	local function inside(a, b) return a.x >= b.x and a.y >= b.y and a.x + a.w <= b.x + b.w and a.y + a.h <= b.y + b.h end
+	local function apart(a, b) return a.x + a.w <= b.x or b.x + b.w <= a.x or a.y + a.h <= b.y or b.y + b.h <= a.y end
+	for _, size in ipairs({ { 236, 340 }, { 200, 340 }, { 236, 330 } }) do
+		local L = R.cardLayout(size[1], size[2])
+		expectTrue(L.button.h >= 44, "button is a 44 px target")
+		expectTrue(inside(L.strip, { x = 0, y = 0, w = size[1], h = size[2] }) and inside(L.button, { x = 0, y = 0, w = size[1], h = size[2] }), "pieces inside the card")
+		expectTrue(apart(L.strip, L.plate) and apart(L.plate, L.button), "strip, text plate and button do not overlap")
+		for name, r in pairs(L.rows) do
+			expectTrue(inside(r, L.plate), name .. " row sits on the text plate")
+			expectTrue(r.h >= 18, name .. " row tall enough for 15 px text")
+		end
+		local rows = { L.rows.name, L.rows.region, L.rows.hint, L.rows.reward }
+		for i = 1, #rows - 1 do expectTrue(rows[i].y + rows[i].h <= rows[i + 1].y, "text rows do not overlap") end
+	end
+	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt)[S.PLATE_ART] ~= nil, "plate art recorded")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	local road = read("src/Client/RoadChoice.lua")
+	expectTrue(road:find("RoadSkin", 1, true) ~= nil and road:find("plateButton", 1, true) ~= nil and road:find("TweenService", 1, true) == nil, "road screen uses the skin, no tweens")
+	expectTrue(road:find("PARCHMENT", 1, true) == nil, "no parchment card left")
+	expectTrue(read("src/Client/ShopCards.lua"):find("plateButton", 1, true) ~= nil and read("src/Client/Shop.lua"):find("plateButton(nextRoundButton)", 1, true) ~= nil, "Counter Buy and Next Round wear the plate")
+end })
 table.insert(tests, { name = "FeelTuning: hover 12, select 24, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
 	local F = require(script.Parent.Parent.Engine.FeelTuning)
 	expectEqual(F.HOVER_LIFT, 12, "hover lift")

@@ -542,6 +542,7 @@ return function(deps)
 		nextRoundButton:SetAttribute("FlatFace", true) -- the set's plate art has a baked mark at its left end
 		nextRoundButton.Parent = shopFrame
 		polishButton(nextRoundButton, 10)
+		pcall(function() require(script.Parent.ConceptTSkin).plateButton(nextRoundButton) end) -- the one green plate style
 		addButtonHoverScale(nextRoundButton)
 
 		-- Counter v2 stage director (Client/ShopStage.lua): nil until the painted scene art is recorded.

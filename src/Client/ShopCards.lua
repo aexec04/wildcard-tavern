@@ -521,6 +521,9 @@ function ShopCards.new(deps)
 			button.Parent = drawer
 			corner(button, 8)
 			stroke(button, enabled and GOLD or Color3.fromRGB(110, 96, 84), 2, 0)
+			if enabled then
+				pcall(function() require(script.Parent.ConceptTSkin).plateButton(button) end) -- the one green plate style
+			end
 		end
 
 		local over, pinned, shown, busy = 0, false, false, false

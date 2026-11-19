@@ -40,10 +40,11 @@ end
 local INK = Color3.fromRGB(60, 40, 22)
 local CREAM = Color3.fromRGB(250, 235, 200)
 local GOLD = Color3.fromRGB(222, 182, 104)
-local PARCHMENT = Color3.fromRGB(238, 222, 186) -- the paper of the Choose a blessing cards
 local BRASS = Color3.fromRGB(200, 160, 84)
 
-local CARD_W, CARD_H = 236, 330
+local RoadSkin = require(Engine:WaitForChild("RoadSkin"))
+local function rgb(t) return Color3.fromRGB(t[1], t[2], t[3]) end
+local CARD_W, CARD_H = 236, 340
 local HEADER_H = 150 -- title, subtitle and the compass wheel
 local PANEL_W = CARD_W * 3 + 4 * 16 + 24
 local PANEL_H = HEADER_H + CARD_H + 70
@@ -111,8 +112,7 @@ return function(deps)
 		Size = UDim2.new(1, -190, 0, 34), Position = UDim2.fromOffset(20, 12), Text = "Choose your road",
 		TextSize = 26, TextColor3 = CREAM, ZIndex = 22,
 	})
-	title.TextStrokeTransparency = 0.8
-	title.TextStrokeColor3 = Color3.fromRGB(30, 18, 8)
+	pcall(function() require(script.Parent.ConceptTSkin).title(title) end) -- serif cream, dark outline
 	local subtitle = label(panel, {
 		Size = UDim2.new(1, -190, 0, 36), Position = UDim2.fromOffset(20, 44), Text = "",
 		TextSize = 16, TextColor3 = Color3.fromRGB(235, 218, 180), ZIndex = 22, Font = Enum.Font.GothamMedium,
@@ -137,7 +137,7 @@ return function(deps)
 	laterButton.Name = "DecideLater"
 	laterButton.AnchorPoint = Vector2.new(0.5, 1)
 	laterButton.Position = UDim2.new(0.5, 0, 1, -14)
-	laterButton.Size = UDim2.fromOffset(190, 38)
+	laterButton.Size = UDim2.fromOffset(190, 44)
 	laterButton.BackgroundColor3 = Color3.fromRGB(110, 76, 44)
 	laterButton.Text = "Decide later"
 	laterButton.Font = Enum.Font.GothamBold
@@ -146,6 +146,7 @@ return function(deps)
 	laterButton.ZIndex = 22
 	laterButton.Parent = panel
 	roundCorner(laterButton, 8)
+	pcall(function() require(script.Parent.ConceptTSkin).plateButton(laterButton) end) -- the one button style
 
 	-- Small chip that brings the panel back after "Decide later".
 	local chip = Instance.new("TextButton")
@@ -191,7 +192,7 @@ return function(deps)
 	local revealButton = Instance.new("TextButton")
 	revealButton.Name = "UseCompass"
 	revealButton.Position = UDim2.fromOffset(20, 84)
-	revealButton.Size = UDim2.fromOffset(250, 38)
+	revealButton.Size = UDim2.fromOffset(250, 44)
 	revealButton.BackgroundColor3 = GOLD
 	revealButton.Text = "Use compass: reveal rewards"
 	revealButton.Font = Enum.Font.GothamBold
@@ -201,6 +202,10 @@ return function(deps)
 	revealButton.Visible = false
 	revealButton.Parent = panel
 	roundCorner(revealButton, 8)
+	pcall(function()
+		revealButton.TextColor3 = CREAM
+		require(script.Parent.ConceptTSkin).plateButton(revealButton)
+	end)
 	revealButton.MouseButton1Click:Connect(function()
 		playClickSfx()
 		local folder = ReplicatedStorage:FindFirstChild("Remotes")
@@ -232,7 +237,8 @@ return function(deps)
 		card.Name = "Road_" .. stopId
 		card.LayoutOrder = order
 		card.Size = UDim2.fromOffset(CARD_W, CARD_H)
-		card.BackgroundColor3 = PARCHMENT
+		card.BackgroundColor3 = rgb(RoadSkin.CARD)
+		local L = RoadSkin.cardLayout(CARD_W, CARD_H)
 		card.BorderSizePixel = 0
 		card.ZIndex = 23
 		card.Parent = row
@@ -244,8 +250,8 @@ return function(deps)
 
 		-- Biome strip with the stop art (emoji behind it so a missing or slow image never leaves it empty).
 		local strip = Instance.new("Frame")
-		strip.Size = UDim2.new(1, -16, 0, 120)
-		strip.Position = UDim2.fromOffset(8, 8)
+		strip.Size = UDim2.fromOffset(L.strip.w, L.strip.h)
+		strip.Position = UDim2.fromOffset(L.strip.x, L.strip.y)
 		strip.BackgroundColor3 = Color3.fromRGB(tint[1], tint[2], tint[3])
 		strip.BorderSizePixel = 0
 		strip.ClipsDescendants = true
@@ -268,31 +274,39 @@ return function(deps)
 			img.Parent = strip
 		end
 
-		label(card, {
-			Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(10, 134), Text = stop.name,
-			TextSize = 19, ZIndex = 24,
-		})
-		label(card, {
-			Size = UDim2.new(1, -20, 0, 20), Position = UDim2.fromOffset(10, 160),
-			Text = region and region.name or "", TextSize = 15, TextColor3 = Color3.fromRGB(110, 76, 44),
-			Font = Enum.Font.GothamMedium, ZIndex = 24,
-		})
-		label(card, {
-			Size = UDim2.new(1, -20, 0, 40), Position = UDim2.fromOffset(10, 184), Text = stop.hint or "",
-			TextSize = 15, Font = Enum.Font.GothamMedium, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 24,
-		})
-		local rewardLabel = label(card, {
-			Size = UDim2.new(1, -20, 0, 52), Position = UDim2.fromOffset(10, 224),
+		-- One dark wood text plate behind every text block (alpha 0.92, gold 1 px edge), cream serif name.
+		local plate = Instance.new("Frame")
+		plate.Name = "TextPlate"
+		plate.Position = UDim2.fromOffset(L.plate.x, L.plate.y)
+		plate.Size = UDim2.fromOffset(L.plate.w, L.plate.h)
+		plate.BackgroundColor3 = rgb(RoadSkin.PLATE)
+		plate.BackgroundTransparency = RoadSkin.PLATE_TRANSPARENCY
+		plate.BorderSizePixel = 0
+		plate.ZIndex = 24
+		plate.Parent = card
+		roundCorner(plate, 8)
+		local plateStroke = Instance.new("UIStroke")
+		plateStroke.Color = rgb(RoadSkin.GOLD)
+		plateStroke.Thickness = 1
+		plateStroke.Parent = plate
+		local function at(r, extra)
+			extra.Size, extra.Position, extra.ZIndex = UDim2.fromOffset(r.w, r.h), UDim2.fromOffset(r.x, r.y), 25
+			return extra
+		end
+		local nameLabel = label(card, at(L.rows.name, { Text = stop.name, TextSize = 19, TextColor3 = rgb(RoadSkin.TEXT) }))
+		pcall(function() require(script.Parent.ConceptTSkin).title(nameLabel) end)
+		label(card, at(L.rows.region, { Text = region and region.name or "", TextSize = 15, TextColor3 = rgb(RoadSkin.SUBTEXT), Font = Enum.Font.GothamMedium }))
+		label(card, at(L.rows.hint, { Text = stop.hint or "", TextSize = 15, TextColor3 = rgb(RoadSkin.TEXT), Font = Enum.Font.GothamMedium, TextYAlignment = Enum.TextYAlignment.Top }))
+		local rewardLabel = label(card, at(L.rows.reward, {
 			Text = "At the end of this road: a " .. (region and region.name or "biome") .. " reward",
-			TextSize = 15, TextColor3 = Color3.fromRGB(120, 84, 24), TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 24,
-		})
+			TextSize = 15, TextColor3 = rgb(RoadSkin.REWARD), TextYAlignment = Enum.TextYAlignment.Top,
+		}))
 		cardByStop[stopId] = { stroke = stroke, rewardLabel = rewardLabel, region = stop.region, take = nil, lock = nil }
 
 		local take = Instance.new("TextButton")
 		take.Name = "TakeRoad"
-		take.AnchorPoint = Vector2.new(0.5, 1)
-		take.Position = UDim2.new(0.5, 0, 1, -10)
-		take.Size = UDim2.new(1, -24, 0, 40)
+		take.Position = UDim2.fromOffset(L.button.x, L.button.y)
+		take.Size = UDim2.fromOffset(L.button.w, L.button.h)
 		take.BackgroundColor3 = Color3.fromRGB(46, 98, 52) -- the Choose button green
 		take.Text = "Take this road"
 		take.Font = Enum.Font.GothamBold
@@ -301,6 +315,7 @@ return function(deps)
 		take.ZIndex = 24
 		take.Parent = card
 		roundCorner(take, 8)
+		pcall(function() require(script.Parent.ConceptTSkin).plateButton(take) end) -- the one button style
 		cardByStop[stopId].take = take
 		-- padlock on the art when the road needs a Key (shown by refreshLocks)
 		local lock = label(strip, {
@@ -397,7 +412,12 @@ return function(deps)
 				local locked = RoadLock.isLocked(state, id)
 				c.lock.Visible = locked
 				c.take.Text = locked and (RoadLock.keys(state) > 0 and "Unlock with a Key" or "Locked: needs a Key") or "Take this road"
-				c.take.BackgroundColor3 = locked and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(86, 140, 70)
+				local plateArt = c.take:FindFirstChild("ConceptTPlate")
+				if plateArt then
+					plateArt.ImageColor3 = locked and rgb(RoadSkin.LOCKED_TINT) or Color3.fromRGB(255, 255, 255)
+				else
+					c.take.BackgroundColor3 = locked and Color3.fromRGB(150, 110, 50) or Color3.fromRGB(86, 140, 70)
+				end
 			end
 		end
 	end
