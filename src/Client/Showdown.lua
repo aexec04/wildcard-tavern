@@ -84,6 +84,11 @@ function Showdown.play(state, root)
 	label((state.night or 1) >= (state.nightCap or 8) and "FINAL BOSS DEFEATED" or "FINAL BLOW", 6, 22, 16, GOLD) -- the last Night names its boss as the final one
 	label(string.upper(tostring(hand.name)), 28, 36, 30, CREAM)
 	label(string.format("%d", math.floor(tonumber(hand.score) or 0)), 62, 30, 24, GOLD)
+	local reward = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Gameplay2Moments")).victoryReward(state)
+	if reward then -- the one reward line, in the plate itself (the Round Complete plate that follows has the full payout)
+		banner.Size = UDim2.fromOffset(460, 126)
+		label(reward, 94, 26, 20, CREAM)
+	end
 
 	TweenService:Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	-- the long hold is a slow push-in on the banner

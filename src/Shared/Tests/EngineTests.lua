@@ -30591,13 +30591,17 @@ table.insert(tests, { name = "Night clear Patron reward: 3 unowned Patrons, rare
 	end
 end })
 
-table.insert(tests, { name = "Boss intro cinematic: 0.8 s slide and hold, none in Calm mode, Fast halves, plate inside the screen with room for the portrait", fn = function()
+table.insert(tests, { name = "Boss intro cinematic: 2.5 s slide and hold, none in Calm mode, Fast halves, plate inside the screen with room for the portrait, victory reward line", fn = function()
 	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
 	expectEqual(M.bossIntro(true, false), nil, "Calm mode and Reduce motion: no cinematic")
 	local t = M.bossIntro(false, false)
-	expectTrue(math.abs(t.slide + t.hold - 0.8) < 1e-9 and t.fade > 0 and t.dim > 0 and t.dim < 1, "0.8 s in, then a fade")
+	expectTrue(math.abs(t.slide + t.hold - 2.5) < 1e-9 and t.fade > 0 and t.dim > 0 and t.dim < 1, "2.5 s in, then a fade")
 	local f = M.bossIntro(false, true)
-	expectTrue(math.abs(f.slide + f.hold - 0.4) < 1e-9, "Fast halves it")
+	expectTrue(math.abs(f.slide + f.hold - 1.25) < 1e-9, "Fast halves it")
+	expectEqual(M.victoryReward({ lastRoundReward = 12 }), "+12 Tips", "reward line")
+	expectEqual(M.victoryReward({ lastRoundReward = 0 }), nil, "nothing paid, no line")
+	expectEqual(M.victoryReward({ lastRoundReward = 7.9 }), "+7 Tips", "whole numbers only")
+	expectEqual(M.victoryReward(nil), nil, "no state")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
 		local w, h = sz[1], sz[2]
 		local r = M.bossIntroPlate(w, h)

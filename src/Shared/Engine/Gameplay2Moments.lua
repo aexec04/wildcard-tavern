@@ -200,7 +200,14 @@ M.INTRO_DIM = 0.5 -- background transparency of the dim (0.5 = half dark)
 function M.bossIntro(calm, fast)
 	if calm then return nil end
 	local k = fast and 0.5 or 1
-	return { slide = 0.3 * k, hold = 0.5 * k, fade = 0.3 * k, dim = M.INTRO_DIM }
+	return { slide = 0.3 * k, hold = 2.2 * k, fade = 0.3 * k, dim = M.INTRO_DIM } -- 2.5 s on screen, then the slim rule plate is the only boss text
+end
+
+-- the victory plate's reward line: "+12 Tips" from the Tips this win paid, nil when nothing was paid
+function M.victoryReward(state)
+	local n = math.floor(tonumber(state and state.lastRoundReward) or 0)
+	if n <= 0 then return nil end
+	return string.format("+%d Tips", n)
 end
 
 -- the intro plate, centred a little above the middle: portrait chip on the left, name over rule on the right. Root pixels.
