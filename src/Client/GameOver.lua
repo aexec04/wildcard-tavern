@@ -332,7 +332,9 @@ return function(deps)
 		end
 		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
 		local seedInfo = SeedDisplay.label(state)
-		if seedInfo then add(seedInfo.text, { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
+		if seedInfo then -- a Seed Run's code is tappable: the share box opens with the code selected, ready to copy
+			add(seedInfo.text .. (seedInfo.shareable and "  (tap to copy)" or ""), { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft", copy = seedInfo.shareable and seedInfo.value or nil })
+		end
 		if summary then
 			local bestLines = EndlessRules.bestLines(summary.endlessBestByStake, summary.stake)
 			if #bestLines > 0 then add("Best Endless Night   " .. table.concat(bestLines, "   |   "), { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end
@@ -366,6 +368,17 @@ return function(deps)
 				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(width, h),
 				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
 			})
+			if line.props.copy then
+				local tap = Instance.new("TextButton")
+				tap.Name = "CopySeed"
+				tap.BackgroundTransparency = 1
+				tap.Text = ""
+				tap.Position = UDim2.fromOffset(0, y - math.max(0, 44 - h) // 2)
+				tap.Size = UDim2.fromOffset(width, math.max(h, 44))
+				tap.ZIndex = 20
+				tap.Parent = factsF
+				tap.MouseButton1Click:Connect(function() click() showBox(line.props.copy) end)
+			end
 			y = y + h
 		end
 		return y

@@ -30066,4 +30066,20 @@ table.insert(tests, { name = "StakePlates: eight tier edges, plates at least 44 
 	expectTrue(StakePlates.style(3, true, false).fill ~= StakePlates.style(3, false, false).fill, "locked plates are dimmed")
 end })
 
+table.insert(tests, { name = "Run Over recap: only a Seed Run's code is tap to copy, the tap target is 44 px, Try Again and Menu stay 44 px", fn = function()
+	local SeedDisplay = require(script.Parent.Parent.Engine.SeedDisplay)
+	local RunOverLayout = require(script.Parent.Parent.Engine.RunOverLayout)
+	expectTrue(SeedDisplay.label({ isSeeded = true, seedCode = "ABC234" }).shareable)
+	expectTrue(not SeedDisplay.label({ isDaily = true, dailyDateKey = "2026-11-19" }).shareable)
+	expectEqual(nil, SeedDisplay.label({}))
+	expectTrue(RunOverLayout.PILL_H >= 44 and RunOverLayout.BIG_H >= 44, "button heights")
+	if not io then return end
+	local f = io.open("src/Client/GameOver.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	expectTrue(src:find("CopySeed", 1, true) and src:find("math.max(h, 44)", 1, true), "the seed line has a 44 px tap target")
+	expectTrue(src:find("copy = seedInfo.shareable", 1, true), "only shareable seeds get the tap")
+end })
+
 return tests
