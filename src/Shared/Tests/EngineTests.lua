@@ -27430,4 +27430,24 @@ table.insert(tests, { name = "MenuLife: tip plate stays clear of the sign column
 	assert(M.tipRect(600, 800) == nil and M.tipRect(1920, 400) == nil)
 end })
 
+table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 44 px tall and clear of each other at desktop, tablet, compact and phone sizes", fn = function()
+	local L = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local sizes = { { 1660, 1080 }, { 1020, 720 }, { 784, 600 }, { 800, 450 }, { 604, 390 }, { 360, 640 } }
+	for _, sz in ipairs(sizes) do
+		for _, counts in ipairs({ { offers = 3, packs = 2 }, { offers = 5, packs = 3 }, { offers = 3, packs = 2, room = true } }) do
+			local tag = sz[1] .. "x" .. sz[2] .. (counts.room and " room" or "")
+			local r = L.rects(sz[1], sz[2], counts)
+			expectTrue(r.tabs.h >= 44, "tabs 44 px tall " .. tag)
+			expectTrue(r.leave.h >= 44, "Next Round 44 px tall " .. tag)
+			expectTrue(r.tabs.x >= 0 and r.tabs.x + r.tabs.w <= sz[1], "tabs on screen " .. tag)
+			expectTrue(not L.intersects(r.tabs, r.nextBoss) and not L.intersects(r.tabs, r.leave), "tabs clear of the boss strip and Next Round " .. tag)
+			expectTrue(not L.intersects(r.bubble, r.tabs), "bubble clear of the tabs " .. tag)
+			for i, o in ipairs(r.offers) do
+				expectTrue(not L.intersects(o, r.tabs) and not L.intersects(o, r.leave), "offer " .. i .. " clear of tabs and Next Round " .. tag)
+				expectTrue(o.h >= 44, "offer " .. i .. " is a big tap target " .. tag)
+			end
+		end
+	end
+end })
+
 return tests

@@ -400,7 +400,7 @@ return function(deps)
 		end
 
 		local shopTabBar = Instance.new("Frame")
-		shopTabBar.Size = UDim2.new(1, -20, 0, 36)
+		shopTabBar.Size = UDim2.new(1, -20, 0, 44)
 		shopTabBar.Position = UDim2.new(0, 10, 0, 40)
 		shopTabBar.BackgroundTransparency = 1
 		shopTabBar.ZIndex = SHOP_ZINDEX

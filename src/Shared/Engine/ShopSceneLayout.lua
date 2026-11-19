@@ -32,6 +32,7 @@ ShopSceneLayout.CARD_RATIO = 0.72    -- width / height of an offer card
 ShopSceneLayout.MAX_AMBIENT = 14     -- cap on ambient objects (motes, glow, sway)
 ShopSceneLayout.HOVER_OVERLAP = 0.15 -- offers may overlap Marlo by this share of his width
 ShopSceneLayout.MIN_W, ShopSceneLayout.MIN_H = 320, 400
+ShopSceneLayout.MIN_TOUCH = 44 -- smallest height of a tappable control (tabs, Next Round)
 
 -- The round card table: a wide oval (a rounded rectangle with half-circle ends, the same shape as the Menu room's felt table) with a
 -- wood rim; every card lies on the felt, TABLE_MARGIN clear of the rim.
@@ -405,6 +406,12 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	local minClear = math.max(0.02 * p.w, 8)
 	out.offers, out.packs, out.fitted, out.sideBySide, out.cardGap = dealInRoom(region, out.keepOut, nOffers, nPacks, wMax, out.felt, minClear, out.table)
 	out.deal = region
+	-- on a small screen an unfitted row can graze the Next Round plate: slide the plate down just clear of the cards it touches
+	for _, o in ipairs(out.offers) do
+		if ShopSceneLayout.intersects(o, out.leave) then
+			out.leave = rect(out.leave.x, math.min(o.y + o.h + 4, H - leaveH - 8), out.leave.w, leaveH)
+		end
+	end
 	out.bandX0, out.bandX1 = region.x, region.x + region.w
 	if out.sideBySide then -- each row is only as wide as its own cards, so it centres them where they were dealt
 		local function band(list)
@@ -429,9 +436,9 @@ function ShopSceneLayout.rects(W, H, counts)
 
 	-- controls along the top
 	local tabsW = phone and (W - 16) or clamp(W * 0.5, 300, 560)
-	out.tabs = rect((W - tabsW) / 2, 8, tabsW, 34)
+	out.tabs = rect((W - tabsW) / 2, 6, tabsW, ShopSceneLayout.MIN_TOUCH) -- a touch target: at least 44 px tall
 	local bossW = clamp(tabsW * 0.8, 240, 460)
-	out.nextBoss = rect((W - bossW) / 2, 46, bossW, 24)
+	out.nextBoss = rect((W - bossW) / 2, 6 + ShopSceneLayout.MIN_TOUCH + 2, bossW, 18)
 	local tabsBottom = out.nextBoss.y + out.nextBoss.h
 
 	local leaveW, leaveH = clamp(W * 0.14, 110, 180), 44
