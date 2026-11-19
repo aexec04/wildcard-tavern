@@ -19,7 +19,7 @@ M.SECTIONS = {
 	{ id = "sound", title = "Sound", rows = { "volume" } },
 	{ id = "help", title = "Help", rows = { "replayTutorial", "replayHints" } },
 	{ id = "display", title = "Display", rows = { "animSpeed" } },
-	{ id = "gameplay", title = "Gameplay", rows = { "confirmDiscard", "allowSpectators", "holdConfirmSeconds" } },
+	{ id = "gameplay", title = "Gameplay", rows = { "roundHints", "confirmDiscard", "allowSpectators", "holdConfirmSeconds" } },
 }
 
 function M.rowOrder()

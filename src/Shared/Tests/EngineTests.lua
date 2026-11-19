@@ -9706,7 +9706,7 @@ end })
 
 table.insert(tests, { name = "Hints: data table valid, each hint once, never in the tutorial, replay clears, safe migration", fn = function()
 	local Hints = require(script.Parent.Parent.Engine.Hints)
-	expectEqual(#Hints.Definitions, 10)
+	expectEqual(#Hints.Definitions, 13) -- ten bubbles plus the three table plates of Engine/RoundHints
 	local ids = {}
 	for _, hint in ipairs(Hints.Definitions) do
 		expectTrue(not ids[hint.id], "unique " .. hint.id); ids[hint.id] = true
@@ -29806,6 +29806,64 @@ table.insert(tests, { name = "Patron library: '23 of 81 found' count line, syner
 	local src = read("src/Client/Collection.lua")
 	assert(src:find("foundText", 1, true) and src:find("synergyLine", 1, true) and src:find("CHIP_H", 1, true), "Collection draws the count line, the synergy line and 44 px chips")
 	assert(src:find("Locked\\n", 1, true) and src:find("undiscoveredHint", 1, true), "locked tiles keep the hint")
+end })
+
+table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 rounds 1 to 3 only, off in Calm mode and with the toggle, clear of the table at four sizes", fn = function()
+	local RH = require(script.Parent.Parent.Engine.RoundHints)
+	local Hints = require(script.Parent.Parent.Engine.Hints)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	expectEqual(#RH.ORDER, 3, "three plates")
+	for _, e in ipairs(RH.ORDER) do
+		expectTrue(Hints.getById(e.id) ~= nil, e.id .. " is stored in hintsSeen")
+		expectTrue(Hints.wordCount(e.body) <= 12 and not (e.title .. e.body):find("%-%-"), e.id .. " is short and has no dashes")
+		expectTrue(not Hints.dueFor({ phase = "playing", round = 1 }, {}, {}) or Hints.dueFor({ phase = "playing", round = 1 }, {}, {}).id:sub(1, 11) ~= "round_hint_", "no bubble ever shows a table plate")
+	end
+	local profile = {}
+	expectTrue(Hints.markSeen(profile, "round_hint_select") and not Hints.markSeen(profile, "round_hint_select"), "stored once")
+	expectTrue(Hints.cleanSaved({ round_hint_target = true }).round_hint_target == true, "survives a save and load")
+	local function st(t) local s = { phase = "playing", night = 1, round = 1, ownedPatrons = {}, profileStats = { bestNightReached = 0 } }; for k, v in pairs(t or {}) do s[k] = v end; return s end
+	local on = { enabled = true, calm = false }
+	expectEqual(RH.next(st(), {}, on).id, "round_hint_select", "round 1 starts with picking cards")
+	expectEqual(RH.next(st(), { round_hint_select = true }, on), nil, "no Patron owned yet, no Target plate in round 1")
+	expectEqual(RH.next(st({ ownedPatrons = { { id = "the_regular" } } }), { round_hint_select = true }, on).id, "round_hint_tiers", "a Patron brings the power plate")
+	expectEqual(RH.next(st({ round = 2 }), { round_hint_select = true, round_hint_tiers = true }, on).id, "round_hint_target", "round 2 explains Target")
+	expectEqual(RH.next(st({ round = 3 }), { round_hint_select = true, round_hint_tiers = true, round_hint_target = true }, on), nil, "all seen, nothing more")
+	expectEqual(RH.next(st({ round = 2 }), { round_hint_select = true }, on).id, "round_hint_target", "a plate that is not due does not block the next")
+	expectEqual(RH.next(st({ round = 4 }), {}, on), nil, "round 4 is past the layer")
+	expectEqual(RH.next(st({ night = 2 }), {}, on), nil, "Night 2 is past the layer")
+	expectEqual(RH.next(st({ profileStats = { bestNightReached = 2 } }), {}, on), nil, "Night 1 cleared before")
+	expectEqual(RH.next(st({ isTutorial = true }), {}, on), nil, "not in the tutorial")
+	expectEqual(RH.next(st({ phase = "shop" }), {}, on), nil, "only on the table")
+	expectEqual(RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 0 }), {}, on), nil, "the guided first hand hint owns the screen first")
+	expectTrue(RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 1 }), {}, on) ~= nil, "after the guided hand it may show")
+	expectEqual(RH.next(st(), {}, { enabled = true, calm = true }), nil, "skipped in Calm mode")
+	expectEqual(RH.next(st(), {}, { enabled = false, calm = false }), nil, "skipped with the Hints toggle off")
+	expectTrue(RH.satisfied("round_hint_select", 1) and not RH.satisfied("round_hint_select", 0) and not RH.satisfied("round_hint_tiers", 5), "picking a card finishes the first plate only")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		if L.fits(w, h) then
+			local r = L.rects(w, h)
+			local spot = RH.place(r, w, h)
+			if w >= 1280 then expectTrue(spot ~= nil, w .. "x" .. h .. ": the plate fits") end
+			if spot then
+				expectTrue(spot.button.h >= 44, "Got it is 44 px tall at " .. w .. "x" .. h)
+				for _, rect in pairs(spot) do
+					expectTrue(rect.x >= 0 and rect.y >= 0 and rect.x + rect.w <= w and rect.y + rect.h <= h, "on screen at " .. w .. "x" .. h)
+					for name, other in pairs(L.flat(r)) do
+						local hit = rect.x < other.x + other.w and other.x < rect.x + rect.w and rect.y < other.y + other.h and other.y < rect.y + rect.h
+						expectTrue(not hit, w .. "x" .. h .. ": hint overlaps " .. name)
+					end
+				end
+				expectTrue(spot.plate.y + spot.plate.h <= r.hand.y, "above the hand at " .. w .. "x" .. h)
+			end
+		end
+	end
+	if not io then return end
+	local f = io.open("src/Client/Settings.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find('makeChoiceRow("roundHints"', 1, true) ~= nil, "Settings has a Round Hints toggle")
+	end
 end })
 
 return tests

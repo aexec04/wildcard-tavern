@@ -46,6 +46,11 @@ Hints.Definitions = {
 		trigger = function(state) return type(state.discoveries) == "table" and (state.discoveries.found or 0) >= 1 end },
 	{ id = "first_interest", icon = "🪙", target = "tips", text = "Saved Tips earn interest at the end of each round.",
 		trigger = function(state) return (state.lastInterest or 0) > 0 end },
+	-- the first three rounds layer (Engine/RoundHints, Client/RoundHintsFX): shown on the table plate, never as a bubble, so no trigger here;
+	-- they live in this list only so hintsSeen stores them and Replay Hints clears them
+	{ id = "round_hint_select", icon = "🃏", target = "table", text = "Tap up to five cards, then press Play Hand.", trigger = function() return false end },
+	{ id = "round_hint_tiers", icon = "👑", target = "table", text = "The frame shows power: wood is Common, gold is Legendary.", trigger = function() return false end },
+	{ id = "round_hint_target", icon = "🎯", target = "table", text = "Reach the Target score before your hands run out.", trigger = function() return false end },
 }
 
 local BY_ID = {}

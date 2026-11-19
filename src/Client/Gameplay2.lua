@@ -525,6 +525,9 @@ function M.install(deps)
 			pcall(function()
 				require(script.Parent.GuidedHint).update(layer, lastState, deps.selectedCount(), deps.firstCard and deps.firstCard(), deps.playButton, Layout.rects(size.X, size.Y), deps.cards and deps.cards())
 			end)
+			pcall(function() -- the three hint plates of the first rounds (Engine/RoundHints), beside the score stage
+				require(script.Parent.RoundHintsFX).update(layer, lastState, deps.selectedCount(), Layout.rects(size.X, size.Y), size.X, size.Y)
+			end)
 		end
 	end
 

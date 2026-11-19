@@ -411,6 +411,7 @@ return function(deps)
 				remote:FireServer()
 			end
 			pcall(function() require(script.Parent.FirstTimeHints).replay() end)
+			pcall(function() require(script.Parent.RoundHintsFX).replay() end)
 			replay.Text = "Done"
 			task.delay(1.5, function()
 				if replay.Parent then replay.Text = "Replay" end
@@ -428,6 +429,7 @@ return function(deps)
 
 	-- ===== Gameplay =====
 	makeHeader("Gameplay")
+	makeChoiceRow("roundHints", "Round Hints", "Short hint plates in the first rounds. Turn off to hide them.", { { false, "Off" }, { true, "On" } })
 	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
 	makeChoiceRow("allowSpectators", "Allow Spectators", "Friends in your server can watch your run. Turn off to stop them.", { { false, "Off" }, { true, "On" } })
 	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
