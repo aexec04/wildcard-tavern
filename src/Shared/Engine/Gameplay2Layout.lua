@@ -161,6 +161,28 @@ function M.rects(w, h)
 	return r
 end
 
+-- Wall banners (decorative, never in rects or flat, so no click or overlap rule counts them): two purple banners hang on the upper walls
+-- beside the top bar, at the reference mockup's spots (x 285 to 380 and x 1430 to 1550 of 1672). Only on screens that use the reference layout.
+-- Returns { left = box, right = box } (art aspect 594:934 and 682:977), or nil when the screen is compact.
+M.BANNER_ASPECT = { left = 594 / 934, right = 682 / 977 }
+function M.banners(w, h)
+	if w < M.REF_MIN_W or h < M.REF_MIN_H then return nil end
+	local r = M.rects(w, h)
+	local y = math.max(4, round(0.012 * h))
+	local lw, rw = round(0.0568 * w), round(0.0718 * w)
+	local out = { right = box(round(0.8553 * w), y, rw, round(rw / M.BANNER_ASPECT.right)) }
+	local left = box(round(0.1705 * w), y, lw, round(lw / M.BANNER_ASPECT.left))
+	-- the consumables tray (top left) wins: slide the banner right of it, and leave it out when it no longer fits before the top bar
+	for _, k in ipairs({ "traySlot1", "traySlot2", "trayUse", "traySell", "trayPrompt" }) do
+		local t = r[k]
+		if t and left.x < t.x + t.w + 8 and t.x < left.x + left.w and left.y < t.y + t.h and t.y < left.y + left.h then
+			left.x = t.x + t.w + 8
+		end
+	end
+	if left.x + left.w + 8 <= r.bar.x then out.left = left end
+	return out
+end
+
 -- The deck viewer opens from the book AND its count plate: one click rect from the top of the book to the bottom of the plate.
 function M.deckHit(r)
 	local top, bottom = r.deck.y, r.deckCount.y + r.deckCount.h

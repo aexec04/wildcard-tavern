@@ -248,7 +248,7 @@ CATEGORY_OPTS = {
     # Concept T full card faces (52): an EDIT of a cropped reference card, cut from magenta, 2:3 canvas. References are filled below from prompts.json "ctf_refs".
     # Painted UI kit: nine-slice friendly frames, each an EDIT of the table mockup, cut from magenta, trimmed to the alpha box by tools/painted_kit_trim.py
     "painted_kit": {"quality": "medium", "style_key": "pk_style", "transparent": True, "size": "1536x1024",
-                    "references": dict((k, "claude/reference/concept-table-reference.png") for k in ("pk_wood_plate", "pk_parchment", "pk_btn_green", "pk_btn_dark", "pk_icon_round", "pk_count_tab", "pk_patron_slot", "pk_score_frame"))},
+                    "references": dict((k, "claude/reference/concept-table-reference.png") for k in ("pk_wood_plate", "pk_parchment", "pk_btn_green", "pk_btn_dark", "pk_icon_round", "pk_count_tab", "pk_patron_slot", "pk_score_frame", "pk_banner_l", "pk_banner_r"))},
     "concept_t_faces": {"quality": "low", "style_key": "ctf_style", "transparent": True, "size": "1024x1536", "references": {}},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.

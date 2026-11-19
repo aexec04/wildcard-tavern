@@ -108,6 +108,24 @@ function M.install(deps)
 	deckImg.ZIndex = Z_UI
 	deckImg.Parent = layer
 	local deckPill = Kit.pill(layer, "0 / 52", "wood"); deckPill.Name = "DeckCountPill"; deckPill.ZIndex = Z_UI
+	-- wall banners: still pictures on the wall (no tween, so Calm mode and Reduce motion are unchanged), drawn under every plate
+	local wallBanners = {}
+	do
+		local PK = require(Engine:WaitForChild("PaintedKitArt"))
+		for side, key in pairs({ left = "pk_banner_l", right = "pk_banner_r" }) do
+			local img = Instance.new("ImageLabel")
+			img.Name = side == "left" and "WallBannerLeft" or "WallBannerRight"
+			img.BackgroundTransparency = 1
+			img.BorderSizePixel = 0
+			img.Active = false
+			img.Image = PK[key] or ""
+			img.ScaleType = Enum.ScaleType.Fit
+			img.ZIndex = 2
+			img.Visible = false
+			img.Parent = layer
+			wallBanners[side] = img
+		end
+	end
 	-- centre of the felt: the round score and a thin gold underline, quiet so the cards stand out
 	local scoreBox = Instance.new("Frame")
 	scoreBox.Name = "CenterScore"
@@ -320,6 +338,14 @@ function M.install(deps)
 		place(target, r.target); place(tips, r.tips)
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		place(deckImg, r.deck); place(deckPill, r.deckCount)
+		do
+			local wb = Layout.banners(size.X, size.Y)
+			for side, img in pairs(wallBanners) do
+				local rc = wb and wb[side]
+				img.Visible = rc ~= nil and img.Image ~= ""
+				if rc then place(img, rc) end
+			end
+		end
 		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_BTN + 2); raise(discardsPill, Z_BTN + 2); raise(deckPill, Z_UI)
 		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
 		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)

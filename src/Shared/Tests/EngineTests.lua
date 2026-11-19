@@ -29121,6 +29121,42 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
 end })
 
+table.insert(tests, { name = "Gameplay2 wall banners: two banners at the reference spots, on screen, touching no table piece at six sizes, none on compact screens, art recorded, still (no tween)", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local Kit = require(script.Parent.Parent.Engine.PaintedKitArt)
+	assert(Kit.pk_banner_l and Kit.pk_banner_l:find("rbxassetid://%d+"), "left banner art recorded")
+	assert(Kit.pk_banner_r and Kit.pk_banner_r:find("rbxassetid://%d+"), "right banner art recorded")
+	assert(L.banners(1024, 768) == nil and L.banners(844, 390) == nil and L.banners(800, 450) == nil, "compact screens keep the wall bare")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1672, 941 }, { 1506, 751 }, { 1280, 720 }, { 2380, 957 } }) do
+		local w, h = sz[1], sz[2]
+		local b = L.banners(w, h)
+		assert(b and b.right, w .. "x" .. h .. " has the right banner")
+		assert(not b.left or b.left.x + b.left.w < b.right.x, "left banner is left of the right banner")
+		if w >= 1672 then assert(b.left, w .. "x" .. h .. " has room for the left banner") end
+		local flat = L.flat(L.rects(w, h))
+		for side, rc in pairs(b) do
+			assert(rc.x >= 0 and rc.y >= 0 and rc.x + rc.w <= w and rc.y + rc.h <= h, side .. " banner on screen at " .. w .. "x" .. h)
+			for name, o in pairs(flat) do
+				local hit = rc.x < o.x + o.w and o.x < rc.x + rc.w and rc.y < o.y + o.h and o.y < rc.y + rc.h
+				assert(not hit, side .. " banner overlaps " .. name .. " at " .. w .. "x" .. h)
+			end
+		end
+	end
+	local ref = L.banners(1672, 941)
+	assert(math.abs(ref.left.x - 285) <= 2 and math.abs(ref.left.w - 95) <= 2, "left banner at the reference spot")
+	assert(math.abs(ref.right.x - 1430) <= 2 and math.abs(ref.right.w - 120) <= 2, "right banner at the reference spot")
+	if io then
+		local f = io.open("src/Client/Gameplay2.lua", "r")
+		if f then
+			local src = f:read("*a"); f:close()
+			local i = src:find("wall banners:", 1, true)
+			local j = src:find("local wallBanners", 1, true)
+			assert(i and j, "banner block present")
+			assert(not src:sub(i, j + 900):find("TweenService", 1, true), "banners are still pictures")
+		end
+	end
+end })
+
 table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ in shape and size, taller grows up, power disc 4.5:1, labels clear the disc, motion on FxLoop and still in Calm mode", fn = function()
 	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
 	local S = require(script.Parent.Parent.Engine.TavernStyle)

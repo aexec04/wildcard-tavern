@@ -1957,6 +1957,8 @@
     "pk_w_icon_bulb": "cut from pk_w_icons by tools/painted_kit_icons.py (not generated)",
     "pk_w_icon_bars": "cut from pk_w_icons by tools/painted_kit_icons.py (not generated)",
     "pk_w_icon_spade": "cut from pk_w_icons by tools/painted_kit_icons.py (not generated)",
-    "pk_w_icon_crown": "cut from pk_w_icons by tools/painted_kit_icons.py (not generated)"
+    "pk_w_icon_crown": "cut from pk_w_icons by tools/painted_kit_icons.py (not generated)",
+    "pk_banner_l": "Edit the reference image. Redraw ONE piece from it: a tall hanging cloth wall banner in rich royal purple with a thick gold border, a gold crown emblem near the top and a swallow-tail bottom edge, hanging from a dark wooden rod with two small gold finials, hand-painted blocky Roblox tavern style like the purple banners on the upper walls of the reference, front view, no letters, no numbers, no text, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_banner_r": "Edit the reference image. Redraw ONE piece from it: a tall hanging cloth wall banner in rich royal purple with a thick gold border, a gold crown emblem near the top and a swallow-tail bottom edge, hanging from a dark wooden rod with two small gold finials, hand-painted blocky Roblox tavern style like the purple banners on the upper walls of the reference, front view, no letters, no numbers, no text, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin, a slightly different fold of the cloth"
   }
 }
