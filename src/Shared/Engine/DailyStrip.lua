@@ -1,0 +1,92 @@
+--[[
+	Engine/DailyStrip.lua
+	Gameplay v2: the slim daily return strip on the Night map (phase roundSelect) and Run Over (phase gameover), never on the table.
+	Pure and tested. Client/DailyStrip draws it. It adds no rules of its own: the streak, the UTC day rollover and the once a day
+	claim all live in Engine/LoginStreak (server authoritative, ClaimLoginReward re-checks everything), the goal is the first
+	unfinished daily quest from Engine/Quests.
+
+	visible(phase)               -> true on roundSelect and gameover only
+	view(login, quests)          -> { streakText, goalText, goalDone, progress, goal, chest, chestText, rewardLabel, claimDay }
+	                                chest is "ready" (claim it), "opened" (claimed today) or "none" (no streak yet, old save)
+	rect(w, h)                   -> { x, y, w, h } slim strip centred at the bottom, inside the screen, MIN_TOUCH tall
+	chestRect(strip)             -> { x, y, w, h } relative to the strip, at least 44 x 44
+	reveal(calm, fast)           -> { open, glow } seconds; 0 means no motion (Calm mode, Reduce motion)
+	Old saves: login or quests may be nil or partly empty; every field falls back to a safe default.
+]]
+
+local M = {}
+
+M.MIN_TOUCH = 44
+M.HEIGHT = 48
+M.MAX_W = 620
+M.MARGIN = 12
+
+function M.visible(phase)
+	return phase == "roundSelect" or phase == "gameover"
+end
+
+local function plural(n, word)
+	return n .. " " .. word .. (n == 1 and "" or "s")
+end
+
+function M.view(login, quests)
+	login = type(login) == "table" and login or {}
+	quests = type(quests) == "table" and quests or {}
+	local streak = math.max(0, math.floor(tonumber(login.streak) or 0))
+	local out = { streak = streak }
+	out.streakText = streak >= 1 and ("Streak: " .. plural(streak, "day")) or "Streak: starts today"
+
+	-- Goal: the first unfinished quest, else all done, else nothing to show.
+	local goal
+	local rows = type(quests.quests) == "table" and quests.quests or {}
+	for _, q in ipairs(rows) do
+		if not q.done then goal = q break end
+	end
+	if goal then
+		out.progress = math.floor(tonumber(goal.progress) or 0)
+		out.goal = math.max(1, math.floor(tonumber(goal.goal) or 1))
+		out.goalDone = false
+		out.goalText = tostring(goal.desc or goal.name or "Daily goal") .. " " .. out.progress .. "/" .. out.goal
+	elseif #rows > 0 then
+		out.goalDone = true
+		out.progress, out.goal = 1, 1
+		out.goalText = "All daily goals done"
+	else
+		out.goalDone = false
+		out.progress, out.goal = 0, 1
+		out.goalText = "Daily goals load soon"
+	end
+
+	-- Chest: today's login reward. Claimable once per UTC day.
+	out.chest, out.chestText = "none", "Chest"
+	for _, r in ipairs(type(login.rewards) == "table" and login.rewards or {}) do
+		if r.claimable then
+			out.chest, out.chestText, out.rewardLabel, out.claimDay = "ready", "Open chest", r.label, r.day
+			break
+		elseif r.today and r.claimed then
+			out.chest, out.chestText, out.rewardLabel = "opened", "Chest opened", r.label
+		end
+	end
+	return out
+end
+
+function M.rect(w, h)
+	w, h = math.max(1, math.floor(w)), math.max(1, math.floor(h))
+	local sw = math.min(M.MAX_W, math.max(1, w - 2 * M.MARGIN))
+	local sh = math.min(math.max(M.HEIGHT, M.MIN_TOUCH), h)
+	return { x = math.floor((w - sw) / 2), y = math.max(0, h - sh - M.MARGIN), w = sw, h = sh }
+end
+
+function M.chestRect(strip)
+	local cw = math.max(M.MIN_TOUCH, math.min(150, math.floor(strip.w * 0.28)))
+	local ch = math.max(M.MIN_TOUCH, strip.h - 4)
+	return { x = strip.w - cw - 2, y = math.floor((strip.h - ch) / 2), w = cw, h = ch }
+end
+
+function M.reveal(calm, fast)
+	if calm then return { open = 0, glow = 0 } end
+	if fast then return { open = 0.15, glow = 0.3 } end
+	return { open = 0.3, glow = 0.6 }
+end
+
+return M

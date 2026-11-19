@@ -2229,6 +2229,7 @@ local function render(state)
 	pcall(require(script.EndlessChips).update, state) -- Crowd Rule chips and banner, display only
 	pcall(require(script.BlessingChip).update, state) -- blessing and curse chip, display only
 	pcall(require(script.LoginStreakUI).update, state) -- menu strip and login popup, display only
+	pcall(require(script.DailyStrip).update, state) -- daily streak, goal and chest strip on the Night map and Run Over, display only
 	pcall(require(script.UnlockToast).update, state) -- "Unlocked: ..." toast, display only
 	pcall(require(script.MenuRank).update, state) -- Tavern Rank bar on the menu, display only
 	pcall(require(script.MenuRegulars).update, state, MenuScreen.menuFrame) -- Tavern Regulars row on the menu, display only

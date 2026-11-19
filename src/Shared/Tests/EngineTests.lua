@@ -30735,4 +30735,65 @@ table.insert(tests, { name = "Self check cleanup: count pills clear of button wo
 	expectEqual(#warns, 1, "only the real unreadable label warns")
 end })
 
+table.insert(tests, { name = "Daily strip: shows on the Night map and Run Over only, streak, first open goal and chest from the real views, old saves safe, day rollover and double claim", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	local LS = require(script.Parent.Parent.Engine.LoginStreak)
+	local Q = require(script.Parent.Parent.Engine.Quests)
+	assert(D.visible("roundSelect") and D.visible("gameover"), "map and Run Over")
+	assert(not D.visible("playing") and not D.visible("shop") and not D.visible("menu"), "never on the table, Counter or menu")
+	-- old save: nothing at all
+	local old = D.view(nil, nil)
+	expectEqual(old.chest, "none", "no login view, no chest")
+	expectEqual(old.streakText, "Streak: starts today", "safe default")
+	-- real rules: day 1 check in, chest ready, claim once, opened, same day claim refused
+	local profile = {}
+	local day = 20000
+	assert(LS.checkIn(profile, day), "first check in")
+	local v = D.view(LS.view(profile), Q.view(profile, day, 100))
+	expectEqual(v.streakText, "Streak: 1 day", "singular")
+	expectEqual(v.chest, "ready", "chest waits")
+	expectEqual(v.claimDay, 1, "slot 1")
+	assert(v.goalText:find("0/", 1, true), "goal progress shown: " .. v.goalText)
+	local ok = LS.claim(profile, v.claimDay, nil)
+	assert(ok, "first claim works")
+	local again = LS.claim(profile, v.claimDay, nil)
+	assert(not again, "double claim refused")
+	expectEqual(D.view(LS.view(profile), nil).chest, "opened", "after the claim the chest is opened")
+	-- same day again: no change; next UTC day: streak 2 and the chest is ready again
+	assert(not LS.checkIn(profile, day), "same day is no new check in")
+	assert(LS.checkIn(profile, day + 1), "next day")
+	local v2 = D.view(LS.view(profile), nil)
+	expectEqual(v2.streakText, "Streak: 2 days", "plural")
+	expectEqual(v2.chest, "ready", "new day, new chest")
+	expectEqual(v2.claimDay, 2, "slot 2")
+	-- a finished goal moves to the next open one; all done says so
+	local qs = { quests = { { desc = "A", progress = 3, goal = 3, done = true }, { desc = "Play 10 hands.", progress = 4, goal = 10, done = false } } }
+	expectEqual(D.view(nil, qs).goalText, "Play 10 hands. 4/10", "first unfinished goal")
+	qs.quests[2].done = true
+	expectEqual(D.view(nil, qs).goalText, "All daily goals done", "all done")
+	assert(D.view(nil, qs).goalDone, "goalDone flag")
+end })
+
+table.insert(tests, { name = "Daily strip layout: inside the screen, 44 px touch targets, chest inside the strip at six sizes, Calm mode reveal has no motion", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 1024, 768 }, { 844, 390 }, { 390, 844 } }) do
+		local w, h = sz[1], sz[2]
+		local r = D.rect(w, h)
+		assert(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, "strip on screen at " .. w .. "x" .. h)
+		assert(r.h >= 44, "44 px tall at " .. w .. "x" .. h)
+		local c = D.chestRect(r)
+		assert(c.w >= 44 and c.h >= 44, "chest tap target at " .. w .. "x" .. h)
+		assert(c.x >= 0 and c.y >= 0 and c.x + c.w <= r.w and c.y + c.h <= r.h, "chest inside the strip at " .. w .. "x" .. h)
+	end
+	expectEqual(D.reveal(true, false).open, 0, "Calm mode: no motion")
+	assert(D.reveal(false, true).open < D.reveal(false, false).open, "Fast is quicker")
+	if not io then return end
+	local f = io.open("src/Client/DailyStrip.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		assert(src:find("Kit.still()", 1, true), "the only tween is behind the still check")
+		assert(src:find("ClaimLoginReward", 1, true), "claims through the existing server checked remote")
+	end
+end })
+
 return tests
