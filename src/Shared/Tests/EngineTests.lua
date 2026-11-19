@@ -28803,6 +28803,24 @@ table.insert(tests, { name = "Gameplay v2 moments: Target cleared plate lines an
 	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2MomentsFX", 1, true) and read("src/Client/GameOver.lua"):find("defeatLine", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Gameplay v2 boss entrance: icon per rule family, 0.4 s slide and 1.2 s hold, none in Calm mode, once per boss round", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	for _, boss in ipairs(BR.Definitions) do
+		local ic = M.bossIcon(boss.rules)
+		assert(#ic >= 1 and #ic <= 2 and not ic:find("[\128-\255]"), "ASCII icon for " .. boss.id)
+	end
+	for _, tag in ipairs(BR.RuleTagIds) do assert(M.ICONS[tag], "icon for tag " .. tag) end
+	local n = M.bossEntrance(false, false)
+	assert(n.slide == 0.4 and n.hold == 1.2)
+	local f = M.bossEntrance(false, true)
+	assert(f.slide == 0.2 and f.hold == 0.6)
+	local c = M.bossEntrance(true, false)
+	assert(c.slide == 0 and c.hold == 0, "no motion in Calm mode")
+	assert(M.bossEntranceKey({ night = 2, round = 3, bossModifier = { id = "bouncer" } }) ~= M.bossEntranceKey({ night = 3, round = 3, bossModifier = { id = "bouncer" } }))
+	assert(M.bossEntranceKey({ night = 1, round = 1 }) == nil)
+end })
+
 table.insert(tests, { name = "Gameplay v2 Patron tooltip: 0.25 s delay, 320 px wide scaling down, portrait column, plate clear of the bar, hand, buttons, sort control and deck for all five seats at three sizes", fn = function()
 	local T = require(script.Parent.Parent.Engine.Gameplay2Tip)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

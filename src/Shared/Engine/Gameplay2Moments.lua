@@ -18,6 +18,9 @@
 	bossText(state)                  -> name, rule (nil, nil when not a boss round)
 	bossGlow(calm)                   -> { color = {r,g,b}, transparency }
 	defeatLine(state)                -> "Out of hands. Score X of Y."
+	bossIcon(rules)                  -> one or two ASCII letters for the rule family (drawn on a small red shield, never a symbol glyph)
+	bossEntrance(calm, fast)         -> { slide, hold, settle } seconds; slide 0 means no motion (Calm mode, Reduce motion)
+	bossEntranceKey(state)           -> text that changes per boss round, so the entrance plays once per round
 ]]
 
 local M = {}
@@ -67,6 +70,29 @@ end
 
 function M.bossGlow(calm)
 	return { color = { 150, 38, 30 }, transparency = calm and 0.9 or 0.84 }
+end
+
+local ICONS = {
+	fewerHands = "H", fewerDiscards = "D", lowHandSize = "C", cardToss = "T", cardCount = "N", suitDebuff = "S", faceDebuff = "F",
+	oddRank = "O", noRepeat = "R", handBan = "B", targetBoost = "G", weakenChips = "Ch", weakenMult = "Mu", tipsDrain = "$", patronLimit = "P",
+	slowStart = "Z",
+}
+M.ICONS = ICONS
+
+function M.bossIcon(rules)
+	local first = rules and rules[1]
+	return ICONS[first] or "!"
+end
+
+function M.bossEntrance(calm, fast)
+	if calm then return { slide = 0, hold = 0, settle = 0 } end
+	local k = fast and 0.5 or 1
+	return { slide = 0.4 * k, hold = 1.2 * k, settle = 0.4 * k }
+end
+
+function M.bossEntranceKey(state)
+	if not state or not state.bossModifier then return nil end
+	return string.format("%s:%s:%s", tostring(state.night or 0), tostring(state.round or 0), tostring(state.bossModifier.id or state.bossModifier.name))
 end
 
 function M.defeatLine(state)

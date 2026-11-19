@@ -3,7 +3,9 @@
 	Draws Engine/Gameplay2Moments on the Gameplay v2 table.
 
 	clear(root, lines)               centred "Target cleared" plate: slides in, tips count up, fades out. Takes no input.
-	boss(layer, rects, state, w, h)  the boss rule banner under the top bar plus a static red candle tint; hides when not a boss round
+	boss(layer, rects, state, w, h)  the boss rule banner under the top bar (rule icon, name, rule) plus a static red candle tint; hides when
+	                                 not a boss round. The first time a boss round shows, the banner slides down from the top, holds 1.2 s and
+	                                 settles to its resting look. Calm mode and Reduce motion: no slide, resting look at once.
 	Calm mode and Reduce motion: the plate just shows, then goes; no tween, no count, no slide. Fast speed halves the times.
 ]]
 
@@ -15,6 +17,7 @@ local Style = require(Engine:WaitForChild("TavernStyle"))
 local Celebration = require(Engine:WaitForChild("Celebration"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local Kit = require(script.Parent.TavernKit)
+local BossRounds = require(Engine:WaitForChild("BossRounds"))
 
 local M = {}
 
@@ -128,6 +131,11 @@ function M.boss(layer, rects, state, w, h)
 		banner.ZIndex = 4
 		local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = banner
 		local s = Instance.new("UIStroke"); s.Color = color("gold"); s.Thickness = 1; s.Parent = banner
+		local ic = Instance.new("TextLabel"); ic.Name = "BossIcon"; ic.BackgroundColor3 = Color3.fromRGB(150, 38, 30); ic.BackgroundTransparency = 0
+		ic.Font = Enum.Font[Style.FONTS.title]; ic.TextColor3 = color("cream"); ic.TextStrokeTransparency = 0.4; ic.TextStrokeColor3 = color("outline")
+		ic.ZIndex = 5; ic.Active = false; ic.Parent = banner
+		local icc = Instance.new("UICorner"); icc.CornerRadius = UDim.new(0, 5); icc.Parent = ic
+		local ics = Instance.new("UIStroke"); ics.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ics.Color = color("gold"); ics.Thickness = 1; ics.Parent = ic
 		local n = Instance.new("TextLabel"); n.Name = "BossName"; n.BackgroundTransparency = 1
 		n.Font = Enum.Font[Style.FONTS.title]; n.TextColor3 = color("gold"); n.TextXAlignment = Enum.TextXAlignment.Left
 		n.TextTruncate = Enum.TextTruncate.AtEnd; n.TextStrokeTransparency = 0.4; n.TextStrokeColor3 = color("outline"); n.ZIndex = 5; n.Active = false; n.Parent = banner
@@ -137,16 +145,42 @@ function M.boss(layer, rects, state, w, h)
 		banner.Parent = layer
 	end
 	banner.Visible = true
-	banner.Position = UDim2.fromOffset(rect.x, rect.y)
+	if not banner:GetAttribute("Sliding") then banner.Position = UDim2.fromOffset(rect.x, rect.y) end
 	banner.Size = UDim2.fromOffset(rect.w, rect.h)
 	local ts = math.max(14, math.min(18, rect.h - 8))
-	local n, r = banner.BossName, banner.BossRule
+	local n, r, ic = banner.BossName, banner.BossRule, banner.BossIcon
+	local def = state.bossModifier and state.bossModifier.id and BossRounds.getById(state.bossModifier.id)
+	local side = rect.h - 4
+	ic.Text = Rules.bossIcon(def and def.rules)
+	ic.TextSize = math.max(12, math.min(16, side - 6))
+	ic.Size = UDim2.fromOffset(side + 6, side); ic.Position = UDim2.fromOffset(4, 2)
+	local pad = side + 14
 	n.Text = name
 	n.TextSize = ts
-	n.Size = UDim2.new(0.34, -10, 1, 0); n.Position = UDim2.fromOffset(10, 0)
+	n.Size = UDim2.new(0.34, -pad, 1, 0); n.Position = UDim2.fromOffset(pad, 0)
 	r.Text = rule
 	r.TextSize = ts
 	r.Size = UDim2.new(0.66, -14, 1, 0); r.Position = UDim2.new(0.34, 4, 0, 0)
+	-- entrance: once per boss round, never in Calm mode or Reduce motion
+	local key = Rules.bossEntranceKey(state)
+	local timing = Rules.bossEntrance(calm(), fast())
+	if key and banner:GetAttribute("EntranceKey") ~= key then
+		banner:SetAttribute("EntranceKey", key)
+		if timing.slide > 0 then
+			local rest = UDim2.fromOffset(rect.x, rect.y)
+			banner.Position = UDim2.fromOffset(rect.x, rect.y - rect.h - 12)
+			banner.BackgroundTransparency = 0
+			banner:SetAttribute("Sliding", true)
+			TweenService:Create(banner, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
+			task.delay(timing.slide + timing.hold, function()
+				if banner.Parent then
+					banner:SetAttribute("Sliding", false)
+					banner.Position = rest
+					TweenService:Create(banner, TweenInfo.new(timing.settle), { BackgroundTransparency = 0.15 }):Play()
+				end
+			end)
+		end
+	end
 end
 
 return M
