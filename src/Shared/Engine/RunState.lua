@@ -1665,6 +1665,22 @@ function RunState.sellPatron(state, patronId)
 	return false, 0
 end
 
+-- Move an owned Patron one seat left (dir -1) or right (dir 1). Seat order matters for neighbour Patrons. Free, any time,
+-- like selling. Returns true, newIndex or false.
+function RunState.movePatron(state, patronId, dir)
+	if dir ~= -1 and dir ~= 1 then return false end
+	local list = state.ownedPatrons
+	for i, patron in ipairs(list) do
+		if patron.id == patronId then
+			local j = i + dir
+			if j < 1 or j > #list then return false end
+			list[i], list[j] = list[j], list[i]
+			return true, j
+		end
+	end
+	return false
+end
+
 --[[
 	Recipes (House/Menu/Secret) -- see Recipes.lua. ENGINE-ONLY IN THIS
 	PASS: nothing in the shop UI sells these or lets a player pick target

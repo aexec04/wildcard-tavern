@@ -1753,7 +1753,7 @@ return function(deps)
 				local refund = fullPatron and math.floor(fullPatron.price / 2) or 0
 				shopCards.card(row, {
 					kind = "owned", layoutOrder = index, name = owned.name, description = owned.description,
-					actionText = "Discard", emoji = fullPatron and fullPatron.icon,
+					actionText = require(Engine:WaitForChild("PatronSeats")).sellLabel(refund), emoji = fullPatron and fullPatron.icon,
 					artTab = "patrons", artId = owned.id, rarityTab = "patrons", rarityId = owned.id,
 					onAction = function()
 						playClickSfx(0.4)
@@ -1765,6 +1765,13 @@ return function(deps)
 					end,
 				})
 			end
+		end
+
+		-- seat order: an order number and left / right buttons per Patron (the server swaps neighbours, MovePatron remote)
+		if #ownedPatrons >= 2 and deps.MovePatronRemote then
+			require(script.Parent.PatronSeatStrip).build(shopMyPatronsListFrame, order(), ownedPatrons,
+				math.max(200, shopMyPatronsListFrame.AbsoluteSize.X - (shopStage and shopStage.tabPadLeft() or 0)),
+				function(id, dir) playClickSfx(0.3); deps.MovePatronRemote:FireServer(id, dir) end)
 		end
 
 		-- ----- House Passes (Vouchers): permanent for the run, nothing to click -----

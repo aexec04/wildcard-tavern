@@ -733,6 +733,7 @@ Shop = require(script.Shop)({
 	HousePasses = HousePasses,
 	BuyPatronRemote = BuyPatronRemote,
 	SellPatronRemote = SellPatronRemote,
+	MovePatronRemote = remotes:WaitForChild("MovePatron"),
 	UseRecipeRemote = UseRecipeRemote,
 	RerollShopRemote = RerollShopRemote,
 	BuyPackRemote = BuyPackRemote,

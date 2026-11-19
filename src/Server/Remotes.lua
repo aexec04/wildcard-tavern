@@ -17,6 +17,7 @@ Rem.PlayHand = newRemote("PlayHand")
 Rem.Discard = newRemote("Discard")
 Rem.BuyPatron = newRemote("BuyPatron")
 Rem.SellPatron = newRemote("SellPatron") -- "Discard" was already taken by the card-discard remote above
+Rem.MovePatron = newRemote("MovePatron") -- (player, patronId, dir) dir -1 or 1: swap a Patron with its neighbour
 Rem.BuyCosmeticSet = newRemote("BuyCosmeticSet") -- (player, setId)
 Rem.EquipCosmeticSet = newRemote("EquipCosmeticSet") -- (player, setId)
 Rem.ClaimLoginReward = newRemote("ClaimLoginReward") -- (player, rewardDay)

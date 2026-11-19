@@ -2230,6 +2230,13 @@ Rem.SellPatron.OnServerEvent:Connect(function(player, patronId)
 	pushState(player)
 end)
 
+Rem.MovePatron.OnServerEvent:Connect(function(player, patronId, dir)
+	if not RateLimit.allow(player.UserId, "Rem.MovePatron", os.clock()) then return end
+	local session = sessions[player]
+	if not session or type(patronId) ~= "string" or (dir ~= -1 and dir ~= 1) then return end
+	if RunState.movePatron(session.state, patronId, dir) then pushState(player) end
+end)
+
 -- ===== Recipes (House/Menu/Secret) -- Phase 1b =====
 -- Buying AND using are both gated to the shop phase: House/Secret
 -- Recipes target cards in state.hand, and the only hand a player can see

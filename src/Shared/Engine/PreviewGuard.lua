@@ -13,7 +13,7 @@ local PreviewGuard = {}
 
 -- every remote that acts on a run (a new run or leaving one clears the preview instead, see Server)
 PreviewGuard.BLOCKED = {
-	["Rem.PlayHand"] = true, ["Rem.Discard"] = true, ["Rem.BuyPatron"] = true, ["Rem.SellPatron"] = true, ["Rem.UseRuleBan"] = true,
+	["Rem.PlayHand"] = true, ["Rem.Discard"] = true, ["Rem.BuyPatron"] = true, ["Rem.SellPatron"] = true, ["Rem.MovePatron"] = true, ["Rem.UseRuleBan"] = true,
 	["Rem.Choice"] = true, ["Rem.ChooseRoad"] = true, ["Rem.Minigame"] = true, ["Rem.SideStop"] = true, ["Rem.BuyRecipe"] = true,
 	["Rem.UseRecipe"] = true, ["Rem.RerollShop"] = true, ["Rem.Haggle"] = true, ["Rem.Stranger"] = true, ["Rem.BuyPack"] = true,
 	["Rem.ResolvePack"] = true, ["Rem.BuyHousePass"] = true, ["Rem.AdvanceRound"] = true, ["Rem.SelectRound"] = true, ["Rem.SkipRound"] = true,

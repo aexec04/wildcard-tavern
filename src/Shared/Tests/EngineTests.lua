@@ -574,6 +574,64 @@ table.insert(tests, { name = "RunState.sellPatron fails gracefully for a patron 
 	expectEqual(refund, 0)
 end })
 
+table.insert(tests, { name = "RunState.movePatron swaps neighbours, stops at both ends, ignores unknown ids and bad dirs", fn = function()
+	local state = RunState.new(nil, function(n) return n end)
+	state.tips = 1000
+	for i = 1, 3 do RunState.buyPatron(state, Patrons.Definitions[i].id) end
+	local ids = {}
+	for i, p in ipairs(state.ownedPatrons) do ids[i] = p.id end
+	expectTrue(#ids >= 2, "need two Patrons to test a swap")
+	local first, second = ids[1], ids[2]
+	expectFalse((RunState.movePatron(state, first, -1)), "left end cannot go left")
+	local ok, idx = RunState.movePatron(state, first, 1)
+	expectTrue(ok)
+	expectEqual(idx, 2)
+	expectEqual(state.ownedPatrons[1].id, second)
+	expectEqual(state.ownedPatrons[2].id, first)
+	expectFalse((RunState.movePatron(state, "nobody", 1)))
+	expectFalse((RunState.movePatron(state, first, 2)), "only one seat at a time")
+	expectEqual(#state.ownedPatrons, #ids, "no Patron lost or added")
+	local last = state.ownedPatrons[#state.ownedPatrons].id
+	expectFalse((RunState.movePatron(state, last, 1)), "right end cannot go right")
+end })
+
+table.insert(tests, { name = "PatronSeats: Sell plate shows the refund, order text, end buttons, strip keeps 44 px targets at five sizes", fn = function()
+	local S = require(script.Parent.Parent.Engine.PatronSeats)
+	expectEqual(S.sellLabel(3), "Sell +3")
+	expectEqual(S.sellLabel(2.9), "Sell +2")
+	expectEqual(S.sellLabel(nil), "Sell +0")
+	expectEqual(S.orderText(2, 5), "2 of 5")
+	expectFalse(S.canMove(1, 5, -1))
+	expectTrue(S.canMove(1, 5, 1))
+	expectTrue(S.canMove(5, 5, -1))
+	expectFalse(S.canMove(5, 5, 1))
+	expectFalse(S.canMove(3, 5, 0))
+	for _, w in ipairs({ 1700, 1100, 800, 640, 400 }) do
+		for n = 2, 8 do
+			local sz = S.stripSize(w, n)
+			expectTrue(sz.btn >= 44 and sz.h >= 44, "touch target at width " .. w)
+			expectTrue(sz.groupW >= sz.btn * 2 + 20, "group holds both buttons and a label")
+		end
+	end
+	local five = S.stripSize(1700, 5)
+	expectTrue(five.total <= 1700, "five groups fit a wide zone")
+end })
+
+table.insert(tests, { name = "PatronSeatStrip: no tween, ASCII arrows, wired to the MovePatron remote and PreviewGuard", fn = function()
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local s = f:read("*a"); f:close(); return s end
+	local strip = read("src/Client/PatronSeatStrip.lua")
+	if not strip then return end
+	expectTrue(not strip:find("TweenService") and not strip:find(":Create%("), "static, so Calm mode makes no tween")
+	expectTrue(strip:find('"<"', 1, true) and strip:find('">"', 1, true), "ASCII arrows")
+	local shop = read("src/Client/Shop.lua")
+	expectTrue(shop:find("PatronSeatStrip", 1, true) and shop:find("MovePatronRemote", 1, true), "Shop builds the strip")
+	expectTrue(shop:find("PatronSeats", 1, true) and not shop:find('actionText = "Discard"', 1, true), "Sell plate shows its value")
+	expectTrue(read("src/Server/Remotes.lua"):find('"MovePatron"', 1, true), "remote exists")
+	expectTrue(read("src/Server/init.server.lua"):find("Rem.MovePatron.OnServerEvent", 1, true), "server handles it")
+	expectTrue(read("src/Shared/Engine/PreviewGuard.lua"):find("Rem.MovePatron", 1, true), "blocked while previewing")
+end })
+
 -- ===== BossRounds =====
 
 table.insert(tests, { name = "BossRounds.isBossRound is only true on a Night's last round", fn = function()
