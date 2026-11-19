@@ -30649,4 +30649,50 @@ table.insert(tests, { name = "First impression: at most 6 taps from the Menu to 
 	expectEqual(G.hint(true, 0, 1, true).pulse, false, "Calm mode: no pulse")
 end })
 
+table.insert(tests, { name = "Gameplay2Tier: quiet, pulse, burst and OVERKILL by hand total versus Target, Combo pill from 3 triggers, Calm mode one static label, everything inside the centre block", fn = function()
+	local T = require(script.Parent.Parent.Engine.Gameplay2Tier)
+	expectEqual(T.tierOf(99, 100), 0, "under 1x is quiet")
+	expectEqual(T.tierOf(100, 100), 1, "1x pulses")
+	expectEqual(T.tierOf(199, 100), 1)
+	expectEqual(T.tierOf(200, 100), 2, "2x bursts")
+	expectEqual(T.tierOf(499, 100), 2)
+	expectEqual(T.tierOf(500, 100), 3, "5x is OVERKILL")
+	expectEqual(T.tierOf(50, nil), 0)
+	expectEqual(T.tierOf(50, 0), 0)
+	expectEqual(T.comboOf(2), nil)
+	expectEqual(T.comboOf(3), 3)
+	expectEqual(T.comboOf(5), 5)
+	local q = T.spec(0, 0, false, false)
+	expectTrue(q.label == nil and q.comboText == nil and q.pulse == 0 and q.burst == 0 and q.coins == 0, "quiet shows nothing extra")
+	local p1, p2, p3 = T.spec(1, 0, false, false), T.spec(2, 0, false, false), T.spec(3, 0, false, false)
+	expectTrue(p1.pulse > 0 and p1.burst == 0 and p1.shake == 0, "tier 1: pulse only")
+	expectTrue(p2.burst > 0 and p2.shake > 0 and p2.coins == 0 and not p2.banner, "tier 2: burst and a small shake")
+	expectTrue(p3.banner and p3.coins > 0 and p3.label == "OVERKILL", "tier 3: banner and coin shower")
+	expectEqual(T.spec(1, 4, false, false).comboText, "Combo x 4", "combo pill text")
+	expectEqual(T.spec(1, 2, false, false).comboText, nil, "two triggers is no combo")
+	for tier = 0, 3 do
+		local c = T.spec(tier, 5, true, false)
+		expectTrue(c.static and c.pulse == 0 and c.burst == 0 and c.shake == 0 and c.coins == 0 and c.combo == nil, "Calm mode tier " .. tier .. ": no motion")
+		expectTrue(c.label == nil or type(c.label) == "string", "one label")
+	end
+	expectEqual(T.spec(0, 5, true, false).label, "Combo x 5", "Calm, quiet tier: the combo word is the one label")
+	expectTrue(T.spec(3, 0, false, true).hold < T.spec(3, 0, false, false).hold, "Fast halves the time")
+	for _, sz in ipairs({ { 200, 130 }, { 160, 90 }, { 320, 180 } }) do
+		local box = { x = 0, y = 0, w = sz[1], h = sz[2] }
+		for _, r in ipairs({ T.labelRect(box), T.comboRect(box) }) do
+			expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= box.w and r.y + r.h <= box.h, "pill inside the block at " .. sz[1] .. "x" .. sz[2])
+		end
+		for i = 1, 14 do
+			local c = T.coinPath(i, 14, box)
+			expectTrue(c.x0 >= 0 and c.x0 <= box.w and c.y0 >= 0 and c.y1 <= box.h, "coin " .. i .. " stays inside the block")
+		end
+	end
+	local sf = io and io.open and io.open("src/Client/Gameplay2TierFX.lua", "r")
+	if sf then
+		local src = sf:read("*a"); sf:close()
+		expectFalse(src:find("TweenService", 1, true) ~= nil, "no tweens in the tier flourish")
+		expectTrue(src:find("static", 1, true) ~= nil and src:find("Kit.still", 1, true) ~= nil, "Calm mode takes the static path")
+	end
+end })
+
 return tests

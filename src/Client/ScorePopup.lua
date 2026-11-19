@@ -1340,6 +1340,7 @@ return function(deps)
 							pulsePatronSlot(slotFrame)
 							pcall(function() -- Patron Row beat: hop, gold ring, effect pill, the others dim
 								patronBeatNo = patronBeatNo + 1
+								pcall(function() require(script.Parent.Gameplay2TierFX).noteTrigger() end) -- counted for a Combo pill
 								require(script.Parent.PatronRow).trigger(source.patronId, {
 									kind = entry.kind == "tips" and "money" or entry.kind, amount = entry.amount, label = entry.label,
 									freeze = patronBeatNo == 2 and require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronEvents")).slowMode() == "freeze" },

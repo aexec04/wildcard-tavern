@@ -47,13 +47,17 @@ local function burst(parent, n)
 	end
 end
 
+local function celebrate(burstParent, scoreNum, oldScore, newScore, target) -- tiered flourish by hand total versus Target (Gameplay2TierFX)
+	pcall(function() require(script.Parent.Gameplay2TierFX).show(burstParent, scoreNum, newScore - oldScore, target) end)
+end
+
 function M.play(scoreNum, burstParent, oldScore, newScore, setText, target)
 	local fast = ClientSettings.get("animSpeed") == "fast" and PlayerProfile.animationPaceDivisor("fast", false) > 1
 	local plan = Rules.plan(oldScore, newScore, { calm = calm(), fast = fast, target = target })
 	running = running + 1
 	local id = running
 	if not plan then setText(newScore); return end
-	if not plan.slam then setText(plan.final); return end -- calm: the end value, nothing else
+	if not plan.slam then setText(plan.final); celebrate(burstParent, scoreNum, oldScore, newScore, target); return end -- calm: the end value and one static label
 	local sc = scoreNum:FindFirstChild("SlamScale")
 	if not sc then sc = Instance.new("UIScale"); sc.Name = "SlamScale"; sc.Parent = scoreNum end
 	local skipped = false
@@ -73,6 +77,7 @@ function M.play(scoreNum, burstParent, oldScore, newScore, setText, target)
 		conn:Disconnect()
 		if id ~= running then return end
 		setText(plan.final)
+		celebrate(burstParent, scoreNum, oldScore, newScore, target)
 		if skipped then sc.Scale = 1; return end
 		Cue.play("score_total")
 		burst(burstParent, plan.burst)
