@@ -307,12 +307,14 @@ function TavernKit.icon(host, name, pad)
 		img.ScaleType = Enum.ScaleType.Fit
 		img.AnchorPoint = Vector2.new(0, 0.5)
 		img.Position = UDim2.new(0.06, 0, 0.5, 0)
-		local ar = Instance.new("UIAspectRatioConstraint"); ar.AspectRatio = 1; ar.DominantAxis = Enum.DominantAxis.Height; ar.Parent = img
 		img.Parent = host
+		-- a square sized in pixels from the plate's height (a zero-width UDim2 with an aspect constraint collapsed to nothing, which hid every icon)
+		local function size() local s = math.max(8, math.floor(host.AbsoluteSize.Y * 0.62 + 0.5)); img.Size = UDim2.fromOffset(s, s) end
+		size()
+		host:GetPropertyChangedSignal("AbsoluteSize"):Connect(size)
 	end
 	img.Image = id
 	img.ImageTransparency = 0
-	img.Size = UDim2.new(0, 0, 0.62, 0)
 	img.ZIndex = host.ZIndex + 2
 	if pad and pad > 0 and (host:IsA("TextLabel") or host:IsA("TextButton")) and not host:FindFirstChild("KitIconPad") then
 		local up = Instance.new("UIPadding"); up.Name = "KitIconPad"; up.PaddingLeft = UDim.new(pad, 0); up.Parent = host

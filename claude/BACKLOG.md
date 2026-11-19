@@ -20,4 +20,41 @@ Only after the Concept T play screen, Patron cards and pixel fixes are done. Kee
    DONE (part): pill number ticks on coins, hands and deck count, deck shake on a draw and gear turn on hover (Engine/HudTick tested, Client/HudTickFX). Button press squash and Patron breathing (idle float) already existed. NOT done: bar shine, hand name slam, shop card flip, menu fades, deck count flip.
    DONE (9b): bar shine, hand name slam, shop card flip in, menu ease in and deck count flip (Engine/AnimPass tested, Client/AnimPassFX). The card flip is a scale grow, the menu fade a scale ease (no true 3D flip or alpha fade).
    DONE (8): the first normal run of a profile seats The Regular, skips both drafts and shows a two line hint with a gold outline on a card, then Play Hand (Engine/GuidedHand tested, Client/GuidedHint).
+17. Boss round variety on v2: each boss gets a rule banner icon, a table tint and a short entrance (name slides in, rule line, hold 1.2 s), all in TavernKit, boss scene art from TableSceneArt.
+   DONE: rule shield with ASCII letters per rule family, slide in 0.4 s, hold 1.2 s, settle (Engine/Gameplay2Moments tested, Client/Gameplay2MomentsFX); table_boss scene and red tint already existed.
+18. Shop buy and reroll UX on v2: a clear Buy button with price pill on each offer, a sold stamp, a reroll plate that shows its cost, insufficient tips shake, tooltip on hover with the new Patron card.
+   DONE: Buy plate reads Need N when short and an unaffordable click shakes the card (Engine/ShopBuyUX tested, ShopCards); SOLD stamp, Reroll N plate and the soft cue already existed. The hover tooltip stays the Counter text tooltip.
+19. Guided first hand on v2: the first run highlights two cards then Play Hand with a gold outline and a two line hint, never blocking input, skippable, uses the new plates.
+   DONE: two card outlines then Play Hand with Play your hand, Skip plate, plate placed from the v2 rects, one line when short (Engine/GuidedHand tested, Client/GuidedHint).
+20. Night cleared and run complete celebration on v2: banner, confetti in gold and purple, coin count up, button Continue, in TavernKit.
+   DONE: Night cleared plate (and a bigger Run complete with a gold crown glow) with score, Tips count up, confetti and a Continue plate on a cleared Boss Round (Engine/Gameplay2Moments tested, Client/Gameplay2MomentsFX).
+21. Performance pass on the v2 table: count live Instances at round start and during scoring, remove per frame allocations, make every repeating effect use FxLoop, keep it under 1,500 GuiObjects on screen, record numbers in STATUS.
+22. Accessibility pass: suits distinguishable without colour (shape plus colour already, check contrast), minimum 12 px text, hit targets at least 44 px, Calm mode and Reduce motion verified on every new effect.
+23. Sound pass for the new screens (scoring sequence, tooltips, shop buy, boss entrance, round clear, defeat) using the existing cue module and volume rules, silent when an id is missing.
+Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
+
+## Gameplay v2 backlog (use when QUEUE.md has no [ ] tasks; the old Concept T items above are done)
+10. Patron synergy hints: when two owned Patrons share a theme, a thin gold thread links them with a small label, and the shop highlights offers that complete a synergy.
+   DONE: gold thread between neighbouring Patrons that share a theme (Engine/Gameplay2Synergy tested, Client/Gameplay2SynergyFX) and a gold outline on shop offers that work with an owned Patron (ShopCards). Threads join neighbouring seats only; the label shows when the gap is 26 px or more.
+11. Hand preview polish: show the hand name and its level above the centre score while selecting, with the chips and mult it would score, in TavernKit plates.
+   DONE: hand name, level, chips and mult in a wood pill on top of the centre stage (Engine/Gameplay2Preview tested, Gameplay2.setPreview from the hub's real preview).
+12. Deck and discard viewer: tap the deck stack to see remaining cards sorted by suit and rank in a TavernKit panel.
+   DONE: the Your Deck viewer already existed (suit rows by rank, filters, used cards); on the v2 table it now wears the TavernKit look and opens on Left in deck (Client/DeckTracker).
+13. Run variety UI: tavern night events (Tips jar, Back room) as small banners on the table with one clear choice, native TavernKit buttons.
+   DONE: event cards keep their painted card screen (events fire in Round Select, not on the table), now with native TavernKit Choose and No, thanks buttons and the kit title font (Client/ChoicePanel). Tips jar and Back room events do not exist; the existing five are listed in STATUS.
+14. Sound pass on v2: card deal, select, play, score tick, total, Patron trigger, coin, round clear, defeat wired to the existing cues and checked at all volume settings.
+   DONE: all table moments map to existing cues with ids (Engine/Gameplay2Sound tested: call sites, volume range at six slider steps, Mute); added the soft shop_cant sound on Play or Discard with nothing selected.
+15. Mute toggle and Calm mode quick access as small TavernKit buttons in the top bar corner (settings stay hidden otherwise).
+   DONE: Mute and Calm kit buttons top left on the v2 table (Engine/Gameplay2Quick tested, Gameplay2Layout r.mute and r.calm); they write the same settings as the Settings rows.
+16. Daily challenge entry from the main menu rebuilt in TavernKit (menu look stays as is).
+   DONE: a Daily Challenge note with the green TavernKit Play Daily plate on the Notice Board, sharing one start function with the Daily action row (Engine/MenuDailyEntry tested, Client/MenuDailyEntry). The Quest Scroll row stays; the menu look is unchanged.
+17. Boss round variety on v2: each boss gets a rule banner icon, a table tint and a short entrance (name slides in, rule line, hold 1.2 s), all in TavernKit, boss scene art from TableSceneArt.
+18. Shop buy and reroll UX on v2: a clear Buy button with price pill on each offer, a sold stamp, a reroll plate that shows its cost, insufficient tips shake, tooltip on hover with the new Patron card.
+19. Guided first hand on v2: the first run highlights two cards then Play Hand with a gold outline and a two line hint, never blocking input, skippable, uses the new plates.
+20. Night cleared and run complete celebration on v2: banner, confetti in gold and purple, coin count up, button Continue, in TavernKit.
+   DONE: Night cleared plate (and a bigger Run complete with a gold crown glow) with score, Tips count up, confetti and a Continue plate on a cleared Boss Round (Engine/Gameplay2Moments tested, Client/Gameplay2MomentsFX).
+21. Performance pass on the v2 table: count live Instances at round start and during scoring, remove per frame allocations, make every repeating effect use FxLoop, keep it under 1,500 GuiObjects on screen, record numbers in STATUS.
+22. Accessibility pass: suits distinguishable without colour (shape plus colour already, check contrast), minimum 12 px text, hit targets at least 44 px, Calm mode and Reduce motion verified on every new effect.
+23. Sound pass for the new screens (scoring sequence, tooltips, shop buy, boss entrance, round clear, defeat) using the existing cue module and volume rules, silent when an id is missing.
+   DONE (21 to 23): Engine/Gameplay2Perf with the limit and a loop lint, the guide pulse on FxLoop, AuditV2 prints the live GuiObject count, boss entrance and tooltip cues wired, tests. The live counts need a Studio run.
 Pick the next unfinished item, write it as a [ ] task in QUEUE.md yourself with real values, do it, tick it here with a DONE line, one commit per item.
