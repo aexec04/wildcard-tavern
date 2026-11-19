@@ -155,6 +155,10 @@ function M.install(deps)
 		if w then w.TextSize = Style.TEXT.chip; w.TextScaled = false end
 	end
 
+	-- painted frames for the table HUD (Engine/TavernStyle.PAINTED): the top bar, the Hands, Discards and deck count tabs
+	local painted = {}
+	pcall(function() Kit.painted(bar, "wood_plate"); Kit.painted(handsPill, "count_tab"); Kit.painted(discardsPill, "count_tab"); Kit.painted(deckPill, "count_tab") end)
+
 	-- the real Rank and Suit buttons live inside the hub's SortToggle; Gameplay v2 draws each as its own brown plate
 	local function splitSort(toggle, r)
 		toggle:SetAttribute("Split", true)
@@ -167,6 +171,7 @@ function M.install(deps)
 				b.Size = UDim2.fromOffset(want.w, want.h)
 				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
 				b.ZIndex = Z_BTN
+				if not painted[nm] then painted[nm] = true; pcall(function() Kit.painted(b, "btn_dark") end) end
 			end
 		end
 	end
@@ -267,7 +272,12 @@ function M.install(deps)
 		if deps.playButton:GetAttribute("TavernKind") ~= "primary" then Kit.skin(deps.playButton, "Play Hand", "primary") end
 		if deps.discardButton:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(deps.discardButton, "Discard", "secondary") end
 		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
-		deps.playButton.BackgroundTransparency = 0; deps.discardButton.BackgroundTransparency = 0
+		if not painted.buttons then -- the painted frames (Engine/TavernStyle.PAINTED); the flat plate stays if a picture is missing
+			painted.buttons = true
+			pcall(function() Kit.painted(deps.playButton, "btn_green"); Kit.painted(deps.discardButton, "btn_dark") end)
+		end
+		local function flatOpaque(b) if not (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) then b.BackgroundTransparency = 0 end end
+		flatOpaque(deps.playButton); flatOpaque(deps.discardButton)
 		deps.playButton.AnchorPoint = Vector2.new(0, 0); deps.discardButton.AnchorPoint = Vector2.new(0, 0); deps.actionFrame.AnchorPoint = Vector2.new(0, 0)
 		buttonLabel(deps.playButton, "Play Hand"); buttonLabel(deps.discardButton, "Discard")
 		pcall(function() -- feel: label press and the ready ring (Client/Gameplay2FeelFX); the buttons themselves never move

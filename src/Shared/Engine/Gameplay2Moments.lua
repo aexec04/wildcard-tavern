@@ -117,7 +117,7 @@ end
 -- One line rule plate for a Boss round: left of the centre in the band under the Patron row, level with the top of the stage. It never
 -- covers a Patron card, label or pill (they end at the row bottom), the centred preview pill or score block (it stops 8 px short of the
 -- stage), the Mute and Calm buttons or the sort control. Returns nil when there is no room (under 140 px wide or 20 px tall).
-M.RULE_H = 24
+M.RULE_H = 30 -- tall enough for the parchment scroll frame around 14 px ink
 function M.rulePlate(r)
 	local last = r.slots[#r.slots].pill
 	local rowBottom = last.y + last.h

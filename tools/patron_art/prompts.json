@@ -1923,5 +1923,16 @@
     "rare": "Rare tier: a confident pose in rich saturated colours with a notable prop, a touch of rim light",
     "epic": "Epic tier: a dramatic pose with strong rim light, an imposing silhouette that fills more of the card",
     "legendary": "Legendary tier: a commanding hero pose with a glowing prop, the strongest light and golden rays behind, the biggest silhouette of all"
+  },
+  "pk_style": "Edit the reference image. Redraw ONE user interface piece from it in exactly the same hand-painted blocky Roblox tavern style: carved dark wood, gold filigree corner ornaments, warm candlelit palette, thick clean outline. Original art, kid-friendly, no letters, no numbers, no text, no icons inside, the centre of the piece EMPTY and flat so it can be stretched. Flat front view, no perspective, no shadow outside the piece",
+  "pk_subjects": {
+    "pk_wood_plate": "the dark carved wood plate frame used for the Target and Tips plates: a wide rounded rectangle, dark wood centre, gold filigree corners, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_parchment": "the cream parchment scroll plate used for the boss rule, a wide rounded scroll with a red wax seal at the top centre, empty cream centre, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_btn_green": "the green embossed Play Hand button shape, wide rounded rectangle with gold corner ornaments, completely blank, no words, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_btn_dark": "the dark brown embossed Discard button shape, wide rounded rectangle with gold corner ornaments, completely blank, no words, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_icon_round": "one round gold rimmed icon button, a circle with a dark wood face and a gold ring, completely empty inside, no icon, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_count_tab": "the small wooden count tab used for Hands and Discards, a short wide rounded wooden tab with a thin gold edge, blank, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_patron_slot": "one empty framed Patron slot, a tall rounded dark panel with a gold frame and a faint small ornament in the middle, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin",
+    "pk_score_frame": "the ornate framed Score plate, a wide dark wood plate with gold end caps on the left and right, empty centre, on a flat solid pure magenta #FF00FF background with no gradient, clean sharp edges, the piece centred with generous margin"
   }
 }

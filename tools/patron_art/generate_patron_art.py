@@ -98,6 +98,7 @@ CATEGORIES = {
     "concept_t": ("concept_t_subjects", "concept_t", "ConceptTArt.lua", "Concept T"),
     "concept_t_patrons": ("ctp_subjects", "concept_t_patrons", "ConceptTPatronArt.lua", "Concept T Patron card"),
     "concept_t_cards": ("ctc_subjects", "concept_t_cards", "ConceptTCardArt.lua", "Concept T court face"),
+    "painted_kit": ("pk_subjects", "painted_kit", "PaintedKitArt.lua", "Painted UI kit"),
     "concept_t_faces": ("ctf_subjects", "concept_t_faces", "ConceptTCardFaces.lua", "Concept T card face"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
@@ -245,6 +246,9 @@ CATEGORY_OPTS = {
                         "references": dict(("court_%s_%s" % (r, s), "art-wip/concept_t_cards/ref_king.png")
                                            for r in "kqj" for s in ("spades", "hearts", "diamonds", "clubs"))},
     # Concept T full card faces (52): an EDIT of a cropped reference card, cut from magenta, 2:3 canvas. References are filled below from prompts.json "ctf_refs".
+    # Painted UI kit: nine-slice friendly frames, each an EDIT of the table mockup, cut from magenta, trimmed to the alpha box by tools/painted_kit_trim.py
+    "painted_kit": {"quality": "medium", "style_key": "pk_style", "transparent": True, "size": "1536x1024",
+                    "references": dict((k, "claude/reference/concept-table-reference.png") for k in ("pk_wood_plate", "pk_parchment", "pk_btn_green", "pk_btn_dark", "pk_icon_round", "pk_count_tab", "pk_patron_slot", "pk_score_frame"))},
     "concept_t_faces": {"quality": "low", "style_key": "ctf_style", "transparent": True, "size": "1024x1536", "references": {}},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.

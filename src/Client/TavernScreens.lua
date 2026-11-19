@@ -128,7 +128,8 @@ function M.emphasizeNext(b)
 	local hovered = false
 	local function settle() -- the one writer of the plate look: fully opaque, cream label, bright fill (no tween, so Calm mode is the same)
 		local fill = hovered and hot or base
-		if b.BackgroundTransparency ~= 0 then b.BackgroundTransparency = 0 end
+		local want = (b.Parent and b.Parent:FindFirstChild(b.Name .. "Paint")) and 1 or 0 -- the painted frame (TavernKit.painted) sits behind the plate
+		if b.BackgroundTransparency ~= want then b.BackgroundTransparency = want end
 		-- a KitLabel draws the word, so the button's own copy stays hidden (else the word shows twice)
 		local own = b:FindFirstChild("KitLabel") and 1 or 0
 		if b.TextTransparency ~= own then b.TextTransparency = own end
@@ -139,6 +140,7 @@ function M.emphasizeNext(b)
 	for _, prop in ipairs({ "BackgroundTransparency", "TextTransparency", "TextStrokeTransparency", "TextColor3", "BackgroundColor3" }) do
 		b:GetPropertyChangedSignal(prop):Connect(settle)
 	end
+	pcall(function() require(script.Parent.TavernKit).painted(b, "btn_green") end) -- Counter Next Round wears the painted green button
 	b.MouseEnter:Connect(function() hovered = true; settle() end)
 	b.MouseLeave:Connect(function() hovered = false; settle() end)
 	settle()

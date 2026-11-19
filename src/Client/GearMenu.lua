@@ -68,6 +68,7 @@ function M.install(deps)
 	gear.Parent = host
 	local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0.5, 0); gc.Parent = gear
 	local gs = Instance.new("UIStroke"); gs.Color = rgb("goldTrim"); gs.Thickness = 2; gs.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; gs.Parent = gear
+	pcall(function() Kit.painted(gear, "icon_round") end) -- the painted round frame (the flat gold ringed disc stays if it is missing)
 	local icon = Instance.new("ImageLabel")
 	icon.Name = "GearIcon"
 	icon.BackgroundTransparency = 1

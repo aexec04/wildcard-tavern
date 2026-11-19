@@ -193,6 +193,79 @@ function TavernKit.goldBox(parent, text)
 	return f
 end
 
+-- Painted frame (Engine/TavernStyle.PAINTED, art from Engine/PaintedKitArt): wraps any plate in its painted nine-slice picture.
+-- The picture is a SIBLING drawn just under the plate (ZIndex - 1), so the plate's own words and children, `raise` and a Clone of the
+-- plate are untouched; it follows the plate's Position, Size, AnchorPoint, Visible and ZIndex. The plate's flat fill and stroke go
+-- transparent while the picture is up; if the picture has not loaded after PAINTED_LOAD_WAIT seconds, or there is no id, the flat look
+-- stays or comes back. Words stay on the plate (a button keeps its KitLabel, its own text stays transparent). Returns the ImageLabel or nil.
+local paintedArt
+function TavernKit.painted(host, piece)
+	local def = Style.PAINTED[piece]
+	if not def or not host or not host.Parent then return nil end
+	if paintedArt == nil then
+		local ok, art = pcall(function() return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PaintedKitArt")) end)
+		paintedArt = ok and art or false
+	end
+	local id = paintedArt and paintedArt[def.art]
+	if not id or id == "" then return nil end
+	local old = host.Parent:FindFirstChild(host.Name .. "Paint")
+	if old and old:GetAttribute("PaintPiece") == piece then return old end
+	if old then old:Destroy() end
+	local img = Instance.new("ImageLabel")
+	img.Name = host.Name .. "Paint"
+	img:SetAttribute("PaintPiece", piece)
+	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
+	img.Active = false
+	img.Image = id
+	img.ImageTransparency = 0
+	local flatBg = host.BackgroundTransparency
+	local strokes = {}
+	local function fit()
+		img.AnchorPoint = host.AnchorPoint
+		img.Position = host.Position
+		img.Size = host.Size
+		img.Visible = host.Visible
+		img.ZIndex = math.max(0, host.ZIndex - 1)
+		local sl = Style.paintedSlice(piece, host.AbsoluteSize.X, host.AbsoluteSize.Y)
+		if sl then
+			img.ScaleType = Enum.ScaleType.Slice
+			img.SliceCenter = Rect.new(sl.left, sl.top, sl.right, sl.bottom)
+			img.SliceScale = sl.scale
+		else
+			img.ScaleType = Enum.ScaleType.Fit
+		end
+	end
+	local function flatOff(on)
+		for _, c in ipairs(host:GetChildren()) do
+			if c:IsA("UIStroke") then
+				if on and strokes[c] == nil then strokes[c] = c.Enabled end
+				c.Enabled = (not on) and (strokes[c] ~= false)
+			end
+		end
+	end
+	img.Parent = host.Parent
+	fit()
+	flatOff(true)
+	host.BackgroundTransparency = 1
+	for _, prop in ipairs({ "Position", "Size", "AnchorPoint", "Visible", "ZIndex", "AbsoluteSize" }) do
+		host:GetPropertyChangedSignal(prop):Connect(fit)
+	end
+	-- a module that sets the plate opaque again (skin, an apply loop) does not bring the flat fill back over the picture
+	host:GetPropertyChangedSignal("BackgroundTransparency"):Connect(function()
+		if img.Parent and host.BackgroundTransparency ~= 1 then host.BackgroundTransparency = 1 end
+	end)
+	task.delay(Style.PAINTED_LOAD_WAIT, function() -- no picture, no change: the flat look returns
+		if img.Parent and not img.IsLoaded then
+			img:Destroy()
+			flatOff(false)
+			host.BackgroundTransparency = flatBg
+		end
+	end)
+	host.Destroying:Connect(function() img:Destroy() end)
+	return img
+end
+
 function TavernKit.title(parent, text)
 	local t = Instance.new("TextLabel")
 	t.Name = "TavernTitle"

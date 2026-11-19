@@ -28965,7 +28965,7 @@ table.insert(tests, { name = "TavernStyle and TavernKit: colors from the style s
 		local fh = io.open("src/Client/TavernKit.lua", "r")
 		if fh then
 			local src = fh:read("*a"); fh:close()
-			assert(not src:find("ImageLabel", 1, true) and not src:find("rbxassetid", 1, true), "the kit draws no images")
+			assert(select(2, src:gsub("Instance.new%(\"ImageLabel\"%)", "")) == 1 and not src:find("rbxassetid", 1, true), "the kit draws images only through the one painted() frame, never an id of its own")
 			assert(not src:find("%.Transparency%s*=%s*NumberSequence") and not src:find("g%.Transparency"), "gradients are Color only")
 			for _, fn in ipairs({ "plate", "primaryButton", "secondaryButton", "pill", "goldBox", "title", "feel" }) do
 				assert(src:find("function TavernKit." .. fn, 1, true), "TavernKit." .. fn .. " exists")
@@ -29112,7 +29112,7 @@ table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed fi
 	assert(src:find("local r = Layout.rects(size.X, size.Y)\n\t\tfanHand(true, size.Y)\n", 1, true))
 	local applyAt = src:find("local function apply()", 1, true)
 	assert(place > applyAt and place < src:find("place(bar, r.bar)", applyAt, true), "Play Hand and Discard are moved before any piece that could error")
-	assert(src:find("deps.playButton.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate")
+	assert(src:find("flatOpaque(deps.playButton)", 1, true) and src:find("b.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate (opaque flat, or the painted frame behind it)")
 	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
 	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
 	assert(src:find("scoreStack(", 1, true) and src:find("scoreCaption.TextSize = 18", 1, true) and src:find("scoreProgress.TextSize = 18", 1, true), "centre score stack: numeral, caption above, progress text under the line")
@@ -29731,6 +29731,37 @@ table.insert(tests, { name = "Night map: the daily strip never covers the room c
 	expectTrue(strip:find("t.ZIndex = 43", 1, true) and strip:find("rectBelow", 1, true), "strip words sit above the plate (Z 40) and the strip dodges the cards")
 	local scout = read("src/Client/BossScout.lua")
 	expectTrue(scout:find("ButtonLabelTop", 1, true) and scout:find("MaxTextSize, cap.MinTextSize = 14, 12", 1, true), "the ban word is one scaled label, the button's own copy is blank")
+end })
+
+table.insert(tests, { name = "Painted UI kit: every piece has an uploaded id, slice numbers keep corners inside the plate, the kit wraps plates as a sibling with a flat fallback", fn = function()
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Art = require(script.Parent.Parent.Engine.PaintedKitArt)
+	local n = 0
+	for piece, def in pairs(Style.PAINTED) do
+		n = n + 1
+		expectTrue(type(Art[def.art]) == "string" and Art[def.art]:find("^rbxassetid://%d+$") ~= nil, piece .. " has a recorded id")
+		if def.inset then
+			expectTrue(def.inset.l + def.inset.r < def.src[1] and def.inset.t + def.inset.b < def.src[2], piece .. " insets leave a middle to stretch")
+			for _, sz in ipairs({ { 300, 44 }, { 140, 36 }, { 90, 24 }, { 600, 48 }, { 60, 44 } }) do
+				local sl = Style.paintedSlice(piece, sz[1], sz[2])
+				expectTrue(sl ~= nil and sl.scale > 0 and sl.scale * (def.inset.l + def.inset.r) <= sz[1], piece .. " corners fit a " .. sz[1] .. "x" .. sz[2] .. " plate")
+				expectTrue(sl.scale * sz[2] <= sz[2] or sl.scale <= sz[2] / def.src[2] + 1e-9, piece .. " height is never stretched")
+			end
+		else
+			expectTrue(Style.paintedSlice(piece, 100, 44) == nil, piece .. " is drawn whole")
+		end
+	end
+	expectTrue(n == 8, "eight painted pieces: wood plate, parchment, green and dark button, round icon, count tab, Patron slot, score frame")
+	expectTrue(Style.paintedSlice("nope", 100, 44) == nil and Style.paintedSlice("wood_plate", 0, 44) == nil, "unknown piece or empty plate gives nothing")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local kit = read("src/Client/TavernKit.lua")
+	expectTrue(kit:find("function TavernKit.painted", 1, true) and kit:find("host.Parent:FindFirstChild(host.Name .. \"Paint\")", 1, true), "the frame is a sibling named after the plate")
+	expectTrue(kit:find("img.IsLoaded", 1, true) and kit:find("flatBg", 1, true), "a picture that does not load brings the flat look back")
+	expectTrue(kit:find("Transparency = NumberSequence", 1, true) == nil, "no Transparency gradients")
+	local g2 = read("src/Client/Gameplay2.lua")
+	for _, piece in ipairs({ "wood_plate", "count_tab", "btn_green", "btn_dark" }) do expectTrue(g2:find('"' .. piece .. '"', 1, true) ~= nil, "the table HUD uses " .. piece) end
+	expectTrue(read("src/Client/GearMenu.lua"):find('"icon_round"', 1, true) and read("src/Client/Gameplay2MomentsFX.lua"):find('"parchment"', 1, true) and read("src/Client/TavernScreens.lua"):find('"btn_green"', 1, true), "gear, boss rule and Next Round are painted")
 end })
 
 table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()

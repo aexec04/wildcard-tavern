@@ -76,6 +76,34 @@ function M.feel(calm)
 	return { lift = M.HOVER_LIFT, press = M.PRESS_SCALE, seconds = M.FEEL_SECONDS }
 end
 
+-- Painted UI kit: the ONE place that maps a plate kind to its painted frame (art ids come from Engine/PaintedKitArt, generated).
+-- `art` is the key in PaintedKitArt, `src` the trimmed picture size in px, `inset` the nine-slice corner sizes in source px (nil = the
+-- picture is drawn whole, Fit). TavernKit.painted draws it as a SIBLING behind the plate and puts the flat look back if it does not load.
+M.PAINTED = {
+	wood_plate = { art = "pk_wood_plate", src = { 1412, 549 }, inset = { l = 140, t = 100, r = 140, b = 100 } },
+	parchment = { art = "pk_parchment", src = { 1350, 637 }, inset = { l = 100, t = 150, r = 100, b = 80 } },
+	btn_green = { art = "pk_btn_green", src = { 1503, 443 }, inset = { l = 150, t = 120, r = 150, b = 120 } },
+	btn_dark = { art = "pk_btn_dark", src = { 1474, 430 }, inset = { l = 150, t = 120, r = 150, b = 120 } },
+	icon_round = { art = "pk_icon_round", src = { 800, 800 } },
+	count_tab = { art = "pk_count_tab", src = { 860, 244 }, inset = { l = 110, t = 80, r = 110, b = 80 } },
+	patron_slot = { art = "pk_patron_slot", src = { 657, 953 }, inset = { l = 90, t = 90, r = 90, b = 90 } },
+	score_frame = { art = "pk_score_frame", src = { 1485, 410 }, inset = { l = 170, t = 100, r = 170, b = 100 } },
+}
+M.PAINTED_LOAD_WAIT = 4 -- seconds an image may take to load before the flat look comes back
+
+-- nine-slice numbers for a plate drawn w x h px: SliceCenter rect (source px) and SliceScale, so the corner ornaments keep their shape
+-- and only the middle stretches. Returns nil for a whole-picture piece (icon_round) or an unknown piece.
+function M.paintedSlice(piece, w, h)
+	local p = M.PAINTED[piece]
+	if not p or not p.inset or w <= 0 or h <= 0 then return nil end
+	local sw, sh = p.src[1], p.src[2]
+	local i = p.inset
+	local scale = h / sh -- the height is never stretched
+	local maxScale = (w * 0.9) / (i.l + i.r) -- both corner columns together fit inside the plate
+	scale = math.max(0.01, math.min(scale, maxScale))
+	return { left = i.l, top = i.t, right = sw - i.r, bottom = sh - i.b, scale = scale }
+end
+
 -- Plate size clamp: a plate is never smaller than its padding needs.
 function M.plateSize(w, h)
 	return math.max(math.floor(w), 2 * M.RADIUS.panel + 8), math.max(math.floor(h), 2 * M.RADIUS.panel + 8)
