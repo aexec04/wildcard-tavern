@@ -445,6 +445,11 @@ function M.install(deps)
 		setText(deckPill, DeckCountText.spaced(remaining, lastState.deckView))
 		apply()
 		self.prev = { phase = "playing", targetScore = lastState.targetScore, roundScore = lastState.roundScore, tips = lastState.tips }
+		pcall(function() -- a thin gold thread between neighbouring Patrons that share a theme (Client/Gameplay2SynergyFX)
+			local ids = {}
+			for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end
+			require(script.Parent.Gameplay2SynergyFX).update(layer, Layout.rects(size.X, size.Y), ids)
+		end)
 		pcall(function() require(script.Parent.Gameplay2MomentsFX).boss(layer, Layout.rects(size.X, size.Y), lastState, size.X, size.Y) end)
 		if not self.checked and game:GetService("RunService"):IsStudio() then
 			self.checked = true

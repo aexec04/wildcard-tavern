@@ -343,6 +343,20 @@ function ShopCards.new(deps)
 			rarity = CollectionBook.rarityForId(spec.rarityTab, spec.rarityId)
 		end
 		RarityFrame.apply(artFrame, rarity or "common", { thickness = 2 + (spec.glow or 0), radius = 8, zIndex = Z })
+		if spec.kind == "patron" and require(Engine:WaitForChild("Gameplay2Synergy")).completes(spec.synergy) then
+			-- an offer that works with a Patron you own: a soft gold outline (the chip below says which theme)
+			local glow = Instance.new("Frame")
+			glow.Name = "SynergyGlow"
+			glow.BackgroundTransparency = 1
+			glow.BorderSizePixel = 0
+			glow.Size = UDim2.new(1, 6, 1, 6)
+			glow.Position = UDim2.fromOffset(-3, -3)
+			glow.ZIndex = Z + 2
+			glow.Active = false
+			local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 10); gc.Parent = glow
+			local gs = Instance.new("UIStroke"); gs.Color = Color3.fromRGB(246, 196, 70); gs.Thickness = 2; gs.Transparency = 0.4; gs.Parent = glow
+			glow.Parent = artFrame
+		end
 		do -- cards turn up one by one when a shelf first shows (index counts cards built within 0.4 s of each other; none in Calm mode)
 			local now = os.clock()
 			if now - (flipLast or -1) > 0.4 then flipN = 0 end

@@ -18935,7 +18935,7 @@ table.insert(tests, { name = "Shop cards on the table: a hovered card lifts 6 px
 		} })
 		env.workspace = { CurrentCamera = { ViewportSize = { X = 1280, Y = 720 } } }
 		local folder = FakeGui.folder({ CollectionBook = require(Engine.CollectionBook), ContentArt = require(Engine.ContentArt),
-			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity) })
+			CardShape = require(Engine.CardShape), ShopSceneLayout = require(Engine.ShopSceneLayout), ChoiceRarity = require(Engine.ChoiceRarity), Gameplay2Synergy = require(Engine.Gameplay2Synergy) })
 		st.services.ReplicatedStorage = { WaitForChild = function() return { WaitForChild = function() return folder end } end }
 		local tweens = {}
 		st.services.TweenService.Create = function(_, inst, _, goal)
@@ -28875,6 +28875,35 @@ table.insert(tests, { name = "Patron power disc: only the figure (at most 5 char
 	local fx = read("src/Client/PatronTierFX.lua")
 	assert(fx:find("num.TextScaled = false", 1, true) and fx:find("disc.ClipsDescendants = true", 1, true) and fx:find("TextTruncate.None", 1, true), "fixed size, clipped, no truncation marks")
 	assert(fx:find("TextBounds.X > disc.AbsoluteSize.X", 1, true) and fx:find("IsStudio", 1, true), "Studio only warning when the text is wider than the disc")
+end })
+
+table.insert(tests, { name = "Gameplay v2 synergy hints: a gold thread joins neighbouring Patrons that share a theme, label only in a wide gap, the shop outlines offers that work with an owned Patron", fn = function()
+	local S = require(script.Parent.Parent.Engine.Gameplay2Synergy)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local links = S.links({ "lucky_dice", "regulars_round", "suit_yourself", "all_matching" })
+	assert(#links == 2, "pairs link seats 1 and 2, flush links seats 3 and 4, got " .. #links)
+	assert(links[1].a == 1 and links[1].b == 2 and links[1].tag == "pairs" and links[1].word ~= "")
+	assert(links[2].a == 3 and links[2].b == 4 and links[2].tag == "flush")
+	assert(#S.links({ "lucky_dice", "suit_yourself" }) == 0, "different themes do not link")
+	assert(#S.links({ "the_regular", "curtain_call" }) == 0, "the flat tag never counts")
+	assert(#S.links({ "lucky_dice", nil, "regulars_round" }) == 0 and #S.links({}) == 0 and #S.links({ "lucky_dice" }) == 0, "only neighbours, gaps and single seats give nothing")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local t = S.thread(r, links[1])
+		assert(t, "a thread at " .. sz[1])
+		local a, b = r.slots[1].card, r.slots[2].card
+		assert(t.x == a.x + a.w and t.x + t.w == b.x, "the thread spans exactly the gap")
+		assert(t.y >= a.y and t.y + t.h <= a.y + a.h, "at mid height of the cards")
+		local gap = b.x - (a.x + a.w)
+		assert((t.label ~= nil) == (gap >= 26), "label only in a gap of 26 px or more at " .. sz[1] .. " (gap " .. gap .. ")")
+		if t.label then assert(t.label.x >= t.x and t.label.x + t.label.w <= t.x + t.w, "label inside the gap") end
+	end
+	assert(S.completes({ { tag = "pairs", reason = "Works with a Patron you own." } }) and S.completes({ { reason = "Works with 2 Patrons you own." } }))
+	assert(not S.completes({ { reason = "Fits the hand you play most." } }) and not S.completes({}) and not S.completes(nil), "only a real match outlines the offer")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/ShopCards.lua"):find("SynergyGlow", 1, true) and read("src/Client/Gameplay2.lua"):find("Gameplay2SynergyFX", 1, true), "wired")
+	assert(not read("src/Client/Gameplay2SynergyFX.lua"):find("TweenService", 1, true), "static, so Calm mode is the same")
 end })
 
 return tests
