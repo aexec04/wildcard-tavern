@@ -117,6 +117,10 @@ function M.defeatWash(dim)
 		wash.BorderSizePixel = 0
 		wash.Active = false
 		wash.ZIndex = dim.ZIndex
+		-- Run Over lifts every new descendant by 5000 (GameOver DescendantAdded), which put this wash ABOVE the panel and its buttons and
+		-- greyed their labels to about 2:1. Marking it as already placed keeps it at the dim's own layer, under the panel.
+		-- (base 1, as the dim itself: a re-layout lifts it to dim.ZIndex again, still below the panel at base 20 and up)
+		wash:SetAttribute("RunOverBaseZ", 1)
 		wash.Parent = dim
 	end
 	wash.BackgroundTransparency = 1

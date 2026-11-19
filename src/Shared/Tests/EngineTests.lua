@@ -28139,6 +28139,16 @@ table.insert(tests, { name = "FxLoop: one hub steps every effect, finished and f
 	hub.step(0.1, 6)
 	assert(hub.count() == 0, "a thousand one-shots leave nothing behind")
 end })
+table.insert(tests, { name = "Run Over: the defeat wash is marked as placed so the Z lift never puts it over the buttons", fn = function()
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/CelebrationFX.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	local washAt = src:find('wash.Name = "DefeatWash"', 1, true)
+	local markAt = src:find('wash:SetAttribute("RunOverBaseZ"', 1, true)
+	local parentAt = src:find("wash.Parent = dim", 1, true)
+	assert(washAt and markAt and parentAt and markAt < parentAt, "the wash must carry RunOverBaseZ before it joins the Run Over dim")
+end })
 table.insert(tests, { name = "FxLoop: no Client effect opens its own Heartbeat or RenderStepped loop (only Client/FxLoop does)", fn = function()
 	if not (io and io.open) then return end
 	for _, name in ipairs({ "TavernLifeFX", "RoomLights", "ConfettiFX", "CelebrationFX", "BossPresenceFX", "CardFlights", "IdleLifeFX" }) do
