@@ -17,7 +17,7 @@ local SectionLayout = require(script.Parent.CollectionSectionLayout)
 local ChoiceRarity = {}
 
 ChoiceRarity.TABS = {
-	patron = "patrons", rushPatron = "patrons", draft = "patrons",
+	patron = "patrons", rushPatron = "patrons", reward = "patrons", draft = "patrons",
 	house = "recipes", menu = "recipes", secret = "recipes", recipe = "recipes",
 	housePass = "housePasses",
 }

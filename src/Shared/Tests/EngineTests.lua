@@ -29866,4 +29866,103 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 	end
 end })
 
+table.insert(tests, { name = "Night clear Patron reward: 3 unowned Patrons, rarer with the Night, Skip, full table, fixed boards and picks", fn = function()
+	local RunChoice = require(script.Parent.Parent.Engine.RunChoice)
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local Patrons = require(script.Parent.Parent.Engine.Patrons)
+	local function fresh(night)
+		local state = RunState.new({}, function(n) return math.random(n) end)
+		state.night = night or 2
+		state.round = 1
+		return state
+	end
+	local function rankOf(id)
+		local def = Patrons.getById(id)
+		local rarity = CollectionBook.rarityOf({ tab = "patrons", id = id, def = def })
+		for i, r in ipairs(CollectionBook.RarityOrder) do if r == rarity then return i end end
+		return 99
+	end
+	expectEqual(RunChoice.rewardMaxRarity(2), 2, "Night 2 up to Uncommon")
+	expectEqual(RunChoice.rewardMaxRarity(3), 2); expectEqual(RunChoice.rewardMaxRarity(4), 3, "one tier more every two Nights")
+	expectTrue(RunChoice.rewardMaxRarity(99) <= #CollectionBook.RarityOrder - 1, "never the top tier")
+	for night = 2, 6 do
+		local state = fresh(night)
+		for _ = 1, 20 do
+			local choice = RunChoice.rewardDraft(state, true)
+			expectTrue(choice ~= nil and choice.kind == "reward" and choice.skip == true, "a reward at Night " .. night)
+			expectEqual(#choice.options, 3, "three cards")
+			local seen = {}
+			for _, o in ipairs(choice.options) do
+				expectTrue(not seen[o.id], "no repeats"); seen[o.id] = true
+				expectTrue(rankOf(o.id) <= RunChoice.rewardMaxRarity(night), o.id .. " is not above the Night's cap")
+				expectTrue(not o.name:lower():find("balatro"), "kid safe names")
+			end
+		end
+	end
+	expectEqual(RunChoice.rewardDraft(fresh(2), false), nil, "no reward on Daily, Weekly, Seed or the tutorial")
+	-- Skip changes nothing
+	local state = fresh(2)
+	local choice = RunChoice.rewardDraft(state, true)
+	local ok, msg, nextChoice = RunChoice.pick(state, choice, "decline")
+	expectTrue(ok and msg == "" and nextChoice == nil and #state.ownedPatrons == 0, "Skip seats nobody")
+	-- a pick seats exactly that Patron; a made-up id is refused and changes nothing
+	expectTrue(not (RunChoice.pick(state, choice, "not_offered")), "not an offered id")
+	local id = choice.options[2].id
+	local ok2 = RunChoice.pick(state, choice, id)
+	expectTrue(ok2 and #state.ownedPatrons == 1 and state.ownedPatrons[1].id == id, "the picked Patron joins")
+	-- a Patron already owned is never offered again
+	for _ = 1, 30 do
+		local again = RunChoice.rewardDraft(state, true)
+		for _, o in ipairs(again.options) do expectTrue(o.id ~= id, "owned Patrons are left out") end
+	end
+	-- a full table gets no reward
+	local full = fresh(3)
+	for _, p in ipairs(Patrons.Definitions) do
+		if #full.ownedPatrons >= RunState.patronSlotLimit(full) then break end
+		RunState.grantPatron(full, p.id)
+	end
+	expectEqual(RunChoice.rewardDraft(full, true), nil, "full table, no reward")
+	-- the reward kind is wired to the stage and rarity tables, and cannot be abandoned (it is Skip, not Back)
+	expectEqual(require(script.Parent.Parent.Engine.ChoiceRarity).tabFor("reward"), "patrons")
+	expectEqual(require(script.Parent.Parent.Engine.ModalGate).stageFor("reward"), "draft")
+	expectTrue(not require(script.Parent.Parent.Engine.PopupDismissRules).canAbandonChoice("reward"))
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("RunChoice.rewardDraft(session.state, not fixedRun)", 1, true) ~= nil, "the server opens the reward on a new Night")
+	end
+	local g = io.open("src/Client/ChoicePanel.lua", "r")
+	if g then
+		local src = g:read("*a"); g:close()
+		expectTrue(src:find("RewardSkip", 1, true) and src:find('"decline"', 1, true), "the panel has a Skip plate")
+	end
+end })
+
+table.insert(tests, { name = "Boss intro cinematic: 0.8 s slide and hold, none in Calm mode, Fast halves, plate inside the screen with room for the portrait", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	expectEqual(M.bossIntro(true, false), nil, "Calm mode and Reduce motion: no cinematic")
+	local t = M.bossIntro(false, false)
+	expectTrue(math.abs(t.slide + t.hold - 0.8) < 1e-9 and t.fade > 0 and t.dim > 0 and t.dim < 1, "0.8 s in, then a fade")
+	local f = M.bossIntro(false, true)
+	expectTrue(math.abs(f.slide + f.hold - 0.4) < 1e-9, "Fast halves it")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = M.bossIntroPlate(w, h)
+		expectTrue(r.x >= 0 and r.y >= 0 and r.x + r.w <= w and r.y + r.h <= h, "plate on screen at " .. w .. "x" .. h)
+		local portrait, text = M.bossIntroParts(r)
+		expectTrue(portrait.w >= 48 and portrait.h >= 48, "portrait readable")
+		expectTrue(text.w >= 120 and text.h >= 40, "name and rule fit beside it at " .. w .. "x" .. h)
+		expectTrue(portrait.x + portrait.w < text.x and text.x + text.w <= r.w, "portrait and text do not overlap")
+	end
+	if not io then return end
+	local f2 = io.open("src/Client/Gameplay2MomentsFX.lua", "r")
+	if f2 then
+		local src = f2:read("*a"); f2:close()
+		expectTrue(src:find("Rules.bossIntro(calm(), fast())", 1, true) ~= nil, "the cinematic asks the Calm mode rule")
+		expectTrue(src:find("IntroKey", 1, true) ~= nil, "once per boss round")
+		expectTrue(src:find('"score_tick"', 1, true) ~= nil, "the Night tally ticks")
+	end
+end })
+
 return tests

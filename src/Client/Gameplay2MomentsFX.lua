@@ -15,6 +15,7 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Rules = require(Engine:WaitForChild("Gameplay2Moments"))
 local Style = require(Engine:WaitForChild("TavernStyle"))
 local Celebration = require(Engine:WaitForChild("Celebration"))
+local SoundFX = require(Engine:WaitForChild("SoundFX"))
 local ClientSettings = require(script.Parent.ClientSettings)
 local Kit = require(script.Parent.TavernKit)
 local BossRounds = require(Engine:WaitForChild("BossRounds"))
@@ -111,9 +112,10 @@ local function night(root, lines)
 		local steps = Celebration.countSteps(lines.tipsEarned, false)
 		if steps then
 			task.spawn(function()
-				for _, v in ipairs(steps.values) do
+				for i, v in ipairs(steps.values) do
 					if not tips.Parent then return end
 					tips.Text = string.format("Tips +%d", v)
+					pcall(function() require(script.Parent.Cue).play("score_tick", 1, SoundFX.tickSpeed(i)) end) -- a coin tick, pitch rising 1.0 to 1.3
 					task.wait(steps.step)
 				end
 			end)
@@ -170,6 +172,115 @@ function M.clear(root, lines)
 		fadeTween.Completed:Connect(function() if plate.Parent then plate:Destroy() end end)
 		fadeTween:Play()
 		task.delay(timing.fade + 0.5, function() if plate.Parent then plate:Destroy() end end)
+	end)
+end
+
+-- BOSS INTRO: dim the table, slide a plate (portrait, name, rule) in, hold, fade. Once per boss round, never in Calm mode or Reduce
+-- motion (Rules.bossIntro is nil). Takes no input (nothing here is Active), so it can never trap a click.
+local function introCinematic(layer, bdef, name, rule, tint, w, h)
+	local timing = Rules.bossIntro(calm(), fast())
+	if not timing or not layer.Parent then return end
+	local old = layer:FindFirstChild("BossIntro")
+	if old then old:Destroy() end
+	local holder = Instance.new("Frame")
+	holder.Name = "BossIntro"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.Active = false
+	holder.ZIndex = 34
+	holder.Parent = layer
+	local dim = Instance.new("Frame")
+	dim.Name = "Dim"
+	dim.BorderSizePixel = 0
+	dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dim.BackgroundTransparency = 1
+	dim.Size = UDim2.fromScale(1, 1)
+	dim.Active = false
+	dim.ZIndex = 34
+	dim.Parent = holder
+	local rect = Rules.bossIntroPlate(w, h)
+	local plate = Instance.new("Frame")
+	plate.Name = "Plate"
+	plate.BorderSizePixel = 0
+	plate.BackgroundColor3 = Color3.fromRGB(tint.fill[1], tint.fill[2], tint.fill[3])
+	plate.BackgroundTransparency = 0.05
+	plate.Active = false
+	plate.ZIndex = 35
+	plate.Size = UDim2.fromOffset(rect.w, rect.h)
+	local rest = UDim2.fromOffset(rect.x, rect.y)
+	plate.Position = UDim2.fromOffset(rect.x, rect.y - 40)
+	local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 12); pc.Parent = plate
+	local st = Instance.new("UIStroke"); st.Color = Color3.fromRGB(tint.edge[1], tint.edge[2], tint.edge[3]); st.Thickness = 3; st.Parent = plate
+	plate.Parent = holder
+	local portraitRect, textRect = Rules.bossIntroParts(rect)
+	local chip = Instance.new("Frame")
+	chip.Name = "Portrait"
+	chip.BorderSizePixel = 0
+	chip.BackgroundColor3 = Color3.fromRGB(tint.edge[1], tint.edge[2], tint.edge[3])
+	chip.Active = false
+	chip.ZIndex = 36
+	chip.Position = UDim2.fromOffset(portraitRect.x, portraitRect.y)
+	chip.Size = UDim2.fromOffset(portraitRect.w, portraitRect.h)
+	local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 10); cc.Parent = chip
+	chip.Parent = plate
+	local letter = Instance.new("TextLabel") -- the rule family letter, shown when the boss has no painted portrait
+	letter.Name = "Letter"
+	letter.BackgroundTransparency = 1
+	letter.Size = UDim2.fromScale(1, 1)
+	letter.Font = Enum.Font[Style.FONTS.title]
+	letter.TextSize = 32
+	letter.Text = Rules.bossIcon(bdef and bdef.rules)
+	letter.TextColor3 = color("cream")
+	letter.TextTransparency = 0
+	letter.TextStrokeTransparency = 0.4
+	letter.TextStrokeColor3 = color("outline")
+	letter.ZIndex = 37
+	letter.Parent = chip
+	if bdef and bdef.id then
+		pcall(function()
+			local art = require(script.Parent.PatronPlaque).apply(chip, bdef.id, { category = "bosses", zIndex = 38, cornerRadius = 10 })
+			if art then letter.Visible = false end
+		end)
+	end
+	local function line(nm, str, size, colorName, font, y, hh)
+		local t = Instance.new("TextLabel")
+		t.Name = nm
+		t.BackgroundTransparency = 1
+		t.Position = UDim2.fromOffset(textRect.x, textRect.y + y)
+		t.Size = UDim2.fromOffset(textRect.w, hh)
+		t.Font = Enum.Font[font]
+		t.TextSize = size
+		t.Text = str
+		t.TextColor3 = color(colorName)
+		t.TextTransparency = 0
+		t.TextStrokeTransparency = 0.4
+		t.TextStrokeColor3 = color("outline")
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextWrapped = true
+		t.TextTruncate = Enum.TextTruncate.AtEnd
+		t.ZIndex = 36
+		t.Active = false
+		t.Parent = plate
+		return t
+	end
+	line("Name", name, 28, "gold", Style.FONTS.title, 0, 34)
+	line("Rule", rule, 17, "cream", Style.FONTS.ui, 38, math.max(20, textRect.h - 38))
+	TweenService:Create(dim, TweenInfo.new(timing.slide), { BackgroundTransparency = timing.dim }):Play()
+	TweenService:Create(plate, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
+	task.delay(timing.slide + timing.hold, function()
+		if not holder.Parent then return end
+		TweenService:Create(dim, TweenInfo.new(timing.fade), { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(plate, TweenInfo.new(timing.fade), { BackgroundTransparency = 1 }):Play()
+		for _, d in ipairs(plate:GetDescendants()) do
+			if d:IsA("TextLabel") then
+				TweenService:Create(d, TweenInfo.new(timing.fade), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			elseif d:IsA("ImageLabel") then
+				TweenService:Create(d, TweenInfo.new(timing.fade), { ImageTransparency = 1 }):Play()
+			elseif d:IsA("Frame") then
+				TweenService:Create(d, TweenInfo.new(timing.fade), { BackgroundTransparency = 1 }):Play()
+			end
+		end
+		task.delay(timing.fade + 0.1, function() if holder.Parent then holder:Destroy() end end)
 	end)
 end
 
@@ -232,6 +343,11 @@ function M.boss(layer, rects, state, w, h)
 	tint.BackgroundColor3 = Color3.fromRGB(g.color[1], g.color[2], g.color[3])
 	tint.BackgroundTransparency = g.transparency
 	tint.Visible = true
+	local introKey = Rules.bossEntranceKey(state)
+	if introKey and tint:GetAttribute("IntroKey") ~= introKey then
+		tint:SetAttribute("IntroKey", introKey)
+		pcall(introCinematic, layer, bdef, name, rule, tintSet, w, h)
+	end
 	local rect = Rules.bossBanner(rects, w, h)
 	if not rect then
 		if banner then banner.Visible = false end

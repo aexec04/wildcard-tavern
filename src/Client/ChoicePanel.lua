@@ -171,7 +171,7 @@ local function buildCard(choice, option, order)
 	ring.Thickness = 2
 	ring.Parent = well
 	local icon = label(well, { Size = UDim2.fromScale(1, 1), Text = option.icon or choice.icon or "✨", TextSize = 44, TextColor3 = CREAM, ZIndex = 64 })
-	if choice.kind == "patron" or choice.kind == "rushPatron" then
+	if choice.kind == "patron" or choice.kind == "rushPatron" or choice.kind == "reward" then
 		PatronPlaque.apply(well, option.id, { emojiLabel = icon, zIndex = 65, cornerRadius = 42 })
 	elseif choice.kind == "modifier" then
 		local artId = ContentArt.getImageId("blessing_icons", option.id)
@@ -323,6 +323,7 @@ local function render()
 		return
 	end
 	ui.back.Visible = DismissRules.canAbandonChoice(choice.kind) -- only the start-of-run draft can be left
+	ui.skip.Visible = choice.kind == "reward" and choice.skip == true -- the Night clear Patron reward can be skipped
 	local key = ChoicePanel.keyOf(choice)
 	if key ~= builtKey then
 		builtKey = key
@@ -414,7 +415,7 @@ function ChoicePanel.init(deps)
 	holder.Name = "Holder"
 	holder.AnchorPoint = Vector2.new(0.5, 0.5)
 	holder.Position = UDim2.new(0.5, 0, 0.5, 24) -- sits below the top toast strip (y 20 to 54)
-	holder.Size = UDim2.fromOffset(CARD_W * 3 + 60, CARD_H + 150)
+	holder.Size = UDim2.fromOffset(CARD_W * 3 + 60, CARD_H + 164)
 	holder.BackgroundTransparency = 1
 	holder.ZIndex = 61
 	holder.Parent = backdrop
@@ -466,6 +467,30 @@ function ChoicePanel.init(deps)
 	layout.Padding = UDim.new(0, 20)
 	layout.Parent = row
 
+	-- Skip plate under the cards (Night clear Patron reward only): 160 x 44, answers "decline" like the event cards' No, thanks
+	local skipButton = Instance.new("TextButton")
+	skipButton.Name = "RewardSkip"
+	skipButton.AnchorPoint = Vector2.new(0.5, 0)
+	skipButton.Position = UDim2.new(0.5, 0, 0, 100 + CARD_H + 12)
+	skipButton.Size = UDim2.fromOffset(160, 44)
+	skipButton.Font = Enum.Font.GothamBold
+	skipButton.TextSize = 17
+	skipButton.Text = "Skip"
+	skipButton.TextColor3 = rgb("buttonText")
+	skipButton.BackgroundColor3 = rgb("buttonBrown")
+	skipButton.Visible = false
+	skipButton.ZIndex = 64
+	skipButton.Parent = holder
+	deps.polishButton(skipButton, 10)
+	pcall(function() require(script.Parent.TavernKit).skin(skipButton, nil, "secondary") end)
+	skipButton.MouseButton1Click:Connect(function()
+		if clickLocked then return end
+		clickLocked = true
+		task.delay(0.4, function() clickLocked = false end)
+		deps.playClickSfx()
+		deps.choiceRemote:FireServer("decline")
+	end)
+
 	-- shrink to fit small windows: the holder is about 750 x 450
 	local function fit()
 		local size = deps.screenGui.AbsoluteSize
@@ -512,7 +537,7 @@ function ChoicePanel.init(deps)
 	})
 
 	ui = {
-		backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit, back = backButton,
+		skip = skipButton, backdrop = backdrop, title = title, text = text, row = row, scale = scale, fit = fit, back = backButton,
 		menuFrame = deps.menuFrame, roundCorner = deps.roundCorner, polishButton = deps.polishButton,
 		playClickSfx = deps.playClickSfx, choiceRemote = deps.choiceRemote,
 	}

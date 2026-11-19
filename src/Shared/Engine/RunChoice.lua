@@ -6,6 +6,8 @@
 	  * Start-of-run DRAFT (normal runs only): first 1 of 3 starting Patrons (never rare or better), then 1 of 3
 	    run modifiers (a blessing with a matching curse, Engine/RunModifiers.lua).
 	  * Between Nights, about half the time, one random EVENT card (Engine/RunEvents.lua) with a safe Decline.
+	  * When a new Night opens (Night 2 on), a REWARD for clearing the last one: 1 of 3 Patrons you do not own, with a Skip
+	    (`RunChoice.rewardDraft`, kind "reward"). Never on fixed boards, never with a full table.
 
 	A choice is { kind = "patron" | "modifier" | "event", title, text, icon, eventId?, options = { { id, name, icon,
 	line1, line2 } } } where every field is a plain string, safe to send to the client.
@@ -115,6 +117,34 @@ function RunChoice.rushDraft(state, step, taken)
 	}
 end
 
+-- NIGHT CLEAR REWARD: three Patrons not on the table, rarer as the run goes on (Night 2 up to Uncommon, one tier more every two
+-- Nights, never the top tier). nil when the table is full, `allowed` is false (Daily, Weekly, Seed, tutorial) or nothing is left.
+-- The answer is one offered id, or "decline" (Skip): nothing changes.
+RunChoice.REWARD_SIZE = 3
+function RunChoice.rewardMaxRarity(night)
+	local top = math.max(1, #CollectionBook.RarityOrder - 1)
+	return math.min(top, 2 + math.floor((math.max(2, tonumber(night) or 2) - 2) / 2))
+end
+
+function RunChoice.rewardDraft(state, allowed)
+	if allowed == false or type(state) ~= "table" then return nil end
+	if #state.ownedPatrons >= RunState.patronSlotLimit(state) then return nil end
+	local owned = {}
+	for _, o in ipairs(state.ownedPatrons) do owned[o.id] = true end
+	local cap = RunChoice.rewardMaxRarity(state.night)
+	local pool = {}
+	for _, patron in ipairs(Unlocks.filter(state, "patron", Patrons.Definitions)) do
+		if not patron.biome and not owned[patron.id] and rarityIndex(patron) <= cap then pool[#pool + 1] = patron end
+	end
+	local picks = draw(pool, RunChoice.REWARD_SIZE, rngOf(state))
+	if #picks == 0 then return nil end
+	local options = {}
+	for _, p in ipairs(picks) do
+		options[#options + 1] = { id = p.id, name = p.name, icon = p.icon, line1 = p.description or "", line2 = "" }
+	end
+	return { kind = "reward", title = "Night cleared: pick a Patron", text = "A thank you from the tavern. Take one, or skip.", icon = "🎁", options = options, skip = true }
+end
+
 -- The first choice of a fresh normal run, or nil when `allowed` is false (seeded and tutorial runs).
 function RunChoice.startDraft(state, allowed)
 	if allowed == false then
@@ -177,7 +207,7 @@ function RunChoice.pick(state, choice, optionId)
 	if type(choice) ~= "table" or type(optionId) ~= "string" then
 		return false, "No choice open."
 	end
-	local offered = false
+	local offered = choice.kind == "reward" and optionId == "decline" -- Skip is always allowed on a reward
 	for _, o in ipairs(choice.options) do
 		if o.id == optionId then offered = true end
 	end
@@ -199,6 +229,10 @@ function RunChoice.pick(state, choice, optionId)
 			return true, message, nil
 		end
 		return true, message, RunChoice.rushDraft(state, #taken + 1, taken)
+	elseif choice.kind == "reward" then
+		if optionId == "decline" then return true, "", nil end
+		local ok, message = RunState.grantPatron(state, optionId)
+		return ok, message, nil
 	elseif choice.kind == "modifier" then
 		local ok, message = RunModifiers.apply(state, optionId)
 		return ok, message, nil

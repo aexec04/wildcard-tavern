@@ -24,6 +24,9 @@
 	bossIcon(rules)                  -> one or two ASCII letters for the rule family (drawn on a small red shield, never a symbol glyph)
 	bossEntrance(calm, fast)         -> { slide, hold, settle } seconds; slide 0 means no motion (Calm mode, Reduce motion)
 	bossEntranceKey(state)           -> text that changes per boss round, so the entrance plays once per round
+	bossIntro(calm, fast)            -> nil | { slide, hold, fade, dim } the boss intro cinematic (dim table, portrait plate), nil in Calm mode
+	bossIntroPlate(w, h)             -> { x, y, w, h } the intro plate, inside the screen
+	bossIntroParts(plate)            -> portrait rect, text rect (relative to the plate)
 ]]
 
 local M = {}
@@ -161,6 +164,32 @@ function M.bossEntrance(calm, fast)
 	if calm then return { slide = 0, hold = 0, settle = 0 } end
 	local k = fast and 0.5 or 1
 	return { slide = 0.4 * k, hold = 1.2 * k, settle = 0.4 * k }
+end
+
+-- BOSS INTRO CINEMATIC: the first time a Boss round shows, the table dims and a plate with the boss portrait, name and rule slides
+-- in, holds, then fades (0.8 s of slide and hold in all, then the fade). Calm mode and Reduce motion: nothing at all (the banner and
+-- the rule plate already tell the player). Fast halves every time.
+M.INTRO_DIM = 0.5 -- background transparency of the dim (0.5 = half dark)
+function M.bossIntro(calm, fast)
+	if calm then return nil end
+	local k = fast and 0.5 or 1
+	return { slide = 0.3 * k, hold = 0.5 * k, fade = 0.3 * k, dim = M.INTRO_DIM }
+end
+
+-- the intro plate, centred a little above the middle: portrait chip on the left, name over rule on the right. Root pixels.
+M.INTRO_PORTRAIT = 72
+function M.bossIntroPlate(w, h)
+	local pw = math.min(560, w - 32)
+	local ph = math.min(104, math.max(M.INTRO_PORTRAIT + 16, h - 32))
+	return { x = math.floor((w - pw) / 2), y = math.floor(h * 0.36 - ph / 2), w = pw, h = ph }
+end
+
+-- inner rects, relative to the plate: the portrait chip and the text column
+function M.bossIntroParts(plate)
+	local side = math.min(M.INTRO_PORTRAIT, plate.h - 16)
+	local portrait = { x = 12, y = math.floor((plate.h - side) / 2), w = side, h = side }
+	local tx = portrait.x + side + 14
+	return portrait, { x = tx, y = 10, w = plate.w - tx - 12, h = plate.h - 20 }
 end
 
 function M.bossEntranceKey(state)

@@ -2962,7 +2962,8 @@ Rem.AdvanceRound.OnServerEvent:Connect(function(player)
 	-- RUN EVENTS: about half the time a new Night opens with an event card (normal runs only).
 	local fixedRun = session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial
 	if session.state.round == 1 and session.state.night >= 2 then
-		session.choice = RunChoice.rollEvent(session.state, not fixedRun)
+		-- a Patron reward for the Night just cleared comes first (Skip allowed); an event, if rolled, follows it
+		session.choice = RunChoice.rewardDraft(session.state, not fixedRun) or RunChoice.rollEvent(session.state, not fixedRun)
 	end
 	-- Studio dev hook: set the player attribute ForceEvent to an event id (see Engine/RunEvents) to see that card now.
 	if RunService:IsStudio() and not session.choice and not fixedRun then
@@ -3259,7 +3260,11 @@ Rem.Choice.OnServerEvent:Connect(function(player, optionId)
 		return
 	end
 	local wasModifier = session.choice.kind == "modifier"
+	local wasReward = session.choice.kind == "reward"
 	local ok, message, nextChoice = RunChoice.pick(session.state, session.choice, optionId)
+	if ok and wasReward and not (session.isDaily or session.isWeekly or session.isSeeded or session.isTutorial) then
+		nextChoice = RunChoice.rollEvent(session.state, true) -- the between-Nights event the reward put off
+	end
 	if ok then
 		session.choice = nextChoice
 		RunState.refreshSnapshot(session.state) -- One More Round must not undo the pick
