@@ -28854,6 +28854,33 @@ table.insert(tests, { name = "Shop buy UX: Buy plate says Need N when Tips are s
 	assert(src:find("ShopBuyUX", 1, true) and src:find("reduceShake", 1, true), "ShopCards uses the shake and checks Calm mode")
 end })
 
+table.insert(tests, { name = "Gameplay v2 Night cleared and Run complete: only a cleared Boss Round, Run complete on the last Night, plates inside the screen with a 48 px Continue", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local boss = { phase = "playing", targetScore = 100, roundScore = 120, tips = 5, round = 3, night = 2, nightCap = 8, bossModifier = { id = "bouncer" } }
+	local now = { phase = "shop", roundScore = 120, tips = 12 }
+	local l = M.clearLines(boss, now)
+	assert(l and l.night and l.night.title == "Night cleared" and l.night.sub == "Night 2 of 8" and not l.night.runComplete and l.night.button == "Continue")
+	boss.night = 8
+	assert(M.clearLines(boss, now).night.title == "Run complete" and M.clearLines(boss, now).night.runComplete)
+	boss.endless = true
+	assert(M.clearLines(boss, now).night.title == "Night cleared", "Endless Nights keep going")
+	local plain = { phase = "playing", targetScore = 100, roundScore = 120, tips = 5, round = 1, night = 2, nightCap = 8 }
+	assert(M.clearLines(plain, now) and M.clearLines(plain, now).night == nil, "an ordinary round has no Night plate")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 } }) do
+		for _, big in ipairs({ false, true }) do
+			local p = M.nightPlate(sz[1], sz[2], big)
+			assert(p.x >= 0 and p.y >= 0 and p.x + p.w <= sz[1] and p.y + p.h <= sz[2], "plate on screen at " .. sz[1])
+			local c = M.continueRect(p)
+			assert(c.h >= 44 and c.x >= 0 and c.x + c.w <= p.w and c.y + c.h <= p.h, "Continue inside the plate at " .. sz[1])
+			assert(c.y >= (big and 146 or 134) + 4, "Continue below the four text lines at " .. sz[1])
+		end
+	end
+	assert(M.nightPlate(1920, 1080, true).w > M.nightPlate(1920, 1080, false).w, "Run complete is the bigger plate")
+	if not io then return end
+	local f = assert(io.open("src/Client/Gameplay2MomentsFX.lua", "r")); local src = f:read("a"); f:close()
+	assert(src:find("ConfettiFX", 1, true) and src:find("CrownGlow", 1, true) and src:find("calm()", 1, true), "confetti and glow, Calm mode checked")
+end })
+
 table.insert(tests, { name = "Gameplay v2 Patron tooltip: 0.25 s delay, 320 px wide scaling down, portrait column, plate clear of the bar, hand, buttons, sort control and deck for all five seats at three sizes", fn = function()
 	local T = require(script.Parent.Parent.Engine.Gameplay2Tip)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

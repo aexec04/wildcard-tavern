@@ -488,7 +488,8 @@ function M.install(deps)
 		end
 		setText(deckPill, DeckCountText.spaced(remaining, lastState.deckView))
 		apply()
-		self.prev = { phase = "playing", targetScore = lastState.targetScore, roundScore = lastState.roundScore, tips = lastState.tips }
+		self.prev = { phase = "playing", targetScore = lastState.targetScore, roundScore = lastState.roundScore, tips = lastState.tips,
+			round = lastState.round, night = lastState.night, nightCap = lastState.nightCap, endless = lastState.endless, bossModifier = lastState.bossModifier }
 		pcall(function() -- a thin gold thread between neighbouring Patrons that share a theme (Client/Gameplay2SynergyFX)
 			local ids = {}
 			for i, o in ipairs(lastState.ownedPatrons or {}) do ids[i] = o.id end

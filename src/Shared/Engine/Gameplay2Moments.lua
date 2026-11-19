@@ -17,6 +17,9 @@
 	bossBanner(rects, w, h)          -> { x, y, w, h } or nil (no room)
 	bossText(state)                  -> name, rule (nil, nil when not a boss round)
 	bossGlow(calm)                   -> { color = {r,g,b}, transparency }
+	nightLines(prev)                 -> nil | { title = "Night cleared" | "Run complete", sub, runComplete, button } (a Boss Round was cleared)
+	nightPlate(w, h, runComplete)    -> { x, y, w, h } the Night plate (bigger for Run complete), inside the screen
+	continueRect(plate)              -> { x, y, w, h } relative to the plate, 48 px tall
 	defeatLine(state)                -> "Out of hands. Score X of Y."
 	bossIcon(rules)                  -> one or two ASCII letters for the rule family (drawn on a small red shield, never a symbol glyph)
 	bossEntrance(calm, fast)         -> { slide, hold, settle } seconds; slide 0 means no motion (Calm mode, Reduce motion)
@@ -39,8 +42,39 @@ function M.clearLines(prev, now)
 	if score < floor(prev.roundScore) then score = floor(prev.roundScore) end
 	if target <= 0 or score < target then return nil end
 	local earned = math.max(0, floor(now.tips) - floor(prev.tips))
-	return { title = "Target cleared", score = string.format("Score %d of %d", score, target), tips = string.format("Tips +%d", earned), tipsEarned = earned }
+	local lines = { title = "Target cleared", score = string.format("Score %d of %d", score, target), tips = string.format("Tips +%d", earned), tipsEarned = earned }
+	lines.night = M.nightLines(prev)
+	return lines
 end
+
+-- the last round of a Night (the Boss Round) was cleared: a bigger plate with a Continue button; clearing the last Night of a run is
+-- "Run complete" with a crown glow. nil for an ordinary round.
+function M.nightLines(prev)
+	if not prev or not prev.bossModifier or floor(prev.round) < 3 then return nil end
+	local night, cap = floor(prev.night), floor(prev.nightCap)
+	local complete = cap > 0 and night >= cap and prev.endless ~= true
+	return {
+		title = complete and "Run complete" or "Night cleared",
+		sub = cap > 0 and string.format("Night %d of %d", night, cap) or string.format("Night %d", night),
+		runComplete = complete,
+		button = "Continue",
+	}
+end
+
+function M.nightPlate(w, h, runComplete)
+	local pw = math.min(runComplete and 560 or 480, math.max(280, math.floor(w * (runComplete and 0.5 or 0.44))))
+	local ph = math.min(runComplete and 300 or 260, math.max(runComplete and 226 or 214, math.floor(h * (runComplete and 0.40 or 0.36))))
+	ph = math.min(ph, h - 16)
+	return { x = math.floor((w - pw) / 2), y = math.max(8, math.floor((h - ph) / 2)), w = pw, h = ph }
+end
+
+-- the Continue plate sits at the bottom of the night plate (relative to it), 48 px tall, inside it
+function M.continueRect(plate)
+	local bw, bh = math.min(200, plate.w - 40), 48
+	return { x = math.floor((plate.w - bw) / 2), y = plate.h - bh - 14, w = bw, h = bh }
+end
+
+M.NIGHT_AUTO_CLOSE = 8 -- seconds; Continue ends it sooner, and it never blocks the Counter behind it
 
 function M.clearPlate(w, h)
 	local pw = math.min(420, math.max(240, math.floor(w * 0.36)))

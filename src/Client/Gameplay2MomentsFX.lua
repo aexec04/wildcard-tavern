@@ -45,8 +45,80 @@ local function text(parent, name, str, size, colorName, font, y, h)
 	return t
 end
 
+-- Night cleared and Run complete: a bigger plate, gold and purple confetti, tips counting up, a green Continue plate
+local function night(root, lines)
+	local prior = root:FindFirstChild("NightClearedPlate")
+	if prior then prior:Destroy() end
+	local n = lines.night
+	local size = root.AbsoluteSize
+	local rect = Rules.nightPlate(size.X, size.Y, n.runComplete)
+	local timing = Rules.clearTiming(calm(), fast())
+	local holder = Instance.new("Frame")
+	holder.Name = "NightClearedPlate"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromOffset(rect.w, rect.h)
+	holder.Position = UDim2.fromOffset(rect.x, rect.y)
+	holder.ZIndex = 41
+	holder.Parent = root
+	if n.runComplete then -- a soft gold crown glow behind the plate: a solid frame, never a Transparency gradient
+		local glow = Instance.new("Frame")
+		glow.Name = "CrownGlow"
+		glow.BorderSizePixel = 0
+		glow.Active = false
+		glow.BackgroundColor3 = color("gold")
+		glow.BackgroundTransparency = 0.82
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.fromScale(0.5, 0.5)
+		glow.Size = UDim2.new(1, 28, 1, 28)
+		glow.ZIndex = 40
+		local gc = Instance.new("UICorner"); gc.CornerRadius = UDim.new(0, 20); gc.Parent = glow
+		glow.Parent = holder
+	end
+	local plate = Kit.plate(holder, UDim2.fromScale(1, 1))
+	plate.Name = "Plate"
+	plate.Active = false
+	plate.ZIndex = 41
+	local big = n.runComplete
+	text(plate, "Title", n.title, big and 40 or 32, "gold", Style.FONTS.title, 10, big and 48 or 40)
+	text(plate, "Night", n.sub, 20, "cream", Style.FONTS.ui, big and 60 or 52, 26)
+	text(plate, "Score", lines.score, 20, "cream", Style.FONTS.ui, big and 90 or 80, 26)
+	local counting = timing.count and lines.tipsEarned > 0
+	local tips = text(plate, "Tips", counting and "Tips +0" or lines.tips, 20, "cream", Style.FONTS.ui, big and 120 or 108, 26)
+	local cr = Rules.continueRect({ w = rect.w, h = rect.h })
+	local btn = Kit.primaryButton(plate, n.button)
+	btn.Name = "Continue"
+	btn.Size = UDim2.fromOffset(cr.w, cr.h)
+	btn.Position = UDim2.fromOffset(cr.x, cr.y)
+	btn.ZIndex = 44
+	local closed = false
+	local function close()
+		if closed then return end
+		closed = true
+		if holder.Parent then holder:Destroy() end
+	end
+	btn.MouseButton1Click:Connect(close)
+	task.delay(Rules.NIGHT_AUTO_CLOSE, close)
+	pcall(function() require(script.Parent.ConfettiFX).burst(root, true) end) -- gold and purple, nothing in Calm mode
+	if counting then
+		local steps = Celebration.countSteps(lines.tipsEarned, false)
+		if steps then
+			task.spawn(function()
+				for _, v in ipairs(steps.values) do
+					if not tips.Parent then return end
+					tips.Text = string.format("Tips +%d", v)
+					task.wait(steps.step)
+				end
+			end)
+		end
+	end
+end
+
 function M.clear(root, lines)
 	if not root or not lines then return end
+	if lines.night then
+		night(root, lines)
+		return
+	end
 	local old = root:FindFirstChild("TargetClearedPlate")
 	if old then old:Destroy() end
 	local size = root.AbsoluteSize
