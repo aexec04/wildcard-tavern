@@ -21865,11 +21865,33 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	expectTrue(ink.R > 0.8, "facts are cream on a solid dark plate on the paper")
 	local plate = panel:FindFirstChild("FactsPlate", true)
 	expectTrue(plate ~= nil and plate.Visible and plate.BackgroundTransparency <= 0.12, "the dark facts plate (alpha 0.88 or more) shows on the paper")
+	-- every fact line sits inside the plate (loss and win, two roomy sizes) and under the labels in draw order
+	local function factsInsidePlate(tag)
+		local pl = panel:FindFirstChild("FactsPlate", true)
+		local fr = panel:FindFirstChild("Facts", true)
+		expectTrue(pl ~= nil and pl.Visible, tag .. ": the facts plate is shown")
+		expectTrue(pl.BackgroundColor3.R < 0.2 and pl.BackgroundTransparency <= 0.12, tag .. ": the plate is dark and 88 percent opaque or more")
+		for _, c in ipairs(fr:GetChildren()) do
+			if c:IsA("TextLabel") then
+				expectTrue(pl.ZIndex < c.ZIndex, tag .. ": the plate is under " .. c.Name)
+				local x0, y0 = fr.Position.X.Offset + c.Position.X.Offset, fr.Position.Y.Offset + c.Position.Y.Offset
+				expectTrue(x0 >= pl.Position.X.Offset and y0 >= pl.Position.Y.Offset
+					and x0 + c.Size.X.Offset <= pl.Position.X.Offset + pl.Size.X.Offset
+					and y0 + c.Size.Y.Offset <= pl.Position.Y.Offset + pl.Size.Y.Offset, tag .. ": " .. c.Name .. " is over the plate")
+			end
+		end
+	end
+	factsInsidePlate("loss 1600x900")
+	root.AbsoluteSize = { X = 1920, Y = 1080 }
+	P.refreshGameOver(lossState, nil)
+	factsInsidePlate("loss 1920x1080")
+	root.AbsoluteSize = { X = 1600, Y = 900 }
 	expectTrue(panel:FindFirstChild("Title", true):FindFirstChild("RevivedBadge") ~= nil, "the title row keeps its badge")
 	expectTrue(panel:FindFirstChild("Actions", true):FindFirstChild("PlayAgain").TextColor3.R > 0.5 or true, "the plates keep their wooden look")
 	local winState = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary }
 	P.refreshGameOver(winState, nil)
 	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_b, "a win sits on run_over_scroll_b")
+	factsInsidePlate("win 1600x900")
 	local PA = panel:FindFirstChild("PlayAgain", true)
 	expectTrue(PA.Size.Y.Offset >= 56 and panel:FindFirstChild("BackToTavern", true).Size.Y.Offset < PA.Size.Y.Offset, "Play Again is the one big primary")
 	for _, nm in ipairs({ "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge" }) do
