@@ -23469,6 +23469,19 @@ table.insert(tests, { name = "beatslow: parses on/freeze/off, slows the Patron b
 	expectTrue(PE.slowMode() == nil and PE.hold() == nil, "off clears the mode")
 end })
 
+table.insert(tests, { name = "PatronEvents: every rarity has its own pill rim and unknown ones fall back to Common", fn = function()
+	local PE = require(script.Parent.Parent.Engine.PatronEvents)
+	local seen = {}
+	for _, r in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+		local c = PE.rarityRim(r)
+		assert(#c == 3, r)
+		local k = table.concat(c, ",")
+		assert(not seen[k], "rim shared: " .. r)
+		seen[k] = true
+	end
+	assert(PE.rarityRim("Legendary")[1] == 255)
+	assert(PE.rarityRim(nil)[1] == PE.rarityRim("common")[1])
+end })
 table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
 	local ids = {}

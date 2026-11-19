@@ -862,7 +862,7 @@ local function tween(obj, info, goal)
 	return t
 end
 
-local function pill(parent, text, color, size, bold, x, y, rise, hold, frozen)
+local function pill(parent, text, color, size, bold, x, y, rise, hold, frozen, rim)
 	local p = Instance.new("TextLabel")
 	p.AnchorPoint = Vector2.new(0.5, 1)
 	p.Position = UDim2.fromOffset(x, y)
@@ -883,8 +883,8 @@ local function pill(parent, text, color, size, bold, x, y, rise, hold, frozen)
 	corner(p, (size + 12) / 2)
 	local stroke = Instance.new("UIStroke")
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Color = color
-	stroke.Thickness = 1.5
+	stroke.Color = rim or color
+	stroke.Thickness = rim and 2.5 or 1.5
 	stroke.Transparency = 0.2
 	stroke.Parent = p
 	local sc = Instance.new("UIScale")
@@ -935,7 +935,12 @@ function M.trigger(patronId, event, fast)
 	local r = c.slot
 	local hostX = r.Position.X.Offset + r.Size.X.Offset / 2
 	local hostY, rise = Layout.pillSpot(r.Position.Y.Offset, r.Size.Y.Offset)
-	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen)
+	local rim
+	pcall(function()
+		local t = PatronEvents.rarityRim(CollectionBook.rarityForId("patrons", patronId))
+		rim = Color3.fromRGB(t[1], t[2], t[3])
+	end)
+	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen, rim)
 	-- every other Patron dims to 70 percent while this one triggers
 	dimToken = dimToken + 1
 	local mine = dimToken

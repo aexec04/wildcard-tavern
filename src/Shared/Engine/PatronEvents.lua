@@ -83,6 +83,16 @@ function PatronEvents.text(event)
 	return "", "chips"
 end
 
+-- rim colour of the floating value pill, one per rarity tier (the text keeps the kind colour, so rarity never
+-- depends on colour alone: the card's label pill already says the tier in words)
+PatronEvents.RARITY_RIM = {
+	common = { 205, 145, 85 }, uncommon = { 110, 215, 120 }, rare = { 90, 170, 255 },
+	epic = { 190, 120, 255 }, legendary = { 255, 205, 70 },
+}
+function PatronEvents.rarityRim(rarity)
+	return PatronEvents.RARITY_RIM[tostring(rarity or ""):lower()] or PatronEvents.RARITY_RIM.common
+end
+
 function PatronEvents.tavernNotes(bossRules, isFirstHand, bargainPct)
 	local notes = {}
 	if bossRules and bossRules.chipsMultiplier and bossRules.chipsMultiplier ~= 1 then
