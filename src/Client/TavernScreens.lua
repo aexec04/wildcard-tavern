@@ -80,6 +80,16 @@ function M.skin(screenFrame, screen)
 		local b = screenFrame:FindFirstChild(name, true)
 		if b and b:IsA("TextButton") and b:GetAttribute("TavernKind") ~= kind then
 			pcall(Kit.skin, b, nil, kind)
+			if screen == "runover" and name == "PlayAgain" then -- Try Again / Play Again: the bright warm green, never the dim kit green
+				local N = Screens.NEXT_ROUND
+				for _, d in ipairs(b:GetChildren()) do
+					if d:IsA("UIGradient") then d:Destroy() end
+				end
+				b.BackgroundColor3 = Color3.fromRGB(N.fill[1], N.fill[2], N.fill[3])
+				b.TextColor3 = Color3.fromRGB(N.text[1], N.text[2], N.text[3])
+				b.TextStrokeColor3 = Color3.fromRGB(N.stroke[1], N.stroke[2], N.stroke[3])
+				b.TextStrokeTransparency = 0
+			end
 		end
 	end
 end

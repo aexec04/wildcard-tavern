@@ -205,6 +205,9 @@ return function(deps)
 			innerStroke.Transparency = 0.35
 			innerStroke.Parent = inner
 			inner.Parent = instance
+			if instance:IsA("TextButton") and instance.Text ~= "" then
+				pcall(function() require(script.Parent.ButtonLabelTop).attach(instance) end) -- the word draws above the rim
+			end
 			table.insert(pieces, inner)
 
 			if withBrackets then

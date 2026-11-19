@@ -30196,4 +30196,38 @@ table.insert(tests, { name = "SortGlide: cards that changed place slide from the
 	expectTrue(fx:find("if calm() or", 1, true) ~= nil, "calm mode returns before any tween")
 end })
 
+table.insert(tests, { name = "Button labels: the word draws above every skin plate and rim child (Run Over buttons were dimmed)", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local env = FakeGui.env({ stubs = {} })
+	local B = FakeGui.load("src/Client/ButtonLabelTop.lua", env)
+	expectTrue(B.zFor(5024, { 5024, 5024 }) > 5024, "label z is above equal-z siblings")
+	expectTrue(B.zFor(10, { 40 }) > 40, "label z is above a higher sibling")
+	for _, z in ipairs({ 1, 24, 5024 }) do
+		local b = FakeGui.new("TextButton")
+		b.ZIndex, b.Text = z, "Try Again"
+		local plate, rim = FakeGui.new("ImageLabel"), FakeGui.new("Frame")
+		plate.Name, rim.Name = "SetSkinPlate", "InnerRim"
+		plate.ZIndex, rim.ZIndex = z, z
+		plate.Parent, rim.Parent = b, b
+		local label = B.attach(b)
+		expectTrue(label ~= nil and label.Name == "KitLabel" and label.Text == "Try Again", "label mirrors the text")
+		for _, c in ipairs(b:GetChildren()) do
+			if c ~= label and c:IsA("GuiObject") then expectTrue(c.ZIndex < label.ZIndex, c.Name .. " draws under the label at z " .. z) end
+		end
+		b.Text = "Play Again"
+		expectTrue(label.Text == "Play Again", "text change follows")
+		b.ZIndex = z + 5000
+		plate.ZIndex, rim.ZIndex = z + 5000, z + 5000
+		b.ZIndex = z + 5001
+		expectTrue(label.ZIndex > plate.ZIndex and label.ZIndex > rim.ZIndex, "a lifted screen keeps the label on top")
+	end
+	local function has(file, text)
+		local f = io.open("src/Client/" .. file, "r"); local src = f:read("a"); f:close()
+		return src:find(text, 1, true) ~= nil
+	end
+	expectTrue(has("SetSkin.lua", "ButtonLabelTop") and has("VisualHelpers.lua", "ButtonLabelTop"), "the two helpers that add plate and rim attach the label")
+	expectTrue(has("TavernScreens.lua", "NEXT_ROUND") and has("TavernScreens.lua", 'name == "PlayAgain"'), "Run Over Play Again uses the bright green")
+end })
+
 return tests

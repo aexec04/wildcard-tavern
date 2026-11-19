@@ -224,6 +224,9 @@ local function style(inst, kind, skin)
 	-- right of the label, so they keep their own wood and gold look (tabs also get the faint set wash below).
 	if kind == "tab" or (kind == "button" and inst:IsA("TextButton") and (inst.Name == "Close" or inst.Text == "Close")) then image = nil end
 	local label = plate(inst, OVERLAY, image, inst.ZIndex, kind == "panel" and 0.35 or 0.25)
+	if label and kind == "button" and inst:IsA("TextButton") then
+		pcall(function() require(script.Parent.ButtonLabelTop).attach(inst) end) -- the word draws above the plate
+	end
 	local border = nil
 	if kind == "panel" then
 		if label then

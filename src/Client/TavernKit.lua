@@ -119,7 +119,8 @@ function TavernKit.skin(b, text, kind)
 	b.TextStrokeColor3 = col(kind == "primary" and "buttonStroke" or "outline")
 	if text then b.Text = text end
 	for _, c in ipairs(b:GetChildren()) do
-		if c:IsA("GuiObject") then c.Visible = false -- old art and labels on a reused button
+		if c:IsA("GuiObject") then
+			if c.Name ~= "KitLabel" then c.Visible = false end -- old art and labels on a reused button; the label above the plate stays
 		elseif c:IsA("UICorner") or c:IsA("UIStroke") or c:IsA("UIGradient") then c:Destroy() end
 	end
 	corner(b, Style.RADIUS.button)
