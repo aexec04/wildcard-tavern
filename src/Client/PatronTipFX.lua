@@ -118,7 +118,8 @@ function render(root, cards, index, info, calm, v2)
 	local effH = height(content.effect, 16, Enum.Font.GothamMedium) + 2
 	local tagText = ""
 	for i, t in ipairs(content.tags) do tagText = tagText .. (i > 1 and "   " or "") .. t.icon .. " " .. t.word end
-	local rows = nameH + 22 + effH + (tagText ~= "" and 22 or 0)
+	local setText = PatronTips.setLine(ownedIds, index)
+	local rows = nameH + 22 + effH + (tagText ~= "" and 22 or 0) + (setText ~= "" and 24 or 0)
 	local h = math.floor(rows + padY * 2 + 8)
 	if v2 then h = Tip.height(w, rows) end
 	local frame = Instance.new("Frame")
@@ -211,6 +212,10 @@ function render(root, cards, index, info, calm, v2)
 	y = y + effH
 	if tagText ~= "" then
 		label(body, tagText, 15, Enum.Font.GothamBold, GOLD, y + 2, 20)
+		y = y + 22
+	end
+	if setText ~= "" then -- a set bonus this Patron is part of, in gold on its own line
+		label(body, setText, 15, Enum.Font.GothamBold, GOLD, y + 2, 22)
 	end
 	-- position: from the same rects the layout uses, clear of the HUD pills, banner, gear and hand
 	local r = CTLayout.rects(rs.X, rs.Y)

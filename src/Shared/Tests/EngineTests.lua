@@ -29974,4 +29974,96 @@ table.insert(tests, { name = "Boss intro cinematic: 0.8 s slide and hold, none i
 	end
 end })
 
+table.insert(tests, { name = "Set bonuses: Tavern Circle, Rare Court and Full Table form once, score once per hand, stay off with bondsOff", fn = function()
+	local SetBonuses = require(script.Parent.Parent.Engine.SetBonuses)
+	local Bonds = require(script.Parent.Parent.Engine.Bonds)
+	-- three Patrons sharing one tag
+	local trio
+	for _, tag in ipairs(Bonds.Tags) do
+		local found = {}
+		for _, p in ipairs(Patrons.Definitions) do
+			if not p.biome and p.tags then
+				for _, t in ipairs(p.tags) do
+					if t == tag then found[#found + 1] = p break end
+				end
+			end
+			if #found == 3 then break end
+		end
+		if #found == 3 then trio = found break end
+	end
+	expectTrue(trio ~= nil, "the registry has three Patrons that share a tag")
+	local two = SetBonuses.find({ trio[1], trio[2] })
+	expectEqual(0, #two)
+	local sets = SetBonuses.find(trio)
+	local circle
+	for _, set in ipairs(sets) do if set.id == "tavern_circle" then circle = set end end
+	expectTrue(circle ~= nil and circle.amount == 2 and circle.kind == "mult")
+	-- scoring: the breakdown carries exactly one Tavern Circle entry (+2 Mult) with source.set, and bondsOff removes it
+	local hand = HandEvaluator.evaluate({ C(9, "Hearts"), C(9, "Clubs"), C(9, "Spades"), C(2, "Spades"), C(3, "Hearts") })
+	local ctx = { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5 }
+	local _, _, _, extra = Scoring.calculate(hand, trio, ctx)
+	local n = 0
+	for _, e in ipairs(extra.breakdown) do
+		if e.source and e.source.set == "Tavern Circle" then
+			n = n + 1
+			expectEqual("mult", e.kind)
+			expectEqual(2, e.amount)
+		end
+	end
+	expectEqual(1, n)
+	local _, _, _, off = Scoring.calculate(hand, trio, { handsRemaining = 3, discardsRemaining = 3, night = 3, round = 1, tips = 5, bondsOff = true })
+	for _, e in ipairs(off.breakdown) do expectTrue(not (e.source and e.source.set), "no set entry with bondsOff") end
+	-- Rare Court: three Rare or better Patrons
+	local CollectionBook = require(script.Parent.Parent.Engine.CollectionBook)
+	local rares = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		local r = CollectionBook.rarityOf({ tab = "patrons", id = p.id, def = p })
+		if (r == "rare" or r == "epic" or r == "legendary" or r == "mythical") and #rares < 3 then rares[#rares + 1] = p end
+	end
+	expectEqual(3, #rares)
+	local court
+	for _, set in ipairs(SetBonuses.find(rares)) do if set.id == "rare_court" then court = set end end
+	expectTrue(court ~= nil and court.kind == "xmult" and court.amount == 1.2)
+	-- Full Table needs Chips, Mult and Tips Patrons that all scored (different seats)
+	local ids = { { id = trio[1].id }, { id = trio[2].id }, { id = trio[3].id } }
+	local none = SetBonuses.find(ids, { { chips = 5 }, { mult = 2 }, {} })
+	local ft = 0
+	for _, set in ipairs(none) do if set.id == "full_table" then ft = ft + 1 end end
+	expectEqual(0, ft)
+	local all = SetBonuses.find(ids, { { chips = 5 }, { mult = 2 }, { tips = 1 } })
+	for _, set in ipairs(all) do if set.id == "full_table" then ft = ft + 1 expectEqual("tips", set.kind) end end
+	expectEqual(1, ft)
+	-- display helpers
+	local formed = SetBonuses.formed({ trio[1].id, trio[2].id, trio[3].id })
+	expectTrue(#formed >= 1)
+	expectEqual("Tavern Circle: +2 Mult", SetBonuses.lineOf(circle))
+	expectEqual(2, #SetBonuses.threads({ circle }))
+	local PatronTips = require(script.Parent.Parent.Engine.PatronTips)
+	expectTrue(PatronTips.setLine({ trio[1].id, trio[2].id, trio[3].id }, 1):find("Tavern Circle", 1, true) ~= nil)
+	expectEqual("", PatronTips.setLine({ trio[1].id }, 1))
+	-- deterministic
+	local s1 = Scoring.calculate(hand, trio, ctx)
+	local s2 = Scoring.calculate(hand, trio, ctx)
+	expectEqual(s1, s2)
+end })
+
+table.insert(tests, { name = "StakePlates: eight tier edges, plates at least 44 px, text at 4.5:1 on every plate, locked hints included", fn = function()
+	local StakePlates = require(script.Parent.Parent.Engine.StakePlates)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local Stakes = require(script.Parent.Parent.Engine.Stakes)
+	expectEqual(#Stakes.Definitions, #StakePlates.TIER_EDGE)
+	for n = 1, #Stakes.Definitions do
+		for _, locked in ipairs({ false, true }) do
+			for _, selected in ipairs({ false, true }) do
+				local st = StakePlates.style(n, locked, selected)
+				expectTrue(st.height >= Style.SIZES.minTouch, "plate height")
+				expectTrue(Style.contrast(st.text, st.fill) >= 4.5, "title contrast tier " .. n)
+				expectTrue(Style.contrast(st.sub, st.fill) >= 4.5, "hint contrast tier " .. n)
+				expectTrue(Style.contrast(st.edge, st.fill) >= 3, "edge visible on the plate, tier " .. n)
+			end
+		end
+	end
+	expectTrue(StakePlates.style(3, true, false).fill ~= StakePlates.style(3, false, false).fill, "locked plates are dimmed")
+end })
+
 return tests

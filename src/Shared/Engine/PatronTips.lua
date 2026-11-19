@@ -49,6 +49,16 @@ function M.content(id, name, description, rarity)
 	}
 end
 
+-- The set bonus lines this seat is part of ("Rare Court: x1.2 Mult"), joined with a plain separator; "" when none
+function M.setLine(ownedIds, index)
+	local SetBonuses = require(script.Parent.SetBonuses)
+	local lines = {}
+	for _, set in ipairs(SetBonuses.members(SetBonuses.formed(ownedIds), index)) do
+		lines[#lines + 1] = SetBonuses.lineOf(set)
+	end
+	return table.concat(lines, "   ")
+end
+
 function M.sharing(ownedIds, index)
 	local out = {}
 	local mine = {}

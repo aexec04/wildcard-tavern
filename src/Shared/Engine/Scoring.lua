@@ -19,6 +19,7 @@
 	pass, not copied from any other game.
 ]]
 
+local SetBonuses = require(script.Parent.SetBonuses) -- Patron set bonuses: three Patrons that make a team
 local Bonds = require(script.Parent.Bonds) -- Patron Bonds: a small extra when two bonded Patrons both trigger
 local Card = require(script.Parent.Card)
 
@@ -337,6 +338,22 @@ function Scoring.calculate(handResult, ownedPatrons, context)
 			local isX = extra.kind == "multMultiplier"
 			table.insert(breakdown, { kind = isX and "xmult" or extra.kind, amount = isX and (1 + extra.amount) or extra.amount,
 				label = extra.bond.name, source = source })
+		end
+	end
+
+	-- PATRON SET BONUSES (Engine/SetBonuses.lua): once per hand each formed set adds its reward.
+	if not context.bondsOff then
+		for _, set in ipairs(SetBonuses.find(ownedPatrons, patronBonuses)) do
+			local patron = ownedPatrons[set.members[1]]
+			local source = { type = "patron", patronId = patron.id, patron = patron, set = set.name }
+			if set.kind == "mult" then
+				mult = mult + set.amount
+			elseif set.kind == "xmult" then
+				xmult = xmult * set.amount
+			else
+				tipsEarned = tipsEarned + set.amount
+			end
+			table.insert(breakdown, { kind = set.kind, amount = set.amount, label = set.name, source = source })
 		end
 	end
 

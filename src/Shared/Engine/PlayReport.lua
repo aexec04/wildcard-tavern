@@ -119,7 +119,7 @@ function M.apply(preview, report, played, held, patronById)
 	local breakdown = {}
 	for _, entry in ipairs(report.entries or {}) do
 		local from = entry.source or {}
-		local source = { type = from.type, patronId = from.patronId, bond = from.bond }
+		local source = { type = from.type, patronId = from.patronId, bond = from.bond, set = from.set }
 		if from.played then
 			source.card = played and played[from.played] or nil
 		elseif from.held then

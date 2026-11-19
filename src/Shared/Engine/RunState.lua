@@ -666,6 +666,7 @@ local function buildPlayReport(previous, handResult, playedCards, heldCards, chi
 				held = source.card and heldAt[source.card] or nil,
 				patronId = source.patronId,
 				bond = source.bond,
+				set = source.set,
 			},
 		}
 	end

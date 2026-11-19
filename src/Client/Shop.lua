@@ -1775,6 +1775,11 @@ return function(deps)
 				function(id, dir) playClickSfx(0.3); deps.MovePatronRemote:FireServer(id, dir) end)
 		end
 
+		-- Patron set bonuses the owned Patrons form (Engine/SetBonuses): a gold plate per set, nothing when none
+		if #ownedPatrons >= 3 then
+			require(script.Parent.SetBonusPlate).build(shopMyPatronsListFrame, order(), ownedPatrons)
+		end
+
 		-- ----- House Passes (Vouchers): permanent for the run, nothing to click -----
 		local passesFrom = nextOrder + 1
 		addSectionHeader(shopMyPatronsListFrame, order(), "House Passes")

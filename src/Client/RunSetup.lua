@@ -192,6 +192,7 @@ return function(deps)
 	-- STAKES (Engine/Stakes.lua): eight tiers, each adds one rule. Win a run on a stake to open the next.
 	-- Painted tier icons come later (prompts.json stake_subjects); the emoji icon is the fallback today.
 	local Stakes = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Stakes"))
+	local StakePlates = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("StakePlates"))
 	local STAKE_HEADER_ORDER, STAKE_CARD_BASE = 2000, 2000
 	local STAKE_ACCENT = Color3.fromRGB(230, 150, 60)
 	local selectedStake = 1
@@ -215,7 +216,7 @@ return function(deps)
 		return Stakes.clamp(state and state.highestStakeUnlocked)
 	end
 
-	local function makePickCard(parent, order, name, description, isSelected, accentColor, locked, art)
+	local function makePickCard(parent, order, name, description, isSelected, accentColor, locked, art, plate)
 		local card = Instance.new("Frame")
 		-- Parchment card: ink text; selected = darker fill, gold 2px stroke, checkmark.
 		-- `locked` (stakes not yet won): dimmed parchment, never clickable by the caller.
@@ -224,6 +225,10 @@ return function(deps)
 		if locked then
 			card.BackgroundColor3 = Color3.fromRGB(150, 134, 104)
 		end
+		if plate then -- Stakes: a dark TavernStyle wood plate (Engine/StakePlates), tier colour edge, cream text
+			card.BackgroundColor3 = Color3.fromRGB(table.unpack(plate.fill))
+			card.Size = UDim2.new(1, 0, 0, plate.height)
+		end
 		card.LayoutOrder = order
 		card.ZIndex = 26
 		card.Parent = parent
@@ -231,6 +236,10 @@ return function(deps)
 		local cardStroke = Instance.new("UIStroke")
 		cardStroke.Color = isSelected and GOLD or INK
 		cardStroke.Thickness = isSelected and 2 or 1.5
+		if plate then
+			cardStroke.Color = isSelected and GOLD or Color3.fromRGB(table.unpack(plate.edge))
+			cardStroke.Thickness = 2
+		end
 		cardStroke.Parent = card
 
 		local stripe = Instance.new("Frame")
@@ -249,7 +258,7 @@ return function(deps)
 		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.TextSize = 17
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.TextColor3 = INK
+		nameLabel.TextColor3 = plate and Color3.fromRGB(table.unpack(plate.text)) or INK
 		nameLabel.Text = (isSelected and "Chosen: " or "") .. name
 		nameLabel.ZIndex = 26
 		nameLabel.Parent = card
@@ -262,7 +271,7 @@ return function(deps)
 		descLabel.TextSize = 15
 		descLabel.TextWrapped = true
 		descLabel.TextXAlignment = Enum.TextXAlignment.Left
-		descLabel.TextColor3 = locked and Color3.fromRGB(90, 70, 48) or INK
+		descLabel.TextColor3 = plate and Color3.fromRGB(table.unpack(plate.sub)) or (locked and Color3.fromRGB(90, 70, 48) or INK)
 		descLabel.Text = description
 		descLabel.ZIndex = 26
 		descLabel.Parent = card
@@ -340,7 +349,7 @@ return function(deps)
 			local locked = n > open
 			local text = locked and ("Locked. " .. Stakes.unlockHint(n)) or def.hint
 			local card, clickCatcher = makePickCard(runSetupScroll, STAKE_CARD_BASE + n,
-				(ArtIcon.has("stakes", def.id) and "" or (def.icon .. " ")) .. n .. ". " .. def.name, text, n == selectedStake, STAKE_ACCENT, locked, { "stakes", def.id })
+				(ArtIcon.has("stakes", def.id) and "" or (def.icon .. " ")) .. n .. ". " .. def.name, text, n == selectedStake, Color3.fromRGB(table.unpack(StakePlates.edgeOf(n))), locked, { "stakes", def.id }, StakePlates.style(n, locked, n == selectedStake))
 			table.insert(stakeCards, card)
 			table.insert(newlyBuiltCards, card)
 			if locked then
@@ -362,7 +371,7 @@ return function(deps)
 			if view then
 				local name = view.open and ("Legend level " .. view.level .. " of " .. view.max) or "Legend"
 				local text = view.open and view.hint or "Clear stake 8 to become a Legend. Rewards are cosmetic."
-				local legendCard, legendClick = makePickCard(runSetupScroll, STAKE_CARD_BASE + 20, name, text, false, Color3.fromRGB(255, 214, 100), not view.open, nil)
+				local legendCard, legendClick = makePickCard(runSetupScroll, STAKE_CARD_BASE + 20, name, text, false, Color3.fromRGB(255, 214, 100), not view.open, nil, StakePlates.style(8, not view.open, false))
 				legendClick.Active = false
 				table.insert(stakeCards, legendCard)
 				table.insert(newlyBuiltCards, legendCard)
