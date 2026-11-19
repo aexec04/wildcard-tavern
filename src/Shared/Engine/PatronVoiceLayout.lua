@@ -8,6 +8,13 @@
 
 local M = {}
 
+-- A speech bubble never shares the screen with the finale banner ("TARGET CLEARED!"): while the banner is up the voice is
+-- silent. `untilT` is the clock time the banner is done; callers pass os.clock().
+function M.suppressed(now, untilT)
+	return type(untilT) == "number" and type(now) == "number" and now < untilT
+end
+M.BANNER_QUIET = 2.5 -- seconds the voice stays quiet after a finale banner starts
+
 M.MAX_W = 260
 M.H = 40
 M.GAP = 6

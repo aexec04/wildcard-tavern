@@ -8,6 +8,7 @@
 	RoundHints.enabledFor(state, opts)    -> bool   the whole layer is on for this state (Night 1, rounds 1 to 3, playing, not Calm,
 	                                      Hints toggle on, Night 1 not cleared before, tutorial and guided first hand excluded)
 	RoundHints.next(state, seen, opts)    -> nil | entry   first unseen entry whose own condition holds; opts = { enabled, calm }
+	RoundHints.expired(id, state) -> bool    the plate is spent for good (pick cards: any hand was played); it hides and is marked seen
 	RoundHints.satisfied(id, selectedCount) -> bool   the plate has done its job (pick cards: one card is selected)
 	RoundHints.place(r, viewW, viewH)     -> nil | { plate, button }   root pixel rects in the open middle beside the score stage,
 	                                      clear of every table rect (nil when nothing fits: the hint is then skipped, never overlapped)
@@ -57,7 +58,7 @@ function M.next(state, seen, opts)
 	for _, e in ipairs(M.ORDER) do
 		if not seen[e.id] then
 			local ok = true
-			if e.id == "round_hint_select" then ok = round == 1
+			if e.id == "round_hint_select" then ok = round == 1 and not M.expired(e.id, state)
 			elseif e.id == "round_hint_tiers" then ok = owned(state) >= 1
 			elseif e.id == "round_hint_target" then ok = round >= 2 end
 			if ok then return e end
@@ -65,6 +66,12 @@ function M.next(state, seen, opts)
 		end
 	end
 	return nil
+end
+
+-- A plate that has done its job for good: "Pick your cards" is spent once any hand was played (the guided first hand teaches it too),
+-- so it never shows after a hand and is marked seen.
+function M.expired(id, state)
+	return id == "round_hint_select" and type(state) == "table" and (tonumber(state.handsPlayedTotal) or 0) >= 1
 end
 
 function M.satisfied(id, selectedCount)

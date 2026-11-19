@@ -95,9 +95,17 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 	local calm = ClientSettings.get("reduceShake") == true
 	local opts = { enabled = ClientSettings.get("roundHints") ~= false, calm = calm }
 	if not Rules.enabledFor(state, opts) then M.hide(); return end
-	if current and Rules.satisfied(current, selectedCount) then
+	if current and (Rules.satisfied(current, selectedCount) or Rules.expired(current, state)) then
 		localSeen[current] = true
 		M.hide()
+	end
+	for _, e in ipairs(Rules.ORDER) do -- a plate that expired before it ever showed is marked seen, so it never comes later
+		if Rules.expired(e.id, state) and not localSeen[e.id] and not (type(state.hintsSeen) == "table" and state.hintsSeen[e.id]) then
+			localSeen[e.id] = true
+			local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+			local seenRemote = remotes and remotes:FindFirstChild("HintSeen")
+			if seenRemote then seenRemote:FireServer(e.id) end
+		end
 	end
 	local entry = current and Rules.getById(current)
 	if not entry then

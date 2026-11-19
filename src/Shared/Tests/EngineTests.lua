@@ -30165,7 +30165,8 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 	expectEqual(RH.next(st({ isTutorial = true }), {}, on), nil, "not in the tutorial")
 	expectEqual(RH.next(st({ phase = "shop" }), {}, on), nil, "only on the table")
 	expectEqual(RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 0 }), {}, on), nil, "the guided first hand hint owns the screen first")
-	expectTrue(RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 1 }), {}, on) ~= nil, "after the guided hand it may show")
+	local after = RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 1 }), {}, on)
+	expectTrue(after == nil or after.id ~= "round_hint_select", "after the guided hand Pick your cards is spent; a later plate may show")
 	expectEqual(RH.next(st(), {}, { enabled = true, calm = true }), nil, "skipped in Calm mode")
 	expectEqual(RH.next(st(), {}, { enabled = false, calm = false }), nil, "skipped with the Hints toggle off")
 	do -- Got it plate: cream label at least 4.5:1 on the green fill and on its hover, plate and button level and 44 px or more
@@ -30846,5 +30847,35 @@ table.insert(tests, { name = "Fair monetization audit: every Robux item is cosme
 	expectEqual(Store.DEV_PRODUCT_CATEGORY.continue, "convenience")
 	expectTrue(#GamePasses.Definitions >= 3)
 end })
+
+table.insert(tests, { name = "Table polish: the Pick your cards plate is spent once any hand was played, and the Patron voice stays quiet while the finale banner is up", fn = function()
+	local H = require(script.Parent.Parent.Engine.RoundHints)
+	local V = require(script.Parent.Parent.Engine.PatronVoiceLayout)
+	local state = { phase = "playing", night = 1, round = 1, handsPlayedTotal = 0, ownedPatrons = {}, profileStats = {} }
+	expectEqual(H.next(state, {}, { enabled = true }).id, "round_hint_select", "due before any hand")
+	expectFalse(H.expired("round_hint_select", state), "not spent yet")
+	state.handsPlayedTotal = 1
+	assert(H.expired("round_hint_select", state), "spent after the first hand")
+	local nxt = H.next(state, {}, { enabled = true })
+	assert(nxt == nil or nxt.id ~= "round_hint_select", "never offered after a hand")
+	expectFalse(H.expired("round_hint_tiers", state), "only the pick cards plate expires")
+	expectFalse(H.expired("round_hint_select", nil), "junk state is safe")
+	-- voice
+	assert(V.suppressed(10, 12.5), "quiet while the banner is up")
+	expectFalse(V.suppressed(13, 12.5), "speaks again after")
+	expectFalse(V.suppressed(10, nil), "no banner, no quiet")
+	assert(V.BANNER_QUIET >= 2, "covers the banner's life")
+	if not io then return end
+	local function read(p) local f = io.open(p, "r"); if not f then return nil end local s = f:read("*a"); f:close(); return s end
+	local fx = read("src/Client/RoundHintsFX.lua")
+	local voice = read("src/Client/PatronVoice.lua")
+	local pop = read("src/Client/ScorePopup.lua")
+	if fx and voice and pop then
+		assert(fx:find("Rules.expired", 1, true), "the client hides an expired plate")
+		assert(voice:find("PatronVoice.suppress", 1, true) and voice:find("os.clock() < quietUntil", 1, true), "say() honours the quiet time")
+		assert(pop:find("PatronVoice).suppress", 1, true), "the finale banner silences the bubble")
+	end
+end })
+
 
 return tests

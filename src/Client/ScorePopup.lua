@@ -1499,6 +1499,7 @@ return function(deps)
 						readoutLeft = readoutLeft, readoutRight = readoutRight,
 					})
 					juiceBanner.Position = UDim2.new(0, plan.bannerX, 0, bannerCy)
+					if bannerText then pcall(function() require(script.Parent.PatronVoice).suppress(2.5) end) end -- no speech bubble beside the banner
 					require(script.Parent.ComboCounter).stand({
 						side = plan.side, edge = plan.comboEdge, limit = plan.limit,
 						y = scorePopup:GetAttribute("RowMid") or (0.4 * rootSize.Y),

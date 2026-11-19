@@ -57,7 +57,15 @@ end
 
 -- handKey: any value that is the same for every Patron trigger within one scored hand.
 -- slotFrame: the Patron's sidebar seat. Returns true when a line was shown.
+local quietUntil = 0
+-- The finale banner calls this: hide any bubble now and stay quiet while the banner is up.
+function PatronVoice.suppress(seconds)
+	quietUntil = os.clock() + (seconds or 2.5)
+	PatronVoice.hide()
+end
+
 function PatronVoice.say(patronId, slotFrame, handKey)
+	if os.clock() < quietUntil then return false end
 	if handKey ~= currentHandKey then
 		currentHandKey = handKey
 		spokeThisHand = {}
