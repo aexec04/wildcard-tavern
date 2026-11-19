@@ -27895,8 +27895,8 @@ table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Setting
 	local f = assert(io.open("src/Client/Settings.lua", "r"))
 	local src = f:read("*a")
 	f:close()
-	local display = src:find('makeHeader("Display")', 1, true)
-	local gameplay = src:find('makeHeader("Gameplay")', 1, true)
+	local display = src:find('makeHeader("Comfort")', 1, true) -- the first section (Calm mode and Reduce Motion lead it)
+	local gameplay = src:find('makeHeader("Sound")', 1, true)
 	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
 	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
 	assert(display and gameplay and calm and shake, "headers and rows exist")
@@ -28037,6 +28037,41 @@ table.insert(tests, { name = "Tome sub pages: every header plate is padded, clea
 	end
 	for _, id in ipairs({ "cosmeticSets", "badges", "legend", "stats", "patrons", "recipes", "bosses", "housePasses", "titles", "bonds" }) do
 		expectTrue(ids[id], id .. " is in the header table")
+	end
+end })
+
+table.insert(tests, { name = "Settings board: Calm mode and Reduce Motion first, switches 44 px with clear On and Off, one primary Close", fn = function()
+	local SL = require(script.Parent.Parent.Engine.SettingsLayout)
+	local order = SL.rowOrder()
+	expectTrue(order[1] == "calmMode" and order[2] == "reduceMotion", "Calm mode and Reduce Motion are the first two rows")
+	local seen = {}
+	for _, id in ipairs(order) do
+		expectTrue(not seen[id], id .. " appears once")
+		seen[id] = true
+	end
+	for _, id in ipairs({ "largerText", "volume", "replayTutorial" }) do
+		expectTrue(seen[id], id .. " has a row")
+	end
+	local sw = SL.SWITCH
+	expectTrue(sw.h >= 44 and sw.w >= 44, "switch is a 44 px touch target")
+	expectTrue(SL.contrast(sw.onText, sw.onFill) >= 4.5, "On text contrast")
+	expectTrue(SL.contrast(sw.offText, sw.offFill) >= 4.5, "Off text contrast")
+	expectTrue(sw.onFill[1] ~= sw.offFill[1] or sw.onFill[2] ~= sw.offFill[2], "On and Off fills differ")
+	expectTrue(SL.CLOSE.h >= 44 and SL.SLIDER_THUMB >= 44, "Close and slider thumb are 44 px")
+	expectTrue(SL.calmValue(SL.calmWrites(true)) and not SL.calmValue(SL.calmWrites(false)), "Calm mode switch writes all three calm keys")
+	expectTrue(not SL.calmValue({ reduceMotion = true, reduceFlashing = true }), "Calm mode shows Off while one key is off")
+	if not io then return end
+	local f = io.open("src/Client/Settings.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	local a, b, c = src:find('makeChoiceRow("calmMode"', 1, true), src:find('makeChoiceRow("reduceMotion"', 1, true), src:find('makeChoiceRow("animSpeed"', 1, true)
+	expectTrue(a and b and c and a < b and b < c, "Settings builds Calm mode, then Reduce Motion, before the other sections")
+	local v = io.open("src/Client/VisualHelpers.lua", "r")
+	if v then
+		local vs = v:read("*a")
+		v:close()
+		expectTrue(vs:find("KnobHit", 1, true) ~= nil, "slider knob has a 44 px hit area")
 	end
 end })
 

@@ -656,6 +656,17 @@ return function(deps)
 
 		track.InputBegan:Connect(beginDrag)
 		knob.InputBegan:Connect(beginDrag)
+		do -- a 44 px touch target around the small knob (invisible, rides the knob)
+			local hit = Instance.new("Frame")
+			hit.Name = "KnobHit"
+			hit.AnchorPoint = Vector2.new(0.5, 0.5)
+			hit.Position = UDim2.fromScale(0.5, 0.5)
+			hit.Size = UDim2.fromOffset(44, 44)
+			hit.BackgroundTransparency = 1
+			hit.ZIndex = 24
+			hit.Parent = knob
+			hit.InputBegan:Connect(beginDrag)
+		end
 
 		UserInputService.InputChanged:Connect(function(input)
 			if not dragging then

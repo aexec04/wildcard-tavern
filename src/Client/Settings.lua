@@ -43,6 +43,8 @@ return function(deps)
 	local popOut = deps.popOut
 	local addButtonHoverScale = deps.addButtonHoverScale
 	local roundCorner = deps.roundCorner
+	local SettingsLayout = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SettingsLayout"))
+	local SW = SettingsLayout.SWITCH
 
 	local settingsBackdrop = Instance.new("Frame")
 	settingsBackdrop.Name = "SettingsBackdrop"
@@ -135,7 +137,7 @@ return function(deps)
 
 	-- One row: label + description on the left, a value button on the
 	-- right. `choices` is a list of { value, text }; clicking cycles them.
-	local function makeChoiceRow(key, labelText, description, choices)
+	local function makeChoiceRow(key, labelText, description, choices, custom)
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 62) -- 14px description may wrap to 2 lines
 		row.LayoutOrder = order()
@@ -169,23 +171,35 @@ return function(deps)
 		desc.Parent = row
 
 		local button = Instance.new("TextButton")
-		button.Size = UDim2.new(0, 110, 0, 34)
+		local isSwitch = #choices == 2 and choices[1][1] == false
+		button.Size = isSwitch and UDim2.new(0, SW.w, 0, SW.h) or UDim2.new(0, 110, 0, 44)
 		button.AnchorPoint = Vector2.new(1, 0.5)
 		button.Position = UDim2.new(1, -4, 0.5, 0)
 		button.Font = Enum.Font.GothamBold
-		button.TextSize = 14
+		button.TextSize = 16
 		button.TextColor3 = TEXT
 		button.ZIndex = 21
 		button.Parent = row
 		polishButton(button, 8)
 		addButtonHoverScale(button)
 
+		local function getVal()
+			if custom then return custom.get() end
+			return ClientSettings.getRaw(key)
+		end
 		local function refresh()
-			local current = ClientSettings.getRaw(key)
+			local current = getVal()
 			for i, choice in ipairs(choices) do
 				if choice[1] == current then
 					button.Text = choice[2]
-					button.BackgroundColor3 = (i == 1) and BUTTON or ON
+					if isSwitch then -- clear On and Off: fill plus the word
+						local f = (i == 1) and SW.offFill or SW.onFill
+						local t = (i == 1) and SW.offText or SW.onText
+						button.BackgroundColor3 = Color3.fromRGB(f[1], f[2], f[3])
+						button.TextColor3 = Color3.fromRGB(t[1], t[2], t[3])
+					else
+						button.BackgroundColor3 = (i == 1) and BUTTON or ON
+					end
 					return
 				end
 			end
@@ -193,18 +207,23 @@ return function(deps)
 
 		button.MouseButton1Click:Connect(function()
 			playClickSfx()
-			local current = ClientSettings.getRaw(key)
+			local current = getVal()
 			local nextIndex = 1
 			for i, choice in ipairs(choices) do
 				if choice[1] == current then
 					nextIndex = (i % #choices) + 1
 				end
 			end
-			ClientSettings.set(key, choices[nextIndex][1])
+			if custom then
+				custom.set(choices[nextIndex][1])
+			else
+				ClientSettings.set(key, choices[nextIndex][1])
+			end
+			refresh()
 		end)
 
 		ClientSettings.onChanged(function(changedKey)
-			if changedKey == key then
+			if changedKey == key or (custom and custom.keys[changedKey]) then
 				refresh()
 			end
 		end)
@@ -213,25 +232,79 @@ return function(deps)
 
 	local OFF_ON = { { false, "Off" }, { true, "On" } }
 
-	-- ===== Display =====
-	makeHeader("Display")
-	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward pass owners get extra speed.", {
-		{ "normal", "Normal" },
-		{ "fast", "Fast" },
+	-- ===== Comfort (Calm mode and Reduce Motion are always the first two rows, Engine/SettingsLayout) =====
+	makeHeader("Comfort")
+	makeChoiceRow("calmMode", "Calm Mode", "Turns on Reduce Motion, Reduce Flashing and Reduce Screen Shake together.", OFF_ON, {
+		keys = { reduceMotion = true, reduceFlashing = true, reduceShake = true },
+		get = function()
+			return SettingsLayout.calmValue({ reduceMotion = ClientSettings.getRaw("reduceMotion"), reduceFlashing = ClientSettings.getRaw("reduceFlashing"), reduceShake = ClientSettings.getRaw("reduceShake") })
+		end,
+		set = function(on)
+			for k, v in pairs(SettingsLayout.calmWrites(on)) do ClientSettings.set(k, v) end
+		end,
 	})
-	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
-	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
-	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
 	makeChoiceRow("reduceMotion", "Reduce Motion", "Still backgrounds and no travel animations.", OFF_ON)
+	makeChoiceRow("reduceFlashing", "Reduce Flashing", "No screen flashes or fast pulses, fewer sparkles.", OFF_ON)
+	makeChoiceRow("reduceShake", "Reduce Screen Shake", "Turns off the screen shake on big hits.", OFF_ON)
 	makeChoiceRow("largerText", "Larger Text", "Makes text 15 percent bigger where there is room.", OFF_ON)
+	makeChoiceRow("colorblindSuits", "Colorblind Suits", "Gives each suit its own color and a corner letter.", OFF_ON)
 
-	-- ===== Gameplay =====
-	makeHeader("Gameplay")
-	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
-	makeChoiceRow("allowSpectators", "Allow Spectators", "Friends in your server can watch your run. Turn off to stop them.", { { false, "Off" }, { true, "On" } })
-	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
-		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
-	})
+	-- ===== Sound =====
+	makeHeader("Sound")
+	do
+		local row = Instance.new("Frame")
+		row.Name = "VolumeRow"
+		row.Size = UDim2.new(1, 0, 0, 62)
+		row.LayoutOrder = order()
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21
+		row.Parent = scroll
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.new(1, -130, 0, 22)
+		t.BackgroundTransparency = 1
+		t.Font = Enum.Font.GothamBold
+		t.TextSize = 16
+		t.TextXAlignment = Enum.TextXAlignment.Left
+		t.TextColor3 = TEXT
+		t.Text = "Music and Sound Effects"
+		t.ZIndex = 21
+		t.Parent = row
+		local b = Instance.new("TextLabel")
+		b.Size = UDim2.new(1, -130, 0, 36)
+		b.Position = UDim2.new(0, 0, 0, 22)
+		b.BackgroundTransparency = 1
+		b.Font = Enum.Font.Gotham
+		b.TextSize = 14
+		b.TextWrapped = true
+		b.TextXAlignment = Enum.TextXAlignment.Left
+		b.TextYAlignment = Enum.TextYAlignment.Top
+		b.TextColor3 = SUBTLE
+		b.Text = "Sliders for music and effects, and Mute."
+		b.ZIndex = 21
+		b.Parent = row
+		local go = Instance.new("TextButton")
+		go.Name = "OpenVolume"
+		go.Size = UDim2.new(0, 110, 0, 44)
+		go.AnchorPoint = Vector2.new(1, 0.5)
+		go.Position = UDim2.new(1, -4, 0.5, 0)
+		go.Font = Enum.Font.GothamBold
+		go.TextSize = 16
+		go.TextColor3 = TEXT
+		go.BackgroundColor3 = BUTTON
+		go.Text = "Volume"
+		go.ZIndex = 21
+		go.Parent = row
+		polishButton(go, 8)
+		addButtonHoverScale(go)
+		go.MouseButton1Click:Connect(function()
+			playClickSfx()
+			settingsBackdrop.Visible = false
+			pcall(OverlayManager.open, "volume")
+		end)
+	end
+
+	-- ===== Help =====
+	makeHeader("Help")
 
 	-- Replay Tutorial: the 24 step walkthrough again (Skip is always on screen while it runs)
 	if deps.replayTutorial then
@@ -345,6 +418,22 @@ return function(deps)
 		end)
 	end
 
+
+	-- ===== Display =====
+	makeHeader("Display")
+	makeChoiceRow("animSpeed", "Animation Speed", "How fast hands score. Fast Forward pass owners get extra speed.", {
+		{ "normal", "Normal" },
+		{ "fast", "Fast" },
+	})
+
+	-- ===== Gameplay =====
+	makeHeader("Gameplay")
+	makeChoiceRow("confirmDiscard", "Confirm Before Discard", "Asks before your selected cards are discarded.", OFF_ON)
+	makeChoiceRow("allowSpectators", "Allow Spectators", "Friends in your server can watch your run. Turn off to stop them.", { { false, "Off" }, { true, "On" } })
+	makeChoiceRow("holdConfirmSeconds", "Hold to Confirm", "How long to hold buttons that cannot be undone.", {
+		{ 0.5, "0.5 s" }, { 1, "1 s" }, { 1.5, "1.5 s" }, { 2, "2 s" }, { 3, "3 s" },
+	})
+
 	-- ===== Account =====
 	makeHeader("Account")
 	local accountRow = Instance.new("Frame")
@@ -408,8 +497,8 @@ return function(deps)
 	})
 
 	local settingsCloseButton = Instance.new("TextButton")
-	settingsCloseButton.Size = UDim2.new(0, 140, 0, 40)
-	settingsCloseButton.Position = UDim2.new(0.5, -70, 1, -54)
+	settingsCloseButton.Size = UDim2.new(0, SettingsLayout.CLOSE.w, 0, SettingsLayout.CLOSE.h)
+	settingsCloseButton.Position = UDim2.new(0.5, -SettingsLayout.CLOSE.w / 2, 1, -(SettingsLayout.CLOSE.h + 8))
 	settingsCloseButton.Font = Enum.Font.GothamBold
 	settingsCloseButton.TextSize = 16
 	settingsCloseButton.Text = "Close"
