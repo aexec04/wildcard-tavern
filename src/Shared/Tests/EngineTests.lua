@@ -28565,6 +28565,22 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 	assert(src:find("CenterScore", 1, true), "the felt centre shows the round score")
 end })
 
+table.insert(tests, { name = "Gameplay v2: count pills ride the top right corner of their button, hand and neighbours stay clear", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 }, { 844, 390 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		for _, p in ipairs({ { r.play, r.playCount }, { r.discard, r.discardCount } }) do
+			local b, c = p[1], p[2]
+			assert(c.x + c.w >= b.x + b.w and c.x >= b.x, "pill hangs on the right half of its button")
+			assert(c.y < b.y and c.y + c.h > b.y, "pill straddles the top edge of the button")
+		end
+		assert(r.playCount.x + r.playCount.w <= r.discard.x, "the Play pill stays left of Discard")
+		assert(r.hand.y + r.hand.h <= r.playCount.y, "the hand ends above the pills")
+		assert(#L.overlaps(r) == 0, "no unintended overlap at " .. sz[1] .. "x" .. sz[2] .. ": " .. table.concat(L.overlaps(r), ","))
+		assert(L.onScreen(r, sz[1], sz[2]))
+	end
+end })
+
 table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed first, opaque, re-asserted when moved, with a real hit test in the Studio check", fn = function()
 	if not io then return end
 	local f = io.open("src/Client/Gameplay2.lua", "r")

@@ -87,13 +87,16 @@ function M.rects(w, h)
 	local px = round((w - pairW) / 2)
 	r.play = box(px, btnY, btnW, btnH)
 	r.discard = box(px + btnW + btnGap, btnY, btnW, btnH)
-	local cw = math.max(60, round(0.065 * w))
-	local cph = math.max(22, round(btnH * 0.5))
-	r.playCount = box(r.play.x - btnGap - cw, btnY + round((btnH - cph) / 2), cw, cph)
-	r.discardCount = box(r.discard.x + r.discard.w + btnGap, btnY + round((btnH - cph) / 2), cw, cph)
+	-- the remaining-count pills ride the top right corner of their button, half above its edge, never past the gap between buttons
+	local cw = math.max(84, round(btnW * 0.5))
+	local cph = math.max(22, round(btnH * 0.4))
+	local ext = math.max(0, btnGap - 2)
+	local cy = btnY - round(cph / 2)
+	r.playCount = box(r.play.x + r.play.w - cw + ext, cy, cw, cph)
+	r.discardCount = box(r.discard.x + r.discard.w - cw + ext, cy, cw, cph)
 	-- hand: between the stage and the buttons
 	local handTop = round(0.605 * h)
-	local handH = btnY - 6 - handTop
+	local handH = btnY - round(cph / 2) - 6 - handTop -- the count pills hang above the buttons
 	local handW = round(0.60 * w)
 	r.hand = box(round((w - handW) / 2), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
@@ -136,7 +139,7 @@ function M.flat(r)
 end
 
 -- bar parts sit inside the bar on purpose
-M.ALLOWED = { ["bar|round"] = true, ["bar|target"] = true, ["bar|tips"] = true }
+M.ALLOWED = { ["bar|round"] = true, ["bar|target"] = true, ["bar|tips"] = true, ["play|playCount"] = true, ["discard|discardCount"] = true } -- the count pills are attached to their button
 
 function M.overlaps(r)
 	local flat = M.flat(r)
