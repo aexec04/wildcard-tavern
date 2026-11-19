@@ -27552,4 +27552,23 @@ table.insert(tests, { name = "BossPresence: plate clear of Round banner and Patr
 	assert(B.fanfare(true, false) == nil and B.fanfare(false, false).pieces == 56 and B.fanfare(false, true).pieces == 28)
 end })
 
+table.insert(tests, { name = "ProgressionFeel: rank toast rises 16 px and holds 1.8 s with a cue, none of it in calm mode, unlock list line, Daily line with streak, toast hold carried through the stack", fn = function()
+	local P = require(script.Parent.Parent.Engine.ProgressionFeel)
+	local t = P.toast("rank", false)
+	assert(t.rise == 16 and t.hold == 1.8 and t.cue == "shop_buy")
+	assert(P.toast("rank", true).rise == 0 and P.toast("quest", false) == nil)
+	assert(P.unlockLine({}) == nil and P.unlockLine({ "A" }) == "New: A")
+	assert(P.unlockLine({ "A", "B", "C" }) == "New: A, B, C")
+	assert(P.unlockLine({ "A", "B", "C", "D", "E" }) == "New: A, B and 3 more")
+	assert(P.dailyLine("+40 Tips", 3) == "Daily Challenge: +40 Tips  Streak 3" and P.dailyLine("", 0) == "Daily Challenge")
+	local Rules = require(script.Parent.Parent.Engine.CornerToastRules)
+	local st = Rules.new()
+	assert(st:push({ id = "rank:5", text = "Rank 5!", hold = 1.8, rise = 16 }, 100))
+	st:tick(100, 3)
+	assert(#st.visible == 1 and st.visible[1].expiresAt == 101.8 and st.visible[1].rise == 16)
+	assert(st:push({ id = "q", text = "Quest done" }, 100))
+	st:tick(100, 3)
+	assert(st.visible[1].expiresAt == 100 + Rules.AUTO_SECONDS)
+end })
+
 return tests

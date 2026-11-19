@@ -14,6 +14,7 @@ local Recipes = require(Engine:WaitForChild("Recipes"))
 local HousePasses = require(Engine:WaitForChild("HousePasses"))
 local ContentArt = require(Engine:WaitForChild("ContentArt"))
 local OverlayQueue = require(script.Parent.OverlayQueue)
+local ClientSettings = require(script.Parent.ClientSettings)
 
 local UnlockToast = {}
 
@@ -49,6 +50,16 @@ function UnlockToast.textFor(names)
 	return string.format("Unlocked: %s, %s and %d more", names[1], names[2], #names - 2)
 end
 
+-- names of the unlocked items (Run Over lists them: Engine/ProgressionFeel.unlockLine)
+function UnlockToast.namesOf(items)
+	local names = {}
+	for _, item in ipairs(items or {}) do
+		local def = defOf(item)
+		if def then names[#names + 1] = def.name end
+	end
+	return names
+end
+
 local pushed = 0
 local function push(entry)
 	pushed += 1
@@ -79,7 +90,9 @@ local function pushProgress(notice)
 		if #rewards > 0 then
 			line = line .. "  " .. rewards[#rewards]:gsub("^Rank %d+: ", "")
 		end
-		push({ id = "rank:" .. tostring(ups[#ups]), priority = PRI.rank, icon = "🏅", text = line })
+		local feel = require(Engine:WaitForChild("ProgressionFeel")).toast("rank", ClientSettings.get("reduceShake") == true)
+		push({ id = "rank:" .. tostring(ups[#ups]), priority = PRI.rank, icon = "🏅", text = line, hold = feel.hold, rise = feel.rise })
+		pcall(function() require(script.Parent.Cue).play(feel.cue) end) -- a short reward cue
 	end
 end
 

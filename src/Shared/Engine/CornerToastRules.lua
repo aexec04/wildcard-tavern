@@ -141,7 +141,7 @@ function Stack:push(item, now)
 	end
 	self.counter = self.counter + 1
 	self.pending[#self.pending + 1] = {
-		order = self.counter, id = item.id, text = text, names = names, group = item.group, icon = item.icon, artId = item.artId,
+		order = self.counter, id = item.id, text = text, names = names, group = item.group, icon = item.icon, artId = item.artId, hold = item.hold, rise = item.rise,
 	}
 	return true
 end
@@ -168,7 +168,7 @@ function Stack:tick(now, max)
 	end
 	while #self.visible < max and #self.pending > 0 do
 		local e = table.remove(self.pending, 1)
-		e.expiresAt = now + M.AUTO_SECONDS
+		e.expiresAt = now + (e.hold or M.AUTO_SECONDS)
 		table.insert(self.visible, 1, e) -- newest on top
 		changed = true
 	end

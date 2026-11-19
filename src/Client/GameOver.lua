@@ -309,6 +309,13 @@ return function(deps)
 			add(#names > 0 and table.concat(names, "  >  ") or "No stops yet", { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" })
 			if summary.blessing then add("Blessing: " .. summary.blessing.name) end
 		end
+		do -- what this run opened (Patrons, Recipes, House Passes), listed by name
+			local okU, line = pcall(function()
+				local names = require(script.Parent.UnlockToast).namesOf(state.unlockNotice and state.unlockNotice.items)
+				return require(Engine:WaitForChild("ProgressionFeel")).unlockLine(names)
+			end)
+			if okU and line then add(line, { tone = "gold" }) end
+		end
 		if state.nextUnlock and state.nextUnlock.label then add("Next unlock: " .. state.nextUnlock.label, { tone = "gold" }) end
 		local seedInfo = SeedDisplay.label(state)
 		if seedInfo then add(seedInfo.text, { Font = Enum.Font.GothamMedium, TextSize = 15, tone = "soft" }) end

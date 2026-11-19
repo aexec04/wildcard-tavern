@@ -191,7 +191,12 @@ function CornerToast.refresh()
 			row.label.Text = entry.text
 			row.label.TextWrapped = plan.lines > 1
 			row.order = entry.order
+			local fresh = not row.frame.Visible
 			fade(row, true)
+			if fresh and (entry.rise or 0) > 0 and not calm() then -- rank toasts rise 16 px into place (Engine/ProgressionFeel)
+				row.frame.Position = UDim2.fromOffset(slot.x, slot.y + entry.rise)
+				TweenService:Create(row.frame, TweenInfo.new(Rules.FADE * 2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(slot.x, slot.y) }):Play()
+			end
 		else
 			row.order = nil
 			fade(row, false)
