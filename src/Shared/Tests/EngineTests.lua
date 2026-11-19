@@ -27869,23 +27869,20 @@ table.insert(tests, { name = "Accessibility: every rarity has its word and its o
 	end
 	assert(C.shape("nonsense").name == C.shape("common").name, "an unknown tier falls back to common")
 end })
-table.insert(tests, { name = "Accessibility: rarity marker slot never touches the rarity word at three sizes", fn = function()
+table.insert(tests, { name = "Accessibility: rarity marker sits inside a centred pill and never touches the word at four sizes", fn = function()
 	local C = require(script.Parent.Parent.Engine.RarityCues)
 	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
-	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 } }) do
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 }, { 800, 450 } }) do
 		local row = Layout.patronRow(sz[1], sz[2], 5)
 		local cw = row.cards[1].w
 		local r = Layout.labelRow(cw)
 		for _, tier in ipairs(C.order) do
-			local m = C.shape(tier)
-			assert(m and r.marker.w <= Layout.LABEL_MARKER_SLOT, tier .. " marker fits its 18 px slot")
-			-- marker rect and the label art (which carries the word) must not intersect, with a 6 px gap
-			local markerRight = r.marker.x + r.marker.w
-			assert(markerRight + Layout.LABEL_MARKER_GAP <= r.art.x, tier .. " marker clear of the word at " .. sz[1])
-			assert(r.marker.x >= 0, "marker inside the row")
+			assert(C.shape(tier), tier .. " has a shape")
+			assert(r.marker.x >= Layout.LABEL_MARKER_PAD and r.marker.x + r.marker.w <= r.plate.x + r.plate.w, tier .. " marker inside the pill at " .. sz[1])
+			assert(r.marker.x + r.marker.w + Layout.LABEL_MARKER_GAP <= r.word.x, tier .. " marker clear of the word at " .. sz[1])
 		end
-		assert(r.art.w >= Layout.LABEL_ART_MIN, "art wide enough for Uncommon at " .. sz[1])
-		assert(r.rowW == r.art.x + r.art.w, "row is marker slot + gap + art")
+		assert(r.plate.w >= Layout.LABEL_PLATE_MIN, "pill wide enough for Uncommon at " .. sz[1])
+		assert(r.centerShift == 0, "pill centre equals card centre at " .. sz[1])
 	end
 end })
 table.insert(tests, { name = "Accessibility: Concept T text colours keep 4.5:1 (body) and 3:1 (large) on their plates", fn = function()

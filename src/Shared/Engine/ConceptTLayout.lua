@@ -265,18 +265,19 @@ function M.labelKey(rarity)
 	return "ct_label_" .. (M.TIERS[norm(rarity)] and norm(rarity):lower() or "common")
 end
 
--- The rarity label row under a Patron card: an 18 px marker slot, a 6 px gap, then the label art (it carries the word, so the
--- marker never sits on a letter). All x values are px from the row's left edge; the row is centred on the card.
-M.LABEL_MARKER_SLOT, M.LABEL_MARKER_GAP, M.LABEL_MARKER_PX, M.LABEL_ART_MIN = 18, 6, 12, 96
+-- The rarity label pill under a Patron card is ONE rounded plate that holds the shape marker (inside, 8 px from the left edge)
+-- and the word (baked into the art, centred, at most WORD_MAX px wide). The plate is centred on the card, like the effect pill.
+-- All x values are px from the plate's left edge.
+M.LABEL_MARKER_PAD, M.LABEL_MARKER_PX, M.LABEL_PLATE_MIN, M.LABEL_WORD_MAX, M.LABEL_MARKER_GAP = 8, 12, 160, 100, 4
 function M.labelRow(slotW)
-	local slot, gap = M.LABEL_MARKER_SLOT, M.LABEL_MARKER_GAP
-	local artW = math.max(math.floor((tonumber(slotW) or 0) * 0.92) - slot - gap, M.LABEL_ART_MIN)
-	local px = M.LABEL_MARKER_PX
+	local plateW = math.max(math.floor((tonumber(slotW) or 0) * 0.92), M.LABEL_PLATE_MIN)
 	return {
-		rowW = slot + gap + artW,
-		marker = { x = (slot - px) // 2, w = px },
-		art = { x = slot + gap, w = artW },
-		centerShift = (slot + gap) // 2, -- art centre minus row centre, so the row (not the art) is centred on the card
+		rowW = plateW,
+		plate = { x = 0, w = plateW },
+		marker = { x = M.LABEL_MARKER_PAD, w = M.LABEL_MARKER_PX },
+		art = { x = 0, w = plateW },
+		word = { x = (plateW - M.LABEL_WORD_MAX) // 2, w = M.LABEL_WORD_MAX },
+		centerShift = 0, -- the plate itself is centred on the card
 	}
 end
 

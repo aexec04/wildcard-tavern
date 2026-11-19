@@ -41,8 +41,8 @@ function M.set(slot, tier, valueText, hasCard)
 	local row = Layout.labelRow(slot.AbsoluteSize.X)
 	label.Position = UDim2.new(0.5, row.centerShift, 1, 2)
 	label.Size = UDim2.fromOffset(row.art.w, 22)
-	-- marker lives in its own 18 px slot left of the art (never over the word), 6 px gap
-	pcall(function() require(script.Parent.RarityShape).set(label, tier, row.marker.w, row.marker.x - row.art.x) end)
+	-- the marker sits inside the plate, 8 px from its left edge, clear of the centred word
+	pcall(function() require(script.Parent.RarityShape).set(label, tier, row.marker.w, row.marker.x) end)
 	pill.Image = Art[Layout.blankPillKey(tier)] or Art[Layout.pillKey(tier)] or ""
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 26)
