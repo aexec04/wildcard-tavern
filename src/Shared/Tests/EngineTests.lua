@@ -28565,6 +28565,23 @@ table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip,
 	assert(src:find("CenterScore", 1, true), "the felt centre shows the round score")
 end })
 
+table.insert(tests, { name = "Gameplay v2 click rects: the buttons are placed first, opaque, re-asserted when moved, with a real hit test in the Studio check", fn = function()
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	local place = src:find("deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)", 1, true)
+	local rest = src:find("place(bar, r.bar)", 1, true)
+	assert(place and rest, "action placement is found")
+	assert(src:find("local r = Layout.rects(size.X, size.Y)\n\t\tfanHand(true, size.Y)\n", 1, true))
+	local applyAt = src:find("local function apply()", 1, true)
+	assert(place > applyAt and place < src:find("place(bar, r.bar)", applyAt, true), "Play Hand and Discard are moved before any piece that could error")
+	assert(src:find("deps.playButton.BackgroundTransparency = 0", 1, true), "the button is itself the visible plate")
+	assert(src:find("GetGuiObjectsAtPosition", 1, true), "the Studio check hit tests the painted centre")
+	assert(src:find("apply stopped on an error", 1, true), "a failing apply is reported once, not swallowed")
+	assert(src:find('GetPropertyChangedSignal("Position")', 1, true), "another module moving the controls is undone at once")
+end })
+
 table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ in shape and size, taller grows up, power disc 4.5:1, labels clear the disc, motion on FxLoop and still in Calm mode", fn = function()
 	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
 	local S = require(script.Parent.Parent.Engine.TavernStyle)

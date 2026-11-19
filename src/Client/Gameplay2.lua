@@ -240,6 +240,25 @@ function M.install(deps)
 		local size = root.AbsoluteSize
 		local r = Layout.rects(size.X, size.Y)
 		fanHand(true, size.Y)
+		-- the real controls are the drawn controls: same instance, moved onto the layout rect
+		local cs = deps.actionFrame:FindFirstChild("CompactScale")
+		if not actionHeld then actionHeld = { scale = cs and cs.Scale or nil } end
+		LayoutSwitch.off(deps.actionFrame)
+		if cs then cs.Scale = 1 end
+		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
+		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)
+		deps.playButton.Position = UDim2.fromOffset(0, 0)
+		deps.playButton.Size = UDim2.fromOffset(r.play.w, r.play.h)
+		deps.discardButton.Position = UDim2.fromOffset(r.discard.x - r.play.x, 0)
+		deps.discardButton.Size = UDim2.fromOffset(r.discard.w, r.discard.h)
+		deps.playButton.ZIndex = Z_BTN; deps.discardButton.ZIndex = Z_BTN
+		if deps.playButton:GetAttribute("TavernKind") ~= "primary" then Kit.skin(deps.playButton, "Play Hand", "primary") end
+		if deps.discardButton:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(deps.discardButton, "Discard", "secondary") end
+		-- the button IS the plate: never see-through, whatever another module did to it since the skin was applied
+		deps.playButton.BackgroundTransparency = 0; deps.discardButton.BackgroundTransparency = 0
+		deps.playButton.AnchorPoint = Vector2.new(0, 0); deps.discardButton.AnchorPoint = Vector2.new(0, 0); deps.actionFrame.AnchorPoint = Vector2.new(0, 0)
+		buttonLabel(deps.playButton, "Play Hand"); buttonLabel(deps.discardButton, "Discard")
+		place(deps.handFrame, CTLayout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
 		place(bar, r.bar)
 		place(roundLabel, r.round)
 		place(target, r.target); place(tips, r.tips)
@@ -259,22 +278,6 @@ function M.install(deps)
 		scoreCaption.Position = UDim2.fromOffset(0, math.floor(r.stage.h * 0.18) + numH + 6); scoreCaption.ZIndex = 2
 		local roomy = r.stage.h >= 70 -- a short stage keeps the number only
 		scoreCaption.Visible = roomy; scoreLine.Visible = roomy
-		-- the real controls are the drawn controls: same instance, moved onto the layout rect
-		local cs = deps.actionFrame:FindFirstChild("CompactScale")
-		if not actionHeld then actionHeld = { scale = cs and cs.Scale or nil } end
-		LayoutSwitch.off(deps.actionFrame)
-		if cs then cs.Scale = 1 end
-		place(deps.handFrame, CTLayout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
-		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
-		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)
-		deps.playButton.Position = UDim2.fromOffset(0, 0)
-		deps.playButton.Size = UDim2.fromOffset(r.play.w, r.play.h)
-		deps.discardButton.Position = UDim2.fromOffset(r.discard.x - r.play.x, 0)
-		deps.discardButton.Size = UDim2.fromOffset(r.discard.w, r.discard.h)
-		deps.playButton.ZIndex = Z_BTN; deps.discardButton.ZIndex = Z_BTN
-		if deps.playButton:GetAttribute("TavernKind") ~= "primary" then Kit.skin(deps.playButton, "Play Hand", "primary") end
-		if deps.discardButton:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(deps.discardButton, "Discard", "secondary") end
-		buttonLabel(deps.playButton, "Play Hand"); buttonLabel(deps.discardButton, "Discard")
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
@@ -349,6 +352,18 @@ function M.install(deps)
 				local line = string.format("[ClickCheck v2] %s abs=%d,%d size=%dx%d layout=%d,%d,%dx%d off=%d,%d", p[1], math.floor(b.AbsolutePosition.X), math.floor(b.AbsolutePosition.Y),
 					math.floor(b.AbsoluteSize.X), math.floor(b.AbsoluteSize.Y), math.floor(want.x), math.floor(want.y), math.floor(want.w), math.floor(want.h), math.floor(dx), math.floor(dy))
 				if math.abs(dx) > 4 or math.abs(dy) > 4 then warn(line) else print(line) end
+				-- real hit test at the painted centre in screen space: the control must be the top object there
+				pcall(function()
+					local gs = game:GetService("GuiService")
+					local gui = root:FindFirstAncestorWhichIsA("ScreenGui")
+					local inset = (gui and gui.IgnoreGuiInset) and Vector2.zero or gs:GetGuiInset()
+					-- GetGuiObjectsAtPosition takes GUI space, which is AbsolutePosition space plus the inset a non ignoring ScreenGui hides
+					local at = Vector2.new(origin.X + want.x + want.w / 2, origin.Y + want.y + want.h / 2) + inset
+					local top = gs:GetGuiObjectsAtPosition(at.X, at.Y)[1]
+					if top and top ~= b and not top:IsDescendantOf(b) then
+						warn(string.format("[ClickCheck v2] %s: top object at its painted centre is %s, not the control", p[1], top:GetFullName()))
+					end
+				end)
 			end
 		end
 	end
@@ -387,11 +402,24 @@ function M.install(deps)
 	end
 
 	root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() if active then apply() end end)
+	for _, inst in ipairs({ deps.actionFrame, deps.playButton, deps.discardButton }) do -- another module moved the real controls off their rects: put them back at once
+		inst:GetPropertyChangedSignal("Position"):Connect(function()
+			if active and not self.applying then
+				self.applying = true
+				pcall(apply)
+				self.applying = false
+			end
+		end)
+	end
 	-- other modules rewrite their own Position now and then; this keeps the v2 layout the last word (no per frame work)
 	task.spawn(function()
 		while layer.Parent do
 			task.wait(0.25)
-			if active then pcall(shell, true); pcall(apply) end
+			if active then
+				pcall(shell, true)
+				local ok, err = pcall(apply)
+				if not ok and not self.warned then self.warned = true; warn("[Gameplay2] apply stopped on an error: " .. tostring(err)) end
+			end
 		end
 	end)
 	current = self
