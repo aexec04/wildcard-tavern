@@ -26912,6 +26912,24 @@ table.insert(tests, { name = "ConceptTSkin: serif title, price pill layout stays
 		expectTrue(read("src/Client/" .. f .. ".lua"):find("ConceptTSkin", 1, true) ~= nil, f .. " uses the Concept T skin")
 	end
 end })
+table.insert(tests, { name = "ConceptTSkin dialogs: ink on paper and cream on the green plate read at 4.5:1, plate recorded, Settings, confirm dialog and hints wired, no tweens", fn = function()
+	local S = require(script.Parent.Parent.Engine.ConceptTSkin)
+	expectTrue(S.contrast(S.INK, S.PAPER) >= 4.5, "ink on paper")
+	expectTrue(S.contrast(S.PLATE_TEXT, S.PLATE_GREEN) >= 4.5, "cream on the darkest plate tone")
+	expectTrue(S.contrast(S.INK, S.PAPER) >= 4.5 and S.DIALOG_TITLE_SIZE >= 15, "dialog title size")
+	local w, h = S.plateSize(60, 30)
+	expectTrue(w >= 96 and h >= S.MIN_TOUCH, "plate buttons keep a touch size")
+	expectTrue(S.usesPlate("danger") == false and S.usesPlate(nil) == true, "danger keeps its red fill")
+	expectTrue(require(script.Parent.Parent.Engine.ConceptTArt)[S.PLATE_ART] ~= nil, "the blank plate id is recorded")
+	if not io then return end
+	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
+	local skin = read("src/Client/ConceptTSkin.lua")
+	expectTrue(skin:find("function ConceptTSkin.plateButton", 1, true) ~= nil and skin:find("TweenService", 1, true) == nil, "plateButton exists, no tweens")
+	for _, f in ipairs({ "Settings", "ConfirmDialog" }) do
+		expectTrue(read("src/Client/" .. f .. ".lua"):find("ConceptTSkin", 1, true) ~= nil, f .. " uses the Concept T skin")
+	end
+	expectTrue(read("src/Client/FirstTimeHints.lua"):find("238, 222, 186", 1, true) ~= nil, "hint bubble is parchment")
+end })
 table.insert(tests, { name = "Menu play button: Concept T green art, pulse only through the loop list (calm mode plays none)", fn = function()
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end

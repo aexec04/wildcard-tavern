@@ -68,7 +68,7 @@ local function build()
 	bubble.Name = "FirstTimeHint"
 	bubble.AnchorPoint = Vector2.new(0.5, 1)
 	bubble.Size = UDim2.fromOffset(340, 64)
-	bubble.BackgroundColor3 = Color3.fromRGB(46, 32, 22)
+	bubble.BackgroundColor3 = Color3.fromRGB(238, 222, 186) -- Concept T parchment, dark ink text
 	bubble.BorderSizePixel = 0
 	bubble.AutoButtonColor = false
 	bubble.Text = ""
@@ -91,7 +91,7 @@ local function build()
 	icon.Position = UDim2.fromOffset(10, 10)
 	icon.TextSize = 30
 	icon.Font = Enum.Font.GothamBold
-	icon.TextColor3 = CREAM
+	icon.TextColor3 = Color3.fromRGB(46, 32, 20)
 	icon.TextTransparency = 0
 	icon.TextStrokeTransparency = 1
 	icon.ZIndex = 181
@@ -104,7 +104,7 @@ local function build()
 	text.Position = UDim2.fromOffset(58, 6)
 	text.TextSize = 16
 	text.Font = Enum.Font.GothamMedium
-	text.TextColor3 = CREAM
+	text.TextColor3 = Color3.fromRGB(46, 32, 20)
 	text.TextTransparency = 0
 	text.TextStrokeTransparency = 1
 	text.TextWrapped = true
@@ -121,7 +121,7 @@ local function build()
 	arrow.Position = UDim2.new(0.5, 0, 1, -4)
 	arrow.TextSize = 22
 	arrow.Font = Enum.Font.GothamBold
-	arrow.TextColor3 = GOLD
+	arrow.TextColor3 = Color3.fromRGB(150, 100, 30)
 	arrow.TextTransparency = 0
 	arrow.TextStrokeTransparency = 1
 	arrow.Text = "▼"

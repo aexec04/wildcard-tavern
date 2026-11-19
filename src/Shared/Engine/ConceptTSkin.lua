@@ -38,6 +38,25 @@ function ConceptTSkin.priceLayout(w, h)
 	}
 end
 
+-- Dialogs, Settings, hint bubbles and toasts: parchment sheet with dark ink, painted green plate buttons with cream text.
+ConceptTSkin.PLATE_ART = "ct_btn_blank" -- the text-free green wood plate
+ConceptTSkin.PLATE_GREEN = { 52, 112, 58 } -- darkest sampled tone of the plate, the worst case for the label
+ConceptTSkin.PLATE_TEXT = { 255, 244, 214 }
+ConceptTSkin.PAPER = { 238, 222, 186 }
+ConceptTSkin.INK = { 46, 32, 20 }
+ConceptTSkin.MIN_TOUCH = 40 -- plate buttons are never shorter than this
+ConceptTSkin.DIALOG_TITLE_SIZE = 24
+
+-- Button size for a plate: never under MIN_TOUCH tall, text at least MIN_TEXT.
+function ConceptTSkin.plateSize(w, h)
+	return math.max(w, 96), math.max(h, ConceptTSkin.MIN_TOUCH)
+end
+
+-- Frame kinds that cannot take a plate: a danger button keeps its red fill so it still reads as destructive.
+function ConceptTSkin.usesPlate(kind)
+	return kind ~= "danger"
+end
+
 local function lum(c)
 	local function f(v)
 		v = v / 255

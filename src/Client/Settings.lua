@@ -77,6 +77,11 @@ return function(deps)
 	settingsTitle.Text = "Settings"
 	settingsTitle.ZIndex = 21
 	settingsTitle.Parent = settingsPanel
+	do -- Concept T look: serif cream title, green plate Close button
+		local CS = require(script.Parent.ConceptTSkin)
+		CS.title(settingsTitle)
+		settingsTitle.TextSize = 26
+	end
 
 	-- The seed (Seed Run), date (Daily) or week (Weekly) of the run in progress; hidden for ordinary runs.
 	local runLabel = Instance.new("TextLabel")
@@ -315,6 +320,7 @@ return function(deps)
 		button.Parent = accountRow
 		polishButton(button, 12)
 		addButtonHoverScale(button)
+		require(script.Parent.ConceptTSkin).plateButton(button)
 		-- Icon badge on the left edge, parented to the button.
 		if iconImage and iconImage ~= "rbxassetid://0" then
 			local icon = Instance.new("ImageLabel")
@@ -360,6 +366,7 @@ return function(deps)
 	settingsCloseButton.Parent = settingsPanel
 	polishButton(settingsCloseButton, 12)
 	addButtonHoverScale(settingsCloseButton)
+	require(script.Parent.ConceptTSkin).plateButton(settingsCloseButton)
 
 	require(script.Parent.CloseX).retire(settingsCloseButton)
 	require(script.Parent.CloseX).attach(settingsPanel, function()

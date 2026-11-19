@@ -69,4 +69,37 @@ function ConceptTSkin.pricePill(tag, price, affordable, z)
 	return n
 end
 
+-- Paints a TextButton as the green wood plate: transparent fill, the plate art under the label, cream outlined text.
+-- kind "danger" is left alone (red fill). Returns true when the plate was drawn. Parented to the button so Clone keeps it.
+function ConceptTSkin.plateButton(btn, kind)
+	local id = Art[Skin.PLATE_ART]
+	if not id or id == "" or not Skin.usesPlate(kind) then return false end
+	if btn:FindFirstChild("ConceptTPlate") then return true end
+	for _, child in ipairs(btn:GetChildren()) do
+		if child:IsA("UIStroke") or child:IsA("UIGradient") then child:Destroy() end
+	end
+	btn.BackgroundTransparency = 1
+	btn.TextColor3 = rgb(Skin.PLATE_TEXT)
+	btn.TextTransparency = 0
+	btn.TextStrokeColor3 = rgb(Skin.TITLE_STROKE)
+	btn.TextStrokeTransparency = 0.4
+	if btn.TextSize < Skin.MIN_TEXT then btn.TextSize = Skin.MIN_TEXT end
+	local plate = Instance.new("ImageLabel")
+	plate.Name = "ConceptTPlate"
+	plate.BackgroundTransparency = 1
+	plate.Size = UDim2.fromScale(1, 1)
+	plate.Image = id
+	plate.ScaleType = Enum.ScaleType.Stretch
+	plate.Active = false
+	plate.ZIndex = math.max(1, btn.ZIndex - 1)
+	plate.Parent = btn
+	return true
+end
+
+-- Parchment look for a bubble or toast frame: paper fill, thin gold edge stays as the caller drew it.
+function ConceptTSkin.paper(frame)
+	frame.BackgroundColor3 = rgb(Skin.PAPER)
+	frame.BackgroundTransparency = 0
+end
+
 return ConceptTSkin

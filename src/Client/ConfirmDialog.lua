@@ -129,6 +129,10 @@ return function(deps)
 		return l
 	end
 	local confirmTitleLabel = text("Title", 20, Enum.Font.GothamBold)
+	local ConceptSkin = require(script.Parent.ConceptTSkin)
+	ConceptSkin.title(confirmTitleLabel, require(ReplicatedStorage.Shared.Engine.ConceptTSkin).INK)
+	confirmTitleLabel.TextStrokeTransparency = 1 -- dark ink on paper needs no outline
+	confirmTitleLabel.TextSize = 22
 	local confirmMessageLabel = text("Body", 16, Enum.Font.GothamMedium)
 	confirmMessageLabel.TextYAlignment = Enum.TextYAlignment.Top
 
@@ -151,6 +155,9 @@ return function(deps)
 	local confirmYesButton = plate("Yes")
 	local confirmNoButton = plate("No")
 	confirmNoButton.BackgroundColor3 = WOOD_PLATE
+	-- Concept T: both buttons are the green wood plate; a danger Yes shows its red fill instead (see show below)
+	local yesPlated = ConceptSkin.plateButton(confirmYesButton)
+	ConceptSkin.plateButton(confirmNoButton)
 
 	-- Reassigned on every showConfirmDialog call; Yes just calls whatever's
 	-- currently pending, so there's only ever one live confirmation at a time.
@@ -188,7 +195,7 @@ return function(deps)
 		local pad = 28
 		local innerW = W - 16 - 2 * pad
 		local bodyH = body ~= "" and ConfirmCopy.bodyLines(body, innerW, 16) * 22 or 0
-		local titleH = ConfirmCopy.bodyLines(title, innerW, 20) * 26
+		local titleH = ConfirmCopy.bodyLines(title, innerW, 22) * 28
 		local y = 20
 		confirmTitleLabel.Text = title
 		confirmTitleLabel.Position = UDim2.fromOffset(pad, y)
@@ -202,6 +209,10 @@ return function(deps)
 		confirmYesButton.Text = o.yesText
 		confirmNoButton.Text = o.noText
 		confirmYesButton.BackgroundColor3 = o.danger and RED_PLATE or BRASS_PLATE
+		if yesPlated then
+			confirmYesButton.BackgroundTransparency = o.danger and 0 or 1
+			confirmYesButton.ConceptTPlate.Visible = not o.danger
+		end
 		confirmYesButton.Position = UDim2.fromOffset(pad, y)
 		confirmNoButton.Position = UDim2.fromOffset(innerW + pad - 190, y)
 		y = y + 44 + 20
