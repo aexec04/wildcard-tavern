@@ -5,7 +5,7 @@
 
 	A season has an id, UTC start and end dates (both days count, the same date helpers as Engine/LiveEvents), a name, a
 	banner key and 30 reward tiers. Rewards are cosmetics or a few Tips for the next run, never gameplay power:
-	Tips on most tiers, an existing card back at tiers 10 and 20, the season title at tier 25, and a card back that only
+	Tips on most tiers (free track only; the paid row never gives Tips), an existing card back at tiers 10 and 20, the season title at tier 25, and a card back that only
 	this season gives at tier 30.
 
 	Season XP comes from the same sources as Tavern Rank (hands, rounds, bosses, wins, quests: AccountProgress adds the XP
@@ -64,7 +64,7 @@ end
 
 -- PREMIUM ROW: a second reward on the same 30 tiers, bought once per season (Engine/Store.lua `premium_<season>`).
 -- Cosmetic only: a Season Card Set (tier 15), Store Flair pieces (5, 10, 18, 24), a premium title (8), a card back only
--- premium owners get (tier 30) and 1 Tip on every other tier (23 Tips in all, the banked-Tips cap still applies).
+-- premium owners get (tier 30) and a Season Stamp on every other tier (the claim itself is the stamp; no Tips, no power).
 local PREMIUM_FLAIR = { [5] = "rainbow_numbers", [10] = "ribbon_trail", [18] = "crown_finisher", [24] = "star_aura" }
 
 function SeasonTrack.premiumRewardFor(season, tier)
@@ -72,7 +72,7 @@ function SeasonTrack.premiumRewardFor(season, tier)
 	if tier == 15 then return { kind = "set", id = season.premiumSetId } end
 	if tier == SeasonTrack.TIERS then return { kind = "cardBack", id = season.premiumBackId } end
 	if PREMIUM_FLAIR[tier] then return { kind = "flair", id = PREMIUM_FLAIR[tier] } end
-	if tier >= 1 and tier < SeasonTrack.TIERS then return { kind = "tips", amount = 1 } end
+	if tier >= 1 and tier < SeasonTrack.TIERS then return { kind = "stamp" } end -- a keepsake mark only, never Tips or power
 	return nil
 end
 
@@ -289,6 +289,8 @@ end
 function SeasonTrack.rewardText(reward, lookup)
 	if reward and reward.kind == "tips" then
 		return "+" .. reward.amount .. " Tips next run"
+	elseif reward and reward.kind == "stamp" then
+		return "Season Stamp"
 	elseif reward and reward.kind == "set" then
 		return "Card Set: " .. ((lookup and lookup.setName and lookup.setName(reward.id)) or reward.id)
 	elseif reward and reward.kind == "flair" then

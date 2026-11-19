@@ -12,8 +12,8 @@
 	  starter_pack      Developer Product, ONE TIME: Gilded Ledger card back, Winter Evening Card Set, the Founding
 	                    Guest title. Offered once, after the second run.
 	  card_set_bundle   Developer Product, one time: the Festival Night and Closing Time Card Sets (their backs come with them).
-	  vip               Game Pass (GamePasses "vip"): a gold star beside your name on boards, +3 Tips banked each day
-	                    (capped), and a second badge slot. Looks and a tiny daily gift only.
+	  vip               Game Pass (GamePasses "vip"): a gold star beside your name on boards and a second
+	                    badge slot. Looks only (it used to bank Tips each day; Tips are run power, so that was removed).
 	  continue          the existing One More Round product (GamePasses.DeveloperProducts), listed for information.
 
 	Idempotency: a purchase id is remembered in the profile (profile.receiptIds), and a one-time item never grants twice.
@@ -25,28 +25,27 @@ local TavernRank = require(script.Parent.TavernRank)
 local Store = {}
 
 Store.MAX_RECEIPTS = 100
-Store.VIP_DAILY_TIPS = 3
 
 Store.Items = {
 	{
-		id = "starter_pack", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Starter Pack",
+		id = "starter_pack", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Starter Pack",
 		description = "A card back, a Card Set and a title to start your collection.",
 		contents = { cardBacks = { "gilded_ledger" }, sets = { "winter_evening" }, titles = { "founding_guest" } },
 		perks = { "Gilded Ledger card back", "Winter Evening Card Set", "Title: Founding Guest" },
 	},
 	{
-		id = "card_set_bundle", kind = "product", productId = 0, oneTime = true, icon = "🎴", name = "Card Set Bundle",
+		id = "card_set_bundle", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎴", name = "Card Set Bundle",
 		description = "Two dressed-up tavern tables with their card backs.",
 		contents = { sets = { "festival_night", "closing_time" } },
 		perks = { "Festival Night Card Set", "Closing Time Card Set" },
 	},
 	{
-		id = "vip", kind = "pass", passId = "vip", icon = "⭐", name = "VIP",
-		description = "A little sparkle for regulars. Looks and a tiny daily gift, no power.",
-		perks = { "Gold star beside your name", "+3 Tips every day", "A second badge slot" },
+		id = "vip", category = "cosmetic", kind = "pass", passId = "vip", icon = "⭐", name = "VIP",
+		description = "A little sparkle for regulars. Looks and a second badge slot, no power.",
+		perks = { "Gold star beside your name", "A second badge slot" },
 	},
 	{
-		id = "continue", kind = "product", productId = "continue", listOnly = true, icon = "🔁", name = "One More Round",
+		id = "continue", category = "convenience", kind = "product", productId = "continue", listOnly = true, icon = "🔁", name = "One More Round",
 		description = "Replay a lost round once. Offered when a run ends.",
 		perks = { "One free every day" },
 	},
@@ -57,7 +56,7 @@ Store.Items = {
 -- placeholder product ids (0) until created in Creator Hub (see claude/LAUNCH.md and claude/ROADMAP.md).
 local function flairItem(id, flairId, name, icon, what)
 	return {
-		id = id, kind = "product", productId = 0, oneTime = true, icon = icon, name = name, section = "flair",
+		id = id, category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = icon, name = name, section = "flair",
 		description = "Flair for your table: " .. what .. ". Looks only, never changes your score.",
 		contents = { flair = { flairId } }, perks = { name },
 	}
@@ -67,21 +66,21 @@ Store.Items[#Store.Items + 1] = flairItem("flair_ribbon_trail", "ribbon_trail", 
 Store.Items[#Store.Items + 1] = flairItem("flair_crown_finisher", "crown_finisher", "Crown Flash", "👑", "a crown flash on big hands")
 Store.Items[#Store.Items + 1] = flairItem("flair_star_aura", "star_aura", "Star Aura", "🌟", "a star aura around your name")
 Store.Items[#Store.Items + 1] = {
-	id = "flair_bundle", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
+	id = "flair_bundle", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🎁", name = "Flair Bundle", section = "flair",
 	description = "All four Store Flair pieces at a lower price. Looks only, never changes your score.",
 	contents = { flair = { "rainbow_numbers", "ribbon_trail", "crown_finisher", "star_aura" } },
 	perks = { "Rainbow Numbers", "Ribbon Trail", "Crown Flash", "Star Aura" },
 }
 -- one premium pass per season (`seasonPremium` = the season id); bought once per season
 Store.Items[#Store.Items + 1] = {
-	id = "premium_harvest_moon", kind = "product", productId = 0, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
+	id = "premium_harvest_moon", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🌕", name = "Harvest Moon Premium", section = "season",
 	seasonPremium = "harvest_moon", description = "A second reward row on every tier of the Harvest Moon season. Looks only.",
-	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A few Tips for your next run" },
+	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
 Store.Items[#Store.Items + 1] = {
-	id = "premium_winter_welcome", kind = "product", productId = 0, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
+	id = "premium_winter_welcome", category = "cosmetic", kind = "product", productId = 0, oneTime = true, icon = "🧣", name = "Winter Welcome Premium", section = "season",
 	seasonPremium = "winter_welcome", description = "A second reward row on every tier of the Winter Welcome season. Looks only.",
-	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A few Tips for your next run" },
+	perks = { "A Season Card Set", "Flair pieces", "A title and a unique tier 30 card back", "A Season Stamp on every other tier" },
 }
 
 function Store.getById(id)
@@ -205,15 +204,37 @@ function Store.processReceipt(profile, productId, purchaseId)
 	return "granted"
 end
 
--- VIP daily gift: +VIP_DAILY_TIPS banked Tips once per UTC day (capped with the other banked Tips). Returns Tips given.
-function Store.claimVipDaily(profile, day)
-	if type(day) ~= "number" or profile.vipBonusDay == day then
-		return 0
+-- FAIR MONETIZATION AUDIT. Every Robux item is a "cosmetic" (looks only) or a "convenience" (saves time or a slot, never
+-- changes whether a run is won). Tips, XP, Patron slots, Targets and scoring are never for sale. `Store.audit()` returns a list
+-- of problems (empty when clean); a test runs it, so a pay to win item can not be added quietly.
+Store.CATEGORIES = { cosmetic = true, convenience = true }
+Store.PASS_CATEGORY = { fast_forward = "convenience", vip = "cosmetic", set_golden_gala = "cosmetic" } -- by GamePasses id
+Store.DEV_PRODUCT_CATEGORY = { continue = "convenience" } -- by GamePasses.DeveloperProducts id (a once a day free retry is also given)
+local ALLOWED_CONTENTS = { cardBacks = true, sets = true, titles = true, flair = true }
+
+function Store.audit()
+	local problems = {}
+	for _, item in ipairs(Store.Items) do
+		if not Store.CATEGORIES[item.category] then
+			problems[#problems + 1] = item.id .. ": no category (cosmetic or convenience)"
+		end
+		for key in pairs(item.contents or {}) do
+			if not ALLOWED_CONTENTS[key] then
+				problems[#problems + 1] = item.id .. ": contents '" .. tostring(key) .. "' is not a cosmetic"
+			end
+		end
+		local words = (item.description or "") .. " " .. table.concat(item.perks or {}, " ")
+		if item.category == "cosmetic" and (words:find("Tips") or words:find("Patron slot") or words:find("Target") or words:find("Hands")) then
+			problems[#problems + 1] = item.id .. ": a cosmetic item mentions Tips, slots, Targets or Hands"
+		end
 	end
-	profile.vipBonusDay = day
-	local before = profile.pendingStartTips or 0
-	profile.pendingStartTips = math.min(TavernRank.MAX_PENDING_TIPS, before + Store.VIP_DAILY_TIPS)
-	return profile.pendingStartTips - before
+	for _, pass in ipairs(GamePasses.Definitions) do
+		if not Store.CATEGORIES[Store.PASS_CATEGORY[pass.id]] then problems[#problems + 1] = "pass " .. pass.id .. ": no category" end
+	end
+	for _, product in ipairs(GamePasses.DeveloperProducts) do
+		if not Store.CATEGORIES[Store.DEV_PRODUCT_CATEGORY[product.id]] then problems[#problems + 1] = "product " .. product.id .. ": no category" end
+	end
+	return problems
 end
 
 -- Equips a badge into the second slot (VIP only). nil clears it. Returns ok.

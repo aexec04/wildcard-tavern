@@ -34,11 +34,11 @@ GamePasses.Definitions = {
 		gamePassId = 2075404246,
 	},
 	{
-		-- VIP (Engine/Store.lua): placeholder until the pass exists in Creator Hub. Cosmetic and a tiny daily gift only.
+		-- VIP (Engine/Store.lua): placeholder until the pass exists in Creator Hub. Cosmetic only.
 		id = "vip",
 		name = "VIP",
 		icon = "⭐",
-		description = "A gold star beside your name, +3 Tips banked every day and a second badge slot. No gameplay power.",
+		description = "A gold star beside your name and a second badge slot. No gameplay power.",
 		gamePassId = 0,
 	},
 	{

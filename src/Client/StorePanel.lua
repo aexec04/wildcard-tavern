@@ -9,6 +9,7 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 
 local OverlayManager = require(script.Parent.OverlayManager)
+local Kit = require(script.Parent.TavernKit)
 
 local StorePanel = {}
 
@@ -112,34 +113,27 @@ local function buildCard(row, order)
 		TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(90, 66, 40),
 	})
 	label(card, {
-		Name = "Price", Size = UDim2.new(1, -16, 0, 20), Position = UDim2.new(0, 8, 1, -70), Text = StorePanel.priceText(row, priceCache), TextSize = 15,
+		Name = "Price", Size = UDim2.new(1, -16, 0, 20), Position = UDim2.new(0, 8, 1, -76), Text = StorePanel.priceText(row, priceCache), TextSize = 15,
 		TextColor3 = row.owned and GREEN or INK,
 	})
 
 	local button = Instance.new("TextButton")
 	button.Name = "Buy"
-	button.Size = UDim2.new(1, -36, 0, 36)
-	button.Position = UDim2.new(0, 18, 1, -46)
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 17
-	button.TextColor3 = CREAM
+	button.Size = UDim2.new(1, -36, 0, 44) -- 44 px touch target (TavernKit look)
+	button.Position = UDim2.new(0, 18, 1, -52)
 	button.ZIndex = 34
 	button.Parent = card
-	ui.polishButton(button, 10)
 	if row.owned then
-		button.Text = "Owned"
-		button.BackgroundColor3 = Color3.fromRGB(110, 120, 90)
+		Kit.skin(button, "Owned", "secondary")
 		button.Active = false
 	elseif row.available then
-		button.Text = row.studioFree and "Take (Studio)" or "Buy"
-		button.BackgroundColor3 = GREEN
+		Kit.skin(button, row.studioFree and "Take (Studio)" or "Buy", "primary")
 		button.MouseButton1Click:Connect(function()
 			ui.playClickSfx()
 			ui.purchaseRemote:FireServer(row.id)
 		end)
 	else
-		button.Text = row.listOnly and "Info" or "Coming soon"
-		button.BackgroundColor3 = Color3.fromRGB(120, 100, 76)
+		Kit.skin(button, row.listOnly and "Info" or "Coming soon", "secondary")
 		button.Active = false
 	end
 	return card
@@ -217,17 +211,12 @@ function StorePanel.init(deps)
 
 	local close = Instance.new("TextButton")
 	close.Name = "Close"
-	close.Size = UDim2.fromOffset(140, 38)
+	close.Size = UDim2.fromOffset(160, 44)
 	close.AnchorPoint = Vector2.new(0.5, 1)
 	close.Position = UDim2.new(0.5, 0, 1, -12)
-	close.Font = Enum.Font.GothamBold
-	close.TextSize = 17
-	close.Text = "Close"
-	close.BackgroundColor3 = Color3.fromRGB(90, 60, 30)
-	close.TextColor3 = CREAM
 	close.ZIndex = 33
 	close.Parent = panel
-	deps.polishButton(close, 10)
+	Kit.skin(close, "Close", "secondary")
 
 	ui = {
 		backdrop = backdrop, panel = panel, row = row, roundCorner = deps.roundCorner, polishButton = deps.polishButton,

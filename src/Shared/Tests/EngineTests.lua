@@ -10062,14 +10062,14 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 		for tier = 1, 30 do
 			local r = ST.premiumRewardFor(season, tier)
 			expectTrue(r ~= nil, season.id .. " premium tier " .. tier)
-			expectTrue(r.kind == "tips" or r.kind == "title" or r.kind == "set" or r.kind == "cardBack" or r.kind == "flair", "cosmetic or Tips only")
+			expectTrue(r.kind == "stamp" or r.kind == "title" or r.kind == "set" or r.kind == "cardBack" or r.kind == "flair", "cosmetic only, never Tips")
 			if r.kind == "tips" then tips = tips + r.amount end
 			if r.kind == "title" then expectTrue(Achievements.getById(r.id) ~= nil and Achievements.getById(r.id).milestoneReward, r.id) end
 			if r.kind == "set" then expectTrue(CosmeticSets.getById(r.id) ~= nil, r.id) end
 			if r.kind == "cardBack" then expectTrue(CardBacks.getById(r.id) ~= nil, r.id) end
 			if r.kind == "flair" then expectTrue(Flair.getById(r.id) ~= nil and Flair.getById(r.id).unlock.kind == "store", r.id) end
 		end
-		expectTrue(tips <= 30, "premium Tips stay small")
+		expectEqual(tips, 0, "the paid row never gives Tips")
 		expectEqual(ST.premiumRewardFor(season, 30).id, season.premiumBackId); expectEqual(ST.premiumRewardFor(season, 15).id, season.premiumSetId)
 		expectEqual(ST.premiumRewardFor(season, 8).id, season.premiumTitleId); expectEqual(ST.premiumRewardFor(season, 31), nil)
 		expectEqual(Store.getById(season.premiumItemId).seasonPremium, season.id, "the Store item points at its season")
@@ -10098,7 +10098,8 @@ table.insert(tests, { name = "Premium Season track and Flair store items: tier g
 		local r = ST.premiumRewardFor(s1, tier)
 		if r.kind == "tips" then expectedTips = expectedTips + r.amount end
 	end
-	expectEqual(free.pendingStartTips, expectedTips, "1 Tip per reached ordinary premium tier")
+	expectEqual(expectedTips, 0, "no Tips from the paid row")
+	expectEqual(free.pendingStartTips, expectedTips, "buying the premium row adds no Tips")
 	-- idempotent: a second grant, a repeated receipt, a second claim all grant nothing
 	expectFalse(Store.grant(free, s1.premiumItemId, day), "one time item")
 	expectEqual(#ST.grantPremium(free, s1.id, day), 0); expectEqual(#ST.claimAllPremium(free, day), 0)
@@ -11546,18 +11547,12 @@ table.insert(tests, { name = "Store grants are idempotent: a one-time pack grant
 	expectEqual(#junk.receiptIds, 1); expectEqual(junk.vipBonusDay, nil); expectEqual(junk.equippedBadgeId2, nil)
 end })
 
-table.insert(tests, { name = "Store VIP: a daily gift of a few Tips once per day (capped), a second badge slot only for VIP, view shows owned state", fn = function()
+table.insert(tests, { name = "Store VIP: no Tips gift (Tips are run power), a second badge slot only for VIP, view shows owned state", fn = function()
 	local Store = require(script.Parent.Parent.Engine.Store)
-	local TavernRank = require(script.Parent.Parent.Engine.TavernRank)
 	local profile = PlayerProfile.new()
-	expectEqual(Store.claimVipDaily(profile, 100), Store.VIP_DAILY_TIPS)
-	expectEqual(Store.claimVipDaily(profile, 100), 0, "once per day")
-	expectEqual(Store.claimVipDaily(profile, 101), Store.VIP_DAILY_TIPS)
-	profile.vipBonusDay = nil
-	profile.pendingStartTips = TavernRank.MAX_PENDING_TIPS - 1
-	expectEqual(Store.claimVipDaily(profile, 102), 1, "capped with the other banked Tips")
-	expectEqual(Store.claimVipDaily(profile, "x"), 0)
-	expectTrue(Store.VIP_DAILY_TIPS <= 5, "the gift stays small")
+	expectEqual(Store.claimVipDaily, nil, "the daily Tips gift is gone")
+	expectEqual(Store.VIP_DAILY_TIPS, nil, "no Tips constant")
+	for _, perk in ipairs(Store.getById("vip").perks) do expectFalse(perk:find("Tips", 1, true) ~= nil, "VIP perk: " .. perk) end
 	-- second badge slot
 	profile.badgeIds.wins_1 = true
 	expectEqual(Store.equipSecondBadge(profile, "wins_1", false, true), false, "not for non-VIP")
@@ -30828,5 +30823,28 @@ table.insert(tests, { name = "Invite Tips bonus: paid once per UTC day, the invi
 	expectEqual(tips4, 0, "a reload on the same day does not reopen the bonus")
 end })
 
+table.insert(tests, { name = "Fair monetization audit: every Robux item is cosmetic or convenience, nothing sells Tips, XP, slots or power, the paid Season row gives no Tips", fn = function()
+	local Store = require(script.Parent.Parent.Engine.Store)
+	local GamePasses = require(script.Parent.Parent.Engine.GamePasses)
+	local problems = Store.audit()
+	expectEqual(#problems, 0, "audit: " .. table.concat(problems, "; "))
+	for _, item in ipairs(Store.Items) do
+		assert(item.category == "cosmetic" or item.category == "convenience", item.id)
+		assert(not (item.contents and (item.contents.tips or item.contents.xp or item.contents.patrons)), item.id .. " sells power")
+	end
+	-- the audit catches a bad item
+	table.insert(Store.Items, { id = "bad", kind = "product", description = "Get +5 Tips every run", perks = {} })
+	assert(#Store.audit() >= 1, "a missing category is reported")
+	Store.Items[#Store.Items] = { id = "bad2", category = "cosmetic", kind = "product", description = "x", perks = { "+5 Tips" } }
+	assert(#Store.audit() >= 1, "a cosmetic that mentions Tips is reported")
+	Store.Items[#Store.Items] = { id = "bad3", category = "cosmetic", kind = "product", description = "x", perks = {}, contents = { tips = 9 } }
+	assert(#Store.audit() >= 1, "Tips contents are reported")
+	table.remove(Store.Items)
+	expectEqual(#Store.audit(), 0, "clean again")
+	-- Fast Forward is the only convenience pass (it only speeds the reveal, same numbers); the retry is also free once a day
+	expectEqual(Store.PASS_CATEGORY.fast_forward, "convenience")
+	expectEqual(Store.DEV_PRODUCT_CATEGORY.continue, "convenience")
+	expectTrue(#GamePasses.Definitions >= 3)
+end })
 
 return tests

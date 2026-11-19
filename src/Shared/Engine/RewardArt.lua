@@ -20,6 +20,7 @@ local KINDS = {
 	title = { "titles", true, "🏷️" },
 	set = { "set_backdrops", true, "🎴" },
 	flair = { "flair", true, "✨" },
+	stamp = { nil, nil, "🔖" }, -- the paid Season row's keepsake mark
 }
 
 RewardArt.Kinds = KINDS

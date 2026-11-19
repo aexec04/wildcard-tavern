@@ -1577,14 +1577,7 @@ end
 -- unblocks local testing. The moment a real gamePassId is pasted into
 -- GamePasses.lua, that pass falls out of this branch entirely and goes
 -- through the real MarketplaceService check below like normal.
--- VIP daily gift: +3 banked Tips once per UTC day, whenever the VIP pass is known to be owned (Engine/Store.lua).
-local function grantVipDaily(player)
-	local profile = profiles[player]
-	if profile and Store.claimVipDaily(profile, LoginStreak.dayNumber(os.time())) > 0 then
-		profileDirty[player] = true
-	end
-end
-
+-- VIP used to bank Tips every day; that was in-run currency (power), so VIP is looks and a second badge slot only (Engine/Store.lua).
 local function refreshOwnedGamePasses(player)
 	ownedGamePasses[player] = ownedGamePasses[player] or {}
 	for _, pass in ipairs(GamePasses.Definitions) do
@@ -1607,7 +1600,6 @@ local function refreshOwnedGamePasses(player)
 		if (not pass.gamePassId or pass.gamePassId <= 0) and pass.id ~= "fast_forward" and RunService:IsStudio() then
 			local alreadyKnown = ownedGamePasses[player][pass.id] == true
 			ownedGamePasses[player][pass.id] = true
-			if pass.id == "vip" then grantVipDaily(player) end
 			if not alreadyKnown then
 				pushState(player)
 			end
@@ -1627,7 +1619,6 @@ local function refreshOwnedGamePasses(player)
 						-- re-checks of an already-known pass.
 						local alreadyKnown = ownedGamePasses[player][pass.id] == true
 						ownedGamePasses[player][pass.id] = true
-						if pass.id == "vip" then grantVipDaily(player) end
 						if not alreadyKnown then
 							pushState(player)
 						end
