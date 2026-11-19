@@ -175,25 +175,26 @@ function M.show()
 	-- positions measured from the reference: name centre y 0.571, total centre y 0.630, rim centre y 0.646, rim 0.206 wide
 	local st = r.stage
 	local cx = st.x + st.w / 2
-	local ringW = math.floor(size.X * 426 / 1536) -- the reference ellipse is 426 x 132 on 1536 x 1024
-	local ringH = math.floor(size.Y * 132 / 1024)
+	local ringW = math.floor(size.X * 426 / 1536 * Layout.STAGE_SCALE) -- the reference ellipse is 426 x 132 on 1536 x 1024
+	local ringH = math.floor(size.Y * 132 / 1024 * Layout.STAGE_SCALE)
 	local ring = img(gui, "ct_glow_ring", 2)
-	ring.Position = UDim2.fromOffset(math.floor(cx - ringW / 2), math.floor(size.Y * 0.646 - ringH / 2))
+	ring.Position = UDim2.fromOffset(math.floor(cx - ringW / 2), math.floor(size.Y * Layout.STAGE_Y.ring - ringH / 2))
 	ring.Size = UDim2.fromOffset(ringW, ringH)
+	ring.ZIndex = 40 -- in front of the top of the hand so the whole ellipse shows
 	ring.Parent = gui
-	local nameH, totH = math.floor(size.Y * 0.05), math.floor(size.Y * 0.09)
-	local nm = label(gui, S.stage.name, math.max(15, math.floor(size.Y * 0.036)), 4, Color3.fromRGB(255, 250, 235))
+	local nameH, totH = math.floor(size.Y * 0.05 * Layout.STAGE_SCALE), math.floor(size.Y * 0.09 * Layout.STAGE_SCALE)
+	local nm = label(gui, S.stage.name, math.max(15, math.floor(size.Y * 0.036 * Layout.STAGE_SCALE)), 42, Color3.fromRGB(255, 250, 235))
 	nm.TextStrokeTransparency = 0
-	nm.Position = UDim2.fromOffset(st.x, math.floor(size.Y * 0.571 - nameH / 2)); nm.Size = UDim2.fromOffset(st.w, nameH)
-	local tot = label(gui, S.stage.total, math.max(15, math.floor(size.Y * 0.075)), 4, Color3.fromRGB(246, 196, 70))
+	nm.Position = UDim2.fromOffset(st.x, math.floor(size.Y * Layout.STAGE_Y.name - nameH / 2)); nm.Size = UDim2.fromOffset(st.w, nameH)
+	local tot = label(gui, S.stage.total, math.max(15, math.floor(size.Y * 0.075 * Layout.STAGE_SCALE)), 42, Color3.fromRGB(246, 196, 70))
 	tot.TextStrokeColor3 = Color3.fromRGB(60, 30, 8); tot.TextStrokeTransparency = 0
-	tot.Position = UDim2.fromOffset(st.x, math.floor(size.Y * 0.630 - totH / 2)); tot.Size = UDim2.fromOffset(st.w, totH)
+	tot.Position = UDim2.fromOffset(st.x, math.floor(size.Y * Layout.STAGE_Y.total - totH / 2)); tot.Size = UDim2.fromOffset(st.w, totH)
 
 	-- the fanned hand of seven, drawn through the game's own card face
 	local CardFace = require(script.Parent.CardFace)
 	local FaceArt = require(Engine:WaitForChild("CardFaceArt"))
 	local hand = r.hand
-	local cw = math.floor(size.X * 0.086)
+	local cw = math.floor(size.X * Layout.HAND_CARD_W)
 	local ch = math.floor(cw * 1.43)
 	local n = #S.hand
 	local step = (hand.w - cw) / (n - 1)

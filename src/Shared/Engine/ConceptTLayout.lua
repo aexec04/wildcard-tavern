@@ -29,8 +29,8 @@ M.frac = {
 	round = { 0.375, 0.006, 0.621, 0.084 },
 	gear = { 0.919, 0.012, 0.984, 0.107 },
 	patrons = { 0.185, 0.162, 0.810, 0.404 },
-	stage = { 0.350, 0.530, 0.650, 0.646 }, -- ends above the hand (raised in pass 5)
-	hand = { 0.195, 0.651, 0.780, 0.851 }, -- raised 25 px in pass 5 so the cards end above the buttons; measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
+	stage = { 0.358, 0.553, 0.673, 0.675 }, -- pass 6 align report: centre moved right 24 px and down 27 px of 1536 x 1024, about 5 percent larger; the ring now overlaps the top of the hand on purpose (ALLOWED)
+	hand = { 0.183, 0.658, 0.768, 0.848 }, -- pass 6: fan 18 px left and 3 px up, cards (sized from the frame height) about 5 percent smaller; -- raised 25 px in pass 5 so the cards end above the buttons; measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
 	play = { 0.300, 0.875, 0.530, 0.985 },
 	discard = { 0.537, 0.882, 0.689, 0.980 },
 	deck = { 0.790, 0.630, 0.990, 0.940 }, -- the ct_deck_a cut canvas (307 x 317) at its reference origin (1213, 645), so the book is its full reference size (about 261 x 230 of the frame)
@@ -149,7 +149,12 @@ function M.cleanValue(text)
 end
 
 -- the count plate hangs on the bottom of the deck pile on purpose
-M.ALLOWED = { ["deck|deckCount"] = true }
+M.ALLOWED = { ["deck|deckCount"] = true, ["hand|stage"] = true } -- the glow ring is drawn in front of the top of the hand, as in the reference
+
+-- scene stage text and ring centres (fractions of the frame height), moved with the stage rect in pass 6; STAGE_SCALE sizes the type and ring
+M.STAGE_Y = { name = 0.5976, total = 0.6566, ring = 0.6724 }
+M.STAGE_SCALE = 1.05
+M.HAND_CARD_W = 0.0817 -- scene card width as a fraction of the frame width (0.086 before pass 6)
 
 function M.overlaps(rects)
 	local names = {}
