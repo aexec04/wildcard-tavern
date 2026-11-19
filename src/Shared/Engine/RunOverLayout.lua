@@ -29,6 +29,12 @@ RunOverLayout.LABEL_H = 24
 RunOverLayout.BTN_TEXT = 16 -- every button label is one line at this size
 RunOverLayout.CAP_PAD = 22 -- the plate caps take this much on each side of a label (polishButton), so the text must fit between them
 RunOverLayout.MIN_BTN_W = 110
+RunOverLayout.BIG_H = 56 -- the one big primary button (Play Again) when spec.bigPrimary is set
+RunOverLayout.PILL_H = 44 -- the equal secondary pills when spec.pills is set (the touch minimum)
+RunOverLayout.CARD_W, RunOverLayout.CARD_H = 90, 135 -- a cut Patron card (2:3) when spec.cardSeats is set
+RunOverLayout.CARD_SMALL_W, RunOverLayout.CARD_SMALL_H = 72, 108 -- the same card when more than one row would be needed
+RunOverLayout.TITLE_GAP = 12 -- clear space between the title and anything to its left
+RunOverLayout.PLATE_PAD = 10 -- the dark plate behind the facts column extends this far past the text
 
 function RunOverLayout.columns(sw)
 	local M = RunOverLayout.MARGIN
@@ -136,20 +142,40 @@ function RunOverLayout.compute(sw, sh, spec)
 	local y0 = M + titleH + G
 
 	local function patronBlock(x, y, w)
-		local cols = math.max(1, math.floor((w + 8) / (RunOverLayout.SEAT_W + 8)))
+		local seatW, seatH = RunOverLayout.SEAT_W, RunOverLayout.SEAT_H
+		if spec.cardSeats then
+			seatW, seatH = RunOverLayout.CARD_W, RunOverLayout.CARD_H
+			if math.floor((w + 8) / (seatW + 8)) < patrons then seatW, seatH = RunOverLayout.CARD_SMALL_W, RunOverLayout.CARD_SMALL_H end
+		end
+		local cols = math.max(1, math.floor((w + 8) / (seatW + 8)))
 		local rows = math.max(1, math.ceil(patrons / cols))
-		local h = patrons == 0 and 44 or (rows * (RunOverLayout.SEAT_H + 8) - 8 + 16)
+		local h = patrons == 0 and 44 or (rows * (seatH + 8) - 8 + 16)
 		out.patronsLabel = rect(x, y, w, RunOverLayout.LABEL_H)
 		out.patrons = rect(x, y + RunOverLayout.LABEL_H + 4, w, h)
-		out.patrons.cols, out.patrons.rows = cols, rows
+		out.patrons.cols, out.patrons.rows, out.patrons.seatW, out.patrons.seatH = cols, rows, seatW, seatH
 		return y + RunOverLayout.LABEL_H + 4 + h
+	end
+
+	-- the primary buttons: one big first button full width, the rest in one equal row under it
+	local function bigPrimary(x, y, w)
+		local cells = { rect(x, y, w, RunOverLayout.BIG_H) }
+		local y2 = y + RunOverLayout.BIG_H + 8
+		if primary > 1 then
+			for _, c in ipairs(row(x, y2, w, RunOverLayout.BTN_H, primary - 1, 8)) do cells[#cells + 1] = c end
+			return cells, y2 + RunOverLayout.BTN_H
+		end
+		return cells, y + RunOverLayout.BIG_H
 	end
 
 	if C.mode == "wide" then
 		out.facts = rect(M, y0, C.leftW, factsH)
 		local rx = M + C.leftW + M
 		local y = patronBlock(rx, y0, C.rightW) + G
-		if spec.primaryLabels then
+		if spec.bigPrimary then
+			local cells, bottom = bigPrimary(rx, y, C.rightW)
+			out.primary = cells
+			y = bottom + G
+		elseif spec.primaryLabels then
 			local cells, bottom = packRow(rx, y, C.rightW, RunOverLayout.BTN_H, spec.primaryLabels, 8, spec.textW)
 			out.primary = cells
 			y = bottom + G
@@ -158,7 +184,10 @@ function RunOverLayout.compute(sw, sh, spec)
 			y = y + RunOverLayout.BTN_H + G
 		end
 		local cells, bottom
-		if spec.moreLabels then
+		if spec.pills then
+			out.morePerRow = 3
+			cells, bottom = grid(rx, y, C.rightW, RunOverLayout.PILL_H, more, 3, 8)
+		elseif spec.moreLabels then
 			-- sized by label like the primary row (an empty label is a free cell of the minimum width)
 			cells, bottom = packRow(rx, y, C.rightW, RunOverLayout.SMALL_H, spec.moreLabels, 8, spec.textW)
 			local n = 0
@@ -177,13 +206,19 @@ function RunOverLayout.compute(sw, sh, spec)
 		local y = y0 + factsH + G
 		y = patronBlock(M, y, w) + G
 		out.primary = {}
-		for i = 1, primary do
-			out.primary[i] = rect(M, y, w, RunOverLayout.BTN_H)
-			y = y + RunOverLayout.BTN_H + 8
+		if spec.bigPrimary then
+			local cells, bottom = bigPrimary(M, y, w)
+			out.primary = cells
+			y = bottom + G
+		else
+			for i = 1, primary do
+				out.primary[i] = rect(M, y, w, RunOverLayout.BTN_H)
+				y = y + RunOverLayout.BTN_H + 8
+			end
+			y = y - 8 + G
 		end
-		y = y - 8 + G
 		out.morePerRow = 2
-		local cells, bottom = grid(M, y, w, RunOverLayout.SMALL_H, more, 2, 8)
+		local cells, bottom = grid(M, y, w, spec.pills and RunOverLayout.PILL_H or RunOverLayout.SMALL_H, more, 2, 8)
 		out.more = cells
 		out.panel = rect(0, 0, C.panelW, math.max(y, bottom) + M)
 	end

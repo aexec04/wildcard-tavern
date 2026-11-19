@@ -176,12 +176,11 @@ return function(deps)
 
 	-- ===== named frames =====
 	local titleF = frame("Title")
-	local iconLabel = label(titleF, {
-		Size = UDim2.fromOffset(52, 52), Position = UDim2.fromOffset(0, 4), TextSize = 40, Text = "\u{1F56F}\u{FE0F}",
-		TextXAlignment = Enum.TextXAlignment.Center, TextWrapped = false,
+	local iconLabel = label(titleF, { -- the trophy and candle glyphs are gone (they sat on the start of the title); kept as a hidden label
+		Size = UDim2.fromOffset(1, 1), Text = "", Visible = false,
 	})
 	local titleLabel = label(titleF, {
-		Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(58, 0), TextSize = 26, Text = "", TextYAlignment = Enum.TextYAlignment.Center,
+		Size = UDim2.new(1, -150, 1, 0), Position = UDim2.fromOffset(0, 0), TextSize = 26, Text = "", TextYAlignment = Enum.TextYAlignment.Center,
 	})
 	local revivedBadge = label(titleF, {
 		Name = "RevivedBadge", AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(110, 26), Position = UDim2.new(1, 0, 0, 0),
@@ -189,6 +188,19 @@ return function(deps)
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, Visible = false,
 	})
 	polishPanel(revivedBadge, 13)
+	local factsPlate = frame("FactsPlate") -- solid dark wood behind the facts column, so no painted lantern or candle sits under the text
+	factsPlate.BackgroundTransparency = 0.08
+	factsPlate.BackgroundColor3 = Color3.fromRGB(34, 24, 16)
+	do
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0, 10)
+		pc.Parent = factsPlate
+		local ps = Instance.new("UIStroke")
+		ps.Color = BRASS
+		ps.Thickness = 1
+		ps.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		ps.Parent = factsPlate
+	end
 	local factsF = frame("Facts")
 	local patronsLabel = label(content, { Name = "PatronsLabel", Text = "Patrons used", TextSize = 18, TextColor3 = GOLD_TEXT })
 	patronsLabel.TextTruncate = Enum.TextTruncate.AtEnd
@@ -210,14 +222,14 @@ return function(deps)
 		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextColor3 = Color3.fromRGB(84, 58, 34), Visible = false,
 	})
 
-	local continueButton = button(actionsF, "ContinueButton", "One More Round", GREEN, CREAM, 16)
-	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", BRASS, Color3.fromRGB(40, 28, 14), 16)
+	local continueButton = button(actionsF, "ContinueButton", "One More Round", BRASS, Color3.fromRGB(40, 28, 14), 16)
+	local playAgainButton = button(actionsF, "PlayAgain", "Play Again", GREEN, CREAM, 20)
 	local tavernButton = button(actionsF, "BackToTavern", "Back to Tavern", WOOD, CREAM, 16)
 	local shareButton = button(moreF, "ShareResult", "Share", WOOD, CREAM, 16)
 	local challengeButton = button(moreF, "ChallengeFriend", "Challenge", WOOD, CREAM, 16)
 	local inviteButton = button(moreF, "InviteFriends", "Invite", WOOD, CREAM, 16)
-	local saveButton = button(moreF, "SaveBadge", "Save Badge", GREEN, CREAM, 16)
-	local winCardButton = button(moreF, "WinCard", "Win Card", GREEN, CREAM, 16)
+	local saveButton = button(moreF, "SaveBadge", "Save Badge", WOOD, CREAM, 16)
+	local winCardButton = button(moreF, "WinCard", "Win Card", WOOD, CREAM, 16)
 	winCardButton.Visible = false
 	require(script.Parent.InvitePrompt).bind(inviteButton)
 
@@ -350,7 +362,7 @@ return function(deps)
 			local h = n * (size + 3) + LINE_PAD
 			label(factsF, {
 				Name = "Fact" .. i, Text = line.text, Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(width, h),
-				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = TONES[mode][line.props.tone or "text"],
+				TextSize = size, Font = line.props.Font or Enum.Font.GothamBold, TextColor3 = TONES.plain[line.props.tone or "text"], -- always cream: the facts stand on a dark plate
 			})
 			y = y + h
 		end
@@ -420,24 +432,26 @@ return function(deps)
 		for index, patron in ipairs(list) do
 			if index > 10 then break end
 			local col, rowN = (index - 1) % r.cols, math.floor((index - 1) / r.cols)
+			local sw, shh = r.seatW or RunOverLayout.SEAT_W, r.seatH or RunOverLayout.SEAT_H
 			local holder = Instance.new("Frame")
 			holder.Name = "Patron" .. index
 			holder.BackgroundTransparency = 1
 			holder.BorderSizePixel = 0
-			holder.Position = UDim2.fromOffset(8 + col * (RunOverLayout.SEAT_W + 8), 8 + rowN * (RunOverLayout.SEAT_H + 8))
-			holder.Size = UDim2.fromOffset(RunOverLayout.SEAT_W, RunOverLayout.SEAT_H)
+			holder.Position = UDim2.fromOffset(8 + col * (sw + 8), 8 + rowN * (shh + 8))
+			holder.Size = UDim2.fromOffset(sw, shh)
 			holder.ZIndex = 23
 			holder.Parent = patronsF
+			-- a Patron with a cut Concept T card shows the whole card (its own rarity frame and name plate); one without keeps a small
+			-- parchment card with the emoji and the name
 			local seat = Instance.new("Frame")
 			seat.Name = "Medallion"
-			seat.Position = UDim2.new(0.5, -26, 0, 0)
-			seat.Size = UDim2.fromOffset(52, 52)
+			seat.Size = UDim2.fromScale(1, 1)
 			seat.BackgroundColor3 = PARCHMENT
 			seat.BorderSizePixel = 0
 			seat.ZIndex = 24
 			seat.Parent = holder
 			local c = Instance.new("UICorner")
-			c.CornerRadius = UDim.new(0.5, 0)
+			c.CornerRadius = UDim.new(0, 8)
 			c.Parent = seat
 			local ring = Instance.new("UIStroke")
 			ring.Color = BRASS
@@ -445,15 +459,22 @@ return function(deps)
 			ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border -- never Contextual: it would stroke the text too
 			ring.Parent = seat
 			local emoji = label(seat, {
-				Size = UDim2.fromScale(1, 1), Text = patron.icon or "?", TextSize = 24, Font = Enum.Font.GothamMedium, ZIndex = 25,
+				Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 8), Text = patron.icon or "?", TextSize = 24, Font = Enum.Font.GothamMedium, ZIndex = 25,
 				TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, TextWrapped = false, TextColor3 = INK,
 			})
-			PatronPlaque.apply(seat, patron.id, { zIndex = 26, cornerRadius = 26, emojiLabel = emoji })
-			local nameLabel = label(holder, {
-				Text = patron.name or patron.id, Position = UDim2.fromOffset(0, 56), Size = UDim2.new(1, 0, 0, 40), TextSize = 15,
-				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 24, TextColor3 = TONES[mode].text,
+			local nameLabel = label(seat, {
+				Text = patron.name or patron.id, Position = UDim2.fromOffset(2, 52), Size = UDim2.new(1, -4, 1, -54), TextSize = 15,
+				Font = Enum.Font.GothamMedium, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 25, TextColor3 = INK,
 			})
 			nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			local art = PatronPlaque.apply(seat, patron.id, { zIndex = 26, cornerRadius = 8 })
+			if art and art:GetAttribute("ConceptTCard") then
+				seat.BackgroundTransparency = 1
+				ring.Enabled = false
+				emoji.Visible, nameLabel.Visible = false, false
+			elseif art then
+				emoji.Visible = false
+			end
 		end
 	end
 
@@ -481,8 +502,8 @@ return function(deps)
 		end
 		local canContinue = state.continueOffer == "free" or state.continueOffer == "paid"
 		continueButton.Visible = canContinue
+		primaryList[#primaryList + 1] = playAgainButton -- the one big green primary
 		if canContinue then primaryList[#primaryList + 1] = continueButton end
-		primaryList[#primaryList + 1] = playAgainButton
 		primaryList[#primaryList + 1] = tavernButton
 		local moreList = { shareButton, challengeButton, inviteButton, saveButton }
 		local showWin = current.showWinCard
@@ -496,7 +517,7 @@ return function(deps)
 		local sc = nil
 		if artId then
 			sc = RunOverLayout.scroll(sw, sh, { factsH = measureFacts(RunOverLayout.LEFT_W), patrons = patronN, primary = #primaryList, more = 6,
-				primaryLabels = labelsOf(primaryList), moreLabels = moreLabelsOf(moreList), textW = textW }, scrollKey)
+				bigPrimary = true, pills = true, cardSeats = true, textW = textW }, scrollKey)
 		end
 		local factsH
 		local r
@@ -528,7 +549,7 @@ return function(deps)
 			local cols = RunOverLayout.columns(sw)
 			factsH = buildFacts(cols.leftW)
 			r = RunOverLayout.compute(sw, sh, { factsH = factsH, patrons = patronN, primary = #primaryList, more = 6,
-				primaryLabels = labelsOf(primaryList), moreLabels = moreLabelsOf(moreList), textW = textW })
+				bigPrimary = true, pills = true, cardSeats = true, textW = textW })
 			panel.Size = UDim2.fromOffset(r.panel.w, r.panel.h)
 			fit.Scale = r.scale
 			content.Position = UDim2.fromOffset(0, 0)
@@ -537,6 +558,11 @@ return function(deps)
 		end
 		place(titleF, r.title)
 		place(factsF, r.facts)
+		do -- the dark plate stands PLATE_PAD past the text on every side, only on the painted scroll (the plain panel is already dark)
+			local pad = RunOverLayout.PLATE_PAD
+			place(factsPlate, { x = r.facts.x - pad, y = r.facts.y - pad, w = r.facts.w + 2 * pad, h = r.facts.h + 2 * pad })
+			factsPlate.Visible = mode == "scroll"
+		end
 		place(patronsLabel, r.patronsLabel)
 		place(patronsF, r.patrons)
 		local ax, ay = r.primary[1].x, r.primary[1].y
@@ -606,10 +632,8 @@ return function(deps)
 		continueButton.Text = state.continueOffer == "free" and "One More (Free)" or "One More Round"
 		playAgainButton.Text = isWin and "Play Again" or "Try Again" -- a calm retry after a loss
 		if isWin then
-			iconLabel.Text = "\u{1F3C6}"
 			titleLabel.Text = "Last call, but what a night! You beat the tavern."
 		else
-			iconLabel.Text = "\u{1F56F}\u{FE0F}"
 			titleLabel.Text = string.format("Last call! You made it to Night %d, Round %d.", state.night, state.round)
 		end
 
@@ -626,7 +650,7 @@ return function(deps)
 		local saved = summary ~= nil and summary.badgeSaved == true
 		saveButton.Active = summary ~= nil and not saved
 		saveButton.Text = saved and "Badge saved" or "Save Badge"
-		saveButton.BackgroundColor3 = (saved or summary == nil) and Color3.fromRGB(120, 110, 95) or GREEN
+		saveButton.BackgroundColor3 = (saved or summary == nil) and Color3.fromRGB(120, 110, 95) or WOOD
 		shareButton.Active, challengeButton.Active = summary ~= nil, summary ~= nil
 
 		local key = string.format("%s-%s-%s-%s-%s", tostring(state.night), tostring(state.round), tostring(isWin), tostring(isRevived), summary and "s" or "n")

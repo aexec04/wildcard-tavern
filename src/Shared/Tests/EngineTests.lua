@@ -21835,9 +21835,13 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	-- the painted scroll: roomy windows draw the content ON run_over_scroll_a (loss) or _b (win), ink on paper, inside the safe rect
 	local Art = require(E.ShopSceneArt)
 	local pic = panel:FindFirstChild("ScrollPicture")
+	-- 1280x720 is too short for the 135 px Patron cards plus the big button and the 44 px pills at 15 px text on the paper: the dark wood panel shows
 	root.AbsoluteSize = { X = 1280, Y = 720 }
 	P.refreshGameOver(lossState, nil)
-	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_a, "a loss at 1280x720 sits on run_over_scroll_a")
+	expectFalse(pic.Visible, "a loss at 1280x720 keeps the dark wood panel (the cut cards do not fit the paper)")
+	root.AbsoluteSize = { X = 1600, Y = 900 }
+	P.refreshGameOver(lossState, nil)
+	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_a, "a loss at 1600x900 sits on run_over_scroll_a")
 	local content = panel:FindFirstChild("Content")
 	local RL = require(E.RunOverLayout)
 	local border = FakeGui.new("Frame") -- a gold bracket border the skin adds to the panel after the scroll was applied
@@ -21848,7 +21852,7 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 	expectTrue(panel:FindFirstChild("Flavor") ~= nil, "the panel has a flavor line for the free paper under the content")
 	local art = RL.SCROLLS.a.art
 	local pw, ph = panel.Size.X.Offset, panel.Size.Y.Offset
-	expectTrue(math.abs(pw / ph - art.w / art.h) < 0.01 and pw <= 1280 and ph <= 720, "the panel is the scroll picture's size")
+	expectTrue(math.abs(pw / ph - art.w / art.h) < 0.01 and pw <= 1600 and ph <= 900, "the panel is the scroll picture's size")
 	local k = pw / art.w
 	local safeA = RL.SCROLLS.a.safe
 	expectTrue(content.Position.X.Offset >= (safeA.x - art.x) * k - 1 and content.Position.Y.Offset >= (safeA.y - art.y) * k - 1, "the content starts inside the safe rect")
@@ -21858,11 +21862,20 @@ table.insert(tests, { name = "Run Over: ONE panel for a loss and a win, named fr
 		end
 	end
 	local ink = factColor()
-	expectTrue(ink.R < 0.4 and ink.G < 0.3, "text is dark ink on the paper")
+	expectTrue(ink.R > 0.8, "facts are cream on a solid dark plate on the paper")
+	local plate = panel:FindFirstChild("FactsPlate", true)
+	expectTrue(plate ~= nil and plate.Visible and plate.BackgroundTransparency <= 0.12, "the dark facts plate (alpha 0.88 or more) shows on the paper")
+	expectTrue(panel:FindFirstChild("Title", true):FindFirstChild("RevivedBadge") ~= nil, "the title row keeps its badge")
 	expectTrue(panel:FindFirstChild("Actions", true):FindFirstChild("PlayAgain").TextColor3.R > 0.5 or true, "the plates keep their wooden look")
 	local winState = { phase = "gameover", night = 8, round = 3, wonRun = true, roundScore = 5000, targetScore = 4000, tips = 40, runSummary = summary }
 	P.refreshGameOver(winState, nil)
 	expectTrue(pic.Visible and pic.Image == Art.run_over_scroll_b, "a win sits on run_over_scroll_b")
+	local PA = panel:FindFirstChild("PlayAgain", true)
+	expectTrue(PA.Size.Y.Offset >= 56 and panel:FindFirstChild("BackToTavern", true).Size.Y.Offset < PA.Size.Y.Offset, "Play Again is the one big primary")
+	for _, nm in ipairs({ "ShareResult", "ChallengeFriend", "InviteFriends", "SaveBadge" }) do
+		local b = panel:FindFirstChild(nm, true)
+		expectTrue(b.Size.Y.Offset >= 44 and b.Size.X.Offset == panel:FindFirstChild("ShareResult", true).Size.X.Offset, nm .. " is a 44 px pill of the same size")
+	end
 	root.AbsoluteSize = { X = 390, Y = 844 }
 	P.refreshGameOver(lossState, nil)
 	expectFalse(pic.Visible, "a phone keeps the plain one column panel")
@@ -22783,6 +22796,42 @@ table.insert(tests, { name = "RunOverLayout: every button is wide enough for its
 	local sc = L.scroll(1920, 1080, { factsH = 330, patrons = 3, primary = 3, more = 6, primaryLabels = primaryAll[1], moreLabels = moreAll }, "a")
 	expectTrue(sc ~= nil and sc.flavor ~= nil, "at 1920x1080 the free paper under the content holds a flavor line")
 	expectTrue(L.Z_LIFT >= 1000, "the screen is lifted far above the play HUD")
+end })
+
+table.insert(tests, { name = "RunOverLayout: big Play Again, equal 44 px pills, 90 px Patron cards, facts plate contrast and clearance", fn = function()
+	local L = require(script.Parent.Parent.Engine.RunOverLayout)
+	local function overlap(a, b) return a.x < b.x + b.w - 0.01 and b.x < a.x + a.w - 0.01 and a.y < b.y + b.h - 0.01 and b.y < a.y + a.h - 0.01 end
+	local function lin(c) c = c / 255; return c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4 end
+	local function lum(r, g, b) return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) end
+	local plate, cream = lum(34, 24, 16), lum(250, 240, 220)
+	expectTrue((cream + 0.05) / (plate + 0.05) >= 4.5, "cream facts on the dark plate are at least 4.5:1")
+	expectTrue(L.PLATE_PAD >= 8, "the plate extends past the text")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1600, 900 }, { 1280, 720 }, { 800, 450 }, { 390, 844 } }) do
+		for _, patrons in ipairs({ 0, 3, 5, 10 }) do
+			for _, primary in ipairs({ 2, 3 }) do
+				local spec = { factsH = 330, patrons = patrons, primary = primary, more = 5, bigPrimary = true, pills = true, cardSeats = true }
+				local r = L.compute(sz[1], sz[2], spec)
+				local tag = sz[1] .. "x" .. sz[2] .. " patrons " .. patrons .. " primary " .. primary
+				expectTrue(r.primary[1].h >= L.BIG_H and r.primary[1].h > (r.primary[2] and r.primary[2].h or 0), "Play Again is the big primary at " .. tag)
+				expectEqual(#r.primary, primary, "one cell per primary at " .. tag)
+				local w0 = r.more[1].w
+				for i, c in ipairs(r.more) do
+					expectTrue(c.h >= 44, "pill " .. i .. " is 44 px tall at " .. tag)
+					expectTrue(math.abs(c.w - w0) < 0.01, "pill " .. i .. " matches the others at " .. tag)
+				end
+				expectTrue(r.patrons.seatW >= 72 and r.patrons.seatH >= 108, "cut cards are 72 px wide or more at " .. tag)
+				if patrons > 0 and patrons <= math.floor((r.patrons.w + 8) / (L.CARD_W + 8)) then expectTrue(r.patrons.seatW == L.CARD_W, "up to a row of Patrons gets 90 px cards at " .. tag) end
+				local all = { r.title, r.facts, r.patronsLabel, r.patrons }
+				for _, c in ipairs(r.primary) do all[#all + 1] = c end
+				for _, c in ipairs(r.more) do all[#all + 1] = c end
+				for i = 1, #all do
+					expectTrue(all[i].x >= 0 and all[i].x + all[i].w <= r.panel.w + 0.01 and all[i].y + all[i].h <= r.panel.h + 0.01, "block " .. i .. " is inside the panel at " .. tag)
+					for j = i + 1, #all do expectFalse(overlap(all[i], all[j]), "blocks " .. i .. " and " .. j .. " do not overlap at " .. tag) end
+				end
+				expectTrue(r.facts.x - L.PLATE_PAD >= 0 and r.facts.y - L.PLATE_PAD >= r.title.y + r.title.h - L.PLATE_PAD, "the facts plate stays inside the panel at " .. tag)
+			end
+		end
+	end
 end })
 
 table.insert(tests, { name = "Choice cards are painted parchment: wood frame with brass studs, a slight tilt each, a brass medallion, 16 px ink rule text centred in the gap, green plus and red minus", fn = function()
