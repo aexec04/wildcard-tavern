@@ -30082,4 +30082,42 @@ table.insert(tests, { name = "Run Over recap: only a Seed Run's code is tap to c
 	expectTrue(src:find("copy = seedInfo.shareable", 1, true), "only shareable seeds get the tap")
 end })
 
+table.insert(tests, { name = "Gameplay v2 audit: boss icon chip, banner and rule plate read at 4.5:1 for every rule family and stay clear of seats, controls and the hand at four sizes", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	local cream = Style.rgb("cream")
+	for tag, _ in pairs(M.TINTS) do
+		local t = M.bossTint({ tag })
+		expectTrue(CS.contrastRatio(cream, M.iconFill({ tag })) >= 4.5, tag .. " icon chip: cream glyph is 4.5:1")
+		expectTrue(CS.contrastRatio(cream, t.fill) >= 4.5, tag .. " plate fill: cream text is 4.5:1")
+	end
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local rp, bb = M.rulePlate(r), M.bossBanner(r, sz[1], sz[2])
+		if rp then
+			for _, k in ipairs({ "sortRank", "sortSuit", "hand", "stage", "mute", "calm", "bar" }) do expectTrue(not hit(rp, r[k]), sz[1] .. " rule plate clear of " .. k) end
+			for i, sl in ipairs(r.slots) do for _, p in ipairs({ "card", "label", "pill" }) do expectTrue(not hit(rp, sl[p]), sz[1] .. " rule plate clear of seat " .. i .. " " .. p) end end
+		end
+		if bb then
+			expectTrue(bb.h >= M.MIN_BANNER_H, sz[1] .. " banner tall enough for 14 px text")
+			for _, k in ipairs({ "mute", "calm" }) do expectTrue(not hit(bb, r[k]), sz[1] .. " banner clear of " .. k) end
+			for i, sl in ipairs(r.slots) do expectTrue(not hit(bb, sl.card), sz[1] .. " banner clear of seat " .. i) end
+		end
+	end
+end })
+
+table.insert(tests, { name = "Gameplay v2 audit: the My Patrons seat order label sits on a dark plate, cream on it is 4.5:1", fn = function()
+	if not io then return end
+	local f = assert(io.open("src/Client/PatronSeatStrip.lua", "r")); local src = f:read("a"); f:close()
+	local CS = require(script.Parent.Parent.Engine.CosmeticSets)
+	local Style = require(script.Parent.Parent.Engine.TavernStyle)
+	expectTrue(src:find("Color3.fromRGB(40, 30, 22)", 1, true) ~= nil and src:find("label.BackgroundTransparency = 0.15", 1, true) ~= nil, "the label has a plate")
+	local pf = Style.rgb("plateFill")
+	expectTrue(pf[1] == 40 and pf[2] == 30 and pf[3] == 22, "the plate is TavernStyle plateFill")
+	expectTrue(CS.contrastRatio(Style.rgb("cream"), pf) >= 4.5, "cream on the plate")
+end })
+
 return tests

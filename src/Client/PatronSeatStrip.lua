@@ -63,7 +63,9 @@ function M.build(parent, layoutOrder, owned, zoneW, onMove)
 		arrow(1, ">", size.groupW - size.btn)
 		local label = Instance.new("TextLabel")
 		label.Name = "Order"
-		label.BackgroundTransparency = 1
+		label.BackgroundColor3 = Color3.fromRGB(40, 30, 22) -- TavernStyle plateFill: cream on it is above 10:1 over any scene art
+		label.BackgroundTransparency = 0.15
+		local lc = Instance.new("UICorner"); lc.CornerRadius = UDim.new(0, 6); lc.Parent = label
 		label.Position = UDim2.fromOffset(size.btn + 2, 0)
 		label.Size = UDim2.fromOffset(size.groupW - size.btn * 2 - 4, size.h)
 		label.Font = Enum.Font.GothamBold

@@ -378,7 +378,7 @@ function M.boss(layer, rects, state, w, h)
 	end
 	banner.Visible = true
 	banner.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
-	banner.BossIcon.BackgroundColor3 = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
+	local icf = Rules.iconFill(bdef and bdef.rules); banner.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 	if not banner:GetAttribute("Sliding") then banner.Position = UDim2.fromOffset(rect.x, rect.y) end
 	banner.Size = UDim2.fromOffset(rect.w, rect.h)
 	local ts = math.max(14, math.min(18, rect.h - 8))

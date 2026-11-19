@@ -139,6 +139,12 @@ function M.bossTint(rules)
 	return { fill = { math.floor(c[1] * 0.45), math.floor(c[2] * 0.45), math.floor(c[3] * 0.45) }, edge = { c[1], c[2], c[3] } }
 end
 
+-- the rule icon chip: the edge colour a little darker, so the cream glyph on it is 4.5:1 for every rule family (the orange one was 3.8:1)
+function M.iconFill(rules)
+	local e = M.bossTint(rules).edge
+	return { math.floor(e[1] * 0.85), math.floor(e[2] * 0.85), math.floor(e[3] * 0.85) }
+end
+
 function M.bossText(state)
 	if not state or not state.bossModifier or (state.round or 0) < 3 then return nil, nil end
 	return state.bossModifier.name or "Boss", state.bossModifier.description or ""
