@@ -23674,6 +23674,58 @@ table.insert(tests, { name = "PatronMotion: entrance by tier, rays only for Lege
 	assert(not hc.animate and hc.lift == 0 and hc.pillScale == h.pillScale, "calm: pill is larger but nothing tweens")
 	assert(PM.isNew(nil, "a") and PM.isNew("a", "b") and not PM.isNew("a", "a") and not PM.isNew("a", nil))
 end })
+table.insert(tests, { name = "PatronTips: content, shared tags, placement clear of HUD and hand, no motion in calm mode", fn = function()
+	local PT = require(script.Parent.Parent.Engine.PatronTips)
+	local CL = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local tagged, sharedFound = 0, false
+	local ids = {}
+	for _, p in ipairs(Patrons.Definitions) do
+		ids[#ids + 1] = p.id
+		local t = PT.tagsOf(p.id)
+		assert(#t <= 2, p.id .. ": at most two tags")
+		for _, x in ipairs(t) do assert(x.tag ~= "flat" and x.word ~= "", p.id .. ": no flat tag") end
+		if #t > 0 then tagged = tagged + 1 end
+	end
+	assert(tagged > 40, "most Patrons show a tag")
+	assert(PT.sentence("+4 Mult for each Pair. Grows over time.") == "+4 Mult for each Pair.")
+	assert(PT.sentence("  One sentence only ") == "One sentence only")
+	local c = PT.content(ids[1], "Name", "+4 Mult. More.", "legendary")
+	assert(c.rarity == "Legendary" and c.effect == "+4 Mult." and c.name == "Name", "rarity is text, not colour alone")
+	assert(PT.content(ids[1], "N", "x", "bogus").rarity == "Common")
+	for i = 1, #ids - 4 do
+		local seats = { ids[i], ids[i + 1], ids[i + 2], ids[i + 3], ids[i + 4] }
+		local s = PT.sharing(seats, 1)
+		assert(not s[1], "a card never highlights itself")
+		local mine = {}
+		for _, t in ipairs(PT.tagsOf(seats[1])) do mine[t.tag] = true end
+		for j in pairs(s) do
+			sharedFound = true
+			local ok = false
+			for _, t in ipairs(PT.tagsOf(seats[j])) do if mine[t.tag] then ok = true end end
+			assert(ok, "a highlighted seat shares a shown tag")
+		end
+	end
+	assert(sharedFound, "some seats share tags")
+	assert(next(PT.sharing({ ids[1] }, 1)) == nil and next(PT.sharing({}, 1)) == nil)
+	-- placement: clear of the HUD pills, the banner, the gear and the hand at five sizes, for all five seats
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 }, { 800, 450 } }) do
+		local w, h = sz[1], sz[2]
+		local r = CL.rects(w, h)
+		local avoid = { r.coins, r.hands, r.round, r.gear, r.hand }
+		local tip = { X = math.min(280, w * 0.3), Y = math.min(110, h * 0.2) }
+		for _, card in ipairs(CL.patronRow(w, h, 5).cards) do
+			local x, y = PT.place(card, tip, avoid, { X = w, Y = h })
+			assert(x >= 0 and y >= 0 and x + tip.X <= w and y + tip.Y <= h, "tooltip inside the screen at " .. w .. "x" .. h)
+			if w >= 1024 then
+				for name, a in pairs({ coins = r.coins, hands = r.hands, round = r.round, gear = r.gear, hand = r.hand }) do
+					assert(not (x < a.x + a.w and x + tip.X > a.x and y < a.y + a.h and y + tip.Y > a.y),
+						"tooltip over " .. name .. " at " .. w .. "x" .. h)
+				end
+			end
+		end
+	end
+	assert(not PT.motion(true).animate and PT.motion(true).fade == 0 and PT.motion(false).animate)
+end })
 table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
 	local ids = {}

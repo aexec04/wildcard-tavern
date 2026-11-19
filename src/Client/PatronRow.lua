@@ -53,6 +53,27 @@ local function calm()
 	return ok and v == true
 end
 
+-- Concept T hover or long press plate with synergy tags (Client/PatronTipFX); the old generic tooltip stays on other screens
+local function tipActive()
+	local ok, v = pcall(function() return require(script.Parent.ConceptTPlay).isActive() end)
+	return ok and v == true
+end
+
+local function hideTip()
+	pcall(function() require(script.Parent.PatronTipFX).hide() end)
+end
+
+local function showTip(i, c)
+	local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
+	if not owned or not c.id or not tipActive() then return end
+	local tier = "common"
+	pcall(function() tier = CollectionBook.rarityForId("patrons", owned.id) or "common" end)
+	pcall(function()
+		require(script.Parent.PatronTipFX).show(rootRef, cards, i,
+			{ id = owned.id, name = owned.name, description = owned.description, rarity = tier }, calm())
+	end)
+end
+
 local function corner(parent, r)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, r)
@@ -235,8 +256,10 @@ local function newCard(i)
 	body.MouseEnter:Connect(function()
 		if c.id and not c.hopping then ringStroke.Transparency = 0.45 end
 		if c.id then pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end) end
+		showTip(i, c)
 	end)
 	body.MouseLeave:Connect(function()
+		hideTip()
 		if not c.hopping then ringStroke.Transparency = 1 end
 		if c.hovering then
 			pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end)
@@ -247,7 +270,9 @@ local function newCard(i)
 	body.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch and c.id then
 			pcall(function() require(script.Parent.PatronMotionFX).hover(c, true, calm()) end)
+			showTip(i, c)
 			task.delay(1.5, function()
+				hideTip()
 				if c.hovering then pcall(function() require(script.Parent.PatronMotionFX).hover(c, false, calm()) end) end
 			end)
 		end
@@ -255,6 +280,7 @@ local function newCard(i)
 	if tooltipFn then
 		tooltipFn(body, function()
 			local owned = lastState and lastState.ownedPatrons and lastState.ownedPatrons[i]
+			if owned and tipActive() then return "" end -- the Concept T plate (PatronTipFX) carries the text
 			if owned then return string.format("%s\n%s", owned.name, owned.description) end
 			return require(Engine:WaitForChild("EmptyStates")).hint("seat")
 		end)
