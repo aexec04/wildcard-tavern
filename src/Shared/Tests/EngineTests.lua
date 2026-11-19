@@ -27056,4 +27056,201 @@ table.insert(tests, { name = "TavernLife: fire 0.9 to 1.0 over 3 s, cat 1.5 perc
 	expectTrue(L.CAT.x + L.CAT.w <= 1536 and L.CAT.y + L.CAT.h <= 1024, "cat crop inside the picture")
 end })
 
+-- ===== Full run smoke test =====
+-- Plays whole runs through the same engine calls the server makes (new, play, Counter, advance, continue) with a
+-- scripted bot, and mirrors the server's profile sync, then checks the run state and the save stay valid.
+do
+	local function smokeWhole(n)
+		return type(n) == "number" and n == n and n ~= math.huge and n ~= -math.huge and n == math.floor(n)
+	end
+
+	-- every number in the save is finite, no function or userdata sneaks in (what a DataStore write needs)
+	local function scanSave(value, path, depth)
+		local kind = type(value)
+		if kind == "number" then
+			expectTrue(value == value and value ~= math.huge and value ~= -math.huge, "save number finite at " .. path)
+		elseif kind == "table" then
+			expectTrue(depth < 12, "save nests too deep at " .. path)
+			for k, v in pairs(value) do
+				expectTrue(type(k) == "string" or type(k) == "number", "save key type at " .. path)
+				scanSave(v, path .. "." .. tostring(k), depth + 1)
+			end
+		else
+			expectTrue(kind == "string" or kind == "boolean", "save value type " .. kind .. " at " .. path)
+		end
+	end
+
+	local function smokeCheck(state, label)
+		expectTrue(smokeWhole(state.tips) and state.tips >= 0, label .. ": tips whole and not negative, got " .. tostring(state.tips))
+		expectTrue(smokeWhole(state.handsRemaining) and state.handsRemaining >= 0, label .. ": hands")
+		expectTrue(smokeWhole(state.discardsRemaining) and state.discardsRemaining >= 0, label .. ": discards")
+		expectTrue(type(state.roundScore) == "number" and state.roundScore == state.roundScore and state.roundScore >= 0, label .. ": roundScore")
+		expectTrue(type(state.targetScore) == "number" and state.targetScore >= 0, label .. ": targetScore")
+		local seen, total = {}, 0
+		for _, pileName in ipairs({ "deck", "hand", "discardPile" }) do
+			for _, card in ipairs(state[pileName]) do
+				expectFalse(seen[card], label .. ": a card sits in two piles")
+				seen[card] = true
+				total = total + 1
+			end
+		end
+		expectTrue(total >= 40, label .. ": the deck kept its cards, got " .. total)
+	end
+
+	-- the bot plays the biggest legal group it can (5 down to 1 cards); a boss that wants an exact count is tried in turn
+	local function smokePlay(state)
+		for count = math.min(5, #state.hand), 1, -1 do
+			local pick = {}
+			for i = 1, count do
+				pick[i] = i
+			end
+			local ok, result = pcall(RunState.playHand, state, pick)
+			if ok then
+				return result
+			end
+		end
+		local ok = pcall(RunState.discard, state, { 1 })
+		expectTrue(ok or state.runOver, "the bot could neither play nor discard")
+		return nil
+	end
+
+	-- plays one run. mode "win" lowers every target so all rounds clear, "lose" makes round 1 unwinnable.
+	-- Returns the report the checks read.
+	local function smokeRun(seed, mode)
+		math.randomseed(seed)
+		local rng = SeededRng.new(seed)
+		local profile = PlayerProfile.new()
+		local state = RunState.new({ stakeId = 1, deckVariantId = "standard" }, rng)
+		PlayerProfile.recordRunStarted(profile)
+		state.strangerSeed = seed * 31 + 7
+		smokeCheck(state, "new")
+		local report = { rounds = 0, shopVisits = 0, bought = 0, tipsBefore = state.tips, maxNight = 1, handsPlayed = 0, wonSeen = false }
+		local steps, lowered = 0, false
+		while not state.runOver and steps < 4000 do
+			steps = steps + 1
+			if not state.roundOver then
+				if not lowered then
+					lowered = true
+					if mode == "win" then
+						state.targetScore = 1
+					else
+						state.targetScore = 1e12
+					end
+				end
+				local handsBefore = state.handsRemaining
+				local result = smokePlay(state)
+				if result and state.handsRemaining < handsBefore then
+					report.handsPlayed = report.handsPlayed + 1
+				end
+				smokeCheck(state, "play")
+			else
+				report.rounds = report.rounds + 1
+				lowered = false
+				PlayerProfile.recordNightReached(profile, state.night)
+				report.maxNight = math.max(report.maxNight, state.night)
+				if state.wonRun and not report.wonSeen then
+					report.wonSeen = true
+					PlayerProfile.recordRunWon(profile)
+					break
+				end
+				-- the Counter: roll offers, buy the first Patron the player can pay for, then leave
+				local offers = Shop.rollOffers(state)
+				report.shopVisits = report.shopVisits + 1
+				expectTrue(type(offers) == "table" and type(offers.patrons) == "table", "Counter offers a Patron list")
+				local tipsBefore = state.tips
+				for _, offer in ipairs(offers.patrons) do
+					if #state.ownedPatrons < RunState.patronSlotLimit(state) and state.tips >= RunState.patronPrice(state, offer) then
+						local owned = #state.ownedPatrons
+						local ok, bought = pcall(RunState.buyPatron, state, offer.id)
+						if ok and bought then
+							report.bought = report.bought + 1
+							expectEqual(#state.ownedPatrons, owned + 1, "a bought Patron is seated")
+							expectTrue(state.tips < tipsBefore, "buying a Patron costs Tips")
+							break
+						end
+					end
+				end
+				smokeCheck(state, "shop")
+				RunState.advanceToNextRound(state)
+				smokeCheck(state, "advance")
+			end
+		end
+		report.state, report.profile, report.steps = state, profile, steps
+		return report
+	end
+
+	table.insert(tests, { name = "Smoke run: a full winning run goes from round 1 to the final Night, buys at the Counter and keeps a valid save", fn = function()
+		local report = smokeRun(11, "win")
+		local state = report.state
+		expectTrue(report.steps < 4000, "the run ended on its own")
+		expectTrue(state.wonRun, "the run is won")
+		expectEqual(report.maxNight, state.config.nightCap, "reached the last Night")
+		expectTrue(report.rounds >= state.config.nightCap * state.config.roundsPerNight - 1, "cleared every round, got " .. report.rounds)
+		expectTrue(report.shopVisits >= 3, "the Counter opened between rounds")
+		expectTrue(report.handsPlayed >= report.rounds, "every round took at least one played hand")
+		local profile = report.profile
+		expectEqual(profile.stats.runsStarted, 1)
+		expectEqual(profile.stats.runsWon, 1)
+		expectEqual(profile.stats.bestNightReached, state.config.nightCap)
+		scanSave(profile, "profile", 0)
+		-- the save loads back the way a new session reads it, and nothing is lost
+		local again = PlayerProfile.migrate(profile)
+		expectEqual(again.stats.runsWon, 1, "runsWon survives a save and load")
+		expectEqual(again.stats.bestNightReached, state.config.nightCap, "best Night survives a save and load")
+		scanSave(again, "migrated", 0)
+	end })
+
+	table.insert(tests, { name = "Smoke run: round 1 can be lost, the run ends cleanly and the save stays valid", fn = function()
+		local report = smokeRun(12, "lose")
+		local state = report.state
+		expectTrue(state.runOver, "the run is over")
+		expectFalse(state.wonRun, "a lost run is not won")
+		expectEqual(state.night, 1)
+		expectEqual(state.handsRemaining, 0, "every hand was used before the loss")
+		expectTrue(report.handsPlayed >= 1, "hands were played")
+		expectEqual(report.rounds, 0, "no round was cleared")
+		local profile = report.profile
+		expectEqual(profile.stats.runsStarted, 1)
+		expectEqual(profile.stats.runsWon, 0)
+		scanSave(profile, "profile", 0)
+		scanSave(PlayerProfile.migrate(profile), "migrated", 0)
+	end })
+
+	table.insert(tests, { name = "Smoke run: after losing round 3, One More Round puts the run back at the start of that round with all its hands", fn = function()
+		math.randomseed(13)
+		local rng = SeededRng.new(13)
+		local state = RunState.new({ stakeId = 1, deckVariantId = "standard" }, rng)
+		-- clear rounds 1 and 2 the quick way
+		for _ = 1, 2 do
+			state.targetScore = 1
+			expectTrue(smokePlay(state) ~= nil, "a hand played")
+			expectTrue(state.roundOver, "round cleared")
+			Shop.rollOffers(state)
+			RunState.advanceToNextRound(state)
+			smokeCheck(state, "advance")
+		end
+		expectEqual(state.round, 3)
+		local hands, discards = state.handsRemaining, state.discardsRemaining
+		state.targetScore = 1e12
+		local guard = 0
+		while not state.runOver and guard < 50 do
+			guard = guard + 1
+			smokePlay(state)
+		end
+		expectTrue(state.runOver, "round 3 was lost")
+		expectTrue(RunState.canContinue(state), "One More Round is on offer")
+		RunState.useContinue(state)
+		expectFalse(state.runOver, "the run is alive again")
+		expectEqual(state.round, 3, "back in round 3")
+		expectEqual(state.handsRemaining, hands, "hands restored")
+		expectEqual(state.discardsRemaining, discards, "discards restored")
+		expectFalse(RunState.canContinue(state), "only one continue per run")
+		smokeCheck(state, "continue")
+		-- and the revived round can still be won
+		state.targetScore = 1
+		expectTrue(smokePlay(state) ~= nil, "a hand played after the continue")
+		expectTrue(state.roundOver and not state.runOver, "the revived round is cleared")
+	end })
+end
+
 return tests
