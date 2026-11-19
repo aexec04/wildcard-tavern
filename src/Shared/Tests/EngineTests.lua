@@ -30522,6 +30522,42 @@ table.insert(tests, { name = "Button labels: the word draws above every skin pla
 	expectTrue(has("TavernScreens.lua", "NEXT_ROUND") and has("TavernScreens.lua", 'name == "PlayAgain"'), "Run Over Play Again uses the bright green")
 end })
 
+table.insert(tests, { name = "Button labels: Play Hand and Discard keep a readable word when the hit box is see-through, every KitLabel with text has TextTransparency below 0.5", fn = function()
+	if not (io and io.open) then return end
+	local FakeGui = require(script.Parent.FakeGui)
+	local B = FakeGui.load("src/Client/ButtonLabelTop.lua", FakeGui.env({ stubs = {} }))
+	assert(B.MAX_TRANSPARENCY == 0.5)
+	local root = FakeGui.new("Frame")
+	for _, word in ipairs({ "Play Hand", "Discard" }) do
+		local b = FakeGui.new("TextButton")
+		b.ZIndex, b.Text, b.Name = 6, word, word
+		local plate = FakeGui.new("Frame"); plate.ZIndex = 6; plate.Parent = b
+		b.Parent = root
+		B.attach(b) -- HudTheme and SetSkin attach the mirror first (the order that caused the blank plates)
+		-- Gameplay2 then makes the button a see-through hit box and takes the word over
+		b.BackgroundTransparency = 1
+		b.TextTransparency, b.TextStrokeTransparency = 1, 1
+		local label = B.own(b, word, 22, 7)
+		assert(b.Text == "" and label.Text == word and label.TextTransparency == 0, word .. " is drawn by its own label: [" .. tostring(b.Text) .. "] [" .. tostring(label.Text) .. "] " .. tostring(label.TextTransparency))
+		b.TextTransparency = 1; b.Text = ""; b.TextStrokeTransparency = 1 -- later writes by other modules (fades, the sweep)
+		b.ZIndex = 9; b.TextSize = 14; b.Text = ""
+		assert(label.Text == word, word .. " keeps its text after the button is blanked again")
+		assert(label.TextTransparency < 0.5 and label.Visible, word .. " stays readable after the button hides its own text")
+	end
+	-- an ordinary mirrored label (Run Over, Counter) still follows its button
+	local plain = FakeGui.new("TextButton"); plain.Text = "Try Again"; plain.Parent = root
+	local pl = B.attach(plain)
+	plain.Text = "Play Again"
+	assert(pl.Text == "Play Again", "a mirrored label still follows its button")
+	assert(#B.audit(root) == 0, "no readable word is hidden under the table")
+	pl.TextTransparency = 1
+	assert(#B.audit(root) == 1, "the audit finds a hidden word")
+	local f = io.open("src/Client/Gameplay2.lua", "r"); local g = f:read("a"); f:close()
+	assert(g:find("ButtonLabelTop).own", 1, true), "Gameplay2 takes the label over through the shared helper")
+	f = io.open("src/Client/AuditV2.lua", "r"); local a = f:read("a"); f:close()
+	assert(a:find("KitLabel", 1, true) and a:find("TextTransparency", 1, true), "the Studio audit prints every KitLabel")
+end })
+
 table.insert(tests, { name = "Run Over: the old deck widget and its corner brackets are hidden, shown on every other phase", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	expectTrue(L.deckWidgetShown("gameover") == false, "hidden on Run Over")

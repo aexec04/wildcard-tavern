@@ -29,6 +29,14 @@ function M.run()
 			if i == 1 and #a.warnings > 0 then warn("[AuditV2] " .. line) else print("[AuditV2] " .. line) end
 		end
 	end
+	pcall(function() -- every drawn button word is readable: prints each KitLabel under GameUI with its text and TextTransparency
+		local pg = game:GetService("Players").LocalPlayer.PlayerGui
+		local B = require(script.Parent.ButtonLabelTop)
+		for _, d in ipairs(pg:GetDescendants()) do
+			if d.Name == "KitLabel" and d:IsA("TextLabel") and d.Text ~= "" then print(string.format("[AuditV2] KitLabel %s text=%q TextTransparency=%.2f visible=%s", d:GetFullName(), d.Text, d.TextTransparency, tostring(d.Visible))) end
+		end
+		for _, d in ipairs(B.audit(pg)) do warn("[AuditV2] unreadable KitLabel: " .. d:GetFullName()) end
+	end)
 	pcall(function() -- live GuiObject count under the limit (Engine/Gameplay2Perf); run it at round start and again during scoring
 		local Perf = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Gameplay2Perf"))
 		local pg = game:GetService("Players").LocalPlayer.PlayerGui

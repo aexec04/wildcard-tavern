@@ -219,25 +219,10 @@ function M.install(deps)
 
 	-- the label is its own TextLabel above the button's plate: the button's own Text is blanked so the word is drawn once, on top
 	local function buttonLabel(b, text)
-		local l = b:FindFirstChild("KitLabel")
-		if not l then
-			l = Instance.new("TextLabel")
-			l.Name = "KitLabel"
-			l.BackgroundTransparency = 1
-			l.Size = UDim2.fromScale(1, 1)
-			l.Font = Enum.Font[Style.FONTS.ui]
-			l.TextColor3 = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
-			l.TextTransparency = 0
-			l.TextStrokeTransparency = 0.3
-			l.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3])
-			l.Active = false
-			l.Parent = b
-		end
-		l.Visible = true
-		l.ZIndex = Z_BTN + 1
-		l.Text = text
-		l.TextSize = math.max(Style.TEXT.button, math.min(24, math.floor(b.AbsoluteSize.Y * 0.4)))
-		b.Text = ""
+		local cream = Style.rgb("cream")
+		local l = require(script.Parent.ButtonLabelTop).own(b, text, math.max(Style.TEXT.button, math.min(24, math.floor(b.AbsoluteSize.Y * 0.4))), Z_BTN + 1, Color3.fromRGB(cream[1], cream[2], cream[3]))
+		l.Font = Enum.Font[Style.FONTS.ui]
+		l.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3])
 	end
 
 	local function restoreOld()

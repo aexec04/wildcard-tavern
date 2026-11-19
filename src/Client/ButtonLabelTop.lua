@@ -50,6 +50,47 @@ function ButtonLabelTop.sweep(root)
 	return fixed
 end
 
+-- A screen that draws its own word (Gameplay2's Play Hand and Discard: the button is a see-through hit box, its Text is blank and its
+-- TextTransparency 1) takes the label over: the label keeps its own text and stays fully visible whatever the button does. Without
+-- this the mirror copied the hit box's TextTransparency 1 onto the word and the plates read blank (Nov 19). Returns the label.
+function ButtonLabelTop.own(button, text, size, z, color)
+	local label = ButtonLabelTop.attach(button) or button:FindFirstChild("KitLabel")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "KitLabel"
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, 1)
+		label.Active = false
+		label.Parent = button
+	end
+	label:SetAttribute("OwnLabel", true)
+	label.Visible = true
+	label.BackgroundTransparency = 1
+	label.TextTransparency = 0
+	label.TextStrokeTransparency = 0.3
+	label.Text = text
+	if size then label.TextSize = size end
+	if z then label.ZIndex = z end
+	if color then label.TextColor3 = color end
+	button.Text = ""
+	return label
+end
+
+-- pure rule, tested: a drawn word below this transparency can be read; a disabled look may dim it to 0.35, never hide it
+ButtonLabelTop.MAX_TRANSPARENCY = 0.5
+
+-- every KitLabel under root that has a word, is shown and cannot be read (Studio prints these, a test expects none)
+function ButtonLabelTop.audit(root)
+	local bad = {}
+	if not root then return bad end
+	for _, d in ipairs(root:GetDescendants()) do
+		if d.Name == "KitLabel" and d:IsA("TextLabel") and d.Text ~= "" and d.Visible ~= false and (d.TextTransparency or 0) >=ButtonLabelTop.MAX_TRANSPARENCY then
+			bad[#bad + 1] = d
+		end
+	end
+	return bad
+end
+
 function ButtonLabelTop.attach(button)
 	if not button or not button:IsA("TextButton") then return nil end
 	local existing = button:FindFirstChild("KitLabel")
@@ -63,7 +104,7 @@ function ButtonLabelTop.attach(button)
 	label.Position = UDim2.fromScale(0, 0)
 	local busy = false
 	local function sync()
-		if busy then return end
+		if busy or label:GetAttribute("OwnLabel") == true then return end -- an owned label (ButtonLabelTop.own) is never overwritten by its button
 		busy = true
 		for _, p in ipairs(MIRROR) do
 			local ok, v = pcall(function() return button[p] end)
