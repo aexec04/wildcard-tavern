@@ -164,16 +164,23 @@ function M.show()
 		t.Size = UDim2.fromScale(1, 1)
 	end
 
-	-- the scoring stage: hand name, big gold total over a glow ring
+	-- the scoring stage: hand name (white, outlined), big bright gold total (dark outline) over the glow plate with its bright rim
+	-- positions measured from the reference: name centre y 0.571, total centre y 0.630, rim centre y 0.646, rim 0.206 wide
 	local st = r.stage
-	local ringW = math.floor(size.X * 0.26)
+	local cx = st.x + st.w / 2
+	local ringW = math.floor(size.X * 0.27)
+	local ringH = math.floor(ringW * 340 / 1024)
 	local ring = img(gui, "ct_glow_ring", 2)
-	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	ring.Position = UDim2.fromOffset(st.x + st.w / 2, st.y + math.floor(st.h * 0.74))
-	ring.Size = UDim2.fromOffset(ringW, math.floor(ringW / 3))
+	ring.Position = UDim2.fromOffset(math.floor(cx - ringW / 2), math.floor(size.Y * 0.646 - ringH * 0.66))
+	ring.Size = UDim2.fromOffset(ringW, ringH)
 	ring.Parent = gui
-	local nm = label(gui, S.stage.name, 22, 4); at(nm, { x = st.x, y = st.y, w = st.w, h = math.floor(st.h * 0.3) })
-	local tot = label(gui, S.stage.total, 54, 4, Color3.fromRGB(246, 196, 70)); at(tot, { x = st.x, y = st.y + math.floor(st.h * 0.3), w = st.w, h = math.floor(st.h * 0.7) })
+	local nameH, totH = math.floor(size.Y * 0.05), math.floor(size.Y * 0.09)
+	local nm = label(gui, S.stage.name, math.max(15, math.floor(size.Y * 0.036)), 4, Color3.fromRGB(255, 250, 235))
+	nm.TextStrokeTransparency = 0
+	nm.Position = UDim2.fromOffset(st.x, math.floor(size.Y * 0.571 - nameH / 2)); nm.Size = UDim2.fromOffset(st.w, nameH)
+	local tot = label(gui, S.stage.total, math.max(15, math.floor(size.Y * 0.075)), 4, Color3.fromRGB(246, 196, 70))
+	tot.TextStrokeColor3 = Color3.fromRGB(60, 30, 8); tot.TextStrokeTransparency = 0
+	tot.Position = UDim2.fromOffset(st.x, math.floor(size.Y * 0.630 - totH / 2)); tot.Size = UDim2.fromOffset(st.w, totH)
 
 	-- the fanned hand of seven, drawn through the game's own card face
 	local CardFace = require(script.Parent.CardFace)
