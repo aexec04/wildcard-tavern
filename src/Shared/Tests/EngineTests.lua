@@ -23512,6 +23512,23 @@ table.insert(tests, { name = "HandFlow: play slide, tick lift, total pop, discar
 	assert(math.abs(f.delay - 0.1) < 1e-9 and f.flipFrom < 1 and HF.dealFlip(3, 7, true) == nil, "deal 0.05 s stagger with a flip")
 	assert(select(1, PM.dealTiming(3, 7)) == f.delay, "deal arc uses the same stagger")
 end })
+table.insert(tests, { name = "PatronCallout: green Chips and Mult, blue x Mult, rise 24 px over 0.6 s, static 0.4 s in calm, one popup at a time per card", fn = function()
+	local PC = require(script.Parent.Parent.Engine.PatronCallout)
+	assert(PC.colorKey("chips") == "green" and PC.colorKey("mult") == "green" and PC.colorKey("xmult") == "blue" and PC.colorKey("money") == "gold")
+	local s, c = PC.spec(false), PC.spec(true)
+	assert(s.rise == 24 and s.dur == 0.6 and s.hop == 0.12 and not s.static, "rise 24 px, 0.6 s, hop 0.12 s")
+	assert(c.rise == 0 and c.hop == 0 and c.dur == 0.4 and c.static, "calm: static label for 0.4 s, no motion")
+	local a, aEnd = PC.schedule(10, nil, false)
+	local b, bEnd = PC.schedule(10.3, aEnd, false)
+	assert(a == 10 and aEnd == 10.6 and b == 10.6 and math.abs(bEnd - 11.2) < 1e-9, "a second popup on the same card waits for the first")
+	assert(PC.schedule(20, 10.6, false) == 20, "an idle card starts at once")
+	local function lum(col) local function f(v) v = v / 255; return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end return 0.2126 * f(col[1]) + 0.7152 * f(col[2]) + 0.0722 * f(col[3]) end
+	local plate = lum({ 28, 18, 10 })
+	for _, k in ipairs({ "chips", "xmult", "money" }) do
+		local l = lum(PC.color(k))
+		assert((l + 0.05) / (plate + 0.05) >= 4.5, k .. " popup colour reads on the dark plate")
+	end
+end })
 table.insert(tests, { name = "Confetti: none in calm mode, fewer on Fast, more for a Boss clear, gold and purple, same seed same pieces", fn = function()
 	local C = require(script.Parent.Parent.Engine.Confetti)
 	assert(C.count(true, false, true) == 0, "calm: no confetti")

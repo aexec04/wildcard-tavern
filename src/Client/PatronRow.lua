@@ -1028,7 +1028,13 @@ function M.trigger(patronId, event, fast)
 		local t = PatronEvents.rarityRim(CollectionBook.rarityForId("patrons", patronId))
 		rim = Color3.fromRGB(t[1], t[2], t[3])
 	end)
-	pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen, rim)
+	-- the serif callout rises 24 px over 0.6 s (static 0.4 s in calm mode, one per card in order); the Studio slow
+	-- modes keep the old pill because it can be frozen for screenshots
+	if hold or frozen then
+		pill(holder, text, KIND_COLOR[key] or KIND_COLOR.chips, 18, key == "xmult", hostX, hostY, rise, hold, frozen, rim)
+	else
+		require(script.Parent.PatronCalloutFX).show(holder, patronId, text, key, hostX, r.Position.Y.Offset)
+	end
 	-- every other Patron dims to 70 percent while this one triggers
 	dimToken = dimToken + 1
 	local mine = dimToken
