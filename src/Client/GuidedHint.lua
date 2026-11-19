@@ -114,6 +114,11 @@ function M.update(layer, state, selectedCount, firstCard, playButton, r, cards)
 			local t0 = os.clock()
 			pulseLoop = FxLoop.add(function()
 				if not outline or outline.Parent == nil or not outline.Enabled then pulseLoop = nil; return true end
+				if ClientSettings.get("reduceShake") == true then -- Calm mode switched on: a steady outline, loop ends
+					outline.Transparency = 0
+					pulseLoop = nil
+					return true
+				end
 				outline.Transparency = 0.3 + 0.3 * math.sin((os.clock() - t0) * math.pi / 0.7) -- 0 to 0.6 over 1.4 s, on the one loop
 			end, 0.05)
 		elseif not hint.pulse then

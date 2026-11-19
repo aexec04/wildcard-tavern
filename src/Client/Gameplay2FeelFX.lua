@@ -53,6 +53,11 @@ function M.setLegal(btn, legal)
 	local t0 = os.clock()
 	glowLoops[btn] = FxLoop.add(function()
 		if not btn.Parent then glowLoops[btn] = nil; return true end
+		if calm() then -- Calm mode or Reduce motion switched on mid run: the ring goes still at once and the loop ends
+			s.Transparency = 1 - Rules.glow(0, true)
+			glowLoops[btn] = nil
+			return true
+		end
 		s.Transparency = 1 - Rules.glow(os.clock() - t0, false)
 	end, 0.05)
 end

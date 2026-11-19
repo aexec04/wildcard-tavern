@@ -94,13 +94,16 @@ function RoomLights.attach(parent, opts)
 		if r then frame(0, true) end
 	end
 
+	local wasCalm = false
 	local conn = require(script.Parent.FxLoop).add(function()
 		if not rect or not (opts.visible and opts.visible()) then return end
 		local calm = isCalm()
 		if calm then
 			for _, m in ipairs(motes) do m.Visible = false end
+			if not wasCalm then wasCalm = true; frame(0, true) end -- Calm mode switched on: glows settle to their still values at once
 			return
 		end
+		wasCalm = false
 		for _, m in ipairs(motes) do m.Visible = true end
 		frame(os.clock(), false)
 	end, STEP)

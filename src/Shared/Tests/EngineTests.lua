@@ -29783,6 +29783,48 @@ table.insert(tests, { name = "Boss plate: icon chip never covers the text (12 px
 	expectTrue(read("src/Client/Gameplay2MomentsFX.lua"):find("Born", 1, true), "a stale boss intro is removed")
 end })
 
+table.insert(tests, { name = "Gear toggles: Calm, Reduce motion, Sound, Music and Hints take effect at once and persist through the profile, looping FX re-check Calm every tick", fn = function()
+	local G = require(script.Parent.Parent.Engine.GearMenu)
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local PP = require(script.Parent.Parent.Engine.PlayerProfile)
+	local prof = PP.new()
+	local function apply(id)
+		-- what the client does: read the live settings, take the writes, set each key (the server stores the same through setSetting)
+		local cur = {}
+		for k, v in pairs(prof.settings) do cur[k] = v end
+		for k, v in pairs(G.writes(id, cur)) do
+			local ok, msg = PP.setSetting(prof, k, v)
+			expectTrue(ok or msg == "Unchanged", "setting " .. k .. " accepted by the profile: " .. tostring(msg))
+		end
+	end
+	expectTrue(not A.calm(prof.settings), "calm is off at the start")
+	apply("calm")
+	expectTrue(A.calm(prof.settings) and G.view(prof.settings).calm.on and G.duration(A.calm(prof.settings)) == 0, "Calm on: motion off at once, drop down has no slide")
+	expectTrue(prof.settings.reduceMotion and prof.settings.reduceFlashing and prof.settings.reduceShake, "Calm sets all three")
+	apply("calm")
+	expectTrue(not A.calm(prof.settings) and G.duration(false) > 0, "Calm off: motion is back")
+	apply("reduceMotion")
+	expectTrue(A.calm(prof.settings) and G.view(prof.settings).reduceMotion.state == "On", "Reduce motion alone also reads as calm for every loop")
+	apply("reduceMotion")
+	expectTrue(not A.calm(prof.settings), "Reduce motion off: back")
+	apply("sound"); expectTrue(prof.settings.sfxVolume == 0 and not G.view(prof.settings).sound.on, "Sound off writes sfxVolume 0")
+	apply("sound"); expectTrue(prof.settings.sfxVolume == 1 and G.view(prof.settings).sound.on, "Sound on writes 1")
+	apply("music"); expectTrue(prof.settings.musicVolume == 0 and not G.view(prof.settings).music.on, "Music off writes musicVolume 0")
+	apply("music"); expectTrue(prof.settings.musicVolume == G.MUSIC_DEFAULT, "Music on restores the default")
+	apply("hints"); expectTrue(prof.settings.roundHints == false, "Hints off")
+	apply("hints"); expectTrue(prof.settings.roundHints == true, "Hints on")
+	-- persistence: the saved profile comes back with the toggles as left
+	apply("calm"); apply("music")
+	local back = PP.migrate(prof)
+	expectTrue(back.settings.reduceMotion == true and back.settings.reduceShake == true and back.settings.musicVolume == 0, "saved toggles survive a reload")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	expectTrue(read("src/Client/Gameplay2FeelFX.lua"):find("switched on mid run", 1, true), "the legal move glow loop stops itself when Calm switches on")
+	expectTrue(read("src/Client/GuidedHint.lua"):find("Calm mode switched on: a steady outline", 1, true), "the guided pulse stops itself")
+	expectTrue(read("src/Client/RoomLights.lua"):find("wasCalm", 1, true), "room glows settle to still values at once")
+	expectTrue(read("src/Client/GearMenu.lua"):find("G.duration(calm())", 1, true), "the drop down reads Calm live each time it opens")
+end })
+
 table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
