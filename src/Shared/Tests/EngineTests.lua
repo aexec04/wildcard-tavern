@@ -28531,6 +28531,40 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 	end
 end })
 
+table.insert(tests, { name = "Gameplay v2 live fixes: disc below the name strip, one unit pill, bar order, split sort plates, every plate has text and a z above its parent", fn = function()
+	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, w in ipairs({ 60, 90, 140, 200 }) do
+		local h = math.floor(w / 0.712)
+		local d = T.discRect(w, h)
+		assert(d.y >= h, "the disc starts at or below the card bottom, so it never covers the name strip (w " .. w .. ")")
+		assert(d.x >= 0 and d.x + d.w <= w, "disc inside the card width")
+	end
+	assert(T.unitText("+4 Mult") == "Mult" and T.unitText("+30 Chips") == "Chips" and T.unitText("x1.5 Mult") == "Mult")
+	assert(T.unitText("Retrigger") == "Retrigger" and T.unitText("") == "")
+	assert(T.style("uncommon").gem and not T.style("common").gem and T.style("common").coverGem, "uncommon has a green gem, common hides the cut card's gold one")
+	assert(T.style("common").tint[1] < 255 and T.style("common").thickness >= 4, "common is plainer: desaturated portrait, heavy dark frame")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		for i = 1, 5 do
+			local card, label = r.slots[i].card, r.slots[i].label
+			local d = T.discRect(card.w, card.h)
+			assert(card.y + d.y + d.h <= label.y, "the label starts under the disc at " .. w .. "x" .. h)
+		end
+		assert(r.target.x < r.round.x and r.round.x < r.tips.x, "Target left, the Night name in the middle, Tips right")
+		assert(r.sortSuit.x - (r.sortRank.x + r.sortRank.w) >= 8, "two separate sort plates with an 8 px gap")
+		assert(r.discard.x - (r.play.x + r.play.w) >= 10 and r.play.w >= 120 and r.play.h >= 44)
+	end
+	if not io then return end
+	local f = io.open("src/Client/Gameplay2.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("local function raise", 1, true) and src:find("raise(target", 1, true), "pill and box children are lifted above their plate (Global ZIndex)")
+	assert(src:find("KitLabel", 1, true), "Play Hand and Discard draw their word on a label above the plate")
+	assert(src:find("CenterScore", 1, true), "the felt centre shows the round score")
+end })
+
 table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ in shape and size, taller grows up, power disc 4.5:1, labels clear the disc, motion on FxLoop and still in Calm mode", fn = function()
 	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
 	local S = require(script.Parent.Parent.Engine.TavernStyle)

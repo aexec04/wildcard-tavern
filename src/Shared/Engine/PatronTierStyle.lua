@@ -20,9 +20,9 @@ M.ORDER = { "common", "uncommon", "rare", "epic", "legendary" }
 -- shape: the silhouette of the frame; grow: extra size as a fraction of the card (taller grows upward)
 -- pulse / shimmer / float are seconds or pixels (0 = none); sparks and rays are counts
 M.TIERS = {
-	common = { shape = "plain", rgb = { 92, 62, 34 }, trimRgb = nil, thickness = 3, growW = 0, growH = 0, glow = 0, pulse = 0,
-		studs = 0, crown = false, halo = false, sparks = 0, rays = 0, float = 0, shimmer = 0, breakOut = 0, tint = { 215, 208, 200 } },
-	uncommon = { shape = "trim", rgb = { 120, 150, 120 }, trimRgb = { 190, 210, 190 }, thickness = 2, growW = 0, growH = 0, glow = 0.25, pulse = 0,
+	common = { shape = "plain", rgb = { 58, 38, 20 }, trimRgb = nil, thickness = 4, gem = nil, coverGem = true, growW = 0, growH = 0, glow = 0, pulse = 0,
+		studs = 0, crown = false, halo = false, sparks = 0, rays = 0, float = 0, shimmer = 0, breakOut = 0, tint = { 196, 192, 186 } }, -- about 25 percent toward grey
+	uncommon = { shape = "trim", rgb = { 120, 150, 120 }, trimRgb = { 190, 210, 190 }, thickness = 3, gem = { 70, 190, 100 }, growW = 0, growH = 0, glow = 0.25, pulse = 0,
 		studs = 0, crown = false, halo = false, sparks = 0, rays = 0, float = 0, shimmer = 0, breakOut = 0, tint = { 255, 255, 255 } },
 	rare = { shape = "studs", rgb = { 70, 110, 170 }, trimRgb = { 150, 180, 220 }, thickness = 4, growW = 0, growH = 0, glow = 0.35, pulse = 3,
 		studs = 4, crown = false, halo = false, sparks = 0, rays = 0, float = 0, shimmer = 0, breakOut = 0, tint = { 255, 255, 255 } },
@@ -53,6 +53,23 @@ end
 
 function M.discDiameter(w)
 	return math.max(28, round((tonumber(w) or 0) * 0.30))
+end
+
+-- The power disc hangs WHOLLY below the card (its top touches the card's bottom edge plus 2 px), so it can never cover the name strip.
+-- Returns { x, y, w, h } relative to a w x h card slot.
+function M.discRect(w, h)
+	local d = M.discDiameter(w)
+	return { x = round((w - d) / 2), y = h + 2, w = d, h = d }
+end
+
+-- Height of the band under the card that the disc owns; the rarity label starts under it
+function M.discBand(w) return M.discDiameter(w) + 2 end
+
+-- The effect pill shows only the unit when the disc already shows the number ("+4 Mult" -> "Mult"); text without a number stays whole
+function M.unitText(valueText)
+	local t = tostring(valueText or ""):gsub("^%s+", ""):gsub("%s+$", "")
+	local rest = t:match("^[%+%-xX]?%d[%d%.,]*%%?%s+(.+)$")
+	return rest or t
 end
 
 function M.numeral(valueText)

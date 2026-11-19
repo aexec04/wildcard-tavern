@@ -26,6 +26,7 @@ M.MIN_W, M.MIN_H = 640, 360
 M.MIN_TOUCH = 44
 M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
 M.SEATS = 5
+M.SORT_GAP = 8
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
 
@@ -40,7 +41,7 @@ function M.patronRow(w, h, n)
 	local labelH, pillH = math.max(16, round(0.036 * h)), math.max(18, round(0.042 * h))
 	local ch = round(0.205 * h)
 	local cw = round(ch * M.CARD_ASPECT)
-	local half = math.ceil(TierStyle.discDiameter(cw) / 2) -- the power disc hangs this far below the card, the label sits under it
+	local half = TierStyle.discBand(cw) -- the power disc hangs wholly below the card (never over its name strip), the label sits under it
 	local gap = math.max(8, round(0.014 * w))
 	local span = M.SEATS * cw + (M.SEATS - 1) * gap
 	local x0 = round((w - span) / 2)
@@ -67,9 +68,10 @@ function M.rects(w, h)
 	r.bar = box(barX, barY, barW, barH)
 	local inner = 6
 	local ih = barH - 2 * inner
-	r.round = box(barX + inner, barY + inner, round(barW * 0.36), ih)
-	r.target = box(r.round.x + r.round.w + inner, barY + inner, round(barW * 0.34), ih)
-	local tx = r.target.x + r.target.w + inner
+	-- Target on the left, the Night and Round name in the middle of the bar, Tips on the right
+	r.target = box(barX + inner, barY + inner, round(barW * 0.31), ih)
+	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * 0.34), ih)
+	local tx = r.round.x + r.round.w + inner
 	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
 	-- Patron seats
 	local row = M.patronRow(w, h, M.SEATS)
@@ -96,15 +98,15 @@ function M.rects(w, h)
 	r.hand = box(round((w - handW) / 2), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
 	local stTop = rowBottom + 8
-	local stH = math.max(40, handTop - 6 - stTop)
+	local stH = math.max(24, handTop - 6 - stTop) -- the score is one quiet line, so a short stage is fine
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
 	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
-	local sw = math.max(56, math.min(round(0.07 * w), math.floor((r.hand.x - 2 * pad) / 2)))
+	local sw = math.max(56, math.min(round(0.07 * w), math.floor((r.hand.x - 2 * pad - M.SORT_GAP) / 2)))
 	local sh = M.MIN_TOUCH
 	local sy = handTop + round((handH - sh) / 2)
 	r.sortRank = box(pad, sy, sw, sh)
-	r.sortSuit = box(pad + sw, sy, sw, sh)
+	r.sortSuit = box(pad + sw + M.SORT_GAP, sy, sw, sh) -- two separate plates with a gap between
 	-- deck: right of the hand, count plate under it
 	local dw = math.min(round(0.115 * w), w - (r.hand.x + r.hand.w) - 2 * pad)
 	local dh = round(dw * 1.1)

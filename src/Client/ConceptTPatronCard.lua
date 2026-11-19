@@ -45,8 +45,9 @@ function M.set(slot, tier, valueText, hasCard)
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 30)
 	pill.Size = UDim2.new(0.92, 0, 0, 26)
-	if v2 then -- Gameplay v2: the tier frame and the power disc hang below the card, the pills sit under the disc
-		local half = math.ceil(require(Engine:WaitForChild("PatronTierStyle")).discDiameter(slot.AbsoluteSize.X) / 2)
+	if v2 then -- Gameplay v2: the power disc hangs wholly below the card, the pills sit under it
+		local TierStyle = require(Engine:WaitForChild("PatronTierStyle"))
+		local half = TierStyle.discBand(slot.AbsoluteSize.X)
 		label = slot:FindFirstChild("CTLabel") -- RarityPill.set just made or refreshed it
 		if label then label.Position = UDim2.new(0.5, 0, 1, 2 + half) end
 		pill.Position = UDim2.new(0.5, 0, 1, 30 + half)
@@ -67,7 +68,7 @@ function M.set(slot, tier, valueText, hasCard)
 		t.ZIndex = 13
 		t.Parent = pill
 	end
-	t.Text = Layout.cleanValue(valueText)
+	t.Text = Layout.cleanValue(v2 and require(Engine:WaitForChild("PatronTierStyle")).unitText(valueText) or valueText) -- v2: the disc holds the number, the pill the unit
 end
 
 return M

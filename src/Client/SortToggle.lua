@@ -98,8 +98,12 @@ function SortToggle.build(parent, onPick)
 		local p = HudStyle.buttonPalette(HudTheme.skin().colors, "sort")
 		-- Flat (Concept T play screen): a plain wood pill, no outer ring or divider line, the picked half in warm cream
 		local flat = frame:GetAttribute("Flat") == true
-		outer.Visible = not flat
-		divider.Visible = not flat
+		-- Split (Gameplay v2): no shared track; each half is its own brown plate with a gold edge (TavernKit secondary look)
+		local split = frame:GetAttribute("Split") == true
+		outer.Visible = not flat and not split
+		divider.Visible = not flat and not split
+		frame.BackgroundTransparency = split and 1 or 0
+		inner.Enabled = not split
 		frame.BackgroundColor3 = c3(p.fill)
 		inner.Color = c3(p.inner)
 		os.Color = c3(p.outer)
@@ -110,8 +114,9 @@ function SortToggle.build(parent, onPick)
 			-- the picked half is an inset of the plate itself: a lighter tone of the plate's own wood with a thin gold line, not a flat cream block
 			local lighter = flat and Color3.fromRGB(240, 222, 178) or c3(p.fill):Lerp(Color3.fromRGB(205, 160, 96), 0.22)
 			local bg = on and lighter or c3(p.hover)
-			b.BackgroundTransparency = lit and 0 or 1
-			b.BackgroundColor3 = bg
+			b.BackgroundTransparency = (lit or split) and 0 or 1
+			b.BackgroundColor3 = split and (on and Color3.fromRGB(240, 222, 178) or Color3.fromRGB(90, 60, 30)) or bg
+			if split then bg = b.BackgroundColor3 end
 			local tc = c3(p.text)
 			if lit then
 				local lum = bg.R * 0.299 + bg.G * 0.587 + bg.B * 0.114
@@ -127,7 +132,9 @@ function SortToggle.build(parent, onPick)
 				pick.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				pick.Parent = b
 			end
-			pick.Enabled = on
+			pick.Enabled = on or split
+			pick.Color = split and Color3.fromRGB(200, 165, 90) or Color3.fromRGB(214, 176, 92)
+			pick.Thickness = split and 1.5 or 1
 			b.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
 			b.TextStrokeTransparency = 1
 		end
@@ -141,6 +148,7 @@ function SortToggle.build(parent, onPick)
 		if frame.Parent then paint() end
 	end)
 	frame:GetAttributeChangedSignal("Flat"):Connect(paint)
+	frame:GetAttributeChangedSignal("Split"):Connect(paint)
 	paint()
 
 	return {

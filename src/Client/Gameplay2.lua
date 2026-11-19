@@ -37,6 +37,15 @@ local function place(g, r)
 	g.Size = UDim2.fromOffset(r.w, r.h)
 end
 
+-- Under ZIndexBehavior.Global a child at the default ZIndex 1 is painted UNDER its parent's plate (that hid every pill and box
+-- label). Put the piece and everything inside it at z, text one higher.
+local function raise(inst, z)
+	inst.ZIndex = z
+	for _, d in ipairs(inst:GetDescendants()) do
+		if d:IsA("GuiObject") then d.ZIndex = z + 1 end
+	end
+end
+
 local function setText(box, text)
 	local t = box:FindFirstChild("Value") or box:FindFirstChild("Word")
 	if t and t.Text ~= text then t.Text = text end
@@ -78,7 +87,7 @@ function M.install(deps)
 	roundLabel.TextTransparency = 0
 	roundLabel.TextStrokeTransparency = 0.2
 	roundLabel.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3])
-	roundLabel.TextXAlignment = Enum.TextXAlignment.Left
+	roundLabel.TextXAlignment = Enum.TextXAlignment.Center
 	roundLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	roundLabel.ZIndex = Z_UI + 1
 	roundLabel.Parent = layer
@@ -96,9 +105,56 @@ function M.install(deps)
 	deckImg.ZIndex = Z_UI
 	deckImg.Parent = layer
 	local deckPill = Kit.pill(layer, "0 / 52", "wood"); deckPill.Name = "DeckCountPill"; deckPill.ZIndex = Z_UI
+	-- centre of the felt: the round score and a thin gold underline, quiet so the cards stand out
+	local scoreBox = Instance.new("Frame")
+	scoreBox.Name = "CenterScore"
+	scoreBox.BackgroundTransparency = 1
+	scoreBox.BorderSizePixel = 0
+	scoreBox.Active = false
+	scoreBox.Parent = layer
+	local function scoreText(name, font, color, strokeT)
+		local t = Instance.new("TextLabel")
+		t.Name = name
+		t.BackgroundTransparency = 1
+		t.Font = font
+		t.TextColor3 = color
+		t.TextTransparency = 0.3
+		t.TextStrokeTransparency = strokeT
+		t.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3])
+		t.TextScaled = false
+		t.Parent = scoreBox
+		return t
+	end
+	local cream = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
+	local scoreNum = scoreText("ScoreNumber", Enum.Font[Style.FONTS.title], cream, 0.5)
+	local scoreCaption = scoreText("ScoreCaption", Enum.Font[Style.FONTS.ui], cream, 0.6)
+	scoreCaption.Text = "Score"
+	local scoreLine = Instance.new("Frame")
+	scoreLine.Name = "ScoreUnderline"
+	scoreLine.BorderSizePixel = 0
+	scoreLine.BackgroundColor3 = Color3.fromRGB(Style.rgb("gold")[1], Style.rgb("gold")[2], Style.rgb("gold")[3])
+	scoreLine.BackgroundTransparency = 0.45
+	scoreLine.Active = false
+	scoreLine.Parent = scoreBox
 	for _, p in ipairs({ tips, handsPill, discardsPill, deckPill }) do -- a pill's word fills the whole pill and may be longer than 4 chars
 		local w = p:FindFirstChild("Word")
 		if w then w.TextSize = Style.TEXT.chip; w.TextScaled = false end
+	end
+
+	-- the real Rank and Suit buttons live inside the hub's SortToggle; Gameplay v2 draws each as its own brown plate
+	local function splitSort(toggle, r)
+		toggle:SetAttribute("Split", true)
+		toggle.Size = UDim2.fromOffset(r.sortSuit.x + r.sortSuit.w - r.sortRank.x, r.sortRank.h)
+		toggle.Position = UDim2.fromOffset(0, 0)
+		for _, nm in ipairs({ "SortRank", "SortSuit" }) do
+			local b = toggle:FindFirstChild(nm)
+			local want = nm == "SortRank" and r.sortRank or r.sortSuit
+			if b then
+				b.Size = UDim2.fromOffset(want.w, want.h)
+				b.Position = UDim2.fromOffset(want.x - r.sortRank.x, 0)
+				b.ZIndex = Z_BTN
+			end
+		end
 	end
 
 	local active, lastState = false, nil
@@ -116,7 +172,36 @@ function M.install(deps)
 		end
 	end
 
+	-- the label is its own TextLabel above the button's plate: the button's own Text is blanked so the word is drawn once, on top
+	local function buttonLabel(b, text)
+		local l = b:FindFirstChild("KitLabel")
+		if not l then
+			l = Instance.new("TextLabel")
+			l.Name = "KitLabel"
+			l.BackgroundTransparency = 1
+			l.Size = UDim2.fromScale(1, 1)
+			l.Font = Enum.Font[Style.FONTS.ui]
+			l.TextColor3 = Color3.fromRGB(Style.rgb("cream")[1], Style.rgb("cream")[2], Style.rgb("cream")[3])
+			l.TextTransparency = 0
+			l.TextStrokeTransparency = 0.3
+			l.TextStrokeColor3 = Color3.fromRGB(Style.rgb("outline")[1], Style.rgb("outline")[2], Style.rgb("outline")[3])
+			l.Active = false
+			l.Parent = b
+		end
+		l.Visible = true
+		l.ZIndex = Z_BTN + 1
+		l.Text = text
+		l.TextSize = math.max(Style.TEXT.button, math.min(24, math.floor(b.AbsoluteSize.Y * 0.4)))
+		b.Text = ""
+	end
+
 	local function restoreOld()
+		for _, b in ipairs({ deps.playButton, deps.discardButton }) do
+			local l = b:FindFirstChild("KitLabel")
+			if l then l.Visible = false end
+		end
+		if deps.playButton.Text == "" then deps.playButton.Text = "Play Hand" end
+		if deps.discardButton.Text == "" then deps.discardButton.Text = "Discard" end
 		if actionHeld then
 			local held = actionHeld
 			actionHeld = nil
@@ -160,6 +245,20 @@ function M.install(deps)
 		place(target, r.target); place(tips, r.tips)
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)
 		place(deckImg, r.deck); place(deckPill, r.deckCount)
+		raise(target, Z_UI + 1); raise(tips, Z_UI + 1); raise(handsPill, Z_UI); raise(discardsPill, Z_UI); raise(deckPill, Z_UI)
+		-- the quiet score in the middle of the felt (inside the stage rect, under any scoring popup)
+		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)
+		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
+		scoreBox.ZIndex = 2
+		local numH = math.max(20, math.floor(r.stage.h * 0.5))
+		scoreNum.Size = UDim2.new(1, 0, 0, numH); scoreNum.Position = UDim2.fromOffset(0, math.floor(r.stage.h * 0.18))
+		scoreNum.TextSize = math.min(48, numH); scoreNum.ZIndex = 2
+		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
+		scoreLine.Position = UDim2.new(0.5, 0, 0, math.floor(r.stage.h * 0.18) + numH + 2); scoreLine.ZIndex = 2
+		scoreCaption.Size = UDim2.new(1, 0, 0, 18); scoreCaption.TextSize = Style.TEXT.min
+		scoreCaption.Position = UDim2.fromOffset(0, math.floor(r.stage.h * 0.18) + numH + 6); scoreCaption.ZIndex = 2
+		local roomy = r.stage.h >= 70 -- a short stage keeps the number only
+		scoreCaption.Visible = roomy; scoreLine.Visible = roomy
 		-- the real controls are the drawn controls: same instance, moved onto the layout rect
 		local cs = deps.actionFrame:FindFirstChild("CompactScale")
 		if not actionHeld then actionHeld = { scale = cs and cs.Scale or nil } end
@@ -175,11 +274,12 @@ function M.install(deps)
 		deps.playButton.ZIndex = Z_BTN; deps.discardButton.ZIndex = Z_BTN
 		if deps.playButton:GetAttribute("TavernKind") ~= "primary" then Kit.skin(deps.playButton, "Play Hand", "primary") end
 		if deps.discardButton:GetAttribute("TavernKind") ~= "secondary" then Kit.skin(deps.discardButton, "Discard", "secondary") end
+		buttonLabel(deps.playButton, "Play Hand"); buttonLabel(deps.discardButton, "Discard")
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
 				LayoutSwitch.off(c)
-				c.Size = UDim2.fromOffset(r.sortRank.w + r.sortSuit.w, r.sortRank.h)
+				c.Size = UDim2.fromOffset(r.sortSuit.x + r.sortSuit.w - r.sortRank.x, r.sortRank.h)
 				c.Position = UDim2.fromOffset(r.sortRank.x - r.play.x, r.sortRank.y - r.play.y)
 				sortHost = c
 				for _, k in ipairs(c:GetChildren()) do
@@ -264,6 +364,7 @@ function M.install(deps)
 		local img = TableArt[key] or ""
 		if scene.Image ~= img then scene.Image = img end
 		roundLabel.Text = string.format("Night %d, Round %d", math.floor(lastState.night or 1), math.floor(lastState.round or 1))
+		scoreNum.Text = string.format("%d", math.floor(lastState.roundScore or 0))
 		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
 		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))
 		setText(handsPill, string.format("Hands %d", math.floor(lastState.handsRemaining or 0)))

@@ -149,11 +149,34 @@ local function build(deco, tier, w)
 		sparks[i] = d
 		d.Position = UDim2.new((i - 0.5) / s.sparks, 0, 0.6, 0)
 	end
-	-- the power disc, bottom centre, half of it below the card
+	-- uncommon: a small green gem on the top edge; common: a dark wood cap hides the cut card's gold gem
+	if s.gem then
+		local g = frame(deco, "Gem", Z_FRAME + 1)
+		g.AnchorPoint = Vector2.new(0.5, 0.5)
+		g.Position = UDim2.new(0.5, 0, 0, 0)
+		g.Size = UDim2.fromOffset(14, 14)
+		g.Rotation = 45
+		g.BackgroundTransparency = 0
+		g.BackgroundColor3 = c3(s.gem)
+		local gs = Instance.new("UIStroke")
+		gs.Color = c3(s.trimRgb or s.rgb)
+		gs.Thickness = 2
+		gs.Parent = g
+	end
+	if s.coverGem then
+		local cap = frame(deco, "GemCover", Z_FRAME + 1)
+		cap.AnchorPoint = Vector2.new(0.5, 0)
+		cap.Position = UDim2.new(0.5, 0, 0, 0)
+		cap.Size = UDim2.fromOffset(math.max(20, math.floor(w * 0.16)), math.max(10, math.floor(w * 0.08)))
+		cap.BackgroundTransparency = 0
+		cap.BackgroundColor3 = c3(s.rgb)
+		corner(cap, UDim.new(0, 4))
+	end
+	-- the power disc hangs wholly below the card (its top edge is the card's bottom edge), so it never covers the name strip
 	local D = Style.discDiameter(w)
 	local disc = frame(deco, "PowerDisc", Z_DISC)
-	disc.AnchorPoint = Vector2.new(0.5, 0.5)
-	disc.Position = UDim2.new(0.5, 0, 1, 0)
+	disc.AnchorPoint = Vector2.new(0.5, 0)
+	disc.Position = UDim2.new(0.5, 0, 1, 2)
 	disc.Size = UDim2.fromOffset(D, D)
 	disc.BackgroundTransparency = 0
 	disc.BackgroundColor3 = c3(Style.DISC.fill)
