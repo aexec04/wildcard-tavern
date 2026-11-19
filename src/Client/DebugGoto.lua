@@ -280,6 +280,11 @@ function DebugGoto.init(deps)
 			if okF then print("[DebugGoto] " .. target.effect .. " ok") else warn("[DebugGoto] " .. target.effect .. " failed: " .. tostring(errF)) end
 			return
 		end
+		if target.kind == "audit" then
+			local okA, errA = pcall(function() require(script.Parent.AuditV2).run() end)
+			if not okA then warn("[DebugGoto] audit:v2 failed: " .. tostring(errA)) end
+			return
+		end
 		if target.kind == "scale" then
 			local okS, errS = pcall(applyScale, target)
 			if not okS then warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(errS)) end

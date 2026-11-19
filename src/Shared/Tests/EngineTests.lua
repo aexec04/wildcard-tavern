@@ -28831,4 +28831,30 @@ table.insert(tests, { name = "Gameplay v2 Patron tooltip: 0.25 s delay, 320 px w
 	assert(fx:find("Gameplay2Tip", 1, true) and fx:find("Tip.DELAY", 1, true), "the plate waits the delay")
 end })
 
+table.insert(tests, { name = "Gameplay v2 audit: 1920x1080, 1280x720, 1024x600, 800x400 and 844x390 have no warnings (hand cards 56 px or wider, 44 px touch targets, nothing overlaps), portrait and tiny windows keep the older screen", fn = function()
+	local A = require(script.Parent.Parent.Engine.Gameplay2Audit)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(#A.SIZES == 5)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 }, { 844, 390 }, { 1024, 768 } }) do
+		local a = A.audit(sz[1], sz[2])
+		assert(a.fits, sz[1] .. "x" .. sz[2] .. " runs the v2 table")
+		assert(#a.warnings == 0, sz[1] .. "x" .. sz[2] .. ": " .. table.concat(a.warnings, "; "))
+		assert(a.handCard.w >= 56, "hand cards at least 56 px wide at " .. sz[1])
+		local r = L.rects(sz[1], sz[2])
+		assert(r.play.h >= 44 and r.discard.h >= 44 and r.sortRank.h >= 44 and r.sortSuit.h >= 44 and r.sortRank.w >= 44, "44 px touch targets at " .. sz[1])
+	end
+	local portrait = A.audit(390, 844)
+	assert(not portrait.fits and #portrait.warnings == 0 and not L.fits(390, 844) and not L.fits(640, 360) and L.fits(720, 360), "portrait and tiny windows keep the older screen")
+	local lines = A.report(800, 400)
+	assert(lines[1]:find("800x400: ok", 1, true) and #lines > 20, "the report prints the size line and every rect")
+	assert(A.report(390, 844)[1]:find("older play screen", 1, true))
+	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local t = D.parse("audit:v2")
+	assert(t and t.kind == "audit", "DebugGoto audit:v2 parses")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local studio = read("src/Client/AuditV2.lua")
+	assert(studio:find("IsStudio", 1, true) and read("src/Client/DebugGoto.lua"):find("AuditV2", 1, true), "Studio only, reachable from DebugGoto")
+end })
+
 return tests

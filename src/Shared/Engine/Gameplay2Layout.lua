@@ -22,7 +22,7 @@ local M = {}
 
 local function round(n) return math.floor(n + 0.5) end
 
-M.MIN_W, M.MIN_H = 640, 360
+M.MIN_W, M.MIN_H = 720, 360 -- narrower or portrait windows keep the older play screen (eight 56 px cards do not fit under 720)
 M.MIN_TOUCH = 44
 M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
 M.SEATS = 5
@@ -95,9 +95,10 @@ function M.rects(w, h)
 	r.playCount = box(r.play.x + r.play.w - cw + ext, cy, cw, cph)
 	r.discardCount = box(r.discard.x + r.discard.w - cw + ext, cy, cw, cph)
 	-- hand: between the stage and the buttons
-	local handTop = round(0.605 * h)
+	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)
+	local handTop = round((h < 500 and 0.54 or 0.605) * h)
 	local handH = btnY - round(cph / 2) - 6 - handTop -- the count pills hang above the buttons
-	local handW = round(0.60 * w)
+	local handW = round((w < 1000 and 0.66 or 0.60) * w) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand
 	local stTop = rowBottom + 8
@@ -105,7 +106,8 @@ function M.rects(w, h)
 	local stW = round(0.42 * w)
 	r.stage = box(round((w - stW) / 2), stTop, stW, stH)
 	-- sort buttons: two halves of one segmented control, left of the hand, each at least 44 px tall
-	local sw = math.max(56, math.min(round(0.07 * w), math.floor((r.hand.x - 2 * pad - M.SORT_GAP) / 2)))
+	local shift = round(0.015 * w) -- a hand of eight shifts this far left (ConceptTLayout.handFor)
+	local sw = math.max(M.MIN_TOUCH, math.min(round(0.07 * w), math.floor((r.hand.x - shift - 2 * pad - M.SORT_GAP) / 2)))
 	local sh = M.MIN_TOUCH
 	local sy = handTop + round((handH - sh) / 2)
 	r.sortRank = box(pad, sy, sw, sh)

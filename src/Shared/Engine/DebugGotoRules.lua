@@ -212,6 +212,8 @@ function DebugGotoRules.parse(value)
 	if sfxName then
 		return { kind = "sfx", cue = sfxName }
 	end
+	-- audit:v2 prints the Gameplay v2 rect table and warnings for five window sizes (Studio only, Client/AuditV2)
+	if text == "audit:v2" then return { kind = "audit" } end
 	-- scale:<w>x<h> shrinks GameUI to that viewport (Studio only), scale:off restores it
 	if text == "scale:off" then
 		return { kind = "scale", off = true }
