@@ -255,7 +255,15 @@ function M.install(deps)
 				elseif k:IsA("TextLabel") then k.Visible = true
 				elseif k.Name == "SortToggle" then
 					k:SetAttribute("Flat", false)
+					k:SetAttribute("Split", false)
 					k.Size = UDim2.fromOffset(132, 28)
+					for _, nm in ipairs({ "SortRank", "SortSuit" }) do -- back to the two halves of the shared track
+						local half = k:FindFirstChild(nm)
+						if half then
+							half.Size = UDim2.new(0.5, -5, 1, -6)
+							half.Position = UDim2.new(nm == "SortRank" and 0 or 0.5, nm == "SortRank" and 3 or 2, 0, 3)
+						end
+					end
 				end
 			end
 		end
@@ -345,9 +353,8 @@ function M.install(deps)
 					elseif k:IsA("TextLabel") then k.Visible = false
 					elseif k.Name == "SortToggle" then
 						k:SetAttribute("Flat", true)
-						k.Position = UDim2.fromOffset(0, 0)
-						k.Size = UDim2.fromOffset(r.sortRank.w + r.sortSuit.w, r.sortRank.h)
 						k.BackgroundTransparency = 0
+						splitSort(k, r) -- each half takes its layout rect (44 px tall), so the hit box is the painted plate
 					end
 				end
 			end

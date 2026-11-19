@@ -29,6 +29,7 @@ M.MIN_TOUCH = 44
 M.CARD_ASPECT = 0.712 -- card width over height, the Concept T cut cards
 M.SEATS = 5
 M.SORT_GAP = 8
+M.PILL_GAP = 4 -- clear air between a count pill and the top edge of its button
 
 local function box(x, y, w, h) return { x = round(x), y = round(y), w = round(w), h = round(h) } end
 
@@ -101,17 +102,17 @@ function M.rects(w, h)
 	local px = round((w - pairW) / 2)
 	r.play = box(px, btnY, btnW, btnH)
 	r.discard = box(px + btnW + btnGap, btnY, btnW, btnH)
-	-- the remaining-count pills ride the top right corner of their button, half above its edge, never past the gap between buttons
+	-- the remaining-count pills ride the top right corner of their button, fully above its top edge (PILL_GAP clear), never past the gap between buttons
 	local cw = math.max(84, round(btnW * 0.5))
 	local cph = math.max(22, round(btnH * 0.4))
 	local ext = math.max(0, btnGap - 2)
-	local cy = btnY - round(cph / 2)
+	local cy = btnY - cph - M.PILL_GAP
 	r.playCount = box(r.play.x + r.play.w - cw + ext, cy, cw, cph)
 	r.discardCount = box(r.discard.x + r.discard.w - cw + ext, cy, cw, cph)
 	-- hand: between the stage and the buttons
 	-- short screens (under 500 px tall) start the hand higher so the cards stay at least 56 px wide (the score line shrinks instead)
 	local handTop = round((h < 500 and 0.54 or 0.605) * h)
-	local handH = btnY - round(cph / 2) - 6 - handTop -- the count pills hang above the buttons
+	local handH = btnY - cph - M.PILL_GAP - 6 - handTop -- the count pills hang above the buttons
 	local handW = round((w < 1000 and 0.66 or 0.60) * w) -- compact windows widen the hand so eight cards stay at least 56 px wide
 	r.hand = box(round((w - handW) / 2), handTop, handW, handH)
 	-- stage: the open middle between the Patron row (and its pills) and the hand

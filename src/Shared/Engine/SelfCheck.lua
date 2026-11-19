@@ -21,6 +21,12 @@ M.MIN_CONTRAST = 3
 M.MAX_OVERLAP = 0.2
 M.SLACK = 1
 
+-- Names whose text is fully transparent on purpose while they are hidden (shown by their own effect), and effect folders whose
+-- frames are glows, rings and vignettes rather than plates. Anything else stays checked.
+M.HIDDEN_BANNERS = { BossEnrageBanner = true, LegendaryBanner = true, ScoreJuiceBanner = true }
+M.FX_FOLDERS = { PlayFeltShade = true, RoomLight = true, CandleGlow = true, Vignette = true, SweepStrip = true }
+M.NOISE_TRANSPARENCY = 0.9
+
 local function lin(c)
 	if c <= 0.03928 then return c / 12.92 end
 	return ((c + 0.055) / 1.055) ^ 2.4
@@ -45,9 +51,34 @@ local function isAncestor(a, b) -- path a is a prefix of path b
 	return #a < #b and b:sub(1, #a + 1) == a .. "."
 end
 
+local function lastName(path) return tostring(path):match("([^%.]+)$") or "" end
+
+-- true when a text object should not be checked: no words, or an intentionally hidden banner
+function M.ignoreLabel(text, name, textTransparency)
+	if tostring(text or ""):match("^%s*$") then return true end
+	if M.HIDDEN_BANNERS[name or ""] and (tonumber(textTransparency) or 0) >= 1 then return true end
+	return false
+end
+
+-- true when a Frame is decoration noise for the plate overlap log: nearly clear, or Z 0, or inside an effect folder
+function M.ignoreFrame(name, backgroundTransparency, zIndex, ancestorNames)
+	if (tonumber(backgroundTransparency) or 0) > M.NOISE_TRANSPARENCY then return true end
+	if (tonumber(zIndex) or 1) == 0 then return true end
+	if M.FX_FOLDERS[name or ""] then return true end
+	for _, a in ipairs(ancestorNames or {}) do
+		if M.FX_FOLDERS[a] then return true end
+	end
+	return false
+end
+
 function M.check(nodes)
 	local out = {}
 	local function warn(n, s) out[#out + 1] = string.format("%s: %s", n.path, s) end
+	local kept = {}
+	for _, n in ipairs(nodes) do
+		if not M.ignoreLabel(n.text, lastName(n.path), n.textTransparency) then kept[#kept + 1] = n end
+	end
+	nodes = kept
 	for _, n in ipairs(nodes) do
 		if (n.textTransparency or 0) > M.MAX_TRANSPARENCY then
 			warn(n, string.format("text transparency %.2f, above %.1f", n.textTransparency, M.MAX_TRANSPARENCY))

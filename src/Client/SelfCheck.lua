@@ -52,7 +52,7 @@ function M.nodes()
 	local pg = game:GetService("Players").LocalPlayer.PlayerGui
 	local nodes = {}
 	for _, d in ipairs(pg:GetDescendants()) do
-		if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and shown(d) and d.AbsoluteSize.X > 0 then
+		if (d:IsA("TextLabel") or d:IsA("TextButton")) and shown(d) and d.AbsoluteSize.X > 0 and not Rules.ignoreLabel(d.Text, d.Name, d.TextTransparency) then
 			nodes[#nodes + 1] = {
 				path = d:GetFullName(), text = d.Text, textTransparency = d.TextTransparency, textColor = rgb(d.TextColor3),
 				plateColor = plateBehind(d), z = d.ZIndex, plateZ = plateZ(d), rect = rectOf(d),

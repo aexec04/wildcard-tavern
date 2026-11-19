@@ -29059,7 +29059,7 @@ table.insert(tests, { name = "Gameplay v2: count pills ride the top right corner
 		for _, p in ipairs({ { r.play, r.playCount }, { r.discard, r.discardCount } }) do
 			local b, c = p[1], p[2]
 			assert(c.x + c.w >= b.x + b.w and c.x >= b.x, "pill hangs on the right half of its button")
-			assert(c.y < b.y and c.y + c.h > b.y, "pill straddles the top edge of the button")
+			assert(c.y + c.h + L.PILL_GAP <= b.y, "pill sits fully above the top edge of the button with a 4 px gap, so its word never shares pixels with the button label at " .. sz[1] .. "x" .. sz[2])
 		end
 		assert(r.playCount.x + r.playCount.w <= r.discard.x, "the Play pill stays left of Discard")
 		assert(r.hand.y + r.hand.h <= r.playCount.y, "the hand ends above the pills")
@@ -30693,6 +30693,46 @@ table.insert(tests, { name = "Gameplay2Tier: quiet, pulse, burst and OVERKILL by
 		expectFalse(src:find("TweenService", 1, true) ~= nil, "no tweens in the tier flourish")
 		expectTrue(src:find("static", 1, true) ~= nil and src:find("Kit.still", 1, true) ~= nil, "Calm mode takes the static path")
 	end
+end })
+
+table.insert(tests, { name = "Self check cleanup: count pills clear of button words, skip noise frames and hidden banners, empty text, Sort halves use the layout rect", fn = function()
+	local S = require(script.Parent.Parent.Engine.SelfCheck)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	-- (1) the Hands and Discards pill words never overlap the Play Hand and Discard labels
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local nodes = {
+			{ path = "A.Play.KitLabel", text = "Play Hand", textTransparency = 0, rect = r.play },
+			{ path = "A.Discard.KitLabel", text = "Discard", textTransparency = 0, rect = r.discard },
+			{ path = "B.HandsPill.Word", text = "Hands 4", textTransparency = 0, rect = r.playCount },
+			{ path = "B.DiscardsPill.Word", text = "Discards 3", textTransparency = 0, rect = r.discardCount },
+		}
+		local out = S.check(nodes)
+		expectEqual(#out, 0, "no label overlap at " .. sz[1] .. "x" .. sz[2] .. ": " .. table.concat(out, "; "))
+		expectTrue(r.hand.y + r.hand.h <= r.playCount.y, "the hand still ends above the pills")
+	end
+	-- (2) the Sort halves are 44 px tall and side by side in the layout
+	for _, sz in ipairs({ { 1920, 957 }, { 1280, 720 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		expectTrue(r.sortRank.h >= 44 and r.sortSuit.h >= 44 and r.sortRank.x + r.sortRank.w < r.sortSuit.x, "Sort halves are touch targets at " .. sz[1])
+	end
+	local f = io and io.open and io.open("src/Client/Gameplay2.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		expectTrue(src:find("splitSort(k, r)", 1, true) ~= nil, "the live Sort control is sized by its layout rects")
+	end
+	-- (3) noise frames
+	expectTrue(S.ignoreFrame("Glow", 0.95, 3, {}), "a nearly clear frame is noise")
+	expectTrue(S.ignoreFrame("Ring", 0.5, 0, {}), "Z 0 is noise")
+	expectTrue(S.ignoreFrame("Dot", 0.5, 3, { "Root", "CandleGlow" }), "inside an effect folder is noise")
+	expectTrue(S.ignoreFrame("Vignette", 0.5, 3, {}), "a named effect frame is noise")
+	expectFalse(S.ignoreFrame("Panel", 0.2, 3, { "Root" }), "a real plate stays checked")
+	-- (4) hidden banners and empty text
+	expectTrue(S.ignoreLabel("", "Anything", 0) and S.ignoreLabel("   ", "Anything", 0), "empty text is skipped")
+	expectTrue(S.ignoreLabel("Enraged", "BossEnrageBanner", 1) and S.ignoreLabel("x", "LegendaryBanner", 1), "hidden banners are skipped")
+	expectFalse(S.ignoreLabel("Play Hand", "KitLabel", 1), "a blank Play Hand word is still caught")
+	local warns = S.check({ { path = "G.BossEnrageBanner", text = "Enraged", textTransparency = 1 }, { path = "G.A.KitLabel", text = "Play Hand", textTransparency = 1 } })
+	expectEqual(#warns, 1, "only the real unreadable label warns")
 end })
 
 return tests

@@ -686,6 +686,13 @@ end
 
 -- Studio only: a visible Frame that overlaps a plate under the board (Tips, the Select cards hint) and is not part of it is named in one warn,
 -- with its path, rect, ZIndex, fill and colour, so a stray unpainted block can be found without guessing.
+local function skipNoise(d) -- glow rings, vignettes and effect folders are not plates (Engine/SelfCheck.ignoreFrame)
+	local names, o = {}, d.Parent
+	while o and o:IsA("GuiObject") do names[#names + 1] = o.Name; o = o.Parent end
+	local Rules = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("SelfCheck"))
+	return Rules.ignoreFrame(d.Name, d.BackgroundTransparency, d.ZIndex, names)
+end
+
 local function reportOverlaps(root, st)
 	if not game:GetService("RunService"):IsStudio() or not st.rect then return end
 	local plates = {}
@@ -701,7 +708,7 @@ local function reportOverlaps(root, st)
 		local pp, ps = plate.AbsolutePosition, plate.AbsoluteSize
 		for _, d in ipairs(root:GetDescendants()) do
 			if d:IsA("Frame") and d.Visible and d.BackgroundTransparency < 1 and d.AbsoluteSize.X > 0 and d ~= plate and not d:IsDescendantOf(plate)
-				and not plate:IsDescendantOf(d) and d.Name ~= "BoardPlateBack" and d.Name ~= "BoardWoodFill" then
+				and not plate:IsDescendantOf(d) and d.Name ~= "BoardPlateBack" and d.Name ~= "BoardWoodFill" and not skipNoise(d) then
 				local p, sz = d.AbsolutePosition, d.AbsoluteSize
 				if p.X < pp.X + ps.X and pp.X < p.X + sz.X and p.Y < pp.Y + ps.Y and pp.Y < p.Y + sz.Y and sz.X < root.AbsoluteSize.X * 0.6 then
 					found[#found + 1] = string.format("%s pos=%d,%d size=%dx%d z=%d bgT=%.2f color=%d,%d,%d", d:GetFullName(), p.X, p.Y, sz.X, sz.Y, d.ZIndex,
