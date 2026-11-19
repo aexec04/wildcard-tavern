@@ -1,6 +1,6 @@
 # Handoff 15: what the overnight queue did
 
-Branch `concept-t-2d`. 83 local commits since 5c3607b (the last is the balance pass). Nothing is pushed. Tests: 1060 passed, 0 failed, and the same 1060 in the no-io Studio pass. Client locals ratchet stays 127 of 127.
+Branch `concept-t-2d`. 90 local commits since 5c3607b (the last is the idle sparkle pass, 3a82f52). Nothing is pushed. Tests: 1067 passed, 0 failed, and the same 1067 in the no-io Studio pass. Client locals ratchet stays 127 of 127.
 
 ## What changed, by player-facing area
 
@@ -50,6 +50,14 @@ Branch `concept-t-2d`. 83 local commits since 5c3607b (the last is the balance p
 ## Verified in Studio vs only by tests
 - Studio captures by chat Claude: the reference scene, the real play screen, Menu, Counter, Run Over, boss screen (the defects found were fixed in later commits).
 - Tests only, no Studio look yet: pack opening reveal, screen fades and Dealing plate, tutorial hint anchors, Counter Next Round plate and tabs, Patron tooltip, Collection count pills, Settings restyle, progression toast, all sound cues (ids in place, not listened to).
+
+**Later passes (Nov 19)**
+- Settings board: Calm Mode and Reduce Motion first, 44 px painted switches, Sound row, 44 px slider hit area.
+- Tome sub pages share dark header plates; Settings, Tome and pack opening tests added.
+- Touch controls: tap select, drag to reorder the hand, long press tooltips for hand and Patron cards.
+- Friendly errors: plain toast, Try again after 6 s without a Play Hand reply, input watchdog for stuck fade covers and locks.
+- Rarity pill is one centred plate with the shape marker inside it, clear of the word.
+- Idle sparkle: after 8 s idle the hand breathes 2 px, Play Hand glows with a legal selection, a tip fades in at 20 s. Calm mode is still.
 
 ## Known leftovers
 - Reroll on the Counter is the painted bell prop and is not lined up with the card row.

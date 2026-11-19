@@ -14,6 +14,7 @@ Long-term retention, engagement and monetization of players who find the game or
 ## Phase 1: First 5 minutes
 - [ ] Thumbnail, icon, title and a short gameplay video for the game page (user-only: Creator Hub)
 - [ ] Fast load, mobile layout and controls pass on a real phone (user-only test)
+  - Code side done (Nov 19): touch tap, drag reorder and long press, 44 px targets at five sizes, friendly errors and a 6 s input watchdog; only the real phone test is left.
 - [x] Tutorial under 2 minutes ending in a first win and a reward
 - [x] First-run reward and "next goal" banner on the menu
 - [x] Concept T art kit: blank HUD plates, empty table room, card back (uploaded, not wired into screens yet)
