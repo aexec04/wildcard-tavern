@@ -764,6 +764,12 @@ function Hotspots.build(opts)
 				button.Position = UDim2.new(0.5, 0, 1, 0)
 				button:FindFirstChild("Plaque").Title.TextSize = 16
 				button.Parent = frame
+				pcall(function() -- ornate dark wood plate (150 x 34 picks the wide whole picture), the flat plaque stays if art is missing
+					local kit = require(script.Parent.TavernKit)
+					local plaque = button:FindFirstChild("Plaque")
+					local img = kit.painted(plaque, require(game:GetService("ReplicatedStorage").Shared.Engine.TavernStyle).buttonPiece("secondary", 150, 34))
+					if img then plaque.BackgroundTransparency = 1 end
+				end)
 			end
 			if primary then
 				primary.MouseEnter:Connect(function() hover(hotspot, true) end)
