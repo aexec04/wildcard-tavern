@@ -623,9 +623,7 @@ return function(deps)
 			pcall(function()
 				local st = getLatestState()
 				local expectBoss = st and st.bossModifier ~= nil and (st.round or 1) >= ROUNDS_PER_NIGHT
-				require(script.Parent.TravelTransition).show({
-					state = st,
-					readyFn = function()
+				local function roundReady()
 						local s = getLatestState()
 						if not (s and s.phase == "playing") then
 							return false
@@ -642,9 +640,13 @@ return function(deps)
 							end
 						end
 						return true
-					end,
-				})
-			end)
+					end
+					local shown = require(script.Parent.TravelTransition).show({ state = st, readyFn = roundReady })
+					if not shown then
+						-- Reduce motion (or no travel): a warm cover and the Dealing... plate after 0.4 s, never a blank frame
+						require(script.Parent.ScreenFadeFX).hold(roundReady)
+					end
+				end)
 		end)
 
 		-- Read skip-tag reward text fresh at click time (see old BUGFIX comment).

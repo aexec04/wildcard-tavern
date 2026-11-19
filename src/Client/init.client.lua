@@ -912,6 +912,7 @@ do -- the menu eases in when it shows (nothing in Calm mode, Client/AnimPassFX)
 	MenuScreen.menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
 		if MenuScreen.menuFrame.Visible then pcall(require(script.AnimPassFX).menuFade, MenuScreen.menuFrame) end
 	end)
+	pcall(function() require(script.ScreenFadeFX).watch(root) end) -- 0.25 s warm dark fade between screens (none in Calm mode)
 end
 
 -- Warm the image cache for all content art (non-blocking) so Collection tiles
