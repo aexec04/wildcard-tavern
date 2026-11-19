@@ -290,6 +290,11 @@ function DebugGoto.init(deps)
 			if not okC then warn("[DebugGoto] selfcheck failed: " .. tostring(errC)) end
 			return
 		end
+		if target.kind == "tablecheck" then
+			local okT, errT = pcall(function() require(script.Parent.TableCheck).run() end)
+			if not okT then warn("[DebugGoto] tablecheck failed: " .. tostring(errT)) end
+			return
+		end
 		if target.kind == "scale" then
 			local okS, errS = pcall(applyScale, target)
 			if not okS then warn("[DebugGoto] " .. tostring(value) .. " failed: " .. tostring(errS)) end

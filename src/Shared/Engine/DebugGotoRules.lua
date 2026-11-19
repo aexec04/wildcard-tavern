@@ -219,6 +219,8 @@ function DebugGotoRules.parse(value)
 	if text == "audit:v2" then return { kind = "audit" } end
 	-- selfcheck walks the visible text of the open screen for dim, low contrast, mislayered, clipped or overlapping labels
 	if text == "selfcheck" then return { kind = "selfcheck" } end
+	-- tablecheck prints each table piece against the 1672 x 941 reference rects (Studio only, Client/TableCheck)
+	if text == "tablecheck" then return { kind = "tablecheck" } end
 	-- scale:<w>x<h> shrinks GameUI to that viewport (Studio only), scale:off restores it
 	if text == "scale:off" then
 		return { kind = "scale", off = true }

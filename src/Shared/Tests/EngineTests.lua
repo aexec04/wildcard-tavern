@@ -31886,4 +31886,27 @@ table.insert(tests, { name = "Round 7 live fixes: Rank and Suit icon and word ne
 	end
 end })
 
+table.insert(tests, { name = "TableCheck: pieces convert to the 1672 x 941 reference, 25 px off passes, 30 px warns, a missing piece is only reported, DebugGoto tablecheck parses", fn = function()
+	local T = require(script.Parent.Parent.Engine.TableCheck)
+	local D = require(script.Parent.Parent.Engine.DebugGotoRules)
+	local k = 1506 / T.REF_W
+	local live = {}
+	for _, t in ipairs(T.TARGETS) do -- a GUI 1506 wide, every piece exactly on its target
+		live[t.key] = { x = t.x0 * k, y = (t.y0 or 100) * k, w = (t.x1 - t.x0) * k, h = ((t.y1 or 140) - (t.y0 or 100)) * k }
+	end
+	local lines, warns = T.compare(live, 1506)
+	expectEqual(#warns, 0, "on target")
+	expectEqual(#lines, #T.TARGETS)
+	live.PlayHand.x = live.PlayHand.x + 24 * k
+	expectEqual(#select(2, T.compare(live, 1506)), 0, "24 px off passes")
+	live.PlayHand.x = live.PlayHand.x + 6 * k
+	expectEqual(#select(2, T.compare(live, 1506)), 1, "30 px off warns")
+	live.Discard = nil
+	local l4, w4 = T.compare(live, 1506)
+	expectEqual(#l4, #T.TARGETS, "a missing piece still gets a line")
+	expectEqual(#w4, 1, "and no warning of its own")
+	local t = D.parse("tablecheck")
+	expectTrue(t and t.kind == "tablecheck", "DebugGoto tablecheck parses")
+end })
+
 return tests
