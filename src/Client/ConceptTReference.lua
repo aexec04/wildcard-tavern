@@ -167,7 +167,7 @@ function M.show()
 		at(lab, sl.label)
 		local pill = img(gui, Layout.blankPillKey(tier), 3)
 		at(pill, sl.pill)
-		local t = label(pill, Layout.cleanValue(S.pills[i]), math.max(15, Layout.textSize("pill", size.Y) + 2), 4)
+		local t = label(pill, Layout.cleanValue(S.pills[i]), math.max(15, Layout.textSize("pill", size.Y)), 4)
 		t.Size = UDim2.fromScale(1, 1)
 	end
 

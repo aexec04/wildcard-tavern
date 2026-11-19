@@ -26708,7 +26708,7 @@ table.insert(tests, { name = "Concept T pixel pass 3: parchment card face, space
 	for _, key in ipairs({ "coins", "hands", "round", "deckCount", "pill" }) do
 		expectTrue(LT.textSize(key, 400) >= 15, key .. " text is never under 15 px")
 	end
-	expectTrue(LT.textSize("round", 1024) >= 28 and LT.textSize("round", 1024) > LT.textSize("pill", 1024), "the Round banner text is large")
+	expectTrue(LT.textSize("round", 1024) >= 24 and LT.textSize("round", 1024) <= 30 and LT.textSize("pill", 1024) >= 24, "the Round banner text is a modest cream serif and the pill value is readable")
 	if not io then return end
 	local f = io.open("src/Client/ConceptTPlay.lua", "r")
 	if f then

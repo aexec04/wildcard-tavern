@@ -135,7 +135,7 @@ end
 
 -- HUD text sizes as a fraction of the frame height, so the numbers fill their plates like the reference (about 28 px at 1024 high);
 -- never under 15 px
-M.TEXT_FRAC = { coins = 0.027, hands = 0.027, round = 0.027, deckCount = 0.028, pill = 0.017 }
+M.TEXT_FRAC = { coins = 0.027, hands = 0.027, round = 0.027, deckCount = 0.028, pill = 0.028 }
 
 function M.textSize(key, frameH)
 	local f = M.TEXT_FRAC[key] or 0.02
