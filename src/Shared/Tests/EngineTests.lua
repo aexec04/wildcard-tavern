@@ -5426,7 +5426,7 @@ table.insert(tests, { name = "SoundIds: cues, music keys and missing lists", fn 
 	local required = { "card_deal", "card_select", "card_play", "shuffle", "card_flip", "discard", "chip", "chip_big", "coin", "buy", "button_click",
 		"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 		"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
-		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }
+		"score_tick", "score_total", "patron_trigger", "round_clear", "defeat", "card_deselect", "shop_sell", "pack_open" }
 	expectEqual(#S.CueOrder, #required)
 	for _, name in ipairs(S.Named) do expectEqual(S.Cues[name] ~= nil, true, "named cue " .. name) end
 	for _, name in ipairs({ "score_tick", "score_total", "patron_trigger", "round_clear", "defeat" }) do
@@ -21770,6 +21770,54 @@ table.insert(tests, { name = "Announcer: one message at a time 0.25 s apart, hig
 	expectTrue(shown == true, "on a plate that is already up the presenter adds the line")
 	a:submit({ id = "tmp", kind = "x", priority = 3, duration = 2 }, 0.1)
 	expectTrue(a:cancel("tmp", 0.2) and a:pendingCount() == 0, "a waiting message can be taken back")
+end })
+
+table.insert(tests, { name = "Sound feel pass: no group has more than 3 voices, scoring cues are their own group, the new table and shop cues exist with ids, call sites and a silent Mute", fn = function()
+	local SD = require(script.Parent.Parent.Engine.SoundDirector)
+	local S = require(script.Parent.Parent.Engine.SoundIds)
+	local G = require(script.Parent.Parent.Engine.Gameplay2Sound)
+	expectEqual(SD.MAX_GROUP_VOICES, 3, "three voices per group")
+	for _, c in ipairs({ "score_tick", "score_total", "patron_trigger" }) do expectEqual(SD.info(c).group, "score", c .. " is a scoring cue") end
+	-- score ticks 0.12 s apart: the 4th would be a 4th voice of the group while the first three still sound (0.3 s each)
+	local d = SD.new()
+	expectTrue(d:request("score_tick", 0).play, "tick 1")
+	expectTrue(d:request("patron_trigger", 0.05).play, "a Patron beat is not dropped by a tick (no group gap for scoring)")
+	expectTrue(d:request("score_tick", 0.12).play, "tick 2 (the third voice)")
+	local r = d:request("score_total", 0.2)
+	expectTrue(not r.play and r.reason == "voices", "a fourth voice of the scoring group is dropped")
+	expectTrue(d:request("score_total", 0.7).play, "after the first sounds end the group has room again")
+	-- the cap holds in every group over a long random-ish run
+	for _, names in ipairs({ { "card_deal", "card_select", "card_play", "card_flip", "discard", "pack_open", "card_deselect" }, { "coin", "chip", "buy", "shop_sell" }, { "score_tick", "score_total", "patron_trigger" } }) do
+		local dd, t = SD.new(), 0
+		for i = 1, 60 do
+			t = t + 0.04
+			local cue = names[(i % #names) + 1]
+			local v = dd:request(cue, t)
+			local info = SD.info(cue)
+			local n = 0
+			for _, a in ipairs(dd.active) do if a.group == info.group then n = n + 1 end end
+			expectTrue(n <= SD.MAX_GROUP_VOICES, info.group .. " never has more than 3 voices (" .. n .. ")")
+		end
+	end
+	-- new cues: an id already in the project, a director group, a call site, silent when muted at every slider step
+	for _, c in ipairs({ "card_deselect", "shop_sell", "pack_open" }) do
+		expectTrue(S.cueId(c) ~= nil, c .. " has a real id")
+		expectEqual(S.Cues[c].id:match("^rbxassetid://%d+$") ~= nil, true, c .. " id shape")
+	end
+	for _, m in ipairs(G.MOMENTS) do
+		for _, step in ipairs(G.SLIDER_STEPS) do
+			expectEqual(G.effective((S.Cues[m.cue] or {}).volume or 0.5, 1, step, true), 0, m.moment .. " is silent when muted at slider " .. step)
+			expectTrue(G.effective((S.Cues[m.cue] or {}).volume or 0.5, 1, step, false) <= 1, m.moment .. " never above 1")
+		end
+	end
+	local want = { ["card deselect"] = false, ["shop reroll"] = false, ["Patron sell"] = false, ["pack open"] = false }
+	for _, m in ipairs(G.MOMENTS) do if want[m.moment] ~= nil then want[m.moment] = true end end
+	for k, v in pairs(want) do expectTrue(v, k .. " is a listed sound moment") end
+	if not io then return end
+	for _, m in ipairs(G.MOMENTS) do
+		local f = assert(io.open(m.file, "r")); local src = f:read("a"); f:close()
+		expectTrue(src:find(m.marker, 1, true) ~= nil, m.moment .. ": call site " .. m.marker .. " in " .. m.file)
+	end
 end })
 
 table.insert(tests, { name = "SoundDirector: one fanfare at a time, at most 2 small voices, 90 ms group gap, repeats dropped, coin bursts collapse to a rising run of 4, fanfare ducks the rest", fn = function()

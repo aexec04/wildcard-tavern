@@ -65,6 +65,7 @@ local function pill(parent, name, text, size, pos, z)
 end
 
 function M.attach(panel, row, cards, items, rarities, opts)
+	pcall(function() require(script.Parent.Cue).play("pack_open") end) -- the pack opens: its cards are laid out face down
 	local isCalm = calm()
 	local state = PackReveal.new(#items, isCalm)
 	local plan = PackReveal.plan(rarities, isCalm)

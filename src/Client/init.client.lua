@@ -1817,7 +1817,7 @@ local function onCardClicked(index)
 		end
 		selected[index] = true
 	end
-	SoundModule.playCue("card_select")
+	SoundModule.playCue(selected[index] and "card_select" or "card_deselect") -- putting a card back has its own softer cue
 	refreshCardVisual(index, true)
 	refreshScorePreview()
 

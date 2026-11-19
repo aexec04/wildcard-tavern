@@ -1,7 +1,7 @@
 --[[
 	Shared/Engine/SoundDirector.lua
 	The pure rules that keep the sound calm (applied by Client/Sound.lua playCue, tested in EngineTests "SoundDirector"). Every cue has a group
-	(ui, coin, card, fanfare, ambient) and a priority. Time is passed in, so the rules need no clock.
+	(ui, coin, card, score, fanfare, ambient) and a priority. Time is passed in, so the rules need no clock.
 
 	  SoundDirector.info(cue)            { group, priority, length } (estimated seconds the sound is audible)
 	  SoundDirector.new()                a director
@@ -22,6 +22,7 @@
 local SoundDirector = {}
 
 SoundDirector.MAX_SMALL_VOICES = 2
+SoundDirector.MAX_GROUP_VOICES = 3 -- no group (the scoring group included) has more than 3 sounds audible at once
 SoundDirector.GROUP_GAP = 0.09
 SoundDirector.REPEAT_GAP = 0.12
 SoundDirector.DUCK_SCALE = 0.5
@@ -42,6 +43,10 @@ local TABLE = {
 	-- card
 	card_deal = { "card", 1, 0.4 }, card_select = { "card", 1, 0.3 }, card_play = { "card", 1, 0.5 }, card_flip = { "card", 1, 0.3 },
 	shuffle = { "card", 1, 1.3 }, discard = { "card", 1, 0.5 }, shop_reroll = { "card", 1, 0.5 },
+	-- scoring: its own group (no 90 ms group gap, a cue is still dropped when repeated inside 120 ms), at most 3 voices
+	score_tick = { "score", 1, 0.3 }, score_total = { "score", 1, 1.0 }, patron_trigger = { "score", 1, 0.6 },
+	-- table and shop moments
+	card_deselect = { "card", 1, 0.3 }, shop_sell = { "coin", 1, 0.6 }, pack_open = { "card", 1, 1.2 },
 	-- ambient
 	shop_enter = { "ambient", 0, 0.8 },
 }
@@ -107,8 +112,16 @@ function SoundDirector.new()
 		else
 			-- a rapid run of the same group
 			local prevGroup = self.lastGroup[info.group]
-			if prevGroup and now - prevGroup < SoundDirector.GROUP_GAP then
+			if info.group ~= "score" and prevGroup and now - prevGroup < SoundDirector.GROUP_GAP then
 				result.reason = "gap"
+				return result
+			end
+			local inGroup = 0
+			for _, v in ipairs(self.active) do
+				if v.group == info.group then inGroup = inGroup + 1 end
+			end
+			if info.group ~= "ambient" and inGroup >= SoundDirector.MAX_GROUP_VOICES then
+				result.reason = "voices"
 				return result
 			end
 			if info.group ~= "ambient" then

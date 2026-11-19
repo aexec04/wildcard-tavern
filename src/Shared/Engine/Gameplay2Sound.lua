@@ -23,6 +23,10 @@ M.MOMENTS = {
 	{ moment = "round clear", cue = "round_clear", file = "src/Client/RoundRewardBanner.lua", marker = '"round_clear"' },
 	{ moment = "defeat", cue = "defeat", file = "src/Client/GameOver.lua", marker = '"defeat"' },
 	{ moment = "Patron tooltip", cue = "hover", file = "src/Client/PatronTipFX.lua", marker = '"hover"' },
+	{ moment = "card deselect", cue = "card_deselect", file = "src/Client/init.client.lua", marker = '"card_deselect"' },
+	{ moment = "shop reroll", cue = "shop_reroll", file = "src/Client/ShopScene.lua", marker = '"shop_reroll"' },
+	{ moment = "Patron sell", cue = "shop_sell", file = "src/Client/Shop.lua", marker = '"shop_sell"' },
+	{ moment = "pack open", cue = "pack_open", file = "src/Client/PackRevealFX.lua", marker = '"pack_open"' },
 	{ moment = "shop buy", cue = "shop_buy", file = "src/Client/ShopScene.lua", marker = '"shop_buy"' },
 	{ moment = "nothing selected", cue = "shop_cant", file = "src/Client/Gameplay2FeelFX.lua", marker = '"shop_cant"' },
 }

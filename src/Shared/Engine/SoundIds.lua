@@ -47,6 +47,10 @@ SoundIds.Cues = {
 	patron_trigger = { id = "rbxassetid://133292918309565", volume = 0.4, maxLength = 0.6 }, -- a Patron's effect fires (Client/PatronRow.trigger)
 	round_clear = { id = "rbxassetid://1170853519", volume = 0.55 }, -- Round Complete plate (Client/RoundRewardBanner)
 	defeat = { id = "rbxassetid://7381722902", volume = 0.5 }, -- the run is lost (Run Over screen)
+	-- table and shop feel pass: three more moments, all on ids already used above (no new asset id)
+	card_deselect = { id = "rbxassetid://9117308777", volume = 0.4, maxLength = 0.3 }, -- a selected hand card is put back (Client/init.client.lua)
+	shop_sell = { id = "rbxassetid://133292918309565", volume = 0.5, maxLength = 0.6 }, -- a Patron is sold (Client/Shop.lua)
+	pack_open = { id = "rbxassetid://9118835650", volume = 0.45, maxLength = 1.2 }, -- a pack opens and its cards are laid out (Client/PackRevealFX.lua)
 }
 
 -- Quiet looping beds (not cues: Engine/Ambience sets the volume, 0.12 and 0.06 while scoring). Empty id = silent until picked.
@@ -61,6 +65,7 @@ SoundIds.CueOrder = {
 	"hover", "boss_intro", "boss_defeat", "win", "lose", "map_open", "road_choose", "compass_turn",
 	"shop_enter", "shop_buy", "shop_reroll", "shop_cant", "page_turn", "scroll_open", "scroll_close",
 	"score_tick", "score_total", "patron_trigger", "round_clear", "defeat",
+	"card_deselect", "shop_sell", "pack_open",
 }
 
 -- the eleven cue names the backlog asked for; every one must exist in Cues (an empty id is a safe no-op)

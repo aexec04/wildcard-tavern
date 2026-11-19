@@ -1759,6 +1759,7 @@ return function(deps)
 						playClickSfx(0.4)
 						local copy = require(Engine:WaitForChild("ConfirmCopy")).sell(owned.name, refund)
 						showConfirmDialog(copy.message, function()
+							require(script.Parent.Cue).play("shop_sell")
 							SellPatronRemote:FireServer(owned.id)
 						end, copy)
 						return false
