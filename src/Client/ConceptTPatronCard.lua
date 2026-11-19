@@ -40,6 +40,7 @@ function M.set(slot, tier, valueText, hasCard)
 	label.AnchorPoint = Vector2.new(0.5, 0)
 	label.Position = UDim2.new(0.5, 0, 1, 2)
 	label.Size = UDim2.new(0.92, 0, 0, 22)
+	pcall(function() require(script.Parent.RarityShape).set(label, tier, 12) end) -- a shape per tier beside the word, not colour alone
 	pill.Image = Art[Layout.blankPillKey(tier)] or Art[Layout.pillKey(tier)] or ""
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 26)

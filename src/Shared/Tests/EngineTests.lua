@@ -27721,4 +27721,57 @@ table.insert(tests, { name = "FxLoop: a confetti burst leaves no instance behind
 	assert(#root:GetDescendants() == before and hub.count() == 0, "pieces destroyed and the loop task is gone")
 end })
 
+table.insert(tests, { name = "Accessibility: every rarity has its word and its own shape, none is colour alone", fn = function()
+	local C = require(script.Parent.Parent.Engine.RarityCues)
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local seen = {}
+	for _, tier in ipairs(C.order) do
+		local sh = C.shape(tier)
+		assert(C.WORD[tier] and #C.WORD[tier] > 2, tier .. " has its word")
+		assert(sh.name and #sh.parts >= 1, tier .. " has a shape")
+		local key = sh.name
+		assert(not seen[key], tier .. " shares its shape with " .. tostring(seen[key]))
+		seen[key] = tier
+		assert(Layout.labelKey(tier) == "ct_label_" .. tier, "the label pill art carries the word for " .. tier)
+	end
+	assert(C.shape("nonsense").name == C.shape("common").name, "an unknown tier falls back to common")
+end })
+table.insert(tests, { name = "Accessibility: Concept T text colours keep 4.5:1 (body) and 3:1 (large) on their plates", fn = function()
+	local C = require(script.Parent.Parent.Engine.RarityCues)
+	local S = require(script.Parent.Parent.Engine.ConceptTSkin)
+	local dark = { 36, 22, 12 }
+	assert(C.contrast(S.TITLE_COLOR, dark) >= C.MIN_LARGE, "cream title on its dark outline")
+	assert(C.contrast(S.GOLD_TEXT, dark) >= C.MIN_BODY, "gold text on dark")
+	assert(C.contrast({ 255, 248, 224 }, dark) >= C.MIN_BODY, "effect pill value on its dark outline")
+	assert(C.contrast({ 250, 238, 212 }, dark) >= C.MIN_BODY, "rarity shape marker on its dark outline")
+	assert(C.contrast({ 0, 0, 0 }, { 255, 255, 255 }) > 20.9 and C.contrast({ 120, 120, 120 }, { 120, 120, 120 }) == 1, "ratio maths")
+end })
+table.insert(tests, { name = "Accessibility: Larger Text grows labels 15 percent but never past their box, and phone text stays at 14 or more", fn = function()
+	local A = require(script.Parent.Parent.Engine.Accessibility)
+	local Layout = require(script.Parent.Parent.Engine.ConceptTLayout)
+	assert(A.textScale({ largerText = true }) == 1.15 and A.textScale({}) == 1)
+	assert(A.scaledTextSize(16, 1.15, 0) == 18 and A.scaledTextSize(16, 1.15, 16) == 16, "capped by the label height, never below base")
+	for _, h in ipairs({ 390, 450, 720, 1080 }) do
+		for _, k in ipairs({ "coins", "hands", "round", "deckCount" }) do
+			assert(Layout.textSize(k, h) >= 14, k .. " text at height " .. h)
+		end
+	end
+end })
+table.insert(tests, { name = "Accessibility: Calm mode is two taps away (Settings, then the first Display rows)", fn = function()
+	if not (io and io.open) then return end
+	local f = assert(io.open("src/Client/Settings.lua", "r"))
+	local src = f:read("*a")
+	f:close()
+	local display = src:find('makeHeader("Display")', 1, true)
+	local gameplay = src:find('makeHeader("Gameplay")', 1, true)
+	local calm = src:find('makeChoiceRow("reduceMotion"', 1, true)
+	local shake = src:find('makeChoiceRow("reduceShake"', 1, true)
+	assert(display and gameplay and calm and shake, "headers and rows exist")
+	assert(display < shake and shake < gameplay and display < calm and calm < gameplay, "the calm rows sit in the first section")
+	local g = assert(io.open("src/Client/ConceptTPlay.lua", "r"))
+	local play = g:read("*a")
+	g:close()
+	assert(play:find("Settings", 1, true), "the gear on the play screen opens Settings")
+end })
+
 return tests
