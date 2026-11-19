@@ -173,21 +173,26 @@ local function newCard(i)
 	innerEdge.Thickness = 1
 	innerEdge.Transparency = 0.75
 	innerEdge.Parent = inner
-	local suit = Instance.new("TextLabel")
-	suit.Name = "Suit"
-	suit.AnchorPoint = Vector2.new(0.5, 0.5)
-	suit.Position = UDim2.fromScale(0.5, 0.5)
-	suit.Size = UDim2.fromOffset(34, 34)
-	suit.BackgroundTransparency = 1
-	suit.Font = Enum.Font.GothamBold
-	suit.TextSize = 26
-	suit.TextColor3 = GOLD
-	suit.TextTransparency = 0.72
-	suit.TextStrokeTransparency = 1
-	suit.Text = "♠"
-	suit.ZIndex = Z + 1
-	suit.Active = false
-	suit.Parent = mark
+	do -- the empty seat's sigil: a gold four point diamond (compass star) on the dark panel, drawn from rotated squares so no glyph is needed
+		local function diamond(name, size, color, tr)
+			local d = Instance.new("Frame")
+			d.Name = name
+			d.AnchorPoint = Vector2.new(0.5, 0.5)
+			d.Position = UDim2.fromScale(0.5, 0.5)
+			d.Size = UDim2.fromOffset(size, size)
+			d.Rotation = 45
+			d.BackgroundColor3 = color
+			d.BackgroundTransparency = tr
+			d.BorderSizePixel = 0
+			d.ZIndex = Z + 1
+			d.Active = false
+			d.Parent = mark
+			return d
+		end
+		diamond("Sigil", 26, GOLD, 0.25)
+		diamond("SigilHollow", 18, Color3.fromRGB(32, 24, 20), 0.05)
+		diamond("SigilCore", 8, GOLD, 0.1)
+	end
 	c.mark = mark
 	local dim = Instance.new("Frame") -- dims the card while another Patron triggers
 	dim.Name = "Dim"
