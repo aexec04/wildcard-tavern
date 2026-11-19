@@ -4,7 +4,7 @@
 	  lipRect(p)            pure: the wood strip that covers the bottom 14 percent of the cards and the front half of the rail groove
 	  install(root)         a "HandRailLip" wood strip in root (not in HandFrame: it is a UIListLayout parent), drawn above the cards
 	  apply(lip, p, shown)  place it from PlayTableLayout.placement, nil hides it
-	  addCardShadow(slot)   soft dark ellipse under a card (child of the card's slot, behind the card)
+	  addCardShadow(slot)   three stacked soft ellipses under a card (child of the card's slot, behind the card)
 	  setShadow(slot, selected, lift)   stronger while selected, fades as the card lifts
 ]]
 
@@ -71,34 +71,56 @@ function PlayRailLip.apply(lip, p, shown)
 	lip.Visible = shown ~= false
 end
 
+-- Soft contact shadow: three stacked rounded frames under the card (rules in Engine/CardPolish, 0.25 alpha core, larger when selected).
+-- Static frames, so Calm mode and Reduce motion make no tween.
+local function polish()
+	return require(game:GetService("ReplicatedStorage").Shared.Engine.CardPolish)
+end
+
+local function layShadow(holder, selected, lift)
+	local spec = polish().shadow(selected == true)
+	local fade = math.min(0.2, (lift or 0) * 0.002) -- a card lifted by hover fades its shadow a little
+	for i, l in ipairs(spec.layers) do
+		local f = holder:FindFirstChild("L" .. i)
+		if f then
+			f.Size = UDim2.new(l.w, 0, 0, l.h)
+			f.Position = UDim2.new(0.5, 0, 1, l.dy)
+			f.BackgroundTransparency = math.min(0.98, l.transparency + fade * (1 - l.transparency))
+		end
+	end
+end
+
 function PlayRailLip.addCardShadow(slot)
-	-- a straight row has no per-card capsule shadows: the floor shadow gradient is the one soft shadow under the whole row
-	if not require(game:GetService("ReplicatedStorage").Shared.Engine.PlayMotion).HAND_FAN_ENABLED then return end
 	if slot:FindFirstChild("ContactShadow") then return end
-	local s = Instance.new("Frame")
-	s.Name = "ContactShadow"
-	s.AnchorPoint = Vector2.new(0.5, 0.5)
-	s.Position = UDim2.new(0.5, 0, 1, 6) -- 6 px below the card's foot, on the felt
-	s.Size = UDim2.new(0.9, 0, 0, 18)
-	s.BackgroundColor3 = Color3.new(0, 0, 0)
-	s.BackgroundTransparency = 0.7
-	s.BorderSizePixel = 0
-	s.Active = false
-	s.ZIndex = 1 -- created before the card button, so the card draws over it
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0.5, 0)
-	c.Parent = s
-	s.Parent = slot
+	local holder = Instance.new("Frame")
+	holder.Name = "ContactShadow"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.Active = false
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.ZIndex = 1 -- created before the card button, so the card draws over it
+	for i = 1, 3 do
+		local s = Instance.new("Frame")
+		s.Name = "L" .. i
+		s.AnchorPoint = Vector2.new(0.5, 0.5)
+		s.BackgroundColor3 = Color3.new(0, 0, 0)
+		s.BorderSizePixel = 0
+		s.Active = false
+		s.ZIndex = 1
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.5, 0)
+		c.Parent = s
+		s.Parent = holder
+	end
+	layShadow(holder, false, 0)
+	holder.Parent = slot
 end
 
 function PlayRailLip.setShadow(slot, selected, lift)
 	if slot then slot:SetAttribute("Lifted", selected == true) end -- read by PlayMotion for the camera lean
-	local s = slot and slot:FindFirstChild("ContactShadow")
-	if not s then return end
-	-- a lifted card's shadow shrinks and fades (numbers in Engine/PlayMotion.shadowFor)
-	local tr, w = require(game:GetService("ReplicatedStorage").Shared.Engine.PlayMotion).shadowFor(selected == true)
-	s.BackgroundTransparency = math.min(0.95, tr + (lift or 0) * 0.002)
-	s.Size = UDim2.new(w, 0, 0, selected and 14 or 18)
+	local holder = slot and slot:FindFirstChild("ContactShadow")
+	if not holder then return end
+	layShadow(holder, selected, lift)
 end
 
 return PlayRailLip

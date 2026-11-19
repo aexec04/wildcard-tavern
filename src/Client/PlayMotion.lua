@@ -73,7 +73,8 @@ function M.install(deps)
 		for i, slot in ipairs(slots) do
 			-- Roblox does not draw Rotation on a layout-controlled slot (AbsoluteRotation stays 0), so the tilt goes on the
 			-- card button inside the slot and the slot keeps the target in an attribute
-			local tilt = PM.cardTilt(i, #slots)
+			-- plus up to 1 degree of stable per-card tilt (Engine/CardPolish), so the hand never looks ruler-straight
+			local tilt = PM.cardTilt(i, #slots) + require(game:GetService("ReplicatedStorage").Shared.Engine.CardPolish).tilt(slot:GetAttribute("HandIndex"))
 			slot.Rotation = 0
 			slot:SetAttribute("FanRot", tilt)
 			local tbtn = slot:FindFirstChildOfClass("TextButton")

@@ -20429,7 +20429,7 @@ table.insert(tests, { name = "PlayMotion: the hand is a level row by default (no
 	if f then
 		local text = f:read("*a")
 		f:close()
-		expectTrue(text:find("HAND_FAN_ENABLED", 1, true) ~= nil, "no ContactShadow capsules under cards while the row is straight")
+		expectTrue(text:find("CardPolish", 1, true) ~= nil, "card shadows come from the tested CardPolish rules (three soft layers, 0.25 alpha core)")
 	end
 	PM.HAND_FAN_ENABLED = true
 	local ok, err = pcall(function()
@@ -20464,7 +20464,48 @@ table.insert(tests, { name = "PlayMotion: the hand is a level row by default (no
 	expectTrue(PM.LEAN_PX.table >= 8 and PM.LEAN_PX.rail <= 16, "lean px in 8 to 16")
 end })
 
-table.insert(tests, { name = "Badge scenes: Night v2 has four round recesses, badges at 85 percent of the recess, used only once its Image id is recorded, every plate inside the board", fn = function()
+table.insert(tests, { name = "CardPolish: 0.25 alpha core shadow, bigger when selected, 4 deck thickness steps that never rise, stable tilt within 1 degree", fn = function()
+	local CP = require(script.Parent.Parent.Engine.CardPolish)
+	local rest, sel = CP.shadow(false), CP.shadow(true)
+	expectEqual(#rest.layers, 3, "three stacked layers")
+	local core = rest.layers[3]
+	expectTrue(math.abs((1 - core.transparency) - 0.25) < 1e-9, "resting core shadow is 0.25 alpha")
+	for i = 1, 3 do
+		local a, b = rest.layers[i], sel.layers[i]
+		expectTrue(b.w > a.w and b.h > a.h and b.dy > a.dy, "selected layer " .. i .. " is larger and lower")
+		expectTrue(a.transparency >= 0.75 - 1e-9 and a.transparency <= 1 and b.transparency >= 0.75 - 1e-9 and b.transparency <= 1, "layer alpha never above 0.25")
+	end
+	expectEqual(CP.deckSteps(52, 52), 4, "full deck")
+	expectEqual(CP.deckSteps(40, 52), 4, "77 percent")
+	expectEqual(CP.deckSteps(39, 52), 3, "75 percent")
+	expectEqual(CP.deckSteps(26, 52), 2, "50 percent")
+	expectEqual(CP.deckSteps(13, 52), 1, "25 percent")
+	expectEqual(CP.deckSteps(1, 52), 1, "one card left")
+	expectEqual(CP.deckSteps(0, 52), 0, "empty")
+	expectEqual(CP.deckSteps(nil, nil), 0, "nil safe")
+	local prev = 4
+	for n = 52, 0, -1 do
+		local s = CP.deckSteps(n, 52)
+		expectTrue(s <= prev and s >= 0 and s <= 4, "steps never rise as cards are drawn")
+		prev = s
+	end
+	expectEqual(#CP.deckEdge(3), 3, "one edge line per step")
+	expectEqual(#CP.deckEdge(99), 4, "capped at 4")
+	expectEqual(#CP.deckEdge(-2), 0, "negative is none")
+	local distinct = {}
+	for k = 1, 60 do
+		local t = CP.tilt(k)
+		expectTrue(math.abs(t) <= 1 + 1e-9, "tilt within 1 degree")
+		expectTrue(CP.tilt(k) == t, "tilt is stable per key")
+		distinct[string.format("%.2f", t)] = true
+	end
+	local n = 0
+	for _ in pairs(distinct) do n = n + 1 end
+	expectTrue(n > 20, "tilts differ from card to card")
+	expectTrue(CP.tilt("AS") == CP.tilt("AS") and CP.tilt("AS") ~= CP.tilt("KH"), "string keys work")
+end })
+
+table.insert(tests, { name = "Badge scenes: Night v2 has four round recesses,badges at 85 percent of the recess, used only once its Image id is recorded, every plate inside the board", fn = function()
 	local W = require(script.Parent.Parent.Engine.BadgeWallLayout)
 	local v2 = W.SCENES.Night.v2
 	expectEqual(#v2.slots, 4, "four round recesses")

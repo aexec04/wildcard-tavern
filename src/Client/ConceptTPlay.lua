@@ -102,6 +102,7 @@ function M.install(deps)
 	roundText.TextColor3 = Color3.fromRGB(Layout.ROUND_TEXT.r, Layout.ROUND_TEXT.g, Layout.ROUND_TEXT.b)
 	roundText.TextStrokeTransparency = 0.6
 	local deckText = text(layer, "DeckText", 18, 3)
+	local deckEdge = require(script.Parent.CardPolishFX).deckEdge(layer) -- thickness lines under the book, fewer as cards are drawn
 	local fill = Instance.new("Frame")
 	fill.Name = "BarFill"
 	fill.BackgroundColor3 = GOLD
@@ -185,6 +186,7 @@ function M.install(deps)
 			cat.place(pr, true)
 		end
 		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
+		deckEdge.place(r.deck)
 		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
 		-- numbers fill their plates like the reference (frame height scaled, at least 15 px)
 		coinsText.TextSize = Layout.textSize("coins", size.Y); handsText.TextSize = Layout.textSize("hands", size.Y)
@@ -298,6 +300,7 @@ function M.install(deps)
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
 		end
 		deckText.Text = DeckCountText.spaced(remaining, lastState.deckView)
+		deckEdge.set(remaining, tonumber(lastState.deckTotal) or 52)
 		if oldDeck ~= "" and oldDeck ~= deckText.Text then
 			local newDeck = deckText.Text
 			pcall(FX.pop, deckText, oldDeck, newDeck)
