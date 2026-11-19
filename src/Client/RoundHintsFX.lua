@@ -115,7 +115,12 @@ function M.update(layer, state, selectedCount, rects, viewW, viewH)
 		entry = Rules.next(state, seen, opts)
 		if not entry or Rules.satisfied(entry.id, selectedCount) then return M.hide() end
 	end
-	local spot = Rules.place(rects, viewW, viewH)
+	-- a hint never shares the screen with the boss intro, and never covers the boss rule plate
+	if layer:FindFirstChild("BossIntro") then M.hide(); return end
+	local avoid = {}
+	local bp = layer:FindFirstChild("BossRulePlate")
+	if bp and bp.Visible then avoid[1] = { x = bp.Position.X.Offset, y = bp.Position.Y.Offset, w = bp.Size.X.Offset, h = bp.Size.Y.Offset } end
+	local spot = Rules.place(rects, viewW, viewH, avoid)
 	if not spot then M.hide(); return end -- nothing fits clear of the table: skip it rather than overlap
 	if not plate or plate.Parent ~= layer then build(layer) end
 	if current ~= entry.id then

@@ -317,8 +317,13 @@ function M.boss(layer, rects, state, w, h)
 			rulePlate.TextXAlignment = Enum.TextXAlignment.Left
 			rulePlate.Active = false
 			rulePlate.ZIndex = 4
+			local ic = Instance.new("TextLabel"); ic.Name = "BossIcon"; ic.BackgroundColor3 = Color3.fromRGB(150, 38, 30); ic.BackgroundTransparency = 0
+			ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, -2, 0.5, 0); ic.Active = false
+			ic.Font = Enum.Font[Style.FONTS.title]; ic.TextColor3 = color("cream"); ic.TextStrokeTransparency = 0.4; ic.TextStrokeColor3 = color("outline"); ic.ZIndex = 5
+			local icc = Instance.new("UICorner"); icc.CornerRadius = UDim.new(0, 5); icc.Parent = ic
+			ic.Parent = rulePlate
 			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = rulePlate
-			local pd = Instance.new("UIPadding"); pd.PaddingLeft = UDim.new(0, 8); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
+			local pd = Instance.new("UIPadding"); pd.PaddingLeft = UDim.new(0, 30); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
 			local st = Instance.new("UIStroke"); st.Name = "Edge"; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Thickness = 2; st.Parent = rulePlate
 			rulePlate.Parent = layer
 		end
@@ -326,7 +331,12 @@ function M.boss(layer, rects, state, w, h)
 		rulePlate.Position = UDim2.fromOffset(pr.x, pr.y)
 		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
 		rulePlate.TextSize = math.max(14, math.min(16, pr.h - 6))
-		rulePlate.Text = rule
+		rulePlate.Text = name .. ": " .. rule
+		local side = pr.h - 4
+		rulePlate.BossIcon.Size = UDim2.fromOffset(side, side)
+		rulePlate.BossIcon.Text = Rules.bossIcon(bdef and bdef.rules)
+		rulePlate.BossIcon.TextSize = math.max(12, math.min(16, side - 6))
+		local icf = Rules.iconFill(bdef and bdef.rules); rulePlate.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
 		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
 		rulePlate.Edge.Color = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
 	end
@@ -346,76 +356,12 @@ function M.boss(layer, rects, state, w, h)
 	local introKey = Rules.bossEntranceKey(state)
 	if introKey and tint:GetAttribute("IntroKey") ~= introKey then
 		tint:SetAttribute("IntroKey", introKey)
+		pcall(function() require(script.Parent.Cue).play("boss_intro") end) -- silent until the cue has an id
 		pcall(introCinematic, layer, bdef, name, rule, tintSet, w, h)
 	end
-	local rect = Rules.bossBanner(rects, w, h)
-	if not rect then
-		if banner then banner.Visible = false end
-		return
-	end
-	if not banner then
-		banner = Instance.new("Frame")
-		banner.Name = "BossBanner"
-		banner.BorderSizePixel = 0
-		banner.BackgroundColor3 = Color3.fromRGB(70, 22, 20)
-		banner.BackgroundTransparency = 0.15
-		banner.Active = false
-		banner.ZIndex = 4
-		local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = banner
-		local s = Instance.new("UIStroke"); s.Color = color("gold"); s.Thickness = 1; s.Parent = banner
-		local ic = Instance.new("TextLabel"); ic.Name = "BossIcon"; ic.BackgroundColor3 = Color3.fromRGB(150, 38, 30); ic.BackgroundTransparency = 0
-		ic.Font = Enum.Font[Style.FONTS.title]; ic.TextColor3 = color("cream"); ic.TextStrokeTransparency = 0.4; ic.TextStrokeColor3 = color("outline")
-		ic.ZIndex = 5; ic.Active = false; ic.Parent = banner
-		local icc = Instance.new("UICorner"); icc.CornerRadius = UDim.new(0, 5); icc.Parent = ic
-		local ics = Instance.new("UIStroke"); ics.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; ics.Color = color("gold"); ics.Thickness = 1; ics.Parent = ic
-		local n = Instance.new("TextLabel"); n.Name = "BossName"; n.BackgroundTransparency = 1
-		n.Font = Enum.Font[Style.FONTS.title]; n.TextColor3 = color("gold"); n.TextXAlignment = Enum.TextXAlignment.Left
-		n.TextTruncate = Enum.TextTruncate.AtEnd; n.TextStrokeTransparency = 0.4; n.TextStrokeColor3 = color("outline"); n.ZIndex = 5; n.Active = false; n.Parent = banner
-		local r = Instance.new("TextLabel"); r.Name = "BossRule"; r.BackgroundTransparency = 1
-		r.Font = Enum.Font[Style.FONTS.ui]; r.TextColor3 = color("cream"); r.TextXAlignment = Enum.TextXAlignment.Left
-		r.TextTruncate = Enum.TextTruncate.AtEnd; r.TextStrokeTransparency = 0.5; r.TextStrokeColor3 = color("outline"); r.ZIndex = 5; r.Active = false; r.Parent = banner
-		banner.Parent = layer
-	end
-	banner.Visible = true
-	banner.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
-	local icf = Rules.iconFill(bdef and bdef.rules); banner.BossIcon.BackgroundColor3 = Color3.fromRGB(icf[1], icf[2], icf[3])
-	if not banner:GetAttribute("Sliding") then banner.Position = UDim2.fromOffset(rect.x, rect.y) end
-	banner.Size = UDim2.fromOffset(rect.w, rect.h)
-	local ts = math.max(14, math.min(18, rect.h - 8))
-	local n, r, ic = banner.BossName, banner.BossRule, banner.BossIcon
-	local def = bdef
-	local side = rect.h - 4
-	ic.Text = Rules.bossIcon(def and def.rules)
-	ic.TextSize = math.max(12, math.min(16, side - 6))
-	ic.Size = UDim2.fromOffset(side + 6, side); ic.Position = UDim2.fromOffset(4, 2)
-	local pad = side + 14
-	n.Text = name
-	n.TextSize = ts
-	n.Size = UDim2.new(0.34, -pad, 1, 0); n.Position = UDim2.fromOffset(pad, 0)
-	r.Text = rule
-	r.TextSize = ts
-	r.Size = UDim2.new(0.66, -14, 1, 0); r.Position = UDim2.new(0.34, 4, 0, 0)
-	-- entrance: once per boss round, never in Calm mode or Reduce motion
-	local key = Rules.bossEntranceKey(state)
-	local timing = Rules.bossEntrance(calm(), fast())
-	if key and banner:GetAttribute("EntranceKey") ~= key then
-		banner:SetAttribute("EntranceKey", key)
-		pcall(function() require(script.Parent.Cue).play("boss_intro") end) -- silent until the cue has an id
-		if timing.slide > 0 then
-			local rest = UDim2.fromOffset(rect.x, rect.y)
-			banner.Position = UDim2.fromOffset(rect.x, rect.y - rect.h - 12)
-			banner.BackgroundTransparency = 0
-			banner:SetAttribute("Sliding", true)
-			TweenService:Create(banner, TweenInfo.new(timing.slide, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = rest }):Play()
-			task.delay(timing.slide + timing.hold, function()
-				if banner.Parent then
-					banner:SetAttribute("Sliding", false)
-					banner.Position = rest
-					TweenService:Create(banner, TweenInfo.new(timing.settle), { BackgroundTransparency = 0.15 }):Play()
-				end
-			end)
-		end
-	end
+	-- ONE boss display: the intro cinematic announces the boss, then the slim rule plate under the Patron rows is the only plate left.
+	-- The old strip under the top bar (BossBanner) is gone; remove one that an earlier build left in the layer.
+	if banner then banner:Destroy() end
 end
 
 return M

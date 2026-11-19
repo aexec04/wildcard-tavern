@@ -190,7 +190,8 @@ local function build(deps)
 		-- the Concept T screen shows the boss name and rule once, on the red plate (BossPresenceFX), so the old top
 		-- plate and medallion stay hidden there (they covered the Round banner)
 		local okCT, ctActive = pcall(function() return require(script.Parent.ConceptTPlay).isActive() end)
-		if okCT and ctActive == true then
+		local g2 = root:FindFirstChild("Gameplay2") -- the Gameplay v2 table announces the boss once (intro, then one slim rule plate), never in the top bar
+		if (okCT and ctActive == true) or (g2 ~= nil and g2:IsA("GuiObject") and g2.Visible) then
 			if pl then pl.Visible = false end
 			if med then med.Visible = false end
 		elseif pl then

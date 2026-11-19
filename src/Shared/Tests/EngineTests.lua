@@ -29683,6 +29683,36 @@ table.insert(tests, { name = "Gameplay v2 quick controls: Quick view and writes 
 	assert(not g:find("MuteButton", 1, true) and not g:find("CalmButton", 1, true) and g:find("GearMenu", 1, true), "the table has no loose plates, the gear module is installed")
 end })
 
+table.insert(tests, { name = "Boss round table: one boss plate after the intro, clear of Patrons, hints, score and hand, hints dodge it and wait for the intro", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local H = require(script.Parent.Parent.Engine.RoundHints)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local rp = M.rulePlate(r)
+		expectTrue(rp ~= nil, "the one boss plate fits at " .. w .. "x" .. h)
+		for i, sl in ipairs(r.slots) do
+			for _, part in ipairs({ "card", "label", "pill" }) do expectTrue(not hit(rp, sl[part]), "boss plate clear of Patron seat " .. i .. " " .. part .. " at " .. w) end
+		end
+		for _, k in ipairs({ "stage", "hand", "bar", "gear", "sortRank", "sortSuit", "deck" }) do expectTrue(not hit(rp, r[k]), "boss plate clear of " .. k .. " at " .. w) end
+		local spot = H.place(r, w, h, { rp })
+		if spot then
+			expectTrue(not hit(spot.plate, rp) and not hit(spot.button, rp), "the hint plate and its button never touch the boss plate at " .. w)
+			for i, sl in ipairs(r.slots) do expectTrue(not hit(spot.plate, sl.card) and not hit(spot.plate, sl.pill), "hint clear of Patron seat " .. i .. " at " .. w) end
+			expectTrue(not hit(spot.plate, r.hand) and not hit(spot.plate, r.stage), "hint clear of hand and stage at " .. w)
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(fx:find('Instance.new("Frame")\n\t\tbanner.Name = "BossBanner"', 1, true) == nil and fx:find("banner:Destroy()", 1, true), "the BossBanner strip is never built, an old one is removed")
+	expectTrue(read("src/Client/BossFight.lua"):find('root:FindFirstChild("Gameplay2")', 1, true), "the old top bar boss plate and medallion stay hidden on the v2 table")
+	local hints = read("src/Client/RoundHintsFX.lua")
+	expectTrue(hints:find('FindFirstChild("BossIntro")', 1, true) and hints:find('FindFirstChild("BossRulePlate")', 1, true), "hints wait for the boss intro and dodge the rule plate")
+end })
+
 table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)

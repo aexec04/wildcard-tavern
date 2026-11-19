@@ -82,7 +82,7 @@ local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.
 
 -- The open middle: left of the score stage, or right of it, between the Patron pills and the hand. The stage itself holds the score,
 -- and the played cards land under it, so the plate stays beside it.
-function M.place(r, viewW, viewH)
+function M.place(r, viewW, viewH, avoid)
 	if type(r) ~= "table" or not r.stage or not r.hand or not r.slots or not r.slots[1] then return nil end
 	local top = r.slots[1].pill.y + r.slots[1].pill.h + 4
 	local bottom = r.hand.y - 6
@@ -111,6 +111,9 @@ function M.place(r, viewW, viewH)
 				end
 			end
 			if hit(plate, r.stage) or hit(button, r.stage) then clear = false end
+			for _, a in ipairs(avoid or {}) do -- a boss rule plate and anything else that must stay uncovered
+				if hit(plate, a) or hit(button, a) then clear = false end
+			end
 			if plate.x >= 0 and button.x + button.w <= viewW and y + h <= viewH and clear then
 				return { plate = plate, button = button }
 			end
