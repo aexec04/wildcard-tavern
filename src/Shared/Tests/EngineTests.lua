@@ -23559,6 +23559,22 @@ table.insert(tests, { name = "ConceptTLayout pass 6: stage centre moved right an
 	assert(math.abs(r.hand.x - (0.195 * 1536 - 18)) <= 2 and math.abs(r.hand.y + r.hand.h - (0.851 * 1024 - 3)) <= 2, "hand shift")
 	assert(L.HAND_CARD_W < 0.086 and L.STAGE_SCALE == 1.05)
 end })
+table.insert(tests, { name = "ConceptTLayout small screens: five sizes keep every piece on screen, buttons at least 44 px and clear of the hand, no overlaps, text 15 px", fn = function()
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		assert(L.fits(w, h), tag .. " fits")
+		local r = L.rects(w, h)
+		for name, b in pairs(r) do
+			assert(b.x >= 0 and b.y >= 0 and b.x + b.w <= w and b.y + b.h <= h, tag .. " " .. name .. " on screen")
+		end
+		assert(r.play.h >= 44 and r.discard.h >= 44, tag .. " buttons tall enough")
+		assert(r.play.y >= r.hand.y + r.hand.h and r.discard.y >= r.hand.y + r.hand.h, tag .. " hand clear of the buttons")
+		assert(#L.overlaps(r) == 0, tag .. " overlaps: " .. table.concat(L.overlaps(r), ","))
+		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do assert(L.textSize(key, h) >= 15, tag .. " text " .. key) end
+	end
+end })
 table.insert(tests, { name = "PatronMotion: entrance by tier, rays only for Legendary, calm mode makes no motion, hover keeps the larger pill", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PatronMotion)
 	assert(PM.entrance("rare", true) == nil, "calm: no entrance tween")

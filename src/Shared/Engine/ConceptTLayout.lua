@@ -22,6 +22,7 @@ local function round(n) return math.floor(n + 0.5) end
 
 M.REF_W, M.REF_H = 1536, 1024
 M.MIN_W, M.MIN_H = 640, 360
+M.MIN_TOUCH = 44 -- smallest button height in px (phone landscape 844 x 390 and the like)
 
 M.frac = {
 	coins = { 0.013, 0.027, 0.115, 0.092 },
@@ -74,6 +75,11 @@ function M.rects(w, h)
 	for name, f in pairs(M.frac) do
 		local x0, y0, x1, y1 = round(f[1] * w), round(f[2] * h), round(f[3] * w), round(f[4] * h)
 		out[name] = { x = x0, y = y0, w = x1 - x0, h = y1 - y0 }
+	end
+	-- touch targets: Play Hand and Discard are at least MIN_TOUCH px tall on short screens (they grow down toward the screen edge)
+	for _, name in ipairs({ "play", "discard" }) do
+		local b = out[name]
+		if b.h < M.MIN_TOUCH then b.h = math.min(M.MIN_TOUCH, h - b.y) end
 	end
 	return out
 end
