@@ -832,7 +832,10 @@ end
 function M.placePill()
 	if not (holder and rootRef) then return end
 	local m = require(Engine:WaitForChild("PatronBoost")).panel(boost.preview, boost.last)
-	local on = ctPlace and holder.Visible and m.value ~= nil
+	local v2 = false
+	pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
+	-- the v2 table has its own PreviewPill (Gameplay2); a second box here would sit on the centre score
+	local on = ctPlace and (not v2) and holder.Visible and m.value ~= nil
 	if not on then
 		if ctPill then ctPill.Visible = false end
 		return

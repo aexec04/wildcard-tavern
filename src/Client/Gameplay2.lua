@@ -318,7 +318,7 @@ function M.install(deps)
 		scoreBox.Position = UDim2.fromOffset(r.stage.x, r.stage.y)
 		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
 		scoreBox.ZIndex = 2
-		local capH, progH = 20, 22
+		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
 		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH)
 		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
 		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 2
@@ -334,6 +334,10 @@ function M.install(deps)
 			raise(previewPill, Z_UI + 1)
 			setText(previewPill, self.previewText)
 			previewPill.Visible = true
+			if game:GetService("RunService"):IsStudio() then -- only one preview may show: the older box must stay hidden
+				local old = deps.root and deps.root:FindFirstChild("CTPreviewPill", true)
+				if old and old.Visible then warn("[Gameplay2] a second preview box (CTPreviewPill) is visible over the centre score") end
+			end
 		else
 			previewPill.Visible = false
 		end

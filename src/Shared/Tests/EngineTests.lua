@@ -29007,6 +29007,26 @@ table.insert(tests, { name = "Gameplay v2 hand preview: name, level, chips and m
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	assert(read("src/Client/Gameplay2.lua"):find("PreviewPill", 1, true) and read("src/Client/init.client.lua"):find("Gameplay2).setPreview", 1, true), "wired to the hub's preview")
+	-- one preview only: the older Concept T box ("<chips> Chips x <mult> Mult") stays hidden while the v2 table is up
+	local pr = read("src/Client/PatronRow.lua")
+	local fn = pr:match("function M%.placePill%(%).-\nend\n") or ""
+	assert(fn:find("Gameplay2", 1, true) and fn:find("not v2", 1, true), "PatronRow.placePill hides the old preview box on the v2 table")
+	assert(read("src/Client/Gameplay2.lua"):find("PreviewRules.H", 1, true), "the caption row is as tall as the preview pill")
+end })
+
+table.insert(tests, { name = "Gameplay v2 centre: the preview pill never touches the score numeral, line or progress text at three sizes", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local pill = P.rect(r.stage, "Straight Flush Lv 12  |  150 Chips x 12 Mult")
+		local st = L.scoreStack(r.stage.h, math.max(20, P.H), 22)
+		if st.roomy then
+			local num = { x = r.stage.x, y = r.stage.y + st.numTop, w = r.stage.w, h = st.numH }
+			assert(pill.y + pill.h <= num.y, "pill above the numeral at " .. sz[1] .. " (pill bottom " .. (pill.y + pill.h) .. ", numeral top " .. num.y .. ")")
+			assert(st.textSize >= 44, "numeral stays at least 44 px at " .. sz[1])
+		end
+	end
 end })
 
 table.insert(tests, { name = "Gameplay v2 deck viewer: the Your Deck panel wears the TavernKit look on the v2 table, opens on the cards left to draw, keeps the old look on the v1 archive", fn = function()
