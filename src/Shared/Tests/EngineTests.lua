@@ -27525,4 +27525,31 @@ table.insert(tests, { name = "ShopSceneLayout: tabs and Next Round are at least 
 	end
 end })
 
+table.insert(tests, { name = "BossPresence: plate clear of Round banner and Patron row at five sizes, plain one line rule for every boss, 0.4 s slide, 0.12 to 0.2 red pulse, crown, big fanfare, nothing in calm mode", fn = function()
+	local B = require(script.Parent.Parent.Engine.BossPresence)
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 }, { 844, 390 }, { 1024, 768 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local p = B.plate(sz[1], sz[2], r, r.patrons)
+		assert(p.h > 0 and p.textSize >= 15, "plate has room at " .. sz[1])
+		assert(p.y >= r.round.y + r.round.h, "below the Round banner")
+		assert(p.y + p.h <= r.patrons.y, "above the Patron row")
+		assert(p.x >= 0 and p.x + p.w <= sz[1])
+	end
+	local Bosses = require(script.Parent.Parent.Engine.BossRounds)
+	for _, def in ipairs(Bosses.Definitions) do
+		local l = B.line(def)
+		assert(#l > 0 and #l <= B.MAX_LINE and not l:find("\n"), "one line for " .. tostring(def.id))
+		assert((def.description or "") ~= "", "rule in words for " .. tostring(def.id))
+	end
+	assert(B.slide(false).dur == 0.4 and B.slide(true) == nil)
+	for i = 0, 30 do
+		local a = B.pulse(i * 0.1, false)
+		assert(a >= 0.12 - 1e-9 and a <= 0.2 + 1e-9)
+	end
+	assert(B.pulse(0, true) == nil)
+	assert(B.crownText("Round 3", true):find("Round 3") and B.crownText("Round 3", false) == "Round 3")
+	assert(B.fanfare(true, false) == nil and B.fanfare(false, false).pieces == 56 and B.fanfare(false, true).pieces == 28)
+end })
+
 return tests

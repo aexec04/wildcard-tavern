@@ -836,6 +836,7 @@ local function build(deps)
 
 	local function defeatSequence()
 		retiring = true
+		pcall(require(script.Parent.BossPresenceFX).fanfare, root) -- plate and red pulse off, big confetti
 		require(script.Parent.Cue).play("boss_defeat")
 		require(script.Parent.Cue).duck() -- a big beat: the music dips about 4 dB for 1.2 s
 		if fast() then
@@ -893,6 +894,7 @@ local function build(deps)
 	end
 
 	hide = function()
+		pcall(require(script.Parent.BossPresenceFX).hide)
 		token = token + 1
 		for _, t in ipairs(tweens) do t:Cancel() end
 		tweens = {}
@@ -1011,6 +1013,7 @@ local function build(deps)
 			host.Visible = true
 			visible = true
 			startIdle()
+			pcall(require(script.Parent.BossPresenceFX).show, root, boss) -- rule plate and red edge pulse (Concept T screen)
 			-- entrance: the medallion and plate slide down from above the screen edge (0.4 s) and hold 2.2 s with the name and
 			-- rule text, then the intro line speaks from the medallion
 			pscale.Scale = S(0.96)

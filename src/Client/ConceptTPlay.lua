@@ -281,7 +281,7 @@ function M.install(deps)
 			pcall(require(script.Parent.TavernLifeFX).coinBurst, layer, coins, oldCoins, coinsText.Text) -- gold burst when coins rise
 		end
 		if oldHands ~= "" then pcall(FX.pop, handsText, oldHands, handsText.Text) end
-		roundText.Text = string.format("Round %d", math.floor(lastState.round or 1))
+		roundText.Text = require(game:GetService("ReplicatedStorage").Shared.Engine.BossPresence).crownText(string.format("Round %d", math.floor(lastState.round or 1)), lastState.bossModifier ~= nil and (lastState.round or 0) >= 3)
 		local remaining = 0
 		for _, suit in pairs(lastState.deckCounts or {}) do
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
