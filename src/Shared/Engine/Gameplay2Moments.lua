@@ -44,6 +44,7 @@ function M.clearLines(prev, now)
 	local earned = math.max(0, floor(now.tips) - floor(prev.tips))
 	local lines = { title = "Target cleared", score = string.format("Score %d of %d", score, target), tips = string.format("Tips +%d", earned), tipsEarned = earned }
 	lines.night = M.nightLines(prev)
+	lines.unlockItems = now.unlockNotice and now.unlockNotice.items or nil
 	return lines
 end
 
@@ -63,9 +64,18 @@ end
 
 function M.nightPlate(w, h, runComplete)
 	local pw = math.min(runComplete and 560 or 480, math.max(280, math.floor(w * (runComplete and 0.5 or 0.44))))
-	local ph = math.min(runComplete and 300 or 260, math.max(runComplete and 226 or 214, math.floor(h * (runComplete and 0.40 or 0.36))))
+	local ph = math.min(runComplete and 300 or 260, math.max(runComplete and 262 or 214, math.floor(h * (runComplete and 0.40 or 0.36))))
 	ph = math.min(ph, h - 16)
 	return { x = math.floor((w - pw) / 2), y = math.max(8, math.floor((h - ph) / 2)), w = pw, h = ph }
+end
+
+-- Run complete lists what the run opened on one gold line under the Tips line; { y, h } inside the plate, 26 px tall, ending
+-- at least 8 px above the Continue plate
+M.UNLOCK_Y, M.UNLOCK_H = 150, 26
+function M.unlockRow(plate)
+	local cr = M.continueRect(plate)
+	if M.UNLOCK_Y + M.UNLOCK_H + 8 > cr.y then return nil end
+	return { y = M.UNLOCK_Y, h = M.UNLOCK_H }
 end
 
 -- the Continue plate sits at the bottom of the night plate (relative to it), 48 px tall, inside it

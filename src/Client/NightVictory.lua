@@ -170,7 +170,7 @@ return function(deps)
 		TextColor3 = GOLD, Text = "" }, INK_TITLE)
 
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.fromOffset(220, 38)
+	button.Size = UDim2.fromOffset(240, 46)
 	button.LayoutOrder = nextOrder()
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 16

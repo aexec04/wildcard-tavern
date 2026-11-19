@@ -29608,4 +29608,33 @@ table.insert(tests, { name = "Gameplay v2 Night 2 and 3 tables: boss rule plate 
 	assert(not dt:find("fromOffset(150, 34)", 1, true) and not dt:find("fromOffset(140, 34)", 1, true) and not dt:find("or 96, 34)", 1, true), "deck viewer controls are 44 px")
 end })
 
+table.insert(tests, { name = "Gameplay v2 end moments: Run complete lists unlocks above a 48 px Continue, plates fit at four sizes, Night cleared keeps tips, old champion button is 44 px", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local prev = { phase = "playing", round = 3, night = 8, nightCap = 8, bossModifier = { name = "B" }, targetScore = 300, roundScore = 200, tips = 5 }
+	local now = { phase = "shop", roundScore = 400, tips = 15, unlockNotice = { items = { { kind = "patron", id = "x" } } } }
+	local lines = M.clearLines(prev, now)
+	assert(lines.night.runComplete and lines.unlockItems and #lines.unlockItems == 1 and lines.tipsEarned == 10, "unlock items and tips carried")
+	local mid = M.clearLines({ phase = "playing", round = 3, night = 2, nightCap = 8, bossModifier = { name = "B" }, targetScore = 300, roundScore = 200, tips = 5 }, now)
+	assert(not mid.night.runComplete and mid.night.title == "Night cleared" and mid.tipsEarned == 10 and mid.night.button == "Continue")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		for _, complete in ipairs({ false, true }) do
+			local p = M.nightPlate(w, h, complete)
+			assert(p.x >= 0 and p.y >= 0 and p.x + p.w <= w and p.y + p.h <= h, "plate on screen at " .. w)
+			local cr = M.continueRect({ w = p.w, h = p.h })
+			assert(cr.h >= 44 and cr.x >= 0 and cr.x + cr.w <= p.w and cr.y + cr.h <= p.h, "Continue inside the plate and 44 px tall at " .. w)
+			local tipsBottom = (complete and 120 or 108) + 26
+			assert(cr.y >= tipsBottom + 4, "Continue below the Tips line at " .. w .. " complete=" .. tostring(complete))
+			if complete then
+				local u = M.unlockRow({ w = p.w, h = p.h })
+				assert(u and u.y >= tipsBottom and u.y + u.h + 8 <= cr.y, "unlock line between Tips and Continue at " .. w)
+			end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/Gameplay2MomentsFX.lua"):find("Rules.unlockRow", 1, true), "unlock line wired")
+	assert(not read("src/Client/NightVictory.lua"):find("fromOffset(220, 38)", 1, true), "Enter Endless Nights plate is 44 px or more")
+end })
+
 return tests

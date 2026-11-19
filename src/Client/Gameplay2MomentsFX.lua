@@ -84,6 +84,14 @@ local function night(root, lines)
 	text(plate, "Score", lines.score, 20, "cream", Style.FONTS.ui, big and 90 or 80, 26)
 	local counting = timing.count and lines.tipsEarned > 0
 	local tips = text(plate, "Tips", counting and "Tips +0" or lines.tips, 20, "cream", Style.FONTS.ui, big and 120 or 108, 26)
+	if big then -- Run complete: what this run opened, by name, on one gold line (same wording as Run Over)
+		local ur = Rules.unlockRow({ w = rect.w, h = rect.h })
+		local okU, line = pcall(function()
+			local names = require(script.Parent.UnlockToast).namesOf(lines.unlockItems)
+			return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("ProgressionFeel")).unlockLine(names)
+		end)
+		if ur and okU and line then text(plate, "Unlocks", line, 18, "gold", Style.FONTS.ui, ur.y, ur.h) end
+	end
 	local cr = Rules.continueRect({ w = rect.w, h = rect.h })
 	local btn = Kit.primaryButton(plate, n.button)
 	btn.Name = "Continue"
