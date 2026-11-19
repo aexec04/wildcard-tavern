@@ -9,7 +9,7 @@ import pathlib
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REFERENCE = ROOT / "claude" / "reference" / "concept_t" / "full_reference.png"
@@ -102,10 +102,17 @@ def main(argv):
         i = args.index("--reference")
         ref_path = pathlib.Path(args[i + 1])
         del args[i:i + 2]
+    if "--raw" in args:
+        args.remove("--raw")
     if len(args) != 1:
         print(__doc__)
         return 2
     ref_im, shot_im = load(ref_path), load(args[0], bars=True)
+    # A Studio capture is resampled from a different pixel size, so fine edges never line up exactly. Blur both
+    # (radius 3) so the score measures layout, colour and art, not resampling noise. Pass --raw for the strict score.
+    if "--raw" not in sys.argv:
+        ref_im = ref_im.filter(ImageFilter.GaussianBlur(3))
+        shot_im = shot_im.filter(ImageFilter.GaussianBlur(3))
     scores, diff = compare(ref_im, shot_im)
     write_images(ref_im, shot_im, diff)
     print("\n".join(report(scores)))
