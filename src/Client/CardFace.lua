@@ -320,7 +320,31 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		makeLabel(face, "BottomSuit", suitText, indexInk, UDim2.fromScale(0.18, 0.11), UDim2.fromScale(0.78, 0.85), Vector2.new(1, 1), Enum.TextXAlignment.Right, zIndex)
 	end
 	local C = IV and IV.center or { x = 0.5, y = 0.58, w = 0.5, h = 0.32 }
-	makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(C.w, C.h), UDim2.fromScale(C.x, C.y), Vector2.new(0.5, 0.5), nil, zIndex)
+	-- a painted K, Q or J figure takes the place of the big suit symbol on the ivory face (corner index stays text)
+	local courtImage, CL = "", nil
+	if IV then
+		local okCourt, id, layout = pcall(function()
+			local Engine = game:GetService("ReplicatedStorage").Shared.Engine
+			local Court = require(Engine.CourtFaceArt)
+			return Court.resolve(require(Engine.ConceptTCardArt), rankText, suitText), Court.LAYOUT
+		end)
+		if okCourt then courtImage, CL = id, layout end
+	end
+	if courtImage ~= "" then
+		local figure = Instance.new("ImageLabel")
+		figure.Name = "CourtFigure"
+		figure.BackgroundTransparency = 1
+		figure.Image = courtImage
+		figure.ScaleType = Enum.ScaleType.Fit
+		figure.AnchorPoint = Vector2.new(0.5, 0.5)
+		figure.Position = UDim2.fromScale(CL.x, CL.y)
+		figure.Size = UDim2.fromScale(CL.w, CL.h)
+		figure.ZIndex = zIndex + 1
+		figure.Active = false
+		figure.Parent = face
+	else
+		makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(C.w, C.h), UDim2.fromScale(C.x, C.y), Vector2.new(0.5, 0.5), nil, zIndex)
+	end
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)
 	end

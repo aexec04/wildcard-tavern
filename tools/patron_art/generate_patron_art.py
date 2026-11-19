@@ -96,6 +96,7 @@ CATEGORIES = {
     "hud_kit": ("hud_kit_subjects", "hud_kit", "HudKitArt.lua", "HUD Kit"),
     "concept_t": ("concept_t_subjects", "concept_t", "ConceptTArt.lua", "Concept T"),
     "concept_t_patrons": ("ctp_subjects", "concept_t_patrons", "ConceptTPatronArt.lua", "Concept T Patron card"),
+    "concept_t_cards": ("ctc_subjects", "concept_t_cards", "ConceptTCardArt.lua", "Concept T court face"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -233,6 +234,10 @@ CATEGORY_OPTS = {
     # Concept T Patron cards: full opaque cards (plain gray backdrop), each an EDIT of the cut card of its rarity.
     # The id -> rarity map is prompts.json "ctp_rarity"; "references" is filled below.
     "concept_t_patrons": {"quality": "medium", "style_key": "ctp_style", "transparent": False, "size": "1024x1536", "references": {}},
+    # Concept T court figures (K, Q, J x 4 suits): character only on magenta, cut out; the corner index and pips stay code-drawn.
+    "concept_t_cards": {"quality": "medium", "style_key": "ctc_style", "transparent": True, "size": "1024x1024",
+                        "references": dict(("court_%s_%s" % (r, s), "art-wip/concept_t_cards/ref_king.png")
+                                           for r in "kqj" for s in ("spades", "hearts", "diamonds", "clubs"))},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
