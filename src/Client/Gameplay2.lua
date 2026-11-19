@@ -18,6 +18,8 @@ local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("Gameplay2Layout"))
 local Moments = require(Engine:WaitForChild("Gameplay2Moments"))
 local PreviewRules = require(Engine:WaitForChild("Gameplay2Preview"))
+local Quick = require(Engine:WaitForChild("Gameplay2Quick"))
+local ClientSettings = require(script.Parent.ClientSettings)
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local Flags = require(Engine:WaitForChild("FeatureFlags"))
 local TableArt = require(Engine:WaitForChild("TableSceneArt"))
@@ -144,6 +146,33 @@ function M.install(deps)
 	scoreLine.Active = false
 	scoreLine.Parent = scoreBox
 	-- the hand preview: "Flush Lv 2  |  50 Chips x 6 Mult" over the centre score while cards are selected (Engine/Gameplay2Preview)
+	-- Mute and Calm: two small kit buttons in the top left corner (Engine/Gameplay2Quick); the ON state is a green plate AND the words Muted / Calm On
+	local function quickSettings()
+		return { muted = ClientSettings.getRaw("muted"), reduceMotion = ClientSettings.getRaw("reduceMotion"), reduceFlashing = ClientSettings.getRaw("reduceFlashing"), reduceShake = ClientSettings.getRaw("reduceShake") }
+	end
+	local muteButton = Kit.secondaryButton(layer, "Mute"); muteButton.Name = "MuteButton"
+	local calmButton = Kit.secondaryButton(layer, "Calm"); calmButton.Name = "CalmButton"
+	local function paintQuick()
+		local v = Quick.view(quickSettings())
+		for _, p in ipairs({ { muteButton, v.mute }, { calmButton, v.calm } }) do
+			p[1].Text = p[2].text
+			p[1].TextSize = Style.TEXT.chip
+			if p[1]:GetAttribute("TavernKind") ~= p[2].kind then Kit.skin(p[1], p[2].text, p[2].kind); p[1].TextSize = Style.TEXT.chip end
+		end
+	end
+	muteButton.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.Cue).play("button_click") end)
+		for k, val in pairs(Quick.muteWrites(quickSettings())) do ClientSettings.set(k, val) end
+		paintQuick()
+	end)
+	calmButton.MouseButton1Click:Connect(function()
+		pcall(function() require(script.Parent.Cue).play("button_click") end)
+		for k, val in pairs(Quick.calmWrites(quickSettings())) do ClientSettings.set(k, val) end
+		paintQuick()
+	end)
+	ClientSettings.onChanged(function(key)
+		if key == "muted" or key == "reduceMotion" or key == "reduceFlashing" or key == "reduceShake" then pcall(paintQuick) end
+	end)
 	local previewPill = Kit.pill(layer, "", "wood"); previewPill.Name = "PreviewPill"; previewPill.ZIndex = Z_UI + 1; previewPill.Visible = false
 	for _, p in ipairs({ tips, handsPill, discardsPill, deckPill, previewPill }) do -- a pill's word fills the whole pill and may be longer than 4 chars
 		local w = p:FindFirstChild("Word")
@@ -277,6 +306,9 @@ function M.install(deps)
 		end)
 		place(deps.handFrame, CTLayout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
 		place(bar, r.bar)
+		place(muteButton, r.mute); place(calmButton, r.calm)
+		muteButton.ZIndex = Z_BTN; calmButton.ZIndex = Z_BTN
+		paintQuick()
 		place(roundLabel, r.round)
 		place(target, r.target); place(tips, r.tips)
 		place(handsPill, r.playCount); place(discardsPill, r.discardCount)

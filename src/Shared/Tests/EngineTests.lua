@@ -28989,4 +28989,32 @@ table.insert(tests, { name = "Gameplay v2 sound pass: every moment plays an exis
 	end
 end })
 
+table.insert(tests, { name = "Gameplay v2 quick controls: Mute and Calm kit buttons top left under Roblox's top bar, 44 px targets, state shown by words and plate, Calm flips the three settings together", fn = function()
+	local Q = require(script.Parent.Parent.Engine.Gameplay2Quick)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local off = Q.view({})
+	assert(off.mute.text == "Mute" and off.mute.kind == "secondary" and not off.mute.on and off.calm.text == "Calm" and off.calm.kind == "secondary")
+	local on = Q.view({ muted = true, reduceMotion = true, reduceFlashing = true, reduceShake = true })
+	assert(on.mute.text == "Muted" and on.mute.kind == "primary" and on.calm.text == "Calm On" and on.calm.kind == "primary", "state is a word and a green plate, never colour alone")
+	assert(Q.view({ reduceMotion = true }).calm.on == false, "one of the three is not Calm Mode")
+	assert(Q.muteWrites({}).muted == true and Q.muteWrites({ muted = true }).muted == false)
+	local w1 = Q.calmWrites({})
+	assert(w1.reduceMotion == true and w1.reduceFlashing == true and w1.reduceShake == true, "Calm turns the three on together")
+	local w2 = Q.calmWrites({ reduceMotion = true, reduceFlashing = true, reduceShake = true })
+	assert(w2.reduceMotion == false and w2.reduceFlashing == false and w2.reduceShake == false, "and off together")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 }, { 844, 390 } }) do
+		local r = L.rects(sz[1], sz[2])
+		assert(r.mute.h >= 44 and r.calm.h >= 44 and r.mute.w >= 44 and r.calm.w >= 44, "44 px touch targets at " .. sz[1])
+		assert(r.mute.y >= 60, "below Roblox's top bar at " .. sz[1])
+		assert(r.mute.x + r.mute.w < r.calm.x, "two separate buttons")
+		assert(#L.overlaps(r) == 0, "no overlaps with the table at " .. sz[1] .. ": " .. table.concat(L.overlaps(r), ","))
+		local ok = L.onScreen(r, sz[1], sz[2])
+		assert(ok, "on screen at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local g = read("src/Client/Gameplay2.lua")
+	assert(g:find("MuteButton", 1, true) and g:find("CalmButton", 1, true) and g:find("ClientSettings.set(k, val)", 1, true), "the client sets the real settings")
+end })
+
 return tests

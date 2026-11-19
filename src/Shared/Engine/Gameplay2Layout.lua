@@ -17,6 +17,7 @@
 ]]
 
 local TierStyle = require(script.Parent:WaitForChild("PatronTierStyle"))
+local Responsive = require(script.Parent:WaitForChild("ResponsiveLayout"))
 
 local M = {}
 
@@ -73,6 +74,10 @@ function M.rects(w, h)
 	r.round = box(r.target.x + r.target.w + inner, barY + inner, round(barW * 0.34), ih)
 	local tx = r.round.x + r.round.w + inner
 	r.tips = box(tx, barY + inner, barX + barW - inner - tx, ih)
+	-- quick controls, top left under Roblox's own top bar: Mute and Calm, 44 px touch targets (everything else stays behind Settings)
+	local qy = Responsive.clearOfTopBar(pad, 0)
+	r.mute = box(pad, qy, 64, M.MIN_TOUCH) -- wide enough for the word "Muted" at 14 px
+	r.calm = box(pad + 64 + 8, qy, 84, M.MIN_TOUCH) -- and "Calm On"
 	-- Patron seats
 	local row = M.patronRow(w, h, M.SEATS)
 	r.slots = {}
@@ -184,6 +189,6 @@ function M.onScreen(r, w, h)
 end
 
 -- the controls that must each exist exactly once (a test checks the client builds these and nothing else clickable)
-M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck" }
+M.CONTROLS = { "play", "discard", "sortRank", "sortSuit", "deck", "mute", "calm" }
 
 return M
