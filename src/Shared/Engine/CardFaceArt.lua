@@ -39,10 +39,20 @@ end
 -- small suit again at the bottom-right. Rows never overlap: rank 0.06 to 0.25, suit 0.245 to 0.36, pip 0.38 to 0.76,
 -- bottom suit 0.825 to 0.94. (The themed sets keep SkinSlice.indexLayout, measured from their own frames.)
 CardFaceArt.IVORY_LAYOUT = {
-	rank = { x = 0.10, y = 0.06, w = 0.34, h = 0.19 },
-	suit = { x = 0.10, y = 0.245, w = 0.20, h = 0.115 },
-	bottom = { x = 0.90, y = 0.94, w = 0.18, h = 0.115 }, -- anchored at its bottom-right corner
-	center = { x = 0.5, y = 0.57, w = 0.56, h = 0.38 }, -- anchored at its centre
+	rank = { x = 0.07, y = 0.055, w = 0.40, h = 0.205 },
+	suit = { x = 0.07, y = 0.255, w = 0.26, h = 0.13 },
+	bottom = { x = 0.93, y = 0.945, w = 0.22, h = 0.13 }, -- anchored at its bottom-right corner
+	center = { x = 0.5, y = 0.595, w = 0.64, h = 0.40 }, -- anchored at its centre
 }
+
+-- Concept T parchment: a warm cream paper (the picture is multiplied by BASE) with a darker rim fading in over the first and last
+-- 18 percent of the card height (one Color-only UIGradient, never Transparency). Reference cards are aged paper, not white.
+CardFaceArt.PARCHMENT = { base = { 240, 226, 196 }, edge = { 200, 172, 128 }, fade = 0.18 }
+
+-- keypoints { position, { r, g, b } } of the single vertical gradient
+function CardFaceArt.shadeStops()
+	local P = CardFaceArt.PARCHMENT
+	return { { 0, P.edge }, { P.fade, P.base }, { 1 - P.fade, P.base }, { 1, P.edge } }
+end
 
 return CardFaceArt

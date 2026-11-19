@@ -6,6 +6,7 @@
 
 	DeckCountText.total(deckView, remaining) -> number   (falls back to 52 when no view is available, never below remaining)
 	DeckCountText.format(remaining, deckView) -> string
+	DeckCountText.spaced(remaining, deckView) -> string   ("37 / 52", the Concept T count plate)
 ]]
 
 local M = {}
@@ -22,6 +23,10 @@ end
 function M.format(remaining, deckView)
 	remaining = math.max(0, math.floor(tonumber(remaining) or 0))
 	return string.format("%d/%d", remaining, M.total(deckView, remaining))
+end
+
+function M.spaced(remaining, deckView)
+	return (M.format(remaining, deckView):gsub("/", " / "))
 end
 
 return M

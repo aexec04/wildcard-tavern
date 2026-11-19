@@ -131,6 +131,15 @@ function M.textRect(rect, key)
 	}
 end
 
+-- HUD text sizes as a fraction of the frame height, so the numbers fill their plates like the reference (about 28 px at 1024 high);
+-- never under 15 px
+M.TEXT_FRAC = { coins = 0.027, hands = 0.027, round = 0.030, deckCount = 0.028, pill = 0.017 }
+
+function M.textSize(key, frameH)
+	local f = M.TEXT_FRAC[key] or 0.02
+	return math.max(15, round((tonumber(frameH) or M.REF_H) * f))
+end
+
 -- an effect value shows exactly one leading plus
 function M.cleanValue(text)
 	text = tostring(text or "")

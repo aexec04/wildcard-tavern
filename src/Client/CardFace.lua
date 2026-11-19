@@ -299,7 +299,24 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	-- the ivory face drawn alone has no ornate frame to stay inside: its index goes back to the top-left corner
 	local okIv, ivory = pcall(function() return require(script.Parent.SetSkin).ivoryAlone() end)
 	local IV = okIv and ivory and require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).IVORY_LAYOUT or nil
-	if IV then L = IV end
+	if IV then
+		L = IV
+		-- Concept T parchment: ONE vertical Color-only gradient that darkens the rim, on the painted face or on a flat-fill button
+		local FaceArt = require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt)
+		local paper = button:FindFirstChild("CardArt")
+		if not (paper and paper:IsA("ImageLabel") and paper.Visible) then paper = button end
+		if not paper:FindFirstChild("ParchmentShade") then
+			local g = Instance.new("UIGradient")
+			g.Name = "ParchmentShade"
+			g.Rotation = 90
+			local pts = {}
+			for _, k in ipairs(FaceArt.shadeStops()) do
+				pts[#pts + 1] = ColorSequenceKeypoint.new(k[1], Color3.fromRGB(k[2][1] * 255 // 240, k[2][2] * 255 // 240, k[2][3] * 255 // 240))
+			end
+			g.Color = ColorSequence.new(pts)
+			g.Parent = paper
+		end
+	end
 	local rank, suit, bottom
 	if L then
 		-- inside the frame's measured inner window, no box behind the index

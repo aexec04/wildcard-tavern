@@ -26662,7 +26662,7 @@ table.insert(tests, { name = "Concept T reference scene: holds the reference num
 	local src = f:read("*a"); f:close()
 	expectTrue(src:find("IsStudio()", 1, true) ~= nil, "show() is Studio only")
 	expectTrue(src:find("FireServer", 1, true) == nil and src:find("InvokeServer", 1, true) == nil and src:find("DataStore", 1, true) == nil, "no server or save access")
-	expectTrue(src:find("round = 3, progress = 0.83, coins = 126, hands = 2, deck = \"37/52\"", 1, true) ~= nil, "round, bar, coins, hands and deck numbers")
+	expectTrue(src:find("round = 3, progress = 0.83, coins = 126, hands = 2, deck = \"37 / 52\"", 1, true) ~= nil, "round, bar, coins, hands and deck numbers")
 	expectTrue(src:find("\"+30\", \"+30\", \"+30\", \"+4\", \"+4\"", 1, true) ~= nil, "effect pills")
 	expectTrue(src:find("Full House", 1, true) ~= nil and src:find("310", 1, true) ~= nil, "scoring stage")
 end })
@@ -26688,6 +26688,33 @@ table.insert(tests, { name = "Concept T pixel pass 3: Patron cards are 0.112 x 0
 	end
 	for i = 1, 5 do expectTrue(type(Art["ct_ref_patron_" .. i]) == "string" and Art["ct_ref_patron_" .. i] ~= "", "ct_ref_patron_" .. i .. " has an Image id") end
 	expectTrue(Art.ct_table_room ~= nil and Art.ct_table_room_old ~= nil and Art.ct_table_room ~= Art.ct_table_room_old, "new room plate and the kept old one")
+end })
+
+table.insert(tests, { name = "Concept T pixel pass 3: parchment card face, spaced deck count, HUD text fills its plate", fn = function()
+	local FA = require(script.Parent.Parent.Engine.CardFaceArt)
+	local P = FA.PARCHMENT
+	expectEqual(P.base[1] .. "," .. P.base[2] .. "," .. P.base[3], "240,226,196", "warm parchment base")
+	expectTrue(P.edge[1] < P.base[1] and P.edge[2] < P.base[2] and P.edge[3] < P.base[3], "the rim is darker than the paper")
+	local stops = FA.shadeStops()
+	expectEqual(#stops, 4, "one gradient: edge, paper, paper, edge")
+	expectTrue(stops[1][1] == 0 and stops[4][1] == 1 and stops[2][1] > 0 and stops[3][1] < 1 and stops[2][1] < stops[3][1], "keypoints ascend from 0 to 1")
+	local L = FA.IVORY_LAYOUT
+	expectTrue(L.rank.w >= 0.38 and L.center.w >= 0.62, "bigger indices and pips")
+	expectEqual(require(script.Parent.Parent.Engine.DeckCountText).spaced(37, nil), "37 / 52", "count text has spaces around the slash")
+	expectEqual(require(script.Parent.Parent.Engine.DeckCountText).format(37, nil), "37/52", "the old count text is unchanged")
+	local LT = require(script.Parent.Parent.Engine.ConceptTLayout)
+	for _, key in ipairs({ "coins", "hands", "round", "deckCount", "pill" }) do
+		expectTrue(LT.textSize(key, 400) >= 15, key .. " text is never under 15 px")
+	end
+	expectTrue(LT.textSize("round", 1024) >= 28 and LT.textSize("round", 1024) > LT.textSize("pill", 1024), "the Round banner text is large")
+	if not io then return end
+	local f = io.open("src/Client/ConceptTPlay.lua", "r")
+	if f then
+		local src = f:read("*a"); f:close()
+		for _, name in ipairs({ "PlayGrooveLip", "PlayRailBack", "PlayRailFront", "PlayTableFront", "PlayFloorShade" }) do
+			expectTrue(src:find('"' .. name .. '"', 1, true) ~= nil, name .. " is hidden on the Concept T play screen (the room plate has the rug)")
+		end
+	end
 end })
 
 return tests

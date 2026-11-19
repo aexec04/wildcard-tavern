@@ -24,7 +24,7 @@ local current = nil
 local INK = Color3.fromRGB(255, 244, 214) -- cream on the dark wood plates, well over 4.5:1
 local OUTLINE = Color3.fromRGB(40, 22, 10)
 local GOLD = Color3.fromRGB(246, 196, 70)
-local HIDE = { "Sidebar", "SidebarBoard", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip", "CornerIconRow", "PlayFeltShade", "PlayTableFront", "PlayTableBg", "PlayFloorShade", "HandRailLip" }
+local HIDE = { "Sidebar", "SidebarBoard", "EdgeShadow", "PlayBoardPaint", "PlayBoardPaintBand", "PlayBoardPaintCap", "PlayBoardFiller", "BlessingChip", "CornerIconRow", "PlayFeltShade", "PlayTableFront", "PlayTableBg", "PlayFloorShade", "HandRailLip", "PlayGrooveLip", "PlayRailBack", "PlayRailFront" }
 
 local function image(parent, name, key, z)
 	local img = Instance.new("ImageLabel")
@@ -128,6 +128,9 @@ function M.install(deps)
 		fanHand(true, size.Y)
 		place(coins, r.coins); place(hands, r.hands); place(round, r.round); place(gear, r.gear)
 		place(deck, r.deck); place(deckCount, r.deckCount); place(play, r.play); place(discard, r.discard)
+		-- numbers fill their plates like the reference (frame height scaled, at least 15 px)
+		coinsText.TextSize = Layout.textSize("coins", size.Y); handsText.TextSize = Layout.textSize("hands", size.Y)
+		roundText.TextSize = Layout.textSize("round", size.Y); deckText.TextSize = Layout.textSize("deckCount", size.Y)
 		place(coinsText, Layout.textRect(r.coins, "coins")); place(handsText, Layout.textRect(r.hands, "hands"))
 		place(deckText, Layout.textRect(r.deckCount, "deckCount"))
 		place(roundText, Layout.textRect(r.round, "round"))
@@ -184,7 +187,7 @@ function M.install(deps)
 		for _, suit in pairs(lastState.deckCounts or {}) do
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
 		end
-		deckText.Text = DeckCountText.format(remaining, lastState.deckView)
+		deckText.Text = DeckCountText.spaced(remaining, lastState.deckView)
 		clearButton(deps.playButton); clearButton(deps.discardButton)
 		apply()
 	end

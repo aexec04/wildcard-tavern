@@ -1980,7 +1980,7 @@ local function rebuildHand(handData, phase)
 		cardArt.BorderSizePixel = 0
 		cardArt.ScaleType = Enum.ScaleType.Stretch
 		cardArt.Image = cardFaceTemplate
-		cardArt.ImageColor3 = Color3.fromRGB(226, 200, 158) -- aged parchment: the pure ivory face glared next to the warm painted room (menu and table share this warmth)
+		cardArt.ImageColor3 = Color3.fromRGB(table.unpack(require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).PARCHMENT.base)) -- warm parchment (Concept T): the pure ivory face glared next to the warm painted room (menu and table share this warmth)
 		cardArt.Visible = cardFaceTemplate ~= "" -- missing Image id: the button's flat ivory fill shows
 		cardArt.ZIndex = 1
 		cardArt.Parent = button

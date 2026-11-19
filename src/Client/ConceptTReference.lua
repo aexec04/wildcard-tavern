@@ -28,7 +28,7 @@ local CollectionBook = require(Engine:WaitForChild("CollectionBook"))
 local M = {}
 
 M.SCENE = {
-	round = 3, progress = 0.83, coins = 126, hands = 2, deck = "37/52",
+	round = 3, progress = 0.83, coins = 126, hands = 2, deck = "37 / 52",
 	pills = { "+30", "+30", "+30", "+4", "+4" },
 	tiers = { "common", "uncommon", "rare", "epic", "legendary" },
 	hand = { { "A", "♠", false }, { "K", "♥", true }, { "Q", "♥", true }, { "9", "♣", false }, { "9", "♣", false }, { "6", "♦", true }, { "2", "♠", false } },
@@ -125,10 +125,10 @@ function M.show()
 	local room = img(gui, "ct_table_room", 1); room.Name = "Room"
 	at(room, { x = 0, y = 0, w = size.X, h = size.Y })
 	print(string.format("[ConceptTReference] room abs=%d,%d size=%dx%d image=%s", room.AbsolutePosition.X, room.AbsolutePosition.Y, room.AbsoluteSize.X, room.AbsoluteSize.Y, room.Image))
-	at(img(gui, "ct_hud_coins", 2), r.coins); at(label(gui, tostring(S.coins), 20, 3), Layout.textRect(r.coins, "coins"))
-	at(img(gui, "ct_hud_hands", 2), r.hands); at(label(gui, tostring(S.hands), 20, 3), Layout.textRect(r.hands, "hands"))
+	at(img(gui, "ct_hud_coins", 2), r.coins); at(label(gui, tostring(S.coins), Layout.textSize("coins", size.Y), 3), Layout.textRect(r.coins, "coins"))
+	at(img(gui, "ct_hud_hands", 2), r.hands); at(label(gui, tostring(S.hands), Layout.textSize("hands", size.Y), 3), Layout.textRect(r.hands, "hands"))
 	at(img(gui, "ct_hud_round", 2), r.round)
-	at(label(gui, "Round " .. S.round, 18, 3), Layout.textRect(r.round, "round"))
+	at(label(gui, "Round " .. S.round, Layout.textSize("round", size.Y), 3), Layout.textRect(r.round, "round"))
 	local bar = Layout.bar(r)
 	local fill = Instance.new("Frame")
 	fill.BackgroundColor3 = Color3.fromRGB(246, 196, 70)
@@ -139,7 +139,7 @@ function M.show()
 	fill.Parent = gui
 	at(img(gui, "ct_hud_gear", 2), r.gear)
 	at(img(gui, "ct_deck_a", 2), r.deck)
-	at(img(gui, "ct_deck_count", 2), r.deckCount); at(label(gui, S.deck, 18, 3), Layout.textRect(r.deckCount, "deckCount"))
+	at(img(gui, "ct_deck_count", 2), r.deckCount); at(label(gui, S.deck, Layout.textSize("deckCount", size.Y), 3), Layout.textRect(r.deckCount, "deckCount"))
 	at(img(gui, "ct_btn_play_a", 2), r.play)
 	at(img(gui, "ct_btn_discard_a", 2), r.discard)
 
@@ -160,7 +160,7 @@ function M.show()
 		at(lab, sl.label)
 		local pill = img(gui, Layout.blankPillKey(tier), 3)
 		at(pill, sl.pill)
-		local t = label(pill, Layout.cleanValue(S.pills[i]), 15, 4)
+		local t = label(pill, Layout.cleanValue(S.pills[i]), math.max(15, Layout.textSize("pill", size.Y) + 2), 4)
 		t.Size = UDim2.fromScale(1, 1)
 	end
 
@@ -177,6 +177,7 @@ function M.show()
 
 	-- the fanned hand of seven, drawn through the game's own card face
 	local CardFace = require(script.Parent.CardFace)
+	local FaceArt = require(Engine:WaitForChild("CardFaceArt"))
 	local hand = r.hand
 	local cw = math.floor(size.X * 0.085)
 	local ch = math.floor(cw * 1.43)
@@ -188,7 +189,7 @@ function M.show()
 		local rot, dip = Layout.fan(i, n)
 		local b = Instance.new("TextButton")
 		b.Text = ""
-		b.BackgroundColor3 = Color3.fromRGB(246, 238, 214)
+		b.BackgroundColor3 = Color3.fromRGB(table.unpack(FaceArt.PARCHMENT.base)) -- warm parchment, the same base the real hand uses
 		b.AutoButtonColor = false
 		b.ZIndex = 5 + i * 2 -- left to right, each above the one before, all above the Play and Discard art
 		b.AnchorPoint = Vector2.new(0.5, 1)
