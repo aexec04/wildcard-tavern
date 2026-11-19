@@ -29838,6 +29838,15 @@ table.insert(tests, { name = "RoundHints: three plates, show once, Night 1 round
 	expectTrue(RH.next(st({ guidedFirstHand = true, handsPlayedTotal = 1 }), {}, on) ~= nil, "after the guided hand it may show")
 	expectEqual(RH.next(st(), {}, { enabled = true, calm = true }), nil, "skipped in Calm mode")
 	expectEqual(RH.next(st(), {}, { enabled = false, calm = false }), nil, "skipped with the Hints toggle off")
+	do -- Got it plate: cream label at least 4.5:1 on the green fill and on its hover, plate and button level and 44 px or more
+		local TS = require(script.Parent.Parent.Engine.TavernStyle)
+		expectTrue(TS.contrast(RH.GOT_IT.text, RH.GOT_IT.fill) >= 4.5, "Got it label contrast on the fill")
+		expectTrue(TS.contrast(RH.GOT_IT.text, RH.GOT_IT.hover) >= 4.5, "Got it label contrast on hover")
+		local f = RH.GOT_IT.fill
+		expectTrue(f[2] > f[1] + 40 and f[2] > f[3] + 40, "Got it fill reads green")
+		local spot = RH.place(L.rects(1920, 1080), 1920, 1080)
+		expectTrue(spot and spot.button.y == spot.plate.y and spot.button.h == spot.plate.h and spot.button.h >= 44, "Got it level with the plate and 44 px or more")
+	end
 	expectTrue(RH.satisfied("round_hint_select", 1) and not RH.satisfied("round_hint_select", 0) and not RH.satisfied("round_hint_tiers", 5), "picking a card finishes the first plate only")
 	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 }, { 844, 390 } }) do
 		local w, h = sz[1], sz[2]

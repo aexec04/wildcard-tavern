@@ -26,6 +26,8 @@ M.MAX_ROUND = 3
 M.PLATE_W, M.PLATE_H = 300, 56
 M.PLATE_MIN_W = 200
 M.BUTTON_W, M.BUTTON_H = 72, 44
+-- Got it plate: a warm green primary (cream on it is at least 4.5:1, which the Next Round green is not), gold edge, level with the hint plate
+M.GOT_IT = { fill = { 46, 114, 50 }, hover = { 52, 124, 56 }, edge = { 232, 184, 74 }, text = { 250, 240, 220 }, stroke = { 18, 40, 14 } }
 M.GAP = 6
 
 local BY_ID = {}
@@ -91,7 +93,7 @@ function M.place(r, viewW, viewH)
 			local x = col.x0
 			local y = top
 			local plate = { x = x, y = y, w = plateW, h = h }
-			local button = { x = x + plateW + M.GAP, y = y, w = M.BUTTON_W, h = M.BUTTON_H }
+			local button = { x = x + plateW + M.GAP, y = y, w = M.BUTTON_W, h = h } -- as tall as the plate, so the two sit level
 			local clear = true
 			for name, rect in pairs(r) do
 				if name ~= "stage" and name ~= "bar" and name ~= "slots" and rect.x and (hit(plate, rect) or hit(button, rect)) then clear = false end

@@ -55,7 +55,29 @@ local function build(layer)
 	button = Instance.new("TextButton")
 	button.Name = "RoundHintGotIt"
 	button.ZIndex = 30
-	pcall(function() require(script.Parent.TavernKit).skin(button, "Got it", "secondary") end)
+	pcall(function() require(script.Parent.TavernKit).skin(button, "Got it", "primary") end)
+	do -- warm green plate with a gold edge, set after the kit skin; no tween, so Calm mode is the same
+		local G = Rules.GOT_IT
+		local base = Color3.fromRGB(G.fill[1], G.fill[2], G.fill[3])
+		local hot = Color3.fromRGB(G.hover[1], G.hover[2], G.hover[3])
+		for _, d in ipairs(button:GetChildren()) do
+			if d:IsA("UIGradient") or d:IsA("UIStroke") then d:Destroy() end
+		end
+		local edge = Instance.new("UIStroke")
+		edge.Name = "GotItEdge"
+		edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		edge.Color = Color3.fromRGB(G.edge[1], G.edge[2], G.edge[3])
+		edge.Thickness = 2
+		edge.Parent = button
+		button.BackgroundColor3 = base
+		button.TextColor3 = Color3.fromRGB(G.text[1], G.text[2], G.text[3])
+		button.TextStrokeColor3 = Color3.fromRGB(G.stroke[1], G.stroke[2], G.stroke[3])
+		button.TextStrokeTransparency = 0
+		button.TextTransparency = 0
+		button.TextSize = 18
+		button.MouseEnter:Connect(function() button.BackgroundColor3 = hot end)
+		button.MouseLeave:Connect(function() button.BackgroundColor3 = base end)
+	end
 	button.Parent = layer
 	button.MouseButton1Click:Connect(function()
 		if current then localSeen[current] = true end
