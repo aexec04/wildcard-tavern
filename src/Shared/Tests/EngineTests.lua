@@ -23837,6 +23837,41 @@ table.insert(tests, { name = "Screen audit, play screen: HUD, Patron row (5 and 
 	end
 	assert(not L.fits(390, 844) and not L.fits(375, 667), "a portrait phone keeps the phone layout, not the painted screen")
 end })
+table.insert(tests, { name = "Small screens table: 1024x600, 844x390 and 390x844 keep the Patron row clear of the hand; portrait wraps into two rows of up to three", fn = function()
+	local PR = require(script.Parent.Parent.Engine.PatronRowLayout)
+	local L = require(script.Parent.Parent.Engine.ConceptTLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1024, 600 }, { 844, 390 }, { 390, 844 } }) do
+		local w, h = sz[1], sz[2]
+		local tag = w .. "x" .. h
+		local hand = { x = 0, y = h - 200 - 10, w = w, h = 200 }
+		for _, n in ipairs({ 1, 3, 5, 6, 8 }) do
+			local wrap = PR.wrapped(w, h, hand, n)
+			if w >= h or n <= 3 then
+				assert(wrap == nil, tag .. " n=" .. n .. " does not wrap")
+			else
+				assert(wrap, tag .. " n=" .. n .. " wraps")
+				assert(wrap.rows == 2, tag .. " two rows")
+				for i, c in ipairs(wrap.cards) do
+					assert(c.x >= 0 and c.y >= PR.TOP_LIMIT and c.x + c.w <= w and c.y + c.h <= hand.y + PR.HAND_TOP_PAD - PR.AIR, tag .. " card " .. i .. " on screen and above the hand cards")
+					assert(c.h >= PR.FLOOR_H, tag .. " card " .. i .. " big enough")
+					for j = i + 1, #wrap.cards do assert(not hit(c, wrap.cards[j]), tag .. " cards " .. i .. "," .. j .. " do not overlap") end
+				end
+				local perRow = {}
+				for _, c in ipairs(wrap.cards) do perRow[c.y] = (perRow[c.y] or 0) + 1 end
+				for _, cnt in pairs(perRow) do assert(cnt <= (n <= 6 and 3 or 4), tag .. " row width") end
+			end
+		end
+		if L.fits(w, h) then
+			local r = L.rects(w, h)
+			assert(r.play.h >= 44 and r.discard.h >= 44, tag .. " buttons are touch targets")
+			assert(r.play.y >= r.hand.y + r.hand.h, tag .. " hand clear of Play Hand")
+			assert(#L.overlaps(r) == 0, tag .. " no overlaps")
+		else
+			assert(w < h, tag .. " only portrait falls back to the phone layout")
+		end
+	end
+end })
 table.insert(tests, { name = "GuidedHand: only the first normal run, a fixed starter and no drafts, a two step hint that ends after the first hand, no pulse in calm mode", fn = function()
 	local G = require(script.Parent.Parent.Engine.GuidedHand)
 	assert(G.isGuided(1, false, false, false) and G.isGuided(0, false, false, false), "first run")

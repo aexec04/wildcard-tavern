@@ -291,4 +291,36 @@ function M.display(rootW, rootH, hand, count, opts)
 	return out
 end
 
+-- Portrait roots (taller than wide, a phone held upright): the row wraps into two rows of up to three cards (four each for
+-- 7 or 8 seats) instead of overlapping into slivers. Returns nil on a landscape root, for 3 or fewer seats, or when even
+-- the smallest card (FLOOR_H) does not fit above the hand.
+M.WRAP_PAD, M.WRAP_ROW_GAP = 8, 6
+function M.wrapped(rootW, rootH, hand, count, opts)
+	if not count or count <= 3 or not hand or rootW >= rootH then return nil end
+	local topLimit = opts and opts.topLimit or M.TOP_LIMIT
+	local bottom = hand.y + (hand.h >= 200 and M.HAND_TOP_PAD or 0) - M.AIR
+	local cols = count <= 6 and 3 or 4
+	local rows = math.ceil(count / cols)
+	local availW = rootW - 2 * M.WRAP_PAD
+	local cardW = math.min((availW - (cols - 1) * M.GAP) / cols, M.BASE_W * M.scale(rootW))
+	local cardH = cardW * M.BASE_H / M.BASE_W
+	local availH = bottom - topLimit - (rows - 1) * M.WRAP_ROW_GAP
+	if cardH * rows > availH then
+		cardH = availH / rows
+		cardW = cardH * M.BASE_W / M.BASE_H
+	end
+	if cardH < M.FLOOR_H then return nil end
+	local out = { cards = {}, cardW = floor(cardW), cardH = floor(cardH), plaqueH = 0, rows = rows, wrapped = true }
+	local top = bottom - rows * cardH - (rows - 1) * M.WRAP_ROW_GAP
+	for i = 1, count do
+		local row, col = math.floor((i - 1) / cols), (i - 1) % cols
+		local inRow = math.min(cols, count - row * cols)
+		local rowW = inRow * cardW + (inRow - 1) * M.GAP
+		out.cards[i] = { x = floor((rootW - rowW) / 2 + col * (cardW + M.GAP)), y = floor(top + row * (cardH + M.WRAP_ROW_GAP)), w = floor(cardW), h = floor(cardH) }
+	end
+	local last = out.cards[count]
+	out.rect = { x = 0, y = out.cards[1].y, w = rootW, h = last.y + last.h - out.cards[1].y }
+	return out
+end
+
 return M

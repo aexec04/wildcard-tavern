@@ -659,7 +659,7 @@ local function place(state)
 		lay = { cards = CTLayout.patronRow(rootSize.X, rootSize.Y, limit).cards, plaqueH = 20 }
 	elseif show then
 		-- the Patron display first (card slots under a heading); the painted strip and the code nook are the fallbacks for roots it declines
-		lay = Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)
+		lay = Layout.wrapped(rootSize.X, rootSize.Y, hand, limit, opts) or Layout.display(rootSize.X, rootSize.Y, hand, limit, opts)
 			or (paintedId() and Layout.painted(rootSize.X, rootSize.Y, hand, limit, opts)) or Layout.compute(rootSize.X, rootSize.Y, hand, limit, opts)
 	end
 	holder.Visible = lay ~= nil
