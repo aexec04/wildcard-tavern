@@ -17,6 +17,7 @@ local Layout = require(Engine:WaitForChild("ConceptTLayout"))
 local Art = require(Engine:WaitForChild("ConceptTArt"))
 local DeckCountText = require(Engine:WaitForChild("DeckCountText"))
 local PlayMotion = require(Engine:WaitForChild("PlayMotion"))
+local LayoutSwitch = require(script.Parent.LayoutSwitch)
 
 local M = {}
 local current = nil
@@ -118,9 +119,25 @@ function M.install(deps)
 
 	local active, lastState = false, nil
 	local hiddenDeck = {} -- old deck widget pieces this screen hid, given back when it leaves
+	local sortHost = nil -- the Rank | Suit frame this screen restyled, given back when it leaves
 	local function restoreOld()
 		for c in pairs(hiddenDeck) do c.Visible = true end
 		hiddenDeck = {}
+		if sortHost and sortHost.Parent then
+			local sf = sortHost
+			sortHost = nil
+			LayoutSwitch.on(sf)
+			sf.Size = UDim2.new(0, 214, 1, 0)
+			sf.Position = UDim2.new()
+			for _, k in ipairs(sf:GetChildren()) do
+				if k.Name == "PlatePaint" and k:IsA("GuiObject") then k.Visible = true
+				elseif k:IsA("TextLabel") then k.Visible = true
+				elseif k.Name == "SortToggle" then
+					k:SetAttribute("Flat", false)
+					k.Size = UDim2.fromOffset(132, 28)
+				end
+			end
+		end
 		local row = root:FindFirstChild("CornerIconRow")
 		if row and row:IsA("GuiObject") then
 			row.Position = UDim2.new(1, -16, 0, 12)
@@ -169,7 +186,7 @@ function M.install(deps)
 		if self.lastP ~= nil and p > self.lastP then local prev = self.lastP; pcall(function() require(script.Parent.AnimPassFX).barShine(fill, prev, p) end) end
 		self.lastP = p
 		-- the real controls ride on the painted pieces
-		place(deps.handFrame, r.hand)
+		place(deps.handFrame, Layout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
 		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
 		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)
 		place(deps.playButton, { x = 0, y = 0, w = r.play.w, h = r.play.h })
@@ -180,8 +197,25 @@ function M.install(deps)
 		-- it stands at the bottom left, clear of the hand and the buttons
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
-				local sx = Layout.sortSpot(size.X, size.Y, c.AbsoluteSize.X, c.AbsoluteSize.Y, r)
+				-- a flat wood pill, no plate art, ring or divider (SortToggle reads the Flat attribute), left of Play Hand
+				local box = Layout.sortSize(size.X, size.Y)
+				local sx = Layout.sortSpot(size.X, size.Y, box.w, box.h, r)
+				LayoutSwitch.off(c)
+				c.Size = UDim2.fromOffset(box.w, box.h)
 				c.Position = UDim2.fromOffset(sx.x - r.play.x, sx.y - r.play.y)
+				sortHost = c
+				for _, k in ipairs(c:GetChildren()) do
+					if k.Name == "PlatePaint" and k:IsA("GuiObject") then k.Visible = false
+					elseif k:IsA("TextLabel") then k.Visible = false -- the "Sort:" caption
+					elseif k.Name == "SortToggle" then
+						k:SetAttribute("Flat", true)
+						k.Position = UDim2.fromOffset(0, 0)
+						k.Size = UDim2.fromOffset(box.w, box.h)
+						k.BackgroundTransparency = 0
+						local st = k:FindFirstChildOfClass("UIStroke")
+						if st then st.Enabled = true end
+					end
+				end
 			end
 		end
 		-- the Patron cards place themselves from ConceptTLayout.patronRow (Client/PatronRow asks isActive)

@@ -96,6 +96,10 @@ function SortToggle.build(parent, onPick)
 	local hoverKey = nil
 	local function paint()
 		local p = HudStyle.buttonPalette(HudTheme.skin().colors, "sort")
+		-- Flat (Concept T play screen): a plain wood pill, no outer ring or divider line, the picked half in warm cream
+		local flat = frame:GetAttribute("Flat") == true
+		outer.Visible = not flat
+		divider.Visible = not flat
 		frame.BackgroundColor3 = c3(p.fill)
 		inner.Color = c3(p.inner)
 		os.Color = c3(p.outer)
@@ -104,7 +108,7 @@ function SortToggle.build(parent, onPick)
 			local on = mode == key
 			local lit = on or hoverKey == key
 			-- the picked half is an inset of the plate itself: a lighter tone of the plate's own wood with a thin gold line, not a flat cream block
-			local lighter = c3(p.fill):Lerp(Color3.fromRGB(205, 160, 96), 0.22)
+			local lighter = flat and Color3.fromRGB(240, 222, 178) or c3(p.fill):Lerp(Color3.fromRGB(205, 160, 96), 0.22)
 			local bg = on and lighter or c3(p.hover)
 			b.BackgroundTransparency = lit and 0 or 1
 			b.BackgroundColor3 = bg
@@ -136,6 +140,7 @@ function SortToggle.build(parent, onPick)
 	HudTheme.onSkin(function()
 		if frame.Parent then paint() end
 	end)
+	frame:GetAttributeChangedSignal("Flat"):Connect(paint)
 	paint()
 
 	return {

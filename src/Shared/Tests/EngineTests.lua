@@ -26926,9 +26926,15 @@ table.insert(tests, { name = "ConceptTLayout parity: Patron cards, labels and pi
 		local pv = L.previewRect(w, h)
 		assert(pv.h >= 20 and not hit(pv, r.hand) and not hit(pv, r.round), tag .. " preview pill")
 		for i = 1, 5 do assert(not hit(pv, row.pills[i]), tag .. " preview clear of the Patron pills " .. i) end
-		local s = L.sortSpot(w, h, 214, 40, r)
+		local box = L.sortSize(w, h)
+		local s = L.sortSpot(w, h, box.w, box.h, r)
 		assert(s.x >= 0 and s.x + s.w <= r.play.x and s.y >= 0 and s.y + s.h <= h, tag .. " sort frame left of Play Hand")
 		assert(not hit(s, r.hand), tag .. " sort frame clear of the hand")
+		assert(not hit(s, r.play) and not hit(s, r.discard), tag .. " sort frame clear of both buttons")
+		assert(box.w == 120 and box.h >= 34 and ((w >= 1000 and h >= 600) or box.h >= 44), tag .. " sort pill size, 44 px tall on compact")
+		assert(math.abs((s.y + s.h / 2) - (r.play.y + r.play.h / 2)) <= 1, tag .. " sort pill shares the Play Hand centre line")
+		local h7, h8 = L.handFor(r.hand, w, 7), L.handFor(r.hand, w, 8)
+		assert(h7.x == r.hand.x and h8.x < r.hand.x and h8.x + h8.w < 0.80 * w, tag .. " eight cards shift left, seven keep the reference")
 	end
 end })
 

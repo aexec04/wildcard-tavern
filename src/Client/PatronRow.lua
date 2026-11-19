@@ -311,6 +311,7 @@ local function fillCard(c, i, owned)
 		end
 		if cut then
 			c.plaque.Visible = false
+			c.body.BackgroundTransparency = 1 -- the cut card has its own frame: no dark slot panel behind it
 			local rs1 = c.body:FindFirstChild("RarityStroke")
 			if rs1 then rs1.Enabled = false end
 			local ro1 = c.body:FindFirstChild("RarityOrnaments")

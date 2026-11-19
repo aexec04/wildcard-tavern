@@ -85,11 +85,26 @@ function M.patronRow(w, h, n)
 	return out
 end
 
--- where the Rank | Suit sort frame (sw x sh px) stands: bottom left, centred on the Play Hand row, left of Play Hand
+-- With more than 7 cards the fan is shifted 0.015 of the width left so its last card ends before the deck book (about x 0.80);
+-- 7 cards or fewer keep the reference spread. Returns the hand rect to use.
+M.HAND_SHIFT_8 = 0.015
+function M.handFor(rect, w, n)
+	if (tonumber(n) or 0) <= 7 then return rect end
+	return { x = math.max(0, rect.x - round(M.HAND_SHIFT_8 * w)), y = rect.y, w = rect.w, h = rect.h }
+end
+
+-- the Rank | Suit sort pill: a flat 120 x 34 wood pill, 44 px tall on compact screens (touch target)
+M.SORT_W, M.SORT_H = 120, 34
+function M.sortSize(w, h)
+	local compact = (tonumber(w) or 0) < 1000 or (tonumber(h) or 0) < 600
+	return { w = M.SORT_W, h = compact and M.MIN_TOUCH or M.SORT_H }
+end
+
+-- where the Rank | Suit sort frame (sw x sh px) stands: just left of Play Hand at the same vertical centre
 -- (clamped so it never reaches into Play Hand and never leaves the screen)
 function M.sortSpot(w, h, sw, sh, rects)
 	sw, sh = math.max(sw or 0, 1), math.max(sh or 0, 1)
-	local x = math.min(round(0.014 * w), rects.play.x - sw - 6)
+	local x = math.min(rects.play.x - sw - 12, w - sw)
 	x = math.max(x, 0)
 	local y = rects.play.y + round((rects.play.h - sh) / 2)
 	y = math.max(0, math.min(y, h - sh))
