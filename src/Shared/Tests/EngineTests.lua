@@ -23492,6 +23492,20 @@ table.insert(tests, { name = "PlayMotion.flight: staggered arc to the deck pile,
 	local xm, ym = PM.arc(0, 0, 100, 0, 0.5, a.arc)
 	assert(x0 == 0 and y0 == 0 and x1 == 100 and y1 == 0 and ym < 0, "starts at the card, ends at the deck, rises in between")
 end })
+table.insert(tests, { name = "Confetti: none in calm mode, fewer on Fast, more for a Boss clear, gold and purple, same seed same pieces", fn = function()
+	local C = require(script.Parent.Parent.Engine.Confetti)
+	assert(C.count(true, false, true) == 0, "calm: no confetti")
+	assert(C.count(false, true, false) < C.count(false, false, false) and C.count(false, false, true) > C.count(false, false, false))
+	local a, b = C.pieces(24, 7), C.pieces(24, 7)
+	assert(#a == 24)
+	local gold, purple = 0, 0
+	for i, p in ipairs(a) do
+		assert(p.x >= 0.15 and p.x <= 0.85 and p.vy < 0 and p.size >= 6 and p.delay >= 0 and p.delay <= 0.25)
+		assert(p.x == b[i].x and p.color[1] == b[i].color[1], "deterministic")
+		if p.color[1] > 200 and p.color[3] < 160 then gold = gold + 1 else purple = purple + 1 end
+	end
+	assert(gold > 0 and purple > 0, "both palettes appear")
+end })
 table.insert(tests, { name = "PatronMotion: entrance by tier, rays only for Legendary, calm mode makes no motion, hover keeps the larger pill", fn = function()
 	local PM = require(script.Parent.Parent.Engine.PatronMotion)
 	assert(PM.entrance("rare", true) == nil, "calm: no entrance tween")
