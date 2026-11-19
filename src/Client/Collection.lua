@@ -796,6 +796,17 @@ return function(deps)
 				detailArt.Name = "ContentDetailArt"
 				detailArt.ScaleType = Enum.ScaleType.Crop
 			end
+			-- a discovered Patron shows its large Concept T cut card (frame, gem and name plate are in the picture)
+			local CC = require(Engine:WaitForChild("CollectionCards"))
+			local cutOk = CC.useCutCard(item.tab, found, require(Engine:WaitForChild("ConceptTPatronArt"))["ctp_" .. tostring(item.id)] ~= nil)
+			if cutOk then
+				local cut = PatronPlaqueModule.apply(portrait, item.id, { cornerRadius = 10, zIndex = 34, fade = true })
+				if cut then
+					cut.Name = "ContentDetailArt"
+					cut.ScaleType = Enum.ScaleType.Fit
+					if detailArt then detailArt:Destroy() end
+				end
+			end
 		end
 		-- (a locked entry reads as locked from its dim portrait and the "Locked." line below; no padlock emoji)
 
@@ -986,6 +997,18 @@ return function(deps)
 			end
 		end
 
+		do -- a locked Patron, Recipe or Boss entry is a dark silhouette with a question mark; the unlock hint is in its tooltip and detail card
+			local glyph = require(Engine:WaitForChild("CollectionCards")).lockedGlyph(item.tab, found)
+			if glyph then
+				local q = label(iconWell, {
+					Name = "LockedGlyph", Size = UDim2.fromScale(1, 1), TextSize = 28, ZIndex = 26, Text = glyph,
+					Font = Enum.Font.GothamBold, TextColor3 = CREAM, TextTransparency = 0, TextStrokeTransparency = 0.3,
+				})
+				q.TextStrokeColor3 = Color3.fromRGB(20, 12, 6)
+				icon.Visible = false
+			end
+		end
+
 		local nameLabel
 		if not framed then -- framed portraits carry their name on the frame's brass plate
 			nameLabel = label(tile, {
@@ -1150,7 +1173,10 @@ return function(deps)
 		-- Quiet tab plates: the lit one is the section on screen, or "< Gallery" while the room shows.
 		for _, tab in ipairs(CollectionBook.Tabs) do
 			local tabButton = tabButtons[tab.id]
-			tabButton.Text = tab.name
+			do -- the count pill of each tab plate ("Patrons  12 / 81")
+				local counts = CollectionBook.tabCounts(view.sets)[tab.id]
+				tabButton.Text = counts and require(Engine:WaitForChild("CollectionCards")).tabText(tab.name, counts.found, counts.total) or tab.name
+			end
 			tabButton.BackgroundColor3 = (mode == "section" and tab.id == activeTabId) and ACTIVE_BROWN or BUTTON_BROWN
 		end
 		tabButtons.room.BackgroundColor3 = mode == "room" and ACTIVE_BROWN or BUTTON_BROWN
@@ -1263,7 +1289,14 @@ return function(deps)
 		scroll.Visible = newMode == "section"
 		if Gallery.chestApi and Gallery.chestApi.setShown then Gallery.chestApi.setShown(false) end -- the chest and its plate cover the last row of a section; "Next at N%" is on the banner line
 	end
+	local function pageSound(fromTab, toTab, fromMode, toMode) -- page flip cue when the page really changes (Engine/CollectionCards)
+		pcall(function()
+			local cue = require(Engine:WaitForChild("CollectionCards")).pageCue(fromTab, toTab, fromMode, toMode)
+			if cue then require(script.Parent.Cue).play(cue) end
+		end)
+	end
 	showSection = function(tabId)
+		pageSound(activeTabId, tabId, mode, "section")
 		activeTabId = tabId
 		hideDetail()
 		setMode("section")
@@ -1271,6 +1304,7 @@ return function(deps)
 		safeRefresh("tab " .. tabId)
 	end
 	showRoom = function()
+		pageSound(activeTabId, activeTabId, mode, "room")
 		hideDetail()
 		setMode("room")
 		safeRefresh("the gallery room")

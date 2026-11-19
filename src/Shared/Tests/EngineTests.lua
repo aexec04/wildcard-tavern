@@ -18663,7 +18663,11 @@ table.insert(tests, { name = "Collection opens on the gallery room: six hotspots
 	table.sort(plates, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
 	expectEqual(#plates, 7, "a Gallery plate and one per section")
 	expectEqual(plates[1].Text, "< Gallery")
-	for i, tab in ipairs(CB.Tabs) do expectEqual(plates[i + 1].Text, tab.name, "quiet plate " .. i) end
+	for i, tab in ipairs(CB.Tabs) do -- each tab plate carries its count pill: "Name  found / total"
+		local counts = CB.tabCounts(col.view and col.view.sets or {})[tab.id]
+		expectTrue(plates[i + 1].Text:sub(1, #tab.name + 2) == tab.name .. "  " and plates[i + 1].Text:find(" / %d+$") ~= nil,
+			"quiet plate " .. i .. " reads '" .. tostring(plates[i + 1].Text) .. "'")
+	end
 	for _, p in ipairs(plates) do
 		expectTrue(p.TextSize >= 14, p.Text .. " plate text is at least 14")
 		expectTrue(p.Size.Y.Offset <= 28, p.Text .. " is a small plate")
@@ -18822,7 +18826,7 @@ table.insert(tests, { name = "Collection: Escape and the Gallery plate step back
 	expectTrue(col.room.Visible and not col.grid.Visible)
 	local function plate(text)
 		for _, c in ipairs(col.quiet:GetChildren()) do
-			if c.ClassName == "TextButton" and c.Text == text then return c end
+			if c.ClassName == "TextButton" and (c.Text == text or c.Text:sub(1, #text + 2) == text .. "  ") then return c end -- a tab plate carries its count ("Titles  3 / 20")
 		end
 	end
 	plate("Titles").MouseButton1Click:Fire()
@@ -23725,6 +23729,25 @@ table.insert(tests, { name = "PatronTips: content, shared tags, placement clear 
 		end
 	end
 	assert(not PT.motion(true).animate and PT.motion(true).fade == 0 and PT.motion(false).animate)
+end })
+table.insert(tests, { name = "CollectionCards: count pill, locked glyph, page cue and cut card choice for the Collection book", fn = function()
+	local CC = require(script.Parent.Parent.Engine.CollectionCards)
+	local CB = require(script.Parent.Parent.Engine.CollectionBook)
+	assert(CC.countPill(12, 81) == "12 / 81" and CC.countPill(99, 81) == "81 / 81" and CC.countPill(-3, 5) == "0 / 5")
+	assert(CC.countPill(3.7, 10.2) == "3 / 10" and CC.countPill(nil, nil) == "0 / 0")
+	assert(CC.tabText("Patrons", 12, 81) == "Patrons  12 / 81")
+	assert(CC.lockedGlyph("patrons", false) == "?" and CC.lockedGlyph("patrons", true) == nil)
+	assert(CC.lockedGlyph("titles", false) == nil and CC.lockedGlyph("housePasses", false) == "?")
+	assert(CC.pageCue("patrons", "recipes", "section", "section") == "page_turn")
+	assert(CC.pageCue("patrons", "patrons", "room", "section") == "page_turn")
+	assert(CC.pageCue("patrons", "patrons", "section", "section") == nil, "no cue when nothing changes")
+	assert(CC.useCutCard("patrons", true, true) and not CC.useCutCard("patrons", false, true)
+		and not CC.useCutCard("recipes", true, true) and not CC.useCutCard("patrons", true, false))
+	local SoundIds = require(script.Parent.Parent.Engine.SoundIds)
+	assert(SoundIds.Cues[CC.CUE] and SoundIds.Cues[CC.CUE].id ~= "", "the page flip cue has a real sound")
+	local tabs = {}
+	for _, tab in ipairs(CB.Tabs) do tabs[tab.id] = true end
+	assert(tabs.patrons and tabs.housePasses, "glyph tabs exist in the book")
 end })
 table.insert(tests, { name = "PatronEvents: the Patron beats come in engine order and the full replay equals the final score", fn = function()
 	local PE = require(script.Parent.Parent.Engine.PatronEvents)
