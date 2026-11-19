@@ -31627,4 +31627,30 @@ table.insert(tests, { name = "Run Over: summary names the night, best hand, scor
 	expectTrue(src:find("Back to Tavern\"", 1, true) == nil, "no second name for the Menu button")
 end })
 
+table.insert(tests, { name = "Boss intro: the plate stands below the Patron row at four sizes, never over the top bar or the seats, rule text shrinks instead of truncating", fn = function()
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1506, 751 }, { 2380, 1000 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local p = M.bossIntroPlateFor(r, w, h)
+		expectTrue(p.x >= 0 and p.x + p.w <= w and p.y + p.h <= h, "intro plate on screen at " .. w)
+		for _, k in ipairs({ "bar", "target", "tips", "round", "gear" }) do expectTrue(not hit(p, r[k]), "intro plate clear of " .. k .. " at " .. w) end
+		for i, sl in ipairs(r.slots) do for _, part in ipairs({ "card", "label", "pill" }) do expectTrue(not hit(p, sl[part]), "intro plate clear of seat " .. i .. " " .. part .. " at " .. w) end end
+		expectTrue(p.h >= 64, "intro plate tall enough for the portrait at " .. w)
+		-- after the intro exactly one rule element exists on the table: the slim plate, which is also clear of the top bar pieces
+		local rp = M.rulePlate(r)
+		if rp then for _, k in ipairs({ "target", "tips", "round" }) do expectTrue(not hit(rp, r[k]), "rule plate clear of " .. k .. " at " .. w) end end
+	end
+	local t = M.bossIntro(false, false)
+	expectTrue(t.slide + t.hold >= 2.5, "intro holds 2.5 s before it fades")
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	expectTrue(fx:find("bossIntroPlateFor", 1, true) and fx:find("if banner then banner:Destroy() end", 1, true), "the intro uses the table rects and the old banner is removed")
+	expectTrue(fx:find("UITextSizeConstraint", 1, true), "intro rule text is scaled, not truncated")
+	expectTrue(read("src/Client/Gameplay2.lua"):find("deps.actionFrame.ClipsDescendants = false", 1, true), "the Discard frame is never clipped")
+end })
+
 return tests

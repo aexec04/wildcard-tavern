@@ -177,7 +177,7 @@ end
 
 -- BOSS INTRO: dim the table, slide a plate (portrait, name, rule) in, hold, fade. Once per boss round, never in Calm mode or Reduce
 -- motion (Rules.bossIntro is nil). Takes no input (nothing here is Active), so it can never trap a click.
-local function introCinematic(layer, bdef, name, rule, tint, w, h)
+local function introCinematic(layer, bdef, name, rule, tint, w, h, rects)
 	local timing = Rules.bossIntro(calm(), fast())
 	if not timing or not layer.Parent then return end
 	local old = layer:FindFirstChild("BossIntro")
@@ -199,7 +199,7 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h)
 	dim.Active = false
 	dim.ZIndex = 34
 	dim.Parent = holder
-	local rect = Rules.bossIntroPlate(w, h)
+	local rect = Rules.bossIntroPlateFor(rects, w, h)
 	local plate = Instance.new("Frame")
 	plate.Name = "Plate"
 	plate.BorderSizePixel = 0
@@ -258,7 +258,8 @@ local function introCinematic(layer, bdef, name, rule, tint, w, h)
 		t.TextStrokeColor3 = color("outline")
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.TextWrapped = true
-		t.TextTruncate = Enum.TextTruncate.AtEnd
+		t.TextScaled = true -- a long rule shrinks to fit two lines (never below 14 px), it is never cut with dots
+		local lim = Instance.new("UITextSizeConstraint"); lim.MaxTextSize = size; lim.MinTextSize = 14; lim.Parent = t
 		t.ZIndex = 36
 		t.Active = false
 		t.Parent = plate
@@ -365,7 +366,7 @@ function M.boss(layer, rects, state, w, h)
 	if introKey and tint:GetAttribute("IntroKey") ~= introKey then
 		tint:SetAttribute("IntroKey", introKey)
 		pcall(function() require(script.Parent.Cue).play("boss_intro") end) -- silent until the cue has an id
-		pcall(introCinematic, layer, bdef, name, rule, tintSet, w, h)
+		pcall(introCinematic, layer, bdef, name, rule, tintSet, w, h, rects)
 	end
 	-- ONE boss display: the intro cinematic announces the boss, then the slim rule plate under the Patron rows is the only plate left.
 	-- The old strip under the top bar (BossBanner) is gone; remove one that an earlier build left in the layer.

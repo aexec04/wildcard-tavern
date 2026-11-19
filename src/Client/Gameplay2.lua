@@ -280,6 +280,7 @@ function M.install(deps)
 		local cs = deps.actionFrame:FindFirstChild("CompactScale")
 		if not actionHeld then actionHeld = { scale = cs and cs.Scale or nil } end
 		LayoutSwitch.off(deps.actionFrame)
+		deps.actionFrame.ClipsDescendants = false -- the painted Discard frame is a sibling inside this frame: never cut it at the frame edge
 		if cs then cs.Scale = 1 end
 		deps.actionFrame.Position = UDim2.fromOffset(r.play.x, r.play.y)
 		deps.actionFrame.Size = UDim2.fromOffset(r.discard.x + r.discard.w - r.play.x, r.play.h)

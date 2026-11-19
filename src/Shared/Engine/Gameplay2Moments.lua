@@ -26,6 +26,7 @@
 	bossEntranceKey(state)           -> text that changes per boss round, so the entrance plays once per round
 	bossIntro(calm, fast)            -> nil | { slide, hold, fade, dim } the boss intro cinematic (dim table, portrait plate), nil in Calm mode
 	bossIntroPlate(w, h)             -> { x, y, w, h } the intro plate, inside the screen
+	bossIntroPlateFor(rects, w, h)   -> the same plate placed under the Patron row (the live table uses this one)
 	bossIntroParts(plate)            -> portrait rect, text rect (relative to the plate)
 	nightIntroKey(state)             -> "night:round" while a non Boss round is being played, else nil (a Boss round has its own intro)
 	nightIntro(calm, fast)           -> nil in Calm mode | { fadeIn, hold, fade, total, dim } seconds, 1.2 in all (0.6 on Fast)
@@ -216,6 +217,19 @@ function M.bossIntroPlate(w, h)
 	local pw = math.min(560, w - 32)
 	local ph = math.min(104, math.max(M.INTRO_PORTRAIT + 16, h - 32))
 	return { x = math.floor((w - pw) / 2), y = math.floor(h * 0.36 - ph / 2), w = pw, h = ph }
+end
+
+-- With the table rects the intro plate stands BELOW the Patron row (never over the top bar, Tips chip or the seats): top 12 px under the
+-- last seat pill, centred on the table, as tall as the open band allows (never taller than the plain plate). Falls back to bossIntroPlate.
+function M.bossIntroPlateFor(r, w, h)
+	local base = M.bossIntroPlate(w, h)
+	if not r or not r.slots or not r.slots[#r.slots] then return base end
+	local last = r.slots[#r.slots].pill
+	local top = last.y + last.h + 12
+	local room = (r.hand and r.hand.y or h) + 40 - top -- the cards of the fan start under the band; the plate may overlap their tops a little
+	local ph = math.min(base.h, math.max(M.INTRO_PORTRAIT + 16, room))
+	if top + ph > h - 8 then ph = math.max(40, h - 8 - top) end
+	return { x = base.x, y = top, w = base.w, h = ph }
 end
 
 -- inner rects, relative to the plate: the portrait chip and the text column
