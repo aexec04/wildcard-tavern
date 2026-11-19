@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Engine")
 local Layout = require(Engine:WaitForChild("Gameplay2Layout"))
 local Moments = require(Engine:WaitForChild("Gameplay2Moments"))
+local PreviewRules = require(Engine:WaitForChild("Gameplay2Preview"))
 local CTLayout = require(Engine:WaitForChild("ConceptTLayout"))
 local Flags = require(Engine:WaitForChild("FeatureFlags"))
 local TableArt = require(Engine:WaitForChild("TableSceneArt"))
@@ -142,7 +143,9 @@ function M.install(deps)
 	scoreLine.BackgroundTransparency = 0.45
 	scoreLine.Active = false
 	scoreLine.Parent = scoreBox
-	for _, p in ipairs({ tips, handsPill, discardsPill, deckPill }) do -- a pill's word fills the whole pill and may be longer than 4 chars
+	-- the hand preview: "Flush Lv 2  |  50 Chips x 6 Mult" over the centre score while cards are selected (Engine/Gameplay2Preview)
+	local previewPill = Kit.pill(layer, "", "wood"); previewPill.Name = "PreviewPill"; previewPill.ZIndex = Z_UI + 1; previewPill.Visible = false
+	for _, p in ipairs({ tips, handsPill, discardsPill, deckPill, previewPill }) do -- a pill's word fills the whole pill and may be longer than 4 chars
 		local w = p:FindFirstChild("Word")
 		if w then w.TextSize = Style.TEXT.chip; w.TextScaled = false end
 	end
@@ -293,7 +296,15 @@ function M.install(deps)
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 2
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 2
-		scoreCaption.Visible = N.roomy; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy
+		scoreCaption.Visible = N.roomy and not self.previewText; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy
+		if self.previewText then
+			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
+			raise(previewPill, Z_UI + 1)
+			setText(previewPill, self.previewText)
+			previewPill.Visible = true
+		else
+			previewPill.Visible = false
+		end
 		-- Rank | Suit: one frame covering the two layout halves
 		for _, c in ipairs(deps.actionFrame:GetChildren()) do
 			if c:IsA("Frame") and c.LayoutOrder == 0 then
@@ -347,6 +358,7 @@ function M.install(deps)
 	end
 
 	function self.size() return root.AbsoluteSize end
+	function self.refresh() apply() end
 
 	function self.shake(which)
 		pcall(function() require(script.Parent.Gameplay2FeelFX).shake(which == "discard" and deps.discardButton or deps.playButton) end)
@@ -489,6 +501,15 @@ end
 
 function M.isActive()
 	return current ~= nil and current.isActive()
+end
+
+-- the hub passes its live hand preview (Engine/HandPreview) whenever the selection changes, nil when nothing is selected
+function M.setPreview(preview, handLevels)
+	if not current then return end
+	local text = preview and PreviewRules.line(preview, PreviewRules.levelOf(handLevels, preview.name)) or nil
+	if current.previewText == text then return end
+	current.previewText = text
+	if current.isActive() then pcall(current.refresh) end
 end
 
 -- where discarded cards fly (root pixels), nil when the v2 table is not up: the bottom right, under the deck count

@@ -28906,4 +28906,29 @@ table.insert(tests, { name = "Gameplay v2 synergy hints: a gold thread joins nei
 	assert(not read("src/Client/Gameplay2SynergyFX.lua"):find("TweenService", 1, true), "static, so Calm mode is the same")
 end })
 
+table.insert(tests, { name = "Gameplay v2 hand preview: name, level, chips and mult from the real preview, No score when a rule zeroes it, pill on top of the stage clear of the Patron pills", fn = function()
+	local P = require(script.Parent.Parent.Engine.Gameplay2Preview)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(P.line({ name = "Flush", chips = 50.4, mult = 6 }, 2) == "Flush Lv 2  |  50 Chips x 6 Mult", "numbers are floored, level shown")
+	assert(P.line({ name = "Pair", chips = 10, mult = 2 }, nil) == "Pair Lv 1  |  10 Chips x 2 Mult" and P.line({ name = "Pair", chips = 0, mult = 0 }, 3) == "Pair Lv 3  |  No score")
+	assert(P.line(nil, 1) == nil and P.line({}, 1) == nil)
+	assert(P.levelOf({ Flush = 4 }, "Flush") == 4 and P.levelOf({}, "Flush") == 1 and P.levelOf(nil, "Flush") == 1)
+	local HP = require(script.Parent.Parent.Engine.HandPreview)
+	assert(HP.compute(nil, { 1 }) == nil, "no view, no preview (the line follows the real preview only)")
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local text = P.line({ name = "Straight Flush", chips = 150, mult = 12 }, 12)
+		local pr = P.rect(r.stage, text)
+		assert(pr.w <= r.stage.w and pr.x >= r.stage.x and pr.x + pr.w <= r.stage.x + r.stage.w and pr.y == r.stage.y and pr.h == 26, "pill inside the stage top at " .. sz[1])
+		for i = 1, 5 do
+			local pill = r.slots[i].pill
+			assert(pr.y >= pill.y + pill.h, "pill under Patron pill " .. i .. " at " .. sz[1])
+		end
+		assert(pr.y + pr.h <= r.hand.y, "pill above the hand at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	assert(read("src/Client/Gameplay2.lua"):find("PreviewPill", 1, true) and read("src/Client/init.client.lua"):find("Gameplay2).setPreview", 1, true), "wired to the hub's preview")
+end })
+
 return tests
