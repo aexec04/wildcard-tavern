@@ -26487,6 +26487,28 @@ table.insert(tests, { name = "Multiplier panel on a short screen: it stands belo
 	expectTrue(src:find("local up = r.compact and PatronBoost.LABEL_H or 0", 1, true) ~= nil, "and moves the rest up by the label row")
 end })
 
+table.insert(tests, { name = "Painted card faces: all 52 ids exist, each maps its own rank and suit, unknown input falls back to the code face", fn = function()
+	local P = require(script.Parent.Parent.Engine.CardFacePainted)
+	local Map = require(script.Parent.Parent.Engine.ConceptTCardFaces)
+	local seenId, count = {}, 0
+	for _, rank in ipairs({ "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K" }) do
+		for suitText, suit in pairs(P.SUITS) do
+			local key = P.key(rank, suitText)
+			expectEqual(key, rank:lower() .. "_" .. suit, "key of " .. rank .. suit)
+			local id = P.resolve(Map, rank, suitText)
+			expectTrue(id:match("^rbxassetid://%d+$") ~= nil, "a recorded id for " .. key)
+			expectFalse(seenId[id], "no id shared: " .. key)
+			seenId[id] = true
+			count = count + 1
+		end
+	end
+	expectEqual(count, 52, "52 faces")
+	expectEqual(P.resolve(Map, "11", "♠"), "", "unknown rank falls back")
+	expectEqual(P.resolve(Map, "K", "?"), "", "unknown suit falls back")
+	expectEqual(P.resolve({}, "K", "♠"), "", "a missing id falls back")
+	expectEqual(P.resolve({ k_spades = "rbxassetid://0" }, "K", "♠"), "", "a zero id falls back")
+end })
+
 table.insert(tests, { name = "Court faces: K, Q and J in each suit get their own figure, never a wrong rank or suit, and clear the corner index", fn = function()
 	local Court = require(script.Parent.Parent.Engine.CourtFaceArt)
 	local Art = require(script.Parent.Parent.Engine.ConceptTCardArt)

@@ -299,6 +299,26 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 	-- the ivory face drawn alone has no ornate frame to stay inside: its index goes back to the top-left corner
 	local okIv, ivory = pcall(function() return require(script.Parent.SetSkin).ivoryAlone() end)
 	local IV = okIv and ivory and require(game:GetService("ReplicatedStorage").Shared.Engine.CardFaceArt).IVORY_LAYOUT or nil
+	-- a fully painted face (rank, suit and pips are in the picture) stands in for the code-drawn one when its id is recorded
+	if IV and not colorblind then
+		local okP, paintedId = pcall(function()
+			local Engine = game:GetService("ReplicatedStorage").Shared.Engine
+			return require(Engine.CardFacePainted).resolve(require(Engine.ConceptTCardFaces), rankText, suitText)
+		end)
+		if okP and paintedId ~= "" then
+			local painted = Instance.new("ImageLabel")
+			painted.Name = "PaintedFace"
+			painted.BackgroundTransparency = 1
+			painted.Image = paintedId
+			painted.ScaleType = Enum.ScaleType.Stretch
+			painted.Size = UDim2.fromScale(1, 1)
+			painted.ZIndex = zIndex + 1
+			painted.Active = false
+			painted.Parent = face
+			drawSpecial()
+			return face
+		end
+	end
 	if IV then
 		L = IV
 		-- Concept T parchment: ONE vertical Color-only gradient that darkens the rim, on the painted face or on a flat-fill button

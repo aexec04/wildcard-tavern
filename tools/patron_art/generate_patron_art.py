@@ -97,6 +97,7 @@ CATEGORIES = {
     "concept_t": ("concept_t_subjects", "concept_t", "ConceptTArt.lua", "Concept T"),
     "concept_t_patrons": ("ctp_subjects", "concept_t_patrons", "ConceptTPatronArt.lua", "Concept T Patron card"),
     "concept_t_cards": ("ctc_subjects", "concept_t_cards", "ConceptTCardArt.lua", "Concept T court face"),
+    "concept_t_faces": ("ctf_subjects", "concept_t_faces", "ConceptTCardFaces.lua", "Concept T card face"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -238,6 +239,8 @@ CATEGORY_OPTS = {
     "concept_t_cards": {"quality": "medium", "style_key": "ctc_style", "transparent": True, "size": "1024x1024",
                         "references": dict(("court_%s_%s" % (r, s), "art-wip/concept_t_cards/ref_king.png")
                                            for r in "kqj" for s in ("spades", "hearts", "diamonds", "clubs"))},
+    # Concept T full card faces (52): an EDIT of a cropped reference card, cut from magenta, 2:3 canvas. References are filled below from prompts.json "ctf_refs".
+    "concept_t_faces": {"quality": "low", "style_key": "ctf_style", "transparent": True, "size": "1024x1536", "references": {}},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
@@ -309,6 +312,12 @@ _CTP_CARD = {"common": "patron_court_jester.png", "uncommon": "patron_generous_k
 try:
     for _pid, _rar in json.loads((HERE / "prompts.json").read_text(encoding="utf-8")).get("ctp_rarity", {}).items():
         CATEGORY_OPTS["concept_t_patrons"]["references"]["ctp_" + _pid] = "claude/reference/concept_t/" + _CTP_CARD[_rar]
+except OSError:
+    pass
+
+try:
+    for _pid, _ref in json.loads((HERE / "prompts.json").read_text(encoding="utf-8")).get("ctf_refs", {}).items():
+        CATEGORY_OPTS["concept_t_faces"]["references"][_pid] = "art-wip/concept_t_faces/" + _ref + ".png"
 except OSError:
     pass
 
