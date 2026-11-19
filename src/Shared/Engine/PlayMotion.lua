@@ -42,6 +42,13 @@ function PlayMotion.dealTiming(order, count)
 	return (order - 1) * 0.04, 0.25 + 0.10 * PlayMotion.clamp(k, 0, 1)
 end
 
+-- discard flight: each discarded card arcs to the deck pile, 0.05 s apart, shrinking to endScale; calm and Fast speed skip it
+function PlayMotion.flight(order, count, calm, fast)
+	if calm or fast then return nil end
+	order, count = math.max(1, order or 1), math.max(1, count or 1)
+	return { delay = (order - 1) * 0.05, dur = 0.32, arc = 70, endScale = 0.45 }
+end
+
 -- a played card slides toward the table centre, a discarded one toward the deck pile (offsets from the card's slot)
 function PlayMotion.slideTarget(kind, slotX, slotY, centreX, centreY, deckX, deckY)
 	if kind == "discard" then return deckX - slotX, deckY - slotY end

@@ -2649,6 +2649,11 @@ discardButton.MouseButton1Click:Connect(function()
 	local function doDiscard()
 		SoundModule.playSfx(SoundModule.SOUND_IDS.discard)
 		pendingNewCardCount = #indices -- see the matching comment on Play Hand above
+		pcall(function() -- discarded cards arc to the deck pile (Client/CardFlights.lua, none in calm mode or Fast speed)
+			local flying = {}
+			for _, i in ipairs(indices) do flying[#flying + 1] = cardButtons[i] end
+			require(script.CardFlights).discard(root, flying, DeckWidgetModule.deckWidgetButton.Parent)
+		end)
 		DiscardRemote:FireServer(indices)
 		Shop.tutorial.notifyDiscardUsed()
 	end
