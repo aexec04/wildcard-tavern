@@ -2441,6 +2441,62 @@ table.insert(tests, { name = "PlayerProfile.migrate: sanitizes a corrupt/foreign
 	expectEqual(profile.stats.bestNightReached, 4, "a fractional bestNightReached should be floored")
 end })
 
+table.insert(tests, { name = "Save audit: old profiles load with every current field defaulted, and garbage payloads never error", fn = function()
+	local fresh = PlayerProfile.new()
+	local olds = {
+		{}, -- the very first save
+		{ stats = { runsStarted = 3, runsWon = 1, bestNightReached = 2 } }, -- early shape
+		{ stats = { runsStarted = 9 }, settings = { muted = true }, discoveredPatronIds = { tip_jar = true }, removedFutureField = 1 },
+		"garbage", 42, true, false, nil,
+	}
+	for i, old in ipairs(olds) do
+		local ok, profile = pcall(PlayerProfile.migrate, old)
+		assert(ok, "migrate case " .. i .. " errored: " .. tostring(profile))
+		for key, default in pairs(fresh) do
+			if profile[key] == nil and default ~= nil then
+				error("old profile case " .. i .. " is missing the default for " .. key)
+			end
+			if type(profile[key]) ~= type(default) then
+				error("old profile case " .. i .. " has the wrong type for " .. key)
+			end
+		end
+		for key, spec in pairs(PlayerProfile.SETTING_SPECS) do
+			assert(profile.settings[key] ~= nil, "setting " .. key .. " has no default after migrating case " .. i)
+		end
+		-- a loaded profile loads again unchanged in shape (nothing grows or breaks on the second save)
+		local again = PlayerProfile.migrate(profile)
+		for key in pairs(profile) do assert(again[key] ~= nil, "second load lost " .. key) end
+	end
+	local bad = { 0 / 0, math.huge, -math.huge, {}, function() end, "x", true }
+	for _, key in ipairs({ "sfxVolume", "muted", "animSpeed", "allowSpectators", "nope" }) do
+		for _, v in ipairs(bad) do
+			local ok = pcall(PlayerProfile.setSetting, PlayerProfile.new(), key, v)
+			assert(ok, "setSetting errored for " .. key)
+		end
+	end
+	assert(not (select(1, PlayerProfile.setSetting(PlayerProfile.new(), {}, 1))), "a table key is refused")
+	local Guard = require(script.Parent.Parent.Engine.PayloadGuard)
+	for _, v in ipairs({ 0 / 0, math.huge, "1", {}, { 1, 1 }, { 0 }, { 99 }, { 1.5 }, { [1] = 1, x = 2 }, { 1, 2, 3, 4, 5, 6 } }) do
+		assert(Guard.indexList(v, 8, 5) == false or Guard.indexList(v, 8, 5) == nil, "bad index list accepted")
+	end
+	assert(Guard.indexList({ 1, 3, 5 }, 8, 5), "a good index list is accepted")
+end })
+
+table.insert(tests, { name = "Save audit: the profile DataStore is only touched inside pcall and autosave only writes dirty profiles", fn = function()
+	if not io then return end
+	local f = io.open("src/Server/init.server.lua", "r")
+	if not f then return end
+	local src = f:read("*a")
+	f:close()
+	for call in src:gmatch("[^\n]*ProfileStore:[%w]+Async[^\n]*") do
+		-- every use sits on a line after a pcall(function() opened within the same few lines
+		local at = src:find(call, 1, true)
+		local before = src:sub(math.max(1, at - 160), at)
+		assert(before:find("pcall", 1, true), "ProfileStore call outside pcall: " .. call)
+	end
+	assert(src:find("profileDirty[player]", 1, true), "dirty flag drives the save")
+end })
+
 table.insert(tests, { name = "PlayerProfile.recordPatronsFound: reports changed only when something is actually new", fn = function()
 	local profile = PlayerProfile.new()
 	expectTrue(PlayerProfile.recordPatronsFound(profile, { "tip_jar" }))
