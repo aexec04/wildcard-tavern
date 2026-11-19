@@ -16,6 +16,8 @@
 	fits(w, h), overlaps(rects) -> list of colliding name pairs (empty when clean), ALLOWED lists intended overlaps
 ]]
 
+local TierStyle = require(script.Parent:WaitForChild("PatronTierStyle"))
+
 local M = {}
 
 local function round(n) return math.floor(n + 0.5) end
@@ -38,6 +40,7 @@ function M.patronRow(w, h, n)
 	local labelH, pillH = math.max(16, round(0.036 * h)), math.max(18, round(0.042 * h))
 	local ch = round(0.205 * h)
 	local cw = round(ch * M.CARD_ASPECT)
+	local half = math.ceil(TierStyle.discDiameter(cw) / 2) -- the power disc hangs this far below the card, the label sits under it
 	local gap = math.max(8, round(0.014 * w))
 	local span = M.SEATS * cw + (M.SEATS - 1) * gap
 	local x0 = round((w - span) / 2)
@@ -47,8 +50,8 @@ function M.patronRow(w, h, n)
 		if n <= M.SEATS then x = x0 + (i - 1) * (cw + gap)
 		else x = x0 + (i - 1) * (span - cw) / (n - 1) end
 		out.cards[i] = box(x, top, cw, ch)
-		out.labels[i] = box(x, top + ch + 2, cw, labelH)
-		out.pills[i] = box(x, top + ch + 2 + labelH + 2, cw, pillH)
+		out.labels[i] = box(x, top + ch + half + 2, cw, labelH)
+		out.pills[i] = box(x, top + ch + half + 2 + labelH + 2, cw, pillH)
 	end
 	return out
 end

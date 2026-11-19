@@ -33,6 +33,9 @@ function M.set(slot, tier, valueText, hasCard)
 	local label = slot:FindFirstChild("CTLabel")
 	local pill = piece(slot, "CTPill", 12)
 	local on = hasCard == true
+	local v2 = false
+	pcall(function() v2 = require(script.Parent.Gameplay2).isActive() end)
+	if not on or not v2 then pcall(function() require(script.Parent.PatronTierFX).clear(slot) end) end
 	if label then label.Visible = on end
 	pill.Visible = on and valueText ~= nil and valueText ~= ""
 	if not on then return end
@@ -42,6 +45,13 @@ function M.set(slot, tier, valueText, hasCard)
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 1, 30)
 	pill.Size = UDim2.new(0.92, 0, 0, 26)
+	if v2 then -- Gameplay v2: the tier frame and the power disc hang below the card, the pills sit under the disc
+		local half = math.ceil(require(Engine:WaitForChild("PatronTierStyle")).discDiameter(slot.AbsoluteSize.X) / 2)
+		label = slot:FindFirstChild("CTLabel") -- RarityPill.set just made or refreshed it
+		if label then label.Position = UDim2.new(0.5, 0, 1, 2 + half) end
+		pill.Position = UDim2.new(0.5, 0, 1, 30 + half)
+		pcall(function() require(script.Parent.PatronTierFX).set(slot, tier, valueText) end)
+	end
 	local t = pill:FindFirstChild("Value")
 	if not t then
 		t = Instance.new("TextLabel")

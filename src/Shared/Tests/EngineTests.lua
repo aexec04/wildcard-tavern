@@ -28531,4 +28531,52 @@ table.insert(tests, { name = "Gameplay v2: one rect function, no overlaps or off
 	end
 end })
 
+table.insert(tests, { name = "PatronTierStyle: every tier covered, tiers differ in shape and size, taller grows up, power disc 4.5:1, labels clear the disc, motion on FxLoop and still in Calm mode", fn = function()
+	local T = require(script.Parent.Parent.Engine.PatronTierStyle)
+	local S = require(script.Parent.Parent.Engine.TavernStyle)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, name in ipairs({ "common", "uncommon", "rare", "epic", "legendary" }) do
+		assert(T.TIERS[name], "tier " .. name)
+		assert(T.style(name:upper()) == T.TIERS[name], "case does not matter")
+	end
+	assert(T.style("nonsense") == T.TIERS.common)
+	assert(T.distinct(), "no two tiers read the same in greyscale")
+	assert(T.TIERS.common.glow == 0 and T.TIERS.common.studs == 0 and T.TIERS.common.growH == 0, "common is plain")
+	assert(T.TIERS.rare.studs == 4 and T.TIERS.rare.pulse == 3, "rare: corner studs, 3 s pulse")
+	assert(T.TIERS.epic.crown and T.TIERS.epic.halo and T.TIERS.epic.sparks > 0 and T.TIERS.epic.growH == 0.06, "epic: crown notch, halo, sparks, 6 percent taller")
+	local lg = T.TIERS.legendary
+	assert(lg.growH == 0.12 and lg.growW == 0.12 and lg.rays > 0 and lg.float == 4 and lg.shimmer == 5 and lg.breakOut > 0, "legendary: 12 percent bigger, rays, shimmer every 5 s")
+	assert(T.TIERS.common.growH < T.TIERS.epic.growH and T.TIERS.epic.growH < lg.growH)
+	for _, name in ipairs(T.ORDER) do
+		local r = T.frameRect(name, 150, 210)
+		assert(r.y <= 0 and r.y + r.h == 210, name .. " grows upward only, bottom edge fixed")
+		assert(r.x <= 0 and r.x + r.w >= 150, name .. " never shrinks")
+	end
+	assert(T.frameRect("legendary", 150, 210).h == 210 + 25 and T.frameRect("epic", 150, 210).h == 210 + 13)
+	assert(S.contrast(T.DISC.text, T.DISC.fill) >= 4.5, "cream numeral on the gold disc is 4.5:1")
+	assert(T.numeral("+30") == "+30" and T.numeral("++4") == "+4" and T.numeral(nil) == "" and T.numeral("  x2 ") == "x2")
+	assert(T.discDiameter(100) >= 28 and T.discDiameter(200) == 60)
+	-- the layout leaves room for the disc: label and pill start under its lower half
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local row = L.patronRow(sz[1], sz[2], 5)
+		for i = 1, 5 do
+			local c = row.cards[i]
+			assert(row.labels[i].y >= c.y + c.h + math.ceil(T.discDiameter(c.w) / 2), "label under the power disc")
+			assert(row.pills[i].y >= row.labels[i].y + row.labels[i].h)
+		end
+	end
+	-- collisions: same tier, same portraitKey
+	local hit = T.collisions({ { tier = "rare", portraitKey = "red:arms_up" }, { tier = "Rare", portraitKey = "red:arms_up" }, { tier = "epic", portraitKey = "red:arms_up" }, { tier = "rare" } })
+	assert(#hit == 1 and hit[1] == "rare|red:arms_up")
+	if not io then return end
+	local f = io.open("src/Client/PatronTierFX.lua", "r")
+	if not f then return end
+	local src = f:read("*a"); f:close()
+	assert(src:find("FxLoop.add", 1, true) and src:find("Kit.still()", 1, true), "motion on the shared heartbeat and gated on Calm mode")
+	assert(not src:find("TweenService", 1, true), "no tweens at all")
+	assert(src:find("Numeral", 1, true) and src:find("PowerDisc", 1, true), "power numeral on a disc")
+	assert(not src:find("UIGradient", 1, true), "no gradients, so no Transparency gradient")
+	assert(not src:find("[\128-\255]"), "ASCII only")
+end })
+
 return tests
