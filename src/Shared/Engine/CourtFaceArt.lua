@@ -11,7 +11,7 @@ CourtFaceArt.RANKS = { K = "k", Q = "q", J = "j" }
 
 -- Card fractions (centre anchored). The ivory index sits at y 0.06 to 0.36 on the left and 0.825 to 0.94 on the right,
 -- so the figure (square, Fit) stays between them.
-CourtFaceArt.LAYOUT = { x = 0.5, y = 0.595, w = 0.66, h = 0.40 }
+CourtFaceArt.LAYOUT = { x = 0.54, y = 0.56, w = 0.70, h = 0.70 } -- the figure fills about 60 percent of the face like the reference; the corner index draws above it
 
 function CourtFaceArt.key(rankText, suitText)
 	local r, s = CourtFaceArt.RANKS[rankText], CourtFaceArt.SUITS[suitText]

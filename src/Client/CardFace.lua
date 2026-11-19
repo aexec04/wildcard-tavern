@@ -360,7 +360,20 @@ function CardFace.build(button, rankText, suitText, isRed, zIndex, hiddenWildcar
 		figure.Active = false
 		figure.Parent = face
 	else
-		makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(C.w, C.h), UDim2.fromScale(C.x, C.y), Vector2.new(0.5, 0.5), nil, zIndex)
+		-- Concept T parchment: real pip layouts for number cards (Engine/PipLayout), one big pip for the Ace
+		local pips
+		if IV then
+			local okP, list = pcall(function() return require(game:GetService("ReplicatedStorage").Shared.Engine.PipLayout) end)
+			if okP then pips = list.pips(rankText); if pips then pips.size = list.SIZE; pips.bigSize = list.BIG end end
+		end
+		if pips then
+			for i, p in ipairs(pips) do
+				local sz = p.big and pips.bigSize or pips.size
+				makeLabel(face, "Pip" .. i, suitText, ink, UDim2.fromScale(sz.w, sz.h), UDim2.fromScale(p.x, p.y), Vector2.new(0.5, 0.5), nil, zIndex)
+			end
+		else
+			makeLabel(face, "CenterSuit", suitText, ink, UDim2.fromScale(C.w, C.h), UDim2.fromScale(C.x, C.y), Vector2.new(0.5, 0.5), nil, zIndex)
+		end
 	end
 	if colorblind then
 		makeLabel(face, "SuitLetter", SUIT_LETTER[suitText], ink, UDim2.fromScale(0.2, 0.13), UDim2.fromScale(0.81, 0.12), Vector2.new(1, 0), Enum.TextXAlignment.Right, zIndex)

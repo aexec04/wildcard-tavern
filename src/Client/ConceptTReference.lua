@@ -179,12 +179,12 @@ function M.show()
 	local CardFace = require(script.Parent.CardFace)
 	local FaceArt = require(Engine:WaitForChild("CardFaceArt"))
 	local hand = r.hand
-	local cw = math.floor(size.X * 0.085)
+	local cw = math.floor(size.X * 0.098)
 	local ch = math.floor(cw * 1.43)
 	local n = #S.hand
 	local step = (hand.w - cw) / (n - 1)
-	-- the lowest (outer) card bottoms stop a hair into the button row, so Play Hand and Discard stay readable
-	local baseY = hand.y + hand.h + math.floor(size.Y * 0.004) - math.floor(size.Y * Layout.FAN.dipFrac)
+	-- the middle card bottoms sit on the hand frame bottom (0.874 of the frame in the reference), the outer cards dip below it
+	local baseY = hand.y + hand.h
 	for i, c in ipairs(S.hand) do
 		local rot, dip = Layout.fan(i, n)
 		local b = Instance.new("TextButton")

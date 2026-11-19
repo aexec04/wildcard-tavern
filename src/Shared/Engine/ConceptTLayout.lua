@@ -29,8 +29,8 @@ M.frac = {
 	round = { 0.375, 0.006, 0.621, 0.084 },
 	gear = { 0.919, 0.012, 0.984, 0.107 },
 	patrons = { 0.185, 0.162, 0.810, 0.404 },
-	stage = { 0.350, 0.550, 0.650, 0.680 },
-	hand = { 0.190, 0.690, 0.800, 0.855 }, -- the fan dips about 0.022 at its ends, so the lowest card corners end near 0.877, a hair into the button row; Play and Discard stay readable
+	stage = { 0.350, 0.540, 0.650, 0.672 },
+	hand = { 0.195, 0.675, 0.780, 0.875 }, -- measured from the reference: card centres x 375 to 1120, middle card bottoms at 0.874, the outer cards dip to about 0.908 and overlap the button row a little, as in the reference
 	play = { 0.300, 0.875, 0.530, 0.985 },
 	discard = { 0.537, 0.882, 0.689, 0.980 },
 	deck = { 0.806, 0.650, 0.978, 0.880 },
@@ -104,7 +104,7 @@ function M.rectsIn(w, h)
 end
 
 -- the fanned hand: cards overlap in a tight arc, left leans -12, right +12, the middle stands highest
-M.FAN = { deg = 12, dipFrac = 0.022, tuckFrac = 0.006 }
+M.FAN = { deg = 12, dipFrac = 0.034, tuckFrac = 0.006 }
 
 function M.fan(i, n)
 	if n <= 1 then return 0, 0 end

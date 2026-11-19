@@ -26495,8 +26495,10 @@ table.insert(tests, { name = "Court faces: K, Q and J in each suit get their own
 	expectEqual(Court.resolve({ court_k_spades = "rbxassetid://rbxassetid://5" }, "K", "♠"), "rbxassetid://5", "never doubles the prefix")
 	expectEqual(Court.resolve({ court_k_spades = "0" }, "K", "♠"), "", "a zero id is missing")
 	local L, IV = Court.LAYOUT, FaceArt.IVORY_LAYOUT
-	expectTrue(L.y - L.h / 2 >= IV.suit.y + IV.suit.h - 0.01, "the figure starts under the corner suit")
-	expectTrue(L.y + L.h / 2 <= IV.bottom.y - IV.bottom.h - 0.0, "the figure ends above the bottom suit")
+	-- the figure is big (about 60 percent of the face, like the reference) and the corner index draws above it (ZIndex + 2)
+	expectTrue(L.w * L.h >= 0.45, "the figure fills about half of the face")
+	expectTrue(L.y + L.h / 2 <= 0.95, "the figure ends inside the card edge")
+	expectTrue(L.x - L.w / 2 >= 0.15, "the figure leaves the left edge column to the index")
 	expectTrue(L.x - L.w / 2 >= 0.1 and L.x + L.w / 2 <= 0.9, "the figure stays inside the card edge")
 	if io then
 		local f = io.open("src/Client/CardFace.lua", "r")
@@ -26621,7 +26623,7 @@ table.insert(tests, { name = "Concept T pixel pass 1: 3:2 frame, one plus on pil
 	for i = 1, 7 do local rot = L.fan(i, 7); expectTrue(rot > prev, "rotation rises left to right"); prev = rot end
 	expectEqual(select(1, L.fan(1, 1)), 0, "one card is level")
 	local prof = L.fanProfile(1000)
-	expectTrue(prof.deg == 12 and prof.dip == 22 and prof.endScale == 1, "fan profile for the real hand")
+	expectTrue(prof.deg == 12 and prof.dip == 34 and prof.endScale == 1, "fan profile for the real hand")
 	for _, size in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 450 } }) do
 		local r = L.rects(size[1], size[2])
 		for _, key in ipairs({ "coins", "hands", "round", "deckCount" }) do
@@ -26715,6 +26717,20 @@ table.insert(tests, { name = "Concept T pixel pass 3: parchment card face, space
 			expectTrue(src:find('"' .. name .. '"', 1, true) ~= nil, name .. " is hidden on the Concept T play screen (the room plate has the rug)")
 		end
 	end
+end })
+
+table.insert(tests, { name = "Concept T pass 4: number cards get real pip layouts, the Ace one big pip, court cards none", fn = function()
+	local PL = require(script.Parent.Parent.Engine.PipLayout)
+	for _, r in ipairs({ "2", "3", "4", "5", "6", "7", "8", "9", "10" }) do
+		local pips = PL.pips(r)
+		expectEqual(#pips, tonumber(r), r .. " has that many pips")
+		for _, p in ipairs(pips) do
+			expectTrue(p.x >= 0.3 and p.x <= 0.7 and p.y >= 0.15 and p.y <= 0.85, r .. " pip stays in the middle band, clear of the corner index")
+		end
+	end
+	local ace = PL.pips("A")
+	expectTrue(#ace == 1 and ace[1].big, "the Ace is one big pip")
+	expectEqual(PL.pips("K"), nil, "court cards use their figure")
 end })
 
 return tests
