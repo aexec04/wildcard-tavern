@@ -18,7 +18,7 @@ M.TABLE = {
 	tickLiftPx = 14,
 	totalPeak = 1.15, totalUp = 0.06, totalSettle = 0.12,
 	discardDur = 0.3, discardStagger = 0.05,
-	dealStagger = 0.05, dealDur = 0.3, flipFrom = 0.1,
+	dealStagger = 0.06, dealCap = 0.6, dealDur = 0.3, flipFrom = 0.1,
 }
 
 function M.playSlide(i, n, calm)

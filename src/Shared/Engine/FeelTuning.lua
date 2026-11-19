@@ -5,8 +5,9 @@
 	All of it is skipped in Calm mode and Reduce motion (tweenTo and the beats already honour them).
 ]]
 local FeelTuning = {
-	HOVER_LIFT = 12,
-	SELECTED_LIFT = 24,
+	HOVER_LIFT = 10,
+	SELECTED_LIFT = 18,
+	NEIGHBOUR_SPREAD = 6, -- Gameplay v2: the two cards next to the hovered one slide 6 px away
 	HOVER_EASE = 0.08,
 	PATRON_PULSE = 0.25,
 	SLAM_TOTAL = 0.3,

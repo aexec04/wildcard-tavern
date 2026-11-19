@@ -1216,8 +1216,8 @@ local SELECTED_HOVER_SCALE = 1.04
 -- neighbors lift a little too, falling off with distance, like fanning a
 -- hand of cards toward your thumb. Pure position/scale tweening, no color
 -- or transparency tricks, so this is safe against the addGloss-style bug.
-local HOVER_LIFT = 12 -- feel pass: hover 12 px, selected 24 px, 0.08 s ease (Engine/FeelTuning)
-local SELECTED_LIFT = 24
+local HOVER_LIFT = 10 -- Gameplay v2 feel: hover 10 px, selected 18 px, neighbours spread 6 px, 0.08 s ease (Engine/FeelTuning)
+local SELECTED_LIFT = 18
 local HOVER_FALLOFF_DISTANCE = 2 -- neighbors within this many slots lift a bit too
 
 -- ===== Collection Gallery overlay =====
@@ -1523,13 +1523,16 @@ local function refreshCardVisual(index, usePop)
 	-- on screen, not adjacent server-side hand index -- those two only match
 	-- when the hand is unsorted. Compare cardVisualPosition (left-to-right
 	-- display slot), not index/hoveredIndex directly.
-	local fanLift = 0
+	local fanLift, spreadX = 0, 0
 	if hoveredIndex ~= nil and not isHovering then
 		local myPosition = cardVisualPosition[index]
 		local hoveredPosition = cardVisualPosition[hoveredIndex]
 		local distance = (myPosition and hoveredPosition) and math.abs(myPosition - hoveredPosition) or math.huge
 		if distance < HOVER_FALLOFF_DISTANCE then
 			fanLift = (1 - (distance / HOVER_FALLOFF_DISTANCE)) * (HOVER_LIFT * 0.4)
+		end
+		if distance == 1 then -- Gameplay v2: the two neighbours slide 6 px away from the hovered card
+			spreadX = (myPosition > hoveredPosition and 1 or -1) * require(game:GetService("ReplicatedStorage").Shared.Engine.FeelTuning).NEIGHBOUR_SPREAD
 		end
 	end
 
@@ -1547,7 +1550,7 @@ local function refreshCardVisual(index, usePop)
 	local lift = (isSelected and SELECTED_LIFT or 0) + (isHovering and HOVER_LIFT or fanLift)
 
 	VisualHelpersModule.tweenTo(button, {
-		Position = UDim2.new(0.5, button.Parent:GetAttribute("FanX") or 0, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),
+		Position = UDim2.new(0.5, (button.Parent:GetAttribute("FanX") or 0) + spreadX, 0.5, (button.Parent:GetAttribute("FanY") or 0) - lift),
 	}, 0.08) -- Engine/FeelTuning.HOVER_EASE
 	require(script.PlayRailLip).setShadow(button.Parent, isSelected, lift)
 
@@ -2560,6 +2563,7 @@ do -- the Play Hand click handler is shared with DebugGoto playhand so Studio ru
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
 		showWarning(require(game:GetService("ReplicatedStorage").Shared.Engine.PlayRules).hint(latestState) or "Select 1-5 cards first.")
+		pcall(function() require(script.Gameplay2).shakeFor("play") end)
 		return
 	end
 	do -- the round's card-count rule (Full Table, One at a Time, Four on Top, minimums): never send a play the server refuses
@@ -2685,6 +2689,7 @@ discardButton.MouseButton1Click:Connect(function()
 	local indices = selectedIndicesArray()
 	if #indices < 1 then
 		showWarning("Select 1-5 cards to discard.")
+		pcall(function() require(script.Gameplay2).shakeFor("discard") end)
 		return
 	end
 	local function doDiscard()
@@ -2693,7 +2698,8 @@ discardButton.MouseButton1Click:Connect(function()
 		pcall(function() -- discarded cards arc to the deck pile (Client/CardFlights.lua, none in calm mode or Fast speed)
 			local flying = {}
 			for _, i in ipairs(indices) do flying[#flying + 1] = cardButtons[i] end
-			require(script.CardFlights).discard(root, flying, DeckWidgetModule.deckWidgetButton.Parent)
+			local px, py = require(script.Gameplay2).discardPoint() -- v2 table: the pile at the bottom right
+			require(script.CardFlights).discard(root, flying, DeckWidgetModule.deckWidgetButton.Parent, px and { x = px, y = py } or nil)
 		end)
 		DiscardRemote:FireServer(indices)
 		Shop.tutorial.notifyDiscardUsed()

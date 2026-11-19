@@ -20337,7 +20337,7 @@ table.insert(tests, { name = "PlayMotion: parallax is capped and opposite the cu
 	expectTrue(ym < 25, "arc bows above the straight line")
 	local d1, t1 = PM.dealTiming(1, 8)
 	local d8, t8 = PM.dealTiming(8, 8)
-	expectTrue(d1 == 0 and math.abs(d8 - 0.35) < 1e-9 and t1 >= 0.25 and t8 <= 0.35, "0.05 s stagger, 0.25 to 0.35 s each")
+	expectTrue(d1 == 0 and math.abs(d8 - 0.42) < 1e-9 and t1 >= 0.25 and t8 <= 0.35 and d8 + t8 <= 0.6 + 1e-9, "0.06 s stagger, at most 0.35 s each, all landed by 0.6 s")
 	expectTrue(select(1, PM.slideTarget("discard", 10, 10, 50, 50, 90, 70)) == 80, "discards head for the deck")
 	expectTrue(PM.lightFor("festival_night").color[3] > PM.lightFor("classic_tavern").color[3], "cool sets lean blue, Classic warm")
 	local pt = PM.lightFor("classic_tavern").poolTransparency
@@ -23706,7 +23706,7 @@ table.insert(tests, { name = "HandFlow: play slide, tick lift, total pop, discar
 	assert(d.dur == 0.3 and math.abs(d.delay - 0.05) < 1e-9 and HF.discardFlight(1, 3, true) == nil, "discard 0.3 s, 0.05 s apart")
 	assert(PM.flight(1, 3, false, false).dur == HF.TABLE.discardDur, "PlayMotion.flight uses the table")
 	local f = HF.dealFlip(3, 7, false)
-	assert(math.abs(f.delay - 0.1) < 1e-9 and f.flipFrom < 1 and HF.dealFlip(3, 7, true) == nil, "deal 0.05 s stagger with a flip")
+	assert(math.abs(f.delay - 0.12) < 1e-9 and f.flipFrom < 1 and HF.dealFlip(3, 7, true) == nil, "deal 0.06 s stagger with a flip")
 	assert(select(1, PM.dealTiming(3, 7)) == f.delay, "deal arc uses the same stagger")
 end })
 table.insert(tests, { name = "PatronCallout: green Chips and Mult, blue x Mult, rise 24 px over 0.6 s, static 0.4 s in calm, one popup at a time per card", fn = function()
@@ -27367,10 +27367,11 @@ table.insert(tests, { name = "RoadSkin: road card text plate is dark and at leas
 	expectTrue(road:find("PARCHMENT", 1, true) == nil, "no parchment card left")
 	expectTrue(read("src/Client/ShopCards.lua"):find("plateButton", 1, true) ~= nil and read("src/Client/Shop.lua"):find("plateButton(nextRoundButton)", 1, true) ~= nil, "Counter Buy and Next Round wear the plate")
 end })
-table.insert(tests, { name = "FeelTuning: hover 12, select 24, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
+table.insert(tests, { name = "FeelTuning: hover 10, select 18, neighbours 6, 0.08 s ease, name slam 0.3 s, none in calm mode; the hub and ScorePopup follow", fn = function()
 	local F = require(script.Parent.Parent.Engine.FeelTuning)
-	expectEqual(F.HOVER_LIFT, 12, "hover lift")
-	expectEqual(F.SELECTED_LIFT, 24, "selected lift")
+	expectEqual(F.HOVER_LIFT, 10, "hover lift")
+	expectEqual(F.SELECTED_LIFT, 18, "selected lift")
+	expectEqual(F.NEIGHBOUR_SPREAD, 6, "neighbour spread")
 	local A = require(script.Parent.Parent.Engine.AnimPass)
 	local s = A.nameSlam(false, false)
 	expectTrue(math.abs(s.down + s.settle - F.SLAM_TOTAL) < 1e-9, "slam lasts 0.3 s")
@@ -27378,7 +27379,7 @@ table.insert(tests, { name = "FeelTuning: hover 12, select 24, 0.08 s ease, name
 	if not io then return end
 	local function read(path) local f = io.open(path, "r"); if not f then return "" end; local c = f:read("a"); f:close(); return c end
 	local hub = read("src/Client/init.client.lua")
-	expectTrue(hub:find("local HOVER_LIFT = 12", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 24", 1, true) ~= nil, "hub lifts follow FeelTuning")
+	expectTrue(hub:find("local HOVER_LIFT = 10", 1, true) ~= nil and hub:find("local SELECTED_LIFT = 18", 1, true) ~= nil, "hub lifts follow FeelTuning")
 	expectTrue(hub:find("}, 0.08) -- Engine/FeelTuning", 1, true) ~= nil, "hub ease follows FeelTuning")
 	expectTrue(read("src/Client/ScorePopup.lua"):find('play("score_total")', 1, true) ~= nil, "score_total is wired")
 end })
@@ -28730,6 +28731,35 @@ table.insert(tests, { name = "Gameplay v2 scoring: centre score counts up in 12 
 	assert(src:find("reduceShake", 1, true) and src:find("calm = calm()", 1, true), "the FX asks Calm mode first")
 	local g = assert(io.open("src/Client/Gameplay2.lua", "r")); local gs = g:read("*a"); g:close()
 	assert(gs:find("Gameplay2ScoreFX", 1, true), "Gameplay2 plays the centre score FX")
+end })
+
+table.insert(tests, { name = "Gameplay v2 feel: hover 10, select 18, neighbours 6, deal 0.06 s apart and done by 0.6 s, Play ring pulses 1.6 s only on a legal hand, press 3 px, shake, none in Calm mode", fn = function()
+	local F = require(script.Parent.Parent.Engine.Gameplay2Feel)
+	local T = require(script.Parent.Parent.Engine.FeelTuning)
+	local PM = require(script.Parent.Parent.Engine.PlayMotion)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	assert(T.HOVER_LIFT == 10 and T.SELECTED_LIFT == 18 and T.NEIGHBOUR_SPREAD == 6)
+	for n = 1, 8 do
+		local lastDelay, lastDur = PM.dealTiming(n, n)
+		assert(lastDelay + lastDur <= 0.6 + 1e-9, "the last of " .. n .. " cards lands by 0.6 s")
+	end
+	assert(math.abs(select(1, PM.dealTiming(2, 8)) - 0.06) < 1e-9, "0.06 s stagger")
+	assert(F.legalPlay(1) and F.legalPlay(5) and not F.legalPlay(0) and not F.legalPlay(6) and not F.legalPlay(1, 2, 5), "legal means 1 to 5 cards and the round's minimum")
+	assert(math.abs(F.glow(0) - F.GLOW_MIN) < 1e-9 and math.abs(F.glow(0.8) - F.GLOW_MAX) < 1e-9 and math.abs(F.glow(1.6) - F.GLOW_MIN) < 1e-9, "period 1.6 s")
+	for i = 0, 32 do local g = F.glow(i * 0.05); assert(g >= F.GLOW_MIN - 1e-9 and g <= F.GLOW_MAX + 1e-9) end
+	assert(F.glow(0.3, true) == F.CALM_GLOW and F.glow(1.1, true) == F.CALM_GLOW, "Calm mode: a steady ring")
+	assert(F.press(false).px == 3 and F.press(true) == nil and F.shake(true) == nil and F.shake(false).count >= 2)
+	assert(F.pillTick("Hands 3", "Hands 2", false) ~= nil and F.pillTick("Hands 3", "Hands 3", false) == nil and F.pillTick("Hands 3", "Hands 2", true) == nil)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 800, 400 } }) do
+		local r = L.rects(sz[1], sz[2])
+		local x, y = F.discardPoint(r, sz[1], sz[2])
+		assert(x > sz[1] / 2 and x <= sz[1] and y <= sz[2] and y >= r.deckCount.y, "the discard pile is at the bottom right at " .. sz[1])
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2FeelFX.lua")
+	assert(fx:find("reduceShake", 1, true) and fx:find("Rules.press(calm())", 1, true) and fx:find("FxLoop.add", 1, true), "Calm mode checked, the glow loop goes through FxLoop")
+	assert(read("src/Client/Gameplay2.lua"):find("Gameplay2FeelFX", 1, true) and read("src/Client/CardFlights.lua"):find("point", 1, true), "wired")
 end })
 
 return tests

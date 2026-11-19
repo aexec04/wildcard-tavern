@@ -4,7 +4,7 @@
 	Engine/PlayMotion.flight, tested). The ghosts live under the screen root, so the hand rebuild that follows the server
 	reply cannot cut them off. Calm mode (Reduce Motion / Reduce Shake) and Fast speed make no ghosts and no tweens.
 
-	discard(root, buttons, deckFrame) -> number of flights started
+	discard(root, buttons, deckFrame, point) -> number of flights started
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,13 +13,14 @@ local ClientSettings = require(script.Parent.ClientSettings)
 
 local M = {}
 
-function M.discard(root, buttons, deckFrame)
+function M.discard(root, buttons, deckFrame, point)
 	local calm = ClientSettings.get("reduceShake") == true
 	local fast = ClientSettings.get("animSpeed") == "fast"
 	if calm or fast or not root or not deckFrame or not deckFrame.Parent then return 0 end
 	local origin = root.AbsolutePosition
 	local ex = deckFrame.AbsolutePosition.X + deckFrame.AbsoluteSize.X / 2 - origin.X
 	local ey = deckFrame.AbsolutePosition.Y + deckFrame.AbsoluteSize.Y / 2 - origin.Y
+	if point then ex, ey = point.x, point.y end -- Gameplay v2: a discard pile point at the bottom right (root pixels)
 	local started, count = 0, #buttons
 	for order, button in ipairs(buttons) do
 		local p = PM.flight(order, count, calm, fast)

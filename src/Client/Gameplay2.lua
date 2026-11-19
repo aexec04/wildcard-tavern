@@ -263,6 +263,14 @@ function M.install(deps)
 		deps.playButton.BackgroundTransparency = 0; deps.discardButton.BackgroundTransparency = 0
 		deps.playButton.AnchorPoint = Vector2.new(0, 0); deps.discardButton.AnchorPoint = Vector2.new(0, 0); deps.actionFrame.AnchorPoint = Vector2.new(0, 0)
 		buttonLabel(deps.playButton, "Play Hand"); buttonLabel(deps.discardButton, "Discard")
+		pcall(function() -- feel: label press and the ready ring (Client/Gameplay2FeelFX); the buttons themselves never move
+			local FX = require(script.Parent.Gameplay2FeelFX)
+			FX.wirePress(deps.playButton); FX.wirePress(deps.discardButton)
+			local n = deps.selectedCount and deps.selectedCount() or 0
+			local legal = lastState ~= nil and lastState.phase == "playing" and require(Engine:WaitForChild("Gameplay2Feel")).legalPlay(n, 1, 5)
+				and require(Engine:WaitForChild("PlayRules")).allows(lastState, n) ~= false
+			FX.setLegal(deps.playButton, legal)
+		end)
 		place(deps.handFrame, CTLayout.handFor(r.hand, size.X, lastState and lastState.hand and #lastState.hand or 0))
 		place(bar, r.bar)
 		place(roundLabel, r.round)
@@ -337,6 +345,12 @@ function M.install(deps)
 		return Layout.rects(size.X, size.Y)
 	end
 
+	function self.size() return root.AbsoluteSize end
+
+	function self.shake(which)
+		pcall(function() require(script.Parent.Gameplay2FeelFX).shake(which == "discard" and deps.discardButton or deps.playButton) end)
+	end
+
 	-- Studio only: the real controls against their layout rects
 	function self.selfCheck()
 		local size = root.AbsoluteSize
@@ -406,8 +420,18 @@ function M.install(deps)
 		scoreProgress.Text = string.format("%d of %d", math.floor(lastState.roundScore or 0), math.floor(lastState.targetScore or 0))
 		setText(target, string.format("Target %d", math.floor(lastState.targetScore or 0)))
 		setText(tips, string.format("Tips %d", math.floor(lastState.tips or 0)))
-		setText(handsPill, string.format("Hands %d", math.floor(lastState.handsRemaining or 0)))
-		setText(discardsPill, string.format("Discards %d", math.floor(lastState.discardsRemaining or 0)))
+		do -- the Hands and Discards pills tick (pop) when their count changes
+			local function ticked(pill, text)
+				local w = pill:FindFirstChild("Word") or pill:FindFirstChild("Value")
+				local old = w and w.Text or nil
+				setText(pill, text)
+				if old and old ~= text and old ~= "" then
+					pcall(function() require(script.Parent.Gameplay2FeelFX).tick(pill, old, text) end)
+				end
+			end
+			ticked(handsPill, string.format("Hands %d", math.floor(lastState.handsRemaining or 0)))
+			ticked(discardsPill, string.format("Discards %d", math.floor(lastState.discardsRemaining or 0)))
+		end
 		local remaining = 0
 		for _, suit in pairs(lastState.deckCounts or {}) do
 			for _, n in pairs(suit) do remaining = remaining + (tonumber(n) or 0) end
@@ -452,6 +476,21 @@ end
 
 function M.isActive()
 	return current ~= nil and current.isActive()
+end
+
+-- where discarded cards fly (root pixels), nil when the v2 table is not up: the bottom right, under the deck count
+function M.discardPoint()
+	if not (current and current.isActive()) then return nil end
+	local r = current.rects()
+	local size = current.size()
+	local x, y = require(Engine:WaitForChild("Gameplay2Feel")).discardPoint(r, size.X, size.Y)
+	return x, y
+end
+
+-- the Play Hand or Discard press with nothing selected: a short shake, no popup (the hub still shows its hint)
+function M.shakeFor(which)
+	if not (current and current.isActive()) then return end
+	current.shake(which)
 end
 
 function M.update(state)
