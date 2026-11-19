@@ -29752,6 +29752,33 @@ table.insert(tests, { name = "Gameplay v2 touch pass: table and Counter controls
 	assert(row:find("TipTap.tapCard", 1, true) and row:find("TipTap.tapAway", 1, true) and row:find("TipTap.longPress", 1, true), "PatronRow uses TipTap")
 end })
 
+table.insert(tests, { name = "Counter offers at 1920x957 and 1920x1080: a lone offer is 190 x 260 or more, three offers with two packs keep 190 wide, four stay 150 wide, Reroll directly under the row, nothing covers the bell, Next Round or the tabs", fn = function()
+	local S = require(script.Parent.Parent.Engine.ShopSceneLayout)
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 957 }, { 1920, 1080 } }) do
+		local function rects(o, k) return S.rects(sz[1], sz[2], { offers = o, packs = k, room = true }) end
+		local one = rects(1, 0).offers[1]
+		assert(one.w >= 190 and one.h >= 260 and one.w <= S.OFFER_MAX_W, "a lone offer is 190 x 260 or more at " .. sz[2] .. ": " .. one.w .. "x" .. one.h)
+		assert(rects(1, 2).offers[1].w >= 190 and rects(3, 0).offers[1].w >= 190, "one offer with packs, and three offers, keep 190 wide")
+		local three = rects(3, 2)
+		assert(three.offers[1].w >= 190 and three.offers[1].h >= 250, "three offers with two packs keep 190 x 250: " .. three.offers[1].w .. "x" .. three.offers[1].h)
+		assert(rects(4, 2).offers[1].w >= 150 and rects(4, 0).offers[1].w >= 150, "four offers stay 150 wide")
+		for _, counts in ipairs({ { 1, 0 }, { 1, 2 }, { 3, 0 }, { 3, 2 }, { 4, 2 } }) do
+			local r = rects(counts[1], counts[2])
+			local plate = S.rerollPlate(r)
+			assert(plate and plate.h >= 44 and plate.x == r.offers[1].x, "Reroll is 44 px tall, left aligned with the row")
+			for i, o in ipairs(r.offers) do
+				for _, k in ipairs(r.keepOut) do assert(not hit(o, k), "offer " .. i .. " clear of the bell, ledger, arch, wall, Next Round and tabs") end
+				assert(not hit(o, plate), "offer " .. i .. " clear of Reroll")
+				if r.offers[i + 1] then assert(not hit(o, r.offers[i + 1]), "offers do not overlap") end
+			end
+			for _, pk in ipairs(r.packs) do
+				for _, o in ipairs(r.offers) do assert(not hit(pk, o), "packs clear of offers") end
+			end
+		end
+	end
+end })
+
 table.insert(tests, { name = "Patron library: '23 of 81 found' count line, synergy line on the detail card, 44 px tier filter plates, locked tiles keep their hint, no overlap at 1920x1080 and 1280x720", fn = function()
 	local C = require(script.Parent.Parent.Engine.CollectionCards)
 	local B = require(script.Parent.Parent.Engine.CollectionBook)

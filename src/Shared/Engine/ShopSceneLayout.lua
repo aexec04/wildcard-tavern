@@ -48,8 +48,9 @@ ShopSceneLayout.PACK_RATIO = 0.8     -- width / height of a pack's rect
 ShopSceneLayout.PACK_SHARE_MIN = 0.4 -- the smallest share a pack may lie at to keep Patron cards at OFFER_GOAL_W
 ShopSceneLayout.PACK_SHARE = 0.75    -- a pack is this share of a Patron card's width: packs lie smaller
 ShopSceneLayout.DEAL_GAP = 8         -- between the Patron row and the pack row
-ShopSceneLayout.OFFER_GOAL_W = 170   -- a normal offer card is at least this wide (230 tall) when the room can hold it: packs go beside the Patrons before the Patrons shrink
-ShopSceneLayout.READABLE_SCALE = 0.5 -- the table grows taller on a small window until its Patron cards reach this card scale
+ShopSceneLayout.OFFER_GOAL_W = 190  -- a normal offer card is at least this wide (230 tall) when the room can hold it: packs go beside the Patrons before the Patrons shrink
+ShopSceneLayout.OFFER_MAX_W = 250    -- a lone offer never grows past this wide (about 250 x 320 at 1920 x 957)
+ShopSceneLayout.READABLE_SCALE = 0.5-- the table grows taller on a small window until its Patron cards reach this card scale
 
 -- A hand-dealt look: every card lies at its own visible, fixed angle (degrees), the same every visit: -5, +4, -3, +4 by slot. Offers
 -- use slot 1 to n, packs go on from n + 1, so neighbours never lean the same way.
@@ -228,7 +229,7 @@ ShopSceneLayout.ROOM = {
 	shopkeeper = { 0.20, 0.10, 0.45, 0.50 },  -- the clear wall behind the counter where Marlo stands
 	clipY = 0.49,                             -- Marlo's feet are hidden at this line (the counter top)
 	marloH = 0.42, marloX = 0.325,            -- Marlo's height (share of the picture's height) and centre x
-	deal = { 0.395, 0.525, 0.835, 0.82 },     -- the region the dealt cards lie in: x0, top, x1, bottom
+	deal = { 0.395, 0.455, 0.835, 0.82 },     -- the region the dealt cards lie in: x0, top, x1, bottom
 }
 
 -- The picture's cover-crop mapping: scale, offset and size of the 1536 x 1024 picture over a W x H play area (centred, may overflow).
@@ -416,13 +417,15 @@ local function roomRects(W, H, out, nOffers, nPacks)
 	local tagH = 28 + 12 + 4 -- the plate under a prop: ShopStage TAG_H + TAG_GAP + 4
 	local function withTag(r, padX) return { x = r.x - padX, y = r.y, w = r.w + 2 * padX, h = r.h + tagH } end
 	out.keepOut = {
-		withTag(out.props.bell, 30), withTag(out.props.ledger, 0), out.arch, out.shopkeeper,
+		-- (the Reroll plate stands under the offers now, so the bell carries no name plate: only the bell itself is kept clear)
+		{ x = out.props.bell.x - 30, y = out.props.bell.y, w = out.props.bell.w + 60, h = out.props.bell.h },
+		withTag(out.props.ledger, 0), out.arch, out.shopkeeper,
 		out.leave, out.tabs, out.nextBoss,
 	}
 	local region = ShopSceneLayout.picRect(W, H, R.deal[1], R.deal[2], R.deal[3], R.deal[4])
 	local gap, pad = ShopSceneLayout.ROW_GAP + 0.02 * p.w, ShopSceneLayout.ROW_PAD
 	local n = math.max(nOffers, 1)
-	local wMax = math.min((region.w - 2 * pad - gap * (n - 1)) / n, H * 0.42 * ShopSceneLayout.CARD_RATIO)
+	local wMax = math.min((region.w - 2 * pad - gap * (n - 1)) / n, H * 0.42 * ShopSceneLayout.CARD_RATIO, ShopSceneLayout.OFFER_MAX_W)
 	local minClear = math.max(0.02 * p.w, 8)
 	out.offers, out.packs, out.fitted, out.sideBySide, out.cardGap = dealInRoom(region, out.keepOut, nOffers, nPacks, wMax, out.felt, minClear, out.table)
 	out.deal = region
