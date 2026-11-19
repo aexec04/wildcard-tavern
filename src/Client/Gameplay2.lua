@@ -501,7 +501,7 @@ function M.install(deps)
 		end
 		if deps.selectedCount then -- the guided first hand hint (Engine/GuidedHand), display only
 			pcall(function()
-				require(script.Parent.GuidedHint).update(layer, lastState, deps.selectedCount(), deps.firstCard and deps.firstCard(), deps.playButton, Layout.rects(size.X, size.Y))
+				require(script.Parent.GuidedHint).update(layer, lastState, deps.selectedCount(), deps.firstCard and deps.firstCard(), deps.playButton, Layout.rects(size.X, size.Y), deps.cards and deps.cards())
 			end)
 		end
 	end

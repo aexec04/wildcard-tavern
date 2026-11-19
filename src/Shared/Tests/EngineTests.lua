@@ -28156,6 +28156,26 @@ table.insert(tests, { name = "Guided hint: the plate sits between the Patron pil
 	end
 	-- the hint points at the card until one is picked, then at Play Hand, and ends after the first hand
 	assert(G.hint(true, 0, 0, false).target == "card" and G.hint(true, 0, 2, false).target == "play" and G.hint(true, 1, 2, false) == nil)
+	assert(G.hint(true, 0, 1, false).target == "card" and G.hint(true, 0, 0, false).cards == 2, "two cards are asked for before Play Hand")
+	assert(G.hint(true, 0, 2, false).line1 == "Play your hand")
+end })
+table.insert(tests, { name = "Guided hint on the v2 table: plate clear of the Patron seats, hand and buttons, Skip plate 44 px, on screen and clear of Play Hand at five sizes", fn = function()
+	local G = require(script.Parent.Parent.Engine.GuidedHand)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	for _, v in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 600 }, { 800, 400 }, { 844, 390 } }) do
+		local r = L.rects(v[1], v[2])
+		local p = G.plateRect(r, v[2])
+		local sk = G.skipRect(p, v[1])
+		assert(sk.h >= 44 and sk.w >= 44 and sk.x >= 0 and sk.x + sk.w <= v[1], "Skip on screen and a real touch target at " .. v[1])
+		assert(sk.y >= p.y - 1 and sk.y + sk.h <= r.hand.y + 1 or sk.y + sk.h <= r.play.y, "Skip above the hand at " .. v[1])
+		local function overlap(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+		assert(not overlap(sk, r.play) and not overlap(sk, r.discard), "Skip clear of Play Hand and Discard at " .. v[1])
+		assert(not overlap(p, r.play) and not overlap(p, r.hand), "plate clear of the hand and Play Hand at " .. v[1])
+		for i = 1, 5 do
+			local c = r.slots[i].card
+			assert(not overlap(p, c), "plate clear of Patron seat " .. i .. " at " .. v[1])
+		end
+	end
 end })
 table.insert(tests, { name = "Tutorial Skip: 44 px touch target, always on screen, never silent without its dialog; Settings has Replay Tutorial", fn = function()
 	local TS = require(script.Parent.Parent.Engine.TutorialStart)
