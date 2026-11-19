@@ -364,6 +364,10 @@ function M.install(deps)
 		if dw then
 			place(dw, r.deck)
 			dw.AnchorPoint = Vector2.new(0, 0)
+			local hit = Layout.deckHit(r) -- the click catcher also covers the count plate, so either opens the deck viewer
+			local cc = dw:FindFirstChild("ClickCatcher")
+			if cc then cc.Size = UDim2.fromOffset(hit.w, hit.h); cc.Position = UDim2.fromOffset(hit.x - r.deck.x, hit.y - r.deck.y) end
+			dw.ClipsDescendants = false
 			dw.BackgroundTransparency = 1
 			for _, c in ipairs(dw:GetChildren()) do
 				if c.Name ~= "ClickCatcher" then
@@ -419,7 +423,7 @@ function M.install(deps)
 		if sortHost then sortToggle = sortHost:FindFirstChild("SortToggle") end
 		local list = {
 			{ "PlayHand", deps.playButton, r.play }, { "Discard", deps.discardButton, r.discard },
-			{ "Deck", deps.deckWidget and deps.deckWidget:FindFirstChild("ClickCatcher"), r.deck },
+			{ "Deck", deps.deckWidget and deps.deckWidget:FindFirstChild("ClickCatcher"), Layout.deckHit(r) },
 			{ "SortRank", sortToggle and sortToggle:FindFirstChild("SortRank", true), r.sortRank },
 			{ "SortSuit", sortToggle and sortToggle:FindFirstChild("SortSuit", true), r.sortSuit },
 		}

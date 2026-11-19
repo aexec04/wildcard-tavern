@@ -29567,4 +29567,45 @@ table.insert(tests, { name = "Patron speech bubble on the v2 table: below the ro
 	assert(c:find("PatronVoiceLayout", 1, true), "wired")
 end })
 
+table.insert(tests, { name = "Gameplay v2 Night 2 and 3 tables: boss rule plate clear of Patrons, score and hand, a tint per rule family, synergy thread visible when narrow, deck click covers the count plate", fn = function()
+	local M = require(script.Parent.Parent.Engine.Gameplay2Moments)
+	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
+	local S = require(script.Parent.Parent.Engine.Gameplay2Synergy)
+	local BR = require(script.Parent.Parent.Engine.BossRounds)
+	for _, tag in ipairs(BR.RuleTagIds) do assert(M.TINTS[tag], "tint for rule " .. tag) end
+	local t = M.bossTint({ "suitDebuff" })
+	assert(t.fill[1] < t.edge[1] and t.fill[3] < t.edge[3], "fill is the darker version of the edge")
+	assert(M.bossTint(nil).edge[1] > 100 and M.bossTint({ "suitDebuff" }).edge[3] ~= M.bossTint({ "fewerHands" }).edge[3], "default red, families differ")
+	local function hit(a, b) return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h end
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
+		local w, h = sz[1], sz[2]
+		local r = L.rects(w, h)
+		local p = M.rulePlate(r)
+		assert(p and p.h >= 20 and p.w >= 140, "a rule plate fits at " .. w)
+		assert(p.x >= 0 and p.x + p.w <= w and p.y + p.h <= h, "on screen at " .. w)
+		for i = 1, 5 do
+			local s = r.slots[i]
+			assert(not hit(p, s.card) and not hit(p, s.label) and not hit(p, s.pill), "clear of Patron seat " .. i .. " at " .. w)
+		end
+		assert(not hit(p, r.stage), "clear of the preview pill and score block at " .. w)
+		assert(not hit(p, r.hand) and not hit(p, r.sortRank) and not hit(p, r.sortSuit) and not hit(p, r.mute) and not hit(p, r.calm), "clear of hand and controls at " .. w)
+		local d = L.deckHit(r)
+		assert(d.y == r.deck.y and d.y + d.h == r.deckCount.y + r.deckCount.h and d.h >= 44, "deck click covers book and count plate at " .. w)
+		assert(d.x <= r.deck.x and d.x + d.w >= r.deckCount.x + r.deckCount.w and d.x + d.w <= w, "deck click inside the screen at " .. w)
+		-- every thread at this size is visible: thick and bright when there is no room for the tag label
+		for a = 1, 4 do
+			local th = S.thread(r, { a = a, b = a + 1 })
+			assert(th and th.h >= S.THREAD_H and th.alpha >= S.THREAD_ALPHA, "thread drawn at " .. w)
+			if not th.label then assert(th.h == S.THREAD_H_NARROW and th.alpha == S.THREAD_ALPHA_NARROW, "narrow thread is bolder at " .. w) end
+		end
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local fx = read("src/Client/Gameplay2MomentsFX.lua")
+	assert(fx:find("BossRulePlate", 1, true) and fx:find("Rules.rulePlate", 1, true) and fx:find("Rules.bossTint", 1, true), "rule plate wired")
+	assert(read("src/Client/Gameplay2.lua"):find("Layout.deckHit", 1, true), "deck hit wired")
+	local dt = read("src/Client/DeckTracker.lua")
+	assert(not dt:find("fromOffset(150, 34)", 1, true) and not dt:find("fromOffset(140, 34)", 1, true) and not dt:find("or 96, 34)", 1, true), "deck viewer controls are 44 px")
+end })
+
 return tests

@@ -170,10 +170,46 @@ function M.boss(layer, rects, state, w, h)
 	local tint = layer:FindFirstChild("BossTint")
 	local banner = layer:FindFirstChild("BossBanner")
 	local name, rule = Rules.bossText(state)
+	local rulePlate = layer:FindFirstChild("BossRulePlate")
 	if not name then
 		if tint then tint.Visible = false end
 		if banner then banner.Visible = false end
+		if rulePlate then rulePlate.Visible = false end
 		return
+	end
+	local bdef = state.bossModifier and state.bossModifier.id and BossRounds.getById(state.bossModifier.id)
+	local tintSet = Rules.bossTint(bdef and bdef.rules)
+	-- one line rule plate under the Patron row, tinted by the boss rule family (static, no tween)
+	local pr = Rules.rulePlate(rects)
+	if not pr or rule == "" then
+		if rulePlate then rulePlate.Visible = false end
+	else
+		if not rulePlate then
+			rulePlate = Instance.new("TextLabel")
+			rulePlate.Name = "BossRulePlate"
+			rulePlate.BorderSizePixel = 0
+			rulePlate.BackgroundTransparency = 0.1
+			rulePlate.Font = Enum.Font[Style.FONTS.ui]
+			rulePlate.TextColor3 = color("cream")
+			rulePlate.TextTransparency = 0
+			rulePlate.TextStrokeTransparency = 0.5
+			rulePlate.TextStrokeColor3 = color("outline")
+			rulePlate.TextTruncate = Enum.TextTruncate.AtEnd
+			rulePlate.TextXAlignment = Enum.TextXAlignment.Left
+			rulePlate.Active = false
+			rulePlate.ZIndex = 4
+			local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = rulePlate
+			local pd = Instance.new("UIPadding"); pd.PaddingLeft = UDim.new(0, 8); pd.PaddingRight = UDim.new(0, 8); pd.Parent = rulePlate
+			local st = Instance.new("UIStroke"); st.Name = "Edge"; st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; st.Thickness = 2; st.Parent = rulePlate
+			rulePlate.Parent = layer
+		end
+		rulePlate.Visible = true
+		rulePlate.Position = UDim2.fromOffset(pr.x, pr.y)
+		rulePlate.Size = UDim2.fromOffset(pr.w, pr.h)
+		rulePlate.TextSize = math.max(14, math.min(16, pr.h - 6))
+		rulePlate.Text = rule
+		rulePlate.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
+		rulePlate.Edge.Color = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
 	end
 	if not tint then
 		tint = Instance.new("Frame")
@@ -217,11 +253,13 @@ function M.boss(layer, rects, state, w, h)
 		banner.Parent = layer
 	end
 	banner.Visible = true
+	banner.BackgroundColor3 = Color3.fromRGB(tintSet.fill[1], tintSet.fill[2], tintSet.fill[3])
+	banner.BossIcon.BackgroundColor3 = Color3.fromRGB(tintSet.edge[1], tintSet.edge[2], tintSet.edge[3])
 	if not banner:GetAttribute("Sliding") then banner.Position = UDim2.fromOffset(rect.x, rect.y) end
 	banner.Size = UDim2.fromOffset(rect.w, rect.h)
 	local ts = math.max(14, math.min(18, rect.h - 8))
 	local n, r, ic = banner.BossName, banner.BossRule, banner.BossIcon
-	local def = state.bossModifier and state.bossModifier.id and BossRounds.getById(state.bossModifier.id)
+	local def = bdef
 	local side = rect.h - 4
 	ic.Text = Rules.bossIcon(def and def.rules)
 	ic.TextSize = math.max(12, math.min(16, side - 6))

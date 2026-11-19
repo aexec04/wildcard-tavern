@@ -127,6 +127,12 @@ function M.rects(w, h)
 	return r
 end
 
+-- The deck viewer opens from the book AND its count plate: one click rect from the top of the book to the bottom of the plate.
+function M.deckHit(r)
+	local top, bottom = r.deck.y, r.deckCount.y + r.deckCount.h
+	return { x = math.min(r.deck.x, r.deckCount.x), y = top, w = math.max(r.deck.x + r.deck.w, r.deckCount.x + r.deckCount.w) - math.min(r.deck.x, r.deckCount.x), h = bottom - top }
+end
+
 -- The TARGET CLEARED / NEW BEST banner (56 px tall, centred): the top of the stage, just under the 26 px hand preview pill, so it never
 -- covers the Patron label and pill rows. Returns the banner's centre Y in px.
 M.BANNER_H = 56

@@ -124,7 +124,7 @@ return function(deps)
 
 	-- Controls row: filter chips on the left, counter and sort toggle on the right.
 	local controls = Instance.new("Frame")
-	controls.Size = UDim2.new(1, -30, 0, 34)
+	controls.Size = UDim2.new(1, -30, 0, 44)
 	controls.Position = UDim2.fromOffset(15, 44)
 	controls.BackgroundTransparency = 1
 	controls.ZIndex = 22
@@ -141,24 +141,24 @@ return function(deps)
 	local sortDescending = true
 
 	local counterLabel = label(controls, {
-		LayoutOrder = 10, Size = UDim2.fromOffset(150, 34), TextSize = 17, TextColor3 = GOLD,
+		LayoutOrder = 10, Size = UDim2.fromOffset(150, 44), TextSize = 17, TextColor3 = GOLD,
 		Text = "", TextXAlignment = Enum.TextXAlignment.Center,
 	})
 	local sortButton = button(controls, {
-		LayoutOrder = 11, Size = UDim2.fromOffset(140, 34), Text = "High to Low",
+		LayoutOrder = 11, Size = UDim2.fromOffset(140, 44), Text = "High to Low",
 	})
 	polishButton(sortButton, 8)
 	addButtonHoverScale(sortButton)
 
 	local nextDrawLabel = label(panel, {
-		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 82),
+		Size = UDim2.new(1, -30, 0, 22), Position = UDim2.fromOffset(15, 92),
 		TextSize = 15, Font = Enum.Font.Gotham, TextColor3 = SOFT_CREAM, Text = "",
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
 
 	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -30, 1, -184)
-	scroll.Position = UDim2.fromOffset(15, 108)
+	scroll.Size = UDim2.new(1, -30, 1, -196)
+	scroll.Position = UDim2.fromOffset(15, 118)
 	scroll.BackgroundTransparency = 1
 	scroll.BorderSizePixel = 0
 	scroll.ScrollBarThickness = 8
@@ -182,7 +182,7 @@ return function(deps)
 	})
 
 	local closeButton = button(panel, {
-		Size = UDim2.fromOffset(140, 40), Position = UDim2.new(1, -155, 1, -52), TextSize = 16,
+		Size = UDim2.fromOffset(140, 44), Position = UDim2.new(1, -155, 1, -54), TextSize = 16,
 		Text = "Close", BackgroundColor3 = Color3.fromRGB(90, 60, 30),
 	})
 	polishButton(closeButton, 12)
@@ -516,7 +516,7 @@ return function(deps)
 
 	for i, filter in ipairs(FILTERS) do
 		local chip = button(controls, {
-			LayoutOrder = i, Size = UDim2.fromOffset(filter.id == "draw" and 132 or 96, 34), Text = filter.name,
+			LayoutOrder = i, Size = UDim2.fromOffset(filter.id == "draw" and 132 or 96, 44), Text = filter.name,
 		})
 		polishButton(chip, 8)
 		chipButtons[filter.id] = chip

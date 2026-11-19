@@ -56,6 +56,7 @@ function M.update(layer, rects, ownedIds)
 			f.Visible = true
 			f.Position = UDim2.fromOffset(t.x, t.y)
 			f.Size = UDim2.fromOffset(t.w, t.h)
+			f.BackgroundTransparency = 1 - (t.alpha or Rules.THREAD_ALPHA)
 			local l = f.Tag
 			if t.label then
 				l.Visible = true

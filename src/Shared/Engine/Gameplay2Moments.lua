@@ -97,6 +97,35 @@ function M.bossBanner(r, w, h)
 	return { x = r.bar.x, y = top, w = bw, h = bh }
 end
 
+-- One line rule plate for a Boss round: left of the centre in the band under the Patron row, level with the top of the stage. It never
+-- covers a Patron card, label or pill (they end at the row bottom), the centred preview pill or score block (it stops 8 px short of the
+-- stage), the Mute and Calm buttons or the sort control. Returns nil when there is no room (under 140 px wide or 20 px tall).
+M.RULE_H = 24
+function M.rulePlate(r)
+	local last = r.slots[#r.slots].pill
+	local rowBottom = last.y + last.h
+	local pad = 8
+	local x = pad
+	local w = r.stage.x - 8 - x
+	local y = rowBottom + 4
+	local maxH = r.hand.y - y - 4
+	if w < 140 or maxH < 20 then return nil end
+	return { x = x, y = y, w = w, h = math.min(M.RULE_H, maxH) }
+end
+
+-- Each Boss rule family has its own plate colour (RGB). Fill is dark, edge is the bright version.
+M.TINTS = {
+	fewerHands = { 150, 38, 30 }, fewerDiscards = { 150, 38, 30 }, lowHandSize = { 150, 38, 30 }, cardToss = { 150, 38, 30 }, cardCount = { 150, 38, 30 },
+	suitDebuff = { 96, 52, 150 }, faceDebuff = { 96, 52, 150 }, oddRank = { 96, 52, 150 }, noRepeat = { 96, 52, 150 }, handBan = { 96, 52, 150 },
+	targetBoost = { 176, 104, 28 }, weakenChips = { 176, 104, 28 }, weakenMult = { 176, 104, 28 },
+	tipsDrain = { 28, 120, 92 }, patronLimit = { 28, 100, 150 }, slowStart = { 28, 100, 150 },
+}
+
+function M.bossTint(rules)
+	local c = M.TINTS[rules and rules[1] or ""] or { 150, 38, 30 }
+	return { fill = { math.floor(c[1] * 0.45), math.floor(c[2] * 0.45), math.floor(c[3] * 0.45) }, edge = { c[1], c[2], c[3] } }
+end
+
 function M.bossText(state)
 	if not state or not state.bossModifier or (state.round or 0) < 3 then return nil, nil end
 	return state.bossModifier.name or "Boss", state.bossModifier.description or ""

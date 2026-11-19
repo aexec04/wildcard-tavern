@@ -17,6 +17,8 @@ local M = {}
 
 M.THREAD_ALPHA = 0.55
 M.THREAD_H = 3
+M.THREAD_H_NARROW = 6
+M.THREAD_ALPHA_NARROW = 0.9
 M.LABEL_MIN_GAP = 26
 M.LABEL = 22
 
@@ -46,7 +48,9 @@ function M.thread(rects, link)
 	local gap = right.x - x0
 	if gap < 6 then return nil end
 	local y = left.y + math.floor(left.h / 2)
-	local out = { x = x0, y = y - math.floor(M.THREAD_H / 2), w = gap, h = M.THREAD_H }
+	-- a narrow gap (1280x720, phones) has no tag label, so the thread itself is thicker and brighter to stay visible
+	local th = gap >= M.LABEL_MIN_GAP and M.THREAD_H or M.THREAD_H_NARROW
+	local out = { x = x0, y = y - math.floor(th / 2), w = gap, h = th, alpha = gap >= M.LABEL_MIN_GAP and M.THREAD_ALPHA or M.THREAD_ALPHA_NARROW }
 	if gap >= M.LABEL_MIN_GAP then
 		out.label = { x = x0 + math.floor((gap - M.LABEL) / 2), y = y - math.floor(M.LABEL / 2), w = M.LABEL, h = M.LABEL }
 	end
