@@ -96,18 +96,24 @@ function PatronVoice.say(patronId, slotFrame, handKey)
 	bubble.AnchorPoint = Vector2.new(0, 0.5)
 	bubble.Size = UDim2.fromOffset(190, 40)
 	bubble.Position = UDim2.fromOffset(left, pos.Y + size.Y / 2)
+	local bubbleV2 = false
 	pcall(function() -- v2 table: below the Patron row, centred on its own Patron, never over a neighbour's face
 		local okA, active = pcall(function() return require(script.Parent.Gameplay2).isActive() end)
 		local okE, rowBottom = pcall(function() return require(script.Parent.PatronRow).bottomEdge() end)
 		if okA and active and okE and rowBottom then
-			local R = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PatronVoiceLayout")).rect(pos.X, size.X, rowBottom - gui.AbsolutePosition.Y, gui.AbsoluteSize.X)
+			local Eng = game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine")
+			local G2 = require(Eng:WaitForChild("Gameplay2Layout"))
+			-- under the tag rows AND the trigger pill row (never over a rarity or effect pill), so the bubble starts below both
+			local below = pos.Y + G2.triggerPillY(gui.AbsoluteSize.X, gui.AbsoluteSize.Y) + G2.TRIGGER_PILL_H
+			bubbleV2 = true
+			local R = require(Eng:WaitForChild("PatronVoiceLayout")).rect(pos.X, size.X, below, gui.AbsoluteSize.X)
 			bubble.AnchorPoint = Vector2.new(0, 0)
 			bubble.Size = UDim2.fromOffset(R.w, R.h)
 			bubble.Position = UDim2.fromOffset(R.x, R.y)
 		end
 	end)
 	bubble.Visible = true
-	task.delay(SHOW_SECONDS, function()
+	task.delay(bubbleV2 and 0.9 or SHOW_SECONDS, function() -- v2: gone before the next trigger's pill row beats
 		if mine == bubbleToken and bubble then bubble.Visible = false end
 	end)
 	return true

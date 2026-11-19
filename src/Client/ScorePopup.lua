@@ -625,11 +625,12 @@ return function(deps)
 		local laneReadoutH = POPUP_H
 		local okB, band = pcall(function() return require(script.Parent.Gameplay2).playedBand() end)
 		if okB and band then -- v2 table: the cards stand under the centre score block and no legacy readout hangs above them
-			laneTop, laneHandTop, laneReadoutH = band.top - 10, math.min(laneHandTop, band.bottom + 10), 0
+			laneTop, laneHandTop, laneReadoutH = band.top, math.min(laneHandTop, band.bottom), 0
 		end
 		local lane = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("PlayedLane")).rect({
 			nookBottom = laneTop, handTop = laneHandTop,
 			cardW = baseW, cardH = baseH, popupH = laneReadoutH,
+			gap = okB and band and 0 or nil, minScale = okB and band and 0.3 or nil, -- v2: the band is already exact
 		})
 		local rowY = lane.rowY
 		totalWidth = (lane.cardW + gap) * #playedGhosts - gap
@@ -1352,7 +1353,9 @@ return function(deps)
 						end
 					end
 
-					if sourcePos then
+					-- v2 table: the Patron's own pill under its tag rows is the one callout, so no text flies off the portrait
+					local okFly, v2Fly = pcall(function() return isPatronEntry and require(script.Parent.Gameplay2).isActive() end)
+					if sourcePos and not (okFly and v2Fly) then
 						if entry.kind == "tips" then
 							floatTipsText(sourcePos, entry)
 						elseif entry.kind == "chips" then
@@ -1630,6 +1633,7 @@ return function(deps)
 			task.delay(math.max(pace(FINALE_LINGER), worstCaseDropoffTime + 0.05), function()
 				if scorePopupToken == myToken then
 					scorePopup.Visible = false
+					pcall(function() require(script.Parent.Gameplay2).setPlaying(false) end)
 					destroyGhosts(liveGhosts)
 					liveGhosts = {}
 				end
@@ -1659,6 +1663,7 @@ return function(deps)
 		pcall(function() require(script.Parent.ScoreLand).land() end)
 		pcall(function() require(script.Parent.RevealHold).cancelled() end)
 		scorePopup.Visible = false
+		pcall(function() require(script.Parent.Gameplay2).setPlaying(false) end)
 		scorePopupEventLabel.Text = ""
 		-- PHASE A (Spectacle pass): defensive reset, same reasoning as the
 		-- rest of this function -- a phase change mid-sequence shouldn't be

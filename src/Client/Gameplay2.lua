@@ -319,7 +319,7 @@ function M.install(deps)
 		scoreBox.Size = UDim2.fromOffset(r.stage.w, r.stage.h)
 		scoreBox.ZIndex = 2
 		local capH, progH = math.max(20, PreviewRules.H), 22 -- the caption row is as tall as the preview pill, so the pill never touches the numeral
-		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH)
+		local N = require(Engine:WaitForChild("Gameplay2Layout")).scoreStack(r.stage.h, capH, progH, self.playing == true)
 		scoreNum.Size = UDim2.new(1, 0, 0, N.numH); scoreNum.Position = UDim2.fromOffset(0, N.numTop)
 		scoreNum.TextSize = N.textSize; scoreNum.ZIndex = 2
 		scoreLine.Size = UDim2.new(0.4, 0, 0, 2); scoreLine.AnchorPoint = Vector2.new(0.5, 0)
@@ -328,8 +328,8 @@ function M.install(deps)
 		scoreCaption.Position = UDim2.fromOffset(0, 0); scoreCaption.ZIndex = 2
 		scoreProgress.Size = UDim2.new(1, 0, 0, progH); scoreProgress.TextSize = 18
 		scoreProgress.Position = UDim2.fromOffset(0, N.lineY + 4); scoreProgress.ZIndex = 2
-		scoreCaption.Visible = N.roomy and not self.previewText; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy
-		if self.previewText then
+		scoreCaption.Visible = N.roomy and not N.compact and not self.previewText; scoreLine.Visible = N.roomy; scoreProgress.Visible = N.roomy and not N.noProgress
+		if self.previewText and not self.playing then -- while a hand scores the centre name flair is the only hand label
 			place(previewPill, PreviewRules.rect(r.stage, self.previewText))
 			raise(previewPill, Z_UI + 1)
 			setText(previewPill, self.previewText)
@@ -573,8 +573,19 @@ function M.setPreview(preview, handLevels)
 end
 
 -- where the played cards land (root-relative { top, bottom }), nil when the v2 table is not up: below the centre score block
+-- ScorePopup: true while a hand is being scored (the score block is compact so the played cards stand clear under it)
+function M.setPlaying(on)
+	if not current then return end
+	local v = on == true
+	if current.playing == v then return end
+	current.playing = v
+	if current.isActive() then pcall(current.refresh) end
+end
+
 function M.playedBand()
 	if not (current and current.isActive()) then return nil end
+	current.playing = true
+	pcall(current.refresh)
 	local r = current.rects()
 	return require(Engine:WaitForChild("Gameplay2Layout")).playedBand(r, math.max(20, PreviewRules.H), 22)
 end

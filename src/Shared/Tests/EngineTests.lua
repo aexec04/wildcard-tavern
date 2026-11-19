@@ -29539,18 +29539,31 @@ end })
 table.insert(tests, { name = "Gameplay v2 played lane: cards land under the centre score block and above the hand at every size, one scoring display", fn = function()
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
 	local Lane = require(script.Parent.Parent.Engine.PlayedLane)
-	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 1024, 768 } }) do
+	for _, sz in ipairs({ { 1920, 1080 }, { 1920, 957 }, { 1280, 720 }, { 1024, 768 }, { 1024, 600 } }) do -- (800x450 has a 33 px stage: the numeral alone, no room for a row)
 		local r = L.rects(sz[1], sz[2])
 		local b = L.playedBand(r, 26, 22)
 		assert(b.top >= r.stage.y and b.top < b.bottom and b.bottom <= r.hand.y, "band sits inside the stage and above the hand at " .. sz[1])
-		local lane = Lane.rect({ nookBottom = b.top - 10, handTop = b.bottom + 10, cardW = 110, cardH = 154, popupH = 0 })
+		local lane = Lane.rect({ nookBottom = b.top, handTop = b.bottom, cardW = 110, cardH = 154, popupH = 0, gap = 0, minScale = 0.3 })
 		assert(lane.rowY >= b.top - 0.5, "played cards start inside the band at " .. sz[1])
 		assert(lane.rowY + lane.cardH <= b.bottom + 0.5, "played cards end above the hand at " .. sz[1])
+		-- the played row never covers the compact score block (numeral, gold line and the "of Target" text)
+		local N = L.scoreStack(r.stage.h, 26, 22, true)
+		assert(lane.rowY >= r.stage.y + N.bottom, "played cards start under the score block at " .. sz[1] .. "x" .. sz[2])
+		assert(lane.cardH >= 44, "played cards stay readable (44 px or more) at " .. sz[1] .. "x" .. sz[2])
+		-- a Patron trigger pill stands under the tag rows, below the top bar, and clear of the Patron cards
+		local pillTop = r.slots[1].card.y + L.triggerPillY(sz[1], sz[2])
+		assert(pillTop >= r.slots[1].pill.y + r.slots[1].pill.h, "trigger pill under the effect pill at " .. sz[1])
+		assert(pillTop > r.bar.y + r.bar.h, "trigger pill never reaches the top bar at " .. sz[1])
 	end
 	if not io then return end
 	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
 	local sp = read("src/Client/ScorePopup.lua")
 	assert(sp:find("playedBand", 1, true) and sp:find("readoutPill.Visible = not", 1, true), "ScorePopup uses the v2 band and hides the legacy pills")
+	assert(sp:find("setPlaying(false)", 1, true), "the compact score block is released when the popup hides")
+	assert(sp:find("not (okFly and v2Fly)", 1, true), "no number flies off a Patron portrait on the v2 table")
+	assert(read("src/Client/PatronJuiceFX.lua"):find("triggerPillY", 1, true), "the trigger pill stands under the tag rows")
+	assert(read("src/Client/PatronVoice.lua"):find("triggerPillY", 1, true), "the speech bubble starts below the trigger pill row")
+	assert(read("src/Client/Gameplay2.lua"):find("not self.playing", 1, true), "the old hand level plate is hidden while a hand scores")
 end })
 
 table.insert(tests, { name = "Patron speech bubble on the v2 table: below the row, centred on its own Patron, at most 260 px wide, inside the screen", fn = function()

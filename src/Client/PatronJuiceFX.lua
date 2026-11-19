@@ -52,10 +52,18 @@ end
 
 local function pill(slot, text, rim, calm, spec)
 	local p = frame(slot, "JuicePill", 60)
-	p.AnchorPoint = Vector2.new(0.5, 1)
+	-- under the Patron's tag rows (Gameplay2Layout.triggerPillY), never above the row where the top bar is
+	local pillY = -4
+	pcall(function()
+		local host = slot.Parent and slot.Parent.AbsoluteSize
+		if host and host.X > 0 and host.Y > 0 then
+			pillY = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Engine"):WaitForChild("Gameplay2Layout")).triggerPillY(host.X, host.Y)
+		end
+	end)
+	p.AnchorPoint = Vector2.new(0.5, 0)
 	p.AutomaticSize = Enum.AutomaticSize.X
 	p.Size = UDim2.fromOffset(0, 28)
-	p.Position = UDim2.new(0.5, 0, 0, -4)
+	p.Position = UDim2.new(0.5, 0, 0, pillY)
 	p.BackgroundTransparency = 0.08
 	p.BackgroundColor3 = DARK
 	corner(p, 14)

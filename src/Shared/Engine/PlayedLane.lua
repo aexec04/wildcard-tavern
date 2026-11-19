@@ -18,16 +18,17 @@ PlayedLane.MIN_SCALE = 0.5
 PlayedLane.GAP = 10
 
 function PlayedLane.rect(o)
-	local gap = PlayedLane.GAP
+	local gap = o.gap or PlayedLane.GAP
+	local minScale = o.minScale or PlayedLane.MIN_SCALE
 	local top = math.max(20, (o.nookBottom or 0) + gap)
 	local bottom = o.handTop - gap
 	local avail = bottom - top
 	local reserve = o.popupH + 8
 	-- keep the readout above the lane only while the cards can still stay at a readable size; otherwise it moves to the felt beside the cards
 	local side = false
-	if avail - reserve < o.cardH * PlayedLane.MIN_SCALE then reserve = 0; side = true end
+	if avail - reserve < o.cardH * minScale then reserve = 0; side = true end
 	local scale = math.min(PlayedLane.MAX_SCALE, (avail - reserve) / o.cardH)
-	scale = math.max(PlayedLane.MIN_SCALE, scale)
+	scale = math.max(minScale, scale)
 	local cardH = o.cardH * scale
 	local rowY = bottom - cardH
 	local fits = rowY >= top + reserve - 0.5

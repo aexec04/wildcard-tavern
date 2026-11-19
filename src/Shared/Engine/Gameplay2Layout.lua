@@ -58,6 +58,14 @@ function M.patronRow(w, h, n)
 	return out
 end
 
+-- Where a Patron's trigger pill (+4 Mult) stands, relative to the card top: 2 px under its rarity and effect rows, never above the
+-- row and never over the top bar.
+M.TRIGGER_PILL_H = 28
+function M.triggerPillY(w, h)
+	local row = M.patronRow(w, h, 1)
+	return row.pills[1].y + row.pills[1].h + 2 - row.cards[1].y
+end
+
 function M.rects(w, h)
 	local r = {}
 	local pad = math.max(8, round(0.012 * w))
@@ -146,7 +154,20 @@ end
 -- it and the "<score> of <target>" progress text (18 px) under the line. A short stage keeps the number alone.
 M.SCORE_FONT = 72
 M.SCORE_FONT_MIN = 44
-function M.scoreStack(stageH, capH, progH)
+-- compact: while a hand is being scored the caption goes and the numeral shrinks (at most 52, at least 28) so the played cards get
+-- a row of about 50 px or more under the whole block and never cover the numeral or the "of Target" line.
+M.COMPACT_FONT = 52
+M.COMPACT_FONT_MIN = 28
+M.COMPACT_CARD_H = 44
+function M.scoreStack(stageH, capH, progH, compact)
+	if compact then
+		-- a tall stage keeps the caption's row empty for the Patron trigger pills (they sit right under the tag rows); a short one cannot
+		local top = stageH >= 150 and capH or 0
+		local noProgress = stageH < 100 -- a very short stage keeps the numeral alone while a hand scores
+		if noProgress then progH = 0 end
+		local numH = math.max(M.COMPACT_FONT_MIN, math.min(M.COMPACT_FONT, stageH - top - progH - 10 - M.COMPACT_CARD_H))
+		return { roomy = true, compact = true, noProgress = noProgress, numTop = top, numH = numH, textSize = numH, lineY = top + numH - 2, progressY = top + numH + 2, bottom = top + numH + 2 + (noProgress and 0 or 4 + progH) }
+	end
 	-- the whole stack (caption, numeral, line, progress) stays whenever the numeral can be at least 44 px; the font shrinks to fit
 	local fixed = capH + 2 + 4 + progH + 4
 	local fontFit = math.min(M.SCORE_FONT, stageH - fixed)
@@ -159,15 +180,13 @@ end
 
 -- Where a played hand lands on the v2 table: under the centre score block (caption, numeral, line, progress) and above the hand, so
 -- there is ONE scoring display and the cards never cover it. Root pixels: { top, bottom }.
-M.PLAYED_GAP = 8
+M.PLAYED_GAP = 4
 M.PLAYED_MIN_H = 80
 function M.playedBand(r, capH, progH)
-	local N = M.scoreStack(r.stage.h, capH or 26, progH or 22)
-	-- the numeral and its gold line stay clear; the small "<score> of <target>" line under them may sit behind the cards (the stage is
-	-- only about 185 px tall at 1080p, too short for score block and a readable card row)
+	-- the cards stand wholly under the compact score block (numeral and "of Target" line) and above the hand
+	local N = M.scoreStack(r.stage.h, capH or 26, progH or 22, true)
 	local bottom = r.hand.y - M.PLAYED_GAP
-	-- a short stage (1280x720) has no room for both: the cards keep a readable 80 px row and cover the lower part of the numeral
-	return { top = math.max(r.stage.y, math.min(r.stage.y + N.progressY - 2, bottom - M.PLAYED_MIN_H)), bottom = bottom }
+	return { top = r.stage.y + N.bottom + 2, bottom = bottom }
 end
 
 local function intersects(a, b)
