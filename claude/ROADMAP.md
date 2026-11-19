@@ -17,6 +17,7 @@ Long-term retention, engagement and monetization of players who find the game or
 - [x] Tutorial under 2 minutes ending in a first win and a reward
 - [x] First-run reward and "next goal" banner on the menu
 - [x] Concept T art kit: blank HUD plates, empty table room, card back (uploaded, not wired into screens yet)
+- [x] Concept T Patron portraits batch 1: 14 Common and Uncommon cards (uploaded, not wired; 55 Common and Uncommon Patrons still on old art)
 
 ## Phase 2: Daily return and long-term goals
 - [x] Difficulty ladder: win to unlock the next tier, each tier adds one rule; stamps on the map

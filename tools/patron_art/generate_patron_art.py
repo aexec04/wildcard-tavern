@@ -95,6 +95,7 @@ CATEGORIES = {
     "rewards_emblems": ("rewards_emblem_subjects", "rewards_emblems", "RewardsEmblemArt.lua", "Rewards Emblem"),
     "hud_kit": ("hud_kit_subjects", "hud_kit", "HudKitArt.lua", "HUD Kit"),
     "concept_t": ("concept_t_subjects", "concept_t", "ConceptTArt.lua", "Concept T"),
+    "concept_t_patrons": ("ctp_subjects", "concept_t_patrons", "ConceptTPatronArt.lua", "Concept T Patron card"),
     # fx = procedural textures (tools/patron_art/make_fog_puff.py); upload/record/lua only, never `generate`.
     "fx": ("fx_subjects", "fx", "FxArt.lua", "FX"),
 }
@@ -229,6 +230,9 @@ CATEGORY_OPTS = {
                       ("ct_hud_coins", "hud_coins.png"), ("ct_hud_hands", "hud_hands.png"), ("ct_hud_round", "hud_round.png"),
                       ("ct_deck_count", "deck_count.png"), ("ct_pill_plain", "pill_green.png"), ("ct_card_back", "deck.png"),
                       ("ct_table_room", "full_reference.png")))},
+    # Concept T Patron cards: full opaque cards (plain gray backdrop), each an EDIT of the cut card of its rarity.
+    # The id -> rarity map is prompts.json "ctp_rarity"; "references" is filled below.
+    "concept_t_patrons": {"quality": "medium", "style_key": "ctp_style", "transparent": False, "size": "1024x1536", "references": {}},
     "hud_kit": {"quality": "medium", "style_key": "hud_kit_style", "transparent": True, "sizes": {}, "references": {}},
     # Logo: wordmark candidates (the model has no 4:1 size, so 1536x1024 with the line centred; crop to the alpha box after cutout) and a square emblem.
     # medium quality because lettering must be spelled right; logo_style (not house_style) because house_style forbids text.
@@ -293,6 +297,15 @@ for _sid, _card in (("meadow_picnic", "kitchen_checks"), ("winter_evening", "win
     CATEGORY_OPTS["hud_kit"]["sizes"][_sid + "__panel_frame"] = "1024x1536"
     for _p in _KIT_PIECES:  # style anchor: the set's own card back (palette and motifs only)
         CATEGORY_OPTS["hud_kit"]["references"][_sid + "__" + _p] = "art-wip/card_backs/" + _card + ".png"
+
+# Concept T Patron cards: the reference is the cut card of the Patron's rarity (Epic: alchemy adept, Legendary: royal cat).
+_CTP_CARD = {"common": "patron_court_jester.png", "uncommon": "patron_generous_king.png", "rare": "patron_arcane_sage.png",
+             "epic": "patron_alchemy_adept.png", "legendary": "patron_royal_cat.png"}
+try:
+    for _pid, _rar in json.loads((HERE / "prompts.json").read_text(encoding="utf-8")).get("ctp_rarity", {}).items():
+        CATEGORY_OPTS["concept_t_patrons"]["references"]["ctp_" + _pid] = "claude/reference/concept_t/" + _CTP_CARD[_rar]
+except OSError:
+    pass
 
 # Rebound by set_category(); every function reads these at call time.
 CATEGORY = "patrons"

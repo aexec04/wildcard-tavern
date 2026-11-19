@@ -1588,5 +1588,38 @@
     "ct_pill_plain": "the same green pill plate, but remove the text completely so the pill is empty and plain; keep the shape, colour and rim, on a flat solid pure magenta #FF00FF background with no gradient and no shadow on it, clean sharp edges, the object centred with generous margin",
     "ct_card_back": "a flat playing card back seen straight on, no perspective, no tilt, a portrait rectangle with rounded corners, deep purple with a thin gold border and the same gold crown as the reference in the centre, painted blocky Roblox style, on a flat solid pure magenta #FF00FF background with no gradient and no shadow on it, clean sharp edges, the object centred with generous margin",
     "ct_table_room": "redraw this whole picture with ALL playing cards, Patron cards, labels, pills, buttons, HUD plates, counters, deck pile and any text removed, so only the tavern room, the crowd (slightly softer and blurrier), the cat on the barrel, the banners, the fireplace glow and the empty table remain; same layout, same palette, same lighting. Replace every mug, tankard, cup and bottle with plain bowls, plates of bread or candles (no drinks, no bottles, no jugs anywhere). In the lower middle of the picture the table is a large wide green felt card table seen from the front with a dark wooden rim, completely empty and calm, not a red rug"
+  },
+  "ctp_style": "Edit the reference image, which is a finished trading card. Keep EXACTLY the same card: same frame, same gem, same wooden name plate, same proportions, same hand-painted blocky Roblox tavern style, palette and lighting, on a plain light gray background. Change ONLY the character inside the frame and the name on the wooden plate. The new character is a blocky Roblox avatar with chunky proportions and hand-painted textures, bright, friendly and colourful, a different face, hair, skin tone, age and outfit from the reference. Not dark, no skulls, no hooded figures, no weapons. The only text on the whole card is the name on the wooden plate, spelled exactly as given, no other letters or numbers anywhere. Kid-friendly original art",
+  "ctp_rarity": {
+    "the_regular": "common",
+    "lucky_dice": "common",
+    "straight_shooter": "common",
+    "tip_jar": "common",
+    "queens_gambit": "common",
+    "the_apprentice": "common",
+    "bargain_hunter": "common",
+    "warm_hearth": "common",
+    "curtain_call": "uncommon",
+    "the_bard": "uncommon",
+    "penny_pincher": "uncommon",
+    "big_spender": "uncommon",
+    "boss_bane": "uncommon",
+    "tasting_menu": "uncommon"
+  },
+  "ctp_subjects": {
+    "ctp_the_regular": "the same common card, same frame and gem, with the character replaced by a cheerful middle aged man with a round face and a brown beard in a green waistcoat, sitting happily on his usual stool and holding up a fresh round loaf of bread. The wooden name plate at the bottom reads exactly \"The Regular\" and nothing else is written anywhere",
+    "ctp_lucky_dice": "the same common card, same frame and gem, with the character replaced by a grinning young woman with curly orange hair and freckles in a red jacket, holding up two big white dice. The wooden name plate at the bottom reads exactly \"Lucky Dice\" and nothing else is written anywhere",
+    "ctp_straight_shooter": "the same common card, same frame and gem, with the character replaced by a tall confident teenager with short black hair and dark skin in a blue vest and a feathered cap, pointing straight ahead with one finger. The wooden name plate at the bottom reads exactly \"Straight Shooter\" and nothing else is written anywhere",
+    "ctp_tip_jar": "the same common card, same frame and gem, with the character replaced by a smiling older woman with white hair in a bun and glasses in a lilac apron, holding a big glass jar full of gold coins. The wooden name plate at the bottom reads exactly \"Tip Jar\" and nothing else is written anywhere",
+    "ctp_queens_gambit": "the same common card, same frame and gem, with the character replaced by a proud young woman with long dark braids and tan skin in a purple dress with a small gold tiara, holding a playing card. The wooden name plate at the bottom reads exactly \"Queen's Gambit\" and nothing else is written anywhere",
+    "ctp_the_apprentice": "the same common card, same frame and gem, with the character replaced by a small eager boy with messy blond hair in an oversized brown apron and goggles pushed up on his head, carrying a stack of books. The wooden name plate at the bottom reads exactly \"The Apprentice\" and nothing else is written anywhere",
+    "ctp_bargain_hunter": "the same common card, same frame and gem, with the character replaced by a sharp eyed woman with short red hair and pale skin in a teal coat and a big shopping basket, holding up a coin and smiling. The wooden name plate at the bottom reads exactly \"Bargain Hunter\" and nothing else is written anywhere",
+    "ctp_warm_hearth": "the same common card, same frame and gem, with the character replaced by a gentle large man with a bald head and a grey moustache in a knitted orange sweater, standing by a small glowing fireplace with a warm smile. The wooden name plate at the bottom reads exactly \"Warm Hearth\" and nothing else is written anywhere",
+    "ctp_curtain_call": "the same uncommon card, same frame and gem, with the character replaced by a dramatic performer with slicked back dark hair and olive skin in a gold and red stage coat, taking a deep bow with one arm out. The wooden name plate at the bottom reads exactly \"Curtain Call\" and nothing else is written anywhere",
+    "ctp_the_bard": "the same uncommon card, same frame and gem, with the character replaced by a cheerful young man with long chestnut hair and a green feathered hat in a patchwork cloak, playing a small round lute. The wooden name plate at the bottom reads exactly \"The Bard\" and nothing else is written anywhere",
+    "ctp_penny_pincher": "the same uncommon card, same frame and gem, with the character replaced by a thin careful man with a pointed grey beard and round spectacles in a brown coat, counting a few small coins in his palm. The wooden name plate at the bottom reads exactly \"Penny Pincher\" and nothing else is written anywhere",
+    "ctp_big_spender": "the same uncommon card, same frame and gem, with the character replaced by a jolly broad shouldered woman with a bright yellow hat and dark brown skin in a fancy teal coat, tossing a handful of gold coins in the air. The wooden name plate at the bottom reads exactly \"Big Spender\" and nothing else is written anywhere",
+    "ctp_boss_bane": "the same uncommon card, same frame and gem, with the character replaced by a brave young hero with spiky silver hair and light brown skin in a bright blue tunic and a short cape, striking a bold pose with a fist raised. The wooden name plate at the bottom reads exactly \"Boss's Bane\" and nothing else is written anywhere",
+    "ctp_tasting_menu": "the same uncommon card, same frame and gem, with the character replaced by a friendly chef with a tall white hat and a curly black moustache in a clean white apron, holding a small silver tray with tiny tarts. The wooden name plate at the bottom reads exactly \"Tasting Menu\" and nothing else is written anywhere"
   }
 }
