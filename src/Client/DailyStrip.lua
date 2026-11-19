@@ -43,9 +43,24 @@ local function label(parent, name, size, x, y, w, h, text, align)
 	t.TextTruncate = Enum.TextTruncate.AtEnd
 	t.Text = text
 	t.Active = false
-	t.ZIndex = 3
+	t.ZIndex = 43 -- above the plate (ZIndex 40): under ZIndexBehavior.Global a lower child draws UNDER its parent, which hid every word
 	t.Parent = parent
 	return t
+end
+
+-- bottom edge of the lowest room card while the Night map is up (nil elsewhere), in GameUI pixels
+local function cardsBottom(g, phase)
+	if phase ~= "roundSelect" then return nil end
+	local rs = g:FindFirstChild("RoundSelect", true)
+	if not rs or not rs:IsA("GuiObject") or not rs.Visible then return nil end
+	local bottom
+	for _, d in ipairs(rs:GetDescendants()) do
+		if d:IsA("GuiObject") and d.Name:match("^RoundPanel%d") then
+			local b = d.AbsolutePosition.Y + d.AbsoluteSize.Y - g.AbsolutePosition.Y
+			if not bottom or b > bottom then bottom = b end
+		end
+	end
+	return bottom
 end
 
 local function build(root)
@@ -61,21 +76,21 @@ local function build(root)
 	track.BorderSizePixel = 0
 	track.BackgroundColor3 = color("plateDark")
 	track.Active = false
-	track.ZIndex = 3
+	track.ZIndex = 43
 	track.Parent = f
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.BorderSizePixel = 0
 	fill.BackgroundColor3 = color("gold")
 	fill.Active = false
-	fill.ZIndex = 4
+	fill.ZIndex = 44
 	fill.Parent = track
 	for _, p in ipairs({ track, fill }) do
 		local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(1, 0); c.Parent = p
 	end
 	local chest = Instance.new("TextButton")
 	chest.Name = "Chest"
-	chest.ZIndex = 5
+	chest.ZIndex = 45
 	chest.Parent = f
 	return f
 end
@@ -90,7 +105,8 @@ function M.update(state)
 
 	local v = Rules.view(state.login, state.dailyQuests)
 	local size = g.AbsoluteSize
-	local r = Rules.rect(size.X, size.Y)
+	local r = Rules.rectBelow(size.X, size.Y, cardsBottom(g, state.phase))
+	if not r then strip.Visible = false; return end -- no clear band under the cards: leave it out rather than cover them
 	strip.Chest:SetAttribute("ClaimDay", v.claimDay) -- always current, so a refused claim can be tried again
 	strip.Chest:SetAttribute("State", v.chest)
 	local key = table.concat({ v.streakText, v.goalText, v.chest, r.x, r.y, r.w, r.h }, "|")

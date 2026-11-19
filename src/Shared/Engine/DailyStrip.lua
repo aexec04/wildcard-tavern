@@ -77,6 +77,18 @@ function M.rect(w, h)
 	return { x = math.floor((w - sw) / 2), y = math.max(0, h - sh - M.MARGIN), w = sw, h = sh }
 end
 
+-- The strip never covers the room cards of the Night map: given the bottom edge of the lowest card (screen px), it stays at the bottom
+-- when that is clear, otherwise sits right under the cards if the whole strip still fits, otherwise there is no room (nil).
+function M.rectBelow(w, h, cardsBottom)
+	local r = M.rect(w, h)
+	if not cardsBottom then return r end
+	local gap = 4
+	if r.y >= cardsBottom + gap then return r end
+	local y = math.floor(cardsBottom) + gap
+	if y + r.h <= h - 2 then r.y = y; return r end
+	return nil
+end
+
 function M.chestRect(strip)
 	local cw = math.max(M.MIN_TOUCH, math.min(150, math.floor(strip.w * 0.28)))
 	local ch = math.max(M.MIN_TOUCH, strip.h - 4)

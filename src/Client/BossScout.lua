@@ -67,7 +67,7 @@ local function buildBanner(parent)
 	banner.Name = "BossScoutBanner"
 	banner.AnchorPoint = Vector2.new(1, 0)
 	banner.Position = UDim2.new(1, -182, 0, 12)
-	banner.Size = UDim2.fromOffset(220, 46)
+	banner.Size = UDim2.fromOffset(268, 46)
 	banner.BackgroundTransparency = 1
 	banner.BorderSizePixel = 0
 	banner.Visible = false
@@ -133,6 +133,15 @@ local function buildBanner(parent)
 	fill.ZIndex = 62
 	fill.Parent = ban
 	corner(fill, 8)
+
+	-- the word is drawn ONCE, by a label above the seal and the hold fill (the button's own copy is hidden), on one line inside the plate
+	local word = require(script.Parent.ButtonLabelTop).own(ban, "Hold to ban the rule", 14, 66, CREAM)
+	word.Name = "KitLabel"
+	word.TextScaled = true
+	word.TextWrapped = false
+	word.Font = Enum.Font.GothamBold
+	word.Size = UDim2.fromScale(1, 1)
+	local cap = Instance.new("UITextSizeConstraint"); cap.MaxTextSize, cap.MinTextSize = 14, 12; cap.Parent = word
 
 	-- hold to confirm (the same rule as Restart Run, Engine/HoldConfirm): a quick tap never spends the token
 	ban.MouseButton1Down:Connect(function()
@@ -250,7 +259,9 @@ function BossScout.update(root, state)
 			local canBan = (state.ruleBans or 0) > 0 and not scout.banned and (state.round or 1) >= lastRound
 			banner.Visible = canBan
 			banner.BanButton.Visible = canBan
-			banner.BanButton.Text = canBan and ("Hold to ban the rule (" .. tostring(state.ruleBans) .. " left)") or "Hold to ban the rule"
+			local say = canBan and ("Hold to ban the rule (" .. tostring(state.ruleBans) .. " left)") or "Hold to ban the rule"
+			local kit = banner.BanButton:FindFirstChild("KitLabel")
+			if kit then kit.Text = say else banner.BanButton.Text = say end
 		else
 			banner.Visible = false
 		end

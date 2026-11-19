@@ -29713,6 +29713,26 @@ table.insert(tests, { name = "Boss round table: one boss plate after the intro, 
 	expectTrue(hints:find('FindFirstChild("BossIntro")', 1, true) and hints:find('FindFirstChild("BossRulePlate")', 1, true), "hints wait for the boss intro and dodge the rule plate")
 end })
 
+table.insert(tests, { name = "Night map: the daily strip never covers the room cards and draws its words above its plate, the ban button draws its word once on one line", fn = function()
+	local D = require(script.Parent.Parent.Engine.DailyStrip)
+	for _, sz in ipairs({ { 1920, 1080 }, { 1280, 720 }, { 844, 390 } }) do
+		local w, h = sz[1], sz[2]
+		local free = D.rectBelow(w, h, h * 0.5)
+		expectTrue(free ~= nil and free.y >= h * 0.5 + 4 and free.y + free.h <= h, "strip stays clear under cards that end mid screen at " .. w)
+		local low = D.rectBelow(w, h, h - 20)
+		expectTrue(low == nil, "no room under cards that reach the bottom, so the strip is left out at " .. w)
+		local tight = D.rectBelow(w, h, h - D.HEIGHT - D.MARGIN - 2)
+		expectTrue(tight == nil or tight.y >= h - D.HEIGHT - D.MARGIN - 2 + 4, "never overlaps the cards at " .. w)
+		expectTrue(D.rectBelow(w, h, nil).y == D.rect(w, h).y, "no cards: the normal place")
+	end
+	if not io then return end
+	local function read(path) local f = assert(io.open(path, "r")); local c = f:read("a"); f:close(); return c end
+	local strip = read("src/Client/DailyStrip.lua")
+	expectTrue(strip:find("t.ZIndex = 43", 1, true) and strip:find("rectBelow", 1, true), "strip words sit above the plate (Z 40) and the strip dodges the cards")
+	local scout = read("src/Client/BossScout.lua")
+	expectTrue(scout:find("ButtonLabelTop", 1, true) and scout:find("MaxTextSize, cap.MinTextSize = 14, 12", 1, true), "the ban word is one scaled label, the button's own copy is blank")
+end })
+
 table.insert(tests, { name = "Gear menu: one 44 px gear top right, a 280 px menu that stays on screen and clear of other plates, toggles flip real settings, one menu at a time, Calm skips the slide", fn = function()
 	local G = require(script.Parent.Parent.Engine.GearMenu)
 	local L = require(script.Parent.Parent.Engine.Gameplay2Layout)
